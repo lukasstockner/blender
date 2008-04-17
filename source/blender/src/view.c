@@ -865,32 +865,33 @@ void viewmove(int mode)
 		VecMulf(obofs, -1.0f);
 	}
 	else if (U.uiflag & USER_ORBIT_ZBUF) {
-		if (use_sel = view_autodist(obofs)) {
-			float my_origin[3]; /* original G.vd->ofs */
-			float my_pivot[3]; /* view */
-			
-			VECCOPY(my_origin, G.vd->ofs);
-			VecMulf(my_origin, -1.0f);				/* ofs is flipped */
-			
-			/* Set the dist value to be the distance from this 3d point */
-			/* this means youll always be able to zoom into it and panning wont go bad when dist was zero */
-			
-			/* remove dist value */			
-			upvec[0] = upvec[1] = 0;
-			upvec[2] = G.vd->dist;
-			Mat3CpyMat4(mat, G.vd->viewinv);
-			Mat3MulVecfl(mat, upvec);
-			VecSubf(my_pivot, G.vd->ofs, upvec);
-			VecMulf(my_pivot, -1.0f);				/* ofs is flipped */
-			
-			/* find a new ofs value that is allong the view axis (rather then the mouse location) */
-			lambda_cp_line_ex(obofs, my_pivot, my_origin, dvec);
-			dist0 = G.vd->dist = VecLenf(my_pivot, dvec);
-			
-			VecMulf(dvec, -1.0f);
+		if ((use_sel=view_autodist(obofs))) {
+			if (G.vd->persp==V3D_PERSP) {
+				float my_origin[3]; /* original G.vd->ofs */
+				float my_pivot[3]; /* view */
+				
+				VECCOPY(my_origin, G.vd->ofs);
+				VecMulf(my_origin, -1.0f);				/* ofs is flipped */
+				
+				/* Set the dist value to be the distance from this 3d point */
+				/* this means youll always be able to zoom into it and panning wont go bad when dist was zero */
+				
+				/* remove dist value */			
+				upvec[0] = upvec[1] = 0;
+				upvec[2] = G.vd->dist;
+				Mat3CpyMat4(mat, G.vd->viewinv);
+				Mat3MulVecfl(mat, upvec);
+				VecSubf(my_pivot, G.vd->ofs, upvec);
+				VecMulf(my_pivot, -1.0f);				/* ofs is flipped */
+				
+				/* find a new ofs value that is allong the view axis (rather then the mouse location) */
+				lambda_cp_line_ex(obofs, my_pivot, my_origin, dvec);
+				dist0 = G.vd->dist = VecLenf(my_pivot, dvec);
+				
+				VecMulf(dvec, -1.0f);
+				VECCOPY(G.vd->ofs, dvec);
+			}
 			VecMulf(obofs, -1.0f);
-			
-			VECCOPY(G.vd->ofs, dvec);
 			VECCOPY(ofs, G.vd->ofs);
 		} else {
 			ofs[0] = ofs[1] = ofs[2] = 0.0f;
