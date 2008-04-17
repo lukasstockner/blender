@@ -674,7 +674,7 @@ static int MTex_setMapping( BPy_MTex *self, PyObject *value, void *closure)
 
 static PyObject *MTex_getFlag( BPy_MTex *self, void *closure )
 {
-	return PyBool_FromLong( self->mtex->texflag & ((int) closure) );
+	return PyBool_FromLong( self->mtex->texflag & (GET_INT_FROM_POINTER(closure)) );
 }
 
 static int MTex_setFlag( BPy_MTex *self, PyObject *value, void *closure)
@@ -684,9 +684,9 @@ static int MTex_setFlag( BPy_MTex *self, PyObject *value, void *closure)
 				"expected a bool");
 
 	if ( value == Py_True )
-		self->mtex->texflag |= (int)closure;
+		self->mtex->texflag |= GET_INT_FROM_POINTER(closure);
 	else
-		self->mtex->texflag &= ~((int) closure);
+		self->mtex->texflag &= ~(GET_INT_FROM_POINTER(closure));
 
 	return 0;
 }
@@ -771,7 +771,7 @@ static int MTex_setProjZ( BPy_MTex *self, PyObject *value, void *closure)
 
 static PyObject *MTex_getMapToFlag( BPy_MTex *self, void *closure )
 {
-	int flag = (int) closure;
+	int flag = GET_INT_FROM_POINTER(closure);
 
 	if ( self->mtex->mapto & flag )
 	{
@@ -783,7 +783,7 @@ static PyObject *MTex_getMapToFlag( BPy_MTex *self, void *closure )
 
 static int MTex_setMapToFlag( BPy_MTex *self, PyObject *value, void *closure)
 {
-	int flag = (int) closure;
+	int flag = GET_INT_FROM_POINTER(closure);
 	int intVal;
 
 	if ( !PyInt_Check( value ) )
