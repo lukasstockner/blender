@@ -1078,9 +1078,20 @@ void viewmove(int mode)
 					zfac*G.vd->dist < 10.0*G.vd->far)
 					view_zoom_mouseloc(zfac, mval_area);
 				
-				/* these limits are in toets.c too */
-				if(G.vd->dist<0.001*G.vd->grid) G.vd->dist= 0.001*G.vd->grid;
-				if(G.vd->dist>10.0*G.vd->far) G.vd->dist=10.0*G.vd->far;
+				
+				if ((U.uiflag & USER_ORBIT_ZBUF) && (U.viewzoom==USER_ZOOM_CONT) && (G.vd->persp==V3D_PERSP)) {
+					/* Secret apricot feature, translate the view when in continues mode */
+					upvec[0] = upvec[1] = 0;
+					upvec[2] = G.vd->dist - dist0;
+					G.vd->dist = dist0;
+					Mat3CpyMat4(mat, G.vd->viewinv);
+					Mat3MulVecfl(mat, upvec);
+					VecAddf(G.vd->ofs, G.vd->ofs, upvec);
+				} else {
+					/* these limits are in toets.c too */
+					if(G.vd->dist<0.001*G.vd->grid) G.vd->dist= 0.001*G.vd->grid;
+					if(G.vd->dist>10.0*G.vd->far) G.vd->dist=10.0*G.vd->far;
+				}
 			}
 			if(G.vd->persp==V3D_ORTHO || G.vd->persp==V3D_CAMOB) preview3d_event= 0;
 			
