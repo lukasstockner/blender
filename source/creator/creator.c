@@ -227,7 +227,7 @@ static void print_help(void)
 	printf ("  -v\t\tPrint Blender version and exit\n");
 	printf ("  --\t\tEnds option processing.  Following arguments are \n");
 	printf ("    \t\t   passed unchanged.  Access via Python's sys.argv\n");
-	printf ("\nEnironment Variables:\n");
+	printf ("\nEnvironment Variables:\n");
 	printf ("  $HOME\t\t\tStore files such as .blender/ .B.blend .Bfs .Blog here.\n");
 #ifdef WIN32
 	printf ("  $TEMP\t\tStore temporary files here.\n");
@@ -256,11 +256,21 @@ static void print_help(void)
 double PIL_check_seconds_timer(void);
 extern void winlay_get_screensize(int *width_r, int *height_r);
 
+static void main_init_screen( void )
+{
+	setscreen(G.curscreen);
+	
+	if(G.main->scene.first==0) {
+		set_scene( add_scene("1") );
+	}
+
+	screenmain();
+}
+
 int main(int argc, char **argv)
 {
-	int a, i, stax=0, stay=0, sizx, sizy;
+	int a, i, stax=0, stay=0, sizx, sizy, scr_init = 0;
 	SYS_SystemHandle syshandle;
-	Scene *sce;
 
 #if defined(WIN32) || defined (__linux__)
 	int audio = 1;
@@ -649,7 +659,14 @@ int main(int argc, char **argv)
 				break;
 			case 'P':
 				a++;
-				if (a < argc) BPY_run_python_script (argv[a]);
+				if (a < argc) {
+					/* If we're not running in background mode, then give python a valid screen */
+					if ((G.background==0) && (scr_init==0)) {
+						main_init_screen();
+						scr_init = 1;
+					}
+					BPY_run_python_script (argv[a]);
+				}
 				else printf("\nError: you must specify a Python script after '-P '.\n");
 				break;
 			case 'o':
@@ -794,15 +811,10 @@ int main(int argc, char **argv)
 		/* actually incorrect, but works for now (ton) */
 		exit_usiblender();
 	}
-
-	setscreen(G.curscreen);
-
-	if(G.main->scene.first==0) {
-		sce= add_scene("1");
-		set_scene(sce);
+	
+	if (scr_init==0) {
+		main_init_screen();
 	}
-
-	screenmain();
 
 	return 0;
 } /* end of int main(argc,argv)	*/
