@@ -2336,9 +2336,11 @@ static void world_panel_preview(World *wrld)
 	uiDefBut(block, LABEL, 0, " ",	20,20,10,10, 0, 0, 0, 0, 0, "");
 
 	uiBlockBeginAlign(block);
-	uiDefButBitS(block, TOG, WO_SKYREAL, B_WORLDPRV,"Real",	200,175,80,25, &wrld->skytype, 0, 0, 0, 0, "Renders background with a real horizon");
-	uiDefButBitS(block, TOG, WO_SKYBLEND, B_WORLDPRV,"Blend",200,150,80,25, &wrld->skytype, 0, 0, 0, 0, "Renders background with natural progression from horizon to zenith");
-	uiDefButBitS(block, TOG,WO_SKYPAPER, B_WORLDPRV,"Paper",200,125,80,25, &wrld->skytype, 0, 0, 0, 0, "Flattens blend or texture coordinates");
+	uiDefButBitS(block, TOG, WO_SKYBLEND, B_WORLDPRV,"Blend", 220,175,100,25, &wrld->skytype, 0, 0, 0, 0, "Renders background with natural progression from horizon to zenith");
+	uiDefButBitS(block, TOG,WO_SKYPAPER, B_WORLDPRV,"Paper", 220,150,100,25, &wrld->skytype, 0, 0, 0, 0, "Flattens blend or texture coordinates");
+	if (wrld->skytype & WO_SKYBLEND) {
+		uiDefButBitS(block, TOG, WO_SKYREAL, B_WORLDPRV,"Real", 220,125,100,25, &wrld->skytype, 0, 0, 0, 0, "Renders background with a real horizon");
+	}
 	uiBlockEndAlign(block);
 
 }
@@ -3082,6 +3084,11 @@ void do_matbuts(unsigned short event)
 		break;
 	case B_MTEXMOVEUP:
 		if(ma && (int)ma->texact > 0) {
+			int mtexuse = ma->septex & (1<<((int)ma->texact));
+			ma->septex &= ~(1<<((int)ma->texact));
+			ma->septex |= (ma->septex & (1<<((int)ma->texact-1))) << 1;
+			ma->septex &= ~(1<<((int)ma->texact-1));
+			ma->septex |= mtexuse >> 1;
 			mtexswap = ma->mtex[(int)ma->texact];
 			ma->mtex[(int)ma->texact] = ma->mtex[((int)ma->texact)-1];
 			ma->mtex[((int)ma->texact)-1] = mtexswap;
@@ -3091,6 +3098,11 @@ void do_matbuts(unsigned short event)
 		break;
 	case B_MTEXMOVEDOWN:
 		if(ma && (int)ma->texact < MAX_MTEX-1) {
+			int mtexuse = ma->septex & (1<<((int)ma->texact));
+			ma->septex &= ~(1<<((int)ma->texact));
+			ma->septex |= (ma->septex & (1<<((int)ma->texact+1))) >> 1;
+			ma->septex &= ~(1<<((int)ma->texact+1));
+			ma->septex |= mtexuse << 1;
 			mtexswap = ma->mtex[(int)ma->texact];
 			ma->mtex[(int)ma->texact] = ma->mtex[((int)ma->texact)+1];
 			ma->mtex[((int)ma->texact)+1] = mtexswap;
