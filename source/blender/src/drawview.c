@@ -2886,7 +2886,7 @@ static void draw_sculpt_depths(View3D *v3d)
 	}
 }
 
-void draw_depth(ScrArea *sa, void *spacedata)
+void draw_depth(ScrArea *sa, void *spacedata, int (* func)(void *))
 {
 	View3D *v3d= spacedata;
 	Base *base;
@@ -2926,9 +2926,11 @@ void draw_depth(ScrArea *sa, void *spacedata)
 	if(G.scene->set) {
 		for(SETLOOPER(G.scene->set, base)) {
 			if(v3d->lay & base->lay) {
-				draw_object(base, 0);
-				if(base->object->transflag & OB_DUPLI) {
-					draw_dupli_objects_color(v3d, base, TH_WIRE);
+				if (func == NULL || func(base)) {
+					draw_object(base, 0);
+					if(base->object->transflag & OB_DUPLI) {
+						draw_dupli_objects_color(v3d, base, TH_WIRE);
+					}
 				}
 			}
 		}
@@ -2936,12 +2938,13 @@ void draw_depth(ScrArea *sa, void *spacedata)
 	
 	for(base= G.scene->base.first; base; base= base->next) {
 		if(v3d->lay & base->lay) {
-			
-			/* dupli drawing */
-			if(base->object->transflag & OB_DUPLI) {
-				draw_dupli_objects(v3d, base);
+			if (func == NULL || func(base)) {
+				/* dupli drawing */
+				if(base->object->transflag & OB_DUPLI) {
+					draw_dupli_objects(v3d, base);
+				}
+				draw_object(base, 0);
 			}
-			draw_object(base, 0);
 		}
 	}
 	

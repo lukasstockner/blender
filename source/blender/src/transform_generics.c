@@ -597,6 +597,8 @@ void drawLine(float *center, float *dir, char axis, short options)
 void initTrans (TransInfo *t)
 {
 	
+	t->txdepth = NULL;
+	
 	/* moving: is shown in drawobject() (transform color) */
 	if(G.obedit || (t->flag & T_POSE) ) G.moving= G_TRANSFORM_EDIT;
 	else if(G.f & G_PARTICLEEDIT) G.moving= G_TRANSFORM_PARTICLE;

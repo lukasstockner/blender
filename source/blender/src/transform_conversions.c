@@ -3427,6 +3427,9 @@ void special_aftertrans_update(TransInfo *t)
 	short redrawipo=0, resetslowpar=1;
 	int cancelled= (t->state == TRANS_CANCEL);
 	
+	if (t->txdepth) MEM_freeN(t->txdepth);
+	t->txdepth = NULL;
+		
 	if (t->spacetype==SPACE_VIEW3D) {
 		if (G.obedit) {
 			if (cancelled==0) {
@@ -3436,66 +3439,10 @@ void special_aftertrans_update(TransInfo *t)
 					retopo_do_all();
 				}
 			}
-#if 0
 		} else {
-			/* APRICOT HACK */
-			float pmat[4][4], vmat[4][4];
-			short s[2];
-			View3D *v3d = G.vd;
-			
-			/* --- Make external func --- */
-			
-			/* ZBuffer depth vars */
-			bglMats mats;
-			float depth, depth_close= MAXFLOAT;
-			int had_depth = 0;
-			double cent[2],  p[3];
-			int xs, ys;
-			
-			persp(PERSP_VIEW);
-			
-			/* Get Z Depths, needed for perspective, nice for ortho */
-			bgl_get_mats(&mats);
-			draw_depth(curarea, (void *)G.vd);
-			
-			/* force updating */
-			if (v3d->depths) {
-				had_depth = 1;
-				v3d->depths->damaged = 1;
+			if (cancelled==0) {
+				retopo_do_all();
 			}
-			
-			view3d_update_depths(v3d);
-			
-			/* we have depths now*/			
-			for (base=G.scene->base.first; base; base=base->next) {
-				/* object mode */
-				if (TESTBASELIB(base)) {
-					ob = base->object;
-					project_short(ob->loc, s);
-					
-					if (s[0] != IS_CLIPPED) {
-						cent[0] = (double)s[0];
-						cent[1] = (double)s[1];
-						depth_close= v3d->depths->depths[s[1]*v3d->depths->w+s[0]];
-						if (!gluUnProject(cent[0], cent[1], depth_close, mats.modelview, mats.projection, mats.viewport, &p[0], &p[1], &p[2])) {
-							/* do nothing */
-						} else {
-							ob->loc[0] = (float)p[0];
-							ob->loc[1] = (float)p[1];
-							ob->loc[2] = (float)p[2];
-						}
-					}
-				}
-			}
-			
-			if (had_depth==0) {
-				MEM_freeN(v3d->depths->depths);
-				v3d->depths->depths = NULL;
-			}
-			v3d->depths->damaged = 1;
-			
-			/* --- */
-#endif
 		}
 	}
 	if (t->spacetype == SPACE_ACTION) {

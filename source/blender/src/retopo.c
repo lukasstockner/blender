@@ -71,6 +71,8 @@
 #include "editmesh.h"
 #include "mydevice.h"
 
+#include "blendef.h"
+
 #ifdef WIN32
 #define _USE_MATH_DEFINES
 #endif
@@ -736,6 +738,10 @@ char retopo_curve_check()
 	return G.obedit && (G.obedit->type==OB_CURVE ||
 		            G.obedit->type==OB_SURF) && (((Curve*)G.obedit->data)->flag & CU_RETOPO);
 }
+char retopo_object_check()
+{
+	return ((G.obedit==0) && ((FACESEL_PAINT_TEST)==0) && (G.f & G_PARTICLEEDIT)==0 && (G.f & G_SCULPTMODE)==0 && (G.scene->toolsettings->retopo_mode & RETOPO));
+}
 
 void retopo_toggle(void *j1,void *j2)
 {
@@ -790,6 +796,11 @@ void retopo_do_vert(View3D *v3d, float *v)
 		   (GLint *)v3d->retopo_view_data->mats.viewport,&proj[0],&proj[1],&proj[2]);
 	
 	retopo_do_2d(v3d,proj,v,0);
+}
+
+static int testbase_unselected( void *base )
+{
+	return (((Base *)base)->flag & SELECT) ? 0 : 1;
 }
 
 void retopo_do_all()
@@ -849,6 +860,65 @@ void retopo_do_all()
 			
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 			allqueue(REDRAWVIEW3D, 0);			
+		}
+	} else if(retopo_object_check()) {
+		//if(rvd) {
+		if (1) {
+		
+			/* APRICOT HACK */
+			Base *base;
+			Object *ob;
+			short s[2];
+			View3D *v3d = G.vd;
+			
+			/* --- Make external func --- */
+			
+			/* ZBuffer depth vars */
+			bglMats mats;
+			float depth_close= ((float)3.40282347e+38);
+			int had_depth = 0;
+			double cent[2],  p[3];
+			
+			
+			persp(PERSP_VIEW);
+			
+			/* Get Z Depths, needed for perspective, nice for ortho */
+			bgl_get_mats(&mats);
+			draw_depth(curarea, (void *)G.vd, testbase_unselected);
+			
+			/* force updating */
+			if (v3d->depths) {
+				had_depth = 1;
+				v3d->depths->damaged = 1;
+			}
+			
+			view3d_update_depths(v3d);
+			
+			/* we have depths now*/			
+			for (base=G.scene->base.first; base; base=base->next) {
+				/* object mode */
+				if (TESTBASELIB(base)) {
+					ob = base->object;
+					project_short(ob->loc, s);
+					
+					if (s[0] != IS_CLIPPED) {
+						cent[0] = (double)s[0];
+						cent[1] = (double)s[1];
+						depth_close= v3d->depths->depths[s[1]*v3d->depths->w+s[0]];
+						if(depth_close < v3d->depths->depth_range[1] && depth_close > v3d->depths->depth_range[0]) {
+							if (!gluUnProject(cent[0], cent[1], depth_close, mats.modelview, mats.projection, mats.viewport, &p[0], &p[1], &p[2])) {
+								/* do nothing */
+							} else {
+								ob->loc[0] = (float)p[0];
+								ob->loc[1] = (float)p[1];
+								ob->loc[2] = (float)p[2];
+								DAG_object_flush_update(G.scene, ob, OB_RECALC);
+							}
+						}
+					}
+				}
+			}
+			// ---
 		}
 	}
 }
