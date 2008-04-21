@@ -31,7 +31,7 @@
 #define TRANSFORM_H
 
 #include "BIF_transform.h"
-#include "BIF_glutil.h"
+#include "BIF_glutil.h" /* APRICOT HACK */
 
 /* ************************** Types ***************************** */
 

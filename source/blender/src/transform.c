@@ -2943,14 +2943,13 @@ static void applyTranslation(TransInfo *t, float vec[3]) {
 	}
 }
 
+/* APRICOT HACK */
 static int testbase_unselected( void *base )
 {
 	return (((Base *)base)->flag & SELECT) ? 0 : 1;
 }
 
-
-
-
+/* APRICOT HACK */
 static void applyTranslationRetopo(TransInfo *t) {
 	TransData *td = t->data;
 	//float tvec[3];
@@ -2958,7 +2957,7 @@ static void applyTranslationRetopo(TransInfo *t) {
 
 	
 	// -----------------
-	/* APRICOT HACK */
+	
 	Base *base;
 	Object *ob;
 	short s[2];
@@ -3013,14 +3012,11 @@ static void applyTranslationRetopo(TransInfo *t) {
 				}
 			}
 		}
-		
-		//VecAddf(td->loc, td->iloc, tvec);
 	}
 	
 	v3d->depths->depths = NULL;
-	//txdepth = NULL;
-	
 }
+extern char retopo_object_check(); 
 
 /* uses t->vec to store actual translation in */
 int Translation(TransInfo *t, short mval[2]) 

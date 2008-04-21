@@ -71,7 +71,7 @@
 #include "editmesh.h"
 #include "mydevice.h"
 
-#include "blendef.h"
+#include "blendef.h" /* APRICOT HACK */
 
 #ifdef WIN32
 #define _USE_MATH_DEFINES
@@ -738,7 +738,7 @@ char retopo_curve_check()
 	return G.obedit && (G.obedit->type==OB_CURVE ||
 		            G.obedit->type==OB_SURF) && (((Curve*)G.obedit->data)->flag & CU_RETOPO);
 }
-char retopo_object_check()
+char retopo_object_check() /* APRICOT HACK */
 {
 	return ((G.obedit==0) && ((FACESEL_PAINT_TEST)==0) && (G.f & G_PARTICLEEDIT)==0 && (G.f & G_SCULPTMODE)==0 && (G.scene->toolsettings->retopo_mode & RETOPO));
 }
@@ -798,10 +798,12 @@ void retopo_do_vert(View3D *v3d, float *v)
 	retopo_do_2d(v3d,proj,v,0);
 }
 
+#if 0
 static int testbase_unselected( void *base )
 {
 	return (((Base *)base)->flag & SELECT) ? 0 : 1;
 }
+#endif
 
 void retopo_do_all()
 {
@@ -861,7 +863,9 @@ void retopo_do_all()
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 			allqueue(REDRAWVIEW3D, 0);			
 		}
-	} else if(retopo_object_check()) {
+	}
+#if 0
+	else if(retopo_object_check()) {
 		//if(rvd) {
 		if (1) {
 		
@@ -921,6 +925,7 @@ void retopo_do_all()
 			// ---
 		}
 	}
+#endif
 }
 
 void retopo_do_all_cb(void *j1, void *j2)
