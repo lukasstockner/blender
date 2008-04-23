@@ -1235,6 +1235,7 @@ char *BLI_gethome(void) {
 				}
 			}
 		}
+		*/
 
 		/* 
 		   Saving in the Windows dir is less than desirable. 

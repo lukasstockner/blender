@@ -2130,10 +2130,7 @@ void pointcache_bake(PTCacheID *pid, int startframe)
 			BKE_ptcache_id_time(pid, 0.0f, &cstart, &cend, NULL);
 
 			cache->flag &= ~PTCACHE_BAKING;
-			if(startframe == cstart)
-				cache->flag &= ~PTCACHE_BAKED;
-
-			BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, startframe-1);
+			BKE_ptcache_id_reset(pid, PTCACHE_RESET_OUTDATED);
 		}
 		else {
 			for(base=G.scene->base.first; base; base= base->next) {
@@ -2146,10 +2143,8 @@ void pointcache_bake(PTCacheID *pid, int startframe)
 						BKE_ptcache_id_time(pid, 0.0f, &cstart, &cend, NULL);
 
 						cache->flag &= ~PTCACHE_BAKING;
-						if(startframe == cstart)
-							cache->flag &= ~PTCACHE_BAKED;
 
-						BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, startframe-1);
+						BKE_ptcache_id_reset(pid, PTCACHE_RESET_OUTDATED);
 					}
 
 					BLI_freelistN(&pidlist);
@@ -2533,15 +2528,18 @@ static uiBlock *add_groupmenu(void *arg_unused)
 
 	uiDefBut(block, BUTM, B_NOP, "ADD NEW",		0, 20, 160, 19, NULL, 0.0, 0.0, 1, -1, "");
 	for(group= G.main->group.first; group; group= group->id.next, index++) {
-		if(group->id.lib) strcpy(str, "L  ");
-		else strcpy(str, "   ");
-		strcat(str, group->id.name+2);
-		uiDefBut(block, BUTM, B_NOP, str,	xco*160, -20*yco, 160, 19, NULL, 0.0, 0.0, 1, index, "");
 		
-		yco++;
-		if(yco>24) {
-			yco= 0;
-			xco++;
+		/*if(group->id.lib) strcpy(str, "L  ");*/ /* we cant allow adding objects inside linked groups, it wont be saved anyway */
+		if(group->id.lib==0) {
+			strcpy(str, "   ");
+			strcat(str, group->id.name+2);
+			uiDefBut(block, BUTM, B_NOP, str,	xco*160, -20*yco, 160, 19, NULL, 0.0, 0.0, 1, index, "");
+			
+			yco++;
+			if(yco>24) {
+				yco= 0;
+				xco++;
+			}
 		}
 	}
 	
@@ -2632,13 +2630,16 @@ static void object_panel_object(Object *ob)
 			uiClearButLock();
 			
 			xco = 290;
-			but = uiDefIconBut(block, BUT, B_NOP, VICON_X, xco, 120-yco, 20, 20, NULL, 0.0, 0.0, 0.0, 0.0, "Remove Group membership");
-			uiButSetFunc(but, group_ob_rem, group, ob);
+			if(group->id.lib==0) { /* cant remove objects from linked groups */
+				but = uiDefIconBut(block, BUT, B_NOP, VICON_X, xco, 120-yco, 20, 20, NULL, 0.0, 0.0, 0.0, 0.0, "Remove Group membership");
+				uiButSetFunc(but, group_ob_rem, group, ob);
+			}
 			
 			yco+= 20;
 			xco= 10;
 			
 			/* layers */
+			uiSetButLock(GET_INT_FROM_POINTER(group->id.lib), ERROR_LIBDATA_MESSAGE);
 			uiBlockBeginAlign(block);
 			for(a=0; a<5; a++)
 				uiDefButBitI(block, TOG, 1<<a, REDRAWVIEW3D, "",	(short)(xco+a*(dx/2)), 120-yco, (short)(dx/2), (short)(dy/2), (int *)&(group->layer), 0, 0, 0, 0, "");
@@ -2653,7 +2654,8 @@ static void object_panel_object(Object *ob)
 				uiDefButBitI(block, TOG, 1<<(a+10), REDRAWVIEW3D, "",	(short)(xco+a*(dx/2)), 105-yco, (short)(dx/2), (short)(dy/2), (int *)&(group->layer), 0, 0, 0, 0, "");
 			
 			uiBlockEndAlign(block);
-			
+			uiClearButLock();
+
 			yco+= 40;
 		}
 	}
