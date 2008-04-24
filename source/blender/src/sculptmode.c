@@ -1514,7 +1514,7 @@ void sculptmode_draw_mesh(int only_damaged)
 	mymultmatrix(OBACT->obmat);
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_LIGHTING);
-	init_gl_materials(OBACT, 0);
+	init_gl_materials(OBACT, 0, 0);
 	glEnable(GL_CULL_FACE);
 
 	glShadeModel(GL_SMOOTH);

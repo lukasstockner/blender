@@ -42,7 +42,15 @@ static void node_shader_exec_value(void *data, bNode *node, bNodeStack **in, bNo
 	out[0]->vec[0]= sock->ns.vec[0];
 }
 
+static GPUNode *gpu_shader_value(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	bNodeSocket *sock= node->outputs.first;
+	GPUNode *gnode = GPU_mat_node_create(mat, "setvalue", in, out);
 
+	GPU_mat_node_uniform(gnode, GPU_FLOAT, sock->ns.vec);
+
+	return gnode;
+}
 
 bNodeType sh_node_value= {
 	/* *next,*prev */	NULL, NULL,
@@ -58,7 +66,8 @@ bNodeType sh_node_value= {
 	/* initfunc    */	NULL,
 	/* freestoragefunc    */	NULL,
 	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_value
 	
 };
 

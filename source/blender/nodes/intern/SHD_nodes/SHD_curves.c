@@ -56,6 +56,38 @@ static void node_shader_init_curve_vec(bNode* node)
    node->storage= curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
 }
 
+static void gpu_curvemapping_texture(GPUNode *gnode, CurveMapping *cumap)
+{
+	float *pixels;
+	int a, size = CM_TABLE+1;
+
+	pixels = MEM_mallocN(sizeof(float)*size*4, "GPUCurveMap");
+	curvemapping_initialize(cumap);
+
+	for(a=0; a<size; a++) {
+		pixels[a*4+0]= cumap->cm[0].table[a].y;
+		pixels[a*4+1]= cumap->cm[1].table[a].y;
+		pixels[a*4+2]= cumap->cm[2].table[a].y;
+		if(cumap->cm[3].table)
+			pixels[a*4+3]= cumap->cm[3].table[a].y;
+		else
+			pixels[a*4+3]= 1.0f;
+	}
+
+	GPU_mat_node_texture(gnode, GPU_TEX1D, size, pixels);
+
+	MEM_freeN(pixels);
+}
+
+static GPUNode *gpu_shader_curve_vec(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	GPUNode *gnode= GPU_mat_node_create(mat, "curves_vec", in, out);
+
+	gpu_curvemapping_texture(gnode, node->storage);
+
+	return gnode;
+}
+
 bNodeType sh_node_curve_vec= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_CURVE_VEC,
@@ -70,7 +102,8 @@ bNodeType sh_node_curve_vec= {
 	/* initfunc    */	node_shader_init_curve_vec,
 	/* freestoragefunc    */	node_free_curves,
 	/* copystoragefunc    */	node_copy_curves,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_curve_vec
 	
 };
 
@@ -100,6 +133,15 @@ static void node_shader_init_curve_rgb(bNode *node)
    node->storage= curvemapping_add(4, 0.0f, 0.0f, 1.0f, 1.0f);
 }
 
+static GPUNode *gpu_shader_curve_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	GPUNode *gnode= GPU_mat_node_create(mat, "curves_rgb", in, out);
+
+	gpu_curvemapping_texture(gnode, node->storage);
+
+	return gnode;
+}
+
 bNodeType sh_node_curve_rgb= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_CURVE_RGB,
@@ -114,6 +156,7 @@ bNodeType sh_node_curve_rgb= {
 	/* initfunc    */   node_shader_init_curve_rgb,
 	/* freestoragefunc    */	node_free_curves,
 	/* copystoragefunc    */	node_copy_curves,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_curve_rgb
 };
 

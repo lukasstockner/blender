@@ -97,6 +97,8 @@
 #include "RE_pipeline.h"
 #include "BLO_readfile.h" 
 
+#include "GPU_material.h"
+
 #include "blendef.h"	/* CLAMP */
 #include "interface.h"	/* ui_graphics_to_window(),  SOLVE! (ton) */
 #include "mydevice.h"
@@ -180,7 +182,7 @@ void draw_tex_crop(Tex *tex)
 void BIF_preview_changed(short id_code)
 {
 	ScrArea *sa;
-	
+
 	for(sa= G.curscreen->areabase.first; sa; sa= sa->next) {
 		if(sa->spacetype==SPACE_BUTS) {
 			SpaceButs *sbuts= sa->spacedata.first;
@@ -221,6 +223,9 @@ void BIF_preview_changed(short id_code)
 			}
 		}
 	}
+
+	if(id_code == ID_MA || id_code == ID_TE)
+		shade_buttons_change_3d();
 }
 
 /* *************************** Preview for buttons *********************** */

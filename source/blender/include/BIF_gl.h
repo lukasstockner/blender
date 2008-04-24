@@ -31,6 +31,8 @@
 #ifndef BIF_GL_H
 #define BIF_GL_H
 
+#include "GL/glew.h"
+
 	/* Although not really a great idea to copy these defines
 	 * from Windows' winnt.h, this lets us use GL without including
 	 * windows.h everywhere (or BLI_winstuff.h) which is a good thing.

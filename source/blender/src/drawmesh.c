@@ -76,6 +76,8 @@
 
 #include "BSE_drawview.h"
 
+#include "GPU_extensions.h"
+
 #include "blendef.h"
 #include "nla.h"
 
@@ -503,6 +505,10 @@ void free_realtime_image(Image *ima)
 		glDeleteTextures(1, (GLuint *)&ima->bindcode);
 		ima->bindcode= 0;
 		ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
+	}
+	if(ima->gputexture) {
+		GPU_texture_free(ima->gputexture);
+		ima->gputexture= NULL;
 	}
 	if(ima->repbind) {
 		glDeleteTextures(ima->totbind, (GLuint *)ima->repbind);

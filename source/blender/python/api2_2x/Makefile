@@ -45,6 +45,7 @@ ifeq ($(WITH_OPENEXR),true)
 	CPPFLAGS += -DWITH_OPENEXR
 endif
 
+CPPFLAGS += -I$(NAN_GLEW)/include
 CPPFLAGS += -I$(OPENGL_HEADERS)
 CPPFLAGS += -I$(NAN_GUARDEDALLOC)/include
 CPPFLAGS += -I../../makesdna

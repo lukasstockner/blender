@@ -59,6 +59,19 @@ static void node_shader_init_valtorgb(bNode *node)
    node->storage= add_colorband(1);
 }
 
+#if 0
+static GPUNode *gpu_shader_valtorgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	GPUNode *gnode = GPU_mat_node_create(mat, "valtorgb", in, out);
+	int size = 256;
+	float *pixels = NULL; //colorband_pixels(node->storage, size);
+
+	GPU_mat_node_texture(gnode, GPU_TEX1D, size, pixels);
+
+	return gnode;
+}
+#endif
+
 bNodeType sh_node_valtorgb= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_VALTORGB,
@@ -73,7 +86,8 @@ bNodeType sh_node_valtorgb= {
 	/* initfunc    */	node_shader_init_valtorgb,
 	/* freestoragefunc    */	node_free_standard_storage,
 	/* copystoragefunc    */	node_copy_standard_storage,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	NULL
 	
 };
 
@@ -96,6 +110,11 @@ static void node_shader_exec_rgbtobw(void *data, bNode *node, bNodeStack **in, b
    out[0]->vec[0]= in[0]->vec[0]*0.35f + in[0]->vec[1]*0.45f + in[0]->vec[2]*0.2f;
 }
 
+static GPUNode *gpu_shader_rgbtobw(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	return GPU_mat_node_create(mat, "rgbtobw", in, out);
+}
+
 bNodeType sh_node_rgbtobw= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_RGBTOBW,
@@ -110,7 +129,8 @@ bNodeType sh_node_rgbtobw= {
 	/* initfunc    */	NULL,
 	/* freestoragefunc    */	NULL,
 	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_rgbtobw
 
 };
 

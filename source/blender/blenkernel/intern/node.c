@@ -68,6 +68,10 @@
 
 #include "SHD_node.h"
 
+#include "GPU_extensions.h"
+#include "GPU_material.h"
+#include "GPU_node.h"
+
 /* not very important, but the stack solver likes to know a maximum */
 #define MAX_SOCKET	64
 
@@ -2355,6 +2359,78 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 	ntreeEndExecTree(ntree);
 }
 
+/* GPU material from shader nodes */
+
+static void gpu_from_node_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack *gs)
+{
+	bNodeSocket *sock;
+	int i;
+
+	for (sock=sockets->first, i=0; sock; sock=sock->next, i++) {
+		memset(&gs[i], 0, sizeof(gs[i]));
+
+    	QUATCOPY(gs[i].vec, ns[i]->vec);
+		gs[i].buf= ns[i]->data;
+
+		if (sock->type == SOCK_VALUE)
+			gs[i].type= GPU_FLOAT;
+		else if (sock->type == SOCK_VECTOR)
+			gs[i].type= GPU_VEC3;
+		else if (sock->type == SOCK_RGBA)
+			gs[i].type= GPU_VEC4;
+		else
+			gs[i].type= GPU_NONE;
+
+		gs[i].name = "";
+		gs[i].hasinput= ns[i]->hasinput;
+	}
+
+	gs[i].type= GPU_NONE;
+}
+
+static void data_from_gpu_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack *gs)
+{
+	bNodeSocket *sock;
+	int i;
+
+	for (sock=sockets->first, i=0; sock; sock=sock->next, i++)
+		ns[i]->data= gs[i].buf;
+}
+
+GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
+{
+	bNode *node;
+	bNodeStack *stack;
+	bNodeStack *nsin[MAX_SOCKET];	/* arbitrary... watch this */
+	bNodeStack *nsout[MAX_SOCKET];	/* arbitrary... watch this */
+	GPUNodeStack gpuin[MAX_SOCKET+1], gpuout[MAX_SOCKET+1];
+	GPUMaterial *mat;
+	GPUNode *gnode;
+
+	if((ntree->init & NTREE_EXEC_INIT)==0)
+		ntreeBeginExecTree(ntree);
+
+	stack= ntree->stack;
+	mat= GPU_material_construct_begin();
+
+	for(node= ntree->nodes.first; node; node= node->next) {
+		if(node->typeinfo->gpufunc) {
+			node_get_stack(node, stack, nsin, nsout);
+			gpu_from_node_stack(&node->inputs, nsin, gpuin);
+			gpu_from_node_stack(&node->outputs, nsout, gpuout);
+			gnode= node->typeinfo->gpufunc(mat, node, gpuin, gpuout);
+			data_from_gpu_stack(&node->outputs, nsout, gpuout);
+		}
+		/* groups not supported yet .. */
+	}
+
+	if(!GPU_material_construct_end(mat)) {
+		GPU_material_free(mat);
+		mat= NULL;
+	}
+
+	return mat;
+}
 
 /* **************** call to switch lamploop for material node ************ */
 

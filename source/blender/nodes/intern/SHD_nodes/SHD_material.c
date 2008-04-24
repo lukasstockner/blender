@@ -218,7 +218,8 @@ bNodeType sh_node_material_ext= {
 	/* initfunc    */	node_shader_init_material,
 	/* freestoragefunc    */	NULL,
 	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	NULL
 	
 };
 

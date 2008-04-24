@@ -29,6 +29,7 @@
 
 #include "../SHD_util.h"
 
+#include "DNA_customdata_types.h"
 
 /* **************** GEOMETRY  ******************** */
 
@@ -124,6 +125,18 @@ static void node_shader_init_geometry(bNode *node)
    node->storage= MEM_callocN(sizeof(NodeGeometry), "NodeGeometry");
 }
 
+static GPUNode *gpu_shader_geom(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	NodeGeometry *ngeo= (NodeGeometry*)node->storage;
+	GPUNode *gnode = GPU_mat_node_create(mat, "geom", in, out);
+
+	GPU_mat_node_attribute(gnode, GPU_VEC3, CD_ORCO, "");
+	GPU_mat_node_attribute(gnode, GPU_VEC2, CD_MTFACE, ngeo->uvname);
+	GPU_mat_node_attribute(gnode, GPU_VEC4, CD_MCOL, ngeo->colname);
+
+	return gnode;
+}
+
 /* node type definition */
 bNodeType sh_node_geom= {
 	/* *next,*prev */	NULL, NULL,
@@ -139,6 +152,7 @@ bNodeType sh_node_geom= {
 	/* initfunc    */	node_shader_init_geometry,
 	/* freestoragefunc    */	node_free_standard_storage,
 	/* copystoragefunc    */	node_copy_standard_storage,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_geom
 	
 };

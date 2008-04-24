@@ -68,6 +68,7 @@ CPPFLAGS += -I..
 CPPFLAGS += -I../../kernel/gen_system
 CPPFLAGS += -I../../gameengine/SoundSystem
 CPPFLAGS += -I../ftfont
+CPPFLAGS += -I../gpu
 
 # Only used by py_demo.c !!!
 CPPFLAGS += -I../radiosity/extern/include
@@ -143,4 +144,5 @@ ifeq ($(NAN_TWEAK_MODE), true)
     CPPFLAGS += -DTWEAK_MODE
 endif
 
+CPPFLAGS += -I$(NAN_GLEW)/include
 CPPFLAGS += -I$(OPENGL_HEADERS)

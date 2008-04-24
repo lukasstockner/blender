@@ -45,6 +45,7 @@ struct Material;
 struct ColorBand;
 struct Group;
 struct bNodeTree;
+struct GPUMaterial;
 
 /* WATCH IT: change type? also make changes in ipo.h  */
 
@@ -133,6 +134,9 @@ typedef struct Material {
 	int YF_dsmp, YF_preset, YF_djit;
 	
 	ScriptLink scriptlink;
+
+	/* runtime glsl material */
+	struct GPUMaterial *gpumaterial;
 } Material;
 
 /* **************** MATERIAL ********************* */

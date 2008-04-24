@@ -57,6 +57,16 @@ static void node_shader_exec_normal(void *data, bNode *node, bNodeStack **in, bN
 	out[1]->vec[0]= -INPR(out[0]->vec, vec);
 }
 
+static GPUNode *gpu_shader_normal(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	bNodeSocket *sock= node->outputs.first;
+	GPUNode *gnode = GPU_mat_node_create(mat, "normal", in, out);
+
+	GPU_mat_node_uniform(gnode, GPU_VEC3, sock->ns.vec);
+
+	return gnode;
+}
+
 bNodeType sh_node_normal= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_NORMAL,
@@ -71,6 +81,7 @@ bNodeType sh_node_normal= {
 	/* initfunc    */	NULL,
 	/* freestoragefunc    */	NULL,
 	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_normal
 };
 

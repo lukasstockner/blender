@@ -90,6 +90,7 @@
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
+#include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_anim.h"			//for the where_on_path function
 #include "BKE_particle.h"
@@ -129,6 +130,9 @@
 
 #include "BKE_deform.h"
 
+#include "GPU_material.h"
+#include "GPU_extensions.h"
+
 /* pretty stupid */
 /*  extern Lattice *editLatt; already in BKE_lattice.h  */
 /* editcurve.c */
@@ -149,44 +153,81 @@ static void draw_empty_cone(float size);
 #define MAXMATBUF (MAXMAT + 1)
 static float matbuf[MAXMATBUF][2][4];
 static int totmat_gl= 0;
+static Material *gpumatbuf[MAXMATBUF];
+static Material *gpuboundmat= NULL;
 
-int set_gl_material(int nr)
+int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 {
 	static int last_gl_matnr= -1;
 	static int last_ret_val= 1;
-	
+
 	/* prevent index to use un-initialized array items */
 	if(nr>totmat_gl) nr= totmat_gl;
-	
+
+	if(attribs)
+		memset(attribs, 0, sizeof(*attribs));
+
 	if(nr<0) {
 		last_gl_matnr= -1;
 		last_ret_val= 1;
+
+		if(gpuboundmat) {
+			if(gpuboundmat->gpumaterial)
+				GPU_material_unbind(gpuboundmat->gpumaterial);
+			gpuboundmat= NULL;
+		}
 	}
 	else if(nr<MAXMATBUF && nr!=last_gl_matnr) {
-		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, matbuf[nr][0]);
-		glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matbuf[nr][1]);
-		last_gl_matnr = nr;
-		last_ret_val= matbuf[nr][0][3]!=0.0;
-		
-		/* matbuf alpha: 0.0 = skip draw, 1.0 = no blending, else blend */
-		if(matbuf[nr][0][3]!= 0.0 && matbuf[nr][0][3]!= 1.0) {
-			glEnable(GL_BLEND);
+		if(gpuboundmat) {
+			GPU_material_unbind(gpuboundmat->gpumaterial);
+			gpuboundmat= NULL;
 		}
-		else
-			glDisable(GL_BLEND);
+
+		if(attribs) {
+			Material *mat = gpumatbuf[nr];
+
+			if(mat && mat->nodetree && mat->use_nodes) {
+				if(!mat->gpumaterial)
+					mat->gpumaterial= ntreeShaderCreateGPU(mat->nodetree);
+
+				if(mat->gpumaterial) {
+					GPU_material_vertex_attributes(mat->gpumaterial, attribs);
+					GPU_material_bind(mat->gpumaterial);
+					gpuboundmat= mat;
+				}
+			}
+		}
+
+		if(!gpuboundmat) {
+			glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, matbuf[nr][0]);
+			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, matbuf[nr][1]);
+			last_gl_matnr = nr;
+			last_ret_val= matbuf[nr][0][3]!=0.0;
 			
+			/* matbuf alpha: 0.0 = skip draw, 1.0 = no blending, else blend */
+			if(matbuf[nr][0][3]!= 0.0 && matbuf[nr][0][3]!= 1.0) {
+				glEnable(GL_BLEND);
+			}
+			else
+				glDisable(GL_BLEND);
+		}
 	}
 	
 	return last_ret_val;
 }
 
+int set_gl_material(int nr)
+{
+	return set_gl_material_attribs(nr, NULL);
+}
+
 /* returns 1: when there's alpha needed to be drawn in a 2nd pass */
-int init_gl_materials(Object *ob, int check_alpha)
+int init_gl_materials(Object *ob, int check_alpha, int gpu)
 {
 	extern Material defmaterial;	// render module abuse...
 	Material *ma;
 	int a, has_alpha= 0;
-	
+
 	if(ob->totcol==0) {
 		matbuf[0][0][0]= defmaterial.r;
 		matbuf[0][0][1]= defmaterial.g;
@@ -201,11 +242,13 @@ int init_gl_materials(Object *ob, int check_alpha)
 		/* do material 1 too, for displists! */
 		QUATCOPY(matbuf[1][0], matbuf[0][0]);
 		QUATCOPY(matbuf[1][1], matbuf[0][1]);
+
+		gpumatbuf[0]= NULL;
 	}
 	
 	for(a=1; a<=ob->totcol; a++) {
 		ma= give_current_material(ob, a);
-		ma= editnode_get_active_material(ma);
+		if(!gpu) ma= editnode_get_active_material(ma);
 		if(ma==NULL) ma= &defmaterial;
 
 		if(a<MAXMATBUF) {
@@ -242,6 +285,11 @@ int init_gl_materials(Object *ob, int check_alpha)
 				matbuf[a][1][2]= ma->spec*ma->specb;
 				matbuf[a][1][3]= 1.0;
 			}
+
+			if(gpu && ma->nodetree && ma->use_nodes)
+				gpumatbuf[a]= ma;
+			else
+				gpumatbuf[a]= NULL;
 		}
 	}
 
@@ -250,6 +298,23 @@ int init_gl_materials(Object *ob, int check_alpha)
 	return has_alpha;
 }
 
+void clear_gl_materials()
+{
+	if(gpuboundmat) {
+		GPU_material_unbind(gpuboundmat->gpumaterial);
+		gpuboundmat= NULL;
+	}
+}
+
+static int do_gpu_material(int dt)
+{
+	if(!GPU_extensions_minimum_support())
+		return 0;
+	if(G.f & G_PICKSEL)
+		return 0;
+
+	return ((U.gameflags & USER_GL_SHADED_MODE) && dt == OB_SHADED);
+}
 
 	/***/
 static unsigned int colortab[24]=
@@ -2055,6 +2120,14 @@ static int draw_em_fancy__setFaceOpts(void *userData, int index, int *drawSmooth
 		return 0;
 	}
 }
+
+static int draw_em_fancy__setGLSLFaceOpts(void *userData, int index)
+{
+	EditFace *efa = EM_get_face_for_index(index);
+
+	return (efa->h==0);
+}
+
 static void draw_em_fancy(Object *ob, EditMesh *em, DerivedMesh *cageDM, DerivedMesh *finalDM, int dt)
 {
 	Mesh *me = ob->data;
@@ -2079,13 +2152,20 @@ static void draw_em_fancy(Object *ob, EditMesh *em, DerivedMesh *cageDM, Derived
 	if(dt>OB_WIRE) {
 		if( CHECK_OB_DRAWTEXTURE(G.vd, dt) ) {
 			draw_mesh_textured(ob, finalDM, 0);
-		} else {
+		}
+		else {
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED);
 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, 0, 0);
+			if(do_gpu_material(dt)) {
+				finalDM->drawMappedFacesGLSL(finalDM, set_gl_material_attribs,
+					draw_em_fancy__setGLSLFaceOpts, NULL);
+				set_gl_material(-1);
+			}
+			else
+				finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, 0, 0);
 
 			glFrontFace(GL_CCW);
 			glDisable(GL_LIGHTING);
@@ -2203,6 +2283,7 @@ static void draw_em_fancy(Object *ob, EditMesh *em, DerivedMesh *cageDM, Derived
 	if(dt>OB_WIRE) {
 		glDepthMask(1);
 		bglPolygonOffset(0.0);
+		set_gl_material(-1);
 	}
 
 	EM_free_index_arrays();
@@ -2223,6 +2304,7 @@ static void draw_mesh_object_outline(Object *ob, DerivedMesh *dm)
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
 			dm->drawFacesSolid(dm, set_gl_material);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			set_gl_material(-1);
 		}
 		else {
 			dm->drawEdges(dm, 0);
@@ -2294,8 +2376,7 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 	else if(dt==OB_WIRE || totface==0) {
 		draw_wire = 1;
 	}
-	else if(	(ob==OBACT && (G.f & G_TEXTUREPAINT || FACESEL_PAINT_TEST)) ||
-				CHECK_OB_DRAWTEXTURE(G.vd, dt))
+	else if(((ob==OBACT && (G.f & G_TEXTUREPAINT || FACESEL_PAINT_TEST) && (!do_gpu_material(dt))) || CHECK_OB_DRAWTEXTURE(G.vd, dt)))
 	{
 		int faceselect= (ob==OBACT && FACESEL_PAINT_TEST);
 
@@ -2326,6 +2407,7 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 		glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
 		dm->drawFacesSolid(dm, set_gl_material);
+		set_gl_material(-1);
 
 		glFrontFace(GL_CCW);
 		glDisable(GL_LIGHTING);
@@ -2359,6 +2441,7 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
 			}
+			else if(do_gpu_material(dt)) do_draw= 1;
 			else if((G.f & (G_VERTEXPAINT+G_TEXTUREPAINT)) && me->mcol) {
 				dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, NULL, 1);
 			}
@@ -2369,26 +2452,43 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 			else do_draw= 1;
 		}
 		if(do_draw) {
-			dl = ob->disp.first;
-			if (!dl || !dl->col1) {
-				/* release and reload derivedmesh because it might be freed in
-				   shadeDispList due to a different datamask */
-				dm->release(dm);
-				shadeDispList(base);
-				dl = find_displist(&ob->disp, DL_VERTCOL);
-			    dm= mesh_get_derived_final(ob, get_viewedit_datamask());
+			if(do_gpu_material(dt)) {
+				/* opengl shading language */
+				if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire)
+					draw_mesh_object_outline(ob, dm);
+
+				glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED);
+				glEnable(GL_LIGHTING);
+				glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
+
+				dm->drawFacesGLSL(dm, set_gl_material_attribs);
+				set_gl_material(-1);
+
+				glFrontFace(GL_CCW);
+				glDisable(GL_LIGHTING);
 			}
+			else {
+				dl = ob->disp.first;
+				if (!dl || !dl->col1) {
+					/* release and reload derivedmesh because it might be freed in
+					   shadeDispList due to a different datamask */
+					dm->release(dm);
+					shadeDispList(base);
+					dl = find_displist(&ob->disp, DL_VERTCOL);
+					dm= mesh_get_derived_final(ob, get_viewedit_datamask());
+				}
 
-			if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire) {
-				draw_mesh_object_outline(ob, dm);
-			}
+				if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire) {
+					draw_mesh_object_outline(ob, dm);
+				}
 
-				/* False for dupliframe objects */
-			if (dl) {
-				unsigned int *obCol1 = dl->col1;
-				unsigned int *obCol2 = dl->col2;
+					/* False for dupliframe objects */
+				if (dl) {
+					unsigned int *obCol1 = dl->col1;
+					unsigned int *obCol2 = dl->col2;
 
-				dm->drawFacesColored(dm, me->flag&ME_TWOSIDED, (unsigned char*) obCol1, (unsigned char*) obCol2);
+					dm->drawFacesColored(dm, me->flag&ME_TWOSIDED, (unsigned char*) obCol1, (unsigned char*) obCol2);
+				}
 			}
 
 			if(base->flag & SELECT) {
@@ -2464,7 +2564,8 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 			cageDM = editmesh_get_derived_cage_and_final(&finalDM,
 			                                get_viewedit_datamask());
 
-		if(dt>OB_WIRE) init_gl_materials(ob, 0);	// no transp in editmode, the fancy draw over goes bad then
+		if(dt>OB_WIRE) // no transp in editmode, the fancy draw over goes bad then
+			init_gl_materials(ob, 0, do_gpu_material(dt));
 		draw_em_fancy(ob, G.editMesh, cageDM, finalDM, dt);
 
 		if (G.obedit!=ob && finalDM)
@@ -2477,7 +2578,8 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 	else {
 		/* don't create boundbox here with mesh_get_bb(), the derived system will make it, puts deformed bb's OK */
 		if(me->totface<=4 || boundbox_clip(ob->obmat, (ob->bb)? ob->bb: me->bb)) {
-			if(dt==OB_SOLID) has_alpha= init_gl_materials(ob, (base->flag & OB_FROMDUPLI)==0);
+			if(dt==OB_SOLID || do_gpu_material(dt))
+				has_alpha= init_gl_materials(ob, (base->flag & OB_FROMDUPLI)==0, do_gpu_material(dt));
 			draw_mesh_fancy(base, dt, flag);
 			
 			if(me->totvert==0) retval= 1;
@@ -2587,9 +2689,10 @@ static int drawDispListwire(ListBase *dlbase)
 	return 0;
 }
 
-static void drawDispListsolid(ListBase *lb, Object *ob)
+static void drawDispListsolid(ListBase *lb, Object *ob, int gpumaterial)
 {
 	DispList *dl;
+	GPUVertexAttribs gattribs;
 	float *data, curcol[4];
 	float *ndata;
 	
@@ -2653,7 +2756,8 @@ static void drawDispListsolid(ListBase *lb, Object *ob)
 		case DL_SURF:
 			
 			if(dl->index) {
-				set_gl_material(dl->col+1);
+				if(gpumaterial) set_gl_material_attribs(dl->col+1, &gattribs);
+				else set_gl_material(dl->col+1);
 				
 				if(dl->rt & CU_SMOOTH) glShadeModel(GL_SMOOTH);
 				else glShadeModel(GL_FLAT);
@@ -2661,12 +2765,13 @@ static void drawDispListsolid(ListBase *lb, Object *ob)
 				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
 				glNormalPointer(GL_FLOAT, 0, dl->nors);
 				glDrawElements(GL_QUADS, 4*dl->totindex, GL_UNSIGNED_INT, dl->index);
+				set_gl_material(-1);
 			}			
 			break;
 
 		case DL_INDEX3:
-		
-			set_gl_material(dl->col+1);
+			if(gpumaterial) set_gl_material_attribs(dl->col+1, &gattribs);
+			else set_gl_material(dl->col+1);
 			
 			glVertexPointer(3, GL_FLOAT, 0, dl->verts);
 			
@@ -2679,6 +2784,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob)
 				glNormalPointer(GL_FLOAT, 0, dl->nors);
 			
 			glDrawElements(GL_TRIANGLES, 3*dl->parts, GL_UNSIGNED_INT, dl->index);
+			set_gl_material(-1);
 			
 			if(index3_nors_incr==0)
 				glEnableClientState(GL_NORMAL_ARRAY);
@@ -2686,12 +2792,13 @@ static void drawDispListsolid(ListBase *lb, Object *ob)
 			break;
 
 		case DL_INDEX4:
-
-			set_gl_material(dl->col+1);
+			if(gpumaterial) set_gl_material_attribs(dl->col+1, &gattribs);
+			else set_gl_material(dl->col+1);
 			
 			glVertexPointer(3, GL_FLOAT, 0, dl->verts);
 			glNormalPointer(GL_FLOAT, 0, dl->nors);
 			glDrawElements(GL_QUADS, 4*dl->parts, GL_UNSIGNED_INT, dl->index);
+			set_gl_material(-1);
 			
 			break;
 		}
@@ -2785,14 +2892,18 @@ static int drawDispList(Base *base, int dt)
 				draw_index_wire= 1;
 			}
 			else {
-				if(dt==OB_SHADED) {
+				if(do_gpu_material(dt)) {
+					init_gl_materials(ob, 0, 1);
+					drawDispListsolid(lb, ob, 1);
+				}
+				else if(dt == OB_SHADED) {
 					if(ob->disp.first==0) shadeDispList(base);
 					drawDispListshaded(lb, ob);
 				}
 				else {
-					init_gl_materials(ob, 0);
+					init_gl_materials(ob, 0, 0);
 					glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
-					drawDispListsolid(lb, ob);
+					drawDispListsolid(lb, ob, 0);
 				}
 				if(ob==G.obedit && cu->bevobj==NULL && cu->taperobj==NULL && cu->ext1 == 0.0 && cu->ext2 == 0.0) {
 					cpack(0);
@@ -2819,15 +2930,19 @@ static int drawDispList(Base *base, int dt)
 			
 			if(dl->nors==NULL) addnormalsDispList(ob, lb);
 			
-			if(dt==OB_SHADED) {
+			if(do_gpu_material(dt)) {
+				init_gl_materials(ob, 0, 1);
+				drawDispListsolid(lb, ob, 1);
+			}
+			else if(dt==OB_SHADED) {
 				if(ob->disp.first==NULL) shadeDispList(base);
 				drawDispListshaded(lb, ob);
 			}
 			else {
-				init_gl_materials(ob, 0);
+				init_gl_materials(ob, 0, 0);
 				glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 			
-				drawDispListsolid(lb, ob);
+				drawDispListsolid(lb, ob, 0);
 			}
 		}
 		else {
@@ -2843,16 +2958,20 @@ static int drawDispList(Base *base, int dt)
 			
 			if(solid) {
 				
-				if(dt==OB_SHADED) {
+				if(do_gpu_material(dt)) {
+					init_gl_materials(ob, 0, 1);
+					drawDispListsolid(lb, ob, 1);
+				}
+				else if(dt == OB_SHADED) {
 					dl= lb->first;
 					if(dl && dl->col1==0) shadeDispList(base);
 					drawDispListshaded(lb, ob);
 				}
 				else {
-					init_gl_materials(ob, 0);
+					init_gl_materials(ob, 0, 0);
 					glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 				
-					drawDispListsolid(lb, ob);	
+					drawDispListsolid(lb, ob, 0);
 				}
 			}
 			else{
@@ -2949,7 +3068,7 @@ static void draw_static_particle_system(Object *ob, PartEff *paf, int dt)
 		if(dt>OB_WIRE) {
 			
 			/* shaded/texture mode: we still draw solid, so have to set materials */
-			if(dt>OB_SOLID) init_gl_materials(ob, 0);
+			if(dt>OB_SOLID) init_gl_materials(ob, 0, 0);
 
 			glEnable(GL_LIGHTING);
 			set_gl_material(paf->omat);
@@ -2996,6 +3115,7 @@ static void draw_static_particle_system(Object *ob, PartEff *paf, int dt)
 	}
 	if(paf->stype==PAF_VECT) {
 		glDisable(GL_LIGHTING);
+		set_gl_material(-1);
 	}
 	else {
 		glEnd();
@@ -4942,7 +5062,9 @@ void draw_object(Base *base, int flag)
 				if(dt<OB_SOLID)
 					zbufoff= 1;
 
-				dt= OB_SHADED;
+				if(!do_gpu_material(dt))
+					dt= OB_SOLID;
+
 				glEnable(GL_DEPTH_TEST);
 			}
 		}
@@ -5130,6 +5252,7 @@ void draw_object(Base *base, int flag)
 		case OB_ARMATURE:
 			if(dt>OB_WIRE) set_gl_material(0);	// we use defmaterial
 			empty_object= draw_armature(base, dt);
+			if(dt>OB_WIRE) set_gl_material(-1);
 			break;
 		default:
 			drawaxes(1.0, flag, OB_ARROWS);
@@ -5555,7 +5678,7 @@ static void draw_object_mesh_instance(Object *ob, int dt, int outline)
 			draw_mesh_object_outline(ob, dm?dm:edm);
 
 		if(dm)
-			init_gl_materials(ob, 0);
+			init_gl_materials(ob, 0, do_gpu_material(dt));
 		else {
 			glEnable(GL_COLOR_MATERIAL);
 			BIF_ThemeColor(TH_BONE_SOLID);
@@ -5566,8 +5689,10 @@ static void draw_object_mesh_instance(Object *ob, int dt, int outline)
 		glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 		glEnable(GL_LIGHTING);
 		
-		if(dm)
+		if(dm) {
 			dm->drawFacesSolid(dm, set_gl_material);
+			set_gl_material(-1);
+		}
 		else if(edm)
 			edm->drawMappedFaces(edm, NULL, NULL, 0);
 		

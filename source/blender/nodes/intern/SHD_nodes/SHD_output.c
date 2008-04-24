@@ -62,6 +62,11 @@ static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bN
 	}	
 }
 
+static GPUNode *gpu_shader_output(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	return GPU_mat_node_create(mat, "output", in, out);
+}
+
 bNodeType sh_node_output= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_OUTPUT,
@@ -76,7 +81,8 @@ bNodeType sh_node_output= {
 	/* initfunc    */	NULL,
 	/* freestoragefunc    */	NULL,
 	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_output
 	
 };
 

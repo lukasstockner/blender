@@ -48,7 +48,7 @@ struct EditFace;
 struct EditEdge;
 
 int set_gl_material(int nr);
-int init_gl_materials(struct Object *ob, int check_alpha);
+int init_gl_materials(struct Object *ob, int check_alpha, int gpu);
 
 void mesh_foreachScreenVert(void (*func)(void *userData, struct EditVert *eve, int x, int y, int index), void *userData, int clipVerts);
 void mesh_foreachScreenEdge(void (*func)(void *userData, struct EditEdge *eed, int x0, int y0, int x1, int y1, int index), void *userData, int clipVerts);

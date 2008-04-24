@@ -178,6 +178,44 @@ bNodeStack **out)
 	} 
 }
 
+static GPUNode *gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+{
+	static char *names[] = {"math_add", "math_subtract", "math_multiply",
+		"math_divide", "math_sine", "math_cosine", "math_tangnet", "math_asin",
+		"math_acos", "math_atan", "math_pow", "math_log", "math_min", "math_max",
+		"math_round"};
+
+	GPUNode *gnode = GPU_mat_node_create(mat, names[node->custom1], NULL, out);
+
+	switch (node->custom1) {
+		case 0:
+		case 1:
+		case 2:
+		case 3:
+		case 10:
+		case 11:
+		case 12:
+		case 13:
+			GPU_mat_node_socket(gnode, &in[0]);
+			GPU_mat_node_socket(gnode, &in[1]);
+			break;
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+		case 8:
+		case 9:
+		case 14:
+			if (in[0].hasinput || !in[1].hasinput)
+				GPU_mat_node_socket(gnode, &in[0]);
+			else
+				GPU_mat_node_socket(gnode, &in[1]);
+			break;
+	}
+	
+	return gnode;
+}
+
 bNodeType sh_node_math= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_MATH, 
@@ -192,6 +230,7 @@ bNodeType sh_node_math= {
 	/* initfunc    */	NULL,
 	/* freestoragefunc    */	NULL,
 	/* copystoragefunc    */	NULL,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	gpu_shader_math
 };
 

@@ -663,7 +663,8 @@ bNodeType node_dynamic_typeinfo = {
 	/* initfunc    */	node_dynamic_init_cb,
 	/* freefunc    */	node_dynamic_free_storage_cb,
 	/* copyfunc    */	node_dynamic_copy_cb,
-	/* id          */	NULL
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	NULL
 };
 
 

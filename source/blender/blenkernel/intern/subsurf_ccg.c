@@ -61,6 +61,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_material.h"
+
 #include "CCGSubSurf.h"
 
 typedef struct _VertData {
@@ -1666,6 +1668,145 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int)) {
 
 	ccgFaceIterator_free(fi);
 }
+
+	/* Only used by non-editmesh types */
+static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GPUVertexAttribs *attribs), int (*setDrawOptions)(void *userData, int index), void *userData) {
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
+	GPUVertexAttribs gattribs;
+	DMVertexAttribs attribs;
+	int gridSize = ccgSubSurf_getGridSize(ss);
+	int gridFaces = gridSize - 1;
+	int edgeSize = ccgSubSurf_getEdgeSize(ss);
+	char *faceFlags = DM_get_face_data_layer(dm, CD_FLAGS);
+	int a, b, i, doDraw, numVerts, matnr, new_matnr, totface;
+
+	doDraw = 0;
+	numVerts = 0;
+	matnr = -1;
+
+	memset(&attribs, 0, sizeof(attribs));
+
+#define PASSATTRIB(dx, dy, vert) {											\
+	if(attribs.totorco) {													\
+		index = getFaceIndex(ss, f, S, x+dx, y+dy, edgeSize, gridSize); 	\
+		glVertexAttrib3fv(attribs.orco.glIndex, attribs.orco.array[index]);	\
+	}																		\
+	for(b = 0; b < attribs.tottface; b++) {									\
+		MTFace *tf = &attribs.tface[b].array[a];							\
+		glVertexAttrib2fv(attribs.tface[b].glIndex, tf->uv[vert]);			\
+	}																		\
+	for(b = 0; b < attribs.totmcol; b++) {									\
+		MCol *cp = &attribs.mcol[b].array[a*4 + vert];						\
+		glVertexAttrib4ubv(attribs.mcol[b].glIndex, (GLubyte*)cp);			\
+	}																		\
+}
+
+	totface = ccgSubSurf_getNumFaces(ss);
+	for(a = 0, i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
+		int S, x, y, drawSmooth;
+		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ss, f));
+		
+		numVerts = ccgSubSurf_getFaceNumVerts(ss, f);
+
+		if(faceFlags) {
+			drawSmooth = (faceFlags[index*4] & ME_SMOOTH);
+			new_matnr= faceFlags[index*4 + 1] + 1;
+		}
+		else {
+			drawSmooth = 1;
+			new_matnr= 1;
+		}
+
+		if(new_matnr != matnr) {
+			doDraw = setMaterial(matnr = new_matnr, &gattribs);
+			if(doDraw)
+				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+		}
+
+		if(!doDraw || (setDrawOptions && !setDrawOptions(userData, index))) {
+			a += gridFaces*gridFaces*numVerts;
+			continue;
+		}
+
+		glShadeModel(drawSmooth? GL_SMOOTH: GL_FLAT);
+		for (S=0; S<numVerts; S++) {
+			VertData *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+			VertData *vda, *vdb;
+
+			if (drawSmooth) {
+				for (y=0; y<gridFaces; y++) {
+					glBegin(GL_QUAD_STRIP);
+					for (x=0; x<gridFaces; x++) {
+						vda = &faceGridData[(y+0)*gridSize + x];
+						vdb = &faceGridData[(y+1)*gridSize + x];
+						
+						PASSATTRIB(0, 0, 0);
+						glNormal3fv(vda->no);
+						glVertex3fv(vda->co);
+
+						PASSATTRIB(0, 1, 1);
+						glNormal3fv(vdb->no);
+						glVertex3fv(vdb->co);
+
+						if(x != gridFaces-1)
+							a++;
+					}
+
+					vda = &faceGridData[(y+0)*gridSize + x];
+					vdb = &faceGridData[(y+1)*gridSize + x];
+
+					PASSATTRIB(0, 0, 3);
+					glNormal3fv(vda->no);
+					glVertex3fv(vda->co);
+
+					PASSATTRIB(0, 1, 2);
+					glNormal3fv(vdb->no);
+					glVertex3fv(vdb->co);
+
+					glEnd();
+
+					a++;
+				}
+			} else {
+				glBegin(GL_QUADS);
+				for (y=0; y<gridFaces; y++) {
+					for (x=0; x<gridFaces; x++) {
+						float *aco = faceGridData[(y+0)*gridSize + x].co;
+						float *bco = faceGridData[(y+0)*gridSize + x + 1].co;
+						float *cco = faceGridData[(y+1)*gridSize + x + 1].co;
+						float *dco = faceGridData[(y+1)*gridSize + x].co;
+
+						ccgDM_glNormalFast(aco, bco, cco, dco);
+
+						PASSATTRIB(0, 1, 1);
+						glVertex3fv(dco);
+						PASSATTRIB(1, 1, 2);
+						glVertex3fv(cco);
+						PASSATTRIB(1, 0, 3);
+						glVertex3fv(bco);
+						PASSATTRIB(0, 0, 0);
+						glVertex3fv(aco);
+						
+						a++;
+					}
+				}
+				glEnd();
+			}
+		}
+	}
+
+#undef PASSATTRIB
+
+	ccgFaceIterator_free(fi);
+}
+
+static void ccgDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GPUVertexAttribs *attribs)) {
+	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
+}
+
 static void ccgDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned char *col1, unsigned char *col2) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
@@ -2143,8 +2284,10 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.drawFacesSolid = ccgDM_drawFacesSolid;
 	ccgdm->dm.drawFacesColored = ccgDM_drawFacesColored;
 	ccgdm->dm.drawFacesTex = ccgDM_drawFacesTex;
+	ccgdm->dm.drawFacesGLSL = ccgDM_drawFacesGLSL;
 	ccgdm->dm.drawMappedFaces = ccgDM_drawMappedFaces;
 	ccgdm->dm.drawMappedFacesTex = ccgDM_drawMappedFacesTex;
+	ccgdm->dm.drawMappedFacesGLSL = ccgDM_drawMappedFacesGLSL;
 	ccgdm->dm.drawUVEdges = ccgDM_drawUVEdges;
 
 	ccgdm->dm.drawMappedEdgesInterp = ccgDM_drawMappedEdgesInterp;

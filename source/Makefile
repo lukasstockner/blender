@@ -104,6 +104,8 @@ COMLIB += $(NAN_OPENNL)/lib/$(DEBUG_DIR)libopennl.a
 COMLIB += $(NAN_SUPERLU)/lib/$(DEBUG_DIR)libsuperlu.a	
 COMLIB += $(OCGDIR)/blender/avi/$(DEBUG_DIR)libavi.a
 COMLIB += $(NAN_JPEG)/lib/libjpeg.a
+COMLIB += $(OCGDIR)/blender/gpu/$(DEBUG_DIR)libgpu.a
+COMLIB += $(NAN_GLEW)/lib/libglew.a
 
 ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/bloutines/$(DEBUG_DIR)libbloutines.a

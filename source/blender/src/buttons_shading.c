@@ -113,6 +113,8 @@
 
 #include "RE_pipeline.h"
 
+#include "GPU_material.h"
+
 /* -----includes for this file specific----- */
 
 #include "butspace.h" // own module
@@ -169,6 +171,11 @@ void shade_buttons_change_3d(void)
 					Base *base= FIRSTBASE;
 					Material *ma= give_current_material(ob, ob->actcol);	
 					int a;
+
+					if(ma->gpumaterial) {
+						GPU_material_free(ma->gpumaterial);
+						ma->gpumaterial= NULL;
+					}
 					
 					while(base) {
 						if(base->lay & G.vd->lay) {
