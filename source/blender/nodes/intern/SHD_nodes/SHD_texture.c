@@ -114,12 +114,13 @@ static void node_shader_exec_texture(void *data, bNode *node, bNodeStack **in, b
 
 static GPUNode *gpu_shader_texture(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	GPUNode *gnode = GPU_mat_node_create(mat, "texture_image", in, out);
+	GPUNode *gnode = NULL;
 	Tex *tex = (Tex*)node->id;
 
-	if(tex && tex->type == TEX_IMAGE)
-		if(tex->ima)
-			GPU_mat_node_image(gnode, GPU_TEX2D, tex->ima, NULL);
+	if(tex && tex->type == TEX_IMAGE && tex->ima) {
+		gnode = GPU_mat_node_create(mat, "texture_image", in, out);
+		GPU_mat_node_image(gnode, GPU_TEX2D, tex->ima, NULL);
+	}
 
 	return gnode;
 }

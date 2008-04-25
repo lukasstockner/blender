@@ -2419,7 +2419,8 @@ GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
 			gpu_from_node_stack(&node->inputs, nsin, gpuin);
 			gpu_from_node_stack(&node->outputs, nsout, gpuout);
 			gnode= node->typeinfo->gpufunc(mat, node, gpuin, gpuout);
-			data_from_gpu_stack(&node->outputs, nsout, gpuout);
+			if(gnode)
+				data_from_gpu_stack(&node->outputs, nsout, gpuout);
 		}
 		/* groups not supported yet .. */
 	}

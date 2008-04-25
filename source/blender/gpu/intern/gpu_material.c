@@ -33,10 +33,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
 #include "DNA_image_types.h"
+#include "DNA_listBase.h"
+#include "DNA_material_types.h"
+#include "DNA_texture_types.h"
 
 #include "BKE_DerivedMesh.h"
+#include "BKE_utildefines.h"
 
 #include "BLI_blenlib.h"
 
@@ -189,6 +192,8 @@ void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *att
 	*attribs = material->attribs;
 }
 
+/* Nodes */
+
 GPUNode *GPU_mat_node_create(GPUMaterial *material, char *name, GPUNodeStack *in, GPUNodeStack *out)
 {
 	GPUNode *node;
@@ -205,7 +210,7 @@ GPUNode *GPU_mat_node_create(GPUMaterial *material, char *name, GPUNodeStack *in
 			GPU_node_output(node, out[i].type, out[i].name, &out[i].buf);
 
 	if (strcmp(node->name, "output") == 0) {
-		if (!material->outbuf) {
+		if (!material->outbuf && node->inputs.first) {
 			GPUInput *inp = (GPUInput*)node->inputs.first;
 			material->outbuf = inp->buf;
 		}
@@ -250,5 +255,194 @@ void GPU_mat_node_output(GPUNode *node, GPUType type, char *name, GPUNodeStack *
 	out->type = type;
 	out->name = name;
 	GPU_node_output(node, out->type, out->name, &out->buf);
+}
+
+/* Code generation */
+
+static GPUNodeBuf *texture_rgb_blend(GPUMaterial *mat, GPUNodeBuf *texbuf, GPUNodeBuf *outbuf, GPUNodeBuf *factbuf, GPUNodeBuf *facgbuf, int blendtype)
+{
+	GPUNodeBuf *inbuf;
+	GPUNode *node;
+
+	if(blendtype == MTEX_BLEND)
+		node = GPU_mat_node_create(mat, "mtex_blend", NULL, NULL);
+	else
+		node = GPU_mat_node_create(mat, "mtex_blend", NULL, NULL);
+
+	GPU_node_input(node, GPU_VEC3, "out", NULL, outbuf);
+	GPU_node_input(node, GPU_VEC3, "tex", NULL, texbuf);
+	GPU_node_input(node, GPU_FLOAT, "fact", NULL, factbuf);
+	GPU_node_input(node, GPU_FLOAT, "facg", NULL, facgbuf);
+
+	GPU_node_output(node, GPU_VEC3, "in", &inbuf);
+
+	return inbuf;
+}
+
+static void material_tex_nodes_create(GPUMaterial *mat, Material *ma, GPUNodeBuf **colbuf_r, GPUNodeBuf **specbuf_r)
+{
+	MTex *mtex;
+	Tex *tex;
+	GPUNodeBuf *texcobuf, *tinbuf, *trgbbuf, *tnorbuf, *stencilbuf = NULL;
+	GPUNodeBuf *colbuf, *specbuf, *colfacbuf;
+	GPUNode *node;
+	float col[4], spec[4];
+	int tex_nr;
+
+	VECCOPY(col, &ma->r);
+	col[3]= 1.0f;
+	VECCOPY(spec, &ma->specr);
+	spec[3]= 1.0f;
+
+	node = GPU_mat_node_create(mat, "setrgb", NULL, NULL);
+	GPU_mat_node_uniform(node, GPU_VEC4, col);
+	GPU_node_output(node, GPU_VEC4, "col", &colbuf);
+
+	node = GPU_mat_node_create(mat, "setrgb", NULL, NULL);
+	GPU_mat_node_uniform(node, GPU_VEC4, spec);
+	GPU_node_output(node, GPU_VEC4, "spec", &specbuf);
+
+	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
+		/* separate tex switching */
+		if(ma->septex & (1<<tex_nr)) continue;
+		
+		if(ma->mtex[tex_nr]) {
+			mtex= ma->mtex[tex_nr];
+			
+			tex= mtex->tex;
+			if(tex==0) continue;
+
+			/* which coords */
+			if(mtex->texco==TEXCO_ORCO) {
+				node = GPU_mat_node_create(mat, "texco_orco", NULL, NULL);
+				GPU_mat_node_attribute(node, GPU_VEC3, CD_ORCO, "");
+				GPU_node_output(node, GPU_VEC3, "texco", &texcobuf);
+			}
+			else if(mtex->texco==TEXCO_NORM) {
+				node = GPU_mat_node_create(mat, "texco_norm", NULL, NULL);
+				GPU_node_output(node, GPU_VEC3, "texco", &texcobuf);
+			}
+			else if(mtex->texco==TEXCO_UV) {
+				node = GPU_mat_node_create(mat, "texco_uv", NULL, NULL);
+				GPU_mat_node_attribute(node, GPU_VEC2, CD_MTFACE, mtex->uvname);
+				GPU_node_output(node, GPU_VEC3, "texco", &texcobuf);
+			}
+			else continue;
+
+			node = GPU_mat_node_create(mat, "mtex_2d_mapping", NULL, NULL);
+			GPU_node_input(node, GPU_VEC3, "texco", NULL, texcobuf);
+			GPU_node_output(node, GPU_VEC3, "texco", &texcobuf);
+
+			node = GPU_mat_node_create(mat, "mtex_mapping", NULL, NULL);
+			GPU_node_input(node, GPU_VEC3, "texco", NULL, texcobuf);
+			GPU_mat_node_uniform(node, GPU_VEC3, mtex->size);
+			GPU_mat_node_uniform(node, GPU_VEC3, mtex->ofs);
+			GPU_node_output(node, GPU_VEC3, "texco", &texcobuf);
+
+			if(tex && tex->type == TEX_IMAGE && tex->ima) {
+				node = GPU_mat_node_create(mat, "mtex_image", NULL, NULL);
+				GPU_node_input(node, GPU_VEC3, "texco", NULL, texcobuf);
+				GPU_mat_node_image(node, GPU_TEX2D, tex->ima, NULL);
+
+				GPU_node_output(node, GPU_FLOAT, "tin", &tinbuf);
+				GPU_node_output(node, GPU_VEC4, "trgb", &trgbbuf);
+				GPU_node_output(node, GPU_VEC3, "tnor", &tnorbuf);
+		    }
+			else continue;
+
+			/* texture output */
+
+			if(mtex->texflag & MTEX_RGBTOINT) {
+				node = GPU_mat_node_create(mat, "mtex_rgbtoint", NULL, NULL);
+				GPU_node_input(node, GPU_VEC4, "trgb", NULL, trgbbuf);
+				GPU_node_output(node, GPU_FLOAT, "tin", &tinbuf);
+
+			}
+			if(mtex->texflag & MTEX_NEGATIVE) {
+				node = GPU_mat_node_create(mat, "mtex_invert", NULL, NULL);
+				GPU_node_input(node, GPU_VEC4, "trgb", NULL, trgbbuf);
+				GPU_node_output(node, GPU_VEC4, "trgb", &trgbbuf);
+			}
+
+			if(mtex->texflag & MTEX_STENCIL) {
+				if(!stencilbuf) {
+					node = GPU_mat_node_create(mat, "setvalue", NULL, NULL);
+					GPU_node_input(node, GPU_FLOAT, "tin", NULL, tinbuf);
+					GPU_node_output(node, GPU_FLOAT, "stencil", &stencilbuf);
+				}
+				else {
+					node = GPU_mat_node_create(mat, "math_multiply", NULL, NULL);
+					GPU_node_input(node, GPU_FLOAT, "tin", NULL, tinbuf);
+					GPU_node_input(node, GPU_FLOAT, "stencil", NULL, stencilbuf);
+					GPU_node_output(node, GPU_FLOAT, "stencil", &stencilbuf);
+				}
+			}
+
+			/* mapping */
+			if(mtex->mapto & (MAP_COL+MAP_COLSPEC)) {
+				/* stencil maps on the texture control slider, not texture intensity value */
+				if(stencilbuf) {
+					node = GPU_mat_node_create(mat, "math_multiply", NULL, NULL);
+					GPU_mat_node_uniform(node, GPU_FLOAT, &mtex->colfac);
+					GPU_node_input(node, GPU_FLOAT, "stencil", NULL, stencilbuf);
+					GPU_node_output(node, GPU_FLOAT, "colfac", &colfacbuf);
+				}
+				else {
+					node = GPU_mat_node_create(mat, "setvalue", NULL, NULL);
+					GPU_mat_node_uniform(node, GPU_FLOAT, &mtex->colfac);
+					GPU_node_output(node, GPU_FLOAT, "colfac", &colfacbuf);
+				}
+				
+				if(mtex->mapto & MAP_COL)
+					colbuf = texture_rgb_blend(mat, trgbbuf, colbuf, tinbuf, colfacbuf, mtex->blendtype);
+				if(mtex->mapto & MAP_COLSPEC)
+					specbuf = texture_rgb_blend(mat, trgbbuf, specbuf, tinbuf, colfacbuf, mtex->blendtype);
+			}
+		}
+	}
+
+	*colbuf_r= colbuf;
+	*specbuf_r= specbuf;
+}
+
+static void material_nodes_create(GPUMaterial *mat, Material *ma)
+{
+	GPUNode *node;
+	GPUNodeBuf *colbuf, *specbuf, *combinedbuf;
+	float hard;
+
+	material_tex_nodes_create(mat, ma, &colbuf, &specbuf);
+
+	if(ma->mode & MA_SHLESS) {
+		mat->outbuf = colbuf;
+	}
+	else {
+		node = GPU_mat_node_create(mat, "material_simple", NULL, NULL);
+		GPU_node_input(node, GPU_VEC4, "col", NULL, colbuf);
+		GPU_mat_node_uniform(node, GPU_FLOAT, &ma->ref);
+		GPU_node_input(node, GPU_VEC4, "spec", NULL, specbuf);
+		GPU_mat_node_uniform(node, GPU_FLOAT, &ma->spec);
+		hard= ma->har;
+		GPU_mat_node_uniform(node, GPU_FLOAT, &hard);
+		GPU_node_output(node, GPU_VEC4, "combined", &combinedbuf);
+
+		mat->outbuf = combinedbuf;
+	}
+}
+
+GPUMaterial *GPU_material_from_blender(Material *ma)
+{
+	GPUMaterial *mat;
+
+	mat = GPU_material_construct_begin();
+
+	material_nodes_create(mat, ma);
+
+	if(!GPU_material_construct_end(mat)) {
+		GPU_material_free(mat);
+		mat= NULL;
+	}
+
+	return mat;
 }
 

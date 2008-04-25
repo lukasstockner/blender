@@ -8,6 +8,7 @@
 
 struct Image;
 struct ImageUser;
+struct Material;
 struct GPUMaterial;
 typedef struct GPUMaterial GPUMaterial;
 
@@ -41,6 +42,8 @@ void GPU_mat_node_attribute(GPUNode *node, GPUType type, int laytype,
 void GPU_mat_node_socket(GPUNode *node, GPUNodeStack *sock);
 void GPU_mat_node_output(GPUNode *node, GPUType type, char *name,
 	GPUNodeStack *out);
+
+GPUMaterial *GPU_material_from_blender(struct Material *ma);
 
 #endif /*__GPU_MATERIAL__*/
 

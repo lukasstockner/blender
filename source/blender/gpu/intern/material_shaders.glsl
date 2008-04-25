@@ -384,6 +384,78 @@ void texture_wood_sin(vec3 vec, out float value, out vec4 color, out vec3 normal
 void texture_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out vec3 normal)
 {
 	color = texture2D(ima, (vec.xy + vec2(1.0, 1.0))*0.5);
+	value = 1.0;
 	normal = vec3(0.0, 0.0, 0.0);
+}
+
+/************* MTEX *****************/
+
+void texco_orco(vec3 attorco, out vec3 orco)
+{
+	orco = attorco;
+}
+
+void texco_uv(vec2 attuv, out vec3 uv)
+{
+	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
+}
+
+void texco_norm(out vec3 normal)
+{
+	normal = -normalize(varnormal);
+}
+
+void mtex_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	incol = fact*texcol + facm*outcol;
+}
+
+void mtex_rgbtoint(vec4 rgb, out float intensity)
+{
+	intensity = 0.35*rgb.r + 0.45*rgb.g + 0.2*rgb.b;
+}
+
+void mtex_invert(vec4 inrgb, out vec4 outrgb)
+{
+	outrgb = vec4(1.0) - inrgb;
+}
+
+void mtex_mapping(vec3 texco, vec3 size, vec3 ofs, out vec3 outtexco)
+{
+	outtexco.x = size.x*(texco.x - 0.5) + ofs.x + 0.5;
+	outtexco.y = size.y*(texco.y - 0.5) + ofs.y + 0.5;
+	outtexco.z = texco.z;
+}
+
+void mtex_2d_mapping(vec3 vec, out vec3 outvec)
+{
+	outvec.xy = (vec.xy + vec2(1.0, 1.0))*0.5;
+	outvec.z = vec.z;
+}
+
+void mtex_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out vec3 normal)
+{
+	color = texture2D(ima, vec.xy);
+	value = 1.0;
+	normal = vec3(0.0, 0.0, 0.0);
+}
+
+/******* MATERIAL *********/
+
+void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, out vec4 combined)
+{
+	vec3 l1 = vec3(-0.300, 0.300, 0.900);
+	vec3 l2 = vec3(0.500, 0.500, 0.100);
+	//vec3 v = normalize(varcamco);
+	//vec3 h = normalize(l + v);
+
+	combined = max(dot(varnormal, l1), 0.0)*ref*col*vec4(0.8, 0.8, 0.8, 1.0);
+	combined += max(dot(varnormal, l2), 0.0)*ref*col*vec4(0.4, 0.4, 0.8, 1.0);
+	//combined += pow(max(dot(varnormal, h), 0.0), hard)*specfac*spec;
 }
 

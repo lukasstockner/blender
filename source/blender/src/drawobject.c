@@ -186,9 +186,13 @@ int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 		if(attribs) {
 			Material *mat = gpumatbuf[nr];
 
-			if(mat && mat->nodetree && mat->use_nodes) {
-				if(!mat->gpumaterial)
-					mat->gpumaterial= ntreeShaderCreateGPU(mat->nodetree);
+			if(mat) {
+				if(!mat->gpumaterial) {
+					if(mat->nodetree && mat->use_nodes)
+						mat->gpumaterial= ntreeShaderCreateGPU(mat->nodetree);
+					else
+						mat->gpumaterial= GPU_material_from_blender(mat);
+				}
 
 				if(mat->gpumaterial) {
 					GPU_material_vertex_attributes(mat->gpumaterial, attribs);
@@ -286,10 +290,7 @@ int init_gl_materials(Object *ob, int check_alpha, int gpu)
 				matbuf[a][1][3]= 1.0;
 			}
 
-			if(gpu && ma->nodetree && ma->use_nodes)
-				gpumatbuf[a]= ma;
-			else
-				gpumatbuf[a]= NULL;
+			gpumatbuf[a]= (gpu)? ma: NULL;
 		}
 	}
 
