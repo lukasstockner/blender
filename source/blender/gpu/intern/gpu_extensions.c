@@ -386,7 +386,7 @@ static void gpu_blender_texture_create(Image *ima, ImageUser *iuser)
 		y= smaller_pow2_limit(y);
 		
 		scalerect= MEM_mallocN(x*y*sizeof(*scalerect), "scalerect");
-		gluScaleImage(GL_RGBA, 0, 0, GL_UNSIGNED_BYTE, rect, x, y, GL_UNSIGNED_BYTE, scalerect);
+		gluScaleImage(GL_RGBA, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, rect, x, y, GL_UNSIGNED_BYTE, scalerect);
 		rect= scalerect;
 	}
 

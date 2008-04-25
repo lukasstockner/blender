@@ -470,9 +470,14 @@ typedef struct DMVertexAttribs {
 	struct {
 		float (*array)[3];
 		int emOffset, glIndex;
+	} tang;
+
+	struct {
+		float (*array)[3];
+		int emOffset, glIndex;
 	} orco;
 
-	int tottface, totmcol, totorco;
+	int tottface, totmcol, tottang, totorco;
 } DMVertexAttribs;
 
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm,

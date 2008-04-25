@@ -635,6 +635,10 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GP
 		MCol *cp = &attribs.mcol[b].array[a*4 + vert];						\
 		glVertexAttrib4ubv(attribs.mcol[b].glIndex, (GLubyte*)cp);			\
 	}																		\
+	if(attribs.tottang) {													\
+		float *tang = attribs.tang.array[a*4 + vert];						\
+		glVertexAttrib3fv(attribs.tang.glIndex, tang);						\
+	}																		\
 	if(smoothnormal)														\
 		glNormal3sv(mvert[index].no);										\
 	glVertex3fv(mvert[index].co);											\

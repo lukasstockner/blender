@@ -1701,6 +1701,10 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, G
 		MCol *cp = &attribs.mcol[b].array[a*4 + vert];						\
 		glVertexAttrib4ubv(attribs.mcol[b].glIndex, (GLubyte*)cp);			\
 	}																		\
+	if(attribs.tottang) {													\
+		float *tang = attribs.tang.array[a*4 + vert];						\
+		glVertexAttrib3fv(attribs.tang.glIndex, tang);						\
+	}																		\
 }
 
 	totface = ccgSubSurf_getNumFaces(ss);

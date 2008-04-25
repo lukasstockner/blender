@@ -385,7 +385,10 @@ void texture_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out
 {
 	color = texture2D(ima, (vec.xy + vec2(1.0, 1.0))*0.5);
 	value = 1.0;
-	normal = vec3(0.0, 0.0, 0.0);
+
+	normal.x = 2.0*(color.r - 0.5);
+	normal.y = 2.0*(0.5 - color.g);
+	normal.z = 2.0*(color.b - 0.5);
 }
 
 /************* MTEX *****************/
@@ -442,20 +445,38 @@ void mtex_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out ve
 {
 	color = texture2D(ima, vec.xy);
 	value = 1.0;
-	normal = vec3(0.0, 0.0, 0.0);
+	
+	normal.x = 2.0*(color.r - 0.5);
+	normal.y = 2.0*(0.5 - color.g);
+	normal.z = 2.0*(color.b - 0.5);
+}
+
+void mtex_nspace_tangent(vec3 tangent, vec3 normal, vec3 texnormal, out vec3 outnormal)
+{
+	vec3 B = cross(normal, tangent);
+
+	outnormal = texnormal.x*tangent + texnormal.y*B + texnormal.z*normal;
+	outnormal = normalize(outnormal);
+}
+
+void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
+{
+	norfac = min(norfac, 1.0);
+	outnormal = (1.0 - norfac)*normal + norfac*newnormal;
+	outnormal = normalize(outnormal);
 }
 
 /******* MATERIAL *********/
 
-void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, out vec4 combined)
+void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, out vec4 combined)
 {
 	vec3 l1 = vec3(-0.300, 0.300, 0.900);
 	vec3 l2 = vec3(0.500, 0.500, 0.100);
 	//vec3 v = normalize(varcamco);
 	//vec3 h = normalize(l + v);
 
-	combined = max(dot(varnormal, l1), 0.0)*ref*col*vec4(0.8, 0.8, 0.8, 1.0);
-	combined += max(dot(varnormal, l2), 0.0)*ref*col*vec4(0.4, 0.4, 0.8, 1.0);
-	//combined += pow(max(dot(varnormal, h), 0.0), hard)*specfac*spec;
+	combined = max(-dot(normal, l1), 0.0)*ref*col*vec4(0.8, 0.8, 0.8, 1.0);
+	combined += max(-dot(normal, l2), 0.0)*ref*col*vec4(0.4, 0.4, 0.8, 1.0);
+	//combined += pow(max(dot(normal, h), 0.0), hard)*specfac*spec;
 }
 

@@ -224,8 +224,15 @@ void BIF_preview_changed(short id_code)
 		}
 	}
 
-	if(id_code == ID_MA || id_code == ID_TE)
-		shade_buttons_change_3d();
+	if((id_code == ID_MA || id_code == ID_TE) && OBACT) {
+		Object *ob = OBACT;
+		Material *ma= give_current_material(ob, ob->actcol);
+
+		if(ma && ma->gpumaterial) {
+			GPU_material_free(ma->gpumaterial);
+			ma->gpumaterial= NULL;
+		}
+	}
 }
 
 /* *************************** Preview for buttons *********************** */

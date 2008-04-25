@@ -279,12 +279,12 @@ static GPUNodeBuf *texture_rgb_blend(GPUMaterial *mat, GPUNodeBuf *texbuf, GPUNo
 	return inbuf;
 }
 
-static void material_tex_nodes_create(GPUMaterial *mat, Material *ma, GPUNodeBuf **colbuf_r, GPUNodeBuf **specbuf_r)
+static void material_tex_nodes_create(GPUMaterial *mat, Material *ma, GPUNodeBuf **colbuf_r, GPUNodeBuf **specbuf_r, GPUNodeBuf **norbuf_r)
 {
 	MTex *mtex;
 	Tex *tex;
 	GPUNodeBuf *texcobuf, *tinbuf, *trgbbuf, *tnorbuf, *stencilbuf = NULL;
-	GPUNodeBuf *colbuf, *specbuf, *colfacbuf;
+	GPUNodeBuf *colbuf, *specbuf, *colfacbuf, *norbuf, *newnorbuf;
 	GPUNode *node;
 	float col[4], spec[4];
 	int tex_nr;
@@ -301,6 +301,9 @@ static void material_tex_nodes_create(GPUMaterial *mat, Material *ma, GPUNodeBuf
 	node = GPU_mat_node_create(mat, "setrgb", NULL, NULL);
 	GPU_mat_node_uniform(node, GPU_VEC4, spec);
 	GPU_node_output(node, GPU_VEC4, "spec", &specbuf);
+
+	node = GPU_mat_node_create(mat, "texco_norm", NULL, NULL);
+	GPU_node_output(node, GPU_VEC3, "texco", &norbuf);
 
 	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
 		/* separate tex switching */
@@ -398,20 +401,48 @@ static void material_tex_nodes_create(GPUMaterial *mat, Material *ma, GPUNodeBuf
 				if(mtex->mapto & MAP_COLSPEC)
 					specbuf = texture_rgb_blend(mat, trgbbuf, specbuf, tinbuf, colfacbuf, mtex->blendtype);
 			}
+
+			if(mtex->mapto & MAP_NORM) {
+				if(mtex->maptoneg & MAP_NORM) tex->norfac= -mtex->norfac;
+				else tex->norfac= mtex->norfac;
+				
+				if((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP)) {
+					tex->norfac = mtex->norfac;
+
+					if(mtex->normapspace == MTEX_NSPACE_TANGENT) {
+
+						node = GPU_mat_node_create(mat, "mtex_nspace_tangent", NULL, NULL);
+						GPU_mat_node_attribute(node, GPU_VEC3, CD_TANGENT, "");
+						GPU_node_input(node, GPU_VEC3, "nor", NULL, norbuf);
+						GPU_node_input(node, GPU_VEC3, "tnor", NULL, tnorbuf);
+						GPU_node_output(node, GPU_VEC3, "nor", &newnorbuf);
+					}
+					else {
+						newnorbuf = tnorbuf;
+					}
+
+					node = GPU_mat_node_create(mat, "mtex_blend_normal", NULL, NULL);
+					GPU_mat_node_uniform(node, GPU_FLOAT, &mtex->norfac);
+					GPU_node_input(node, GPU_VEC3, "nor", NULL, norbuf);
+					GPU_node_input(node, GPU_VEC3, "newnor", NULL, newnorbuf);
+					GPU_node_output(node, GPU_VEC3, "nor", &norbuf);
+				}
+			}
 		}
 	}
 
 	*colbuf_r= colbuf;
 	*specbuf_r= specbuf;
+	*norbuf_r = norbuf;
 }
 
 static void material_nodes_create(GPUMaterial *mat, Material *ma)
 {
 	GPUNode *node;
-	GPUNodeBuf *colbuf, *specbuf, *combinedbuf;
+	GPUNodeBuf *colbuf, *specbuf, *norbuf, *combinedbuf;
 	float hard;
 
-	material_tex_nodes_create(mat, ma, &colbuf, &specbuf);
+	material_tex_nodes_create(mat, ma, &colbuf, &specbuf, &norbuf);
 
 	if(ma->mode & MA_SHLESS) {
 		mat->outbuf = colbuf;
@@ -424,6 +455,7 @@ static void material_nodes_create(GPUMaterial *mat, Material *ma)
 		GPU_mat_node_uniform(node, GPU_FLOAT, &ma->spec);
 		hard= ma->har;
 		GPU_mat_node_uniform(node, GPU_FLOAT, &hard);
+		GPU_node_input(node, GPU_VEC3, "nor", NULL, norbuf);
 		GPU_node_output(node, GPU_VEC4, "combined", &combinedbuf);
 
 		mat->outbuf = combinedbuf;

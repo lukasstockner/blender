@@ -1996,7 +1996,8 @@ void ntreeEndExecTree(bNodeTree *ntree)
 		if(ntree->threadstack) {
 			for(a=0; a<BLENDER_MAX_THREADS; a++) {
 				for(nts=ntree->threadstack[a].first; nts; nts=nts->next)
-					MEM_freeN(nts->stack);
+					if(nts->stack)
+						MEM_freeN(nts->stack);
 				BLI_freelistN(&ntree->threadstack[a]);
 			}
 
@@ -2429,6 +2430,8 @@ GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
 		GPU_material_free(mat);
 		mat= NULL;
 	}
+
+	ntreeEndExecTree(ntree);
 
 	return mat;
 }

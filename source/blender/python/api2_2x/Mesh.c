@@ -7491,7 +7491,6 @@ static PyObject *Mesh_pointInside( BPy_Mesh * self, PyObject * args, PyObject *k
 		Py_RETURN_FALSE;
 }
 
-
 /* This is a bit nasty, Blenders tangents are computed for rendering, and this isnt compatible with a normal Mesh
  * so we have to rewrite parts of it here, make sure these stay in sync */
 
