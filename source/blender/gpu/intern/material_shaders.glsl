@@ -468,15 +468,36 @@ void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outno
 
 /******* MATERIAL *********/
 
+float material_lambert_diff(float inp)
+{
+	return inp;
+}
+
+float material_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard)
+{
+	vec3 h = normalize(l + v);
+	float nh = max(dot(n, h), 0.0);
+	float nv = max(dot(v, v), 0.0);
+
+	float i = pow(nh, hard)/(0.1 + nv);
+
+	return i;
+}
+
 void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, out vec4 combined)
 {
 	vec3 l1 = vec3(-0.300, 0.300, 0.900);
 	vec3 l2 = vec3(0.500, 0.500, 0.100);
-	//vec3 v = normalize(varcamco);
-	//vec3 h = normalize(l + v);
+	vec4 l1col = vec4(0.9, 0.9, 0.9, 1.0);
+	vec4 l2col = vec4(0.2, 0.2, 0.5, 1.0);
+	vec3 v = -normalize(varcamco);
+	float inp;
 
-	combined = max(-dot(normal, l1), 0.0)*ref*col*vec4(0.8, 0.8, 0.8, 1.0);
-	combined += max(-dot(normal, l2), 0.0)*ref*col*vec4(0.4, 0.4, 0.8, 1.0);
-	//combined += pow(max(dot(normal, h), 0.0), hard)*specfac*spec;
+	inp = max(-dot(normal, l1), 0.0);
+	combined = material_lambert_diff(inp)*ref*col*l1col;
+	inp = max(-dot(normal, l2), 0.0);
+	combined += material_lambert_diff(inp)*ref*col*l2col;
+	combined += material_cooktorr_spec(-normal, l1, v, hard)*spec*specfac*l1col;
+	combined += material_cooktorr_spec(-normal, l2, v, hard)*spec*specfac*l2col;
 }
 
