@@ -182,7 +182,7 @@ void draw_tex_crop(Tex *tex)
 void BIF_preview_changed(short id_code)
 {
 	ScrArea *sa;
-
+	
 	for(sa= G.curscreen->areabase.first; sa; sa= sa->next) {
 		if(sa->spacetype==SPACE_BUTS) {
 			SpaceButs *sbuts= sa->spacedata.first;

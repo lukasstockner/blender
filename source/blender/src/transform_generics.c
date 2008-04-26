@@ -596,7 +596,6 @@ void drawLine(float *center, float *dir, char axis, short options)
 
 void initTrans (TransInfo *t)
 {
-	
 	t->txdepth = NULL;
 	
 	/* moving: is shown in drawobject() (transform color) */
