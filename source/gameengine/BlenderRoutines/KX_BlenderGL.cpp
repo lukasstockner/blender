@@ -44,7 +44,6 @@
 
 #include "BMF_Api.h"
 
-#include "BIF_gl.h"
 
 #ifdef __APPLE__
 #define GL_GLEXT_LEGACY 1
@@ -78,6 +77,7 @@
 #include "BKE_bmfont.h"
 #include "BKE_image.h"
 
+#include "BIF_gl.h"
 extern "C" {
 #include "BDR_drawmesh.h"
 #include "BIF_mywindow.h"

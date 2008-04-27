@@ -93,7 +93,6 @@ int main(int argc, char**argv) {
 		/* fprintf (fpout, "\\x%02x", getc(fpin)); */
 		fprintf (fpout, "%3d,", getc(fpin));
 	}
-
 	/* null terminate for the case it is a string */
 	fprintf (fpout, "\n  0};\n\n");
 	
