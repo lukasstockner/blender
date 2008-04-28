@@ -1082,7 +1082,7 @@ void viewmove(int mode)
 				if ((U.uiflag & USER_ORBIT_ZBUF) && (U.viewzoom==USER_ZOOM_CONT) && (G.vd->persp==V3D_PERSP)) {
 					/* Secret apricot feature, translate the view when in continues mode */
 					upvec[0] = upvec[1] = 0;
-					upvec[2] = dist0 - G.vd->dist;
+					upvec[2] = (dist0 - G.vd->dist) * G.vd->grid;
 					G.vd->dist = dist0;
 					Mat3CpyMat4(mat, G.vd->viewinv);
 					Mat3MulVecfl(mat, upvec);
