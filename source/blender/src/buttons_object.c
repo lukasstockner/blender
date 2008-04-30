@@ -2289,7 +2289,6 @@ void fluidsimFilesel(char *selection)
 void do_object_panels(unsigned short event)
 {
 	Object *ob;
-	Effect *eff;
 	
 	ob= OBACT;
 	if(ob==NULL)
@@ -2854,8 +2853,6 @@ void object_panel_constraint(char *context)
 void do_effects_panels(unsigned short event)
 {
 	Object *ob;
-	Base *base;
-	Effect *eff, *effn;
 	ModifierData *md;
 	ParticleSystemModifierData *psmd;
 	ParticleSystem *psys;
