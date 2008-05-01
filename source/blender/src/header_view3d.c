@@ -5704,7 +5704,11 @@ void view3d_buttons(void)
 			uiBlockEndAlign(block);
 			xco+= 10;
 		}
-
+		
+		/* APRICOT HACK */
+		uiDefIconButBitC(block, TOG, RETOPO, B_NOP, ICON_PROPEDIT,xco,0,XIC,YIC, &G.scene->toolsettings->retopo_mode, 0, 0, 0, 0, "Snap to surface");
+		xco+= XIC+10;
+		
 		/* selection modus */
 		if(G.obedit && (G.obedit->type == OB_MESH)) {
 			uiBlockBeginAlign(block);

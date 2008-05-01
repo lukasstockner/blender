@@ -32,6 +32,8 @@
 #include <config.h>
 #endif
 
+#include "BIF_gl.h"
+
 /* 
  * This little block needed for linking to Blender... 
  */
@@ -77,7 +79,7 @@
 #include "BKE_bmfont.h"
 #include "BKE_image.h"
 
-#include "BIF_gl.h"
+
 extern "C" {
 #include "BDR_drawmesh.h"
 #include "BIF_mywindow.h"

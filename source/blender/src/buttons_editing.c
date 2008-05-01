@@ -875,8 +875,6 @@ static void editing_panel_mesh_type(Object *ob, Mesh *me)
 			uiButSetFunc(but,retopo_do_all_cb,ob,me);
 		}
 		uiBlockEndAlign(block);
-	} else {
-		but= uiDefButBitC(block,TOG,RETOPO,B_NOP, "Ground Snap", 10,130,170,19, &G.scene->toolsettings->retopo_mode, 0,0,0,0, ""); /* APRICOT HACK*/
 	}
 
 	uiBlockBeginAlign(block);
