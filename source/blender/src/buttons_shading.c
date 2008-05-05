@@ -1597,9 +1597,27 @@ static void texture_panel_texture(MTex *mtex, Material *ma, World *wrld, Lamp *l
 	
 	/* CHANNELS */
 	if(node==NULL) {
+		int max_mtex = 0;
 		uiBlockBeginAlign(block);
 		yco= 150;
-		for(a= 0; a<MAX_MTEX; a++) {
+		
+		/* APRICOT HACK */ 
+		for(a=MAX_MTEX; a>0; a--) {
+			if (ma->mtex[a]) {
+				max_mtex = a;
+				break;
+			}
+		}
+		max_mtex++;
+		if (max_mtex < 10) {
+			max_mtex = 10;
+		} else {
+			if (max_mtex < MAX_MTEX)
+				max_mtex++;
+		}
+		/* END APRICOT HACK */
+		
+		for(a= 0; a<max_mtex; a++) {
 			
 			if(ma) mt= ma->mtex[a];
 			else if(wrld) mt= wrld->mtex[a];
@@ -3491,6 +3509,24 @@ static void material_panel_texture(Object *ob, Material *ma)
 	int a;
 	char str[64], *strp;
 	
+	
+	/* APRICOT HACK */
+	int max_mtex = 0; 
+	for(a=MAX_MTEX; a>0; a--) {
+		if (ma->mtex[a]) {
+			max_mtex = a;
+			break;
+		}
+	}
+	max_mtex++;
+	if (max_mtex < 10) {
+		max_mtex = 10;
+	} else {
+		if (max_mtex < MAX_MTEX)
+			max_mtex++;
+	}
+	/* END APRICOT HACK */
+	
 	block= uiNewBlock(&curarea->uiblocks, "material_panel_texture", UI_EMBOSS, UI_HELV, curarea->win);
 	if(uiNewPanel(curarea, block, "Texture", "Material", 960, 0, 318, 204)==0) return;
 	uiClearButLock();
@@ -3504,7 +3540,7 @@ static void material_panel_texture(Object *ob, Material *ma)
 	uiBlockSetCol(block, TH_BUT_NEUTRAL);
 	
 	uiBlockBeginAlign(block);
-	for(a= 0; a<MAX_MTEX; a++) {
+	for(a= 0; a<max_mtex; a++) {
 		mtex= ma->mtex[a];
 		if(mtex && mtex->tex) splitIDname(mtex->tex->id.name+2, str, &loos);
 		else strcpy(str, "");
@@ -3518,10 +3554,10 @@ static void material_panel_texture(Object *ob, Material *ma)
 	/* SEPTEX */
 	uiBlockSetCol(block, TH_AUTO);
 	
-	for(a= 0; a<MAX_MTEX; a++) {
+	for(a= 0; a<max_mtex; a++) {
 		mtex= ma->mtex[a];
 		if(mtex && mtex->tex) {
-			but=uiDefIconButBitS(block, ICONTOGN, 1<<a, B_MATPRV, ICON_CHECKBOX_HLT-1,	-20, 180-18*a, 28, 20, &ma->septex, 0.0, 0.0, 0, 0, "Click to disable or enable this texture channel");
+			but=uiDefIconButBitI(block, ICONTOGN, 1<<a, B_MATPRV, ICON_CHECKBOX_HLT-1,	-20, 180-18*a, 28, 20, &ma->septex, 0.0, 0.0, 0, 0, "Click to disable or enable this texture channel");
 
 			if(psys_mapto && ma->mtex[a]->mapto & MAP_PA_IVEL)
 				uiButSetFunc(but, particle_recalc_material, ma, NULL);

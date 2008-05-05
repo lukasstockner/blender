@@ -35,7 +35,7 @@
 #include "DNA_scriptlink_types.h"
 
 #ifndef MAX_MTEX
-#define MAX_MTEX	10
+#define MAX_MTEX	18
 #endif
 
 struct MTex;
@@ -84,7 +84,7 @@ typedef struct Lamp {
 	float YF_glowint, YF_glowofs;
 	short YF_glowtype, YF_pad2;
 	
-	struct MTex *mtex[10];
+	struct MTex *mtex[18];			/* MAX_MTEX */
 	struct Ipo *ipo;
 	
 	/* preview */

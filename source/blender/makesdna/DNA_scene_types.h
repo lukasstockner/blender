@@ -461,7 +461,7 @@ typedef struct SculptData
 	struct SculptSession *session;
 
 	/* Pointers to all of sculptmodes's textures */
-	struct MTex *mtex[10];
+	struct MTex *mtex[18];
 
 	/* Editable brush shape */
 	struct CurveMapping *cumap;
