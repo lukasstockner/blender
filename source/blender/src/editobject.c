@@ -555,6 +555,20 @@ static int return_editcurve_indexar(int *tot, int **indexar, float *cent)
 	return totvert;
 }
 
+/* use this when the loc/size/rot of the parent has changed but the children should stay in the same place
+ * apply-size-rot or object center for eg */
+static void ignore_parent_tx( Object *ob ) {
+	Object *ob_child;
+	/* a change was made, adjust the children to compensate */
+	for (ob_child=G.main->object.first; ob_child; ob_child=ob_child->id.next) {
+		if (ob_child->parent == ob) {
+			apply_obmat(ob_child);
+			what_does_parent(ob_child);
+			Mat4Invert(ob_child->parentinv, workob.obmat);
+		}
+	}
+}
+
 static void select_editcurve_hook(HookModifierData *hmd)
 {
 	extern ListBase editNurb;
@@ -1936,6 +1950,9 @@ void docenter(int centermode)
 							base->object->loc[1]+= centn[1];
 							base->object->loc[2]+= centn[2];
 							
+							where_is_object(base->object);
+							ignore_parent_tx(base->object);
+							
 							/* other users? */
 							ob= G.main->object.first;
 							while(ob) {
@@ -1953,6 +1970,9 @@ void docenter(int centermode)
 										ob->loc[0]+= centn[0];
 										ob->loc[1]+= centn[1];
 										ob->loc[2]+= centn[2];
+										
+										where_is_object(ob);
+										ignore_parent_tx(ob);
 										
 										if(tme && (tme->flag & ME_ISDONE)==0) {
 											mvert= tme->mvert;
@@ -2033,6 +2053,9 @@ void docenter(int centermode)
 							base->object->loc[0]+= cent[0];
 							base->object->loc[1]+= cent[1];
 							base->object->loc[2]+= cent[2];
+							
+							where_is_object(base->object);
+							ignore_parent_tx(base->object);
 						}
 						
 						tot_change++;
@@ -2080,6 +2103,10 @@ void docenter(int centermode)
 						 */
 						docenter_armature(base->object, centermode);
 						tot_change++;
+						
+						where_is_object(base->object);
+						ignore_parent_tx(base->object);
+						
 						if(G.obedit) 
 							break;
 					}
@@ -3869,7 +3896,7 @@ void make_links(short event)
 void apply_objects_locrot( void )
 {
 	Base *base, *basact;
-	Object *ob, *ob_child;
+	Object *ob;
 	bArmature *arm;
 	Mesh *me;
 	Curve *cu;
@@ -4018,14 +4045,7 @@ void apply_objects_locrot( void )
 				continue;
 			}
 			
-			/* a change was made, adjust the children to compensate */
-			for (ob_child=G.main->object.first; ob_child; ob_child=ob_child->id.next) {
-				if (ob_child->parent == ob) {
-					apply_obmat(ob_child);
-					what_does_parent(ob_child);
-					Mat4Invert(ob_child->parentinv, workob.obmat);
-				}
-			}
+			ignore_parent_tx(ob);
 		}
 	}
 	if (change) {
@@ -4783,6 +4803,7 @@ void make_local(int mode)
 	Base *base;
 	Object *ob;
 	bActionStrip *strip;
+	ParticleSystem *psys;
 	Material *ma, ***matarar;
 	Lamp *la;
 	Curve *cu;
@@ -4869,6 +4890,9 @@ void make_local(int mode)
 					make_local_armature ((bArmature *)id);
 					break;
 				}
+
+				for(psys=ob->particlesystem.first; psys; psys=psys->next)
+					make_local_particlesettings(psys->part);
 			}
 			id= (ID *)ob->ipo;
 			if(id && id->lib) make_local_ipo(ob->ipo);
@@ -4876,11 +4900,10 @@ void make_local(int mode)
 			id= (ID *)ob->action;
 			if(id && id->lib) make_local_action(ob->action);
 			
-			for (strip=ob->nlastrips.first; strip; strip=strip->next) {
+			for(strip=ob->nlastrips.first; strip; strip=strip->next) {
 				if(strip->act && strip->act->id.lib)
 					make_local_action(strip->act);
 			}
-			
 		}
 		base= base->next;		
 	}

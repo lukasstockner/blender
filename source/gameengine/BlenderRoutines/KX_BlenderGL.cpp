@@ -32,8 +32,6 @@
 #include <config.h>
 #endif
 
-#include "BIF_gl.h"
-
 /* 
  * This little block needed for linking to Blender... 
  */
@@ -46,6 +44,7 @@
 
 #include "BMF_Api.h"
 
+#include "BIF_gl.h"
 
 #ifdef __APPLE__
 #define GL_GLEXT_LEGACY 1
@@ -78,7 +77,6 @@
 #include "BKE_global.h"
 #include "BKE_bmfont.h"
 #include "BKE_image.h"
-
 
 extern "C" {
 #include "BDR_drawmesh.h"

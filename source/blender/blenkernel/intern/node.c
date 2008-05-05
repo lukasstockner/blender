@@ -72,9 +72,6 @@
 #include "GPU_material.h"
 #include "GPU_node.h"
 
-/* not very important, but the stack solver likes to know a maximum */
-#define MAX_SOCKET	64
-
 static ListBase empty_list = {NULL, NULL};
 ListBase node_all_composit = {NULL, NULL};
 ListBase node_all_shaders = {NULL, NULL};
