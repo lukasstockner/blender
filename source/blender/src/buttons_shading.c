@@ -1602,8 +1602,14 @@ static void texture_panel_texture(MTex *mtex, Material *ma, World *wrld, Lamp *l
 		yco= 150;
 		
 		/* APRICOT HACK */ 
-		for(a=MAX_MTEX; a>0; a--) {
-			if (ma->mtex[a]) {
+		for(a=MAX_MTEX-1; a>=0; a--) {
+			if(ma) mt= ma->mtex[a];
+			else if(wrld) mt= wrld->mtex[a];
+			else if(la) mt= la->mtex[a];
+			else if(br) mt= br->mtex[a];
+			else if(sd) mt= sd->mtex[a];
+
+			if (mt) {
 				max_mtex = a;
 				break;
 			}
@@ -3512,7 +3518,7 @@ static void material_panel_texture(Object *ob, Material *ma)
 	
 	/* APRICOT HACK */
 	int max_mtex = 0; 
-	for(a=MAX_MTEX; a>0; a--) {
+	for(a=MAX_MTEX-1; a>=0; a--) {
 		if (ma->mtex[a]) {
 			max_mtex = a;
 			break;
