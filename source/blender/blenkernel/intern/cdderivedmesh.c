@@ -169,12 +169,20 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mv = cddm->mvert;
-	int i;
 
-	glBegin(GL_POINTS);
-	for(i = 0; i < dm->numVertData; i++, mv++)
-		glVertex3fv(mv->co);
-	glEnd();
+	if(dm->numVertData) {
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glDisableClientState(GL_NORMAL_ARRAY);
+
+		if(G.rt > 1) {
+			glVertexPointer(3, GL_FLOAT, sizeof(MVert)*G.rt, &mv->co);
+			glDrawArrays(GL_POINTS, 0, MAX2(1, dm->numVertData/G.rt));
+		}
+		else {
+			glVertexPointer(3, GL_FLOAT, sizeof(MVert), &mv->co);
+			glDrawArrays(GL_POINTS, 0, dm->numVertData);
+		}
+	}
 }
 
 static void cdDM_drawUVEdges(DerivedMesh *dm)
