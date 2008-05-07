@@ -5651,18 +5651,40 @@ void view3d_buttons(void)
 		/* LAYERS */
 		if(G.obedit==NULL && G.vd->localview==0) {
 			uiBlockBeginAlign(block);
-			for(a=0; a<5; a++)
+			for(a=0; a<5; a++) {
+				if (ob && ob->lay & 1<<a )
+					uiBlockSetCol(block, TH_ACTIVE);
+				else if ((G.vd->lay_used & 1<<a)==0)
+					uiBlockSetCol(block, BUTDBLUE);
 				uiDefButBitI(block, TOG, 1<<a, B_LAY+a, "",	(short)(xco+a*(XIC/2)), (short)(YIC/2),(short)(XIC/2),(short)(YIC/2), &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Num, Shift Num)");
-			for(a=0; a<5; a++)
+				uiBlockSetCol(block, TH_AUTO);
+			}
+			for(a=0; a<5; a++) {
+				if (ob && ob->lay & 1<<(a+10) )
+					uiBlockSetCol(block, TH_ACTIVE);
+				else if ((G.vd->lay_used & 1<<(a+10))==0)
+					uiBlockSetCol(block, BUTDBLUE);
 				uiDefButBitI(block, TOG, 1<<(a+10), B_LAY+10+a, "",(short)(xco+a*(XIC/2)), 0,			XIC/2, (YIC)/2, &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
-		
+				uiBlockSetCol(block, TH_AUTO);
+			}
 			xco+= 5;
 			uiBlockBeginAlign(block);
-			for(a=5; a<10; a++)
+			for(a=5; a<10; a++) {
+				if (ob && ob->lay & 1<<a )
+					uiBlockSetCol(block, TH_ACTIVE);
+				else if ((G.vd->lay_used & 1<<a)==0)
+					uiBlockSetCol(block, BUTDBLUE);
 				uiDefButBitI(block, TOG, 1<<a, B_LAY+a, "",	(short)(xco+a*(XIC/2)), (short)(YIC/2),(short)(XIC/2),(short)(YIC/2), &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Num, Shift Num)");
-			for(a=5; a<10; a++)
+				uiBlockSetCol(block, TH_AUTO);
+			}
+			for(a=5; a<10; a++) {
+				if (ob && ob->lay & 1<<(a+10) )
+					uiBlockSetCol(block, TH_ACTIVE);
+				else if ((G.vd->lay_used & 1<<(a+10))==0)
+					uiBlockSetCol(block, BUTDBLUE);
 				uiDefButBitI(block, TOG, 1<<(a+10), B_LAY+10+a, "",(short)(xco+a*(XIC/2)), 0,			XIC/2, (YIC)/2, &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
-
+				uiBlockSetCol(block, TH_AUTO);
+			}
 			uiBlockEndAlign(block);
 		
 			xco+= (a-2)*(XIC/2)+3;

@@ -3007,9 +3007,12 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 		for(SETLOOPER(G.scene->set, base))
 			object_handle_update(base->object);   // bke_object.h
 	}
-
-	for(base= G.scene->base.first; base; base= base->next)
+	
+	v3d->lay_used = 0;
+	for(base= G.scene->base.first; base; base= base->next) {
 		object_handle_update(base->object);   // bke_object.h
+		v3d->lay_used |= base->lay;
+	}
 	
 	setwinmatrixview3d(sa->winx, sa->winy, NULL);	/* 0= no pick rect */
 	setviewmatrixview3d();	/* note: calls where_is_object for camera... */

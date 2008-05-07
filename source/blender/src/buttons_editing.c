@@ -5070,6 +5070,8 @@ static void editing_panel_mesh_tools1(Object *ob, Mesh *me)
 	
 	uiBlockEndAlign(block);
 	
+	uiDefButBitS(block, TOG, B_MESH_X_MIRROR, B_DIFF, "X-axis mirror",1125,0,150,19, &G.scene->toolsettings->editbutflag, 0, 0, 0, 0, "While using transforms, mirrors the transformation");
+	
 	uiBlockBeginAlign(block);
 	uiDefButBitI(block, TOG, G_ALLEDGES, 0, "All Edges",			1125, 22,150,19, &G.f, 0, 0, 0, 0, "Displays all edges in object mode without optimization");
 	uiDefButBitS(block, TOG, B_MESH_X_MIRROR, B_DIFF, "X-axis mirror",1125,0,150,19, &G.scene->toolsettings->editbutflag, 0, 0, 0, 0, "While using transforms, mirrors the transformation");
