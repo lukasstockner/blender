@@ -1747,25 +1747,42 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 					if ( (G.obedit) && (G.obedit->type==OB_MESH) )
 						select_faces_by_numverts(5);
 				}
+				
+				else if(G.qual==LR_CTRLKEY) {}
 				else do_layer_buttons(4);
 				break;
 
 			case SIXKEY:
-				do_layer_buttons(5); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(5);
+				break;
 			case SEVENKEY:
-				do_layer_buttons(6); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(6);
+				break;
 			case EIGHTKEY:
-				do_layer_buttons(7); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(7);
+				break;
 			case NINEKEY:
-				do_layer_buttons(8); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(8);
+				break;
 			case ZEROKEY:
-				do_layer_buttons(9); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(9);
+				break;
 			case MINUSKEY:
-				do_layer_buttons(10); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(10);
+				break;
 			case EQUALKEY:
-				do_layer_buttons(11); break;
+				if(G.qual==LR_CTRLKEY) {}
+				else do_layer_buttons(11);
+				break;
 			case ACCENTGRAVEKEY:
-				do_layer_buttons(-1); break;
+				do_layer_buttons(-1);
+				break;
 			
 			case SPACEKEY:
 				if(G.qual == LR_CTRLKEY) {
@@ -4165,9 +4182,9 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 			(xpos+edgsp+(1*midsp)+(1*mpref)),y6label,mpref,buth,
 			0, 0, 0, 0, 0, "");
 
-		uiDefButBitI(block, TOG, G_DOSCRIPTLINKS, REDRAWBUTSSCRIPT, "Enabled by Default",
+		uiDefButBitI(block, TOGN, USER_DONT_DOSCRIPTLINKS, REDRAWBUTSSCRIPT, "Enabled by Default",
 			(xpos+edgsp+(1*mpref)+(1*midsp)),y5,mpref,buth,
-			&(G.f), 0, 0, 0, 0, "Allow any .blend file to run scripts automatically (unsafe with blend files from an untrusted source)");
+			&(U.flag), 0, 0, 0, 0, "Allow any .blend file to run scripts automatically (unsafe with blend files from an untrusted source)");
 		
 		uiDefBut(block, LABEL,0,"Keyboard:",
 			(xpos+edgsp+(3*midsp)+(3*mpref)),y2label,mpref,buth,

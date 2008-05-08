@@ -3435,9 +3435,9 @@ static void object_panel_fields(Object *ob)
 				uiBlockEndAlign(block);
 			}
 			else{
-				uiDefButS(block, MENU, B_FIELD_DEP, "Fall-off%t|Cone%x2|Tube%x1|Sphere%x0",	160,180,140,20, &pd->falloff, 0.0, 0.0, 0, 0, tipstr);
+				uiDefButS(block, MENU, B_FIELD_DEP, "Fall-off%t|Cone%x2|Tube%x1|Sphere%x0",	160,180,140,20, &pd->falloff, 0.0, 0.0, 0, 0, "Fall-off shape");
 				if(pd->falloff==PFIELD_FALL_TUBE)
-					uiDefBut(block, LABEL, 0, "Lognitudinal",		160,160,70,20, NULL, 0.0, 0, 0, 0, "");
+					uiDefBut(block, LABEL, 0, "Longitudinal",		160,160,140,20, NULL, 0.0, 0, 0, 0, "");
 				uiBlockBeginAlign(block);
 				uiDefButBitS(block, TOG, PFIELD_POSZ, B_FIELD_CHANGE, "Pos",	160,140,40,20, &pd->flag, 0.0, 0, 0, 0, "Effect only in direction of positive Z axis");
 				uiDefButF(block, NUM, B_FIELD_CHANGE, "Fall-off: ",	200,140,100,20, &pd->f_power, 0, 10, 10, 0, "Falloff power (real gravitational falloff = 2)");
@@ -4428,8 +4428,8 @@ static void object_panel_particle_visual(Object *ob)
 				uiDefButS(block, NUM, B_PART_RECALC, "Steps:",	butx,(buty+=buth),butw,buth, &part->draw_step, 0.0, 7.0, 0, 0, "How many steps paths are drawn with (power of 2)");
 				uiDefButS(block, NUM, B_PART_REDRAW, "Render:",	butx,(buty-=buth),butw,buth, &part->ren_step, 0.0, 9.0, 0, 0, "How many steps paths are rendered with (power of 2)");
 
-				uiDefButBitI(block, TOG, PART_ABS_LENGTH, B_PART_RECALC, "Abs Length",	 butx,(buty-=buth),butw,buth, &part->flag, 0, 0, 0, 0, "Use maximum length in absolute blender units");
-				uiDefButF(block, NUM, B_PART_RECALC, "Max Length:",		butx,(buty-=buth),butw,buth, &part->abslength, 0.0, 10000.0, 1, 3, "Absolute path length");
+				uiDefButBitI(block, TOG, PART_ABS_LENGTH, B_PART_RECALC, "Abs Length",	 butx,(buty-=buth),butw,buth, &part->flag, 0, 0, 0, 0, "Use maximum length for children");
+				uiDefButF(block, NUM, B_PART_RECALC, "Max Length:",		butx,(buty-=buth),butw,buth, &part->abslength, 0.0, 10000.0, 1, 3, "Absolute maximum path length for children, in blender units");
 				uiDefButF(block, NUMSLI, B_PART_RECALC, "RLength:",		butx,(buty-=buth),butw,buth, &part->randlength, 0.0, 1.0, 1, 3, "Give path length a random variation");
 				uiBlockEndAlign(block);
 

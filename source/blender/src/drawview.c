@@ -3427,7 +3427,7 @@ static void draw_viewport_fps(ScrArea *sa)
 	char printable[16];
 	int i, tot;
 	
-	if (lredrawtime == redrawtime)
+	if (!lredrawtime || !redrawtime)
 		return;
 	
 	printable[0] = '\0';
@@ -3575,7 +3575,7 @@ void inner_play_anim_loop(int init, int mode)
 		last_cfra = -1;
 		cached = cached_dynamics(PSFRA,PEFRA);
 		
-		redrawtime = 1.0/FPS;
+		redrawtime = 0.0;
 		
 		redrawtime_index = REDRAW_FRAME_AVERAGE;
 		while(redrawtime_index--) {
