@@ -2678,7 +2678,7 @@ static void lamp_panel_spot(Object *ob, Lamp *la)
 				uiDefButF(block, NUM,B_LAMPREDRAW,"Soft:",		200,40,100,19,	&la->soft,1.0,100.0, 100, 0, "Sets the size of the shadow sample area");
 			}
 			else {	/* LA_SHADBUF_IRREGULAR */
-				uiDefButF(block, NUM,B_LAMPREDRAW,"Bias:",		100,40,100,19,	&la->bias, 0.01, 5.0, 1, 0, "Sets the shadow map sampling bias");
+				uiDefButF(block, NUM,B_LAMPREDRAW,"Bias:",		100,40,100,19,	&la->bias, 0.001, 5.0, 1, 0, "Sets the shadow map sampling bias");
 			}
 			
 			uiBlockBeginAlign(block);
@@ -3314,7 +3314,7 @@ static void material_panel_map_to(Object *ob, Material *ma, int from_nodes)
 			//uiButSetFunc(but, particle_recalc_material, ma, NULL);
 		but=uiDefButBitS(block, TOG3, MAP_PA_KINK, B_MAT_PARTICLE, "Kink",	70,160,60,19, &(mtex->pmapto), 0, 0, 0, 0, "Causes the texture to affect the kink of child particles");
 			//uiButSetFunc(but, particle_recalc_material, ma, NULL);
-		but=uiDefButBitS(block, TOG3, MAP_PA_LENGTH, B_MAT_PARTICLE, "Length",130,160,60,19, &(mtex->pmapto), 0, 0, 0, 0, "Causes the texture to affect the length of particles");
+		but=uiDefButBitS(block, TOG3, MAP_PA_LENGTH, B_MAT_PARTICLE, "Length",130,160,60,19, &(mtex->pmapto), 0, 0, 0, 0, "Causes the texture to affect the length of child particles");
 			//uiButSetFunc(but, particle_recalc_material, ma, NULL);
 		but=uiDefButBitS(block, TOG3, MAP_PA_CLUMP, B_MAT_PARTICLE, "Clump",	190,160,60,19, &(mtex->pmapto), 0, 0, 0, 0, "Causes the texture to affect the clump of child particles");
 			//uiButSetFunc(but, particle_recalc_material, ma, NULL);
@@ -3324,10 +3324,10 @@ static void material_panel_map_to(Object *ob, Material *ma, int from_nodes)
 		uiBlockSetCol(block, TH_AUTO);
 	}
 	else {
-		uiDefButBitS(block, TOG, MAP_COL, B_MATPRV, "Col",		10,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect basic colour of the material");
+		uiDefButBitS(block, TOG, MAP_COL, B_MATPRV, "Col",		10,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect basic color of the material");
 		uiDefButBitS(block, TOG3, MAP_NORM, B_MATPRV, "Nor",		50,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the rendered normal");
-		uiDefButBitS(block, TOG, MAP_COLSPEC, B_MATPRV, "Csp",		90,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the specularity colour");
-		uiDefButBitS(block, TOG, MAP_COLMIR, B_MATPRV, "Cmir",		130,180,50,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the mirror colour");
+		uiDefButBitS(block, TOG, MAP_COLSPEC, B_MATPRV, "Csp",		90,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the specularity color");
+		uiDefButBitS(block, TOG, MAP_COLMIR, B_MATPRV, "Cmir",		130,180,50,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the mirror color");
 		uiDefButBitS(block, TOG3, MAP_REF, B_MATPRV, "Ref",		180,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the value of the materials reflectivity");
 		uiDefButBitS(block, TOG3, MAP_SPEC, B_MATPRV, "Spec",		220,180,50,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the value of specularity");
 		uiDefButBitS(block, TOG3, MAP_AMB, B_MATPRV, "Amb",		270,180,40,19, &(mtex->mapto), 0, 0, 0, 0, "Causes the texture to affect the value of ambient");
