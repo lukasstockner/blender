@@ -77,6 +77,8 @@ typedef struct TreeElement {
 #define TSE_LINKED_LAMP		23
 #define TSE_POSEGRP_BASE	24
 #define TSE_POSEGRP			25
+#define TSE_LIBRARY_MEMBER_BASE	26
+#define TSE_LIBRARY_MEMBER		27
 
 /* outliner search flags */
 #define OL_FIND					0

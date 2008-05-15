@@ -1717,12 +1717,20 @@ static void write_libraries(WriteData *wd, Main *main)
 		}
 
 		if(foundone) {
-			writestruct(wd, ID_LI, "Library", 1, main->curlib);
-
-			while(a--) {
-				for(id= lbarray[a]->first; id; id= id->next) {
-					if(id->us>0 && (id->flag & LIB_EXTERN)) {
-						writestruct(wd, ID_ID, "ID", 1, id);
+			/* this should always be true */
+			if (main->curlib) {
+				void *fd = main->curlib->filedata; /* This is not nice, but we cant save filedata pointers */
+				main->curlib->filedata = NULL; 
+				
+				writestruct(wd, ID_LI, "Library", 1, main->curlib);
+				
+				main->curlib->filedata = fd;
+				
+				while(a--) {
+					for(id= lbarray[a]->first; id; id= id->next) {
+						if(id->us>0 && (id->flag & LIB_EXTERN)) {
+							writestruct(wd, ID_ID, "ID", 1, id);
+						}
 					}
 				}
 			}

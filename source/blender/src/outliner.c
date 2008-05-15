@@ -56,8 +56,10 @@
 #include "DNA_texture_types.h"
 #include "DNA_text_types.h"
 #include "DNA_world_types.h"
+#include "DNA_sdna_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_linklist.h"
 
 #include "BKE_constraint.h"
 #include "BKE_deform.h"
@@ -112,7 +114,7 @@
 #include "BSE_drawipo.h"
 #include "BSE_edit.h"
 #include "BSE_view.h"
-
+#include "BLO_readfile.h"
 #include "PIL_time.h" 
 
 #include "blendef.h"
@@ -537,6 +539,54 @@ static void outliner_add_scene_contents(SpaceOops *soops, ListBase *lb, Scene *s
 	}
 
 }
+/* APRICOT HACK */
+extern struct BHead *blo_firstbhead(struct FileData *fd);
+extern struct BHead *blo_nextbhead(struct FileData *fd, struct BHead *thisblock);
+extern struct BHead *blo_prevbhead(struct FileData *fd, struct BHead *thisblock);
+extern char *bhead_id_name(struct FileData *fd, struct BHead *bhead);
+
+static void outliner_add_lib_contents(SpaceOops *soops, ListBase *lb, Library *lib, TreeElement *te)
+{
+	LinkNode *l = NULL, *names = NULL;
+	char *blockname;
+	int blocktype = 0;
+	
+	
+	if (!lib->filedata) {
+		lib->filedata = BLO_blendhandle_from_file(lib->filename);
+	}
+	
+	if (!lib->filedata) {
+		return;
+	}
+	
+	names = BLO_blendhandle_get_linkable_groups( lib->filedata );
+	if( !names ) return;	
+		
+	for( l = names; l; l = l->next ) {
+		blocktype = ( int ) BLO_idcode_from_name( ( char * ) l->link );
+		blockname =  BLO_idcode_to_name( blocktype );
+		
+		TreeElement *tenla= outliner_add_element(soops, lb, lib, te, TSE_LIBRARY_MEMBER_BASE, 0);
+		
+		tenla->name = blockname; /* Use this because blockname is free'd */
+		
+		{
+			BHead *bhead;
+			for (bhead= blo_firstbhead(lib->filedata); bhead; bhead= blo_nextbhead(lib->filedata, bhead)) {
+				if (bhead->code==blocktype) {
+					char *idname= bhead_id_name(lib->filedata, bhead);
+					TreeElement *tenlay = outliner_add_element(soops, &tenla->subtree, lib, tenla, TSE_LIBRARY_MEMBER, 0);
+					tenlay->name= idname+2;
+				} else if (bhead->code==ENDB)
+					break;
+			}
+		}
+		
+	}
+	BLI_linklist_free( names, free );	/* free linklist *and* each node's data */
+}
+
 
 static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *idv, 
 										 TreeElement *parent, short type, short index)
@@ -569,6 +619,9 @@ static TreeElement *outliner_add_element(SpaceOops *soops, ListBase *lb, void *i
 		switch(GS(id->name)) {
 		case ID_LI:
 			te->name= ((Library *)id)->name;
+			if(soops->outlinevis == SO_LIBRARIES) {
+				outliner_add_lib_contents(soops, &te->subtree, (Library *)id, te);
+			}
 			break;
 		case ID_SCE:
 			outliner_add_scene_contents(soops, &te->subtree, (Scene *)id, te);
@@ -1845,6 +1898,100 @@ static int tree_element_active_text(SpaceOops *soops, TreeElement *te, int set)
 	return 0;
 }
 
+static int tree_element_active_linked_data(TreeElement *te, TreeStoreElem *tselem, int set)
+{
+	Library *lib = (Library *)tselem->id;
+	
+	if (strcmp(te->parent->name, "Group")==0) {
+		if (set) {
+			Object *ob = OBACT;
+			Group *group_iter;
+			BlendHandle  *bh = NULL;
+			//printf("%s\n", te->name);
+		
+			/* first see if we have the group alredy */
+			for(group_iter = G.main->group.first;  group_iter; group_iter = group_iter->id.next )
+				if ((group_iter->id.lib == lib) && (strcmp(group_iter->id.name+2, te->name)==0) )
+					break;
+		
+			if (!group_iter) {
+			
+				if (!lib->filedata) {
+					lib->filedata = BLO_blendhandle_from_file(lib->filename);
+				}
+				bh = (BlendHandle *)lib->filedata;
+			
+				/* import from the libary */
+				BLO_script_library_append( &bh, lib->filename, te->name, ID_GR, FILE_LINK, G.scene );
+			
+				for(group_iter = G.main->group.first;  group_iter; group_iter = group_iter->id.next )
+					if ((group_iter->id.lib == lib) && (strcmp(group_iter->id.name+2, te->name)==0) )
+						break;
+			}
+		
+			if (!ob) {
+				Base *base;
+				/* add an empty */
+				ob = add_only_object(OB_EMPTY, te->name);
+				ob->flag = SELECT;
+			
+			
+				/* link to scene */
+				base = MEM_callocN( sizeof( Base ), "pynewbase" );
+				base->object = ob;	/* link object to the new base */
+				base->lay= ob->lay = G.scene->lay & ((1<<20)-1);
+				base->flag = SELECT;
+				ob->id.us = 1; /* we will exist once in this scene */
+
+				BLI_addhead( &(G.scene->base), base );	/* finally, link new base to scene */
+				VECCOPY(ob->loc, G.scene->cursor);
+				VECCOPY(ob->obmat[3], G.scene->cursor);
+				ob->transflag |= OB_DUPLIGROUP;
+			}
+		
+			if (group_iter) {
+				if (ob->dup_group)
+					ob->dup_group->id.us--;
+				ob->dup_group = group_iter;
+				group_iter->id.us++;
+			}
+		
+	
+		
+			allqueue(REDRAWALL, 0);	
+		
+			return 1;
+		} else {
+			Object *ob = OBACT;
+			if (ob && ob->dup_group && (ob->transflag & OB_DUPLIGROUP) && (ob->dup_group->id.lib == lib) && strcmp(ob->dup_group->id.name+2, te->name )==0) return 1;
+		}
+	} else {
+		/* Unknown linkable type */
+		if (set) {
+			BlendHandle  *bh = NULL;
+			
+			if (!lib->filedata) {
+				lib->filedata = BLO_blendhandle_from_file(lib->filename);
+			}
+			bh = (BlendHandle *)lib->filedata;
+			
+			/* import from the libary */
+			BLO_script_library_append( &bh, lib->filename, te->name, BLO_idcode_from_name(te->parent->name), FILE_LINK, G.scene );
+		
+			allqueue(REDRAWALL, 0);	
+		
+			return 1;
+		} else {
+			return 0; /* unknown, not active */
+		}
+	
+	
+	}
+	return 0;
+}
+
+
+
 /* generic call for ID data check or make/check active in UI */
 static int tree_element_active(SpaceOops *soops, TreeElement *te, int set)
 {
@@ -1862,6 +2009,7 @@ static int tree_element_active(SpaceOops *soops, TreeElement *te, int set)
 			return tree_element_active_texture(soops, te, set);
 		case ID_TXT:
 			return tree_element_active_text(soops, te, set);
+			
 	}
 	return 0;
 }
@@ -1911,6 +2059,9 @@ static int tree_element_type_active(SpaceOops *soops, TreeElement *te, TreeStore
 			return tree_element_active_renderlayer(te, tselem, set);
 		case TSE_POSEGRP:
 			return tree_element_active_posegroup(te, tselem, set);
+		case TSE_LIBRARY_MEMBER:
+			return tree_element_active_linked_data(te, tselem, set);
+			
 	}
 	return 0;
 }
@@ -2030,7 +2181,7 @@ static int do_outliner_mouse_event(SpaceOops *soops, TreeElement *te, short even
 			if(event==LEFTMOUSE) {
 			
 				if (G.qual == LR_CTRLKEY) {
-					if(ELEM9(tselem->type, TSE_NLA, TSE_DEFGROUP_BASE, TSE_CONSTRAINT_BASE, TSE_MODIFIER_BASE, TSE_SCRIPT_BASE, TSE_POSE_BASE, TSE_POSEGRP_BASE, TSE_R_LAYER_BASE, TSE_R_PASS)) 
+					if(ELEM11(tselem->type, TSE_NLA, TSE_DEFGROUP_BASE, TSE_CONSTRAINT_BASE, TSE_MODIFIER_BASE, TSE_SCRIPT_BASE, TSE_POSE_BASE, TSE_POSEGRP_BASE, TSE_R_LAYER_BASE, TSE_R_PASS, TSE_LIBRARY_MEMBER_BASE, TSE_LIBRARY_MEMBER)) 
 						error("Cannot edit builtin name");
 					else if(tselem->id->lib) {
 						error_libdata();
@@ -3018,7 +3169,16 @@ static void tselem_draw_icon(float x, float y, TreeStoreElem *tselem, TreeElemen
 				BIF_icon_draw(x, y, ICON_MATERIAL_DEHLT); break;
 			case TSE_POSEGRP_BASE:
 				BIF_icon_draw(x, y, ICON_VERTEXSEL); break;
-				
+			case TSE_LIBRARY_MEMBER: /* add more here */
+				switch( GS(tselem->id->name)) {
+				case ID_GR:
+					BIF_icon_draw(x, y, ICON_CIRCLE_DEHLT); break;
+				default:
+					BIF_icon_draw(x, y, ICON_DOT); break;
+				}
+				break;
+
+			
 #ifdef WITH_VERSE
 			case ID_VS:
 			case ID_MS:

@@ -421,6 +421,11 @@ void *copy_libblock(void *rt)
 
 static void free_library(Library *lib)
 {
+	/* outliner uses this */
+	if (lib->filedata) {
+		blo_freefiledata(lib->filedata);
+		lib->filedata = NULL;
+	}
     /* no freeing needed for libraries yet */
 }
 

@@ -960,7 +960,7 @@ static FileData *blo_decode_and_check(FileData *fd, BlendReadError *error_r)
 FileData *blo_openblenderfile(char *name, BlendReadError *error_r)
 {
 	gzFile gzfile;
-	
+	printf("opening: blo_openblenderfile '%s'\n", name);
 	gzfile= gzopen(name, "rb");
 
 	if (NULL == gzfile) {
@@ -1011,6 +1011,8 @@ FileData *blo_openblendermemfile(MemFile *memfile, BlendReadError *error_r)
 
 void blo_freefiledata(FileData *fd)
 {
+	printf("freeing: blo_freefiledata '%s'\n", fd->filename);
+	
 	if (fd) {
 		
 		if (fd->filedes != -1) {
@@ -8982,8 +8984,12 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 		if(mainptr->curlib->filedata)
 			lib_link_all(mainptr->curlib->filedata, mainptr);
 		
+		/* APRICOT HACK */
+		/* Experement with keeping the file open, the outliner can then browse it */
+		/*
 		if(mainptr->curlib->filedata) blo_freefiledata(mainptr->curlib->filedata);
 		mainptr->curlib->filedata= NULL;
+		*/
 	}
 }
 
