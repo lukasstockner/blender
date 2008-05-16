@@ -5655,6 +5655,7 @@ void view3d_buttons(void)
 		/* LAYERS */
 		if(G.obedit==NULL && G.vd->localview==0) {
 			uiBlockBeginAlign(block);
+			uiBlockSetCol(block, TH_AUTO);
 			for(a=0; a<5; a++) {
 				if (ob && ob->lay & 1<<a )
 					uiBlockSetCol(block, TH_ACTIVE);
