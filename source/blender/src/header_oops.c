@@ -60,6 +60,7 @@
 #include "BSE_headerbuttons.h"
 
 #include "blendef.h"
+#include "mydevice.h"
 
 #include "BKE_depsgraph.h"
 
@@ -196,7 +197,47 @@ static void do_oops_viewmenu(void *arg, int event)
 		else soops->flag |= SO_HIDE_RESTRICTCOLS;
 		break;
 	}
-}			
+}
+
+static void do_oops_viewmenu_showtypes(void *arg, int event)
+{
+	SpaceOops *soops= curarea->spacedata.first;
+	if (G.qual==LR_CTRLKEY) soops->visiflag = 0;
+	soops->visiflag ^= event;
+	allqueue(REDRAWOOPS, 0);
+}
+
+static uiBlock *oops_viewmenu_showtypes(void *arg_unused)
+{
+	SpaceOops *soops= curarea->spacedata.first;
+	uiBlock *block;
+	short yco = 20, menuwidth = 120;
+
+	block= uiNewBlock(&curarea->uiblocks, "oops_viewmenu_showtypes", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
+	uiBlockSetButmFunc(block, do_oops_viewmenu_showtypes, NULL);
+	
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_SCE) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Scene", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_SCE, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_OB) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Object", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_OB, "");	
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_ME) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Mesh", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_ME, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_CU) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Curve", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_CU, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_MB) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Metaball", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_MB, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_LT) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Lattice", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_LT, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_LA) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Lamp", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_LA, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_MA) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Material", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_MA, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_TE) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Texture", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_TE, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_IP) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Ipo", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_IP, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_IM) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Image", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_IM, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_AR) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Armature", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_AR, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_GR) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Group", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_GR, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_WO) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "World", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_WO, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_AC) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Action", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_AC, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_CA) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Camera", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_CA, "");
+	uiDefIconTextBut(block, BUTM, 1, (soops->visiflag & OOPS_TXT) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "Text", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, OOPS_TXT, "");
+	
+	uiBlockSetDirection(block, UI_RIGHT);
+	uiTextBoundsBlock(block, 60);
+	return block;
+}
 
 static uiBlock *oops_viewmenu(void *arg_unused)
 {
@@ -237,7 +278,11 @@ static uiBlock *oops_viewmenu(void *arg_unused)
 			uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Show Restriction Columns", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 12, "");
 		else
 			uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Show Restriction Columns", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 12, "");
-
+		
+		if(soops->outlinevis == SO_LIBRARIES) {
+			uiDefIconTextBlockBut(block, oops_viewmenu_showtypes, NULL, ICON_RIGHTARROW_THIN, "Show Library Types", 0, yco-=20, 120, 19, "");
+		}
+		
 		uiDefBut(block, SEPR, 0, "",        0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
 		uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Expand One Level|NumPad +", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 9, "");
@@ -494,21 +539,21 @@ void oops_buttons(void)
 		
 		/* VISIBLE */
 		uiBlockBeginAlign(block);
-		uiDefButBitS(block, TOG, OOPS_LAY, B_NEWOOPS, "Layer",		(short)(xco+=XIC),0,XIC+20,YIC, &soops->visiflag, 0, 0, 0, 0, "Only show object datablocks on visible layers");
+		uiDefButBitI(block, TOG, OOPS_LAY, B_NEWOOPS, "Layer",		(short)(xco+=XIC),0,XIC+20,YIC, &soops->visiflag, 0, 0, 0, 0, "Only show object datablocks on visible layers");
 		xco+= 20;
-		uiDefIconButBitS(block, TOG, OOPS_SCE, B_NEWOOPS, ICON_SCENE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Scene datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_OB, B_NEWOOPS, ICON_OBJECT_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Object datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_ME, B_NEWOOPS, ICON_MESH_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Mesh datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_CU, B_NEWOOPS, ICON_CURVE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Curve/Surface/Font datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_MB, B_NEWOOPS, ICON_MBALL_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Metaball datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_LT, B_NEWOOPS, ICON_LATTICE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Lattice datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_LA, B_NEWOOPS, ICON_LAMP_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Lamp datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_MA, B_NEWOOPS, ICON_MATERIAL_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Material datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_TE, B_NEWOOPS, ICON_TEXTURE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Texture datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_IP, B_NEWOOPS, ICON_IPO_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Ipo datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_IM, B_NEWOOPS, ICON_IMAGE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Image datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_GR, B_NEWOOPS, ICON_CIRCLE_DEHLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Group datablocks");
-		uiDefIconButBitS(block, TOG, OOPS_LI, B_NEWOOPS, ICON_LIBRARY_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Library datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_SCE, B_NEWOOPS, ICON_SCENE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Scene datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_OB, B_NEWOOPS, ICON_OBJECT_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Object datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_ME, B_NEWOOPS, ICON_MESH_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Mesh datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_CU, B_NEWOOPS, ICON_CURVE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Curve/Surface/Font datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_MB, B_NEWOOPS, ICON_MBALL_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Metaball datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_LT, B_NEWOOPS, ICON_LATTICE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Lattice datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_LA, B_NEWOOPS, ICON_LAMP_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Lamp datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_MA, B_NEWOOPS, ICON_MATERIAL_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Material datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_TE, B_NEWOOPS, ICON_TEXTURE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Texture datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_IP, B_NEWOOPS, ICON_IPO_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Ipo datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_IM, B_NEWOOPS, ICON_IMAGE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Image datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_GR, B_NEWOOPS, ICON_CIRCLE_DEHLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Group datablocks");
+		uiDefIconButBitI(block, TOG, OOPS_LI, B_NEWOOPS, ICON_LIBRARY_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Library datablocks");
 		
 
 		uiBlockEndAlign(block);

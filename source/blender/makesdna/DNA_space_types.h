@@ -198,7 +198,7 @@ typedef struct SpaceOops {
 	View2D v2d;
 	
 	ListBase oops;
-	short pin, visiflag, flag, rt;
+	short pin, pad1, flag, rt;
 	void *lockpoin;
 	
 	ListBase tree;
@@ -211,6 +211,7 @@ typedef struct SpaceOops {
 	
 	short type, outlinevis, storeflag;
 	short deps_flags;
+	int visiflag, pad2;
 	
 } SpaceOops;
 
@@ -544,21 +545,27 @@ typedef struct SpaceImaSel {
 #define SO_HIDE_RESTRICTCOLS		4
 
 /* SpaceOops->visiflag */
-#define OOPS_SCE	1
-#define OOPS_OB		2
-#define OOPS_ME		4
-#define OOPS_CU		8
-#define OOPS_MB		16
-#define OOPS_LT		32
-#define OOPS_LA		64
-#define OOPS_MA		128
-#define OOPS_TE		256
-#define OOPS_IP		512
-#define OOPS_LAY	1024
-#define OOPS_LI		2048
-#define OOPS_IM		4096
-#define OOPS_AR		8192
-#define OOPS_GR		16384
+#define OOPS_SCE	1<<0
+#define OOPS_OB		1<<1
+#define OOPS_ME		1<<2
+#define OOPS_CU		1<<3
+#define OOPS_MB		1<<4
+#define OOPS_LT		1<<5
+#define OOPS_LA		1<<6
+#define OOPS_MA		1<<7
+#define OOPS_TE		1<<8
+#define OOPS_IP		1<<9
+#define OOPS_LAY	1<<10
+#define OOPS_LI		1<<11
+#define OOPS_IM		1<<12
+#define OOPS_AR		1<<13
+#define OOPS_GR		1<<14
+
+#define OOPS_WO		1<<15
+#define OOPS_AC		1<<16
+#define OOPS_CA		1<<17
+#define OOPS_TXT	1<<18
+
 
 /* SpaceOops->outlinevis */
 #define SO_ALL_SCENES	0

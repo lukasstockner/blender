@@ -565,6 +565,36 @@ static void outliner_add_lib_contents(SpaceOops *soops, ListBase *lb, Library *l
 		
 	for( l = names; l; l = l->next ) {
 		blocktype = ( int ) BLO_idcode_from_name( ( char * ) l->link );
+		
+		/* Should we draw this type? */
+		if (	((blocktype==ID_SCE) && (soops->visiflag & OOPS_SCE)==0) ||
+				((blocktype==ID_OB) && (soops->visiflag & OOPS_OB)==0) ||
+				((blocktype==ID_ME) && (soops->visiflag & OOPS_ME)==0) ||
+				((blocktype==ID_CU) && (soops->visiflag & OOPS_CU)==0) ||
+				((blocktype==ID_MB) && (soops->visiflag & OOPS_MB)==0) ||
+				((blocktype==ID_LT) && (soops->visiflag & OOPS_LT)==0) ||
+				((blocktype==ID_LA) && (soops->visiflag & OOPS_LA)==0) ||
+				((blocktype==ID_MA) && (soops->visiflag & OOPS_MA)==0) ||
+				((blocktype==ID_TE) && (soops->visiflag & OOPS_TE)==0) ||
+				((blocktype==ID_IP) && (soops->visiflag & OOPS_IP)==0) ||
+				((blocktype==ID_IM) && (soops->visiflag & OOPS_IM)==0) ||
+				((blocktype==ID_AR) && (soops->visiflag & OOPS_AR)==0) ||
+				((blocktype==ID_GR) && (soops->visiflag & OOPS_GR)==0) ||
+				((blocktype==ID_WO) && (soops->visiflag & OOPS_WO)==0) ||
+				((blocktype==ID_AC) && (soops->visiflag & OOPS_AC)==0) ||
+				((blocktype==ID_CA) && (soops->visiflag & OOPS_CA)==0) ||
+				((blocktype==ID_TXT) && (soops->visiflag & OOPS_TXT)==0)
+				)	{
+			continue;
+		}
+		
+#define OOPS_WO		1<<15
+#define OOPS_AC		1<<16
+#define OOPS_CA		1<<17
+#define OOPS_TXT	1<<18
+		
+		
+		
 		blockname =  BLO_idcode_to_name( blocktype );
 		
 		TreeElement *tenla= outliner_add_element(soops, lb, lib, te, TSE_LIBRARY_MEMBER_BASE, 0);
@@ -576,7 +606,7 @@ static void outliner_add_lib_contents(SpaceOops *soops, ListBase *lb, Library *l
 			for (bhead= blo_firstbhead(lib->filedata); bhead; bhead= blo_nextbhead(lib->filedata, bhead)) {
 				if (bhead->code==blocktype) {
 					char *idname= bhead_id_name(lib->filedata, bhead);
-					TreeElement *tenlay = outliner_add_element(soops, &tenla->subtree, lib, tenla, TSE_LIBRARY_MEMBER, 0);
+					TreeElement *tenlay = outliner_add_element(soops, &tenla->subtree, lib, tenla, TSE_LIBRARY_MEMBER, blocktype);
 					tenlay->name= idname+2;
 				} else if (bhead->code==ENDB)
 					break;
@@ -3170,7 +3200,7 @@ static void tselem_draw_icon(float x, float y, TreeStoreElem *tselem, TreeElemen
 			case TSE_POSEGRP_BASE:
 				BIF_icon_draw(x, y, ICON_VERTEXSEL); break;
 			case TSE_LIBRARY_MEMBER: /* add more here */
-				switch( GS(tselem->id->name)) {
+				switch( te->index ) { /* store the IDCODE here */
 				case ID_GR:
 					BIF_icon_draw(x, y, ICON_CIRCLE_DEHLT); break;
 				default:
