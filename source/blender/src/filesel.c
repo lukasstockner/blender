@@ -2276,13 +2276,122 @@ static int is_a_library(SpaceFile *sfile, char *dir, char *group)
 	return 1;
 }
 
+
+
+/* APRICOT HACK */
+static int library_load_blend(char *path, int rel)
+{
+	Library *lib;
+	if (!BLI_testextensie(path, ".blend")) {
+		return 0;
+	} else {
+		char otherpath[FILE_MAX]; /* path of loaded lib */
+		
+		/* First deal with the blend file we have */
+		BLI_strncpy(otherpath, G.sce, FILE_MAX);
+		BLI_cleanup_file(G.sce, path);
+		
+		if (strcmp(path, otherpath)==0) {
+			return 0; /* cant load this  blend file!! */
+		}
+		
+		BLI_cleanup_file(G.sce, otherpath);
+		
+		/* Check if we need to load the lib */
+		for(lib= G.main->library.first; lib; lib= lib->id.next) {
+			BLI_strncpy(otherpath, lib->name, FILE_MAX);
+			BLI_cleanup_file(G.sce, otherpath);
+			
+			if (strcmp(path, otherpath)==0) {
+				return 0; /* cant load this  blend file!! */
+			}
+		}
+		
+	}
+	
+	lib= alloc_libblock(&G.main->library, ID_LI, "lib");
+	strncpy(lib->name, path, sizeof(lib->name)-1);
+	BLI_strncpy(lib->filename, path, sizeof(lib->filename));
+	
+	if (rel) {
+		BLI_convertstringcode(lib->name, G.sce);
+	}
+	return 1;
+}
+
+
+static int library_load_blends(SpaceFile *sfile)
+{
+	int a, ok=0;
+	for(a=0; a<sfile->totfile; a++) {
+		if(sfile->filelist[a].flags & ACTIVE) {
+			if( (sfile->filelist[a].type & S_IFDIR) && BLI_testextensie(sfile->filelist[a].relname, ".blend")) { /* a blend file is a DIR. odd */
+				char name[FILE_MAX];
+				BLI_join_dirfile(name, sfile->dir, sfile->filelist[a].relname);
+				ok += library_load_blend(name, sfile->flag & FILE_STRINGCODE);
+			}
+		}
+	}
+	return ok;
+}
+
+
+static int library_load_recursive(SpaceFile *sfile, char *dir, char *group)
+{
+	struct direntry *files;
+	int a, totfile, ok=0;
+
+	waitcursor(1);
+
+	/* also read contents of directories */
+	files= sfile->filelist;
+	totfile= sfile->totfile;
+	sfile->filelist= 0;
+	sfile->totfile= 0;
+
+	for(a=0; a<totfile; a++) {
+		if(files[a].flags & ACTIVE) {
+			if( (files[a].type & S_IFDIR) ) {
+				if (BLI_testextensie(files[a].relname, ".blend")) {
+					char name[FILE_MAX];
+					BLI_join_dirfile(name, sfile->dir, files[a].relname);
+					ok += library_load_blend(name, sfile->flag & FILE_STRINGCODE);
+				} else {
+					strncat(sfile->dir, files[a].relname, FILE_MAXFILE-1);
+					strcat(sfile->dir,"/");
+					read_dir(sfile);
+	
+					/* select all */
+					swapselect_file(sfile);
+					
+					ok += library_load_blends(sfile);
+					
+					parent(sfile);
+				}
+			}
+		}
+	}
+
+	sfile->filelist= files;
+	sfile->totfile= totfile;
+
+	waitcursor(0);
+	if (ok) {
+		BIF_undo_push("Load Libraries");
+		return 1;
+	}
+	return 0;
+}
+/* END APRICOT HACK */
+
 static void do_library_append(SpaceFile *sfile)
 {
 	Library *lib;
 	char dir[FILE_MAX], group[GROUP_MAX];
 	
 	if ( is_a_library(sfile, dir, group)==0 ) {
-		error("Not a library");
+		if (!library_load_recursive(sfile, dir, group))
+			error("Not a library");
 	} else if (!sfile->libfiledata) {
 		error("Library not loaded");
 	} else if (group[0]==0) {
@@ -2329,6 +2438,8 @@ static void do_library_append(SpaceFile *sfile)
 		BLI_strncpy(G.lib, sfile->dir, sizeof(G.lib) );
 	}
 }
+/* END APRICOT HACK */
+
 
 static void library_to_filelist(SpaceFile *sfile)
 {

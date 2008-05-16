@@ -57,6 +57,7 @@
 #include "DNA_text_types.h"
 #include "DNA_world_types.h"
 #include "DNA_sdna_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
@@ -73,6 +74,7 @@
 #include "BKE_screen.h"
 #include "BKE_scene.h"
 #include "BKE_utildefines.h"
+#include "BKE_object.h"
 
 #ifdef WITH_VERSE
 #include "BKE_verse.h"
@@ -587,13 +589,6 @@ static void outliner_add_lib_contents(SpaceOops *soops, ListBase *lb, Library *l
 				)	{
 			continue;
 		}
-		
-#define OOPS_WO		1<<15
-#define OOPS_AC		1<<16
-#define OOPS_CA		1<<17
-#define OOPS_TXT	1<<18
-		
-		
 		
 		blockname =  BLO_idcode_to_name( blocktype );
 		
@@ -1958,8 +1953,8 @@ static int tree_element_active_linked_data(TreeElement *te, TreeStoreElem *tsele
 					if ((group_iter->id.lib == lib) && (strcmp(group_iter->id.name+2, te->name)==0) )
 						break;
 			}
-		
-			if (!ob) {
+			
+			if (!ob || ob->type!=OB_EMPTY) {
 				Base *base;
 				/* add an empty */
 				ob = add_only_object(OB_EMPTY, te->name);
@@ -1969,7 +1964,18 @@ static int tree_element_active_linked_data(TreeElement *te, TreeStoreElem *tsele
 				/* link to scene */
 				base = MEM_callocN( sizeof( Base ), "pynewbase" );
 				base->object = ob;	/* link object to the new base */
-				base->lay= ob->lay = G.scene->lay & ((1<<20)-1);
+				
+				if (G.vd) {
+					if (G.vd->localview) {
+						ob->lay = G.vd->layact + G.vd->lay;
+					} else {
+						ob->lay= G.vd->layact;
+					}
+				} else {
+					ob->lay = G.scene->lay & ((1<<20)-1);
+				}
+				base->lay = ob->lay;
+				
 				base->flag = SELECT;
 				ob->id.us = 1; /* we will exist once in this scene */
 
@@ -1985,9 +1991,6 @@ static int tree_element_active_linked_data(TreeElement *te, TreeStoreElem *tsele
 				ob->dup_group = group_iter;
 				group_iter->id.us++;
 			}
-		
-	
-		
 			allqueue(REDRAWALL, 0);	
 		
 			return 1;

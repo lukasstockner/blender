@@ -280,7 +280,7 @@ static uiBlock *oops_viewmenu(void *arg_unused)
 			uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Show Restriction Columns", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 12, "");
 		
 		if(soops->outlinevis == SO_LIBRARIES) {
-			uiDefIconTextBlockBut(block, oops_viewmenu_showtypes, NULL, ICON_RIGHTARROW_THIN, "Show Library Types", 0, yco-=20, 120, 19, "");
+			uiDefIconTextBlockBut(block, oops_viewmenu_showtypes, NULL, ICON_RIGHTARROW_THIN, "Show Library Types (Ctrl for solo)", 0, yco-=20, 120, 19, "");
 		}
 		
 		uiDefBut(block, SEPR, 0, "",        0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
