@@ -198,6 +198,7 @@ def lightmap_uvpack(	meshes,\
 PREF_SEL_ONLY=			True,\
 PREF_NEW_UVLAYER=		False,\
 PREF_PACK_IN_ONE=		False,\
+PREF_PACK_TO_MANY=		0,\
 PREF_APPLY_IMAGE=		False,\
 PREF_IMG_PX_SIZE=		512,\
 PREF_BOX_DIV= 			8,\
@@ -209,6 +210,9 @@ PREF_MARGIN_DIV=		512):
 	and a higher value will have more clumpy boxes but more waisted space
 	'''
 	
+	if PREF_PACK_TO_MANY:
+		PREF_PACK_IN_ONE = False # This cant be true if we are packing to many images
+	
 	if not meshes:
 		return
 	
@@ -219,7 +223,10 @@ PREF_MARGIN_DIV=		512):
 			image = Image.New('lightmap', PREF_IMG_PX_SIZE, PREF_IMG_PX_SIZE, 24)
 		face_groups = [[]]
 	else:
-		face_groups = []
+		if PREF_PACK_TO_MANY:
+			face_groups = [[]]
+		else:
+			face_groups = []
 	
 	for me in meshes:
 		# Add face UV if it does not exist.
@@ -231,7 +238,7 @@ PREF_MARGIN_DIV=		512):
 		else:
 			faces = list(me.faces)
 		
-		if PREF_PACK_IN_ONE:
+		if PREF_PACK_IN_ONE or PREF_PACK_TO_MANY: # when PREF_PACK_TO_MANY is used we'll have to seperate these later
 			face_groups[0].extend(faces)
 		else:
 			face_groups.append(faces)
@@ -239,6 +246,64 @@ PREF_MARGIN_DIV=		512):
 		if PREF_NEW_UVLAYER:
 			me.addUVLayer('lightmap')
 			me.activeUVLayer = 'lightmap'
+	
+	if PREF_PACK_TO_MANY and len(face_groups[0]) < 4:
+		PREF_PACK_TO_MANY = False
+	
+	if PREF_PACK_TO_MANY: # We need to separate these into 
+		if PREF_PACK_TO_MANY < 4:
+			PREF_PACK_TO_MANY = 4
+	
+		# Split this into a grid on the shortest axis
+		
+		# TODO - Take object matricies into account.
+		
+		# First get the bounds
+		xmin=ymin=zmin = 1000000000
+		xmax=ymax=zmax =-1000000000
+		for f in face_groups[0]:
+			x,y,z = f.cent
+			if x<xmin:	xmin=x
+			if y<ymin:	ymin=y
+			if z<zmin:	zmin=z
+			
+			if x>xmax:	xmax=x
+			if y>ymax:	ymax=y
+			if z>zmax:	zmax=z
+		
+		# This is fairly terrain spesific, at least it works best for flat objects.
+		xdepth = xmax-xmin
+		ydepth = ymax-ymin
+		zdepth = zmax-zmin
+		# print  xdepth, ydepth, zdepth
+		div = PREF_PACK_TO_MANY
+		
+		if div < 2: div = 2
+		
+		face_grid = {}		
+		if xdepth <= ydepth and xdepth <= zdepth:
+			# y/z axis plain
+			# print 'y/z'
+			for f in face_groups[0]:
+				x,y,z = f.cent
+				face_grid.setdefault( ( int(((y-ymin)/ydepth)*div), int(((z-zmin)/zdepth)*div) ), [] ).append(f)
+		
+		elif ydepth <= xdepth and ydepth <= zdepth:
+			# x/z axis plain
+			# print 'x/z'
+			for f in face_groups[0]:
+				x,y,z = f.cent
+				face_grid.setdefault( ( int(((x-xmin)/xdepth)*div), int(((z-zmin)/zdepth)*div) ), [] ).append(f)
+		
+		elif zdepth <= xdepth and zdepth <= ydepth:
+			# x/y axis plain
+			# print 'x/y'
+			for f in face_groups[0]:
+				x,y,z = f.cent
+				face_grid.setdefault( ( int(((x-xmin)/xdepth)*div), int(((y-ymin)/ydepth)*div) ), [] ).append(f)
+		print face_grid.keys()
+		# Replace the old face list
+		face_groups[:] = face_grid.values()
 	
 	for face_sel in face_groups:
 		print "\nStarting unwrap"
@@ -510,6 +575,7 @@ def main():
 	PREF_SEL_ONLY = Draw.Create(1)
 	PREF_NEW_UVLAYER = Draw.Create(0)
 	PREF_PACK_IN_ONE = Draw.Create(0)
+	PREF_PACK_IN_MANY = Draw.Create(0)
 	PREF_APPLY_IMAGE = Draw.Create(0)
 	PREF_IMG_PX_SIZE = Draw.Create(512)
 	PREF_BOX_DIV = Draw.Create(12)
@@ -519,14 +585,19 @@ def main():
 	'Context...',
 	('Active Object', PREF_ACT_ONLY, 'If disabled, include other selected objects for packing the lightmap.'),\
 	('Selected Faces', PREF_SEL_ONLY, 'Use only selected faces from all selected meshes.'),\
+	'UV Packing...',
+	('Pack Quality: ', PREF_BOX_DIV, 1, 48, 'Pre Packing before the complex boxpack'),\
+	('Margin: ', PREF_MARGIN_DIV, 0.001, 1.0, 'Size of the margin as a division of the UV'),\
+	'',\
+	'',\
+	
 	'Image & UVs...',
 	('Share Tex Space', PREF_PACK_IN_ONE, 'Objects Share texture space, map all objects into 1 uvmap'),\
+	('Tile Images: ', PREF_PACK_IN_MANY, 1, 16, 'Tile images over one or more mesh, value squared (n*n)'),\
 	('New UV Layer', PREF_NEW_UVLAYER, 'Create a new UV layer for every mesh packed'),\
 	('New Image', PREF_APPLY_IMAGE, 'Assign new images for every mesh (only one if shared tex space enabled)'),\
 	('Image Size', PREF_IMG_PX_SIZE, 64, 5000, 'Width and Height for the new image'),\
-	'UV Packing...',
-	('Pack Quality: ', PREF_BOX_DIV, 1, 48, 'Pre Packing before the complex boxpack'),\
-	('Margin: ', PREF_MARGIN_DIV, 0.001, 1.0, 'Size of the margin as a division of the UV')\
+
 	]):
 		return
 	
@@ -555,6 +626,7 @@ def main():
 			PREF_SEL_ONLY.val,\
 			PREF_NEW_UVLAYER.val,\
 			PREF_PACK_IN_ONE.val,\
+			PREF_PACK_IN_MANY.val,\
 			PREF_APPLY_IMAGE.val,\
 			PREF_IMG_PX_SIZE.val,\
 			PREF_BOX_DIV.val,\
