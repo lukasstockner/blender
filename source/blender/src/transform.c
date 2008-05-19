@@ -2411,18 +2411,19 @@ void initRotation(TransInfo *t)
 		t->flag |= T_NO_CONSTRAINT;
 }
 
-static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3]) {
+static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short around) {
 	float vec[3], totmat[3][3], smat[3][3];
 	float eul[3], fmat[3][3], quat[4];
 	float *center = t->center;
 	
 	/* local constraint shouldn't alter center */
-	if (t->around == V3D_LOCAL) {
+	if (around == V3D_LOCAL) {
 		if (t->flag & (T_OBJECT|T_POSE)) {
 			center = td->center;
 		}
 		else {
-			if(G.vd->around==V3D_LOCAL && (G.scene->selectmode & SCE_SELECT_FACE)) {
+			/* !TODO! Make this if not rely on G */
+			if(around==V3D_LOCAL && (G.scene->selectmode & SCE_SELECT_FACE)) {
 				center = td->center;
 			}
 		}
@@ -2619,7 +2620,7 @@ static void applyRotation(TransInfo *t, float angle, float axis[3])
 			VecRotToMat3(axis, angle * td->factor, mat);
 		}
 
-		ElementRotation(t, td, mat);
+		ElementRotation(t, td, mat, t->around);
 	}
 }
 
@@ -2738,7 +2739,7 @@ static void applyTrackball(TransInfo *t, float axis1[3], float axis2[3], float a
 			Mat3MulMat3(mat, smat, totmat);
 		}
 		
-		ElementRotation(t, td, mat);
+		ElementRotation(t, td, mat, t->around);
 	}
 }
 
@@ -2913,6 +2914,25 @@ static void applyTranslation(TransInfo *t, float vec[3]) {
 		if (td->flag & TD_SKIP)
 			continue;
 		
+		/* handle snapping rotation before doing the translation */
+		if (useSnappingNormal(t))
+		{
+			float *original_normal = td->axismtx[2];
+			float axis[3];
+			float quat[4];
+			float mat[3][3];
+			float angle;
+			
+			Crossf(axis, original_normal, t->tsnap.snapNormal);
+			angle = saacos(Inpf(original_normal, t->tsnap.snapNormal));
+			
+			AxisAngleToQuat(quat, axis, angle);
+
+			QuatToMat3(quat, mat);
+			
+			ElementRotation(t, td, mat, V3D_LOCAL);
+		}
+
 		if (t->con.applyVec) {
 			float pvec[3];
 			t->con.applyVec(t, td, vec, tvec, pvec);
@@ -2938,81 +2958,6 @@ static void applyTranslation(TransInfo *t, float vec[3]) {
 		constraintTransLim(t, td);
 	}
 }
-
-/* APRICOT HACK */
-static int testbase_unselected( void *base )
-{
-	return (((Base *)base)->flag & SELECT) ? 0 : 1;
-}
-
-/* APRICOT HACK */
-static void applyTranslationRetopo(TransInfo *t) {
-	TransData *td = t->data;
-	//float tvec[3];
-	int i;
-
-	
-	// -----------------
-	
-	Base *base;
-	Object *ob;
-	short s[2];
-	View3D *v3d = G.vd;
-	double cent[2],  p[3];
-	float depth_close= ((float)3.40282347e+38);
-	
-	/* --- Make external func --- */
-	if (t->txdepth==NULL) {
-		/* ZBuffer depth vars */
-		//bglMats mats;
-		
-
-		
-		
-		
-		persp(PERSP_VIEW);
-		
-		/* Get Z Depths, needed for perspective, nice for ortho */
-		bgl_get_mats(&t->txmats);
-		draw_depth(curarea, (void *)G.vd, testbase_unselected);
-		
-		/* force updating */
-		if (v3d->depths) {
-			v3d->depths->damaged = 1;
-		}
-		
-		view3d_update_depths(v3d);
-		// ---------------
-		t->txdepth = v3d->depths->depths;
-		//MEM_freeN(v3d->depths->depths);
-		//v3d->depths->depths = NULL;
-	} else {
-		v3d->depths->depths = t->txdepth;
-	}
-	
-	for(i = 0 ; i < t->total; i++, td++) {
-		project_short(td->loc, s);
-		
-		if (s[0] != IS_CLIPPED) {
-			cent[0] = (double)s[0];
-			cent[1] = (double)s[1];
-			depth_close= v3d->depths->depths[s[1]*v3d->depths->w+s[0]];
-			if(depth_close < v3d->depths->depth_range[1] && depth_close > v3d->depths->depth_range[0]) {
-				if (!gluUnProject(cent[0], cent[1], depth_close, t->txmats.modelview, t->txmats.projection, t->txmats.viewport, &p[0], &p[1], &p[2])) {
-					/* do nothing */
-				} else {
-					td->loc[0] = (float)p[0];
-					td->loc[1] = (float)p[1];
-					td->loc[2] = (float)p[2];
-					
-				}
-			}
-		}
-	}
-	
-	v3d->depths->depths = NULL;
-}
-extern char retopo_object_check(); 
 
 /* uses t->vec to store actual translation in */
 int Translation(TransInfo *t, short mval[2]) 
@@ -3050,11 +2995,6 @@ int Translation(TransInfo *t, short mval[2])
 	/* evil hack - redo translation if cliiping needeed */
 	if (t->flag & T_CLIP_UV && clipUVTransform(t, t->vec, 0))
 		applyTranslation(t, t->vec);
-
-	/* even more evil APRICOT HACK */
-	if ((t->spacetype==SPACE_VIEW3D) && retopo_object_check() ) {
-		applyTranslationRetopo(t);
-	}
 	
 	recalcData(t);
 
@@ -4194,7 +4134,7 @@ int Align(TransInfo *t, short mval[2])
 		
 		Mat3MulMat3(mat, t->spacemtx, invmat);	
 
-		ElementRotation(t, td, mat);
+		ElementRotation(t, td, mat, t->around);
 	}
 
 	/* restoring original center */
