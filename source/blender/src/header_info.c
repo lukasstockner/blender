@@ -881,7 +881,7 @@ static void do_info_filemenu(void *arg, int event)
 			winqueue_break= 1;	/* leave queues everywhere */
 		
 			BKE_reset_undo();
-			BKE_write_undo("original");	/* save current state */
+			BKE_write_undo("Original");	/* save current state */
 			refresh_interface_font();
 		}
 		break;
@@ -2063,12 +2063,15 @@ static void info_text(int x, int y)
 {
 	Object *ob= OBACT;
 	extern float hashvectf[];
-	extern unsigned long mem_in_use, mmap_in_use;
+	unsigned long mem_in_use, mmap_in_use;
 	unsigned int swatch_color;
 	float fac1, fac2, fac3;
 	char infostr[300], memstr[64];
 	char *headerstr, *s;
 	int hsize;
+
+	mem_in_use= MEM_get_memory_in_use();
+	mmap_in_use= MEM_get_mapped_memory_in_use();
 
 	s= memstr + sprintf(memstr," | Mem:%.2fM ", ((mem_in_use-mmap_in_use)>>10)/1024.0);
 	if(mmap_in_use)

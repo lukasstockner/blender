@@ -901,10 +901,13 @@ static void renderwin_progress_display_cb(RenderResult *rr, volatile rcti *rect)
 void make_renderinfo_string(RenderStats *rs, char *str)
 {
 	extern char info_time_str[32];	// header_info.c
-	extern unsigned long mem_in_use, mmap_in_use;
+	unsigned long mem_in_use, mmap_in_use;
 	float megs_used_memory, mmap_used_memory;
 	char *spos= str;
 	
+	mem_in_use= MEM_get_memory_in_use();
+	mmap_in_use= MEM_get_mapped_memory_in_use();
+
 	megs_used_memory= (mem_in_use-mmap_in_use)/(1024.0*1024.0);
 	mmap_used_memory= (mmap_in_use)/(1024.0*1024.0);
 	

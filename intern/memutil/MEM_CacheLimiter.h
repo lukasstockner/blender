@@ -61,11 +61,8 @@ class MEM_CacheLimiter;
 
 #ifndef __MEM_cache_limiter_c_api_h_included__
 extern "C" {
-	extern void MEM_CacheLimiter_set_maximum(int m);
-	extern int MEM_CacheLimiter_get_maximum();
-        // this is rather _ugly_!
-        extern int mem_in_use;
-	extern int mmap_in_use;
+	extern void MEM_CacheLimiter_set_maximum(unsigned long m);
+	extern unsigned long MEM_CacheLimiter_get_maximum();
 };
 #endif
 
@@ -141,7 +138,10 @@ public:
 		delete handle;
 	}
 	void enforce_limits() {
-		int max = MEM_CacheLimiter_get_maximum();
+		unsigned long max = MEM_CacheLimiter_get_maximum();
+		unsigned long mem_in_use= MEM_get_memory_in_use();
+		unsigned long mmap_in_use= MEM_get_mapped_memory_in_use();
+
 		if (max == 0) {
 			return;
 		}

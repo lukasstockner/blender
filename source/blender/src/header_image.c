@@ -1275,7 +1275,7 @@ void image_buttons(void)
 			uiBlockEndAlign(block);
 			xco+= 166;
 		}
-		uiDefIconButBitI(block, TOG, SI_DRAWTOOL, B_SIMAGEPAINTTOOL, ICON_TPAINT_HLT, xco,0,XIC,YIC, &G.sima->flag, 0, 0, 0, 0, "Enables painting textures on the image with left mouse button");
+		uiDefIconButBitI(block, TOG, SI_DRAWTOOL, B_SIMAGEPAINTTOOL, ICON_TPAINT_HLT, xco,0,XIC,YIC, &G.sima->flag, 0, 0, 0, 0, "Enable image painting");
 		
 		xco+= XIC+8;
 

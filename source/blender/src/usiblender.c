@@ -567,8 +567,9 @@ void BIF_read_file(char *name)
 		if (retval!=0) G.relbase_valid = 1;
 
 		undo_editmode_clear();
+		undo_imagepaint_clear();
 		BKE_reset_undo();
-		BKE_write_undo("original");	/* save current state */
+		BKE_write_undo("Original");	/* save current state */
 
 		refresh_interface_font();
 	}
@@ -640,8 +641,9 @@ int BIF_read_homefile(int from_memory)
 	init_userdef_file();
 
 	undo_editmode_clear();
+	undo_imagepaint_clear();
 	BKE_reset_undo();
-	BKE_write_undo("original");	/* save current state */
+	BKE_write_undo("Original");	/* save current state */
 	
 	/* if from memory, need to refresh python scripts */
 	if (from_memory) {
@@ -1048,6 +1050,7 @@ extern ListBase editelems;
 void exit_usiblender(void)
 {
 	struct TmpFont *tf;
+	int totblock;
 	
 	BIF_clear_tempfiles();
 	
@@ -1093,7 +1096,6 @@ void exit_usiblender(void)
 	free_ipocopybuf();
 	free_actcopybuf();
 	free_vertexpaint();
-	free_imagepaint();
 	
 	/* editnurb can remain to exist outside editmode */
 	freeNurblist(&editNurb);
@@ -1120,6 +1122,7 @@ void exit_usiblender(void)
 
 	/* undo free stuff */
 	undo_editmode_clear();
+	undo_imagepaint_clear();
 	
 	BKE_undo_save_quit();	// saves quit.blend if global undo is on
 	BKE_reset_undo(); 
@@ -1145,6 +1148,7 @@ void exit_usiblender(void)
 	BLI_freelistN(&U.themes);
 	BIF_preview_free_dbase();
 	
+	totblock= MEM_get_memory_blocks_in_use();
 	if(totblock!=0) {
 		printf("Error Totblock: %d\n",totblock);
 		MEM_printmemlist();

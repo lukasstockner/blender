@@ -346,6 +346,7 @@ void playanim(int argc, char **argv)
  	int start_x= 0, start_y= 0;
 	int sfra= -1;
 	int efra= -1;
+	int totblock;
 	
 	while (argc > 1) {
 		if (argv[1][0] == '-'){
@@ -823,6 +824,7 @@ void playanim(int argc, char **argv)
 	free_blender();
 	window_destroy(g_window);
 
+	totblock= MEM_get_memory_blocks_in_use();
 	if(totblock!=0) {
 		printf("Error Totblock: %d\n",totblock);
 		MEM_printmemlist();

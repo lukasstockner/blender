@@ -1028,9 +1028,9 @@ void BIF_undo(void)
 	}
 	else {
 		if(G.f & G_TEXTUREPAINT)
-			imagepaint_undo();
+			undo_imagepaint_step(1);
 		else if(curarea->spacetype==SPACE_IMAGE && (G.sima->flag & SI_DRAWTOOL))
-			imagepaint_undo();
+			undo_imagepaint_step(1);
 		else if(G.f & G_PARTICLEEDIT)
 			PE_undo();
 		else {
@@ -1052,9 +1052,9 @@ void BIF_redo(void)
 	}
 	else {
 		if(G.f & G_TEXTUREPAINT)
-			imagepaint_undo();
+			undo_imagepaint_step(-1);
 		else if(curarea->spacetype==SPACE_IMAGE && (G.sima->flag & SI_DRAWTOOL))
-			imagepaint_undo();
+			undo_imagepaint_step(-1);
 		else if(G.f & G_PARTICLEEDIT)
 			PE_redo();
 		else {
@@ -2626,10 +2626,9 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 					else if(G.f & G_VERTEXPAINT)
 						BIF_undo();
 					else if(G.f & G_TEXTUREPAINT)
-						imagepaint_undo();
-					else {
+						undo_imagepaint_step(1);
+					else
 						single_user();
-					}
 				}
 				
 				break;
@@ -3916,20 +3915,23 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 
 
 		uiDefBut(block, LABEL,0,"Transform:",
-			(xpos+(2*edgsp)+mpref),y5label, mpref,buth,
+			(xpos+(2*edgsp)+mpref),y6label, mpref,buth,
 			0, 0, 0, 0, 0, "");
 		uiDefButBitI(block, TOG, USER_DRAGIMMEDIATE, B_DRAWINFO, "Drag Immediately",
-			(xpos+edgsp+mpref+midsp),y4,mpref,buth,
+			(xpos+edgsp+mpref+midsp),y5,mpref,buth,
 			&(U.flag), 0, 0, 0, 0, "Moving things with a mouse drag doesn't require a click to confirm (Best for tablet users)");
 		uiBlockEndAlign(block);
 
 		uiDefBut(block, LABEL,0,"Undo:",
-			(xpos+(2*edgsp)+mpref),y3label, mpref,buth,
+			(xpos+(2*edgsp)+mpref),y4label, mpref,buth,
 			0, 0, 0, 0, 0, "");
 		uiBlockBeginAlign(block);
 		uiDefButS(block, NUMSLI, B_DRAWINFO, "Steps: ",
-			(xpos+edgsp+mpref+midsp),y2,mpref,buth,
+			(xpos+edgsp+mpref+midsp),y3,mpref,buth,
 			&(U.undosteps), 0, 64, 0, 0, "Number of undo steps available (smaller values conserve memory)");
+		uiDefButS(block, NUM, B_DRAWINFO, "Memory Limit: ",
+			(xpos+edgsp+mpref+midsp),y2,mpref,buth,
+			&(U.undomemory), 0, 32767, -1, 0, "Maximum memory usage in megabytes (0 means unlimited)");
 
 		uiDefButBitI(block, TOG, USER_GLOBALUNDO, B_DRAWINFO, "Global Undo",
 			(xpos+edgsp+mpref+midsp),y1,mpref,buth,
@@ -5956,7 +5958,7 @@ static void init_oopsspace(ScrArea *sa)
 	soops= MEM_callocN(sizeof(SpaceOops), "initoopsspace");
 	BLI_addhead(&sa->spacedata, soops);
 
-	soops->visiflag= OOPS_OB+OOPS_MA+OOPS_ME+OOPS_TE+OOPS_CU+OOPS_IP;
+	soops->visiflag= OOPS_OB|OOPS_MA|OOPS_ME|OOPS_TE|OOPS_CU|OOPS_IP;
 	/* new oops is default an outliner */
 	soops->type= SO_OUTLINER;
 		
