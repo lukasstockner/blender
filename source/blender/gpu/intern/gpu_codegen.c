@@ -56,7 +56,12 @@
 #include <stdarg.h>
 
 #ifdef _WIN32
+#ifndef snprintf
 #define _vsnprintf vsnprintf
+#endif
+#ifndef snprintf
+#define snprintf _snprintf
+#endif
 #endif
 
 static char* GPU_DATATYPE_STR[17] = {"", "float", "vec2", "vec3", "vec4",

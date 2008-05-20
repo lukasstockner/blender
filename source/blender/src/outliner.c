@@ -552,17 +552,18 @@ static void outliner_add_lib_contents(SpaceOops *soops, ListBase *lb, Library *l
 	LinkNode *l = NULL, *names = NULL;
 	char *blockname;
 	int blocktype = 0;
+	TreeElement *tenla;
 	
 	
 	if (!lib->filedata) {
-		lib->filedata = BLO_blendhandle_from_file(lib->filename);
+		lib->filedata = (void*)BLO_blendhandle_from_file(lib->filename);
 	}
 	
 	if (!lib->filedata) {
 		return;
 	}
 	
-	names = BLO_blendhandle_get_linkable_groups( lib->filedata );
+	names = BLO_blendhandle_get_linkable_groups( (BlendHandle*)lib->filedata );
 	if( !names ) return;	
 		
 	for( l = names; l; l = l->next ) {
@@ -592,7 +593,7 @@ static void outliner_add_lib_contents(SpaceOops *soops, ListBase *lb, Library *l
 		
 		blockname =  BLO_idcode_to_name( blocktype );
 		
-		TreeElement *tenla= outliner_add_element(soops, lb, lib, te, TSE_LIBRARY_MEMBER_BASE, 0);
+		tenla= outliner_add_element(soops, lb, lib, te, TSE_LIBRARY_MEMBER_BASE, 0);
 		
 		tenla->name = blockname; /* Use this because blockname is free'd */
 		
@@ -1942,7 +1943,7 @@ static int tree_element_active_linked_data(TreeElement *te, TreeStoreElem *tsele
 			if (!group_iter) {
 			
 				if (!lib->filedata) {
-					lib->filedata = BLO_blendhandle_from_file(lib->filename);
+					lib->filedata = (void*)BLO_blendhandle_from_file(lib->filename);
 				}
 				bh = (BlendHandle *)lib->filedata;
 			
@@ -2004,7 +2005,7 @@ static int tree_element_active_linked_data(TreeElement *te, TreeStoreElem *tsele
 			BlendHandle  *bh = NULL;
 			
 			if (!lib->filedata) {
-				lib->filedata = BLO_blendhandle_from_file(lib->filename);
+				lib->filedata = (void*)BLO_blendhandle_from_file(lib->filename);
 			}
 			bh = (BlendHandle *)lib->filedata;
 			
