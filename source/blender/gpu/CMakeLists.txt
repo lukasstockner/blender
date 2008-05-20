@@ -1,4 +1,4 @@
-# $Id$
+# $Id: CMakeLists.txt 14444 2008-04-16 22:40:48Z hos $
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -24,13 +24,11 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-FILE(GLOB SRC intern/source/*.c)
+FILE(GLOB SRC intern/*.c)
 
 SET(INC 
-  extern/include ../blenlib ../blenkernel ../makesdna ../include
-  ../../../intern/guardedalloc ../render/extern/include
-  ../render/intern/include ../../../extern/glew/include
-)
+  . ../blenlib ../blenkernel ../makesdna ../include
+  ../../../extern/glew/include ../../../intern/guardedalloc ../imbuf)
 
-BLENDERLIB_NOLIST(blender_radiosity "${SRC}" "${INC}")
-#env.BlenderLib ( 'blender_radiosity', sources, Split(incs), [], libtype='core', priority=50 )
+BLENDERLIB(bf_gpu "${SRC}" "${INC}")
+

@@ -24,13 +24,10 @@
 #
 # ***** END GPL LICENSE BLOCK *****
 
-FILE(GLOB SRC intern/source/*.c)
+SET(INC include src)
 
-SET(INC 
-  extern/include ../blenlib ../blenkernel ../makesdna ../include
-  ../../../intern/guardedalloc ../render/extern/include
-  ../render/intern/include ../../../extern/glew/include
+SET(SRC
+  src/glew.c
 )
 
-BLENDERLIB_NOLIST(blender_radiosity "${SRC}" "${INC}")
-#env.BlenderLib ( 'blender_radiosity', sources, Split(incs), [], libtype='core', priority=50 )
+BLENDERLIB(extern_glew "${SRC}" "${INC}")

@@ -34,7 +34,7 @@ SET(INC
   api2_2x ../blenkernel ../blenlib ../blenloader
   ../render/extern/include ../radiosity/extern/include
   ../makesdna ../../../intern/guardedalloc ../../../intern/bmfont ../imbuf ../include
-  ${PYTHON_INC}
+  ${PYTHON_INC} ../../../extern/glew/include
 )
 
 IF(WITH_QUICKTIME)

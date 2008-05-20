@@ -90,6 +90,7 @@ IF(UNIX)
     bf_soundsystem 
     bf_kernel 
     bf_nodes
+	bf_gpu
     bf_imbuf
     bf_avi 
     kx_network 
@@ -108,6 +109,7 @@ IF(UNIX)
     blenkernel_blc
     bf_quicktime
     extern_binreloc
+	extern_glew
   ) 
 
   FOREACH(SORTLIB ${BLENDER_SORTED_LIBS})
