@@ -1076,7 +1076,8 @@ static void object_duplilist_recursive(ID *id, Object *ob, ListBase *duplilist, 
 	}
 }
 
-/* note; group dupli's already set transform matrix. see note in group_duplilist() */
+/* Returns a list of DupliObject
+ * note; group dupli's already set transform matrix. see note in group_duplilist() */
 ListBase *object_duplilist(Scene *sce, Object *ob)
 {
 	ListBase *duplilist= MEM_mallocN(sizeof(ListBase), "duplilist");
