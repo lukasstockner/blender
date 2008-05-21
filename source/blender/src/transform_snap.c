@@ -1079,14 +1079,16 @@ int snapObjects(int *dist, float *loc, float *no, int mode) {
 				for(dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next)
 				{
 					Object *ob = dupli_ob->ob;
-					DerivedMesh *dm = mesh_get_derived_final(ob, CD_MASK_BAREMESH);
-					int val;
-					
-					val = snapDerivedMesh(ob, dm, dupli_ob->mat, ray_start, ray_normal, mval, loc, no, dist, &depth);
-
-					retval = retval || val;
-
-					dm->release(dm);
+					if (ob->type == OB_MESH) {
+						DerivedMesh *dm = mesh_get_derived_final(ob, CD_MASK_BAREMESH);
+						int val;
+						
+						val = snapDerivedMesh(ob, dm, dupli_ob->mat, ray_start, ray_normal, mval, loc, no, dist, &depth);
+	
+						retval = retval || val;
+	
+						dm->release(dm);
+					}
 				}
 				
 				free_object_duplilist(lb);
