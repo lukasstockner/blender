@@ -2915,22 +2915,33 @@ static void applyTranslation(TransInfo *t, float vec[3]) {
 			continue;
 		
 		/* handle snapping rotation before doing the translation */
-		if (useSnappingNormal(t))
+		if (usingSnappingNormal(t))
 		{
-			float *original_normal = td->axismtx[2];
-			float axis[3];
-			float quat[4];
-			float mat[3][3];
-			float angle;
-			
-			Crossf(axis, original_normal, t->tsnap.snapNormal);
-			angle = saacos(Inpf(original_normal, t->tsnap.snapNormal));
-			
-			AxisAngleToQuat(quat, axis, angle);
-
-			QuatToMat3(quat, mat);
-			
-			ElementRotation(t, td, mat, V3D_LOCAL);
+			if (validSnappingNormal(t))
+			{
+				float *original_normal = td->axismtx[2];
+				float axis[3];
+				float quat[4];
+				float mat[3][3];
+				float angle;
+				
+				Crossf(axis, original_normal, t->tsnap.snapNormal);
+				angle = saacos(Inpf(original_normal, t->tsnap.snapNormal));
+				
+				AxisAngleToQuat(quat, axis, angle);
+	
+				QuatToMat3(quat, mat);
+				
+				ElementRotation(t, td, mat, V3D_LOCAL);
+			}
+			else
+			{
+				float mat[3][3];
+				
+				Mat3One(mat);
+				
+				ElementRotation(t, td, mat, V3D_LOCAL);
+			}
 		}
 
 		if (t->con.applyVec) {

@@ -464,7 +464,8 @@ void applySnapping(TransInfo *t, float *vec);
 void resetSnapping(TransInfo *t);
 int  handleSnapping(TransInfo *t, int event);
 void drawSnapping(TransInfo *t);
-int useSnappingNormal(TransInfo *t);
+int usingSnappingNormal(TransInfo *t);
+int validSnappingNormal(TransInfo *t);
 
 /*********************** Generics ********************************/
 

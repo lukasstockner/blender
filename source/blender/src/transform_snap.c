@@ -60,6 +60,7 @@
 #include "BKE_utildefines.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_object.h"
+#include "BKE_anim.h" /* for duplis */
 
 #include "BSE_view.h"
 
@@ -130,6 +131,15 @@ void drawSnapping(TransInfo *t)
 			glPushMatrix();
 			
 			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
+			
+			/* draw normal if needed */
+			if (usingSnappingNormal(t) && validSnappingNormal(t))
+			{
+				glBegin(GL_LINES);
+					glVertex3f(0, 0, 0);
+					glVertex3f(t->tsnap.snapNormal[0], t->tsnap.snapNormal[1], t->tsnap.snapNormal[2]);
+				glEnd();
+			}
 			
 			/* sets view screen aligned */
 			glRotatef( -360.0f*saacos(G.vd->viewquat[0])/(float)M_PI, G.vd->viewquat[1], G.vd->viewquat[2], G.vd->viewquat[3]);
@@ -229,16 +239,25 @@ void resetSnapping(TransInfo *t)
 	t->tsnap.snapNormal[2] = 0;
 }
 
-int useSnappingNormal(TransInfo *t)
+int usingSnappingNormal(TransInfo *t)
 {
 	if (G.scene->snap_flag & SCE_SNAP_ROTATE)
 	{
-		if ((t->tsnap.status & (POINT_INIT|TARGET_INIT)) == (POINT_INIT|TARGET_INIT))
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+int validSnappingNormal(TransInfo *t)
+{
+	if ((t->tsnap.status & (POINT_INIT|TARGET_INIT)) == (POINT_INIT|TARGET_INIT))
+	{
+		if (Inpf(t->tsnap.snapNormal, t->tsnap.snapNormal) > 0)
 		{
-			if (Inpf(t->tsnap.snapNormal, t->tsnap.snapNormal) > 0)
-			{
-				return 1;
-			}
+			return 1;
 		}
 	}
 	
@@ -864,8 +883,9 @@ int snapFace(MFace *face, MVert *verts, float *intersect, float *loc, float *no)
 	return result;
 }
 
-int snapDerivedMesh(Object *ob, DerivedMesh *dm, float ray_start[3], float ray_normal[3], short mval[2], float *loc, float *no, int *dist, float *depth)
+int snapDerivedMesh(Object *ob, DerivedMesh *dm, float obmat[][4], float ray_start[3], float ray_normal[3], short mval[2], float *loc, float *no, int *dist, float *depth)
 {
+	float object_depth = FLT_MAX;
 	int retval = 0;
 	int totvert = dm->getNumVerts(dm);
 	
@@ -886,7 +906,7 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float ray_start[3], float ray_n
 				int sloc[2];
 				
 				VECCOPY(gloc, bb->vec[i]);
-				Mat4MulVecfl(ob->obmat, gloc);
+				Mat4MulVecfl(obmat, gloc);
 				project_int(gloc, sloc);
 				
 				if (i == 0) {
@@ -927,7 +947,7 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float ray_start[3], float ray_n
 			VECCOPY(ray_start_local, ray_start);
 			VECCOPY(ray_normal_local, ray_normal);
 			
-			Mat4Invert(imat, ob->obmat);
+			Mat4Invert(imat, obmat);
 			
 			Mat4MulVecfl(imat, ray_start_local);
 			Mat4Mul3Vecfl(imat, ray_normal_local);
@@ -939,26 +959,38 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float ray_start[3], float ray_n
 				
 				result = RayIntersectsTriangle(ray_start_local, ray_normal_local, verts[f->v1].co, verts[f->v2].co, verts[f->v3].co, &lambda, NULL);
 				
-				if (result && lambda < *depth) {
+				if (result && lambda < object_depth) {
+					float location[3], normal[3];
 					float intersect[3];
 					
 					VECCOPY(intersect, ray_normal_local);
 					VecMulf(intersect, lambda);
 					VecAddf(intersect, intersect, ray_start_local);
-		
-					if (snapFace(f, verts, intersect, loc, no))
+					
+					if (snapFace(f, verts, intersect, location, normal))
 					{ 
+						float new_depth;
 						int screen_loc[2];
 						
-						*depth = lambda;
-						retval = 1;
+						object_depth = lambda;
+						Mat4MulVecfl(obmat, location);
 						
-						Mat4MulVecfl(ob->obmat, loc);
-						Mat4Mul3Vecfl(ob->obmat, no);
-		
-						project_int(loc, screen_loc);
+						new_depth = VecLenf(location, ray_start);					
 						
-						*dist = abs(screen_loc[0] - mval[0]) + abs(screen_loc[1] - mval[1]); 
+						if (new_depth < *depth)
+						{
+							*depth = new_depth;
+							retval = 1;
+							
+							VECCOPY(loc, location);
+							VECCOPY(no, normal);
+							
+							Mat4Mul3Vecfl(obmat, no);
+			
+							project_int(loc, screen_loc);
+							
+							*dist = abs(screen_loc[0] - mval[0]) + abs(screen_loc[1] - mval[1]);
+						} 
 					}
 				}
 		
@@ -966,20 +998,38 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float ray_start[3], float ray_n
 				{
 					result = RayIntersectsTriangle(ray_start_local, ray_normal_local, verts[f->v3].co, verts[f->v4].co, verts[f->v1].co, &lambda, NULL);
 					
-					if (result && lambda < *depth) {
+					if (result && lambda < object_depth) {
+						float location[3], normal[3];
 						float intersect[3];
 						
 						VECCOPY(intersect, ray_normal_local);
 						VecMulf(intersect, lambda);
 						VecAddf(intersect, intersect, ray_start_local);
-		
-						if (snapFace(f, verts, intersect, loc, no))
+			
+						if (snapFace(f, verts, intersect, location, normal))
 						{ 
-							*depth = lambda;
-							retval = 1;
-		
-							Mat4MulVecfl(ob->obmat, loc);
-							Mat4Mul3Vecfl(ob->obmat, no);
+							float new_depth;
+							int screen_loc[2];
+							
+							object_depth = lambda;
+							Mat4MulVecfl(obmat, location);
+							
+							new_depth = VecLenf(location, ray_start);					
+							
+							if (new_depth < *depth)
+							{
+								*depth = new_depth;
+								retval = 1;
+								
+								VECCOPY(loc, location);
+								VECCOPY(no, normal);
+								
+								Mat4Mul3Vecfl(obmat, no);
+				
+								project_int(loc, screen_loc);
+								
+								*dist = abs(screen_loc[0] - mval[0]) + abs(screen_loc[1] - mval[1]);
+							} 
 						}
 					}
 				}
@@ -1009,7 +1059,7 @@ int snapObjects(int *dist, float *loc, float *no, int mode) {
 		
 		dm_cage = editmesh_get_derived_cage_and_final(&dm, CD_MASK_BAREMESH);
 		
-		retval = retval || snapDerivedMesh(ob, dm, ray_start, ray_normal, mval, loc, no, dist, &depth);
+		retval = snapDerivedMesh(ob, dm, ray_start, ray_normal, mval, loc, no, dist, &depth);
 		
 		dm_cage->release(dm_cage);
 		dm->release(dm);
@@ -1021,9 +1071,35 @@ int snapObjects(int *dist, float *loc, float *no, int mode) {
 		if ( BASE_SELECTABLE(base) && ((mode == NOT_SELECTED && (base->flag & SELECT) == 0) || (mode == NOT_ACTIVE && base != BASACT)) ) {
 			Object *ob = base->object;
 			
+			if (ob->transflag & OB_DUPLI)
+			{
+				DupliObject *dupli_ob;
+				ListBase *lb = object_duplilist(G.scene, ob);
+				
+				for(dupli_ob = lb->first; dupli_ob; dupli_ob = dupli_ob->next)
+				{
+					Object *ob = dupli_ob->ob;
+					DerivedMesh *dm = mesh_get_derived_final(ob, CD_MASK_BAREMESH);
+					int val;
+					
+					val = snapDerivedMesh(ob, dm, dupli_ob->mat, ray_start, ray_normal, mval, loc, no, dist, &depth);
+
+					retval = retval || val;
+
+					dm->release(dm);
+				}
+				
+				free_object_duplilist(lb);
+			}
+			
 			if (ob->type == OB_MESH) {
 				DerivedMesh *dm = mesh_get_derived_final(ob, CD_MASK_BAREMESH);
-				retval = retval || snapDerivedMesh(ob, dm, ray_start, ray_normal, mval, loc, no, dist, &depth);
+				int val;
+				
+				val = snapDerivedMesh(ob, dm, ob->obmat, ray_start, ray_normal, mval, loc, no, dist, &depth);
+				
+				retval = retval || val;
+				
 				dm->release(dm);
 			}
 		}
