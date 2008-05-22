@@ -3350,8 +3350,17 @@ void initBevel(TransInfo *t)
 {
 	t->mode = TFM_BEVEL;
 	t->flag |= T_NO_CONSTRAINT;
+	t->num.flag |= NUM_NO_NEGATIVE;
 	t->transform = Bevel;
 	t->handleEvent = handleEventBevel;
+
+	t->idx_max = 0;
+	t->num.idx_max = 0;
+	t->snap[0] = 0.0f;
+	t->snap[1] = 0.1f;
+	t->snap[2] = t->snap[1] * 0.1f;
+
+	/* DON'T KNOW WHY THIS IS NEEDED */
 	if (G.editBMesh->imval[0] == 0 && G.editBMesh->imval[1] == 0) {
 		/* save the initial mouse co */
 		G.editBMesh->imval[0] = t->imval[0];
@@ -3407,6 +3416,10 @@ int Bevel(TransInfo *t, short mval[2])
 
 	mode = (G.editBMesh->options & BME_BEVEL_VERT) ? "verts only" : "normal";
 	distance = InputHorizontalAbsolute(t, mval)/4; /* 4 just seemed a nice value to me, nothing special */
+	
+	distance = fabs(distance);
+
+	snapGrid(t, &distance);
 
 	applyNumInput(&t->num, &distance);
 
@@ -3416,7 +3429,7 @@ int Bevel(TransInfo *t, short mval[2])
 
 		outputNumInput(&(t->num), c);
 
-		sprintf(str, "Bevel: %s", c);
+		sprintf(str, "Bevel - Dist: %s, Mode: %s (MMB to toggle))", c, mode);
 	}
 	else {
 		/* default header print */
