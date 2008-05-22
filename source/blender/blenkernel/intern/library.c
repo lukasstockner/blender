@@ -1105,3 +1105,11 @@ void rename_id(ID *id, char *name)
 	new_id(lb, id, name);				
 }
 
+/* APRICOT HACK */
+void id_version_bump(ID *id)
+{
+	id->version++;
+	/*printf("VER %d %s\n", id->version, id->name);*/
+}
+/* END APRICOT HACK */
+

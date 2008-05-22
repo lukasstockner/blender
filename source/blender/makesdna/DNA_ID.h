@@ -101,6 +101,8 @@ typedef struct ID {
 	short flag;
 	int icon_id;
 	IDProperty *properties;
+	int version; /* if data changes, bump this APRICOT HACK */
+	char pad0[4];
 } ID;
 
 /**

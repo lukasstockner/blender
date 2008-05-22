@@ -115,6 +115,10 @@
 
 #include "GPU_material.h"
 
+
+/* APRICOT HACK */
+extern void BPY_do_pyscript( ID * id, short event );
+
 /* -----includes for this file specific----- */
 
 #include "butspace.h" // own module
@@ -3037,12 +3041,23 @@ void do_matbuts(unsigned short event)
 		// BIF_previewdraw();  push/pop!
 		break;
 	case B_MATPRV:
-		if(ma) end_render_material(ma);	/// temporal... 3d preview
+		if(ma) {
+			end_render_material(ma); /// temporal... 3d preview
+			
+			/* APRICOT HACK */
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		BIF_preview_changed(ID_MA);
 		allqueue(REDRAWBUTSSHADING, 0);
 		shade_buttons_change_3d();
 		break;
 	case B_LAMPPRV:
+		if (OBACT && OBACT->type==OB_LAMP) {
+			/* APRICOT HACK */
+			id_version_bump((ID *)OBACT->data);
+			BPY_do_pyscript((ID *)OBACT, SCRIPT_OBDATAUPDATE);
+		}
 		BIF_preview_changed(ID_LA);
 		allqueue(REDRAWBUTSSHADING, 0);
 		shade_buttons_change_3d();
@@ -3069,6 +3084,12 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_TEXCLEAR:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
+	
 		mtex= ma->mtex[(int) ma->texact ];
 		if(mtex) {
 			if(mtex->tex) mtex->tex->id.us--;
@@ -3082,6 +3103,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MTEXCOPY:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma && ma->mtex[(int)ma->texact] ) {
 			mtex= ma->mtex[(int)ma->texact];
 			if(mtex->tex==NULL) {
@@ -3094,6 +3120,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MTEXPASTE:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma && mtexcopied && mtexcopybuf.tex) {
 			if(ma->mtex[(int)ma->texact]==NULL ) 
 				ma->mtex[(int)ma->texact]= MEM_mallocN(sizeof(MTex), "mtex"); 
@@ -3109,6 +3140,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MTEXMOVEUP:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma && (int)ma->texact > 0) {
 			int mtexuse = ma->septex & (1<<((int)ma->texact));
 			ma->septex &= ~(1<<((int)ma->texact));
@@ -3123,6 +3159,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MTEXMOVEDOWN:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma && (int)ma->texact < MAX_MTEX-1) {
 			int mtexuse = ma->septex & (1<<((int)ma->texact));
 			ma->septex &= ~(1<<((int)ma->texact));
@@ -3137,6 +3178,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MATZTRANSP:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma) {
 			ma->mode &= ~MA_RAYTRANSP;
 			//BIF_view3d_previewrender_signal(curarea, PR_DBASE|PR_DISPRECT);	/// temporal... 3d preview
@@ -3145,6 +3191,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MATRAYTRANSP:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma) {
 			ma->mode &= ~MA_ZTRA;
 			if(ma) end_render_material(ma);	/// temporal... 3d preview
@@ -3153,6 +3204,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MATCOLORBAND:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma) {
 			if(ma->mode & MA_RAMP_COL)
 				if(ma->ramp_col==NULL) ma->ramp_col= add_colorband(0);
@@ -3166,6 +3222,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MAT_USENODES:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		ma= G.buts->lockpoin;	/* use base material instead */
 		if(ma) {
 			if(ma->use_nodes && ma->nodetree==NULL) {
@@ -3179,6 +3240,11 @@ void do_matbuts(unsigned short event)
 		}		
 		break;
 	case B_MAT_VCOL_PAINT:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma) {
 			ma->mode &= ~MA_VERTEXCOL;
 			BIF_preview_changed(ID_MA);
@@ -3186,6 +3252,11 @@ void do_matbuts(unsigned short event)
 		}
 		break;
 	case B_MAT_VCOL_LIGHT:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma) {
 			ma->mode &= ~MA_VERTEXCOLP;
 			BIF_preview_changed(ID_MA);
@@ -3194,6 +3265,11 @@ void do_matbuts(unsigned short event)
 		break;
 
 	case B_MAT_PARTICLE:
+		/* APRICOT HACK */
+		if(ma) {			
+			id_version_bump((ID *)ma);
+			BPY_do_pyscript((ID *)ma, SCRIPT_OBDATAUPDATE);
+		}
 		if(ma) {
 			Base *base;
 			Object *ob;

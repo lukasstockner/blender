@@ -2235,6 +2235,8 @@ void object_handle_update(Object *ob)
 			else
 				where_is_object(ob);
 			if (G.f & G_DOSCRIPTLINKS) BPY_do_pyscript((ID *)ob, SCRIPT_OBJECTUPDATE);
+			
+			id_version_bump((ID *)ob);
 		}
 		
 		if(ob->recalc & OB_RECALC_DATA) {
@@ -2311,6 +2313,7 @@ void object_handle_update(Object *ob)
 				}
 			}
 			if (G.f & G_DOSCRIPTLINKS) BPY_do_pyscript((ID *)ob, SCRIPT_OBDATAUPDATE);
+			if (ob->data) id_version_bump((ID *)ob->data);
 		}
 
 		/* the no-group proxy case, we call update */

@@ -140,6 +140,30 @@ PyObject *GenericLib_getUsers( void *self )
 	return PyInt_FromLong(id->us);
 }
 
+/* APRICOT HACK */
+PyObject *GenericLib_getVersion( void *self )
+{	
+	ID *id = ((BPy_GenericLib *)self)->id;
+	if (!id) return ( EXPP_ReturnPyObjError( PyExc_RuntimeError, "data has been removed" ) );
+	return PyLong_FromLong(id->version);
+}
+int GenericLib_setVersion( void *self, PyObject *value )
+{
+
+	long param;
+	ID *id = ((BPy_GenericLib *)self)->id;
+	if (!id) return ( EXPP_ReturnIntError( PyExc_RuntimeError, "data has been removed" ) );
+	
+	param = PyLong_AsLong( value );
+	if( PyErr_Occurred() )
+		return EXPP_ReturnIntError( PyExc_TypeError,
+				"could not set the ID version, value not a number of too large" );
+	
+	id->version = param;
+	return 0;
+}
+/* END APRICOT HACK */
+
 PyObject *GenericLib_getProperties( void *self )
 {	
 	ID *id = ((BPy_GenericLib *)self)->id;

@@ -190,6 +190,8 @@ def animloop(sce, rend, ob):
 		
 	def SET_ACTIVE(km):
 		blend = 0
+		ok = False
+		
 		for s,a in strips:
 			if a.name == km[KMNAME]:
 				ok = True
@@ -385,9 +387,8 @@ def main():
 	if not ob:
 		print 'No Active Object'
 		return
-
+	
 	animloop(sce, rend, ob)
-		
 	
 	rend.cFrame = back_cfra
 	rend.sFrame = back_sfra

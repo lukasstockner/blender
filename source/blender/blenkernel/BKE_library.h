@@ -70,5 +70,8 @@ void IPOnames_to_pupstring(char **str, char *title, char *extraops, struct ListB
 void flag_listbase_ids(ListBase *lb, short flag, short value);
 void flag_all_listbases_ids(short flag, short value);
 
+/* APRICOT HACK */
+void id_version_bump(struct ID *id);
+/* END APRICOT HACK */
 #endif
 

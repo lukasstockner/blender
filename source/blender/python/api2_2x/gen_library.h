@@ -60,6 +60,10 @@
 	{"tag",\
 	 (getter)GenericLib_getTag, (setter)GenericLib_setTag,\
 	 "temporary tag",\
+	 NULL},\
+	{"version",\
+	 (getter)GenericLib_getVersion, (setter)GenericLib_setVersion,\
+	 "temporary tag",\
 	 NULL}
 
 /* Dummy struct for getting the ID from a libdata BPyObject */
@@ -77,6 +81,11 @@ int GenericLib_setTag( void *self, PyObject *value );
 PyObject *GenericLib_getLib( void *self );
 PyObject *GenericLib_getUsers( void *self );
 PyObject *GenericLib_getProperties( void *self );
+
+/* APRICOT HACK */
+PyObject *GenericLib_getVersion( void *self );
+int GenericLib_setVersion( void *self, PyObject *value );
+/* END APRICOT HACK */
 
 /* use this for oldstyle somedata.getName("name") */
 PyObject * GenericLib_setName_with_method( void *self, PyObject *value ); 
