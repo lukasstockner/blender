@@ -888,87 +888,34 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float obmat[][4], float ray_sta
 	float object_depth = FLT_MAX;
 	int retval = 0;
 	int totvert = dm->getNumVerts(dm);
+	int totface = dm->getNumFaces(dm);
 	
 	if (totvert > 0) {
 		float imat[4][4];
+		float ray_start_local[3], ray_normal_local[3];
 		int test = 1;
 
 		Mat4Invert(imat, obmat);
+
+		VECCOPY(ray_start_local, ray_start);
+		VECCOPY(ray_normal_local, ray_normal);
+		
+		Mat4MulVecfl(imat, ray_start_local);
+		Mat4Mul3Vecfl(imat, ray_normal_local);
+		
 		
 		/* If number of vert is more than an arbitrary limit,
 		 * test against boundbox first
 		 * */
-		if (totvert > 16) {
+		if (totface > 16) {
 			struct BoundBox *bb = object_get_boundbox(ob);
-			float camera[3];
-			int outside = 1;
-			
-			VECCOPY(camera, G.vd->viewinv[3]);
-			Mat4MulVecfl(imat, camera);
-
-			/* If we're inside the bounding box, projection is screwy, so test for that */			
-			if (bb->vec[0][0] <= camera[0] && camera[0] <= bb->vec[4][0] && 
-				bb->vec[0][1] <= camera[1] && camera[1] <= bb->vec[2][1] &&
-				bb->vec[0][2] <= camera[2] && camera[2] <= bb->vec[1][2])
-			{
-				outside = 0;
-			}
-			
-			/* only test if camera is outside of the bounding box */			
-			if (outside)
-			{
-				float minx = 0, miny = 0, maxx = 0, maxy = 0;
-				int i;
-				
-				for (i = 0; i < 8; i++) {
-					float gloc[3];
-					float sloc[2];
-					
-					VECCOPY(gloc, bb->vec[i]);
-					Mat4MulVecfl(obmat, gloc);
-					
-					project_float(gloc, sloc);
-					
-					if (i == 0) {
-						minx = maxx = sloc[0];
-						miny = maxy = sloc[1];
-					}
-					else {
-						if (minx > sloc[0]) minx = sloc[0];
-						else if (maxx < sloc[0]) maxx = sloc[0];
-						
-						if (miny > sloc[1]) miny = sloc[1];
-						else if (maxy < sloc[1]) maxy = sloc[1];
-					}
-				}
-				
-				/* Pad with distance */
-		
-				minx -= *dist;
-				miny -= *dist;
-				maxx += *dist;
-				maxy += *dist;
-				
-				if (mval[0] > maxx || mval[0] < minx ||
-					mval[1] > maxy || mval[1] < miny) {
-					
-					test = 0;
-				}
-			}
+			test = ray_hit_boundbox(bb, ray_start_local, ray_normal_local);
 		}
 		
 		if (test == 1) {
 			MVert *verts = dm->getVertArray(dm);
 			MFace *faces = dm->getFaceArray(dm);
-			float ray_start_local[3], ray_normal_local[3];
-			int totface = dm->getNumFaces(dm);
 			int i;
-			
-			VECCOPY(ray_start_local, ray_start);
-			VECCOPY(ray_normal_local, ray_normal);
-			
-			Mat4MulVecfl(imat, ray_start_local);
-			Mat4Mul3Vecfl(imat, ray_normal_local);
 			
 			for( i = 0; i < totface; i++) {
 				MFace *f = faces + i;
