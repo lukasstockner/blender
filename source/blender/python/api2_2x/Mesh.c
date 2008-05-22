@@ -89,6 +89,8 @@
 #include "gen_library.h"
 #include "multires.h"
 
+#include "IMB_imbuf_types.h"	/* for the IB_rect define */
+
 /* EXPP Mesh defines */
 
 #define MESH_SMOOTHRESH               30
@@ -3950,6 +3952,112 @@ static PyObject *MFace_getArea( BPy_MFace * self )
 }
 
 /*
+ * this is a util to get the color range for this UV faces
+ */
+ 
+/* Warning - this is ordered - need to test both orders to be sure */
+#define SIDE_OF_LINE(pa,pb,pp)	((pa[0]-pp[0])*(pb[1]-pp[1]))-((pb[0]-pp[0])*(pa[1]-pp[1]))
+#define POINT_IN_TRI(p0,p1,p2,p3)	((SIDE_OF_LINE(p1,p2,p0)>=0) && (SIDE_OF_LINE(p2,p3,p0)>=0) && (SIDE_OF_LINE(p3,p1,p0)>=0))
+ 
+static PyObject *MFace_getUVColRange( BPy_MFace * self )
+{
+	MFace *mface = MFace_get_pointer( self );
+	MTFace *face;
+	if( !self->mesh->mtface )
+		return EXPP_ReturnPyObjError( PyExc_ValueError,
+				"face has no texture values" );
+
+	if( !mface )
+		return NULL;
+
+	face = &self->mesh->mtface[self->index];
+	
+	if( !face->tpage ) {
+		return PyInt_FromLong( 0 );
+	} else {
+		ImBuf *ibuf= BKE_image_get_ibuf((Image *)face->tpage, NULL);
+		
+		if (!ibuf || !ibuf->rect || ibuf->type == 1) {
+			return PyInt_FromLong( 0 );
+		} else {
+			char *pixel, *p;		/* image data */
+			int index;		/* offset into image data */
+			int x = 0;
+			int y = 0;
+			float uv[2];
+			int pixel_size = 4;	/* each pixel is 4 x 8-bits packed in unsigned int */
+			int i, length = (mface->v4==0 ? 3:4);
+			float xmin, ymin, xmax, ymax;
+			int xmini, ymini, xmaxi, ymaxi;
+			int col_min = 255, col_max = 0, ok = 0;
+			
+			/* clamp to 0-1 for now */
+			xmin = ymin = 1.0f;
+			xmax = ymax = 0.0f;
+			
+			for (i=0; i < length; i++) {
+				xmin = MIN2(xmin, face->uv[i][0]);
+				ymin = MIN2(ymin, face->uv[i][1]);
+				
+				xmax = MAX2(xmax, face->uv[i][0]);
+				ymax = MAX2(ymax, face->uv[i][1]);
+			}
+			
+			xmini = (int)(ibuf->x * xmin);
+			ymini = (int)(ibuf->y * ymin);
+			
+			xmaxi = (int)(ibuf->x * xmax) +1;
+			ymaxi = (int)(ibuf->y * ymax) +1;
+			
+			printf("%d %d %d %d \n", xmini, ymini, xmaxi, ymaxi);
+			
+			if (xmini < 0) xmini = 0;
+			if (ymini < 0) ymini = 0;
+			
+			if (xmaxi > ibuf->x) xmaxi = ibuf->x;
+			if (ymaxi > ibuf->y) ymaxi = ibuf->y;
+			
+			
+			
+			if (xmini == xmaxi || ymini == ymaxi) {
+				return PyInt_FromLong( 0 );
+			}
+			
+			x = xmini;
+			y = ymini;
+			
+			pixel = ( char * ) ibuf->rect;
+			
+			for (x = xmini; x < xmaxi; x++) {
+				uv[0] = (((float)x)+0.5) / (float)ibuf->x;
+				for (y = ymini; y < ymaxi; y++) {
+					uv[1] = (((float)y)+0.5) / (float)ibuf->y;
+					if (	POINT_IN_TRI( uv, face->uv[0], face->uv[1], face->uv[2] ) ||
+							POINT_IN_TRI( uv, face->uv[0], face->uv[2], face->uv[1] ) || 
+							((mface->v4) &&
+								(	POINT_IN_TRI( uv, face->uv[0], face->uv[2], face->uv[3] ) ||
+									POINT_IN_TRI( uv, face->uv[0], face->uv[3], face->uv[2] ) )
+							)
+					) {
+						p = pixel + (( x + y * ibuf->x ) * pixel_size);
+						for (i=0; i<3; i++, p++) {
+							col_min = MIN2(col_min, *p);
+							col_max = MAX2(col_max, *p);
+						}
+						ok = 1;
+					}
+				}
+			}
+			
+			if (ok) {
+				return PyInt_FromLong( col_max - col_min );
+			}
+		}
+	}
+	return PyInt_FromLong( 0 );
+}
+
+/*
  * get one of a face's mface flag bits
  */
 
@@ -4615,6 +4723,10 @@ static PyGetSetDef BPy_MFace_getseters[] = {
     {"area",
      (getter)MFace_getArea, (setter)NULL,
      "face's 3D area",
+     NULL},
+    {"uvColRange",
+     (getter)MFace_getUVColRange, (setter)NULL,
+     "face's center",
      NULL},
 
     {"hide",
@@ -7423,9 +7535,6 @@ static PyObject *Mesh_fill( BPy_Mesh * self )
 /*
  * "pointInside" function
  */
-/* Warning - this is ordered - need to test both orders to be sure */
-#define SIDE_OF_LINE(pa,pb,pp)	((pa[0]-pp[0])*(pb[1]-pp[1]))-((pb[0]-pp[0])*(pa[1]-pp[1]))
-#define POINT_IN_TRI(p0,p1,p2,p3)	((SIDE_OF_LINE(p1,p2,p0)>=0) && (SIDE_OF_LINE(p2,p3,p0)>=0) && (SIDE_OF_LINE(p3,p1,p0)>=0))
 static short pointInside_internal(float *vec, float *v1, float *v2, float  *v3 )
 {	
 	float z,w1,w2,w3,wtot;

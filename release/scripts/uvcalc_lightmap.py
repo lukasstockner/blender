@@ -42,13 +42,14 @@ import BPyMesh
 from math import sqrt
 
 class prettyface(object):
-	__slots__ = 'uv', 'width', 'height', 'children', 'xoff', 'yoff', 'has_parent', 'rot'
-	def __init__(self, data):
+	__slots__ = 'uv', 'width', 'height', 'children', 'xoff', 'yoff', 'has_parent', 'rot', 'noarea'
+	def __init__(self, data, noarea = False):
 		
 		self.has_parent = False
 		self.rot = False # only used for triables
 		self.xoff = 0
 		self.yoff = 0
+		self.noarea = noarea
 		
 		if type(data) == list: # list of data
 			self.uv = None
@@ -87,14 +88,18 @@ class prettyface(object):
 			# f, (len_min, len_mid, len_max)
 			self.uv = data
 			
-			f1, lens1, lens1ord = data[0] 			
-			if data[1]:
-				f2, lens2, lens2ord = data[1]
-				self.width  = (lens1[lens1ord[0]] + lens2[lens2ord[0]])/2
-				self.height = (lens1[lens1ord[1]] + lens2[lens2ord[1]])/2
-			else: # 1 tri :/
-				self.width = lens1[0]
-				self.height = lens1[1]
+			if noarea:
+				self.width  = 0.0
+				self.height = 0.0
+			else:
+				f1, lens1, lens1ord = data[0] 			
+				if data[1]:
+					f2, lens2, lens2ord = data[1]
+					self.width  = (lens1[lens1ord[0]] + lens2[lens2ord[0]])/2
+					self.height = (lens1[lens1ord[1]] + lens2[lens2ord[1]])/2
+				else: # 1 tri :/
+					self.width = lens1[0]
+					self.height = lens1[1]
 			
 			self.children = []
 			
@@ -102,9 +107,13 @@ class prettyface(object):
 		else: # blender face
 			self.uv = data.uv
 			
-			cos = [v.co for v in data]
-			self.width  = ((cos[0]-cos[1]).length + (cos[2]-cos[3]).length)/2
-			self.height = ((cos[1]-cos[2]).length + (cos[0]-cos[3]).length)/2
+			if noarea:
+				self.width  = 0.0
+				self.height = 0.0
+			else:
+				cos = [v.co for v in data]
+				self.width  = ((cos[0]-cos[1]).length + (cos[2]-cos[3]).length)/2
+				self.height = ((cos[1]-cos[2]).length + (cos[0]-cos[3]).length)/2
 			
 			self.children = []
 		
@@ -202,7 +211,9 @@ PREF_PACK_TO_MANY=		0,\
 PREF_APPLY_IMAGE=		False,\
 PREF_IMG_PX_SIZE=		512,\
 PREF_BOX_DIV= 			8,\
-PREF_MARGIN_DIV=		512):
+PREF_MARGIN_DIV=		512,
+PREF_2PASS=				False,\
+PREF_2PASS_ERROR=		0.05):
 	'''
 	BOX_DIV if the maximum division of the UV map that
 	a box may be consolidated into.
@@ -232,7 +243,7 @@ PREF_MARGIN_DIV=		512):
 		# Add face UV if it does not exist.
 		# All new faces are selected.
 		me.faceUV = True
-			
+		
 		if PREF_SEL_ONLY:
 			faces = [f for f in me.faces if f.sel]
 		else:
@@ -246,7 +257,8 @@ PREF_MARGIN_DIV=		512):
 		if PREF_NEW_UVLAYER:
 			me.addUVLayer('lightmap')
 			me.activeUVLayer = 'lightmap'
-	
+		
+		
 	if PREF_PACK_TO_MANY and len(face_groups[0]) < 4:
 		PREF_PACK_TO_MANY = False
 	
@@ -305,6 +317,10 @@ PREF_MARGIN_DIV=		512):
 		# Replace the old face list
 		face_groups[:] = face_grid.values()
 	
+	
+	print "Test1234", len(face_groups)
+	print face_groups
+	
 	for face_sel in face_groups:
 		print "\nStarting unwrap"
 		
@@ -312,14 +328,27 @@ PREF_MARGIN_DIV=		512):
 			print '\tWarning, less then 4 faces, skipping'
 			continue
 		
-		pretty_faces = [prettyface(f) for f in face_sel if len(f) == 4]
+		if PREF_2PASS:
+			m = int(PREF_2PASS_ERROR*255);
+			skip_faces = [ f.uvColRange<=m for f in face_sel ]
+			del m
+		else:
+			skip_faces = [False] * len(face_sel)
 		
+		pretty_faces = [prettyface(f,skip_faces[i]) for i,f in enumerate(face_sel) if len(f) == 4]
+		
+		
+		print len(pretty_faces)
+		print pretty_faces
 		
 		# Do we have any tri's
 		if len(pretty_faces) != len(face_sel):
-			
 			# Now add tri's, not so simple because we need to pair them up.
-			def trylens(f):
+			def trylens(f, noarea):
+				
+				if noarea:
+					return (f, [0.0,0.0,0.0], [0,1,2]), noarea
+				
 				# f must be a tri
 				cos = [v.co for v in f]
 				lens = [(cos[0] - cos[1]).length, (cos[1] - cos[2]).length, (cos[2] - cos[0]).length]
@@ -332,9 +361,9 @@ PREF_MARGIN_DIV=		512):
 						break
 				lens_order = lens_min, lens_mid, lens_max
 				
-				return f, lens, lens_order
+				return (f, lens, lens_order), noarea
 				
-			tri_lengths = [trylens(f) for f in face_sel if len(f) == 3]
+			tri_lengths = [trylens(f,skip_faces[i]) for f,i in enumerate(face_sel) if len(f) == 3]
 			del trylens
 			
 			def trilensdiff(t1,t2):
@@ -344,33 +373,41 @@ PREF_MARGIN_DIV=		512):
 				abs(t1[1][t1[2][2]]-t2[1][t2[2][2]])
 			
 			while tri_lengths:
-				tri1 = tri_lengths.pop()
+				tri1, noarea = tri_lengths.pop()
 				
 				if not tri_lengths:
-					pretty_faces.append(prettyface((tri1, None)))
+					pretty_faces.append(prettyface((tri1, None), noarea))
 					break
 				
 				best_tri_index = -1
 				best_tri_diff  = 100000000.0
+				best_noarea = False
 				
-				for i, tri2 in enumerate(tri_lengths):
+				i=0
+				for tri2, noarea in enumerate(tri_lengths):
 					diff = trilensdiff(tri1, tri2)
 					if diff < best_tri_diff:
 						best_tri_index = i
 						best_tri_diff = diff
+					
+					if diff==0: break
+					i+=1
 				
-				pretty_faces.append(prettyface((tri1, tri_lengths.pop(best_tri_index))))
+				pretty_faces.append(prettyface((tri1, tri_lengths.pop(best_tri_index) ))  )
 		
 		
 		# Get the min, max and total areas
 		max_area = 0.0
 		min_area = 100000000.0
 		tot_area = 0
-		for f in face_sel:
-			area = f.area
-			if area > max_area:		max_area = area
-			if area < min_area:		min_area = area
-			tot_area += area
+		for i,f in enumerate(face_sel):
+			if skip_faces[i]:
+				min_area = 0.0
+			else:
+				area = f.area
+				if area > max_area:		max_area = area
+				if area < min_area:		min_area = area
+				tot_area += area
 			
 		max_len = sqrt(max_area)
 		min_len = sqrt(min_area)
@@ -381,6 +418,12 @@ PREF_MARGIN_DIV=		512):
 		curr_len = max_len
 		
 		print '\tGenerating lengths...',
+
+		print "test"
+		print "test", min_len
+		print "test", curr_len
+		
+		print skip_faces
 		
 		lengths = []
 		while curr_len > min_len:
@@ -393,6 +436,9 @@ PREF_MARGIN_DIV=		512):
 			if curr_len/4 < side_len/PREF_MARGIN_DIV:
 				break
 		
+
+		
+		
 		# convert into ints
 		lengths_to_ints = {}
 		
@@ -402,6 +448,7 @@ PREF_MARGIN_DIV=		512):
 			l_int*=2
 		
 		lengths_to_ints = lengths_to_ints.items()
+		
 		lengths_to_ints.sort()
 		print 'done'
 		
@@ -579,6 +626,8 @@ def main():
 	PREF_APPLY_IMAGE = Draw.Create(0)
 	PREF_IMG_PX_SIZE = Draw.Create(512)
 	PREF_BOX_DIV = Draw.Create(12)
+	PREF_2PASS = Draw.Create(0)
+	PREF_2PASS_ERROR = Draw.Create(0.002)
 	PREF_MARGIN_DIV = Draw.Create(0.1)
 	
 	if not Draw.PupBlock('Lightmap Pack', [\
@@ -588,12 +637,12 @@ def main():
 	'UV Packing...',
 	('Pack Quality: ', PREF_BOX_DIV, 1, 48, 'Pre Packing before the complex boxpack'),\
 	('Margin: ', PREF_MARGIN_DIV, 0.001, 1.0, 'Size of the margin as a division of the UV'),\
-	'',\
-	'',\
+	('2ndPassOptimize', PREF_2PASS, 'Faces with low contrast on the active UV layers image get scaled down.'),\
+	('Pass Error: ', PREF_2PASS_ERROR, 0.001, 1.0, 'Use with 2nd pass optimize, faces with a contrast lower then this margin will be scaled down'),\
 	
 	'Image & UVs...',
 	('Share Tex Space', PREF_PACK_IN_ONE, 'Objects Share texture space, map all objects into 1 uvmap'),\
-	('Tile Images: ', PREF_PACK_IN_MANY, 1, 16, 'Tile images over one or more mesh, value squared (n*n)'),\
+	('Tile Images: ', PREF_PACK_IN_MANY, 0, 16, 'Tile images over one or more mesh, value squared (n*n)'),\
 	('New UV Layer', PREF_NEW_UVLAYER, 'Create a new UV layer for every mesh packed'),\
 	('New Image', PREF_APPLY_IMAGE, 'Assign new images for every mesh (only one if shared tex space enabled)'),\
 	('Image Size', PREF_IMG_PX_SIZE, 64, 5000, 'Width and Height for the new image'),\
@@ -630,7 +679,10 @@ def main():
 			PREF_APPLY_IMAGE.val,\
 			PREF_IMG_PX_SIZE.val,\
 			PREF_BOX_DIV.val,\
-			int(1/(PREF_MARGIN_DIV.val/100)))
+			int(1/(PREF_MARGIN_DIV.val/100)),\
+			PREF_2PASS.val,\
+			PREF_2PASS_ERROR.val,\
+	)
 	
 	if is_editmode:
 		Window.EditMode(1)
