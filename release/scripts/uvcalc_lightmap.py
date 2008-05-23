@@ -313,13 +313,10 @@ PREF_2PASS_ERROR=		0.05):
 			for f in face_groups[0]:
 				x,y,z = f.cent
 				face_grid.setdefault( ( int(((x-xmin)/xdepth)*div), int(((y-ymin)/ydepth)*div) ), [] ).append(f)
-		print face_grid.keys()
+		
 		# Replace the old face list
 		face_groups[:] = face_grid.values()
 	
-	
-	print "Test1234", len(face_groups)
-	print face_groups
 	
 	for face_sel in face_groups:
 		print "\nStarting unwrap"
@@ -336,10 +333,6 @@ PREF_2PASS_ERROR=		0.05):
 			skip_faces = [False] * len(face_sel)
 		
 		pretty_faces = [prettyface(f,skip_faces[i]) for i,f in enumerate(face_sel) if len(f) == 4]
-		
-		
-		print len(pretty_faces)
-		print pretty_faces
 		
 		# Do we have any tri's
 		if len(pretty_faces) != len(face_sel):
@@ -363,7 +356,7 @@ PREF_2PASS_ERROR=		0.05):
 				
 				return (f, lens, lens_order), noarea
 				
-			tri_lengths = [trylens(f,skip_faces[i]) for f,i in enumerate(face_sel) if len(f) == 3]
+			tri_lengths = [trylens(f,skip_faces[i]) for i,f in enumerate(face_sel) if len(f) == 3]
 			del trylens
 			
 			def trilensdiff(t1,t2):
@@ -384,7 +377,7 @@ PREF_2PASS_ERROR=		0.05):
 				best_noarea = False
 				
 				i=0
-				for tri2, noarea in enumerate(tri_lengths):
+				for tri2, noarea in tri_lengths:
 					diff = trilensdiff(tri1, tri2)
 					if diff < best_tri_diff:
 						best_tri_index = i
@@ -392,8 +385,8 @@ PREF_2PASS_ERROR=		0.05):
 					
 					if diff==0: break
 					i+=1
-				
-				pretty_faces.append(prettyface((tri1, tri_lengths.pop(best_tri_index) ))  )
+				tri2, noarea = tri_lengths.pop(best_tri_index)
+				pretty_faces.append(prettyface((tri1, tri2))  )
 		
 		
 		# Get the min, max and total areas
@@ -418,12 +411,6 @@ PREF_2PASS_ERROR=		0.05):
 		curr_len = max_len
 		
 		print '\tGenerating lengths...',
-
-		print "test"
-		print "test", min_len
-		print "test", curr_len
-		
-		print skip_faces
 		
 		lengths = []
 		while curr_len > min_len:
@@ -436,6 +423,8 @@ PREF_2PASS_ERROR=		0.05):
 			if curr_len/4 < side_len/PREF_MARGIN_DIV:
 				break
 		
+		if not lengths:
+			lengths.append(curr_len)
 
 		
 		

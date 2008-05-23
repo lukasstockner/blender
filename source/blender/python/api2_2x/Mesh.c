@@ -4009,7 +4009,7 @@ static PyObject *MFace_getUVColRange( BPy_MFace * self )
 			xmaxi = (int)(ibuf->x * xmax) +1;
 			ymaxi = (int)(ibuf->y * ymax) +1;
 			
-			printf("%d %d %d %d \n", xmini, ymini, xmaxi, ymaxi);
+			/*printf("%d %d %d %d \n", xmini, ymini, xmaxi, ymaxi);*/
 			
 			if (xmini < 0) xmini = 0;
 			if (ymini < 0) ymini = 0;
