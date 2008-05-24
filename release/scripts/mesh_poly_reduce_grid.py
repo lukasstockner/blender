@@ -90,7 +90,7 @@ def my_mesh_util(me):
 	verts_used[grid_data_ls[0][0]] = 1 # start touching 1!
 	
 	# From the corner vert, get the 2 edges that are not the corner or its opposing vert, this edge will make a new face
-	quad_edge_mapping = (3,1), (2,0), (1,3), (0,2)
+	quad_edge_mapping = (1,3), (2,0), (1,3), (0,2) # hi-low, low-hi order is intended
 	tri_edge_mapping = (1,2), (0,2), (0,1)
 	
 	done_somthing = True
@@ -104,7 +104,6 @@ def my_mesh_util(me):
 				grid_data_dict[vi] = face_ls
 				grid_data_ls.pop( grid_data_ls_index )
 				break
-				
 			elif len(face_ls) == 4:
 				# print vi
 				if verts_used[vi] == 1:
@@ -206,6 +205,7 @@ def my_mesh_util(me):
 	for vi, face_ls in grid_data_dict.iteritems():
 		if len(face_ls) == 4:
 			new_faces.append( faceCombine4(vi, face_ls) )
+			#pass
 		if len(face_ls) == 3: # 3 triangles
 			face = list(faces_set_verts(face_ls))
 			face.remove(vi)
@@ -225,11 +225,72 @@ def my_mesh_util(me):
 		faces_remove.extend(face_ls)
 	'''
 	
+	orig_facelen = len(me.faces)
+	
+	orig_faces = list(me.faces)
 	me.faces.extend(new_faces, ignoreDups=True)
+	new_faces = list(me.faces)[len(orig_faces):]
+	
+	
+	
+	
+	
+	if me.faceUV:
+		uvnames = me.getUVLayerNames()
+		act_uvlay = me.activeUVLayer
+		
+		vert_faces_uvs =	[]
+		vert_faces_images =	[]
+			
+			
+		act_uvlay = me.activeUVLayer
+		
+		for uvlay in uvnames:
+			me.activeUVLayer = uvlay
+			vert_faces_uvs[:] = [None] * len(me.verts)
+			vert_faces_images[:] = vert_faces_uvs[:]
+			
+			for i,f in enumerate(orig_faces):
+				img = f.image
+				fv = f.v
+				uv = f.uv
+				mat = f.mat
+				for i,v in enumerate(fv):
+					vi = v.index
+					vert_faces_uvs[vi] = uv[i] # no nice averaging
+					vert_faces_images[vi] = img
+					
+					
+			# Now copy UVs across
+			for f in new_faces:	
+				fi = [v.index for v in f.v]
+				f.image = vert_faces_images[fi[0]]
+				uv = f.uv
+				for i,vi in enumerate(fi):
+					uv[i][:] = vert_faces_uvs[vi]
+		
+		if len(me.materials) > 1:
+			vert_faces_mats = [None] * len(me.verts)
+			for i,f in enumerate(orig_faces):
+				mat = f.mat
+				for i,v in enumerate(f.v):
+					vi = v.index
+					vert_faces_mats[vi] = mat
+				
+			# Now copy UVs across
+			for f in new_faces:
+				print vert_faces_mats[f.v[0].index]
+				f.mat = vert_faces_mats[f.v[0].index]
+				
+	
 	me.verts.delete(grid_data_dict.keys())
 	
 	# me.faces.delete(1, faces_remove)
 	
+	if me.faceUV:
+		me.activeUVLayer = act_uvlay
+	
+	me.calcNormals()
 
 def main():
 	
