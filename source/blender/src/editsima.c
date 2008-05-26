@@ -1162,6 +1162,87 @@ int snap_uv_sel_to_adj_unsel(void)
 	return change;
 }
 
+
+int snap_uv_sel_to_near_unsel(void)
+{
+	EditMesh *em = G.editMesh;
+	EditFace *efa;
+	MTFace *tface;
+	short change = 0;
+	int totunsel = 0, totface = 0, a, i, len;
+	float *coords, *co;
+	float uv[2], bestdist;
+
+	for (efa= em->faces.first; efa; efa= efa->next) {
+		tface= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
+		if (tface) {
+			efa->tmp.p = tface;
+			totface++;
+		} else {
+			efa->tmp.p = NULL;
+		}
+	}
+	
+	if (totface==0)
+		return change;
+	
+	co= coords = MEM_callocN(sizeof(float)*totface*4*2, "snap to adjacent coords");
+	
+	
+	/* index every vert that has a selected UV using it, but only once so as to
+	 * get unique indicies and to count how much to malloc */
+	for (efa= em->faces.first; efa; efa= efa->next) {
+		if ((tface=(MTFace *)efa->tmp.p)) {
+			len = efa->v4 ? 4 : 3;
+			for(i=0; i<len; i++) {
+				if (!simaUVSel_Check(efa, tface, i)) {
+					*co = tface->uv[i][0]; co++;
+					*co = tface->uv[i][1]; co++;
+					totunsel++;
+				}
+			}
+		}
+	}
+	
+	/* copy the averaged unselected UVs back to the selected UVs */
+	for (efa= em->faces.first; efa; efa= efa->next) {
+		if ((tface=(MTFace *)efa->tmp.p)) {
+			len = efa->v4 ? 4 : 3;
+			for(i=0; i<len; i++) {
+				if (simaUVSel_Check(efa, tface, i)) {
+					float dx,dy;
+					int bestco;
+					VECCOPY2D(uv, tface->uv[i]);
+					
+					bestdist = G.scene->toolsettings->doublimit;
+					bestco = -1;
+					for(a=0; a<totunsel; a++) {
+						dx = fabs(uv[0] - coords[a*2]);
+						if (dx < bestdist) {
+							dy = fabs(uv[1] - coords[(a*2)+1]);
+							if (dx+dy < bestdist) {
+								bestdist = dx+dy;
+								bestco = a;
+							}
+						}
+						if (bestdist == 0.0) {
+							break;
+						}
+					}
+					if (bestco != -1) {
+						tface->uv[i][0] = coords[(bestco*2)];
+						tface->uv[i][1] = coords[(bestco*2)+1];
+						change = 1;
+					}
+				}
+			}
+		}
+	}
+	
+	MEM_freeN(coords);
+	return change;
+}
+
 void snap_coord_to_pixel(float *uvco, float w, float h)
 {
 	uvco[0] = ((float) ((int)((uvco[0]*w) + 0.5))) / w;  
@@ -1217,7 +1298,7 @@ void snap_menu_sima(void)
 	short event;
 	if( is_uv_tface_editing_allowed()==0 || !G.v2d) return; /* !G.v2d should never happen */
 	
-	event = pupmenu("Snap %t|Selection -> Pixels%x1|Selection -> Cursor%x2|Selection -> Adjacent Unselected%x3|Cursor -> Selection%x4|Cursor -> Pixel%x5");
+	event = pupmenu("Snap %t|Selection -> Pixels%x1|Selection -> Cursor%x2|Selection -> Adjacent Unselected%x3|Selection -> Near Unselected%x4|%l|Cursor -> Selection%x5|Cursor -> Pixel%x6");
 	switch (event) {
 		case 1:
 		    if (snap_uv_sel_to_pixels()) {
@@ -1238,10 +1319,16 @@ void snap_menu_sima(void)
 		    }
 		    break;
 		case 4:
+		    if (snap_uv_sel_to_near_unsel()) {
+		    	BIF_undo_push("Snap UV Selection Near Unselected");
+		    	object_uvs_changed(OBACT);
+		    }
+		    break;
+		case 5:
 		    if (snap_uv_curs_to_sel())
 		    	allqueue(REDRAWIMAGE, 0);
 		    break;
-		case 5:
+		case 6:
 		    snap_uv_curs_to_pixels();
 		    scrarea_queue_winredraw(curarea);
 		    break;
