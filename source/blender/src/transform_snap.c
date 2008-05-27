@@ -892,11 +892,15 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float obmat[][4], float ray_sta
 	
 	if (totvert > 0) {
 		float imat[4][4];
+		float timat[3][3]; /* transpose inverse matrix for normals */
 		float ray_start_local[3], ray_normal_local[3];
 		int test = 1;
 
 		Mat4Invert(imat, obmat);
 
+		Mat3CpyMat4(timat, imat);
+		Mat3Transp(timat);
+		
 		VECCOPY(ray_start_local, ray_start);
 		VECCOPY(ray_normal_local, ray_normal);
 		
@@ -950,7 +954,8 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float obmat[][4], float ray_sta
 							VECCOPY(loc, location);
 							VECCOPY(no, normal);
 							
-							Mat4Mul3Vecfl(obmat, no);
+							Mat3MulVecfl(timat, no);
+							Normalize(no);
 			
 							project_int(loc, screen_loc);
 							
@@ -989,7 +994,8 @@ int snapDerivedMesh(Object *ob, DerivedMesh *dm, float obmat[][4], float ray_sta
 								VECCOPY(loc, location);
 								VECCOPY(no, normal);
 								
-								Mat4Mul3Vecfl(obmat, no);
+								Mat3MulVecfl(timat, no);
+								Normalize(no);
 				
 								project_int(loc, screen_loc);
 								
