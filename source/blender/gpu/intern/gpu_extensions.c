@@ -385,7 +385,7 @@ static void gpu_blender_texture_create(Image *ima, ImageUser *iuser)
 		x= smaller_pow2_limit(x);
 		y= smaller_pow2_limit(y);
 		
-		scalerect= MEM_mallocN(x*y*sizeof(*scalerect), "scalerect");
+		scalerect= MEM_mallocN(x*y*sizeof(*scalerect)*4, "scalerect");
 		gluScaleImage(GL_RGBA, ibuf->x, ibuf->y, GL_UNSIGNED_BYTE, rect, x, y, GL_UNSIGNED_BYTE, scalerect);
 		rect= scalerect;
 	}
@@ -939,6 +939,9 @@ void GPU_shader_free(GPUShader *shader)
 void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int arraysize, float *value)
 {
 	GLint location = glGetUniformLocationARB(shader->object, name);
+
+	if(location == -1)
+		return;
 
 	GPU_print_error("Pre Uniform Vector");
 
