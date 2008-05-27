@@ -3611,11 +3611,6 @@ void special_aftertrans_update(TransInfo *t)
 	short redrawipo=0, resetslowpar=1;
 	int cancelled= (t->state == TRANS_CANCEL);
 	
-	/* APRICOT HACK */
-	if (t->txdepth) MEM_freeN(t->txdepth);
-	t->txdepth = NULL;
-	/* end... */
-	
 	if (t->spacetype==SPACE_VIEW3D) {
 		if (G.obedit) {
 			if (cancelled==0) {

@@ -31,7 +31,6 @@
 #define TRANSFORM_H
 
 #include "BIF_transform.h"
-#include "BIF_glutil.h" /* APRICOT HACK */
 
 /* ************************** Types ***************************** */
 
@@ -216,10 +215,6 @@ typedef struct TransInfo {
 	struct Object *poseobj;		/* if t->flag & T_POSE, this denotes pose object */
 	
 	void       *customData;		/* Per Transform custom data */
-	
-	/* APRICOT HACK */
-	void		*txdepth;
-	struct bglMats txmats;
 } TransInfo;
 
 
