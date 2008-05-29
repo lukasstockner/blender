@@ -155,6 +155,7 @@ static float matbuf[MAXMATBUF][2][4];
 static int totmat_gl= 0;
 static Material *gpumatbuf[MAXMATBUF];
 static Material *gpuboundmat= NULL;
+static Object *gpuob= NULL;
 
 int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 {
@@ -196,7 +197,7 @@ int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 
 				if(mat->gpumaterial) {
 					GPU_material_vertex_attributes(mat->gpumaterial, attribs);
-					GPU_material_bind(mat->gpumaterial);
+					GPU_material_bind(gpuob, mat->gpumaterial);
 					gpuboundmat= mat;
 				}
 			}
@@ -248,6 +249,7 @@ int init_gl_materials(Object *ob, int check_alpha, int gpu)
 		QUATCOPY(matbuf[1][1], matbuf[0][1]);
 
 		gpumatbuf[0]= NULL;
+		gpuob= NULL;
 	}
 	
 	for(a=1; a<=ob->totcol; a++) {
@@ -291,6 +293,7 @@ int init_gl_materials(Object *ob, int check_alpha, int gpu)
 			}
 
 			gpumatbuf[a]= (gpu)? ma: NULL;
+			gpuob= ob;
 		}
 	}
 

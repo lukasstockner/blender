@@ -2,6 +2,8 @@
 varying vec3 varco;
 varying vec3 varcamco;
 varying vec3 varnormal;
+uniform mat4 unfobmat;
+uniform mat4 unfviewmat;
 
 /*********** SHADER NODES ***************/
 
@@ -408,7 +410,7 @@ void texco_norm(out vec3 normal)
 	normal = -normalize(varnormal);
 }
 
-void mtex_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+void mtex_rgb_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
 {
 	float facm;
 
@@ -418,14 +420,53 @@ void mtex_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol
 	incol = fact*texcol + facm*outcol;
 }
 
+void mtex_value_blend(float outcol, float texcol, float fact, float facg, out float incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	incol = fact*texcol + facm*outcol;
+}
+
+void mtex_alpha_from_col(vec4 col, out float alpha)
+{
+	alpha = col.a;
+}
+
+void mtex_alpha_to_col(vec4 col, float alpha, out vec4 outcol)
+{
+	outcol = vec4(col.rgb, alpha);
+}
+
 void mtex_rgbtoint(vec4 rgb, out float intensity)
 {
 	intensity = 0.35*rgb.r + 0.45*rgb.g + 0.2*rgb.b;
 }
 
-void mtex_invert(vec4 inrgb, out vec4 outrgb)
+void mtex_value_invert(float invalue, out float outvalue)
 {
-	outrgb = vec4(1.0) - inrgb;
+	outvalue = 1.0 - invalue;
+}
+
+void mtex_rgb_invert(vec4 inrgb, out vec4 outrgb)
+{
+	outrgb = vec4(vec3(1.0) - inrgb.rgb, inrgb.a);
+}
+
+void mtex_value_stencil(float stencil, float intensity, out float outstencil, out float outintensity)
+{
+	float fact = intensity;
+	outintensity = intensity*stencil;
+	outstencil = stencil*fact;
+}
+
+void mtex_rgb_stencil(float stencil, vec4 rgb, out float outstencil, out vec4 outrgb)
+{
+	float fact = rgb.a;
+	outrgb = vec4(rgb.rgb, rgb.a*stencil);
+	outstencil = stencil*fact;
 }
 
 void mtex_mapping(vec3 texco, vec3 size, vec3 ofs, out vec3 outtexco)
@@ -484,20 +525,51 @@ float material_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard)
 	return i;
 }
 
-void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, out vec4 combined)
+void lamp_visibility_sun_hemi(vec3 lampco, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
 {
-	vec3 l1 = vec3(-0.300, 0.300, 0.900);
-	vec3 l2 = vec3(0.500, 0.500, 0.100);
-	vec4 l1col = vec4(0.9, 0.9, 0.9, 1.0);
-	vec4 l2col = vec4(0.2, 0.2, 0.5, 1.0);
+	lv = lampvec;
+	dist = 1.0;
+	visifac = 1.0;
+}
+
+void lamp_visibility_other(vec3 lampco, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
+{
+	vec3 co = varcamco;
+
+	lv = (unfviewmat*vec4(lampco, 1.0)).xyz - co;
+	dist = length(lv);
+	lv = normalize(lv);
+	visifac = 1.0;
+}
+
+void shade_one_light(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, vec3 lv, float visifac, out vec4 outcol)
+{
 	vec3 v = -normalize(varcamco);
 	float inp;
 
-	inp = max(-dot(normal, l1), 0.0);
-	combined = material_lambert_diff(inp)*ref*col*l1col;
-	inp = max(-dot(normal, l2), 0.0);
-	combined += material_lambert_diff(inp)*ref*col*l2col;
-	combined += material_cooktorr_spec(-normal, l1, v, hard)*spec*specfac*l1col;
-	combined += material_cooktorr_spec(-normal, l2, v, hard)*spec*specfac*l2col;
+	inp = max(dot(-normal, lv), 0.0);
+
+	outcol = visifac*material_lambert_diff(inp)*ref*col;
+	outcol += visifac*material_cooktorr_spec(-normal, lv, v, hard)*spec*specfac;
+}
+
+void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, out vec4 combined)
+{
+	vec4 outcol;
+
+	shade_one_light(col, ref, spec, specfac, hard, normal, vec3(-0.300, 0.300, 0.900), 1.0, outcol);
+	combined = outcol*vec4(0.9, 0.9, 0.9, 1.0);
+	shade_one_light(col, ref, spec, specfac, hard, normal, vec3(0.500, 0.500, 0.100), 1.0, outcol);
+	combined += outcol*vec4(0.2, 0.2, 0.5, 1.0);
+}
+
+void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
+{
+	outcol = col1 + col2;
+}
+
+void shade_emit(float fac, vec4 col, out vec4 outcol)
+{
+	outcol = col*fac;
 }
 

@@ -9,6 +9,7 @@
 struct Image;
 struct ImageUser;
 struct Material;
+struct Object;
 struct GPUMaterial;
 typedef struct GPUMaterial GPUMaterial;
 
@@ -25,7 +26,7 @@ typedef struct GPUVertexAttribs {
 GPUMaterial *GPU_material_construct_begin();
 int GPU_material_construct_end(GPUMaterial *material);
 void GPU_material_free(GPUMaterial *material);
-void GPU_material_bind(GPUMaterial *material);
+void GPU_material_bind(struct Object *ob, GPUMaterial *material);
 void GPU_material_unbind(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,

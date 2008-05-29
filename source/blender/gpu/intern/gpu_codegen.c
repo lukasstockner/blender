@@ -56,7 +56,7 @@
 #include <stdarg.h>
 
 #ifdef _WIN32
-#ifndef snprintf
+#ifndef vsnprintf
 #define _vsnprintf vsnprintf
 #endif
 #ifndef snprintf
