@@ -7002,6 +7002,20 @@ static void meshdeformModifier_deformVertsEM(
 		dm->release(dm);
 }
 
+/* Multires */
+static void multiresModifier_initData(ModifierData *md)
+{
+	MultiresModifierData *mmd = (MultiresModifierData*)md;
+
+	mmd->lvl = mmd->totlvl = 1;
+}
+
+static DerivedMesh *multiresModifier_applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
+						   int useRenderParams, int isFinalCalc)
+{
+	return dm;
+}
+
 /***/
 
 static ModifierTypeInfo typeArr[NUM_MODIFIER_TYPES];
@@ -7321,6 +7335,12 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		mti->dependsOnTime = explodeModifier_dependsOnTime;
 		mti->requiredDataMask = explodeModifier_requiredDataMask;
 		mti->applyModifier = explodeModifier_applyModifier;
+
+		mti = INIT_TYPE(Multires);
+		mti->type = eModifierTypeType_Constructive;
+		mti->flags = eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_RequiresOriginalData;
+		mti->initData = multiresModifier_initData;
+		mti->applyModifier = multiresModifier_applyModifier;
 
 		typeArrInit = 0;
 #undef INIT_TYPE

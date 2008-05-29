@@ -1826,6 +1826,8 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			height = 94;
 		} else if (md->type==eModifierType_Explode) {
 			height = 94;
+		} else if (md->type==eModifierType_Multires) {
+			height = 48;
 		}
 							/* roundbox 4 free variables: corner-rounding, nop, roundbox type, shade */
 		uiDefBut(block, ROUNDBOX, 0, "", x-10, y-height-2, width, height-2, NULL, 5.0, 0.0, 12, 40, ""); 
@@ -2443,6 +2445,14 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiDefButBitS(block, TOG, eExplodeFlag_Alive, B_MODIFIER_RECALC, "Alive",	lx+buttonWidth/3, cy, buttonWidth/3,19, &emd->flag, 0, 0, 0, 0, "Show mesh when particles are alive");
 			uiDefButBitS(block, TOG, eExplodeFlag_Dead, B_MODIFIER_RECALC, "Dead",	lx+buttonWidth*2/3, cy, buttonWidth/3,19, &emd->flag, 0, 0, 0, 0, "Show mesh when particles are dead");
 			uiBlockEndAlign(block);
+		} else if (md->type==eModifierType_Multires) {
+			MultiresModifierData *mmd = (MultiresModifierData*) md;
+			uiBut *but;
+ 
+			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Subdivide", lx,(cy-=19),buttonWidth,19,0,0,0,0,0,"Increase the resolution of displacements");
+			//uiButSetFunc(but, modifiers_multiresSubdivide, ob, mmd);
+		
+			uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
 		}
 
 		uiBlockEndAlign(block);

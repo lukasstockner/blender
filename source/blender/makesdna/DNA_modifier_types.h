@@ -35,6 +35,7 @@ typedef enum ModifierType {
 	eModifierType_Cloth,
 	eModifierType_Collision,
 	eModifierType_Bevel,
+	eModifierType_Multires,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -487,5 +488,11 @@ typedef struct ExplodeModifierData {
 	short flag, vgroup;
 	float protect;
 } ExplodeModifierData;
+
+typedef struct MultiresModifierData {
+	ModifierData modifier;
+	char lvl, totlvl;
+	char pad[6];
+} MultiresModifierData;
 
 #endif
