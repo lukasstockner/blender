@@ -6513,7 +6513,6 @@ void editing_panels()
 		editing_panel_mesh_type(ob, ob->data);
 		editing_panel_modifiers(ob);
 		editing_panel_shapes(ob);
-		editing_panel_mesh_multires();
 		/* modes */
 		if(G.obedit) {
 			editing_panel_mesh_tools(ob, ob->data);
