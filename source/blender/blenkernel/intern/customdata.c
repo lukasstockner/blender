@@ -357,6 +357,29 @@ static void layerDefault_origspace_face(void *data, int count)
 	for(i = 0; i < count; i++)
 		osf[i] = default_osf;
 }
+
+void layerCopy_mdisps(const void *source, void *dest, int count)
+{
+	int i;
+	MDisps *s = source, *d = dest;
+
+	for(i = 0; i < count; ++i) {
+		if(s[i].disps)
+			d[i].disps = MEM_dupallocN(s[i].disps);
+	}
+}
+
+void layerFree_mdisps(void *data, int count, int size)
+{
+	int i;
+	MDisps *d = data;
+
+	for(i = 0; i < count; ++i) {
+		if(d->disps)
+			MEM_freeN(d->disps);
+	}
+}
+
 /* --------- */
 
 
@@ -454,13 +477,15 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(MStringProperty), "MStringProperty",1,"String",NULL,NULL,NULL,NULL},
 	{sizeof(OrigSpaceFace), "OrigSpaceFace", 1, "UVTex", layerCopy_origspace_face, NULL,
 	 layerInterp_origspace_face, layerSwap_origspace_face, layerDefault_origspace_face},
-	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL}
+	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(MDisps), "MDisps", 1, NULL, layerCopy_mdisps,
+	 layerFree_mdisps, NULL, NULL, NULL}
 };
 
 const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	"CDMVert", "CDMSticky", "CDMDeformVert", "CDMEdge", "CDMFace", "CDMTFace",
 	"CDMCol", "CDOrigIndex", "CDNormal", "CDFlags","CDMFloatProperty",
-	"CDMIntProperty","CDMStringProperty", "CDOrigSpace", "CDOrco"};
+	"CDMIntProperty","CDMStringProperty", "CDOrigSpace", "CDOrco", "CDMDisps"};
 
 const CustomDataMask CD_MASK_BAREMESH =
 	CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE;

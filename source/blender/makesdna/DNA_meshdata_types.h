@@ -100,6 +100,10 @@ typedef struct OrigSpaceFace {
 	float uv[4][2];
 } OrigSpaceFace;
 
+typedef struct MDisps {
+	float (*disps)[3];
+} MDisps;
+
 /* Multiresolution modeling */
 typedef struct MultiresCol {
 	float a, r, g, b;
