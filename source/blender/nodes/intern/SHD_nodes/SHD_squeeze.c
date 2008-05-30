@@ -56,7 +56,7 @@ bNodeStack **out)
 
 static GPUNode *gpu_shader_squeeze(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_mat_node_create(mat, "squeeze", in, out);
+	return GPU_stack_link(mat, "squeeze", in, out);
 }
 
 bNodeType sh_node_squeeze= { 

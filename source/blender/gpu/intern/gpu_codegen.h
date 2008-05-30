@@ -39,38 +39,56 @@ struct ListBase;
 struct GPUShader;
 struct GPUOutput;
 struct GPUNode;
+struct GPUVertexAttribs;
 
-typedef struct GPUPass {
-	struct GPUPass *next, *prev;
+#define MAX_FUNCTION_NAME	64
+#define MAX_PARAMETER		32
 
-	ListBase nodes;
-	struct GPUOutput *output;
-	struct GPUShader *shader;
-	int sharednodes; /* are the nodes owned by another pass? */
-} GPUPass;
+typedef struct GPUFunction {
+	char name[MAX_FUNCTION_NAME];
+	int paramtype[MAX_PARAMETER];
+	int paramout[MAX_PARAMETER];
+	int totparam;
+} GPUFunction;
+
+GPUFunction *GPU_lookup_function(char *name);
 
 /* Pass Generation
-   - Takes a list of nodes and a desired output, and makes a list of passes,
-     that are needed to compute the buffer in the output. Nodes used for a
-     pass are removed from the list.
+   - Takes a list of nodes and a desired output, and makes a pass. This
+     will take ownership of the nodes and free them early if unused or
+	 at the end if used.
 */
 
-ListBase GPU_generate_passes(ListBase *nodes, struct GPUOutput *output, int vertexshader);
-ListBase GPU_generate_single_pass(ListBase *nodes, struct GPUOutput *output, int vertexshader);
+struct GPUPass;
+typedef struct GPUPass GPUPass;
+
+GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink, int vertexshader);
+
+struct GPUShader *GPU_pass_shader(GPUPass *pass);
 
 void GPU_pass_bind(GPUPass *pass);
 void GPU_pass_unbind(GPUPass *pass);
 
-void GPU_pass_free(ListBase *passes, GPUPass *pass);
+void GPU_pass_free(GPUPass *pass);
 
-#if 0
-char *GPU_codegen_code(struct ListBase *nodes, struct GPUOutput *output);
-void GPU_codegen_bind(struct GPUShader *shader, struct ListBase *nodes);
-void GPU_codegen_unbind(struct GPUShader *shader, struct ListBase *nodes);
-List GPU_schedule(struct ListBase *nodes, struct GPUOutput *output,
-	void (*execute)(struct ListBase *nodes, struct GPUOutput *output),
-	void (*freenode)(struct GPUNode *node));
-#endif
+/* Node Functions */
+
+GPUNodeLink *GPU_node_link_create(int type);
+
+GPUNode *GPU_node_begin(char *name);
+void GPU_node_input(GPUNode *node, int type, char *name, void *p1, void *p2);
+void GPU_node_input_array(GPUNode *node, int type, char *name, void *ptr1, void *ptr2, void *ptr3);
+void GPU_node_output(GPUNode *node, int type, char *name, GPUNodeLink **link);
+void GPU_node_end(GPUNode *node);
+
+void GPU_node_free(GPUNode *node);
+void GPU_nodes_free(ListBase *nodes);
+
+void GPU_nodes_create_vertex_attributes(ListBase *nodes, struct GPUVertexAttribs *attribs);
+
+/* Material calls */
+
+void gpu_material_add_node(struct GPUMaterial *material, struct GPUNode *node);
 
 #endif
 

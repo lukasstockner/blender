@@ -70,7 +70,6 @@
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
-#include "GPU_node.h"
 
 static ListBase empty_list = {NULL, NULL};
 ListBase node_all_composit = {NULL, NULL};
@@ -2367,7 +2366,7 @@ static void gpu_from_node_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack
 		memset(&gs[i], 0, sizeof(gs[i]));
 
     	QUATCOPY(gs[i].vec, ns[i]->vec);
-		gs[i].buf= ns[i]->data;
+		gs[i].link= ns[i]->data;
 
 		if (sock->type == SOCK_VALUE)
 			gs[i].type= GPU_FLOAT;
@@ -2391,7 +2390,7 @@ static void data_from_gpu_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack
 	int i;
 
 	for (sock=sockets->first, i=0; sock; sock=sock->next, i++)
-		ns[i]->data= gs[i].buf;
+		ns[i]->data= gs[i].link;
 }
 
 GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
@@ -2402,7 +2401,6 @@ GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
 	bNodeStack *nsout[MAX_SOCKET];	/* arbitrary... watch this */
 	GPUNodeStack gpuin[MAX_SOCKET+1], gpuout[MAX_SOCKET+1];
 	GPUMaterial *mat;
-	GPUNode *gnode;
 
 	if((ntree->init & NTREE_EXEC_INIT)==0)
 		ntreeBeginExecTree(ntree);
@@ -2415,8 +2413,7 @@ GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
 			node_get_stack(node, stack, nsin, nsout);
 			gpu_from_node_stack(&node->inputs, nsin, gpuin);
 			gpu_from_node_stack(&node->outputs, nsout, gpuout);
-			gnode= node->typeinfo->gpufunc(mat, node, gpuin, gpuout);
-			if(gnode)
+			if(node->typeinfo->gpufunc(mat, node, gpuin, gpuout))
 				data_from_gpu_stack(&node->outputs, nsout, gpuout);
 		}
 		/* groups not supported yet .. */

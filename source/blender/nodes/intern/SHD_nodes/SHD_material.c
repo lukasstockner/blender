@@ -185,7 +185,6 @@ static void node_shader_init_material(bNode* node)
    node->custom1= SH_NODE_MAT_DIFF|SH_NODE_MAT_SPEC;
 }
 
-
 bNodeType sh_node_material= {
 	/* *next,*prev */	NULL, NULL,
 	/* type code   */	SH_NODE_MATERIAL,

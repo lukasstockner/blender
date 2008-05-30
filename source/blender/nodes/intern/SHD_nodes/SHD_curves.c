@@ -56,8 +56,9 @@ static void node_shader_init_curve_vec(bNode* node)
    node->storage= curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
 }
 
-static void gpu_curvemapping_texture(GPUNode *gnode, CurveMapping *cumap)
+static GPUNodeLink *gpu_curvemapping_texture(CurveMapping *cumap)
 {
+	GPUNodeLink *link;
 	float *pixels;
 	int a, size = CM_TABLE+1;
 
@@ -74,18 +75,15 @@ static void gpu_curvemapping_texture(GPUNode *gnode, CurveMapping *cumap)
 			pixels[a*4+3]= 1.0f;
 	}
 
-	GPU_mat_node_texture(gnode, GPU_TEX1D, size, pixels);
+	link = GPU_texture(size, pixels);
 
-	MEM_freeN(pixels);
+	return link;
 }
 
 static GPUNode *gpu_shader_curve_vec(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	GPUNode *gnode= GPU_mat_node_create(mat, "curves_vec", in, out);
-
-	gpu_curvemapping_texture(gnode, node->storage);
-
-	return gnode;
+	GPUNodeLink *tex = gpu_curvemapping_texture(node->storage);
+	return GPU_stack_link(mat, "curves_vec", in, out, tex);
 }
 
 bNodeType sh_node_curve_vec= {
@@ -135,11 +133,9 @@ static void node_shader_init_curve_rgb(bNode *node)
 
 static GPUNode *gpu_shader_curve_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	GPUNode *gnode= GPU_mat_node_create(mat, "curves_rgb", in, out);
+	GPUNodeLink *tex = gpu_curvemapping_texture(node->storage);
 
-	gpu_curvemapping_texture(gnode, node->storage);
-
-	return gnode;
+	return GPU_stack_link(mat, "curves_rgb", in, out, tex);
 }
 
 bNodeType sh_node_curve_rgb= {

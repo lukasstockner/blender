@@ -88,7 +88,6 @@
 #include "RE_pipeline.h"
 #include "RE_shader_ext.h"
 
-#include "GPU_node.h"
 #include "GPU_material.h"
 
 #include "butspace.h"

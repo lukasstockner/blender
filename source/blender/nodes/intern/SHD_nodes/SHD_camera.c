@@ -51,7 +51,7 @@ static void node_shader_exec_camera(void *data, bNode *node, bNodeStack **in, bN
 
 static GPUNode *gpu_shader_camera(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_mat_node_create(mat, "camera", in, out);
+	return GPU_stack_link(mat, "camera", in, out);
 }
 
 bNodeType sh_node_camera= {

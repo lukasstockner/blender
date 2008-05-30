@@ -66,7 +66,7 @@ bNodeStack **out)
 
 static GPUNode *gpu_shader_invert(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_mat_node_create(mat, "invert", in, out);
+	return GPU_stack_link(mat, "invert", in, out);
 }
 
 bNodeType sh_node_invert= {

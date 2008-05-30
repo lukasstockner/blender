@@ -50,7 +50,7 @@ static void node_shader_exec_seprgb(void *data, bNode *node, bNodeStack **in, bN
 
 static GPUNode *gpu_shader_seprgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_mat_node_create(mat, "separate_rgb", in, out);
+	return GPU_stack_link(mat, "separate_rgb", in, out);
 }
 
 bNodeType sh_node_seprgb= {
@@ -94,7 +94,7 @@ static void node_shader_exec_combrgb(void *data, bNode *node, bNodeStack **in, b
 
 static GPUNode *gpu_shader_combrgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_mat_node_create(mat, "combine_rgb", in, out);
+	return GPU_stack_link(mat, "combine_rgb", in, out);
 }
 
 bNodeType sh_node_combrgb= {

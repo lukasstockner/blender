@@ -61,6 +61,7 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_extensions.h"
 #include "GPU_material.h"
 
 #include "CCGSubSurf.h"

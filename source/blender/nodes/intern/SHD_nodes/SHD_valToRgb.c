@@ -62,13 +62,11 @@ static void node_shader_init_valtorgb(bNode *node)
 #if 0
 static GPUNode *gpu_shader_valtorgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	GPUNode *gnode = GPU_mat_node_create(mat, "valtorgb", in, out);
 	int size = 256;
 	float *pixels = NULL; //colorband_pixels(node->storage, size);
+	GPUNodeLink *tex = GPU_texture(size, pixels);
 
-	GPU_mat_node_texture(gnode, GPU_TEX1D, size, pixels);
-
-	return gnode;
+	return GPU_stack_link(mat, "valtorgb", in, out, tex);
 }
 #endif
 
@@ -112,7 +110,7 @@ static void node_shader_exec_rgbtobw(void *data, bNode *node, bNodeStack **in, b
 
 static GPUNode *gpu_shader_rgbtobw(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	return GPU_mat_node_create(mat, "rgbtobw", in, out);
+	return GPU_stack_link(mat, "rgbtobw", in, out);
 }
 
 bNodeType sh_node_rgbtobw= {

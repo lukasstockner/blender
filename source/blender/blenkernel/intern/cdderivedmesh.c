@@ -58,6 +58,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_extensions.h"
 #include "GPU_material.h"
 
 #include <string.h>

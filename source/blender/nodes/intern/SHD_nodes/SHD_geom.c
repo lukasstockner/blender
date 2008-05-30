@@ -128,13 +128,11 @@ static void node_shader_init_geometry(bNode *node)
 static GPUNode *gpu_shader_geom(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	NodeGeometry *ngeo= (NodeGeometry*)node->storage;
-	GPUNode *gnode = GPU_mat_node_create(mat, "geom", in, out);
+	GPUNodeLink *orco = GPU_attribute(CD_ORCO, "");
+	GPUNodeLink *mtface = GPU_attribute(CD_MTFACE, ngeo->uvname);
+	GPUNodeLink *mcol = GPU_attribute(CD_MCOL, ngeo->colname);
 
-	GPU_mat_node_attribute(gnode, GPU_VEC3, CD_ORCO, "");
-	GPU_mat_node_attribute(gnode, GPU_VEC2, CD_MTFACE, ngeo->uvname);
-	GPU_mat_node_attribute(gnode, GPU_VEC4, CD_MCOL, ngeo->colname);
-
-	return gnode;
+	return GPU_stack_link(mat, "geom", in, out, orco, mtface, mcol);
 }
 
 /* node type definition */

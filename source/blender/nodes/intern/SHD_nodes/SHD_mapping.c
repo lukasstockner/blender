@@ -72,19 +72,15 @@ static void node_shader_init_mapping(bNode *node)
 static GPUNode *gpu_shader_mapping(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	TexMapping *texmap= node->storage;
-	GPUNode *gnode= GPU_mat_node_create(mat, "mapping", in, out);
-	float domin, domax;
+	float domin= (texmap->flag & TEXMAP_CLIP_MIN) != 0;
+	float domax= (texmap->flag & TEXMAP_CLIP_MAX) != 0;
+	GPUNodeLink *tmat = GPU_uniform((float*)texmap->mat);
+	GPUNodeLink *tmin = GPU_uniform(texmap->min);
+	GPUNodeLink *tmax = GPU_uniform(texmap->max);
+	GPUNodeLink *tdomin = GPU_uniform(&domin);
+	GPUNodeLink *tdomax = GPU_uniform(&domax);
 
-	GPU_mat_node_uniform(gnode, GPU_MAT4, texmap->mat);
-	GPU_mat_node_uniform(gnode, GPU_VEC3, texmap->min);
-	GPU_mat_node_uniform(gnode, GPU_VEC3, texmap->max);
-
-	domin= (texmap->flag & TEXMAP_CLIP_MIN) != 0;
-	domax= (texmap->flag & TEXMAP_CLIP_MAX) != 0;
-	GPU_mat_node_uniform(gnode, GPU_FLOAT, &domin);
-	GPU_mat_node_uniform(gnode, GPU_FLOAT, &domax);
-
-	return gnode;
+	return GPU_stack_link(mat, "mapping", in, out, tmat, tmin, tmax, tdomin, tdomax);
 }
 
 bNodeType sh_node_mapping= {

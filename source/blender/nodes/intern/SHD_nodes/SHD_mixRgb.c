@@ -67,7 +67,7 @@ static GPUNode *gpu_shader_mix_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *
 		"mix_overlay", "mix_dodge", "mix_burn", "mix_hue", "mix_sat",
 		"mix_val", "mix_color"};
 
-	return GPU_mat_node_create(mat, names[node->custom1], in, out);
+	return GPU_stack_link(mat, names[node->custom1], in, out);
 }
 
 

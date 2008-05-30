@@ -48,6 +48,7 @@ struct GPUShader;
 typedef struct GPUShader GPUShader;
 
 void GPU_extensions_init(void); /* call this before running any of the functions below */
+void GPU_extensions_exit(void);
 int GPU_extensions_minimum_support(void);
 void GPU_print_error(char *str);
 
@@ -121,28 +122,19 @@ void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex);
 
 int GPU_shader_get_attribute(GPUShader *shader, char *name);
 
-#if 0
-/* GPU Shader Resources
-	- verification to see if a shader with these resources can be executed */
+/* Vertex attributes for shaders */
 
-typedef struct GPUShaderResources {
-	int alu_instructions;
-	int tex_instructions;
-	int uniforms;
-	int constants;
-} GPUShaderResources;
+#define GPU_MAX_ATTRIB		32
 
-int GPU_shader_resources_verify(GPUShaderResources *res);
+typedef struct GPUVertexAttribs {
+	struct {
+		int type;
+		int glindex;
+		char name[32];
+	} layer[GPU_MAX_ATTRIB];
 
-/* Texture Cache
-   - TODO: clean up and document */
-
-GPUTexture *GPU_texture_cache_create(int w, int h, int halffloat,
-	GPUFrameBuffer *fb);
-void GPU_texture_cache_free(GPUTexture *tex);
-void GPU_texture_cache_free_untagged();
-void GPU_texture_cache_untag();
-#endif
+	int totlayer;
+} GPUVertexAttribs;
 
 #endif
 

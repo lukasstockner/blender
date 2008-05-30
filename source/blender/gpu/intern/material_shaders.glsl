@@ -355,6 +355,11 @@ void combine_rgb(float r, float g, float b, out vec4 col)
 	col = vec4(r, g, b, 1.0);
 }
 
+void output_node(vec4 rgb, float alpha, out vec4 outrgb)
+{
+	outrgb = vec4(rgb.rgb, alpha);
+}
+
 /*********** TEXTURES ***************/
 
 void texture_flip_blend(vec3 vec, out vec3 outvec)

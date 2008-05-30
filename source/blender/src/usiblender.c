@@ -1113,6 +1113,7 @@ void exit_usiblender(void)
 	sound_exit_audio();
 	if(G.listener) MEM_freeN(G.listener);
 
+	GPU_extensions_exit();
 
 	libtiff_exit();
 

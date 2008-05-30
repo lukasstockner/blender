@@ -105,7 +105,7 @@ static GPUNode *gpu_shader_vect_math(GPUMaterial *mat, bNode *node, GPUNodeStack
 		"vec_math_average", "vec_math_dot", "vec_math_cross",
 		"vec_math_normalize"};
 
-	GPUNode *gnode = GPU_mat_node_create(mat, names[node->custom1], NULL, out);
+	GPUNode *gnode = NULL;
 
 	switch (node->custom1) {
 		case 0:
@@ -113,14 +113,14 @@ static GPUNode *gpu_shader_vect_math(GPUMaterial *mat, bNode *node, GPUNodeStack
 		case 2:
 		case 3:
 		case 4:
-			GPU_mat_node_socket(gnode, &in[0]);
-			GPU_mat_node_socket(gnode, &in[1]);
+			gnode = GPU_stack_link(mat, names[node->custom1], NULL, out,
+				GPU_socket(&in[0]), GPU_socket(&in[1]));
 			break;
 		case 5:
-			if (in[0].hasinput || !in[1].hasinput)
-				GPU_mat_node_socket(gnode, &in[0]);
+			if(in[0].hasinput || !in[1].hasinput)
+				gnode = GPU_stack_link(mat, names[node->custom1], NULL, out, GPU_socket(&in[0]));
 			else
-				GPU_mat_node_socket(gnode, &in[1]);
+				gnode = GPU_stack_link(mat, names[node->custom1], NULL, out, GPU_socket(&in[1]));
 			break;
 	}
 	

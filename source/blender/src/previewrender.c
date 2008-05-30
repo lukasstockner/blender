@@ -231,6 +231,7 @@ void BIF_preview_changed(short id_code)
 		if(ma && ma->gpumaterial) {
 			GPU_material_free(ma->gpumaterial);
 			ma->gpumaterial= NULL;
+			allqueue(REDRAWVIEW3D, 0);
 		}
 	}
 }

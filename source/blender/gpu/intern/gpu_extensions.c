@@ -91,10 +91,9 @@ struct GPUGlobal {
 		GLint max_attribs; // 10+ (varying) (10)
 		GLint parameters; // 24+ (uniforms + constants) (32)
 	} limits;
-	ListBase texturecache;
 
 	int minimumsupport;
-} GG = {1, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0}, {NULL, NULL}};
+} GG = {1, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0}, 0};
 
 void GPU_extensions_init()
 {
@@ -984,23 +983,6 @@ int GPU_shader_get_attribute(GPUShader *shader, char *name)
 	return index;
 }
 
-#if 0
-int GPU_shader_resources_verify(GPUShaderResources *res)
-{
-	/*printf("%d > %d, %d > %d, %d > %d\n",
-		res->alu_instructions, GG.limits.alu_instructions,
-		res->tex_instructions, GG.limits.tex_instructions,
-		(res->uniforms+res->constants), GG.limits.parameters);*/
-	if (res->alu_instructions > GG.limits.alu_instructions)
-		return 0;
-	else if (res->tex_instructions > GG.limits.tex_instructions)
-		return 0;
-	else if ((res->uniforms+res->constants) > GG.limits.parameters)
-		return 0;
-	else
-		return 1;
-}
-
 /* GPUPixelBuffer */
 
 typedef struct GPUPixelBuffer {
@@ -1111,142 +1093,4 @@ void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
 		pixelbuffer_copy_to_texture(tex, pb, pb->bindcode[pb->current]);
     }
 }
-
-/* Texture cache
-   - reuse textures because creating them everytime is not cheap, tagging
-     is used to find which textures have been used during one composite
-	 execution. */
-
-/* TODO: deal with multiple flushes for tagging */
-
-typedef struct GPUCachedTexture {
-	struct GPUCachedTexture *next, *prev;
-	GPUTexture *tex;
-	int tag;
-} GPUCachedTexture;
-
-GPUTexture *GPU_texture_cache_create(int w, int h, int halffloat, GPUFrameBuffer *fb)
-{
-	GPUCachedTexture *ctex;
-	GPUTexture *tex;
-
-	for (ctex=GG.texturecache.first; ctex; ctex=ctex->next) {
-		tex = ctex->tex;
-		
-		if ((GPU_texture_width(tex) == w) &&
-		    (GPU_texture_height(tex) == h) &&
-			(!halffloat || GPU_texture_is_half_float(tex))) {
-
-			if (fb != tex->fb) {
-				if (tex->fb)
-					GPU_framebuffer_texture_detach(tex->fb, tex);
-				if (fb)
-					GPU_framebuffer_texture_attach(fb, tex);
-			}
-
-			BLI_freelinkN(&GG.texturecache, ctex);
-			return tex;
-		}
-	}
-
-	tex = GPU_texture_create_2D(w, h, NULL, halffloat);
-	if (fb)
-		GPU_framebuffer_texture_attach(fb, tex);
-	return tex;
-}
-
-void GPU_texture_cache_free(GPUTexture *tex)
-{
-	GPUCachedTexture *ctex = MEM_callocN(sizeof(GPUCachedTexture), "GPUCachedTexture");
-	ctex->tex = tex;
-	ctex->tag = 1;
-
-	BLI_addtail(&GG.texturecache, ctex);
-}
-
-void GPU_texture_cache_free_untagged()
-{
-	GPUCachedTexture *ctex;
-	int doit = 1;
-
-	while (doit) {
-		doit = 0;
-		for (ctex=GG.texturecache.first; ctex; ctex=ctex->next) {
-			if (!ctex->tag) {
-				doit = 1;
-				GPU_texture_free(ctex->tex);
-				BLI_freelinkN(&GG.texturecache, ctex);
-				break;
-			}
-		}
-	}
-}
-
-void GPU_texture_cache_untag()
-{
-	GPUCachedTexture *ctex;
-
-	for (ctex=GG.texturecache.first; ctex; ctex=ctex->next)
-		ctex->tag = 0;
-}
-
-#endif
-
-/* Shader Cache */
-
-#if 0
-typedef struct GPUNodeShader {
-	struct GPUNodeShader *next, *prev;
-
-	GPUShader *shader;
-	char *code;
-	int length;
-	int tag;
-} GPUNodeShader;
-
-static void node_shader_free(GPUNodeShader *nshader)
-{
-	BLI_remlink(&_composite.shaders, nshader);
-	GPU_shader_free(nshader->shader);
-	MEM_freeN(nshader->code);
-	MEM_freeN(nshader);
-}
-
-	while (_composite.shaders.first)
-		node_shader_free(_composite.shaders.first);
-
-	GPUNodeShader *nshader, *next;
-
-	for (nshader=_composite.shaders.first; nshader; nshader=next) {
-		next = nshader->next;
-
-		if (!nshader->tag)
-			node_shader_free(nshader);
-		else
-			nshader->tag = 0;
-	}
-	
-	for (nshader=_composite.shaders.first; nshader; nshader=nshader->next)
-		if ((nshader->length == codelen) && (strcmp(code, nshader->code) == 0))
-			break;
-
-	if (!nshader) {
-		shader = GPU_shader_create(NULL, code);
-		if (!shader) {
-			MEM_freeN(code);
-			return;
-		}
-		
-		nshader = MEM_callocN(sizeof(GPUNodeShader), "GPUNodeShader");
-		nshader->code = code;
-		nshader->length = codelen;
-		nshader->shader = shader;
-		BLI_addtail(&_composite.shaders, nshader);
-	}
-	else
-		MEM_freeN(code);
-
-	nshader->tag = 1;
-
-#endif
 

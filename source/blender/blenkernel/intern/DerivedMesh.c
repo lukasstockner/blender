@@ -86,6 +86,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_extensions.h"
 #include "GPU_material.h"
 
 // headers for fluidsim bobj meshes
