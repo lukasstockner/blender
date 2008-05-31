@@ -989,7 +989,7 @@ typedef struct GPUPixelBuffer {
 	GLuint bindcode[2];
 	GLuint current;
 	int datasize;
-	int numbuffers;;
+	int numbuffers;
 	int halffloat;
 } GPUPixelBuffer;
 
