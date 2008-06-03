@@ -5142,11 +5142,11 @@ static void init_seqspace(ScrArea *sa)
 	sseq->v2d.min[0]= 10.0;
 	sseq->v2d.min[1]= 4.0;
 
-	sseq->v2d.max[0]= 32000.0;
+	sseq->v2d.max[0]= MAXFRAMEF;
 	sseq->v2d.max[1]= MAXSEQ;
 	
-	sseq->v2d.minzoom= 0.1f;
-	sseq->v2d.maxzoom= 10.0;
+	sseq->v2d.minzoom= 0.01f;
+	sseq->v2d.maxzoom= 100.0;
 	
 	sseq->v2d.scroll= L_SCROLL+B_SCROLL;
 	sseq->v2d.keepaspect= 0;
