@@ -59,7 +59,7 @@ BL_ArmatureObject::BL_ArmatureObject(
 	m_activePriority(999)
 {
 	m_armature = get_armature(m_objArma);
-	copy_pose(&m_pose, m_objArma->pose, 1);
+	m_pose = m_objArma->pose;
 }
 
 
@@ -143,10 +143,6 @@ void BL_ArmatureObject::GetPose(bPose **pose)
 {
 	/* If the caller supplies a null pose, create a new one. */
 	/* Otherwise, copy the armature's pose channels into the caller-supplied pose */
-	if (*pose && (*pose == m_pose)) {
-		printf("ASSSS\n");
-		return;
-	}
 		
 	if (!*pose) {
 		/*	probably not to good of an idea to
