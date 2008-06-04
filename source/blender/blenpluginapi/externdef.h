@@ -30,17 +30,24 @@
 #ifndef _EXTERNDEF_H
 #define _EXTERNDEF_H
 
-#ifdef WIN32
- #ifdef PLUGIN_INTERN
-  #define LIBEXPORT	__declspec(dllexport)
-  #define LIBIMPORT	__declspec(dllexport)
- #else 
-  #define LIBEXPORT	__declspec(dllexport)
-  #define LIBIMPORT	extern __declspec(dllimport)
+#ifdef GCC_HASCLASSVISIBILITY
+ /* with gcc, we enable hiding of symbols if -fvisibility=hidden is
+  * supported, and define GCC_HASCLASSVISIBILITY to check it */
+ #define LIBEXPORT extern __attribute__ ((visibility("default")))
+ #define LIBIMPORT extern __attribute__ ((visibility("default")))
+#else
+ #ifdef WIN32
+  #ifdef PLUGIN_INTERN
+   #define LIBEXPORT	__declspec(dllexport)
+   #define LIBIMPORT	__declspec(dllexport)
+  #else 
+   #define LIBEXPORT	__declspec(dllexport)
+   #define LIBIMPORT	extern __declspec(dllimport)
+  #endif
+ #elif !defined(WIN32)
+  #define LIBEXPORT extern
+  #define LIBIMPORT extern
  #endif
-#elif !defined(WIN32)
-	#define LIBEXPORT extern
-	#define LIBIMPORT extern
 #endif
 
 #endif /* _EXTERNDEF_H */

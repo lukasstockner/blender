@@ -188,12 +188,19 @@ IF(UNIX)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp ")
   ENDIF(WITH_OPENMP)
 
-
   SET(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing -DXP_UNIX -Wno-char-subscripts")
 
   SET(PLATFORM_LINKFLAGS "-pthread")
 
   INCLUDE_DIRECTORIES(/usr/include /usr/local/include)
+
+  # msvc already hides symbols, for others do it if the compiler supports it
+  EXECUTE_PROCESS(COMMAND echo "int main() { return 0; }" COMMAND ${CMAKE_C_COMPILER} -fvisibility=hidden -o /dev/null -xc - RESULT_VARIABLE VISIBILITY_RESULT OUTPUT_QUIET ERROR_QUIET)
+  IF(NOT VISIBILITY_RESULT)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -DGCC_HASCLASSVISIBILITY")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -DGCC_HASCLASSVISIBILITY")
+  ENDIF(NOT VISIBILITY_RESULT)
+
 ENDIF(UNIX)
 
 IF(WIN32)
@@ -384,6 +391,14 @@ IF(APPLE)
   SET(TIFF_INC ${TIFF}/include)
 
   SET(EXETYPE MACOSX_BUNDLE)
+
+  # msvc already hides symbols, for others do it if the compiler supports it
+  EXECUTE_PROCESS(COMMAND echo "int main() { return 0; }" COMMAND ${CMAKE_C_COMPILER} -fvisibility=hidden -o /dev/null -xc - RESULT_VARIABLE VISIBILITY_RESULT OUTPUT_QUIET ERROR_QUIET)
+  IF(NOT VISIBILITY_RESULT)
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -DGCC_HASCLASSVISIBILITY")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -DGCC_HASCLASSVISIBILITY")
+  ENDIF(NOT VISIBILITY_RESULT)
+
 ENDIF(APPLE)
 
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")

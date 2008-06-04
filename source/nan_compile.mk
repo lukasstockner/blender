@@ -259,6 +259,23 @@ ifeq ($(OS),windows)
   endif
 endif
 
+# msvc already hides symbols, for others do it if the compiler supports it
+ifeq ($(OS),windows)
+  ifeq ($(FREE_WINDOWS),true)
+    CHECK_VISIBILITY_FLAG = 1
+  endif
+else
+  CHECK_VISIBILITY_FLAG = 1
+endif
+
+ifdef CHECK_VISIBILITY_FLAG
+  VISIBILITY_RESULT = $(shell echo "int main() { return 0; }" | $(CC) -fvisibility=hidden -o /dev/null -xc - 2> /dev/null; echo $$?)
+  ifeq ($(VISIBILITY_RESULT), 0)
+    CFLAGS += -fvisibility=hidden -DGCC_HASCLASSVISIBILITY
+    CCFLAGS += -fvisibility=hidden -DGCC_HASCLASSVISIBILITY
+  endif
+endif
+
 ifeq (debug, $(findstring debug, $(MAKECMDGOALS)))
     export DEBUG_DIR=debug/
 endif

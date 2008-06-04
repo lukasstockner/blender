@@ -36,6 +36,7 @@ import string
 import shutil
 import glob
 import re
+import commands
 from tempfile import mkdtemp
 
 import tools.Blender
@@ -234,6 +235,18 @@ if env['OURPLATFORM'] == 'linux2' :
             for name in dirs:
                 os.rmdir(os.path.join(root, name))
         if root: os.rmdir(root)
+
+# msvc already hides symbols, for others do it if the compiler supports it
+
+if env['OURPLATFORM'] != 'win32-vc':
+	def check_option(cc, option):
+		cmd = "echo \"int main() { return 0; }\" | " + cc + " " + option + " -o /dev/null -xc -"
+		return (commands.getstatusoutput(cmd)[0] == 0)
+
+	if check_option(env['CC'], '-fvisibility=hidden'):
+		env['CPPFLAGS'].extend(['-fvisibility=hidden', '-DGCC_HASCLASSVISIBILITY'])
+		env['CXXFLAGS'].extend(['-fvisibility=hidden', '-DGCC_HASCLASSVISIBILITY'])
+		env['CCFLAGS'].extend(['-fvisibility=hidden', '-DGCC_HASCLASSVISIBILITY'])
 
 if len(B.quickdebug) > 0 and printdebug != 0:
     print B.bc.OKGREEN + "Buildings these libs with debug symbols:" + B.bc.ENDC
