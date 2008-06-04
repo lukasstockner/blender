@@ -108,7 +108,7 @@ extern "C" {
 	int BPY_add_spacehandler(struct Text *txt, struct ScrArea *sa,char spacetype);
 	int BPY_has_spacehandler(struct Text *text, struct ScrArea *sa);
 	void BPY_screen_free_spacehandlers(struct bScreen *sc);
-	int BPY_do_spacehandlers(struct ScrArea *sa, unsigned short event,
+	int BPY_do_spacehandlers(struct ScrArea *sa, unsigned short event, short val,
 		unsigned short space_event);
 
 	void BPY_pydriver_update(void);

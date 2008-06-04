@@ -1195,7 +1195,12 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 	
 	if(curarea->win==0) return;	/* when it comes from sa->headqread() */
 	
-	if(val) {
+	if(!val) {
+		/* run any view3d event handler script links */
+		if (event && sa->scriptlink.totscript)
+			if (BPY_do_spacehandlers(sa, -event, val, SPACEHANDLER_VIEW3D_EVENT)) /* APRICOT HACK, negative events so old space handelers still run ok, we need a better solution for the long term */
+				return; /* return if event was processed (swallowed) by handler(s) */
+	} else {
 
 		if( uiDoBlocks(&curarea->uiblocks, event, 1)!=UI_NOTHING ) event= 0;
 		
@@ -1205,7 +1210,7 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 		if(event==LEFTMOUSE) {
 			/* run any view3d event handler script links */
 			if (event && sa->scriptlink.totscript)
-				if (BPY_do_spacehandlers(sa, event, SPACEHANDLER_VIEW3D_EVENT))
+				if (BPY_do_spacehandlers(sa, event, val, SPACEHANDLER_VIEW3D_EVENT))
 					return; /* return if event was processed (swallowed) by handler(s) */
 
 			if(BIF_do_manipulator(sa)) return;
@@ -1261,7 +1266,7 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 
 		/* run any view3d event handler script links */
 		if (event && sa->scriptlink.totscript)
-			if (BPY_do_spacehandlers(sa, event, SPACEHANDLER_VIEW3D_EVENT))
+			if (BPY_do_spacehandlers(sa, event, val, SPACEHANDLER_VIEW3D_EVENT))
 				return; /* return if event was processed (swallowed) by handler(s) */
 
 		/* TEXTEDITING?? */

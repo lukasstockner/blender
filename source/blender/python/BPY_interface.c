@@ -2422,7 +2422,7 @@ int BPY_add_spacehandler(Text *text, ScrArea *sa, char spacetype)
 	return 0;
 }
 
-int BPY_do_spacehandlers( ScrArea *sa, unsigned short event,
+int BPY_do_spacehandlers( ScrArea *sa, unsigned short event, short val,
 	unsigned short space_event )
 {
 	ScriptLink *scriptlink;
@@ -2465,6 +2465,8 @@ int BPY_do_spacehandlers( ScrArea *sa, unsigned short event,
 		EXPP_dict_set_item_str(g_blenderdict, "link", PyInt_FromLong(space_event));
 		/* note: DRAW space_events set event to 0 */
 		EXPP_dict_set_item_str(g_blenderdict, "event", PyInt_FromLong(event));
+		/* key/mouse down or up? */
+		PyDict_SetItemString(g_blenderdict, "value", PyInt_FromLong(val));
 		/* now run all assigned space handlers for this space and space_event */
 		for( index = 0; index < scriptlink->totscript; index++ ) {
 			
@@ -2522,6 +2524,7 @@ int BPY_do_spacehandlers( ScrArea *sa, unsigned short event,
 		PyDict_SetItemString(g_blenderdict, "bylink", Py_False);
 		PyDict_SetItemString(g_blenderdict, "link", Py_None );
 		EXPP_dict_set_item_str(g_blenderdict, "event", PyString_FromString(""));
+		PyDict_SetItemString(g_blenderdict, "value", PyInt_FromLong(0));
 		
 		PyGILState_Release(gilstate);
 	}
