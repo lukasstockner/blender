@@ -882,6 +882,47 @@ EditVert *editmesh_get_x_mirror_vert(Object *ob, float *co)
 	return NULL;
 }
 
+extern void uv_center(float uv[][2], float cent[2], void * isquad);
+float *editmesh_get_x_mirror_uv(Object *ob, float *uv, float *face_cent)
+{
+	float vec[2];
+	float cent_vec[2];
+	float cent[2];
+	
+	/* ignore nan verts */
+	if (isnan(uv[0]) || !finite(uv[0]) ||
+		isnan(uv[1]) || !finite(uv[1])
+	   )
+		return NULL;
+	
+	vec[0]= -((uv[0])-0.5) + 0.5;
+	vec[1]= uv[1];
+
+	cent_vec[0]= -((face_cent[0])-0.5) + 0.5;	
+	cent_vec[1] = face_cent[1];
+	
+	/* TODO - Optimize */
+	{
+		EditFace *efa;
+		int i, len;
+		for(efa=G.editMesh->faces.first; efa; efa=efa->next) {
+			MTFace *tf= (MTFace *)CustomData_em_get(&G.editMesh->fdata, efa->data, CD_MTFACE);
+			uv_center(tf->uv, cent, (void *)efa->v4);
+			
+			if ( (fabs(cent[0] - cent_vec[0]) < 0.001) && (fabs(cent[1] - cent_vec[1]) < 0.001) ) {			
+				len = efa->v4 ? 4 : 3;
+				for (i=0; i<len; i++) {
+					if ( (fabs(tf->uv[i][0] - vec[0]) < 0.001) && (fabs(tf->uv[i][1] - vec[1]) < 0.001) ) {
+						return tf->uv[i];
+					}
+				}
+			}
+		}
+	}
+	
+	return NULL;
+}
+
 static unsigned int mirror_facehash(void *ptr)
 {
 	MFace *mf= ptr;

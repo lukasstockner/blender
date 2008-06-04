@@ -2224,6 +2224,7 @@ static void UVsToTransData(TransData *td, TransData2D *td2d, float *uv, int sele
 	Mat3One(td->smtx);
 }
 
+extern void uv_center(float uv[][2], float cent[2], void * isquad);
 static void createTransUVs(TransInfo *t)
 {
 	TransData *td = NULL;
@@ -2235,6 +2236,13 @@ static void createTransUVs(TransInfo *t)
 
 	EditMesh *em = G.editMesh;
 	EditFace *efa;
+	
+	int mirror = 0;
+	
+	if ((t->context & CTX_NO_MIRROR) == 0 && (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR))
+	{
+		mirror = 1;
+	}
 	
 	if(is_uv_tface_editing_allowed()==0) return;
 
@@ -2270,12 +2278,27 @@ static void createTransUVs(TransInfo *t)
 			if (simaFaceDraw_Check(efa, tf)) {
 				efa->tmp.p = tf;
 				
-				if (simaUVSel_Check(efa, tf, 0)) countsel++; 
-				if (simaUVSel_Check(efa, tf, 1)) countsel++; 
-				if (simaUVSel_Check(efa, tf, 2)) countsel++; 
-				if (efa->v4 && simaUVSel_Check(efa, tf, 3)) countsel++;
+				efa_s1 = simaUVSel_Check(efa, tf, 0);
+				efa_s2 = simaUVSel_Check(efa, tf, 1);
+				efa_s3 = simaUVSel_Check(efa, tf, 2);
+				if (efa->v4) {
+					efa_s4 = simaUVSel_Check(efa, tf, 3);
+				}
+				
+				if (efa_s1) countsel++; 
+				if (efa_s2) countsel++; 
+				if (efa_s3) countsel++; 
+				if (efa->v4 && efa_s4) countsel++;
 				if(propmode)
 					count += (efa->v4)? 4: 3;
+				
+				if (mirror > 0) { /* check if we should be negative */
+					if 		(efa_s1 && tf->uv[0][0] < 0.5) mirror = -mirror;
+					else if	(efa_s2 && tf->uv[1][0] < 0.5) mirror = -mirror;
+					else if	(efa_s3 && tf->uv[2][0] < 0.5) mirror = -mirror;
+					else if	(efa->v4 && efa_s4 && tf->uv[2][0] < 0.5) mirror = -mirror;
+				}
+				
 			} else {
 				efa->tmp.p = NULL;
 			}
@@ -2347,10 +2370,61 @@ static void createTransUVs(TransInfo *t)
 					if(efa->v4)
 						UVsToTransData(td++, td2d++, tf->uv[3], simaUVSel_Check(efa, tf, 3));
 				} else {
-					if(simaUVSel_Check(efa, tf, 0))				UVsToTransData(td++, td2d++, tf->uv[0], 1);
-					if(simaUVSel_Check(efa, tf, 1))				UVsToTransData(td++, td2d++, tf->uv[1], 1);
-					if(simaUVSel_Check(efa, tf, 2))				UVsToTransData(td++, td2d++, tf->uv[2], 1);
-					if(efa->v4 && simaUVSel_Check(efa, tf, 3))	UVsToTransData(td++, td2d++, tf->uv[3], 1);
+					float cent[2] = {0, 0};
+					if (mirror) {
+						uv_center(tf->uv, cent, (void *)efa->v4);
+					}
+					
+					if(simaUVSel_Check(efa, tf, 0)) {
+						UVsToTransData(td, td2d, tf->uv[0], 1);
+						/* Mirror? */
+						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
+							if(uvmir && tf->uv[0] != uvmir) {
+								td->tdmir = uvmir;
+							}
+						}
+						td++; td2d++;
+					}
+					
+					if(simaUVSel_Check(efa, tf, 1))	{
+						UVsToTransData(td, td2d, tf->uv[1], 1);
+						/* Mirror? */
+						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
+							if(uvmir && tf->uv[1] != uvmir) {
+								td->tdmir = uvmir;
+							}
+						}
+						td++; td2d++;
+					}
+					
+					if(simaUVSel_Check(efa, tf, 2))	{
+						UVsToTransData(td, td2d, tf->uv[2], 1);
+						/* Mirror? */
+						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
+							if(uvmir && tf->uv[2] != uvmir) {
+								td->tdmir = uvmir;
+							}
+						}
+						td++; td2d++;
+					}
+					
+					if(efa->v4 && simaUVSel_Check(efa, tf, 3)) {
+						UVsToTransData(td, td2d, tf->uv[3], 1);
+						/* Mirror? */
+						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
+							if(uvmir && tf->uv[3] != uvmir) {
+								td->tdmir = uvmir;
+							}
+						}
+						td++; td2d++;
+					}
+
+					
+					
 				}
 			}
 		}

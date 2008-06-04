@@ -260,6 +260,28 @@ static void editmesh_apply_to_mirror(TransInfo *t)
 		}		
 	}		
 }
+/* assumes G.obedit set to mesh object */
+static void edituv_apply_to_mirror(TransInfo *t)
+{
+	TransData *td = t->data;
+	float *uv;
+	int i;
+	
+	for(i = 0 ; i < t->total; i++, td++) {
+		if (td->flag & TD_NOACTION)
+			break;
+		if (td->loc==NULL)
+			break;
+		if (td->flag & TD_SKIP)
+			continue;
+		
+		uv = td->tdmir;
+		if(uv) {
+			uv[0]= -(td->loc[0]-0.5) + 0.5;
+			uv[1]=  td->loc[1];
+		}
+	}		
+}
 
 /* called for updating while transform acts, once per redraw */
 void recalcData(TransInfo *t)
@@ -415,8 +437,13 @@ void recalcData(TransInfo *t)
 		if (G.obedit->type == OB_MESH) {
 			if(t->spacetype==SPACE_IMAGE) {
 				flushTransUVs(t);
+				
+				if((t->context & CTX_NO_MIRROR) == 0 && (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR))
+					edituv_apply_to_mirror(t);
+				
 				if (G.sima->flag & SI_LIVE_UNWRAP)
 					unwrap_lscm_live_re_solve();
+				
 			} else {
 				/* mirror modifier clipping? */
 				if(t->state != TRANS_CANCEL) {
