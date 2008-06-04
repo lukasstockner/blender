@@ -2293,10 +2293,10 @@ static void createTransUVs(TransInfo *t)
 					count += (efa->v4)? 4: 3;
 				
 				if (mirror > 0) { /* check if we should be negative */
-					if 		(efa_s1 && tf->uv[0][0] < 0.5) mirror = -mirror;
-					else if	(efa_s2 && tf->uv[1][0] < 0.5) mirror = -mirror;
-					else if	(efa_s3 && tf->uv[2][0] < 0.5) mirror = -mirror;
-					else if	(efa->v4 && efa_s4 && tf->uv[2][0] < 0.5) mirror = -mirror;
+					if 		(efa_s1 && tf->uv[0][0] < G.v2d->cursor[0]) mirror = -mirror;
+					else if	(efa_s2 && tf->uv[1][0] < G.v2d->cursor[0]) mirror = -mirror;
+					else if	(efa_s3 && tf->uv[2][0] < G.v2d->cursor[0]) mirror = -mirror;
+					else if	(efa->v4 && efa_s4 && tf->uv[2][0] < G.v2d->cursor[0]) mirror = -mirror;
 				}
 				
 			} else {
@@ -2378,7 +2378,7 @@ static void createTransUVs(TransInfo *t)
 					if(simaUVSel_Check(efa, tf, 0)) {
 						UVsToTransData(td, td2d, tf->uv[0], 1);
 						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
 							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
 							if(uvmir && tf->uv[0] != uvmir) {
 								td->tdmir = uvmir;
@@ -2390,7 +2390,7 @@ static void createTransUVs(TransInfo *t)
 					if(simaUVSel_Check(efa, tf, 1))	{
 						UVsToTransData(td, td2d, tf->uv[1], 1);
 						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
 							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
 							if(uvmir && tf->uv[1] != uvmir) {
 								td->tdmir = uvmir;
@@ -2402,7 +2402,7 @@ static void createTransUVs(TransInfo *t)
 					if(simaUVSel_Check(efa, tf, 2))	{
 						UVsToTransData(td, td2d, tf->uv[2], 1);
 						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
 							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
 							if(uvmir && tf->uv[2] != uvmir) {
 								td->tdmir = uvmir;
@@ -2414,7 +2414,7 @@ static void createTransUVs(TransInfo *t)
 					if(efa->v4 && simaUVSel_Check(efa, tf, 3)) {
 						UVsToTransData(td, td2d, tf->uv[3], 1);
 						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>0.5f) || (mirror<0 && td->iloc[0]<0.5f)) {
+						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
 							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
 							if(uvmir && tf->uv[3] != uvmir) {
 								td->tdmir = uvmir;

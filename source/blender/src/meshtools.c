@@ -895,10 +895,10 @@ float *editmesh_get_x_mirror_uv(Object *ob, float *uv, float *face_cent)
 	   )
 		return NULL;
 	
-	vec[0]= -((uv[0])-0.5) + 0.5;
+	vec[0]= -((uv[0])-G.v2d->cursor[0]) + G.v2d->cursor[0];
 	vec[1]= uv[1];
 
-	cent_vec[0]= -((face_cent[0])-0.5) + 0.5;	
+	cent_vec[0]= -((face_cent[0])-G.v2d->cursor[0]) + G.v2d->cursor[0];	
 	cent_vec[1] = face_cent[1];
 	
 	/* TODO - Optimize */

@@ -277,7 +277,7 @@ static void edituv_apply_to_mirror(TransInfo *t)
 		
 		uv = td->tdmir;
 		if(uv) {
-			uv[0]= -(td->loc[0]-0.5) + 0.5;
+			uv[0]= -(td->loc[0]-G.v2d->cursor[0]) + G.v2d->cursor[0];
 			uv[1]=  td->loc[1];
 		}
 	}		
