@@ -95,6 +95,7 @@ typedef struct Global {
 	int totobj, totlamp, totobjsel, totcurve, totmesh;
 	int totbone, totbonesel;
 	int totvert, totedge, totface, totvertsel, totedgesel, totfacesel;
+	int tottri;	/* APRICOT HACK */
     
 	short afbreek, moving;
 	short qual, background;
@@ -258,6 +259,8 @@ typedef struct Global {
 
 /* Memory is allocated where? blender.c */
 extern Global G;
+
+#define TOTTRI_INC(isquad) G.tottri += (isquad ? 2:1)
 
 #ifdef __cplusplus
 }
