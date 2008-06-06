@@ -3935,7 +3935,7 @@ static void set_fullsample_flag(Render *re, ObjectRen *obr)
 	}
 }
 
-static void check_non_flat_quads(ObjectRen *obr)
+static void check_non_flat_quads(ObjectRen *obr, int quad_flip)
 {
 	VlakRen *vlr, *vlr1;
 	VertRen *v1, *v2, *v3, *v4;
@@ -3997,20 +3997,27 @@ static void check_non_flat_quads(ObjectRen *obr)
 				xn= nor[0]*vlr->n[0] + nor[1]*vlr->n[1] + nor[2]*vlr->n[2];
 
 				if(ABS(xn) < 0.999995 ) {	// checked on noisy fractal grid
+					
 					float d1, d2;
 
 					vlr1= RE_vlakren_copy(obr, vlr);
 					vlr1->flag |= R_FACE_SPLIT;
 					
-					/* split direction based on vnorms */
-					CalcNormFloat(vlr->v1->co, vlr->v2->co, vlr->v3->co, nor);
-					d1= nor[0]*vlr->v1->n[0] + nor[1]*vlr->v1->n[1] + nor[2]*vlr->v1->n[2];
+					if (quad_flip==0) { /* nonzero quad_flip is used to force dividing one way */
+						/* split direction based on vnorms */
+						CalcNormFloat(vlr->v1->co, vlr->v2->co, vlr->v3->co, nor);
+						d1= nor[0]*vlr->v1->n[0] + nor[1]*vlr->v1->n[1] + nor[2]*vlr->v1->n[2];
 
-					CalcNormFloat(vlr->v2->co, vlr->v3->co, vlr->v4->co, nor);
-					d2= nor[0]*vlr->v2->n[0] + nor[1]*vlr->v2->n[1] + nor[2]*vlr->v2->n[2];
+						CalcNormFloat(vlr->v2->co, vlr->v3->co, vlr->v4->co, nor);
+						d2= nor[0]*vlr->v2->n[0] + nor[1]*vlr->v2->n[1] + nor[2]*vlr->v2->n[2];
 					
-					if( fabs(d1) < fabs(d2) ) vlr->flag |= R_DIVIDE_24;
-					else vlr->flag &= ~R_DIVIDE_24;
+						if( fabs(d1) < fabs(d2) ) vlr->flag |= R_DIVIDE_24;
+						else vlr->flag &= ~R_DIVIDE_24;
+					} else if (quad_flip==1) {
+						vlr->flag &= ~R_DIVIDE_24;
+					} else { /* quad_flip == 3 */
+						vlr->flag |= R_DIVIDE_24;
+					}
 					
 					/* new vertex pointers */
 					if (vlr->flag & R_DIVIDE_24) {
@@ -4064,8 +4071,14 @@ static void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 			ob->smoothresh= 0.0;
 			if((re->r.mode & R_RAYTRACE) && (re->r.mode & R_SHADOW)) 
 				set_phong_threshold(obr);
-
-			check_non_flat_quads(obr);
+			
+			if (re->flag & R_BAKING) {
+				/* Baking lets us define a quad split order */
+				check_non_flat_quads(obr, re->r.bake_quad_split);
+			} else {
+				check_non_flat_quads(obr, 0);
+			}
+			
 			set_fullsample_flag(re, obr);
 
 			/* compute bounding boxes for clipping */
@@ -5406,6 +5419,7 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
    RE_BAKE_AO:     for baking, no lamps, but all objects
    RE_BAKE_TEXTURE:for baking, no lamps, only selected objects
    RE_BAKE_DISPLACEMENT:for baking, no lamps, only selected objects
+   RE_BAKE_SHADOW: for baking, only shadows, but all objects
 */
 void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 {
@@ -5421,6 +5435,7 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 	RE_init_threadcount(re);
 	
 	re->flag |= R_GLOB_NOPUNOFLIP;
+	re->flag |= R_BAKING;
 	re->excludeob= actob;
 	if(type == RE_BAKE_LIGHT)
 		re->flag |= R_SKIP_MULTIRES;
@@ -5433,6 +5448,10 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 	if(!actob && ELEM4(type, RE_BAKE_LIGHT, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_DISPLACEMENT)) {
 		re->r.mode &= ~R_SHADOW;
 		re->r.mode &= ~R_RAYTRACE;
+	}
+	
+	if(!actob && (type==RE_BAKE_SHADOW)) {
+		re->r.mode |= R_SHADOW;
 	}
 	
 	/* setup render stuff */
@@ -5472,7 +5491,7 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 	set_node_shader_lamp_loop(shade_material_loop);
 
 	/* MAKE RENDER DATA */
-	nolamps= !ELEM(type, RE_BAKE_LIGHT, RE_BAKE_ALL);
+	nolamps= !ELEM3(type, RE_BAKE_LIGHT, RE_BAKE_ALL, RE_BAKE_SHADOW);
 	onlyselected= ELEM3(type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_DISPLACEMENT);
 
 	database_init_objects(re, lay, nolamps, onlyselected, actob, 0);
