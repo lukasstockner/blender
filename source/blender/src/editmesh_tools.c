@@ -4662,7 +4662,7 @@ int EdgeLoopDelete(void) {
 	/* temporal flag setting so we keep UVs when deleting edge loops,
 	 * this is a bit of a hack but it works how you would want in almost all cases */
 	short uvcalc_flag_orig = G.scene->toolsettings->uvcalc_flag; 
-	G.scene->toolsettings->uvcalc_flag |= UVCALC_NO_TRANSFORM_CORRECT;
+	G.scene->toolsettings->uvcalc_flag |= UVCALC_TRANSFORM_CORRECT;
 	
 	if(!EdgeSlide(1, 1)) {
 		return 0;
@@ -5005,7 +5005,7 @@ int EdgeSlide(short immediate, float imperc)
 	}	   
 	
 	
-	if (uvlay_tot && (G.scene->toolsettings->uvcalc_flag & UVCALC_NO_TRANSFORM_CORRECT)) {
+	if (uvlay_tot && (G.scene->toolsettings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT)) {
 		int maxnum = 0;
 		uvarray = MEM_callocN( uvlay_tot * sizeof(GHash *), "SlideUVs Array");
 		suv_last = slideuvs = MEM_callocN( uvlay_tot * (numadded+1) * sizeof(SlideUv), "SlideUVs"); /* uvLayers * verts */
@@ -5146,7 +5146,7 @@ int EdgeSlide(short immediate, float imperc)
 					tempev = editedge_getOtherVert((perc>=0)?tempsv->up:tempsv->down, ev);
 					VecLerpf(ev->co, tempsv->origvert.co, tempev->co, fabs(perc));
 					
-					if (G.scene->toolsettings->uvcalc_flag & UVCALC_NO_TRANSFORM_CORRECT) {
+					if (G.scene->toolsettings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT) {
 						for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 							suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
 							if (suv && suv->fuv[0] && suv->uv_up && suv->uv_down) {
@@ -5173,7 +5173,7 @@ int EdgeSlide(short immediate, float imperc)
 					if(newlen < 0.0) {newlen = 0.0;}
 					if(flip == 0) {
 						VecLerpf(ev->co, editedge_getOtherVert(tempsv->down,ev)->co, editedge_getOtherVert(tempsv->up,ev)->co, fabs(newlen));									
-						if (G.scene->toolsettings->uvcalc_flag & UVCALC_NO_TRANSFORM_CORRECT) {
+						if (G.scene->toolsettings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT) {
 							/* dont do anything if no UVs */
 							for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 								suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
@@ -5188,7 +5188,7 @@ int EdgeSlide(short immediate, float imperc)
 					} else{
 						VecLerpf(ev->co, editedge_getOtherVert(tempsv->up,ev)->co, editedge_getOtherVert(tempsv->down,ev)->co, fabs(newlen));				
 						
-						if (G.scene->toolsettings->uvcalc_flag & UVCALC_NO_TRANSFORM_CORRECT) {
+						if (G.scene->toolsettings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT) {
 							/* dont do anything if no UVs */
 							for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 								suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
@@ -5382,7 +5382,7 @@ int EdgeSlide(short immediate, float imperc)
 	BLI_linklist_free(vertlist,NULL); 
 	BLI_linklist_free(edgelist,NULL); 
 	
-	if (uvlay_tot && (G.scene->toolsettings->uvcalc_flag & UVCALC_NO_TRANSFORM_CORRECT)) {
+	if (uvlay_tot && (G.scene->toolsettings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT)) {
 		for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 			BLI_ghash_free(uvarray[uvlay_idx], NULL, NULL);
 		}

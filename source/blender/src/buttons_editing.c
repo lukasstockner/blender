@@ -6274,7 +6274,7 @@ static void editing_panel_mesh_uvautocalculation(void)
 	uiDefButBitS(block, TOGN, UVCALC_NO_ASPECT_CORRECT, B_NOP, "Image Aspect",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Scale the UV Unwrapping to correct for the current images aspect ratio");
 
 	row-= butHB+butS;	
-		uiDefButBitS(block, TOG, UVCALC_NO_TRANSFORM_CORRECT, B_NOP, "Transform Correction",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Correct for UV distortion while transforming, (only works with edge slide now)");
+		uiDefButBitS(block, TOG, UVCALC_TRANSFORM_CORRECT, B_NOP, "Transform Correction",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Correct for UV distortion while transforming, (only works with edge slide now)");
 
 	row= 180;
 	
