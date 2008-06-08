@@ -86,7 +86,8 @@ typedef struct SpaceIpo {
 	View2D v2d;
 	
 	void *editipo;
-	ListBase ipokey;
+	void *editipo_ghost;	/* copies of the editipos made when entering editmode, APRICOT HACK */
+	ListBase ipokey;	
 	
 	/* the ipo context we need to store */
 	struct Ipo *ipo;
@@ -94,6 +95,8 @@ typedef struct SpaceIpo {
 	char actname[32], constname[32], bonename[32];
 
 	short totipo, pin;
+	short totipo_ghost, pad3;
+	int pad4;
 	short butofs, channel;
 	short showkey, blocktype;
 	short menunr, lock;
@@ -527,6 +530,7 @@ typedef struct SpaceImaSel {
 /* SpaceIpo->flag */
 #define SIPO_LOCK_VIEW			1<<0
 #define SIPO_NOTRANSKEYCULL		1<<1
+#define SIPO_EDITGHOST			1<<2
 
 /* SpaceText flags (moved from DNA_text_types.h) */
 

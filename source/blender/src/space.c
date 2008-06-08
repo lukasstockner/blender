@@ -148,6 +148,7 @@
 #include "BSE_editnla_types.h"
 #include "BSE_time.h"
 #include "BSE_trans_types.h"
+#include "BSE_editipo_types.h"
 
 #include "BDR_vpaint.h"
 #include "BDR_editmball.h"
@@ -6255,6 +6256,19 @@ void freespacelist(ScrArea *sa)
 		else if(sl->spacetype==SPACE_IPO) {
 			SpaceIpo *si= (SpaceIpo*) sl;
 			if(si->editipo) MEM_freeN(si->editipo);
+						
+			if(si->editipo_ghost) {
+				EditIpo *ei = si->editipo_ghost;
+				int a;
+				for(a=0; a<si->totipo_ghost; a++, ei++) {
+					if (ei->icu) {
+						free_ipo_curve(ei->icu);
+					}
+				}
+				MEM_freeN(si->editipo_ghost);
+				si->editipo_ghost = NULL;
+			}
+			
 			free_ipokey(&si->ipokey);
 			if(G.sipo==si) G.sipo= NULL;
 		}
@@ -6667,6 +6681,7 @@ void allspace(unsigned short event, short val)
 						{
 							if(si->editipo) MEM_freeN(si->editipo);
 							si->editipo= 0;
+							/* dont free si->editipo_ghost */
 							free_ipokey(&si->ipokey);
 						}
 					}

@@ -872,17 +872,83 @@ static void make_sound_editipo(SpaceIpo *si)
 	}
 }
 
+/* APRICOT HACK */
+void free_ipo_ghost(void)
+{
+	EditIpo *ei = G.sipo->editipo_ghost;
+	int a;
+	
+	if (G.sipo->editipo_ghost==NULL) {
+		G.sipo->totipo_ghost = 0; /* just incase */
+		return;
+	}
+	for(a=0; a<G.sipo->totipo_ghost; a++, ei++) {
+		if (ei->icu) {
+			free_ipo_curve(ei->icu);
+		}
+	}
+	MEM_freeN(G.sipo->editipo_ghost);
+	G.sipo->totipo_ghost = 0;
+	G.sipo->editipo_ghost = NULL;
+}
+void make_ipo_ghost(void)
+{
+	EditIpo *ei, *ei_ghost;
+	IpoCurve *icu;
+	int a;
+	
+	free_ipo_ghost();
+	
+	ei = G.sipo->editipo;
+	ei_ghost= G.sipo->editipo_ghost = MEM_dupallocN(G.sipo->editipo);
+	G.sipo->totipo_ghost = G.sipo->totipo;
+	
+	for(a=0; a<G.sipo->totipo; a++, ei++, ei_ghost++) {
+		if (ei->icu) {
+			icu = ei_ghost->icu= MEM_callocN(sizeof(IpoCurve), "ipoghostbuf");
+			*ei_ghost->icu= *(ei->icu);
+			icu->bezt= MEM_dupallocN(icu->bezt);
+			icu->driver= MEM_dupallocN(icu->driver);
+		}
+	}
+}
+EditIpo *give_ghost_orig( EditIpo *ei_ghost ) /* ei must be from */
+{
+	EditIpo *ei;
+	IpoCurve *icu;
+	int a;
+	
+	ei = G.sipo->editipo;
+	if (!ei || !ei_ghost || !ei_ghost->icu) {
+		return NULL;
+	}
+	
+	for(a=0; a<G.sipo->totipo; a++, ei++) {
+		if (ei && ei->icu) {
+			if (ei_ghost->icu->blocktype != ei->icu->blocktype ) {
+				return NULL;
+			}
+			if (ei_ghost->icu->adrcode == ei->icu->adrcode) {
+				return ei;
+			}
+		}
+	}
+	
+	return NULL;
+}
+
 /* only called in test_editipo() below */
 static void make_editipo(void)
 {
 	EditIpo *ei;
 	Object *ob;
 	rctf *rf;
-	int a;
+	int a, ghost = 1;
 
-	if(G.sipo->editipo)
+	if(G.sipo->editipo) {
+		ghost = 0;
 		MEM_freeN(G.sipo->editipo);
-	
+	}
 	G.sipo->editipo= NULL;
 	G.sipo->totipo= 0;
 	
@@ -1381,6 +1447,11 @@ void set_editflag_editipo(void)
 				}
 			}
 		}
+	}
+	if (G.sipo->flag & SIPO_EDITGHOST) {
+		make_ipo_ghost();
+	} else {
+		free_ipo_ghost();
 	}
 	scrarea_queue_headredraw(curarea);
 	scrarea_queue_winredraw(curarea);

@@ -1307,27 +1307,44 @@ static void init_pickselcode(void)
 	pickselcode= 1;
 }
 
-static void draw_ipocurves(int sel)
+static void draw_ipocurves(int sel, int ghost)
 {
-	EditIpo *ei;
+	EditIpo *ei, *ei_orig=NULL;
 	IpoCurve *icu;
 	BezTriple *bezt, *prevbezt;
 	float *fp, fac, data[120], v1[2], v2[2], v3[2], v4[2];
 	float cycdx=0, cycdy=0, cycxofs, cycyofs;
-	int a, b, resol, cycount, val, nr;
+	int a, b, resol, cycount, val, nr, totipo_context;
 	
+	if (ghost) {
+		ei = G.sipo->editipo_ghost;
+		setlinestyle(1);
+	} else {
+		ei = G.sipo->editipo;
+	}
 	
-	ei= G.sipo->editipo;
-	for(nr=0; nr<G.sipo->totipo; nr++, ei++) {
-		if ISPOIN3(ei, flag & IPO_VISIBLE, icu, icu->bezt) {
+	for(nr=0; nr< (ghost ? G.sipo->totipo_ghost : G.sipo->totipo); nr++, ei++) {
+		if (ghost) {
+			ei_orig = give_ghost_orig(ei);
+			if (ei_orig==NULL) {
+				continue;
+			}
+		}
+		if ISPOIN3((ghost?ei_orig:ei), flag & IPO_VISIBLE, icu, icu->bezt) {
 			
 			if(G.f & G_PICKSEL) {
 				glLoadName(pickselcode++);
 				val= 1;
 			}
 			else {
-				val= (ei->flag & (IPO_SELECT+IPO_EDIT))!=0;
-				val= (val==sel);
+				if (ghost) {
+					val= (ei_orig->flag & (IPO_SELECT+IPO_EDIT))!=0;
+					val= (val==sel);
+				} else {
+					val= (ei->flag & (IPO_SELECT+IPO_EDIT))!=0;
+					val= (val==sel);
+				}
+				
 			}
 			
 			if(val) {
@@ -1510,19 +1527,25 @@ static void draw_ipocurves(int sel)
 				}
 				
 				/* line that indicates the end of a speed curve */
-				if(G.sipo->blocktype==ID_CU && icu->adrcode==CU_SPEED) {
-					b= icu->totvert-1;
-					if(b) {
-						glColor3ub(0, 0, 0);
-						bezt= icu->bezt+b;
-						glBegin(GL_LINES);
-						glVertex2f(bezt->vec[1][0], 0.0);
-						glVertex2f(bezt->vec[1][0], bezt->vec[1][1]);
-						glEnd();
+				if (!ghost) {
+					if(G.sipo->blocktype==ID_CU && icu->adrcode==CU_SPEED) {
+						b= icu->totvert-1;
+						if(b) {
+							glColor3ub(0, 0, 0);
+							bezt= icu->bezt+b;
+							glBegin(GL_LINES);
+							glVertex2f(bezt->vec[1][0], 0.0);
+							glVertex2f(bezt->vec[1][0], bezt->vec[1][1]);
+							glEnd();
+						}
 					}
 				}
 			}
 		}
+	}
+	
+	if (ghost) {
+		setlinestyle(0);
 	}
 }
 
@@ -2244,13 +2267,18 @@ void drawipospace(ScrArea *sa, void *spacedata)
 		if (NLA_IPO_SCALED)
 			actstrip_map_ipo_keys(OBACT, sipo->ipo, 0, 0);
 
+		/* draw ghost */
+		if ((G.sipo->flag & SIPO_EDITGHOST) && G.sipo->editipo_ghost) {
+			draw_ipocurves(1, 1);
+		}
+
 		/* draw deselect */
-		draw_ipocurves(0);
+		draw_ipocurves(0, 0);
 		draw_ipohandles(0);
 		draw_ipovertices(0);
 		
 		/* draw select */
-		draw_ipocurves(1);
+		draw_ipocurves(1, 0);
 		draw_ipohandles(1);
 		draw_ipovertices(1);
 		
@@ -2709,7 +2737,7 @@ EditIpo *select_proj_ipo(rctf *rectf, int event)
 	glLoadIdentity();
 	
 	init_pickselcode();	/* drawipo.c */
-	draw_ipocurves(0);	
+	draw_ipocurves(0, 0);	
 	
 	/* restore buttons view */
 	glPopMatrix();

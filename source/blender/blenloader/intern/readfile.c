@@ -151,6 +151,8 @@
 #include "BLO_undofile.h"
 #include "BLO_readblenfile.h" // streaming read pipe, for BLO_readblenfile BLO_readblenfilememory
 
+#include "BSE_editipo_types.h"
+
 #include "readfile.h"
 
 #include "genfile.h"
@@ -3733,6 +3735,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 					else if(sl->spacetype==SPACE_IPO) {
 						SpaceIpo *sipo= (SpaceIpo *)sl;
 						sipo->editipo= 0;
+						sipo->editipo_ghost= 0;
 						
 						if(sipo->blocktype==ID_SEQ) sipo->from= NULL;	// no libdata
 						else sipo->from= newlibadr(fd, sc->id.lib, sipo->from);
@@ -3927,6 +3930,21 @@ void lib_link_screen_restore(Main *newmain, Scene *curscene)
 					sipo->ipo= restore_pointer_by_name(newmain, (ID *)sipo->ipo, 0);
 					if(sipo->editipo) MEM_freeN(sipo->editipo);
 					sipo->editipo= NULL;
+					
+					if(sipo->editipo_ghost) {
+						EditIpo *ei = sipo->editipo_ghost;
+						int a;
+						for(a=0; a<sipo->totipo_ghost; a++, ei++) {
+							if (ei->icu) {
+								free_ipo_curve(ei->icu);
+							}
+						}
+						MEM_freeN(sipo->editipo_ghost);
+						sipo->editipo_ghost = NULL;
+					}
+					
+					if(sipo->editipo_ghost) MEM_freeN(sipo->editipo_ghost);
+					sipo->editipo_ghost= NULL;
 				}
 				else if(sl->spacetype==SPACE_BUTS) {
 					SpaceButs *sbuts= (SpaceButs *)sl;

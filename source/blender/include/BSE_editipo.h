@@ -169,6 +169,11 @@ void select_ipo_key(struct Ipo *ipo, float selx, int sel);
 void select_icu_key(struct IpoCurve *icu, float selx, int selectmode);
 void setexprap_ipoloop(struct Ipo *ipo, int code);
 
+void free_ipo_ghost(void);
+void make_ipo_ghost(void);
+void make_ipo_ghost(void);
+struct EditIpo *give_ghost_orig( struct EditIpo *ei_ghost );
+
 /* callbacks */
 int select_bezier_add(struct BezTriple *bezt);
 int select_bezier_subtract(struct BezTriple *bezt);
