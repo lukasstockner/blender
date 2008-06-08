@@ -314,6 +314,9 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int))
 			if(mface->v4) {
 				PASSVERT(mface->v4);
 			}
+			
+			TOTTRI_INC(mface->v4);
+			
 		}
 
 		if(nors) nors += 3;
@@ -380,6 +383,9 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 			}
 		}
 		if(col2) cp2 += 16;
+		
+		TOTTRI_INC(mface->v4);
+		
 	}
 	glEnd();
 
@@ -421,6 +427,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 		
 		if(flag != 0) { /* if the flag is 0 it means the face is hidden or invisible */
+		
+			TOTTRI_INC(mf->v4);
+		
 			if (flag==1 && mcol)
 				cp= (unsigned char*) &mcol[i*4];
 
@@ -469,6 +478,9 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
 				glVertex3fv(mvert->co);
 			}
+			
+			TOTTRI_INC(mf->v4);
+			
 			glEnd();
 		}
 		
@@ -503,7 +515,9 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 
 		if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
 			unsigned char *cp = NULL;
-
+	
+			TOTTRI_INC(mf->v4);
+	
 			if(useColors && mc)
 				cp = (unsigned char *)&mc[i * 4];
 
@@ -556,6 +570,8 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			}
 
 			glEnd();
+
+			TOTTRI_INC(mf->v4);
 		}
 		
 		if (nors) nors += 3;
@@ -660,6 +676,8 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GP
 			PASSVERT(mface->v4, 3)
 		else
 			PASSVERT(mface->v3, 2)
+		
+		TOTTRI_INC(mface->v4);
 
 #undef PASSVERT
 	}

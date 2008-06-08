@@ -648,6 +648,9 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			int drawSmooth = (efa->flag & ME_SMOOTH);
 			draw = setDrawOptions==NULL ? 1 : setDrawOptions(userData, i, &drawSmooth);
 			if(draw) {
+			
+				TOTTRI_INC(efa->v4);
+				
 				if (draw==2) { /* enabled with stipple */
 		  			glEnable(GL_POLYGON_STIPPLE);
 		  			glPolygonStipple(stipple_quarttone);
@@ -685,6 +688,9 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			int drawSmooth = (efa->flag & ME_SMOOTH);
 			draw = setDrawOptions==NULL ? 1 : setDrawOptions(userData, i, &drawSmooth);
 			if(draw) {
+				
+				TOTTRI_INC(efa->v4);
+				
 				if (draw==2) { /* enabled with stipple */
 		  			glEnable(GL_POLYGON_STIPPLE);
 		  			glPolygonStipple(stipple_quarttone);
@@ -755,6 +761,8 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 				flag= 1;
 
 			if(flag != 0) { /* flag 0 == the face is hidden or invisible */
+				
+				TOTTRI_INC(efa->v4);
 				
 				/* we always want smooth here since otherwise vertex colors dont interpolate */
 				if (mcol) {
@@ -828,6 +836,9 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 				flag= 1;
 
 			if(flag != 0) { /* flag 0 == the face is hidden or invisible */
+			
+				TOTTRI_INC(efa->v4);
+			
 				/* we always want smooth here since otherwise vertex colors dont interpolate */
 				if (mcol) {
 					if (flag==1) {
@@ -955,6 +966,9 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		}
 
 		if(dodraw) {
+			
+			TOTTRI_INC(efa->v4);
+			
 			glBegin(efa->v4?GL_QUADS:GL_TRIANGLES);
 			if (!drawSmooth) {
 				if(vertexCos) glNormal3fv(emdm->faceNos[i]);
@@ -1724,6 +1738,9 @@ static void vDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int))
 
 	glShadeModel(GL_FLAT);
 	while(vface) {
+		
+		TOTTRI_INC(vface->vvert3);
+		
 		glBegin(vface->vvert3?GL_QUADS:GL_TRIANGLES);
 		glNormal3fv(vface->no);
 		glVertex3fv(vdm->vertexCos ? vface->vvert0->cos : vface->vvert0->co);
@@ -1747,6 +1764,9 @@ static void vDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tfac
 	vface = vdm->polygon_layer->dl.lb.first;
 
 	while(vface) {
+		
+		TOTTRI_INC(vface->vvert3);
+	
 		glBegin(vface->vvert3?GL_QUADS:GL_TRIANGLES);
 		glVertex3fv(vdm->vertexCos ? vface->vvert0->cos : vface->vvert0->co);
 		glVertex3fv(vdm->vertexCos ? vface->vvert1->cos : vface->vvert1->co);
@@ -1771,6 +1791,9 @@ static void vDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned char
 	vface = vdm->polygon_layer->dl.lb.first;
 
 	while(vface) {
+	
+		TOTTRI_INC(vface->vvert3);
+	
 		glBegin(vface->vvert3?GL_QUADS:GL_TRIANGLES);
 		glVertex3fv(vdm->vertexCos ? vface->vvert0->cos : vface->vvert0->co);
 		glVertex3fv(vdm->vertexCos ? vface->vvert1->cos : vface->vvert1->co);

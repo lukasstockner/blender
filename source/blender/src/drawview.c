@@ -3095,6 +3095,7 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 	if(v3d->flag & V3D_CLIPPING)
 		view3d_set_clipping(v3d);
 	
+	TOTTRI_BEGIN;
 	/* draw set first */
 	if(G.scene->set) {
 		for(SETLOOPER(G.scene->set, base)) {
@@ -3126,12 +3127,14 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 			}
 		}
 	}
+	TOTTRI_DISABLE;
 
 	retopo= retopo_mesh_check() || retopo_curve_check();
 	sculptparticle= (G.f & (G_SCULPTMODE|G_PARTICLEEDIT)) && !G.obedit;
 	if(retopo)
 		view3d_update_depths(v3d);
 
+	TOTTRI_ENABLE;
 	/* draw selected and editmode */
 	for(base= G.scene->base.first; base; base= base->next) {
 		if(v3d->lay & base->lay) {
@@ -3139,6 +3142,7 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 				draw_object(base, 0);
 		}
 	}
+	TOTTRI_DISABLE;
 
 	if(!retopo && sculptparticle && !(obact && (obact->dtx & OB_DRAWXRAY))) {
 		if(G.f & G_SCULPTMODE)
@@ -3155,9 +3159,13 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 
 	if(G.scene->radio) RAD_drawall(v3d->drawtype>=OB_SOLID);
 	
+
+	TOTTRI_ENABLE;	
 	/* Transp and X-ray afterdraw stuff */
 	view3d_draw_xray(v3d);	// clears zbuffer if it is used!
 	view3d_draw_transp(v3d);
+	TOTTRI_DISABLE;	
+
 
 	if(!retopo && sculptparticle && (obact && (OBACT->dtx & OB_DRAWXRAY))) {
 		if(G.f & G_SCULPTMODE)

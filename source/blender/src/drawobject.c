@@ -1705,7 +1705,9 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 	data.cols[2] = actCol;
 	data.efa_act = efa_act;
 	
+	TOTTRI_DISABLE;
 	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, &data, 0);
+	TOTTRI_ENABLE;
 }
 
 static int draw_dm_creases__setDrawOptions(void *userData, int index)

@@ -2084,13 +2084,13 @@ static void info_text(int x, int y)
 		s+= sprintf(s, "%s", G.editModeTitleExtra);
 		if(G.obedit->type==OB_MESH) {
 			if(G.scene->selectmode & SCE_SELECT_VERTEX)
-				s+= sprintf(s,"Ve:%d-%d | Ed:%d-%d | Fa:%d-%d",
-						G.totvertsel, G.totvert, G.totedgesel, G.totedge, G.totfacesel, G.totface);
+				s+= sprintf(s,"Ve:%d-%d | Ed:%d-%d | Fa:%d-%d | Tri:%d",
+						G.totvertsel, G.totvert, G.totedgesel, G.totedge, G.totfacesel, G.totface, TOTTRI_VALUE);
 			else if(G.scene->selectmode & SCE_SELECT_EDGE)
-				s+= sprintf(s,"Ed:%d-%d | Fa:%d-%d",
-						G.totedgesel, G.totedge, G.totfacesel, G.totface);
+				s+= sprintf(s,"Ed:%d-%d | Fa:%d-%d | Tri:%d",
+						G.totedgesel, G.totedge, G.totfacesel, G.totface, TOTTRI_VALUE);
 			else 
-				s+= sprintf(s,"Fa:%d-%d", G.totfacesel, G.totface);
+				s+= sprintf(s,"Fa:%d-%d | Tri:%d", G.totfacesel, G.totface, TOTTRI_VALUE);
 		}
 		else if(G.obedit->type==OB_ARMATURE) {
 			s+= sprintf(s,"Ve:%d-%d | Bo:%d-%d", G.totvertsel, G.totvert, G.totbonesel, G.totbone);
@@ -2106,8 +2106,8 @@ static void info_text(int x, int y)
 					G.totbonesel, G.totbone, memstr);
 	}
 	else {
-		sprintf(infostr,"Ve:%d | Fa:%d | Ob:%d-%d | La:%d %s | Time:%s | ",
-			G.totvert, G.totface, G.totobj, G.totobjsel, G.totlamp, memstr, info_time_str);
+		sprintf(infostr,"Ve:%d | Fa:%d | Tri:%d | Ob:%d-%d | La:%d %s | Time:%s | ",
+			G.totvert, G.totface, TOTTRI_VALUE, G.totobj, G.totobjsel, G.totlamp, memstr, info_time_str);
 	}
 	if(ob) {
 		strcat(infostr, ob->id.name+2);

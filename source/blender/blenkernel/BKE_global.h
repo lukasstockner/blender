@@ -260,7 +260,12 @@ typedef struct Global {
 /* Memory is allocated where? blender.c */
 extern Global G;
 
-#define TOTTRI_INC(isquad) G.tottri += (isquad ? 2:1)
+#define TOTTRI_INC(isquad) if (G.tottri>=1) {G.tottri += (isquad ? 2:1);}
+#define TOTTRI_ENABLE (G.tottri = abs(G.tottri))
+#define TOTTRI_DISABLE (G.tottri = -abs(G.tottri))
+#define TOTTRI_BEGIN (G.tottri = 1)
+#define TOTTRI_VALUE (abs(G.tottri)-1)
+
 
 #ifdef __cplusplus
 }
