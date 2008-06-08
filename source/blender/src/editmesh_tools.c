@@ -4649,7 +4649,8 @@ void bevel_menu_old()
 typedef struct SlideUv {
 	float origuv[2];
 	float *uv_up, *uv_down;
-	float *fuv[4];
+	//float *fuv[4];
+	LinkNode *fuv_list;
 } SlideUv;
 
 typedef struct SlideVert {
@@ -4698,6 +4699,8 @@ int EdgeSlide(short immediate, float imperc)
 	int  uvlay_tot= CustomData_number_of_layers(&G.editMesh->fdata, CD_MTFACE);
 	int uvlay_idx;
 	SlideUv *slideuvs, *suv, *suv_last;	
+	float uv_tmp[2];
+	LinkNode *fuv_link;
 	
 	short event, draw=1;
 	short mval[2], mvalo[2];
@@ -5042,9 +5045,10 @@ int EdgeSlide(short immediate, float imperc)
 							EditVert *ev_up, *ev_down;
 				
 							if (ev->tmp.l) {
-								if (fabs(suv->fuv[0][0]-uv_new[0]) > 0.0001 || fabs(suv->fuv[0][1]-uv_new[1])) {
+								if (fabs(suv->origuv[0]-uv_new[0]) > 0.0001 || fabs(suv->origuv[1]-uv_new[1])) {
 									ev->tmp.l = -1; /* Tag as invalid */
-									suv->fuv[0] = suv->fuv[1] = suv->fuv[2] = suv->fuv[3] = NULL;
+									BLI_linklist_free(suv->fuv_list,NULL);
+									suv->fuv_list = NULL;
 									BLI_ghash_remove(uvarray[uvlay_idx],ev, NULL, NULL);
 									suv = NULL;
 									break;
@@ -5053,9 +5057,12 @@ int EdgeSlide(short immediate, float imperc)
 								ev->tmp.l = 1;
 								suv = suv_last;
 
-								suv->fuv[0] = suv->fuv[1] = suv->fuv[2] = suv->fuv[3] = NULL;
+								suv->fuv_list = NULL;
 								suv->uv_up = suv->uv_down = NULL;
+								suv->origuv[0] = uv_new[0];
+								suv->origuv[1] = uv_new[1];
 								
+								BLI_linklist_prepend(&suv->fuv_list, uv_new);
 								BLI_ghash_insert(uvarray[uvlay_idx],ev,suv);
 								
 								suv_last++; /* advance to next slide UV */
@@ -5080,26 +5087,10 @@ int EdgeSlide(short immediate, float imperc)
 								}
 					
 								/* Copy the pointers to the face UV's */
-								for (k=0; k<4; k++) {
-									if (!suv->fuv[k]) {
-										suv->fuv[k] = uv_new;
-										break;
-									}
-								}
-					
-								if (k==3) { /* Dont look any further since 4 faces gace been found */
-								 	break;
-								}
+								BLI_linklist_prepend(&suv->fuv_list, uv_new);
 							}
-					
 						}
 					}
-				}
-		
-				/* UV SUPPORT */
-				if (suv && suv->fuv[0]) {
-					suv->origuv[0] = suv->fuv[0][0];
-					suv->origuv[1] = suv->fuv[0][1];
 				}
 				look = look->next;
 			}
@@ -5149,11 +5140,13 @@ int EdgeSlide(short immediate, float imperc)
 					if (G.scene->toolsettings->uvcalc_flag & UVCALC_TRANSFORM_CORRECT) {
 						for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 							suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
-							if (suv && suv->fuv[0] && suv->uv_up && suv->uv_down) {
-								VecLerpf2D(suv->fuv[0], suv->origuv,  (perc>=0)?suv->uv_up:suv->uv_down, fabs(perc));
-								if (suv->fuv[1]) VECCOPY2D(suv->fuv[1], suv->fuv[0]);
-								if (suv->fuv[2]) VECCOPY2D(suv->fuv[2], suv->fuv[0]);
-								if (suv->fuv[3]) VECCOPY2D(suv->fuv[3], suv->fuv[0]);
+							if (suv && suv->fuv_list && suv->uv_up && suv->uv_down) {
+								VecLerpf2D(uv_tmp, suv->origuv,  (perc>=0)?suv->uv_up:suv->uv_down, fabs(perc));
+								fuv_link = suv->fuv_list;
+								while (fuv_link) {
+									VECCOPY2D(((float *)fuv_link->link), uv_tmp);
+									fuv_link = fuv_link->next;
+								}
 							}
 						}
 					}
@@ -5177,11 +5170,13 @@ int EdgeSlide(short immediate, float imperc)
 							/* dont do anything if no UVs */
 							for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 								suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
-								if (suv && suv->fuv[0] && suv->uv_up && suv->uv_down) {
-									VecLerpf2D(suv->fuv[0], suv->uv_down, suv->uv_up, fabs(newlen));
-									if (suv->fuv[1]) VECCOPY2D(suv->fuv[1], suv->fuv[0]);
-									if (suv->fuv[2]) VECCOPY2D(suv->fuv[2], suv->fuv[0]);
-									if (suv->fuv[3]) VECCOPY2D(suv->fuv[3], suv->fuv[0]);
+								if (suv && suv->fuv_list && suv->uv_up && suv->uv_down) {
+									VecLerpf2D(uv_tmp, suv->uv_down, suv->uv_up, fabs(newlen));
+									fuv_link = suv->fuv_list;
+									while (fuv_link) {
+										VECCOPY2D(((float *)fuv_link->link), uv_tmp);
+										fuv_link = fuv_link->next;
+									}
 								}
 							}
 						}
@@ -5192,11 +5187,13 @@ int EdgeSlide(short immediate, float imperc)
 							/* dont do anything if no UVs */
 							for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 								suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
-								if (suv && suv->fuv[0] && suv->uv_up && suv->uv_down) {
-									VecLerpf2D(suv->fuv[0], suv->uv_up, suv->uv_down, fabs(newlen));
-									if (suv->fuv[1]) VECCOPY2D(suv->fuv[1], suv->fuv[0]);
-									if (suv->fuv[2]) VECCOPY2D(suv->fuv[2], suv->fuv[0]);
-									if (suv->fuv[3]) VECCOPY2D(suv->fuv[3], suv->fuv[0]);
+								if (suv && suv->fuv_list && suv->uv_up && suv->uv_down) {
+									VecLerpf2D(uv_tmp, suv->uv_up, suv->uv_down, fabs(newlen));
+									fuv_link = suv->fuv_list;
+									while (fuv_link) {
+										VECCOPY2D(((float *)fuv_link->link), uv_tmp);
+										fuv_link = fuv_link->next;
+									}
 								}
 							}
 						}
@@ -5388,6 +5385,14 @@ int EdgeSlide(short immediate, float imperc)
 		}
 		MEM_freeN(uvarray);
 		MEM_freeN(slideuvs);
+		
+		suv = suv_last-1;
+		while (suv >= slideuvs) {
+			if (suv->fuv_list) {
+				BLI_linklist_free(suv->fuv_list,NULL);
+			}
+			suv--;
+		}
 		
 		allqueue(REDRAWIMAGE, 0);
 	}
