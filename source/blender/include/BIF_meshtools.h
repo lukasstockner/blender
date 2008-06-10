@@ -43,7 +43,7 @@ extern void objects_bake_render(short event, char **error_msg);
 extern long mesh_octree_table(struct Object *ob, float *co, char mode);
 extern int mesh_get_x_mirror_vert(struct Object *ob, int index);
 extern struct EditVert *editmesh_get_x_mirror_vert(struct Object *ob, float *co);
-extern float *editmesh_get_x_mirror_uv(struct Object *ob, float *co, float *face_cent);
+extern float *editmesh_get_mirror_uv(int axis, float *co, float *mirrCent, float *face_cent);
 extern int *mesh_get_x_mirror_faces(struct Object *ob);
 
 #endif

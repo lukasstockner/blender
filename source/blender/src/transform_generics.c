@@ -260,8 +260,9 @@ static void editmesh_apply_to_mirror(TransInfo *t)
 		}		
 	}		
 }
-/* assumes G.obedit set to mesh object */
-static void edituv_apply_to_mirror(TransInfo *t)
+/* assumes G.obedit set to mesh object
+ * axis - zero==x, nonzero==y */
+static void edituv_apply_to_mirror(TransInfo *t, int axis)
 {
 	TransData *td = t->data;
 	float *uv;
@@ -277,8 +278,13 @@ static void edituv_apply_to_mirror(TransInfo *t)
 		
 		uv = td->tdmir;
 		if(uv) {
-			uv[0]= -(td->loc[0]-G.v2d->cursor[0]) + G.v2d->cursor[0];
-			uv[1]=  td->loc[1];
+			if (axis) { /* y axis */
+				uv[0]=  td->loc[0];
+				uv[1]= -(td->loc[1]-td->center[1]) + td->center[1];
+			} else { /* x axis */
+				uv[0]= -(td->loc[0]-td->center[0]) + td->center[0];
+				uv[1]=  td->loc[1];
+			}
 		}
 	}		
 }
@@ -438,8 +444,8 @@ void recalcData(TransInfo *t)
 			if(t->spacetype==SPACE_IMAGE) {
 				flushTransUVs(t);
 				
-				if((t->context & CTX_NO_MIRROR) == 0 && (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR))
-					edituv_apply_to_mirror(t);
+				if((t->context & CTX_NO_MIRROR) == 0 && (G.sima->flag & (SI_XMIRROR_ISLE|SI_YMIRROR_ISLE)))
+					edituv_apply_to_mirror(t, G.sima->flag & SI_YMIRROR_ISLE);
 				
 				if (G.sima->flag & SI_LIVE_UNWRAP)
 					unwrap_lscm_live_re_solve();

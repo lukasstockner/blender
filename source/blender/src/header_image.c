@@ -1024,6 +1024,22 @@ static void do_image_uvsmenu(void *arg, int event)
 	case 14:
 		average_charts_tface_uv();
 		break;
+	case 15: /* x mirror */
+		if (G.sima->flag & SI_XMIRROR_ISLE) {
+			G.sima->flag &= ~SI_XMIRROR_ISLE;
+		} else {
+			G.sima->flag &= ~SI_YMIRROR_ISLE;
+			G.sima->flag |= SI_XMIRROR_ISLE;
+		}	
+		break;
+	case 16: /* y mirror */
+		if (G.sima->flag & SI_YMIRROR_ISLE) {
+			G.sima->flag &= ~SI_YMIRROR_ISLE;
+		} else {
+			G.sima->flag &= ~SI_XMIRROR_ISLE;
+			G.sima->flag |= SI_YMIRROR_ISLE;
+		}
+		break;
 	}
 }
 
@@ -1045,6 +1061,9 @@ static uiBlock *image_uvsmenu(void *arg_unused)
 	
 	if(G.sima->flag & SI_CLIP_UV) uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Layout Clipped to Image Size|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 2, "");
 	else uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Layout Clipped to Image Size|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 2, "");
+
+	uiDefIconTextBut(block, BUTM, 1, (G.sima->flag & SI_YMIRROR_ISLE)?ICON_CHECKBOX_HLT:ICON_CHECKBOX_DEHLT, "V Mirror Island|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 16, "");
+	uiDefIconTextBut(block, BUTM, 1, (G.sima->flag & SI_XMIRROR_ISLE)?ICON_CHECKBOX_HLT:ICON_CHECKBOX_DEHLT, "U Mirror Island|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 15, "");
 
 	uiDefBut(block, SEPR, 0, "", 0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");	
 
@@ -1202,7 +1221,7 @@ void image_buttons(void)
 		int layercount;
 		
 		uiDefIconTextButS(block, ICONTEXTROW, B_NOP, ICON_ROTATE,
-				"Pivot: %t|Bounding Box Center %x0|Median Point %x3|2D Cursor %x1",
+				"Pivot: %t|Bounding Box Center %x0|Median Point %x3|2D Cursor %x1|Island Centers %x2",
 				xco,0,XIC+10,YIC, &(G.v2d->around), 0, 3.0, 0, 0,
 				"Rotation/Scaling Pivot (Hotkeys: Comma, Shift Comma, Period)");
 		xco+= XIC + 18;

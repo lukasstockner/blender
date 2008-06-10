@@ -2119,12 +2119,12 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3]) {
 
 	/* local constraint shouldn't alter center */
 	if (t->around == V3D_LOCAL) {
-		if (t->flag & T_OBJECT) {
+		if (t->flag & T_OBJECT || t->spacetype==SPACE_IMAGE) {
 			VECCOPY(center, td->center);
 		}
 		else if (t->flag & T_EDIT) {
 			
-			if(G.vd->around==V3D_LOCAL && (G.scene->selectmode & SCE_SELECT_FACE)) {
+			if(G.vd->around==V3D_LOCAL && (G.scene->selectmode & SCE_SELECT_FACE || t->spacetype==SPACE_IMAGE)) { /* Image types canrotate about island center */
 				VECCOPY(center, td->center);
 			}
 			else {

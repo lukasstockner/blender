@@ -2188,7 +2188,7 @@ static void createTransEditVerts(TransInfo *t)
 
 /* ********************* UV ****************** */
 
-static void UVsToTransData(TransData *td, TransData2D *td2d, float *uv, int selected)
+static void UVsToTransData(TransData *td, TransData2D *td2d, float *uv, float *cent, int selected)
 {
 	float aspx, aspy;
 
@@ -2205,7 +2205,13 @@ static void UVsToTransData(TransData *td, TransData2D *td2d, float *uv, int sele
 
 	td->flag = 0;
 	td->loc = td2d->loc;
-	VECCOPY(td->center, td->loc);
+	
+	if (cent) {
+		VECCOPY(td->center, cent);  /* island center */
+	} else {
+		VECCOPY(td->center, td->loc);
+	}
+
 	VECCOPY(td->iloc, td->loc);
 
 	memset(td->axismtx, 0, sizeof(td->axismtx));
@@ -2224,6 +2230,143 @@ static void UVsToTransData(TransData *td, TransData2D *td2d, float *uv, int sele
 	Mat3One(td->smtx);
 }
 
+static void calcUVIslands(int *totisland, int **island_index, float **island_boundbox, float **island_center)
+{
+	EditMesh *em = G.editMesh;
+	EditFace *efa;
+
+	int change, a, i, nverts;
+	
+	UvVertMap *vmap=NULL;
+	UvMapVert *vlist, *iterv, *startv;
+	float limit[2];
+	int totface = G.totface; /* I dont like this. but EM_init_index_arrays uses it - Campbell */
+	
+	int		*faceIsleIndex = NULL; /* face verts island index */
+	float	*uvIsleBounds = NULL;
+	float	*uvIsleCenters = NULL;
+	
+	get_connected_limit_tface_uv(limit);
+	vmap= make_uv_vert_map_EM(1, 1, limit);
+	
+	
+	faceIsleIndex = MEM_callocN(totface*sizeof(int), "uvisland");
+
+	for (a=0; a<totface; a++) {
+		faceIsleIndex[a] = a;
+	}
+	
+	change = 1;
+	while(change) {
+		change = 0;
+
+		for (a=0, efa= em->faces.first; efa; a++, efa= efa->next) {
+			nverts= efa->v4 ? 4:3;
+			for(i=0; i<nverts; i++) {		
+				vlist= get_uv_map_vert_EM(vmap, (*(&efa->v1 + i))->tmp.l);
+				startv = vlist;
+				
+				/* get the startv for this face */
+				for(iterv=vlist; iterv; iterv=iterv->next) {
+					if(iterv->separate)
+						startv= iterv;
+					if(iterv->f == a) /* 'a' is the current efa index */
+						break;
+				}
+				
+				/* set the index of all connecting faces to the lowest, and set the change value so we keep looping */
+				for(iterv=startv; iterv; iterv=iterv->next) {
+					if((startv != iterv) && (iterv->separate)) {
+						break;
+					} else {
+						if (faceIsleIndex[iterv->f] != faceIsleIndex[a]) {
+							change = 1;
+							faceIsleIndex[iterv->f] = faceIsleIndex[a] = MIN2(faceIsleIndex[iterv->f], faceIsleIndex[a]);
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	free_uv_vert_map_EM(vmap);
+	vmap = NULL;
+	
+	{
+		char	*uvIsleTag; /* temporary tagging of islands */
+		uvIsleTag = MEM_callocN(totface * sizeof(char), "uvisland char");
+	
+		for (a=0; a<totface; a++) {
+			uvIsleTag[ faceIsleIndex[a] ] = 1;
+		}
+		*totisland = 0;
+
+		for (a=0; a<totface; a++) {
+			if (uvIsleTag[ a ]) {
+				/*  push back the indicies so they point to an array the size of totisland, rather then totfaces */
+				if (faceIsleIndex[a] != *totisland) { /* its possible these indicies match though not likely */
+					int old_index = faceIsleIndex[a];
+
+					for (i=0; i<totface; i++) {
+						if (old_index == faceIsleIndex[i]) {
+							faceIsleIndex[i] = *totisland;
+						}
+					}
+				}
+				(*totisland)++;
+			}		
+		}
+		MEM_freeN(uvIsleTag);
+	}
+	
+	uvIsleBounds = MEM_callocN((*totisland) * sizeof(float) * 4, "uvisland cent"); /* this is inefficient since there may only be 1 island */
+
+	/* initialize bounds */
+	for (i=0; i<(*totisland); i++) {
+		uvIsleBounds[(i*4)] =	MAXFLOAT;
+		uvIsleBounds[(i*4)+1] =-MAXFLOAT;
+	
+		uvIsleBounds[(i*4)+2] =	MAXFLOAT;
+		uvIsleBounds[(i*4)+3] =-MAXFLOAT;
+	}
+	
+	
+	for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
+		MTFace *tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
+		if (simaFaceDraw_Check(efa, tf)) {
+			efa->tmp.p = tf;
+		} else {
+			efa->tmp.p = NULL;
+		}
+	
+		i = faceIsleIndex[a]; /* the faces island index */
+		if (efa->v4) {
+			uvIsleBounds[(i*4)] =	MIN2(uvIsleBounds[(i*4)],	MIN4(tf->uv[0][0], tf->uv[1][0], tf->uv[2][0], tf->uv[3][0]));
+			uvIsleBounds[(i*4)+1] =	MAX2(uvIsleBounds[(i*4)+1],  MAX4(tf->uv[0][0], tf->uv[1][0], tf->uv[2][0], tf->uv[3][0]));
+		
+			uvIsleBounds[(i*4)+2] =	MIN2(uvIsleBounds[(i*4)+2],  MIN4(tf->uv[0][1], tf->uv[1][1], tf->uv[2][1], tf->uv[3][1]));
+			uvIsleBounds[(i*4)+3] =	MAX2(uvIsleBounds[(i*4)+3],  MAX4(tf->uv[0][1], tf->uv[1][1], tf->uv[2][1], tf->uv[3][1]));
+		} else {
+			uvIsleBounds[(i*4)] =	MIN2(uvIsleBounds[(i*4)],	MIN3(tf->uv[0][0], tf->uv[1][0], tf->uv[2][0]));
+			uvIsleBounds[(i*4)+1] =	MAX2(uvIsleBounds[(i*4)+1],	MAX3(tf->uv[0][0], tf->uv[1][0], tf->uv[2][0]));
+		
+			uvIsleBounds[(i*4)+2] =	MIN2(uvIsleBounds[(i*4)+2],	MIN3(tf->uv[0][1], tf->uv[1][1], tf->uv[2][1]));
+			uvIsleBounds[(i*4)+3] =	MAX2(uvIsleBounds[(i*4)+3],	MAX3(tf->uv[0][1], tf->uv[1][1], tf->uv[2][1]));
+		}
+	}
+	
+	uvIsleCenters = MEM_mallocN((*totisland) * sizeof(float) * 2, "uvisland bb"); /* this is inefficient since there may only be 1 island */
+	
+	for (a=0; a<(*totisland); a++) {
+		uvIsleCenters[a*2] =		(uvIsleBounds[(a*4)] + uvIsleBounds[(a*4)+1]) / 2;
+		uvIsleCenters[(a*2)+1] =	(uvIsleBounds[(a*4)+2] + uvIsleBounds[(a*4)+3]) / 2;
+	}
+	
+	*island_index = faceIsleIndex;
+	*island_boundbox = uvIsleBounds;
+	*island_center = uvIsleCenters;
+}
+
 extern void uv_center(float uv[][2], float cent[2], void * isquad);
 static void createTransUVs(TransInfo *t)
 {
@@ -2232,75 +2375,103 @@ static void createTransUVs(TransInfo *t)
 	MTFace *tf;
 	int count=0, countsel=0;
 	int propmode = t->flag & T_PROP_EDIT;
-	int efa_s1,efa_s2,efa_s3,efa_s4;
+	int efa_s[4];
 
 	EditMesh *em = G.editMesh;
 	EditFace *efa;
 	
+	/* mirror stuff */
 	int mirror = 0;
+	int uvMirrSide;
+	int i, nverts;
+	int mirr_axis = 0;
+
+	int a, totisland;
 	
-	if ((t->context & CTX_NO_MIRROR) == 0 && (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR))
-	{
-		mirror = 1;
-	}
+	float uvCent[2] = {0, 0}; /* UV face center */
+	float islandCent[3] = {0,0,0}; /* only needs to be 2d, but transdata is 3D */
+	
+	/* Allocated for UV island bounds */
+	int *faceIsleIndex=NULL;	
+	float *uvIsleBounds = NULL;
+	float *uvIsleCenters = NULL;
+	signed char *uvIsleMirrSide = NULL; /* a list of the sides to mirror from for each island */
 	
 	if(is_uv_tface_editing_allowed()==0) return;
 
-	/* count */
-	if (G.sima->flag & SI_BE_SQUARE && !propmode) {
-		for (efa= em->faces.first; efa; efa= efa->next) {
-			/* store face pointer for second loop, prevent second lookup */
+	if ((t->context & CTX_NO_MIRROR) == 0 && G.sima->flag & (SI_XMIRROR_ISLE|SI_YMIRROR_ISLE)) {
+		mirror = 1;
+		if (G.sima->flag & SI_YMIRROR_ISLE) {
+			mirr_axis = 1;
+		}
+	}
+	
+	if (mirror || t->around==V3D_LOCAL) {
+		calcUVIslands(&totisland, &faceIsleIndex, &uvIsleBounds, &uvIsleCenters);
+		if (uvIsleBounds)		MEM_freeN(uvIsleBounds);
+		uvIsleBounds = NULL;
+		
+		/* calcUVIslands sets the 'efa->tmp.p = tf' */
+		uvIsleMirrSide = MEM_mallocN(totisland * sizeof(char), "mirror sides");
+		memset(uvIsleMirrSide, 1, sizeof(char)*totisland);
+	} else {
+		for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
 			tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
 			if (simaFaceDraw_Check(efa, tf)) {
 				efa->tmp.p = tf;
-				
-				efa_s1 = simaUVSel_Check(efa, tf, 0);
-				efa_s2 = simaUVSel_Check(efa, tf, 1);
-				efa_s3 = simaUVSel_Check(efa, tf, 2);
-				if (efa->v4) {
-					efa_s4 = simaUVSel_Check(efa, tf, 3);
-					if ( efa_s1 || efa_s2 || efa_s3 || efa_s4 ) {
-						countsel += 4; /* all corners of this quad need their edges moved. so we must store TD for each */
-					}
-				} else {
-					/* tri's are delt with normally when SI_BE_SQUARE's enabled */
-					if (efa_s1) countsel++; 
-					if (efa_s2) countsel++; 
-					if (efa_s3) countsel++;
-				}
 			} else {
 				efa->tmp.p = NULL;
 			}
 		}
-	} else {
+	}
+	
+	/* count */
+	if (G.sima->flag & SI_BE_SQUARE && !propmode) {
 		for (efa= em->faces.first; efa; efa= efa->next) {
-			tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
+			/* store face pointer for second loop, prevent second lookup */
+			tf=(MTFace *)efa->tmp.p;
 			if (simaFaceDraw_Check(efa, tf)) {
-				efa->tmp.p = tf;
-				
-				efa_s1 = simaUVSel_Check(efa, tf, 0);
-				efa_s2 = simaUVSel_Check(efa, tf, 1);
-				efa_s3 = simaUVSel_Check(efa, tf, 2);
+				nverts= efa->v4 ? 4:3;
+				for(i=0; i<nverts; i++) {
+					efa_s[i] = simaUVSel_Check(efa, tf, i);
+				}
 				if (efa->v4) {
-					efa_s4 = simaUVSel_Check(efa, tf, 3);
+					if ( efa_s[0] || efa_s[1] || efa_s[2] || efa_s[3] ) {
+						countsel += 4; /* all corners of this quad need their edges moved. so we must store TD for each */
+					}
+				} else {
+					/* tri's are delt with normally when SI_BE_SQUARE's enabled */
+					if (efa_s[0]) countsel++;
+					if (efa_s[1]) countsel++; 
+					if (efa_s[2]) countsel++;
 				}
+			}
+		}
+	} else {
+		for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
+			tf=(MTFace *)efa->tmp.p;
+			if (simaFaceDraw_Check(efa, tf)) {
 				
-				if (efa_s1) countsel++; 
-				if (efa_s2) countsel++; 
-				if (efa_s3) countsel++; 
-				if (efa->v4 && efa_s4) countsel++;
+				nverts= efa->v4 ? 4:3;
+				for(i=0; i<nverts; i++) {
+					efa_s[i] = simaUVSel_Check(efa, tf, i);
+					if (efa_s[i])
+						countsel++;
+				}
 				if(propmode)
-					count += (efa->v4)? 4: 3;
-				
-				if (mirror > 0) { /* check if we should be negative */
-					if 		(efa_s1 && tf->uv[0][0] < G.v2d->cursor[0]) mirror = -mirror;
-					else if	(efa_s2 && tf->uv[1][0] < G.v2d->cursor[0]) mirror = -mirror;
-					else if	(efa_s3 && tf->uv[2][0] < G.v2d->cursor[0]) mirror = -mirror;
-					else if	(efa->v4 && efa_s4 && tf->uv[2][0] < G.v2d->cursor[0]) mirror = -mirror;
+					count += nverts;
+					
+				if (mirror && uvIsleMirrSide[faceIsleIndex[a]] > 0) { /* check if we should be negative */
+					/* make sure mirr_axis is either 0 or 1 (x/y) */
+					islandCent[mirr_axis] = uvIsleCenters[(faceIsleIndex[a]*2)+mirr_axis];
+
+					for(i=0; i<nverts; i++) {
+						if (efa_s[i] && tf->uv[i][mirr_axis] < islandCent[mirr_axis]) {
+							uvIsleMirrSide[faceIsleIndex[a]] = -1;
+							break;
+						}
+					}
 				}
-				
-			} else {
-				efa->tmp.p = NULL;
 			}
 		}
 	}
@@ -2324,111 +2495,102 @@ static void createTransUVs(TransInfo *t)
 		for (efa= em->faces.first; efa; efa= efa->next) {
 			tf=(MTFace *)efa->tmp.p;
 			if (tf) {
-				efa_s1 = simaUVSel_Check(efa, tf, 0);
-				efa_s2 = simaUVSel_Check(efa, tf, 1);
-				efa_s3 = simaUVSel_Check(efa, tf, 2);
+				nverts= efa->v4 ? 4:3;
+				for(i=0; i<nverts; i++) {
+					efa_s[i] = simaUVSel_Check(efa, tf, i);
+					if (efa_s[i])
+						countsel++;
+				}
 				
 				if (efa->v4) {
-					efa_s4 = simaUVSel_Check(efa, tf, 3);
-					
-					if ( efa_s1 || efa_s2 || efa_s3 || efa_s4 ) {
+					if ( efa_s[0] || efa_s[1] || efa_s[2] || efa_s[3] ) {
 						/* all corners of this quad need their edges moved. so we must store TD for each */
-
-						UVsToTransData(td, td2d, tf->uv[0], efa_s1);
-						if (!efa_s1)	td->flag |= TD_SKIP;
-						td++; td2d++;
-
-						UVsToTransData(td, td2d, tf->uv[1], efa_s2);
-						if (!efa_s2)	td->flag |= TD_SKIP;
-						td++; td2d++;
-
-						UVsToTransData(td, td2d, tf->uv[2], efa_s3);
-						if (!efa_s3)	td->flag |= TD_SKIP;
-						td++; td2d++;
-
-						UVsToTransData(td, td2d, tf->uv[3], efa_s4);
-						if (!efa_s4)	td->flag |= TD_SKIP;
-						td++; td2d++;
+						for(i=0; i<nverts; i++) {
+							UVsToTransData(td, td2d, tf->uv[i], NULL, efa_s[i]);
+							if (!efa_s[i])	td->flag |= TD_SKIP;
+							td++; td2d++;
+						}
 					}
 				} else {
 					/* tri's are delt with normally when SI_BE_SQUARE's enabled */
-					if (efa_s1) UVsToTransData(td++, td2d++, tf->uv[0], 1); 
-					if (efa_s2) UVsToTransData(td++, td2d++, tf->uv[1], 1); 
-					if (efa_s3) UVsToTransData(td++, td2d++, tf->uv[2], 1);
+					for(i=0; i<3; i++) {
+						if (efa_s[i]) UVsToTransData(td++, td2d++, tf->uv[i], NULL, SELECT); 
+					}
 				}
 			}
 		}
 	} else {
-		for (efa= em->faces.first; efa; efa= efa->next) {
-			/*tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
-			if (simaFaceDraw_Check(efa, tf)) {*/
+		for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
 			if ((tf=(MTFace *)efa->tmp.p)) {
 				if (propmode) {
-					UVsToTransData(td++, td2d++, tf->uv[0], simaUVSel_Check(efa, tf, 0));
-					UVsToTransData(td++, td2d++, tf->uv[1], simaUVSel_Check(efa, tf, 1));
-					UVsToTransData(td++, td2d++, tf->uv[2], simaUVSel_Check(efa, tf, 2));
-					if(efa->v4)
-						UVsToTransData(td++, td2d++, tf->uv[3], simaUVSel_Check(efa, tf, 3));
+					/* propmode dosnt work with mirror yet */
+					/*
+					if (mirror || t->around==V3D_LOCAL) {
+						uv_center(tf->uv, uvCent, (void *)efa->v4);
+						islandCent[0] = uvIsleCenters[(faceIsleIndex[a]*2)];
+						islandCent[1] = uvIsleCenters[(faceIsleIndex[a]*2)+1];
+					}*/
+				
+					nverts= efa->v4 ? 4:3;
+					for(i=0; i<nverts; i++) {
+						UVsToTransData(td++, td2d++, tf->uv[i], (mirror||t->around==V3D_LOCAL) ? islandCent:NULL, simaUVSel_Check(efa, tf, i));
+						
+							/* Mirror? */
+							/*
+							if (mirror) {
+								uvMirrSide = uvIsleMirrSide[faceIsleIndex[a]];
+							
+								if(	(uvMirrSide>0 && td->iloc[mirr_axis] > td->center[mirr_axis]) ||
+									(uvMirrSide<0 && td->iloc[mirr_axis] < td->center[mirr_axis])
+								) {
+									float *uvmir= editmesh_get_mirror_uv(mirr_axis, td->iloc, td->center, uvCent);
+									if(uvmir && tf->uv[i] != uvmir) {
+										td->tdmir = uvmir;
+									}
+								}
+							}
+							*/
+						
+					}
 				} else {
-					float cent[2] = {0, 0};
-					if (mirror) {
-						uv_center(tf->uv, cent, (void *)efa->v4);
+					if (mirror || t->around==V3D_LOCAL) {
+						uv_center(tf->uv, uvCent, (void *)efa->v4);
+						islandCent[0] = uvIsleCenters[(faceIsleIndex[a]*2)];
+						islandCent[1] = uvIsleCenters[(faceIsleIndex[a]*2)+1];
 					}
 					
-					if(simaUVSel_Check(efa, tf, 0)) {
-						UVsToTransData(td, td2d, tf->uv[0], 1);
-						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
-							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
-							if(uvmir && tf->uv[0] != uvmir) {
-								td->tdmir = uvmir;
+					nverts= efa->v4 ? 4:3;
+					for(i=0; i<nverts; i++) {	
+					
+						if(simaUVSel_Check(efa, tf, i)) {
+							UVsToTransData(td, td2d, tf->uv[i], (mirror||t->around==V3D_LOCAL) ? islandCent:NULL, SELECT);
+							
+							/* Mirror? */
+							if (mirror) {
+								uvMirrSide = uvIsleMirrSide[faceIsleIndex[a]];
+							
+								if(	(uvMirrSide>0 && td->iloc[mirr_axis] > td->center[mirr_axis]) ||
+									(uvMirrSide<0 && td->iloc[mirr_axis] < td->center[mirr_axis])
+								) {
+									float *uvmir= editmesh_get_mirror_uv(mirr_axis, td->iloc, td->center, uvCent);
+									if(uvmir && tf->uv[i] != uvmir) {
+										td->tdmir = uvmir;
+									}
+								}
 							}
+							td++; td2d++;
 						}
-						td++; td2d++;
 					}
-					
-					if(simaUVSel_Check(efa, tf, 1))	{
-						UVsToTransData(td, td2d, tf->uv[1], 1);
-						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
-							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
-							if(uvmir && tf->uv[1] != uvmir) {
-								td->tdmir = uvmir;
-							}
-						}
-						td++; td2d++;
-					}
-					
-					if(simaUVSel_Check(efa, tf, 2))	{
-						UVsToTransData(td, td2d, tf->uv[2], 1);
-						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
-							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
-							if(uvmir && tf->uv[2] != uvmir) {
-								td->tdmir = uvmir;
-							}
-						}
-						td++; td2d++;
-					}
-					
-					if(efa->v4 && simaUVSel_Check(efa, tf, 3)) {
-						UVsToTransData(td, td2d, tf->uv[3], 1);
-						/* Mirror? */
-						if( (mirror>0 && td->iloc[0]>G.v2d->cursor[0]) || (mirror<0 && td->iloc[0]<G.v2d->cursor[0])) {
-							float *uvmir= editmesh_get_x_mirror_uv(G.obedit, td->iloc, cent);	/* initializes octree on first call */
-							if(uvmir && tf->uv[3] != uvmir) {
-								td->tdmir = uvmir;
-							}
-						}
-						td++; td2d++;
-					}
-
-					
-					
+					/* end face vert loop */
 				}
 			}
 		}
 	}
+	
+	/* free uvisland bounds */
+	if (faceIsleIndex)	MEM_freeN(faceIsleIndex);
+	if (uvIsleCenters)	MEM_freeN(uvIsleCenters);
+	if (uvIsleMirrSide)	MEM_freeN(uvIsleMirrSide);
 	
 	if (G.sima->flag & SI_LIVE_UNWRAP)
 		unwrap_lscm_live_begin();

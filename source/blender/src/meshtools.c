@@ -883,7 +883,7 @@ EditVert *editmesh_get_x_mirror_vert(Object *ob, float *co)
 }
 
 extern void uv_center(float uv[][2], float cent[2], void * isquad);
-float *editmesh_get_x_mirror_uv(Object *ob, float *uv, float *face_cent)
+float *editmesh_get_mirror_uv(int axis, float *uv, float *mirrCent, float *face_cent)
 {
 	float vec[2];
 	float cent_vec[2];
@@ -895,11 +895,24 @@ float *editmesh_get_x_mirror_uv(Object *ob, float *uv, float *face_cent)
 	   )
 		return NULL;
 	
-	vec[0]= -((uv[0])-G.v2d->cursor[0]) + G.v2d->cursor[0];
-	vec[1]= uv[1];
-
-	cent_vec[0]= -((face_cent[0])-G.v2d->cursor[0]) + G.v2d->cursor[0];	
-	cent_vec[1] = face_cent[1];
+	if (axis) {
+		vec[0]= uv[0];
+		vec[1]= -((uv[1])-mirrCent[1]) + mirrCent[1];
+	
+		cent_vec[0] = face_cent[0];
+		cent_vec[1]= -((face_cent[1])-mirrCent[1]) + mirrCent[1];
+	} else {
+		vec[0]= -((uv[0])-mirrCent[0]) + mirrCent[0];
+		vec[1]= uv[1];
+	
+		cent_vec[0]= -((face_cent[0])-mirrCent[0]) + mirrCent[0];	
+		cent_vec[1] = face_cent[1];
+	}
+	
+	/*
+	G.v2d->cursor[0] = mirrCent[0];
+	G.v2d->cursor[1] = mirrCent[1];
+	*/
 	
 	/* TODO - Optimize */
 	{
