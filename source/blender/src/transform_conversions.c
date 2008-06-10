@@ -2234,7 +2234,8 @@ static void calcUVIslands(int *totisland, int **island_index, float **island_bou
 {
 	EditMesh *em = G.editMesh;
 	EditFace *efa;
-
+	MTFace *tf;
+	
 	int change, a, i, nverts;
 	
 	UvVertMap *vmap=NULL;
@@ -2249,6 +2250,21 @@ static void calcUVIslands(int *totisland, int **island_index, float **island_bou
 	get_connected_limit_tface_uv(limit);
 	vmap= make_uv_vert_map_EM(1, 1, limit);
 	
+	if (vmap==NULL) {
+		/* We expect these to be generated from this function */
+		for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
+			tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
+			if (simaFaceDraw_Check(efa, tf)) {
+				efa->tmp.p = tf;
+			} else {
+				efa->tmp.p = NULL;
+			}
+		}
+	
+		*island_index = *island_boundbox = *island_center = NULL;
+		*totisland = 0;
+		return;
+	}
 	
 	faceIsleIndex = MEM_callocN(totface*sizeof(int), "uvisland");
 
@@ -2332,7 +2348,7 @@ static void calcUVIslands(int *totisland, int **island_index, float **island_bou
 	
 	
 	for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
-		MTFace *tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
+		tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
 		if (simaFaceDraw_Check(efa, tf)) {
 			efa->tmp.p = tf;
 		} else {
@@ -2408,12 +2424,20 @@ static void createTransUVs(TransInfo *t)
 	
 	if (mirror || t->around==V3D_LOCAL) {
 		calcUVIslands(&totisland, &faceIsleIndex, &uvIsleBounds, &uvIsleCenters);
-		if (uvIsleBounds)		MEM_freeN(uvIsleBounds);
-		uvIsleBounds = NULL;
 		
-		/* calcUVIslands sets the 'efa->tmp.p = tf' */
-		uvIsleMirrSide = MEM_mallocN(totisland * sizeof(char), "mirror sides");
-		memset(uvIsleMirrSide, 1, sizeof(char)*totisland);
+		if (totisland) {
+			if (uvIsleBounds)		MEM_freeN(uvIsleBounds);
+			uvIsleBounds = NULL;
+		
+			/* calcUVIslands sets the 'efa->tmp.p = tf' */
+			uvIsleMirrSide = MEM_mallocN(totisland * sizeof(char), "mirror sides");
+			memset(uvIsleMirrSide, 1, sizeof(char)*totisland);
+		} else {
+			if (t->around==V3D_LOCAL) {
+				t->around = V3D_CENTROID;
+			}
+			mirror = 0;
+		}
 	} else {
 		for (efa= em->faces.first, a=0; efa; efa= efa->next, a++) {
 			tf= CustomData_em_get(&em->fdata, efa->data, CD_MTFACE);
@@ -2537,7 +2561,7 @@ static void createTransUVs(TransInfo *t)
 						
 							/* Mirror? */
 							/*
-							if (mirror) {
+							if (totisland && (mirror || t->around==V3D_LOCAL)) {
 								uvMirrSide = uvIsleMirrSide[faceIsleIndex[a]];
 							
 								if(	(uvMirrSide>0 && td->iloc[mirr_axis] > td->center[mirr_axis]) ||
