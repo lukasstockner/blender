@@ -57,5 +57,6 @@ void seam_mark_clear_tface(short mode);
 int edgetag_shortest_path(struct EditEdge *source, struct EditEdge *target);
 void edgetag_context_set(struct EditEdge *eed, int val);
 int edgetag_context_check(struct EditEdge *eed);
+void uv_center(float uv[][2], float cent[2], void * isquad);
 #endif /* BDR_EDITFACE_H */
 

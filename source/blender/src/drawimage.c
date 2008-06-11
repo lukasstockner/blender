@@ -429,18 +429,6 @@ int draw_uvs_face_check(void)
 	return 0;
 }
 
-void uv_center(float uv[][2], float cent[2], void * isquad)
-{
-
-	if (isquad) {
-		cent[0] = (uv[0][0] + uv[1][0] + uv[2][0] + uv[3][0]) / 4.0;
-		cent[1] = (uv[0][1] + uv[1][1] + uv[2][1] + uv[3][1]) / 4.0;		
-	} else {
-		cent[0] = (uv[0][0] + uv[1][0] + uv[2][0]) / 3.0;
-		cent[1] = (uv[0][1] + uv[1][1] + uv[2][1]) / 3.0;		
-	}
-}
-
 static float uv_area(float uv[][2], int quad)
 {
 	if (quad) {

@@ -882,7 +882,6 @@ EditVert *editmesh_get_x_mirror_vert(Object *ob, float *co)
 	return NULL;
 }
 
-extern void uv_center(float uv[][2], float cent[2], void * isquad);
 float *editmesh_get_mirror_uv(int axis, float *uv, float *mirrCent, float *face_cent)
 {
 	float vec[2];

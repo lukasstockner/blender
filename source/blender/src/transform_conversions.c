@@ -2383,7 +2383,7 @@ static void calcUVIslands(int *totisland, int **island_index, float **island_bou
 	*island_center = uvIsleCenters;
 }
 
-extern void uv_center(float uv[][2], float cent[2], void * isquad);
+
 static void createTransUVs(TransInfo *t)
 {
 	TransData *td = NULL;
