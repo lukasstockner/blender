@@ -1002,6 +1002,9 @@ long mesh_mirrtopo_table(Object *ob, char mode)
 				last= a;
 			}
 		}
+		if(ob==G.obedit) {
+			EM_free_index_arrays();
+		}
 		
 		MEM_freeN( MirrTopoPairs );
 		MirrTopoPairs = NULL;
