@@ -5086,7 +5086,8 @@ static void editing_panel_mesh_tools1(Object *ob, Mesh *me)
 	
 	uiBlockBeginAlign(block);
 	uiDefButBitI(block, TOG, G_ALLEDGES, 0, "All Edges",			1125, 22,150,19, &G.f, 0, 0, 0, 0, "Displays all edges in object mode without optimization");
-	uiDefButBitS(block, TOG, B_MESH_X_MIRROR, B_DIFF, "X-axis mirror",1125,0,150,19, &G.scene->toolsettings->editbutflag, 0, 0, 0, 0, "While using transforms, mirrors the transformation");
+	uiDefButBitS(block, TOG, B_MESH_X_MIRROR, B_DIFF, "X-Axis Mirror",1125,0,80,19, &G.scene->toolsettings->editbutflag, 0, 0, 0, 0, "While using transforms, mirrors the transformation");
+	uiDefButBitS(block, TOG, B_MIRROR_TOPO, B_DIFF, "Topology",1125+80,0,70,19, &G.scene->toolsettings->editbutflag, 0, 0, 0, 0, "Calculate mirror from mesh topology");	
 	uiBlockEndAlign(block);
 }
 
@@ -6077,7 +6078,8 @@ void weight_paint_buttons(uiBlock *block)
 	if(ob) {
 		uiBlockBeginAlign(block);
 		uiDefButBitS(block, TOG, VP_ONLYVGROUP, REDRAWVIEW3D, "Vgroup",		10,0,100,19, &Gwp.flag, 0, 0, 0, 0, "Only paint on vertices in the selected vertex group.");
-		uiDefButBitS(block, TOG, VP_MIRROR_X, REDRAWVIEW3D, "X-Mirror",	110,0,100,19, &Gwp.flag, 0, 0, 0, 0, "Mirrored Paint, applying on mirrored Weight Group name");
+		uiDefButBitS(block, TOG, VP_MIRROR_X, REDRAWVIEW3D, "X-Mirror",	110,0,80,19, &Gwp.flag, 0, 0, 0, 0, "Mirrored Paint, applying on mirrored Weight Group name");
+		uiDefButBitS(block, TOG, B_MIRROR_TOPO, B_DIFF, "T",110+80,0,20,19, &G.scene->toolsettings->editbutflag, 0, 0, 0, 0, "Calculate mirror from mesh topology"); /* TODO - Put this in a nicer place */
 		uiDefBut(block, BUT, B_CLR_WPAINT, "Clear",					210,0,100,19, NULL, 0, 0, 0, 0, "Removes reference to this deform group from all vertices");
 		uiBlockEndAlign(block);
 	}

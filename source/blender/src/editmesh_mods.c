@@ -120,7 +120,7 @@ void EM_select_mirrored(void)
 		
 		for(eve= em->verts.first; eve; eve= eve->next) {
 			if(eve->f & SELECT) {
-				v1= editmesh_get_x_mirror_vert(G.obedit, eve->co);
+				v1= editmesh_get_x_mirror_vert(G.obedit, eve);
 				if(v1) {
 					eve->f &= ~SELECT;
 					v1->f |= SELECT;
@@ -4249,7 +4249,7 @@ void vertexsmooth(void)
 			if(eve->f1) {
 				
 				if (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR) {
-					eve_mir= editmesh_get_x_mirror_vert(G.obedit, eve->co);
+					eve_mir= editmesh_get_x_mirror_vert(G.obedit, eve);
 				}
 				
 				adr = eve->tmp.p;

@@ -125,6 +125,7 @@ void free_vertexpaint()
 	Gvp.vpaint_prev= NULL;
 	
 	mesh_octree_table(NULL, NULL, 'e');
+	mesh_mirrtopo_table(NULL, 'e');
 }
 
 /* in contradiction to cpack drawing colors, the MCOL colors (vpaint colors) are per byte! 

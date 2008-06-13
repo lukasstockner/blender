@@ -627,6 +627,7 @@ void free_editMesh(EditMesh *em)
 	em->allfaces= em->curface= NULL;
 	
 	mesh_octree_table(NULL, NULL, 'e');
+	mesh_mirrtopo_table(NULL, 'e');
 	
 	G.totvert= G.totface= 0;
 

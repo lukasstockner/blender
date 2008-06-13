@@ -446,6 +446,8 @@
 #define B_JOINTRIA_VCOL		0X400
 #define B_JOINTRIA_SHARP	0X800
 #define B_JOINTRIA_MAT		0X1000
+#define B_MIRROR_TOPO		0X2000 /* Topology Mirroring, disabled by default */
+
 
 /* DISPLAYMODE */
 #define R_DISPLAYIMAGE	0
