@@ -81,6 +81,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	),
 	mMaterial(data),
 	mShader(0),
+	mBlenderShader(0),
 	mScene(scene),
 	mUserDefBlend(0),
 	mModified(0),
@@ -144,25 +145,30 @@ void KX_BlenderMaterial::OnConstruction()
 	if (mConstructed)
 		// when material are reused between objects
 		return;
-
-	// for each unique material...
-	int i;
-	for(i=0; i<mMaterial->num_enabled; i++) {
-		if( mMaterial->mapping[i].mapping & USEENV ) {
-			if(!RAS_EXT_support._ARB_texture_cube_map) {
-				spit("CubeMap textures not supported");
-				continue;
-			}
-			if(!mTextures[i].InitCubeMap(i, mMaterial->cubemap[i] ) )
-				spit("unable to initialize image("<<i<<") in "<< 
-						 mMaterial->matname<< ", image will not be available");
-		} 
 	
-		else {
-			if( mMaterial->img[i] ) {
-				if( ! mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] &MIPMAP)!=0 ))
+	if(mMaterial->glslmat) {
+		SetBlenderGLSLShader();
+	}
+	else {
+		// for each unique material...
+		int i;
+		for(i=0; i<mMaterial->num_enabled; i++) {
+			if( mMaterial->mapping[i].mapping & USEENV ) {
+				if(!RAS_EXT_support._ARB_texture_cube_map) {
+					spit("CubeMap textures not supported");
+					continue;
+				}
+				if(!mTextures[i].InitCubeMap(i, mMaterial->cubemap[i] ) )
 					spit("unable to initialize image("<<i<<") in "<< 
-						mMaterial->matname<< ", image will not be available");
+							 mMaterial->matname<< ", image will not be available");
+			} 
+		
+			else {
+				if( mMaterial->img[i] ) {
+					if( ! mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] &MIPMAP)!=0 ))
+						spit("unable to initialize image("<<i<<") in "<< 
+							mMaterial->matname<< ", image will not be available");
+				}
 			}
 		}
 	}
@@ -176,9 +182,15 @@ void KX_BlenderMaterial::OnExit()
 	if( mShader ) {
 		 //note, the shader here is allocated, per unique material
 		 //and this function is called per face
-		mShader->SetProg(0);
+		mShader->SetProg(false);
 		delete mShader;
 		mShader = 0;
+	}
+
+	if( mBlenderShader ) {
+		mBlenderShader->SetProg(false);
+		delete mBlenderShader;
+		mBlenderShader = 0;
 	}
 
 	BL_Texture::ActivateFirst();
@@ -229,6 +241,19 @@ void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 	}
 }
 
+void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras)
+{
+	if( !enable || !mBlenderShader->Ok() ) {
+		// frame cleanup.
+		mBlenderShader->SetProg(false);
+		BL_Texture::DisableAllTextures();
+		return;
+	}
+
+	BL_Texture::DisableAllTextures();
+	mBlenderShader->SetProg(true);
+	mBlenderShader->ApplyShader();
+}
 
 void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 {
@@ -330,6 +355,51 @@ KX_BlenderMaterial::ActivatShaders(
 }
 
 void
+KX_BlenderMaterial::ActivateBlenderShaders(
+	RAS_IRasterizer* rasty, 
+	TCachingInfo& cachingInfo)const
+{
+	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial*>(this);
+
+	// reset... 
+	if(tmp->mMaterial->IsShared()) 
+		cachingInfo =0;
+	
+	if (GetCachingInfo() != cachingInfo) {
+		if (!cachingInfo)
+			tmp->setBlenderShaderData(false, rasty);
+		
+		cachingInfo = GetCachingInfo();
+	
+		if(rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
+			tmp->setBlenderShaderData(true, rasty);
+			rasty->EnableTextures(true);
+		}
+		else {
+			tmp->setBlenderShaderData(false, rasty);
+			rasty->EnableTextures(false);
+		}
+
+		if(mMaterial->mode & RAS_IRasterizer::KX_TWOSIDE)
+			rasty->SetCullFace(false);
+		else
+			rasty->SetCullFace(true);
+
+		if (((mMaterial->ras_mode &WIRE)!=0) || mMaterial->mode & RAS_IRasterizer::KX_LINES)
+		{		
+			if((mMaterial->ras_mode &WIRE)!=0) 
+				rasty->SetCullFace(false);
+			rasty->SetLines(true);
+		}
+		else
+			rasty->SetLines(false);
+	}
+
+	ActivatGLMaterials(rasty);
+	mBlenderShader->SetTexCoords(rasty);
+}
+
+void
 KX_BlenderMaterial::ActivateMat( 
 	RAS_IRasterizer* rasty,  
 	TCachingInfo& cachingInfo
@@ -390,6 +460,18 @@ KX_BlenderMaterial::Activate(
 			return dopass;
 		}
 	}
+	else if( RAS_EXT_support._ARB_shader_objects && ( mBlenderShader && mBlenderShader->Ok() ) ) {
+		if( (mPass++) == 0 ) {
+			ActivateBlenderShaders(rasty, cachingInfo);
+			dopass = true;
+			return dopass;
+		}
+		else {
+			mPass = 0;
+			dopass = false;
+			return dopass;
+		}
+	}
 	else {
 		switch (mPass++)
 		{
@@ -410,32 +492,37 @@ void KX_BlenderMaterial::ActivateMeshSlot(const KX_MeshSlot & ms, RAS_IRasterize
 {
 	if(mShader && RAS_EXT_support._ARB_shader_objects)
 		mShader->Update(ms, rasty);
+	if(mBlenderShader && RAS_EXT_support._ARB_shader_objects)
+		mBlenderShader->Update(ms, rasty);
 }
 
 void KX_BlenderMaterial::ActivatGLMaterials( RAS_IRasterizer* rasty )const
 {
-	rasty->SetSpecularity(
-		mMaterial->speccolor[0]*mMaterial->spec_f,
-		mMaterial->speccolor[1]*mMaterial->spec_f,
-		mMaterial->speccolor[2]*mMaterial->spec_f,
-		mMaterial->spec_f
-	);
+	if(!mBlenderShader) {
+		rasty->SetSpecularity(
+			mMaterial->speccolor[0]*mMaterial->spec_f,
+			mMaterial->speccolor[1]*mMaterial->spec_f,
+			mMaterial->speccolor[2]*mMaterial->spec_f,
+			mMaterial->spec_f
+		);
 
-	rasty->SetShinyness( mMaterial->hard );
+		rasty->SetShinyness( mMaterial->hard );
 
-	rasty->SetDiffuse(
-		mMaterial->matcolor[0]*mMaterial->ref+mMaterial->emit, 
-		mMaterial->matcolor[1]*mMaterial->ref+mMaterial->emit,
-		mMaterial->matcolor[2]*mMaterial->ref+mMaterial->emit,
-		1.0f);
+		rasty->SetDiffuse(
+			mMaterial->matcolor[0]*mMaterial->ref+mMaterial->emit, 
+			mMaterial->matcolor[1]*mMaterial->ref+mMaterial->emit,
+			mMaterial->matcolor[2]*mMaterial->ref+mMaterial->emit,
+			1.0f);
 
-	rasty->SetEmissive(	
-		mMaterial->matcolor[0]*mMaterial->emit,
-		mMaterial->matcolor[1]*mMaterial->emit,
-		mMaterial->matcolor[2]*mMaterial->emit,
-		1.0 );
+		rasty->SetEmissive(	
+			mMaterial->matcolor[0]*mMaterial->emit,
+			mMaterial->matcolor[1]*mMaterial->emit,
+			mMaterial->matcolor[2]*mMaterial->emit,
+			1.0 );
 
-	rasty->SetAmbient(mMaterial->amb);
+		rasty->SetAmbient(mMaterial->amb);
+	}
+
 	if (mMaterial->material)
 		rasty->SetPolygonOffset(-mMaterial->material->zoffs, 0.0);
 }
@@ -729,6 +816,17 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 #endif//GL_ARB_shader_objects
 }
 
+
+void KX_BlenderMaterial::SetBlenderGLSLShader(void)
+{
+	if(!mBlenderShader)
+		mBlenderShader = new BL_BlenderShader(mMaterial->material);
+	
+	if(!mBlenderShader->Ok()) {
+		delete mBlenderShader;
+		mBlenderShader = 0;
+	}
+}
 
 KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getMaterialIndex, "getMaterialIndex()")
 {

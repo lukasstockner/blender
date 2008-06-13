@@ -315,7 +315,6 @@ extern UserDef U; /* from usiblender.c !!!! */
 #define USER_VERTEX_ARRAYS		1
 #define USER_DISABLE_SOUND		2
 #define USER_DISABLE_MIPMAP		4
-#define USER_GL_SHADED_MODE		8
 
 /* vrml flag */
 #define USER_VRML_LAYERS		1

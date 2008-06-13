@@ -2393,20 +2393,18 @@ static void data_from_gpu_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack
 		ns[i]->data= gs[i].link;
 }
 
-GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
+void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
 {
 	bNode *node;
 	bNodeStack *stack;
 	bNodeStack *nsin[MAX_SOCKET];	/* arbitrary... watch this */
 	bNodeStack *nsout[MAX_SOCKET];	/* arbitrary... watch this */
 	GPUNodeStack gpuin[MAX_SOCKET+1], gpuout[MAX_SOCKET+1];
-	GPUMaterial *mat;
 
 	if((ntree->init & NTREE_EXEC_INIT)==0)
 		ntreeBeginExecTree(ntree);
 
 	stack= ntree->stack;
-	mat= GPU_material_construct_begin();
 
 	for(node= ntree->nodes.first; node; node= node->next) {
 		if(node->typeinfo->gpufunc) {
@@ -2419,14 +2417,7 @@ GPUMaterial *ntreeShaderCreateGPU(bNodeTree *ntree)
 		/* groups not supported yet .. */
 	}
 
-	if(!GPU_material_construct_end(mat)) {
-		GPU_material_free(mat);
-		mat= NULL;
-	}
-
 	ntreeEndExecTree(ntree);
-
-	return mat;
 }
 
 /* **************** call to switch lamploop for material node ************ */

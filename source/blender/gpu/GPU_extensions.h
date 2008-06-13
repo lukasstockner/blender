@@ -33,6 +33,10 @@
 #ifndef GPU_EXTENSIONS_H
 #define GPU_EXTENSIONS_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* GPU extensions support */
 
 struct Image;
@@ -50,7 +54,7 @@ typedef struct GPUShader GPUShader;
 void GPU_extensions_init(void); /* call this before running any of the functions below */
 void GPU_extensions_exit(void);
 int GPU_extensions_minimum_support(void);
-void GPU_print_error(char *str);
+int GPU_print_error(char *str);
 
 /* GPU Texture
    - always returns unsigned char RGBA textures
@@ -135,6 +139,10 @@ typedef struct GPUVertexAttribs {
 
 	int totlayer;
 } GPUVertexAttribs;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

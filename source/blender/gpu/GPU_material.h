@@ -33,6 +33,10 @@
 #ifndef __GPU_MATERIAL__
 #define __GPU_MATERIAL__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Image;
 struct ImageUser;
 struct Material;
@@ -47,7 +51,7 @@ typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
 typedef struct GPUMaterial GPUMaterial;
 
-/* Nodes */
+/* Functions to create GPU Materials nodes */
 
 typedef enum GPUType {
 	GPU_NONE = 0,
@@ -72,6 +76,7 @@ typedef struct GPUNodeStack {
 
 GPUNodeLink *GPU_attribute(int type, char *name);
 GPUNodeLink *GPU_uniform(float *num);
+GPUNodeLink *GPU_dynamic_uniform(float *num);
 GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser);
 GPUNodeLink *GPU_texture(int size, float *pixels);
 GPUNodeLink *GPU_socket(GPUNodeStack *sock);
@@ -79,23 +84,27 @@ GPUNodeLink *GPU_socket(GPUNodeStack *sock);
 GPUNode *GPU_link(GPUMaterial *mat, char *name, ...);
 GPUNode *GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
 
-/* Material */
-
-GPUMaterial *GPU_material_construct_begin();
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
-GPUNodeLink *GPU_blender_material(GPUMaterial *mat, struct Material *ma);
-int GPU_material_construct_end(GPUMaterial *material);
 
+/* High level functions to create and use GPU materials */
+
+#define GPU_PROFILE_GAME		0
+#define GPU_PROFILE_DERIVEDMESH	1
+
+GPUMaterial *GPU_material_from_blender(struct Material *ma, int profile);
 void GPU_material_free(GPUMaterial *material);
 
-void GPU_material_bind(struct Object *ob, GPUMaterial *material);
+void GPU_material_bind(GPUMaterial *material);
+void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4]);
 void GPU_material_unbind(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,
 	struct GPUVertexAttribs *attrib);
 
-GPUMaterial *GPU_material_from_blender(struct Material *ma);
+#ifdef __cplusplus
+}
+#endif
 
 #endif /*__GPU_MATERIAL__*/
 

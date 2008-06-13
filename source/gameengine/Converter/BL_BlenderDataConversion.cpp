@@ -509,6 +509,7 @@ BL_Material* ConvertMaterial(
 				}
 			}
 		}
+
 		// above one tex the switches here
 		// are not used
 		switch(valid_index) {
@@ -829,7 +830,6 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 		}
 	}
 
-
 	meshobj->SetName(mesh->id.name);
 	meshobj->m_xyz_index_to_vertex_index_mapping.resize(mesh->totvert);
 	for (int f=0;f<mesh->totface;f++,mface++)
@@ -891,6 +891,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 						ma = give_current_material(blenderobj, 1);
 
 					bl_mat = ConvertMaterial(mesh, ma, tface, mface, mmcol, lightlayer, blenderobj, layers);
+					bl_mat->glslmat = converter->GetGLSLMaterials();
 					// set the index were dealing with
 					bl_mat->material_index =  (int)mface->mat_nr;
 

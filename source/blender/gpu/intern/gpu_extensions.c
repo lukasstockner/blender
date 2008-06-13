@@ -139,13 +139,18 @@ int GPU_extensions_minimum_support()
 	return GG.minimumsupport;
 }
 
-void GPU_print_error(char *str)
+int GPU_print_error(char *str)
 {
 	GLenum errCode;
 
-	if (G.f & G_DEBUG)
-		if ((errCode = glGetError()) != GL_NO_ERROR)
+	if (G.f & G_DEBUG) {
+		if ((errCode = glGetError()) != GL_NO_ERROR) {
     	    fprintf(stderr, "%s opengl error: %s\n", str, gluErrorString(errCode));
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 #if 0
@@ -360,9 +365,7 @@ static void gpu_blender_texture_create(Image *ima, ImageUser *iuser)
 	char *rect, *scalerect;
 	int x, y;
 
-	/* TODO: better integrate with textured mode, these are really bad
-	 * level calls too */
-
+	/* TODO: better integrate with textured mode */
 	ibuf = BKE_image_get_ibuf(ima, iuser);
 
 	if(!ibuf)
@@ -488,6 +491,7 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 	if (number != 0) glActiveTextureARB(arbnumber);
 	glBindTexture(tex->target, tex->bindcode);
 	glEnable(tex->target);
+	if (number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
 
 	tex->number = number;
 
@@ -497,6 +501,9 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 void GPU_texture_unbind(GPUTexture *tex)
 {
 	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
+
+	if(tex->number == -1)
+		return;
 
 	GPU_print_error("Pre Texture Unbind");
 
@@ -951,7 +958,9 @@ void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int ar
 	else if (length == 9) glUniformMatrix3fvARB(location, arraysize, 0, value);
 	else if (length == 16) glUniformMatrix4fvARB(location, arraysize, 0, value);
 
-	GPU_print_error("Post Uniform Vector");
+	if(GPU_print_error("Post Uniform Vector")) {
+		//fprintf(stderr, "%s: %d %d %d %p\n", name, location, arraysize, length, value);
+	}
 }
 
 void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex)
@@ -1007,7 +1016,7 @@ GPUPixelBuffer *gpu_pixelbuffer_create(int x, int y, int halffloat, int numbuffe
 	if (!GLEW_ARB_multitexture || !GLEW_EXT_pixel_buffer_object)
 		return NULL;
 	
-	pb = MEM_callocN(sizeof(GPUPixelBuffer), "GPFBO");
+	pb = MEM_callocN(sizeof(GPUPixelBuffer), "GPUPBO");
 	pb->datasize = x*y*4*((halffloat)? 16: 8);
 	pb->numbuffers = numbuffers;
 	pb->halffloat = halffloat;

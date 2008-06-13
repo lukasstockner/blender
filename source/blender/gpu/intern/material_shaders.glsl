@@ -7,13 +7,15 @@ uniform mat4 unfviewmat;
 
 /*********** SHADER NODES ***************/
 
+#define M_PI 3.14159265358979323846
+
 void geom(vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float frontback)
 {
 	local = varcamco;
 	view = normalize(local);
 	orco = attorco;
 	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
-	normal = -normalize(varnormal);
+	normal = -normalize(varnormal);	/* blender render normal is negated */
 	vcol = vec4(attvcol.w/255.0, attvcol.z/255.0, attvcol.y/255.0, 1.0);
 	frontback = 1.0;
 }
@@ -166,6 +168,11 @@ void vec_math_normalize(vec3 v, out vec3 outvec, out float outval)
 	outval = length(v);
 	outvec = normalize(v);
 	outval = length(outvec);
+}
+
+void vec_math_negate(vec3 v, out vec3 outv)
+{
+	outv = -v;
 }
 
 void normal(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
@@ -412,6 +419,14 @@ void texco_uv(vec2 attuv, out vec3 uv)
 
 void texco_norm(out vec3 normal)
 {
+	/* corresponds to shi->orn, which is negated so cancels
+	   out blender normal negation */
+	normal = normalize(varnormal);
+}
+
+void shade_norm(out vec3 normal)
+{
+	/* blender render normal is negated */
 	normal = -normalize(varnormal);
 }
 
@@ -497,6 +512,11 @@ void mtex_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out ve
 	normal.z = 2.0*(color.b - 0.5);
 }
 
+void mtex_negate_texnormal(vec3 normal, out vec3 outnormal)
+{
+	outnormal = vec3(-normal.x, -normal.y, normal.z);
+}
+
 void mtex_nspace_tangent(vec3 tangent, vec3 normal, vec3 texnormal, out vec3 outnormal)
 {
 	vec3 B = cross(normal, tangent);
@@ -514,39 +534,419 @@ void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outno
 
 /******* MATERIAL *********/
 
-float material_lambert_diff(float inp)
+void lamp_visibility_sun_hemi(vec3 lampvec, out vec3 lv, out float dist, out float visifac)
 {
-	return inp;
-}
+	lampvec = -normalize(lampvec);
+	lampvec = (unfviewmat*vec4(lampvec, 0.0)).xyz;
 
-float material_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard)
-{
-	vec3 h = normalize(l + v);
-	float nh = max(dot(n, h), 0.0);
-	float nv = max(dot(v, v), 0.0);
-
-	float i = pow(nh, hard)/(0.1 + nv);
-
-	return i;
-}
-
-void lamp_visibility_sun_hemi(vec3 lampco, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
-{
 	lv = lampvec;
 	dist = 1.0;
 	visifac = 1.0;
 }
 
-void lamp_visibility_other(vec3 lampco, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
+void lamp_visibility_other(vec3 lampco, out vec3 lv, out float dist, out float visifac)
 {
 	vec3 co = varcamco;
 
-	lv = (unfviewmat*vec4(lampco, 1.0)).xyz - co;
+	lv = co - (unfviewmat*vec4(lampco, 1.0)).xyz;
 	dist = length(lv);
 	lv = normalize(lv);
 	visifac = 1.0;
 }
 
+void lamp_falloff_invlinear(float lampdist, float dist, out float visifac)
+{
+	visifac = lampdist/(lampdist + dist);
+}
+
+void lamp_falloff_invsquare(float lampdist, float dist, out float visifac)
+{
+	visifac = lampdist/(lampdist + dist*dist);
+}
+
+void lamp_falloff_sliders(float lampdist, float ld1, float ld2, float dist, out float visifac)
+{
+	float lampdistkw = lampdist*lampdist;
+
+	visifac = lampdist/(lampdist + ld1*dist);
+	visifac *= lampdistkw/(lampdistkw + ld2*dist*dist);
+}
+
+void lamp_falloff_curve(float lampdist, sampler1D curvemap, float dist, out float visifac)
+{
+	visifac = texture1D(curvemap, dist/lampdist).x;
+}
+
+void lamp_visibility_sphere(float lampdist, float dist, float visifac, out float outvisifac)
+{
+	float t= lampdist - dist;
+
+	outvisifac= visifac*max(t, 0.0)/lampdist;
+}
+
+void lamp_visibility_spot_square(vec3 lampvec, mat3 lampimat, vec3 lv, out float inpr)
+{
+	lampvec = -normalize(lampvec);
+	lampvec = (unfviewmat*vec4(lampvec, 0.0)).xyz;
+
+	if(dot(lv, lampvec) > 0.0) {
+		vec3 lvrot = lampimat*lv;
+		float x = max(abs(lvrot.x/lvrot.z), abs(lvrot.y/lvrot.z));
+
+		inpr = 1.0/sqrt(1.0 + x*x);
+	}
+	else
+		inpr = 0.0;
+}
+
+void lamp_visibility_spot_circle(vec3 lampvec, vec3 lv, out float inpr)
+{
+	lampvec = -normalize(lampvec);
+	lampvec = (unfviewmat*vec4(lampvec, 0.0)).xyz;
+
+	inpr = dot(lv, lampvec);
+}
+
+void lamp_visibility_spot(float spotsi, float spotbl, float inpr, float visifac, out float outvisifac)
+{
+	float t = spotsi;
+
+	if(inpr <= t) {
+		outvisifac = 0.0;
+	}
+	else {
+		t = inpr - t;
+		if(t < spotbl && spotbl != 0.0) {
+			/* soft area */
+			float i = t/spotbl;
+			t = i*i;
+			inpr *= (3.0*t - 2.0*t*i);
+		}
+		outvisifac = visifac*inpr;
+	}
+}
+
+void lamp_visibility_clamp(float visifac, out float outvisifac)
+{
+	if(visifac < 0.001)
+		outvisifac = 0.0;
+	else
+		outvisifac = visifac;
+}
+
+void shade_view(out vec3 view)
+{
+	view = normalize(varcamco);
+}
+
+void shade_tangent_v(vec3 lv, vec3 tang, out vec3 vn)
+{
+	vec3 c = cross(lv, tang);
+	vec3 vnor = cross(c, tang);
+
+	vn = -normalize(vnor);
+}
+
+void shade_inp(vec3 vn, vec3 lv, out float inp)
+{
+	inp = dot(vn, lv);
+}
+
+void shade_is_no_diffuse(out float is)
+{
+	is = 0.0;
+}
+
+void shade_is_hemi(float inp, out float is)
+{
+	is = 0.5*inp + 0.5;
+}
+
+float area_lamp_energy(mat4 area, vec3 co, vec3 vn)
+{
+	vec3 vec[4], c[4];
+	float rad[4], fac;
+	
+	vec[0] = normalize(co - area[0].xyz);
+	vec[1] = normalize(co - area[1].xyz);
+	vec[2] = normalize(co - area[2].xyz);
+	vec[3] = normalize(co - area[3].xyz);
+
+	c[0] = normalize(cross(vec[0], vec[1]));
+	c[1] = normalize(cross(vec[1], vec[2]));
+	c[2] = normalize(cross(vec[2], vec[3]));
+	c[3] = normalize(cross(vec[3], vec[0]));
+
+	rad[0] = acos(dot(vec[0], vec[1]));
+	rad[1] = acos(dot(vec[1], vec[2]));
+	rad[2] = acos(dot(vec[2], vec[3]));
+	rad[3] = acos(dot(vec[3], vec[0]));
+
+	fac=  rad[0]*dot(vn, c[0]);
+	fac+= rad[1]*dot(vn, c[1]);
+	fac+= rad[2]*dot(vn, c[2]);
+	fac+= rad[3]*dot(vn, c[3]);
+
+	return max(fac, 0.0);
+}
+
+void shade_inp_area(vec3 lampco, vec3 lampvec, vec3 vn, vec3 area[4], float areasize, float k, out float inp)
+{
+	lampvec = -normalize(lampvec);
+
+	vec3 co = varcamco;
+	vec3 vec = co - lampco;
+
+	if(dot(vec, lampvec) < 0.0) {
+		inp = 0.0;
+		return;
+	}
+
+	float intens = area_lamp_energy(area, co, vn);
+
+	inp = pow(intens*areasize, k);
+}
+
+void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out float is)
+{
+	vec3 h = normalize(v + l);
+	float nh = max(dot(n, h), 0.0);
+	float nv = max(dot(n, v), 0.0);
+	float realnl = dot(n, l);
+
+	if(realnl < 0.0) { is = 0.0; return; }
+	if(nl < 0.0) { is = 0.0; return; }
+
+	float vh = max(dot(v, h), 0.0);
+	float Lit_A = acos(realnl);
+	float View_A = acos(nv);
+
+	vec3 Lit_B = normalize(l - realnl*n);
+	vec3 View_B = normalize(v - nv*n);
+
+	float t = max(dot(Lit_B, View_B), 0.0);
+
+	float a, b;
+
+	if(Lit_A > View_A) {
+		a = Lit_A;
+		b = View_A;
+	}
+	else {
+		a = View_A;
+		b = Lit_A;
+	}
+
+	float A = 1.0 - (0.5*((rough*rough)/((rough*rough) + 0.33)));
+	float B = 0.45*((rough*rough)/((rough*rough) + 0.09));
+
+	b *= 0.95;
+	is = nl*(A + (B * t * sin(a) * tan(b)));
+}
+
+void shade_diffuse_toon(vec3 n, vec3 l, vec3 v, float size, float smooth, out float is)
+{
+	float rslt = dot(n, l);
+	float ang = acos(rslt);
+
+	if(ang < size) is = 1.0;
+	else if(ang > (size + smooth) || smooth == 0.0) is = 0.0;
+	else is = 1.0 - ((ang - size)/smooth);
+}
+
+void shade_diffuse_minnaert(float nl, vec3 n, vec3 v, float darkness, out float is)
+{
+	if(nl <= 0.0) {
+		is = 0.0;
+		return;
+	}
+
+	float nv = max(dot(n, v), 0.0);
+
+	if(darkness <= 1.0)
+		is = nl*pow(max(nv*nl, 0.1), darkness - 1.0);
+	else
+		is = nl*pow(1.0001 - nv, darkness - 1.0);
+}
+
+float fresnel_fac(vec3 view, vec3 vn, float grad, float fac)
+{
+	float t1, t2;
+
+	if(fac==0.0) return 1.0;
+
+	t1= dot(view, vn);
+	if(t1>0.0)  t2= 1.0+t1;
+	else t2= 1.0-t1;
+
+	t2= grad + (1.0-grad)*pow(t2, fac);
+
+	if(t2<0.0) return 0.0;
+	else if(t2>1.0) return 1.0;
+	return t2;
+}
+
+void shade_diffuse_fresnel(vec3 vn, vec3 lv, vec3 view, float fac_i, float fac, out float is)
+{
+	is = fresnel_fac(lv, vn, fac_i, fac);
+}
+
+void shade_cubic(float is, out float outis)
+{
+	if(is>0.0 && is<1.0)
+		outis= 3.0*is*is - 2.0*is*is*is;
+	else
+		outis= is;
+}
+
+void shade_visifac(float i, float visifac, float refl, out float outi)
+{
+	if(i > 0.0)
+		outi = i*visifac*refl;
+	else
+		outi = i;
+}
+
+void shade_tangent_v_spec(vec3 tang, out vec3 vn)
+{
+	vn = tang;
+}
+
+void shade_add_to_diffuse(float i, vec3 lampcol, vec3 col, out vec3 outcol)
+{
+	if(i > 0.0)
+		outcol = i*lampcol*col;
+	else
+		outcol = vec3(0.0, 0.0, 0.0);
+}
+
+void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, out float t)
+{
+	lv += view;
+	lv = normalize(lv);
+
+	t = dot(vn, lv);
+	t = 0.5*t + 0.5;
+
+	t = spec*pow(t, hard);
+}
+
+void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
+{
+	vec3 h = normalize(l + v);
+	float rslt = dot(h, n);
+
+	if(rslt > 0.0) rslt = pow(rslt, hard);
+	else rslt = 0.0;
+
+	specfac = rslt;
+}
+
+void shade_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
+{
+	vec3 h = normalize(v + l);
+	float nh = dot(n, h);
+
+	if(nh < 0.0) {
+		specfac = 0.0;
+		return;
+	}
+
+	float nv = max(dot(n, v), 0.0);
+	float i = pow(nh, hard);
+
+	i = i/(0.1+nv);
+	specfac = i;
+}
+
+void shade_blinn_spec(vec3 n, vec3 l, vec3 v, float refrac, float spec_power, out float specfac)
+{
+	if(refrac < 1.0) { specfac = 0.0; return; }
+	if(spec_power == 0.0) { specfac = 0.0; return; }
+
+	if(spec_power<100.0)
+		spec_power= sqrt(1.0/spec_power);
+	else
+		spec_power= 10.0/spec_power;
+
+	vec3 h = normalize(v + l);
+	float nh = dot(n, h);
+	if(nh < 0.0) { specfac = 0.0; return; }
+
+	float nv = max(dot(n, v), 0.01);
+	float nl = dot(n, l);
+	if(nl <= 0.01) { specfac = 0.0; return; }
+
+	float vh = max(dot(v, h), 0.01);
+
+	float a = 1.0;
+	float b = (2.0*nh*nv)/vh;
+	float c = (2.0*nh*nl)/vh;
+
+	float g;
+
+	if(a < b && a < c) g = a;
+	else if(b < a && b < c) g = b;
+	else if(c < a && c < b) g = c;
+
+	float p = sqrt(((refrac * refrac)+(vh*vh)-1.0));
+	float f = (((p-vh)*(p-vh))/((p+vh)*(p+vh)))*(1.0+((((vh*(p+vh))-1.0)*((vh*(p+vh))-1.0))/(((vh*(p-vh))+1.0)*((vh*(p-vh))+1.0))));
+	float ang = acos(nh);
+
+	specfac = max(f*g*exp((-(ang*ang)/(2.0*spec_power*spec_power))), 0.0);
+}
+
+void shade_wardiso_spec(vec3 n, vec3 l, vec3 v, float rms, out float specfac)
+{
+	vec3 h = normalize(l + v);
+	float nh = max(dot(n, h), 0.001);
+	float nv = max(dot(n, v), 0.001);
+	float nl = max(dot(n, l), 0.001);
+	float angle = tan(acos(nh));
+	float alpha = max(rms, 0.001);
+
+	specfac= nl * (1.0/(4.0*M_PI*alpha*alpha))*(exp(-(angle*angle)/(alpha*alpha))/(sqrt(nv*nl)));
+}
+
+void shade_toon_spec(vec3 n, vec3 l, vec3 v, float size, float smooth, out float specfac)
+{
+	vec3 h = normalize(l + v);
+	float rslt = dot(h, n);
+	float ang = acos(rslt);
+
+	if(ang < size) rslt = 1.0;
+	else if(ang >= (size + smooth) || smooth == 0.0) rslt = 0.0;
+	else rslt = 1.0 - ((ang - size)/smooth);
+
+	specfac = rslt;
+}
+
+void shade_spec_area_inp(float specfac, float inp, out float outspecfac)
+{
+	outspecfac = specfac*inp;
+}
+
+void shade_spec_t(float spec, float visifac, float specfac, out float t)
+{
+	t = spec*visifac*specfac;
+}
+
+void shade_add_spec(float t, vec3 lampcol, vec3 speccol, float visifac, out vec3 outcol)
+{
+	outcol = t*lampcol*speccol*visifac;
+}
+
+void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
+{
+	outcol = col1 + col2;
+}
+
+void shade_emit(float fac, vec4 col, out vec4 outcol)
+{
+	outcol = col*fac;
+}
+
+#if 0
 void shade_one_light(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, vec3 lv, float visifac, out vec4 outcol)
 {
 	vec3 v = -normalize(varcamco);
@@ -567,14 +967,6 @@ void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, 
 	shade_one_light(col, ref, spec, specfac, hard, normal, vec3(0.500, 0.500, 0.100), 1.0, outcol);
 	combined += outcol*vec4(0.2, 0.2, 0.5, 1.0);
 }
+#endif
 
-void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
-{
-	outcol = col1 + col2;
-}
-
-void shade_emit(float fac, vec4 col, out vec4 outcol)
-{
-	outcol = col*fac;
-}
 

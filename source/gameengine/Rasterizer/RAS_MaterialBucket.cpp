@@ -177,7 +177,6 @@ bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_I
 	bool dolights = false;
 	const unsigned int flag = m_material->GetFlag();
 
-
 	if( flag & RAS_BLENDERMAT)
 		dolights = (flag &RAS_MULTILIGHT)!=0;
 	else
@@ -316,14 +315,14 @@ void RAS_MaterialBucket::Render(const MT_Transform& cameratrans,
 
 	//rasty->SetMaterial(*m_material);
 	
-	
 	int drawmode;
 	for (T_MeshSlotList::const_iterator it = m_meshSlots.begin();
 	! (it == m_meshSlots.end()); ++it)
 	{
 		rendertools->SetClientObject((*it).m_clientObj);
-		while (ActivateMaterial(cameratrans, rasty, rendertools, drawmode))
+		while (ActivateMaterial(cameratrans, rasty, rendertools, drawmode)) {
 			RenderMeshSlot(cameratrans, rasty, rendertools, *it, drawmode);
+		}
 	}
 	// to reset the eventual GL_CW mode
 	rendertools->SetClientObject(NULL);

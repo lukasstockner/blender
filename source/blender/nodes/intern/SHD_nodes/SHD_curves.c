@@ -56,34 +56,13 @@ static void node_shader_init_curve_vec(bNode* node)
    node->storage= curvemapping_add(3, -1.0f, -1.0f, 1.0f, 1.0f);
 }
 
-static GPUNodeLink *gpu_curvemapping_texture(CurveMapping *cumap)
-{
-	GPUNodeLink *link;
-	float *pixels;
-	int a, size = CM_TABLE+1;
-
-	pixels = MEM_mallocN(sizeof(float)*size*4, "GPUCurveMap");
-	curvemapping_initialize(cumap);
-
-	for(a=0; a<size; a++) {
-		pixels[a*4+0]= cumap->cm[0].table[a].y;
-		pixels[a*4+1]= cumap->cm[1].table[a].y;
-		pixels[a*4+2]= cumap->cm[2].table[a].y;
-		if(cumap->cm[3].table)
-			pixels[a*4+3]= cumap->cm[3].table[a].y;
-		else
-			pixels[a*4+3]= 1.0f;
-	}
-
-	link = GPU_texture(size, pixels);
-
-	return link;
-}
-
 static GPUNode *gpu_shader_curve_vec(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	GPUNodeLink *tex = gpu_curvemapping_texture(node->storage);
-	return GPU_stack_link(mat, "curves_vec", in, out, tex);
+	float *array;
+	int size;
+
+	curvemapping_table_RGBA(node->storage, &array, &size);
+	return GPU_stack_link(mat, "curves_vec", in, out, GPU_texture(size, array));
 }
 
 bNodeType sh_node_curve_vec= {
@@ -133,9 +112,11 @@ static void node_shader_init_curve_rgb(bNode *node)
 
 static GPUNode *gpu_shader_curve_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	GPUNodeLink *tex = gpu_curvemapping_texture(node->storage);
+	float *array;
+	int size;
 
-	return GPU_stack_link(mat, "curves_rgb", in, out, tex);
+	curvemapping_table_RGBA(node->storage, &array, &size);
+	return GPU_stack_link(mat, "curves_rgb", in, out, GPU_texture(size, array));
 }
 
 bNodeType sh_node_curve_rgb= {

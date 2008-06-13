@@ -417,6 +417,8 @@ void space_set_commmandline_options(void) {
 
 		a=(G.fileflags & G_FILE_GAME_MAT);
 		SYS_WriteCommandLineInt(syshandle, "blender_material", a);
+		a=(G.fileflags & G_FILE_GAME_MAT_GLSL);
+		SYS_WriteCommandLineInt(syshandle, "blender_glsl_material", a);
 		a=(G.fileflags & G_FILE_DIAPLAY_LISTS);
 		SYS_WriteCommandLineInt(syshandle, "displaylists", a);
 
@@ -4277,22 +4279,11 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 			(xpos+edgsp+(5*mpref)+(5*midsp)),y3,mpref,buth,
 			&(U.gameflags), 0, 0, 0, 0, "Toggles between vertex arrays on (less reliable) and off (more reliable)");
 
-		if(GPU_extensions_minimum_support()) {
-			uiDefButBitI(block, TOG, USER_GL_SHADED_MODE, B_DRAWINFO, "GL Shaded Mode",
-				(xpos+edgsp+(5*mpref)+(5*midsp)), y2, mpref, buth, 
-				&U.gameflags, 0, 0, 0, 0, "Use the OpenGL Shading Language to draw the material in shaded mode.");
-		}
-		else {
-			uiDefBut(block, LABEL,0,"GL Shaded Mode: not supported.",
-				(xpos+edgsp+(5*mpref)+(5*midsp)),y2,mpref,buth, 0, 0, 0, 0, 0, "");
-		}
-
-		uiBlockBeginAlign(block);
-		uiDefButI(block, NUM, 0, "Timeout", // Out ",
-			(xpos+edgsp+(5*mpref)+(5*midsp)), y1, mpref/2, buth, 
+		uiDefButI(block, NUM, 0, "Time Out ",
+			(xpos+edgsp+(5*mpref)+(5*midsp)), y2, mpref, buth, 
 			&U.textimeout, 0.0, 3600.0, 30, 2, "Time since last access of a GL texture in seconds after which it is freed. (Set to 0 to keep textures allocated)");
-		uiDefButI(block, NUM, 0, "Interval", //Collect Rate ",
-			(xpos+edgsp+(5*mpref)+(5*midsp) + mpref/2), y1, mpref/2, buth, 
+		uiDefButI(block, NUM, 0, "Collect Rate ",
+			(xpos+edgsp+(5*mpref)+(5*midsp)), y1, mpref, buth, 
 			&U.texcollectrate, 1.0, 3600.0, 30, 2, "Number of seconds between each run of the GL texture garbage collector.");
 		uiBlockEndAlign(block);
 

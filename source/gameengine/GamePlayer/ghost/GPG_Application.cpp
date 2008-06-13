@@ -50,6 +50,8 @@
 #endif
 #endif
 
+#include "GPU_extensions.h"
+
 #include "GPG_Application.h"
 
 #include <iostream>
@@ -134,7 +136,8 @@ GPG_Application::GPG_Application(GHOST_ISystem* system, struct Main* maggie, STR
 	  m_sceneconverter(0),
 	  m_networkdevice(0), 
 	  m_audiodevice(0),
-	  m_blendermat(0)
+	  m_blendermat(0),
+	  m_blenderglslmat(0)
 {
 	fSystem = system;
 }
@@ -528,6 +531,13 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 			m_blendermat=0;
 #endif//GL_ARB_multitexture
 		// ----------------------------------
+
+		GPU_extensions_init();
+		if(GPU_extensions_minimum_support()) {
+			int gameflag = (G.fileflags & G_FILE_GAME_MAT_GLSL);
+
+			m_blenderglslmat = (SYS_GetCommandLineInt(syshandle, "blender_glsl_material", gameflag) != 0);
+		}
 	
 		// create the canvas, rasterizer and rendertools
 		m_canvas = new GPG_Canvas(window);
@@ -655,6 +665,8 @@ bool GPG_Application::startEngine(void)
 		//		sceneconverter->SetAlwaysUseExpandFraming(true);
 		if(m_blendermat)
 			m_sceneconverter->SetMaterials(true);
+		if(m_blenderglslmat)
+			m_sceneconverter->SetGLSLMaterials(true);
 
 		KX_Scene* startscene = new KX_Scene(m_keyboard,
 			m_mouse,

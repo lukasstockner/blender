@@ -81,6 +81,8 @@
 #include "DNA_scene_types.h"
 	/***/
 
+#include "GPU_extensions.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -156,7 +158,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 		bool game2ipo = (SYS_GetCommandLineInt(syshandle, "game2ipo", 0) != 0);
 		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0);
-		bool usemat = false;
+		bool usemat = false, useglslmat = false;
 		
 		#if defined(GL_ARB_multitexture) && defined(WITH_GLEXT)
 		if (!getenv("WITHOUT_GLEXT")) {
@@ -172,6 +174,9 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 		}
 		#endif
 
+		if(GPU_extensions_minimum_support()) {
+			useglslmat = (SYS_GetCommandLineInt(syshandle, "blender_glsl_material", 0) != 0);
+		}
 
 		// create the canvas, rasterizer and rendertools
 		RAS_ICanvas* canvas = new KX_BlenderCanvas(area);
@@ -338,6 +343,8 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 			
 			if(usemat)
 				sceneconverter->SetMaterials(true);
+			if(useglslmat)
+				sceneconverter->SetGLSLMaterials(true);
 					
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,
 				mousedevice,

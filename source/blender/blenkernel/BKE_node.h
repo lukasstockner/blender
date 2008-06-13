@@ -258,7 +258,7 @@ void			nodeShaderSynchronizeID(struct bNode *node, int copyto);
 extern void (*node_shader_lamp_loop)(struct ShadeInput *, struct ShadeResult *);
 void			set_node_shader_lamp_loop(void (*lamp_loop_func)(struct ShadeInput *, struct ShadeResult *));
 
-struct GPUMaterial *ntreeShaderCreateGPU(struct bNodeTree *tree);
+void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 
 
 /* ************** COMPOSITE NODES *************** */

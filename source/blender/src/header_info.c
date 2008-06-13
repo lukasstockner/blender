@@ -118,6 +118,8 @@
 #include "BPY_extern.h"
 #include "BPY_menus.h"
 
+#include "GPU_extensions.h"
+
 #include "blendef.h"
 #include "interface.h"
 #include "mydevice.h"
@@ -1556,9 +1558,20 @@ static void do_info_gamemenu(void *arg, int event)
 	case G_FILE_SHOW_DEBUG_PROPS:
 	case G_FILE_AUTOPLAY:
 	case G_FILE_GAME_TO_IPO:
-	case G_FILE_GAME_MAT:
 	case G_FILE_SHOW_PHYSICS:
 		G.fileflags ^= event;
+		break;
+	case G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL:
+		G.fileflags &= ~(G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL);
+		break;
+	case G_FILE_GAME_MAT:
+		G.fileflags |= G_FILE_GAME_MAT;
+		G.fileflags &= ~G_FILE_GAME_MAT_GLSL;
+		break;
+	case G_FILE_GAME_MAT_GLSL:
+		if(!GPU_extensions_minimum_support())
+			error("GLSL not supported with this graphics card or driver.");
+		G.fileflags |= (G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL);
 		break;
 	default:
 		; /* ignore the rest */
@@ -1598,14 +1611,6 @@ static uiBlock *info_gamemenu(void *arg_unused)
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
 	}
 	
-	if(G.fileflags & G_FILE_GAME_MAT) {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Use Blender Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT, "");
-	} else {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Use Blender Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT, "");
-	}	
-
-
-
 	if(G.fileflags & G_FILE_SHOW_FRAMERATE) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Show Framerate and Profile",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_SHOW_FRAMERATE, "");
 	} else {
@@ -1624,6 +1629,26 @@ static uiBlock *info_gamemenu(void *arg_unused)
 	} else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Show Debug Properties",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_SHOW_DEBUG_PROPS, "");
 	}
+
+	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 1, 0, "");
+
+	if(!(G.fileflags & G_FILE_GAME_MAT)) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Texture Face Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Texture Face Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL, "");
+	}	
+
+	if((G.fileflags & G_FILE_GAME_MAT) && !(G.fileflags & G_FILE_GAME_MAT_GLSL)) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Blender Multitexture Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Blender Multitexture Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT, "");
+	}	
+
+	if((G.fileflags & G_FILE_GAME_MAT) && (G.fileflags & G_FILE_GAME_MAT_GLSL)) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Blender GLSL Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Blender GLSL Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT_GLSL, "");
+	}	
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 1, 0, "");
 

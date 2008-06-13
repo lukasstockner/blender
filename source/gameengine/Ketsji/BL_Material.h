@@ -47,6 +47,7 @@ public:
 
 	int IdMode;
 	unsigned int ras_mode;
+	bool glslmat;
 
 	STR_String texname[MAXTEX];
 	unsigned int flag[MAXTEX];

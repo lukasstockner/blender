@@ -220,6 +220,7 @@ typedef struct Global {
 #define G_FILE_GAME_MAT			 (1 << 12)
 #define G_FILE_DIAPLAY_LISTS	 (1 << 13)
 #define G_FILE_SHOW_PHYSICS		 (1 << 14)
+#define G_FILE_GAME_MAT_GLSL	 (1 << 15)
 
 /* G.windowstate */
 #define G_WINDOWSTATE_USERDEF		0

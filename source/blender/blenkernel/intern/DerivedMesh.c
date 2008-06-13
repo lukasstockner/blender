@@ -3119,11 +3119,11 @@ static void DM_add_tangent_layer(DerivedMesh *dm)
 
 		if (mf->v4) {
 			v4= &mvert[mf->v4];
-			CalcNormFloat4(v1->co, v2->co, v3->co, v4->co, fno);
+			CalcNormFloat4(v4->co, v3->co, v2->co, v1->co, fno);
 		}
 		else {
 			v4= NULL;
-			CalcNormFloat(v1->co, v2->co, v3->co, fno);
+			CalcNormFloat(v3->co, v2->co, v1->co, fno);
 		}
 		
 		if(mtface) {

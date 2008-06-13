@@ -90,7 +90,6 @@
 #include "BKE_material.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
-#include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_anim.h"			//for the where_on_path function
 #include "BKE_particle.h"
@@ -188,16 +187,13 @@ int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 			Material *mat = gpumatbuf[nr];
 
 			if(mat) {
-				if(!mat->gpumaterial) {
-					if(mat->nodetree && mat->use_nodes)
-						mat->gpumaterial= ntreeShaderCreateGPU(mat->nodetree);
-					else
-						mat->gpumaterial= GPU_material_from_blender(mat);
-				}
+				if(!mat->gpumaterial)
+					mat->gpumaterial= GPU_material_from_blender(mat, GPU_PROFILE_DERIVEDMESH);
 
 				if(mat->gpumaterial) {
 					GPU_material_vertex_attributes(mat->gpumaterial, attribs);
-					GPU_material_bind(gpuob, mat->gpumaterial);
+					GPU_material_bind(mat->gpumaterial);
+					GPU_material_bind_uniforms(mat->gpumaterial, gpuob->obmat, G.vd->viewmat);
 					gpuboundmat= mat;
 				}
 			}
@@ -316,8 +312,11 @@ static int do_gpu_material(int dt)
 		return 0;
 	if(G.f & G_PICKSEL)
 		return 0;
+	if(!CHECK_OB_DRAWTEXTURE(G.vd, dt))
+		return 0;
 
-	return ((U.gameflags & USER_GL_SHADED_MODE) && dt == OB_SHADED);
+	return ((G.fileflags & G_FILE_GAME_MAT) &&
+	   (G.fileflags & G_FILE_GAME_MAT_GLSL) && (dt >= OB_SHADED));
 }
 
 	/***/
@@ -2156,8 +2155,19 @@ static void draw_em_fancy(Object *ob, EditMesh *em, DerivedMesh *cageDM, Derived
 	EM_init_index_arrays(1, 1, 1);
 
 	if(dt>OB_WIRE) {
-		if( CHECK_OB_DRAWTEXTURE(G.vd, dt) ) {
-			draw_mesh_textured(ob, finalDM, 0);
+		if(CHECK_OB_DRAWTEXTURE(G.vd, dt)) {
+			if(do_gpu_material(dt)) {
+				glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
+
+				finalDM->drawMappedFacesGLSL(finalDM, set_gl_material_attribs,
+					draw_em_fancy__setGLSLFaceOpts, NULL);
+				set_gl_material(-1);
+
+				glFrontFace(GL_CCW);
+			}
+			else {
+				draw_mesh_textured(ob, finalDM, 0);
+			}
 		}
 		else {
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED);
@@ -2165,13 +2175,7 @@ static void draw_em_fancy(Object *ob, EditMesh *em, DerivedMesh *cageDM, Derived
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			if(do_gpu_material(dt)) {
-				finalDM->drawMappedFacesGLSL(finalDM, set_gl_material_attribs,
-					draw_em_fancy__setGLSLFaceOpts, NULL);
-				set_gl_material(-1);
-			}
-			else
-				finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, 0, 0);
+			finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, 0, 0);
 
 			glFrontFace(GL_CCW);
 			glDisable(GL_LIGHTING);
@@ -2386,15 +2390,23 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 	else if(dt==OB_WIRE || totface==0) {
 		draw_wire = 1; /* draw wire only, no depth buffer stuff  */
 	}
-	else if(((ob==OBACT && (G.f & G_TEXTUREPAINT || FACESEL_PAINT_TEST) && (!do_gpu_material(dt))) || CHECK_OB_DRAWTEXTURE(G.vd, dt)))
-	{
+	else if((ob==OBACT && (G.f & G_TEXTUREPAINT || FACESEL_PAINT_TEST)) || CHECK_OB_DRAWTEXTURE(G.vd, dt)) {
 		int faceselect= (ob==OBACT && FACESEL_PAINT_TEST);
 
 		if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !(G.f&G_PICKSEL || FACESEL_PAINT_TEST) && !draw_wire) {
 			draw_mesh_object_outline(ob, dm);
 		}
 
-		draw_mesh_textured(ob, dm, faceselect);
+		if(do_gpu_material(dt)) {
+			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
+
+			dm->drawFacesGLSL(dm, set_gl_material_attribs);
+			set_gl_material(-1);
+
+			glFrontFace(GL_CCW);
+		}
+		else
+			draw_mesh_textured(ob, dm, faceselect);
 
 		if(!faceselect) {
 			if(base->flag & SELECT)
@@ -2405,11 +2417,9 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 			dm->drawLooseEdges(dm);
 		}
 	}
-	else if(dt==OB_SOLID ) {
-		
-		if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire) {
+	else if(dt==OB_SOLID) {
+		if((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire)
 			draw_mesh_object_outline(ob, dm);
-		}
 
 		glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED );
 
@@ -2451,7 +2461,6 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
 			}
-			else if(do_gpu_material(dt)) do_draw= 1;
 			else if((G.f & (G_VERTEXPAINT+G_TEXTUREPAINT)) && me->mcol) {
 				dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, NULL, 1);
 			}
@@ -2462,43 +2471,26 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 			else do_draw= 1;
 		}
 		if(do_draw) {
-			if(do_gpu_material(dt)) {
-				/* opengl shading language */
-				if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire)
-					draw_mesh_object_outline(ob, dm);
-
-				glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED);
-				glEnable(GL_LIGHTING);
-				glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
-
-				dm->drawFacesGLSL(dm, set_gl_material_attribs);
-				set_gl_material(-1);
-
-				glFrontFace(GL_CCW);
-				glDisable(GL_LIGHTING);
+			dl = ob->disp.first;
+			if (!dl || !dl->col1) {
+				/* release and reload derivedmesh because it might be freed in
+				   shadeDispList due to a different datamask */
+				dm->release(dm);
+				shadeDispList(base);
+				dl = find_displist(&ob->disp, DL_VERTCOL);
+				dm= mesh_get_derived_final(ob, get_viewedit_datamask());
 			}
-			else {
-				dl = ob->disp.first;
-				if (!dl || !dl->col1) {
-					/* release and reload derivedmesh because it might be freed in
-					   shadeDispList due to a different datamask */
-					dm->release(dm);
-					shadeDispList(base);
-					dl = find_displist(&ob->disp, DL_VERTCOL);
-					dm= mesh_get_derived_final(ob, get_viewedit_datamask());
-				}
 
-				if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire) {
-					draw_mesh_object_outline(ob, dm);
-				}
+			if ((G.vd->flag&V3D_SELECT_OUTLINE) && (base->flag&SELECT) && !draw_wire) {
+				draw_mesh_object_outline(ob, dm);
+			}
 
-					/* False for dupliframe objects */
-				if (dl) {
-					unsigned int *obCol1 = dl->col1;
-					unsigned int *obCol2 = dl->col2;
+				/* False for dupliframe objects */
+			if (dl) {
+				unsigned int *obCol1 = dl->col1;
+				unsigned int *obCol2 = dl->col2;
 
-					dm->drawFacesColored(dm, me->flag&ME_TWOSIDED, (unsigned char*) obCol1, (unsigned char*) obCol2);
-				}
+				dm->drawFacesColored(dm, me->flag&ME_TWOSIDED, (unsigned char*) obCol1, (unsigned char*) obCol2);
 			}
 
 			if(base->flag & SELECT) {
