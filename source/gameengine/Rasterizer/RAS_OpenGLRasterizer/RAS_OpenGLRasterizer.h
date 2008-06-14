@@ -41,7 +41,8 @@ using namespace std;
 #include "RAS_MaterialBucket.h"
 #include "RAS_ICanvas.h"
 
-#define RAS_MAX 3// match in BL_Material
+#define RAS_MAX 		3	// match in BL_Material
+#define RAS_MAX_ATTRIB	16	// match in BL_BlenderShader
 
 struct	OglDebugLine
 {
@@ -95,6 +96,7 @@ class RAS_OpenGLRasterizer : public RAS_IRasterizer
 protected:
 	int				m_drawingmode;
 	TexCoGen		m_texco[RAS_MAX];
+	TexCoGen		m_texcoattrib[RAS_MAX_ATTRIB];
 	bool			m_useTang;
 
 	/** Stores the caching information for the last material activated. */
@@ -286,9 +288,10 @@ public:
 
 	std::vector <OglDebugLine>	m_debugLines;
 
-	virtual void	SetTexCoords(TexCoGen coords,int enabled);
+	virtual void	SetTexCoords(TexCoGen coords,int unit);
+	virtual void	SetTexCoordsAttrib(TexCoGen coords,int unit);
 	virtual void	SetAttrib(int type);
-	void			TexCoord(const RAS_TexVert &tv, int unit);
+	void			TexCoord(const RAS_TexVert &tv, int enabled, int enabledattribs);
 	virtual void	GetViewMatrix(MT_Matrix4x4 &mat) const;
 
 	void	Tangent(const RAS_TexVert& v1,

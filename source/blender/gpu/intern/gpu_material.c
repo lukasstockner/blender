@@ -640,6 +640,9 @@ GPUMaterial *GPU_material_from_blender(Material *ma, int profile)
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
 
+	if(ma->gpumaterial)
+		return ma->gpumaterial;
+
 	mat = GPU_material_construct_begin(profile);
 
 	if(ma->nodetree && ma->use_nodes) {
@@ -655,6 +658,7 @@ GPUMaterial *GPU_material_from_blender(Material *ma, int profile)
 		mat= NULL;
 	}
 
-	return mat;
+	ma->gpumaterial= mat;
+	return ma->gpumaterial;
 }
 

@@ -48,9 +48,9 @@ public:
 	BL_MeshDeformer(struct Object* obj, class BL_SkinMeshObject *meshobj ):
 		m_pMeshObject(meshobj),
 		m_bmesh((struct Mesh*)(obj->data)),
-		m_objMesh(obj),
 		m_transnors(NULL),
 		m_transverts(NULL),
+		m_objMesh(obj),
 		m_tvtot(0)
 	{};
 	virtual ~BL_MeshDeformer();

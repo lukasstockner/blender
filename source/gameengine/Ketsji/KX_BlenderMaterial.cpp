@@ -821,11 +821,14 @@ void KX_BlenderMaterial::SetBlenderGLSLShader(void)
 {
 	if(!mBlenderShader)
 		mBlenderShader = new BL_BlenderShader(mMaterial->material);
-	
+
 	if(!mBlenderShader->Ok()) {
+		m_enabledattribs = 0;
 		delete mBlenderShader;
 		mBlenderShader = 0;
 	}
+	else
+		m_enabledattribs = mBlenderShader->GetEnabledAttribs();
 }
 
 KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getMaterialIndex, "getMaterialIndex()")

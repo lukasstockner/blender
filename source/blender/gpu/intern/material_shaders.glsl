@@ -690,7 +690,7 @@ float area_lamp_energy(mat4 area, vec3 co, vec3 vn)
 	return max(fac, 0.0);
 }
 
-void shade_inp_area(vec3 lampco, vec3 lampvec, vec3 vn, vec3 area[4], float areasize, float k, out float inp)
+void shade_inp_area(vec3 lampco, vec3 lampvec, vec3 vn, mat4 area, float areasize, float k, out float inp)
 {
 	lampvec = -normalize(lampvec);
 
@@ -744,14 +744,14 @@ void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out
 	is = nl*(A + (B * t * sin(a) * tan(b)));
 }
 
-void shade_diffuse_toon(vec3 n, vec3 l, vec3 v, float size, float smooth, out float is)
+void shade_diffuse_toon(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out float is)
 {
 	float rslt = dot(n, l);
 	float ang = acos(rslt);
 
 	if(ang < size) is = 1.0;
-	else if(ang > (size + smooth) || smooth == 0.0) is = 0.0;
-	else is = 1.0 - ((ang - size)/smooth);
+	else if(ang > (size + tsmooth) || tsmooth == 0.0) is = 0.0;
+	else is = 1.0 - ((ang - size)/tsmooth);
 }
 
 void shade_diffuse_minnaert(float nl, vec3 n, vec3 v, float darkness, out float is)

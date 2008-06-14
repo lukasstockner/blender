@@ -12,6 +12,8 @@
 
 struct Material;
 
+#define BL_MAX_ATTRIB	16
+
 /**
  * BL_BlenderShader
  *  Blender GPU shader material
@@ -31,6 +33,7 @@ public:
 
 	void ApplyShader();
 	void SetTexCoords(class RAS_IRasterizer* ras);
+	int GetEnabledAttribs();
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
 };
 

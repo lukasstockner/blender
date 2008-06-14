@@ -426,6 +426,7 @@ PFNGLGETATTRIBLOCATIONARBPROC blGetAttribLocationARB;
  PFNGLVERTEXATTRIB3FVARBPROC blVertexAttrib3fvARB;
  PFNGLVERTEXATTRIB4FARBPROC blVertexAttrib4fARB;
  PFNGLVERTEXATTRIB4FVARBPROC blVertexAttrib4fvARB;
+ PFNGLVERTEXATTRIBPOINTERARBPROC blVertexAttribPointerARB;
  PFNGLGETPROGRAMSTRINGARBPROC blGetProgramStringARB;
  PFNGLGETVERTEXATTRIBDVARBPROC blGetVertexAttribdvARB;
  PFNGLGETVERTEXATTRIBFVARBPROC blGetVertexAttribfvARB;
@@ -634,6 +635,7 @@ static void LinkExtensions()
 		bgl::blVertexAttrib3fvARB = reinterpret_cast<PFNGLVERTEXATTRIB3FVARBPROC>(bglGetProcAddress((const GLubyte *) "glVertexAttrib3fvARB"));
 		bgl::blVertexAttrib4fARB = reinterpret_cast<PFNGLVERTEXATTRIB4FARBPROC>(bglGetProcAddress((const GLubyte *) "glVertexAttrib4fARB"));
 		bgl::blVertexAttrib4fvARB = reinterpret_cast<PFNGLVERTEXATTRIB4FVARBPROC>(bglGetProcAddress((const GLubyte *) "glVertexAttrib4fvARB"));
+		bgl::blVertexAttribPointerARB = reinterpret_cast<PFNGLVERTEXATTRIBPOINTERARBPROC>(bglGetProcAddress((const GLubyte *) "glVertexAttribPointerARB"));
 		bgl::blGetVertexAttribdvARB = reinterpret_cast<PFNGLGETVERTEXATTRIBDVARBPROC>(bglGetProcAddress((const GLubyte *) "glGetVertexAttribdvARB"));
 		bgl::blGetVertexAttribfvARB = reinterpret_cast<PFNGLGETVERTEXATTRIBFVARBPROC>(bglGetProcAddress((const GLubyte *) "glGetVertexAttribfvARB"));
 		bgl::blGetVertexAttribivARB = reinterpret_cast<PFNGLGETVERTEXATTRIBIVARBPROC>(bglGetProcAddress((const GLubyte *) "glGetVertexAttribivARB"));

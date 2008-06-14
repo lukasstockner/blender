@@ -244,6 +244,7 @@ void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti( const vecVertexArray& vertexa
 	const RAS_TexVert* vertexarray;
 	unsigned int numindices, vt;
 	const unsigned int enabled = polymat->GetEnabled();
+	const unsigned int enabledattribs = polymat->GetEnabledAttribs();
 
 	if (drawmode != GL_LINES)
 	{
@@ -273,7 +274,7 @@ void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti( const vecVertexArray& vertexa
 			continue;
 		
 		glVertexPointer(3,GL_FLOAT,vtxstride,vertexarray->getLocalXYZ());
-		TexCoordPtr(vertexarray, enabled);
+		TexCoordPtr(vertexarray, enabled, enabledattribs);
 
 		//glTexCoordPointer(2,GL_FLOAT,vtxstride,vertexarray->getUV1());
 		glColorPointer(4,GL_UNSIGNED_BYTE,vtxstride,vertexarray->getRGBA());
@@ -290,7 +291,7 @@ void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti( const vecVertexArray& vertexa
 	}
 }
 
-void RAS_VAOpenGLRasterizer::TexCoordPtr(const RAS_TexVert *tv, int enabled)
+void RAS_VAOpenGLRasterizer::TexCoordPtr(const RAS_TexVert *tv, int enabled, int enabledattribs)
 {
 #if defined(GL_ARB_multitexture) && defined(WITH_GLEXT)
 	if (!getenv("WITHOUT_GLEXT")) {
@@ -331,11 +332,43 @@ void RAS_VAOpenGLRasterizer::TexCoordPtr(const RAS_TexVert *tv, int enabled)
 				}
 			}
 		}
+	}
+#endif
 
 #ifdef GL_ARB_vertex_program
-		if(m_useTang && bgl::RAS_EXT_support._ARB_vertex_program)
+	if(bgl::RAS_EXT_support._ARB_vertex_program) {
+		for(int unit=0; unit<enabledattribs; unit++) {
+			if( tv->getFlag() & TV_2NDUV && tv->getUnit() == unit ) {
+				bgl::blVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV2());
+				continue;
+			}
+			switch(m_texcoattrib[unit]) {
+			case RAS_TEXCO_DISABLE:
+			case RAS_TEXCO_OBJECT:
+			case RAS_TEXCO_GEN:
+				break;
+			case RAS_TEXCO_ORCO:
+			case RAS_TEXCO_GLOB:
+				bgl::blVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getLocalXYZ());
+				break;
+			case RAS_TEXCO_UV1:
+				bgl::blVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV1());
+				break;
+			case RAS_TEXCO_NORM:
+				bgl::blVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
+				break;
+			case RAS_TEXTANGENT:
+				bgl::blVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
+				break;
+			case RAS_TEXCO_UV2:
+				bgl::blVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV2());
+				break;
+			}
+		}
+
+		/* TODO brecht: this looks broken? test if it ever runs */
+		if(m_useTang)
 			bgl::blVertexAttrib4fvARB(1/*tangent*/, tv->getTangent());
-#endif
 	}
 #endif
 }

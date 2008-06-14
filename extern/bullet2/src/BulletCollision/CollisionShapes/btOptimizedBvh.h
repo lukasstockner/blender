@@ -144,6 +144,7 @@ ATTRIBUTE_ALIGNED16(class) btOptimizedBvh
 	btVector3			m_bvhAabbMin;
 	btVector3			m_bvhAabbMax;
 	btVector3			m_bvhQuantization;
+	btVector3			m_bvhQuantizationInv;
 
 	enum btTraversalMode
 	{
@@ -204,6 +205,17 @@ ATTRIBUTE_ALIGNED16(class) btOptimizedBvh
 		return m_leafNodes[nodeIndex].m_aabbMaxOrg;
 		
 	}
+	btVector3 getAabbCenter(int nodeIndex) const
+	{
+		if (m_useQuantization)
+		{
+			const btQuantizedBvhNode& node = m_quantizedLeafNodes[nodeIndex];
+			return unQuantizeCenter(node.m_quantizedAabbMin, node.m_quantizedAabbMax);
+		}
+		//non-quantized
+		return btScalar(0.5)*(m_leafNodes[nodeIndex].m_aabbMinOrg+m_leafNodes[nodeIndex].m_aabbMaxOrg);
+	}
+
 
 	void	setQuantizationValues(const btVector3& bvhAabbMin,const btVector3& bvhAabbMax,btScalar quantizationMargin=btScalar(1.0));
 	
@@ -255,9 +267,7 @@ protected:
 
 	void	buildTree	(int startIndex,int endIndex);
 
-	int	calcSplittingAxis(int startIndex,int endIndex);
-
-	int	sortAndCalcSplittingIndex(int startIndex,int endIndex,int splitAxis);
+	int	sortAndCalcSplittingIndex(int startIndex,int endIndex);
 	
 	void	walkStacklessTree(btNodeOverlapCallback* nodeCallback,const btVector3& aabbMin,const btVector3& aabbMax) const;
 
@@ -298,6 +308,8 @@ public:
 	void quantizeWithClamp(unsigned short* out, const btVector3& point) const;
 	
 	btVector3	unQuantize(const unsigned short* vecIn) const;
+	btVector3	unQuantizeCenter(const unsigned short* vecMin, const unsigned short *vecMax) const;
+	btVector3	unQuantize(const unsigned int* vecIn) const;
 
 	///setTraversalMode let's you choose between stackless, recursive or stackless cache friendly tree traversal. Note this is only implemented for quantized trees.
 	void	setTraversalMode(btTraversalMode	traversalMode)

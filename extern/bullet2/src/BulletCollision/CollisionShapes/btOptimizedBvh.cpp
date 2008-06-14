@@ -334,6 +334,10 @@ void	btOptimizedBvh::setQuantizationValues(const btVector3& bvhAabbMin,const btV
 	m_bvhAabbMax = bvhAabbMax + clampValue;
 	btVector3 aabbSize = m_bvhAabbMax - m_bvhAabbMin;
 	m_bvhQuantization = btVector3(btScalar(65535.0),btScalar(65535.0),btScalar(65535.0)) / aabbSize;
+	m_bvhQuantizationInv = btVector3(
+		btScalar(1.0)/m_bvhQuantization.getX(),
+		btScalar(1.0)/m_bvhQuantization.getY(),
+		btScalar(1.0)/m_bvhQuantization.getZ());
 }
 
 
@@ -384,7 +388,7 @@ void	btOptimizedBvh::buildTree	(int startIndex,int endIndex)
 #endif //DEBUG_TREE_BUILDING
 
 
-	int splitAxis, splitIndex, i;
+	int splitIndex, i;
 	int numIndices =endIndex-startIndex;
 	int curIndex = m_curNodeIndex;
 
@@ -403,9 +407,7 @@ void	btOptimizedBvh::buildTree	(int startIndex,int endIndex)
 	}
 	//calculate Best Splitting Axis and where to split it. Sort the incoming 'leafNodes' array within range 'startIndex/endIndex'.
 	
-	splitAxis = calcSplittingAxis(startIndex,endIndex);
-
-	splitIndex = sortAndCalcSplittingIndex(startIndex,endIndex,splitAxis);
+	splitIndex = sortAndCalcSplittingIndex(startIndex,endIndex);
 
 	int internalNodeIndex = m_curNodeIndex;
 	
@@ -482,27 +484,33 @@ void	btOptimizedBvh::updateSubtreeHeaders(int leftChildNodexIndex,int rightChild
 }
 
 
-int	btOptimizedBvh::sortAndCalcSplittingIndex(int startIndex,int endIndex,int splitAxis)
+int	btOptimizedBvh::sortAndCalcSplittingIndex(int startIndex,int endIndex)
 {
-	int i;
+	int i, splitAxis;
 	int splitIndex =startIndex;
 	int numIndices = endIndex - startIndex;
 	btScalar splitValue;
 
 	btVector3 means(btScalar(0.),btScalar(0.),btScalar(0.));
 	for (i=startIndex;i<endIndex;i++)
-	{
-		btVector3 center = btScalar(0.5)*(getAabbMax(i)+getAabbMin(i));
-		means+=center;
-	}
+		means+=getAabbCenter(i);
 	means *= (btScalar(1.)/(btScalar)numIndices);
-	
+
+	btVector3 variance(btScalar(0.),btScalar(0.),btScalar(0.));
+	for (i=startIndex;i<endIndex;i++)
+	{
+		btVector3 diff2 = getAabbCenter(i)-means;
+		diff2 = diff2 * diff2;
+		variance += diff2;
+	}
+
+	splitAxis = variance.maxAxis();
 	splitValue = means[splitAxis];
 	
 	//sort leafNodes so all values larger then splitValue comes first, and smaller values start from 'splitIndex'.
 	for (i=startIndex;i<endIndex;i++)
 	{
-		btVector3 center = btScalar(0.5)*(getAabbMax(i)+getAabbMin(i));
+		btVector3 center = getAabbCenter(i);
 		if (center[splitAxis] > splitValue)
 		{
 			//swap
@@ -533,35 +541,6 @@ int	btOptimizedBvh::sortAndCalcSplittingIndex(int startIndex,int endIndex,int sp
 
 	return splitIndex;
 }
-
-
-int	btOptimizedBvh::calcSplittingAxis(int startIndex,int endIndex)
-{
-	int i;
-
-	btVector3 means(btScalar(0.),btScalar(0.),btScalar(0.));
-	btVector3 variance(btScalar(0.),btScalar(0.),btScalar(0.));
-	int numIndices = endIndex-startIndex;
-
-	for (i=startIndex;i<endIndex;i++)
-	{
-		btVector3 center = btScalar(0.5)*(getAabbMax(i)+getAabbMin(i));
-		means+=center;
-	}
-	means *= (btScalar(1.)/(btScalar)numIndices);
-		
-	for (i=startIndex;i<endIndex;i++)
-	{
-		btVector3 center = btScalar(0.5)*(getAabbMax(i)+getAabbMin(i));
-		btVector3 diff2 = center-means;
-		diff2 = diff2 * diff2;
-		variance += diff2;
-	}
-	variance *= (btScalar(1.)/	((btScalar)numIndices-1)	);
-	
-	return variance.maxAxis();
-}
-
 
 
 void	btOptimizedBvh::reportAabbOverlappingNodex(btNodeOverlapCallback* nodeCallback,const btVector3& aabbMin,const btVector3& aabbMax) const
@@ -810,12 +789,30 @@ btVector3	btOptimizedBvh::unQuantize(const unsigned short* vecIn) const
 {
 	btVector3	vecOut;
 	vecOut.setValue(
-		(btScalar)(vecIn[0]) / (m_bvhQuantization.getX()),
-		(btScalar)(vecIn[1]) / (m_bvhQuantization.getY()),
-		(btScalar)(vecIn[2]) / (m_bvhQuantization.getZ()));
+		(btScalar)(vecIn[0]) * (m_bvhQuantizationInv.getX()),
+		(btScalar)(vecIn[1]) * (m_bvhQuantizationInv.getY()),
+		(btScalar)(vecIn[2]) * (m_bvhQuantizationInv.getZ()));
 	vecOut += m_bvhAabbMin;
 	return vecOut;
 }
+
+btVector3	btOptimizedBvh::unQuantizeCenter(const unsigned short* vecMin, const unsigned short *vecMax) const
+{
+	btVector3	vecOut;
+	unsigned int center[3];
+
+	center[0]= (unsigned int)vecMin[0] + (unsigned int)vecMax[0];
+	center[1]= (unsigned int)vecMin[1] + (unsigned int)vecMax[1];
+	center[2]= (unsigned int)vecMin[2] + (unsigned int)vecMax[2];
+
+	vecOut.setValue(
+		(btScalar)(center[0]) * (m_bvhQuantizationInv.getX()),
+		(btScalar)(center[1]) * (m_bvhQuantizationInv.getY()),
+		(btScalar)(center[2]) * (m_bvhQuantizationInv.getZ()));
+	vecOut = m_bvhAabbMin + btScalar(0.5)*vecOut;
+	return vecOut;
+}
+
 
 
 void	btOptimizedBvh::swapLeafNodes(int i,int splitIndex)

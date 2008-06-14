@@ -20,14 +20,13 @@ BL_BlenderShader::BL_BlenderShader(struct Material *ma)
 	mBound(false)
 {
 	if(ma)
-		mGPUMat = GPU_material_from_blender(ma, GPU_PROFILE_GAME);
+		mGPUMat = GPU_material_from_blender(ma, GPU_PROFILE_DERIVEDMESH);
 }
 
 BL_BlenderShader::~BL_BlenderShader()
 {
 	if(mGPUMat) {
 		GPU_material_unbind(mGPUMat);
-		GPU_material_free(mGPUMat);
 		mGPUMat = 0;
 	}
 }
@@ -50,27 +49,52 @@ void BL_BlenderShader::SetProg(bool enable)
 	}
 }
 
+int BL_BlenderShader::GetEnabledAttribs()
+{
+	GPUVertexAttribs attribs;
+	int i, enabled = 0;
+
+	if(!mGPUMat)
+		return enabled;
+
+	GPU_material_vertex_attributes(mGPUMat, &attribs);
+
+    for(i = 0; i < attribs.totlayer; i++)
+		if(attribs.layer[i].glindex+1 > enabled)
+			enabled= attribs.layer[i].glindex+1;
+	
+	if(enabled > BL_MAX_ATTRIB)
+		enabled = BL_MAX_ATTRIB;
+
+	return enabled;
+}
+
 void BL_BlenderShader::SetTexCoords(RAS_IRasterizer* ras)
 {
 	GPUVertexAttribs attribs;
-	int i;
+	int i, enabled;
 
 	if(!mGPUMat)
 		return;
 
 	GPU_material_vertex_attributes(mGPUMat, &attribs);
 
+	enabled = GetEnabledAttribs();
+	for(i=0; i<enabled; i++)
+		ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
+
     for(i = 0; i < attribs.totlayer; i++) {
+		if(attribs.layer[i].glindex > enabled)
+			continue;
+
 		if(attribs.layer[i].type == CD_MTFACE)
-            ras->SetTexCoords(RAS_IRasterizer::RAS_TEXCO_UV1, i);
+            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_UV1, attribs.layer[i].glindex);
 		else if(attribs.layer[i].type == CD_TANGENT)
-            ras->SetTexCoords(RAS_IRasterizer::RAS_TEXTANGENT, i);
+            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
 		else if(attribs.layer[i].type == CD_ORCO)
-            ras->SetTexCoords(RAS_IRasterizer::RAS_TEXCO_ORCO, i);
+            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_ORCO, attribs.layer[i].glindex);
 		else if(attribs.layer[i].type == CD_NORMAL)
-            ras->SetTexCoords(RAS_IRasterizer::RAS_TEXCO_NORM, i);
-        else
-            ras->SetTexCoords(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
+            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_NORM, attribs.layer[i].glindex);
 	}
 }
 

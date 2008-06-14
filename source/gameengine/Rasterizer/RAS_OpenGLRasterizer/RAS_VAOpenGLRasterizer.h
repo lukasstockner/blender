@@ -33,7 +33,7 @@
 
 class RAS_VAOpenGLRasterizer : public RAS_OpenGLRasterizer
 {
-	void TexCoordPtr(const RAS_TexVert *tv, int unit);
+	void TexCoordPtr(const RAS_TexVert *tv, int enabled, int enabledattribs);
 	bool m_Lock;
 
 public:

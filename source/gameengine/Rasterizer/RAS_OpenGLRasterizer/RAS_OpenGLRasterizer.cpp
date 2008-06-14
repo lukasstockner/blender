@@ -1213,12 +1213,19 @@ void RAS_OpenGLRasterizer::SetTexCoords(TexCoGen coords,int unit)
 		m_texco[unit] = coords;
 }
 
+void RAS_OpenGLRasterizer::SetTexCoordsAttrib(TexCoGen coords,int unit)
+{
+	// this changes from material to material
+	if(unit < RAS_MAX_ATTRIB)
+		m_texcoattrib[unit] = coords;
+}
+
 void RAS_OpenGLRasterizer::SetAttrib(int type)
 {
 	if(type == RAS_TEXTANGENT) m_useTang=true;
 }
 
-void RAS_OpenGLRasterizer::TexCoord(const RAS_TexVert &tv, int enabled)
+void RAS_OpenGLRasterizer::TexCoord(const RAS_TexVert &tv, int enabled, int enabledattribs)
 {
 #if defined(GL_ARB_multitexture) && defined(WITH_GLEXT)
 	if (!getenv("WITHOUT_GLEXT")) {
@@ -1256,8 +1263,39 @@ void RAS_OpenGLRasterizer::TexCoord(const RAS_TexVert &tv, int enabled)
 #endif
 
 #ifdef GL_ARB_vertex_program
-	if(m_useTang && bgl::RAS_EXT_support._ARB_vertex_program)
-		bgl::blVertexAttrib4fvARB(1/*tangent*/, tv.getTangent());
+	if(bgl::RAS_EXT_support._ARB_vertex_program) {
+		for(int unit=0; unit<enabledattribs; unit++) {
+			if( tv.getFlag() & TV_2NDUV && tv.getUnit() == unit ) {
+				bgl::blVertexAttrib2fvARB(unit, tv.getUV2());
+				continue;
+			}
+			switch(m_texcoattrib[unit]) {
+			case RAS_TEXCO_DISABLE:
+			case RAS_TEXCO_OBJECT:
+			case RAS_TEXCO_GEN:
+				break;
+			case RAS_TEXCO_ORCO:
+			case RAS_TEXCO_GLOB:
+				bgl::blVertexAttrib3fvARB(unit, tv.getLocalXYZ());
+				break;
+			case RAS_TEXCO_UV1:
+				bgl::blVertexAttrib2fvARB(unit, tv.getUV1());
+				break;
+			case RAS_TEXCO_NORM:
+				bgl::blVertexAttrib3fvARB(unit, tv.getNormal());
+				break;
+			case RAS_TEXTANGENT:
+				bgl::blVertexAttrib4fvARB(unit, tv.getTangent());
+				break;
+			case RAS_TEXCO_UV2:
+				bgl::blVertexAttrib2fvARB(unit, tv.getUV2());
+				break;
+			}
+		}
+
+		if(m_useTang)
+			bgl::blVertexAttrib4fvARB(1/*tangent*/, tv.getTangent());
+	}
 #endif
 
 }
@@ -1332,6 +1370,7 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(
 			const KX_IndexArray & indexarray = (*indexarrays[vt]);
 			numindices = indexarray.size();
 			const unsigned int enabled = polymat->GetEnabled();
+			const unsigned int enabledattribs = polymat->GetEnabledAttribs();
 
 			if (!numindices)
 				break;
@@ -1364,25 +1403,25 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(
 
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs);
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1399,28 +1438,28 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 					
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
 							//
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1440,19 +1479,19 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(
 							glColor4d(rgbacolor[0], rgbacolor[1], rgbacolor[2], rgbacolor[3]);
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1464,21 +1503,21 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(
 							//
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 					
 							//
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 
 							//
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1533,6 +1572,7 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 			const KX_IndexArray & indexarray = (*indexarrays[vt]);
 			numindices = indexarray.size();
 			const unsigned int enabled = polymat->GetEnabled();
+			const unsigned int enabledattribs = polymat->GetEnabledAttribs();
 		
 			if (!numindices)
 				continue;
@@ -1584,27 +1624,27 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
 
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 					
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
 
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());						
 						
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 					
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1640,7 +1680,7 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
 
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
@@ -1648,7 +1688,7 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
 					
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
@@ -1656,7 +1696,7 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
 					
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
@@ -1664,7 +1704,7 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
 
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1701,19 +1741,19 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 							
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
@@ -1743,21 +1783,21 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti_Ex(
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						
 							glColor4ubv((const GLubyte *)(vertexarray[(indexarray[vindex])].getRGBA()));
 							if (!recalc)
 								glNormal3fv(vertexarray[(indexarray[vindex])].getNormal());
-							TexCoord(vertexarray[(indexarray[vindex])],enabled );
+							TexCoord(vertexarray[(indexarray[vindex])],enabled,enabledattribs );
 							glVertex3fv(vertexarray[(indexarray[vindex])].getLocalXYZ());
 							vindex++;
 						}
