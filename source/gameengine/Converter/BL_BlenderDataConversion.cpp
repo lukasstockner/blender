@@ -88,6 +88,7 @@
 #include "BKE_main.h"
 #include "BKE_global.h"
 #include "BKE_object.h"
+#include "BKE_scene.h"
 #include "BL_SkinMeshObject.h"
 #include "BL_SkinDeformer.h"
 #include "BL_MeshDeformer.h"
@@ -1809,6 +1810,9 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 {	
 
 	Scene *blenderscene = GetSceneForName(maggie, scenename);
+	// for SETLOOPER
+	Scene *sce;
+	Base *base;
 
 	// Get the frame settings of the canvas.
 	// Get the aspect ratio of the canvas as designed by the user.
@@ -1882,9 +1886,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	SetDefaultFaceType(blenderscene);
-	
-	Base *base = static_cast<Base*>(blenderscene->base.first);
-	while(base)
+	// Let's support scene set.
+	// Beware of name conflict in linked data, it will not crash but will create confusion
+	// in Python scripting and in certain actuators (replace mesh). Linked scene *should* have
+	// no conflicting name for Object, Object data and Action.
+	for (SETLOOPER(blenderscene, base))
 	{
 		Object* blenderobject = base->object;
 		KX_GameObject* gameobj = gameobject_from_blenderobject(
@@ -2039,7 +2045,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 		if (gameobj)
 			gameobj->Release();
 
-		base = base->next;
 	}
 
 	if (blenderscene->camera) {
@@ -2049,7 +2054,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	//	Set up armatures
-	for (base = static_cast<Base*>(blenderscene->base.first); base; base=base->next){
+	for(SETLOOPER(blenderscene, base)){
 		if (base->object->type==OB_MESH){
 			Mesh *me = (Mesh*)base->object->data;
 	
