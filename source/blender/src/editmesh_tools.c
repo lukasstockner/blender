@@ -5040,9 +5040,9 @@ int EdgeSlide(short immediate, float imperc)
 						
 						if (k != -1) {
 							MTFace *tf = CustomData_em_get_n(&em->fdata, efa->data, CD_MTFACE, uvlay_idx);
-							uv_new = tf->uv[k];
-						
 							EditVert *ev_up, *ev_down;
+							
+							uv_new = tf->uv[k];
 				
 							if (ev->tmp.l) {
 								if (fabs(suv->origuv[0]-uv_new[0]) > 0.0001 || fabs(suv->origuv[1]-uv_new[1])) {
