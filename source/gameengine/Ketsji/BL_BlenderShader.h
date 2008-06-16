@@ -33,7 +33,7 @@ public:
 
 	void ApplyShader();
 	void SetTexCoords(class RAS_IRasterizer* ras);
-	int GetEnabledAttribs();
+	int GetAttribNum();
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
 };
 

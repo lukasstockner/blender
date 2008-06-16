@@ -53,11 +53,7 @@ void BL_SkinMeshObject::AddPolygon(RAS_Polygon* poly)
 	RAS_MeshObject::AddPolygon(poly);
 }
 
-#ifdef __NLA_OLDDEFORM
-int BL_SkinMeshObject::FindOrAddDeform(int vtxarray, struct MVert *mv, struct MDeformVert *dv, RAS_IPolyMaterial* mat)
-#else
 int BL_SkinMeshObject::FindOrAddDeform(unsigned int vtxarray, unsigned int mv, struct MDeformVert *dv, RAS_IPolyMaterial* mat)
-#endif
 {
 	BL_SkinArrayOptimizer* ao = (BL_SkinArrayOptimizer*)GetArrayOptimizer(mat);//*(m_matVertexArrays[*mat]);
 	int numvert = ao->m_MvertArrayCache1[vtxarray]->size();
@@ -113,11 +109,7 @@ int	BL_SkinMeshObject::FindVertexArray(int numverts,RAS_IPolyMaterial* polymat)
 		KX_IndexArray *ia = new KX_IndexArray();
 		ao->m_IndexArrayCache1.push_back(ia);
 
-#ifdef __NLA_OLDDEFORM
-		BL_MVertArray *bva = new BL_MVertArray();
-#else
 		KX_IndexArray *bva = new KX_IndexArray();
-#endif
 		ao->m_MvertArrayCache1.push_back(bva);
 
 		BL_DeformVertArray *dva = new BL_DeformVertArray();

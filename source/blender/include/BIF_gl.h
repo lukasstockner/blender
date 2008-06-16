@@ -31,8 +31,6 @@
 #ifndef BIF_GL_H
 #define BIF_GL_H
 
-#include "GL/glew.h"
-
 	/* Although not really a great idea to copy these defines
 	 * from Windows' winnt.h, this lets us use GL without including
 	 * windows.h everywhere (or BLI_winstuff.h) which is a good thing.
@@ -51,20 +49,7 @@
 #endif
 #endif
 
-#ifdef __APPLE__
- #include <OpenGL/gl.h>
- #include <OpenGL/glu.h>
-#else
-/*  #if defined (__sun) || defined (__sun__)
-  #include <GL/gl.h>
-  #include <mesa/glu.h>
- #else
-*/
-  #include <GL/gl.h>
-  #include <GL/glu.h>
-/* #endif */
-#endif
-
+#include "GL/glew.h"
 
 	/*
 	 * these should be phased out. cpack should be replaced in

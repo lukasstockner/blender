@@ -46,7 +46,8 @@ incs = ['.',
         '#source/gameengine/GamePlayer/ghost',
         '#source/blender/misc',
         '#source/blender/blenloader',
-        '#source/blender/gpu']
+        '#source/blender/gpu',
+		'#extern/glew/include']
                                 
 #This is all plugin stuff!
 #if sys.platform=='win32':

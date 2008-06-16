@@ -1990,6 +1990,11 @@ CustomDataMask get_viewedit_datamask()
 			}
 			if((view->drawtype == OB_TEXTURE) || ((view->drawtype == OB_SOLID) && (view->flag2 & V3D_SOLID_TEX))) {
 				mask |= CD_MASK_MTFACE | CD_MASK_MCOL;
+
+				if((G.fileflags & G_FILE_GAME_MAT) &&
+				   (G.fileflags & G_FILE_GAME_MAT_GLSL)) {
+					mask |= CD_MASK_ORCO;
+				}
 			}
 		}
 	}

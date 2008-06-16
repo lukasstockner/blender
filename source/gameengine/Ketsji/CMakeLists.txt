@@ -60,6 +60,7 @@ SET(INC
   ../../../source/blender/gpu
   ../../../extern/bullet2/src
   ../../../extern/solid
+  ../../../extern/glew/include
   ${PYTHON_INC}
   ${SDL_INC}
 )

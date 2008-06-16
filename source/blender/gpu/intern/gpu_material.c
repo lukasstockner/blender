@@ -116,7 +116,7 @@ static void gpu_material_set_attrib_id(GPUMaterial *material)
 	for(a=0, b=0; a<attribs->totlayer; a++) {
 		sprintf(name, "att%d", attribs->layer[a].glindex);
 		attribs->layer[a].glindex = GPU_shader_get_attribute(shader, name);
-		
+
 		if(attribs->layer[a].glindex >= 0) {
 			attribs->layer[b] = attribs->layer[a];
 			b++;

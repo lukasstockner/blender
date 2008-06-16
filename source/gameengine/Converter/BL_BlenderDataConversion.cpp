@@ -589,6 +589,9 @@ BL_Material* ConvertMaterial(
 	MT_Point2 uv[4];
 	MT_Point2 uv2[4];
 
+	uv[0]= uv[1]= uv[2]= uv[3]= MT_Point2(0.0f, 0.0f);
+	uv2[0]= uv2[1]= uv2[2]= uv2[3]= MT_Point2(0.0f, 0.0f);
+
 	if( validface ) {
 
 		material->ras_mode |= !( 

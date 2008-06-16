@@ -54,6 +54,7 @@ CPPFLAGS += -I../../blender/blenkernel
 CPPFLAGS += -I../../blender/render/extern/include
 CPPFLAGS += -I../../blender/blenloader
 CPPFLAGS += -I../../blender/blenkernel
+CPPFLAGS += -I../../blender/gpu
 CPPFLAGS += -I../Converter
 CPPFLAGS += -I../Expressions
 CPPFLAGS += -I../GameLogic

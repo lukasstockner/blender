@@ -49,7 +49,7 @@ void BL_BlenderShader::SetProg(bool enable)
 	}
 }
 
-int BL_BlenderShader::GetEnabledAttribs()
+int BL_BlenderShader::GetAttribNum()
 {
 	GPUVertexAttribs attribs;
 	int i, enabled = 0;
@@ -72,30 +72,38 @@ int BL_BlenderShader::GetEnabledAttribs()
 void BL_BlenderShader::SetTexCoords(RAS_IRasterizer* ras)
 {
 	GPUVertexAttribs attribs;
-	int i, enabled;
+	int i, attrib_num;
 
 	if(!mGPUMat)
 		return;
 
-	GPU_material_vertex_attributes(mGPUMat, &attribs);
+	if(ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
+		GPU_material_vertex_attributes(mGPUMat, &attribs);
+		attrib_num = GetAttribNum();
 
-	enabled = GetEnabledAttribs();
-	for(i=0; i<enabled; i++)
-		ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
+		ras->SetTexCoordNum(0);
+		ras->SetAttribNum(attrib_num);
+		for(i=0; i<attrib_num; i++)
+			ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, i);
 
-    for(i = 0; i < attribs.totlayer; i++) {
-		if(attribs.layer[i].glindex > enabled)
-			continue;
+		for(i = 0; i < attribs.totlayer; i++) {
+			if(attribs.layer[i].glindex > attrib_num)
+				continue;
 
-		if(attribs.layer[i].type == CD_MTFACE)
-            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_UV1, attribs.layer[i].glindex);
-		else if(attribs.layer[i].type == CD_TANGENT)
-            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
-		else if(attribs.layer[i].type == CD_ORCO)
-            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_ORCO, attribs.layer[i].glindex);
-		else if(attribs.layer[i].type == CD_NORMAL)
-            ras->SetTexCoordsAttrib(RAS_IRasterizer::RAS_TEXCO_NORM, attribs.layer[i].glindex);
+			if(attribs.layer[i].type == CD_MTFACE)
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_UV1, attribs.layer[i].glindex);
+			else if(attribs.layer[i].type == CD_TANGENT)
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, attribs.layer[i].glindex);
+			else if(attribs.layer[i].type == CD_ORCO)
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_ORCO, attribs.layer[i].glindex);
+			else if(attribs.layer[i].type == CD_NORMAL)
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_NORM, attribs.layer[i].glindex);
+		}
+
+		ras->EnableTextures(true);
 	}
+	else
+		ras->EnableTextures(false);
 }
 
 void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )

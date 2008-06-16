@@ -699,12 +699,12 @@ void shade_inp_area(vec3 lampco, vec3 lampvec, vec3 vn, mat4 area, float areasiz
 
 	if(dot(vec, lampvec) < 0.0) {
 		inp = 0.0;
-		return;
 	}
+	else {
+		float intens = area_lamp_energy(area, co, vn);
 
-	float intens = area_lamp_energy(area, co, vn);
-
-	inp = pow(intens*areasize, k);
+		inp = pow(intens*areasize, k);
+	}
 }
 
 void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out float is)
@@ -714,34 +714,39 @@ void shade_diffuse_oren_nayer(float nl, vec3 n, vec3 l, vec3 v, float rough, out
 	float nv = max(dot(n, v), 0.0);
 	float realnl = dot(n, l);
 
-	if(realnl < 0.0) { is = 0.0; return; }
-	if(nl < 0.0) { is = 0.0; return; }
-
-	float vh = max(dot(v, h), 0.0);
-	float Lit_A = acos(realnl);
-	float View_A = acos(nv);
-
-	vec3 Lit_B = normalize(l - realnl*n);
-	vec3 View_B = normalize(v - nv*n);
-
-	float t = max(dot(Lit_B, View_B), 0.0);
-
-	float a, b;
-
-	if(Lit_A > View_A) {
-		a = Lit_A;
-		b = View_A;
+	if(realnl < 0.0) {
+		is = 0.0;
+	}
+	else if(nl < 0.0) {
+		is = 0.0;
 	}
 	else {
-		a = View_A;
-		b = Lit_A;
+		float vh = max(dot(v, h), 0.0);
+		float Lit_A = acos(realnl);
+		float View_A = acos(nv);
+
+		vec3 Lit_B = normalize(l - realnl*n);
+		vec3 View_B = normalize(v - nv*n);
+
+		float t = max(dot(Lit_B, View_B), 0.0);
+
+		float a, b;
+
+		if(Lit_A > View_A) {
+			a = Lit_A;
+			b = View_A;
+		}
+		else {
+			a = View_A;
+			b = Lit_A;
+		}
+
+		float A = 1.0 - (0.5*((rough*rough)/((rough*rough) + 0.33)));
+		float B = 0.45*((rough*rough)/((rough*rough) + 0.09));
+
+		b *= 0.95;
+		is = nl*(A + (B * t * sin(a) * tan(b)));
 	}
-
-	float A = 1.0 - (0.5*((rough*rough)/((rough*rough) + 0.33)));
-	float B = 0.45*((rough*rough)/((rough*rough) + 0.09));
-
-	b *= 0.95;
-	is = nl*(A + (B * t * sin(a) * tan(b)));
 }
 
 void shade_diffuse_toon(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out float is)
@@ -758,32 +763,38 @@ void shade_diffuse_minnaert(float nl, vec3 n, vec3 v, float darkness, out float 
 {
 	if(nl <= 0.0) {
 		is = 0.0;
-		return;
 	}
+	else {
+		float nv = max(dot(n, v), 0.0);
 
-	float nv = max(dot(n, v), 0.0);
-
-	if(darkness <= 1.0)
-		is = nl*pow(max(nv*nl, 0.1), darkness - 1.0);
-	else
-		is = nl*pow(1.0001 - nv, darkness - 1.0);
+		if(darkness <= 1.0)
+			is = nl*pow(max(nv*nl, 0.1), darkness - 1.0);
+		else
+			is = nl*pow(1.0001 - nv, darkness - 1.0);
+	}
 }
 
 float fresnel_fac(vec3 view, vec3 vn, float grad, float fac)
 {
 	float t1, t2;
+	float ffac;
 
-	if(fac==0.0) return 1.0;
+	if(fac==0.0) {
+		ffac = 1.0;
+	}
+	else {
+		t1= dot(view, vn);
+		if(t1>0.0)  t2= 1.0+t1;
+		else t2= 1.0-t1;
 
-	t1= dot(view, vn);
-	if(t1>0.0)  t2= 1.0+t1;
-	else t2= 1.0-t1;
+		t2= grad + (1.0-grad)*pow(t2, fac);
 
-	t2= grad + (1.0-grad)*pow(t2, fac);
+		if(t2<0.0) ffac = 0.0;
+		else if(t2>1.0) ffac = 1.0;
+		else ffac = t2;
+	}
 
-	if(t2<0.0) return 0.0;
-	else if(t2>1.0) return 1.0;
-	return t2;
+	return ffac;
 }
 
 void shade_diffuse_fresnel(vec3 vn, vec3 lv, vec3 view, float fac_i, float fac, out float is)
@@ -849,51 +860,62 @@ void shade_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
 
 	if(nh < 0.0) {
 		specfac = 0.0;
-		return;
 	}
+	else {
+		float nv = max(dot(n, v), 0.0);
+		float i = pow(nh, hard);
 
-	float nv = max(dot(n, v), 0.0);
-	float i = pow(nh, hard);
-
-	i = i/(0.1+nv);
-	specfac = i;
+		i = i/(0.1+nv);
+		specfac = i;
+	}
 }
 
 void shade_blinn_spec(vec3 n, vec3 l, vec3 v, float refrac, float spec_power, out float specfac)
 {
-	if(refrac < 1.0) { specfac = 0.0; return; }
-	if(spec_power == 0.0) { specfac = 0.0; return; }
+	if(refrac < 1.0) {
+		specfac = 0.0;
+	}
+	else if(spec_power == 0.0) {
+		specfac = 0.0;
+	}
+	else {
+		if(spec_power<100.0)
+			spec_power= sqrt(1.0/spec_power);
+		else
+			spec_power= 10.0/spec_power;
 
-	if(spec_power<100.0)
-		spec_power= sqrt(1.0/spec_power);
-	else
-		spec_power= 10.0/spec_power;
+		vec3 h = normalize(v + l);
+		float nh = dot(n, h);
+		if(nh < 0.0) {
+			specfac = 0.0;
+		}
+		else {
+			float nv = max(dot(n, v), 0.01);
+			float nl = dot(n, l);
+			if(nl <= 0.01) {
+				specfac = 0.0;
+			}
+			else {
+				float vh = max(dot(v, h), 0.01);
 
-	vec3 h = normalize(v + l);
-	float nh = dot(n, h);
-	if(nh < 0.0) { specfac = 0.0; return; }
+				float a = 1.0;
+				float b = (2.0*nh*nv)/vh;
+				float c = (2.0*nh*nl)/vh;
 
-	float nv = max(dot(n, v), 0.01);
-	float nl = dot(n, l);
-	if(nl <= 0.01) { specfac = 0.0; return; }
+				float g;
 
-	float vh = max(dot(v, h), 0.01);
+				if(a < b && a < c) g = a;
+				else if(b < a && b < c) g = b;
+				else if(c < a && c < b) g = c;
 
-	float a = 1.0;
-	float b = (2.0*nh*nv)/vh;
-	float c = (2.0*nh*nl)/vh;
+				float p = sqrt(((refrac * refrac)+(vh*vh)-1.0));
+				float f = (((p-vh)*(p-vh))/((p+vh)*(p+vh)))*(1.0+((((vh*(p+vh))-1.0)*((vh*(p+vh))-1.0))/(((vh*(p-vh))+1.0)*((vh*(p-vh))+1.0))));
+				float ang = acos(nh);
 
-	float g;
-
-	if(a < b && a < c) g = a;
-	else if(b < a && b < c) g = b;
-	else if(c < a && c < b) g = c;
-
-	float p = sqrt(((refrac * refrac)+(vh*vh)-1.0));
-	float f = (((p-vh)*(p-vh))/((p+vh)*(p+vh)))*(1.0+((((vh*(p+vh))-1.0)*((vh*(p+vh))-1.0))/(((vh*(p-vh))+1.0)*((vh*(p-vh))+1.0))));
-	float ang = acos(nh);
-
-	specfac = max(f*g*exp((-(ang*ang)/(2.0*spec_power*spec_power))), 0.0);
+				specfac = max(f*g*exp((-(ang*ang)/(2.0*spec_power*spec_power))), 0.0);
+			}
+		}
+	}
 }
 
 void shade_wardiso_spec(vec3 n, vec3 l, vec3 v, float rms, out float specfac)

@@ -40,9 +40,7 @@
 #pragma warning (disable:4786)
 #endif
 
-#ifdef __APPLE__
-#define GL_GLEXT_LEGACY 1
-#endif 
+#include "GL/glew.h"
 
 #include "KX_BlenderGL.h"
 #include "KX_BlenderCanvas.h"
@@ -57,10 +55,10 @@
 #include "KX_PythonInit.h"
 #include "KX_PyConstraintBinding.h"
 
+#include "RAS_GLExtensionManager.h"
 #include "RAS_OpenGLRasterizer.h"
 #include "RAS_VAOpenGLRasterizer.h"
 #include "RAS_ListRasterizer.h"
-#include "RAS_GLExtensionManager.h"
 
 #include "NG_LoopBackNetworkDeviceInterface.h"
 #include "SND_DeviceManager.h"
@@ -144,12 +142,12 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 	// so we can safely run Python code and API calls
 	PyGILState_STATE gilstate = PyGILState_Ensure();
 
-	bgl::InitExtensions(1);
-	
+	bgl::InitExtensions(true);
+
 	do
 	{
 		View3D *v3d= (View3D*) area->spacedata.first;
-		
+
 		// get some preferences
 		SYS_SystemHandle syshandle = SYS_GetSystem();
 		bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
@@ -159,24 +157,12 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 		bool game2ipo = (SYS_GetCommandLineInt(syshandle, "game2ipo", 0) != 0);
 		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0);
 		bool usemat = false, useglslmat = false;
-		
-		#if defined(GL_ARB_multitexture) && defined(WITH_GLEXT)
-		if (!getenv("WITHOUT_GLEXT")) {
-			if(bgl::RAS_EXT_support._ARB_multitexture && bgl::QueryVersion(1, 1)) {
-				usemat = (SYS_GetCommandLineInt(syshandle, "blender_material", 0) != 0);
-				int unitmax=0;
-				glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, (GLint*)&unitmax);
-				bgl::max_texture_units = MAXTEX>unitmax?unitmax:MAXTEX;
-				//std::cout << "using(" << bgl::max_texture_units << ") of(" << unitmax << ") texture units." << std::endl;
-			} else {
-				bgl::max_texture_units = 0;
-			}
-		}
-		#endif
 
-		if(GPU_extensions_minimum_support()) {
+		if(GLEW_ARB_multitexture && GLEW_VERSION_1_1)
+			usemat = (SYS_GetCommandLineInt(syshandle, "blender_material", 0) != 0);
+
+		if(GPU_extensions_minimum_support())
 			useglslmat = (SYS_GetCommandLineInt(syshandle, "blender_glsl_material", 0) != 0);
-		}
 
 		// create the canvas, rasterizer and rendertools
 		RAS_ICanvas* canvas = new KX_BlenderCanvas(area);
@@ -191,12 +177,12 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 		bool lock_arrays = (displaylists && useVertexArrays);
 
 		if(displaylists){
-			if (useVertexArrays) {
+			if (useVertexArrays)
 				rasterizer = new RAS_ListRasterizer(canvas, true, lock_arrays);
-			} else {
+			else
 				rasterizer = new RAS_ListRasterizer(canvas);
-			}
-		} else if (useVertexArrays && bgl::QueryVersion(1, 1))
+		}
+		else if (useVertexArrays && GLEW_VERSION_1_1)
 			rasterizer = new RAS_VAOpenGLRasterizer(canvas, lock_arrays);
 		else
 			rasterizer = new RAS_OpenGLRasterizer(canvas);
@@ -505,7 +491,7 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 	// so we can safely run Python code and API calls
 	PyGILState_STATE gilstate = PyGILState_Ensure();
 
-	bgl::InitExtensions(1);
+	bgl::InitExtensions(true);
 
 	do
 	{
@@ -534,7 +520,7 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 
 		if(displaylists && !useVertexArrays)
 			rasterizer = new RAS_ListRasterizer(canvas);
-		else if (useVertexArrays && bgl::QueryVersion(1, 1))
+		else if (useVertexArrays && GLEW_VERSION_1_1)
 			rasterizer = new RAS_VAOpenGLRasterizer(canvas, lock_arrays);
 		else
 			rasterizer = new RAS_OpenGLRasterizer(canvas);

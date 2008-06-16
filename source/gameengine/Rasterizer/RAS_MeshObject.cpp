@@ -264,20 +264,22 @@ int RAS_MeshObject::FindOrAddVertex(int vtxarray,
 	
 	int numverts = ao->m_VertexArrayCache1[vtxarray]->size();//m_VertexArrayCount[vtxarray];
 	RAS_TexVert newvert(xyz,uv,uv2,tangent,rgbacolor,normal, flat? TV_CALCFACENORMAL: 0);
+
 #define KX_FIND_SHARED_VERTICES
 #ifdef KX_FIND_SHARED_VERTICES
-	
-	for (std::vector<RAS_MatArrayIndex>::iterator it = m_xyz_index_to_vertex_index_mapping[orgindex].begin();
-	     it != m_xyz_index_to_vertex_index_mapping[orgindex].end();
-	     it++)
-	{
-		if ((*it).m_arrayindex1 == ao->m_index1 &&
-			(*it).m_array == vtxarray && 
-			*(*it).m_matid == *mat &&
-			(*ao->m_VertexArrayCache1[vtxarray])[(*it).m_index].closeTo(&newvert)
-			)
+	if(!flat) {
+		for (std::vector<RAS_MatArrayIndex>::iterator it = m_xyz_index_to_vertex_index_mapping[orgindex].begin();
+			 it != m_xyz_index_to_vertex_index_mapping[orgindex].end();
+			 it++)
 		{
-			return (*it).m_index;
+			if ((*it).m_arrayindex1 == ao->m_index1 &&
+				(*it).m_array == vtxarray && 
+				*(*it).m_matid == *mat &&
+				(*ao->m_VertexArrayCache1[vtxarray])[(*it).m_index].closeTo(&newvert)
+				)
+			{
+				return (*it).m_index;
+			}
 		}
 	}
 #endif // KX_FIND_SHARED_VERTICES
