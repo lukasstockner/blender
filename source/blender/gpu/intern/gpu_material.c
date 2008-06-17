@@ -61,6 +61,7 @@
 #include <string.h>
 
 struct GPUMaterial {
+	Material *ma;
 	int profile;
 
 	/* for creating the material */
@@ -75,10 +76,11 @@ struct GPUMaterial {
 
 /* Functions */
 
-GPUMaterial *GPU_material_construct_begin(int profile)
+static GPUMaterial *GPU_material_construct_begin(Material *ma, int profile)
 {
 	GPUMaterial *material = MEM_callocN(sizeof(GPUMaterial), "GPUMaterial");
 
+	material->ma= ma;
 	material->profile = profile;
 
 	return material;
@@ -127,7 +129,7 @@ static void gpu_material_set_attrib_id(GPUMaterial *material)
 	attribs->totlayer = b;
 }
 
-int GPU_material_construct_end(GPUMaterial *material)
+static int GPU_material_construct_end(GPUMaterial *material)
 {
 	if (material->outlink) {
 		GPUNodeLink *outlink;
@@ -211,18 +213,6 @@ void gpu_material_add_node(GPUMaterial *material, GPUNode *node)
 }
 
 /* Code generation */
-
-typedef struct GPUShadeInput {
-	GPUMaterial *gpumat;
-	Material *mat;
-
-	GPUNodeLink *rgb, *specrgb, *vn, *view;
-	GPUNodeLink *alpha, *refl, *spec, *emit, *har, *amb;
-} GPUShadeInput;
-
-typedef struct GPUShadeResult {
-	GPUNodeLink *diff, *spec, *combined, *alpha;
-} GPUShadeResult;
 
 static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, Object *lampob, Lamp *la, GPUNodeLink **lv, GPUNodeLink **dist)
 {
@@ -686,22 +676,10 @@ static void do_material_tex(GPUShadeInput *shi)
 	Tex *tex;
 	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil = NULL;
 	GPUNodeLink *colfac, *newnor, *varfac, *orn;
-	float one = 1.0f, hard = ma->har;
+	float one = 1.0f;
 	int tex_nr, rgbnor, talpha;
 
-	/* set default values */
-	GPU_link(mat, "set_rgb", GPU_uniform(&ma->r), &shi->rgb);
-	GPU_link(mat, "set_rgb", GPU_uniform(&ma->specr), &shi->specrgb);
 	GPU_link(mat, "texco_norm", &orn);
-	GPU_link(mat, "shade_norm", &shi->vn);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->alpha), &shi->alpha);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->ref), &shi->refl);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->spec), &shi->spec);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->emit), &shi->emit);
-	GPU_link(mat, "set_value", GPU_uniform(&hard), &shi->har);
-	GPU_link(mat, "set_value", GPU_uniform(&ma->amb), &shi->amb);
-	GPU_link(mat, "shade_view", &shi->view);
-
 	GPU_link(mat, "set_value", GPU_uniform(&one), &stencil);
 
 	/* go over texture slots */
@@ -845,42 +823,68 @@ static void do_material_tex(GPUShadeInput *shi)
 	}
 }
 
-GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
+void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 {
-	GPUShadeInput shi;
-	GPUShadeResult shr;
+	float hard = ma->har;
 
-	memset(&shi, 0, sizeof(shi));
-	memset(&shr, 0, sizeof(shr));
+	memset(shi, 0, sizeof(*shi));
 
-	shi.gpumat = mat;
-	shi.mat = ma;
+	shi->gpumat = mat;
+	shi->mat = ma;
 
-	do_material_tex(&shi);
+	GPU_link(mat, "set_rgb", GPU_uniform(&ma->r), &shi->rgb);
+	GPU_link(mat, "set_rgb", GPU_uniform(&ma->specr), &shi->specrgb);
+	GPU_link(mat, "shade_norm", &shi->vn);
+	GPU_link(mat, "set_value", GPU_uniform(&ma->alpha), &shi->alpha);
+	GPU_link(mat, "set_value", GPU_uniform(&ma->ref), &shi->refl);
+	GPU_link(mat, "set_value", GPU_uniform(&ma->spec), &shi->spec);
+	GPU_link(mat, "set_value", GPU_uniform(&ma->emit), &shi->emit);
+	GPU_link(mat, "set_value", GPU_uniform(&hard), &shi->har);
+	GPU_link(mat, "set_value", GPU_uniform(&ma->amb), &shi->amb);
+	GPU_link(mat, "shade_view", &shi->view);
+}
+
+void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
+{
+	Material *ma= shi->mat;
+	GPUMaterial *mat= shi->gpumat;
+
+	memset(shr, 0, sizeof(*shr));
+
+	do_material_tex(shi);
 
 	if(ma->alpha < 1.0f)
 		GPU_material_enable_alpha(mat);
 
 	if(ma->mode & MA_SHLESS) {
-		shr.combined = shi.rgb;
-		shr.alpha = shi.alpha;
+		shr->combined = shi->rgb;
+		shr->alpha = shi->alpha;
 	}
 	else {
-		GPU_link(mat, "shade_mul_value", shi.emit, shi.rgb, &shr.diff);
-		GPU_link(mat, "set_rgb_zero", &shr.spec);
+		GPU_link(mat, "shade_mul_value", shi->emit, shi->rgb, &shr->diff);
+		GPU_link(mat, "set_rgb_zero", &shr->spec);
 
-		material_lights(&shi, &shr);
+		material_lights(shi, shr);
 
-		shr.combined = shr.diff;
-		shr.alpha = shi.alpha;
+		shr->combined = shr->diff;
+		shr->alpha = shi->alpha;
 
-		if(ma->mode & MA_RAMP_COL) ramp_diffuse_result(&shi, &shr.combined);
-		if(ma->mode & MA_RAMP_SPEC) ramp_spec_result(&shi, &shr.spec);
+		if(ma->mode & MA_RAMP_COL) ramp_diffuse_result(shi, &shr->combined);
+		if(ma->mode & MA_RAMP_SPEC) ramp_spec_result(shi, &shr->spec);
 
-		GPU_link(mat, "shade_add", shr.combined, shr.spec, &shr.combined);
+		GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
 	}
 
-	GPU_link(mat, "mtex_alpha_to_col", shr.combined, shr.alpha, &shr.combined);
+	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
+}
+
+GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
+{
+	GPUShadeInput shi;
+	GPUShadeResult shr;
+
+	GPU_shadeinput_set(mat, ma, &shi);
+	GPU_shaderesult_set(&shi, &shr);
 
 	return shr.combined;
 }
@@ -893,7 +897,7 @@ GPUMaterial *GPU_material_from_blender(Material *ma, int profile)
 	if(ma->gpumaterial)
 		return ma->gpumaterial;
 
-	mat = GPU_material_construct_begin(profile);
+	mat = GPU_material_construct_begin(ma, profile);
 
 	if(ma->nodetree && ma->use_nodes) {
 		ntreeGPUMaterialNodes(ma->nodetree, mat);

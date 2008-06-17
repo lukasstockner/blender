@@ -42,7 +42,7 @@ static void node_shader_exec_rgb(void *data, bNode *node, bNodeStack **in, bNode
 	VECCOPY(out[0]->vec, sock->ns.vec);
 }
 
-static GPUNode *gpu_shader_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_rgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	GPUNodeLink *vec = GPU_uniform(sock->ns.vec);

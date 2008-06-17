@@ -57,7 +57,7 @@ static void node_shader_exec_normal(void *data, bNode *node, bNodeStack **in, bN
 	out[1]->vec[0]= -INPR(out[0]->vec, vec);
 }
 
-static GPUNode *gpu_shader_normal(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_normal(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	GPUNodeLink *vec = GPU_uniform(sock->ns.vec);

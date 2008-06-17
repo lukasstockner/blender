@@ -1085,7 +1085,7 @@ static void gpu_link_input(GPUNode *node, GPUFunction *function, int i, GPUNodeL
 		GPU_node_input(node, function->paramtype[i], "", NULL, link, link->dynamic);
 }
 
-GPUNode *GPU_link(GPUMaterial *mat, char *name, ...)
+int GPU_link(GPUMaterial *mat, char *name, ...)
 {
 	GPUNode *node;
 	GPUFunction *function;
@@ -1096,7 +1096,7 @@ GPUNode *GPU_link(GPUMaterial *mat, char *name, ...)
 	function = GPU_lookup_function(name);
 	if(!function) {
 		fprintf(stderr, "GPU failed to find function %s\n", name);
-		return NULL;
+		return 0;
 	}
 
 	node = GPU_node_begin(name);
@@ -1118,10 +1118,10 @@ GPUNode *GPU_link(GPUMaterial *mat, char *name, ...)
 
 	gpu_material_add_node(mat, node);
 
-	return node;
+	return 1;
 }
 
-GPUNode *GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
+int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack *out, ...)
 {
 	GPUNode *node;
 	GPUFunction *function;
@@ -1132,7 +1132,7 @@ GPUNode *GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeS
 	function = GPU_lookup_function(name);
 	if(!function) {
 		fprintf(stderr, "GPU failed to find function %s\n", name);
-		return NULL;
+		return 0;
 	}
 
 	node = GPU_node_begin(name);
@@ -1178,7 +1178,7 @@ GPUNode *GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeS
 
 	gpu_material_add_node(mat, node);
 	
-	return node;
+	return 1;
 }
 
 /* Pass create/free */

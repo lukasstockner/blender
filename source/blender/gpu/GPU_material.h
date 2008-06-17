@@ -41,6 +41,7 @@ struct Image;
 struct ImageUser;
 struct Material;
 struct Object;
+struct bNode;
 struct GPUVertexAttribs;
 struct GPUNode;
 struct GPUNodeLink;
@@ -71,7 +72,9 @@ typedef struct GPUNodeStack {
 	char *name;
 	float vec[4];
 	struct GPUNodeLink *link;
-	int hasinput;
+	short hasinput;
+	short hasoutput;
+	short sockettype;
 } GPUNodeStack;
 
 GPUNodeLink *GPU_attribute(int type, char *name);
@@ -81,8 +84,8 @@ GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser);
 GPUNodeLink *GPU_texture(int size, float *pixels);
 GPUNodeLink *GPU_socket(GPUNodeStack *sock);
 
-GPUNode *GPU_link(GPUMaterial *mat, char *name, ...);
-GPUNode *GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
+int GPU_link(GPUMaterial *mat, char *name, ...);
+int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
@@ -101,6 +104,23 @@ void GPU_material_unbind(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,
 	struct GPUVertexAttribs *attrib);
+
+/* Exported shading */
+
+typedef struct GPUShadeInput {
+	GPUMaterial *gpumat;
+	struct Material *mat;
+
+	GPUNodeLink *rgb, *specrgb, *vn, *view;
+	GPUNodeLink *alpha, *refl, *spec, *emit, *har, *amb;
+} GPUShadeInput;
+
+typedef struct GPUShadeResult {
+	GPUNodeLink *diff, *spec, *combined, *alpha;
+} GPUShadeResult;
+
+void GPU_shadeinput_set(GPUMaterial *mat, struct Material *ma, GPUShadeInput *shi);
+void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr);
 
 #ifdef __cplusplus
 }

@@ -194,14 +194,12 @@ bNodeStack **out)
 	} 
 }
 
-static GPUNode *gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	static char *names[] = {"math_add", "math_subtract", "math_multiply",
 		"math_divide", "math_sine", "math_cosine", "math_tangnet", "math_asin",
 		"math_acos", "math_atan", "math_pow", "math_log", "math_min", "math_max",
 		"math_round", "math_less_than", "math_greater_than"};
-
-	GPUNode *gnode = NULL;
 
 	switch (node->custom1) {
 		case 0:
@@ -214,7 +212,7 @@ static GPUNode *gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in,
 		case 13:
 		case 15:
 		case 16:
-			gnode = GPU_stack_link(mat, names[node->custom1], NULL, out,
+			GPU_stack_link(mat, names[node->custom1], NULL, out,
 				GPU_socket(&in[0]), GPU_socket(&in[1]));
 			break;
 		case 4:
@@ -225,13 +223,15 @@ static GPUNode *gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in,
 		case 9:
 		case 14:
 			if(in[0].hasinput || !in[1].hasinput)
-				gnode = GPU_stack_link(mat, names[node->custom1], NULL, out, GPU_socket(&in[0]));
+				GPU_stack_link(mat, names[node->custom1], NULL, out, GPU_socket(&in[0]));
 			else
-				gnode = GPU_stack_link(mat, names[node->custom1], NULL, out, GPU_socket(&in[1]));
+				GPU_stack_link(mat, names[node->custom1], NULL, out, GPU_socket(&in[1]));
 			break;
+		default:
+			return 0;
 	}
 	
-	return gnode;
+	return 1;
 }
 
 bNodeType sh_node_math= {

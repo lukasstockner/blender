@@ -2379,6 +2379,8 @@ static void gpu_from_node_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack
 
 		gs[i].name = "";
 		gs[i].hasinput= ns[i]->hasinput;
+		gs[i].hasoutput= ns[i]->hasinput;
+		gs[i].sockettype= ns[i]->sockettype;
 	}
 
 	gs[i].type= GPU_NONE;
@@ -2389,8 +2391,50 @@ static void data_from_gpu_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack
 	bNodeSocket *sock;
 	int i;
 
-	for (sock=sockets->first, i=0; sock; sock=sock->next, i++)
+	for (sock=sockets->first, i=0; sock; sock=sock->next, i++) {
 		ns[i]->data= gs[i].link;
+		ns[i]->hasinput= gs[i].hasinput;
+		ns[i]->hasoutput= gs[i].hasoutput;
+		ns[i]->sockettype= gs[i].sockettype;
+	}
+}
+
+static void gpu_node_group_execute(bNodeStack *stack, GPUMaterial *mat, bNode *gnode, bNodeStack **in, bNodeStack **out)
+{
+	bNode *node;
+	bNodeTree *ntree= (bNodeTree *)gnode->id;
+	bNodeStack *nsin[MAX_SOCKET];	/* arbitrary... watch this */
+	bNodeStack *nsout[MAX_SOCKET];	/* arbitrary... watch this */
+	GPUNodeStack gpuin[MAX_SOCKET+1], gpuout[MAX_SOCKET+1];
+	int doit = 0;
+	
+	if(ntree==NULL) return;
+	
+	stack+= gnode->stack_index;
+		
+	for(node= ntree->nodes.first; node; node= node->next) {
+		if(node->typeinfo->gpufunc) {
+			group_node_get_stack(node, stack, nsin, nsout, in, out);
+
+			doit = 0;
+			
+			/* for groups, only execute outputs for edited group */
+			if(node->typeinfo->nclass==NODE_CLASS_OUTPUT) {
+				if(gnode->flag & NODE_GROUP_EDIT)
+					if(node->flag & NODE_DO_OUTPUT)
+						doit = 1;
+			}
+			else
+				doit = 1;
+
+			if(doit)  {
+				gpu_from_node_stack(&node->inputs, nsin, gpuin);
+				gpu_from_node_stack(&node->outputs, nsout, gpuout);
+				if(node->typeinfo->gpufunc(mat, node, gpuin, gpuout))
+					data_from_gpu_stack(&node->outputs, nsout, gpuout);
+			}
+		}
+	}
 }
 
 void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
@@ -2414,7 +2458,10 @@ void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
 			if(node->typeinfo->gpufunc(mat, node, gpuin, gpuout))
 				data_from_gpu_stack(&node->outputs, nsout, gpuout);
 		}
-		/* groups not supported yet .. */
+        else if(node->type==NODE_GROUP && node->id) {
+			node_get_stack(node, stack, nsin, nsout);
+			gpu_node_group_execute(stack, mat, node, nsin, nsout);
+		}
 	}
 
 	ntreeEndExecTree(ntree);

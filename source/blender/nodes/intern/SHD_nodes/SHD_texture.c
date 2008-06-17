@@ -112,7 +112,7 @@ static void node_shader_exec_texture(void *data, bNode *node, bNodeStack **in, b
 	}
 }
 
-static GPUNode *gpu_shader_texture(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_texture(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	Tex *tex = (Tex*)node->id;
 
@@ -121,7 +121,7 @@ static GPUNode *gpu_shader_texture(GPUMaterial *mat, bNode *node, GPUNodeStack *
 		return GPU_stack_link(mat, "texture_image", in, out, texlink);
 	}
 	else
-		return NULL;
+		return 0;
 }
 
 bNodeType sh_node_texture= {

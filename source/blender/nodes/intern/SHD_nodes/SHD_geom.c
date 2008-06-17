@@ -125,7 +125,7 @@ static void node_shader_init_geometry(bNode *node)
    node->storage= MEM_callocN(sizeof(NodeGeometry), "NodeGeometry");
 }
 
-static GPUNode *gpu_shader_geom(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_geom(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	NodeGeometry *ngeo= (NodeGeometry*)node->storage;
 	GPUNodeLink *orco = GPU_attribute(CD_ORCO, "");

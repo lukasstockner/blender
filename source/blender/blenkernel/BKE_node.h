@@ -95,7 +95,7 @@ typedef struct bNodeType {
 	void *pydict; /* holds pointer to python script dictionary (scope)*/
 
 	/* gpu */
-	struct GPUNode *(*gpufunc)(struct GPUMaterial *mat, struct bNode *node, struct GPUNodeStack *in, struct GPUNodeStack *out);
+	int (*gpufunc)(struct GPUMaterial *mat, struct bNode *node, struct GPUNodeStack *in, struct GPUNodeStack *out);
 
 } bNodeType;
 

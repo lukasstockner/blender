@@ -256,7 +256,6 @@ void vec_math_normalize(vec3 v, out vec3 outvec, out float outval)
 {
 	outval = length(v);
 	outvec = normalize(v);
-	outval = length(outvec);
 }
 
 void vec_math_negate(vec3 v, out vec3 outv)

@@ -69,7 +69,7 @@ static void node_shader_init_mapping(bNode *node)
    node->storage= add_mapping();
 }
 
-static GPUNode *gpu_shader_mapping(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_mapping(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	TexMapping *texmap= node->storage;
 	float domin= (texmap->flag & TEXMAP_CLIP_MIN) != 0;

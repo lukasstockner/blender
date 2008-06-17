@@ -42,7 +42,7 @@ static void node_shader_exec_value(void *data, bNode *node, bNodeStack **in, bNo
 	out[0]->vec[0]= sock->ns.vec[0];
 }
 
-static GPUNode *gpu_shader_value(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
+static int gpu_shader_value(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
 	bNodeSocket *sock= node->outputs.first;
 	GPUNodeLink *vec = GPU_uniform(sock->ns.vec);
