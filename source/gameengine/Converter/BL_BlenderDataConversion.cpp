@@ -310,6 +310,7 @@ BL_Material* ConvertMaterial(
 	Mesh* mesh, 
 	Material *mat, 
 	MTFace* tface,  
+	const char *tfaceName,
 	MFace* mface, 
 	MCol* mmcol, 
 	int lightlayer, 
@@ -588,6 +589,7 @@ BL_Material* ConvertMaterial(
 	}
 	MT_Point2 uv[4];
 	MT_Point2 uv2[4];
+	const char *uvName = "", *uv2Name = "";
 
 	uv[0]= uv[1]= uv[2]= uv[3]= MT_Point2(0.0f, 0.0f);
 	uv2[0]= uv2[1]= uv2[2]= uv2[3]= MT_Point2(0.0f, 0.0f);
@@ -614,6 +616,8 @@ BL_Material* ConvertMaterial(
 
 		if (mface->v4) 
 			uv[3]	= MT_Point2(tface->uv[3]);
+
+		uvName = tfaceName;
 	} 
 	else {
 		// nothing at all
@@ -639,39 +643,38 @@ BL_Material* ConvertMaterial(
 				isFirstSet = false;
 			else
 			{
-				MT_Point2 uvSet[4];
 				for (int lay=0; lay<MAX_MTFACE; lay++)
 				{
 					MTF_localLayer& layer = layers[lay];
 					if (layer.face == 0) break;
 
-
-					bool processed = false;
 					if (strcmp(map.uvCoName.ReadPtr(), layer.name)==0)
 					{
+						MT_Point2 uvSet[4];
+
 						uvSet[0]	= MT_Point2(layer.face->uv[0]);
 						uvSet[1]	= MT_Point2(layer.face->uv[1]);
 						uvSet[2]	= MT_Point2(layer.face->uv[2]);
 
 						if (mface->v4) 
 							uvSet[3]	= MT_Point2(layer.face->uv[3]);
+						else
+							uvSet[3]	= MT_Point2(0.0f, 0.0f);
 
-						processed = true;
-					}
-
-					if (!processed) continue;
-
-					if (isFirstSet)
-					{
-						uv[0] = uvSet[0]; uv[1] = uvSet[1];
-						uv[2] = uvSet[2]; uv[3] = uvSet[3];
-						isFirstSet = false;
-					}
-					else
-					{
-						uv2[0] = uvSet[0]; uv2[1] = uvSet[1];
-						uv2[2] = uvSet[2]; uv2[3] = uvSet[3];
-						map.mapping |= USECUSTOMUV;
+						if (isFirstSet)
+						{
+							uv[0] = uvSet[0]; uv[1] = uvSet[1];
+							uv[2] = uvSet[2]; uv[3] = uvSet[3];
+							isFirstSet = false;
+							uvName = layer.name;
+						}
+						else
+						{
+							uv2[0] = uvSet[0]; uv2[1] = uvSet[1];
+							uv2[2] = uvSet[2]; uv2[3] = uvSet[3];
+							map.mapping |= USECUSTOMUV;
+							uv2Name = layer.name;
+						}
 					}
 				}
 			}
@@ -691,9 +694,8 @@ BL_Material* ConvertMaterial(
 	}
 
 	material->SetConversionRGB(rgb);
-	material->SetConversionUV(uv);
-	material->SetConversionUV2(uv2);
-
+	material->SetConversionUV(uvName, uv);
+	material->SetConversionUV2(uv2Name, uv2);
 
 	material->ras_mode |= (mface->v4==0)?TRIANGLE:0;
 	if(validmat)
@@ -795,6 +797,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 	
 	MFace* mface = static_cast<MFace*>(mesh->mface);
 	MTFace* tface = static_cast<MTFace*>(mesh->mtface);
+	const char *tfaceName = "";
 	MCol* mmcol = mesh->mcol;
 	MT_assert(mface || mesh->totface == 0);
 
@@ -830,6 +833,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 
 			layers[validLayers].face = (MTFace*)mesh->fdata.layers[i].data;;
 			layers[validLayers].name = mesh->fdata.layers[i].name;
+			if(tface == layers[validLayers].face)
+				tfaceName = layers[validLayers].name;
 			validLayers++;
 		}
 	}
@@ -896,7 +901,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					else 
 						ma = give_current_material(blenderobj, 1);
 
-					bl_mat = ConvertMaterial(mesh, ma, tface, mface, mmcol, lightlayer, blenderobj, layers);
+					bl_mat = ConvertMaterial(mesh, ma, tface, tfaceName, mface, mmcol, lightlayer, blenderobj, layers);
 					bl_mat->glslmat = converter->GetGLSLMaterials();
 					// set the index were dealing with
 					bl_mat->material_index =  (int)mface->mat_nr;

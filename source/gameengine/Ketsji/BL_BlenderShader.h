@@ -11,6 +11,7 @@
 #include "MT_Tuple4.h"
 
 struct Material;
+class BL_Material;
 
 #define BL_MAX_ATTRIB	16
 
@@ -32,7 +33,7 @@ public:
 	void				SetProg(bool enable);
 
 	void ApplyShader();
-	void SetTexCoords(class RAS_IRasterizer* ras);
+	void SetTexCoords(class RAS_IRasterizer* ras, const BL_Material *mat);
 	int GetAttribNum();
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
 };

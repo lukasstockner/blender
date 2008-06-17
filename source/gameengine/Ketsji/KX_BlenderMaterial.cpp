@@ -372,7 +372,7 @@ KX_BlenderMaterial::ActivateBlenderShaders(
 	}
 
 	ActivatGLMaterials(rasty);
-	mBlenderShader->SetTexCoords(rasty);
+	mBlenderShader->SetTexCoords(rasty, mMaterial);
 }
 
 void
