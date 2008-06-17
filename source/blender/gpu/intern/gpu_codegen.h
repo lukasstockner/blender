@@ -44,10 +44,14 @@ struct GPUVertexAttribs;
 #define MAX_FUNCTION_NAME	64
 #define MAX_PARAMETER		32
 
+#define FUNCTION_QUAL_IN	0
+#define FUNCTION_QUAL_OUT	1
+#define FUNCTION_QUAL_INOUT	2
+
 typedef struct GPUFunction {
 	char name[MAX_FUNCTION_NAME];
 	int paramtype[MAX_PARAMETER];
-	int paramout[MAX_PARAMETER];
+	int paramqual[MAX_PARAMETER];
 	int totparam;
 } GPUFunction;
 

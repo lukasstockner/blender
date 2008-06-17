@@ -823,6 +823,7 @@ struct GPUShader {
 	GLhandleARB object;		/* handle for full shader */
 	GLhandleARB vertex;		/* handle for vertex shader */
 	GLhandleARB fragment;	/* handle for fragment shader */
+	GLhandleARB lib;		/* handle for libment shader */
 	int totattrib;			/* total number of attributes */
 };
 
@@ -846,7 +847,7 @@ static void shader_print_errors(char *task, char *log, const char *code)
 	fprintf(stderr, "%s\n", log);
 }
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode)
+GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, GPUShader *lib)
 {
 	GLint status;
 	GLcharARB log[5000];
@@ -906,6 +907,9 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode)
 		}
 	}
 
+	if(lib && lib->lib)
+		glAttachObjectARB(shader->object, lib->lib);
+
 	glLinkProgramARB(shader->object);
 	glGetObjectParameterivARB(shader->object, GL_OBJECT_LINK_STATUS_ARB, &status);
 	if (!status) {
@@ -918,6 +922,44 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode)
 
 	return shader;
 }
+
+GPUShader *GPU_shader_create_lib(const char *code)
+{
+	GLint status;
+	GLcharARB log[5000];
+	GLsizei length = 0;
+	GPUShader *shader;
+
+	if (!GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader)
+		return NULL;
+
+	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
+
+	shader->lib = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+
+	if (!shader->lib) {
+		fprintf(stderr, "GPUShader, object creation failed.\n");
+		GPU_shader_free(shader);
+		return NULL;
+	}
+
+	glShaderSourceARB(shader->lib, 1, (const char**)&code, NULL);
+
+	glCompileShaderARB(shader->lib);
+	glGetObjectParameterivARB(shader->lib, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+
+	if (!status) {
+		glValidateProgramARB(shader->lib);
+		glGetInfoLogARB(shader->lib, sizeof(log), &length, log);
+		shader_print_errors("compile", log, code);
+
+		GPU_shader_free(shader);
+		return NULL;
+	}
+
+	return shader;
+}
+
 
 void GPU_shader_bind(GPUShader *shader)
 {
@@ -935,6 +977,10 @@ void GPU_shader_unbind()
 
 void GPU_shader_free(GPUShader *shader)
 {
+	if (shader->lib)
+		glDeleteObjectARB(shader->lib);
+	if (shader->vertex)
+		glDeleteObjectARB(shader->vertex);
 	if (shader->fragment)
 		glDeleteObjectARB(shader->fragment);
 	if (shader->object)

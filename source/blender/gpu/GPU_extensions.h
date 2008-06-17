@@ -114,7 +114,8 @@ void GPU_framebuffer_restore();
    - only for fragment shaders now
    - must call texture bind before setting a texture as uniform! */
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode);
+GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, GPUShader *lib);
+GPUShader *GPU_shader_create_lib(const char *code);
 void GPU_shader_free(GPUShader *shader);
 
 void GPU_shader_bind(GPUShader *shader);
