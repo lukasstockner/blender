@@ -59,16 +59,14 @@ static void node_shader_init_valtorgb(bNode *node)
    node->storage= add_colorband(1);
 }
 
-#if 0
 static GPUNode *gpu_shader_valtorgb(GPUMaterial *mat, bNode *node, GPUNodeStack *in, GPUNodeStack *out)
 {
-	int size = 256;
-	float *pixels = NULL; //colorband_pixels(node->storage, size);
-	GPUNodeLink *tex = GPU_texture(size, pixels);
+	float *array;
+	int size;
 
-	return GPU_stack_link(mat, "valtorgb", in, out, tex);
+	colorband_table_RGBA(node->storage, &array, &size);
+	return GPU_stack_link(mat, "valtorgb", in, out, GPU_texture(size, array));
 }
-#endif
 
 bNodeType sh_node_valtorgb= {
 	/* *next,*prev */	NULL, NULL,
@@ -85,7 +83,7 @@ bNodeType sh_node_valtorgb= {
 	/* freestoragefunc    */	node_free_standard_storage,
 	/* copystoragefunc    */	node_copy_standard_storage,
 	/* id          */	NULL, NULL, NULL,
-	/* gpufunc     */	NULL
+	/* gpufunc     */	gpu_shader_valtorgb
 	
 };
 

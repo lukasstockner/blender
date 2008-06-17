@@ -211,6 +211,11 @@ void gpu_material_add_node(GPUMaterial *material, GPUNode *node)
 
 /* Code generation */
 
+typedef struct GPUShadeInput {
+	GPUNodeLink *rgb, *specrgb, *vn;
+	GPUNodeLink *alpha, *refl, *spec, *emit, *har, *amb;
+} GPUShadeInput;
+
 static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, Object *lampob, Lamp *la, GPUNodeLink **lv, GPUNodeLink **dist)
 {
 	GPUNodeLink *visifac, *inpr;
@@ -318,11 +323,11 @@ static void area_lamp_vectors(LampRen *lar)
 }
 #endif
 
-static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material *ma, GPUNodeLink *col, GPUNodeLink  *specrgb, GPUNodeLink *nor, GPUNodeLink **out)
+static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material *ma, GPUShadeInput *shi, GPUNodeLink **out)
 {
 	GPUNodeLink *lv, *dist, *visifac, *is, *inp, *i, *vn, *view;
 	GPUNodeLink *outcol, *specfac, *result, *t;
-	float hard, energy, lampcol[3], zero[3] = {0.0f, 0.0f, 0.0f};
+	float energy, lampcol[3], zero[3] = {0.0f, 0.0f, 0.0f};
 	float *lampvec, *lampco;
 
 	if((la->mode & LA_ONLYSHADOW) && !(ma->mode & MA_SHADOW))
@@ -331,7 +336,7 @@ static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material
 	lampvec= lampob->obmat[2];
 	lampco= lampob->obmat[3];
 
-	vn= nor;
+	vn= shi->vn;
 	GPU_link(mat, "shade_view", &view);
 	GPU_link(mat, "setrgb", GPU_uniform(zero), &result);
 
@@ -381,32 +386,30 @@ static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material
 		GPU_link(mat, "shade_cubic", is, &is);
 	
 	i = is;
-	GPU_link(mat, "shade_visifac", i, visifac, GPU_uniform(&ma->ref), &i);
+	GPU_link(mat, "shade_visifac", i, visifac, shi->refl, &i);
 
-	vn = nor;
+	vn = shi->vn;
 	/*if(ma->mode & MA_TANGENT_VN)
 		GPU_link(mat, "shade_tangent_v_spec", GPU_attribute(CD_TANGENT, ""), &vn);*/
 	
 	if(!(la->mode & LA_NO_DIFF)) {
-		GPU_link(mat, "shade_add_to_diffuse", i, GPU_uniform(lampcol), col, &outcol);
+		GPU_link(mat, "shade_add_to_diffuse", i, GPU_uniform(lampcol), shi->rgb, &outcol);
 		GPU_link(mat, "shade_add", result, outcol, &result);
 	}
 
 	if(!(la->mode & LA_NO_SPEC) && !(la->mode & LA_ONLYSHADOW)) {
-		hard= ma->har;
-
 		if(la->type == LA_HEMI) {
-			GPU_link(mat, "shade_hemi_spec", vn, lv, view, GPU_uniform(&ma->spec), GPU_uniform(&hard), &t);
-			GPU_link(mat, "shade_add_spec", t, GPU_uniform(lampcol), specrgb, visifac, &outcol);
+			GPU_link(mat, "shade_hemi_spec", vn, lv, view, GPU_uniform(&ma->spec), shi->har, &t);
+			GPU_link(mat, "shade_add_spec", t, GPU_uniform(lampcol), shi->specrgb, visifac, &outcol);
 			GPU_link(mat, "shade_add", result, outcol, &result);
 		}
 		else {
 			if(ma->spec_shader==MA_SPEC_PHONG)
-				GPU_link(mat, "shade_phong_spec", vn, lv, view, GPU_uniform(&hard), &specfac);
+				GPU_link(mat, "shade_phong_spec", vn, lv, view, shi->har, &specfac);
 			else if(ma->spec_shader==MA_SPEC_COOKTORR)
-				GPU_link(mat, "shade_cooktorr_spec", vn, lv, view, GPU_uniform(&hard), &specfac);
+				GPU_link(mat, "shade_cooktorr_spec", vn, lv, view, shi->har, &specfac);
 			else if(ma->spec_shader==MA_SPEC_BLINN)
-				GPU_link(mat, "shade_blinn_spec", vn, lv, view, GPU_uniform(&ma->refrac), GPU_uniform(&hard), &specfac);
+				GPU_link(mat, "shade_blinn_spec", vn, lv, view, GPU_uniform(&ma->refrac), shi->har, &specfac);
 			else if(ma->spec_shader==MA_SPEC_WARDISO)
 				GPU_link(mat, "shade_wardiso_spec", vn, lv, view, GPU_uniform(&ma->rms), &specfac);
 			else
@@ -415,7 +418,7 @@ static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material
 			if(la->type==LA_AREA)
 				GPU_link(mat, "shade_spec_area_inp", specfac, inp, &specfac);
 
-			GPU_link(mat, "shade_spec_t", GPU_uniform(&ma->spec), visifac, specfac, &t);
+			GPU_link(mat, "shade_spec_t", shi->spec, visifac, specfac, &t);
 
 			/*if(ma->mode & MA_RAMP_SPEC) {
 				float spec[3];
@@ -425,7 +428,7 @@ static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material
 				shr->spec[2]+= t*(lacol[2] * spec[2]);
 			}
 			else {*/
-				GPU_link(mat, "shade_add_spec", t, GPU_uniform(lampcol), specrgb, visifac, &outcol);
+				GPU_link(mat, "shade_add_spec", t, GPU_uniform(lampcol), shi->specrgb, visifac, &outcol);
 				GPU_link(mat, "shade_add", result, outcol, &result);
 			/*}*/
 		}
@@ -434,7 +437,7 @@ static void shade_one_light(GPUMaterial *mat, Object *lampob, Lamp *la, Material
 	GPU_link(mat, "shade_add", *out, result, out);
 }
 
-static void material_lights(GPUMaterial *mat, Material *ma, GPUNodeLink *col, GPUNodeLink *spec, GPUNodeLink *nor, GPUNodeLink **out)
+static void material_lights(GPUMaterial *mat, Material *ma, GPUShadeInput *shi, GPUNodeLink **out)
 {
 	Base *base;
 	Object *lampob;
@@ -446,7 +449,7 @@ static void material_lights(GPUMaterial *mat, Material *ma, GPUNodeLink *col, GP
 				lampob= base->object;
 				la= lampob->data;
 
-				shade_one_light(mat, lampob, la, ma, col, spec, nor, out);
+				shade_one_light(mat, lampob, la, ma, shi, out);
 			}
 		}
 	}
@@ -454,22 +457,103 @@ static void material_lights(GPUMaterial *mat, Material *ma, GPUNodeLink *col, GP
 
 static void texture_rgb_blend(GPUMaterial *mat, GPUNodeLink *tex, GPUNodeLink *out, GPUNodeLink *fact, GPUNodeLink *facg, int blendtype, GPUNodeLink **in)
 {
-	GPU_link(mat, "mtex_rgb_blend", out, tex, fact, facg, in);
+	float inval[3] = {0.0f, 0.0f, 0.0f};
+
+	switch(blendtype) {
+	case MTEX_BLEND:
+		GPU_link(mat, "mtex_rgb_blend", out, tex, fact, facg, in);
+		break;
+	case MTEX_MUL:
+		GPU_link(mat, "mtex_rgb_mul", out, tex, fact, facg, in);
+		break;
+	case MTEX_SCREEN:
+		GPU_link(mat, "mtex_rgb_screen", out, tex, fact, facg, in);
+		break;
+	case MTEX_OVERLAY:
+		GPU_link(mat, "mtex_rgb_overlay", out, tex, fact, facg, in);
+		break;
+	case MTEX_SUB:
+		GPU_link(mat, "mtex_rgb_sub", out, tex, fact, facg, in);
+		break;
+	case MTEX_ADD:
+		GPU_link(mat, "mtex_rgb_add", out, tex, fact, facg, in);
+		break;
+	case MTEX_DIV:
+		GPU_link(mat, "mtex_rgb_div", out, tex, fact, facg, in);
+		break;
+	case MTEX_DIFF:
+		GPU_link(mat, "mtex_rgb_diff", out, tex, fact, facg, in);
+		break;
+	case MTEX_DARK:
+		GPU_link(mat, "mtex_rgb_dark", out, tex, fact, facg, in);
+		break;
+	case MTEX_LIGHT:
+		GPU_link(mat, "mtex_rgb_light", out, tex, fact, facg, in);
+		break;
+	case MTEX_BLEND_HUE:
+		GPU_link(mat, "mtex_rgb_hue", out, tex, fact, facg, in);
+		break;
+	case MTEX_BLEND_SAT:
+		GPU_link(mat, "mtex_rgb_sat", out, tex, fact, facg, in);
+		break;
+	case MTEX_BLEND_VAL:
+		GPU_link(mat, "mtex_rgb_val", out, tex, fact, facg, in);
+		break;
+	case MTEX_BLEND_COLOR:
+		GPU_link(mat, "mtex_rgb_color", out, tex, fact, facg, in);
+		break;
+	default:
+		GPU_link(mat, "setvalue", GPU_uniform(inval), &in);
+		break;
+	}
 }
 
-static void texture_value_blend(GPUMaterial *mat, GPUNodeLink *tex, GPUNodeLink *out, GPUNodeLink *fact, GPUNodeLink *facg, int blendtype, GPUNodeLink **in)
+static void texture_value_blend(GPUMaterial *mat, GPUNodeLink *tex, GPUNodeLink *out, GPUNodeLink *fact, GPUNodeLink *facg, int blendtype, int flip, GPUNodeLink **in)
 {
-	GPU_link(mat, "mtex_value_blend", out, tex, fact, facg, in);
+	float inf = 0.0f;
+	float flipf = (flip)? 1.0f: 0.0;
+
+	switch(blendtype) {
+	case MTEX_BLEND:
+		GPU_link(mat, "mtex_value_blend", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_MUL:
+		GPU_link(mat, "mtex_value_mul", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_SCREEN:
+		GPU_link(mat, "mtex_value_screen", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_SUB:
+		GPU_link(mat, "mtex_value_sub", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_ADD:
+		GPU_link(mat, "mtex_value_add", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_DIV:
+		GPU_link(mat, "mtex_value_div", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_DIFF:
+		GPU_link(mat, "mtex_value_diff", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_DARK:
+		GPU_link(mat, "mtex_value_dark", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	case MTEX_LIGHT:
+		GPU_link(mat, "mtex_value_light", out, tex, fact, facg, GPU_uniform(&flipf), in);
+		break;
+	default:
+		GPU_link(mat, "setvalue", GPU_uniform(&inf), &in);
+		break;
+	}
 }
 
-static void do_material_tex(GPUMaterial *mat, Material *ma, GPUNodeLink **col_r, GPUNodeLink **specrgb_r, GPUNodeLink **nor_r, GPUNodeLink **alpha_r)
+static void do_material_tex(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 {
 	MTex *mtex;
 	Tex *tex;
 	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil = NULL;
-	GPUNodeLink *col, *specrgb, *colfac, *nor, *newnor;
-	GPUNodeLink *defvar, *varfac, *alpha, *orn;
-	float macol[4], maspecrgb[4], mtexrgb[4], one = 1.0f;
+	GPUNodeLink *colfac, *newnor, *varfac, *orn;
+	float macol[4], maspecrgb[4], mtexrgb[4], one = 1.0f, hard = ma->har;
 	int tex_nr, rgbnor, talpha;
 
 	/* set default values */
@@ -478,11 +562,17 @@ static void do_material_tex(GPUMaterial *mat, Material *ma, GPUNodeLink **col_r,
 	VECCOPY(maspecrgb, &ma->specr);
 	maspecrgb[3]= 1.0f;
 
-	GPU_link(mat, "setrgb", GPU_uniform(macol), &col);
-	GPU_link(mat, "setrgb", GPU_uniform(maspecrgb), &specrgb);
+	GPU_link(mat, "setrgb", GPU_uniform(macol), &shi->rgb);
+	GPU_link(mat, "setrgb", GPU_uniform(maspecrgb), &shi->specrgb);
 	GPU_link(mat, "texco_norm", &orn);
-	GPU_link(mat, "shade_norm", &nor);
-	GPU_link(mat, "setvalue", GPU_uniform(&ma->alpha), &alpha);
+	GPU_link(mat, "shade_norm", &shi->vn);
+	GPU_link(mat, "setvalue", GPU_uniform(&ma->alpha), &shi->alpha);
+	GPU_link(mat, "setvalue", GPU_uniform(&ma->ref), &shi->refl);
+	GPU_link(mat, "setvalue", GPU_uniform(&ma->spec), &shi->spec);
+	GPU_link(mat, "setvalue", GPU_uniform(&ma->emit), &shi->emit);
+	GPU_link(mat, "setvalue", GPU_uniform(&hard), &shi->har);
+	GPU_link(mat, "setvalue", GPU_uniform(&ma->amb), &shi->amb);
+
 	GPU_link(mat, "setvalue", GPU_uniform(&one), &stencil);
 
 	/* go over texture slots */
@@ -556,9 +646,9 @@ static void do_material_tex(GPUMaterial *mat, Material *ma, GPUNodeLink **col_r,
 				}
 				
 				if(mtex->mapto & MAP_COL)
-					texture_rgb_blend(mat, tcol, col, tin, colfac, mtex->blendtype, &col);
+					texture_rgb_blend(mat, tcol, shi->rgb, tin, colfac, mtex->blendtype, &shi->rgb);
 				if(mtex->mapto & MAP_COLSPEC)
-					texture_rgb_blend(mat, tcol, specrgb, tin, colfac, mtex->blendtype, &specrgb);
+					texture_rgb_blend(mat, tcol, shi->specrgb, tin, colfac, mtex->blendtype, &shi->specrgb);
 			}
 
 			if(mtex->mapto & MAP_NORM) {
@@ -572,14 +662,14 @@ static void do_material_tex(GPUMaterial *mat, Material *ma, GPUNodeLink **col_r,
 						GPU_link(mat, "mtex_negate_texnormal", tnor, &tnor);
 
 					if(mtex->normapspace == MTEX_NSPACE_TANGENT)
-						GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), nor, tnor, &newnor);
+						GPU_link(mat, "mtex_nspace_tangent", GPU_attribute(CD_TANGENT, ""), shi->vn, tnor, &newnor);
 					else
 						newnor = tnor;
 
-					GPU_link(mat, "mtex_blend_normal", GPU_uniform(&mtex->norfac), nor, newnor, &nor);
+					GPU_link(mat, "mtex_blend_normal", GPU_uniform(&mtex->norfac), shi->vn, newnor, &shi->vn);
 				}
 
-				GPU_link(mat, "vec_math_negate", nor, &orn);
+				GPU_link(mat, "vec_math_negate", shi->vn, &orn);
 			}
 
 			if(mtex->mapto & MAP_VARS) {
@@ -592,37 +682,61 @@ static void do_material_tex(GPUMaterial *mat, Material *ma, GPUNodeLink **col_r,
 						GPU_link(mat, "mtex_rgbtoint", trgb, &tin);
 				}
 
+				if(mtex->mapto & MAP_REF) {
+					int flip= mtex->maptoneg & MAP_REF;
+					texture_value_blend(mat, GPU_uniform(&mtex->def_var), shi->refl, tin, varfac, mtex->blendtype, flip, &shi->refl);
+					GPU_link(mat, "mtex_value_clamp_positive", shi->refl, &shi->refl);
+				}
+				if(mtex->mapto & MAP_SPEC) {
+					int flip= mtex->maptoneg & MAP_SPEC;
+					texture_value_blend(mat, GPU_uniform(&mtex->def_var), shi->spec, tin, varfac, mtex->blendtype, flip, &shi->spec);
+					GPU_link(mat, "mtex_value_clamp_positive", shi->spec, &shi->spec);
+				}
+				if(mtex->mapto & MAP_EMIT) {
+					int flip= mtex->maptoneg & MAP_EMIT;
+					texture_value_blend(mat, GPU_uniform(&mtex->def_var), shi->emit, tin, varfac, mtex->blendtype, flip, &shi->emit);
+					GPU_link(mat, "mtex_value_clamp_positive", shi->emit, &shi->emit);
+				}
+				if(mtex->mapto & MAP_HAR) {
+					int flip= mtex->maptoneg & MAP_HAR;
+					GPU_link(mat, "mtex_har_divide", shi->har, &shi->har);
+					texture_value_blend(mat, GPU_uniform(&mtex->def_var), shi->har, tin, varfac, mtex->blendtype, flip, &shi->har);
+					GPU_link(mat, "mtex_har_multiply_clamp", shi->har, &shi->har);
+				}
 				if(mtex->mapto & MAP_ALPHA) {
-					GPU_link(mat, "setvalue", GPU_uniform(&mtex->def_var), &defvar);
-					texture_value_blend(mat, defvar, alpha, tin, varfac, mtex->blendtype, &alpha);
+					int flip= mtex->maptoneg & MAP_ALPHA;
+					texture_value_blend(mat, GPU_uniform(&mtex->def_var), shi->alpha, tin, varfac, mtex->blendtype, flip, &shi->alpha);
+					GPU_link(mat, "mtex_value_clamp", shi->alpha, &shi->alpha);
+				}
+				if(mtex->mapto & MAP_AMB) {
+					int flip= mtex->maptoneg & MAP_AMB;
+					texture_value_blend(mat, GPU_uniform(&mtex->def_var), shi->amb, tin, varfac, mtex->blendtype, flip, &shi->amb);
+					GPU_link(mat, "mtex_value_clamp", shi->amb, &shi->amb);
 				}
 			}
 		}
 	}
-
-	/* return buffers */
-	*col_r= col;
-	*specrgb_r= specrgb;
-	*nor_r = nor;
-	*alpha_r= alpha;
 }
 
 GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
 {
-	GPUNodeLink *col, *specrgb, *nor, *alpha, *out = NULL;
+	GPUNodeLink *out = NULL;
+	GPUShadeInput shi;
 
-	do_material_tex(mat, ma, &col, &specrgb, &nor, &alpha);
+	memset(&shi, 0, sizeof(shi));
+
+	do_material_tex(mat, ma, &shi);
 
 	if(ma->alpha < 1.0f)
 		GPU_material_enable_alpha(mat);
 
 	if(ma->mode & MA_SHLESS) {
-		out = col;
+		out = shi.rgb;
 	}
 	else {
-		GPU_link(mat, "shade_emit", GPU_uniform(&ma->emit), col, &out);
+		GPU_link(mat, "shade_emit", shi.emit, shi.rgb, &out);
 
-		material_lights(mat, ma, col, specrgb, nor, &out);
+		material_lights(mat, ma, &shi, &out);
 		
 		/*hard= ma->har;
 		GPU_link(mat, "material_simple", col, GPU_uniform(&ma->ref), specrgb,
@@ -630,7 +744,7 @@ GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
 		GPU_link(mat, "shade_add", out, combined, &out);*/
 	}
 
-	GPU_link(mat, "mtex_alpha_to_col", out, alpha, &out);
+	GPU_link(mat, "mtex_alpha_to_col", out, shi.alpha, &out);
 
 	return out;
 }

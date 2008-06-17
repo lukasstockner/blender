@@ -199,7 +199,7 @@ static GPUNode *gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in,
 	static char *names[] = {"math_add", "math_subtract", "math_multiply",
 		"math_divide", "math_sine", "math_cosine", "math_tangnet", "math_asin",
 		"math_acos", "math_atan", "math_pow", "math_log", "math_min", "math_max",
-		"math_round"};
+		"math_round", "math_less_than", "math_greater_than"};
 
 	GPUNode *gnode = NULL;
 
@@ -212,6 +212,8 @@ static GPUNode *gpu_shader_math(GPUMaterial *mat, bNode *node, GPUNodeStack *in,
 		case 11:
 		case 12:
 		case 13:
+		case 15:
+		case 16:
 			gnode = GPU_stack_link(mat, names[node->custom1], NULL, out,
 				GPU_socket(&in[0]), GPU_socket(&in[1]));
 			break;

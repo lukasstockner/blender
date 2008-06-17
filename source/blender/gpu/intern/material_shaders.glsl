@@ -5,6 +5,79 @@ varying vec3 varnormal;
 uniform mat4 unfobmat;
 uniform mat4 unfviewmat;
 
+/************** COMMON ****************/
+
+void rgb_to_hsv(vec4 rgb, out vec4 outcol)
+{
+	float cmax, cmin, h, s, v, cdelta;
+	vec3 c;
+
+	cmax = max(rgb[0], max(rgb[1], rgb[2]));
+	cmin = min(rgb[0], min(rgb[1], rgb[2]));
+	cdelta = cmax-cmin;
+
+	v = cmax;
+	if (cmax!=0.0)
+		s = cdelta/cmax;
+	else {
+		s = 0.0;
+		h = 0.0;
+	}
+
+	if (s == 0.0) {
+		h = 0.0;
+	}
+	else {
+		c = (vec3(cmax, cmax, cmax) - rgb.xyz)/cdelta;
+
+		if (rgb.x==cmax) h = c[2] - c[1];
+		else if (rgb.y==cmax) h = 2.0 + c[0] -  c[2];
+		else h = 4.0 + c[1] - c[0];
+
+		h /= 6.0;
+
+		if (h<0.0)
+			h += 1.0;
+	}
+
+	outcol = vec4(h, s, v, rgb.w);
+}
+
+void hsv_to_rgb(vec4 hsv, out vec4 outcol)
+{
+	float i, f, p, q, t, h, s, v;
+	vec3 rgb;
+
+	h = hsv[0];
+	s = hsv[1];
+	v = hsv[2];
+
+	if(s==0.0) {
+		rgb = vec3(v, v, v);
+	}
+	else {
+		if(h==1.0)
+			h = 0.0;
+		
+		h *= 6.0;
+		i = floor(h);
+		f = h - i;
+		rgb = vec3(f, f, f);
+		p = v*(1.0-s);
+		q = v*(1.0-(s*f));
+		t = v*(1.0-(s*(1.0-f)));
+		
+		if (i == 0.0) rgb = vec3(v, t, p);
+		else if (i == 1.0) rgb = vec3(q, v, p);
+		else if (i == 2.0) rgb = vec3(p, v, t);
+		else if (i == 3.0) rgb = vec3(p, q, v);
+		else if (i == 4.0) rgb = vec3(t, p, v);
+		else rgb = vec3(v, p, q);
+	}
+
+	outcol = vec4(rgb, hsv.w);
+}
+
 /*********** SHADER NODES ***************/
 
 #define M_PI 3.14159265358979323846
@@ -127,6 +200,22 @@ void math_round(float val, out float outval)
 	outval= floor(val + 0.5);
 }
 
+void math_less_than(float val1, float val2, out float outval)
+{
+	if(val1 < val2)
+		outval = 1.0;
+	else
+		outval = 0.0;
+}
+
+void math_greater_than(float val1, float val2, out float outval)
+{
+	if(val1 > val2)
+		outval = 1.0;
+	else
+		outval = 0.0;
+}
+
 void squeeze(float val, float width, float center, out float outval)
 {
 	outval = 1.0/(1.0 + pow(2.71828183, -((val-center)*width)));
@@ -210,39 +299,238 @@ void mix_blend(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
 	outcol = mix(col1, col2, fac);
+	outcol.a = col1.a;
 }
 
 void mix_add(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
 	outcol = mix(col1, col1 + col2, fac);
+	outcol.a = col1.a;
 }
 
 void mix_mult(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
 	outcol = mix(col1, col1 * col2, fac);
+	outcol.a = col1.a;
+}
+
+void mix_screen(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float facm = 1.0 - fac;
+
+	outcol = vec4(1.0) - (vec4(facm) + fac*(vec4(1.0) - col2))*(vec4(1.0) - col1);
+	outcol.a = col1.a;
+}
+
+void mix_overlay(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float facm = 1.0 - fac;
+
+	outcol = col1;
+
+	if(outcol.r < 0.5)
+		outcol.r *= facm + 2.0*fac*col2.r;
+	else
+		outcol.r = 1.0 - (facm + 2.0*fac*(1.0 - col2.r))*(1.0 - outcol.r);
+
+	if(outcol.g < 0.5)
+		outcol.g *= facm + 2.0*fac*col2.g;
+	else
+		outcol.g = 1.0 - (facm + 2.0*fac*(1.0 - col2.g))*(1.0 - outcol.g);
+
+	if(outcol.b < 0.5)
+		outcol.b *= facm + 2.0*fac*col2.b;
+	else
+		outcol.b = 1.0 - (facm + 2.0*fac*(1.0 - col2.b))*(1.0 - outcol.b);
 }
 
 void mix_sub(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
 	outcol = mix(col1, col1 - col2, fac);
-}
-
-void mix_screen(float fac, vec4 col1, vec4 col2, out vec4 outcol)
-{
-	fac = clamp(fac, 0.0, 1.0);
-	outcol = mix(col1, col1 - col2, fac); // TODO
+	outcol.a = col1.a;
 }
 
 void mix_div(float fac, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	fac = clamp(fac, 0.0, 1.0);
-	outcol = mix(col1, col1 / col2, fac); // TODO
+	float facm = 1.0 - fac;
+
+	outcol = col1;
+
+	if(col2.r != 0.0) outcol.r = facm*outcol.r + fac*outcol.r/col2.r;
+	if(col2.g != 0.0) outcol.g = facm*outcol.g + fac*outcol.g/col2.g;
+	if(col2.b != 0.0) outcol.b = facm*outcol.b + fac*outcol.b/col2.b;
 }
 
-/* TODO: blend modes */
+void mix_diff(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	outcol = mix(col1, abs(col1 - col2), fac);
+	outcol.a = col1.a;
+}
+
+void mix_dark(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	outcol.rgb = min(col1.rgb, col2.rgb*fac);
+	outcol.a = col1.a;
+}
+
+void mix_light(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	outcol.rgb = max(col1.rgb, col2.rgb*fac);
+	outcol.a = col1.a;
+}
+
+void mix_dodge(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	outcol = col1;
+
+	if(outcol.r != 0.0) {
+		float tmp = 1.0 - fac*col2.r;
+		if(tmp <= 0.0)
+			outcol.r = 1.0;
+		else if((tmp = outcol.r/tmp) > 1.0)
+			outcol.r = 1.0;
+		else
+			outcol.r = tmp;
+	}
+	if(outcol.g != 0.0) {
+		float tmp = 1.0 - fac*col2.g;
+		if(tmp <= 0.0)
+			outcol.g = 1.0;
+		else if((tmp = outcol.g/tmp) > 1.0)
+			outcol.g = 1.0;
+		else
+			outcol.g = tmp;
+	}
+	if(outcol.b != 0.0) {
+		float tmp = 1.0 - fac*col2.b;
+		if(tmp <= 0.0)
+			outcol.b = 1.0;
+		else if((tmp = outcol.b/tmp) > 1.0)
+			outcol.b = 1.0;
+		else
+			outcol.b = tmp;
+	}
+}
+
+void mix_burn(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float tmp, facm = 1.0 - fac;
+
+	outcol = col1;
+
+	tmp = facm + fac*col2.r;
+	if(tmp <= 0.0)
+		outcol.r = 0.0;
+	else if((tmp = (1.0 - (1.0 - outcol.r)/tmp)) < 0.0)
+		outcol.r = 0.0;
+	else if(tmp > 1.0)
+		outcol.r = 1.0;
+	else
+		outcol.r = tmp;
+
+	tmp = facm + fac*col2.g;
+	if(tmp <= 0.0)
+		outcol.g = 0.0;
+	else if((tmp = (1.0 - (1.0 - outcol.g)/tmp)) < 0.0)
+		outcol.g = 0.0;
+	else if(tmp > 1.0)
+		outcol.g = 1.0;
+	else
+		outcol.g = tmp;
+
+	tmp = facm + fac*col2.b;
+	if(tmp <= 0.0)
+		outcol.b = 0.0;
+	else if((tmp = (1.0 - (1.0 - outcol.b)/tmp)) < 0.0)
+		outcol.b = 0.0;
+	else if(tmp > 1.0)
+		outcol.b = 1.0;
+	else
+		outcol.b = tmp;
+}
+
+void mix_hue(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float facm = 1.0 - fac;
+
+	outcol = col1;
+
+	vec4 hsv, hsv2, tmp;
+	rgb_to_hsv(col2, hsv2);
+
+	if(hsv2.y != 0.0) {
+		rgb_to_hsv(outcol, hsv);
+		hsv.x = hsv2.x;
+		hsv_to_rgb(hsv, tmp); 
+
+		outcol = mix(outcol, tmp, fac);
+		outcol.a = col1.a;
+	}
+}
+
+void mix_sat(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float facm = 1.0 - fac;
+
+	outcol = col1;
+
+	vec4 hsv, hsv2;
+	rgb_to_hsv(outcol, hsv);
+
+	if(hsv.y != 0.0) {
+		rgb_to_hsv(col2, hsv2);
+
+		hsv.y = facm*hsv.y + fac*hsv2.y;
+		hsv_to_rgb(hsv, outcol);
+	}
+}
+
+void mix_val(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float facm = 1.0 - fac;
+
+	vec4 hsv, hsv2;
+	rgb_to_hsv(col1, hsv);
+	rgb_to_hsv(col2, hsv2);
+
+	hsv.z = facm*hsv.z + fac*hsv2.z;
+	hsv_to_rgb(hsv, outcol);
+}
+
+void mix_color(float fac, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	float facm = 1.0 - fac;
+
+	outcol = col1;
+
+	vec4 hsv, hsv2, tmp;
+	rgb_to_hsv(col2, hsv2);
+
+	if(hsv2.y != 0.0) {
+		rgb_to_hsv(outcol, hsv);
+		hsv.x = hsv2.x;
+		hsv.y = hsv2.y;
+		hsv_to_rgb(hsv, tmp); 
+
+		outcol = mix(outcol, tmp, fac);
+		outcol.a = col1.a;
+	}
+}
 
 void valtorgb(float fac, sampler1D colormap, out vec4 outcol, out float outalpha)
 {
@@ -259,77 +547,6 @@ void invert(float fac, vec4 col, out vec4 outcol)
 {
 	outcol.xyz = mix(col.xyz, vec3(1.0, 1.0, 1.0) - col.xyz, fac);
 	outcol.w = col.w;
-}
-
-void rgb_to_hsv(vec4 rgb, out vec4 outcol)
-{
-	float cmax, cmin, h, s, v, cdelta;
-	vec3 c;
-
-	cmax = max(rgb[0], max(rgb[1], rgb[2]));
-	cmin = min(rgb[0], min(rgb[1], rgb[2]));
-	cdelta = cmax-cmin;
-
-	v = cmax;
-	if (cmax!=0.0)
-		s = cdelta/cmax;
-	else {
-		s = 0.0;
-		h = 0.0;
-	}
-
-	if (s == 0.0) {
-		h = 0.0;
-	}
-	else {
-		c = (vec3(cmax, cmax, cmax) - rgb.xyz)/cdelta;
-
-		if (rgb.x==cmax) h = c[2] - c[1];
-		else if (rgb.y==cmax) h = 2.0 + c[0] -  c[2];
-		else h = 4.0 + c[1] - c[0];
-
-		h /= 6.0;
-
-		if (h<0.0)
-			h += 1.0;
-	}
-
-	outcol = vec4(h, s, v, rgb.w);
-}
-
-void hsv_to_rgb(vec4 hsv, out vec4 outcol)
-{
-	float i, f, p, q, t, h, s, v;
-	vec3 rgb;
-
-	h = hsv[0];
-	s = hsv[1];
-	v = hsv[2];
-
-	if(s==0.0) {
-		rgb = vec3(v, v, v);
-	}
-	else {
-		if(h==1.0)
-			h = 0.0;
-		
-		h *= 6.0;
-		i = floor(h);
-		f = h - i;
-		rgb = vec3(f, f, f);
-		p = v*(1.0-s);
-		q = v*(1.0-(s*f));
-		t = v*(1.0-(s*(1.0-f)));
-		
-		if (i == 0.0) rgb = vec3(v, t, p);
-		else if (i == 1.0) rgb = vec3(q, v, p);
-		else if (i == 2.0) rgb = vec3(p, v, t);
-		else if (i == 3.0) rgb = vec3(p, q, v);
-		else if (i == 4.0) rgb = vec3(t, p, v);
-		else rgb = vec3(v, p, q);
-	}
-
-	outcol = vec4(rgb, hsv.w);
 }
 
 void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 outcol)
@@ -440,14 +657,259 @@ void mtex_rgb_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 i
 	incol = fact*texcol + facm*outcol;
 }
 
-void mtex_value_blend(float outcol, float texcol, float fact, float facg, out float incol)
+void mtex_rgb_mul(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-facg;
+
+	incol = (facm + fact*texcol)*outcol;
+}
+
+void mtex_rgb_screen(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-facg;
+
+	incol = vec3(1.0) - (vec3(facm) + fact*(vec3(1.0) - texcol))*(vec3(1.0) - outcol);
+}
+
+void mtex_rgb_overlay(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-facg;
+
+	if(outcol.r < 0.5)
+		incol.r = outcol.r*(facm + 2.0*fact*texcol.r);
+	else
+		incol.r = 1.0 - (facm + 2.0*fact*(1.0 - texcol.r))*(1.0 - outcol.r);
+
+	if(outcol.g < 0.5)
+		incol.g = outcol.g*(facm + 2.0*fact*texcol.g);
+	else
+		incol.g = 1.0 - (facm + 2.0*fact*(1.0 - texcol.g))*(1.0 - outcol.g);
+
+	if(outcol.b < 0.5)
+		incol.b = outcol.b*(facm + 2.0*fact*texcol.b);
+	else
+		incol.b = 1.0 - (facm + 2.0*fact*(1.0 - texcol.b))*(1.0 - outcol.b);
+}
+
+void mtex_rgb_sub(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	incol = -fact*facg*texcol + outcol;
+}
+
+void mtex_rgb_add(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	incol = fact*facg*texcol + outcol;
+}
+
+void mtex_rgb_div(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
 {
 	float facm;
 
 	fact *= facg;
 	facm = 1.0-fact;
 
+	if(texcol.r != 0.0) incol.r = facm*outcol.r + fact*outcol.r/texcol.r;
+	if(texcol.g != 0.0) incol.g = facm*outcol.g + fact*outcol.g/texcol.g;
+	if(texcol.b != 0.0) incol.b = facm*outcol.b + fact*outcol.b/texcol.b;
+}
+
+void mtex_rgb_diff(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	incol = facm*outcol + fact*abs(texcol - outcol);
+}
+
+void mtex_rgb_dark(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm, col;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	col = fact*texcol.r;
+	if(col < outcol.r) incol.r = col; else incol.r = outcol.r;
+	col = fact*texcol.g;
+	if(col < outcol.g) incol.g = col; else incol.g = outcol.g;
+	col = fact*texcol.b;
+	if(col < outcol.b) incol.b = col; else incol.b = outcol.b;
+}
+
+void mtex_rgb_light(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm, col;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	col = fact*texcol.r;
+	if(col > outcol.r) incol.r = col; else incol.r = outcol.r;
+	col = fact*texcol.g;
+	if(col > outcol.g) incol.g = col; else incol.g = outcol.g;
+	col = fact*texcol.b;
+	if(col > outcol.b) incol.b = col; else incol.b = outcol.b;
+}
+
+void mtex_rgb_hue(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	vec4 col;
+
+	mix_hue(fact*facg, vec4(outcol, 1.0), vec4(texcol, 1.0), col);
+	incol.rgb = col.rgb;
+}
+
+void mtex_rgb_sat(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	vec4 col;
+
+	mix_sat(fact*facg, vec4(outcol, 1.0), vec4(texcol, 1.0), col);
+	incol.rgb = col.rgb;
+}
+
+void mtex_rgb_val(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	vec4 col;
+
+	mix_val(fact*facg, vec4(outcol, 1.0), vec4(texcol, 1.0), col);
+	incol.rgb = col.rgb;
+}
+
+void mtex_rgb_color(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	vec4 col;
+
+	mix_color(fact*facg, vec4(outcol, 1.0), vec4(texcol, 1.0), col);
+	incol.rgb = col.rgb;
+}
+
+void mtex_value_vars(inout float fact, float facg, out float facm, float flip)
+{
+	fact *= facg;
+	facm = 1.0-fact;
+
+	if(flip != 0.0) {
+		float tmp = fact;
+		fact = facm;
+		facm = tmp;
+	}
+}
+
+void mtex_value_blend(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
 	incol = fact*texcol + facm*outcol;
+}
+
+void mtex_value_mul(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	facm = 1.0 - facg;
+	incol = (facm + fact*texcol)*outcol;
+}
+
+void mtex_value_screen(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	facm = 1.0 - facg;
+	incol = 1.0 - (facm + fact*(1.0 - texcol))*(1.0 - outcol);
+}
+
+void mtex_value_sub(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	fact = -fact;
+	incol = fact*texcol + outcol;
+}
+
+void mtex_value_add(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	fact = fact;
+	incol = fact*texcol + outcol;
+}
+
+void mtex_value_div(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	if(texcol != 0.0)
+		incol = facm*outcol + fact*outcol/texcol;
+	else
+		incol = 0.0;
+}
+
+void mtex_value_diff(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	incol = facm*outcol + fact*abs(texcol - outcol);
+}
+
+void mtex_value_dark(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	float col = fact*texcol;
+	if(col < outcol) incol = col; else incol = outcol;
+}
+
+void mtex_value_light(float outcol, float texcol, float fact, float facg, float flip, out float incol)
+{
+	float facm;
+	mtex_value_vars(fact, facg, facm, flip);
+
+	float col = fact*texcol;
+	if(col > outcol) incol = col; else incol = outcol;
+}
+
+void mtex_value_clamp_positive(float fac, out float outfac)
+{
+	if(fac < 0.0) outfac = 0.0;
+	else outfac = fac;
+}
+
+void mtex_value_clamp(float fac, out float outfac)
+{
+	outfac = clamp(fac, 0.0, 1.0);
+}
+
+void mtex_har_divide(float har, out float outhar)
+{
+	outhar = har/128.0;
+}
+
+void mtex_har_multiply_clamp(float har, out float outhar)
+{
+	har *= 128.0;
+
+	if(har < 1.0) outhar = 1.0;
+	else if(har > 511.0) outhar = 511;
+	else outhar = har;
 }
 
 void mtex_alpha_from_col(vec4 col, out float alpha)

@@ -146,6 +146,7 @@ struct GPUPass {
 	struct GPUPass *next, *prev;
 
 	ListBase nodes;
+	int firstbind;
 	struct GPUOutput *output;
 	struct GPUShader *shader;
 };
@@ -677,21 +678,28 @@ void GPU_pass_bind(GPUPass *pass)
 
 			if (input->tex) {
 				if (input->bindtex) {
+					if(pass->firstbind);
 					GPU_texture_bind(input->tex, input->texid);
 					GPU_shader_uniform_texture(shader, name, input->tex);
 				}
 			}
-			else if (input->arraysize)
-				GPU_shader_uniform_vector(shader, name, input->type,
-					input->arraysize,
-					(input->dynamicvec)? input->dynamicvec: input->vec);
-			else
-				GPU_shader_uniform_vector(shader, name, input->type, 1,
-					(input->dynamicvec)? input->dynamicvec: input->vec);
+			else if (input->arraysize) {
+				if(pass->firstbind || input->dynamicvec)
+					GPU_shader_uniform_vector(shader, name, input->type,
+						input->arraysize,
+						(input->dynamicvec)? input->dynamicvec: input->vec);
+			}
+			else {
+				if(pass->firstbind || input->dynamicvec)
+					GPU_shader_uniform_vector(shader, name, input->type, 1,
+						(input->dynamicvec)? input->dynamicvec: input->vec);
+			}
 
 			MEM_freeN(name);
 		}
 	}
+
+	pass->firstbind = 0;
 }
 
 void GPU_pass_unbind(GPUPass *pass)
@@ -744,6 +752,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink, int ver
 	pass->nodes = *nodes;
 	pass->output = outlink->source;
 	pass->shader = shader;
+	pass->firstbind = 1;
 
 	/* take ownership over nodes */
 	memset(nodes, 0, sizeof(*nodes));
