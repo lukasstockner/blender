@@ -80,6 +80,7 @@ struct GPUNode {
 	struct GPUNode *next, *prev;
 
 	char *name;
+	int tag;
 
 	ListBase inputs;
 	ListBase outputs;
@@ -574,7 +575,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 
-	//if(G.f & G_DEBUG) printf("%s\n", code);
+	if(G.f & G_DEBUG) printf("%s\n", code);
 
 	return code;
 }
@@ -624,7 +625,7 @@ static char *code_generate_vertex(ListBase *nodes, int profile)
 
 	BLI_dynstr_free(ds);
 
-	//if(G.f & G_DEBUG) printf("%s\n", code);
+	if(G.f & G_DEBUG) printf("%s\n", code);
 
 	return code;
 }
@@ -723,48 +724,6 @@ void GPU_pass_unbind(GPUPass *pass)
 	}
 	
 	GPU_shader_unbind(shader);
-}
-
-/* Pass create/free */
-
-GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink, int vertexshader, int profile)
-{
-	GPUShader *shader;
-	GPUPass *pass;
-	char *vertexcode, *fragmentcode;
-
-	/* generate code and compile with opengl */
-	fragmentcode = code_generate_fragment(nodes, outlink->source);
-	vertexcode = (vertexshader)? code_generate_vertex(nodes, profile): NULL;
-	shader = GPU_shader_create(vertexcode, fragmentcode);
-	MEM_freeN(fragmentcode);
-	MEM_freeN(vertexcode);
-
-	/* failed? */
-	if (!shader) {
-		GPU_nodes_free(nodes);
-		return NULL;
-	}
-	
-	/* create pass */
-	pass = MEM_callocN(sizeof(GPUPass), "GPUPass");
-
-	pass->nodes = *nodes;
-	pass->output = outlink->source;
-	pass->shader = shader;
-	pass->firstbind = 1;
-
-	/* take ownership over nodes */
-	memset(nodes, 0, sizeof(*nodes));
-
-	return pass;
-}
-
-void GPU_pass_free(GPUPass *pass)
-{
-	GPU_shader_free(pass->shader);
-	GPU_nodes_free(&pass->nodes);
-	MEM_freeN(pass);
 }
 
 /* Node Link Functions */
@@ -1162,5 +1121,87 @@ GPUNode *GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeS
 	gpu_material_add_node(mat, node);
 	
 	return node;
+}
+
+/* Pass create/free */
+
+void gpu_nodes_tag(GPUNodeLink *link)
+{
+	GPUNode *node;
+	GPUInput *input;
+
+	if(!link->source)
+		return;
+
+	node = link->source->node;
+	if(node->tag)
+		return;
+	
+	node->tag= 1;
+	for(input=node->inputs.first; input; input=input->next)
+		if(input->link)
+			gpu_nodes_tag(input->link);
+}
+
+void gpu_nodes_prune(ListBase *nodes, GPUNodeLink *outlink)
+{
+	GPUNode *node, *next;
+
+	for(node=nodes->first; node; node=node->next)
+		node->tag= 0;
+
+	gpu_nodes_tag(outlink);
+
+	for(node=nodes->first; node; node=next) {
+		next = node->next;
+
+		if(!node->tag) {
+			BLI_remlink(nodes, node);
+			GPU_node_free(node);
+		}
+	}
+}
+
+GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, int vertexshader, int profile)
+{
+	GPUShader *shader;
+	GPUPass *pass;
+	char *vertexcode, *fragmentcode;
+
+	/* prune unused nodes */
+	gpu_nodes_prune(nodes, outlink);
+
+	/* generate code and compile with opengl */
+	fragmentcode = code_generate_fragment(nodes, outlink->source);
+	vertexcode = (vertexshader)? code_generate_vertex(nodes, profile): NULL;
+	shader = GPU_shader_create(vertexcode, fragmentcode);
+	MEM_freeN(fragmentcode);
+	MEM_freeN(vertexcode);
+
+	/* failed? */
+	if (!shader) {
+		GPU_nodes_free(nodes);
+		return NULL;
+	}
+	
+	/* create pass */
+	pass = MEM_callocN(sizeof(GPUPass), "GPUPass");
+
+	pass->nodes = *nodes;
+	pass->output = outlink->source;
+	pass->shader = shader;
+	pass->firstbind = 1;
+
+	/* take ownership over nodes */
+	memset(nodes, 0, sizeof(*nodes));
+
+	return pass;
+}
+
+void GPU_pass_free(GPUPass *pass)
+{
+	GPU_shader_free(pass->shader);
+	GPU_nodes_free(&pass->nodes);
+	MEM_freeN(pass);
 }
 

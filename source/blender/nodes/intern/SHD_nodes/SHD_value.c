@@ -47,7 +47,7 @@ static GPUNode *gpu_shader_value(GPUMaterial *mat, bNode *node, GPUNodeStack *in
 	bNodeSocket *sock= node->outputs.first;
 	GPUNodeLink *vec = GPU_uniform(sock->ns.vec);
 
-	return GPU_stack_link(mat, "setvalue", in, out, vec);
+	return GPU_stack_link(mat, "set_value", in, out, vec);
 }
 
 bNodeType sh_node_value= {

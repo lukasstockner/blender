@@ -285,14 +285,34 @@ void curves_rgb(vec4 col, sampler1D curvemap, out vec4 outcol)
 	outcol.a = col.a;
 }
 
-void setvalue(float val, out float outval)
+void set_value(float val, out float outval)
 {
 	outval = val;
 }
 
-void setrgb(vec4 col, out vec4 outcol)
+void set_rgb(vec3 col, out vec3 outcol)
 {
 	outcol = col;
+}
+
+void set_rgba(vec4 col, out vec4 outcol)
+{
+	outcol = col;
+}
+
+void set_value_zero(out float outval)
+{
+	outval = 0.0;
+}
+
+void set_rgb_zero(out vec3 outval)
+{
+	outval = vec3(0.0);
+}
+
+void set_rgba_zero(out vec4 outval)
+{
+	outval = vec4(0.0);
 }
 
 void mix_blend(float fac, vec4 col1, vec4 col2, out vec4 outcol)
@@ -1090,7 +1110,7 @@ void lamp_visibility_spot(float spotsi, float spotbl, float inpr, float visifac,
 
 void lamp_visibility_clamp(float visifac, out float outvisifac)
 {
-	if(visifac < 0.001)
+	if(visifac <= 0.001)
 		outvisifac = 0.0;
 	else
 		outvisifac = visifac;
@@ -1293,7 +1313,7 @@ void shade_add_to_diffuse(float i, vec3 lampcol, vec3 col, out vec3 outcol)
 		outcol = vec3(0.0, 0.0, 0.0);
 }
 
-void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, out float t)
+void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, float visifac, out float t)
 {
 	lv += view;
 	lv = normalize(lv);
@@ -1301,7 +1321,7 @@ void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, out fl
 	t = dot(vn, lv);
 	t = 0.5*t + 0.5;
 
-	t = spec*pow(t, hard);
+	t = visifac*spec*pow(t, hard);
 }
 
 void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
@@ -1415,9 +1435,9 @@ void shade_spec_t(float spec, float visifac, float specfac, out float t)
 	t = spec*visifac*specfac;
 }
 
-void shade_add_spec(float t, vec3 lampcol, vec3 speccol, float visifac, out vec3 outcol)
+void shade_add_spec(float t, vec3 lampcol, vec3 speccol, out vec3 outcol)
 {
-	outcol = t*lampcol*speccol*visifac;
+	outcol = t*lampcol*speccol;
 }
 
 void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
@@ -1425,10 +1445,21 @@ void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
 	outcol = col1 + col2;
 }
 
-void shade_emit(float fac, vec4 col, out vec4 outcol)
+void shade_madd(vec4 col, vec4 col1, vec4 col2, out vec4 outcol)
+{
+	outcol = col + col1*col2;
+}
+
+void shade_mul_value(float fac, vec4 col, out vec4 outcol)
 {
 	outcol = col*fac;
 }
+
+void ramp_rgbtobw(vec3 color, out float outval)
+{
+	outval = color.r*0.3 + color.g*0.58 + color.b*0.12;
+}
+
 
 #if 0
 void shade_one_light(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, vec3 lv, float visifac, out vec4 outcol)
