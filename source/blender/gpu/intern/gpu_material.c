@@ -842,14 +842,22 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_uniform(&hard), &shi->har);
 	GPU_link(mat, "set_value", GPU_uniform(&ma->amb), &shi->amb);
 	GPU_link(mat, "shade_view", &shi->view);
+	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
 }
 
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	Material *ma= shi->mat;
 	GPUMaterial *mat= shi->gpumat;
+	GPUNodeLink *emit;
 
 	memset(shr, 0, sizeof(*shr));
+
+	if(ma->mode & (MA_VERTEXCOLP/*|MA_FACETEXTURE*/)) {
+		shi->rgb = shi->vcol;
+		/*if(ma->mode & (MA_FACETEXTURE_ALPHA))
+			GPU_link(mat, "mtex_alpha_from_col", shi->vcol, &shi->alpha);*/
+	}
 
 	do_material_tex(shi);
 
@@ -861,7 +869,13 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		shr->alpha = shi->alpha;
 	}
 	else {
-		GPU_link(mat, "shade_mul_value", shi->emit, shi->rgb, &shr->diff);
+		if((ma->mode & (MA_VERTEXCOL|MA_VERTEXCOLP))== MA_VERTEXCOL) {
+			GPU_link(mat, "shade_add", shi->emit, shi->vcol, &emit);
+			GPU_link(mat, "shade_mul", emit, shi->rgb, &shr->diff);
+		}
+		else
+			GPU_link(mat, "shade_mul_value", shi->emit, shi->rgb, &shr->diff);
+
 		GPU_link(mat, "set_rgb_zero", &shr->spec);
 
 		material_lights(shi, shr);

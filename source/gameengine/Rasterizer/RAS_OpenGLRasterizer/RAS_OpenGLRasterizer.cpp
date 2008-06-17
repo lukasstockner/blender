@@ -996,6 +996,9 @@ void RAS_OpenGLRasterizer::TexCoord(const RAS_TexVert &tv)
 			case RAS_TEXCO_UV2:
 				glVertexAttrib2fvARB(unit, tv.getUV2());
 				break;
+			case RAS_TEXCO_VCOL:
+				glVertexAttrib4ubvARB(unit, tv.getRGBA());
+				break;
 			default:
 				break;
 			}

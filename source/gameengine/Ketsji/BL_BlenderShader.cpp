@@ -105,6 +105,10 @@ void BL_BlenderShader::SetTexCoords(RAS_IRasterizer* ras, const BL_Material *mat
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_ORCO, attribs.layer[i].glindex);
 			else if(attribs.layer[i].type == CD_NORMAL)
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_NORM, attribs.layer[i].glindex);
+			else if(attribs.layer[i].type == CD_MCOL)
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_VCOL, attribs.layer[i].glindex);
+			else
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, attribs.layer[i].glindex);
 		}
 
 		ras->EnableTextures(true);

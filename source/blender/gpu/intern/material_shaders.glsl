@@ -7,6 +7,8 @@ uniform mat4 unfviewmat;
 
 /************** COMMON ****************/
 
+#define M_PI 3.14159265358979323846
+
 void rgb_to_hsv(vec4 rgb, out vec4 outcol)
 {
 	float cmax, cmin, h, s, v, cdelta;
@@ -80,16 +82,24 @@ void hsv_to_rgb(vec4 hsv, out vec4 outcol)
 
 /*********** SHADER NODES ***************/
 
-#define M_PI 3.14159265358979323846
+void vcol_attribute(vec4 attvcol, out vec4 vcol)
+{
+	vcol = vec4(attvcol.x/255.0, attvcol.y/255.0, attvcol.z/255.0, 1.0);
+}
+
+void uv_attribute(vec2 attuv, out vec3 uv)
+{
+	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
+}
 
 void geom(vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float frontback)
 {
 	local = varcamco;
 	view = normalize(local);
 	orco = attorco;
-	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
+	uv_attribute(attuv, uv);
 	normal = -normalize(varnormal);	/* blender render normal is negated */
-	vcol = vec4(attvcol.w/255.0, attvcol.z/255.0, attvcol.y/255.0, 1.0);
+	vcol_attribute(attvcol, vcol);
 	frontback = 1.0;
 }
 
@@ -927,7 +937,7 @@ void mtex_har_multiply_clamp(float har, out float outhar)
 	har *= 128.0;
 
 	if(har < 1.0) outhar = 1.0;
-	else if(har > 511.0) outhar = 511;
+	else if(har > 511.0) outhar = 511.0;
 	else outhar = har;
 }
 
@@ -1447,6 +1457,11 @@ void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
 void shade_madd(vec4 col, vec4 col1, vec4 col2, out vec4 outcol)
 {
 	outcol = col + col1*col2;
+}
+
+void shade_mul(vec4 col1, vec4 col2, out vec4 outcol)
+{
+	outcol = col1*col2;
 }
 
 void shade_mul_value(float fac, vec4 col, out vec4 outcol)

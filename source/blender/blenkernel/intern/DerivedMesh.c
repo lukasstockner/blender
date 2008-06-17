@@ -944,7 +944,9 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	}																			\
 	for(b = 0; b < attribs.totmcol; b++) {										\
 		MCol *cp = (MCol*)((char*)efa->data + attribs.mcol[b].emOffset);		\
-		glVertexAttrib4ubv(attribs.mcol[b].glIndex, (GLubyte*)(cp+vert));		\
+		GLubyte col[4];															\
+		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
+		glVertexAttrib4ubv(attribs.mcol[b].glIndex, col);						\
 	}																			\
 	if(attribs.tottang) {														\
 		float *tang = attribs.tang.array[i*4 + vert];							\

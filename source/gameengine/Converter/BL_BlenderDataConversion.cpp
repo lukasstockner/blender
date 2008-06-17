@@ -315,7 +315,8 @@ BL_Material* ConvertMaterial(
 	MCol* mmcol, 
 	int lightlayer, 
 	Object* blenderobj,
-	MTF_localLayer *layers)
+	MTF_localLayer *layers,
+	bool glslmat)
 {
 	//this needs some type of manager
 	BL_Material *material = new BL_Material();
@@ -329,12 +330,13 @@ BL_Material* ConvertMaterial(
 		type = 1; // material color 
 	
 	material->IdMode = DEFAULT_BLENDER;
+	material->glslmat = glslmat;
 
 	// --------------------------------
 	if(validmat) {
 
 		// use vertex colors by explicitly setting
-		if(mat->mode &MA_VERTEXCOLP)
+		if(mat->mode &MA_VERTEXCOLP || glslmat)
 			type = 0;
 
 		// use lighting?
@@ -901,8 +903,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					else 
 						ma = give_current_material(blenderobj, 1);
 
-					bl_mat = ConvertMaterial(mesh, ma, tface, tfaceName, mface, mmcol, lightlayer, blenderobj, layers);
-					bl_mat->glslmat = converter->GetGLSLMaterials();
+					bl_mat = ConvertMaterial(mesh, ma, tface, tfaceName, mface, mmcol, lightlayer, blenderobj, layers, converter->GetGLSLMaterials());
 					// set the index were dealing with
 					bl_mat->material_index =  (int)mface->mat_nr;
 

@@ -658,7 +658,9 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GP
 	}																		\
 	for(b = 0; b < attribs.totmcol; b++) {									\
 		MCol *cp = &attribs.mcol[b].array[a*4 + vert];						\
-		glVertexAttrib4ubv(attribs.mcol[b].glIndex, (GLubyte*)cp);			\
+		GLubyte col[4];														\
+		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;			\
+		glVertexAttrib4ubv(attribs.mcol[b].glIndex, col);					\
 	}																		\
 	if(attribs.tottang) {													\
 		float *tang = attribs.tang.array[a*4 + vert];						\
