@@ -554,8 +554,9 @@ void oops_buttons(void)
 		uiDefIconButBitI(block, TOG, OOPS_IM, B_NEWOOPS, ICON_IMAGE_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Image datablocks");
 		uiDefIconButBitI(block, TOG, OOPS_GR, B_NEWOOPS, ICON_CIRCLE_DEHLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Group datablocks");
 		uiDefIconButBitI(block, TOG, OOPS_LI, B_NEWOOPS, ICON_LIBRARY_HLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Library datablocks");
+		uiDefIconButBitS(block, TOG, OOPS_CA, B_NEWOOPS, ICON_CAMERA_DEHLT,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Camera datablocks");
+		uiDefIconButBitS(block, TOG, OOPS_AR, B_NEWOOPS, ICON_ARMATURE,	(short)(xco+=XIC),0,XIC,YIC, &soops->visiflag, 0, 0, 0, 0, "Displays Armature datablocks");
 		
-
 		uiBlockEndAlign(block);
 	  
 		/* name */
@@ -620,4 +621,5 @@ void oops_buttons(void)
 
 	uiDrawBlock(block);
 }
+
 

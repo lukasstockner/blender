@@ -365,6 +365,12 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 				// start the engine
 				ketsjiengine->StartEngine(true);
 				
+
+				// Set the animation playback rate for ipo's and actions
+				// the framerate below should patch with FPS macro defined in blendef.h
+				// Could be in StartEngine set the framerate, we need the scene to do this
+				ketsjiengine->SetAnimFrameRate( (((double) blscene->r.frs_sec) / blscene->r.frs_sec_base) );
+				
 				// the mainloop
 				while (!exitrequested)
 				{

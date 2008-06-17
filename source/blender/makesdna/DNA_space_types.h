@@ -566,10 +566,9 @@ typedef struct SpaceImaSel {
 #define OOPS_IM		1<<12
 #define OOPS_AR		1<<13
 #define OOPS_GR		1<<14
-
-#define OOPS_WO		1<<15
-#define OOPS_AC		1<<16
-#define OOPS_CA		1<<17
+#define OOPS_CA		1<<15
+#define OOPS_WO		1<<16
+#define OOPS_AC		1<<17
 #define OOPS_TXT	1<<18
 
 
