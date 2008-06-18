@@ -37,6 +37,7 @@
 #include "DNA_customdata_types.h"
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
+#include "DNA_material_types.h"
 
 #include "BLI_dynstr.h"
 #include "BLI_blenlib.h"
@@ -333,7 +334,7 @@ static char *gpu_generate_function_prototyps(GHash *hash)
 GPUFunction *GPU_lookup_function(char *name)
 {
 	if(!FUNCTION_HASH) {
-		FUNCTION_HASH= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
+		FUNCTION_HASH = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
 		gpu_parse_functions_string(FUNCTION_HASH, datatoc_material_shaders_glsl);
 		FUNCTION_PROTOTYPES = gpu_generate_function_prototyps(FUNCTION_HASH);
 		FUNCTION_LIB = GPU_shader_create_lib(datatoc_material_shaders_glsl);
@@ -344,12 +345,25 @@ GPUFunction *GPU_lookup_function(char *name)
 
 void GPU_extensions_exit(void)
 {
-	if(FUNCTION_HASH)
+	extern Material defmaterial;    // render module abuse...
+
+	if(defmaterial.gpumaterial) {
+		GPU_material_free(defmaterial.gpumaterial);
+		defmaterial.gpumaterial = NULL;
+	}
+
+	if(FUNCTION_HASH) {
 		BLI_ghash_free(FUNCTION_HASH, NULL, (GHashValFreeFP)MEM_freeN);
-	if(FUNCTION_PROTOTYPES)
+		FUNCTION_HASH = NULL;
+	}
+	if(FUNCTION_PROTOTYPES) {
 		MEM_freeN(FUNCTION_PROTOTYPES);
-	if(FUNCTION_LIB)
+		FUNCTION_PROTOTYPES = NULL;
+	}
+	if(FUNCTION_LIB) {
 		GPU_shader_free(FUNCTION_LIB);
+		FUNCTION_LIB = NULL;
+	}
 }
 
 /* GLSL code generation */
@@ -749,9 +763,10 @@ void GPU_pass_bind(GPUPass *pass)
 						(input->dynamicvec)? input->dynamicvec: input->vec);
 			}
 			else {
-				if(pass->firstbind || input->dynamicvec)
+				if(pass->firstbind || input->dynamicvec) {
 					GPU_shader_uniform_vector(shader, name, input->type, 1,
 						(input->dynamicvec)? input->dynamicvec: input->vec);
+				}
 			}
 
 			MEM_freeN(name);

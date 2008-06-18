@@ -708,6 +708,8 @@ void GPG_Application::stopEngine()
 
 void GPG_Application::exitEngine()
 {
+	GPU_extensions_exit();
+
 	if (m_ketsjiengine)
 	{
 		stopEngine();

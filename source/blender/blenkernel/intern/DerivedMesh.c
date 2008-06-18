@@ -936,21 +936,21 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 #define PASSATTRIB(efa, eve, vert) {											\
 	if(attribs.totorco) {														\
 		float *orco = attribs.orco.array[eve->tmp.l];							\
-		glVertexAttrib3fv(attribs.orco.glIndex, orco);							\
+		glVertexAttrib3fvARB(attribs.orco.glIndex, orco);						\
 	}																			\
 	for(b = 0; b < attribs.tottface; b++) {										\
 		MTFace *tf = (MTFace*)((char*)efa->data + attribs.tface[b].emOffset);	\
-		glVertexAttrib2fv(attribs.tface[b].glIndex, tf->uv[vert]);				\
+		glVertexAttrib2fvARB(attribs.tface[b].glIndex, tf->uv[vert]);			\
 	}																			\
 	for(b = 0; b < attribs.totmcol; b++) {										\
 		MCol *cp = (MCol*)((char*)efa->data + attribs.mcol[b].emOffset);		\
 		GLubyte col[4];															\
 		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
-		glVertexAttrib4ubv(attribs.mcol[b].glIndex, col);						\
+		glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
 	}																			\
 	if(attribs.tottang) {														\
 		float *tang = attribs.tang.array[i*4 + vert];							\
-		glVertexAttrib3fv(attribs.tang.glIndex, tang);							\
+		glVertexAttrib3fvARB(attribs.tang.glIndex, tang);						\
 	}																			\
 }
 

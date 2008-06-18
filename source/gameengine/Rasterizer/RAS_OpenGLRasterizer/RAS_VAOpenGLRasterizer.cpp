@@ -296,22 +296,22 @@ void RAS_VAOpenGLRasterizer::TexCoordPtr(const RAS_TexVert *tv)
 			switch(m_attrib[unit]) {
 			case RAS_TEXCO_ORCO:
 			case RAS_TEXCO_GLOB:
-				glVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getLocalXYZ());
+				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getLocalXYZ());
 				break;
 			case RAS_TEXCO_UV1:
-				glVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV1());
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV1());
 				break;
 			case RAS_TEXCO_NORM:
-				glVertexAttribPointer(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
+				glVertexAttribPointerARB(unit, 3, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getNormal());
 				break;
 			case RAS_TEXTANGENT:
-				glVertexAttribPointer(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
+				glVertexAttribPointerARB(unit, 4, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getTangent());
 				break;
 			case RAS_TEXCO_UV2:
-				glVertexAttribPointer(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV2());
+				glVertexAttribPointerARB(unit, 2, GL_FLOAT, GL_FALSE, sizeof(RAS_TexVert), tv->getUV2());
 				break;
 			case RAS_TEXCO_VCOL:
-				glVertexAttribPointer(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
+				glVertexAttribPointerARB(unit, 4, GL_UNSIGNED_BYTE, GL_FALSE, sizeof(RAS_TexVert), tv->getRGBA());
 				break;
 			default:
 				break;
@@ -390,11 +390,11 @@ void RAS_VAOpenGLRasterizer::EnableTextures(bool enable)
 			case RAS_TEXTANGENT:
 			case RAS_TEXCO_UV2:
 			case RAS_TEXCO_VCOL:
-				if(enable) glEnableVertexAttribArray(unit);
-				else glDisableVertexAttribArray(unit);
+				if(enable) glEnableVertexAttribArrayARB(unit);
+				else glDisableVertexAttribArrayARB(unit);
 				break;
 			default:
-				glDisableVertexAttribArray(unit);
+				glDisableVertexAttribArrayARB(unit);
 				break;
 			}
 		}

@@ -439,6 +439,7 @@ KX_BlenderMaterial::Activate(
 			return dopass;
 		}
 		else {
+			mBlenderShader->SetProg(false);
 			mPass = 0;
 			dopass = false;
 			return dopass;

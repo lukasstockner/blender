@@ -332,7 +332,7 @@ BL_Material* ConvertMaterial(
 		type = 1; // material color 
 	
 	material->IdMode = DEFAULT_BLENDER;
-	material->glslmat = glslmat;
+	material->glslmat = (validmat)? glslmat: false;
 
 	// --------------------------------
 	if(validmat) {
@@ -561,6 +561,7 @@ BL_Material* ConvertMaterial(
 	}
 	else {
 		int valid = 0;
+
 		// check for tface tex to fallback on
 		if( validface ){
 

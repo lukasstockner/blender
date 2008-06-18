@@ -1421,15 +1421,15 @@ void shade_wardiso_spec(vec3 n, vec3 l, vec3 v, float rms, out float specfac)
 	specfac= nl * (1.0/(4.0*M_PI*alpha*alpha))*(exp(-(angle*angle)/(alpha*alpha))/(sqrt(nv*nl)));
 }
 
-void shade_toon_spec(vec3 n, vec3 l, vec3 v, float size, float smooth, out float specfac)
+void shade_toon_spec(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out float specfac)
 {
 	vec3 h = normalize(l + v);
 	float rslt = dot(h, n);
 	float ang = acos(rslt);
 
 	if(ang < size) rslt = 1.0;
-	else if(ang >= (size + smooth) || smooth == 0.0) rslt = 0.0;
-	else rslt = 1.0 - ((ang - size)/smooth);
+	else if(ang >= (size + tsmooth) || tsmooth == 0.0) rslt = 0.0;
+	else rslt = 1.0 - ((ang - size)/tsmooth);
 
 	specfac = rslt;
 }

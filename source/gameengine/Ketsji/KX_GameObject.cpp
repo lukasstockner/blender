@@ -75,10 +75,10 @@ KX_GameObject::KX_GameObject(
 	SCA_IObject(T),
 	m_bDyna(false),
 	m_layer(0),
+	m_pBlenderObject(NULL),
 	m_bSuspendDynamics(false),
 	m_bUseObjectColor(false),
 	m_bIsNegativeScaling(false),
-	m_pBlenderObject(NULL),
 	m_bVisible(true),
 	m_pPhysicsController1(NULL),
 	m_pPhysicsEnvironment(NULL),
@@ -946,7 +946,7 @@ int KX_GameObject::_setattr(const STR_String& attr, PyObject *value)	// _setattr
 	{
 		MT_Scalar val = PyFloat_AsDouble(value);
 		if (attr == "timeOffset") {
-			if (m_pSGNode->GetSGParent()->IsSlowParent()) {
+			if (m_pSGNode->GetSGParent() && m_pSGNode->GetSGParent()->IsSlowParent()) {
 				static_cast<KX_SlowParentRelation *>(m_pSGNode->GetSGParent()->GetParentRelation())->SetTimeOffset(val);
 				return 0;
 			} else {

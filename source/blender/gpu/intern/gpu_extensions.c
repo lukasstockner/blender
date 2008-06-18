@@ -1031,7 +1031,7 @@ int GPU_shader_get_attribute(GPUShader *shader, char *name)
 	
 	GPU_print_error("Pre Get Attribute");
 
-	index = glGetAttribLocation(shader->object, name);
+	index = glGetAttribLocationARB(shader->object, name);
 
 	GPU_print_error("Post Get Attribute");
 

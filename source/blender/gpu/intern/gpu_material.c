@@ -569,7 +569,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 	
 	for(base=G.scene->base.first; base; base=base->next) {
 		if(base->object->type==OB_LAMP) {
-			if(G.vd && base->lay & G.vd->lay) {
+			if(!G.vd || (base->lay & G.vd->lay)) {
 				lampob= base->object;
 				la= lampob->data;
 

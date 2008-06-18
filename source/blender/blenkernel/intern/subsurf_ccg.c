@@ -1689,25 +1689,25 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, G
 
 	memset(&attribs, 0, sizeof(attribs));
 
-#define PASSATTRIB(dx, dy, vert) {											\
-	if(attribs.totorco) {													\
-		index = getFaceIndex(ss, f, S, x+dx, y+dy, edgeSize, gridSize); 	\
-		glVertexAttrib3fv(attribs.orco.glIndex, attribs.orco.array[index]);	\
-	}																		\
-	for(b = 0; b < attribs.tottface; b++) {									\
-		MTFace *tf = &attribs.tface[b].array[a];							\
-		glVertexAttrib2fv(attribs.tface[b].glIndex, tf->uv[vert]);			\
-	}																		\
-	for(b = 0; b < attribs.totmcol; b++) {									\
-		MCol *cp = &attribs.mcol[b].array[a*4 + vert];						\
-		GLubyte col[4];														\
-		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;			\
-		glVertexAttrib4ubv(attribs.mcol[b].glIndex, col);					\
-	}																		\
-	if(attribs.tottang) {													\
-		float *tang = attribs.tang.array[a*4 + vert];						\
-		glVertexAttrib3fv(attribs.tang.glIndex, tang);						\
-	}																		\
+#define PASSATTRIB(dx, dy, vert) {												\
+	if(attribs.totorco) {														\
+		index = getFaceIndex(ss, f, S, x+dx, y+dy, edgeSize, gridSize); 		\
+		glVertexAttrib3fvARB(attribs.orco.glIndex, attribs.orco.array[index]);	\
+	}																			\
+	for(b = 0; b < attribs.tottface; b++) {										\
+		MTFace *tf = &attribs.tface[b].array[a];								\
+		glVertexAttrib2fvARB(attribs.tface[b].glIndex, tf->uv[vert]);			\
+	}																			\
+	for(b = 0; b < attribs.totmcol; b++) {										\
+		MCol *cp = &attribs.mcol[b].array[a*4 + vert];							\
+		GLubyte col[4];															\
+		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
+		glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
+	}																			\
+	if(attribs.tottang) {														\
+		float *tang = attribs.tang.array[a*4 + vert];							\
+		glVertexAttrib3fvARB(attribs.tang.glIndex, tang);						\
+	}																			\
 }
 
 	totface = ccgSubSurf_getNumFaces(ss);

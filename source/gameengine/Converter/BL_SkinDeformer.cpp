@@ -108,9 +108,15 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 	MT_Point3 pt;
 //	float co[3];
 
+	Update();
+
+	/* this early out doesn't work with multiple material buckets
+	 * for the same mesh, figure out how to do this better .. */
+#if 0
 	if (!Update())
 		// no need to update the cache
 		return false;
+#endif
 
 	array = m_pMeshObject->GetVertexCache(mat);
 	mvarray = m_pMeshObject->GetMVertCache(mat);
