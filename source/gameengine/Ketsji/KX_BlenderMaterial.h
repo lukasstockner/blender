@@ -94,6 +94,7 @@ private:
 	BL_Material*		mMaterial;
 	BL_Shader*			mShader;
 	BL_BlenderShader*	mBlenderShader;
+	static BL_BlenderShader *mLastBlenderShader;
 	KX_Scene*		mScene;
 	BL_Texture		mTextures[MAXTEX];		// texture array
 	bool			mUserDefBlend;

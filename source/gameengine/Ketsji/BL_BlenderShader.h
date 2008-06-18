@@ -32,9 +32,8 @@ public:
 	const bool			Ok()const;
 	void				SetProg(bool enable);
 
-	void ApplyShader();
-	void SetTexCoords(class RAS_IRasterizer* ras, const BL_Material *mat);
 	int GetAttribNum();
+	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
 };
 

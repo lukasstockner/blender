@@ -32,10 +32,6 @@ BL_BlenderShader::~BL_BlenderShader()
 	}
 }
 
-void BL_BlenderShader::ApplyShader()
-{
-}
-
 void BL_BlenderShader::SetProg(bool enable)
 {
 	if(mGPUMat) {
@@ -70,7 +66,7 @@ int BL_BlenderShader::GetAttribNum()
 	return enabled;
 }
 
-void BL_BlenderShader::SetTexCoords(RAS_IRasterizer* ras, const BL_Material *mat)
+void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 {
 	GPUVertexAttribs attribs;
 	int i, attrib_num;

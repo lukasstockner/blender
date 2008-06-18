@@ -38,6 +38,8 @@ extern "C" {
 // ------------------------------------
 #define spit(x) std::cout << x << std::endl;
 
+BL_BlenderShader *KX_BlenderMaterial::mLastBlenderShader = NULL;
+
 //static PyObject *gTextureDict = 0;
 
 KX_BlenderMaterial::KX_BlenderMaterial(
@@ -168,7 +170,11 @@ void KX_BlenderMaterial::OnExit()
 	}
 
 	if( mBlenderShader ) {
-		mBlenderShader->SetProg(false);
+		if(mBlenderShader == mLastBlenderShader) {
+			mBlenderShader->SetProg(false);
+			mLastBlenderShader = NULL;
+		}
+
 		delete mBlenderShader;
 		mBlenderShader = 0;
 	}
@@ -225,14 +231,22 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 {
 	if( !enable || !mBlenderShader->Ok() ) {
 		// frame cleanup.
-		mBlenderShader->SetProg(false);
+		if(mLastBlenderShader) {
+			mLastBlenderShader->SetProg(false);
+			mLastBlenderShader= NULL;
+		}
 		BL_Texture::DisableAllTextures();
 		return;
 	}
 
 	BL_Texture::DisableAllTextures();
-	mBlenderShader->SetProg(true);
-	mBlenderShader->ApplyShader();
+	if(mBlenderShader != mLastBlenderShader) {
+		if(mLastBlenderShader)
+			mLastBlenderShader->SetProg(false);
+
+		mBlenderShader->SetProg(true);
+		mLastBlenderShader= mBlenderShader;
+	}
 }
 
 void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
@@ -298,7 +312,12 @@ KX_BlenderMaterial::ActivatShaders(
 	// reset... 
 	if(tmp->mMaterial->IsShared()) 
 		cachingInfo =0;
-	
+
+	if(mLastBlenderShader) {
+		mLastBlenderShader->SetProg(false);
+		mLastBlenderShader= NULL;
+	}
+
 	if (GetCachingInfo() != cachingInfo) {
 
 		if (!cachingInfo)
@@ -372,7 +391,7 @@ KX_BlenderMaterial::ActivateBlenderShaders(
 	}
 
 	ActivatGLMaterials(rasty);
-	mBlenderShader->SetTexCoords(rasty, mMaterial);
+	mBlenderShader->SetAttribs(rasty, mMaterial);
 }
 
 void
@@ -382,6 +401,12 @@ KX_BlenderMaterial::ActivateMat(
 	)const
 {
 	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial*>(this);
+
+	if(mLastBlenderShader) {
+		mLastBlenderShader->SetProg(false);
+		mLastBlenderShader= NULL;
+	}
+
 	if (GetCachingInfo() != cachingInfo) {
 		if (!cachingInfo) 
 			tmp->setTexData( false,rasty );
@@ -439,7 +464,6 @@ KX_BlenderMaterial::Activate(
 			return dopass;
 		}
 		else {
-			mBlenderShader->SetProg(false);
 			mPass = 0;
 			dopass = false;
 			return dopass;
