@@ -143,6 +143,9 @@ void RAS_VAOpenGLRasterizer::IndexPrimitives( const vecVertexArray& vertexarrays
 		glColor3d(0,0,0);
 	}
 
+	EnableTextures(false);
+	glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
 	// use glDrawElements to draw each vertexarray
 	for (vt=0;vt<vertexarrays.size();vt++)
 	{
@@ -169,6 +172,8 @@ void RAS_VAOpenGLRasterizer::IndexPrimitives( const vecVertexArray& vertexarrays
 
 
 	}
+
+	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 }
 
 void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti( const vecVertexArray& vertexarrays,
@@ -282,6 +287,8 @@ void RAS_VAOpenGLRasterizer::TexCoordPtr(const RAS_TexVert *tv)
 				break;
 			}
 		}
+
+		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 	}
 
 	if(GLEW_ARB_vertex_program) {
@@ -363,10 +370,14 @@ void RAS_VAOpenGLRasterizer::EnableTextures(bool enable)
 				break;
 			}
 		}
+
+		glClientActiveTextureARB(GL_TEXTURE0_ARB);
 	}
 	else {
-		if(enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-		else glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		if(texco_num) {
+			if(enable) glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+			else glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		}
 	}
 
 	if(GLEW_ARB_vertex_program) {
@@ -387,6 +398,11 @@ void RAS_VAOpenGLRasterizer::EnableTextures(bool enable)
 				break;
 			}
 		}
+	}
+
+	if(!enable) {
+		m_last_texco_num = 0;
+		m_last_attrib_num = 0;
 	}
 }
 
