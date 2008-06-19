@@ -143,10 +143,6 @@ typedef struct BrushAction {
 
 	char firsttime;
 
-	int multires;
-	MVert *verts;
-	int totvert;
-
 	/* Some brushes need access to original mesh vertices */
  	vec3f *mesh_store;
 	short (*orig_norms)[3];
@@ -225,22 +221,21 @@ void calc_vertex_users()
 	SculptSession *ss= sculpt_session();
 	int i,j;
 	IndexNode *node= NULL;
-	Mesh *me= get_mesh(OBACT);
 
 	sculpt_vertexusers_free(ss);
 	
 	/* For efficiency, use vertex_users_mem as a memory pool (may be larger
 	   than necessary if mesh has triangles, but only one alloc is needed.) */
-	ss->vertex_users= MEM_callocN(sizeof(ListBase) * me->totvert, "vertex_users");
-	ss->vertex_users_size= me->totvert;
-	ss->vertex_users_mem= MEM_callocN(sizeof(IndexNode)*me->totface*4, "vertex_users_mem");
+	ss->vertex_users= MEM_callocN(sizeof(ListBase) * ss->totvert, "vertex_users");
+	ss->vertex_users_size= ss->totvert;
+	ss->vertex_users_mem= MEM_callocN(sizeof(IndexNode)*ss->totface*4, "vertex_users_mem");
 	node= ss->vertex_users_mem;
 
 	/* Find the users */
-	for(i=0; i<me->totface; ++i){
-		for(j=0; j<(me->mface[i].v4?4:3); ++j, ++node) {
+	for(i=0; i<ss->totface; ++i){
+		for(j=0; j<(ss->mface[i].v4?4:3); ++j, ++node) {
 			node->Index=i;
-			BLI_addtail(&ss->vertex_users[((unsigned int*)(&me->mface[i]))[j]], node);
+			BLI_addtail(&ss->vertex_users[((unsigned int*)(&ss->mface[i]))[j]], node);
 		}
 	}
 }
@@ -472,7 +467,7 @@ void calc_area_normal(float out[3], const BrushAction *a, const float *outdir, c
 	}
 	else {
 		for(; node; node = node->next)
-			add_norm_if(((BrushAction*)a)->symm.out, out, out_flip, a->verts[node->Index].no);
+			add_norm_if(((BrushAction*)a)->symm.out, out, out_flip, sd->session->mvert[node->Index].no);
 	}
 
 	if (out[0]==0.0 && out[1]==0.0 && out[2]==0.0) {
@@ -490,7 +485,7 @@ void calc_area_normal(float out[3], const BrushAction *a, const float *outdir, c
 	Normalize(out);
 }
 
-void do_draw_brush(const BrushAction *a, const ListBase* active_verts)
+void do_draw_brush(SculptSession *ss, const BrushAction *a, const ListBase* active_verts)
 {
 	float area_normal[3];
 	ActiveData *node= active_verts->first;
@@ -500,7 +495,7 @@ void do_draw_brush(const BrushAction *a, const ListBase* active_verts)
 	sculpt_axislock(area_normal);
 	
 	while(node){
-		float *co= a->verts[node->Index].co;
+		float *co= ss->mvert[node->Index].co;
 		
 		const float val[3]= {co[0]+area_normal[0]*node->Fade*a->scale[0],
 		                     co[1]+area_normal[1]*node->Fade*a->scale[1],
@@ -980,11 +975,11 @@ void do_brush_action(BrushAction *a)
 	/* Build a list of all vertices that are potentially within the brush's
 	   area of influence. Only do this once for the grab brush. */
 	if((sd->brush_type != GRAB_BRUSH) || a->firsttime) {
-		for(i=0; i<a->totvert; ++i) {
+		for(i=0; i<ss->totvert; ++i) {
 			/* Projverts.inside provides a rough bounding box */
-			if(a->multires || ss->projverts[i].inside) {
+			if(ss->multires || ss->projverts[i].inside) {
 				//vert= ss->vertexcosnos ? &ss->vertexcosnos[i*6] : a->verts[i].co;
-				vert= a->verts[i].co;
+				vert= ss->mvert[i].co;
 				av_dist= VecLenf(a->symm.center_3d, vert);
 				if(av_dist < a->size_3d) {
 					adata= (ActiveData*)MEM_mallocN(sizeof(ActiveData), "ActiveData");
@@ -1009,7 +1004,7 @@ void do_brush_action(BrushAction *a)
 		/* Apply one type of brush action */
 		switch(G.scene->sculptdata.brush_type){
 		case DRAW_BRUSH:
-			do_draw_brush(a, &active_verts);
+			do_draw_brush(ss, a, &active_verts);
 			break;
 		case SMOOTH_BRUSH:
 			do_smooth_brush(a, &active_verts);
@@ -1032,7 +1027,7 @@ void do_brush_action(BrushAction *a)
 		}
 	
 		/* Copy the modified vertices from mesh to the active key */
-		if(keyblock && !a->multires) {
+		if(keyblock && !ss->multires) {
 			float *co= keyblock->data;
 			if(co) {
 				if(sd->brush_type == GRAB_BRUSH)
@@ -1046,7 +1041,7 @@ void do_brush_action(BrushAction *a)
 			}
 		}
 
-		if(ss->vertexcosnos)
+		if(ss->vertexcosnos && !ss->multires)
 			BLI_freelistN(&active_verts);
 		else {
 			if(sd->brush_type != GRAB_BRUSH)
@@ -1092,13 +1087,11 @@ void do_symmetrical_brush_actions(BrushAction *a, short co[2], short pr_co[2])
 	a->symm = orig;
 }
 
-void add_face_normal(vec3f *norm, const MFace* face)
+void add_face_normal(vec3f *norm, MVert *mvert, const MFace* face)
 {
-	Mesh *me= get_mesh(OBACT);
-
-	vec3f c= {me->mvert[face->v1].co[0],me->mvert[face->v1].co[1],me->mvert[face->v1].co[2]};
-	vec3f b= {me->mvert[face->v2].co[0],me->mvert[face->v2].co[1],me->mvert[face->v2].co[2]};
-	vec3f a= {me->mvert[face->v3].co[0],me->mvert[face->v3].co[1],me->mvert[face->v3].co[2]};
+	vec3f c= {mvert[face->v1].co[0],mvert[face->v1].co[1],mvert[face->v1].co[2]};
+	vec3f b= {mvert[face->v2].co[0],mvert[face->v2].co[1],mvert[face->v2].co[2]};
+	vec3f a= {mvert[face->v3].co[0],mvert[face->v3].co[1],mvert[face->v3].co[2]};
 	vec3f s1, s2;
 
 	VecSubf(&s1.x,&a.x,&b.x);
@@ -1109,35 +1102,35 @@ void add_face_normal(vec3f *norm, const MFace* face)
 	norm->z+= s1.x * s2.y - s1.y * s2.x;
 }
 
-void update_damaged_vert(Mesh *me, ListBase *lb)
+void update_damaged_vert(ListBase *lb, BrushAction *a)
 {
 	ActiveData *vert;
+	SculptSession *ss = sculpt_session();
        
 	for(vert= lb->first; vert; vert= vert->next) {
 		vec3f norm= {0,0,0};		
 		IndexNode *face= sculpt_session()->vertex_users[vert->Index].first;
 
 		while(face){
-			add_face_normal(&norm,&me->mface[face->Index]);
+			add_face_normal(&norm, ss->mvert, &ss->mface[face->Index]);
 			face= face->next;
 		}
 		Normalize(&norm.x);
 		
-		me->mvert[vert->Index].no[0]=norm.x*32767;
-		me->mvert[vert->Index].no[1]=norm.y*32767;
-		me->mvert[vert->Index].no[2]=norm.z*32767;
+		ss->mvert[vert->Index].no[0]=norm.x*32767;
+		ss->mvert[vert->Index].no[1]=norm.y*32767;
+		ss->mvert[vert->Index].no[2]=norm.z*32767;
 	}
 }
 
 void calc_damaged_verts(ListBase *damaged_verts, BrushAction *a)
 {
-	Mesh *me= get_mesh(OBACT);
 	int i;
 	
 	for(i=0; i<8; ++i)
-		update_damaged_vert(me, &a->grab_active_verts[i]);
+		update_damaged_vert(&a->grab_active_verts[i], a);
 
-	update_damaged_vert(me, damaged_verts);
+	update_damaged_vert(damaged_verts, a);
 	BLI_freelistN(damaged_verts);
 	damaged_verts->first = damaged_verts->last = NULL;
 }
@@ -1342,30 +1335,6 @@ void init_brushaction(BrushAction *a, short *mouse, short *pr_mouse)
 			}
 		}
   	}
-
-	/* Multires */
-	{
-		ModifierData *md;
-		MultiresModifierData *mmd = NULL;
-	
-		for(md= modifiers_getVirtualModifierList(OBACT); md; md= md->next) {
-			if(md->type == eModifierType_Multires)
-				mmd = (MultiresModifierData*)md;
-		}
-
-		if(mmd) {
-			DerivedMesh *dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH);
-			a->multires = 1;
-			a->verts = dm->getVertDataArray(dm, CD_MVERT);
-			a->totvert = dm->getNumVerts(dm);
-		}
-		else {
-			Mesh *me = get_mesh(OBACT);
-			a->multires = 0;
-			a->verts = me->mvert;
-			a->totvert = me->totvert;
-		}
-	}
 }
 void sculptmode_set_strength(const int delta)
 {
@@ -1612,11 +1581,24 @@ char sculpt_modifiers_active(Object *ob)
 	return 0;
 }
 
+struct MultiresModifierData *sculpt_multires_active(Object *ob)
+{
+	ModifierData *md;
+	
+	for(md= modifiers_getVirtualModifierList(OBACT); md; md= md->next) {
+		if(md->type == eModifierType_Multires)
+			return (MultiresModifierData*)md;
+	}
+
+	return NULL;
+}
+
 void sculpt(void)
 {
 	SculptData *sd= sculpt_data();
 	SculptSession *ss= sculpt_session();
 	Object *ob= OBACT;
+	MultiresModifierData *mmd = NULL;
 	/* lastSigMouse is for the rake, to store the last place the mouse movement was significant */
 	short mouse[2], mvalo[2], lastSigMouse[2],firsttime=1, mousebut;
 	short modifier_calculations= 0;
@@ -1653,8 +1635,26 @@ void sculpt(void)
 	ss->damaged_verts.first = ss->damaged_verts.last = NULL;
 	ss->vertexcosnos = NULL;
 
+	mmd = sculpt_multires_active(ob);
+	if(sculpt_multires_active(ob)) {
+		DerivedMesh *dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH);
+		ss->multires = 1;
+		ss->totvert = dm->getNumVerts(dm);
+		ss->totface = dm->getNumFaces(dm);
+		ss->mvert = dm->getVertDataArray(dm, CD_MVERT);
+		ss->mface = dm->getFaceDataArray(dm, CD_MFACE);
+	}
+	else {
+		Mesh *me = get_mesh(ob);
+		ss->multires = 0;
+		ss->totvert = me->totvert;
+		ss->totface = me->totface;
+		ss->mvert = me->mvert;
+		ss->mface = me->mface;
+	}
+
 	/* Check that vertex users are up-to-date */
-	if(ob != active_ob || !ss->vertex_users || ss->vertex_users_size != get_mesh(ob)->totvert) {
+	if(ob != active_ob || !ss->vertex_users || ss->vertex_users_size != ss->totvert) {
 		sculpt_vertexusers_free(ss);
 		calc_vertex_users();
 		if(ss->projverts)
@@ -1762,7 +1762,7 @@ void sculpt(void)
 				unproject(sd->pivot, mouse[0], mouse[1], a->depth);
 			}
 
-			if((!a->multires && modifier_calculations) || ob_get_keyblock(ob))
+			if((!ss->multires && modifier_calculations) || ob_get_keyblock(ob))
 				DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 
 			if(modifier_calculations || sd->brush_type == GRAB_BRUSH || !(sd->flags & SCULPT_DRAW_FAST)) {
