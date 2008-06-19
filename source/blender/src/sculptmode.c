@@ -1087,19 +1087,27 @@ void do_symmetrical_brush_actions(BrushAction *a, short co[2], short pr_co[2])
 	a->symm = orig;
 }
 
-void add_face_normal(vec3f *norm, MVert *mvert, const MFace* face)
+void add_face_normal(vec3f *norm, MVert *mvert, const MFace* face, float *fn)
 {
 	vec3f c= {mvert[face->v1].co[0],mvert[face->v1].co[1],mvert[face->v1].co[2]};
 	vec3f b= {mvert[face->v2].co[0],mvert[face->v2].co[1],mvert[face->v2].co[2]};
 	vec3f a= {mvert[face->v3].co[0],mvert[face->v3].co[1],mvert[face->v3].co[2]};
 	vec3f s1, s2;
+	float final[3];
 
 	VecSubf(&s1.x,&a.x,&b.x);
 	VecSubf(&s2.x,&c.x,&b.x);
 
-	norm->x+= s1.y * s2.z - s1.z * s2.y;
-	norm->y+= s1.z * s2.x - s1.x * s2.z;
-	norm->z+= s1.x * s2.y - s1.y * s2.x;
+	final[0] = s1.y * s2.z - s1.z * s2.y;
+	final[1] = s1.z * s2.x - s1.x * s2.z;
+	final[2] = s1.x * s2.y - s1.y * s2.x;
+
+	if(fn)
+		VecCopyf(fn, final);
+
+	norm->x+= final[0];
+	norm->y+= final[1];
+	norm->z+= final[2];
 }
 
 void update_damaged_vert(ListBase *lb, BrushAction *a)
@@ -1112,7 +1120,10 @@ void update_damaged_vert(ListBase *lb, BrushAction *a)
 		IndexNode *face= sculpt_session()->vertex_users[vert->Index].first;
 
 		while(face){
-			add_face_normal(&norm, ss->mvert, &ss->mface[face->Index]);
+			float *fn = NULL;
+			if(ss->face_normals)
+				fn = &ss->face_normals[face->Index*3];
+			add_face_normal(&norm, ss->mvert, &ss->mface[face->Index], fn);
 			face= face->next;
 		}
 		Normalize(&norm.x);
@@ -1643,6 +1654,7 @@ void sculpt(void)
 		ss->totface = dm->getNumFaces(dm);
 		ss->mvert = dm->getVertDataArray(dm, CD_MVERT);
 		ss->mface = dm->getFaceDataArray(dm, CD_MFACE);
+		ss->face_normals = dm->getFaceDataArray(dm, CD_NORMAL);
 	}
 	else {
 		Mesh *me = get_mesh(ob);
@@ -1651,6 +1663,7 @@ void sculpt(void)
 		ss->totface = me->totface;
 		ss->mvert = me->mvert;
 		ss->mface = me->mface;
+		ss->face_normals = NULL;
 	}
 
 	/* Check that vertex users are up-to-date */

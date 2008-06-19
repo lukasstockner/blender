@@ -48,6 +48,7 @@ typedef struct SculptSession {
 	int totface;
 	struct MVert *mvert;
 	struct MFace *mface;
+	float *face_normals;
 	
 	/* An array of lists; array is sized as
 	   large as the number of verts in the mesh,
