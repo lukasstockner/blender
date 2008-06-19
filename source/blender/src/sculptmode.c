@@ -143,6 +143,10 @@ typedef struct BrushAction {
 
 	char firsttime;
 
+	int multires;
+	MVert *verts;
+	int totvert;
+
 	/* Some brushes need access to original mesh vertices */
  	vec3f *mesh_store;
 	short (*orig_norms)[3];
@@ -455,7 +459,6 @@ static void add_norm_if(float view_vec[3], float out[3], float out_flip[3], cons
    vertices */
 void calc_area_normal(float out[3], const BrushAction *a, const float *outdir, const ListBase* active_verts)
 {
-	Mesh *me = get_mesh(OBACT);
 	ActiveData *node = active_verts->first;
 	SculptData *sd = sculpt_data();
 	const int view = sd->brush_type==DRAW_BRUSH ? sculptmode_brush()->view : 0;
@@ -469,7 +472,7 @@ void calc_area_normal(float out[3], const BrushAction *a, const float *outdir, c
 	}
 	else {
 		for(; node; node = node->next)
-			add_norm_if(((BrushAction*)a)->symm.out, out, out_flip, me->mvert[node->Index].no);
+			add_norm_if(((BrushAction*)a)->symm.out, out, out_flip, a->verts[node->Index].no);
 	}
 
 	if (out[0]==0.0 && out[1]==0.0 && out[2]==0.0) {
@@ -489,7 +492,6 @@ void calc_area_normal(float out[3], const BrushAction *a, const float *outdir, c
 
 void do_draw_brush(const BrushAction *a, const ListBase* active_verts)
 {
-	Mesh *me= get_mesh(OBACT);
 	float area_normal[3];
 	ActiveData *node= active_verts->first;
 
@@ -498,7 +500,7 @@ void do_draw_brush(const BrushAction *a, const ListBase* active_verts)
 	sculpt_axislock(area_normal);
 	
 	while(node){
-		float *co= me->mvert[node->Index].co;
+		float *co= a->verts[node->Index].co;
 		
 		const float val[3]= {co[0]+area_normal[0]*node->Fade*a->scale[0],
 		                     co[1]+area_normal[1]*node->Fade*a->scale[1],
@@ -978,10 +980,11 @@ void do_brush_action(BrushAction *a)
 	/* Build a list of all vertices that are potentially within the brush's
 	   area of influence. Only do this once for the grab brush. */
 	if((sd->brush_type != GRAB_BRUSH) || a->firsttime) {
-		for(i=0; i<me->totvert; ++i) {
+		for(i=0; i<a->totvert; ++i) {
 			/* Projverts.inside provides a rough bounding box */
-			if(ss->projverts[i].inside) {
-				vert= ss->vertexcosnos ? &ss->vertexcosnos[i*6] : me->mvert[i].co;
+			if(a->multires || ss->projverts[i].inside) {
+				//vert= ss->vertexcosnos ? &ss->vertexcosnos[i*6] : a->verts[i].co;
+				vert= a->verts[i].co;
 				av_dist= VecLenf(a->symm.center_3d, vert);
 				if(av_dist < a->size_3d) {
 					adata= (ActiveData*)MEM_mallocN(sizeof(ActiveData), "ActiveData");
@@ -1029,7 +1032,7 @@ void do_brush_action(BrushAction *a)
 		}
 	
 		/* Copy the modified vertices from mesh to the active key */
-		if(keyblock) {
+		if(keyblock && !a->multires) {
 			float *co= keyblock->data;
 			if(co) {
 				if(sd->brush_type == GRAB_BRUSH)
@@ -1339,6 +1342,30 @@ void init_brushaction(BrushAction *a, short *mouse, short *pr_mouse)
 			}
 		}
   	}
+
+	/* Multires */
+	{
+		ModifierData *md;
+		MultiresModifierData *mmd = NULL;
+	
+		for(md= modifiers_getVirtualModifierList(OBACT); md; md= md->next) {
+			if(md->type == eModifierType_Multires)
+				mmd = (MultiresModifierData*)md;
+		}
+
+		if(mmd) {
+			DerivedMesh *dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH);
+			a->multires = 1;
+			a->verts = dm->getVertDataArray(dm, CD_MVERT);
+			a->totvert = dm->getNumVerts(dm);
+		}
+		else {
+			Mesh *me = get_mesh(OBACT);
+			a->multires = 0;
+			a->verts = me->mvert;
+			a->totvert = me->totvert;
+		}
+	}
 }
 void sculptmode_set_strength(const int delta)
 {
@@ -1735,7 +1762,7 @@ void sculpt(void)
 				unproject(sd->pivot, mouse[0], mouse[1], a->depth);
 			}
 
-			if(modifier_calculations || ob_get_keyblock(ob))
+			if((!a->multires && modifier_calculations) || ob_get_keyblock(ob))
 				DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 
 			if(modifier_calculations || sd->brush_type == GRAB_BRUSH || !(sd->flags & SCULPT_DRAW_FAST)) {

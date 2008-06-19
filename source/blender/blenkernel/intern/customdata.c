@@ -361,7 +361,8 @@ static void layerDefault_origspace_face(void *data, int count)
 void layerCopy_mdisps(const void *source, void *dest, int count)
 {
 	int i;
-	MDisps *s = source, *d = dest;
+	const MDisps *s = source;
+	MDisps *d = dest;
 
 	for(i = 0; i < count; ++i) {
 		if(s[i].disps)
@@ -375,8 +376,9 @@ void layerFree_mdisps(void *data, int count, int size)
 	MDisps *d = data;
 
 	for(i = 0; i < count; ++i) {
-		if(d->disps)
-			MEM_freeN(d->disps);
+		if(d[i].disps)
+			MEM_freeN(d[i].disps);
+		d[i].disps = NULL;
 	}
 }
 
@@ -492,14 +494,14 @@ const CustomDataMask CD_MASK_BAREMESH =
 const CustomDataMask CD_MASK_MESH =
 	CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
-	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR;
+	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS;
 const CustomDataMask CD_MASK_EDITMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
-	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR;
+	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS;
 const CustomDataMask CD_MASK_DERIVEDMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_PROP_FLT | CD_MASK_PROP_INT |
-	CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORCO;
+	CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORCO | CD_MASK_MDISPS;
 
 static const LayerTypeInfo *layerType_getInfo(int type)
 {

@@ -66,3 +66,45 @@ void multires_update_customdata(struct MultiresLevel *lvl1, struct EditMesh *em,
 void multires_customdata_to_mesh(struct Mesh *me, struct EditMesh *em,
 				 struct MultiresLevel *lvl, struct CustomData *src,
                                  struct CustomData *dst, const int type);
+
+struct DerivedMesh;
+struct MFace;
+
+/* MultiresDM */
+struct DerivedMesh *MultiresDM_new(struct DerivedMesh*, int, int, int, int, int);
+void *MultiresDM_get_orco(struct DerivedMesh *);
+void *MultiresDM_get_subco(struct DerivedMesh *);
+struct MFace *MultiresDM_get_orfa(struct DerivedMesh *);
+int MultiresDM_get_totlvl(struct DerivedMesh *);
+int MultiresDM_get_lvl(struct DerivedMesh *);
+int MultiresDM_get_totorfa(struct DerivedMesh *);
+void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
+
+/* Modifier */
+struct MDisps;
+struct MultiresModifierData;
+typedef struct MultiresDisplacer {
+	struct MDisps *grid;
+	float mat[3][3];
+	int sides;
+	int spacing;
+	int sidetot;
+	int sidendx;
+	int type;
+	int invert;
+	float (*orco)[3];
+	float (*subco)[3];
+
+	int x, y, ax, ay;
+} MultiresDisplacer;
+
+struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*, int, int);
+
+void multiresModifier_subdivide(void *mmd_v, void *ob_v);
+void multiresModifier_setLevel(void *mmd_v, void *ob_v);
+
+void multires_displacer_init(MultiresDisplacer *d, struct DerivedMesh *dm,
+			     const int face_index, const int sides, const int invert);
+void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index);
+void multires_displacer_jump(MultiresDisplacer *d);
+void multires_displace(MultiresDisplacer *d, float out[3]);

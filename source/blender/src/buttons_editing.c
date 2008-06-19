@@ -2450,9 +2450,10 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiBut *but;
  
 			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Subdivide", lx,(cy-=19),buttonWidth,19,0,0,0,0,0,"Increase the resolution of displacements");
-			//uiButSetFunc(but, modifiers_multiresSubdivide, ob, mmd);
+			uiButSetFunc(but, multiresModifier_subdivide, mmd, ob);
 		
-			uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
+			but = uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
+			uiButSetFunc(but, multiresModifier_setLevel, mmd, ob);
 		}
 
 		uiBlockEndAlign(block);

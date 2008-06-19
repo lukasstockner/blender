@@ -32,6 +32,7 @@
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_vec_types.h"
 
@@ -41,15 +42,19 @@
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
 
+#include "BKE_cdderivedmesh.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_multires.h"
+#include "BKE_subsurf.h"
 
 #include "blendef.h"
 #include "editmesh.h"
 
 #include <math.h>
+#include <string.h>
 
 /* Returns the active multires level (currently applied to the mesh) */
 MultiresLevel *current_level(Multires *mr)
@@ -1302,4 +1307,305 @@ void multires_edge_level_update(Object *ob, Mesh *me)
 		
 		DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 	}
+}
+
+/* MULTIRES MODIFIER */
+static const int multires_max_levels = 13;
+static const int multires_quad_tot[] = {4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
+static const int multires_tri_tot[]  = {3, 7, 19, 61, 217, 817,  3169, 12481, 49537, 197377, 787969,  3148801, 12589057};
+static const int multires_side_tot[] = {2, 3, 5,  9,  17,  33,   65,   129,   257,   513,    1025,    2049,    4097};
+
+static void Mat3FromColVecs(float mat[][3], float v1[3], float v2[3], float v3[3])
+{
+	VecCopyf(mat[0], v1);
+	VecCopyf(mat[1], v2);
+	VecCopyf(mat[2], v3);
+}
+
+static void calc_ts_mat(float out[][3], float center[3], float spintarget[3], float normal[3])
+{
+	float tan[3], cross[3];
+
+	VecSubf(tan, spintarget, center);
+	Normalize(tan);
+
+	Crossf(cross, normal, tan);
+
+	Mat3FromColVecs(out, tan, cross, normal);
+}
+
+static void face_center(float *out, float *a, float *b, float *c, float *d)
+{
+	VecAddf(out, a, b);
+	VecAddf(out, out, c);
+	if(d)
+		VecAddf(out, out, d);
+
+	VecMulf(out, d ? 0.25 : 1.0 / 3.0);
+}
+
+static void calc_norm(float *norm, float *a, float *b, float *c, float *d)
+{
+	if(d)
+		CalcNormFloat4(a, b, c, d, norm);
+	else
+		CalcNormFloat(a, b, c, norm);
+}
+
+static void calc_face_ts_mat(float out[][3], float *v1, float *v2, float *v3, float *v4)
+{
+	float center[3], norm[3];
+
+	face_center(center, v1, v2, v3, v4);
+	calc_norm(norm, v1, v2, v3, v4);
+	calc_ts_mat(out, center, v1, norm);
+}
+
+static void calc_face_ts_mat_dm(float out[][3], float (*orco)[3], MFace *f)
+{
+	calc_face_ts_mat(out, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
+}
+
+void multiresModifier_subdivide(void *mmd_v, void *ob_v)
+{
+	MultiresModifierData *mmd = mmd_v;
+	Object *ob = ob_v;
+	Mesh *me = get_mesh(ob);
+
+	if(me && mmd) {
+		MDisps *mdisps;
+		int i;
+
+		if(mmd->totlvl == multires_max_levels) {
+			// TODO
+			return;
+		}
+
+		++mmd->lvl;
+		++mmd->totlvl;
+
+		mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
+		if(!mdisps)
+			mdisps = CustomData_add_layer(&me->fdata, CD_MDISPS, CD_DEFAULT, NULL, me->totface);
+
+		for(i = 0; i < me->totface; ++i) {
+			//const int totdisp = (me->mface[i].v4 ? multires_quad_tot[totlvl] : multires_tri_tot[totlvl]);
+			const int totdisp = multires_quad_tot[mmd->totlvl - 1];
+			float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
+
+			if(mdisps[i].disps) {
+				/* TODO: Transfer old disps over to the new */
+				MEM_freeN(mdisps[i].disps);
+			}
+			mdisps[i].disps = disps;
+		}
+	}
+}
+
+void multiresModifier_setLevel(void *mmd_v, void *ob_v)
+{
+	MultiresModifierData *mmd = mmd_v;
+	Object *ob = ob_v;
+	Mesh *me = get_mesh(ob);
+
+	if(me && mmd) {
+		// TODO
+	}
+}
+
+void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
+			     const int face_index, const int sides, const int invert)
+{
+	MFace *face;
+	float inv[3][3];
+
+	face = MultiresDM_get_orfa(dm) + face_index;
+	/* Get the multires grid from customdata and calculate the TS matrix */
+	d->grid = (MDisps*)dm->getFaceDataArray(dm, CD_MDISPS);
+	if(d->grid)
+		d->grid += face_index;
+	d->subco = MultiresDM_get_subco(dm);
+	calc_face_ts_mat_dm(d->mat, MultiresDM_get_orco(dm), face);
+	if(invert) {
+		Mat3Inv(inv, d->mat);
+		Mat3CpyMat3(d->mat, inv);
+	}
+
+	d->sides = sides;
+	d->spacing = pow(2, MultiresDM_get_totlvl(dm) - MultiresDM_get_lvl(dm));
+	d->sidetot = multires_side_tot[MultiresDM_get_totlvl(dm) - 1];
+	d->invert = invert;
+}
+
+void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index)
+{
+	d->sidendx = side_index;
+	d->x = d->y = d->sidetot / 2;
+	d->type = type;
+
+	if(type == 2) {
+		if(side_index == 0)
+			d->y -= d->spacing;
+		else if(side_index == 1)
+			d->x += d->spacing;
+		else if(side_index == 2)
+			d->y += d->spacing;
+		else if(side_index == 3)
+			d->x -= d->spacing;
+	}
+	else if(type == 3) {
+		if(side_index == 0) {
+			d->x -= d->spacing;
+			d->y -= d->spacing;
+		}
+		else if(side_index == 1) {
+			d->x += d->spacing;
+			d->y -= d->spacing;
+		}
+		else if(side_index == 2) {
+			d->x += d->spacing;
+			d->y += d->spacing;
+	}
+		else if(side_index == 3) {
+			d->x -= d->spacing;
+			d->y += d->spacing;
+		}
+	}
+
+	d->ax = d->x;
+	d->ay = d->y;
+}
+
+void multires_displacer_jump(MultiresDisplacer *d)
+{
+	if(d->sidendx == 0) {
+		d->x -= d->spacing;
+		d->y = d->ay;
+	}
+	else if(d->sidendx == 1) {
+		d->x = d->ax;
+		d->y -= d->spacing;
+	}
+	else if(d->sidendx == 2) {
+		d->x += d->spacing;
+		d->y = d->ay;
+	}
+	else if(d->sidendx == 3) {
+		d->x = d->ax;
+		d->y += d->spacing;
+	}
+}
+
+void multires_displace(MultiresDisplacer *d, float co[3])
+{
+	float disp[3];
+	float *data;
+
+	if(!d->grid || !d->grid->disps) return;
+
+	data = d->grid->disps[d->y * d->sidetot + d->x];
+
+	if(d->invert) {
+		VecSubf(disp, co, *d->subco);
+		++d->subco;
+	}
+	else
+		VecCopyf(disp, data);
+
+	Mat3MulVecfl(d->mat, disp);
+
+	if(d->invert) {
+		VecCopyf(data, disp);
+		
+	}
+	else
+		VecAddf(co, co, disp);
+
+	if(d->type == 2) {
+		if(d->sidendx == 0)
+			d->y -= d->spacing;
+		else if(d->sidendx == 1)
+			d->x += d->spacing;
+		else if(d->sidendx == 2)
+			d->y += d->spacing;
+		else if(d->sidendx == 3)
+			d->x -= d->spacing;
+	}
+	else if(d->type == 3) {
+		if(d->sidendx == 0)
+			d->y -= d->spacing;
+		else if(d->sidendx == 1)
+			d->x += d->spacing;
+		else if(d->sidendx == 2)
+			d->y += d->spacing;
+		else if(d->sidendx == 3)
+			d->x -= d->spacing;
+	}
+}
+
+static void multiresModifier_update(DerivedMesh *dm)
+{
+	MDisps *mdisps;
+	MVert *mvert;
+	MFace *mface;
+	int i;
+
+	mdisps = dm->getFaceDataArray(dm, CD_MDISPS);
+
+	if(MultiresDM_get_lvl(dm) != MultiresDM_get_totlvl(dm))
+		return;
+	
+	if(mdisps) {
+		MultiresDisplacer d;
+		
+		mvert = CDDM_get_verts(dm);
+		mface = CDDM_get_faces(dm);
+
+		/* For now just handle top-level sculpts */
+		for(i = 0; i < MultiresDM_get_totorfa(dm); ++i) {
+			int gridFaces = multires_side_tot[MultiresDM_get_totlvl(dm) - 2] - 1;
+			const int numVerts = mface[i].v4 ? 4 : 3;
+			int S, x, y;
+			
+			// convert from mvert->co to disps
+			multires_displacer_init(&d, dm, i, numVerts, 1);
+			multires_displacer_anchor(&d, 1, 0);
+			multires_displace(&d, mvert->co);
+			++mvert;
+
+			for(S = 0; S < numVerts; ++S) {
+				multires_displacer_anchor(&d, 2, S);
+				for(x = 1; x < gridFaces; ++x) {
+					multires_displace(&d, mvert->co);
+					++mvert;
+				}
+			}
+
+			for(S = 0; S < numVerts; S++) {
+				multires_displacer_anchor(&d, 3, S);
+				for(y = 1; y < gridFaces; y++) {
+					for(x = 1; x < gridFaces; x++) {
+						multires_displace(&d, mvert->co);
+						++mvert;
+					}
+					multires_displacer_jump(&d);
+				}
+			}
+		}
+	}
+}
+
+struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, DerivedMesh *dm, int useRenderParams,
+						    int isFinalCalc)
+{
+	SubsurfModifierData smd;
+	DerivedMesh *result;
+
+	memset(&smd, 0, sizeof(SubsurfModifierData));
+	smd.levels = mmd->lvl - 1;
+
+	result = subsurf_make_derived_from_derived_with_multires(dm, &smd, mmd, useRenderParams, NULL, isFinalCalc, 0);
+	MultiresDM_set_update(result, multiresModifier_update);
+
+	return result;
 }

@@ -49,6 +49,7 @@
 #include "BKE_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
+#include "BKE_multires.h"
 #include "BKE_scene.h"
 #include "BKE_subsurf.h"
 
@@ -62,6 +63,8 @@
 #include "BIF_gl.h"
 
 #include "CCGSubSurf.h"
+
+#include "multires.h"
 
 typedef struct _VertData {
 	float co[3];
@@ -468,7 +471,7 @@ static void calc_ss_weights(int gridFaces,
 
 DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
                                  int drawInteriorEdges, int useSubsurfUv,
-                                 DerivedMesh *dm)
+                                 DerivedMesh *dm, MultiresModifierData *mmd)
 {
 	DerivedMesh *result;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
@@ -489,6 +492,8 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 	MFace *mf;
 	int *origIndex;
 	FaceVertWeight *qweight, *tweight;
+	MultiresDisplacer d;
+	float *mr_orig;
 
 	calc_ss_weights(gridFaces, &qweight, &tweight);
 
@@ -522,14 +527,22 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 	}
 	ccgFaceIterator_free(fi);
 
-	if(dm) {
-		result = CDDM_from_template(dm, ccgSubSurf_getNumFinalVerts(ss),
-		                            ccgSubSurf_getNumFinalEdges(ss),
-		                            ccgSubSurf_getNumFinalFaces(ss));
-	} else {
-		result = CDDM_new(ccgSubSurf_getNumFinalVerts(ss),
-		                  ccgSubSurf_getNumFinalEdges(ss),
-		                  ccgSubSurf_getNumFinalFaces(ss));
+	if(mmd) {
+		result = MultiresDM_new(dm, ccgSubSurf_getNumFinalVerts(ss),
+					ccgSubSurf_getNumFinalEdges(ss),
+					ccgSubSurf_getNumFinalFaces(ss), mmd->lvl, mmd->totlvl);
+		mr_orig = MultiresDM_get_subco(result);
+	}
+	else {
+		if(dm) {
+			result = CDDM_from_template(dm, ccgSubSurf_getNumFinalVerts(ss),
+						    ccgSubSurf_getNumFinalEdges(ss),
+						    ccgSubSurf_getNumFinalFaces(ss));
+		} else {
+			result = CDDM_new(ccgSubSurf_getNumFinalVerts(ss),
+					  ccgSubSurf_getNumFinalEdges(ss),
+					  ccgSubSurf_getNumFinalFaces(ss));
+		}
 	}
 
 	// load verts
@@ -551,15 +564,24 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 
 		DM_interp_vert_data(dm, result, vertIdx, weight[0][0], numVerts, i);
 		VecCopyf(mvert->co, ccgSubSurf_getFaceCenterData(ss, f));
+		if(mmd) {
+			VecCopyf(mr_orig, mvert->co);
+			mr_orig += 3;
+			multires_displacer_init(&d, result, index, numVerts, 0);
+			multires_displacer_anchor(&d, 1, 0);
+			multires_displace(&d, mvert->co);
+		}
 		*origIndex = ORIGINDEX_NONE;
 		++mvert;
 		++origIndex;
 		i++;
-		
+
 		for(S = 0; S < numVerts; S++) {
 			int prevS = (S - 1 + numVerts) % numVerts;
 			int nextS = (S + 1) % numVerts;
 			int otherS = (numVerts == 4) ? (S + 2) % numVerts : 3;
+
+			if(mmd) multires_displacer_anchor(&d, 2, S);
 			for(x = 1; x < gridFaces; x++) {
 				float w[4];
 				w[prevS]  = weight[x][0][0];
@@ -569,6 +591,11 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 				DM_interp_vert_data(dm, result, vertIdx, w, numVerts, i);
 				VecCopyf(mvert->co,
 				         ccgSubSurf_getFaceGridEdgeData(ss, f, S, x));
+				if(mmd) {
+					VecCopyf(mr_orig, mvert->co);
+					mr_orig += 3;
+					multires_displace(&d, mvert->co);
+				}
 				*origIndex = ORIGINDEX_NONE;
 				++mvert;
 				++origIndex;
@@ -580,6 +607,8 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 			int prevS = (S - 1 + numVerts) % numVerts;
 			int nextS = (S + 1) % numVerts;
 			int otherS = (numVerts == 4) ? (S + 2) % numVerts : 3;
+
+			if(mmd) multires_displacer_anchor(&d, 3, S);
 			for(y = 1; y < gridFaces; y++) {
 				for(x = 1; x < gridFaces; x++) {
 					float w[4];
@@ -590,11 +619,18 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 					DM_interp_vert_data(dm, result, vertIdx, w, numVerts, i);
 					VecCopyf(mvert->co,
 					         ccgSubSurf_getFaceGridData(ss, f, S, x, y));
+					if(mmd) {
+						VecCopyf(mr_orig, mvert->co);
+						mr_orig += 3;
+						multires_displace(&d, mvert->co);
+					}
+
 					*origIndex = ORIGINDEX_NONE;
 					++mvert;
 					++origIndex;
 					i++;
 				}
+				if(mmd) multires_displacer_jump(&d);
 			}
 		}
 
@@ -2397,9 +2433,10 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 /***/
 
-struct DerivedMesh *subsurf_make_derived_from_derived(
+struct DerivedMesh *subsurf_make_derived_from_derived_with_multires(
                         struct DerivedMesh *dm,
                         struct SubsurfModifierData *smd,
+			struct MultiresModifierData *mmd,
                         int useRenderParams, float (*vertCos)[3],
                         int isFinalCalc, int editMode)
 {
@@ -2431,7 +2468,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 		ss_sync_from_derivedmesh(ss, dm, vertCos, useSimple);
 
 		result = ss_to_cdderivedmesh(ss, 0, drawInteriorEdges,
-		                             useSubsurfUv, dm);
+		                             useSubsurfUv, dm, mmd);
 
 		ccgSubSurf_free(ss);
 		
@@ -2462,7 +2499,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 
 
 			return ss_to_cdderivedmesh(ss, 0, drawInteriorEdges,
-		                               useSubsurfUv, dm);
+						   useSubsurfUv, dm, mmd);
 
 			/*return (DerivedMesh *)getCCGDerivedMesh(smd->mCache,
 		                                        drawInteriorEdges,
@@ -2482,13 +2519,22 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	                                            useSubsurfUv, dm);*/
 
 			result = ss_to_cdderivedmesh(ss, 0, drawInteriorEdges,
-			                             useSubsurfUv, dm);
+			                             useSubsurfUv, dm, mmd);
 
 			ccgSubSurf_free(ss);
 
 			return result;
 		}
 	}
+}
+
+struct DerivedMesh *subsurf_make_derived_from_derived(
+                        struct DerivedMesh *dm,
+                        struct SubsurfModifierData *smd,
+                        int useRenderParams, float (*vertCos)[3],
+                        int isFinalCalc, int editMode)
+{
+	return subsurf_make_derived_from_derived_with_multires(dm, smd, NULL, useRenderParams, vertCos, isFinalCalc, editMode);
 }
 
 void subsurf_calculate_limit_positions(Mesh *me, float (*positions_r)[3]) 

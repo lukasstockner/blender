@@ -1141,3 +1141,122 @@ MFace *CDDM_get_faces(DerivedMesh *dm)
 	return ((CDDerivedMesh*)dm)->mface;
 }
 
+/* Multires DerivedMesh, extends CDDM */
+typedef struct MultiresDM {
+	CDDerivedMesh cddm;
+
+	int lvl, totlvl;
+	float (*orco)[3];
+	float (*subco)[3];
+	MFace *orfa;
+	int totorfa;
+
+	void (*update)(DerivedMesh*);
+} MultiresDM;
+
+static void MultiresDM_release(DerivedMesh *dm)
+{
+	MultiresDM *mrdm = (MultiresDM*)dm;
+
+	/* Before freeing, need to update the displacement map */
+	if(dm->needsFree)
+		mrdm->update(dm);
+
+	if(DM_release(dm)) {
+		MEM_freeN(mrdm->orfa);
+		MEM_freeN(mrdm->subco);
+		MEM_freeN(mrdm->orco);
+		MEM_freeN(mrdm);
+	}
+}
+
+DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int numFaces, int lvl, int totlvl)
+{
+	MultiresDM *mrdm = MEM_callocN(sizeof(MultiresDM), "MultiresDM");
+	CDDerivedMesh *cddm = cdDM_create("MultiresDM CDDM");
+	DerivedMesh *dm = NULL;
+
+	mrdm->cddm = *cddm;
+	MEM_freeN(cddm);
+	dm = &mrdm->cddm.dm;
+
+	if(dm) {
+		MDisps *disps;
+		MVert *mvert;
+		int i;
+
+		DM_from_template(dm, orig, numVerts, numEdges, numFaces);
+		CustomData_free_layers(&dm->faceData, CD_MDISPS, numFaces);
+
+		disps = CustomData_get_layer(&orig->faceData, CD_MDISPS);
+		if(disps)
+			CustomData_add_layer(&dm->faceData, CD_MDISPS, CD_REFERENCE, disps, numFaces);
+
+
+		mvert = CustomData_get_layer(&orig->vertData, CD_MVERT);
+		mrdm->orco = MEM_callocN(sizeof(float) * 3 * orig->getNumVerts(orig), "multires orco");
+		for(i = 0; i < orig->getNumVerts(orig); ++i)
+			VecCopyf(mrdm->orco[i], mvert[i].co);
+		mrdm->orfa = MEM_dupallocN(CustomData_get_layer(&orig->faceData, CD_MFACE));
+		mrdm->totorfa = orig->getNumFaces(orig);
+	}
+	else
+		DM_init(dm, numVerts, numEdges, numFaces);
+
+	CustomData_add_layer(&dm->vertData, CD_MVERT, CD_CALLOC, NULL, numVerts);
+	CustomData_add_layer(&dm->edgeData, CD_MEDGE, CD_CALLOC, NULL, numEdges);
+	CustomData_add_layer(&dm->faceData, CD_MFACE, CD_CALLOC, NULL, numFaces);
+
+	mrdm->cddm.mvert = CustomData_get_layer(&dm->vertData, CD_MVERT);
+	mrdm->cddm.medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
+	mrdm->cddm.mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
+
+	mrdm->lvl = lvl;
+	mrdm->totlvl = totlvl;
+	mrdm->subco = MEM_callocN(sizeof(float)*3*numVerts, "multires subdivided coords");
+
+	dm->release = MultiresDM_release;
+
+	return dm;
+}
+
+void *MultiresDM_get_orco(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->orco;
+
+}
+
+void *MultiresDM_get_subco(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->subco;
+}
+
+MFace *MultiresDM_get_orfa(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->orfa;
+}
+
+int MultiresDM_get_totorfa(struct DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->totorfa;
+}
+
+int MultiresDM_get_totlvl(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->totlvl;
+}
+
+int MultiresDM_get_lvl(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->lvl;
+}
+
+void MultiresDM_set_orco(DerivedMesh *dm, float (*orco)[3])
+{
+	((MultiresDM*)dm)->orco = orco;
+}
+
+void MultiresDM_set_update(DerivedMesh *dm, void (*update)(DerivedMesh*))
+{
+	((MultiresDM*)dm)->update = update;
+}

@@ -491,6 +491,7 @@ typedef struct ExplodeModifierData {
 
 typedef struct MultiresModifierData {
 	ModifierData modifier;
+
 	char lvl, totlvl;
 	char pad[6];
 } MultiresModifierData;

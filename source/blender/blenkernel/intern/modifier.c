@@ -86,6 +86,7 @@
 #include "BKE_booleanops.h"
 #include "BKE_displist.h"
 #include "BKE_modifier.h"
+#include "BKE_multires.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_subsurf.h"
@@ -7022,7 +7023,13 @@ static void multiresModifier_initData(ModifierData *md)
 static DerivedMesh *multiresModifier_applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 						   int useRenderParams, int isFinalCalc)
 {
-	return dm;
+	MultiresModifierData *mmd = (MultiresModifierData*)md;
+
+	/* TODO: for now just skip a level1 mesh */
+	if(mmd->lvl == 1)
+		return dm;
+
+	return multires_dm_create_from_derived(mmd, dm, useRenderParams, isFinalCalc);
 }
 
 /***/
