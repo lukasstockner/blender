@@ -1557,9 +1557,10 @@ static void multiresModifier_update(DerivedMesh *dm)
 	
 	if(mdisps) {
 		MultiresDisplacer d;
+		float (*subco)[3] = MultiresDM_get_subco(dm);
 		
 		mvert = CDDM_get_verts(dm);
-		mface = CDDM_get_faces(dm);
+		mface = MultiresDM_get_orfa(dm);
 
 		/* For now just handle top-level sculpts */
 		for(i = 0; i < MultiresDM_get_totorfa(dm); ++i) {
@@ -1569,6 +1570,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			
 			// convert from mvert->co to disps
 			multires_displacer_init(&d, dm, i, numVerts, 1);
+			d.subco = subco;
 			multires_displacer_anchor(&d, 1, 0);
 			multires_displace(&d, mvert->co);
 			++mvert;
@@ -1591,6 +1593,8 @@ static void multiresModifier_update(DerivedMesh *dm)
 					multires_displacer_jump(&d);
 				}
 			}
+
+			subco = d.subco;
 		}
 	}
 }
