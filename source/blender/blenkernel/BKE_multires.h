@@ -29,7 +29,9 @@
 
 struct CustomData;
 struct EditMesh;
+struct MCol;
 struct Multires;
+struct MultiresColFace;
 struct MultiresLevel;
 struct Mesh;
 struct Object;
@@ -53,7 +55,7 @@ void multires_create(struct Object *ob, struct Mesh *me);
 void multires_delete_layer(struct Mesh *me, struct CustomData *cd, const int type, int n);
 void multires_add_layer(struct Mesh *me, struct CustomData *cd, const int type, const int n);
 void multires_del_lower_customdata(struct Multires *mr, struct MultiresLevel *cr_lvl);
-void multires_to_mcol(struct MultiresColFace *f, MCol mcol[4]);
+void multires_to_mcol(struct MultiresColFace *f, struct MCol *mcol);
 /* After adding or removing vcolor layers, run this */
 void multires_load_cols(struct Mesh *me);
 
@@ -69,24 +71,37 @@ void multires_customdata_to_mesh(struct Mesh *me, struct EditMesh *em,
 
 struct DerivedMesh;
 struct MFace;
+struct MEdge;
+
+typedef struct IndexNode {
+	struct IndexNode *next, *prev;
+	int index;
+} IndexNode;
+
+void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *mface,
+			  const int totvert, const int totface);
 
 /* MultiresDM */
 struct DerivedMesh *MultiresDM_new(struct DerivedMesh*, int, int, int, int, int);
 void *MultiresDM_get_orco(struct DerivedMesh *);
 void *MultiresDM_get_subco(struct DerivedMesh *);
 struct MFace *MultiresDM_get_orfa(struct DerivedMesh *);
+struct MEdge *MultiresDM_get_ored(struct DerivedMesh *);
+struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);
 int MultiresDM_get_totorfa(struct DerivedMesh *);
+int MultiresDM_get_totored(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
 
 /* Modifier */
 struct MDisps;
+struct MFace;
 struct MultiresModifierData;
 typedef struct MultiresDisplacer {
 	struct MDisps *grid;
+	struct MFace *face;
 	float mat[3][3];
-	int sides;
 	int spacing;
 	int sidetot;
 	int sidendx;
@@ -94,6 +109,7 @@ typedef struct MultiresDisplacer {
 	int invert;
 	float (*orco)[3];
 	float (*subco)[3];
+	float weight;
 
 	int x, y, ax, ay;
 } MultiresDisplacer;
@@ -104,7 +120,9 @@ void multiresModifier_subdivide(void *mmd_v, void *ob_v);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
 
 void multires_displacer_init(MultiresDisplacer *d, struct DerivedMesh *dm,
-			     const int face_index, const int sides, const int invert);
+			     const int face_index, const int invert);
+void multires_displacer_weight(MultiresDisplacer *d, const float w);
 void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index);
+void multires_displacer_anchor_edge(MultiresDisplacer *d, const int, const int, const int);
 void multires_displacer_jump(MultiresDisplacer *d);
 void multires_displace(MultiresDisplacer *d, float out[3]);

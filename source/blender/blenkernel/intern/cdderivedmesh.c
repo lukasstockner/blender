@@ -42,6 +42,7 @@
 #include "BKE_displist.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
+#include "BKE_multires.h"
 #include "BKE_utildefines.h"
 
 #include "BLI_arithb.h"
@@ -1148,8 +1149,14 @@ typedef struct MultiresDM {
 	int lvl, totlvl;
 	float (*orco)[3];
 	float (*subco)[3];
+	MEdge *ored;
 	MFace *orfa;
+	int totorco;
+	int totored;
 	int totorfa;
+
+	ListBase *vert_face_map;
+	IndexNode *vert_face_map_mem;
 
 	void (*update)(DerivedMesh*);
 } MultiresDM;
@@ -1163,9 +1170,14 @@ static void MultiresDM_release(DerivedMesh *dm)
 		mrdm->update(dm);
 
 	if(DM_release(dm)) {
+		MEM_freeN(mrdm->ored);
 		MEM_freeN(mrdm->orfa);
 		MEM_freeN(mrdm->subco);
 		MEM_freeN(mrdm->orco);
+		if(mrdm->vert_face_map)
+			MEM_freeN(mrdm->vert_face_map);
+		if(mrdm->vert_face_map_mem)
+			MEM_freeN(mrdm->vert_face_map_mem);
 		MEM_freeN(mrdm);
 	}
 }
@@ -1197,8 +1209,11 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 		mrdm->orco = MEM_callocN(sizeof(float) * 3 * orig->getNumVerts(orig), "multires orco");
 		for(i = 0; i < orig->getNumVerts(orig); ++i)
 			VecCopyf(mrdm->orco[i], mvert[i].co);
+		mrdm->totorco = orig->getNumVerts(orig);
 		mrdm->orfa = MEM_dupallocN(CustomData_get_layer(&orig->faceData, CD_MFACE));
 		mrdm->totorfa = orig->getNumFaces(orig);
+		mrdm->ored = MEM_dupallocN(CustomData_get_layer(&orig->edgeData, CD_MEDGE));
+		mrdm->totored = orig->getNumEdges(orig);
 	}
 	else
 		DM_init(dm, numVerts, numEdges, numFaces);
@@ -1241,6 +1256,16 @@ int MultiresDM_get_totorfa(struct DerivedMesh *dm)
 	return ((MultiresDM*)dm)->totorfa;
 }
 
+MEdge *MultiresDM_get_ored(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->ored;
+}
+
+int MultiresDM_get_totored(struct DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->totored;
+}
+
 int MultiresDM_get_totlvl(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->totlvl;
@@ -1259,4 +1284,15 @@ void MultiresDM_set_orco(DerivedMesh *dm, float (*orco)[3])
 void MultiresDM_set_update(DerivedMesh *dm, void (*update)(DerivedMesh*))
 {
 	((MultiresDM*)dm)->update = update;
+}
+
+ListBase *MultiresDM_get_vert_face_map(DerivedMesh *dm)
+{
+	MultiresDM *mrdm = (MultiresDM*)dm;
+
+	if(!mrdm->vert_face_map)
+		create_vert_face_map(&mrdm->vert_face_map, &mrdm->vert_face_map_mem, mrdm->orfa,
+				     mrdm->totorco, mrdm->totorfa);
+
+	return mrdm->vert_face_map;
 }

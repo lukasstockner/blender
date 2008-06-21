@@ -567,7 +567,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 		if(mmd) {
 			VecCopyf(mr_orig, mvert->co);
 			mr_orig += 3;
-			multires_displacer_init(&d, result, index, numVerts, 0);
+			multires_displacer_init(&d, result, index, 0);
 			multires_displacer_anchor(&d, 1, 0);
 			multires_displace(&d, mvert->co);
 		}
@@ -656,6 +656,24 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 			w[0] = 1 - w[1];
 			DM_interp_vert_data(dm, result, vertIdx, w, 2, i);
 			VecCopyf(mvert->co, ccgSubSurf_getEdgeData(ss, e, x));
+			if(mmd) {
+				int numFaces = ccgSubSurf_getEdgeNumFaces(ss, e);
+				int edgeface;
+
+				VecCopyf(mr_orig, mvert->co);
+				mr_orig += 3;
+
+				multires_displacer_weight(&d, 1.0f / numFaces);
+				/* Could be made more efficient by moving this outside the x loop */
+				for(edgeface = 0; edgeface < numFaces; ++edgeface) {
+					CCGFace *f = ccgSubSurf_getEdgeFace(ss, e, edgeface);
+					int faceIdx = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ss, f));
+					multires_displacer_init(&d, result, faceIdx, 0);
+					multires_displacer_anchor_edge(&d, vertIdx[0], vertIdx[1], x);
+					multires_displace(&d, mvert->co);
+				}
+
+			}
 			*origIndex = ORIGINDEX_NONE;
 			++mvert;
 			++origIndex;
