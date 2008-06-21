@@ -505,7 +505,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 
 	if((lamp->mode & LA_ONLYSHADOW) && !(ma->mode & MA_SHADOW))
 		return;
-
+	
 	vn= shi->vn;
 	view= shi->view;
 
@@ -628,11 +628,17 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	Base *base;
+	Object *ob;
 	
-	for(base=G.scene->base.first; base; base=base->next)
-		if(base->object->type==OB_LAMP && base->object->gpulamp)
-			//if(!G.vd || (base->lay & G.vd->lay))
-				shade_one_light(shi, shr, base->object->gpulamp);
+	for(base=G.scene->base.first; base; base=base->next) {
+		ob= base->object;
+
+		if(ob->type==OB_LAMP) {
+			GPU_lamp_from_blender(ob, ob->data);
+			if(ob->gpulamp)
+				shade_one_light(shi, shr, ob->gpulamp);
+		}
+	}
 }
 
 static void texture_rgb_blend(GPUMaterial *mat, GPUNodeLink *tex, GPUNodeLink *out, GPUNodeLink *fact, GPUNodeLink *facg, int blendtype, GPUNodeLink **in)
