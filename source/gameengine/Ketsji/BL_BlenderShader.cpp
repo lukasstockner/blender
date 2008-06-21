@@ -1,5 +1,6 @@
 
 #include "DNA_customdata_types.h"
+#include "DNA_material_types.h"
 
 #include "BL_BlenderShader.h"
 #include "BL_Material.h"
@@ -15,13 +16,16 @@ const bool BL_BlenderShader::Ok()const
 	return (mGPUMat != 0);
 }
 
-BL_BlenderShader::BL_BlenderShader(struct Material *ma)
+BL_BlenderShader::BL_BlenderShader(struct Material *ma, int lightlayer)
 :
 	mGPUMat(0),
-	mBound(false)
+	mBound(false),
+	mLightLayer(lightlayer)
 {
-	if(ma)
-		mGPUMat = GPU_material_from_blender(ma, GPU_PROFILE_DERIVEDMESH);
+	if(ma) {
+		GPU_material_from_blender(ma);
+		mGPUMat = ma->gpumaterial;
+	}
 }
 
 BL_BlenderShader::~BL_BlenderShader()
@@ -36,7 +40,7 @@ void BL_BlenderShader::SetProg(bool enable)
 {
 	if(mGPUMat) {
 		if(enable) {
-			GPU_material_bind(mGPUMat);
+			GPU_material_bind(mGPUMat, mLightLayer);
 			mBound = true;
 		}
 		else {

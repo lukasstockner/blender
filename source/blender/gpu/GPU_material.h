@@ -41,16 +41,21 @@ struct Image;
 struct ImageUser;
 struct Material;
 struct Object;
+struct Lamp;
 struct bNode;
+struct LinkNode;
 struct GPUVertexAttribs;
 struct GPUNode;
 struct GPUNodeLink;
 struct GPUNodeStack;
 struct GPUMaterial;
+struct GPUTexture;
+struct GPULamp;
 
 typedef struct GPUNode GPUNode;
 typedef struct GPUNodeLink GPUNodeLink;
 typedef struct GPUMaterial GPUMaterial;
+typedef struct GPULamp GPULamp;
 
 /* Functions to create GPU Materials nodes */
 
@@ -64,8 +69,17 @@ typedef enum GPUType {
 	GPU_MAT4 = 16,
 	GPU_TEX1D = 1001,
 	GPU_TEX2D = 1002,
-	GPU_ATTRIB = 2001
+	GPU_ATTRIB = 3001
 } GPUType;
+
+typedef enum GPUBuiltin {
+	GPU_VIEW_MATRIX = 1,
+	GPU_OBJECT_MATRIX = 2,
+	GPU_INVERSE_VIEW_MATRIX = 4,
+	GPU_INVERSE_OBJECT_MATRIX = 8,
+	GPU_VIEW_POSITION = 16,
+	GPU_VIEW_NORMAL = 32
+} GPUBuiltin;
 
 typedef struct GPUNodeStack {
 	GPUType type;
@@ -82,7 +96,9 @@ GPUNodeLink *GPU_uniform(float *num);
 GPUNodeLink *GPU_dynamic_uniform(float *num);
 GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser);
 GPUNodeLink *GPU_texture(int size, float *pixels);
+GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex);
 GPUNodeLink *GPU_socket(GPUNodeStack *sock);
+GPUNodeLink *GPU_builtin(GPUBuiltin builtin);
 
 int GPU_link(GPUMaterial *mat, char *name, ...);
 int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack *out, ...);
@@ -92,13 +108,10 @@ void GPU_material_enable_alpha(GPUMaterial *material);
 
 /* High level functions to create and use GPU materials */
 
-#define GPU_PROFILE_GAME		0
-#define GPU_PROFILE_DERIVEDMESH	1
-
-GPUMaterial *GPU_material_from_blender(struct Material *ma, int profile);
+int GPU_material_from_blender(struct Material *ma);
 void GPU_material_free(GPUMaterial *material);
 
-void GPU_material_bind(GPUMaterial *material);
+void GPU_material_bind(GPUMaterial *material, int lay);
 void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4]);
 void GPU_material_unbind(GPUMaterial *material);
 
@@ -121,6 +134,18 @@ typedef struct GPUShadeResult {
 
 void GPU_shadeinput_set(GPUMaterial *mat, struct Material *ma, GPUShadeInput *shi);
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr);
+
+/* Lamps */
+
+int GPU_lamp_from_blender(struct Object *ob, struct Lamp *la);
+void GPU_lamp_free(GPULamp *lamp);
+
+int GPU_lamp_has_shadow_buffer(GPULamp *lamp);
+void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[][4], int *winsize, float winmat[][4]);
+void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp);
+
+void GPU_lamp_update(GPULamp *lamp, float obmat[][4]);
+int GPU_lamp_shadow_layer(GPULamp *lamp);
 
 #ifdef __cplusplus
 }

@@ -187,12 +187,11 @@ int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 			Material *mat = gpumatbuf[nr];
 
 			if(mat) {
-				if(!mat->gpumaterial)
-					GPU_material_from_blender(mat, GPU_PROFILE_DERIVEDMESH);
+				GPU_material_from_blender(mat);
 
 				if(mat->gpumaterial) {
 					GPU_material_vertex_attributes(mat->gpumaterial, attribs);
-					GPU_material_bind(mat->gpumaterial);
+					GPU_material_bind(mat->gpumaterial, gpuob->lay);
 					GPU_material_bind_uniforms(mat->gpumaterial, gpuob->obmat, G.vd->viewmat);
 					gpuboundmat= mat;
 				}
@@ -223,7 +222,7 @@ int set_gl_material(int nr)
 }
 
 /* returns 1: when there's alpha needed to be drawn in a 2nd pass */
-int init_gl_materials(Object *ob, int check_alpha, int gpu)
+int init_gl_materials(Object *ob, int check_alpha, int glsl)
 {
 	extern Material defmaterial;	// render module abuse...
 	Material *ma;
@@ -250,7 +249,7 @@ int init_gl_materials(Object *ob, int check_alpha, int gpu)
 	
 	for(a=1; a<=ob->totcol; a++) {
 		ma= give_current_material(ob, a);
-		if(!gpu) ma= editnode_get_active_material(ma);
+		if(!glsl) ma= editnode_get_active_material(ma);
 		if(ma==NULL) ma= &defmaterial;
 
 		if(a<MAXMATBUF) {
@@ -288,7 +287,7 @@ int init_gl_materials(Object *ob, int check_alpha, int gpu)
 				matbuf[a][1][3]= 1.0;
 			}
 
-			gpumatbuf[a]= (gpu)? ma: NULL;
+			gpumatbuf[a]= (glsl)? ma: NULL;
 			gpuob= ob;
 		}
 	}
@@ -306,7 +305,7 @@ void clear_gl_materials()
 	}
 }
 
-static int do_gpu_material(int dt)
+int draw_glsl_material(int dt)
 {
 	if(!GPU_extensions_minimum_support())
 		return 0;
@@ -2156,7 +2155,7 @@ static void draw_em_fancy(Object *ob, EditMesh *em, DerivedMesh *cageDM, Derived
 
 	if(dt>OB_WIRE) {
 		if(CHECK_OB_DRAWTEXTURE(G.vd, dt)) {
-			if(do_gpu_material(dt)) {
+			if(draw_glsl_material(dt)) {
 				glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
 				finalDM->drawMappedFacesGLSL(finalDM, set_gl_material_attribs,
@@ -2397,7 +2396,7 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 			draw_mesh_object_outline(ob, dm);
 		}
 
-		if(do_gpu_material(dt)) {
+		if(draw_glsl_material(dt)) {
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
 			dm->drawFacesGLSL(dm, set_gl_material_attribs);
@@ -2572,7 +2571,7 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 			                                get_viewedit_datamask());
 
 		if(dt>OB_WIRE) // no transp in editmode, the fancy draw over goes bad then
-			init_gl_materials(ob, 0, do_gpu_material(dt));
+			init_gl_materials(ob, 0, draw_glsl_material(dt));
 		draw_em_fancy(ob, G.editMesh, cageDM, finalDM, dt);
 
 		if (G.obedit!=ob && finalDM)
@@ -2585,8 +2584,8 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 	else {
 		/* don't create boundbox here with mesh_get_bb(), the derived system will make it, puts deformed bb's OK */
 		if(me->totface<=4 || boundbox_clip(ob->obmat, (ob->bb)? ob->bb: me->bb)) {
-			if(dt==OB_SOLID || do_gpu_material(dt))
-				has_alpha= init_gl_materials(ob, (base->flag & OB_FROMDUPLI)==0, do_gpu_material(dt));
+			if(dt==OB_SOLID || draw_glsl_material(dt))
+				has_alpha= init_gl_materials(ob, (base->flag & OB_FROMDUPLI)==0, draw_glsl_material(dt));
 			draw_mesh_fancy(base, dt, flag);
 			
 			if(me->totvert==0) retval= 1;
@@ -2696,7 +2695,7 @@ static int drawDispListwire(ListBase *dlbase)
 	return 0;
 }
 
-static void drawDispListsolid(ListBase *lb, Object *ob, int gpumaterial)
+static void drawDispListsolid(ListBase *lb, Object *ob, int glslmaterial)
 {
 	DispList *dl;
 	GPUVertexAttribs gattribs;
@@ -2763,7 +2762,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, int gpumaterial)
 		case DL_SURF:
 			
 			if(dl->index) {
-				if(gpumaterial) set_gl_material_attribs(dl->col+1, &gattribs);
+				if(glslmaterial) set_gl_material_attribs(dl->col+1, &gattribs);
 				else set_gl_material(dl->col+1);
 				
 				if(dl->rt & CU_SMOOTH) glShadeModel(GL_SMOOTH);
@@ -2777,7 +2776,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, int gpumaterial)
 			break;
 
 		case DL_INDEX3:
-			if(gpumaterial) set_gl_material_attribs(dl->col+1, &gattribs);
+			if(glslmaterial) set_gl_material_attribs(dl->col+1, &gattribs);
 			else set_gl_material(dl->col+1);
 			
 			glVertexPointer(3, GL_FLOAT, 0, dl->verts);
@@ -2799,7 +2798,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, int gpumaterial)
 			break;
 
 		case DL_INDEX4:
-			if(gpumaterial) set_gl_material_attribs(dl->col+1, &gattribs);
+			if(glslmaterial) set_gl_material_attribs(dl->col+1, &gattribs);
 			else set_gl_material(dl->col+1);
 			
 			glVertexPointer(3, GL_FLOAT, 0, dl->verts);
@@ -2899,7 +2898,7 @@ static int drawDispList(Base *base, int dt)
 				draw_index_wire= 1;
 			}
 			else {
-				if(do_gpu_material(dt)) {
+				if(draw_glsl_material(dt)) {
 					init_gl_materials(ob, 0, 1);
 					drawDispListsolid(lb, ob, 1);
 				}
@@ -2937,7 +2936,7 @@ static int drawDispList(Base *base, int dt)
 			
 			if(dl->nors==NULL) addnormalsDispList(ob, lb);
 			
-			if(do_gpu_material(dt)) {
+			if(draw_glsl_material(dt)) {
 				init_gl_materials(ob, 0, 1);
 				drawDispListsolid(lb, ob, 1);
 			}
@@ -2965,7 +2964,7 @@ static int drawDispList(Base *base, int dt)
 			
 			if(solid) {
 				
-				if(do_gpu_material(dt)) {
+				if(draw_glsl_material(dt)) {
 					init_gl_materials(ob, 0, 1);
 					drawDispListsolid(lb, ob, 1);
 				}
@@ -5031,7 +5030,7 @@ void draw_object(Base *base, int flag)
 				if(dt<OB_SOLID)
 					zbufoff= 1;
 
-				if(!do_gpu_material(dt))
+				if(!draw_glsl_material(dt))
 					dt= OB_SOLID;
 
 				glEnable(GL_DEPTH_TEST);
@@ -5636,7 +5635,7 @@ static void draw_object_mesh_instance(Object *ob, int dt, int outline)
 			draw_mesh_object_outline(ob, dm?dm:edm);
 
 		if(dm)
-			init_gl_materials(ob, 0, do_gpu_material(dt));
+			init_gl_materials(ob, 0, draw_glsl_material(dt));
 		else {
 			glEnable(GL_COLOR_MATERIAL);
 			BIF_ThemeColor(TH_BONE_SOLID);

@@ -78,9 +78,7 @@
 struct GPUGlobal {
 	GLint maxtextures;
 	GLint maxfbcolor;
-	GLuint currentfbo;
-	GLuint currentfbopoint;
-	int texbound;
+	GLuint currentfb;
 	GLenum halfformat;
 	struct GPUGlobalLimits {
 		GLint alu_instructions; // 48+ (64)
@@ -93,7 +91,7 @@ struct GPUGlobal {
 	} limits;
 
 	int minimumsupport;
-} GG = {1, 0, 0, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0}, 0};
+} GG = {1, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0}, 0};
 
 void GPU_extensions_init()
 {
@@ -153,7 +151,6 @@ int GPU_print_error(char *str)
 	return 0;
 }
 
-#if 0
 static void GPU_print_framebuffer_error(GLenum status)
 {
 	fprintf(stderr, "GPUFrameBuffer: framebuffer incomplete error %d\n",
@@ -183,9 +180,11 @@ static void GPU_print_framebuffer_error(GLenum status)
 		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
 			fprintf(stderr, "Missing read buffer.\n");
 			break;
+		default:
+			fprintf(stderr, "Unknown.\n");
+			break;
 	}
 }
-#endif
 
 /* GPUTexture */
 
@@ -201,9 +200,8 @@ struct GPUTexture {
 	GLenum internalformat;	/* 8bit, half float, .. */
 	int fromblender;		/* we got the texture from Blender */
 
-	struct GPUFBO *fbo;		/* fbo this texture is attached to */
 	GPUFrameBuffer *fb;		/* GPUFramebuffer this texture is attached to */
-	int fbopoint;			/* number of color attachment point */
+	int depth;				/* is a depth texture? */
 };
 
 #define FTOCHAR(val) val<=0.0f?0: (val>=1.0f?255: (char)(255.0f*val))
@@ -256,10 +254,10 @@ static void GPU_glTexSubImageEmpty(GLenum target, GLenum type, int x, int y, int
 	MEM_freeN(pixels);
 }
 
-static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, int halffloat)
+static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, int halffloat, int depth)
 {
 	GPUTexture *tex;
-	GLenum type;
+	GLenum type, format;
 	void *pixels = NULL;
 
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
@@ -268,6 +266,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	tex->number = -1;
 	tex->refcount = 1;
 	tex->target = (n == 1)? GL_TEXTURE_1D: GL_TEXTURE_2D;
+	tex->depth = depth;
 
 	glGenTextures(1, &tex->bindcode);
 
@@ -286,13 +285,20 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	tex->number = 0;
 	glBindTexture(tex->target, tex->bindcode);
 
-	if (halffloat && (GLEW_ARB_texture_float || GLEW_ATI_texture_float)) {
+	if(depth) { /* TODO extensions */
+		type = GL_UNSIGNED_BYTE;
+		format = GL_DEPTH_COMPONENT;
+		tex->internalformat = GL_DEPTH_COMPONENT16;
+	}
+	else if (halffloat && (GLEW_ARB_texture_float || GLEW_ATI_texture_float)) {
 		type = GL_FLOAT;
+		format = GL_RGBA;
 		tex->internalformat = GG.halfformat;
 		/* GL_EXT_float_buffer: GL_FLOAT_RGBA16_NV */
 	}
 	else {
 		type = GL_UNSIGNED_BYTE;
+		format = GL_RGBA;
 		tex->internalformat = GL_RGBA8;
 
 		if (fpixels)
@@ -300,9 +306,9 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 
 	if (tex->target == GL_TEXTURE_1D) {
-		glTexImage1D(tex->target, 0, tex->internalformat, tex->w, 0, GL_RGBA, type, 0);
+		glTexImage1D(tex->target, 0, tex->internalformat, tex->w, 0, format, type, 0);
 		if (fpixels) {
-			glTexSubImage1D(tex->target, 0, 0, tex->realw, GL_RGBA, type,
+			glTexSubImage1D(tex->target, 0, 0, tex->realw, format, type,
 				pixels? pixels: fpixels);
 
 			if (tex->w > tex->realw)
@@ -312,10 +318,10 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 	else {
 		glTexImage2D(tex->target, 0, tex->internalformat, tex->w, tex->h, 0,
-			GL_RGBA, type, 0);
+			format, type, 0);
 		if (fpixels) {
 			glTexSubImage2D(tex->target, 0, 0, 0, tex->realw, tex->realh,
-				GL_RGBA, type, pixels? pixels: fpixels);
+				format, type, pixels? pixels: fpixels);
 
 			if (tex->w > tex->realw)
 				GPU_glTexSubImageEmpty(tex->target, type, tex->realw, 0,
@@ -329,14 +335,28 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	if (pixels)
 		MEM_freeN(pixels);
 
-	glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	if(depth) {
+		glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	}
+	else {
+		glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	}
 
 	if (tex->target != GL_TEXTURE_1D) {
 		/* CLAMP_TO_BORDER is an OpenGL 1.3 core feature */
-		tex->wrapmode = GL_CLAMP_TO_BORDER;
+		if(depth)
+			tex->wrapmode = GL_CLAMP_TO_EDGE;
+		else
+			tex->wrapmode = GL_CLAMP_TO_BORDER;
 		glTexParameteri(tex->target, GL_TEXTURE_WRAP_S, tex->wrapmode);
 		glTexParameteri(tex->target, GL_TEXTURE_WRAP_T, tex->wrapmode);
+
+#if 0
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor); 
+#endif
 	}
 	else {
 		tex->wrapmode = GL_CLAMP_TO_EDGE;
@@ -464,7 +484,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser)
 
 GPUTexture *GPU_texture_create_1D(int w, float *fpixels, int halffloat)
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, 1, 1, fpixels, halffloat);
+	GPUTexture *tex = GPU_texture_create_nD(w, 1, 1, fpixels, halffloat, 0);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -474,7 +494,17 @@ GPUTexture *GPU_texture_create_1D(int w, float *fpixels, int halffloat)
 
 GPUTexture *GPU_texture_create_2D(int w, int h, float *fpixels, int halffloat)
 {
-	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, halffloat);
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, fpixels, halffloat, 0);
+
+	if (tex)
+		GPU_texture_unbind(tex);
+	
+	return tex;
+}
+
+GPUTexture *GPU_texture_create_depth(int w, int h)
+{
+	GPUTexture *tex = GPU_texture_create_nD(w, h, 2, NULL, 0, 1);
 
 	if (tex)
 		GPU_texture_unbind(tex);
@@ -525,10 +555,8 @@ void GPU_texture_free(GPUTexture *tex)
 		fprintf(stderr, "GPUTexture: negative refcount\n");
 	
 	if (tex->refcount == 0) {
-#if 0
 		if (tex->fb)
 			GPU_framebuffer_texture_detach(tex->fb, tex);
-#endif
 		if (tex->bindcode && !tex->fromblender)
 			glDeleteTextures(1, &tex->bindcode);
 
@@ -606,28 +634,17 @@ int GPU_texture_is_half_float(GPUTexture *tex)
 	return (tex->internalformat == GG.halfformat);
 }
 
-#if 0
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex)
 {
 	return tex->fb;
 }
 
-/* GPUFrameBuffer
-   - one GPUFrameBuffer may contain multiple FBO's, so that when the maximum
-     number of attachments is reached, or textures have different size, they
-	 can still use on GPUFrameBuffer */
-
-typedef struct GPUFBO {
-	struct GPUFBO *next, *prev;
-
-	GLuint object;
-	GPUTexture *attached[MAX_ATTACHMENTS];
-	int w, h;
-	int numattached;
-} GPUFBO;
+/* GPUFrameBuffer */
 
 struct GPUFrameBuffer {
-	ListBase fbo;
+	GLuint object;
+	GPUTexture *colortex;
+	GPUTexture *depthtex;
 };
 
 GPUFrameBuffer *GPU_framebuffer_create()
@@ -638,6 +655,15 @@ GPUFrameBuffer *GPU_framebuffer_create()
 		return NULL;
 	
 	fb= MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
+	glGenFramebuffersEXT(1, &fb->object);
+
+	if (!fb->object) {
+		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %d\n",
+			(int)glGetError());
+		GPU_framebuffer_free(fb);
+		return NULL;
+	}
+
 	return fb;
 }
 
@@ -645,177 +671,134 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex)
 {
 	GLenum status;
 	GLenum attachment;
-	GPUFBO *fbo;
-	int point = 0, found = 0;
 
-	/* find a suitable fbo and attachment point */
-	for (fbo=fb->fbo.first; fbo; fbo=fbo->next) {
-		if ((fbo->w == tex->w) && (fbo->h == fbo->h)) {
-			for (point=0; point < GG.maxfbcolor; point++) {
-				if (!fbo->attached[point] && point < GG.maxfbcolor) {
-					found = 1;
-					break;
-				}
-			}
+	if(tex->depth)
+		attachment = GL_DEPTH_ATTACHMENT_EXT;
+	else
+		attachment = GL_COLOR_ATTACHMENT0_EXT;
 
-			if (found)
-				break;
-		}
-	}
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	GG.currentfb = fb->object;
 
-	if (!fbo) {
-		/* FBO suitable found, lets make one */
-		fbo = MEM_callocN(sizeof(GPUFBO), "GPUFBO");
-		fbo->w = tex->w;
-		fbo->h = tex->h;
-		glGenFramebuffersEXT(1, &fbo->object);
-
-		if (!fbo->object) {
-			fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %d\n",
-				(int)glGetError());
-			MEM_freeN(fbo);
-			return 0;
-		}
-
-		point = 0;
-		BLI_addtail(&fb->fbo, fbo);
-	}
-
-	attachment = (GLenum)(GL_COLOR_ATTACHMENT0_EXT + point);
-
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fbo->object);
 	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
 		tex->target, tex->bindcode, 0);
+
+	if(tex->depth) {
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+	}
+	else {
+		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		glReadBuffer(GL_NONE);
+	}
 
 	status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
 
 	if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
+		GPU_framebuffer_restore();
 		GPU_print_framebuffer_error(status);
 		return 0;
 	}
 
-	tex->fb = fb;
-	tex->fbo = fbo;
-	tex->fbopoint = point;
-	fbo->numattached++;
-	fbo->attached[point] = tex;
+	if(tex->depth)
+		fb->depthtex = tex;
+	else
+		fb->colortex = tex;
+
+	tex->fb= fb;
 
 	return 1;
 }
 
-void framebuffer_fbo_free(GPUFBO *fbo)
-{
-	if (fbo->object)
-		glDeleteFramebuffersEXT(1, &fbo->object);
-
-	if (GG.currentfbo == fbo->object) {
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-		GG.currentfbo = 0;
-	}
-}
-
 void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, GPUTexture *tex)
 {
-	if (tex->fb) {
-		GLenum attachment;
+	GLenum attachment;
 
-		if (GG.currentfbo != tex->fbo->object)
-			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fbo->object);
+	if(!tex->fb)
+		return;
 
-		attachment = (GLenum)(GL_COLOR_ATTACHMENT0_EXT + tex->fbopoint);
-		glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, tex->target, 0, 0);
-
-		if (GG.currentfbo != tex->fbo->object)
-			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, GG.currentfbo);
-
-		tex->fbo->attached[tex->fbopoint] = NULL;
-		tex->fbo->numattached--;
-
-		if (tex->fbo->numattached == 0) {
-			framebuffer_fbo_free(tex->fbo);
-			BLI_freelinkN(&fb->fbo, tex->fbo);
-		}
-
-		tex->fb = NULL;
-		tex->fbo = NULL;
-		tex->fbopoint = 0;
+	if(GG.currentfb != tex->fb->object) {
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fb->object);
+		GG.currentfb = tex->fb->object;
 	}
+
+	if(tex->depth) {
+		fb->depthtex = NULL;
+		attachment = GL_DEPTH_ATTACHMENT_EXT;
+	}
+	else {
+		fb->colortex = NULL;
+		attachment = GL_COLOR_ATTACHMENT0_EXT;
+	}
+
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment,
+		tex->target, 0, 0);
+
+	tex->fb = NULL;
 }
 
 void GPU_framebuffer_texture_bind(GPUFrameBuffer *fb, GPUTexture *tex)
 {
-	int changefbo = (GG.currentfbo != tex->fbo->object);
+	/* push attributes */
+	glPushAttrib(GL_ENABLE_BIT);
+	glPushAttrib(GL_VIEWPORT_BIT);
+	glDisable(GL_SCISSOR_TEST);
 
-	if (changefbo) {
-		if (GG.currentfbo == 0) {
-			glPushAttrib(GL_ENABLE_BIT);
-			glPushAttrib(GL_VIEWPORT_BIT);
-			glDisable(GL_SCISSOR_TEST);
-		}
+	/* bind framebuffer */
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fb->object);
 
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fbo->object);
-
-		glViewport(0, 0, tex->fbo->w, tex->fbo->h);
-		GG.currentfbo = tex->fbo->object;
-	}
-	if (changefbo || (GG.currentfbopoint != tex->fbopoint)) {
-		GLenum attachment = (GLenum)(GL_COLOR_ATTACHMENT0_EXT + tex->fbopoint);
-		glDrawBuffer(attachment);
-
-		GG.currentfbopoint = tex->fbopoint;
-	}
-
-	GG.texbound = 1;
+	/* push matrices and set default viewport and matrix */
+	glViewport(0, 0, tex->w, tex->h);
+	GG.currentfb = tex->fb->object;
 
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
-	gluOrtho2D(0.0, 1.0, 0.0, 1.0);
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
-
-	glScalef((float)tex->realw/(float)tex->w, (float)tex->realh/(float)tex->h, 1.0f);
 }
 
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, GPUTexture *tex)
 {
+	/* restore matrix */
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();
 	glMatrixMode(GL_MODELVIEW);
 	glPopMatrix();
+
+	/* restore attributes */
+	glPopAttrib();
+	glPopAttrib();
+	glEnable(GL_SCISSOR_TEST);
 }
 
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
 {
-	GPUFBO *fbo;
-	int point;
-	
-	for (fbo=fb->fbo.first; fbo; fbo=fbo->next) {
-		for (point=0; point<GG.maxfbcolor; point++)
-			if (fbo->attached[point])
-				GPU_framebuffer_texture_detach(fb, fbo->attached[point]);
+	if(fb->depthtex)
+		GPU_framebuffer_texture_detach(fb, fb->depthtex);
+	if(fb->colortex)
+		GPU_framebuffer_texture_detach(fb, fb->colortex);
 
-		framebuffer_fbo_free(fbo);
+	if(fb->object) {
+		glDeleteFramebuffersEXT(1, &fb->object);
+
+		if (GG.currentfb == fb->object) {
+			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+			GG.currentfb = 0;
+		}
 	}
 
-	BLI_freelistN(&fb->fbo);
 	MEM_freeN(fb);
 }
 
 void GPU_framebuffer_restore()
 {
-	if (GG.currentfbo != 0) {
+	if (GG.currentfb != 0) {
 		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
-		GG.currentfbo = 0;
-
-		if (GG.texbound) {
-			glPopAttrib();
-			glPopAttrib();
-		}
+		GG.currentfb = 0;
 	}
 }
-#endif
 
 /* GPUShader */
 
@@ -873,6 +856,9 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, GPUSh
 		return NULL;
 	}
 
+	if(lib && lib->lib)
+		glAttachObjectARB(shader->object, lib->lib);
+
 	if(vertexcode) {
 		glAttachObjectARB(shader->object, shader->vertex);
 		glShaderSourceARB(shader->vertex, 1, (const char**)&vertexcode, NULL);
@@ -906,9 +892,6 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, GPUSh
 			return NULL;
 		}
 	}
-
-	if(lib && lib->lib)
-		glAttachObjectARB(shader->object, lib->lib);
 
 	glLinkProgramARB(shader->object);
 	glGetObjectParameterivARB(shader->object, GL_OBJECT_LINK_STATUS_ARB, &status);
@@ -997,6 +980,15 @@ void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int ar
 
 	GPU_print_error("Pre Uniform Vector");
 
+#if 0
+	if (length == 1) printf("%s %f\n", name, value[0]);
+	else if (length == 2) printf("%s %f %f\n", name, value[0], value[1]);
+	else if (length == 3) { printf("%s ", name); printvecf("", value); }
+	else if (length == 4) { printf("%s ", name); printquat("", value); }
+	else if (length == 9) { printf("%s ", name); printmatrix3("", (float(*)[3])value); }
+	else if (length == 16) { printf("%s ", name); printmatrix4("", (float(*)[4])value); }
+#endif
+
 	if (length == 1) glUniform1fvARB(location, arraysize, value);
 	else if (length == 2) glUniform2fvARB(location, arraysize, value);
 	else if (length == 3) glUniform3fvARB(location, arraysize, value);
@@ -1004,9 +996,7 @@ void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int ar
 	else if (length == 9) glUniformMatrix3fvARB(location, arraysize, 0, value);
 	else if (length == 16) glUniformMatrix4fvARB(location, arraysize, 0, value);
 
-	if(GPU_print_error("Post Uniform Vector")) {
-		//fprintf(stderr, "%s: %d %d %d %p\n", name, location, arraysize, length, value);
-	}
+	GPU_print_error("Post Uniform Vector");
 }
 
 void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex)

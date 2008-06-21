@@ -72,6 +72,7 @@ int GPU_print_error(char *str);
 
 GPUTexture *GPU_texture_create_1D(int w, float *pixels, int halffloat);
 GPUTexture *GPU_texture_create_2D(int w, int h, float *pixels, int halffloat);
+GPUTexture *GPU_texture_create_depth(int w, int h);
 GPUTexture *GPU_texture_from_blender(struct Image *ima, struct ImageUser *iuser);
 void GPU_texture_free(GPUTexture *tex);
 
@@ -92,7 +93,6 @@ int GPU_texture_opengl_width(GPUTexture *tex);
 int GPU_texture_opengl_height(GPUTexture *tex);
 void GPU_texture_coord_2f(GPUTexture *tex, float s, float t);
 
-#if 0
 /* GPU Framebuffer
    - this is a wrapper for an OpenGL framebuffer object (FBO). in practice
      multiple FBO's may be created, to get around limitations on the number
@@ -108,7 +108,6 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *fb, GPUTexture *tex);
 void GPU_framebuffer_free(GPUFrameBuffer *fb);
 
 void GPU_framebuffer_restore();
-#endif
 
 /* GPU Shader
    - only for fragment shaders now

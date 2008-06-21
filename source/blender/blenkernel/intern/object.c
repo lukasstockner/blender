@@ -112,6 +112,8 @@
 
 #include "BPY_extern.h"
 
+#include "GPU_material.h"
+
 #include "blendef.h"
 
 /* Local function protos */
@@ -268,6 +270,7 @@ void free_object(Object *ob)
 	}
 	if(ob->soft) sbFree(ob->soft);
 	if(ob->fluidsimSettings) fluidsimSettingsFree(ob->fluidsimSettings);
+	if(ob->gpulamp) GPU_lamp_free(ob->gpulamp);
 }
 
 static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
@@ -1215,6 +1218,7 @@ Object *copy_object(Object *ob)
 	obn->vnode = NULL;
 #endif
 
+	obn->gpulamp = NULL;
 
 	return obn;
 }

@@ -1552,7 +1552,7 @@ void BL_CreatePhysicsObjectNew(KX_GameObject* gameobj,
 
 
 
-static KX_LightObject *gamelight_from_blamp(Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRenderTools *rendertools, KX_BlenderSceneConverter *converter) {
+static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int layerflag, KX_Scene *kxscene, RAS_IRenderTools *rendertools, KX_BlenderSceneConverter *converter) {
 	RAS_LightObject lightobj;
 	KX_LightObject *gamelight;
 	
@@ -1584,8 +1584,11 @@ static KX_LightObject *gamelight_from_blamp(Lamp *la, unsigned int layerflag, KX
 	} else {
 		lightobj.m_type = RAS_LightObject::LIGHT_NORMAL;
 	}
+
+	if(converter->GetGLSLMaterials())
+		GPU_lamp_from_blender(ob, la);
 	
-	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj);
+	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj, ob->gpulamp);
 	BL_ConvertLampIpos(la, gamelight, converter);
 	
 	return gamelight;
@@ -1617,7 +1620,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 	{
 	case OB_LAMP:
 	{
-		KX_LightObject* gamelight= gamelight_from_blamp(static_cast<Lamp*>(ob->data), ob->lay, kxscene, rendertools, converter);
+		KX_LightObject* gamelight= gamelight_from_blamp(ob, static_cast<Lamp*>(ob->data), ob->lay, kxscene, rendertools, converter);
 		gameobj = gamelight;
 		
 		gamelight->AddRef();

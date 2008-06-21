@@ -1305,10 +1305,10 @@ void do_ogl_view3d_render(Render *re, View3D *v3d, int winx, int winy)
 	if(v3d->persp==V3D_CAMOB && v3d->camera) {
 		/* in camera view, use actual render winmat */
 		RE_GetCameraWindow(re, v3d->camera, CFRA, winmat);
-		drawview3d_render(v3d, winx, winy, winmat);
+		drawview3d_render(v3d, NULL, winx, winy, winmat, 0);
 	}
 	else
-		drawview3d_render(v3d, winx, winy, NULL);
+		drawview3d_render(v3d, NULL, winx, winy, NULL, 0);
 }
 
 /* set up display, render the current area view in an image */

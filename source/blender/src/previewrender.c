@@ -225,13 +225,14 @@ void BIF_preview_changed(short id_code)
 	}
 
 	if(ELEM3(id_code, ID_MA, ID_TE, ID_LA)) {
+		Object *ob;
 		Material *ma;
 
 		if(id_code == ID_LA) {
-			for(ma=G.main->mat.first; ma; ma=ma->id.next) {
-				if(ma->gpumaterial) {
-					GPU_material_free(ma->gpumaterial);
-					ma->gpumaterial= NULL;
+			for(ob=G.main->object.first; ob; ob=ob->id.next) {
+				if(ob->gpulamp) {
+					GPU_lamp_free(ob->gpulamp);
+					ob->gpulamp= NULL;
 					allqueue(REDRAWVIEW3D, 0);
 				}
 			}

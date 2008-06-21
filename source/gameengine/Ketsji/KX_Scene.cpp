@@ -1000,12 +1000,13 @@ void KX_Scene::UpdateMeshTransformations()
 	}
 }
 
-void KX_Scene::MarkVisible(SG_Tree *node, RAS_IRasterizer* rasty, KX_Camera* cam)
+void KX_Scene::MarkVisible(SG_Tree *node, RAS_IRasterizer* rasty, KX_Camera* cam, int layer)
 {
 	int intersect = KX_Camera::INTERSECT;
 	KX_GameObject *gameobj = node->Client()?(KX_GameObject*) node->Client()->GetSGClientObject():NULL;
-	bool dotest = (gameobj && gameobj->GetVisible()) || node->Left() || node->Right();
-	
+	bool visible = (gameobj && gameobj->GetVisible() && (!layer || (gameobj->GetLayer() & layer)));
+	bool dotest = visible || node->Left() || node->Right();
+
 	/* If the camera is inside the box, assume intersect. */
 	if (dotest && !node->inside( cam->NodeGetWorldPosition()))
 	{
@@ -1029,19 +1030,19 @@ void KX_Scene::MarkVisible(SG_Tree *node, RAS_IRasterizer* rasty, KX_Camera* cam
 			break;
 		case KX_Camera::INTERSECT:
 			if (gameobj)
-				MarkVisible(rasty, gameobj,cam);
+				MarkVisible(rasty, gameobj, cam, layer);
 			if (node->Left())
-				MarkVisible(node->Left(), rasty,cam);
+				MarkVisible(node->Left(), rasty, cam, layer);
 			if (node->Right())
-				MarkVisible(node->Right(), rasty,cam);
+				MarkVisible(node->Right(), rasty, cam, layer);
 			break;
 		case KX_Camera::INSIDE:
-			MarkSubTreeVisible(node, rasty, true,cam);
+			MarkSubTreeVisible(node, rasty, true, cam, layer);
 			break;
 	}
 }
 
-void KX_Scene::MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool visible,KX_Camera* cam)
+void KX_Scene::MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool visible, KX_Camera* cam, int layer)
 {
 	if (node->Client())
 	{
@@ -1064,16 +1065,23 @@ void KX_Scene::MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool vi
 		}
 	}
 	if (node->Left())
-		MarkSubTreeVisible(node->Left(), rasty, visible,cam);
+		MarkSubTreeVisible(node->Left(), rasty, visible, cam, layer);
 	if (node->Right())
-		MarkSubTreeVisible(node->Right(), rasty, visible,cam);
+		MarkSubTreeVisible(node->Right(), rasty, visible, cam, layer);
 }
 
-void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Camera*  cam)
+void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Camera*  cam,int layer)
 {
 	// User (Python/Actuator) has forced object invisible...
 	if (!gameobj->GetVisible())
 		return;
+	
+	// Shadow lamp layers
+	if(layer && !(gameobj->GetLayer() & layer)) {
+		gameobj->MarkVisible(false);
+		return;
+	}
+
 	// If Frustum culling is off, the object is always visible.
 	bool vis = !cam->GetFrustumCulling();
 	
@@ -1123,20 +1131,20 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	}
 }
 
-void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam)
+void KX_Scene::CalculateVisibleMeshes(RAS_IRasterizer* rasty,KX_Camera* cam, int layer)
 {
 // FIXME: When tree is operational
 #if 1
 	// do this incrementally in the future
 	for (int i = 0; i < m_objectlist->GetCount(); i++)
 	{
-		MarkVisible(rasty, static_cast<KX_GameObject*>(m_objectlist->GetValue(i)), cam);
+		MarkVisible(rasty, static_cast<KX_GameObject*>(m_objectlist->GetValue(i)), cam, layer);
 	}
 #else
 	if (cam->GetFrustumCulling())
-		MarkVisible(m_objecttree, rasty, cam);
+		MarkVisible(m_objecttree, rasty, cam, layer);
 	else
-		MarkSubTreeVisible(m_objecttree, rasty, true, cam);
+		MarkSubTreeVisible(m_objecttree, rasty, true, cam, layer);
 #endif
 }
 

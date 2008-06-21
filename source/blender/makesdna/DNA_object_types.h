@@ -53,6 +53,7 @@ struct SoftBody;
 struct FluidsimSettings;
 struct ParticleSystem;
 struct DerivedMesh;
+struct GPULamp;
 
 typedef struct bDeformGroup {
 	struct bDeformGroup *next, *prev;
@@ -221,6 +222,8 @@ typedef struct Object {
 /*#ifdef WITH_VERSE*/
 	void *vnode;			/* pointer at object VerseNode */
 /*#endif*/
+
+	struct GPULamp *gpulamp;	/* for lamps */
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

@@ -3368,6 +3368,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->bb= NULL;
 	ob->derivedDeform= NULL;
 	ob->derivedFinal= NULL;
+	ob->gpulamp= NULL;
 }
 
 /* ************ READ SCENE ***************** */

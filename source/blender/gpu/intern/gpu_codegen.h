@@ -66,7 +66,8 @@ GPUFunction *GPU_lookup_function(char *name);
 struct GPUPass;
 typedef struct GPUPass GPUPass;
 
-GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink, int vertexshader, int profile);
+GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink,
+	struct GPUVertexAttribs *attribs, int *builtin);
 
 struct GPUShader *GPU_pass_shader(GPUPass *pass);
 
@@ -75,12 +76,9 @@ void GPU_pass_unbind(GPUPass *pass);
 
 void GPU_pass_free(GPUPass *pass);
 
-/* Node Functions */
-void GPU_nodes_free(ListBase *nodes);
-void GPU_nodes_create_vertex_attributes(ListBase *nodes, struct GPUVertexAttribs *attribs);
-
 /* Material calls */
 
+char *GPU_builtin_name(GPUBuiltin builtin);
 void gpu_material_add_node(struct GPUMaterial *material, struct GPUNode *node);
 
 #endif

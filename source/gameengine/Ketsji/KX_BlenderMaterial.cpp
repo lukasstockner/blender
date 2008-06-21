@@ -495,7 +495,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(const KX_MeshSlot & ms, RAS_IRasterize
 
 void KX_BlenderMaterial::ActivatGLMaterials( RAS_IRasterizer* rasty )const
 {
-	if(!mBlenderShader) {
+	if(mShader || !mBlenderShader) {
 		rasty->SetSpecularity(
 			mMaterial->speccolor[0]*mMaterial->spec_f,
 			mMaterial->speccolor[1]*mMaterial->spec_f,
@@ -818,7 +818,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 void KX_BlenderMaterial::SetBlenderGLSLShader(void)
 {
 	if(!mBlenderShader)
-		mBlenderShader = new BL_BlenderShader(mMaterial->material);
+		mBlenderShader = new BL_BlenderShader(mMaterial->material, m_lightlayer);
 
 	if(!mBlenderShader->Ok()) {
 		delete mBlenderShader;

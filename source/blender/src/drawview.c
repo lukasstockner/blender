@@ -63,6 +63,7 @@
 #include "DNA_group_types.h"
 #include "DNA_image_types.h"
 #include "DNA_key_types.h"
+#include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -158,6 +159,8 @@
 #include "BIF_transform.h"
 
 #include "RE_pipeline.h"	// make_stars
+
+#include "GPU_material.h"
 
 #include "multires.h"
 
@@ -2679,7 +2682,7 @@ void add_view3d_after(View3D *v3d, Base *base, int type, int flag)
 }
 
 /* clears zbuffer and draws it over */
-static void view3d_draw_xray(View3D *v3d)
+static void view3d_draw_xray(View3D *v3d, int clear)
 {
 	View3DAfter *v3da, *next;
 	int doit= 0;
@@ -2688,7 +2691,7 @@ static void view3d_draw_xray(View3D *v3d)
 		if(v3da->type==V3D_XRAY) doit= 1;
 	
 	if(doit) {
-		if(v3d->zbuf) glClear(GL_DEPTH_BUFFER_BIT);
+		if(clear && v3d->zbuf) glClear(GL_DEPTH_BUFFER_BIT);
 		v3d->xray= TRUE;
 		
 		for(v3da= v3d->afterdraw.first; v3da; v3da= next) {
@@ -2992,6 +2995,44 @@ void draw_depth(ScrArea *sa, void *spacedata, int (* func)(void *))
 
 static void draw_viewport_fps(ScrArea *sa);
 
+static void gpu_render_shadow_buffers(Scene *scene, View3D *v3d)
+{
+	Base *base;
+	Object *ob;
+	Lamp *la;
+	float viewmat[4][4], winmat[4][4];
+	int drawtype, lay, winsize;
+
+	for(base= G.scene->base.first; base; base= base->next) {
+		ob= base->object;
+
+		if(ob->type == OB_LAMP) {
+			la= ob->data;
+			GPU_lamp_from_blender(ob, la);
+
+			if(ob->gpulamp) {
+				GPU_lamp_update(ob->gpulamp, ob->obmat);
+
+				if(GPU_lamp_has_shadow_buffer(ob->gpulamp)) {
+					/* this needs to be done better .. */
+					drawtype= v3d->drawtype;
+					lay= v3d->lay;
+
+					v3d->drawtype = OB_SOLID;
+					if(GPU_lamp_shadow_layer(ob->gpulamp))
+						v3d->lay= ob->lay;
+
+					GPU_lamp_shadow_buffer_bind(ob->gpulamp, viewmat, &winsize, winmat);
+					drawview3d_render(v3d, viewmat, winsize, winsize, winmat, 1);
+					GPU_lamp_shadow_buffer_unbind(ob->gpulamp);
+
+					v3d->drawtype= drawtype;
+					v3d->lay= lay;
+				}
+			}
+		}
+	}
+}
 
 void drawview3dspace(ScrArea *sa, void *spacedata)
 {
@@ -3015,6 +3056,10 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 		object_handle_update(base->object);   // bke_object.h
 		v3d->lay_used |= base->lay;
 	}
+
+	/* shadow buffers, before we setup matrices */
+	if(draw_glsl_material(v3d->drawtype))
+		gpu_render_shadow_buffers(G.scene, v3d);
 	
 	setwinmatrixview3d(sa->winx, sa->winy, NULL);	/* 0= no pick rect */
 	setviewmatrixview3d();	/* note: calls where_is_object for camera... */
@@ -3163,7 +3208,7 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 
 	TOTTRI_ENABLE;	
 	/* Transp and X-ray afterdraw stuff */
-	view3d_draw_xray(v3d);	// clears zbuffer if it is used!
+	view3d_draw_xray(v3d, 1);	// clears zbuffer if it is used!
 	view3d_draw_transp(v3d);
 	TOTTRI_DISABLE;	
 
@@ -3276,18 +3321,29 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 	
 }
 
-
-void drawview3d_render(struct View3D *v3d, int winx, int winy, float winmat[][4])
+void drawview3d_render(struct View3D *v3d, float viewmat[][4], int winx, int winy, float winmat[][4], int shadow)
 {
 	Base *base;
 	Scene *sce;
-	float v3dwinmat[4][4];
+	float v3dviewmat[4][4], v3dwinmat[4][4];
+
+	/* shadow buffers, before we setup matrices */
+	if(!shadow && draw_glsl_material(v3d->drawtype))
+		gpu_render_shadow_buffers(G.scene, v3d);
 	
 	if(!winmat)
 		setwinmatrixview3d(winx, winy, NULL);
 
-	setviewmatrixview3d();
-	myloadmatrix(v3d->viewmat);
+	if(viewmat) {
+		Mat4CpyMat4(v3dviewmat, viewmat);
+		Mat4CpyMat4(v3d->viewmat, viewmat);
+	}
+	else {
+		setviewmatrixview3d();
+		Mat4CpyMat4(v3dviewmat, v3d->viewmat);
+	}
+
+	myloadmatrix(v3dviewmat);
 
 	/* when winmat is not NULL, it overrides the regular window matrix */
 	glMatrixMode(GL_PROJECTION);
@@ -3296,12 +3352,14 @@ void drawview3d_render(struct View3D *v3d, int winx, int winy, float winmat[][4]
 	mygetmatrix(v3dwinmat);
 	glMatrixMode(GL_MODELVIEW);
 
-	Mat4MulMat4(v3d->persmat, v3d->viewmat, v3dwinmat);
+	Mat4MulMat4(v3d->persmat, v3dviewmat, v3dwinmat);
 	Mat4Invert(v3d->persinv, v3d->persmat);
 	Mat4Invert(v3d->viewinv, v3d->viewmat);
 
-	free_all_realtime_images();
-	reshadeall_displist();
+	if(!shadow) {
+		free_all_realtime_images();
+		reshadeall_displist();
+	}
 	
 	if(v3d->drawtype > OB_WIRE) {
 		v3d->zbuf= TRUE;
@@ -3380,7 +3438,7 @@ void drawview3d_render(struct View3D *v3d, int winx, int winy, float winmat[][4]
 	if(G.scene->radio) RAD_drawall(v3d->drawtype>=OB_SOLID);
 
 	/* Transp and X-ray afterdraw stuff */
-	view3d_draw_xray(v3d);	// clears zbuffer if it is used!
+	view3d_draw_xray(v3d, !shadow);	// clears zbuffer if it is used!
 	view3d_draw_transp(v3d);
 	
 	if(v3d->flag & V3D_CLIPPING)
@@ -3393,11 +3451,12 @@ void drawview3d_render(struct View3D *v3d, int winx, int winy, float winmat[][4]
 	
 	G.f &= ~G_SIMULATION;
 
-	glFlush();
+	if(!shadow) {
+		glFlush();
+		free_all_realtime_images();
+	}
 
 	glLoadIdentity();
-
-	free_all_realtime_images();
 }
 
 

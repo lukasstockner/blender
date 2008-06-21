@@ -24,9 +24,10 @@ class BL_BlenderShader
 private:
 	GPUMaterial		*mGPUMat;
 	bool			mBound;
+	int				mLightLayer;
 
 public:
-	BL_BlenderShader(struct Material *ma);
+	BL_BlenderShader(struct Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
 	const bool			Ok()const;

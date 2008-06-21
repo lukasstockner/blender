@@ -1,14 +1,4 @@
 
-varying vec3 varco;
-varying vec3 varcamco;
-varying vec3 varnormal;
-uniform mat4 unfobmat;
-uniform mat4 unfviewmat;
-
-/************** COMMON ****************/
-
-#define M_PI 3.14159265358979323846
-
 void rgb_to_hsv(vec4 rgb, out vec4 outcol)
 {
 	float cmax, cmin, h, s, v, cdelta;
@@ -80,6 +70,8 @@ void hsv_to_rgb(vec4 hsv, out vec4 outcol)
 	outcol = vec4(rgb, hsv.w);
 }
 
+#define M_PI 3.14159265358979323846
+
 /*********** SHADER NODES ***************/
 
 void vcol_attribute(vec4 attvcol, out vec4 vcol)
@@ -92,13 +84,14 @@ void uv_attribute(vec2 attuv, out vec3 uv)
 	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
 }
 
-void geom(vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float frontback)
+void geom(vec3 co, vec3 nor, mat4 viewinvmat, vec3 attorco, vec2 attuv, vec4 attvcol, out vec3 global, out vec3 local, out vec3 view, out vec3 orco, out vec3 uv, out vec3 normal, out vec4 vcol, out float frontback)
 {
-	local = varcamco;
+	local = co;
 	view = normalize(local);
+	global = (viewinvmat*vec4(local, 1.0)).xyz;
 	orco = attorco;
 	uv_attribute(attuv, uv);
-	normal = -normalize(varnormal);	/* blender render normal is negated */
+	normal = -normalize(nor);	/* blender render normal is negated */
 	vcol_attribute(attvcol, vcol);
 	frontback = 1.0;
 }
@@ -112,9 +105,9 @@ void mapping(vec3 vec, mat4 mat, vec3 minvec, vec3 maxvec, float domin, float do
 		outvec = min(outvec, maxvec);
 }
 
-void camera(out vec3 outview, out float outdepth, out float outdist)
+void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 {
-	outview = varcamco;
+	outview = co;
 	outdepth = abs(outview.z);
 	outdist = length(outview);
 	outview = normalize(outview);
@@ -663,17 +656,32 @@ void texco_uv(vec2 attuv, out vec3 uv)
 	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
 }
 
-void texco_norm(out vec3 normal)
+void texco_norm(vec3 normal, out vec3 outnormal)
 {
 	/* corresponds to shi->orn, which is negated so cancels
 	   out blender normal negation */
-	normal = normalize(varnormal);
+	outnormal = normalize(normal);
 }
 
-void shade_norm(out vec3 normal)
+void texco_tangent(vec3 tangent, out vec3 outtangent)
+{
+	outtangent = normalize(tangent);
+}
+
+void texco_global(mat4 viewinvmat, vec3 co, out vec3 global)
+{
+	global = (viewinvmat*vec4(co, 1.0)).xyz;
+}
+
+void texco_object(mat4 viewinvmat, mat4 obinvmat, vec3 co, out vec3 object)
+{
+	object = (obinvmat*(viewinvmat*vec4(co, 1.0))).xyz;
+}
+
+void shade_norm(vec3 normal, out vec3 outnormal)
 {
 	/* blender render normal is negated */
-	normal = -normalize(varnormal);
+	outnormal = -normalize(normal);
 }
 
 void mtex_rgb_blend(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
@@ -1010,6 +1018,7 @@ void mtex_negate_texnormal(vec3 normal, out vec3 outnormal)
 
 void mtex_nspace_tangent(vec3 tangent, vec3 normal, vec3 texnormal, out vec3 outnormal)
 {
+	tangent = normalize(tangent);
 	vec3 B = cross(normal, tangent);
 
 	outnormal = texnormal.x*tangent + texnormal.y*B + texnormal.z*normal;
@@ -1025,21 +1034,19 @@ void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outno
 
 /******* MATERIAL *********/
 
-void lamp_visibility_sun_hemi(vec3 lampvec, out vec3 lv, out float dist, out float visifac)
+void lamp_visibility_sun_hemi(mat4 viewmat, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
 {
 	lampvec = -normalize(lampvec);
-	lampvec = (unfviewmat*vec4(lampvec, 0.0)).xyz;
+	lampvec = (viewmat*vec4(lampvec, 0.0)).xyz;
 
 	lv = lampvec;
 	dist = 1.0;
 	visifac = 1.0;
 }
 
-void lamp_visibility_other(vec3 lampco, out vec3 lv, out float dist, out float visifac)
+void lamp_visibility_other(mat4 viewmat, vec3 co, vec3 lampco, out vec3 lv, out float dist, out float visifac)
 {
-	vec3 co = varcamco;
-
-	lv = co - (unfviewmat*vec4(lampco, 1.0)).xyz;
+	lv = co - (viewmat*vec4(lampco, 1.0)).xyz;
 	dist = length(lv);
 	lv = normalize(lv);
 	visifac = 1.0;
@@ -1075,13 +1082,14 @@ void lamp_visibility_sphere(float lampdist, float dist, float visifac, out float
 	outvisifac= visifac*max(t, 0.0)/lampdist;
 }
 
-void lamp_visibility_spot_square(vec3 lampvec, mat3 lampimat, vec3 lv, out float inpr)
+void lamp_visibility_spot_square(mat4 viewmat, mat4 viewinvmat, vec3 lampvec, mat4 lampimat, vec3 lv, out float inpr)
 {
 	lampvec = -normalize(lampvec);
-	lampvec = (unfviewmat*vec4(lampvec, 0.0)).xyz;
+	lampvec = (viewmat*vec4(lampvec, 0.0)).xyz;
 
 	if(dot(lv, lampvec) > 0.0) {
-		vec3 lvrot = lampimat*lv;
+		vec3 lvrot = (viewinvmat*vec4(lv, 0.0)).xyz;
+		lvrot = (lampimat*vec4(lvrot, 0.0)).xyz;
 		float x = max(abs(lvrot.x/lvrot.z), abs(lvrot.y/lvrot.z));
 
 		inpr = 1.0/sqrt(1.0 + x*x);
@@ -1090,10 +1098,10 @@ void lamp_visibility_spot_square(vec3 lampvec, mat3 lampimat, vec3 lv, out float
 		inpr = 0.0;
 }
 
-void lamp_visibility_spot_circle(vec3 lampvec, vec3 lv, out float inpr)
+void lamp_visibility_spot_circle(mat4 viewmat, vec3 lampvec, vec3 lv, out float inpr)
 {
 	lampvec = -normalize(lampvec);
-	lampvec = (unfviewmat*vec4(lampvec, 0.0)).xyz;
+	lampvec = (viewmat*vec4(lampvec, 0.0)).xyz;
 
 	inpr = dot(lv, lampvec);
 }
@@ -1125,9 +1133,13 @@ void lamp_visibility_clamp(float visifac, out float outvisifac)
 		outvisifac = visifac;
 }
 
-void shade_view(out vec3 view)
+void shade_view(vec3 co, out vec3 view)
 {
-	view = normalize(varcamco);
+	/* handle perspective/orthographic */
+	if(gl_ProjectionMatrix[3][3] == 0.0)
+		view = normalize(co);
+	else
+		view = vec3(0.0, 0.0, -1.0);
 }
 
 void shade_tangent_v(vec3 lv, vec3 tang, out vec3 vn)
@@ -1181,11 +1193,11 @@ float area_lamp_energy(mat4 area, vec3 co, vec3 vn)
 	return max(fac, 0.0);
 }
 
-void shade_inp_area(vec3 lampco, vec3 lampvec, vec3 vn, mat4 area, float areasize, float k, out float inp)
+void shade_inp_area(vec3 position, vec3 lampco, vec3 lampvec, vec3 vn, mat4 area, float areasize, float k, out float inp)
 {
 	lampvec = -normalize(lampvec);
 
-	vec3 co = varcamco;
+	vec3 co = position;
 	vec3 vec = co - lampco;
 
 	if(dot(vec, lampvec) < 0.0) {
@@ -1439,9 +1451,9 @@ void shade_spec_area_inp(float specfac, float inp, out float outspecfac)
 	outspecfac = specfac*inp;
 }
 
-void shade_spec_t(float spec, float visifac, float specfac, out float t)
+void shade_spec_t(float shadfac, float spec, float visifac, float specfac, out float t)
 {
-	t = spec*visifac*specfac;
+	t = shadfac*spec*visifac*specfac;
 }
 
 void shade_add_spec(float t, vec3 lampcol, vec3 speccol, out vec3 outcol)
@@ -1474,11 +1486,18 @@ void ramp_rgbtobw(vec3 color, out float outval)
 	outval = color.r*0.3 + color.g*0.58 + color.b*0.12;
 }
 
+void shade_only_shadow(float i, float shadfac, float energy, vec3 rgb, vec3 specrgb, vec4 diff, vec4 spec, out vec4 outdiff, out vec4 outspec)
+{
+	shadfac = i*energy*(1.0 - shadfac);
+
+	outdiff = diff - vec4(rgb*shadfac, 0.0);
+	outspec = spec - vec4(specrgb*shadfac, 0.0);
+}
 
 #if 0
 void shade_one_light(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, vec3 lv, float visifac, out vec4 outcol)
 {
-	vec3 v = -normalize(varcamco);
+	vec3 v = -normalize(varposition);
 	float inp;
 
 	inp = max(dot(-normal, lv), 0.0);
@@ -1498,4 +1517,44 @@ void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, 
 }
 #endif
 
+void readshadowbuf(sampler2D shadowmap, float xs, float ys, float zs, float bias, out float result)
+{
+	float zsamp = texture2D(shadowmap, vec2(xs, ys)).x;
+
+	if(zsamp > zs)
+		result = 1.0;
+	else if(zsamp < zs-bias)
+		result = 0.0;
+	else {
+		float temp = (zs-zsamp)/bias;
+		result = 1.0 - temp*temp;
+	}
+}
+
+void test_shadowbuf(mat4 viewinvmat, vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float inp, out float result)
+{
+	if(inp <= 0.0) {
+		result = 0.0;
+	}
+	else {
+		vec4 co = shadowpersmat*(viewinvmat*vec4(rco, 1.0));
+
+		/* note that as opposed to the blender renderer, the range of
+		   these coordinates is 0.0..1.0 instead of -1.0..1.0, since
+		   that seems to correspond to the opengl depth buffer */
+		float xs = co.x/co.w;
+		float ys = co.y/co.w;
+		float zs = co.z/co.w;
+
+		if(zs >= 1.0)
+			result = 0.0;
+		else if(zs <= 0.0)
+			result = 1.0;
+		else {
+			float bias = (1.5 - inp*inp)*shadowbias;
+
+			readshadowbuf(shadowmap, xs, ys, zs, bias, result);
+		}
+	}
+}
 

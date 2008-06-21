@@ -1,12 +1,12 @@
 
-varying vec3 varco;
-varying vec3 varcamco;
+varying vec3 varposition;
 varying vec3 varnormal;
 
 void main()
 {
-	varco = gl_Vertex.xyz;
-	varcamco = (gl_ModelViewMatrix * gl_Vertex).xyz;
+	vec4 co = gl_ModelViewMatrix * gl_Vertex;
+
+	varposition = co.xyz;
 	varnormal = gl_NormalMatrix * gl_Normal;
-	gl_Position = gl_ProjectionMatrix * gl_ModelViewMatrix * gl_Vertex;
+	gl_Position = gl_ProjectionMatrix * co;
 
