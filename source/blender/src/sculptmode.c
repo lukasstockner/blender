@@ -510,10 +510,8 @@ void do_draw_brush(SculptSession *ss, const BrushAction *a, const ListBase* acti
 /* For the smooth brush, uses the neighboring vertices around vert to calculate
    a smoothed location for vert. Skips corner vertices (used by only one
    polygon.) */
-vec3f neighbor_average(const int vert)
+vec3f neighbor_average(SculptSession *ss, const int vert)
 {
-	SculptSession *ss= sculpt_session();
-	Mesh *me= get_mesh(OBACT);
 	int i, skip= -1, total=0;
 	IndexNode *node= ss->vertex_users[vert].first;
 	vec3f avg= {0,0,0};
@@ -522,12 +520,12 @@ vec3f neighbor_average(const int vert)
 		
 	/* Don't modify corner vertices */
 	if(ncount==1) {
-		VecCopyf(&avg.x, me->mvert[vert].co);
+		VecCopyf(&avg.x, ss->mvert[vert].co);
 		return avg;
 	}
 
 	while(node){
-		f= &me->mface[node->Index];
+		f= &ss->mface[node->Index];
 		
 		if(f->v4) {
 			skip= (f->v1==vert?2:
@@ -538,7 +536,7 @@ vec3f neighbor_average(const int vert)
 
 		for(i=0; i<(f->v4?4:3); ++i) {
 			if(i != skip && (ncount!=2 || BLI_countlist(&ss->vertex_users[(&f->v1)[i]]) <= 2)) {
-				VecAddf(&avg.x,&avg.x,me->mvert[(&f->v1)[i]].co);
+				VecAddf(&avg.x, &avg.x, ss->mvert[(&f->v1)[i]].co);
 				++total;
 			}
 		}
@@ -552,19 +550,18 @@ vec3f neighbor_average(const int vert)
 		avg.z/= total;
 	}
 	else
-		VecCopyf(&avg.x, me->mvert[vert].co);
+		VecCopyf(&avg.x, ss->mvert[vert].co);
 
 	return avg;
 }
 
-void do_smooth_brush(const BrushAction *a, const ListBase* active_verts)
+void do_smooth_brush(SculptSession *ss, const BrushAction *a, const ListBase* active_verts)
 {
 	ActiveData *node= active_verts->first;
-	Mesh *me= get_mesh(OBACT);
 
 	while(node){
-		float *co= me->mvert[node->Index].co;
-		const vec3f avg= neighbor_average(node->Index);
+		float *co= ss->mvert[node->Index].co;
+		const vec3f avg= neighbor_average(ss, node->Index);
 		const float val[3]= {co[0]+(avg.x-co[0])*node->Fade,
 		                     co[1]+(avg.y-co[1])*node->Fade,
 		                     co[2]+(avg.z-co[2])*node->Fade};
@@ -573,13 +570,12 @@ void do_smooth_brush(const BrushAction *a, const ListBase* active_verts)
 	}
 }
 
-void do_pinch_brush(const BrushAction *a, const ListBase* active_verts)
+void do_pinch_brush(SculptSession *ss, const BrushAction *a, const ListBase* active_verts)
 {
-	Mesh *me= get_mesh(OBACT);
  	ActiveData *node= active_verts->first;
 
 	while(node) {
-		float *co= me->mvert[node->Index].co;
+		float *co= ss->mvert[node->Index].co;
 		const float val[3]= {co[0]+(a->symm.center_3d[0]-co[0])*node->Fade,
 		                     co[1]+(a->symm.center_3d[1]-co[1])*node->Fade,
 		                     co[2]+(a->symm.center_3d[2]-co[2])*node->Fade};
@@ -588,9 +584,8 @@ void do_pinch_brush(const BrushAction *a, const ListBase* active_verts)
 	}
 }
 
-void do_grab_brush(BrushAction *a)
+void do_grab_brush(SculptSession *ss, BrushAction *a)
 {
-	Mesh *me= get_mesh(OBACT);
 	ActiveData *node= a->grab_active_verts[a->symm.index].first;
 	float add[3];
 	float grab_delta[3];
@@ -599,7 +594,7 @@ void do_grab_brush(BrushAction *a)
 	sculpt_axislock(grab_delta);
 	
 	while(node) {
-		float *co= me->mvert[node->Index].co;
+		float *co= ss->mvert[node->Index].co;
 		
 		VecCopyf(add, grab_delta);
 		VecMulf(add, node->Fade);
@@ -611,9 +606,8 @@ void do_grab_brush(BrushAction *a)
 	
 }
 
-void do_layer_brush(BrushAction *a, const ListBase *active_verts)
+void do_layer_brush(SculptSession *ss, BrushAction *a, const ListBase *active_verts)
 {
-	Mesh *me= get_mesh(OBACT);
 	float area_normal[3];
 	ActiveData *node= active_verts->first;
 	const float bstr= brush_strength(a);
@@ -625,7 +619,7 @@ void do_layer_brush(BrushAction *a, const ListBase *active_verts)
 		
 		if((bstr > 0 && *disp < bstr) ||
 		  (bstr < 0 && *disp > bstr)) {
-		  	float *co= me->mvert[node->Index].co;
+		  	float *co= ss->mvert[node->Index].co;
 		  	
 			*disp+= node->Fade;
 
@@ -649,15 +643,14 @@ void do_layer_brush(BrushAction *a, const ListBase *active_verts)
 	}
 }
 
-void do_inflate_brush(const BrushAction *a, const ListBase *active_verts)
+void do_inflate_brush(SculptSession *ss, const BrushAction *a, const ListBase *active_verts)
 {
 	ActiveData *node= active_verts->first;
 	float add[3];
-	Mesh *me= get_mesh(OBACT);
 	
 	while(node) {
-		float *co= me->mvert[node->Index].co;
-		short *no= me->mvert[node->Index].no;
+		float *co= ss->mvert[node->Index].co;
+		short *no= ss->mvert[node->Index].no;
 
 		add[0]= no[0]/ 32767.0f;
 		add[1]= no[1]/ 32767.0f;
@@ -674,7 +667,7 @@ void do_inflate_brush(const BrushAction *a, const ListBase *active_verts)
 	}
 }
 
-void calc_flatten_center(Mesh *me, ActiveData *node, float co[3])
+void calc_flatten_center(SculptSession *ss, ActiveData *node, float co[3])
 {
 	ActiveData *outer[FLATTEN_SAMPLE_SIZE];
 	int i;
@@ -693,23 +686,22 @@ void calc_flatten_center(Mesh *me, ActiveData *node, float co[3])
 	
 	co[0] = co[1] = co[2] = 0.0f;
 	for(i = 0; i < FLATTEN_SAMPLE_SIZE; ++i)
-		VecAddf(co, co, me->mvert[outer[i]->Index].co);
+		VecAddf(co, co, ss->mvert[outer[i]->Index].co);
 	VecMulf(co, 1.0f / FLATTEN_SAMPLE_SIZE);
 }
 
-void do_flatten_brush(const BrushAction *a, const ListBase *active_verts)
+void do_flatten_brush(SculptSession *ss, const BrushAction *a, const ListBase *active_verts)
 {
-	Mesh *me= get_mesh(OBACT);
 	ActiveData *node= active_verts->first;
 	/* area_normal and cntr define the plane towards which vertices are squashed */
 	float area_normal[3];
 	float cntr[3];
 
 	calc_area_normal(area_normal, a, a->symm.out, active_verts);
-	calc_flatten_center(me, node, cntr);
+	calc_flatten_center(ss, node, cntr);
 
 	while(node){
-		float *co= me->mvert[node->Index].co;
+		float *co= ss->mvert[node->Index].co;
 		float p1[3], sub1[3], sub2[3], intr[3], val[3];
 		
 		/* Find the intersection between squash-plane and vertex (along the area normal) */
@@ -1007,22 +999,22 @@ void do_brush_action(BrushAction *a)
 			do_draw_brush(ss, a, &active_verts);
 			break;
 		case SMOOTH_BRUSH:
-			do_smooth_brush(a, &active_verts);
+			do_smooth_brush(ss, a, &active_verts);
 			break;
 		case PINCH_BRUSH:
-			do_pinch_brush(a, &active_verts);
+			do_pinch_brush(ss, a, &active_verts);
 			break;
 		case INFLATE_BRUSH:
-			do_inflate_brush(a, &active_verts);
+			do_inflate_brush(ss, a, &active_verts);
 			break;
 		case GRAB_BRUSH:
-			do_grab_brush(a);
+			do_grab_brush(ss, a);
 			break;
 		case LAYER_BRUSH:
-			do_layer_brush(a, &active_verts);
+			do_layer_brush(ss, a, &active_verts);
 			break;
 		case FLATTEN_BRUSH:
-			do_flatten_brush(a, &active_verts);
+			do_flatten_brush(ss, a, &active_verts);
 			break;
 		}
 	
@@ -1232,6 +1224,7 @@ void sculptmode_update_tex()
 void init_brushaction(BrushAction *a, short *mouse, short *pr_mouse)
 {
 	SculptData *sd = sculpt_data();
+	SculptSession *ss = sculpt_session();
 	const float mouse_depth = get_depth(mouse[0], mouse[1]);
 	float brush_edge_loc[3], zero_loc[3], oldloc[3];
 	ModifierData *md;
@@ -1318,31 +1311,28 @@ void init_brushaction(BrushAction *a, short *mouse, short *pr_mouse)
 		VecSubf(a->symm.grab_delta, gcenter, oldloc);
 	}
 	else if(sd->brush_type == LAYER_BRUSH) {
-		Mesh *me= get_mesh(OBACT);
-
 		if(!a->layer_disps)
-			a->layer_disps= MEM_callocN(sizeof(float)*me->totvert,"Layer disps");
+			a->layer_disps= MEM_callocN(sizeof(float)*ss->totvert,"Layer disps");
 	}
 
 	if(sd->brush_type == LAYER_BRUSH || anchored) {
- 		Mesh *me= get_mesh(OBACT);
  		unsigned i;
  
  		if(!a->mesh_store) {
- 			a->mesh_store= MEM_mallocN(sizeof(vec3f) * me->totvert, "Sculpt mesh store");
- 			for(i = 0; i < me->totvert; ++i)
- 				VecCopyf(&a->mesh_store[i].x, me->mvert[i].co);
+ 			a->mesh_store= MEM_mallocN(sizeof(vec3f) * ss->totvert, "Sculpt mesh store");
+ 			for(i = 0; i < ss->totvert; ++i)
+ 				VecCopyf(&a->mesh_store[i].x, ss->mvert[i].co);
   		}
 
 		if(anchored && a->layer_disps)
-			memset(a->layer_disps, 0, sizeof(float) * me->totvert);
+			memset(a->layer_disps, 0, sizeof(float) * ss->totvert);
 
 		if(anchored && !a->orig_norms) {
-			a->orig_norms= MEM_mallocN(sizeof(short) * 3 * me->totvert, "Sculpt orig norm");
-			for(i = 0; i < me->totvert; ++i) {
-				a->orig_norms[i][0] = me->mvert[i].no[0];
-				a->orig_norms[i][1] = me->mvert[i].no[1];
-				a->orig_norms[i][2] = me->mvert[i].no[2];
+			a->orig_norms= MEM_mallocN(sizeof(short) * 3 * ss->totvert, "Sculpt orig norm");
+			for(i = 0; i < ss->totvert; ++i) {
+				a->orig_norms[i][0] = ss->mvert[i].no[0];
+				a->orig_norms[i][1] = ss->mvert[i].no[1];
+				a->orig_norms[i][2] = ss->mvert[i].no[2];
 			}
 		}
   	}
