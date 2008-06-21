@@ -1539,6 +1539,9 @@ void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
 void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
 {
 	const int e = d->sidetot - 1;
+
+	d->type = 5;
+
 	d->x = d->y = 0;
 	if(v == d->face->v2)
 		d->x = e;
@@ -1546,8 +1549,6 @@ void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
 		d->x = d->y = e;
 	else if(v == d->face->v4)
 		d->y = e;
-
-	d->type = 5;
 }
 
 void multires_displacer_jump(MultiresDisplacer *d)
@@ -1591,7 +1592,7 @@ void multires_displace(MultiresDisplacer *d, float co[3])
 		
 	}
 	else {
-		if(d->type == 4)
+		if(d->type == 4 || d->type == 5)
 			VecMulf(disp, d->weight);
 		VecAddf(co, co, disp);
 	}
