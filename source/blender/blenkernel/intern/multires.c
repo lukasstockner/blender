@@ -1536,6 +1536,20 @@ void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
 	}
 }
 
+void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
+{
+	const int e = d->sidetot - 1;
+	d->x = d->y = 0;
+	if(v == d->face->v2)
+		d->x = e;
+	else if(v == d->face->v3)
+		d->x = d->y = e;
+	else if(v == d->face->v4)
+		d->y = e;
+
+	d->type = 5;
+}
+
 void multires_displacer_jump(MultiresDisplacer *d)
 {
 	if(d->sidendx == 0) {
@@ -1680,6 +1694,17 @@ static void multiresModifier_update(DerivedMesh *dm)
 				++mvert;
 				++d.subco;
 			}
+		}
+		
+		for(i = 0; i < MultiresDM_get_totorco(dm); ++i) {
+			IndexNode *n;
+			for(n = map[i].first; n; n = n->next) {
+				multires_displacer_init(&d, dm, n->index, 1);
+				multires_displacer_anchor_vert(&d, i);
+				multires_displace(&d, mvert->co);
+			}
+			++mvert;
+			++d.subco;
 		}
 	}
 }

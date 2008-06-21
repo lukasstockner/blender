@@ -1241,6 +1241,11 @@ void *MultiresDM_get_orco(DerivedMesh *dm)
 
 }
 
+int MultiresDM_get_totorco(struct DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->totorco;
+}
+
 void *MultiresDM_get_subco(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->subco;

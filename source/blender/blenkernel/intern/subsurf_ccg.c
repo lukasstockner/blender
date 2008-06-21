@@ -693,6 +693,22 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 
 		DM_copy_vert_data(dm, result, vertIdx, i, 1);
 		VecCopyf(mvert->co, ccgSubSurf_getVertData(ss, v));
+		if(mmd) {
+			int numFaces = ccgSubSurf_getVertNumFaces(ss, v);
+			int vertface;
+
+			VecCopyf(mr_orig, mvert->co);
+			mr_orig += 3;
+
+			multires_displacer_weight(&d, 1.0f / numFaces);
+			for(vertface = 0; vertface < numFaces; ++vertface) {
+				CCGFace *f = ccgSubSurf_getVertFace(ss, v, vertface);
+				int faceIdx = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ss, f));
+				multires_displacer_init(&d, result, faceIdx, 0);
+				multires_displacer_anchor_vert(&d, vertIdx);
+				multires_displace(&d, mvert->co);
+			}
+		}
 
 		*((int*)ccgSubSurf_getVertUserData(ss, v)) = i;
 		*origIndex = ccgDM_getVertMapIndex(NULL, ss, v);

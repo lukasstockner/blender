@@ -91,6 +91,7 @@ struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);
 int MultiresDM_get_totorfa(struct DerivedMesh *);
+int MultiresDM_get_totorco(struct DerivedMesh *);
 int MultiresDM_get_totored(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
 
@@ -124,5 +125,6 @@ void multires_displacer_init(MultiresDisplacer *d, struct DerivedMesh *dm,
 void multires_displacer_weight(MultiresDisplacer *d, const float w);
 void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index);
 void multires_displacer_anchor_edge(MultiresDisplacer *d, const int, const int, const int);
+void multires_displacer_anchor_vert(MultiresDisplacer *d, const int);
 void multires_displacer_jump(MultiresDisplacer *d);
 void multires_displace(MultiresDisplacer *d, float out[3]);
