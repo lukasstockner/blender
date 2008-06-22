@@ -6540,11 +6540,10 @@ void editing_panels()
 				editing_panel_mesh_texface();
 		}
 		else if(G.f & G_SCULPTMODE) {
-			uiNewPanelTabbed("Multires", "Editing");
 			editing_panel_sculpting_tools();
-			uiNewPanelTabbed("Multires", "Editing");
+			uiNewPanelTabbed("Sculpt", "Editing");
 			editing_panel_sculpting_brush();
-			uiNewPanelTabbed("Multires", "Editing");
+			uiNewPanelTabbed("Sculpt", "Editing");
 			editing_panel_sculpting_textures();
 		} else {
 			if(G.f & (G_VERTEXPAINT | G_TEXTUREPAINT | G_WEIGHTPAINT) ) {
