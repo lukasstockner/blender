@@ -892,6 +892,9 @@ void make_editMesh()
 	}
 #endif
 
+	/* Needed if multires mesh has been changed but updates haven't been stored yet */
+	multires_force_update(G.obedit);
+
 	/* because of reload */
 	free_editMesh(em);
 	

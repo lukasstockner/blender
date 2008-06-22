@@ -1702,6 +1702,15 @@ static void multiresModifier_update(DerivedMesh *dm)
 	}
 }
 
+void multires_force_update(Object *ob)
+{
+	if(ob->derivedFinal) {
+		ob->derivedFinal->needsFree =1;
+		ob->derivedFinal->release(G.obedit->derivedFinal);
+		ob->derivedFinal = NULL;
+	}
+}
+
 struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, DerivedMesh *dm, int useRenderParams,
 						    int isFinalCalc)
 {
