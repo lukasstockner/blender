@@ -117,7 +117,7 @@ typedef struct MultiresDisplacer {
 
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*, int, int);
 
-void multiresModifier_subdivide(void *mmd_v, void *ob_v);
+void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Mesh *me);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
 
 void multires_displacer_init(MultiresDisplacer *d, struct DerivedMesh *dm,

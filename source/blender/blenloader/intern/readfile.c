@@ -2702,6 +2702,19 @@ static void direct_link_dverts(FileData *fd, int count, MDeformVert *mdverts)
 	}
 }
 
+static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps)
+{
+	if(mdisps) {
+		int i;
+
+		for(i = 0; i < count; ++i) {
+			mdisps[i].disps = newdataadr(fd, mdisps[i].disps);
+			if(!mdisps[i].disps)
+				mdisps[i].totdisp = 0;
+		}
+	}	
+}
+
 static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 {
 	int i = 0;
@@ -2713,6 +2726,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 
 		if (CustomData_verify_versions(data, i)) {
 			layer->data = newdataadr(fd, layer->data);
+			if(layer->type == CD_MDISPS)
+				direct_link_mdisps(fd, count, layer->data);
 			i++;
 		}
 	}

@@ -1105,7 +1105,7 @@ static void write_curves(WriteData *wd, ListBase *idbase)
 static void write_dverts(WriteData *wd, int count, MDeformVert *dvlist)
 {
 	if (dvlist) {
-		int	i;
+		int i;
 		
 		/* Write the dvert list */
 		writestruct(wd, DATA, "MDeformVert", count, dvlist);
@@ -1114,6 +1114,19 @@ static void write_dverts(WriteData *wd, int count, MDeformVert *dvlist)
 		for (i=0; i<count; i++) {
 			if (dvlist[i].dw)
 				writestruct(wd, DATA, "MDeformWeight", dvlist[i].totweight, dvlist[i].dw);
+		}
+	}
+}
+
+static void write_mdisps(WriteData *wd, int count, MDisps *mdlist)
+{
+	if(mdlist) {
+		int i;
+		
+		writestruct(wd, DATA, "MDisps", count, mdlist);
+		for(i = 0; i < count; ++i) {
+			if(mdlist[i].disps)
+				writedata(wd, DATA, sizeof(float)*3*mdlist[i].totdisp, mdlist[i].disps);
 		}
 	}
 }
@@ -1132,6 +1145,9 @@ static void write_customdata(WriteData *wd, int count, CustomData *data, int par
 		if (layer->type == CD_MDEFORMVERT) {
 			/* layer types that allocate own memory need special handling */
 			write_dverts(wd, count, layer->data);
+		}
+		else if (layer->type == CD_MDISPS) {
+			write_mdisps(wd, count, layer->data);
 		}
 		else {
 			CustomData_file_write_info(layer->type, &structname, &structnum);

@@ -1384,39 +1384,34 @@ static void calc_face_ts_mat_dm(float out[][3], float (*orco)[3], MFace *f)
 	calc_face_ts_mat(out, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
 }
 
-void multiresModifier_subdivide(void *mmd_v, void *ob_v)
+void multiresModifier_subdivide(MultiresModifierData *mmd, Mesh *me)
 {
-	MultiresModifierData *mmd = mmd_v;
-	Object *ob = ob_v;
-	Mesh *me = get_mesh(ob);
+	MDisps *mdisps;
+	int i;
 
-	if(me && mmd) {
-		MDisps *mdisps;
-		int i;
+	if(mmd->totlvl == multires_max_levels) {
+		// TODO
+		return;
+	}
 
-		if(mmd->totlvl == multires_max_levels) {
-			// TODO
-			return;
+	++mmd->lvl;
+	++mmd->totlvl;
+
+	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
+	if(!mdisps)
+		mdisps = CustomData_add_layer(&me->fdata, CD_MDISPS, CD_DEFAULT, NULL, me->totface);
+
+	for(i = 0; i < me->totface; ++i) {
+		//const int totdisp = (me->mface[i].v4 ? multires_quad_tot[totlvl] : multires_tri_tot[totlvl]);
+		const int totdisp = multires_quad_tot[mmd->totlvl - 1];
+		float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
+
+		if(mdisps[i].disps) {
+			/* TODO: Transfer old disps over to the new */
+			MEM_freeN(mdisps[i].disps);
 		}
-
-		++mmd->lvl;
-		++mmd->totlvl;
-
-		mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
-		if(!mdisps)
-			mdisps = CustomData_add_layer(&me->fdata, CD_MDISPS, CD_DEFAULT, NULL, me->totface);
-
-		for(i = 0; i < me->totface; ++i) {
-			//const int totdisp = (me->mface[i].v4 ? multires_quad_tot[totlvl] : multires_tri_tot[totlvl]);
-			const int totdisp = multires_quad_tot[mmd->totlvl - 1];
-			float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
-
-			if(mdisps[i].disps) {
-				/* TODO: Transfer old disps over to the new */
-				MEM_freeN(mdisps[i].disps);
-			}
-			mdisps[i].disps = disps;
-		}
+		mdisps[i].disps = disps;
+		mdisps[i].totdisp = totdisp;
 	}
 }
 
@@ -1629,13 +1624,10 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 	mdisps = dm->getFaceDataArray(dm, CD_MDISPS);
 
-	if(MultiresDM_get_lvl(dm) != MultiresDM_get_totlvl(dm))
-		return;
-	
 	if(mdisps) {
 		MultiresDisplacer d;
-		const int gridFaces = multires_side_tot[MultiresDM_get_totlvl(dm) - 2] - 1;
-		const int edgeSize = multires_side_tot[MultiresDM_get_totlvl(dm) - 1] - 1;
+		const int gridFaces = multires_side_tot[MultiresDM_get_lvl(dm) - 2] - 1;
+		const int edgeSize = multires_side_tot[MultiresDM_get_lvl(dm) - 1] - 1;
 		ListBase *map = MultiresDM_get_vert_face_map(dm);
 		int S, x, y;
 		

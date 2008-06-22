@@ -1657,6 +1657,17 @@ void modifiers_explodeDelVg(void *arg1, void *arg2)
 	emd->vgroup = 0;
 }
 
+static void multiresModifier_subdivide_button(void *mmd_v, void *ob_v)
+{
+	MultiresModifierData *mmd = mmd_v;
+	Mesh *me = get_mesh(ob_v);
+
+	if(mmd && me) {
+		multiresModifier_subdivide(mmd, me);
+		BIF_undo_push("Multires subdivide");
+	}
+}
+
 static int modifier_is_fluid_particles(ModifierData *md) {
 	if(md->type == eModifierType_ParticleSystem) {
 		if(((ParticleSystemModifierData *)md)->psys->part->type == PART_FLUID)
@@ -2450,7 +2461,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiBut *but;
  
 			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Subdivide", lx,(cy-=19),buttonWidth,19,0,0,0,0,0,"Increase the resolution of displacements");
-			uiButSetFunc(but, multiresModifier_subdivide, mmd, ob);
+			uiButSetFunc(but, multiresModifier_subdivide_button, mmd, ob);
 		
 			but = uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
 			uiButSetFunc(but, multiresModifier_setLevel, mmd, ob);
