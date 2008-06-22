@@ -56,6 +56,7 @@
 #include "KX_ConstraintActuator.h"
 #include "KX_CameraActuator.h"
 #include "KX_GameActuator.h"
+#include "KX_StateActuator.h"
 #include "KX_VisibilityActuator.h"
 #include "KX_SCA_AddObjectActuator.h"
 #include "KX_SCA_EndObjectActuator.h"
@@ -84,6 +85,7 @@
 #include "DNA_actuator_types.h"
 #include "DNA_packedFile_types.h"
 #include "BL_ActionActuator.h"
+#include "BL_ShapeActionActuator.h"
 /* end of blender include block */
 
 #include "BL_BlenderDataConversion.h"
@@ -194,6 +196,30 @@ void BL_ConvertActuators(char* maggiename,
 				}
 				else
 					printf ("Discarded action actuator from non-armature object [%s]\n", blenderobject->id.name+2);
+			}
+		case ACT_SHAPEACTION:
+			{
+				if (blenderobject->type==OB_MESH){
+					bActionActuator* actact = (bActionActuator*) bact->data;
+					STR_String propname = (actact->name ? actact->name : "");
+					
+					BL_ShapeActionActuator* tmpbaseact = new BL_ShapeActionActuator(
+						gameobj,
+						propname,
+						actact->sta,
+						actact->end,
+						actact->act,
+						actact->type, // + 1, because Blender starts to count at zero,
+						actact->blendin,
+						actact->priority,
+						actact->stridelength
+						// Ketsji at 1, because zero is reserved for "NoDef"
+						);
+					baseact= tmpbaseact;
+					break;
+				}
+				else
+					printf ("Discarded shape action actuator from non-mesh object [%s]\n", blenderobject->id.name+2);
 			}
 		case ACT_IPO:
 			{
@@ -832,7 +858,19 @@ void BL_ConvertActuators(char* maggiename,
 			baseact = tmp_vis_act;
 		}
 		break;
-		
+
+		case ACT_STATE:
+		{
+			bStateActuator *sta_act = (bStateActuator *) bact->data;
+			KX_StateActuator * tmp_sta_act = NULL;
+
+			tmp_sta_act = 
+				new KX_StateActuator(gameobj, sta_act->type, sta_act->mask);
+			
+			baseact = tmp_sta_act;
+		}
+		break;
+
 		case ACT_2DFILTER:
 		{
 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
