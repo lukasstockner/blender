@@ -782,40 +782,6 @@ void BPY_run_python_script( char *fn )
 	}
 }
 
-#ifdef WIN32
-static char *escape_slashes(const char *s) {
-	int l= 0;
-	int i= 0;
-	int k= 0;
-	char *news= NULL;
-	char *tmp= (char *)s;
-	int slashcount= 0;
-	if(s==0) return 0;
-	l= strlen(s);
-	for(i= 0; i < l; i++) {
-		if(tmp[i]=='\\')
-			slashcount++;
-	}
-
-	if(slashcount>0) {
-		news= MEM_mallocN(slashcount+l+1, "escslashes");
-		tmp= (char *)s;
-		for(i= 0; i < l; i++) {
-			if(tmp[i]=='\\') {
-				news[i+k]='\\';
-				k++;
-			}
-			news[i+k]= tmp[i];
-		}
-		news[slashcount+l] = '\0';
-	} else {
-			news= (char *)s;
-	}
-
-	return news;
-}
-#endif
-
 int BPY_run_script(Script *script)
 {
 	PyObject *py_dict, *py_res, *pyarg;
@@ -911,21 +877,10 @@ int BPY_run_script(Script *script)
 	if (text) {
 		py_res = RunPython( text, py_dict );
 	} else {
-#ifdef WIN32
-		/* backward slashes need to be escaped on windows, otherwise execfile() doesn't work right */
-		char *scriptname= escape_slashes(script->scriptname);
-		char pystring[sizeof(scriptname) + 14];
+		char pystring[sizeof(script->scriptname) + 15];
 		pystring[0] = '\0';
-		sprintf(pystring, "execfile('%s')", scriptname);
-#else
-		char pystring[sizeof(script->scriptname) + 14];
-		pystring[0] = '\0';
-		sprintf(pystring, "execfile('%s')", script->scriptname);
-#endif
+		sprintf(pystring, "execfile(r'%s')", script->scriptname);
 		py_res = PyRun_String( pystring, Py_file_input, py_dict, py_dict );
-#ifdef WIN32
-		MEM_freeN(scriptname);
-#endif
 	}
 
 	if( !py_res ) {		/* Failed execution of the script */
