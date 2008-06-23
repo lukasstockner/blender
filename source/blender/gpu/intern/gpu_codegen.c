@@ -1199,7 +1199,7 @@ int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack 
 
 	if(in) {
 		for(i = 0; in[i].type != GPU_NONE; i++) {
-			gpu_node_input_socket(node, in);
+			gpu_node_input_socket(node, &in[i]);
 			totin++;
 		}
 	}
