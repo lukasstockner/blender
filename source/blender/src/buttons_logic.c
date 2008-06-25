@@ -1602,7 +1602,7 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 	
 	float *fp;
 	short ysize = 0, wval;
-	char *str, name[32];
+	char *str;
 	int myline, stbit;
 
 	/* yco is at the top of the rect, draw downwards */
@@ -1613,7 +1613,7 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 	{
 	case ACT_OBJECT:
 		{
-			ysize= 129;
+			ysize= 152;
 			
 			glRects(xco, yco-ysize, xco+width, yco);
 			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
@@ -1651,14 +1651,18 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 			uiDefButF(block, NUM, 0, "",		xco+45+wval, yco-125, wval, 19, oa->angularvelocity+1, -10000.0, 10000.0, 10, 0, "");
 			uiDefButF(block, NUM, 0, "",		xco+45+2*wval, yco-125, wval, 19, oa->angularvelocity+2, -10000.0, 10000.0, 10, 0, "");
 			
-			uiDefButBitI(block, TOG, ACT_FORCE_LOCAL, 0, "L",		xco+45+3*wval, yco-22, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-			uiDefButBitI(block, TOG, ACT_TORQUE_LOCAL, 0, "L",		xco+45+3*wval, yco-41, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-			uiDefButBitI(block, TOG, ACT_DLOC_LOCAL, 0, "L",		xco+45+3*wval, yco-64, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-			uiDefButBitI(block, TOG, ACT_DROT_LOCAL, 0, "L",		xco+45+3*wval, yco-83, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-			uiDefButBitI(block, TOG, ACT_LIN_VEL_LOCAL, 0, "L",		xco+45+3*wval, yco-106, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
-			uiDefButBitI(block, TOG, ACT_ANG_VEL_LOCAL, 0, "L",		xco+45+3*wval, yco-125, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
+			uiDefBut(block, LABEL, 0, "damp",	xco, yco-148, 45, 19, NULL, 0, 0, 0, 0, "Number of frames to reach the target velocity");
+			uiDefButI(block, NUM, 0, "",		xco+45, yco-148, wval, 19, &oa->damping, 0.0, 1000.0, 100, 0, "");
+			uiDefButBitS(block, TOG, ACT_CLAMP_VEL, 0, "clamp",xco+45+wval, yco-148, wval, 19, &oa->flag, 0.0, 0.0, 0, 0, "Toggles between SET and CLAMP Velocity");
+
+			uiDefButBitS(block, TOG, ACT_FORCE_LOCAL, 0, "L",		xco+45+3*wval, yco-22, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
+			uiDefButBitS(block, TOG, ACT_TORQUE_LOCAL, 0, "L",		xco+45+3*wval, yco-41, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
+			uiDefButBitS(block, TOG, ACT_DLOC_LOCAL, 0, "L",		xco+45+3*wval, yco-64, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
+			uiDefButBitS(block, TOG, ACT_DROT_LOCAL, 0, "L",		xco+45+3*wval, yco-83, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
+			uiDefButBitS(block, TOG, ACT_LIN_VEL_LOCAL, 0, "L",		xco+45+3*wval, yco-106, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
+			uiDefButBitS(block, TOG, ACT_ANG_VEL_LOCAL, 0, "L",		xco+45+3*wval, yco-125, 15, 19, &oa->flag, 0.0, 0.0, 0, 0, "Local transformation");
 			
-			uiDefButBitI(block, TOG, ACT_ADD_LIN_VEL, 0, "add",xco+45+3*wval+15, yco-106, 35, 19, &oa->flag, 0.0, 0.0, 0, 0, "Toggles between ADD and SET linV");
+			uiDefButBitS(block, TOG, ACT_ADD_LIN_VEL, 0, "add",xco+45+3*wval+15, yco-106, 35, 19, &oa->flag, 0.0, 0.0, 0, 0, "Toggles between ADD and SET linV");
 			
 			yco-= ysize;
 			break;
@@ -1936,8 +1940,15 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 			uiDefButI(block, NUM, 0, "Time:",	xco+10+(width-20)/2, yco-44, (width-20)/2-40, 19, &eoa->time, 0.0, 2000.0, 0, 0, "Duration the tracking takes");
 			uiDefButS(block, TOG, 0, "3D",	xco+width-50, yco-44, 40, 19, &eoa->flag, 0.0, 0.0, 0, 0, "Enable 3D tracking");
 		}
-		
-		str= "Edit Object %t|Add Object %x0|End Object %x1|Replace Mesh %x2|Track to %x3";
+		else if(eoa->type==ACT_EDOB_DYNAMICS) {
+			ysize= 48;
+			glRects(xco, yco-ysize, xco+width, yco);
+			uiEmboss((float)xco, (float)yco-ysize, (float)xco+width, (float)yco, 1);
+			
+			str= "Dynamic Operation %t|Restore Dynamics %x0|Suspend Dynamics %x1|Enable Rigid Body %x2|Disable Rigid Body %x3";
+			uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-44, (width-80), 19,  &(eoa->dyn_operation), 0.0, 0.0, 0, 0, "");
+		}
+		str= "Edit Object %t|Add Object %x0|End Object %x1|Replace Mesh %x2|Track to %x3|Dynamics %x4";
 		uiDefButS(block, MENU, B_REDR, str,		xco+40, yco-24, (width-80), 19, &eoa->type, 0.0, 0.0, 0, 0, "");
 
  		yco-= ysize;
@@ -2778,7 +2789,6 @@ static uiBlock *controller_state_mask_menu(void *arg_cont)
 	uiBlock *block;
 	uiBut *but;
 	bController *cont = arg_cont;
-	int mask;
 
 	short yco = 12, xco = 0, stbit, offset;
 
@@ -2828,7 +2838,6 @@ static void do_object_state_menu(void *arg, int event)
 static uiBlock *object_state_mask_menu(void *arg_obj)
 {
 	uiBlock *block;
-	uiBut *but;
 	short xco = 0;
 
 	block= uiNewBlock(&curarea->uiblocks, "obstatemenu", UI_EMBOSSP, UI_HELV, curarea->win);

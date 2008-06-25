@@ -1678,6 +1678,8 @@ static KX_GameObject *gameobject_from_blenderobject(
 			BL_ShapeDeformer *dcont = new BL_ShapeDeformer((BL_DeformableGameObject*)gameobj, 
 															ob, (BL_SkinMeshObject*)meshobj);
 			((BL_DeformableGameObject*)gameobj)->m_pDeformer = dcont;
+			if (bHasArmature)
+				dcont->LoadShapeDrivers(ob->parent);
 		} else if (bHasArmature) {
 			BL_SkinDeformer *dcont = new BL_SkinDeformer(ob, (BL_SkinMeshObject*)meshobj );				
 			((BL_DeformableGameObject*)gameobj)->m_pDeformer = dcont;
@@ -2339,7 +2341,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	{
 		KX_GameObject* gameobj = static_cast<KX_GameObject*>(logicbrick_conversionlist->GetValue(i));
 		struct Object* blenderobj = converter->FindBlenderObject(gameobj);
-		gameobj->SetState(blenderobj->state);
+		gameobj->SetState((blenderobj->init_state)?blenderobj->init_state:blenderobj->state);
 	}
 
 #endif //CONVERT_LOGIC

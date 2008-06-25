@@ -664,6 +664,27 @@ MT_Vector3 KX_GameObject::GetLinearVelocity(bool local)
 	return velocity;	
 }
 
+MT_Vector3 KX_GameObject::GetAngularVelocity(bool local)
+{
+	MT_Vector3 velocity(0.0,0.0,0.0), locvel;
+	MT_Matrix3x3 ori;
+	int i, j; 
+	if (m_pPhysicsController1)
+	{
+		velocity = m_pPhysicsController1->GetAngularVelocity();
+		
+		if (local)
+		{
+			ori = GetSGNode()->GetWorldOrientation();
+			
+			locvel = velocity * ori;
+			return locvel;
+		}
+	}
+	return velocity;	
+}
+
+
 
 // scenegraph node stuff
 
@@ -1262,17 +1283,7 @@ PyObject* KX_GameObject::PySuspendDynamics(PyObject* self,
 										   PyObject* args, 
 										   PyObject* kwds)
 {
-	if (m_bSuspendDynamics)
-	{
-		Py_Return;
-	}
-	
-	if (m_pPhysicsController1)
-	{
-		m_pPhysicsController1->SuspendDynamics();
-	}
-	m_bSuspendDynamics = true;
-	
+	SuspendDynamics();
 	Py_Return;
 }
 
@@ -1282,18 +1293,7 @@ PyObject* KX_GameObject::PyRestoreDynamics(PyObject* self,
 										   PyObject* args, 
 										   PyObject* kwds)
 {
-	
-	if (!m_bSuspendDynamics)
-	{
-		Py_Return;
-	}
-	
-	if (m_pPhysicsController1)
-	{
-		m_pPhysicsController1->RestoreDynamics();
-	}
-	m_bSuspendDynamics = false;
-	
+	RestoreDynamics();
 	Py_Return;
 }
 
