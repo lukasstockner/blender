@@ -804,6 +804,8 @@ void KX_GameObject::Suspend(void)
 PyMethodDef KX_GameObject::Methods[] = {
 	{"setVisible",(PyCFunction) KX_GameObject::sPySetVisible, METH_VARARGS},  
 	{"getVisible",(PyCFunction) KX_GameObject::sPyGetVisible, METH_VARARGS},  
+	{"setState",(PyCFunction) KX_GameObject::sPySetState, METH_VARARGS},
+	{"getState",(PyCFunction) KX_GameObject::sPyGetState, METH_VARARGS},
 	{"alignAxisToVect",(PyCFunction) KX_GameObject::sPyAlignAxisToVect, METH_VARARGS},
 	{"setPosition", (PyCFunction) KX_GameObject::sPySetPosition, METH_VARARGS},
 	{"getPosition", (PyCFunction) KX_GameObject::sPyGetPosition, METH_VARARGS},
@@ -825,6 +827,7 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getMesh", (PyCFunction)KX_GameObject::sPyGetMesh,METH_VARARGS},
 	{"getPhysicsId", (PyCFunction)KX_GameObject::sPyGetPhysicsId,METH_VARARGS},
 	{"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames,METH_VARARGS},
+	{"endObject",(PyCFunction) KX_GameObject::sPyEndObject, METH_VARARGS},
 	KX_PYMETHODTABLE(KX_GameObject, getDistanceTo),
 	KX_PYMETHODTABLE(KX_GameObject, rayCastTo),
 	KX_PYMETHODTABLE(KX_GameObject, rayCast),
@@ -857,6 +860,18 @@ PyObject* KX_GameObject::sPySetPosition(PyObject* self,
 	return ((KX_GameObject*) self)->PySetPosition(self, args, kwds);
 }
 	
+
+PyObject* KX_GameObject::PyEndObject(PyObject* self,
+									 PyObject* args, 
+									 PyObject* kwds)
+{
+
+	KX_Scene *scene = PHY_GetActiveScene();
+	scene->DelayedRemoveObject(this);
+	
+	return Py_None;
+
+}
 
 
 PyObject* KX_GameObject::PyGetPosition(PyObject* self,
@@ -1103,6 +1118,39 @@ PyObject* KX_GameObject::PyGetVisible(PyObject* self,
 {
 	return PyInt_FromLong(m_bVisible);	
 }
+
+PyObject* KX_GameObject::PyGetState(PyObject* self,
+									  PyObject* args,
+									  PyObject* kwds)
+{
+	int state = 0;
+	state |= GetState();
+	return PyInt_FromLong(state);
+}
+
+PyObject* KX_GameObject::PySetState(PyObject* self,
+									  PyObject* args,
+									  PyObject* kwds)
+{
+	int state_i;
+	unsigned int state = 0;
+	
+	if (PyArg_ParseTuple(args,"i",&state_i))
+	{
+		state |= state_i;
+		if ((state & ((1<<30)-1)) == 0) {
+			PyErr_SetString(PyExc_AttributeError, "The state bitfield was not between 0 and 30 (1<<0 and 1<<29)");
+			return NULL;
+		}
+		SetState(state);
+	}
+	else
+	{
+		return NULL;	     
+	}
+	Py_Return;
+}
+
 
 
 PyObject* KX_GameObject::PyGetVelocity(PyObject* self, 

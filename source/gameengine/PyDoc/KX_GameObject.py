@@ -25,6 +25,11 @@ class KX_GameObject:
 	@ivar timeOffset: adjust the slowparent delay at runtime.
 	@type timeOffset: float
 	"""
+	def endObject(visible):
+		"""
+		Delete this object, can be used inpace of the EndObject Actuator.
+		The actual removal of the object from the scene is delayed.
+		"""	
 	def getVisible(visible):
 		"""
 		Gets the game object's visible flag.
@@ -34,6 +39,20 @@ class KX_GameObject:
 	def setVisible(visible):
 		"""
 		Sets the game object's visible flag.
+		
+		@type visible: boolean
+		"""
+	def getState():
+		"""
+		Gets the game object's state bitmask.
+		
+		@rtype: int
+		@return: the objects state.
+		"""	
+	def setState():
+		"""
+		Sets the game object's visible flag.
+		The bitmasks for states from 1 to 30 can be set with (1<<0, 1<<1, 1<<2 ... 1<<29)
 		
 		@type visible: boolean
 		"""
