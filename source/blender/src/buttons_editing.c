@@ -1660,10 +1660,9 @@ void modifiers_explodeDelVg(void *arg1, void *arg2)
 static void multiresModifier_subdivide_button(void *mmd_v, void *ob_v)
 {
 	MultiresModifierData *mmd = mmd_v;
-	Mesh *me = get_mesh(ob_v);
 
-	if(mmd && me) {
-		multiresModifier_subdivide(mmd, me);
+	if(mmd && ob_v) {
+		multiresModifier_subdivide(mmd, ob_v);
 		BIF_undo_push("Multires subdivide");
 	}
 }

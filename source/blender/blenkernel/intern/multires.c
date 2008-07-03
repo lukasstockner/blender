@@ -1384,8 +1384,9 @@ static void calc_face_ts_mat_dm(float out[][3], float (*orco)[3], MFace *f)
 	calc_face_ts_mat(out, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
 }
 
-void multiresModifier_subdivide(MultiresModifierData *mmd, Mesh *me)
+void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 {
+	Mesh *me = get_mesh(ob);
 	MDisps *mdisps;
 	int i;
 
@@ -1393,6 +1394,8 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Mesh *me)
 		// TODO
 		return;
 	}
+
+	multires_force_update(ob);
 
 	++mmd->lvl;
 	++mmd->totlvl;
@@ -1706,7 +1709,7 @@ void multires_force_update(Object *ob)
 {
 	if(ob->derivedFinal) {
 		ob->derivedFinal->needsFree =1;
-		ob->derivedFinal->release(G.obedit->derivedFinal);
+		ob->derivedFinal->release(ob->derivedFinal);
 		ob->derivedFinal = NULL;
 	}
 }
