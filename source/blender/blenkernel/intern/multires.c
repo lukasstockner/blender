@@ -1388,7 +1388,10 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 {
 	Mesh *me = get_mesh(ob);
 	MDisps *mdisps;
-	int i;
+	/*ListBase *map;
+	IndexNode *mapmem;*/
+	int i, j, k, slo, shi;
+	float *out;
 
 	if(mmd->totlvl == multires_max_levels) {
 		// TODO
@@ -1400,6 +1403,9 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 	++mmd->lvl;
 	++mmd->totlvl;
 
+	slo = multires_side_tot[mmd->totlvl - 2];
+	shi = multires_side_tot[mmd->totlvl - 1];
+
 	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(!mdisps)
 		mdisps = CustomData_add_layer(&me->fdata, CD_MDISPS, CD_DEFAULT, NULL, me->totface);
@@ -1410,12 +1416,118 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 		float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
 
 		if(mdisps[i].disps) {
-			/* TODO: Transfer old disps over to the new */
+			/* face verts */
+			for(j = 0; j < slo - 1; ++j) {
+				for(k = 0; k < slo - 1; ++k) {
+					out = disps[(j*2+1)*shi + k*2+1];
+					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[j*slo + k+1]);
+					VecAddf(out, out, mdisps[i].disps[(j+1)*slo + k]);
+					VecAddf(out, out, mdisps[i].disps[(j+1)*slo + k+1]);
+					VecMulf(out, 0.25);
+				}
+			}
+
+			/* vertical interior edge verts */
+			for(j = 0; j < slo - 1; ++j) {
+				for(k = 1; k < slo - 1; ++k) {
+					out = disps[(j*2+1)*shi + k*2];
+					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[(j+1)*slo + k]);
+					VecAddf(out, out, disps[(j*2+1)*shi + k*2-1]);
+					VecAddf(out, out, disps[(j*2+1)*shi + k*2+1]);
+					VecMulf(out, 0.25);
+				}
+			}
+
+			/* horizontal interior edge verts */
+			for(j = 1; j < slo - 1; ++j) {
+				for(k = 0; k < slo - 1; ++k) {
+					out = disps[j*2*shi + k*2+1];
+					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[j*slo + k+1]);
+					VecAddf(out, out, disps[(j*2-1)*shi + k*2+1]);
+					VecAddf(out, out, disps[(j*2+1)*shi + k*2+1]);
+					VecMulf(out, 0.25);
+				}
+			}
+
+			/* interior orig verts */
+			for(j = 1; j < slo - 1; ++j) {
+				for(k = 1; k < slo - 1; ++k) {
+					float avg[3];
+					out = disps[j*2*shi + k*2];
+					VecCopyf(out, mdisps[i].disps[j*slo+k]);
+
+					VecAddf(avg, disps[(j*2-1)*shi + k*2], disps[(j*2+1)*shi + k*2]);
+					VecAddf(avg, avg, disps[j*2*shi + k*2-1]);
+					VecAddf(avg, avg, disps[j*2*shi + k*2+1]);
+					VecMulf(avg, 0.5);
+					VecAddf(out, out, avg);
+
+					VecAddf(avg, disps[(j*2-1)*shi + k*2-1], disps[(j*2-1)*shi + k*2+1]);
+					VecAddf(avg, avg, disps[(j*2+1)*shi + k*2-1]);
+					VecAddf(avg, avg, disps[(j*2+1)*shi + k*2+1]);
+					VecMulf(avg, 0.25);
+					VecAddf(out, out, avg);
+
+					VecMulf(out, 0.25);
+				}
+			}
+
+			/* exterior edge verts, first pass */
+			for(j = 0; j < slo - 1; ++j) {
+				for(k = 0; k < slo; k += slo - 1) {
+					out = disps[(j*2+1)*shi + k*2];
+					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[(j+1)*slo + k]);
+					VecMulf(out, 0.5);
+
+					out = disps[k*2*shi + j*2+1];
+					VecAddf(out, mdisps[i].disps[k*slo + j], mdisps[i].disps[k*slo + j+1]);
+					VecMulf(out, 0.5);
+				}
+			}
+
+			/* exterior orig verts, first pass */
+			for(j = 1; j < slo - 1; ++j) {
+				for(k = 0; k < slo; k += slo - 1) {
+					out = disps[j*2*shi + k*2];
+					VecAddf(out, disps[(j*2-1)*shi + k*2], disps[(j*2+1)*shi + k*2]);
+					VecMulf(out, 0.5);
+
+					out = disps[k*2*shi + j*2];
+					VecAddf(out, disps[k*2*shi + j*2-1], disps[k*2*shi + j*2+1]);
+					VecMulf(out, 0.5);
+				}
+			}
+
+			/* corner verts */
+			VecCopyf(disps[0], mdisps[i].disps[0]);
+			VecCopyf(disps[shi - 1], mdisps[i].disps[slo - 1]);
+			VecCopyf(disps[(shi-1)*shi], mdisps[i].disps[(slo-1)*slo]);
+			VecCopyf(disps[shi*shi-1], mdisps[i].disps[slo*slo-1]);
+			
 			MEM_freeN(mdisps[i].disps);
 		}
+
 		mdisps[i].disps = disps;
 		mdisps[i].totdisp = totdisp;
 	}
+
+
+	/* TODO: the edge and corner displacements aren't being subdivided according to catmull-clark rules */
+
+	/* Subdividing displacements at the edges of faces requires mesh connectivity data */
+	/*create_vert_face_map(&map, &mapmem, me->mface, me->totvert, me->totface);
+	for(i = 0; i < me->totface; ++i) {
+		for(j = 0; j < slo - 1; ++j) {
+			for(k = 0; k < slo; k += slo - 1) {
+				out = mdisps[i].disps[(j*2+1)*shi + k*2];
+
+				out = mdisps[i].disps[k*2*shi + j*2+1];
+			}
+		}
+	}
+
+	MEM_freeN(map);
+	MEM_freeN(mapmem);*/
 }
 
 void multiresModifier_setLevel(void *mmd_v, void *ob_v)
