@@ -10,6 +10,8 @@
 #include "MT_Tuple3.h"
 #include "MT_Tuple4.h"
 
+#include "RAS_IPolygonMaterial.h"
+
 struct Material;
 class BL_Material;
 
@@ -36,6 +38,8 @@ public:
 	int GetAttribNum();
 	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
+
+	bool Identical(BL_BlenderShader *blshader);
 };
 
 #endif//__BL_GPUSHADER_H__

@@ -1184,7 +1184,7 @@ void GPU_lamp_shadow_buffer_unbind(GPULamp *lamp)
 
 int GPU_lamp_shadow_layer(GPULamp *lamp)
 {
-	if(lamp->fb && lamp->tex && (lamp->mode & LA_LAYER|LA_LAYER_SHADOW))
+	if(lamp->fb && lamp->tex && (lamp->mode & (LA_LAYER|LA_LAYER_SHADOW)))
 		return lamp->lay;
 	else
 		return -1;

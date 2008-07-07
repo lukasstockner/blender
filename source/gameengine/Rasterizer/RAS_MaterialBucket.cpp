@@ -174,19 +174,7 @@ bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_I
 	if (!rasty->SetMaterial(*m_material))
 		return false;
 	
-	bool dolights = false;
-	const unsigned int flag = m_material->GetFlag();
-
-	if( flag & RAS_BLENDERMAT)
-		dolights = (flag &RAS_MULTILIGHT)!=0;
-	else if(rasty->GetDrawingMode() < RAS_IRasterizer::KX_SOLID)
-		dolights = false;
-	else if(rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW)
-		dolights = false;
-	else
-		dolights = (m_material->GetDrawingMode()&16)!=0;
-
-	if (dolights)
+	if (m_material->UsesLighting(rasty))
 		rendertools->ProcessLighting(RAS_IRenderTools::RAS_LIGHT_OBJECT_LAYER/*m_material->GetLightLayer()*/);
 	else
 		rendertools->ProcessLighting(-1);

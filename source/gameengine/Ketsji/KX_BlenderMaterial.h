@@ -107,6 +107,7 @@ private:
 	void ActivatGLMaterials( RAS_IRasterizer* rasty )const;
 	void ActivateTexGen( RAS_IRasterizer *ras ) const;
 
+	bool UsesLighting(RAS_IRasterizer *rasty) const;
 
 	// message centers
 	void	setTexData( bool enable,RAS_IRasterizer *ras);

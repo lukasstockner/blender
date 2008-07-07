@@ -137,4 +137,10 @@ void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 	GPU_material_bind_uniforms(mGPUMat, obmat, viewmat);
 }
 
+bool BL_BlenderShader::Identical(BL_BlenderShader *blshader)
+{
+	/* to avoid unneeded state switches */
+	return (blshader && mGPUMat == blshader->mGPUMat && mLightLayer == blshader->mLightLayer);
+}
+
 // eof

@@ -238,8 +238,9 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 		return;
 	}
 
-	BL_Texture::DisableAllTextures();
-	if(mBlenderShader != mLastBlenderShader) {
+	if(!mBlenderShader->Identical(mLastBlenderShader)) {
+		BL_Texture::DisableAllTextures();
+
 		if(mLastBlenderShader)
 			mLastBlenderShader->SetProg(false);
 
@@ -482,6 +483,18 @@ KX_BlenderMaterial::Activate(
 		}
 	}
 	return dopass;
+}
+
+bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
+{
+	if(!RAS_IPolyMaterial::UsesLighting(rasty))
+		return false;
+
+	if(mShader && mShader->Ok());
+	else if(mBlenderShader && mBlenderShader->Ok())
+		return false;
+	
+	return true;
 }
 
 void KX_BlenderMaterial::ActivateMeshSlot(const KX_MeshSlot & ms, RAS_IRasterizer* rasty) const
