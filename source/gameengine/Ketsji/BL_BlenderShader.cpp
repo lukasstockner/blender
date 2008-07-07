@@ -75,6 +75,8 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 	GPUVertexAttribs attribs;
 	int i, attrib_num;
 
+	ras->SetAttribNum(0);
+
 	if(!mGPUMat)
 		return;
 

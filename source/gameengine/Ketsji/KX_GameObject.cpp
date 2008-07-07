@@ -1289,7 +1289,7 @@ PyObject* KX_GameObject::PyGetMesh(PyObject* self,
 			return meshproxy;
 		}
 	}
-	return NULL;
+	Py_RETURN_NONE;
 }
 
 

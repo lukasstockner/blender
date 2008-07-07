@@ -128,32 +128,31 @@ void KX_BlenderMaterial::OnConstruction()
 		// when material are reused between objects
 		return;
 	
-	if(mMaterial->glslmat) {
+	if(mMaterial->glslmat)
 		SetBlenderGLSLShader();
-	}
-	else {
-		// for each unique material...
-		int i;
-		for(i=0; i<mMaterial->num_enabled; i++) {
-			if( mMaterial->mapping[i].mapping & USEENV ) {
-				if(!GLEW_ARB_texture_cube_map) {
-					spit("CubeMap textures not supported");
-					continue;
-				}
-				if(!mTextures[i].InitCubeMap(i, mMaterial->cubemap[i] ) )
+
+	// for each unique material...
+	int i;
+	for(i=0; i<mMaterial->num_enabled; i++) {
+		if( mMaterial->mapping[i].mapping & USEENV ) {
+			if(!GLEW_ARB_texture_cube_map) {
+				spit("CubeMap textures not supported");
+				continue;
+			}
+			if(!mTextures[i].InitCubeMap(i, mMaterial->cubemap[i] ) )
+				spit("unable to initialize image("<<i<<") in "<< 
+						 mMaterial->matname<< ", image will not be available");
+		} 
+	
+		else {
+			if( mMaterial->img[i] ) {
+				if( ! mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] &MIPMAP)!=0 ))
 					spit("unable to initialize image("<<i<<") in "<< 
-							 mMaterial->matname<< ", image will not be available");
-			} 
-		
-			else {
-				if( mMaterial->img[i] ) {
-					if( ! mTextures[i].InitFromImage(i, mMaterial->img[i], (mMaterial->flag[i] &MIPMAP)!=0 ))
-						spit("unable to initialize image("<<i<<") in "<< 
-							mMaterial->matname<< ", image will not be available");
-				}
+						mMaterial->matname<< ", image will not be available");
 			}
 		}
 	}
+
 	mBlendFunc[0] =0;
 	mBlendFunc[1] =0;
 	mConstructed = true;
@@ -489,7 +488,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(const KX_MeshSlot & ms, RAS_IRasterize
 {
 	if(mShader && GLEW_ARB_shader_objects)
 		mShader->Update(ms, rasty);
-	if(mBlenderShader && GLEW_ARB_shader_objects)
+	else if(mBlenderShader && GLEW_ARB_shader_objects)
 		mBlenderShader->Update(ms, rasty);
 }
 
@@ -531,6 +530,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		ras->SetAttribNum(0);
 		if(mShader && GLEW_ARB_shader_objects) {
 			if(mShader->GetAttribute() == BL_Shader::SHD_TANGENT) {
+				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
 				ras->SetAttribNum(2);
 			}

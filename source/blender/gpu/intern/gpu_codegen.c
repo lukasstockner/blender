@@ -141,19 +141,19 @@ typedef struct GPUInput {
 	int definetex;			/* input is responsible for defining the pixel? */
 	int textarget;			/* GL_TEXTURE_* */
 
-	float vec[16];			/* vector data */
-	float *dynamicvec;		/* vector data in case it is dynamic */
-	GPUNodeLink *link;
-	GPUTexture *tex;		/* input texture, only set at runtime */
-	int dynamictex;			/* dynamic? */
 	struct Image *ima;		/* image */
 	struct ImageUser *iuser;/* image user */
+	float *dynamicvec;		/* vector data in case it is dynamic */
+	GPUTexture *tex;		/* input texture, only set at runtime */
+	char shadername[32];	/* name in shader */
+
+	float vec[16];			/* vector data */
+	GPUNodeLink *link;
+	int dynamictex;			/* dynamic? */
 	int attribtype;			/* attribute type */
 	char attribname[32];	/* attribute name */
 	int attribfirst;		/* this is the first one that is bound */
 	GPUBuiltin builtin;		/* builtin uniform */
-
-	char shadername[32];	/* name in shader */
 } GPUInput;
 
 struct GPUPass {
@@ -676,7 +676,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 
-	if(G.f & G_DEBUG) printf("%s\n", code);
+	//if(G.f & G_DEBUG) printf("%s\n", code);
 
 	return code;
 }
@@ -719,7 +719,7 @@ static char *code_generate_vertex(ListBase *nodes)
 
 	BLI_dynstr_free(ds);
 
-	if(G.f & G_DEBUG) printf("%s\n", code);
+	//if(G.f & G_DEBUG) printf("%s\n", code);
 
 	return code;
 }
