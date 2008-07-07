@@ -1,4 +1,18 @@
 
+#if __VERSION__ < 110
+
+float exp(float f)
+{
+	return pow(2.71828182846, f);
+}
+
+float log(float f)
+{
+	return log2(f)/log2(2.71828182846);
+}
+
+#endif
+
 void rgb_to_hsv(vec4 rgb, out vec4 outcol)
 {
 	float cmax, cmin, h, s, v, cdelta;
@@ -1493,29 +1507,6 @@ void shade_only_shadow(float i, float shadfac, float energy, vec3 rgb, vec3 spec
 	outdiff = diff - vec4(rgb*shadfac, 0.0);
 	outspec = spec - vec4(specrgb*shadfac, 0.0);
 }
-
-#if 0
-void shade_one_light(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, vec3 lv, float visifac, out vec4 outcol)
-{
-	vec3 v = -normalize(varposition);
-	float inp;
-
-	inp = max(dot(-normal, lv), 0.0);
-
-	outcol = visifac*material_lambert_diff(inp)*ref*col;
-	outcol += visifac*material_cooktorr_spec(-normal, lv, v, hard)*spec*specfac;
-}
-
-void material_simple(vec4 col, float ref, vec4 spec, float specfac, float hard, vec3 normal, out vec4 combined)
-{
-	vec4 outcol;
-
-	shade_one_light(col, ref, spec, specfac, hard, normal, vec3(-0.300, 0.300, 0.900), 1.0, outcol);
-	combined = outcol*vec4(0.9, 0.9, 0.9, 1.0);
-	shade_one_light(col, ref, spec, specfac, hard, normal, vec3(0.500, 0.500, 0.100), 1.0, outcol);
-	combined += outcol*vec4(0.2, 0.2, 0.5, 1.0);
-}
-#endif
 
 void readshadowbuf(sampler2D shadowmap, float xs, float ys, float zs, float bias, out float result)
 {

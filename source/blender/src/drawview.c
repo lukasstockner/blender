@@ -3020,8 +3020,7 @@ static void gpu_render_shadow_buffers(Scene *scene, View3D *v3d)
 					lay= v3d->lay;
 
 					v3d->drawtype = OB_SOLID;
-					if(GPU_lamp_shadow_layer(ob->gpulamp))
-						v3d->lay= ob->lay;
+					v3d->lay &= GPU_lamp_shadow_layer(ob->gpulamp);
 
 					GPU_lamp_shadow_buffer_bind(ob->gpulamp, viewmat, &winsize, winmat);
 					drawview3d_render(v3d, viewmat, winsize, winsize, winmat, 1);

@@ -51,8 +51,6 @@
 #include "GPU_extensions.h"
 
 #include "gpu_codegen.h"
-#include "material_vertex_shader.glsl.c"
-#include "material_shaders.glsl.c"
 
 #include <string.h>
 #include <stdarg.h>
@@ -65,6 +63,9 @@
 #define snprintf _snprintf
 #endif
 #endif
+
+extern char datatoc_gpu_shader_material_glsl[];
+extern char datatoc_gpu_shader_vertex_glsl[];
 
 /* structs and defines */
 
@@ -344,9 +345,9 @@ GPUFunction *GPU_lookup_function(char *name)
 {
 	if(!FUNCTION_HASH) {
 		FUNCTION_HASH = BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
-		gpu_parse_functions_string(FUNCTION_HASH, datatoc_material_shaders_glsl);
+		gpu_parse_functions_string(FUNCTION_HASH, datatoc_gpu_shader_material_glsl);
 		FUNCTION_PROTOTYPES = gpu_generate_function_prototyps(FUNCTION_HASH);
-		FUNCTION_LIB = GPU_shader_create_lib(datatoc_material_shaders_glsl);
+		FUNCTION_LIB = GPU_shader_create_lib(datatoc_gpu_shader_material_glsl);
 	}
 
 	return (GPUFunction*)BLI_ghash_lookup(FUNCTION_HASH, name);
@@ -698,7 +699,7 @@ static char *code_generate_vertex(ListBase *nodes)
 	}
 
 	BLI_dynstr_append(ds, "\n");
-	BLI_dynstr_append(ds, datatoc_material_vertex_shader_glsl);
+	BLI_dynstr_append(ds, datatoc_gpu_shader_vertex_glsl);
 
 	for (node=nodes->first; node; node=node->next)
 		for (input=node->inputs.first; input; input=input->next)

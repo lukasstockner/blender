@@ -260,6 +260,9 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	GLenum type, format;
 	void *pixels = NULL;
 
+	if(depth && !GLEW_ARB_depth_texture)
+		return NULL;
+
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->w = tex->realw = w;
 	tex->h = tex->realh = h;
@@ -285,10 +288,10 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	tex->number = 0;
 	glBindTexture(tex->target, tex->bindcode);
 
-	if(depth) { /* TODO extensions */
+	if(depth) {
 		type = GL_UNSIGNED_BYTE;
 		format = GL_DEPTH_COMPONENT;
-		tex->internalformat = GL_DEPTH_COMPONENT16;
+		tex->internalformat = GL_DEPTH_COMPONENT;
 	}
 	else if (halffloat && (GLEW_ARB_texture_float || GLEW_ATI_texture_float)) {
 		type = GL_FLOAT;

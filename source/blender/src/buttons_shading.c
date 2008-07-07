@@ -2633,9 +2633,9 @@ static void lamp_panel_spot(Object *ob, Lamp *la)
 
 	uiBlockSetCol(block, TH_BUT_SETTING1);
 	uiBlockBeginAlign(block);
-	uiDefButBitS(block, TOG, LA_SHAD_RAY, B_SHADRAY,"Ray Shadow",10,180,80,19,&la->mode, 0, 0, 0, 0, "Use ray tracing for shadow");
+	uiDefButBitI(block, TOG, LA_SHAD_RAY, B_SHADRAY,"Ray Shadow",10,180,80,19,&la->mode, 0, 0, 0, 0, "Use ray tracing for shadow");
 	if(la->type==LA_SPOT) {
-		uiDefButBitS(block, TOG, LA_SHAD_BUF, B_SHADBUF, "Buf.Shadow",10,160,80,19,&la->mode, 0, 0, 0, 0, "Lets spotlight produce shadows using shadow buffer");
+		uiDefButBitI(block, TOG, LA_SHAD_BUF, B_SHADBUF, "Buf.Shadow",10,160,80,19,&la->mode, 0, 0, 0, 0, "Lets spotlight produce shadows using shadow buffer");
 		if(la->mode & LA_SHAD_BUF) {
 			char *tip= "Regular buffer type";
 			if(la->buftype==LA_SHADBUF_IRREGULAR)
@@ -2648,12 +2648,15 @@ static void lamp_panel_spot(Object *ob, Lamp *la)
 	}
 	uiBlockEndAlign(block);
 	
-	uiDefButBitS(block, TOG, LA_ONLYSHADOW, B_LAMPPRV,"OnlyShadow",		10,110,80,19,&la->mode, 0, 0, 0, 0, "Causes light to cast shadows only without illuminating objects");
+	uiBlockBeginAlign(block);
+	uiDefButBitI(block, TOG, LA_ONLYSHADOW, B_LAMPPRV,"OnlyShadow",		10,110,80,19,&la->mode, 0, 0, 0, 0, "Causes light to cast shadows only without illuminating objects");
+	uiDefButBitI(block, TOG, LA_LAYER_SHADOW, B_LAMPPRV,"Layer",		10,90,80,19,&la->mode, 0, 0, 0, 0, "Causes only objects on the same layer to cast shadows");
+	uiBlockEndAlign(block);
 
 	if(la->type==LA_SPOT) {
 		uiBlockBeginAlign(block);
-		uiDefButBitS(block, TOG, LA_SQUARE, B_LAMPREDRAW,"Square",	10,60,80,19,&la->mode, 0, 0, 0, 0, "Sets square spotbundles");
-		uiDefButBitS(block, TOG, LA_HALO, B_LAMPREDRAW,"Halo",		10,40,80,19,&la->mode, 0, 0, 0, 0, "Renders spotlight with a volumetric halo"); 
+		uiDefButBitI(block, TOG, LA_SQUARE, B_LAMPREDRAW,"Square",	10,60,80,19,&la->mode, 0, 0, 0, 0, "Sets square spotbundles");
+		uiDefButBitI(block, TOG, LA_HALO, B_LAMPREDRAW,"Halo",		10,40,80,19,&la->mode, 0, 0, 0, 0, "Renders spotlight with a volumetric halo"); 
 
 		uiBlockBeginAlign(block);
 		uiDefButF(block, NUMSLI,B_LAMPREDRAW,"SpotSi ",	100,180,200,19,&la->spotsize, 1.0, 180.0, 0, 0, "Sets the angle of the spotlight beam in degrees");
@@ -2777,12 +2780,12 @@ static void lamp_panel_yafray(Object *ob, Lamp *la)
 	/* in yafray arealights always cast shadows, so ray shadow flag not needed */
 	/* ray shadow also not used when halo for spot enabled */
 	if ((la->type!=LA_AREA) && (!((la->type==LA_SPOT) && (la->mode & LA_HALO))))
-		uiDefButBitS(block, TOG, LA_SHAD_RAY, B_SHADRAY,"Ray Shadow",10,180,80,19,&la->mode, 0, 0, 0, 0, "Use ray tracing for shadow");
+		uiDefButBitI(block, TOG, LA_SHAD_RAY, B_SHADRAY,"Ray Shadow",10,180,80,19,&la->mode, 0, 0, 0, 0, "Use ray tracing for shadow");
 	
 	/* in yafray the regular lamp can use shadowbuffers (softlight), used by spot with halo as well */
 	/* to prevent clash with blender shadowbuf flag, a special flag is used for yafray */
 	if (la->type==LA_LOCAL) {
-		uiDefButBitS(block, TOG, LA_YF_SOFT, B_SHADBUF, "Buf.Shadow",10,160,80,19,&la->mode, 0, 0, 0, 0, "Lets light produce shadows using shadow buffer");
+		uiDefButBitI(block, TOG, LA_YF_SOFT, B_SHADBUF, "Buf.Shadow",10,160,80,19,&la->mode, 0, 0, 0, 0, "Lets light produce shadows using shadow buffer");
 		uiDefButF(block, NUM, B_DIFF, "GloInt:", 100,155,200,19, &la->YF_glowint, 0.0, 1.0, 1, 0, "Sets light glow intensity, 0 is off");
 		uiDefButF(block, NUM, B_DIFF, "GloOfs:", 100,135,100,19, &la->YF_glowofs, 0.0, 2.0, 1, 0, "Sets light glow offset, the higher, the less 'peaked' the glow");
 		uiDefButS(block, NUM, B_DIFF, "GlowType:", 200,135,100,19, &la->YF_glowtype, 0, 1, 1, 0, "Sets light glow type");
@@ -2810,7 +2813,7 @@ static void lamp_panel_yafray(Object *ob, Lamp *la)
 	
 	if (la->type==LA_SPOT) {
 
-		uiDefButBitS(block, TOG, LA_HALO, B_LAMPREDRAW,"Halo",				10,50,80,19,&la->mode, 0, 0, 0, 0, "Renders spotlight with a volumetric halo"); 
+		uiDefButBitI(block, TOG, LA_HALO, B_LAMPREDRAW,"Halo",				10,50,80,19,&la->mode, 0, 0, 0, 0, "Renders spotlight with a volumetric halo"); 
 
 		uiBlockSetCol(block, TH_AUTO);
 		uiBlockBeginAlign(block);
@@ -2930,15 +2933,15 @@ static void lamp_panel_lamp(Object *ob, Lamp *la)
 		uiBlockSetCol(block, TH_BUT_SETTING1);
 		uiDefButS(block, MENU, B_LAMPREDRAW,  "Falloff %t|Constant %x0|Inverse Linear %x1|Inverse Square %x2|Custom Curve %x3|Lin/Quad Weighted %x4|",
 			10,150,100,19, &la->falloff_type, 0,0,0,0, "Lamp falloff - intensity decay with distance");	
-		uiDefButBitS(block, TOG, LA_SPHERE, REDRAWVIEW3D,"Sphere",	10,130,100,19,&la->mode, 0, 0, 0, 0, "Sets light intensity to zero for objects beyond the distance value");
+		uiDefButBitI(block, TOG, LA_SPHERE, REDRAWVIEW3D,"Sphere",	10,130,100,19,&la->mode, 0, 0, 0, 0, "Sets light intensity to zero for objects beyond the distance value");
 	}
 
 	uiBlockBeginAlign(block);
 	uiBlockSetCol(block, TH_BUT_SETTING1);
-	uiDefButBitS(block, TOG, LA_LAYER, B_LAMPPRV,"Layer",				10,70,100,19,&la->mode, 0, 0, 0, 0, "Illuminates objects in the same layer as the lamp only");
-	uiDefButBitS(block, TOG, LA_NEG, B_LAMPPRV,"Negative",	10,50,100,19,&la->mode, 0, 0, 0, 0, "Sets lamp to cast negative light");
-	uiDefButBitS(block, TOG, LA_NO_DIFF, B_LAMPPRV,"No Diffuse",		10,30,100,19,&la->mode, 0, 0, 0, 0, "Disables diffuse shading of material illuminated by this lamp");
-	uiDefButBitS(block, TOG, LA_NO_SPEC, B_LAMPPRV,"No Specular",		10,10,100,19,&la->mode, 0, 0, 0, 0, "Disables specular shading of material illuminated by this lamp");
+	uiDefButBitI(block, TOG, LA_LAYER, B_LAMPPRV,"Layer",				10,70,100,19,&la->mode, 0, 0, 0, 0, "Illuminates objects in the same layer as the lamp only");
+	uiDefButBitI(block, TOG, LA_NEG, B_LAMPPRV,"Negative",	10,50,100,19,&la->mode, 0, 0, 0, 0, "Sets lamp to cast negative light");
+	uiDefButBitI(block, TOG, LA_NO_DIFF, B_LAMPPRV,"No Diffuse",		10,30,100,19,&la->mode, 0, 0, 0, 0, "Disables diffuse shading of material illuminated by this lamp");
+	uiDefButBitI(block, TOG, LA_NO_SPEC, B_LAMPPRV,"No Specular",		10,10,100,19,&la->mode, 0, 0, 0, 0, "Disables specular shading of material illuminated by this lamp");
 	uiBlockEndAlign(block);
 
 	uiBlockSetCol(block, TH_AUTO);
