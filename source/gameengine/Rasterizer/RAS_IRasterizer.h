@@ -62,7 +62,8 @@ public:
 			KX_WIREFRAME,
 			KX_SOLID,
 			KX_SHADED,
-			KX_TEXTURED 
+			KX_TEXTURED,
+			KX_SHADOW
 	};
 
 	/**

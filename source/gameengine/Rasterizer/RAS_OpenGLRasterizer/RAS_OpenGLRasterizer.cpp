@@ -368,22 +368,10 @@ void RAS_OpenGLRasterizer::SetDrawingMode(int drawingmode)
 
 	switch (m_drawingmode)
 	{
-	case KX_BOUNDINGBOX:
-		{
-		}
 	case KX_WIREFRAME:
 		{
 			glDisable (GL_CULL_FACE);
 			break;
-		}
-	case KX_TEXTURED:
-		{
-		}
-	case KX_SHADED:
-		{
-		}
-	case KX_SOLID:
-		{
 		}
 	default:
 		{

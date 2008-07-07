@@ -82,6 +82,7 @@ void RAS_VAOpenGLRasterizer::SetDrawingMode(int drawingmode)
 			break;
 		case KX_TEXTURED:
 		case KX_SHADED:
+		case KX_SHADOW:
 			glEnableClientState(GL_COLOR_ARRAY);
 		case KX_SOLID:
 			break;

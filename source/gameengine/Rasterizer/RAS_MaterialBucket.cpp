@@ -179,17 +179,17 @@ bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_I
 
 	if( flag & RAS_BLENDERMAT)
 		dolights = (flag &RAS_MULTILIGHT)!=0;
+	else if(rasty->GetDrawingMode() < RAS_IRasterizer::KX_SOLID)
+		dolights = false;
+	else if(rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW)
+		dolights = false;
 	else
 		dolights = (m_material->GetDrawingMode()&16)!=0;
 
-	if ((rasty->GetDrawingMode() < RAS_IRasterizer::KX_SOLID) || !dolights)
-	{
-		rendertools->ProcessLighting(-1);
-	}
-	else
-	{
+	if (dolights)
 		rendertools->ProcessLighting(RAS_IRenderTools::RAS_LIGHT_OBJECT_LAYER/*m_material->GetLightLayer()*/);
-	}
+	else
+		rendertools->ProcessLighting(-1);
 
 	drawmode = (rasty->GetDrawingMode()  < RAS_IRasterizer::KX_SOLID ? 	
 		1:	(m_material->UsesTriangles() ? 0 : 2));
@@ -225,6 +225,17 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 			ms.m_DisplayList->SetModified(ms.m_mesh->MeshModified());
 	}
 
+	// verify if we can use display list, not for deformed object, and
+	// also don't create a new display list when drawing shadow buffers,
+	// then it won't have texture coordinates for actual drawing
+	KX_ListSlot **displaylist;
+	if(ms.m_pDeformer)
+		displaylist = 0;
+	else if(!ms.m_DisplayList && rasty->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW)
+		displaylist = 0;
+	else
+		displaylist = &ms.m_DisplayList;
+
 	// Use the text-specific IndexPrimitives for text faces
 	if (m_material->GetDrawingMode() & RAS_IRasterizer::RAS_RENDER_3DPOLYGON_TEXT)
 	{
@@ -249,8 +260,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 				rendertools,
 				ms.m_bObjectColor,
 				ms.m_RGBAcolor,
-				(ms.m_pDeformer)? 0: &ms.m_DisplayList
-				);
+				displaylist);
 	}
 
 	// Use the normal IndexPrimitives
@@ -264,8 +274,7 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 				rendertools, // needed for textprinting on polys
 				ms.m_bObjectColor,
 				ms.m_RGBAcolor,
-				(ms.m_pDeformer)? 0: &ms.m_DisplayList
-				);
+				displaylist);
 	}
 
 	if(rasty->QueryLists()) {

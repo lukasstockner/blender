@@ -896,20 +896,24 @@ void KX_KetsjiEngine::SetupRenderFrame(KX_Scene *scene, KX_Camera* cam)
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
 	CListValue *lightlist = scene->GetLightList();
-	int i;
+	int i, drawmode;
 
 	for(i=0; i<lightlist->GetCount(); i++) {
 		KX_LightObject *light = (KX_LightObject*)lightlist->GetValue(i);
 
 		light->Update();
 
-		if(light->HasShadowBuffer()) {
+		if(m_drawingmode == RAS_IRasterizer::KX_TEXTURED && light->HasShadowBuffer()) {
 			/* make temporary camera */
 			RAS_CameraData camdata = RAS_CameraData();
 			KX_Camera *cam = new KX_Camera(scene, scene->m_callbacks, camdata, false);
 			cam->SetName("__shadow__cam__");
 
 			MT_Transform camtrans;
+
+			/* switch drawmode for speed */
+			drawmode = m_rasterizer->GetDrawingMode();
+			m_rasterizer->SetDrawingMode(RAS_IRasterizer::KX_SHADOW);
 
 			/* binds framebuffer object, sets up camera .. */
 			light->BindShadowBuffer(m_rasterizer, cam, camtrans);
@@ -922,8 +926,9 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			m_rasterizer->ClearDepthBuffer();
 			scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 
-			/* unbind framebuffer object, free camera */
+			/* unbind framebuffer object, restore drawmode, free camera */
 			light->UnbindShadowBuffer(m_rasterizer);
+			m_rasterizer->SetDrawingMode(drawmode);
 			cam->Release();
 		}
 	}
