@@ -1,17 +1,8 @@
 
-#if __VERSION__ < 110
-
-float exp(float f)
+float exp_blender(float f)
 {
 	return pow(2.71828182846, f);
 }
-
-float log(float f)
-{
-	return log2(f)/log2(2.71828182846);
-}
-
-#endif
 
 void rgb_to_hsv(vec4 rgb, out vec4 outcol)
 {
@@ -197,7 +188,7 @@ void math_pow(float val1, float val2, out float outval)
 void math_log(float val1, float val2, out float outval)
 {
 	if(val1 > 0.0  && val2 > 0.0)
-		outval= log(val1) / log(val2);
+		outval= log2(val1) / log2(val2);
 	else
 		outval= 0.0;
 }
@@ -1429,7 +1420,7 @@ void shade_blinn_spec(vec3 n, vec3 l, vec3 v, float refrac, float spec_power, ou
 				float f = (((p-vh)*(p-vh))/((p+vh)*(p+vh)))*(1.0+((((vh*(p+vh))-1.0)*((vh*(p+vh))-1.0))/(((vh*(p-vh))+1.0)*((vh*(p-vh))+1.0))));
 				float ang = acos(nh);
 
-				specfac = max(f*g*exp((-(ang*ang)/(2.0*spec_power*spec_power))), 0.0);
+				specfac = max(f*g*exp_blender((-(ang*ang)/(2.0*spec_power*spec_power))), 0.0);
 			}
 		}
 	}
@@ -1444,7 +1435,7 @@ void shade_wardiso_spec(vec3 n, vec3 l, vec3 v, float rms, out float specfac)
 	float angle = tan(acos(nh));
 	float alpha = max(rms, 0.001);
 
-	specfac= nl * (1.0/(4.0*M_PI*alpha*alpha))*(exp(-(angle*angle)/(alpha*alpha))/(sqrt(nv*nl)));
+	specfac= nl * (1.0/(4.0*M_PI*alpha*alpha))*(exp_blender(-(angle*angle)/(alpha*alpha))/(sqrt(nv*nl)));
 }
 
 void shade_toon_spec(vec3 n, vec3 l, vec3 v, float size, float tsmooth, out float specfac)

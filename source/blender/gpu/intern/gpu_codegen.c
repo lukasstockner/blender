@@ -894,6 +894,20 @@ void GPU_node_end(GPUNode *node)
 static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 {
 	GPUInput *input;
+	GPUNode *outnode;
+	char *name;
+
+	if(link->output) {
+		outnode = link->output->node;
+		name = outnode->name;
+
+		if(strcmp(name, "set_value")==0 || strcmp(name, "set_rgb")==0) {
+			input = MEM_dupallocN(outnode->inputs.first);
+			input->type = type;
+			BLI_addtail(&node->inputs, input);
+			return;
+		}
+	}
 	
 	input = MEM_callocN(sizeof(GPUInput), "GPUInput");
 	input->node = node;
@@ -1278,6 +1292,27 @@ int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack 
 	gpu_material_add_node(mat, node);
 	
 	return 1;
+}
+
+int GPU_link_changed(GPUNodeLink *link)
+{
+	GPUNode *node;
+	GPUInput *input;
+	char *name;
+
+	if(link->output) {
+		node = link->output->node;
+		name = node->name;
+
+		if(strcmp(name, "set_value")==0 || strcmp(name, "set_rgb")==0) {
+			input = node->inputs.first;
+			return (input->link != NULL);
+		}
+
+		return 1;
+	}
+	else
+		return 0;
 }
 
 /* Pass create/free */

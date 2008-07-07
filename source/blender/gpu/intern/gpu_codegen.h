@@ -80,6 +80,7 @@ void GPU_pass_free(GPUPass *pass);
 
 char *GPU_builtin_name(GPUBuiltin builtin);
 void gpu_material_add_node(struct GPUMaterial *material, struct GPUNode *node);
+int GPU_link_changed(struct GPUNodeLink *link);
 
 #endif
 

@@ -579,13 +579,16 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 	else
 		GPU_link(mat, "set_value", GPU_uniform(&one), &shadfac);
 
-	if(!(lamp->mode & LA_NO_DIFF)) {
-		GPUNodeLink *rgb;
-		GPU_link(mat, "shade_mul_value", i, GPU_dynamic_uniform(lamp->dyncol), &rgb);
-		add_to_diffuse(mat, ma, shi, is, rgb, &shr->diff);
+	if(GPU_link_changed(shi->refl) || ma->ref != 0.0f) {
+		if(!(lamp->mode & LA_NO_DIFF)) {
+			GPUNodeLink *rgb;
+			GPU_link(mat, "shade_mul_value", i, GPU_dynamic_uniform(lamp->dyncol), &rgb);
+			add_to_diffuse(mat, ma, shi, is, rgb, &shr->diff);
+		}
 	}
 
-	if(!(lamp->mode & LA_NO_SPEC) && !(lamp->mode & LA_ONLYSHADOW)) {
+	if(!(lamp->mode & LA_NO_SPEC) && !(lamp->mode & LA_ONLYSHADOW) &&
+	   (GPU_link_changed(shi->spec) || ma->spec != 0.0f)) {
 		if(lamp->type == LA_HEMI) {
 			GPU_link(mat, "shade_hemi_spec", vn, lv, view, GPU_uniform(&ma->spec), shi->har, visifac, &t);
 			GPU_link(mat, "shade_add_spec", t, GPU_dynamic_uniform(lamp->dyncol), shi->specrgb, &outcol);
@@ -955,12 +958,16 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		shr->alpha = shi->alpha;
 	}
 	else {
-		if((ma->mode & (MA_VERTEXCOL|MA_VERTEXCOLP))== MA_VERTEXCOL) {
-			GPU_link(mat, "shade_add", shi->emit, shi->vcol, &emit);
-			GPU_link(mat, "shade_mul", emit, shi->rgb, &shr->diff);
+		if(GPU_link_changed(shi->emit) || ma->emit != 0.0f) {
+			if((ma->mode & (MA_VERTEXCOL|MA_VERTEXCOLP))== MA_VERTEXCOL) {
+				GPU_link(mat, "shade_add", shi->emit, shi->vcol, &emit);
+				GPU_link(mat, "shade_mul", emit, shi->rgb, &shr->diff);
+			}
+			else
+				GPU_link(mat, "shade_mul_value", shi->emit, shi->rgb, &shr->diff);
 		}
 		else
-			GPU_link(mat, "shade_mul_value", shi->emit, shi->rgb, &shr->diff);
+			GPU_link(mat, "set_rgb_zero", &shr->diff);
 
 		GPU_link(mat, "set_rgb_zero", &shr->spec);
 
@@ -972,10 +979,12 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		if(ma->mode & MA_RAMP_COL) ramp_diffuse_result(shi, &shr->combined);
 		if(ma->mode & MA_RAMP_SPEC) ramp_spec_result(shi, &shr->spec);
 
-		GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
+		if(GPU_link_changed(shi->spec) || ma->spec != 0.0f)
+			GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
 	}
 
-	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
+	if(mat->alpha)
+		GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
 }
 
 GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
