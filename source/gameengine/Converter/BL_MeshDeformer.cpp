@@ -39,6 +39,7 @@
 #endif
 
 #include "RAS_IPolygonMaterial.h"
+#include "BL_DeformableGameObject.h"
 #include "BL_MeshDeformer.h"
 #include "BL_SkinMeshObject.h"
 #include "DNA_mesh_types.h"
@@ -47,7 +48,7 @@
 #include "GEN_Map.h"
 #include "STR_HashedString.h"
 
-bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *mat)
+bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
 {
 	size_t			i, j, index;
 	vecVertexArray	array;
@@ -57,23 +58,37 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *mat)
 	RAS_TexVert *tv;
 	MVert	*mvert;
 
-	// For each material
-	array = m_pMeshObject->GetVertexCache(mat);
-	mvarray = m_pMeshObject->GetMVertCache(mat);
-	diarray = m_pMeshObject->GetDIndexCache(mat);
+	// only apply once per frame if the mesh is actually modified
+	if(m_pMeshObject->MeshModified() &&
+	   m_lastDeformUpdate != m_gameobj->GetLastFrame()) {
+		// For each material
+		for(RAS_MaterialBucket::Set::iterator mit = m_pMeshObject->GetFirstMaterial();
+			mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
+			RAS_IPolyMaterial *mat = (*mit)->GetPolyMaterial();
 
-	// For each array
-	for (i=0; i<array.size(); i++){
-		//	For each vertex
-		for (j=0; j<array[i]->size(); j++){
-			tv = &((*array[i])[j]);
-			index = ((*diarray[i])[j]);
+			array = m_pMeshObject->GetVertexCache(mat);
+			mvarray = m_pMeshObject->GetMVertCache(mat);
+			diarray = m_pMeshObject->GetDIndexCache(mat);
 
-			mvert = &(m_bmesh->mvert[((*mvarray[i])[index])]);
-			tv->SetXYZ(MT_Point3(mvert->co));
+			// For each array
+			for (i=0; i<array.size(); i++){
+				//	For each vertex
+				for (j=0; j<array[i]->size(); j++){
+					tv = &((*array[i])[j]);
+					index = ((*diarray[i])[j]);
+
+					mvert = &(m_bmesh->mvert[((*mvarray[i])[index])]);
+					tv->SetXYZ(MT_Point3(mvert->co));
+				}
+			}
 		}
+
+		m_lastDeformUpdate = m_gameobj->GetLastFrame();
+
+		return true;
 	}
-	return true;
+
+	return false;
 }
 
 BL_MeshDeformer::~BL_MeshDeformer()

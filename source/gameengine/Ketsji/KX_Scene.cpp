@@ -886,6 +886,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj)
 			else if (bHasArmature) 
 			{
 				BL_SkinDeformer* skinDeformer = new BL_SkinDeformer(
+					newobj,
 					oldblendobj, blendobj,
 					static_cast<BL_SkinMeshObject*>(mesh),
 					true,
@@ -897,7 +898,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj)
 			else if (bHasDvert)
 			{
 				BL_MeshDeformer* meshdeformer = new BL_MeshDeformer(
-					oldblendobj, static_cast<BL_SkinMeshObject*>(mesh)
+					newobj, oldblendobj, static_cast<BL_SkinMeshObject*>(mesh)
 				);
 				newobj->m_pDeformer = meshdeformer;
 			}

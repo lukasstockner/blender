@@ -152,13 +152,14 @@ typedef struct GPUInput {
 	char attribname[32];	/* attribute name */
 	int attribfirst;		/* this is the first one that is bound */
 	GPUBuiltin builtin;		/* builtin uniform */
+
+	char shadername[32];	/* name in shader */
 } GPUInput;
 
 struct GPUPass {
 	struct GPUPass *next, *prev;
 
-	ListBase nodes;
-	int firstbind;
+	ListBase inputs;
 	struct GPUOutput *output;
 	struct GPUShader *shader;
 };
@@ -730,91 +731,120 @@ GPUShader *GPU_pass_shader(GPUPass *pass)
 	return pass->shader;
 }
 
-void GPU_pass_bind(GPUPass *pass)
+void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 {
-	GPUNode *node;
-	GPUInput *input;
 	GPUShader *shader = pass->shader;
-	ListBase *nodes = &pass->nodes;
-	DynStr *ds;
-	char *name;
+	GPUNode *node;
+	GPUInput *next, *input;
+	ListBase *inputs = &pass->inputs;
+	int extract;
 
-	if (!shader)
+	memset(inputs, 0, sizeof(*inputs));
+
+	if(!shader)
 		return;
-
-	/* create textures first, otherwise messes up multitexture state for
-	 * following textures*/
-	for (node=nodes->first; node; node=node->next)
-		for (input=node->inputs.first; input; input=input->next)
-			if (input->ima)
-				input->tex = GPU_texture_from_blender(input->ima, input->iuser);
 
 	GPU_shader_bind(shader);
 
 	for (node=nodes->first; node; node=node->next) {
-		for (input=node->inputs.first; input; input=input->next) {
+		for (input=node->inputs.first; input; input=next) {
+			next = input->next;
+
 			/* attributes don't need to be bound, they already have
 			 * an id that the drawing functions will use */
 			if(input->source == GPU_SOURCE_ATTRIB ||
 			   input->source == GPU_SOURCE_BUILTIN)
 				continue;
 
-			/* pass samplers and uniforms to opengl */
-			if (input->link)
-				input->tex = NULL; /* input->link->tex; */
-
-			ds = BLI_dynstr_new();
-			if (input->tex)
-				BLI_dynstr_printf(ds, "samp%d", input->texid);
+			if (input->ima || input->tex)
+				snprintf(input->shadername, sizeof(input->shadername), "samp%d", input->texid);
 			else
-				BLI_dynstr_printf(ds, "unf%d", input->id);
-			name = BLI_dynstr_get_cstring(ds);
-			BLI_dynstr_free(ds);
+				snprintf(input->shadername, sizeof(input->shadername), "unf%d", input->id);
 
-			if (input->tex) {
-				if (input->bindtex) {
-					if(pass->firstbind);
-					GPU_texture_bind(input->tex, input->texid);
-					GPU_shader_uniform_texture(shader, name, input->tex);
-				}
+			/* pass non-dynamic uniforms to opengl */
+			extract = 0;
+
+			if(input->ima || input->tex) {
+				if (input->bindtex)
+					extract = 1;
 			}
 			else if (input->arraysize) {
-				if(pass->firstbind || input->dynamicvec)
-					GPU_shader_uniform_vector(shader, name, input->type,
-						input->arraysize,
-						(input->dynamicvec)? input->dynamicvec: input->vec);
+				if(input->dynamicvec)
+					extract = 1;
+				else
+					GPU_shader_uniform_vector(shader, input->shadername, input->type,
+						input->arraysize, input->vec);
 			}
 			else {
-				if(pass->firstbind || input->dynamicvec)
-					GPU_shader_uniform_vector(shader, name, input->type, 1,
-						(input->dynamicvec)? input->dynamicvec: input->vec);
+				if(input->dynamicvec)
+					extract = 1;
+				else
+					GPU_shader_uniform_vector(shader, input->shadername, input->type, 1,
+						input->vec);
 			}
 
-			MEM_freeN(name);
+			/* extract nodes */
+			if(extract) {
+				BLI_remlink(&node->inputs, input);
+				BLI_addtail(inputs, input);
+			}
 		}
 	}
 
-	pass->firstbind = 0;
+	GPU_shader_unbind(shader);
 }
 
-void GPU_pass_unbind(GPUPass *pass)
+void GPU_pass_bind(GPUPass *pass)
 {
-	GPUNode *node;
 	GPUInput *input;
 	GPUShader *shader = pass->shader;
-	ListBase *nodes = &pass->nodes;
+	ListBase *inputs = &pass->inputs;
 
 	if (!shader)
 		return;
 
-	for (node=nodes->first; node; node=node->next) {
-		for (input=node->inputs.first; input; input=input->next) {
-			if (input->tex)
-				if(input->bindtex)
-					GPU_texture_unbind(input->tex);
-			if (input->link || input->ima)
-				input->tex = 0;
+	/* create textures first, otherwise messes up multitexture state for
+	 * following textures*/
+	for (input=inputs->first; input; input=input->next)
+		if (input->ima)
+			input->tex = GPU_texture_from_blender(input->ima, input->iuser);
+
+	GPU_shader_bind(shader);
+
+	/* pass dynamic inputs to opengl, others were already done */
+	for (input=inputs->first; input; input=input->next) {
+		if(input->ima || input->tex) {
+			if(input->tex) {
+				GPU_texture_bind(input->tex, input->texid);
+				GPU_shader_uniform_texture(shader, input->shadername, input->tex);
+			}
 		}
+		else if (input->arraysize) {
+			GPU_shader_uniform_vector(shader, input->shadername, input->type,
+				input->arraysize, input->dynamicvec);
+		}
+		else {
+			GPU_shader_uniform_vector(shader, input->shadername, input->type, 1,
+				input->dynamicvec);
+		}
+	}
+}
+
+void GPU_pass_unbind(GPUPass *pass)
+{
+	GPUInput *input;
+	GPUShader *shader = pass->shader;
+	ListBase *inputs = &pass->inputs;
+
+	if (!shader)
+		return;
+
+	for (input=inputs->first; input; input=input->next) {
+		if (input->tex)
+			if(input->bindtex)
+				GPU_texture_unbind(input->tex);
+		if (input->ima)
+			input->tex = 0;
 	}
 	
 	GPU_shader_unbind(shader);
@@ -975,18 +1005,26 @@ void GPU_node_output(GPUNode *node, int type, char *name, GPUNodeLink **link)
 	BLI_addtail(&node->outputs, output);
 }
 
-void GPU_node_free(GPUNode *node)
+void GPU_inputs_free(ListBase *inputs)
 {
 	GPUInput *input;
-	GPUOutput *output;
 
-	for (input=node->inputs.first; input; input=input->next) {
-		if (input->link) {
+	for(input=inputs->first; input; input=input->next) {
+		if(input->link) {
 			GPU_node_link_free(input->link);
 		}
 		else if(input->tex && !input->dynamictex)
 			GPU_texture_free(input->tex);
 	}
+
+	BLI_freelistN(inputs);
+}
+
+void GPU_node_free(GPUNode *node)
+{
+	GPUOutput *output;
+
+	GPU_inputs_free(&node->inputs);
 
 	for (output=node->outputs.first; output; output=output->next)
 		if (output->link) {
@@ -994,7 +1032,6 @@ void GPU_node_free(GPUNode *node)
 			GPU_node_link_free(output->link);
 		}
 
-	BLI_freelistN(&node->inputs);
 	BLI_freelistN(&node->outputs);
 	MEM_freeN(node);
 }
@@ -1315,13 +1352,12 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	/* create pass */
 	pass = MEM_callocN(sizeof(GPUPass), "GPUPass");
 
-	pass->nodes = *nodes;
 	pass->output = outlink->output;
 	pass->shader = shader;
-	pass->firstbind = 1;
 
-	/* take ownership over nodes */
-	memset(nodes, 0, sizeof(*nodes));
+	/* extract dynamic inputs and throw away nodes */
+	GPU_nodes_extract_dynamic_inputs(pass, nodes);
+	GPU_nodes_free(nodes);
 
 	return pass;
 }
@@ -1329,7 +1365,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 void GPU_pass_free(GPUPass *pass)
 {
 	GPU_shader_free(pass->shader);
-	GPU_nodes_free(&pass->nodes);
+	GPU_inputs_free(&pass->inputs);
 	MEM_freeN(pass);
 }
 

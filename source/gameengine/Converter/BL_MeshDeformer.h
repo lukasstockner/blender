@@ -40,19 +40,25 @@
 #pragma warning (disable:4786) // get rid of stupid stl-visual compiler debug warning
 #endif //WIN32
 
+class BL_DeformableGameObject;
+
 class BL_MeshDeformer : public RAS_Deformer
 {
 public:
 	void VerifyStorage();
 	void RecalcNormals();
 	virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map){};
-	BL_MeshDeformer(struct Object* obj, class BL_SkinMeshObject *meshobj ):
+	BL_MeshDeformer(BL_DeformableGameObject *gameobj,
+					struct Object* obj,
+					class BL_SkinMeshObject *meshobj ):
 		m_pMeshObject(meshobj),
 		m_bmesh((struct Mesh*)(obj->data)),
 		m_transverts(0),
 		m_transnors(0),
 		m_objMesh(obj),
-		m_tvtot(0)
+		m_tvtot(0),
+		m_gameobj(gameobj),
+		m_lastDeformUpdate(-1)
 	{};
 	virtual ~BL_MeshDeformer();
 	virtual void SetSimulatedTime(double time){};
@@ -72,6 +78,8 @@ protected:
 	struct Object*				m_objMesh; 
 	// --
 	int							m_tvtot;
+	BL_DeformableGameObject*	m_gameobj;
+	double					 	m_lastDeformUpdate;
 };
 
 #endif

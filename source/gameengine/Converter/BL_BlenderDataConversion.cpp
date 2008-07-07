@@ -1681,13 +1681,15 @@ static KX_GameObject *gameobject_from_blenderobject(
 			if (bHasArmature)
 				dcont->LoadShapeDrivers(ob->parent);
 		} else if (bHasArmature) {
-			BL_SkinDeformer *dcont = new BL_SkinDeformer(ob, (BL_SkinMeshObject*)meshobj );				
+			BL_SkinDeformer *dcont = new BL_SkinDeformer((BL_DeformableGameObject*)gameobj,
+															ob, (BL_SkinMeshObject*)meshobj);
 			((BL_DeformableGameObject*)gameobj)->m_pDeformer = dcont;
 		} else if (bHasDvert) {
 			// this case correspond to a mesh that can potentially deform but not with the
 			// object to which it is attached for the moment. A skin mesh was created in
 			// BL_ConvertMesh() so must create a deformer too!
-			BL_MeshDeformer *dcont = new BL_MeshDeformer(ob, (BL_SkinMeshObject*)meshobj );
+			BL_MeshDeformer *dcont = new BL_MeshDeformer((BL_DeformableGameObject*)gameobj,
+														  ob, (BL_SkinMeshObject*)meshobj);
 			((BL_DeformableGameObject*)gameobj)->m_pDeformer = dcont;
 		}
 		
