@@ -39,7 +39,7 @@ public:
 	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
 
-	bool Identical(BL_BlenderShader *blshader);
+	bool Equals(BL_BlenderShader *blshader);
 };
 
 #endif//__BL_GPUSHADER_H__

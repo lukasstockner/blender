@@ -74,7 +74,7 @@ protected:
 	// this is so m_transverts doesn't need to be converted
 	// before deformation
 	float						(*m_transverts)[3];
-	MT_Vector3*					m_transnors;
+	float 						(*m_transnors)[3];
 	struct Object*				m_objMesh; 
 	// --
 	int							m_tvtot;

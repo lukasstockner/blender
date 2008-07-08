@@ -112,10 +112,9 @@ void mapping(vec3 vec, mat4 mat, vec3 minvec, vec3 maxvec, float domin, float do
 
 void camera(vec3 co, out vec3 outview, out float outdepth, out float outdist)
 {
-	outview = co;
-	outdepth = abs(outview.z);
-	outdist = length(outview);
-	outview = normalize(outview);
+	outdepth = abs(co.z);
+	outdist = length(co);
+	outview = normalize(co);
 }
 
 void math_add(float val1, float val2, out float outval)
@@ -931,8 +930,7 @@ void mtex_value_light(float outcol, float texcol, float fact, float facg, float 
 
 void mtex_value_clamp_positive(float fac, out float outfac)
 {
-	if(fac < 0.0) outfac = 0.0;
-	else outfac = fac;
+	outfac = max(fac, 0.0);
 }
 
 void mtex_value_clamp(float fac, out float outfac)
@@ -1002,8 +1000,7 @@ void mtex_mapping(vec3 texco, vec3 size, vec3 ofs, out vec3 outtexco)
 
 void mtex_2d_mapping(vec3 vec, out vec3 outvec)
 {
-	outvec.xy = (vec.xy + vec2(1.0, 1.0))*0.5;
-	outvec.z = vec.z;
+	outvec = vec3(vec.xy*0.5 + vec2(0.5, 0.5), vec.z);
 }
 
 void mtex_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out vec3 normal)
@@ -1032,26 +1029,22 @@ void mtex_nspace_tangent(vec3 tangent, vec3 normal, vec3 texnormal, out vec3 out
 
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
 {
-	norfac = min(norfac, 1.0);
 	outnormal = (1.0 - norfac)*normal + norfac*newnormal;
 	outnormal = normalize(outnormal);
 }
 
 /******* MATERIAL *********/
 
-void lamp_visibility_sun_hemi(mat4 viewmat, vec3 lampvec, out vec3 lv, out float dist, out float visifac)
+void lamp_visibility_sun_hemi(vec3 lampvec, out vec3 lv, out float dist, out float visifac)
 {
-	lampvec = -normalize(lampvec);
-	lampvec = (viewmat*vec4(lampvec, 0.0)).xyz;
-
 	lv = lampvec;
 	dist = 1.0;
 	visifac = 1.0;
 }
 
-void lamp_visibility_other(mat4 viewmat, vec3 co, vec3 lampco, out vec3 lv, out float dist, out float visifac)
+void lamp_visibility_other(vec3 co, vec3 lampco, out vec3 lv, out float dist, out float visifac)
 {
-	lv = co - (viewmat*vec4(lampco, 1.0)).xyz;
+	lv = co - lampco;
 	dist = length(lv);
 	lv = normalize(lv);
 	visifac = 1.0;
@@ -1087,14 +1080,10 @@ void lamp_visibility_sphere(float lampdist, float dist, float visifac, out float
 	outvisifac= visifac*max(t, 0.0)/lampdist;
 }
 
-void lamp_visibility_spot_square(mat4 viewmat, mat4 viewinvmat, vec3 lampvec, mat4 lampimat, vec3 lv, out float inpr)
+void lamp_visibility_spot_square(vec3 lampvec, mat4 lampimat, vec3 lv, out float inpr)
 {
-	lampvec = -normalize(lampvec);
-	lampvec = (viewmat*vec4(lampvec, 0.0)).xyz;
-
 	if(dot(lv, lampvec) > 0.0) {
-		vec3 lvrot = (viewinvmat*vec4(lv, 0.0)).xyz;
-		lvrot = (lampimat*vec4(lvrot, 0.0)).xyz;
+		vec3 lvrot = (lampimat*vec4(lv, 0.0)).xyz;
 		float x = max(abs(lvrot.x/lvrot.z), abs(lvrot.y/lvrot.z));
 
 		inpr = 1.0/sqrt(1.0 + x*x);
@@ -1103,11 +1092,8 @@ void lamp_visibility_spot_square(mat4 viewmat, mat4 viewinvmat, vec3 lampvec, ma
 		inpr = 0.0;
 }
 
-void lamp_visibility_spot_circle(mat4 viewmat, vec3 lampvec, vec3 lv, out float inpr)
+void lamp_visibility_spot_circle(vec3 lampvec, vec3 lv, out float inpr)
 {
-	lampvec = -normalize(lampvec);
-	lampvec = (viewmat*vec4(lampvec, 0.0)).xyz;
-
 	inpr = dot(lv, lampvec);
 }
 
@@ -1200,8 +1186,6 @@ float area_lamp_energy(mat4 area, vec3 co, vec3 vn)
 
 void shade_inp_area(vec3 position, vec3 lampco, vec3 lampvec, vec3 vn, mat4 area, float areasize, float k, out float inp)
 {
-	lampvec = -normalize(lampvec);
-
 	vec3 co = position;
 	vec3 vec = co - lampco;
 
@@ -1313,7 +1297,7 @@ void shade_diffuse_fresnel(vec3 vn, vec3 lv, vec3 view, float fac_i, float fac, 
 void shade_cubic(float is, out float outis)
 {
 	if(is>0.0 && is<1.0)
-		outis= 3.0*is*is - 2.0*is*is*is;
+		outis= smoothstep(0.0, 1.0, is);
 	else
 		outis= is;
 }
@@ -1513,13 +1497,13 @@ void readshadowbuf(sampler2D shadowmap, float xs, float ys, float zs, float bias
 	}
 }
 
-void test_shadowbuf(mat4 viewinvmat, vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float inp, out float result)
+void test_shadowbuf(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float inp, out float result)
 {
 	if(inp <= 0.0) {
 		result = 0.0;
 	}
 	else {
-		vec4 co = shadowpersmat*(viewinvmat*vec4(rco, 1.0));
+		vec4 co = shadowpersmat*vec4(rco, 1.0);
 
 		/* note that as opposed to the blender renderer, the range of
 		   these coordinates is 0.0..1.0 instead of -1.0..1.0, since

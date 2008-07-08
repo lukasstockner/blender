@@ -100,14 +100,7 @@ BL_SkinDeformer::~BL_SkinDeformer()
 
 bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *)
 {
-	size_t			i, j, index;
-	vecVertexArray	array;
-	vecIndexArrays	mvarray;
-	vecMDVertArray	dvarray;
-	vecIndexArrays	diarray;
-
-	RAS_TexVert *tv;
-	MT_Point3 pt;
+	size_t i, j;
 
 	if (!Update())
 		// no need to update the cache
@@ -119,21 +112,17 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *)
 		mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
 		RAS_IPolyMaterial *mat = (*mit)->GetPolyMaterial();
 
-		array = m_pMeshObject->GetVertexCache(mat);
-		mvarray = m_pMeshObject->GetMVertCache(mat);
-		diarray = m_pMeshObject->GetDIndexCache(mat);
-		// For each array
-		for (i=0; i<array.size(); i++) {
-			//	For each vertex
-			for (j=0; j<array[i]->size(); j++) {
+		vecVertexArray& vertexarrays = m_pMeshObject->GetVertexCache(mat);
 
-				tv = &((*array[i])[j]);
-				
-				index = ((*diarray[i])[j]);
-				
-				//	Copy the untransformed data from the original mvert
-				//	Set the data
-				tv->SetXYZ(m_transverts[((*mvarray[i])[index])]);
+		// For each array
+		for (i=0; i<vertexarrays.size(); i++) {
+			KX_VertexArray& vertexarray = (*vertexarrays[i]);
+
+			// For each vertex
+			// copy the untransformed data from the original mvert
+			for (j=0; j<vertexarray.size(); j++) {
+				RAS_TexVert& v = vertexarray[j];
+				v.SetXYZ(m_transverts[v.getOrigIndex()]);
 			}
 		}
 	}

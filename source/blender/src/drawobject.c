@@ -192,7 +192,7 @@ int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 				if(mat->gpumaterial) {
 					GPU_material_vertex_attributes(mat->gpumaterial, attribs);
 					GPU_material_bind(mat->gpumaterial, gpuob->lay);
-					GPU_material_bind_uniforms(mat->gpumaterial, gpuob->obmat, G.vd->viewmat);
+					GPU_material_bind_uniforms(mat->gpumaterial, gpuob->obmat, G.vd->viewmat, G.vd->viewinv);
 					gpuboundmat= mat;
 				}
 			}

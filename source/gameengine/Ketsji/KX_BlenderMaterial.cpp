@@ -238,7 +238,7 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 		return;
 	}
 
-	if(!mBlenderShader->Identical(mLastBlenderShader)) {
+	if(!mBlenderShader->Equals(mLastBlenderShader)) {
 		BL_Texture::DisableAllTextures();
 
 		if(mLastBlenderShader)

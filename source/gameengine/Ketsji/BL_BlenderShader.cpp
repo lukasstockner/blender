@@ -121,7 +121,7 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 
 void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 {
-	float obmat[4][4], viewmat[4][4];
+	float obmat[4][4], viewmat[4][4], viewinvmat[4][4];
 
 	if(!mGPUMat || !mBound)
 		return;
@@ -134,10 +134,13 @@ void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 	model.getValue((float*)obmat);
 	view.getValue((float*)viewmat);
 
-	GPU_material_bind_uniforms(mGPUMat, obmat, viewmat);
+	view.invert();
+	view.getValue((float*)viewinvmat);
+
+	GPU_material_bind_uniforms(mGPUMat, obmat, viewmat, viewinvmat);
 }
 
-bool BL_BlenderShader::Identical(BL_BlenderShader *blshader)
+bool BL_BlenderShader::Equals(BL_BlenderShader *blshader)
 {
 	/* to avoid unneeded state switches */
 	return (blshader && mGPUMat == blshader->mGPUMat && mLightLayer == blshader->mLightLayer);
