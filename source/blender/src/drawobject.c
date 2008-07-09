@@ -419,6 +419,9 @@ void drawaxes(float size, int flag, char drawtype)
 	float v1[3]= {0.0, 0.0, 0.0};
 	float v2[3]= {0.0, 0.0, 0.0};
 	float v3[3]= {0.0, 0.0, 0.0};
+
+	if(G.f & G_SIMULATION)
+		return;
 	
 	switch(drawtype) {
 	
@@ -801,6 +804,9 @@ static void drawlamp(Object *ob)
 	float pixsize, lampsize;
 	float imat[4][4], curcol[4];
 	char col[4];
+
+	if(G.f & G_SIMULATION)
+		return;
 	
 	la= ob->data;
 	
@@ -1090,6 +1096,9 @@ static void drawcamera(Object *ob, int flag)
 	World *wrld;
 	float vec[8][4], tmat[4][4], fac, facx, facy, depth;
 	int i;
+
+	if(G.f & G_SIMULATION)
+		return;
 
 	cam= ob->data;
 	
@@ -1894,6 +1903,9 @@ static void draw_verse_debug(Object *ob, EditMesh *em)
 	struct EditFace *efa=NULL;
 	float v1[3], v2[3], v3[3], v4[3], fvec[3], col[3];
 	char val[32];
+
+	if(G.f & G_SIMULATION)
+		return;
 	
 	if(G.vd->zbuf && (G.vd->flag & V3D_ZBUF_SELECT)==0)
 		glDisable(GL_DEPTH_TEST);
@@ -1958,6 +1970,9 @@ static void draw_em_measure_stats(Object *ob, EditMesh *em)
 	char conv_float[5]; /* Use a float conversion matching the grid size */
 	float area, col[3]; /* area of the face,  color of the text to draw */
 	
+	if(G.f & G_SIMULATION)
+		return;
+
 	/* make the precission of the pronted value proportionate to the gridsize */
 	if ((G.vd->grid) < 0.01)
 		strcpy(conv_float, "%.6f");
@@ -2459,6 +2474,8 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 				dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, me->mface, 1);
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
+
+				set_gl_material(-1);
 			}
 			else if((G.f & (G_VERTEXPAINT+G_TEXTUREPAINT)) && me->mcol) {
 				dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, NULL, 1);
@@ -4735,9 +4752,8 @@ static void drawSolidSelect(Base *base)
 			drawDispListwire(&ob->disp);
 	}
 	else if(ob->type==OB_ARMATURE) {
-		if(!(ob->flag & OB_POSEMODE)) {
+		if(!(ob->flag & OB_POSEMODE))
 			draw_armature(base, OB_WIRE, 0);
-		}
 	}
 
 	glLineWidth(1.0);
@@ -5252,9 +5268,8 @@ void draw_object(Base *base, int flag)
 	}
 
 	/* draw extra: after normal draw because of makeDispList */
-	if(dtx) {
-		if(G.f & G_SIMULATION);
-		else if(dtx & OB_AXIS) {
+	if(dtx && !(G.f & G_SIMULATION)) {
+		if(dtx & OB_AXIS) {
 			drawaxes(1.0f, flag, OB_ARROWS);
 		}
 		if(dtx & OB_BOUNDBOX) draw_bounding_volume(ob);

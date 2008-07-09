@@ -1656,7 +1656,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		// two options exists for deform: shape keys and armature
 		// only support relative shape key
 		bool bHasShapeKey = mesh->key != NULL && mesh->key->type==KEY_RELATIVE;
-		bool bHasDvert = mesh->dvert != NULL;
+		bool bHasDvert = mesh->dvert != NULL && ob->defbase.first;
 		bool bHasArmature = (ob->parent && ob->parent->type == OB_ARMATURE && ob->partype==PARSKEL && bHasDvert);
 
 		if (bHasShapeKey) {
@@ -2073,7 +2073,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	if (blenderscene->camera) {
 		KX_Camera *gamecamera= (KX_Camera*) converter->FindGameObject(blenderscene->camera);
 		
-		kxscene->SetActiveCamera(gamecamera);
+		if(gamecamera)
+			kxscene->SetActiveCamera(gamecamera);
 	}
 
 	//	Set up armatures

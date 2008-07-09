@@ -167,7 +167,7 @@ RAS_MaterialBucket::T_MeshSlotList::iterator RAS_MaterialBucket::msEnd()
 }
 
 bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_IRasterizer* rasty,
-	RAS_IRenderTools *rendertools, int &drawmode)
+	RAS_IRenderTools *rendertools, RAS_IRasterizer::DrawMode &drawmode)
 {
 	rendertools->SetViewMat(cameratrans);
 
@@ -179,14 +179,18 @@ bool RAS_MaterialBucket::ActivateMaterial(const MT_Transform& cameratrans, RAS_I
 	else
 		rendertools->ProcessLighting(-1);
 
-	drawmode = (rasty->GetDrawingMode()  < RAS_IRasterizer::KX_SOLID ? 	
-		1:	(m_material->UsesTriangles() ? 0 : 2));
+	if(rasty->GetDrawingMode() < RAS_IRasterizer::KX_SOLID)
+		drawmode = RAS_IRasterizer::KX_MODE_LINES;
+	else if(m_material->UsesTriangles())
+		drawmode = RAS_IRasterizer::KX_MODE_TRIANGLES;
+	else
+		drawmode = RAS_IRasterizer::KX_MODE_QUADS;
 	
 	return true;
 }
 
 void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRasterizer* rasty,
-	RAS_IRenderTools* rendertools, const KX_MeshSlot &ms, int drawmode)
+	RAS_IRenderTools* rendertools, const KX_MeshSlot &ms, RAS_IRasterizer::DrawMode drawmode)
 {
 	if (!ms.m_bVisible)
 		return;
@@ -244,8 +248,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 				ms.m_mesh->GetVertexCache(m_material), 
 				ms.m_mesh->GetIndexCache(m_material), 
 				drawmode,
-				m_material,
-				rendertools,
 				ms.m_bObjectColor,
 				ms.m_RGBAcolor,
 				displaylist);
@@ -258,8 +260,6 @@ void RAS_MaterialBucket::RenderMeshSlot(const MT_Transform& cameratrans, RAS_IRa
 				ms.m_mesh->GetVertexCache(m_material), 
 				ms.m_mesh->GetIndexCache(m_material), 
 				drawmode,
-				m_material,
-				rendertools, // needed for textprinting on polys
 				ms.m_bObjectColor,
 				ms.m_RGBAcolor,
 				displaylist);
@@ -284,7 +284,7 @@ void RAS_MaterialBucket::Render(const MT_Transform& cameratrans,
 
 	//rasty->SetMaterial(*m_material);
 	
-	int drawmode;
+	RAS_IRasterizer::DrawMode drawmode;
 	for (T_MeshSlotList::const_iterator it = m_meshSlots.begin();
 	! (it == m_meshSlots.end()); ++it)
 	{

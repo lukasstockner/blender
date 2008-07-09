@@ -65,19 +65,8 @@
 	- arb draw buffers? 2.0 core
 */
 
-/* TODO: we also use GL_ARB_texture_border_clamp or GL_SGIS_texture_border_clamp,
-   but seems to be widely supported on anything running fragment programs */
-
-/* TODO: GeforceFX float support, the issue is:
-   ARB/ATI_texture_float is not supported on nv30 (GeforceFX)
-   NV_float_buffer is, but only works with GL_TEXTURE_RECTANGLE
-   but ATI doesn't support sampler2DRect in glsl! */
-
-#define MAX_ATTACHMENTS 16
-
 struct GPUGlobal {
 	GLint maxtextures;
-	GLint maxfbcolor;
 	GLuint currentfb;
 	GLenum halfformat;
 	struct GPUGlobalLimits {
@@ -101,11 +90,6 @@ void GPU_extensions_init()
 
 	if (GLEW_ARB_multitexture)
 		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &GG.maxtextures);
-	if (GLEW_EXT_framebuffer_object) {
-		glGetIntegerv(GL_MAX_COLOR_ATTACHMENTS_EXT, &GG.maxfbcolor);
-		if (GG.maxfbcolor > MAX_ATTACHMENTS)
-			GG.maxfbcolor = MAX_ATTACHMENTS;
-	}
 	if (GLEW_ATI_texture_float || GLEW_ARB_texture_float) {
 		GG.halfformat = (GLEW_ATI_texture_float)? GL_RGBA_FLOAT16_ATI: GL_RGBA16F_ARB;
 	}
