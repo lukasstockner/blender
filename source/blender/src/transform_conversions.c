@@ -3870,6 +3870,7 @@ void special_aftertrans_update(TransInfo *t)
 	Base *base;
 	short redrawipo=0, resetslowpar=1;
 	int cancelled= (t->state == TRANS_CANCEL);
+	short duplicate= (t->undostr && strstr(t->undostr, "Duplicate")) ? 1 : 0;
 	
 	if (t->spacetype==SPACE_VIEW3D) {
 		if (G.obedit) {
@@ -3886,7 +3887,7 @@ void special_aftertrans_update(TransInfo *t)
 			}
 		}
 	}
-	if (t->spacetype == SPACE_ACTION) {
+	else if (t->spacetype == SPACE_ACTION) {
 		void *data;
 		short datatype;
 		
@@ -3908,7 +3909,7 @@ void special_aftertrans_update(TransInfo *t)
 			
 			/* Do curve cleanups? */
 			if ( (G.saction->flag & SACTION_NOTRANSKEYCULL)==0 && 
-			     (cancelled == 0) )
+			     ((cancelled == 0) || (duplicate)) )
 			{
 				posttrans_action_clean((bAction *)data);
 			}
@@ -3923,7 +3924,7 @@ void special_aftertrans_update(TransInfo *t)
 				IpoCurve *icu;
 				
 				if ( (G.saction->flag & SACTION_NOTRANSKEYCULL)==0 && 
-				     (cancelled == 0) )
+				     ((cancelled == 0) || (duplicate)) )
 				{
 					posttrans_ipo_clean(key->ipo);
 				}
@@ -3949,7 +3950,7 @@ void special_aftertrans_update(TransInfo *t)
 		
 		/* after transform, remove duplicate keyframes on a frame that resulted from transform */
 		if ( (G.snla->flag & SNLA_NOTRANSKEYCULL)==0 && 
-			 (cancelled == 0) )
+			 ((cancelled == 0) || (duplicate)) )
 		{
 			posttrans_nla_clean(t);
 		}

@@ -80,7 +80,7 @@ struct GPUGlobal {
 	} limits;
 
 	int minimumsupport;
-} GG = {1, 0, 0, 0, {0, 0, 0, 0, 0, 0, 0}, 0};
+} GG = {1, 0, 0, {0, 0, 0, 0, 0, 0, 0}, 0};
 
 void GPU_extensions_init()
 {

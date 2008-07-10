@@ -74,8 +74,6 @@
 #include "RAS_FramingManager.h"
 #include "stdio.h"
 
-#include "GPU_material.h"
-
 // If define: little test for Nzc: guarded drawing. If the canvas is
 // not valid, skip rendering this frame.
 //#define NZC_GUARDED_OUTPUT
