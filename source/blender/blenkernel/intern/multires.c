@@ -1392,8 +1392,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 	MDisps *mdisps;
 	/*ListBase *map;
 	IndexNode *mapmem;*/
-	int i, j, k, slo, shi;
-	float *out;
+	int i, j, slo, shi;
 
 	if(mmd->totlvl == multires_max_levels) {
 		// TODO
@@ -1439,99 +1438,8 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 		const int totdisp = multires_quad_tot[mmd->totlvl - 1];
 		float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
 
-		if(mdisps[i].disps) {
-#if 0
-			/* face verts */
-			for(j = 0; j < slo - 1; ++j) {
-				for(k = 0; k < slo - 1; ++k) {
-					out = disps[(j*2+1)*shi + k*2+1];
-					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[j*slo + k+1]);
-					VecAddf(out, out, mdisps[i].disps[(j+1)*slo + k]);
-					VecAddf(out, out, mdisps[i].disps[(j+1)*slo + k+1]);
-					VecMulf(out, 0.25);
-				}
-			}
-
-			/* vertical interior edge verts */
-			for(j = 0; j < slo - 1; ++j) {
-				for(k = 1; k < slo - 1; ++k) {
-					out = disps[(j*2+1)*shi + k*2];
-					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[(j+1)*slo + k]);
-					VecAddf(out, out, disps[(j*2+1)*shi + k*2-1]);
-					VecAddf(out, out, disps[(j*2+1)*shi + k*2+1]);
-					VecMulf(out, 0.25);
-				}
-			}
-
-			/* horizontal interior edge verts */
-			for(j = 1; j < slo - 1; ++j) {
-				for(k = 0; k < slo - 1; ++k) {
-					out = disps[j*2*shi + k*2+1];
-					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[j*slo + k+1]);
-					VecAddf(out, out, disps[(j*2-1)*shi + k*2+1]);
-					VecAddf(out, out, disps[(j*2+1)*shi + k*2+1]);
-					VecMulf(out, 0.25);
-				}
-			}
-
-			/* interior orig verts */
-			for(j = 1; j < slo - 1; ++j) {
-				for(k = 1; k < slo - 1; ++k) {
-					float avg[3];
-					out = disps[j*2*shi + k*2];
-					VecCopyf(out, mdisps[i].disps[j*slo+k]);
-
-					VecAddf(avg, disps[(j*2-1)*shi + k*2], disps[(j*2+1)*shi + k*2]);
-					VecAddf(avg, avg, disps[j*2*shi + k*2-1]);
-					VecAddf(avg, avg, disps[j*2*shi + k*2+1]);
-					VecMulf(avg, 0.5);
-					VecAddf(out, out, avg);
-
-					VecAddf(avg, disps[(j*2-1)*shi + k*2-1], disps[(j*2-1)*shi + k*2+1]);
-					VecAddf(avg, avg, disps[(j*2+1)*shi + k*2-1]);
-					VecAddf(avg, avg, disps[(j*2+1)*shi + k*2+1]);
-					VecMulf(avg, 0.25);
-					VecAddf(out, out, avg);
-
-					VecMulf(out, 0.25);
-				}
-			}
-
-			/* exterior edge verts, first pass */
-			for(j = 0; j < slo - 1; ++j) {
-				for(k = 0; k < slo; k += slo - 1) {
-					out = disps[(j*2+1)*shi + k*2];
-					VecAddf(out, mdisps[i].disps[j*slo + k], mdisps[i].disps[(j+1)*slo + k]);
-					VecMulf(out, 0.5);
-
-					out = disps[k*2*shi + j*2+1];
-					VecAddf(out, mdisps[i].disps[k*slo + j], mdisps[i].disps[k*slo + j+1]);
-					VecMulf(out, 0.5);
-				}
-			}
-
-			/* exterior orig verts, first pass */
-			for(j = 1; j < slo - 1; ++j) {
-				for(k = 0; k < slo; k += slo - 1) {
-					out = disps[j*2*shi + k*2];
-					VecAddf(out, disps[(j*2-1)*shi + k*2], disps[(j*2+1)*shi + k*2]);
-					VecMulf(out, 0.5);
-
-					out = disps[k*2*shi + j*2];
-					VecAddf(out, disps[k*2*shi + j*2-1], disps[k*2*shi + j*2+1]);
-					VecMulf(out, 0.5);
-				}
-			}
-
-			/* corner verts */
-			VecCopyf(disps[0], mdisps[i].disps[0]);
-			VecCopyf(disps[shi - 1], mdisps[i].disps[slo - 1]);
-			VecCopyf(disps[(shi-1)*shi], mdisps[i].disps[(slo-1)*slo]);
-			VecCopyf(disps[shi*shi-1], mdisps[i].disps[slo*slo-1]);
-#endif
-			
+		if(mdisps[i].disps)
 			MEM_freeN(mdisps[i].disps);
-		}
 
 		mdisps[i].disps = disps;
 		mdisps[i].totdisp = totdisp;
@@ -1544,6 +1452,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 		MVert *mvs = CDDM_get_verts(final);
 		MVert *mvd, *mvd_f1, *mvs_f1, *mvd_f3, *mvd_f4;
 		MVert *mvd_f2, *mvs_f2, *mvs_e1, *mvd_e1, *mvs_e2;
+		int totorco, totvert;
 
 		orig = CDDM_from_mesh(me, NULL);
 		mmd_sub.lvl = mmd_sub.totlvl = mmd->totlvl;
@@ -1553,11 +1462,8 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 		
 		mvd = CDDM_get_verts(mrdm);
 		/* Need to map from ccg to mrdm */
-		int totorco = MultiresDM_get_totorco(mrdm);
-		int totored = MultiresDM_get_totored(mrdm);
-		int totorfa = MultiresDM_get_totorfa(mrdm);
-		int totvert = mrdm->getNumVerts(mrdm);
-		int j, k;
+		totorco = MultiresDM_get_totorco(mrdm);
+		totvert = mrdm->getNumVerts(mrdm);
 
 		/* Load base verts */
 		for(i = 0; i < me->totvert; ++i)
@@ -1611,8 +1517,6 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 
 				for(y = 0; y < slo/2 - 1; ++y) {
 					for(x = 0; x < slo/2; ++x) {
-						//VecCopyf(mvd_f3[1+(y*2) + x*(2 * (slo-2))].co,
-						//	 mvs_e1[(y*(slo/2-1)+x)*2].co);
 						VecCopyf(mvd_f3[1+(y*2) + x*(2 * (slo-2))].co,
 							 mvs_e1->co);
 						mvs_e1+=2;
@@ -1624,7 +1528,6 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 					for(x = 0; x < slo/2; ++x) {
 						VecCopyf(mvd_f3[(slo-2) + (x*2) + y*2*(slo-2)].co,
 							 mvs_e1->co);
-						//mvd_f3[(slo-2) + (x*2) + y*2*(slo-2)].co[2] = 0.1;
 						mvs_e1+=2;
 					}
 				}
