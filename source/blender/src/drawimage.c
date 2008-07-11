@@ -465,6 +465,19 @@ void draw_uvs_sima(void)
 	int drawface;
 	int lastsel, sel;
  	
+ 	/* APRICOT HACK - useful when texture painting */
+ 	if (!G.obedit && (G.sima->flag & SI_DRAWSHADOW) && (G.f & G_TEXTUREPAINT) && OBACT) {
+ 	
+		calc_image_view(G.sima, 'f');	/* float */
+		myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
+		glLoadIdentity();
+ 	
+		glColor3ub(112, 112, 112);
+		DerivedMesh *dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH|CD_MASK_MTFACE);
+		dm->drawUVEdges(dm);
+		return;
+ 	}
+ 	
 	if (!G.obedit || !CustomData_has_layer(&em->fdata, CD_MTFACE))
 		return;
 	
