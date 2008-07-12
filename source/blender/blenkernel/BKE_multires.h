@@ -83,6 +83,7 @@ void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *m
 
 /* MultiresDM */
 struct DerivedMesh *MultiresDM_new(struct DerivedMesh*, int, int, int, int, int);
+void *MultiresDM_get_vertnorm(struct DerivedMesh *);
 void *MultiresDM_get_orco(struct DerivedMesh *);
 void *MultiresDM_get_subco(struct DerivedMesh *);
 struct MFace *MultiresDM_get_orfa(struct DerivedMesh *);
@@ -103,6 +104,12 @@ typedef struct MultiresDisplacer {
 	struct MDisps *grid;
 	struct MFace *face;
 	float mat[3][3];
+	
+	/* For matrix calc */
+	float mat_target[3];
+	float mat_center[3];
+	float (*mat_norms)[3];
+
 	int spacing;
 	int sidetot;
 	int sidendx;

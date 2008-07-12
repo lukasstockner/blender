@@ -65,6 +65,7 @@
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
+#include "BKE_multires.h"
 #include "BKE_sculpt.h"
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
@@ -111,13 +112,6 @@
 /* ===== STRUCTS =====
  *
  */
-
-/* Used by vertex_users to store face indices in a list */
-typedef struct IndexNode {
-	struct IndexNode* next,* prev;
-	int Index;
-} IndexNode;
-
 
 /* ActiveData stores an Index into the mvert array of Mesh, plus Fade, which
    stores how far the vertex is from the brush center, scaled to the range [0,1]. */
@@ -234,7 +228,7 @@ void calc_vertex_users()
 	/* Find the users */
 	for(i=0; i<ss->totface; ++i){
 		for(j=0; j<(ss->mface[i].v4?4:3); ++j, ++node) {
-			node->Index=i;
+			node->index=i;
 			BLI_addtail(&ss->vertex_users[((unsigned int*)(&ss->mface[i]))[j]], node);
 		}
 	}
@@ -525,7 +519,7 @@ vec3f neighbor_average(SculptSession *ss, const int vert)
 	}
 
 	while(node){
-		f= &ss->mface[node->Index];
+		f= &ss->mface[node->index];
 		
 		if(f->v4) {
 			skip= (f->v1==vert?2:
@@ -1114,8 +1108,8 @@ void update_damaged_vert(ListBase *lb, BrushAction *a)
 		while(face){
 			float *fn = NULL;
 			if(ss->face_normals)
-				fn = &ss->face_normals[face->Index*3];
-			add_face_normal(&norm, ss->mvert, &ss->mface[face->Index], fn);
+				fn = &ss->face_normals[face->index*3];
+			add_face_normal(&norm, ss->mvert, &ss->mface[face->index], fn);
 			face= face->next;
 		}
 		Normalize(&norm.x);
@@ -1863,13 +1857,16 @@ void sculpt_undo_push(const short brush_type)
 void set_sculptmode(void)
 {
 	if(G.f & G_SCULPTMODE) {
-		Mesh *me= get_mesh(OBACT);
+		Object *ob = OBACT;
+		Mesh *me= get_mesh(ob);
+
+		multires_force_update(ob);
 		
 		G.f &= ~G_SCULPTMODE;
 
 		sculptsession_free(G.scene);
 		if(me && me->pv) 
-			mesh_pmv_off(OBACT, me);
+			mesh_pmv_off(ob, me);
 	} 
 	else {
 		G.f |= G_SCULPTMODE;

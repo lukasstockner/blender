@@ -1164,6 +1164,8 @@ typedef struct MultiresDM {
 	int totored;
 	int totorfa;
 
+	float (*norm)[3];
+
 	ListBase *vert_face_map;
 	IndexNode *vert_face_map_mem;
 
@@ -1183,12 +1185,39 @@ static void MultiresDM_release(DerivedMesh *dm)
 		MEM_freeN(mrdm->orfa);
 		MEM_freeN(mrdm->subco);
 		MEM_freeN(mrdm->orco);
+		MEM_freeN(mrdm->norm);
 		if(mrdm->vert_face_map)
 			MEM_freeN(mrdm->vert_face_map);
 		if(mrdm->vert_face_map_mem)
 			MEM_freeN(mrdm->vert_face_map_mem);
 		MEM_freeN(mrdm);
 	}
+}
+
+static void MultiresDM_calc_norm(MultiresDM *mrdm)
+{
+	float (*v)[3] = mrdm->orco;
+	int i;
+
+	mrdm->norm = MEM_callocN(sizeof(float)*3 * mrdm->totorco, "MultiresDM vertnorms");
+
+	for(i = 0; i < mrdm->totorfa; ++i) {
+		MFace *f = &mrdm->orfa[i];
+		float n[3];
+		if(f->v4)
+			CalcNormFloat4(v[f->v1], v[f->v2], v[f->v3], v[f->v4], n);
+		else
+			CalcNormFloat(v[f->v1], v[f->v2], v[f->v3], n);
+		
+		VecAddf(mrdm->norm[f->v1], mrdm->norm[f->v1], n);
+		VecAddf(mrdm->norm[f->v2], mrdm->norm[f->v2], n);
+		VecAddf(mrdm->norm[f->v3], mrdm->norm[f->v3], n);
+		if(f->v4)
+			VecAddf(mrdm->norm[f->v4], mrdm->norm[f->v4], n);
+	}
+
+	for(i = 0; i < mrdm->totorco; ++i)
+		Normalize(mrdm->norm[i]);
 }
 
 DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int numFaces, int lvl, int totlvl)
@@ -1239,9 +1268,16 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 	mrdm->totlvl = totlvl;
 	mrdm->subco = MEM_callocN(sizeof(float)*3*numVerts, "multires subdivided coords");
 
+	MultiresDM_calc_norm(mrdm);
+
 	dm->release = MultiresDM_release;
 
 	return dm;
+}
+
+void *MultiresDM_get_vertnorm(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->norm;
 }
 
 void *MultiresDM_get_orco(DerivedMesh *dm)

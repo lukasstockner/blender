@@ -1384,6 +1384,12 @@ static void calc_face_ts_mat_dm(float out[][3], float (*orco)[3], MFace *f)
 	calc_face_ts_mat(out, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
 }
 
+static void calc_face_ts_partial(float center[3], float target[3], float norm[][3], float (*orco)[3], MFace *f)
+{
+	face_center(center, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
+	VecCopyf(target, orco[f->v1]);
+}
+
 void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 {
 	DerivedMesh *final = NULL;
@@ -1600,6 +1606,9 @@ void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 		Mat3CpyMat3(d->mat, inv);
 	}
 
+	calc_face_ts_partial(d->mat_center, d->mat_target, d->mat_norms, MultiresDM_get_orco(dm), d->face);
+	d->mat_norms = MultiresDM_get_vertnorm(dm);
+
 	d->spacing = pow(2, MultiresDM_get_totlvl(dm) - MultiresDM_get_lvl(dm));
 	d->sidetot = multires_side_tot[MultiresDM_get_totlvl(dm) - 1];
 	d->invert = invert;
@@ -1738,7 +1747,25 @@ void multires_displace(MultiresDisplacer *d, float co[3])
 	else
 		VecCopyf(disp, data);
 
-	Mat3MulVecfl(d->mat, disp);
+	{
+		float mat[3][3], inv[3][3];
+		float n1[3], n2[3], norm[3];
+		float l1 = d->y / (1.0 * d->sidetot);
+		float l2 = d->x / (1.0 * d->sidetot);
+
+		VecLerpf(n1, d->mat_norms[d->face->v1], d->mat_norms[d->face->v4], l1);
+		VecLerpf(n2, d->mat_norms[d->face->v2], d->mat_norms[d->face->v3], l1);
+		VecLerpf(norm, n1, n2, l2);
+
+		calc_ts_mat(mat, d->mat_center, d->mat_target, norm);
+		if(d->invert) {
+			Mat3Inv(inv, mat);
+			Mat3CpyMat3(mat, inv);
+		}
+			
+
+		Mat3MulVecfl(mat, disp);
+	}
 
 	if(d->invert) {
 		VecCopyf(data, disp);
@@ -1779,6 +1806,8 @@ static void multiresModifier_update(DerivedMesh *dm)
 	MEdge *medge;
 	MFace *mface;
 	int i;
+
+	if(!(G.f & G_SCULPTMODE)) return;
 
 	mdisps = dm->getFaceDataArray(dm, CD_MDISPS);
 
