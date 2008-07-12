@@ -1390,8 +1390,6 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 	int totsuborco, totsubface, totsubedge;
 	Mesh *me = get_mesh(ob);
 	MDisps *mdisps;
-	/*ListBase *map;
-	IndexNode *mapmem;*/
 	int i, j, slo, shi;
 
 	if(mmd->totlvl == multires_max_levels) {
@@ -1573,23 +1571,6 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 		mrdm->needsFree = 1;
 		mrdm->release(mrdm);
 	}
-
-	/* TODO: the edge and corner displacements aren't being subdivided according to catmull-clark rules */
-
-	/* Subdividing displacements at the edges of faces requires mesh connectivity data */
-	/*create_vert_face_map(&map, &mapmem, me->mface, me->totvert, me->totface);
-	for(i = 0; i < me->totface; ++i) {
-		for(j = 0; j < slo - 1; ++j) {
-			for(k = 0; k < slo; k += slo - 1) {
-				out = mdisps[i].disps[(j*2+1)*shi + k*2];
-
-				out = mdisps[i].disps[k*2*shi + j*2+1];
-			}
-		}
-	}
-
-	MEM_freeN(map);
-	MEM_freeN(mapmem);*/
 }
 
 void multiresModifier_setLevel(void *mmd_v, void *ob_v)
