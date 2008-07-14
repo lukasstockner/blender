@@ -117,10 +117,10 @@ void EM_select_mirrored(void)
 	if(G.scene->selectmode & SCE_SELECT_VERTEX) {
 		EditMesh *em = G.editMesh;
 		EditVert *eve, *v1;
-		
-		for(eve= em->verts.first; eve; eve= eve->next) {
+		int a;
+		for(eve= em->verts.first, a=0; eve; eve= eve->next, a++) {
 			if(eve->f & SELECT) {
-				v1= editmesh_get_x_mirror_vert(G.obedit, eve);
+				v1= editmesh_get_x_mirror_vert(G.obedit, eve, a);
 				if(v1) {
 					eve->f &= ~SELECT;
 					v1->f |= SELECT;
@@ -4168,7 +4168,7 @@ void vertexsmooth(void)
 	EditEdge *eed;
 	float *adror, *adr, fac;
 	float fvec[3];
-	int teller=0;
+	int teller=0, a;
 	ModifierData *md= G.obedit->modifiers.first;
 
 	if(G.obedit==0) return;
@@ -4243,13 +4243,14 @@ void vertexsmooth(void)
 		eed= eed->next;
 	}
 
+	a = 0;
 	eve= em->verts.first;
 	while(eve) {
 		if(eve->f & SELECT) {
 			if(eve->f1) {
 				
 				if (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR) {
-					eve_mir= editmesh_get_x_mirror_vert(G.obedit, eve);
+					eve_mir= editmesh_get_x_mirror_vert(G.obedit, eve, a);
 				}
 				
 				adr = eve->tmp.p;
@@ -4283,6 +4284,7 @@ void vertexsmooth(void)
 			eve->tmp.p= NULL;
 		}
 		eve= eve->next;
+		a++;
 	}
 	MEM_freeN(adror);
 

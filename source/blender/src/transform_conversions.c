@@ -2168,7 +2168,7 @@ static void createTransEditVerts(TransInfo *t)
 				
 				/* Mirror? */
 				if( (mirror>0 && tob->iloc[0]>0.0f) || (mirror<0 && tob->iloc[0]<0.0f)) {
-					EditVert *vmir= editmesh_get_x_mirror_vert(G.obedit, eve);	/* initializes octree on first call */
+					EditVert *vmir= editmesh_get_x_mirror_vert(G.obedit, eve, a);	/* initializes octree on first call */
 					if(vmir != eve) tob->tdmir = vmir;
 				}
 				tob++;

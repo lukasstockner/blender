@@ -337,6 +337,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 			ketsjiengine->SetPythonDictionary(dictionaryobject);
 			initRasterizer(rasterizer, canvas);
 			PyObject *gameLogic = initGameLogic(startscene);
+			PyDict_SetItemString(dictionaryobject, "GameLogic", gameLogic); // Same as importing the module.
 			initGameKeys();
 			initPythonConstraintBinding();
 
@@ -404,7 +405,14 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 				exitstring = ketsjiengine->GetExitString();
 				
 				// when exiting the mainloop
-				dictionaryClearByHand(gameLogic);
+				
+				// Clears the dictionary by hand:
+				// This prevents, extra references to global variables
+				// inside the GameLogic dictionary when the python interpreter is finalized.
+				// which allows the scene to safely delete them :)
+				// see: (space.c)->start_game
+				PyDict_Clear(PyModule_GetDict(gameLogic));
+				
 				ketsjiengine->StopEngine();
 				exitGamePythonScripting();
 				networkdevice->Disconnect();
@@ -596,6 +604,7 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 			ketsjiengine->SetPythonDictionary(dictionaryobject);
 			initRasterizer(rasterizer, canvas);
 			PyObject *gameLogic = initGameLogic(startscene);
+			PyDict_SetItemString(dictionaryobject, "GameLogic", gameLogic); // Same as importing the module
 			initGameKeys();
 			initPythonConstraintBinding();
 

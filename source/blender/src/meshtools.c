@@ -899,7 +899,7 @@ long mesh_mirrtopo_table(Object *ob, char mode)
 			EditVert *eve;
 			totvert= 0;
 			for(eve= G.editMesh->verts.first; eve; eve= eve->next) {
-				eve->tmp.l = totvert++;
+				eve->hash = totvert++;
 			}
 		} else {
 			totvert = me->totvert;
@@ -910,8 +910,8 @@ long mesh_mirrtopo_table(Object *ob, char mode)
 		/* Initialize the vert-edge-user counts used to detect unique topology */
 		if(ob==G.obedit) {
 			for(eed=G.editMesh->edges.first; eed; eed= eed->next) {
-				MirrTopoHash[eed->v1->tmp.l]++;
-				MirrTopoHash[eed->v2->tmp.l]++;
+				MirrTopoHash[eed->v1->hash]++;
+				MirrTopoHash[eed->v2->hash]++;
 			}
 		} else {
 			for(a=0, medge=me->medge; a<me->totedge; a++, medge++) {
@@ -928,8 +928,8 @@ long mesh_mirrtopo_table(Object *ob, char mode)
 			
 			if(ob==G.obedit) {
 				for(eed=G.editMesh->edges.first; eed; eed= eed->next) {
-					MirrTopoHash[eed->v1->tmp.l] += MirrTopoHash_Prev[eed->v2->tmp.l];
-					MirrTopoHash[eed->v2->tmp.l] += MirrTopoHash_Prev[eed->v1->tmp.l];
+					MirrTopoHash[eed->v1->hash] += MirrTopoHash_Prev[eed->v2->hash];
+					MirrTopoHash[eed->v2->hash] += MirrTopoHash_Prev[eed->v1->hash];
 				}
 			} else {
 				for(a=0, medge=me->medge; a<me->totedge; a++, medge++) {
@@ -1086,14 +1086,16 @@ static EditVert *editmesh_get_x_mirror_vert_spacial(Object *ob, float *co)
 	return NULL;
 }
 
-static EditVert *editmesh_get_x_mirror_vert_topo(Object *ob, EditVert *eve)
+static EditVert *editmesh_get_x_mirror_vert_topo(Object *ob, EditVert *eve, int index)
 {
 	long poinval;
-	int index;
 	if (mesh_mirrtopo_table(ob, 'u')==-1)
 		return NULL;
 	
-	index = BLI_findindex(&G.editMesh->verts, eve);
+	if (index!=-1) {
+		index = BLI_findindex(&G.editMesh->verts, eve);
+	}
+	
 	if (index==-1)
 		return NULL;
 	
@@ -1104,12 +1106,12 @@ static EditVert *editmesh_get_x_mirror_vert_topo(Object *ob, EditVert *eve)
 	return NULL;
 }
 
-EditVert *editmesh_get_x_mirror_vert(Object *ob, EditVert *eve)
+EditVert *editmesh_get_x_mirror_vert(Object *ob, EditVert *eve, int index)
 {
 	if (G.scene->toolsettings->editbutflag & B_MIRROR_TOPO) {
-		return editmesh_get_x_mirror_vert_topo(ob, eve);
+		return editmesh_get_x_mirror_vert_topo(ob, eve, index);
 	} else {
-		return editmesh_get_x_mirror_vert_spacial(ob, eve);
+		return editmesh_get_x_mirror_vert_spacial(ob, eve->co);
 	}
 }
 
