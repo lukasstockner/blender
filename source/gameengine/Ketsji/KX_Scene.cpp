@@ -37,6 +37,7 @@
 #include "MT_assert.h"
 
 #include "KX_KetsjiEngine.h"
+#include "KX_BlenderMaterial.h"
 #include "RAS_IPolygonMaterial.h"
 #include "ListValue.h"
 #include "SCA_LogicManager.h"
@@ -1249,6 +1250,7 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 							 class RAS_IRenderTools* rendertools)
 {
 	m_bucketmanager->Renderbuckets(cameratransform,rasty,rendertools);
+	KX_BlenderMaterial::EndFrame();
 }
 
 

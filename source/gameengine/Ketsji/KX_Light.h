@@ -32,7 +32,7 @@
 #include "RAS_LightObject.h"
 #include "KX_GameObject.h"
 
-struct GPULamp;
+struct Object;
 class KX_Camera;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
@@ -44,11 +44,13 @@ class KX_LightObject : public KX_GameObject
 protected:
 	RAS_LightObject		m_lightobj;
 	class RAS_IRenderTools*	m_rendertools;	//needed for registering and replication of lightobj
-	struct GPULamp		*m_gpulamp;
-	static char		doc[];
+	struct Object		*m_gpulampob;
+	static char			doc[];
+
+	bool				VerifyShader();
 
 public:
-	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,class RAS_IRenderTools* rendertools,const struct RAS_LightObject&	lightobj, struct GPULamp *gpulamp, PyTypeObject *T = &Type);
+	KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,class RAS_IRenderTools* rendertools,const struct RAS_LightObject&	lightobj, struct Object *gpulampob, PyTypeObject *T = &Type);
 	virtual ~KX_LightObject();
 	virtual CValue*		GetReplica();
 	RAS_LightObject*	GetLightData() { return &m_lightobj;}

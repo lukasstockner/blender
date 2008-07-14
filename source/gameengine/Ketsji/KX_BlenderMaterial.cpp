@@ -38,6 +38,7 @@ extern "C" {
 // ------------------------------------
 #define spit(x) std::cout << x << std::endl;
 
+BL_Shader *KX_BlenderMaterial::mLastShader = NULL;
 BL_BlenderShader *KX_BlenderMaterial::mLastBlenderShader = NULL;
 
 //static PyObject *gTextureDict = 0;
@@ -158,12 +159,29 @@ void KX_BlenderMaterial::OnConstruction()
 	mConstructed = true;
 }
 
+void KX_BlenderMaterial::EndFrame()
+{
+	if(mLastBlenderShader) {
+		mLastBlenderShader->SetProg(false);
+		mLastBlenderShader = NULL;
+	}
+
+	if(mLastShader) {
+		mLastShader->SetProg(false);
+		mLastShader = NULL;
+	}
+}
+
 void KX_BlenderMaterial::OnExit()
 {
 	if( mShader ) {
-		 //note, the shader here is allocated, per unique material
-		 //and this function is called per face
-		mShader->SetProg(false);
+		//note, the shader here is allocated, per unique material
+		//and this function is called per face
+		if(mShader == mLastShader) {
+			mShader->SetProg(false);
+			mLastShader = NULL;
+		}
+
 		delete mShader;
 		mShader = 0;
 	}
@@ -197,13 +215,17 @@ void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 	int i;
 	if( !enable || !mShader->Ok() ) {
 		// frame cleanup.
-		mShader->SetProg(false);
+		if(mShader == mLastShader) {
+			mShader->SetProg(false);
+			mLastShader = NULL;
+		}
 		BL_Texture::DisableAllTextures();
 		return;
 	}
 
 	BL_Texture::DisableAllTextures();
 	mShader->SetProg(true);
+	mLastShader = mShader;
 	
 	BL_Texture::ActivateFirst();
 
@@ -234,6 +256,7 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 			mLastBlenderShader->SetProg(false);
 			mLastBlenderShader= NULL;
 		}
+
 		BL_Texture::DisableAllTextures();
 		return;
 	}
@@ -251,9 +274,6 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 
 void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 {
-	if(GLEW_ARB_shader_objects && mShader) 
-		mShader->SetProg(false);
-
 	BL_Texture::DisableAllTextures();
 	if( !enable )
 		return;
@@ -356,6 +376,11 @@ KX_BlenderMaterial::ActivateBlenderShaders(
 {
 	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial*>(this);
 
+	if(mLastShader) {
+		mLastShader->SetProg(false);
+		mLastShader= NULL;
+	}
+
 	// reset... 
 	if(tmp->mMaterial->IsShared()) 
 		cachingInfo =0;
@@ -401,6 +426,11 @@ KX_BlenderMaterial::ActivateMat(
 	)const
 {
 	KX_BlenderMaterial *tmp = const_cast<KX_BlenderMaterial*>(this);
+
+	if(mLastShader) {
+		mLastShader->SetProg(false);
+		mLastShader= NULL;
+	}
 
 	if(mLastBlenderShader) {
 		mLastBlenderShader->SetProg(false);
@@ -451,7 +481,10 @@ KX_BlenderMaterial::Activate(
 			return dopass;
 		}
 		else {
-			mShader->SetProg(false);
+			if(mShader == mLastShader) {
+				mShader->SetProg(false);
+				mLastShader = NULL;
+			}
 			mPass = 0;
 			dopass = false;
 			return dopass;
@@ -831,7 +864,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 void KX_BlenderMaterial::SetBlenderGLSLShader(void)
 {
 	if(!mBlenderShader)
-		mBlenderShader = new BL_BlenderShader(mMaterial->material, m_lightlayer);
+		mBlenderShader = new BL_BlenderShader(mScene, mMaterial->material, m_lightlayer);
 
 	if(!mBlenderShader->Ok()) {
 		delete mBlenderShader;

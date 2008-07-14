@@ -187,7 +187,7 @@ int set_gl_material_attribs(int nr, GPUVertexAttribs *attribs)
 			Material *mat = gpumatbuf[nr];
 
 			if(mat) {
-				GPU_material_from_blender(mat);
+				GPU_material_from_blender(G.scene, mat);
 
 				if(mat->gpumaterial) {
 					GPU_material_vertex_attributes(mat->gpumaterial, attribs);

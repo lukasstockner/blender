@@ -157,7 +157,6 @@ void RAS_ListRasterizer::ReleaseAlloc()
 	mLists.clear();
 }
 
-
 void RAS_ListRasterizer::IndexPrimitives(
 	const vecVertexArray & vertexarrays,
 	const vecIndexArrays & indexarrays,

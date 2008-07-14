@@ -1572,9 +1572,10 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	}
 
 	if(converter->GetGLSLMaterials())
-		GPU_lamp_from_blender(ob, la);
-	
-	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj, ob->gpulamp);
+		gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj, ob);
+	else
+		gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj, NULL);
+
 	BL_ConvertLampIpos(la, gamelight, converter);
 	
 	return gamelight;

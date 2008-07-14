@@ -497,7 +497,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 
 		bool fixed_framerate= (SYS_GetCommandLineInt(syshandle, "fixed_framerate", fixedFr) != 0);
 		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
-		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", G.fileflags & G_FILE_DIAPLAY_LISTS) != 0);
+		bool useLists = (SYS_GetCommandLineInt(syshandle, "displaylists", G.fileflags & G_FILE_DISPLAY_LISTS) != 0);
 
 		if(GLEW_ARB_multitexture && GLEW_VERSION_1_1) {
 			int gameflag =(G.fileflags & G_FILE_GAME_MAT);

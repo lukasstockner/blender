@@ -1,6 +1,10 @@
 
 #include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
+#include "DNA_scene_types.h"
+
+#include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "BL_BlenderShader.h"
 #include "BL_Material.h"
@@ -10,35 +14,59 @@
 
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
+ 
+ /* this is evil, but we need the scene to create materials with
+  * lights from the correct scene .. */
+static struct Scene *GetSceneForName(const STR_String& scenename)
+{
+	Scene *sce;
+
+	for (sce= (Scene*)G.main->scene.first; sce; sce= (Scene*)sce->id.next)
+		if (scenename == (sce->id.name+2))
+			return sce;
+
+	return (Scene*)G.main->scene.first;
+}
 
 const bool BL_BlenderShader::Ok()const
 {
-	return (mGPUMat != 0);
+	return (mMat && mMat->gpumaterial);
 }
 
-BL_BlenderShader::BL_BlenderShader(struct Material *ma, int lightlayer)
+BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 :
-	mGPUMat(0),
+	mMat(ma),
+	mGPUMat(NULL),
 	mBound(false),
 	mLightLayer(lightlayer)
 {
-	if(ma) {
-		GPU_material_from_blender(ma);
-		mGPUMat = ma->gpumaterial;
-	}
+	mScene = GetSceneForName(scene->GetName());
+	VerifyShader();
+	mModified = false;
 }
 
 BL_BlenderShader::~BL_BlenderShader()
 {
-	if(mGPUMat) {
-		GPU_material_unbind(mGPUMat);
-		mGPUMat = 0;
+	if(mMat && mMat->gpumaterial)
+		GPU_material_unbind(mMat->gpumaterial);
+}
+
+bool BL_BlenderShader::VerifyShader()
+{
+	if(mMat && !mMat->gpumaterial)
+		GPU_material_from_blender(mScene, mMat);
+
+	if(mMat && mMat->gpumaterial != mGPUMat) {
+		mGPUMat = mMat->gpumaterial;
+		mModified = true;
 	}
+	
+	return (mMat && mGPUMat);
 }
 
 void BL_BlenderShader::SetProg(bool enable)
 {
-	if(mGPUMat) {
+	if(VerifyShader()) {
 		if(enable) {
 			GPU_material_bind(mGPUMat, mLightLayer);
 			mBound = true;
@@ -55,7 +83,7 @@ int BL_BlenderShader::GetAttribNum()
 	GPUVertexAttribs attribs;
 	int i, enabled = 0;
 
-	if(!mGPUMat)
+	if(!VerifyShader())
 		return enabled;
 
 	GPU_material_vertex_attributes(mGPUMat, &attribs);
@@ -77,7 +105,7 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 
 	ras->SetAttribNum(0);
 
-	if(!mGPUMat)
+	if(!VerifyShader())
 		return;
 
 	if(ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
@@ -123,9 +151,21 @@ void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 {
 	float obmat[4][4], viewmat[4][4], viewinvmat[4][4];
 
+	VerifyShader();
+
+	if(mModified) {
+#if 0
+		/* TODO: we need to free display lists, this isn't sufficient, it
+		 * doesn't set all meshes as modified, only the first one .. */
+		if(ms.m_mesh)
+			ms.m_mesh->SetMeshModified(true);
+#endif
+		mModified = false;
+	}
+
 	if(!mGPUMat || !mBound)
 		return;
-
+	
 	MT_Matrix4x4 model;
 	model.setValue(ms.m_OpenGLMatrix);
 	MT_Matrix4x4 view;

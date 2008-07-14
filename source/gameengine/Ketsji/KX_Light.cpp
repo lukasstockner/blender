@@ -42,12 +42,13 @@
 
 #include "KX_PyMath.h"
 
+#include "DNA_object_types.h"
 #include "GPU_material.h"
  
 KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 							   class RAS_IRenderTools* rendertools,
 							   const RAS_LightObject&	lightobj,
-							   GPULamp *gpulamp,
+							   Object *gpulampob,
 							   PyTypeObject* T
 							   )
  :
@@ -57,7 +58,10 @@ KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 	m_lightobj = lightobj;
 	m_lightobj.m_worldmatrix = GetOpenGLMatrixPtr();
 	m_rendertools->AddLight(&m_lightobj);
-	m_gpulamp = gpulamp;
+	m_gpulampob = gpulampob;
+
+	if(m_gpulampob)
+		GPU_lamp_from_blender(m_gpulampob, (struct Lamp*)m_gpulampob->data);
 };
 
 
@@ -82,9 +86,14 @@ CValue*		KX_LightObject::GetReplica()
 	return replica;
 }
 
+bool KX_LightObject::VerifyShader()
+{
+	return (m_gpulampob && m_gpulampob->gpulamp);
+}
+
 void KX_LightObject::Update()
 {
-	if(m_gpulamp) {
+	if(VerifyShader()) {
 		float obmat[4][4];
 		double *dobmat = GetOpenGLMatrixPtr()->getPointer();
 
@@ -92,19 +101,19 @@ void KX_LightObject::Update()
 			for(int j=0; j<4; j++, dobmat++)
 				obmat[i][j] = (float)*dobmat;
 
-		GPU_lamp_update(m_gpulamp, obmat);
+		GPU_lamp_update(m_gpulampob->gpulamp, obmat);
 	}
 }
 
 bool KX_LightObject::HasShadowBuffer()
 {
-	return (m_gpulamp && GPU_lamp_has_shadow_buffer(m_gpulamp));
+	return (VerifyShader() && GPU_lamp_has_shadow_buffer(m_gpulampob->gpulamp));
 }
 
 int KX_LightObject::GetShadowLayer()
 {
-	if(m_gpulamp)
-		return GPU_lamp_shadow_layer(m_gpulamp);
+	if(VerifyShader())
+		return GPU_lamp_shadow_layer(m_gpulampob->gpulamp);
 	else
 		return 0;
 }
@@ -115,7 +124,7 @@ void KX_LightObject::BindShadowBuffer(RAS_IRasterizer *ras, KX_Camera *cam, MT_T
 	int winsize;
 
 	/* bind framebuffer */
-	GPU_lamp_shadow_buffer_bind(m_gpulamp, viewmat, &winsize, winmat);
+	GPU_lamp_shadow_buffer_bind(m_gpulampob->gpulamp, viewmat, &winsize, winmat);
 
 	/* setup camera transformation */
 	MT_Matrix4x4 modelviewmat((float*)viewmat);
@@ -139,7 +148,7 @@ void KX_LightObject::BindShadowBuffer(RAS_IRasterizer *ras, KX_Camera *cam, MT_T
 
 void KX_LightObject::UnbindShadowBuffer(RAS_IRasterizer *ras)
 {
-	GPU_lamp_shadow_buffer_unbind(m_gpulamp);
+	GPU_lamp_shadow_buffer_unbind(m_gpulampob->gpulamp);
 }
 
 PyObject* KX_LightObject::_getattr(const STR_String& attr)

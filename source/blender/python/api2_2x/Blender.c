@@ -56,6 +56,7 @@ struct ID; /*keep me up here */
 #include "DNA_screen_types.h"	/* for SPACE_VIEW3D */
 #include "DNA_userdef_types.h"
 #include "DNA_packedFile_types.h"
+#include "GPU_material.h"
 #include "EXPP_interface.h" /* for bpy_gethome() */
 #include "gen_utils.h"
 #include "modules.h"
@@ -315,6 +316,40 @@ static PyObject *Blender_Set( PyObject * self, PyObject * args )
 			U.gameflags |= USER_DISABLE_MIPMAP;
 		
 		set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
+	} 
+	else if(StringEqual( name, "glsl_lights" ) ||
+	        StringEqual( name, "glsl_shaders" ) ||
+	        StringEqual( name, "glsl_shadows" ) ||
+	        StringEqual( name, "glsl_ramps" ) ||
+	        StringEqual( name, "glsl_nodes" ) ||
+	        StringEqual( name, "glsl_extra_textures" )) {
+
+		int value = PyObject_IsTrue( arg );
+		int flag = 0;
+		
+		if (value==-1)
+			return EXPP_ReturnPyObjError( PyExc_ValueError,
+					"expected an integer" );
+		
+		if(StringEqual( name, "glsl_lights" ))
+			flag = G_FILE_GLSL_NO_LIGHTS;
+		else if(StringEqual( name, "glsl_shaders" ))
+			flag = G_FILE_GLSL_NO_SHADERS;
+		else if(StringEqual( name, "glsl_shadows" ))
+			flag = G_FILE_GLSL_NO_SHADOWS;
+		else if(StringEqual( name, "glsl_ramps" ))
+			flag = G_FILE_GLSL_NO_RAMPS;
+		else if(StringEqual( name, "glsl_nodes" ))
+			flag = G_FILE_GLSL_NO_NODES;
+		else if(StringEqual( name, "glsl_extra_textures" ))
+			flag = G_FILE_GLSL_NO_EXTRA_TEX;
+
+		if (value)
+			G.fileflags &= ~flag;
+		else
+			G.fileflags |= flag;
+
+		GPU_materials_free();
 	}else
 		return ( EXPP_ReturnPyObjError( PyExc_AttributeError,
 						"value given is not a blender setting" ) );
@@ -548,6 +583,18 @@ static PyObject *Blender_Get( PyObject * self, PyObject * value )
 		ret = PyInt_FromLong( (U.flag & USER_FILECOMPRESS) >> 15  );
 	else if(StringEqual( str, "mipmap" ))
 		ret = PyInt_FromLong( (U.gameflags & USER_DISABLE_MIPMAP)!=0  );
+	else if(StringEqual( str, "glsl_lights" ))
+		ret = PyInt_FromLong( (G.fileflags & G_FILE_GLSL_NO_LIGHTS)==0  );
+	else if(StringEqual( str, "glsl_shaders" ))
+		ret = PyInt_FromLong( (G.fileflags & G_FILE_GLSL_NO_SHADERS)==0  );
+	else if(StringEqual( str, "glsl_shadows" ))
+		ret = PyInt_FromLong( (G.fileflags & G_FILE_GLSL_NO_SHADOWS)==0  );
+	else if(StringEqual( str, "glsl_ramps" ))
+		ret = PyInt_FromLong( (G.fileflags & G_FILE_GLSL_NO_RAMPS)==0  );
+	else if(StringEqual( str, "glsl_nodes" ))
+		ret = PyInt_FromLong( (G.fileflags & G_FILE_GLSL_NO_NODES)==0  );
+	else if(StringEqual( str, "glsl_extra_textures" ))
+		ret = PyInt_FromLong( (G.fileflags & G_FILE_GLSL_NO_EXTRA_TEX)==0  );
 	else if(StringEqual( str, "add_view_align" ))
 		ret = PyInt_FromLong( ((U.flag & USER_ADD_VIEWALIGNED)!=0)  );
 	else if(StringEqual( str, "add_editmode" ))

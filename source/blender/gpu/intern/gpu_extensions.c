@@ -89,7 +89,7 @@ void GPU_extensions_init()
 	/* glewIsSupported("GL_VERSION_2_0") */
 
 	if (GLEW_ARB_multitexture)
-		glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &GG.maxtextures);
+		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS_ARB, &GG.maxtextures);
 	if (GLEW_ATI_texture_float || GLEW_ARB_texture_float) {
 		GG.halfformat = (GLEW_ATI_texture_float)? GL_RGBA_FLOAT16_ATI: GL_RGBA16F_ARB;
 	}
@@ -425,16 +425,20 @@ static void gpu_blender_texture_create(Image *ima, ImageUser *iuser)
 GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser)
 {
 	GPUTexture *tex;
-	GLint w, h, border;
-
+	GLint w, h, border, lastbindcode;
+		
 	if(ima->gputexture)
 		return ima->gputexture;
+
+	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
 	
 	if(!ima->bindcode)
 		gpu_blender_texture_create(ima, iuser);
 
-	if(!ima->bindcode)
+	if(!ima->bindcode) {
+		glBindTexture(GL_TEXTURE_2D, lastbindcode);
 		return NULL;
+	}
 
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->bindcode = ima->bindcode;
@@ -454,17 +458,16 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser)
 		tex->h = tex->realh = 64;
 	}
 	else {
-		GPU_print_error("Blender Texture");
-
-		glBindTexture(tex->target, tex->bindcode);
-		glGetTexLevelParameteriv(tex->target, 0, GL_TEXTURE_WIDTH, &w);
-		glGetTexLevelParameteriv(tex->target, 0, GL_TEXTURE_HEIGHT, &h);
-		glGetTexLevelParameteriv(tex->target, 0, GL_TEXTURE_BORDER, &border);
-		glBindTexture(tex->target, 0);
+		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &w);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &h);
+		glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_BORDER, &border);
 
 		tex->w = tex->realw = w - border;
 		tex->h = tex->realh = h - border;
 	}
+
+	glBindTexture(GL_TEXTURE_2D, lastbindcode);
 
 	return tex;
 }
@@ -501,10 +504,19 @@ GPUTexture *GPU_texture_create_depth(int w, int h)
 
 void GPU_texture_bind(GPUTexture *tex, int number)
 {
-	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + number);
+	GLenum arbnumber;
+
+	if (number >= GG.maxtextures) {
+		GPU_print_error("Not enough texture slots.");
+		return;
+	}
+
+	if(number == -1)
+		return;
 
 	GPU_print_error("Pre Texture Bind");
 
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + number);
 	if (number != 0) glActiveTextureARB(arbnumber);
 	glBindTexture(tex->target, tex->bindcode);
 	glEnable(tex->target);
@@ -517,13 +529,19 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 
 void GPU_texture_unbind(GPUTexture *tex)
 {
-	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
+	GLenum arbnumber;
+
+	if (tex->number >= GG.maxtextures) {
+		GPU_print_error("Not enough texture slots.");
+		return;
+	}
 
 	if(tex->number == -1)
 		return;
-
+	
 	GPU_print_error("Pre Texture Unbind");
 
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
 	if (tex->number != 0) glActiveTextureARB(arbnumber);
 	glBindTexture(tex->target, 0);
 	glDisable(tex->target);
@@ -804,15 +822,17 @@ static void shader_print_errors(char *task, char *log, const char *code)
 
 	fprintf(stderr, "GPUShader: %s error:\n", task);
 
-	c = code;
-	while ((c < end) && (pos = strchr(c, '\n'))) {
-		fprintf(stderr, "%2d  ", line);
-		fwrite(c, (pos+1)-c, 1, stderr);
-		c = pos+1;
-		line++;
-	}
+	if(G.f & G_DEBUG) {
+		c = code;
+		while ((c < end) && (pos = strchr(c, '\n'))) {
+			fprintf(stderr, "%2d  ", line);
+			fwrite(c, (pos+1)-c, 1, stderr);
+			c = pos+1;
+			line++;
+		}
 
-	fprintf(stderr, "%s", c);
+		fprintf(stderr, "%s", c);
+	}
 
 	fprintf(stderr, "%s\n", log);
 }
@@ -958,6 +978,7 @@ void GPU_shader_free(GPUShader *shader)
 	MEM_freeN(shader);
 }
 
+
 void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int arraysize, float *value)
 {
 	GLint location = glGetUniformLocationARB(shader->object, name);
@@ -967,14 +988,12 @@ void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int ar
 
 	GPU_print_error("Pre Uniform Vector");
 
-#if 0
-	if (length == 1) printf("%s %f\n", name, value[0]);
+	/*if (length == 1) printf("%s %f\n", name, value[0]);
 	else if (length == 2) printf("%s %f %f\n", name, value[0], value[1]);
 	else if (length == 3) { printf("%s ", name); printvecf("", value); }
 	else if (length == 4) { printf("%s ", name); printquat("", value); }
 	else if (length == 9) { printf("%s ", name); printmatrix3("", (float(*)[3])value); }
-	else if (length == 16) { printf("%s ", name); printmatrix4("", (float(*)[4])value); }
-#endif
+	else if (length == 16) { printf("%s ", name); printmatrix4("", (float(*)[4])value); }*/
 
 	if (length == 1) glUniform1fvARB(location, arraysize, value);
 	else if (length == 2) glUniform2fvARB(location, arraysize, value);
@@ -988,10 +1007,21 @@ void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int ar
 
 void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex)
 {
-	GLint location = glGetUniformLocationARB(shader->object, name);
-	GLenum arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
+	GLint location;
+	GLenum arbnumber;
+
+	if (tex->number >= GG.maxtextures) {
+		GPU_print_error("Not enough texture slots.");
+		return;
+	}
+		
+	if(tex->number == -1)
+		return;
 
 	GPU_print_error("Pre Uniform Texture");
+
+	location = glGetUniformLocationARB(shader->object, name);
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
 
 	if (tex->number != 0) glActiveTextureARB(arbnumber);
 	glBindTexture(tex->target, tex->bindcode);

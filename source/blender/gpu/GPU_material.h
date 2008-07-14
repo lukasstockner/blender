@@ -44,6 +44,7 @@ struct Object;
 struct Lamp;
 struct bNode;
 struct LinkNode;
+struct Scene;
 struct GPUVertexAttribs;
 struct GPUNode;
 struct GPUNodeLink;
@@ -108,8 +109,10 @@ void GPU_material_enable_alpha(GPUMaterial *material);
 
 /* High level functions to create and use GPU materials */
 
-int GPU_material_from_blender(struct Material *ma);
+int GPU_material_from_blender(struct Scene *scene, struct Material *ma);
 void GPU_material_free(GPUMaterial *material);
+
+void GPU_materials_free();
 
 void GPU_material_bind(GPUMaterial *material, int lay);
 void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4]);

@@ -12,7 +12,10 @@
 
 #include "RAS_IPolygonMaterial.h"
 
+#include "KX_Scene.h"
+
 struct Material;
+struct Scene;
 class BL_Material;
 
 #define BL_MAX_ATTRIB	16
@@ -24,12 +27,17 @@ class BL_Material;
 class BL_BlenderShader
 {
 private:
+	struct Scene	*mScene;
+	struct Material	*mMat;
 	GPUMaterial		*mGPUMat;
 	bool			mBound;
+	bool			mModified;
 	int				mLightLayer;
 
+	bool			VerifyShader();
+
 public:
-	BL_BlenderShader(struct Material *ma, int lightlayer);
+	BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
 	const bool			Ok()const;

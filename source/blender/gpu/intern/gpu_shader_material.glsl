@@ -991,11 +991,14 @@ void mtex_rgb_stencil(float stencil, vec4 rgb, out float outstencil, out vec4 ou
 	outstencil = stencil*fact;
 }
 
-void mtex_mapping(vec3 texco, vec3 size, vec3 ofs, out vec3 outtexco)
+void mtex_mapping_ofs(vec3 texco, vec3 ofs, out vec3 outtexco)
 {
-	outtexco.x = size.x*(texco.x - 0.5) + ofs.x + 0.5;
-	outtexco.y = size.y*(texco.y - 0.5) + ofs.y + 0.5;
-	outtexco.z = texco.z;
+	outtexco = texco + ofs;
+}
+
+void mtex_mapping_size(vec3 texco, vec3 size, out vec3 outtexco)
+{
+	outtexco = size*texco;
 }
 
 void mtex_2d_mapping(vec3 vec, out vec3 outvec)

@@ -119,6 +119,7 @@
 #include "BPY_menus.h"
 
 #include "GPU_extensions.h"
+#include "GPU_material.h"
 
 #include "blendef.h"
 #include "interface.h"
@@ -1548,12 +1549,64 @@ static uiBlock *info_addmenu(void *arg_unused)
 
 /************************** GAME *****************************/
 
+void do_info_game_glslmenu(void *arg, int event)
+{
+	switch (event) {
+	case G_FILE_GLSL_NO_LIGHTS:
+	case G_FILE_GLSL_NO_SHADERS:
+	case G_FILE_GLSL_NO_SHADOWS:
+	case G_FILE_GLSL_NO_RAMPS:
+	case G_FILE_GLSL_NO_NODES:
+	case G_FILE_GLSL_NO_EXTRA_TEX:
+		G.fileflags ^= event;
+		GPU_materials_free();
+		allqueue(REDRAWINFO, 0);
+		allqueue(REDRAWVIEW3D, 0);
+		break;
+	default:
+		break;
+	}	
+}
+
+static uiBlock *info_game_glslmenu(void *arg_unused)
+{
+	uiBlock *block;
+	short yco= 0, menuwidth=160;
+	int check;
 	
+	block= uiNewBlock(&curarea->uiblocks, "game_glslmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
+	uiBlockSetButmFunc(block, do_info_game_glslmenu, NULL);
+
+	check = (G.fileflags & G_FILE_GLSL_NO_LIGHTS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Lights",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_LIGHTS,
+		"Enable using lights in GLSL materials.");
+	check = (G.fileflags & G_FILE_GLSL_NO_SHADERS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Shaders",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_SHADERS,
+		"Enable using shaders other than Lambert in GLSL materials");
+	check = (G.fileflags & G_FILE_GLSL_NO_SHADOWS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Shadows",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_SHADOWS,
+		"Enable using shadows in GLSL materials");
+	check = (G.fileflags & G_FILE_GLSL_NO_RAMPS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Ramps",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_RAMPS,
+		"Enable using ramps in GLSL materials");
+	check = (G.fileflags & G_FILE_GLSL_NO_NODES)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Nodes",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_NODES,
+		"Enable using nodes in GLSL materials.");
+	check = (G.fileflags & G_FILE_GLSL_NO_EXTRA_TEX)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Extra Textures",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_EXTRA_TEX,
+		"Enable using texture channels other than Col and Alpha in GLSL materials.");
+
+	uiBlockSetDirection(block, UI_RIGHT);
+	uiTextBoundsBlock(block, 50);
+		
+	return block;
+}
+
 static void do_info_gamemenu(void *arg, int event)
 {
 	switch (event) {
 	case G_FILE_ENABLE_ALL_FRAMES:
-	case G_FILE_DIAPLAY_LISTS:
+	case G_FILE_DISPLAY_LISTS:
 	case G_FILE_SHOW_FRAMERATE:
 	case G_FILE_SHOW_DEBUG_PROPS:
 	case G_FILE_AUTOPLAY:
@@ -1603,10 +1656,10 @@ static uiBlock *info_gamemenu(void *arg_unused)
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
 	} else {
 
-	if(G.fileflags & G_FILE_DIAPLAY_LISTS) {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DIAPLAY_LISTS, "");
+	if(G.fileflags & G_FILE_DISPLAY_LISTS) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DISPLAY_LISTS, "");
 	} else {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DIAPLAY_LISTS, "");
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DISPLAY_LISTS, "");
 	}	
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
 	}
@@ -1649,6 +1702,8 @@ static uiBlock *info_gamemenu(void *arg_unused)
 	} else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Blender GLSL Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT_GLSL, "");
 	}	
+
+	uiDefIconTextBlockBut(block, info_game_glslmenu, NULL, ICON_RIGHTARROW_THIN, "GLSL Material Settings", 0, yco-=20, menuwidth, 19, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 1, 0, "");
 

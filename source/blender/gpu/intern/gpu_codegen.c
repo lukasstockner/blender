@@ -803,22 +803,34 @@ void GPU_pass_bind(GPUPass *pass)
 	if (!shader)
 		return;
 
-	/* create textures first, otherwise messes up multitexture state for
-	 * following textures*/
-	for (input=inputs->first; input; input=input->next)
+	GPU_shader_bind(shader);
+
+	/* now bind the textures */
+	for (input=inputs->first; input; input=input->next) {
 		if (input->ima)
 			input->tex = GPU_texture_from_blender(input->ima, input->iuser);
 
-	GPU_shader_bind(shader);
-
-	/* pass dynamic inputs to opengl, others were already done */
-	for (input=inputs->first; input; input=input->next) {
 		if(input->ima || input->tex) {
 			if(input->tex) {
 				GPU_texture_bind(input->tex, input->texid);
 				GPU_shader_uniform_texture(shader, input->shadername, input->tex);
 			}
 		}
+	}
+}
+
+void GPU_pass_update_uniforms(GPUPass *pass)
+{
+	GPUInput *input;
+	GPUShader *shader = pass->shader;
+	ListBase *inputs = &pass->inputs;
+
+	if (!shader)
+		return;
+
+	/* pass dynamic inputs to opengl, others were already done */
+	for (input=inputs->first; input; input=input->next) {
+		if(input->ima || input->tex);
 		else if (input->arraysize) {
 			GPU_shader_uniform_vector(shader, input->shadername, input->type,
 				input->arraysize, input->dynamicvec);
@@ -1380,6 +1392,8 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 
 	/* failed? */
 	if (!shader) {
+		memset(attribs, 0, sizeof(*attribs));
+		memset(builtins, 0, sizeof(*builtins));
 		GPU_nodes_free(nodes);
 		return NULL;
 	}
