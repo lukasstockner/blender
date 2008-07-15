@@ -1253,8 +1253,6 @@ void KX_Scene::RenderBuckets(const MT_Transform & cameratransform,
 	KX_BlenderMaterial::EndFrame();
 }
 
-
-
 void KX_Scene::UpdateObjectActivity(void) 
 {
 	if (m_activity_culling) {

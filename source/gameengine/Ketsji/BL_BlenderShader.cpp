@@ -12,6 +12,7 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
+#include "RAS_BucketManager.h"
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
  
@@ -35,14 +36,18 @@ const bool BL_BlenderShader::Ok()const
 
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 :
+	mScene(scene),
 	mMat(ma),
 	mGPUMat(NULL),
 	mBound(false),
 	mLightLayer(lightlayer)
 {
-	mScene = GetSceneForName(scene->GetName());
-	VerifyShader();
-	mModified = false;
+	mBlenderScene = GetSceneForName(scene->GetName());
+
+	if(mMat) {
+		GPU_material_from_blender(mBlenderScene, mMat);
+		mGPUMat = mMat->gpumaterial;
+	}
 }
 
 BL_BlenderShader::~BL_BlenderShader()
@@ -54,11 +59,16 @@ BL_BlenderShader::~BL_BlenderShader()
 bool BL_BlenderShader::VerifyShader()
 {
 	if(mMat && !mMat->gpumaterial)
-		GPU_material_from_blender(mScene, mMat);
+		GPU_material_from_blender(mBlenderScene, mMat);
 
 	if(mMat && mMat->gpumaterial != mGPUMat) {
 		mGPUMat = mMat->gpumaterial;
-		mModified = true;
+
+		/* this is shaky - display lists are wrong now after the
+		 * material changed, so we set all meshes as modified to
+		 * rebuild their display lists */
+		if(mScene->GetBucketManager())
+			mScene->GetBucketManager()->ReleaseDisplayLists();
 	}
 	
 	return (mMat && mGPUMat);
@@ -152,16 +162,6 @@ void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 	float obmat[4][4], viewmat[4][4], viewinvmat[4][4];
 
 	VerifyShader();
-
-	if(mModified) {
-#if 0
-		/* TODO: we need to free display lists, this isn't sufficient, it
-		 * doesn't set all meshes as modified, only the first one .. */
-		if(ms.m_mesh)
-			ms.m_mesh->SetMeshModified(true);
-#endif
-		mModified = false;
-	}
 
 	if(!mGPUMat || !mBound)
 		return;

@@ -657,7 +657,9 @@ void texco_orco(vec3 attorco, out vec3 orco)
 
 void texco_uv(vec2 attuv, out vec3 uv)
 {
-	uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0);
+	/* disabled for now, works together with leaving out mtex_2d_mapping
+	   uv = vec3(attuv*2.0 - vec2(1.0, 1.0), 0.0); */
+	uv = vec3(attuv, 0.0);
 }
 
 void texco_norm(vec3 normal, out vec3 outnormal)
@@ -964,7 +966,7 @@ void mtex_alpha_to_col(vec4 col, float alpha, out vec4 outcol)
 
 void mtex_rgbtoint(vec4 rgb, out float intensity)
 {
-	intensity = 0.35*rgb.r + 0.45*rgb.g + 0.2*rgb.b;
+	intensity = dot(vec3(0.35, 0.45, 0.2), rgb.rgb);
 }
 
 void mtex_value_invert(float invalue, out float outvalue)
@@ -1011,9 +1013,7 @@ void mtex_image(vec3 vec, sampler2D ima, out float value, out vec4 color, out ve
 	color = texture2D(ima, vec.xy);
 	value = 1.0;
 	
-	normal.x = 2.0*(color.r - 0.5);
-	normal.y = 2.0*(0.5 - color.g);
-	normal.z = 2.0*(color.b - 0.5);
+	normal = 2.0*(vec3(color.r, -color.g, color.b) - vec3(0.5, -0.5, 0.5));
 }
 
 void mtex_negate_texnormal(vec3 normal, out vec3 outnormal)
@@ -1109,31 +1109,24 @@ void lamp_visibility_spot(float spotsi, float spotbl, float inpr, float visifac,
 	}
 	else {
 		t = inpr - t;
-		if(t < spotbl && spotbl != 0.0) {
-			/* soft area */
-			float i = t/spotbl;
-			t = i*i;
-			inpr *= (3.0*t - 2.0*t*i);
-		}
+
+		/* soft area */
+		if(spotbl != 0.0)
+			inpr *= smoothstep(0.0, 1.0, t/spotbl);
+
 		outvisifac = visifac*inpr;
 	}
 }
 
 void lamp_visibility_clamp(float visifac, out float outvisifac)
 {
-	if(visifac <= 0.001)
-		outvisifac = 0.0;
-	else
-		outvisifac = visifac;
+	outvisifac = (visifac < 0.001)? 0.0: visifac;
 }
 
 void shade_view(vec3 co, out vec3 view)
 {
 	/* handle perspective/orthographic */
-	if(gl_ProjectionMatrix[3][3] == 0.0)
-		view = normalize(co);
-	else
-		view = vec3(0.0, 0.0, -1.0);
+	view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(co): vec3(0.0, 0.0, -1.0);
 }
 
 void shade_tangent_v(vec3 lv, vec3 tang, out vec3 vn)
@@ -1342,10 +1335,7 @@ void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
 	vec3 h = normalize(l + v);
 	float rslt = dot(h, n);
 
-	if(rslt > 0.0) rslt = pow(rslt, hard);
-	else rslt = 0.0;
-
-	specfac = rslt;
+	specfac = (rslt > 0.0)? pow(rslt, hard): 0.0;
 }
 
 void shade_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
@@ -1486,21 +1476,7 @@ void shade_only_shadow(float i, float shadfac, float energy, vec3 rgb, vec3 spec
 	outspec = spec - vec4(specrgb*shadfac, 0.0);
 }
 
-void readshadowbuf(sampler2D shadowmap, float xs, float ys, float zs, float bias, out float result)
-{
-	float zsamp = texture2D(shadowmap, vec2(xs, ys)).x;
-
-	if(zsamp > zs)
-		result = 1.0;
-	else if(zsamp < zs-bias)
-		result = 0.0;
-	else {
-		float temp = (zs-zsamp)/bias;
-		result = 1.0 - temp*temp;
-	}
-}
-
-void test_shadowbuf(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float shadowbias, float inp, out float result)
+void test_shadowbuf(vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, float shadowbias, float inp, out float result)
 {
 	if(inp <= 0.0) {
 		result = 0.0;
@@ -1508,22 +1484,10 @@ void test_shadowbuf(vec3 rco, sampler2D shadowmap, mat4 shadowpersmat, float sha
 	else {
 		vec4 co = shadowpersmat*vec4(rco, 1.0);
 
-		/* note that as opposed to the blender renderer, the range of
-		   these coordinates is 0.0..1.0 instead of -1.0..1.0, since
-		   that seems to correspond to the opengl depth buffer */
-		float xs = co.x/co.w;
-		float ys = co.y/co.w;
-		float zs = co.z/co.w;
+		float bias = (1.5 - inp*inp)*shadowbias;
+		co.z -= bias*co.w;
 
-		if(zs >= 1.0)
-			result = 0.0;
-		else if(zs <= 0.0)
-			result = 1.0;
-		else {
-			float bias = (1.5 - inp*inp)*shadowbias;
-
-			readshadowbuf(shadowmap, xs, ys, zs, bias, result);
-		}
+		result = shadow2DProj(shadowmap, co).x;
 	}
 }
 

@@ -96,6 +96,7 @@ double KX_KetsjiEngine::m_ticrate = DEFAULT_LOGIC_TIC_RATE;
 double KX_KetsjiEngine::m_anim_framerate = 25.0;
 double KX_KetsjiEngine::m_suspendedtime = 0.0;
 double KX_KetsjiEngine::m_suspendeddelta = 0.0;
+double KX_KetsjiEngine::m_average_framerate = 0.0;
 
 
 /**
@@ -309,6 +310,12 @@ void KX_KetsjiEngine::EndFrame()
 	{
 		RenderDebugProperties();
 	}
+
+	m_average_framerate = m_logger->GetAverage();
+	if (m_average_framerate < 1e-6)
+		m_average_framerate = 1e-6;
+	m_average_framerate = 1.0/m_average_framerate;
+
 	// Go to next profiling measurement, time spend after this call is shown in the next frame.
 	m_logger->NextMeasurement(m_kxsystem->GetTimeInSeconds());
 
@@ -1439,6 +1446,11 @@ double KX_KetsjiEngine::GetAnimFrameRate()
 void KX_KetsjiEngine::SetAnimFrameRate(double framerate)
 {
 	m_anim_framerate = framerate;
+}
+
+double KX_KetsjiEngine::GetAverageFrameRate()
+{
+	return m_average_framerate;
 }
 
 void KX_KetsjiEngine::SetTimingDisplay(bool frameRate, bool profile, bool properties)

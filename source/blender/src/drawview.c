@@ -2998,13 +2998,14 @@ static void draw_viewport_fps(ScrArea *sa);
 
 static void gpu_render_shadow_buffers(Scene *scene, View3D *v3d)
 {
+	Scene *sce;
 	Base *base;
 	Object *ob;
 	Lamp *la;
 	float viewmat[4][4], winmat[4][4];
-	int drawtype, lay, winsize;
+	int drawtype, lay, winsize, flag2;
 
-	for(base= G.scene->base.first; base; base= base->next) {
+	for(SETLOOPER(G.scene, base)) {
 		ob= base->object;
 
 		if(ob->type == OB_LAMP) {
@@ -3018,9 +3019,11 @@ static void gpu_render_shadow_buffers(Scene *scene, View3D *v3d)
 					/* this needs to be done better .. */
 					drawtype= v3d->drawtype;
 					lay= v3d->lay;
+					flag2= v3d->flag2 & V3D_SOLID_TEX;
 
 					v3d->drawtype = OB_SOLID;
 					v3d->lay &= GPU_lamp_shadow_layer(ob->gpulamp);
+					v3d->flag2 &= ~V3D_SOLID_TEX;
 
 					GPU_lamp_shadow_buffer_bind(ob->gpulamp, viewmat, &winsize, winmat);
 					drawview3d_render(v3d, viewmat, winsize, winsize, winmat, 1);
@@ -3028,6 +3031,7 @@ static void gpu_render_shadow_buffers(Scene *scene, View3D *v3d)
 
 					v3d->drawtype= drawtype;
 					v3d->lay= lay;
+					v3d->flag2 |= flag2;
 				}
 			}
 		}

@@ -195,3 +195,28 @@ void RAS_BucketManager::RAS_BucketManagerClearAll()
 	m_MaterialBuckets.clear();
 	m_AlphaBuckets.clear();
 }
+
+void RAS_BucketManager::ReleaseDisplayLists()
+{
+	BucketList::iterator bit;
+	RAS_MaterialBucket::T_MeshSlotList::iterator mit;
+
+	for (bit = m_MaterialBuckets.begin(); bit != m_MaterialBuckets.end(); ++bit) {
+		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
+			if(mit->m_DisplayList) {
+				mit->m_DisplayList->Release();
+				mit->m_DisplayList = NULL;
+			}
+		}
+	}
+	
+	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
+		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
+			if(mit->m_DisplayList) {
+				mit->m_DisplayList->Release();
+				mit->m_DisplayList = NULL;
+			}
+		}
+	}
+}
+

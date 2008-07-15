@@ -60,6 +60,7 @@ public:
 
 	RAS_MaterialBucket* RAS_BucketManagerFindBucket(RAS_IPolyMaterial * material, bool &bucketCreated);
 	
+	void ReleaseDisplayLists();
 
 private:
 	void RAS_BucketManagerClearAll();

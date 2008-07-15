@@ -71,7 +71,6 @@ extern char datatoc_gpu_shader_vertex_glsl[];
 
 typedef enum GPUDataSource {
 	GPU_SOURCE_VEC_UNIFORM,
-	GPU_SOURCE_ARRAY_UNIFORM,
 	GPU_SOURCE_BUILTIN,
 	GPU_SOURCE_TEX_PIXEL,
 	GPU_SOURCE_TEX,
@@ -131,7 +130,6 @@ typedef struct GPUInput {
 	GPUNode *node;
 
 	int type;				/* datatype */
-	int arraysize;			/* number of elements in an array */
 	int source;				/* data source */
 
 	int id;					/* unique id as created by code generator */
@@ -140,6 +138,7 @@ typedef struct GPUInput {
 	int bindtex;			/* input is responsible for binding the texture? */
 	int definetex;			/* input is responsible for defining the pixel? */
 	int textarget;			/* GL_TEXTURE_* */
+	int textype;			/* datatype */
 
 	struct Image *ima;		/* image */
 	struct ImageUser *iuser;/* image user */
@@ -267,6 +266,8 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 				}
 			}
 
+			if(!type && gpu_str_prefix(code, "sampler2DShadow"))
+				type= GPU_SHADOW2D;
 			if(!type && gpu_str_prefix(code, "sampler1D"))
 				type= GPU_TEX1D;
 			if(!type && gpu_str_prefix(code, "sampler2D"))
@@ -323,6 +324,8 @@ static char *gpu_generate_function_prototyps(GHash *hash)
 				BLI_dynstr_append(ds, "sampler1D");
 			else if(function->paramtype[a] == GPU_TEX2D)
 				BLI_dynstr_append(ds, "sampler2D");
+			else if(function->paramtype[a] == GPU_SHADOW2D)
+				BLI_dynstr_append(ds, "sampler2DShadow");
 			else
 				BLI_dynstr_append(ds, GPU_DATATYPE_STR[function->paramtype[a]]);
 				
@@ -419,6 +422,21 @@ static void codegen_convert_datatype(DynStr *ds, int from, int to, char *tmp, in
 			BLI_dynstr_printf(ds, "vec4(%s.r, %s.r, %s.r, %s.g)", name, name, name, name);
 		else if (from == GPU_FLOAT)
 			BLI_dynstr_printf(ds, "vec4(%s, %s, %s, 1.0)", name, name, name);
+	}
+}
+
+static void codegen_print_datatype(DynStr *ds, int type, float *data)
+{
+	int i;
+
+	BLI_dynstr_printf(ds, "%s(", GPU_DATATYPE_STR[type]);
+
+	for(i=0; i<type; i++) {
+		BLI_dynstr_printf(ds, "%f", data[i]);
+		if(i == type-1)
+			BLI_dynstr_append(ds, ")");
+		else
+			BLI_dynstr_append(ds, ", ");
 	}
 }
 
@@ -541,7 +559,8 @@ static void codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 				/* create exactly one sampler for each texture */
 				if (codegen_input_has_texture(input) && input->bindtex)
 					BLI_dynstr_printf(ds, "uniform %s samp%d;\n",
-						(input->textarget == GL_TEXTURE_1D)? "sampler1D": "sampler2D",
+						(input->textype == GPU_TEX1D)? "sampler1D":
+						(input->textype == GPU_TEX2D)? "sampler2D": "sampler2DShadow",
 						input->texid);
 			}
 			else if(input->source == GPU_SOURCE_BUILTIN) {
@@ -561,13 +580,18 @@ static void codegen_print_uniforms_functions(DynStr *ds, ListBase *nodes)
 				}
 			}
 			else if (input->source == GPU_SOURCE_VEC_UNIFORM) {
-				/* and create uniform vectors or matrices for all vectors */
-				BLI_dynstr_printf(ds, "uniform %s unf%d;\n",
-					GPU_DATATYPE_STR[input->type], input->id);
-			}
-			else if (input->source == GPU_SOURCE_ARRAY_UNIFORM) {
-				BLI_dynstr_printf(ds, "uniform %s unf%d[%d];\n",
-					GPU_DATATYPE_STR[input->type], input->id, input->arraysize);
+				if(input->dynamicvec) {
+					/* only create uniforms for dynamic vectors */
+					BLI_dynstr_printf(ds, "uniform %s unf%d;\n",
+						GPU_DATATYPE_STR[input->type], input->id);
+				}
+				else {
+					/* for others use const so the compiler can do folding */
+					BLI_dynstr_printf(ds, "const %s cons%d = ",
+						GPU_DATATYPE_STR[input->type], input->id);
+					codegen_print_datatype(ds, input->type, input->vec);
+					BLI_dynstr_append(ds, ";\n");
+				}
 			}
 			else if (input->source == GPU_SOURCE_ATTRIB && input->attribfirst) {
 				BLI_dynstr_printf(ds, "varying %s var%d;\n",
@@ -631,9 +655,12 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 			}
 			else if(input->source == GPU_SOURCE_BUILTIN)
 				BLI_dynstr_printf(ds, "%s", GPU_builtin_name(input->builtin));
-			else if ((input->source == GPU_SOURCE_VEC_UNIFORM) ||
-			         (input->source == GPU_SOURCE_ARRAY_UNIFORM))
-				BLI_dynstr_printf(ds, "unf%d", input->id);
+			else if(input->source == GPU_SOURCE_VEC_UNIFORM) {
+				if(input->dynamicvec)
+					BLI_dynstr_printf(ds, "unf%d", input->id);
+				else
+					BLI_dynstr_printf(ds, "cons%d", input->id);
+			}
 			else if (input->source == GPU_SOURCE_ATTRIB)
 				BLI_dynstr_printf(ds, "var%d", input->attribid);
 
@@ -768,20 +795,8 @@ void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 				if (input->bindtex)
 					extract = 1;
 			}
-			else if (input->arraysize) {
-				if(input->dynamicvec)
-					extract = 1;
-				else
-					GPU_shader_uniform_vector(shader, input->shadername, input->type,
-						input->arraysize, input->vec);
-			}
-			else {
-				if(input->dynamicvec)
-					extract = 1;
-				else
-					GPU_shader_uniform_vector(shader, input->shadername, input->type, 1,
-						input->vec);
-			}
+			else if(input->dynamicvec)
+				extract = 1;
 
 			/* extract nodes */
 			if(extract) {
@@ -828,18 +843,11 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 	if (!shader)
 		return;
 
-	/* pass dynamic inputs to opengl, others were already done */
-	for (input=inputs->first; input; input=input->next) {
-		if(input->ima || input->tex);
-		else if (input->arraysize) {
-			GPU_shader_uniform_vector(shader, input->shadername, input->type,
-				input->arraysize, input->dynamicvec);
-		}
-		else {
+	/* pass dynamic inputs to opengl, others were removed */
+	for (input=inputs->first; input; input=input->next)
+		if(!(input->ima || input->tex))
 			GPU_shader_uniform_vector(shader, input->shadername, input->type, 1,
 				input->dynamicvec);
-		}
-	}
 }
 
 void GPU_pass_unbind(GPUPass *pass)
@@ -946,6 +954,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 
 		input->tex = link->dynamictex;
 		input->textarget = GL_TEXTURE_2D;
+		input->textype = type;
 		input->dynamictex = 1;
 		MEM_freeN(link);
 	}
@@ -953,6 +962,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 		/* small texture created on the fly, like for colorbands */
 		input->type = GPU_VEC4;
 		input->source = GPU_SOURCE_TEX;
+		input->textype = type;
 
 		if (type == GPU_TEX1D) {
 			input->tex = GPU_texture_create_1D(link->texturesize, link->ptr1, 1);
@@ -973,6 +983,7 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 
 		input->ima = link->ptr1;
 		input->textarget = GL_TEXTURE_2D;
+		input->textype = GPU_TEX2D;
 		MEM_freeN(link);
 	}
 	else if(link->attribtype) {

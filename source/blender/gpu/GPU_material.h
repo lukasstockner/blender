@@ -70,6 +70,7 @@ typedef enum GPUType {
 	GPU_MAT4 = 16,
 	GPU_TEX1D = 1001,
 	GPU_TEX2D = 1002,
+	GPU_SHADOW2D = 1003,
 	GPU_ATTRIB = 3001
 } GPUType;
 

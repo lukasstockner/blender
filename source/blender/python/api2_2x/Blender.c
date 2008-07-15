@@ -578,7 +578,21 @@ static PyObject *Blender_Get( PyObject * self, PyObject * value )
 	} /* End 'quick hack' part. */
 	else if(StringEqual( str, "version" ))
 		ret = PyInt_FromLong( G.version );
-		
+	else if(StringEqual( str, "buildinfo" )) {
+#ifdef NAN_BUILDINFO
+		char buffer[1024];
+		extern char * build_date;
+		extern char * build_time;
+		extern char * build_rev;
+		extern char * build_platform;
+		extern char * build_type;
+
+		sprintf(buffer, "Built on %s %s, Rev-%s    Version %s %s", build_date, build_time, build_rev, build_platform, build_type);
+		ret = PyString_FromString( buffer );
+#else
+		ret = PyString_FromString( "No Build Info" );
+#endif
+	}
 	else if(StringEqual( str, "compressfile" ))
 		ret = PyInt_FromLong( (U.flag & USER_FILECOMPRESS) >> 15  );
 	else if(StringEqual( str, "mipmap" ))

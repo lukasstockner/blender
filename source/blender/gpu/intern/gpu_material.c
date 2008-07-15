@@ -48,6 +48,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_scene.h"
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
 
@@ -598,7 +599,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			
 			if(lamp->mode & LA_ONLYSHADOW) {
 				GPU_link(mat, "shade_only_shadow", i, shadfac,
-					GPU_dynamic_uniform(&lamp->dynenergy), shadfac, shi->rgb, shi->specrgb,
+					GPU_dynamic_uniform(&lamp->dynenergy), shi->rgb, shi->specrgb,
 					shr->diff, shr->spec, &shr->diff, &shr->spec);
 				
 				BLI_linklist_append(&mat->lamps, lamp);
@@ -671,8 +672,9 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	Base *base;
 	Object *ob;
+	Scene *sce;
 	
-	for(base=shi->gpumat->scene->base.first; base; base=base->next) {
+	for(SETLOOPER(shi->gpumat->scene, base)) {
 		ob= base->object;
 
 		if(ob->type==OB_LAMP) {
@@ -779,12 +781,25 @@ static void do_material_tex(GPUShadeInput *shi)
 	MTex *mtex;
 	Tex *tex;
 	GPUNodeLink *texco, *tin, *trgb, *tnor, *tcol, *stencil = NULL;
+	GPUNodeLink *texco_norm, *texco_orco, *texco_object, *texco_tangent;
+	GPUNodeLink *texco_global, *texco_uv = NULL;
 	GPUNodeLink *colfac, *newnor, *varfac, *orn;
+	char *lastuvname = NULL;
 	float one = 1.0f, norfac, ofs[3];
 	int tex_nr, rgbnor, talpha;
 
-	GPU_link(mat, "texco_norm", GPU_builtin(GPU_VIEW_NORMAL), &orn);
 	GPU_link(mat, "set_value", GPU_uniform(&one), &stencil);
+
+	GPU_link(mat, "texco_norm", GPU_builtin(GPU_VIEW_NORMAL), &texco_norm);
+	GPU_link(mat, "texco_orco", GPU_attribute(CD_ORCO, ""), &texco_orco);
+	GPU_link(mat, "texco_object", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+		GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
+		GPU_builtin(GPU_VIEW_POSITION), &texco_object);
+	GPU_link(mat, "texco_tangent", GPU_attribute(CD_TANGENT, ""), &texco_tangent);
+	GPU_link(mat, "texco_global", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
+		GPU_builtin(GPU_VIEW_POSITION), &texco_global);
+
+	orn= texco_norm;
 
 	/* go over texture slots */
 	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
@@ -799,24 +814,29 @@ static void do_material_tex(GPUShadeInput *shi)
 
 			/* which coords */
 			if(mtex->texco==TEXCO_ORCO)
-				GPU_link(mat, "texco_orco", GPU_attribute(CD_ORCO, ""), &texco);
+				texco= texco_orco;
 			else if(mtex->texco==TEXCO_OBJECT)
-				GPU_link(mat, "texco_object", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-					GPU_builtin(GPU_INVERSE_OBJECT_MATRIX),
-					GPU_builtin(GPU_VIEW_POSITION), &texco);
+				texco= texco_object;
 			else if(mtex->texco==TEXCO_NORM)
-				texco= orn;
+				texco= texco_norm;
 			else if(mtex->texco==TEXCO_TANGENT)
-				GPU_link(mat, "texco_tangent", GPU_attribute(CD_TANGENT, ""), &texco);
+				texco= texco_object;
 			else if(mtex->texco==TEXCO_GLOB)
-				GPU_link(mat, "texco_global", GPU_builtin(GPU_INVERSE_VIEW_MATRIX),
-					GPU_builtin(GPU_VIEW_POSITION), &texco);
-			else if(mtex->texco==TEXCO_UV)
-				GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco);
+				texco= texco_global;
+			else if(mtex->texco==TEXCO_UV) {
+				if(1) { //!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
+					GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
+					lastuvname = mtex->uvname;
+				}
+				texco= texco_uv;
+			}
 			else
 				continue;
 
-			GPU_link(mat, "mtex_2d_mapping", texco, &texco);
+			/* in case of uv, this would just undo a multiplication in texco_uv */
+			if(mtex->texco != TEXCO_UV)
+				GPU_link(mat, "mtex_2d_mapping", texco, &texco);
+
 			if(mtex->size[0] != 1.0f || mtex->size[1] != 1.0f || mtex->size[2] != 1.0f)
 				GPU_link(mat, "mtex_mapping_size", texco, GPU_uniform(mtex->size), &texco);
 
@@ -827,19 +847,6 @@ static void do_material_tex(GPUShadeInput *shi)
 				GPU_link(mat, "mtex_mapping_ofs", texco, GPU_uniform(ofs), &texco);
 
 			if(tex && tex->type == TEX_IMAGE && tex->ima) {
-#ifdef DEBUG_SHADOW
-				Base *base;
-
-				for(base=shi->gpumat->scene->base.first; base; base=base->next) {
-					if(base->object->gpulamp && GPU_lamp_has_shadow_buffer(base->object->gpulamp)) {
-						GPU_link(mat, "mtex_image", texco, GPU_dynamic_texture(base->object->gpulamp->tex), &tin, &trgb, &tnor);
-						break;
-					}
-				}
-
-				if(!base)
-#endif
-
 				GPU_link(mat, "mtex_image", texco, GPU_image(tex->ima, NULL), &tin, &trgb, &tnor);
 				rgbnor= TEX_RGB;
 				talpha= 1;
@@ -869,7 +876,10 @@ static void do_material_tex(GPUShadeInput *shi)
 			/* mapping */
 			if(mtex->mapto & (MAP_COL+MAP_COLSPEC)) {
 				/* stencil maps on the texture control slider, not texture intensity value */
-				GPU_link(mat, "math_multiply", GPU_uniform(&mtex->colfac), stencil, &colfac);
+				if(mtex->colfac == 1.0f)
+					colfac = stencil;
+				else
+					GPU_link(mat, "math_multiply", GPU_uniform(&mtex->colfac), stencil, &colfac);
 
 				if((rgbnor & TEX_RGB)==0) {
 					GPU_link(mat, "set_rgb", GPU_uniform(&mtex->r), &tcol);
@@ -916,7 +926,10 @@ static void do_material_tex(GPUShadeInput *shi)
 			}
 
 			if((mtex->mapto & MAP_VARS)) {
-				GPU_link(mat, "math_multiply", GPU_uniform(&mtex->varfac), stencil, &varfac);
+				if(mtex->varfac == 1.0f)
+					varfac = stencil;
+				else
+					GPU_link(mat, "math_multiply", GPU_uniform(&mtex->varfac), stencil, &varfac);
 
 				if(rgbnor & TEX_RGB) {
 					if(talpha)
@@ -1076,7 +1089,6 @@ int GPU_material_from_blender(Scene *scene, Material *ma)
 
 void GPU_materials_free()
 {
-	//Object *ob;
 	Material *ma;
 
 	for(ma=G.main->mat.first; ma; ma=ma->id.next) {
@@ -1085,13 +1097,6 @@ void GPU_materials_free()
 			ma->gpumaterial = NULL;
 		}
 	}
-
-	/*for(ob=G.main->object.first; ob; ob=ob->id.next) {
-		if(ob->gpulamp) {
-			GPU_lamp_free(ob->gpulamp);
-			ob->gpulamp = NULL;
-		}
-	}*/
 }
 
 /* Lamps and shadow buffers */
@@ -1144,6 +1149,9 @@ static void gpu_lamp_from_blender(Object *ob, Lamp *la, GPULamp *lamp)
 	lamp->size = la->bufsize;
 	lamp->d= la->clipsta;
 	lamp->clipend= la->clipend;
+
+	/* arbitrary correction for the fact we do no soft transition */
+	lamp->bias *= 0.25f;
 
 	/* makeshadowbuf */
 	angle= saacos(lamp->spotsi);
@@ -1217,7 +1225,9 @@ void GPU_lamp_free(GPULamp *lamp)
 
 int GPU_lamp_has_shadow_buffer(GPULamp *lamp)
 {
-	return (!(G.fileflags & (G_FILE_GLSL_NO_SHADOWS|G_FILE_GLSL_NO_LIGHTS)) && lamp->tex && lamp->fb);
+	return (!(G.fileflags & G_FILE_GLSL_NO_SHADOWS) &&
+	        !(G.fileflags & G_FILE_GLSL_NO_LIGHTS) &&
+			lamp->tex && lamp->fb);
 }
 
 void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[][4], int *winsize, float winmat[][4])

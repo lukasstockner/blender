@@ -2419,8 +2419,9 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 
 			glFrontFace(GL_CCW);
 		}
-		else
+		else {
 			draw_mesh_textured(ob, dm, faceselect);
+		}
 
 		if(!faceselect) {
 			if(base->flag & SELECT)

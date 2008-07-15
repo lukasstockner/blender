@@ -324,7 +324,10 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 
 	if(depth) {
 		glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(tex->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(tex->target, GL_TEXTURE_COMPARE_MODE_ARB, GL_COMPARE_R_TO_TEXTURE);
+		glTexParameteri(tex->target, GL_TEXTURE_COMPARE_FUNC_ARB, GL_LEQUAL);
+		glTexParameteri(tex->target, GL_DEPTH_TEXTURE_MODE_ARB, GL_INTENSITY);  
 	}
 	else {
 		glTexParameteri(tex->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -426,7 +429,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser)
 {
 	GPUTexture *tex;
 	GLint w, h, border, lastbindcode;
-		
+
 	if(ima->gputexture)
 		return ima->gputexture;
 

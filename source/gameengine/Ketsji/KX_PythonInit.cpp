@@ -274,6 +274,12 @@ static PyObject* gPyGetPhysicsTicRate(PyObject*)
 	return PyFloat_FromDouble(PHY_GetActiveEnvironment()->getFixedTimeStep());
 }
 
+static PyObject* gPyGetAverageFrameRate(PyObject*)
+{
+	return PyFloat_FromDouble(KX_KetsjiEngine::GetAverageFrameRate());
+}
+
+
 static STR_String gPyGetCurrentScene_doc =  
 "getCurrentScene()\n"
 "Gets a reference to the current scene.\n";
@@ -374,6 +380,7 @@ static struct PyMethodDef game_methods[] = {
 	{"setLogicTicRate", (PyCFunction) gPySetLogicTicRate, METH_VARARGS, "Sets the logic tic rate"},
 	{"getPhysicsTicRate", (PyCFunction) gPyGetPhysicsTicRate, METH_NOARGS, "Gets the physics tic rate"},
 	{"setPhysicsTicRate", (PyCFunction) gPySetPhysicsTicRate, METH_VARARGS, "Sets the physics tic rate"},
+	{"getAverageFrameRate", (PyCFunction) gPyGetAverageFrameRate, METH_NOARGS, "Gets the estimated average frame rate"},
 	{"PrintGLInfo", (PyCFunction)pyPrintExt, METH_NOARGS, "Prints GL Extension Info"},
 	{NULL, (PyCFunction) NULL, 0, NULL }
 };

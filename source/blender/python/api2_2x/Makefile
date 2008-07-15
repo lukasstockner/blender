@@ -37,6 +37,10 @@ include nan_compile.mk
 
 CFLAGS += $(LEVEL_1_C_WARNINGS)
 
+ifdef NAN_BUILDINFO
+    CPPFLAGS += -DNAN_BUILDINFO
+endif
+
 ifeq ($(WITH_FFMPEG), true)
    CPPFLAGS += -DWITH_FFMPEG
 endif

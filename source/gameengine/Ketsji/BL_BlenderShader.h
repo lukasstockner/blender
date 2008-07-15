@@ -27,11 +27,11 @@ class BL_Material;
 class BL_BlenderShader
 {
 private:
-	struct Scene	*mScene;
+	KX_Scene		*mScene;
+	struct Scene	*mBlenderScene;
 	struct Material	*mMat;
 	GPUMaterial		*mGPUMat;
 	bool			mBound;
-	bool			mModified;
 	int				mLightLayer;
 
 	bool			VerifyShader();
