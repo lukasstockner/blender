@@ -226,14 +226,14 @@ static int larger_pow2(int n)
 	return smaller_pow2(n)*2;
 }
 
-static void GPU_glTexSubImageEmpty(GLenum target, GLenum type, int x, int y, int w, int h)
+static void GPU_glTexSubImageEmpty(GLenum target, GLenum format, int x, int y, int w, int h)
 {
 	void *pixels = MEM_callocN(sizeof(char)*4*w*h, "GPUTextureEmptyPixels");
 
 	if (target == GL_TEXTURE_1D)
-		glTexSubImage1D(target, 0, x, w, GL_RGBA, type, pixels);
+		glTexSubImage1D(target, 0, x, w, format, GL_UNSIGNED_BYTE, pixels);
 	else
-		glTexSubImage2D(target, 0, x, y, w, h, GL_RGBA, type, pixels);
+		glTexSubImage2D(target, 0, x, y, w, h, format, GL_UNSIGNED_BYTE, pixels);
 	
 	MEM_freeN(pixels);
 }
@@ -294,27 +294,29 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 
 	if (tex->target == GL_TEXTURE_1D) {
 		glTexImage1D(tex->target, 0, tex->internalformat, tex->w, 0, format, type, 0);
+
 		if (fpixels) {
 			glTexSubImage1D(tex->target, 0, 0, tex->realw, format, type,
 				pixels? pixels: fpixels);
 
 			if (tex->w > tex->realw)
-				GPU_glTexSubImageEmpty(tex->target, type, tex->realw, 0,
+				GPU_glTexSubImageEmpty(tex->target, format, tex->realw, 0,
 					tex->w-tex->realw, 1);
 		}
 	}
 	else {
 		glTexImage2D(tex->target, 0, tex->internalformat, tex->w, tex->h, 0,
 			format, type, 0);
+
 		if (fpixels) {
 			glTexSubImage2D(tex->target, 0, 0, 0, tex->realw, tex->realh,
 				format, type, pixels? pixels: fpixels);
 
 			if (tex->w > tex->realw)
-				GPU_glTexSubImageEmpty(tex->target, type, tex->realw, 0,
+				GPU_glTexSubImageEmpty(tex->target, format, tex->realw, 0,
 					tex->w-tex->realw, tex->h);
 			if (tex->h > tex->realh)
-				GPU_glTexSubImageEmpty(tex->target, type, 0, tex->realh,
+				GPU_glTexSubImageEmpty(tex->target, format, 0, tex->realh,
 					tex->realw, tex->h-tex->realh);
 		}
 	}

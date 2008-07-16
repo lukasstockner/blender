@@ -136,8 +136,12 @@
 #include "BKE_mesh.h"
 #include "MT_Point3.h"
 
+#include "BLI_arithb.h"
+
 extern "C" {
-	#include "BKE_customdata.h"
+#include "BKE_customdata.h"
+#include "BKE_cdderivedmesh.h"
+#include "BKE_DerivedMesh.h"
 }
 
 #include "BKE_material.h" /* give_current_material */
@@ -309,7 +313,6 @@ typedef struct MTF_localLayer
 
 // ------------------------------------
 BL_Material* ConvertMaterial(
-	Mesh* mesh, 
 	Material *mat, 
 	MTFace* tface,  
 	const char *tfaceName,
@@ -325,7 +328,7 @@ BL_Material* ConvertMaterial(
 
 	int numchan =	-1;
 	bool validmat	= (mat!=0);
-	bool validface	= (mesh->mtface && tface);
+	bool validface	= (tface!=0);
 	
 	short type = 0;
 	if( validmat )
@@ -712,132 +715,54 @@ BL_Material* ConvertMaterial(
 }
 
 
-static void BL_ComputeTriTangentSpace(const MT_Vector3 &v1, const MT_Vector3 &v2, const MT_Vector3 &v3, 
-	const MT_Vector2 &uv1, const MT_Vector2 &uv2, const MT_Vector2 &uv3, 
-	MFace* mface, MT_Vector3 *tan1, MT_Vector3 *tan2)
-{
-		MT_Vector3 dx1(v2 - v1), dx2(v3 - v1);
-		MT_Vector2 duv1(uv2 - uv1), duv2(uv3 - uv1);
-		
-		MT_Scalar r = 1.0 / (duv1.x() * duv2.y() - duv2.x() * duv1.y());
-		duv1 *= r;
-		duv2 *= r;
-		MT_Vector3 sdir(duv2.y() * dx1 - duv1.y() * dx2);
-		MT_Vector3 tdir(duv1.x() * dx2 - duv2.x() * dx1);
-		
-		tan1[mface->v1] += sdir;
-		tan1[mface->v2] += sdir;
-		tan1[mface->v3] += sdir;
-		
-		tan2[mface->v1] += tdir;
-		tan2[mface->v2] += tdir;
-		tan2[mface->v3] += tdir;
-}
-
-static MT_Vector4*  BL_ComputeMeshTangentSpace(Mesh* mesh)
-{
-	MFace* mface = static_cast<MFace*>(mesh->mface);
-	MTFace* tface = static_cast<MTFace*>(mesh->mtface);
-
-	MT_Vector3 *tan1 = new MT_Vector3[mesh->totvert];
-	MT_Vector3 *tan2 = new MT_Vector3[mesh->totvert];
-	
-	int v;
-	for (v = 0; v < mesh->totvert; v++)
-	{
-		tan1[v] = MT_Vector3(0.0, 0.0, 0.0);
-		tan2[v] = MT_Vector3(0.0, 0.0, 0.0);
-	}
-	
-	for (int p = 0; p < mesh->totface; p++, mface++, tface++)
-	{
-		MT_Vector3 	v1(mesh->mvert[mface->v1].co),
-				v2(mesh->mvert[mface->v2].co),
-				v3(mesh->mvert[mface->v3].co);
-				
-		MT_Vector2	uv1(tface->uv[0]),
-				uv2(tface->uv[1]),
-				uv3(tface->uv[2]);
-				
-		BL_ComputeTriTangentSpace(v1, v2, v3, uv1, uv2, uv3, mface, tan1, tan2);
-		if (mface->v4)
-		{
-			MT_Vector3 v4(mesh->mvert[mface->v4].co);
-			MT_Vector2 uv4(tface->uv[3]);
-			
-			BL_ComputeTriTangentSpace(v1, v3, v4, uv1, uv3, uv4, mface, tan1, tan2);
-		}
-	}
-	
-	MT_Vector4 *tangent = new MT_Vector4[mesh->totvert];
-	for (v = 0; v < mesh->totvert; v++)
-	{
-		const MT_Vector3 no(mesh->mvert[v].no[0]/32767.0, 
-					mesh->mvert[v].no[1]/32767.0, 
-					mesh->mvert[v].no[2]/32767.0);
-		// Gram-Schmidt orthogonalize
-		MT_Vector3 t(tan1[v] - no.cross(no.cross(tan1[v])));
-		if (!MT_fuzzyZero(t))
-			t /= t.length();
-
-		tangent[v].x() = t.x();
-		tangent[v].y() = t.y();
-		tangent[v].z() = t.z();
-		// Calculate handedness
-		tangent[v].w() = no.dot(tan1[v].cross(tan2[v])) < 0.0 ? -1.0 : 1.0;
-	}
-	
-	delete [] tan1;
-	delete [] tan2;
-	
-	return tangent;
-}
-
 RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools* rendertools, KX_Scene* scene, KX_BlenderSceneConverter *converter)
 {
 	RAS_MeshObject *meshobj;
-	bool	skinMesh = false;
-	
+	bool skinMesh = false;
 	int lightlayer = blenderobj->lay;
-	
-	MFace* mface = static_cast<MFace*>(mesh->mface);
-	MTFace* tface = static_cast<MTFace*>(mesh->mtface);
-	const char *tfaceName = "";
-	MCol* mmcol = mesh->mcol;
-	MT_assert(mface || mesh->totface == 0);
 
+	// Get DerivedMesh data
+	DerivedMesh *dm = CDDM_from_mesh(mesh, blenderobj);
+
+	MVert *mvert = dm->getVertArray(dm);
+	int totvert = dm->getNumVerts(dm);
+
+	MFace *mface = dm->getFaceArray(dm);
+	MTFace *tface = static_cast<MTFace*>(dm->getFaceDataArray(dm, CD_MTFACE));
+	MCol *mcol = static_cast<MCol*>(dm->getFaceDataArray(dm, CD_MCOL));
+	float (*tangent)[3] = NULL;
+	int totface = dm->getNumFaces(dm);
+	const char *tfaceName = "";
+
+	if(tface) {
+		DM_add_tangent_layer(dm);
+		tangent = (float(*)[3])dm->getFaceDataArray(dm, CD_TANGENT);
+	}
 
 	// Determine if we need to make a skinned mesh
-	if (mesh->dvert || mesh->key){
+	if (mesh->dvert || mesh->key) {
 		meshobj = new BL_SkinMeshObject(mesh, lightlayer);
 		skinMesh = true;
 	}
-	else {
+	else
 		meshobj = new RAS_MeshObject(mesh, lightlayer);
-	}
-	MT_Vector4 *tangent = 0;
-	if (tface)
-		tangent = BL_ComputeMeshTangentSpace(mesh);
-	
 
 	// Extract avaiable layers
 	MTF_localLayer *layers =  new MTF_localLayer[MAX_MTFACE];
-	for (int lay=0; lay<MAX_MTFACE; lay++)
-	{
+	for (int lay=0; lay<MAX_MTFACE; lay++) {
 		layers[lay].face = 0;
 		layers[lay].name = "";
 	}
 
-
 	int validLayers = 0;
-	for (int i=0; i<mesh->fdata.totlayer; i++)
+	for (int i=0; i<dm->faceData.totlayer; i++)
 	{
-		if (mesh->fdata.layers[i].type == CD_MTFACE)
+		if (dm->faceData.layers[i].type == CD_MTFACE)
 		{
 			assert(validLayers <= 8);
 
-			layers[validLayers].face = (MTFace*)mesh->fdata.layers[i].data;;
-			layers[validLayers].name = mesh->fdata.layers[i].name;
+			layers[validLayers].face = (MTFace*)(dm->faceData.layers[i].data);
+			layers[validLayers].name = dm->faceData.layers[i].name;
 			if(tface == layers[validLayers].face)
 				tfaceName = layers[validLayers].name;
 			validLayers++;
@@ -845,10 +770,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 	}
 
 	meshobj->SetName(mesh->id.name);
-	meshobj->m_xyz_index_to_vertex_index_mapping.resize(mesh->totvert);
-	for (int f=0;f<mesh->totface;f++,mface++)
+	meshobj->m_xyz_index_to_vertex_index_mapping.resize(totvert);
+
+	for (int f=0;f<totface;f++,mface++)
 	{
-		
 		bool collider = true;
 		
 		// only add valid polygons
@@ -858,38 +783,46 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 			MT_Point2 uv20(0.0,0.0),uv21(0.0,0.0),uv22(0.0,0.0),uv23(0.0,0.0);
 			// rgb3 is set from the adjoint face in a square
 			unsigned int rgb0,rgb1,rgb2,rgb3 = 0;
-			MT_Vector3	no0(mesh->mvert[mface->v1].no[0], mesh->mvert[mface->v1].no[1], mesh->mvert[mface->v1].no[2]),
-					no1(mesh->mvert[mface->v2].no[0], mesh->mvert[mface->v2].no[1], mesh->mvert[mface->v2].no[2]),
-					no2(mesh->mvert[mface->v3].no[0], mesh->mvert[mface->v3].no[1], mesh->mvert[mface->v3].no[2]),
-					no3(0.0, 0.0, 0.0);
-			MT_Point3	pt0(mesh->mvert[mface->v1].co),
-					pt1(mesh->mvert[mface->v2].co),
-					pt2(mesh->mvert[mface->v3].co),
-					pt3(0.0, 0.0, 0.0);
-			MT_Vector4	tan0(0.0, 0.0, 0.0, 0.0),
-					tan1(0.0, 0.0, 0.0, 0.0),
-					tan2(0.0, 0.0, 0.0, 0.0),
-					tan3(0.0, 0.0, 0.0, 0.0);
 
-			no0 /= 32767.0;
-			no1 /= 32767.0;
-			no2 /= 32767.0;
-			if (mface->v4)
-			{
-				pt3 = MT_Point3(mesh->mvert[mface->v4].co);
-				no3 = MT_Vector3(mesh->mvert[mface->v4].no[0], mesh->mvert[mface->v4].no[1], mesh->mvert[mface->v4].no[2]);
-				no3 /= 32767.0;
-			}
+			MT_Vector3 no0, no1, no2, no3;
+			MT_Point3 pt0, pt1, pt2, pt3;
+			MT_Vector4 tan0, tan1, tan2, tan3;
+
+			pt0 = MT_Point3(mvert[mface->v1].co);
+			pt1 = MT_Point3(mvert[mface->v2].co);
+			pt2 = MT_Point3(mvert[mface->v3].co);
+			pt3 = (mface->v4)? MT_Point3(mvert[mface->v4].co): MT_Point3(0.0, 0.0, 0.0);
 	
-			if(!(mface->flag & ME_SMOOTH))
-			{
-				MT_Vector3 norm = ((pt1-pt0).cross(pt2-pt0)).safe_normalized();
-				norm[0] = ((int) (10*norm[0]))/10.0;
-				norm[1] = ((int) (10*norm[1]))/10.0;
-				norm[2] = ((int) (10*norm[2]))/10.0;
-				no0=no1=no2=no3= norm;
-	
+			if(mface->flag & ME_SMOOTH) {
+				float n0[3], n1[3], n2[3], n3[3];
+
+				NormalShortToFloat(n0, mvert[mface->v1].no);
+				NormalShortToFloat(n1, mvert[mface->v2].no);
+				NormalShortToFloat(n2, mvert[mface->v3].no);
+				no0 = n0;
+				no1 = n1;
+				no2 = n2;
+
+				if(mface->v4) {
+					NormalShortToFloat(n3, mvert[mface->v4].no);
+					no3 = n3;
+				}
+				else
+					no3 = MT_Vector3(0.0, 0.0, 0.0);
 			}
+			else {
+				float fno[3];
+
+				if(mface->v4)
+					CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
+						mvert[mface->v3].co, mvert[mface->v4].co, fno);
+				else
+					CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
+						mvert[mface->v3].co, fno);
+
+				no0 = no1 = no2 = no3 = MT_Vector3(fno);
+			}
+
 		
 			{
 				Material* ma = 0;
@@ -904,7 +837,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					else 
 						ma = give_current_material(blenderobj, 1);
 
-					bl_mat = ConvertMaterial(mesh, ma, tface, tfaceName, mface, mmcol, lightlayer, blenderobj, layers, converter->GetGLSLMaterials());
+					bl_mat = ConvertMaterial(ma, tface, tfaceName, mface, mcol, lightlayer, blenderobj, layers, converter->GetGLSLMaterials());
 					// set the index were dealing with
 					bl_mat->material_index =  (int)mface->mat_nr;
 
@@ -927,22 +860,22 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					uv22 = uv[2]; uv23 = uv[3];
 
 					if(tangent){
-						tan0 = tangent[mface->v1];
-						tan1 = tangent[mface->v2];
-						tan2 = tangent[mface->v3];
+						tan0 = tangent[f*4 + 0];
+						tan1 = tangent[f*4 + 1];
+						tan2 = tangent[f*4 + 2];
+
 						if (mface->v4)
-							tan3 = tangent[mface->v4];
+							tan3 = tangent[f*4 + 3];
 					}
 				}
 				else
 				{
 					ma = give_current_material(blenderobj, 1);
 
-					Image* bima = ((mesh->mtface && tface) ? (Image*) tface->tpage : NULL);
+					Image* bima = (tface)? (Image*)tface->tpage: NULL;
 		
 					STR_String imastr = 
-						((mesh->mtface && tface) ? 
-						(bima? (bima)->id.name : "" ) : "" );
+						(tface)? (bima? (bima)->id.name : "" ) : "";
 			
 					char transp=0;
 					short mode=0, tile=0;
@@ -955,7 +888,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 				
 					}
 
-					if (mesh->mtface && tface)
+					if(tface)
 					{
 						// Use texface colors if available
 						//TF_DYNAMIC means the polygon is a collision face
@@ -982,15 +915,15 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 						tile = 0;
 					}
 
-					if (mmcol)
+					if (mcol)
 					{
 						// Use vertex colors
-						rgb0 = KX_Mcol2uint_new(mmcol[0]);
-						rgb1 = KX_Mcol2uint_new(mmcol[1]);
-						rgb2 = KX_Mcol2uint_new(mmcol[2]);
+						rgb0 = KX_Mcol2uint_new(mcol[0]);
+						rgb1 = KX_Mcol2uint_new(mcol[1]);
+						rgb2 = KX_Mcol2uint_new(mcol[2]);
 						
 						if (mface->v4)
-							rgb3 = KX_Mcol2uint_new(mmcol[3]);
+							rgb3 = KX_Mcol2uint_new(mcol[3]);
 					}
 					else {
 						// no vertex colors: take from material if we have one,
@@ -1026,7 +959,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					
 					polymat = new KX_PolygonMaterial(imastr, ma,
 						tile, tilexrep, tileyrep, 
-						mode, transp, zsort, lightlayer, istriangle, blenderobj, tface, (unsigned int*)mmcol);
+						mode, transp, zsort, lightlayer, istriangle, blenderobj, tface, (unsigned int*)mcol);
 		
 					if (ma)
 					{
@@ -1108,8 +1041,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 		}
 		if (tface) 
 			tface++;
-		if (mmcol)
-			mmcol+=4;
+		if (mcol)
+			mcol+=4;
 
 		for (int lay=0; lay<MAX_MTFACE; lay++)
 		{
@@ -1128,11 +1061,10 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 		(*mit)->GetPolyMaterial()->OnConstruction();
 	}
 
-	if(tangent)
-		delete [] tangent;
-
 	if (layers)
 		delete []layers;
+	
+	dm->release(dm);
 
 	return meshobj;
 }
@@ -1817,7 +1749,6 @@ KX_GameObject* getGameOb(STR_String busc,CListValue* sumolist){
 	return 0;
 
 }
-#include "BLI_arithb.h"
 // convert blender objects into ketsji gameobjects
 void BL_ConvertBlenderObjects(struct Main* maggie,
 							  const STR_String& scenename,

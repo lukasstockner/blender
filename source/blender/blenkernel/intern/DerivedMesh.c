@@ -1252,6 +1252,43 @@ void emDM_copyFaceArray(DerivedMesh *dm, MFace *face_r)
 	}
 }
 
+static void *emDM_getFaceDataArray(DerivedMesh *dm, int type)
+{
+	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
+	EditMesh *em= emdm->em;
+	EditFace *efa;
+	char *data, *emdata;
+	void *datalayer;
+	int index, offset, size;
+
+	datalayer = DM_get_face_data_layer(dm, type);
+	if(datalayer)
+		return datalayer;
+
+	/* layers are store per face for editmesh, we convert to a temporary
+	 * data layer array in the derivedmesh when these are requested */
+	if(type == CD_MTFACE || type == CD_MCOL) {
+		index = CustomData_get_layer_index(&em->fdata, type);
+
+		if(index != -1) {
+			offset = em->fdata.layers[index].offset;
+			size = CustomData_sizeof(type);
+
+			DM_add_face_layer(dm, type, CD_CALLOC, NULL);
+			index = CustomData_get_layer_index(&dm->faceData, type);
+			dm->faceData.layers[index].flag |= CD_FLAG_TEMPORARY;
+
+			data = datalayer = DM_get_face_data_layer(dm, type);
+			for(efa=em->faces.first; efa; efa=efa->next, data+=size) {
+				emdata = CustomData_em_get(&em->fdata, efa->data, type);
+				memcpy(data, emdata, size);
+			}
+		}
+	}
+
+	return datalayer;
+}
+
 static void emDM_release(DerivedMesh *dm)
 {
 	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
@@ -1287,6 +1324,7 @@ static DerivedMesh *getEditMeshDerivedMesh(EditMesh *em, Object *ob,
 	emdm->dm.copyVertArray = emDM_copyVertArray;
 	emdm->dm.copyEdgeArray = emDM_copyEdgeArray;
 	emdm->dm.copyFaceArray = emDM_copyFaceArray;
+	emdm->dm.getFaceDataArray = emDM_getFaceDataArray;
 
 	emdm->dm.foreachMappedVert = emDM_foreachMappedVert;
 	emdm->dm.foreachMappedEdge = emDM_foreachMappedEdge;
@@ -3079,7 +3117,7 @@ int editmesh_get_first_deform_matrices(float (**deformmats)[3][3], float (**defo
 
 /* ******************* GLSL ******************** */
 
-static void DM_add_tangent_layer(DerivedMesh *dm)
+void DM_add_tangent_layer(DerivedMesh *dm)
 {
 	/* mesh vars */
 	MTFace *mtface, *tf;

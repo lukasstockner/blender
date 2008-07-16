@@ -965,11 +965,11 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 		input->textype = type;
 
 		if (type == GPU_TEX1D) {
-			input->tex = GPU_texture_create_1D(link->texturesize, link->ptr1, 1);
+			input->tex = GPU_texture_create_1D(link->texturesize, link->ptr1, 0);
 			input->textarget = GL_TEXTURE_1D;
 		}
 		else {
-			input->tex = GPU_texture_create_2D(link->texturesize, link->texturesize, link->ptr2, 1);
+			input->tex = GPU_texture_create_2D(link->texturesize, link->texturesize, link->ptr2, 0);
 			input->textarget = GL_TEXTURE_2D;
 		}
 

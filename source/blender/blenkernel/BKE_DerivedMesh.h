@@ -483,5 +483,7 @@ typedef struct DMVertexAttribs {
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm,
 	struct GPUVertexAttribs *gattribs, DMVertexAttribs *attribs);
 
+void DM_add_tangent_layer(DerivedMesh *dm);
+
 #endif
 
