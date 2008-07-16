@@ -29,8 +29,10 @@ static struct Scene *GetSceneForName(const STR_String& scenename)
 	return (Scene*)G.main->scene.first;
 }
 
-const bool BL_BlenderShader::Ok()const
+bool BL_BlenderShader::Ok()
 {
+	VerifyShader();
+
 	return (mMat && mMat->gpumaterial);
 }
 
@@ -61,15 +63,7 @@ bool BL_BlenderShader::VerifyShader()
 	if(mMat && !mMat->gpumaterial)
 		GPU_material_from_blender(mBlenderScene, mMat);
 
-	if(mMat && mMat->gpumaterial != mGPUMat) {
-		mGPUMat = mMat->gpumaterial;
-
-		/* this is shaky - display lists are wrong now after the
-		 * material changed, so we set all meshes as modified to
-		 * rebuild their display lists */
-		if(mScene->GetBucketManager())
-			mScene->GetBucketManager()->ReleaseDisplayLists();
-	}
+	mGPUMat = mMat->gpumaterial;
 	
 	return (mMat && mGPUMat);
 }

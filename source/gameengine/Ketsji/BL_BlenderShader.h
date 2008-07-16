@@ -40,7 +40,7 @@ public:
 	BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer);
 	virtual ~BL_BlenderShader();
 
-	const bool			Ok()const;
+	bool				Ok();
 	void				SetProg(bool enable);
 
 	int GetAttribNum();

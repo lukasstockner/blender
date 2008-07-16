@@ -651,7 +651,7 @@ bool GPG_Application::startEngine(void)
 		PyObject* dictionaryobject = initGamePlayerPythonScripting("Ketsji", psl_Lowest);
 		m_ketsjiengine->SetPythonDictionary(dictionaryobject);
 		initRasterizer(m_rasterizer, m_canvas);
-		PyDict_SetItemString(dictionaryobject, "GameLogic", initGameLogic(startscene)); // Same as importing the module
+		PyDict_SetItemString(dictionaryobject, "GameLogic", initGameLogic(m_ketsjiengine, startscene)); // Same as importing the module
 		initGameKeys();
 		initPythonConstraintBinding();
 
