@@ -7220,7 +7220,7 @@ static DerivedMesh *multiresModifier_applyModifier(ModifierData *md, Object *ob,
 	if(mmd->lvl == 1)
 		return dm;
 
-	return multires_dm_create_from_derived(mmd, dm, useRenderParams, isFinalCalc);
+	return multires_dm_create_from_derived(mmd, dm, get_mesh(ob), useRenderParams, isFinalCalc);
 }
 
 /***/

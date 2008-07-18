@@ -1169,6 +1169,8 @@ typedef struct MultiresDM {
 	ListBase *vert_face_map;
 	IndexNode *vert_face_map_mem;
 
+	Mesh *me;
+
 	void (*update)(DerivedMesh*);
 } MultiresDM;
 
@@ -1273,6 +1275,16 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 	dm->release = MultiresDM_release;
 
 	return dm;
+}
+
+void MultiresDM_set_mesh(DerivedMesh *dm, Mesh *me)
+{
+	((MultiresDM*)dm)->me = me;
+}
+
+Mesh *MultiresDM_get_mesh(DerivedMesh *dm)
+{
+	return ((MultiresDM*)dm)->me;
 }
 
 void *MultiresDM_get_vertnorm(DerivedMesh *dm)

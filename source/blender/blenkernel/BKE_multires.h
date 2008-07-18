@@ -82,6 +82,8 @@ void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *m
 			  const int totvert, const int totface);
 
 /* MultiresDM */
+void MultiresDM_set_mesh(struct DerivedMesh *dm, struct Mesh *me);
+struct Mesh *MultiresDM_get_mesh(struct DerivedMesh *dm);
 struct DerivedMesh *MultiresDM_new(struct DerivedMesh*, int, int, int, int, int);
 void *MultiresDM_get_vertnorm(struct DerivedMesh *);
 void *MultiresDM_get_orco(struct DerivedMesh *);
@@ -124,7 +126,8 @@ typedef struct MultiresDisplacer {
 
 void multires_force_update(struct Object *ob);
 
-struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*, int, int);
+struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*,
+						    struct Mesh *, int, int);
 
 void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object *ob);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);

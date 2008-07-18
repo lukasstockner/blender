@@ -1410,62 +1410,86 @@ void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, int lvl, 
 	MVert *mvs = CDDM_get_verts(final);
 	MVert *mvd, *mvd_f1, *mvs_f1, *mvd_f3, *mvd_f4;
 	MVert *mvd_f2, *mvs_f2, *mvs_e1, *mvd_e1, *mvs_e2;
-	int totorco, totvert;
+	int totvert;
+	int slo1 = multires_side_tot[lvl - 1];
+	int sll = slo1 / 2;
 	int slo2 = multires_side_tot[totlvl - 2];
 	int shi2 = multires_side_tot[totlvl - 1];
-	int i, j;
-
-	/* Base mesh */
-	int base_totvert, base_totedge, base_totface;
-	MFace *base_mface;
-	if(me) {
-		base_totvert = me->totvert;
-		base_totedge = me->totedge;
-		base_totface = me->totface;
-		base_mface = me->mface;
-	}
-	else {
-		base_totvert = MultiresDM_get_totorco(orig);
-		base_totedge = MultiresDM_get_totored(orig);
-		base_totface = MultiresDM_get_totorfa(orig);
-		base_mface = MultiresDM_get_orfa(orig);
-	}
+	int skip = multires_side_tot[totlvl - lvl] - 1;
+	int i, j, k;
 
 	mmd_sub.lvl = mmd_sub.totlvl = totlvl;
-	mrdm = multires_dm_create_from_derived(&mmd_sub, orig, 0, 0);
+	mrdm = multires_dm_create_from_derived(&mmd_sub, orig, me, 0, 0);
 		
 	mvd = CDDM_get_verts(mrdm);
 	/* Need to map from ccg to mrdm */
-	totorco = MultiresDM_get_totorco(mrdm);
 	totvert = mrdm->getNumVerts(mrdm);
 
 	/* Load base verts */
-	for(i = 0; i < base_totvert; ++i)
-		VecCopyf(mvd[totvert - totorco + i].co, mvs[totvert - totorco + i].co);
+	for(i = 0; i < me->totvert; ++i)
+		VecCopyf(mvd[totvert - me->totvert + i].co, mvs[totvert - me->totvert + i].co);
 
 	mvd_f1 = mvd;
 	mvs_f1 = mvs;
 	mvd_f2 = mvd;
 	mvs_f2 = mvs + totvert - totsubvert;
-	mvs_e1 = mvs + totsubface;
-	for(i = 0; i < base_totface; ++i) {
-		const int end = base_mface[i].v4 ? 4 : 3;
-		int x, y;
+	mvs_e1 = mvs + totsubface * (skip-1) * (skip-1);
+
+	for(i = 0; i < me->totface; ++i) {
+		const int end = me->mface[i].v4 ? 4 : 3;
+		int x, y, x2, y2, mov;
 
 		mvd_f1 += 1 + end * (slo2-2); //center+edgecross
 		mvd_f3 = mvd_f4 = mvd_f1;
 
 		for(j = 0; j < end; ++j) {
-			/* Update face centers created in the top level */
-			for(y = 1; y < slo2 - 1; y += 2) {
-				for(x = 1; x < slo2 - 1; x += 2) {
+			mvd_f1 += (skip/2 - 1) * (slo2 - 2) + (skip/2 - 1);
+			/* Update sub faces */
+			for(y = 0; y < sll; ++y) {
+				for(x = 0; x < sll; ++x) {
+					/* Face center */
 					VecCopyf(mvd_f1->co, mvs_f1->co);
-					mvd_f1 += 2;
 					mvs_f1 += 1;
+
+					/* Now we hold the center of the subface at mvd_f1
+					   and offset it to the edge cross and face verts */
+
+					/* Edge cross */
+					for(k = 0; k < 4; ++k) {
+						if(k == 0) mov = -1;
+						else if(k == 1) mov = slo2 - 2;
+						else if(k == 2) mov = 1;
+						else if(k == 3) mov = -(slo2 - 2);
+
+						for(x2 = 1; x2 < skip/2; ++x2) {
+							VecCopyf((mvd_f1 + mov * x2)->co, mvs_f1->co);
+							++mvs_f1;
+						}
+					}
+
+					/* Main face verts */
+					for(k = 0; k < 4; ++k) {
+						int movx, movy;
+
+						if(k == 0) { movx = -1; movy = -(slo2 - 2); }
+						else if(k == 1) { movx = slo2 - 2; movy = -1; }
+						else if(k == 2) { movx = 1; movy = slo2 - 2; }
+						else if(k == 3) { movx = -(slo2 - 2); movy = 1; }
+
+						for(y2 = 1; y2 < skip/2; ++y2) {
+							for(x2 = 1; x2 < skip/2; ++x2) {
+								VecCopyf((mvd_f1 + movy * y2 + movx * x2)->co, mvs_f1->co);
+								++mvs_f1;
+							}
+						}
+					}
+							
+					mvd_f1 += skip;
 				}
-				mvd_f1 += slo2 - 3;
+				mvd_f1 += (skip - 1) * (slo2 - 2) - 1;
 			}
-			mvd_f1 -= slo2 - 2;
+			mvd_f1 -= (skip - 1) * (slo2 - 2) - 1 + skip;
+			mvd_f1 += (slo2 - 2) * (skip/2-1) + skip/2-1 + 1;
 		}
 
 		/* update face center verts */
@@ -1476,69 +1500,88 @@ void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, int lvl, 
 
 		/* update face edge verts */
 		for(j = 0; j < end; ++j) {
-			VecCopyf(mvd_f2->co, mvs_e1->co);
-			mvd_f2++;
-			mvs_e1++;
-			for(x = 2; x < slo2 - 1; x += 2) {
-				VecCopyf(mvd_f2->co, mvs_f2->co);
-				mvd_f2++;
-				mvs_f2++;
+			MVert *restore;
 
+			/* Super-face edge cross */
+			for(k = 0; k < skip-1; ++k) {
 				VecCopyf(mvd_f2->co, mvs_e1->co);
 				mvd_f2++;
 				mvs_e1++;
 			}
+			for(x = 1; x < sll; ++x) {
+				VecCopyf(mvd_f2->co, mvs_f2->co);
+				mvd_f2++;
+				mvs_f2++;
 
-			for(y = 0; y < slo2/2 - 1; ++y) {
-				for(x = 0; x < slo2/2; ++x) {
-					VecCopyf(mvd_f3[1+(y*2) + x*(2 * (slo2-2))].co,
-						 mvs_e1->co);
-					mvs_e1+=2;
+				for(k = 0; k < skip-1; ++k) {
+					VecCopyf(mvd_f2->co, mvs_e1->co);
+					mvd_f2++;
+					mvs_e1++;
 				}
 			}
 
-			mvs_e1 -= (slo2/2) * (slo2/2 - 1) * 2 - 1;
-			for(y = 0; y < slo2/2 - 1; ++y) {
-				for(x = 0; x < slo2/2; ++x) {
-					VecCopyf(mvd_f3[(slo2-2) + (x*2) + y*2*(slo2-2)].co,
-						 mvs_e1->co);
-					mvs_e1+=2;
+			restore = mvs_e1;
+			for(y = 0; y < sll - 1; ++y) {
+				for(x = 0; x < sll; ++x) {
+					for(k = 0; k < skip - 1; ++k) {
+						VecCopyf(mvd_f3[(skip-1)+(y*skip) + (x*skip+k)*(slo2-2)].co,
+							 mvs_e1->co);
+						++mvs_e1;
+					}
+					mvs_e1 += skip-1;
+				}
+			}
+			
+			mvs_e1 = restore + skip - 1;
+			for(y = 0; y < sll - 1; ++y) {
+				for(x = 0; x < sll; ++x) {
+					for(k = 0; k < skip - 1; ++k) {
+						VecCopyf(mvd_f3[(slo2-2)*(skip-1)+(x*skip)+k + y*skip*(slo2-2)].co,
+							 mvs_e1->co);
+						++mvs_e1;
+					}
+					mvs_e1 += skip - 1;
 				}
 			}
 
 			mvd_f3 += (slo2-2)*(slo2-2);
-			mvs_e1 -= 1;
+			mvs_e1 -= skip - 1;
 		}
 
 		/* update base (2) face verts */
 		for(j = 0; j < end; ++j) {
-			mvd_f2 += slo2 - 1;
-			for(y = 1; y < slo2 - 2; y += 2) {
-				for(x = 1; x < slo2 - 2; x += 2) {
+			mvd_f2 += (slo2 - 1) * (skip - 1);
+			for(y = 0; y < sll - 1; ++y) {
+				for(x = 0; x < sll - 1; ++x) {
 					VecCopyf(mvd_f2->co, mvs_f2->co);
-					mvd_f2 += 2;
+					mvd_f2 += skip;
 					++mvs_f2;
 				}
-				mvd_f2 += slo2 - 1;
+				mvd_f2 += (slo2 - 1) * (skip - 1);
 			}
-			mvd_f2 -= 1;
+			mvd_f2 -= (skip - 1);
 		}
 	}
 
 	/* edges */
-	mvd_e1 = mvd + totvert - base_totvert - base_totedge * (shi2-2);
-	mvs_e2 = mvs + totvert - base_totvert - base_totedge * (slo2-2);
-	for(i = 0; i < base_totedge; ++i) {
-		VecCopyf(mvd_e1->co, mvs_e1->co);
-		mvd_e1++;
-		mvs_e1++;
-		for(j = 0; j < slo2-2; j++) {
-			VecCopyf(mvd_e1->co, mvs_e2->co);
-			mvd_e1++;
-			mvs_e2++;
+	mvd_e1 = mvd + totvert - me->totvert - me->totedge * (shi2-2);
+	mvs_e2 = mvs + totvert - me->totvert - me->totedge * (slo1-2);
+	for(i = 0; i < me->totedge; ++i) {
+		for(j = 0; j < skip - 1; ++j) {
 			VecCopyf(mvd_e1->co, mvs_e1->co);
 			mvd_e1++;
 			mvs_e1++;
+		}
+		for(j = 0; j < slo1 - 2; j++) {
+			VecCopyf(mvd_e1->co, mvs_e2->co);
+			mvd_e1++;
+			mvs_e2++;
+			
+			for(k = 0; k < skip - 1; ++k) {
+				VecCopyf(mvd_e1->co, mvs_e1->co);
+				mvd_e1++;
+				mvs_e1++;
+			}
 		}
 	}
 
@@ -1580,7 +1623,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 
 		orig = CDDM_from_mesh(me, NULL);
 		mmd_sub.lvl = mmd_sub.totlvl = mmd->totlvl - 1;
-		mrdm = multires_dm_create_from_derived(&mmd_sub, orig, 0, 0);
+		mrdm = multires_dm_create_from_derived(&mmd_sub, orig, me, 0, 0);
 		totsubvert = mrdm->getNumVerts(mrdm);
 		totsubedge = mrdm->getNumEdges(mrdm);
 		totsubface = mrdm->getNumFaces(mrdm);
@@ -1854,7 +1897,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 	if(mdisps) {
 		MultiresDisplacer d;
 		const int lvl = MultiresDM_get_lvl(dm);
-		//const int totlvl = MultiresDM_get_totlvl(dm);
+		const int totlvl = MultiresDM_get_totlvl(dm);
 		const int gridFaces = multires_side_tot[lvl - 2] - 1;
 		const int edgeSize = multires_side_tot[lvl - 1] - 1;
 		ListBase *map = MultiresDM_get_vert_face_map(dm);
@@ -1929,8 +1972,14 @@ static void multiresModifier_update(DerivedMesh *dm)
 			++d.subco;
 		}
 
-		/* Propagate disps upwards */
-		//multires_subdisp(dm, NULL, lvl, totlvl, totsubvert, totsubedge, totsubface);
+		if(lvl < totlvl) {
+			/* Propagate disps upwards */
+			Mesh *me = MultiresDM_get_mesh(dm);
+			DerivedMesh *orig = CDDM_from_mesh(me, NULL);
+			multires_subdisp(orig, me, multires_subdisp_pre(dm, totlvl - lvl),
+					 lvl, totlvl, dm->getNumVerts(dm), dm->getNumEdges(dm), dm->getNumFaces(dm));
+			orig->release(orig);
+		}
 	}
 }
 
@@ -1943,8 +1992,8 @@ void multires_force_update(Object *ob)
 	}
 }
 
-struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, DerivedMesh *dm, int useRenderParams,
-						    int isFinalCalc)
+struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, DerivedMesh *dm, Mesh *me,
+						    int useRenderParams, int isFinalCalc)
 {
 	SubsurfModifierData smd;
 	DerivedMesh *result;
@@ -1954,6 +2003,7 @@ struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, D
 
 	result = subsurf_make_derived_from_derived_with_multires(dm, &smd, mmd, useRenderParams, NULL, isFinalCalc, 0);
 	MultiresDM_set_update(result, multiresModifier_update);
+	MultiresDM_set_mesh(result, me);
 
 	return result;
 }
