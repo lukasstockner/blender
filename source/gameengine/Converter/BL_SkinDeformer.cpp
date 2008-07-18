@@ -57,26 +57,29 @@ extern "C"{
 #define __NLA_DEFNORMALS
 //#undef __NLA_DEFNORMALS
 
-BL_SkinDeformer::BL_SkinDeformer(struct Object *bmeshobj, 
+BL_SkinDeformer::BL_SkinDeformer(BL_DeformableGameObject *gameobj,
+								struct Object *bmeshobj, 
 								class BL_SkinMeshObject *mesh,
 								BL_ArmatureObject* arma)
 							:	//
-							BL_MeshDeformer(bmeshobj, mesh),
+							BL_MeshDeformer(gameobj, bmeshobj, mesh),
 							m_armobj(arma),
 							m_lastArmaUpdate(-1),
 							m_defbase(&bmeshobj->defbase),
-							m_releaseobject(false)
+							m_releaseobject(false),
+							m_poseApplied(false)
 {
 	Mat4CpyMat4(m_obmat, bmeshobj->obmat);
 };
 
 BL_SkinDeformer::BL_SkinDeformer(
+	BL_DeformableGameObject *gameobj,
 	struct Object *bmeshobj_old,	// Blender object that owns the new mesh
 	struct Object *bmeshobj_new,	// Blender object that owns the original mesh
 	class BL_SkinMeshObject *mesh,
 	bool release_object,
 	BL_ArmatureObject* arma)	:	
-		BL_MeshDeformer(bmeshobj_old, mesh),
+		BL_MeshDeformer(gameobj, bmeshobj_old, mesh),
 		m_armobj(arma),
 		m_lastArmaUpdate(-1),
 		m_defbase(&bmeshobj_old->defbase),
@@ -98,33 +101,26 @@ BL_SkinDeformer::~BL_SkinDeformer()
 
 bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 {
-	size_t			i, j, index;
-	vecVertexArray	array;
-	vecIndexArrays	mvarray;
-	vecMDVertArray	dvarray;
-	vecIndexArrays	diarray;
+	size_t i, j;
 
-	RAS_TexVert *tv;
-	MT_Point3 pt;
-//	float co[3];
-
+	// update the vertex in m_transverts
 	Update();
 
-	array = m_pMeshObject->GetVertexCache(mat);
-	mvarray = m_pMeshObject->GetMVertCache(mat);
-	diarray = m_pMeshObject->GetDIndexCache(mat);
-	// For each array
-	for (i=0; i<array.size(); i++) {
-		//	For each vertex
-		for (j=0; j<array[i]->size(); j++) {
+	// The vertex cache can only be updated for this deformer:
+	// Duplicated objects with more than one ploymaterial (=multiple mesh slot per object)
+	// share the same mesh (=the same cache). As the rendering is done per polymaterial
+	// cycling through the objects, the entire mesh cache cannot be updated in one shot.
+	vecVertexArray& vertexarrays = m_pMeshObject->GetVertexCache(mat);
 
-			tv = &((*array[i])[j]);
-			
-			index = ((*diarray[i])[j]);
-			
-			//	Copy the untransformed data from the original mvert
-			//	Set the data
-			tv->SetXYZ(m_transverts[((*mvarray[i])[index])]);
+	// For each array
+	for (i=0; i<vertexarrays.size(); i++) {
+		KX_VertexArray& vertexarray = (*vertexarrays[i]);
+
+		// For each vertex
+		// copy the untransformed data from the original mvert
+		for (j=0; j<vertexarray.size(); j++) {
+			RAS_TexVert& v = vertexarray[j];
+			v.SetXYZ(m_transverts[v.getOrigIndex()]);
 		}
 	}
 
@@ -149,17 +145,16 @@ void BL_SkinDeformer::ProcessReplica()
 bool BL_SkinDeformer::Update(void)
 {
 	/* See if the armature has been updated for this frame */
-	if (m_armobj && m_lastArmaUpdate!=m_armobj->GetLastFrame()){	
+	if (PoseUpdated()){	
 		float obmat[4][4];	// the original object matrice 
-		
-		/* Do all of the posing necessary */
-		m_armobj->ApplyPose();
 		
 		/* XXX note: where_is_pose() (from BKE_armature.h) calculates all matrices needed to start deforming */
 		/* but it requires the blender object pointer... */
-
 		Object* par_arma = m_armobj->GetArmatureObject();
-		where_is_pose( par_arma ); 
+		if (!PoseApplied()){
+			m_armobj->ApplyPose();
+			where_is_pose( par_arma ); 
+		}
 
 		/* store verts locally */
 		VerifyStorage();
@@ -184,7 +179,8 @@ bool BL_SkinDeformer::Update(void)
 
 		/* Update the current frame */
 		m_lastArmaUpdate=m_armobj->GetLastFrame();
-		
+		/* reset for next frame */
+		PoseApplied(false);
 		/* indicate that the m_transverts and normals are up to date */
 		return true;
 	}
