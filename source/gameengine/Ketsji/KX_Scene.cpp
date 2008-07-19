@@ -432,6 +432,11 @@ void KX_Scene::RemoveNodeDestructObject(class SG_IObject* node,class CValue* gam
 
 KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CValue* gameobj)
 {
+	// for group duplication, limit the duplication of the hierarchy to the
+	// objects that are part of the group. 
+	if (!IsObjectInGroup(gameobj))
+		return NULL;
+	
 	KX_GameObject* orgobj = (KX_GameObject*)gameobj;
 	KX_GameObject* newobj = (KX_GameObject*)orgobj->GetReplica();
 	m_map_gameobject_to_replica.insert(orgobj, newobj);
@@ -546,7 +551,9 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 			if (!newsensorobj)
 			{
 				// no, then the sensor points outside the hierachy, keep it the same
-				m_logicmgr->RegisterToSensor(cont,oldsensor);
+				if (m_objectlist->SearchValue(oldsensorobj))
+					// only replicate links that points to active objects
+					m_logicmgr->RegisterToSensor(cont,oldsensor);
 			}
 			else
 			{
@@ -584,7 +591,9 @@ void KX_Scene::ReplicateLogic(KX_GameObject* newobj)
 			if (!newactuatorobj)
 			{
 				// no, then the sensor points outside the hierachy, keep it the same
-				m_logicmgr->RegisterToActuator(cont,oldactuator);
+				if (m_objectlist->SearchValue(oldactuatorobj))
+					// only replicate links that points to active objects
+					m_logicmgr->RegisterToActuator(cont,oldactuator);
 			}
 			else
 			{
@@ -616,6 +625,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 {
 	KX_GameObject* groupobj = (KX_GameObject*) obj;
 	KX_GameObject* replica;
+	KX_GameObject* gameobj;
 	Object* blgroupobj = groupobj->GetBlenderObject();
 	Group* group;
 	GroupObject *go;
@@ -629,6 +639,10 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 	m_logicHierarchicalGameObjects.clear();
 	m_map_gameobject_to_replica.clear();
 	m_ueberExecutionPriority++;
+	// for groups will do something special: 
+	// we will force the creation of objects to those in the group only
+	// Again, this is match what Blender is doing (it doesn't care of parent relationship)
+	m_groupGameObjects.clear();
 
 	group = blgroupobj->dup_group;
 	for(go=(GroupObject*)group->gobject.first; go; go=(GroupObject*)go->next) 
@@ -637,24 +651,31 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		if (blgroupobj == blenderobj)
 			// this check is also in group_duplilist()
 			continue;
-		KX_GameObject* gameobj = m_sceneConverter->FindGameObject(blenderobj);
+		gameobj = m_sceneConverter->FindGameObject(blenderobj);
 		if (gameobj == NULL) 
 		{
 			// this object has not been converted!!!
 			// Should not happen as dupli group are created automatically 
 			continue;
 		}
+		if (blenderobj->lay & group->layer==0)
+		{
+			// object is not visible in the 3D view, will not be instantiated
+			continue;
+		}
+		m_groupGameObjects.insert(gameobj);
+	}
+
+	set<CValue*>::iterator oit;
+	for (oit=m_groupGameObjects.begin(); oit != m_groupGameObjects.end(); oit++)
+	{
+		gameobj = (KX_GameObject*)(*oit);
 		if (gameobj->GetParent() != NULL)
 		{
 			// this object is not a top parent. Either it is the child of another
 			// object in the group and it will be added automatically when the parent
 			// is added. Or it is the child of an object outside the group and the group
 			// is inconsistent, skip it anyway
-			continue;
-		}
-		if (blenderobj->lay & group->layer==0)
-		{
-			// object is not visible in the 3D view, will not be instantiated
 			continue;
 		}
 		replica = (KX_GameObject*) AddNodeReplicaObject(NULL,gameobj);
@@ -669,7 +690,8 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		{
 			SG_Node* orgnode = (*childit);
 			SG_Node* childreplicanode = orgnode->GetSGReplica();
-			replica->GetSGNode()->AddChild(childreplicanode);
+			if (childreplicanode)
+				replica->GetSGNode()->AddChild(childreplicanode);
 		}
 		// don't replicate logic now: we assume that the objects in the group can have
 		// logic relationship, even outside parent relationship
@@ -703,21 +725,23 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		replica->Release();
 	}
 
-	//	relink any pointers as necessary, sort of a temporary solution
+	// the logic must be replicated first because we need
+	// the new logic bricks before relinking
 	vector<KX_GameObject*>::iterator git;
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		(*git)->Relink(&m_map_gameobject_to_replica);
-		// add the object in the layer of the parent
-		(*git)->SetLayer(groupobj->GetLayer());
-	}
-
-	// now replicate logic
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		(*git)->ReParentLogic();
 	}
 	
+	//	relink any pointers as necessary, sort of a temporary solution
+	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
+	{
+		// this will also relink the actuator to objects within the hierarchy
+		(*git)->Relink(&m_map_gameobject_to_replica);
+		// add the object in the layer of the parent
+		(*git)->SetLayer(groupobj->GetLayer());
+	}
+
 	// replicate crosslinks etc. between logic bricks
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
@@ -746,6 +770,7 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 
 	m_logicHierarchicalGameObjects.clear();
 	m_map_gameobject_to_replica.clear();
+	m_groupGameObjects.clear();
 
 	// todo: place a timebomb in the object, for temporarily objects :)
 	// lifespan of zero means 'this object lives forever'
@@ -779,24 +804,26 @@ SCA_IObject* KX_Scene::AddReplicaObject(class CValue* originalobject,
 	{
 		SG_Node* orgnode = (*childit);
 		SG_Node* childreplicanode = orgnode->GetSGReplica();
-		replica->GetSGNode()->AddChild(childreplicanode);
-	}
-
-	//	relink any pointers as necessary, sort of a temporary solution
-	vector<KX_GameObject*>::iterator git;
-	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
-	{
-		(*git)->Relink(&m_map_gameobject_to_replica);
-		// add the object in the layer of the parent
-		(*git)->SetLayer(parentobj->GetLayer());
+		if (childreplicanode)
+			replica->GetSGNode()->AddChild(childreplicanode);
 	}
 
 	// now replicate logic
+	vector<KX_GameObject*>::iterator git;
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
 		(*git)->ReParentLogic();
 	}
 	
+	//	relink any pointers as necessary, sort of a temporary solution
+	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
+	{
+		// this will also relink the actuators in the hierarchy
+		(*git)->Relink(&m_map_gameobject_to_replica);
+		// add the object in the layer of the parent
+		(*git)->SetLayer(parentobj->GetLayer());
+	}
+
 	// replicate crosslinks etc. between logic bricks
 	for (git = m_logicHierarchicalGameObjects.begin();!(git==m_logicHierarchicalGameObjects.end());++git)
 	{
