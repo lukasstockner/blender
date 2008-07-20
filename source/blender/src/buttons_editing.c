@@ -1356,16 +1356,16 @@ static void modifiers_applyModifier(void *obv, void *mdv)
 	}
 
 	if (ob->type==OB_MESH) {
-		if(me->mr && multires_modifier_warning()) {
-			error("Modifier changes topology; cannot apply with multires active");
-			return;
-		}
 		if(me->key) {
 			error("Modifier cannot be applied to Mesh with Shape Keys");
 			return;
 		}
 	
 		mesh_pmv_off(ob, me);
+
+		/* Multires: ensure that recent sculpting is applied */
+		if(md->type == eModifierType_Multires)
+			multires_force_update(ob);
 	
 		dm = mesh_create_derived_for_modifier(ob, md);
 		if (!dm) {
@@ -1373,6 +1373,10 @@ static void modifiers_applyModifier(void *obv, void *mdv)
 			return;
 		}
 
+		/* Multires: remove MDisps from the DerivedMesh */
+		if(md->type == eModifierType_Multires)
+			CustomData_free_layers(&dm->faceData, CD_MDISPS, MultiresDM_get_totorfa(dm));
+		
 		DM_to_mesh(dm, me);
 		converted = 1;
 
