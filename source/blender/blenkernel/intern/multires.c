@@ -1403,7 +1403,7 @@ DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance)
 }
 
 void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, int lvl, int totlvl,
-		      int totsubvert, int totsubedge, int totsubface)
+		      int totsubvert, int totsubedge, int totsubface, MVert *addverts)
 {
 	DerivedMesh *mrdm;
 	MultiresModifierData mmd_sub;
@@ -1585,6 +1585,11 @@ void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, int lvl, 
 		}
 	}
 
+	if(addverts) {
+		for(i = 0; i < totvert; ++i)
+			VecAddf(mvd[i].co, mvd[i].co, addverts[i].co);
+	}
+
 	final->needsFree = 1;
 	final->release(final);
 	mrdm->needsFree = 1;
@@ -1653,7 +1658,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 
 		orig = CDDM_from_mesh(me, NULL);
 
-		multires_subdisp(orig, me, final, mmd->totlvl - 1, mmd->totlvl, totsubvert, totsubedge, totsubface);
+		multires_subdisp(orig, me, final, mmd->totlvl - 1, mmd->totlvl, totsubvert, totsubedge, totsubface, NULL);
 
 		orig->needsFree = 1;
 		orig->release(orig);
@@ -1909,6 +1914,48 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 		d.subco = MultiresDM_get_subco(dm);
 
+		if(lvl < totlvl) {
+			/* Propagate disps upwards */
+			Mesh *me = MultiresDM_get_mesh(dm);
+			DerivedMesh *orig = CDDM_from_mesh(me, NULL), *orig_mrdm, *final, *orig_top_mrdm;
+			MultiresModifierData mmd;
+			MVert *verts_orig, *verts_new, *orig_top_verts;
+
+			/* Regenerate the vertex coords at the top level using the unmodified disps */
+			mmd.totlvl = totlvl;
+			mmd.lvl = totlvl;
+			orig_top_mrdm = multires_dm_create_from_derived(&mmd, orig, me, 0, 0);
+			MultiresDM_block_update(orig_top_mrdm);
+			orig_top_verts = CDDM_get_verts(orig_top_mrdm);
+
+			/* Regenerate the current level as a MultiresDM using the unmodified disps */
+			mmd.totlvl = totlvl;
+			mmd.lvl = lvl;
+			orig_mrdm = multires_dm_create_from_derived(&mmd, orig, me, 0, 0);
+			MultiresDM_block_update(orig_mrdm);
+
+			/* Subtract the original vertex cos from the new vertex cos */
+			verts_orig = CDDM_get_verts(orig_mrdm);
+			verts_new = CDDM_get_verts(dm);
+			for(i = 0; i < dm->getNumVerts(dm); ++i)
+				VecSubf(verts_new[i].co, verts_new[i].co, verts_orig[i].co);
+
+			orig_mrdm->release(orig_mrdm);
+
+			final = multires_subdisp_pre(dm, totlvl - lvl);
+
+			// ?
+			orig->release(orig);
+			orig = CDDM_from_mesh(me, NULL);
+
+			multires_subdisp(orig, me, final, lvl, totlvl, dm->getNumVerts(dm), dm->getNumEdges(dm),
+					 dm->getNumFaces(dm), orig_top_verts);
+			orig->release(orig);
+			orig_top_mrdm->release(orig_top_mrdm);
+
+			return;
+		}
+
 		/* Update the current level */
 		for(i = 0; i < MultiresDM_get_totorfa(dm); ++i) {
 			const int numVerts = mface[i].v4 ? 4 : 3;
@@ -1970,15 +2017,6 @@ static void multiresModifier_update(DerivedMesh *dm)
 			}
 			++mvert;
 			++d.subco;
-		}
-
-		if(lvl < totlvl) {
-			/* Propagate disps upwards */
-			Mesh *me = MultiresDM_get_mesh(dm);
-			DerivedMesh *orig = CDDM_from_mesh(me, NULL);
-			multires_subdisp(orig, me, multires_subdisp_pre(dm, totlvl - lvl),
-					 lvl, totlvl, dm->getNumVerts(dm), dm->getNumEdges(dm), dm->getNumFaces(dm));
-			orig->release(orig);
 		}
 	}
 }

@@ -1170,6 +1170,7 @@ typedef struct MultiresDM {
 	IndexNode *vert_face_map_mem;
 
 	Mesh *me;
+	int block_update;
 
 	void (*update)(DerivedMesh*);
 } MultiresDM;
@@ -1179,7 +1180,7 @@ static void MultiresDM_release(DerivedMesh *dm)
 	MultiresDM *mrdm = (MultiresDM*)dm;
 
 	/* Before freeing, need to update the displacement map */
-	if(dm->needsFree)
+	if(dm->needsFree && !mrdm->block_update)
 		mrdm->update(dm);
 
 	if(DM_release(dm)) {
@@ -1269,6 +1270,7 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 	mrdm->lvl = lvl;
 	mrdm->totlvl = totlvl;
 	mrdm->subco = MEM_callocN(sizeof(float)*3*numVerts, "multires subdivided coords");
+	mrdm->block_update = 0;
 
 	MultiresDM_calc_norm(mrdm);
 
@@ -1357,4 +1359,9 @@ ListBase *MultiresDM_get_vert_face_map(DerivedMesh *dm)
 				     mrdm->totorco, mrdm->totorfa);
 
 	return mrdm->vert_face_map;
+}
+
+void MultiresDM_block_update(DerivedMesh *dm)
+{
+	((MultiresDM*)dm)->block_update = 1;
 }

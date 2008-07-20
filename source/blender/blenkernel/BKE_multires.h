@@ -97,6 +97,7 @@ int MultiresDM_get_totorfa(struct DerivedMesh *);
 int MultiresDM_get_totorco(struct DerivedMesh *);
 int MultiresDM_get_totored(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
+void MultiresDM_block_update(struct DerivedMesh *);
 
 /* Modifier */
 struct MDisps;
