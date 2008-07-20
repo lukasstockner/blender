@@ -224,6 +224,10 @@ void KX_GameObject::SetParent(KX_Scene *scene, KX_GameObject* obj)
 		RemoveParent(scene);
 		obj->GetSGNode()->AddChild(GetSGNode());
 
+		if (m_pPhysicsController1) 
+		{
+			m_pPhysicsController1->SuspendDynamics(true);
+		}
 		// Set us to our new scale, position, and orientation
 		scale1[0] = scale1[0]/scale2[0];
 		scale1[1] = scale1[1]/scale2[1];
@@ -240,10 +244,6 @@ void KX_GameObject::SetParent(KX_Scene *scene, KX_GameObject* obj)
 		if (rootlist->RemoveValue(this))
 			// the object was in parent list, decrement ref count as it's now removed
 			Release();
-		if (m_pPhysicsController1) 
-		{
-			m_pPhysicsController1->SuspendDynamics(true);
-		}
 	}
 }
 
@@ -724,8 +724,12 @@ MT_Vector3 KX_GameObject::GetAngularVelocity(bool local)
 
 void KX_GameObject::NodeSetLocalPosition(const MT_Point3& trans)
 {
-	if (m_pPhysicsController1)
+	if (m_pPhysicsController1 && (!GetSGNode() || !GetSGNode()->GetSGParent()))
 	{
+		// don't update physic controller if the object is a child:
+		// 1) the transformation will not be right
+		// 2) in this case, the physic controller is necessarily a static object
+		//    that is updated from the normal kinematic synchronization
 		m_pPhysicsController1->setPosition(trans);
 	}
 
@@ -737,25 +741,22 @@ void KX_GameObject::NodeSetLocalPosition(const MT_Point3& trans)
 
 void KX_GameObject::NodeSetLocalOrientation(const MT_Matrix3x3& rot)
 {
-	if (m_pPhysicsController1)
+	if (m_pPhysicsController1 && (!GetSGNode() || !GetSGNode()->GetSGParent()))
 	{
+		// see note above
 		m_pPhysicsController1->setOrientation(rot.getRotation());
 	}
 	if (GetSGNode())
 		GetSGNode()->SetLocalOrientation(rot);
-	else
-	{
-		int i;
-		i=0;
-	}
 }
 
 
 
 void KX_GameObject::NodeSetLocalScale(const MT_Vector3& scale)
 {
-	if (m_pPhysicsController1)
+	if (m_pPhysicsController1 && (!GetSGNode() || !GetSGNode()->GetSGParent()))
 	{
+		// see note above
 		m_pPhysicsController1->setScaling(scale);
 	}
 	
@@ -885,6 +886,8 @@ PyMethodDef KX_GameObject::Methods[] = {
 	{"getParent", (PyCFunction)KX_GameObject::sPyGetParent,METH_NOARGS},
 	{"setParent", (PyCFunction)KX_GameObject::sPySetParent,METH_O},
 	{"removeParent", (PyCFunction)KX_GameObject::sPyRemoveParent,METH_NOARGS},
+	{"getChildren", (PyCFunction)KX_GameObject::sPyGetChildren,METH_NOARGS},
+	{"getChildrenRecursive", (PyCFunction)KX_GameObject::sPyGetChildrenRecursive,METH_NOARGS},
 	{"getMesh", (PyCFunction)KX_GameObject::sPyGetMesh,METH_VARARGS},
 	{"getPhysicsId", (PyCFunction)KX_GameObject::sPyGetPhysicsId,METH_NOARGS},
 	{"getPropertyNames", (PyCFunction)KX_GameObject::sPyGetPropertyNames,METH_NOARGS},
@@ -1300,6 +1303,43 @@ PyObject* KX_GameObject::PyRemoveParent(PyObject* self)
 	KX_Scene *scene = PHY_GetActiveScene();
 	this->RemoveParent(scene);
 	Py_RETURN_NONE;
+}
+
+
+static void walk_children(SG_Node* node, PyObject *list, bool recursive)
+{
+	NodeList& children = node->GetSGChildren();
+
+	for (NodeList::iterator childit = children.begin();!(childit==children.end());++childit)
+	{
+		SG_Node* childnode = (*childit);
+		KX_GameObject* childobj = (KX_GameObject*)childnode->GetSGClientObject();
+		if (childobj != NULL) // This is a GameObject
+		{
+			// add to the list
+			PyList_Append(list, (PyObject *)childobj);
+		}
+		
+		// if the childobj is NULL then this may be an inverse parent link
+		// so a non recursive search should still look down this node.
+		if (recursive || childobj==NULL) {
+			walk_children(childnode, list, recursive);
+		}
+	}
+}
+
+PyObject* KX_GameObject::PyGetChildren(PyObject* self)
+{
+	PyObject * list = PyList_New(0);
+	walk_children(m_pSGNode, list, 0);
+	return list;
+}
+
+PyObject* KX_GameObject::PyGetChildrenRecursive(PyObject* self)
+{
+	PyObject * list = PyList_New(0);
+	walk_children(m_pSGNode, list, 1);
+	return list;
 }
 
 PyObject* KX_GameObject::PyGetMesh(PyObject* self, 
