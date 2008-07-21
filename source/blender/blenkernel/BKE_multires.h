@@ -41,7 +41,6 @@ struct MultiresLevel *current_level(struct Multires *mr);
 struct MultiresLevel *multires_level_n(struct Multires *mr, int n);
 
 /* Level control */
-void multires_add_level(struct Object *ob, struct Mesh *me, const char subdiv_type);
 void multires_set_level(struct Object *ob, struct Mesh *me, const int render);
 void multires_free_level(struct MultiresLevel *lvl);
 

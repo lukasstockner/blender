@@ -71,21 +71,6 @@ MultiresLevel *multires_level_n(Multires *mr, int n)
 		return NULL;
 }
 
-/* Free and clear the temporary connectivity data */
-static void multires_free_temp_data(MultiresLevel *lvl)
-{
-	if(lvl) {
-		if(lvl->edge_boundary_states) MEM_freeN(lvl->edge_boundary_states);
-		if(lvl->vert_edge_map) MEM_freeN(lvl->vert_edge_map);
-		if(lvl->vert_face_map) MEM_freeN(lvl->vert_face_map);
-		if(lvl->map_mem) MEM_freeN(lvl->map_mem);
-
-		lvl->edge_boundary_states = NULL;
-		lvl->vert_edge_map = lvl->vert_face_map = NULL;
-		lvl->map_mem = NULL;
-	}
-}
-
 /* Does not actually free lvl itself */
 void multires_free_level(MultiresLevel *lvl)
 {
@@ -93,8 +78,6 @@ void multires_free_level(MultiresLevel *lvl)
 		if(lvl->faces) MEM_freeN(lvl->faces);
 		if(lvl->edges) MEM_freeN(lvl->edges);
 		if(lvl->colfaces) MEM_freeN(lvl->colfaces);
-		
-		multires_free_temp_data(lvl);
 	}
 }
 
@@ -133,9 +116,6 @@ static MultiresLevel *multires_level_copy(MultiresLevel *orig)
 		lvl->faces= MEM_dupallocN(orig->faces);
 		lvl->colfaces= MEM_dupallocN(orig->colfaces);
 		lvl->edges= MEM_dupallocN(orig->edges);
-		lvl->edge_boundary_states = NULL;
-		lvl->vert_edge_map= lvl->vert_face_map= NULL;
-		lvl->map_mem= NULL;
 		
 		return lvl;
 	}
@@ -416,60 +396,6 @@ typedef struct MultiresMapNode {
 	unsigned Index;
 } MultiresMapNode;
 
-/* Produces temporary connectivity data for the multires lvl */
-static void multires_calc_temp_data(MultiresLevel *lvl)
-{
-	unsigned i, j, emax;
-	MultiresMapNode *indexnode= NULL;
-
-	lvl->map_mem= MEM_mallocN(sizeof(MultiresMapNode)*(lvl->totedge*2 + lvl->totface*4), "map_mem");
-	indexnode= lvl->map_mem;
-	
-	/* edge map */
-	lvl->vert_edge_map= MEM_callocN(sizeof(ListBase)*lvl->totvert,"vert_edge_map");
-	for(i=0; i<lvl->totedge; ++i) {
-		for(j=0; j<2; ++j, ++indexnode) {
-			indexnode->Index= i;
-			BLI_addtail(&lvl->vert_edge_map[lvl->edges[i].v[j]], indexnode);
-		}
-	}
-
-	/* face map */
-       	lvl->vert_face_map= MEM_callocN(sizeof(ListBase)*lvl->totvert,"vert_face_map");
-	for(i=0; i<lvl->totface; ++i){
-		for(j=0; j<(lvl->faces[i].v[3]?4:3); ++j, ++indexnode) {
-			indexnode->Index= i;
-			BLI_addtail(&lvl->vert_face_map[lvl->faces[i].v[j]], indexnode);
-		}
-	}
-
-	/* edge boundaries */
-	emax = (lvl->prev ? (lvl->prev->totedge * 2) : lvl->totedge);
-	lvl->edge_boundary_states= MEM_callocN(sizeof(char)*lvl->totedge, "edge_boundary_states");
-	for(i=0; i<emax; ++i) {
-		MultiresMapNode *n1= lvl->vert_face_map[lvl->edges[i].v[0]].first;
-		unsigned total= 0;
-		
-		lvl->edge_boundary_states[i] = 1;
-		while(n1 && lvl->edge_boundary_states[i] == 1) {
-			MultiresMapNode *n2= lvl->vert_face_map[lvl->edges[i].v[1]].first;
-			while(n2) {
-				if(n1->Index == n2->Index) {
-					++total;
-					
-					if(total > 1) {
-						lvl->edge_boundary_states[i] = 0;
-						break;
-					}
-				}
-				
-				n2= n2->next;
-			}
-			n1= n1->next;
-		}
-	}
-}
-
 /* CATMULL-CLARK
    ============= */
 
@@ -493,265 +419,8 @@ typedef struct MultiApplyData {
 	float boundary_edges_average[3];
 } MultiApplyData;
 
-/* Simply averages the four corners of a polygon. */
-static float catmullclark_smooth_face(MultiApplyData *data, const unsigned i)
-{
-	const float total= data->corner1[i]+data->corner2[i]+data->corner3[i];
-	return data->quad ? (total+data->corner4[i])/4 : total/3;
-}
-
-static float catmullclark_smooth_edge(MultiApplyData *data, const unsigned i)
-{
-	float accum= 0;
-	unsigned count= 2;
-
-	accum+= data->endpoint1[i] + data->endpoint2[i];
-
-	if(!data->boundary) {
-		accum+= data->edge_face_neighbor_midpoints_accum[i];
-		count+= data->edge_face_neighbor_midpoints_total;
-	}
-
-	return accum / count;
-}
-
-static float catmullclark_smooth_vert(MultiApplyData *data, const unsigned i)
-{
-	if(data->boundary) {
-		return data->original[i]*0.75 + data->boundary_edges_average[i]*0.25;
-	} else {
-		return (data->vert_face_neighbor_midpoints_average[i] +
-			2*data->vert_edge_neighbor_midpoints_average[i] +
-			data->original[i]*(data->edge_count-3))/data->edge_count;
-	}
-}
-
-
-
-/* Call func count times, passing in[i] as the input and storing the output in out[i] */
-static void multi_apply(float *out, MultiApplyData *data,
-		 const unsigned count, float (*func)(MultiApplyData *, const unsigned))
-{
-	unsigned i;
-	for(i=0; i<count; ++i)
-		out[i]= func(data,i);
-}
-
-static short multires_vert_is_boundary(MultiresLevel *lvl, unsigned v)
-{
-	MultiresMapNode *node= lvl->vert_edge_map[v].first;
-	while(node) {
-		if(lvl->edge_boundary_states[node->Index])
-			return 1;
-		node= node->next;
-	}
-	return 0;
-}
-
-#define GET_FLOAT(array, i, j, stride) (((float*)((char*)(array)+((i)*(stride))))[(j)])
-
-static void edge_face_neighbor_midpoints_accum(MultiApplyData *data, MultiresLevel *lvl,
-					      void *array, const char stride, const MultiresEdge *e)
-{
-	ListBase *neighbors1= &lvl->vert_face_map[e->v[0]];
-	ListBase *neighbors2= &lvl->vert_face_map[e->v[1]];
-	MultiresMapNode *n1, *n2;
-	unsigned j,count= 0;
-	float *out= data->edge_face_neighbor_midpoints_accum;
-	
-	out[0]=out[1]=out[2]= 0;
-
-	for(n1= neighbors1->first; n1; n1= n1->next) {
-		for(n2= neighbors2->first; n2; n2= n2->next) {
-			if(n1->Index == n2->Index) {
-				for(j=0; j<3; ++j)
-					out[j]+= GET_FLOAT(array,lvl->faces[n1->Index].mid,j,stride);
-				++count;
-			}
-		}
-	}
-
-	data->edge_face_neighbor_midpoints_total= count;
-}
-
-static void vert_face_neighbor_midpoints_average(MultiApplyData *data, MultiresLevel *lvl,
-						 void *array, const char stride, const unsigned i)
-{
-	ListBase *neighbors= &lvl->vert_face_map[i];
-	MultiresMapNode *n1;
-	unsigned j,count= 0;
-	float *out= data->vert_face_neighbor_midpoints_average;
-
-	out[0]=out[1]=out[2]= 0;
-
-	for(n1= neighbors->first; n1; n1= n1->next) {
-		for(j=0; j<3; ++j)
-			out[j]+= GET_FLOAT(array,lvl->faces[n1->Index].mid,j,stride);
-		++count;
-	}
-	for(j=0; j<3; ++j) out[j]/= count;
-}
-
-static void vert_edge_neighbor_midpoints_average(MultiApplyData *data, MultiresLevel *lvl,
-						 void *array, const char stride, const unsigned i)
-{
-	ListBase *neighbors= &lvl->vert_edge_map[i];
-	MultiresMapNode *n1;
-	unsigned j,count= 0;
-	float *out= data->vert_edge_neighbor_midpoints_average;
-
-	out[0]=out[1]=out[2]= 0;
-
-	for(n1= neighbors->first; n1; n1= n1->next) {
-		for(j=0; j<3; ++j)
-			out[j]+= (GET_FLOAT(array,lvl->edges[n1->Index].v[0],j,stride) +
-				  GET_FLOAT(array,lvl->edges[n1->Index].v[1],j,stride)) / 2;
-		++count;
-	}
-	for(j=0; j<3; ++j) out[j]/= count;
-}
-
-static void boundary_edges_average(MultiApplyData *data, MultiresLevel *lvl,
-				   void *array, const char stride, const unsigned i)
-{
-	ListBase *neighbors= &lvl->vert_edge_map[i];
-	MultiresMapNode *n1;
-	unsigned j,count= 0;
-	float *out= data->boundary_edges_average;
-
-	out[0]=out[1]=out[2]= 0;
-	
-	for(n1= neighbors->first; n1; n1= n1->next) {
-		const MultiresEdge *e= &lvl->edges[n1->Index];
-		const unsigned end= e->v[0]==i ? e->v[1] : e->v[0];
-		
-		if(lvl->edge_boundary_states[n1->Index]) {
-			for(j=0; j<3; ++j)
-				out[j]+= GET_FLOAT(array,end,j,stride);
-			++count;
-		}
-	}
-	for(j=0; j<3; ++j) out[j]/= count;
-}
-
 /* END CATMULL-CLARK
    ================= */
-
-/* Update vertex locations and vertex flags */
-static void multires_update_vertices(Mesh *me, EditMesh *em)
-{
-	MultiresLevel *cr_lvl= current_level(me->mr), *pr_lvl= NULL,
-		      *last_lvl= me->mr->levels.last;
-	vec3f *pr_deltas= NULL, *cr_deltas= NULL, *swap_deltas= NULL;
-	EditVert *eve= NULL;
-	MultiApplyData data;
-	int i, j;
-
-	/* Prepare deltas */
-	pr_deltas= MEM_callocN(sizeof(vec3f)*last_lvl->totvert, "multires deltas 1");
-	cr_deltas= MEM_callocN(sizeof(vec3f)*last_lvl->totvert, "multires deltas 2");
-
-	/* Calculate initial deltas -- current mesh subtracted from current level*/
-	if(em) eve= em->verts.first;
-	for(i=0; i<cr_lvl->totvert; ++i) {
-		if(em) {
-			VecSubf(&cr_deltas[i].x, eve->co, me->mr->verts[i].co);
-			eve= eve->next;
-		} else
-			VecSubf(&cr_deltas[i].x, me->mvert[i].co, me->mr->verts[i].co);
-	}
-
-
-	/* Copy current level's vertex flags and clear the rest */
-	if(em) eve= em->verts.first;	
-	for(i=0; i < last_lvl->totvert; ++i) {
-		if(i < cr_lvl->totvert) {
-			MVert mvflag;
-			multires_get_vert(&mvflag, eve, &me->mvert[i], i);
-			if(em) eve= eve->next;
-			me->mr->verts[i].flag= mvflag.flag;
-		}
-		else
-			me->mr->verts[i].flag= 0;
-	}
-
-	/* If already on the highest level, copy current verts (including flags) into current level */
-	if(cr_lvl == last_lvl) {
-		if(em)
-			eve= em->verts.first;
-		for(i=0; i<cr_lvl->totvert; ++i) {
-			multires_get_vert(&me->mr->verts[i], eve, &me->mvert[i], i);
-			if(em) eve= eve->next;
-		}
-	}
-
-	/* Update higher levels */
-	pr_lvl= BLI_findlink(&me->mr->levels,me->mr->current-1);
-	cr_lvl= pr_lvl->next;
-	while(cr_lvl) {
-		multires_calc_temp_data(pr_lvl);		
-
-		/* Swap the old/new deltas */
-		swap_deltas= pr_deltas;
-		pr_deltas= cr_deltas;
-		cr_deltas= swap_deltas;
-
-		/* Calculate and add new deltas
-		   ============================ */
-		for(i=0; i<pr_lvl->totface; ++i) {
-			const MultiresFace *f= &pr_lvl->faces[i];
-			data.corner1= &pr_deltas[f->v[0]].x;
-			data.corner2= &pr_deltas[f->v[1]].x;
-			data.corner3= &pr_deltas[f->v[2]].x;
-			data.corner4= &pr_deltas[f->v[3]].x;
-			data.quad= f->v[3] ? 1 : 0;
-			multi_apply(&cr_deltas[f->mid].x, &data, 3, catmullclark_smooth_face);
-			
-			for(j=0; j<(data.quad?4:3); ++j)
-				me->mr->verts[f->mid].flag |= me->mr->verts[f->v[j]].flag;
-		}
-
-		for(i=0; i<pr_lvl->totedge; ++i) {
-			const MultiresEdge *e= &pr_lvl->edges[i];
-			data.boundary= pr_lvl->edge_boundary_states[i];
-			edge_face_neighbor_midpoints_accum(&data,pr_lvl,cr_deltas,sizeof(vec3f),e);
-			data.endpoint1= &pr_deltas[e->v[0]].x;
-			data.endpoint2= &pr_deltas[e->v[1]].x;
-			multi_apply(&cr_deltas[e->mid].x, &data, 3, catmullclark_smooth_edge);
-				
-			for(j=0; j<2; ++j)
-				me->mr->verts[e->mid].flag |= me->mr->verts[e->v[j]].flag;
-		}
-
-		for(i=0; i<pr_lvl->totvert; ++i) {
-			data.boundary= multires_vert_is_boundary(pr_lvl,i);
-			data.original= &pr_deltas[i].x;
-			data.edge_count= BLI_countlist(&pr_lvl->vert_edge_map[i]);
-			if(data.boundary)
-				boundary_edges_average(&data,pr_lvl,pr_deltas,sizeof(vec3f),i);
-			else {
-				vert_face_neighbor_midpoints_average(&data,pr_lvl,cr_deltas,sizeof(vec3f),i);
-				vert_edge_neighbor_midpoints_average(&data,pr_lvl,pr_deltas,sizeof(vec3f),i);
-			}
-			multi_apply(&cr_deltas[i].x, &data, 3, catmullclark_smooth_vert);
-		}
-
-		/* Apply deltas to vertex locations */
-		for(i=0; (cr_lvl == last_lvl) && (i < cr_lvl->totvert); ++i) {
-			VecAddf(me->mr->verts[i].co,
-				me->mr->verts[i].co,
-				&cr_deltas[i].x);			
-		}
-
-		multires_free_temp_data(pr_lvl);
-
-		pr_lvl= pr_lvl->next;
-		cr_lvl= cr_lvl->next;
-	}
-	if(pr_deltas) MEM_freeN(pr_deltas);
-	if(cr_deltas) MEM_freeN(cr_deltas);
-
-}
 
 static void multires_update_faces(Mesh *me, EditMesh *em)
 {
@@ -961,7 +630,6 @@ void multires_update_levels(Mesh *me, const int render)
 	EditMesh *em= (!render && G.obedit) ? G.editMesh : NULL;
 
 	multires_update_first_level(me, em);
-	multires_update_vertices(me, em);
 	multires_update_faces(me, em);
 	multires_update_colors(me, em);
 }
@@ -978,22 +646,6 @@ static void check_colors(Mesh *me)
 		me->mr->use_col= 1;
 		multires_load_cols(me);
 	}
-}
-
-static unsigned int find_mid_edge(ListBase *vert_edge_map,
-				  MultiresLevel *lvl,
-				  const unsigned int v1,
-				  const unsigned int v2 )
-{
-	MultiresMapNode *n= vert_edge_map[v1].first;
-	while(n) {
-		if(lvl->edges[n->Index].v[0]==v2 ||
-		   lvl->edges[n->Index].v[1]==v2)
-			return lvl->edges[n->Index].mid;
-
-		n= n->next;
-	}
-	return -1;
 }
 
 static float clamp_component(const float c)
@@ -1098,178 +750,6 @@ void multires_level_to_mesh(Object *ob, Mesh *me, const int render)
 	multires_edge_level_update(ob,me);
 	DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 	mesh_calc_normals(me->mvert, me->totvert, me->mface, me->totface, NULL);
-}
-
-void multires_add_level(Object *ob, Mesh *me, const char subdiv_type)
-{
-	int i,j, curf, cure;
-	MultiresLevel *lvl= NULL;
-	MultiApplyData data;
-	MVert *oldverts= NULL;
-	
-	lvl= MEM_callocN(sizeof(MultiresLevel), "multireslevel");
-	if(me->pv) mesh_pmv_off(ob, me);
-
-	check_colors(me);
-	multires_update_levels(me, 0);
-
-	++me->mr->level_count;
-	BLI_addtail(&me->mr->levels,lvl);
-
-	/* Create vertices
-	   =============== */
-	lvl->totvert= lvl->prev->totvert + lvl->prev->totedge + lvl->prev->totface;
-	oldverts= me->mr->verts;
-	me->mr->verts= MEM_callocN(sizeof(MVert)*lvl->totvert, "multitres verts");
-	/* Copy old verts */
-	for(i=0; i<lvl->prev->totvert; ++i)
-		me->mr->verts[i]= oldverts[i];
-	/* Create new edge verts */
-	for(i=0; i<lvl->prev->totedge; ++i) {
-		VecMidf(me->mr->verts[lvl->prev->totvert + i].co,
-			oldverts[lvl->prev->edges[i].v[0]].co,
-			oldverts[lvl->prev->edges[i].v[1]].co);
-		lvl->prev->edges[i].mid= lvl->prev->totvert + i;
-	}
-	/* Create new face verts */
-	for(i=0; i<lvl->prev->totface; ++i) {
-		lvl->prev->faces[i].mid= lvl->prev->totvert + lvl->prev->totedge + i;
-	}
-
-	multires_calc_temp_data(lvl->prev);
-
-	/* Create faces
-	   ============ */
-	/* Allocate all the new faces (each triangle creates three, and
-	   each quad creates four */
-	lvl->totface= 0;
-	for(i=0; i<lvl->prev->totface; ++i)
-		lvl->totface+= lvl->prev->faces[i].v[3] ? 4 : 3;
-	lvl->faces= MEM_callocN(sizeof(MultiresFace)*lvl->totface,"multires faces");
-
-	curf= 0;
-	for(i=0; i<lvl->prev->totface; ++i) {
-		const int max= lvl->prev->faces[i].v[3] ? 3 : 2;
-		
-		for(j=0; j<max+1; ++j) {
-			lvl->faces[curf].v[0]= find_mid_edge(lvl->prev->vert_edge_map,lvl->prev,
-							     lvl->prev->faces[i].v[j],
-							     lvl->prev->faces[i].v[j==0?max:j-1]);
-			lvl->faces[curf].v[1]= lvl->prev->faces[i].v[j];
-			lvl->faces[curf].v[2]= find_mid_edge(lvl->prev->vert_edge_map,lvl->prev,
-							     lvl->prev->faces[i].v[j],
-							     lvl->prev->faces[i].v[j==max?0:j+1]);
-			lvl->faces[curf].v[3]= lvl->prev->totvert + lvl->prev->totedge + i;
-			lvl->faces[curf].flag= lvl->prev->faces[i].flag;
-			lvl->faces[curf].mat_nr= lvl->prev->faces[i].mat_nr;
-
-			++curf;
-		}
-	}
-
-	/* Create edges
-	   ============ */
-	/* Figure out how many edges to allocate */
-	lvl->totedge= lvl->prev->totedge*2;
-	for(i=0; i<lvl->prev->totface; ++i)
-		lvl->totedge+= lvl->prev->faces[i].v[3]?4:3;
-	lvl->edges= MEM_callocN(sizeof(MultiresEdge)*lvl->totedge,"multires edges");
-
-	for(i=0; i<lvl->prev->totedge; ++i) {
-		lvl->edges[i*2].v[0]= lvl->prev->edges[i].v[0];
-		lvl->edges[i*2].v[1]= lvl->prev->edges[i].mid;
-		lvl->edges[i*2+1].v[0]= lvl->prev->edges[i].mid;
-		lvl->edges[i*2+1].v[1]= lvl->prev->edges[i].v[1];
-	}
-	/* Add edges inside of old polygons */
-	curf= 0;
-	cure= lvl->prev->totedge*2;
-	for(i=0; i<lvl->prev->totface; ++i) {
-		for(j=0; j<(lvl->prev->faces[i].v[3]?4:3); ++j) {
-			lvl->edges[cure].v[0]= lvl->faces[curf].v[2];
-			lvl->edges[cure].v[1]= lvl->faces[curf].v[3];
-			++cure;
-			++curf;
-		}
-	}
-
-	/* Smooth vertices
-	   =============== */
-	for(i=0; i<lvl->prev->totface; ++i) {
-		const MultiresFace *f= &lvl->prev->faces[i];
-		data.corner1= oldverts[f->v[0]].co;
-		data.corner2= oldverts[f->v[1]].co;
-		data.corner3= oldverts[f->v[2]].co;
-		data.corner4= oldverts[f->v[3]].co;
-		data.quad= f->v[3] ? 1 : 0;
-		multi_apply(me->mr->verts[f->mid].co, &data, 3, catmullclark_smooth_face);
-	}
-
-	if(subdiv_type == 0) {
-		for(i=0; i<lvl->prev->totedge; ++i) {
-			const MultiresEdge *e= &lvl->prev->edges[i];
-			data.boundary= lvl->prev->edge_boundary_states[i];
-			edge_face_neighbor_midpoints_accum(&data,lvl->prev, me->mr->verts, sizeof(MVert),e);
-			data.endpoint1= oldverts[e->v[0]].co;
-			data.endpoint2= oldverts[e->v[1]].co;
-			multi_apply(me->mr->verts[e->mid].co, &data, 3, catmullclark_smooth_edge);
-		}
-		
-		for(i=0; i<lvl->prev->totvert; ++i) {
-			data.boundary= multires_vert_is_boundary(lvl->prev,i);
-			data.original= oldverts[i].co;
-			data.edge_count= BLI_countlist(&lvl->prev->vert_edge_map[i]);
-			if(data.boundary)
-				boundary_edges_average(&data,lvl->prev, oldverts, sizeof(MVert),i);
-			else {
-				vert_face_neighbor_midpoints_average(&data,lvl->prev, me->mr->verts,
-								     sizeof(MVert),i);
-				vert_edge_neighbor_midpoints_average(&data,lvl->prev, oldverts,
-								     sizeof(MVert),i);
-			}
-			multi_apply(me->mr->verts[i].co, &data, 3, catmullclark_smooth_vert);
-		}
-	}
-
-	multires_free_temp_data(lvl->prev);
-	MEM_freeN(oldverts);
-
-	/* Vertex Colors
-	   ============= */
-	curf= 0;
-	if(me->mr->use_col) {
-		MultiresColFace *cf= MEM_callocN(sizeof(MultiresColFace)*lvl->totface,"Multirescolfaces");
-		lvl->colfaces= cf;
-		for(i=0; i<lvl->prev->totface; ++i) {
-			const char sides= lvl->prev->faces[i].v[3]?4:3;
-			MultiresCol cntr;
-
-			/* Find average color of 4 (or 3 for triangle) verts */
-			multires_col_avg(&cntr,lvl->prev->colfaces[i].col,sides);
-
-			for(j=0; j<sides; ++j) {
-				multires_col_avg2(&cf->col[0],
-						  &lvl->prev->colfaces[i].col[j],
-						  &lvl->prev->colfaces[i].col[j==0?sides-1:j-1]);
-				cf->col[1]= lvl->prev->colfaces[i].col[j];
-				multires_col_avg2(&cf->col[2],
-						  &lvl->prev->colfaces[i].col[j],
-						  &lvl->prev->colfaces[i].col[j==sides-1?0:j+1]);
-				cf->col[3]= cntr;
-
-				++cf;
-			}
-		}
-	}
-
-	me->mr->newlvl= me->mr->level_count;
-	me->mr->current= me->mr->newlvl;
-	/* Unless the render level has been set to something other than the
-	   highest level (by the user), increment the render level to match
-	   the highest available level */
-	if(me->mr->renderlvl == me->mr->level_count - 1) me->mr->renderlvl= me->mr->level_count;
-
-	multires_level_to_mesh(ob, me, 0);
 }
 
 void multires_set_level(Object *ob, Mesh *me, const int render)

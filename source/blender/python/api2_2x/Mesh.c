@@ -7178,6 +7178,10 @@ static int Mesh_setMultires( BPy_Mesh * self, PyObject *value, void *type )
 
 static PyObject *Mesh_addMultiresLevel( BPy_Mesh * self, PyObject * args )
 {
+	return NULL;
+#warning "Python needs to be updated to work with the new multires."
+
+#if 0
 	char typenum;
 	int i, levels = 1;
 	char *type = NULL;
@@ -7204,6 +7208,7 @@ static PyObject *Mesh_addMultiresLevel( BPy_Mesh * self, PyObject * args )
 	multires_level_to_editmesh(self->object, self->mesh, 0);	
 	multires_finish_mesh_update(self->object);
 	Py_RETURN_NONE;
+#endif
 }
 
 /* end multires */

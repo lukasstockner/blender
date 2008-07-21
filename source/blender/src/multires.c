@@ -362,28 +362,6 @@ void multires_finish_mesh_update(Object *ob)
 	}
 }
 
-void multires_subdivide(void *ob_v, void *me_v)
-{
-	Mesh *me = me_v;
-
-	multires_check_state();
-
-	if(CustomData_number_of_layers(G.obedit ? &G.editMesh->fdata : &me->fdata, CD_MCOL) > 1) {
-		int ret= okee("Adding a level will delete all but the active vertex color layer, proceed?");
-		if(!ret)
-			return;
-	}
-
-	waitcursor(1);
-	multires_add_level(ob_v, me, G.scene->toolsettings->multires_subdiv_type);
-	multires_level_to_editmesh(ob_v, me, 0);
-	multires_finish_mesh_update(ob_v);
-
-	allqueue(REDRAWBUTSEDIT, 0);
-	BIF_undo_push("Add multires level");
-	waitcursor(0);
-}
-
 void multires_set_level_cb(void *ob, void *me)
 {
 	waitcursor(1);

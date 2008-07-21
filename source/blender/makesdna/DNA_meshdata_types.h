@@ -122,7 +122,7 @@ typedef struct MDisps {
 	float (*disps)[3];
 } MDisps;
 
-/* Multiresolution modeling */
+/** Multires structs kept for compatibility with old files **/
 typedef struct MultiresCol {
 	float a, r, g, b;
 } MultiresCol;
@@ -148,15 +148,9 @@ typedef struct MultiresLevel {
 	MultiresColFace *colfaces;
 	MultiresEdge *edges;
 
-	/* Temporary connectivity data */
-	char *edge_boundary_states;
-	struct ListBase *vert_edge_map;
-	struct ListBase *vert_face_map;
-	struct MultiresMapNode *map_mem;
-
 	unsigned int totvert, totface, totedge, pad;
 
-	/* Kept for compatibility with older files */
+	/* Kept for compatibility with even older files */
 	MVert *verts;
 } MultiresLevel;
 
@@ -173,6 +167,8 @@ typedef struct Multires {
 	short *edge_flags;
 	char *edge_creases;
 } Multires;
+
+/** End Multires **/
 
 typedef struct PartialVisibility {
 	unsigned int *vert_map; /* vert_map[Old Index]= New Index */
