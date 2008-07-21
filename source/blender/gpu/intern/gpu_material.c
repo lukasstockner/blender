@@ -823,6 +823,8 @@ static void do_material_tex(GPUShadeInput *shi)
 				texco= texco_object;
 			else if(mtex->texco==TEXCO_GLOB)
 				texco= texco_global;
+			else if(mtex->texco==TEXCO_REFL)
+				texco= shi->ref;
 			else if(mtex->texco==TEXCO_UV) {
 				if(1) { //!(texco_uv && strcmp(mtex->uvname, lastuvname) == 0)) {
 					GPU_link(mat, "texco_uv", GPU_attribute(CD_MTFACE, mtex->uvname), &texco_uv);
@@ -923,6 +925,7 @@ static void do_material_tex(GPUShadeInput *shi)
 				}
 
 				GPU_link(mat, "vec_math_negate", shi->vn, &orn);
+				GPU_link(mat, "texco_refl", shi->vn, shi->view, &shi->ref);
 			}
 
 			if((mtex->mapto & MAP_VARS)) {
@@ -994,6 +997,7 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 	GPU_link(mat, "set_value", GPU_uniform(&ma->amb), &shi->amb);
 	GPU_link(mat, "shade_view", GPU_builtin(GPU_VIEW_POSITION), &shi->view);
 	GPU_link(mat, "vcol_attribute", GPU_attribute(CD_MCOL, ""), &shi->vcol);
+	GPU_link(mat, "texco_refl", shi->vn, shi->view, &shi->ref);
 }
 
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)

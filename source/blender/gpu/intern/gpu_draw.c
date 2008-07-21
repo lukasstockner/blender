@@ -368,12 +368,6 @@ static int gpu_verify_tile(MTFace *tface, Image *ima)
 		glMatrixMode(GL_MODELVIEW);
 	}
 
-	/* setting current tile according to frame */
-	if(ima->tpageflag & IMA_TWINANIM)
-		GTS.curtile= ima->lastframe;
-	else
-		GTS.curtile= tface->tile;
-
 	return 1;
 }
 
@@ -416,6 +410,12 @@ static int gpu_verify_image_bind(MTFace *tface, Image *ima)
 	/* ensure we have a char buffer and not only float */
 	if ((ibuf->rect==NULL) && ibuf->rect_float)
 		IMB_rect_from_float(ibuf);
+
+	/* setting current tile according to frame */
+	if(ima->tpageflag & IMA_TWINANIM)
+		GTS.curtile= ima->lastframe;
+	else
+		GTS.curtile= tface->tile;
 
 	if(GTS.tilemode) {
 		/* tiled mode */

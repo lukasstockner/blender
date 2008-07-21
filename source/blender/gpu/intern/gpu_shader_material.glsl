@@ -684,6 +684,11 @@ void texco_object(mat4 viewinvmat, mat4 obinvmat, vec3 co, out vec3 object)
 	object = (obinvmat*(viewinvmat*vec4(co, 1.0))).xyz;
 }
 
+void texco_refl(vec3 vn, vec3 view, out vec3 ref)
+{
+	ref = view - 2.0*dot(vn, view)*vn;
+}
+
 void shade_norm(vec3 normal, out vec3 outnormal)
 {
 	/* blender render normal is negated */
