@@ -128,7 +128,7 @@ typedef struct GPUShadeInput {
 	GPUMaterial *gpumat;
 	struct Material *mat;
 
-	GPUNodeLink *rgb, *specrgb, *vn, *view, *vcol;
+	GPUNodeLink *rgb, *specrgb, *vn, *view, *vcol, *ref;
 	GPUNodeLink *alpha, *refl, *spec, *emit, *har, *amb;
 } GPUShadeInput;
 
