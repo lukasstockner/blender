@@ -154,7 +154,7 @@ void RAS_BucketManager::Renderbuckets(
 	RAS_MaterialBucket::EndFrame();
 }
 
-RAS_MaterialBucket* RAS_BucketManager::RAS_BucketManagerFindBucket(RAS_IPolyMaterial * material, bool &bucketCreated)
+RAS_MaterialBucket* RAS_BucketManager::FindBucket(RAS_IPolyMaterial * material, bool &bucketCreated)
 {
 	bucketCreated = false;
 	BucketList::iterator it;

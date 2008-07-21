@@ -100,6 +100,8 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
+#include "GPU_draw.h"
+
 #include "blendef.h"
 #include "mydevice.h"
 #include "winlay.h"
@@ -674,7 +676,7 @@ static void open_renderwin(int winpos[2], int winsize[2], int imagesize[2])
 	/* mywindow has to know about it too */
 	mywindow_build_and_set_renderwin(winpos[0], winpos[1], winsize[0], winsize[1]+RW_HEADERY);
 	/* and we should be able to draw 3d in it */
-	init_gl_stuff();
+	GPU_state_init();
 	
 	renderwin_draw(render_win, 1);
 	renderwin_draw(render_win, 1);
@@ -1337,7 +1339,7 @@ void BIF_do_ogl_render(View3D *v3d, int anim)
 	if(render_win)
 		render_win->flags &= ~RW_FLAGS_ESCAPE;
 
-	init_gl_stuff();
+	GPU_state_init();
 	
 	waitcursor(1);
 

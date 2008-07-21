@@ -36,8 +36,6 @@ struct rctf;
 struct ScrArea;
 struct ImBuf;
 
-void default_gl_light(void);
-void init_gl_stuff(void);
 void circf(float x, float y, float rad);
 void circ(float x, float y, float rad);
 

@@ -295,6 +295,14 @@ void GPU_material_enable_alpha(GPUMaterial *material)
 	material->alpha= 1;
 }
 
+GPUBlendMode GPU_material_blend_mode(GPUMaterial *material)
+{
+	if(material->alpha)
+		return GPU_BLEND_ALPHA;
+	else
+		return GPU_BLEND_SOLID;
+}
+
 void gpu_material_add_node(GPUMaterial *material, GPUNode *node)
 {
 	BLI_addtail(&material->nodes, node);

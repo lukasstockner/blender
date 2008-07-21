@@ -434,7 +434,7 @@ static void SaveState(void)
 {
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-	init_gl_stuff();
+	GPU_state_init();
 
 	if(G.f & G_TEXTUREPAINT)
 		GPU_paint_set_mipmap(1);
@@ -4520,7 +4520,7 @@ static void winqreadinfospace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 				if(U.light[0].flag==0 && U.light[1].flag==0 && U.light[2].flag==0)
 					U.light[0].flag= 1;
 				
-				default_gl_light();
+				GPU_default_lights();
 				addqueue(sa->win, REDRAW, 1);
 				allqueue(REDRAWVIEW3D, 0);
 			} 

@@ -146,6 +146,7 @@
 #include "PIL_time.h"
 
 #include "GPU_extensions.h"
+#include "GPU_draw.h"
 
 /***/
 
@@ -1041,8 +1042,9 @@ void BIF_init(void)
 	
 	BIF_filelist_init_icons();
 
-	init_gl_stuff();	/* drawview.c, after homefile */
+	GPU_state_init();
 	GPU_extensions_init();
+
 	readBlog();
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
 }

@@ -41,40 +41,55 @@ struct MTFace;
 struct Image;
 struct Scene;
 struct Object;
-struct GPUVertexAttribs;
 
-/* OpenGL drawing functions shared with the game engine,
- * previously these were duplicated. */
+/* OpenGL drawing functions. These are also shared with
+ * the game engine, whereas they were previously duplicated. */
+
+/* Initialize */
+
+void GPU_state_init(void);
+
+/* Material drawing
+ * - first the state is initialized by a particular object and it's materials
+ * - after this, materials can be quickly enabled by their number,
+ *   GPU_enable_material returns 0 if drawing should be skipped
+ * - after drawing, the material must be disabled again */
+
+void GPU_set_object_materials(struct Scene *scene, struct Object *ob,
+	int glsl, int *do_alpha_pass);
+int GPU_enable_material(int nr, void *attribs);
+void GPU_disable_material(void);
+
+/* Lights
+ * - returns how many lights were enabled */
+
+int GPU_default_lights(void);
+int GPU_scene_object_lights(struct Scene *scene, struct Object *ob,
+	int lay, float viewmat[][4]);
+
+/* Text render */
 
 void GPU_render_text(struct MTFace *tface, int mode,
 	const char *textstr, int textlen, unsigned int *col,
 	float *v1, float *v2, float *v3, float *v4, int glattrib);
 
+/* TexFace state setting, NULL clears it */
+
 int GPU_set_tpage(struct MTFace *tface);
 
-/* Mipmap settings */
+/* Mipmap settings, these free textures on changes */
 
 void GPU_set_mipmap(int mipmap);
 void GPU_set_linear_mipmap(int linear);
 void GPU_paint_set_mipmap(int mipmap);
 
-/* Image free and update */
+/* Image opengl free and update */
 
 void GPU_paint_update_image(struct Image *ima, int x, int y, int w, int h);
 void GPU_update_images_framechange(void);
 int GPU_update_image_time(struct MTFace *tface, double time);
 void GPU_free_image(struct Image *ima);
 void GPU_free_images(void);
-
-/* Material drawing
- * - first the state is initialized by a particular object and it's materials
- * - after this, materials can be quickly enabled by their number
- * - after drawing, the material must be disabled again */
-
-void GPU_set_object_materials(struct Scene *scene, struct Object *ob,
-	int check_alpha, int glsl, int *has_alpha);
-int GPU_enable_material(int nr, void *attribs);
-void GPU_disable_material(void);
 
 #ifdef __cplusplus
 }

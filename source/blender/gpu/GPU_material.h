@@ -83,6 +83,13 @@ typedef enum GPUBuiltin {
 	GPU_VIEW_NORMAL = 32
 } GPUBuiltin;
 
+typedef enum GPUBlendMode {
+	GPU_BLEND_SOLID,
+	GPU_BLEND_ALPHA,
+	GPU_BLEND_ADD,
+	GPU_BLEND_CLIPALPHA
+} GPUBlendMode;
+
 typedef struct GPUNodeStack {
 	GPUType type;
 	char *name;
@@ -107,6 +114,7 @@ int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack 
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
+GPUBlendMode GPU_material_blend_mode(GPUMaterial *material);
 
 /* High level functions to create and use GPU materials */
 

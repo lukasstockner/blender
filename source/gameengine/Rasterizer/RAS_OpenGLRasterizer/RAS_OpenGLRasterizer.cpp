@@ -38,6 +38,8 @@
 #include "MT_CmMatrix4x4.h"
 #include "RAS_IRenderTools.h" // rendering text
 
+#include "GPU_draw.h"
+
 /**
  *  32x32 bit masks for vinterlace stereo mode
  */
@@ -86,81 +88,9 @@ RAS_OpenGLRasterizer::~RAS_OpenGLRasterizer()
 {
 }
 
-
-
-static void Myinit_gl_stuff(void)	
-{
-	float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
-	float mat_shininess[] = { 35.0 };
-/*  	float one= 1.0; */
-	int a, x, y;
-	GLubyte pat[32*32];
-	const GLubyte *patc= pat;
-		
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
-
-
-#if defined(__FreeBSD) || defined(__linux__)
-	glDisable(GL_DITHER);	/* op sgi/sun hardware && 12 bits */
-#endif
-	
-	/* no local viewer, looks ugly in ortho mode */
-	/* glLightModelfv(GL_LIGHT_MODEL_LOCAL_VIEWER, &one); */
-	
-	glDepthFunc(GL_LEQUAL);
-	/* scaling matrices */
-	glEnable(GL_NORMALIZE);
-
-	glShadeModel(GL_FLAT);
-
-	glDisable(GL_ALPHA_TEST);
-	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_FOG);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_LOGIC_OP);
-	glDisable(GL_STENCIL_TEST);
-	glDisable(GL_TEXTURE_1D);
-	glDisable(GL_TEXTURE_2D);
-
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-
-	glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
-	glPixelTransferi(GL_RED_SCALE, 1);
-	glPixelTransferi(GL_RED_BIAS, 0);
-	glPixelTransferi(GL_GREEN_SCALE, 1);
-	glPixelTransferi(GL_GREEN_BIAS, 0);
-	glPixelTransferi(GL_BLUE_SCALE, 1);
-	glPixelTransferi(GL_BLUE_BIAS, 0);
-	glPixelTransferi(GL_ALPHA_SCALE, 1);
-	glPixelTransferi(GL_ALPHA_BIAS, 0);
-
-	a = 0;
-	for(x=0; x<32; x++)
-	{
-		for(y=0; y<4; y++)
-		{
-			if( (x) & 1) pat[a++]= 0x88;
-			else pat[a++]= 0x22;
-		}
-	}
-	
-	glPolygonStipple(patc);
-	
-	glFrontFace(GL_CCW);
-	glCullFace(GL_BACK);
-	glEnable(GL_CULL_FACE);
-}
-
-
-
 bool RAS_OpenGLRasterizer::Init()
 {
-
-	Myinit_gl_stuff();
+	GPU_state_init();
 
 	m_redback = 0.4375;
 	m_greenback = 0.4375;

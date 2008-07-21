@@ -1403,7 +1403,7 @@ void KX_Scene::UpdateParents(double curtime)
 
 RAS_MaterialBucket* KX_Scene::FindBucket(class RAS_IPolyMaterial* polymat, bool &bucketCreated)
 {
-	return m_bucketmanager->RAS_BucketManagerFindBucket(polymat, bucketCreated);
+	return m_bucketmanager->FindBucket(polymat, bucketCreated);
 }
 
 

@@ -165,7 +165,7 @@ int draw_glsl_material(Object *ob, int dt)
 	   (G.fileflags & G_FILE_GAME_MAT_GLSL) && (dt >= OB_SHADED));
 }
 
-static int check_material_alpha(Base *base, Object *ob)
+static int check_material_alpha(Base *base, Object *ob, int glsl)
 {
 	if(base->flag & OB_FROMDUPLI)
 		return 0;
@@ -176,7 +176,7 @@ static int check_material_alpha(Base *base, Object *ob)
 	if(G.obedit && G.obedit->data==ob->data)
 		return 0;
 	
-	return (ob->dtx & OB_DRAWTRANSP);
+	return (glsl || (ob->dtx & OB_DRAWTRANSP));
 }
 
 	/***/
@@ -2443,7 +2443,7 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 {
 	Object *ob= base->object;
 	Mesh *me= ob->data;
-	int has_alpha= 0, drawlinked= 0, retval= 0;
+	int do_alpha_pass= 0, drawlinked= 0, retval= 0, glsl, check_alpha;
 	
 	if(G.obedit && ob!=G.obedit && ob->data==G.obedit->data) {
 		if(ob_get_key(ob));
@@ -2459,9 +2459,11 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 			cageDM = editmesh_get_derived_cage_and_final(&finalDM,
 			                                get_viewedit_datamask());
 
-		if(dt>OB_WIRE) // no transp in editmode, the fancy draw over goes bad then
-			GPU_set_object_materials(G.scene, ob, 0,
-				draw_glsl_material(ob, dt), NULL);
+		if(dt>OB_WIRE) {
+			// no transp in editmode, the fancy draw over goes bad then
+			glsl = draw_glsl_material(ob, dt);
+			GPU_set_object_materials(G.scene, ob, glsl, NULL);
+		}
 
 		draw_em_fancy(ob, G.editMesh, cageDM, finalDM, dt);
 
@@ -2475,10 +2477,13 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 	else {
 		/* don't create boundbox here with mesh_get_bb(), the derived system will make it, puts deformed bb's OK */
 		if(me->totface<=4 || boundbox_clip(ob->obmat, (ob->bb)? ob->bb: me->bb)) {
-			if(dt==OB_SOLID || draw_glsl_material(ob, dt))
-				GPU_set_object_materials(G.scene, ob,
-					check_material_alpha(base, ob),
-					draw_glsl_material(ob, dt), &has_alpha);
+			glsl = draw_glsl_material(ob, dt);
+			check_alpha = check_material_alpha(base, ob, glsl);
+
+			if(dt==OB_SOLID || glsl) {
+				GPU_set_object_materials(G.scene, ob, glsl,
+					(check_alpha)? &do_alpha_pass: NULL);
+			}
 
 			draw_mesh_fancy(base, dt, flag);
 			
@@ -2487,7 +2492,7 @@ static int draw_mesh_object(Base *base, int dt, int flag)
 	}
 	
 	/* GPU_set_object_materials checked if this is needed */
-	if(has_alpha) add_view3d_after(G.vd, base, V3D_TRANSP, flag);
+	if(do_alpha_pass) add_view3d_after(G.vd, base, V3D_TRANSP, flag);
 	
 	return retval;
 }
@@ -2791,7 +2796,7 @@ static int drawDispList(Base *base, int dt)
 			}
 			else {
 				if(draw_glsl_material(ob, dt)) {
-					GPU_set_object_materials(G.scene, ob, 0, 1, NULL);
+					GPU_set_object_materials(G.scene, ob, 1, NULL);
 					drawDispListsolid(lb, ob, 1);
 				}
 				else if(dt == OB_SHADED) {
@@ -2799,7 +2804,7 @@ static int drawDispList(Base *base, int dt)
 					drawDispListshaded(lb, ob);
 				}
 				else {
-					GPU_set_object_materials(G.scene, ob, 0, 0, NULL);
+					GPU_set_object_materials(G.scene, ob, 0, NULL);
 					glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 					drawDispListsolid(lb, ob, 0);
 				}
@@ -2829,7 +2834,7 @@ static int drawDispList(Base *base, int dt)
 			if(dl->nors==NULL) addnormalsDispList(ob, lb);
 			
 			if(draw_glsl_material(ob, dt)) {
-				GPU_set_object_materials(G.scene, ob, 0, 1, NULL);
+				GPU_set_object_materials(G.scene, ob, 1, NULL);
 				drawDispListsolid(lb, ob, 1);
 			}
 			else if(dt==OB_SHADED) {
@@ -2837,7 +2842,7 @@ static int drawDispList(Base *base, int dt)
 				drawDispListshaded(lb, ob);
 			}
 			else {
-				GPU_set_object_materials(G.scene, ob, 0, 0, NULL);
+				GPU_set_object_materials(G.scene, ob, 0, NULL);
 				glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 			
 				drawDispListsolid(lb, ob, 0);
@@ -2857,7 +2862,7 @@ static int drawDispList(Base *base, int dt)
 			if(solid) {
 				
 				if(draw_glsl_material(ob, dt)) {
-					GPU_set_object_materials(G.scene, ob, 0, 1, NULL);
+					GPU_set_object_materials(G.scene, ob, 1, NULL);
 					drawDispListsolid(lb, ob, 1);
 				}
 				else if(dt == OB_SHADED) {
@@ -2866,7 +2871,7 @@ static int drawDispList(Base *base, int dt)
 					drawDispListshaded(lb, ob);
 				}
 				else {
-					GPU_set_object_materials(G.scene, ob, 0, 0, NULL);
+					GPU_set_object_materials(G.scene, ob, 0, NULL);
 					glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 				
 					drawDispListsolid(lb, ob, 0);
@@ -5477,6 +5482,7 @@ void draw_object_backbufsel(Object *ob)
 static void draw_object_mesh_instance(Object *ob, int dt, int outline)
 {
 	DerivedMesh *dm=NULL, *edm=NULL;
+	int glsl;
 	
 	if(G.obedit && ob->data==G.obedit->data)
 		edm= editmesh_get_derived_base();
@@ -5493,8 +5499,10 @@ static void draw_object_mesh_instance(Object *ob, int dt, int outline)
 		if(outline)
 			draw_mesh_object_outline(ob, dm?dm:edm);
 
-		if(dm)
-			GPU_set_object_materials(G.scene, ob, 0, draw_glsl_material(ob, dt), NULL);
+		if(dm) {
+			glsl = draw_glsl_material(ob, dt);
+			GPU_set_object_materials(G.scene, ob, glsl, NULL);
+		}
 		else {
 			glEnable(GL_COLOR_MATERIAL);
 			BIF_ThemeColor(TH_BONE_SOLID);

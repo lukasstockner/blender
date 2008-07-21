@@ -618,6 +618,7 @@ int main(int argc, char** argv)
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
 						char *startscenename = scene->id.name + 2;
+						G.main = maggie;
 						G.fileflags  = bfd->fileflags;
 
 						//Seg Fault; icon.c gIcons == 0

@@ -253,81 +253,6 @@ static void draw_tfaces3D(Object *ob, Mesh *me, DerivedMesh *dm)
 	BLI_edgehash_free(data.eh, NULL);
 }
 
-static int set_gl_light(Object *ob)
-{
-	Base *base;
-	Lamp *la;
-	int count;
-	/* float zero[4]= {0.0, 0.0, 0.0, 0.0};  */
-	float vec[4];
-	
-	vec[3]= 1.0;
-	
-	for(count=0; count<8; count++) glDisable(GL_LIGHT0+count);
-	
-	count= 0;
-	
-	base= FIRSTBASE;
-	while(base) {
-		if(base->object->type==OB_LAMP ) {
-			if(base->lay & G.vd->lay) {
-				if(base->lay & ob->lay) 
-				{
-					la= base->object->data;
-					
-					glPushMatrix();
-					glLoadMatrixf((float *)G.vd->viewmat);
-					
-					where_is_object_simul(base->object);
-					VECCOPY(vec, base->object->obmat[3]);
-					
-					if(la->type==LA_SUN) {
-						vec[0]= base->object->obmat[2][0];
-						vec[1]= base->object->obmat[2][1];
-						vec[2]= base->object->obmat[2][2];
-						vec[3]= 0.0;
-						glLightfv(GL_LIGHT0+count, GL_POSITION, vec); 
-					}
-					else {
-						vec[3]= 1.0;
-						glLightfv(GL_LIGHT0+count, GL_POSITION, vec); 
-						glLightf(GL_LIGHT0+count, GL_CONSTANT_ATTENUATION, 1.0);
-						glLightf(GL_LIGHT0+count, GL_LINEAR_ATTENUATION, la->att1/la->dist);
-						/* post 2.25 engine supports quad lights */
-						glLightf(GL_LIGHT0+count, GL_QUADRATIC_ATTENUATION, la->att2/(la->dist*la->dist));
-						
-						if(la->type==LA_SPOT) {
-							vec[0]= -base->object->obmat[2][0];
-							vec[1]= -base->object->obmat[2][1];
-							vec[2]= -base->object->obmat[2][2];
-							glLightfv(GL_LIGHT0+count, GL_SPOT_DIRECTION, vec);
-							glLightf(GL_LIGHT0+count, GL_SPOT_CUTOFF, la->spotsize/2.0);
-							glLightf(GL_LIGHT0+count, GL_SPOT_EXPONENT, 128.0*la->spotblend);
-						}
-						else glLightf(GL_LIGHT0+count, GL_SPOT_CUTOFF, 180.0);
-					}
-					
-					vec[0]= la->energy*la->r;
-					vec[1]= la->energy*la->g;
-					vec[2]= la->energy*la->b;
-					vec[3]= 1.0;
-					glLightfv(GL_LIGHT0+count, GL_DIFFUSE, vec); 
-					glLightfv(GL_LIGHT0+count, GL_SPECULAR, vec);//zero); 
-					glEnable(GL_LIGHT0+count);
-					
-					glPopMatrix();					
-					
-					count++;
-					if(count>7) break;
-				}
-			}
-		}
-		base= base->next;
-	}
-
-	return count;
-}
-
 static Material *give_current_material_or_def(Object *ob, int matnr)
 {
 	extern Material defmaterial;	// render module abuse...
@@ -428,7 +353,7 @@ static void draw_textured_begin(Object *ob)
 	}
 	else
 		/* draw with lights in the scene otherwise */
-		Gtexdraw.islit= set_gl_light(ob);
+		Gtexdraw.islit= GPU_scene_object_lights(G.scene, ob, G.vd->lay, G.vd->viewmat);
 	
 	obcol[0]= CLAMPIS(ob->col[0]*255, 0, 255);
 	obcol[1]= CLAMPIS(ob->col[1]*255, 0, 255);
@@ -454,7 +379,7 @@ static void draw_textured_end()
 	glShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);
 
-	/* XXX, bad patch - default_gl_light() calls
+	/* XXX, bad patch - GPU_default_lights() calls
 	 * glLightfv(GL_LIGHT_POSITION, ...) which
 	 * is transformed by the current matrix... we
 	 * need to make sure that matrix is identity.
@@ -465,7 +390,7 @@ static void draw_textured_end()
 	 */
 	glPushMatrix();
 	glLoadIdentity();	
-	default_gl_light();
+	GPU_default_lights();
 	glPopMatrix();
 }
 

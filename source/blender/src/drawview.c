@@ -194,133 +194,6 @@ static void star_stuff_term_func(void)
 	glEnd();
 }
 
-void default_gl_light(void)
-{
-	int a;
-	
-	/* initialize */
-	if(U.light[0].flag==0 && U.light[1].flag==0 && U.light[2].flag==0) {
-		U.light[0].flag= 1;
-		U.light[0].vec[0]= -0.3; U.light[0].vec[1]= 0.3; U.light[0].vec[2]= 0.9;
-		U.light[0].col[0]= 0.8; U.light[0].col[1]= 0.8; U.light[0].col[2]= 0.8;
-		U.light[0].spec[0]= 0.5; U.light[0].spec[1]= 0.5; U.light[0].spec[2]= 0.5;
-		U.light[0].spec[3]= 1.0;
-		
-		U.light[1].flag= 0;
-		U.light[1].vec[0]= 0.5; U.light[1].vec[1]= 0.5; U.light[1].vec[2]= 0.1;
-		U.light[1].col[0]= 0.4; U.light[1].col[1]= 0.4; U.light[1].col[2]= 0.8;
-		U.light[1].spec[0]= 0.3; U.light[1].spec[1]= 0.3; U.light[1].spec[2]= 0.5;
-		U.light[1].spec[3]= 1.0;
-	
-		U.light[2].flag= 0;
-		U.light[2].vec[0]= 0.3; U.light[2].vec[1]= -0.3; U.light[2].vec[2]= -0.2;
-		U.light[2].col[0]= 0.8; U.light[2].col[1]= 0.5; U.light[2].col[2]= 0.4;
-		U.light[2].spec[0]= 0.5; U.light[2].spec[1]= 0.4; U.light[2].spec[2]= 0.3;
-		U.light[2].spec[3]= 1.0;
-	}
-	
-
-	glLightfv(GL_LIGHT0, GL_POSITION, U.light[0].vec); 
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, U.light[0].col); 
-	glLightfv(GL_LIGHT0, GL_SPECULAR, U.light[0].spec); 
-
-	glLightfv(GL_LIGHT1, GL_POSITION, U.light[1].vec); 
-	glLightfv(GL_LIGHT1, GL_DIFFUSE, U.light[1].col); 
-	glLightfv(GL_LIGHT1, GL_SPECULAR, U.light[1].spec); 
-
-	glLightfv(GL_LIGHT2, GL_POSITION, U.light[2].vec); 
-	glLightfv(GL_LIGHT2, GL_DIFFUSE, U.light[2].col); 
-	glLightfv(GL_LIGHT2, GL_SPECULAR, U.light[2].spec); 
-
-	for(a=0; a<8; a++) {
-		if(a<3) {
-			if(U.light[a].flag) glEnable(GL_LIGHT0+a);
-			else glDisable(GL_LIGHT0+a);
-			
-			// clear stuff from other opengl lamp usage
-			glLightf(GL_LIGHT0+a, GL_SPOT_CUTOFF, 180.0);
-			glLightf(GL_LIGHT0+a, GL_CONSTANT_ATTENUATION, 1.0);
-			glLightf(GL_LIGHT0+a, GL_LINEAR_ATTENUATION, 0.0);
-		}
-		else glDisable(GL_LIGHT0+a);
-	}
-	
-	glDisable(GL_LIGHTING);
-
-	glDisable(GL_COLOR_MATERIAL);
-}
-
-/* also called when render 'ogl'
-   keep synced with Myinit_gl_stuff in the game engine! */
-void init_gl_stuff(void)	
-{
-	float mat_ambient[] = { 0.0, 0.0, 0.0, 0.0 };
-	float mat_specular[] = { 0.5, 0.5, 0.5, 1.0 };
-	float mat_shininess[] = { 35.0 };
-	int a, x, y;
-	GLubyte pat[32*32];
-	const GLubyte *patc= pat;
-	
-	
-	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, mat_ambient);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, mat_specular);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, mat_specular);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SHININESS, mat_shininess);
-
-	default_gl_light();
-	
-	/* no local viewer, looks ugly in ortho mode */
-	/* glLightModelfv(GL_LIGHT_MODEL_LOCAL_VIEWER, &one); */
-	
-	glDepthFunc(GL_LEQUAL);
-	/* scaling matrices */
-	glEnable(GL_NORMALIZE);
-
-	glShadeModel(GL_FLAT);
-
-	glDisable(GL_ALPHA_TEST);
-	glDisable(GL_BLEND);
-	glDisable(GL_DEPTH_TEST);
-	glDisable(GL_FOG);
-	glDisable(GL_LIGHTING);
-	glDisable(GL_LOGIC_OP);
-	glDisable(GL_STENCIL_TEST);
-	glDisable(GL_TEXTURE_1D);
-	glDisable(GL_TEXTURE_2D);
-
-	/* default on, disable/enable should be local per function */
-	glEnableClientState(GL_VERTEX_ARRAY);
-	glEnableClientState(GL_NORMAL_ARRAY);
-	
-	glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
-	glPixelTransferi(GL_RED_SCALE, 1);
-	glPixelTransferi(GL_RED_BIAS, 0);
-	glPixelTransferi(GL_GREEN_SCALE, 1);
-	glPixelTransferi(GL_GREEN_BIAS, 0);
-	glPixelTransferi(GL_BLUE_SCALE, 1);
-	glPixelTransferi(GL_BLUE_BIAS, 0);
-	glPixelTransferi(GL_ALPHA_SCALE, 1);
-	glPixelTransferi(GL_ALPHA_BIAS, 0);
-	
-	glPixelTransferi(GL_DEPTH_BIAS, 0);
-	glPixelTransferi(GL_DEPTH_SCALE, 1);
-	glDepthRange(0.0, 1.0);
-	
-	a= 0;
-	for(x=0; x<32; x++) {
-		for(y=0; y<4; y++) {
-			if( (x) & 1) pat[a++]= 0x88;
-			else pat[a++]= 0x22;
-		}
-	}
-	
-	glPolygonStipple(patc);
-
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-}
-
 void circf(float x, float y, float rad)
 {
 	GLUquadricObj *qobj = gluNewQuadric(); 
@@ -2716,7 +2589,7 @@ static void view3d_draw_transp(View3D *v3d)
 
 	glDepthMask(0);
 	v3d->transp= TRUE;
-		
+
 	for(v3da= v3d->afterdraw.first; v3da; v3da= next) {
 		next= v3da->next;
 		if(v3da->type==V3D_TRANSP) {
@@ -3214,8 +3087,8 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 
 	TOTTRI_ENABLE;	
 	/* Transp and X-ray afterdraw stuff */
-	view3d_draw_xray(v3d, 1);	// clears zbuffer if it is used!
 	view3d_draw_transp(v3d);
+	view3d_draw_xray(v3d, 1);	// clears zbuffer if it is used!
 	TOTTRI_DISABLE;	
 
 
@@ -3444,8 +3317,8 @@ void drawview3d_render(struct View3D *v3d, float viewmat[][4], int winx, int win
 	if(G.scene->radio) RAD_drawall(v3d->drawtype>=OB_SOLID);
 
 	/* Transp and X-ray afterdraw stuff */
-	view3d_draw_xray(v3d, !shadow);	// clears zbuffer if it is used!
 	view3d_draw_transp(v3d);
+	view3d_draw_xray(v3d, !shadow);	// clears zbuffer if it is used!
 	
 	if(v3d->flag & V3D_CLIPPING)
 		view3d_clr_clipping();
