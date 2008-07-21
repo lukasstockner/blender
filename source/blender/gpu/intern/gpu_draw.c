@@ -274,52 +274,49 @@ static void gpu_clear_tpage()
 	glDisable(GL_ALPHA_TEST);
 }
 
+static void gpu_set_blend_mode(GPUBlendMode blendmode)
+{
+	if(blendmode == GPU_BLEND_SOLID) {
+		glDisable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+	else if(blendmode==GPU_BLEND_ADD) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_ONE, GL_ONE);
+		glDisable(GL_ALPHA_TEST);
+	}
+	else if(blendmode==GPU_BLEND_ALPHA) {
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		
+		/* if U.glalphaclip == 1.0, some cards go bonkers...
+		 * turn off alpha test in this case */
+
+		/* added after 2.45 to clip alpha */
+		if(U.glalphaclip == 1.0) {
+			glDisable(GL_ALPHA_TEST);
+		}
+		else {
+			glEnable(GL_ALPHA_TEST);
+			glAlphaFunc(GL_GREATER, U.glalphaclip);
+		}
+	}
+	else if(blendmode==GPU_BLEND_CLIP) {
+		glDisable(GL_BLEND); 
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, 0.5f);
+	}
+}
+
 static void gpu_verify_alpha_mode(MTFace *tface)
 {
+	/* verify alpha blending modes */
 	if(GTS.alphamode == tface->transp)
 		return;
 
-	/* verify alpha blending modes */
+	gpu_set_blend_mode(tface->transp);
 	GTS.alphamode= tface->transp;
-
-	if(GTS.alphamode) {
-		if(GTS.alphamode==TF_ADD) {
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_ONE, GL_ONE);
-			glDisable(GL_ALPHA_TEST);
-			/* glBlendEquationEXT(GL_FUNC_ADD_EXT); */
-		}
-		else if(GTS.alphamode==TF_ALPHA) {
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			
-			/* added after 2.45 to clip alpha */
-			
-			/* if U.glalphaclip == 1.0, some cards go bonkers...
-			 * turn off alpha test in this case */
-			if(U.glalphaclip == 1.0) {
-				glDisable(GL_ALPHA_TEST);
-			}
-			else {
-				glEnable(GL_ALPHA_TEST);
-				glAlphaFunc(GL_GREATER, U.glalphaclip);
-			}
-		}
-		else if(GTS.alphamode==TF_CLIP) {
-			glDisable(GL_BLEND); 
-			glEnable(GL_ALPHA_TEST);
-			glAlphaFunc(GL_GREATER, 0.5f);
-		}
-		/* 	glBlendEquationEXT(GL_FUNC_ADD_EXT); */
-		/* else { */
-		/* 	glBlendFunc(GL_ONE, GL_ONE); */
-		/* 	glBlendEquationEXT(GL_FUNC_REVERSE_SUBTRACT_EXT); */
-		/* } */
-	}
-	else {
-		glDisable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-	}
 }
 
 static void gpu_verify_reflection(Image *ima)
@@ -758,10 +755,11 @@ static struct GPUMaterialState {
 	Object *gob;
 	Scene *gscene;
 
-	int hasalpha[MAXMATBUF];
+	GPUBlendMode blendmode[MAXMATBUF];
 	int alphapass;
 
 	int lastmatnr, lastretval;
+	GPUBlendMode lastblendmode;
 } GMS;
 
 Material *gpu_active_node_material(Material *ma)
@@ -783,12 +781,13 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 	extern Material defmaterial; /* from material.c */
 	Material *ma;
 	GPUBlendMode blendmode;
-	int a, has_alpha;
+	int a;
 	
 	/* initialize state */
 	memset(&GMS, 0, sizeof(GMS));
 	GMS.lastmatnr = -1;
 	GMS.lastretval = -1;
+	GMS.lastblendmode = GPU_BLEND_SOLID;
 
 	GMS.gob = ob;
 	GMS.gscene = scene;
@@ -836,7 +835,6 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 			/* do glsl only if creating it succeed, else fallback */
 			GMS.gmatbuf[a]= ma;
 			blendmode = GPU_material_blend_mode(ma->gpumaterial);
-			has_alpha = ELEM(blendmode, GPU_BLEND_ALPHA, GPU_BLEND_ADD);
 		}
 		else {
 			/* fixed function opengl materials */
@@ -855,7 +853,7 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 				GMS.matbuf[a][1][3]= 1.0;
 			}
 
-			has_alpha = (ma->alpha != 1.0f);
+			blendmode = (ma->alpha == 1.0f)? GPU_BLEND_SOLID: GPU_BLEND_ALPHA;
 			if(do_alpha_pass && GMS.alphapass)
 				GMS.matbuf[a][0][3]= ma->alpha;
 			else
@@ -865,8 +863,9 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 		/* setting do_alpha_pass = 1 indicates this object needs to be
 		 * drawn in a second alpha pass for improved blending */
 		if(do_alpha_pass) {
-			GMS.hasalpha[a] = has_alpha;
-			*do_alpha_pass |= has_alpha && !GMS.alphapass;
+			GMS.blendmode[a]= blendmode;
+			if(ELEM(blendmode, GPU_BLEND_ALPHA, GPU_BLEND_ADD) && !GMS.alphapass)
+				*do_alpha_pass= 1;
 		}
 	}
 
@@ -877,6 +876,7 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 int GPU_enable_material(int nr, void *attribs)
 {
 	GPUVertexAttribs *gattribs = attribs;
+	GPUBlendMode blendmode;
 
 	/* prevent index to use un-initialized array items */
 	if(nr>GMS.totmat)
@@ -897,7 +897,9 @@ int GPU_enable_material(int nr, void *attribs)
 
 	/* draw materials with alpha in alpha pass */
 	GMS.lastmatnr = nr;
-	GMS.lastretval = (GMS.alphapass)? GMS.hasalpha[nr]: !GMS.hasalpha[nr];
+	GMS.lastretval = ELEM(GMS.blendmode[nr], GPU_BLEND_SOLID, GPU_BLEND_CLIP);
+	if(GMS.alphapass)
+		GMS.lastretval = !GMS.lastretval;
 
 	if(GMS.lastretval) {
 		if(gattribs && GMS.gmatbuf[nr]) {
@@ -915,14 +917,26 @@ int GPU_enable_material(int nr, void *attribs)
 			glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, GMS.matbuf[nr][1]);
 		}
 
-		/* enable alpha blending if needed */
-		if(GMS.alphapass)
-			glEnable(GL_BLEND);
-		else
-			glDisable(GL_BLEND);
+		/* set (alpha) blending mode */
+		blendmode = (GMS.alphapass)? GPU_BLEND_ALPHA: GPU_BLEND_SOLID;
+		GPU_set_material_blend_mode(blendmode);
 	}
 
 	return GMS.lastretval;
+}
+
+void GPU_set_material_blend_mode(int blendmode)
+{
+	if(GMS.lastblendmode == blendmode)
+		return;
+	
+	gpu_set_blend_mode(blendmode);
+	GMS.lastblendmode = blendmode;
+}
+
+int GPU_get_material_blend_mode(void)
+{
+	return GMS.lastblendmode;
 }
 
 void GPU_disable_material(void)
@@ -934,6 +948,8 @@ void GPU_disable_material(void)
 		GPU_material_unbind(GMS.gboundmat->gpumaterial);
 		GMS.gboundmat= NULL;
 	}
+
+	GPU_set_material_blend_mode(GPU_BLEND_SOLID);
 }
 
 /* Lights */

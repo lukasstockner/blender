@@ -68,6 +68,7 @@ protected:
 	int						m_tilexrep,m_tileyrep;
 	int						m_drawingmode;	// tface->mode
 	bool					m_transparant;
+	int						m_transp;
 	bool					m_zsort;
 	int						m_lightlayer;
 	bool					m_bIsTriangle;
@@ -102,6 +103,7 @@ public:
 					  int tilexrep,
 					  int tileyrep,
 					  int mode,
+					  int transp,
 					  bool transparant,
 					  bool zsort,
 					  int lightlayer,

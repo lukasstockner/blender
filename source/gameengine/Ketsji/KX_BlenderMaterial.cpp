@@ -57,6 +57,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		data->tilexrep[0],
 		data->tileyrep[0],
 		data->mode,
+		data->transp,
 		((data->ras_mode &TRANSP)!=0),
 		((data->ras_mode &ZSORT)!=0),
 		lightlayer,
@@ -268,6 +269,8 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 		mBlenderShader->SetProg(true);
 		mLastBlenderShader= mBlenderShader;
 	}
+
+	setDefaultBlending();
 }
 
 void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
@@ -613,29 +616,29 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 		ras->EnableTextures(false);
 }
 
-bool KX_BlenderMaterial::setDefaultBlending()
+void KX_BlenderMaterial::setDefaultBlending()
 {
-	if( mMaterial->transp &TF_ADD) {
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_ONE, GL_ONE);
-		glDisable ( GL_ALPHA_TEST );
-		return true;
-	}
-	
-	if( mMaterial->transp & TF_ALPHA ) {
-		glEnable(GL_BLEND);
+	if(mMaterial->transp == TF_SOLID) {
+		glDisable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glDisable ( GL_ALPHA_TEST );
-		return true;
 	}
-	
-	if( mMaterial->transp & TF_CLIP ) {
-		glDisable(GL_BLEND); 
-		glEnable ( GL_ALPHA_TEST );
+	else if(mMaterial->transp == TF_ADD) {
+		glBlendFunc(GL_ONE, GL_ONE);
+		glEnable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
+	}
+	else if(mMaterial->transp == TF_ALPHA) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
+	}
+	else if(mMaterial->transp == TF_CLIP) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND); 
+		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.5f);
-		return false;
 	}
-	return false;
 }
 
 void KX_BlenderMaterial::setTexMatrixData(int i)

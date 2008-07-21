@@ -84,10 +84,10 @@ typedef enum GPUBuiltin {
 } GPUBuiltin;
 
 typedef enum GPUBlendMode {
-	GPU_BLEND_SOLID,
-	GPU_BLEND_ALPHA,
-	GPU_BLEND_ADD,
-	GPU_BLEND_CLIPALPHA
+	GPU_BLEND_SOLID = 0,
+	GPU_BLEND_ADD = 1,
+	GPU_BLEND_ALPHA = 2,
+	GPU_BLEND_CLIP = 4
 } GPUBlendMode;
 
 typedef struct GPUNodeStack {

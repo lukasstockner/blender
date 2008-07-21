@@ -86,6 +86,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
@@ -920,10 +921,17 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	EditFace *efa;
 	DMVertexAttribs attribs;
 	GPUVertexAttribs gattribs;
-	int i, b, matnr, new_matnr, dodraw;
+	MTFace *tf;
+	int transp, new_transp, orig_transp, tfoffset;
+	int i, b, matnr, new_matnr, dodraw, layer;
 
 	dodraw = 0;
 	matnr = -1;
+
+	transp = GPU_get_material_blend_mode();
+	orig_transp = transp;
+	layer = CustomData_get_layer_index(&em->fdata, CD_MTFACE);
+	tfoffset = (layer == -1)? -1: em->fdata.layers[layer].offset;
 
 	memset(&attribs, 0, sizeof(attribs));
 
@@ -965,6 +973,19 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			dodraw = setMaterial(matnr = new_matnr, &gattribs);
 			if(dodraw)
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+		}
+
+		if(tfoffset != -1) {
+			tf = (MTFace*)((char*)efa->data)+tfoffset;
+			new_transp = tf->transp;
+
+			if(new_transp != transp) {
+				if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
+					GPU_set_material_blend_mode(orig_transp);
+				else
+					GPU_set_material_blend_mode(new_transp);
+				transp = new_transp;
+			}
 		}
 
 		if(dodraw) {

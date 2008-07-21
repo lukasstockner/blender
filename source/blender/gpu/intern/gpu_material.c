@@ -217,12 +217,6 @@ void GPU_material_bind(GPUMaterial *material, int lay)
 
 		GPU_pass_bind(material->pass);
 		//GPU_pass_update_uniforms(material->pass);
-
-		/* handle alpha */
-		if(material->alpha) {
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-		}
 	}
 }
 
@@ -271,12 +265,8 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float v
 
 void GPU_material_unbind(GPUMaterial *material)
 {
-	if (material->pass) {
-		if(material->alpha)
-			glDisable(GL_BLEND);
-
+	if (material->pass)
 		GPU_pass_unbind(material->pass);
-	}
 }
 
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)

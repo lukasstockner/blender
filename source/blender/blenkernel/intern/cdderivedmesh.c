@@ -58,6 +58,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
@@ -590,13 +591,17 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 	DMVertexAttribs attribs;
 	MVert *mvert = cddm->mvert;
 	MFace *mface = cddm->mface;
+	MTFace *tf = dm->getFaceDataArray(dm, CD_MTFACE);
 	float (*nors)[3] = dm->getFaceDataArray(dm, CD_NORMAL);
 	int a, b, dodraw, smoothnormal, matnr, new_matnr;
+	int transp, new_transp, orig_transp;
 	int orig, *index = dm->getFaceDataArray(dm, CD_ORIGINDEX);
 
 	matnr = -1;
 	smoothnormal = 0;
 	dodraw = 0;
+	transp = GPU_get_material_blend_mode();
+	orig_transp = transp;
 
 	memset(&attribs, 0, sizeof(attribs));
 
@@ -626,6 +631,22 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 				continue;
 			else if(!setDrawOptions(userData, orig))
 				continue;
+		}
+
+		if(tf) {
+			new_transp = tf[a].transp;
+
+			if(new_transp != transp) {
+				glEnd();
+
+				if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
+					GPU_set_material_blend_mode(orig_transp);
+				else
+					GPU_set_material_blend_mode(new_transp);
+				transp = new_transp;
+
+				glBegin(GL_QUADS);
+			}
 		}
 
 		smoothnormal = (mface->flag & ME_SMOOTH);

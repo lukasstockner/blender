@@ -115,7 +115,7 @@ private:
 	void	setBlenderShaderData( bool enable, RAS_IRasterizer *ras);
 	void	setShaderData( bool enable, RAS_IRasterizer *ras);
 
-	bool	setDefaultBlending();
+	void	setDefaultBlending();
 	void	setObjectMatrixData(int i, RAS_IRasterizer *ras);
 	void	setTexMatrixData(int i);
 

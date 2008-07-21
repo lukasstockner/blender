@@ -877,7 +877,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					STR_String imastr = 
 						(tface)? (bima? (bima)->id.name : "" ) : "";
 			
-					char transp=0;
+					char transp=0, transparent=0;
 					short mode=0, tile=0;
 					int	tilexrep=4,tileyrep = 4;
 					
@@ -893,7 +893,8 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 						// Use texface colors if available
 						//TF_DYNAMIC means the polygon is a collision face
 						collider = ((tface->mode & TF_DYNAMIC) != 0);
-						transp = tface->transp &~ TF_CLIP;
+						transp = tface->transp;
+						transparent = ELEM(transp, TF_ALPHA, TF_ADD);
 						tile = tface->tile;
 						mode = tface->mode;
 						
@@ -912,6 +913,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 						
 						mode = default_face_mode;	
 						transp = TF_SOLID;
+						transparent = 0;
 						tile = 0;
 					}
 
@@ -959,7 +961,7 @@ RAS_MeshObject* BL_ConvertMesh(Mesh* mesh, Object* blenderobj, RAS_IRenderTools*
 					
 					polymat = new KX_PolygonMaterial(imastr, ma,
 						tile, tilexrep, tileyrep, 
-						mode, transp, zsort, lightlayer, istriangle, blenderobj, tface, (unsigned int*)mcol);
+						mode, transp, transparent, zsort, lightlayer, istriangle, blenderobj, tface, (unsigned int*)mcol);
 		
 					if (ma)
 					{

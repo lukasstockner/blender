@@ -61,6 +61,7 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 
@@ -1677,15 +1678,19 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	GPUVertexAttribs gattribs;
 	DMVertexAttribs attribs;
+	MTFace *tf = dm->getFaceDataArray(dm, CD_MTFACE);
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
+	int transp, orig_transp, new_transp;
 	char *faceFlags = DM_get_face_data_layer(dm, CD_FLAGS);
 	int a, b, i, doDraw, numVerts, matnr, new_matnr, totface;
 
 	doDraw = 0;
 	numVerts = 0;
 	matnr = -1;
+	transp = GPU_get_material_blend_mode();
+	orig_transp = transp;
 
 	memset(&attribs, 0, sizeof(attribs));
 
@@ -1736,6 +1741,18 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 		if(!doDraw || (setDrawOptions && !setDrawOptions(userData, index))) {
 			a += gridFaces*gridFaces*numVerts;
 			continue;
+		}
+
+		if(tf) {
+			new_transp = tf[i].transp;
+
+			if(new_transp != transp) {
+				if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
+					GPU_set_material_blend_mode(orig_transp);
+				else
+					GPU_set_material_blend_mode(new_transp);
+				transp = new_transp;
+			}
 		}
 
 		glShadeModel(drawSmooth? GL_SMOOTH: GL_FLAT);

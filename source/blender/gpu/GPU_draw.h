@@ -42,15 +42,17 @@ struct Image;
 struct Scene;
 struct Object;
 
-/* OpenGL drawing functions. These are also shared with
- * the game engine, whereas they were previously duplicated. */
+/* OpenGL drawing functions related to shading. These are also
+ * shared with the game engine, where there were previously
+ * duplicates of some of these functions. */
 
 /* Initialize */
 
 void GPU_state_init(void);
 
 /* Material drawing
- * - first the state is initialized by a particular object and it's materials
+ * - first the state is initialized by a particular object and
+ *   it's materials
  * - after this, materials can be quickly enabled by their number,
  *   GPU_enable_material returns 0 if drawing should be skipped
  * - after drawing, the material must be disabled again */
@@ -60,24 +62,33 @@ void GPU_set_object_materials(struct Scene *scene, struct Object *ob,
 int GPU_enable_material(int nr, void *attribs);
 void GPU_disable_material(void);
 
+void GPU_set_material_blend_mode(int blendmode);
+int GPU_get_material_blend_mode(void);
+
+/* TexFace drawing
+ * - this is mutually exclusive with material drawing, a mesh should
+ *   be drawn using one or the other
+ * - passing NULL clears the state again */
+
+int GPU_set_tpage(struct MTFace *tface);
+
 /* Lights
- * - returns how many lights were enabled */
+ * - returns how many lights were enabled
+ * - this affects fixed functions materials and texface, not glsl */
 
 int GPU_default_lights(void);
 int GPU_scene_object_lights(struct Scene *scene, struct Object *ob,
 	int lay, float viewmat[][4]);
 
-/* Text render */
+/* Text render
+ * - based on moving uv coordinates */
 
 void GPU_render_text(struct MTFace *tface, int mode,
 	const char *textstr, int textlen, unsigned int *col,
 	float *v1, float *v2, float *v3, float *v4, int glattrib);
 
-/* TexFace state setting, NULL clears it */
-
-int GPU_set_tpage(struct MTFace *tface);
-
-/* Mipmap settings, these free textures on changes */
+/* Mipmap settings
+ * - these will free textures on changes */
 
 void GPU_set_mipmap(int mipmap);
 void GPU_set_linear_mipmap(int linear);
