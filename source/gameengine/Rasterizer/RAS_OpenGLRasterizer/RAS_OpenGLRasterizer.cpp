@@ -807,6 +807,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(const vecVertexArray & vertexa
 				for (unsigned int i=0;i<numindices;i+=4)
 				{
 					float v1[3],v2[3],v3[3],v4[3];
+					int glattrib, unit;
 					
 					v1[0] = vertexarray[(indexarray[vindex])].getLocalXYZ()[0];
 					v1[1] = vertexarray[(indexarray[vindex])].getLocalXYZ()[1];
@@ -828,8 +829,14 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(const vecVertexArray & vertexa
 					v4[2] = vertexarray[(indexarray[vindex])].getLocalXYZ()[2];
 					
 					vindex++;
+
+					glattrib = -1;
+					if(GLEW_ARB_vertex_program)
+						for(unit=0; unit<m_attrib_num; unit++)
+							if(m_attrib[unit] == RAS_TEXCO_UV1)
+								glattrib = unit;
 					
-					rendertools->RenderText(polymat->GetDrawingMode(),polymat,v1,v2,v3,v4);
+					rendertools->RenderText(polymat->GetDrawingMode(),polymat,v1,v2,v3,v4,glattrib);
 					ClearCachingInfo();
 				}
 				break;
@@ -841,6 +848,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(const vecVertexArray & vertexa
 				for (unsigned int i=0;i<numindices;i+=3)
 				{
 					float v1[3],v2[3],v3[3];
+					int glattrib, unit;
 					
 					v1[0] = vertexarray[(indexarray[vindex])].getLocalXYZ()[0];
 					v1[1] = vertexarray[(indexarray[vindex])].getLocalXYZ()[1];
@@ -856,8 +864,14 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(const vecVertexArray & vertexa
 					v3[1] = vertexarray[(indexarray[vindex])].getLocalXYZ()[1];
 					v3[2] = vertexarray[(indexarray[vindex])].getLocalXYZ()[2];
 					vindex++;
+
+					glattrib = -1;
+					if(GLEW_ARB_vertex_program)
+						for(unit=0; unit<m_attrib_num; unit++)
+							if(m_attrib[unit] == RAS_TEXCO_UV1)
+								glattrib = unit;
 					
-					rendertools->RenderText(polymat->GetDrawingMode(),polymat,v1,v2,v3,NULL);		
+					rendertools->RenderText(polymat->GetDrawingMode(),polymat,v1,v2,v3,NULL,glattrib);
 					ClearCachingInfo();
 				}
 				glEnd();	

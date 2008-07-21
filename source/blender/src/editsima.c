@@ -97,6 +97,7 @@
 #include "BSE_node.h"
 #include "BSE_trans_types.h"
 
+#include "BDR_editface.h"
 #include "BDR_editobject.h"
 #include "BDR_unwrapper.h"
 

@@ -57,6 +57,7 @@ CPPFLAGS += -I../../blenkernel
 CPPFLAGS += -I../../blenlib
 CPPFLAGS += -I../../blenloader
 CPPFLAGS += -I../../include
+CPPFLAGS += -I../../gpu
 CPPFLAGS += -I../../render/extern/include
 CPPFLAGS += -I../../radiosity/extern/include
 CPPFLAGS += -I$(NAN_BMFONT)/include

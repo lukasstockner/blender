@@ -30,7 +30,6 @@ SET(SRC
   GPC_Engine.cpp
   GPC_KeyboardDevice.cpp
   GPC_MouseDevice.cpp
-  GPC_PolygonMaterial.cpp
   GPC_RawImage.cpp
   GPC_RawLoadDotBlendArray.cpp
   GPC_RawLogoArrays.cpp

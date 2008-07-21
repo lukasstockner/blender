@@ -75,7 +75,8 @@ public:
 								   float v1[3],
 								   float v2[3],
 								   float v3[3],
-								   float v4[3]);
+								   float v4[3],
+								   int glattrib);
 	void				applyTransform(class RAS_IRasterizer* rasty,
 									   double* oglmatrix,
 									   int objectdrawmode );
@@ -83,20 +84,6 @@ public:
 	virtual void		PushMatrix();
 	virtual void		PopMatrix();
 
-	virtual class RAS_IPolyMaterial* CreateBlenderPolyMaterial(const STR_String &texname,
-									bool ba,
-									const STR_String& matname,
-									int tile,
-									int tilexrep,
-									int tileyrep,
-									int mode,
-									bool transparant,
-									bool zsort,
-									int lightlayer,
-									bool bIsTriangle,
-									void* clientobject,
-									void* tface);
-	
 	bool RayHit(KX_ClientObjectInfo* client, MT_Point3& hit_point, MT_Vector3& hit_normal, void * const data);
 
 	virtual void MotionBlur(RAS_IRasterizer* rasterizer);

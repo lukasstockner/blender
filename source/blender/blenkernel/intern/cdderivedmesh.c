@@ -254,7 +254,7 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 	glEnd();
 }
 
-static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int))
+static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mvert = cddm->mvert;
@@ -282,7 +282,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int))
 		   || new_shademodel != shademodel) {
 			glEnd();
 
-			drawCurrentMat = setMaterial(matnr = new_matnr);
+			drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
 
 			glShadeModel(shademodel = new_shademodel);
 			glBegin(glmode = new_glmode);
@@ -583,7 +583,7 @@ static void cdDM_drawMappedFacesTex(DerivedMesh *dm, int (*setDrawOptions)(void 
 	cdDM_drawFacesTex_common(dm, NULL, setDrawOptions, userData);
 }
 
-static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GPUVertexAttribs *attribs), int (*setDrawOptions)(void *userData, int index), void *userData)
+static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs), int (*setDrawOptions)(void *userData, int index), void *userData)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	GPUVertexAttribs gattribs;
@@ -688,7 +688,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GP
 	glShadeModel(GL_FLAT);
 }
 
-static void cdDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GPUVertexAttribs *attribs))
+static void cdDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))
 {
 	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
 }

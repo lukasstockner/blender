@@ -101,7 +101,8 @@ public:
 					float v1[3],
 					float v2[3],
 					float v3[3],
-					float v4[3]);
+					float v4[3],
+					int glattrib);
 
 	void Render(RAS_IRasterizer* rasty,double* oglmatrix,int objectdrawmode)
 	{
@@ -121,20 +122,6 @@ public:
 	{
 		glPopMatrix();
 	}
-
-	virtual class RAS_IPolyMaterial* CreateBlenderPolyMaterial(
-			const STR_String &texname,
-			bool ba,
-			const STR_String& matname,
-			int tile,
-			int tilexrep,int tileyrep,
-			int mode,
-			bool transparant,
-			bool zsort,
-			int lightlayer,
-			bool bIsTriangle,
-			void* clientobject,
-			void* tface);
 
 	int applyLights(int objectlayer);
 
@@ -158,7 +145,8 @@ protected:
 		int textlen,
 		struct MTFace* tface,
 		unsigned int* col,
-		float v1[3],float v2[3],float v3[3],float v4[3]);
+		float v1[3],float v2[3],float v3[3],float v4[3],
+		int glattrib);
 	void BL_spack(unsigned int ucol)
 	{
 		char *cp = (char *)&ucol;		

@@ -131,7 +131,8 @@ public:
 		float v1[3],
 		float v2[3],
 		float v3[3],
-		float v4[3]
+		float v4[3],
+		int glattrib
 	)=0;
 
 	virtual 
@@ -190,24 +191,6 @@ public:
 	virtual
 		void
 		Render2DFilters(RAS_ICanvas* canvas)=0;
-
-	virtual 
-		class RAS_IPolyMaterial*	
-	CreateBlenderPolyMaterial(
-		const STR_String &texname,
-		bool ba,
-		const STR_String& matname,
-		int tile,
-		int tilexrep,
-		int tileyrep,
-		int mode,
-		bool transparant,
-		bool zsort,
-		int lightlayer,
-		bool bIsTriangle,
-		void* clientobject,
-		void* tface
-	)=0;
 };
 
 #endif //__RAS_IRENDERTOOLS

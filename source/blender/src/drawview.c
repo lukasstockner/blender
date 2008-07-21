@@ -160,6 +160,7 @@
 
 #include "RE_pipeline.h"	// make_stars
 
+#include "GPU_draw.h"
 #include "GPU_material.h"
 
 #include "multires.h"
@@ -315,8 +316,9 @@ void init_gl_stuff(void)
 	
 	glPolygonStipple(patc);
 
-
-	init_realtime_GL();	
+	glMatrixMode(GL_TEXTURE);
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
 }
 
 void circf(float x, float y, float rad)
@@ -3062,7 +3064,7 @@ void drawview3dspace(ScrArea *sa, void *spacedata)
 	}
 
 	/* shadow buffers, before we setup matrices */
-	if(draw_glsl_material(v3d->drawtype))
+	if(draw_glsl_material(NULL, v3d->drawtype))
 		gpu_render_shadow_buffers(G.scene, v3d);
 	
 	setwinmatrixview3d(sa->winx, sa->winy, NULL);	/* 0= no pick rect */
@@ -3332,7 +3334,7 @@ void drawview3d_render(struct View3D *v3d, float viewmat[][4], int winx, int win
 	float v3dviewmat[4][4], v3dwinmat[4][4];
 
 	/* shadow buffers, before we setup matrices */
-	if(!shadow && draw_glsl_material(v3d->drawtype))
+	if(!shadow && draw_glsl_material(NULL, v3d->drawtype))
 		gpu_render_shadow_buffers(G.scene, v3d);
 	
 	if(!winmat)
@@ -3361,7 +3363,7 @@ void drawview3d_render(struct View3D *v3d, float viewmat[][4], int winx, int win
 	Mat4Invert(v3d->viewinv, v3d->viewmat);
 
 	if(!shadow) {
-		free_all_realtime_images();
+		GPU_free_images();
 		reshadeall_displist();
 	}
 	
@@ -3457,7 +3459,7 @@ void drawview3d_render(struct View3D *v3d, float viewmat[][4], int winx, int win
 
 	if(!shadow) {
 		glFlush();
-		free_all_realtime_images();
+		GPU_free_images();
 	}
 
 	glLoadIdentity();

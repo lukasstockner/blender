@@ -199,7 +199,8 @@ struct DerivedMesh {
 	 *
 	 * Also called for *final* editmode DerivedMeshes
 	 */
-	void (*drawFacesSolid)(DerivedMesh *dm, int (*setMaterial)(int));
+	void (*drawFacesSolid)(DerivedMesh *dm,
+	                       int (*setMaterial)(int, void *attribs));
 
 	/* Draw all faces
 	 *  o If useTwoSided, draw front and back using col arrays
@@ -221,7 +222,7 @@ struct DerivedMesh {
 	 *  o Only if setMaterial returns true
 	 */
 	void (*drawFacesGLSL)(DerivedMesh *dm,
-		int (*setMaterial)(int, struct GPUVertexAttribs *attribs));
+		int (*setMaterial)(int, void *attribs));
 
 	/* Draw mapped faces (no color, or texture)
 	 *  o Only if !setDrawOptions or
@@ -255,7 +256,7 @@ struct DerivedMesh {
 	 *  o Only if setMaterial and setDrawOptions return true
 	 */
 	void (*drawMappedFacesGLSL)(DerivedMesh *dm,
-		int (*setMaterial)(int, struct GPUVertexAttribs *attribs),
+		int (*setMaterial)(int, void *attribs),
 		int (*setDrawOptions)(void *userData, int index), void *userData);
 
 	/* Draw mapped edges as lines

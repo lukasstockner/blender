@@ -50,7 +50,6 @@
 // it needs the gameobject and the sumo physics scene for a raycast
 #include "KX_GameObject.h"
 
-#include "GPC_PolygonMaterial.h"
 #include "KX_PolygonMaterial.h"
 #include "Value.h"
 
@@ -86,6 +85,8 @@
 #include "BKE_main.h"
 
 #include "IMB_imbuf_types.h"
+
+#include "GPU_draw.h"
 // End of Blender includes
 
 #include "KX_Scene.h"
@@ -242,7 +243,7 @@ void GPC_RenderTools::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 void GPC_RenderTools::RenderText(
 	int mode,
 	RAS_IPolyMaterial* polymat,
-	float v1[3], float v2[3], float v3[3], float v4[3])
+	float v1[3], float v2[3], float v3[3], float v4[3], int glattrib)
 {
 	STR_String mytext = ((CValue*)m_clientobject)->GetPropertyText("Text");
 	
@@ -260,107 +261,14 @@ void GPC_RenderTools::RenderText(
 		col = blenderpoly->GetMCol();
 	}
 		
-	BL_RenderText(mode, mytext, mytext.Length(), tface, col, v1, v2, v3, v4);
+	GPU_render_text(tface, mode, mytext, mytext.Length(), col, v1, v2, v3, v4, glattrib);
 }
-
-
-
-/**
- * Copied from KX_BlenderGL.cpp in KX_blenderhook
- */
-void GPC_RenderTools::BL_RenderText(
-	int mode,
-	const char* textstr,
-	int textlen,
-	struct MTFace* tface,
-	unsigned int* col,
-	float v1[3],float v2[3],float v3[3],float v4[3])
-{
-	struct Image* ima;
-
-	if (mode & TF_BMFONT) {
-			//char string[MAX_PROPSTRING];
-//			float tmat[4][4];
-			int characters, index, character;
-			float centerx, centery, sizex, sizey, transx, transy, movex, movey, advance;
-			
-//			bProperty *prop;
-
-			// string = "Frank van Beek";
-
-			characters = textlen;
-
-			ima = (struct Image*) tface->tpage;
-			if (ima == NULL) {
-				characters = 0;
-			}
-
-			if(!col) glColor3f(1.0f, 1.0f, 1.0f);
-
-			glPushMatrix();
-			for (index = 0; index < characters; index++) {
-				// lets calculate offset stuff
-				character = textstr[index];
-				
-				// space starts at offset 1
-				// character = character - ' ' + 1;
-				
-				matrixGlyph((ImBuf *)ima->ibufs.first, character, & centerx, &centery, &sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
-				
-				glBegin(GL_POLYGON);
-				// printf(" %c %f %f %f %f\n", character, tface->uv[0][0], tface->uv[0][1], );
-				// glTexCoord2f((tface->uv[0][0] - centerx) * sizex + transx, (tface->uv[0][1] - centery) * sizey + transy);
-				glTexCoord2f((tface->uv[0][0] - centerx) * sizex + transx, (tface->uv[0][1] - centery) * sizey + transy);
-
-				if(col) BL_spack(col[0]);
-				// glVertex3fv(v1);
-				glVertex3f(sizex * v1[0] + movex, sizey * v1[1] + movey, v1[2]);
-				
-				glTexCoord2f((tface->uv[1][0] - centerx) * sizex + transx, (tface->uv[1][1] - centery) * sizey + transy);
-				if(col) BL_spack(col[1]);
-				// glVertex3fv(v2);
-				glVertex3f(sizex * v2[0] + movex, sizey * v2[1] + movey, v2[2]);
-	
-				glTexCoord2f((tface->uv[2][0] - centerx) * sizex + transx, (tface->uv[2][1] - centery) * sizey + transy);
-				if(col) BL_spack(col[2]);
-				// glVertex3fv(v3);
-				glVertex3f(sizex * v3[0] + movex, sizey * v3[1] + movey, v3[2]);
-	
-				if(v4) {
-					// glTexCoord2f((tface->uv[3][0] - centerx) * sizex + transx, 1.0 - (1.0 - tface->uv[3][1]) * sizey - transy);
-					glTexCoord2f((tface->uv[3][0] - centerx) * sizex + transx, (tface->uv[3][1] - centery) * sizey + transy);
-					if(col) BL_spack(col[3]);
-					// glVertex3fv(v4);
-					glVertex3f(sizex * v4[0] + movex, sizey * v4[1] + movey, v4[2]);
-				}
-				glEnd();
-
-				glTranslatef(advance, 0.0, 0.0);
-			}
-			glPopMatrix();
-
-		}
-}
-
-
-RAS_IPolyMaterial* GPC_RenderTools::CreateBlenderPolyMaterial(
-			const STR_String &texname,
-			bool ba,const STR_String& matname,int tile,int tilexrep,int tileyrep,int mode,bool transparant, bool zsort,
-			int lightlayer,bool bIsTriangle,void* clientobject,void* tface)
-{
-	assert(!"Deprecated");
-/*	return new GPC_PolygonMaterial(texname, ba,matname,tile,tilexrep,tileyrep,
-			mode,transparant,zsort,lightlayer,bIsTriangle,clientobject,tface);
-			*/
-	return NULL;
-}
-
 
 int GPC_RenderTools::applyLights(int objectlayer)
 {
 // taken from blender source, incompatibility between Blender Object / GameObject	
 
-	int count;
+	unsigned int count;
 	float vec[4];
 	
 	vec[3]= 1.0;

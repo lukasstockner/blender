@@ -35,16 +35,14 @@
 #include "BKE_global.h"
 #include "BKE_image.h"
 
-extern "C" {
-#include "BDR_drawmesh.h"
-}
-
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_image_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "IMB_imbuf_types.h"
+
+#include "GPU_draw.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -139,19 +137,19 @@ void KX_PolygonMaterial::DefaultActivate(RAS_IRasterizer* rasty, TCachingInfo& c
 	{
 		if (!cachingInfo)
 		{
-			set_tpage(NULL);
+			GPU_set_tpage(NULL);
 		}
 		cachingInfo = GetCachingInfo();
 
 		if ((m_drawingmode & 4)&& (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED))
 		{
-			update_realtime_texture((struct MTFace*) m_tface, rasty->GetTime());
-			set_tpage(m_tface);
+			GPU_update_image_time((struct MTFace*) m_tface, rasty->GetTime());
+			GPU_set_tpage(m_tface);
 			rasty->EnableTextures(true);
 		}
 		else
 		{
-			set_tpage(NULL);
+			GPU_set_tpage(NULL);
 			rasty->EnableTextures(false);
 		}
 		
@@ -384,7 +382,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, updateTexture, "updateTexture(tface, rast
 	{
 		MTFace *tface = (MTFace*) PyCObject_AsVoidPtr(pytface);
 		RAS_IRasterizer *rasty = (RAS_IRasterizer*) PyCObject_AsVoidPtr(pyrasty);
-		update_realtime_texture(tface, rasty->GetTime());
+		GPU_update_image_time(tface, rasty->GetTime());
 		Py_Return;
 	}
 	
@@ -397,7 +395,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, setTexture, "setTexture(tface)")
 	if (PyArg_ParseTuple(args, "O!", &PyCObject_Type, &pytface))
 	{
 		MTFace *tface = (MTFace*) PyCObject_AsVoidPtr(pytface);
-		set_tpage(tface);
+		GPU_set_tpage(tface);
 		Py_Return;
 	}
 	

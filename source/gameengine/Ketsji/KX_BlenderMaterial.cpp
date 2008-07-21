@@ -23,9 +23,7 @@
 #include "RAS_IRasterizer.h"
 #include "RAS_OpenGLRasterizer/RAS_GLExtensionManager.h"
 
-extern "C" {
-#include "BDR_drawmesh.h"
-}
+#include "GPU_draw.h"
 
 #include "STR_HashedString.h"
 
@@ -204,7 +202,7 @@ void KX_BlenderMaterial::OnExit()
 	}
 
 	if( mMaterial->tface ) 
-		set_tpage(mMaterial->tface);
+		GPU_set_tpage(mMaterial->tface);
 }
 
 

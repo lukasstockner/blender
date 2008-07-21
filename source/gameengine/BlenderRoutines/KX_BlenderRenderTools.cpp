@@ -55,6 +55,8 @@
 #include "PHY_IPhysicsEnvironment.h"
 #include "KX_Scene.h"
 
+#include "GPU_draw.h"
+
 KX_BlenderRenderTools::KX_BlenderRenderTools()
 {
 	glGetIntegerv(GL_MAX_LIGHTS, (GLint*) &m_numgllights);
@@ -258,7 +260,7 @@ void KX_BlenderRenderTools::applyTransform(RAS_IRasterizer* rasty,double* oglmat
 Render Text renders text into a (series of) polygon, using a texture font,
 Each character consists of one polygon (one quad or two triangles)
 */
-void	KX_BlenderRenderTools::RenderText(int mode,RAS_IPolyMaterial* polymat,float v1[3],float v2[3],float v3[3],float v4[3])
+void	KX_BlenderRenderTools::RenderText(int mode,RAS_IPolyMaterial* polymat,float v1[3],float v2[3],float v3[3],float v4[3],int glattrib)
 {
 		
 	STR_String mytext = ((CValue*)m_clientobject)->GetPropertyText("Text");
@@ -277,7 +279,7 @@ void	KX_BlenderRenderTools::RenderText(int mode,RAS_IPolyMaterial* polymat,float
 		col = blenderpoly->GetMCol();
 	}
 	
-	BL_RenderText( mode,mytext,mytext.Length(),tface,col,v1,v2,v3,v4);
+	GPU_render_text(tface,mode,mytext,mytext.Length(),col,v1,v2,v3,v4,glattrib);
 	
 }
 
@@ -442,22 +444,6 @@ int	KX_BlenderRenderTools::applyLights(int objectlayer)
 
 	return count;
 
-}
-
-
-
-RAS_IPolyMaterial* KX_BlenderRenderTools::CreateBlenderPolyMaterial(
-		const STR_String &texname,
-		bool ba,const STR_String& matname,int tile,int tilexrep,int tileyrep,int mode,bool transparant,bool zsort, int lightlayer
-		,bool bIsTriangle,void* clientobject,void* tface)
-{
-	assert(!"Deprecated");
-/*	return new KX_BlenderPolyMaterial(
-
-		texname,
-		ba,matname,tile,tilexrep,tileyrep,mode,transparant,zsort, lightlayer
-		,bIsTriangle,clientobject,(struct MTFace*)tface);*/
-	return NULL;
 }
 
 void KX_BlenderRenderTools::MotionBlur(RAS_IRasterizer* rasterizer)

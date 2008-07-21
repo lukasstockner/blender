@@ -1602,7 +1602,7 @@ static void ccgDM_glNormalFast(float *a, float *b, float *c, float *d)
 }
 
 	/* Only used by non-editmesh types */
-static void ccgDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int)) {
+static void ccgDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *attribs)) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
@@ -1624,7 +1624,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int)) {
 			mat_nr= 0;
 		}
 		
-		if (!setMaterial(mat_nr+1))
+		if (!setMaterial(mat_nr+1, NULL))
 			continue;
 
 		glShadeModel(drawSmooth? GL_SMOOTH: GL_FLAT);
@@ -1671,7 +1671,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int)) {
 }
 
 	/* Only used by non-editmesh types */
-static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GPUVertexAttribs *attribs), int (*setDrawOptions)(void *userData, int index), void *userData) {
+static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs), int (*setDrawOptions)(void *userData, int index), void *userData) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
@@ -1810,7 +1810,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, G
 	ccgFaceIterator_free(fi);
 }
 
-static void ccgDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, GPUVertexAttribs *attribs)) {
+static void ccgDM_drawFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, void *attribs)) {
 	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
 }
 

@@ -703,7 +703,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 
-	//if(G.f & G_DEBUG) printf("%s\n", code);
+	if(G.f & G_DEBUG) printf("%s\n", code);
 
 	return code;
 }

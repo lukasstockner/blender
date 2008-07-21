@@ -909,7 +909,7 @@ static void emDM_drawMappedFacesTex(DerivedMesh *dm, int (*setDrawOptions)(void 
 }
 
 static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
-               int (*setMaterial)(int, GPUVertexAttribs *attribs),
+               int (*setMaterial)(int, void *attribs),
                int (*setDrawOptions)(void *userData, int index), void *userData) 
 {
 	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
@@ -1042,7 +1042,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 }
 
 static void emDM_drawFacesGLSL(DerivedMesh *dm,
-               int (*setMaterial)(int, GPUVertexAttribs *attribs))
+               int (*setMaterial)(int, void *attribs))
 {
 	dm->drawMappedFacesGLSL(dm, setMaterial, NULL, NULL);
 }
@@ -1767,7 +1767,7 @@ static void vDM_drawUVEdges(DerivedMesh *dm)
 }
 
 /* draw all VerseFaces */
-static void vDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int))
+static void vDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))
 {
 	VDerivedMesh *vdm = (VDerivedMesh*)dm;
 	struct VerseFace *vface;
@@ -1876,6 +1876,8 @@ static void vDM_drawMappedFacesTex(
 		int (*setDrawParams)(void *userData, int index),
 		void *userData)
 {
+	/* not supported yet */
+	vDM_drawFacesText(dm, NULL);
 }
 
 /**/

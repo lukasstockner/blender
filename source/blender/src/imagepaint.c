@@ -82,9 +82,10 @@
 #include "BSE_trans_types.h"
 #include "BSE_view.h"
 
-#include "BDR_drawmesh.h"
 #include "BDR_imagepaint.h"
 #include "BDR_vpaint.h"
+
+#include "GPU_draw.h"
 
 #include "GHOST_Types.h"
 
@@ -197,7 +198,7 @@ static void undo_restore(UndoElem *undo)
 
 		undo_copy_tile(tile, tmpibuf, ibuf, 1);
 
-		free_realtime_image(ima); /* force OpenGL reload */
+		GPU_free_image(ima); /* force OpenGL reload */
 		if(ibuf->rect_float)
 			imb_freerectImBuf(ibuf); /* force recreate of char rect */
 	}
@@ -404,7 +405,7 @@ static void imapaint_image_update(Image *image, ImBuf *ibuf, short texpaint)
 	if(texpaint || G.sima->lock) {
 		int w = imapaintpartial.x2 - imapaintpartial.x1;
 		int h = imapaintpartial.y2 - imapaintpartial.y1;
-		update_realtime_image(image, imapaintpartial.x1, imapaintpartial.y1, w, h);
+		GPU_paint_update_image(image, imapaintpartial.x1, imapaintpartial.y1, w, h);
 	}
 }
 
@@ -417,7 +418,7 @@ static void imapaint_redraw(int final, int texpaint, Image *image)
 			allqueue(REDRAWIMAGE, 0);
 		else if(!G.sima->lock) {
 			if(image)
-				free_realtime_image(image); /* force OpenGL reload */
+				GPU_free_image(image); /* force OpenGL reload */
 			allqueue(REDRAWVIEW3D, 0);
 		}
 		allqueue(REDRAWHEADERS, 0);

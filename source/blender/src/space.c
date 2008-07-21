@@ -182,6 +182,7 @@
 #include "SYS_System.h" /* for the user def menu ... should move elsewhere. */
 
 #include "GPU_extensions.h"
+#include "GPU_draw.h"
 
 /* maybe we need this defined somewhere else */
 extern void StartKetsjiShell(ScrArea *area, char* startscenename, struct Main* maggie, struct SpaceIpo* sipo,int always_use_expand_framing);
@@ -385,7 +386,7 @@ void space_set_commmandline_options(void) {
 		SYS_WriteCommandLineInt(syshandle, "noaudio", a);
 
 		a= (U.gameflags & USER_DISABLE_MIPMAP);
-		set_mipmap(!a);
+		GPU_set_mipmap(!a);
 		SYS_WriteCommandLineInt(syshandle, "nomipmap", a);
 
 		/* File specific settings: */
@@ -433,11 +434,10 @@ static void SaveState(void)
 {
 	glPushAttrib(GL_ALL_ATTRIB_BITS);
 
-	init_realtime_GL();
 	init_gl_stuff();
 
 	if(G.f & G_TEXTUREPAINT)
-		texpaint_enable_mipmap();
+		GPU_paint_set_mipmap(1);
 
 	waitcursor(1);
 }
@@ -445,7 +445,7 @@ static void SaveState(void)
 static void RestoreState(void)
 {
 	if(G.f & G_TEXTUREPAINT)
-		texpaint_disable_mipmap();
+		GPU_paint_set_mipmap(0);
 
 	curarea->win_swap = 0;
 	curarea->head_swap=0;
@@ -3240,7 +3240,7 @@ void initipo(ScrArea *sa)
 /* ******************** SPACE: INFO ********************** */
 
 void space_mipmap_button_function(int event) {
-	set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
+	GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 
 	allqueue(REDRAWVIEW3D, 0);
 }
