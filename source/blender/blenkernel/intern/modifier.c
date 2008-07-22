@@ -7211,6 +7211,15 @@ static void multiresModifier_initData(ModifierData *md)
 	mmd->lvl = mmd->totlvl = 1;
 }
 
+static void multiresModifier_copyData(ModifierData *md, ModifierData *target)
+{
+	MultiresModifierData *mmd = (MultiresModifierData*) md;
+	MultiresModifierData *tmmd = (MultiresModifierData*) target;
+
+	tmmd->totlvl = mmd->totlvl;
+	tmmd->lvl = mmd->lvl;
+}
+
 static DerivedMesh *multiresModifier_applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 						   int useRenderParams, int isFinalCalc)
 {
@@ -7547,6 +7556,7 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		mti->type = eModifierTypeType_Constructive;
 		mti->flags = eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_RequiresOriginalData;
 		mti->initData = multiresModifier_initData;
+		mti->copyData = multiresModifier_copyData;
 		mti->applyModifier = multiresModifier_applyModifier;
 
 		typeArrInit = 0;
