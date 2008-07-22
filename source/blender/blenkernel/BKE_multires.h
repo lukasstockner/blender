@@ -131,6 +131,7 @@ struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*
 
 void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object *ob);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
+int multiresModifier_reshape(struct MultiresModifierData *mmd, struct Object *dst, struct Object *src);
 
 void multires_displacer_init(MultiresDisplacer *d, struct DerivedMesh *dm,
 			     const int face_index, const int invert);

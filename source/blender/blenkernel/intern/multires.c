@@ -1365,7 +1365,27 @@ void multires_displace(MultiresDisplacer *d, float co[3])
 	}
 }
 
+/* Returns 0 on success, 1 if the src's totvert doesn't match */
+int multiresModifier_reshape(MultiresModifierData *mmd, Object *dst, Object *src)
+{
+	Mesh *src_me = get_mesh(src);
+	DerivedMesh *mrdm = dst->derivedFinal;
 
+	if(mrdm && mrdm->getNumVerts(mrdm) == src_me->totvert) {
+		MVert *mvert = CDDM_get_verts(mrdm);
+		int i;
+
+		for(i = 0; i < src_me->totvert; ++i)
+			VecCopyf(mvert[i].co, src_me->mvert[i].co);
+		mrdm->needsFree = 1;
+		mrdm->release(mrdm);
+		dst->derivedFinal = NULL;
+
+		return 0;
+	}
+
+	return 1;
+}
 
 static void multiresModifier_update(DerivedMesh *dm)
 {
