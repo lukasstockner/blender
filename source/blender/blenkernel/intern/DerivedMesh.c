@@ -71,7 +71,6 @@
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
-#include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_subsurf.h"
 #include "BKE_texture.h"
@@ -2575,93 +2574,11 @@ DerivedMesh *mesh_get_derived_deform(Object *ob, CustomDataMask dataMask)
 	return ob->derivedDeform;
 }
 
-/* Move to multires Pin level, returns a copy of the original vertex coords. */
-float *multires_render_pin(Object *ob, Mesh *me, int *orig_lvl)
-{
-	float *vert_copy= NULL;
-
-	if(me->mr && !(me->mr->flag & MULTIRES_NO_RENDER)) {
-		MultiresLevel *lvl= NULL;
-		int i;
-		
-		/* Make sure all mesh edits are properly stored in the multires data*/
-		multires_update_levels(me, 1);
-	
-		/* Copy the highest level of multires verts */
-		*orig_lvl= me->mr->current;
-		lvl= multires_level_n(me->mr, BLI_countlist(&me->mr->levels));
-		vert_copy= MEM_callocN(sizeof(float)*3*lvl->totvert, "multires vert_copy");
-		for(i=0; i<lvl->totvert; ++i)
-			VecCopyf(&vert_copy[i*3], me->mr->verts[i].co);
-	
-		/* Goto the pin level for multires */
-		me->mr->newlvl= me->mr->pinlvl;
-		multires_set_level(ob, me, 1);
-	}
-	
-	return vert_copy;
-}
-
-/* Propagate the changes to render level - fails if mesh topology changed */
-void multires_render_final(Object *ob, Mesh *me, DerivedMesh **dm, float *vert_copy,
-			   const int orig_lvl, CustomDataMask dataMask)
-{
-	if(me->mr && !(me->mr->flag & MULTIRES_NO_RENDER)) {
-		if((*dm)->getNumVerts(*dm) == me->totvert &&
-		   (*dm)->getNumFaces(*dm) == me->totface) {
-			MultiresLevel *lvl= multires_level_n(me->mr, BLI_countlist(&me->mr->levels));
-			DerivedMesh *old= NULL;
-			MVert *vertdup= NULL;
-			int i;
-
-			/* Copy the verts into the mesh */
-			vertdup= (*dm)->dupVertArray(*dm);
-			(*dm)->release(*dm);
-			for(i=0; i<me->totvert; ++i)
-				me->mvert[i]= vertdup[i];
-			/* Free vertdup after use*/
-			MEM_freeN(vertdup);
-			/* Go to the render level */
-			me->mr->newlvl= me->mr->renderlvl;
-			multires_set_level(ob, me, 1);
-			(*dm)= getMeshDerivedMesh(me, ob, NULL);
-
-			/* Some of the data in dm is referenced externally, so make a copy */
-			old= *dm;
-			(*dm)= CDDM_copy(old);
-			old->release(old);
-
-			if(dataMask & CD_MASK_ORCO)
-				add_orco_dm(ob, *dm, NULL);
-
-			/* Restore the original verts */
-			me->mr->newlvl= BLI_countlist(&me->mr->levels);
-			multires_set_level(ob, me, 1);
-			for(i=0; i<lvl->totvert; ++i)
-				VecCopyf(me->mvert[i].co, &vert_copy[i*3]);
-		}
-		
-		if(vert_copy)
-			MEM_freeN(vert_copy);
-			
-		me->mr->newlvl= orig_lvl;
-		multires_set_level(ob, me, 1);
-	}
-}
-
-/* Multires note - if mesh has multires enabled, mesh is first set to the Pin level,
-   where all modifiers are applied, then if the topology hasn't changed, the changes
-   from modifiers are propagated up to the Render level. */
 DerivedMesh *mesh_create_derived_render(Object *ob, CustomDataMask dataMask)
 {
 	DerivedMesh *final;
-	Mesh *me= get_mesh(ob);
-	float *vert_copy= NULL;
-	int orig_lvl= 0;
 	
-	vert_copy= multires_render_pin(ob, me, &orig_lvl);
 	mesh_calc_modifiers(ob, NULL, NULL, &final, 1, 1, 0, dataMask);
-	multires_render_final(ob, me, &final, vert_copy, orig_lvl, dataMask);
 
 	return final;
 }
@@ -2690,13 +2607,8 @@ DerivedMesh *mesh_create_derived_no_deform_render(Object *ob,
                                                   CustomDataMask dataMask)
 {
 	DerivedMesh *final;
-	Mesh *me= get_mesh(ob);
-	float *vert_copy= NULL;
-	int orig_lvl= 0;
 
-	vert_copy= multires_render_pin(ob, me, &orig_lvl);
 	mesh_calc_modifiers(ob, vertCos, NULL, &final, 1, 0, 0, dataMask);
-	multires_render_final(ob, me, &final, vert_copy, orig_lvl, dataMask);
 
 	return final;
 }
