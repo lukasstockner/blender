@@ -1458,6 +1458,11 @@ void shade_madd(vec4 col, vec4 col1, vec4 col2, out vec4 outcol)
 	outcol = col + col1*col2;
 }
 
+void shade_maddf(vec4 col, float f, vec4 col1, out vec4 outcol)
+{
+	outcol = col + f*col1;
+}
+
 void shade_mul(vec4 col1, vec4 col2, out vec4 outcol)
 {
 	outcol = col1*col2;
@@ -1494,5 +1499,24 @@ void test_shadowbuf(vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, flo
 
 		result = shadow2DProj(shadowmap, co).x;
 	}
+}
+
+void shade_exposure_correct(vec3 col, float linfac, float logfac, out vec3 outcol)
+{
+	outcol = linfac*(1.0 - exp(col*logfac));
+}
+
+void shade_mist_factor(vec3 co, float miststa, float mistdist, float misttype, float misi, out float outfac)
+{
+	float fac, zcor;
+
+	zcor = (gl_ProjectionMatrix[3][3] == 0.0)? length(co): -co[2];
+	
+	fac = clamp((zcor-miststa)/mistdist, 0.0, 1.0);
+	if(misttype == 0.0) fac *= fac;
+	else if(misttype == 1.0);
+	else fac = sqrt(fac);
+
+	outfac = (1.0-fac)*(1.0-misi);
 }
 

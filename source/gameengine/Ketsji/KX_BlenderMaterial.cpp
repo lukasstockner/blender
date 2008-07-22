@@ -634,8 +634,7 @@ void KX_BlenderMaterial::setDefaultBlending()
 		glDisable(GL_ALPHA_TEST);
 	}
 	else if(mMaterial->transp == TF_CLIP) {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND); 
+		glDisable(GL_BLEND); 
 		glEnable(GL_ALPHA_TEST);
 		glAlphaFunc(GL_GREATER, 0.5f);
 	}

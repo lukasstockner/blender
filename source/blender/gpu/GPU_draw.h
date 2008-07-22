@@ -46,7 +46,11 @@ struct Object;
  * shared with the game engine, where there were previously
  * duplicates of some of these functions. */
 
-/* Initialize */
+/* Initialize
+ * - sets the default Blender opengl state, if in doubt, check
+ *   the contents of this function
+ * - this is called when starting Blender, for opengl rendering,
+ *   and for switching back from the game engine for example. */
 
 void GPU_state_init(void);
 
@@ -94,7 +98,8 @@ void GPU_set_mipmap(int mipmap);
 void GPU_set_linear_mipmap(int linear);
 void GPU_paint_set_mipmap(int mipmap);
 
-/* Image opengl free and update */
+/* Image updates and free
+ * - these deal with images bound as opengl textures */
 
 void GPU_paint_update_image(struct Image *ima, int x, int y, int w, int h);
 void GPU_update_images_framechange(void);

@@ -42,6 +42,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_view3d_types.h"
+#include "DNA_world_types.h"
 
 #include "BKE_colortools.h"
 #include "BKE_DerivedMesh.h"
@@ -1000,9 +1001,11 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 {
-	Material *ma= shi->mat;
 	GPUMaterial *mat= shi->gpumat;
-	GPUNodeLink *emit;
+	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
+	Material *ma= shi->mat;
+	World *world= mat->scene->world;
+	float linfac, logfac, misttype;
 
 	memset(shr, 0, sizeof(*shr));
 
@@ -1037,11 +1040,45 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		shr->combined = shr->diff;
 		shr->alpha = shi->alpha;
 
+		if(world) {
+        	/* exposure correction */
+			if(world->exp!=0.0f || world->range!=1.0f) {
+				linfac= 1.0 + pow((2.0*world->exp + 0.5), -10);
+				logfac= log((linfac-1.0)/linfac)/world->range;
+
+				GPU_link(mat, "set_value", GPU_uniform(&linfac), &ulinfac);
+				GPU_link(mat, "set_value", GPU_uniform(&logfac), &ulogfac);
+
+				GPU_link(mat, "shade_exposure_correct", shr->combined,
+					ulinfac, ulogfac, &shr->combined);
+				GPU_link(mat, "shade_exposure_correct", shr->spec,
+					ulinfac, ulogfac, &shr->spec);
+			}
+
+			/* ambient color */
+			if(world->ambr!=0.0f || world->ambg!=0.0f || world->ambb!=0.0f) {
+				if(GPU_link_changed(shi->amb) || ma->amb != 0.0f)
+					GPU_link(mat, "shade_maddf", shr->combined, GPU_uniform(&ma->amb),
+						GPU_uniform(&world->ambr), &shr->combined);
+			}
+		}
+
 		if(ma->mode & MA_RAMP_COL) ramp_diffuse_result(shi, &shr->combined);
 		if(ma->mode & MA_RAMP_SPEC) ramp_spec_result(shi, &shr->spec);
 
 		if(GPU_link_changed(shi->spec) || ma->spec != 0.0f)
 			GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
+	}
+
+	if(world && (world->mode & WO_MIST) && !(ma->mode & MA_NOMIST)) {
+		misttype = world->mistype;
+
+		GPU_link(mat, "shade_mist_factor", GPU_builtin(GPU_VIEW_POSITION),
+			GPU_uniform(&world->miststa), GPU_uniform(&world->mistdist),
+			GPU_uniform(&misttype), GPU_uniform(&world->misi), &mistfac);
+
+		GPU_link(mat, "mix_blend", mistfac, GPU_uniform(&world->horr),
+			shr->combined, &shr->combined);
 	}
 
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
