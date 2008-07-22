@@ -72,6 +72,7 @@ void sort_faces(void);
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_material.h"
+#include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_utildefines.h"
 
@@ -125,7 +126,7 @@ int join_mesh(void)
 	MFace *mface = NULL, *mfacemain;
 	float imat[4][4], cmat[4][4];
 	int a, b, totcol, totedge=0, totvert=0, totface=0, ok=0, vertofs, map[MAXMAT];
-	int	i, j, index, haskey=0, hasmulti=0, edgeofs, faceofs;
+	int i, j, index, haskey=0, hasmulti=0, edgeofs, faceofs;
 	bDeformGroup *dg, *odg;
 	MDeformVert *dvert;
 	CustomData vdata, edata, fdata;
@@ -264,6 +265,9 @@ int join_mesh(void)
 		}
 		base= base->next;
 	}
+
+	/* For multires, need to unify the modifiers to ensure displacements aren't destroyed */
+	multiresModifier_join(ob);
 
 	me= ob->data;
 

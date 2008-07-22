@@ -129,6 +129,7 @@ void multires_force_update(struct Object *ob);
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*,
 						    struct Mesh *, int, int);
 
+void multiresModifier_join(struct Object *ob);
 void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object *ob);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
 int multiresModifier_reshape(struct MultiresModifierData *mmd, struct Object *dst, struct Object *src);

@@ -34,7 +34,9 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BIF_editmesh.h"
 
@@ -47,6 +49,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
+#include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_subsurf.h"
 
@@ -812,6 +815,69 @@ static const int multires_max_levels = 13;
 static const int multires_quad_tot[] = {4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
 static const int multires_tri_tot[]  = {3, 7, 19, 61, 217, 817,  3169, 12481, 49537, 197377, 787969,  3148801, 12589057};
 static const int multires_side_tot[] = {2, 3, 5,  9,  17,  33,   65,   129,   257,   513,    1025,    2049,    4097};
+
+void multiresModifier_join(Object *ob)
+{
+	Base *base = NULL;
+	int highest_lvl = 0;
+
+	/* First find the highest level of subdivision */
+	base = FIRSTBASE;
+	while(base) {
+		if(TESTBASELIB_BGMODE(base) && base->object->type==OB_MESH) {
+			ModifierData *md;
+			for(md = base->object->modifiers.first; md; md = md->next) {
+				if(md->type == eModifierType_Multires) {
+					int totlvl = ((MultiresModifierData*)md)->totlvl;
+					if(totlvl > highest_lvl)
+						highest_lvl = totlvl;
+
+					/* Ensure that all updates are processed */
+					multires_force_update(base->object);
+				}
+			}
+		}
+		base = base->next;
+	}
+
+	/* No multires meshes selected */
+	if(highest_lvl == 0)
+		return;
+
+	/* Subdivide all the displacements to the highest level */
+	base = FIRSTBASE;
+	while(base) {
+		if(TESTBASELIB_BGMODE(base) && base->object->type==OB_MESH) {
+			ModifierData *md = NULL;
+			MultiresModifierData *mmd = NULL;
+
+			for(md = base->object->modifiers.first; md; md = md->next) {
+				if(md->type == eModifierType_Multires)
+					mmd = (MultiresModifierData*)md;
+			}
+
+			/* If the object didn't have multires enabled, give it a new modifier */
+			if(!mmd) {
+				ModifierData *md = base->object->modifiers.first;
+				
+				while(md && modifierType_getInfo(md->type)->type == eModifierTypeType_OnlyDeform)
+					md = md->next;
+				
+				mmd = (MultiresModifierData*)modifier_new(eModifierType_Multires);
+				BLI_insertlinkbefore(&base->object->modifiers, md, mmd);
+			}
+
+			if(mmd) {
+				int i;
+
+				/* TODO: subdivision should be doable in one step rather than iteratively. */
+				for(i = mmd->totlvl; i < highest_lvl; ++i)
+					multiresModifier_subdivide(mmd, base->object);
+			}
+		}
+		base = base->next;
+	}
+}
 
 static void Mat3FromColVecs(float mat[][3], float v1[3], float v2[3], float v3[3])
 {
