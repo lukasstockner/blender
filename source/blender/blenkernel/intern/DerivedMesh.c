@@ -1898,7 +1898,7 @@ static void vDM_drawMappedFacesTex(
 		void *userData)
 {
 	/* not supported yet */
-	vDM_drawFacesText(dm, NULL);
+	vDM_drawFacesTex(dm, NULL);
 }
 
 /**/
