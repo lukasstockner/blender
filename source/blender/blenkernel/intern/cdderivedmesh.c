@@ -1315,11 +1315,6 @@ MFace *MultiresDM_get_orfa(DerivedMesh *dm)
 	return ((MultiresDM*)dm)->orfa;
 }
 
-int MultiresDM_get_totorfa(struct DerivedMesh *dm)
-{
-	return ((MultiresDM*)dm)->totorfa;
-}
-
 MEdge *MultiresDM_get_ored(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->ored;

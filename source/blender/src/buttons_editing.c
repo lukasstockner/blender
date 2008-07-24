@@ -1375,7 +1375,7 @@ static void modifiers_applyModifier(void *obv, void *mdv)
 
 		/* Multires: remove MDisps from the DerivedMesh */
 		if(md->type == eModifierType_Multires)
-			CustomData_free_layers(&dm->faceData, CD_MDISPS, MultiresDM_get_totorfa(dm));
+			CustomData_free_layers(&dm->faceData, CD_MDISPS, me->totface);
 		
 		DM_to_mesh(dm, me);
 		converted = 1;

@@ -1472,17 +1472,17 @@ static void multiresModifier_update(DerivedMesh *dm)
 		const int gridFaces = multires_side_tot[lvl - 2] - 1;
 		const int edgeSize = multires_side_tot[lvl - 1] - 1;
 		ListBase *map = MultiresDM_get_vert_face_map(dm);
+		Mesh *me = MultiresDM_get_mesh(dm);
 		int S, x, y;
 		
 		mvert = CDDM_get_verts(dm);
-		medge = MultiresDM_get_ored(dm);
-		mface = MultiresDM_get_orfa(dm);
+		medge = MultiresDM_get_mesh(dm)->medge;
+		mface = MultiresDM_get_mesh(dm)->mface;
 
 		d.subco = MultiresDM_get_subco(dm);
 
 		if(lvl < totlvl) {
 			/* Propagate disps upwards */
-			Mesh *me = MultiresDM_get_mesh(dm);
 			DerivedMesh *orig = CDDM_from_mesh(me, NULL), *orig_mrdm, *final, *orig_top_mrdm;
 			MultiresModifierData mmd;
 			MVert *verts_orig, *verts_new, *orig_top_verts;
@@ -1523,7 +1523,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 		}
 
 		/* Update the current level */
-		for(i = 0; i < MultiresDM_get_totorfa(dm); ++i) {
+		for(i = 0; i < MultiresDM_get_mesh(dm)->totface; ++i) {
 			const int numVerts = mface[i].v4 ? 4 : 3;
 			
 			// convert from mvert->co to disps
@@ -1555,7 +1555,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			}
 		}
 
-		for(i = 0; i < MultiresDM_get_totored(dm); ++i) {
+		for(i = 0; i < MultiresDM_get_mesh(dm)->totedge; ++i) {
 			const MEdge *e = &medge[i];
 			for(x = 1; x < edgeSize; ++x) {
 				IndexNode *n1, *n2;
@@ -1574,7 +1574,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			}
 		}
 		
-		for(i = 0; i < MultiresDM_get_totorco(dm); ++i) {
+		for(i = 0; i < MultiresDM_get_mesh(dm)->totvert; ++i) {
 			IndexNode *n;
 			for(n = map[i].first; n; n = n->next) {
 				multires_displacer_init(&d, dm, n->index, 1);

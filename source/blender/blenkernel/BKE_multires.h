@@ -92,9 +92,7 @@ struct MEdge *MultiresDM_get_ored(struct DerivedMesh *);
 struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);
-int MultiresDM_get_totorfa(struct DerivedMesh *);
 int MultiresDM_get_totorco(struct DerivedMesh *);
-int MultiresDM_get_totored(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
 void MultiresDM_block_update(struct DerivedMesh *);
 
