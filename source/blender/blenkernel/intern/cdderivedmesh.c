@@ -1158,10 +1158,8 @@ typedef struct MultiresDM {
 	int lvl, totlvl;
 	float (*orco)[3];
 	float (*subco)[3];
-	MEdge *ored;
 	MFace *orfa;
 	int totorco;
-	int totored;
 	int totorfa;
 
 	float (*norm)[3];
@@ -1184,7 +1182,6 @@ static void MultiresDM_release(DerivedMesh *dm)
 		mrdm->update(dm);
 
 	if(DM_release(dm)) {
-		MEM_freeN(mrdm->ored);
 		MEM_freeN(mrdm->orfa);
 		MEM_freeN(mrdm->subco);
 		MEM_freeN(mrdm->orco);
@@ -1253,8 +1250,6 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 		mrdm->totorco = orig->getNumVerts(orig);
 		mrdm->orfa = MEM_dupallocN(CustomData_get_layer(&orig->faceData, CD_MFACE));
 		mrdm->totorfa = orig->getNumFaces(orig);
-		mrdm->ored = MEM_dupallocN(CustomData_get_layer(&orig->edgeData, CD_MEDGE));
-		mrdm->totored = orig->getNumEdges(orig);
 	}
 	else
 		DM_init(dm, numVerts, numEdges, numFaces);
@@ -1300,11 +1295,6 @@ void *MultiresDM_get_orco(DerivedMesh *dm)
 
 }
 
-int MultiresDM_get_totorco(struct DerivedMesh *dm)
-{
-	return ((MultiresDM*)dm)->totorco;
-}
-
 void *MultiresDM_get_subco(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->subco;
@@ -1313,16 +1303,6 @@ void *MultiresDM_get_subco(DerivedMesh *dm)
 MFace *MultiresDM_get_orfa(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->orfa;
-}
-
-MEdge *MultiresDM_get_ored(DerivedMesh *dm)
-{
-	return ((MultiresDM*)dm)->ored;
-}
-
-int MultiresDM_get_totored(struct DerivedMesh *dm)
-{
-	return ((MultiresDM*)dm)->totored;
 }
 
 int MultiresDM_get_totlvl(DerivedMesh *dm)
