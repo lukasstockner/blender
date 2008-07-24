@@ -45,6 +45,7 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	mLightLayer(lightlayer)
 {
 	mBlenderScene = GetSceneForName(scene->GetName());
+	mBlendMode = GPU_BLEND_SOLID;
 
 	if(mMat) {
 		GPU_material_from_blender(mBlenderScene, mMat);
@@ -153,11 +154,11 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 
 void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 {
-	float obmat[4][4], viewmat[4][4], viewinvmat[4][4];
+	float obmat[4][4], viewmat[4][4], viewinvmat[4][4], obcol[4];
 
 	VerifyShader();
 
-	if(!mGPUMat || !mBound)
+	if(!mGPUMat) // || !mBound)
 		return;
 	
 	MT_Matrix4x4 model;
@@ -171,7 +172,19 @@ void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 	view.invert();
 	view.getValue((float*)viewinvmat);
 
-	GPU_material_bind_uniforms(mGPUMat, obmat, viewmat, viewinvmat);
+	if(ms.m_bObjectColor)
+		ms.m_RGBAcolor.getValue((float*)obcol);
+	else
+		obcol[0]= obcol[1]= obcol[2]= obcol[3]= 1.0f;
+
+	GPU_material_bind_uniforms(mGPUMat, obmat, viewmat, viewinvmat, obcol);
+
+	mBlendMode = GPU_material_blend_mode(mGPUMat, obcol);
+}
+
+int BL_BlenderShader::GetBlendMode()
+{
+	return mBlendMode;
 }
 
 bool BL_BlenderShader::Equals(BL_BlenderShader *blshader)

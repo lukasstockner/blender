@@ -1473,6 +1473,11 @@ void shade_mul_value(float fac, vec4 col, out vec4 outcol)
 	outcol = col*fac;
 }
 
+void shade_obcolor(vec4 col, vec4 obcol, out vec4 outcol)
+{
+	outcol = col*obcol;
+}
+
 void ramp_rgbtobw(vec3 color, out float outval)
 {
 	outval = color.r*0.3 + color.g*0.58 + color.b*0.12;

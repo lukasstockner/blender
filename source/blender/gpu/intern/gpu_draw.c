@@ -834,7 +834,7 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 		if(glsl && ma->gpumaterial) {
 			/* do glsl only if creating it succeed, else fallback */
 			GMS.gmatbuf[a]= ma;
-			blendmode = GPU_material_blend_mode(ma->gpumaterial);
+			blendmode = GPU_material_blend_mode(ma->gpumaterial, ob->col);
 		}
 		else {
 			/* fixed function opengl materials */
@@ -891,6 +891,7 @@ int GPU_enable_material(int nr, void *attribs)
 
 	/* unbind glsl material */
 	if(GMS.gboundmat) {
+		if(GMS.alphapass) glDepthMask(0);
 		GPU_material_unbind(GMS.gboundmat->gpumaterial);
 		GMS.gboundmat= NULL;
 	}
@@ -908,8 +909,10 @@ int GPU_enable_material(int nr, void *attribs)
 
 			GPU_material_vertex_attributes(mat->gpumaterial, gattribs);
 			GPU_material_bind(mat->gpumaterial, GMS.gob->lay);
-			GPU_material_bind_uniforms(mat->gpumaterial, GMS.gob->obmat, G.vd->viewmat, G.vd->viewinv);
+			GPU_material_bind_uniforms(mat->gpumaterial, GMS.gob->obmat, G.vd->viewmat, G.vd->viewinv, GMS.gob->col);
 			GMS.gboundmat= mat;
+
+			if(GMS.alphapass) glDepthMask(1);
 		}
 		else {
 			/* or do fixed function opengl material */
@@ -945,6 +948,7 @@ void GPU_disable_material(void)
 	GMS.lastretval= 1;
 
 	if(GMS.gboundmat) {
+		if(GMS.alphapass) glDepthMask(0);
 		GPU_material_unbind(GMS.gboundmat->gpumaterial);
 		GMS.gboundmat= NULL;
 	}

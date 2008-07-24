@@ -4214,13 +4214,14 @@ static void material_panel_material(Material *ma)
 			uiBlockSetCol(block, TH_BUT_SETTING1);
 			uiDefButBitI(block, TOG, MA_VERTEXCOL, B_MAT_VCOL_LIGHT,	"VCol Light",	8,166,74,20, &(ma->mode), 0, 0, 0, 0, "Adds vertex colors as extra light");
 			uiDefButBitI(block, TOG, MA_VERTEXCOLP, B_MAT_VCOL_PAINT, "VCol Paint",	82,166,74,20, &(ma->mode), 0, 0, 0, 0, "Replaces material's colors with vertex colors");
-			uiDefButBitI(block, TOG, MA_FACETEXTURE, B_REDR, "TexFace",		156,166,64,20, &(ma->mode), 0, 0, 0, 0, "Sets UV-Editor assigned texture as color and texture info for faces");
-			if (ma->mode & MA_FACETEXTURE) uiDefButBitI(block, TOG, MA_FACETEXTURE_ALPHA, B_REDR, "A",		220,166,20,20, &(ma->mode), 0, 0, 0, 0, "Use alpha channel in 'TexFace' assigned images");
-			uiDefButBitI(block, TOG, MA_SHLESS, B_MATPRV, "Shadeless",	240,166,63,20, &(ma->mode), 0, 0, 0, 0, "Makes material insensitive to light or shadow");
+			uiDefButBitI(block, TOG, MA_FACETEXTURE, B_MATPRV, "TexFace",		156,166,60,20, &(ma->mode), 0, 0, 0, 0, "Sets UV-Editor assigned texture as color and texture info for faces");
+			uiDefButBitI(block, TOG, MA_FACETEXTURE_ALPHA, B_MATPRV, "A",		216,166,20,20, &(ma->mode), 0, 0, 0, 0, "Use alpha channel in 'TexFace' assigned images");
+			uiDefButBitI(block, TOG, MA_SHLESS, B_MATPRV, "Shadeless",	236,166,67,20, &(ma->mode), 0, 0, 0, 0, "Makes material insensitive to light or shadow");
 			
-			uiDefButBitI(block, TOG, MA_NOMIST, B_NOP,	"No Mist",		8,146,74,20, &(ma->mode), 0, 0, 0, 0, "Sets the material to ignore mist values");
+			uiDefButBitI(block, TOG, MA_NOMIST, B_MATPRV,	"No Mist",		8,146,74,20, &(ma->mode), 0, 0, 0, 0, "Sets the material to ignore mist values");
 			uiDefButBitI(block, TOG, MA_ENV, B_MATPRV,	"Env",			82,146,74,20, &(ma->mode), 0, 0, 0, 0, "Causes faces to render with alpha zero: allows sky/backdrop to show through (only for solid faces)");
-			uiDefButF(block, NUM, B_NOP, "Shad A ",					156,146,147,19, &ma->shad_alpha, 0.001, 1.0f, 100, 0, "Shadow casting alpha, only in use for Irregular Shadowbuffer");
+			uiDefButBitS(block, TOG, MA_OBCOLOR, B_MATPRV, "ObColor",		156,146,60,20, &(ma->shade_flag), 0, 0, 0, 0, "Modulate the result with a per object color");
+			uiDefButF(block, NUM, B_NOP, "Shad A ",					216,146,87,20, &ma->shad_alpha, 0.001, 1.0f, 10, 2, "Shadow casting alpha, only in use for Irregular Shadowbuffer");
 		}
 		uiBlockSetCol(block, TH_AUTO);
 		uiBlockBeginAlign(block);

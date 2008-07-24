@@ -80,7 +80,8 @@ typedef enum GPUBuiltin {
 	GPU_INVERSE_VIEW_MATRIX = 4,
 	GPU_INVERSE_OBJECT_MATRIX = 8,
 	GPU_VIEW_POSITION = 16,
-	GPU_VIEW_NORMAL = 32
+	GPU_VIEW_NORMAL = 32,
+	GPU_OBCOLOR = 64
 } GPUBuiltin;
 
 typedef enum GPUBlendMode {
@@ -114,7 +115,7 @@ int GPU_stack_link(GPUMaterial *mat, char *name, GPUNodeStack *in, GPUNodeStack 
 
 void GPU_material_output_link(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_enable_alpha(GPUMaterial *material);
-GPUBlendMode GPU_material_blend_mode(GPUMaterial *material);
+GPUBlendMode GPU_material_blend_mode(GPUMaterial *material, float obcol[4]);
 
 /* High level functions to create and use GPU materials */
 
@@ -124,7 +125,7 @@ void GPU_material_free(GPUMaterial *material);
 void GPU_materials_free();
 
 void GPU_material_bind(GPUMaterial *material, int lay);
-void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4]);
+void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4], float obcol[4]);
 void GPU_material_unbind(GPUMaterial *material);
 
 void GPU_material_vertex_attributes(GPUMaterial *material,

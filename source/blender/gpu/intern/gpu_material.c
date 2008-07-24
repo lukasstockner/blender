@@ -78,7 +78,7 @@ struct GPUMaterial {
 	GPUPass *pass;
 	GPUVertexAttribs attribs;
 	int builtins;
-	int alpha;
+	int alpha, obcolalpha;
 
 	LinkNode *lamps;
 };
@@ -221,13 +221,13 @@ void GPU_material_bind(GPUMaterial *material, int lay)
 	}
 }
 
-void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4])
+void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4], float obcol[4])
 {
 	if(material->pass) {
 		GPUShader *shader = GPU_pass_shader(material->pass);
 		LinkNode *nlink;
 		GPULamp *lamp;
-		float invmat[4][4];
+		float invmat[4][4], col[4];
 
 		/* handle builtins */
 		if(material->builtins & GPU_VIEW_MATRIX) {
@@ -242,6 +242,11 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float v
 		if(material->builtins & GPU_INVERSE_OBJECT_MATRIX) {
 			Mat4Invert(invmat, obmat);
 			GPU_shader_uniform_vector(shader, GPU_builtin_name(GPU_INVERSE_OBJECT_MATRIX), 16, 1, (float*)invmat);
+		}
+		if(material->builtins & GPU_OBCOLOR) {
+			QUATCOPY(col, obcol);
+			CLAMP(col[3], 0.0f, 1.0f);
+			GPU_shader_uniform_vector(shader, GPU_builtin_name(GPU_OBCOLOR), 4, 1, col);
 		}
 
 		/* update lamps */
@@ -286,9 +291,9 @@ void GPU_material_enable_alpha(GPUMaterial *material)
 	material->alpha= 1;
 }
 
-GPUBlendMode GPU_material_blend_mode(GPUMaterial *material)
+GPUBlendMode GPU_material_blend_mode(GPUMaterial *material, float obcol[3])
 {
-	if(material->alpha)
+	if(material->alpha || (material->obcolalpha && obcol[3] < 1.0f))
 		return GPU_BLEND_ALPHA;
 	else
 		return GPU_BLEND_SOLID;
@@ -1014,7 +1019,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	do_material_tex(shi);
 
-	if(ma->alpha < 1.0f)
+	if(ma->mode & MA_ZTRA)
 		GPU_material_enable_alpha(mat);
 
 	if((G.fileflags & G_FILE_GLSL_NO_LIGHTS) || (ma->mode & MA_SHLESS)) {
@@ -1082,6 +1087,11 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	}
 
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
+
+	if(ma->shade_flag & MA_OBCOLOR) {
+		mat->obcolalpha = 1;
+		GPU_link(mat, "shade_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
+	}
 }
 
 GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)

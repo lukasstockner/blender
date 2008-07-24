@@ -921,7 +921,7 @@ Object *add_only_object(int type, char *name)
 	QuatOne(ob->dquat);
 #endif 
 
-	ob->col[0]= ob->col[1]= ob->col[2]= 0.0;
+	ob->col[0]= ob->col[1]= ob->col[2]= 1.0;
 	ob->col[3]= 1.0;
 
 	ob->loc[0]= ob->loc[1]= ob->loc[2]= 0.0;

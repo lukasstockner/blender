@@ -464,6 +464,8 @@ char *GPU_builtin_name(GPUBuiltin builtin)
 		return "varposition";
 	else if(builtin == GPU_VIEW_NORMAL)
 		return "varnormal";
+	else if(builtin == GPU_OBCOLOR)
+		return "unfobcolor";
 	else
 		return "";
 }

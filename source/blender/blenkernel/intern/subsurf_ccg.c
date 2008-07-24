@@ -1720,6 +1720,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 		CCGFace *f = ccgdm->faceMap[i].face;
 		int S, x, y, drawSmooth;
 		int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(ss, f));
+		int origIndex = ccgDM_getFaceMapIndex(ccgdm, ss, f);
 		
 		numVerts = ccgSubSurf_getFaceNumVerts(ss, f);
 
@@ -1738,7 +1739,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 		}
 
-		if(!doDraw || (setDrawOptions && !setDrawOptions(userData, index))) {
+		if(!doDraw || (setDrawOptions && !setDrawOptions(userData, origIndex))) {
 			a += gridFaces*gridFaces*numVerts;
 			continue;
 		}

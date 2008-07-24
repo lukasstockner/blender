@@ -92,6 +92,7 @@ public:
 	virtual void OnConstruction( );
 
 	static void	EndFrame();
+
 private:
 	BL_Material*		mMaterial;
 	BL_Shader*			mShader;
@@ -115,17 +116,19 @@ private:
 	void	setBlenderShaderData( bool enable, RAS_IRasterizer *ras);
 	void	setShaderData( bool enable, RAS_IRasterizer *ras);
 
-	void	setDefaultBlending();
 	void	setObjectMatrixData(int i, RAS_IRasterizer *ras);
 	void	setTexMatrixData(int i);
 
 	void	setLightData();
+
+	static void	setBlendingMode(int transp);
 
 	// cleanup stuff
 	void	OnExit();
 
 	// shader chacing
 	static BL_BlenderShader *mLastBlenderShader;
+	static int				mLastBlenderShaderBlend;
 	static BL_Shader		*mLastShader;
 
 	mutable int	mPass;

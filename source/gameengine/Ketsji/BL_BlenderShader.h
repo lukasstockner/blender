@@ -33,6 +33,7 @@ private:
 	GPUMaterial		*mGPUMat;
 	bool			mBound;
 	int				mLightLayer;
+	int				mBlendMode;
 
 	bool			VerifyShader();
 
@@ -46,6 +47,7 @@ public:
 	int GetAttribNum();
 	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
 	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
+	int GetBlendMode();
 
 	bool Equals(BL_BlenderShader *blshader);
 };
