@@ -471,7 +471,7 @@ static void calc_ss_weights(int gridFaces,
 
 DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
                                  int drawInteriorEdges, int useSubsurfUv,
-                                 DerivedMesh *dm, MultiresModifierData *mmd)
+                                 DerivedMesh *dm, MultiresSubsurf *ms)
 {
 	DerivedMesh *result;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
@@ -527,10 +527,10 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 	}
 	ccgFaceIterator_free(fi);
 
-	if(mmd) {
-		result = MultiresDM_new(dm, ccgSubSurf_getNumFinalVerts(ss),
+	if(ms) {
+		result = MultiresDM_new(ms, dm, ccgSubSurf_getNumFinalVerts(ss),
 					ccgSubSurf_getNumFinalEdges(ss),
-					ccgSubSurf_getNumFinalFaces(ss), mmd->lvl, mmd->totlvl);
+					ccgSubSurf_getNumFinalFaces(ss));
 		mr_orig = MultiresDM_get_subco(result);
 	}
 	else {
@@ -564,7 +564,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 
 		DM_interp_vert_data(dm, result, vertIdx, weight[0][0], numVerts, i);
 		VecCopyf(mvert->co, ccgSubSurf_getFaceCenterData(ss, f));
-		if(mmd) {
+		if(ms) {
 			VecCopyf(mr_orig, mvert->co);
 			mr_orig += 3;
 			multires_displacer_init(&d, result, index, 0);
@@ -581,7 +581,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 			int nextS = (S + 1) % numVerts;
 			int otherS = (numVerts == 4) ? (S + 2) % numVerts : 3;
 
-			if(mmd) multires_displacer_anchor(&d, 2, S);
+			if(ms) multires_displacer_anchor(&d, 2, S);
 			for(x = 1; x < gridFaces; x++) {
 				float w[4];
 				w[prevS]  = weight[x][0][0];
@@ -591,7 +591,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 				DM_interp_vert_data(dm, result, vertIdx, w, numVerts, i);
 				VecCopyf(mvert->co,
 				         ccgSubSurf_getFaceGridEdgeData(ss, f, S, x));
-				if(mmd) {
+				if(ms) {
 					VecCopyf(mr_orig, mvert->co);
 					mr_orig += 3;
 					multires_displace(&d, mvert->co);
@@ -608,7 +608,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 			int nextS = (S + 1) % numVerts;
 			int otherS = (numVerts == 4) ? (S + 2) % numVerts : 3;
 
-			if(mmd) multires_displacer_anchor(&d, 3, S);
+			if(ms) multires_displacer_anchor(&d, 3, S);
 			for(y = 1; y < gridFaces; y++) {
 				for(x = 1; x < gridFaces; x++) {
 					float w[4];
@@ -619,7 +619,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 					DM_interp_vert_data(dm, result, vertIdx, w, numVerts, i);
 					VecCopyf(mvert->co,
 					         ccgSubSurf_getFaceGridData(ss, f, S, x, y));
-					if(mmd) {
+					if(ms) {
 						VecCopyf(mr_orig, mvert->co);
 						mr_orig += 3;
 						multires_displace(&d, mvert->co);
@@ -630,7 +630,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 					++origIndex;
 					i++;
 				}
-				if(mmd) multires_displacer_jump(&d);
+				if(ms) multires_displacer_jump(&d);
 			}
 		}
 
@@ -656,7 +656,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 			w[0] = 1 - w[1];
 			DM_interp_vert_data(dm, result, vertIdx, w, 2, i);
 			VecCopyf(mvert->co, ccgSubSurf_getEdgeData(ss, e, x));
-			if(mmd) {
+			if(ms) {
 				int numFaces = ccgSubSurf_getEdgeNumFaces(ss, e);
 				int edgeface;
 
@@ -693,7 +693,7 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 
 		DM_copy_vert_data(dm, result, vertIdx, i, 1);
 		VecCopyf(mvert->co, ccgSubSurf_getVertData(ss, v));
-		if(mmd) {
+		if(ms) {
 			int numFaces = ccgSubSurf_getVertNumFaces(ss, v);
 			int vertface;
 
@@ -2470,7 +2470,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 struct DerivedMesh *subsurf_make_derived_from_derived_with_multires(
                         struct DerivedMesh *dm,
                         struct SubsurfModifierData *smd,
-			struct MultiresModifierData *mmd,
+			struct MultiresSubsurf *ms,
                         int useRenderParams, float (*vertCos)[3],
                         int isFinalCalc, int editMode)
 {
@@ -2502,7 +2502,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived_with_multires(
 		ss_sync_from_derivedmesh(ss, dm, vertCos, useSimple);
 
 		result = ss_to_cdderivedmesh(ss, 0, drawInteriorEdges,
-		                             useSubsurfUv, dm, mmd);
+		                             useSubsurfUv, dm, ms);
 
 		ccgSubSurf_free(ss);
 		
@@ -2533,7 +2533,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived_with_multires(
 
 
 			return ss_to_cdderivedmesh(ss, 0, drawInteriorEdges,
-						   useSubsurfUv, dm, mmd);
+						   useSubsurfUv, dm, ms);
 
 			/*return (DerivedMesh *)getCCGDerivedMesh(smd->mCache,
 		                                        drawInteriorEdges,
@@ -2553,7 +2553,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived_with_multires(
 	                                            useSubsurfUv, dm);*/
 
 			result = ss_to_cdderivedmesh(ss, 0, drawInteriorEdges,
-			                             useSubsurfUv, dm, mmd);
+			                             useSubsurfUv, dm, ms);
 
 			ccgSubSurf_free(ss);
 

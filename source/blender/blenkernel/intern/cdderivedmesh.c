@@ -1158,9 +1158,6 @@ typedef struct MultiresDM {
 	int lvl, totlvl;
 	float (*orco)[3];
 	float (*subco)[3];
-	MFace *orfa;
-	int totorco;
-	int totorfa;
 
 	float (*norm)[3];
 
@@ -1182,7 +1179,6 @@ static void MultiresDM_release(DerivedMesh *dm)
 		mrdm->update(dm);
 
 	if(DM_release(dm)) {
-		MEM_freeN(mrdm->orfa);
 		MEM_freeN(mrdm->subco);
 		MEM_freeN(mrdm->orco);
 		MEM_freeN(mrdm->norm);
@@ -1199,10 +1195,10 @@ static void MultiresDM_calc_norm(MultiresDM *mrdm)
 	float (*v)[3] = mrdm->orco;
 	int i;
 
-	mrdm->norm = MEM_callocN(sizeof(float)*3 * mrdm->totorco, "MultiresDM vertnorms");
+	mrdm->norm = MEM_callocN(sizeof(float)*3 * mrdm->me->totvert, "MultiresDM vertnorms");
 
-	for(i = 0; i < mrdm->totorfa; ++i) {
-		MFace *f = &mrdm->orfa[i];
+	for(i = 0; i < mrdm->me->totface; ++i) {
+		MFace *f = &mrdm->me->mface[i];
 		float n[3];
 		if(f->v4)
 			CalcNormFloat4(v[f->v1], v[f->v2], v[f->v3], v[f->v4], n);
@@ -1216,11 +1212,11 @@ static void MultiresDM_calc_norm(MultiresDM *mrdm)
 			VecAddf(mrdm->norm[f->v4], mrdm->norm[f->v4], n);
 	}
 
-	for(i = 0; i < mrdm->totorco; ++i)
+	for(i = 0; i < mrdm->me->totvert; ++i)
 		Normalize(mrdm->norm[i]);
 }
 
-DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int numFaces, int lvl, int totlvl)
+DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts, int numEdges, int numFaces)
 {
 	MultiresDM *mrdm = MEM_callocN(sizeof(MultiresDM), "MultiresDM");
 	CDDerivedMesh *cddm = cdDM_create("MultiresDM CDDM");
@@ -1229,6 +1225,8 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 	mrdm->cddm = *cddm;
 	MEM_freeN(cddm);
 	dm = &mrdm->cddm.dm;
+
+	mrdm->me = ms->me;
 
 	if(dm) {
 		MDisps *disps;
@@ -1247,9 +1245,7 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 		mrdm->orco = MEM_callocN(sizeof(float) * 3 * orig->getNumVerts(orig), "multires orco");
 		for(i = 0; i < orig->getNumVerts(orig); ++i)
 			VecCopyf(mrdm->orco[i], mvert[i].co);
-		mrdm->totorco = orig->getNumVerts(orig);
-		mrdm->orfa = MEM_dupallocN(CustomData_get_layer(&orig->faceData, CD_MFACE));
-		mrdm->totorfa = orig->getNumFaces(orig);
+		mrdm->me->totvert = orig->getNumVerts(orig);
 	}
 	else
 		DM_init(dm, numVerts, numEdges, numFaces);
@@ -1262,8 +1258,8 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 	mrdm->cddm.medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
 	mrdm->cddm.mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
 
-	mrdm->lvl = lvl;
-	mrdm->totlvl = totlvl;
+	mrdm->lvl = ms->lvl;
+	mrdm->totlvl = ms->totlvl;
 	mrdm->subco = MEM_callocN(sizeof(float)*3*numVerts, "multires subdivided coords");
 	mrdm->block_update = 0;
 
@@ -1272,11 +1268,6 @@ DerivedMesh *MultiresDM_new(DerivedMesh *orig, int numVerts, int numEdges, int n
 	dm->release = MultiresDM_release;
 
 	return dm;
-}
-
-void MultiresDM_set_mesh(DerivedMesh *dm, Mesh *me)
-{
-	((MultiresDM*)dm)->me = me;
 }
 
 Mesh *MultiresDM_get_mesh(DerivedMesh *dm)
@@ -1298,11 +1289,6 @@ void *MultiresDM_get_orco(DerivedMesh *dm)
 void *MultiresDM_get_subco(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->subco;
-}
-
-MFace *MultiresDM_get_orfa(DerivedMesh *dm)
-{
-	return ((MultiresDM*)dm)->orfa;
 }
 
 int MultiresDM_get_totlvl(DerivedMesh *dm)
@@ -1330,8 +1316,8 @@ ListBase *MultiresDM_get_vert_face_map(DerivedMesh *dm)
 	MultiresDM *mrdm = (MultiresDM*)dm;
 
 	if(!mrdm->vert_face_map)
-		create_vert_face_map(&mrdm->vert_face_map, &mrdm->vert_face_map_mem, mrdm->orfa,
-				     mrdm->totorco, mrdm->totorfa);
+		create_vert_face_map(&mrdm->vert_face_map, &mrdm->vert_face_map_mem, mrdm->me->mface,
+				     mrdm->me->totvert, mrdm->me->totface);
 
 	return mrdm->vert_face_map;
 }

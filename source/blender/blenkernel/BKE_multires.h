@@ -72,6 +72,11 @@ struct DerivedMesh;
 struct MFace;
 struct MEdge;
 
+typedef struct MultiresSubsurf {
+	struct Mesh *me;
+	int totlvl, lvl;
+} MultiresSubsurf;
+
 typedef struct IndexNode {
 	struct IndexNode *next, *prev;
 	int index;
@@ -81,13 +86,11 @@ void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *m
 			  const int totvert, const int totface);
 
 /* MultiresDM */
-void MultiresDM_set_mesh(struct DerivedMesh *dm, struct Mesh *me);
 struct Mesh *MultiresDM_get_mesh(struct DerivedMesh *dm);
-struct DerivedMesh *MultiresDM_new(struct DerivedMesh*, int, int, int, int, int);
+struct DerivedMesh *MultiresDM_new(struct MultiresSubsurf *, struct DerivedMesh*, int, int, int);
 void *MultiresDM_get_vertnorm(struct DerivedMesh *);
 void *MultiresDM_get_orco(struct DerivedMesh *);
 void *MultiresDM_get_subco(struct DerivedMesh *);
-struct MFace *MultiresDM_get_orfa(struct DerivedMesh *);
 struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);

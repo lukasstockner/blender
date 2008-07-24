@@ -32,7 +32,7 @@ struct Mesh;
 struct Object;
 struct DerivedMesh;
 struct EditMesh;
-struct MultiresModifierData;
+struct MultiresSubsurf;
 struct SubsurfModifierData;
 
 struct DerivedMesh *subsurf_make_derived_from_derived(
@@ -44,7 +44,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 struct DerivedMesh *subsurf_make_derived_from_derived_with_multires(
                         struct DerivedMesh *dm,
                         struct SubsurfModifierData *smd,
-			struct MultiresModifierData *mmd,
+			struct MultiresSubsurf *ms,
                         int useRenderParams, float (*vertCos)[3],
                         int isFinalCalc, int editMode);
 

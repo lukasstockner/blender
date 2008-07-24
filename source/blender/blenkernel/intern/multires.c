@@ -1227,7 +1227,7 @@ void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 {
 	float inv[3][3];
 
-	d->face = MultiresDM_get_orfa(dm) + face_index;
+	d->face = MultiresDM_get_mesh(dm)->mface + face_index;
 	/* Get the multires grid from customdata and calculate the TS matrix */
 	d->grid = (MDisps*)dm->getFaceDataArray(dm, CD_MDISPS);
 	if(d->grid)
@@ -1600,14 +1600,14 @@ struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, D
 						    int useRenderParams, int isFinalCalc)
 {
 	SubsurfModifierData smd;
+	MultiresSubsurf ms = {me, mmd->totlvl, mmd->lvl};
 	DerivedMesh *result;
 
 	memset(&smd, 0, sizeof(SubsurfModifierData));
 	smd.levels = smd.renderLevels = mmd->lvl - 1;
 
-	result = subsurf_make_derived_from_derived_with_multires(dm, &smd, mmd, useRenderParams, NULL, isFinalCalc, 0);
+	result = subsurf_make_derived_from_derived_with_multires(dm, &smd, &ms, useRenderParams, NULL, isFinalCalc, 0);
 	MultiresDM_set_update(result, multiresModifier_update);
-	MultiresDM_set_mesh(result, me);
 
 	return result;
 }
