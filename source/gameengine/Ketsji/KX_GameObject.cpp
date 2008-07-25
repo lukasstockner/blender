@@ -460,7 +460,6 @@ KX_GameObject::UpdateMaterialData(
 			RAS_IPolyMaterial* poly = (*mit)->GetPolyMaterial();
 			if(poly->GetFlag() & RAS_BLENDERMAT )
 			{
-				SetObjectColor(rgba);
 				KX_BlenderMaterial *m =  static_cast<KX_BlenderMaterial*>(poly);
 				m->UpdateIPO(rgba, specrgb,hard,spec,ref,emit, alpha);
 			}
