@@ -117,7 +117,7 @@ typedef struct MultiresDisplacer {
 	int type;
 	int invert;
 	float (*orco)[3];
-	float (*subco)[3];
+	struct MVert *subco;
 	float weight;
 
 	int x, y, ax, ay;

@@ -493,7 +493,6 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 	int *origIndex;
 	FaceVertWeight *qweight, *tweight;
 	MultiresDisplacer d;
-	float *mr_orig;
 
 	calc_ss_weights(gridFaces, &qweight, &tweight);
 
@@ -531,7 +530,6 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 		result = MultiresDM_new(ms, dm, ccgSubSurf_getNumFinalVerts(ss),
 					ccgSubSurf_getNumFinalEdges(ss),
 					ccgSubSurf_getNumFinalFaces(ss));
-		mr_orig = MultiresDM_get_subco(result);
 	}
 	else {
 		if(dm) {
@@ -565,8 +563,6 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 		DM_interp_vert_data(dm, result, vertIdx, weight[0][0], numVerts, i);
 		VecCopyf(mvert->co, ccgSubSurf_getFaceCenterData(ss, f));
 		if(ms) {
-			VecCopyf(mr_orig, mvert->co);
-			mr_orig += 3;
 			multires_displacer_init(&d, result, index, 0);
 			multires_displacer_anchor(&d, 1, 0);
 			multires_displace(&d, mvert->co);
@@ -591,11 +587,9 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 				DM_interp_vert_data(dm, result, vertIdx, w, numVerts, i);
 				VecCopyf(mvert->co,
 				         ccgSubSurf_getFaceGridEdgeData(ss, f, S, x));
-				if(ms) {
-					VecCopyf(mr_orig, mvert->co);
-					mr_orig += 3;
+				if(ms)
 					multires_displace(&d, mvert->co);
-				}
+
 				*origIndex = ORIGINDEX_NONE;
 				++mvert;
 				++origIndex;
@@ -619,11 +613,8 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 					DM_interp_vert_data(dm, result, vertIdx, w, numVerts, i);
 					VecCopyf(mvert->co,
 					         ccgSubSurf_getFaceGridData(ss, f, S, x, y));
-					if(ms) {
-						VecCopyf(mr_orig, mvert->co);
-						mr_orig += 3;
+					if(ms)
 						multires_displace(&d, mvert->co);
-					}
 
 					*origIndex = ORIGINDEX_NONE;
 					++mvert;
@@ -660,9 +651,6 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 				int numFaces = ccgSubSurf_getEdgeNumFaces(ss, e);
 				int edgeface;
 
-				VecCopyf(mr_orig, mvert->co);
-				mr_orig += 3;
-
 				multires_displacer_weight(&d, 1.0f / numFaces);
 				/* Could be made more efficient by moving this outside the x loop */
 				for(edgeface = 0; edgeface < numFaces; ++edgeface) {
@@ -696,9 +684,6 @@ DerivedMesh *ss_to_cdderivedmesh(CCGSubSurf *ss, int ssFromEditmesh,
 		if(ms) {
 			int numFaces = ccgSubSurf_getVertNumFaces(ss, v);
 			int vertface;
-
-			VecCopyf(mr_orig, mvert->co);
-			mr_orig += 3;
 
 			multires_displacer_weight(&d, 1.0f / numFaces);
 			for(vertface = 0; vertface < numFaces; ++vertface) {
