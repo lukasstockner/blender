@@ -1958,8 +1958,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			// needed for python scripting
 			logicmgr->RegisterGameObjectName(gameobj->GetName(),gameobj);
 
-			// needed for dynamic object morphing
-			logicmgr->RegisterGameObj(gameobj, blenderobject);
+			// needed for group duplication
+			logicmgr->RegisterGameObj(blenderobject, gameobj);
 			for (int i = 0; i < gameobj->GetMeshCount(); i++)
 				logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
 	
@@ -1981,8 +1981,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				gameobj->NodeUpdateGS(0,true);
 				gameobj->Bucketize();
 		
-				if (gameobj->IsDupliGroup())
-					grouplist.insert(blenderobject->dup_group);
 			}
 			else
 			{
@@ -1990,6 +1988,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 				//at the end of this function if it is not a root object
 				inactivelist->Add(gameobj->AddRef());
 			}
+			if (gameobj->IsDupliGroup())
+				grouplist.insert(blenderobject->dup_group);
 			if (converter->addInitFromFrame){
 				gameobj->NodeSetLocalPosition(posPrev);
 				gameobj->NodeSetLocalOrientation(angor);
@@ -2040,7 +2040,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 														blenderscene);
 										
 						// this code is copied from above except that
-						// object from groups are never is active layer
+						// object from groups are never in active layer
 						bool isInActiveLayer = false;
 						bool addobj=true;
 						
@@ -2138,8 +2138,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							// needed for python scripting
 							logicmgr->RegisterGameObjectName(gameobj->GetName(),gameobj);
 
-							// needed for dynamic object morphing
-							logicmgr->RegisterGameObj(gameobj, blenderobject);
+							// needed for group duplication
+							logicmgr->RegisterGameObj(blenderobject, gameobj);
 							for (int i = 0; i < gameobj->GetMeshCount(); i++)
 								logicmgr->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), blenderobject);
 					
