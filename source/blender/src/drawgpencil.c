@@ -94,7 +94,7 @@
 void gp_ui_activelayer_cb (void *gpd, void *gpl)
 {
 	gpencil_layer_setactive(gpd, gpl);
-	force_draw_plus(SPACE_ACTION, 0);
+	allqueue(REDRAWACTION, 0);
 }
 
 /* rename layer and set active */
@@ -105,21 +105,21 @@ void gp_ui_renamelayer_cb (void *gpd_arg, void *gpl_arg)
 	
 	BLI_uniquename(&gpd->layers, gpl, "GP_Layer", offsetof(bGPDlayer, info[0]), 128);
 	gpencil_layer_setactive(gpd, gpl);
-	force_draw_plus(SPACE_ACTION, 0);
+	allqueue(REDRAWACTION, 0);
 }
 
 /* add a new layer */
 void gp_ui_addlayer_cb (void *gpd, void *dummy)
 {
 	gpencil_layer_addnew(gpd);
-	force_draw_plus(SPACE_ACTION, 0);
+	allqueue(REDRAWACTION, 0);
 }
 
 /* delete active layer */
 void gp_ui_dellayer_cb (void *gpd, void *dummy)
 {
 	gpencil_layer_delactive(gpd);
-	force_draw_plus(SPACE_ACTION, 0);
+	allqueue(REDRAWACTION, 0);
 }
 
 /* delete last stroke of active layer */
@@ -139,7 +139,7 @@ void gp_ui_delframe_cb (void *gpd, void *gpl)
 	gpencil_layer_setactive(gpd, gpl);
 	gpencil_layer_delframe(gpl, gpf);
 	
-	force_draw_plus(SPACE_ACTION, 0);
+	allqueue(REDRAWACTION, 0);
 }
 
 /* ------- Drawing Code ------- */
@@ -148,6 +148,7 @@ void gp_ui_delframe_cb (void *gpd, void *gpl)
 static void gp_drawui_layer (uiBlock *block, bGPdata *gpd, bGPDlayer *gpl, short *xco, short *yco)
 {
 	uiBut *but;
+	short active= (gpl->flag & GP_LAYER_ACTIVE);
 	short width= 314;
 	short height;
 	int rb_col;
@@ -160,10 +161,10 @@ static void gp_drawui_layer (uiBlock *block, bGPdata *gpd, bGPDlayer *gpl, short
 		uiBlockSetEmboss(block, UI_EMBOSSN);
 		
 		/* rounded header */
-		//uiBlockSetCol(block, TH_BUT_SETTING1); // FIXME: maybe another color
-			rb_col= (gpl->flag & GP_LAYER_ACTIVE)?50:20;
+		if (active) uiBlockSetCol(block, TH_BUT_ACTION);
+			rb_col= (active)?-20:20;
 			uiDefBut(block, ROUNDBOX, B_DIFF, "", *xco-8, *yco-2, width, 24, NULL, 5.0, 0.0, 15 , rb_col-20, ""); 
-		//uiBlockSetCol(block, TH_AUTO);
+		if (active) uiBlockSetCol(block, TH_AUTO);
 		
 		/* lock toggle */
 		uiDefIconButBitI(block, ICONTOG, GP_LAYER_LOCKED, B_REDR, ICON_UNLOCKED,	*xco-7, *yco-1, 20, 20, &gpl->flag, 0.0, 0.0, 0, 0, "Layer cannot be modified");
@@ -212,9 +213,9 @@ static void gp_drawui_layer (uiBlock *block, bGPdata *gpd, bGPDlayer *gpl, short
 		}
 		
 		/* draw backdrop */
-		//uiBlockSetCol(block, TH_BUT_SETTING1); // fixme: maybe another color
+		if (active) uiBlockSetCol(block, TH_BUT_ACTION);
 			uiDefBut(block, ROUNDBOX, B_DIFF, "", *xco-8, *yco-height, width, height-1, NULL, 5.0, 0.0, 12, rb_col, ""); 
-		//uiBlockSetCol(block, TH_AUTO);
+		if (active) uiBlockSetCol(block, TH_AUTO);
 		
 		/* draw settings */
 		{
@@ -235,11 +236,13 @@ static void gp_drawui_layer (uiBlock *block, bGPdata *gpd, bGPDlayer *gpl, short
 			uiBlockEndAlign(block);
 			
 			/* options */
-			but= uiDefBut(block, BUT, B_REDR, "Del Active Frame", *xco+160, *yco-75, 140, 20, NULL, 0, 0, 0, 0, "Erases the the active frame for this layer");
-			uiButSetFunc(but, gp_ui_delframe_cb, gpd, gpl);
-			
-			but= uiDefBut(block, BUT, B_REDR, "Del Last Stroke", *xco+160, *yco-95, 140, 20, NULL, 0, 0, 0, 0, "Erases the last stroke from the active frame");
-			uiButSetFunc(but, gp_ui_delstroke_cb, gpd, gpl);
+			uiBlockBeginAlign(block);
+				but= uiDefBut(block, BUT, B_REDR, "Del Active Frame", *xco+160, *yco-75, 140, 20, NULL, 0, 0, 0, 0, "Erases the the active frame for this layer (Hotkey = Alt-XKEY/DEL)");
+				uiButSetFunc(but, gp_ui_delframe_cb, gpd, gpl);
+				
+				but= uiDefBut(block, BUT, B_REDR, "Del Last Stroke", *xco+160, *yco-95, 140, 20, NULL, 0, 0, 0, 0, "Erases the last stroke from the active frame (Hotkey = Alt-XKEY/DEL)");
+				uiButSetFunc(but, gp_ui_delstroke_cb, gpd, gpl);
+			uiBlockEndAlign(block);
 			
 			//uiDefButBitI(block, TOG, GP_LAYER_DRAWDEBUG, B_REDR, "Show Points", *xco+160, *yco-75, 130, 20, &gpl->flag, 0, 0, 0, 0, "Show points which form the strokes");
 		}
@@ -268,8 +271,14 @@ short draw_gpencil_panel (uiBlock *block, bGPdata *gpd, ScrArea *sa)
 		uiButSetFunc(but, gp_ui_addlayer_cb, gpd, NULL);
 		
 		
-		/* show override lmb-clicks button */
-		uiDefButBitI(block, TOG, GP_DATA_EDITPAINT, B_REDR, "Draw Mode", 170, 225, 150, 20, &gpd->flag, 0, 0, 0, 0, "Interpret LMB-click as new strokes (same as holding Shift-Key per stroke)");
+		/* show override lmb-clicks button + painting lock */
+		uiBlockBeginAlign(block);
+			uiDefButBitI(block, TOG, GP_DATA_EDITPAINT, B_REDR, "Draw Mode", 170, 225, 130, 20, &gpd->flag, 0, 0, 0, 0, "Interpret LMB-click as new strokes (same as holding Shift-Key per stroke)");
+			
+			uiBlockSetCol(block, TH_BUT_SETTING);
+				uiDefIconButBitI(block, ICONTOG, GP_DATA_LMBPLOCK, B_REDR, ICON_UNLOCKED,	300, 225, 20, 20, &gpd->flag, 0.0, 0.0, 0, 0, "Painting cannot occur with Shift-LMB (when making selections)");
+			uiBlockSetCol(block, TH_AUTO);
+		uiBlockEndAlign(block);
 		
 		/* 'view align' button (naming depends on context) */
 		if (sa->spacetype == SPACE_VIEW3D)
@@ -406,6 +415,45 @@ static void gp_draw_stroke (bGPDspoint *points, int totpoints, short thickness, 
 	}
 }
 
+/* draw a set of strokes */
+static void gp_draw_strokes (bGPDframe *gpf, int winx, int winy, int dflag, short debug, 
+							 short lthick, float color[4])
+{
+	bGPDstroke *gps;
+	
+	/* set color first (may need to reset it again later too) */
+	glColor4f(color[0], color[1], color[2], color[3]);
+	
+	for (gps= gpf->strokes.first; gps; gps= gps->next) {	
+		/* handle 'eraser' strokes differently */
+		if (gps->flag & GP_STROKE_ERASER) {
+			// FIXME: this method is a failed experiment
+#if 0
+			/* draw stroke twice, first time with 'white' to set a mask to invert
+			 * contents of framebuffer, then second-time the same again but to restore
+			 * the contents
+			 */
+			glEnable(GL_COLOR_LOGIC_OP); 
+			glLogicOp(GL_XOR);
+			
+			glColor4f(1, 1, 1, 1); /* white */
+			
+			gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, 0, winx, winy);
+			gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, 0, winx, winy);
+			
+			glDisable(GL_COLOR_LOGIC_OP);
+			
+			/* reset color for drawing next stroke */
+			glColor4f(color[0], color[1], color[2], color[3]);
+#endif
+		}
+		else {
+			/* just draw the stroke once */
+			gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, winx, winy);
+		}
+	}
+}
+
 /* draw grease-pencil datablock */
 static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 {
@@ -421,11 +469,10 @@ static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 	/* loop over layers, drawing them */
 	for (gpl= gpd->layers.first; gpl; gpl= gpl->next) {
 		bGPDframe *gpf;
-		bGPDstroke *gps;
 		
 		short debug = (gpl->flag & GP_LAYER_DRAWDEBUG) ? 1 : 0;
 		short lthick= gpl->thickness;
-		float color[4];
+		float color[4], tcolor[4];
 		
 		/* don't draw layer if hidden */
 		if (gpl->flag & GP_LAYER_HIDE) 
@@ -443,6 +490,7 @@ static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 		/* set color, stroke thickness, and point size */
 		glLineWidth(lthick);
 		QUATCOPY(color, gpl->color); // just for copying 4 array elements
+		QUATCOPY(tcolor, gpl->color); // additional copy of color (for ghosting)
 		glColor4f(color[0], color[1], color[2], color[3]);
 		glPointSize(gpl->thickness + 2);
 		
@@ -458,11 +506,8 @@ static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 					/* check if frame is drawable */
 					if ((gpf->framenum - gf->framenum) <= gpl->gstep) {
 						/* alpha decreases with distance from curframe index */
-						glColor4f(color[0], color[1], color[2], (color[3]-(i*0.7)));
-						
-						for (gps= gf->strokes.first; gps; gps= gps->next) {	
-							gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, winx, winy);
-						}
+						tcolor[3] = color[3] - (i * 0.7);
+						gp_draw_strokes(gpf, winx, winy, dflag, debug, lthick, tcolor);
 					}
 					else 
 						break;
@@ -473,11 +518,8 @@ static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 					/* check if frame is drawable */
 					if ((gf->framenum - gpf->framenum) <= gpl->gstep) {
 						/* alpha decreases with distance from curframe index */
-						glColor4f(color[0], color[1], color[2], (color[3]-(i*0.7)));
-						
-						for (gps= gf->strokes.first; gps; gps= gps->next) {								
-							gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, winx, winy);
-						}
+						tcolor[3] = color[3] - (i * 0.7);
+						gp_draw_strokes(gpf, winx, winy, dflag, debug, lthick, tcolor);
 					}
 					else 
 						break;
@@ -488,19 +530,14 @@ static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 			}
 			else {
 				/* draw the strokes for the ghost frames (at half of the alpha set by user) */
-				glColor4f(color[0], color[1], color[2], (color[3] / 7));
-				
 				if (gpf->prev) {
-					for (gps= gpf->prev->strokes.first; gps; gps= gps->next) {
-						gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, winx, winy);
-					}
+					tcolor[3] = (color[3] / 7);
+					gp_draw_strokes(gpf, winx, winy, dflag, debug, lthick, tcolor);
 				}
 				
-				glColor4f(color[0], color[1], color[2], (color[3] / 4));
 				if (gpf->next) {
-					for (gps= gpf->next->strokes.first; gps; gps= gps->next) {	
-						gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, winx, winy);
-					}
+					tcolor[3] = (color[3] / 4);
+					gp_draw_strokes(gpf, winx, winy, dflag, debug, lthick, tcolor);
 				}
 				
 				/* restore alpha */
@@ -509,9 +546,8 @@ static void gp_draw_data (bGPdata *gpd, int winx, int winy, int dflag)
 		}
 		
 		/* draw the strokes already in active frame */
-		for (gps= gpf->strokes.first; gps; gps= gps->next) {	
-			gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, winx, winy);
-		}
+		tcolor[3]= color[3];
+		gp_draw_strokes(gpf, winx, winy, dflag, debug, lthick, tcolor);
 		
 		/* Check if may need to draw the active stroke cache, only if this layer is the active layer
 		 * that is being edited. (Stroke cache is currently stored in gp-data)

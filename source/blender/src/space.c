@@ -1215,8 +1215,11 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 					return; /* return if event was processed (swallowed) by handler(s) */
 			}
 			
-			if(gpencil_do_paint(sa)) return;
+			if(gpencil_do_paint(sa, L_MOUSE)) return;
 			if(BIF_do_manipulator(sa)) return;
+		}
+		else if(event==RIGHTMOUSE) {
+			if(gpencil_do_paint(sa, R_MOUSE)) return;
 		}
 		
 		/* swap mouse buttons based on user preference */
@@ -2720,6 +2723,8 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 			case DELKEY:
 				if(G.qual==0 || G.qual==LR_SHIFTKEY)
 					delete_context_selected();
+				if(G.qual==LR_ALTKEY)
+					gpencil_delete_menu();
 				break;
 			case YKEY:
 				if((G.qual==0) && (G.obedit)) {
@@ -4841,8 +4846,11 @@ static void winqreadseqspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 		if( uiDoBlocks(&curarea->uiblocks, event, 1)!=UI_NOTHING ) event= 0;
 		
 		/* grease-pencil defaults to leftmouse */
-		if(event==LEFTMOUSE) {
-			if(gpencil_do_paint(sa)) return;
+		if (event == LEFTMOUSE) {
+			if(gpencil_do_paint(sa, L_MOUSE)) return;
+		}
+		else if (event == RIGHTMOUSE) {
+			if(gpencil_do_paint(sa, R_MOUSE)) return;
 		}
 		
 		/* swap mouse buttons based on user preference */
@@ -5116,6 +5124,10 @@ static void winqreadseqspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 				if(sseq->mainb) break;
 				if((G.qual==0))
 					del_seq();
+			}
+			else if(G.qual==LR_ALTKEY) {
+				if(sseq->mainb)
+					gpencil_delete_menu();
 			}
 			break;
 		case PAD1: case PAD2: case PAD4: case PAD8:

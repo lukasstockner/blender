@@ -616,7 +616,7 @@ void gpencil_delete_actframe (bGPdata *gpd)
  *		 	2 - active frame
  *			3 - active layer
  */
-void gpencil_delete_operation (short mode) // unused
+void gpencil_delete_operation (short mode)
 {
 	bGPdata *gpd;
 	
@@ -642,11 +642,15 @@ void gpencil_delete_operation (short mode) // unused
 }
 
 /* display a menu for deleting different grease-pencil elements */
-void gpencil_delete_menu (void) // unused
+void gpencil_delete_menu (void)
 {
+	bGPdata *gpd= gpencil_data_getactive(NULL);
 	short mode;
 	
-	mode= pupmenu("Erase...%t|Last Stroke%x1|Active Frame%x2|Active Layer%x3");
+	/* only show menu if it will be relevant */
+	if (gpd == NULL) return;
+	
+	mode= pupmenu("Grease Pencil Erase...%t|Last Stroke%x1|Active Frame%x2|Active Layer%x3");
 	if (mode <= 0) return;
 	
 	gpencil_delete_operation(mode);
@@ -658,7 +662,7 @@ void gpencil_delete_menu (void) // unused
 /* ---------- 'Globals' and Defines ----------------- */
 
 /* maximum sizes of gp-session buffer */
-#define GP_STROKE_BUFFER_MAX	500	
+#define GP_STROKE_BUFFER_MAX	5000	
 
 /* ------ */
 
@@ -968,7 +972,7 @@ static void gp_stroke_newfrombuffer (tGPsdata *p)
 /* ---------- 'Paint' Tool ------------ */
 
 /* init new stroke */
-static void gp_paint_initstroke (tGPsdata *p)
+static void gp_paint_initstroke (tGPsdata *p, short mousebutton)
 {	
 	/* get active layer (or add a new one if non-existent) */
 	p->gpl= gpencil_layer_getactive(p->gpd);
@@ -991,8 +995,17 @@ static void gp_paint_initstroke (tGPsdata *p)
 	}
 	else
 		p->gpf->flag |= GP_FRAME_PAINT;
+	
+	/* set 'eraser' for this stroke if using eraser or right-mouse in action */
+	if ( get_activedevice() == 2 || (mousebutton & R_MOUSE) ) {
+		p->gpd->sbuffer_sflag |= GP_STROKE_ERASER;
 		
-	/* check if points will need to be made in 3d-space */
+		// for now: eraser isn't ready for prime-time yet, so no painting available here yet
+		p->status= GP_STATUS_ERROR;
+		return;
+	}
+	
+	/* check if points will need to be made in view-aligned space */
 	if (p->gpd->flag & GP_DATA_VIEWALIGN) {
 		switch (p->sa->spacetype) {
 			case SPACE_VIEW3D:
@@ -1065,7 +1078,7 @@ short gpencil_paint (short mousebutton)
 		gp_session_cleanup(&p);
 		return 0;
 	}
-	gp_paint_initstroke(&p);
+	gp_paint_initstroke(&p, mousebutton);
 	if (p.status == GP_STATUS_ERROR) {
 		gp_session_cleanup(&p);
 		return 0;
@@ -1154,10 +1167,9 @@ short gpencil_paint (short mousebutton)
 /* All event (loops) handling checking if stroke drawing should be initiated
  * should call this function.
  */
-short gpencil_do_paint (ScrArea *sa)
+short gpencil_do_paint (ScrArea *sa, short mousebutton)
 {
 	bGPdata *gpd = gpencil_data_getactive(sa);
-	short mousebutton = L_MOUSE; /* for now, this is always on L_MOUSE*/
 	short retval= 0;
 	
 	/* check if possible to do painting */
@@ -1173,7 +1185,7 @@ short gpencil_do_paint (ScrArea *sa)
 		/* try to paint */
 		retval = gpencil_paint(mousebutton);
 	}
-	else if (G.qual == LR_SHIFTKEY) {
+	else if (!(gpd->flag & GP_DATA_LMBPLOCK) && (G.qual == LR_SHIFTKEY)) {
 		/* try to paint */
 		retval = gpencil_paint(mousebutton);
 	}

@@ -1920,10 +1920,8 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			gameobj->NodeUpdateGS(0,true);
 			
 			BL_ConvertIpos(blenderobject,gameobj,converter);
-			// TODO: expand to multiple ipos per mesh
-			Material *mat = give_current_material(blenderobject, 1);
-			if(mat) BL_ConvertMaterialIpos(mat, gameobj, converter);	
-	
+			BL_ConvertMaterialIpos(blenderobject, gameobj, converter);
+			
 			sumolist->Add(gameobj->AddRef());
 			
 			BL_ConvertProperties(blenderobject,gameobj,timemgr,kxscene,isInActiveLayer);
@@ -2102,9 +2100,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							gameobj->NodeUpdateGS(0,true);
 							
 							BL_ConvertIpos(blenderobject,gameobj,converter);
-							// TODO: expand to multiple ipos per mesh
-							Material *mat = give_current_material(blenderobject, 1);
-							if(mat) BL_ConvertMaterialIpos(mat, gameobj, converter);	
+							BL_ConvertMaterialIpos(blenderobject,gameobj, converter);	
 					
 							sumolist->Add(gameobj->AddRef());
 							
