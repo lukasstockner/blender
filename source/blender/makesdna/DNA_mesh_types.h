@@ -94,6 +94,9 @@ typedef struct Mesh {
 	short totcol;
 	short subsurftype;		/* only kept for backwards compat, not used anymore */
 
+	struct MVert *mr_undo;		/* Store DerivedMesh vertices for multires undo */
+	int mr_undo_tot, mr_undo_state;
+	
 	struct Multires *mr;		/* Multiresolution modeling data */
 	struct PartialVisibility *pv;
 /*ifdef WITH_VERSE*/

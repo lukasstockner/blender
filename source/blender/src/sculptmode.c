@@ -1825,6 +1825,9 @@ void sculpt(void)
 	MEM_freeN(a);
 	sculpt_stroke_free();
 
+	get_mesh(OBACT)->mr_undo = ss->mvert;
+	get_mesh(OBACT)->mr_undo_tot = ss->totvert;
+
 	sculpt_undo_push(G.scene->sculptdata.brush_type);
 
 	if(G.vd->depths) G.vd->depths->damaged= 1;

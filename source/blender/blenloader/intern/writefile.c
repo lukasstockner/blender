@@ -1173,7 +1173,7 @@ static void write_customdata(WriteData *wd, int count, CustomData *data, int par
 	}
 }
 
-static void write_meshs(WriteData *wd, ListBase *idbase)
+static void write_meshs(WriteData *wd, ListBase *idbase, int mr_undo)
 {
 	Mesh *mesh;
 	MultiresLevel *lvl;
@@ -1246,6 +1246,9 @@ static void write_meshs(WriteData *wd, ListBase *idbase)
 				writestruct(wd, DATA, "MFace", mesh->pv->totface, mesh->pv->old_faces);
 				writestruct(wd, DATA, "MEdge", mesh->pv->totedge, mesh->pv->old_edges);
 			}
+			
+			if(mr_undo && mesh->mr_undo)
+				writestruct(wd, DATA, "MVert", mesh->mr_undo_tot, mesh->mr_undo);
 		}
 		mesh= mesh->id.next;
 	}
@@ -2031,7 +2034,7 @@ static int write_file_handle(int handle, MemFile *compare, MemFile *current, int
 	write_objects  (wd, &G.main->object);
 	write_materials(wd, &G.main->mat);
 	write_textures (wd, &G.main->tex);
-	write_meshs    (wd, &G.main->mesh);
+	write_meshs    (wd, &G.main->mesh, (current != NULL));
 	write_particlesettings(wd, &G.main->particle);
 	write_nodetrees(wd, &G.main->nodetree);
 	write_brushes  (wd, &G.main->brush);

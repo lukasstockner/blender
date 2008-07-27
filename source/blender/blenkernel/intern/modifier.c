@@ -7224,12 +7224,28 @@ static DerivedMesh *multiresModifier_applyModifier(ModifierData *md, Object *ob,
 						   int useRenderParams, int isFinalCalc)
 {
 	MultiresModifierData *mmd = (MultiresModifierData*)md;
+	Mesh *me = get_mesh(ob);
+	DerivedMesh *final;
 
 	/* TODO: for now just skip a level1 mesh */
 	if(mmd->lvl == 1)
 		return dm;
 
-	return multires_dm_create_from_derived(mmd, dm, get_mesh(ob), useRenderParams, isFinalCalc);
+	final = multires_dm_create_from_derived(mmd, dm, me, useRenderParams, isFinalCalc);
+	if(me->mr_undo_state && me->mr_undo && me->mr_undo_tot == final->getNumVerts(final)) {
+		int i;
+		MVert *dst = CDDM_get_verts(final);
+		for(i = 0; i < me->mr_undo_tot; ++i) {
+			VecCopyf(dst[i].co, me->mr_undo[i].co);
+		}
+		CDDM_calc_normals(final);
+	}
+	if(me->mr_undo && me->mr_undo_state)
+		MEM_freeN(me->mr_undo);
+	me->mr_undo_state = 0;
+	me->mr_undo = NULL;
+
+	return final;
 }
 
 /***/

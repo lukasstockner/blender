@@ -1263,8 +1263,6 @@ DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts
 	mrdm->subco = MEM_callocN(sizeof(float)*3*numVerts, "multires subdivided coords");
 	mrdm->block_update = 0;
 
-	MultiresDM_calc_norm(mrdm);
-
 	dm->release = MultiresDM_release;
 
 	return dm;
@@ -1277,7 +1275,12 @@ Mesh *MultiresDM_get_mesh(DerivedMesh *dm)
 
 void *MultiresDM_get_vertnorm(DerivedMesh *dm)
 {
-	return ((MultiresDM*)dm)->norm;
+	MultiresDM *mrdm = (MultiresDM*)dm;
+
+	if(!mrdm->norm)
+		MultiresDM_calc_norm(mrdm);
+
+	return mrdm->norm;
 }
 
 void *MultiresDM_get_orco(DerivedMesh *dm)

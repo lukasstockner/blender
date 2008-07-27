@@ -2767,6 +2767,9 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->bb= NULL;
 	mesh->mselect = NULL;
 
+	mesh->mr_undo = newdataadr(fd, mesh->mr_undo);
+	mesh->mr_undo_state = 1;
+
 	/* Multires data */
 	mesh->mr= newdataadr(fd, mesh->mr);
 	if(mesh->mr) {
