@@ -1178,7 +1178,6 @@ static void write_customdata(WriteData *wd, int count, CustomData *data, int par
 static void write_meshs(WriteData *wd, ListBase *idbase, int mr_undo)
 {
 	Mesh *mesh;
-	MultiresLevel *lvl;
 
 	mesh= idbase->first;
 	while(mesh) {
@@ -1215,29 +1214,6 @@ static void write_meshs(WriteData *wd, ListBase *idbase, int mr_undo)
 				write_customdata(wd, mesh->totvert, &mesh->vdata, -1, 0);
 				write_customdata(wd, mesh->totedge, &mesh->edata, -1, 0);
 				write_customdata(wd, mesh->totface, &mesh->fdata, -1, 0);
-			}
-
-			/* Multires data */
-			writestruct(wd, DATA, "Multires", 1, mesh->mr);
-			if(mesh->mr) {
-				lvl= mesh->mr->levels.first;
-				if(lvl) {
-					write_customdata(wd, lvl->totvert, &mesh->mr->vdata, -1, 0);
-					write_customdata(wd, lvl->totface, &mesh->mr->fdata, -1, 0);
-					writedata(wd, DATA, sizeof(short)*lvl->totedge, mesh->mr->edge_flags);
-					writedata(wd, DATA, sizeof(char)*lvl->totedge, mesh->mr->edge_creases);
-				}
-
-				for(; lvl; lvl= lvl->next) {
-					writestruct(wd, DATA, "MultiresLevel", 1, lvl);
-					writestruct(wd, DATA, "MultiresFace", lvl->totface, lvl->faces);
-					writestruct(wd, DATA, "MultiresEdge", lvl->totedge, lvl->edges);
-					writestruct(wd, DATA, "MultiresColFace", lvl->totface, lvl->colfaces);
-				}
-
-				lvl= mesh->mr->levels.last;
-				if(lvl)
-					writestruct(wd, DATA, "MVert", lvl->totvert, mesh->mr->verts);
 			}
 
 			/* PMV data */
