@@ -384,9 +384,6 @@ void BL_Texture::DisableUnit()
 
 void BL_Texture::DisableAllTextures()
 {
-	glDisable(GL_BLEND);
-	glDisable(GL_ALPHA_TEST);
-
 	for(int i=0; i<MAXTEX; i++) {
 		if(GLEW_ARB_multitexture)
 			glActiveTextureARB(GL_TEXTURE0_ARB+i);

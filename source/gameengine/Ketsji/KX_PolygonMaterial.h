@@ -65,7 +65,7 @@ public:
 		int tileyrep,
 		int mode,
 		int transp,
-		bool transparant,
+		bool alpha,
 		bool zsort,
 		int lightlayer,
 		bool bIsTriangle,

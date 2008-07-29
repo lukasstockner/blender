@@ -121,14 +121,11 @@ private:
 
 	void	setLightData();
 
-	static void	setBlendingMode(int transp);
-
 	// cleanup stuff
 	void	OnExit();
 
 	// shader chacing
 	static BL_BlenderShader *mLastBlenderShader;
-	static int				mLastBlenderShaderBlend;
 	static BL_Shader		*mLastShader;
 
 	mutable int	mPass;

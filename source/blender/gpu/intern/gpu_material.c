@@ -44,6 +44,7 @@
 #include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_colortools.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
@@ -686,6 +687,25 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 			if(ob->gpulamp)
 				shade_one_light(shi, shr, ob->gpulamp);
 		}
+
+		if (ob->transflag & OB_DUPLI) {
+			DupliObject *dob;
+			ListBase *lb = object_duplilist(G.scene, ob);
+			
+			for(dob=lb->first; dob; dob=dob->next) {
+				Object *ob = dob->ob;
+				
+				if(ob->type==OB_LAMP) {
+					Mat4CpyMat4(ob->obmat, dob->mat);
+
+					GPU_lamp_from_blender(ob, ob->data);
+					if(ob->gpulamp)
+						shade_one_light(shi, shr, ob->gpulamp);
+				}
+			}
+			
+			free_object_duplilist(lb);
+		}
 	}
 }
 
@@ -1010,7 +1030,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
 	Material *ma= shi->mat;
 	World *world= mat->scene->world;
-	float linfac, logfac, misttype;
+	float linfac, logfac, misttype, one = 1.0f;
 
 	memset(shr, 0, sizeof(*shr));
 
@@ -1084,6 +1104,14 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 		GPU_link(mat, "mix_blend", mistfac, GPU_uniform(&world->horr),
 			shr->combined, &shr->combined);
+	}
+
+	if(!(ma->mode & MA_ZTRA)) {
+		if(world && (GPU_link_changed(shr->alpha) || ma->alpha != 1.0f))
+			GPU_link(mat, "shade_world_mix", shr->alpha, GPU_uniform(&world->horr),
+				shr->combined, &shr->combined);
+
+		GPU_link(mat, "set_value", GPU_uniform(&one), &shr->alpha);
 	}
 
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);

@@ -38,7 +38,6 @@
 
 BL_Shader *KX_BlenderMaterial::mLastShader = NULL;
 BL_BlenderShader *KX_BlenderMaterial::mLastBlenderShader = NULL;
-int KX_BlenderMaterial::mLastBlenderShaderBlend = -1;
 
 //static PyObject *gTextureDict = 0;
 
@@ -59,7 +58,7 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 		data->tileyrep[0],
 		data->mode,
 		data->transp,
-		((data->ras_mode &TRANSP)!=0),
+		((data->ras_mode &ALPHA)!=0),
 		((data->ras_mode &ZSORT)!=0),
 		lightlayer,
 		((data->ras_mode &TRIANGLE)!=0),
@@ -80,7 +79,6 @@ KX_BlenderMaterial::KX_BlenderMaterial(
 	m_flag |=RAS_BLENDERMAT;
 	m_flag |=(mMaterial->IdMode>=ONETEX)?RAS_MULTITEX:0;
 	m_flag |=(mMaterial->ras_mode & USE_LIGHT)!=0?RAS_MULTILIGHT:0;
-	m_flag |=(mMaterial->ras_mode &ALPHA_TEST)!=0?RAS_FORCEALPHA:0;
 
 	// figure max
 	int enabled = mMaterial->num_enabled;
@@ -164,11 +162,6 @@ void KX_BlenderMaterial::EndFrame()
 	if(mLastBlenderShader) {
 		mLastBlenderShader->SetProg(false);
 		mLastBlenderShader = NULL;
-
-		if(mLastBlenderShaderBlend != TF_SOLID) {
-			setBlendingMode(TF_SOLID);
-			mLastBlenderShaderBlend = TF_SOLID;
-		}
 	}
 
 	if(mLastShader) {
@@ -195,11 +188,6 @@ void KX_BlenderMaterial::OnExit()
 		if(mBlenderShader == mLastBlenderShader) {
 			mBlenderShader->SetProg(false);
 			mLastBlenderShader = NULL;
-
-			if(mLastBlenderShaderBlend != TF_SOLID) {
-				setBlendingMode(TF_SOLID);
-				mLastBlenderShaderBlend = TF_SOLID;
-			}
 		}
 
 		delete mBlenderShader;
@@ -229,6 +217,8 @@ void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 			mShader->SetProg(false);
 			mLastShader = NULL;
 		}
+
+		ras->SetBlendingMode(TF_SOLID);
 		BL_Texture::DisableAllTextures();
 		return;
 	}
@@ -249,9 +239,12 @@ void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 	}
 
 	if(!mUserDefBlend) {
-		setBlendingMode(mMaterial->transp);
+		ras->SetBlendingMode(mMaterial->transp);
 	}
 	else {
+		ras->SetBlendingMode(TF_SOLID);
+		ras->SetBlendingMode(-1); // indicates custom mode
+
 		// tested to be valid enums
 		glEnable(GL_BLEND);
 		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);
@@ -265,22 +258,16 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 		if(mLastBlenderShader) {
 			mLastBlenderShader->SetProg(false);
 			mLastBlenderShader= NULL;
-
-			if(mLastBlenderShaderBlend != TF_SOLID) {
-				setBlendingMode(TF_SOLID);
-				mLastBlenderShaderBlend = TF_SOLID;
-			}
 		}
 
+		ras->SetBlendingMode(TF_SOLID);
 		BL_Texture::DisableAllTextures();
 		return;
 	}
 
 	if(!mBlenderShader->Equals(mLastBlenderShader)) {
+		ras->SetBlendingMode(mMaterial->transp);
 		BL_Texture::DisableAllTextures();
-
-		setBlendingMode(mMaterial->transp);
-		mLastBlenderShaderBlend = mMaterial->transp;
 
 		if(mLastBlenderShader)
 			mLastBlenderShader->SetProg(false);
@@ -288,20 +275,21 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 		mBlenderShader->SetProg(true);
 		mLastBlenderShader= mBlenderShader;
 	}
-
-	// do setBlendingMode with Update() for per object blend modes
 }
 
 void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 {
 	BL_Texture::DisableAllTextures();
-	if( !enable )
+
+	if( !enable ) {
+		ras->SetBlendingMode(TF_SOLID);
 		return;
+	}
 
 	BL_Texture::ActivateFirst();
 
 	if( mMaterial->IdMode == DEFAULT_BLENDER ) {
-		setBlendingMode(mMaterial->transp);
+		ras->SetBlendingMode(mMaterial->transp);
 		return;
 	}
 
@@ -311,7 +299,7 @@ void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 			mTextures[0].ActivateTexture();
 			mTextures[0].setTexEnv(0, true);
 			mTextures[0].SetMapping(mMaterial->mapping[0].mapping);
-			setBlendingMode(mMaterial->transp);
+			ras->SetBlendingMode(mMaterial->transp);
 		}
 		return;
 	}
@@ -334,9 +322,12 @@ void KX_BlenderMaterial::setTexData( bool enable, RAS_IRasterizer *ras)
 	}
 
 	if(!mUserDefBlend) {
-		setBlendingMode(mMaterial->transp);
+		ras->SetBlendingMode(mMaterial->transp);
 	}
 	else {
+		ras->SetBlendingMode(TF_SOLID);
+		ras->SetBlendingMode(-1); // indicates custom mode
+
 		glEnable(GL_BLEND);
 		glBlendFunc(mBlendFunc[0], mBlendFunc[1]);
 	}
@@ -356,11 +347,6 @@ KX_BlenderMaterial::ActivatShaders(
 	if(mLastBlenderShader) {
 		mLastBlenderShader->SetProg(false);
 		mLastBlenderShader= NULL;
-
-		if(mLastBlenderShaderBlend != TF_SOLID) {
-			setBlendingMode(TF_SOLID);
-			mLastBlenderShaderBlend = TF_SOLID;
-		}
 	}
 
 	if (GetCachingInfo() != cachingInfo) {
@@ -460,11 +446,6 @@ KX_BlenderMaterial::ActivateMat(
 	if(mLastBlenderShader) {
 		mLastBlenderShader->SetProg(false);
 		mLastBlenderShader= NULL;
-
-		if(mLastBlenderShaderBlend != TF_SOLID) {
-			setBlendingMode(TF_SOLID);
-			mLastBlenderShaderBlend = TF_SOLID;
-		}
 	}
 
 	if (GetCachingInfo() != cachingInfo) {
@@ -576,10 +557,7 @@ void KX_BlenderMaterial::ActivateMeshSlot(const KX_MeshSlot & ms, RAS_IRasterize
 		if((blendmode == TF_SOLID || blendmode == TF_ALPHA) && mMaterial->transp != TF_SOLID)
 			blendmode = mMaterial->transp;
 
-		if(mLastBlenderShaderBlend != blendmode) {
-			setBlendingMode(blendmode);
-			mLastBlenderShaderBlend = blendmode;
-		}
+		rasty->SetBlendingMode(blendmode);
 	}
 }
 
@@ -658,30 +636,6 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 	}
 	else
 		ras->EnableTextures(false);
-}
-
-void KX_BlenderMaterial::setBlendingMode(int transp)
-{
-	if(transp == TF_SOLID) {
-		glDisable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	}
-	else if(transp == TF_ADD) {
-		glBlendFunc(GL_ONE, GL_ONE);
-		glEnable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-	}
-	else if(transp == TF_ALPHA) {
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-		glEnable(GL_BLEND);
-		glDisable(GL_ALPHA_TEST);
-	}
-	else if(transp == TF_CLIP) {
-		glDisable(GL_BLEND); 
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.5f);
-	}
 }
 
 void KX_BlenderMaterial::setTexMatrixData(int i)
@@ -914,6 +868,8 @@ void KX_BlenderMaterial::SetBlenderGLSLShader(void)
 		delete mBlenderShader;
 		mBlenderShader = 0;
 	}
+	else
+		m_flag |= RAS_BLENDERGLSL;
 }
 
 KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getMaterialIndex, "getMaterialIndex()")

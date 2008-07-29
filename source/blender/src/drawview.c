@@ -2928,44 +2928,65 @@ void draw_depth(ScrArea *sa, void *spacedata, int (* func)(void *))
 
 static void draw_viewport_fps(ScrArea *sa);
 
+static void gpu_render_lamp_update(View3D *v3d, Object *ob)
+{
+	Lamp *la;
+	float viewmat[4][4], winmat[4][4];
+	int drawtype, lay, winsize, flag2;
+
+	la= ob->data;
+	GPU_lamp_from_blender(ob, la);
+
+	if(ob->gpulamp) {
+		GPU_lamp_update(ob->gpulamp, ob->obmat);
+
+		if(GPU_lamp_has_shadow_buffer(ob->gpulamp)) {
+			/* this needs to be done better .. */
+			drawtype= v3d->drawtype;
+			lay= v3d->lay;
+			flag2= v3d->flag2 & V3D_SOLID_TEX;
+
+			v3d->drawtype = OB_SOLID;
+			v3d->lay &= GPU_lamp_shadow_layer(ob->gpulamp);
+			v3d->flag2 &= ~V3D_SOLID_TEX;
+
+			GPU_lamp_shadow_buffer_bind(ob->gpulamp, viewmat, &winsize, winmat);
+			drawview3d_render(v3d, viewmat, winsize, winsize, winmat, 1);
+			GPU_lamp_shadow_buffer_unbind(ob->gpulamp);
+
+			v3d->drawtype= drawtype;
+			v3d->lay= lay;
+			v3d->flag2 |= flag2;
+		}
+	}
+}
+
 static void gpu_render_shadow_buffers(Scene *scene, View3D *v3d)
 {
 	Scene *sce;
 	Base *base;
 	Object *ob;
-	Lamp *la;
-	float viewmat[4][4], winmat[4][4];
-	int drawtype, lay, winsize, flag2;
 
 	for(SETLOOPER(G.scene, base)) {
 		ob= base->object;
 
-		if(ob->type == OB_LAMP) {
-			la= ob->data;
-			GPU_lamp_from_blender(ob, la);
+		if(ob->type == OB_LAMP)
+			gpu_render_lamp_update(v3d, ob);
 
-			if(ob->gpulamp) {
-				GPU_lamp_update(ob->gpulamp, ob->obmat);
-
-				if(GPU_lamp_has_shadow_buffer(ob->gpulamp)) {
-					/* this needs to be done better .. */
-					drawtype= v3d->drawtype;
-					lay= v3d->lay;
-					flag2= v3d->flag2 & V3D_SOLID_TEX;
-
-					v3d->drawtype = OB_SOLID;
-					v3d->lay &= GPU_lamp_shadow_layer(ob->gpulamp);
-					v3d->flag2 &= ~V3D_SOLID_TEX;
-
-					GPU_lamp_shadow_buffer_bind(ob->gpulamp, viewmat, &winsize, winmat);
-					drawview3d_render(v3d, viewmat, winsize, winsize, winmat, 1);
-					GPU_lamp_shadow_buffer_unbind(ob->gpulamp);
-
-					v3d->drawtype= drawtype;
-					v3d->lay= lay;
-					v3d->flag2 |= flag2;
+		if (ob->transflag & OB_DUPLI) {
+			DupliObject *dob;
+			ListBase *lb = object_duplilist(G.scene, ob);
+			
+			for(dob=lb->first; dob; dob=dob->next) {
+				Object *ob = dob->ob;
+				
+				if(ob->type==OB_LAMP) {
+					Mat4CpyMat4(ob->obmat, dob->mat);
+					gpu_render_lamp_update(v3d, ob);
 				}
 			}
+			
+			free_object_duplilist(lb);
 		}
 	}
 }

@@ -39,6 +39,7 @@
 #include "RAS_IRenderTools.h" // rendering text
 
 #include "GPU_draw.h"
+#include "GPU_material.h"
 
 /**
  *  32x32 bit masks for vinterlace stereo mode
@@ -69,6 +70,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas)
 	m_motionblurvalue(-1.0),
 	m_texco_num(0),
 	m_attrib_num(0),
+	m_last_blendmode(GPU_BLEND_SOLID),
 	m_materialCachingInfo(0)
 {
 	m_viewmatrix.Identity();
@@ -101,6 +103,8 @@ bool RAS_OpenGLRasterizer::Init()
 	m_ambg = 0.0f;
 	m_ambb = 0.0f;
 
+	SetBlendingMode(GPU_BLEND_SOLID);
+
 	glClearColor(m_redback,m_greenback,m_blueback,m_alphaback);
 	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -117,18 +121,6 @@ void RAS_OpenGLRasterizer::SetAmbientColor(float red, float green, float blue)
 	m_ambg = green;
 	m_ambb = blue;
 }
-
-
-void RAS_OpenGLRasterizer::SetAlphaTest(bool enable)
-{
-	if (enable)
-	{
-		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.6f);
-	}
-	else glDisable(GL_ALPHA_TEST);
-}
-
 
 
 void RAS_OpenGLRasterizer::SetAmbient(float factor)
@@ -282,6 +274,8 @@ bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
 		glEnable(GL_DEPTH_TEST);
 		glEnable (GL_CULL_FACE);
 	}
+
+	SetBlendingMode(GPU_BLEND_SOLID);
 
 	glShadeModel(GL_SMOOTH);
 
@@ -1333,3 +1327,34 @@ void RAS_OpenGLRasterizer::DisableMotionBlur()
 	m_motionblur = 0;
 	m_motionblurvalue = -1.0;
 }
+
+void RAS_OpenGLRasterizer::SetBlendingMode(int blendmode)
+{
+	if(blendmode == m_last_blendmode)
+		return;
+
+	if(blendmode == GPU_BLEND_SOLID) {
+		glDisable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	}
+	else if(blendmode == GPU_BLEND_ADD) {
+		glBlendFunc(GL_ONE, GL_ONE);
+		glEnable(GL_BLEND);
+		glDisable(GL_ALPHA_TEST);
+	}
+	else if(blendmode == GPU_BLEND_ALPHA) {
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glEnable(GL_BLEND);
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, 0.0f);
+	}
+	else if(blendmode == GPU_BLEND_CLIP) {
+		glDisable(GL_BLEND); 
+		glEnable(GL_ALPHA_TEST);
+		glAlphaFunc(GL_GREATER, 0.5f);
+	}
+
+	m_last_blendmode = blendmode;
+}
+

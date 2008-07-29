@@ -94,7 +94,6 @@ void RAS_BucketManager::RenderAlphaBuckets(
 	const MT_Scalar cam_origin = cameratrans.getOrigin()[2];
 	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit)
 	{
-		(*bit)->ClearScheduledPolygons();
 		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit)
 		{
 			if ((*mit).m_bVisible)
@@ -133,22 +132,9 @@ void RAS_BucketManager::Renderbuckets(
 	rasty->ClearCachingInfo();
 
 	RAS_MaterialBucket::StartFrame();
-	for (bucket = m_MaterialBuckets.begin(); bucket != m_MaterialBuckets.end(); ++bucket)
-	{
-		(*bucket)->ClearScheduledPolygons();
-	}
 	
 	for (bucket = m_MaterialBuckets.begin(); bucket != m_MaterialBuckets.end(); ++bucket)
-	{
-		RAS_IPolyMaterial *tmp = (*bucket)->GetPolyMaterial();
-		if(tmp->IsZSort() || tmp->GetFlag() &RAS_FORCEALPHA )
-			rasty->SetAlphaTest(true);
-		else
-			rasty->SetAlphaTest(false);
-
 		(*bucket)->Render(cameratrans,rasty,rendertools);
-	}
-	rasty->SetAlphaTest(false);
 
 	RenderAlphaBuckets(cameratrans, rasty, rendertools);	
 	RAS_MaterialBucket::EndFrame();
@@ -172,7 +158,7 @@ RAS_MaterialBucket* RAS_BucketManager::FindBucket(RAS_IPolyMaterial * material, 
 	
 	RAS_MaterialBucket *bucket = new RAS_MaterialBucket(material);
 	bucketCreated = true;
-	if (bucket->IsTransparant())
+	if (bucket->IsAlpha())
 		m_AlphaBuckets.push_back(bucket);
 	else
 		m_MaterialBuckets.push_back(bucket);

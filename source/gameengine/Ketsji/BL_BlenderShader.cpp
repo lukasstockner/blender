@@ -160,7 +160,7 @@ void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
 
 	if(!mGPUMat) // || !mBound)
 		return;
-	
+
 	MT_Matrix4x4 model;
 	model.setValue(ms.m_OpenGLMatrix);
 	MT_Matrix4x4 view;

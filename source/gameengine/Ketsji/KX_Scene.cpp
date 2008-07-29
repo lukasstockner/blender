@@ -117,13 +117,13 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	PyObjectPlus(&KX_Scene::Type),
 	m_keyboardmgr(NULL),
 	m_mousemgr(NULL),
+	m_sceneConverter(NULL),
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
 	m_adi(adi),
 	m_networkDeviceInterface(ndi),
 	m_active_camera(NULL),
-	m_ueberExecutionPriority(0),
-	m_sceneConverter(NULL)
+	m_ueberExecutionPriority(0)
 {
 	m_suspendedtime = 0.0;
 	m_suspendeddelta = 0.0;
@@ -985,6 +985,7 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 		//m_active_camera->Release();
 		m_active_camera = NULL;
 	}
+
 	// in case this is a camera
 	m_cameras.remove((KX_Camera*)newobj);
 
@@ -1241,14 +1242,10 @@ void KX_Scene::MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool vi
 			if (visible)
 			{
 				int nummeshes = gameobj->GetMeshCount();
-				MT_Transform t( cam->GetWorldToCamera() * gameobj->GetSGNode()->GetWorldTransform());
-	
 				
+				// this adds the vertices to the display list
 				for (int m=0;m<nummeshes;m++)
-				{
-					// this adds the vertices to the display list
-					(gameobj->GetMesh(m))->SchedulePolygons(t, rasty->GetDrawingMode());
-				}
+					(gameobj->GetMesh(m))->SchedulePolygons(rasty->GetDrawingMode());
 			}
 			gameobj->MarkVisible(visible);
 		}
@@ -1305,12 +1302,11 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	if (vis)
 	{
 		int nummeshes = gameobj->GetMeshCount();
-		MT_Transform t(cam->GetWorldToCamera() * gameobj->GetSGNode()->GetWorldTransform());
 		
 		for (int m=0;m<nummeshes;m++)
 		{
 			// this adds the vertices to the display list
-			(gameobj->GetMesh(m))->SchedulePolygons(t, rasty->GetDrawingMode());
+			(gameobj->GetMesh(m))->SchedulePolygons(rasty->GetDrawingMode());
 		}
 		// Visibility/ non-visibility are marked
 		// elsewhere now.

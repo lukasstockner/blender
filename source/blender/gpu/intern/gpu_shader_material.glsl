@@ -1525,3 +1525,9 @@ void shade_mist_factor(vec3 co, float miststa, float mistdist, float misttype, f
 	outfac = (1.0-fac)*(1.0-misi);
 }
 
+void shade_world_mix(float fac, vec3 hor, vec4 col, out vec4 outcol)
+{
+	fac = clamp(fac, 0.0, 1.0);
+	outcol = vec4(mix(hor, col.rgb, fac), col.a);
+}
+
