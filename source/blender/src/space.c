@@ -1388,7 +1388,7 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 			SculptData *sd= sculpt_data();
 			SculptSession *ss= sculpt_session();
 			BrushData *br= sculptmode_brush();
-			Mesh *me= get_mesh(OBACT);
+			Object *ob = OBACT;
 			char update_prop= 0;
 			
 			if(U.flag & USER_NONUMPAD) {
@@ -1528,16 +1528,11 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 				break;
 			/* Multires */
 			case PAGEUPKEY:
-				if(me && me->mr) {
-					me->mr->newlvl= ((Mesh*)ob->data)->mr->current+1;
-					multires_set_level_cb(ob, ob->data);
-				}
-				break;
 			case PAGEDOWNKEY:
-				if(me && me->mr) {
-					me->mr->newlvl= ((Mesh*)ob->data)->mr->current-1;
-					multires_set_level_cb(ob, ob->data);
-				}
+				if(multiresModifier_switch_level(ob, (event == PAGEUPKEY ? 1 : -1)))
+					BIF_undo_push("Multires switch level");
+				allqueue(REDRAWBUTSEDIT, 0);
+				allqueue(REDRAWVIEW3D, 0);
 				break;
 			/* Partial Visibility */
 			case HKEY:

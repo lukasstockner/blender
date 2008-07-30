@@ -51,6 +51,7 @@
 #include "BKE_global.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
+#include "BKE_object.h"
 #include "BKE_subsurf.h"
 
 #include "blendef.h"
@@ -815,6 +816,28 @@ static const int multires_max_levels = 13;
 static const int multires_quad_tot[] = {4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
 static const int multires_tri_tot[]  = {3, 7, 19, 61, 217, 817,  3169, 12481, 49537, 197377, 787969,  3148801, 12589057};
 static const int multires_side_tot[] = {2, 3, 5,  9,  17,  33,   65,   129,   257,   513,    1025,    2049,    4097};
+
+int multiresModifier_switch_level(Object *ob, const int distance)
+{
+	ModifierData *md = NULL;
+	MultiresModifierData *mmd = NULL;
+
+	for(md = ob->modifiers.first; md; md = md->next) {
+		if(md->type == eModifierType_Multires)
+			mmd = (MultiresModifierData*)md;
+	}
+
+	if(mmd) {
+		mmd->lvl += distance;
+		if(mmd->lvl < 1) mmd->lvl = 1;
+		else if(mmd->lvl > mmd->totlvl) mmd->lvl = mmd->totlvl;
+		DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
+		object_handle_update(ob);
+		return 1;
+	}
+	else
+		return 0;
+}
 
 void multiresModifier_join(Object *ob)
 {
