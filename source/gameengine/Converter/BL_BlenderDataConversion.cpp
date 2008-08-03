@@ -644,6 +644,7 @@ BL_Material* ConvertMaterial(
 		for (int vind = 0; vind<material->num_enabled; vind++)
 		{
 			BL_Mapping &map = material->mapping[vind];
+
 			if (map.uvCoName.IsEmpty())
 				isFirstSet = false;
 			else
@@ -673,7 +674,7 @@ BL_Material* ConvertMaterial(
 							isFirstSet = false;
 							uvName = layer.name;
 						}
-						else
+						else if(strcmp(layer.name, uvName) != 0)
 						{
 							uv2[0] = uvSet[0]; uv2[1] = uvSet[1];
 							uv2[2] = uvSet[2]; uv2[3] = uvSet[3];
