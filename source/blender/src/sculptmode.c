@@ -1462,14 +1462,13 @@ void sculptmode_selectbrush_menu(void)
 void sculptmode_update_all_projverts(float *vertcosnos)
 {
 	SculptSession *ss = sculpt_session();
-	Mesh *me= get_mesh(OBACT);
 	unsigned i;
 
 	if(!ss->projverts)
-		ss->projverts = MEM_mallocN(sizeof(ProjVert)*me->totvert,"ProjVerts");
+		ss->projverts = MEM_mallocN(sizeof(ProjVert)*ss->totvert,"ProjVerts");
 
-	for(i=0; i<me->totvert; ++i) {
-		project(vertcosnos ? &vertcosnos[i * 6] : me->mvert[i].co, ss->projverts[i].co);
+	for(i=0; i<ss->totvert; ++i) {
+		project(vertcosnos ? &vertcosnos[i * 6] : ss->mvert[i].co, ss->projverts[i].co);
 		ss->projverts[i].inside= 0;
 	}
 }
@@ -1569,7 +1568,7 @@ char sculpt_modifiers_active(Object *ob)
 	ModifierData *md;
 	
 	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
-		if(md->mode & eModifierMode_Realtime)
+		if(md->mode & eModifierMode_Realtime && md->type != eModifierType_Multires)
 			return 1;
 	}
 	
