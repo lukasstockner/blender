@@ -888,7 +888,6 @@ void sculpt_add_damaged_rect(BrushAction *a)
 {
 	short p[2];
 	RectNode *rn= MEM_mallocN(sizeof(RectNode),"RectNode");
-	Mesh *me= get_mesh(OBACT);
 	SculptSession *ss = sculpt_session();
 	const float radius = a->radius > a->prev_radius ? a->radius : a->prev_radius;
 	unsigned i;
@@ -903,7 +902,7 @@ void sculpt_add_damaged_rect(BrushAction *a)
 	BLI_addtail(&sculpt_session()->damaged_rects, rn);
 
 	/* Update insides */
-	for(i=0; i<me->totvert; ++i) {
+	for(i=0; i<ss->totvert; ++i) {
 		if(!ss->projverts[i].inside) {
 			if(ss->projverts[i].co[0] > rn->r.xmin && ss->projverts[i].co[1] > rn->r.ymin &&
 			   ss->projverts[i].co[0] < rn->r.xmax && ss->projverts[i].co[1] < rn->r.ymax) {
@@ -1134,12 +1133,9 @@ void calc_damaged_verts(ListBase *damaged_verts, BrushAction *a)
 
 void projverts_clear_inside(SculptSession *ss)
 {
-	Mesh *me = get_mesh(OBACT);
-	if(me) {
-		int i;
-		for(i = 0; i < me->totvert; ++i)
-			ss->projverts[i].inside = 0;
-	}
+	int i;
+	for(i = 0; i < ss->totvert; ++i)
+		ss->projverts[i].inside = 0;
 }
 
 BrushData *sculptmode_brush(void)
@@ -1473,8 +1469,59 @@ void sculptmode_update_all_projverts(float *vertcosnos)
 	}
 }
 
-void sculptmode_draw_wires(SculptSession *ss, int only_damaged, Mesh *me)
+/* Checks whether full update mode (slower) needs to be used to work with modifiers */
+char sculpt_modifiers_active(Object *ob)
 {
+	ModifierData *md;
+	
+	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
+		if(md->mode & eModifierMode_Realtime && md->type != eModifierType_Multires)
+			return 1;
+	}
+	
+	return 0;
+}
+
+struct MultiresModifierData *sculpt_multires_active(Object *ob)
+{
+	ModifierData *md;
+	
+	for(md= modifiers_getVirtualModifierList(OBACT); md; md= md->next) {
+		if(md->type == eModifierType_Multires) {
+			MultiresModifierData *mmd = (MultiresModifierData*)md;
+			if(mmd->lvl != 1)
+				return mmd;
+		}
+	}
+
+	return NULL;
+}
+
+static void sculpt_update_mesh_elements(SculptSession *ss, Object *ob)
+{
+	if(sculpt_multires_active(ob)) {
+		DerivedMesh *dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH);
+		ss->multires = 1;
+		ss->totvert = dm->getNumVerts(dm);
+		ss->totface = dm->getNumFaces(dm);
+		ss->mvert = dm->getVertDataArray(dm, CD_MVERT);
+		ss->mface = dm->getFaceDataArray(dm, CD_MFACE);
+		ss->face_normals = dm->getFaceDataArray(dm, CD_NORMAL);
+	}
+	else {
+		Mesh *me = get_mesh(ob);
+		ss->multires = 0;
+		ss->totvert = me->totvert;
+		ss->totface = me->totface;
+		ss->mvert = me->mvert;
+		ss->mface = me->mface;
+		ss->face_normals = NULL;
+	}
+}
+
+void sculptmode_draw_wires(SculptSession *ss, int only_damaged)
+{
+	Mesh *me = get_mesh(OBACT);
 	int i;
 
 	bglPolygonOffset(1.0);
@@ -1496,9 +1543,10 @@ void sculptmode_draw_wires(SculptSession *ss, int only_damaged, Mesh *me)
 
 void sculptmode_draw_mesh(int only_damaged) 
 {
-	Mesh *me= get_mesh(OBACT);
 	int i, j, dt, drawCurrentMat = 1, matnr= -1;
 	SculptSession *ss = sculpt_session();
+
+	sculpt_update_mesh_elements(ss, OBACT);
 
 	persp(PERSP_VIEW);
 	mymultmatrix(OBACT->obmat);
@@ -1509,15 +1557,15 @@ void sculptmode_draw_mesh(int only_damaged)
 
 	glShadeModel(GL_SMOOTH);
 
-	glVertexPointer(3, GL_FLOAT, sizeof(MVert), &me->mvert[0].co);
-	glNormalPointer(GL_SHORT, sizeof(MVert), &me->mvert[0].no);
+	glVertexPointer(3, GL_FLOAT, sizeof(MVert), &ss->mvert[0].co);
+	glNormalPointer(GL_SHORT, sizeof(MVert), &ss->mvert[0].no);
 
 	dt= MIN2(G.vd->drawtype, OBACT->dt);
 	if(dt==OB_WIRE)
 		glColorMask(0,0,0,0);
 
-	for(i=0; i<me->totface; ++i) {
-		MFace *f= &me->mface[i];
+	for(i=0; i<ss->totface; ++i) {
+		MFace *f= &ss->mface[i];
 		char inside= 0;
 		int new_matnr= f->mat_nr + 1;
 		
@@ -1546,7 +1594,7 @@ void sculptmode_draw_mesh(int only_damaged)
 	glColorMask(1,1,1,1);
 
 	if(dt==OB_WIRE || (OBACT->dtx & OB_DRAWWIRE))
-		sculptmode_draw_wires(ss, only_damaged, me);
+		sculptmode_draw_wires(ss, only_damaged);
 
 	glDisable(GL_DEPTH_TEST);
 }
@@ -1562,36 +1610,12 @@ void sculptmode_correct_state(void)
 	if(!sculpt_session()->vertex_users) calc_vertex_users();
 }
 
-/* Checks whether full update mode (slower) needs to be used to work with modifiers */
-char sculpt_modifiers_active(Object *ob)
-{
-	ModifierData *md;
-	
-	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
-		if(md->mode & eModifierMode_Realtime && md->type != eModifierType_Multires)
-			return 1;
-	}
-	
-	return 0;
-}
-
-struct MultiresModifierData *sculpt_multires_active(Object *ob)
-{
-	ModifierData *md;
-	
-	for(md= modifiers_getVirtualModifierList(OBACT); md; md= md->next) {
-		if(md->type == eModifierType_Multires)
-			return (MultiresModifierData*)md;
-	}
-
-	return NULL;
-}
-
 void sculpt(void)
 {
 	SculptData *sd= sculpt_data();
 	SculptSession *ss= sculpt_session();
 	Object *ob= OBACT;
+	Mesh *me;
 	MultiresModifierData *mmd = NULL;
 	/* lastSigMouse is for the rake, to store the last place the mouse movement was significant */
 	short mouse[2], mvalo[2], lastSigMouse[2],firsttime=1, mousebut;
@@ -1630,24 +1654,7 @@ void sculpt(void)
 	ss->vertexcosnos = NULL;
 
 	mmd = sculpt_multires_active(ob);
-	if(sculpt_multires_active(ob)) {
-		DerivedMesh *dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH);
-		ss->multires = 1;
-		ss->totvert = dm->getNumVerts(dm);
-		ss->totface = dm->getNumFaces(dm);
-		ss->mvert = dm->getVertDataArray(dm, CD_MVERT);
-		ss->mface = dm->getFaceDataArray(dm, CD_MFACE);
-		ss->face_normals = dm->getFaceDataArray(dm, CD_NORMAL);
-	}
-	else {
-		Mesh *me = get_mesh(ob);
-		ss->multires = 0;
-		ss->totvert = me->totvert;
-		ss->totface = me->totface;
-		ss->mvert = me->mvert;
-		ss->mface = me->mface;
-		ss->face_normals = NULL;
-	}
+	sculpt_update_mesh_elements(ss, ob);
 
 	/* Check that vertex users are up-to-date */
 	if(ob != active_ob || !ss->vertex_users || ss->vertex_users_size != ss->totvert) {
@@ -1703,7 +1710,9 @@ void sculpt(void)
 	
 	/* For raking, get the original angle*/
 	offsetRot=sculpt_tex_angle();
-	
+
+	me = get_mesh(OBACT);
+
 	while (get_mbut() & mousebut) {
 		getmouseco_areawin(mouse);
 		/* If rake, and the mouse has moved over 10 pixels (euclidean) (prevents jitter) then get the new angle */
@@ -1729,8 +1738,6 @@ void sculpt(void)
 
 			if(G.scene->sculptdata.brush_type != GRAB_BRUSH) {
 				if(anchored) {
-					Mesh *me = get_mesh(ob);
-					
  					/* Restore the mesh before continuing with anchored stroke */
  					if(a->mesh_store) {
  						for(i = 0; i < me->totvert; ++i) {
@@ -1824,10 +1831,19 @@ void sculpt(void)
 	MEM_freeN(a);
 	sculpt_stroke_free();
 
-	get_mesh(OBACT)->mr_undo = ss->mvert;
-	get_mesh(OBACT)->mr_undo_tot = ss->totvert;
+	if(mmd) {
+		me->mr_undo = ss->mvert;
+		me->mr_undo_tot = ss->totvert;
+	}
+	else {
+		me->mr_undo = NULL;
+		me->mr_undo_tot = 0;
+	}
 
 	sculpt_undo_push(G.scene->sculptdata.brush_type);
+
+	me->mr_undo = NULL;
+	me->mr_undo_tot = 0;
 
 	if(G.vd->depths) G.vd->depths->damaged= 1;
 	
