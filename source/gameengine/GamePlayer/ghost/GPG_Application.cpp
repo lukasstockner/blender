@@ -654,7 +654,7 @@ bool GPG_Application::startEngine(void)
 		PyDict_SetItemString(dictionaryobject, "GameLogic", initGameLogic(m_ketsjiengine, startscene)); // Same as importing the module
 		initGameKeys();
 		initPythonConstraintBinding();
-
+		initMathutils();
 
 
 

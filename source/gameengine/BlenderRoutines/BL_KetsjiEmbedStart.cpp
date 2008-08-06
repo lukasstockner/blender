@@ -340,7 +340,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 			PyDict_SetItemString(dictionaryobject, "GameLogic", gameLogic); // Same as importing the module.
 			initGameKeys();
 			initPythonConstraintBinding();
-
+			initMathutils();
 
 			if (sceneconverter)
 			{
@@ -607,6 +607,7 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 			PyDict_SetItemString(dictionaryobject, "GameLogic", gameLogic); // Same as importing the module
 			initGameKeys();
 			initPythonConstraintBinding();
+			initMathutils();
 
 			if (sceneconverter)
 			{
