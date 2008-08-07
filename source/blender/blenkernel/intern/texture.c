@@ -557,6 +557,8 @@ Tex *copy_texture(Tex *tex)
 	if(texn->type==TEX_IMAGE) id_us_plus((ID *)texn->ima);
 	else texn->ima= 0;
 	
+	id_us_plus((ID *)texn->ipo);
+	
 	if(texn->plugin) {
 		texn->plugin= MEM_dupallocN(texn->plugin);
 		open_plugin_tex(texn->plugin);
@@ -862,10 +864,8 @@ int BKE_texture_dependsOnTime(const struct Tex *texture)
 	if(texture->plugin) {
 		// assume all plugins depend on time
 		return 1;
-	} else if(texture->ima && 
-				(  texture->ima->source == IMA_SRC_SEQUENCE ||
-				   texture->ima->source == IMA_SRC_MOVIE ||
-				   texture->ima->source == IMA_SRC_GENERATED ) ) {
+	} else if(	texture->ima && 
+			ELEM(texture->ima->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
 		return 1;
 	} else if(texture->ipo) {
 		// assume any ipo means the texture is animated

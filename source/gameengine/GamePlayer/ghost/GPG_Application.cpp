@@ -57,6 +57,7 @@ extern "C"
 #include "BLO_readfile.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
+#include "DNA_scene_types.h"
 #ifdef __cplusplus
 }
 #endif // __cplusplus
@@ -675,6 +676,11 @@ bool GPG_Application::startEngine(void)
 		m_rasterizer->Init();
 		m_ketsjiengine->StartEngine(true);
 		m_engineRunning = true;
+		
+		// Set the animation playback rate for ipo's and actions
+		// the framerate below should patch with FPS macro defined in blendef.h
+		// Could be in StartEngine set the framerate, we need the scene to do this
+		m_ketsjiengine->SetAnimFrameRate( (((double) G.scene->r.frs_sec) / G.scene->r.frs_sec_base) );
 		
 	}
 	
