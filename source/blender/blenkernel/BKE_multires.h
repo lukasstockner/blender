@@ -90,7 +90,7 @@ struct Mesh *MultiresDM_get_mesh(struct DerivedMesh *dm);
 struct DerivedMesh *MultiresDM_new(struct MultiresSubsurf *, struct DerivedMesh*, int, int, int);
 void *MultiresDM_get_vertnorm(struct DerivedMesh *);
 void *MultiresDM_get_orco(struct DerivedMesh *);
-void *MultiresDM_get_subco(struct DerivedMesh *);
+struct MVert *MultiresDM_get_subco(struct DerivedMesh *);
 struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);

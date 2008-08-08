@@ -1157,7 +1157,7 @@ typedef struct MultiresDM {
 
 	int lvl, totlvl;
 	float (*orco)[3];
-	float (*subco)[3];
+	MVert *subco;
 
 	float (*norm)[3];
 
@@ -1260,7 +1260,7 @@ DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts
 
 	mrdm->lvl = ms->lvl;
 	mrdm->totlvl = ms->totlvl;
-	mrdm->subco = MEM_callocN(sizeof(float)*3*numVerts, "multires subdivided coords");
+	mrdm->subco = MEM_callocN(sizeof(MVert)*numVerts, "multires subdivided verts");
 	mrdm->block_update = 0;
 
 	dm->release = MultiresDM_release;
@@ -1289,7 +1289,7 @@ void *MultiresDM_get_orco(DerivedMesh *dm)
 
 }
 
-void *MultiresDM_get_subco(DerivedMesh *dm)
+MVert *MultiresDM_get_subco(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->subco;
 }

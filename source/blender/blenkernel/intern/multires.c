@@ -1417,14 +1417,12 @@ void multires_displace(MultiresDisplacer *d, float co[3])
 		VecCopyf(disp, data);
 
 	{
+		float norm[3];
 		float mat[3][3], inv[3][3];
-		float n1[3], n2[3], norm[3];
-		float l1 = d->y / (1.0 * d->sidetot);
-		float l2 = d->x / (1.0 * d->sidetot);
 
-		VecLerpf(n1, d->mat_norms[d->face->v1], d->mat_norms[d->face->v4], l1);
-		VecLerpf(n2, d->mat_norms[d->face->v2], d->mat_norms[d->face->v3], l1);
-		VecLerpf(norm, n1, n2, l2);
+		norm[0] = d->subco->no[0] / 32767.0f;
+		norm[1] = d->subco->no[1] / 32767.0f;
+		norm[2] = d->subco->no[2] / 32767.0f;
 
 		calc_ts_mat(mat, d->mat_center, d->mat_target, norm);
 		if(d->invert) {
@@ -1432,7 +1430,6 @@ void multires_displace(MultiresDisplacer *d, float co[3])
 			Mat3CpyMat3(mat, inv);
 		}
 			
-
 		Mat3MulVecfl(mat, disp);
 	}
 
@@ -1490,6 +1487,95 @@ int multiresModifier_reshape(MultiresModifierData *mmd, Object *dst, Object *src
 	return 1;
 }
 
+static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
+{
+	const int lvl = MultiresDM_get_lvl(dm);
+	const int gridFaces = multires_side_tot[lvl - 2] - 1;
+	const int edgeSize = multires_side_tot[lvl - 1] - 1;
+	MVert *mvert = CDDM_get_verts(dm);
+	MEdge *medge = MultiresDM_get_mesh(dm)->medge;
+	MFace *mface = MultiresDM_get_mesh(dm)->mface;
+	ListBase *map = MultiresDM_get_vert_face_map(dm);
+	MultiresDisplacer d;
+	int i, S, x, y;
+
+	if(subco)
+		d.subco = subco;
+
+	for(i = 0; i < MultiresDM_get_mesh(dm)->totface; ++i) {
+		const int numVerts = mface[i].v4 ? 4 : 3;
+			
+		multires_displacer_init(&d, dm, i, invert);
+		multires_displacer_anchor(&d, 1, 0);
+		multires_displace(&d, mvert->co);
+		++mvert;
+		++d.subco;
+
+		for(S = 0; S < numVerts; ++S) {
+			multires_displacer_anchor(&d, 2, S);
+			for(x = 1; x < gridFaces; ++x) {
+				multires_displace(&d, mvert->co);
+				++mvert;
+				++d.subco;
+			}
+		}
+
+		for(S = 0; S < numVerts; S++) {
+			multires_displacer_anchor(&d, 3, S);
+			for(y = 1; y < gridFaces; y++) {
+				for(x = 1; x < gridFaces; x++) {
+					multires_displace(&d, mvert->co);
+					++mvert;
+					++d.subco;
+				}
+				multires_displacer_jump(&d);
+			}
+		}
+	}
+
+	for(i = 0; i < MultiresDM_get_mesh(dm)->totedge; ++i) {
+		const MEdge *e = &medge[i];
+		for(x = 1; x < edgeSize; ++x) {
+			IndexNode *n1, *n2;
+			int numFaces = 0;
+			for(n1 = map[e->v1].first; n1; n1 = n1->next) {
+				for(n2 = map[e->v2].first; n2; n2 = n2->next) {
+					if(n1->index == n2->index)
+						++numFaces;
+				}
+			}
+			multires_displacer_weight(&d, 1.0f / numFaces);
+			/* TODO: Better to have these loops outside the x loop */
+			for(n1 = map[e->v1].first; n1; n1 = n1->next) {
+				for(n2 = map[e->v2].first; n2; n2 = n2->next) {
+					if(n1->index == n2->index) {
+						multires_displacer_init(&d, dm, n1->index, invert);
+						multires_displacer_anchor_edge(&d, e->v1, e->v2, x);
+						multires_displace(&d, mvert->co);
+					}
+				}
+			}
+			++mvert;
+			++d.subco;
+		}
+	}
+		
+	for(i = 0; i < MultiresDM_get_mesh(dm)->totvert; ++i) {
+		IndexNode *n;
+		multires_displacer_weight(&d, 1.0f / BLI_countlist(&map[i]));
+		for(n = map[i].first; n; n = n->next) {
+			multires_displacer_init(&d, dm, n->index, invert);
+			multires_displacer_anchor_vert(&d, i);
+			multires_displace(&d, mvert->co);
+		}
+		++mvert;
+		++d.subco;
+	}
+
+	if(!invert)
+		CDDM_calc_normals(dm);
+}
+
 static void multiresModifier_update(DerivedMesh *dm)
 {
 	MDisps *mdisps;
@@ -1503,16 +1589,11 @@ static void multiresModifier_update(DerivedMesh *dm)
 	mdisps = dm->getFaceDataArray(dm, CD_MDISPS);
 
 	if(mdisps) {
-		MultiresDisplacer d;
 		SubsurfModifierData smd;
 		const int lvl = MultiresDM_get_lvl(dm);
 		const int totlvl = MultiresDM_get_totlvl(dm);
-		const int gridFaces = multires_side_tot[lvl - 2] - 1;
-		const int edgeSize = multires_side_tot[lvl - 1] - 1;
-		ListBase *map = MultiresDM_get_vert_face_map(dm);
 		Mesh *me = MultiresDM_get_mesh(dm);
 		DerivedMesh *orig, *subco_dm;
-		int S, x, y;
 		
 		mvert = CDDM_get_verts(dm);
 		medge = MultiresDM_get_mesh(dm)->medge;
@@ -1533,7 +1614,6 @@ static void multiresModifier_update(DerivedMesh *dm)
 			subco_dm = multires_dm_create_from_derived(&mmd, orig, me, 0, 0);
 			MultiresDM_block_update(subco_dm);
 			cur_lvl_orig_verts = CDDM_get_verts(subco_dm);
-			d.subco = cur_lvl_orig_verts;
 
 			/* Subtract the original vertex cos from the new vertex cos */
 			verts_new = CDDM_get_verts(dm);
@@ -1550,70 +1630,8 @@ static void multiresModifier_update(DerivedMesh *dm)
 			memset(&smd, 0, sizeof(SubsurfModifierData));
 			smd.levels = lvl - 1;
 			subco_dm = subsurf_make_derived_from_derived_with_multires(orig, &smd, NULL, 0, NULL, 0, 0);
-			d.subco = CDDM_get_verts(subco_dm);
 
-			/* Update the current level */
-			for(i = 0; i < MultiresDM_get_mesh(dm)->totface; ++i) {
-				const int numVerts = mface[i].v4 ? 4 : 3;
-			
-				// convert from mvert->co to disps
-				multires_displacer_init(&d, dm, i, 1);
-				multires_displacer_anchor(&d, 1, 0);
-				multires_displace(&d, mvert->co);
-				++mvert;
-				++d.subco;
-
-				for(S = 0; S < numVerts; ++S) {
-					multires_displacer_anchor(&d, 2, S);
-					for(x = 1; x < gridFaces; ++x) {
-						multires_displace(&d, mvert->co);
-						++mvert;
-						++d.subco;
-					}
-				}
-
-				for(S = 0; S < numVerts; S++) {
-					multires_displacer_anchor(&d, 3, S);
-					for(y = 1; y < gridFaces; y++) {
-						for(x = 1; x < gridFaces; x++) {
-							multires_displace(&d, mvert->co);
-							++mvert;
-							++d.subco;
-						}
-						multires_displacer_jump(&d);
-					}
-				}
-			}
-
-			for(i = 0; i < MultiresDM_get_mesh(dm)->totedge; ++i) {
-				const MEdge *e = &medge[i];
-				for(x = 1; x < edgeSize; ++x) {
-					IndexNode *n1, *n2;
-					/* TODO: Better to have these loops outside the x loop */
-					for(n1 = map[e->v1].first; n1; n1 = n1->next) {
-						for(n2 = map[e->v2].first; n2; n2 = n2->next) {
-							if(n1->index == n2->index) {
-								multires_displacer_init(&d, dm, n1->index, 1);
-								multires_displacer_anchor_edge(&d, e->v1, e->v2, x);
-								multires_displace(&d, mvert->co);
-							}
-						}
-					}
-					++mvert;
-					++d.subco;
-				}
-			}
-		
-			for(i = 0; i < MultiresDM_get_mesh(dm)->totvert; ++i) {
-				IndexNode *n;
-				for(n = map[i].first; n; n = n->next) {
-					multires_displacer_init(&d, dm, n->index, 1);
-					multires_displacer_anchor_vert(&d, i);
-					multires_displace(&d, mvert->co);
-				}
-				++mvert;
-				++d.subco;
-			}
+			multiresModifier_disp_run(dm, CDDM_get_verts(subco_dm), 1);
 		}
 		
 		orig->release(orig);
@@ -1641,6 +1659,12 @@ struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, D
 	smd.levels = smd.renderLevels = mmd->lvl - 1;
 
 	result = subsurf_make_derived_from_derived_with_multires(dm, &smd, &ms, useRenderParams, NULL, isFinalCalc, 0);
+	/* TODO */
+	int i;
+	for(i = 0; i < result->getNumVerts(result); ++i) {
+		MultiresDM_get_subco(result)[i] = CDDM_get_verts(result)[i];
+	}
+	multiresModifier_disp_run(result, MultiresDM_get_subco(result), 0);
 	MultiresDM_set_update(result, multiresModifier_update);
 
 	return result;
