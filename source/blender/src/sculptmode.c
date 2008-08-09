@@ -1482,12 +1482,14 @@ char sculpt_modifiers_active(Object *ob)
 	return 0;
 }
 
+/* Sculpt mode handles multires differently from regular meshes, but only if
+   it's the last modifier on the stack and it is not on the first level */
 struct MultiresModifierData *sculpt_multires_active(Object *ob)
 {
 	ModifierData *md;
 	
 	for(md= modifiers_getVirtualModifierList(OBACT); md; md= md->next) {
-		if(md->type == eModifierType_Multires) {
+		if(md->type == eModifierType_Multires && !md->next) {
 			MultiresModifierData *mmd = (MultiresModifierData*)md;
 			if(mmd->lvl != 1)
 				return mmd;
