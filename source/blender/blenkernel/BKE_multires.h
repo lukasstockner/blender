@@ -95,7 +95,10 @@ struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
-void MultiresDM_block_update(struct DerivedMesh *);
+int *MultiresDM_get_flags(struct DerivedMesh *);
+
+#define MULTIRES_DM_UPDATE_BLOCK 1
+#define MULTIRES_DM_UPDATE_ALWAYS 2
 
 /* Modifier */
 struct MDisps;

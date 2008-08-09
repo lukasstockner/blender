@@ -1165,7 +1165,7 @@ typedef struct MultiresDM {
 	IndexNode *vert_face_map_mem;
 
 	Mesh *me;
-	int block_update;
+	int flags;
 
 	void (*update)(DerivedMesh*);
 } MultiresDM;
@@ -1175,7 +1175,7 @@ static void MultiresDM_release(DerivedMesh *dm)
 	MultiresDM *mrdm = (MultiresDM*)dm;
 
 	/* Before freeing, need to update the displacement map */
-	if(dm->needsFree && !mrdm->block_update)
+	if(dm->needsFree && !(mrdm->flags & MULTIRES_DM_UPDATE_BLOCK))
 		mrdm->update(dm);
 
 	if(DM_release(dm)) {
@@ -1261,7 +1261,7 @@ DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts
 	mrdm->lvl = ms->lvl;
 	mrdm->totlvl = ms->totlvl;
 	mrdm->subco = MEM_callocN(sizeof(MVert)*numVerts, "multires subdivided verts");
-	mrdm->block_update = 0;
+	mrdm->flags = 0;
 
 	dm->release = MultiresDM_release;
 
@@ -1325,7 +1325,7 @@ ListBase *MultiresDM_get_vert_face_map(DerivedMesh *dm)
 	return mrdm->vert_face_map;
 }
 
-void MultiresDM_block_update(DerivedMesh *dm)
+int *MultiresDM_get_flags(DerivedMesh *dm)
 {
-	((MultiresDM*)dm)->block_update = 1;
+	return &((MultiresDM*)dm)->flags;
 }

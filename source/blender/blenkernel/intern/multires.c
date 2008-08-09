@@ -1176,6 +1176,7 @@ static void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, in
 	final->needsFree = 1;
 	final->release(final);
 	mrdm->needsFree = 1;
+	*MultiresDM_get_flags(mrdm) |= MULTIRES_DM_UPDATE_ALWAYS;
 	mrdm->release(mrdm);
 }
 
@@ -1584,7 +1585,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 	MFace *mface;
 	int i;
 
-	//if(!(G.f & G_SCULPTMODE)) return;
+	if(!(G.f & G_SCULPTMODE) && !(*MultiresDM_get_flags(dm) & MULTIRES_DM_UPDATE_ALWAYS)) return;
 
 	mdisps = dm->getFaceDataArray(dm, CD_MDISPS);
 
@@ -1612,7 +1613,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			mmd.totlvl = totlvl;
 			mmd.lvl = lvl;
 			subco_dm = multires_dm_create_from_derived(&mmd, orig, me, 0, 0);
-			MultiresDM_block_update(subco_dm);
+			*MultiresDM_get_flags(subco_dm) |= MULTIRES_DM_UPDATE_BLOCK;
 			cur_lvl_orig_verts = CDDM_get_verts(subco_dm);
 
 			/* Subtract the original vertex cos from the new vertex cos */
@@ -1654,16 +1655,14 @@ struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, D
 	SubsurfModifierData smd;
 	MultiresSubsurf ms = {me, mmd->totlvl, mmd->lvl};
 	DerivedMesh *result;
+	int i;
 
 	memset(&smd, 0, sizeof(SubsurfModifierData));
 	smd.levels = smd.renderLevels = mmd->lvl - 1;
 
 	result = subsurf_make_derived_from_derived_with_multires(dm, &smd, &ms, useRenderParams, NULL, isFinalCalc, 0);
-	/* TODO */
-	int i;
-	for(i = 0; i < result->getNumVerts(result); ++i) {
+	for(i = 0; i < result->getNumVerts(result); ++i)
 		MultiresDM_get_subco(result)[i] = CDDM_get_verts(result)[i];
-	}
 	multiresModifier_disp_run(result, MultiresDM_get_subco(result), 0);
 	MultiresDM_set_update(result, multiresModifier_update);
 
