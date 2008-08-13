@@ -1040,13 +1040,13 @@ void multires_load_old(DerivedMesh *dm, Multires *mr)
 
 		}
 
-		/* calculate vert to edge/face maps for each level */
-		fmap = MEM_callocN(sizeof(ListBase*) * mr->level_count, "multires fmap");
-		emap = MEM_callocN(sizeof(ListBase*) * mr->level_count, "multires emap");
-		fmem = MEM_callocN(sizeof(IndexNode*) * mr->level_count, "multires fmem");
-		emem = MEM_callocN(sizeof(IndexNode*) * mr->level_count, "multires emem");
+		/* calculate vert to edge/face maps for each level (except the last) */
+		fmap = MEM_callocN(sizeof(ListBase*) * (mr->level_count-1), "multires fmap");
+		emap = MEM_callocN(sizeof(ListBase*) * (mr->level_count-1), "multires emap");
+		fmem = MEM_callocN(sizeof(IndexNode*) * (mr->level_count-1), "multires fmem");
+		emem = MEM_callocN(sizeof(IndexNode*) * (mr->level_count-1), "multires emem");
 		lvl = lvl1;
-		for(i = 0; i < mr->level_count; ++i) {
+		for(i = 0; i < mr->level_count - 1; ++i) {
 			create_old_vert_face_map(fmap + i, fmem + i, lvl->faces, lvl->totvert, lvl->totface);
 			create_old_vert_edge_map(emap + i, emem + i, lvl->edges, lvl->totvert, lvl->totedge);
 			lvl = lvl->next;
@@ -1054,41 +1054,36 @@ void multires_load_old(DerivedMesh *dm, Multires *mr)
 
 		/* Interior face verts */
 		lvl = lvl1->next->next;
-		for(i = 3; i <= 3/*(mr->level_count*/; ++i) {
-			tottri = totquad = 0;
-			dst = 0;
-			for(j = 0; j < lvl1->totface; ++j) {
-				int sides = lvl1->faces[j].v[3] ? 4 : 3;
-				int ldst = dst + 1 + sides * (st - 1);
+		dst = 0;
+		for(j = 0; j < lvl1->totface; ++j) {
+			int sides = lvl1->faces[j].v[3] ? 4 : 3;
+			int ldst = dst + 1 + sides * (st - 1);
 
-				for(s = 0; s < sides; ++s) {
-					int st2 = multires_side_tot[totlvl - 2] - 2;
-					int st3 = multires_side_tot[totlvl - 3] - 2;
-					int st4 = st3 == 0 ? 1 : (st3 + 1) / 2;
-					int mid = ldst + st2 * st3 + st3;
-					int cv = lvl1->faces[j].v[s];
-					int nv = lvl1->faces[j].v[s == sides - 1 ? 0 : s + 1];
-					int pv = lvl1->faces[j].v[s == 0 ? sides - 1 : s - 1];
+			for(s = 0; s < sides; ++s) {
+				int st2 = multires_side_tot[totlvl - 2] - 2;
+				int st3 = multires_side_tot[totlvl - 3] - 2;
+				int st4 = st3 == 0 ? 1 : (st3 + 1) / 2;
+				int mid = ldst + st2 * st3 + st3;
+				int cv = lvl1->faces[j].v[s];
+				int nv = lvl1->faces[j].v[s == sides - 1 ? 0 : s + 1];
+				int pv = lvl1->faces[j].v[s == 0 ? sides - 1 : s - 1];
 
-					multires_load_old_faces(fmap, emap, lvl1->next, vvmap, mid,
-								vvmap[dst], cv,
-								find_old_edge(emap[0], lvl1->edges, pv, cv)->mid,
-								find_old_edge(emap[0], lvl1->edges, cv, nv)->mid,
-								st2, st4);
+				multires_load_old_faces(fmap, emap, lvl1->next, vvmap, mid,
+							vvmap[dst], cv,
+							find_old_edge(emap[0], lvl1->edges, pv, cv)->mid,
+							find_old_edge(emap[0], lvl1->edges, cv, nv)->mid,
+							st2, st4);
 
-					ldst += (st - 1) * (st - 1);
-				}
-
-
-				dst = ldst;
-				if(sides == 4) ++totquad;
-				else ++tottri;
+				ldst += (st - 1) * (st - 1);
 			}
 
-			lvl = lvl->next;
+
+			dst = ldst;
 		}
 
-		for(i = 0; i < mr->level_count; ++i) {
+		lvl = lvl->next;
+
+		for(i = 0; i < mr->level_count - 1; ++i) {
 			MEM_freeN(fmap[i]);
 			MEM_freeN(fmem[i]);
 			MEM_freeN(emap[i]);
