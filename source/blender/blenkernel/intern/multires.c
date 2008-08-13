@@ -1181,7 +1181,7 @@ void multiresModifier_join(Object *ob)
 
 				/* TODO: subdivision should be doable in one step rather than iteratively. */
 				for(i = mmd->totlvl; i < highest_lvl; ++i)
-					multiresModifier_subdivide(mmd, base->object);
+					multiresModifier_subdivide(mmd, base->object, 0);
 			}
 		}
 		base = base->next;
@@ -1466,13 +1466,13 @@ static void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, in
 	mrdm->release(mrdm);
 }
 
-void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
+void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updateblock)
 {
 	DerivedMesh *final = NULL;
 	int totsubvert, totsubface, totsubedge;
 	Mesh *me = get_mesh(ob);
 	MDisps *mdisps;
-	int i, slo, shi;
+	int i;
 
 	if(mmd->totlvl == multires_max_levels) {
 		// TODO
@@ -1484,15 +1484,11 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 	++mmd->lvl;
 	++mmd->totlvl;
 
-	slo = multires_side_tot[mmd->totlvl - 2];
-	shi = multires_side_tot[mmd->totlvl - 1];
-
 	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(!mdisps)
 		mdisps = CustomData_add_layer(&me->fdata, CD_MDISPS, CD_DEFAULT, NULL, me->totface);
 
-
-	if(mdisps->disps) {
+	if(mdisps->disps && !updateblock) {
 		DerivedMesh *orig, *mrdm;
 		MultiresModifierData mmd_sub;
 
@@ -1523,7 +1519,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob)
 	}
 
 
-	if(final) {
+	if(final && !updateblock) {
 		DerivedMesh *orig;
 
 		orig = CDDM_from_mesh(me, NULL);

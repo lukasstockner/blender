@@ -1666,7 +1666,7 @@ static void multiresModifier_subdivide_button(void *mmd_v, void *ob_v)
 	MultiresModifierData *mmd = mmd_v;
 
 	if(mmd && ob_v) {
-		multiresModifier_subdivide(mmd, ob_v);
+		multiresModifier_subdivide(mmd, ob_v, 0);
 		BIF_undo_push("Multires subdivide");
 	}
 }

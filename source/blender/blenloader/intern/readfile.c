@@ -7793,7 +7793,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					BLI_insertlinkbefore(&ob->modifiers, md, mmd);
 
 					for(i = 1; i < me->mr->level_count; ++i)
-						multiresModifier_subdivide(mmd, ob);
+						multiresModifier_subdivide(mmd, ob, 1);
 
 					mmd->lvl = mmd->totlvl;
 					orig = CDDM_from_mesh(me, NULL);
