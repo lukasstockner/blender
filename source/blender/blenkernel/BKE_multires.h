@@ -126,6 +126,8 @@ typedef struct MultiresDisplacer {
 	int x, y, ax, ay;
 } MultiresDisplacer;
 
+
+void multires_load_old(struct DerivedMesh *, struct Multires *);
 void multires_force_update(struct Object *ob);
 
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*,
