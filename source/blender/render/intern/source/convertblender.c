@@ -100,7 +100,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "envmap.h"
-#include "multires.h"
 #include "occlusion.h"
 #include "render_types.h"
 #include "rendercore.h"

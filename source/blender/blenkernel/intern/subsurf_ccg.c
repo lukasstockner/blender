@@ -64,8 +64,6 @@
 
 #include "CCGSubSurf.h"
 
-#include "multires.h"
-
 typedef struct _VertData {
 	float co[3];
 	float no[3];

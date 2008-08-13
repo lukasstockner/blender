@@ -30,30 +30,8 @@
 #ifndef MULTIRES_H
 #define MULTIRES_H
 
-struct CustomData;
-struct EditMesh;
-struct Object;
-struct MDeformVert;
-struct Mesh;
-struct MultiresLevel;
-struct Multires;
-struct uiBlock;
-
 /* For canceling operations that don't work with multires on or on a non-base level */
 int multires_test();
 int multires_level1_test();
-
-void multires_draw_interface(struct uiBlock *block, unsigned short cx, unsigned short cy);
-
-void multires_make(void *ob, void *me);
-void multires_delete(void *ob, void *me);
-void multires_level_to_editmesh(struct Object *ob, struct Mesh *me, const int render);
-void multires_finish_mesh_update(struct Object *ob);
-void multires_subdivide(void *ob, void *me);
-void multires_del_lower(void *ob, void *me);
-void multires_del_higher(void *ob, void *me);
-void multires_set_level_cb(void *ob, void *me);
-void multires_edge_level_update_cb(void *ob, void *me);
-int multires_modifier_warning();
 
 #endif

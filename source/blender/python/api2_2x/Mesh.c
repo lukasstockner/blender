@@ -87,7 +87,6 @@
 #include "constant.h"
 #include "gen_utils.h"
 #include "gen_library.h"
-#include "multires.h"
 
 /* EXPP Mesh defines */
 
@@ -7157,19 +7156,20 @@ static int Mesh_setMultires( BPy_Mesh * self, PyObject *value, void *type )
 					"value out of range" );
 	
 	switch (GET_INT_FROM_POINTER(type)) {
+#warning "Python needs to be updated to work with the new multires."
 	case MESH_MULTIRES_LEVEL:
-		self->mesh->mr->newlvl = i;
-		multires_set_level_cb(self->object, self->mesh);
+		/*self->mesh->mr->newlvl = i;
+		  multires_set_level_cb(self->object, self->mesh);*/
 		break;
 	case MESH_MULTIRES_EDGE:
-		self->mesh->mr->edgelvl = i;
-		multires_edge_level_update(self->object, self->mesh);
+		/*self->mesh->mr->edgelvl = i;
+		multires_edge_level_update(self->object, self->mesh);*/
 		break;
 	case MESH_MULTIRES_PIN:
-		self->mesh->mr->pinlvl = i;
+		/*self->mesh->mr->pinlvl = i;*/
 		break;
 	case MESH_MULTIRES_RENDER:
-		self->mesh->mr->renderlvl = i;
+		/*self->mesh->mr->renderlvl = i;*/
 		break;
 	}
 	
@@ -8061,14 +8061,14 @@ static int Mesh_setFlag( BPy_Mesh * self, PyObject *value, void *type )
 		
 		if( !param ) {
 			if ( mesh->mr ) {
-				multires_delete(self->object, mesh);
+				/*multires_delete(self->object, mesh);*/
 			}
 		} else {
 			if ( !mesh->mr ) {
 				if (mesh->key)
 					return EXPP_ReturnIntError( PyExc_RuntimeError,
 						"Cannot enable multires for a mesh with shape keys" ); 
-				multires_make(self->object, mesh);
+				/*multires_make(self->object, mesh);*/
 			}
 		}
 		return 0;

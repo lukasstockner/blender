@@ -736,14 +736,7 @@ static void delete_customdata_layer(void *data1, void *data2)
 	rndlayerdata = data->layers[CustomData_get_render_layer_index(data, type)].data;
 	CustomData_set_layer_active(data, type, layer - &data->layers[index]);
 
-	/* Multires is handled seperately because the display data is separate
-	   from the data stored in multires */
-	if(me && me->mr) {
-		multires_delete_layer(me, &me->mr->fdata, type, layer - &data->layers[index]);
-		multires_level_to_editmesh(OBACT, me, 0);
-		multires_finish_mesh_update(OBACT);
-	}
-	else if(G.obedit) {
+	if(G.obedit) {
 		EM_free_data_layer(data, type);
 	}
 	else if(me) {
@@ -4789,13 +4782,7 @@ void do_meshbuts(unsigned short event)
 			break;
 
 		case B_NEWTFACE:
-			if(me && me->mr) {
-				layernum= CustomData_number_of_layers(&me->fdata, CD_MTFACE);
-				multires_add_layer(me, &me->mr->fdata, CD_MTFACE, layernum);
-				multires_level_to_editmesh(ob, me, 0);
-				multires_finish_mesh_update(ob);
-			}
-			else if(G.obedit) {
+			if(G.obedit) {
 				layernum= CustomData_number_of_layers(&em->fdata, CD_MTFACE);
 				EM_add_data_layer(&em->fdata, CD_MTFACE);
 				CustomData_set_layer_active(&em->fdata, CD_MTFACE, layernum);
@@ -4826,10 +4813,6 @@ void do_meshbuts(unsigned short event)
 				CustomData_set_layer_active(fdata, CD_MTFACE, acttface-1);
 				mesh_update_customdata_pointers(me);
 				
-				/* Update first-level face data in multires */
-				if(me && me->mr && me->mr->current != 1)
-					CustomData_set_layer_active(&me->mr->fdata, CD_MTFACE, acttface-1);
-
 				DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 				BIF_undo_push("Set Active UV Texture");
 				allqueue(REDRAWVIEW3D, 0);
