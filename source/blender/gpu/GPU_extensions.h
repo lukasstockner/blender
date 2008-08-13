@@ -120,9 +120,10 @@ void GPU_shader_free(GPUShader *shader);
 void GPU_shader_bind(GPUShader *shader);
 void GPU_shader_unbind();
 
-void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length,
+int GPU_shader_get_uniform(GPUShader *shader, char *name);
+void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
 	int arraysize, float *value);
-void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex);
+void GPU_shader_uniform_texture(GPUShader *shader, int location, GPUTexture *tex);
 
 int GPU_shader_get_attribute(GPUShader *shader, char *name);
 

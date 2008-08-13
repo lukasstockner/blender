@@ -144,6 +144,7 @@ typedef struct GPUInput {
 	struct ImageUser *iuser;/* image user */
 	float *dynamicvec;		/* vector data in case it is dynamic */
 	GPUTexture *tex;		/* input texture, only set at runtime */
+	int shaderloc;			/* id from opengl */
 	char shadername[32];	/* name in shader */
 
 	float vec[16];			/* vector data */
@@ -683,7 +684,7 @@ static void codegen_call_functions(DynStr *ds, ListBase *nodes, GPUOutput *final
 	BLI_dynstr_append(ds, ";\n");
 }
 
-static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
+static char *code_generate_fragment(ListBase *nodes, GPUOutput *output, const char *name)
 {
 	DynStr *ds = BLI_dynstr_new();
 	char *code;
@@ -692,6 +693,9 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 
 	codegen_set_unique_ids(nodes);
 	codegen_print_uniforms_functions(ds, nodes);
+
+	//if(G.f & G_DEBUG)
+	//	BLI_dynstr_printf(ds, "/* %s */\n", name);
 
 	BLI_dynstr_append(ds, "void main(void)\n");
 	BLI_dynstr_append(ds, "{\n");
@@ -705,7 +709,7 @@ static char *code_generate_fragment(ListBase *nodes, GPUOutput *output)
 	code = BLI_dynstr_get_cstring(ds);
 	BLI_dynstr_free(ds);
 
-	if(G.f & G_DEBUG) printf("%s\n", code);
+	//if(G.f & G_DEBUG) printf("%s\n", code);
 
 	return code;
 }
@@ -766,7 +770,7 @@ void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 	GPUNode *node;
 	GPUInput *next, *input;
 	ListBase *inputs = &pass->inputs;
-	int extract;
+	int extract, z;
 
 	memset(inputs, 0, sizeof(*inputs));
 
@@ -776,7 +780,8 @@ void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 	GPU_shader_bind(shader);
 
 	for (node=nodes->first; node; node=node->next) {
-		for (input=node->inputs.first; input; input=next) {
+		z = 0;
+		for (input=node->inputs.first; input; input=next, z++) {
 			next = input->next;
 
 			/* attributes don't need to be bound, they already have
@@ -799,6 +804,9 @@ void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 			}
 			else if(input->dynamicvec)
 				extract = 1;
+
+			if(extract)
+				input->shaderloc = GPU_shader_get_uniform(shader, input->shadername);
 
 			/* extract nodes */
 			if(extract) {
@@ -830,7 +838,7 @@ void GPU_pass_bind(GPUPass *pass)
 		if(input->ima || input->tex) {
 			if(input->tex) {
 				GPU_texture_bind(input->tex, input->texid);
-				GPU_shader_uniform_texture(shader, input->shadername, input->tex);
+				GPU_shader_uniform_texture(shader, input->shaderloc, input->tex);
 			}
 		}
 	}
@@ -848,7 +856,7 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 	/* pass dynamic inputs to opengl, others were removed */
 	for (input=inputs->first; input; input=input->next)
 		if(!(input->ima || input->tex))
-			GPU_shader_uniform_vector(shader, input->shadername, input->type, 1,
+			GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
 				input->dynamicvec);
 }
 
@@ -926,6 +934,8 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 		if(strcmp(name, "set_value")==0 || strcmp(name, "set_rgb")==0) {
 			input = MEM_dupallocN(outnode->inputs.first);
 			input->type = type;
+			if(input->link)
+				input->link->users++;
 			BLI_addtail(&node->inputs, input);
 			return;
 		}
@@ -1049,9 +1059,8 @@ void GPU_inputs_free(ListBase *inputs)
 	GPUInput *input;
 
 	for(input=inputs->first; input; input=input->next) {
-		if(input->link) {
+		if(input->link)
 			GPU_node_link_free(input->link);
-		}
 		else if(input->tex && !input->dynamictex)
 			GPU_texture_free(input->tex);
 	}
@@ -1379,7 +1388,7 @@ void gpu_nodes_prune(ListBase *nodes, GPUNodeLink *outlink)
 	}
 }
 
-GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttribs *attribs, int *builtins)
+GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttribs *attribs, int *builtins, const char *name)
 {
 	GPUShader *shader;
 	GPUPass *pass;
@@ -1397,7 +1406,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink, GPUVertexAttri
 	gpu_nodes_get_builtin_flag(nodes, builtins);
 
 	/* generate code and compile with opengl */
-	fragmentcode = code_generate_fragment(nodes, outlink->output);
+	fragmentcode = code_generate_fragment(nodes, outlink->output, name);
 	vertexcode = code_generate_vertex(nodes);
 	shader = GPU_shader_create(vertexcode, fragmentcode, FUNCTION_LIB);
 	MEM_freeN(fragmentcode);

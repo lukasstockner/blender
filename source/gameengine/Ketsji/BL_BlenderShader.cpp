@@ -145,32 +145,27 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 			else
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, attribs.layer[i].glindex);
 		}
-
-		ras->EnableTextures(true);
 	}
-	else
-		ras->EnableTextures(false);
 }
 
-void BL_BlenderShader::Update( const KX_MeshSlot & ms, RAS_IRasterizer* rasty )
+void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty )
 {
 	float obmat[4][4], viewmat[4][4], viewinvmat[4][4], obcol[4];
 
 	VerifyShader();
 
-	if(!mGPUMat) // || !mBound)
+	if(!mGPUMat || !mBound)
 		return;
 
 	MT_Matrix4x4 model;
 	model.setValue(ms.m_OpenGLMatrix);
-	MT_Matrix4x4 view;
-	rasty->GetViewMatrix(view);
+	const MT_Matrix4x4& view = rasty->GetViewMatrix();
+	const MT_Matrix4x4& viewinv = rasty->GetViewInvMatrix();
 
+	// note: getValue gives back column major as needed by OpenGL
 	model.getValue((float*)obmat);
 	view.getValue((float*)viewmat);
-
-	view.invert();
-	view.getValue((float*)viewinvmat);
+	viewinv.getValue((float*)viewinvmat);
 
 	if(ms.m_bObjectColor)
 		ms.m_RGBAcolor.getValue((float*)obcol);

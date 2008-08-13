@@ -46,7 +46,7 @@ public:
 
 	int GetAttribNum();
 	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);
-	void Update(const class KX_MeshSlot & ms, class RAS_IRasterizer* rasty);
+	void Update(const class RAS_MeshSlot & ms, class RAS_IRasterizer* rasty);
 	int GetBlendMode();
 
 	bool Equals(BL_BlenderShader *blshader);

@@ -484,7 +484,7 @@ KX_GameObject* KX_Scene::AddNodeReplicaObject(class SG_IObject* node, class CVal
 
 	// this is the list of object that are send to the graphics pipeline
 	m_objectlist->Add(newobj->AddRef());
-	newobj->Bucketize();
+	newobj->AddMeshUser();
 
 	// logic cannot be replicated, until the whole hierarchy is replicated.
 	m_logicHierarchicalGameObjects.push_back(newobj);
@@ -1028,7 +1028,7 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj)
 			newobj->m_pDeformer = NULL;
 		}
 
-		if (mesh->m_class == 1) 
+		if (mesh->IsDeformed())
 		{
 			// we must create a new deformer but which one?
 			KX_GameObject* parentobj = newobj->GetParent();
@@ -1102,7 +1102,8 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj)
 				parentobj->Release();
 		}
 	}
-	gameobj->Bucketize();
+
+	gameobj->AddMeshUser();
 }
 
 
@@ -1254,7 +1255,9 @@ void KX_Scene::MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool vi
 				for (int m=0;m<nummeshes;m++)
 					(gameobj->GetMesh(m))->SchedulePolygons(rasty->GetDrawingMode());
 			}
-			gameobj->MarkVisible(visible);
+
+			gameobj->SetCulled(!visible);
+			gameobj->UpdateBuckets();
 		}
 	}
 	if (node->Left())
@@ -1271,7 +1274,8 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 	
 	// Shadow lamp layers
 	if(layer && !(gameobj->GetLayer() & layer)) {
-		gameobj->MarkVisible(false);
+		gameobj->SetCulled(true);
+		gameobj->UpdateBuckets();
 		return;
 	}
 
@@ -1317,9 +1321,11 @@ void KX_Scene::MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj,KX_Cam
 		}
 		// Visibility/ non-visibility are marked
 		// elsewhere now.
-		gameobj->MarkVisible();
+		gameobj->SetCulled(false);
+		gameobj->UpdateBuckets();
 	} else {
-		gameobj->MarkVisible(false);
+		gameobj->SetCulled(true);
+		gameobj->UpdateBuckets();
 	}
 }
 

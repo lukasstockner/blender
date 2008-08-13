@@ -818,7 +818,7 @@ void	KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
 			if (gameObj->IsDynamic())
 			{
-				KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
+				//KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
 				
 				Object* blenderObject = FindBlenderObject(gameObj);
 				if (blenderObject)
@@ -846,7 +846,7 @@ void	KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 
 
 
-					const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
+					//const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
 					const MT_Point3& position = gameObj->NodeGetWorldPosition();
 					
 					Ipo* ipo = blenderObject->ipo;
@@ -974,7 +974,7 @@ void	KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
 			if (gameObj->IsDynamic())
 			{
-				KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
+				//KX_IPhysicsController* physCtrl = gameObj->GetPhysicsController();
 				
 				Object* blenderObject = FindBlenderObject(gameObj);
 				if (blenderObject)
@@ -1002,8 +1002,8 @@ void	KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 
 
 
-					const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
-					const MT_Point3& position = gameObj->NodeGetWorldPosition();
+					//const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
+					//const MT_Point3& position = gameObj->NodeGetWorldPosition();
 					
 					Ipo* ipo = blenderObject->ipo;
 					if (ipo)

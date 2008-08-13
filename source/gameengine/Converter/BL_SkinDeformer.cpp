@@ -101,7 +101,10 @@ BL_SkinDeformer::~BL_SkinDeformer()
 
 bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 {
-	size_t i, j;
+	RAS_MeshSlot::iterator it;
+	RAS_MeshMaterial *mmat;
+	RAS_MeshSlot *slot;
+	size_t i;
 
 	// update the vertex in m_transverts
 	Update();
@@ -110,16 +113,18 @@ bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 	// Duplicated objects with more than one ploymaterial (=multiple mesh slot per object)
 	// share the same mesh (=the same cache). As the rendering is done per polymaterial
 	// cycling through the objects, the entire mesh cache cannot be updated in one shot.
-	vecVertexArray& vertexarrays = m_pMeshObject->GetVertexCache(mat);
+	mmat = m_pMeshObject->GetMeshMaterial(mat);
+	if(!mmat->m_slots[(void*)m_gameobj])
+		return true;
 
-	// For each array
-	for (i=0; i<vertexarrays.size(); i++) {
-		KX_VertexArray& vertexarray = (*vertexarrays[i]);
+	slot = *mmat->m_slots[(void*)m_gameobj];
 
-		// For each vertex
+	// for each array
+	for(slot->begin(it); !slot->end(it); slot->next(it)) {
+		// for each vertex
 		// copy the untransformed data from the original mvert
-		for (j=0; j<vertexarray.size(); j++) {
-			RAS_TexVert& v = vertexarray[j];
+		for(i=it.startvertex; i<it.endvertex; i++) {
+			RAS_TexVert& v = it.vertex[i];
 			v.SetXYZ(m_transverts[v.getOrigIndex()]);
 		}
 	}
@@ -151,10 +156,8 @@ bool BL_SkinDeformer::Update(void)
 		/* XXX note: where_is_pose() (from BKE_armature.h) calculates all matrices needed to start deforming */
 		/* but it requires the blender object pointer... */
 		Object* par_arma = m_armobj->GetArmatureObject();
-		if (!PoseApplied()){
-			m_armobj->ApplyPose();
-			where_is_pose( par_arma ); 
-		}
+
+		m_armobj->ApplyPose();
 
 		/* store verts locally */
 		VerifyStorage();
@@ -179,8 +182,7 @@ bool BL_SkinDeformer::Update(void)
 
 		/* Update the current frame */
 		m_lastArmaUpdate=m_armobj->GetLastFrame();
-		/* reset for next frame */
-		PoseApplied(false);
+
 		/* indicate that the m_transverts and normals are up to date */
 		return true;
 	}

@@ -44,12 +44,9 @@ class RAS_IRenderTools
 {
 
 protected:
-	float	m_viewmat[16];
 	void*	m_clientobject;
 	void*	m_auxilaryClientInfo;
 
-	bool	m_modified;
-	
 	std::vector<struct	RAS_LightObject*> m_lights;
 	
 	RAS_2DFilterManager m_filtermanager;
@@ -68,8 +65,7 @@ public:
 
 	RAS_IRenderTools(
 	) :
-		m_clientobject(NULL),
-		m_modified(true)
+		m_clientobject(NULL)
 	{
 	};
 
@@ -136,20 +132,16 @@ public:
 	)=0;
 
 	virtual 
-		void	
-	SetViewMat(
-		const MT_Transform& trans
-	);
-
-	virtual 
-		int		
+		void		
 	ProcessLighting(
-		int layer
+		int layer,
+		const MT_Transform& trans
 	)=0;
 
 	virtual
 		void	
 	SetClientObject(
+		RAS_IRasterizer* rasty,
 		void* obj
 	);
 

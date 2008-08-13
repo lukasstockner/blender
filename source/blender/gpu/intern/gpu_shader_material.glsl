@@ -1305,10 +1305,10 @@ void shade_cubic(float is, out float outis)
 
 void shade_visifac(float i, float visifac, float refl, out float outi)
 {
-	if(i > 0.0)
-		outi = i*visifac*refl;
-	else
-		outi = i;
+	/*if(i > 0.0)*/
+		outi = max(i*visifac*refl, 0.0);
+	/*else
+		outi = i;*/
 }
 
 void shade_tangent_v_spec(vec3 tang, out vec3 vn)
@@ -1338,9 +1338,9 @@ void shade_hemi_spec(vec3 vn, vec3 lv, vec3 view, float spec, float hard, float 
 void shade_phong_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
 {
 	vec3 h = normalize(l + v);
-	float rslt = dot(h, n);
+	float rslt = max(dot(h, n), 0.0);
 
-	specfac = (rslt > 0.0)? pow(rslt, hard): 0.0;
+	specfac = pow(rslt, hard);
 }
 
 void shade_cooktorr_spec(vec3 n, vec3 l, vec3 v, float hard, out float specfac)
@@ -1499,8 +1499,8 @@ void test_shadowbuf(vec3 rco, sampler2DShadow shadowmap, mat4 shadowpersmat, flo
 	else {
 		vec4 co = shadowpersmat*vec4(rco, 1.0);
 
-		float bias = (1.5 - inp*inp)*shadowbias;
-		co.z -= bias*co.w;
+		//float bias = (1.5 - inp*inp)*shadowbias;
+		co.z -= shadowbias*co.w;
 
 		result = shadow2DProj(shadowmap, co).x;
 	}

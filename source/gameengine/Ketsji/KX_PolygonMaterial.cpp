@@ -61,8 +61,6 @@ KX_PolygonMaterial::KX_PolygonMaterial(const STR_String &texname,
 											   bool alpha,
 											   bool zsort,
 											   int lightlayer,
-											   bool bIsTriangle,
-											   void* clientobject,
 											   struct MTFace* tface,
 											   unsigned int* mcol,
 											   PyTypeObject *T)
@@ -76,9 +74,7 @@ KX_PolygonMaterial::KX_PolygonMaterial(const STR_String &texname,
 							transp,
 							alpha,
 							zsort,
-							lightlayer,
-							bIsTriangle,
-							clientobject),
+							lightlayer),
 		m_tface(tface),
 		m_mcol(mcol),
 		m_material(material),
@@ -138,38 +134,28 @@ void KX_PolygonMaterial::DefaultActivate(RAS_IRasterizer* rasty, TCachingInfo& c
 	if (GetCachingInfo() != cachingInfo)
 	{
 		if (!cachingInfo)
-		{
 			GPU_set_tpage(NULL);
-		}
+
 		cachingInfo = GetCachingInfo();
 
 		if ((m_drawingmode & 4)&& (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED))
 		{
 			GPU_update_image_time((struct MTFace*) m_tface, rasty->GetTime());
 			GPU_set_tpage(m_tface);
-			rasty->EnableTextures(true);
 		}
 		else
-		{
 			GPU_set_tpage(NULL);
-			rasty->EnableTextures(false);
-		}
 		
 		if(m_drawingmode & RAS_IRasterizer::KX_TWOSIDE)
-		{
 			rasty->SetCullFace(false);
-		}
 		else
-		{
 			rasty->SetCullFace(true);
-		}
 
-		if (m_drawingmode & RAS_IRasterizer::KX_LINES) {
+		if ((m_drawingmode & RAS_IRasterizer::KX_LINES) ||
+		    (rasty->GetDrawingMode() <= RAS_IRasterizer::KX_WIREFRAME))
 			rasty->SetLines(true);
-		}
-		else {
+		else
 			rasty->SetLines(false);
-		}
 	}
 
 	rasty->SetSpecularity(m_specular[0],m_specular[1],m_specular[2],m_specularity);
@@ -251,7 +237,8 @@ PyObject* KX_PolygonMaterial::_getattr(const STR_String& attr)
 	if (attr == "lightlayer")
 		return PyInt_FromLong(m_lightlayer);
 	if (attr == "triangle")
-		return PyInt_FromLong(m_bIsTriangle);
+		// deprecated, triangle/quads shouldn't have been a material property
+		return 0;
 		
 	if (attr == "diffuse")
 		return PyObjectFrom(m_diffuse);
@@ -331,7 +318,7 @@ int KX_PolygonMaterial::_setattr(const STR_String &attr, PyObject *pyvalue)
 		// This probably won't work...
 		if (attr == "triangle")
 		{
-			m_bIsTriangle = value;
+			// deprecated, triangle/quads shouldn't have been a material property
 			return 0;
 		}
 	}

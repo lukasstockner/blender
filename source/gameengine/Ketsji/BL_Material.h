@@ -139,7 +139,7 @@ enum BL_ras_mode
 	COLLIDER=2,
 	ZSORT=4,
 	ALPHA=8,
-	TRIANGLE=16,
+	// TRIANGLE=16,
 	USE_LIGHT=32,
 	WIRE=64
 };

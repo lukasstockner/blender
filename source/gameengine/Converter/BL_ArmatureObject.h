@@ -69,7 +69,7 @@ public:
 
 	/// Retrieve the pose matrix for the specified bone.
 	/// Returns true on success.
-	bool GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix) const;
+	bool GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix);
 	
 	/// Returns the bone length.  The end of the bone is in the local y direction.
 	float GetBoneLength(Bone* bone) const;
@@ -83,6 +83,9 @@ protected:
 	double	m_lastframe;
 	class BL_ActionActuator *m_activeAct;
 	short	m_activePriority;
+
+	double			m_lastapplyframe;
+	struct bPose	*m_lastapplypose;
 };
 
 #endif

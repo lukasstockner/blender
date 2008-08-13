@@ -54,9 +54,11 @@ BL_ArmatureObject::BL_ArmatureObject(
 :	KX_GameObject(sgReplicationInfo,callbacks),
 	m_objArma(armature),
 	m_mrdPose(NULL),
-	m_lastframe(0.),
+	m_lastframe(0.0),
 	m_activeAct(NULL),
-	m_activePriority(999)
+	m_activePriority(999),
+	m_lastapplyframe(0.0),
+	m_lastapplypose(NULL)
 {
 	m_armature = get_armature(m_objArma);
 	m_pose = m_objArma->pose;
@@ -90,6 +92,9 @@ BL_ArmatureObject::~BL_ArmatureObject()
 /* there is only 1 unique Pose per Armature */
 void BL_ArmatureObject::ApplyPose()
 {
+	if(m_lastapplyframe == m_lastframe && m_lastapplypose == m_pose)
+		return;
+
 	if (m_pose) {
 		// copy to armature object
 		if (m_objArma->pose != m_pose)/* This should never happen but it does - Campbell */
@@ -100,6 +105,11 @@ void BL_ArmatureObject::ApplyPose()
 		//	copy_pose (&m_mrdPose, m_pose, 0);
 		//else
 		//	extract_pose_from_pose(m_mrdPose, m_pose);
+
+		where_is_pose(m_objArma);
+
+		m_lastapplyframe = m_lastframe;
+		m_lastapplypose = m_pose;
 	}
 }
 
@@ -156,6 +166,7 @@ void BL_ArmatureObject::GetPose(bPose **pose)
 		if (*pose == m_pose)
 			// no need to copy if the pointers are the same
 			return;
+
 		extract_pose_from_pose(*pose, m_pose);
 	}
 }
@@ -192,10 +203,11 @@ double BL_ArmatureObject::GetLastFrame()
 	return m_lastframe;
 }
 
-bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix) const
+bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
 {
 	Object* par_arma = m_objArma;
-	where_is_pose(par_arma);
+
+	ApplyPose();
 	bPoseChannel *pchan= get_pose_channel(par_arma->pose, bone->name);
 
 	if(pchan) {

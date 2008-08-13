@@ -955,7 +955,6 @@ GPUShader *GPU_shader_create_lib(const char *code)
 	return shader;
 }
 
-
 void GPU_shader_bind(GPUShader *shader)
 {
 	GPU_print_error("Pre Shader Bind");
@@ -983,22 +982,24 @@ void GPU_shader_free(GPUShader *shader)
 	MEM_freeN(shader);
 }
 
-
-void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int arraysize, float *value)
+int GPU_shader_get_uniform(GPUShader *shader, char *name)
 {
-	GLint location = glGetUniformLocationARB(shader->object, name);
+	return glGetUniformLocationARB(shader->object, name);
+}
 
+void GPU_shader_uniform_vector(GPUShader *shader, int location, int length, int arraysize, float *value)
+{
 	if(location == -1)
 		return;
 
 	GPU_print_error("Pre Uniform Vector");
 
-	/*if (length == 1) printf("%s %f\n", name, value[0]);
-	else if (length == 2) printf("%s %f %f\n", name, value[0], value[1]);
-	else if (length == 3) { printf("%s ", name); printvecf("", value); }
-	else if (length == 4) { printf("%s ", name); printquat("", value); }
-	else if (length == 9) { printf("%s ", name); printmatrix3("", (float(*)[3])value); }
-	else if (length == 16) { printf("%s ", name); printmatrix4("", (float(*)[4])value); }*/
+	/*if (length == 1) fprintf(stderr, "%d %s %f\n", location, name, value[0]);
+	else if (length == 2) fprintf(stderr, "%d %s %f %f\n", location, name, value[0], value[1]);
+	else if (length == 3) { fprintf(stderr, "%d %s ", location, name); printvecf("", value); }
+	else if (length == 4) { fprintf(stderr, "%d %s ", location, name); printquat("", value); }
+	else if (length == 9) { fprintf(stderr, "%d %s ", location, name); printmatrix3("", (float(*)[3])value); }
+	else if (length == 16) { fprintf(stderr, "%d %s ", location, name); printmatrix4("", (float(*)[4])value); }*/
 
 	if (length == 1) glUniform1fvARB(location, arraysize, value);
 	else if (length == 2) glUniform2fvARB(location, arraysize, value);
@@ -1010,9 +1011,8 @@ void GPU_shader_uniform_vector(GPUShader *shader, char *name, int length, int ar
 	GPU_print_error("Post Uniform Vector");
 }
 
-void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex)
+void GPU_shader_uniform_texture(GPUShader *shader, int location, GPUTexture *tex)
 {
-	GLint location;
 	GLenum arbnumber;
 
 	if (tex->number >= GG.maxtextures) {
@@ -1023,9 +1023,11 @@ void GPU_shader_uniform_texture(GPUShader *shader, char *name, GPUTexture *tex)
 	if(tex->number == -1)
 		return;
 
+	if(location == -1)
+		return;
+
 	GPU_print_error("Pre Uniform Texture");
 
-	location = glGetUniformLocationARB(shader->object, name);
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
 
 	if (tex->number != 0) glActiveTextureARB(arbnumber);
