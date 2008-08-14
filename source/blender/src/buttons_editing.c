@@ -1658,7 +1658,7 @@ static void multiresModifier_subdivide_button(void *mmd_v, void *ob_v)
 	MultiresModifierData *mmd = mmd_v;
 
 	if(mmd && ob_v) {
-		multiresModifier_subdivide(mmd, ob_v, 0);
+		multiresModifier_subdivide(mmd, ob_v, 0, mmd->simple);
 		BIF_undo_push("Multires subdivide");
 	}
 }
@@ -2477,10 +2477,13 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiBlockEndAlign(block);
 		} else if (md->type==eModifierType_Multires) {
 			MultiresModifierData *mmd = (MultiresModifierData*) md;
+			char subsurfmenu[]= "Subsurf Type%t|Catmull-Clark%x0|Simple Subdiv.%x1";
 			uiBut *but;
  
 			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Subdivide", lx,(cy-=19),buttonWidth,19,0,0,0,0,0,"Increase the resolution of displacements");
 			uiButSetFunc(but, multiresModifier_subdivide_button, mmd, ob);
+
+			uiDefButC(block, MENU, B_NOP, subsurfmenu, lx, (cy-=19), buttonWidth, 19, &mmd->simple, 0, 0, 0, 0, "Selects type of subdivision algorithm.");
 		
 			but = uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
 			uiButSetFunc(but, multiresModifier_setLevel, mmd, ob);

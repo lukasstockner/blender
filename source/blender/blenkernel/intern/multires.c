@@ -1181,7 +1181,7 @@ void multiresModifier_join(Object *ob)
 
 				/* TODO: subdivision should be doable in one step rather than iteratively. */
 				for(i = mmd->totlvl; i < highest_lvl; ++i)
-					multiresModifier_subdivide(mmd, base->object, 0);
+					multiresModifier_subdivide(mmd, base->object, 0, 0);
 			}
 		}
 		base = base->next;
@@ -1245,13 +1245,16 @@ static void calc_face_ts_partial(float center[3], float target[3], float norm[][
 	VecCopyf(target, orco[f->v1]);
 }
 
-DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance)
+DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance, int simple)
 {
 	DerivedMesh *final;
 	SubsurfModifierData smd;
 
 	memset(&smd, 0, sizeof(SubsurfModifierData));
 	smd.levels = distance;
+	if(simple)
+		smd.subdivType = ME_SIMPLE_SUBSURF;
+
 	final = subsurf_make_derived_from_derived_with_multires(mrdm, &smd, NULL, 0, NULL, 0, 0);
 
 	return final;
@@ -1454,11 +1457,6 @@ static void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, in
 		}
 	}
 
-	/*if(addverts) {
-		for(i = 0; i < totvert; ++i)
-			VecAddf(mvd[i].co, mvd[i].co, addverts[i].co);
-			}*/
-
 	final->needsFree = 1;
 	final->release(final);
 	mrdm->needsFree = 1;
@@ -1466,7 +1464,7 @@ static void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, in
 	mrdm->release(mrdm);
 }
 
-void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updateblock)
+void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updateblock, int simple)
 {
 	DerivedMesh *final = NULL;
 	int totsubvert, totsubface, totsubedge;
@@ -1501,7 +1499,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		orig->needsFree = 1;
 		orig->release(orig);
 		
-		final = multires_subdisp_pre(mrdm, 1);
+		final = multires_subdisp_pre(mrdm, 1, simple);
 		mrdm->needsFree = 1;
 		mrdm->release(mrdm);
 	}
@@ -1903,7 +1901,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			for(i = 0; i < dm->getNumVerts(dm); ++i)
 				VecSubf(verts_new[i].co, verts_new[i].co, cur_lvl_orig_verts[i].co);
 
-			final = multires_subdisp_pre(dm, totlvl - lvl);
+			final = multires_subdisp_pre(dm, totlvl - lvl, 0);
 
 			multires_subdisp(orig, me, final, lvl, totlvl, dm->getNumVerts(dm), dm->getNumEdges(dm),
 					 dm->getNumFaces(dm), 1);

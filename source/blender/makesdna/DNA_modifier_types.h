@@ -495,7 +495,8 @@ typedef struct MultiresModifierData {
 	ModifierData modifier;
 
 	char lvl, totlvl;
-	char pad[6];
+	char simple;
+	char pad[5];
 } MultiresModifierData;
 
 #endif
