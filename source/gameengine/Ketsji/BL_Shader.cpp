@@ -848,8 +848,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, getFragmentProg ,"getFragmentProg( )" )
 KX_PYMETHODDEF_DOC( BL_Shader, validate, "validate()")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	if(mShader==0) {
 		PyErr_Format(PyExc_TypeError, "invalid shader object");
@@ -879,8 +878,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, validate, "validate()")
 KX_PYMETHODDEF_DOC( BL_Shader, setSampler, "setSampler(name, index)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 
 	char *uniform="";
@@ -902,7 +900,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setSampler, "setSampler(name, index)" )
 			//else
 			//	spit("Invalid texture sample index: " << index);
 		}
-		Py_Return;
+		Py_RETURN_NONE;
 	}
 	return NULL;
 }
@@ -921,8 +919,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setNumberOfPasses, "setNumberOfPasses( max-pass )
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform1f, "setUniform1f(name, fx)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 
 	char *uniform="";
@@ -947,8 +944,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform1f, "setUniform1f(name, fx)" )
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform2f , "setUniform2f(name, fx, fy)")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char *uniform="";
 	float array[2]={ 0,0 };
@@ -972,8 +968,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform2f , "setUniform2f(name, fx, fy)")
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char *uniform="";
 	float array[3]={0,0,0};
@@ -998,8 +993,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform3f, "setUniform3f(name, fx,fy,fz) ")
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) ")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char *uniform="";
 	float array[4]={0,0,0,0};
@@ -1023,8 +1017,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform4f, "setUniform4f(name, fx,fy,fz, fw) "
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform1i, "setUniform1i(name, ix)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char *uniform="";
 	int value=0;
@@ -1048,8 +1041,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform1i, "setUniform1i(name, ix)" )
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform2i , "setUniform2i(name, ix, iy)")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char *uniform="";
 	int array[2]={ 0,0 };
@@ -1073,8 +1065,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform2i , "setUniform2i(name, ix, iy)")
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 
 	char *uniform="";
@@ -1098,8 +1089,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform3i, "setUniform3i(name, ix,iy,iz) ")
 KX_PYMETHODDEF_DOC( BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) ")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char *uniform="";
 	int array[4]={0,0,0, 0};
@@ -1122,8 +1112,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniform4i, "setUniform4i(name, ix,iy,iz, iw) "
 KX_PYMETHODDEF_DOC( BL_Shader, setUniformfv , "setUniformfv( float (list2 or list3 or list4) )")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char*uniform = "";
 	PyObject *listPtr =0;
@@ -1192,8 +1181,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniformfv , "setUniformfv( float (list2 or lis
 KX_PYMETHODDEF_DOC( BL_Shader, setUniformiv, "setUniformiv( int (list2 or list3 or list4) )")
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	char*uniform = "";
 	PyObject *listPtr =0;
@@ -1265,8 +1253,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniformMatrix4,
 "setUniformMatrix4(uniform-name, mat-4x4, transpose(row-major=true, col-major=false)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 
 	float matr[16] = {
@@ -1308,8 +1295,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniformMatrix3,
 "setUniformMatrix3(uniform-name, list[3x3], transpose(row-major=true, col-major=false)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 
 	float matr[9] = {
@@ -1349,8 +1335,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setUniformMatrix3,
 KX_PYMETHODDEF_DOC( BL_Shader, setAttrib, "setAttrib(enum)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 	int attr=0;
 	if(PyArg_ParseTuple(args, "i", &attr )) {
@@ -1370,8 +1355,7 @@ KX_PYMETHODDEF_DOC( BL_Shader, setAttrib, "setAttrib(enum)" )
 KX_PYMETHODDEF_DOC( BL_Shader, setUniformDef, "setUniformDef(name, enum)" )
 {
 	if(mError) {
-		Py_INCREF(Py_None);
-		return Py_None;
+		Py_RETURN_NONE;
 	}
 
 	char *uniform="";
