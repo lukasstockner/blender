@@ -69,7 +69,7 @@ struct RAS_BucketManager::backtofront
 {
 	bool operator()(const sortedmeshslot &a, const sortedmeshslot &b)
 	{
-		return a.m_z < b.m_z;
+		return (a.m_z < b.m_z) || (a.m_z == b.m_z && a.m_ms < b.m_ms);
 	}
 };
 
@@ -77,7 +77,7 @@ struct RAS_BucketManager::fronttoback
 {
 	bool operator()(const sortedmeshslot &a, const sortedmeshslot &b)
 	{
-		return a.m_z > b.m_z;
+		return (a.m_z > b.m_z) || (a.m_z == b.m_z && a.m_ms > b.m_ms);
 	}
 };
 
