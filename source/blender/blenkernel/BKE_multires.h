@@ -37,7 +37,6 @@ struct Mesh;
 struct Object;
 
 /* Level access */
-struct MultiresLevel *current_level(struct Multires *mr);
 struct MultiresLevel *multires_level_n(struct Multires *mr, int n);
 
 /* Level control */

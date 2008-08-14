@@ -1799,9 +1799,6 @@ void exit_editmode(int flag)	/* freedata==0 at render, 1= freedata, 2= do undo b
 	/* for example; displist make is different in editmode */
 	if(freedata) G.obedit= NULL;
 
-	if(ob->type==OB_MESH && get_mesh(ob)->mr)
-		multires_edge_level_update(ob, get_mesh(ob));
-	
 	/* also flush ob recalc, doesn't take much overhead, but used for particles */
 	DAG_object_flush_update(G.scene, ob, OB_RECALC_OB|OB_RECALC_DATA);
 

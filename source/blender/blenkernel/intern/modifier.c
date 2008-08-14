@@ -5709,7 +5709,6 @@ static void particleSystemModifier_deformVerts(
 	DerivedMesh *dm = derivedData;
 	ParticleSystemModifierData *psmd= (ParticleSystemModifierData*) md;
 	ParticleSystem * psys=0;
-	Mesh *me;
 	int needsFree=0;
 
 	if(ob->particlesystem.first)
@@ -5717,14 +5716,6 @@ static void particleSystemModifier_deformVerts(
 	else
 		return;
 	
-	/* multires check */
-	if(ob->type == OB_MESH) {
-		me= (Mesh*)ob->data;
-		if(me->mr && me->mr->current != 1)
-			modifier_setError(md,
-				"Particles only supported on first multires level.");
-	}
-
 	if(!psys_check_enabled(ob, psys))
 		return;
 

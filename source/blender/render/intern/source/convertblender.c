@@ -3152,13 +3152,6 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 		if(need_orco)
 			mask |= CD_MASK_ORCO;
 
-	if(me->mr) {
-		if(re->flag & R_SKIP_MULTIRES)
-			me->mr->flag |= MULTIRES_NO_RENDER;
-		else
-			me->mr->flag &= ~MULTIRES_NO_RENDER;
-	}
-
 	dm= mesh_create_derived_render(ob, mask);
 	if(dm==NULL) return;	/* in case duplicated object fails? */
 
@@ -5506,8 +5499,6 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 	re->flag |= R_GLOB_NOPUNOFLIP;
 	re->flag |= R_BAKING;
 	re->excludeob= actob;
-	if(type == RE_BAKE_LIGHT)
-		re->flag |= R_SKIP_MULTIRES;
 	if(actob)
 		re->flag |= R_BAKE_TRACE;
 

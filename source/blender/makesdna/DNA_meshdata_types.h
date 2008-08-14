@@ -267,7 +267,4 @@ typedef struct PartialVisibility {
 #define TF_PIN3	   		64
 #define TF_PIN4	    	128
 
-/* multires->flag */
-#define MULTIRES_NO_RENDER 1
-
 #endif

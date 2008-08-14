@@ -132,9 +132,7 @@ void EM_select_mirrored(void)
 void EM_automerge(int update) {
 	int len;
 	if ((G.scene->automerge) &&
-		(G.obedit && G.obedit->type==OB_MESH) &&
-		(((Mesh*)G.obedit->data)->mr==NULL)
-	  ) {
+	    (G.obedit && G.obedit->type==OB_MESH)) {
 		len = removedoublesflag(1, 1, G.scene->toolsettings->doublimit);
 		if (len) {
 			G.totvert -= len; /* saves doing a countall */
