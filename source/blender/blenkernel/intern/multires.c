@@ -475,13 +475,8 @@ void multiresModifier_join(Object *ob)
 				BLI_insertlinkbefore(&base->object->modifiers, md, mmd);
 			}
 
-			if(mmd) {
-				int i;
-
-				/* TODO: subdivision should be doable in one step rather than iteratively. */
-				for(i = mmd->totlvl; i < highest_lvl; ++i)
-					multiresModifier_subdivide(mmd, base->object, 0, 0);
-			}
+			if(mmd)
+				multiresModifier_subdivide(mmd, base->object, highest_lvl - mmd->totlvl, 0, 0);
 		}
 		base = base->next;
 	}
@@ -763,13 +758,16 @@ static void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, in
 	mrdm->release(mrdm);
 }
 
-void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updateblock, int simple)
+void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int distance, int updateblock, int simple)
 {
 	DerivedMesh *final = NULL;
 	int totsubvert, totsubface, totsubedge;
 	Mesh *me = get_mesh(ob);
 	MDisps *mdisps;
 	int i;
+
+	if(distance == 0)
+		return;
 
 	if(mmd->totlvl == multires_max_levels) {
 		// TODO
@@ -778,8 +776,8 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 
 	multires_force_update(ob);
 
-	++mmd->lvl;
-	++mmd->totlvl;
+	mmd->lvl = mmd->totlvl;
+	mmd->totlvl += distance;
 
 	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(!mdisps)
@@ -790,7 +788,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		MultiresModifierData mmd_sub;
 
 		orig = CDDM_from_mesh(me, NULL);
-		mmd_sub.lvl = mmd_sub.totlvl = mmd->totlvl - 1;
+		mmd_sub.lvl = mmd_sub.totlvl = mmd->lvl;
 		mrdm = multires_dm_create_from_derived(&mmd_sub, orig, me, 0, 0);
 		totsubvert = mrdm->getNumVerts(mrdm);
 		totsubedge = mrdm->getNumEdges(mrdm);
@@ -798,13 +796,13 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		orig->needsFree = 1;
 		orig->release(orig);
 		
-		final = multires_subdisp_pre(mrdm, 1, simple);
+		final = multires_subdisp_pre(mrdm, distance, simple);
 		mrdm->needsFree = 1;
+		*MultiresDM_get_flags(mrdm) |= MULTIRES_DM_UPDATE_BLOCK;
 		mrdm->release(mrdm);
 	}
 
 	for(i = 0; i < me->totface; ++i) {
-		//const int totdisp = (me->mface[i].v4 ? multires_quad_tot[totlvl] : multires_tri_tot[totlvl]);
 		const int totdisp = multires_quad_tot[mmd->totlvl - 1];
 		float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires disps");
 
@@ -821,11 +819,13 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 
 		orig = CDDM_from_mesh(me, NULL);
 
-		multires_subdisp(orig, me, final, mmd->totlvl - 1, mmd->totlvl, totsubvert, totsubedge, totsubface, 0);
+		multires_subdisp(orig, me, final, mmd->lvl, mmd->totlvl, totsubvert, totsubedge, totsubface, 0);
 
 		orig->needsFree = 1;
 		orig->release(orig);
 	}
+
+	mmd->lvl = mmd->totlvl;
 }
 
 void multiresModifier_setLevel(void *mmd_v, void *ob_v)

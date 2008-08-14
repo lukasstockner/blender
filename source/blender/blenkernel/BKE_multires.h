@@ -27,49 +27,11 @@
  * ***** END GPL LICENSE BLOCK *****
  */ 
 
-struct CustomData;
-struct EditMesh;
-struct MCol;
-struct Multires;
-struct MultiresColFace;
-struct MultiresLevel;
-struct Mesh;
-struct Object;
-
-/* Level access */
-struct MultiresLevel *multires_level_n(struct Multires *mr, int n);
-
-/* Level control */
-void multires_set_level(struct Object *ob, struct Mesh *me, const int render);
-void multires_free_level(struct MultiresLevel *lvl);
-
-void multires_edge_level_update(struct Object *ob, struct Mesh *me);
-
-void multires_free(struct Multires *mr);
-struct Multires *multires_copy(struct Multires *orig);
-void multires_create(struct Object *ob, struct Mesh *me);
-
-/* CustomData */
-void multires_delete_layer(struct Mesh *me, struct CustomData *cd, const int type, int n);
-void multires_add_layer(struct Mesh *me, struct CustomData *cd, const int type, const int n);
-void multires_del_lower_customdata(struct Multires *mr, struct MultiresLevel *cr_lvl);
-void multires_to_mcol(struct MultiresColFace *f, struct MCol *mcol);
-/* After adding or removing vcolor layers, run this */
-void multires_load_cols(struct Mesh *me);
-
-/* Private (used in multires-firstlevel.c) */
-void multires_level_to_mesh(struct Object *ob, struct Mesh *me, const int render);
-void multires_update_levels(struct Mesh *me, const int render);
-void multires_update_first_level(struct Mesh *me, struct EditMesh *em);
-void multires_update_customdata(struct MultiresLevel *lvl1, struct EditMesh *em, struct CustomData *src,
-				struct CustomData *dst, const int type);
-void multires_customdata_to_mesh(struct Mesh *me, struct EditMesh *em,
-				 struct MultiresLevel *lvl, struct CustomData *src,
-                                 struct CustomData *dst, const int type);
-
 struct DerivedMesh;
+struct Mesh;
 struct MFace;
-struct MEdge;
+struct Multires;
+struct Object;
 
 typedef struct MultiresSubsurf {
 	struct Mesh *me;
@@ -80,6 +42,8 @@ typedef struct IndexNode {
 	struct IndexNode *next, *prev;
 	int index;
 } IndexNode;
+
+void multires_free(struct Multires*);
 
 void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *mface,
 			  const int totvert, const int totface);
@@ -125,7 +89,6 @@ typedef struct MultiresDisplacer {
 	int x, y, ax, ay;
 } MultiresDisplacer;
 
-
 void multires_load_old(struct DerivedMesh *, struct Multires *);
 void multires_force_update(struct Object *ob);
 
@@ -134,7 +97,8 @@ struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*
 
 int multiresModifier_switch_level(struct Object *ob, const int);
 void multiresModifier_join(struct Object *ob);
-void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object *ob, int updateblock, int simple);
+void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object *ob, int distance,
+				int updateblock, int simple);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
 int multiresModifier_reshape(struct MultiresModifierData *mmd, struct Object *dst, struct Object *src);
 
