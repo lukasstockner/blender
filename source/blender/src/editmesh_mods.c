@@ -103,7 +103,6 @@ editmesh_mods.c, UI level access, no geometry changes
 
 #include "RE_render_ext.h"  /* externtex */
 
-#include "multires.h"
 #include "mydevice.h"
 #include "blendef.h"
 
@@ -3531,8 +3530,6 @@ void editmesh_mark_seam(int clear)
 	EditMesh *em= G.editMesh;
 	EditEdge *eed;
 	
-	if(multires_level1_test()) return;
-
 	/* auto-enable seams drawing */
 	if(clear==0) {
 		if(!(G.f & G_DRAWSEAMS)) {
@@ -3579,8 +3576,6 @@ void editmesh_mark_sharp(int set)
 		}
 	}
 #endif
-
-	if(multires_level1_test()) return;
 
 	if(set) {
 		eed= em->edges.first;

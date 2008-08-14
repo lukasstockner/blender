@@ -162,8 +162,6 @@
 
 #include "RE_pipeline.h"	// make_stars
 
-#include "multires.h"
-
 /* For MULTISAMPLE_ARB #define.
    Note that older systems like irix 
    may not have this, and will need a #ifdef

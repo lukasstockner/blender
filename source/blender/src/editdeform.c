@@ -67,7 +67,6 @@
 #include "butspace.h"
 #include "mydevice.h"
 #include "editmesh.h"
-#include "multires.h"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -673,8 +672,6 @@ void assign_verts_defgroup (void)
 	MDeformVert *dvert;
 	int	i, done;
 	
-	if(multires_level1_test()) return;
-
 	ob= G.obedit;
 
 	if (!ob)
@@ -833,8 +830,6 @@ void remove_verts_defgroup (int allverts)
 	bDeformGroup *dg, *eg;
 	int	i;
 	
-	if(multires_level1_test()) return;
-
 	ob= G.obedit;
 
 	if (!ob)
@@ -903,8 +898,6 @@ void remove_verts_defgroups(int allverts)
 	Object *ob;
 	int actdef, defCount;
 	
-	if (multires_level1_test()) return;
-
 	ob= G.obedit;
 	if (ob == NULL) return;
 	

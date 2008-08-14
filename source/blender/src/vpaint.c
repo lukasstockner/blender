@@ -71,7 +71,6 @@
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_utildefines.h"
 
@@ -93,7 +92,6 @@
 #include "BSE_trans_types.h"
 #include "BSE_view.h"
 
-#include "multires.h"
 #include "mydevice.h"
 #include "blendef.h"
 
@@ -251,8 +249,6 @@ void make_vertexcol(int shade)	/* single ob */
 		shadeMeshMCol(ob, me);
 	else
 		memset(me->mcol, 255, 4*sizeof(MCol)*me->totface);
-	
-	if (me->mr) multires_load_cols(me);
 	
 	DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 	
@@ -1094,7 +1090,6 @@ void weight_paint(void)
 
 	if((G.f & G_WEIGHTPAINT)==0) return;
 	if(G.obedit) return;
-	if(multires_level1_test()) return;
 	
 	ob= OBACT;
 	if(!ob || ob->id.lib) return;

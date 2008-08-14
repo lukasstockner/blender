@@ -105,7 +105,6 @@
 #include "RE_pipeline.h"
 
 #include "blendef.h"
-#include "multires.h"
 #include "mydevice.h"
 #include "editmesh.h"
 
@@ -132,7 +131,6 @@ int is_uv_tface_editing_allowed_silent(void)
 {
 	if(!EM_texFaceCheck()) return 0;
 	if(G.sima->mode!=SI_TEXTURE) return 0;
-	if(multires_level1_test()) return 0;	
 	return 1;
 }
 

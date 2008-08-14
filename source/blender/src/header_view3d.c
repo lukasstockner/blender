@@ -128,7 +128,6 @@
 #include "BPY_menus.h"
 
 #include "blendef.h"
-#include "multires.h"
 #include "mydevice.h"
 #include "butspace.h"
 
@@ -2708,10 +2707,8 @@ void do_view3d_edit_mesh_edgesmenu(void *arg, int event)
 		editmesh_mark_seam(1);
 		break;
 	case 9: /* Crease SubSurf */
-		if(!multires_level1_test()) {
-			initTransform(TFM_CREASE, CTX_EDGE);
-			Transform();
-		}
+		initTransform(TFM_CREASE, CTX_EDGE);
+		Transform();
 		break;
 	case 10: /* Rotate Edge */
 		edge_rotate_selected(2);
@@ -2744,10 +2741,8 @@ void do_view3d_edit_mesh_edgesmenu(void *arg, int event)
 		DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 		break;
 	case 17: /* Adjust Bevel Weight */
-		if(!multires_level1_test()) {
-			initTransform(TFM_BWEIGHT, CTX_EDGE);
-			Transform();
-		}
+		initTransform(TFM_BWEIGHT, CTX_EDGE);
+		Transform();
 		break;
 	}
 	allqueue(REDRAWVIEW3D, 0);

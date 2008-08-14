@@ -172,7 +172,6 @@
 #include "mydevice.h"
 #include "blendef.h"
 #include "datatoc.h"
-#include "multires.h"
 
 #include "BIF_transform.h"
 
@@ -1980,8 +1979,7 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 						seam_mark_clear_tface(0);
 				}
 				else if (G.qual==LR_SHIFTKEY) {
-					if (G.obedit && G.obedit->type==OB_MESH &&
-					    !multires_level1_test()) {
+					if (G.obedit && G.obedit->type==OB_MESH) {
 						initTransform(TFM_CREASE, CTX_EDGE);
 						Transform();
 					}
@@ -1990,8 +1988,7 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 					}
 				}
 				else if (G.qual == (LR_CTRLKEY|LR_SHIFTKEY)) {
-					if (G.obedit && G.obedit->type==OB_MESH &&
-					    !multires_level1_test()) {
+					if (G.obedit && G.obedit->type==OB_MESH) {
 						if (G.scene->selectmode & SCE_SELECT_VERTEX) {
 							initTransform(TFM_BWEIGHT, CTX_NONE);
 						}

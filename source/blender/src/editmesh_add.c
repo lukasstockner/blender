@@ -84,7 +84,6 @@
 #include "BSE_edit.h"
 
 #include "blendef.h"
-#include "multires.h"
 #include "mydevice.h"
 
 #include "editmesh.h"
@@ -157,7 +156,6 @@ void add_click_mesh(void)
 	int done= 0;
 	
 	TEST_EDITMESH
-	if(multires_test()) return;
 	
 	INIT_MINMAX(min, max);
 	
@@ -658,7 +656,6 @@ void addedgeface_mesh(void)
 	short amount=0;
 
 	if( (G.vd->lay & G.obedit->lay)==0 ) return;
-	if(multires_test()) return;
 
 	/* how many selected ? */
 	if(G.scene->selectmode & SCE_SELECT_EDGE) {
@@ -813,7 +810,6 @@ void adduplicate_mesh(void)
 {
 
 	TEST_EDITMESH
-	if(multires_test()) return;
 
 	waitcursor(1);
 
@@ -1181,8 +1177,6 @@ void add_primitiveMesh(int type)
 	if ELEM(curarea->spacetype, SPACE_VIEW3D, SPACE_INFO); else return;
 	if(G.vd==0) return;
 
-	if (G.obedit && G.obedit->type==OB_MESH && multires_test()) return;
-	
 	/* if editmode exists for other type, it exits */
 	check_editmode(OB_MESH);
 	

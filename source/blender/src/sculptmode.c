@@ -93,7 +93,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "blendef.h"
-#include "multires.h"
 #include "mydevice.h"
 
 #include "RE_render_ext.h"

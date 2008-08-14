@@ -178,7 +178,6 @@
 #include "RE_render_ext.h"		// make_sticky
 
 #include "butspace.h" // own module
-#include "multires.h"
 
 static float editbutweight= 1.0;
 float editbutvweight= 1;
@@ -5843,16 +5842,14 @@ void do_fpaintbuts(unsigned short event)
 		allqueue(REDRAWBUTSEDIT, 0);
 		break;
 	case B_CLR_WPAINT:
-		if(!multires_level1_test()) {
-			defGroup = BLI_findlink(&ob->defbase, ob->actdef-1);
-			if(defGroup) {
-				Mesh *me= ob->data;
-				int a;
-				for(a=0; a<me->totvert; a++)
-					remove_vert_defgroup (ob, defGroup, a);
-				allqueue(REDRAWVIEW3D, 0);
-				DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
-			}
+		defGroup = BLI_findlink(&ob->defbase, ob->actdef-1);
+		if(defGroup) {
+			Mesh *me= ob->data;
+			int a;
+			for(a=0; a<me->totvert; a++)
+				remove_vert_defgroup (ob, defGroup, a);
+			allqueue(REDRAWVIEW3D, 0);
+			DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 		}
 		break;
 	case B_SCULPT_TEXBROWSE:
