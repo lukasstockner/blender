@@ -1684,6 +1684,16 @@ static void multiresModifier_reshape_button(void *mmd_v, void *ob_v)
 	}
 }
 
+static void multiresModifier_del_higher_button(void *mmd_v, void *ob_v)
+{
+	MultiresModifierData *mmd = mmd_v;
+
+	if(mmd && ob_v) {
+		multiresModifier_del_levels(mmd, ob_v, 1);
+		BIF_undo_push("Delete higher");
+	}	       
+}
+
 static int modifier_is_fluid_particles(ModifierData *md) {
 	if(md->type == eModifierType_ParticleSystem) {
 		if(((ParticleSystemModifierData *)md)->psys->part->type == PART_FLUID)
@@ -1854,7 +1864,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 		} else if (md->type==eModifierType_Explode) {
 			height = 94;
 		} else if (md->type==eModifierType_Multires) {
-			height = 72;
+			height = 94;
 		}
 							/* roundbox 4 free variables: corner-rounding, nop, roundbox type, shade */
 		uiDefBut(block, ROUNDBOX, 0, "", x-10, y-height-2, width, height-2, NULL, 5.0, 0.0, 12, 40, ""); 
@@ -2491,6 +2501,8 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiBlockBeginAlign(block);
 			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Reshape", lx,(cy-=24),buttonWidth/2,19,0,0,0,0,0,"Copy vertices from another selected mesh into the current level");
 			uiButSetFunc(but, multiresModifier_reshape_button, mmd, ob);
+			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Del Higher", lx+buttonWidth/2,cy,buttonWidth/2,19,0,0,0,0,0,"Copy vertices from another selected mesh into the current level");
+			uiButSetFunc(but, multiresModifier_del_higher_button, mmd, ob);
 		}
 
 		uiBlockEndAlign(block);

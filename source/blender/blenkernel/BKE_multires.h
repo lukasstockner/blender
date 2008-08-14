@@ -30,7 +30,6 @@
 struct DerivedMesh;
 struct Mesh;
 struct MFace;
-struct Multires;
 struct Object;
 
 typedef struct MultiresSubsurf {
@@ -42,8 +41,6 @@ typedef struct IndexNode {
 	struct IndexNode *next, *prev;
 	int index;
 } IndexNode;
-
-void multires_free(struct Multires*);
 
 void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *mface,
 			  const int totvert, const int totface);
@@ -89,14 +86,14 @@ typedef struct MultiresDisplacer {
 	int x, y, ax, ay;
 } MultiresDisplacer;
 
-void multires_load_old(struct DerivedMesh *, struct Multires *);
 void multires_force_update(struct Object *ob);
 
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*,
 						    struct Mesh *, int, int);
 
-int multiresModifier_switch_level(struct Object *ob, const int);
-void multiresModifier_join(struct Object *ob);
+int multiresModifier_switch_level(struct Object *, const int);
+void multiresModifier_join(struct Object *);
+void multiresModifier_del_levels(struct MultiresModifierData *, struct Object *, int direction);
 void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object *ob, int distance,
 				int updateblock, int simple);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
@@ -110,3 +107,8 @@ void multires_displacer_anchor_edge(MultiresDisplacer *d, const int, const int, 
 void multires_displacer_anchor_vert(MultiresDisplacer *d, const int);
 void multires_displacer_jump(MultiresDisplacer *d);
 void multires_displace(MultiresDisplacer *d, float out[3]);
+
+/* Related to the old multires */
+struct Multires;
+void multires_load_old(struct DerivedMesh *, struct Multires *);
+void multires_free(struct Multires*);

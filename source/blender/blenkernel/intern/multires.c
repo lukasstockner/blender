@@ -758,6 +758,40 @@ static void multires_subdisp(DerivedMesh *orig, Mesh *me, DerivedMesh *final, in
 	mrdm->release(mrdm);
 }
 
+/* direction=1 for delete higher, direction=0 for lower (not implemented yet) */
+void multiresModifier_del_levels(struct MultiresModifierData *mmd, struct Object *ob, int direction)
+{
+	Mesh *me = get_mesh(ob);
+	int distance = mmd->totlvl - mmd->lvl;
+	MDisps *mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
+
+	multires_force_update(ob);
+
+	if(mdisps && distance > 0 && direction == 1) {
+		int skip = multires_side_tot[distance] - 1;
+		int st = multires_side_tot[mmd->totlvl - 1];
+		int totdisp = multires_quad_tot[mmd->lvl - 1];
+		int i, j, x, y;
+
+		for(i = 0; i < me->totface; ++i) {
+			float (*disps)[3] = MEM_callocN(sizeof(float) * 3 * totdisp, "multires del disps");
+			
+			for(j = 0, y = 0; y < st; y += skip) {
+				for(x = 0; x < st; x += skip) {
+					VecCopyf(disps[j], mdisps[i].disps[y * st + x]);
+					++j;
+				}
+			}
+
+			MEM_freeN(mdisps[i].disps);
+			mdisps[i].disps = disps;
+			mdisps[i].totdisp = totdisp;
+		}
+	}
+
+	mmd->totlvl = mmd->lvl;
+}
+
 void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int distance, int updateblock, int simple)
 {
 	DerivedMesh *final = NULL;
@@ -783,7 +817,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int dista
 	if(!mdisps)
 		mdisps = CustomData_add_layer(&me->fdata, CD_MDISPS, CD_DEFAULT, NULL, me->totface);
 
-	if(mdisps->disps && !updateblock) {
+	if(mdisps->disps && !updateblock && mmd->totlvl > 2) {
 		DerivedMesh *orig, *mrdm;
 		MultiresModifierData mmd_sub;
 
@@ -814,7 +848,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int dista
 	}
 
 
-	if(final && !updateblock) {
+	if(final) {
 		DerivedMesh *orig;
 
 		orig = CDDM_from_mesh(me, NULL);
