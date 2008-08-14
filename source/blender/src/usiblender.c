@@ -79,6 +79,7 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_mball.h"
+#include "BKE_multires.h"
 #include "BKE_node.h"
 #include "BKE_packedFile.h"
 #include "BKE_texture.h"
@@ -903,10 +904,16 @@ void BIF_write_file(char *target)
 	if(G.obedit) {
 		exit_editmode(0);	/* 0 = no free data */
 	}
+
+	if(G.f & G_SCULPTMODE) {
+		Object *ob = OBACT;
+		multires_force_update(ob);
+	}
+
 	if (G.fileflags & G_AUTOPACK) {
 		packAll();
 	}
-	
+
 	waitcursor(1);	// exit_editmode sets cursor too
 
 	do_history(di);
