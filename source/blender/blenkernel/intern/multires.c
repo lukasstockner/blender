@@ -876,11 +876,12 @@ void multiresModifier_setLevel(void *mmd_v, void *ob_v)
 void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 			     const int face_index, const int invert)
 {
+	Mesh *me = MultiresDM_get_mesh(dm);
 	float inv[3][3];
 
-	d->face = MultiresDM_get_mesh(dm)->mface + face_index;
+	d->face = me->mface + face_index;
 	/* Get the multires grid from customdata and calculate the TS matrix */
-	d->grid = (MDisps*)dm->getFaceDataArray(dm, CD_MDISPS);
+	d->grid = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(d->grid)
 		d->grid += face_index;
 	calc_face_ts_mat_dm(d->mat, MultiresDM_get_orco(dm), d->face);
@@ -1110,13 +1111,14 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 	MEdge *medge = MultiresDM_get_mesh(dm)->medge;
 	MFace *mface = MultiresDM_get_mesh(dm)->mface;
 	ListBase *map = MultiresDM_get_vert_face_map(dm);
+	Mesh *me = MultiresDM_get_mesh(dm);
 	MultiresDisplacer d;
 	int i, S, x, y;
 
 	if(subco)
 		d.subco = subco;
 
-	for(i = 0; i < MultiresDM_get_mesh(dm)->totface; ++i) {
+	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
 			
 		multires_displacer_init(&d, dm, i, invert);
@@ -1147,7 +1149,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 		}
 	}
 
-	for(i = 0; i < MultiresDM_get_mesh(dm)->totedge; ++i) {
+	for(i = 0; i < me->totedge; ++i) {
 		const MEdge *e = &medge[i];
 		for(x = 1; x < edgeSize; ++x) {
 			IndexNode *n1, *n2;
@@ -1174,7 +1176,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 		}
 	}
 		
-	for(i = 0; i < MultiresDM_get_mesh(dm)->totvert; ++i) {
+	for(i = 0; i < me->totvert; ++i) {
 		IndexNode *n;
 		multires_displacer_weight(&d, 1.0f / BLI_countlist(&map[i]));
 		for(n = map[i].first; n; n = n->next) {
@@ -1192,6 +1194,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 
 static void multiresModifier_update(DerivedMesh *dm)
 {
+	Mesh *me;
 	MDisps *mdisps;
 	MVert *mvert;
 	MEdge *medge;
@@ -1200,13 +1203,13 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 	if(!(G.f & G_SCULPTMODE) && !(*MultiresDM_get_flags(dm) & MULTIRES_DM_UPDATE_ALWAYS)) return;
 
-	mdisps = dm->getFaceDataArray(dm, CD_MDISPS);
+	me = MultiresDM_get_mesh(dm);
+	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
 
 	if(mdisps) {
 		SubsurfModifierData smd;
 		const int lvl = MultiresDM_get_lvl(dm);
 		const int totlvl = MultiresDM_get_totlvl(dm);
-		Mesh *me = MultiresDM_get_mesh(dm);
 		DerivedMesh *orig, *subco_dm;
 		
 		mvert = CDDM_get_verts(dm);
