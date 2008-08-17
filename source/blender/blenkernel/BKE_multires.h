@@ -30,6 +30,7 @@
 struct DerivedMesh;
 struct Mesh;
 struct MFace;
+struct MultiresModifierData;
 struct Object;
 
 typedef struct MultiresSubsurf {
@@ -60,32 +61,6 @@ int *MultiresDM_get_flags(struct DerivedMesh *);
 #define MULTIRES_DM_UPDATE_BLOCK 1
 #define MULTIRES_DM_UPDATE_ALWAYS 2
 
-/* Modifier */
-struct MDisps;
-struct MFace;
-struct MultiresModifierData;
-typedef struct MultiresDisplacer {
-	struct MDisps *grid;
-	struct MFace *face;
-	float mat[3][3];
-	
-	/* For matrix calc */
-	float mat_target[3];
-	float mat_center[3];
-	float (*mat_norms)[3];
-
-	int spacing;
-	int sidetot;
-	int sidendx;
-	int type;
-	int invert;
-	float (*orco)[3];
-	struct MVert *subco;
-	float weight;
-
-	int x, y, ax, ay;
-} MultiresDisplacer;
-
 void multires_force_update(struct Object *ob);
 
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*, struct DerivedMesh*,
@@ -98,15 +73,6 @@ void multiresModifier_subdivide(struct MultiresModifierData *mmd, struct Object 
 				int updateblock, int simple);
 void multiresModifier_setLevel(void *mmd_v, void *ob_v);
 int multiresModifier_reshape(struct MultiresModifierData *mmd, struct Object *dst, struct Object *src);
-
-void multires_displacer_init(MultiresDisplacer *d, struct DerivedMesh *dm,
-			     const int face_index, const int invert);
-void multires_displacer_weight(MultiresDisplacer *d, const float w);
-void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index);
-void multires_displacer_anchor_edge(MultiresDisplacer *d, const int, const int, const int);
-void multires_displacer_anchor_vert(MultiresDisplacer *d, const int);
-void multires_displacer_jump(MultiresDisplacer *d);
-void multires_displace(MultiresDisplacer *d, float out[3]);
 
 /* Related to the old multires */
 struct Multires;

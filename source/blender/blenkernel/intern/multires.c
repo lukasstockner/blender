@@ -56,6 +56,28 @@
 #include <math.h>
 #include <string.h>
 
+typedef struct MultiresDisplacer {
+	struct MDisps *grid;
+	struct MFace *face;
+	float mat[3][3];
+	
+	/* For matrix calc */
+	float mat_target[3];
+	float mat_center[3];
+	float (*mat_norms)[3];
+
+	int spacing;
+	int sidetot;
+	int sidendx;
+	int type;
+	int invert;
+	float (*orco)[3];
+	struct MVert *subco;
+	float weight;
+
+	int x, y, ax, ay;
+} MultiresDisplacer;
+
 /* Does not actually free lvl itself */
 void multires_free_level(MultiresLevel *lvl)
 {
@@ -873,7 +895,7 @@ void multiresModifier_setLevel(void *mmd_v, void *ob_v)
 	}
 }
 
-void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
+static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 			     const int face_index, const int invert)
 {
 	Mesh *me = MultiresDM_get_mesh(dm);
@@ -898,12 +920,12 @@ void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 	d->invert = invert;
 }
 
-void multires_displacer_weight(MultiresDisplacer *d, const float w)
+static void multires_displacer_weight(MultiresDisplacer *d, const float w)
 {
 	d->weight = w;
 }
 
-void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index)
+static void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int side_index)
 {
 	d->sidendx = side_index;
 	d->x = d->y = d->sidetot / 2;
@@ -942,7 +964,7 @@ void multires_displacer_anchor(MultiresDisplacer *d, const int type, const int s
 	d->ay = d->y;
 }
 
-void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
+static void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
 {
 	const int mov = d->spacing * x;
 
@@ -982,7 +1004,7 @@ void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
 	}
 }
 
-void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
+static void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
 {
 	const int e = d->sidetot - 1;
 
@@ -997,7 +1019,7 @@ void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
 		d->y = e;
 }
 
-void multires_displacer_jump(MultiresDisplacer *d)
+static void multires_displacer_jump(MultiresDisplacer *d)
 {
 	if(d->sidendx == 0) {
 		d->x -= d->spacing;
@@ -1017,7 +1039,7 @@ void multires_displacer_jump(MultiresDisplacer *d)
 	}
 }
 
-void multires_displace(MultiresDisplacer *d, float co[3])
+static void multires_displace(MultiresDisplacer *d, float co[3])
 {
 	float disp[3];
 	float *data;
