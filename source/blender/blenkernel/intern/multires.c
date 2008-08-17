@@ -1207,10 +1207,9 @@ static void multiresModifier_update(DerivedMesh *dm)
 	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
 
 	if(mdisps) {
-		SubsurfModifierData smd;
 		const int lvl = MultiresDM_get_lvl(dm);
 		const int totlvl = MultiresDM_get_totlvl(dm);
-		DerivedMesh *orig, *subco_dm;
+		DerivedMesh *orig;
 		
 		mvert = CDDM_get_verts(dm);
 		medge = MultiresDM_get_mesh(dm)->medge;
@@ -1220,10 +1219,9 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 		if(lvl < totlvl) {
 			/* Propagate disps upwards */
-			DerivedMesh *final;
-			MVert *verts_new;
+			DerivedMesh *final, *subco_dm;
+			MVert *verts_new = NULL, *cur_lvl_orig_verts = NULL;
 			MultiresModifierData mmd;
-			MVert *cur_lvl_orig_verts = NULL;
 			
 			/* Regenerate the current level's vertex coordinates without sculpting */
 			mmd.totlvl = totlvl;
@@ -1241,18 +1239,13 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 			multires_subdisp(orig, me, final, lvl, totlvl, dm->getNumVerts(dm), dm->getNumEdges(dm),
 					 dm->getNumFaces(dm), 1);
-		}
-		else {
-			/* Regenerate the current level's vertex coordinates without displacements */
-			memset(&smd, 0, sizeof(SubsurfModifierData));
-			smd.levels = lvl - 1;
-			subco_dm = subsurf_make_derived_from_derived_with_multires(orig, &smd, NULL, 0, NULL, 0, 0);
 
-			multiresModifier_disp_run(dm, CDDM_get_verts(subco_dm), 1);
+			subco_dm->release(subco_dm);
 		}
+		else
+			multiresModifier_disp_run(dm, MultiresDM_get_subco(dm), 1);
 		
 		orig->release(orig);
-		subco_dm->release(subco_dm);
 	}
 }
 
