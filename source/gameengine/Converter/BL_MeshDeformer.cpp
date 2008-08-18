@@ -90,7 +90,17 @@ BL_MeshDeformer::~BL_MeshDeformer()
 		delete [] m_transverts;
 	if (m_transnors)
 		delete [] m_transnors;
-};
+}
+ 
+void BL_MeshDeformer::Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
+{
+	void **h_obj = (*map)[m_gameobj];
+
+	if (h_obj)
+		m_gameobj = (BL_DeformableGameObject*)(*h_obj);
+	else
+		m_gameobj = NULL;
+}
 
 /**
  * @warning This function is expensive!
@@ -218,4 +228,4 @@ void BL_MeshDeformer::VerifyStorage()
 		m_tvtot = m_bmesh->totvert;
 	}
 }
- 
+

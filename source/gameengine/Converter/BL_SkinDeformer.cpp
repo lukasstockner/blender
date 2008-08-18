@@ -99,6 +99,20 @@ BL_SkinDeformer::~BL_SkinDeformer()
 		m_armobj->Release();
 }
 
+void BL_SkinDeformer::Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
+{
+	if (m_armobj) {
+		void **h_obj = (*map)[m_armobj];
+
+		if (h_obj)
+			SetArmature( (BL_ArmatureObject*)(*h_obj) );
+		else
+			m_armobj=NULL;
+	}
+
+	BL_MeshDeformer::Relink(map);
+}
+
 bool BL_SkinDeformer::Apply(RAS_IPolyMaterial *mat)
 {
 	RAS_MeshSlot::iterator it;
@@ -152,7 +166,7 @@ bool BL_SkinDeformer::Update(void)
 	/* See if the armature has been updated for this frame */
 	if (PoseUpdated()){	
 		float obmat[4][4];	// the original object matrice 
-		
+
 		/* XXX note: where_is_pose() (from BKE_armature.h) calculates all matrices needed to start deforming */
 		/* but it requires the blender object pointer... */
 		Object* par_arma = m_armobj->GetArmatureObject();
@@ -186,6 +200,7 @@ bool BL_SkinDeformer::Update(void)
 		/* indicate that the m_transverts and normals are up to date */
 		return true;
 	}
+
 	return false;
 }
 

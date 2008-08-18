@@ -50,17 +50,7 @@ class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
 //	void SetArmatureController (BL_ArmatureController *cont);
-	virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
-	{
-		if (m_armobj){
-			void **h_obj = (*map)[m_armobj];
-			if (h_obj){
-				SetArmature( (BL_ArmatureObject*)(*h_obj) );
-			}
-			else
-				m_armobj=NULL;
-		}
-	}
+	virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map);
 	void SetArmature (class BL_ArmatureObject *armobj);
 
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
