@@ -696,12 +696,12 @@ static const char *check_memlist(MemHead *memh)
 	return(name);
 }
 
-unsigned long MEM_get_memory_in_use(void)
+uintptr_t MEM_get_memory_in_use(void)
 {
 	return mem_in_use;
 }
 
-unsigned long MEM_get_mapped_memory_in_use(void)
+uintptr_t MEM_get_mapped_memory_in_use(void)
 {
 	return mmap_in_use;
 }
