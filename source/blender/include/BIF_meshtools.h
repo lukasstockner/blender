@@ -40,7 +40,7 @@ extern void objects_bake_render_menu(void);
 extern void objects_bake_render_ui(short event);
 extern void objects_bake_render(short event, char **error_msg);
 
-extern long mesh_octree_table(struct Object *ob, float *co, char mode);
+extern intptr_t mesh_octree_table(struct Object *ob, float *co, char mode);
 extern long mesh_mirrtopo_table(struct Object *ob, char mode);
 extern int mesh_get_x_mirror_vert(struct Object *ob, int index);
 extern struct EditVert *editmesh_get_x_mirror_vert(struct Object *ob, struct EditVert *eve, int index);

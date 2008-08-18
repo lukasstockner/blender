@@ -58,8 +58,8 @@
 #ifndef MEM_MALLOCN_H
 #define MEM_MALLOCN_H
 
-/* Needed for FILE* */
-#include "stdio.h"
+#include "stdio.h" /* needed for FILE* */
+#include "BLO_sys_types.h" /* needed for intptr_t */
 
 #ifdef __cplusplus
 extern "C" {
@@ -126,8 +126,8 @@ extern "C" {
 	/* Memory usage stats
 	 * - MEM_get_memory_in_use is all memory
 	 * - MEM_get_mapped_memory_in_use is a subset of all memory */
-	unsigned long MEM_get_memory_in_use(void);
-	unsigned long MEM_get_mapped_memory_in_use(void);
+	uintptr_t MEM_get_memory_in_use(void);
+	uintptr_t MEM_get_mapped_memory_in_use(void);
 	int MEM_get_memory_blocks_in_use(void);
 
 #ifdef __cplusplus

@@ -5322,7 +5322,7 @@ void draw_object_ext(Base *base)
 
 static void bbs_mesh_verts__mapFunc(void *userData, int index, float *co, float *no_f, short *no_s)
 {
-	int offset = (long) userData;
+	int offset = (intptr_t) userData;
 	EditVert *eve = EM_get_vert_for_index(index);
 
 	if (eve->h==0) {
@@ -5334,7 +5334,7 @@ static int bbs_mesh_verts(DerivedMesh *dm, int offset)
 {
 	glPointSize( BIF_GetThemeValuef(TH_VERTEX_SIZE) );
 	bglBegin(GL_POINTS);
-	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, (void*)(long) offset);
+	dm->foreachMappedVert(dm, bbs_mesh_verts__mapFunc, (void*)(intptr_t) offset);
 	bglEnd();
 	glPointSize(1.0);
 
@@ -5343,7 +5343,7 @@ static int bbs_mesh_verts(DerivedMesh *dm, int offset)
 
 static int bbs_mesh_wire__setDrawOptions(void *userData, int index)
 {
-	int offset = (long) userData;
+	int offset = (intptr_t) userData;
 	EditEdge *eed = EM_get_edge_for_index(index);
 
 	if (eed->h==0) {
@@ -5355,7 +5355,7 @@ static int bbs_mesh_wire__setDrawOptions(void *userData, int index)
 }
 static int bbs_mesh_wire(DerivedMesh *dm, int offset)
 {
-	dm->drawMappedEdges(dm, bbs_mesh_wire__setDrawOptions, (void*)(long) offset);
+	dm->drawMappedEdges(dm, bbs_mesh_wire__setDrawOptions, (void*)(intptr_t) offset);
 
 	return offset + G.totedge;
 }		
@@ -5389,7 +5389,7 @@ static int bbs_mesh_solid_EM(DerivedMesh *dm, int facecol)
 	cpack(0);
 
 	if (facecol) {
-		dm->drawMappedFaces(dm, bbs_mesh_solid__setSolidDrawOptions, (void*)(long) 1, 0);
+		dm->drawMappedFaces(dm, bbs_mesh_solid__setSolidDrawOptions, (void*)(intptr_t) 1, 0);
 
 		if( CHECK_OB_DRAWFACEDOT(G.scene, G.vd, G.obedit->dt) ) {
 			glPointSize(BIF_GetThemeValuef(TH_FACEDOT_SIZE));
