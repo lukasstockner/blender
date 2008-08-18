@@ -124,7 +124,7 @@ void GPU_material_free(GPUMaterial *material);
 
 void GPU_materials_free();
 
-void GPU_material_bind(GPUMaterial *material, int lay);
+void GPU_material_bind(GPUMaterial *material, int lay, double time);
 void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float viewmat[][4], float viewinv[][4], float obcol[4]);
 void GPU_material_unbind(GPUMaterial *material);
 

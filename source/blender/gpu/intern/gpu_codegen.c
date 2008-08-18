@@ -819,7 +819,7 @@ void GPU_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 	GPU_shader_unbind(shader);
 }
 
-void GPU_pass_bind(GPUPass *pass)
+void GPU_pass_bind(GPUPass *pass, double time)
 {
 	GPUInput *input;
 	GPUShader *shader = pass->shader;
@@ -833,7 +833,7 @@ void GPU_pass_bind(GPUPass *pass)
 	/* now bind the textures */
 	for (input=inputs->first; input; input=input->next) {
 		if (input->ima)
-			input->tex = GPU_texture_from_blender(input->ima, input->iuser);
+			input->tex = GPU_texture_from_blender(input->ima, input->iuser, time);
 
 		if(input->ima || input->tex) {
 			if(input->tex) {
@@ -977,11 +977,11 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, int type)
 		input->textype = type;
 
 		if (type == GPU_TEX1D) {
-			input->tex = GPU_texture_create_1D(link->texturesize, link->ptr1, 0);
+			input->tex = GPU_texture_create_1D(link->texturesize, link->ptr1);
 			input->textarget = GL_TEXTURE_1D;
 		}
 		else {
-			input->tex = GPU_texture_create_2D(link->texturesize, link->texturesize, link->ptr2, 0);
+			input->tex = GPU_texture_create_2D(link->texturesize, link->texturesize, link->ptr2);
 			input->textarget = GL_TEXTURE_2D;
 		}
 

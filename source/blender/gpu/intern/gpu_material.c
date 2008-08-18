@@ -225,7 +225,7 @@ void GPU_material_free(GPUMaterial *material)
 	MEM_freeN(material);
 }
 
-void GPU_material_bind(GPUMaterial *material, int lay)
+void GPU_material_bind(GPUMaterial *material, int lay, double time)
 {
 	if(material->pass) {
 		LinkNode *nlink;
@@ -245,8 +245,7 @@ void GPU_material_bind(GPUMaterial *material, int lay)
 			}
 		}
 
-		GPU_pass_bind(material->pass);
-		//GPU_pass_update_uniforms(material->pass);
+		GPU_pass_bind(material->pass, time);
 	}
 }
 

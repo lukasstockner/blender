@@ -69,11 +69,11 @@ bool BL_BlenderShader::VerifyShader()
 	return (mMat && mGPUMat);
 }
 
-void BL_BlenderShader::SetProg(bool enable)
+void BL_BlenderShader::SetProg(bool enable, double time)
 {
 	if(VerifyShader()) {
 		if(enable) {
-			GPU_material_bind(mGPUMat, mLightLayer);
+			GPU_material_bind(mGPUMat, mLightLayer, time);
 			mBound = true;
 		}
 		else {

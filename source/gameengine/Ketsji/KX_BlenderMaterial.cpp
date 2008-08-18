@@ -273,7 +273,7 @@ void KX_BlenderMaterial::setBlenderShaderData( bool enable, RAS_IRasterizer *ras
 		else
 			BL_Texture::DisableAllTextures();
 
-		mBlenderShader->SetProg(true);
+		mBlenderShader->SetProg(true, ras->GetTime());
 		mLastBlenderShader= mBlenderShader;
 	}
 }

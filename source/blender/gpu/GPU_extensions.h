@@ -70,10 +70,11 @@ int GPU_print_error(char *str);
 	- if created with from_blender, will not free the texture
 */
 
-GPUTexture *GPU_texture_create_1D(int w, float *pixels, int halffloat);
-GPUTexture *GPU_texture_create_2D(int w, int h, float *pixels, int halffloat);
+GPUTexture *GPU_texture_create_1D(int w, float *pixels);
+GPUTexture *GPU_texture_create_2D(int w, int h, float *pixels);
 GPUTexture *GPU_texture_create_depth(int w, int h);
-GPUTexture *GPU_texture_from_blender(struct Image *ima, struct ImageUser *iuser);
+GPUTexture *GPU_texture_from_blender(struct Image *ima,
+	struct ImageUser *iuser, double time);
 void GPU_texture_free(GPUTexture *tex);
 
 void GPU_texture_ref(GPUTexture *tex);
@@ -81,17 +82,11 @@ void GPU_texture_ref(GPUTexture *tex);
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
 
-int GPU_texture_width(GPUTexture *tex);
-int GPU_texture_height(GPUTexture *tex);
-
-int GPU_texture_is_half_float(GPUTexture *tex);
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 
 int GPU_texture_target(GPUTexture *tex);
-
 int GPU_texture_opengl_width(GPUTexture *tex);
 int GPU_texture_opengl_height(GPUTexture *tex);
-void GPU_texture_coord_2f(GPUTexture *tex, float s, float t);
 
 /* GPU Framebuffer
    - this is a wrapper for an OpenGL framebuffer object (FBO). in practice

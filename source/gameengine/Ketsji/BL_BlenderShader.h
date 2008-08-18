@@ -42,7 +42,7 @@ public:
 	virtual ~BL_BlenderShader();
 
 	bool				Ok();
-	void				SetProg(bool enable);
+	void				SetProg(bool enable, double time=0.0);
 
 	int GetAttribNum();
 	void SetAttribs(class RAS_IRasterizer* ras, const BL_Material *mat);

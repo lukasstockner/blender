@@ -140,7 +140,8 @@ void KX_PolygonMaterial::DefaultActivate(RAS_IRasterizer* rasty, TCachingInfo& c
 
 		if ((m_drawingmode & 4)&& (rasty->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED))
 		{
-			GPU_update_image_time((struct MTFace*) m_tface, rasty->GetTime());
+			Image *ima = (Image*)m_tface->tpage;
+			GPU_update_image_time(ima, rasty->GetTime());
 			GPU_set_tpage(m_tface);
 		}
 		else
@@ -371,7 +372,9 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, updateTexture, "updateTexture(tface, rast
 	{
 		MTFace *tface = (MTFace*) PyCObject_AsVoidPtr(pytface);
 		RAS_IRasterizer *rasty = (RAS_IRasterizer*) PyCObject_AsVoidPtr(pyrasty);
-		GPU_update_image_time(tface, rasty->GetTime());
+		Image *ima = (Image*)m_tface->tpage;
+		GPU_update_image_time(ima, rasty->GetTime());
+
 		Py_Return;
 	}
 	

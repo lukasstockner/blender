@@ -239,8 +239,10 @@ void do_image_buttons(unsigned short event)
 				if(ima->twsta>=nr) ima->twsta= 1;
 				if(ima->twend>=nr) ima->twend= nr-1;
 				if(ima->twsta>ima->twend) ima->twsta= 1;
-				allqueue(REDRAWIMAGE, 0);
 			}
+
+			allqueue(REDRAWIMAGE, 0);
+			allqueue(REDRAWVIEW3D, 0);
 		}
 		break;
 	}	

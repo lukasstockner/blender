@@ -185,18 +185,17 @@ static int smaller_pow2_limit(int num)
 /* Current OpenGL state caching for GPU_set_tpage */
 
 static struct GPUTextureState {
-	int curtile, curmode;
-	int curtileXRep, curtileYRep;
-	Image *curima;
-	short texwindx, texwindy;
-	short texwinsx, texwinsy;
+	int curtile, tile;
+	int curtilemode, tilemode;
+	int curtileXRep, tileXRep;
+	int curtileYRep, tileYRep;
+	Image *ima, *curima;
+
 	int domipmap, linearmipmap;
 
 	int alphamode;
 	MTFace *lasttface;
-
-	int tilemode, tileXRep, tileYRep;
-} GTS = {0, 0, 0, 0, NULL, 0, 0, 0, 0, 1, 0, -1, NULL, 0, 0, 0};
+} GTS = {0, 0, 0, 0, 0, 0, 0, 0, NULL, NULL, 1, 0, -1, NULL};
 
 /* Mipmap settings */
 
@@ -257,12 +256,12 @@ static void gpu_clear_tpage()
 	GTS.lasttface= 0;
 	GTS.curtile= 0;
 	GTS.curima= 0;
-	if(GTS.curmode!=0) {
+	if(GTS.curtilemode!=0) {
 		glMatrixMode(GL_TEXTURE);
 		glLoadIdentity();
 		glMatrixMode(GL_MODELVIEW);
 	}
-	GTS.curmode= 0;
+	GTS.curtilemode= 0;
 	GTS.curtileXRep=0;
 	GTS.curtileYRep=0;
 	GTS.alphamode= -1;
@@ -336,12 +335,26 @@ static void gpu_verify_reflection(Image *ima)
 	}
 }
 
-static int gpu_verify_tile(MTFace *tface, Image *ima)
+int GPU_verify_image(Image *ima, int tftile, int tfmode)
 {
+	ImBuf *ibuf = NULL;
+	unsigned int *bind = NULL;
+	int rectw, recth, tpx=0, tpy=0, y;
+	unsigned int *rectrow, *tilerectrow;
+	unsigned int *tilerect= NULL, *scalerect= NULL, *rect= NULL;
+	short texwindx, texwindy, texwinsx, texwinsy;
+
 	/* initialize tile mode and number of repeats */
-	GTS.tilemode= tface->mode & TF_TILES;
+	GTS.ima = ima;
+	GTS.tilemode= (tfmode & TF_TILES) || (ima && (ima->tpageflag & IMA_TWINANIM));
 	GTS.tileXRep = 0;
 	GTS.tileYRep = 0;
+
+	/* setting current tile according to frame */
+	if(ima && (ima->tpageflag & IMA_TWINANIM))
+		GTS.tile= ima->lastframe;
+	else
+		GTS.tile= tftile;
 
 	if(ima) {
 		GTS.tileXRep = ima->xrep;
@@ -349,99 +362,65 @@ static int gpu_verify_tile(MTFace *tface, Image *ima)
 	}
 
 	/* if same image & tile, we're done */
-	if(ima == GTS.curima && GTS.curtile == tface->tile &&
-	   GTS.tilemode == GTS.curmode && GTS.curtileXRep == GTS.tileXRep &&
+	if(ima == GTS.curima && GTS.curtile == GTS.tile &&
+	   GTS.tilemode == GTS.curtilemode && GTS.curtileXRep == GTS.tileXRep &&
 	   GTS.curtileYRep == GTS.tileYRep)
 		return (ima!=0);
 
 	/* if tiling mode or repeat changed, change texture matrix to fit */
-	if(GTS.tilemode!=GTS.curmode || GTS.curtileXRep!=GTS.tileXRep ||
+	if(GTS.tilemode!=GTS.curtilemode || GTS.curtileXRep!=GTS.tileXRep ||
 	   GTS.curtileYRep != GTS.tileYRep) {
 
 		glMatrixMode(GL_TEXTURE);
 		glLoadIdentity();
-		
-		if(GTS.tilemode && ima!=NULL)
+
+		if((tfmode & TF_TILES) && ima!=NULL)
 			glScalef(ima->xrep, ima->yrep, 1.0);
 
 		glMatrixMode(GL_MODELVIEW);
 	}
 
-	return 1;
-}
-
-static int gpu_verify_image_bind(MTFace *tface, Image *ima)
-{
-	ImBuf *ibuf = NULL;
-	unsigned int *bind = NULL;
-	int rectw, recth, tpx=0, tpy=0, y;
-	unsigned int *rectrow, *tilerectrow;
-	unsigned int *tilerect= NULL, *scalerect= NULL, *rect= NULL;
-
 	/* check if we have a valid image */
-	if(ima==NULL || ima->ok==0) {
-		glDisable(GL_TEXTURE_2D);
-		
-		GTS.curtile= tface->tile;
-		GTS.curima= 0;
-		GTS.curmode= GTS.tilemode;
-		GTS.curtileXRep = GTS.tileXRep;
-		GTS.curtileYRep = GTS.tileYRep;
-
+	if(ima==NULL || ima->ok==0)
 		return 0;
-	}
 
 	/* check if we have a valid image buffer */
 	ibuf= BKE_image_get_ibuf(ima, NULL);
 
-	if(ibuf==NULL) {
-		glDisable(GL_TEXTURE_2D);
-
-		GTS.curtile= tface->tile;
-		GTS.curima= 0;
-		GTS.curmode= GTS.tilemode;
-		GTS.curtileXRep = GTS.tileXRep;
-		GTS.curtileYRep = GTS.tileYRep;
-		
+	if(ibuf==NULL)
 		return 0;
-	}
 
 	/* ensure we have a char buffer and not only float */
 	if ((ibuf->rect==NULL) && ibuf->rect_float)
 		IMB_rect_from_float(ibuf);
 
-	/* setting current tile according to frame */
-	if(ima->tpageflag & IMA_TWINANIM)
-		GTS.curtile= ima->lastframe;
-	else
-		GTS.curtile= tface->tile;
-
 	if(GTS.tilemode) {
 		/* tiled mode */
 		if(ima->repbind==0) gpu_make_repbind(ima);
-		if(GTS.curtile>=ima->totbind) GTS.curtile= 0;
+		if(GTS.tile>=ima->totbind) GTS.tile= 0;
 		
 		/* this happens when you change repeat buttons */
-		if(ima->repbind) bind= ima->repbind+GTS.curtile;
+		if(ima->repbind) bind= &ima->repbind[GTS.tile];
 		else bind= &ima->bindcode;
 		
 		if(*bind==0) {
 			
-			GTS.texwindx= ibuf->x/ima->xrep;
-			GTS.texwindy= ibuf->y/ima->yrep;
+			texwindx= ibuf->x/ima->xrep;
+			texwindy= ibuf->y/ima->yrep;
 			
-			if(GTS.curtile>=ima->xrep*ima->yrep) GTS.curtile= ima->xrep*ima->yrep-1;
+			if(GTS.tile>=ima->xrep*ima->yrep)
+				GTS.tile= ima->xrep*ima->yrep-1;
 	
-			GTS.texwinsy= GTS.curtile / ima->xrep;
-			GTS.texwinsx= GTS.curtile - GTS.texwinsy*ima->xrep;
+			texwinsy= GTS.tile / ima->xrep;
+			texwinsx= GTS.tile - texwinsy*ima->xrep;
 	
-			GTS.texwinsx*= GTS.texwindx;
-			GTS.texwinsy*= GTS.texwindy;
+			texwinsx*= texwindx;
+			texwinsy*= texwindy;
 	
-			tpx= GTS.texwindx;
-			tpy= GTS.texwindy;
+			tpx= texwindx;
+			tpy= texwindy;
 
-			rect= ibuf->rect + GTS.texwinsy*ibuf->x + GTS.texwinsx;
+			rect= ibuf->rect + texwinsy*ibuf->x + texwinsx;
 		}
 	}
 	else {
@@ -455,16 +434,14 @@ static int gpu_verify_image_bind(MTFace *tface, Image *ima)
 		}
 	}
 
-	rectw = tpx;
-	recth = tpy;
-
 	if(*bind != 0) {
 		/* enable opengl drawing with textures */
 		glBindTexture(GL_TEXTURE_2D, *bind);
-		glEnable(GL_TEXTURE_2D);
-
-		return 1;
+		return *bind;
 	}
+
+	rectw = tpx;
+	recth = tpy;
 
 	/* for tiles, copy only part of image into buffer */
 	if (GTS.tilemode) {
@@ -516,16 +493,7 @@ static int gpu_verify_image_bind(MTFace *tface, Image *ima)
 	if (scalerect)
 		MEM_freeN(scalerect);
 
-	/* update state */
-	GTS.curima= ima;
-	GTS.curmode= GTS.tilemode;
-	GTS.curtileXRep = GTS.tileXRep;
-	GTS.curtileYRep = GTS.tileYRep;
-
-	/* enable opengl drawing with textures */
-	glEnable(GL_TEXTURE_2D);
-	
-	return 1;
+	return *bind;
 }
 
 static void gpu_verify_repeat(Image *ima)
@@ -558,10 +526,26 @@ int GPU_set_tpage(MTFace *tface)
 	gpu_verify_alpha_mode(tface);
 	gpu_verify_reflection(ima);
 
-	if(!gpu_verify_tile(tface, ima))
+	if(GPU_verify_image(ima, tface->tile, tface->mode)) {
+		GTS.curtile= GTS.tile;
+		GTS.curima= GTS.ima;
+		GTS.curtilemode= GTS.tilemode;
+		GTS.curtileXRep = GTS.tileXRep;
+		GTS.curtileYRep = GTS.tileYRep;
+
+		glEnable(GL_TEXTURE_2D);
+	}
+	else {
+		glDisable(GL_TEXTURE_2D);
+		
+		GTS.curtile= 0;
+		GTS.curima= 0;
+		GTS.curtilemode= 0;
+		GTS.curtileXRep = 0;
+		GTS.curtileYRep = 0;
+
 		return 0;
-	if(!gpu_verify_image_bind(tface, ima))
-		return 0;
+	}
 	
 	gpu_verify_repeat(ima);
 	
@@ -667,14 +651,11 @@ void GPU_update_images_framechange(void)
 	}
 }
 
-int GPU_update_image_time(MTFace *tface, double time)
+int GPU_update_image_time(Image *ima, double time)
 {
-	Image *ima;
 	int	inc = 0;
 	float	diff;
 	int	newframe;
-
-	ima = tface->tpage;
 
 	if (!ima)
 		return 0;
@@ -691,18 +672,22 @@ int GPU_update_image_time(MTFace *tface, double time)
 		/* check: is the bindcode not in the array? Then free. (still to do) */
 		
 		diff = (float)(time-ima->lastupdate);
-
 		inc = (int)(diff*(float)ima->animspeed);
 
 		ima->lastupdate+=((float)inc/(float)ima->animspeed);
 
 		newframe = ima->lastframe+inc;
 
-		if (newframe > (int)ima->twend)
-			newframe = (int)ima->twsta-1 + (newframe-ima->twend)%(ima->twend-ima->twsta);
+		if(newframe > (int)ima->twend) {
+			if(ima->twend-ima->twsta == 0)
+				newframe = (int)ima->twsta-1 + (newframe-ima->twend)%(ima->twend-ima->twsta);
+			else
+				newframe = ima->twsta;
+		}
 
 		ima->lastframe = newframe;
 	}
+
 	return inc;
 }
 
@@ -908,7 +893,7 @@ int GPU_enable_material(int nr, void *attribs)
 			Material *mat = GMS.gmatbuf[nr];
 
 			GPU_material_vertex_attributes(mat->gpumaterial, gattribs);
-			GPU_material_bind(mat->gpumaterial, GMS.gob->lay);
+			GPU_material_bind(mat->gpumaterial, GMS.gob->lay, 1.0);
 			GPU_material_bind_uniforms(mat->gpumaterial, GMS.gob->obmat, G.vd->viewmat, G.vd->viewinv, GMS.gob->col);
 			GMS.gboundmat= mat;
 
