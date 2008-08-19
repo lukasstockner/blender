@@ -1405,6 +1405,7 @@ void cloth_calc_force(ClothModifierData *clmd, lfVector *lF, lfVector *lX, lfVec
 	unsigned int numverts = cloth->numverts;
 	LinkNode *search = cloth->springs;
 	lfVector *winvec;
+	ClothVertex *verts = cloth->verts;
 
 	VECCOPY(gravity, clmd->sim_parms->gravity);
 	mul_fvector_S(gravity, gravity, 0.001f); /* scale gravity force */
@@ -1451,7 +1452,7 @@ void cloth_calc_force(ClothModifierData *clmd, lfVector *lF, lfVector *lX, lfVec
 			float triunnormal[3]={0,0,0}; // not-normalized-triangle normal
 			float tmp[3]={0,0,0};
 			float factor = (mfaces[i].v4) ? 0.25 : 1.0 / 3.0;
-			factor *= 0.05;
+			factor *= 0.02;
 			
 			// calculate face normal
 			if(mfaces[i].v4)
