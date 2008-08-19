@@ -335,7 +335,7 @@ static void gpu_verify_reflection(Image *ima)
 	}
 }
 
-int GPU_verify_image(Image *ima, int tftile, int tfmode)
+int GPU_verify_image(Image *ima, int tftile, int tfmode, int compare)
 {
 	ImBuf *ibuf = NULL;
 	unsigned int *bind = NULL;
@@ -362,7 +362,7 @@ int GPU_verify_image(Image *ima, int tftile, int tfmode)
 	}
 
 	/* if same image & tile, we're done */
-	if(ima == GTS.curima && GTS.curtile == GTS.tile &&
+	if(compare && ima == GTS.curima && GTS.curtile == GTS.tile &&
 	   GTS.tilemode == GTS.curtilemode && GTS.curtileXRep == GTS.tileXRep &&
 	   GTS.curtileYRep == GTS.tileYRep)
 		return (ima!=0);
@@ -526,7 +526,7 @@ int GPU_set_tpage(MTFace *tface)
 	gpu_verify_alpha_mode(tface);
 	gpu_verify_reflection(ima);
 
-	if(GPU_verify_image(ima, tface->tile, tface->mode)) {
+	if(GPU_verify_image(ima, tface->tile, tface->mode, 1)) {
 		GTS.curtile= GTS.tile;
 		GTS.curima= GTS.ima;
 		GTS.curtilemode= GTS.tilemode;

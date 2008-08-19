@@ -85,6 +85,7 @@ struct GPUMaterial {
 	/* for binding the material */
 	GPUPass *pass;
 	GPUVertexAttribs attribs;
+	int bound;
 	int builtins;
 	int alpha, obcolalpha;
 	int dynproperty;
@@ -246,6 +247,7 @@ void GPU_material_bind(GPUMaterial *material, int lay, double time)
 		}
 
 		GPU_pass_bind(material->pass, time);
+		material->bound = 1;
 	}
 }
 
@@ -305,8 +307,15 @@ void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[][4], float v
 
 void GPU_material_unbind(GPUMaterial *material)
 {
-	if (material->pass)
+	if (material->pass) {
+		material->bound = 0;
 		GPU_pass_unbind(material->pass);
+	}
+}
+
+int GPU_material_bound(GPUMaterial *material)
+{
+	return material->bound;
 }
 
 void GPU_material_vertex_attributes(GPUMaterial *material, GPUVertexAttribs *attribs)

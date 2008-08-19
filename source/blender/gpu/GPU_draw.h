@@ -104,7 +104,7 @@ void GPU_paint_set_mipmap(int mipmap);
 void GPU_paint_update_image(struct Image *ima, int x, int y, int w, int h);
 void GPU_update_images_framechange(void);
 int GPU_update_image_time(struct Image *ima, double time);
-int GPU_verify_image(struct Image *ima, int tftile, int tfmode);
+int GPU_verify_image(struct Image *ima, int tftile, int tfmode, int compare);
 void GPU_free_image(struct Image *ima);
 void GPU_free_images(void);
 

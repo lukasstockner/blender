@@ -41,7 +41,6 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	mScene(scene),
 	mMat(ma),
 	mGPUMat(NULL),
-	mBound(false),
 	mLightLayer(lightlayer)
 {
 	mBlenderScene = GetSceneForName(scene->GetName());
@@ -72,14 +71,10 @@ bool BL_BlenderShader::VerifyShader()
 void BL_BlenderShader::SetProg(bool enable, double time)
 {
 	if(VerifyShader()) {
-		if(enable) {
+		if(enable)
 			GPU_material_bind(mGPUMat, mLightLayer, time);
-			mBound = true;
-		}
-		else {
+		else
 			GPU_material_unbind(mGPUMat);
-			mBound = false;
-		}
 	}
 }
 
@@ -154,7 +149,7 @@ void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty )
 
 	VerifyShader();
 
-	if(!mGPUMat || !mBound)
+	if(!mGPUMat || !GPU_material_bound(mGPUMat))
 		return;
 
 	MT_Matrix4x4 model;

@@ -372,7 +372,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, updateTexture, "updateTexture(tface, rast
 	{
 		MTFace *tface = (MTFace*) PyCObject_AsVoidPtr(pytface);
 		RAS_IRasterizer *rasty = (RAS_IRasterizer*) PyCObject_AsVoidPtr(pyrasty);
-		Image *ima = (Image*)m_tface->tpage;
+		Image *ima = (Image*)tface->tpage;
 		GPU_update_image_time(ima, rasty->GetTime());
 
 		Py_Return;

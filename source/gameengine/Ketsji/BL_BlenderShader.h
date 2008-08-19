@@ -31,7 +31,6 @@ private:
 	struct Scene	*mBlenderScene;
 	struct Material	*mMat;
 	GPUMaterial		*mGPUMat;
-	bool			mBound;
 	int				mLightLayer;
 	int				mBlendMode;
 
