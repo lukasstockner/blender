@@ -118,7 +118,9 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 	// Acquire Python's GIL (global interpreter lock)
 	// so we can safely run Python code and API calls
 	PyGILState_STATE gilstate = PyGILState_Ensure();
-
+	
+	PyObject *pyGlobalDict = PyDict_New(); /* python utility storage, spans blend file loading */
+	
 	bgl::InitExtensions(true);
 
 	do
@@ -315,6 +317,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 			initRasterizer(rasterizer, canvas);
 			PyObject *gameLogic = initGameLogic(ketsjiengine, startscene);
 			PyDict_SetItemString(dictionaryobject, "GameLogic", gameLogic); // Same as importing the module.
+			PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
 			initGameKeys();
 			initPythonConstraintBinding();
 			initMathutils();
@@ -389,6 +392,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 				// which allows the scene to safely delete them :)
 				// see: (space.c)->start_game
 				PyDict_Clear(PyModule_GetDict(gameLogic));
+				PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict);
 				
 				ketsjiengine->StopEngine();
 				exitGamePythonScripting();
