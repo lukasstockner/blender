@@ -77,10 +77,11 @@ KX_GameObject::KX_GameObject(
 	SCA_IObject(T),
 	m_bDyna(false),
 	m_layer(0),
+	m_pBlenderObject(NULL),
+	m_pBlenderGroupObject(NULL),
 	m_bSuspendDynamics(false),
 	m_bUseObjectColor(false),
 	m_bIsNegativeScaling(false),
-	m_pBlenderObject(NULL),
 	m_bVisible(true),
 	m_bCulled(true),
 	m_pPhysicsController1(NULL),
@@ -286,11 +287,11 @@ void KX_GameObject::ProcessReplica(KX_GameObject* replica)
 CValue* KX_GameObject::GetReplica()
 {
 	KX_GameObject* replica = new KX_GameObject(*this);
-	
+
 	// this will copy properties and so on...
 	CValue::AddDataToReplica(replica);
 	ProcessReplica(replica);
-	
+
 	return replica;
 }
 

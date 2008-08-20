@@ -270,7 +270,7 @@ void free_object(Object *ob)
 	}
 	if(ob->soft) sbFree(ob->soft);
 	if(ob->fluidsimSettings) fluidsimSettingsFree(ob->fluidsimSettings);
-	if(ob->gpulamp) GPU_lamp_free(ob->gpulamp);
+	if(ob->gpulamp.first) GPU_lamp_free(ob);
 }
 
 static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Object **obpoin)
@@ -1229,7 +1229,7 @@ Object *copy_object(Object *ob)
 	obn->vnode = NULL;
 #endif
 
-	obn->gpulamp = NULL;
+	obn->gpulamp.first = obn->gpulamp.last = NULL;
 
 	return obn;
 }

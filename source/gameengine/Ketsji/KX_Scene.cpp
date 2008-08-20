@@ -654,6 +654,7 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 		if (blgroupobj == blenderobj)
 			// this check is also in group_duplilist()
 			continue;
+
 		gameobj = (KX_GameObject*)m_logicmgr->FindGameObjByBlendObj(blenderobj);
 		if (gameobj == NULL) 
 		{
@@ -661,6 +662,9 @@ void KX_Scene::DupliGroupRecurse(CValue* obj, int level)
 			// Should not happen as dupli group are created automatically 
 			continue;
 		}
+
+		gameobj->SetBlenderGroupObject(blgroupobj);
+
 		if ((blenderobj->lay & group->layer)==0)
 		{
 			// object is not visible in the 3D view, will not be instantiated

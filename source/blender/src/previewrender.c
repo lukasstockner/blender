@@ -231,17 +231,15 @@ void BIF_preview_changed(short id_code)
 		if(id_code == ID_WO) {
 			for(ma=G.main->mat.first; ma; ma=ma->id.next) {
 				if(ma->gpumaterial) {
-					GPU_material_free(ma->gpumaterial);
-					ma->gpumaterial= NULL;
+					GPU_material_free(ma);
 					allqueue(REDRAWVIEW3D, 0);
 				}
 			}
 		}
 		else if(id_code == ID_LA) {
 			for(ob=G.main->object.first; ob; ob=ob->id.next) {
-				if(ob->gpulamp) {
-					GPU_lamp_free(ob->gpulamp);
-					ob->gpulamp= NULL;
+				if(ob->gpulamp.first) {
+					GPU_lamp_free(ob);
 					allqueue(REDRAWVIEW3D, 0);
 				}
 			}
@@ -250,8 +248,7 @@ void BIF_preview_changed(short id_code)
 
 			ma= give_current_material(ob, ob->actcol);
 			if(ma && ma->gpumaterial) {
-				GPU_material_free(ma->gpumaterial);
-				ma->gpumaterial= NULL;
+				GPU_material_free(ma);
 				allqueue(REDRAWVIEW3D, 0);
 			}
 		}

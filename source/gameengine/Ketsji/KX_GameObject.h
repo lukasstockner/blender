@@ -74,6 +74,7 @@ protected:
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
 	struct Object*						m_pBlenderObject;
+	struct Object*						m_pBlenderGroupObject;
 	
 	bool								m_bSuspendDynamics;
 	bool								m_bUseObjectColor;
@@ -394,6 +395,16 @@ public:
 	{
 		m_pBlenderObject = obj;
 	}
+
+	struct Object* GetBlenderGroupObject( )
+	{
+		return m_pBlenderGroupObject;
+	}
+
+	void SetBlenderGroupObject( struct Object* obj)
+	{
+		m_pBlenderGroupObject = obj;
+	}
 	
 	bool IsDupliGroup()
 	{ 
@@ -669,6 +680,14 @@ public:
 	IsNegativeScaling(
 		void
 	) { return m_bIsNegativeScaling; }
+
+	/**
+	 * Is this a light?
+	 */
+		virtual bool
+	IsLight(
+		void
+	) { return false; }
 
 	/**
 	 * @section Logic bubbling methods.

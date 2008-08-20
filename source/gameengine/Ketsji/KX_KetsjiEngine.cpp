@@ -328,8 +328,6 @@ void KX_KetsjiEngine::EndFrame()
 
 	
 	m_canvas->EndDraw();
-	
-
 }
 
 //#include "PIL_time.h"
@@ -904,11 +902,16 @@ void KX_KetsjiEngine::SetupRenderFrame(KX_Scene *scene, KX_Camera* cam)
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
-	CListValue *lightlist = scene->GetLightList();
+	CListValue *objectlist = scene->GetObjectList();
 	int i, drawmode;
 
-	for(i=0; i<lightlist->GetCount(); i++) {
-		KX_LightObject *light = (KX_LightObject*)lightlist->GetValue(i);
+	for(i=0; i<objectlist->GetCount(); i++) {
+		KX_GameObject *gameobj = (KX_GameObject*)objectlist->GetValue(i);
+
+		if(!gameobj->IsLight())
+			continue;
+
+		KX_LightObject *light = (KX_LightObject*)gameobj;
 
 		light->Update();
 

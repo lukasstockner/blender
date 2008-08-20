@@ -100,7 +100,7 @@ void free_material(Material *ma)
 	}
 
 	if(ma->gpumaterial)
-		GPU_material_free(ma->gpumaterial);
+		GPU_material_free(ma);
 }
 
 void init_material(Material *ma)

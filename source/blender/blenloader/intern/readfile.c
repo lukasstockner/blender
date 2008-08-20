@@ -3400,7 +3400,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->bb= NULL;
 	ob->derivedDeform= NULL;
 	ob->derivedFinal= NULL;
-	ob->gpulamp= NULL;
+	ob->gpulamp.first= ob->gpulamp.last= NULL;
 }
 
 /* ************ READ SCENE ***************** */

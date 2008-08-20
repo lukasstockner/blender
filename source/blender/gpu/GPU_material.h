@@ -120,7 +120,7 @@ GPUBlendMode GPU_material_blend_mode(GPUMaterial *material, float obcol[4]);
 /* High level functions to create and use GPU materials */
 
 int GPU_material_from_blender(struct Scene *scene, struct Material *ma);
-void GPU_material_free(GPUMaterial *material);
+void GPU_material_free(struct Material *ma);
 
 void GPU_materials_free();
 
@@ -151,8 +151,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr);
 
 /* Lamps */
 
-int GPU_lamp_from_blender(struct Object *ob, struct Lamp *la);
-void GPU_lamp_free(GPULamp *lamp);
+GPULamp *GPU_lamp_from_blender(struct Object *ob, struct Object *par);
+void GPU_lamp_free(struct Object *ob);
 
 int GPU_lamp_has_shadow_buffer(GPULamp *lamp);
 void GPU_lamp_shadow_buffer_bind(GPULamp *lamp, float viewmat[][4], int *winsize, float winmat[][4]);

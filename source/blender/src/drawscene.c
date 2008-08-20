@@ -55,6 +55,8 @@
 
 #include "BSE_view.h"
 
+#include "GPU_material.h"
+
 #include "radio.h"
 
 #include "blendef.h" /* old */
@@ -75,6 +77,8 @@ void set_scene(Scene *sce)		/* also see scene.c: set_scene_bg() */
 	exit_paint_modes();
 	
 	set_last_seq(NULL);
+
+	GPU_materials_free();
 	
 	G.scene= sce;
 

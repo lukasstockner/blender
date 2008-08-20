@@ -1465,10 +1465,8 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 		lightobj.m_type = RAS_LightObject::LIGHT_NORMAL;
 	}
 
-	if(converter->GetGLSLMaterials())
-		gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj, ob);
-	else
-		gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools, lightobj, NULL);
+	gamelight = new KX_LightObject(kxscene, KX_Scene::m_callbacks, rendertools,
+		lightobj, converter->GetGLSLMaterials());
 
 	BL_ConvertLampIpos(la, gamelight, converter);
 	
@@ -1506,7 +1504,7 @@ static KX_GameObject *gameobject_from_blenderobject(
 		
 		gamelight->AddRef();
 		kxscene->GetLightList()->Add(gamelight);
-		
+
 		break;
 	}
 	

@@ -798,7 +798,12 @@ void GPU_set_object_materials(Scene *scene, Object *ob, int glsl, int *do_alpha_
 		QUATCOPY(GMS.matbuf[1][0], GMS.matbuf[0][0]);
 		QUATCOPY(GMS.matbuf[1][1], GMS.matbuf[0][1]);
 
-		GMS.gmatbuf[0]= NULL;
+		if(glsl) {
+			GMS.gmatbuf[0]= &defmaterial;
+			GPU_material_from_blender(GMS.gscene, &defmaterial);
+		}
+
+		GMS.blendmode[0]= GPU_BLEND_SOLID;
 	}
 	
 	/* setup materials */

@@ -225,7 +225,7 @@ typedef struct Object {
 	void *vnode;			/* pointer at object VerseNode */
 /*#endif*/
 
-	struct GPULamp *gpulamp;	/* for lamps */
+	ListBase gpulamp;		/* runtime, for lamps only */
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

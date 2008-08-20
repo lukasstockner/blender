@@ -362,10 +362,8 @@ void GPU_extensions_exit(void)
 {
 	extern Material defmaterial;    // render module abuse...
 
-	if(defmaterial.gpumaterial) {
-		GPU_material_free(defmaterial.gpumaterial);
-		defmaterial.gpumaterial = NULL;
-	}
+	if(defmaterial.gpumaterial)
+		GPU_material_free(&defmaterial);
 
 	if(FUNCTION_HASH) {
 		BLI_ghash_free(FUNCTION_HASH, NULL, (GHashValFreeFP)MEM_freeN);
