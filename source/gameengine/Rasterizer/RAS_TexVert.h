@@ -57,7 +57,7 @@ public:
 	enum {
 		FLAT = 1,
 		SECOND_UV = 2,
-		MAX_UNIT = 3
+		MAX_UNIT = 8
 	};
 
 	short getFlag() const;

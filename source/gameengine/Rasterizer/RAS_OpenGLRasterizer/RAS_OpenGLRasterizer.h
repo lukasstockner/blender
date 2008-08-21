@@ -41,7 +41,7 @@ using namespace std;
 #include "RAS_MaterialBucket.h"
 #include "RAS_ICanvas.h"
 
-#define RAS_MAX_TEXCO	3	// match in BL_Material
+#define RAS_MAX_TEXCO	8	// match in BL_Material
 #define RAS_MAX_ATTRIB	16	// match in BL_BlenderShader
 
 struct	OglDebugLine
