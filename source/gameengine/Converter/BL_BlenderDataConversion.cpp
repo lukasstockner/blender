@@ -1613,20 +1613,6 @@ struct parentChildLink {
 	SG_Node* m_gamechildnode;
 };
 
-	/**
-	 * Find the specified scene by name, or the first
-	 * scene if nothing matches (shouldn't happen).
-	 */
-static struct Scene *GetSceneForName(struct Main *maggie, const STR_String& scenename) {
-	Scene *sce;
-
-	for (sce= (Scene*) maggie->scene.first; sce; sce= (Scene*) sce->id.next)
-		if (scenename == (sce->id.name+2))
-			return sce;
-
-	return (Scene*) maggie->scene.first;
-}
-
 #include "DNA_constraint_types.h"
 #include "BIF_editconstraint.h"
 
@@ -1725,7 +1711,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 							  )
 {	
 
-	Scene *blenderscene = GetSceneForName(maggie, scenename);
+	Scene *blenderscene = converter->GetBlenderSceneForName(scenename);
 	// for SETLOOPER
 	Scene *sce;
 	Base *base;

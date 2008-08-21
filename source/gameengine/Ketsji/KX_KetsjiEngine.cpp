@@ -1291,12 +1291,13 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 
 KX_Scene* KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 {
-
+	Scene *scene = m_sceneconverter->GetBlenderSceneForName(scenename);
 	KX_Scene* tmpscene = new KX_Scene(m_keyboarddevice,
 									  m_mousedevice,
 									  m_networkdevice,
 									  m_audiodevice,
-									  scenename);
+									  scenename,
+									  scene);
 
 	m_sceneconverter->ConvertScene(scenename,
 							  tmpscene,

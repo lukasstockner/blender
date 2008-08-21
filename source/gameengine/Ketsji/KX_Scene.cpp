@@ -68,6 +68,7 @@
 #include "SG_IObject.h"
 #include "SG_Tree.h"
 #include "DNA_group_types.h"
+#include "DNA_scene_types.h"
 #include "BKE_anim.h"
 
 #include "KX_SG_NodeRelationships.h"
@@ -116,7 +117,8 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
 				   class NG_NetworkDeviceInterface *ndi,
 				   class SND_IAudioDevice* adi,
-				   const STR_String& sceneName): 
+				   const STR_String& sceneName,
+				   Scene *scene): 
 	PyObjectPlus(&KX_Scene::Type),
 	m_keyboardmgr(NULL),
 	m_mousemgr(NULL),
@@ -126,7 +128,8 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_adi(adi),
 	m_networkDeviceInterface(ndi),
 	m_active_camera(NULL),
-	m_ueberExecutionPriority(0)
+	m_ueberExecutionPriority(0),
+	m_blenderScene(scene)
 {
 	m_suspendedtime = 0.0;
 	m_suspendeddelta = 0.0;

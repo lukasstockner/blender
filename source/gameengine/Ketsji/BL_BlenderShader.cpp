@@ -16,26 +16,6 @@
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
  
- /* this is evil, but we need the scene to create materials with
-  * lights from the correct scene .. */
-static struct Scene *GetSceneForName(const STR_String& scenename)
-{
-	Scene *sce;
-
-	for (sce= (Scene*)G.main->scene.first; sce; sce= (Scene*)sce->id.next)
-		if (scenename == (sce->id.name+2))
-			return sce;
-
-	return (Scene*)G.main->scene.first;
-}
-
-bool BL_BlenderShader::Ok()
-{
-	VerifyShader();
-
-	return (mMat && mMat->gpumaterial);
-}
-
 BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lightlayer)
 :
 	mScene(scene),
@@ -43,7 +23,7 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 	mGPUMat(NULL),
 	mLightLayer(lightlayer)
 {
-	mBlenderScene = GetSceneForName(scene->GetName());
+	mBlenderScene = scene->GetBlenderScene(); //GetSceneForName(scene->GetName());
 	mBlendMode = GPU_BLEND_SOLID;
 
 	if(mMat) {
@@ -58,14 +38,17 @@ BL_BlenderShader::~BL_BlenderShader()
 		GPU_material_unbind(mMat->gpumaterial);
 }
 
+bool BL_BlenderShader::Ok()
+{
+	return VerifyShader();
+}
+
 bool BL_BlenderShader::VerifyShader()
 {
 	if(mMat && !mMat->gpumaterial)
 		GPU_material_from_blender(mBlenderScene, mMat);
-
-	mGPUMat = mMat->gpumaterial;
 	
-	return (mMat && mGPUMat);
+	return (mMat && mMat->gpumaterial);
 }
 
 void BL_BlenderShader::SetProg(bool enable, double time)

@@ -309,7 +309,8 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 				mousedevice,
 				networkdevice,
 				audiodevice,
-				startscenename);
+				startscenename,
+				blscene);
 			
 			// some python things
 			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest);
@@ -577,7 +578,9 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 				mousedevice,
 				networkdevice,
 				audiodevice,
-				startscenename);
+				startscenename,
+				blscene);
+
 			// some python things
 			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest);
 			ketsjiengine->SetPythonDictionary(dictionaryobject);

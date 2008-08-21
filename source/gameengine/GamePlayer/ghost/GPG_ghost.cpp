@@ -559,7 +559,7 @@ int main(int argc, char** argv)
 			{
 				int exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 				STR_String exitstring = "";
-				GPG_Application app(system, NULL, exitstring);
+				GPG_Application app(system);
 				bool firstTimeRunning = true;
 				char *filename = get_filename(argc, argv);
 				char *titlename;
@@ -617,7 +617,6 @@ int main(int argc, char** argv)
 #endif // WIN32
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
-						char *startscenename = scene->id.name + 2;
 						G.main = maggie;
 						G.fileflags  = bfd->fileflags;
 
@@ -656,7 +655,7 @@ int main(int argc, char** argv)
 						}
 						
 						//					GPG_Application app (system, maggie, startscenename);
-						app.SetGameEngineData(maggie, startscenename);
+						app.SetGameEngineData(maggie, scene);
 						
 						if (firstTimeRunning)
 						{

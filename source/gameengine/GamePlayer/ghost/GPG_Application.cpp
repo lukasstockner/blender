@@ -105,9 +105,10 @@ static void frameTimerProc(GHOST_ITimerTask* task, GHOST_TUns64 time);
 static GHOST_ISystem* fSystem = 0;
 static const int kTimerFreq = 10;
 
-GPG_Application::GPG_Application(GHOST_ISystem* system, struct Main* maggie, STR_String startSceneName)
-	: m_startSceneName(startSceneName), 
-	  m_maggie(maggie),
+GPG_Application::GPG_Application(GHOST_ISystem* system)
+	: m_startSceneName(""), 
+	  m_startScene(0),
+	  m_maggie(0),
 	  m_exitRequested(0),
 	  m_system(system), 
 	  m_mainWindow(0), 
@@ -141,15 +142,16 @@ GPG_Application::~GPG_Application(void)
 
 
 
-bool GPG_Application::SetGameEngineData(struct Main* maggie, STR_String startSceneName)
+bool GPG_Application::SetGameEngineData(struct Main* maggie, Scene *scene)
 {
 	bool result = false;
 
-	if (maggie != NULL && startSceneName != "")
+	if (maggie != NULL && scene != NULL)
 	{
-		G.scene = (Scene*)maggie->scene.first;
+		G.scene = scene;
 		m_maggie = maggie;
-		m_startSceneName = startSceneName;
+		m_startSceneName = scene->id.name+2;
+		m_startScene = scene;
 		result = true;
 	}
 
@@ -645,7 +647,8 @@ bool GPG_Application::startEngine(void)
 			m_mouse,
 			m_networkdevice,
 			m_audiodevice,
-			startscenename);
+			startscenename,
+			m_startScene);
 		
 		
 		// some python things

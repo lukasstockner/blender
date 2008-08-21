@@ -184,21 +184,23 @@ bool KX_BlenderSceneConverter::TryAndLoadNewFile()
 	return result;
 }
 
-
+Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String& name)
+{
+	Scene *sce;
 
 	/**
 	 * Find the specified scene by name, or the first
 	 * scene if nothing matches (shouldn't happen).
 	 */
-static struct Scene *GetSceneForName2(struct Main *maggie, const STR_String& scenename) {
-	Scene *sce;
 
-	for (sce= (Scene*) maggie->scene.first; sce; sce= (Scene*) sce->id.next)
-		if (scenename == (sce->id.name+2))
+	for (sce= (Scene*) m_maggie->scene.first; sce; sce= (Scene*) sce->id.next)
+		if (name == (sce->id.name+2))
 			return sce;
 
-	return (Scene*) maggie->scene.first;
+	return (Scene*)m_maggie->scene.first;
+
 }
+
 #include "KX_PythonInit.h"
 
 #ifdef USE_BULLET
@@ -258,7 +260,7 @@ void KX_BlenderSceneConverter::ConvertScene(const STR_String& scenename,
 											class RAS_ICanvas* canvas)
 {
 	//find out which physics engine
-	Scene *blenderscene = GetSceneForName2(m_maggie, scenename);
+	Scene *blenderscene = GetBlenderSceneForName(scenename);
 
 	e_PhysicsEngine physics_engine = UseBullet;
 	// hook for registration function during conversion.
