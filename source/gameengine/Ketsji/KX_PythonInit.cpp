@@ -31,6 +31,7 @@
 #include "GL/glew.h"
 
 #include <stdlib.h>
+#include <dirent.h> // directory header for py function getBlendFileList
 
 #ifdef WIN32
 #pragma warning (disable : 4786)
@@ -114,9 +115,7 @@ static PyObject* gPyGetRandomFloat(PyObject*)
 	return PyFloat_FromDouble(MT_random());
 }
 
-static PyObject* gPySetGravity(PyObject*,
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetGravity(PyObject*, PyObject* args)
 {
 	MT_Vector3 vec = MT_Vector3(0., 0., 0.);
 	if (PyVecArgTo(args, vec))
@@ -140,9 +139,7 @@ file to make a full path name (doesn't change during the game, even if you load\
 other .blend).\n\
 The function also converts the directory separator to the local file system format.";
 
-static PyObject* gPyExpandPath(PyObject*,
-								PyObject* args, 
-								PyObject*)
+static PyObject* gPyExpandPath(PyObject*, PyObject* args)
 {
 	char expanded[FILE_MAXDIR + FILE_MAXFILE];
 	char* filename;
@@ -187,9 +184,7 @@ static PyObject* gPyGetSpectrum(PyObject*)
 
 
 
-static PyObject* gPyStartDSP(PyObject*,
-						PyObject* args, 
-						PyObject*)
+static PyObject* gPyStartDSP(PyObject*, PyObject* args)
 {
 	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
 
@@ -207,9 +202,7 @@ static PyObject* gPyStartDSP(PyObject*,
 
 
 
-static PyObject* gPyStopDSP(PyObject*,
-					   PyObject* args, 
-					   PyObject*)
+static PyObject* gPyStopDSP(PyObject*, PyObject* args)
 {
 	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
 
@@ -225,9 +218,7 @@ static PyObject* gPyStopDSP(PyObject*,
 	return NULL;
 }
 
-static PyObject* gPySetLogicTicRate(PyObject*,
-					PyObject* args,
-					PyObject*)
+static PyObject* gPySetLogicTicRate(PyObject*, PyObject* args)
 {
 	float ticrate;
 	if (PyArg_ParseTuple(args, "f", &ticrate))
@@ -244,9 +235,7 @@ static PyObject* gPyGetLogicTicRate(PyObject*)
 	return PyFloat_FromDouble(KX_KetsjiEngine::GetTicRate());
 }
 
-static PyObject* gPySetPhysicsTicRate(PyObject*,
-					PyObject* args,
-					PyObject*)
+static PyObject* gPySetPhysicsTicRate(PyObject*, PyObject* args)
 {
 	float ticrate;
 	if (PyArg_ParseTuple(args, "f", &ticrate))
@@ -259,9 +248,7 @@ static PyObject* gPySetPhysicsTicRate(PyObject*,
 	return NULL;
 }
 
-static PyObject* gPySetPhysicsDebug(PyObject*,
-					PyObject* args,
-					PyObject*)
+static PyObject* gPySetPhysicsDebug(PyObject*, PyObject* args)
 {
 	int debugMode;
 	if (PyArg_ParseTuple(args, "i", &debugMode))
@@ -285,6 +272,43 @@ static PyObject* gPyGetAverageFrameRate(PyObject*)
 	return PyFloat_FromDouble(KX_KetsjiEngine::GetAverageFrameRate());
 }
 
+static PyObject* gPyGetBlendFileList(PyObject*, PyObject* args)
+{
+	char cpath[sizeof(G.sce)];
+	char *searchpath = NULL;
+	PyObject* list;
+	
+    DIR *dp;
+    struct dirent *dirp;
+	
+	if (!PyArg_ParseTuple(args, "|s", &searchpath))
+		return NULL;
+	
+	list = PyList_New(0);
+	
+	if (searchpath) {
+		BLI_strncpy(cpath, searchpath, FILE_MAXDIR + FILE_MAXFILE);
+		BLI_convertstringcode(cpath, G.sce);
+	} else {
+		/* Get the dir only */
+		BLI_split_dirfile_basic(G.sce, cpath, NULL);
+	}
+	
+    if((dp  = opendir(cpath)) == NULL) {
+		/* todo, show the errno, this shouldnt happen anyway if the blendfile is readable */
+		fprintf(stderr, "Could not read directoty () failed, code %d (%s)\n", cpath, errno, strerror(errno));
+		return list;
+    }
+	
+    while ((dirp = readdir(dp)) != NULL) {
+		if (BLI_testextensie(dirp->d_name, ".blend")) {
+			PyList_Append(list, PyString_FromString(dirp->d_name));
+		}
+    }
+	
+    closedir(dp);
+    return list;
+}
 
 static STR_String gPyGetCurrentScene_doc =  
 "getCurrentScene()\n"
@@ -386,14 +410,13 @@ static struct PyMethodDef game_methods[] = {
 	{"getPhysicsTicRate", (PyCFunction) gPyGetPhysicsTicRate, METH_NOARGS, "Gets the physics tic rate"},
 	{"setPhysicsTicRate", (PyCFunction) gPySetPhysicsTicRate, METH_VARARGS, "Sets the physics tic rate"},
 	{"getAverageFrameRate", (PyCFunction) gPyGetAverageFrameRate, METH_NOARGS, "Gets the estimated average frame rate"},
+	{"getBlendFileList", (PyCFunction)gPyGetBlendFileList, METH_VARARGS, "Gets a list of blend files in the same directory as the current blend file"},
 	{"PrintGLInfo", (PyCFunction)pyPrintExt, METH_NOARGS, "Prints GL Extension Info"},
 	{NULL, (PyCFunction) NULL, 0, NULL }
 };
 
 
-static PyObject* gPyGetWindowHeight(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPyGetWindowHeight(PyObject*, PyObject* args)
 {
 	int height = (gp_Canvas ? gp_Canvas->GetHeight() : 0);
 
@@ -403,9 +426,7 @@ static PyObject* gPyGetWindowHeight(PyObject*,
 
 
 
-static PyObject* gPyGetWindowWidth(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPyGetWindowWidth(PyObject*, PyObject* args)
 {
 		
 
@@ -420,9 +441,7 @@ static PyObject* gPyGetWindowWidth(PyObject*,
 // temporarility visibility thing, will be moved to rasterizer/renderer later
 bool gUseVisibilityTemp = false;
 
-static PyObject* gPyEnableVisibility(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPyEnableVisibility(PyObject*, PyObject* args)
 {
 	int visible;
 	if (PyArg_ParseTuple(args,"i",&visible))
@@ -438,9 +457,7 @@ static PyObject* gPyEnableVisibility(PyObject*,
 
 
 
-static PyObject* gPyShowMouse(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPyShowMouse(PyObject*, PyObject* args)
 {
 	int visible;
 	if (PyArg_ParseTuple(args,"i",&visible))
@@ -464,9 +481,7 @@ static PyObject* gPyShowMouse(PyObject*,
 
 
 
-static PyObject* gPySetMousePosition(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetMousePosition(PyObject*, PyObject* args)
 {
 	int x,y;
 	if (PyArg_ParseTuple(args,"ii",&x,&y))
@@ -481,9 +496,7 @@ static PyObject* gPySetMousePosition(PyObject*,
    Py_Return;
 }
 
-static PyObject* gPySetEyeSeparation(PyObject*,
-						PyObject* args,
-						PyObject*)
+static PyObject* gPySetEyeSeparation(PyObject*, PyObject* args)
 {
 	float sep;
 	if (PyArg_ParseTuple(args, "f", &sep))
@@ -505,9 +518,7 @@ static PyObject* gPyGetEyeSeparation(PyObject*, PyObject*, PyObject*)
 	return NULL;
 }
 
-static PyObject* gPySetFocalLength(PyObject*,
-					PyObject* args,
-					PyObject*)
+static PyObject* gPySetFocalLength(PyObject*, PyObject* args)
 {
 	float focus;
 	if (PyArg_ParseTuple(args, "f", &focus))
@@ -527,9 +538,7 @@ static PyObject* gPyGetFocalLength(PyObject*, PyObject*, PyObject*)
 	return NULL;
 }
 
-static PyObject* gPySetBackgroundColor(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetBackgroundColor(PyObject*, PyObject* args)
 {
 	
 	MT_Vector4 vec = MT_Vector4(0., 0., 0.3, 0.);
@@ -547,9 +556,7 @@ static PyObject* gPySetBackgroundColor(PyObject*,
 
 
 
-static PyObject* gPySetMistColor(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetMistColor(PyObject*, PyObject* args)
 {
 	
 	MT_Vector3 vec = MT_Vector3(0., 0., 0.);
@@ -567,9 +574,7 @@ static PyObject* gPySetMistColor(PyObject*,
 
 
 
-static PyObject* gPySetMistStart(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetMistStart(PyObject*, PyObject* args)
 {
 
 	float miststart;
@@ -588,9 +593,7 @@ static PyObject* gPySetMistStart(PyObject*,
 
 
 
-static PyObject* gPySetMistEnd(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetMistEnd(PyObject*, PyObject* args)
 {
 
 	float mistend;
@@ -608,9 +611,7 @@ static PyObject* gPySetMistEnd(PyObject*,
 }
 
 
-static PyObject* gPySetAmbientColor(PyObject*, 
-										 PyObject* args, 
-										 PyObject*)
+static PyObject* gPySetAmbientColor(PyObject*, PyObject* args)
 {
 	
 	MT_Vector3 vec = MT_Vector3(0., 0., 0.);
@@ -629,9 +630,7 @@ static PyObject* gPySetAmbientColor(PyObject*,
 
 
 
-static PyObject* gPyMakeScreenshot(PyObject*,
-									PyObject* args,
-									PyObject*)
+static PyObject* gPyMakeScreenshot(PyObject*, PyObject* args)
 {
 	char* filename;
 	if (PyArg_ParseTuple(args,"s",&filename))
@@ -647,9 +646,7 @@ static PyObject* gPyMakeScreenshot(PyObject*,
 	Py_Return;
 }
 
-static PyObject* gPyEnableMotionBlur(PyObject*,
-									PyObject* args,
-									PyObject*)
+static PyObject* gPyEnableMotionBlur(PyObject*, PyObject* args)
 {
 	float motionblurvalue;
 	if (PyArg_ParseTuple(args,"f",&motionblurvalue))
@@ -665,9 +662,7 @@ static PyObject* gPyEnableMotionBlur(PyObject*,
 	Py_Return;
 }
 
-static PyObject* gPyDisableMotionBlur(PyObject*,
-									PyObject* args,
-									PyObject*)
+static PyObject* gPyDisableMotionBlur(PyObject*, PyObject* args)
 {
 	if(gp_Rasterizer)
 	{
