@@ -484,7 +484,7 @@ void draw_mesh_text(Object *ob, int glsl)
 
 	ddm = mesh_get_derived_deform(ob, CD_MASK_BAREMESH);
 
-	for(a=0, mf=mface; a<totface; a++, tface++, mcol+=4, mf++) {
+	for(a=0, mf=mface; a<totface; a++, tface++, mf++) {
 		int mode= tface->mode;
 		int matnr= mf->mat_nr;
 		int mf_smooth= mf->flag & ME_SMOOTH;
@@ -506,8 +506,10 @@ void draw_mesh_text(Object *ob, int glsl)
 			}
 			else {
 				badtex = set_draw_settings_cached(0, Gtexdraw.istex, tface, Gtexdraw.islit, Gtexdraw.ob, matnr, TF_TWOSIDE);
-				if (badtex)
+				if (badtex) {
+					mcol+=4;
 					continue;
+				}
 			}
 
 			ddm->getVertCo(ddm, mf->v1, v1);
@@ -534,6 +536,9 @@ void draw_mesh_text(Object *ob, int glsl)
 
 			GPU_render_text(tface, tface->mode, string, characters,
 				(unsigned int*)mcol, v1, v2, v3, (mf->v4? v4: NULL), glattrib);
+		}
+		if (mcol) {
+			mcol+=4;
 		}
 	}
 
