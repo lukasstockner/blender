@@ -507,7 +507,7 @@ void draw_mesh_text(Object *ob, int glsl)
 			else {
 				badtex = set_draw_settings_cached(0, Gtexdraw.istex, tface, Gtexdraw.islit, Gtexdraw.ob, matnr, TF_TWOSIDE);
 				if (badtex) {
-					mcol+=4;
+					if (mcol) mcol+=4;
 					continue;
 				}
 			}
