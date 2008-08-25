@@ -4683,6 +4683,7 @@ int EdgeLoopDelete(void) {
 
 int EdgeSlide(short immediate, float imperc)
 {
+	NumInput num;
 	EditMesh *em = G.editMesh;
 	EditFace *efa;
 	EditEdge *eed,*first=NULL,*last=NULL, *temp = NULL;
@@ -4709,6 +4710,8 @@ int EdgeSlide(short immediate, float imperc)
 	char str[128]; 
 	float labda = 0.0f;
 	
+	initNumInput(&num);
+		
 	view3d_get_object_project_mat(curarea, G.obedit, projectMat, viewMat);
 	
 	mvalo[0] = -1; mvalo[1] = -1; 
@@ -5113,17 +5116,84 @@ int EdgeSlide(short immediate, float imperc)
 		float v2[2], v3[2];
 		EditVert *centerVert, *upVert, *downVert;
 		
-		
-
 		getmouseco_areawin(mval);  
 		
 		if (!immediate && (mval[0] == mvalo[0] && mval[1] ==  mvalo[1])) {
 			PIL_sleep_ms(10);
 		} else {
+			char *p = str;;
 
 			mvalo[0] = mval[0];
 			mvalo[1] = mval[1];
 			
+
+			tempsv = BLI_ghash_lookup(vertgh,nearest);
+
+			centerVert = editedge_getSharedVert(tempsv->up, tempsv->down);
+			upVert = editedge_getOtherVert(tempsv->up, centerVert);
+			downVert = editedge_getOtherVert(tempsv->down, centerVert);
+
+			view3d_project_float(curarea, upVert->co, v2, projectMat);
+			view3d_project_float(curarea, downVert->co, v3, projectMat);
+
+			/* Determine the % on which the loop should be cut */   
+
+			rc[0]= v3[0]-v2[0];   
+			rc[1]= v3[1]-v2[1];   
+			len= rc[0]*rc[0]+ rc[1]*rc[1];
+			if (len==0) {len = 0.0001;}
+
+			if ((G.qual & LR_SHIFTKEY)==0) {
+				wasshift = 0;
+				labda= ( rc[0]*((mval[0]-v2[0])) + rc[1]*((mval[1]-v2[1])) )/len;   
+			}
+			else {
+				if (wasshift==0) {
+					wasshift = 1;
+					shiftlabda = labda;
+				}							
+				labda= ( rc[0]*((mval[0]-v2[0])) + rc[1]*((mval[1]-v2[1])) )/len / 10.0 + shiftlabda;   			
+			}
+			
+
+			if(labda<=0.0) labda=0.0;   
+			else if(labda>=1.0)labda=1.0;   
+
+			perc=((1-labda)*2)-1;		  
+			
+			if(G.qual == 0) {
+				perc *= 100;
+				perc = floor(perc);
+				perc /= 100;
+			} else if (G.qual == LR_CTRLKEY) {
+				perc *= 10;
+				perc = floor(perc);
+				perc /= 10;				   
+			}			
+			
+			if(prop == 0) {
+				len = VecLenf(upVert->co,downVert->co)*((perc+1)/2);
+				if(flip == 1) {
+					len = VecLenf(upVert->co,downVert->co) - len;
+				} 
+			}
+			
+			if (hasNumInput(&num))
+			{
+				applyNumInput(&num, &perc);
+				
+				if (prop)
+				{
+					perc = MIN2(perc, 1);
+					perc = MAX2(perc, -1);
+				}
+				else
+				{
+					len = MIN2(perc, VecLenf(upVert->co,downVert->co));
+					len = MAX2(len, 0);
+				}
+			}
+
 			//Adjust Edgeloop
 			if(immediate) {
 				perc = imperc;   
@@ -5205,13 +5275,7 @@ int EdgeSlide(short immediate, float imperc)
 
 			}
 			
-			tempsv = BLI_ghash_lookup(vertgh,nearest);
-
-			centerVert = editedge_getSharedVert(tempsv->up, tempsv->down);
-			upVert = editedge_getOtherVert(tempsv->up, centerVert);
-			downVert = editedge_getOtherVert(tempsv->down, centerVert);
 			 // Highlight the Control Edges
-	
 			scrarea_do_windraw(curarea);   
 			persp(PERSP_VIEW);   
 			glPushMatrix();   
@@ -5239,55 +5303,36 @@ int EdgeSlide(short immediate, float imperc)
 			
 			glPopMatrix();		 
 
-			view3d_project_float(curarea, upVert->co, v2, projectMat);
-			view3d_project_float(curarea, downVert->co, v3, projectMat);
-
-			/* Determine the % on which the loop should be cut */   
-
-			rc[0]= v3[0]-v2[0];   
-			rc[1]= v3[1]-v2[1];   
-			len= rc[0]*rc[0]+ rc[1]*rc[1];
-			if (len==0) {len = 0.0001;}
-
-			if ((G.qual & LR_SHIFTKEY)==0) {
-				wasshift = 0;
-				labda= ( rc[0]*((mval[0]-v2[0])) + rc[1]*((mval[1]-v2[1])) )/len;   
-			}
-			else {
-				if (wasshift==0) {
-					wasshift = 1;
-					shiftlabda = labda;
-				}							
-				labda= ( rc[0]*((mval[0]-v2[0])) + rc[1]*((mval[1]-v2[1])) )/len / 10.0 + shiftlabda;   			
-			}
-			
-
-			if(labda<=0.0) labda=0.0;   
-			else if(labda>=1.0)labda=1.0;   
-
-			perc=((1-labda)*2)-1;		  
-			
-			if(G.qual == 0) {
-				perc *= 100;
-				perc = floor(perc);
-				perc /= 100;
-			} else if (G.qual == LR_CTRLKEY) {
-				perc *= 10;
-				perc = floor(perc);
-				perc /= 10;				   
-			}			
 			if(prop) {
-				sprintf(str, "(P)ercentage: %f", perc);
+				p += sprintf(str, "(P)ercentage: ");
 			} else {
-				len = VecLenf(upVert->co,downVert->co)*((perc+1)/2);
-				if(flip == 1) {
-					len = VecLenf(upVert->co,downVert->co) - len;
-				} 
-				sprintf(str, "Non (P)rop Length: %f, Press (F) to flip control side", len);
+				p += sprintf(str, "Non (P)rop Length: ");
+			}
+			
+			if (hasNumInput(&num))
+			{
+				char num_str[20];
+				
+				outputNumInput(&num, num_str);
+				p += sprintf(p, "%s", num_str);
+			}
+			else
+			{
+				if (prop)
+				{
+					p += sprintf(p, "%f", perc);
+				}
+				else
+				{
+					p += sprintf(p, "%f", len);
+				}
+			}
+			
+			
+			if (prop == 0) {
+				p += sprintf(p, ", Press (F) to flip control side");
 			}
 
-			
-			
 			headerprint(str);
 			screen_swapbuffers();			
 		}
@@ -5310,7 +5355,14 @@ int EdgeSlide(short immediate, float imperc)
 							perc = 0;  
 							immediate = 1;
 					} else if(event==PKEY) {
-							(prop == 1) ? (prop = 0):(prop = 1);
+							initNumInput(&num); /* reset num input */
+							if (prop) {
+								prop = 0;
+								num.flag |= NUM_NO_NEGATIVE;
+							}
+							else {
+								prop = 1;
+							}
 							mvalo[0] = -1;  
 					} else if(event==FKEY) {
 							(flip == 1) ? (flip = 0):(flip = 1); 
@@ -5348,7 +5400,13 @@ int EdgeSlide(short immediate, float imperc)
 							look = look->next;   
 						}	  
 					}
+					
+					if (handleNumInput(&num, event))
+					{
+						mvalo[0] = -1; /* NEED A BETTER WAY TO TRIGGER REDRAW */
+					}
 				}
+				
 			} 
 		} else {
 			draw = 0;
