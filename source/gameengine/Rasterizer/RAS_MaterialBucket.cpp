@@ -199,8 +199,8 @@ void RAS_MeshSlot::SetDisplayArray(int numverts)
 				darray = NULL;
 			else if(darray->m_vertex.size()+numverts >= RAS_DisplayArray::BUCKET_MAX_VERTEX)
 				darray = NULL;
-
-			break;
+			else
+				break;
 		}
 		else
 			darray = NULL;

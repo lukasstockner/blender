@@ -59,7 +59,10 @@ public:
 	void GetMRDPose(struct bPose **pose);
 	void GetPose(struct bPose **pose);
 	void SetPose (struct bPose *pose);
+
 	void ApplyPose();
+	bool VerifyPose();
+
 	bool SetActiveAction(class BL_ActionActuator *act, short priority, double curtime);
 	
 	struct bArmature * GetArmature() { return m_armature; }
@@ -79,13 +82,11 @@ protected:
 	Object				*m_objArma;
 	struct bArmature	*m_armature;
 	struct bPose		*m_pose;
-	struct bPose		*m_mrdPose;
 	double	m_lastframe;
 	class BL_ActionActuator *m_activeAct;
 	short	m_activePriority;
 
 	double			m_lastapplyframe;
-	struct bPose	*m_lastapplypose;
 };
 
 #endif

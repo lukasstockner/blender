@@ -171,14 +171,14 @@ bool BL_SkinDeformer::Update(void)
 		/* but it requires the blender object pointer... */
 		Object* par_arma = m_armobj->GetArmatureObject();
 
-		m_armobj->ApplyPose();
-
 		/* store verts locally */
 		VerifyStorage();
 	
 		/* duplicate */
 		for (int v =0; v<m_bmesh->totvert; v++)
 			VECCOPY(m_transverts[v], m_bmesh->mvert[v].co);
+
+		m_armobj->ApplyPose();
 
 		// save matrix first
 		Mat4CpyMat4(obmat, m_objMesh->obmat);
