@@ -64,6 +64,7 @@ KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 
 KX_LightObject::~KX_LightObject()
 {
+	m_rendertools->RemoveLight(&m_lightobj);
 }
 
 
