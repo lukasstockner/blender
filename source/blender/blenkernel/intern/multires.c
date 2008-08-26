@@ -1115,6 +1115,7 @@ int multiresModifier_reshape(MultiresModifierData *mmd, Object *dst, Object *src
 		for(i = 0; i < src_me->totvert; ++i)
 			VecCopyf(mvert[i].co, src_me->mvert[i].co);
 		mrdm->needsFree = 1;
+		*MultiresDM_get_flags(mrdm) |= MULTIRES_DM_UPDATE_ALWAYS;
 		mrdm->release(mrdm);
 		dst->derivedFinal = NULL;
 

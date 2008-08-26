@@ -1668,19 +1668,24 @@ static void multiresModifier_reshape_button(void *mmd_v, void *ob_v)
 	MultiresModifierData *mmd = mmd_v;
 	if(mmd && ob_v) {
 		Base *base = FIRSTBASE;
-		if(base && base->object != ob_v) {
-			Object *src = base->object;
-			if(src->type == OB_MESH) {
-				if(multiresModifier_reshape(mmd, ob_v, src))
-					error("Vertex count mismatch");
-				else
-					BIF_undo_push("Multires reshape");
+		Object *ob2 = NULL;
+		
+		while(base) {
+			if(base->object != ob_v && base->object->type == OB_MESH) {
+				ob2 = base->object;
+				break;
 			}
+			base = base->next;
+		}
+		
+		if(ob2) {
+			if(multiresModifier_reshape(mmd, ob_v, ob2))
+				error("Vertex count mismatch");
 			else
-				error("Second selection not a mesh");
+				BIF_undo_push("Multires reshape");
 		}
 		else
-			error("Second selection required");
+			error("Second mesh selection required");
 	}
 }
 
