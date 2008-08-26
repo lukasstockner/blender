@@ -1161,6 +1161,11 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
 	}
 
+	if(ma->shade_flag & MA_OBCOLOR) {
+		mat->obcolalpha = 1;
+		GPU_link(mat, "shade_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
+	}
+
 	if(world && (world->mode & WO_MIST) && !(ma->mode & MA_NOMIST)) {
 		misttype = world->mistype;
 
@@ -1181,11 +1186,6 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	}
 
 	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
-
-	if(ma->shade_flag & MA_OBCOLOR) {
-		mat->obcolalpha = 1;
-		GPU_link(mat, "shade_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
-	}
 }
 
 GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
