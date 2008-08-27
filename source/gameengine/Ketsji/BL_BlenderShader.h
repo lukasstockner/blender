@@ -30,7 +30,6 @@ private:
 	KX_Scene		*mScene;
 	struct Scene	*mBlenderScene;
 	struct Material	*mMat;
-	GPUMaterial		*mGPUMat;
 	int				mLightLayer;
 	int				mBlendMode;
 

@@ -20,16 +20,13 @@ BL_BlenderShader::BL_BlenderShader(KX_Scene *scene, struct Material *ma, int lig
 :
 	mScene(scene),
 	mMat(ma),
-	mGPUMat(NULL),
 	mLightLayer(lightlayer)
 {
 	mBlenderScene = scene->GetBlenderScene(); //GetSceneForName(scene->GetName());
 	mBlendMode = GPU_BLEND_SOLID;
 
-	if(mMat) {
+	if(mMat)
 		GPU_material_from_blender(mBlenderScene, mMat);
-		mGPUMat = mMat->gpumaterial;
-	}
 }
 
 BL_BlenderShader::~BL_BlenderShader()
@@ -55,9 +52,9 @@ void BL_BlenderShader::SetProg(bool enable, double time)
 {
 	if(VerifyShader()) {
 		if(enable)
-			GPU_material_bind(mGPUMat, mLightLayer, time);
+			GPU_material_bind(mMat->gpumaterial, mLightLayer, time);
 		else
-			GPU_material_unbind(mGPUMat);
+			GPU_material_unbind(mMat->gpumaterial);
 	}
 }
 
@@ -69,7 +66,7 @@ int BL_BlenderShader::GetAttribNum()
 	if(!VerifyShader())
 		return enabled;
 
-	GPU_material_vertex_attributes(mGPUMat, &attribs);
+	GPU_material_vertex_attributes(mMat->gpumaterial, &attribs);
 
     for(i = 0; i < attribs.totlayer; i++)
 		if(attribs.layer[i].glindex+1 > enabled)
@@ -92,7 +89,7 @@ void BL_BlenderShader::SetAttribs(RAS_IRasterizer* ras, const BL_Material *mat)
 		return;
 
 	if(ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED) {
-		GPU_material_vertex_attributes(mGPUMat, &attribs);
+		GPU_material_vertex_attributes(mMat->gpumaterial, &attribs);
 		attrib_num = GetAttribNum();
 
 		ras->SetTexCoordNum(0);
@@ -132,7 +129,7 @@ void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty )
 
 	VerifyShader();
 
-	if(!mGPUMat || !GPU_material_bound(mGPUMat))
+	if(!mMat->gpumaterial || !GPU_material_bound(mMat->gpumaterial))
 		return;
 
 	MT_Matrix4x4 model;
@@ -150,9 +147,9 @@ void BL_BlenderShader::Update(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty )
 	else
 		obcol[0]= obcol[1]= obcol[2]= obcol[3]= 1.0f;
 
-	GPU_material_bind_uniforms(mGPUMat, obmat, viewmat, viewinvmat, obcol);
+	GPU_material_bind_uniforms(mMat->gpumaterial, obmat, viewmat, viewinvmat, obcol);
 
-	mBlendMode = GPU_material_blend_mode(mGPUMat, obcol);
+	mBlendMode = GPU_material_blend_mode(mMat->gpumaterial, obcol);
 }
 
 int BL_BlenderShader::GetBlendMode()
@@ -163,7 +160,7 @@ int BL_BlenderShader::GetBlendMode()
 bool BL_BlenderShader::Equals(BL_BlenderShader *blshader)
 {
 	/* to avoid unneeded state switches */
-	return (blshader && mGPUMat == blshader->mGPUMat && mLightLayer == blshader->mLightLayer);
+	return (blshader && mMat == blshader->mMat && mLightLayer == blshader->mLightLayer);
 }
 
 // eof

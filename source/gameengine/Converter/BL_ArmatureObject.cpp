@@ -63,6 +63,7 @@ BL_ArmatureObject::BL_ArmatureObject(
 	/* we make a copy of blender object's pose, and then always swap it with
 	 * the original pose before calling into blender functions, to deal with
 	 * replica's or other objects using the same blender object */
+	m_pose = NULL;
 	copy_pose(&m_pose, m_objArma->pose, 1 /* copy_constraint_channels_hack */);
 }
 

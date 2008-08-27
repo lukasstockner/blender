@@ -905,6 +905,8 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 	CListValue *objectlist = scene->GetObjectList();
 	int i, drawmode;
 
+	m_rendertools->SetAuxilaryClientInfo(scene);
+
 	for(i=0; i<objectlist->GetCount(); i++) {
 		KX_GameObject *gameobj = (KX_GameObject*)objectlist->GetValue(i);
 
