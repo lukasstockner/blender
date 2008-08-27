@@ -201,8 +201,8 @@ bool BL_ArmatureObject::GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix)
 {
 	bPoseChannel *pchan;
 
-	VerifyPose();
-	pchan = get_pose_channel(m_pose, bone->name);
+	ApplyPose();
+	pchan = get_pose_channel(m_objArma->pose, bone->name);
 
 	if(pchan) {
 		matrix.setValue(&pchan->pose_mat[0][0]);
