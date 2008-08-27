@@ -679,7 +679,7 @@ int GPU_update_image_time(Image *ima, double time)
 		newframe = ima->lastframe+inc;
 
 		if(newframe > (int)ima->twend) {
-			if(ima->twend-ima->twsta == 0)
+			if(ima->twend-ima->twsta != 0)
 				newframe = (int)ima->twsta-1 + (newframe-ima->twend)%(ima->twend-ima->twsta);
 			else
 				newframe = ima->twsta;
