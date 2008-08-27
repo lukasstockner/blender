@@ -1096,7 +1096,7 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
 	Material *ma= shi->mat;
 	World *world= mat->scene->world;
-	float linfac, logfac, misttype, one = 1.0f;
+	float linfac, logfac, misttype;
 
 	memset(shr, 0, sizeof(*shr));
 
@@ -1161,10 +1161,10 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			GPU_link(mat, "shade_add", shr->combined, shr->spec, &shr->combined);
 	}
 
-	if(ma->shade_flag & MA_OBCOLOR) {
-		mat->obcolalpha = 1;
+	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
+
+	if(ma->shade_flag & MA_OBCOLOR)
 		GPU_link(mat, "shade_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
-	}
 
 	if(world && (world->mode & WO_MIST) && !(ma->mode & MA_NOMIST)) {
 		misttype = world->mistype;
@@ -1179,13 +1179,16 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 
 	if(!(ma->mode & MA_ZTRA)) {
 		if(world && (GPU_link_changed(shr->alpha) || ma->alpha != 1.0f))
-			GPU_link(mat, "shade_world_mix", shr->alpha, GPU_uniform(&world->horr),
+			GPU_link(mat, "shade_world_mix", GPU_uniform(&world->horr),
 				shr->combined, &shr->combined);
 
-		GPU_link(mat, "set_value", GPU_uniform(&one), &shr->alpha);
+		GPU_link(mat, "shade_alpha_opaque", shr->combined, &shr->combined);
 	}
 
-	GPU_link(mat, "mtex_alpha_to_col", shr->combined, shr->alpha, &shr->combined);
+	if(ma->shade_flag & MA_OBCOLOR) {
+		mat->obcolalpha = 1;
+		GPU_link(mat, "shade_alpha_obcolor", shr->combined, GPU_builtin(GPU_OBCOLOR), &shr->combined);
+	}
 }
 
 GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)

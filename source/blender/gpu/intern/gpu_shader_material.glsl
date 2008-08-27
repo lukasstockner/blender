@@ -1475,7 +1475,7 @@ void shade_mul_value(float fac, vec4 col, out vec4 outcol)
 
 void shade_obcolor(vec4 col, vec4 obcol, out vec4 outcol)
 {
-	outcol = col*obcol;
+	outcol = vec4(col.rgb*obcol.rgb, col.a);
 }
 
 void ramp_rgbtobw(vec3 color, out float outval)
@@ -1525,9 +1525,19 @@ void shade_mist_factor(vec3 co, float miststa, float mistdist, float misttype, f
 	outfac = (1.0-fac)*(1.0-misi);
 }
 
-void shade_world_mix(float fac, vec3 hor, vec4 col, out vec4 outcol)
+void shade_world_mix(vec3 hor, vec4 col, out vec4 outcol)
 {
-	fac = clamp(fac, 0.0, 1.0);
+	float fac = clamp(col.a, 0.0, 1.0);
 	outcol = vec4(mix(hor, col.rgb, fac), col.a);
+}
+
+void shade_alpha_opaque(vec4 col, out vec4 outcol)
+{
+	outcol = vec4(col.rgb, 1.0);
+}
+
+void shade_alpha_obcolor(vec4 col, vec4 obcol, out vec4 outcol)
+{
+	outcol = vec4(col.rgb, col.a*obcol.a);
 }
 
