@@ -1173,8 +1173,8 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 			GPU_uniform(&world->miststa), GPU_uniform(&world->mistdist),
 			GPU_uniform(&misttype), GPU_uniform(&world->misi), &mistfac);
 
-		GPU_link(mat, "mix_blend", mistfac, GPU_uniform(&world->horr),
-			shr->combined, &shr->combined);
+		GPU_link(mat, "mix_blend", mistfac, shr->combined,
+			GPU_uniform(&world->horr), &shr->combined);
 	}
 
 	if(!(ma->mode & MA_ZTRA)) {
