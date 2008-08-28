@@ -126,7 +126,7 @@ public:
 	RAS_TexVert*		GetVertex(unsigned int matid, unsigned int index);
 
 	int					NumPolygons();
-	RAS_Polygon*		GetPolygon(int num);
+	RAS_Polygon*		GetPolygon(int num) const;
 	
 	/* buckets */
 	virtual void		AddMeshUser(void *clientobj);

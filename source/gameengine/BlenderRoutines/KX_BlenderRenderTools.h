@@ -38,6 +38,7 @@
 #include "RAS_IRenderTools.h"
 
 struct KX_ClientObjectInfo;
+class KX_RayCast;
 
 /* BlenderRenderTools are a set of tools to apply 2D/3D graphics effects, which
  * are not part of the (polygon) Rasterizer. Effects like 2D text, 3D (polygon)
@@ -83,7 +84,8 @@ public:
 	void				PushMatrix();
 	void				PopMatrix();
 
-	bool RayHit(KX_ClientObjectInfo* client, MT_Point3& hit_point, MT_Vector3& hit_normal, void * const data);
+	bool RayHit(KX_ClientObjectInfo* client, class KX_RayCast* result, void * const data);
+	bool NeedRayCast(KX_ClientObjectInfo*) { return true; }
 
 	virtual void MotionBlur(RAS_IRasterizer* rasterizer);
 
