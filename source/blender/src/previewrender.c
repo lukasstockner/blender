@@ -230,7 +230,7 @@ void BIF_preview_changed(short id_code)
 
 		if(id_code == ID_WO) {
 			for(ma=G.main->mat.first; ma; ma=ma->id.next) {
-				if(ma->gpumaterial) {
+				if(ma->gpumaterial.first) {
 					GPU_material_free(ma);
 					allqueue(REDRAWVIEW3D, 0);
 				}
@@ -247,7 +247,7 @@ void BIF_preview_changed(short id_code)
 			Object *ob = OBACT;
 
 			ma= give_current_material(ob, ob->actcol);
-			if(ma && ma->gpumaterial) {
+			if(ma && ma->gpumaterial.first) {
 				GPU_material_free(ma);
 				allqueue(REDRAWVIEW3D, 0);
 			}

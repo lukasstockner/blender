@@ -59,6 +59,7 @@ KX_LightObject::KX_LightObject(void* sgReplicationInfo,SG_Callbacks callbacks,
 	m_lightobj.m_worldmatrix = GetOpenGLMatrixPtr();
 	m_rendertools->AddLight(&m_lightobj);
 	m_glsl = glsl;
+	m_blenderscene = ((KX_Scene*)sgReplicationInfo)->GetBlenderScene();
 };
 
 
@@ -87,7 +88,7 @@ CValue*		KX_LightObject::GetReplica()
 GPULamp *KX_LightObject::GetGPULamp()
 {
 	if(m_glsl)
-		return GPU_lamp_from_blender(GetBlenderObject(), GetBlenderGroupObject());
+		return GPU_lamp_from_blender(m_blenderscene, GetBlenderObject(), GetBlenderGroupObject());
 	else
 		return false;
 }

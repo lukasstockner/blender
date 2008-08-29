@@ -33,6 +33,7 @@
 #include "KX_GameObject.h"
 
 struct GPULamp;
+struct Scene;
 class KX_Camera;
 class RAS_IRasterizer;
 class RAS_IRenderTools;
@@ -45,6 +46,7 @@ protected:
 	RAS_LightObject		m_lightobj;
 	class RAS_IRenderTools*	m_rendertools;	//needed for registering and replication of lightobj
 	bool				m_glsl;
+	Scene*				m_blenderscene;
 	static char			doc[];
 
 public:

@@ -362,7 +362,7 @@ void GPU_extensions_exit(void)
 {
 	extern Material defmaterial;    // render module abuse...
 
-	if(defmaterial.gpumaterial)
+	if(defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial);
 
 	if(FUNCTION_HASH) {

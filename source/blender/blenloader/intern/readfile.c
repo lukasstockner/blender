@@ -2562,7 +2562,7 @@ static void direct_link_material(FileData *fd, Material *ma)
 		direct_link_nodetree(fd, ma->nodetree);
 
 	ma->preview = direct_link_preview_image(fd, ma->preview);
-	ma->gpumaterial = NULL;
+	ma->gpumaterial.first = ma->gpumaterial.last = NULL;
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */

@@ -99,6 +99,7 @@ struct GPUMaterial {
 };
 
 struct GPULamp {
+	Scene *scene;
 	Object *ob;
 	Object *par;
 	Lamp *la;
@@ -219,18 +220,20 @@ static int GPU_material_construct_end(GPUMaterial *material)
 
 void GPU_material_free(Material *ma)
 {
-	GPUMaterial *material = ma->gpumaterial;
+	LinkData *link;
 
-	if(material) {
+	for(link=ma->gpumaterial.first; link; link=link->next) {
+		GPUMaterial *material = link->data;
+
 		if(material->pass)
 			GPU_pass_free(material->pass);
 
 		BLI_linklist_free(material->lamps, NULL);
 
 		MEM_freeN(material);
-
-		ma->gpumaterial = NULL;
 	}
+
+	BLI_freelistN(&ma->gpumaterial);
 }
 
 void GPU_material_bind(GPUMaterial *material, int lay, double time)
@@ -742,7 +745,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 		ob= base->object;
 
 		if(ob->type==OB_LAMP) {
-			lamp = GPU_lamp_from_blender(ob, NULL);
+			lamp = GPU_lamp_from_blender(shi->gpumat->scene, ob, NULL);
 			if(lamp)
 				shade_one_light(shi, shr, lamp);
 		}
@@ -757,7 +760,7 @@ static void material_lights(GPUShadeInput *shi, GPUShadeResult *shr)
 				if(ob->type==OB_LAMP) {
 					Mat4CpyMat4(ob->obmat, dob->mat);
 
-					lamp = GPU_lamp_from_blender(ob, base->object);
+					lamp = GPU_lamp_from_blender(shi->gpumat->scene, ob, base->object);
 					if(lamp)
 						shade_one_light(shi, shr, lamp);
 				}
@@ -1202,14 +1205,16 @@ GPUNodeLink *GPU_blender_material(GPUMaterial *mat, Material *ma)
 	return shr.combined;
 }
 
-int GPU_material_from_blender(Scene *scene, Material *ma)
+GPUMaterial *GPU_material_from_blender(Scene *scene, Material *ma)
 {
 	GPUMaterial *mat;
 	GPUNodeLink *outlink;
+	LinkData *link;
 
-	if(ma->gpumaterial)
-		return 1;
-	
+	for(link=ma->gpumaterial.first; link; link=link->next)
+		if(((GPUMaterial*)link->data)->scene == scene)
+			return link->data;
+
 	mat = GPU_material_construct_begin(ma);
 	mat->scene = scene;
 
@@ -1229,8 +1234,11 @@ int GPU_material_from_blender(Scene *scene, Material *ma)
 
 	GPU_material_construct_end(mat);
 
-	ma->gpumaterial= mat;
-	return 1;
+	link = MEM_callocN(sizeof(LinkData), "GPUMaterialLink");
+	link->data = mat;
+	BLI_addtail(&ma->gpumaterial, link);
+
+	return mat;
 }
 
 void GPU_materials_free()
@@ -1263,10 +1271,11 @@ void GPU_lamp_update(GPULamp *lamp, float obmat[][4])
 	Mat4Invert(lamp->imat, mat);
 }
 
-static void gpu_lamp_from_blender(Object *ob, Object *par, Lamp *la, GPULamp *lamp)
+static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *la, GPULamp *lamp)
 {
 	float temp, angle, pixsize, wsize;
 
+	lamp->scene = scene;
 	lamp->ob = ob;
 	lamp->par = par;
 	lamp->la = la;
@@ -1325,14 +1334,15 @@ static void gpu_lamp_shadow_free(GPULamp *lamp)
 		GPU_framebuffer_free(lamp->fb);
 }
 
-GPULamp *GPU_lamp_from_blender(Object *ob, Object *par)
+GPULamp *GPU_lamp_from_blender(Scene *scene, Object *ob, Object *par)
 {
 	Lamp *la;
 	GPULamp *lamp;
 	LinkData *link;
 
 	for(link=ob->gpulamp.first; link; link=link->next)
-		if(((GPULamp*)link->data)->par == par)
+		if(((GPULamp*)link->data)->par == par &&
+		   ((GPULamp*)link->data)->scene == scene)
 			return link->data;
 
 	lamp = MEM_callocN(sizeof(GPULamp), "GPULamp");
@@ -1342,7 +1352,7 @@ GPULamp *GPU_lamp_from_blender(Object *ob, Object *par)
 	BLI_addtail(&ob->gpulamp, link);
 
 	la = ob->data;
-	gpu_lamp_from_blender(ob, par, la, lamp);
+	gpu_lamp_from_blender(scene, ob, par, la, lamp);
 
 	if(la->type==LA_SPOT && (la->mode & LA_SHAD_BUF)) {
 		/* opengl */
@@ -1381,10 +1391,8 @@ void GPU_lamp_free(Object *ob)
 
 		for(nlink=lamp->materials; nlink; nlink=nlink->next) {
 			ma= nlink->link;
-			if(ma->gpumaterial) {
+			if(ma->gpumaterial.first)
 				GPU_material_free(ma);
-				ma->gpumaterial= NULL;
-			}
 		}
 		BLI_linklist_free(lamp->materials, NULL);
 

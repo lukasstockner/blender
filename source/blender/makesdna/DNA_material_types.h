@@ -135,8 +135,7 @@ typedef struct Material {
 	
 	ScriptLink scriptlink;
 
-	/* runtime glsl material */
-	struct GPUMaterial *gpumaterial;
+	ListBase gpumaterial;		/* runtime */
 } Material;
 
 /* **************** MATERIAL ********************* */

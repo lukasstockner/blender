@@ -99,7 +99,7 @@ void free_material(Material *ma)
 		MEM_freeN(ma->nodetree);
 	}
 
-	if(ma->gpumaterial)
+	if(ma->gpumaterial.first)
 		GPU_material_free(ma);
 }
 
@@ -213,7 +213,7 @@ Material *copy_material(Material *ma)
 		man->nodetree= ntreeCopyTree(ma->nodetree, 0);	/* 0 == full new tree */
 	}
 
-	man->gpumaterial= NULL;
+	man->gpumaterial.first= man->gpumaterial.last= NULL;
 	
 	return man;
 }

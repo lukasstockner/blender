@@ -2938,7 +2938,7 @@ static void gpu_render_lamp_update(View3D *v3d, Object *ob, Object *par, float o
 	GPULamp *lamp;
 	View3DShadow *shadow;
 
-	lamp = GPU_lamp_from_blender(ob, par);
+	lamp = GPU_lamp_from_blender(G.scene, ob, par);
 
 	if(lamp) {
 		GPU_lamp_update(lamp, obmat);
