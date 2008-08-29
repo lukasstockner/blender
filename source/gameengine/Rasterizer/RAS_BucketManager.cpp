@@ -249,25 +249,29 @@ void RAS_BucketManager::OptimizeBuckets(MT_Scalar distance)
 		(*bit)->Optimize(distance);
 }
 
-void RAS_BucketManager::ReleaseDisplayLists()
+void RAS_BucketManager::ReleaseDisplayLists(RAS_IPolyMaterial *mat)
 {
 	BucketList::iterator bit;
 	list<RAS_MeshSlot>::iterator mit;
 
 	for (bit = m_SolidBuckets.begin(); bit != m_SolidBuckets.end(); ++bit) {
-		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-			if(mit->m_DisplayList) {
-				mit->m_DisplayList->Release();
-				mit->m_DisplayList = NULL;
+		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
+			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
+				if(mit->m_DisplayList) {
+					mit->m_DisplayList->Release();
+					mit->m_DisplayList = NULL;
+				}
 			}
 		}
 	}
 	
 	for (bit = m_AlphaBuckets.begin(); bit != m_AlphaBuckets.end(); ++bit) {
-		for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
-			if(mit->m_DisplayList) {
-				mit->m_DisplayList->Release();
-				mit->m_DisplayList = NULL;
+		if (mat == NULL || (mat == (*bit)->GetPolyMaterial())) {
+			for (mit = (*bit)->msBegin(); mit != (*bit)->msEnd(); ++mit) {
+				if(mit->m_DisplayList) {
+					mit->m_DisplayList->Release();
+					mit->m_DisplayList = NULL;
+				}
 			}
 		}
 	}

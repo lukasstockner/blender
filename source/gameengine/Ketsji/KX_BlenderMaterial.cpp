@@ -19,6 +19,7 @@
 #include "MT_Vector4.h"
 #include "MT_Matrix4x4.h"
 
+#include "RAS_BucketManager.h"
 #include "RAS_MeshObject.h"
 #include "RAS_IRasterizer.h"
 #include "RAS_OpenGLRasterizer/RAS_GLExtensionManager.h"
@@ -818,6 +819,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 		if(mShader && !mShader->GetError()) {
 			m_flag &= ~RAS_BLENDERGLSL;
 			mMaterial->SetSharedMaterial(true);
+			mScene->GetBucketManager()->ReleaseDisplayLists(this);
 			Py_INCREF(mShader);
 			return mShader;
 		}else

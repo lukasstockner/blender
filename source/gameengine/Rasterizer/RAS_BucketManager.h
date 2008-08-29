@@ -57,7 +57,7 @@ public:
 	RAS_MaterialBucket* FindBucket(RAS_IPolyMaterial * material, bool &bucketCreated);
 	void OptimizeBuckets(MT_Scalar distance);
 	
-	void ReleaseDisplayLists();
+	void ReleaseDisplayLists(RAS_IPolyMaterial * material = NULL);
 
 private:
 	void OrderBuckets(const MT_Transform& cameratrans, BucketList& buckets, vector<sortedmeshslot>& slots, bool alpha);
