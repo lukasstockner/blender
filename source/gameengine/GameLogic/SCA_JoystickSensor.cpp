@@ -120,7 +120,7 @@ bool SCA_JoystickSensor::Evaluate(CValue* event)
 			js->cSetPrecision(m_precision);
 			if(m_axisf == 1){
 				if(js->aUpAxisIsPositive(m_axis)){
-					m_istrig =1;
+					m_istrig = 1;
 					result = true;
 				}else{
 					if(m_istrig){
@@ -243,11 +243,31 @@ bool SCA_JoystickSensor::Evaluate(CValue* event)
 		printf("Error invalid switch statement\n");
 		break;
 	}
-	if(!js->IsTrig()){
+	
+	if (js->IsTrig()) {
+		/* The if below detects changes with the joystick trigger state.
+		 * js->IsTrig() will stay true as long as the key is held.
+		 * even though the event from SDL will only be sent once.
+		 * (js->IsTrig() && m_istrig_lastjs) - when true it means this sensor
+		 * had the same joystick trigger state last time,
+		 * Setting the result false this time means it wont run the sensors
+		 * controller every time (like a pulse sensor)
+		 *
+		 * This is not done with the joystick its self incase other sensors use
+		 * it or become active.
+		 */
+		if (m_istrig_lastjs) {
+			result = false;
+		}
+		m_istrig_lastjs = true;
+	} else {
 		m_istrig = 0;
+		m_istrig_lastjs = false;
 	}
+	
 	if (reset)
 		result = true;
+	
 	return result;
 }
 
@@ -334,7 +354,7 @@ char SCA_JoystickSensor::SetIndex_doc[] =
 "\tSets the joystick index to use.\n";
 PyObject* SCA_JoystickSensor::PySetIndex( PyObject* self, PyObject* value ) {
 	int index = PyInt_AsLong( value ); /* -1 on error, will raise an error in this case */
-	if (index < 0 or index >= JOYINDEX_MAX) {
+	if (index < 0 || index >= JOYINDEX_MAX) {
 		PyErr_SetString(PyExc_ValueError, "joystick index out of range or not an int");
 		return NULL;
 	}
