@@ -2229,8 +2229,11 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			{
 				// parent this to a bone
 				Bone *parent_bone = get_named_bone(get_armature(blenderchild->parent), blenderchild->parsubstr);
-				KX_BoneParentRelation *bone_parent_relation = KX_BoneParentRelation::New(parent_bone);
-				pcit->m_gamechildnode->SetParentRelation(bone_parent_relation);
+
+				if(parent_bone) {
+					KX_BoneParentRelation *bone_parent_relation = KX_BoneParentRelation::New(parent_bone);
+					pcit->m_gamechildnode->SetParentRelation(bone_parent_relation);
+				}
 			
 				break;
 			}
