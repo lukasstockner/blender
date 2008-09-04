@@ -2295,9 +2295,8 @@ void where_is_pose (Object *ob)
 					
 					/* 4. walk over the tree for regular solving */
 					for(a=0; a<tree->totchannel; a++) {
-						if(!(tree->pchan[a]->flag & POSE_DONE))	{// successive trees can set the flag
+						if(!(tree->pchan[a]->flag & POSE_DONE))	// successive trees can set the flag
 							where_is_pose_bone(ob, tree->pchan[a], ctime);
-						}
 					}
 					/* 5. execute the IK solver */
 					execute_posetree(ob, tree);

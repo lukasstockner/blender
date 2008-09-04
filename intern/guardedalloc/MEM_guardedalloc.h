@@ -59,7 +59,7 @@
 #define MEM_MALLOCN_H
 
 #include "stdio.h" /* needed for FILE* */
-#include "BLO_sys_types.h" /* needed for intptr_t */
+#include "BLO_sys_types.h" /* needed for uintptr_t */
 
 #ifdef __cplusplus
 extern "C" {

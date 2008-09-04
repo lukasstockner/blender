@@ -2949,9 +2949,9 @@ void do_render_seq(RenderResult *rr, int cfra)
 		   (schlaile)
 		*/
 		{
-			unsigned long mem_in_use;
-			unsigned long mmap_in_use;
-			unsigned long max;
+			uintptr_t mem_in_use;
+			uintptr_t mmap_in_use;
+			uintptr_t max;
 
 			mem_in_use= MEM_get_memory_in_use();
 			mmap_in_use= MEM_get_mapped_memory_in_use();

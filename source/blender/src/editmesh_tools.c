@@ -5213,7 +5213,7 @@ int EdgeSlide(short immediate, float imperc)
 						for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 							suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
 							if (suv && suv->fuv_list && suv->uv_up && suv->uv_down) {
-								VecLerpf2D(uv_tmp, suv->origuv,  (perc>=0)?suv->uv_up:suv->uv_down, fabs(perc));
+								Vec2Lerpf(uv_tmp, suv->origuv,  (perc>=0)?suv->uv_up:suv->uv_down, fabs(perc));
 								fuv_link = suv->fuv_list;
 								while (fuv_link) {
 									VECCOPY2D(((float *)fuv_link->link), uv_tmp);
@@ -5243,7 +5243,7 @@ int EdgeSlide(short immediate, float imperc)
 							for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 								suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
 								if (suv && suv->fuv_list && suv->uv_up && suv->uv_down) {
-									VecLerpf2D(uv_tmp, suv->uv_down, suv->uv_up, fabs(newlen));
+									Vec2Lerpf(uv_tmp, suv->uv_down, suv->uv_up, fabs(newlen));
 									fuv_link = suv->fuv_list;
 									while (fuv_link) {
 										VECCOPY2D(((float *)fuv_link->link), uv_tmp);
@@ -5260,7 +5260,7 @@ int EdgeSlide(short immediate, float imperc)
 							for (uvlay_idx=0; uvlay_idx<uvlay_tot; uvlay_idx++) {
 								suv = BLI_ghash_lookup( uvarray[uvlay_idx], ev );
 								if (suv && suv->fuv_list && suv->uv_up && suv->uv_down) {
-									VecLerpf2D(uv_tmp, suv->uv_up, suv->uv_down, fabs(newlen));
+									Vec2Lerpf(uv_tmp, suv->uv_up, suv->uv_down, fabs(newlen));
 									fuv_link = suv->fuv_list;
 									while (fuv_link) {
 										VECCOPY2D(((float *)fuv_link->link), uv_tmp);

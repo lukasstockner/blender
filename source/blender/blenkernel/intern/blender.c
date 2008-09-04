@@ -525,7 +525,7 @@ typedef struct UndoElem {
 	char str[FILE_MAXDIR+FILE_MAXFILE];
 	char name[MAXUNDONAME];
 	MemFile memfile;
-	unsigned long undosize;
+	uintptr_t undosize;
 } UndoElem;
 
 static ListBase undobase={NULL, NULL};
@@ -556,7 +556,7 @@ static int read_undosave(UndoElem *uel)
 /* name can be a dynamic string */
 void BKE_write_undo(char *name)
 {
-	unsigned long maxmem, totmem, memused;
+	uintptr_t maxmem, totmem, memused;
 	int nr, success;
 	UndoElem *uel;
 	
@@ -626,7 +626,7 @@ void BKE_write_undo(char *name)
 	if(U.undomemory != 0) {
 		/* limit to maximum memory (afterwards, we can't know in advance) */
 		totmem= 0;
-		maxmem= ((unsigned long)U.undomemory)*1024*1024;
+		maxmem= ((uintptr_t)U.undomemory)*1024*1024;
 
 		/* keep at least two (original + other) */
 		uel= undobase.last;

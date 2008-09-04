@@ -1,5 +1,5 @@
 /**
- * $Id: BL_ShapeDeformer.cpp 15261 2008-06-18 07:03:47Z ben2610 $
+ * $Id: BL_ShapeDeformer.cpp 15607 2008-07-16 21:24:54Z ben2610 $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

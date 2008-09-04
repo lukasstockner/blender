@@ -469,7 +469,7 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 {
     int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
 
-	//Main* blenderdata = maggie;
+	Main* blenderdata = maggie;
 
 	char* startscenename = scenename;
 	char pathname[160];
@@ -488,10 +488,10 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 
 		// get some preferences
 		SYS_SystemHandle syshandle = SYS_GetSystem();
-		//bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
-		//bool usefixed = (SYS_GetCommandLineInt(syshandle, "fixedtime", 0) != 0);
-		//bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
-		//bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
+		bool properties	= (SYS_GetCommandLineInt(syshandle, "show_properties", 0) != 0);
+		bool usefixed = (SYS_GetCommandLineInt(syshandle, "fixedtime", 0) != 0);
+		bool profile = (SYS_GetCommandLineInt(syshandle, "show_profile", 0) != 0);
+		bool frameRate = (SYS_GetCommandLineInt(syshandle, "show_framerate", 0) != 0);
 		bool game2ipo = true;//(SYS_GetCommandLineInt(syshandle, "game2ipo", 0) != 0);
 		bool displaylists = (SYS_GetCommandLineInt(syshandle, "displaylists", 0) != 0);
 		bool usemat = false;

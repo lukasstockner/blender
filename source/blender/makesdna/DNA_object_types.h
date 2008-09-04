@@ -53,7 +53,6 @@ struct SoftBody;
 struct FluidsimSettings;
 struct ParticleSystem;
 struct DerivedMesh;
-struct GPULamp;
 
 typedef struct bDeformGroup {
 	struct bDeformGroup *next, *prev;

@@ -107,7 +107,7 @@ typedef struct UndoElem {
 	Object *ob;		// pointer to edited object
 	int type;		// type of edited object
 	void *undodata;
-	unsigned long undosize;
+	uintptr_t undosize;
 	char name[MAXUNDONAME];
 	void (*freedata)(void *);
 	void (*to_editmode)(void *);
@@ -139,7 +139,7 @@ void undo_editmode_push(char *name, void (*freedata)(void *),
 {
 	UndoElem *uel;
 	int nr;
-	unsigned long memused, totmem, maxmem;
+	uintptr_t memused, totmem, maxmem;
 
 	/* at first here was code to prevent an "original" key to be insterted twice
 	   this was giving conflicts for example when mesh changed due to keys or apply */
@@ -188,7 +188,7 @@ void undo_editmode_push(char *name, void (*freedata)(void *),
 	if(U.undomemory != 0) {
 		/* limit to maximum memory (afterwards, we can't know in advance) */
 		totmem= 0;
-		maxmem= ((unsigned long)U.undomemory)*1024*1024;
+		maxmem= ((uintptr_t)U.undomemory)*1024*1024;
 
 		uel= undobase.last;
 		while(uel && uel->prev) {

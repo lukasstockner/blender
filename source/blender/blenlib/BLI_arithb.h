@@ -250,7 +250,6 @@ void printvec4f(char *str, float v[4]);
 void VecAddf(float *v, float *v1, float *v2);
 void VecSubf(float *v, float *v1, float *v2);
 void VecLerpf(float *target, float *a, float *b, float t);
-void VecLerpf2D(float *target, float *a, float *b, float t);
 void VecMidf(float *v, float *v1, float *v2);
 
 void VecOrthoBasisf(float *v, float *v1, float *v2);
@@ -261,6 +260,7 @@ void Vec2Mulf(float *v1, float f);
 void Vec2Addf(float *v, float *v1, float *v2);
 void Vec2Subf(float *v, float *v1, float *v2);
 void Vec2Copyf(float *v1, float *v2);
+void Vec2Lerpf(float *target, float *a, float *b, float t);
 
 void AxisAngleToQuat(float *q, float *axis, float angle);
 void vectoquat(float *vec, short axis, short upflag, float *q);

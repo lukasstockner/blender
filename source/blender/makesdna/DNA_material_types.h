@@ -45,7 +45,6 @@ struct Material;
 struct ColorBand;
 struct Group;
 struct bNodeTree;
-struct GPUMaterial;
 
 /* WATCH IT: change type? also make changes in ipo.h  */
 

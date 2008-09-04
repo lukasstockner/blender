@@ -200,7 +200,6 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String& name)
 	return (Scene*)m_maggie->scene.first;
 
 }
-
 #include "KX_PythonInit.h"
 
 #ifdef USE_BULLET

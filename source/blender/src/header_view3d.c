@@ -5814,7 +5814,7 @@ void view3d_buttons(void)
 			uiBlockEndAlign(block);
 			xco+= 10;
 		}
-		
+
 		/* selection modus */
 		if(G.obedit && (G.obedit->type == OB_MESH)) {
 			uiBlockBeginAlign(block);

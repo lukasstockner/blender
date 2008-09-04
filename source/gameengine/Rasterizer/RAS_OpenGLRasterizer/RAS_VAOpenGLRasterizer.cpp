@@ -110,8 +110,6 @@ void RAS_VAOpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 	RAS_MeshSlot::iterator it;
 	GLenum drawmode;
 
-	//cout << "OGL VA index " << endl;
-
 	if(!wireframe)
 		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
@@ -168,8 +166,6 @@ void RAS_VAOpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 	bool wireframe = m_drawingmode <= KX_WIREFRAME;
 	RAS_MeshSlot::iterator it;
 	GLenum drawmode;
-
-	//cout << "OGL VA index multi " << endl;
 
 	if(!wireframe)
 		EnableTextures(true);

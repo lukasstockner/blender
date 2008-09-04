@@ -669,13 +669,11 @@ void RAS_OpenGLRasterizer::TexCoord(const RAS_TexVert &tv)
 
 void RAS_OpenGLRasterizer::IndexPrimitives(RAS_MeshSlot& ms)
 {
-	//cout << "OGL index " << endl;
 	IndexPrimitivesInternal(ms, false);
 }
 
 void RAS_OpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 {
-	//cout << "OGL index multi " << endl;
 	IndexPrimitivesInternal(ms, true);
 }
 

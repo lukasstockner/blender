@@ -1,5 +1,5 @@
 /**
- * $Id: BL_ShapeDeformer.h 15261 2008-06-18 07:03:47Z ben2610 $
+ * $Id: BL_ShapeDeformer.h 15517 2008-07-10 12:47:20Z blendix $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

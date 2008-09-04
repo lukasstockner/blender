@@ -2113,7 +2113,7 @@ void VecLerpf(float *target, float *a, float *b, float t)
 	target[2]= s*a[2] + t*b[2];
 }
 
-void VecLerpf2D(float *target, float *a, float *b, float t)
+void Vec2Lerpf(float *target, float *a, float *b, float t)
 {
 	float s = 1.0f-t;
 

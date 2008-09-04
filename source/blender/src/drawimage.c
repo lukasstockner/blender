@@ -475,6 +475,7 @@ void draw_uvs_sima(void)
 		glColor3ub(112, 112, 112);
 		dm = mesh_get_derived_final(OBACT, CD_MASK_BAREMESH|CD_MASK_MTFACE);
 		dm->drawUVEdges(dm);
+		dm->release(dm);
 		return;
  	}
  	
