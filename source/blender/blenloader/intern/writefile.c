@@ -839,11 +839,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		if (mti == NULL) return;
 		
 		if(md->type==eModifierType_Fluidsim)
-			md->type = eModifierType_ShrinkWrap;
+			md->type = eModifierType_Shrinkwrap;
 		
 		writestruct(wd, DATA, mti->structName, 1, md);
 		
-		if(md->type==eModifierType_ShrinkWrap)
+		if(md->type==eModifierType_Shrinkwrap)
 			md->type = eModifierType_Fluidsim;
 			
 		if (md->type==eModifierType_Hook) {
