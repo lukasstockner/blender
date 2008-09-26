@@ -137,6 +137,9 @@ void BLI_dlist_reinit(struct DynamicList *dlist);
 void BLI_cleanup_file(const char *relabase, char *dir);
 void BLI_cleanup_dir(const char *relabase, char *dir); /* same as above but adds a trailing slash */
 
+/* go back one directory */
+int BLI_parent_dir(char *path);
+
 	/**
 	 * Blender's path code replacement function.
 	 * Bases @a path strings leading with "//" by the
@@ -224,7 +227,7 @@ int BLI_strcaseeq(char *a, char *b);
 
 /* in util.c */
 #ifdef WITH_ICONV
-void BLI_string_to_utf8(char *original, char *utf_8, char *code);
+void BLI_string_to_utf8(char *original, char *utf_8, const char *code);
 #endif
 
 	/**

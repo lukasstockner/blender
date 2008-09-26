@@ -797,6 +797,36 @@ static PyObject* gPyGetMaterialType(PyObject*)
 	return PyInt_FromLong(flag);
 }
 
+static PyObject* gPyDrawLine(PyObject*, PyObject* args)
+{
+	PyObject* ob_from;
+	PyObject* ob_to;
+	PyObject* ob_color;
+
+	if (!gp_Rasterizer) {
+		PyErr_SetString(PyExc_RuntimeError, "Rasterizer not available");
+		return NULL;
+	}
+
+	if (!PyArg_ParseTuple(args,"OOO",&ob_from,&ob_to,&ob_color))
+		return NULL;
+
+	MT_Vector3 from(0., 0., 0.);
+	MT_Vector3 to(0., 0., 0.);
+	MT_Vector3 color(0., 0., 0.);
+	if (!PyVecTo(ob_from, from))
+		return NULL;
+	if (!PyVecTo(ob_to, to))
+		return NULL;
+	if (!PyVecTo(ob_color, color))
+		return NULL;
+
+	gp_Rasterizer->DrawDebugLine(from,to,color);
+	
+	Py_RETURN_NONE;
+}
+
+
 STR_String	gPyGetWindowHeight__doc__="getWindowHeight doc";
 STR_String	gPyGetWindowWidth__doc__="getWindowWidth doc";
 STR_String	gPyEnableVisibility__doc__="enableVisibility doc";
@@ -838,6 +868,8 @@ static struct PyMethodDef rasterizer_methods[] = {
    METH_VARARGS, "set the state of a GLSL material setting"},
   {"getGLSLMaterialSetting",(PyCFunction) gPyGetGLSLMaterialSetting,
    METH_VARARGS, "get the state of a GLSL material setting"},
+  {"drawLine", (PyCFunction) gPyDrawLine,
+   METH_VARARGS, "draw a line on the screen"},
   { NULL, (PyCFunction) NULL, 0, NULL }
 };
 
@@ -975,6 +1007,38 @@ PyObject* initGameLogic(KX_KetsjiEngine *engine, KX_Scene* scene) // quick hack 
 	KX_MACRO_addTypesToDict(d, CAM_POS, BL_Shader::CAM_POS);
 	KX_MACRO_addTypesToDict(d, CONSTANT_TIMER, BL_Shader::CONSTANT_TIMER);
 
+	/* 10 state actuator */
+	KX_MACRO_addTypesToDict(d, KX_STATE1, (1<<0));
+	KX_MACRO_addTypesToDict(d, KX_STATE2, (1<<1));
+	KX_MACRO_addTypesToDict(d, KX_STATE3, (1<<2));
+	KX_MACRO_addTypesToDict(d, KX_STATE4, (1<<3));
+	KX_MACRO_addTypesToDict(d, KX_STATE5, (1<<4));
+	KX_MACRO_addTypesToDict(d, KX_STATE6, (1<<5));
+	KX_MACRO_addTypesToDict(d, KX_STATE7, (1<<6));
+	KX_MACRO_addTypesToDict(d, KX_STATE8, (1<<7));
+	KX_MACRO_addTypesToDict(d, KX_STATE9, (1<<8));
+	KX_MACRO_addTypesToDict(d, KX_STATE10, (1<<9));
+	KX_MACRO_addTypesToDict(d, KX_STATE11, (1<<10));
+	KX_MACRO_addTypesToDict(d, KX_STATE12, (1<<11));
+	KX_MACRO_addTypesToDict(d, KX_STATE13, (1<<12));
+	KX_MACRO_addTypesToDict(d, KX_STATE14, (1<<13));
+	KX_MACRO_addTypesToDict(d, KX_STATE15, (1<<14));
+	KX_MACRO_addTypesToDict(d, KX_STATE16, (1<<15));
+	KX_MACRO_addTypesToDict(d, KX_STATE17, (1<<16));
+	KX_MACRO_addTypesToDict(d, KX_STATE18, (1<<17));
+	KX_MACRO_addTypesToDict(d, KX_STATE19, (1<<18));
+	KX_MACRO_addTypesToDict(d, KX_STATE20, (1<<19));
+	KX_MACRO_addTypesToDict(d, KX_STATE21, (1<<20));
+	KX_MACRO_addTypesToDict(d, KX_STATE22, (1<<21));
+	KX_MACRO_addTypesToDict(d, KX_STATE23, (1<<22));
+	KX_MACRO_addTypesToDict(d, KX_STATE24, (1<<23));
+	KX_MACRO_addTypesToDict(d, KX_STATE25, (1<<24));
+	KX_MACRO_addTypesToDict(d, KX_STATE26, (1<<25));
+	KX_MACRO_addTypesToDict(d, KX_STATE27, (1<<26));
+	KX_MACRO_addTypesToDict(d, KX_STATE28, (1<<27));
+	KX_MACRO_addTypesToDict(d, KX_STATE29, (1<<28));
+	KX_MACRO_addTypesToDict(d, KX_STATE30, (1<<29));
+
 	// Check for errors
 	if (PyErr_Occurred())
     {
@@ -1047,6 +1111,21 @@ PyObject *KXpy_import(PyObject *self, PyObject *args)
 
 }
 
+/* override python file type functions */
+#if 0
+static int
+file_init(PyObject *self, PyObject *args, PyObject *kwds)
+{
+	KXpy_file(NULL, NULL);
+	return -1;
+}
+
+static PyObject *
+file_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
+	return KXpy_file(NULL, NULL);
+}
+#endif
 
 static PyMethodDef meth_open[] = {{ "open", KXpy_open, METH_VARARGS, "(disabled)"}};
 static PyMethodDef meth_reload[] = {{ "reload", KXpy_reload, METH_VARARGS, "(disabled)"}};
@@ -1059,7 +1138,6 @@ static PyMethodDef meth_import[] = {{ "import", KXpy_import, METH_VARARGS, "our 
 //static PyObject *g_oldopen = 0;
 //static PyObject *g_oldimport = 0;
 //static int g_security = 0;
-
 
 void setSandbox(TPythonSecurityLevel level)
 {
@@ -1081,6 +1159,19 @@ void setSandbox(TPythonSecurityLevel level)
 			// our own import
 			PyDict_SetItemString(d, "__import__", PyCFunction_New(meth_import, NULL));
 			//g_security = level;
+			
+			// Overiding file dosnt stop it being accessed if your sneaky
+			//    f =  [ t for t in (1).__class__.__mro__[-1].__subclasses__() if t.__name__ == 'file'][0]('/some_file.txt', 'w')
+			//    f.write('...')
+			// so overwrite the file types functions. be very careful here still, since python uses python.
+			// ps - python devs frown deeply upon this.
+	
+			/* this could mess up pythons internals, if we are serious about sandboxing
+			 * issues like the one above need to be solved, possibly modify __subclasses__ is safer? */
+#if 0
+			PyFile_Type.tp_init = file_init;
+			PyFile_Type.tp_new = file_new;
+#endif
 		//}
 		break;
 	/*

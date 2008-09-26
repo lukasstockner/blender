@@ -24,6 +24,8 @@ subject to the following restrictions:
 #include "LinearMath/btIDebugDraw.h"
 #include "BulletCollision/CollisionDispatch/btSimulationIslandManager.h"
 #include "BulletSoftBody/btSoftRigidDynamicsWorld.h"
+#include "BulletSoftBody/btSoftBodyRigidBodyCollisionConfiguration.h"
+#include "BulletCollision/Gimpact/btGImpactCollisionAlgorithm.h"
 
 //profiling/timings
 #include "LinearMath/btQuickprof.h"
@@ -331,14 +333,20 @@ m_filterCallback(NULL)
 	{
 		m_triggerCallbacks[i] = 0;
 	}
-	m_collisionConfiguration = new btDefaultCollisionConfiguration();
+
+//	m_collisionConfiguration = new btDefaultCollisionConfiguration();
+	m_collisionConfiguration = new btSoftBodyRigidBodyCollisionConfiguration();
 
 	if (!dispatcher)
 	{
-		dispatcher = new btCollisionDispatcher(m_collisionConfiguration);
+		btCollisionDispatcher* disp = new btCollisionDispatcher(m_collisionConfiguration);
+		dispatcher = disp;
+		btGImpactCollisionAlgorithm::registerAlgorithm(disp);
 		m_ownDispatcher = dispatcher;
 	}
 
+	//m_broadphase = new btAxisSweep3(btVector3(-1000,-1000,-1000),btVector3(1000,1000,1000));
+	//m_broadphase = new btSimpleBroadphase();
 	m_broadphase = new btDbvtBroadphase();
 
 	m_filterCallback = new CcdOverlapFilterCallBack(this);
@@ -375,9 +383,8 @@ void	CcdPhysicsEnvironment::addCcdPhysicsController(CcdPhysicsController* ctrl)
 	{
 		if (ctrl->GetSoftBody())
 		{
-			//not yet
-			btAssert(0);
-			//m_dynamicsWorld->addSo
+			btSoftBody* softBody = ctrl->GetSoftBody();
+			m_dynamicsWorld->addSoftBody(softBody);
 		} else
 		{
 			if (obj->getCollisionShape())
@@ -448,6 +455,8 @@ void	CcdPhysicsEnvironment::addCcdPhysicsController(CcdPhysicsController* ctrl)
 
 }
 
+		
+
 void	CcdPhysicsEnvironment::removeCcdPhysicsController(CcdPhysicsController* ctrl)
 {
 	//also remove constraint
@@ -460,8 +469,7 @@ void	CcdPhysicsEnvironment::removeCcdPhysicsController(CcdPhysicsController* ctr
 		//if a softbody
 		if (ctrl->GetSoftBody())
 		{
-			//not yet
-			btAssert(0);
+			m_dynamicsWorld->removeSoftBody(ctrl->GetSoftBody());
 		} else
 		{
 			m_dynamicsWorld->removeCollisionObject(ctrl->GetCollisionObject());
@@ -553,7 +561,8 @@ bool	CcdPhysicsEnvironment::proceedDeltaTime(double curTime,float timeStep)
 	float subStep = timeStep / float(m_numTimeSubSteps);
 	for (i=0;i<m_numTimeSubSteps;i++)
 	{
-		m_dynamicsWorld->stepSimulation(subStep,0);//perform always a full simulation step
+//			m_dynamicsWorld->stepSimulation(subStep,20,1./240.);//perform always a full simulation step
+			m_dynamicsWorld->stepSimulation(subStep,0);//perform always a full simulation step
 	}
 
 	for (it=m_controllers.begin(); it!=m_controllers.end(); it++)
@@ -670,7 +679,13 @@ void		CcdPhysicsEnvironment::setSolverType(int solverType)
 
 
 
-
+void		CcdPhysicsEnvironment::getGravity(PHY__Vector3& grav)
+{
+		const btVector3& gravity = m_dynamicsWorld->getGravity();
+		grav[0] = gravity.getX();
+		grav[1] = gravity.getY();
+		grav[2] = gravity.getZ();
+}
 
 
 void		CcdPhysicsEnvironment::setGravity(float x,float y,float z)
@@ -865,7 +880,7 @@ PHY_IPhysicsController* CcdPhysicsEnvironment::rayTest(PHY_IRayCastFilterCallbac
 				if (shape == rayCallback.m_hitTriangleShape && 
 					rayCallback.m_hitTriangleIndex < shapeInfo->m_polygonIndexArray.size())
 				{
-					result.m_meshObject = shapeInfo->m_meshObject;
+					result.m_meshObject = shapeInfo->GetMesh();
 					result.m_polygon = shapeInfo->m_polygonIndexArray.at(rayCallback.m_hitTriangleIndex);
 
 					// Bullet returns the normal from "outside".
@@ -954,6 +969,13 @@ btBroadphaseInterface*	CcdPhysicsEnvironment::getBroadphase()
 { 
 	return m_dynamicsWorld->getBroadphase(); 
 }
+
+btDispatcher*	CcdPhysicsEnvironment::getDispatcher()
+{ 
+	return m_dynamicsWorld->getDispatcher();
+}
+
+
 
 
 

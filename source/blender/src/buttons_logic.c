@@ -49,6 +49,7 @@
 #include "DNA_controller_types.h"
 #include "DNA_property_types.h"
 #include "DNA_object_types.h"
+#include "DNA_object_force.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_scene_types.h"
@@ -1036,26 +1037,26 @@ static void draw_default_sensor_header(bSensor *sens,
 {
 	/* Pulsing and frequency */
 	uiDefIconButBitS(block, TOG, SENS_PULSE_REPEAT, 1, ICON_DOTSUP,
-			 (short)(x + 10 + 0. * (w-20)), (short)(y - 19), (short)(0.15 * (w-20)), 19,
+			 (short)(x + 10 + 0. * (w-20)), (short)(y - 21), (short)(0.15 * (w-20)), 19,
 			 &sens->pulse, 0.0, 0.0, 0, 0,
 			 "Activate TRUE level triggering (pulse mode)");
 
 	uiDefIconButBitS(block, TOG, SENS_NEG_PULSE_MODE, 1, ICON_DOTSDOWN,
-			 (short)(x + 10 + 0.15 * (w-20)), (short)(y - 19), (short)(0.15 * (w-20)), 19,
+			 (short)(x + 10 + 0.15 * (w-20)), (short)(y - 21), (short)(0.15 * (w-20)), 19,
 			 &sens->pulse, 0.0, 0.0, 0, 0,
 			 "Activate FALSE level triggering (pulse mode)");
 	uiDefButS(block, NUM, 1, "f:",
-			 (short)(x + 10 + 0.3 * (w-20)), (short)(y - 19), (short)(0.275 * (w-20)), 19,
+			 (short)(x + 10 + 0.3 * (w-20)), (short)(y - 21), (short)(0.275 * (w-20)), 19,
 			 &sens->freq, 0.0, 10000.0, 0, 0,
 			 "Delay between repeated pulses (in logic tics, 0 = no delay)");
 	
 	/* value or shift? */
 	uiDefButS(block, TOG, 1, "Inv",
-			 (short)(x + 10 + 0.85 * (w-20)), (short)(y - 19), (short)(0.15 * (w-20)), 19,
+			 (short)(x + 10 + 0.85 * (w-20)), (short)(y - 21), (short)(0.15 * (w-20)), 19,
 			 &sens->invert, 0.0, 0.0, 0, 0,
 			 "Invert the level (output) of this sensor");
 	uiDefButS(block, TOG, 1, "Level",
-			 (short)(x + 10 + 0.65 * (w-20)), (short)(y - 19), (short)(0.20 * (w-20)), 19,
+			 (short)(x + 10 + 0.65 * (w-20)), (short)(y - 21), (short)(0.20 * (w-20)), 19,
 			 &sens->level, 0.0, 0.0, 0, 0,
 			 "Level detector, trigger controllers of new states (only applicable upon logic state transition)");
 }
@@ -2161,6 +2162,8 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 			uiDefButS(block, NUM,		0, "damp",	xco+10, yco-45, 70, 19, &coa->damp, 0.0, 100.0, 0, 0, "Damping factor: time constant (in frame) of low pass filter");
 			uiDefBut(block, LABEL,			0, "Range",	xco+80, yco-45, (width-115)/2, 19, NULL, 0.0, 0.0, 0, 0, "Set the maximum length of ray");
 			uiDefButBitS(block, TOG, ACT_CONST_DISTANCE, B_REDR, "Dist",	xco+80+(width-115)/2, yco-45, (width-115)/2, 19, &coa->flag, 0.0, 0.0, 0, 0, "Force distance of object to point of impact of ray");
+			uiDefButBitS(block, TOG, ACT_CONST_LOCAL, 0, "L", xco+80+(width-115), yco-45, 25, 19,
+					 &coa->flag, 0.0, 0.0, 0, 0, "Set ray along object's axis or global axis");
 
 			if(coa->mode & (ACT_CONST_DIRPX|ACT_CONST_DIRNX)) fp= coa->minloc;
 			else if(coa->mode & (ACT_CONST_DIRPY|ACT_CONST_DIRNY)) fp= coa->minloc+1;
@@ -2170,7 +2173,7 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 			if (coa->flag & ACT_CONST_DISTANCE)
 				uiDefButF(block, NUM, 0, "",		xco+80+(width-115)/2, yco-65, (width-115)/2, 19, fp, -2000.0, 2000.0, 10, 0, "Keep this distance to target");
 			uiDefButBitS(block, TOG, ACT_CONST_NORMAL, 0, "N", xco+80+(width-115), yco-65, 25, 19,
-					 &coa->flag, 0.0, 0.0, 0, 0, "Set object axis along the normal at hit position");
+					 &coa->flag, 0.0, 0.0, 0, 0, "Set object axis along (local axis) or parallel (global axis) to the normal at hit position");
 			uiDefButBitS(block, TOG, ACT_CONST_MATERIAL, B_REDR, "M/P", xco+10, yco-84, 40, 19,
 					 &coa->flag, 0.0, 0.0, 0, 0, "Detect material instead of property");
 			if (coa->flag & ACT_CONST_MATERIAL)
@@ -2355,19 +2358,25 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 		
 		visAct = act->data;
 
-		str= "Visibility %t|Visible %x0|Invisible %x1|Visible Recursive %x2|Invisible Recursive %x3";
-
-		uiDefButI(block, MENU, B_REDR, str,
-			  xco + 10, yco - 24, width - 20, 19, &visAct->flag,
+		uiBlockBeginAlign(block);
+		uiDefButBitI(block, TOGN, ACT_VISIBILITY_INVISIBLE, B_REDR,
+			  "Visible",
+			  xco + 10, yco - 20, (width - 20)/3, 19, &visAct->flag,
 			  0.0, 0.0, 0, 0,
-			  "Make the object invisible or visible.");
-/*
-		uiDefButBitI(block, TOG, ACT_VISIBILITY_INVISIBLE, 0,
+			  "Set the objects visible. Initialized from the objects render restriction toggle (access in the outliner)");
+		uiDefButBitI(block, TOG, ACT_VISIBILITY_INVISIBLE, B_REDR,
 			  "Invisible",
-			  xco + 10, yco - 24, width - 20, 19, &visAct->flag,
+			  xco + 10 + ((width - 20)/3), yco - 20, (width - 20)/3, 19, &visAct->flag,
 			  0.0, 0.0, 0, 0,
-			  "Make the object invisible or visible.");
-*/
+			  "Set the object invisible. Initialized from the objects render restriction toggle (access in the outliner)");
+		uiBlockEndAlign(block);
+		
+		uiDefButBitI(block, TOG, ACT_VISIBILITY_RECURSIVE, B_NOP,
+			  "Children",
+			  xco + 10 + (((width - 20)/3)*2)+10, yco - 20, ((width - 20)/3)-10, 19, &visAct->flag,
+			  0.0, 0.0, 0, 0,
+			  "Sets all the children of this object to the same visibility recursively");
+
 		yco-= ysize;
 
 		break;
@@ -2920,9 +2929,9 @@ void buttons_ketsji(uiBlock *block, Object *ob)
 			uiBlockBeginAlign(block);
 			uiDefButBitI(block, TOG, OB_BOUNDS, B_REDR, "Bounds", 10, 105, 75, 19,
 					&ob->gameflag, 0, 0,0, 0,
-					"Specify a bounds object for physics");
+					"Specify a collision shape bounds type");
 			if (ob->gameflag & OB_BOUNDS) {
-				uiDefButS(block, MENU, REDRAWVIEW3D, "Boundary Display%t|Box%x0|Sphere%x1|Cylinder%x2|Cone%x3|Convex Hull%x5|Static TriangleMesh %x4",
+				uiDefButS(block, MENU, REDRAWVIEW3D, "Collision Type%t|Box%x0|Sphere%x1|Cylinder%x2|Cone%x3|Convex Hull%x5|Concave TriangleMesh %x4",
 					85, 105, 160, 19, &ob->boundtype, 0, 0, 0, 0, "Selects the collision type");
 				uiDefButBitI(block, TOG, OB_CHILD, B_REDR, "Compound", 250,105,100,19, 
 						&ob->gameflag, 0, 0, 0, 0, 
@@ -2969,6 +2978,72 @@ static void check_body_type(void *arg1_but, void *arg2_object)
 	}
 }
 
+static uiBlock *advanced_bullet_menu(void *arg_ob)
+{
+	uiBlock *block;
+	Object *ob = arg_ob;
+	short yco = 105, xco = 0;
+
+	block= uiNewBlock(&curarea->uiblocks, "advanced_bullet_options", UI_EMBOSS, UI_HELV, curarea->win);
+	/* use this for a fake extra empy space around the buttons */
+	uiDefBut(block, LABEL, 0, "", -5, -10, 255, 140, NULL, 0, 0, 0, 0, "");
+
+	uiDefButBitI(block, TOG, OB_ACTOR, 0, "Sensor actor",
+				xco, yco, 118, 19, &ob->gameflag, 0, 0, 0, 0,
+				"Objects that are detected by the Near and Radar sensor");
+
+	if (ob->gameflag & OB_DYNAMIC) {
+		uiDefButBitI(block, TOG, OB_COLLISION_RESPONSE, 0, "No sleeping", 
+					xco+=120, yco, 118, 19, &ob->gameflag, 0, 0, 0, 0, 
+					"Disable auto (de)activation");
+	}
+
+	yco -= 25;
+	xco = 0;
+	if (ob->gameflag & OB_DYNAMIC) {
+		if (ob->margin < 0.001f)
+			ob->margin = 0.06f;
+		uiDefButF(block, NUM, 0, "Margin", 
+				xco, yco, 118, 19, &ob->margin, 0.001, 1.0, 1, 0, 
+				"Collision margin");
+	} else {
+		uiDefButF(block, NUM, 0, "Margin", 
+				xco, yco, 118, 19, &ob->margin, 0.0, 1.0, 1, 0, 
+				"Collision margin");
+	}
+	if (ob->gameflag & OB_SOFT_BODY) {
+		if (ob->soft)
+		{
+			
+			uiDefButBitI(block, TOG, OB_SB_GOAL, 0, "Shape matching", 
+						xco+=120, yco, 118, 19, &ob->softflag, 0, 0, 0, 0, 
+						"Enable soft body shape matching goal");
+			yco -= 25;
+			xco = 0;
+			uiDefButF(block, NUMSLI, 0, "LinStiff ", xco, yco, 238, 19, 
+					&ob->soft->inspring, 0.0, 1.0, 1, 0,
+					"Linear stiffness of the soft body vertex spring");
+			/*
+			yco -= 25;
+			uiDefButF(block, NUMSLI, 0, "AngStiff ", xco, yco, 238, 19, 
+					&ob->angularStiffness, 0.0, 1.0, 1, 0, 
+					"Angular stiffness of the soft body vertex spring");
+			yco -= 25;
+			uiDefButF(block, NUMSLI, 0, "Volume ", xco, yco, 238, 19, 
+					&ob->volumePreservation, 0.0, 1.0, 1, 0, 
+					"Factor of soft body volume preservation");
+					*/
+
+		}
+
+	}
+
+			
+	uiBlockSetDirection(block, UI_TOP);
+
+	return block;
+}
+
 void buttons_bullet(uiBlock *block, Object *ob)
 {
 	uiBut *but;
@@ -2976,7 +3051,7 @@ void buttons_bullet(uiBlock *block, Object *ob)
 	/* determine the body_type setting based on flags */
 	if (!(ob->gameflag & OB_COLLISION))
 		ob->body_type = OB_BODY_TYPE_NO_COLLISION;
-	else if (!(ob->gameflag & OB_DYNAMIC) || !(ob->gameflag & OB_DYNAMIC))
+	else if (!(ob->gameflag & OB_DYNAMIC))
 		ob->body_type = OB_BODY_TYPE_STATIC;
 	else if (!(ob->gameflag & (OB_RIGID_BODY|OB_SOFT_BODY)))
 		ob->body_type = OB_BODY_TYPE_DYNAMIC;
@@ -2985,61 +3060,62 @@ void buttons_bullet(uiBlock *block, Object *ob)
 	else
 		ob->body_type = OB_BODY_TYPE_SOFT;
 
-	uiBlockBeginAlign(block);
-	but = uiDefButS(block, MENU, REDRAWVIEW3D, 
-			"Object type%t|No collision%x0|Static%x1|Dynamic%x2|Rigid body%x3|Soft body%x4", 
-			10, 205, 150, 19, &ob->body_type, 0, 0, 0, 0, "Selects the type of physical representation of the object");
-	uiButSetFunc(but, check_body_type, but, ob);
+	//only enable game soft body if Blender Soft Body exists
+	if (ob->soft)
+	{
+		but = uiDefButS(block, MENU, REDRAWVIEW3D, 
+				"Object type%t|No collision%x0|Static%x1|Dynamic%x2|Rigid body%x3|Soft body%x4", 
+				10, 205, 120, 19, &ob->body_type, 0, 0, 0, 0, "Selects the type of physical representation");
+		uiButSetFunc(but, check_body_type, but, ob);
+	} else
+	{
+		but = uiDefButS(block, MENU, REDRAWVIEW3D, 
+				"Object type%t|No collision%x0|Static%x1|Dynamic%x2|Rigid body%x3", 
+				10, 205, 120, 19, &ob->body_type, 0, 0, 0, 0, "Selects the type of physical representation");
+		uiButSetFunc(but, check_body_type, but, ob);
+	}
+	
 
 	if (ob->gameflag & OB_COLLISION) {
-		but = uiDefButBitI(block, TOG, OB_ACTOR, B_REDR, "Actor",
-				160,205,55,19, &ob->gameflag, 0, 0, 0, 0,
-				"Objects that are detected by the Near and Radar sensor");
-		uiButSetFunc(but, check_actor, but, &ob->gameflag);
-		
-		uiDefButBitI(block, TOG, OB_GHOST, B_REDR, "Ghost", 215,205,55,19, 
+
+		uiBlockSetCol(block, TH_BUT_SETTING1);
+		uiDefBlockBut(block, advanced_bullet_menu, ob, 
+					  "Advanced Settings", 
+					  200, 205, 150, 20, "Display collision advanced settings");
+		uiBlockSetCol(block, TH_BUT_SETTING2);
+
+		uiBlockBeginAlign(block);
+		uiDefButBitI(block, TOG, OB_GHOST, 0, "Ghost", 10, 182, 60, 19, 
 				&ob->gameflag, 0, 0, 0, 0, 
 				"Objects that don't restitute collisions (like a ghost)");
-		if(ob->gameflag & OB_DYNAMIC) {
-			uiDefButBitI(block, TOG, OB_COLLISION_RESPONSE, B_REDR, "No sleeping", 270,205,80,19, 
-					&ob->gameflag, 0, 0, 0, 0, 
-					"Disable auto (de)activation");
-			uiDefButF(block, NUM, B_DIFF, "Mass:", 10, 185, 170, 19, 
-					&ob->mass, 0.01, 10000.0, 10, 2, 
-					"The mass of the Object");
-			uiDefButF(block, NUM, REDRAWVIEW3D, "Radius:", 180, 185, 170, 19, 
+		if ((ob->gameflag & OB_DYNAMIC) || ((ob->gameflag & OB_BOUNDS) && (ob->boundtype == OB_BOUND_SPHERE))) {
+			uiDefButF(block, NUM, REDRAWVIEW3D, "Radius:", 70, 182, 140, 19, 
 					&ob->inertia, 0.01, 10.0, 10, 2, 
 					"Bounding sphere radius, not used for other bounding shapes");
+		}
+		if(ob->gameflag & OB_DYNAMIC) {
+			uiDefButF(block, NUM, B_DIFF, "Mass:", 210, 182, 140, 19, 
+					&ob->mass, 0.01, 10000.0, 10, 2, 
+					"The mass of the Object");
 
-			uiDefButF(block, NUMSLI, B_DIFF, "Damp ", 10, 165, 150, 19, 
+			uiDefButF(block, NUMSLI, B_DIFF, "Damp ", 10, 162, 150, 19, 
 					&ob->damping, 0.0, 1.0, 10, 0, 
 					"General movement damping");
-			uiDefButF(block, NUMSLI, B_DIFF, "RotDamp ", 160, 165, 190, 19, 
+			uiDefButF(block, NUMSLI, B_DIFF, "RotDamp ", 160, 162, 190, 19, 
 					&ob->rdamping, 0.0, 1.0, 10, 0, 
 					"General rotation damping");
 		}
 		uiBlockEndAlign(block);
 
 		uiBlockBeginAlign(block);
-		if ((ob->gameflag & (OB_ACTOR|OB_DYNAMIC)) == (OB_ACTOR|OB_DYNAMIC)) {
-			if (ob->margin < 0.001f)
-				ob->margin = 0.06f;
-			uiDefButF(block, NUM, B_DIFF, "Margin", 10, 105, 105, 19, 
-					&ob->margin, 0.001, 1.0, 1, 0, 
-					"Collision margin");
-		} else {
-			uiDefButF(block, NUM, B_DIFF, "Margin", 10, 105, 105, 19, 
-					&ob->margin, 0.0, 1.0, 1, 0, 
-					"Collision margin");
-		}
-		uiDefButBitI(block, TOG, OB_BOUNDS, B_REDR, "Bounds", 115, 105, 55, 19,
-				&ob->gameflag, 0, 0,0, 0,
-				"Specify a bounds object for physics");
+		uiDefButBitI(block, TOG, OB_BOUNDS, B_REDR, "Bounds", 10, 105, 80, 19,
+				&ob->gameflag, 0, 0, 0, 0,
+				"Specify a collision bounds type");
 		if (ob->gameflag & OB_BOUNDS) {
-			uiDefButS(block, MENU, REDRAWVIEW3D, "Boundary Display%t|Box%x0|Sphere%x1|Cylinder%x2|Cone%x3|Convex Hull%x5|Static Mesh%x4",
+			uiDefButS(block, MENU, REDRAWVIEW3D, "Collision Bounds%t|Box%x0|Sphere%x1|Cylinder%x2|Cone%x3|Convex Hull%x5|Triangle Mesh%x4",
 			//almost ready to enable this one:			uiDefButS(block, MENU, REDRAWVIEW3D, "Boundary Display%t|Box%x0|Sphere%x1|Cylinder%x2|Cone%x3|Convex Hull Polytope%x5|Static TriangleMesh %x4|Dynamic Mesh %x5|",
-				170, 105, 105, 19, &ob->boundtype, 0, 0, 0, 0, "Selects the collision type");
-			uiDefButBitI(block, TOG, OB_CHILD, B_REDR, "Compound", 275,105,75,19, 
+				90, 105, 150, 19, &ob->boundtype, 0, 0, 0, 0, "Selects the collision type");
+			uiDefButBitI(block, TOG, OB_CHILD, B_REDR, "Compound", 240,105,110,19, 
 					&ob->gameflag, 0, 0, 0, 0, 
 					"Add Children");
 		}
@@ -3312,24 +3388,25 @@ void logic_buts(void)
 
 			/* first show the state */
 			uiBlockSetEmboss(block, UI_EMBOSSP);
-			uiDefBlockBut(block, object_state_mask_menu, ob, "State", (short)(xco-10), (short)(yco-10), 40, 19, "Object state menu: store and retrieve initial state");
+			uiDefBlockBut(block, object_state_mask_menu, ob, "State", (short)(xco-10), (short)(yco-10), 36, 19, "Object state menu: store and retrieve initial state");
 			uiBlockSetEmboss(block, UI_EMBOSS);
 			if (!ob->state)
 				ob->state = 1;
 			for (offset=0; offset<15; offset+=5) {
 				uiBlockBeginAlign(block);
 				for (stbit=0; stbit<5; stbit++) {
-					but = uiDefButBitI(block, controller_state_mask&(1<<(stbit+offset)) ? BUT_TOGDUAL:TOG, 1<<(stbit+offset), stbit+offset, "",	(short)(xco+35+12*stbit+13*offset), yco, 12, 12, (int *)&(ob->state), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+offset)));
+					but = uiDefButBitI(block, controller_state_mask&(1<<(stbit+offset)) ? BUT_TOGDUAL:TOG, 1<<(stbit+offset), stbit+offset, "",	(short)(xco+31+12*stbit+13*offset), yco, 12, 12, (int *)&(ob->state), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+offset)));
 					uiButSetFunc(but, check_state_mask, but, &(ob->state));
 				}
 				for (stbit=0; stbit<5; stbit++) {
-					but = uiDefButBitI(block, controller_state_mask&(1<<(stbit+offset+15)) ? BUT_TOGDUAL:TOG, 1<<(stbit+offset+15), stbit+offset+15, "",	(short)(xco+35+12*stbit+13*offset), yco-12, 12, 12, (int *)&(ob->state), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+offset+15)));
+					but = uiDefButBitI(block, controller_state_mask&(1<<(stbit+offset+15)) ? BUT_TOGDUAL:TOG, 1<<(stbit+offset+15), stbit+offset+15, "",	(short)(xco+31+12*stbit+13*offset), yco-12, 12, 12, (int *)&(ob->state), 0, 0, 0, 0, get_state_name(ob, (short)(stbit+offset+15)));
 					uiButSetFunc(but, check_state_mask, but, &(ob->state));
 				}
 			}
 			uiBlockBeginAlign(block);
-			uiDefButBitS(block, TOG, OB_SETSTBIT, B_SET_STATE_BIT, "All",(short)(xco+235), yco-10, 25, 19, &ob->scaflag, 0, 0, 0, 0, "Set all state bits");
-			uiDefButBitS(block, TOG, OB_INITSTBIT, B_INIT_STATE_BIT, "Ini",(short)(xco+260), yco-10, 25, 19, &ob->scaflag, 0, 0, 0, 0, "Set the initial state");
+			uiDefButBitS(block, TOG, OB_SETSTBIT, B_SET_STATE_BIT, "All",(short)(xco+226), yco-10, 22, 19, &ob->scaflag, 0, 0, 0, 0, "Set all state bits");
+			uiDefButBitS(block, TOG, OB_INITSTBIT, B_INIT_STATE_BIT, "Ini",(short)(xco+248), yco-10, 22, 19, &ob->scaflag, 0, 0, 0, 0, "Set the initial state");
+			uiDefButBitS(block, TOG, OB_DEBUGSTATE, 0, "D",(short)(xco+270), yco-10, 15, 19, &ob->scaflag, 0, 0, 0, 0, "Print state debug info");
 			uiBlockEndAlign(block);
 
 			yco-=35;

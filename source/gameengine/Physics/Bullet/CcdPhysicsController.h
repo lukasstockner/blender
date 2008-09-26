@@ -18,6 +18,7 @@ subject to the following restrictions:
 #define BULLET2_PHYSICSCONTROLLER_H
 
 #include <vector>
+#include <map>
 
 #include "PHY_IPhysicsController.h"
 
@@ -42,15 +43,21 @@ class btCollisionShape;
 class CcdShapeConstructionInfo
 {
 public:
+	
+
+	static CcdShapeConstructionInfo* FindMesh(RAS_MeshObject* mesh, bool polytope);
+
 	CcdShapeConstructionInfo() :
 		m_shapeType(PHY_SHAPE_NONE),
 		m_radius(1.0),
 		m_height(1.0),
 		m_halfExtend(0.f,0.f,0.f),
 		m_childScale(1.0f,1.0f,1.0f),
-		m_nextShape(NULL),
+		m_refCount(1),
+		m_meshObject(NULL),
 		m_unscaledShape(NULL),
-		m_refCount(1)
+		m_useGimpact(false),
+		m_weldingThreshold(0.f)
 	{
 		m_childTrans.setIdentity();
 	}
@@ -77,22 +84,19 @@ public:
 	{
 		return m_unscaledShape;
 	}
-	CcdShapeConstructionInfo* GetNextShape()
-	{
-		return m_nextShape;
-	}
 	CcdShapeConstructionInfo* GetChildShape(int i)
 	{
-		CcdShapeConstructionInfo* shape = m_nextShape;
-		while (i > 0 && shape != NULL)
-		{
-			shape = shape->m_nextShape;
-			i--;
-		}
-		return shape;
+		if (i < 0 || i >= m_shapeArray.size())
+			return NULL;
+
+		return m_shapeArray.at(i);
 	}
 
-	bool SetMesh(RAS_MeshObject* mesh, bool polytope);
+	bool SetMesh(RAS_MeshObject* mesh, bool polytope,bool useGimpact);
+	RAS_MeshObject* GetMesh(void)
+	{
+		return m_meshObject;
+	}
 
 	btCollisionShape* CreateBulletShape();
 
@@ -109,14 +113,26 @@ public:
 	std::vector<int>		m_polygonIndexArray;	// Contains the array of polygon index in the 
 													// original mesh that correspond to shape triangles.
 													// only set for concave mesh shape.
-	const RAS_MeshObject*	m_meshObject;	// Keep a pointer to the original mesh 
 
+	void	setVertexWeldingThreshold(float threshold)
+	{
+		m_weldingThreshold  = threshold;
+	}
+	float	getVertexWeldingThreshold() const
+	{
+		return m_weldingThreshold;
+	}
 protected:
-	CcdShapeConstructionInfo* m_nextShape;	// for compound shape
-	btBvhTriangleMeshShape* m_unscaledShape;// holds the shared unscale BVH mesh shape, 
-											// the actual shape is of type btScaledBvhTriangleMeshShape
+	static std::map<RAS_MeshObject*, CcdShapeConstructionInfo*> m_meshShapeMap;
 	int						m_refCount;		// this class is shared between replicas
 											// keep track of users so that we can release it 
+	RAS_MeshObject*	m_meshObject;			// Keep a pointer to the original mesh 
+	btBvhTriangleMeshShape* m_unscaledShape;// holds the shared unscale BVH mesh shape, 
+											// the actual shape is of type btScaledBvhTriangleMeshShape
+	std::vector<CcdShapeConstructionInfo*> m_shapeArray;	// for compound shapes
+	bool	m_useGimpact; //use gimpact for concave dynamic/moving collision detection
+	float	m_weldingThreshold;	//welding closeby vertices together can improve softbody stability etc.
+
 };
 
 struct CcdConstructionInfo
@@ -146,8 +162,13 @@ struct CcdConstructionInfo
 		m_linearDamping(0.1f),
 		m_angularDamping(0.1f),
 		m_margin(0.06f),
+		m_linearStiffness(1.f),
+		m_angularStiffness(1.f),
+		m_volumePreservation(1.f),
+		m_gamesoftFlag(0),
 		m_collisionFlags(0),
 		m_bRigid(false),
+		m_bSoft(false),
 		m_collisionFilterGroup(DefaultFilter),
 		m_collisionFilterMask(AllFilter),
 		m_collisionShape(0),
@@ -167,8 +188,15 @@ struct CcdConstructionInfo
 	btScalar	m_linearDamping;
 	btScalar	m_angularDamping;
 	btScalar	m_margin;
+
+	btScalar	m_linearStiffness;
+	btScalar	m_angularStiffness;
+	btScalar	m_volumePreservation;
+	int			m_gamesoftFlag;
+
 	int			m_collisionFlags;
 	bool		m_bRigid;
+	bool		m_bSoft;
 
 	///optional use of collision group/mask:
 	///only collision with object goups that match the collision mask.
@@ -198,6 +226,7 @@ class CcdPhysicsController : public PHY_IPhysicsController
 {
 
 	btCollisionObject* m_object;
+	
 
 	class PHY_IMotionState*		m_MotionState;
 	btMotionState* 	m_bulletMotionState;
@@ -205,6 +234,12 @@ class CcdPhysicsController : public PHY_IPhysicsController
 	class CcdShapeConstructionInfo* m_shapeInfo;
 
 	friend class CcdPhysicsEnvironment;	// needed when updating the controller
+
+	//some book keeping for replication
+	bool	m_softbodyMappingDone;
+	bool	m_softBodyTransformInitialized;
+	bool	m_prototypeTransformInitialized;
+	btTransform	m_softbodyStartTrans;
 
 
 	void*		m_newClientInfo;

@@ -1058,6 +1058,26 @@ void BLI_makestringcode(const char *relfile, char *file)
 	}
 }
 
+int BLI_parent_dir(char *path)
+{
+#ifdef WIN32
+	static char *parent_dir="..\\";
+#else
+	static char *parent_dir="../";
+#endif
+	char tmp[FILE_MAXDIR+FILE_MAXFILE+4];
+	BLI_strncpy(tmp, path, sizeof(tmp));
+	BLI_add_slash(tmp);
+	strcat(tmp, parent_dir);
+	BLI_cleanup_dir(NULL, tmp);
+ 	
+	if (!BLI_testextensie(tmp, parent_dir)) {
+		BLI_strncpy(path, tmp, sizeof(tmp));	
+		return 1;
+	} else {
+		return 0;
+	}
+}
 
 int BLI_convertstringframe(char *path, int frame)
 {
@@ -1955,7 +1975,7 @@ int BLI_strncasecmp(const char *s1, const char *s2, int n) {
 #include "iconv.h"
 #include "localcharset.h"
 
-void BLI_string_to_utf8(char *original, char *utf_8, char *code)
+void BLI_string_to_utf8(char *original, char *utf_8, const char *code)
 {
 	size_t inbytesleft=strlen(original);
 	size_t outbytesleft=512;

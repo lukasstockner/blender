@@ -39,6 +39,7 @@
 #include "BLI_winstuff.h"
 #endif
 
+#include <limits.h>
 #include <stdio.h> // for printf fopen fwrite fclose sprintf FILE
 #include <stdlib.h> // for getenv atoi
 #include <fcntl.h> // for open
@@ -136,7 +137,7 @@
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h" // for get_property
+#include "BKE_property.h" // for get_ob_property
 #include "BKE_sca.h" // for init_actuator
 #include "BKE_scene.h"
 #include "BKE_softbody.h"	// sbNew()
@@ -3070,9 +3071,12 @@ static void lib_link_object(FileData *fd, Main *main)
 				}
 				act= act->next;
 			}
-
-			if(ob->fluidsimSettings) {
-				ob->fluidsimSettings->ipo = newlibadr_us(fd, ob->id.lib, ob->fluidsimSettings->ipo);
+			
+			{
+				FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
+				
+				if(fluidmd && fluidmd->fss) 
+					fluidmd->fss->ipo = newlibadr_us(fd, ob->id.lib, fluidmd->fss->ipo);
 			}
 			
 			/* texture field */
@@ -3146,6 +3150,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					clmd->sim_parms->presets = 0;
 			}
 			
+		}
+		else if (md->type==eModifierType_Fluidsim) {
+			FluidsimModifierData *fluidmd = (FluidsimModifierData*) md;
+			
+			fluidmd->fss= newdataadr(fd, fluidmd->fss);
 		}
 		else if (md->type==eModifierType_Collision) {
 			
@@ -3333,13 +3342,6 @@ static void direct_link_object(FileData *fd, Object *ob)
 			direct_link_pointcache(fd, sb->pointcache);
 	}
 	ob->fluidsimSettings= newdataadr(fd, ob->fluidsimSettings); /* NT */
-	if(ob->fluidsimSettings) {
-		// reinit mesh pointers
-		ob->fluidsimSettings->orgMesh = NULL; //ob->data;
-		ob->fluidsimSettings->meshSurface = NULL;
-		ob->fluidsimSettings->meshBB = NULL;
-		ob->fluidsimSettings->meshSurfNormals = NULL;
-	}
 
 	link_list(fd, &ob->particlesystem);
 	direct_link_particlesystems(fd,&ob->particlesystem);
@@ -5332,7 +5334,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			while (act) {
 				if(act->type==ACT_IPO) {
 					ia= act->data;
-					prop= get_property(ob, ia->name);
+					prop= get_ob_property(ob, ia->name);
 					if(prop) {
 						ia->type= ACT_IPO_FROM_PROP;
 					}
@@ -7636,8 +7638,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					}
 				}
 
-				if(ob->fluidsimSettings && ob->fluidsimSettings->type == OB_FLUIDSIM_PARTICLE)
-					part->type = PART_FLUID;
+				
+				{
+					FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifiers_findByType(ob, eModifierType_Fluidsim);
+					if(fluidmd && fluidmd->fss && fluidmd->fss->type == OB_FLUIDSIM_PARTICLE)
+						part->type = PART_FLUID;
+				}
 
 				free_effects(&ob->effect);
 
@@ -7767,6 +7773,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	/* sun/sky */
 	if(main->versionfile < 246) {
 		Lamp *la;
+		Object *ob;
+		bActuator *act;
 
 		for(la=main->lamp.first; la; la= la->id.next) {
 			la->sun_effect_type = 0;
@@ -7781,7 +7789,42 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			la->atm_distance_factor = 1.0;
 			la->sun_intensity = 1.0;
 		}
+		/* dRot actuator change direction in 2.46 */
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			for(act= ob->actuators.first; act; act= act->next) {
+				if (act->type == ACT_OBJECT) {
+					bObjectActuator *ba= act->data;
+
+					ba->drot[0] = -ba->drot[0];
+					ba->drot[1] = -ba->drot[1];
+					ba->drot[2] = -ba->drot[2];
+				}
+			}
+		}
 	}
+	
+	// convert fluids to modifier
+	if(main->versionfile < 246 || (main->versionfile == 246 && main->subversionfile < 1))
+	{
+		Object *ob;
+		
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			if(ob->fluidsimSettings)
+			{
+				FluidsimModifierData *fluidmd = (FluidsimModifierData *)modifier_new(eModifierType_Fluidsim);
+				BLI_addhead(&ob->modifiers, (ModifierData *)fluidmd);
+				
+				MEM_freeN(fluidmd->fss);
+				fluidmd->fss = MEM_dupallocN(ob->fluidsimSettings);
+				fluidmd->fss->ipo = newlibadr_us(fd, ob->id.lib, ob->fluidsimSettings->ipo);
+				MEM_freeN(ob->fluidsimSettings);
+				
+				fluidmd->fss->lastgoodframe = INT_MAX;
+				fluidmd->fss->flag = 0;
+			}
+		}
+	}
+	
 
 	if(main->versionfile < 246 || (main->versionfile == 246 && main->subversionfile < 1)) {
 		Mesh *me;
@@ -7803,6 +7846,64 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for(ob = main->object.first; ob; ob= ob->id.next) {
 			ob->gameflag |= OB_COLLISION;
 			ob->margin = 0.06;
+		}
+	}
+
+	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 3)){
+		Object *ob;
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			// Starting from subversion 3, ACTOR is a separate feature.
+			// Before it was conditioning all the other dynamic flags
+			if (!(ob->gameflag & OB_ACTOR))
+				ob->gameflag &= ~(OB_GHOST|OB_DYNAMIC|OB_RIGID_BODY|OB_SOFT_BODY|OB_COLLISION_RESPONSE);
+			/* suitable default for older files */
+		}
+	}
+
+	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 4)){
+		Scene *sce= main->scene.first;
+		while(sce) {
+			if(sce->frame_step==0)
+				sce->frame_step= 1;
+			sce= sce->id.next;
+		}
+	}
+
+	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 5)) {
+		Lamp *la= main->lamp.first;
+		for(; la; la= la->id.next) {
+			la->skyblendtype= MA_RAMP_ADD;
+			la->skyblendfac= 1.0f;
+		}
+	}
+	
+	/* set the curve radius interpolation to 2.47 default - easy */
+	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 6)) {
+		Curve *cu;
+		Nurb *nu;
+		
+		for(cu= main->curve.first; cu; cu= cu->id.next) {
+			for(nu= cu->nurb.first; nu; nu= nu->next) {
+				if (nu) {
+					nu->radius_interp = 3;
+				}
+			}
+		}
+	}
+	/* direction constraint actuators were always local in previous version */
+	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 7)) {
+		bActuator *act;
+		Object *ob;
+		
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			for(act= ob->actuators.first; act; act= act->next) {
+				if (act->type == ACT_CONSTRAINT) {
+					bConstraintActuator *coa = act->data;
+					if (coa->type == ACT_CONST_TYPE_DIST) {
+						coa->flag |= ACT_CONST_LOCAL;
+					}
+				}
+			}
 		}
 	}
 

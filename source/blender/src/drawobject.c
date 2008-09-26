@@ -2281,7 +2281,7 @@ static void draw_mesh_fancy(Base *base, int dt, int flag)
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
 			dm->drawFacesGLSL(dm, GPU_enable_material);
-			if(get_property(ob, "Text"))
+			if(get_ob_property(ob, "Text"))
 				draw_mesh_text(ob, 1);
 			GPU_disable_material();
 
@@ -4004,16 +4004,14 @@ static void drawnurb(Base *base, Nurb *nurb, int dt)
 			while (nr-->0) { /* accounts for empty bevel lists */
 				float ox,oy,oz; // Offset perpendicular to the curve
 				float dx,dy,dz; // Delta along the curve
-
-				fac = calc_curve_subdiv_radius(cu, nu, (bl->nr - nr)) * G.scene->editbutsize;
 				
-				ox = fac*bevp->mat[0][0];
-				oy = fac*bevp->mat[0][1];
-				oz = fac*bevp->mat[0][2];
+				ox = bevp->radius*bevp->mat[0][0];
+				oy = bevp->radius*bevp->mat[0][1];
+				oz = bevp->radius*bevp->mat[0][2];
 			
-				dx = fac*bevp->mat[2][0];
-				dy = fac*bevp->mat[2][1];
-				dz = fac*bevp->mat[2][2];
+				dx = bevp->radius*bevp->mat[2][0];
+				dy = bevp->radius*bevp->mat[2][1];
+				dz = bevp->radius*bevp->mat[2][2];
 
 				glBegin(GL_LINE_STRIP);
 				glVertex3f(bevp->x - ox - dx, bevp->y - oy - dy, bevp->z - oz - dz);
@@ -5187,7 +5185,7 @@ void draw_object(Base *base, int flag)
 	}
 
 	if(dt<OB_SHADED) {
-		if((ob->gameflag & OB_ACTOR) && (ob->gameflag & OB_DYNAMIC)) {
+		if(/*(ob->gameflag & OB_ACTOR) &&*/ (ob->gameflag & OB_DYNAMIC)) {
 			float tmat[4][4], imat[4][4], vec[3];
 
 			vec[0]= vec[1]= vec[2]= 0.0;

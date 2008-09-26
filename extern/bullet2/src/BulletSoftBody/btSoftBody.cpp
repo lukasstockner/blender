@@ -69,7 +69,7 @@ btSoftBody::btSoftBody(btSoftBodyWorldInfo*	worldInfo,int node_count,  const btV
 	pm->m_flags	=	fMaterial::Default;
 	/* Collision shape	*/ 
 	///for now, create a collision shape internally
-	setCollisionShape(new btSoftBodyCollisionShape(this));	
+	m_collisionShape = new btSoftBodyCollisionShape(this);
 	m_collisionShape->setMargin(0.25);
 	/* Nodes			*/ 
 	const btScalar		margin=getCollisionShape()->getMargin();
@@ -383,6 +383,20 @@ void			btSoftBody::addVelocity(const btVector3& velocity)
 {
 	for(int i=0,ni=m_nodes.size();i<ni;++i) addVelocity(velocity,i);
 }
+
+/* Set velocity for the entire body										*/ 
+void				btSoftBody::setVelocity(	const btVector3& velocity)
+{
+	for(int i=0,ni=m_nodes.size();i<ni;++i) 
+	{
+		Node&	n=m_nodes[i];
+		if(n.m_im>0)
+		{
+			n.m_v	=	velocity;
+		}
+	}
+}
+
 
 //
 void			btSoftBody::addVelocity(const btVector3& velocity,int node)

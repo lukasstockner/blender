@@ -75,6 +75,7 @@ struct KX_CBounds
 struct KX_ObjectProperties
 {
 	bool	m_dyna;
+	bool	m_softbody;
 	double m_radius;
 	bool	m_angular_rigidbody;
 	bool	m_in_active_layer;
@@ -86,6 +87,12 @@ struct KX_ObjectProperties
 	bool	m_disableSleeping;
 	bool	m_hasCompoundChildren;
 	bool	m_isCompoundChild;
+
+	float	m_linearStiffness;
+	float m_angularStiffness;
+	float	m_volumePreservation;
+	int		m_gamesoftFlag;
+	
 	double  m_margin;
 	KX_BoundBoxClass	m_boundclass;
 	union {
