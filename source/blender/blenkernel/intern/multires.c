@@ -78,42 +78,6 @@ typedef struct MultiresDisplacer {
 	int x, y, ax, ay;
 } MultiresDisplacer;
 
-/* Does not actually free lvl itself */
-void multires_free_level(MultiresLevel *lvl)
-{
-	if(lvl) {
-		if(lvl->faces) MEM_freeN(lvl->faces);
-		if(lvl->edges) MEM_freeN(lvl->edges);
-		if(lvl->colfaces) MEM_freeN(lvl->colfaces);
-	}
-}
-
-void multires_free(Multires *mr)
-{
-	if(mr) {
-		MultiresLevel* lvl= mr->levels.first;
-
-		/* Free the first-level data */
-		if(lvl) {
-			CustomData_free(&mr->vdata, lvl->totvert);
-			CustomData_free(&mr->fdata, lvl->totface);
-			MEM_freeN(mr->edge_flags);
-			MEM_freeN(mr->edge_creases);
-		}
-
-		while(lvl) {
-			multires_free_level(lvl);			
-			lvl= lvl->next;
-		}
-
-		MEM_freeN(mr->verts);
-
-		BLI_freelistN(&mr->levels);
-
-		MEM_freeN(mr);
-	}
-}
-
 void create_vert_face_map(ListBase **map, IndexNode **mem, const MFace *mface, const int totvert, const int totface)
 {
 	int i,j;
@@ -135,294 +99,7 @@ void create_vert_face_map(ListBase **map, IndexNode **mem, const MFace *mface, c
 /* MULTIRES MODIFIER */
 static const int multires_max_levels = 13;
 static const int multires_quad_tot[] = {4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
-static const int multires_tri_tot[]  = {3, 7, 19, 61, 217, 817,  3169, 12481, 49537, 197377, 787969,  3148801, 12589057};
 static const int multires_side_tot[] = {2, 3, 5,  9,  17,  33,   65,   129,   257,   513,    1025,    2049,    4097};
-
-static void create_old_vert_face_map(ListBase **map, IndexNode **mem, const MultiresFace *mface,
-				     const int totvert, const int totface)
-{
-	int i,j;
-	IndexNode *node = NULL;
-	
-	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert face map");
-	(*mem) = MEM_callocN(sizeof(IndexNode) * totface*4, "vert face map mem");
-	node = *mem;
-	
-	/* Find the users */
-	for(i = 0; i < totface; ++i){
-		for(j = 0; j < (mface[i].v[3]?4:3); ++j, ++node) {
-			node->index = i;
-			BLI_addtail(&(*map)[mface[i].v[j]], node);
-		}
-	}
-}
-
-static void create_old_vert_edge_map(ListBase **map, IndexNode **mem, const MultiresEdge *medge,
-				     const int totvert, const int totedge)
-{
-	int i,j;
-	IndexNode *node = NULL;
-	
-	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert edge map");
-	(*mem) = MEM_callocN(sizeof(IndexNode) * totedge*2, "vert edge map mem");
-	node = *mem;
-	
-	/* Find the users */
-	for(i = 0; i < totedge; ++i){
-		for(j = 0; j < 2; ++j, ++node) {
-			node->index = i;
-			BLI_addtail(&(*map)[medge[i].v[j]], node);
-		}
-	}
-}
-
-static MultiresFace *find_old_face(ListBase *map, MultiresFace *faces, int v1, int v2, int v3, int v4)
-{
-	IndexNode *n1;
-	int v[4] = {v1, v2, v3, v4}, i, j;
-
-	for(n1 = map[v1].first; n1; n1 = n1->next) {
-		int fnd[4] = {0, 0, 0, 0};
-
-		for(i = 0; i < 4; ++i) {
-			for(j = 0; j < 4; ++j) {
-				if(v[i] == faces[n1->index].v[j])
-					fnd[i] = 1;
-			}
-		}
-
-		if(fnd[0] && fnd[1] && fnd[2] && fnd[3])
-			return &faces[n1->index];
-	}
-
-	return NULL;
-}
-
-static MultiresEdge *find_old_edge(ListBase *map, MultiresEdge *edges, int v1, int v2)
-{
-	IndexNode *n1, *n2;
-
-	for(n1 = map[v1].first; n1; n1 = n1->next) {
-		for(n2 = map[v2].first; n2; n2 = n2->next) {
-			if(n1->index == n2->index)
-				return &edges[n1->index];
-		}
-	}
-
-	return NULL;
-}
-
-static void multires_load_old_edges(ListBase **emap, MultiresLevel *lvl, int *vvmap, int dst, int v1, int v2, int mov)
-{
-	int emid = find_old_edge(emap[2], lvl->edges, v1, v2)->mid;
-	vvmap[dst + mov] = emid;
-
-	if(lvl->next->next) {
-		multires_load_old_edges(emap + 1, lvl->next, vvmap, dst + mov, v1, emid, mov / 2);
-		multires_load_old_edges(emap + 1, lvl->next, vvmap, dst + mov, v2, emid, -mov / 2);
-	}
-}
-
-static void multires_load_old_faces(ListBase **fmap, ListBase **emap, MultiresLevel *lvl, int *vvmap, int dst,
-				    int v1, int v2, int v3, int v4, int st2, int st3)
-{
-	int fmid;
-	int emid13, emid14, emid23, emid24;
-
-	if(lvl && lvl->next) {
-		fmid = find_old_face(fmap[1], lvl->faces, v1, v2, v3, v4)->mid;
-		vvmap[dst] = fmid;
-
-		emid13 = find_old_edge(emap[1], lvl->edges, v1, v3)->mid;
-		emid14 = find_old_edge(emap[1], lvl->edges, v1, v4)->mid;
-		emid23 = find_old_edge(emap[1], lvl->edges, v2, v3)->mid;
-		emid24 = find_old_edge(emap[1], lvl->edges, v2, v4)->mid;
-
-
-		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst + st2 * st3 + st3,
-					fmid, v2, emid23, emid24, st2, st3 / 2);
-
-		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst - st2 * st3 + st3,
-					emid14, emid24, fmid, v4, st2, st3 / 2);
-
-		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst + st2 * st3 - st3,
-					emid13, emid23, v3, fmid, st2, st3 / 2);
-
-		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst - st2 * st3 - st3,
-					v1, fmid, emid13, emid14, st2, st3 / 2);
-
-		if(lvl->next->next) {
-			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid24, fmid, st3);
-			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid13, fmid, -st3);
-			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid14, fmid, -st2 * st3);
-			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid23, fmid, st2 * st3);
-		}
-	}
-}
-
-void multires_load_old(DerivedMesh *dm, Multires *mr)
-{
-	MultiresLevel *lvl, *lvl1;
-	MVert *vsrc, *vdst;
-	int src, dst;
-	int totlvl = MultiresDM_get_totlvl(dm);
-	int st = multires_side_tot[totlvl - 2] - 1;
-	int extedgelen = multires_side_tot[totlvl - 1] - 2;
-	int *vvmap; // inorder for dst, map to src
-	int crossedgelen;
-	int i, j, s, x, totvert, tottri, totquad;
-
-	src = 0;
-	dst = 0;
-	vsrc = mr->verts;
-	vdst = CDDM_get_verts(dm);
-	totvert = dm->getNumVerts(dm);
-	vvmap = MEM_callocN(sizeof(int) * totvert, "multires vvmap");
-
-	lvl1 = mr->levels.first;
-	/* Load base verts */
-	for(i = 0; i < lvl1->totvert; ++i) {
-		vvmap[totvert - lvl1->totvert + i] = src;
-		++src;
-	}
-
-	/* Original edges */
-	dst = totvert - lvl1->totvert - extedgelen * lvl1->totedge;
-	for(i = 0; i < lvl1->totedge; ++i) {
-		int ldst = dst + extedgelen * i;
-		int lsrc = src;
-		lvl = lvl1->next;
-
-		for(j = 2; j <= mr->level_count; ++j) {
-			int base = multires_side_tot[totlvl - j] - 2;
-			int skip = multires_side_tot[totlvl - j + 1] - 1;
-			int st = multires_side_tot[j - 2] - 1;
-
-			for(x = 0; x < st; ++x)
-				vvmap[ldst + base + x * skip] = lsrc + st * i + x;
-
-			lsrc += lvl->totvert - lvl->prev->totvert;
-			lvl = lvl->next;
-		}
-	}
-
-	/* Center points */
-	dst = 0;
-	for(i = 0; i < lvl1->totface; ++i) {
-		int sides = lvl1->faces[i].v[3] ? 4 : 3;
-
-		vvmap[dst] = src + lvl1->totedge + i;
-		dst += 1 + sides * (st - 1) * st;
-	}
-
-
-	/* The rest is only for level 3 and up */
-	if(lvl1->next && lvl1->next->next) {
-		ListBase **fmap, **emap;
-		IndexNode **fmem, **emem;
-
-		/* Face edge cross */
-		tottri = totquad = 0;
-		crossedgelen = multires_side_tot[totlvl - 2] - 2;
-		dst = 0;
-		for(i = 0; i < lvl1->totface; ++i) {
-			int sides = lvl1->faces[i].v[3] ? 4 : 3;
-
-			lvl = lvl1->next->next;
-			++dst;
-
-			for(j = 3; j <= mr->level_count; ++j) {
-				int base = multires_side_tot[totlvl - j] - 2;
-				int skip = multires_side_tot[totlvl - j + 1] - 1;
-				int st = pow(2, j - 2);
-				int st2 = pow(2, j - 3);
-				int lsrc = lvl->prev->totvert;
-
-				/* Skip exterior edge verts */
-				lsrc += lvl1->totedge * st;
-
-				/* Skip earlier face edge crosses */
-				lsrc += st2 * (tottri * 3 + totquad * 4);
-
-				for(s = 0; s < sides; ++s) {
-					for(x = 0; x < st2; ++x) {
-						vvmap[dst + crossedgelen * (s + 1) - base - x * skip - 1] = lsrc;
-						++lsrc;
-					}
-				}
-
-				lvl = lvl->next;
-			}
-
-			dst += sides * (st - 1) * st;
-
-			if(sides == 4) ++totquad;
-			else ++tottri;
-
-		}
-
-		/* calculate vert to edge/face maps for each level (except the last) */
-		fmap = MEM_callocN(sizeof(ListBase*) * (mr->level_count-1), "multires fmap");
-		emap = MEM_callocN(sizeof(ListBase*) * (mr->level_count-1), "multires emap");
-		fmem = MEM_callocN(sizeof(IndexNode*) * (mr->level_count-1), "multires fmem");
-		emem = MEM_callocN(sizeof(IndexNode*) * (mr->level_count-1), "multires emem");
-		lvl = lvl1;
-		for(i = 0; i < mr->level_count - 1; ++i) {
-			create_old_vert_face_map(fmap + i, fmem + i, lvl->faces, lvl->totvert, lvl->totface);
-			create_old_vert_edge_map(emap + i, emem + i, lvl->edges, lvl->totvert, lvl->totedge);
-			lvl = lvl->next;
-		}
-
-		/* Interior face verts */
-		lvl = lvl1->next->next;
-		dst = 0;
-		for(j = 0; j < lvl1->totface; ++j) {
-			int sides = lvl1->faces[j].v[3] ? 4 : 3;
-			int ldst = dst + 1 + sides * (st - 1);
-
-			for(s = 0; s < sides; ++s) {
-				int st2 = multires_side_tot[totlvl - 2] - 2;
-				int st3 = multires_side_tot[totlvl - 3] - 2;
-				int st4 = st3 == 0 ? 1 : (st3 + 1) / 2;
-				int mid = ldst + st2 * st3 + st3;
-				int cv = lvl1->faces[j].v[s];
-				int nv = lvl1->faces[j].v[s == sides - 1 ? 0 : s + 1];
-				int pv = lvl1->faces[j].v[s == 0 ? sides - 1 : s - 1];
-
-				multires_load_old_faces(fmap, emap, lvl1->next, vvmap, mid,
-							vvmap[dst], cv,
-							find_old_edge(emap[0], lvl1->edges, pv, cv)->mid,
-							find_old_edge(emap[0], lvl1->edges, cv, nv)->mid,
-							st2, st4);
-
-				ldst += (st - 1) * (st - 1);
-			}
-
-
-			dst = ldst;
-		}
-
-		lvl = lvl->next;
-
-		for(i = 0; i < mr->level_count - 1; ++i) {
-			MEM_freeN(fmap[i]);
-			MEM_freeN(fmem[i]);
-			MEM_freeN(emap[i]);
-			MEM_freeN(emem[i]);
-		}
-
-		MEM_freeN(fmap);
-		MEM_freeN(emap);
-		MEM_freeN(fmem);
-		MEM_freeN(emem);
-	}
-
-	/* Transfer verts */
-	for(i = 0; i < totvert; ++i)
-		VecCopyf(vdst[i].co, vsrc[vvmap[i]].co);
-
-	MEM_freeN(vvmap);
-}
 
 int multiresModifier_switch_level(Object *ob, const int distance)
 {
@@ -561,7 +238,7 @@ static void calc_face_ts_partial(float center[3], float target[3], float norm[][
 	VecCopyf(target, orco[f->v1]);
 }
 
-DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance, int simple)
+static DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance, int simple)
 {
 	DerivedMesh *final;
 	SubsurfModifierData smd;
@@ -576,7 +253,7 @@ DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance, int simple)
 	return final;
 }
 
-void VecAddUf(float a[3], float b[3])
+static void VecAddUf(float a[3], float b[3])
 {
 	a[0] += b[0];
 	a[1] += b[1];
@@ -882,17 +559,6 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int dista
 	}
 
 	mmd->lvl = mmd->totlvl;
-}
-
-void multiresModifier_setLevel(void *mmd_v, void *ob_v)
-{
-	MultiresModifierData *mmd = mmd_v;
-	Object *ob = ob_v;
-	Mesh *me = get_mesh(ob);
-
-	if(me && mmd) {
-		// TODO
-	}
 }
 
 static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
@@ -1299,4 +965,330 @@ struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, D
 	MultiresDM_set_update(result, multiresModifier_update);
 
 	return result;
+}
+
+/**** Old Multires code ****
+***************************/
+
+/* Does not actually free lvl itself */
+void multires_free_level(MultiresLevel *lvl)
+{
+	if(lvl) {
+		if(lvl->faces) MEM_freeN(lvl->faces);
+		if(lvl->edges) MEM_freeN(lvl->edges);
+		if(lvl->colfaces) MEM_freeN(lvl->colfaces);
+	}
+}
+
+void multires_free(Multires *mr)
+{
+	if(mr) {
+		MultiresLevel* lvl= mr->levels.first;
+
+		/* Free the first-level data */
+		if(lvl) {
+			CustomData_free(&mr->vdata, lvl->totvert);
+			CustomData_free(&mr->fdata, lvl->totface);
+			MEM_freeN(mr->edge_flags);
+			MEM_freeN(mr->edge_creases);
+		}
+
+		while(lvl) {
+			multires_free_level(lvl);			
+			lvl= lvl->next;
+		}
+
+		MEM_freeN(mr->verts);
+
+		BLI_freelistN(&mr->levels);
+
+		MEM_freeN(mr);
+	}
+}
+
+static void create_old_vert_face_map(ListBase **map, IndexNode **mem, const MultiresFace *mface,
+				     const int totvert, const int totface)
+{
+	int i,j;
+	IndexNode *node = NULL;
+	
+	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert face map");
+	(*mem) = MEM_callocN(sizeof(IndexNode) * totface*4, "vert face map mem");
+	node = *mem;
+	
+	/* Find the users */
+	for(i = 0; i < totface; ++i){
+		for(j = 0; j < (mface[i].v[3]?4:3); ++j, ++node) {
+			node->index = i;
+			BLI_addtail(&(*map)[mface[i].v[j]], node);
+		}
+	}
+}
+
+static void create_old_vert_edge_map(ListBase **map, IndexNode **mem, const MultiresEdge *medge,
+				     const int totvert, const int totedge)
+{
+	int i,j;
+	IndexNode *node = NULL;
+	
+	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert edge map");
+	(*mem) = MEM_callocN(sizeof(IndexNode) * totedge*2, "vert edge map mem");
+	node = *mem;
+	
+	/* Find the users */
+	for(i = 0; i < totedge; ++i){
+		for(j = 0; j < 2; ++j, ++node) {
+			node->index = i;
+			BLI_addtail(&(*map)[medge[i].v[j]], node);
+		}
+	}
+}
+
+static MultiresFace *find_old_face(ListBase *map, MultiresFace *faces, int v1, int v2, int v3, int v4)
+{
+	IndexNode *n1;
+	int v[4] = {v1, v2, v3, v4}, i, j;
+
+	for(n1 = map[v1].first; n1; n1 = n1->next) {
+		int fnd[4] = {0, 0, 0, 0};
+
+		for(i = 0; i < 4; ++i) {
+			for(j = 0; j < 4; ++j) {
+				if(v[i] == faces[n1->index].v[j])
+					fnd[i] = 1;
+			}
+		}
+
+		if(fnd[0] && fnd[1] && fnd[2] && fnd[3])
+			return &faces[n1->index];
+	}
+
+	return NULL;
+}
+
+static MultiresEdge *find_old_edge(ListBase *map, MultiresEdge *edges, int v1, int v2)
+{
+	IndexNode *n1, *n2;
+
+	for(n1 = map[v1].first; n1; n1 = n1->next) {
+		for(n2 = map[v2].first; n2; n2 = n2->next) {
+			if(n1->index == n2->index)
+				return &edges[n1->index];
+		}
+	}
+
+	return NULL;
+}
+
+static void multires_load_old_edges(ListBase **emap, MultiresLevel *lvl, int *vvmap, int dst, int v1, int v2, int mov)
+{
+	int emid = find_old_edge(emap[2], lvl->edges, v1, v2)->mid;
+	vvmap[dst + mov] = emid;
+
+	if(lvl->next->next) {
+		multires_load_old_edges(emap + 1, lvl->next, vvmap, dst + mov, v1, emid, mov / 2);
+		multires_load_old_edges(emap + 1, lvl->next, vvmap, dst + mov, v2, emid, -mov / 2);
+	}
+}
+
+static void multires_load_old_faces(ListBase **fmap, ListBase **emap, MultiresLevel *lvl, int *vvmap, int dst,
+				    int v1, int v2, int v3, int v4, int st2, int st3)
+{
+	int fmid;
+	int emid13, emid14, emid23, emid24;
+
+	if(lvl && lvl->next) {
+		fmid = find_old_face(fmap[1], lvl->faces, v1, v2, v3, v4)->mid;
+		vvmap[dst] = fmid;
+
+		emid13 = find_old_edge(emap[1], lvl->edges, v1, v3)->mid;
+		emid14 = find_old_edge(emap[1], lvl->edges, v1, v4)->mid;
+		emid23 = find_old_edge(emap[1], lvl->edges, v2, v3)->mid;
+		emid24 = find_old_edge(emap[1], lvl->edges, v2, v4)->mid;
+
+
+		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst + st2 * st3 + st3,
+					fmid, v2, emid23, emid24, st2, st3 / 2);
+
+		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst - st2 * st3 + st3,
+					emid14, emid24, fmid, v4, st2, st3 / 2);
+
+		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst + st2 * st3 - st3,
+					emid13, emid23, v3, fmid, st2, st3 / 2);
+
+		multires_load_old_faces(fmap + 1, emap + 1, lvl->next, vvmap, dst - st2 * st3 - st3,
+					v1, fmid, emid13, emid14, st2, st3 / 2);
+
+		if(lvl->next->next) {
+			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid24, fmid, st3);
+			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid13, fmid, -st3);
+			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid14, fmid, -st2 * st3);
+			multires_load_old_edges(emap, lvl->next, vvmap, dst, emid23, fmid, st2 * st3);
+		}
+	}
+}
+
+/* Loads a multires object stored in the old Multires struct into the new format */
+void multires_load_old(DerivedMesh *dm, Multires *mr)
+{
+	MultiresLevel *lvl, *lvl1;
+	MVert *vsrc, *vdst;
+	int src, dst;
+	int totlvl = MultiresDM_get_totlvl(dm);
+	int st = multires_side_tot[totlvl - 2] - 1;
+	int extedgelen = multires_side_tot[totlvl - 1] - 2;
+	int *vvmap; // inorder for dst, map to src
+	int crossedgelen;
+	int i, j, s, x, totvert, tottri, totquad;
+
+	src = 0;
+	dst = 0;
+	vsrc = mr->verts;
+	vdst = CDDM_get_verts(dm);
+	totvert = dm->getNumVerts(dm);
+	vvmap = MEM_callocN(sizeof(int) * totvert, "multires vvmap");
+
+	lvl1 = mr->levels.first;
+	/* Load base verts */
+	for(i = 0; i < lvl1->totvert; ++i) {
+		vvmap[totvert - lvl1->totvert + i] = src;
+		++src;
+	}
+
+	/* Original edges */
+	dst = totvert - lvl1->totvert - extedgelen * lvl1->totedge;
+	for(i = 0; i < lvl1->totedge; ++i) {
+		int ldst = dst + extedgelen * i;
+		int lsrc = src;
+		lvl = lvl1->next;
+
+		for(j = 2; j <= mr->level_count; ++j) {
+			int base = multires_side_tot[totlvl - j] - 2;
+			int skip = multires_side_tot[totlvl - j + 1] - 1;
+			int st = multires_side_tot[j - 2] - 1;
+
+			for(x = 0; x < st; ++x)
+				vvmap[ldst + base + x * skip] = lsrc + st * i + x;
+
+			lsrc += lvl->totvert - lvl->prev->totvert;
+			lvl = lvl->next;
+		}
+	}
+
+	/* Center points */
+	dst = 0;
+	for(i = 0; i < lvl1->totface; ++i) {
+		int sides = lvl1->faces[i].v[3] ? 4 : 3;
+
+		vvmap[dst] = src + lvl1->totedge + i;
+		dst += 1 + sides * (st - 1) * st;
+	}
+
+
+	/* The rest is only for level 3 and up */
+	if(lvl1->next && lvl1->next->next) {
+		ListBase **fmap, **emap;
+		IndexNode **fmem, **emem;
+
+		/* Face edge cross */
+		tottri = totquad = 0;
+		crossedgelen = multires_side_tot[totlvl - 2] - 2;
+		dst = 0;
+		for(i = 0; i < lvl1->totface; ++i) {
+			int sides = lvl1->faces[i].v[3] ? 4 : 3;
+
+			lvl = lvl1->next->next;
+			++dst;
+
+			for(j = 3; j <= mr->level_count; ++j) {
+				int base = multires_side_tot[totlvl - j] - 2;
+				int skip = multires_side_tot[totlvl - j + 1] - 1;
+				int st = pow(2, j - 2);
+				int st2 = pow(2, j - 3);
+				int lsrc = lvl->prev->totvert;
+
+				/* Skip exterior edge verts */
+				lsrc += lvl1->totedge * st;
+
+				/* Skip earlier face edge crosses */
+				lsrc += st2 * (tottri * 3 + totquad * 4);
+
+				for(s = 0; s < sides; ++s) {
+					for(x = 0; x < st2; ++x) {
+						vvmap[dst + crossedgelen * (s + 1) - base - x * skip - 1] = lsrc;
+						++lsrc;
+					}
+				}
+
+				lvl = lvl->next;
+			}
+
+			dst += sides * (st - 1) * st;
+
+			if(sides == 4) ++totquad;
+			else ++tottri;
+
+		}
+
+		/* calculate vert to edge/face maps for each level (except the last) */
+		fmap = MEM_callocN(sizeof(ListBase*) * (mr->level_count-1), "multires fmap");
+		emap = MEM_callocN(sizeof(ListBase*) * (mr->level_count-1), "multires emap");
+		fmem = MEM_callocN(sizeof(IndexNode*) * (mr->level_count-1), "multires fmem");
+		emem = MEM_callocN(sizeof(IndexNode*) * (mr->level_count-1), "multires emem");
+		lvl = lvl1;
+		for(i = 0; i < mr->level_count - 1; ++i) {
+			create_old_vert_face_map(fmap + i, fmem + i, lvl->faces, lvl->totvert, lvl->totface);
+			create_old_vert_edge_map(emap + i, emem + i, lvl->edges, lvl->totvert, lvl->totedge);
+			lvl = lvl->next;
+		}
+
+		/* Interior face verts */
+		lvl = lvl1->next->next;
+		dst = 0;
+		for(j = 0; j < lvl1->totface; ++j) {
+			int sides = lvl1->faces[j].v[3] ? 4 : 3;
+			int ldst = dst + 1 + sides * (st - 1);
+
+			for(s = 0; s < sides; ++s) {
+				int st2 = multires_side_tot[totlvl - 2] - 2;
+				int st3 = multires_side_tot[totlvl - 3] - 2;
+				int st4 = st3 == 0 ? 1 : (st3 + 1) / 2;
+				int mid = ldst + st2 * st3 + st3;
+				int cv = lvl1->faces[j].v[s];
+				int nv = lvl1->faces[j].v[s == sides - 1 ? 0 : s + 1];
+				int pv = lvl1->faces[j].v[s == 0 ? sides - 1 : s - 1];
+
+				multires_load_old_faces(fmap, emap, lvl1->next, vvmap, mid,
+							vvmap[dst], cv,
+							find_old_edge(emap[0], lvl1->edges, pv, cv)->mid,
+							find_old_edge(emap[0], lvl1->edges, cv, nv)->mid,
+							st2, st4);
+
+				ldst += (st - 1) * (st - 1);
+			}
+
+
+			dst = ldst;
+		}
+
+		lvl = lvl->next;
+
+		for(i = 0; i < mr->level_count - 1; ++i) {
+			MEM_freeN(fmap[i]);
+			MEM_freeN(fmem[i]);
+			MEM_freeN(emap[i]);
+			MEM_freeN(emem[i]);
+		}
+
+		MEM_freeN(fmap);
+		MEM_freeN(emap);
+		MEM_freeN(fmem);
+		MEM_freeN(emem);
+	}
+
+	/* Transfer verts */
+	for(i = 0; i < totvert; ++i)
+		VecCopyf(vdst[i].co, vsrc[vvmap[i]].co);
+
+	MEM_freeN(vvmap);
 }

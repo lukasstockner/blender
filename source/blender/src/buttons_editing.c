@@ -2500,8 +2500,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 
 			uiDefButC(block, MENU, B_NOP, subsurfmenu, lx, (cy-=19), buttonWidth, 19, &mmd->simple, 0, 0, 0, 0, "Selects type of subdivision algorithm.");
 		
-			but = uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
-			uiButSetFunc(but, multiresModifier_setLevel, mmd, ob);
+			uiDefButC(block,NUM,B_MODIFIER_RECALC,"Level: ",lx,(cy-=19),buttonWidth,19, &mmd->lvl, 1.0, mmd->totlvl, 0,0,"");
 
 			uiBlockBeginAlign(block);
 			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Reshape", lx,(cy-=24),buttonWidth/2,19,0,0,0,0,0,"Copy vertices from another selected mesh into the current level");
