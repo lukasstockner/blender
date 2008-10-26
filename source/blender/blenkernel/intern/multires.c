@@ -572,7 +572,7 @@ typedef struct MultiresDisplacer {
 	float (*mat_norms)[3];
 
 	int spacing;
-	int sidetot;
+	int sidetot, disp_st;
 	int sidendx;
 	int type;
 	int invert;
@@ -598,7 +598,8 @@ static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 	d->mat_norms = MultiresDM_get_vertnorm(dm);
 
 	d->spacing = pow(2, MultiresDM_get_totlvl(dm) - MultiresDM_get_lvl(dm));
-	d->sidetot = multires_side_tot[MultiresDM_get_totlvl(dm) - 1];
+	d->sidetot = multires_side_tot[MultiresDM_get_lvl(dm) - 1];
+	d->disp_st = multires_side_tot[MultiresDM_get_totlvl(dm) - 1];
 	d->invert = invert;
 }
 
@@ -615,30 +616,30 @@ static void multires_displacer_anchor(MultiresDisplacer *d, const int type, cons
 
 	if(type == 2) {
 		if(side_index == 0)
-			d->y -= d->spacing;
+			d->y -= 1;
 		else if(side_index == 1)
-			d->x += d->spacing;
+			d->x += 1;
 		else if(side_index == 2)
-			d->y += d->spacing;
+			d->y += 1;
 		else if(side_index == 3)
-			d->x -= d->spacing;
+			d->x -= 1;
 	}
 	else if(type == 3) {
 		if(side_index == 0) {
-			d->x -= d->spacing;
-			d->y -= d->spacing;
+			d->x -= 1;
+			d->y -= 1;
 		}
 		else if(side_index == 1) {
-			d->x += d->spacing;
-			d->y -= d->spacing;
+			d->x += 1;
+			d->y -= 1;
 		}
 		else if(side_index == 2) {
-			d->x += d->spacing;
-			d->y += d->spacing;
-	}
+			d->x += 1;
+			d->y += 1;
+		}
 		else if(side_index == 3) {
-			d->x -= d->spacing;
-			d->y += d->spacing;
+			d->x -= 1;
+			d->y += 1;
 		}
 	}
 
@@ -648,7 +649,7 @@ static void multires_displacer_anchor(MultiresDisplacer *d, const int type, cons
 
 static void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
 {
-	const int mov = d->spacing * x;
+	const int mov = x;
 
 	d->type = 4;
 
@@ -704,20 +705,20 @@ static void multires_displacer_anchor_vert(MultiresDisplacer *d, const int v)
 static void multires_displacer_jump(MultiresDisplacer *d)
 {
 	if(d->sidendx == 0) {
-		d->x -= d->spacing;
+		d->x -= 1;
 		d->y = d->ay;
 	}
 	else if(d->sidendx == 1) {
 		d->x = d->ax;
-		d->y -= d->spacing;
+		d->y -= 1;
 	}
 	else if(d->sidendx == 2) {
-		d->x += d->spacing;
+		d->x += 1;
 		d->y = d->ay;
 	}
 	else if(d->sidendx == 3) {
 		d->x = d->ax;
-		d->y += d->spacing;
+		d->y += 1;
 	}
 }
 
@@ -728,7 +729,7 @@ static void multires_displace(MultiresDisplacer *d, float co[3])
 
 	if(!d->grid || !d->grid->disps) return;
 
-	data = d->grid->disps[d->y * d->sidetot + d->x];
+	data = d->grid->disps[(d->y * d->spacing) * d->disp_st + (d->x * d->spacing)];
 
 	if(d->invert)
 		VecSubf(disp, co, d->subco->co);
@@ -764,23 +765,23 @@ static void multires_displace(MultiresDisplacer *d, float co[3])
 
 	if(d->type == 2) {
 		if(d->sidendx == 0)
-			d->y -= d->spacing;
+			d->y -= 1;
 		else if(d->sidendx == 1)
-			d->x += d->spacing;
+			d->x += 1;
 		else if(d->sidendx == 2)
-			d->y += d->spacing;
+			d->y += 1;
 		else if(d->sidendx == 3)
-			d->x -= d->spacing;
+			d->x -= 1;
 	}
 	else if(d->type == 3) {
 		if(d->sidendx == 0)
-			d->y -= d->spacing;
+			d->y -= 1;
 		else if(d->sidendx == 1)
-			d->x += d->spacing;
+			d->x += 1;
 		else if(d->sidendx == 2)
-			d->y += d->spacing;
+			d->y += 1;
 		else if(d->sidendx == 3)
-			d->x -= d->spacing;
+			d->x -= 1;
 	}
 }
 
@@ -802,13 +803,15 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
-			
+		
+		/* Center */
 		multires_displacer_init(&d, dm, i, invert);
 		multires_displacer_anchor(&d, 1, 0);
 		multires_displace(&d, mvert->co);
 		++mvert;
 		++d.subco;
 
+		/* Cross */
 		for(S = 0; S < numVerts; ++S) {
 			multires_displacer_anchor(&d, 2, S);
 			for(x = 1; x < gridFaces; ++x) {
@@ -818,6 +821,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 			}
 		}
 
+		/* Quarters */
 		for(S = 0; S < numVerts; S++) {
 			multires_displacer_anchor(&d, 3, S);
 			for(y = 1; y < gridFaces; y++) {
