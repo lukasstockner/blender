@@ -56,28 +56,6 @@
 #include <math.h>
 #include <string.h>
 
-typedef struct MultiresDisplacer {
-	struct MDisps *grid;
-	struct MFace *face;
-	float mat[3][3];
-	
-	/* For matrix calc */
-	float mat_target[3];
-	float mat_center[3];
-	float (*mat_norms)[3];
-
-	int spacing;
-	int sidetot;
-	int sidendx;
-	int type;
-	int invert;
-	float (*orco)[3];
-	struct MVert *subco;
-	float weight;
-
-	int x, y, ax, ay;
-} MultiresDisplacer;
-
 void create_vert_face_map(ListBase **map, IndexNode **mem, const MFace *mface, const int totvert, const int totface)
 {
 	int i,j;
@@ -179,6 +157,29 @@ void multiresModifier_join(Object *ob)
 		}
 		base = base->next;
 	}
+}
+
+/* Returns 0 on success, 1 if the src's totvert doesn't match */
+int multiresModifier_reshape(MultiresModifierData *mmd, Object *dst, Object *src)
+{
+	Mesh *src_me = get_mesh(src);
+	DerivedMesh *mrdm = dst->derivedFinal;
+
+	if(mrdm && mrdm->getNumVerts(mrdm) == src_me->totvert) {
+		MVert *mvert = CDDM_get_verts(mrdm);
+		int i;
+
+		for(i = 0; i < src_me->totvert; ++i)
+			VecCopyf(mvert[i].co, src_me->mvert[i].co);
+		mrdm->needsFree = 1;
+		*MultiresDM_get_flags(mrdm) |= MULTIRES_DM_UPDATE_ALWAYS;
+		mrdm->release(mrdm);
+		dst->derivedFinal = NULL;
+
+		return 0;
+	}
+
+	return 1;
 }
 
 static void Mat3FromColVecs(float mat[][3], float v1[3], float v2[3], float v3[3])
@@ -561,22 +562,37 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int dista
 	mmd->lvl = mmd->totlvl;
 }
 
+typedef struct MultiresDisplacer {
+	struct MDisps *grid;
+	struct MFace *face;
+	
+	/* For matrix calc */
+	float mat_target[3];
+	float mat_center[3];
+	float (*mat_norms)[3];
+
+	int spacing;
+	int sidetot;
+	int sidendx;
+	int type;
+	int invert;
+	float (*orco)[3];
+	struct MVert *subco;
+	float weight;
+
+	int x, y, ax, ay;
+} MultiresDisplacer;
+
 static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 			     const int face_index, const int invert)
 {
 	Mesh *me = MultiresDM_get_mesh(dm);
-	float inv[3][3];
 
 	d->face = me->mface + face_index;
-	/* Get the multires grid from customdata and calculate the TS matrix */
+	/* Get the multires grid from customdata */
 	d->grid = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(d->grid)
 		d->grid += face_index;
-	calc_face_ts_mat_dm(d->mat, MultiresDM_get_orco(dm), d->face);
-	if(invert) {
-		Mat3Inv(inv, d->mat);
-		Mat3CpyMat3(d->mat, inv);
-	}
 
 	calc_face_ts_partial(d->mat_center, d->mat_target, d->mat_norms, MultiresDM_get_orco(dm), d->face);
 	d->mat_norms = MultiresDM_get_vertnorm(dm);
@@ -766,29 +782,6 @@ static void multires_displace(MultiresDisplacer *d, float co[3])
 		else if(d->sidendx == 3)
 			d->x -= d->spacing;
 	}
-}
-
-/* Returns 0 on success, 1 if the src's totvert doesn't match */
-int multiresModifier_reshape(MultiresModifierData *mmd, Object *dst, Object *src)
-{
-	Mesh *src_me = get_mesh(src);
-	DerivedMesh *mrdm = dst->derivedFinal;
-
-	if(mrdm && mrdm->getNumVerts(mrdm) == src_me->totvert) {
-		MVert *mvert = CDDM_get_verts(mrdm);
-		int i;
-
-		for(i = 0; i < src_me->totvert; ++i)
-			VecCopyf(mvert[i].co, src_me->mvert[i].co);
-		mrdm->needsFree = 1;
-		*MultiresDM_get_flags(mrdm) |= MULTIRES_DM_UPDATE_ALWAYS;
-		mrdm->release(mrdm);
-		dst->derivedFinal = NULL;
-
-		return 0;
-	}
-
-	return 1;
 }
 
 static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
