@@ -1341,237 +1341,297 @@ static void draw_ipohandles(int sel)
 	}
 }
 
-int pickselcode;
-
-static void init_pickselcode(void)
+/* draw one repeat of an ipo-curve - bitflag curve only (this is evil stuff to expose to user like this) */
+static void draw_ipocurve_repeat_bits (IpoCurve *icu, float cycxofs)
 {
-	pickselcode= 1;
+	BezTriple *bezt= icu->bezt;
+	int a;
+	
+	/* loop over each keyframe, drawing a line extending from that point */
+	for (a=0, bezt=icu->bezt; a < icu->totvert; a++, bezt++) {
+		int val= (int)bezt->vec[1][1];
+		int b= 0;
+		
+		/* for each bit in the int, draw a line if the keyframe incorporates it */
+		for (b = 0; b < 31; b++) {
+			if (val & (1<<b)) {
+				float v1[2];
+				
+				/* value stays constant */
+				v1[1]= b+1;
+				
+				glBegin(GL_LINE_STRIP);
+					/* extend left too if first keyframe, and not cyclic extrapolation */
+					if ((a == 0) && !(icu->extrap & IPO_CYCL)) {
+						v1[0]= G.v2d->cur.xmin+cycxofs;
+						glVertex2fv(v1);
+					}
+					
+					/* must pass through current keyframe */
+					v1[0]= bezt->vec[1][0] + cycxofs;
+					glVertex2fv(v1); 
+					
+					/* 1. if there is a next keyframe, extend until then OR
+					 * 2. extend until 'infinity' if not cyclic extrapolation
+					 */
+					if ((a+1) < icu->totvert) v1[0]= (bezt+1)->vec[1][0]+cycxofs;
+					else if ((icu->extrap & IPO_CYCL)==0) v1[0]= G.v2d->cur.xmax+cycxofs;
+					
+					glVertex2fv(v1);
+				glEnd();
+			}
+		}
+	}
 }
 
+/* draw one repeat of an ipo-curve - normal curve */
+static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cycyofs, float *facp)
+{
+	BezTriple *prevbezt= icu->bezt;
+	BezTriple *bezt= prevbezt+1;
+	float v1[2], v2[2], v3[2], v4[2];
+	float *fp, data[120];
+	float fac= *(facp);
+	int b= icu->totvert-1;
+	int resol;
+	
+	glBegin(GL_LINE_STRIP);
+	
+	/* extrapolate to left? */
+	if ((icu->extrap & IPO_CYCL)==0) {
+		/* left-side of view comes before first keyframe, so need to extend as not cyclic */
+		if (prevbezt->vec[1][0] > G.v2d->cur.xmin) {
+			v1[0]= G.v2d->cur.xmin;
+			
+			/* y-value depends on the interpolation */
+			if ((icu->extrap==IPO_HORIZ) || (icu->ipo==IPO_CONST) || (icu->totvert==1)) {
+				/* just extend across the first keyframe's value */
+				v1[1]= prevbezt->vec[1][1];
+			} 
+			else if (icu->ipo==IPO_LIN) {
+				/* extrapolate linear dosnt use the handle, use the next points center instead */
+				fac= (prevbezt->vec[1][0]-bezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
+				if (fac) fac= 1.0f/fac;
+				v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[1][1]-bezt->vec[1][1]);
+			} 
+			else {
+				/* based on angle of handle 1 (relative to keyframe) */
+				fac= (prevbezt->vec[0][0]-prevbezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
+				if (fac) fac= 1.0f/fac;
+				v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[0][1]-prevbezt->vec[1][1]);
+			}
+			
+			glVertex2fv(v1);
+		}
+	}
+	
+	/* if only one keyframe, add it now */
+	if (icu->totvert == 1) {
+		v1[0]= prevbezt->vec[1][0] + cycxofs;
+		v1[1]= prevbezt->vec[1][1] + cycyofs;
+		glVertex2fv(v1);
+	}
+	
+	/* draw curve between first and last keyframe (if there are enough to do so) */
+	while (b--) {
+		// TODO: per segment interpolation still needs to be added here...
+		if (icu->ipo==IPO_CONST) {
+			/* Constant-Interpolation: draw segment between previous keyframe and next, but holding same value */
+			v1[0]= prevbezt->vec[1][0]+cycxofs;
+			v1[1]= prevbezt->vec[1][1]+cycyofs;
+			glVertex2fv(v1);
+			
+			v1[0]= bezt->vec[1][0]+cycxofs;
+			v1[1]= prevbezt->vec[1][1]+cycyofs;
+			glVertex2fv(v1);
+		}
+		else if (icu->ipo==IPO_LIN) {
+			/* Linear interpolation: just add one point (which should add a new line segment) */
+			v1[0]= prevbezt->vec[1][0]+cycxofs;
+			v1[1]= prevbezt->vec[1][1]+cycyofs;
+			glVertex2fv(v1);
+		}
+		else {
+			/* Bezier-Interpolation: draw curve as series of segments between keyframes 
+			 *	- resol determines number of points to sample in between keyframes
+			 */
+			
+			/* resol not depending on horizontal resolution anymore, drivers for example... */
+			if (icu->driver) 
+				resol= 32;
+			else 
+				resol= 3.0*sqrt(bezt->vec[1][0] - prevbezt->vec[1][0]);
+			
+			if (resol < 2) {
+				/* only draw one */
+				v1[0]= prevbezt->vec[1][0]+cycxofs;
+				v1[1]= prevbezt->vec[1][1]+cycyofs;
+				glVertex2fv(v1);
+			}
+			else {
+				/* clamp resolution to max of 32 */
+				if (resol > 32) resol= 32;
+				
+				v1[0]= prevbezt->vec[1][0]+cycxofs;
+				v1[1]= prevbezt->vec[1][1]+cycyofs;
+				v2[0]= prevbezt->vec[2][0]+cycxofs;
+				v2[1]= prevbezt->vec[2][1]+cycyofs;
+				
+				v3[0]= bezt->vec[0][0]+cycxofs;
+				v3[1]= bezt->vec[0][1]+cycyofs;
+				v4[0]= bezt->vec[1][0]+cycxofs;
+				v4[1]= bezt->vec[1][1]+cycyofs;
+				
+				correct_bezpart(v1, v2, v3, v4);
+				
+				forward_diff_bezier(v1[0], v2[0], v3[0], v4[0], data, resol, 3);
+				forward_diff_bezier(v1[1], v2[1], v3[1], v4[1], data+1, resol, 3);
+				
+				for (fp= data; resol; resol--, fp+= 3)
+					glVertex2fv(fp);
+			}
+		}
+		
+		/* get next pointers */
+		prevbezt= bezt; 
+		bezt++;
+		
+		/* last point? */
+		if (b == 0) {
+			v1[0]= prevbezt->vec[1][0]+cycxofs;
+			v1[1]= prevbezt->vec[1][1]+cycyofs;
+			glVertex2fv(v1);
+		}
+	}
+	
+	/* extrapolate to right? (see code for left-extrapolation above too) */
+	if ((icu->extrap & IPO_CYCL)==0) {
+		if(prevbezt->vec[1][0] < G.v2d->cur.xmax) {
+			v1[0]= G.v2d->cur.xmax;
+			
+			/* y-value depends on the interpolation */
+			if ((icu->extrap==IPO_HORIZ) || (icu->ipo==IPO_CONST) || (icu->totvert==1)) {
+				/* based on last keyframe's value */
+				v1[1]= prevbezt->vec[1][1];
+			} 
+			else if (icu->ipo==IPO_LIN) {
+				/* extrapolate linear dosnt use the handle, use the previous points center instead */
+				bezt = prevbezt-1;
+				fac= (prevbezt->vec[1][0]-bezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
+				if (fac) fac= 1.0f/fac;
+				v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[1][1]-bezt->vec[1][1]);
+			} 
+			else {
+				/* based on angle of handle 1 (relative to keyframe) */
+				fac= (prevbezt->vec[2][0]-prevbezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
+				if (fac) fac= 1.0f/fac;
+				v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[2][1]-prevbezt->vec[1][1]);
+			}
+			
+			glVertex2fv(v1);
+		}
+	}
+	
+	glEnd();
+	
+	/* return fac, as we alter it */
+	*(facp) = fac;
+} 
+
+/* draw all ipo-curves */
 static void draw_ipocurves(int sel)
 {
 	EditIpo *ei;
-	IpoCurve *icu;
-	BezTriple *bezt, *prevbezt;
-	float *fp, fac, data[120], v1[2], v2[2], v3[2], v4[2];
-	float cycdx=0, cycdy=0, cycxofs, cycyofs;
-	int a, b, resol, cycount, val, nr;
+	int nr, val, pickselcode=0;
 	
+	/* if we're drawing for GL_SELECT, reset pickselcode first 
+	 * 	- there's only one place that will do this, so it should be fine
+	 */
+	if (G.f & G_PICKSEL)
+		pickselcode= 1;
 	
 	ei= G.sipo->editipo;
-	for(nr=0; nr<G.sipo->totipo; nr++, ei++) {
+	for (nr=0; nr<G.sipo->totipo; nr++, ei++) {
 		if ISPOIN3(ei, flag & IPO_VISIBLE, icu, icu->bezt) {
-			
-			if(G.f & G_PICKSEL) {
+			/* val is used to indicate if curve can be edited */
+			if (G.f & G_PICKSEL) {
+				/* when using OpenGL to select stuff (on mouseclick) */
 				glLoadName(pickselcode++);
 				val= 1;
 			}
 			else {
-				val= (ei->flag & (IPO_SELECT+IPO_EDIT))!=0;
+				/* filter to only draw those that are selected or unselected (based on drawing mode */
+				val= (ei->flag & (IPO_SELECT+IPO_EDIT)) != 0;
 				val= (val==sel);
 			}
 			
-			if(val) {
+			/* only draw those curves that we can draw */
+			if (val) {
+				IpoCurve *icu= ei->icu;
+				float cycdx=0.0f, cycdy=0.0f, cycxofs=0.0f, cycyofs=0.0f;
+				const int lastindex= (icu->totvert-1);
+				float fac= 0.0f;
+				int cycount=1;
 				
-				cycyofs= cycxofs= 0.0;
-				cycount= 1;
-				
-				icu= ei->icu;	
-				
-				/* curve */
-				if(G.sipo->showkey) BIF_ThemeColor(TH_TEXT); 
+				/* set color for curve curve:
+				 *	- bitflag curves (evil) must always be drawn coloured as they cannot work with IPO-Keys
+				 *	- when IPO-Keys are shown, individual curves are not editable, so we show by drawing them all black
+				 */
+				if ((G.sipo->showkey) && (ei->disptype!=IPO_DISPBITS)) BIF_ThemeColor(TH_TEXT); 
 				else cpack(ei->col);
 				
-				/* cyclic */
-				if(icu->extrap & IPO_CYCL) {
-					cycdx= (icu->bezt+icu->totvert-1)->vec[1][0] - icu->bezt->vec[1][0];
-					cycdy= (icu->bezt+icu->totvert-1)->vec[1][1] - icu->bezt->vec[1][1];
-					if(cycdx>0.01) {
-						
-						while(icu->bezt->vec[1][0]+cycxofs > G.v2d->cur.xmin) {
-							cycxofs-= cycdx;
-							if(icu->extrap & IPO_DIR) cycyofs-= cycdy;
-							cycount++;
-						}
-						bezt= icu->bezt+(icu->totvert-1);
-						fac= 0.0;
-						while(bezt->vec[1][0]+fac < G.v2d->cur.xmax) {
-							cycount++;
-							fac+= cycdx;
-						}
-					}
-				}
-				
-				while(cycount--) {
+				/* cyclic curves - get offset and number of repeats to display */
+				if (icu->extrap & IPO_CYCL) {
+					BezTriple *bezt= icu->bezt;
+					BezTriple *lastbezt= bezt + lastindex;
 					
-					if(ei->disptype==IPO_DISPBITS) {
-						
-						/* lines */
-						cpack(ei->col);
-						bezt= icu->bezt;
-						a= icu->totvert;
-						
-						while(a--) {
-							val= bezt->vec[1][1];
-							b= 0;
-							
-							while(b<31) {
-								if(val & (1<<b)) {
-									v1[1]= b+1;
-									
-									glBegin(GL_LINE_STRIP);
-									if(icu->extrap & IPO_CYCL) ;
-									else if(a==icu->totvert-1) {
-										v1[0]= G.v2d->cur.xmin+cycxofs;
-										glVertex2fv(v1);
-									}
-									v1[0]= bezt->vec[1][0]+cycxofs;
-									glVertex2fv(v1); 
-									
-									if(a) v1[0]= (bezt+1)->vec[1][0]+cycxofs;
-									else if(icu->extrap & IPO_CYCL) ;
-									else v1[0]= G.v2d->cur.xmax+cycxofs;
-									
-									glVertex2fv(v1);
-									glEnd();
-								}
-								b++;
-							}
-							bezt++;
+					/* calculate cycle length and amplitude  */
+					cycdx= lastbezt->vec[1][0] - bezt->vec[1][0];
+					cycdy= lastbezt->vec[1][1] - bezt->vec[1][1];
+					
+					/* check that the cycle does have some length */
+					if (cycdx > 0.01) {
+						/* count cycles before first frame  */
+						while (icu->bezt->vec[1][0]+cycxofs > G.v2d->cur.xmin) {
+							cycxofs -= cycdx;
+							if (icu->extrap & IPO_DIR) cycyofs-= cycdy;
+							cycount++;
 						}
 						
+						/* count cycles after last frame (and adjust offset) */
+						fac= 0.0f;
+						while (lastbezt->vec[1][0]+fac < G.v2d->cur.xmax) {
+							cycount++;
+							fac += cycdx;
+						}
 					}
-					else {
-						
-						b= icu->totvert-1;
-						prevbezt= icu->bezt;
-						bezt= prevbezt+1;
-						
-						glBegin(GL_LINE_STRIP);
-						
-						/* extrapolate to left? */
-						if( (icu->extrap & IPO_CYCL)==0) {
-							if(prevbezt->vec[1][0] > G.v2d->cur.xmin) {
-								v1[0]= G.v2d->cur.xmin;
-								if(icu->extrap==IPO_HORIZ || icu->ipo==IPO_CONST || icu->totvert==1) {
-									v1[1]= prevbezt->vec[1][1];
-								} else if (icu->ipo==IPO_LIN) {
-									/* extrapolate linear dosnt use the handle, use the next points center instead */
-									fac= (prevbezt->vec[1][0]-bezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
-									if(fac!=0.0) fac= 1.0/fac;
-									v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[1][1]-bezt->vec[1][1]);
-								} else {
-									fac= (prevbezt->vec[0][0]-prevbezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
-									if(fac!=0.0) fac= 1.0/fac;
-									v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[0][1]-prevbezt->vec[1][1]);
-								}
-								glVertex2fv(v1);
-							}
-						}
-						
-						if(b==0) {
-							v1[0]= prevbezt->vec[1][0]+cycxofs;
-							v1[1]= prevbezt->vec[1][1]+cycyofs;
-							glVertex2fv(v1);
-						}
-						
-						while(b--) {
-							if(icu->ipo==IPO_CONST) {
-								v1[0]= prevbezt->vec[1][0]+cycxofs;
-								v1[1]= prevbezt->vec[1][1]+cycyofs;
-								glVertex2fv(v1);
-								v1[0]= bezt->vec[1][0]+cycxofs;
-								v1[1]= prevbezt->vec[1][1]+cycyofs;
-								glVertex2fv(v1);
-							}
-							else if(icu->ipo==IPO_LIN) {
-								v1[0]= prevbezt->vec[1][0]+cycxofs;
-								v1[1]= prevbezt->vec[1][1]+cycyofs;
-								glVertex2fv(v1);
-							}
-							else {
-								/* resol not depending on horizontal resolution anymore, drivers for example... */
-								if(icu->driver) resol= 32;
-								else resol= 3.0*sqrt(bezt->vec[1][0] - prevbezt->vec[1][0]);
-								
-								if(resol<2) {
-									v1[0]= prevbezt->vec[1][0]+cycxofs;
-									v1[1]= prevbezt->vec[1][1]+cycyofs;
-									glVertex2fv(v1);
-								}
-								else {
-									if(resol>32) resol= 32;
-									
-									v1[0]= prevbezt->vec[1][0]+cycxofs;
-									v1[1]= prevbezt->vec[1][1]+cycyofs;
-									v2[0]= prevbezt->vec[2][0]+cycxofs;
-									v2[1]= prevbezt->vec[2][1]+cycyofs;
-									
-									v3[0]= bezt->vec[0][0]+cycxofs;
-									v3[1]= bezt->vec[0][1]+cycyofs;
-									v4[0]= bezt->vec[1][0]+cycxofs;
-									v4[1]= bezt->vec[1][1]+cycyofs;
-									
-									correct_bezpart(v1, v2, v3, v4);
-									
-									forward_diff_bezier(v1[0], v2[0], v3[0], v4[0], data, resol, 3);
-									forward_diff_bezier(v1[1], v2[1], v3[1], v4[1], data+1, resol, 3);
-									
-									fp= data;
-									while(resol--) {
-										glVertex2fv(fp);
-										fp+= 3;
-									}
-								}
-							}
-							prevbezt= bezt;
-							bezt++;
-							
-							/* last point? */
-							if(b==0) {
-								v1[0]= prevbezt->vec[1][0]+cycxofs;
-								v1[1]= prevbezt->vec[1][1]+cycyofs;
-								glVertex2fv(v1);
-							}
-						}
-						
-						/* extrapolate to right? */
-						if( (icu->extrap & IPO_CYCL)==0) {
-							if(prevbezt->vec[1][0] < G.v2d->cur.xmax) {
-								v1[0]= G.v2d->cur.xmax;
-								if(icu->extrap==IPO_HORIZ || icu->ipo==IPO_CONST ||icu->totvert==1) {
-									v1[1]= prevbezt->vec[1][1];
-								} else if (icu->ipo==IPO_LIN) {
-									/* extrapolate linear dosnt use the handle, use the previous points center instead */
-									bezt = prevbezt-1;
-									fac= (prevbezt->vec[1][0]-bezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
-									if(fac!=0.0) fac= 1.0/fac;
-									v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[1][1]-bezt->vec[1][1]);
-								} else {
-									fac= (prevbezt->vec[2][0]-prevbezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
-									if(fac!=0.0) fac= 1.0/fac;
-									v1[1]= prevbezt->vec[1][1]-fac*(prevbezt->vec[2][1]-prevbezt->vec[1][1]);
-								}
-								glVertex2fv(v1);
-							}
-						}
-						
-						glEnd();
-						
-					}
-					cycxofs+= cycdx;
-					if(icu->extrap & IPO_DIR) cycyofs+= cycdy;
 				}
 				
-				/* line that indicates the end of a speed curve */
-				if(G.sipo->blocktype==ID_CU && icu->adrcode==CU_SPEED) {
-					b= icu->totvert-1;
-					if(b) {
+				/* repeat process for each repeat */
+				while (cycount--) {
+					/* bitflag curves are drawn differently to normal curves */
+					if (ei->disptype==IPO_DISPBITS)
+						draw_ipocurve_repeat_bits(icu, cycxofs);
+					else
+						draw_ipocurve_repeat_normal(icu, cycxofs, cycyofs, &fac);
+					
+					/* prepare for next cycle by adjusing offsets */
+					cycxofs += cycdx;
+					if (icu->extrap & IPO_DIR) cycyofs += cycdy;
+				}
+				
+				/* vertical line that indicates the end of a speed curve */
+				if ((G.sipo->blocktype==ID_CU) && (icu->adrcode==CU_SPEED)) {
+					int b= icu->totvert-1;
+					
+					if (b) {
+						BezTriple *bezt= icu->bezt+b;
+						
 						glColor3ub(0, 0, 0);
-						bezt= icu->bezt+b;
+						
 						glBegin(GL_LINES);
-						glVertex2f(bezt->vec[1][0], 0.0);
-						glVertex2f(bezt->vec[1][0], bezt->vec[1][1]);
+							glVertex2f(bezt->vec[1][0], 0.0f);
+							glVertex2f(bezt->vec[1][0], bezt->vec[1][1]);
 						glEnd();
 					}
 				}
@@ -1584,26 +1644,25 @@ static int get_ipo_cfra_from_cfra(SpaceIpo * sipo, int cfra)
 {
 	if (sipo->blocktype==ID_SEQ) {
 		Sequence * seq = (Sequence*) sipo->from;
-
-		if (!seq) {
+		
+		if (!seq)
 			return cfra;
-		}
-
+		
 		if ((seq->flag & SEQ_IPO_FRAME_LOCKED) != 0) {
 			return cfra;
-		} else {
+		} 
+		else {
 			float ctime= frame_to_float(cfra - seq->startdisp);
 			float div= (seq->enddisp - seq->startdisp)/100.0f;
-
-			if(div == 0.0) {
+			
+			if(div == 0.0f)
 				return 0;
-			} else {
-				return ctime / div; 
-			}
+			else
+				return (int)(ctime / div); 
 		}
-	} else {
+	} 
+	else
 		return cfra;
-	}
 }
 
 static void draw_cfra(SpaceIpo *sipo)
@@ -2756,7 +2815,7 @@ EditIpo *select_proj_ipo(rctf *rectf, int event)
 	}
 	else myortho2(rectf->xmin, rectf->xmax, rectf->ymin, rectf->ymax);
 	
-	glSelectBuffer( MAXPICKBUF, buffer); 
+	glSelectBuffer(MAXPICKBUF, buffer); 
 	glRenderMode(GL_SELECT);
 	glInitNames();	/* whatfor? but otherwise it does not work */
 	glPushName(-1);
@@ -2765,12 +2824,15 @@ EditIpo *select_proj_ipo(rctf *rectf, int event)
 	glPushMatrix();
 	glLoadIdentity();
 	
-	init_pickselcode();	/* drawipo.c */
+	/* draw_ipocurves has a check for G_PICKSEL, which should catch this one case
+	 * 	- other windows setting G_PICKSEL shouldn't cause problems with this!
+	 *	- only do this for curves, but NOT for keyframes (which need to deal with NLA-scaling, etc.)
+	 */
 	draw_ipocurves(0);	
 	
 	/* restore buttons view */
 	glPopMatrix();
-
+	
 	G.f -= G_PICKSEL;
 	
 	hits= glRenderMode(GL_RENDER);
