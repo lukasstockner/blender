@@ -519,9 +519,10 @@ void apply_armature_pose2bones(void)
 		}
 		
 		/* clear transform values for pchan */
-		pchan->loc[0]= pchan->loc[1]= pchan->loc[2]= 0;
-		pchan->quat[1]= pchan->quat[2]= pchan->quat[3]= 0;
-		pchan->quat[0]= pchan->size[0]= pchan->size[1]= pchan->size[2]= 1;
+		pchan->loc[0]= pchan->loc[1]= pchan->loc[2]= 0.0f;
+		pchan->quat[1]= pchan->quat[2]= pchan->quat[3]= 0.0f;
+		pchan->eul[0]= pchan->eul[1]= pchan->eul[2]= 0.0f;
+		pchan->quat[0]= pchan->size[0]= pchan->size[1]= pchan->size[2]= 1.0f;
 		
 		/* set anim lock */
 		curbone->flag |= BONE_UNKEYED;
@@ -2288,11 +2289,14 @@ void adduplicate_armature(void)
 							channew = 
 								verify_pose_channel(OBACT->pose, eBone->name);
 							if (channew) {
-								/* copy transform locks */
+								/* general settings:
+								 *	- transform locks
+								 *	- bone group
+								 *	- rotation mode
+								 */
 								channew->protectflag = chanold->protectflag;
-								
-								/* copy bone group */
 								channew->agrp_index= chanold->agrp_index;
+								channew->rotmode= chanold->rotmode;
 								
 								/* ik (dof) settings */
 								channew->ikflag = chanold->ikflag;
@@ -3490,29 +3494,41 @@ void clear_armature(Object *ob, char mode)
 			if (arm->layer & pchan->bone->layer) {
 				switch (mode) {
 					case 'r':
-						if (pchan->protectflag & (OB_LOCK_ROTX|OB_LOCK_ROTY|OB_LOCK_ROTZ)) {
-							float eul[3], oldeul[3], quat1[4];
-							
-							QUATCOPY(quat1, pchan->quat);
-							QuatToEul(pchan->quat, oldeul);
-							eul[0]= eul[1]= eul[2]= 0.0f;
-							
-							if (pchan->protectflag & OB_LOCK_ROTX)
-								eul[0]= oldeul[0];
-							if (pchan->protectflag & OB_LOCK_ROTY)
-								eul[1]= oldeul[1];
-							if (pchan->protectflag & OB_LOCK_ROTZ)
-								eul[2]= oldeul[2];
-							
-							EulToQuat(eul, pchan->quat);
-							/* quaternions flip w sign to accumulate rotations correctly */
-							if ((quat1[0]<0.0f && pchan->quat[0]>0.0f) || (quat1[0]>0.0f && pchan->quat[0]<0.0f)) {
-								QuatMulf(pchan->quat, -1.0f);
+						if (pchan->rotmode) {
+							/* just clear unlocked euler channels */
+							if ((pchan->protectflag & OB_LOCK_ROTX)==0)
+								pchan->eul[0]= 0.0f;
+							if ((pchan->protectflag & OB_LOCK_ROTY)==0)
+								pchan->eul[1]= 0.0f;
+							if ((pchan->protectflag & OB_LOCK_ROTZ)==0)
+								pchan->eul[2]= 0.0f;
+						}
+						else {
+							/* when dealing with quats, we have to firstly convert to eulers if there are locks */
+							if (pchan->protectflag & (OB_LOCK_ROTX|OB_LOCK_ROTY|OB_LOCK_ROTZ)) {
+								float eul[3], oldeul[3], quat1[4];
+								
+								QUATCOPY(quat1, pchan->quat);
+								QuatToEul(pchan->quat, oldeul);
+								eul[0]= eul[1]= eul[2]= 0.0f;
+								
+								if (pchan->protectflag & OB_LOCK_ROTX)
+									eul[0]= oldeul[0];
+								if (pchan->protectflag & OB_LOCK_ROTY)
+									eul[1]= oldeul[1];
+								if (pchan->protectflag & OB_LOCK_ROTZ)
+									eul[2]= oldeul[2];
+								
+								EulToQuat(eul, pchan->quat);
+								/* quaternions flip w sign to accumulate rotations correctly */
+								if ((quat1[0]<0.0f && pchan->quat[0]>0.0f) || (quat1[0]>0.0f && pchan->quat[0]<0.0f)) {
+									QuatMulf(pchan->quat, -1.0f);
+								}
+							}						
+							else { 
+								pchan->quat[1]=pchan->quat[2]=pchan->quat[3]=0.0F; 
+								pchan->quat[0]=1.0F;
 							}
-						}						
-						else { 
-							pchan->quat[1]=pchan->quat[2]=pchan->quat[3]=0.0F; 
-							pchan->quat[0]=1.0F;
 						}
 						break;
 					case 'g':

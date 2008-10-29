@@ -103,8 +103,9 @@ int ob_ar[OB_TOTIPO]= {
 };
 
 int ac_ar[AC_TOTIPO]= {
-	AC_LOC_X, AC_LOC_Y, AC_LOC_Z,  
-	 AC_QUAT_W, AC_QUAT_X, AC_QUAT_Y, AC_QUAT_Z,
+	AC_LOC_X, AC_LOC_Y, AC_LOC_Z,
+	AC_EUL_X, AC_EUL_Y, AC_EUL_Z,
+	AC_QUAT_W, AC_QUAT_X, AC_QUAT_Y, AC_QUAT_Z,
 	AC_SIZE_X, AC_SIZE_Y, AC_SIZE_Z
 };
 
@@ -1158,7 +1159,7 @@ float eval_icu(IpoCurve *icu, float evaltime)
 		/* get pointers */
 		BezTriple *bezt, *prevbezt, *lastbezt;
 		float v1[2], v2[2], v3[2], v4[2], opl[32], dx, fac;
-		float cycdx, cycdy, ofs, cycyofs= 0.0;
+		float cycdx, cycdy, ofs, cycyofs= 0.0f;
 		int a, b;
 		
 		/* get pointers */
@@ -1468,12 +1469,17 @@ void execute_action_ipo (bActionChannel *achan, bPoseChannel *pchan)
 	if (achan && achan->ipo && pchan) {
 		IpoCurve *icu;
 		
-		/* loop over IPO-curves, getting a pointer to pchan var to write to
-		 *	- assume for now that only 'float' channels will ever get written into
-		 */
+		/* loop over IPO-curves, getting a pointer to pchan var to write to */
 		for (icu= achan->ipo->curve.first; icu; icu= icu->next) {
 			void *poin= get_pchan_ipo_poin(pchan, icu->adrcode);
-			if (poin) write_ipo_poin(poin, IPO_FLOAT, icu->curval);
+			
+			if (poin) {
+				/* only euler-rotations are of type float-degree, all others are 'float' only */
+				if (ELEM3(icu->adrcode, AC_EUL_X, AC_EUL_Y, AC_EUL_Z))
+					write_ipo_poin(poin, IPO_FLOAT_DEGR, icu->curval);
+				else
+					write_ipo_poin(poin, IPO_FLOAT, icu->curval);
+			}
 		}
 	}
 }
@@ -1792,6 +1798,7 @@ void clear_delta_obipo(Ipo *ipo)
 /* --------------------- Get Pointer API ----------------------------- */ 
 
 /* get pointer to pose-channel's channel, but set appropriate flags first */
+// TODO: most channels (except euler rots, which are float-degr) are floats, so do we need type arg?
 void *get_pchan_ipo_poin (bPoseChannel *pchan, int adrcode)
 {
 	void *poin= NULL;
@@ -1812,6 +1819,22 @@ void *get_pchan_ipo_poin (bPoseChannel *pchan, int adrcode)
 		case AC_QUAT_Z:
 			poin= &(pchan->quat[3]); 
 			pchan->flag |= POSE_ROT;
+			break;
+			
+		case AC_EUL_X:
+			poin= &(pchan->eul[0]);
+			pchan->flag |= POSE_ROT;
+			//type= IPO_FLOAT_DEGR;
+			break;
+		case AC_EUL_Y:
+			poin= &(pchan->eul[1]);
+			pchan->flag |= POSE_ROT;
+			//type= IPO_FLOAT_DEGR;
+			break;
+		case AC_EUL_Z:
+			poin= &(pchan->eul[2]);
+			pchan->flag |= POSE_ROT;
+			//type= IPO_FLOAT_DEGR;
 			break;
 			
 		case AC_LOC_X:

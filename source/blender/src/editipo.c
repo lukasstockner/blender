@@ -840,7 +840,9 @@ static int make_bone_editipo(Ipo *ipo, EditIpo **si)
 		name = getname_ac_ei(ac_ar[a]);
 		strcpy(ei->name, name);
 		ei->adrcode= ac_ar[a];
-
+		
+		if ELEM3(ei->adrcode, AC_EUL_X, AC_EUL_Y, AC_EUL_Z) ei->disptype= IPO_DISPDEGR;
+		
 		ei->col= ipo_rainbow(a, AC_TOTIPO);
 		
 		ei->icu= find_ipocurve(ipo, ei->adrcode);

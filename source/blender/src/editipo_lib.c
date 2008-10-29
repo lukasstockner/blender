@@ -98,7 +98,7 @@ char *la_ic_names[LA_TOTNAM] = { "Energ", "R", "G", "B", "Dist", "SpoSi", "SpoBl
 char *cam_ic_names[CAM_TOTNAM] = { "Lens", "ClSta", "ClEnd", "Apert", "FDist", "ShiftX", "ShiftY" };
 char *snd_ic_names[SND_TOTNAM] = { "Vol", "Pitch", "Pan", "Atten" };
 char *ac_ic_names[AC_TOTNAM] = {"LocX", "LocY", "LocZ", "ScaleX", "ScaleY",
-	"ScaleZ", "QuatW", "QuatX", "QuatY", "QuatZ"};
+	"ScaleZ", "RotX", "RotY", "RotZ", "QuatW", "QuatX", "QuatY", "QuatZ"};
 char *ic_name_empty[1] ={ "" };
 char *fluidsim_ic_names[FLUIDSIM_TOTNAM] = { "Fac-Visc", "Fac-Time",  "GravX","GravY","GravZ",  "VelX","VelY","VelZ", "Active", "AttrForceStr", "AttrForceRad", "VelForceStr", "VelForceRad" };
 char *part_ic_names[PART_TOTNAM] = { "E_Freq", "E_Life", "E_Speed", "E_Angular", "E_Size",
@@ -177,15 +177,23 @@ char *getname_ac_ei(int nr)
 		case AC_LOC_Y:
 		case AC_LOC_Z:
 			return ac_ic_names[nr-1];
+		
 		case AC_SIZE_X:
 		case AC_SIZE_Y:
 		case AC_SIZE_Z:
 			return ac_ic_names[nr-10];
+			
+		case AC_EUL_X:
+		case AC_EUL_Y:
+		case AC_EUL_Z:
+			return ac_ic_names[nr-10];
+		
 		case AC_QUAT_X:
 		case AC_QUAT_Y:
 		case AC_QUAT_Z:
 		case AC_QUAT_W:
-			return ac_ic_names[nr-19];
+			return ac_ic_names[nr-16];
+		
 		default:
 			return ic_name_empty[0]; /* empty */
 	}

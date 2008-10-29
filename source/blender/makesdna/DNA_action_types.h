@@ -22,6 +22,7 @@
  *
  * Contributor(s): Original design: Reevan McKay
  * Contributor(s): Full recode, Ton Roosendaal, Crete 2005
+ * Contributor(s): Animation recode, Joshua Leung
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -70,9 +71,13 @@ typedef struct bPoseChannel {
 	void				*dual_quat;
 	void				*b_bone_dual_quats;
 	
-	float		loc[3];				/* written in by actions or transform */
+	float		loc[3];				/* transforms - written in by actions or transform */
 	float		size[3];
+	
+	float 		eul[3];				/* rotations - written in by actions or transform (but only euler/quat in use at any one time!) */
 	float		quat[4];
+	short 		rotmode;			/* for now either quat (0), or xyz-euler (1) */
+	short 		pad;
 	
 	float		chan_mat[4][4];		/* matrix result of loc/quat/size , and where we put deform in, see next line */
 	float		pose_mat[4][4];		/* constraints accumulate here. in the end, pose_mat = bone->arm_mat * chan_mat */
@@ -325,6 +330,13 @@ typedef enum PCHAN_IKFLAG {
 	BONE_IK_NO_ZDOF_TEMP = (1<<12)
 } PCHAN_IKFLAG;
 
+/* PoseChannel->rotmode */
+typedef enum PCHAN_ROTMODE {
+		/* quaternion rotations (default, and for older Blender versions) */
+	PCHAN_ROT_QUAT	= 0,
+		/* euler rotations (xyz only) */
+	PCHAN_ROT_EUL,
+} PCHAN_ROTMODE;
 
 #endif
 

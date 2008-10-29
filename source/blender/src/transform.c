@@ -2508,13 +2508,35 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		
 		/* rotation */
 		if ((t->flag & T_V3D_ALIGN)==0) { // align mode doesn't rotate objects itself
-			Mat3MulSerie(fmat, td->mtx, mat, td->smtx, 0, 0, 0, 0, 0);
-			
-			Mat3ToQuat(fmat, quat);	// Actual transform
-			
-			QuatMul(td->ext->quat, quat, td->ext->iquat);
-			/* this function works on end result */
-			protectedQuaternionBits(td->protectflag, td->ext->quat, td->ext->iquat);
+			/* euler or quaternion? */
+			if (td->flag & TD_USEQUAT) {
+				Mat3MulSerie(fmat, td->mtx, mat, td->smtx, 0, 0, 0, 0, 0);
+				
+				Mat3ToQuat(fmat, quat);	// Actual transform
+				
+				QuatMul(td->ext->quat, quat, td->ext->iquat);
+				/* this function works on end result */
+				protectedQuaternionBits(td->protectflag, td->ext->quat, td->ext->iquat);
+			}
+			else {
+				float eulmat[3][3];
+				
+				Mat3MulMat3(totmat, mat, td->mtx);
+				Mat3MulMat3(smat, td->smtx, totmat);
+				
+				/* calculate the total rotatation in eulers */
+				VECCOPY(eul, td->ext->irot);
+				EulToMat3(eul, eulmat);
+				
+				/* mat = transform, obmat = bone rotation */
+				Mat3MulMat3(fmat, smat, eulmat);
+				
+				Mat3ToCompatibleEul(fmat, eul, td->ext->rot);
+				
+				/* and apply (to end result only) */
+				protectedRotateBits(td->protectflag, eul, td->ext->irot);
+				VECCOPY(td->ext->rot, eul);
+			}
 			
 			constraintRotLim(t, td);
 		}

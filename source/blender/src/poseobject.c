@@ -705,9 +705,9 @@ void pose_copy_menu(void)
 	else {
 		i= BLI_countlist(&(pchanact->constraints)); /* if there are 24 or less, allow for the user to select constraints */
 		if (i < 25)
-			nr= pupmenu("Copy Pose Attributes %t|Local Location%x1|Local Rotation%x2|Local Size%x3|%l|Visual Location %x9|Visual Rotation%x10|Visual Size%x11|%l|Constraints (All)%x4|Constraints...%x5|%l|Transform Locks%x6|IK Limits%x7|Bone Shape%x8");
+			nr= pupmenu("Copy Pose Attributes %t|Local Location%x1|Local Rotation%x2|Local Size%x3|%l|Visual Location %x9|Visual Rotation%x10|Visual Size%x11|%l|Constraints (All)%x4|Constraints...%x5|%l|Rotation Method%x12|Transform Locks%x6|IK Limits%x7|Bone Shape%x8");
 		else
-			nr= pupmenu("Copy Pose Attributes %t|Local Location%x1|Local Rotation%x2|Local Size%x3|%l|Visual Location %x9|Visual Rotation%x10|Visual Size%x11|%l|Constraints (All)%x4|%l|Transform Locks%x6|IK Limits%x7|Bone Shape%x8");
+			nr= pupmenu("Copy Pose Attributes %t|Local Location%x1|Local Rotation%x2|Local Size%x3|%l|Visual Location %x9|Visual Rotation%x10|Visual Size%x11|%l|Constraints (All)%x4|%l|Rotation Method%x12|Transform Locks%x6|IK Limits%x7|Bone Shape%x8");
 	}
 	
 	if (nr <= 0) 
@@ -724,6 +724,8 @@ void pose_copy_menu(void)
 						VECCOPY(pchan->loc, pchanact->loc);
 						break;
 					case 2: /* Local Rotation */
+						pchan->rotmode= pchanact->rotmode; // TODO: do we really want to do it this way?
+						VECCOPY(pchan->eul, pchanact->eul);
 						QUATCOPY(pchan->quat, pchanact->quat);
 						break;
 					case 3: /* Local Size */
@@ -773,21 +775,26 @@ void pose_copy_menu(void)
 						break;
 					case 10: /* Visual Rotation */
 					{
-						float delta_mat[4][4], quat[4];
+						float delta_mat[4][4];
 						
 						armature_mat_pose_to_bone(pchan, pchanact->pose_mat, delta_mat);
-						Mat4ToQuat(delta_mat, quat);
-						QUATCOPY(pchan->quat, quat);
+						
+						if (pchan->rotmode)
+							Mat4ToEul(delta_mat, pchan->eul);
+						else
+							Mat4ToQuat(delta_mat, pchan->quat);
 					}
 						break;
 					case 11: /* Visual Size */
 					{
-						float delta_mat[4][4], size[4];
+						float delta_mat[4][4];
 						
 						armature_mat_pose_to_bone(pchan, pchanact->pose_mat, delta_mat);
-						Mat4ToSize(delta_mat, size);
-						VECCOPY(pchan->size, size);
+						Mat4ToSize(delta_mat, pchan->size);
 					}
+					case 12: /* Rotation mode */
+						pchan->rotmode= pchanact->rotmode;
+						break;
 				}
 			}
 		}

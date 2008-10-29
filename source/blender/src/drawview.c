@@ -1872,10 +1872,23 @@ static void v3d_posearmature_buts(uiBlock *block, Object *ob, float lim)
 		but= uiDefBut(block, TEX, B_DIFF, "Bone:",				160, 140, 140, 19, bone->name, 1, 31, 0, 0, "");
 	uiButSetFunc(but, validate_bonebutton_cb, bone, NULL);
 	
-	QuatToEul(pchan->quat, tfp->ob_eul);
-	tfp->ob_eul[0]*= 180.0/M_PI;
-	tfp->ob_eul[1]*= 180.0/M_PI;
-	tfp->ob_eul[2]*= 180.0/M_PI;
+	/* rotation mode */
+	uiBlockBeginAlign(block);
+	uiDefButS(block, ROW, B_ARMATUREPANEL3, "Quaternion",160,110,70,19, &pchan->rotmode, 70, PCHAN_ROT_QUAT, 0, 0, "Rotations calculated using Quaternions (4 components, no Gimble Lock, hard to edit)");
+	uiDefButS(block, ROW, B_ARMATUREPANEL3, "Euler",230,110,70,19, &pchan->rotmode, 70, PCHAN_ROT_EUL, 0, 0, "Rotations calculated using Eulers (3 components, suffers from Gimble Lock, 'easy' to edit)");
+	uiBlockEndAlign(block);
+	
+	if (pchan->rotmode) {
+		tfp->ob_eul[0]= 180.0f*pchan->eul[0]/M_PI;
+		tfp->ob_eul[1]= 180.0f*pchan->eul[1]/M_PI;
+		tfp->ob_eul[2]= 180.0f*pchan->eul[2]/M_PI;
+	}
+	else {
+		QuatToEul(pchan->quat, tfp->ob_eul);
+		tfp->ob_eul[0]*= 180.0f/M_PI;
+		tfp->ob_eul[1]*= 180.0f/M_PI;
+		tfp->ob_eul[2]*= 180.0f/M_PI;
+	}
 	
 	uiBlockBeginAlign(block);
 	uiDefIconButBitS(block, ICONTOG, OB_LOCK_LOCX, REDRAWVIEW3D, ICON_UNLOCKED,	10,140,20,19, &(pchan->protectflag), 0, 0, 0, 0, "Protects this value from being Transformed");
@@ -1884,7 +1897,7 @@ static void v3d_posearmature_buts(uiBlock *block, Object *ob, float lim)
 	uiDefButF(block, NUM, B_ARMATUREPANEL2, "LocY:",	30, 120, 120, 19, pchan->loc+1, -lim, lim, 100, 3, "");
 	uiDefIconButBitS(block, ICONTOG, OB_LOCK_LOCZ, REDRAWVIEW3D, ICON_UNLOCKED,	10,100,20,19, &(pchan->protectflag), 0, 0, 0, 0, "Protects this value from being Transformed");
 	uiDefButF(block, NUM, B_ARMATUREPANEL2, "LocZ:",	30, 100, 120, 19, pchan->loc+2, -lim, lim, 100, 3, "");
-
+	
 	uiBlockBeginAlign(block);
 	uiDefIconButBitS(block, ICONTOG, OB_LOCK_ROTX, REDRAWVIEW3D, ICON_UNLOCKED,	10,70,20,19, &(pchan->protectflag), 0, 0, 0, 0, "Protects this value from being Transformed");
 	uiDefButF(block, NUM, B_ARMATUREPANEL3, "RotX:",	30, 70, 120, 19, tfp->ob_eul, -1000.0, 1000.0, 100, 3, "");
@@ -2184,7 +2197,11 @@ void do_viewbuts(unsigned short event)
 			eul[0]= M_PI*tfp->ob_eul[0]/180.0;
 			eul[1]= M_PI*tfp->ob_eul[1]/180.0;
 			eul[2]= M_PI*tfp->ob_eul[2]/180.0;
-			EulToQuat(eul, pchan->quat);
+			
+			if (pchan->rotmode)
+				VecCopyf(pchan->eul, eul);
+			else
+				EulToQuat(eul, pchan->quat);
 		}
 		/* no break, pass on */
 	case B_ARMATUREPANEL2:

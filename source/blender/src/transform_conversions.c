@@ -539,7 +539,9 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 	VECCOPY(td->center, vec);
 	
 	td->ob = ob;
-	td->flag= TD_SELECTED|TD_USEQUAT;
+	td->flag = TD_SELECTED;
+	if (pchan->rotmode == PCHAN_ROT_QUAT)
+		td->flag |= TD_USEQUAT;
 	if(bone->flag & BONE_HINGE_CHILD_TRANSFORM)
 		td->flag |= TD_NOCENTER;
 	td->protectflag= pchan->protectflag;
@@ -547,13 +549,22 @@ static void add_pose_transdata(TransInfo *t, bPoseChannel *pchan, Object *ob, Tr
 	td->loc = pchan->loc;
 	VECCOPY(td->iloc, pchan->loc);
 	
-	td->ext->rot= NULL;
-	td->ext->quat= pchan->quat;
 	td->ext->size= pchan->size;
-
-	QUATCOPY(td->ext->iquat, pchan->quat);
 	VECCOPY(td->ext->isize, pchan->size);
-
+	
+	if (pchan->rotmode) {
+		td->ext->rot= pchan->eul;
+		td->ext->quat= NULL;
+		
+		VECCOPY(td->ext->irot, pchan->eul);
+	}
+	else {
+		td->ext->rot= NULL;
+		td->ext->quat= pchan->quat;
+		
+		QUATCOPY(td->ext->iquat, pchan->quat);
+	}
+	
 	/* proper way to get parent transform + own transform + constraints transform */
 	Mat3CpyMat4(omat, ob->obmat);
 	
@@ -3758,10 +3769,17 @@ void autokeyframe_pose_cb_func(Object *ob, int tmode, short targetless_ik)
 						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_Z, flag);
 					}
 					if (doRot) {
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_W, flag);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_X, flag);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Y, flag);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Z, flag);
+						if (pchan->rotmode) {
+							insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_X, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_Y, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_Z, flag);
+						}
+						else {
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_W, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_X, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Y, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Z, flag);
+						}
 					}
 					if (doScale) {
 						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_X, flag);
@@ -3775,10 +3793,17 @@ void autokeyframe_pose_cb_func(Object *ob, int tmode, short targetless_ik)
 					insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_Y, flag);
 					insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_Z, flag);
 					
-					insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_W, flag);
-					insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_X, flag);
-					insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Y, flag);
-					insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Z, flag);
+					if (pchan->rotmode) {
+						insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_X, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_Y, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_Z, flag);
+					}
+					else {
+						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_W, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_X, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Y, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Z, flag);
+					}
 					
 					insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_X, flag);
 					insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_Y, flag);

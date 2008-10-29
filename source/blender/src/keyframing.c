@@ -101,7 +101,42 @@
 /* ************************************************** */
 /* LOCAL TYPES AND DEFINES */
 
+/* ----------- Common KeyData Sources ------------ */
+
+/* temporary struct to gather data combos to keyframe */
+typedef struct bCommonKeySrc {
+	struct bCommonKeySrc *next, *prev;
+		
+		/* general data/destination-source settings */
+	ID *id;					/* id-block this comes from */
+	char *actname;			/* name of action channel */
+	char *constname;		/* name of constraint channel */
+	
+		/* general destination source settings */
+	Ipo *ipo;				/* ipo-block that id-block has (optional) */
+	bAction *act;			/* action-block that id-block has (optional) */
+	
+		/* pose-level settings */
+	bPoseChannel *pchan;	/* pose channel */
+		
+		/* buttons-window settings */
+	int map;				/* offset to apply to certain adrcodes */
+} bCommonKeySrc;
+
 /* -------------- Keying Sets ------------------- */
+
+/* storage for iterator for looping over keyingset channels */
+typedef struct bKS_AdrcodeGetter {
+	struct bKeyingSet *ks;		/* keyingset this applies to */
+	struct bCommonKeySrc *cks;	/* data to insert/delete keyframes... */
+	
+	short index;				/* index of current channel to resume from */
+	short tot;					/* index after which we start returning from some special collection */
+} bKS_AdrcodeGetter;
+
+/* flags to look out for in keyingset channels... */
+#define KAG_CHAN_EXTEND		(-1)
+
 
 /* keying set - a set of channels that will be keyframed together  */
 // TODO: move this to a header to allow custom sets someday?
@@ -125,29 +160,6 @@ typedef struct bKeyingContext {
 	bKeyingSet *lastused;		/* item that was chosen last time*/
 	int tot;					/* number of keyingsets in */
 } bKeyingContext;
-
-
-/* ----------- Common KeyData Sources ------------ */
-
-/* temporary struct to gather data combos to keyframe */
-typedef struct bCommonKeySrc {
-	struct bCommonKeySrc *next, *prev;
-		
-		/* general data/destination-source settings */
-	ID *id;					/* id-block this comes from */
-	char *actname;			/* name of action channel */
-	char *constname;		/* name of constraint channel */
-	
-		/* general destination source settings */
-	Ipo *ipo;				/* ipo-block that id-block has (optional) */
-	bAction *act;			/* action-block that id-block has (optional) */
-	
-		/* pose-level settings */
-	bPoseChannel *pchan;	/* pose channel */
-		
-		/* buttons-window settings */
-	int map;				/* offset to apply to certain adrcodes */
-} bCommonKeySrc;
 
 /* ************************************************** */
 /* KEYFRAME INSERTION */
@@ -345,7 +357,10 @@ static void *get_context_ipo_poin (ID *id, int blocktype, char *actname, char *c
 				bPoseChannel *pchan= get_pose_channel(ob->pose, actname);
 				
 				if (pchan) {
-					*vartype= IPO_FLOAT;
+					if (ELEM3(icu->adrcode, AC_EUL_X, AC_EUL_Y, AC_EUL_Z))
+						*vartype= IPO_FLOAT_DEGR;
+					else
+						*vartype= IPO_FLOAT;
 					return get_pchan_ipo_poin(pchan, icu->adrcode);
 				}
 			}
@@ -894,6 +909,133 @@ enum {
 	COMMONKEY_MODE_DELETE,
 } eCommonModifyKey_Modes;
 
+/* --------- KeyingSet Adrcode Getters ------------ */
+
+/* initialise a channel-getter storage */
+static void ks_adrcodegetter_init (bKS_AdrcodeGetter *kag, bKeyingSet *ks, bCommonKeySrc *cks)
+{
+	/* error checking */
+	if (kag == NULL)
+		return;
+	
+	if (ELEM(NULL, ks, cks)) {
+		/* set invalid settings that won't cause harm */
+		kag->ks= NULL;
+		kag->cks= NULL;
+		kag->index= -2;
+		kag->tot= 0;
+		
+		return;
+	}
+	else {
+		/* store settings */
+		kag->ks= ks;
+		kag->cks= cks;
+		
+		/* - index is -1, as that allows iterators to return first element
+		 * - tot is chan_num by default, but may get overriden if -1 is encountered (for extension-type getters)
+		 */
+		kag->index= -1;
+		kag->tot= ks->chan_num;
+	}
+}
+
+/* 'default' channel-getter that will be used when iterating through keyingset's channels 
+ *	 - iteration will stop when adrcode <= 0 is encountered, so we use that as escape
+ */
+static short ks_getnextadrcode_default (bKS_AdrcodeGetter *kag)
+{	
+	bKeyingSet *ks= (kag)? kag->ks : NULL;
+	
+	/* error checking */
+	if (ELEM(NULL, kag, ks)) return 0;
+	if (kag->tot <= 0) return 0;
+	
+	kag->index++;
+	if ((kag->index < 0) || (kag->index >= kag->tot)) return 0;
+	
+	/* return the adrcode stored at index then */
+	return ks->adrcodes[kag->index];
+}
+
+/* add map flag (for MTex channels, as certain ones need special offset) */
+static short ks_getnextadrcode_addmap (bKS_AdrcodeGetter *kag)
+{
+	short adrcode= ks_getnextadrcode_default(kag);
+	
+	/* if there was an adrcode returned, assume that kag stuff is set ok */
+	if (adrcode) {
+		bCommonKeySrc *cks= kag->cks;
+		bKeyingSet *ks= kag->ks;
+		
+		if (ELEM3(ks->blocktype, ID_MA, ID_LA, ID_WO)) {
+			switch (adrcode) {
+				case MAP_OFS_X: case MAP_OFS_Y: case MAP_OFS_Z:
+				case MAP_SIZE_X: case MAP_SIZE_Y: case MAP_SIZE_Z:
+				case MAP_R: case MAP_G: case MAP_B: case MAP_DVAR:
+				case MAP_COLF: case MAP_NORF: case MAP_VARF: case MAP_DISP:
+					adrcode += cks->map;
+					break;
+			}
+		}
+	}
+	
+	/* adrcode must be returned! */
+	return adrcode;
+}
+
+/* extend posechannel keyingsets with rotation info (when KAG_CHAN_EXTEND is encountered) 
+ *	- iteration will stop when adrcode <= 0 is encountered, so we use that as escape
+ *	- when we encounter KAG_CHAN_EXTEND as adrcode, start returning our own
+ */
+static short ks_getnextadrcode_pchanrot (bKS_AdrcodeGetter *kag)
+{	
+	/* hardcoded adrcode channels used here only 
+	 *	- length is keyed-channels + 1 (last item must be 0 to escape)
+	 */
+	static short quat_adrcodes[5] = {AC_QUAT_W, AC_QUAT_X, AC_QUAT_Y, AC_QUAT_Z, 0};
+	static short eul_adrcodes[4] = {AC_EUL_X, AC_EUL_Y, AC_EUL_Z, 0};
+		
+	/* useful variables */
+	bKeyingSet *ks= (kag)? kag->ks : NULL;
+	bCommonKeySrc *cks= (kag) ? kag->cks : NULL;
+	short index, adrcode;
+	
+	
+	/* error checking */
+	if (ELEM3(NULL, kag, ks, cks)) return 0;
+	if (ks->chan_num <= 0) return 0;
+	
+	/* get index 
+	 *	- if past the last item (kag->tot), return stuff from our static arrays
+	 *	- otherwise, just keep returning stuff from the keyingset (but check out for -1!) 
+	 */
+	kag->index++;
+	if (kag->index < 0) return 0;
+	
+	/* normal (static stuff) */
+	if (kag->index < kag->tot) {
+		/* get adrcode, and return if not KAG_CHAN_EXTEND (i.e. point for start of iteration) */
+		adrcode= ks->adrcodes[kag->index];
+		
+		if (adrcode != KAG_CHAN_EXTEND) 
+			return adrcode;
+		else	
+			kag->tot= kag->index;
+	}
+		
+	/* based on current rotation-mode
+	 *	- index can be at most 5, if we are to prevent segfaults
+	 */
+	index= kag->index - kag->tot;
+	if (IN_RANGE(index, 0, 5)) return 0;
+	
+	if (cks->pchan && cks->pchan->rotmode)
+		return eul_adrcodes[index];
+	else
+		return quat_adrcodes[index];
+}
+
 /* ------------- KeyingSet Defines ------------ */
 /* Note: these must all be named with the defks_* prefix, otherwise the template macro will not work! */
 
@@ -954,7 +1096,7 @@ static short incl_v3d_ob_shapekey (bKeyingSet *ks, const char mode[])
 /* array for object keyingset defines */
 bKeyingSet defks_v3d_object[] = 
 {
-	/* include_cb, name, blocktype, flag, chan_num, adrcodes */
+	/* include_cb, adrcode-getter, name, blocktype, flag, chan_num, adrcodes */
 	{NULL, "Loc", ID_OB, 0, 3, {OB_LOC_X,OB_LOC_Y,OB_LOC_Z}},
 	{NULL, "Rot", ID_OB, 0, 3, {OB_ROT_X,OB_ROT_Y,OB_ROT_Z}},
 	{NULL, "Scale", ID_OB, 0, 3, {OB_SIZE_X,OB_SIZE_Y,OB_SIZE_Z}},
@@ -1003,35 +1145,34 @@ bKeyingSet defks_v3d_pchan[] =
 {
 	/* include_cb, name, blocktype, flag, chan_num, adrcodes */
 	{NULL, "Loc", ID_PO, 0, 3, {AC_LOC_X,AC_LOC_Y,AC_LOC_Z}},
-	{NULL, "Rot", ID_PO, 0, 4, {AC_QUAT_W,AC_QUAT_X,AC_QUAT_Y,AC_QUAT_Z}},
+	{NULL, "Rot", ID_PO, COMMONKEY_PCHANROT, 1, {KAG_CHAN_EXTEND}},
 	{NULL, "Scale", ID_PO, 0, 3, {AC_SIZE_X,AC_SIZE_Y,AC_SIZE_Z}},
 	
 	{NULL, "%l", 0, -1, 0, {0}}, // separator
 	
-	{NULL, "LocRot", ID_PO, 0, 7, 
-		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z,AC_QUAT_W,
-		 AC_QUAT_X,AC_QUAT_Y,AC_QUAT_Z}},
+	{NULL, "LocRot", ID_PO, COMMONKEY_PCHANROT, 4, 
+		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z,
+		 KAG_CHAN_EXTEND}},
 		 
 	{NULL, "LocScale", ID_PO, 0, 6, 
 		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z,
 		 AC_SIZE_X,AC_SIZE_Y,AC_SIZE_Z}},
 		 
-	{NULL, "LocRotScale", ID_PO, 0, 10, 
-		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z,AC_QUAT_W,AC_QUAT_X,
-		 AC_QUAT_Y,AC_QUAT_Z,AC_SIZE_X,AC_SIZE_Y,AC_SIZE_Z}},
+	{NULL, "LocRotScale", ID_PO, COMMONKEY_PCHANROT, 7, 
+		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z,AC_SIZE_X,AC_SIZE_Y,AC_SIZE_Z, 
+		 KAG_CHAN_EXTEND}},
 		 
-	{NULL, "RotScale", ID_PO, 0, 7, 
-		{AC_QUAT_W,AC_QUAT_X,AC_QUAT_Y,AC_QUAT_Z,
-		 AC_SIZE_X,AC_SIZE_Y,AC_SIZE_Z}},
+	{NULL, "RotScale", ID_PO, 0, 4, 
+		{AC_SIZE_X,AC_SIZE_Y,AC_SIZE_Z, 
+		 KAG_CHAN_EXTEND}},
 	
 	{incl_non_del_keys, "%l", 0, -1, 0, {0}}, // separator
 	
 	{incl_non_del_keys, "VisualLoc", ID_PO, INSERTKEY_MATRIX, 3, {AC_LOC_X,AC_LOC_Y,AC_LOC_Z}},
-	{incl_non_del_keys, "VisualRot", ID_PO, INSERTKEY_MATRIX, 4, {AC_QUAT_W,AC_QUAT_X,AC_QUAT_Y,AC_QUAT_Z}},
+	{incl_non_del_keys, "VisualRot", ID_PO, INSERTKEY_MATRIX|COMMONKEY_PCHANROT, 1, {KAG_CHAN_EXTEND}},
 	
-	{incl_non_del_keys, "VisualLocRot", ID_PO, INSERTKEY_MATRIX, 7, 
-		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z,AC_QUAT_W,
-		 AC_QUAT_X,AC_QUAT_Y,AC_QUAT_Z}},
+	{incl_non_del_keys, "VisualLocRot", ID_PO, INSERTKEY_MATRIX|COMMONKEY_PCHANROT, 4, 
+		{AC_LOC_X,AC_LOC_Y,AC_LOC_Z, KAG_CHAN_EXTEND}},
 	
 	{NULL, "%l", 0, -1, 0, {0}}, // separator
 	
@@ -1809,32 +1950,30 @@ void common_modifykey (short mode)
 			}
 		}
 		else {
-			int i;
+			bKS_AdrcodeGetter kag;
+			short (*get_next_adrcode)(bKS_AdrcodeGetter *);
+			int adrcode;
+			
+			/* initialise keyingset channel iterator */
+			ks_adrcodegetter_init(&kag, ks, cks);
+			
+			/* get iterator - only one can be in use at a time... the flags should be mutually exclusive in this regard */
+			if (ks->flag & COMMONKEY_PCHANROT)
+				get_next_adrcode= ks_getnextadrcode_pchanrot;
+			else if (ks->flag & COMMONKEY_ADDMAP)
+				get_next_adrcode= ks_getnextadrcode_addmap;
+			else
+				get_next_adrcode= ks_getnextadrcode_default;
 			
 			/* loop over channels available in keyingset */
-			for (i=0; i < ks->chan_num; i++) {
-				short flag, adrcode;
-				
-				/* get adrcode
-				 *	- certain adrcodes (for MTEX channels need special offsets) 	// BAD CRUFT!!!
-				 */
-				adrcode= ks->adrcodes[i];
-				if (ELEM3(ks->blocktype, ID_MA, ID_LA, ID_WO) && (ks->flag & COMMONKEY_ADDMAP)) {
-					switch (adrcode) {
-						case MAP_OFS_X: case MAP_OFS_Y: case MAP_OFS_Z:
-						case MAP_SIZE_X: case MAP_SIZE_Y: case MAP_SIZE_Z:
-						case MAP_R: case MAP_G: case MAP_B: case MAP_DVAR:
-						case MAP_COLF: case MAP_NORF: case MAP_VARF: case MAP_DISP:
-							adrcode += cks->map;
-							break;
-					}
-				}
+			for (adrcode= get_next_adrcode(&kag); adrcode > 0; adrcode= get_next_adrcode(&kag)) {
+				short flag;
 				
 				/* insert mode or delete mode */
 				if (mode == COMMONKEY_MODE_DELETE) {
 					/* local flags only add on to global flags */
 					flag = 0;
-					//flag &= ~COMMONKEY_ADDMAP;
+					//flag &= ~COMMONKEY_MODES;
 					
 					/* delete keyframe */
 					success += deletekey(cks->id, ks->blocktype, cks->actname, cks->constname, adrcode, flag);
@@ -1845,7 +1984,7 @@ void common_modifykey (short mode)
 					if (IS_AUTOKEY_FLAG(AUTOMATKEY)) flag |= INSERTKEY_MATRIX;
 					if (IS_AUTOKEY_FLAG(INSERTNEEDED)) flag |= INSERTKEY_NEEDED;
 					// if (IS_AUTOKEY_MODE(EDITKEYS)) flag |= INSERTKEY_REPLACE;
-					flag &= ~COMMONKEY_ADDMAP;
+					flag &= ~COMMONKEY_MODES;
 					
 					/* insert keyframe */
 					success += insertkey(cks->id, ks->blocktype, cks->actname, cks->constname, adrcode, flag);

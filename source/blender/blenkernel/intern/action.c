@@ -401,7 +401,9 @@ static void copy_pose_channel_data(bPoseChannel *pchan, const bPoseChannel *chan
 	
 	VECCOPY(pchan->loc, chan->loc);
 	VECCOPY(pchan->size, chan->size);
+	VECCOPY(pchan->eul, chan->eul);
 	QUATCOPY(pchan->quat, chan->quat);
+	pchan->rotmode= chan->rotmode;
 	Mat4CpyMat4(pchan->chan_mat, (float(*)[4])chan->chan_mat);
 	Mat4CpyMat4(pchan->pose_mat, (float(*)[4])chan->pose_mat);
 	pchan->flag= chan->flag;
@@ -697,7 +699,6 @@ void blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
 	bPoseChannel *dchan;
 	const bPoseChannel *schan;
 	bConstraint *dcon, *scon;
-	float	dquat[4], squat[4];
 	float dstweight;
 	int i;
 	
@@ -719,23 +720,34 @@ void blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
 			
 			/* Do the transformation blend */
 			if (schan->flag & POSE_ROT) {
-				QUATCOPY(dquat, dchan->quat);
-				QUATCOPY(squat, schan->quat);
-				if(mode==ACTSTRIPMODE_BLEND)
-					QuatInterpol(dchan->quat, dquat, squat, srcweight);
-				else {
-					QuatMulFac(squat, srcweight);
-					QuatMul(dchan->quat, dquat, squat);
+				/* quat interpolation done separate */
+				if (schan->rotmode == PCHAN_ROT_QUAT) {
+					float dquat[4], squat[4];
+					
+					QUATCOPY(dquat, dchan->quat);
+					QUATCOPY(squat, schan->quat);
+					if (mode==ACTSTRIPMODE_BLEND)
+						QuatInterpol(dchan->quat, dquat, squat, srcweight);
+					else {
+						QuatMulFac(squat, srcweight);
+						QuatMul(dchan->quat, dquat, squat);
+					}
+					
+					NormalQuat(dchan->quat);
 				}
-				
-				NormalQuat (dchan->quat);
 			}
 
-			for (i=0; i<3; i++){
+			for (i=0; i<3; i++) {
+				/* blending for loc and scale are pretty self-explanatory... */
 				if (schan->flag & POSE_LOC)
 					dchan->loc[i] = (dchan->loc[i]*dstweight) + (schan->loc[i]*srcweight);
 				if (schan->flag & POSE_SIZE)
 					dchan->size[i] = 1.0f + ((dchan->size[i]-1.0f)*dstweight) + ((schan->size[i]-1.0f)*srcweight);
+				
+				/* euler-rotation interpolation done here instead... */
+				// FIXME: are these results decent?
+				if ((schan->flag & POSE_ROT) && (schan->rotmode))
+					dchan->eul[i] = (dchan->eul[i]*dstweight) + (schan->eul[i]*srcweight);
 			}
 			dchan->flag |= schan->flag;
 		}

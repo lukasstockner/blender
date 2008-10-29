@@ -58,8 +58,11 @@ enum {
 	INSERTKEY_FASTR		= (1<<3),	/* don't realloc mem (or increase count, as array has already been set out) */
 	INSERTKEY_REPLACE 	= (1<<4),	/* only replace an existing keyframe (this overrides INSERTKEY_NEEDED) */
 	
-		/* used by common_*key() functions */
+		/* used by common_*key() functions - Note: these are generally mutually exclusive (only one will work at a time) */
 	COMMONKEY_ADDMAP	= (1<<10),	/* common key: add texture-slot offset bitflag to adrcode before use */
+	COMMONKEY_PCHANROT	= (1<<11),	/* common key: extend channel list using relevant pchan-rotations */
+		/* all possible items for common_*key() functions */
+	COMMONKEY_MODES 	= (COMMONKEY_ADDMAP|COMMONKEY_PCHANROT)
 } eInsertKeyFlags;
 
 /* -------- */
