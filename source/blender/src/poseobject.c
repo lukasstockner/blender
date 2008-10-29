@@ -905,8 +905,8 @@ void paste_posebuf (int flip)
 {
 	Object *ob= OBACT;
 	bPoseChannel *chan, *pchan;
-	float eul[4];
 	char name[32];
+	short flag = 0;
 	
 	if (!ob || !ob->pose)
 		return;
@@ -922,6 +922,12 @@ void paste_posebuf (int flip)
 		return;
 	*/
 	
+	/* set flags for use when inserting keyframes */
+	if (IS_AUTOKEY_FLAG(INSERTNEEDED))
+		flag |= INSERTKEY_NEEDED;
+	if (IS_AUTOKEY_FLAG(AUTOMATKEY))
+		flag |= INSERTKEY_MATRIX;
+	
 	/* Safely merge all of the channels in this pose into
 	any existing pose */
 	for (chan=g_posebuf->chanbase.first; chan; chan=chan->next) {
@@ -936,18 +942,46 @@ void paste_posebuf (int flip)
 			if (pchan) {
 				/* only loc rot size */
 				/* only copies transform info for the pose */
+				pchan->flag= chan->flag;
 				VECCOPY(pchan->loc, chan->loc);
 				VECCOPY(pchan->size, chan->size);
-				QUATCOPY(pchan->quat, chan->quat);
-				pchan->flag= chan->flag;
 				
+				/* check if rotation modes are compatible (i.e. do they need any conversions) */
+				if (pchan->rotmode == chan->rotmode) {
+					/* copy the type of rotation in use */
+					if (pchan->rotmode) {
+						VECCOPY(pchan->eul, chan->eul);
+					}
+					else {
+						QUATCOPY(pchan->quat, chan->quat);
+					}
+				}
+				else if (pchan->rotmode) {
+					/* quat to euler */
+					QuatToEul(chan->quat, pchan->eul);
+				}
+				else {
+					/* euler to quat */
+					EulToQuat(chan->eul, pchan->quat);
+				}
+				
+				/* paste flipped pose? */
 				if (flip) {
 					pchan->loc[0]*= -1;
 					
-					QuatToEul(pchan->quat, eul);
-					eul[1]*= -1;
-					eul[2]*= -1;
-					EulToQuat(eul, pchan->quat);
+					/* has to be done as eulers... */
+					if (pchan->rotmode) {
+						pchan->eul[1] *= -1;
+						pchan->eul[2] *= -1;
+					}
+					else {
+						float eul[3];
+						
+						QuatToEul(pchan->quat, eul);
+						eul[1]*= -1;
+						eul[2]*= -1;
+						EulToQuat(eul, pchan->quat);
+					}
 				}
 				
 				if (autokeyframe_cfra_can_key(ob)) {
@@ -955,30 +989,38 @@ void paste_posebuf (int flip)
 					
 					/* Set keys on pose */
 					if (chan->flag & POSE_ROT) {
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_X, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Y, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Z, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_W, 0);
+						if (pchan->rotmode) {
+							insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_X, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_Y, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_EUL_Z, flag);
+
+						}
+						else {
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_X, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Y, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_Z, flag);
+							insertkey(id, ID_PO, pchan->name, NULL, AC_QUAT_W, flag);
+						}
 					}
 					if (chan->flag & POSE_SIZE) {
-						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_X, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_Y, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_Z, 0);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_X, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_Y, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_SIZE_Z, flag);
 					}
 					if (chan->flag & POSE_LOC) {
-						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_X, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_Y, 0);
-						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_Z, 0);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_X, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_Y, flag);
+						insertkey(id, ID_PO, pchan->name, NULL, AC_LOC_Z, flag);
 					}
 					
 					/* clear any unkeyed tags */
-					if (chan->bone)
-						chan->bone->flag &= ~BONE_UNKEYED;
+					if (pchan->bone)
+						pchan->bone->flag &= ~BONE_UNKEYED;
 				}
 				else {
 					/* add unkeyed tags */
-					if (chan->bone)
-						chan->bone->flag |= BONE_UNKEYED;
+					if (pchan->bone)
+						pchan->bone->flag |= BONE_UNKEYED;
 				}
 			}
 		}
