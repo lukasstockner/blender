@@ -4426,6 +4426,9 @@ static void do_view3d_pose_armaturemenu(void *arg, int event)
 	case 20: /* delete keyframe */
 		common_deletekey();
 		break;
+	case 21: /* set rotation mode */
+		pose_rotmode_menu();
+		break;
 	}
 		
 	allqueue(REDRAWVIEW3D, 0);
@@ -4443,6 +4446,7 @@ static uiBlock *view3d_pose_armaturemenu(void *arg_unused)
 	uiDefIconTextBlockBut(block, view3d_transformmenu, NULL, ICON_RIGHTARROW_THIN, "Transform", 0, yco-=20, 120, 19, "");
 	uiDefIconTextBlockBut(block, view3d_pose_armature_transformmenu, NULL, ICON_RIGHTARROW_THIN, "Clear Transform", 0, yco-=20, 120, 19, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Scale Envelope Distance|Alt S",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 13, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Set Rotation Mode|Ctrl R",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 21, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	

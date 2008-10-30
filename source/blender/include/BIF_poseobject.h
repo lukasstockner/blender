@@ -51,6 +51,7 @@ void pose_add_IK(void);
 void pose_clear_IK(void);
 void pose_clear_constraints(void);
 void pose_copy_menu(void);
+void pose_rotmode_menu(void);
 
 void free_posebuf(void);
 void copy_posebuf (void);

@@ -871,6 +871,51 @@ void pose_copy_menu(void)
 	
 }
 
+void pose_rotmode_menu(void)
+{
+	Object *ob= OBACT;
+	bArmature *arm= ob->data;
+	bPoseChannel *pchan;
+	short nr=0;
+	
+	/* paranoia checks */
+	if (ELEM(NULL, ob, ob->pose)) return;
+	if ((ob==G.obedit) || (ob->flag & OB_POSEMODE)==0) return;
+		
+	/* FIXME: proxy protected bones can't get this set */
+	if (pose_has_protected_selected(ob, 1, 1))
+		return;
+		
+	/* show and process menu */
+	nr= pupmenu("Bone Rotation Mode%t|Quaternion %x1|Euler %x2");
+	if (nr <= 0) return;
+		
+	for (pchan= ob->pose->chanbase.first; pchan; pchan= pchan->next) {
+		if ((arm->layer & pchan->bone->layer) && (pchan->bone->flag & BONE_SELECTED)) 
+		{
+			const short old_rotmode= pchan->rotmode;
+			
+			/* all values for menu are 1 higher than the actual values should be */
+			pchan->rotmode= nr - 1;
+			
+			/* do conversions if necessary */
+			if (old_rotmode != pchan->rotmode) {
+				if (old_rotmode)
+					EulToQuat(pchan->eul, pchan->quat);
+				else
+					QuatToEul(pchan->quat, pchan->eul);
+			}
+		}
+	}
+	
+	
+	DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);	// and all its relations
+	
+	allqueue(REDRAWVIEW3D, 0);
+	
+	BIF_undo_push("Set Rotation Mode");
+}
+
 /* ******************** copy/paste pose ********************** */
 
 static bPose	*g_posebuf=NULL;

@@ -2563,6 +2563,10 @@ static void winqreadview3dspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 						Transform();
 					}
 				}
+				else if(G.qual==LR_CTRLKEY) {
+					if((ob && ob->pose) && (ob->flag & OB_POSEMODE))
+						pose_rotmode_menu();
+				}
 				else if((G.qual==0)) {
 					initTransform(TFM_ROTATION, CTX_NONE);
 					Transform();
