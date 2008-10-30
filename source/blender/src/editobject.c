@@ -1913,8 +1913,15 @@ void docenter(int centermode)
 					tot_lib_error++;
 				}
 				else if(G.obedit==0 && (me=get_mesh(base->object)) ) {
+					short skey_bad= 0;
 					
-					if(me->key) {
+					/* not all shapekeys are bad... just the pinned ones */
+					if (me->key) {
+						if (base->object->shapeflag & OB_SHAPE_LOCK)
+							skey_bad= 1;
+					} 
+					
+					if (skey_bad) {
 						/*error("Can't change the center of a mesh with vertex keys");
 						return;*/
 						tot_key_error++;
@@ -1942,6 +1949,18 @@ void docenter(int centermode)
 							VecSubf(mvert->co, mvert->co, cent);
 						}
 						me->flag |= ME_ISDONE;
+						
+						if (me->key) {
+							KeyBlock *kb;
+							
+							for (kb=me->key->block.first; kb; kb=kb->next) {
+								float *fp= kb->data;
+								
+								for (a=0; a<kb->totelem; a++, fp+=3) {
+									VecSubf(fp, fp, cent);
+								}
+							}
+						}
 						
 						if(centermode) {
 							Mat3CpyMat4(omat, base->object->obmat);
