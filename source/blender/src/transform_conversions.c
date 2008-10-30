@@ -3813,8 +3813,9 @@ void autokeyframe_pose_cb_func(Object *ob, int tmode, short targetless_ik)
 		}
 		
 		remake_action_ipos(act);
-		allqueue(REDRAWMARKER, 0);
+		allqueue(REDRAWMARKER, 1);
 		allqueue(REDRAWOOPS, 0);
+		allqueue(REDRAWVIEW3D, 1);
 		
 		/* locking can be disabled */
 		ob->pose->flag &= ~(POSE_DO_UNLOCK|POSE_LOCKED);

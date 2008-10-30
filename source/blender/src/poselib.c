@@ -397,10 +397,18 @@ void poselib_add_current_pose (Object *ob, int val)
 				INSERT_KEY_ICU(AC_SIZE_X, pchan->size[0])
 				INSERT_KEY_ICU(AC_SIZE_Y, pchan->size[1])
 				INSERT_KEY_ICU(AC_SIZE_Z, pchan->size[2])
-				INSERT_KEY_ICU(AC_QUAT_W, pchan->quat[0])
-				INSERT_KEY_ICU(AC_QUAT_X, pchan->quat[1])
-				INSERT_KEY_ICU(AC_QUAT_Y, pchan->quat[2])
-				INSERT_KEY_ICU(AC_QUAT_Z, pchan->quat[3])
+				
+				if (pchan->rotmode) {
+					INSERT_KEY_ICU(AC_EUL_X, pchan->eul[0])
+					INSERT_KEY_ICU(AC_EUL_Y, pchan->eul[1])
+					INSERT_KEY_ICU(AC_EUL_Z, pchan->eul[2])
+				}
+				else {
+					INSERT_KEY_ICU(AC_QUAT_W, pchan->quat[0])
+					INSERT_KEY_ICU(AC_QUAT_X, pchan->quat[1])
+					INSERT_KEY_ICU(AC_QUAT_Y, pchan->quat[2])
+					INSERT_KEY_ICU(AC_QUAT_Z, pchan->quat[3])
+				}
 			}
 		}
 	}
