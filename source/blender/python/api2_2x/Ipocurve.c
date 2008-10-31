@@ -415,8 +415,8 @@ static PyObject *IpoCurve_setInterpolation( C_IpoCurve * self,
 	else
 		return EXPP_ReturnPyObjError( PyExc_TypeError,
 				"bad interpolation type" );
-
-	self->ipocurve->ipo = id;
+	
+	set_interpolation_ipocurve(self->ipocurve, id);
 	Py_RETURN_NONE;
 }
 
@@ -434,6 +434,9 @@ static PyObject *IpoCurve_getInterpolation( C_IpoCurve * self )
 		break;
 	case IPO_LIN:
 		str = "Linear";
+		break;
+	case IPO_MIXED:
+		str = "Mixed";
 		break;
 	default:
 		return EXPP_ReturnPyObjError( PyExc_TypeError,

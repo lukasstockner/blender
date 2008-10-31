@@ -24,7 +24,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): 2008, Joshua Leung (Animation Cleanup)
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -86,6 +86,8 @@ void calchandles_ipocurve(struct IpoCurve *icu);
 void testhandles_ipocurve(struct IpoCurve *icu);
 void sort_time_ipocurve(struct IpoCurve *icu);
 int test_time_ipocurve(struct IpoCurve *icu);
+
+void set_interpolation_ipocurve(struct IpoCurve *icu, short ipo);
 
 /* -------- IPO-Curve (Bezier) Calculations ---------- */
 

@@ -127,6 +127,7 @@
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
 #include "BKE_image.h"
+#include "BKE_ipo.h"
 #include "BKE_key.h" //void set_four_ipo
 #include "BKE_lattice.h"
 #include "BKE_library.h" // for wich_libbase
@@ -7974,6 +7975,16 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				la->atm_distance_factor = 1.0;
 				la->sun_intensity = 1.0;
 			}
+		}
+	}
+	
+	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 2)) {
+		Ipo *ipo;
+		IpoCurve *icu;
+		
+		for (ipo=main->ipo.first; ipo; ipo= ipo->id.next) {
+			for (icu= ipo->curve.first; icu; icu= icu->next) 
+				set_interpolation_ipocurve(icu, icu->ipo);
 		}
 	}
 	

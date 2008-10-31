@@ -805,7 +805,6 @@ void correct_bezpart (float *v1, float *v2, float *v3, float *v4)
 	}
 }
 
-#if 0 // TODO: enable when we have per-segment interpolation
 /* This function sets the interpolation mode for an entire Ipo-Curve. 
  * It is primarily used for patching old files, but is also used in the interface
  * to make sure that all segments of the curve use the same interpolation.
@@ -826,7 +825,6 @@ void set_interpolation_ipocurve (IpoCurve *icu, short ipo)
 	for (a=0, bezt=icu->bezt; a<icu->totvert; a++, bezt++)
 		bezt->ipo= ipo;
 }
-#endif // TODO: enable when we have per-segment interpolation
 
 /* ***************************** Curve Calculations ********************************* */
 
@@ -1030,7 +1028,6 @@ static float eval_driver (IpoDriver *driver, float ipotime)
 	else
 #endif /* DISABLE_PYTHON */
 	{
-
 		Object *ob= driver->ob;
 		
 		/* must have an object to evaluate */
@@ -1142,7 +1139,7 @@ static float eval_driver (IpoDriver *driver, float ipotime)
 }
 
 /* evaluate and return the value of the given IPO-curve at the specified frame ("evaltime") */
-float eval_icu(IpoCurve *icu, float evaltime) 
+float eval_icu (IpoCurve *icu, float evaltime) 
 {
 	float cvalue = 0.0f;
 	
@@ -1194,12 +1191,11 @@ float eval_icu(IpoCurve *icu, float evaltime)
 		}
 		
 		/* evaluation time at or past endpoints? */
-		// TODO: for per-bezt interpolation, replace all icu->ipo with (bezt)->ipo
 		if (prevbezt->vec[1][0] >= evaltime) {
 			/* before or on first keyframe */
-			if ((icu->extrap & IPO_DIR) && (icu->ipo != IPO_CONST)) {
+			if ((icu->extrap & IPO_DIR) && (prevbezt->ipo != IPO_CONST)) {
 				/* linear or bezier interpolation */
-				if (icu->ipo==IPO_LIN) {
+				if (prevbezt->ipo==IPO_LIN) {
 					/* Use the next center point instead of our own handle for
 					 * linear interpolated extrapolate 
 					 */
@@ -1244,9 +1240,9 @@ float eval_icu(IpoCurve *icu, float evaltime)
 		}
 		else if (lastbezt->vec[1][0] <= evaltime) {
 			/* after or on last keyframe */
-			if( (icu->extrap & IPO_DIR) && (icu->ipo != IPO_CONST)) {
+			if( (icu->extrap & IPO_DIR) && (lastbezt->ipo != IPO_CONST)) {
 				/* linear or bezier interpolation */
-				if (icu->ipo==IPO_LIN) {
+				if (lastbezt->ipo==IPO_LIN) {
 					/* Use the next center point instead of our own handle for
 					 * linear interpolated extrapolate 
 					 */
@@ -1291,16 +1287,15 @@ float eval_icu(IpoCurve *icu, float evaltime)
 		}
 		else {
 			/* evaltime occurs somewhere in the middle of the curve */
-			// TODO: chould be optimised by using a binary search instead???
 			for (a=0; prevbezt && bezt && (a < icu->totvert-1); a++, prevbezt=bezt, bezt++) {  
 				/* evaltime occurs within the interval defined by these two keyframes */
 				if ((prevbezt->vec[1][0] <= evaltime) && (bezt->vec[1][0] >= evaltime)) {
 					/* value depends on interpolation mode */
-					if (icu->ipo == IPO_CONST) {
+					if (prevbezt->ipo == IPO_CONST) {
 						/* constant (evaltime not relevant, so no interpolation needed) */
 						cvalue= prevbezt->vec[1][1];
 					}
-					else if (icu->ipo == IPO_LIN) {
+					else if (prevbezt->ipo == IPO_LIN) {
 						/* linear - interpolate between values of the two keyframes */
 						fac= bezt->vec[1][0] - prevbezt->vec[1][0];
 						
@@ -1341,7 +1336,7 @@ float eval_icu(IpoCurve *icu, float evaltime)
 		}
 		
 		/* apply y-offset (for 'cyclic extrapolation') to calculated value */
-		cvalue+= cycyofs;
+		cvalue += cycyofs;
 	}
 	
 	/* clamp evaluated value to lie within allowable value range for this channel */

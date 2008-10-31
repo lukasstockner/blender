@@ -3261,8 +3261,10 @@ static void winqreadipospace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 				transform_ipo('s');
 			break;
 		case TKEY:
-			if (G.qual==0)
-				set_ipotype();
+			if (G.qual==0) {
+				/* must be called with '0' so that menu will show */
+				set_ipotype(0);
+			}
 			break;
 		case EKEY:
 			if (G.qual==0)

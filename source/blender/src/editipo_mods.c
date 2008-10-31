@@ -867,46 +867,53 @@ void sethandles_ipo(int code)
 	BIF_undo_push("Set handles Ipo");
 }
 
-
-static void set_ipocurve_constant(struct IpoCurve *icu) {
-	/* Sets the type of the IPO curve to constant
+static void set_ipocurve_mixed(IpoCurve *icu)
+{
+	/* Sets the type of the IPO curve to mixed, as some (selected)
+	 * keyframes were set to other interpolation modes
 	 */
-	icu->ipo= IPO_CONST;
-}
-
-static void set_ipocurve_linear(struct IpoCurve *icu) {
-	/* Sets the type of the IPO curve to linear
-	 */
-	icu->ipo= IPO_LIN;
-}
-
-static void set_ipocurve_bezier(struct IpoCurve *icu) {
-	/* Sets the type of the IPO curve to bezier
-	 */
+	icu->ipo= IPO_MIXED;
 	
-	/* dont regenerate hendels for bezier ipo curves */
-	if (icu->ipo==IPO_BEZ) return;
-	
-	/* curve handels aren't generated for non bezier curve types */
-	icu->ipo= IPO_BEZ;
+	/* recalculate handles, as some changes may have occurred */
 	calchandles_ipocurve(icu);
+}
+
+static int set_bezt_constant(BezTriple *bezt) 
+{
+	if (bezt->f2 & SELECT) 
+		bezt->ipo= IPO_CONST;
+	return 0;
+}
+
+static int set_bezt_linear(BezTriple *bezt) 
+{
+	if (bezt->f2 & SELECT) 
+		bezt->ipo= IPO_LIN;
+	return 0;
+}
+
+static int set_bezt_bezier(BezTriple *bezt) 
+{
+	if (bezt->f2 & SELECT) 
+		bezt->ipo= IPO_BEZ;
+	return 0;
 }
 
 
 void setipotype_ipo(Ipo *ipo, int code)
 {
-	/* Sets the type of the each ipo curve in the
+	/* Sets the type of the selected bezts in each ipo curve in the
 	 * Ipo to a value based on the code
 	 */
 	switch (code) {
 	case 1:
-		ipo_keys_bezier_loop(ipo, NULL, set_ipocurve_constant);
+		ipo_keys_bezier_loop(ipo, set_bezt_constant, set_ipocurve_mixed);
 		break;
 	case 2:
-		ipo_keys_bezier_loop(ipo, NULL, set_ipocurve_linear);
+		ipo_keys_bezier_loop(ipo, set_bezt_linear, set_ipocurve_mixed);
 		break;
 	case 3:
-		ipo_keys_bezier_loop(ipo, NULL, set_ipocurve_bezier);
+		ipo_keys_bezier_loop(ipo, set_bezt_bezier, set_ipocurve_mixed);
 		break;
 	}
 }
@@ -915,16 +922,16 @@ void setexprap_ipoloop(Ipo *ipo, int code)
 {
 	IpoCurve *icu;
 	
-    	/* Loop through each curve in the Ipo */
-    	for (icu=ipo->curve.first; icu; icu=icu->next)
-        	icu->extrap= code;
+	/* Loop through each curve in the Ipo */
+	for (icu=ipo->curve.first; icu; icu=icu->next)
+		icu->extrap= code;
 }
 
-void set_ipotype(void)
+
+void set_ipotype(short event)
 {
 	EditIpo *ei;
 	int a;
-	short event;
 
 	if(G.sipo->ipo && G.sipo->ipo->id.lib) return;
 	if(G.sipo->showkey) return;
@@ -939,8 +946,10 @@ void set_ipotype(void)
 		kb= BLI_findlink(&key->block, ob->shapenr-1);
 		if(kb==NULL) return;
 		
-		event= pupmenu("Key Type %t|Linear %x1|Cardinal %x2|B Spline %x3");
-		if(event < 1) return;
+		if (event < 1) { 
+			event= pupmenu("Key Type %t|Linear %x1|Cardinal %x2|B Spline %x3");
+			if(event < 1) return;
+		}
 
 		kb->type= 0;
 		if(event==1) kb->type= KEY_LINEAR;
@@ -948,15 +957,36 @@ void set_ipotype(void)
 		if(event==3) kb->type= KEY_BSPLINE;
 	}
 	else {
-		event= pupmenu("Ipo Type %t|Constant %x1|Linear %x2|Bezier %x3");
-		if(event < 1) return;
+		int (*bezier_function)(BezTriple *) = NULL;
+		
+		if (event < 1) {
+			event= pupmenu("Ipo Type %t|Constant %x1|Linear %x2|Bezier %x3");
+			if (event < 1) return;
+		}
+		
+		switch (event) {
+			case 1: 
+				bezier_function= set_bezt_constant;
+				break;
+			case 2: 
+				bezier_function= set_bezt_linear;
+				break;
+			default:
+				bezier_function= set_bezt_bezier;
+				break;
+		}
 		
 		ei= G.sipo->editipo;
 		for(a=0; a<G.sipo->totipo; a++, ei++) {
 			if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu)) {
-				if(event==1) ei->icu->ipo= IPO_CONST;
-				else if(event==2) ei->icu->ipo= IPO_LIN;
-				else ei->icu->ipo= IPO_BEZ;
+				if (ei->flag & IPO_EDIT) {
+					/* set mode for selected points only */
+					icu_keys_bezier_loop(ei->icu, bezier_function, set_ipocurve_mixed);
+				}
+				else {
+					/* if curve is not in editmode, set mode for entire curve */
+					set_interpolation_ipocurve(ei->icu, event-1);
+				}
 			}
 		}
 	}

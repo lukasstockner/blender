@@ -1192,7 +1192,7 @@ static void draw_ipovertices_keyframes(IpoCurve *icu, short disptype, short edit
 		else { /* normal (non bit) curves */
 			if (edit) {
 				/* Only the vertex of the line, the
-				 * handler are draw below.
+				 * handler are drawn later
 				 */
 				if ((bezt->f2 & SELECT) == sel) /* && G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax)*/
 					bglVertex3fv(bezt->vec[1]);
@@ -1211,6 +1211,7 @@ static void draw_ipovertices_keyframes(IpoCurve *icu, short disptype, short edit
 static void draw_ipovertices_handles(IpoCurve *icu, short disptype, short sel)
 {
 	BezTriple *bezt= icu->bezt;
+	BezTriple *prevbezt = NULL;
 	int a;
 	
 	/* Handles can be draw with different size to see them better */
@@ -1221,17 +1222,23 @@ static void draw_ipovertices_handles(IpoCurve *icu, short disptype, short sel)
 	else BIF_ThemeColor(TH_HANDLE_VERTEX);
 	
 	bglBegin(GL_POINTS);
-	for (a= 0; a < icu->totvert; a++, bezt++) {
+	for (a= 0; a < icu->totvert; a++, prevbezt=bezt, bezt++) {
 		if (disptype != IPO_DISPBITS) {
-			if (icu->ipo == IPO_BEZ) {
-				/* Draw the editmode hendels for a bezier curve (others don't have handles) 
+			if (ELEM(icu->ipo, IPO_BEZ, IPO_MIXED)) {
+				/* Draw the editmode handels for a bezier curve (others don't have handles) 
 				 * if their selection status matches the selection status we're drawing for
+				 *	- first handle only if previous beztriple was bezier-mode
+				 *	- second handle only if current beztriple is bezier-mode
 				 */
-				if ((bezt->f1 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[0][0] < G.v2d->cur.xmax)*/
-					bglVertex3fv(bezt->vec[0]);
+				if ((!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt->ipo==IPO_BEZ)) {
+					if ((bezt->f1 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[0][0] < G.v2d->cur.xmax)*/
+						bglVertex3fv(bezt->vec[0]);
+				}
 				
-				if ((bezt->f3 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[2][0] < G.v2d->cur.xmax)*/
-					bglVertex3fv(bezt->vec[2]);
+				if (bezt->ipo==IPO_BEZ) {
+					if ((bezt->f3 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[2][0] < G.v2d->cur.xmax)*/
+						bglVertex3fv(bezt->vec[2]);
+				}
 			}
 		}
 	}
@@ -1300,51 +1307,65 @@ static void draw_ipohandles(int sel)
 {
 	extern unsigned int nurbcol[];
 	EditIpo *ei;
-	BezTriple *bezt;
-	float *fp;
 	unsigned int *col;
 	int a, b;
 	
-	if(sel) col= nurbcol+4;
+	if (sel) col= nurbcol+4;
 	else col= nurbcol;
 	
 	ei= G.sipo->editipo;
 	for (a=0; a<G.sipo->totipo; a++, ei++) {
 		if ISPOIN4(ei, flag & IPO_VISIBLE, flag & IPO_EDIT, icu, disptype!=IPO_DISPBITS) {
-			if (ei->icu->ipo==IPO_BEZ) {
-				bezt= ei->icu->bezt;
-				b= ei->icu->totvert;
-				for (b= 0; b < ei->icu->totvert; b++, bezt++) {
+			if (ELEM(ei->icu->ipo, IPO_BEZ, IPO_MIXED)) {
+				BezTriple *bezt=ei->icu->bezt, *prevbezt=NULL;
+				float *fp;
+				
+				
+				for (b= 0; b < ei->icu->totvert; b++, prevbezt=bezt, bezt++) {
 					if ((bezt->f2 & SELECT)==sel) {
 						fp= bezt->vec[0];
-						cpack(col[bezt->h1]);
 						
-						glBegin(GL_LINE_STRIP); 
-						glVertex2fv(fp); glVertex2fv(fp+3); 
-						glEnd();
-						cpack(col[bezt->h2]);
+						/* only draw first handle if previous segment was had handles */
+						if ((!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt->ipo==IPO_BEZ)) {
+							cpack(col[bezt->h1]);
+							glBegin(GL_LINE_STRIP); 
+							glVertex2fv(fp); glVertex2fv(fp+3); 
+							glEnd();
+							
+						}
 						
-						glBegin(GL_LINE_STRIP); 
-						glVertex2fv(fp+3); glVertex2fv(fp+6); 
-						glEnd();
+						/* only draw second handle if this segment is bezier */
+						if (bezt->ipo == IPO_BEZ) {
+							cpack(col[bezt->h2]);
+							glBegin(GL_LINE_STRIP); 
+							glVertex2fv(fp+3); glVertex2fv(fp+6); 
+							glEnd();
+						}
 					}
-					
-					// TODO: it would be better if these weren't checked in sequence
-					else if ((bezt->f1 & SELECT)==sel) {
-						fp= bezt->vec[0];
-						cpack(col[bezt->h1]);
+					else {
+						/* only draw first handle if previous segment was had handles, and selection is ok */
+						if ( ((bezt->f1 & SELECT)==sel) && 
+							 ((!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt->ipo==IPO_BEZ)) ) 
+						{
+							fp= bezt->vec[0];
+							cpack(col[bezt->h1]);
+							
+							glBegin(GL_LINE_STRIP); 
+							glVertex2fv(fp); glVertex2fv(fp+3); 
+							glEnd();
+						}
 						
-						glBegin(GL_LINE_STRIP); 
-						glVertex2fv(fp); glVertex2fv(fp+3); 
-						glEnd();
-					}
-					else if ((bezt->f3 & SELECT)==sel) {
-						fp= bezt->vec[1];
-						cpack(col[bezt->h2]);
-						
-						glBegin(GL_LINE_STRIP); 
-						glVertex2fv(fp); glVertex2fv(fp+3); 
-						glEnd();
+						/* only draw second handle if this segment is bezier, and selection is ok */
+						if ( ((bezt->f3 & SELECT)==sel) &&
+							 (bezt->ipo == IPO_BEZ) )
+						{
+							fp= bezt->vec[1];
+							cpack(col[bezt->h2]);
+							
+							glBegin(GL_LINE_STRIP); 
+							glVertex2fv(fp); glVertex2fv(fp+3); 
+							glEnd();
+						}
 					}
 				}
 			}
@@ -1415,11 +1436,11 @@ static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cyc
 			v1[0]= G.v2d->cur.xmin;
 			
 			/* y-value depends on the interpolation */
-			if ((icu->extrap==IPO_HORIZ) || (icu->ipo==IPO_CONST) || (icu->totvert==1)) {
+			if ((icu->extrap==IPO_HORIZ) || (prevbezt->ipo==IPO_CONST) || (icu->totvert==1)) {
 				/* just extend across the first keyframe's value */
 				v1[1]= prevbezt->vec[1][1];
 			} 
-			else if (icu->ipo==IPO_LIN) {
+			else if (prevbezt->ipo==IPO_LIN) {
 				/* extrapolate linear dosnt use the handle, use the next points center instead */
 				fac= (prevbezt->vec[1][0]-bezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);
 				if (fac) fac= 1.0f/fac;
@@ -1445,8 +1466,7 @@ static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cyc
 	
 	/* draw curve between first and last keyframe (if there are enough to do so) */
 	while (b--) {
-		// TODO: per segment interpolation still needs to be added here...
-		if (icu->ipo==IPO_CONST) {
+		if (prevbezt->ipo==IPO_CONST) {
 			/* Constant-Interpolation: draw segment between previous keyframe and next, but holding same value */
 			v1[0]= prevbezt->vec[1][0]+cycxofs;
 			v1[1]= prevbezt->vec[1][1]+cycyofs;
@@ -1456,7 +1476,7 @@ static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cyc
 			v1[1]= prevbezt->vec[1][1]+cycyofs;
 			glVertex2fv(v1);
 		}
-		else if (icu->ipo==IPO_LIN) {
+		else if (prevbezt->ipo==IPO_LIN) {
 			/* Linear interpolation: just add one point (which should add a new line segment) */
 			v1[0]= prevbezt->vec[1][0]+cycxofs;
 			v1[1]= prevbezt->vec[1][1]+cycyofs;
@@ -1521,11 +1541,11 @@ static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cyc
 			v1[0]= G.v2d->cur.xmax;
 			
 			/* y-value depends on the interpolation */
-			if ((icu->extrap==IPO_HORIZ) || (icu->ipo==IPO_CONST) || (icu->totvert==1)) {
+			if ((icu->extrap==IPO_HORIZ) || (prevbezt->ipo==IPO_CONST) || (icu->totvert==1)) {
 				/* based on last keyframe's value */
 				v1[1]= prevbezt->vec[1][1];
 			} 
-			else if (icu->ipo==IPO_LIN) {
+			else if (prevbezt->ipo==IPO_LIN) {
 				/* extrapolate linear dosnt use the handle, use the previous points center instead */
 				bezt = prevbezt-1;
 				fac= (prevbezt->vec[1][0]-bezt->vec[1][0])/(prevbezt->vec[1][0]-v1[0]);

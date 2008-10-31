@@ -487,38 +487,8 @@ static uiBlock *ipo_editmenu_handlemenu(void *arg_unused)
 
 static void do_ipo_editmenu_intpolmenu(void *arg, int event)
 {
-	EditIpo *ei;
-	int a;
-
-	get_status_editipo();
-
-	ei = G.sipo->editipo;
-
-	switch(event)
-	{
-	case 0:
-		for(a=0; a<G.sipo->totipo; a++, ei++) {
-			if ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu) {
-				ei->icu->ipo= IPO_CONST;
-			}
-		}
-		break;
-	case 1:
-		for(a=0; a<G.sipo->totipo; a++, ei++) {
-			if ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu) {
-				ei->icu->ipo= IPO_LIN;
-			}
-		}
-		break;
-	case 2:
-		for(a=0; a<G.sipo->totipo; a++, ei++) {
-			if ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu) {
-				ei->icu->ipo= IPO_BEZ;
-			}
-		}
-		break;
-	}
-
+	/* no need to test event - it should be IPO_<interpolate-mode> + 1 */
+	set_ipotype(event);
 	scrarea_queue_winredraw(curarea);
 }
 
@@ -530,9 +500,9 @@ static uiBlock *ipo_editmenu_intpolmenu(void *arg_unused)
 	block= uiNewBlock(&curarea->uiblocks, "ipo_editmenu_intpolmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
 	uiBlockSetButmFunc(block, do_ipo_editmenu_intpolmenu, NULL);
 
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Constant|T, 1", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 0, "");
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Linear|T, 2", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 1, "");
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Bezier|T, 3", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 2, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Constant|T, 1", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 1, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Linear|T, 2", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 2, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Bezier|T, 3", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 3, "");
 
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
