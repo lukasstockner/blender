@@ -1851,7 +1851,7 @@ void docenter(int centermode)
 	int a, total= 0;
 	
 	/* keep track of what is changed */
-	int tot_change=0, tot_lib_error=0, tot_key_error=0, tot_multiuser_arm_error=0;
+	int tot_change=0, tot_lib_error=0, tot_multiuser_mesh_error=0, tot_multiuser_arm_error=0;
 	MVert *mvert;
 
 	if(G.scene->id.lib || G.vd==NULL) return;
@@ -1913,18 +1913,8 @@ void docenter(int centermode)
 					tot_lib_error++;
 				}
 				else if(G.obedit==0 && (me=get_mesh(base->object)) ) {
-					short skey_bad= 0;
-					
-					/* not all shapekeys are bad... just the pinned ones */
-					if (me->key) {
-						if (base->object->shapeflag & OB_SHAPE_LOCK)
-							skey_bad= 1;
-					} 
-					
-					if (skey_bad) {
-						/*error("Can't change the center of a mesh with vertex keys");
-						return;*/
-						tot_key_error++;
+					if (me->id.us > 1) {
+						tot_multiuser_mesh_error++;
 					} else if (me->id.lib) {
 						tot_lib_error++;
 					} else {
@@ -2144,14 +2134,14 @@ void docenter(int centermode)
 	}
 	
 	/* Warn if any errors occured */
-	if (tot_lib_error+tot_key_error+tot_multiuser_arm_error) {
+	if (tot_lib_error+tot_multiuser_mesh_error+tot_multiuser_arm_error) {
 		char err[512];
 		sprintf(err, "Warning %i Object(s) Not Centered, %i Changed:", tot_lib_error+tot_key_error+tot_multiuser_arm_error, tot_change);
 		
 		if (tot_lib_error)
 			sprintf(err+strlen(err), "|%i linked library objects", tot_lib_error);
-		if (tot_key_error)
-			sprintf(err+strlen(err), "|%i mesh key object(s)", tot_key_error);
+		if (tot_multiuser_mesh_error)
+			sprintf(err+strlen(err), "|%i multiuser mesh object(s)", tot_multiuser_mesh_error);
 		if (tot_multiuser_arm_error)
 			sprintf(err+strlen(err), "|%i multiuser armature object(s)", tot_multiuser_arm_error);
 		
