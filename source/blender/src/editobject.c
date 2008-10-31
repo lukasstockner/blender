@@ -1851,7 +1851,7 @@ void docenter(int centermode)
 	int a, total= 0;
 	
 	/* keep track of what is changed */
-	int tot_change=0, tot_lib_error=0, tot_multiuser_mesh_error=0, tot_multiuser_arm_error=0;
+	int tot_change=0, tot_lib_error=0, tot_multiuser_arm_error=0;
 	MVert *mvert;
 
 	if(G.scene->id.lib || G.vd==NULL) return;
@@ -1913,9 +1913,7 @@ void docenter(int centermode)
 					tot_lib_error++;
 				}
 				else if(G.obedit==0 && (me=get_mesh(base->object)) ) {
-					if (me->id.us > 1) {
-						tot_multiuser_mesh_error++;
-					} else if (me->id.lib) {
+					if (me->id.lib) {
 						tot_lib_error++;
 					} else {
 						if(centermode==2) {
@@ -1938,11 +1936,9 @@ void docenter(int centermode)
 						for(a=0; a<me->totvert; a++, mvert++) {
 							VecSubf(mvert->co, mvert->co, cent);
 						}
-						me->flag |= ME_ISDONE;
 						
 						if (me->key) {
 							KeyBlock *kb;
-							
 							for (kb=me->key->block.first; kb; kb=kb->next) {
 								float *fp= kb->data;
 								
@@ -1951,6 +1947,8 @@ void docenter(int centermode)
 								}
 							}
 						}
+						
+						me->flag |= ME_ISDONE;
 						
 						if(centermode) {
 							Mat3CpyMat4(omat, base->object->obmat);
@@ -1990,6 +1988,18 @@ void docenter(int centermode)
 											for(a=0; a<tme->totvert; a++, mvert++) {
 												VecSubf(mvert->co, mvert->co, cent);
 											}
+											
+											if (tme->key) {
+												KeyBlock *kb;
+												for (kb=tme->key->block.first; kb; kb=kb->next) {
+													float *fp= kb->data;
+													
+													for (a=0; a<kb->totelem; a++, fp+=3) {
+														VecSubf(fp, fp, cent);
+													}
+												}
+											}
+											
 											tme->flag |= ME_ISDONE;
 										}
 									}
@@ -2025,9 +2035,10 @@ void docenter(int centermode)
 							/* don't allow Z change if curve is 2D */
 							if( !( cu->flag & CU_3D ) )
 								cent[2] = 0.0;
-						} else {
+						} 
+						else {
 							INIT_MINMAX(min, max);
-		
+							
 							nu= nu1;
 							while(nu) {
 								minmaxNurb(nu, min, max);
@@ -2134,14 +2145,12 @@ void docenter(int centermode)
 	}
 	
 	/* Warn if any errors occured */
-	if (tot_lib_error+tot_multiuser_mesh_error+tot_multiuser_arm_error) {
+	if (tot_lib_error+tot_multiuser_arm_error) {
 		char err[512];
-		sprintf(err, "Warning %i Object(s) Not Centered, %i Changed:", tot_lib_error+tot_key_error+tot_multiuser_arm_error, tot_change);
+		sprintf(err, "Warning %i Object(s) Not Centered, %i Changed:", tot_lib_error+tot_multiuser_arm_error, tot_change);
 		
 		if (tot_lib_error)
 			sprintf(err+strlen(err), "|%i linked library objects", tot_lib_error);
-		if (tot_multiuser_mesh_error)
-			sprintf(err+strlen(err), "|%i multiuser mesh object(s)", tot_multiuser_mesh_error);
 		if (tot_multiuser_arm_error)
 			sprintf(err+strlen(err), "|%i multiuser armature object(s)", tot_multiuser_arm_error);
 		

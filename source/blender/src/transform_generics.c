@@ -472,6 +472,7 @@ void recalcData(TransInfo *t)
 			EditBone *ebo;
 			
 			/* Ensure all bones are correctly adjusted */
+			// TODO: bone roll needs to be tweaked too for normal transforms, as it goes crazy atm
 			for (ebo=G.edbo.first; ebo; ebo=ebo->next){
 				
 				if ((ebo->flag & BONE_CONNECTED) && ebo->parent){
