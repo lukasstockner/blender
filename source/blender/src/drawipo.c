@@ -1155,135 +1155,147 @@ static void draw_ipobuts(SpaceIpo *sipo)
 	uiDrawBlock(block);
 }
 
+/* helper func - draw keyframe vertices only for an IPO-curve */
+static void draw_ipovertices_keyframes(IpoCurve *icu, short disptype, short edit, short sel)
+{
+	BezTriple *bezt= icu->bezt;
+	float v1[2];
+	int a, b;
+	
+	bglBegin(GL_POINTS);
+	
+	for (a = 0; a < icu->totvert; a++, bezt++) {
+		/* IPO_DISPBITS is used for displaying curves for bitflag variables */
+		if (disptype == IPO_DISPBITS) {
+			/*if (G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax) {*/
+			short ok= 0;
+			
+			if (edit) {
+				if ((bezt->f2 & SELECT) == sel) 
+					ok= 1;
+			}
+			else ok= 1;
+			
+			if (ok) {
+				int val= (int)bezt->vec[1][1];
+				v1[0]= bezt->vec[1][0];
+				
+				for (b= 0; b < 31; b++) {
+					if (val & (1<<b)) {	
+						v1[1]= b + 1;
+						bglVertex3fv(v1);
+					}
+				}
+			}
+			/*}*/
+		} 
+		else { /* normal (non bit) curves */
+			if (edit) {
+				/* Only the vertex of the line, the
+				 * handler are draw below.
+				 */
+				if ((bezt->f2 & SELECT) == sel) /* && G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax)*/
+					bglVertex3fv(bezt->vec[1]);
+			}
+			else {
+				/* draw only if in bounds */
+				/*if (G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax)*/
+				bglVertex3fv(bezt->vec[1]);
+			}
+		}
+	}
+	bglEnd();
+}
+
+/* helper func - draw handle vertices only for an IPO-curve (if it is in EditMode) */
+static void draw_ipovertices_handles(IpoCurve *icu, short disptype, short sel)
+{
+	BezTriple *bezt= icu->bezt;
+	int a;
+	
+	/* Handles can be draw with different size to see them better */
+	glPointSize(BIF_GetThemeValuef(TH_HANDLE_VERTEX_SIZE));
+	
+	/* set handle color */
+	if (sel) BIF_ThemeColor(TH_HANDLE_VERTEX_SELECT);
+	else BIF_ThemeColor(TH_HANDLE_VERTEX);
+	
+	bglBegin(GL_POINTS);
+	for (a= 0; a < icu->totvert; a++, bezt++) {
+		if (disptype != IPO_DISPBITS) {
+			if (icu->ipo == IPO_BEZ) {
+				/* Draw the editmode hendels for a bezier curve (others don't have handles) 
+				 * if their selection status matches the selection status we're drawing for
+				 */
+				if ((bezt->f1 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[0][0] < G.v2d->cur.xmax)*/
+					bglVertex3fv(bezt->vec[0]);
+				
+				if ((bezt->f3 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[2][0] < G.v2d->cur.xmax)*/
+					bglVertex3fv(bezt->vec[2]);
+			}
+		}
+	}
+	bglEnd();
+	
+	/* The color are always reset (see the while)
+	 * but the point size not so we reset now.
+	 */
+	glPointSize(BIF_GetThemeValuef(TH_VERTEX_SIZE));
+}
+
 static void draw_ipovertices(int sel)
 {
-	EditIpo *ei;
-	BezTriple *bezt;
-	float v1[2];
-	int val, ok, nr, a, b;
+	EditIpo *ei= G.sipo->editipo;
+	int nr, val = 0;
 	
-	if(G.f & G_PICKSEL) return;
+	/* this shouldn't get called while drawing in selection-buffer anyway */
+	if (G.f & G_PICKSEL) return;
 	
 	glPointSize(BIF_GetThemeValuef(TH_VERTEX_SIZE));
 	
-	ei= G.sipo->editipo;
-	for(nr=0; nr<G.sipo->totipo; nr++, ei++) {
+	for (nr=0; nr<G.sipo->totipo; nr++, ei++) {
 		if ISPOIN(ei, flag & IPO_VISIBLE, icu) {
-			
-			if(G.sipo->showkey) {
-				if(sel) BIF_ThemeColor(TH_TEXT_HI);
-				 else BIF_ThemeColor(TH_TEXT);
-			} else if(ei->flag & IPO_EDIT) {
-				if(sel) BIF_ThemeColor(TH_VERTEX_SELECT); 
+			/* select colors to use to draw keyframes */
+			if (G.sipo->showkey) {
+				if (sel) BIF_ThemeColor(TH_TEXT_HI);
+				else BIF_ThemeColor(TH_TEXT);
+			} 
+			else if (ei->flag & IPO_EDIT) {
+				if (sel) BIF_ThemeColor(TH_VERTEX_SELECT); 
 				else BIF_ThemeColor(TH_VERTEX);
-			} else {
-				if(sel) BIF_ThemeColor(TH_TEXT_HI);
-				 else BIF_ThemeColor(TH_TEXT);
-				 
+			} 
+			else {
+				if (sel) BIF_ThemeColor(TH_TEXT_HI);
+				else BIF_ThemeColor(TH_TEXT);
+				
 				val= (ei->icu->flag & IPO_SELECT)!=0;
-				if(sel != val) continue;
+				if (sel != val) continue;
 			}
-
+			
 			/* We can't change the color in the middle of
 			 * GL_POINTS because then Blender will segfault
 			 * on TNT2 / Linux with NVidia's drivers
-			 * (at least up to ver. 4349) */		
+			 * (at least up to ver. 4349) 
+			 */		
 			
-			a= ei->icu->totvert;
-			bezt= ei->icu->bezt;
-			bglBegin(GL_POINTS);
+			/* draw keyframes, then the handles (if in editmode) */
+			draw_ipovertices_keyframes(ei->icu, ei->disptype, (ei->flag & IPO_EDIT), sel);
 			
-			while(a--) {
-				
-				/* IPO_DISPBITS is used for displaying layer ipo types as well as modes */
-				if(ei->disptype==IPO_DISPBITS) {
-					/*if (G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax) {*/
-					ok= 0;
-					
-					if(ei->flag & IPO_EDIT) {
-						if( (bezt->f2 & SELECT) == sel ) ok= 1;
-					}
-					else ok= 1;
-					
-					if(ok) {
-						val= bezt->vec[1][1];
-						b= 0;
-						v1[0]= bezt->vec[1][0];
-						
-						while(b<31) {
-							if(val & (1<<b)) {	
-								v1[1]= b+1;
-								bglVertex3fv(v1);
-							}
-							b++;
-						}
-					}
-					/*}*/
-				} else { /* normal non bit curves */
-					if(ei->flag & IPO_EDIT) {
-						/* Only the vertex of the line, the
-						 * handler are draw below.
-						 */
-						if( (bezt->f2 & SELECT) == sel) /* && G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax)*/
-							bglVertex3fv(bezt->vec[1]);
-						
-					}
-					else {
-						/* draw only if in bounds */
-						/*if (G.v2d->cur.xmin < bezt->vec[1][0] < G.v2d->cur.xmax)*/
-						bglVertex3fv(bezt->vec[1]);
-						
-					}
-				}
-				
-				bezt++;
-			}
-			bglEnd();
-
-			if (ei->flag & IPO_EDIT) {
-				/* Now draw the two vertex of the handler,
-				 * need split it because we can't call glPointSize
-				 * in the middle of a glBegin/glEnd also the
-				 * bug comment before.
-				 */
-				a= ei->icu->totvert;
-				bezt= ei->icu->bezt;
-
-				glPointSize(BIF_GetThemeValuef(TH_HANDLE_VERTEX_SIZE));
-
-				if(sel) BIF_ThemeColor(TH_HANDLE_VERTEX_SELECT);
-				else BIF_ThemeColor(TH_HANDLE_VERTEX);
-
-				bglBegin(GL_POINTS);
-
-				while(a--) {
-					if (ei->disptype!=IPO_DISPBITS) {
-						if(ei->flag & IPO_EDIT) {
-							if(ei->icu->ipo==IPO_BEZ) {
-								/* Draw the editmode hendels for a bezier curve */
-								if( (bezt->f1 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[0][0] < G.v2d->cur.xmax)*/
-									bglVertex3fv(bezt->vec[0]);
-							
-								if( (bezt->f3 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[2][0] < G.v2d->cur.xmax)*/
-									bglVertex3fv(bezt->vec[2]);
-							}
-						}
-					}
-					bezt++;
-				}
-				bglEnd();
-
-				/* The color are always reset (see the while)
-				 * but the point size not so we reset now.
-				 */
-				glPointSize(BIF_GetThemeValuef(TH_VERTEX_SIZE));
-			}
+			/* Now draw the two vertex of the handles,
+			 * This needs to be done after the keyframes, 
+			 * because we can't call glPointSize
+			 * in the middle of a glBegin/glEnd also the
+			 * bug comment before.
+			 */
+			if (ei->flag & IPO_EDIT)
+				draw_ipovertices_handles(ei->icu, ei->disptype, sel);
 		}
 	}
 	
 	glPointSize(1.0);
 }
 
+/* draw lines for IPO-curve handles only (this is only done in EditMode) */
 static void draw_ipohandles(int sel)
 {
 	extern unsigned int nurbcol[];
@@ -1297,14 +1309,13 @@ static void draw_ipohandles(int sel)
 	else col= nurbcol;
 	
 	ei= G.sipo->editipo;
-	for(a=0; a<G.sipo->totipo; a++, ei++) {
+	for (a=0; a<G.sipo->totipo; a++, ei++) {
 		if ISPOIN4(ei, flag & IPO_VISIBLE, flag & IPO_EDIT, icu, disptype!=IPO_DISPBITS) {
-			if(ei->icu->ipo==IPO_BEZ) {
+			if (ei->icu->ipo==IPO_BEZ) {
 				bezt= ei->icu->bezt;
 				b= ei->icu->totvert;
-				while(b--) {
-					
-					if( (bezt->f2 & SELECT)==sel) {
+				for (b= 0; b < ei->icu->totvert; b++, bezt++) {
+					if ((bezt->f2 & SELECT)==sel) {
 						fp= bezt->vec[0];
 						cpack(col[bezt->h1]);
 						
@@ -1317,7 +1328,9 @@ static void draw_ipohandles(int sel)
 						glVertex2fv(fp+3); glVertex2fv(fp+6); 
 						glEnd();
 					}
-					else if( (bezt->f1 & SELECT)==sel) {
+					
+					// TODO: it would be better if these weren't checked in sequence
+					else if ((bezt->f1 & SELECT)==sel) {
 						fp= bezt->vec[0];
 						cpack(col[bezt->h1]);
 						
@@ -1325,7 +1338,7 @@ static void draw_ipohandles(int sel)
 						glVertex2fv(fp); glVertex2fv(fp+3); 
 						glEnd();
 					}
-					else if( (bezt->f3 & SELECT)==sel) {
+					else if ((bezt->f3 & SELECT)==sel) {
 						fp= bezt->vec[1];
 						cpack(col[bezt->h2]);
 						
@@ -1333,15 +1346,13 @@ static void draw_ipohandles(int sel)
 						glVertex2fv(fp); glVertex2fv(fp+3); 
 						glEnd();
 					}
-					
-					bezt++;
 				}
 			}
 		}
 	}
 }
 
-/* draw one repeat of an ipo-curve - bitflag curve only (this is evil stuff to expose to user like this) */
+/* helper func - draw one repeat of an ipo-curve: bitflag curve only (this is evil stuff to expose to user like this) */
 static void draw_ipocurve_repeat_bits (IpoCurve *icu, float cycxofs)
 {
 	BezTriple *bezt= icu->bezt;
@@ -1384,7 +1395,7 @@ static void draw_ipocurve_repeat_bits (IpoCurve *icu, float cycxofs)
 	}
 }
 
-/* draw one repeat of an ipo-curve - normal curve */
+/* helper func - draw one repeat of an ipo-curve: normal curve */
 static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cycyofs, float *facp)
 {
 	BezTriple *prevbezt= icu->bezt;
