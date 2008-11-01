@@ -1061,20 +1061,27 @@ void borderselect_ipo(void)
 			int selflag= (val==LEFTMOUSE) ? SELECT : 0;
 			
 			ei= G.sipo->editipo;
-			for(a=0; a<G.sipo->totipo; a++, ei++) {
+			for (a=0; a<G.sipo->totipo; a++, ei++) {
 				if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_EDIT, icu)) {
-					if(ei->icu->bezt) {
-						b= ei->icu->totvert;
+					if (ei->icu->bezt) {
 						bezt= ei->icu->bezt;
-						while(b--) {
-							if(BLI_in_rctf(&rectf, bezt->vec[0][0], bezt->vec[0][1]))
-								bezt->f1 = selflag ? (bezt->f1 | SELECT) : (bezt->f1 & ~SELECT);
-							if(BLI_in_rctf(&rectf, bezt->vec[1][0], bezt->vec[1][1]))
-								bezt->f2 = selflag ? (bezt->f2 | SELECT) : (bezt->f2 & ~SELECT);
-							if(BLI_in_rctf(&rectf, bezt->vec[2][0], bezt->vec[2][1]))
-								bezt->f3 = selflag ? (bezt->f3 | SELECT) : (bezt->f3 & ~SELECT);
-
-							bezt++;
+						for (b=0; b < ei->icu->totvert; b++, bezt++) {
+							/* Borderselect only selects keyframes now, as overshooting handles often get caught too,
+							 * which means that they may be inadvertantly moved as well.
+							 * Also, for convenience, handles should get same status as keyframe (if it was within bounds)
+							 */
+							if (BLI_in_rctf(&rectf, bezt->vec[1][0], bezt->vec[1][1])) {
+								if (selflag) {
+									bezt->f1 |= SELECT;
+									bezt->f2 |= SELECT;
+									bezt->f3 |= SELECT;
+								}
+								else {
+									bezt->f1 &= ~SELECT;
+									bezt->f2 &= ~SELECT;
+									bezt->f3 &= ~SELECT;
+								}
+							}
 						}
 					}
 				}
