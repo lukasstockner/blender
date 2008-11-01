@@ -924,11 +924,12 @@ enum {
 /* --------- KeyingSet Adrcode Getters ------------ */
 
 /* initialise a channel-getter storage */
-static void ks_adrcodegetter_init (bKS_AdrcodeGetter *kag, bKeyingSet *ks, bCommonKeySrc *cks)
+static bKS_AdrcodeGetter *ks_adrcodegetter_init (bKeyingSet *ks, bCommonKeySrc *cks)
 {
+	bKS_AdrcodeGetter *kag;
+	
 	/* error checking */
-	if (kag == NULL)
-		return;
+	kag= MEM_callocN(sizeof(bKS_AdrcodeGetter), "KAG");
 	
 	if (ELEM(NULL, ks, cks)) {
 		/* set invalid settings that won't cause harm */
@@ -936,8 +937,6 @@ static void ks_adrcodegetter_init (bKS_AdrcodeGetter *kag, bKeyingSet *ks, bComm
 		kag->cks= NULL;
 		kag->index= -2;
 		kag->tot= 0;
-		
-		return;
 	}
 	else {
 		/* store settings */
@@ -950,6 +949,8 @@ static void ks_adrcodegetter_init (bKS_AdrcodeGetter *kag, bKeyingSet *ks, bComm
 		kag->index= -1;
 		kag->tot= ks->chan_num;
 	}
+	
+	return kag;
 }
 
 /* 'default' channel-getter that will be used when iterating through keyingset's channels 
@@ -1023,7 +1024,8 @@ static short ks_getnextadrcode_pchanrot (bKS_AdrcodeGetter *kag)
 	 *	- otherwise, just keep returning stuff from the keyingset (but check out for -1!) 
 	 */
 	kag->index++;
-	if (kag->index < 0) return 0;
+	if (kag->index < 0)
+		return 0;
 	
 	/* normal (static stuff) */
 	if (kag->index < kag->tot) {
@@ -1040,7 +1042,8 @@ static short ks_getnextadrcode_pchanrot (bKS_AdrcodeGetter *kag)
 	 *	- index can be at most 5, if we are to prevent segfaults
 	 */
 	index= kag->index - kag->tot;
-	if (IN_RANGE(index, 0, 5)) return 0;
+	if ((index < 0) || (index > 5))
+		return 0;
 	
 	if (cks->pchan && cks->pchan->rotmode)
 		return eul_adrcodes[index];
@@ -1962,12 +1965,13 @@ void common_modifykey (short mode)
 			}
 		}
 		else {
-			bKS_AdrcodeGetter kag;
+			bKS_AdrcodeGetter *kag;
 			short (*get_next_adrcode)(bKS_AdrcodeGetter *);
 			int adrcode;
 			
 			/* initialise keyingset channel iterator */
-			ks_adrcodegetter_init(&kag, ks, cks);
+			kag= ks_adrcodegetter_init(ks, cks);
+			printf("kag = %p \n", kag);
 			
 			/* get iterator - only one can be in use at a time... the flags should be mutually exclusive in this regard */
 			if (ks->flag & COMMONKEY_PCHANROT)
@@ -1978,7 +1982,7 @@ void common_modifykey (short mode)
 				get_next_adrcode= ks_getnextadrcode_default;
 			
 			/* loop over channels available in keyingset */
-			for (adrcode= get_next_adrcode(&kag); adrcode > 0; adrcode= get_next_adrcode(&kag)) {
+			for (adrcode= get_next_adrcode(kag); adrcode > 0; adrcode= get_next_adrcode(kag)) {
 				short flag;
 				
 				/* insert mode or delete mode */
@@ -2002,6 +2006,9 @@ void common_modifykey (short mode)
 					success += insertkey(cks->id, ks->blocktype, cks->actname, cks->constname, adrcode, flag);
 				}
 			}
+			
+			/* free keyingset channel iterator */
+			MEM_freeN(kag);
 		}
 		
 		/* special handling for some key-sources */
