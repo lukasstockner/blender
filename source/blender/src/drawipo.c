@@ -1230,7 +1230,7 @@ static void draw_ipovertices_handles(IpoCurve *icu, short disptype, short sel)
 				 *	- first handle only if previous beztriple was bezier-mode
 				 *	- second handle only if current beztriple is bezier-mode
 				 */
-				if ((!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt->ipo==IPO_BEZ)) {
+				if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) {
 					if ((bezt->f1 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[0][0] < G.v2d->cur.xmax)*/
 						bglVertex3fv(bezt->vec[0]);
 				}
@@ -1326,7 +1326,8 @@ static void draw_ipohandles(int sel)
 						fp= bezt->vec[0];
 						
 						/* only draw first handle if previous segment was had handles */
-						if ((!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt->ipo==IPO_BEZ)) {
+						if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) 
+						{
 							cpack(col[bezt->h1]);
 							glBegin(GL_LINE_STRIP); 
 							glVertex2fv(fp); glVertex2fv(fp+3); 
@@ -1335,7 +1336,8 @@ static void draw_ipohandles(int sel)
 						}
 						
 						/* only draw second handle if this segment is bezier */
-						if (bezt->ipo == IPO_BEZ) {
+						if (bezt->ipo == IPO_BEZ) 
+						{
 							cpack(col[bezt->h2]);
 							glBegin(GL_LINE_STRIP); 
 							glVertex2fv(fp+3); glVertex2fv(fp+6); 
@@ -1345,7 +1347,7 @@ static void draw_ipohandles(int sel)
 					else {
 						/* only draw first handle if previous segment was had handles, and selection is ok */
 						if ( ((bezt->f1 & SELECT)==sel) && 
-							 ((!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt->ipo==IPO_BEZ)) ) 
+							 ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) ) 
 						{
 							fp= bezt->vec[0];
 							cpack(col[bezt->h1]);

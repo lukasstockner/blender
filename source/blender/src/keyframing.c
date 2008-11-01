@@ -325,7 +325,11 @@ void insert_vert_icu (IpoCurve *icu, float x, float y, short fast)
 	
 	/* add temp beztriple to keyframes */
 	a= insert_bezt_icu(icu, &beztr);
-	if (!fast) calchandles_ipocurve(icu);
+	
+	/* what if 'a' is a negative index? 
+	 * for now, just exit to prevent any segfaults
+	 */
+	if (a < 0) return;
 	
 	/* set handletype and interpolation */
 	if (icu->totvert > 2) {
@@ -347,13 +351,20 @@ void insert_vert_icu (IpoCurve *icu, float x, float y, short fast)
 		}
 		else
 			bezt->ipo= icu->ipo;
-		
-		/* don't recalculate handles if fast is set
-		 *	- this is a hack to make importers faster
-		 */
-		// TODO: importers should add to a bpoint array allocated once instead 
-		if (!fast) calchandles_ipocurve(icu);
 	}
+	else {
+		BezTriple *bezt= (icu->bezt + a);
+		
+		/* set interpolation directly from ipo-curve */
+		bezt->ipo= icu->ipo;
+	}
+	
+	/* don't recalculate handles if fast is set
+	 *	- this is a hack to make importers faster
+	 *	- in past handles were calculated twice... only once now at end should be sufficient! 
+	 */
+	// TODO: importers should add to a bpoint array allocated once instead 
+	if (!fast) calchandles_ipocurve(icu);
 }
 
 /* ------------------- Get Data ------------------------ */
@@ -924,12 +935,11 @@ enum {
 /* --------- KeyingSet Adrcode Getters ------------ */
 
 /* initialise a channel-getter storage */
-static bKS_AdrcodeGetter *ks_adrcodegetter_init (bKeyingSet *ks, bCommonKeySrc *cks)
+static void ks_adrcodegetter_init (bKS_AdrcodeGetter *kag, bKeyingSet *ks, bCommonKeySrc *cks)
 {
-	bKS_AdrcodeGetter *kag;
-	
 	/* error checking */
-	kag= MEM_callocN(sizeof(bKS_AdrcodeGetter), "KAG");
+	if (kag == NULL)
+		return;
 	
 	if (ELEM(NULL, ks, cks)) {
 		/* set invalid settings that won't cause harm */
@@ -949,8 +959,6 @@ static bKS_AdrcodeGetter *ks_adrcodegetter_init (bKeyingSet *ks, bCommonKeySrc *
 		kag->index= -1;
 		kag->tot= ks->chan_num;
 	}
-	
-	return kag;
 }
 
 /* 'default' channel-getter that will be used when iterating through keyingset's channels 
@@ -1013,7 +1021,6 @@ static short ks_getnextadrcode_pchanrot (bKS_AdrcodeGetter *kag)
 	bKeyingSet *ks= (kag)? kag->ks : NULL;
 	bCommonKeySrc *cks= (kag) ? kag->cks : NULL;
 	short index, adrcode;
-	
 	
 	/* error checking */
 	if (ELEM3(NULL, kag, ks, cks)) return 0;
@@ -1965,13 +1972,12 @@ void common_modifykey (short mode)
 			}
 		}
 		else {
-			bKS_AdrcodeGetter *kag;
+			bKS_AdrcodeGetter kag;
 			short (*get_next_adrcode)(bKS_AdrcodeGetter *);
 			int adrcode;
 			
 			/* initialise keyingset channel iterator */
-			kag= ks_adrcodegetter_init(ks, cks);
-			printf("kag = %p \n", kag);
+			ks_adrcodegetter_init(&kag, ks, cks);
 			
 			/* get iterator - only one can be in use at a time... the flags should be mutually exclusive in this regard */
 			if (ks->flag & COMMONKEY_PCHANROT)
@@ -1982,7 +1988,7 @@ void common_modifykey (short mode)
 				get_next_adrcode= ks_getnextadrcode_default;
 			
 			/* loop over channels available in keyingset */
-			for (adrcode= get_next_adrcode(kag); adrcode > 0; adrcode= get_next_adrcode(kag)) {
+			for (adrcode= get_next_adrcode(&kag); adrcode > 0; adrcode= get_next_adrcode(&kag)) {
 				short flag;
 				
 				/* insert mode or delete mode */
@@ -2006,9 +2012,6 @@ void common_modifykey (short mode)
 					success += insertkey(cks->id, ks->blocktype, cks->actname, cks->constname, adrcode, flag);
 				}
 			}
-			
-			/* free keyingset channel iterator */
-			MEM_freeN(kag);
 		}
 		
 		/* special handling for some key-sources */
