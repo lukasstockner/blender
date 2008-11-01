@@ -117,7 +117,10 @@ void	armature_select_hierarchy(short direction, short add_to_sel);
 void	setflag_armature(short mode);
 void    unique_editbone_name (struct ListBase *ebones, char *name);
 
+void 	auto_align_ebone_zaxisup(EditBone *ebone);
+void	auto_align_ebone_tocursor(EditBone *ebone);
 void	auto_align_armature(short mode);
+
 void	switch_direction_armature(void);
 
 void	create_vgroups_from_armature(struct Object *ob, struct Object *par);

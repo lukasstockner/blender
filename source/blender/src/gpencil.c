@@ -1004,7 +1004,7 @@ static void gp_layer_to_armature (bGPdata *gpd, bGPDlayer *gpl, short mode)
 		G.edbo.last = bones.last;
 		
 		/* WARNING: need to make sure this magic number doesn't change */
-		auto_align_armature(2);	
+		auto_align_armature(0);	
 		
 		/* clear editbones (not needed anymore) */
 		G.edbo.first= G.edbo.last= NULL;

@@ -473,18 +473,31 @@ void recalcData(TransInfo *t)
 			
 			/* Ensure all bones are correctly adjusted */
 			// TODO: bone roll needs to be tweaked too for normal transforms, as it goes crazy atm
-			for (ebo=G.edbo.first; ebo; ebo=ebo->next){
-				
-				if ((ebo->flag & BONE_CONNECTED) && ebo->parent){
+			for (ebo=G.edbo.first; ebo; ebo=ebo->next) {	
+				/* if we're not actively adjusting roll (i.e. not using 'Bone Roll' tool), 
+				 * we need to adjust the roll of the bone so that is doesn't randomly move change on the user
+				 */
+				// TODO: do we need a setting to turn this on/off someday?
+				if (t->mode != TFM_BONE_ROLL) {
+					/* calculate roll of bone whose tip is selected
+					 *	- normal bones should have tip selected if bone is selected
+					 *	- extruded bones only have tip selected
+					 */
+					if (ebo->flag & BONE_TIPSEL) {
+						auto_align_ebone_zaxisup(ebo);
+					}
+				}
+			
+				if ((ebo->flag & BONE_CONNECTED) && ebo->parent) {
 					/* If this bone has a parent tip that has been moved */
-					if (ebo->parent->flag & BONE_TIPSEL){
+					if (ebo->parent->flag & BONE_TIPSEL) {
 						VECCOPY (ebo->head, ebo->parent->tail);
 						if(t->mode==TFM_BONE_ENVELOPE) ebo->rad_head= ebo->parent->rad_tail;
 					}
 					/* If this bone has a parent tip that has NOT been moved */
-					else{
+					else {
 						VECCOPY (ebo->parent->tail, ebo->head);
-						if(t->mode==TFM_BONE_ENVELOPE) ebo->parent->rad_tail= ebo->rad_head;
+						if (t->mode==TFM_BONE_ENVELOPE) ebo->parent->rad_tail= ebo->rad_head;
 					}
 				}
 				
@@ -509,7 +522,6 @@ void recalcData(TransInfo *t)
 			}
 			if(arm->flag & ARM_MIRROR_EDIT) 
 				transform_armature_mirror_update();
-			
 		}
 		else if(G.obedit->type==OB_LATTICE) {
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);  /* sets recalc flags */
