@@ -138,8 +138,8 @@ typedef struct TransData2D {
 
 /* we need to store 2 handles for each transdata incase the other handle wasnt selected */
 typedef struct TransDataCurveHandleFlags {
-	short ih1, ih2;
-	short *h1, *h2;
+	char ih1, ih2;
+	char *h1, *h2;
 } TransDataCurveHandleFlags;
 
 

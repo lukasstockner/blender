@@ -1265,15 +1265,15 @@ void test_editipo(int doit)
 
 /* ****************** EditIpo ************************ */
 
+/* bad globals only really used here! */
 int totipo_edit=0, totipo_sel=0, totipo_curve=0, totipo_vis=0, totipo_vert=0, totipo_vertsel=0, totipo_key=0, totipo_keysel=0;
 
 void get_status_editipo(void)
 {
 	EditIpo *ei;
-	IpoKey *ik;
-	BezTriple *bezt;
 	int a, b;
 	
+	/* reset all globals first (bad globals!) */
 	totipo_vis= 0;
 	totipo_curve= 0;
 	totipo_sel= 0;
@@ -1283,48 +1283,55 @@ void get_status_editipo(void)
 	totipo_key= 0;
 	totipo_keysel= 0;
 	
-	if(G.sipo->ipo && G.sipo->ipo->id.lib) return;
+	/* sanity check - cannot edit lib-linked IPO */
+	if (G.sipo->ipo && G.sipo->ipo->id.lib) return;
 	
+	/* sanity check - an editipo might not exist for some reason */
 	ei= G.sipo->editipo;
-	if(ei==0) return;
-	for(a=0; a<G.sipo->totipo; a++) {
-		if( ei->flag & IPO_VISIBLE ) {
+	if (ei == NULL) return;
+	
+	for (a=0; a<G.sipo->totipo; a++, ei++) {
+		if (ei->flag & IPO_VISIBLE ) {
 			totipo_vis++;
-			if(ei->flag & IPO_SELECT) totipo_sel++;
-			if(ei->icu && ei->icu->totvert) totipo_curve++;
-			if(G.sipo->showkey || (ei->flag & IPO_EDIT)) {
-				
+			if (ei->flag & IPO_SELECT) totipo_sel++;
+			if (ei->icu && ei->icu->totvert) totipo_curve++;
+			
+			if ((G.sipo->showkey) || (ei->flag & IPO_EDIT)) {
 				/* if showkey: do count the vertices (for grab) */
-				if(G.sipo->showkey==0) totipo_edit++;
+				if (G.sipo->showkey==0) totipo_edit++;
 				
-				if(ei->icu) {
-					if(ei->icu->bezt) {
-						bezt= ei->icu->bezt;
-						b= ei->icu->totvert;
-						while(b--) {
-							if(ei->icu->ipo==IPO_BEZ) {
-								if(bezt->f1 & SELECT) totipo_vertsel++;
-								if(bezt->f3 & SELECT) totipo_vertsel++;
-								totipo_vert+= 2;
-							}
-							if(bezt->f2 & SELECT) totipo_vertsel++;
-							
+				if (ei->icu && ei->icu->bezt) {
+					IpoCurve *icu= ei->icu;
+					BezTriple *bezt=icu->bezt, *prevbezt=NULL;
+					
+					for (b=0; b < icu->totvert; b++, prevbezt=bezt, bezt++) {
+						/* first handle only visible if previous segment had handles */
+						if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) {
+							if(bezt->f1 & SELECT) totipo_vertsel++;
 							totipo_vert++;
-							bezt++;
 						}
+						
+						/* second handle only visible if this segment is bezier */
+						if (bezt->ipo == IPO_BEZ) {
+							if (bezt->f3 & SELECT) totipo_vertsel++;
+							totipo_vert++;
+						}
+						
+						/* keyframe itself is always visible */
+						if (bezt->f2 & SELECT) totipo_vertsel++;
+						totipo_vert++;
 					}
 				}
 			}
 		}
-		ei++;
 	}
 	
-	if(G.sipo->showkey) {
-		ik= G.sipo->ipokey.first;
-		while(ik) {
+	if (G.sipo->showkey) {
+		IpoKey *ik;
+		
+		for (ik= G.sipo->ipokey.first; ik; ik= ik->next) {
 			totipo_key++;
-			if(ik->flag & 1) totipo_keysel++;
-			ik= ik->next;
+			if (ik->flag & SELECT) totipo_keysel++;
 		}
 	}
 }
@@ -1337,17 +1344,18 @@ void update_editipo_flags(void)
 	int a;
 	
 	ei= G.sipo->editipo;
-	if(ei) {
-		for(a=0; a<G.sipo->totipo; a++, ei++) {
-			if(ei->icu) ei->icu->flag= ei->flag;
+	if (ei) {
+		for (a=0; a<G.sipo->totipo; a++, ei++) {
+			if (ei->icu) 
+				ei->icu->flag= ei->flag;
 		}
 	}
-	if(G.sipo->showkey) {
-		ik= G.sipo->ipokey.first;
-		while(ik) {
-			for(a=0; a<G.sipo->totipo; a++) {
-				if(ik->data[a]) {
-					if(ik->flag & 1) {
+	
+	if (G.sipo->showkey) {
+		for (ik= G.sipo->ipokey.first; ik; ik= ik->next) {
+			for (a=0; a<G.sipo->totipo; a++) {
+				if (ik->data[a]) {
+					if (ik->flag & SELECT) {
 						BEZ_SEL(ik->data[a]);
 					}
 					else {
@@ -1355,7 +1363,6 @@ void update_editipo_flags(void)
 					}
 				}
 			}
-			ik= ik->next;
 		}
 	}
 }
@@ -1367,7 +1374,7 @@ void set_editflag_editipo(void)
 	int a; /*  , tot= 0, ok= 0; */
 	
 	/* after showkey immediately go to editing of selected points */
-	if(G.sipo->showkey) {
+	if (G.sipo->showkey) {
 		G.sipo->showkey= 0;
 		if(G.sipo->ipo) G.sipo->ipo->showkey= 0;
 		ei= G.sipo->editipo;
@@ -1378,7 +1385,7 @@ void set_editflag_editipo(void)
 	
 	get_status_editipo();
 	
-	if(G.sipo->ipo && G.sipo->ipo->id.lib) return;
+	if (G.sipo->ipo && G.sipo->ipo->id.lib) return;
 	
 	ei= G.sipo->editipo;
 	for(a=0; a<G.sipo->totipo; a++, ei++) {		
@@ -2172,18 +2179,18 @@ void insertkey_editipo(void)
 		ei->flag |= IPO_SELECT|IPO_VISIBLE;
 		ei->icu->flag= ei->flag;
 		ei->icu->extrap= IPO_DIR;
-
+		
 		do_ipo_buttons(B_IPOHOME);
 	}
 	else {
 		ei= G.sipo->editipo;
 		for(nr=0; nr<G.sipo->totipo; nr++, ei++) {
 			if (ISPOIN(ei, flag & IPO_VISIBLE, icu)) {
-			
+				
 				ok= 0;
 				if(G.sipo->showkey) ok= 1;
 				else if(ei->flag & IPO_SELECT) ok= 1;
-
+				
 				if(ok) {
 					/* count amount */
 					if(event==1) tot= 1;
@@ -2195,8 +2202,7 @@ void insertkey_editipo(void)
 							ik= ik->next;
 						}
 					}
-					if(tot) {
-					
+					if (tot) {
 						/* correction for ob timeoffs */
 						cfra= frame_to_float(CFRA);
 						id= G.sipo->from;	
@@ -2230,16 +2236,14 @@ void insertkey_editipo(void)
 						}
 						else {
 							fp= insertvals;
-							ik= G.sipo->ipokey.first;
-							while(ik) {
-								if(ik->flag & 1) {
+							for (ik= G.sipo->ipokey.first; ik; ik= ik->next) {
+								if (ik->flag & SELECT) {
 									calc_ipo(G.sipo->ipo, ik->val);
-
+									
 									fp[0]= ik->val;
 									fp[1]= ei->icu->curval;
 									fp+= 2;
 								}
-								ik= ik->next;
 							}
 						}
 						fp= insertvals;

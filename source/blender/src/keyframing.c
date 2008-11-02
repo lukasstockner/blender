@@ -331,6 +331,12 @@ void insert_vert_icu (IpoCurve *icu, float x, float y, short fast)
 	 */
 	if (a < 0) return;
 	
+	/* don't recalculate handles if fast is set
+	 *	- this is a hack to make importers faster
+	 *	- we may calculate twice (see editipo_changed(), due to autohandle needing two calculations)
+	 */
+	if (!fast) calchandles_ipocurve(icu);
+	
 	/* set handletype and interpolation */
 	if (icu->totvert > 2) {
 		BezTriple *bezt= (icu->bezt + a);
@@ -351,6 +357,12 @@ void insert_vert_icu (IpoCurve *icu, float x, float y, short fast)
 		}
 		else
 			bezt->ipo= icu->ipo;
+			
+		/* don't recalculate handles if fast is set
+		 *	- this is a hack to make importers faster
+		 *	- we may calculate twice (see editipo_changed(), due to autohandle needing two calculations)
+		 */
+		if (!fast) calchandles_ipocurve(icu);
 	}
 	else {
 		BezTriple *bezt= (icu->bezt + a);
@@ -358,13 +370,6 @@ void insert_vert_icu (IpoCurve *icu, float x, float y, short fast)
 		/* set interpolation directly from ipo-curve */
 		bezt->ipo= icu->ipo;
 	}
-	
-	/* don't recalculate handles if fast is set
-	 *	- this is a hack to make importers faster
-	 *	- in past handles were calculated twice... only once now at end should be sufficient! 
-	 */
-	// TODO: importers should add to a bpoint array allocated once instead 
-	if (!fast) calchandles_ipocurve(icu);
 }
 
 /* ------------------- Get Data ------------------------ */
