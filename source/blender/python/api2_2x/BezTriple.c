@@ -54,6 +54,8 @@ static PyObject *BezTriple_oldsetPoints( BPy_BezTriple * self, PyObject * args )
 static int BezTriple_setPoints( BPy_BezTriple * self, PyObject * args );
 static PyObject *BezTriple_getPoints( BPy_BezTriple * self );
 static PyObject *BezTriple_getTriple( BPy_BezTriple * self );
+static PyObject *BezTriple_setInterpolation( BPy_BezTriple * self, PyObject * value );
+static PyObject *BezTriple_getInterpolation( BPy_BezTriple * self );
 
 /****************************************************************************
  Python method structure definition for Blender.BezTriple module:          
@@ -79,6 +81,10 @@ static PyMethodDef BPy_BezTriple_methods[] = {
 	 "() - return BezTriple knot point x and y coordinates"},
 	{"getTriple", ( PyCFunction ) BezTriple_getTriple, METH_NOARGS,
 	 "() - return list of 3 floating point triplets.  order is H1, knot, H2"},
+	{"setInterpolation", ( PyCFunction ) BezTriple_setInterpolation,
+	 METH_O, "(str) - Sets the interpolation type of the segment starting from this BezTriple"},
+	{"getInterpolation", ( PyCFunction ) BezTriple_getInterpolation,
+	 METH_NOARGS, "() - Gets the interpolation type of the segment starting from this BezTriple"},
 	{NULL, NULL, 0, NULL}
 };
 
@@ -400,6 +406,53 @@ static int BezTriple_setSelects( BPy_BezTriple * self, PyObject *args )
 	Py_DECREF( ob3 );
 	return 0;
 }
+
+static PyObject *BezTriple_getInterpolation( BPy_BezTriple * self )
+{
+	char *str = 0;
+	BezTriple *bezt = self->beztriple;
+
+	switch( bezt->ipo ) {
+	case IPO_BEZ:
+		str = "Bezier";
+		break;
+	case IPO_CONST:
+		str = "Constant";
+		break;
+	case IPO_LIN:
+		str = "Linear";
+		break;
+	default:
+		return EXPP_ReturnPyObjError( PyExc_TypeError,
+				"unknown interpolation type" );
+	}
+
+	return PyString_FromString( str );
+}
+
+static PyObject *BezTriple_setInterpolation( BPy_BezTriple * self, PyObject *value )
+{
+	char *interpolationtype = PyString_AsString(value);
+	short id= IPO_BEZ;
+
+	if( !interpolationtype )
+		return EXPP_ReturnPyObjError( PyExc_TypeError,
+				"expected string argument" );
+
+	if( !strcmp( interpolationtype, "Bezier" ) )
+		id = IPO_BEZ;
+	else if( !strcmp( interpolationtype, "Constant" ) )
+		id = IPO_CONST;
+	else if( !strcmp( interpolationtype, "Linear" ) )
+		id = IPO_LIN;
+	else
+		return EXPP_ReturnPyObjError( PyExc_TypeError,
+				"bad interpolation type" );
+	
+	self->beztriple->ipo= id;
+	Py_RETURN_NONE;
+}
+
 
 static PyObject *BezTriple_getHandles( BPy_BezTriple * self )
 {

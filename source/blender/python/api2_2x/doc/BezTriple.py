@@ -60,6 +60,9 @@ class BezTriple:
   @ivar handleTypes: the types of the point's two handles.  See 
   L{HandleTypes} for a complete description.
   @type handleTypes list of two ints
+  @ivar interpolation: The BezTriple's interpolation mode.  See L{InterpTypes} for
+  values.
+  @type interpolation: int
   @ivar selects: the select status for [handle, knot, handle].  True/nonzero
   if the point is selected.
   @type selects: list of three ints
