@@ -1294,7 +1294,7 @@ static void draw_ipovertices(int sel)
 			 * in the middle of a glBegin/glEnd also the
 			 * bug comment before.
 			 */
-			if (ei->flag & IPO_EDIT)
+			if ((ei->flag & IPO_EDIT) && (G.sipo->flag & SIPO_NOHANDLES)==0)
 				draw_ipovertices_handles(ei->icu, ei->disptype, sel);
 		}
 	}
@@ -1310,6 +1310,10 @@ static void draw_ipohandles(int sel)
 	unsigned int *col;
 	int a, b;
 	
+	/* don't draw handle lines if handles are not shown */
+	if (G.sipo->flag & SIPO_NOHANDLES)
+		return;
+	
 	if (sel) col= nurbcol+4;
 	else col= nurbcol;
 	
@@ -1320,12 +1324,11 @@ static void draw_ipohandles(int sel)
 				BezTriple *bezt=ei->icu->bezt, *prevbezt=NULL;
 				float *fp;
 				
-				
 				for (b= 0; b < ei->icu->totvert; b++, prevbezt=bezt, bezt++) {
 					if ((bezt->f2 & SELECT)==sel) {
 						fp= bezt->vec[0];
 						
-						/* only draw first handle if previous segment was had handles */
+						/* only draw first handle if previous segment had handles */
 						if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) 
 						{
 							cpack(col[bezt->h1]);

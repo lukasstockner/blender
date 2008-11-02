@@ -1411,7 +1411,6 @@ static short findnearest_ipovert(IpoCurve **icu, BezTriple **bezt)
 	/* in icu and (bezt or bp) the nearest is written */
 	/* return 0 1 2: handlepunt */
 	EditIpo *ei;
-	BezTriple *bezt1;
 	int dist= 100, temp, a, b;
 	short mval[2], hpoint=0, sco[3][2];
 
@@ -1423,50 +1422,58 @@ static short findnearest_ipovert(IpoCurve **icu, BezTriple **bezt)
 	ei= G.sipo->editipo;
 	for(a=0; a<G.sipo->totipo; a++, ei++) {
 		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_EDIT, icu)) {
-			
-			if(ei->icu->bezt) {
-				bezt1= ei->icu->bezt;
-				b= ei->icu->totvert;
-				while(b--) {
-
+			/* try to progressively get closer to the right point... */
+			if (ei->icu->bezt) {
+				BezTriple *bezt1=ei->icu->bezt, *prevbezt=NULL;
+				
+				for (b= 0; b < ei->icu->totvert; b++, prevbezt=bezt1, bezt1++) {
+					/* convert beztriple points to screen-space */
 					ipoco_to_areaco_noclip(G.v2d, bezt1->vec[0], sco[0]);
 					ipoco_to_areaco_noclip(G.v2d, bezt1->vec[1], sco[1]);
 					ipoco_to_areaco_noclip(G.v2d, bezt1->vec[2], sco[2]);
-										
-					if(ei->disptype==IPO_DISPBITS) {
+					
+					/* keyframe - do select? */
+					if (ei->disptype==IPO_DISPBITS)
 						temp= abs(mval[0]- sco[1][0]);
-					}
-					else temp= abs(mval[0]- sco[1][0])+ abs(mval[1]- sco[1][1]);
-
-					if( bezt1->f2 & SELECT) temp+=5;
-					if(temp<dist) { 
+					else
+						temp= abs(mval[0]- sco[1][0])+ abs(mval[1]- sco[1][1]);
+					
+					if (bezt1->f2 & SELECT) temp+=5;
+					if (temp < dist) { 
 						hpoint= 1; 
 						*bezt= bezt1; 
 						dist= temp; 
 						*icu= ei->icu; 
 					}
 					
-					if(ei->disptype!=IPO_DISPBITS && ei->icu->ipo==IPO_BEZ) {
-						/* middle points get an advantage */
-						temp= -3+abs(mval[0]- sco[0][0])+ abs(mval[1]- sco[0][1]);
-						if( bezt1->f1 & SELECT) temp+=5;
-						if(temp<dist) { 
-							hpoint= 0; 
-							*bezt= bezt1; 
-							dist= temp; 
-							*icu= ei->icu; 
+					/* handles - only do them if they're visible */
+					if ((ei->disptype!=IPO_DISPBITS) && !(G.sipo->flag & SIPO_NOHANDLES)) {
+						/* first handle only visible if previous segment had handles */
+						if ( (!prevbezt && (bezt1->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) )
+						{
+							temp= -3+abs(mval[0]- sco[0][0])+ abs(mval[1]- sco[0][1]);
+							if (bezt1->f1 & SELECT) temp+=5;
+							if (temp < dist) { 
+								hpoint= 0; 
+								*bezt= bezt1; 
+								dist= temp; 
+								*icu= ei->icu; 
+							}
 						}
-		
-						temp= abs(mval[0]- sco[2][0])+ abs(mval[1]- sco[2][1]);
-						if( bezt1->f3 & 1) temp+=5;
-						if(temp<dist) { 
-							hpoint= 2; 
-							*bezt=bezt1; 
-							dist= temp; 
-							*icu= ei->icu; 
+						
+						/* second handle only visible if this segment is bezier */
+						if (bezt1->ipo == IPO_BEZ) 
+						{
+							temp= abs(mval[0]- sco[2][0])+ abs(mval[1]- sco[2][1]);
+							if (bezt1->f3 & SELECT) temp+=5;
+							if (temp < dist) { 
+								hpoint= 2; 
+								*bezt=bezt1; 
+								dist= temp; 
+								*icu= ei->icu; 
+							}
 						}
 					}
-					bezt1++;
 				}
 			}
 		}
@@ -1533,36 +1540,42 @@ void mouse_select_ipo(void)
 		}
 	}
 	else if(totipo_edit) {
-		
+		/* find the beztriple that we're selecting, and the handle that was clicked on */
 		hand= findnearest_ipovert(&icu, &bezt);
 		
-		if(G.qual & LR_SHIFTKEY) {
-			if(bezt) {
-				if(hand==1) {
-					if(BEZSELECTED(bezt)) {
+		if (G.qual & LR_SHIFTKEY) {
+			/* adding to selection */
+			if (bezt) {
+				/* keyframe - invert select of all */
+				if (hand==1) {
+					if (BEZSELECTED(bezt)) {
 						BEZ_DESEL(bezt);
 					}
 					else {
 						BEZ_SEL(bezt);
 					}
 				}
+				/* handles - toggle selection of relevant handle */
 				else if(hand==0) {
-					if(bezt->f1 & SELECT) bezt->f1 &= ~SELECT;
-					else bezt->f1= SELECT;
+					/* toggle selection */
+					bezt->f1 ^= SELECT;
 				}
 				else {
-					if(bezt->f3 & SELECT) bezt->f3 &= ~SELECT;
-					else bezt->f3= SELECT;
+					/* toggle selection */
+					bezt->f3 ^= SELECT;
 				}
 			}				
 		}
 		else {
+			/* not adding to selection, so deselect all first */
 			deselectall_editipo();
 			
-			if(bezt) {
-				if(hand==1) {
+			if (bezt) {
+				/* if the keyframe was clicked on, select all verts of given beztriple */
+				if (hand==1) {
 					BEZ_SEL(bezt);
 				}
+				/* otherwise, select the handle that applied */
 				else if(hand==0) bezt->f1 |= SELECT;
 				else bezt->f3 |= SELECT;
 			}
