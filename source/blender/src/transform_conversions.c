@@ -488,7 +488,7 @@ static short apply_targetless_ik(Object *ob)
 				}
 				else {
 					Mat4CpyMat3(tmat, bone->bone_mat);
-
+					
 					VECCOPY(tmat[3], bone->head);
 					Mat4Invert(imat, tmat);
 				}
@@ -497,18 +497,25 @@ static short apply_targetless_ik(Object *ob)
 				
 				/* apply and decompose, doesn't work for constraints or non-uniform scale well */
 				{
-					float rmat3[3][3], qmat[3][3], imat[3][3], smat[3][3];
+					float rmat3[3][3], qrmat[3][3], imat[3][3], smat[3][3];
 					
 					Mat3CpyMat4(rmat3, rmat);
 					
-					/* quaternion */
-					Mat3ToQuat(rmat3, parchan->quat);
+					/* rotation */
+					if (parchan->rotmode) 
+						Mat3ToEul(rmat3, parchan->eul);
+					else
+						Mat3ToQuat(rmat3, parchan->quat);
 					
 					/* for size, remove rotation */
 					/* causes problems with some constraints (so apply only if needed) */
 					if (data->flag & CONSTRAINT_IK_STRETCH) {
-						QuatToMat3(parchan->quat, qmat);
-						Mat3Inv(imat, qmat);
+						if (parchan->rotmode)
+							EulToMat3(parchan->eul, qrmat);
+						else
+							QuatToMat3(parchan->quat, qrmat);
+						
+						Mat3Inv(imat, qrmat);
 						Mat3MulMat3(smat, rmat3, imat);
 						Mat3ToSize(smat, parchan->size);
 					}

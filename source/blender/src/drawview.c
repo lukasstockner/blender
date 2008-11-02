@@ -2061,8 +2061,8 @@ static void v3d_posearmature_buts(uiBlock *block, Object *ob, float lim)
 	
 	/* rotation mode */
 	uiBlockBeginAlign(block);
-	uiDefButS(block, ROW, B_ARMATUREPANEL3, "Quaternion",160,110,70,19, &pchan->rotmode, 70, PCHAN_ROT_QUAT, 0, 0, "Rotations calculated using Quaternions (4 components, no Gimble Lock, hard to edit)");
-	uiDefButS(block, ROW, B_ARMATUREPANEL3, "Euler",230,110,70,19, &pchan->rotmode, 70, PCHAN_ROT_EUL, 0, 0, "Rotations calculated using Eulers (3 components, suffers from Gimble Lock, 'easy' to edit)");
+	uiDefButS(block, ROW, B_ARMATUREPANEL3, "Quaternion",160,110,70,19, &pchan->rotmode, 70, PCHAN_ROT_QUAT, 0, 0, "Rotations calculated using Quaternions (4 components, no Gimbal Lock, hard to edit)");
+	uiDefButS(block, ROW, B_ARMATUREPANEL3, "Euler",230,110,70,19, &pchan->rotmode, 70, PCHAN_ROT_EUL, 0, 0, "Rotations calculated using Eulers (3 components, suffers from Gimbal Lock, 'easy' to edit)");
 	uiBlockEndAlign(block);
 	
 	if (pchan->rotmode) {
