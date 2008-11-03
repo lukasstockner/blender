@@ -109,8 +109,10 @@ void select_icu_bezier_keys(struct IpoCurve *icu, int selectmode);
 void set_ipotype(short code);
 void set_ipoextend(void);
 void borderselect_ipo(void);
+
 void del_ipo(int need_check);
-void del_ipoCurve ( struct IpoCurve * icu );
+void del_ipoCurve(struct IpoCurve * icu);
+
 void free_ipocopybuf(void);
 void copy_editipo(void);
 void paste_editipo(void);
@@ -133,8 +135,8 @@ void movekey_ipo(int dir);
 void movekey_obipo(int dir);
 void nextkey_ipo(int dir);
 void nextkey_obipo(int dir);
-void filter_sampledata(float *data, int sfra, int efra);
-void sampledata_to_ipocurve(float *data, int sfra, int efra, struct IpoCurve *icu);
+
+void sampledata_to_ipocurve(float data[], int sfra, int efra, struct IpoCurve *icu);
 void ipo_record(void); 
 
 void make_ipo_transdata(struct TransInfo *t);
