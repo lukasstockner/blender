@@ -3194,9 +3194,13 @@ static void winqreadipospace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 				transform_ipo('g');
 			break;
 		case HKEY:
-			if (G.qual==LR_ALTKEY)
+			if (G.qual==LR_CTRLKEY) {
+				sipo->flag ^= SIPO_NOHANDLES;
+				doredraw= 1;
+			}
+			else if (G.qual==LR_ALTKEY)
 				sethandles_ipo(HD_AUTO_ANIM);
-			if (G.qual==LR_SHIFTKEY)
+			else if (G.qual==LR_SHIFTKEY)
 				sethandles_ipo(HD_AUTO);
 			else if (G.qual==0)
 				sethandles_ipo(HD_ALIGN);
@@ -3214,16 +3218,12 @@ static void winqreadipospace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 			}
 			break;
 		case MKEY:
-			if (G.qual==0) {
+			if (G.qual==0)
 				add_marker(CFRA);
-			} else if (G.qual==LR_SHIFTKEY) {
+			else if (G.qual==LR_SHIFTKEY)
 				ipo_mirror_menu();
-				break;
-			} else if (G.qual == LR_CTRLKEY) {
+			else if (G.qual == LR_CTRLKEY)
 				rename_marker();
-			} else { 
-				break;
-			}
 			allqueue(REDRAWMARKER, 0);
 			break;
 		case NKEY:

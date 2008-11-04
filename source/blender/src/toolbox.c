@@ -1703,6 +1703,59 @@ static TBitem tb_node_view[]= {
 	{	0, "View All|Home",	TB_PAD|'h', NULL},
 	{  -1, "", 			0, tb_do_hotkey}};
 
+	
+/* ************************* IPO *********************** */
+
+
+/* dynamic items */
+
+static TBitem tb_ipo_edit_handles[]= {
+	{	0, "Auto|Shift H", TB_SHIFT|'h', NULL},
+	{	0, "Auto Clamped|Alt H", TB_ALT|'h', NULL},
+	{	0, "Aligned|H", 'h', NULL},
+	{	0, "Free|H", 'h', NULL},
+	{	0, "Vector|V", 'v', NULL},
+	{  -1, "", 			0, tb_do_hotkey}};
+	
+static TBitem tb_ipo_edit[]= {
+	{	0, "Enter Editmode|Tab", TB_TAB, NULL},
+	{	0, "SEPR", 		0, NULL},
+	{	0, "Insert Keyframe|I", 'i', NULL},
+	{	0, "SEPR", 		0, NULL},
+	{	0, "Duplicate|Shift D", TB_SHIFT|'d', NULL},
+	{	0, "Delete|X", 'x', 		NULL},
+	{	0, "SEPR", 		0, NULL},
+	{	0, "Interpolation|T", 't', NULL},
+	{	0, "Handle Type", 		0, tb_ipo_edit_handles},
+	{	0, "Extend Mode|E", 'e', NULL},
+	{  -1, "", 			0, tb_do_hotkey}};
+
+static TBitem tb_ipo_select[]= {
+	{	0, "Select/Deselect All|A", 	'a', NULL},
+	{	0, "Border Select|B", 	'b', NULL},
+	{  -1, "", 			0, tb_do_hotkey}};
+
+		// fixme... add snap/mirror options, also need to add the 
+static TBitem tb_ipo_transform[]= {
+	{	0, "Grab/Move|G", 'g', 		NULL},
+	{	0, "Rotate|R", 'r', 		NULL},
+	{	0, "Scale|S", 's', 		NULL},
+	{	0, "SEPR", 		0, NULL},
+	{	0, "Snap...|Shift S", TB_SHIFT|'s', NULL},
+	{	0, "Mirror...|Shift M", TB_SHIFT|'m', NULL},
+	{	0, "SEPR", 		0, NULL},
+	{	ICON_MENU_PANEL, "Properties|N", 3, NULL},
+	{  -1, "", 			0, tb_do_hotkey}};
+
+static TBitem tb_ipo_view[]= {
+	{	0, "Show IPO-Keys|K", 		'k', NULL},
+	{	0, "Show Handles|Ctrl H", 		TB_CTRL|'h', NULL},
+	{	0, "SEPR", 		0, NULL},
+	{	0, "Zoom In|NumPad +",	TB_PAD|'+', NULL},
+	{	0, "Zoom Out|NumPad -",	TB_PAD|'-', NULL},
+	{	0, "View All|Home",	TB_PAD|'h', NULL},
+	{  -1, "", 			0, tb_do_hotkey}};
+
 
 /* *********************************************** */
 
@@ -2180,6 +2233,17 @@ void toolbox_n(void)
 		tot= 5;
 		
 	}
+	else if(curarea->spacetype==SPACE_IPO) {
+		//SpaceIpo *sipo= curarea->spacedata.first;
+		
+		menu1= tb_ipo_edit; str1= "IPO Curve"; // fixme
+		menu2= tb_ipo_select; str2= "Select";
+		menu3= tb_ipo_transform; str3= "Transform";
+		menu4= tb_ipo_view; str4= "View";
+		
+		dx= 96;
+		tot= 4;
+	}
 	
 	getmouseco_sc(mval);
 	
@@ -2218,7 +2282,7 @@ void toolbox_n(void)
 		but=uiDefBlockBut(block, tb_makemenu, menu6, str6,	mval[0]+(0.5*dx)+tb_mainx,mval[1]+tb_mainy-20, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_DOWN|UI_MAKE_LEFT);
 		uiButSetFunc(but, store_main, (void *)(intptr_t)-dx, (void *)(intptr_t)5);
-	} else if (tot==5 || tot==7) {
+	} else if (ELEM3(tot, 4, 5, 7)) {
                 /* check if it fits, dubious */
 		if(mval[0]-0.25*dx+tb_mainx < 6) mval[0]= 6 + 0.25*dx -tb_mainx;
 		else if(mval[0]+0.25*dx+tb_mainx > G.curscreen->sizex-6)
@@ -2244,9 +2308,11 @@ void toolbox_n(void)
 		uiButSetFlag(but, UI_MAKE_RIGHT);
 		uiButSetFunc(but, store_main, (void *)-32, (void *)55);
 
-		but=uiDefIconTextBlockBut(block, tb_makemenu, menu5, ICON_RIGHTARROW_THIN, str5, mval[0]+tb_mainx,mval[1]+tb_mainy-80, dx, 19, "");
-		uiButSetFlag(but, UI_MAKE_RIGHT);
-		uiButSetFunc(but, store_main, (void *)-32, (void *)75);
+		if(tot>4) {
+			but=uiDefIconTextBlockBut(block, tb_makemenu, menu5, ICON_RIGHTARROW_THIN, str5, mval[0]+tb_mainx,mval[1]+tb_mainy-80, dx, 19, "");
+			uiButSetFlag(but, UI_MAKE_RIGHT);
+			uiButSetFunc(but, store_main, (void *)-32, (void *)75);
+		}
 		
 		if(tot>5) {
 			but=uiDefIconTextBlockBut(block, tb_makemenu, menu6, ICON_RIGHTARROW_THIN, str6, mval[0]+tb_mainx,mval[1]+tb_mainy-100, dx, 19, "");
