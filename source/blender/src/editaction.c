@@ -208,6 +208,48 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 		
 		/* do specifics */
 		switch (datatype) {
+			case ACTTYPE_OBJECT:
+			{
+				Base *base= (Base *)data;
+				Object *ob= base->object;
+				
+				ale->flag= ob->flag;
+				
+				ale->key_data= ob;
+				ale->datatype= ALE_OB;
+			}
+				break;
+			case ACTTYPE_FILLACTD:
+			{
+				bAction *act= (bAction *)data;
+				
+				ale->flag= act->flag;
+				
+				ale->key_data= act;
+				ale->datatype= ALE_ACT;
+			}
+				break;
+			case ACTTYPE_FILLIPOD:
+			{
+				Object *ob= (Object *)data;
+				
+				ale->flag= FILTER_IPO_OBJC(ob);
+				
+				ale->key_data= ob->ipo;
+				ale->datatype= ALE_IPO;
+			}
+				break;
+			case ACTTYPE_FILLCOND:
+			{
+				Object *ob= (Object *)data;
+				
+				ale->flag= FILTER_CON_OBJC(ob);
+				
+				ale->key_data= NULL;
+				ale->datatype= ALE_NONE;
+			}
+				break;
+				
 			case ACTTYPE_GROUP:
 			{
 				bActionGroup *agrp= (bActionGroup *)data;
@@ -277,7 +319,6 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 				ale->datatype= ALE_ICU;
 			}
 				break;
-				
 			case ACTTYPE_FILLIPO:
 			case ACTTYPE_FILLCON:
 			{
@@ -299,6 +340,7 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 				ale->datatype= ALE_IPO;
 			}
 				break;
+			
 			case ACTTYPE_GPLAYER:
 			{
 				bGPDlayer *gpl= (bGPDlayer *)data;
@@ -318,11 +360,12 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
  
 /* ----------------------------------------- */
 
-static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *achan, int filter_mode)
+static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *achan, int filter_mode, void *owner, short ownertype)
 {
-	bActListElem *ale;
+	bActListElem *ale = NULL;
 	bConstraintChannel *conchan;
 	IpoCurve *icu;
+	short owned= (owner && ownertype)? 1 : 0;
 	
 	/* only work with this channel and its subchannels if it is visible */
 	if (!(filter_mode & ACTFILTER_VISIBLE) || VISIBLE_ACHAN(achan)) {
@@ -333,7 +376,11 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 				/* are we only interested in the ipo-curves? */
 				if ((filter_mode & ACTFILTER_ONLYICU)==0) {
 					ale= make_new_actlistelem(achan, ACTTYPE_ACHAN, achan, ACTTYPE_ACHAN);
-					if (ale) BLI_addtail(act_data, ale);
+					
+					if (ale) {
+						if (owned) ale->id= owner;
+						BLI_addtail(act_data, ale);
+					}
 				}
 			}
 			else {
@@ -353,7 +400,11 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 				/* include ipo-expand widget? */
 				if ((filter_mode & ACTFILTER_CHANNELS) && (filter_mode & ACTFILTER_ONLYICU)==0) {
 					ale= make_new_actlistelem(achan, ACTTYPE_FILLIPO, achan, ACTTYPE_ACHAN);
-					if (ale) BLI_addtail(act_data, ale);
+					
+					if (ale) {
+						if (owned) ale->id= owner;
+						BLI_addtail(act_data, ale);
+					}
 				}
 				
 				/* add ipo-curve channels? */
@@ -361,7 +412,11 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 					/* loop through ipo-curve channels, adding them */
 					for (icu= achan->ipo->curve.first; icu; icu=icu->next) {
 						ale= make_new_actlistelem(icu, ACTTYPE_ICU, achan, ACTTYPE_ACHAN);
-						if (ale) BLI_addtail(act_data, ale); 
+						
+						if (ale) {
+							if (owned) ale->id= owner;
+							BLI_addtail(act_data, ale); 
+						}
 					}
 				}
 			}
@@ -373,7 +428,11 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 					 && !(filter_mode & ACTFILTER_IPOKEYS) ) 
 				{
 					ale= make_new_actlistelem(achan, ACTTYPE_FILLCON, achan, ACTTYPE_ACHAN);
-					if (ale) BLI_addtail(act_data, ale);
+					
+					if (ale) {
+						if (owned) ale->id= owner;
+						BLI_addtail(act_data, ale);
+					}
 				}
 				
 				/* add constraint channels? */
@@ -385,12 +444,21 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 							/* check if this conchan should only be included if it is selected */
 							if (!(filter_mode & ACTFILTER_SEL) || SEL_CONCHAN(conchan)) {
 								if (filter_mode & ACTFILTER_IPOKEYS) {
-									ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN2, achan, ACTTYPE_ACHAN);
 									if (ale) BLI_addtail(act_data, ale);
+									ale= make_new_actlistelem(achan, ACTTYPE_CONCHAN2, achan, ACTTYPE_ACHAN);
+									
+									if (ale) {
+										if (owned) ale->id= owner;
+										BLI_addtail(act_data, ale);
+									}
 								}
 								else {
-									ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN, achan, ACTTYPE_ACHAN);
-									if (ale) BLI_addtail(act_data, ale);
+									ale= make_new_actlistelem(achan, ACTTYPE_CONCHAN, achan, ACTTYPE_ACHAN);
+									
+									if (ale) {
+										if (owned) ale->id= owner;
+										BLI_addtail(act_data, ale);
+									}
 								}
 							}
 						}
@@ -401,11 +469,12 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 	}
 }
 
-static void actdata_filter_action (ListBase *act_data, bAction *act, int filter_mode)
+static void actdata_filter_action (ListBase *act_data, bAction *act, int filter_mode, void *owner, short ownertype)
 {
 	bActListElem *ale=NULL;
 	bActionGroup *agrp;
 	bActionChannel *achan, *lastchan=NULL;
+	short owned= (owner && ownertype) ? 1 : 0;
 	
 	/* loop over groups */
 	for (agrp= act->groups.first; agrp; agrp= agrp->next) {
@@ -414,7 +483,10 @@ static void actdata_filter_action (ListBase *act_data, bAction *act, int filter_
 			/* check if filtering by selection */
 			if ( !(filter_mode & ACTFILTER_SEL) || SEL_AGRP(agrp) ) {
 				ale= make_new_actlistelem(agrp, ACTTYPE_GROUP, NULL, ACTTYPE_NONE);
-				if (ale) BLI_addtail(act_data, ale);
+				if (ale) {
+					if (owned) ale->id= owner;
+					BLI_addtail(act_data, ale);
+				}
 			}
 		}
 		
@@ -440,12 +512,13 @@ static void actdata_filter_action (ListBase *act_data, bAction *act, int filter_
 			{
 				if (!(filter_mode & ACTFILTER_FOREDIT) || EDITABLE_AGRP(agrp)) {					
 					for (achan= agrp->channels.first; achan && achan->grp==agrp; achan= achan->next) {
-						actdata_filter_actionchannel(act_data, achan, filter_mode);
+						actdata_filter_actionchannel(act_data, achan, filter_mode, owner, ownertype);
 					}
 					
 					/* remove group from filtered list if last element is group 
 					 * (i.e. only if group had channels, which were all hidden)
 					 */
+					// TODO: this is still partially buggy...
 					if ( (ale) && (act_data->last == ale) && 
 						 (ale->data == agrp) && (agrp->channels.first) ) 
 					{
@@ -459,7 +532,7 @@ static void actdata_filter_action (ListBase *act_data, bAction *act, int filter_
 	/* loop over un-grouped action channels (only if we're not only considering those channels in the active group) */
 	if (!(filter_mode & ACTFILTER_ACTGROUPED))  {
 		for (achan=(lastchan)?lastchan->next:act->chanbase.first; achan; achan=achan->next) {
-			actdata_filter_actionchannel(act_data, achan, filter_mode);
+			actdata_filter_actionchannel(act_data, achan, filter_mode, owner, ownertype);
 		}
 	}
 }
@@ -518,7 +591,7 @@ static void actdata_filter_shapekey (ListBase *act_data, Key *key, int filter_mo
 	}
 }
  
-
+// FIXME: switch this to use the bDopeSheet...
 static void actdata_filter_gpencil (ListBase *act_data, bScreen *sc, int filter_mode)
 {
 	bActListElem *ale;
@@ -568,6 +641,143 @@ static void actdata_filter_gpencil (ListBase *act_data, bScreen *sc, int filter_
 		}
 	}
 }
+
+static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
+{
+	bActListElem *ale=NULL;
+	Object *ob= base->object;
+	
+	/* add this object as a channel first */
+	if (!(filter_mode & ACTFILTER_ONLYICU) && !(filter_mode & ACTFILTER_IPOKEYS)) {
+		/* check if filtering by selection */
+		ale= make_new_actlistelem(base, ACTTYPE_OBJECT, NULL, ACTTYPE_NONE);
+		if (ale) BLI_addtail(act_data, ale);
+	}
+	
+	/* if collapsed, don't go any further (unless adding keyframes only) */
+	if (EXPANDED_OBJC(ob) == 0 && (filter_mode & ACTFILTER_ONLYICU)==0) {
+		if ( !(filter_mode & ACTFILTER_IPOKEYS) )
+			return;
+	}
+	
+	/* IPO? */
+	if (ob->ipo) {
+		IpoCurve *icu;
+		
+		/* include ipo-expand widget? */
+		if ((filter_mode & ACTFILTER_CHANNELS) && (filter_mode & ACTFILTER_ONLYICU)==0) {
+			ale= make_new_actlistelem(ob, ACTTYPE_FILLIPOD, base, ACTTYPE_OBJECT);
+			if (ale) BLI_addtail(act_data, ale);
+		}
+		
+		/* add ipo-curve channels? */
+		if ( (FILTER_IPO_OBJC(ob) || (filter_mode & ACTFILTER_ONLYICU)) && 
+			  !(filter_mode & ACTFILTER_IPOKEYS) ) 
+		{
+			/* loop through ipo-curve channels, adding them */
+			for (icu= ob->ipo->curve.first; icu; icu=icu->next) {
+				ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
+				if (ale) BLI_addtail(act_data, ale); 
+			}
+		}
+	}
+	
+	/* Action? */
+	if (ob->action) {
+		/* include action-expand widget? */
+		if ((filter_mode & ACTFILTER_CHANNELS) && (filter_mode & ACTFILTER_ONLYICU)==0) {
+			ale= make_new_actlistelem(ob->action, ACTTYPE_FILLACTD, base, ACTTYPE_OBJECT);
+			if (ale) BLI_addtail(act_data, ale);
+		}
+		
+		/* add ipo-curve channels? */
+		if (EXPANDED_ACTC(ob->action) || !(filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_FORDRAWING))) {
+			// need to make the ownertype normal object here... (maybe type should be a separate one for clarity?)
+			actdata_filter_action(act_data, ob->action, filter_mode, ob, ACTTYPE_OBJECT); 
+		}
+	}
+	
+	/* Constraint Channels? */
+	if (ob->constraintChannels.first) {
+		bConstraintChannel *conchan;
+		
+		/* include constraint-expand widget? */
+		if ( (filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & ACTFILTER_ONLYICU)
+			 && !(filter_mode & ACTFILTER_IPOKEYS) ) 
+		{
+			ale= make_new_actlistelem(ob, ACTTYPE_FILLCON, base, ACTTYPE_OBJECT);
+			if (ale) BLI_addtail(act_data, ale);
+		}
+		
+		/* add constraint channels? */
+		if (FILTER_CON_OBJC(ob) || (filter_mode & ACTFILTER_IPOKEYS) || (filter_mode & ACTFILTER_ONLYICU)) {
+			/* loop through constraint channels, checking and adding them */
+			for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next) {
+				/* only work with this channel and its subchannels if it is editable */
+				if (!(filter_mode & ACTFILTER_FOREDIT) || EDITABLE_CONCHAN(conchan)) {
+					/* check if this conchan should only be included if it is selected */
+					if (!(filter_mode & ACTFILTER_SEL) || SEL_CONCHAN(conchan)) {
+						if (filter_mode & ACTFILTER_IPOKEYS) {
+							ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN2, base, ACTTYPE_OBJECT);
+							if (ale) BLI_addtail(act_data, ale);
+						}
+						else {
+							ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN, base, ACTTYPE_OBJECT);
+							if (ale) BLI_addtail(act_data, ale);
+						}
+					}
+				}
+			}
+		}
+	}
+}	
+
+// TODO: implement pinning... (if and when pinning is done, what we need to do is to provide freeing mechanisms - to protect against data that was deleted)
+static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int filter_mode)
+{
+	Scene *sce= (Scene *)ads->source;
+	Base *base;
+	
+	/* check that we do indeed have a scene */
+	if ((ads->source == NULL) || (GS(ads->source->name)!=ID_SCE)) {
+		printf("DopeSheet Error: Not scene! \n");
+		return;
+	}
+	
+	/* loop over all bases in the scene */
+	for (base= sce->base.first; base; base= base->next) {
+		/* check if there's an object (all the relevant checks are done in the ob-function) */
+		if (base->object) {
+			Object *ob= base->object;
+			
+			/* firstly, check if object can be included, by the following factors:
+			 *	- if only visible, must check for layer and also viewport visibility
+			 *	- if only selected, must check if object is selected 
+			 *	- there must be animation data to edit
+			 */
+			// TODO: if cache is implemented, just check name here, and then 
+			if (filter_mode & ACTFILTER_VISIBLE) {
+				/* layer visibility */
+				if ((ob->lay & sce->lay)==0) continue;
+				
+				/* outliner restrict-flag */
+				if (ob->restrictflag & OB_RESTRICT_VIEW) continue;
+			}
+			if (filter_mode & ACTFILTER_SEL) {
+				/* only if object is selected or active */
+				if (!(base->flag & SELECT) || (sce->basact != base))
+					continue;
+			}
+			if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first)) {
+				/* no animation data to show... */
+				continue;
+			}
+			
+			/* since we're still here, this object should be usable */
+			actdata_filter_dopesheet_ob(act_data, ads, base, filter_mode);
+		}
+	}
+}
  
 /* This function filters the active data source to leave only the desired
  * data types. 'Public' api call.
@@ -584,13 +794,16 @@ void actdata_filter (ListBase *act_data, int filter_mode, void *data, short data
 		/* firstly filter the data */
 		switch (datatype) {
 			case ACTCONT_ACTION:
-				actdata_filter_action(act_data, data, filter_mode);
+				actdata_filter_action(act_data, data, filter_mode, NULL, ACTTYPE_NONE);
 				break;
 			case ACTCONT_SHAPEKEY:
 				actdata_filter_shapekey(act_data, data, filter_mode);
 				break;
 			case ACTCONT_GPENCIL:
 				actdata_filter_gpencil(act_data, data, filter_mode);
+				break;
+			case ACTCONT_DOPESHEET:
+				actdata_filter_dopesheet(act_data, data, filter_mode);
 				break;
 		}
 			
@@ -661,7 +874,7 @@ int get_nearest_key_num (Key *key, short *mval, float *x)
     float y;
 
     areamouseco_to_ipoco(G.v2d, mval, x, &y);
-    num = (int) ((CHANNELHEIGHT/2 - y) / (CHANNELHEIGHT+CHANNELSKIP));
+    num = (int)((CHANNELHEIGHT/2 - y) / (CHANNELHEIGHT+CHANNELSKIP));
 
     return (num + 1);
 }
@@ -708,7 +921,19 @@ void *get_nearest_act_channel (short mval[], short *ret_type, void **owner)
 			/* found match */
 			*ret_type= ale->type;
 			data= ale->data;
-			*owner= ale->owner;
+			
+			/* if an 'ID' has been set, this takes presidence as owner (for dopesheet) */
+			if (datatype == ACTCONT_DOPESHEET) {
+				/* return pointer to ID as owner instead */
+				if (ale->id) 
+					*owner= ale->id;
+				else
+					*owner= ale->owner;
+			}
+			else {
+				/* just use own owner */
+				*owner= ale->owner;
+			}
 			
 			BLI_freelistN(&act_data);
 			
@@ -743,7 +968,7 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 	int clickmin, clickmax;
 	short mval[2];
 	short found = 0;
-		
+	
 	getmouseco_areawin (mval);
 
 	/* action-channel */
@@ -793,6 +1018,18 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 			/* make list of keyframes */
 			if (ale->key_data) {
 				switch (ale->datatype) {
+					case ALE_OB:
+					{
+						Object *ob= (Object *)ale->key_data;
+						ob_to_keylist(ob, &act_keys, NULL, NULL);
+					}
+						break;
+					case ALE_ACT:
+					{
+						bAction *act= (bAction *)ale->key_data;
+						action_to_keylist(act, &act_keys, NULL, NULL);
+					}
+						break;
 					case ALE_IPO:
 					{
 						Ipo *ipo= (Ipo *)ale->key_data;
@@ -846,6 +1083,10 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 				data = ale->key_data;
 				*ret_type= ACTTYPE_ICU;
 			}
+			else if (datatype == ACTCONT_DOPESHEET) {
+				data = ale->data;
+				*ret_type= ale->type;
+			}
 			else if (datatype == ACTCONT_GPENCIL) {
 				data = ale->data;
 				*ret_type= ACTTYPE_GPLAYER;
@@ -872,11 +1113,14 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 
 void *get_action_context (short *datatype)
 {
+	bDopeSheet *ads;
 	bAction *act;
 	Key *key;
 	
 	/* get pointers to active action/shapekey blocks */
+	// TODO: should the checks for updating types really be here?
 	act = (G.saction)? G.saction->action: NULL;
+	ads = (G.saction)? &G.saction->ads: NULL;
 	key = get_action_mesh_key();
 	
 	/* check mode selector */
@@ -893,6 +1137,10 @@ void *get_action_context (short *datatype)
 			case SACTCONT_GPENCIL:
 				*datatype= ACTCONT_GPENCIL;
 				return G.curscreen; // FIXME: add that dopesheet type thing here!
+				
+			case SACTCONT_DOPESHEET:
+				*datatype= ACTCONT_DOPESHEET;
+				return ads;
 			
 			default: /* includes SACTCONT_DOPESHEET for now */
 				*datatype= ACTCONT_NONE;
@@ -908,6 +1156,10 @@ void *get_action_context (short *datatype)
 		else if (key) {
 			*datatype= ACTCONT_SHAPEKEY;
 			return key;
+		}
+		else if (ads) {
+			*datatype= ACTCONT_DOPESHEET;
+			return ads;
 		}
 		else {
 			*datatype= ACTCONT_NONE;
@@ -2430,8 +2682,8 @@ static void numbuts_action ()
 		
 		if (IS_EQ(icu->slide_max, icu->slide_min)) {
 			if (IS_EQ(icu->ymax, icu->ymin)) {
-				icu->slide_min= -100.0;
-				icu->slide_max= 100.0;
+				icu->slide_min= -100.0f;
+				icu->slide_max= 100.0f;
 			}
 			else {
 				icu->slide_min= icu->ymin;
@@ -2552,7 +2804,7 @@ static void numbuts_action ()
 			BLI_uniquename(&gpd->layers, gpl, "GP_Layer", offsetof(bGPDlayer, info), 128);
 			
 			if (mute) gpl->flag |= GP_LAYER_HIDE;
-			else gpl->flag &= ~GP_LAYER_HIDE;;
+			else gpl->flag &= ~GP_LAYER_HIDE;
 			
 			if (protect) gpl->flag |= GP_LAYER_LOCKED;
 			else gpl->flag &= ~GP_LAYER_LOCKED;
@@ -2928,7 +3180,7 @@ void select_action_group_channels (bAction *act, bActionGroup *agrp)
 		return;
 	
 	/* deselect all other channels */
-	deselect_actionchannels(act, 0);
+	deselect_actionchannels(act, ACTCONT_ACTION, 0);
 	
 	/* only select channels in group */
 	for (achan= agrp->channels.first; achan && achan->grp==agrp; achan= achan->next) {
@@ -2941,10 +3193,10 @@ void select_action_group_channels (bAction *act, bActionGroup *agrp)
 
 /* ----------------------------------------- */
 
-/* De-selects or inverts the selection of Channels in a given Action 
+/* De-selects or inverts the selection of Channels in a given Action (or Dopesheet)
  *	mode: 0 = default behaviour (select all), 1 = test if (de)select all, 2 = invert all 
  */
-void deselect_actionchannels (bAction *act, short mode)
+void deselect_actionchannels (void *data, short datatype, short mode)
 {
 	ListBase act_data = {NULL, NULL};
 	bActListElem *ale;
@@ -2952,7 +3204,7 @@ void deselect_actionchannels (bAction *act, short mode)
 	
 	/* filter data */
 	filter= ACTFILTER_VISIBLE;
-	actdata_filter(&act_data, filter, act, ACTCONT_ACTION);
+	actdata_filter(&act_data, filter, data, datatype);
 	
 	/* See if we should be selecting or deselecting */
 	if (mode == 1) {
@@ -2961,6 +3213,14 @@ void deselect_actionchannels (bAction *act, short mode)
 				break;
 			
 			switch (ale->type) {
+				case ACTTYPE_OBJECT:
+					if (ale->flag & SELECT)
+						sel= 0;
+					break;
+				case ACTTYPE_FILLACTD:
+					if (ale->flag & ACTC_SELECTED)
+						sel= 0;
+					break;
 				case ACTTYPE_GROUP:
 					if (ale->flag & AGRP_SELECTED)
 						sel= 0;
@@ -2986,6 +3246,37 @@ void deselect_actionchannels (bAction *act, short mode)
 	/* Now set the flags */
 	for (ale= act_data.first; ale; ale= ale->next) {
 		switch (ale->type) {
+			case ACTTYPE_OBJECT:
+			{
+				Base *base= (Base *)ale->data;
+				Object *ob= base->object;
+				
+				if (mode == 2) {
+					base->flag ^= SELECT;
+					ob->flag ^= SELECT;
+				}
+				else if (sel) {
+					base->flag |= SELECT;
+					ob->flag |= SELECT;
+				}
+				else {
+					base->flag &= ~SELECT;
+					ob->flag &= ~SELECT;
+				}
+			}
+				break;
+			case ACTTYPE_FILLACTD:
+			{
+				bAction *act= (bAction *)ale->data;
+				
+				if (mode == 2)
+					act->flag ^= ACTC_SELECTED;
+				else if (sel)
+					act->flag |= ACTC_SELECTED;
+				else
+					act->flag &= ~ACTC_SELECTED;
+			}
+				break;
 			case ACTTYPE_GROUP:
 			{
 				bActionGroup *agrp= (bActionGroup *)ale->data;
@@ -3059,8 +3350,8 @@ void deselect_action_channels (short mode)
 	if (data == NULL) return;
 	
 	/* based on type */
-	if (datatype == ACTCONT_ACTION)
-		deselect_actionchannels(data, mode);
+	if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET))
+		deselect_actionchannels(data, datatype, mode);
 	else if (datatype == ACTCONT_GPENCIL)
 		deselect_gpencil_layers(data, mode);
 	// should shapekey channels be allowed to do this? 
@@ -3145,6 +3436,49 @@ void selectall_action_keys (short mval[], short mode, short select_mode)
 			/* get channel, and act according to type */
 			act_channel= get_nearest_act_channel(mval, &chantype, &channel_owner);
 			switch (chantype) {
+				case ACTTYPE_OBJECT:
+				{
+					Base *base= (Base *)act_channel;
+					Object *ob= (Object *)base->object;
+					bActionChannel *achan;
+					bConstraintChannel *conchan;
+					
+					if (ob->ipo)
+						select_ipo_bezier_keys(ob->ipo, select_mode);
+					
+					if (ob->action) {
+						for (achan= ob->action->chanbase.first; achan; achan= achan->next) {
+							select_ipo_bezier_keys(achan->ipo, select_mode);
+							
+							for (conchan=achan->constraintChannels.first; conchan; conchan=conchan->next) 
+								select_ipo_bezier_keys(conchan->ipo, select_mode);
+						}
+					}
+					
+					for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next)
+						select_ipo_bezier_keys(conchan->ipo, select_mode);
+				}
+					break;
+				case ACTTYPE_FILLIPOD:
+				{
+					Ipo *ipo= (Ipo *)act_channel;
+					select_ipo_bezier_keys(ipo, select_mode);
+				}
+					break;
+				case ACTTYPE_FILLACTD:
+				{
+					bAction *act= (bAction *)act_channel;
+					bActionChannel *achan;
+					bConstraintChannel *conchan;
+					
+					for (achan= act->chanbase.first; achan; achan= achan->next) {
+						select_ipo_bezier_keys(achan->ipo, select_mode);
+						
+						for (conchan=achan->constraintChannels.first; conchan; conchan=conchan->next) 
+							select_ipo_bezier_keys(conchan->ipo, select_mode);
+					}
+				}
+					break;
 				case ACTTYPE_GROUP:	
 				{
 					bActionGroup *agrp= (bActionGroup *)act_channel;
@@ -3256,7 +3590,7 @@ void markers_selectkeys_between (void)
 		
 	/* select keys in-between */
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if(NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
+		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
 			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1);
 			borderselect_ipo_key(ale->key_data, min, max, SELECT_ADD);
 			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
@@ -3821,10 +4155,13 @@ static void mouse_action (int selectmode)
 	void *data;
 	short datatype;
 	
+	Object *ob= NULL;
+	bDopeSheet *ads= NULL;
 	bAction	*act= NULL;
 	bActionGroup *agrp= NULL;
 	bActionChannel *achan= NULL;
 	bConstraintChannel *conchan= NULL;
+	Ipo *ipo= NULL;
 	IpoCurve *icu= NULL;
 	bGPdata *gpd = NULL;
 	bGPDlayer *gpl = NULL;
@@ -3838,7 +4175,8 @@ static void mouse_action (int selectmode)
 	data = get_action_context(&datatype);
 	if (data == NULL) return;
 	if (datatype == ACTCONT_ACTION) act= (bAction *)data;
-	if (datatype == ACTCONT_GPENCIL) gpd= (bGPdata *)data;
+	else if (datatype == ACTCONT_DOPESHEET) ads= (bDopeSheet *)data;
+	else if (datatype == ACTCONT_GPENCIL) gpd= (bGPdata *)data;
 
 	act_channel= get_nearest_action_key(&selx, &sel, &act_type, &achan);
 	marker= find_nearest_marker(SCE_MARKERS, 1);
@@ -3911,6 +4249,15 @@ static void mouse_action (int selectmode)
 			case ACTTYPE_GROUP:
 				agrp= (bActionGroup *)act_channel;
 				break;
+			case ACTTYPE_FILLACTD:
+				act= (bAction *)act_channel;
+				break;
+			case ACTTYPE_FILLIPOD:
+				ipo= (Ipo *)act_channel;
+				break;
+			case ACTTYPE_OBJECT:
+				ob= ((Base *)act_channel)->object;
+				break;
 			case ACTTYPE_GPLAYER:
 				gpl= (bGPDlayer *)act_channel;
 				break;
@@ -3923,7 +4270,7 @@ static void mouse_action (int selectmode)
 			
 			deselect_action_keys(0, 0);
 			
-			if (datatype == ACTCONT_ACTION) {
+			if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET)) {
 				deselect_action_channels(0);
 				
 				/* Highlight either an Action-Channel or Action-Group */
@@ -3948,6 +4295,8 @@ static void mouse_action (int selectmode)
 		
 		if (icu)
 			select_icu_key(icu, selx, selectmode);
+		else if (ipo)
+			select_ipo_key(ipo, selx, selectmode);
 		else if (conchan)
 			select_ipo_key(conchan->ipo, selx, selectmode);
 		else if (achan)
@@ -3959,6 +4308,30 @@ static void mouse_action (int selectmode)
 				for (conchan=achan->constraintChannels.first; conchan; conchan=conchan->next)
 					select_ipo_key(conchan->ipo, selx, selectmode);
 			}
+		}
+		else if (act) {
+			for (achan= act->chanbase.first; achan; achan= achan->next) {
+				select_ipo_key(achan->ipo, selx, selectmode);
+				
+				for (conchan=achan->constraintChannels.first; conchan; conchan=conchan->next)
+					select_ipo_key(conchan->ipo, selx, selectmode);
+			}
+		}
+		else if (ob) {
+			if (ob->ipo) 
+				select_ipo_key(ob->ipo, selx, selectmode);
+				
+			if (ob->action) {
+				for (achan= ob->action->chanbase.first; achan; achan= achan->next) {
+					select_ipo_key(achan->ipo, selx, selectmode);
+					
+					for (conchan=achan->constraintChannels.first; conchan; conchan=conchan->next)
+						select_ipo_key(conchan->ipo, selx, selectmode);
+				}
+			}
+			
+			for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next)
+				select_ipo_key(conchan->ipo, selx, selectmode);
 		}
 		else if (gpl)
 			select_gpencil_frame(gpl, (int)selx, selectmode);
@@ -3990,11 +4363,47 @@ static void mouse_actionchannels (short mval[])
 	
 	/* action to take depends on what channel we've got */
 	switch (chantype) {
+		case ACTTYPE_OBJECT:
+			{
+				Base *base= (Base *)act_channel;
+				Object *ob= base->object;
+				
+				if (mval[0] < 16) {
+					/* toggle expand */
+					ob->nlaflag ^= OB_ADS_COLLAPSED;
+				}
+				else {
+					// TODO: selection stuff?
+					base->flag ^= SELECT;
+					ob->flag ^= SELECT;
+				}
+			}
+				break;
+		case ACTTYPE_FILLIPOD:
+			{
+				Object *ob= (Object *)act_channel;
+				ob->nlaflag ^= OB_ADS_SHOWIPO;
+			}
+				break;
+		case ACTTYPE_FILLACTD:
+			{
+				bAction *act= (bAction *)act_channel;
+				act->flag ^= ACTC_EXPANDED;
+			}
+				break;
+		case ACTTYPE_FILLCOND:
+			{
+				Object *ob= (Object *)act_channel;
+				ob->nlaflag ^= OB_ADS_SHOWCONS;
+			}
+				break;
+			
 		case ACTTYPE_GROUP: 
 			{
 				bActionGroup *agrp= (bActionGroup *)act_channel;
+				short offset= (datatype == ACTCONT_DOPESHEET)? 7 : 0;
 				
-				if ((mval[0] < 16) && (agrp->channels.first)) {
+				if ((mval[0] < offset+17) && (agrp->channels.first)) {
 					/* toggle expand */
 					agrp->flag ^= AGRP_EXPANDED;
 				}
@@ -4015,7 +4424,7 @@ static void mouse_actionchannels (short mval[])
 					}
 					else {
 						/* select group by itself */
-						deselect_actionchannels(act, 0);
+						deselect_actionchannels(act, ACTCONT_ACTION, 0);
 						select_action_group(act, agrp, SELECT_ADD);
 					}
  				}
@@ -4024,6 +4433,7 @@ static void mouse_actionchannels (short mval[])
 		case ACTTYPE_ACHAN:
 			{
 				bActionChannel *achan= (bActionChannel *)act_channel;
+				short offset= (datatype == ACTCONT_DOPESHEET)? 7 : 0;
 				
 				if (mval[0] >= (NAMEWIDTH-16)) {
 					/* toggle protect */
@@ -4033,7 +4443,7 @@ static void mouse_actionchannels (short mval[])
 					/* toggle mute */
 					achan->ipo->muteipo = (achan->ipo->muteipo)? 0: 1;
 				}
-				else if (mval[0] <= 17) {
+				else if (mval[0] <= offset+17) {
 					/* toggle expand */
 					achan->flag ^= ACHAN_EXPANDED;
 				}				
@@ -4043,7 +4453,7 @@ static void mouse_actionchannels (short mval[])
 						select_channel(act, achan, SELECT_INVERT);
 					}
 					else {
-						deselect_actionchannels(act, 0);
+						deselect_actionchannels(act, ACTCONT_ACTION, 0);
 						select_channel(act, achan, SELECT_ADD);
 					}
 					
@@ -4060,7 +4470,7 @@ static void mouse_actionchannels (short mval[])
 				
 				if ((mval[0] > 24) && (achan->flag & ACHAN_SHOWIPO)) {
 					/* select+make active achan */		
-					deselect_actionchannels(act, 0);
+					deselect_actionchannels(act, ACTCONT_ACTION, 0);
 					select_channel(act, achan, SELECT_ADD);
 					
 					/* messy... set active bone */
@@ -4076,7 +4486,7 @@ static void mouse_actionchannels (short mval[])
 				
 				if ((mval[0] > 24) && (achan->flag & ACHAN_SHOWCONS)) {
 					/* select+make active achan */		
-					deselect_actionchannels(act, 0);
+					deselect_actionchannels(act, ACTCONT_ACTION, 0);
 					select_channel(act, achan, SELECT_ADD);
 					
 					/* messy... set active bone */
@@ -4158,6 +4568,7 @@ static void mouse_actionchannels (short mval[])
 			}
 				break;
 		default:
+			printf("Error: Invalid channel type in mouse_actionchannels \n");
 			return;
 	}
 	
@@ -4549,6 +4960,7 @@ void expand_obscuregroups_action (void)
 }
 
 /* For visible channels, expand/collapse one level */
+// TODO: extend this to dopesheet too...
 void openclose_level_action (short mode)
 {
 	void *data;
@@ -4823,7 +5235,7 @@ void winqreadactionspace(ScrArea *sa, void *spacedata, BWinEvent *evt)
 		case RIGHTMOUSE:
 			/* Clicking in the channel area */
 			if ((G.v2d->mask.xmin) && (mval[0] < NAMEWIDTH)) {
-				if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_GPENCIL)) {
+				if (datatype != ACTCONT_SHAPEKEY) {
 					/* mouse is over action channels */
 					if (G.qual == LR_CTRLKEY)
 						numbuts_action();

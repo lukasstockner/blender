@@ -171,11 +171,20 @@ typedef struct bAction {
 	ListBase 		markers;	/* TimeMarkers local to this Action for labelling 'poses' */
 	
 	int active_marker;			/* Index of active-marker (first marker = 1) */
-	int pad;
+	int flag;					/* flags for this action */
 } bAction;
 
 
 /* ------------- Action Editor --------------------- */
+
+/* Storage for Dopesheet/Grease-Pencil Editor data */
+typedef struct bDopeSheet {
+	ID 		*source;		/* currently ID_SCE (for Dopesheet), and ID_SC (for Grease Pencil) */
+	ListBase chanbase;		/* cache for channels (only initialised when pinned) */
+	
+	int filterflag;			/* flags to use for filtering data */
+	int flag;				/* standard flags */
+} bDopeSheet;
 
 /* Action Editor Space. This is defined here instead of in DNA_space_types.h */
 typedef struct SpaceAction {
@@ -189,6 +198,7 @@ typedef struct SpaceAction {
 	View2D v2d;	
 	
 	bAction		*action;		/* the currently active action */
+	bDopeSheet 	ads;			/* the currently active context (when not showing action) */
 	
 	char  mode, autosnap;		/* mode: editing context; autosnap: automatic keyframe snapping mode   */
 	short flag, actnr; 			/* flag: bitmapped settings; */
@@ -224,6 +234,30 @@ typedef enum AGRP_FLAG {
 	AGRP_MOVED 		= (1<<31)
 } AGRP_FLAG;
 
+
+/* 'Action' Channel flags */
+typedef enum ACT_FLAG {
+	ACTC_SELECTED	= (1<<0),
+	ACTC_EXPANDED	= (1<<1),
+} ACT_FLAG;
+
+/* ------------ DopeSheet Flags ------------------ */
+
+/* DopeSheet filter-flag */
+typedef enum DOPESHEET_FILTERFLAG {
+		/* general filtering */
+	ADS_FILTER_ONLYSEL	= (1<<0),
+	
+		/* datatype-based filtering */
+	ADS_FILTER_OBONLY	= (1<<10),
+	ADS_FILTER_ARMONLY	= (1<<11),
+} DOPESHEET_FILTERFLAG;	
+
+/* DopeSheet general flags */
+//typedef enum DOPESHEET_FLAG {
+	
+//} DOPESHEET_FLAG;
+
 /* ------------ Action Editor Flags -------------- */
 
 /* SpaceAction flag */
@@ -254,7 +288,7 @@ typedef enum SACTCONT_MODES {
 	SACTCONT_SHAPEKEY,
 		/* editing of gpencil data */
 	SACTCONT_GPENCIL,
-		/* dopesheet (unimplemented... future idea?) */
+		/* dopesheet */
 	SACTCONT_DOPESHEET
 } SACTCONTEXT_MODES;
 

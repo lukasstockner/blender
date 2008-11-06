@@ -98,6 +98,7 @@
 #include "BDR_drawobject.h"
 
 #include "BSE_edit.h"
+#include "BSE_editaction_types.h"
 #include "BSE_view.h"
 #include "BSE_trans_types.h"
 
@@ -3695,12 +3696,12 @@ void deselectall_posearmature (Object *ob, int test, int doundo)
 	
 	/* action editor */
 	if (test == 3) {
-		deselect_actionchannels(ob->action, 2); /* inverts selection */
+		deselect_actionchannels(ob->action, ACTCONT_ACTION, 2); /* inverts selection */
 	}
 	else {
-		deselect_actionchannels(ob->action, 0);	/* deselects for sure */
+		deselect_actionchannels(ob->action, ACTCONT_ACTION, 0);	/* deselects for sure */
 		if (selectmode == 1)
-			deselect_actionchannels(ob->action, 1);	/* swaps */
+			deselect_actionchannels(ob->action, ACTCONT_ACTION, 1);	/* swaps */
 	}
 	
 	allqueue(REDRAWBUTSEDIT, 0);

@@ -467,12 +467,89 @@ static void draw_channel_names(void)
 			 IN_RANGE(ymaxc, G.v2d->cur.ymin, G.v2d->cur.ymax) ) 
 		{
 			bActionGroup *grp = NULL;
-			short indent= 0, offset= 0, sel= 0, group=0;
+			short indent= 0, offset= 0, sel= 0, group= 0;
 			int expand= -1, protect = -1, special= -1, mute = -1;
 			char name[64];
 			
 			/* determine what needs to be drawn */
 			switch (ale->type) {
+				case ACTTYPE_OBJECT: /* object */
+				{
+					Base *base= (Base *)ale->data;
+					Object *ob= base->object;
+					
+					group= 4;
+					indent= 0;
+					
+					/* icon depends on object-type */
+					if (ob->type == OB_ARMATURE)
+						special= ICON_ARMATURE;
+					else	
+						special= ICON_OBJECT;
+						
+					/* only show expand if there are any channels */
+					if (EXPANDED_OBJC(ob))
+						expand= ICON_TRIA_DOWN;
+					else
+						expand= ICON_TRIA_RIGHT;
+					
+					sel = SEL_OBJC(base);
+					sprintf(name, ob->id.name+2);
+				}
+					break;
+				case ACTTYPE_FILLACTD: /* action widget */
+				{
+					bAction *act= (bAction *)ale->data;
+					
+					group = 4;
+					indent= 1;
+					special= ICON_ACTION;
+					
+					if (EXPANDED_ACTC(act))
+						expand= ICON_TRIA_DOWN;
+					else
+						expand= ICON_TRIA_RIGHT;
+					
+					sel = SEL_ACTC(act);
+					sprintf(name, "Action");
+				}
+					break;
+				case ACTTYPE_FILLIPOD: /* ipo (dopesheet) expand widget */
+				{
+					Object *ob = (Object *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_IPO;
+					
+					if (FILTER_IPO_OBJC(ob))	
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+					
+					//sel = SEL_OBJC(base);
+					sprintf(name, "IPO Curves");
+				}
+					break;
+				case ACTTYPE_FILLCOND: /* constraint channels (dopesheet) expand widget */
+				{
+					Object *ob = (Object *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_CONSTRAINT;
+					
+					if (FILTER_CON_OBJC(ob))	
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+						
+					//sel = SEL_OBJC(base);
+					sprintf(name, "Constraints");
+				}
+					break;
+					
+				
 				case ACTTYPE_GROUP: /* action group */
 				{
 					bActionGroup *agrp= (bActionGroup *)ale->data;
@@ -481,6 +558,8 @@ static void draw_channel_names(void)
 					indent= 0;
 					special= -1;
 					
+					offset= (ale->id) ? 21 : 0;
+					
 					/* only show expand if there are any channels */
 					if (agrp->channels.first) {
 						if (EXPANDED_AGRP(agrp))
@@ -488,7 +567,7 @@ static void draw_channel_names(void)
 						else
 							expand = ICON_TRIA_RIGHT;
 					}
-						
+					
 					if (EDITABLE_AGRP(agrp))
 						protect = ICON_UNLOCKED;
 					else
@@ -507,6 +586,8 @@ static void draw_channel_names(void)
 					
 					indent = 0;
 					special = -1;
+					
+					offset= (ale->id) ? 21 : 0;
 					
 					if (EXPANDED_ACHAN(achan))
 						expand = ICON_TRIA_DOWN;
@@ -538,6 +619,8 @@ static void draw_channel_names(void)
 					group= (ale->grp) ? 1 : 0;
 					grp= ale->grp;
 					
+					offset= (ale->id) ? 21 : 0;
+					
 					if (EDITABLE_CONCHAN(conchan))
 						protect = ICON_UNLOCKED;
 					else
@@ -564,6 +647,8 @@ static void draw_channel_names(void)
 					group= (ale->grp) ? 1 : 0;
 					grp= ale->grp;
 					
+					offset= (ale->id) ? 21 : 0;
+					
 					if (icu->flag & IPO_MUTE)
 						mute = ICON_MUTE_IPO_ON;
 					else	
@@ -576,19 +661,6 @@ static void draw_channel_names(void)
 						sprintf(name, getname_ipocurve(icu, OBACT));
 				}
 					break;
-				case ACTTYPE_SHAPEKEY: /* shapekey channel */
-				{
-					KeyBlock *kb = (KeyBlock *)ale->data;
-					
-					indent = 0;
-					special = -1;
-					
-					if (kb->name[0] == '\0')
-						sprintf(name, "Key %d", ale->index);
-					else
-						sprintf(name, kb->name);
-				}
-					break;
 				case ACTTYPE_FILLIPO: /* ipo expand widget */
 				{
 					bActionChannel *achan = (bActionChannel *)ale->data;
@@ -598,6 +670,8 @@ static void draw_channel_names(void)
 					
 					group= (ale->grp) ? 1 : 0;
 					grp= ale->grp;
+					
+					offset= (ale->id) ? 21 : 0;
 					
 					if (FILTER_IPO_ACHAN(achan))	
 						expand = ICON_TRIA_DOWN;
@@ -618,6 +692,8 @@ static void draw_channel_names(void)
 					group= (ale->grp) ? 1 : 0;
 					grp= ale->grp;
 					
+					offset= (ale->id) ? 21 : 0;
+					
 					if (FILTER_CON_ACHAN(achan))	
 						expand = ICON_TRIA_DOWN;
 					else
@@ -627,6 +703,22 @@ static void draw_channel_names(void)
 					sprintf(name, "Constraint");
 				}
 					break;
+				
+				
+				case ACTTYPE_SHAPEKEY: /* shapekey channel */
+				{
+					KeyBlock *kb = (KeyBlock *)ale->data;
+					
+					indent = 0;
+					special = -1;
+					
+					if (kb->name[0] == '\0')
+						sprintf(name, "Key %d", ale->index);
+					else
+						sprintf(name, kb->name);
+				}
+					break;
+				
 				case ACTTYPE_GPDATABLOCK: /* gpencil datablock */
 				{
 					bGPdata *gpd = (bGPdata *)ale->data;
@@ -732,16 +824,36 @@ static void draw_channel_names(void)
 
 			/* now, start drawing based on this information */
 			/* draw backing strip behind channel name */
-			if (group == 3) {
+			if (group == 4) {
+				/* only used in dopesheet... */
+				if (ale->type == ACTTYPE_OBJECT) {
+					/* object channel - darker */
+					glColor3f(0.217f, 0.074f, 0.793f); // fixme... currently hardcoded!
+					uiSetRoundBox((expand == ICON_TRIA_DOWN)? (1):(1|8));
+					gl_round_box(GL_POLYGON, x+offset,  yminc, (float)NAMEWIDTH, ymaxc, 8);
+				}
+				else {
+					/* sub-object folders - lighter */
+					glColor3f(0.375f, 0.264f, 0.825f); // fixme... currently hardcoded!
+					
+					offset += 7 * indent;
+					//glRectf(x+offset,  yminc, (float)NAMEWIDTH, ymaxc);
+					glBegin(GL_QUADS);
+						glVertex2f(x+offset, yminc);
+						glVertex2f(x+offset, ymaxc);
+						glVertex2f((float)NAMEWIDTH, ymaxc);
+						glVertex2f((float)NAMEWIDTH, yminc);
+					glEnd();
+					
+					/* clear group value, otherwise we cause errors... */
+					group = 0;
+				}
+			}
+			else if (group == 3) {
 				/* only for gp-data channels */
-				if (ale->owner == curarea) // fixme... currently useless
-					BIF_ThemeColorShade(TH_GROUP_ACTIVE, 10);
-				else
-					BIF_ThemeColorShade(TH_GROUP, 20);
+				BIF_ThemeColorShade(TH_GROUP, 20);
 				uiSetRoundBox((expand == ICON_TRIA_DOWN)? (1):(1|8));
-				gl_round_box(GL_POLYGON, x,  yminc, (float)NAMEWIDTH, ymaxc, 8);
-				
-				offset = 0;
+				gl_round_box(GL_POLYGON, x+offset,  yminc, (float)NAMEWIDTH, ymaxc, 8);
 			}
 			else if (group == 2) {
 				/* only for action group channels */
@@ -750,9 +862,7 @@ static void draw_channel_names(void)
 				else
 					BIF_ThemeColorShade(TH_GROUP, 20);
 				uiSetRoundBox((expand == ICON_TRIA_DOWN)? (1):(1|8));
-				gl_round_box(GL_POLYGON, x,  yminc, (float)NAMEWIDTH, ymaxc, 8);
-				
-				offset = 0;
+				gl_round_box(GL_POLYGON, x+offset,  yminc, (float)NAMEWIDTH, ymaxc, 8);
 			}
 			else {
 				/* for normal channels 
@@ -780,8 +890,14 @@ static void draw_channel_names(void)
 					BIF_ThemeColorShade(TH_HEADER, ((indent==0)?20: (indent==1)?-20: -40));
 				
 				indent += group;
-				offset = 7 * indent;
-				glRectf(x+offset,  yminc, (float)NAMEWIDTH, ymaxc);
+				offset += 7 * indent;
+				//glRectf(x+offset,  yminc, (float)NAMEWIDTH, ymaxc);
+				glBegin(GL_QUADS);
+					glVertex2f(x+offset, yminc);
+					glVertex2f(x+offset, ymaxc);
+					glVertex2f((float)NAMEWIDTH, ymaxc);
+					glVertex2f((float)NAMEWIDTH, yminc);
+				glEnd();
 			}
 			
 			/* draw expand/collapse triangle */
@@ -792,14 +908,13 @@ static void draw_channel_names(void)
 			
 			/* draw special icon indicating certain data-types */
 			if (special > -1) {
-				if (group == 3) {
+				if (ELEM(group, 3, 4)) {
 					/* for gpdatablock channels */
 					BIF_icon_draw(x+offset, yminc, special);
 					offset += 17;
 				}
 				else {
 					/* for ipo/constraint channels */
-					offset = (group) ? 29 : 24;
 					BIF_icon_draw(x+offset, yminc, special);
 					offset += 17;
 				}
@@ -926,6 +1041,12 @@ static void draw_channel_strips(void)
 		if (ale->datatype != ALE_NONE) {
 			/* determine if channel is selected */
 			switch (ale->type) {
+				case ACTTYPE_OBJECT:
+				{
+					Base *base= (Base *)ale->data;
+					sel = SEL_OBJC(base);
+				}
+					break;
 				case ACTTYPE_GROUP:
 				{
 					bActionGroup *agrp = (bActionGroup *)ale->data;
@@ -958,9 +1079,10 @@ static void draw_channel_strips(void)
 					break;
 			}
 			
-			if (datatype == ACTCONT_ACTION) {
+			if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET)) {
 				gla2DDrawTranslatePt(di, G.v2d->cur.xmin, y, &frame1_x, &channel_y);
 				
+				// ALE_OB? what happens...
 				if (ale->datatype == ALE_GROUP) {
 					if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
 					else glColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
@@ -971,6 +1093,7 @@ static void draw_channel_strips(void)
 				}
 				glRectf((float)frame1_x,  (float)channel_y-CHANNELHEIGHT/2,  (float)G.v2d->hor.xmax,  (float)channel_y+CHANNELHEIGHT/2);
 				
+				// ALE_OB? what happens...
 				if (ale->datatype == ALE_GROUP) {
 					if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
 					else glColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
@@ -1032,6 +1155,12 @@ static void draw_channel_strips(void)
 			 IN_RANGE(ymaxc, G.v2d->cur.ymin, G.v2d->cur.ymax) ) 
 		{
 			switch (ale->datatype) {
+				case ALE_OB:
+					draw_object_channel(di, ale->key_data, y);
+					break;
+				case ALE_ACT:
+					draw_action_channel(di, ale->key_data, y);
+					break;
 				case ALE_GROUP:
 					draw_agroup_channel(di, ale->data, y);
 					break;
@@ -1234,6 +1363,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 	uiFreeBlocksWin(&sa->uiblocks, sa->win);
 
 	/* only try to refresh action that's displayed if not pinned */
+	// TODO: should this be moved into get_action_context instead???
 	if (G.saction->pin==0) {
 		/* depends on mode */
 		switch (G.saction->mode) {
@@ -1243,6 +1373,14 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 					G.saction->action = OBACT->action;
 				else
 					G.saction->action= NULL;
+			}
+				break;
+			case SACTCONT_DOPESHEET:
+			{
+				/* update scene-pointer */
+				G.saction->ads.source= (ID *)G.scene;
+				
+				// TODO: later, we may need to set flags?
 			}
 				break;
 		}
@@ -1632,9 +1770,10 @@ static ActKeysInc *init_aki_data()
 	aki.end= G.v2d->cur.xmax + 10;
 	
 	/* only pass pointer for Action Editor if enabled (for now) */
-	if ((curarea->spacetype == SPACE_ACTION) && (G.saction->flag & SACTION_HORIZOPTIMISEON))
-		return &aki;
-	else	
+	// FIXME: enable again later...
+	//if ((curarea->spacetype == SPACE_ACTION) && (G.saction->flag & SACTION_HORIZOPTIMISEON))
+	//	return &aki;
+	//else	
 		return NULL;
 }
 
@@ -1692,11 +1831,13 @@ void draw_agroup_channel(gla2DDrawInfo *di, bActionGroup *agrp, float ypos)
 void draw_action_channel(gla2DDrawInfo *di, bAction *act, float ypos)
 {
 	ListBase keys = {0, 0};
+	ListBase blocks = {0, 0};
 	ActKeysInc *aki = init_aki_data();
 
-	action_to_keylist(act, &keys, NULL, aki);
-	draw_keylist(di, &keys, NULL, ypos);
+	action_to_keylist(act, &keys, &blocks, aki);
+	draw_keylist(di, &keys, &blocks, ypos);
 	BLI_freelistN(&keys);
+	BLI_freelistN(&blocks);
 }
 
 void draw_gpl_channel(gla2DDrawInfo *di, bGPDlayer *gpl, float ypos)
@@ -1719,6 +1860,10 @@ void ob_to_keylist(Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki
 		/* Add object keyframes */
 		if (ob->ipo)
 			ipo_to_keylist(ob->ipo, keys, blocks, aki);
+		
+		/* Add action keyframes */
+		if (ob->action)
+			action_to_keylist(ob->action, keys, blocks, aki);
 		
 		/* Add constraint keyframes */
 		for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next) {

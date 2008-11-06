@@ -116,6 +116,7 @@
 #include "BDR_editobject.h"
 #include "BSE_drawipo.h"
 #include "BSE_edit.h"
+#include "BSE_editaction_types.h"
 #include "BSE_view.h"
 
 #include "PIL_time.h" 
@@ -1786,7 +1787,7 @@ static int tree_element_active_ipo(SpaceOops *soops, TreeElement *te, int set)
 				if(a==te->index) break;
 				if(chan->ipo) a++;
 			}
-			deselect_actionchannels(ob->action, 0);
+			deselect_actionchannels(ob->action, ACTCONT_ACTION, 0);
 			if (chan)
 				select_channel(ob->action, chan, SELECT_ADD);
 			allqueue(REDRAWACTION, ob->ipowin);

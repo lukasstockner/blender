@@ -993,6 +993,7 @@ void do_global_buttons(unsigned short event)
 					idtest= (ID *)copy_action(act);
 				} 
 				else { 
+					// TODO: make this play nicely with modes...
 					if ((ob->ipo) && (ob->ipoflag & OB_ACTION_OB)==0) {
 						/* object ipo - like if B_IPO_ACTION_OB is triggered */
 						bActionChannel *achan;

@@ -33,28 +33,47 @@
 /* some interface related sizes*/
 #define	CHANNELHEIGHT	16
 #define	CHANNELSKIP		2
-#define NAMEWIDTH      	164
+#define NAMEWIDTH      	( ((G.saction) && (G.saction->mode==SACTCONT_DOPESHEET))? (188): (164) )
 #define SLIDERWIDTH    	125
 #define ACTWIDTH 		(G.saction->actwidth)
 
-/* Some types for easier type-testing */
+/* Some types for easier type-testing 
+ *	Note: unlike other enums, this is flexible as it 
+ */
 enum {
 	ACTTYPE_NONE= 0,
+	ACTTYPE_SPECIALDATA,
+	
+	ACTTYPE_OBJECT,
 	ACTTYPE_GROUP,
+	
+	ACTTYPE_FILLIPO,
+	ACTTYPE_FILLCON,
+	
+	ACTTYPE_FILLACTD,
+	ACTTYPE_FILLIPOD,
+	ACTTYPE_FILLCOND,
+	
 	ACTTYPE_ACHAN,
 	ACTTYPE_CONCHAN,
 	ACTTYPE_CONCHAN2,
 	ACTTYPE_ICU,
-	ACTTYPE_FILLIPO,
-	ACTTYPE_FILLCON,
 	ACTTYPE_IPO,
+	
 	ACTTYPE_SHAPEKEY,
 	ACTTYPE_GPDATABLOCK,
 	ACTTYPE_GPLAYER,
-	ACTTYPE_SPECIALDATA
 };
 
 /* Macros for easier/more consistant state testing */
+#define SEL_OBJC(base) ((base->flag & SELECT))
+#define EXPANDED_OBJC(ob) ((ob->nlaflag & OB_ADS_COLLAPSED)==0)
+#define FILTER_IPO_OBJC(ob) ((ob->nlaflag & OB_ADS_SHOWIPO))
+#define FILTER_CON_OBJC(ob) ((ob->nlaflag & OB_ADS_SHOWCONS)) 
+#define SEL_ACTC(actc) ((actc->flag & ACTC_SELECTED))
+#define EXPANDED_ACTC(actc) ((actc->flag & ACTC_EXPANDED))
+
+
 #define EDITABLE_AGRP(agrp) ((agrp->flag & AGRP_PROTECTED)==0)
 #define EXPANDED_AGRP(agrp) (agrp->flag & AGRP_EXPANDED)
 #define SEL_AGRP(agrp) ((agrp->flag & AGRP_SELECTED) || (agrp->flag & AGRP_ACTIVE))
@@ -76,6 +95,7 @@ enum {
 
 #define EDITABLE_GPL(gpl) ((gpl->flag & GP_LAYER_LOCKED)==0)
 #define SEL_GPL(gpl) ((gpl->flag & GP_LAYER_ACTIVE) || (gpl->flag & GP_LAYER_SELECT))
+
 
 #define NLA_ACTION_SCALED (G.saction->mode==SACTCONT_ACTION && G.saction->pin==0 && OBACT && OBACT->action)
 #define NLA_IPO_SCALED (OBACT && OBACT->action && G.sipo && G.sipo->pin==0 && G.sipo->actname)
@@ -174,7 +194,7 @@ void borderselect_action(void);
 void borderselect_actionchannels(void);
 void deselect_action_keys(short test, short sel);
 void deselect_action_channels(short mode);
-void deselect_actionchannels(struct bAction *act, short mode);
+void deselect_actionchannels(void *data, short datatype, short mode);
 int select_channel(struct bAction *act, struct bActionChannel *achan, int selectmode);
 void select_actionchannel_by_name(struct bAction *act, char *name, int select);
 void select_action_group_channels(struct bAction *act, struct bActionGroup *agrp);

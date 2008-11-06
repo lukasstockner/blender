@@ -38,6 +38,8 @@ typedef enum ALE_KEYTYPE {
 	ALE_NONE = 0,
 	ALE_IPO,	
 	ALE_ICU,
+	ALE_OB,
+	ALE_ACT,
 	ALE_GROUP,
 	ALE_GPFRAME,
 } ALE_KEYTYPE;
@@ -54,6 +56,7 @@ typedef struct bActListElem {
 	void	*key_data;	/* motion data - ipo or ipo-curve */
 	short	datatype;	/* type of motion data to expect */
 	
+	struct ID *id;				/* ID block (ID_SC, ID_SCE, or ID_OB) that owns the channel */
 	struct bActionGroup *grp;	/* action group that owns the channel */
 	
 	void 	*owner;		/* will either be an action channel or fake ipo-channel (for keys) */
@@ -80,7 +83,8 @@ typedef enum ACTCONT_TYPES {
 	ACTCONT_NONE = 0,
 	ACTCONT_ACTION,
 	ACTCONT_SHAPEKEY,
-	ACTCONT_GPENCIL
+	ACTCONT_GPENCIL,
+	ACTCONT_DOPESHEET
 } ACTCONT_TYPES;
 
 #endif

@@ -3851,6 +3851,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 					else if(sl->spacetype==SPACE_ACTION) {
 						SpaceAction *saction= (SpaceAction *)sl;
 						saction->action = newlibadr(fd, sc->id.lib, saction->action);
+						saction->ads.source= newlibadr(fd, sc->id.lib, saction->ads.source);
 					}
 					else if(sl->spacetype==SPACE_IMAGE) {
 						SpaceImage *sima= (SpaceImage *)sl;

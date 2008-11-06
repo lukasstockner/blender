@@ -1683,7 +1683,9 @@ void action_buttons(void)
 					  "Select", xco, -2, xmax-3, 24, "");
 		xco+= xmax;
 		
-		if ((G.saction->action) && (G.saction->mode==SACTCONT_ACTION)) {
+		if ( (G.saction->mode == SACTCONT_DOPESHEET) ||
+			 ((G.saction->action) && (G.saction->mode==SACTCONT_ACTION)) ) 
+		{
 			xmax= GetButStringLength("Channel");
 			uiDefPulldownBut(block, action_channelmenu, NULL, 
 						  "Channel", xco, -2, xmax-3, 24, "");
@@ -1706,7 +1708,6 @@ void action_buttons(void)
 			uiDefPulldownBut(block, action_framemenu, NULL, 
 						  "Frame", xco, -2, xmax-3, 24, "");
 			xco+= xmax;
-
 		}
 		else {
 			xmax= GetButStringLength("Key");
@@ -1720,7 +1721,7 @@ void action_buttons(void)
 	
 	/* MODE SELECTOR */
 	uiDefButC(block, MENU, B_REDR, 
-			"Editor Mode %t|Action Editor %x0|ShapeKey Editor %x1|Grease Pencil %x2", 
+			"Editor Mode %t|DopeSheet %x3|Action Editor %x0|ShapeKey Editor %x1|Grease Pencil %x2", 
 			xco,0,90,YIC, &(G.saction->mode), 0, 1, 0, 0, 
 			"Editing modes for this editor");
 
@@ -1728,7 +1729,10 @@ void action_buttons(void)
 	xco += (90 + 8);
 	
 	/* MODE-DEPENDENT DRAWING */
-	if (G.saction->mode != SACTCONT_GPENCIL) {
+	if (G.saction->mode == SACTCONT_DOPESHEET) {
+		// TODO: maybe we need pinning/refresh cache at some point, but not yet!
+	}
+	else if (G.saction->mode == SACTCONT_ACTION) { // not too appropriate for shapekeys atm...
 		/* NAME ETC */
 		ob= OBACT;
 		from = (ID *)ob;
