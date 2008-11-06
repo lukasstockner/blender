@@ -4401,9 +4401,9 @@ static void mouse_actionchannels (short mval[])
 		case ACTTYPE_GROUP: 
 			{
 				bActionGroup *agrp= (bActionGroup *)act_channel;
-				short offset= (datatype == ACTCONT_DOPESHEET)? 7 : 0;
+				short offset= (datatype == ACTCONT_DOPESHEET)? 21 : 0;
 				
-				if ((mval[0] < offset+17) && (agrp->channels.first)) {
+				if ((mval[0] < (offset+17)) && (agrp->channels.first)) {
 					/* toggle expand */
 					agrp->flag ^= AGRP_EXPANDED;
 				}
@@ -4433,7 +4433,7 @@ static void mouse_actionchannels (short mval[])
 		case ACTTYPE_ACHAN:
 			{
 				bActionChannel *achan= (bActionChannel *)act_channel;
-				short offset= (datatype == ACTCONT_DOPESHEET)? 7 : 0;
+				short offset= (datatype == ACTCONT_DOPESHEET)? 21 : 0;
 				
 				if (mval[0] >= (NAMEWIDTH-16)) {
 					/* toggle protect */
@@ -4443,7 +4443,7 @@ static void mouse_actionchannels (short mval[])
 					/* toggle mute */
 					achan->ipo->muteipo = (achan->ipo->muteipo)? 0: 1;
 				}
-				else if (mval[0] <= offset+17) {
+				else if (mval[0] <= (offset+17)) {
 					/* toggle expand */
 					achan->flag ^= ACHAN_EXPANDED;
 				}				
