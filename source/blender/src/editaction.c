@@ -655,17 +655,15 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	}
 	
 	/* if collapsed, don't go any further (unless adding keyframes only) */
-	if (EXPANDED_OBJC(ob) == 0 && (filter_mode & ACTFILTER_ONLYICU)==0) {
-		if ( !(filter_mode & ACTFILTER_IPOKEYS) )
-			return;
-	}
+	if ( (EXPANDED_OBJC(ob) == 0) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU)) )
+		return;
 	
 	/* IPO? */
 	if (ob->ipo) {
 		IpoCurve *icu;
 		
 		/* include ipo-expand widget? */
-		if ((filter_mode & ACTFILTER_CHANNELS) && (filter_mode & ACTFILTER_ONLYICU)==0) {
+		if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
 			ale= make_new_actlistelem(ob, ACTTYPE_FILLIPOD, base, ACTTYPE_OBJECT);
 			if (ale) BLI_addtail(act_data, ale);
 		}
@@ -685,7 +683,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	/* Action? */
 	if (ob->action) {
 		/* include action-expand widget? */
-		if ((filter_mode & ACTFILTER_CHANNELS) && (filter_mode & ACTFILTER_ONLYICU)==0) {
+		if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
 			ale= make_new_actlistelem(ob->action, ACTTYPE_FILLACTD, base, ACTTYPE_OBJECT);
 			if (ale) BLI_addtail(act_data, ale);
 		}
@@ -4253,7 +4251,7 @@ static void mouse_action (int selectmode)
 				act= (bAction *)act_channel;
 				break;
 			case ACTTYPE_FILLIPOD:
-				ipo= (Ipo *)act_channel;
+				ipo= ((Object *)act_channel)->ipo;
 				break;
 			case ACTTYPE_OBJECT:
 				ob= ((Base *)act_channel)->object;
