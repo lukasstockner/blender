@@ -313,6 +313,7 @@ char *BIF_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 				cp= ts->transition; break;
 			case TH_SEQ_META:
 				cp= ts->meta; break;
+				
 			case TH_HANDLE_VERTEX:
 				cp= ts->handle_vertex;
 				break;
@@ -322,8 +323,14 @@ char *BIF_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 			case TH_HANDLE_VERTEX_SIZE:
 				cp= &ts->handle_vertex_size;
 				break;
+				
+			case TH_DOPESHEET_CHANNELOB:
+				cp= ts->ds_channel;
+				break;
+			case TH_DOPESHEET_CHANNELSUBOB:
+				cp= ts->ds_subchannel;
+				break;
 			}
-
 		}
 	}
 	
@@ -530,6 +537,8 @@ void BIF_InitTheme(void)
 	SETCOL(btheme->tact.strip, 0xe4, 0x9c, 0xc6, 255);
 	SETCOL(btheme->tact.group, 0x39, 0x7d, 0x1b, 255);
 	SETCOL(btheme->tact.group_active, 0x7d, 0xe9, 0x60, 255);
+	SETCOL(btheme->tact.ds_channel, 0x36, 0x13, 0xca, 255);
+	SETCOL(btheme->tact.ds_subchannel, 0x60, 0x43, 0xd2, 255);
 
 	/* space nla */
 	btheme->tnla= btheme->tv3d;
@@ -725,6 +734,8 @@ char *BIF_ThemeColorsPup(int spacetype)
 			str += sprintf(str, "Channels Selected %%x%d|", TH_HILITE);
 			str += sprintf(str, "Channel Group %%x%d|", TH_GROUP);
 			str += sprintf(str, "Active Channel Group %%x%d|", TH_GROUP_ACTIVE);
+			str += sprintf(str, "DopeSheet Channel %%x%d|", TH_DOPESHEET_CHANNELOB);
+			str += sprintf(str, "DopeSheet Sub-Chanel %%x%d|", TH_DOPESHEET_CHANNELSUBOB);
 			str += sprintf(str, "Long Key %%x%d|", TH_STRIP);
 			str += sprintf(str, "Long Key selected %%x%d|", TH_STRIP_SELECT);
 			str += sprintf(str, "Current Frame %%x%d", TH_CFRAME);

@@ -528,6 +528,9 @@ enum {
 	TH_HANDLE_VERTEX,
 	TH_HANDLE_VERTEX_SELECT,
 	TH_HANDLE_VERTEX_SIZE,
+	
+	TH_DOPESHEET_CHANNELOB,
+	TH_DOPESHEET_CHANNELSUBOB,
 };
 /* XXX WARNING: previous is saved in file, so do not change order! */
 

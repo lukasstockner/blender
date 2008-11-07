@@ -828,13 +828,13 @@ static void draw_channel_names(void)
 				/* only used in dopesheet... */
 				if (ale->type == ACTTYPE_OBJECT) {
 					/* object channel - darker */
-					glColor3f(0.217f, 0.074f, 0.793f); // fixme... currently hardcoded!
+					BIF_ThemeColor(TH_DOPESHEET_CHANNELOB);
 					uiSetRoundBox((expand == ICON_TRIA_DOWN)? (1):(1|8));
 					gl_round_box(GL_POLYGON, x+offset,  yminc, (float)NAMEWIDTH, ymaxc, 8);
 				}
 				else {
 					/* sub-object folders - lighter */
-					glColor3f(0.375f, 0.264f, 0.825f); // fixme... currently hardcoded!
+					BIF_ThemeColor(TH_DOPESHEET_CHANNELSUBOB);
 					
 					offset += 7 * indent;
 					//glRectf(x+offset,  yminc, (float)NAMEWIDTH, ymaxc);
@@ -997,11 +997,15 @@ static void draw_channel_strips(void)
 	int act_start, act_end, dummy;
 	char col1[3], col2[3];
 	char col1a[3], col2a[3];
+	char col1b[3], col2b[3];
 	
 	BIF_GetThemeColor3ubv(TH_SHADE2, col2);
 	BIF_GetThemeColor3ubv(TH_HILITE, col1);
 	BIF_GetThemeColor3ubv(TH_GROUP, col2a);
 	BIF_GetThemeColor3ubv(TH_GROUP_ACTIVE, col1a);
+	
+	BIF_GetThemeColor3ubv(TH_DOPESHEET_CHANNELOB, col1b);
+	BIF_GetThemeColor3ubv(TH_DOPESHEET_CHANNELSUBOB, col2b);
 
 	/* get editor data */
 	data= get_action_context(&datatype);
@@ -1082,8 +1086,17 @@ static void draw_channel_strips(void)
 			if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET)) {
 				gla2DDrawTranslatePt(di, G.v2d->cur.xmin, y, &frame1_x, &channel_y);
 				
-				// ALE_OB? what happens...
-				if (ale->datatype == ALE_GROUP) {
+				if (ale->type == ACTTYPE_OBJECT) {
+					// FIXME... how do we differentiate between the two modes?
+					if (sel) glColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
+					else glColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
+				}
+				else if (ELEM3(ale->type, ACTTYPE_FILLIPOD, ACTTYPE_FILLACTD, ACTTYPE_FILLCOND)) {
+					// FIXME... how do we differentiate between the two modes?
+					if (sel) glColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
+					else glColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 
+				}
+				else if (ale->datatype == ALE_GROUP) {
 					if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
 					else glColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
 				}
@@ -1091,18 +1104,12 @@ static void draw_channel_strips(void)
 					if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
 					else glColor4ub(col2[0], col2[1], col2[2], 0x22);
 				}
+				
+				/* draw region twice: firstly backdrop, then the current range */
 				glRectf((float)frame1_x,  (float)channel_y-CHANNELHEIGHT/2,  (float)G.v2d->hor.xmax,  (float)channel_y+CHANNELHEIGHT/2);
 				
-				// ALE_OB? what happens...
-				if (ale->datatype == ALE_GROUP) {
-					if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
-					else glColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
-				}
-				else {
-					if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
-					else glColor4ub(col2[0], col2[1], col2[2], 0x22);
-				}
-				glRectf((float)act_start,  (float)channel_y-CHANNELHEIGHT/2,  (float)act_end,  (float)channel_y+CHANNELHEIGHT/2);
+				if (datatype == ACTCONT_ACTION)
+					glRectf((float)act_start,  (float)channel_y-CHANNELHEIGHT/2,  (float)act_end,  (float)channel_y+CHANNELHEIGHT/2);
 			}
 			else if (datatype == ACTCONT_SHAPEKEY) {
 				gla2DDrawTranslatePt(di, 1, y, &frame1_x, &channel_y);

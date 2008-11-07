@@ -514,6 +514,16 @@ static void init_userdef_file(void)
 		U.gp_manhattendist= 2;
 		U.gp_euclideandist= 15;
 	}
+	if ((G.main->versionfile < 248) || (G.main->versionfile == 248 && G.main->subversionfile < 3)) {
+		bTheme *btheme;
+		
+		/* adjust themes */
+		for (btheme= U.themes.first; btheme; btheme= btheme->next) {
+			/* DopeSheet - (Object) Channel color */
+			SETCOL(btheme->tact.ds_channel, 0x36, 0x13, 0xca, 255);
+			SETCOL(btheme->tact.ds_subchannel, 0x60, 0x43, 0xd2, 255);
+		}
+	}
 
 	/* GL Texture Garbage Collection (variable abused above!) */
 	if (U.textimeout == 0) {

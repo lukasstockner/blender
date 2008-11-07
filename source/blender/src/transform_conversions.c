@@ -3910,6 +3910,34 @@ void special_aftertrans_update(TransInfo *t)
 			/* Do curve updates */
 			remake_action_ipos((bAction *)data);
 		}
+		else if (datatype == ACTCONT_DOPESHEET) {
+			ListBase act_data = {NULL, NULL};
+			bActListElem *ale;
+			short filter= (ACTFILTER_VISIBLE | ACTFILTER_FOREDIT | ACTFILTER_IPOKEYS);
+			
+			/* get channels to work on */
+			actdata_filter(&act_data, filter, data, datatype);
+			
+			/* these should all be ipo-blocks */
+			for (ale= act_data.first; ale; ale= ale->next) {
+				Ipo *ipo= ale->key_data;
+				IpoCurve *icu;
+				
+				if ( (G.saction->flag & SACTION_NOTRANSKEYCULL)==0 && 
+				     ((cancelled == 0) || (duplicate)) )
+				{
+					posttrans_ipo_clean(ipo);
+				}
+				
+				for (icu = ipo->curve.first; icu; icu=icu->next) {
+					sort_time_ipocurve(icu);
+					testhandles_ipocurve(icu);
+				}
+			}
+			
+			/* free temp memory */
+			BLI_freelistN(&act_data);
+		}
 		else if (datatype == ACTCONT_SHAPEKEY) {
 			/* fix up the Ipocurves and redraw stuff */
 			Key *key= (Key *)data;
