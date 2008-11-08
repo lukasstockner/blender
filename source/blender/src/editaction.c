@@ -645,13 +645,16 @@ static void actdata_filter_gpencil (ListBase *act_data, bScreen *sc, int filter_
 static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
 {
 	bActListElem *ale=NULL;
+	Scene *sce= (Scene *)ads->source;
 	Object *ob= base->object;
 	
 	/* add this object as a channel first */
 	if (!(filter_mode & ACTFILTER_ONLYICU) && !(filter_mode & ACTFILTER_IPOKEYS)) {
 		/* check if filtering by selection */
-		ale= make_new_actlistelem(base, ACTTYPE_OBJECT, NULL, ACTTYPE_NONE);
-		if (ale) BLI_addtail(act_data, ale);
+		if (!(filter_mode & ACTFILTER_SEL) || ((base->flag & SELECT) || (base == sce->basact)) {
+			ale= make_new_actlistelem(base, ACTTYPE_OBJECT, NULL, ACTTYPE_NONE);
+			if (ale) BLI_addtail(act_data, ale);
+		}
 	}
 	
 	/* if collapsed, don't go any further (unless adding keyframes only) */
@@ -674,8 +677,11 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 		{
 			/* loop through ipo-curve channels, adding them */
 			for (icu= ob->ipo->curve.first; icu; icu=icu->next) {
-				ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
-				if (ale) BLI_addtail(act_data, ale); 
+				/* only if selected (if checking for selection) */
+				if ( !(filter_mode & ACTFILTER_SEL) || (SEL_ICU(icu)) ) {
+					ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
+					if (ale) BLI_addtail(act_data, ale); 
+				}
 			}
 		}
 	}
@@ -760,11 +766,6 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 				
 				/* outliner restrict-flag */
 				if (ob->restrictflag & OB_RESTRICT_VIEW) continue;
-			}
-			if (filter_mode & ACTFILTER_SEL) {
-				/* only if object is selected or active */
-				if (!(base->flag & SELECT) || (sce->basact != base))
-					continue;
 			}
 			if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first)) {
 				/* no animation data to show... */
@@ -1867,7 +1868,6 @@ void insertkey_action(void)
 	void *data;
 	short datatype;
 	
-	Object *ob= OBACT;
 	short mode;
 	float cfra;
 	
@@ -1876,7 +1876,7 @@ void insertkey_action(void)
 	if (data == NULL) return;
 	cfra = frame_to_float(CFRA);
 	
-	if (datatype == ACTCONT_ACTION) {
+	if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET)) {
 		ListBase act_data = {NULL, NULL};
 		bActListElem *ale;
 		int filter;
@@ -1895,13 +1895,23 @@ void insertkey_action(void)
 		/* loop through ipo curves retrieved */
 		for (ale= act_data.first; ale; ale= ale->next) {
 			/* verify that this is indeed an ipo curve */
-			if (ale->key_data && ale->owner) {
-				bActionChannel *achan= (bActionChannel *)ale->owner;
+			if ((ale->key_data) && ((ale->owner) || (ale->id))) {
+				bActionChannel *achan= (ale->ownertype==ACTTYPE_ACHAN) ? ((bActionChannel *)ale->owner) : (NULL);
 				bConstraintChannel *conchan= (ale->type==ACTTYPE_CONCHAN) ? ale->data : NULL;
 				IpoCurve *icu= (IpoCurve *)ale->key_data;
+				ID *id= NULL;
 				
-				if (ob)
-					insertkey((ID *)ob, icu->blocktype, achan->name, ((conchan)?(conchan->name):(NULL)), icu->adrcode, 0);
+				if (datatype == ACTCONT_ACTION) {
+					if (ale->owner) 
+						id= ale->owner;
+				}
+				else if (datatype == ACTCONT_DOPESHEET) {
+					if (ale->id)
+						id= ale->id;
+				}
+				
+				if (id)
+					insertkey(id, icu->blocktype, ((achan)?(achan->name):(NULL)), ((conchan)?(conchan->name):(NULL)), icu->adrcode, 0);
 				else
 					insert_vert_icu(icu, cfra, icu->curval, 0);
 			}

@@ -1152,7 +1152,7 @@ static void draw_channel_strips(void)
 	 *	   This is to try to optimise this for heavier data sets
 	 *	2) Keyframes which are out of view horizontally are disregarded 
 	 */
-	y = 0.0;
+	y = 0.0f;
 	for (ale= act_data.first; ale; ale= ale->next) {
 		const float yminc= y-CHANNELHEIGHT/2;
 		const float ymaxc= y+CHANNELHEIGHT/2;
