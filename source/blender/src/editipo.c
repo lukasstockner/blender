@@ -2556,10 +2556,13 @@ typedef struct tSmooth_Bezt {
 void smooth_ipo(void)
 {
 	EditIpo *ei;
-	short ok;
+	short ok, mode;
 	int b;
 	
 	get_status_editipo();
+	
+	mode= pupmenu("Smooth IPO%t|Tweak Points%x1|Flatten Handles%x2");
+	if (mode <= 0) return;
 
 	ei= G.sipo->editipo;
 	for(b=0; b<G.sipo->totipo; b++, ei++) {
@@ -2574,22 +2577,24 @@ void smooth_ipo(void)
 				BezTriple *bezt;
 				int i, x, totSel = 0;
 				
-				/* check if enough points */
-				if (icu->totvert >= 3) {
-					/* first loop through - count how many verts are selected, and fix up handles */
-					bezt= icu->bezt;
-					for (i=0; i < icu->totvert; i++, bezt++) {						
-						if (BEZSELECTED(bezt)) {							
-							/* line point's handles up with point's vertical position */
-							bezt->vec[0][1]= bezt->vec[2][1]= bezt->vec[1][1];
-							if ((bezt->h1==HD_AUTO) || (bezt->h1==HD_VECT)) bezt->h1= HD_ALIGN;
-							if ((bezt->h2==HD_AUTO) || (bezt->h2==HD_VECT)) bezt->h2= HD_ALIGN;
-							
-							/* add value to total */
-							totSel++;
-						}
+				/* first loop through - count how many verts are selected, and fix up handles 
+				 *	for both modes
+				 */
+				bezt= icu->bezt;
+				for (i=0; i < icu->totvert; i++, bezt++) {						
+					if (BEZSELECTED(bezt)) {							
+						/* line point's handles up with point's vertical position */
+						bezt->vec[0][1]= bezt->vec[2][1]= bezt->vec[1][1];
+						if ((bezt->h1==HD_AUTO) || (bezt->h1==HD_VECT)) bezt->h1= HD_ALIGN;
+						if ((bezt->h2==HD_AUTO) || (bezt->h2==HD_VECT)) bezt->h2= HD_ALIGN;
+						
+						/* add value to total */
+						totSel++;
 					}
-					
+				}
+				
+				/* check if adjust values too... */
+				if (mode == 2) {
 					/* if any points were selected, allocate tSmooth_Bezt points to work on */
 					if (totSel >= 3) {
 						tSmooth_Bezt *tarray, *tsb;

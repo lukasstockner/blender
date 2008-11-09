@@ -1724,6 +1724,8 @@ static TBitem tb_ipo_edit[]= {
 	{	0, "SEPR", 		0, NULL},
 	{	0, "Duplicate|Shift D", TB_SHIFT|'d', NULL},
 	{	0, "Delete|X", 'x', 		NULL},
+	{	0, "Smooth|Shift O", TB_SHIFT|'o', 		NULL},
+	{	0, "Clean|O", 'o', 		NULL},
 	{	0, "SEPR", 		0, NULL},
 	{	0, "Interpolation|T", 't', NULL},
 	{	0, "Handle Type", 		0, tb_ipo_edit_handles},
