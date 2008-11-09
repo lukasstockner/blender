@@ -239,6 +239,16 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 				ale->datatype= ALE_IPO;
 			}
 				break;
+			case ACTTYPE_FILLSKED:
+			{
+				Key *key= (Key *)data;
+				
+				ale->flag = FILTER_SKE_OBJC(key);
+				
+				ale->key_data= key->ipo;
+				ale->datatype= ALE_IPO;
+			}
+				break;
 			case ACTTYPE_FILLCOND:
 			{
 				Object *ob= (Object *)data;
@@ -537,11 +547,12 @@ static void actdata_filter_action (ListBase *act_data, bAction *act, int filter_
 	}
 }
 
-static void actdata_filter_shapekey (ListBase *act_data, Key *key, int filter_mode)
+static void actdata_filter_shapekey (ListBase *act_data, Key *key, int filter_mode, void *owner, short ownertype)
 {
 	bActListElem *ale;
 	KeyBlock *kb;
 	IpoCurve *icu;
+	short owned= (owner && ownertype)? 1 : 0;
 	int i;
 	
 	/* are we filtering for display or editing */
@@ -552,7 +563,7 @@ static void actdata_filter_shapekey (ListBase *act_data, Key *key, int filter_mo
 		/* loop through possible shapekeys, manually creating entries */
 		for (i= 1; i < key->totkey; i++) {
 			ale= MEM_callocN(sizeof(bActListElem), "bActListElem");
-			kb = kb->next;
+			kb = kb->next; /* do this even on the first try, as the first is 'Basis' (which doesn't get included) */
 			
 			ale->data= kb;
 			ale->type= ACTTYPE_SHAPEKEY; /* 'abused' usage of this type */
@@ -571,6 +582,8 @@ static void actdata_filter_shapekey (ListBase *act_data, Key *key, int filter_mo
 				}
 			}
 			
+			if (owned) ale->id= owner;
+			
 			BLI_addtail(act_data, ale);
 		}
 	}
@@ -579,12 +592,18 @@ static void actdata_filter_shapekey (ListBase *act_data, Key *key, int filter_mo
 		if (key->ipo) {
 			if (filter_mode & ACTFILTER_IPOKEYS) {
 				ale= make_new_actlistelem(key->ipo, ACTTYPE_IPO, key, ACTTYPE_SHAPEKEY);
-				if (ale) BLI_addtail(act_data, ale);
+				if (ale) {
+					if (owned) ale->id= owner;
+					BLI_addtail(act_data, ale);
+				}
 			}
 			else {
 				for (icu= key->ipo->curve.first; icu; icu=icu->next) {
 					ale= make_new_actlistelem(icu, ACTTYPE_ICU, key, ACTTYPE_SHAPEKEY);
-					if (ale) BLI_addtail(act_data, ale);
+					if (ale) {
+						if (owned) ale->id= owner;
+						BLI_addtail(act_data, ale);
+					}
 				}
 			}
 		}
@@ -647,11 +666,12 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	bActListElem *ale=NULL;
 	Scene *sce= (Scene *)ads->source;
 	Object *ob= base->object;
+	Key *key= ob_get_key(ob);
 	
 	/* add this object as a channel first */
 	if (!(filter_mode & ACTFILTER_ONLYICU) && !(filter_mode & ACTFILTER_IPOKEYS)) {
 		/* check if filtering by selection */
-		if (!(filter_mode & ACTFILTER_SEL) || ((base->flag & SELECT) || (base == sce->basact)) {
+		if ( !(filter_mode & ACTFILTER_SEL) || ((base->flag & SELECT) || (base == sce->basact)) ) {
 			ale= make_new_actlistelem(base, ACTTYPE_OBJECT, NULL, ACTTYPE_NONE);
 			if (ale) BLI_addtail(act_data, ale);
 		}
@@ -698,6 +718,20 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 		if (EXPANDED_ACTC(ob->action) || !(filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_FORDRAWING))) {
 			// need to make the ownertype normal object here... (maybe type should be a separate one for clarity?)
 			actdata_filter_action(act_data, ob->action, filter_mode, ob, ACTTYPE_OBJECT); 
+		}
+	}
+	
+	/* ShapeKeys? */
+	if (key) {
+		/* include shapekey-expand widget? */
+		if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
+			ale= make_new_actlistelem(key, ACTTYPE_FILLSKED, base, ACTTYPE_OBJECT);
+			if (ale) BLI_addtail(act_data, ale);
+		}
+		
+		/* add channels */
+		if (FILTER_SKE_OBJC(key) || (filter_mode & ACTFILTER_IPOKEYS) || (filter_mode & ACTFILTER_ONLYICU)) {
+			actdata_filter_shapekey (act_data, key, filter_mode, ob, ACTTYPE_OBJECT);
 		}
 	}
 	
@@ -753,6 +787,7 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 		/* check if there's an object (all the relevant checks are done in the ob-function) */
 		if (base->object) {
 			Object *ob= base->object;
+			Key *key= ob_get_key(ob);
 			
 			/* firstly, check if object can be included, by the following factors:
 			 *	- if only visible, must check for layer and also viewport visibility
@@ -767,7 +802,7 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 				/* outliner restrict-flag */
 				if (ob->restrictflag & OB_RESTRICT_VIEW) continue;
 			}
-			if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first)) {
+			if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first) && !(key)) {
 				/* no animation data to show... */
 				continue;
 			}
@@ -796,7 +831,7 @@ void actdata_filter (ListBase *act_data, int filter_mode, void *data, short data
 				actdata_filter_action(act_data, data, filter_mode, NULL, ACTTYPE_NONE);
 				break;
 			case ACTCONT_SHAPEKEY:
-				actdata_filter_shapekey(act_data, data, filter_mode);
+				actdata_filter_shapekey(act_data, data, filter_mode, NULL, ACTTYPE_NONE);
 				break;
 			case ACTCONT_GPENCIL:
 				actdata_filter_gpencil(act_data, data, filter_mode);
@@ -4405,6 +4440,12 @@ static void mouse_actionchannels (short mval[])
 				ob->nlaflag ^= OB_ADS_SHOWCONS;
 			}
 				break;
+		case ACTTYPE_FILLSKED:
+			{
+				Key *key= (Key *)act_channel;
+				key->flag ^= KEYBLOCK_EXPAND;
+			}
+				break;
 			
 		case ACTTYPE_GROUP: 
 			{
@@ -4575,6 +4616,9 @@ static void mouse_actionchannels (short mval[])
 				}
 			}
 				break;
+		case ACTTYPE_SHAPEKEY:
+			/* TODO: shapekey channels cannot be selected atm... */
+			break;
 		default:
 			printf("Error: Invalid channel type in mouse_actionchannels \n");
 			return;

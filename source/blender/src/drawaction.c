@@ -300,7 +300,7 @@ static void action_icu_buts(SpaceAction *saction)
     block= uiNewBlock (&curarea->uiblocks, str, 
                        UI_EMBOSS, UI_HELV, curarea->win);
 
-	x = NAMEWIDTH + 1;
+	x = (float)NAMEWIDTH + 1;
     y = 0.0f;
 	
 	uiBlockSetEmboss(block, UI_EMBOSSN);
@@ -336,8 +336,8 @@ static void action_icu_buts(SpaceAction *saction)
 						bActionChannel *achan = (bActionChannel *)ale->owner;
 						IpoCurve *icu = (IpoCurve *)ale->key_data;
 						
-						/* only show if action channel is selected */
-						if (SEL_ACHAN(achan)) {
+						/* only show if owner is selected */
+						if ((ale->ownertype == ACTTYPE_OBJECT) || SEL_ACHAN(achan)) {
 							make_icu_slider(block, icu,
 											(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
 											"Slider to control current value of Constraint Influence");
@@ -349,8 +349,8 @@ static void action_icu_buts(SpaceAction *saction)
 						bActionChannel *achan = (bActionChannel *)ale->owner;
 						IpoCurve *icu = (IpoCurve *)ale->key_data;
 						
-						/* only show if action channel is selected */
-						if (SEL_ACHAN(achan)) {
+						/* only show if owner is selected */
+						if ((ale->ownertype == ACTTYPE_OBJECT) || SEL_ACHAN(achan)) {
 							make_icu_slider(block, icu,
 											(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
 											"Slider to control current value of IPO-Curve");
@@ -359,7 +359,19 @@ static void action_icu_buts(SpaceAction *saction)
 						break;
 					case ACTTYPE_SHAPEKEY: /* shapekey channel */
 					{
-						// TODO...
+						Object *ob= (Object *)ale->id;
+						IpoCurve *icu= (IpoCurve *)ale->key_data;
+						
+						// TODO: only show if object is active 
+						if (icu) {
+							make_icu_slider(block, icu,
+										(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
+										"Slider to control ShapeKey");
+						}
+						else if (ob && ale->index) {
+							make_rvk_slider(block, ob, ale->index, 
+									(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-1, "Slider to control Shape Keys");
+						}
 					}
 						break;
 				}
@@ -529,6 +541,23 @@ static void draw_channel_names(void)
 					
 					//sel = SEL_OBJC(base);
 					sprintf(name, "IPO Curves");
+				}
+					break;
+				case ACTTYPE_FILLSKED: /* shapekeys (dopesheet) expand widget */
+				{
+					Key *key= (Key *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_EDIT;
+					
+					if (FILTER_SKE_OBJC(key))	
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+						
+					//sel = SEL_OBJC(base);
+					sprintf(name, "Shape Keys");
 				}
 					break;
 				case ACTTYPE_FILLCOND: /* constraint channels (dopesheet) expand widget */
@@ -711,6 +740,8 @@ static void draw_channel_names(void)
 					
 					indent = 0;
 					special = -1;
+					
+					offset= (ale->id) ? 21 : 0;
 					
 					if (kb->name[0] == '\0')
 						sprintf(name, "Key %d", ale->index);
@@ -1490,7 +1521,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 		draw_channel_names();
 		
 		if(sa->winx > 50 + NAMEWIDTH + SLIDERWIDTH) {
-			if (act) {
+			if (ELEM(G.saction->mode, SACTCONT_ACTION, SACTCONT_DOPESHEET)) {
 				/* if there is an action, draw sliders for its
 				 * ipo-curve channels in the action window
 				 */

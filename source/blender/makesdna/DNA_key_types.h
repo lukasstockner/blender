@@ -86,6 +86,7 @@ typedef struct Key {
 
 /* keyblock->flag */
 #define KEYBLOCK_MUTE	1
+#define KEYBLOCK_EXPAND	2
 
 #endif
 
