@@ -879,6 +879,7 @@ void rest_pose(bPose *pose)
 		for (i=0; i<3; i++) {
 			pchan->loc[i]= 0.0f;
 			pchan->quat[i+1]= 0.0f;
+			pchan->eul[i]= 0.0f;
 			pchan->size[i]= 1.0f;
 		}
 		pchan->quat[0]= 1.0f;
