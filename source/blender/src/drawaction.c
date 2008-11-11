@@ -1893,6 +1893,7 @@ void draw_gpl_channel(gla2DDrawInfo *di, bGPDlayer *gpl, float ypos)
 void ob_to_keylist(Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki)
 {
 	bConstraintChannel *conchan;
+	Key *key= ob_get_key(ob);
 
 	if (ob) {
 		/* Add object keyframes */
@@ -1902,6 +1903,10 @@ void ob_to_keylist(Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki
 		/* Add action keyframes */
 		if (ob->action)
 			action_to_keylist(ob->action, keys, blocks, aki);
+		
+		/* Add shapekey keyframes */
+		if (key && key->ipo)
+			ipo_to_keylist(key->ipo, keys, blocks, aki);
 		
 		/* Add constraint keyframes */
 		for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next) {
