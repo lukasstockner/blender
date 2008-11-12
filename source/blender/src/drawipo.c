@@ -1207,21 +1207,54 @@ static void draw_ipovertices_keyframes(IpoCurve *icu, short disptype, short edit
 	bglEnd();
 }
 
+/* helper func - draw handle vertex for an IPO-Curve as a round unfilled circle */
+static void draw_ipohandle_control(float x, float y, float xscale, float yscale, float hsize)
+{
+	static GLuint displist=0;
+	
+	/* initialise round circle shape */
+	if (displist == 0) {
+		GLUquadricObj *qobj;
+		
+		displist= glGenLists(1);
+		glNewList(displist, GL_COMPILE_AND_EXECUTE);
+		
+		qobj	= gluNewQuadric(); 
+		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
+		gluDisk(qobj, 0.0,  0.8, 12, 1);
+		gluDeleteQuadric(qobj);  
+		
+		glEndList();
+	}
+	
+	/* adjust view transform before starting */
+	glTranslatef(x, y, 0.0f);
+	glScalef(1.0/xscale*hsize, 1.0/yscale*hsize, 1.0);
+	
+	/* draw! */
+	glCallList(displist);
+	
+	/* restore view transform */
+	glScalef(xscale/hsize, yscale/hsize, 1.0);
+	glTranslatef(-x, -y, 0.0f);
+}
+
 /* helper func - draw handle vertices only for an IPO-curve (if it is in EditMode) */
 static void draw_ipovertices_handles(IpoCurve *icu, short disptype, short sel)
 {
 	BezTriple *bezt= icu->bezt;
 	BezTriple *prevbezt = NULL;
+	float hsize, xscale, yscale;
 	int a;
 	
-	/* Handles can be draw with different size to see them better */
-	glPointSize(BIF_GetThemeValuef(TH_HANDLE_VERTEX_SIZE));
+	/* get view settings */
+	hsize= BIF_GetThemeValuef(TH_HANDLE_VERTEX_SIZE);
+	view2d_getscale(G.v2d, &xscale, &yscale);
 	
 	/* set handle color */
 	if (sel) BIF_ThemeColor(TH_HANDLE_VERTEX_SELECT);
 	else BIF_ThemeColor(TH_HANDLE_VERTEX);
 	
-	bglBegin(GL_POINTS);
 	for (a= 0; a < icu->totvert; a++, prevbezt=bezt, bezt++) {
 		if (disptype != IPO_DISPBITS) {
 			if (ELEM(icu->ipo, IPO_BEZ, IPO_MIXED)) {
@@ -1232,22 +1265,16 @@ static void draw_ipovertices_handles(IpoCurve *icu, short disptype, short sel)
 				 */
 				if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) {
 					if ((bezt->f1 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[0][0] < G.v2d->cur.xmax)*/
-						bglVertex3fv(bezt->vec[0]);
+						draw_ipohandle_control(bezt->vec[0][0], bezt->vec[0][1], xscale, yscale, hsize);
 				}
 				
 				if (bezt->ipo==IPO_BEZ) {
 					if ((bezt->f3 & SELECT) == sel)/* && G.v2d->cur.xmin < bezt->vec[2][0] < G.v2d->cur.xmax)*/
-						bglVertex3fv(bezt->vec[2]);
+						draw_ipohandle_control(bezt->vec[2][0], bezt->vec[2][1], xscale, yscale, hsize);
 				}
 			}
 		}
 	}
-	bglEnd();
-	
-	/* The color are always reset (see the while)
-	 * but the point size not so we reset now.
-	 */
-	glPointSize(BIF_GetThemeValuef(TH_VERTEX_SIZE));
 }
 
 static void draw_ipovertices(int sel)
