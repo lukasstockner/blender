@@ -729,6 +729,9 @@ static void do_ipo_viewmenu(void *arg, int event)
 	case 16: /* Show/Hide handles */
 		G.sipo->flag ^= SIPO_NOHANDLES;
 		break;
+	case 17: /* Show current frame number beside indicator */
+		G.sipo->flag ^= SIPO_NODRAWCFRANUM;
+		break;
 	}
 }
 
@@ -754,6 +757,8 @@ static uiBlock *ipo_viewmenu(void *arg_unused)
 					 "AutoMerge Keyframes|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 15, "");
 	uiDefIconTextBut(block, BUTM, 1, (G.sipo->flag & SIPO_NOHANDLES)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
 					 "Show Handles|Ctrl H", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 16, "");
+	uiDefIconTextBut(block, BUTM, 1, (G.sipo->flag & SIPO_NODRAWCFRANUM)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
+					 "Show Handles|Ctrl H", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 17, "");
 	
 	uiDefBut(block, SEPR, 0, "",        0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 

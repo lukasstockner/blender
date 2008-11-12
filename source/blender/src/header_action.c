@@ -97,6 +97,7 @@ enum {
 	ACTMENU_VIEW_PREVKEYFRAME,
 	ACTMENU_VIEW_TIME,
 	ACTMENU_VIEW_NOHIDE,
+	ACTMENU_VIEW_FRANUM,
 	ACTMENU_VIEW_TRANSDELDUPS,
 	ACTMENU_VIEW_HORIZOPTIMISE,
 	ACTMENU_VIEW_GCOLORS,
@@ -358,6 +359,9 @@ static void do_action_viewmenu(void *arg, int event)
 		case ACTMENU_VIEW_NOHIDE: /* Show hidden channels */
 			G.saction->flag ^= SACTION_NOHIDE;
 			break;
+		case ACTMENU_VIEW_FRANUM: /* Show current frame number beside indicator */
+			G.saction->flag ^= SACTION_NODRAWCFRANUM;
+			break;
 		case ACTMENU_VIEW_NEXTKEYFRAME: /* Jump to next keyframe */
 			nextprev_action_keyframe(1);
 			break;
@@ -408,12 +412,22 @@ static uiBlock *action_viewmenu(void *arg_unused)
 						"Show Frames|Ctrl T", 0, yco-=20, 
 						menuwidth, 19, NULL, 0.0, 0.0, 1, 
 						ACTMENU_VIEW_TIME, "");
+						
+		uiDefIconTextBut(block, BUTM, 1, (G.saction->flag & SACTION_NODRAWCFRANUM)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT,  
+				"Show Current Time Code|", 0, yco-=20, 
+				menuwidth, 19, NULL, 0.0, 0.0, 1, 
+				ACTMENU_VIEW_FRANUM, "");
 	}
 	else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
 						"Show Seconds|Ctrl T", 0, yco-=20, 
 						menuwidth, 19, NULL, 0.0, 0.0, 1, 
 						ACTMENU_VIEW_TIME, "");
+						
+		uiDefIconTextBut(block, BUTM, 1, (G.saction->flag & SACTION_NODRAWCFRANUM)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
+				"Show Current Frame Number|", 0, yco-=20, 
+				menuwidth, 19, NULL, 0.0, 0.0, 1, 
+				ACTMENU_VIEW_FRANUM, "");
 	}
 	
 	uiDefBut(block, SEPR, 0, "",        0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");

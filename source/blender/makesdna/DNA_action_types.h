@@ -277,7 +277,9 @@ typedef enum SACTION_FLAG {
 		/* hack for moving pose-markers (temp flag)  */
 	SACTION_POSEMARKERS_MOVE = (1<<6),
 		/* don't draw action channels using group colours (where applicable) */
-	SACTION_NODRAWGCOLORS = (1<<7)
+	SACTION_NODRAWGCOLORS = (1<<7),
+		/* don't draw current frame number beside frame indicator */
+	SACTION_NODRAWCFRANUM = (1<<8),
 } SACTION_FLAG;	
 
 /* SpaceAction Mode Settings */

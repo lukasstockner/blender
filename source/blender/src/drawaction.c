@@ -79,6 +79,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 #include "BIF_keyframing.h"
+#include "BIF_language.h"
 #include "BIF_resources.h"
 #include "BIF_screen.h"
 #include "BIF_mywindow.h"
@@ -93,6 +94,7 @@
 #include "BSE_drawview.h"
 #include "BSE_editaction_types.h"
 #include "BSE_editipo.h"
+#include "BSE_headerbuttons.h"
 #include "BSE_time.h"
 #include "BSE_view.h"
 
@@ -389,6 +391,65 @@ static void action_icu_buts(SpaceAction *saction)
 
 /********************************** Current Frame **************************** */
 
+void draw_cfra_number(float cfra)
+{
+	float xscale, yscale, x, y;
+	short slen, time=0;
+	char str[32];
+	
+	/* check if current spacetype allows drawing */
+	switch (curarea->spacetype) {
+		case SPACE_ACTION: /* action editor */
+			if (G.saction->flag & SACTION_NODRAWCFRANUM)
+				return;
+			else if (G.saction->flag & SACTION_DRAWTIME)
+				time= 1;
+			break;
+		case SPACE_NLA: /* nla editor */
+			if (G.snla->flag & SNLA_NODRAWCFRANUM)
+				return;
+			else if (G.snla->flag & SNLA_DRAWTIME)
+				time= 1;
+			break;
+		case SPACE_IPO: /* ipo editor */
+			if (G.sipo->flag & SIPO_NODRAWCFRANUM)
+				return;
+			else if (G.sipo->flag & SIPO_DRAWTIME)
+				time= 1;
+			break;
+			
+		default: /* other spaces don't support this */
+			return;
+	}
+	
+	/* because the frame number text is subject to the same scaling as the contents of the view */
+	view2d_getscale(G.v2d, &xscale, &yscale);
+	glScalef(1.0/xscale, 1.0/yscale, 1.0);
+	
+	if (time) 
+		sprintf(str, "   %.2f", FRA2TIME(CFRA));
+	else 
+		sprintf(str, "   %d", CFRA);
+	slen= GetButStringLength(str);
+	
+	/* get starting coordinates for drawing */
+	x= cfra * xscale;
+	y= G.v2d->cur.ymin;
+	
+	/* draw green box around/behind text */
+	BIF_ThemeColor(TH_CFRAME);
+	BIF_ThemeColorShadeAlpha(TH_CFRAME, 0, -100);
+	glRectf(x,  y,  x+slen,  y+20);
+	
+	/* draw current frame number - black text */
+	BIF_ThemeColor(TH_TEXT);
+	ui_rasterpos_safe(x, y+3, 1.0);
+	BIF_DrawString(G.fonts, str, 0);
+	
+	/* restore scaling */
+	glScalef(xscale, yscale, 1.0);
+}
+
 void draw_cfra_action (void)
 {
 	Object *ob;
@@ -423,6 +484,9 @@ void draw_cfra_action (void)
 	}
 	
 	glLineWidth(1.0);
+	
+	/* Draw current frame number in a little box*/
+	draw_cfra_number(vec[0]);
 }
 
 /********************************** Left-Hand Panel + Generics **************************** */

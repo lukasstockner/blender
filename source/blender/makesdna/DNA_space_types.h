@@ -544,6 +544,8 @@ typedef struct SpaceImaSel {
 #define SIPO_LOCK_VIEW			(1<<0)
 #define SIPO_NOTRANSKEYCULL		(1<<1)
 #define SIPO_NOHANDLES			(1<<2)
+#define SIPO_NODRAWCFRANUM		(1<<3)
+#define SIPO_DRAWTIME			(1<<4)
 
 /* SpaceText flags (moved from DNA_text_types.h) */
 
@@ -638,6 +640,7 @@ typedef struct SpaceImaSel {
 #define SNLA_ACTIVELAYERS	2
 #define SNLA_DRAWTIME		4
 #define SNLA_NOTRANSKEYCULL	8
+#define SNLA_NODRAWCFRANUM	16
 
 /* time->flag */
 	/* show timing in frames instead of in seconds */

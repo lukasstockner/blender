@@ -131,6 +131,9 @@ static void do_nla_viewmenu(void *arg, int event)
 	case 10: /* AutoMerge Keyframes */
 		G.snla->flag ^= SNLA_NOTRANSKEYCULL;
 		break;
+	case 11: /* Show current frame number beside indicator */
+		G.snla->flag ^= SNLA_NODRAWCFRANUM;
+		break;
 	}
 }
 
@@ -145,11 +148,18 @@ static uiBlock *nla_viewmenu(void *arg_unused)
 		
 	uiDefIconTextBut(block, BUTM, 1, (G.snla->flag & SNLA_ALLKEYED)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
 					 "Only Objects On Visible Layers|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 6, "");
-		
+	
 	if (G.snla->flag & SNLA_DRAWTIME) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Show Frames|Ctrl T", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 7, "");
-	} else {
+		
+		uiDefIconTextBut(block, BUTM, 1, (G.snla->flag & SNLA_NODRAWCFRANUM)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT,  
+				"Show Current Time Code|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 11, "");
+	}
+	else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Show Seconds|Ctrl T", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 7, "");
+		
+		uiDefIconTextBut(block, BUTM, 1, (G.snla->flag & SNLA_NODRAWCFRANUM)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
+				"Show Current Frame Number|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 11, "");
 	}
 	
 	uiDefIconTextBut(block, BUTM, 1, (G.snla->flag & SNLA_NOTRANSKEYCULL)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 

@@ -75,6 +75,7 @@ typedef struct ActKeysInc {
 /* ******************************* Methods ****************************** */
 
 /* Action Generics */
+void draw_cfra_number(float cfra);
 void draw_cfra_action(void);
 
 /* Channel Drawing */

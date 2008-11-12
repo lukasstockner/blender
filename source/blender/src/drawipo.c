@@ -79,6 +79,8 @@
 #include "BIF_editaction.h"
 #include "BIF_language.h"
 
+#include "BDR_drawaction.h"
+
 #include "BSE_drawipo.h"
 #include "BSE_view.h"
 #include "BSE_editipo.h"
@@ -1221,7 +1223,7 @@ static void draw_ipohandle_control(float x, float y, float xscale, float yscale,
 		
 		qobj	= gluNewQuadric(); 
 		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-		gluDisk(qobj, 0.0,  0.8, 12, 1);
+		gluDisk(qobj, 0.07,  0.8, 12, 1);
 		gluDeleteQuadric(qobj);  
 		
 		glEndList();
@@ -1763,6 +1765,9 @@ static void draw_cfra(SpaceIpo *sipo)
 	}
 	
 	glLineWidth(1.0);
+	
+	/* Draw current frame number in a little box */
+	draw_cfra_number(vec[0]);
 }
 
 static void draw_ipokey(SpaceIpo *sipo)
@@ -2404,8 +2409,6 @@ void drawipospace(ScrArea *sa, void *spacedata)
 		calc_ipogrid();	
 		draw_ipogrid();
 		
-		draw_cfra(sipo);
-		
 		/* ipokeys */
 		if(sipo->showkey) {
 			//if(sipo->ipokey.first==0) make_ipokey();
@@ -2437,11 +2440,14 @@ void drawipospace(ScrArea *sa, void *spacedata)
 		if (NLA_IPO_SCALED)
 			actstrip_map_ipo_keys(OBACT, sipo->ipo, 1, 0);
 		
-		/* Draw 'curtains' for preview */
-		draw_anim_preview_timespace();
+		/* draw current frame */
+		draw_cfra(sipo);
 		
 		/* draw markers */
 		draw_markers_timespace(SCE_MARKERS, 0);
+		
+		/* Draw 'curtains' for preview */
+		draw_anim_preview_timespace();
 		
 		/* restore viewport */
 		mywinset(sa->win);
