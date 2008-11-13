@@ -246,11 +246,15 @@ typedef enum ACT_FLAG {
 /* DopeSheet filter-flag */
 typedef enum DOPESHEET_FILTERFLAG {
 		/* general filtering */
-	ADS_FILTER_ONLYSEL	= (1<<0),
+	ADS_FILTER_ONLYSEL			= (1<<0),
 	
 		/* datatype-based filtering */
-	ADS_FILTER_OBONLY	= (1<<10),
-	ADS_FILTER_ARMONLY	= (1<<11),
+	ADS_FILTER_NOOBJ			= (1<<4),
+	ADS_FILTER_NOARM			= (1<<5),
+	ADS_FILTER_NOSHAPEKEYS 		= (1<<6),
+	ADS_FILTER_NOIPOS			= (1<<7),
+	ADS_FILTER_NOACTS			= (1<<8),
+	ADS_FILTER_NOCONSTRAINTS	= (1<<9),
 } DOPESHEET_FILTERFLAG;	
 
 /* DopeSheet general flags */

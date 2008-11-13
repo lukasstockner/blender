@@ -682,7 +682,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 		return;
 	
 	/* IPO? */
-	if (ob->ipo) {
+	if ((ob->ipo) && !(ads->filterflag & ADS_FILTER_NOIPOS)) {
 		IpoCurve *icu;
 		
 		/* include ipo-expand widget? */
@@ -707,7 +707,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	}
 	
 	/* Action? */
-	if (ob->action) {
+	if ((ob->action) && !(ads->filterflag & ADS_FILTER_NOACTS)) {
 		/* include action-expand widget? */
 		if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
 			ale= make_new_actlistelem(ob->action, ACTTYPE_FILLACTD, base, ACTTYPE_OBJECT);
@@ -722,7 +722,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	}
 	
 	/* ShapeKeys? */
-	if (key) {
+	if ((key) && !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS)) {
 		/* include shapekey-expand widget? */
 		if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
 			ale= make_new_actlistelem(key, ACTTYPE_FILLSKED, base, ACTTYPE_OBJECT);
@@ -736,7 +736,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	}
 	
 	/* Constraint Channels? */
-	if (ob->constraintChannels.first) {
+	if ((ob->constraintChannels.first) && !(ads->filterflag & ADS_FILTER_NOCONSTRAINTS)) {
 		bConstraintChannel *conchan;
 		
 		/* include constraint-expand widget? */
@@ -805,6 +805,42 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 			if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first) && !(key)) {
 				/* no animation data to show... */
 				continue;
+			}
+			
+			/* additionally, dopesheet filtering also affects what objects to consider */
+			if (ads->filterflag) {
+				if ( (ads->filterflag & ADS_FILTER_ONLYSEL) && !((base->flag & SELECT) || (base == sce->basact)) )  {
+					/* only selected should be shown */
+					continue;
+				}
+				if ((ads->filterflag & ADS_FILTER_NOARM) && (ob->type == OB_ARMATURE)) {
+					/* not showing armatures  */
+					continue;
+				}
+				if ((ads->filterflag & ADS_FILTER_NOOBJ) && (ob->type != OB_ARMATURE)) {
+					/* not showing objects that aren't armatures */
+					continue;
+				}
+				if (!(ob->action) && !(ob->constraintChannels.first) && !(key)) {
+					/* this object is only included for it's ipo, but those aren't being shown */
+					if ((ob->ipo) && (ads->filterflag & ADS_FILTER_NOIPOS))
+						continue;
+				}
+				if (!(ob->ipo) && !(ob->constraintChannels.first) && !(key)) {
+					/* this object is only included for it's action, but those aren't being shown */
+					if ((ob->action) && (ads->filterflag & ADS_FILTER_NOACTS))
+						continue;
+				}
+				if (!(ob->ipo) && !(ob->action) && !(key)) {
+					/* this object is only included for it's action, but those aren't being shown */
+					if ((ob->constraintChannels.first) && (ads->filterflag & ADS_FILTER_NOCONSTRAINTS))
+						continue;
+				}
+				if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first)) {
+					/* this object is only included for it's shapekeys, but those aren't being shown */
+					if ((key) && (ads->filterflag & ADS_FILTER_NOSHAPEKEYS))
+						continue;
+				}
 			}
 			
 			/* since we're still here, this object should be usable */

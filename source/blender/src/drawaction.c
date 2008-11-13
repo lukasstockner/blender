@@ -1855,6 +1855,8 @@ static ActKeysInc *init_aki_data()
 {
 	static ActKeysInc aki;
 	
+	// FIXME: include special checks for dopesheet channels here... (dopesheet filtering could be added here too)
+	
 	/* init data of static struct here */
 	if ((curarea->spacetype == SPACE_ACTION) && NLA_ACTION_SCALED &&
 		(G.saction->mode == SACTCONT_ACTION))

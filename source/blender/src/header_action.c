@@ -1744,7 +1744,27 @@ void action_buttons(void)
 	
 	/* MODE-DEPENDENT DRAWING */
 	if (G.saction->mode == SACTCONT_DOPESHEET) {
-		// TODO: maybe we need pinning/refresh cache at some point, but not yet!
+		/* FILTERING OPTIONS */
+		xco -= 10;
+		
+		//uiBlockBeginAlign(block);
+			uiDefIconButBitI(block, TOG, ADS_FILTER_ONLYSEL, B_REDR, ICON_RESTRICT_SELECT_OFF,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Only display selected Objects");
+		//uiBlockEndAlign(block);
+		xco += 5;
+		
+		uiBlockBeginAlign(block);
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOOBJ, B_REDR, ICON_OBJECT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Non-Armature Objects");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOARM, B_REDR, ICON_ARMATURE,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Armature Objects");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOSHAPEKEYS, B_REDR, ICON_EDIT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display ShapeKeys");
+		uiBlockEndAlign(block);
+		xco += 5;
+		
+		uiBlockBeginAlign(block);		
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOIPOS, B_REDR, ICON_IPO,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display IPO's");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOACTS, B_REDR, ICON_ACTION,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Actions");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOCONSTRAINTS, B_REDR, ICON_CONSTRAINT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Constraints");
+		uiBlockEndAlign(block);
+		xco += 30;
 	}
 	else if (G.saction->mode == SACTCONT_ACTION) { // not too appropriate for shapekeys atm...
 		/* NAME ETC */
@@ -1761,7 +1781,6 @@ void action_buttons(void)
 		xco += 8;
 	}
 	
-	
 	/* COPY PASTE */
 	uiBlockBeginAlign(block);
 	if (curarea->headertype==HEADERTOP) {
@@ -1775,9 +1794,8 @@ void action_buttons(void)
 	uiBlockEndAlign(block);
 	xco += (XIC + 8);
 	
-	
+	/* draw AUTOSNAP */
 	if (G.saction->mode != SACTCONT_GPENCIL) {
-		/* draw AUTOSNAP */
 		if (G.saction->flag & SACTION_DRAWTIME) {
 			uiDefButC(block, MENU, B_REDR,
 					"Auto-Snap Keyframes %t|No Snap %x0|Second Step %x1|Nearest Second %x2|Nearest Marker %x3", 
