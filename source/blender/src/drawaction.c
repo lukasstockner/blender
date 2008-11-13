@@ -393,7 +393,7 @@ static void action_icu_buts(SpaceAction *saction)
 
 void draw_cfra_number(float cfra)
 {
-	float xscale, yscale, x, y;
+	float xscale, yscale, yspace, ypixels, x;
 	short slen, time=0;
 	char str[32];
 	
@@ -422,6 +422,14 @@ void draw_cfra_number(float cfra)
 			return;
 	}
 	
+	/* move ortho view to align with slider in bottom */
+	glTranslatef(0.0f, G.v2d->cur.ymin, 0.0f);
+	
+	/* bad hacks in drawing markers... inverse correct that as well */
+	yspace= G.v2d->cur.ymax - G.v2d->cur.ymin;
+	ypixels= G.v2d->mask.ymax - G.v2d->mask.ymin;
+	glTranslatef(0.0f, 5.0*yspace/ypixels, 0.0f);
+	
 	/* because the frame number text is subject to the same scaling as the contents of the view */
 	view2d_getscale(G.v2d, &xscale, &yscale);
 	glScalef(1.0/xscale, 1.0/yscale, 1.0);
@@ -434,20 +442,21 @@ void draw_cfra_number(float cfra)
 	
 	/* get starting coordinates for drawing */
 	x= cfra * xscale;
-	y= G.v2d->cur.ymin;
 	
 	/* draw green box around/behind text */
 	BIF_ThemeColor(TH_CFRAME);
 	BIF_ThemeColorShadeAlpha(TH_CFRAME, 0, -100);
-	glRectf(x,  y,  x+slen,  y+20);
+	glRectf(x,  0,  x+slen,  20);
 	
 	/* draw current frame number - black text */
 	BIF_ThemeColor(TH_TEXT);
-	ui_rasterpos_safe(x, y+3, 1.0);
+	ui_rasterpos_safe(x, 3, 1.0);
 	BIF_DrawString(G.fonts, str, 0);
 	
-	/* restore scaling */
+	/* restore view transform */
 	glScalef(xscale, yscale, 1.0);
+	glTranslatef(0.0f, -G.v2d->cur.ymin, 0.0f);
+	glTranslatef(0.0f, -5.0*yspace/ypixels, 0.0f);
 }
 
 void draw_cfra_action (void)
