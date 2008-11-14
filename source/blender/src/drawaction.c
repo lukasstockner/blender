@@ -1472,30 +1472,6 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 
 	/* warning: blocks need to be freed each time, handlers dont remove  */
 	uiFreeBlocksWin(&sa->uiblocks, sa->win);
-
-	/* only try to refresh action that's displayed if not pinned */
-	// TODO: should this be moved into get_action_context instead???
-	if (G.saction->pin==0) {
-		/* depends on mode */
-		switch (G.saction->mode) {
-			case SACTCONT_ACTION:
-			{
-				if (OBACT)
-					G.saction->action = OBACT->action;
-				else
-					G.saction->action= NULL;
-			}
-				break;
-			case SACTCONT_DOPESHEET:
-			{
-				/* update scene-pointer */
-				G.saction->ads.source= (ID *)G.scene;
-				
-				// TODO: later, we may need to set flags?
-			}
-				break;
-		}
-	}
 	
 	/* get data */
 	data = get_action_context(&datatype);
@@ -1589,7 +1565,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 	}
 
 	/* Draw Left-Hand Panel if enough space in window */
-	if (G.v2d->mask.xmin!=0) {
+	if (G.v2d->mask.xmin != 0) {
 		/* Draw channel names */
 		draw_channel_names();
 		

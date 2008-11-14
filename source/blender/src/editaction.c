@@ -1182,59 +1182,48 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 }
 
 void *get_action_context (short *datatype)
-{
-	bDopeSheet *ads;
-	bAction *act;
-	Key *key;
-	
-	/* get pointers to active action/shapekey blocks */
-	// TODO: should the checks for updating types really be here?
-	act = (G.saction)? G.saction->action: NULL;
-	ads = (G.saction)? &G.saction->ads: NULL;
-	key = get_action_mesh_key();
-	
+{	
 	/* check mode selector */
 	if (G.saction) {
+		/* sync settings with current view status, then return appropriate data */
 		switch (G.saction->mode) {
-			case SACTCONT_ACTION: 
+			case SACTCONT_ACTION:
+				/* if not pinned, sync with active object */
+				if (G.saction->pin == 0) {
+					if (OBACT)
+						G.saction->action = OBACT->action;
+					else
+						G.saction->action= NULL;
+				}
+					
 				*datatype= ACTCONT_ACTION;
-				return act;
+				return G.saction->action;
 				
 			case SACTCONT_SHAPEKEY:
 				*datatype= ACTCONT_SHAPEKEY;
-				return key;
+				return get_action_mesh_key();
 				
 			case SACTCONT_GPENCIL:
 				*datatype= ACTCONT_GPENCIL;
 				return G.curscreen; // FIXME: add that dopesheet type thing here!
+				break;
 				
 			case SACTCONT_DOPESHEET:
+				/* update scene-pointer (no need to check for pinning yet, as not implemented) */
+				G.saction->ads.source= (ID *)G.scene;
+				
 				*datatype= ACTCONT_DOPESHEET;
-				return ads;
+				return &G.saction->ads;
 			
-			default: /* includes SACTCONT_DOPESHEET for now */
+			default: /* unhandled yet */
 				*datatype= ACTCONT_NONE;
 				return NULL;
 		}
 	}
 	else {
-		/* resort to guessing based on what is available */
-		if (act) {
-			*datatype= ACTCONT_ACTION;
-			return act;
-		}
-		else if (key) {
-			*datatype= ACTCONT_SHAPEKEY;
-			return key;
-		}
-		else if (ads) {
-			*datatype= ACTCONT_DOPESHEET;
-			return ads;
-		}
-		else {
-			*datatype= ACTCONT_NONE;
-			return NULL;
-		}
+		/* nothing should be available... */
+		*datatype= ACTCONT_NONE;
+		return NULL;
 	}
 }
 

@@ -72,6 +72,7 @@
 #include "BDR_drawaction.h"
 #include "BSE_drawipo.h"
 #include "BSE_headerbuttons.h"
+#include "BSE_editaction_types.h"
 #include "BSE_time.h"
 
 #include "nla.h"
@@ -980,10 +981,12 @@ static uiBlock *action_channelmenu(void *arg_unused)
 	uiDefIconTextBlockBut(block, action_channelmenu_groupmenu, 
 						  NULL, ICON_RIGHTARROW_THIN, 
 						  "Grouping", 0, yco-=20, 120, 20, "");	 
-						  
-	uiDefIconTextBlockBut(block, action_channelmenu_posmenu, 
-						  NULL, ICON_RIGHTARROW_THIN, 
-						  "Ordering", 0, yco-=20, 120, 20, "");
+	
+	if (G.saction->mode == SACTCONT_ACTION) {
+		uiDefIconTextBlockBut(block, action_channelmenu_posmenu, 
+							  NULL, ICON_RIGHTARROW_THIN, 
+							  "Ordering", 0, yco-=20, 120, 20, "");
+	}
 	
 	uiDefIconTextBlockBut(block, action_channelmenu_settingsmenu, 
 						  NULL, ICON_RIGHTARROW_THIN, 
@@ -1002,10 +1005,12 @@ static uiBlock *action_channelmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
 			"Toggle Show Hierachy|~", 0, yco-=20,
 			menuwidth, 19, NULL, 0.0, 0.0, 0, ACTMENU_CHANNELS_EXPANDALL, "");
-			
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
-			"Show Group-Hidden Channels|Shift ~", 0, yco-=20,
-			menuwidth, 19, NULL, 0.0, 0.0, 0, ACTMENU_CHANNELS_SHOWACHANS, "");
+		
+	if (G.saction->mode == SACTCONT_ACTION) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
+				"Show Group-Hidden Channels|Shift ~", 0, yco-=20,
+				menuwidth, 19, NULL, 0.0, 0.0, 0, ACTMENU_CHANNELS_SHOWACHANS, "");
+	}
 			
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
 			"Expand One Level|Ctrl NumPad+", 0, yco-=20,
@@ -1478,7 +1483,7 @@ static uiBlock *action_keymenu(void *arg_unused)
 						  "Interpolation Mode", 0, yco-=20, 120, 20, "");
 
 	
-	if(curarea->headertype==HEADERTOP) {
+	if (curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
 	}
 	else {
@@ -1626,24 +1631,16 @@ static uiBlock *action_markermenu(void *arg_unused)
 
 void action_buttons(void)
 {
+	void *data;
+	short datatype;
+	
 	uiBlock *block;
 	short xco, xmax;
 	char name[256];
 	Object *ob;
 	ID *from;
-
-	if (G.saction == NULL)
-		return;
-
-	/* copied from drawactionspace.... */
-	// FIXME: do for gpencil too?
-	if (!G.saction->pin) {
-		if (OBACT)
-			G.saction->action = OBACT->action;
-		else
-			G.saction->action= NULL;
-	}
-
+	
+	/* draw SPACETYPE SELECTOR */
 	sprintf(name, "header %d", curarea->headwin);
 	block= uiNewBlock(&curarea->uiblocks, name, 
 					  UI_EMBOSS, UI_HELV, curarea->headwin);
@@ -1664,6 +1661,7 @@ void action_buttons(void)
 					  "Click for menu of available types.");
 
 	xco += XIC + 14;
+	
 
 	uiBlockSetEmboss(block, UI_EMBOSSN);
 	if (curarea->flag & HEADER_NO_PULLDOWN) {
@@ -1682,6 +1680,11 @@ void action_buttons(void)
 	}
 	uiBlockSetEmboss(block, UI_EMBOSS);
 	xco+=XIC;
+	
+	/* get context... (also syncs data) */
+	data= get_action_context(&datatype);
+	if (datatype == ACTCONT_NONE) return;
+	
 
 	if ((curarea->flag & HEADER_NO_PULLDOWN)==0) {
 		/* pull down menus */
