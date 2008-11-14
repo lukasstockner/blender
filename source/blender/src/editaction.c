@@ -4444,6 +4444,7 @@ static void mouse_actionchannels (short mval[])
 	switch (chantype) {
 		case ACTTYPE_OBJECT:
 			{
+				Scene *sce= (Scene *)G.saction->ads.source;
 				Base *base= (Base *)act_channel;
 				Object *ob= base->object;
 				
@@ -4452,9 +4453,27 @@ static void mouse_actionchannels (short mval[])
 					ob->nlaflag ^= OB_ADS_COLLAPSED;
 				}
 				else {
-					// TODO: selection stuff?
-					base->flag ^= SELECT;
-					ob->flag ^= SELECT;
+					/* set selection status */
+					if (G.qual & LR_SHIFTKEY) {
+						/* swap select */
+						base->flag ^= SELECT;
+						ob->flag= base->flag;
+					}
+					else {
+						Base *b;
+						
+						/* deleselect all */
+						for (b= sce->base.first; b; b= b->next) {
+							b->flag &= ~SELECT;
+							b->object->flag= b->flag;
+						}
+						
+						/* select object now */
+						base->flag |= SELECT;
+						ob->flag |= SELECT;
+					}
+					
+					set_active_base(base);	/* editview.c */
 				}
 			}
 				break;
