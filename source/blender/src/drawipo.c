@@ -1571,7 +1571,7 @@ static void draw_ipocurve_repeat_normal (IpoCurve *icu, float cycxofs, float cyc
 	
 	/* extrapolate to right? (see code for left-extrapolation above too) */
 	if ((icu->extrap & IPO_CYCL)==0) {
-		if(prevbezt->vec[1][0] < G.v2d->cur.xmax) {
+		if (prevbezt->vec[1][0] < G.v2d->cur.xmax) {
 			v1[0]= G.v2d->cur.xmax;
 			
 			/* y-value depends on the interpolation */

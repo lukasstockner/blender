@@ -438,7 +438,7 @@ void draw_cfra_number(float cfra)
 		sprintf(str, "   %.2f", FRA2TIME(CFRA));
 	else 
 		sprintf(str, "   %d", CFRA);
-	slen= GetButStringLength(str);
+	slen= BIF_GetStringWidth(G.font, str, 0);
 	
 	/* get starting coordinates for drawing */
 	x= cfra * xscale;
@@ -446,11 +446,11 @@ void draw_cfra_number(float cfra)
 	/* draw green box around/behind text */
 	BIF_ThemeColor(TH_CFRAME);
 	BIF_ThemeColorShadeAlpha(TH_CFRAME, 0, -100);
-	glRectf(x,  0,  x+slen,  20);
+	glRectf(x,  0,  x+slen,  15);
 	
 	/* draw current frame number - black text */
 	BIF_ThemeColor(TH_TEXT);
-	ui_rasterpos_safe(x, 3, 1.0);
+	ui_rasterpos_safe(x-5, 3, 1.0);
 	BIF_DrawString(G.fonts, str, 0);
 	
 	/* restore view transform */
@@ -1569,7 +1569,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 		/* Draw channel names */
 		draw_channel_names();
 		
-		if(sa->winx > 50 + NAMEWIDTH + SLIDERWIDTH) {
+		if (sa->winx > 50 + NAMEWIDTH + SLIDERWIDTH) {
 			if (ELEM(G.saction->mode, SACTCONT_ACTION, SACTCONT_DOPESHEET)) {
 				/* if there is an action, draw sliders for its
 				 * ipo-curve channels in the action window

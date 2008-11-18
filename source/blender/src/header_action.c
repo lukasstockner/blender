@@ -238,7 +238,7 @@ void do_action_buttons(unsigned short event)
 			G.v2d->cur.xmin = 0;
 			G.v2d->cur.ymin=-SCROLLB;
 			
-			if (G.saction->action) {
+			if ((G.saction->mode==SACTCONT_ACTION) && (G.saction->action)) {
 				float extra;
 				
 				calc_action_range(G.saction->action, &G.v2d->cur.xmin, &G.v2d->cur.xmax, 0);
@@ -260,8 +260,9 @@ void do_action_buttons(unsigned short event)
 				G.v2d->cur.xmax= 65.0;
 			}
 			
+			// FIXME: this vertical alignment is bad!
 			G.v2d->cur.ymin= -75.0;
-			G.v2d->cur.ymax= 5.0;
+			G.v2d->cur.ymax= 0.0;
 			
 			G.v2d->tot= G.v2d->cur;
 			test_view2d(G.v2d, curarea->winx, curarea->winy);
