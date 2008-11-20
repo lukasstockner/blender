@@ -161,7 +161,7 @@ void multiresModifier_join(Object *ob)
 
 			/* If the object didn't have multires enabled, give it a new modifier */
 			if(!mmd) {
-				ModifierData *md = base->object->modifiers.first;
+				md = base->object->modifiers.first;
 				
 				while(md && modifierType_getInfo(md->type)->type == eModifierTypeType_OnlyDeform)
 					md = md->next;
@@ -205,34 +205,6 @@ static void Mat3FromColVecs(float mat[][3], float v1[3], float v2[3], float v3[3
 	VecCopyf(mat[0], v1);
 	VecCopyf(mat[1], v2);
 	VecCopyf(mat[2], v3);
-}
-
-static void calc_ts_mat(float out[][3], float center[3], float spintarget[3], float normal[3])
-{
-	float tan[3], cross[3];
-
-	VecSubf(tan, spintarget, center);
-	Normalize(tan);
-
-	Crossf(cross, normal, tan);
-
-	Mat3FromColVecs(out, tan, cross, normal);
-}
-
-static void face_center(float *out, float *a, float *b, float *c, float *d)
-{
-	VecAddf(out, a, b);
-	VecAddf(out, out, c);
-	if(d)
-		VecAddf(out, out, d);
-
-	VecMulf(out, d ? 0.25 : 1.0 / 3.0);
-}
-
-static void calc_face_ts_partial(float center[3], float target[3], float norm[][3], float (*orco)[3], MFace *f)
-{
-	face_center(center, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
-	VecCopyf(target, orco[f->v1]);
 }
 
 static DerivedMesh *multires_subdisp_pre(DerivedMesh *mrdm, int distance, int simple)
@@ -733,7 +705,6 @@ static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 	if(d->grid)
 		d->grid += face_index;
 
-	calc_face_ts_partial(d->mat_center, d->mat_target, d->mat_norms, MultiresDM_get_orco(dm), d->face);
 	d->mat_norms = MultiresDM_get_vertnorm(dm);
 
 	d->spacing = pow(2, MultiresDM_get_totlvl(dm) - MultiresDM_get_lvl(dm));
@@ -962,8 +933,8 @@ static void calc_disp_mat(MultiresDisplacer *d, float mat[3][3])
 	float norm[3], t1[3], t2[3], inv[3][3];
 	MVert *base = d->subco + d->subco_index;
 
-	printf("f=%d, x=%d, y=%d, i=%d, u=%d, v=%d ", d->face_index, d->x, d->y, d->subco_index, u, v);
-
+	//printf("f=%d, x=%d, y=%d, i=%d, u=%d, v=%d ", d->face_index, d->x, d->y, d->subco_index, u, v);
+	
 	norm[0] = base->no[0] / 32767.0f;
 	norm[1] = base->no[1] / 32767.0f;
 	norm[2] = base->no[2] / 32767.0f;
@@ -986,7 +957,7 @@ static void calc_disp_mat(MultiresDisplacer *d, float mat[3][3])
 	else
 		VecSubf(t2, d->subco[v].co, base->co);
 
-	printf("uu=%d, vv=%d\n", u, v);
+	//printf("uu=%d, vv=%d\n", u, v);
 
 	Normalize(t1);
 	Normalize(t2);
@@ -1000,34 +971,23 @@ static void calc_disp_mat(MultiresDisplacer *d, float mat[3][3])
 
 static void multires_displace(MultiresDisplacer *d, float co[3])
 {
-	float disp[3];
+	float disp[3], mat[3][3];
 	float *data;
+	MVert *subco = &d->subco[d->subco_index];
 
 	if(!d->grid || !d->grid->disps) return;
 
 	data = d->grid->disps[(d->y * d->spacing) * d->disp_st + (d->x * d->spacing)];
 
 	if(d->invert)
-		VecSubf(disp, co, d->subco->co);
+		VecSubf(disp, co, subco->co);
 	else
 		VecCopyf(disp, data);
 
-	{
-		float norm[3];
-		float mat[3][3], inv[3][3];
 
-		norm[0] = d->subco->no[0] / 32767.0f;
-		norm[1] = d->subco->no[1] / 32767.0f;
-		norm[2] = d->subco->no[2] / 32767.0f;
-
-		calc_ts_mat(mat, d->mat_center, d->mat_target, norm);
-		if(d->invert) {
-			Mat3Inv(inv, mat);
-			Mat3CpyMat3(mat, inv);
-		}
-			
-		Mat3MulVecfl(mat, disp);
-	}
+	/* Apply ts matrix to displacement */
+	calc_disp_mat(d, mat);
+	Mat3MulVecfl(mat, disp);
 
 	if(d->invert) {
 		VecCopyf(data, disp);
