@@ -3986,10 +3986,6 @@ static void apply_objects_internal( int apply_scale, int apply_rot )
 					error("Can't apply to a multi user mesh, doing nothing.");
 					return;
 				}
-				if(me->key) {
-					error("Can't apply to a mesh with vertex keys, doing nothing.");
-					return;
-				}
 			}
 			else if (ob->type==OB_ARMATURE) {
 				arm= ob->data;
@@ -4022,25 +4018,39 @@ static void apply_objects_internal( int apply_scale, int apply_rot )
 			ob= base->object;
 			
 			if(ob->type==OB_MESH) {
+				/* calculate matrix */
 				if (apply_scale && apply_rot)
 					object_to_mat3(ob, mat);
 				else if (apply_scale)
 					object_scale_to_mat3(ob, mat);
 				else
 					object_rot_to_mat3(ob, mat);
-
+				
+				/* get object data */
 				me= ob->data;
 				
-				/* see checks above */
-				
+				/* adjust data */
 				mvert= me->mvert;
 				for(a=0; a<me->totvert; a++, mvert++) {
 					Mat3MulVecfl(mat, mvert->co);
 				}
+				
+				if (me->key) {
+					KeyBlock *kb;
+					
+					for (kb=me->key->block.first; kb; kb=kb->next) {
+						float *fp= kb->data;
+						
+						for (a=0; a<kb->totelem; a++, fp+=3)
+							Mat3MulVecfl(mat, fp);
+					}
+				}
+				
+				/* adjust transforms */
 				if (apply_scale)
-					ob->size[0]= ob->size[1]= ob->size[2]= 1.0;
+					ob->size[0]= ob->size[1]= ob->size[2]= 1.0f;
 				if (apply_rot)
-					ob->rot[0]= ob->rot[1]= ob->rot[2]= 0.0;
+					ob->rot[0]= ob->rot[1]= ob->rot[2]= 0.0f;
 				/*QuatOne(ob->quat);*/ /* Quats arnt used yet */
 				
 				where_is_object(ob);
