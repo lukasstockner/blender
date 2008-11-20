@@ -558,6 +558,13 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int dista
 	mmd->lvl = mmd->totlvl;
 }
 
+typedef struct DisplacerEdges {
+	/* DerivedMesh index at the start of each edge (using face x/y directions to define the start) */
+	int base[4];
+	/* 1 if edge moves in the positive x or y direction, -1 otherwise */
+	int dir[4];
+} DisplacerEdges;
+
 typedef struct MultiresDisplacer {
 	struct MDisps *grid;
 	struct MFace *face;
@@ -566,6 +573,7 @@ typedef struct MultiresDisplacer {
 	float mat_target[3];
 	float mat_center[3];
 	float (*mat_norms)[3];
+	int dm_first_base_vert_index;
 
 	int spacing;
 	int sidetot, disp_st;
@@ -716,6 +724,93 @@ static void multires_displacer_jump(MultiresDisplacer *d)
 		d->x = d->ax;
 		d->y += 1;
 	}
+}
+
+/* Treating v1 as (0,0) and v3 as (st-1,st-1),
+   returns the index of the vertex at (x,y).
+   If x or y is >= st, wraps over to the adjacent face,
+   or if there is no adjacent face, returns -2. */
+static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer *d, DisplacerEdges *de)
+{
+	int coord_edge = d->sidetot - 1; /* Max value of x/y at edge of grid */
+	int st = d->sidetot - 2;
+	int mid = d->sidetot / 2;
+	int lim = mid - 1;
+	int qtot = lim * lim;
+	int base = st * st * face_index;
+ 
+	/* Edge spillover */
+	if(x == d->sidetot || y == d->sidetot) {
+		/*
+		if(x == d->sidetot && d->face_spill_x != -1) {
+			int v_axis = (d->spill_x & 1) ? d->sidetot - 1 - y : y;
+			int f_axis = (d->spill_x & 2) ? 1 : d->sidetot - 2;
+			int lx = f_axis, ly = v_axis;
+
+			if(d->spill_x & 4) {
+				lx = v_axis;
+				ly = f_axis;
+			}
+
+			return multires_index_at_loc(d->face_spill_x, lx, ly, d, &d->edges_spill_x);
+		}
+		else if(y == d->sidetot && d->face_spill_y != -1) {
+			int v_axis = (d->spill_y & 1) ? x : d->sidetot - 1 - x;
+			int f_axis = (d->spill_y & 2) ? 1 : d->sidetot - 2;
+			int lx = v_axis, ly = f_axis;
+
+			if(d->spill_y & 4) {
+				lx = f_axis;
+				ly = v_axis;
+			}
+			
+			return multires_index_at_loc(d->face_spill_y, lx, ly, d, &d->edges_spill_y);
+		}
+		else
+			return -2;
+		*/
+	}
+	/* Corners */
+	else if(x == 0 && y == 0)
+		return d->dm_first_base_vert_index + d->face->v1;
+	else if(x == coord_edge && y == 0)
+		return d->dm_first_base_vert_index + d->face->v2;
+	else if(x == coord_edge && y == coord_edge)
+		return d->dm_first_base_vert_index + d->face->v3;
+	else if(x == 0 && y == coord_edge)
+		return d->dm_first_base_vert_index + d->face->v4;
+	/* Edges */
+	else if(x == 0)
+		return de->base[3] + de->dir[3] * (y - 1);
+	else if(y == 0)
+		return de->base[0] + de->dir[0] * (x - 1);
+	else if(x == d->sidetot - 1)
+		return de->base[1] + de->dir[1] * (y - 1);
+	else if(y == d->sidetot - 1)
+		return de->base[2] + de->dir[2] * (x - 1);
+	/* Face center */
+	else if(x == mid && y == mid)
+		return base;
+	/* Cross */
+	else if(x == mid && y < mid)
+		return base + (mid - y);
+	else if(y == mid && x > mid)
+		return base + lim + (x - mid);
+	else if(x == mid && y > mid)
+		return base + lim*2 + (y - mid);
+	else if(y == mid && x < mid)
+		return base + lim*3 + (mid - x);
+	/* Quarters */
+	else if(x < mid && y < mid)
+		return base + lim*4 + ((mid - x - 1)*lim + (mid - y));
+	else if(x > mid && y < mid)
+		return base + lim*4 + qtot + ((mid - y - 1)*lim + (x - mid));
+	else if(x > mid && y > mid)
+		return base + lim*4 + qtot*2 + ((x - mid - 1)*lim + (y - mid));
+	else if(x < mid && y > mid)
+		return base + lim*4 + qtot*3 + ((y - mid - 1)*lim + (mid - x));
+ 
+	return -1;
 }
 
 static void multires_displace(MultiresDisplacer *d, float co[3])
