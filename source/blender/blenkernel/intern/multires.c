@@ -566,8 +566,10 @@ typedef struct DisplacerEdges {
 } DisplacerEdges;
 
 typedef struct MultiresDisplacer {
-	struct MDisps *grid;
-	struct MFace *face;
+	Mesh *me;
+	MDisps *grid;
+	/* To be removed */
+	MFace *face;
 	
 	/* For matrix calc */
 	float mat_target[3];
@@ -576,23 +578,156 @@ typedef struct MultiresDisplacer {
 	int dm_first_base_vert_index;
 
 	int spacing;
-	int sidetot, disp_st;
+	int sidetot, interior_st, disp_st;
 	int sidendx;
 	int type;
 	int invert;
 	float (*orco)[3];
-	struct MVert *subco;
+	MVert *subco;
+	int subco_index, face_index;
 	float weight;
+
+	/* Indices of neighboring faces (or -1 for no neighbor) */
+	int face_spill_x, face_spill_y;
+	/* 1 = Negative variable axis */
+	/* 2 = Near fixed axis */
+	/* 4 = Flip axes */
+	int spill_x, spill_y;
+	/* Neighboring edges for current face and spill faces */
+	DisplacerEdges edges_primary, edges_spill_x, edges_spill_y;
 
 	int x, y, ax, ay;
 } MultiresDisplacer;
+
+static int mface_v(MFace *f, int v)
+{
+	return v == 0 ? f->v1 : v == 1 ? f->v2 : v == 2 ? f->v3 : v == 3 ? f->v4 : -1;
+}
+
+/* Get the edges (and their directions) */
+static void find_displacer_edges(MultiresDisplacer *d, DerivedMesh *dm, DisplacerEdges *de, MFace *f)
+{
+	ListBase *emap = MultiresDM_get_vert_edge_map(dm);
+	IndexNode *n;
+	int i, end = f->v4 ? 4 : 3;
+
+	for(i = 0; i < end; ++i) {
+		int vcur = mface_v(f, i);
+		int vnext = mface_v(f, i == end - 1 ? 0 : i + 1);
+
+		de->dir[i] = 1;
+		
+		for(n = emap[vcur].first; n; n = n->next) {
+			MEdge *e = &d->me->medge[n->index];
+			
+			if(e->v1 == vnext || e->v2 == vnext) {
+				de->base[i] = n->index * d->interior_st;
+				if(((i == 0 || i == 1) && e->v1 == vnext) ||
+				   ((i == 2 || i == 3) && e->v2 == vnext)) {
+					de->dir[i] = -1;
+					de->base[i] += d->interior_st - 1;
+				}
+				de->base[i] += d->me->totface * d->interior_st * d->interior_st;
+				break;
+			}
+		}
+	}
+}
+
+/* Returns in out the corners [0-3] that use v1 and v2 */
+void find_face_corners(MFace *f, int v1, int v2, int out[2])
+{
+	int i, end = f->v4 ? 4 : 3;
+
+	for(i = 0; i < end; ++i) {
+		int corner = mface_v(f, i);
+		if(corner == v1)
+			out[0] = i;
+		if(corner == v2)
+			out[1] = i;
+	}
+}
+
+static void multires_displacer_get_spill_faces(MultiresDisplacer *d, DerivedMesh *dm, MFace *mface)
+{
+	ListBase *map = MultiresDM_get_vert_face_map(dm);
+	IndexNode *n1, *n2;
+	int v4 = d->face->v4 ? d->face->v4 : d->face->v1;
+	int crn[2];
+
+	d->face_spill_x = d->face_spill_y = -1;
+
+	for(n1 = map[d->face->v3].first; n1; n1 = n1->next) {
+		if(n1->index == d->face_index)
+			continue;
+
+		for(n2 = map[d->face->v2].first; n2; n2 = n2->next) {
+			if(n1->index == n2->index)
+				d->face_spill_x = n1->index;
+		}
+		for(n2 = map[v4].first; n2; n2 = n2->next) {
+			if(n1->index == n2->index)
+				d->face_spill_y = n1->index;
+		}
+	}
+
+	if(d->face_spill_x != -1) {
+		/* Neighbor of v2/v3 found, find flip and orientation */
+		find_face_corners(&mface[d->face_spill_x], d->face->v2, d->face->v3, crn);
+
+		if(crn[0] == 0 && crn[1] == 3)
+			d->spill_x = 0+2+0;
+		else if(crn[0] == 3 && crn[1] == 0)
+			d->spill_x = 1+2+0;
+		else if(crn[0] == 1 && crn[1] == 0)
+			d->spill_x = 1+2+4;
+		else if(crn[0] == 0 && crn[1] == 1)
+			d->spill_x = 0+2+4;
+		else if(crn[0] == 2 && crn[1] == 1)
+			d->spill_x = 1+0+0;
+		else if(crn[0] == 1 && crn[1] == 2)
+			d->spill_x = 0+0+0;
+		else if(crn[0] == 3 && crn[1] == 2)
+			d->spill_x = 0+0+4;
+		else if(crn[0] == 2 && crn[1] == 3)
+			d->spill_x = 1+0+4;
+
+		find_displacer_edges(d, dm, &d->edges_spill_x, &mface[d->face_spill_x]);
+	}
+
+	if(d->face_spill_y != -1) {
+		/* Neighbor of v3/v4 found, find flip and orientation */
+		find_face_corners(&mface[d->face_spill_y], d->face->v3, v4, crn);
+
+		if(crn[0] == 1 && crn[1] == 0)
+			d->spill_y = 1+2+0;
+		else if(crn[0] == 0 && crn[1] == 1)
+			d->spill_y = 0+2+0;
+		else if(crn[0] == 2 && crn[1] == 1)
+			d->spill_y = 1+0+4;
+		else if(crn[0] == 1 && crn[1] == 2)
+			d->spill_y = 0+0+4;
+		else if(crn[0] == 3 && crn[1] == 2)
+			d->spill_y = 0+0+0;
+		else if(crn[0] == 2 && crn[1] == 3)
+			d->spill_y = 1+0+0;
+		else if(crn[0] == 0 && crn[1] == 3)
+			d->spill_y = 0+2+4;
+		else if(crn[0] == 3 && crn[1] == 0)
+			d->spill_y = 1+2+4;
+
+		find_displacer_edges(d, dm, &d->edges_spill_y, &mface[d->face_spill_y]);
+	}
+}
 
 static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 			     const int face_index, const int invert)
 {
 	Mesh *me = MultiresDM_get_mesh(dm);
 
+	d->me = me;
 	d->face = me->mface + face_index;
+	d->face_index = face_index;
 	/* Get the multires grid from customdata */
 	d->grid = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(d->grid)
@@ -603,8 +738,14 @@ static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 
 	d->spacing = pow(2, MultiresDM_get_totlvl(dm) - MultiresDM_get_lvl(dm));
 	d->sidetot = multires_side_tot[MultiresDM_get_lvl(dm) - 1];
+	d->interior_st = d->sidetot - 2;
 	d->disp_st = multires_side_tot[MultiresDM_get_totlvl(dm) - 1];
 	d->invert = invert;
+
+	multires_displacer_get_spill_faces(d, dm, me->mface);
+	find_displacer_edges(d, dm, &d->edges_primary, d->face);
+
+	d->dm_first_base_vert_index = dm->getNumVerts(dm) - me->totvert;
 }
 
 static void multires_displacer_weight(MultiresDisplacer *d, const float w)
@@ -741,7 +882,6 @@ static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer
  
 	/* Edge spillover */
 	if(x == d->sidetot || y == d->sidetot) {
-		/*
 		if(x == d->sidetot && d->face_spill_x != -1) {
 			int v_axis = (d->spill_x & 1) ? d->sidetot - 1 - y : y;
 			int f_axis = (d->spill_x & 2) ? 1 : d->sidetot - 2;
@@ -768,7 +908,6 @@ static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer
 		}
 		else
 			return -2;
-		*/
 	}
 	/* Corners */
 	else if(x == 0 && y == 0)
