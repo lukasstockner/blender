@@ -1162,8 +1162,8 @@ typedef struct MultiresDM {
 
 	float (*norm)[3];
 
-	ListBase *vert_face_map;
-	IndexNode *vert_face_map_mem;
+	ListBase *vert_face_map, *vert_edge_map;
+	IndexNode *vert_face_map_mem, *vert_edge_map_mem;
 
 	Mesh *me;
 	int flags;
@@ -1187,6 +1187,10 @@ static void MultiresDM_release(DerivedMesh *dm)
 			MEM_freeN(mrdm->vert_face_map);
 		if(mrdm->vert_face_map_mem)
 			MEM_freeN(mrdm->vert_face_map_mem);
+		if(mrdm->vert_edge_map)
+			MEM_freeN(mrdm->vert_edge_map);
+		if(mrdm->vert_edge_map_mem)
+			MEM_freeN(mrdm->vert_edge_map_mem);
 		MEM_freeN(mrdm);
 	}
 }
@@ -1324,6 +1328,17 @@ ListBase *MultiresDM_get_vert_face_map(DerivedMesh *dm)
 				     mrdm->me->totvert, mrdm->me->totface);
 
 	return mrdm->vert_face_map;
+}
+
+ListBase *MultiresDM_get_vert_edge_map(DerivedMesh *dm)
+{
+	MultiresDM *mrdm = (MultiresDM*)dm;
+
+	if(!mrdm->vert_edge_map)
+		create_vert_edge_map(&mrdm->vert_edge_map, &mrdm->vert_edge_map_mem, mrdm->me->medge,
+				     mrdm->me->totvert, mrdm->me->totedge);
+
+	return mrdm->vert_edge_map;
 }
 
 int *MultiresDM_get_flags(DerivedMesh *dm)

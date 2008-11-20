@@ -74,6 +74,24 @@ void create_vert_face_map(ListBase **map, IndexNode **mem, const MFace *mface, c
 	}
 }
 
+void create_vert_edge_map(ListBase **map, IndexNode **mem, const MEdge *medge, const int totvert, const int totedge)
+{
+	int i, j;
+	IndexNode *node = NULL;
+ 
+	(*map) = MEM_callocN(sizeof(ListBase) * totvert, "vert edge map");
+	(*mem) = MEM_callocN(sizeof(IndexNode) * totedge * 2, "vert edge map mem");
+	node = *mem;
+       
+	/* Find the users */
+	for(i = 0; i < totedge; ++i){
+		for(j = 0; j < 2; ++j, ++node) {
+			node->index = i;
+			BLI_addtail(&(*map)[((unsigned int*)(&medge[i].v1))[j]], node);
+		}
+	}
+}
+
 /* MULTIRES MODIFIER */
 static const int multires_max_levels = 13;
 static const int multires_quad_tot[] = {4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
@@ -209,28 +227,6 @@ static void face_center(float *out, float *a, float *b, float *c, float *d)
 		VecAddf(out, out, d);
 
 	VecMulf(out, d ? 0.25 : 1.0 / 3.0);
-}
-
-static void calc_norm(float *norm, float *a, float *b, float *c, float *d)
-{
-	if(d)
-		CalcNormFloat4(a, b, c, d, norm);
-	else
-		CalcNormFloat(a, b, c, norm);
-}
-
-static void calc_face_ts_mat(float out[][3], float *v1, float *v2, float *v3, float *v4)
-{
-	float center[3], norm[3];
-
-	face_center(center, v1, v2, v3, v4);
-	calc_norm(norm, v1, v2, v3, v4);
-	calc_ts_mat(out, center, v1, norm);
-}
-
-static void calc_face_ts_mat_dm(float out[][3], float (*orco)[3], MFace *f)
-{
-	calc_face_ts_mat(out, orco[f->v1], orco[f->v2], orco[f->v3], (f->v4 ? orco[f->v4] : NULL));
 }
 
 static void calc_face_ts_partial(float center[3], float target[3], float norm[][3], float (*orco)[3], MFace *f)

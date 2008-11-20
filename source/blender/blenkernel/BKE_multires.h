@@ -45,6 +45,8 @@ typedef struct IndexNode {
 
 void create_vert_face_map(ListBase **map, IndexNode **mem, const struct MFace *mface,
 			  const int totvert, const int totface);
+void create_vert_edge_map(ListBase **map, IndexNode **mem, const struct MEdge *medge,
+			  const int totvert, const int totedge);
 
 /* MultiresDM */
 struct Mesh *MultiresDM_get_mesh(struct DerivedMesh *dm);
@@ -53,6 +55,7 @@ void *MultiresDM_get_vertnorm(struct DerivedMesh *);
 void *MultiresDM_get_orco(struct DerivedMesh *);
 struct MVert *MultiresDM_get_subco(struct DerivedMesh *);
 struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
+struct ListBase *MultiresDM_get_vert_edge_map(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));
