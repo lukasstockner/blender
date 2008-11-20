@@ -559,6 +559,9 @@ typedef struct MultiresDisplacer {
 	int subco_index, face_index;
 	float weight;
 
+	/* Valence for each corner */
+	int valence[4];
+
 	/* Indices of neighboring faces (or -1 for no neighbor) */
 	int face_spill_x, face_spill_y;
 	/* 1 = Negative variable axis */
@@ -692,6 +695,15 @@ static void multires_displacer_get_spill_faces(MultiresDisplacer *d, DerivedMesh
 	}
 }
 
+static void find_corner_valences(MultiresDisplacer *d, DerivedMesh *dm)
+{
+	int i;
+
+	/* Set the vertex valence for the corners */
+	for(i = 0; i < (d->face->v4 ? 4 : 3); ++i)
+		d->valence[i] = BLI_countlist(&MultiresDM_get_vert_edge_map(dm)[((unsigned*)(&d->face->v1))[i]]);
+}
+
 static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 			     const int face_index, const int invert)
 {
@@ -715,6 +727,7 @@ static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 
 	multires_displacer_get_spill_faces(d, dm, me->mface);
 	find_displacer_edges(d, dm, &d->edges_primary, d->face);
+	find_corner_valences(d, dm);
 
 	d->dm_first_base_vert_index = dm->getNumVerts(dm) - me->totvert;
 }
@@ -938,6 +951,14 @@ static void calc_disp_mat(MultiresDisplacer *d, float mat[3][3])
 	norm[0] = base->no[0] / 32767.0f;
 	norm[1] = base->no[1] / 32767.0f;
 	norm[2] = base->no[2] / 32767.0f;
+
+	/* Special handling for vertices of valence 3 */
+	if(d->valence[1] == 3 && d->x == d->sidetot - 1 && d->y == 0)
+		u = -1;
+	else if(d->valence[2] == 3 && d->x == d->sidetot - 1 && d->y == d->sidetot - 1)
+		u = v = -1;
+	else if(d->valence[3] == 3 && d->x == 0 && d->y == d->sidetot - 1)
+		v = -1;
 
 	/* If either u or v is -2, it's on a boundary. In this
 	   case, back up by one row/column and use the same
