@@ -49,6 +49,7 @@
 #include "DNA_listBase.h"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_object_types.h"
@@ -57,6 +58,8 @@
 #include "DNA_space_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_key_types.h"
+#include "DNA_lamp_types.h"
+#include "DNA_material_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_gpencil_types.h"
 
@@ -616,23 +619,6 @@ static void draw_channel_names(void)
 					sprintf(name, "IPO Curves");
 				}
 					break;
-				case ACTTYPE_FILLSKED: /* shapekeys (dopesheet) expand widget */
-				{
-					Key *key= (Key *)ale->data;
-					
-					group = 4;
-					indent = 1;
-					special = ICON_EDIT;
-					
-					if (FILTER_SKE_OBJC(key))	
-						expand = ICON_TRIA_DOWN;
-					else
-						expand = ICON_TRIA_RIGHT;
-						
-					//sel = SEL_OBJC(base);
-					sprintf(name, "Shape Keys");
-				}
-					break;
 				case ACTTYPE_FILLCOND: /* constraint channels (dopesheet) expand widget */
 				{
 					Object *ob = (Object *)ale->data;
@@ -648,6 +634,90 @@ static void draw_channel_names(void)
 						
 					//sel = SEL_OBJC(base);
 					sprintf(name, "Constraints");
+				}
+					break;
+				case ACTTYPE_FILLMATD: /* object materials (dopesheet) expand widget */
+				{
+					Object *ob = (Object *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_MATERIAL;
+					
+					if (FILTER_MAT_OBJC(ob))
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+						
+					sprintf(name, "Materials");
+				}
+					break;
+				
+				
+				case ACTTYPE_DSMAT: /* single material (dopesheet) expand widget */
+				{
+					Material *ma = (Material *)ale->data;
+					
+					group = 0;
+					indent = 0;
+					special = ICON_MATERIAL;
+					offset = 21;
+					
+					if (FILTER_MAT_OBJD(ma))
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+					
+					sprintf(name, ma->id.name+2);
+				}
+					break;
+				case ACTTYPE_DSLAM: /* lamp (dopesheet) expand widget */
+				{
+					Lamp *la = (Lamp *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_LAMP;
+					
+					if (FILTER_LAM_OBJD(la))
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+					
+					sprintf(name, la->id.name+2);
+				}
+					break;
+				case ACTTYPE_DSCAM: /* camera (dopesheet) expand widget */
+				{
+					Camera *ca = (Camera *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_CAMERA;
+					
+					if (FILTER_CAM_OBJD(ca))
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+					
+					sprintf(name, ca->id.name+2);
+				}
+					break;
+				case ACTTYPE_DSSKEY: /* shapekeys (dopesheet) expand widget */
+				{
+					Key *key= (Key *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_EDIT;
+					
+					if (FILTER_SKE_OBJD(key))	
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+						
+					//sel = SEL_OBJC(base);
+					sprintf(name, "Shape Keys");
 				}
 					break;
 					
@@ -716,12 +786,26 @@ static void draw_channel_names(void)
 				{
 					bConstraintChannel *conchan = (bConstraintChannel *)ale->data;
 					
-					indent = 2;
-					
 					group= (ale->grp) ? 1 : 0;
 					grp= ale->grp;
 					
-					offset= (ale->id) ? 21 : 0;
+					if (ale->id) {
+						if (ale->ownertype == ACTTYPE_ACHAN) {
+							/* for constraint channels under Action in Dopesheet */
+							indent= 2;
+							offset= 21;
+						}
+						else {
+							/* for constraint channels under Object in Dopesheet */
+							indent= 2;
+							offset = 0;
+						}
+					}
+					else {
+						/* for normal constraint channels in Action Editor */
+						indent= 2;
+						offset= 0;
+					}
 					
 					if (EDITABLE_CONCHAN(conchan))
 						protect = ICON_UNLOCKED;
@@ -749,7 +833,16 @@ static void draw_channel_names(void)
 					group= (ale->grp) ? 1 : 0;
 					grp= ale->grp;
 					
-					offset= (ale->id) ? 21 : 0;
+					//offset= ((ale->id) && (GS(ale->id->name) == ID_MA)) ? 21 : 0;
+					if (ale->id) {
+						if ((GS(ale->id->name)==ID_MA) || (ale->ownertype == ACTTYPE_ACHAN))
+							offset= 21;
+						else
+							offset= 0;
+					}
+					else
+						offset= 0;
+					
 					
 					if (icu->flag & IPO_MUTE)
 						mute = ICON_MUTE_IPO_ON;
@@ -1195,7 +1288,7 @@ static void draw_channel_strips(void)
 					if (sel) glColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
 					else glColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
 				}
-				else if (ELEM3(ale->type, ACTTYPE_FILLIPOD, ACTTYPE_FILLACTD, ACTTYPE_FILLCOND)) {
+				else if (ELEM4(ale->type, ACTTYPE_FILLIPOD, ACTTYPE_FILLACTD, ACTTYPE_FILLCOND, ACTTYPE_DSSKEY)) {
 					// FIXME... how do we differentiate between the two modes?
 					if (sel) glColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
 					else glColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 

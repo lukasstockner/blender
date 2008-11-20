@@ -53,7 +53,12 @@ enum {
 	ACTTYPE_FILLACTD,
 	ACTTYPE_FILLIPOD,
 	ACTTYPE_FILLCOND,
-	ACTTYPE_FILLSKED,
+	ACTTYPE_FILLMATD,
+	
+	ACTTYPE_DSMAT,
+	ACTTYPE_DSLAM,
+	ACTTYPE_DSCAM,
+	ACTTYPE_DSSKEY,
 	
 	ACTTYPE_ACHAN,
 	ACTTYPE_CONCHAN,
@@ -71,7 +76,13 @@ enum {
 #define EXPANDED_OBJC(ob) ((ob->nlaflag & OB_ADS_COLLAPSED)==0)
 #define FILTER_IPO_OBJC(ob) ((ob->nlaflag & OB_ADS_SHOWIPO))
 #define FILTER_CON_OBJC(ob) ((ob->nlaflag & OB_ADS_SHOWCONS)) 
-#define FILTER_SKE_OBJC(key) ((key->flag & KEYBLOCK_EXPAND))
+#define FILTER_MAT_OBJC(ob) ((ob->nlaflag & OB_ADS_SHOWMATS))
+
+#define FILTER_SKE_OBJD(key) ((key->flag & KEYBLOCK_DS_EXPAND))
+#define FILTER_MAT_OBJD(ma) ((ma->flag & MA_DS_EXPAND))
+#define FILTER_LAM_OBJD(la) ((la->flag & LA_DS_EXPAND))
+#define FILTER_CAM_OBJD(ca) ((ca->flag & CAM_DS_EXPAND))
+
 #define SEL_ACTC(actc) ((actc->flag & ACTC_SELECTED))
 #define EXPANDED_ACTC(actc) ((actc->flag & ACTC_EXPANDED))
 

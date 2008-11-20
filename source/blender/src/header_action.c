@@ -1760,6 +1760,9 @@ void action_buttons(void)
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOOBJ, B_REDR, ICON_OBJECT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Non-Armature Objects");
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOARM, B_REDR, ICON_ARMATURE,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Armature Objects");
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOSHAPEKEYS, B_REDR, ICON_EDIT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display ShapeKeys");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOMAT, B_REDR, ICON_MATERIAL,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Materials");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOLAM, B_REDR, ICON_LAMP,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Lamps");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOCAM, B_REDR, ICON_CAMERA,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Cameras");
 		uiBlockEndAlign(block);
 		xco += 5;
 		

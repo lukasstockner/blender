@@ -149,21 +149,27 @@ char *getname_ipocurve(IpoCurve *icu, Object *ob)
 		case ID_PO:
 			return getname_ac_ei(icu->adrcode);
 		case ID_KE:
-			{
-				static char name[32];
-				Key *key= ob_get_key(ob);
-				KeyBlock *kb= key_get_keyblock(key, icu->adrcode);
-				
-				/* only return name if it has been set, otherwise use 
-				 * default method using static string (Key #)
-				 */
-				if ((kb) && (kb->name[0] != '\0'))
-					return kb->name; /* return keyblock's name  */
-				
-				/* in case keyblock is not named or no key/keyblock was found */
-				sprintf(name, "Key %d", icu->adrcode);
-				return name;
-			}
+		{
+			static char name[32];
+			Key *key= ob_get_key(ob);
+			KeyBlock *kb= key_get_keyblock(key, icu->adrcode);
+			
+			/* only return name if it has been set, otherwise use 
+			 * default method using static string (Key #)
+			 */
+			if ((kb) && (kb->name[0] != '\0'))
+				return kb->name; /* return keyblock's name  */
+			
+			/* in case keyblock is not named or no key/keyblock was found */
+			sprintf(name, "Key %d", icu->adrcode);
+			return name;
+		}
+		case ID_MA:
+			return getname_mat_ei(icu->adrcode);
+		case ID_LA:
+			return getname_la_ei(icu->adrcode);
+		case ID_CA:
+			return getname_cam_ei(icu->adrcode);
 			
 		default: /* fixme - add all of the other types! */
 			return NULL;

@@ -40,6 +40,8 @@
 
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_object_types.h"
@@ -47,8 +49,9 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_key_types.h"
+#include "DNA_lamp_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_nla_types.h"
 #include "DNA_lattice_types.h"
@@ -62,6 +65,7 @@
 #include "BKE_global.h"
 #include "BKE_ipo.h"
 #include "BKE_key.h"
+#include "BKE_material.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_utildefines.h"
@@ -239,16 +243,6 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 				ale->datatype= ALE_IPO;
 			}
 				break;
-			case ACTTYPE_FILLSKED:
-			{
-				Key *key= (Key *)data;
-				
-				ale->flag = FILTER_SKE_OBJC(key);
-				
-				ale->key_data= key->ipo;
-				ale->datatype= ALE_IPO;
-			}
-				break;
 			case ACTTYPE_FILLCOND:
 			{
 				Object *ob= (Object *)data;
@@ -257,6 +251,57 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 				
 				ale->key_data= NULL;
 				ale->datatype= ALE_NONE;
+			}
+				break;
+			case ACTTYPE_FILLMATD:
+			{
+				Object *ob= (Object *)data;
+				
+				ale->flag= FILTER_MAT_OBJC(ob);
+				
+				ale->key_data= NULL;
+				ale->datatype= ALE_NONE;
+			}
+				break;
+			
+			case ACTTYPE_DSMAT:
+			{
+				Material *ma= (Material *)data;
+				
+				ale->flag= FILTER_MAT_OBJD(ma);
+				
+				ale->key_data= ma->ipo;
+				ale->datatype= ALE_IPO;
+			}
+				break;
+			case ACTTYPE_DSLAM:
+			{
+				Lamp *la= (Lamp *)data;
+				
+				ale->flag= FILTER_LAM_OBJD(la);
+				
+				ale->key_data= la->ipo;
+				ale->datatype= ALE_IPO;
+			}
+				break;
+			case ACTTYPE_DSCAM:
+			{
+				Camera *ca= (Camera *)data;
+				
+				ale->flag= FILTER_CAM_OBJD(ca);
+				
+				ale->key_data= ca->ipo;
+				ale->datatype= ALE_IPO;
+			}
+				break;
+			case ACTTYPE_DSSKEY:
+			{
+				Key *key= (Key *)data;
+				
+				ale->flag= FILTER_SKE_OBJD(key);
+				
+				ale->key_data= key->ipo;
+				ale->datatype= ALE_IPO;
 			}
 				break;
 				
@@ -305,7 +350,7 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 					}
 				}
 				else {
-					if (conchan->ipo && conchan->ipo->curve.first) {
+					if ((conchan->ipo) && (conchan->ipo->curve.first)) {
 						/* we assume that constraint ipo blocks only have 1 curve:
 						 * INFLUENCE, so we pretend that a constraint channel is 
 						 * really just a Ipo-Curve channel instead.
@@ -455,7 +500,7 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 							if (!(filter_mode & ACTFILTER_SEL) || SEL_CONCHAN(conchan)) {
 								if (filter_mode & ACTFILTER_IPOKEYS) {
 									if (ale) BLI_addtail(act_data, ale);
-									ale= make_new_actlistelem(achan, ACTTYPE_CONCHAN2, achan, ACTTYPE_ACHAN);
+									ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN2, achan, ACTTYPE_ACHAN);
 									
 									if (ale) {
 										if (owned) ale->id= owner;
@@ -463,7 +508,7 @@ static void actdata_filter_actionchannel (ListBase *act_data, bActionChannel *ac
 									}
 								}
 								else {
-									ale= make_new_actlistelem(achan, ACTTYPE_CONCHAN, achan, ACTTYPE_ACHAN);
+									ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN, achan, ACTTYPE_ACHAN);
 									
 									if (ale) {
 										if (owned) ale->id= owner;
@@ -661,12 +706,128 @@ static void actdata_filter_gpencil (ListBase *act_data, bScreen *sc, int filter_
 	}
 }
 
+static void actdata_filter_dopesheet_mats (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
+{
+	bActListElem *ale=NULL;
+	Object *ob= base->object;
+	IpoCurve *icu;
+	
+	/* include materials-expand widget? */
+	if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
+		ale= make_new_actlistelem(ob, ACTTYPE_FILLMATD, base, ACTTYPE_OBJECT);
+		if (ale) BLI_addtail(act_data, ale);
+	}
+	
+	/* add materials? */
+	if (FILTER_MAT_OBJC(ob) || (filter_mode & ACTFILTER_IPOKEYS) || (filter_mode & ACTFILTER_ONLYICU)) {
+		short a;
+		
+		/* for each material, either add channels separately, or as ipo-block */
+		for (a=0; a<ob->totcol; a++) {
+			Material *ma= give_current_material(ob, a);
+			
+			/* for now, if no material returned, skip (this shouldn't confuse the user I hope) */
+			if (ELEM(NULL, ma, ma->ipo)) continue;
+			
+			/* include material-expand widget? */
+			// hmm... do we need to store the index of this material in the array anywhere?
+			if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
+				ale= make_new_actlistelem(ma, ACTTYPE_DSMAT, base, ACTTYPE_OBJECT);
+				if (ale) BLI_addtail(act_data, ale);
+			}
+			
+			/* add material's ipo-curve channels? */
+			if ( (FILTER_MAT_OBJD(ma) || (filter_mode & ACTFILTER_ONLYICU)) && 
+				  !(filter_mode & ACTFILTER_IPOKEYS) ) 
+			{
+				/* loop through ipo-curve channels, adding them */
+				for (icu= ma->ipo->curve.first; icu; icu=icu->next) {
+					/* only if selected (if checking for selection) */
+					if ( !(filter_mode & ACTFILTER_SEL) || (SEL_ICU(icu)) ) {
+						ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
+						if (ale) {
+							/* make owner the material not object, so that indent is not just object level */
+							ale->id= (ID *)ma;
+							BLI_addtail(act_data, ale);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+static void actdata_filter_dopesheet_cam (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
+{
+	bActListElem *ale=NULL;
+	Object *ob= base->object;
+	Camera *ca= (Camera *)ob->data;
+	IpoCurve *icu;
+	
+	/* include ipo-expand widget? */
+	if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
+		ale= make_new_actlistelem(ca, ACTTYPE_DSCAM, base, ACTTYPE_OBJECT);
+		if (ale) BLI_addtail(act_data, ale);
+	}
+	
+	/* add ipo-curve channels? */
+	if ( (FILTER_CAM_OBJD(ca) || (filter_mode & ACTFILTER_ONLYICU)) && 
+		  !(filter_mode & ACTFILTER_IPOKEYS) ) 
+	{
+		/* loop through ipo-curve channels, adding them */
+		for (icu= ca->ipo->curve.first; icu; icu=icu->next) {
+			/* only if selected (if checking for selection) */
+			if ( !(filter_mode & ACTFILTER_SEL) || (SEL_ICU(icu)) ) {
+				ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
+				if (ale) {
+					/* make owner the material not object, so that indent is not just object level */
+					ale->id= (ID *)ca;
+					BLI_addtail(act_data, ale); 
+				}
+			}
+		}
+	}
+}
+
+static void actdata_filter_dopesheet_lamp (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
+{
+	bActListElem *ale=NULL;
+	Object *ob= base->object;
+	Lamp *la= (Lamp *)ob->data;
+	IpoCurve *icu;
+	
+	/* include ipo-expand widget? */
+	if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
+		ale= make_new_actlistelem(la, ACTTYPE_DSLAM, base, ACTTYPE_OBJECT);
+		if (ale) BLI_addtail(act_data, ale);
+	}
+	
+	/* add ipo-curve channels? */
+	if ( (FILTER_LAM_OBJD(la) || (filter_mode & ACTFILTER_ONLYICU)) && 
+		  !(filter_mode & ACTFILTER_IPOKEYS) ) 
+	{
+		/* loop through ipo-curve channels, adding them */
+		for (icu= la->ipo->curve.first; icu; icu=icu->next) {
+			/* only if selected (if checking for selection) */
+			if ( !(filter_mode & ACTFILTER_SEL) || (SEL_ICU(icu)) ) {
+				ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
+				if (ale) {
+					/* make owner the material not object, so that indent is not just object level */
+					ale->id= (ID *)la;
+					BLI_addtail(act_data, ale); 
+				}
+			}
+		}
+	}
+}
+
 static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
 {
 	bActListElem *ale=NULL;
 	Scene *sce= (Scene *)ads->source;
 	Object *ob= base->object;
 	Key *key= ob_get_key(ob);
+	IpoCurve *icu;
 	
 	/* add this object as a channel first */
 	if (!(filter_mode & ACTFILTER_ONLYICU) && !(filter_mode & ACTFILTER_IPOKEYS)) {
@@ -682,9 +843,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 		return;
 	
 	/* IPO? */
-	if ((ob->ipo) && !(ads->filterflag & ADS_FILTER_NOIPOS)) {
-		IpoCurve *icu;
-		
+	if ((ob->ipo) && !(ads->filterflag & ADS_FILTER_NOIPOS)) {		
 		/* include ipo-expand widget? */
 		if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
 			ale= make_new_actlistelem(ob, ACTTYPE_FILLIPOD, base, ACTTYPE_OBJECT);
@@ -725,14 +884,36 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 	if ((key) && !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS)) {
 		/* include shapekey-expand widget? */
 		if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
-			ale= make_new_actlistelem(key, ACTTYPE_FILLSKED, base, ACTTYPE_OBJECT);
+			ale= make_new_actlistelem(key, ACTTYPE_DSSKEY, base, ACTTYPE_OBJECT);
 			if (ale) BLI_addtail(act_data, ale);
 		}
 		
 		/* add channels */
-		if (FILTER_SKE_OBJC(key) || (filter_mode & ACTFILTER_IPOKEYS) || (filter_mode & ACTFILTER_ONLYICU)) {
+		if (FILTER_SKE_OBJD(key) || (filter_mode & ACTFILTER_IPOKEYS) || (filter_mode & ACTFILTER_ONLYICU)) {
 			actdata_filter_shapekey (act_data, key, filter_mode, ob, ACTTYPE_OBJECT);
 		}
+	}
+	
+	/* Materials? */
+	if ((ob->totcol) && !(ads->filterflag & ADS_FILTER_NOMAT))
+		actdata_filter_dopesheet_mats(act_data, ads, base, filter_mode);
+	
+	/* Object Data */
+	switch (ob->type) {
+		case OB_CAMERA: /* ------- Camera ------------ */
+		{
+			Camera *ca= (Camera *)ob->data;
+			if ((ca->ipo) && !(ads->filterflag & ADS_FILTER_NOCAM))
+				actdata_filter_dopesheet_cam(act_data, ads, base, filter_mode);
+		}
+			break;
+		case OB_LAMP: /* ---------- Lamp ----------- */
+		{
+			Lamp *la= (Lamp *)ob->data;
+			if ((la->ipo) && !(ads->filterflag & ADS_FILTER_NOLAM))
+				actdata_filter_dopesheet_lamp(act_data, ads, base, filter_mode);
+		}
+			break;
 	}
 	
 	/* Constraint Channels? */
@@ -743,7 +924,7 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 		if ( (filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & ACTFILTER_ONLYICU)
 			 && !(filter_mode & ACTFILTER_IPOKEYS) ) 
 		{
-			ale= make_new_actlistelem(ob, ACTTYPE_FILLCON, base, ACTTYPE_OBJECT);
+			ale= make_new_actlistelem(ob, ACTTYPE_FILLCOND, base, ACTTYPE_OBJECT);
 			if (ale) BLI_addtail(act_data, ale);
 		}
 		
@@ -757,11 +938,17 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 					if (!(filter_mode & ACTFILTER_SEL) || SEL_CONCHAN(conchan)) {
 						if (filter_mode & ACTFILTER_IPOKEYS) {
 							ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN2, base, ACTTYPE_OBJECT);
-							if (ale) BLI_addtail(act_data, ale);
+							if (ale) {
+								ale->id= (ID *)ob;
+								BLI_addtail(act_data, ale);
+							}
 						}
 						else {
 							ale= make_new_actlistelem(conchan, ACTTYPE_CONCHAN, base, ACTTYPE_OBJECT);
-							if (ale) BLI_addtail(act_data, ale);
+							if (ale) {
+								ale->id= (ID *)ob;
+								BLI_addtail(act_data, ale);
+							}
 						}
 					}
 				}
@@ -788,6 +975,7 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 		if (base->object) {
 			Object *ob= base->object;
 			Key *key= ob_get_key(ob);
+			short ipoOk, actOk, constsOk, keyOk, dataOk;
 			
 			/* firstly, check if object can be included, by the following factors:
 			 *	- if only visible, must check for layer and also viewport visibility
@@ -802,13 +990,10 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 				/* outliner restrict-flag */
 				if (ob->restrictflag & OB_RESTRICT_VIEW) continue;
 			}
-			if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first) && !(key)) {
-				/* no animation data to show... */
-				continue;
-			}
 			
 			/* additionally, dopesheet filtering also affects what objects to consider */
 			if (ads->filterflag) {
+				/* check selection and object type filters */
 				if ( (ads->filterflag & ADS_FILTER_ONLYSEL) && !((base->flag & SELECT) || (base == sce->basact)) )  {
 					/* only selected should be shown */
 					continue;
@@ -821,26 +1006,63 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 					/* not showing objects that aren't armatures */
 					continue;
 				}
-				if (!(ob->action) && !(ob->constraintChannels.first) && !(key)) {
-					/* this object is only included for it's ipo, but those aren't being shown */
-					if ((ob->ipo) && (ads->filterflag & ADS_FILTER_NOIPOS))
-						continue;
+				
+				/* check filters for datatypes */
+				ipoOk= (!(ob->ipo) || !(ads->filterflag & ADS_FILTER_NOIPOS));
+				actOk= (!(ob->action) || !(ads->filterflag & ADS_FILTER_NOACTS));
+				constsOk= (!(ob->constraintChannels.first) || !(ads->filterflag & ADS_FILTER_NOCONSTRAINTS));
+				keyOk= (!(key) || !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS));
+				
+				switch (ob->type) {
+					case OB_CAMERA: /* ------- Camera ------------ */
+					{
+						Camera *ca= (Camera *)ob->data;
+						dataOk= (!(ca->ipo) || !(ads->filterflag & ADS_FILTER_NOCAM));						
+					}
+						break;
+					case OB_LAMP: /* ---------- Lamp ----------- */
+					{
+						Lamp *la= (Lamp *)ob->data;
+						dataOk= (!(la->ipo) || !(ads->filterflag & ADS_FILTER_NOLAM));
+					}
+						break;
+					default: /* --- other --- */
+						dataOk= 0;
+						break;
 				}
-				if (!(ob->ipo) && !(ob->constraintChannels.first) && !(key)) {
-					/* this object is only included for it's action, but those aren't being shown */
-					if ((ob->action) && (ads->filterflag & ADS_FILTER_NOACTS))
-						continue;
+				
+				/* check if all bad (i.e. nothing to show) */
+				if (!ipoOk && !actOk && !constsOk && !keyOk && !dataOk)
+					continue;
+			}
+			else {
+				/* check data-types */
+				ipoOk= (ob->ipo != NULL);
+				actOk= (ob->action != NULL);
+				constsOk= (ob->constraintChannels.first != NULL);
+				keyOk= (key != NULL);
+				
+				switch (ob->type) {
+					case OB_CAMERA: /* ------- Camera ------------ */
+					{
+						Camera *ca= (Camera *)ob->data;
+						dataOk= (ca->ipo != NULL);						
+					}
+						break;
+					case OB_LAMP: /* ---------- Lamp ----------- */
+					{
+						Lamp *la= (Lamp *)ob->data;
+						dataOk= (la->ipo != NULL);
+					}
+						break;
+					default: /* --- other --- */
+						dataOk= 0;
+						break;
 				}
-				if (!(ob->ipo) && !(ob->action) && !(key)) {
-					/* this object is only included for it's action, but those aren't being shown */
-					if ((ob->constraintChannels.first) && (ads->filterflag & ADS_FILTER_NOCONSTRAINTS))
-						continue;
-				}
-				if (!(ob->ipo) && !(ob->action) && !(ob->constraintChannels.first)) {
-					/* this object is only included for it's shapekeys, but those aren't being shown */
-					if ((key) && (ads->filterflag & ADS_FILTER_NOSHAPEKEYS))
-						continue;
-				}
+				
+				/* check if all bad (i.e. nothing to show) */
+				if (!ipoOk && !actOk && !constsOk && !keyOk && !dataOk)
+					continue;
 			}
 			
 			/* since we're still here, this object should be usable */
@@ -4317,6 +4539,18 @@ static void mouse_action (int selectmode)
 			case ACTTYPE_GROUP:
 				agrp= (bActionGroup *)act_channel;
 				break;
+			case ACTTYPE_DSMAT:
+				ipo= ((Material *)act_channel)->ipo;
+				break;
+			case ACTTYPE_DSLAM:
+				ipo= ((Lamp *)act_channel)->ipo;
+				break;
+			case ACTTYPE_DSCAM:
+				ipo= ((Camera *)act_channel)->ipo;
+				break;
+			case ACTTYPE_DSSKEY: // needed?
+				ipo= ((Key *)act_channel)->ipo;
+				break;
 			case ACTTYPE_FILLACTD:
 				act= (bAction *)act_channel;
 				break;
@@ -4484,10 +4718,35 @@ static void mouse_actionchannels (short mval[])
 				ob->nlaflag ^= OB_ADS_SHOWCONS;
 			}
 				break;
-		case ACTTYPE_FILLSKED:
+		case ACTTYPE_FILLMATD:
+			{
+				Object *ob= (Object *)act_channel;
+				ob->nlaflag ^= OB_ADS_SHOWMATS;
+			}
+				break;
+				
+		case ACTTYPE_DSMAT:
+			{
+				Material *ma= (Material *)act_channel;
+				ma->flag ^= MA_DS_EXPAND;
+			}
+				break;
+		case ACTTYPE_DSLAM:
+			{
+				Lamp *la= (Lamp *)act_channel;
+				la->flag ^= LA_DS_EXPAND;
+			}
+				break;
+		case ACTTYPE_DSCAM:
+			{
+				Camera *ca= (Camera *)act_channel;
+				ca->flag ^= CAM_DS_EXPAND;
+			}
+				break;
+		case ACTTYPE_DSSKEY:
 			{
 				Key *key= (Key *)act_channel;
-				key->flag ^= KEYBLOCK_EXPAND;
+				key->flag ^= KEYBLOCK_DS_EXPAND;
 			}
 				break;
 			

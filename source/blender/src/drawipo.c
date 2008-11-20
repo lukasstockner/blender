@@ -1334,8 +1334,8 @@ static void draw_ipovertices(int sel)
 /* draw lines for IPO-curve handles only (this is only done in EditMode) */
 static void draw_ipohandles(int sel)
 {
-	extern unsigned int nurbcol[];
 	EditIpo *ei;
+	extern unsigned int nurbcol[];
 	unsigned int *col;
 	int a, b;
 	
