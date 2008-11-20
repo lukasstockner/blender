@@ -952,6 +952,52 @@ static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer
 	return -1;
 }
 
+/* Calculate the TS matrix used for applying displacements.
+   Uses the undisplaced subdivided mesh's curvature to find a
+   smoothly normal and tangents. */
+static void calc_disp_mat(MultiresDisplacer *d, float mat[3][3])
+{
+	int u = multires_index_at_loc(d->face_index, d->x + 1, d->y, d, &d->edges_primary);
+	int v = multires_index_at_loc(d->face_index, d->x, d->y + 1, d, &d->edges_primary);
+	float norm[3], t1[3], t2[3], inv[3][3];
+	MVert *base = d->subco + d->subco_index;
+
+	printf("f=%d, x=%d, y=%d, i=%d, u=%d, v=%d ", d->face_index, d->x, d->y, d->subco_index, u, v);
+
+	norm[0] = base->no[0] / 32767.0f;
+	norm[1] = base->no[1] / 32767.0f;
+	norm[2] = base->no[2] / 32767.0f;
+
+	/* If either u or v is -2, it's on a boundary. In this
+	   case, back up by one row/column and use the same
+	   vector as the preceeding sub-edge. */
+
+	if(u == -2) {
+		u = multires_index_at_loc(d->face_index, d->x - 1, d->y, d, &d->edges_primary);
+		VecSubf(t1, base->co, d->subco[u].co);
+	}
+	else
+		VecSubf(t1, d->subco[u].co, base->co);
+
+	if(v == -2) {
+		v = multires_index_at_loc(d->face_index, d->x, d->y - 1, d, &d->edges_primary);
+		VecSubf(t2, base->co, d->subco[v].co);
+	}
+	else
+		VecSubf(t2, d->subco[v].co, base->co);
+
+	printf("uu=%d, vv=%d\n", u, v);
+
+	Normalize(t1);
+	Normalize(t2);
+	Mat3FromColVecs(mat, t1, t2, norm);
+
+	if(d->invert) {
+		Mat3Inv(inv, mat);
+		Mat3CpyMat3(mat, inv);
+	}
+}
+
 static void multires_displace(MultiresDisplacer *d, float co[3])
 {
 	float disp[3];
@@ -1028,8 +1074,8 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 	MultiresDisplacer d;
 	int i, S, x, y;
 
-	if(subco)
-		d.subco = subco;
+	d.subco = subco;
+	d.subco_index = 0;
 
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
@@ -1039,7 +1085,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 		multires_displacer_anchor(&d, 1, 0);
 		multires_displace(&d, mvert->co);
 		++mvert;
-		++d.subco;
+		++d.subco_index;
 
 		/* Cross */
 		for(S = 0; S < numVerts; ++S) {
@@ -1047,7 +1093,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 			for(x = 1; x < gridFaces; ++x) {
 				multires_displace(&d, mvert->co);
 				++mvert;
-				++d.subco;
+				++d.subco_index;
 			}
 		}
 
@@ -1058,7 +1104,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 				for(x = 1; x < gridFaces; x++) {
 					multires_displace(&d, mvert->co);
 					++mvert;
-					++d.subco;
+					++d.subco_index;
 				}
 				multires_displacer_jump(&d);
 			}
@@ -1088,7 +1134,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 				}
 			}
 			++mvert;
-			++d.subco;
+			++d.subco_index;
 		}
 	}
 		
@@ -1101,7 +1147,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, MVert *subco, int invert)
 			multires_displace(&d, mvert->co);
 		}
 		++mvert;
-		++d.subco;
+		++d.subco_index;
 	}
 
 	if(!invert)
