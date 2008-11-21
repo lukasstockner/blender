@@ -978,12 +978,12 @@ void set_ipotype(short event)
 		
 		ei= G.sipo->editipo;
 		for(a=0; a<G.sipo->totipo; a++, ei++) {
-			if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu)) {
+			if (ISPOIN(ei, flag & IPO_VISIBLE, icu)) {
 				if (ei->flag & IPO_EDIT) {
 					/* set mode for selected points only */
 					icu_keys_bezier_loop(ei->icu, bezier_function, set_ipocurve_mixed);
 				}
-				else {
+				else if (ei->flag & IPO_SELECT) {
 					/* if curve is not in editmode, set mode for entire curve */
 					set_interpolation_ipocurve(ei->icu, event-1);
 				}

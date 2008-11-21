@@ -3918,8 +3918,8 @@ void make_ipo_transdata (TransInfo *t)
 						if (icu->ipo == IPO_MIXED) {
 							bezt= icu->bezt;
 							for (b=0; b < icu->totvert; b++, bezt++) {
-								if (bezt->ipo == IPO_BEZ) count += 3;
-								else count ++;
+								if (bezt->ipo == IPO_BEZ) count += 3; // err...
+								else count++;
 							}
 						}
 						else if (icu->ipo == IPO_BEZ)
@@ -3967,6 +3967,7 @@ void make_ipo_transdata (TransInfo *t)
 						
 						for (b=0; b < icu->totvert; b++, prevbezt=bezt, bezt++) {
 							TransDataCurveHandleFlags *hdata = NULL;
+							short h1=1, h2=1;
 							
 							/* only include handles if selected, and interpolaton mode uses beztriples */
 							if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) {
@@ -3974,13 +3975,28 @@ void make_ipo_transdata (TransInfo *t)
 									hdata = initTransDataCurveHandes(td, bezt);
 									bezt_to_transdata(td++, td2d++, bezt->vec[0], bezt->vec[1], 1, onlytime);
 								}
+								else
+									h1= 0;
 							}
 							if (bezt->ipo==IPO_BEZ) {
 								if (bezt->f3 & SELECT) {
-									if (hdata==NULL) {
+									if (hdata==NULL)
 										hdata = initTransDataCurveHandes(td, bezt);
-									}
 									bezt_to_transdata(td++, td2d++, bezt->vec[2], bezt->vec[1], 1, onlytime);
+								}
+								else
+									h2= 0;
+							}
+							
+							/* special hack (must be done after initTransDataCurveHandes(), as that stores handle settings to restore...): 
+							 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point, 
+							 *	  then check if we're using auto-handles. 
+							 *	- If so, change them auto-handles to aligned handles so that handles get affected too
+							 */
+							if ((bezt->h1 == HD_AUTO) && (bezt->h2 == HD_AUTO) && ELEM(t->mode, TFM_ROTATION, TFM_RESIZE)) {
+								if ((h1 && h2) && (bezt->f2 & SELECT)) {
+									bezt->h1= HD_ALIGN;
+									bezt->h2= HD_ALIGN;
 								}
 							}
 							
