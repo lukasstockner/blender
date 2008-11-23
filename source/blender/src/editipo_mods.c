@@ -806,13 +806,13 @@ static void ipo_curves_auto_horiz(void)
 	
 	ei= G.sipo->editipo;
 	for(a=0; a<G.sipo->totipo; a++, ei++) {
-		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu))
+		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & (IPO_SELECT|IPO_EDIT), icu))
 			if(ei->flag & IPO_AUTO_HORIZ) set= 0;
 	}
 	
 	ei= G.sipo->editipo;
 	for(a=0; a<G.sipo->totipo; a++, ei++) {
-		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_SELECT, icu)) {
+		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & (IPO_SELECT|IPO_EDIT), icu)) {
 			if(set) ei->flag |= IPO_AUTO_HORIZ;
 			else ei->flag &= ~IPO_AUTO_HORIZ;
 		}
@@ -1070,6 +1070,7 @@ void borderselect_ipo(void)
 							 * which means that they may be inadvertantly moved as well.
 							 * Also, for convenience, handles should get same status as keyframe (if it was within bounds)
 							 */
+							 // TODO: select handles independent?
 							if (BLI_in_rctf(&rectf, bezt->vec[1][0], bezt->vec[1][1])) {
 								if (selflag) {
 									bezt->f1 |= SELECT;
