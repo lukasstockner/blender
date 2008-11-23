@@ -758,7 +758,7 @@ static uiBlock *ipo_viewmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, (G.sipo->flag & SIPO_NOHANDLES)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
 					 "Show Handles|Ctrl H", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 16, "");
 	uiDefIconTextBut(block, BUTM, 1, (G.sipo->flag & SIPO_NODRAWCFRANUM)?ICON_CHECKBOX_DEHLT:ICON_CHECKBOX_HLT, 
-					 "Show Handles|Ctrl H", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 17, "");
+					 "Show Current Frame Number|", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 17, "");
 	
 	uiDefBut(block, SEPR, 0, "",        0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
@@ -1393,9 +1393,24 @@ void ipo_buttons(void)
 		uiDefIconBut(block, BUT, B_IPOPASTE, ICON_PASTEDOWN,	xco+=XIC,0,XIC,YIC, 0, 0, 0, 0, 0, "Pastes the curves from the buffer");
 	}
 	uiBlockEndAlign(block);
-	xco+=XIC/2;
+	xco+=(XIC*3/2);
 	
 	uiClearButLock();
+	
+	/* AUTOSNAP */
+	if (G.sipo->flag & SIPO_DRAWTIME) {
+		uiDefButS(block, MENU, B_REDR,
+				"Auto-Snap Keyframes %t|No Time-Snap %x0|Nearest Second %x2|Nearest Marker %x3", 
+				xco,0,90,YIC, &G.sipo->autosnap, 0, 1, 0, 0, 
+				"Auto-snapping mode for keyframe times when transforming");
+	}
+	else {
+		uiDefButS(block, MENU, B_REDR, 
+				"Auto-Snap Keyframes %t|No Time-Snap %x0|Nearest Frame %x2|Nearest Marker %x3", 
+				xco,0,90,YIC, &G.sipo->autosnap, 0, 1, 0, 0, 
+				"Auto-snapping mode for keyframe times when transforming");
+	}
+	xco+=(70 + (XIC/2));
 
 	/* ZOOMBORDER */
 	uiDefIconBut(block, BUT, B_IPOBORDER, ICON_BORDERMOVE,	xco+=XIC,0,XIC,YIC, 0, 0, 0, 0, 0, "Zooms view to area (Shift B)");

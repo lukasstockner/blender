@@ -477,7 +477,6 @@ void recalcData(TransInfo *t)
 				/* if we're not actively adjusting roll (i.e. not using 'Bone Roll' tool), 
 				 * we need to adjust the roll of the bone so that is doesn't randomly move change on the user
 				 */
-				// TODO: do we need a setting to turn this on/off someday?
 				if (t->mode != TFM_BONE_ROLL) {
 					/* calculate roll of bone whose tip is selected
 					 *	- normal bones should have tip selected if bone is selected

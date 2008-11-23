@@ -4294,11 +4294,14 @@ static short getAnimEdit_DrawTime(TransInfo *t)
 	short drawtime;
 	
 	/* currently, some of these are only for the action editor */
-	if (t->spacetype == SPACE_ACTION && G.saction) {
+	if ((t->spacetype == SPACE_ACTION) && (G.saction)) {
 		drawtime = (G.saction->flag & SACTION_DRAWTIME)? 1 : 0;
 	}
-	else if (t->spacetype == SPACE_NLA && G.snla) {
+	else if ((t->spacetype == SPACE_NLA) && (G.snla)) {
 		drawtime = (G.snla->flag & SNLA_DRAWTIME)? 1 : 0;
+	}
+	else if ((t->spacetype == SPACE_IPO) && (G.sipo)) {
+		drawtime = (G.sipo->flag & SIPO_DRAWTIME)? 1 : 0;
 	}
 	else {
 		drawtime = 0;

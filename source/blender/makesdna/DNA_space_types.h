@@ -98,7 +98,7 @@ typedef struct SpaceIpo {
 	short butofs, channel;
 	short showkey, blocktype;
 	short menunr, lock;
-	int flag;
+	short flag, autosnap;
 	float median[3];
 	rctf tot;
 } SpaceIpo;

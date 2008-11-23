@@ -124,6 +124,7 @@
 #include "BSE_editipo.h"
 #include "BSE_editipo_types.h"
 #include "BSE_editaction_types.h"
+#include "BSE_time.h"
 
 #include "BDR_drawaction.h"		// list of keyframes in action
 #include "BDR_editobject.h"		// reset_slowparents()
@@ -2507,6 +2508,17 @@ void flushTransIpoData(TransInfo *t)
 	
 	/* flush to 2d vector from internally used 3d vector */
 	for (a=0, td= t->data2d; a<t->total; a++, td++) {
+		/* handle snapping for time values - we should still be in NLA-scaled timespace */
+		switch (G.sipo->autosnap) {
+			case SACTSNAP_FRAME: /* snap to nearest frame */
+				td->loc[0]= (float)( floor(td->loc[0]+0.5f) );
+				break;
+				
+			case SACTSNAP_MARKER: /* snap to nearest marker */
+				td->loc[0]= (float)find_nearest_marker_time(td->loc[0]);
+				break;
+		}
+		
 		/* we need to unapply the nla-scaling from the time in some situations */
 		if (NLA_IPO_SCALED)
 			td->loc2d[0]= get_action_frame(OBACT, td->loc[0]);
@@ -4275,11 +4287,14 @@ void createTransData(TransInfo *t)
 	else if (t->spacetype == SPACE_IPO) {
 		t->flag |= T_POINTS|T_2D_EDIT;
 		createTransIpoData(t); 
+		
+#if 0
 		if (t->data && (t->flag & T_PROP_EDIT)) {
 			sort_trans_data(t);	// makes selected become first in array
 			set_prop_dist(t, 1);
 			sort_trans_data_dist(t);
 		}
+#endif
 	}
 	else if (G.obedit) {
 		t->ext = NULL;
