@@ -56,6 +56,7 @@ void *MultiresDM_get_orco(struct DerivedMesh *);
 struct MVert *MultiresDM_get_subco(struct DerivedMesh *);
 struct ListBase *MultiresDM_get_vert_face_map(struct DerivedMesh *);
 struct ListBase *MultiresDM_get_vert_edge_map(struct DerivedMesh *);
+int *MultiresDM_get_face_offsets(struct DerivedMesh *);
 int MultiresDM_get_totlvl(struct DerivedMesh *);
 int MultiresDM_get_lvl(struct DerivedMesh *);
 void MultiresDM_set_update(struct DerivedMesh *, void (*)(struct DerivedMesh*));

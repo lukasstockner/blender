@@ -61,6 +61,7 @@
 
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 
 typedef struct {
 	DerivedMesh dm;
@@ -1160,10 +1161,9 @@ typedef struct MultiresDM {
 	float (*orco)[3];
 	MVert *subco;
 
-	float (*norm)[3];
-
 	ListBase *vert_face_map, *vert_edge_map;
 	IndexNode *vert_face_map_mem, *vert_edge_map_mem;
+	int *face_offsets;
 
 	Mesh *me;
 	int flags;
@@ -1182,7 +1182,6 @@ static void MultiresDM_release(DerivedMesh *dm)
 	if(DM_release(dm)) {
 		MEM_freeN(mrdm->subco);
 		MEM_freeN(mrdm->orco);
-		MEM_freeN(mrdm->norm);
 		if(mrdm->vert_face_map)
 			MEM_freeN(mrdm->vert_face_map);
 		if(mrdm->vert_face_map_mem)
@@ -1191,11 +1190,13 @@ static void MultiresDM_release(DerivedMesh *dm)
 			MEM_freeN(mrdm->vert_edge_map);
 		if(mrdm->vert_edge_map_mem)
 			MEM_freeN(mrdm->vert_edge_map_mem);
+		if(mrdm->face_offsets)
+			MEM_freeN(mrdm->face_offsets);
 		MEM_freeN(mrdm);
 	}
 }
 
-static void MultiresDM_calc_norm(MultiresDM *mrdm)
+/*static void MultiresDM_calc_norm(MultiresDM *mrdm)
 {
 	float (*v)[3] = mrdm->orco;
 	int i;
@@ -1219,7 +1220,7 @@ static void MultiresDM_calc_norm(MultiresDM *mrdm)
 
 	for(i = 0; i < mrdm->me->totvert; ++i)
 		Normalize(mrdm->norm[i]);
-}
+}*/
 
 DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts, int numEdges, int numFaces)
 {
@@ -1278,16 +1279,6 @@ Mesh *MultiresDM_get_mesh(DerivedMesh *dm)
 	return ((MultiresDM*)dm)->me;
 }
 
-void *MultiresDM_get_vertnorm(DerivedMesh *dm)
-{
-	MultiresDM *mrdm = (MultiresDM*)dm;
-
-	if(!mrdm->norm)
-		MultiresDM_calc_norm(mrdm);
-
-	return mrdm->norm;
-}
-
 void *MultiresDM_get_orco(DerivedMesh *dm)
 {
 	return ((MultiresDM*)dm)->orco;
@@ -1339,6 +1330,28 @@ ListBase *MultiresDM_get_vert_edge_map(DerivedMesh *dm)
 				     mrdm->me->totvert, mrdm->me->totedge);
 
 	return mrdm->vert_edge_map;
+}
+
+int *MultiresDM_get_face_offsets(DerivedMesh *dm)
+{
+	MultiresDM *mrdm = (MultiresDM*)dm;
+	int i, totface, accum = 0;
+
+	if(!mrdm->face_offsets) {
+		int len = (int)pow(2, mrdm->lvl - 2) - 1;
+		int area = len * len;
+		int t = 1 + len * 3 + area * 3, q = t + len + area;
+
+		totface = dm->getNumFaces(dm);
+		mrdm->face_offsets = MEM_callocN(sizeof(int) * totface, "mrdm face offsets");
+		for(i = 0; i < totface; ++i) {
+			mrdm->face_offsets[i] = accum;
+
+			accum += (mrdm->me->mface[i].v4 ? q : t);
+		}
+	}
+
+	return mrdm->face_offsets;
 }
 
 int *MultiresDM_get_flags(DerivedMesh *dm)

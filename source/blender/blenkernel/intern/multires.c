@@ -537,16 +537,26 @@ typedef struct DisplacerEdges {
 	int dir[4];
 } DisplacerEdges;
 
+typedef struct DisplacerSpill {
+	/* Index of face (in base mesh), -1 for none */
+	int face;
+
+	/* Spill flag */
+	/* 1 = Negative variable axis */
+	/* 2 = Near fixed axis */
+	/* 4 = Flip axes */
+	int f;
+
+	/* Neighboring edges */
+	DisplacerEdges edges;
+} DisplacerSpill;
+
 typedef struct MultiresDisplacer {
 	Mesh *me;
 	MDisps *grid;
 	/* To be removed */
 	MFace *face;
 	
-	/* For matrix calc */
-	float mat_target[3];
-	float mat_center[3];
-	float (*mat_norms)[3];
 	int dm_first_base_vert_index;
 
 	int spacing;
@@ -554,7 +564,6 @@ typedef struct MultiresDisplacer {
 	int sidendx;
 	int type;
 	int invert;
-	float (*orco)[3];
 	MVert *subco;
 	int subco_index, face_index;
 	float weight;
@@ -562,14 +571,13 @@ typedef struct MultiresDisplacer {
 	/* Valence for each corner */
 	int valence[4];
 
-	/* Indices of neighboring faces (or -1 for no neighbor) */
-	int face_spill_x, face_spill_y;
-	/* 1 = Negative variable axis */
-	/* 2 = Near fixed axis */
-	/* 4 = Flip axes */
-	int spill_x, spill_y;
-	/* Neighboring edges for current face and spill faces */
-	DisplacerEdges edges_primary, edges_spill_x, edges_spill_y;
+	/* Neighboring edges for current face */
+	DisplacerEdges edges_primary;
+
+	/* Neighboring faces */
+	DisplacerSpill spill_x, spill_y;
+
+	int *face_offsets;
 
 	int x, y, ax, ay;
 } MultiresDisplacer;
@@ -585,6 +593,7 @@ static void find_displacer_edges(MultiresDisplacer *d, DerivedMesh *dm, Displace
 	ListBase *emap = MultiresDM_get_vert_edge_map(dm);
 	IndexNode *n;
 	int i, end = f->v4 ? 4 : 3;
+	int offset = dm->getNumVerts(dm) - d->me->totvert - d->me->totedge * d->interior_st;
 
 	for(i = 0; i < end; ++i) {
 		int vcur = mface_v(f, i);
@@ -602,7 +611,7 @@ static void find_displacer_edges(MultiresDisplacer *d, DerivedMesh *dm, Displace
 					de->dir[i] = -1;
 					de->base[i] += d->interior_st - 1;
 				}
-				de->base[i] += d->me->totface * d->interior_st * d->interior_st;
+				de->base[i] += offset;
 				break;
 			}
 		}
@@ -628,9 +637,11 @@ static void multires_displacer_get_spill_faces(MultiresDisplacer *d, DerivedMesh
 	ListBase *map = MultiresDM_get_vert_face_map(dm);
 	IndexNode *n1, *n2;
 	int v4 = d->face->v4 ? d->face->v4 : d->face->v1;
-	int crn[2];
+	int crn[2], lv;
 
-	d->face_spill_x = d->face_spill_y = -1;
+	memset(&d->spill_x, 0, sizeof(DisplacerSpill));
+	memset(&d->spill_y, 0, sizeof(DisplacerSpill));
+	d->spill_x.face = d->spill_y.face = -1;
 
 	for(n1 = map[d->face->v3].first; n1; n1 = n1->next) {
 		if(n1->index == d->face_index)
@@ -638,60 +649,62 @@ static void multires_displacer_get_spill_faces(MultiresDisplacer *d, DerivedMesh
 
 		for(n2 = map[d->face->v2].first; n2; n2 = n2->next) {
 			if(n1->index == n2->index)
-				d->face_spill_x = n1->index;
+				d->spill_x.face = n1->index;
 		}
 		for(n2 = map[v4].first; n2; n2 = n2->next) {
 			if(n1->index == n2->index)
-				d->face_spill_y = n1->index;
+				d->spill_y.face = n1->index;
 		}
 	}
 
-	if(d->face_spill_x != -1) {
+	if(d->spill_x.face != -1) {
 		/* Neighbor of v2/v3 found, find flip and orientation */
-		find_face_corners(&mface[d->face_spill_x], d->face->v2, d->face->v3, crn);
+		find_face_corners(&mface[d->spill_x.face], d->face->v2, d->face->v3, crn);
+		lv = mface[d->spill_x.face].v4 ? 3 : 2;
 
-		if(crn[0] == 0 && crn[1] == 3)
-			d->spill_x = 0+2+0;
-		else if(crn[0] == 3 && crn[1] == 0)
-			d->spill_x = 1+2+0;
+		if(crn[0] == 0 && crn[1] == lv)
+			d->spill_x.f = 0+2+0;
+		else if(crn[0] == lv && crn[1] == 0)
+			d->spill_x.f = 1+2+0;
 		else if(crn[0] == 1 && crn[1] == 0)
-			d->spill_x = 1+2+4;
+			d->spill_x.f = 1+2+4;
 		else if(crn[0] == 0 && crn[1] == 1)
-			d->spill_x = 0+2+4;
+			d->spill_x.f = 0+2+4;
 		else if(crn[0] == 2 && crn[1] == 1)
-			d->spill_x = 1+0+0;
+			d->spill_x.f = 1+0+0;
 		else if(crn[0] == 1 && crn[1] == 2)
-			d->spill_x = 0+0+0;
+			d->spill_x.f = 0+0+0;
 		else if(crn[0] == 3 && crn[1] == 2)
-			d->spill_x = 0+0+4;
+			d->spill_x.f = 0+0+4;
 		else if(crn[0] == 2 && crn[1] == 3)
-			d->spill_x = 1+0+4;
+			d->spill_x.f = 1+0+4;
 
-		find_displacer_edges(d, dm, &d->edges_spill_x, &mface[d->face_spill_x]);
+		find_displacer_edges(d, dm, &d->spill_x.edges, &mface[d->spill_x.face]);
 	}
 
-	if(d->face_spill_y != -1) {
+	if(d->spill_y.face != -1) {
 		/* Neighbor of v3/v4 found, find flip and orientation */
-		find_face_corners(&mface[d->face_spill_y], d->face->v3, v4, crn);
+		find_face_corners(&mface[d->spill_y.face], d->face->v3, v4, crn);
+		lv = mface[d->spill_y.face].v4 ? 3 : 2;
 
 		if(crn[0] == 1 && crn[1] == 0)
-			d->spill_y = 1+2+0;
+			d->spill_y.f = 1+2+0;
 		else if(crn[0] == 0 && crn[1] == 1)
-			d->spill_y = 0+2+0;
+			d->spill_y.f = 0+2+0;
 		else if(crn[0] == 2 && crn[1] == 1)
-			d->spill_y = 1+0+4;
+			d->spill_y.f = 1+0+4;
 		else if(crn[0] == 1 && crn[1] == 2)
-			d->spill_y = 0+0+4;
+			d->spill_y.f = 0+0+4;
 		else if(crn[0] == 3 && crn[1] == 2)
-			d->spill_y = 0+0+0;
+			d->spill_y.f = 0+0+0;
 		else if(crn[0] == 2 && crn[1] == 3)
-			d->spill_y = 1+0+0;
-		else if(crn[0] == 0 && crn[1] == 3)
-			d->spill_y = 0+2+4;
-		else if(crn[0] == 3 && crn[1] == 0)
-			d->spill_y = 1+2+4;
+			d->spill_y.f = 1+0+0;
+		else if(crn[0] == 0 && crn[1] == lv)
+			d->spill_y.f = 0+2+4;
+		else if(crn[0] == lv && crn[1] == 0)
+			d->spill_y.f = 1+2+4;
 
-		find_displacer_edges(d, dm, &d->edges_spill_y, &mface[d->face_spill_y]);
+		find_displacer_edges(d, dm, &d->spill_y.edges, &mface[d->spill_y.face]);
 	}
 }
 
@@ -699,9 +712,11 @@ static void find_corner_valences(MultiresDisplacer *d, DerivedMesh *dm)
 {
 	int i;
 
+	d->valence[3] = -1;
+
 	/* Set the vertex valence for the corners */
 	for(i = 0; i < (d->face->v4 ? 4 : 3); ++i)
-		d->valence[i] = BLI_countlist(&MultiresDM_get_vert_edge_map(dm)[((unsigned*)(&d->face->v1))[i]]);
+		d->valence[i] = BLI_countlist(&MultiresDM_get_vert_edge_map(dm)[mface_v(d->face, i)]);
 }
 
 static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
@@ -712,12 +727,11 @@ static void multires_displacer_init(MultiresDisplacer *d, DerivedMesh *dm,
 	d->me = me;
 	d->face = me->mface + face_index;
 	d->face_index = face_index;
+	d->face_offsets = MultiresDM_get_face_offsets(dm);
 	/* Get the multires grid from customdata */
 	d->grid = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	if(d->grid)
 		d->grid += face_index;
-
-	d->mat_norms = MultiresDM_get_vertnorm(dm);
 
 	d->spacing = pow(2, MultiresDM_get_totlvl(dm) - MultiresDM_get_lvl(dm));
 	d->sidetot = multires_side_tot[MultiresDM_get_lvl(dm) - 1];
@@ -778,41 +792,55 @@ static void multires_displacer_anchor(MultiresDisplacer *d, const int type, cons
 
 static void multires_displacer_anchor_edge(MultiresDisplacer *d, int v1, int v2, int x)
 {
-	const int mov = x;
-
 	d->type = 4;
 
 	if(v1 == d->face->v1) {
 		d->x = 0;
 		d->y = 0;
 		if(v2 == d->face->v2)
-			d->x += mov;
+			d->x += x;
+		else if(v2 == d->face->v3) {
+			if(x < d->sidetot / 2)
+				d->y = x;
+			else {
+				d->x = x;
+				d->y = d->sidetot - 1;
+			}
+		}
 		else
-			d->y += mov;
+			d->y += x;
 	}
 	else if(v1 == d->face->v2) {
 		d->x = d->sidetot - 1;
 		d->y = 0;
 		if(v2 == d->face->v1)
-			d->x -= mov;
+			d->x -= x;
 		else
-			d->y += mov;
+			d->y += x;
 	}
 	else if(v1 == d->face->v3) {
 		d->x = d->sidetot - 1;
 		d->y = d->sidetot - 1;
 		if(v2 == d->face->v2)
-			d->y -= mov;
+			d->y -= x;
+		else if(v2 == d->face->v1) {
+			if(x < d->sidetot / 2)
+				d->x -= x;
+			else {
+				d->x = 0;
+				d->y -= x;
+			}
+		}
 		else
-			d->x -= mov;
+			d->x -= x;
 	}
 	else if(v1 == d->face->v4) {
 		d->x = 0;
 		d->y = d->sidetot - 1;
 		if(v2 == d->face->v3)
-			d->x += mov;
+			d->x += x;
 		else
-			d->y -= mov;
+			d->y -= x;
 	}
 }
 
@@ -858,37 +886,52 @@ static void multires_displacer_jump(MultiresDisplacer *d)
 static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer *d, DisplacerEdges *de)
 {
 	int coord_edge = d->sidetot - 1; /* Max value of x/y at edge of grid */
-	int st = d->sidetot - 2;
 	int mid = d->sidetot / 2;
 	int lim = mid - 1;
 	int qtot = lim * lim;
-	int base = st * st * face_index;
+	int base = d->face_offsets[face_index];
  
 	/* Edge spillover */
 	if(x == d->sidetot || y == d->sidetot) {
-		if(x == d->sidetot && d->face_spill_x != -1) {
-			int v_axis = (d->spill_x & 1) ? d->sidetot - 1 - y : y;
-			int f_axis = (d->spill_x & 2) ? 1 : d->sidetot - 2;
-			int lx = f_axis, ly = v_axis;
+		int flags, v_axis, f_axis, lx, ly;
 
-			if(d->spill_x & 4) {
+		if(x == d->sidetot && d->spill_x.face != -1) {
+			flags = d->spill_x.f;
+
+			/* Handle triangle seam between v1 and v3 */
+			if(!d->me->mface[d->spill_x.face].v4 &&
+			   ((flags == 2 && y >= mid) || (flags == 3 && y < mid)))
+				flags += 2;
+
+			v_axis = (flags & 1) ? d->sidetot - 1 - y : y;
+			f_axis = (flags & 2) ? 1 : d->sidetot - 2;
+			lx = f_axis, ly = v_axis;
+
+			if(flags & 4) {
 				lx = v_axis;
 				ly = f_axis;
 			}
 
-			return multires_index_at_loc(d->face_spill_x, lx, ly, d, &d->edges_spill_x);
+			return multires_index_at_loc(d->spill_x.face, lx, ly, d, &d->spill_x.edges);
 		}
-		else if(y == d->sidetot && d->face_spill_y != -1) {
-			int v_axis = (d->spill_y & 1) ? x : d->sidetot - 1 - x;
-			int f_axis = (d->spill_y & 2) ? 1 : d->sidetot - 2;
-			int lx = v_axis, ly = f_axis;
+		else if(y == d->sidetot && d->spill_y.face != -1) {
+			flags = d->spill_y.f;
 
-			if(d->spill_y & 4) {
+			/* Handle triangle seam between v1 and v3 */
+			if(!d->me->mface[d->spill_y.face].v4 &&
+			   ((flags == 6 && x >= mid) || (flags == 7 && x < mid)))
+				flags = ~flags;
+
+			v_axis = (flags & 1) ? x : d->sidetot - 1 - x;
+			f_axis = (flags & 2) ? 1 : d->sidetot - 2;
+			lx = v_axis, ly = f_axis;
+
+			if(flags & 4) {
 				lx = f_axis;
 				ly = v_axis;
 			}
 			
-			return multires_index_at_loc(d->face_spill_y, lx, ly, d, &d->edges_spill_y);
+			return multires_index_at_loc(d->spill_y.face, lx, ly, d, &d->spill_y.edges);
 		}
 		else
 			return -2;
@@ -903,8 +946,12 @@ static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer
 	else if(x == 0 && y == coord_edge)
 		return d->dm_first_base_vert_index + d->face->v4;
 	/* Edges */
-	else if(x == 0)
-		return de->base[3] + de->dir[3] * (y - 1);
+	else if(x == 0) {
+		if(d->face->v4)
+			return de->base[3] + de->dir[3] * (y - 1);
+		else
+			return de->base[2] + de->dir[2] * (y - 1);
+	}
 	else if(y == 0)
 		return de->base[0] + de->dir[0] * (x - 1);
 	else if(x == d->sidetot - 1)
@@ -921,18 +968,25 @@ static int multires_index_at_loc(int face_index, int x, int y, MultiresDisplacer
 		return base + lim + (x - mid);
 	else if(x == mid && y > mid)
 		return base + lim*2 + (y - mid);
-	else if(y == mid && x < mid)
-		return base + lim*3 + (mid - x);
+	else if(y == mid && x < mid) {
+		if(d->face->v4)
+			return base + lim*3 + (mid - x);
+		else
+			return base + lim*2 + (mid - x);
+	}
 	/* Quarters */
-	else if(x < mid && y < mid)
-		return base + lim*4 + ((mid - x - 1)*lim + (mid - y));
-	else if(x > mid && y < mid)
-		return base + lim*4 + qtot + ((mid - y - 1)*lim + (x - mid));
-	else if(x > mid && y > mid)
-		return base + lim*4 + qtot*2 + ((x - mid - 1)*lim + (y - mid));
-	else if(x < mid && y > mid)
-		return base + lim*4 + qtot*3 + ((y - mid - 1)*lim + (mid - x));
- 
+	else {
+		int offset = base + lim * (d->face->v4 ? 4 : 3);
+		if(x < mid && y < mid)
+			return offset + ((mid - x - 1)*lim + (mid - y));
+		else if(x > mid && y < mid)
+			return offset + qtot + ((mid - y - 1)*lim + (x - mid));
+		else if(x > mid && y > mid)
+			return offset + qtot*2 + ((x - mid - 1)*lim + (y - mid));
+		else if(x < mid && y > mid)
+			return offset + qtot*3 + ((y - mid - 1)*lim + (mid - x));
+	}
+		
 	return -1;
 }
 
@@ -964,14 +1018,14 @@ static void calc_disp_mat(MultiresDisplacer *d, float mat[3][3])
 	   case, back up by one row/column and use the same
 	   vector as the preceeding sub-edge. */
 
-	if(u == -2) {
+	if(u < 0) {
 		u = multires_index_at_loc(d->face_index, d->x - 1, d->y, d, &d->edges_primary);
 		VecSubf(t1, base->co, d->subco[u].co);
 	}
 	else
 		VecSubf(t1, d->subco[u].co, base->co);
 
-	if(v == -2) {
+	if(v < 0) {
 		v = multires_index_at_loc(d->face_index, d->x, d->y - 1, d, &d->edges_primary);
 		VecSubf(t2, base->co, d->subco[v].co);
 	}
