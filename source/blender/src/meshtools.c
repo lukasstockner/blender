@@ -182,6 +182,10 @@ int join_mesh(void)
 				
 				if (base->object == ob) ok= 1;
 				
+				/* check for shapekeys */
+				if (me->key)
+					haskey++;
+				
 				/* check for multires */
 				if (me->mr) {
 					hasmulti= 1;
@@ -215,8 +219,10 @@ int join_mesh(void)
 		/* increase id->us : will be lowered later */
 	}
 	
-	/* if destination mesh had shapekeys, move them somewhere safe, and set up placeholders
-	 * with arrays that are large enough to hold shapekey data for all meshes
+	/* - if destination mesh had shapekeys, move them somewhere safe, and set up placeholders
+	 * 	with arrays that are large enough to hold shapekey data for all meshes
+	 * -	if destination mesh didn't have shapekeys, but we encountered some in the meshes we're 
+	 *	joining, set up a new keyblock and assign to the mesh
 	 */
 	if (key) {
 		/* make a duplicate copy that will only be used here... (must remember to free it!) */
@@ -227,7 +233,13 @@ int join_mesh(void)
 			if (kb->data) MEM_freeN(kb->data);
 			kb->data= MEM_callocN(sizeof(float)*3*totvert, "join_shapekey");
 			kb->totelem= totvert;
+			kb->weights= NULL;
 		}
+	}
+	else if (haskey) {
+		/* add a new key-block and add to the mesh */
+		key= me->key= add_key((ID *)me);
+		key->type = KEY_RELATIVE;
 	}
 	
 	/* first pass over objects - copying materials and vertexgroups across */
@@ -276,7 +288,6 @@ int join_mesh(void)
 					}
 					
 					/* if this mesh has shapekeys, check if destination mesh already has matching entries too */
-					// FIXME: currently, we will only add shapekeys if the base mesh had them :/
 					if (me->key && key) {
 						for (kb= me->key->block.first; kb; kb= kb->next) {
 							/* if key doesn't exist in destination mesh, add it */
@@ -288,11 +299,12 @@ int join_mesh(void)
 								/* adjust adrcode and other settings to fit (allocate a new data-array) */
 								kbn->data= MEM_callocN(sizeof(float)*3*totvert, "joined_shapekey");
 								kbn->totelem= totvert;
-								kbn->weights= NULL; // FIXME... not sure what these are for, but adding shapekeys doesn't set this!
+								kbn->weights= NULL;
 								
 								BLI_addtail(&key->block, kbn);
 								kbn->adrcode= key->totkey;
 								key->totkey++;
+								if (key->totkey==1) key->refkey= kb;
 								
 								/* also, copy corresponding ipo-curve to ipo-block if applicable */
 								if (me->key->ipo && key->ipo) {
@@ -349,7 +361,7 @@ int join_mesh(void)
 							for (j=0; j<dvert[i].totweight; j++) {
 								/*	Find the old vertex group */
 								odg = BLI_findlink(&base->object->defbase, dvert[i].dw[j].def_nr);
-								if(odg) {
+								if (odg) {
 									/*	Search for a match in the new object, and set new index */
 									for (dg=ob->defbase.first, index=0; dg; dg=dg->next, index++) {
 										if (!strcmp(dg->name, odg->name)) {
@@ -415,7 +427,7 @@ int join_mesh(void)
 								/* check if this was one of the original shapekeys */
 								okb= key_get_named_keyblock(nkey, kb->name);
 								if (okb) {
-									/* copy this mesh's shapekey to the destination shapekey (need to transform first) */
+									/* copy this mesh's shapekey to the destination shapekey */
 									fp2= ((float *)(okb->data));
 									for (a=0; a < me->totvert; a++, fp1+=3, fp2+=3) {
 										VECCOPY(fp1, fp2);
