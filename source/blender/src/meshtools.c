@@ -51,6 +51,7 @@ void sort_faces(void);
 #include "MEM_guardedalloc.h"
 
 #include "DNA_image_types.h"
+#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -68,6 +69,8 @@ void sort_faces(void);
 #include "BKE_customdata.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
+#include "BKE_ipo.h"
+#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
@@ -123,10 +126,12 @@ int join_mesh(void)
 	Object *ob;
 	Material **matar, *ma;
 	Mesh *me;
-	MVert *mvert, *mvertmain;
+	MVert *mvert, *mv, *mvertmain;
 	MEdge *medge = NULL, *medgemain;
 	MFace *mface = NULL, *mfacemain;
-	float imat[4][4], cmat[4][4];
+	Key *key, *nkey=NULL;
+	KeyBlock *kb, *okb, *kbn;
+	float imat[4][4], cmat[4][4], *fp1, *fp2;
 	int a, b, totcol, totedge=0, totvert=0, totface=0, ok=0, vertofs, map[MAXMAT];
 	int	i, j, index, haskey=0, hasmulti=0, edgeofs, faceofs;
 	bDeformGroup *dg, *odg;
@@ -135,8 +140,9 @@ int join_mesh(void)
 
 	if(G.obedit) return 0;
 	
+	/* ob is the object we are adding geometry to */
 	ob= OBACT;
-	if(!ob || ob->type!=OB_MESH) return 0;
+	if((!ob) || (ob->type!=OB_MESH)) return 0;
 	
 	if (object_data_is_libdata(ob)) {
 		error_libdata();
@@ -165,51 +171,38 @@ int join_mesh(void)
 #endif
 
 	/* count & check */
-	base= FIRSTBASE;
-	while(base) {
+	for (base= FIRSTBASE; base; base= base->next) {
 		if TESTBASELIB_BGMODE(base) { /* BGMODE since python can access */
-			if(base->object->type==OB_MESH) {
+			if (base->object->type==OB_MESH) {
 				me= base->object->data;
+				
 				totvert+= me->totvert;
+				totedge+= me->totedge;
 				totface+= me->totface;
-
-				if(base->object == ob) ok= 1;
-
-				if(me->key) {
-					haskey= 1;
-					break;
-				}
-				if(me->mr) {
+				
+				if (base->object == ob) ok= 1;
+				
+				/* check for multires */
+				if (me->mr) {
 					hasmulti= 1;
 					break;
 				}
 			}
 		}
-		base= base->next;
 	}
 	
-	if(haskey) {
-		error("Can't join meshes with vertex keys");
-		return 0;
-	}
-	if(hasmulti) {
+	if (hasmulti) {
 		error("Can't join meshes with Multires");
 		return 0;
 	}
 	/* that way the active object is always selected */ 
-	if(ok==0) return 0;
+	if (ok==0) return 0;
 	
-	if(totvert==0 || totvert>MESH_MAX_VERTS) return 0;
-
-	/* if needed add edges to other meshes */
-	for(base= FIRSTBASE; base; base= base->next) {
-		if TESTBASELIB_BGMODE(base) {
-			if(base->object->type==OB_MESH) {
-				me= base->object->data;
-				totedge += me->totedge;
-			}
-		}
-	}
+	/* only join meshes if there are verts to join, there aren't too many, and we only had one mesh selected */
+	me= (Mesh *)ob->data;
+	key= me->key;
+	if ((totvert==0) || (totvert>MESH_MAX_VERTS) || (totvert==me->totvert)) 
+		return 0;
 	
 	/* new material indices and material array */
 	matar= MEM_callocN(sizeof(void *)*MAXMAT, "join_mesh");
@@ -222,54 +215,99 @@ int join_mesh(void)
 		/* increase id->us : will be lowered later */
 	}
 	
-	base= FIRSTBASE;
-	while(base) {
+	/* if destination mesh had shapekeys, move them somewhere safe, and set up placeholders
+	 * with arrays that are large enough to hold shapekey data for all meshes
+	 */
+	if (key) {
+		/* make a duplicate copy that will only be used here... (must remember to free it!) */
+		nkey= copy_key(key);
+		
+		/* for all keys in old block, clear data-arrays */
+		for (kb= key->block.first; kb; kb= kb->next) {
+			if (kb->data) MEM_freeN(kb->data);
+			kb->data= MEM_callocN(sizeof(float)*3*totvert, "join_shapekey");
+			kb->totelem= totvert;
+		}
+	}
+	
+	/* first pass over objects - copying materials and vertexgroups across */
+	for (base= FIRSTBASE; base; base= base->next) {
 		if TESTBASELIB_BGMODE(base) {
-			if(ob!=base->object && base->object->type==OB_MESH) {
+			/* only act if a mesh, and not the one we're joining to */
+			if ((ob!=base->object) && (base->object->type==OB_MESH)) {
 				me= base->object->data;
-
-				// Join this object's vertex groups to the base one's
-				for (dg=base->object->defbase.first; dg; dg=dg->next){
-					/* See if this group exists in the object */
-					for (odg=ob->defbase.first; odg; odg=odg->next){
-						if (!strcmp(odg->name, dg->name)){
+				
+				/* Join this object's vertex groups to the base one's */
+				for (dg=base->object->defbase.first; dg; dg=dg->next) {
+					/* See if this group exists in the object (if it doesn't, add it to the end) */
+					for (odg=ob->defbase.first; odg; odg=odg->next) {
+						if (!strcmp(odg->name, dg->name)) {
 							break;
 						}
 					}
-					if (!odg){
-						odg = MEM_callocN (sizeof(bDeformGroup), "join deformGroup");
-						memcpy (odg, dg, sizeof(bDeformGroup));
+					if (!odg) {
+						odg = MEM_callocN(sizeof(bDeformGroup), "join deformGroup");
+						memcpy(odg, dg, sizeof(bDeformGroup));
 						BLI_addtail(&ob->defbase, odg);
 					}
-
 				}
 				if (ob->defbase.first && ob->actdef==0)
 					ob->actdef=1;
-
-				if(me->totvert) {
-					for(a=1; a<=base->object->totcol; a++) {
-						ma= give_current_material(base->object, a);
-						if(ma) {
-							for(b=0; b<totcol; b++) {
-								if(ma == matar[b]) break;
+				
+				
+				if (me->totvert) {
+					/* Add this object's materials to the base one's if they don't exist already (but only if limits not exceeded yet) */
+					if (totcol < MAXMAT-1) {
+						for (a=1; a<=base->object->totcol; a++) {
+							ma= give_current_material(base->object, a);
+							if (ma) {
+								for (b=0; b<totcol; b++) {
+									if (ma == matar[b]) break;
+								}
+								if (b==totcol) {
+									matar[b]= ma;
+									ma->id.us++;
+									totcol++;
+								}
+								if (totcol>=MAXMAT-1) 
+									break;
 							}
-							if(b==totcol) {
-								matar[b]= ma;
-								ma->id.us++;
-								totcol++;
+						}
+					}
+					
+					/* if this mesh has shapekeys, check if destination mesh already has matching entries too */
+					// FIXME: currently, we will only add shapekeys if the base mesh had them :/
+					if (me->key && key) {
+						for (kb= me->key->block.first; kb; kb= kb->next) {
+							/* if key doesn't exist in destination mesh, add it */
+							if (key_get_named_keyblock(key, kb->name) == NULL) {
+								/* copy this existing one over to the new shapekey block */
+								kbn= MEM_dupallocN(kb);
+								kbn->prev= kbn->next= NULL;
+								
+								/* adjust adrcode and other settings to fit (allocate a new data-array) */
+								kbn->data= MEM_callocN(sizeof(float)*3*totvert, "joined_shapekey");
+								kbn->totelem= totvert;
+								kbn->weights= NULL; // FIXME... not sure what these are for, but adding shapekeys doesn't set this!
+								
+								BLI_addtail(&key->block, kbn);
+								kbn->adrcode= key->totkey;
+								key->totkey++;
+								
+								/* also, copy corresponding ipo-curve to ipo-block if applicable */
+								if (me->key->ipo && key->ipo) {
+									// FIXME... this is a luxury item!
+								}
 							}
-							if(totcol>=MAXMAT-1) break;
 						}
 					}
 				}
 			}
-			if(totcol>=MAXMAT-1) break;
+			
 		}
-		base= base->next;
 	}
-
-	me= ob->data;
-
+	
+	/* setup new data for destination mesh */
 	memset(&vdata, 0, sizeof(vdata));
 	memset(&edata, 0, sizeof(edata));
 	memset(&fdata, 0, sizeof(fdata));
@@ -277,41 +315,44 @@ int join_mesh(void)
 	mvert= CustomData_add_layer(&vdata, CD_MVERT, CD_CALLOC, NULL, totvert);
 	medge= CustomData_add_layer(&edata, CD_MEDGE, CD_CALLOC, NULL, totedge);
 	mface= CustomData_add_layer(&fdata, CD_MFACE, CD_CALLOC, NULL, totface);
-
+	
 	mvertmain= mvert;
 	medgemain= medge;
 	mfacemain= mface;
-
-	/* inverse transorm all selected meshes in this object */
-	Mat4Invert(imat, ob->obmat);
-
+	
 	vertofs= 0;
 	edgeofs= 0;
 	faceofs= 0;
-	base= FIRSTBASE;
-	while(base) {
+	
+	/* inverse transform for all selected meshes in this object */
+	Mat4Invert(imat, ob->obmat);
+	
+	for (base= FIRSTBASE; base; base= nextb) {
 		nextb= base->next;
+		
 		if TESTBASELIB_BGMODE(base) {
-			if(base->object->type==OB_MESH) {
-				
+			/* only join if this is a mesh */
+			if (base->object->type==OB_MESH) {
 				me= base->object->data;
 				
-				if(me->totvert) {
+				if (me->totvert) {
+					/* standard data */
 					CustomData_merge(&me->vdata, &vdata, CD_MASK_MESH, CD_DEFAULT, totvert);
 					CustomData_copy_data(&me->vdata, &vdata, 0, vertofs, me->totvert);
 					
+					/* vertex groups */
 					dvert= CustomData_get(&vdata, vertofs, CD_MDEFORMVERT);
-
-					/* NEW VERSION */
-					if (dvert){
-						for (i=0; i<me->totvert; i++){
-							for (j=0; j<dvert[i].totweight; j++){
-								//	Find the old vertex group
-								odg = BLI_findlink (&base->object->defbase, dvert[i].dw[j].def_nr);
+					
+					/* NB: vertex groups here are new version */
+					if (dvert) {
+						for (i=0; i<me->totvert; i++) {
+							for (j=0; j<dvert[i].totweight; j++) {
+								/*	Find the old vertex group */
+								odg = BLI_findlink(&base->object->defbase, dvert[i].dw[j].def_nr);
 								if(odg) {
-									//	Search for a match in the new object
-									for (dg=ob->defbase.first, index=0; dg; dg=dg->next, index++){
-										if (!strcmp(dg->name, odg->name)){
+									/*	Search for a match in the new object, and set new index */
+									for (dg=ob->defbase.first, index=0; dg; dg=dg->next, index++) {
+										if (!strcmp(dg->name, odg->name)) {
 											dvert[i].dw[j].def_nr = index;
 											break;
 										}
@@ -320,39 +361,100 @@ int join_mesh(void)
 							}
 						}
 					}
-
-					if(base->object != ob) {
+					
+					/* if this is the object we're merging into, no need to do anything */
+					if (base->object != ob) {
 						/* watch this: switch matmul order really goes wrong */
 						Mat4MulMat4(cmat, base->object->obmat, imat);
 						
-						a= me->totvert;
-						while(a--) {
-							Mat4MulVecfl(cmat, mvert->co);
-							mvert++;
+						/* transform vertex coordinates into new space */
+						for (a=0, mv=mvert; a < me->totvert; a++, mv++) {
+							Mat4MulVecfl(cmat, mv->co);
+						}
+						
+						/* for each shapekey in destination mesh:
+						 *	- if there's a matching one, copy it across (will need to transform vertices into new space...)
+						 *	- otherwise, just copy own coordinates of mesh (no need to transform vertex coordinates into new space)
+						 */
+						if (key) {
+							/* if this mesh has any shapekeys, check first, otherwise just copy coordinates */
+							for (kb= key->block.first; kb; kb= kb->next) {
+								/* get pointer to where to write data for this mesh in shapekey's data array */
+								fp1= ((float *)kb->data) + (vertofs*3);	
+								
+								/* check if this mesh has such a shapekey */
+								okb= key_get_named_keyblock(me->key, kb->name);
+								if (okb) {
+									/* copy this mesh's shapekey to the destination shapekey (need to transform first) */
+									fp2= ((float *)(okb->data));
+									for (a=0; a < me->totvert; a++, fp1+=3, fp2+=3) {
+										VECCOPY(fp1, fp2);
+										Mat4MulVecfl(cmat, fp1);
+									}
+								}
+								else {
+									/* copy this mesh's vertex coordinates to the destination shapekey */
+									mv= mvert;
+									for (a=0; a < me->totvert; a++, fp1++, mv++) {
+										VECCOPY(fp1, mv->co);
+									}
+								}
+							}
 						}
 					}
-					else mvert+= me->totvert;
+					else {
+						/* for each shapekey in base:
+						 *	- if it was an 'original', copy the appropriate data from nkey
+						 *	- otherwise, copy across plain coordinates (no need to transform coordinates)
+						 */
+						if (key) {
+							for (kb= key->block.first; kb; kb= kb->next) {
+								/* get pointer to where to write data for this mesh in shapekey's data array */
+								fp1= ((float *)kb->data) + (vertofs*3);	
+								
+								/* check if this was one of the original shapekeys */
+								okb= key_get_named_keyblock(nkey, kb->name);
+								if (okb) {
+									/* copy this mesh's shapekey to the destination shapekey (need to transform first) */
+									fp2= ((float *)(okb->data));
+									for (a=0; a < me->totvert; a++, fp1+=3, fp2+=3) {
+										VECCOPY(fp1, fp2);
+									}
+								}
+								else {
+									/* copy base-coordinates to the destination shapekey */
+									mv= mvert;
+									for (a=0; a < me->totvert; a++, fp1++, mv++) {
+										VECCOPY(fp1, mv->co);
+									}
+								}
+							}
+						}
+					}
+					
+					/* advance mvert pointer to end of base mesh's data */
+					mvert+= me->totvert;
 				}
-				if(me->totface) {
 				
+				if (me->totface) {
 					/* make mapping for materials */
 					memset(map, 0, 4*MAXMAT);
-					for(a=1; a<=base->object->totcol; a++) {
+					for (a=1; a<=base->object->totcol; a++) {
 						ma= give_current_material(base->object, a);
-						if(ma) {
-							for(b=0; b<totcol; b++) {
-								if(ma == matar[b]) {
+						if (ma) {
+							for (b=0; b<totcol; b++) {
+								if (ma == matar[b]) {
 									map[a-1]= b;
 									break;
 								}
 							}
 						}
 					}
-
+					
 					CustomData_merge(&me->fdata, &fdata, CD_MASK_MESH, CD_DEFAULT, totface);
 					CustomData_copy_data(&me->fdata, &fdata, 0, faceofs, me->totface);
-
-					for(a=0; a<me->totface; a++, mface++) {
+					
+					for (a=0; a<me->totface; a++, mface++) {
 						mface->v1+= vertofs;
 						mface->v2+= vertofs;
 						mface->v3+= vertofs;
@@ -360,31 +462,35 @@ int join_mesh(void)
 						
 						mface->mat_nr= map[(int)mface->mat_nr];
 					}
-
+					
 					faceofs += me->totface;
 				}
 				
-				if(me->totedge) {
+				if (me->totedge) {
 					CustomData_merge(&me->edata, &edata, CD_MASK_MESH, CD_DEFAULT, totedge);
 					CustomData_copy_data(&me->edata, &edata, 0, edgeofs, me->totedge);
-
-					for(a=0; a<me->totedge; a++, medge++) {
+					
+					for (a=0; a<me->totedge; a++, medge++) {
 						medge->v1+= vertofs;
 						medge->v2+= vertofs;
 					}
-
+					
 					edgeofs += me->totedge;
 				}
 				
+				/* vertofs is used to help newly added verts be reattached to their edge/face 
+				 * (cannot be set earlier, or else reattaching goes wrong)
+				 */
 				vertofs += me->totvert;
 				
-				if(base->object!=ob)
+				/* free base, now that data is merged */
+				if (base->object != ob)
 					free_and_unlink_base(base);
 			}
 		}
-		base= nextb;
 	}
 	
+	/* return to mesh we're merging to */
 	me= ob->data;
 	
 	CustomData_free(&me->vdata, me->totvert);
@@ -402,19 +508,19 @@ int join_mesh(void)
 	mesh_update_customdata_pointers(me);
 	
 	/* old material array */
-	for(a=1; a<=ob->totcol; a++) {
+	for (a=1; a<=ob->totcol; a++) {
 		ma= ob->mat[a-1];
-		if(ma) ma->id.us--;
+		if (ma) ma->id.us--;
 	}
-	for(a=1; a<=me->totcol; a++) {
+	for (a=1; a<=me->totcol; a++) {
 		ma= me->mat[a-1];
-		if(ma) ma->id.us--;
+		if (ma) ma->id.us--;
 	}
-	if(ob->mat) MEM_freeN(ob->mat);
-	if(me->mat) MEM_freeN(me->mat);
+	if (ob->mat) MEM_freeN(ob->mat);
+	if (me->mat) MEM_freeN(me->mat);
 	ob->mat= me->mat= 0;
 	
-	if(totcol) {
+	if (totcol) {
 		me->mat= matar;
 		ob->mat= MEM_callocN(sizeof(void *)*totcol, "join obmatar");
 	}
@@ -425,6 +531,20 @@ int join_mesh(void)
 	
 	/* other mesh users */
 	test_object_materials((ID *)me);
+	
+	/* free temp copy of destination shapekeys (if applicable) */
+	if (nkey) {
+		/* free it's ipo too - both are not actually freed from memory yet as ID-blocks */
+		if (nkey->ipo) {
+			free_ipo(nkey->ipo);
+			BLI_remlink(&G.main->ipo, nkey->ipo);
+			MEM_freeN(nkey->ipo);
+		}
+		
+		free_key(nkey);
+		BLI_remlink(&G.main->key, nkey);
+		MEM_freeN(nkey);
+	}
 	
 	DAG_scene_sort(G.scene);	// removed objects, need to rebuild dag before editmode call
 	
