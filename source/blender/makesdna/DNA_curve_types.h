@@ -205,6 +205,7 @@ typedef struct Curve {
 #define CU_OFFS_PATHDIST	256
 #define CU_FAST			512 /* Font: no filling inside editmode */
 #define CU_RETOPO               1024
+#define CU_DS_EXPAND	2048
 
 /* spacemode */
 #define CU_LEFT			0

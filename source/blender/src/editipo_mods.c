@@ -809,6 +809,7 @@ static void ipo_curves_auto_horiz(void)
 		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & (IPO_SELECT|IPO_EDIT), icu))
 			if(ei->flag & IPO_AUTO_HORIZ) set= 0;
 	}
+	printf("\tset = %d \n", set);
 	
 	ei= G.sipo->editipo;
 	for(a=0; a<G.sipo->totipo; a++, ei++) {
@@ -847,7 +848,6 @@ void sethandles_ipo(int code)
 	case HD_AUTO_ANIM:
 		/* set to enforce autohandles to be horizontal on extremes */
 		ipo_curves_auto_horiz();
-		
 		break;
 	default:
 		if (selected_bezier_loop(vis_edit_icu_bez, bezier_isfree, NULL) ) {
@@ -1043,13 +1043,11 @@ void borderselect_ipo(void)
 		areamouseco_to_ipoco(G.v2d, mval, &rectf.xmax, &rectf.ymax);
 		
 		if(G.sipo->showkey) {
-			ik= G.sipo->ipokey.first;
-			while(ik) {
-				if(rectf.xmin<ik->val && rectf.xmax>ik->val) {
-					if(val==LEFTMOUSE) ik->flag |= 1;
-					else ik->flag &= ~1;
+			for (ik= G.sipo->ipokey.first; ik; ik= ik->next) {
+				if ((rectf.xmin < ik->val) && (rectf.xmax > ik->val)) {
+					if (val==LEFTMOUSE) ik->flag |= SELECT;
+					else ik->flag &= ~SELECT;
 				}
-				ik= ik->next;
 			}
 			update_editipo_flags();
 		}

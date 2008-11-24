@@ -294,6 +294,16 @@ bActListElem *make_new_actlistelem (void *data, short datatype, void *owner, sho
 				ale->datatype= ALE_IPO;
 			}
 				break;
+			case ACTTYPE_DSCUR:
+			{
+				Curve *cu= (Curve *)data;
+				
+				ale->flag= FILTER_CUR_OBJD(cu);
+				
+				ale->key_data= cu->ipo;
+				ale->datatype= ALE_IPO;
+			}
+				break;
 			case ACTTYPE_DSSKEY:
 			{
 				Key *key= (Key *)data;
@@ -764,13 +774,13 @@ static void actdata_filter_dopesheet_cam (ListBase *act_data, bDopeSheet *ads, B
 	Camera *ca= (Camera *)ob->data;
 	IpoCurve *icu;
 	
-	/* include ipo-expand widget? */
+	/* include camera-expand widget? */
 	if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
 		ale= make_new_actlistelem(ca, ACTTYPE_DSCAM, base, ACTTYPE_OBJECT);
 		if (ale) BLI_addtail(act_data, ale);
 	}
 	
-	/* add ipo-curve channels? */
+	/* add camera ipo-curve channels? */
 	if ( (FILTER_CAM_OBJD(ca) || (filter_mode & ACTFILTER_ONLYICU)) && 
 		  !(filter_mode & ACTFILTER_IPOKEYS) ) 
 	{
@@ -796,13 +806,13 @@ static void actdata_filter_dopesheet_lamp (ListBase *act_data, bDopeSheet *ads, 
 	Lamp *la= (Lamp *)ob->data;
 	IpoCurve *icu;
 	
-	/* include ipo-expand widget? */
+	/* include lamp-expand widget? */
 	if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
 		ale= make_new_actlistelem(la, ACTTYPE_DSLAM, base, ACTTYPE_OBJECT);
 		if (ale) BLI_addtail(act_data, ale);
 	}
 	
-	/* add ipo-curve channels? */
+	/* add lamp ipo-curve channels? */
 	if ( (FILTER_LAM_OBJD(la) || (filter_mode & ACTFILTER_ONLYICU)) && 
 		  !(filter_mode & ACTFILTER_IPOKEYS) ) 
 	{
@@ -814,6 +824,38 @@ static void actdata_filter_dopesheet_lamp (ListBase *act_data, bDopeSheet *ads, 
 				if (ale) {
 					/* make owner the material not object, so that indent is not just object level */
 					ale->id= (ID *)la;
+					BLI_addtail(act_data, ale); 
+				}
+			}
+		}
+	}
+}
+
+static void actdata_filter_dopesheet_curve (ListBase *act_data, bDopeSheet *ads, Base *base, int filter_mode)
+{
+	bActListElem *ale=NULL;
+	Object *ob= base->object;
+	Curve *cu= (Curve *)ob->data;
+	IpoCurve *icu;
+	
+	/* include curve-expand widget? */
+	if (filter_mode & (ACTFILTER_CHANNELS|ACTFILTER_IPOKEYS)) {
+		ale= make_new_actlistelem(cu, ACTTYPE_DSCUR, base, ACTTYPE_OBJECT);
+		if (ale) BLI_addtail(act_data, ale);
+	}
+	
+	/* add curve ipo-curve channels? */
+	if ( (FILTER_CUR_OBJD(cu) || (filter_mode & ACTFILTER_ONLYICU)) && 
+		  !(filter_mode & ACTFILTER_IPOKEYS) ) 
+	{
+		/* loop through ipo-curve channels, adding them */
+		for (icu= cu->ipo->curve.first; icu; icu=icu->next) {
+			/* only if selected (if checking for selection) */
+			if ( !(filter_mode & ACTFILTER_SEL) || (SEL_ICU(icu)) ) {
+				ale= make_new_actlistelem(icu, ACTTYPE_ICU, base, ACTTYPE_OBJECT);
+				if (ale) {
+					/* make owner the material not object, so that indent is not just object level */
+					ale->id= (ID *)cu;
 					BLI_addtail(act_data, ale); 
 				}
 			}
@@ -914,6 +956,13 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 				actdata_filter_dopesheet_lamp(act_data, ads, base, filter_mode);
 		}
 			break;
+		case OB_CURVE: /* ------- Curve ---------- */
+		{
+			Curve *cu= (Curve *)ob->data;
+			if ((cu->ipo) && !(ads->filterflag & ADS_FILTER_NOCUR))
+				actdata_filter_dopesheet_curve(act_data, ads, base, filter_mode);
+		}
+			break;
 	}
 	
 	/* Constraint Channels? */
@@ -1008,22 +1057,28 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 				}
 				
 				/* check filters for datatypes */
-				ipoOk= (!(ob->ipo) || !(ads->filterflag & ADS_FILTER_NOIPOS));
-				actOk= (!(ob->action) || !(ads->filterflag & ADS_FILTER_NOACTS));
-				constsOk= (!(ob->constraintChannels.first) || !(ads->filterflag & ADS_FILTER_NOCONSTRAINTS));
-				keyOk= (!(key) || !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS));
+				ipoOk= ((ob->ipo) && !(ads->filterflag & ADS_FILTER_NOIPOS));
+				actOk= ((ob->action) && !(ads->filterflag & ADS_FILTER_NOACTS));
+				constsOk= ((ob->constraintChannels.first) && !(ads->filterflag & ADS_FILTER_NOCONSTRAINTS));
+				keyOk= ((key) && !(ads->filterflag & ADS_FILTER_NOSHAPEKEYS));
 				
 				switch (ob->type) {
 					case OB_CAMERA: /* ------- Camera ------------ */
 					{
 						Camera *ca= (Camera *)ob->data;
-						dataOk= (!(ca->ipo) || !(ads->filterflag & ADS_FILTER_NOCAM));						
+						dataOk= ((ca->ipo) && !(ads->filterflag & ADS_FILTER_NOCAM));						
 					}
 						break;
 					case OB_LAMP: /* ---------- Lamp ----------- */
 					{
 						Lamp *la= (Lamp *)ob->data;
-						dataOk= (!(la->ipo) || !(ads->filterflag & ADS_FILTER_NOLAM));
+						dataOk= ((la->ipo) && !(ads->filterflag & ADS_FILTER_NOLAM));
+					}
+						break;
+					case OB_CURVE: /* -------- Curve ---------- */
+					{
+						Curve *cu= (Curve *)ob->data;
+						dataOk= ((cu->ipo) && !(ads->filterflag & ADS_FILTER_NOCUR));
 					}
 						break;
 					default: /* --- other --- */
@@ -1053,6 +1108,12 @@ static void actdata_filter_dopesheet (ListBase *act_data, bDopeSheet *ads, int f
 					{
 						Lamp *la= (Lamp *)ob->data;
 						dataOk= (la->ipo != NULL);
+					}
+						break;
+					case OB_CURVE: /* -------- Curve ---------- */
+					{
+						Curve *cu= (Curve *)ob->data;
+						dataOk= (cu->ipo != NULL);
 					}
 						break;
 					default: /* --- other --- */
@@ -2164,7 +2225,10 @@ void insertkey_action(void)
 		int filter;
 		
 		/* ask user what to keyframe */
-		mode = pupmenu("Insert Key%t|All Channels%x1|Only Selected Channels%x2|In Active Group%x3");
+		if (datatype == ACTCONT_ACTION)
+			mode = pupmenu("Insert Key%t|All Channels%x1|Only Selected Channels%x2|In Active Group%x3");
+		else
+			mode = pupmenu("Insert Key%t|All Channels%x1|Only Selected Channels%x2");
 		if (mode <= 0) return;
 		
 		/* filter data */
@@ -4548,7 +4612,10 @@ static void mouse_action (int selectmode)
 			case ACTTYPE_DSCAM:
 				ipo= ((Camera *)act_channel)->ipo;
 				break;
-			case ACTTYPE_DSSKEY: // needed?
+			case ACTTYPE_DSCUR:
+				ipo= ((Curve *)act_channel)->ipo;
+				break;
+			case ACTTYPE_DSSKEY:
 				ipo= ((Key *)act_channel)->ipo;
 				break;
 			case ACTTYPE_FILLACTD:
@@ -4741,6 +4808,12 @@ static void mouse_actionchannels (short mval[])
 			{
 				Camera *ca= (Camera *)act_channel;
 				ca->flag ^= CAM_DS_EXPAND;
+			}
+				break;
+		case ACTTYPE_DSCUR:
+			{
+				Curve *cu= (Curve *)act_channel;
+				cu->flag ^= CU_DS_EXPAND;
 			}
 				break;
 		case ACTTYPE_DSSKEY:

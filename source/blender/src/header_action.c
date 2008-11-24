@@ -1763,6 +1763,7 @@ void action_buttons(void)
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOMAT, B_REDR, ICON_MATERIAL,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Materials");
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOLAM, B_REDR, ICON_LAMP,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Lamps");
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOCAM, B_REDR, ICON_CAMERA,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Cameras");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOCUR, B_REDR, ICON_CURVE,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Curves");
 		uiBlockEndAlign(block);
 		xco += 5;
 		

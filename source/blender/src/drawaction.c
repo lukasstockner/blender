@@ -703,6 +703,22 @@ static void draw_channel_names(void)
 					sprintf(name, ca->id.name+2);
 				}
 					break;
+				case ACTTYPE_DSCUR: /* curve (dopesheet) expand widget */
+				{
+					Curve *cu = (Curve *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_CURVE;
+					
+					if (FILTER_CUR_OBJD(cu))
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+					
+					sprintf(name, cu->id.name+2);
+				}
+					break;
 				case ACTTYPE_DSSKEY: /* shapekeys (dopesheet) expand widget */
 				{
 					Key *key= (Key *)ale->data;

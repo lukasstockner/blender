@@ -258,6 +258,7 @@ typedef enum DOPESHEET_FILTERFLAG {
 	ADS_FILTER_NOCAM			= (1<<10),
 	ADS_FILTER_NOMAT			= (1<<11),
 	ADS_FILTER_NOLAM			= (1<<12),
+	ADS_FILTER_NOCUR			= (1<<14),
 } DOPESHEET_FILTERFLAG;	
 
 /* DopeSheet general flags */

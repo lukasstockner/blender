@@ -92,7 +92,7 @@ char *key_ic_names[KEY_TOTNAM] = { "Speed", "Key 1", "Key 2", "Key 3", "Key 4", 
 char *wo_ic_names[WO_TOTNAM] = { "HorR", "HorG", "HorB", "ZenR", "ZenG", "ZenB", "Expos",
 	"Misi", "MisDi", "MisSta", "MisHi", "StarR", "StarB",
 	"StarG", "StarDi", "StarSi" };
-char *la_ic_names[LA_TOTNAM] = { "Energ", "R", "G", "B", "Dist", "SpoSi", "SpoBl",
+char *la_ic_names[LA_TOTNAM] = { "Energy", "R", "G", "B", "Dist", "SpoSi", "SpoBl",
 	"Quad1", "Quad2", "HaInt" };
 /* yafray: two curve names added, 'Apert' for aperture, and 'FDist' for focal distance */
 char *cam_ic_names[CAM_TOTNAM] = { "Lens", "ClSta", "ClEnd", "Apert", "FDist", "ShiftX", "ShiftY" };
@@ -170,6 +170,8 @@ char *getname_ipocurve(IpoCurve *icu, Object *ob)
 			return getname_la_ei(icu->adrcode);
 		case ID_CA:
 			return getname_cam_ei(icu->adrcode);
+		case ID_CU:
+			return getname_cu_ei(icu->adrcode);
 			
 		default: /* fixme - add all of the other types! */
 			return NULL;

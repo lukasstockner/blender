@@ -58,6 +58,7 @@ enum {
 	ACTTYPE_DSMAT,
 	ACTTYPE_DSLAM,
 	ACTTYPE_DSCAM,
+	ACTTYPE_DSCUR,
 	ACTTYPE_DSSKEY,
 	
 	ACTTYPE_ACHAN,
@@ -82,6 +83,7 @@ enum {
 #define FILTER_MAT_OBJD(ma) ((ma->flag & MA_DS_EXPAND))
 #define FILTER_LAM_OBJD(la) ((la->flag & LA_DS_EXPAND))
 #define FILTER_CAM_OBJD(ca) ((ca->flag & CAM_DS_EXPAND))
+#define FILTER_CUR_OBJD(cu) ((cu->flag & CU_DS_EXPAND))
 
 #define SEL_ACTC(actc) ((actc->flag & ACTC_SELECTED))
 #define EXPANDED_ACTC(actc) ((actc->flag & ACTC_EXPANDED))
