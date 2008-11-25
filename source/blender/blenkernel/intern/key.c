@@ -1413,7 +1413,7 @@ KeyBlock *key_get_named_keyblock(Key *key, const char name[])
 {
 	KeyBlock *kb;
 	
-	if (key) {
+	if (key && name) {
 		for (kb= key->block.first; kb; kb= kb->next) {
 			if (strcmp(name, kb->name)==0)
 				return kb;

@@ -131,7 +131,7 @@ int join_mesh(void)
 	MFace *mface = NULL, *mfacemain;
 	Key *key, *nkey=NULL;
 	KeyBlock *kb, *okb, *kbn;
-	float imat[4][4], cmat[4][4], *fp1, *fp2;
+	float imat[4][4], cmat[4][4], *fp1, *fp2, curpos;
 	int a, b, totcol, totedge=0, totvert=0, totface=0, ok=0, vertofs, map[MAXMAT];
 	int	i, j, index, haskey=0, hasmulti=0, edgeofs, faceofs;
 	bDeformGroup *dg, *odg;
@@ -301,6 +301,13 @@ int join_mesh(void)
 								kbn->totelem= totvert;
 								kbn->weights= NULL;
 								
+								okb= key->block.last;
+								curpos= (okb) ? okb->pos : -0.1f;
+								if (key->type == KEY_RELATIVE)
+									kbn->pos= curpos + 0.1f;
+								else
+									kbn->pos= curpos;
+								
 								BLI_addtail(&key->block, kbn);
 								kbn->adrcode= key->totkey;
 								key->totkey++;
@@ -407,7 +414,7 @@ int join_mesh(void)
 								else {
 									/* copy this mesh's vertex coordinates to the destination shapekey */
 									mv= mvert;
-									for (a=0; a < me->totvert; a++, fp1++, mv++) {
+									for (a=0; a < me->totvert; a++, fp1+=3, mv++) {
 										VECCOPY(fp1, mv->co);
 									}
 								}
@@ -415,7 +422,7 @@ int join_mesh(void)
 						}
 					}
 					else {
-						/* for each shapekey in base:
+						/* for each shapekey in destination mesh:
 						 *	- if it was an 'original', copy the appropriate data from nkey
 						 *	- otherwise, copy across plain coordinates (no need to transform coordinates)
 						 */
@@ -436,7 +443,7 @@ int join_mesh(void)
 								else {
 									/* copy base-coordinates to the destination shapekey */
 									mv= mvert;
-									for (a=0; a < me->totvert; a++, fp1++, mv++) {
+									for (a=0; a < me->totvert; a++, fp1+=3, mv++) {
 										VECCOPY(fp1, mv->co);
 									}
 								}
