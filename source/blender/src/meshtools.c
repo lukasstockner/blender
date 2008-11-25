@@ -311,7 +311,7 @@ int join_mesh(void)
 								BLI_addtail(&key->block, kbn);
 								kbn->adrcode= key->totkey;
 								key->totkey++;
-								if (key->totkey==1) key->refkey= kb;
+								if (key->totkey==1) key->refkey= kbn;
 								
 								/* also, copy corresponding ipo-curve to ipo-block if applicable */
 								if (me->key->ipo && key->ipo) {
