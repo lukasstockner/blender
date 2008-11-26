@@ -61,6 +61,7 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
+#include "DNA_ipo_types.h"
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -522,6 +523,9 @@ static void init_userdef_file(void)
 		/* adjust grease-pencil distances */
 		U.gp_manhattendist= 1;
 		U.gp_euclideandist= 2;
+		
+		/* adjust default interpolation for new IPO-curves */
+		U.ipo_new= IPO_BEZ;
 	}
 
 	/* GL Texture Garbage Collection (variable abused above!) */

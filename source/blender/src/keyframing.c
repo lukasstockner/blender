@@ -185,7 +185,7 @@ static int binarysearch_bezt_index (BezTriple array[], float frame, int arraylen
 	 *	- keyframe to be added would replace one of the existing ones on bounds
 	 */
 	if ((arraylen <= 0) || (array == NULL)) {
-		printf("Warning: binarysearch_bezt_index encountered invalid array \n");
+		printf("Warning: binarysearch_bezt_index() encountered invalid array \n");
 		return 0;
 	}
 	else {
@@ -235,7 +235,7 @@ static int binarysearch_bezt_index (BezTriple array[], float frame, int arraylen
 	
 	/* print error if loop-limit exceeded */
 	if (loopbreaker == (maxloop-1)) {
-		printf("Error: binarysearch_bezt_index was taking too long \n");
+		printf("Error: binarysearch_bezt_index() was taking too long \n");
 		
 		// include debug info 
 		printf("\tround = %d: start = %d, end = %d, arraylen = %d \n", loopbreaker, start, end, arraylen);

@@ -3614,8 +3614,8 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 	uiBut *uibut;
 	static short cur_light=0;
 	float fac, col[3];
-	short xpos, ypos, ypostab,  buth, rspace, dx, y1, y2, y3, y4, y5, y6, y7;
-	short y2label, y3label, y4label, y5label, y6label, y7label;
+	short xpos, ypos, ypostab,  buth, rspace, dx, y1, y2, y3, y4, y5, y6, y7, y8;
+	short y2label, y3label, y4label, y5label, y6label, y7label, y8label;
 	short spref, mpref, lpref, smfileselbut;
 	short edgsp, midsp;
 	char naam[32];
@@ -3667,6 +3667,7 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 	y5 = ypos+4*(buth+rspace);
 	y6 = ypos+5*(buth+rspace);
 	y7 = ypos+6*(buth+rspace);
+	y8 = ypos+7*(buth+rspace);
 
 
 	y2label = y2-2;		/* adjustments to offset the labels down to align better */
@@ -3675,6 +3676,7 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 	y5label = y5-2;
 	y6label = y6-2;
 	y7label = y7-2;
+	y8label = y8-2;
 
 
 	/* set the color to blue and draw the main 'tab' controls */
@@ -4058,6 +4060,15 @@ void drawinfospace(ScrArea *sa, void *spacedata)
 		uiBlockEndAlign(block);
 
 
+		uiDefBut(block, LABEL,0,"Default IPO Interpolation",
+			(xpos+(2*edgsp)+(2*mpref)+midsp),y8label,mpref,buth,
+			0, 0, 0, 0, 0, "");
+		uiDefButS(block, MENU, B_DRAWINFO, 
+						"Default IPO Interpolation %t|Constant%x0|Linear%x1|Bezier%x2", 
+						(xpos+edgsp+(2*mpref)+(2*midsp)),y7,mpref, buth, 
+						&(U.ipo_new), 0, 1, 0, 0, 
+						"Interpolation to use for newly added IPO-curves");
+		
 		uiDefBut(block, LABEL,0,"Auto Keyframe",
 			(xpos+(2*edgsp)+(2*mpref)+midsp),y6label,mpref,buth,
 			0, 0, 0, 0, 0, "");

@@ -2043,6 +2043,7 @@ IpoCurve *verify_ipocurve(ID *from, short blocktype, char *actname, char *constn
 		if ((icu==NULL) && (add)) {
 			icu= MEM_callocN(sizeof(IpoCurve), "ipocurve");
 			
+			/* set default settings */
 			icu->flag |= (IPO_VISIBLE|IPO_AUTO_HORIZ);
 			if (ipo->curve.first==NULL) 
 				icu->flag |= IPO_ACTIVE;	/* first one added active */
@@ -2052,8 +2053,13 @@ IpoCurve *verify_ipocurve(ID *from, short blocktype, char *actname, char *constn
 			
 			set_icu_vars(icu);
 			
+			/* default curve interpolation - from userpref */
+			icu->ipo= U.ipo_new;
+			
+			/* add curve to IPO-block */
 			BLI_addtail(&ipo->curve, icu);
 			
+			/* special type-dependent stuff */
 			switch (GS(from->name)) {
 				case ID_SEQ: {
 					Sequence *seq= (Sequence *)from;
