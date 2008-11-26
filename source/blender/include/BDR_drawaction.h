@@ -95,6 +95,7 @@ void icu_to_keylist(struct IpoCurve *icu, ListBase *keys, ListBase *blocks, ActK
 void ipo_to_keylist(struct Ipo *ipo, ListBase *keys, ListBase *blocks, ActKeysInc *aki);
 void agroup_to_keylist(struct bActionGroup *agrp, ListBase *keys, ListBase *blocks, ActKeysInc *aki);
 void action_to_keylist(struct bAction *act, ListBase *keys, ListBase *blocks, ActKeysInc *aki);
+void action_nlascaled_to_keylist(struct Object *ob, struct bAction *act, ListBase *keys, ListBase *blocks, ActKeysInc *aki);
 void ob_to_keylist(struct Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki);
 void gpl_to_keylist(struct bGPDlayer *gpl, ListBase *keys, ListBase *blocks, ActKeysInc *aki);
 

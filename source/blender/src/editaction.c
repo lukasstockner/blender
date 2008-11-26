@@ -4175,7 +4175,6 @@ void column_select_action_keys (int mode)
 			make_marker_cfra_list(&elems, 1);
 			
 			/* apply scaled action correction if needed */
-			// FIXME: this can also apply in the dopesheet for channels... how to fix?
 			if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
 				for (ce= elems.first; ce; ce= ce->next) 
 					ce->cfra= get_action_frame(OBACT, ce->cfra);
@@ -4187,7 +4186,6 @@ void column_select_action_keys (int mode)
 			BLI_addtail(&elems, ce);
 			
 			/* apply scaled action correction if needed */
-			// FIXME: this can also apply in the dopesheet for channels... how to fix?
 			if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION)
 				ce->cfra= (float)get_action_frame(OBACT, (float)CFRA);
 			else
@@ -4205,13 +4203,21 @@ void column_select_action_keys (int mode)
 	
 	for (ale= act_data.first; ale; ale= ale->next) {
 		for (ce= elems.first; ce; ce= ce->next) {
+			int ecfra;
+			
+			/* apply scaling? */
+			if (NLA_CHAN_SCALED(ale) && NLA_ACTION_SCALED==0)
+				ecfra= (int)get_action_frame((Object *)ale->id, ce->cfra);
+			else
+				ecfra= ce->cfra;
+			
 			/* select elements with frame number matching cfraelem */
 			if (ale->type == ACTTYPE_GPLAYER) {
 				bGPDlayer *gpl= (bGPDlayer *)ale->data;
 				bGPDframe *gpf;
 				
 				for (gpf= gpl->frames.first; gpf; gpf= gpf->next) {
-					if ( (int)ce->cfra == gpf->framenum ) 
+					if (ecfra == gpf->framenum) 
 						gpf->flag |= GP_FRAME_SELECT;
 				}
 			}
@@ -4222,8 +4228,8 @@ void column_select_action_keys (int mode)
 					
 					for (bezt=icu->bezt; verts<icu->totvert; bezt++, verts++) {
 						if (bezt) {
-							if( (int)(ce->cfra) == (int)(bezt->vec[1][0]) )
-								bezt->f2 |= 1;
+							if (ecfra == (int)(bezt->vec[1][0]))
+								bezt->f2 |= SELECT;
 						}
 					}
 				}
@@ -4552,7 +4558,7 @@ static void mouse_action (int selectmode)
 	
 	void *act_channel;
 	short sel, act_type = 0;
-	float selx = 0.0;
+	float selx = 0.0f, selxa;
 	
 	/* determine what type of data we are operating on */
 	data = get_action_context(&datatype);
@@ -4718,13 +4724,15 @@ static void mouse_action (int selectmode)
 		else if (ob) {
 			if (ob->ipo) 
 				select_ipo_key(ob->ipo, selx, selectmode);
-				
+			
 			if (ob->action) {
+				selxa= get_action_frame(ob, selx);
+				
 				for (achan= ob->action->chanbase.first; achan; achan= achan->next) {
-					select_ipo_key(achan->ipo, selx, selectmode);
+					select_ipo_key(achan->ipo, selxa, selectmode);
 					
 					for (conchan=achan->constraintChannels.first; conchan; conchan=conchan->next)
-						select_ipo_key(conchan->ipo, selx, selectmode);
+						select_ipo_key(conchan->ipo, selxa, selectmode);
 				}
 			}
 			

@@ -996,12 +996,14 @@ static uiBlock *action_channelmenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "", 0, yco-=6, 
 					menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
-			"Delete|X", 0, yco-=20,
-			menuwidth, 19, NULL, 0.0, 0.0, 0, ACTMENU_CHANNELS_DELETE, "");
-	
-	uiDefBut(block, SEPR, 0, "", 0, yco-=6, 
-					menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
+	if (G.saction->mode == SACTCONT_ACTION) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
+				"Delete|X", 0, yco-=20,
+				menuwidth, 19, NULL, 0.0, 0.0, 0, ACTMENU_CHANNELS_DELETE, "");
+		
+		uiDefBut(block, SEPR, 0, "", 0, yco-=6, 
+						menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
+	}
 		
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, 
 			"Toggle Show Hierachy|~", 0, yco-=20,

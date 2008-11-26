@@ -121,29 +121,21 @@ static void meshactionbuts(SpaceAction *saction, Object *ob, Key *key)
 
 #define XIC 20
 #define YIC 20
-
-	/* lets make the rvk sliders */
-
+	
+	/* lets make the shapekey sliders */
+	
 	/* reset the damn myortho2 or the sliders won't draw/redraw
 	 * correctly *grumble*
 	 */
 	mywinset(curarea->win);
 	myortho2(-0.375f, curarea->winx-0.375f, G.v2d->cur.ymin, G.v2d->cur.ymax);
-
+	
     sprintf(str, "actionbuttonswin %d", curarea->win);
     block= uiNewBlock (&curarea->uiblocks, str, UI_EMBOSS, UI_HELV, curarea->win);
 
 	x = NAMEWIDTH + 1;
     y = 0.0f;
-
-	/* make the little 'open the sliders' widget */
-	// should eventually be removed
-    BIF_ThemeColor(TH_FACE); // this slot was open... (???... Aligorith)
-	glRects(2, (short)y + 2*CHANNELHEIGHT - 2, ACTWIDTH - 2, (short)y + CHANNELHEIGHT + 2);
-	glColor3ub(0, 0, 0);
-	glRasterPos2f(4, y + CHANNELHEIGHT + 6);
-	BMF_DrawString(G.font, "Sliders");
-
+	
 	uiBlockSetEmboss(block, UI_EMBOSSN);
 
 	if (!(G.saction->flag & SACTION_SLIDERS)) {
@@ -156,7 +148,6 @@ static void meshactionbuts(SpaceAction *saction, Object *ob, Key *key)
 					  "Show action window sliders");
 		/* no hilite, the winmatrix is not correct later on... */
 		uiButSetFlag(but, UI_NO_HILITE);
-
 	}
 	else {
 		but= uiDefIconButBitS(block, TOG, SACTION_SLIDERS, B_REDR, 
@@ -2092,7 +2083,7 @@ void ob_to_keylist(Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki
 		/* get filterflag */
 		if (ads)
 			filterflag= ads->filterflag;
-		else if (aki && aki->actmode == -1) /* only set like this by NLA */
+		else if ((aki) && (aki->actmode == -1)) /* only set like this by NLA */
 			filterflag= ADS_FILTER_NLADUMMY;
 		else
 			filterflag= 0;
@@ -2102,10 +2093,8 @@ void ob_to_keylist(Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki
 			ipo_to_keylist(ob->ipo, keys, blocks, aki);
 		
 		/* Add action keyframes */
-		// FIXME: we may need to apply NLA-scaling here...
-		if ((ob->action) && !(filterflag & ADS_FILTER_NOACTS)) {
-			action_to_keylist(ob->action, keys, blocks, aki);
-		}
+		if ((ob->action) && !(filterflag & ADS_FILTER_NOACTS))
+			action_nlascaled_to_keylist(ob, ob->action, keys, blocks, aki);
 		
 		/* Add shapekey keyframes (only if dopesheet allows, if it is available) */
 		if ((key && key->ipo) && !(filterflag & ADS_FILTER_NOSHAPEKEYS))
@@ -2281,6 +2270,52 @@ void action_to_keylist(bAction *act, ListBase *keys, ListBase *blocks, ActKeysIn
 					ipo_to_keylist(conchan->ipo, keys, blocks, aki);
 			}
 		}
+	}
+}
+
+void action_nlascaled_to_keylist(Object *ob, bAction *act, ListBase *keys, ListBase *blocks, ActKeysInc *aki)
+{
+	bActionChannel *achan;
+	bConstraintChannel *conchan;
+	Object *oldob= NULL;
+	
+	/* although apply and clearing NLA-scaling pre-post creating keylist does impact on performance,
+	 * the effects should be fairly minimal, as we're already going through the keyframes multiple times 
+	 * already for blocks too...
+	 */
+	if (act) {	
+		/* if 'aki' is provided, store it's current ob to restore later as it might not be the same */
+		if (aki) {
+			oldob= aki->ob;
+			aki->ob= ob;
+		}
+		
+		/* loop through action channels */
+		for (achan= act->chanbase.first; achan; achan= achan->next) {
+			/* firstly, add keys from action channel's ipo block 
+			 *	- scaling correction only does times for center-points, so should be faster
+			 */
+			if (achan->ipo) {
+				actstrip_map_ipo_keys(ob, achan->ipo, 0, 1);
+				ipo_to_keylist(achan->ipo, keys, blocks, aki);
+				actstrip_map_ipo_keys(ob, achan->ipo, 1, 1);
+			}
+			
+			/* then, add keys from constraint channels 
+			 *	- scaling correction only does times for center-points, so should be faster
+			 */
+			for (conchan= achan->constraintChannels.first; conchan; conchan= conchan->next) {
+				if (conchan->ipo) {
+					actstrip_map_ipo_keys(ob, conchan->ipo, 0, 1);
+					ipo_to_keylist(conchan->ipo, keys, blocks, aki);
+					actstrip_map_ipo_keys(ob, conchan->ipo, 1, 1);
+				}
+			}
+		}
+		
+		/* if 'aki' is provided, restore ob */
+		if (aki)
+			aki->ob= oldob;
 	}
 }
 
