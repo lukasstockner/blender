@@ -316,6 +316,7 @@ int join_mesh(void)
 								/* also, copy corresponding ipo-curve to ipo-block if applicable */
 								if (me->key->ipo && key->ipo) {
 									// FIXME... this is a luxury item!
+									puts("FIXME: ignoring IPO's when joining shapekeys on Meshes for now...");
 								}
 							}
 						}

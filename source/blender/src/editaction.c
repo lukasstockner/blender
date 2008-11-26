@@ -912,7 +912,10 @@ static void actdata_filter_dopesheet_ob (ListBase *act_data, bDopeSheet *ads, Ba
 		/* include action-expand widget? */
 		if ((filter_mode & ACTFILTER_CHANNELS) && !(filter_mode & (ACTFILTER_IPOKEYS|ACTFILTER_ONLYICU))) {
 			ale= make_new_actlistelem(ob->action, ACTTYPE_FILLACTD, base, ACTTYPE_OBJECT);
-			if (ale) BLI_addtail(act_data, ale);
+			if (ale) {
+				ale->id= (ID *)ob; // err.... is this a good idea?
+				BLI_addtail(act_data, ale);
+			}
 		}
 		
 		/* add ipo-curve channels? */
@@ -1342,16 +1345,6 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 	areamouseco_to_ipoco(G.v2d, mval, &rectf.xmin, &rectf.ymin);
 	mval[0]+=14;
 	areamouseco_to_ipoco(G.v2d, mval, &rectf.xmax, &rectf.ymax);
-
-	/* if action is mapped in NLA, it returns a correction */
-	if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-		xmin= get_action_frame(OBACT, rectf.xmin);
-		xmax= get_action_frame(OBACT, rectf.xmax);
-	}
-	else {
-		xmin= rectf.xmin;
-		xmax= rectf.xmax;
-	}
 	
 	if (clickmax < 0) {
 		*ret_type= ACTTYPE_NONE;
@@ -1366,7 +1359,19 @@ static void *get_nearest_action_key (float *selx, short *sel, short *ret_type, b
 		if (clickmax < 0) 
 			break;
 		if (clickmin <= 0) {
-			/* found match */
+			/* found match - must return here... */
+			
+			/* apply NLA-scaling correction? */
+			if (NLA_CHAN_SCALED(ale)) {
+				Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+				
+				xmin= get_action_frame(nob, rectf.xmin);
+				xmax= get_action_frame(nob, rectf.xmax);
+			}
+			else {
+				xmin= rectf.xmin;
+				xmax= rectf.xmax;
+			}
 			
 			/* make list of keyframes */
 			if (ale->key_data) {
@@ -2051,10 +2056,12 @@ void snap_cfra_action()
 	snap_cfra_ipo_keys(NULL, -1);
 	
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1); 
+		if (NLA_CHAN_SCALED(ale)) {
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1); 
 			snap_cfra_ipo_keys(ale->key_data, 0);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else 
 			snap_cfra_ipo_keys(ale->key_data, 0);
@@ -2113,10 +2120,12 @@ void snap_action_keys(short mode)
 	
 	/* snap to frame */
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1); 
+		if (NLA_CHAN_SCALED(ale)) {
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1); 
 			snap_ipo_keys(ale->key_data, mode);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else if (ale->type == ACTTYPE_GPLAYER)
 			snap_gplayer_frames(ale->data, mode);
@@ -2177,10 +2186,12 @@ void mirror_action_keys(short mode)
 	
 	/* mirror */
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1); 
+		if (NLA_CHAN_SCALED(ale)) {
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1); 
 			mirror_ipo_keys(ale->key_data, mode);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else if (ale->type == ACTTYPE_GPLAYER)
 			mirror_gplayer_frames(ale->data, mode);
@@ -3944,10 +3955,12 @@ void markers_selectkeys_between (void)
 		
 	/* select keys in-between */
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1);
+		if (NLA_CHAN_SCALED(ale)) {	
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1);
 			borderselect_ipo_key(ale->key_data, min, max, SELECT_ADD);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else {
 			borderselect_ipo_key(ale->key_data, min, max, SELECT_ADD);
@@ -3995,10 +4008,12 @@ void selectkeys_leftright (short leftright, short select_mode)
 		
 	/* select keys on the side where most data occurs */
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1);
+		if (NLA_CHAN_SCALED(ale)) {
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1);
 			borderselect_ipo_key(ale->key_data, min, max, SELECT_ADD);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else if (ale->type == ACTTYPE_GPLAYER)
 			borderselect_gplayer_frames(ale->data, min, max, SELECT_ADD);
@@ -4048,10 +4063,12 @@ void nextprev_action_keyframe (short dir)
 	actdata_filter(&act_data, filter, data, datatype);
 	
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1); 
+		if (NLA_CHAN_SCALED(ale)) {
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1); 
 			make_cfra_list(ale->key_data, &elems);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else if (ale->type == ACTTYPE_GPLAYER)
 			gplayer_make_cfra_list(ale->key_data, &elems, 0);
@@ -4158,6 +4175,7 @@ void column_select_action_keys (int mode)
 			make_marker_cfra_list(&elems, 1);
 			
 			/* apply scaled action correction if needed */
+			// FIXME: this can also apply in the dopesheet for channels... how to fix?
 			if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
 				for (ce= elems.first; ce; ce= ce->next) 
 					ce->cfra= get_action_frame(OBACT, ce->cfra);
@@ -4169,6 +4187,7 @@ void column_select_action_keys (int mode)
 			BLI_addtail(&elems, ce);
 			
 			/* apply scaled action correction if needed */
+			// FIXME: this can also apply in the dopesheet for channels... how to fix?
 			if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION)
 				ce->cfra= (float)get_action_frame(OBACT, (float)CFRA);
 			else
@@ -4395,12 +4414,6 @@ void borderselect_action (void)
 		mval[1]= rect.ymax-2;
 		areamouseco_to_ipoco(G.v2d, mval, &rectf.xmax, &rectf.ymax);
 		
-		/* if action is mapped in NLA, it returns a correction */
-		if (NLA_ACTION_SCALED && datatype==ACTCONT_ACTION) {
-			rectf.xmin= get_action_frame(OBACT, rectf.xmin);
-			rectf.xmax= get_action_frame(OBACT, rectf.xmax);
-		}
-		
 		ymax = CHANNELHEIGHT/2;
 		
 		/* filter data */
@@ -4410,6 +4423,14 @@ void borderselect_action (void)
 		/* loop over data, doing border select */
 		for (ale= act_data.first; ale; ale= ale->next) {
 			ymin=ymax-(CHANNELHEIGHT+CHANNELSKIP);
+			
+			/* if action is mapped in NLA, it returns a correction */
+			if (NLA_CHAN_SCALED(ale)) {
+				Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+				
+				rectf.xmin= get_action_frame(nob, rectf.xmin);
+				rectf.xmax= get_action_frame(nob, rectf.xmax);
+			}
 			
 			/* what gets selected depends on the mode (based on initial position of cursor) */
 			switch (mode) {
@@ -4485,6 +4506,14 @@ void borderselect_action (void)
 						borderselect_gplayer_frames(ale->data, rectf.xmin, rectf.xmax, selectmode);
 					}
 				}
+			}
+			
+			/* if action is mapped in NLA, unapply correction */
+			if (NLA_CHAN_SCALED(ale)) {
+				Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+				
+				rectf.xmin= get_action_frame_inv(nob, rectf.xmin);
+				rectf.xmax= get_action_frame_inv(nob, rectf.xmax);
 			}
 			
 			ymax=ymin;

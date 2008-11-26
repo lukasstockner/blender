@@ -7988,6 +7988,42 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				set_interpolation_ipocurve(icu, icu->ipo);
 		}
 	}
+	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 3)) {
+		bScreen *sc;
+		
+		/* adjust default settings for Animation Editors */
+		for (sc= main->screen.first; sc; sc= sc->id.next) {
+			ScrArea *sa;
+			
+			for (sa= sc->areabase.first; sa; sa= sa->next) { 
+				SpaceLink *sl;
+				
+				for (sl= sa->spacedata.first; sl; sl= sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_ACTION:
+						{
+							SpaceAction *sact= (SpaceAction *)sl;
+							sact->mode= SACTCONT_DOPESHEET;
+							sact->autosnap= SACTSNAP_FRAME;
+						}
+							break;
+						case SPACE_IPO:
+						{
+							SpaceIpo *sipo= (SpaceIpo *)sl;
+							sipo->autosnap= SACTSNAP_FRAME;
+						}
+							break;
+						case SPACE_NLA:
+						{
+							SpaceNla *snla= (SpaceNla *)sl;
+							snla->autosnap= SACTSNAP_FRAME;
+						}
+							break;
+					}
+				}
+			}
+		}
+	}
 	
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in src/usiblender.c! */

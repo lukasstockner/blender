@@ -3988,18 +3988,6 @@ void make_ipo_transdata (TransInfo *t)
 									h2= 0;
 							}
 							
-							/* special hack (must be done after initTransDataCurveHandes(), as that stores handle settings to restore...): 
-							 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point, 
-							 *	  then check if we're using auto-handles. 
-							 *	- If so, change them auto-handles to aligned handles so that handles get affected too
-							 */
-							if ((bezt->h1 == HD_AUTO) && (bezt->h2 == HD_AUTO) && ELEM(t->mode, TFM_ROTATION, TFM_RESIZE)) {
-								if ((h1 && h2) && (bezt->f2 & SELECT)) {
-									bezt->h1= HD_ALIGN;
-									bezt->h2= HD_ALIGN;
-								}
-							}
-							
 							/* only include main vert if selected */
 							if (bezt->f2 & SELECT) {
 								/* if handles were not selected, store their selection status */
@@ -4009,6 +3997,18 @@ void make_ipo_transdata (TransInfo *t)
 								}
 								
 								bezt_to_transdata(td++, td2d++, bezt->vec[1], bezt->vec[1], 1, onlytime);
+								
+								/* special hack (must be done after initTransDataCurveHandes(), as that stores handle settings to restore...): 
+								 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point, 
+								 *	  then check if we're using auto-handles. 
+								 *	- If so, change them auto-handles to aligned handles so that handles get affected too
+								 */
+								if ((bezt->h1 == HD_AUTO) && (bezt->h2 == HD_AUTO) && ELEM(t->mode, TFM_ROTATION, TFM_RESIZE)) {
+									if (h1 && h2) {
+										bezt->h1= HD_ALIGN;
+										bezt->h2= HD_ALIGN;
+									}
+								}
 							}
 						}
 						

@@ -509,11 +509,6 @@ static void init_userdef_file(void)
 			SETCOL(btheme->tseq.vertex_select, col[0], col[1], col[2], 255);
 		}
 	}
-	if ((G.main->versionfile < 247) || (G.main->versionfile == 247 && G.main->subversionfile <= 9)) {
-		/* define grease-pencil distances */
-		U.gp_manhattendist= 2;
-		U.gp_euclideandist= 15;
-	}
 	if ((G.main->versionfile < 248) || (G.main->versionfile == 248 && G.main->subversionfile < 3)) {
 		bTheme *btheme;
 		
@@ -523,6 +518,10 @@ static void init_userdef_file(void)
 			SETCOL(btheme->tact.ds_channel, 0x36, 0x13, 0xca, 255);
 			SETCOL(btheme->tact.ds_subchannel, 0x60, 0x43, 0xd2, 255);
 		}
+		
+		/* adjust grease-pencil distances */
+		U.gp_manhattendist= 1;
+		U.gp_euclideandist= 2;
 	}
 
 	/* GL Texture Garbage Collection (variable abused above!) */

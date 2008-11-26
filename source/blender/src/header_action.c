@@ -1768,9 +1768,9 @@ void action_buttons(void)
 		xco += 5;
 		
 		uiBlockBeginAlign(block);		
-			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOIPOS, B_REDR, ICON_IPO,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display IPO's");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOIPOS, B_REDR, ICON_IPO,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Object IPO's");
 			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOACTS, B_REDR, ICON_ACTION,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Actions");
-			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOCONSTRAINTS, B_REDR, ICON_CONSTRAINT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Constraints");
+			uiDefIconButBitI(block, TOGN, ADS_FILTER_NOCONSTRAINTS, B_REDR, ICON_CONSTRAINT,	(short)(xco+=XIC),0,XIC,YIC, &(G.saction->ads.filterflag), 0, 0, 0, 0, "Display Object Constraints");
 		uiBlockEndAlign(block);
 		xco += 30;
 	}

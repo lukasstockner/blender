@@ -809,7 +809,6 @@ static void ipo_curves_auto_horiz(void)
 		if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & (IPO_SELECT|IPO_EDIT), icu))
 			if(ei->flag & IPO_AUTO_HORIZ) set= 0;
 	}
-	printf("\tset = %d \n", set);
 	
 	ei= G.sipo->editipo;
 	for(a=0; a<G.sipo->totipo; a++, ei++) {
@@ -864,7 +863,7 @@ void sethandles_ipo(int code)
 	}
 
 	editipo_changed(G.sipo, 1);
-	BIF_undo_push("Set handles Ipo");
+	BIF_undo_push("Set Handles Ipo");
 }
 
 static void set_ipocurve_mixed(IpoCurve *icu)

@@ -36,6 +36,7 @@ struct IpoCurve;
 struct gla2DDrawInfo;
 struct bAction;
 struct bActionGroup;
+struct bActListElem;
 struct Object;
 struct ListBase;
 struct bGPDlayer;
@@ -68,7 +69,10 @@ typedef struct ActKeyBlock {
 
 /* Inclusion-Range Limiting Struct (optional) */
 typedef struct ActKeysInc {
-	struct Object *ob;				/* if present, used to find action-scaled time */
+	struct bDopeSheet *ads;			/* dopesheet data (for dopesheet mode) */
+	struct Object *ob;				/* owner object for NLA-scaling info (if Object channels, is just Object) */
+	short actmode;					/* mode of the Action Editor (-1 is for NLA) */
+	
 	float start, end;				/* frames (global-time) to only consider keys between */
 } ActKeysInc;
 
@@ -79,12 +83,12 @@ void draw_cfra_number(float cfra);
 void draw_cfra_action(void);
 
 /* Channel Drawing */
-void draw_icu_channel(struct gla2DDrawInfo *di, struct IpoCurve *icu, float ypos);
-void draw_ipo_channel(struct gla2DDrawInfo *di, struct Ipo *ipo, float ypos);
-void draw_agroup_channel(struct gla2DDrawInfo *di, struct bActionGroup *agrp, float ypos);
-void draw_action_channel(struct gla2DDrawInfo *di, struct bAction *act, float ypos);
-void draw_object_channel(struct gla2DDrawInfo *di, struct Object *ob, float ypos);
-void draw_gpl_channel(struct gla2DDrawInfo *di, struct bGPDlayer *gpl, float ypos);
+void draw_icu_channel(struct gla2DDrawInfo *di, ActKeysInc *aki, struct IpoCurve *icu, float ypos);
+void draw_ipo_channel(struct gla2DDrawInfo *di, ActKeysInc *aki, struct Ipo *ipo, float ypos);
+void draw_agroup_channel(struct gla2DDrawInfo *di, ActKeysInc *aki, struct bActionGroup *agrp, float ypos);
+void draw_action_channel(struct gla2DDrawInfo *di, ActKeysInc *aki, struct bAction *act, float ypos);
+void draw_object_channel(struct gla2DDrawInfo *di, ActKeysInc *aki, struct Object *ob, float ypos);
+void draw_gpl_channel(struct gla2DDrawInfo *di, ActKeysInc *aki, struct bGPDlayer *gpl, float ypos);
 
 /* Keydata Generation */
 void icu_to_keylist(struct IpoCurve *icu, ListBase *keys, ListBase *blocks, ActKeysInc *aki);

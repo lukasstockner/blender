@@ -2703,10 +2703,12 @@ static void posttrans_action_clean (bAction *act)
 	 *  	- all keyframes are converted in/out of global time 
 	 */
 	for (ale= act_data.first; ale; ale= ale->next) {
-		if (NLA_ACTION_SCALED) {
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 0, 1); 
+		if (NLA_CHAN_SCALED(ale)) {
+			Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+			
+			actstrip_map_ipo_keys(nob, ale->key_data, 0, 1); 
 			posttrans_ipo_clean(ale->key_data);
-			actstrip_map_ipo_keys(OBACT, ale->key_data, 1, 1);
+			actstrip_map_ipo_keys(nob, ale->key_data, 1, 1);
 		}
 		else 
 			posttrans_ipo_clean(ale->key_data);

@@ -267,6 +267,7 @@ static void draw_nla_strips_keys(SpaceNla *snla)
 	for (base=G.scene->base.first; base; base=base->next){
 		Object *ob= base->object;
 		bActionStrip *strip;
+		ActKeysInc aki = {NULL, NULL, -1, G.v2d->cur.xmin - 10, G.v2d->cur.xmax + 10};
 		int frame1_x, channel_y;
 		
 		if (nla_filter(base)==0)
@@ -289,10 +290,10 @@ static void draw_nla_strips_keys(SpaceNla *snla)
 			glColor4ub (col2[0], col2[1], col2[2], 0x44);
 		glRectf(frame1_x,  channel_y-NLACHANNELHEIGHT/2,   G.v2d->hor.xmax,  channel_y+NLACHANNELHEIGHT/2);
 		
-		glDisable (GL_BLEND);
+		glDisable(GL_BLEND);
 		
 		/* Draw the ipo keys */
-		draw_object_channel(di, ob, y);
+		draw_object_channel(di, &aki, ob, y);
 		
 		y-=NLACHANNELHEIGHT+NLACHANNELSKIP;
 		
@@ -303,9 +304,8 @@ static void draw_nla_strips_keys(SpaceNla *snla)
 		
 		/* Draw the action strip */
 		if (ob->action) {
-			
 			/* Draw the field */
-			glEnable (GL_BLEND);
+			glEnable(GL_BLEND);
 			if (TESTBASE_SAFE(base))
 				glColor4ub (col1[0], col1[1], col1[2], 0x22);
 			else
@@ -323,8 +323,9 @@ static void draw_nla_strips_keys(SpaceNla *snla)
 			glDisable (GL_BLEND);
 			
 			/* Draw the action keys, optionally corrected for active strip */
+			aki.ob= ob;
 			map_active_strip(di, ob, 0);
-			draw_action_channel(di, ob->action, y);
+			draw_action_channel(di, &aki, ob->action, y);
 			map_active_strip(di, ob, 1);
 			
 			y-=NLACHANNELHEIGHT+NLACHANNELSKIP;
@@ -368,7 +369,7 @@ static void draw_nla_strips_keys(SpaceNla *snla)
 				glBegin(GL_TRIANGLES);
 				
 				gla2DDrawTranslatePt(di, strip->end, y, &blendend, &channel_y);
-
+				
 				glVertex2f(blendend, channel_y-NLACHANNELHEIGHT/2+3);
 				glVertex2f(stripend, channel_y+NLACHANNELHEIGHT/2-3);
 				glVertex2f(stripend, channel_y-NLACHANNELHEIGHT/2+3);

@@ -67,6 +67,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_ipo.h"
 #include "BKE_key.h"
+#include "BKE_material.h"
 #include "BKE_object.h"
 #include "BKE_global.h"
 #include "BKE_utildefines.h"
@@ -1169,12 +1170,13 @@ static void draw_channel_names(void)
     myortho2(0,	NAMEWIDTH, 0, (float)(ofsy+G.v2d->mask.ymax) - (ofsy+G.v2d->mask.ymin));	//	Scaling
 }
 
-/* sets or clears hidden flags */
+/* sets or clears hidden flags - for actionchannels only */
 void check_action_context(SpaceAction *saction)
 {
 	bActionChannel *achan;
 	
-	if (saction->action==NULL) return;
+	if (saction->mode != SACTCONT_ACTION) return;
+	if (saction->action == NULL) return;
 	
 	for (achan=saction->action->chanbase.first; achan; achan=achan->next)
 		achan->flag &= ~ACHAN_HIDDEN;
@@ -1194,6 +1196,42 @@ void check_action_context(SpaceAction *saction)
 			}
 		}
 	}
+}
+
+static ActKeysInc *init_aki_data(void *data, short datatype, bActListElem *ale)
+{
+	static ActKeysInc aki;
+	
+	/* no need to set settings if wrong context */
+	if ((data == NULL) || ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET)==0)
+		return NULL;
+	
+	/* if strip is mapped, store settings */
+	if (NLA_CHAN_SCALED(ale)) {
+		/* NLA_CHAN_SCALED checks the standard scaling check (for Action Mode), 
+		 * as well as making sure that channel has Object ID-owner 
+		 */
+		if (datatype == ACTCONT_DOPESHEET)
+			aki.ob= (Object *)ale->id; // is more filtering on this needed?
+		else if (datatype == ACTCONT_ACTION)
+			aki.ob= OBACT;
+	}
+	else {
+		aki.ob= NULL;
+	}
+	
+	if (datatype == ACTCONT_DOPESHEET)
+		aki.ads= (bDopeSheet *)data;
+	else
+		aki.ads= NULL;
+	aki.actmode= datatype;
+	
+	/* set start/end frames to use for time-based keyframe culling hacks... */
+	// FIXME: this needs to be a bit better defined...
+	aki.start= G.v2d->cur.xmin - 10;
+	aki.end= G.v2d->cur.xmax + 10;
+	
+	return &aki;
 }
 
 static void draw_channel_strips(void)
@@ -1299,23 +1337,37 @@ static void draw_channel_strips(void)
 			if (ELEM(datatype, ACTCONT_ACTION, ACTCONT_DOPESHEET)) {
 				gla2DDrawTranslatePt(di, G.v2d->cur.xmin, y, &frame1_x, &channel_y);
 				
-				if (ale->type == ACTTYPE_OBJECT) {
-					// FIXME... how do we differentiate between the two modes?
-					if (sel) glColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
-					else glColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
-				}
-				else if (ELEM4(ale->type, ACTTYPE_FILLIPOD, ACTTYPE_FILLACTD, ACTTYPE_FILLCOND, ACTTYPE_DSSKEY)) {
-					// FIXME... how do we differentiate between the two modes?
-					if (sel) glColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
-					else glColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 
-				}
-				else if (ale->datatype == ALE_GROUP) {
-					if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
-					else glColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
-				}
-				else {
-					if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
-					else glColor4ub(col2[0], col2[1], col2[2], 0x22);
+				switch (ale->type) {
+					case ACTTYPE_OBJECT:
+					{
+						if (sel) glColor4ub(col1b[0], col1b[1], col1b[2], 0x45); 
+						else glColor4ub(col1b[0], col1b[1], col1b[2], 0x22); 
+					}
+						break;
+						
+					case ACTTYPE_FILLIPOD:
+					case ACTTYPE_FILLACTD:
+					case ACTTYPE_FILLCOND:
+					case ACTTYPE_DSSKEY:
+					{
+						if (sel) glColor4ub(col2b[0], col2b[1], col2b[2], 0x45); 
+						else glColor4ub(col2b[0], col2b[1], col2b[2], 0x22); 
+					}
+						break;
+					
+					case ALE_GROUP:
+					{
+						if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
+						else glColor4ub(col2a[0], col2a[1], col2a[2], 0x22);
+					}
+						break;
+					
+					default:
+					{
+						if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
+						else glColor4ub(col2[0], col2[1], col2[2], 0x22);
+					}
+						break;
 				}
 				
 				/* draw region twice: firstly backdrop, then the current range */
@@ -1357,9 +1409,6 @@ static void draw_channel_strips(void)
 	}		
 	glDisable(GL_BLEND);
 	
-	if (NLA_ACTION_SCALED)
-		map_active_strip(di, OBACT, 0);
-	
 	/* Draw keyframes 
 	 *	1) Only channels that are visible in the Action Editor get drawn/evaluated.
 	 *	   This is to try to optimise this for heavier data sets
@@ -1374,25 +1423,41 @@ static void draw_channel_strips(void)
 		if ( IN_RANGE(yminc, G.v2d->cur.ymin, G.v2d->cur.ymax) ||
 			 IN_RANGE(ymaxc, G.v2d->cur.ymin, G.v2d->cur.ymax) ) 
 		{
-			switch (ale->datatype) {
-				case ALE_OB:
-					draw_object_channel(di, ale->key_data, y);
-					break;
-				case ALE_ACT:
-					draw_action_channel(di, ale->key_data, y);
-					break;
-				case ALE_GROUP:
-					draw_agroup_channel(di, ale->data, y);
-					break;
-				case ALE_IPO:
-					draw_ipo_channel(di, ale->key_data, y);
-					break;
-				case ALE_ICU:
-					draw_icu_channel(di, ale->key_data, y);
-					break;
-				case ALE_GPFRAME:
-					draw_gpl_channel(di, ale->data, y);
-					break;
+			/* check if anything to show for this channel */
+			if (ale->datatype != ALE_NONE) {
+				ActKeysInc *aki= init_aki_data(data, datatype, ale); 
+				
+				if (NLA_CHAN_SCALED(ale)) {
+					Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+					map_active_strip(di, nob, 0);
+				}
+				
+				/* draw 'keyframes' for each specific datatype */
+				switch (ale->datatype) {
+					case ALE_OB:
+						draw_object_channel(di, aki, ale->key_data, y);
+						break;
+					case ALE_ACT:
+						draw_action_channel(di, aki, ale->key_data, y);
+						break;
+					case ALE_GROUP:
+						draw_agroup_channel(di, aki, ale->data, y);
+						break;
+					case ALE_IPO:
+						draw_ipo_channel(di, aki, ale->key_data, y);
+						break;
+					case ALE_ICU:
+						draw_icu_channel(di, aki, ale->key_data, y);
+						break;
+					case ALE_GPFRAME:
+						draw_gpl_channel(di, aki, ale->data, y);
+						break;
+				}
+				
+				if (NLA_CHAN_SCALED(ale)) {
+					Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+					map_active_strip(di, nob, 1);
+				}
 			}
 		}
 		
@@ -1944,42 +2009,10 @@ static void draw_keylist(gla2DDrawInfo *di, ListBase *keys, ListBase *blocks, fl
 	glDisable(GL_BLEND);
 }
 
-
-static ActKeysInc *init_aki_data()
-{
-	static ActKeysInc aki;
-	
-	// FIXME: include special checks for dopesheet channels here... (dopesheet filtering could be added here too)
-	
-	/* init data of static struct here */
-	if ((curarea->spacetype == SPACE_ACTION) && NLA_ACTION_SCALED &&
-		(G.saction->mode == SACTCONT_ACTION))
-	{
-		aki.ob= OBACT;
-	}
-	else if (curarea->spacetype == SPACE_NLA)
-	{
-		aki.ob= NULL; // FIXME
-	}
-	else
-		aki.ob= NULL;
-		
-	aki.start= G.v2d->cur.xmin - 10;
-	aki.end= G.v2d->cur.xmax + 10;
-	
-	/* only pass pointer for Action Editor if enabled (for now) */
-	// FIXME: enable again later...
-	//if ((curarea->spacetype == SPACE_ACTION) && (G.saction->flag & SACTION_HORIZOPTIMISEON))
-	//	return &aki;
-	//else	
-		return NULL;
-}
-
-void draw_object_channel(gla2DDrawInfo *di, Object *ob, float ypos)
+void draw_object_channel(gla2DDrawInfo *di, ActKeysInc *aki, Object *ob, float ypos)
 {
 	ListBase keys = {0, 0};
 	ListBase blocks = {0, 0};
-	ActKeysInc *aki = init_aki_data();
 
 	ob_to_keylist(ob, &keys, &blocks, aki);
 	draw_keylist(di, &keys, &blocks, ypos);
@@ -1988,11 +2021,10 @@ void draw_object_channel(gla2DDrawInfo *di, Object *ob, float ypos)
 	BLI_freelistN(&blocks);
 }
 
-void draw_ipo_channel(gla2DDrawInfo *di, Ipo *ipo, float ypos)
+void draw_ipo_channel(gla2DDrawInfo *di, ActKeysInc *aki, Ipo *ipo, float ypos)
 {
 	ListBase keys = {0, 0};
 	ListBase blocks = {0, 0};
-	ActKeysInc *aki = init_aki_data();
 
 	ipo_to_keylist(ipo, &keys, &blocks, aki);
 	draw_keylist(di, &keys, &blocks, ypos);
@@ -2001,11 +2033,10 @@ void draw_ipo_channel(gla2DDrawInfo *di, Ipo *ipo, float ypos)
 	BLI_freelistN(&blocks);
 }
 
-void draw_icu_channel(gla2DDrawInfo *di, IpoCurve *icu, float ypos)
+void draw_icu_channel(gla2DDrawInfo *di, ActKeysInc *aki, IpoCurve *icu, float ypos)
 {
 	ListBase keys = {0, 0};
 	ListBase blocks = {0, 0};
-	ActKeysInc *aki = init_aki_data();
 
 	icu_to_keylist(icu, &keys, &blocks, aki);
 	draw_keylist(di, &keys, &blocks, ypos);
@@ -2014,34 +2045,33 @@ void draw_icu_channel(gla2DDrawInfo *di, IpoCurve *icu, float ypos)
 	BLI_freelistN(&blocks);
 }
 
-void draw_agroup_channel(gla2DDrawInfo *di, bActionGroup *agrp, float ypos)
+void draw_agroup_channel(gla2DDrawInfo *di, ActKeysInc *aki, bActionGroup *agrp, float ypos)
 {
 	ListBase keys = {0, 0};
 	ListBase blocks = {0, 0};
-	ActKeysInc *aki = init_aki_data();
 
 	agroup_to_keylist(agrp, &keys, &blocks, aki);
 	draw_keylist(di, &keys, &blocks, ypos);
+	
 	BLI_freelistN(&keys);
 	BLI_freelistN(&blocks);
 }
 
-void draw_action_channel(gla2DDrawInfo *di, bAction *act, float ypos)
+void draw_action_channel(gla2DDrawInfo *di, ActKeysInc *aki, bAction *act, float ypos)
 {
 	ListBase keys = {0, 0};
 	ListBase blocks = {0, 0};
-	ActKeysInc *aki = init_aki_data();
 
 	action_to_keylist(act, &keys, &blocks, aki);
 	draw_keylist(di, &keys, &blocks, ypos);
+	
 	BLI_freelistN(&keys);
 	BLI_freelistN(&blocks);
 }
 
-void draw_gpl_channel(gla2DDrawInfo *di, bGPDlayer *gpl, float ypos)
+void draw_gpl_channel(gla2DDrawInfo *di, ActKeysInc *aki, bGPDlayer *gpl, float ypos)
 {
 	ListBase keys = {0, 0};
-	ActKeysInc *aki = init_aki_data();
 	
 	gpl_to_keylist(gpl, &keys, NULL, aki);
 	draw_keylist(di, &keys, NULL, ypos);
@@ -2056,26 +2086,75 @@ void ob_to_keylist(Object *ob, ListBase *keys, ListBase *blocks, ActKeysInc *aki
 	Key *key= ob_get_key(ob);
 
 	if (ob) {
+		bDopeSheet *ads= (aki)? (aki->ads) : NULL;
+		int filterflag;
+		
+		/* get filterflag */
+		if (ads)
+			filterflag= ads->filterflag;
+		else if (aki && aki->actmode == -1) /* only set like this by NLA */
+			filterflag= ADS_FILTER_NLADUMMY;
+		else
+			filterflag= 0;
+		
 		/* Add object keyframes */
-		if (ob->ipo)
+		if ((ob->ipo) && !(filterflag & ADS_FILTER_NOIPOS))
 			ipo_to_keylist(ob->ipo, keys, blocks, aki);
 		
 		/* Add action keyframes */
-		if (ob->action)
+		// FIXME: we may need to apply NLA-scaling here...
+		if ((ob->action) && !(filterflag & ADS_FILTER_NOACTS)) {
 			action_to_keylist(ob->action, keys, blocks, aki);
+		}
 		
-		/* Add shapekey keyframes */
-		if (key && key->ipo)
+		/* Add shapekey keyframes (only if dopesheet allows, if it is available) */
+		if ((key && key->ipo) && !(filterflag & ADS_FILTER_NOSHAPEKEYS))
 			ipo_to_keylist(key->ipo, keys, blocks, aki);
-		
-		/* Add constraint keyframes */
-		for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next) {
-			if (conchan->ipo)
-				ipo_to_keylist(conchan->ipo, keys, blocks, aki);		
+			
+		/* Add material keyframes (only if dopesheet allows, if it is available) */
+		if ((ob->totcol) && !(filterflag & ADS_FILTER_NOMAT)) {
+			short a;
+			
+			for (a=0; a<ob->totcol; a++) {
+				Material *ma= give_current_material(ob, a);
+				
+				if (ELEM(NULL, ma, ma->ipo) == 0)
+					ipo_to_keylist(ma->ipo, keys, blocks, aki);
+			}
 		}
 			
 		/* Add object data keyframes */
-		// 		TODO??
+		switch (ob->type) {
+			case OB_CAMERA: /* ------- Camera ------------ */
+			{
+				Camera *ca= (Camera *)ob->data;
+				if ((ca->ipo) && !(ads->filterflag & ADS_FILTER_NOCAM))
+					ipo_to_keylist(ca->ipo, keys, blocks, aki);
+			}
+				break;
+			case OB_LAMP: /* ---------- Lamp ----------- */
+			{
+				Lamp *la= (Lamp *)ob->data;
+				if ((la->ipo) && !(ads->filterflag & ADS_FILTER_NOLAM))
+					ipo_to_keylist(la->ipo, keys, blocks, aki);
+			}
+				break;
+			case OB_CURVE: /* ------- Curve ---------- */
+			{
+				Curve *cu= (Curve *)ob->data;
+				if ((cu->ipo) && !(ads->filterflag & ADS_FILTER_NOCUR))
+					ipo_to_keylist(cu->ipo, keys, blocks, aki);
+			}
+				break;
+		}
+		
+		/* Add constraint keyframes */
+		if (!(filterflag & ADS_FILTER_NOCONSTRAINTS)) {
+			for (conchan=ob->constraintChannels.first; conchan; conchan=conchan->next) {
+				if (conchan->ipo)
+					ipo_to_keylist(conchan->ipo, keys, blocks, aki);		
+			}
+		}
 	}
 }
 

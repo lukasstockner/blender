@@ -5357,6 +5357,7 @@ static void init_actionspace(ScrArea *sa)
 	saction->v2d.keepzoom= V2D_LOCKZOOM_Y;
 	saction->v2d.keeptot= 0;
 	
+	saction->mode= SACTCONT_DOPESHEET;
 	saction->autosnap = SACTSNAP_FRAME;
 }
 
