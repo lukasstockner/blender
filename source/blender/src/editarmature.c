@@ -1061,9 +1061,9 @@ static void *get_bone_from_selectbuffer(Base *base, unsigned int *buffer, short 
 	Object *ob= base->object;
 	Bone *bone;
 	EditBone *ebone;
-	void *firstunSel=NULL, *firstSel=NULL, *data;
+	void *firstunSel=NULL, *firstSel=NULL, *data=NULL;
 	unsigned int hitresult;
-	short i, takeNext=0, sel;
+	short i, takeNext=0, sel=0;
 	
 	for (i=0; i< hits; i++){
 		hitresult = buffer[3+(i*4)];
@@ -1077,27 +1077,42 @@ static void *get_bone_from_selectbuffer(Base *base, unsigned int *buffer, short 
 					/* no singular posemode, so check for correct object */
 					if(base->selcol == (hitresult & 0xFFFF)) {
 						bone = get_indexed_bone(ob, hitresult);
-
-						if (findunsel)
-							sel = (bone->flag & BONE_SELECTED);
-						else
-							sel = !(bone->flag & BONE_SELECTED);
 						
-						data = bone;
+						/* only include if selectable */
+						if ((bone->flag & BONE_UNSELECTABLE)==0) {
+							if (findunsel)
+								sel = (bone->flag & BONE_SELECTED);
+							else
+								sel = !(bone->flag & BONE_SELECTED);
+							
+							data = bone;
+						}
+						else {
+							data= NULL;
+							sel= 0;
+						}
 					}
 					else {
 						data= NULL;
 						sel= 0;
 					}
 				}
-				else{
+				else {
 					ebone = BLI_findlink(&G.edbo, hitresult);
-					if (findunsel)
-						sel = (ebone->flag & BONE_SELECTED);
-					else
-						sel = !(ebone->flag & BONE_SELECTED);
 					
-					data = ebone;
+					/* only include if selectable */
+					if ((ebone->flag & BONE_UNSELECTABLE)==0) {
+						if (findunsel)
+							sel = (ebone->flag & BONE_SELECTED);
+						else
+							sel = !(ebone->flag & BONE_SELECTED);
+						
+						data = ebone;
+					}
+					else {
+						data= NULL;
+						sel= 0;
+					}
 				}
 				
 				if(data) {
@@ -1266,11 +1281,11 @@ void setflag_armature (short mode)
 	
 	/* get flag to set (sync these with the ones used in eBone_Flag */
 	if (mode == 2)
-		flag= pupmenu("Disable Setting%t|Draw Wire%x1|Deform%x2|Mult VG%x3|Hinge%x4|No Scale%x5|Locked%x6");
+		flag= pupmenu("Disable Setting%t|Draw Wire%x1|Deform%x2|Mult VG%x3|Hinge%x4|No Scale%x5|Locked%x6|Unselectable %x7");
 	else if (mode == 1)
-		flag= pupmenu("Enable Setting%t|Draw Wire%x1|Deform%x2|Mult VG%x3|Hinge%x4|No Scale%x5|Locked%x6");
+		flag= pupmenu("Enable Setting%t|Draw Wire%x1|Deform%x2|Mult VG%x3|Hinge%x4|No Scale%x5|Locked%x6|Unselectable %x7");
 	else
-		flag= pupmenu("Toggle Setting%t|Draw Wire%x1|Deform%x2|Mult VG%x3|Hinge%x4|No Scale%x5|Locked%x6");
+		flag= pupmenu("Toggle Setting%t|Draw Wire%x1|Deform%x2|Mult VG%x3|Hinge%x4|No Scale%x5|Locked%x6|Unselectable %x7");
 	switch (flag) {
 		case 1: 	flag = BONE_DRAWWIRE; 	break;
 		case 2:		flag = BONE_NO_DEFORM; break;
@@ -1278,6 +1293,7 @@ void setflag_armature (short mode)
 		case 4:		flag = BONE_HINGE; break;
 		case 5:		flag = BONE_NO_SCALE; break;
 		case 6: 	flag = BONE_EDITMODE_LOCKED; break;
+		case 7:		flag = BONE_UNSELECTABLE; break;
 		default:	return;
 	}
 	

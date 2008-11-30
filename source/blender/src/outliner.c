@@ -3985,6 +3985,11 @@ static void outliner_draw_restrictbuts(uiBlock *block, SpaceOops *soops, ListBas
 						(int)soops->v2d.cur.xmax-OL_TOG_RESTRICT_VIEWX, (short)te->ys, 17, OL_H-1, &(bone->flag), 0, 0, 0, 0, "Restrict/Allow visibility in the 3D View");
 				uiButSetFunc(bt, restrictbutton_bone_cb, NULL, NULL);
 				uiButSetFlag(bt, UI_NO_HILITE);
+				
+				bt= uiDefIconButBitI(block, ICONTOG, BONE_UNSELECTABLE, REDRAWALL, ICON_RESTRICT_SELECT_OFF, 
+						(int)soops->v2d.cur.xmax-OL_TOG_RESTRICT_SELECTX, (short)te->ys, 17, OL_H-1, &(bone->flag), 0, 0, 0, 0, "Restrict/Allow selectablility in the 3D View");
+				uiButSetFunc(bt, restrictbutton_bone_cb, NULL, NULL);
+				uiButSetFlag(bt, UI_NO_HILITE);
 			}
 			else if(tselem->type==TSE_EBONE)  {
 				EditBone *ebone= (EditBone *)te->directdata;
@@ -3994,6 +3999,12 @@ static void outliner_draw_restrictbuts(uiBlock *block, SpaceOops *soops, ListBas
 						(int)soops->v2d.cur.xmax-OL_TOG_RESTRICT_VIEWX, (short)te->ys, 17, OL_H-1, &(ebone->flag), 0, 0, 0, 0, "Restrict/Allow visibility in the 3D View");
 				uiButSetFunc(bt, restrictbutton_bone_cb, NULL, NULL);
 				uiButSetFlag(bt, UI_NO_HILITE);
+				
+					// FIXME: currently, doesn't work for editbones yet due to editbone-point tests
+				//bt= uiDefIconButBitI(block, ICONTOG, BONE_UNSELECTABLE, REDRAWALL, ICON_RESTRICT_SELECT_OFF, 
+				//		(int)soops->v2d.cur.xmax-OL_TOG_RESTRICT_SELECTX, (short)te->ys, 17, OL_H-1, &(ebone->flag), 0, 0, 0, 0, "Restrict/Allow selectablility in the 3D View");
+				//uiButSetFunc(bt, restrictbutton_bone_cb, NULL, NULL);
+				//uiButSetFlag(bt, UI_NO_HILITE);
 			}
 		}
 		
