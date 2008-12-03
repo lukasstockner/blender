@@ -2050,13 +2050,19 @@ void initResize(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 
+	if ((t->spacetype == SPACE_IPO) && (t->around == V3D_CURSOR)) {
+		/* HACK: special factor here, as it's too "reactive" otherwise (as imval is used as center!) */
+		t->fac= 90.0f;
+	}
+	else {
 	t->fac = (float)sqrt(
 		(
 			((float)(t->center2d[1] - t->imval[1]))*((float)(t->center2d[1] - t->imval[1]))
 		+
 			((float)(t->center2d[0] - t->imval[0]))*((float)(t->center2d[0] - t->imval[0]))
 		) );
-
+	}
+	
 	if(t->fac==0.0f) t->fac= 1.0f;	// prevent Inf
 }
 

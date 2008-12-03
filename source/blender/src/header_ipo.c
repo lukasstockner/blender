@@ -979,6 +979,19 @@ static char *ipo_modeselect_pup(void)
 	return (string);
 }
 
+static char *ipo_around_pup(void)
+{
+	static char string[512];
+	char *str = string;
+
+	str += sprintf(str, "%s", "Pivot: %t"); 
+	str += sprintf(str, "%s", "|Bounding Box Center %x0"); 
+	str += sprintf(str, "%s", "|Median Point %x3");
+	str += sprintf(str, "%s", "|Mouse Cursor %x1");
+	str += sprintf(str, "%s", "|Individual Centers %x2");
+	return string;
+}
+
 void do_ipo_buttons(short event)
 {
 	EditIpo *ei;
@@ -1396,6 +1409,10 @@ void ipo_buttons(void)
 	xco+=(XIC*3/2);
 	
 	uiClearButLock();
+	
+	/* TRANSFORM AROUND */
+	uiDefIconTextButS(block, ICONTEXTROW,B_AROUND, ICON_ROTATE, ipo_around_pup(), xco,0,XIC+10,YIC, &(G.v2d->around), 0, 3.0, 0, 0, "Rotation/Scaling Pivot");
+	xco+=(2*XIC);
 	
 	/* AUTOSNAP */
 	if (G.sipo->flag & SIPO_DRAWTIME) {

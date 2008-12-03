@@ -2503,31 +2503,37 @@ static void createTransIpoData(TransInfo *t)
  */
 void flushTransIpoData(TransInfo *t)
 {
-	TransData2D *td;
+	TransData *td;
+	TransData2D *td2d;
 	int a;
 	
 	/* flush to 2d vector from internally used 3d vector */
-	for (a=0, td= t->data2d; a<t->total; a++, td++) {
-		/* handle snapping for time values - we should still be in NLA-scaled timespace */
-		switch (G.sipo->autosnap) {
-			case SACTSNAP_FRAME: /* snap to nearest frame */
-				td->loc[0]= (float)( floor(td->loc[0]+0.5f) );
-				break;
-				
-			case SACTSNAP_MARKER: /* snap to nearest marker */
-				td->loc[0]= (float)find_nearest_marker_time(td->loc[0]);
-				break;
+	for (a=0, td= t->data, td2d=t->data2d; a<t->total; a++, td++, td2d++) {
+		/* handle snapping for time values 
+		 *	- we should still be in NLA-scaled timespace 
+		 *	- only apply to keyframes (but never to handles)
+		 */
+		if ((td->flag & TD_NOTIMESNAP)==0) {
+			switch (G.sipo->autosnap) {
+				case SACTSNAP_FRAME: /* snap to nearest frame */
+					td2d->loc[0]= (float)( floor(td2d->loc[0]+0.5f) );
+					break;
+					
+				case SACTSNAP_MARKER: /* snap to nearest marker */
+					td2d->loc[0]= (float)find_nearest_marker_time(td2d->loc[0]);
+					break;
+			}
 		}
 		
 		/* we need to unapply the nla-scaling from the time in some situations */
 		if (NLA_IPO_SCALED)
-			td->loc2d[0]= get_action_frame(OBACT, td->loc[0]);
+			td2d->loc2d[0]= get_action_frame(OBACT, td2d->loc[0]);
 		else
-			td->loc2d[0]= td->loc[0];
+			td2d->loc2d[0]= td2d->loc[0];
 		
 		/* when the icu that point comes from is a bitflag holder, don't allow adjusting values */
-		if ((t->data[a].flag & TD_TIMEONLY)==0)
-			td->loc2d[1]= td->loc[1];
+		if ((td->flag & TD_TIMEONLY)==0)
+			td2d->loc2d[1]= td2d->loc[1];
 	}
 }
 

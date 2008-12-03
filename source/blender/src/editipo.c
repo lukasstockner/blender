@@ -3835,7 +3835,7 @@ void movekey_obipo(int dir)
 /* Helper function for make_ipo_transdata, which is reponsible for associating
  * source data with transform data
  */
-static void bezt_to_transdata (TransData *td, TransData2D *td2d, float *loc, float *cent, short selected, short onlytime)
+static void bezt_to_transdata (TransData *td, TransData2D *td2d, float *loc, float *cent, short selected, short ishandle, short onlytime)
 {
 	/* New location from td gets dumped onto the old-location of td2d, which then
 	 * gets copied to the actual data at td2d->loc2d (bezt->vec[n])
@@ -3884,6 +3884,9 @@ static void bezt_to_transdata (TransData *td, TransData2D *td2d, float *loc, flo
 	
 	if (onlytime)
 		td->flag |= TD_TIMEONLY;
+		
+	if (ishandle)	
+		td->flag |= TD_NOTIMESNAP;
 	
 	Mat3One(td->mtx);
 	Mat3One(td->smtx);
@@ -3911,7 +3914,29 @@ void make_ipo_transdata (TransInfo *t)
 		/* count data first */
 		if (totipo_vertsel) {
 			/* we're probably in editmode, so only selected verts */
-			count= totipo_vertsel;
+			if (G.v2d->around == V3D_LOCAL) {
+				/* we're in editmode, but we need to count the number of selected handles only */
+				ei= G.sipo->editipo;
+				for (a=0; a<G.sipo->totipo; a++, ei++) {
+					if (ISPOIN3(ei, flag & IPO_VISIBLE, flag & IPO_EDIT, icu)) {
+						IpoCurve *icu= ei->icu;
+						
+						if (icu->bezt) { 
+							bezt= icu->bezt;
+							for (b=0; b < icu->totvert; b++, bezt++) {
+								if (bezt->ipo == IPO_BEZ) {
+									if (bezt->f1 & SELECT) count++;
+									if (bezt->f2 & SELECT) count++;
+								}
+								else if (bezt->f2 & SELECT) count++;
+							}
+						}
+					}
+				}
+				if (count==0) return;
+			}
+			else
+				count= totipo_vertsel; 
 		}
 		else if (totipo_edit==0 && totipo_sel!=0) {
 			/* we're not in editmode, so entire curves get moved */
@@ -3924,7 +3949,7 @@ void make_ipo_transdata (TransInfo *t)
 						if (icu->ipo == IPO_MIXED) {
 							bezt= icu->bezt;
 							for (b=0; b < icu->totvert; b++, bezt++) {
-								if (bezt->ipo == IPO_BEZ) count += 3; // err...
+								if (bezt->ipo == IPO_BEZ) count += 3;
 								else count++;
 							}
 						}
@@ -3979,7 +4004,7 @@ void make_ipo_transdata (TransInfo *t)
 							if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) ) {
 								if (bezt->f1 & SELECT) {
 									hdata = initTransDataCurveHandes(td, bezt);
-									bezt_to_transdata(td++, td2d++, bezt->vec[0], bezt->vec[1], 1, onlytime);
+									bezt_to_transdata(td++, td2d++, bezt->vec[0], bezt->vec[1], 1, 1, onlytime);
 								}
 								else
 									h1= 0;
@@ -3988,7 +4013,7 @@ void make_ipo_transdata (TransInfo *t)
 								if (bezt->f3 & SELECT) {
 									if (hdata==NULL)
 										hdata = initTransDataCurveHandes(td, bezt);
-									bezt_to_transdata(td++, td2d++, bezt->vec[2], bezt->vec[1], 1, onlytime);
+									bezt_to_transdata(td++, td2d++, bezt->vec[2], bezt->vec[1], 1, 1, onlytime);
 								}
 								else
 									h2= 0;
@@ -3996,13 +4021,16 @@ void make_ipo_transdata (TransInfo *t)
 							
 							/* only include main vert if selected */
 							if (bezt->f2 & SELECT) {
-								/* if handles were not selected, store their selection status */
-								if (!(bezt->f1 & SELECT) && !(bezt->f3 & SELECT)) {
-									if (hdata == NULL)
-										hdata = initTransDataCurveHandes(td, bezt);
+								/* if scaling around individuals centers, do no include keyframes */
+								if (G.v2d->around != V3D_LOCAL) {
+									/* if handles were not selected, store their selection status */
+									if (!(bezt->f1 & SELECT) && !(bezt->f3 & SELECT)) {
+										if (hdata == NULL)
+											hdata = initTransDataCurveHandes(td, bezt);
+									}
+									
+									bezt_to_transdata(td++, td2d++, bezt->vec[1], bezt->vec[1], 1, 0, onlytime);
 								}
-								
-								bezt_to_transdata(td++, td2d++, bezt->vec[1], bezt->vec[1], 1, onlytime);
 								
 								/* special hack (must be done after initTransDataCurveHandes(), as that stores handle settings to restore...): 
 								 *	- Check if we've got entire BezTriple selected and we're scaling/rotating that point, 
@@ -4042,12 +4070,12 @@ void make_ipo_transdata (TransInfo *t)
 					for (b=0; b < icu->totvert; b++, prevbezt=bezt, bezt++) {
 						/* only include handles if interpolation mode is bezier is relevant */
 						if ( (!prevbezt && (bezt->ipo==IPO_BEZ)) || (prevbezt && (prevbezt->ipo==IPO_BEZ)) )
-							bezt_to_transdata(td++, td2d++, bezt->vec[0], bezt->vec[1], 1, onlytime);
+							bezt_to_transdata(td++, td2d++, bezt->vec[0], bezt->vec[1], 1, 1,onlytime);
 						if (bezt->ipo==IPO_BEZ)
-							bezt_to_transdata(td++, td2d++, bezt->vec[2], bezt->vec[1], 1, onlytime);
+							bezt_to_transdata(td++, td2d++, bezt->vec[2], bezt->vec[1], 1, 1, onlytime);
 						
 						/* always include the main handle */
-						bezt_to_transdata(td++, td2d++, bezt->vec[1], bezt->vec[1], 1, onlytime);
+						bezt_to_transdata(td++, td2d++, bezt->vec[1], bezt->vec[1], 1, 0, onlytime);
 					}
 				}
 			}

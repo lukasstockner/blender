@@ -64,6 +64,7 @@
 #include "BIF_meshtools.h"
 #include "BIF_retopo.h"
 
+#include "BSE_drawipo.h"
 #include "BSE_editipo.h"
 #include "BSE_editipo_types.h"
 
@@ -671,7 +672,8 @@ void initTrans (TransInfo *t)
 	if(t->spacetype==SPACE_VIEW3D) {
 		if(G.vd->flag & V3D_ALIGN) t->flag |= T_V3D_ALIGN;
 		t->around = G.vd->around;
-	} else if(t->spacetype==SPACE_IMAGE) {
+	} 
+	else if(ELEM(t->spacetype, SPACE_IMAGE, SPACE_IPO)) {
 		t->around = G.v2d->around;
 	}
 	else
@@ -885,6 +887,16 @@ void calculateCenterCursor2D(TransInfo *t)
 	calculateCenter2D(t);
 }
 
+void calculateCenterMouseCursor2D(TransInfo *t)
+{
+	if (G.v2d) {
+		/* use position of mouse-cursor as scaling point */
+		// FIXME: scaling seems to be too sensitive with this...
+		areamouseco_to_ipoco(G.v2d, t->imval, &t->center[0], &t->center[1]);
+	}
+	calculateCenter2D(t);
+}
+
 void calculateCenterMedian(TransInfo *t)
 {
 	float partial[3] = {0.0f, 0.0f, 0.0f};
@@ -952,6 +964,8 @@ void calculateCenter(TransInfo *t)
 	case V3D_CURSOR:
 		if(t->spacetype==SPACE_IMAGE)
 			calculateCenterCursor2D(t);
+		else if(t->spacetype==SPACE_IPO)
+			calculateCenterMouseCursor2D(t);
 		else
 			calculateCenterCursor(t);
 		break;
@@ -996,7 +1010,7 @@ void calculateCenter(TransInfo *t)
 			/* persinv is nasty, use viewinv instead, always right */
 			VECCOPY(axis, t->viewinv[2]);
 			Normalize(axis);
-
+			
 			/* 6.0 = 6 grid units */
 			axis[0]= t->center[0]- 6.0f*axis[0];
 			axis[1]= t->center[1]- 6.0f*axis[1];

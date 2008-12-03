@@ -297,6 +297,7 @@ typedef struct TransInfo {
 #define TD_NO_EXT			(1 << 10)	/* ext abused for particle key timing */
 #define TD_SKIP				(1 << 11)	/* don't transform this data */
 #define TD_BEZTRIPLE		(1 << 12)	/* if this is a bez triple, we need to restore the handles, if this is set transdata->misc.hdata needs freeing */
+#define TD_NOTIMESNAP		(1 << 13)	/* for IPO-autosnap, indicates that point should not undergo autosnapping */
 
 /* transsnap->status */
 #define SNAP_ON			1
