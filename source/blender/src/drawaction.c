@@ -1222,7 +1222,11 @@ static ActKeysInc *init_aki_data(void *data, short datatype, bActListElem *ale)
 	aki.start= G.v2d->cur.xmin - 10;
 	aki.end= G.v2d->cur.xmax + 10;
 	
-	return &aki;
+	/* only return pointer to this data if the culling option is turned on */
+	if (G.saction->flag & SACTION_HORIZOPTIMISEON)
+		return &aki;
+	else
+		return NULL;
 }
 
 static void draw_channel_strips(void)
