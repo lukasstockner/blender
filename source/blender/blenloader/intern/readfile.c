@@ -8003,8 +8003,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						case SPACE_ACTION:
 						{
 							SpaceAction *sact= (SpaceAction *)sl;
+							
 							sact->mode= SACTCONT_DOPESHEET;
 							sact->autosnap= SACTSNAP_FRAME;
+							
+							sact->v2d.min[1]= -1000.0f;
+							sact->v2d.max[0]= 0.0f;
 						}
 							break;
 						case SPACE_IPO:

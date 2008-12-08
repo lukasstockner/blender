@@ -50,6 +50,8 @@
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 
+#include "BLI_blenlib.h"
+
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 #include "BIF_editaction.h"
@@ -65,6 +67,7 @@
 #include "BKE_armature.h"
 #include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
+#include "BKE_ipo.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_utildefines.h"
@@ -230,26 +233,67 @@ enum {
 
 void do_action_buttons(unsigned short event)
 {
-	Object *ob= OBACT;
-
 	switch(event) {
 		case B_ACTHOME: /* HOMEKEY in Action Editor */
-			/*	Find X extents */
-			G.v2d->cur.xmin = 0;
-			G.v2d->cur.ymin=-SCROLLB;
+		{
+			ListBase act_data = {NULL, NULL};
+			bActListElem *ale;
+			void *data;
+			short datatype;
+			int filter;
 			
-			if ((G.saction->mode==SACTCONT_ACTION) && (G.saction->action)) {
+			/* get pointer to data in editor... */
+			data = get_action_context(&datatype);
+			if (data == NULL) return;
+			
+			/*	Find X extents */
+			if (ELEM(G.saction->mode, SACTCONT_ACTION, SACTCONT_DOPESHEET)) {
 				float extra;
 				
-				calc_action_range(G.saction->action, &G.v2d->cur.xmin, &G.v2d->cur.xmax, 0);
-				if (G.saction->pin==0 && ob) {
-					G.v2d->cur.xmin= get_action_frame_inv(ob, G.v2d->cur.xmin);
-					G.v2d->cur.xmax= get_action_frame_inv(ob, G.v2d->cur.xmax);
-				}				
-				extra= 0.05*(G.v2d->cur.xmax - G.v2d->cur.xmin);
-				G.v2d->cur.xmin-= extra;
-				G.v2d->cur.xmax+= extra;
-
+				/* get data to filter, from Action or Dopesheet */
+				filter= (ACTFILTER_VISIBLE | ACTFILTER_SEL | ACTFILTER_FOREDIT | ACTFILTER_IPOKEYS);
+				actdata_filter(&act_data, filter, data, datatype);
+				
+				/* set large values to try to override */
+				G.v2d->cur.xmin= 999999999.0f;
+				G.v2d->cur.xmax= -999999999.0f;
+				
+				/* check if any channels to set range with */
+				if (act_data.first) {
+					/* go through channels, finding max extents*/
+					for (ale= act_data.first; ale; ale= ale->next) {
+						Ipo *ipo= (Ipo *)ale->key_data; 
+						float min, max;
+						
+						/* get range and apply necessary scaling before */
+						calc_ipo_range(ipo, &min, &max);
+						
+						if (NLA_CHAN_SCALED(ale)) {
+							Object *nob= (NLA_ACTION_SCALED) ? OBACT : (Object *)ale->id;
+							min= get_action_frame_inv(nob, min);
+							max= get_action_frame_inv(nob, max);
+						}
+						
+						/* try to set cur using these values, if they're more extreme than previously set values */
+						G.v2d->cur.xmin= MIN2(min, G.v2d->cur.xmin);
+						G.v2d->cur.xmax= MAX2(max, G.v2d->cur.xmax);
+					}
+					
+					/* free memory */
+					BLI_freelistN(&act_data);
+				}
+				else {
+					/* set default range */
+					G.v2d->cur.xmin= -5;
+					G.v2d->cur.xmax= 100;
+				}
+				
+				/* add extra offset to the 'cur' rect so that keys will be in view */
+				extra= 0.05f * (G.v2d->cur.xmax - G.v2d->cur.xmin);
+				G.v2d->cur.xmin -= extra;
+				G.v2d->cur.xmax += extra;
+				
+				/* set default range if same frame */
 				if (G.v2d->cur.xmin==G.v2d->cur.xmax) {
 					G.v2d->cur.xmax= -5;
 					G.v2d->cur.xmax= 100;
@@ -257,19 +301,19 @@ void do_action_buttons(unsigned short event)
 			}
 			else { /* shapekeys and/or no action */
 				G.v2d->cur.xmin= -5.0;
-				G.v2d->cur.xmax= 65.0;
+				G.v2d->cur.xmax= 100.0;
 			}
 			
-			// FIXME: this vertical alignment is bad!
-			G.v2d->cur.ymin= -75.0;
-			G.v2d->cur.ymax= 0.0;
+			/* although view is supposed to go downwards starting from 0, this doesn't seem to be the case... */
+			G.v2d->cur.ymin= -305.0;
+			G.v2d->cur.ymax= -150.0;
 			
 			G.v2d->tot= G.v2d->cur;
 			test_view2d(G.v2d, curarea->winx, curarea->winy);
 			view2d_do_locks(curarea, V2D_LOCK_COPY);
 			
 			addqueue (curarea->win, REDRAW, 1);
-			
+		}	
 			break;
 			
 		/* copy/paste/paste-flip buttons in 3d-view header in PoseMode */

@@ -586,6 +586,35 @@ float frame_to_float (int cfra)		/* see also bsystem_time in object.c */
 	return ctime;
 }
 
+/* Calculate the extents of IPO block's keyframes */
+void calc_ipo_range (Ipo *ipo, float *start, float *end)
+{
+	IpoCurve *icu;
+	float min=999999999.0f, max=-999999999.0f;
+	short foundvert=0;
+
+	if (ipo) {
+		for (icu=ipo->curve.first; icu; icu=icu->next) {
+			if (icu->totvert) {
+				min= MIN2(min, icu->bezt[0].vec[1][0]);
+				max= MAX2(max, icu->bezt[icu->totvert-1].vec[1][0]);
+				foundvert=1;
+			}
+		}
+	}	
+	
+	/* minimum length is 1 frame */
+	if (foundvert) {
+		if (min == max) max += 1.0f;
+		*start= min;
+		*end= max;
+	}
+	else {
+		*start= 0.0f;
+		*end= 1.0f;
+	}
+}
+
 /* ***************************** IPO Curve Sanity ********************************* */
 /* The functions here are used in various parts of Blender, usually after some editing
  * of keyframe data has occurred. They ensure that keyframe data is properly ordered and

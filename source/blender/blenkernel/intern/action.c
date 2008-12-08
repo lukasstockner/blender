@@ -761,33 +761,33 @@ void blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
 	dst->ctime= src->ctime;
 }
 
-
+/* Calculate the extents of given action */
 void calc_action_range(const bAction *act, float *start, float *end, int incl_hidden)
 {
-	const bActionChannel *chan;
-	const bConstraintChannel *conchan;
-	const IpoCurve	*icu;
-	float min=999999999.0f, max=-999999999.0;
+	bActionChannel *chan;
+	bConstraintChannel *conchan;
+	IpoCurve *icu;
+	float min=999999999.0f, max=-999999999.0f;
 	int	foundvert=0;
 
-	if(act) {
+	if (act) {
 		for (chan=act->chanbase.first; chan; chan=chan->next) {
-			if(incl_hidden || (chan->flag & ACHAN_HIDDEN)==0) {
-				if(chan->ipo) {
+			if ((incl_hidden) || (chan->flag & ACHAN_HIDDEN)==0) {
+				if (chan->ipo) {
 					for (icu=chan->ipo->curve.first; icu; icu=icu->next) {
-						if(icu->totvert) {
-							min= MIN2 (min, icu->bezt[0].vec[1][0]);
-							max= MAX2 (max, icu->bezt[icu->totvert-1].vec[1][0]);
+						if (icu->totvert) {
+							min= MIN2(min, icu->bezt[0].vec[1][0]);
+							max= MAX2(max, icu->bezt[icu->totvert-1].vec[1][0]);
 							foundvert=1;
 						}
 					}
 				}
 				for (conchan=chan->constraintChannels.first; conchan; conchan=conchan->next) {
-					if(conchan->ipo) {
+					if (conchan->ipo) {
 						for (icu=conchan->ipo->curve.first; icu; icu=icu->next) {
-							if(icu->totvert) {
-								min= MIN2 (min, icu->bezt[0].vec[1][0]);
-								max= MAX2 (max, icu->bezt[icu->totvert-1].vec[1][0]);
+							if (icu->totvert) {
+								min= MIN2(min, icu->bezt[0].vec[1][0]);
+								max= MAX2(max, icu->bezt[icu->totvert-1].vec[1][0]);
 								foundvert=1;
 							}
 						}

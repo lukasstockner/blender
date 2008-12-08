@@ -103,6 +103,8 @@ void calc_icu(struct IpoCurve *icu, float ctime);
 float calc_ipo_time(struct Ipo *ipo, float ctime);
 void calc_ipo(struct Ipo *ipo, float ctime);
 
+void calc_ipo_range(struct Ipo *ipo, float *start, float *end);
+
 /* ------------ Keyframe Column Tools -------------- */
 
 void add_to_cfra_elem(struct ListBase *lb, struct BezTriple *bezt);

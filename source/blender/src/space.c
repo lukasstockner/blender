@@ -5355,10 +5355,10 @@ static void init_actionspace(ScrArea *sa)
 	saction->v2d.cur.ymax= 5.0f;
 
 	saction->v2d.min[0]= 0.0f;
-	saction->v2d.min[1]= 0.0f;
+	saction->v2d.min[1]= -1000.0f;
 
 	saction->v2d.max[0]= MAXFRAMEF;
-	saction->v2d.max[1]= 1000.0f;
+	saction->v2d.max[1]= 0;
 	
 	saction->v2d.minzoom= 0.01f;
 	saction->v2d.maxzoom= 50;

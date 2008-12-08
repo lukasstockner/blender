@@ -257,17 +257,13 @@ int insert_bezt_icu (IpoCurve *icu, BezTriple *bezt)
 	BezTriple *newb;
 	int i= 0;
 	
-	if (icu->bezt == NULL) {
-		icu->bezt= MEM_callocN(sizeof(BezTriple), "beztriple");
-		*(icu->bezt)= *bezt;
-		icu->totvert= 1;
-	}
-	else {
+	if (icu->bezt) {
 		short replace = -1;
 		i = binarysearch_bezt_index(icu->bezt, bezt->vec[1][0], icu->totvert, &replace);
 		
 		if (replace) {			
 			/* sanity check: 'i' may in rare cases exceed arraylen */
+			// FIXME: do not overwrite handletype if just replacing...?
 			if ((i >= 0) && (i < icu->totvert))
 				*(icu->bezt + i) = *bezt;
 		}
@@ -293,6 +289,12 @@ int insert_bezt_icu (IpoCurve *icu, BezTriple *bezt)
 			icu->totvert++;
 		}
 	}
+	else {
+		icu->bezt= MEM_callocN(sizeof(BezTriple), "beztriple");
+		*(icu->bezt)= *bezt;
+		icu->totvert= 1;
+	}
+	
 	
 	/* we need to return the index, so that some tools which do post-processing can 
 	 * detect where we added the BezTriple in the array
