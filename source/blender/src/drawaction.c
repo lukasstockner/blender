@@ -1217,16 +1217,19 @@ static ActKeysInc *init_aki_data(void *data, short datatype, bActListElem *ale)
 		aki.ads= NULL;
 	aki.actmode= datatype;
 	
+
 	/* set start/end frames to use for time-based keyframe culling hacks... */
-	// FIXME: this needs to be a bit better defined...
-	aki.start= G.v2d->cur.xmin - 10;
-	aki.end= G.v2d->cur.xmax + 10;
+	if (G.saction->flag & SACTION_HORIZOPTIMISEON) {
+		// FIXME: this needs to be a bit better defined...
+		aki.start= G.v2d->cur.xmin - 10;
+		aki.end= G.v2d->cur.xmax + 10;
+	}
+	else {
+		aki.start= aki.end= 0;
+	}
 	
-	/* only return pointer to this data if the culling option is turned on */
-	if (G.saction->flag & SACTION_HORIZOPTIMISEON)
-		return &aki;
-	else
-		return NULL;
+	/* always return pointer... */
+	return &aki;
 }
 
 static void draw_channel_strips(void)
@@ -2155,6 +2158,10 @@ static short bezt_in_aki_range (ActKeysInc *aki, BezTriple *bezt)
 {
 	/* when aki == NULL, we don't care about range */
 	if (aki == NULL) 
+		return 1;
+		
+	/* if start and end are both 0, then don't care about range */
+	if (IS_EQ(aki->start, 0) && IS_EQ(aki->end, 0))
 		return 1;
 		
 	/* if nla-scaling is in effect, apply appropriate scaling adjustments */
