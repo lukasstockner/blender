@@ -3863,8 +3863,15 @@ static int dgroup_skinnable(Object *ob, Bone *bone, void *datap)
 			else
 				segments = 1;
 			
-			if (!(defgroup = get_named_vertexgroup(ob, bone->name)))
-				defgroup = add_defgroup_name(ob, bone->name);
+			/* only create new group if not in weightpainting mode or bone is selected, 
+			 * so that we don't create extra groups.
+			 */
+			if (!(G.f & G_WEIGHTPAINT) || (bone->flag & BONE_SELECTED)) {
+				if (!(defgroup = get_named_vertexgroup(ob, bone->name)))
+					defgroup = add_defgroup_name(ob, bone->name);
+			}
+			else
+				defgroup= NULL;
 			
 			if (data->list != NULL) {
 				hgroup = (bDeformGroup ***) &data->list;
