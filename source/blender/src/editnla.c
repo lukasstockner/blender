@@ -111,6 +111,9 @@ void shift_nlastrips_up(void) {
 	bActionStrip *strip, *prevstrip;
 
 	for (base=G.scene->base.first; base; base=base->next) {
+		if (nla_filter(base) == 0)
+			continue;
+		
 		if (base->object->nlaflag & OB_NLA_COLLAPSED)
 			continue;
 		
@@ -151,6 +154,9 @@ void shift_nlastrips_down(void) {
 	bActionStrip *strip, *nextstrip;
 
 	for (base=G.scene->base.first; base; base=base->next) {
+		if (nla_filter(base) == 0)
+			continue;
+		
 		if (base->object->nlaflag & OB_NLA_COLLAPSED)
 			continue;
 		
@@ -192,6 +198,9 @@ void synchronize_action_strips(void)
 	bActionStrip *strip;
 	
 	for (base=G.scene->base.first; base; base=base->next) {
+		if (nla_filter(base) == 0)
+			continue;
+		
 		/* get object first */
 		ob= base->object;
 		
@@ -428,6 +437,9 @@ void snap_action_strips(int snap_mode)
 	bActionStrip *strip;
 	
 	for (base=G.scene->base.first; base; base=base->next) {
+		if (nla_filter(base) == 0)
+			continue;
+		
 		/* object has ipo - these keyframes should be able to be snapped, even if strips are collapsed */
 		if (base->object->ipo) {
 			snap_ipo_keys(base->object->ipo, snap_mode);
@@ -927,7 +939,10 @@ void deselect_nlachannel_keys (int test)
 	
 	/* Determine if this is selection or deselection */
 	if (test){
-		for (base=G.scene->base.first; base && sel; base=base->next){		
+		for (base=G.scene->base.first; base && sel; base=base->next){	
+			if (nla_filter(base) == 0) 
+				continue;
+			
 			/* Test object ipos */
 			if (is_ipo_key_selected(base->object->ipo)){
 				sel = 0;
@@ -1068,6 +1083,9 @@ void delete_nlachannel_keys(void)
 	bActionStrip *strip, *nextstrip;
 		
 	for (base = G.scene->base.first; base; base=base->next){
+		if (nla_filter(base) == 0)
+			continue;
+		
 		/* Delete object ipos */
 		delete_ipo_keys(base->object->ipo);
 		
@@ -1122,7 +1140,10 @@ void duplicate_nlachannel_keys(void)
 	bActionStrip *strip, *laststrip;
 	
 	/* Find selected items */
-	for (base = G.scene->base.first; base; base=base->next){	
+	for (base = G.scene->base.first; base; base=base->next){
+		if (nla_filter(base) == 0)
+			continue;
+		
 		/* Duplicate object keys */
 		duplicate_ipo_keys(base->object->ipo);
 		
@@ -1685,10 +1706,12 @@ void deselect_nlachannels(int test)
 
 	if (test){
 		for (base=G.scene->base.first; base; base=base->next){
-			/* Check base flags for previous selection */
-			if (base->flag & SELECT){
-				sel=0;
-				break;
+			if (nla_filter(base)) {
+				/* Check base flags for previous selection */
+				if (base->flag & SELECT){
+					sel=0;
+					break;
+				}
 			}
 		}
 	}
@@ -1697,14 +1720,14 @@ void deselect_nlachannels(int test)
 
 	/* Select objects */
 	for (base=G.scene->base.first; base; base=base->next){
-		if (sel){
-			if (nla_filter(base))
+		if (nla_filter(base)) {
+			if (sel)
 				base->flag |= SELECT;
+			else
+				base->flag &= ~SELECT;
+			
+			base->object->flag= base->flag;
 		}
-		else
-			base->flag &= ~SELECT;
-		
-		base->object->flag= base->flag;
 	}	
 }
 
