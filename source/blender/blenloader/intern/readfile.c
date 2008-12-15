@@ -8009,14 +8009,21 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
-<<<<<<< .working
 	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 2)) {
+		Scene *sce;
 		Ipo *ipo;
 		IpoCurve *icu;
 		
+		/* fix IPO-curves to work with new interpolation options */
 		for (ipo=main->ipo.first; ipo; ipo= ipo->id.next) {
 			for (icu= ipo->curve.first; icu; icu= icu->next) 
 				set_interpolation_ipocurve(icu, icu->ipo);
+		}
+		
+		/* Note, these will need to be added for painting */
+		for (sce= main->scene.first; sce; sce= sce->id.next) {
+			sce->toolsettings->imapaint.seam_bleed = 2;
+			sce->toolsettings->imapaint.normal_angle = 80;
 		}
 	}
 	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 3)) {
@@ -8060,19 +8067,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
-=======
-	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 2)) {
-		Scene *sce;
-		
-		/* Note, these will need to be added for painting */
-		for (sce= main->scene.first; sce; sce= sce->id.next) {
-			sce->toolsettings->imapaint.seam_bleed = 2;
-			sce->toolsettings->imapaint.normal_angle = 80;
-		}
-	}
-	
-	
->>>>>>> .merge-right.r17860
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in src/usiblender.c! */
 

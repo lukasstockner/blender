@@ -1835,7 +1835,31 @@ void deselectall_armature(int toggle, int doundo)
 	}
 }
 
-<<<<<<< .working
+/* adjust bone roll to align Z axis with vector
+ * vec is in local space and is normalized
+ */
+float rollBoneToVector(EditBone *bone, float new_up_axis[3])
+{
+	float mat[3][3], nor[3], up_axis[3], vec[3];
+	float roll;
+
+	VecSubf(nor, bone->tail, bone->head);
+	
+	vec_roll_to_mat3(nor, 0, mat);
+	VECCOPY(up_axis, mat[2]);
+	
+	roll = NormalizedVecAngle2(new_up_axis, up_axis);
+	
+	Crossf(vec, up_axis, new_up_axis);
+	
+	if (Inpf(vec, nor) < 0)
+	{
+		roll = -roll;
+	}
+	
+	return roll;
+}
+
 
 /* Set roll value for given bone -> Z-Axis Point up (original method) */
 void auto_align_ebone_zaxisup(EditBone *ebone)
@@ -1904,33 +1928,6 @@ void auto_align_ebone_tocursor(EditBone *ebone)
 	}
 }
 
-=======
-/* adjust bone roll to align Z axis with vector
- * vec is in local space and is normalized
- */
-float rollBoneToVector(EditBone *bone, float new_up_axis[3])
-{
-	float mat[3][3], nor[3], up_axis[3], vec[3];
-	float roll;
-
-	VecSubf(nor, bone->tail, bone->head);
-	
-	vec_roll_to_mat3(nor, 0, mat);
-	VECCOPY(up_axis, mat[2]);
-	
-	roll = NormalizedVecAngle2(new_up_axis, up_axis);
-	
-	Crossf(vec, up_axis, new_up_axis);
-	
-	if (Inpf(vec, nor) < 0)
-	{
-		roll = -roll;
-	}
-	
-	return roll;
-}
-
->>>>>>> .merge-right.r17860
 /* Sets the roll value of selected bones, depending on the mode
  * 	mode == 0: their z-axes point upwards 
  * 	mode == 1: their z-axes point towards 3d-cursor
