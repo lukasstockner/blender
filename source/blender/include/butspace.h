@@ -103,6 +103,13 @@ extern void do_cambuts(unsigned short event);
 extern void do_armbuts(unsigned short event);
 extern void do_uvcalculationbuts(unsigned short event);
 extern void weight_paint_buttons(struct uiBlock *);
+
+extern void brush_buttons(struct uiBlock *block, short sima,
+				int evt_nop, int evt_change,
+				int evt_browse, int evt_local,
+				int evt_del, int evt_keepdata,
+				int evt_texbrowse, int evt_texdel);
+
 extern void particle_edit_buttons(struct uiBlock *);
 
 extern char *get_vertexgroup_menustr(struct Object *ob);	// used in object buttons
@@ -258,6 +265,7 @@ void curvemap_buttons(struct uiBlock *block, struct CurveMapping *cumap, char la
 #define B_ENV_OB		1354
 
 #define B_ENV_FREE_ALL	1357
+#define B_TEX_USENODES		1358
 
 
 /* **************** animbuts = object buttons ******* */
@@ -445,6 +453,8 @@ void curvemap_buttons(struct uiBlock *block, struct CurveMapping *cumap, char la
 
 #define B_GEN_SKELETON		2085
 #define B_RETARGET_SKELETON	2086
+#define B_SETTFACE_CLONE	2087
+#define B_SETTFACE_MASK		2088
 
 /* *********************** */
 #define B_VGROUPBUTS		2100

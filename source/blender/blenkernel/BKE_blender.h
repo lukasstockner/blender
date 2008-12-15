@@ -41,7 +41,11 @@ struct ListBase;
 struct MemFile;
 
 #define BLENDER_VERSION			248
+<<<<<<< .working
 #define BLENDER_SUBVERSION		3
+=======
+#define BLENDER_SUBVERSION		2
+>>>>>>> .merge-right.r17860
 
 #define BLENDER_MINVERSION		245
 #define BLENDER_MINSUBVERSION	15

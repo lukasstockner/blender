@@ -1131,6 +1131,19 @@ static void change_idid_adr(ListBase *mainlist, FileData *basefd, void *old, voi
 	}
 }
 
+/* lib linked proxy objects point to our local data, we need
+ * to clear that pointer before reading the undo memfile since
+ * the object might be removed, it is set again in reading
+ * if the local object still exists */
+void blo_clear_proxy_pointers_from_lib(FileData *fd)
+{
+	Object *ob= G.main->object.first;
+	
+	for(;ob; ob= ob->id.next)
+		if(ob->id.lib)
+			ob->proxy_from= NULL;
+}
+
 /* assumed; G.main still exists */
 void blo_make_image_pointer_map(FileData *fd)
 {
@@ -1512,6 +1525,7 @@ static void lib_verify_nodetree(Main *main, int open)
 {
 	Scene *sce;
 	Material *ma;
+	Tex *tx;
 	bNodeTree *ntree;
 
 	/* this crashes blender on undo/redo
@@ -1535,6 +1549,11 @@ static void lib_verify_nodetree(Main *main, int open)
 	for(sce= main->scene.first; sce; sce= sce->id.next) {
 		if(sce->nodetree)
 			ntreeVerifyTypes(sce->nodetree);
+	}
+	/* and texture trees */
+	for(tx= main->tex.first; tx; tx= tx->id.next) {
+		if(tx->nodetree)
+			ntreeVerifyTypes(tx->nodetree);
 	}
 }
 
@@ -1571,6 +1590,9 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 					direct_link_curvemapping(fd, node->storage);
 				else if(ELEM3(node->type, CMP_NODE_IMAGE, CMP_NODE_VIEWER, CMP_NODE_SPLITVIEWER))
 					((ImageUser *)node->storage)->ok= 1;
+			}
+			else if( ntree->type==NTREE_TEXTURE && (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME) ) {
+				direct_link_curvemapping(fd, node->storage);
 			}
 		}
 		link_list(fd, &node->inputs);
@@ -2478,6 +2500,9 @@ static void lib_link_texture(FileData *fd, Main *main)
 			tex->ipo= newlibadr_us(fd, tex->id.lib, tex->ipo);
 			if(tex->env) tex->env->object= newlibadr(fd, tex->id.lib, tex->env->object);
 
+			if(tex->nodetree)
+				lib_link_ntree(fd, &tex->id, tex->nodetree);
+			
 			tex->id.flag -= LIB_NEEDLINK;
 		}
 		tex= tex->id.next;
@@ -2503,6 +2528,11 @@ static void direct_link_texture(FileData *fd, Tex *tex)
 		memset(tex->env->cube, 0, 6*sizeof(void *));
 		tex->env->ok= 0;
 	}
+	
+	tex->nodetree= newdataadr(fd, tex->nodetree);
+	if(tex->nodetree)
+		direct_link_nodetree(fd, tex->nodetree);
+	
 	tex->preview = direct_link_preview_image(fd, tex->preview);
 
 	tex->iuser.ok= 1;
@@ -7979,6 +8009,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+<<<<<<< .working
 	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 2)) {
 		Ipo *ipo;
 		IpoCurve *icu;
@@ -8029,6 +8060,19 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+=======
+	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 2)) {
+		Scene *sce;
+		
+		/* Note, these will need to be added for painting */
+		for (sce= main->scene.first; sce; sce= sce->id.next) {
+			sce->toolsettings->imapaint.seam_bleed = 2;
+			sce->toolsettings->imapaint.normal_angle = 80;
+		}
+	}
+	
+	
+>>>>>>> .merge-right.r17860
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in src/usiblender.c! */
 
@@ -8345,11 +8389,23 @@ static void expand_key(FileData *fd, Main *mainvar, Key *key)
 	expand_doit(fd, mainvar, key->ipo);
 }
 
+static void expand_nodetree(FileData *fd, Main *mainvar, bNodeTree *ntree)
+{
+	bNode *node;
+	
+	for(node= ntree->nodes.first; node; node= node->next)
+		if(node->id && node->type!=CMP_NODE_R_LAYERS)
+			expand_doit(fd, mainvar, node->id);
+
+}
 
 static void expand_texture(FileData *fd, Main *mainvar, Tex *tex)
 {
 	expand_doit(fd, mainvar, tex->ima);
 	expand_doit(fd, mainvar, tex->ipo);
+	
+	if(tex->nodetree)
+		expand_nodetree(fd, mainvar, tex->nodetree);
 }
 
 static void expand_brush(FileData *fd, Main *mainvar, Brush *brush)
@@ -8360,16 +8416,6 @@ static void expand_brush(FileData *fd, Main *mainvar, Brush *brush)
 		if(brush->mtex[a])
 			expand_doit(fd, mainvar, brush->mtex[a]->tex);
 	expand_doit(fd, mainvar, brush->clone.image);
-}
-
-static void expand_nodetree(FileData *fd, Main *mainvar, bNodeTree *ntree)
-{
-	bNode *node;
-	
-	for(node= ntree->nodes.first; node; node= node->next)
-		if(node->id && node->type!=CMP_NODE_R_LAYERS)
-			expand_doit(fd, mainvar, node->id);
-
 }
 
 static void expand_material(FileData *fd, Main *mainvar, Material *ma)

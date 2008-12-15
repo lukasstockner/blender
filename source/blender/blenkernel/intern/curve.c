@@ -833,7 +833,6 @@ void makeNurbcurve(Nurb *nu, float *coord_array, float *tilt_array, float *radiu
 	sum= (float *)MEM_callocN(sizeof(float)*len, "makeNurbcurve1");
 	
 	resolu= (resolu*SEGMENTSU(nu));
-	if((nu->flagu & CU_CYCLIC)==0) resolu++;
 	
 	if(resolu==0) {
 		MEM_freeN(sum);
@@ -1100,9 +1099,12 @@ float *make_orco_curve(Object *ob)
 						fp[1]= 2.0f*v/(dl->nr-1) - 1.0f;
 						fp[2]= 0.0;
 					} else {
+						float *vert;
 						int realv= v % dl->nr;
-
-						VECCOPY(fp, &dl->verts[(dl->nr*u + realv)*3]);
+						int realu= u % dl->parts;
+						
+						vert= dl->verts + 3*(dl->nr*realu + realv);
+						VECCOPY(fp, vert);
 
 						fp[0]= (fp[0]-cu->loc[0])/cu->size[0];
 						fp[1]= (fp[1]-cu->loc[1])/cu->size[1];
@@ -1682,7 +1684,6 @@ void makeBevelList(Object *ob)
 			else if((nu->type & 7)==CU_NURBS) {
 				if(nu->pntsv==1) {
 					len= (resolu*SEGMENTSU(nu));
-					if((nu->flagu & CU_CYCLIC)==0) len++;
 					
 					bl= MEM_callocN(sizeof(BevList)+len*sizeof(BevPoint), "makeBevelList3");
 					BLI_addtail(&(cu->bev), bl);

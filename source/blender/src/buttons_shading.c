@@ -286,6 +286,7 @@ void do_texbuts(unsigned short event)
 		scrarea_queue_headredraw(curarea);
 		BIF_preview_changed(ID_TE);
 		allqueue(REDRAWBUTSSHADING, 0);
+		allqueue(REDRAWNODE, 0);
 		if(G.buts->texfrom == 3) /* brush texture */
 			allqueue(REDRAWIMAGE, 0);
 		break;
@@ -413,6 +414,16 @@ void do_texbuts(unsigned short event)
 				tex->env->object= NULL;
 			}
 		}
+		break;
+	case B_TEX_USENODES:
+		if(tex->use_nodes && tex->nodetree==NULL) {
+			node_texture_default(tex);
+		}
+		tex->type = 0;
+		BIF_preview_changed(ID_TE);
+		allqueue(REDRAWNODE, 0);
+		allqueue(REDRAWBUTSSHADING, 0);
+		allqueue(REDRAWIPO, 0);
 		break;
 		
 	default:
@@ -1468,10 +1479,9 @@ static void draw_colorband_buts(uiBlock *block, ColorBand *coba, int xoffs, int 
 	uiDefButS(block, NUM, redraw,		"Cur:",		117+xoffs,95+yoffs,81,20, &coba->cur, 0.0, (float)(coba->tot-1), 0, 0, "Displays the active color from the colorband");
 	bt= uiDefBut(block, BUT, redraw,		"Del",		199+xoffs,95+yoffs,37,20, 0, 0, 0, 0, 0, "Deletes the active position");
 	uiButSetFunc(bt, colorband_del_cb, coba, NULL);
-	uiDefButS(block, ROW, redraw,		 "E",		236+xoffs,95+yoffs,16,20, &coba->ipotype, 5.0, 1.0, 0, 0, "Sets interpolation type 'Ease' (quadratic) ");
-	uiDefButS(block, ROW, redraw,		"C",		252+xoffs,95+yoffs,16,20, &coba->ipotype, 5.0, 3.0, 0, 0, "Sets interpolation type Cardinal");
-	uiDefButS(block, ROW, redraw,		"L",		268+xoffs,95+yoffs,16,20, &coba->ipotype, 5.0, 0.0, 0, 0, "Sets interpolation type Linear");
-	uiDefButS(block, ROW, redraw,		"S",		284+xoffs,95+yoffs,16,20, &coba->ipotype, 5.0, 2.0, 0, 0, "Sets interpolation type B-Spline");
+	
+	uiDefButS(block, MENU, redraw,		"Interpolation %t|Ease %x1|Cardinal %x3|Linear %x0|B-Spline %x2|Constant %x4",
+		236+xoffs, 95+yoffs, 64, 20,		&coba->ipotype, 0.0, 0.0, 0, 0, "Sets interpolation type");
 
 	uiDefBut(block, BUT_COLORBAND, redraw, "", 	xoffs,65+yoffs,300,30, coba, 0, 0, 0, 0, "");
 	
@@ -1506,11 +1516,10 @@ void draw_colorband_buts_small(uiBlock *block, ColorBand *coba, rctf *butr, int 
 	uiButSetFunc(bt, colorband_add_cb, coba, NULL);
 	bt= uiDefBut(block, BUT, event,	"Del",		xs+8.0f*unit,butr->ymin+20.0f,2.0f*unit,20,	NULL, 0, 0, 0, 0, "Deletes the active position");
 	uiButSetFunc(bt, colorband_del_cb, coba, NULL);
-	uiDefButS(block, ROW, event,		"E",		xs+10.0f*unit,butr->ymin+20.0f,unit,20,		&coba->ipotype, 5.0, 1.0, 0, 0, "Sets interpolation type 'Ease' (quadratic) ");
-	uiDefButS(block, ROW, event,		"C",		xs+11.0f*unit,butr->ymin+20.0f,unit,20,		&coba->ipotype, 5.0, 3.0, 0, 0, "Sets interpolation type Cardinal");
-	uiDefButS(block, ROW, event,		"L",		xs+12.0f*unit,butr->ymin+20.0f,unit,20,		&coba->ipotype, 5.0, 0.0, 0, 0, "Sets interpolation type Linear");
-	uiDefButS(block, ROW, event,		"S",		xs+13.0f*unit,butr->ymin+20.0f,unit,20,		&coba->ipotype, 5.0, 2.0, 0, 0, "Sets interpolation type B-Spline");
-	
+
+	uiDefButS(block, MENU, event,		"Interpolation %t|Ease %x1|Cardinal %x3|Linear %x0|B-Spline %x2|Constant %x4",
+		xs+10.0f*unit, butr->ymin+20.0f, unit*4, 20,		&coba->ipotype, 0.0, 0.0, 0, 0, "Sets interpolation type");
+
 	uiDefBut(block, BUT_COLORBAND, event, "",		xs,butr->ymin,butr->xmax-butr->xmin,20.0f, coba, 0, 0, 0, 0, "");
 	uiBlockEndAlign(block);
 	
@@ -1689,10 +1698,13 @@ static void texture_panel_texture(MTex *actmtex, Material *ma, World *wrld, Lamp
 		
 		/* newnoise: all texture types as menu, not enough room for more buttons.
 		 * Can widen panel, but looks ugly when other panels overlap it */
+		if( !tex->use_nodes ) {
+			sprintf(textypes, "Texture Type %%t|None %%x%d|Image %%x%d|EnvMap %%x%d|Clouds %%x%d|Marble %%x%d|Stucci %%x%d|Wood %%x%d|Magic %%x%d|Blend %%x%d|Noise %%x%d|Plugin %%x%d|Musgrave %%x%d|Voronoi %%x%d|DistortedNoise %%x%d", 0, TEX_IMAGE, TEX_ENVMAP, TEX_CLOUDS, TEX_MARBLE, TEX_STUCCI, TEX_WOOD, TEX_MAGIC, TEX_BLEND, TEX_NOISE, TEX_PLUGIN, TEX_MUSGRAVE, TEX_VORONOI, TEX_DISTNOISE);
+			uiDefBut(block, LABEL, 0, "Texture Type",		160, 150, 140, 20, 0, 0.0, 0.0, 0, 0, "");
+			uiDefButS(block, MENU, B_TEXTYPE, textypes,	160, 125, 140, 25, &tex->type, 0,0,0,0, "Select texture type");
+		}
 		
-		sprintf(textypes, "Texture Type %%t|None %%x%d|Image %%x%d|EnvMap %%x%d|Clouds %%x%d|Marble %%x%d|Stucci %%x%d|Wood %%x%d|Magic %%x%d|Blend %%x%d|Noise %%x%d|Plugin %%x%d|Musgrave %%x%d|Voronoi %%x%d|DistortedNoise %%x%d", 0, TEX_IMAGE, TEX_ENVMAP, TEX_CLOUDS, TEX_MARBLE, TEX_STUCCI, TEX_WOOD, TEX_MAGIC, TEX_BLEND, TEX_NOISE, TEX_PLUGIN, TEX_MUSGRAVE, TEX_VORONOI, TEX_DISTNOISE);
-		uiDefBut(block, LABEL, 0, "Texture Type",		160, 150, 140, 20, 0, 0.0, 0.0, 0, 0, "");
-		uiDefButS(block, MENU, B_TEXTYPE, textypes,	160, 125, 140, 25, &tex->type, 0,0,0,0, "Select texture type");
+		uiDefButC(block, TOG, B_TEX_USENODES, "Nodes", 160, 100, 140, 25, &tex->use_nodes, 0.0f, 0.0f, 0, 0, "");
 
 	}
 	else {
@@ -3686,6 +3698,12 @@ static void material_panel_texture(Object *ob, Material *ma)
 		uiBlockSetCol(block, TH_AUTO);
 		uiDefBut(block, BUT, B_TEXCLEAR, "Clear",			122, 130, 72, 20, 0, 0, 0, 0, 0, "Erases link to texture");
 		
+		if(mtex->tex->use_nodes) {
+			char *menustr = ntreeTexOutputMenu(mtex->tex->nodetree);
+			uiDefBut(block, LABEL, 0, "Use Output:", 100, 100, 163, 20, 0, 0, 0, 0, 0, "");
+			uiDefButS(block, MENU, B_MATPRV, menustr, 100, 80, 163, 20, &mtex->which_output, 0, 0, 0, 0, "Which output to use, for multi-output textures");
+			free(menustr);
+		}
 	}
 	else 
 		uiDefButS(block, TOG, B_EXTEXBROWSE, "Add New" ,100, 150, 163, 20, &(G.buts->texnr), -1.0, 32767.0, 0, 0, "Adds a new texture datablock");

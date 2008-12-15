@@ -160,7 +160,7 @@ typedef struct TransData {
 	TransDataExtension *ext;	/* for objects, poses. 1 single malloc per TransInfo! */
 	TransDataIpokey *tdi;		/* for objects, ipo keys. per transdata a malloc */
 	TransDataCurveHandleFlags *hdata; /* for curves, stores handle flags for modification/cancel */
-	void *tdmir;		 /* mirrored element pointer, in editmode mesh to EditVert */
+	void  *extra;		 /* extra data (mirrored element pointer, in editmode mesh to EditVert) (editbone for roll fixing) (...) */
     short  flag;         /* Various flags */
 	short  protectflag;	 /* If set, copy of Object or PoseChannel protection */
 /*#ifdef WITH_VERSE*/
@@ -297,7 +297,11 @@ typedef struct TransInfo {
 #define TD_NO_EXT			(1 << 10)	/* ext abused for particle key timing */
 #define TD_SKIP				(1 << 11)	/* don't transform this data */
 #define TD_BEZTRIPLE		(1 << 12)	/* if this is a bez triple, we need to restore the handles, if this is set transdata->misc.hdata needs freeing */
+<<<<<<< .working
 #define TD_NOTIMESNAP		(1 << 13)	/* for IPO-autosnap, indicates that point should not undergo autosnapping */
+=======
+#define TD_NO_LOC			(1 << 13)	/* when this is set, don't apply translation changes to this element */
+>>>>>>> .merge-right.r17860
 
 /* transsnap->status */
 #define SNAP_ON			1
@@ -468,6 +472,7 @@ int validSnappingNormal(TransInfo *t);
 
 void initTrans(TransInfo *t);
 void postTrans (TransInfo *t);
+void resetTransRestrictions(TransInfo *t);
 
 void drawLine(float *center, float *dir, char axis, short options);
 

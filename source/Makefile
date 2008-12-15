@@ -97,6 +97,7 @@ COMLIB += $(OCGDIR)/blender/blenloader/$(DEBUG_DIR)libblenloader.a
 COMLIB += $(OCGDIR)/blender/blenpluginapi/$(DEBUG_DIR)libblenpluginapi.a
 COMLIB += $(OCGDIR)/blender/nodes_shd/$(DEBUG_DIR)libnodes_shd.a
 COMLIB += $(OCGDIR)/blender/nodes_cmp/$(DEBUG_DIR)libnodes_cmp.a
+COMLIB += $(OCGDIR)/blender/nodes_tex/$(DEBUG_DIR)libnodes_tex.a
 COMLIB += $(OCGDIR)/blender/nodes/$(DEBUG_DIR)libnodes.a
 COMLIB += $(OCGDIR)/blender/imbuf/$(DEBUG_DIR)libimbuf.a
 COMLIB += $(OCGDIR)/blender/blenlib/$(DEBUG_DIR)libblenlib.a
@@ -142,6 +143,7 @@ ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/OpenGLrasterizer/$(DEBUG_DIR)libOpenGLrasterizer.a
     COMLIB += $(OCGDIR)/gameengine/expression/$(DEBUG_DIR)libexpression.a
     COMLIB += $(OCGDIR)/gameengine/scenegraph/$(DEBUG_DIR)libscenegraph.a
+    COMLIB += $(OCGDIR)/gameengine/videotex/$(DEBUG_DIR)libvideotex.a
 #    COMLIB += $(OCGDIR)/sumo/$(DEBUG_DIR)libfuzzics.a
 #    COMLIB += $(OCGDIR)/sumo/$(DEBUG_DIR)libsolid.a
     COMLIB += $(NAN_MOTO)/lib/libmoto.a
@@ -192,7 +194,7 @@ ifeq ($(WITH_FREETYPE2), true)
     else
       COMLIB += $(NAN_FTGL)/lib/libftgl.a
       ifeq ($(OS), irix)
-        COMLIB += $(NAN_FREETYPE)/lib32/libfreetype.a
+        COMLIB += $(NAN_FREETYPE)/lib/libfreetype.a
         else
             COMLIB += $(NAN_FREETYPE)/lib/libfreetype.a
       endif
@@ -393,9 +395,16 @@ else
         NAN_SND_LIBS += $(ALUT)
         NAN_SND_LIBS += $(SOUNDSYSTEM)
       else
-        NAN_SND_LIBS =  $(SOUNDSYSTEM)
-        NAN_SND_LIBS += $(DUMMYSOUND)
-        NAN_SND_LIBS += $(SOUNDSYSTEM)
+        ifeq ($(OS), irix)
+           NAN_SND_LIBS = $(SOUNDSYSTEM)
+           NAN_SND_LIBS += $(DUMMYSOUND)
+           NAN_SND_LIBS += $(SDLSOUND)
+           NAN_SND_LIBS += $(SOUNDSYSTEM)
+        else
+           NAN_SND_LIBS =  $(SOUNDSYSTEM)
+           NAN_SND_LIBS += $(DUMMYSOUND)
+           NAN_SND_LIBS += $(SOUNDSYSTEM)
+        endif
       endif
     endif
   endif
