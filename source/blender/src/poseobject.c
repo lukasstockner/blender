@@ -722,14 +722,20 @@ void pose_copy_menu(void)
 				switch (nr) {
 					case 1: /* Local Location */
 						VECCOPY(pchan->loc, pchanact->loc);
+						
+						pchan->bone->flag |= BONE_UNKEYED;
 						break;
 					case 2: /* Local Rotation */
 						pchan->rotmode= pchanact->rotmode; // TODO: do we really want to do it this way?
 						VECCOPY(pchan->eul, pchanact->eul);
 						QUATCOPY(pchan->quat, pchanact->quat);
+						
+						pchan->bone->flag |= BONE_UNKEYED;
 						break;
 					case 3: /* Local Size */
 						VECCOPY(pchan->size, pchanact->size);
+						
+						pchan->bone->flag |= BONE_UNKEYED;
 						break;
 					case 4: /* All Constraints */
 					{
@@ -772,6 +778,8 @@ void pose_copy_menu(void)
 						break;
 					case 9: /* Visual Location */
 						armature_loc_pose_to_bone(pchan, pchanact->pose_mat[3], pchan->loc);
+						
+						pchan->bone->flag |= BONE_UNKEYED;
 						break;
 					case 10: /* Visual Rotation */
 					{
@@ -783,6 +791,8 @@ void pose_copy_menu(void)
 							Mat4ToEul(delta_mat, pchan->eul);
 						else
 							Mat4ToQuat(delta_mat, pchan->quat);
+							
+						pchan->bone->flag |= BONE_UNKEYED;
 					}
 						break;
 					case 11: /* Visual Size */
@@ -791,6 +801,8 @@ void pose_copy_menu(void)
 						
 						armature_mat_pose_to_bone(pchan, pchanact->pose_mat, delta_mat);
 						Mat4ToSize(delta_mat, pchan->size);
+						
+						pchan->bone->flag |= BONE_UNKEYED;
 					}
 					case 12: /* Rotation mode */
 						pchan->rotmode= pchanact->rotmode;
