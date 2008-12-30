@@ -1741,11 +1741,11 @@ void sculpt(void)
 				if(anchored) {
  					/* Restore the mesh before continuing with anchored stroke */
  					if(a->mesh_store) {
- 						for(i = 0; i < me->totvert; ++i) {
- 							VecCopyf(me->mvert[i].co, &a->mesh_store[i].x);
-							me->mvert[i].no[0] = a->orig_norms[i][0];
-							me->mvert[i].no[1] = a->orig_norms[i][1];
-							me->mvert[i].no[2] = a->orig_norms[i][2];
+ 						for(i = 0; i < ss->totvert; ++i) {
+ 							VecCopyf(ss->mvert[i].co, &a->mesh_store[i].x);
+							ss->mvert[i].no[0] = a->orig_norms[i][0];
+							ss->mvert[i].no[1] = a->orig_norms[i][1];
+							ss->mvert[i].no[2] = a->orig_norms[i][2];
 						}
  					}
 					
