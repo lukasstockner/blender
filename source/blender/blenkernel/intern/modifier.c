@@ -7236,6 +7236,14 @@ static void multiresModifier_initData(ModifierData *md)
 	mmd->lvl = mmd->totlvl = 1;
 }
 
+static void multiresModifier_freeData(ModifierData *md)
+{
+	MultiresModifierData *mmd = (MultiresModifierData*)md;
+
+	if(mmd->undo_verts)
+		MEM_freeN(mmd->undo_verts);
+}
+
 static void multiresModifier_copyData(ModifierData *md, ModifierData *target)
 {
 	MultiresModifierData *mmd = (MultiresModifierData*) md;
@@ -7257,18 +7265,18 @@ static DerivedMesh *multiresModifier_applyModifier(ModifierData *md, Object *ob,
 		return dm;
 
 	final = multires_dm_create_from_derived(mmd, dm, me, useRenderParams, isFinalCalc);
-	if(me->mr_undo_state && me->mr_undo && me->mr_undo_tot == final->getNumVerts(final)) {
+	if(mmd->undo_signal && mmd->undo_verts && mmd->undo_verts_tot == final->getNumVerts(final)) {
 		int i;
 		MVert *dst = CDDM_get_verts(final);
-		for(i = 0; i < me->mr_undo_tot; ++i) {
-			VecCopyf(dst[i].co, me->mr_undo[i].co);
+		for(i = 0; i < mmd->undo_verts_tot; ++i) {
+			VecCopyf(dst[i].co, mmd->undo_verts[i].co);
 		}
 		CDDM_calc_normals(final);
+
+		MEM_freeN(mmd->undo_verts);
+		mmd->undo_signal = 0;
+		mmd->undo_verts = NULL;
 	}
-	if(me->mr_undo && me->mr_undo_state)
-		MEM_freeN(me->mr_undo);
-	me->mr_undo_state = 0;
-	me->mr_undo = NULL;
 
 	return final;
 }
@@ -7598,6 +7606,7 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		mti->type = eModifierTypeType_Constructive;
 		mti->flags = eModifierTypeFlag_AcceptsMesh | eModifierTypeFlag_RequiresOriginalData;
 		mti->initData = multiresModifier_initData;
+		mti->freeData = multiresModifier_freeData;
 		mti->copyData = multiresModifier_copyData;
 		mti->applyModifier = multiresModifier_applyModifier;
 

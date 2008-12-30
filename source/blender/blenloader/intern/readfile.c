@@ -2794,9 +2794,6 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 	mesh->bb= NULL;
 	mesh->mselect = NULL;
 
-	mesh->mr_undo = newdataadr(fd, mesh->mr_undo);
-	mesh->mr_undo_state = 1;
-
 	/* Multires data */
 	mesh->mr= newdataadr(fd, mesh->mr);
 	if(mesh->mr) {
@@ -3200,6 +3197,13 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 						SWITCH_INT(mmd->dynverts[a])
 			}
 		}
+		else if (md->type==eModifierType_Multires) {
+			MultiresModifierData *mmd = (MultiresModifierData*) md;
+
+			mmd->undo_verts = newdataadr(fd, mmd->undo_verts);
+			mmd->undo_signal = !!mmd->undo_verts;
+		}
+
 	}
 }
 

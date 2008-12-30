@@ -825,7 +825,7 @@ static void write_constraint_channels(WriteData *wd, ListBase *chanbase)
 
 }
 
-static void write_modifiers(WriteData *wd, ListBase *modbase)
+static void write_modifiers(WriteData *wd, ListBase *modbase, int write_undo)
 {
 	ModifierData *md;
 
@@ -871,10 +871,16 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			writestruct(wd, DATA, "MDefInfluence", mmd->totinfluence, mmd->dyninfluences);
 			writedata(wd, DATA, sizeof(int)*mmd->totvert, mmd->dynverts);
 		}
+		else if (md->type==eModifierType_Multires) {
+			MultiresModifierData *mmd = (MultiresModifierData*) md;
+
+			if(mmd->undo_verts && write_undo)
+				writestruct(wd, DATA, "MVert", mmd->undo_verts_tot, mmd->undo_verts);
+		}
 	}
 }
 
-static void write_objects(WriteData *wd, ListBase *idbase)
+static void write_objects(WriteData *wd, ListBase *idbase, int write_undo)
 {
 	Object *ob;
 	
@@ -916,7 +922,7 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			writestruct(wd, DATA, "FluidsimSettings", 1, ob->fluidsimSettings); // NT
 			
 			write_particlesystems(wd, &ob->particlesystem);
-			write_modifiers(wd, &ob->modifiers);
+			write_modifiers(wd, &ob->modifiers, write_undo);
 		}
 		ob= ob->id.next;
 	}
@@ -1175,7 +1181,7 @@ static void write_customdata(WriteData *wd, int count, CustomData *data, int par
 	}
 }
 
-static void write_meshs(WriteData *wd, ListBase *idbase, int mr_undo)
+static void write_meshs(WriteData *wd, ListBase *idbase)
 {
 	Mesh *mesh;
 
@@ -1224,9 +1230,6 @@ static void write_meshs(WriteData *wd, ListBase *idbase, int mr_undo)
 				writestruct(wd, DATA, "MFace", mesh->pv->totface, mesh->pv->old_faces);
 				writestruct(wd, DATA, "MEdge", mesh->pv->totedge, mesh->pv->old_edges);
 			}
-			
-			if(mr_undo && mesh->mr_undo)
-				writestruct(wd, DATA, "MVert", mesh->mr_undo_tot, mesh->mr_undo);
 		}
 		mesh= mesh->id.next;
 	}
@@ -2040,10 +2043,10 @@ static int write_file_handle(int handle, MemFile *compare, MemFile *current, int
 	write_groups   (wd, &G.main->group);
 	write_armatures(wd, &G.main->armature);
 	write_actions  (wd, &G.main->action);
-	write_objects  (wd, &G.main->object);
+	write_objects  (wd, &G.main->object, (current != NULL));
 	write_materials(wd, &G.main->mat);
 	write_textures (wd, &G.main->tex);
-	write_meshs    (wd, &G.main->mesh, (current != NULL));
+	write_meshs    (wd, &G.main->mesh);
 	write_particlesettings(wd, &G.main->particle);
 	write_nodetrees(wd, &G.main->nodetree);
 	write_brushes  (wd, &G.main->brush);

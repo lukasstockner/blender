@@ -1833,18 +1833,14 @@ void sculpt(void)
 	sculpt_stroke_free();
 
 	if(mmd) {
-		me->mr_undo = ss->mvert;
-		me->mr_undo_tot = ss->totvert;
-	}
-	else {
-		me->mr_undo = NULL;
-		me->mr_undo_tot = 0;
+		if(mmd->undo_verts && mmd->undo_verts != ss->mvert)
+			MEM_freeN(mmd->undo_verts);
+		
+		mmd->undo_verts = ss->mvert;
+		mmd->undo_verts_tot = ss->totvert;
 	}
 
 	sculpt_undo_push(G.scene->sculptdata.brush_type);
-
-	me->mr_undo = NULL;
-	me->mr_undo_tot = 0;
 
 	if(G.vd->depths) G.vd->depths->damaged= 1;
 	

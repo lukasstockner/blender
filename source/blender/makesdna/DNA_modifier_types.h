@@ -494,9 +494,12 @@ typedef struct ExplodeModifierData {
 typedef struct MultiresModifierData {
 	ModifierData modifier;
 
+	struct MVert *undo_verts; /* Store DerivedMesh vertices for multires undo */
+	int undo_verts_tot; /* Length of undo_verts array */
+	char undo_signal; /* If true, signals to replace verts with undo verts */
+
 	char lvl, totlvl;
 	char simple;
-	char pad[5];
 } MultiresModifierData;
 
 #endif

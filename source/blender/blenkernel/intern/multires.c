@@ -1259,9 +1259,12 @@ struct DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, D
 						    int useRenderParams, int isFinalCalc)
 {
 	SubsurfModifierData smd;
-	MultiresSubsurf ms = {me, mmd->totlvl, mmd->lvl};
+	MultiresSubsurf ms;
 	DerivedMesh *result;
 	int i;
+
+	ms.mmd = mmd;
+	ms.me = me;
 
 	memset(&smd, 0, sizeof(SubsurfModifierData));
 	smd.levels = smd.renderLevels = mmd->lvl - 1;

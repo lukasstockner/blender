@@ -34,8 +34,8 @@ struct MultiresModifierData;
 struct Object;
 
 typedef struct MultiresSubsurf {
+	struct MultiresModifierData *mmd;
 	struct Mesh *me;
-	int totlvl, lvl;
 } MultiresSubsurf;
 
 typedef struct IndexNode {

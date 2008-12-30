@@ -53,6 +53,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_fluidsim.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -1157,6 +1158,8 @@ MFace *CDDM_get_faces(DerivedMesh *dm)
 typedef struct MultiresDM {
 	CDDerivedMesh cddm;
 
+	MultiresModifierData *mmd;
+
 	int lvl, totlvl;
 	float (*orco)[3];
 	MVert *subco;
@@ -1174,10 +1177,19 @@ typedef struct MultiresDM {
 static void MultiresDM_release(DerivedMesh *dm)
 {
 	MultiresDM *mrdm = (MultiresDM*)dm;
+	int mvert_layer;
 
 	/* Before freeing, need to update the displacement map */
 	if(dm->needsFree && !(mrdm->flags & MULTIRES_DM_UPDATE_BLOCK))
 		mrdm->update(dm);
+
+	/* If the MVert data is being used as the sculpt undo store, don't free it */
+	mvert_layer = CustomData_get_layer_index(&dm->vertData, CD_MVERT);
+	if(mvert_layer != -1) {
+		CustomDataLayer *cd = &dm->vertData.layers[mvert_layer];
+		if(cd->data == mrdm->mmd->undo_verts)
+			cd->flag |= CD_FLAG_NOFREE;
+	}
 
 	if(DM_release(dm)) {
 		MEM_freeN(mrdm->subco);
@@ -1206,6 +1218,7 @@ DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts
 	MEM_freeN(cddm);
 	dm = &mrdm->cddm.dm;
 
+	mrdm->mmd = ms->mmd;
 	mrdm->me = ms->me;
 
 	if(dm) {
@@ -1238,8 +1251,8 @@ DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts
 	mrdm->cddm.medge = CustomData_get_layer(&dm->edgeData, CD_MEDGE);
 	mrdm->cddm.mface = CustomData_get_layer(&dm->faceData, CD_MFACE);
 
-	mrdm->lvl = ms->lvl;
-	mrdm->totlvl = ms->totlvl;
+	mrdm->lvl = ms->mmd->lvl;
+	mrdm->totlvl = ms->mmd->totlvl;
 	mrdm->subco = MEM_callocN(sizeof(MVert)*numVerts, "multires subdivided verts");
 	mrdm->flags = 0;
 
