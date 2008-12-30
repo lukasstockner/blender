@@ -1196,32 +1196,6 @@ static void MultiresDM_release(DerivedMesh *dm)
 	}
 }
 
-/*static void MultiresDM_calc_norm(MultiresDM *mrdm)
-{
-	float (*v)[3] = mrdm->orco;
-	int i;
-
-	mrdm->norm = MEM_callocN(sizeof(float)*3 * mrdm->me->totvert, "MultiresDM vertnorms");
-
-	for(i = 0; i < mrdm->me->totface; ++i) {
-		MFace *f = &mrdm->me->mface[i];
-		float n[3];
-		if(f->v4)
-			CalcNormFloat4(v[f->v1], v[f->v2], v[f->v3], v[f->v4], n);
-		else
-			CalcNormFloat(v[f->v1], v[f->v2], v[f->v3], n);
-		
-		VecAddf(mrdm->norm[f->v1], mrdm->norm[f->v1], n);
-		VecAddf(mrdm->norm[f->v2], mrdm->norm[f->v2], n);
-		VecAddf(mrdm->norm[f->v3], mrdm->norm[f->v3], n);
-		if(f->v4)
-			VecAddf(mrdm->norm[f->v4], mrdm->norm[f->v4], n);
-	}
-
-	for(i = 0; i < mrdm->me->totvert; ++i)
-		Normalize(mrdm->norm[i]);
-}*/
-
 DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts, int numEdges, int numFaces)
 {
 	MultiresDM *mrdm = MEM_callocN(sizeof(MultiresDM), "MultiresDM");
@@ -1335,16 +1309,15 @@ ListBase *MultiresDM_get_vert_edge_map(DerivedMesh *dm)
 int *MultiresDM_get_face_offsets(DerivedMesh *dm)
 {
 	MultiresDM *mrdm = (MultiresDM*)dm;
-	int i, totface, accum = 0;
+	int i, accum = 0;
 
 	if(!mrdm->face_offsets) {
 		int len = (int)pow(2, mrdm->lvl - 2) - 1;
 		int area = len * len;
 		int t = 1 + len * 3 + area * 3, q = t + len + area;
 
-		totface = dm->getNumFaces(dm);
-		mrdm->face_offsets = MEM_callocN(sizeof(int) * totface, "mrdm face offsets");
-		for(i = 0; i < totface; ++i) {
+		mrdm->face_offsets = MEM_callocN(sizeof(int) * mrdm->me->totface, "mrdm face offsets");
+		for(i = 0; i < mrdm->me->totface; ++i) {
 			mrdm->face_offsets[i] = accum;
 
 			accum += (mrdm->me->mface[i].v4 ? q : t);
