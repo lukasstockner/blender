@@ -471,10 +471,10 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int dista
 	if(distance == 0)
 		return;
 
-	if(mmd->totlvl == multires_max_levels) {
-		// TODO
-		return;
-	}
+	if(mmd->totlvl > multires_max_levels)
+		mmd->totlvl = multires_max_levels;
+	if(mmd->lvl > multires_max_levels)
+		mmd->lvl = multires_max_levels;
 
 	multires_force_update(ob);
 
