@@ -554,7 +554,6 @@ typedef struct DisplacerSpill {
 typedef struct MultiresDisplacer {
 	Mesh *me;
 	MDisps *grid;
-	/* To be removed */
 	MFace *face;
 	
 	int dm_first_base_vert_index;
@@ -1193,10 +1192,6 @@ static void multiresModifier_update(DerivedMesh *dm)
 {
 	Mesh *me;
 	MDisps *mdisps;
-	MVert *mvert;
-	MEdge *medge;
-	MFace *mface;
-	int i;
 
 	if(!(G.f & G_SCULPTMODE) && !(*MultiresDM_get_flags(dm) & MULTIRES_DM_UPDATE_ALWAYS)) return;
 
@@ -1206,21 +1201,18 @@ static void multiresModifier_update(DerivedMesh *dm)
 	if(mdisps) {
 		const int lvl = MultiresDM_get_lvl(dm);
 		const int totlvl = MultiresDM_get_totlvl(dm);
-		DerivedMesh *orig;
 		
-		mvert = CDDM_get_verts(dm);
-		medge = MultiresDM_get_mesh(dm)->medge;
-		mface = MultiresDM_get_mesh(dm)->mface;
-
-		orig = CDDM_from_mesh(me, NULL);
-
 		if(lvl < totlvl) {
 			/* Propagate disps upwards */
-			DerivedMesh *final, *subco_dm;
+			DerivedMesh *final, *subco_dm, *orig;
 			MVert *verts_new = NULL, *cur_lvl_orig_verts = NULL;
 			MultiresModifierData mmd;
+			int i;
+
+			orig = CDDM_from_mesh(me, NULL);
 			
-			/* Regenerate the current level's vertex coordinates without sculpting */
+			/* Regenerate the current level's vertex coordinates
+			   (includes older displacements but not new sculpts) */
 			mmd.totlvl = totlvl;
 			mmd.lvl = lvl;
 			subco_dm = multires_dm_create_from_derived(&mmd, orig, me, 0, 0);
@@ -1238,11 +1230,10 @@ static void multiresModifier_update(DerivedMesh *dm)
 					 dm->getNumFaces(dm), 1);
 
 			subco_dm->release(subco_dm);
+			orig->release(orig);
 		}
 		else
 			multiresModifier_disp_run(dm, MultiresDM_get_subco(dm), 1);
-		
-		orig->release(orig);
 	}
 }
 

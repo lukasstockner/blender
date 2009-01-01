@@ -1238,7 +1238,6 @@ DerivedMesh *MultiresDM_new(MultiresSubsurf *ms, DerivedMesh *orig, int numVerts
 		mrdm->orco = MEM_callocN(sizeof(float) * 3 * orig->getNumVerts(orig), "multires orco");
 		for(i = 0; i < orig->getNumVerts(orig); ++i)
 			VecCopyf(mrdm->orco[i], mvert[i].co);
-		mrdm->me->totvert = orig->getNumVerts(orig);
 	}
 	else
 		DM_init(dm, numVerts, numEdges, numFaces);
