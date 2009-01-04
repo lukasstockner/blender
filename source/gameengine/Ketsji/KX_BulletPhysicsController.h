@@ -9,6 +9,7 @@ class KX_BulletPhysicsController : public KX_IPhysicsController ,public CcdPhysi
 {
 private:
 	int m_savedCollisionFlags;
+	int m_savedActivationState;
 	short int m_savedCollisionFilterGroup;
 	short int m_savedCollisionFilterMask;
 	MT_Scalar m_savedMass;
@@ -49,9 +50,7 @@ public:
 
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 
-	void	SetDyna(bool isDynamic) {
-		m_bDyna = isDynamic;
-	}
+	virtual MT_Scalar GetRadius();
 
 
 	virtual void	SetSumoTransform(bool nondynaonly);

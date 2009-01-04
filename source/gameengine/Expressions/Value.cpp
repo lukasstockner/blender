@@ -32,6 +32,7 @@
 //////////////////////////////////////////////////////////////////////
 
 double CValue::m_sZeroVec[3] = {0.0,0.0,0.0};
+bool CValue::m_ignore_deprecation_warnings(false);
 
 #ifndef NO_EXP_PYTHON_EMBEDDING
 
@@ -158,15 +159,14 @@ PyParentObject CValue::Parents[] = {
 };
 
 PyMethodDef CValue::Methods[] = {
-//  	{ "printHello", (PyCFunction) CValue::sPyPrintHello, Py_NEWARGS},
-	{ "getName", (PyCFunction) CValue::sPyGetName, Py_NEWARGS},
+//  	{ "printHello", (PyCFunction) CValue::sPyPrintHello, METH_VARARGS},
+	{ "getName", (PyCFunction) CValue::sPyGetName, METH_NOARGS},
 	{NULL,NULL} //Sentinel
 };
 
-PyObject* CValue::PyGetName(PyObject* self,PyObject* args,PyObject* kwds)
+PyObject* CValue::PyGetName(PyObject* self)
 {
-	PyObject* pyname = PyString_FromString(this->GetName());
-	return pyname;
+	return PyString_FromString(this->GetName());
 }
 
 /*#define CVALUE_DEBUG*/
@@ -392,16 +392,23 @@ float CValue::GetPropertyNumber(const STR_String& inName,float defnumber)
 bool CValue::RemoveProperty(const STR_String & inName)
 {
 	// Check if there are properties at all which can be removed
-	if (m_pNamedPropertyArray == NULL)
-		return false;
-
-	CValue* val = GetProperty(inName);
-	if (NULL != val) 
-	{
-		val->Release();
-		m_pNamedPropertyArray->erase(inName);
-		return true;
-	}
+	if (m_pNamedPropertyArray) {	
+		CValue* val = GetProperty(inName);
+		if (NULL != val) 
+		{
+			val->Release();
+			m_pNamedPropertyArray->erase(inName);
+			return true;
+		}
+	} 
+	
+	char err[128];
+	if (m_pNamedPropertyArray)
+		sprintf(err, "attribute \"%s\" dosnt exist", inName.ReadPtr());
+	else
+		sprintf(err, "attribute \"%s\" dosnt exist (no property array)", inName.ReadPtr());
+	
+	PyErr_SetString(PyExc_AttributeError, err);
 	return false;
 }
 
@@ -662,7 +669,7 @@ CValue*	CValue::FindIdentifier(const STR_String& identifiername)
 
 static PyMethodDef	CValueMethods[] = 
 {
-	//{ "new", CValue::PyMake , Py_NEWARGS},
+	//{ "new", CValue::PyMake , METH_VARARGS},
 	{ NULL,NULL}	// Sentinel
 };
 
@@ -756,7 +763,8 @@ CValue* CValue::ConvertPythonToValue(PyObject* pyobj)
 
 int	CValue::_delattr(const STR_String& attr)
 {
-	RemoveProperty(attr);
+	if (!RemoveProperty(attr)) /* sets error */
+		return 1;
 	return 0;
 }
 
@@ -806,9 +814,8 @@ PyObject*	CValue::ConvertKeysToPython( void )
 PyObject*	CValue::PyMake(PyObject* ignored,PyObject* args)
 {
 
-	//Py_Try(PyArg_ParseTuple(args,"s",&name));
-	Py_INCREF(Py_None);
-	return Py_None;//new CValue();
+	//if (!PyArg_ParseTuple(args,"s",&name)) return NULL;
+	Py_RETURN_NONE;//new CValue();
 }
 */
 
@@ -843,4 +850,15 @@ void CValue::SetValue(CValue* newval)
 }
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
+/* deprecation warning management */
+void CValue::SetDeprecationWarnings(bool ignoreDeprecationWarnings)
+{
+	m_ignore_deprecation_warnings = ignoreDeprecationWarnings;
+}
+
+void CValue::ShowDeprecationWarning(const char* old_way,const char* new_way)
+{
+	if (!m_ignore_deprecation_warnings)
+		printf("Method %s is deprecated, please use %s instead.\n", old_way, new_way);
+}
 

@@ -154,24 +154,54 @@ PyParentObject SCA_RandomSensor::Parents[] = {
 };
 
 PyMethodDef SCA_RandomSensor::Methods[] = {
-	{"setSeed",     (PyCFunction) SCA_RandomSensor::sPySetSeed, METH_VARARGS, SetSeed_doc},
-	{"getSeed",     (PyCFunction) SCA_RandomSensor::sPyGetSeed, METH_VARARGS, GetSeed_doc},
-	{"getLastDraw", (PyCFunction) SCA_RandomSensor::sPyGetLastDraw, METH_VARARGS, GetLastDraw_doc},
+	{"setSeed",     (PyCFunction) SCA_RandomSensor::sPySetSeed, METH_VARARGS, (PY_METHODCHAR)SetSeed_doc},
+	{"getSeed",     (PyCFunction) SCA_RandomSensor::sPyGetSeed, METH_VARARGS, (PY_METHODCHAR)GetSeed_doc},
+	{"getLastDraw", (PyCFunction) SCA_RandomSensor::sPyGetLastDraw, METH_VARARGS, (PY_METHODCHAR)GetLastDraw_doc},
 	{NULL,NULL} //Sentinel
 };
 
+PyAttributeDef SCA_RandomSensor::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RO("lastDraw",SCA_RandomSensor,m_lastdraw),
+	{NULL} //Sentinel
+};
+
 PyObject* SCA_RandomSensor::_getattr(const STR_String& attr) {
+	PyObject* object = _getattr_self(Attributes, this, attr);
+	if (object != NULL)
+		return object;
+	if (attr == "seed") {
+		return PyInt_FromLong(m_basegenerator->GetSeed());
+	}
 	_getattr_up(SCA_ISensor);
 }
 
+int SCA_RandomSensor::_setattr(const STR_String& attr, PyObject *value)
+{
+	int ret = _setattr_self(Attributes, this, attr, value);
+	if (ret >= 0)
+		return ret;
+	if (attr == "seed") {
+		if (PyInt_Check(value))	{
+			int ival = PyInt_AsLong(value);
+			m_basegenerator->SetSeed(ival);
+			return 0;
+		} else {
+			PyErr_SetString(PyExc_TypeError, "expected an integer");
+			return 1;
+		}
+	}
+	return SCA_ISensor::_setattr(attr, value);
+}
+
 /* 1. setSeed                                                            */
-char SCA_RandomSensor::SetSeed_doc[] = 
+const char SCA_RandomSensor::SetSeed_doc[] = 
 "setSeed(seed)\n"
 "\t- seed: integer\n"
 "\tSet the initial seed of the generator. Equal seeds produce\n"
 "\tequal series. If the seed is 0, the generator will produce\n"
 "\tthe same value on every call.\n";
 PyObject* SCA_RandomSensor::PySetSeed(PyObject* self, PyObject* args, PyObject* kwds) {
+	ShowDeprecationWarning("setSeed()", "the seed property");
 	long seedArg;
 	if(!PyArg_ParseTuple(args, "i", &seedArg)) {
 		return NULL;
@@ -183,19 +213,21 @@ PyObject* SCA_RandomSensor::PySetSeed(PyObject* self, PyObject* args, PyObject* 
 }
 
 /* 2. getSeed                                                            */
-char SCA_RandomSensor::GetSeed_doc[] = 
+const char SCA_RandomSensor::GetSeed_doc[] = 
 "getSeed()\n"
 "\tReturns the initial seed of the generator. Equal seeds produce\n"
 "\tequal series.\n";
 PyObject* SCA_RandomSensor::PyGetSeed(PyObject* self, PyObject* args, PyObject* kwds) {
+	ShowDeprecationWarning("getSeed()", "the seed property");
 	return PyInt_FromLong(m_basegenerator->GetSeed());
 }
 
 /* 3. getLastDraw                                                            */
-char SCA_RandomSensor::GetLastDraw_doc[] = 
+const char SCA_RandomSensor::GetLastDraw_doc[] = 
 "getLastDraw()\n"
 "\tReturn the last value that was drawn.\n";
 PyObject* SCA_RandomSensor::PyGetLastDraw(PyObject* self, PyObject* args, PyObject* kwds) {
+	ShowDeprecationWarning("getLastDraw()", "the lastDraw property");
 	return PyInt_FromLong(m_lastdraw);
 }
 

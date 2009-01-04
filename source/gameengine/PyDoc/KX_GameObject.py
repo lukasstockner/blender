@@ -30,11 +30,16 @@ class KX_GameObject:
 		Delete this object, can be used inpace of the EndObject Actuator.
 		The actual removal of the object from the scene is delayed.
 		"""	
-	def getVisible(visible):
+	def replaceMesh(mesh_name):
+		"""
+		Replace the mesh of this object with a new mesh. This works the same was as the actuator.
+		@type mesh_name: string
+		"""	
+	def getVisible():
 		"""
 		Gets the game object's visible flag.
 		
-		@type visible: boolean
+		@rtype: boolean
 		"""	
 	def setVisible(visible):
 		"""
@@ -49,16 +54,25 @@ class KX_GameObject:
 		@rtype: int
 		@return: the objects state.
 		"""	
-	def setState():
+	def setState(state):
 		"""
-		Sets the game object's visible flag.
+		Sets the game object's state flag.
 		The bitmasks for states from 1 to 30 can be set with (1<<0, 1<<1, 1<<2 ... 1<<29)
 		
-		@type visible: boolean
+		@type state: integer
 		"""
 	def setPosition(pos):
 		"""
-		Sets the game object's position.
+		Sets the game object's position. 
+		Global coordinates for root object, local for child objects.
+		
+		
+		@type pos: [x, y, z]
+		@param pos: the new position, in local coordinates.
+		"""
+	def setWorldPosition(pos):
+		"""
+		Sets the game object's position in world coordinates regardless if the object is root or child.
 		
 		@type pos: [x, y, z]
 		@param pos: the new position, in world coordinates.
@@ -109,6 +123,50 @@ class KX_GameObject:
 		@return: The game object's rotation matrix
 		@note: When using this matrix with Blender.Mathutils.Matrix() types, it will need to be transposed.
 		"""
+	def applyMovement(movement, local = 0):
+		"""
+		Sets the game object's movement.
+		
+		@type movement: 3d vector.
+		@param movement: movement vector.
+		@type local: boolean
+		@param local: - False: you get the "global" movement ie: relative to world orientation (default).
+		              - True: you get the "local" movement ie: relative to object orientation.
+		"""	
+	def applyRotation(movement, local = 0):
+		"""
+		Sets the game object's rotation.
+		
+		@type rotation: 3d vector.
+		@param rotation: rotation vector.
+		@type local: boolean
+		@param local: - False: you get the "global" rotation ie: relative to world orientation (default).
+					  - True: you get the "local" rotation ie: relative to object orientation.
+		"""	
+	def applyForce(force, local = 0):
+		"""
+		Sets the game object's force.
+		
+		This requires a dynamic object.
+		
+		@type force: 3d vector.
+		@param force: force vector.
+		@type local: boolean
+		@param local: - False: you get the "global" force ie: relative to world orientation (default).
+					  - True: you get the "local" force ie: relative to object orientation.
+		"""	
+	def applyTorque(torque, local = 0):
+		"""
+		Sets the game object's torque.
+		
+		This requires a dynamic object.
+		
+		@type torque: 3d vector.
+		@param torque: torque vector.
+		@type local: boolean
+		@param local: - False: you get the "global" torque ie: relative to world orientation (default).
+					  - True: you get the "local" torque ie: relative to object orientation.
+		"""
 	def getLinearVelocity(local = 0):
 		"""
 		Gets the game object's linear velocity.
@@ -129,8 +187,32 @@ class KX_GameObject:
 		This method sets game object's velocity through it's centre of mass,
 		ie no angular velocity component.
 		
+		This requires a dynamic object.
+		
 		@type velocity: 3d vector.
 		@param velocity: linear velocity vector.
+		@type local: boolean
+		@param local: - False: you get the "global" velocity ie: relative to world orientation (default).
+		              - True: you get the "local" velocity ie: relative to object orientation.
+		"""
+	def getAngularVelocity(local = 0):
+		"""
+		Gets the game object's angular velocity.
+		
+		@type local: boolean
+		@param local: - False: you get the "global" velocity ie: relative to world orientation (default).
+		              - True: you get the "local" velocity ie: relative to object orientation.
+		@rtype: list [vx, vy, vz]
+		@return: the object's angular velocity.
+		"""
+	def setAngularVelocity(velocity, local = 0):
+		"""
+		Sets the game object's angular velocity.
+		
+		This requires a dynamic object.
+		
+		@type velocity: 3d vector.
+		@param velocity: angular velocity vector.
 		@type local: boolean
 		@param local: - False: you get the "global" velocity ie: relative to world orientation (default).
 		              - True: you get the "local" velocity ie: relative to object orientation.
@@ -280,11 +362,13 @@ class KX_GameObject:
 		@rtype: L{KX_GameObject}
 		@return: the first object hit or None if no object or object does not match prop
 		"""
-	def rayCast(to,from,dist,prop):
+	def rayCast(objto,objfrom,dist,prop,face,xray,poly):
 		"""
 		Look from a point/object to another point/object and find first object hit within dist that matches prop.
-		Returns a 3-tuple with object reference, hit point and hit normal or (None,None,None) if no hit.
-		Ex:
+		if poly is 0, returns a 3-tuple with object reference, hit point and hit normal or (None,None,None) if no hit.
+		if poly is 1, returns a 4-tuple with in addition a L{KX_PolyProxy} as 4th element.
+		
+		Ex::
 			# shoot along the axis gun-gunAim (gunAim should be collision-free)
 			ob,point,normal = gun.rayCast(gunAim,None,50)
 			if ob:
@@ -292,21 +376,42 @@ class KX_GameObject:
 
 		Notes:				
 		The ray ignores the object on which the method is called.
-		If is casted from/to object center or explicit [x,y,z] points.
-		The ray does not have X-Ray capability: the first object hit (other than self object) stops the ray
-		If a property was specified and the first object hit does not have that property, there is no hit
-		The	ray ignores collision-free objects and faces that dont have the collision flag enabled, you can however use ghost objects.
+		It is casted from/to object center or explicit [x,y,z] points.
+		
+		The face paremeter determines the orientation of the normal:: 
+		  0 => hit normal is always oriented towards the ray origin (as if you casted the ray from outside)
+		  1 => hit normal is the real face normal (only for mesh object, otherwise face has no effect)
+		  
+		The ray has X-Ray capability if xray parameter is 1, otherwise the first object hit (other than self object) stops the ray.
+		The prop and xray parameters interact as follow::
+		    prop off, xray off: return closest hit or no hit if there is no object on the full extend of the ray.
+		    prop off, xray on : idem.
+		    prop on,  xray off: return closest hit if it matches prop, no hit otherwise.
+		    prop on,  xray on : return closest hit matching prop or no hit if there is no object matching prop on the full extend of the ray.
+		The L{KX_PolyProxy} 4th element of the return tuple when poly=1 allows to retrieve information on the polygon hit by the ray.
+		If there is no hit or the hit object is not a static mesh, None is returned as 4th element. 
+		
+		The ray ignores collision-free objects and faces that dont have the collision flag enabled, you can however use ghost objects.
 
-		@param to: [x,y,z] or object to which the ray is casted
-		@type to: L{KX_GameObject} or 3-tuple
-		@param from: [x,y,z] or object from which the ray is casted; None or omitted => use self object center
-		@type from: L{KX_GameObject} or 3-tuple or None
+		@param objto: [x,y,z] or object to which the ray is casted
+		@type objto: L{KX_GameObject} or 3-tuple
+		@param objfrom: [x,y,z] or object from which the ray is casted; None or omitted => use self object center
+		@type objfrom: L{KX_GameObject} or 3-tuple or None
 		@param dist: max distance to look (can be negative => look behind); 0 or omitted => detect up to to
 		@type dist: float
 		@param prop: property name that object must have; can be omitted => detect any object
 		@type prop: string
-		@rtype: 3-tuple (L{KX_GameObject}, 3-tuple (x,y,z), 3-tuple (nx,ny,nz))
-		@return: (object,hitpoint,hitnormal) or (None,None,None)
+		@param face: normal option: 1=>return face normal; 0 or omitted => normal is oriented towards origin
+		@type face: int
+		@param xray: X-ray option: 1=>skip objects that don't match prop; 0 or omitted => stop on first object
+		@type xray: int
+		@param poly: polygon option: 1=>return value is a 4-tuple and the 4th element is a L{KX_PolyProxy}
+		@type poly: int
+		@rtype:    3-tuple (L{KX_GameObject}, 3-tuple (x,y,z), 3-tuple (nx,ny,nz))
+		        or 4-tuple (L{KX_GameObject}, 3-tuple (x,y,z), 3-tuple (nx,ny,nz), L{KX_PolyProxy})
+		@return: (object,hitpoint,hitnormal) or (object,hitpoint,hitnormal,polygon)
+		         If no hit, returns (None,None,None) or (None,None,None,None)
+		         If the object hit is not a static mesh, polygon is None
 		"""
 
 

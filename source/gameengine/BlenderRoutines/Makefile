@@ -35,6 +35,7 @@ include nan_compile.mk
 
 CCFLAGS += $(LEVEL_1_CPP_WARNINGS)
 
+CPPFLAGS += -I$(NAN_GLEW)/include
 CPPFLAGS += -I$(NAN_SUMO)/include -I$(NAN_SOLID)/include
 CPPFLAGS += -I$(NAN_SOLID)
 CPPFLAGS += -I$(NAN_STRING)/include    
@@ -54,6 +55,7 @@ CPPFLAGS += -I../../blender/blenkernel
 CPPFLAGS += -I../../blender/render/extern/include
 CPPFLAGS += -I../../blender/blenloader
 CPPFLAGS += -I../../blender/blenkernel
+CPPFLAGS += -I../../blender/gpu
 CPPFLAGS += -I../Converter
 CPPFLAGS += -I../Expressions
 CPPFLAGS += -I../GameLogic
@@ -70,10 +72,6 @@ CPPFLAGS += -I.
 
 ifeq ($(OS),windows)
     CPPFLAGS += -I../../blender
-endif
-
-ifeq ($(WITH_BF_GLEXT),true)
-	CPPFLAGS += -DWITH_GLEXT
 endif
 
 CPPFLAGS += -I$(NAN_PYTHON)/include/python$(NAN_PYTHON_VERSION)

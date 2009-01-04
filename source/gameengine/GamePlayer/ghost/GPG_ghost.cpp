@@ -44,6 +44,7 @@
 #endif // __APPLE__
 #include "GEN_messaging.h"
 #include "KX_KetsjiEngine.h"
+#include "KX_PythonInit.h"
 
 /**********************************
 * Begin Blender include block
@@ -52,25 +53,31 @@
 extern "C"
 {
 #endif  // __cplusplus
+#include "MEM_guardedalloc.h"
+#include "BKE_blender.h"	
 #include "BKE_global.h"	
 #include "BKE_icons.h"	
+#include "BKE_node.h"	
 #include "BLI_blenlib.h"
 #include "DNA_scene_types.h"
 #include "BLO_readfile.h"
 #include "BLO_readblenfile.h"
+#include "IMB_imbuf.h"
 	
 	int GHOST_HACK_getFirstFile(char buf[]);
 	
 #ifdef __cplusplus
 }
 #endif // __cplusplus
+
+#include "GPU_draw.h"
+
 /**********************************
 * End Blender include block
 **********************************/
 
 #include "SYS_System.h"
 #include "GPG_Application.h"
-#include "GPC_PolygonMaterial.h"
 
 #include "GHOST_ISystem.h"
 #include "RAS_IRasterizer.h"
@@ -146,20 +153,19 @@ static BOOL scr_saver_init(int argc, char **argv)
 
 #endif /* WIN32 */
 
-void usage(char* program)
+void usage(const char* program)
 {
-	char * consoleoption;
+	const char * consoleoption;
 #ifdef _WIN32
 	consoleoption = "-c ";
 #else
 	consoleoption = "";
 #endif
 	
-	printf("usage:   %s [-w [-p l t w h]] %s[-g gamengineoptions] "
+	printf("usage:   %s [-w l t w h] %s[-g gamengineoptions] "
 		"[-s stereomode] filename.blend\n", program, consoleoption);
 	printf("  -h: Prints this command summary\n");
 	printf("  -w: display in a window\n");
-	printf("  -p: specify window position\n");
 	printf("       l = window left coordinate\n");
 	printf("       t = window top coordinate\n");
 	printf("       w = window width\n");
@@ -176,24 +182,30 @@ void usage(char* program)
 	printf("                   anaglyph         (Red-Blue glasses)\n");
 	printf("                   vinterlace       (Vertical interlace for autostereo display)\n");
 	printf("                             depending on the type of stereo you want\n");
+#ifndef _WIN32
+	printf("  -i: parent windows ID \n");
+#endif
 #ifdef _WIN32
 	printf("  -c: keep console window open\n");
 #endif
-	printf("  -g: game engine options:\n");
-	printf("       Name            Default      Description\n");
-	printf("       ----------------------------------------\n");
-	printf("       fixedtime          0         Do the same timestep each frame \"Enable all frames\"\n");
-	printf("       nomipmap           0         Disable mipmaps\n");
-	printf("       show_framerate     0         Show the frame rate\n");
-	printf("       show_properties    0         Show debug properties\n");
-	printf("       show_profile       0         Show profiling information\n");
-	printf("       blender_material   0         Enable material settings\n");
+	printf("  -d: turn debugging on\n");
+	printf("  -g: game engine options:\n\n");
+	printf("       Name                       Default      Description\n");
+	printf("       ------------------------------------------------------------------------\n");
+	printf("       fixedtime                      0         \"Enable all frames\"\n");
+	printf("       nomipmap                       0         Disable mipmaps\n");
+	printf("       show_framerate                 0         Show the frame rate\n");
+	printf("       show_properties                0         Show debug properties\n");
+	printf("       show_profile                   0         Show profiling information\n");
+	printf("       blender_material               0         Enable material settings\n");
+	printf("       ignore_deprecation_warnings    0         Ignore deprecation warnings\n");
 	printf("\n");
-	printf("example: %s -p 10 10 320 200 -g noaudio c:\\loadtest.blend\n", program);
+	printf("example: %s -w 10 10 320 200 -g noaudio c:\\loadtest.blend\n", program);
 	printf("example: %s -g show_framerate = 0 c:\\loadtest.blend\n", program);
 }
 
-char *get_filename(int argc, char **argv) {
+static void get_filename(int argc, char **argv, char *filename)
+{
 #ifdef __APPLE__
 /* On Mac we park the game file (called game.blend) in the application bundle.
 * The executable is located in the bundle as well.
@@ -201,22 +213,18 @@ char *get_filename(int argc, char **argv) {
 	*/
 	int srclen = ::strlen(argv[0]);
 	int len = 0;
-	char *filename = NULL;
+	char *gamefile = NULL;
 	
+	filename[0] = '\0';
+
 	if (argc > 1) {
 		if (BLI_exists(argv[argc-1])) {
-			len = ::strlen(argv[argc-1]);
-			filename = new char [len + 1];
-			::strcpy(filename, argv[argc-1]);
-			return(filename);
+			BLI_strncpy(filename, argv[argc-1], FILE_MAXDIR + FILE_MAXFILE);
 		}
 		if (::strncmp(argv[argc-1], "-psn_", 5)==0) {
 			static char firstfilebuf[512];
 			if (GHOST_HACK_getFirstFile(firstfilebuf)) {
-				len = ::strlen(firstfilebuf);
-				filename = new char [len + 1];
-				::strcpy(filename, firstfilebuf);
-				return(filename);
+				BLI_strncpy(filename, firstfilebuf, FILE_MAXDIR + FILE_MAXFILE);
 			}
 		}                        
 	}
@@ -224,23 +232,26 @@ char *get_filename(int argc, char **argv) {
 	srclen -= ::strlen("MacOS/blenderplayer");
 	if (srclen > 0) {
 		len = srclen + ::strlen("Resources/game.blend"); 
-		filename = new char [len + 1];
-		::strcpy(filename, argv[0]);
-		::strcpy(filename + srclen, "Resources/game.blend");
+		gamefile = new char [len + 1];
+		::strcpy(gamefile, argv[0]);
+		::strcpy(gamefile + srclen, "Resources/game.blend");
 		//::printf("looking for file: %s\n", filename);
 		
-		if (BLI_exists(filename)) {
-			return (filename);
-		}
+		if (BLI_exists(gamefile))
+			BLI_strncpy(filename, gamefile, FILE_MAXDIR + FILE_MAXFILE);
+
+		delete gamefile;
 	}
 	
-	return(NULL);
 #else
-	return (argc>1)?argv[argc-1]:NULL;
+	filename[0] = '\0';
+
+	if(argc > 1)
+		BLI_strncpy(filename, argv[argc-1], FILE_MAXDIR + FILE_MAXFILE);
 #endif // !_APPLE
 }
 
-static BlendFileData *load_game_data(char *progname, char *filename = NULL) {
+static BlendFileData *load_game_data(char *progname, char *filename = NULL, char *relativename = NULL) {
 	BlendReadError error;
 	BlendFileData *bfd = NULL;
 	
@@ -282,7 +293,7 @@ int main(int argc, char** argv)
 	bool fullScreenParFound = false;
 	bool windowParFound = false;
 	bool closeConsole = true;
-	RAS_IRasterizer::StereoMode stereomode;
+	RAS_IRasterizer::StereoMode stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
 	bool stereoWindow = false;
 	bool stereoParFound = false;
 	int windowLeft = 100;
@@ -293,7 +304,10 @@ int main(int argc, char** argv)
 	GHOST_TUns32 fullScreenHeight= 0;
 	int fullScreenBpp = 32;
 	int fullScreenFrequency = 60;
+	GHOST_TEmbedderWindowID parentWindow = 0;
 
+
+	
 #ifdef __linux__
 #ifdef __alpha__
 	signal (SIGFPE, SIG_IGN);
@@ -321,8 +335,18 @@ int main(int argc, char** argv)
 		  ::DisposeNibReference(nibRef);
     */
 #endif // __APPLE__
+
+	init_nodesystem();
 	
+	initglobals();
+
 	GEN_init_messaging_system();
+
+#ifdef WITH_QUICKTIME
+	quicktime_init();
+#endif
+
+	libtiff_init();
  
 	// Parse command line options
 #ifndef NDEBUG
@@ -401,6 +425,12 @@ int main(int argc, char** argv)
 					}
 				}
 				break;
+
+			case 'd':
+				i++;
+				G.f |= G_DEBUG;     /* std output printf's */
+				MEM_set_memory_debug();
+				break;
 				
 			case 'p':
 				// Parse window position and size options
@@ -453,6 +483,16 @@ int main(int argc, char** argv)
 				usage(argv[0]);
 				return 0;
 				break;
+#ifndef _WIN32
+			case 'i':
+				i++;
+				if ( (i + 1) < argc )
+					parentWindow = atoi(argv[i++]); 					
+#ifndef NDEBUG
+				printf("XWindows ID = %d\n", parentWindow);
+#endif //NDEBUG
+
+#endif  // _WIN32			
 			case 'c':
 				i++;
 				closeConsole = false;
@@ -523,21 +563,19 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	if (!stereoParFound) stereomode = RAS_IRasterizer::RAS_STEREO_NOSTEREO;
-
 #ifdef WIN32
 	if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
 	{
 #ifdef __APPLE__
 		//SYS_WriteCommandLineInt(syshandle, "show_framerate", 1);
-		SYS_WriteCommandLineInt(syshandle, "nomipmap", 1);
+		//SYS_WriteCommandLineInt(syshandle, "nomipmap", 1);
 		//fullScreen = false;		// Can't use full screen
 #endif
 
 		if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0))
 		{
-			GPC_PolygonMaterial::SetMipMappingEnabled(0);
+			GPU_set_mipmap(0);
 		}
 		
 		// Create the system
@@ -559,11 +597,15 @@ int main(int argc, char** argv)
 			{
 				int exitcode = KX_EXIT_REQUEST_NO_REQUEST;
 				STR_String exitstring = "";
-				GPG_Application app(system, NULL, exitstring);
+				GPG_Application app(system);
 				bool firstTimeRunning = true;
-				char *filename = get_filename(argc, argv);
+				char filename[FILE_MAXDIR + FILE_MAXFILE];
+				char pathname[FILE_MAXDIR + FILE_MAXFILE];
 				char *titlename;
-				char pathname[160];
+
+				get_filename(argc, argv, filename);
+				if(filename[0])
+					BLI_convertstringcwd(filename);
 				
 				do
 				{
@@ -575,8 +617,7 @@ int main(int argc, char** argv)
 					{
 						char basedpath[240];
 						
-						// base the actuator filename with respect
-						// to the original file working directory
+						// base the actuator filename relative to the last file
 						strcpy(basedpath, exitstring.Ptr());
 						BLI_convertstringcode(basedpath, pathname);
 						
@@ -595,7 +636,7 @@ int main(int argc, char** argv)
 					}
 					else
 					{
-						bfd = load_game_data(argv[0], filename);
+						bfd = load_game_data(bprogname, filename[0]? filename: NULL);
 					}
 					
 					//::printf("game data loaded from %s\n", filename);
@@ -617,8 +658,10 @@ int main(int argc, char** argv)
 #endif // WIN32
 						Main *maggie = bfd->main;
 						Scene *scene = bfd->curscene;
-						char *startscenename = scene->id.name + 2;
-						G.fileflags  = bfd->fileflags;
+						G.main = maggie;
+
+						if (firstTimeRunning)
+							G.fileflags  = bfd->fileflags;
 
 						//Seg Fault; icon.c gIcons == 0
 						BKE_icons_init(1);
@@ -655,16 +698,15 @@ int main(int argc, char** argv)
 						}
 						
 						//					GPG_Application app (system, maggie, startscenename);
-						app.SetGameEngineData(maggie, startscenename);
+						app.SetGameEngineData(maggie, scene);
 						
+						BLI_strncpy(pathname, maggie->name, sizeof(pathname));
+						BLI_strncpy(G.sce, maggie->name, sizeof(G.sce));
+
 						if (firstTimeRunning)
 						{
+							setGamePythonPath(G.sce);
 							firstTimeRunning = false;
-
-							// set the filename only the first time as in KetsjiEmbedded
-							strcpy (pathname, maggie->name);
-							// also copy here (used by GameLogic.getBaseDirectory)
-							strcpy (G.sce, maggie->name);
 
 							if (fullScreen)
 							{
@@ -723,7 +765,10 @@ int main(int argc, char** argv)
 								else
 #endif
 								{
-									app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
+																										if (parentWindow != 0)
+										app.startEmbeddedWindow(title, parentWindow, stereoWindow, stereomode);
+									else
+										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
 										stereoWindow, stereomode);
 								}
 							}
@@ -750,13 +795,8 @@ int main(int argc, char** argv)
 							}
 						}
 						app.StopGameEngine();
+
 						BLO_blendfiledata_free(bfd);
-						
-#ifdef __APPLE__
-						if (filename) {
-							delete [] filename;
-						}
-#endif // __APPLE__
 					}
 				} while (exitcode == KX_EXIT_REQUEST_RESTART_GAME || exitcode == KX_EXIT_REQUEST_START_OTHER_GAME);
 			}
@@ -771,6 +811,8 @@ int main(int argc, char** argv)
 			printf("error: couldn't create a system.\n");
 		}
 	}
+
+	free_nodesystem();
 
 	return error ? -1 : 0;
 }

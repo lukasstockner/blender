@@ -64,10 +64,15 @@ SET(INC
   ../../../../source/gameengine/GamePlayer/common
   ../../../../source/blender/misc
   ../../../../source/blender/blenloader
+  ../../../../source/blender/gpu
   ../../../../extern/solid
   ../../../../extern/glew/include
   ${PYTHON_INC}
 )
+
+IF(WITH_FFMPEG)
+  ADD_DEFINITIONS(-DWITH_FFMPEG)
+ENDIF(WITH_FFMPEG)
 
 BLENDERLIB_NOLIST(gp_ghost "${SRC}" "${INC}")
 #env.BlenderLib (libname='gp_ghost', sources=source_files, includes = incs, defines = [], libtype='player',priority=0, compileflags=cflags)

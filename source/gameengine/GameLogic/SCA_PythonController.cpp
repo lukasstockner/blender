@@ -33,8 +33,11 @@
 #include "SCA_LogicManager.h"
 #include "SCA_ISensor.h"
 #include "SCA_IActuator.h"
+#include "PyObjectPlus.h"
 #include "compile.h"
 #include "eval.h"
+#include <algorithm>
+
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -139,8 +142,16 @@ void SCA_PythonController::SetDictionary(PyObject*	pythondictionary)
 	m_pythondictionary = PyDict_Copy(pythondictionary); /* new reference */
 }
 
+int SCA_PythonController::IsTriggered(class SCA_ISensor* sensor)
+{
+	if (std::find(m_triggeredSensors.begin(), m_triggeredSensors.end(), sensor) != 
+		m_triggeredSensors.end())
+		return 1;
+	return 0;
+}
+
 #if 0
-static char* sPyGetCurrentController__doc__;
+static const char* sPyGetCurrentController__doc__;
 #endif
 
 
@@ -151,7 +162,7 @@ PyObject* SCA_PythonController::sPyGetCurrentController(PyObject* self)
 }
 
 #if 0
-static char* sPyAddActiveActuator__doc__;
+static const char* sPyAddActiveActuator__doc__;
 #endif
 
 PyObject* SCA_PythonController::sPyAddActiveActuator(
@@ -188,9 +199,9 @@ PyObject* SCA_PythonController::sPyAddActiveActuator(
 }
 
 
-char* SCA_PythonController::sPyGetCurrentController__doc__ = "getCurrentController()";
-char* SCA_PythonController::sPyAddActiveActuator__doc__= "addActiveActuator(actuator,bool)";
-char SCA_PythonController::GetActuators_doc[] = "getActuator";
+const char* SCA_PythonController::sPyGetCurrentController__doc__ = "getCurrentController()";
+const char* SCA_PythonController::sPyAddActiveActuator__doc__= "addActiveActuator(actuator,bool)";
+const char SCA_PythonController::GetActuators_doc[] = "getActuator";
 
 PyTypeObject SCA_PythonController::Type = {
 	PyObject_HEAD_INIT(&PyType_Type)
@@ -218,13 +229,15 @@ PyParentObject SCA_PythonController::Parents[] = {
 	NULL
 };
 PyMethodDef SCA_PythonController::Methods[] = {
-	{"getActuators", (PyCFunction) SCA_PythonController::sPyGetActuators, METH_NOARGS, SCA_PythonController::GetActuators_doc},
-	{"getActuator", (PyCFunction) SCA_PythonController::sPyGetActuator, METH_O, SCA_PythonController::GetActuator_doc},
-	{"getSensors", (PyCFunction) SCA_PythonController::sPyGetSensors, METH_NOARGS, SCA_PythonController::GetSensors_doc},
-	{"getSensor", (PyCFunction) SCA_PythonController::sPyGetSensor, METH_O, SCA_PythonController::GetSensor_doc},
-	{"getScript", (PyCFunction) SCA_PythonController::sPyGetScript, METH_NOARGS},
+	{"getActuators", (PyCFunction) SCA_PythonController::sPyGetActuators, METH_NOARGS, (PY_METHODCHAR)SCA_PythonController::GetActuators_doc},
+	{"getActuator", (PyCFunction) SCA_PythonController::sPyGetActuator, METH_O, (PY_METHODCHAR)SCA_PythonController::GetActuator_doc},
+	{"getSensors", (PyCFunction) SCA_PythonController::sPyGetSensors, METH_NOARGS, (PY_METHODCHAR)SCA_PythonController::GetSensors_doc},
+	{"getSensor", (PyCFunction) SCA_PythonController::sPyGetSensor, METH_O, (PY_METHODCHAR)SCA_PythonController::GetSensor_doc},
 	{"setScript", (PyCFunction) SCA_PythonController::sPySetScript, METH_O},
+	//Deprecated functions ------>
+	{"getScript", (PyCFunction) SCA_PythonController::sPyGetScript, METH_NOARGS},
 	{"getState", (PyCFunction) SCA_PythonController::sPyGetState, METH_NOARGS},
+	//<----- Deprecated
 	{NULL,NULL} //Sentinel
 };
 
@@ -248,9 +261,17 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 		{
 			// didn't compile, so instead of compile, complain
 			// something is wrong, tell the user what went wrong
-			printf("PYTHON SCRIPT ERROR:\n");
+			printf("Python compile error from controller \"%s\": \n", GetName().Ptr());
 			//PyRun_SimpleString(m_scriptText.Ptr());
 			PyErr_Print();
+			
+			/* Added in 2.48a, the last_traceback can reference Objects for example, increasing
+			 * their user count. Not to mention holding references to wrapped data.
+			 * This is especially bad when the PyObject for the wrapped data is free'd, after blender 
+			 * has alredy dealocated the pointer */
+			PySys_SetObject( "last_traceback", Py_None);
+			PyErr_Clear(); /* just to be sure */
+			
 			return;
 		}
 		m_bModified=false;
@@ -285,8 +306,16 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 	else
 	{
 		// something is wrong, tell the user what went wrong
-		printf("PYTHON SCRIPT ERROR:\n");
+		printf("Python script error from controller \"%s\": \n", GetName().Ptr());
 		PyErr_Print();
+		
+		/* Added in 2.48a, the last_traceback can reference Objects for example, increasing
+		 * their user count. Not to mention holding references to wrapped data.
+		 * This is especially bad when the PyObject for the wrapped data is free'd, after blender 
+		 * has alredy dealocated the pointer */
+		PySys_SetObject( "last_traceback", Py_None);
+		PyErr_Clear(); /* just to be sure */
+		
 		//PyRun_SimpleString(m_scriptText.Ptr());
 	}
 
@@ -294,7 +323,7 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 	// something in this dictionary and crash?
 	PyDict_Clear(excdict);
 	Py_DECREF(excdict);
-
+	m_triggeredSensors.erase(m_triggeredSensors.begin(), m_triggeredSensors.end());
 	m_sCurrentController = NULL;
 }
 
@@ -302,9 +331,27 @@ void SCA_PythonController::Trigger(SCA_LogicManager* logicmgr)
 
 PyObject* SCA_PythonController::_getattr(const STR_String& attr)
 {
+	if (attr == "script") {
+		return PyString_FromString(m_scriptText);
+	}
+	if (attr == "state") {
+		return PyInt_FromLong(m_statemask);
+	}
 	_getattr_up(SCA_IController);
 }
 
+int SCA_PythonController::_setattr(const STR_String& attr, PyObject *value)
+{
+	if (attr == "script") {
+		PyErr_SetString(PyExc_AttributeError, "script is read only, use setScript() to update the script");
+		return 1;
+	}
+	if (attr == "state") {
+		PyErr_SetString(PyExc_AttributeError, "state is read only");
+		return 1;
+	}
+	return SCA_IController::_setattr(attr, value);
+}
 
 
 PyObject* SCA_PythonController::PyGetActuators(PyObject* self)
@@ -318,7 +365,7 @@ PyObject* SCA_PythonController::PyGetActuators(PyObject* self)
 	return resultlist;
 }
 
-char SCA_PythonController::GetSensor_doc[] = 
+const char SCA_PythonController::GetSensor_doc[] = 
 "GetSensor (char sensorname) return linked sensor that is named [sensorname]\n";
 PyObject*
 SCA_PythonController::PyGetSensor(PyObject* self, PyObject* value)
@@ -348,7 +395,7 @@ SCA_PythonController::PyGetSensor(PyObject* self, PyObject* value)
 
 
 
-char SCA_PythonController::GetActuator_doc[] = 
+const char SCA_PythonController::GetActuator_doc[] = 
 "GetActuator (char sensorname) return linked actuator that is named [actuatorname]\n";
 PyObject*
 SCA_PythonController::PyGetActuator(PyObject* self, PyObject* value)
@@ -377,7 +424,7 @@ SCA_PythonController::PyGetActuator(PyObject* self, PyObject* value)
 }
 
 
-char SCA_PythonController::GetSensors_doc[]   = "getSensors returns a list of all attached sensors";
+const char SCA_PythonController::GetSensors_doc[]   = "getSensors returns a list of all attached sensors";
 PyObject*
 SCA_PythonController::PyGetSensors(PyObject* self)
 {
@@ -393,6 +440,7 @@ SCA_PythonController::PyGetSensors(PyObject* self)
 /* 1. getScript */
 PyObject* SCA_PythonController::PyGetScript(PyObject* self)
 {
+	ShowDeprecationWarning("getScript()", "the script property");
 	return PyString_FromString(m_scriptText);
 }
 
@@ -416,6 +464,7 @@ PyObject* SCA_PythonController::PySetScript(PyObject* self, PyObject* value)
 /* 1. getScript */
 PyObject* SCA_PythonController::PyGetState(PyObject* self)
 {
+	ShowDeprecationWarning("getState()", "the state property");
 	return PyInt_FromLong(m_statemask);
 }
 

@@ -28,7 +28,6 @@ public:
 		BL_Material*	mat,
 		bool			skin,
 		int				lightlayer,
-		void*			clientobject,
 		PyTypeObject*	T=&Type
 	);
 
@@ -47,7 +46,7 @@ public:
 	
 	virtual 
 	void ActivateMeshSlot(
-		const KX_MeshSlot & ms, 
+		const RAS_MeshSlot & ms, 
 		RAS_IRasterizer* rasty 
 	) const;
 	
@@ -68,6 +67,12 @@ public:
 
 	MTFace* GetMTFace(void) const;
 	unsigned int* GetMCol(void) const;
+	BL_Texture * getTex (unsigned int idx) { 
+		return (idx < MAXTEX) ? mTextures + idx : NULL; 
+	}
+	Image * getImage (unsigned int idx) { 
+		return (idx < MAXTEX && mMaterial) ? mMaterial->img[idx] : NULL; 
+	}
 
 	// for ipos
 	void UpdateIPO(

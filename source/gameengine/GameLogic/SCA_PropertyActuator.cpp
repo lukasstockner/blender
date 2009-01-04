@@ -245,25 +245,44 @@ PyParentObject SCA_PropertyActuator::Parents[] = {
 };
 
 PyMethodDef SCA_PropertyActuator::Methods[] = {
-	{"setProperty", (PyCFunction) SCA_PropertyActuator::sPySetProperty, METH_VARARGS, SetProperty_doc},
-	{"getProperty", (PyCFunction) SCA_PropertyActuator::sPyGetProperty, METH_VARARGS, GetProperty_doc},
-	{"setValue", (PyCFunction) SCA_PropertyActuator::sPySetValue, METH_VARARGS, SetValue_doc},
-	{"getValue", (PyCFunction) SCA_PropertyActuator::sPyGetValue, METH_VARARGS, GetValue_doc},
+	//Deprecated functions ------>
+	{"setProperty", (PyCFunction) SCA_PropertyActuator::sPySetProperty, METH_VARARGS, (PY_METHODCHAR)SetProperty_doc},
+	{"getProperty", (PyCFunction) SCA_PropertyActuator::sPyGetProperty, METH_VARARGS, (PY_METHODCHAR)GetProperty_doc},
+	{"setValue", (PyCFunction) SCA_PropertyActuator::sPySetValue, METH_VARARGS, (PY_METHODCHAR)SetValue_doc},
+	{"getValue", (PyCFunction) SCA_PropertyActuator::sPyGetValue, METH_VARARGS, (PY_METHODCHAR)GetValue_doc},
+	//<----- Deprecated
 	{NULL,NULL} //Sentinel
 };
 
+PyAttributeDef SCA_PropertyActuator::Attributes[] = {
+	KX_PYATTRIBUTE_STRING_RW_CHECK("property",0,100,false,SCA_PropertyActuator,m_propname,CheckProperty),
+	KX_PYATTRIBUTE_STRING_RW("value",0,100,false,SCA_PropertyActuator,m_exprtxt),
+	{ NULL }	//Sentinel
+};
+
 PyObject* SCA_PropertyActuator::_getattr(const STR_String& attr) {
+	PyObject* object = _getattr_self(Attributes, this, attr);
+	if (object != NULL)
+		return object;
 	_getattr_up(SCA_IActuator);
 }
 
+int SCA_PropertyActuator::_setattr(const STR_String& attr, PyObject *value) {
+	int ret = _setattr_self(Attributes, this, attr, value);
+	if (ret >= 0)
+		return ret;
+	return SCA_IActuator::_setattr(attr, value);
+}
+
 /* 1. setProperty                                                        */
-char SCA_PropertyActuator::SetProperty_doc[] = 
+const char SCA_PropertyActuator::SetProperty_doc[] = 
 "setProperty(name)\n"
 "\t- name: string\n"
 "\tSet the property on which to operate. If there is no property\n"
 "\tof this name, the call is ignored.\n";
 PyObject* SCA_PropertyActuator::PySetProperty(PyObject* self, PyObject* args, PyObject* kwds)
 {
+	ShowDeprecationWarning("setProperty()", "the 'property' property");
 	/* Check whether the name exists first ! */
 	char *nameArg;
 	if (!PyArg_ParseTuple(args, "s", &nameArg)) {
@@ -283,16 +302,17 @@ PyObject* SCA_PropertyActuator::PySetProperty(PyObject* self, PyObject* args, Py
 }
 
 /* 2. getProperty                                                        */
-char SCA_PropertyActuator::GetProperty_doc[] = 
+const char SCA_PropertyActuator::GetProperty_doc[] = 
 "getProperty(name)\n"
 "\tReturn the property on which the actuator operates.\n";
 PyObject* SCA_PropertyActuator::PyGetProperty(PyObject* self, PyObject* args, PyObject* kwds)
 {
+	ShowDeprecationWarning("getProperty()", "the 'property' property");
 	return PyString_FromString(m_propname);
 }
 
 /* 3. setValue                                                        */
-char SCA_PropertyActuator::SetValue_doc[] = 
+const char SCA_PropertyActuator::SetValue_doc[] = 
 "setValue(value)\n"
 "\t- value: string\n"
 "\tSet the value with which the actuator operates. If the value\n"
@@ -300,6 +320,7 @@ char SCA_PropertyActuator::SetValue_doc[] =
 "\t action is ignored.\n";
 PyObject* SCA_PropertyActuator::PySetValue(PyObject* self, PyObject* args, PyObject* kwds)
 {
+	ShowDeprecationWarning("setValue()", "the value property");
 	char *valArg;
 	if(!PyArg_ParseTuple(args, "s", &valArg)) {
 		return NULL;		
@@ -311,11 +332,12 @@ PyObject* SCA_PropertyActuator::PySetValue(PyObject* self, PyObject* args, PyObj
 }
 
 /* 4. getValue                                                        */
-char SCA_PropertyActuator::GetValue_doc[] = 
+const char SCA_PropertyActuator::GetValue_doc[] = 
 "getValue()\n"
 "\tReturns the value with which the actuator operates.\n";
 PyObject* SCA_PropertyActuator::PyGetValue(PyObject* self, PyObject* args, PyObject* kwds)
 {
+	ShowDeprecationWarning("getValue()", "the value property");
 	return PyString_FromString(m_exprtxt);
 }
 
