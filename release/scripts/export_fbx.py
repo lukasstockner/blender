@@ -66,8 +66,6 @@ import BPyMesh
 import BPySys
 import BPyMessages
 
-import sys
-
 ## This was used to make V, but faster not to do all that
 ##valid = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_,.()[]{}'
 ##v = range(255)
@@ -184,7 +182,19 @@ def sane_texname(data):		return sane_name(data, sane_name_mapping_tex)
 def sane_takename(data):	return sane_name(data, sane_name_mapping_take)
 def sane_groupname(data):	return sane_name(data, sane_name_mapping_group)
 
-
+def derived_paths(fname_orig, basepath, FORCE_CWD=False):
+	'''
+	fname_orig - blender path, can be relative
+	basepath - fname_rel will be relative to this
+	FORCE_CWD - dont use the basepath, just add a ./ to the filename.
+		use when we know the file will be in the basepath.
+	'''
+	fname = Blender.sys.expandpath(fname_orig)
+	fname_strip = strip_path(fname)
+	if FORCE_CWD:	fname_rel = '.' + Blender.sys.sep + fname_strip
+	else:				fname_rel = Blender.sys.relpath(fname, basepath)
+	if fname_rel.startswith('//'): fname_rel = '.' + Blender.sys.sep + fname_rel[2:]
+	return fname, fname_strip, fname_rel
 
 
 def mat4x4str(mat):
@@ -342,6 +352,8 @@ def write(filename, batch_objects = None, \
 	
 	# end batch support
 	
+	# Use this for working out paths relative to the export location
+	basepath = Blender.sys.dirname(filename)
 	
 	# ----------------------------------------------
 	# storage classes
@@ -1141,10 +1153,9 @@ def write(filename, batch_objects = None, \
 			Property: "Width", "int", "",0
 			Property: "Height", "int", "",0''')
 		if tex:
-			fname = tex.filename
-			fname_strip = strip_path(fname)
+			fname, fname_strip, fname_rel = derived_paths(tex.filename, basepath, EXP_IMAGE_COPY)
 		else:
-			fname = fname_strip = ''
+			fname = fname_strip = fname_rel = ''
 		
 		file.write('\n\t\t\tProperty: "Path", "charptr", "", "%s"' % fname_strip)
 		
@@ -1163,7 +1174,7 @@ def write(filename, batch_objects = None, \
 		
 		file.write('\n\t\tFilename: "%s"' % fname_strip)
 		if fname_strip: fname_strip = '/' + fname_strip
-		file.write('\n\t\tRelativeFilename: "fbx%s"' % fname_strip) # make relative
+		file.write('\n\t\tRelativeFilename: "%s"' % fname_rel) # make relative
 		file.write('\n\t}')
 
 	
@@ -1202,13 +1213,14 @@ def write(filename, batch_objects = None, \
 		}''')
 		
 		file.write('\n\t\tMedia: "Video::%s"' % texname)
+		
 		if tex:
-			fname = tex.filename
-			file.write('\n\t\tFileName: "%s"' % strip_path(fname))
-			file.write('\n\t\tRelativeFilename: "fbx/%s"' % strip_path(fname)) # need some make relative command
+			fname, fname_strip, fname_rel = derived_paths(tex.filename, basepath, EXP_IMAGE_COPY)
 		else:
-			file.write('\n\t\tFileName: ""')
-			file.write('\n\t\tRelativeFilename: "fbx"')
+			fname = fname_strip = fname_rel = ''
+		
+		file.write('\n\t\tFileName: "%s"' % fname_strip)
+		file.write('\n\t\tRelativeFilename: "%s"' % fname_rel) # need some make relative command
 		
 		file.write('''
 		ModelUVTranslation: 0,0
@@ -1434,13 +1446,13 @@ def write(filename, batch_objects = None, \
 				for f in me.faces:
 					for col in f.col:
 						if i==-1:
-							file.write('%i,%i,%i' % (col[0], col[1], col[2]))
+							file.write('%i,%i,%i,255' % (col[0], col[1], col[2]))
 							i=0
 						else:
 							if i==7:
 								file.write('\n\t\t\t\t')
 								i=0
-							file.write(',%i,%i,%i' % (col[0], col[1], col[2]))
+							file.write(',%i,%i,%i,255' % (col[0], col[1], col[2]))
 						i+=1
 						ii+=1 # One more Color
 				
@@ -2658,7 +2670,7 @@ Takes:  {''')
 	
 	# copy images if enabled
 	if EXP_IMAGE_COPY:
-		copy_images( Blender.sys.dirname(filename),  [ tex[1] for tex in textures if tex[1] != None ])	
+		copy_images( basepath,  [ tex[1] for tex in textures if tex[1] != None ])	
 	
 	print 'export finished in %.4f sec.' % (Blender.sys.time() - start_time)
 	return True
@@ -2887,7 +2899,7 @@ def fbx_ui():
 def write_ui():
 	
 	# globals
-	GLOBALS['EVENT'] = 2
+	GLOBALS['EVENT'] = EVENT_REDRAW
 	#GLOBALS['MOUSE'] = Window.GetMouseCoords()
 	GLOBALS['MOUSE'] = [i/2 for i in Window.GetScreenSize()]
 	GLOBALS['FILENAME'] = ''
@@ -2929,13 +2941,6 @@ def write_ui():
 	GLOBALS['_YROT90'] =					Draw.Create(False)
 	GLOBALS['_ZROT90'] =					Draw.Create(False)
 	
-	# horrible ugly hack so tooltips draw, dosnt always work even
-	# Fixed in Draw.UIBlock for 2.45rc2, but keep this until 2.45 is released
-	Window.SetKeyQualifiers(0)
-	while Window.GetMouseButtons(): Blender.sys.sleep(10)
-	for i in xrange(100): Window.QHandle(i)
-	# END HORRID HACK
-	
 	# best not do move the cursor
 	# Window.SetMouseCoords(*[i/2 for i in Window.GetScreenSize()])
 	
@@ -2959,7 +2964,7 @@ def write_ui():
 			#fbx_ui_write('/test.fbx')
 			break
 		
-		Draw.UIBlock(fbx_ui)
+		Draw.UIBlock(fbx_ui, 0)
 	
 	
 	# GLOBALS.clear()

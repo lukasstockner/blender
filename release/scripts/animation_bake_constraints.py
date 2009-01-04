@@ -155,7 +155,7 @@ usrObjectNamePrefix= ""
 # if that armature had bones (spine, neck, arm) and the bone prefix was "a."
 #  the bones and IPO curves will be (a.spine, a.neck, a.arm)
 
-R2D = 18/3.1415  # radian to grad
+R2D = 18/3.141592653589793  # radian to grad
 BLENDER_VERSION = Blender.Get('version')
 
 # Gets the current scene, there can be many scenes in 1 blend file. 
@@ -602,7 +602,7 @@ def bakeObject(ob): #bakes the core object locrot and assigns the Ipo to a Clone
 	if ob != None:  
 		# Clone the object - duplicate it, clean the clone, and create an ipo curve for the clone
 		myob = duplicateLinked(ob)  #clone it
-		myob.name= usrObjectNamePrefix + ob.getName()
+		myob.setName(usrObjectNamePrefix + ob.getName())
 		removeConstraintsOb(myob)   #my object is a free man
 		deLinkOb('Ipo',myob)        #kids, it's not nice to share. you've been lied to
 		if ob.getType() != ARMATURE: # baking armatures is based on bones, not object
