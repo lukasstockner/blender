@@ -69,6 +69,7 @@ done once.
 		- BILLBOARD - always orient after camera.
 		- HALO - halo face, always point to camera.
 		- DYNAMIC - respond to collisions.
+		- ALPHASORT - game engine sorts these faces only.
 		- INVISIBLE - invisible face.
 		- LIGHT - dynamic lighting.
 		- OBCOL - use object color instead of vertex colors.
@@ -84,6 +85,7 @@ done once.
 		- ADD - add to background (halo).
 		- ALPHA - draw with transparency.
 		- SUB - subtract from background.
+		- CLIP - Clipped alpha.
 @var EdgeFlags: The available edge flags.
 		- SELECT - selected (B{deprecated}).  Use edge.sel attribute instead.
 		- EDGEDRAW - edge is drawn out of edition mode.
@@ -635,7 +637,7 @@ class MFaceSeq:
 		This object provides sequence and iterator access to the mesh's faces.
 	"""
 
-	def extend(vertseq,ignoreDups=True,indexList=True):
+	def extend(vertseq,ignoreDups=True,indexList=True,smooth=False):
 		"""
 		Add zero or more faces and edges to the mesh.  Faces which already exist
 		in the mesh, or faces which contain the same vertex multiple times are

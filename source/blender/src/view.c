@@ -94,6 +94,9 @@
 #define TRACKBALLSIZE  (1.1)
 #define BL_NEAR_CLIP 0.001
 
+#define COS45 0.70710678118654746
+#define SIN45 COS45
+
 
 /* local prototypes ----------*/
 void setcameratoview3d(void); /* windows.c & toets.c */
@@ -108,7 +111,7 @@ void persp_general(int a)
 		glPushMatrix();
 		glMatrixMode(GL_MODELVIEW);
 
-		myortho2(-0.375, ((float)(curarea->winx))-0.375, -0.375, ((float)(curarea->winy))-0.375);
+		myortho2(-0.375f, ((float)(curarea->winx))-0.375f, -0.375f, ((float)(curarea->winy))-0.375f);
 		glLoadIdentity();
 	}
 	else if(a== 1) {
@@ -131,7 +134,7 @@ void persp(int a)
 		mygetmatrix(G.vd->viewmat1); 
 	}
 	else if(a== PERSP_WIN) {		// only set
-		myortho2(-0.375, (float)(curarea->winx)-0.375, -0.375, (float)(curarea->winy)-0.375);
+		myortho2(-0.375f, (float)(curarea->winx)-0.375f, -0.375f, (float)(curarea->winy)-0.375f);
 		glLoadIdentity();
 	}
 	else if(a== PERSP_VIEW) {
@@ -239,8 +242,8 @@ void project_short(float *vec, short *adr)	/* clips */
 			fy= (curarea->winy/2)*(1 + vec4[1]/vec4[3]);
 			
 			if(fy>0.0 && fy< (float)curarea->winy) {
-				adr[0]= floor(fx); 
-				adr[1]= floor(fy);
+				adr[0]= (short)floor(fx); 
+				adr[1]= (short)floor(fy);
 			}
 		}
 	}
@@ -250,7 +253,7 @@ void project_int(float *vec, int *adr)
 {
 	float fx, fy, vec4[4];
 
-	adr[0]= 2140000000.0f;
+	adr[0]= (int)2140000000.0f;
 	VECCOPY(vec4, vec);
 	vec4[3]= 1.0;
 	
@@ -263,8 +266,8 @@ void project_int(float *vec, int *adr)
 			fy= (curarea->winy/2)*(1 + vec4[1]/vec4[3]);
 			
 			if(fy>-2140000000.0f && fy<2140000000.0f) {
-				adr[0]= floor(fx); 
-				adr[1]= floor(fy);
+				adr[0]= (int)floor(fx); 
+				adr[1]= (int)floor(fy);
 			}
 		}
 	}
@@ -283,8 +286,8 @@ void project_int_noclip(float *vec, int *adr)
 		fx = (curarea->winx/2)*(1 + vec4[0]/vec4[3]);
 		fy = (curarea->winy/2)*(1 + vec4[1]/vec4[3]);
 			
-		adr[0] = floor(fx); 
-		adr[1] = floor(fy);
+		adr[0] = (int)floor(fx); 
+		adr[1] = (int)floor(fy);
 	}
 	else
 	{
@@ -311,8 +314,8 @@ void project_short_noclip(float *vec, short *adr)
 			fy= (curarea->winy/2)*(1 + vec4[1]/vec4[3]);
 			
 			if(fy>-32700.0 && fy<32700.0) {
-				adr[0]= floor(fx); 
-				adr[1]= floor(fy);
+				adr[0]= (short)floor(fx); 
+				adr[1]= (short)floor(fy);
 			}
 		}
 	}
@@ -329,8 +332,8 @@ void project_float(float *vec, float *adr)
 	Mat4MulVec4fl(G.vd->persmat, vec4);
 
 	if( vec4[3]>BL_NEAR_CLIP ) {
-		adr[0] = (curarea->winx/2.0)+(curarea->winx/2.0)*vec4[0]/vec4[3];	
-		adr[1] = (curarea->winy/2.0)+(curarea->winy/2.0)*vec4[1]/vec4[3];
+		adr[0] = (float)(curarea->winx/2.0)+(curarea->winx/2.0)*vec4[0]/vec4[3];	
+		adr[1] = (float)(curarea->winy/2.0)+(curarea->winy/2.0)*vec4[1]/vec4[3];
 	}
 }
 
@@ -344,8 +347,8 @@ void project_float_noclip(float *vec, float *adr)
 	Mat4MulVec4fl(G.vd->persmat, vec4);
 
 	if( fabs(vec4[3]) > BL_NEAR_CLIP ) {
-		adr[0] = (curarea->winx/2.0)+(curarea->winx/2.0)*vec4[0]/vec4[3];	
-		adr[1] = (curarea->winy/2.0)+(curarea->winy/2.0)*vec4[1]/vec4[3];
+		adr[0] = (float)(curarea->winx/2.0)+(curarea->winx/2.0)*vec4[0]/vec4[3];	
+		adr[1] = (float)(curarea->winy/2.0)+(curarea->winy/2.0)*vec4[1]/vec4[3];
 	}
 	else
 	{
@@ -398,8 +401,8 @@ void view3d_project_short_clip(ScrArea *area, float *vec, short *adr, float proj
 			fy= (area->winy/2)*(1 + vec4[1]/vec4[3]);
 			
 			if(fy>0.0 && fy< (float)area->winy) {
-				adr[0]= floor(fx); 
-				adr[1]= floor(fy);
+				adr[0]= (short)floor(fx); 
+				adr[1]= (short)floor(fy);
 			}
 		}
 	}
@@ -424,8 +427,8 @@ void view3d_project_short_noclip(ScrArea *area, float *vec, short *adr, float ma
 			fy= (area->winy/2)*(1 + vec4[1]/vec4[3]);
 			
 			if(fy>-32700.0 && fy<32700.0) {
-				adr[0]= floor(fx); 
-				adr[1]= floor(fy);
+				adr[0]= (short)floor(fx); 
+				adr[1]= (short)floor(fy);
 			}
 		}
 	}
@@ -442,10 +445,10 @@ void view3d_project_float(ScrArea *area, float *vec, float *adr, float mat[4][4]
 	Mat4MulVec4fl(mat, vec4);
 
 	if( vec4[3]>FLT_EPSILON ) {
-		adr[0] = (area->winx/2.0)+(area->winx/2.0)*vec4[0]/vec4[3];	
-		adr[1] = (area->winy/2.0)+(area->winy/2.0)*vec4[1]/vec4[3];
+		adr[0] = (float)(area->winx/2.0f)+(area->winx/2.0f)*vec4[0]/vec4[3];	
+		adr[1] = (float)(area->winy/2.0f)+(area->winy/2.0f)*vec4[1]/vec4[3];
 	} else {
-		adr[0] = adr[1] = 0.0;
+		adr[0] = adr[1] = 0.0f;
 	}
 }
 
@@ -793,6 +796,85 @@ void viewmoveNDOFfly(int mode)
 	BIF_view3d_previewrender_signal(curarea, PR_DBASE|PR_DISPRECT);
 }
 
+/* Be sure to run persp(PERSP_VIEW) if this isnt set,
+ *
+ * mouse_worldloc - worldspace vector that is set
+ * mval - screenspace location, or from getmouseco_areawin(mval)
+ * dist - the size of the square to use when averaging the Z depth.
+ */
+int view_mouse_depth( float mouse_worldloc[3], short mval[2], int dist)
+{
+	View3D *v3d = G.vd;
+	rcti rect;
+	
+	/* ZBuffer depth vars */
+	bglMats mats;
+	float depth, depth_close= MAXFLOAT;
+	int had_depth = 0;
+	double cent[2],  p[3];
+	int xs, ys;
+	
+	getmouseco_areawin(mval);
+	
+	/* persp(PERSP_VIEW); */
+	
+	rect.xmax = mval[0] + dist;
+	rect.ymax = mval[1] + dist;
+	
+	rect.xmin = mval[0] - dist;
+	rect.ymin = mval[1] - dist;
+	
+	/* Get Z Depths, needed for perspective, nice for ortho */
+	bgl_get_mats(&mats);
+	draw_depth(curarea, (void *)v3d, NULL);
+	
+	/* force updating */
+	if (v3d->depths) {
+		had_depth = 1;
+		v3d->depths->damaged = 1;
+	}
+	
+	view3d_update_depths(v3d);
+	
+	/* Constrain rect to depth bounds */
+	if (rect.xmin < 0) rect.xmin = 0;
+	if (rect.ymin < 0) rect.ymin = 0;
+	if (rect.xmax >= v3d->depths->w) rect.xmax = v3d->depths->w-1;
+	if (rect.ymax >= v3d->depths->h) rect.ymax = v3d->depths->h-1;		
+	
+	/* Find the closest Z pixel */
+	for (xs=rect.xmin; xs < rect.xmax; xs++) {
+		for (ys=rect.ymin; ys < rect.ymax; ys++) {
+			depth= v3d->depths->depths[ys*v3d->depths->w+xs];
+			if(depth < v3d->depths->depth_range[1] && depth > v3d->depths->depth_range[0]) {
+				if (depth_close > depth) {
+					depth_close = depth;
+				}
+			}
+		}
+	}
+	
+	if (depth_close==MAXFLOAT)
+		return 0;
+		
+	if (had_depth==0) {
+		MEM_freeN(v3d->depths->depths);
+		v3d->depths->depths = NULL;
+	}
+	v3d->depths->damaged = 1;
+	
+	cent[0] = (double)mval[0];
+	cent[1] = (double)mval[1];
+	
+	if (!gluUnProject(cent[0], cent[1], depth_close, mats.modelview, mats.projection, mats.viewport, &p[0], &p[1], &p[2]))
+		return 0;
+
+	mouse_worldloc[0] = (float)p[0];
+	mouse_worldloc[1] = (float)p[1];
+	mouse_worldloc[2] = (float)p[2];
+	return 1;
+}
+
 void viewmove(int mode)
 {
 	static float lastofs[3] = {0,0,0};
@@ -825,14 +907,10 @@ void viewmove(int mode)
 		Mat3MulVecfl(mat, upvec);
 		VecAddf(G.vd->ofs, G.vd->ofs, upvec);
 	}
-
-
 		
 	/* sometimes this routine is called from headerbuttons */
 
 	areawinset(curarea->win);
-	
-	initgrabz(-G.vd->ofs[0], -G.vd->ofs[1], -G.vd->ofs[2]);
 	
 	QUATCOPY(oldquat, G.vd->viewquat);
 	
@@ -867,9 +945,47 @@ void viewmove(int mode)
 		VECCOPY(obofs, lastofs);
 		VecMulf(obofs, -1.0f);
 	}
+	else if (U.uiflag & USER_ORBIT_ZBUF) {
+		persp(PERSP_VIEW);
+		if ((use_sel=view_mouse_depth(obofs, mval_area, 4))) {
+			if (G.vd->persp==V3D_PERSP) {
+				float my_origin[3]; /* original G.vd->ofs */
+				float my_pivot[3]; /* view */
+				
+				VECCOPY(my_origin, G.vd->ofs);
+				VecMulf(my_origin, -1.0f);				/* ofs is flipped */
+				
+				/* Set the dist value to be the distance from this 3d point */
+				/* this means youll always be able to zoom into it and panning wont go bad when dist was zero */
+				
+				/* remove dist value */			
+				upvec[0] = upvec[1] = 0;
+				upvec[2] = G.vd->dist;
+				Mat3CpyMat4(mat, G.vd->viewinv);
+				Mat3MulVecfl(mat, upvec);
+				VecSubf(my_pivot, G.vd->ofs, upvec);
+				VecMulf(my_pivot, -1.0f);				/* ofs is flipped */
+				
+				/* find a new ofs value that is allong the view axis (rather then the mouse location) */
+				lambda_cp_line_ex(obofs, my_pivot, my_origin, dvec);
+				dist0 = G.vd->dist = VecLenf(my_pivot, dvec);
+				
+				VecMulf(dvec, -1.0f);
+				VECCOPY(G.vd->ofs, dvec);
+			}
+			VecMulf(obofs, -1.0f);
+			VECCOPY(ofs, G.vd->ofs);
+		} else {
+			ofs[0] = ofs[1] = ofs[2] = 0.0f;
+		}
+
+		persp(PERSP_WIN);
+	}
 	else
 		ofs[0] = ofs[1] = ofs[2] = 0.0f;
-
+	
+	initgrabz(-G.vd->ofs[0], -G.vd->ofs[1], -G.vd->ofs[2]);
+	
 	reverse= 1.0f;
 	if (G.vd->persmat[2][1] < 0.0f)
 		reverse= -1.0f;
@@ -889,7 +1005,6 @@ void viewmove(int mode)
 				/* are we translating, rotating or zooming? */
 				if(mode==0) {
 					if(G.vd->view!=0) scrarea_queue_headredraw(curarea);	/*for button */
-					G.vd->view= 0;
 				}
 				if(G.vd->persp==V3D_CAMOB && mode!=1 && G.vd->camera) {
 					G.vd->persp= V3D_PERSP;
@@ -899,6 +1014,8 @@ void viewmove(int mode)
 			}
 
 			if(mode==0) {	/* view rotate */
+				G.vd->view= 0; /* need to reset everytime because of view snapping */
+		
 				if (U.uiflag & USER_AUTOPERSP) G.vd->persp= V3D_PERSP;
 
 				if (U.flag & USER_TRACKBALL) mvalball[0]= mval[0];
@@ -997,6 +1114,87 @@ void viewmove(int mode)
 						VecAddf(G.vd->ofs, G.vd->ofs, obofs);
 					}
 				}
+				
+				/* check for view snap */
+				if (G.qual==LR_CTRLKEY){
+					int i;
+					float viewmat[3][3];
+
+					static const float thres = 0.93f; //cos(20 deg);
+					
+					static float snapquats[39][6] = {
+						/*{q0, q1, q3, q4, view, oposite_direction}*/
+						{COS45, -SIN45, 0.0, 0.0, 1, 0},  //front
+						{0.0, 0.0, -SIN45, -SIN45, 1, 1}, //back
+						{1.0, 0.0, 0.0, 0.0, 7, 0},       //top
+						{0.0, -1.0, 0.0, 0.0, 7, 1},      //bottom
+						{0.5, -0.5, -0.5, -0.5, 3, 0},    //left
+						{0.5, -0.5, 0.5, 0.5, 3, 1},      //right
+						
+						/* some more 45 deg snaps */
+						{0.65328145027160645, -0.65328145027160645, 0.27059805393218994, 0.27059805393218994, 0, 0},
+						{0.92387950420379639, 0.0, 0.0, 0.38268342614173889, 0, 0},
+						{0.0, -0.92387950420379639, 0.38268342614173889, 0.0, 0, 0},
+						{0.35355335474014282, -0.85355335474014282, 0.35355338454246521, 0.14644660055637360, 0, 0},
+						{0.85355335474014282, -0.35355335474014282, 0.14644660055637360, 0.35355338454246521, 0, 0},
+						{0.49999994039535522, -0.49999994039535522, 0.49999997019767761, 0.49999997019767761, 0, 0},
+						{0.27059802412986755, -0.65328145027160645, 0.65328145027160645, 0.27059802412986755, 0, 0},
+						{0.65328145027160645, -0.27059802412986755, 0.27059802412986755, 0.65328145027160645, 0, 0},
+						{0.27059799432754517, -0.27059799432754517, 0.65328139066696167, 0.65328139066696167, 0, 0},
+						{0.38268336653709412, 0.0, 0.0, 0.92387944459915161, 0, 0},
+						{0.0, -0.38268336653709412, 0.92387944459915161, 0.0, 0, 0},
+						{0.14644658565521240, -0.35355335474014282, 0.85355335474014282, 0.35355335474014282, 0, 0},
+						{0.35355335474014282, -0.14644658565521240, 0.35355335474014282, 0.85355335474014282, 0, 0},
+						{0.0, 0.0, 0.92387944459915161, 0.38268336653709412, 0, 0},
+						{-0.0, 0.0, 0.38268336653709412, 0.92387944459915161, 0, 0},
+						{-0.27059802412986755, 0.27059802412986755, 0.65328133106231689, 0.65328133106231689, 0, 0},
+						{-0.38268339633941650, 0.0, 0.0, 0.92387938499450684, 0, 0},
+						{0.0, 0.38268339633941650, 0.92387938499450684, 0.0, 0, 0},
+						{-0.14644658565521240, 0.35355338454246521, 0.85355329513549805, 0.35355332493782043, 0, 0},
+						{-0.35355338454246521, 0.14644658565521240, 0.35355332493782043, 0.85355329513549805, 0, 0},
+						{-0.49999991059303284, 0.49999991059303284, 0.49999985098838806, 0.49999985098838806, 0, 0},
+						{-0.27059799432754517, 0.65328145027160645, 0.65328139066696167, 0.27059799432754517, 0, 0},
+						{-0.65328145027160645, 0.27059799432754517, 0.27059799432754517, 0.65328139066696167, 0, 0},
+						{-0.65328133106231689, 0.65328133106231689, 0.27059793472290039, 0.27059793472290039, 0, 0},
+						{-0.92387932538986206, 0.0, 0.0, 0.38268333673477173, 0, 0},
+						{0.0, 0.92387932538986206, 0.38268333673477173, 0.0, 0, 0},
+						{-0.35355329513549805, 0.85355329513549805, 0.35355329513549805, 0.14644657075405121, 0, 0},
+						{-0.85355329513549805, 0.35355329513549805, 0.14644657075405121, 0.35355329513549805, 0, 0},
+						{-0.38268330693244934, 0.92387938499450684, 0.0, 0.0, 0, 0},
+						{-0.92387938499450684, 0.38268330693244934, 0.0, 0.0, 0, 0},
+						{-COS45, 0.0, 0.0, SIN45, 0, 0},
+						{COS45, 0.0, 0.0, SIN45, 0, 0},
+						{0.0, 0.0, 0.0, 1.0, 0, 0}
+					};
+
+					QuatToMat3(G.vd->viewquat, viewmat);
+
+					for (i = 0 ; i < 39; i++){
+						float snapmat[3][3];
+						float view = (int)snapquats[i][4];
+						float oposite_dir = (int)snapquats[i][5];
+						
+						QuatToMat3(snapquats[i], snapmat);
+						
+						if ((Inpf(snapmat[0], viewmat[0]) > thres) &&
+							(Inpf(snapmat[1], viewmat[1]) > thres) &&
+							(Inpf(snapmat[2], viewmat[2]) > thres)){
+							
+							QUATCOPY(G.vd->viewquat, snapquats[i]);
+							
+							G.vd->view = view;
+							if (view){
+								if (oposite_dir){
+									G.vd->flag2 |= V3D_OPP_DIRECTION_NAME;
+								}else{
+									G.vd->flag2 &= ~V3D_OPP_DIRECTION_NAME;
+								}
+							}
+							
+							break;
+						}
+					}
+				}
 			}
 			else if(mode==1) {	/* translate */
 				if(G.vd->persp==V3D_CAMOB) {
@@ -1046,9 +1244,20 @@ void viewmove(int mode)
 					zfac*G.vd->dist < 10.0*G.vd->far)
 					view_zoom_mouseloc(zfac, mval_area);
 				
-				/* these limits are in toets.c too */
-				if(G.vd->dist<0.001*G.vd->grid) G.vd->dist= 0.001*G.vd->grid;
-				if(G.vd->dist>10.0*G.vd->far) G.vd->dist=10.0*G.vd->far;
+				
+				if ((U.uiflag & USER_ORBIT_ZBUF) && (U.viewzoom==USER_ZOOM_CONT) && (G.vd->persp==V3D_PERSP)) {
+					/* Secret apricot feature, translate the view when in continues mode */
+					upvec[0] = upvec[1] = 0;
+					upvec[2] = (dist0 - G.vd->dist) * G.vd->grid;
+					G.vd->dist = dist0;
+					Mat3CpyMat4(mat, G.vd->viewinv);
+					Mat3MulVecfl(mat, upvec);
+					VecAddf(G.vd->ofs, G.vd->ofs, upvec);
+				} else {
+					/* these limits are in toets.c too */
+					if(G.vd->dist<0.001*G.vd->grid) G.vd->dist= 0.001*G.vd->grid;
+					if(G.vd->dist>10.0*G.vd->far) G.vd->dist=10.0*G.vd->far;
+				}
 				
 				if(G.vd->persp==V3D_ORTHO || G.vd->persp==V3D_CAMOB) preview3d_event= 0;
 			}
@@ -1059,7 +1268,6 @@ void viewmove(int mode)
 			mvalo[1]= mval[1];
 
 			if(G.f & G_PLAYANIM) inner_play_anim_loop(0, 0);
-			if(G.f & G_SIMULATION) break;
 
 			/* If in retopo paint mode, update lines */
 			if(retopo_mesh_paint_check() && G.vd->retopo_view_data) {
@@ -1957,20 +2165,20 @@ void centerview()	/* like a localview without local! */
 	afm[0]= (max[0]-min[0]);
 	afm[1]= (max[1]-min[1]);
 	afm[2]= (max[2]-min[2]);
-	size= 0.7*MAX3(afm[0], afm[1], afm[2]);
+	size= 0.7f*MAX3(afm[0], afm[1], afm[2]);
 	
-	if(size <= G.vd->near*1.5) size= G.vd->near*1.5;
+	if(size <= G.vd->near*1.5f) size= G.vd->near*1.5f;
 	
-	new_ofs[0]= -(min[0]+max[0])/2.0;
-	new_ofs[1]= -(min[1]+max[1])/2.0;
-	new_ofs[2]= -(min[2]+max[2])/2.0;
+	new_ofs[0]= -(min[0]+max[0])/2.0f;
+	new_ofs[1]= -(min[1]+max[1])/2.0f;
+	new_ofs[2]= -(min[2]+max[2])/2.0f;
 	
 	new_dist = size;
 
 	/* correction for window aspect ratio */
 	if(curarea->winy>2 && curarea->winx>2) {
 		size= (float)curarea->winx/(float)curarea->winy;
-		if(size<1.0) size= 1.0/size;
+		if(size<1.0f) size= 1.0f/size;
 		new_dist*= size;
 	}
 	
@@ -1982,7 +2190,7 @@ void centerview()	/* like a localview without local! */
 		float orig_lens= G.vd->lens;
 		
 		G.vd->persp=V3D_PERSP;
-		G.vd->dist= 0.0;
+		G.vd->dist= 0.0f;
 		view_settings_from_ob(G.vd->camera, G.vd->ofs, NULL, NULL, &G.vd->lens);
 		smooth_view(G.vd, new_ofs, NULL, &new_dist, &orig_lens);
 	} else {
@@ -2065,8 +2273,8 @@ void view3d_home(int center)
 	int ok= 1, onedone=0;
 
 	if(center) {
-		min[0]= min[1]= min[2]= 0.0;
-		max[0]= max[1]= max[2]= 0.0;
+		min[0]= min[1]= min[2]= 0.0f;
+		max[0]= max[1]= max[2]= 0.0f;
 	}
 	else {
 		INIT_MINMAX(min, max);
@@ -2083,7 +2291,7 @@ void view3d_home(int center)
 	afm[0]= (max[0]-min[0]);
 	afm[1]= (max[1]-min[1]);
 	afm[2]= (max[2]-min[2]);
-	size= 0.7*MAX3(afm[0], afm[1], afm[2]);
+	size= 0.7f*MAX3(afm[0], afm[1], afm[2]);
 	if(size==0.0) ok= 0;
 		
 	if(ok) {
@@ -2091,14 +2299,14 @@ void view3d_home(int center)
 		float new_ofs[3];
 		
 		new_dist = size;
-		new_ofs[0]= -(min[0]+max[0])/2.0;
-		new_ofs[1]= -(min[1]+max[1])/2.0;
-		new_ofs[2]= -(min[2]+max[2])/2.0;
+		new_ofs[0]= -(min[0]+max[0])/2.0f;
+		new_ofs[1]= -(min[1]+max[1])/2.0f;
+		new_ofs[2]= -(min[2]+max[2])/2.0f;
 		
 		// correction for window aspect ratio
 		if(curarea->winy>2 && curarea->winx>2) {
 			size= (float)curarea->winx/(float)curarea->winy;
-			if(size<1.0) size= 1.0/size;
+			if(size<1.0) size= 1.0f/size;
 			new_dist*= size;
 		}
 		
@@ -2133,7 +2341,7 @@ void view3d_align_axis_to_vector(View3D *v3d, int axisidx, float vec[3])
 	VECCOPY(norm, vec);
 	Normalize(norm);
 
-	angle= acos(Inpf(alignaxis, norm));
+	angle= (float)acos(Inpf(alignaxis, norm));
 	Crossf(axis, alignaxis, norm);
 	VecRotToQuat(axis, -angle, new_quat);
 
@@ -2232,8 +2440,8 @@ void smooth_view(View3D *v3d, float *ofs, float *quat, float *dist, float *lens)
 				step =  (float)((time_current-time_start) / time_allowed);
 				
 				/* ease in/out */
-				if (step < 0.5)	step = pow(step*2, 2)/2;
-				else			step = 1-(pow(2*(1-step) ,2)/2);
+				if (step < 0.5)	step = (float)pow(step*2, 2)/2;
+				else			step = (float)1-(pow(2*(1-step),2)/2);
 				
 				step_inv = 1-step;
 				
@@ -2353,3 +2561,4 @@ void smooth_view_to_camera(View3D *v3d)
 		v3d->persp= V3D_CAMOB;
 	}
 }
+

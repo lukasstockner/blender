@@ -434,10 +434,6 @@ GHOST_TSuccess GHOST_WindowWin32::setOrder(GHOST_TWindowOrder order)
 
 GHOST_TSuccess GHOST_WindowWin32::swapBuffers()
 {
-	// adding a glFinish() here is to prevent Geforce in 'full scene antialias' mode
-	// from antialising the Blender window. Officially a swapbuffers does a glFinish
-	// itself, so this feels really like a hack... but it won't harm. (ton)
-	glFinish();
 	return ::SwapBuffers(m_hDC) == TRUE ? GHOST_kSuccess : GHOST_kFailure;
 }
 
@@ -858,7 +854,7 @@ static int WeightPixelFormat(PIXELFORMATDESCRIPTOR& pfd) {
 static int EnumPixelFormats(HDC hdc) {
 	int iPixelFormat;
 	int i, n, w, weight = 0;
-	PIXELFORMATDESCRIPTOR pfd, pfd_fallback;
+	PIXELFORMATDESCRIPTOR pfd;
 	
 	/* we need a device context to do anything */
 	if(!hdc) return 0;

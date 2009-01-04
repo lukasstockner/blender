@@ -235,19 +235,21 @@ def EndAlign():
 	Use after BeginAlign() to stop aligning the buttons (button layout only).
 	"""
 
-def UIBlock(draw):
+def UIBlock(draw, mouse_exit=1):
 	"""
 	This function creates a popup area where buttons, labels, sliders etc can be drawn.
 	
+	@type mouse_exit: int
+	@param mouse_exit: When zero the popup wont close when the mouse moves away from the popup.
 	@type draw: function
 	@param draw: A function to draw to the popup area, taking no arguments: draw().
 	
 	@note: The size of the popup will expand to fit the bounds of the buttons created in the draw function.
-	@note: Be sure to use the mouse coordinates to position the buttons under the mouse,
+	@note: If mouse_exit is nonzero be sure to use the mouse coordinates if to position the buttons under the mouse,
 		so the popup dosn't exit as soon as it opens.
 		The coordinates for buttons start 0,0 at the bottom left hand side of the screen.
 	@note: Within this popup, Redraw events and the registered button callback will not work.
-		For buttons to run events, use per button callbacks.
+		For buttons to run events, use per button callbacks instead.
 	@note: OpenGL drawing functions wont work within this popup, for text use L{Label} rather then L{Text}
 	@warning: L{Menu} will not work properly within a UIBlock, this is a limitation with blenders user interface internals.
 	"""
@@ -357,12 +359,14 @@ def PupTreeMenu( menu ):
 	"""
 	Create a popup menu tree.
 	
-	Each item in the list is a menu item - (str, event), separator - None or submenu - (str, [...]).
+	Each item in the list is: a menu item - (str, event); a separator - None;
+	or submenu - (str, [...]).
 	
-	Submenus list uses the same syntax as the menu list.
+	Submenus list uses the same syntax as the menu list. To add a title to the
+	main menu, end the first entry str with '%t' - the event is ignored.
 
 	Example::
-		result = Draw.PupTreeMenu( [ ("Menu Item 1", 10), ("Menu Item 2", 12), ("SubMenu", [("Menu Item 3", 100), ("MenuItem4", 101) ]  ) ] )
+		result = Draw.PupTreeMenu( [ ("Title%t", 0), ("Menu Item 1", 10), ("Menu Item 2", 12), ("SubMenu", [("Menu Item 3", 100), ("MenuItem4", 101) ]  ) ] )
 	
 	@type menu: string
 	@param menu: A menu list
@@ -702,7 +706,7 @@ def Normal(event, x, y, width, height, initial, tooltip = None, callback = None)
 	@note: Using the same button variable with more then 1 button at a time will corrupt memory.
 	"""
 
-def Number(name, event, x, y, width, height, initial, min, max, tooltip = None, callback = None):
+def Number(name, event, x, y, width, height, initial, min, max, tooltip = None, callback = None, clickstep = None, precision = None):
 	"""
 	Create a new Number Button object.
 	@type name: string
@@ -731,6 +735,11 @@ def Number(name, event, x, y, width, height, initial, min, max, tooltip = None, 
 	@param callback: an optional argument so this button can have its own
 		callback function. the function will run whenever this button is pressed.
 		This function must accept 2 arguments (event, val).
+	@type clickstep: float
+	@param clickstep: an optional argument to control the amount of change per click on the button.
+	@type precision: float
+	@param precision: an optional argument to control the amount of places after the decimal. From 1 to 4 places with 1.0..4.0. 
+		Larger values are clamped to 4 places.
 	@rtype: Blender Button
 	@return: The Button created.
 

@@ -93,7 +93,12 @@ Example::
 	- SCALE_VEC - Used for Array only (3d Vector)
 	- MERGE_DIST - Used for Array only (float)
 
+	- INVERT_VERTGROUP - Used for Armature only (bool)
 	- ENVELOPES - Used for Armature only (bool)
+	- VGROUPS - Used for Armature only (bool)
+	- QUATERNION - Used for Armature only (bool)
+	- B_BONE_REST - Used for Armature only (bool)
+	- MULTIMODIFIER - Used for Armature only (bool)
 	
 	- START - Used for Build only (int)
 	- SEED - Used for Build only (int)
@@ -124,7 +129,7 @@ Example::
 	- UVLAYER - Used for Displace only
 	- MID_LEVEL - Used for Displace only (float [0.0, 1.0], default: 0.5)
 	- STRENGTH - Used for Displace only (float [-1000.0, 1000.0, default: 1.0)
-	- TEXTURE - Used for Displace only (string)
+	- TEXTURE - Used for Displace only (Texture object)
 	- MAPPING - Used for Displace only
 	- DIRECTION - Used for Displace only
 

@@ -68,6 +68,10 @@ typedef struct EditBone
 
 } EditBone;
 
+float	rollBoneToVector(EditBone *bone, float new_up_axis[3]);
+
+void	make_boneList(struct ListBase *list, struct ListBase *bones, EditBone *parent);
+void	editbones_to_armature (struct ListBase *list, struct Object *ob);
 
 void	adduplicate_armature(void);
 void	addvert_armature(void);
@@ -91,6 +95,7 @@ void	free_editArmature(void);
 
 int		join_armature(void);
 void 	separate_armature(void);
+void	apply_armature_pose2bones(void);
 void	load_editArmature(void);
 
 void	make_bone_parent(void);
@@ -99,13 +104,14 @@ struct Bone	*get_indexed_bone (struct Object *ob, int index);
 
 void	make_editArmature(void);
 void	make_trans_bones (char mode);
+void	remake_editArmature(void);
+void	editbones_to_armature(struct ListBase *list, struct Object *ob);
 
 int		do_pose_selectbuffer(struct Base *base, unsigned int *buffer, short hits);
 
 void generateSkeleton(void);
 
 void	mouse_armature(void);
-void	remake_editArmature(void);
 void	selectconnected_armature(void);
 void	selectconnected_posearmature(void);
 void	armature_select_hierarchy(short direction, short add_to_sel);
@@ -137,12 +143,23 @@ void	hide_selected_armature_bones(void);
 void	hide_unselected_armature_bones(void);
 void	show_all_armature_bones(void);
 
+void	align_selected_bones(void);
+
 #define	BONESEL_ROOT	0x10000000
 #define	BONESEL_TIP		0x20000000
 #define	BONESEL_BONE	0x40000000
 #define BONESEL_ANY		(BONESEL_TIP|BONESEL_ROOT|BONESEL_BONE)
 
 #define BONESEL_NOSEL	0x80000000	/* Indicates a negative number */
+
+/* from autoarmature */
+void BIF_retargetArmature();
+void BIF_adjustRetarget();
+void BIF_freeRetarget();
+
+struct ReebArc;
+float calcVariance(struct ReebArc *arc, int start, int end, float v0[3], float n[3]);
+float calcDistance(struct ReebArc *arc, int start, int end, float head[3], float tail[3]);
 
 /* useful macros */
 #define EBONE_VISIBLE(arm, ebone) ((arm->layer & ebone->layer) && !(ebone->flag & BONE_HIDDEN_A))
@@ -153,5 +170,6 @@ void	show_all_armature_bones(void);
 #define BONE_SELECT_CHILD	1
 
 #endif
+
 
 

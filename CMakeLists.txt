@@ -61,10 +61,12 @@ OPTION(WITH_VERSE		"Enable Verse  (http://verse.blender.org)"		OFF)
 OPTION(WITH_ELBEEM		"Enable Elbeem (Fluid Simulation)"			ON)
 OPTION(WITH_QUICKTIME		"Enable Quicktime Support"				OFF)
 OPTION(WITH_OPENEXR		"Enable OpenEXR Support (http://www.openexr.com)"	ON)
+OPTION(WITH_DDS			"Enable DDS Support"                                   	ON)
+OPTION(WITH_FFMPEG		"Enable FFMPeg Support (http://ffmpeg.mplayerhq.hu/)"	OFF)
 OPTION(WITH_FFMPEG		"Enable FFMPeg Support (http://ffmpeg.mplayerhq.hu/)"	OFF)
 OPTION(WITH_OPENAL		"Enable OpenAL Support (http://www.openal.org)"		ON)
-OPTION(YESIAMSTUPID		"Enable execution on 64-bit platforms"			OFF)
 OPTION(WITH_OPENMP		"Enable OpenMP (has to be supported by the compiler)"	OFF)
+OPTION(WITH_WEBPLUGIN		"Enable Web Plugin (Unix only)"				OFF)
 
 IF(NOT WITH_GAMEENGINE AND WITH_PLAYER)
   MESSAGE("WARNING: WITH_PLAYER needs WITH_GAMEENGINE")
@@ -86,14 +88,16 @@ INCLUDE(CMake/macros.cmake)
 #Platform specifics
 
 IF(UNIX)
-  INCLUDE(${CMAKE_ROOT}/Modules/FindOpenAL.cmake)
-  IF(OPENAL_FOUND)
-    SET(WITH_OPENAL ON)
-    SET(OPENAL_LIB ${OPENAL_LIBRARY})
-    SET(OPENAL_INC ${OPENAL_INCLUDE_DIR})
-  ELSE(OPENAL_FOUND)
-    SET(WITH_OPENAL OFF)
-  ENDIF(OPENAL_FOUND)
+  IF(WITH_OPENAL)
+    INCLUDE(${CMAKE_ROOT}/Modules/FindOpenAL.cmake)
+    IF(OPENAL_FOUND)
+      SET(WITH_OPENAL ON)
+      SET(OPENAL_LIB ${OPENAL_LIBRARY})
+      SET(OPENAL_INC ${OPENAL_INCLUDE_DIR})
+    ELSE(OPENAL_FOUND)
+      SET(WITH_OPENAL OFF)
+    ENDIF(OPENAL_FOUND)
+  ENDIF(WITH_OPENAL)
 
   FIND_LIBRARY(ALUT_LIBRARY
     NAMES alut
@@ -171,7 +175,7 @@ IF(UNIX)
 
   SET(FFMPEG /usr)
   SET(FFMPEG_INC ${FFMPEG}/include)
-  SET(FFMPEG_LIB avformat avcodec avutil)
+  SET(FFMPEG_LIB avformat avcodec avutil avdevice swscale)
   SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
 
   SET(JPEG_LIB jpeg)
@@ -249,7 +253,11 @@ IF(WIN32)
   
   SET(GETTEXT ${LIBDIR}/gettext)
   SET(GETTEXT_INC ${GETTEXT}/include)
-  SET(GETTEXT_LIB gnu_gettext)
+  IF(CMAKE_CL_64)
+  	SET(GETTEXT_LIB gettextlib)
+  ELSE(CMAKE_CL_64)
+  	SET(GETTEXT_LIB gnu_gettext)
+  ENDIF(CMAKE_CL_64)
   SET(GETTEXT_LIBPATH ${GETTEXT}/lib)
 
   SET(FREETYPE ${LIBDIR}/freetype)
@@ -280,7 +288,12 @@ IF(WIN32)
   SET(FFMPEG_LIB avcodec-51 avformat-52 avdevice-52 avutil-49 swscale-0)
   SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
 
+  IF(CMAKE_CL_64)
+  SET(LLIBS kernel32 user32 vfw32 winmm ws2_32 )
+  ELSE(CMAKE_CL_64)
   SET(LLIBS kernel32 user32 gdi32 comdlg32 advapi32 shell32 ole32 oleaut32 uuid ws2_32 vfw32 winmm)
+  ENDIF(CMAKE_CL_64)
+  
   IF(WITH_OPENAL)
     SET(LLIBS ${LLIBS} dxguid)
   ENDIF(WITH_OPENAL)
@@ -318,7 +331,7 @@ IF(WIN32)
   SET(WINTAB_INC ${LIBDIR}/wintab/include) 
 
   IF(CMAKE_CL_64)
-  SET(PLATFORM_LINKFLAGS "/NODEFAULTLIB:libc.lib;MSVCRT.lib ")
+  SET(PLATFORM_LINKFLAGS "/MANIFEST:NO /MANIFESTUAC:NO /MACHINE:X64 /NODEFAULTLIB:libc.lib;MSVCRT.lib ")
   ELSE(CMAKE_CL_64)
   SET(PLATFORM_LINKFLAGS "/NODEFAULTLIB:libc.lib ")
   ENDIF(CMAKE_CL_64)
@@ -420,6 +433,17 @@ SET(FTGL_LIB extern_ftgl)
 
 
 #-----------------------------------------------------------------------------
+# Blender WebPlugin
+
+IF(WITH_WEBPLUGIN) 
+  SET(GECKO_DIR "${CMAKE_SOURCE_DIR}/../gecko-sdk/" CACHE PATH "Gecko SDK path")
+  SET(WEBPLUGIN_SANDBOX_MODE "apparmor" CACHE STRING "WEB Plugin sandbox mode, can be apparmor, privsep, none")
+
+  SET(WITH_PLAYER ON)
+ENDIF(WITH_WEBPLUGIN)
+
+
+#-----------------------------------------------------------------------------
 # Configure OpenGL.
 INCLUDE(${CMAKE_ROOT}/Modules/FindOpenGL.cmake)
 INCLUDE_DIRECTORIES(${OPENGL_INCLUDE_DIR})
@@ -447,6 +471,7 @@ SUBDIRS(
 #-----------------------------------------------------------------------------
 # Blender Application
 SUBDIRS(source/creator)
+
 
 #-----------------------------------------------------------------------------
 # Blender Player

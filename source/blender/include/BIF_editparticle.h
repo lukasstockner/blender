@@ -46,6 +46,7 @@ void PE_create_particle_edit(struct Object *ob, struct ParticleSystem *psys);
 void PE_free_particle_edit(struct ParticleSystem *psys);
 
 void PE_change_act(void *ob_v, void *act_v);
+void PE_change_act_psys(struct Object *ob, struct ParticleSystem *psys);
 int PE_can_edit(struct ParticleSystem *psys);
 
 /* access */
@@ -54,7 +55,7 @@ short PE_get_current_num(struct Object *ob);
 int PE_minmax(float *min, float *max);
 void PE_get_colors(char sel[4], char nosel[4]);
 struct ParticleEditSettings *PE_settings(void);
-struct RadialControl **PE_radialcontrol();
+struct RadialControl **PE_radialcontrol(void);
 
 /* update calls */
 void PE_hide_keys_time(struct ParticleSystem *psys, float cfra);

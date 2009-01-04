@@ -803,12 +803,18 @@ static void do_effect(int cfra, Sequence *seq, TStripElem * se)
 	if (!se2->ibuf->rect_float && se->ibuf->rect_float) {
 		IMB_float_from_rect(se2->ibuf);
 	}
-
+	if (!se3->ibuf->rect_float && se->ibuf->rect_float) {
+		IMB_float_from_rect(se3->ibuf);
+	}
+	
 	if (!se1->ibuf->rect && !se->ibuf->rect_float) {
 		IMB_rect_from_float(se1->ibuf);
 	}
 	if (!se2->ibuf->rect && !se->ibuf->rect_float) {
 		IMB_rect_from_float(se2->ibuf);
+	}
+	if (!se3->ibuf->rect && !se->ibuf->rect_float) {
+		IMB_rect_from_float(se3->ibuf);
 	}
 
 	sh.execute(seq, cfra, fac, facf, x, y, se1->ibuf, se2->ibuf, se3->ibuf,
@@ -1731,9 +1737,10 @@ static void do_build_seq_ibuf(Sequence * seq, TStripElem *se, int cfra,
 		}
 
 		if(se->ibuf == 0) {
-			/* if one of two first inputs are rectfloat, output is float too */
+			/* if any inputs are rectfloat, output is float too */
 			if((se->se1 && se->se1->ibuf && se->se1->ibuf->rect_float) ||
-			   (se->se2 && se->se2->ibuf && se->se2->ibuf->rect_float))
+			   (se->se2 && se->se2->ibuf && se->se2->ibuf->rect_float) ||
+			   (se->se3 && se->se3->ibuf && se->se3->ibuf->rect_float))
 				se->ibuf= IMB_allocImBuf((short)seqrectx, (short)seqrecty, 32, IB_rectfloat, 0);
 			else
 				se->ibuf= IMB_allocImBuf((short)seqrectx, (short)seqrecty, 32, IB_rect, 0);
@@ -2949,13 +2956,16 @@ void do_render_seq(RenderResult *rr, int cfra)
 		   (schlaile)
 		*/
 		{
-			extern int mem_in_use;
-			extern int mmap_in_use;
+			uintptr_t mem_in_use;
+			uintptr_t mmap_in_use;
+			uintptr_t max;
 
-			int max = MEM_CacheLimiter_get_maximum();
+			mem_in_use= MEM_get_memory_in_use();
+			mmap_in_use= MEM_get_mapped_memory_in_use();
+			max = MEM_CacheLimiter_get_maximum();
+
 			if (max != 0 && mem_in_use + mmap_in_use > max) {
-				fprintf(stderr, "mem_in_use = %d, max = %d\n",
-					mem_in_use + mmap_in_use, max);
+				fprintf(stderr, "Memory in use > maximum memory\n");
 				fprintf(stderr, "Cleaning up, please wait...\n"
 					"If this happens very often,\n"
 					"consider "

@@ -115,10 +115,6 @@ void free_editArmature(void);
 void docenter_new(void);
 int saveover(char *str);
 
-/* image.c */
-#include "DNA_image_types.h"
-void free_realtime_image(Image *ima); // has to become a callback, opengl stuff
-
 /* ipo.c */
 void copy_view3d_lock(short val);	// was a hack, to make scene layer ipo's possible
 
@@ -145,7 +141,7 @@ short pupmenu(char *instr);  // will be general callback
 /* scene.c */
 #include "DNA_sequence_types.h"
 void free_editing(struct Editing *ed);	// scenes and sequences problem...
-void BPY_do_all_scripts (short int event);
+void BPY_do_all_scripts (short int event, short int anim);
 int BPY_call_importloader(char *name);
 
 
@@ -233,6 +229,13 @@ struct ParticleSystem;
 void PE_free_particle_edit(struct ParticleSystem *psys);
 void PE_get_colors(char sel[4], char nosel[4]);
 void PE_recalc_world_cos(struct Object *ob, struct ParticleSystem *psys);
+
+/* texture.c */
+struct Tex;
+struct TexResult;
+int multitex_thread(struct Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, struct TexResult *texres, short thread, short which_output);
+
+
 
 #endif
 

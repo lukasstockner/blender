@@ -179,9 +179,11 @@
 
 #include "butspace.h" // own module
 
+#include "reeb.h"
+
 static float editbutweight= 1.0;
 float editbutvweight= 1;
-static int actmcol= 0, acttface= 0, acttface_rnd = 0, actmcol_rnd = 0;
+static int actmcol= 0, acttface= 0, acttface_rnd = 0, acttface_clone = 0, acttface_mask = 0, actmcol_rnd = 0;
 
 extern ListBase editNurb;
 
@@ -719,10 +721,10 @@ static void delete_customdata_layer(void *data1, void *data2)
 	Mesh *me= (Mesh*)data1;
 	CustomData *data= (G.obedit)? &G.editMesh->fdata: &me->fdata;
 	CustomDataLayer *layer= (CustomDataLayer*)data2;
-	void *actlayerdata, *rndlayerdata, *layerdata=layer->data;
+	void *actlayerdata, *rndlayerdata, *clonelayerdata, *masklayerdata, *layerdata=layer->data;
 	int type= layer->type;
 	int index= CustomData_get_layer_index(data, type);
-	int i, actindex, rndindex;
+	int i, actindex, rndindex, cloneindex, maskindex;
 	
 	/*ok, deleting a non-active layer needs to preserve the active layer indices.
 	  to do this, we store a pointer to the .data member of both layer and the active layer,
@@ -733,6 +735,8 @@ static void delete_customdata_layer(void *data1, void *data2)
 	  layer. */
 	actlayerdata = data->layers[CustomData_get_active_layer_index(data, type)].data;
 	rndlayerdata = data->layers[CustomData_get_render_layer_index(data, type)].data;
+	clonelayerdata = data->layers[CustomData_get_clone_layer_index(data, type)].data;
+	masklayerdata = data->layers[CustomData_get_mask_layer_index(data, type)].data;
 	CustomData_set_layer_active(data, type, layer - &data->layers[index]);
 
 	if(G.obedit) {
@@ -777,6 +781,33 @@ static void delete_customdata_layer(void *data1, void *data2)
 		CustomData_set_layer_render(data, type, rndindex);
 	}
 	
+	if (clonelayerdata != layerdata) {
+		/*find index. . .*/
+		cloneindex = CustomData_get_layer_index(data, type);
+		for (i=cloneindex; i<data->totlayer; i++) {
+			if (data->layers[i].data == clonelayerdata) {
+				cloneindex = i - cloneindex;
+				break;
+			}
+		}
+		
+		/*set index. . .*/
+		CustomData_set_layer_clone(data, type, cloneindex);
+	}
+	
+	if (masklayerdata != layerdata) {
+		/*find index. . .*/
+		maskindex = CustomData_get_layer_index(data, type);
+		for (i=maskindex; i<data->totlayer; i++) {
+			if (data->layers[i].data == masklayerdata) {
+				maskindex = i - maskindex;
+				break;
+			}
+		}
+		
+		/*set index. . .*/
+		CustomData_set_layer_mask(data, type, maskindex);
+	}
 	
 	DAG_object_flush_update(G.scene, OBACT, OB_RECALC_DATA);
 	
@@ -792,9 +823,9 @@ static void delete_customdata_layer(void *data1, void *data2)
 
 static int customdata_buttons(
 	uiBlock *block,	Mesh *me, CustomData *data,
-	int type, int *activep,	int *renderp,
-	int setevt, int setevt_rnd, int newevt,
-	char *label, char *shortlabel, char *browsetip, char *browsetip_rnd,
+	int type, int *activep,	int *renderp, int *clonep, int *maskp,
+	int setevt, int setevt_rnd, int setevt_clone, int setevt_mask, int newevt,
+	char *label, char *shortlabel, char *browsetip, char *browsetip_rnd, char *browsetip_clone, char *browsetip_mask,
 	char *newtip, char *deltip, int x, int y)
 {
 	CustomDataLayer *layer;
@@ -818,12 +849,27 @@ static int customdata_buttons(
 		layer= &data->layers[i];
 
 		if(layer->type == type) {
+			int xi = 0;
 			*activep= layer->active + 1;
 			*renderp= layer->active_rnd + 1;
+			if (clonep) *clonep= layer->active_clone + 1;
+			if (maskp) *maskp= layer->active_mask + 1;
+			
 			
 			uiDefIconButI(block, ROW, setevt, ICON_VIEW3D, x,y,25,19, activep, 1.0, count, 0, 0, browsetip);
 			uiDefIconButI(block, ROW, setevt_rnd, ICON_SCENE, x+25,y,25,19, renderp, 1.0, count, 0, 0, browsetip_rnd);
-			but=uiDefBut(block, TEX, setevt, "", x+50,y,145,19, layer->name, 0.0, 31.0, 0, 0, label);
+			
+			if (clonep) {
+				uiDefIconButI(block, ROW, setevt_clone, ICON_TEXTURE, x+50,y,25,19, clonep, 1.0, count, 0, 0, browsetip_clone);
+				xi += 25;
+			}
+			
+			if (maskp) {
+				uiDefIconButI(block, ROW, setevt_mask, ICON_PAINT, x+50+xi,y,25,19, maskp, 1.0, count, 0, 0, browsetip_mask);
+				xi += 25;
+			}
+			
+			but=uiDefBut(block, TEX, setevt, "", x+50+xi,y,145-xi,19, layer->name, 0.0, 31.0, 0, 0, label);
 			uiButSetFunc(but, verify_customdata_name_func, data, layer);
 			but= uiDefIconBut(block, BUT, B_NOP, VICON_X, x+195,y,25,19, NULL, 0.0, 0.0, 0.0, 0.0, deltip);
 			uiButSetFunc(but, delete_customdata_layer, me, layer);
@@ -876,7 +922,7 @@ static void editing_panel_mesh_type(Object *ob, Mesh *me)
 	uiBlockEndAlign(block);
 
 	uiBlockBeginAlign(block);
-	uiDefButBitS(block, TOG, ME_TWOSIDED, REDRAWVIEW3D, "Double Sided",	10,30,170,19, &me->flag, 0, 0, 0, 0, "Render/display the mesh as double or single sided");
+	uiDefButBitS(block, TOG, ME_TWOSIDED, REDRAWVIEW3D, "Double Sided",	10,30,170,19, &me->flag, 0, 0, 0, 0, "Render/display the mesh with double or single sided lighting");
 	uiDefButBitS(block, TOG, ME_NOPUNOFLIP, REDRAWVIEW3D, "No V.Normal Flip", 10,10,170,19, &me->flag, 0, 0, 0, 0, "Disables flipping of vertexnormals during render");
 	uiBlockEndAlign(block);
 
@@ -892,14 +938,14 @@ static void editing_panel_mesh_type(Object *ob, Mesh *me)
 	uiBlockEndAlign(block);
 
 	fdata= (G.obedit)? &G.editMesh->fdata: &me->fdata;
-	yco= customdata_buttons(block, me, fdata, CD_MTFACE, &acttface, &acttface_rnd,
-		B_SETTFACE, B_SETTFACE_RND, B_NEWTFACE, "UV Texture", "UV Texture:",
-		"Set active UV texture", "Set rendering UV texture", "Creates a new UV texture layer",
+	yco= customdata_buttons(block, me, fdata, CD_MTFACE, &acttface, &acttface_rnd, (G.f & G_TEXTUREPAINT ? &acttface_clone : NULL), (G.f & G_TEXTUREPAINT ? &acttface_mask : NULL),
+		B_SETTFACE, B_SETTFACE_RND, B_SETTFACE_CLONE, B_SETTFACE_MASK, B_NEWTFACE, "UV Texture", "UV Texture:",
+		"Set active UV texture", "Set rendering UV texture", "Set the layer used for texturepaint cloning", "Set the texture paint stencil layer", "Creates a new UV texture layer",
 		"Removes the current UV texture layer", 190, 130);
 
-	yco= customdata_buttons(block, me, fdata, CD_MCOL, &actmcol, &actmcol_rnd,
-		B_SETMCOL, B_SETMCOL_RND, B_NEWMCOL, "Vertex Color", "Vertex Color:",
-		"Sets active vertex color layer", "Sets rendering vertex color layer", "Creates a new vertex color layer",
+	yco= customdata_buttons(block, me, fdata, CD_MCOL, &actmcol, &actmcol_rnd, NULL, NULL,
+		B_SETMCOL, B_SETMCOL_RND, B_NOP, B_NOP, B_NEWMCOL, "Vertex Color", "Vertex Color:",
+		"Sets active vertex color layer", "Sets rendering vertex color layer", "", "", "Creates a new vertex color layer",
 		"Removes the current vertex color layer", 190, yco-5);
 
 	if(yco < 0)
@@ -977,7 +1023,7 @@ static uiBlock *modifiers_add_menu(void *ob_v)
 		/* Only allow adding through appropriate other interfaces */
 		if(ELEM3(i, eModifierType_Softbody, eModifierType_Hook, eModifierType_ParticleSystem)) continue;
 		
-		if(ELEM(i, eModifierType_Cloth, eModifierType_Collision)) continue;
+		if(ELEM3(i, eModifierType_Cloth, eModifierType_Collision, eModifierType_Fluidsim)) continue;
 
 		if((mti->flags&eModifierTypeFlag_AcceptsCVs) ||
 		   (ob->type==OB_MESH && (mti->flags&eModifierTypeFlag_AcceptsMesh))) {
@@ -1240,6 +1286,7 @@ static void modifiers_convertParticles(void *obv, void *mdv)
 	ModifierData *md = mdv;
 	ParticleSystem *psys;
 	ParticleCacheKey *key, **cache;
+	ParticleSettings *part;
 	Mesh *me;
 	MVert *mvert;
 	MEdge *medge;
@@ -1252,78 +1299,90 @@ static void modifiers_convertParticles(void *obv, void *mdv)
 	if(G.f & G_PARTICLEEDIT) return;
 
 	psys=((ParticleSystemModifierData *)md)->psys;
+	part= psys->part;
 
-	if(psys->part->draw_as != PART_DRAW_PATH || psys->pathcache == 0) return;
-
-	totpart= psys->totcached;
-	totchild= psys->totchildcache;
-
-	if(totchild && (psys->part->draw&PART_DRAW_PARENT)==0)
-		totpart= 0;
-
-	/* count */
-	cache= psys->pathcache;
-	for(a=0; a<totpart; a++) {
-		key= cache[a];
-		totvert+= key->steps+1;
-		totedge+= key->steps;
+	if(part->draw_as == PART_DRAW_GR || part->draw_as == PART_DRAW_OB) {
+		make_object_duplilist_real(NULL);
 	}
+	else {
+		if(part->draw_as != PART_DRAW_PATH || psys->pathcache == 0)
+			return;
 
-	cache= psys->childcache;
-	for(a=0; a<totchild; a++) {
-		key= cache[a];
-		totvert+= key->steps+1;
-		totedge+= key->steps;
-	}
+		totpart= psys->totcached;
+		totchild= psys->totchildcache;
 
-	if(totvert==0) return;
+		if(totchild && (part->draw&PART_DRAW_PARENT)==0)
+			totpart= 0;
 
-	/* add new mesh */
-	obn= add_object(OB_MESH);
-	me= obn->data;
-	
-	me->totvert= totvert;
-	me->totedge= totedge;
-	
-	me->mvert= CustomData_add_layer(&me->vdata, CD_MVERT, CD_CALLOC, NULL, totvert);
-	me->medge= CustomData_add_layer(&me->edata, CD_MEDGE, CD_CALLOC, NULL, totedge);
-	me->mface= CustomData_add_layer(&me->fdata, CD_MFACE, CD_CALLOC, NULL, 0);
-	
-	mvert= me->mvert;
-	medge= me->medge;
+		/* count */
+		cache= psys->pathcache;
+		for(a=0; a<totpart; a++) {
+			key= cache[a];
+			totvert+= key->steps+1;
+			totedge+= key->steps;
+		}
 
-	/* copy coordinates */
-	cache= psys->pathcache;
-	for(a=0; a<totpart; a++) {
-		key= cache[a];
-		kmax= key->steps;
-		for(k=0; k<=kmax; k++,key++,cvert++,mvert++) {
-			VECCOPY(mvert->co,key->co);
-			if(k) {
-				medge->v1= cvert-1;
-				medge->v2= cvert;
-				medge->flag= ME_EDGEDRAW|ME_EDGERENDER|ME_LOOSEEDGE;
-				medge++;
+		cache= psys->childcache;
+		for(a=0; a<totchild; a++) {
+			key= cache[a];
+			totvert+= key->steps+1;
+			totedge+= key->steps;
+		}
+
+		if(totvert==0) return;
+
+		/* add new mesh */
+		obn= add_object(OB_MESH);
+		me= obn->data;
+		
+		me->totvert= totvert;
+		me->totedge= totedge;
+		
+		me->mvert= CustomData_add_layer(&me->vdata, CD_MVERT, CD_CALLOC, NULL, totvert);
+		me->medge= CustomData_add_layer(&me->edata, CD_MEDGE, CD_CALLOC, NULL, totedge);
+		me->mface= CustomData_add_layer(&me->fdata, CD_MFACE, CD_CALLOC, NULL, 0);
+		
+		mvert= me->mvert;
+		medge= me->medge;
+
+		/* copy coordinates */
+		cache= psys->pathcache;
+		for(a=0; a<totpart; a++) {
+			key= cache[a];
+			kmax= key->steps;
+			for(k=0; k<=kmax; k++,key++,cvert++,mvert++) {
+				VECCOPY(mvert->co,key->co);
+				if(k) {
+					medge->v1= cvert-1;
+					medge->v2= cvert;
+					medge->flag= ME_EDGEDRAW|ME_EDGERENDER|ME_LOOSEEDGE;
+					medge++;
+				}
 			}
 		}
-	}
 
-	cache=psys->childcache;
-	for(a=0; a<totchild; a++) {
-		key=cache[a];
-		kmax=key->steps;
-		for(k=0; k<=kmax; k++,key++,cvert++,mvert++) {
-			VECCOPY(mvert->co,key->co);
-			if(k) {
-				medge->v1=cvert-1;
-				medge->v2=cvert;
-				medge->flag= ME_EDGEDRAW|ME_EDGERENDER|ME_LOOSEEDGE;
-				medge++;
+		cache=psys->childcache;
+		for(a=0; a<totchild; a++) {
+			key=cache[a];
+			kmax=key->steps;
+			for(k=0; k<=kmax; k++,key++,cvert++,mvert++) {
+				VECCOPY(mvert->co,key->co);
+				if(k) {
+					medge->v1=cvert-1;
+					medge->v2=cvert;
+					medge->flag= ME_EDGEDRAW|ME_EDGERENDER|ME_LOOSEEDGE;
+					medge++;
+				}
 			}
 		}
 	}
 
 	DAG_scene_sort(G.scene);
+
+	allqueue(REDRAWVIEW3D, 0);
+	allqueue(REDRAWOOPS, 0);
+	
+	BIF_undo_push("Convert particles to mesh object(s).");
 }
 
 static void modifiers_applyModifier(void *obv, void *mdv)
@@ -1354,11 +1413,11 @@ static void modifiers_applyModifier(void *obv, void *mdv)
 		}
 	
 		mesh_pmv_off(ob, me);
-
+	
 		/* Multires: ensure that recent sculpting is applied */
 		if(md->type == eModifierType_Multires)
 			multires_force_update(ob);
-	
+
 		dm = mesh_create_derived_for_modifier(ob, md);
 		if (!dm) {
 			error("Modifier is disabled or returned error, skipping apply");
@@ -1368,7 +1427,7 @@ static void modifiers_applyModifier(void *obv, void *mdv)
 		/* Multires: remove MDisps from the DerivedMesh */
 		if(md->type == eModifierType_Multires)
 			CustomData_free_layers(&dm->faceData, CD_MDISPS, me->totface);
-		
+
 		DM_to_mesh(dm, me);
 		converted = 1;
 
@@ -1567,6 +1626,18 @@ static void build_uvlayer_menu_vars(CustomData *data, char **menu_string,
 			*uvlayer_tmp = 0;
 		}
 	}
+}
+
+void set_wave_uvlayer(void *arg1, void *arg2)
+{
+	WaveModifierData *wmd=arg1;
+	CustomDataLayer *layer = arg2;
+
+	/*check we have UV layers*/
+	if (wmd->uvlayer_tmp < 1) return;
+	layer = layer + (wmd->uvlayer_tmp-1);
+	
+	strcpy(wmd->uvlayer_name, layer->name);
 }
 
 void set_displace_uvlayer(void *arg1, void *arg2)
@@ -1784,7 +1855,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 		
 		// deletion over the deflection panel
 		// fluid particle modifier can't be deleted here
-		if(md->type!=eModifierType_Collision && !modifier_is_fluid_particles(md))
+		if(md->type!=eModifierType_Fluidsim && md->type!=eModifierType_Collision && !modifier_is_fluid_particles(md))
 		{
 			but = uiDefIconBut(block, BUT, B_MODIFIER_RECALC, VICON_X, x+width-70+40, y, 16, 16, NULL, 0.0, 0.0, 0.0, 0.0, "Delete modifier");
 			uiButSetFunc(but, modifiers_del, ob, md);
@@ -1855,6 +1926,8 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			height = 31;
 		} else if (md->type==eModifierType_Collision) {
 			height = 31;
+		} else if (md->type==eModifierType_Fluidsim) {
+			height = 31;
 		} else if (md->type==eModifierType_Boolean) {
 			height = 48;
 		} else if (md->type==eModifierType_Array) {
@@ -1868,30 +1941,61 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			height = 94;
 		} else if (md->type==eModifierType_Explode) {
 			height = 94;
+		} else if (md->type==eModifierType_Shrinkwrap) {
+			ShrinkwrapModifierData *smd = (ShrinkwrapModifierData*) md;
+			height = 86 + 3;
+			if (smd->shrinkType == MOD_SHRINKWRAP_PROJECT)
+			{
+				height += 19*5;
+				if(smd->projAxis == 0) height += 19;
+			}
+			else if (smd->shrinkType == MOD_SHRINKWRAP_NEAREST_SURFACE)
+				height += 19;
+		} else if (md->type == eModifierType_Mask) {
+			height = 66;
+		} else if (md->type==eModifierType_SimpleDeform) {
+			SimpleDeformModifierData *smd = (SimpleDeformModifierData*) md;
+			height += 19*5;
+			if(smd->origin != NULL) height += 19;
+			if(smd->mode == MOD_SIMPLEDEFORM_MODE_STRETCH
+			|| smd->mode == MOD_SIMPLEDEFORM_MODE_TAPER  )
+				height += 19;
 		} else if (md->type==eModifierType_Multires) {
 			height = 94;
-		}
+ 		}
+		
 							/* roundbox 4 free variables: corner-rounding, nop, roundbox type, shade */
 		uiDefBut(block, ROUNDBOX, 0, "", x-10, y-height-2, width, height-2, NULL, 5.0, 0.0, 12, 40, ""); 
 
 		y -= 18;
 
 		if (!isVirtual && (md->type!=eModifierType_Collision)) {
+			uiSetButLock(object_data_is_libdata(ob), ERROR_LIBDATA_MESSAGE); /* only here obdata, the rest of modifiers is ob level */
+
 			uiBlockBeginAlign(block);
 			if (md->type==eModifierType_ParticleSystem) {
-				but = uiDefBut(block, BUT, B_MODIFIER_RECALC, "Convert",	lx,(cy-=19),60,19, 0, 0, 0, 0, 0, "Convert the current particles to a mesh object");
-				uiButSetFunc(but, modifiers_convertParticles, ob, md);
+				ParticleSystem *psys;
+		    	psys= ((ParticleSystemModifierData *)md)->psys;
+
+	    		if(!(G.f & G_PARTICLEEDIT)) {
+					if(ELEM3(psys->part->draw_as, PART_DRAW_PATH, PART_DRAW_GR, PART_DRAW_OB) && psys->pathcache) {
+						but = uiDefBut(block, BUT, B_MODIFIER_RECALC, "Convert",	lx,(cy-=19),60,19, 0, 0, 0, 0, 0, "Convert the current particles to a mesh object");
+						uiButSetFunc(but, modifiers_convertParticles, ob, md);
+					}
+				}
 			}
 			else{
 				but = uiDefBut(block, BUT, B_MODIFIER_RECALC, "Apply",	lx,(cy-=19),60,19, 0, 0, 0, 0, 0, "Apply the current modifier and remove from the stack");
 				uiButSetFunc(but, modifiers_applyModifier, ob, md);
 			}
 			
-			if (md->type!=eModifierType_Softbody && md->type!=eModifierType_ParticleSystem && (md->type!=eModifierType_Cloth)) {
+			if (md->type!=eModifierType_Fluidsim && md->type!=eModifierType_Softbody && md->type!=eModifierType_ParticleSystem && (md->type!=eModifierType_Cloth)) {
 				but = uiDefBut(block, BUT, B_MODIFIER_RECALC, "Copy",	lx,(cy-=19),60,19, 0, 0, 0, 0, 0, "Duplicate the current modifier at the same position in the stack");
 				uiButSetFunc(but, modifiers_copyModifier, ob, md);
 			}
 			uiBlockEndAlign(block);
+			
+			uiSetButLock(ob && ob->id.lib, ERROR_LIBDATA_MESSAGE);
 		}
 
 		lx = x + 10;
@@ -2144,6 +2248,30 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiDefButF(block, NUM, B_MODIFIER_RECALC, "Ratio:",	lx,(cy-=19),buttonWidth,19, &dmd->percent, 0.0, 1.0, 10, 0, "Defines the percentage of triangles to reduce to");
 			sprintf(str, "Face Count: %d", dmd->faceCount);
 			uiDefBut(block, LABEL, 1, str,	lx, (cy-=19), 160,19, NULL, 0.0, 0.0, 0, 0, "Displays the current number of faces in the decimated mesh");
+		} else if (md->type==eModifierType_Mask) {
+			MaskModifierData *mmd = (MaskModifierData *)md;
+			
+			sprintf(str, "Mask Mode%%t|Vertex Group%%x%d|Selected Bones%%x%d|",
+			        MOD_MASK_MODE_VGROUP,MOD_MASK_MODE_ARM);
+			uiDefButI(block, MENU, B_MODIFIER_RECALC, str,
+			        lx, (cy -= 19), buttonWidth, 19, &mmd->mode,
+			        0.0, 1.0, 0, 0, "How masking region is defined");
+					  
+			if (mmd->mode == MOD_MASK_MODE_ARM) {
+				uiDefIDPoinBut(block, modifier_testArmatureObj, ID_OB, B_CHANGEDEP,
+				    "Ob: ", lx, (cy -= 19), buttonWidth, 19, &mmd->ob_arm,
+				    "Armature to use as source of bones to mask");
+			}
+			else {
+				but=uiDefBut(block, TEX, B_MODIFIER_RECALC, "VGroup: ",	
+					lx, (cy-=19), buttonWidth, 19, &mmd->vgroup, 
+					0.0, 31.0, 0, 0, "Vertex Group name");
+				uiButSetCompleteFunc(but, autocomplete_vgroup, (void *)ob);
+			}
+			
+			uiDefButBitI(block, TOG, MOD_MASK_INV, B_MODIFIER_RECALC, "Inverse",		
+				lx, (cy-=19), buttonWidth, 19, &mmd->flag, 
+				0, 0, 0, 0, "Use vertices that are not part of region defined");
 		} else if (md->type==eModifierType_Smooth) {
 			SmoothModifierData *smd = (SmoothModifierData*) md;
 
@@ -2227,7 +2355,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 				      0.0, 1.0, 0, 0, "Set the UV layer to use");
 				MEM_freeN(strtmp);
 				i = CustomData_get_layer_index(fdata, CD_MTFACE);
-				uiButSetFunc(but, set_displace_uvlayer, wmd,
+				uiButSetFunc(but, set_wave_uvlayer, wmd,
 				             &fdata->layers[i]);
 			}
 			if(wmd->texmapping == MOD_DISP_MAP_OBJECT) {
@@ -2282,8 +2410,11 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiDefBut(block, LABEL, 1, "See Soft Body panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
 		} else if (md->type==eModifierType_Cloth) {
 			uiDefBut(block, LABEL, 1, "See Cloth panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
+
 		} else if (md->type==eModifierType_Collision) {
 			uiDefBut(block, LABEL, 1, "See Collision panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
+		} else if (md->type==eModifierType_Fluidsim) {
+			uiDefBut(block, LABEL, 1, "See Fluidsim panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
 		} else if (md->type==eModifierType_Boolean) {
 			BooleanModifierData *bmd = (BooleanModifierData*) md;
 			uiDefButI(block, MENU, B_MODIFIER_RECALC, "Operation%t|Intersect%x0|Union%x1|Difference%x2",	lx,(cy-=19),buttonWidth,19, &bmd->operation, 0.0, 1.0, 0, 0, "Boolean operation to perform");
@@ -2490,6 +2621,75 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiDefButBitS(block, TOG, eExplodeFlag_Alive, B_MODIFIER_RECALC, "Alive",	lx+buttonWidth/3, cy, buttonWidth/3,19, &emd->flag, 0, 0, 0, 0, "Show mesh when particles are alive");
 			uiDefButBitS(block, TOG, eExplodeFlag_Dead, B_MODIFIER_RECALC, "Dead",	lx+buttonWidth*2/3, cy, buttonWidth/3,19, &emd->flag, 0, 0, 0, 0, "Show mesh when particles are dead");
 			uiBlockEndAlign(block);
+		} else if (md->type==eModifierType_Shrinkwrap) {
+			ShrinkwrapModifierData *smd = (ShrinkwrapModifierData*) md;
+
+			char shrinktypemenu[]="Shrinkwrap type%t|nearest surface point %x0|projection %x1|nearest vertex %x2";
+
+			uiDefIDPoinBut(block, modifier_testMeshObj, ID_OB, B_CHANGEDEP, "Ob: ",	lx, (cy-=19), buttonWidth,19, &smd->target, "Target to shrink to");
+
+			but=uiDefBut(block, TEX, B_MODIFIER_RECALC, "VGroup: ",		lx, (cy-=19), buttonWidth,19, &smd->vgroup_name, 0, 31, 0, 0, "Vertex Group name");
+			uiButSetCompleteFunc(but, autocomplete_vgroup, (void *)ob);
+
+			uiDefButF(block, NUM, B_MODIFIER_RECALC, "Offset:",	lx,(cy-=19),buttonWidth,19, &smd->keepDist, 0.0f, 100.0f, 1.0f, 0, "Specify distance to keep from the target");
+
+			cy -= 3;
+			uiDefButS(block, MENU, B_MODIFIER_RECALC, shrinktypemenu, lx,(cy-=19),buttonWidth,19, &smd->shrinkType, 0, 0, 0, 0, "Selects type of shrinkwrap algorithm for target position.");
+
+			if (smd->shrinkType == MOD_SHRINKWRAP_PROJECT){
+
+
+				/* UI for projection axis */
+				uiBlockBeginAlign(block);
+				uiDefButC(block, ROW, B_MODIFIER_RECALC, "Normal"    , lx,(cy-=19),buttonWidth,19, &smd->projAxis, 18.0, MOD_SHRINKWRAP_PROJECT_OVER_NORMAL, 0, 0, "Projection over X axis");
+				if(smd->projAxis == 0)
+				{
+					uiDefButC(block, NUM, B_MODIFIER_RECALC, "SS Levels:",		lx, (cy-=19), buttonWidth,19, &smd->subsurfLevels, 0, 6, 0, 0, "This indicates the number of CCSubdivisions that must be performed before extracting vertexs positions and normals");
+				}
+
+				uiDefButBitC(block, TOG, MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS, B_MODIFIER_RECALC, "X",	lx+buttonWidth/3*0,(cy-=19),buttonWidth/3,19, &smd->projAxis, 0, 0, 0, 0, "Projection over X axis");
+				uiDefButBitC(block, TOG, MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS, B_MODIFIER_RECALC, "Y",	lx+buttonWidth/3*1,cy,buttonWidth/3,19, &smd->projAxis, 0, 0, 0, 0, "Projection over Y axis");
+				uiDefButBitC(block, TOG, MOD_SHRINKWRAP_PROJECT_OVER_Z_AXIS, B_MODIFIER_RECALC, "Z",	lx+buttonWidth/3*2,cy,buttonWidth/3,19, &smd->projAxis, 0, 0, 0, 0, "Projection over Z axis");
+
+
+				/* allowed directions of projection axis */
+				uiDefButBitS(block, TOG, MOD_SHRINKWRAP_PROJECT_ALLOW_NEG_DIR, B_MODIFIER_RECALC, "Negative",	lx,(cy-=19),buttonWidth/2,19, &smd->shrinkOpts, 0, 0, 0, 0, "Allows to move the vertex in the negative direction of axis");
+				uiDefButBitS(block, TOG, MOD_SHRINKWRAP_PROJECT_ALLOW_POS_DIR, B_MODIFIER_RECALC, "Positive",	lx + buttonWidth/2,cy,buttonWidth/2,19, &smd->shrinkOpts, 0, 0, 0, 0, "Allows to move the vertex in the positive direction of axis");
+
+				uiDefButBitS(block, TOG, MOD_SHRINKWRAP_CULL_TARGET_FRONTFACE, B_MODIFIER_RECALC, "Cull frontfaces",lx,(cy-=19),buttonWidth/2,19, &smd->shrinkOpts, 0, 0, 0, 0, "Controls whether a vertex can be projected to a front face on target");
+				uiDefButBitS(block, TOG, MOD_SHRINKWRAP_CULL_TARGET_BACKFACE,  B_MODIFIER_RECALC, "Cull backfaces",	lx+buttonWidth/2,cy,buttonWidth/2,19, &smd->shrinkOpts, 0, 0, 0, 0, "Controls whether a vertex can be projected to a back face on target");
+				uiDefIDPoinBut(block, modifier_testMeshObj, ID_OB, B_CHANGEDEP, "Ob2: ",	lx, (cy-=19), buttonWidth,19, &smd->auxTarget, "Aditional mesh to project over");
+			}
+			else if (smd->shrinkType == MOD_SHRINKWRAP_NEAREST_SURFACE){
+				uiDefButBitS(block, TOG, MOD_SHRINKWRAP_KEEP_ABOVE_SURFACE, B_MODIFIER_RECALC, "Above surface",	lx,(cy-=19),buttonWidth,19, &smd->shrinkOpts, 0, 0, 0, 0, "Vertices are kept on the front side of faces");
+			}
+
+			uiBlockEndAlign(block);
+
+		} else if (md->type==eModifierType_SimpleDeform) {
+			SimpleDeformModifierData *smd = (SimpleDeformModifierData*) md;
+			char simpledeform_modemenu[] = "Deform type%t|Twist %x1|Bend %x2|Taper %x3|Strech %x4";
+
+			uiDefButC(block, MENU, B_MODIFIER_RECALC, simpledeform_modemenu, lx,(cy-=19),buttonWidth,19, &smd->mode, 0, 0, 0, 0, "Selects type of deform to apply to object.");
+			
+			but=uiDefBut(block, TEX, B_MODIFIER_RECALC, "VGroup: ",		lx, (cy-=19), buttonWidth,19, &smd->vgroup_name, 0, 31, 0, 0, "Vertex Group name");
+			uiButSetCompleteFunc(but, autocomplete_vgroup, (void *)ob);
+
+			uiDefIDPoinBut(block, test_obpoin_but, ID_OB, B_CHANGEDEP, "Ob: ",	lx, (cy-=19), buttonWidth,19, &smd->origin, "Origin of modifier space coordinates");
+			if(smd->origin != NULL)
+				uiDefButBitC(block, TOG, MOD_SIMPLEDEFORM_ORIGIN_LOCAL, B_MODIFIER_RECALC, "Relative",lx,(cy-=19),buttonWidth,19, &smd->originOpts, 0, 0, 0, 0, "Sets the origin of deform space to be relative to the object");
+
+			uiDefButF(block, NUM, B_MODIFIER_RECALC, "Factor:",	lx,(cy-=19),buttonWidth,19, &smd->factor, -10.0f, 10.0f, 0.5f, 0, "Deform Factor");
+
+			uiDefButF(block, NUM, B_MODIFIER_RECALC, "Upper Limit:",	lx,(cy-=19),buttonWidth,19, &smd->limit[1], 0.0f, 1.0f, 5.0f, 0, "Upper Limit for deform");
+			uiDefButF(block, NUM, B_MODIFIER_RECALC, "Lower Limit:",	lx,(cy-=19),buttonWidth,19, &smd->limit[0], 0.0f, 1.0f, 5.0f, 0, "Lower Limit for deform");
+
+			if(smd->mode == MOD_SIMPLEDEFORM_MODE_STRETCH
+			|| smd->mode == MOD_SIMPLEDEFORM_MODE_TAPER  )
+			{
+				uiDefButBitC(block, TOG, MOD_SIMPLEDEFORM_LOCK_AXIS_X, B_MODIFIER_RECALC, "Loc X", lx,             (cy-=19),buttonWidth/2,19, &smd->axis, 0, 0, 0, 0, "Disallow changes on the X coordinate");
+				uiDefButBitC(block, TOG, MOD_SIMPLEDEFORM_LOCK_AXIS_Y, B_MODIFIER_RECALC, "Loc Y", lx+(buttonWidth/2), (cy),buttonWidth/2,19, &smd->axis, 0, 0, 0, 0, "Disallow changes on the Y coordinate");
+			}
 		} else if (md->type==eModifierType_Multires) {
 			MultiresModifierData *mmd = (MultiresModifierData*) md;
 			char subsurfmenu[]= "Subsurf Type%t|Catmull-Clark%x0|Simple Subdiv.%x1";
@@ -2507,7 +2707,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			uiButSetFunc(but, multiresModifier_reshape_button, mmd, ob);
 			but = uiDefBut(block,BUT,B_MODIFIER_RECALC,"Del Higher", lx+buttonWidth/2,cy,buttonWidth/2,19,0,0,0,0,0,"Copy vertices from another selected mesh into the current level");
 			uiButSetFunc(but, multiresModifier_del_higher_button, mmd, ob);
-		}
+ 		}
 
 		uiBlockEndAlign(block);
 
@@ -2546,7 +2746,7 @@ static void editing_panel_modifiers(Object *ob)
 	block= uiNewBlock(&curarea->uiblocks, "editing_panel_modifiers", UI_EMBOSS, UI_HELV, curarea->win);
 	if( uiNewPanel(curarea, block, "Modifiers", "Editing", 640, 0, 318, 204)==0) return;
 	
-	uiSetButLock(object_data_is_libdata(ob), ERROR_LIBDATA_MESSAGE);
+	uiSetButLock((ob && ob->id.lib), ERROR_LIBDATA_MESSAGE);
 	uiNewPanelHeight(block, 204);
 
 	uiDefBlockBut(block, modifiers_add_menu, ob, "Add Modifier", 0, 190, 130, 20, "Add a new modifier");
@@ -3152,6 +3352,7 @@ void do_curvebuts(unsigned short event)
 	case B_CONVERTNURB:
 		if(G.obedit) {
 			setsplinetype(event-B_CONVERTPOLY);
+			BIF_undo_push("Convert type");
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 			allqueue(REDRAWVIEW3D, 0);
 		}
@@ -3183,6 +3384,7 @@ void do_curvebuts(unsigned short event)
 				}
 				nu= nu->next;
 			}
+			BIF_undo_push("Cyclic");
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 			allqueue(REDRAWVIEW3D, 0);
 		}
@@ -3190,6 +3392,7 @@ void do_curvebuts(unsigned short event)
 	case B_SETWEIGHT:
 		if(G.obedit) {
 			weightflagNurb(1, editbutweight, 0);
+			BIF_undo_push("Set weight");
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 			allqueue(REDRAWVIEW3D, 0);
 		}
@@ -3223,6 +3426,7 @@ void do_curvebuts(unsigned short event)
 				}
 				makeknots(nu, 2, nu->flagv>>1);
 			}
+			BIF_undo_push("Make knots");
 			DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 			allqueue(REDRAWVIEW3D, 0);
 		}
@@ -3274,6 +3478,7 @@ void do_curvebuts(unsigned short event)
 				nu= nu->next;
 			}
 		}
+		BIF_undo_push("Make 2D/3D");
 		DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 		allqueue(REDRAWVIEW3D, 0);
 		break;
@@ -3289,6 +3494,7 @@ void do_curvebuts(unsigned short event)
 			}
 		}
 
+		BIF_undo_push("Set resolution");
 		DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 		allqueue(REDRAWVIEW3D, 0);
 		allqueue(REDRAWBUTSALL, 0);
@@ -3347,9 +3553,9 @@ static void editing_panel_curve_tools(Object *ob, Curve *cu)
 	if(ob->type==OB_CURVE) {
 		uiDefBut(block, LABEL, 0, "Convert",	463,173,72, 18, 0, 0, 0, 0, 0, "");
 		uiBlockBeginAlign(block);
-		uiDefBut(block, BUT,B_CONVERTPOLY,"Poly",		467,152,72, 18, 0, 0, 0, 0, 0, "Converts selected into regular Polygon vertices");
-		uiDefBut(block, BUT,B_CONVERTBEZ,"Bezier",		467,132,72, 18, 0, 0, 0, 0, 0, "Converts selected to Bezier triples");
-		uiDefBut(block, BUT,B_CONVERTNURB,"Nurb",		467,112,72, 18, 0, 0, 0, 0, 0, "Converts selected to Nurbs Points");
+		uiDefBut(block, BUT,B_CONVERTPOLY,"Poly",		450,152,110, 18, 0, 0, 0, 0, 0, "Converts selected into regular Polygon vertices");
+		uiDefBut(block, BUT,B_CONVERTBEZ,"Bezier",		450,132,110, 18, 0, 0, 0, 0, 0, "Converts selected to Bezier triples");
+		uiDefBut(block, BUT,B_CONVERTNURB,"Nurb",		450,112,110, 18, 0, 0, 0, 0, 0, "Converts selected to Nurbs Points");
 	}
 	uiBlockBeginAlign(block);
 	uiDefBut(block, BUT,B_UNIFU,"Uniform U",	565,152,102, 18, 0, 0, 0, 0, 0, "Nurbs only; interpolated result doesn't go to end points in U");
@@ -3360,7 +3566,7 @@ static void editing_panel_curve_tools(Object *ob, Curve *cu)
 	uiDefBut(block, BUT,B_BEZV,"V",				670,112,50, 18, 0, 0, 0, 0, 0, "Nurbs only; make knots array mimic a Bezier in V");
 	uiBlockEndAlign(block);
 
-	uiDefBut(block, BUT,B_SETWEIGHT,"Set Weight",	465,11,95,49, 0, 0, 0, 0, 0, "Nurbs only; set weight for select points");
+	uiDefBut(block, BUT,B_SETWEIGHT,"Set Weight",	450,11,110,49, 0, 0, 0, 0, 0, "Nurbs only; set weight for select points");
 
 	uiBlockBeginAlign(block);
 	uiDefButF(block, NUM,0,"Weight:",		565,36,102,22, &editbutweight, 0.01, 100.0, 10, 0, "The weight you can assign");
@@ -3379,10 +3585,15 @@ static void editing_panel_curve_tools(Object *ob, Curve *cu)
 		if(nu) {
 			if (ob->type==OB_CURVE) {
 				uiDefBut(block, LABEL, 0, "Tilt",
-					467,87,72, 18, 0, 0, 0, 0, 0, "");
+					450,90,72, 18, 0, 0, 0, 0, 0, "");
 				/* KEY_LINEAR, KEY_CARDINAL, KEY_BSPLINE */
-				uiDefButS(block, MENU, B_TILTINTERP, "Tilt Interpolation %t|Linear %x0|Cardinal %x1|BSpline %x2",
-					467,67,72, 18, &(nu->tilt_interp), 0, 0, 0, 0, "Tilt interpolation");
+				uiDefButS(block, MENU, B_TILTINTERP, "Tilt Interpolation %t|Linear%x0|Cardinal%x1|BSpline %x2|Ease%x3",
+					495,90,66, 18, &(nu->tilt_interp), 0, 0, 0, 0, "Tadius interpolation for 3D curves");
+
+				uiDefBut(block, LABEL, 0, "Radius",
+					450,70,72, 18, 0, 0, 0, 0, 0, "");
+				uiDefButS(block, MENU, B_TILTINTERP, "Radius Interpolation %t|Linear%x0|Cardinal%x1|BSpline %x2|Ease%x3",
+					495,70,66, 18, &(nu->radius_interp), 0, 0, 0, 0, "Radius interpolation");
 			}
 						
 			uiBlockBeginAlign(block);
@@ -3676,11 +3887,9 @@ static void editing_panel_camera_yafraydof(Object *ob, Camera *cam)
 void do_cambuts(unsigned short event)
 {
 	Object *ob;
-	Camera *cam;
 	
 	ob= OBACT;
 	if (ob==0) return;
-	cam= ob->data;
 
 	switch(event) {
 	case 0:
@@ -4206,7 +4415,7 @@ static void validate_posebonebutton_cb(void *bonev, void *namev)
 static void armature_layer_cb(void *lay_v, void *value_v)
 {
 	short *layer= lay_v;
-	int value= (long)value_v;
+	int value= (intptr_t)value_v;
 	
 	if(*layer==0 || G.qual==0) *layer= value;
 	allqueue(REDRAWBUTSEDIT, 0);
@@ -4540,7 +4749,7 @@ static void editing_panel_pose_bones(Object *ob, bArmature *arm)
 			uiDefButBitI(block, TOG, BONE_NO_SCALE, B_ARM_RECALCDATA, "S",			70,by-38,20,19, &curBone->flag, 1.0, 32.0, 0.0, 0.0, "Don't inherit scale from parent Bone");
 			uiDefButBitI(block, TOGN, BONE_NO_DEFORM, B_ARM_RECALCDATA, "Deform",	90, by-38, 80, 19, &curBone->flag, 0.0, 0.0, 0.0, 0.0, "Indicate if Bone deforms geometry");
 			uiDefButBitI(block, TOG, BONE_MULT_VG_ENV, B_ARM_RECALCDATA, "Mult",	170,by-38,80,19, &curBone->flag, 1.0, 32.0, 0.0, 0.0, "Multiply Bone Envelope with VertexGroup");
-			uiDefButBitI(block, TOG, BONE_MULT_VG_ENV, B_ARM_RECALCDATA, "Hide",	250,by-38,80,19, &curBone->flag, 1.0, 32.0, 0.0, 0.0, "Toggles display of this bone in Edit Mode");
+			uiDefButBitI(block, TOG, BONE_HIDDEN_P, B_ARM_RECALCDATA, "Hide",	250,by-38,80,19, &curBone->flag, 1.0, 32.0, 0.0, 0.0, "Toggles display of this bone in Edit Mode");
 			
 			/* layers */
 			uiBlockBeginAlign(block);
@@ -4665,7 +4874,7 @@ void do_vgroupbuts(unsigned short event)
 			DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 			scrarea_queue_winredraw(curarea);
 			allqueue(REDRAWOOPS, 0);
-			
+			BIF_undo_push("New vertex group");
 			break;
 		case B_DELVGROUP:
 			if ((G.obedit) && (G.obedit == ob)) {
@@ -4681,35 +4890,40 @@ void do_vgroupbuts(unsigned short event)
 			break;
 		case B_ASSIGNVGROUP:
 			assign_verts_defgroup ();
+			DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 			allqueue (REDRAWVIEW3D, 1);
 			BIF_undo_push("Assign to vertex group");
 			break;
 		case B_REMOVEVGROUP:
 			remove_verts_defgroup (0);
+			DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
 			allqueue (REDRAWVIEW3D, 1);
 			allqueue(REDRAWOOPS, 0);
 			BIF_undo_push("Remove from vertex group");
 			break;
 		case B_SELVGROUP:
-			sel_verts_defgroup(1);
+			sel_verts_defgroup(1); /* runs countall() */
 			allqueue (REDRAWVIEW3D, 1);
 			allqueue(REDRAWOOPS, 0);
-			countall();
+			BIF_undo_push("Select vertex group");
 			break;
 		case B_DESELVGROUP:
-			sel_verts_defgroup(0);
-			DAG_object_flush_update(G.scene, ob, OB_RECALC_DATA);
+			sel_verts_defgroup(0); /* runs countall() */
 			allqueue (REDRAWVIEW3D, 1);
 			allqueue(REDRAWOOPS, 0);
-			countall();
+			BIF_undo_push("DeSelect vertex group");
 			break;
 		case B_LINKEDVGROUP:
 			copy_linked_vgroup_channels(ob);
+			allqueue (REDRAWVIEW3D, 1);
+			allqueue(REDRAWOOPS, 0);
+			BIF_undo_push("Copy vertex group to linked obdata");
 			break;
 		case B_COPYVGROUP:
 			duplicate_defgroup (ob);
 			scrarea_queue_winredraw (curarea);
 			allqueue (REDRAWOOPS, 0);
+			BIF_undo_push("Copy vertex group");
 			break;
 	}
 }
@@ -4844,7 +5058,22 @@ void do_meshbuts(unsigned short event)
 				allqueue(REDRAWBUTSEDIT, 0);
 			}
 			break;
-			
+		case B_SETTFACE_CLONE:
+			if (G.obedit || me) {
+				CustomData *fdata= (G.obedit)? &em->fdata: &me->fdata;
+				CustomData_set_layer_clone(fdata, CD_MTFACE, acttface_clone-1);
+				BIF_undo_push("Set Clone UV Texture");
+				allqueue(REDRAWBUTSEDIT, 0);
+			}
+			break;
+		case B_SETTFACE_MASK:
+			if (G.obedit || me) {
+				CustomData *fdata= (G.obedit)? &em->fdata: &me->fdata;
+				CustomData_set_layer_mask(fdata, CD_MTFACE, acttface_mask-1);
+				BIF_undo_push("Set Stencil UV Texture");
+				allqueue(REDRAWBUTSEDIT, 0);
+			}
+			break;
 		case B_FLIPNORM:
 			if(G.obedit) {
 				flip_editnormals();
@@ -4865,9 +5094,7 @@ void do_meshbuts(unsigned short event)
 		if( select_area(SPACE_VIEW3D)) spin_mesh(G.scene->toolsettings->step, G.scene->toolsettings->degr, 0, 1);
 		break;
 	case B_EXTR:
-		G.f |= G_DISABLE_OK;
 		if( select_area(SPACE_VIEW3D)) extrude_mesh();
-		G.f -= G_DISABLE_OK;
 		break;
 	case B_SCREW:
 		if( select_area(SPACE_VIEW3D)) screw_mesh(G.scene->toolsettings->step, G.scene->toolsettings->turn);
@@ -4876,9 +5103,7 @@ void do_meshbuts(unsigned short event)
 		if( select_area(SPACE_VIEW3D)) extrude_repeat_mesh(G.scene->toolsettings->step, G.scene->toolsettings->extr_offs);
 		break;
 	case B_SPLIT:
-		G.f |= G_DISABLE_OK;
 		split_mesh();
-		G.f -= G_DISABLE_OK;
 		break;
 	case B_REMDOUB:
 		count= removedoublesflag(1, 0, G.scene->toolsettings->doublimit);
@@ -4943,6 +5168,9 @@ void do_meshbuts(unsigned short event)
 		break;
 	case B_GEN_SKELETON:
 		generateSkeleton();
+		break;
+	case B_RETARGET_SKELETON:
+		BIF_retargetArmature();
 		break;
 	}
 
@@ -5042,6 +5270,100 @@ static void skgen_reorder(void *option, void *arg2)
 	}
 }
 
+static void skgen_graphgen(void *arg1, void *arg2)
+{
+	BIF_GlobalReebGraphFromEditMesh();
+	allqueue(REDRAWVIEW3D, 0);
+}
+
+static void skgen_graphfree(void *arg1, void *arg2)
+{
+	BIF_GlobalReebFree();
+	allqueue(REDRAWVIEW3D, 0);
+}
+
+static void skgen_rigadjust(void *arg1, void *arg2)
+{
+	BIF_adjustRetarget();
+}
+
+static void skgen_rigfree(void *arg1, void *arg2)
+{
+	BIF_freeRetarget();
+}
+
+static void skgen_graph_block(uiBlock *block)
+{
+	uiBlockBeginAlign(block);
+	uiDefButS(block, NUM, B_DIFF, "Resolution:",							1025,150,225,19, &G.scene->toolsettings->skgen_resolution,10.0,1000.0, 0, 0,		"Specifies the resolution of the graph's embedding");
+	uiDefButBitS(block, TOG, SKGEN_HARMONIC, B_DIFF, 		"H",			1250,150, 25,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Apply harmonic smoothing to the weighting");
+	uiDefButBitS(block, TOG, SKGEN_FILTER_INTERNAL, B_DIFF, "Filter In",	1025,130, 83,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Filter internal small arcs from graph");
+	uiDefButF(block, NUM, B_DIFF, 							"",				1111,130,164,19, &G.scene->toolsettings->skgen_threshold_internal,0.0, 10.0, 10, 0,	"Specify the threshold ratio for filtering internal arcs");
+	uiDefButBitS(block, TOG, SKGEN_FILTER_EXTERNAL, B_DIFF, "Filter Ex",	1025,110, 53,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Filter external small arcs from graph");
+	uiDefButBitS(block, TOG, SKGEN_FILTER_SMART, 	B_DIFF, "Sm",			1078,110, 30,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Smart Filtering");
+	uiDefButF(block, NUM, B_DIFF, 							"",				1111,110,164,19, &G.scene->toolsettings->skgen_threshold_external,0.0, 10.0, 10, 0,	"Specify the threshold ratio for filtering external arcs");
+	
+	uiDefButBitS(block, TOG, SKGEN_SYMMETRY, B_DIFF, 		"Symmetry",		1025, 90,125,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Restore symmetries based on topology");
+	uiDefButF(block, NUM, B_DIFF, 							"T:",			1150, 90,125,19, &G.scene->toolsettings->skgen_symmetry_limit,0.0, 1.0, 10, 0,	"Specify the threshold distance for considering potential symmetric arcs");
+	uiDefButC(block, NUM, B_DIFF, 							"P:",			1025, 70, 62,19, &G.scene->toolsettings->skgen_postpro_passes, 0, 10, 10, 0,		"Specify the number of processing passes on the embeddings");
+	uiDefButC(block, ROW, B_DIFF,							"Smooth",		1087, 70, 63,19, &G.scene->toolsettings->skgen_postpro, 5.0, (float)SKGEN_SMOOTH, 0, 0, "Smooth embeddings");
+	uiDefButC(block, ROW, B_DIFF,							"Average",		1150, 70, 62,19, &G.scene->toolsettings->skgen_postpro, 5.0, (float)SKGEN_AVERAGE, 0, 0, "Average embeddings");
+	uiDefButC(block, ROW, B_DIFF,							"Sharpen",		1212, 70, 63,19, &G.scene->toolsettings->skgen_postpro, 5.0, (float)SKGEN_SHARPEN, 0, 0, "Sharpen embeddings");
+
+	uiBlockEndAlign(block);
+}
+
+static void editing_panel_mesh_skgen_display(Object *ob, Mesh *me)
+{
+	uiBlock *block;
+	uiBut *but;
+
+	block= uiNewBlock(&curarea->uiblocks, "editing_panel_mesh_skgen_display", UI_EMBOSS, UI_HELV, curarea->win);
+	uiNewPanelTabbed("Mesh Tools More", "Skgen");
+	if(uiNewPanel(curarea, block, "Graph", "Editing", 960, 0, 318, 204)==0) return;
+	
+	but = uiDefBut(block, BUT, B_DIFF, "Generate",				1025,170,125,19, 0, 0, 0, 0, 0, "Generate Graph from Mesh");
+	uiButSetFunc(but, skgen_graphgen, NULL, NULL);
+	but = uiDefBut(block, BUT, B_DIFF, "Free",					1150,170,125,19, 0, 0, 0, 0, 0, "Free Graph from Mesh");
+	uiButSetFunc(but, skgen_graphfree, NULL, NULL);
+	
+	skgen_graph_block(block);
+
+	uiBlockBeginAlign(block);
+	uiDefButBitS(block, TOG, SKGEN_DISP_LENGTH, REDRAWVIEW3D,	"Length",			1025, 40, 50,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,		"Show Length");
+	uiDefButBitS(block, TOG, SKGEN_DISP_WEIGHT, REDRAWVIEW3D,	"Weight",			1075, 40, 50,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,		"Show Weight");
+	uiDefButBitS(block, TOG, SKGEN_DISP_EMBED, REDRAWVIEW3D,	"Embed",			1125, 40, 50,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,		"Show Arc Embedings");
+	uiDefButBitS(block, TOG, SKGEN_DISP_INDEX, REDRAWVIEW3D,	"Index",			1175, 40, 50,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,		"Show Arc and Node indexes");
+	uiDefButBitS(block, TOG, SKGEN_DISP_ORIG, REDRAWVIEW3D,		"Original",			1225, 40, 50,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,		"Show Original Graph");
+
+	uiBlockEndAlign(block);
+
+	uiDefButC(block, NUM, REDRAWVIEW3D, 						"Level:",			1025, 20, 125,19, &G.scene->toolsettings->skgen_multi_level, 0, REEB_MAX_MULTI_LEVEL, 1, 0,"Specify the level to draw");
+}
+
+static void editing_panel_mesh_skgen_retarget(Object *ob, Mesh *me)
+{
+	uiBlock *block;
+	uiBut *but;
+
+	block= uiNewBlock(&curarea->uiblocks, "editing_panel_mesh_skgen_retarget", UI_EMBOSS, UI_HELV, curarea->win);
+	uiNewPanelTabbed("Mesh Tools More", "Skgen");
+	if(uiNewPanel(curarea, block, "Retarget", "Editing", 960, 0, 318, 204)==0) return;
+	
+	uiDefBut(block, BUT, B_RETARGET_SKELETON, "Retarget Skeleton",	1025,170,100,19, 0, 0, 0, 0, 0, "Retarget Selected Armature to this Mesh");
+	but = uiDefBut(block, BUT, B_DIFF, "Adjust",					1125,170,100,19, 0, 0, 0, 0, 0, "Adjust Retarget using new weights");
+	uiButSetFunc(but, skgen_rigadjust, NULL, NULL);
+	but = uiDefBut(block, BUT, B_DIFF, "Free",						1225,170,50,19, 0, 0, 0, 0, 0, "Free Retarget structure");
+	uiButSetFunc(but, skgen_rigfree, NULL, NULL);
+
+	skgen_graph_block(block);
+
+	uiDefButF(block, NUM, B_DIFF, 							"Ang:",			1025, 40, 83,19, &G.scene->toolsettings->skgen_retarget_angle_weight, 0, 10, 1, 0,		"Angle Weight");
+	uiDefButF(block, NUM, B_DIFF, 							"Len:",			1108, 40, 83,19, &G.scene->toolsettings->skgen_retarget_length_weight, 0, 10, 1, 0,		"Length Weight");
+	uiDefButF(block, NUM, B_DIFF, 							"Dist:",		1191, 40, 84,19, &G.scene->toolsettings->skgen_retarget_distance_weight, 0, 10, 1, 0,		"Distance Weight");
+	uiDefButC(block, NUM, B_DIFF, 							"Method:",		1025, 20, 125,19, &G.scene->toolsettings->skgen_optimisation_method, 0, 2, 1, 0,"Optimisation Method (0: brute, 1: memoize, 2: annealing max fixed");
+}
+
 static void editing_panel_mesh_skgen(Object *ob, Mesh *me)
 {
 	uiBlock *block;
@@ -5049,20 +5371,17 @@ static void editing_panel_mesh_skgen(Object *ob, Mesh *me)
 	int i;
 
 	block= uiNewBlock(&curarea->uiblocks, "editing_panel_mesh_skgen", UI_EMBOSS, UI_HELV, curarea->win);
-	if(uiNewPanel(curarea, block, "Skeleton Generator", "Editing", 960, 0, 318, 204)==0) return;
+	uiNewPanelTabbed("Mesh Tools More", "Skgen");
+	if(uiNewPanel(curarea, block, "Generator", "Editing", 960, 0, 318, 204)==0) return;
 	
-	uiDefBut(block, BUT, B_GEN_SKELETON, "Generate Skeleton",			1025,170,250,19, 0, 0, 0, 0, 0, "Generate Skeleton from Mesh");
+	uiDefBut(block, BUT, B_GEN_SKELETON, "Generate",			1025,170,250,19, 0, 0, 0, 0, 0, "Generate Skeleton from Mesh");
+
+	skgen_graph_block(block);
 
 	uiBlockBeginAlign(block);
-	uiDefButS(block, NUM, B_DIFF, "Resolution:",							1025,150,250,19, &G.scene->toolsettings->skgen_resolution,10.0,1000.0, 0, 0,		"Specifies the resolution of the graph's embedding");
-	uiDefButBitS(block, TOG, SKGEN_FILTER_INTERNAL, B_DIFF, "Filter In",	1025,130, 83,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Filter internal small arcs from graph");
-	uiDefButF(block, NUM, B_DIFF, 							"T:",			1111,130,164,19, &G.scene->toolsettings->skgen_threshold_internal,0.0, 1.0, 10, 0,	"Specify the threshold ratio for filtering internal arcs");
-	uiDefButBitS(block, TOG, SKGEN_FILTER_EXTERNAL, B_DIFF, "Filter Ex",	1025,110, 83,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Filter external small arcs from graph");
-	uiDefButF(block, NUM, B_DIFF, 							"T:",			1111,110,164,19, &G.scene->toolsettings->skgen_threshold_external,0.0, 1.0, 10, 0,	"Specify the threshold ratio for filtering external arcs");
-
 	for(i = 0; i < SKGEN_SUB_TOTAL; i++)
 	{
-		int y = 90 - 20 * i;
+		int y = 50 - 20 * i;
 		
 		but = uiDefIconBut(block, BUT, B_MODIFIER_RECALC, VICON_MOVE_DOWN, 		1025, y, 16, 19, NULL, 0.0, 0.0, 0.0, 0.0, "Change the order the subdivisions algorithm are applied");
 		uiButSetFunc(but, skgen_reorder, SET_INT_IN_POINTER(i), NULL);
@@ -5079,18 +5398,14 @@ static void editing_panel_mesh_skgen(Object *ob, Mesh *me)
 				uiDefButF(block, NUM, B_DIFF, 							"T:",			1111, y,164,19, &G.scene->toolsettings->skgen_angle_limit,0.0, 90.0, 10, 0,			"Specify the threshold angle in degrees for subdivision");
 				break;
 			case SKGEN_SUB_CORRELATION:
-				uiDefButBitS(block, TOG, SKGEN_CUT_CORRELATION, B_DIFF, "Correlation",	1041, y, 67,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Subdivide arcs based on correlation");
-				uiDefButF(block, NUM, B_DIFF, 							"T:",			1111, y,164,19, &G.scene->toolsettings->skgen_correlation_limit,0.0, 1.0, 0.01, 0,	"Specify the threshold correlation for subdivision");
+				uiDefButBitS(block, TOG, SKGEN_CUT_CORRELATION, B_DIFF, "Adaptative",	1041, y, 67,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Subdivide arcs adaptatively");
+				uiDefButF(block, NUM, B_DIFF, 							"T:",			1111, y,114,19, &G.scene->toolsettings->skgen_correlation_limit,0.0, 1.0, 0.01, 0,	"Specify the adaptive threshold for subdivision");
+				uiDefButBitS(block, TOG, SKGEN_STICK_TO_EMBEDDING, B_DIFF,		"E",			1225, y, 25,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Stick endpoint to embedding");
+				uiDefButBitS(block, TOG, SKGEN_ADAPTIVE_DISTANCE, B_DIFF, 		"D",			1250, y, 25,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Adaptive distance (on) or variance(off)");
 				break;
 		}
 	}
 
-	uiDefButBitS(block, TOG, SKGEN_SYMMETRY, B_DIFF, 		"Symmetry",		1025, 30,125,19, &G.scene->toolsettings->skgen_options, 0, 0, 0, 0,					"Restore symmetries based on topology");
-	uiDefButF(block, NUM, B_DIFF, 							"T:",			1150, 30,125,19, &G.scene->toolsettings->skgen_symmetry_limit,0.0, 1.0, 10, 0,	"Specify the threshold distance for considering potential symmetric arcs");
-	uiDefButC(block, NUM, B_DIFF, 							"P:",			1025, 10, 62,19, &G.scene->toolsettings->skgen_postpro_passes, 0, 10, 10, 0,		"Specify the number of processing passes on the embeddings");
-	uiDefButC(block, ROW, B_DIFF,							"Smooth",		1087, 10, 63,19, &G.scene->toolsettings->skgen_postpro, 5.0, (float)SKGEN_SMOOTH, 0, 0, "Smooth embeddings");
-	uiDefButC(block, ROW, B_DIFF,							"Average",		1150, 10, 62,19, &G.scene->toolsettings->skgen_postpro, 5.0, (float)SKGEN_AVERAGE, 0, 0, "Average embeddings");
-	uiDefButC(block, ROW, B_DIFF,							"Sharpen",		1212, 10, 63,19, &G.scene->toolsettings->skgen_postpro, 5.0, (float)SKGEN_SHARPEN, 0, 0, "Sharpen embeddings");
 	uiBlockEndAlign(block);
 }
 
@@ -5164,7 +5479,7 @@ char *get_vertexgroup_menustr(Object *ob)
 		qsort_ptr = MEM_callocN (defCount * sizeof (qsort_ptr[0]),
 								 "qsort_ptr");
 		for (index = 1, dg = ob->defbase.first; dg; index++, dg=dg->next) {
-			printed = snprintf (qsort_ptr[index - 1], sizeof (dg->name), dg->name);
+			printed = snprintf (qsort_ptr[index - 1], sizeof (dg->name), "%s", dg->name);
 			snprintf (qsort_ptr[index - 1]+printed, 6+1, "%%x%d|", index); // +1 to move the \0   see above 999 max here too
 		}
 		
@@ -5603,7 +5918,7 @@ void sculptmode_draw_interface_brush(uiBlock *block, unsigned short cx, unsigned
 	if(sd->brush_type == DRAW_BRUSH)
 		uiDefButC(block,NUM,B_NOP, "View", cx,cy,80,19, &sculptmode_brush()->view, 0,10,20,0,"Pulls brush direction towards view");
 	cy-= 20;
-	uiDefButBitC(block, TOG, SCULPT_BRUSH_ANCHORED, B_NOP, "Anchored", cx,cy,80,19, &sculptmode_brush()->flag, 0,0,0,0, "Keep the brush center anchored to the initial location");
+	uiDefButBitC(block, TOG, SCULPT_BRUSH_ANCHORED, B_NOP, "Anchored", cx,cy,80,19, &sculptmode_brush()->flag, 0,0,0,0, "Keep the brush center anchored to the initial location (Shift A)");
 	uiBlockEndAlign(block);
 
 	/* Draw curve */
@@ -5633,11 +5948,11 @@ void sculptmode_draw_interface_textures(uiBlock *block, unsigned short cx, unsig
 	for(i=-1; i<8; i++) {
 		char str[64];
 		int loos;
-		mtex= sd->mtex[i];
 
 		if(i==-1)
 			strcpy(str, "Default");
 		else {
+			mtex= sd->mtex[i];
 			if(mtex && mtex->tex) splitIDname(mtex->tex->id.name+2, str, &loos);
 			else strcpy(str, "");
 		}
@@ -5648,13 +5963,15 @@ void sculptmode_draw_interface_textures(uiBlock *block, unsigned short cx, unsig
 
 	cy= orig_y-20;
 	cx+= 85;
-	mtex= sd->mtex[sd->texact];
 
 	if(sd->texact == -1) {
 		uiBlockBeginAlign(block);
 		uiDefBut(block,LABEL,B_NOP,"",cx,cy,115,20,0,0,0,0,0,""); /* Padding */
 	} else {
-		ID *id= NULL;
+		ID *id = NULL;
+
+		mtex= sd->mtex[sd->texact];
+
 		uiBlockBeginAlign(block);
 		
 		if(mtex && mtex->tex) id= &mtex->tex->id;
@@ -6060,6 +6377,135 @@ void weight_paint_buttons(uiBlock *block)
 	}
 }
 
+void brush_buttons(uiBlock *block, short sima,
+		int evt_nop, int evt_change,
+		int evt_browse, int evt_local,
+		int evt_del, int evt_keepdata,
+		int evt_texbrowse, int evt_texdel)
+{
+	ToolSettings *settings= G.scene->toolsettings;
+	Brush *brush= settings->imapaint.brush;
+	ID *id;
+	int yco, xco, butw, but_idx;
+
+	short *menupoin = sima ? &(G.sima->menunr) : &(G.buts->menunr);
+	short do_project = settings->imapaint.flag & IMAGEPAINT_PROJECT_DISABLE ? 0:1;
+	
+	yco= 160;
+
+	butw = sima ? 80 : 106;
+	
+	uiBlockBeginAlign(block);
+	but_idx = 0;
+	uiDefButS(block, ROW, evt_change, "Draw",		butw*(but_idx++),yco,butw,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_DRAW, 0, 0, "Draw brush");
+	if (sima || do_project==0)
+		uiDefButS(block, ROW, evt_change, "Soften",	butw*(but_idx++),	yco,butw,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_SOFTEN, 0, 0, "Soften brush");
+	uiDefButS(block, ROW, evt_change, "Smear",		butw*(but_idx++),	yco,butw,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_SMEAR, 0, 0, "Smear brush");
+	if (sima || do_project)
+		uiDefButS(block, ROW, evt_change, "Clone",	butw*(but_idx++),	yco,butw,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_CLONE, 0, 0, "Clone brush, use RMB to drag source image");
+	
+	uiBlockEndAlign(block);
+	yco -= 30;
+	 
+	uiBlockSetCol(block, TH_BUT_SETTING2);
+	id= (ID*)settings->imapaint.brush;
+	xco= std_libbuttons(block, 0, yco, 0, NULL, evt_browse, ID_BR, 0, id, NULL, menupoin, 0, evt_local, evt_del, 0, evt_keepdata);
+	uiBlockSetCol(block, TH_AUTO);
+
+	if(brush && !brush->id.lib) {
+
+		butw= 320-(xco+10);
+
+		uiDefButS(block, MENU, evt_nop, "Mix %x0|Add %x1|Subtract %x2|Multiply %x3|Lighten %x4|Darken %x5|Erase Alpha %x6|Add Alpha %x7", xco+10,yco,butw,19, &brush->blend, 0, 0, 0, 0, "Blending method for applying brushes");
+	
+		uiBlockBeginAlign(block);
+		uiDefButBitS(block, TOG|BIT, BRUSH_AIRBRUSH, evt_change, "Airbrush",	xco+10,yco-25,butw/2,19, &brush->flag, 0, 0, 0, 0, "Keep applying paint effect while holding mouse (spray)");
+		uiDefButF(block, NUM, evt_nop, "", xco+10 + butw/2,yco-25,butw/2,19, &brush->rate, 0.01, 1.0, 0, 0, "Number of paints per second for Airbrush");
+		uiBlockEndAlign(block);
+		
+		if (sima) {
+			uiDefButBitS(block, TOG|BIT, BRUSH_TORUS, evt_change, "Wrap",	xco+10,yco-45,butw,19, &brush->flag, 0, 0, 0, 0, "Enables torus wrapping");
+			yco -= 25;
+		}
+		else {
+			yco -= 25;
+			uiBlockBeginAlign(block);
+			uiDefButBitS(block, TOGN|BIT, IMAGEPAINT_PROJECT_DISABLE, B_REDR, "Project Paint",	xco+10,yco-25,butw,19, &settings->imapaint.flag, 0, 0, 0, 0, "Use projection painting for improved consistency in the brush strokes");
+			
+			if ((settings->imapaint.flag & IMAGEPAINT_PROJECT_DISABLE)==0) {
+				
+				
+				/* Projection Painting */
+				
+				uiDefButBitS(block, TOGN|BIT, IMAGEPAINT_PROJECT_XRAY, B_NOP, "Occlude",	xco+10,yco-45,butw/2,19, &settings->imapaint.flag, 0, 0, 0, 0, "Only paint onto the faces directly under the brush (slower)");
+				uiDefButBitS(block, TOGN|BIT, IMAGEPAINT_PROJECT_BACKFACE, B_NOP, "Cull",	xco+10+butw/2,yco-45,butw/2,19, &settings->imapaint.flag, 0, 0, 0, 0, "Ignore faces pointing away from the view (faster)");
+				
+				uiDefButBitS(block, TOGN|BIT, IMAGEPAINT_PROJECT_FLAT, B_NOP, "Normal",	xco+10,yco-65,butw/2,19, &settings->imapaint.flag, 0, 0, 0, 0, "Paint most on faces pointing towards the view");
+				uiDefButS(block, NUM, B_NOP, "", xco+10 +(butw/2),yco-65,butw/2,19, &settings->imapaint.normal_angle, 10.0, 90.0, 0, 0, "Paint most on faces pointing towards the view acording to this angle");
+				
+				uiDefButS(block, NUM, B_NOP, "Bleed: ", xco+10,yco-85,butw,19, &settings->imapaint.seam_bleed, 0.0, 8.0, 0, 0, "Extend paint beyond the faces UVs to reduce seams (in pixels, slower)");
+				uiBlockEndAlign(block);
+				
+				uiBlockBeginAlign(block);
+				uiDefButBitS(block, TOG|BIT, IMAGEPAINT_PROJECT_LAYER_MASK, B_NOP, "Stencil Layer",	xco+10,yco-110,butw-30,19, &settings->imapaint.flag, 0, 0, 0, 0, "Set the mask layer from the UV layer buttons");
+				uiDefButBitS(block, TOG|BIT, IMAGEPAINT_PROJECT_LAYER_MASK_INV, B_NOP, "Inv",	xco+10 + butw-30,yco-110,30,19, &settings->imapaint.flag, 0, 0, 0, 0, "Invert the mask");
+				uiBlockEndAlign(block);
+				
+			}
+			uiBlockEndAlign(block);
+		}
+		
+		uiBlockBeginAlign(block);
+		uiDefButF(block, COL, B_VPCOLSLI, "",					0,yco,200,19, brush->rgb, 0, 0, 0, 0, "");
+		uiDefButF(block, NUMSLI, evt_nop, "Opacity ",		0,yco-20,180,19, &brush->alpha, 0.0, 1.0, 0, 0, "The amount of pressure on the brush");
+		uiDefButBitS(block, TOG|BIT, BRUSH_ALPHA_PRESSURE, evt_nop, "P",	180,yco-20,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
+		uiDefButI(block, NUMSLI, evt_nop, "Size ",		0,yco-40,180,19, &brush->size, 1, 200, 0, 0, "The size of the brush");
+		uiDefButBitS(block, TOG|BIT, BRUSH_SIZE_PRESSURE, evt_nop, "P",	180,yco-40,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
+		uiDefButF(block, NUMSLI, evt_nop, "Falloff ",		0,yco-60,180,19, &brush->innerradius, 0.0, 1.0, 0, 0, "The fall off radius of the brush");
+		uiDefButBitS(block, TOG|BIT, BRUSH_RAD_PRESSURE, evt_nop, "P",	180,yco-60,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
+		uiDefButF(block, NUMSLI, evt_nop, "Spacing ",0,yco-80,180,19, &brush->spacing, 1.0, 100.0, 0, 0, "Repeating paint on %% of brush diameter");
+		uiDefButBitS(block, TOG|BIT, BRUSH_SPACING_PRESSURE, evt_nop, "P",	180,yco-80,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
+		uiBlockEndAlign(block);
+
+		yco -= 110;
+
+		if(sima && settings->imapaint.tool == PAINT_TOOL_CLONE) {
+			id= (ID*)brush->clone.image;
+			uiBlockSetCol(block, TH_BUT_SETTING2);
+			xco= std_libbuttons(block, 0, yco, 0, NULL, B_SIMACLONEBROWSE, ID_IM, 0, id, 0, menupoin, 0, 0, B_SIMACLONEDELETE, 0, 0);
+			uiBlockSetCol(block, TH_AUTO);
+			if(id) {
+				butw= 320-(xco+5);
+				uiDefButF(block, NUMSLI, evt_change, "B ",xco+5,yco,butw,19, &brush->clone.alpha , 0.0, 1.0, 0, 0, "Opacity of clone image display");
+			}
+		}
+		else {
+			if (
+				(sima==NULL) && /* 3D View */
+				(settings->imapaint.flag & IMAGEPAINT_PROJECT_DISABLE)==0 && /* Projection Painting */
+				(settings->imapaint.tool == PAINT_TOOL_CLONE)
+			) {
+				butw = 130;
+				uiDefButBitS(block, TOG|BIT, IMAGEPAINT_PROJECT_LAYER_CLONE, B_REDR, "Clone Layer",	0,yco,butw,20, &settings->imapaint.flag, 0, 0, 0, 0, "Use another UV layer as clone source, otherwise use 3D the cursor as the source");
+			}
+			else {
+				MTex *mtex= brush->mtex[brush->texact];
+				
+				uiBlockSetCol(block, TH_BUT_SETTING2);
+				id= (mtex)? (ID*)mtex->tex: NULL;
+				xco= std_libbuttons(block, 0, yco, 0, NULL, evt_texbrowse, ID_TE, 0, id, NULL, menupoin, 0, 0, evt_texdel, 0, 0);
+				/*uiDefButBitS(block, TOG|BIT, BRUSH_FIXED_TEX, evt_change, "Fixed",	xco+5,yco,butw,19, &brush->flag, 0, 0, 0, 0, "Keep texture origin in fixed position");*/
+				uiBlockSetCol(block, TH_AUTO);
+			}
+		}
+	}
+	
+#if 0
+		uiDefButBitS(block, TOG|BIT, IMAGEPAINT_DRAW_TOOL_DRAWING, B_SIMABRUSHCHANGE, "TD", 0,1,50,19, &settings->imapaint.flag.flag, 0, 0, 0, 0, "Enables brush shape while drawing");
+		uiDefButBitS(block, TOG|BIT, IMAGEPAINT_DRAW_TOOL, B_SIMABRUSHCHANGE, "TP", 50,1,50,19, &settings->imapaint.flag.flag, 0, 0, 0, 0, "Enables brush shape while not drawing");
+#endif
+}
+
 static void editing_panel_mesh_paint(void)
 {
 	uiBlock *block;
@@ -6119,61 +6565,7 @@ static void editing_panel_mesh_paint(void)
 		uiBlockEndAlign(block);
 	}
 	else { /* texture paint */
-		ToolSettings *settings= G.scene->toolsettings;
-		Brush *brush= settings->imapaint.brush;
-		ID *id;
-		int yco, xco, butw;
-
-		yco= 160;
-
-		uiBlockBeginAlign(block);
-		uiDefButS(block, ROW, B_BRUSHCHANGE, "Draw",		0  ,yco,108,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_DRAW, 0, 0, "Draw brush");
-		uiDefButS(block, ROW, B_BRUSHCHANGE, "Soften",		108 ,yco,106,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_SOFTEN, 0, 0, "Soften brush");
-		uiDefButS(block, ROW, B_BRUSHCHANGE, "Smear",		214,yco,106,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_SMEAR, 0, 0, "Smear brush");	
-		uiBlockEndAlign(block);
-		yco -= 30;
-
-		uiBlockSetCol(block, TH_BUT_SETTING2);
-		id= (ID*)settings->imapaint.brush;
-		xco= std_libbuttons(block, 0, yco, 0, NULL, B_BRUSHBROWSE, ID_BR, 0, id, NULL, &(G.buts->menunr), 0, B_BRUSHLOCAL, B_BRUSHDELETE, 0, B_BRUSHKEEPDATA);
-		uiBlockSetCol(block, TH_AUTO);
-
-		if(brush && !brush->id.lib) {
-			MTex *mtex= brush->mtex[brush->texact];
-
-			butw= 320-(xco+10);
-
-			uiDefButS(block, MENU, B_NOP, "Mix %x0|Add %x1|Subtract %x2|Multiply %x3|Lighten %x4|Darken %x5|Erase Alpha %x6|Add Alpha %x7", xco+10,yco,butw,19, &brush->blend, 0, 0, 0, 0, "Blending method for applying brushes");
-
-			uiDefButBitS(block, TOG|BIT, BRUSH_TORUS, B_BRUSHCHANGE, "Wrap",	xco+10,yco-25,butw,19, &brush->flag, 0, 0, 0, 0, "Enables torus wrapping");
-
-			uiBlockBeginAlign(block);
-			uiDefButBitS(block, TOG|BIT, BRUSH_AIRBRUSH, B_BRUSHCHANGE, "Airbrush",	xco+10,yco-50,butw,19, &brush->flag, 0, 0, 0, 0, "Keep applying paint effect while holding mouse (spray)");
-			uiDefButF(block, NUM, B_NOP, "Rate ", xco+10,yco-70,butw,19, &brush->rate, 0.01, 1.0, 0, 0, "Number of paints per second for Airbrush");
-			uiBlockEndAlign(block);
-
-			yco -= 25;
-
-			uiBlockBeginAlign(block);
-			uiDefButF(block, COL, B_VPCOLSLI, "",					0,yco,200,19, brush->rgb, 0, 0, 0, 0, "");
-			uiDefButF(block, NUMSLI, B_NOP, "Opacity ",		0,yco-20,180,19, &brush->alpha, 0.0, 1.0, 0, 0, "The amount of pressure on the brush");
-			uiDefButBitS(block, TOG|BIT, BRUSH_ALPHA_PRESSURE, B_NOP, "P",	180,yco-20,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-			uiDefButI(block, NUMSLI, B_NOP, "Size ",		0,yco-40,180,19, &brush->size, 1, 200, 0, 0, "The size of the brush");
-			uiDefButBitS(block, TOG|BIT, BRUSH_SIZE_PRESSURE, B_NOP, "P",	180,yco-40,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-			uiDefButF(block, NUMSLI, B_NOP, "Falloff ",		0,yco-60,180,19, &brush->innerradius, 0.0, 1.0, 0, 0, "The fall off radius of the brush");
-			uiDefButBitS(block, TOG|BIT, BRUSH_RAD_PRESSURE, B_NOP, "P",	180,yco-60,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-			uiDefButF(block, NUMSLI, B_NOP, "Spacing ",0,yco-80,180,19, &brush->spacing, 1.0, 100.0, 0, 0, "Repeating paint on %% of brush diameter");
-		uiDefButBitS(block, TOG|BIT, BRUSH_SPACING_PRESSURE, B_NOP, "P",	180,yco-80,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-			uiBlockEndAlign(block);
-
-			yco -= 110;
-
-			uiBlockSetCol(block, TH_BUT_SETTING2);
-			id= (mtex)? (ID*)mtex->tex: NULL;
-			xco= std_libbuttons(block, 0, yco, 0, NULL, B_BTEXBROWSE, ID_TE, 0, id, NULL, &(G.buts->menunr), 0, 0, B_BTEXDELETE, 0, 0);
-			/*uiDefButBitS(block, TOG|BIT, BRUSH_FIXED_TEX, B_BRUSHCHANGE, "Fixed",	xco+5,yco,butw,19, &brush->flag, 0, 0, 0, 0, "Keep texture origin in fixed position");*/
-			uiBlockSetCol(block, TH_AUTO);
-		}
+		brush_buttons(block, 0, B_NOP, B_BRUSHCHANGE, B_BRUSHBROWSE, B_BRUSHLOCAL, B_BRUSHDELETE, B_BRUSHKEEPDATA, B_BTEXBROWSE, B_BTEXDELETE);
 	}
 }
 
@@ -6269,6 +6661,11 @@ static void editing_panel_mesh_uvautocalculation(void)
 	row= 180;
 
 	uiDefButBitS(block, TOGN, UVCALC_NO_ASPECT_CORRECT, B_NOP, "Image Aspect",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Scale the UV Unwrapping to correct for the current images aspect ratio");
+
+	row-= butHB+butS;	
+		uiDefButBitS(block, TOG, UVCALC_TRANSFORM_CORRECT, B_NOP, "Transform Correction",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Correct for UV distortion while transforming, (only works with edge slide now)");
+
+	row= 180;
 	
 	uiBlockBeginAlign(block);
 	uiDefButF(block, NUM,B_UVAUTO_CUBESIZE ,"Cube Size:",315,row,200,butH, &G.scene->toolsettings->uvcalc_cubesize, 0.0001, 100.0, 10, 3, "Defines the cubemap size for cube mapping");
@@ -6440,8 +6837,11 @@ void editing_panels()
 			editing_panel_mesh_tools1(ob, ob->data);
 			uiNewPanelTabbed("Mesh Tools 1", "Editing");
 			
-			if (G.rt == 42) /* hidden for now, no time for docs */
-				editing_panel_mesh_skgen(ob, ob->data);
+			#ifdef WITH_BF_REEB
+			editing_panel_mesh_skgen(ob, ob->data);
+			editing_panel_mesh_skgen_retarget(ob, ob->data);
+			editing_panel_mesh_skgen_display(ob, ob->data);
+			#endif
 			
 			editing_panel_mesh_uvautocalculation();
 			if (EM_texFaceCheck())
@@ -6466,7 +6866,7 @@ void editing_panels()
 		editing_panel_links(ob);
 		editing_panel_curve_type(ob, cu);
 		editing_panel_modifiers(ob);
-//		editing_panel_shapes(ob);
+//		editing_panel_shapes(ob); /* there are some backend things that are not ready for this yet */
 		if(G.obedit) {
 			editing_panel_curve_tools(ob, cu);
 			editing_panel_curve_tools1(ob, cu);

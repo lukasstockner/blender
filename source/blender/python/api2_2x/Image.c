@@ -29,7 +29,6 @@
 */
 #include "Image.h"		/*This must come first */
 
-#include "BDR_drawmesh.h"	/* free_realtime_image */
 #include "BKE_main.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
@@ -48,6 +47,7 @@
 #include "BKE_icons.h"
 #include "IMB_imbuf.h"
 #include "IDProp.h"
+#include "GPU_draw.h"
 
 /* used so we can get G.scene->r.cfra for getting the
 current image frame, some images change frame if they are a sequence */
@@ -1003,7 +1003,7 @@ static PyObject *Image_glFree( BPy_Image * self )
 {
 	Image *image = self->image;
 
-	free_realtime_image( image );
+	GPU_free_image( image );
 	/* remove the nocollect flag, image is available for garbage collection again */
 	image->flag &= ~IMA_NOCOLLECT;
 	Py_RETURN_NONE;
@@ -1380,6 +1380,8 @@ static PyGetSetDef BPy_Image_getseters[] = {
 	 "image odd fields toggle", (void *)IMA_STD_FIELD },
 	{"antialias", (getter)Image_getFlag, (setter)Image_setFlag,
 	 "image antialiasing toggle", (void *)IMA_ANTIALI },
+	{"premul", (getter)Image_getFlag, (setter)Image_setFlag,
+	 "image premultiply alpha toggle", (void *)IMA_DO_PREMUL },
 	{"reflect", (getter)Image_getFlag, (setter)Image_setFlag,
 	 "image reflect toggle", (void *)IMA_REFLECT },
 	{"clampX", (getter)Image_getFlagTpage, (setter)Image_setFlagTpage,

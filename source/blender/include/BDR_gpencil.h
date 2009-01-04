@@ -1,5 +1,5 @@
 /**
- * $Id: BDR_gpencil.h 14444 2008-04-16 22:40:48Z aligorith $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -43,7 +43,6 @@ struct bGPDframe;
 /* Temporary 'Stroke Point' data */
 typedef struct tGPspoint {
 	short x, y;				/* x and y coordinates of cursor (in relative to area) */
-	float xf, yf;			/* same as x and y, but as floats */
 	float pressure;			/* pressure of tablet at this point */
 } tGPspoint;
 
@@ -58,10 +57,13 @@ struct bGPDframe *gpencil_frame_addnew(struct bGPDlayer *gpl, int cframe);
 struct bGPDlayer *gpencil_layer_addnew(struct bGPdata *gpd);
 struct bGPdata *gpencil_data_addnew(void);
 
+struct bGPDframe *gpencil_frame_duplicate(struct bGPDframe *src);
+struct bGPDlayer *gpencil_layer_duplicate(struct bGPDlayer *src);
 struct bGPdata *gpencil_data_duplicate(struct bGPdata *gpd);
 
 struct bGPdata *gpencil_data_getactive(struct ScrArea *sa);
 short gpencil_data_setactive(struct ScrArea *sa, struct bGPdata *gpd);
+struct ScrArea *gpencil_data_findowner(struct bGPdata *gpd);
 
 void gpencil_frame_delete_laststroke(struct bGPDframe *gpf);
 
@@ -77,7 +79,9 @@ void gpencil_delete_laststroke(struct bGPdata *gpd);
 void gpencil_delete_operation(short mode);
 void gpencil_delete_menu(void);
 
-//short gpencil_paint(short mousebutton);
+void gpencil_convert_operation(short mode);
+void gpencil_convert_menu(void);
+
 short gpencil_do_paint(struct ScrArea *sa, short mousebutton);
 
 #endif /*  BDR_GPENCIL_H */

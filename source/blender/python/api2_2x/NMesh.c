@@ -88,9 +88,6 @@ extern void countall(void);
 #define NMESH_SUBDIV_MIN			0
 #define NMESH_SUBDIV_MAX			6
 
-/* Globals */
-static PyObject *g_nmeshmodule = NULL;
-
 static int unlink_existingMeshData( Mesh * mesh );
 static int convert_NMeshToMesh( Mesh *mesh, BPy_NMesh *nmesh );
 static void check_dverts(Mesh *me, int old_totverts);
@@ -1479,7 +1476,7 @@ static PyObject *NMesh_update( PyObject *self, PyObject *a, PyObject *kwd )
 static PyObject *NMesh_getVertexInfluences( PyObject * self, PyObject * args )
 {
 	int index;
-	PyObject *influence_list = NULL;
+	PyObject *influence_list = NULL, *item;
 	Object *object = ( ( BPy_NMesh * ) self )->object;
 	Mesh *me = ( ( BPy_NMesh * ) self )->mesh;
 
@@ -1519,9 +1516,11 @@ static PyObject *NMesh_getVertexInfluences( PyObject * self, PyObject * args )
 		for( i = 0; i < totinfluences; i++, sweight++ ) {
 			bDeformGroup *defgroup = (bDeformGroup *) BLI_findlink( &object->defbase,
 					sweight->def_nr );
-			if( defgroup )
-				PyList_Append( influence_list, Py_BuildValue( "[sf]",
-						defgroup->name, sweight->weight ) ); 
+			if( defgroup ) {
+				item = Py_BuildValue( "[sf]", defgroup->name, sweight->weight );
+				PyList_Append( influence_list, item);
+				Py_DECREF(item);
+			}
 		}
 	}
 
@@ -2161,8 +2160,8 @@ static PyObject *new_NMesh_displist(ListBase *lb, Object *ob)
 
 			for(a=0; a<dl->parts; a++) {
 				
-				DL_SURFINDEX(dl->flag & DL_CYCL_U, dl->flag & DL_CYCL_V, dl->nr, dl->parts);
-				
+				if (surfindex_displist(dl, a, &b, &p1, &p2, &p3, &p4)==0)
+					break;
 				
 				for(; b<dl->nr; b++) {
 					vidx[0] = p2 + ioffset;
@@ -3321,7 +3320,6 @@ PyObject *NMesh_Init( void )
   if( EdgeFlags )
     PyModule_AddObject( submodule, "EdgeFlags", EdgeFlags );
 
-	g_nmeshmodule = submodule;
 	return submodule;
 }
 

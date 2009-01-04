@@ -407,6 +407,10 @@ void *copy_libblock(void *rt)
 	lb= wich_libbase(G.main, GS(id->name));
 	idn= alloc_libblock(lb, GS(id->name), id->name+2);
 	
+	if(idn==NULL) {
+		printf("ERROR: Illegal ID name for %s (Crashing now)\n", id->name);
+	}
+	
 	idn_len= MEM_allocN_len(idn);
 	if(idn_len - sizeof(ID) > 0) {
 		cp= (char *)id;
@@ -593,6 +597,8 @@ static void get_flags_for_id(ID *id, char *buf)
 
 	if(GS(id->name)==ID_MA)
 		isnode= ((Material *)id)->use_nodes;
+	if(GS(id->name)==ID_TE)
+		isnode= ((Tex *)id)->use_nodes;
 	
 	if (id->us<0)
 		sprintf(buf, "-1W ");

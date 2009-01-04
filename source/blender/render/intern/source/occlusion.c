@@ -181,8 +181,8 @@ static void occ_shade(ShadeSample *ssamp, ObjectInstanceRen *obi, VlakRen *vlr, 
 
 	/* not a pretty solution, but fixes common cases */
 	if(shi->obr->ob && shi->obr->ob->transflag & OB_NEG_SCALE) {
-		VecMulf(shi->vn, -1.0f);
-		VecMulf(shi->vno, -1.0f);
+		VecNegf(shi->vn);
+		VecNegf(shi->vno);
 	}
 
 	/* init material vars */
@@ -402,7 +402,7 @@ static int occ_find_bbox_axis(OcclusionTree *tree, int begin, int end, float *mi
 	return axis;
 }
 
-void occ_node_from_face(OccFace *face, OccNode *node)
+static void occ_node_from_face(OccFace *face, OccNode *node)
 {
 	float n[3];
 
@@ -1143,7 +1143,7 @@ static float occ_quad_form_factor(float *p, float *n, float *q0, float *q1, floa
 	return result;
 }
 
-float occ_form_factor(OccFace *face, float *p, float *n)
+static float occ_form_factor(OccFace *face, float *p, float *n)
 {
 	ObjectInstanceRen *obi;
 	VlakRen *vlr;
@@ -1288,7 +1288,7 @@ static void occ_compute_passes(Render *re, OcclusionTree *tree, int totpass)
 	for(pass=0; pass<totpass; pass++) {
 		for(i=0; i<tree->totface; i++) {
 			occ_face(&tree->face[i], co, n, NULL);
-			VecMulf(n, -1.0f);
+			VecNegf(n);
 			VECADDFAC(co, co, n, 1e-8f);
 
 			occ_lookup(tree, 0, &tree->face[i], co, n, &occ[i], NULL);
@@ -1321,7 +1321,7 @@ static void sample_occ_tree(Render *re, OcclusionTree *tree, OccFace *exclude, f
 		aocolor= WO_AOPLAIN;
 
 	VECCOPY(nn, n);
-	VecMulf(nn, -1.0f);
+	VecNegf(nn);
 
 	occ_lookup(tree, thread, exclude, co, nn, &occ, (aocolor)? bn: NULL);
 
@@ -1525,7 +1525,7 @@ static void *exec_strandsurface_sample(void *data)
 			CalcCent3f(co, co1, co2, co3);
 			CalcNormFloat(co1, co2, co3, n);
 		}
-		VecMulf(n, -1.0f);
+		VecNegf(n);
 
 		sample_occ_tree(re, re->occlusiontree, NULL, co, n, othread->thread, 0, col);
 		VECCOPY(othread->facecol[a], col);
@@ -1670,7 +1670,7 @@ void cache_occ_samples(Render *re, RenderPart *pa, ShadeSample *ssamp)
 	OcclusionCacheSample *sample;
 	OccFace exclude;
 	ShadeInput *shi;
-	long *rd=NULL;
+	intptr_t *rd=NULL;
 	int *ro=NULL, *rp=NULL, *rz=NULL, onlyshadow;
 	int x, y, step = CACHE_STEP;
 

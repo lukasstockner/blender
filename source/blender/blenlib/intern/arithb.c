@@ -759,6 +759,28 @@ void Mat4MulSerie(float answ[][4], float m1[][4],
 	}
 }
 
+void Mat3BlendMat3(float out[][3], float dst[][3], float src[][3], float srcweight)
+{
+	float squat[4], dquat[4], fquat[4];
+	float ssize[3], dsize[3], fsize[4];
+	float rmat[3][3], smat[3][3];
+	
+	Mat3ToQuat(dst, dquat);
+	Mat3ToSize(dst, dsize);
+
+	Mat3ToQuat(src, squat);
+	Mat3ToSize(src, ssize);
+	
+	/* do blending */
+	QuatInterpol(fquat, dquat, squat, srcweight);
+	VecLerpf(fsize, dsize, ssize, srcweight);
+
+	/* compose new matrix */
+	QuatToMat3(fquat, rmat);
+	SizeToMat3(fsize, smat);
+	Mat3MulMat3(out, rmat, smat);
+}
+
 void Mat4BlendMat4(float out[][4], float dst[][4], float src[][4], float srcweight)
 {
 	float squat[4], dquat[4], fquat[4];
@@ -999,6 +1021,19 @@ int FloatCompare( float *v1,  float *v2, float limit)
 	if( fabs(v1[0]-v2[0])<limit ) {
 		if( fabs(v1[1]-v2[1])<limit ) {
 			if( fabs(v1[2]-v2[2])<limit ) return 1;
+		}
+	}
+	return 0;
+}
+
+int FloatCompare4( float *v1,  float *v2, float limit)
+{
+
+	if( fabs(v1[0]-v2[0])<limit ) {
+		if( fabs(v1[1]-v2[1])<limit ) {
+			if( fabs(v1[2]-v2[2])<limit ) {
+				if( fabs(v1[3]-v2[3])<limit ) return 1;
+			}
 		}
 	}
 	return 0;
@@ -1316,8 +1351,8 @@ void Mat4ToQuat( float m[][4], float *q)
 
 void QuatOne(float *q)
 {
-	q[0]= q[2]= q[3]= 0.0;
-	q[1]= 1.0;
+	q[0]= 1.0;
+	q[1]= q[2]= q[3]= 0.0;
 }
 
 void NormalQuat(float *q)
@@ -1334,6 +1369,18 @@ void NormalQuat(float *q)
 		q[1]= 1.0f;
 		q[0]= q[2]= q[3]= 0.0f;			
 	}
+}
+
+void RotationBetweenVectorsToQuat(float *q, float v1[3], float v2[3])
+{
+	float axis[3];
+	float angle;
+	
+	Crossf(axis, v1, v2);
+	
+	angle = NormalizedVecAngle2(v1, v2);
+	
+	AxisAngleToQuat(q, axis, angle);
 }
 
 void AxisAngleToQuat(float *q, float *axis, float angle)
@@ -2113,6 +2160,14 @@ void VecLerpf(float *target, float *a, float *b, float t)
 	target[2]= s*a[2] + t*b[2];
 }
 
+void Vec2Lerpf(float *target, float *a, float *b, float t)
+{
+	float s = 1.0f-t;
+
+	target[0]= s*a[0] + t*b[0];
+	target[1]= s*a[1] + t*b[1];
+}
+
 void VecMidf(float *v, float *v1, float *v2)
 {
 	v[0]= 0.5f*(v1[0]+ v2[0]);
@@ -2126,6 +2181,13 @@ void VecMulf(float *v1, float f)
 	v1[0]*= f;
 	v1[1]*= f;
 	v1[2]*= f;
+}
+
+void VecNegf(float *v1)
+{
+	v1[0] = -v1[0];
+	v1[1] = -v1[1];
+	v1[2] = -v1[2];
 }
 
 void VecOrthoBasisf(float *v, float *v1, float *v2)
@@ -2174,6 +2236,11 @@ int VecCompare( float *v1, float *v2, float limit)
 int VecEqual(float *v1, float *v2)
 {
 	return ((v1[0]==v2[0]) && (v1[1]==v2[1]) && (v1[2]==v2[2]));
+}
+
+int VecIsNull(float *v)
+{
+	return (v[0] == 0 && v[1] == 0 && v[2] == 0);
 }
 
 void CalcNormShort( short *v1, short *v2, short *v3, float *n) /* is also cross product */
@@ -2460,7 +2527,7 @@ short IsectLL2Df(float *v1, float *v2, float *v3, float *v4)
  1: intersection
 
 */
-short IsectLLPt2Df(float x0,float y0,float x1,float y1,
+static short IsectLLPt2Df(float x0,float y0,float x1,float y1,
 					 float x2,float y2,float x3,float y3, float *xi,float *yi)
 
 {
@@ -2510,29 +2577,47 @@ short IsectLLPt2Df(float x0,float y0,float x1,float y1,
 } // end Intersect_Lines
 
 #define SIDE_OF_LINE(pa,pb,pp)	((pa[0]-pp[0])*(pb[1]-pp[1]))-((pb[0]-pp[0])*(pa[1]-pp[1]))
-#define ISECT_EPSILON 1e-6
-
 /* point in tri */
 int IsectPT2Df(float pt[2], float v1[2], float v2[2], float v3[2])
 {
-	if ((SIDE_OF_LINE(v1,v2,pt)>=-ISECT_EPSILON) &&
-		(SIDE_OF_LINE(v2,v3,pt)>=-ISECT_EPSILON) &&
-		(SIDE_OF_LINE(v3,v1,pt)>=-ISECT_EPSILON))
-		return 1;
-	else {
-		return 0;
+	if (SIDE_OF_LINE(v1,v2,pt)>=0.0) {
+		if (SIDE_OF_LINE(v2,v3,pt)>=0.0) {
+			if (SIDE_OF_LINE(v3,v1,pt)>=0.0) {
+				return 1;
+			}
+		}
+	} else {
+		if (! (SIDE_OF_LINE(v2,v3,pt)>=0.0) ) {
+			if (! (SIDE_OF_LINE(v3,v1,pt)>=0.0)) {
+				return -1;
+			}
+		}
 	}
+	
+	return 0;
 }
 /* point in quad - only convex quads */
 int IsectPQ2Df(float pt[2], float v1[2], float v2[2], float v3[2], float v4[2])
 {
-	if ((SIDE_OF_LINE(v1,v2,pt)>=-ISECT_EPSILON) &&
-		(SIDE_OF_LINE(v2,v3,pt)>=-ISECT_EPSILON) &&
-		(SIDE_OF_LINE(v3,v4,pt)>=-ISECT_EPSILON) &&
-		(SIDE_OF_LINE(v4,v1,pt)>=-ISECT_EPSILON))
-		return 1;
-	else
-		return 0;
+	if (SIDE_OF_LINE(v1,v2,pt)>=0.0) {
+		if (SIDE_OF_LINE(v2,v3,pt)>=0.0) {
+			if (SIDE_OF_LINE(v3,v4,pt)>=0.0) {
+				if (SIDE_OF_LINE(v4,v1,pt)>=0.0) {
+					return 1;
+				}
+			}
+		}
+	} else {
+		if (! (SIDE_OF_LINE(v2,v3,pt)>=0.0) ) {
+			if (! (SIDE_OF_LINE(v3,v4,pt)>=0.0)) {
+				if (! (SIDE_OF_LINE(v4,v1,pt)>=0.0)) {
+					return -1;
+				}
+			}
+		}
+	}
+	
+	return 0;
 }
 
 
@@ -3410,13 +3495,27 @@ void rgb_to_hsv(float r, float g, float b, float *lh, float *ls, float *lv)
 	*lv = v;
 }
 
-/*http://brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
- * SMPTE-C XYZ to RGB matrix*/
-void xyz_to_rgb(float xc, float yc, float zc, float *r, float *g, float *b)
+/*http://brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html */
+
+void xyz_to_rgb(float xc, float yc, float zc, float *r, float *g, float *b, int colorspace)
 {
-	*r = (3.50570	* xc) + (-1.73964	* yc) + (-0.544011	* zc);
-	*g = (-1.06906	* xc) + (1.97781	* yc) + (0.0351720	* zc);
-	*b = (0.0563117	* xc) + (-0.196994	* yc) + (1.05005	* zc);
+	switch (colorspace) { 
+	case BLI_CS_SMPTE:
+		*r = (3.50570	* xc) + (-1.73964	* yc) + (-0.544011	* zc);
+		*g = (-1.06906	* xc) + (1.97781	* yc) + (0.0351720	* zc);
+		*b = (0.0563117	* xc) + (-0.196994	* yc) + (1.05005	* zc);
+		break;
+	case BLI_CS_REC709:
+		*r = (3.240476	* xc) + (-1.537150	* yc) + (-0.498535	* zc);
+		*g = (-0.969256 * xc) + (1.875992 * yc) + (0.041556 * zc);
+		*b = (0.055648	* xc) + (-0.204043	* yc) + (1.057311	* zc);
+		break;
+	case BLI_CS_CIE:
+		*r = (2.28783848734076f	* xc) + (-0.833367677835217f	* yc) + (-0.454470795871421f	* zc);
+		*g = (-0.511651380743862f * xc) + (1.42275837632178f * yc) + (0.0888930017552939f * zc);
+		*b = (0.00572040983140966f	* xc) + (-0.0159068485104036f	* yc) + (1.0101864083734f	* zc);
+		break;
+	}
 }
 
 /*If the requested RGB shade contains a negative weight for
@@ -3451,7 +3550,7 @@ int constrain_rgb(float *r, float *g, float *b)
   Parameter Values for the HDTV Standard for the Studio and
   for International Programme Exchange'', formerly CCIR Rec.
   709.*/
-void gamma_correct(float *c)
+static void gamma_correct(float *c)
 {
 	/* Rec. 709 gamma correction. */
 	float cc = 0.018;
@@ -3557,6 +3656,8 @@ void spheremap(float x, float y, float z, float *u, float *v)
 
 /* ------------------------------------------------------------------------- */
 
+/* proposed api by ton and zr, not used yet */
+#if 0
 /* *****************  m1 = m2 *****************  */
 void cpy_m3_m3(float m1[][3], float m2[][3]) 
 {	
@@ -3579,7 +3680,6 @@ void ident_m4(float m[][4])
 	m[2][0]= m[2][1]= m[2][3]= 0.0;
 	m[3][0]= m[3][1]= m[3][2]= 0.0;
 }
-
 
 /* *****************  m1 = m2 (pre) * m3 (post) ***************** */
 void mul_m3_m3m3(float m1[][3], float m2[][3], float m3[][3])
@@ -3718,6 +3818,8 @@ void mul_v3_v3m4(float *v1, float *v2, float mat[][4])
 	
 }
 
+#endif
+
 /* moved from effect.c
    test if the line starting at p1 ending at p2 intersects the triangle v0..v2
    return non zero if it does 
@@ -3850,7 +3952,7 @@ int SweepingSphereIntersectsTriangleUV(float p1[3], float p2[3], float radius, f
 	Normalize(nor);
 
 	/* flip normal */
-	if(Inpf(nor,vel)>0.0f) VecMulf(nor,-1.0f);
+	if(Inpf(nor,vel)>0.0f) VecNegf(nor);
 	
 	a=Inpf(p1,nor)-Inpf(v0,nor);
 	nordotv=Inpf(nor,vel);
@@ -4165,7 +4267,7 @@ float lambda_cp_line_ex(float p[3], float l1[3], float l2[3], float cp[3])
 }
 
 /* little sister we only need to know lambda */
-float lambda_cp_line(float p[3], float l1[3], float l2[3])
+static float lambda_cp_line(float p[3], float l1[3], float l2[3])
 {
 	float h[3],u[3];
 	VecSubf(u, l2, l1);
@@ -4324,7 +4426,7 @@ void VecfCubicInterpol(float *x1, float *v1, float *x2, float *v2, float t, floa
 	v[2]= 3*a[2]*t2 + 2*b[2]*t + v1[2];
 }
 
-int point_in_slice(float p[3], float v1[3], float l1[3], float l2[3])
+static int point_in_slice(float p[3], float v1[3], float l1[3], float l2[3])
 {
 /* 
 what is a slice ?
@@ -4351,7 +4453,7 @@ but see a 'spat' which is a deformed cube with paired parallel planes needs only
 
 /*adult sister defining the slice planes by the origin and the normal  
 NOTE |normal| may not be 1 but defining the thickness of the slice*/
-int point_in_slice_as(float p[3],float origin[3],float normal[3])
+static int point_in_slice_as(float p[3],float origin[3],float normal[3])
 {
 	float h,rp[3];
 	VecSubf(rp,p,origin);
@@ -4361,7 +4463,7 @@ int point_in_slice_as(float p[3],float origin[3],float normal[3])
 }
 
 /*mama (knowing the squared lenght of the normal)*/
-int point_in_slice_m(float p[3],float origin[3],float normal[3],float lns)
+static int point_in_slice_m(float p[3],float origin[3],float normal[3],float lns)
 {
 	float h,rp[3];
 	VecSubf(rp,p,origin);
@@ -4521,7 +4623,7 @@ void tangent_from_uv(float *uv1, float *uv2, float *uv3, float *co1, float *co2,
 
 	/* check flip */
 	if ((ct[0]*n[0] + ct[1]*n[1] + ct[2]*n[2]) < 0.0f)
-		VecMulf(tang, -1.0f);
+		VecNegf(tang);
 }
 
 /* used for zoom values*/

@@ -52,6 +52,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_color_types.h"
 #include "DNA_image_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_node_types.h"
@@ -79,6 +80,7 @@
 #include "BDR_editface.h"
 #include "BDR_drawobject.h"
 #include "BDR_drawmesh.h"
+#include "BDR_gpencil.h"
 #include "BDR_imagepaint.h"
 
 #include "BIF_cursors.h"
@@ -86,6 +88,7 @@
 #include "BIF_graphics.h"
 #include "BIF_mywindow.h"
 #include "BIF_drawimage.h"
+#include "BIF_drawgpencil.h"
 #include "BIF_resources.h"
 #include "BIF_interface.h"
 #include "BIF_interface_icons.h"
@@ -1462,7 +1465,7 @@ static void image_panel_view_properties(short cntrl)	// IMAGE_HANDLER_VIEW_PROPE
 		
 		
 		uiDefButBitI(block, TOG, G_DRAWFACES, B_REDR, "Faces",		10,30,60,19,  &G.f, 0, 0, 0, 0, "Displays all faces as shades in the 3d view and UV editor");
-		uiDefButBitI(block, TOG, G_DRAWEDGES, B_REDR, "Edges", 70, 30,60,19, &G.f, 0, 0, 0, 0, "Displays selected edges using hilights and UV editor");
+		uiDefButBitI(block, TOG, G_DRAWEDGES, B_REDR, "Edges", 70, 30,60,19, &G.f, 0, 0, 0, 0, "Displays selected edges using hilights in the 3d view and UV editor");
 		
 		uiDefButBitI(block, TOG, SI_DRAWSHADOW, B_REDR, "Final Shadow", 130, 30,110,19, &G.sima->flag, 0, 0, 0, 0, "Draw the final result from the objects modifiers");
 		
@@ -1480,15 +1483,7 @@ static void image_panel_view_properties(short cntrl)	// IMAGE_HANDLER_VIEW_PROPE
 
 static void image_panel_paint(short cntrl)	// IMAGE_HANDLER_PAINT
 {
-	/* B_SIMABRUSHCHANGE only redraws and eats the mouse messages  */
-	/* so that LEFTMOUSE does not 'punch' through the floating panel */
-	/* B_SIMANOTHING */
-	ToolSettings *settings= G.scene->toolsettings;
-	Brush *brush= settings->imapaint.brush;
 	uiBlock *block;
-	ID *id;
-	int yco, xco, butw;
-	
 	if ((G.sima->image && (G.sima->flag & SI_DRAWTOOL))==0) {
 		return;
 	}
@@ -1498,75 +1493,8 @@ static void image_panel_paint(short cntrl)	// IMAGE_HANDLER_PAINT
 	uiSetPanelHandler(IMAGE_HANDLER_PAINT);  // for close and esc
 	if(uiNewPanel(curarea, block, "Image Paint", "Image", 10, 230, 318, 204)==0)
 		return;
-
-	yco= 160;
-
-	uiBlockBeginAlign(block);
-	uiDefButS(block, ROW, B_SIMABRUSHCHANGE, "Draw",		0  ,yco,80,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_DRAW, 0, 0, "Draw brush");
-	uiDefButS(block, ROW, B_SIMABRUSHCHANGE, "Soften",		80 ,yco,80,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_SOFTEN, 0, 0, "Soften brush");
-	uiDefButS(block, ROW, B_SIMABRUSHCHANGE, "Smear",		160,yco,80,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_SMEAR, 0, 0, "Smear brush");	
-	uiDefButS(block, ROW, B_SIMABRUSHCHANGE, "Clone",		240,yco,80,19, &settings->imapaint.tool, 7.0, PAINT_TOOL_CLONE, 0, 0, "Clone brush, use RMB to drag source image");	
-	uiBlockEndAlign(block);
-	yco -= 30;
-
-	uiBlockSetCol(block, TH_BUT_SETTING2);
-	id= (ID*)settings->imapaint.brush;
-	xco= std_libbuttons(block, 0, yco, 0, NULL, B_SIMABRUSHBROWSE, ID_BR, 0, id, NULL, &(G.sima->menunr), 0, B_SIMABRUSHLOCAL, B_SIMABRUSHDELETE, 0, B_KEEPDATA);
-	uiBlockSetCol(block, TH_AUTO);
-
-	if(brush && !brush->id.lib) {
-		butw= 320-(xco+10);
-
-		uiDefButS(block, MENU, B_SIMANOTHING, "Mix %x0|Add %x1|Subtract %x2|Multiply %x3|Lighten %x4|Darken %x5|Erase Alpha %x6|Add Alpha %x7", xco+10,yco,butw,19, &brush->blend, 0, 0, 0, 0, "Blending method for applying brushes");
-
-		uiDefButBitS(block, TOG|BIT, BRUSH_TORUS, B_SIMABRUSHCHANGE, "Wrap",	xco+10,yco-25,butw,19, &brush->flag, 0, 0, 0, 0, "Enables torus wrapping");
-
-		uiBlockBeginAlign(block);
-		uiDefButBitS(block, TOG|BIT, BRUSH_AIRBRUSH, B_SIMABRUSHCHANGE, "Airbrush",	xco+10,yco-50,butw,19, &brush->flag, 0, 0, 0, 0, "Keep applying paint effect while holding mouse (spray)");
-		uiDefButF(block, NUM, B_SIMANOTHING, "Rate ", xco+10,yco-70,butw,19, &brush->rate, 0.01, 1.0, 0, 0, "Number of paints per second for Airbrush");
-		uiBlockEndAlign(block);
-
-		yco -= 25;
-
-		uiBlockBeginAlign(block);
-		uiDefButF(block, COL, B_VPCOLSLI, "",					0,yco,200,19, brush->rgb, 0, 0, 0, 0, "");
-		uiDefButF(block, NUMSLI, B_SIMANOTHING, "Opacity ",		0,yco-20,180,19, &brush->alpha, 0.0, 1.0, 0, 0, "The amount of pressure on the brush");
-		uiDefButBitS(block, TOG|BIT, BRUSH_ALPHA_PRESSURE, B_SIMANOTHING, "P",	180,yco-20,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-		uiDefButI(block, NUMSLI, B_SIMANOTHING, "Size ",		0,yco-40,180,19, &brush->size, 1, 200, 0, 0, "The size of the brush");
-		uiDefButBitS(block, TOG|BIT, BRUSH_SIZE_PRESSURE, B_SIMANOTHING, "P",	180,yco-40,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-		uiDefButF(block, NUMSLI, B_SIMANOTHING, "Falloff ",		0,yco-60,180,19, &brush->innerradius, 0.0, 1.0, 0, 0, "The fall off radius of the brush");
-		uiDefButBitS(block, TOG|BIT, BRUSH_RAD_PRESSURE, B_SIMANOTHING, "P",	180,yco-60,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-		uiDefButF(block, NUMSLI, B_SIMANOTHING, "Spacing ",0,yco-80,180,19, &brush->spacing, 1.0, 100.0, 0, 0, "Repeating paint on %% of brush diameter");
-		uiDefButBitS(block, TOG|BIT, BRUSH_SPACING_PRESSURE, B_SIMANOTHING, "P",	180,yco-80,20,19, &brush->flag, 0, 0, 0, 0, "Enables pressure sensitivity for tablets");
-		uiBlockEndAlign(block);
-
-		yco -= 110;
-
-		if(settings->imapaint.tool == PAINT_TOOL_CLONE) {
-			id= (ID*)brush->clone.image;
-			uiBlockSetCol(block, TH_BUT_SETTING2);
-			xco= std_libbuttons(block, 0, yco, 0, NULL, B_SIMACLONEBROWSE, ID_IM, 0, id, 0, &G.sima->menunr, 0, 0, B_SIMACLONEDELETE, 0, 0);
-			uiBlockSetCol(block, TH_AUTO);
-			if(id) {
-				butw= 320-(xco+5);
-				uiDefButF(block, NUMSLI, B_SIMABRUSHCHANGE, "B ",xco+5,yco,butw,19, &brush->clone.alpha , 0.0, 1.0, 0, 0, "Opacity of clone image display");
-			}
-		}
-		else {
-			MTex *mtex= brush->mtex[brush->texact];
-
-			uiBlockSetCol(block, TH_BUT_SETTING2);
-			id= (mtex)? (ID*)mtex->tex: NULL;
-			xco= std_libbuttons(block, 0, yco, 0, NULL, B_SIMABTEXBROWSE, ID_TE, 0, id, NULL, &(G.sima->menunr), 0, 0, B_SIMABTEXDELETE, 0, 0);
-			/*uiDefButBitS(block, TOG|BIT, BRUSH_FIXED_TEX, B_SIMABRUSHCHANGE, "Fixed",	xco+5,yco,butw,19, &brush->flag, 0, 0, 0, 0, "Keep texture origin in fixed position");*/
-			uiBlockSetCol(block, TH_AUTO);
-		}
-	}
-
-#if 0
-		uiDefButBitS(block, TOG|BIT, IMAGEPAINT_DRAW_TOOL_DRAWING, B_SIMABRUSHCHANGE, "TD", 0,1,50,19, &settings->imapaint.flag.flag, 0, 0, 0, 0, "Enables brush shape while drawing");
-		uiDefButBitS(block, TOG|BIT, IMAGEPAINT_DRAW_TOOL, B_SIMABRUSHCHANGE, "TP", 50,1,50,19, &settings->imapaint.flag.flag, 0, 0, 0, 0, "Enables brush shape while not drawing");
-#endif
+	
+	brush_buttons(block, 1, B_SIMANOTHING, B_SIMABRUSHCHANGE, B_SIMABRUSHBROWSE, B_SIMABRUSHLOCAL, B_SIMABRUSHDELETE, B_KEEPDATA, B_SIMABTEXBROWSE, B_SIMABTEXDELETE);
 }
 
 static void image_panel_curves_reset(void *cumap_v, void *ibuf_v)
@@ -1613,19 +1541,21 @@ static void image_panel_curves(short cntrl)	// IMAGE_HANDLER_CURVES
 		rect.ymin= 10; rect.ymax= 200;
 		curvemap_buttons(block, G.sima->cumap, 'c', B_SIMACURVES, B_REDR, &rect);
 		
-		bt=uiDefBut(block, BUT, B_SIMARANGE, "Reset",	10, 160, 90, 19, NULL, 0.0f, 0.0f, 0, 0, "Reset Black/White point and curves");
-		uiButSetFunc(bt, image_panel_curves_reset, G.sima->cumap, ibuf);
+		/* curvemap min/max only works for RGBA */
+		if(ibuf->channels==4) {
+			bt=uiDefBut(block, BUT, B_SIMARANGE, "Reset",	10, 160, 90, 19, NULL, 0.0f, 0.0f, 0, 0, "Reset Black/White point and curves");
+			uiButSetFunc(bt, image_panel_curves_reset, G.sima->cumap, ibuf);
 		
-		uiBlockBeginAlign(block);
-		uiDefButF(block, NUM, B_SIMARANGE, "Min R:",	10, 120, 90, 19, G.sima->cumap->black, -1000.0f, 1000.0f, 10, 2, "Black level");
-		uiDefButF(block, NUM, B_SIMARANGE, "Min G:",	10, 100, 90, 19, G.sima->cumap->black+1, -1000.0f, 1000.0f, 10, 2, "Black level");
-		uiDefButF(block, NUM, B_SIMARANGE, "Min B:",	10, 80, 90, 19, G.sima->cumap->black+2, -1000.0f, 1000.0f, 10, 2, "Black level");
-		
-		uiBlockBeginAlign(block);
-		uiDefButF(block, NUM, B_SIMARANGE, "Max R:",	10, 50, 90, 19, G.sima->cumap->white, -1000.0f, 1000.0f, 10, 2, "White level");
-		uiDefButF(block, NUM, B_SIMARANGE, "Max G:",	10, 30, 90, 19, G.sima->cumap->white+1, -1000.0f, 1000.0f, 10, 2, "White level");
-		uiDefButF(block, NUM, B_SIMARANGE, "Max B:",	10, 10, 90, 19, G.sima->cumap->white+2, -1000.0f, 1000.0f, 10, 2, "White level");
-		
+			uiBlockBeginAlign(block);
+			uiDefButF(block, NUM, B_SIMARANGE, "Min R:",	10, 120, 90, 19, G.sima->cumap->black, -1000.0f, 1000.0f, 10, 2, "Black level");
+			uiDefButF(block, NUM, B_SIMARANGE, "Min G:",	10, 100, 90, 19, G.sima->cumap->black+1, -1000.0f, 1000.0f, 10, 2, "Black level");
+			uiDefButF(block, NUM, B_SIMARANGE, "Min B:",	10, 80, 90, 19, G.sima->cumap->black+2, -1000.0f, 1000.0f, 10, 2, "Black level");
+			
+			uiBlockBeginAlign(block);
+			uiDefButF(block, NUM, B_SIMARANGE, "Max R:",	10, 50, 90, 19, G.sima->cumap->white, -1000.0f, 1000.0f, 10, 2, "White level");
+			uiDefButF(block, NUM, B_SIMARANGE, "Max G:",	10, 30, 90, 19, G.sima->cumap->white+1, -1000.0f, 1000.0f, 10, 2, "White level");
+			uiDefButF(block, NUM, B_SIMARANGE, "Max B:",	10, 10, 90, 19, G.sima->cumap->white+2, -1000.0f, 1000.0f, 10, 2, "White level");
+		}
 	}
 }
 
@@ -1778,6 +1708,45 @@ static void image_panel_preview(ScrArea *sa, short cntrl)	// IMAGE_HANDLER_PREVI
 	
 }
 
+static void image_panel_gpencil(short cntrl)	// IMAGE_HANDLER_GREASEPENCIL
+{
+	uiBlock *block;
+	SpaceImage *sima;
+	
+	sima= curarea->spacedata.first;
+
+	block= uiNewBlock(&curarea->uiblocks, "image_panel_gpencil", UI_EMBOSS, UI_HELV, curarea->win);
+	uiPanelControl(UI_PNL_SOLID | UI_PNL_CLOSE  | cntrl);
+	uiSetPanelHandler(IMAGE_HANDLER_GREASEPENCIL);  // for close and esc
+	if (uiNewPanel(curarea, block, "Grease Pencil", "SpaceImage", 100, 30, 318, 204)==0) return;
+	
+	/* allocate memory for gpd if drawing enabled (this must be done first or else we crash) */
+	if (sima->flag & SI_DISPGP) {
+		if (sima->gpd == NULL)
+			gpencil_data_setactive(curarea, gpencil_data_addnew());
+	}
+	
+	if (sima->flag & SI_DISPGP) {
+		bGPdata *gpd= sima->gpd;
+		short newheight;
+		
+		/* this is a variable height panel, newpanel doesnt force new size on existing panels */
+		/* so first we make it default height */
+		uiNewPanelHeight(block, 204);
+		
+		/* draw button for showing gpencil settings and drawings */
+		uiDefButBitI(block, TOG, SI_DISPGP, B_REDR, "Use Grease Pencil", 10, 225, 150, 20, &sima->flag, 0, 0, 0, 0, "Display freehand annotations overlay over this Image/UV Editor (draw using Shift-LMB)");
+		
+		/* extend the panel if the contents won't fit */
+		newheight= draw_gpencil_panel(block, gpd, curarea); 
+		uiNewPanelHeight(block, newheight);
+	}
+	else {
+		uiDefButBitI(block, TOG, SI_DISPGP, B_REDR, "Use Grease Pencil", 10, 225, 150, 20, &sima->flag, 0, 0, 0, 0, "Display freehand annotations overlay over this Image/UV Editor");
+		uiDefBut(block, LABEL, 1, " ",	160, 180, 150, 20, NULL, 0.0, 0.0, 0, 0, "");
+	}
+}
+
 static void image_blockhandlers(ScrArea *sa)
 {
 	SpaceImage *sima= sa->spacedata.first;
@@ -1788,7 +1757,6 @@ static void image_blockhandlers(ScrArea *sa)
 	
 	for(a=0; a<SPACE_MAXHANDLER; a+=2) {
 		switch(sima->blockhandler[a]) {
-
 		case IMAGE_HANDLER_PROPERTIES:
 			image_panel_properties(sima->blockhandler[a+1]);
 			break;
@@ -1806,7 +1774,10 @@ static void image_blockhandlers(ScrArea *sa)
 			break;		
 		case IMAGE_HANDLER_PREVIEW:
 			image_panel_preview(sa, sima->blockhandler[a+1]);
-			break;		
+			break;	
+		case IMAGE_HANDLER_GREASEPENCIL:
+			image_panel_gpencil(sima->blockhandler[a+1]);
+			break;
 		}
 		/* clear action value for event */
 		sima->blockhandler[a+1]= 0;
@@ -2339,9 +2310,17 @@ void drawimagespace(ScrArea *sa, void *spacedata)
 	}
 
 	draw_image_transform(ibuf, xuser_asp, yuser_asp);
+	
+	/* draw grease-pencil ('image' strokes) */
+	if (sima->flag & SI_DISPGP)
+		draw_gpencil_2dimage(sa, ibuf);
 
 	mywinset(sa->win);	/* restore scissor after gla call... */
 	myortho2(-0.375, sa->winx-0.375, -0.375, sa->winy-0.375);
+	
+	/* draw grease-pencil (screen strokes) */
+	if (sima->flag & SI_DISPGP)
+		draw_gpencil_2dview(sa, 0);
 
 	if(G.rendering==0) {
 		draw_image_view_tool();
@@ -2403,12 +2382,12 @@ static void image_zoom_set_factor(float zoomfac)
 
 void image_viewmove(int mode)
 {
-	short mval[2], mvalo[2], zoom0;
+	short mval[2], mvalo[2];
 	int oldcursor;
 	Window *win;
 	
 	getmouseco_sc(mvalo);
-	zoom0= G.sima->zoom;
+
 	
 	oldcursor=get_cursor();
 	win=winlay_get_active_window();

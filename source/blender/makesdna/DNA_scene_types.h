@@ -345,7 +345,9 @@ typedef struct TimeMarker {
 typedef struct ImagePaintSettings {
 	struct Brush *brush;
 	short flag, tool;
-	int pad3;
+	
+	/* for projection painting only */
+	short seam_bleed,normal_angle;
 } ImagePaintSettings;
 
 typedef struct ParticleBrushData {
@@ -433,14 +435,20 @@ typedef struct ToolSettings {
 	float skgen_angle_limit;
 	float skgen_correlation_limit;
 	float skgen_symmetry_limit;
+	float skgen_retarget_angle_weight;
+	float skgen_retarget_length_weight;
+	float skgen_retarget_distance_weight;
 	short skgen_options;
 	char  skgen_postpro;
 	char  skgen_postpro_passes;
 	char  skgen_subdivisions[3];
+	char  skgen_multi_level;
+	char  skgen_optimisation_method;
+	
+	char tpad[6];
 	
 	/* Alt+RMB option */
 	char edge_mode;
-	char pad3[4];
 } ToolSettings;
 
 /* Used by all brushes to store their properties, which can be directly set
@@ -464,7 +472,7 @@ typedef struct SculptData
 	struct SculptSession *session;
 
 	/* Pointers to all of sculptmodes's textures */
-	struct MTex *mtex[10];
+	struct MTex *mtex[18];
 
 	/* Editable brush shape */
 	struct CurveMapping *cumap;
@@ -520,7 +528,9 @@ typedef struct Scene {
 	float editbutsize;                      /* size of normals */
 	short selectmode;						/* for mesh only! */
 	short proportional, prop_mode;
-	short automerge, pad5, pad6, pad7;
+	short automerge, pad5, pad6;
+	
+	short autokey_mode; 					/* mode for autokeying (defines in DNA_userdef_types.h */
 	
 	short use_nodes;
 	
@@ -553,6 +563,10 @@ typedef struct Scene {
 
 	/* Sculptmode data */
 	struct SculptData sculptdata;
+
+	/* frame step. */
+	int frame_step;
+	int pad;
 } Scene;
 
 
@@ -787,9 +801,19 @@ typedef struct Scene {
 #define IMAGEPAINT_DRAW_TOOL			2
 #define IMAGEPAINT_DRAW_TOOL_DRAWING	4
 
+/* projection painting only */
+#define IMAGEPAINT_PROJECT_DISABLE		8	/* Non projection 3D painting */
+#define IMAGEPAINT_PROJECT_XRAY			16
+#define IMAGEPAINT_PROJECT_BACKFACE		32
+#define IMAGEPAINT_PROJECT_FLAT			64
+#define IMAGEPAINT_PROJECT_LAYER_CLONE	128
+#define IMAGEPAINT_PROJECT_LAYER_MASK	256
+#define IMAGEPAINT_PROJECT_LAYER_MASK_INV	512
+
 /* toolsettings->uvcalc_flag */
 #define UVCALC_FILLHOLES			1
 #define UVCALC_NO_ASPECT_CORRECT	2	/* would call this UVCALC_ASPECT_CORRECT, except it should be default with old file */
+#define UVCALC_TRANSFORM_CORRECT	4	/* adjust UV's while transforming to avoid distortion */
 
 /* toolsettings->edge_mode */
 #define EDGE_MODE_SELECT				0
@@ -830,12 +854,21 @@ typedef struct Scene {
 #define RETOPO_ELLIPSE 4
 
 /* toolsettings->skgen_options */
-#define SKGEN_FILTER_INTERNAL	1
-#define SKGEN_FILTER_EXTERNAL	2
-#define	SKGEN_SYMMETRY			4
-#define	SKGEN_CUT_LENGTH		8
-#define	SKGEN_CUT_ANGLE			16
-#define	SKGEN_CUT_CORRELATION	32
+#define SKGEN_FILTER_INTERNAL	(1 << 0)
+#define SKGEN_FILTER_EXTERNAL	(1 << 1)
+#define	SKGEN_SYMMETRY			(1 << 2)
+#define	SKGEN_CUT_LENGTH		(1 << 3)
+#define	SKGEN_CUT_ANGLE			(1 << 4)
+#define	SKGEN_CUT_CORRELATION	(1 << 5)
+#define	SKGEN_HARMONIC			(1 << 6)
+#define	SKGEN_STICK_TO_EMBEDDING	(1 << 7)
+#define	SKGEN_ADAPTIVE_DISTANCE		(1 << 8)
+#define SKGEN_FILTER_SMART		(1 << 9)
+#define SKGEN_DISP_LENGTH		(1 << 10)
+#define SKGEN_DISP_WEIGHT		(1 << 11)
+#define SKGEN_DISP_ORIG			(1 << 12)
+#define SKGEN_DISP_EMBED		(1 << 13)
+#define SKGEN_DISP_INDEX		(1 << 14)
 
 #define	SKGEN_SUB_LENGTH		0
 #define	SKGEN_SUB_ANGLE			1

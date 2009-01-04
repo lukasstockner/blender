@@ -106,6 +106,7 @@
 #include "BIF_editview.h"
 #include "BIF_gl.h"
 #include "BIF_interface.h"
+#include "BIF_keyframing.h"
 #include "BIF_mainqueue.h"
 #include "BIF_meshtools.h"
 #include "BIF_poselib.h"
@@ -124,8 +125,10 @@
 #include "BIF_verse.h"
 #endif
 
+#ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
 #include "BPY_menus.h"
+#endif
 
 #include "blendef.h"
 #include "mydevice.h"
@@ -210,6 +213,14 @@ static void do_view3d_view_camerasmenu(void *arg, int event)
 		persptoetsen(PAD0);
 		G.qual &= ~LR_CTRLKEY;
 	} else {
+		/* store settings of current view before allowing overwriting with camera view */
+		/* this is a copy of the code in toets.c */
+		if(G.vd->persp != V3D_CAMOB) {
+			QUATCOPY(G.vd->lviewquat, G.vd->viewquat);
+			G.vd->lview= G.vd->view;
+			G.vd->lpersp= G.vd->persp;
+		}
+
 		for( base = FIRSTBASE; base; base = base->next ) {
 			if (base->object->type == OB_CAMERA) {
 				i++;
@@ -451,6 +462,7 @@ static uiBlock *view3d_view_alignviewmenu(void *arg_unused)
 	return block;
 }
 
+#ifndef DISABLE_PYTHON
 static void do_view3d_view_spacehandlers(void *arg, int event)
 {
 	Text *text = G.main->text.first;
@@ -504,6 +516,8 @@ static uiBlock *view3d_view_spacehandlers(void *arg_unused)
 
 			if (handlertype == SPACEHANDLER_VIEW3D_EVENT)
 				BLI_strncpy(menustr, "Event: ", 8);
+			else if (handlertype == SPACEHANDLER_VIEW3D_EVENT_ALL)
+				BLI_strncpy(menustr, "Event+: ", 8);
 			else
 				BLI_strncpy(menustr, "Draw:  ", 8);
 			BLI_strncpy(menustr+7, text->id.name+2, 22);
@@ -538,6 +552,7 @@ static uiBlock *view3d_view_spacehandlers(void *arg_unused)
 
 	return block;
 }
+#endif /* DISABLE_PYTHON */
 
 static void do_view3d_viewmenu(void *arg, int event)
 {
@@ -681,8 +696,10 @@ static uiBlock *view3d_viewmenu(void *arg_unused)
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Play Back Animation|Alt A",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 0, 13, "");
 
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",					0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefIconTextBlockBut(block, view3d_view_spacehandlers, NULL, ICON_RIGHTARROW_THIN, "Space Handler Scripts", 0, yco-=20, 120, 19, "");
+#endif
 
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
@@ -883,6 +900,8 @@ void do_view3d_select_object_groupedmenu(void *arg, int event)
 	case 7: /* Objects in Same Group */
 	case 8: /* Object Hooks*/
 	case 9: /* Object PassIndex*/
+	case 10: /* Object Color*/
+	case 11: /* Game Properties*/
 		select_object_grouped((short)event);
 		break;
 	}
@@ -905,7 +924,9 @@ static uiBlock *view3d_select_object_groupedmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Objects on Shared Layers|Shift G, 6",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 6, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Objects in Same Group|Shift G, 7",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 7, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Object Hooks|Shift G, 8",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 8, "");
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Object PassIndex|Shift G, 9",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 9, "");	
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Object PassIndex|Shift G, 9",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 9, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Object Color|Shift G, 0",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 10, "");	
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Game Properties|Shift G, Alt+1",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 11, "");	
 
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
@@ -1454,8 +1475,10 @@ static uiBlock *view3d_select_pose_armaturemenu(void *arg_unused)
 void do_view3d_select_faceselmenu(void *arg, int event)
 {
 	/* events >= 6 are registered bpython scripts */
+#ifndef DISABLE_PYTHON
 	if (event >= 6) BPY_menu_do_python(PYMENU_FACESELECT, event - 6);
-
+#endif
+	
 	switch(event) {
 		case 0: /* border select */
 			borderselect();
@@ -1477,7 +1500,9 @@ static uiBlock *view3d_select_faceselmenu(void *arg_unused)
 {
 	uiBlock *block;
 	short yco= 0, menuwidth=120;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i = 0;
 
 	block= uiNewBlock(&curarea->uiblocks, "view3d_select_faceselmenu", UI_EMBOSSP, UI_HELV, curarea->headwin);
@@ -1493,6 +1518,7 @@ static uiBlock *view3d_select_faceselmenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Linked Faces|Ctrl L",                0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 4, "");
 
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
 	/* note that we account for the 6 previous entries with i+6: */
@@ -1501,7 +1527,8 @@ static uiBlock *view3d_select_faceselmenu(void *arg_unused)
 			menuwidth, 19, NULL, 0.0, 0.0, 1, i+6,
 			pym->tooltip?pym->tooltip:pym->filename);
 	}
-
+#endif
+	
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
 	}
@@ -2431,6 +2458,7 @@ static uiBlock *view3d_edit_object_showhidemenu(void *arg_unused)
 	return block;
 }
 
+#ifndef DISABLE_PYTHON
 static void do_view3d_edit_object_scriptsmenu(void *arg, int event)
 {
 	BPY_menu_do_python(PYMENU_OBJECT, event);
@@ -2457,6 +2485,7 @@ static uiBlock *view3d_edit_object_scriptsmenu(void *arg_unused)
 
 	return block;
 }
+#endif /* DISABLE_PYTHON */
 
 #ifdef WITH_VERSE
 extern ListBase session_list;
@@ -2521,6 +2550,9 @@ static void do_view3d_edit_objectmenu(void *arg, int event)
 		if(session) b_verse_push_object(session, ob);
 		break;
 #endif
+	case 18: /* delete keyframe */
+		common_deletekey();
+		break; 
 	}
 	allqueue(REDRAWVIEW3D, 0);
 }
@@ -2557,6 +2589,7 @@ static uiBlock *view3d_edit_objectmenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Insert Keyframe|I",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 11, "");	
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Delete Keyframe|Alt I",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 18, "");	
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
@@ -2592,9 +2625,10 @@ static uiBlock *view3d_edit_objectmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Move to Layer...|M",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 10, "");
 	uiDefIconTextBlockBut(block, view3d_edit_object_showhidemenu, NULL, ICON_RIGHTARROW_THIN, "Show/Hide Objects", 0, yco-=20, 120, 19, "");
 	
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefIconTextBlockBut(block, view3d_edit_object_scriptsmenu, NULL, ICON_RIGHTARROW_THIN, "Scripts", 0, yco-=20, 120, 19, "");
-
+#endif
 		
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
@@ -3056,6 +3090,7 @@ static uiBlock *view3d_edit_mesh_showhidemenu(void *arg_unused)
 	return block;
 }
 
+#ifndef DISABLE_PYTHON
 static void do_view3d_edit_mesh_scriptsmenu(void *arg, int event)
 {
 	BPY_menu_do_python(PYMENU_MESH, event);
@@ -3082,6 +3117,7 @@ static uiBlock *view3d_edit_mesh_scriptsmenu(void *arg_unused)
 
 	return block;
 }
+#endif /* DISABLE_PYTHON */
 
 static void do_view3d_edit_meshmenu(void *arg, int event)
 {
@@ -3145,6 +3181,9 @@ static void do_view3d_edit_meshmenu(void *arg, int event)
 	case 15:
 		uv_autocalc_tface();
 		break;
+	case 16: /* delete keyframe */
+		common_deletekey();
+		break;
 	}
 	allqueue(REDRAWVIEW3D, 0);
 }
@@ -3180,6 +3219,7 @@ static uiBlock *view3d_edit_meshmenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Insert Keyframe|I",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 4, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Delete Keyframe|Alt I",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 16, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
@@ -3222,9 +3262,11 @@ static uiBlock *view3d_edit_meshmenu(void *arg_unused)
 	
 	uiDefIconTextBlockBut(block, view3d_edit_mesh_showhidemenu, NULL, ICON_RIGHTARROW_THIN, "Show/Hide Vertices", 0, yco-=20, 120, 19, "");
 
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	uiDefIconTextBlockBut(block, view3d_edit_mesh_scriptsmenu, NULL, ICON_RIGHTARROW_THIN, "Scripts", 0, yco-=20, 120, 19, "");
-	
+#endif
+
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
 	}
@@ -3411,6 +3453,9 @@ static void do_view3d_edit_curvemenu(void *arg, int event)
 	case 15:
 		uv_autocalc_tface();
 		break;
+	case 16: /* delete keyframe */
+		common_deletekey();
+		break;
 	}
 	allqueue(REDRAWVIEW3D, 0);
 }
@@ -3435,6 +3480,7 @@ static uiBlock *view3d_edit_curvemenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Insert Keyframe|I",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Delete Keyframe|Alt I",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 16, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
@@ -3755,6 +3801,9 @@ static void do_view3d_edit_latticemenu(void *arg, int event)
 	case 6:
 		uv_autocalc_tface();
 		break;
+	case 7: /* delete keyframe */
+		common_deletekey();
+		break;
 	}
 	allqueue(REDRAWVIEW3D, 0);
 }
@@ -3778,6 +3827,7 @@ static uiBlock *view3d_edit_latticemenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Insert Keyframe|I",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Delete Keyframe|Alt I",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 7, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
@@ -3931,7 +3981,7 @@ static void do_view3d_edit_armaturemenu(void *arg, int event)
 }
 
 
-
+#ifndef DISABLE_PYTHON
 static void do_view3d_scripts_armaturemenu(void *arg, int event)
 {
 	BPY_menu_do_python(PYMENU_ARMATURE, event);
@@ -3962,6 +4012,7 @@ static uiBlock *view3d_scripts_armaturemenu(void *args_unused)
 	
 	return block;
 }
+#endif /* DISABLE_PYTHON */
 
 static void do_view3d_armature_settingsmenu(void *arg, int event)
 {
@@ -4043,10 +4094,11 @@ static uiBlock *view3d_edit_armaturemenu(void *arg_unused)
 	uiDefIconTextBlockBut(block, view3d_edit_armature_parentmenu, NULL, ICON_RIGHTARROW_THIN, "Parent", 0, yco-=20, 120, 19, "");
 	uiDefIconTextBlockBut(block, view3d_armature_settingsmenu, NULL, ICON_RIGHTARROW_THIN, "Bone Settings", 0, yco-=20, 120, 19, "");
 	
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBlockBut(block, view3d_scripts_armaturemenu, NULL, ICON_RIGHTARROW_THIN, "Scripts", 0, yco-=20, 120, 19, "");
-	
+#endif
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
 	}
@@ -4165,7 +4217,7 @@ static uiBlock *view3d_pose_armature_ikmenu(void *arg_unused)
 	uiBlockSetButmFunc(block, do_view3d_pose_armature_ikmenu, NULL);
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Add IK to Bone...|Shift I",			0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 1, "");
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Clear IK...|Alt I",			0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Clear IK...|Ctrl Alt I",			0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
 	
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
@@ -4365,6 +4417,12 @@ static void do_view3d_pose_armaturemenu(void *arg, int event)
 	case 18:
 		pose_autoside_names(event-16);
 		break;
+	case 19: /* assign pose as restpose */
+		apply_armature_pose2bones();
+		break;
+	case 20: /* delete keyframe */
+		common_deletekey();
+		break;
 	}
 		
 	allqueue(REDRAWVIEW3D, 0);
@@ -4386,10 +4444,12 @@ static uiBlock *view3d_pose_armaturemenu(void *arg_unused)
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Insert Keyframe|I",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 4, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Delete Keyframe|Alt I",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 20, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Relax Pose|W",				0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 15, "");
+	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Apply Pose as Restpose|Ctrl A",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 19, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
@@ -4444,8 +4504,9 @@ static uiBlock *view3d_pose_armaturemenu(void *arg_unused)
 static void do_view3d_vpaintmenu(void *arg, int event)
 {
 	/* events >= 3 are registered bpython scripts */
+#ifndef DISABLE_PYTHON
 	if (event >= 3) BPY_menu_do_python(PYMENU_VERTEXPAINT, event - 3);
-	
+#endif
 	switch(event) {
 	case 0: /* undo vertex painting */
 		BIF_undo();
@@ -4467,7 +4528,9 @@ static uiBlock *view3d_vpaintmenu(void *arg_unused)
 {
 	uiBlock *block;
 	short yco= 0, menuwidth=120;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i=0;
 	
 	block= uiNewBlock(&curarea->uiblocks, "view3d_paintmenu", UI_EMBOSSP, UI_HELV, curarea->headwin);
@@ -4477,6 +4540,7 @@ static uiBlock *view3d_vpaintmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Set Vertex Colors|Shift K",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 1, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Set Shaded Vertex Colors",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
 	
+#ifndef DISABLE_PYTHON
 	/* note that we account for the 3 previous entries with i+3:
 	even if the last item isnt displayed, it dosent matter */
 	for (pym = BPyMenuTable[PYMENU_VERTEXPAINT]; pym; pym = pym->next, i++) {
@@ -4484,7 +4548,8 @@ static uiBlock *view3d_vpaintmenu(void *arg_unused)
 			menuwidth, 19, NULL, 0.0, 0.0, 1, i+3,
 			pym->tooltip?pym->tooltip:pym->filename);
 	}
-	
+#endif
+
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
 	}
@@ -4503,7 +4568,7 @@ static void do_view3d_tpaintmenu(void *arg, int event)
 {
 	switch(event) {
 	case 0: /* undo image painting */
-		imagepaint_undo();
+		undo_imagepaint_step(1);
 		break;
 	}
 
@@ -4539,8 +4604,9 @@ static void do_view3d_wpaintmenu(void *arg, int event)
 	Object *ob= OBACT;
 	
 	/* events >= 3 are registered bpython scripts */
+#ifndef DISABLE_PYTHON
 	if (event >= 4) BPY_menu_do_python(PYMENU_WEIGHTPAINT, event - 4);
-	
+#endif	
 	switch(event) {
 	case 0: /* undo weight painting */
 		BIF_undo();
@@ -4562,7 +4628,9 @@ static uiBlock *view3d_wpaintmenu(void *arg_unused)
 {
 	uiBlock *block;
 	short yco= 0, menuwidth=120, menunr=1;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i=0;
 		
 	block= uiNewBlock(&curarea->uiblocks, "view3d_paintmenu", UI_EMBOSSP, UI_HELV, curarea->headwin);
@@ -4582,7 +4650,8 @@ static uiBlock *view3d_wpaintmenu(void *arg_unused)
 		uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 		menunr++;
 	}
-	
+
+#ifndef DISABLE_PYTHON
 	/* note that we account for the 4 previous entries with i+4:
 	even if the last item isnt displayed, it dosent matter */
 	for (pym = BPyMenuTable[PYMENU_WEIGHTPAINT]; pym; pym = pym->next, i++) {
@@ -4590,7 +4659,8 @@ static uiBlock *view3d_wpaintmenu(void *arg_unused)
 			menuwidth, 19, NULL, 0.0, 0.0, 1, i+4,
 			pym->tooltip?pym->tooltip:pym->filename);
 	}
-	
+#endif
+
 	if(curarea->headertype==HEADERTOP) {
 		uiBlockSetDirection(block, UI_DOWN);
 	}
@@ -4706,7 +4776,7 @@ uiBlock *view3d_sculpt_inputmenu(void *arg_unused)
 	block= uiNewBlock(&curarea->uiblocks, "view3d_sculpt_inputmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
 	uiBlockSetButmFunc(block, do_view3d_sculpt_inputmenu, NULL);
 
-	uiDefIconTextBut(block, BUTM, 1, ((sd->flags & SCULPT_INPUT_SMOOTH) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT), "Smooth Stroke", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	uiDefIconTextBut(block, BUTM, 1, ((sd->flags & SCULPT_INPUT_SMOOTH) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT), "Smooth Stroke|Shift S", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Tablet Size Adjust", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 1, "");	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Tablet Strength Adjust", 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
 	
@@ -4862,8 +4932,9 @@ static uiBlock *view3d_faceselmenu(void *arg_unused)
 void do_view3d_select_particlemenu(void *arg, int event)
 {
 	/* events >= 6 are registered bpython scripts */
+#ifndef DISABLE_PYTHON
 	if (event >= 6) BPY_menu_do_python(PYMENU_FACESELECT, event - 6);
-
+#endif
 	switch(event) {
 		case 0:
 			PE_borderselect();
@@ -5187,16 +5258,6 @@ void do_view3d_buttons(short event)
 		}
 		break;
 		
-	case B_LOCALVIEW:
-		if(G.vd->localview) initlocalview();
-		else {
-			endlocalview(curarea);
-			/* new layers might need unflushed events events */
-			DAG_scene_update_flags(G.scene, G.vd->lay);	/* tags all that moves and flushes*/
-		}
-		scrarea_queue_headredraw(curarea);
-		break;
-		
 	case B_VIEWBUT:
 	
 		if(G.vd->viewbut==1) persptoetsen(PAD7);
@@ -5213,9 +5274,6 @@ void do_view3d_buttons(short event)
 			persptoetsen(PAD5);
 		}
 		
-		break;
-	case B_PROPTOOL:
-		allqueue(REDRAWHEADERS, 0);
 		break;
 	case B_VIEWRENDER:
 		if (curarea->spacetype==SPACE_VIEW3D) {
@@ -5378,7 +5436,11 @@ void do_view3d_buttons(short event)
 	case B_MAN_MODE:
 		allqueue(REDRAWVIEW3D, 1);
 		break;		
-
+	case B_VIEW_BUTSEDIT:
+		allqueue(REDRAWVIEW3D, 1);
+		allqueue(REDRAWBUTSEDIT, 1);
+		break;
+		
 	default:
 
 		if(event>=B_LAY && event<B_LAY+31) {
@@ -5558,6 +5620,16 @@ static void view3d_header_pulldowns(uiBlock *block, short *xcoord)
 	*xcoord= xco;
 }
 
+static int view3d_layer_icon(int but_lay, int ob_lay, int used_lay)
+{
+	if (but_lay & ob_lay)
+		return ICON_LAYER_ACTIVE;
+	else if (but_lay & used_lay)
+		return ICON_LAYER_USED;
+	else
+		return ICON_BLANK1;
+}
+
 void view3d_buttons(void)
 {
 	uiBlock *block;
@@ -5661,7 +5733,7 @@ void view3d_buttons(void)
  		}
  	} else {
  		if (G.obedit==NULL && (G.f & (G_VERTEXPAINT|G_WEIGHTPAINT|G_TEXTUREPAINT))) {
- 			uiDefIconButBitI(block, TOG, G_FACESELECT, B_REDR, ICON_FACESEL_HLT,xco,0,XIC,YIC, &G.f, 0, 0, 0, 0, "Painting Mask (FKey)");
+ 			uiDefIconButBitI(block, TOG, G_FACESELECT, B_VIEW_BUTSEDIT, ICON_FACESEL_HLT,xco,0,XIC,YIC, &G.f, 0, 0, 0, 0, "Painting Mask (FKey)");
  			xco+= XIC+10;
  		} else {
  			/* Manipulators arnt used in weight paint mode */
@@ -5724,19 +5796,22 @@ void view3d_buttons(void)
  		
 		/* LAYERS */
 		if(G.obedit==NULL && G.vd->localview==0) {
+			int ob_lay = ob ? ob->lay : 0;
 			uiBlockBeginAlign(block);
-			for(a=0; a<5; a++)
-				uiDefButBitI(block, TOG, 1<<a, B_LAY+a, "",	(short)(xco+a*(XIC/2)), (short)(YIC/2),(short)(XIC/2),(short)(YIC/2), &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Num, Shift Num)");
-			for(a=0; a<5; a++)
-				uiDefButBitI(block, TOG, 1<<(a+10), B_LAY+10+a, "",(short)(xco+a*(XIC/2)), 0,			XIC/2, (YIC)/2, &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
-		
+			for(a=0; a<5; a++) {
+				uiDefIconButBitI(block, TOG, 1<<a, B_LAY+a, view3d_layer_icon(1<<a, ob_lay, G.vd->lay_used), (short)(xco+a*(XIC/2)), (short)(YIC/2),(short)(XIC/2),(short)(YIC/2), &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
+			}
+			for(a=0; a<5; a++) {
+				uiDefIconButBitI(block, TOG, 1<<(a+10), B_LAY+10+a, view3d_layer_icon(1<<(a+10), ob_lay, G.vd->lay_used), (short)(xco+a*(XIC/2)), 0,			XIC/2, (YIC)/2, &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
+			}
 			xco+= 5;
 			uiBlockBeginAlign(block);
-			for(a=5; a<10; a++)
-				uiDefButBitI(block, TOG, 1<<a, B_LAY+a, "",	(short)(xco+a*(XIC/2)), (short)(YIC/2),(short)(XIC/2),(short)(YIC/2), &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Num, Shift Num)");
-			for(a=5; a<10; a++)
-				uiDefButBitI(block, TOG, 1<<(a+10), B_LAY+10+a, "",(short)(xco+a*(XIC/2)), 0,			XIC/2, (YIC)/2, &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
-
+			for(a=5; a<10; a++) {
+				uiDefIconButBitI(block, TOG, 1<<a, B_LAY+a, view3d_layer_icon(1<<a, ob_lay, G.vd->lay_used), (short)(xco+a*(XIC/2)), (short)(YIC/2),(short)(XIC/2),(short)(YIC/2), &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
+			}
+			for(a=5; a<10; a++) {
+				uiDefIconButBitI(block, TOG, 1<<(a+10), B_LAY+10+a, view3d_layer_icon(1<<(a+10), ob_lay, G.vd->lay_used), (short)(xco+a*(XIC/2)), 0, XIC/2, (YIC)/2, &(G.vd->lay), 0, 0, 0, 0, "Toggles Layer visibility (Alt Num, Alt Shift Num)");
+			}
 			uiBlockEndAlign(block);
 		
 			xco+= (a-2)*(XIC/2)+3;
@@ -5758,6 +5833,7 @@ void view3d_buttons(void)
 				uiDefIconTextButS(block, ICONTEXTROW,B_REDR, ICON_SMOOTHCURVE, propfalloff_pup(), xco,0,XIC+10,YIC, &(G.scene->prop_mode), 0.0, 0.0, 0, 0, "Proportional Edit Falloff (Hotkey: Shift O) ");
 				xco+= XIC+10;
 			}
+			uiBlockEndAlign(block);
 			xco+= 10;
 		}
 
@@ -5797,6 +5873,7 @@ void view3d_buttons(void)
 				uiDefIconButBitS(block, TOG, V3D_ZBUF_SELECT, B_REDR, ICON_ORTHO, xco,0,XIC,YIC, &G.vd->flag, 1.0, 0.0, 0, 0, "Occlude background geometry");
 				xco+= XIC;
 			}
+			uiBlockEndAlign(block);
 			xco+= 20;
 		}
 		else if(G.f & G_PARTICLEEDIT) {
@@ -5812,6 +5889,7 @@ void view3d_buttons(void)
 				uiDefIconButBitS(block, TOG, V3D_ZBUF_SELECT, B_REDR, ICON_ORTHO, xco,0,XIC,YIC, &G.vd->flag, 1.0, 0.0, 0, 0, "Limit selection to visible (clipped with depth buffer)");
 				xco+= XIC;
 			}
+			uiBlockEndAlign(block);
 			xco+= 20;
 		}
 

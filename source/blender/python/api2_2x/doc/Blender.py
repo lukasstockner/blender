@@ -10,8 +10,8 @@
 """
 The main Blender module.
 
-B{New}: L{Run}, L{UpdateMenus}, new options to L{Get}, L{ShowHelp},
-L{SpaceHandlers} dictionary.
+B{New}: new var L{eventValue} for space handlers, L{Run}, L{UpdateMenus},
+new options to L{Get}, L{ShowHelp}, L{SpaceHandlers} dictionary.
 L{UnpackModes} dictionary.
 
 Blender
@@ -34,7 +34,11 @@ Blender
       - for normal L{GUI<Draw.Register>} scripts I{during the events callback},
         it holds the ascii value of the current event, if it is a valid one.
         Users interested in this should also check the builtin 'ord' and 'chr'
-        Python functions. 
+        Python functions.
+@type eventValue: int
+@var eventValue: used only for EVENT space handlers, it holds the event value:
+      - for mouse button and key presses it's 1, for mouse movement
+        (Draw.MOUSEX and Draw.MOUSEY) it has the new x or y coordinate, resp.
 @type mode: string
 @var mode: Blender's current mode:
     - 'interactive': normal mode, with an open window answering to user input;
@@ -69,7 +73,7 @@ def Set (request, data):
       - 'renderdir': default render output dir
       - 'soundsdir': sound dir
       - 'tempdir': temp file storage dir
-	  - 'mipmap' : Use mipmapping in the 3d view (Use a boolean value True/False).
+      - 'mipmap' : Use mipmapping in the 3d view (Use a boolean value True/False).
   @type data: int or string
   @param data: The new value.
   """
@@ -107,7 +111,7 @@ def Get (request):
       - 'soundsdir': the path to the user defined dir for sound files. (*)
       - 'tempdir': the path to the user defined dir for storage of Blender
             temporary files. (*)
-	  - 'mipmap' : Use mipmapping in the 3d view. (*)
+      - 'mipmap' : Use mipmapping in the 3d view. (*)
       - 'version' : the Blender version number.
   @note: (*) these can be set in Blender at the User Preferences window -> File
       Paths tab.
@@ -251,6 +255,6 @@ def Quit ():
 def SaveUndoState (message):
   """
   Sets an undo at the current state.
-  @param message: Message that appiers in the undo menu
+  @param message: Message that appears in the undo menu
   @type message: string
   """

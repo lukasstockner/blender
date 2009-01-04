@@ -59,7 +59,11 @@
 #include "BKE_node.h"
 #include "BKE_utildefines.h"
 
+#ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
+#endif
+
+#include "GPU_material.h"
 
 /* used in UI and render */
 Material defmaterial;
@@ -76,7 +80,9 @@ void free_material(Material *ma)
 	MTex *mtex;
 	int a;
 
+#ifndef DISABLE_PYTHON
 	BPY_free_scriptlink(&ma->scriptlink);
+#endif
 	
 	for(a=0; a<MAX_MTEX; a++) {
 		mtex= ma->mtex[a];
@@ -96,6 +102,9 @@ void free_material(Material *ma)
 		ntreeFreeTree(ma->nodetree);
 		MEM_freeN(ma->nodetree);
 	}
+
+	if(ma->gpumaterial.first)
+		GPU_material_free(ma);
 }
 
 void init_material(Material *ma)
@@ -196,8 +205,10 @@ Material *copy_material(Material *ma)
 			id_us_plus((ID *)man->mtex[a]->tex);
 		}
 	}
-	
+
+#ifndef DISABLE_PYTHON	
 	BPY_copy_scriptlink(&ma->scriptlink);
+#endif
 	
 	if(ma->ramp_col) man->ramp_col= MEM_dupallocN(ma->ramp_col);
 	if(ma->ramp_spec) man->ramp_spec= MEM_dupallocN(ma->ramp_spec);
@@ -207,6 +218,8 @@ Material *copy_material(Material *ma)
 	if(ma->nodetree) {
 		man->nodetree= ntreeCopyTree(ma->nodetree, 0);	/* 0 == full new tree */
 	}
+
+	man->gpumaterial.first= man->gpumaterial.last= NULL;
 	
 	return man;
 }
@@ -637,7 +650,7 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 		if(ma->septex & (1<<a)) continue;
 
 		mtex= ma->mtex[a];
-		if(mtex && mtex->tex && mtex->tex->type) {
+		if(mtex && mtex->tex && (mtex->tex->type | (mtex->tex->use_nodes && mtex->tex->nodetree) )) {
 			
 			ma->texco |= mtex->texco;
 			ma->mapto |= mtex->mapto;

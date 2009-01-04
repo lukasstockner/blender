@@ -53,6 +53,7 @@
 #include "DNA_world_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_node_types.h"
+#include "DNA_color_types.h"
 #include "DNA_scene_types.h"
 
 #include "IMB_imbuf_types.h"
@@ -347,6 +348,15 @@ int do_colorband(ColorBand *coba, float in, float out[4])
 				else
 					fac= 0.0f;
 				
+				if (coba->ipotype==4) {
+					/* constant */
+					out[0]= cbd2->r;
+					out[1]= cbd2->g;
+					out[2]= cbd2->b;
+					out[3]= cbd2->a;
+					return 1;
+				}
+				
 				if(coba->ipotype>=2) {
 					/* ipo from right to left: 3 2 1 0 */
 					
@@ -390,6 +400,17 @@ int do_colorband(ColorBand *coba, float in, float out[4])
 	return 1;	/* OK */
 }
 
+void colorband_table_RGBA(ColorBand *coba, float **array, int *size)
+{
+	int a;
+	
+	*size = CM_TABLE+1;
+	*array = MEM_callocN(sizeof(float)*(*size)*4, "ColorBand");
+
+	for(a=0; a<*size; a++)
+		do_colorband(coba, (float)a/(float)CM_TABLE, &(*array)[a*4]);
+}
+
 /* ******************* TEX ************************ */
 
 void free_texture(Tex *tex)
@@ -400,6 +421,11 @@ void free_texture(Tex *tex)
 	BKE_previewimg_free(&tex->preview);
 	BKE_icon_delete((struct ID*)tex);
 	tex->id.icon_id = 0;
+	
+	if(tex->nodetree) {
+		ntreeFreeTree(tex->nodetree);
+		MEM_freeN(tex->nodetree);
+	}
 }
 
 /* ------------------------------------------------------------------------- */
@@ -557,6 +583,11 @@ Tex *copy_texture(Tex *tex)
 	
 	if(tex->preview) texn->preview = BKE_previewimg_copy(tex->preview);
 
+	if(tex->nodetree) {
+		ntreeEndExecTree(tex->nodetree);
+		texn->nodetree= ntreeCopyTree(tex->nodetree, 0); /* 0 == full new tree */
+	}
+	
 	return texn;
 }
 
@@ -707,6 +738,10 @@ void autotexname(Tex *tex)
 	char di[FILE_MAXDIR], fi[FILE_MAXFILE];
 	
 	if(tex) {
+		if(tex->use_nodes) {
+			new_id(&G.main->tex, (ID *)tex, "Noddy");
+		}
+		else
 		if(tex->type==TEX_IMAGE) {
 			ima= tex->ima;
 			if(ima) {

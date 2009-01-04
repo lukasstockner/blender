@@ -78,6 +78,7 @@
 #include "BIF_drawgpencil.h"
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
+#include "BIF_keyframing.h"
 #include "BIF_resources.h"
 #include "BIF_screen.h"
 #include "BIF_mywindow.h"
@@ -121,7 +122,7 @@ static void meshactionbuts(SpaceAction *saction, Object *ob, Key *key)
 	 * correctly *grumble*
 	 */
 	mywinset(curarea->win);
-	myortho2(-0.375, curarea->winx-0.375, G.v2d->cur.ymin, G.v2d->cur.ymax);
+	myortho2(-0.375f, curarea->winx-0.375f, G.v2d->cur.ymin, G.v2d->cur.ymax);
 
     sprintf(str, "actionbuttonswin %d", curarea->win);
     block= uiNewBlock (&curarea->uiblocks, str, UI_EMBOSS, UI_HELV, curarea->win);
@@ -132,7 +133,7 @@ static void meshactionbuts(SpaceAction *saction, Object *ob, Key *key)
 	/* make the little 'open the sliders' widget */
 	// should eventually be removed
     BIF_ThemeColor(TH_FACE); // this slot was open... (???... Aligorith)
-	glRects(2,            y + 2*CHANNELHEIGHT - 2, ACTWIDTH - 2, y + CHANNELHEIGHT + 2);
+	glRects(2, (short)y + 2*CHANNELHEIGHT - 2, ACTWIDTH - 2, (short)y + CHANNELHEIGHT + 2);
 	glColor3ub(0, 0, 0);
 	glRasterPos2f(4, y + CHANNELHEIGHT + 6);
 	BMF_DrawString(G.font, "Sliders");
@@ -143,7 +144,7 @@ static void meshactionbuts(SpaceAction *saction, Object *ob, Key *key)
 		ACTWIDTH = NAMEWIDTH;
 		but=uiDefIconButBitS(block, TOG, SACTION_SLIDERS, B_REDR, 
 					  ICON_DISCLOSURE_TRI_RIGHT,
-					  NAMEWIDTH - XIC - 5, y + CHANNELHEIGHT,
+					  NAMEWIDTH - XIC - 5, (short)y + CHANNELHEIGHT,
 					  XIC,YIC-2,
 					  &(G.saction->flag), 0, 0, 0, 0, 
 					  "Show action window sliders");
@@ -154,28 +155,28 @@ static void meshactionbuts(SpaceAction *saction, Object *ob, Key *key)
 	else {
 		but= uiDefIconButBitS(block, TOG, SACTION_SLIDERS, B_REDR, 
 					  ICON_DISCLOSURE_TRI_DOWN,
-					  NAMEWIDTH - XIC - 5, y + CHANNELHEIGHT,
+					  NAMEWIDTH - XIC - 5, (short)y + CHANNELHEIGHT,
 					  XIC,YIC-2,
 					  &(G.saction->flag), 0, 0, 0, 0, 
 					  "Hide action window sliders");
 		/* no hilite, the winmatrix is not correct later on... */
 		uiButSetFlag(but, UI_NO_HILITE);
-					  
+		
 		ACTWIDTH = NAMEWIDTH + SLIDERWIDTH;
-
+		
 		/* sliders are open so draw them */
 		BIF_ThemeColor(TH_FACE); 
-
+		
 		glRects(NAMEWIDTH,  0,  NAMEWIDTH+SLIDERWIDTH,  curarea->winy);
 		uiBlockSetEmboss(block, UI_EMBOSS);
 		for (i=1; i < key->totkey; i++) {
 			make_rvk_slider(block, ob, i, 
-							x, y, SLIDERWIDTH-2, CHANNELHEIGHT-1, "Slider to control Shape Keys");
+							(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-1, "Slider to control Shape Keys");
 			
 			y-=CHANNELHEIGHT+CHANNELSKIP;
 			
 			/* see sliderval array in editkey.c */
-			if(i >= 255) break;
+			if (i >= 255) break;
 		}
 	}
 	uiDrawBlock(block);
@@ -293,7 +294,7 @@ static void action_icu_buts(SpaceAction *saction)
 	 * correctly *grumble*
 	 */
 	mywinset(curarea->win);
-	myortho2(-0.375, curarea->winx-0.375, G.v2d->cur.ymin, G.v2d->cur.ymax);
+	myortho2(-0.375f, curarea->winx-0.375f, G.v2d->cur.ymin, G.v2d->cur.ymax);
 	
     sprintf(str, "actionbuttonswin %d", curarea->win);
     block= uiNewBlock (&curarea->uiblocks, str, 
@@ -317,7 +318,7 @@ static void action_icu_buts(SpaceAction *saction)
 		
 		/* draw backdrop first */
 		BIF_ThemeColor(TH_FACE); // change this color... it's ugly
-		glRects(NAMEWIDTH,  G.v2d->cur.ymin,  NAMEWIDTH+SLIDERWIDTH,  G.v2d->cur.ymax);
+		glRects(NAMEWIDTH,  (short)G.v2d->cur.ymin,  NAMEWIDTH+SLIDERWIDTH,  (short)G.v2d->cur.ymax);
 		
 		uiBlockSetEmboss(block, UI_EMBOSS);
 		for (ale= act_data.first; ale; ale= ale->next) {
@@ -338,7 +339,7 @@ static void action_icu_buts(SpaceAction *saction)
 						/* only show if action channel is selected */
 						if (SEL_ACHAN(achan)) {
 							make_icu_slider(block, icu,
-											x, y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
+											(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
 											"Slider to control current value of Constraint Influence");
 						}
 					}
@@ -351,7 +352,7 @@ static void action_icu_buts(SpaceAction *saction)
 						/* only show if action channel is selected */
 						if (SEL_ACHAN(achan)) {
 							make_icu_slider(block, icu,
-											x, y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
+											(int)x, (int)y, SLIDERWIDTH-2, CHANNELHEIGHT-2, 
 											"Slider to control current value of IPO-Curve");
 						}
 					}
@@ -382,7 +383,7 @@ void draw_cfra_action (void)
 	float vec[2];
 	
 	/* Draw a light green line to indicate current frame */
-	vec[0]= (G.scene->r.cfra);
+	vec[0]= (float)(G.scene->r.cfra);
 	vec[0]*= G.scene->r.framelen;
 	
 	vec[1]= G.v2d->cur.ymin;
@@ -646,7 +647,7 @@ static void draw_channel_names(void)
 						case SPACE_VIEW3D:
 						{
 							/* this shouldn't cause any overflow... */
-							sprintf(name, "3DView: %s", view3d_get_name(sa->spacedata.first));
+							sprintf(name, "3DView[%02d]:%s", sa->win, view3d_get_name(sa->spacedata.first));
 							special= ICON_VIEW3D;
 						}
 							break;
@@ -659,7 +660,7 @@ static void draw_channel_names(void)
 								sprintf(treetype, "Composite");
 							else
 								sprintf(treetype, "Material");
-							sprintf(name, "Nodes: %s", treetype);
+							sprintf(name, "Nodes[%02d]:%s", sa->win, treetype);
 							
 							special= ICON_NODE;
 						}
@@ -677,15 +678,27 @@ static void draw_channel_names(void)
 								
 								default:	sprintf(imgpreview, "Sequence");	break;
 							}
-							sprintf(name, "Sequencer: %s", imgpreview);
+							sprintf(name, "Sequencer[%02d]:%s", sa->win, imgpreview);
 							
 							special= ICON_SEQUENCE;
+						}
+							break;
+						case SPACE_IMAGE:
+						{
+							SpaceImage *sima= sa->spacedata.first;
+							
+							if (sima->image)
+								sprintf(name, "Image[%02d]:%s", sa->win, sima->image->id.name+2);
+							else
+								sprintf(name, "Image[%02d]:<None>", sa->win);
+								
+							special= ICON_IMAGE_COL;
 						}
 							break;
 						
 						default:
 						{
-							sprintf(name, "<Unknown GP-Data Source>");
+							sprintf(name, "[%02d]<Unknown GP-Data Source>", sa->win);
 							special= -1;
 						}
 							break;
@@ -807,13 +820,13 @@ static void draw_channel_names(void)
 			/* draw protect 'lock' */
 			if (protect > -1) {
 				offset = 16;
-				BIF_icon_draw(NAMEWIDTH-offset, yminc, protect);
+				BIF_icon_draw((float)NAMEWIDTH-offset, yminc, protect);
 			}
 			
 			/* draw mute 'eye' */
 			if (mute > -1) {
 				offset += 16;
-				BIF_icon_draw(NAMEWIDTH-offset, yminc, mute);
+				BIF_icon_draw((float)(NAMEWIDTH-offset), yminc, mute);
 			}
 		}
 		
@@ -825,7 +838,7 @@ static void draw_channel_names(void)
 	BLI_freelistN(&act_data);
 	
 	/* re-adjust view matrices for correct scaling */
-    myortho2(0,	NAMEWIDTH, 0, (ofsy+G.v2d->mask.ymax) - (ofsy+G.v2d->mask.ymin));	//	Scaling
+    myortho2(0,	NAMEWIDTH, 0, (float)(ofsy+G.v2d->mask.ymax) - (ofsy+G.v2d->mask.ymin));	//	Scaling
 }
 
 /* sets or clears hidden flags */
@@ -956,7 +969,7 @@ static void draw_channel_strips(void)
 					if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
 					else glColor4ub(col2[0], col2[1], col2[2], 0x22);
 				}
-				glRectf(frame1_x,  channel_y-CHANNELHEIGHT/2,  G.v2d->hor.xmax,  channel_y+CHANNELHEIGHT/2);
+				glRectf((float)frame1_x,  (float)channel_y-CHANNELHEIGHT/2,  (float)G.v2d->hor.xmax,  (float)channel_y+CHANNELHEIGHT/2);
 				
 				if (ale->datatype == ALE_GROUP) {
 					if (sel) glColor4ub(col1a[0], col1a[1], col1a[2], 0x22);
@@ -966,7 +979,7 @@ static void draw_channel_strips(void)
 					if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
 					else glColor4ub(col2[0], col2[1], col2[2], 0x22);
 				}
-				glRectf(act_start,  channel_y-CHANNELHEIGHT/2,  act_end,  channel_y+CHANNELHEIGHT/2);
+				glRectf((float)act_start,  (float)channel_y-CHANNELHEIGHT/2,  (float)act_end,  (float)channel_y+CHANNELHEIGHT/2);
 			}
 			else if (datatype == ACTCONT_SHAPEKEY) {
 				gla2DDrawTranslatePt(di, 1, y, &frame1_x, &channel_y);
@@ -975,11 +988,11 @@ static void draw_channel_strips(void)
 				 * get a desaturated orange background
 				 */
 				glColor4ub(col2[0], col2[1], col2[2], 0x22);
-				glRectf(0, channel_y-CHANNELHEIGHT/2, frame1_x, channel_y+CHANNELHEIGHT/2);
+				glRectf(0.0f, (float)channel_y-CHANNELHEIGHT/2, (float)frame1_x, (float)channel_y+CHANNELHEIGHT/2);
 				
 				/* frames one and higher get a saturated orange background */
 				glColor4ub(col2[0], col2[1], col2[2], 0x44);
-				glRectf(frame1_x, channel_y-CHANNELHEIGHT/2, G.v2d->hor.xmax,  channel_y+CHANNELHEIGHT/2);
+				glRectf((float)frame1_x, (float)channel_y-CHANNELHEIGHT/2, (float)G.v2d->hor.xmax,  (float)channel_y+CHANNELHEIGHT/2.0f);
 			}
 			else if (datatype == ACTCONT_GPENCIL) {
 				gla2DDrawTranslatePt(di, G.v2d->cur.xmin, y, &frame1_x, &channel_y);
@@ -987,12 +1000,12 @@ static void draw_channel_strips(void)
 				/* frames less than one get less saturated background */
 				if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x22);
 				else glColor4ub(col2[0], col2[1], col2[2], 0x22);
-				glRectf(0, channel_y-CHANNELHEIGHT/2, frame1_x, channel_y+CHANNELHEIGHT/2);
+				glRectf(0.0f, (float)channel_y-CHANNELHEIGHT/2, (float)frame1_x, (float)channel_y+CHANNELHEIGHT/2);
 				
 				/* frames one and higher get a saturated background */
 				if (sel) glColor4ub(col1[0], col1[1], col1[2], 0x44);
 				else glColor4ub(col2[0], col2[1], col2[2], 0x44);
-				glRectf(frame1_x, channel_y-CHANNELHEIGHT/2, G.v2d->hor.xmax,  channel_y+CHANNELHEIGHT/2);
+				glRectf((float)frame1_x, (float)channel_y-CHANNELHEIGHT/2, (float)G.v2d->hor.xmax,  (float)channel_y+CHANNELHEIGHT/2);
 			}
 		}
 		
@@ -1048,8 +1061,8 @@ static void draw_channel_strips(void)
 		cpack(0x0);
 		
 		glBegin(GL_LINES);
-		glVertex2f(frame1_x, G.v2d->mask.ymin - 100);
-		glVertex2f(frame1_x, G.v2d->mask.ymax);
+		glVertex2f((float)frame1_x, (float)G.v2d->mask.ymin - 100);
+		glVertex2f((float)frame1_x, (float)G.v2d->mask.ymax);
 		glEnd();
 	}
 	
@@ -1207,7 +1220,6 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 {
 	bAction *act = NULL;
 	Key *key = NULL;
-	bGPdata *gpd = NULL;
 	void *data;
 	short datatype;
 	
@@ -1246,7 +1258,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 			key = data;
 			break;
 		case ACTCONT_GPENCIL:
-			gpd = data;
+			/* currently, 'data' value for grease-pencil is G.curscreen! */
 			break;
 	}
 	
@@ -1323,7 +1335,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 	/* Draw scroll */
 	mywinset(curarea->win);	// reset scissor too
 	if (curarea->winx>SCROLLB+10 && curarea->winy>SCROLLH+10) {
-		myortho2(-0.375, curarea->winx-0.375, -0.375, curarea->winy-0.375);
+		myortho2(-0.375f, curarea->winx-0.375f, -0.375f, curarea->winy-0.375f);
 		if (G.v2d->scroll) drawscroll(0);
 	}
 
@@ -1349,7 +1361,7 @@ void drawactionspace(ScrArea *sa, void *spacedata)
 	}
 	
 	mywinset(curarea->win);	// reset scissor too
-	myortho2(-0.375, curarea->winx-0.375, -0.375, curarea->winy-0.375);
+	myortho2(-0.375f, curarea->winx-0.375f, -0.375f, curarea->winy-0.375f);
 	draw_area_emboss(sa);
 
 	/* it is important to end a view in a transform compatible with buttons */
@@ -1442,8 +1454,15 @@ static void add_bezt_to_keyblockslist(ListBase *blocks, IpoCurve *icu, int index
 	if (IS_EQ(beztn->vec[1][1], beztn->vec[0][1])==0) return;
 	if (IS_EQ(prev->vec[1][1], prev->vec[2][1])==0) return;
 	
-	/* try to find a keyblock that starts on the previous beztriple */
-	for (ab= blocks->last; ab; ab= ab->prev) {
+	/* try to find a keyblock that starts on the previous beztriple 
+	 * Note: we can't search from end to try to optimise this as it causes errors there's
+	 * 		an A ___ B |---| B situation
+	 */
+	// FIXME: here there is a bug where we are trying to get the summary for the following channels
+	//		A|--------------|A ______________ B|--------------|B
+	//		A|------------------------------------------------|A
+	//		A|----|A|---|A|-----------------------------------|A
+	for (ab= blocks->first; ab; ab= ab->next) {
 		/* check if alter existing block or add new block */
 		if (ab->start == prev->vec[1][0]) {			
 			/* set selection status and 'touched' status */
@@ -1457,7 +1476,7 @@ static void add_bezt_to_keyblockslist(ListBase *blocks, IpoCurve *icu, int index
 	
 	/* add new block */
 	abn= MEM_callocN(sizeof(ActKeyBlock), "ActKeyBlock");
-	if (ab) BLI_insertlinkafter(blocks, ab, abn);
+	if (ab) BLI_insertlinkbefore(blocks, ab, abn);
 	else BLI_addtail(blocks, abn);
 	
 	abn->start= prev->vec[1][0];
@@ -1565,7 +1584,7 @@ static void draw_keylist(gla2DDrawInfo *di, ListBase *keys, ListBase *blocks, fl
 					BIF_ThemeColor4(TH_STRIP_SELECT);
 				else
 					BIF_ThemeColor4(TH_STRIP);
-				glRectf(sc_xa,  sc_ya-3,  sc_xb,  sc_yb+5);
+				glRectf((float)sc_xa, (float)sc_ya-3, (float)sc_xb, (float)sc_yb+5);
 			}
 		}
 	}
@@ -1579,8 +1598,8 @@ static void draw_keylist(gla2DDrawInfo *di, ListBase *keys, ListBase *blocks, fl
 			gla2DDrawTranslatePt(di, ak->cfra, ypos, &sc_x, &sc_y);
 			
 			/* draw using icons - old way which is slower but more proven */
-			if(ak->sel & SELECT) BIF_icon_draw_aspect(sc_x-7, sc_y-6, ICON_SPACE2, 1.0f);
-			else BIF_icon_draw_aspect(sc_x-7, sc_y-6, ICON_SPACE3, 1.0f);
+			if (ak->sel & SELECT) BIF_icon_draw_aspect((float)sc_x-7, (float)sc_y-6, ICON_SPACE2, 1.0f);
+			else BIF_icon_draw_aspect((float)sc_x-7, (float)sc_y-6, ICON_SPACE3, 1.0f);
 			
 			/* draw using OpenGL - slightly uglier but faster */
 			// 	NOTE: disabled for now, as some intel cards seem to have problems with this
@@ -1755,13 +1774,14 @@ void icu_to_keylist(IpoCurve *icu, ListBase *keys, ListBase *blocks, ActKeysInc 
 					ak->modified = 0;
 					ak->totcurve += 1;
 				}
+				
+				if (ak == ak2)
+					break;
+				
 				if (ak2->modified) {
 					ak2->modified = 0;
 					ak2->totcurve += 1;
 				}
-				
-				if (ak == ak2)
-					break;
 			}
 		}
 		if (blocks) {
@@ -1770,13 +1790,14 @@ void icu_to_keylist(IpoCurve *icu, ListBase *keys, ListBase *blocks, ActKeysInc 
 					ab->modified = 0;
 					ab->totcurve += 1;
 				}
+				
+				if (ab == ab2)
+					break;
+				
 				if (ab2->modified) {
 					ab2->modified = 0;
 					ab2->totcurve += 1;
 				}
-				
-				if (ab == ab2)
-					break;
 			}
 		}
 	}
@@ -1847,7 +1868,7 @@ void gpl_to_keylist(bGPDlayer *gpl, ListBase *keys, ListBase *blocks, ActKeysInc
 			ak= MEM_callocN(sizeof(ActKeyColumn), "ActKeyColumn");
 			BLI_addtail(keys, ak);
 			
-			ak->cfra= gpf->framenum;
+			ak->cfra= (float)gpf->framenum;
 			ak->modified = 1;
 			ak->handle_type= 0; 
 			

@@ -62,6 +62,8 @@
 #include "BKE_utildefines.h"
 #include <errno.h>
 
+#include "BLO_sys_types.h" // for intptr_t support
+
 /* implementations: */
 char *first_slash(char *string) {
 	char *ffslash, *fbslash;
@@ -72,7 +74,7 @@ char *first_slash(char *string) {
 	if (!ffslash) return fbslash;
 	else if (!fbslash) return ffslash;
 	
-	if ((long)ffslash < (long)fbslash) return ffslash;
+	if ((intptr_t)ffslash < (intptr_t)fbslash) return ffslash;
 	else return fbslash;
 }
 
@@ -85,7 +87,7 @@ char *BLI_last_slash(const char *string) {
 	if (!lfslash) return lbslash; 
 	else if (!lbslash) return lfslash;
 	
-	if ((long)lfslash < (long)lbslash) return lbslash;
+	if ((intptr_t)lfslash < (intptr_t)lbslash) return lbslash;
 	else return lfslash;
 }
 
@@ -93,12 +95,12 @@ char *BLI_last_slash(const char *string) {
 void BLI_add_slash(char *string) {
 	int len = strlen(string);
 #ifdef WIN32
-	if (string[len-1]!='\\') {
+	if (len==0 || string[len-1]!='\\') {
 		string[len] = '\\';
 		string[len+1] = '\0';
 	}
 #else
-	if (string[len-1]!='/') {
+	if (len==0 || string[len-1]!='/') {
 		string[len] = '/';
 		string[len+1] = '\0';
 	}
@@ -301,7 +303,8 @@ void BLI_recurdir_fileops(char *dirname) {
 int BLI_rename(char *from, char *to) {
 	if (!BLI_exists(from)) return 0;
 
-	if (BLI_exists(to))
+	/* make sure the filenames are different (case insensitive) before removing */
+	if (BLI_exists(to) && BLI_strcasecmp(from, to))
 		if(BLI_delete(to, 0, 0)) return 1;
 		
 	return rename(from, to);

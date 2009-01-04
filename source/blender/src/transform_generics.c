@@ -32,6 +32,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLO_sys_types.h" // for intptr_t support
+
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
@@ -252,7 +254,7 @@ static void editmesh_apply_to_mirror(TransInfo *t)
 		if (td->flag & TD_SKIP)
 			continue;
 		
-		eve = td->tdmir;
+		eve = td->extra;
 		if(eve) {
 			eve->co[0]= -td->loc[0];
 			eve->co[1]= td->loc[1];
@@ -468,6 +470,8 @@ void recalcData(TransInfo *t)
 		else if(G.obedit->type==OB_ARMATURE){   /* no recalc flag, does pose */
 			bArmature *arm= G.obedit->data;
 			EditBone *ebo;
+			TransData *td = t->data;
+			int i;
 			
 			/* Ensure all bones are correctly adjusted */
 			for (ebo=G.edbo.first; ebo; ebo=ebo->next){
@@ -504,6 +508,38 @@ void recalcData(TransInfo *t)
 					ebo->oldlength= ebo->length;
 				}
 			}
+			
+			
+			if (t->mode != TFM_BONE_ROLL)
+			{
+				/* fix roll */
+				for(i = 0; i < t->total; i++, td++)
+				{
+					if (td->extra)
+					{
+						float vec[3], up_axis[3];
+						float qrot[4];
+						
+						ebo = td->extra;
+						VECCOPY(up_axis, td->axismtx[2]);
+						
+						if (t->mode != TFM_ROTATION)
+						{
+							VecSubf(vec, ebo->tail, ebo->head);
+							Normalize(vec);
+							RotationBetweenVectorsToQuat(qrot, td->axismtx[1], vec);
+							QuatMulVecf(qrot, up_axis);
+						}
+						else
+						{
+							Mat3MulVecfl(t->mat, up_axis);
+						}
+						
+						ebo->roll = rollBoneToVector(ebo, up_axis);
+					}
+				}
+			}
+			
 			if(arm->flag & ARM_MIRROR_EDIT) 
 				transform_armature_mirror_update();
 			
@@ -581,39 +617,6 @@ void recalcData(TransInfo *t)
 		reshadeall_displist();
 }
 
-void initTransModeFlags(TransInfo *t, int mode) 
-{
-	t->mode = mode;
-	t->num.flag = 0;
-
-	/* REMOVING RESTRICTIONS FLAGS */
-	t->flag &= ~T_ALL_RESTRICTIONS;
-	
-	switch (mode) {
-	case TFM_RESIZE:
-		t->flag |= T_NULL_ONE;
-		t->num.flag |= NUM_NULL_ONE;
-		t->num.flag |= NUM_AFFECT_ALL;
-		if (!G.obedit) {
-			t->flag |= T_NO_ZERO;
-			t->num.flag |= NUM_NO_ZERO;
-		}
-		break;
-	case TFM_TOSPHERE:
-		t->num.flag |= NUM_NULL_ONE;
-		t->num.flag |= NUM_NO_NEGATIVE;
-		t->flag |= T_NO_CONSTRAINT;
-		break;
-	case TFM_SHEAR:
-	case TFM_CREASE:
-	case TFM_BONE_ENVELOPE:
-	case TFM_CURVE_SHRINKFATTEN:
-	case TFM_BONE_ROLL:
-		t->flag |= T_NO_CONSTRAINT;
-		break;
-	}
-}
-
 void drawLine(float *center, float *dir, char axis, short options)
 {
 	extern void make_axis_color(char *col, char *col2, char axis);	// drawview.c
@@ -646,6 +649,11 @@ void drawLine(float *center, float *dir, char axis, short options)
 	myloadmatrix(G.vd->viewmat);
 }
 
+void resetTransRestrictions(TransInfo *t)
+{
+	t->flag &= ~T_ALL_RESTRICTIONS;
+}
+
 void initTrans (TransInfo *t)
 {
 	
@@ -672,18 +680,9 @@ void initTrans (TransInfo *t)
 	t->transform		= NULL;
 	t->handleEvent		= NULL;
 
-	t->total			=
-		t->num.idx		=
-		t->num.idx_max	=
-		t->num.ctrl[0]	= 
-		t->num.ctrl[1]	= 
-		t->num.ctrl[2]	= 0;
+	t->total			= 0;
 
 	t->val = 0.0f;
-
-	t->num.val[0]		= 
-		t->num.val[1]	= 
-		t->num.val[2]	= 0.0f;
 
 	t->vec[0]			=
 		t->vec[1]		=
@@ -706,7 +705,8 @@ void initTrans (TransInfo *t)
 		t->around = V3D_CENTER;
 
 	setTransformViewMatrices(t);
-	initNDofInput(&(t->ndof));
+	initNumInput(&t->num);
+	initNDofInput(&t->ndof);
 }
 
 /* Here I would suggest only TransInfo related issues, like free data & reset vars. Not redraws */
@@ -859,7 +859,10 @@ void restoreTransObjects(TransInfo *t)
 				((VObjectData*)vnode->data)->flag |= SCALE_SEND_READY;
 			}
 #endif
-	}	
+	}
+	
+	Mat3One(t->mat);
+	
 	recalcData(t);
 }
 
@@ -915,12 +918,16 @@ void calculateCenterCursor2D(TransInfo *t)
 void calculateCenterMedian(TransInfo *t)
 {
 	float partial[3] = {0.0f, 0.0f, 0.0f};
+	int total = 0;
 	int i;
 	
 	for(i = 0; i < t->total; i++) {
 		if (t->data[i].flag & TD_SELECTED) {
 			if (!(t->data[i].flag & TD_NOCENTER))
+			{
 				VecAddf(partial, partial, t->data[i].center);
+				total++;
+			}
 		}
 		else {
 			/* 
@@ -931,7 +938,7 @@ void calculateCenterMedian(TransInfo *t)
 		}
 	}
 	if(i)
-		VecMulf(partial, 1.0f / i);
+		VecMulf(partial, 1.0f / total);
 	VECCOPY(t->center, partial);
 
 	calculateCenter2D(t);

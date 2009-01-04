@@ -174,8 +174,6 @@ Important to know is that 'streaming' has been added to files, for Blender Publi
 #include "BIF_verse.h"
 #endif
 
-#include "GEN_messaging.h"
-
 #include "BLO_writefile.h"
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
@@ -399,7 +397,7 @@ static void writedata(WriteData *wd, int filecode, int len, void *adr)	/* do not
 void IDP_WriteProperty_OnlyData(IDProperty *prop, void *wd);
 void IDP_WriteProperty(IDProperty *prop, void *wd);
 
-void IDP_WriteArray(IDProperty *prop, void *wd)
+static void IDP_WriteArray(IDProperty *prop, void *wd)
 {
 	/*REMEMBER to set totalen to len in the linking code!!*/
 	if (prop->data.pointer) {
@@ -407,13 +405,13 @@ void IDP_WriteArray(IDProperty *prop, void *wd)
 	}
 }
 
-void IDP_WriteString(IDProperty *prop, void *wd)
+static void IDP_WriteString(IDProperty *prop, void *wd)
 {
 	/*REMEMBER to set totalen to len in the linking code!!*/
 	writedata(wd, DATA, prop->len+1, prop->data.pointer);
 }
 
-void IDP_WriteGroup(IDProperty *prop, void *wd)
+static void IDP_WriteGroup(IDProperty *prop, void *wd)
 {
 	IDProperty *loop;
 
@@ -471,6 +469,8 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 			if(ntree->type==NTREE_SHADER && (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB))
 				write_curvemapping(wd, node->storage);
 			else if(ntree->type==NTREE_COMPOSIT && (node->type==CMP_NODE_TIME || node->type==CMP_NODE_CURVE_VEC || node->type==CMP_NODE_CURVE_RGB))
+				write_curvemapping(wd, node->storage);
+			else if(ntree->type==NTREE_TEXTURE && (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME) )
 				write_curvemapping(wd, node->storage);
 			else 
 				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
@@ -535,6 +535,7 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 			writestruct(wd, ID_PA, "ParticleSettings", 1, part);
 			if (part->id.properties) IDP_WriteProperty(part->id.properties, wd);
 			writestruct(wd, DATA, "PartDeflect", 1, part->pd);
+			writestruct(wd, DATA, "PartDeflect", 1, part->pd2);
 		}
 		part= part->id.next;
 	}
@@ -607,6 +608,9 @@ static void write_sensors(WriteData *wd, ListBase *lb)
 			break;
 		case SENS_ACTUATOR:
 			writestruct(wd, DATA, "bActuatorSensor", 1, sens->data);
+			break;
+		case SENS_DELAY:
+			writestruct(wd, DATA, "bDelaySensor", 1, sens->data);
 			break;
 		case SENS_COLLISION:
 			writestruct(wd, DATA, "bCollisionSensor", 1, sens->data);
@@ -848,6 +852,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase, int write_undo)
 			writestruct(wd, DATA, "ClothCollSettings", 1, clmd->coll_parms);
 			writestruct(wd, DATA, "PointCache", 1, clmd->point_cache);
 		} 
+		else if(md->type==eModifierType_Fluidsim) {
+			FluidsimModifierData *fluidmd = (FluidsimModifierData*) md;
+			
+			writestruct(wd, DATA, "FluidsimSettings", 1, fluidmd->fss);
+		} 
 		else if (md->type==eModifierType_Collision) {
 			
 			/*
@@ -919,7 +928,7 @@ static void write_objects(WriteData *wd, ListBase *idbase, int write_undo)
 			writestruct(wd, DATA, "PartDeflect", 1, ob->pd);
 			writestruct(wd, DATA, "SoftBody", 1, ob->soft);
 			if(ob->soft) writestruct(wd, DATA, "PointCache", 1, ob->soft->pointcache);
-			writestruct(wd, DATA, "FluidsimSettings", 1, ob->fluidsimSettings); // NT
+			writestruct(wd, DATA, "BulletSoftBody", 1, ob->bsoft);
 			
 			write_particlesystems(wd, &ob->particlesystem);
 			write_modifiers(wd, &ob->modifiers, write_undo);
@@ -1063,7 +1072,7 @@ static void write_mballs(WriteData *wd, ListBase *idbase)
 	}
 }
 
-int amount_of_chars(char *str)
+static int amount_of_chars(char *str)
 {
 	// Since the data is saved as UTF-8 to the cu->str
 	// The cu->len is not same as the strlen(cu->str)
@@ -1324,6 +1333,12 @@ static void write_textures(WriteData *wd, ListBase *idbase)
 			if(tex->plugin) writestruct(wd, DATA, "PluginTex", 1, tex->plugin);
 			if(tex->coba) writestruct(wd, DATA, "ColorBand", 1, tex->coba);
 			if(tex->env) writestruct(wd, DATA, "EnvMap", 1, tex->env);
+			
+			/* nodetree is integral part of texture, no libdata */
+			if(tex->nodetree) {
+				writestruct(wd, DATA, "bNodeTree", 1, tex->nodetree);
+				write_nodetree(wd, tex->nodetree);
+			}
 			
 			write_previews(wd, tex->preview);
 		}
@@ -1692,7 +1707,9 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					
 					writestruct(wd, DATA, "SpaceImage", 1, sl);
 					if(sima->cumap)
-						write_curvemapping(wd, sima->cumap);					
+						write_curvemapping(wd, sima->cumap);
+					if(sima->gpd) 
+						write_gpencil(wd, sima->gpd);
 				}
 				else if(sl->spacetype==SPACE_IMASEL) {
 					writestruct(wd, DATA, "SpaceImaSel", 1, sl);
@@ -1843,6 +1860,7 @@ static void write_texts(WriteData *wd, ListBase *idbase)
 {
 	Text *text;
 	TextLine *tmp;
+	TextMarker *mrk;
 
 	text= idbase->first;
 	while(text) {
@@ -1866,7 +1884,16 @@ static void write_texts(WriteData *wd, ListBase *idbase)
 				writedata(wd, DATA, tmp->len+1, tmp->line);
 				tmp= tmp->next;
 			}
+
+			/* write markers */
+			mrk= text->markers.first;
+			while (mrk) {
+				writestruct(wd, DATA, "TextMarker", 1, mrk);
+				mrk= mrk->next;
+			}
 		}
+
+
 		text= text->id.next;
 	}
 

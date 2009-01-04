@@ -737,6 +737,7 @@ static void transformEvent(unsigned short event, short val) {
 		case GKEY:
 			/* only switch when... */
 			if( ELEM3(Trans.mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL) ) { 
+				resetTransRestrictions(&Trans); 
 				restoreTransObjects(&Trans);
 				initTranslation(&Trans);
 				Trans.redraw = 1;
@@ -745,6 +746,7 @@ static void transformEvent(unsigned short event, short val) {
 		case SKEY:
 			/* only switch when... */
 			if( ELEM3(Trans.mode, TFM_ROTATION, TFM_TRANSLATION, TFM_TRACKBALL) ) { 
+				resetTransRestrictions(&Trans); 
 				restoreTransObjects(&Trans);
 				initResize(&Trans);
 				Trans.redraw = 1;
@@ -752,7 +754,9 @@ static void transformEvent(unsigned short event, short val) {
 			break;
 		case RKEY:
 			/* only switch when... */
-			if( ELEM4(Trans.mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION) ) { 
+			if( ELEM4(Trans.mode, TFM_ROTATION, TFM_RESIZE, TFM_TRACKBALL, TFM_TRANSLATION) ) {
+				
+				resetTransRestrictions(&Trans); 
 				
 				if (Trans.mode == TFM_ROTATION) {
 					restoreTransObjects(&Trans);
@@ -1502,6 +1506,10 @@ static void constraintTransLim(TransInfo *t, TransData *td)
 		for (con= td->con; con; con= con->next) {
 			float tmat[4][4];
 			
+			/* only consider constraint if enabled */
+			if (con->flag & CONSTRAINT_DISABLE) continue;
+			if (con->enforce == 0.0f) continue;
+			
 			/* only use it if it's tagged for this purpose (and the right type) */
 			if (con->type == CONSTRAINT_TYPE_LOCLIMIT) {
 				bLocLimitConstraint *data= con->data;
@@ -1585,7 +1593,11 @@ static void constraintRotLim(TransInfo *t, TransData *td)
 			
 		/* Evaluate valid constraints */
 		for (con= td->con; con; con= con->next) {
-			/* we're only interested in Limit-Scale constraints */
+			/* only consider constraint if enabled */
+			if (con->flag & CONSTRAINT_DISABLE) continue;
+			if (con->enforce == 0.0f) continue;
+			
+			/* we're only interested in Limit-Rotation constraints */
 			if (con->type == CONSTRAINT_TYPE_ROTLIMIT) {
 				bRotLimitConstraint *data= con->data;
 				float tmat[4][4];
@@ -1675,6 +1687,10 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 			
 		/* Evaluate valid constraints */
 		for (con= td->con; con; con= con->next) {
+			/* only consider constraint if enabled */
+			if (con->flag & CONSTRAINT_DISABLE) continue;
+			if (con->enforce == 0.0f) continue;
+			
 			/* we're only interested in Limit-Scale constraints */
 			if (con->type == CONSTRAINT_TYPE_SIZELIMIT) {
 				bSizeLimitConstraint *data= con->data;
@@ -2474,25 +2490,28 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		Mat3CpyMat4(pmtx, t->poseobj->obmat);
 		Mat3Inv(imtx, pmtx);
 		
-		VecSubf(vec, td->center, center);
-		
-		Mat3MulVecfl(pmtx, vec);	// To Global space
-		Mat3MulVecfl(mat, vec);		// Applying rotation
-		Mat3MulVecfl(imtx, vec);	// To Local space
-
-		VecAddf(vec, vec, center);
-		/* vec now is the location where the object has to be */
-		
-		VecSubf(vec, vec, td->center); // Translation needed from the initial location
-		
-		Mat3MulVecfl(pmtx, vec);	// To Global space
-		Mat3MulVecfl(td->smtx, vec);// To Pose space
-
-		protectedTransBits(td->protectflag, vec);
-
-		VecAddf(td->loc, td->iloc, vec);
-		
-		constraintTransLim(t, td);
+		if ((td->flag & TD_NO_LOC) == 0)
+		{
+			VecSubf(vec, td->center, center);
+			
+			Mat3MulVecfl(pmtx, vec);	// To Global space
+			Mat3MulVecfl(mat, vec);		// Applying rotation
+			Mat3MulVecfl(imtx, vec);	// To Local space
+	
+			VecAddf(vec, vec, center);
+			/* vec now is the location where the object has to be */
+			
+			VecSubf(vec, vec, td->center); // Translation needed from the initial location
+			
+			Mat3MulVecfl(pmtx, vec);	// To Global space
+			Mat3MulVecfl(td->smtx, vec);// To Pose space
+	
+			protectedTransBits(td->protectflag, vec);
+	
+			VecAddf(td->loc, td->iloc, vec);
+			
+			constraintTransLim(t, td);
+		}
 		
 		/* rotation */
 		if ((t->flag & T_V3D_ALIGN)==0) { // align mode doesn't rotate objects itself
@@ -2508,23 +2527,28 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		}
 	}
 	else {
-		/* translation */
-		VecSubf(vec, td->center, center);
-		Mat3MulVecfl(mat, vec);
-		VecAddf(vec, vec, center);
-		/* vec now is the location where the object has to be */
-		VecSubf(vec, vec, td->center);
-		Mat3MulVecfl(td->smtx, vec);
 		
-		protectedTransBits(td->protectflag, vec);
-		
-		if(td->tdi) {
-			TransDataIpokey *tdi= td->tdi;
-			add_tdi_poin(tdi->locx, tdi->oldloc, vec[0]);
-			add_tdi_poin(tdi->locy, tdi->oldloc+1, vec[1]);
-			add_tdi_poin(tdi->locz, tdi->oldloc+2, vec[2]);
+		if ((td->flag & TD_NO_LOC) == 0)
+		{
+			/* translation */
+			VecSubf(vec, td->center, center);
+			Mat3MulVecfl(mat, vec);
+			VecAddf(vec, vec, center);
+			/* vec now is the location where the object has to be */
+			VecSubf(vec, vec, td->center);
+			Mat3MulVecfl(td->smtx, vec);
+			
+			protectedTransBits(td->protectflag, vec);
+			
+			if(td->tdi) {
+				TransDataIpokey *tdi= td->tdi;
+				add_tdi_poin(tdi->locx, tdi->oldloc, vec[0]);
+				add_tdi_poin(tdi->locy, tdi->oldloc+1, vec[1]);
+				add_tdi_poin(tdi->locz, tdi->oldloc+2, vec[2]);
+			}
+			else VecAddf(td->loc, td->iloc, vec);
 		}
-		else VecAddf(td->loc, td->iloc, vec);
+		
 		
 		constraintTransLim(t, td);
 
@@ -2548,9 +2572,9 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 					float rot[3];
 					
 					/* current IPO value for compatible euler */
-					current_rot[0] = tdi->rotx[0];
-					current_rot[1] = tdi->roty[0];
-					current_rot[2] = tdi->rotz[0];
+					current_rot[0] = (tdi->rotx) ? tdi->rotx[0] : 0.0f;
+					current_rot[1] = (tdi->roty) ? tdi->roty[0] : 0.0f;
+					current_rot[2] = (tdi->rotz) ? tdi->rotz[0] : 0.0f;
 					VecMulf(current_rot, (float)(M_PI_2 / 9.0));
 					
 					/* calculate the total rotatation in eulers */

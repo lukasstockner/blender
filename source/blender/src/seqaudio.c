@@ -27,6 +27,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -85,7 +86,7 @@
 #include "blendef.h"
 
 
-void audio_fill(void *mixdown, Uint8 *sstream, int len);
+static void audio_fill(void *mixdown, uint8_t *sstream, int len);
 /* ************ GLOBALS ************* */
 
 static int audio_pos;
@@ -118,6 +119,7 @@ void makewavstring (char *string)
 
 void audio_mixdown()
 {
+#ifndef DISABLE_SDL
 	int file, c, totlen, totframe, i, oldcfra;
 	char *buf;
 
@@ -203,15 +205,16 @@ void audio_mixdown()
 	MEM_freeN(buf);
 
 	return;
+#endif
 }
 
-void audiostream_fill(Uint8 *mixdown, int len)
+void audiostream_fill(uint8_t *mixdown, int len)
 {    
 	int oldcfra = CFRA;
 	int i;
 
 	memset(mixdown, 0, len);
-
+#ifndef DISABLE_SDL
 	for (i = 0; i < len; i += 64) {
 		CFRA = (int) ( ((float)(audio_pos-64)
 				/( G.scene->audio.mixrate*4 ))
@@ -222,10 +225,11 @@ void audiostream_fill(Uint8 *mixdown, int len)
 	}
 
 	CFRA = oldcfra;
+#endif
 }
 
 
-static void audio_levels(Uint8 *buf, int len, float db, float facf, float pan)
+static void audio_levels(uint8_t *buf, int len, float db, float facf, float pan)
 {
 	int i;
 	float facl, facr, fac;
@@ -288,10 +292,11 @@ void audio_makestream(bSound *sound)
 	}	
 }
 
+#ifndef DISABLE_SDL
 static void audio_fill_ram_sound(Sequence *seq, void * mixdown, 
-				 Uint8 * sstream, int len)
+				 uint8_t * sstream, int len)
 {
-	Uint8* cvtbuf;
+	uint8_t* cvtbuf;
 	bSound* sound;
 	float facf;
 
@@ -307,23 +312,25 @@ static void audio_fill_ram_sound(Sequence *seq, void * mixdown,
 			facf = 1.0;
 		}
 		cvtbuf = malloc(len);					
-		memcpy(cvtbuf, ((Uint8*)sound->stream)+(seq->curpos & (~3)), len);
+		memcpy(cvtbuf, ((uint8_t*)sound->stream)+(seq->curpos & (~3)), len);
 		audio_levels(cvtbuf, len, seq->level, facf, seq->pan);
 		if (!mixdown) {
 			SDL_MixAudio(sstream, cvtbuf, len, SDL_MIX_MAXVOLUME);
 		} else {
-			SDL_MixAudio((Uint8*)mixdown, cvtbuf, len, SDL_MIX_MAXVOLUME);
+			SDL_MixAudio((uint8_t*)mixdown, cvtbuf, len, SDL_MIX_MAXVOLUME);
 		}
 		free(cvtbuf);
 	}
 	seq->curpos += len;
 }
+#endif
 
+#ifndef DISABLE_SDL
 static void audio_fill_hd_sound(Sequence *seq, 
-				void * mixdown, Uint8 * sstream, 
+				void * mixdown, uint8_t * sstream, 
 				int len)
 {
-	Uint8* cvtbuf;
+	uint8_t* cvtbuf;
 	float facf;
 
 	if ((seq->curpos >= 0) &&
@@ -347,16 +354,18 @@ static void audio_fill_hd_sound(Sequence *seq,
 			SDL_MixAudio(sstream, 
 				     cvtbuf, len, SDL_MIX_MAXVOLUME);
 		} else {
-			SDL_MixAudio((Uint8*)mixdown, 
+			SDL_MixAudio((uint8_t*)mixdown, 
 				     cvtbuf, len, SDL_MIX_MAXVOLUME);
 		}
 		free(cvtbuf);
 	}
 	seq->curpos += len;
 }
+#endif
 
+#ifndef DISABLE_SDL
 static void audio_fill_seq(Sequence * seq, void * mixdown,
-			   Uint8 *sstream, int len, int advance_only)
+			   uint8_t *sstream, int len, int advance_only)
 {
 	while(seq) {
 		if (seq->type == SEQ_META &&
@@ -389,11 +398,7 @@ static void audio_fill_seq(Sequence * seq, void * mixdown,
 				if (!seq->hdaudio) {
 					char name[FILE_MAXDIR+FILE_MAXFILE];
 
-					strncpy(name, seq->strip->dir, 
-						FILE_MAXDIR-1);
-					strncat(name, 
-						seq->strip->stripdata->name, 
-						FILE_MAXFILE-1);
+					BLI_join_dirfile(name, seq->strip->dir, seq->strip->stripdata->name);
 					BLI_convertstringcode(name, G.sce);
 				
 					seq->hdaudio= sound_open_hdaudio(name);
@@ -407,8 +412,10 @@ static void audio_fill_seq(Sequence * seq, void * mixdown,
 		seq = seq->next;
 	}
 }
+#endif
 
-void audio_fill(void *mixdown, Uint8 *sstream, int len)
+#ifndef DISABLE_SDL
+static void audio_fill(void *mixdown, uint8_t *sstream, int len)
 {    
 	Editing *ed;
 	Sequence *seq;
@@ -427,7 +434,9 @@ void audio_fill(void *mixdown, Uint8 *sstream, int len)
 		}
 	}
 }    
+#endif
 
+#ifndef DISABLE_SDL
 static int audio_init(SDL_AudioSpec *desired)
 {
 	SDL_AudioSpec *obtained, *hardware_spec;
@@ -452,8 +461,9 @@ static int audio_init(SDL_AudioSpec *desired)
 	SDL_PauseAudio(0);
 	return 1;
 }
+#endif
 
-static int audiostream_play_seq(Sequence * seq, Uint32 startframe)
+static int audiostream_play_seq(Sequence * seq, uint32_t startframe)
 {
 	char name[FILE_MAXDIR+FILE_MAXFILE];
 	int have_sound = 0;
@@ -496,8 +506,9 @@ static int audiostream_play_seq(Sequence * seq, Uint32 startframe)
 	return have_sound;
 }
 
-void audiostream_play(Uint32 startframe, Uint32 duration, int mixdown)
+void audiostream_play(uint32_t startframe, uint32_t duration, int mixdown)
 {
+#ifndef DISABLE_SDL
 	static SDL_AudioSpec desired;
 	Editing *ed;
 	int have_sound = 0;
@@ -539,22 +550,25 @@ void audiostream_play(Uint32 startframe, Uint32 duration, int mixdown)
 		SDL_PauseAudio(0);
 		audio_playing++;
 	}
+#endif
 }
 
-void audiostream_start(Uint32 frame)
+void audiostream_start(uint32_t frame)
 {
 	audiostream_play(frame, 0, 0);
 }
 
-void audiostream_scrub(Uint32 frame)
+void audiostream_scrub(uint32_t frame)
 {
 	if (U.mixbufsize) audiostream_play(frame, 4096/U.mixbufsize, 0);
 }
 
 void audiostream_stop(void)
 {
+#ifndef DISABLE_SDL
 	SDL_PauseAudio(1);
 	audio_playing=0;
+#endif
 }
 
 int audiostream_pos(void) 

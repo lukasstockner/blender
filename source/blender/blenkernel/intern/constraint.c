@@ -64,8 +64,9 @@
 #include "BKE_library.h"
 #include "BKE_idprop.h"
 
-
+#ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
+#endif
 
 #include "blendef.h"
 
@@ -367,19 +368,12 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 			case CONSTRAINT_SPACE_WORLD: /* ---------- FROM WORLDSPACE ---------- */
 			{
 				/* world to pose */
-				if (to==CONSTRAINT_SPACE_POSE || to==CONSTRAINT_SPACE_LOCAL || to==CONSTRAINT_SPACE_PARLOCAL) {
-					Mat4Invert(imat, ob->obmat);
-					Mat4CpyMat4(tempmat, mat);
-					Mat4MulMat4(mat, tempmat, imat);
-				}
+				Mat4Invert(imat, ob->obmat);
+				Mat4CpyMat4(tempmat, mat);
+				Mat4MulMat4(mat, tempmat, imat);
 				
-				/* pose to local */
-				if (to == CONSTRAINT_SPACE_LOCAL) {
-					/* call self with slightly different values */
-					constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
-				}
-				/* pose to local + parent */
-				else if (to == CONSTRAINT_SPACE_PARLOCAL) {
+				/* use pose-space as stepping stone for other spaces... */
+				if (ELEM(to, CONSTRAINT_SPACE_LOCAL, CONSTRAINT_SPACE_PARLOCAL)) {
 					/* call self with slightly different values */
 					constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
 				}
@@ -445,69 +439,66 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 				break;
 			case CONSTRAINT_SPACE_LOCAL: /* ------------ FROM LOCALSPACE --------- */
 			{
-				/* local to pose */
-				if (to==CONSTRAINT_SPACE_POSE || to==CONSTRAINT_SPACE_WORLD) {
-					/* do inverse procedure that was done for pose to local */
-					if (pchan->bone) {
-						/* we need the posespace_matrix = local_matrix + (parent_posespace_matrix + restpos) */						
-						if (pchan->parent) {
-							float offs_bone[4][4];
+				/* local to pose - do inverse procedure that was done for pose to local */
+				if (pchan->bone) {
+					/* we need the posespace_matrix = local_matrix + (parent_posespace_matrix + restpos) */						
+					if (pchan->parent) {
+						float offs_bone[4][4];
+						
+						/* construct offs_bone the same way it is done in armature.c */
+						Mat4CpyMat3(offs_bone, pchan->bone->bone_mat);
+						VECCOPY(offs_bone[3], pchan->bone->head);
+						offs_bone[3][1]+= pchan->bone->parent->length;
+						
+						if (pchan->bone->flag & BONE_HINGE) {
+							/* pose_mat = par_pose-space_location * chan_mat */
+							float tmat[4][4];
 							
-							/* construct offs_bone the same way it is done in armature.c */
-							Mat4CpyMat3(offs_bone, pchan->bone->bone_mat);
-							VECCOPY(offs_bone[3], pchan->bone->head);
-							offs_bone[3][1]+= pchan->bone->parent->length;
+							/* the rotation of the parent restposition */
+							Mat4CpyMat4(tmat, pchan->bone->parent->arm_mat);
 							
-							if (pchan->bone->flag & BONE_HINGE) {
-								/* pose_mat = par_pose-space_location * chan_mat */
-								float tmat[4][4];
-								
-								/* the rotation of the parent restposition */
-								Mat4CpyMat4(tmat, pchan->bone->parent->arm_mat);
-								
-								/* the location of actual parent transform */
-								VECCOPY(tmat[3], offs_bone[3]);
-								offs_bone[3][0]= offs_bone[3][1]= offs_bone[3][2]= 0.0f;
-								Mat4MulVecfl(pchan->parent->pose_mat, tmat[3]);
-								
-								Mat4MulMat4(diff_mat, offs_bone, tmat);
-								Mat4CpyMat4(tempmat, mat);
-								Mat4MulMat4(mat, tempmat, diff_mat);
-							}
-							else {
-								/* pose_mat = par_pose_mat * bone_mat * chan_mat */
-								Mat4MulMat4(diff_mat, offs_bone, pchan->parent->pose_mat);
-								Mat4CpyMat4(tempmat, mat);
-								Mat4MulMat4(mat, tempmat, diff_mat);
-							}
+							/* the location of actual parent transform */
+							VECCOPY(tmat[3], offs_bone[3]);
+							offs_bone[3][0]= offs_bone[3][1]= offs_bone[3][2]= 0.0f;
+							Mat4MulVecfl(pchan->parent->pose_mat, tmat[3]);
+							
+							Mat4MulMat4(diff_mat, offs_bone, tmat);
+							Mat4CpyMat4(tempmat, mat);
+							Mat4MulMat4(mat, tempmat, diff_mat);
 						}
 						else {
-							Mat4CpyMat4(diff_mat, pchan->bone->arm_mat);
-							
+							/* pose_mat = par_pose_mat * bone_mat * chan_mat */
+							Mat4MulMat4(diff_mat, offs_bone, pchan->parent->pose_mat);
 							Mat4CpyMat4(tempmat, mat);
 							Mat4MulMat4(mat, tempmat, diff_mat);
 						}
 					}
+					else {
+						Mat4CpyMat4(diff_mat, pchan->bone->arm_mat);
+						
+						Mat4CpyMat4(tempmat, mat);
+						Mat4MulMat4(mat, tempmat, diff_mat);
+					}
 				}
-				/* local to world */
-				if (to == CONSTRAINT_SPACE_WORLD) {
+				
+				/* use pose-space as stepping stone for other spaces */
+				if (ELEM(to, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_PARLOCAL)) {
 					/* call self with slightly different values */
 					constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
-				}
+				}				
 			}
 				break;
 			case CONSTRAINT_SPACE_PARLOCAL: /* -------------- FROM LOCAL WITH PARENT ---------- */
 			{
-				/* local to pose */
-				if (to==CONSTRAINT_SPACE_POSE || to==CONSTRAINT_SPACE_WORLD) {
-					if (pchan->bone) {					
-						Mat4CpyMat4(diff_mat, pchan->bone->arm_mat);
-						Mat4CpyMat4(tempmat, mat);
-						Mat4MulMat4(mat, diff_mat, tempmat);
-					}
+				/* local + parent to pose */
+				if (pchan->bone) {					
+					Mat4CpyMat4(diff_mat, pchan->bone->arm_mat);
+					Mat4CpyMat4(tempmat, mat);
+					Mat4MulMat4(mat, diff_mat, tempmat);
 				}
-				/* local to world */
-				if (to == CONSTRAINT_SPACE_WORLD) {
+				
+				/* use pose-space as stepping stone for other spaces */
+				if (ELEM(to, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL)) {
 					/* call self with slightly different values */
 					constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, to);
 				}
@@ -852,7 +843,7 @@ static void default_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstrain
 			if (nocopy == 0) { \
 				datatar= ct->tar; \
 				strcpy(datasubtarget, ct->subtarget); \
-				con->tarspace= ct->space; \
+				con->tarspace= (char)ct->space; \
 			} \
 			 \
 			BLI_freelinkN(list, ct); \
@@ -872,7 +863,7 @@ static void default_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstrain
 			bConstraintTarget *ctn = ct->next; \
 			if (nocopy == 0) { \
 				datatar= ct->tar; \
-				con->tarspace= ct->space; \
+				con->tarspace= (char)ct->space; \
 			} \
 			 \
 			BLI_freelinkN(list, ct); \
@@ -1053,7 +1044,7 @@ static void vectomat (float *vec, float *target_up, short axis, short upflag, sh
 		n[2] = 1.0;
 	}
 	if (axis > 2) axis -= 3;
-	else VecMulf(n,-1);
+	else VecNegf(n);
 
 	/* n specifies the transformation of the track axis */
 	if (flags & TARGET_Z_UP) { 
@@ -1444,9 +1435,9 @@ static void rotlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *t
 	Mat4ToEul(cob->matrix, eul);
 	
 	/* eulers: radians to degrees! */
-	eul[0] = (eul[0] / M_PI * 180);
-	eul[1] = (eul[1] / M_PI * 180);
-	eul[2] = (eul[2] / M_PI * 180);
+	eul[0] = (float)(eul[0] / M_PI * 180);
+	eul[1] = (float)(eul[1] / M_PI * 180);
+	eul[2] = (float)(eul[2] / M_PI * 180);
 	
 	/* limiting of euler values... */
 	if (data->flag & LIMIT_XROT) {
@@ -1472,9 +1463,9 @@ static void rotlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *t
 	}
 		
 	/* eulers: degrees to radians ! */
-	eul[0] = (eul[0] / 180 * M_PI); 
-	eul[1] = (eul[1] / 180 * M_PI);
-	eul[2] = (eul[2] / 180 * M_PI);
+	eul[0] = (float)(eul[0] / 180 * M_PI); 
+	eul[1] = (float)(eul[1] / 180 * M_PI);
+	eul[2] = (float)(eul[2] / 180 * M_PI);
 	
 	LocEulSizeToMat4(cob->matrix, loc, eul, size);
 }
@@ -1824,6 +1815,7 @@ static bConstraintTypeInfo CTI_SIZELIKE = {
 	sizelike_evaluate /* evaluate */
 };
 
+
 /* ----------- Python Constraint -------------- */
 
 static void pycon_free (bConstraint *con)
@@ -1882,7 +1874,7 @@ static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintT
 {
 	bPythonConstraint *data= con->data;
 	
-	if ((G.f & G_DOSCRIPTLINKS) && VALID_CONS_TARGET(ct)) {
+	if (VALID_CONS_TARGET(ct)) {
 		/* special exception for curves - depsgraph issues */
 		if (ct->tar->type == OB_CURVE) {
 			Curve *cu= ct->tar->data;
@@ -1896,7 +1888,12 @@ static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintT
 		 * this matrix if it needs to do so
 		 */
 		constraint_target_to_mat4(ct->tar, ct->subtarget, ct->matrix, CONSTRAINT_SPACE_WORLD, ct->space, con->headtail);
-		BPY_pyconstraint_target(data, ct);
+		
+		/* only execute target calculation if allowed */
+#ifndef DISABLE_PYTHON
+		if (G.f & G_DOSCRIPTLINKS)
+			BPY_pyconstraint_target(data, ct);
+#endif
 	}
 	else if (ct)
 		Mat4One(ct->matrix);
@@ -1904,8 +1901,12 @@ static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintT
 
 static void pycon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
 {
+#ifdef DISABLE_PYTHON
+	return;
+#else
 	bPythonConstraint *data= con->data;
 	
+	/* only evaluate in python if we're allowed to do so */
 	if ((G.f & G_DOSCRIPTLINKS)==0)  return;
 	
 /* currently removed, until I this can be re-implemented for multiple targets */
@@ -1919,6 +1920,7 @@ static void pycon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targ
 	
 	/* Now, run the actual 'constraint' function, which should only access the matrices */
 	BPY_pyconstraint_eval(data, cob, targets);
+#endif /* DISABLE_PYTHON */
 }
 
 static bConstraintTypeInfo CTI_PYTHON = {
@@ -2180,7 +2182,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					Projf(vec2, vec, cob->matrix[0]);
 					VecSubf(totmat[1], vec, vec2);
 					Normalize(totmat[1]);
-					VecMulf(totmat[1],-1);
+					VecNegf(totmat[1]);
 					
 					/* the x axis is fixed */
 					totmat[0][0] = cob->matrix[0][0];
@@ -2198,7 +2200,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					Projf(vec2, vec, cob->matrix[0]);
 					VecSubf(totmat[2], vec, vec2);
 					Normalize(totmat[2]);
-					VecMulf(totmat[2],-1);
+					VecNegf(totmat[2]);
 						
 					/* the x axis is fixed */
 					totmat[0][0] = cob->matrix[0][0];
@@ -2263,7 +2265,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					Projf(vec2, vec, cob->matrix[1]);
 					VecSubf(totmat[0], vec, vec2);
 					Normalize(totmat[0]);
-					VecMulf(totmat[0],-1);
+					VecNegf(totmat[0]);
 					
 					/* the y axis is fixed */
 					totmat[1][0] = cob->matrix[1][0];
@@ -2281,7 +2283,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					Projf(vec2, vec, cob->matrix[1]);
 					VecSubf(totmat[2], vec, vec2);
 					Normalize(totmat[2]);
-					VecMulf(totmat[2],-1);
+					VecNegf(totmat[2]);
 					
 					/* the y axis is fixed */
 					totmat[1][0] = cob->matrix[1][0];
@@ -2346,7 +2348,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					Projf(vec2, vec, cob->matrix[2]);
 					VecSubf(totmat[0], vec, vec2);
 					Normalize(totmat[0]);
-					VecMulf(totmat[0],-1);
+					VecNegf(totmat[0]);
 					
 					/* the z axis is fixed */
 					totmat[2][0] = cob->matrix[2][0];
@@ -2364,7 +2366,7 @@ static void locktrack_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					Projf(vec2, vec, cob->matrix[2]);
 					VecSubf(totmat[1], vec, vec2);
 					Normalize(totmat[1]);
-					VecMulf(totmat[1],-1);
+					VecNegf(totmat[1]);
 					
 					/* the z axis is fixed */
 					totmat[2][0] = cob->matrix[2][0];
@@ -2514,7 +2516,7 @@ static void distlimit_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			else if (data->flag & LIMITDIST_USESOFT) {
 				// FIXME: there's a problem with "jumping" when this kicks in
 				if (dist >= (data->dist - data->soft)) {
-					sfac = data->soft*(1.0 - exp(-(dist - data->dist)/data->soft)) + data->dist;
+					sfac = (float)( data->soft*(1.0 - exp(-(dist - data->dist)/data->soft)) + data->dist );
 					sfac /= dist;
 					
 					clamp_surf= 1;
@@ -3145,7 +3147,7 @@ static void transform_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 			case 1: /* rotation (convert to degrees first) */
 				Mat4ToEul(ct->matrix, dvec);
 				for (i=0; i<3; i++)
-					dvec[i] = dvec[i] / M_PI * 180;
+					dvec[i] = (float)(dvec[i] / M_PI * 180);
 				break;
 			default: /* location */
 				VecCopyf(dvec, ct->matrix[3]);
@@ -3195,7 +3197,7 @@ static void transform_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *
 					eul[i]= tmin + (sval[data->map[i]] * (tmax - tmin)); 
 					
 					/* now convert final value back to radians */
-					eul[i] = eul[i] / 180 * M_PI;
+					eul[i] = (float)(eul[i] / 180 * M_PI);
 				}
 				break;
 			default: /* location */

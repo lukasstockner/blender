@@ -108,6 +108,7 @@ editmesh_mods.c, UI level access, no geometry changes
 
 #include "editmesh.h"
 
+#include "BLO_sys_types.h" // for intptr_t support
 
 /* ****************************** MIRROR **************** */
 
@@ -1860,7 +1861,7 @@ void faceloop_select(EditEdge *startedge, int select)
 		looking= 0;
 		
 		for(efa= em->faces.first; efa; efa= efa->next) {
-			if(efa->e4 && efa->f1==0) {	/* not done quad */
+			if(efa->h==0 && efa->e4 && efa->f1==0) {	/* not done quad */
 				if(efa->e1->f1<=2 && efa->e2->f1<=2 && efa->e3->f1<=2 && efa->e4->f1<=2) { /* valence ok */
 
 					/* if edge tagged, select opposing edge and mark face ok */
@@ -2934,7 +2935,7 @@ void select_sharp_edges(void)
 	EditFace *efa;
 	EditFace **efa1;
 	EditFace **efa2;
-	long edgecount = 0, i;
+	intptr_t edgecount = 0, i;
 	static short sharpness = 135;
 	float fsharpness;
 
@@ -3038,7 +3039,7 @@ void select_linked_flat_faces(void)
 	EditFace *efa;
 	EditFace **efa1;
 	EditFace **efa2;
-	long edgecount = 0, i, faceselcount=0, faceselcountold=0;
+	intptr_t edgecount = 0, i, faceselcount=0, faceselcountold=0;
 	static short sharpness = 135;
 	float fsharpness;
 
@@ -4194,7 +4195,7 @@ void editmesh_align_view_to_selected(View3D *v3d, int axis)
 void vertexsmooth(void)
 {
 	EditMesh *em = G.editMesh;
-	EditVert *eve;
+	EditVert *eve, *eve_mir = NULL;
 	EditEdge *eed;
 	float *adror, *adr, fac;
 	float fvec[3];
@@ -4277,13 +4278,19 @@ void vertexsmooth(void)
 	while(eve) {
 		if(eve->f & SELECT) {
 			if(eve->f1) {
+				
+				if (G.scene->toolsettings->editbutflag & B_MESH_X_MIRROR) {
+					eve_mir= editmesh_get_x_mirror_vert(G.obedit, eve->co);
+				}
+				
 				adr = eve->tmp.p;
 				fac= 0.5/(float)eve->f1;
 				
 				eve->co[0]= 0.5*eve->co[0]+fac*adr[0];
 				eve->co[1]= 0.5*eve->co[1]+fac*adr[1];
 				eve->co[2]= 0.5*eve->co[2]+fac*adr[2];
-
+				
+				
 				/* clip if needed by mirror modifier */
 				if (eve->f2) {
 					if (eve->f2 & 1) {
@@ -4296,6 +4303,13 @@ void vertexsmooth(void)
 						eve->co[2]= 0.0f;
 					}
 				}
+				
+				if (eve_mir) {
+					eve_mir->co[0]=-eve->co[0];
+					eve_mir->co[1]= eve->co[1];
+					eve_mir->co[2]= eve->co[2];
+				}
+				
 			}
 			eve->tmp.p= NULL;
 		}

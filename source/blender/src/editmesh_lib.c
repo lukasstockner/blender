@@ -650,7 +650,9 @@ void EM_selectmode_flush(void)
 			if(efa->f & SELECT) EM_select_face(efa, 1);
 		}
 	}
-	check_fgons_selection();
+	
+	if(!(G.scene->selectmode & SCE_SELECT_FACE))
+		check_fgons_selection();
 
 }
 
@@ -1914,6 +1916,10 @@ void flip_editnormals(void)
 		}
 		efa= efa->next;
 	}
+	
+	/* update vertex normals too */
+	recalc_editnormals();
+	
 #ifdef WITH_VERSE
 	if(G.editMesh->vnode)
 		sync_all_versefaces_with_editfaces((VNode*)G.editMesh->vnode);

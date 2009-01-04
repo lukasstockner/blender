@@ -165,6 +165,22 @@ void PE_change_act(void *ob_v, void *act_v)
 	}
 }
 
+void PE_change_act_psys(Object *ob, ParticleSystem *psys)
+{
+	ParticleSystem *p;
+	
+	if((p=psys_get_current(ob)))
+		p->flag &= ~PSYS_CURRENT;
+	
+	psys->flag |= PSYS_CURRENT;
+	
+	if(psys_check_enabled(ob, psys)) {
+		if(G.f & G_PARTICLEEDIT && !psys->edit)
+			PE_create_particle_edit(ob, psys);
+		PE_recalc_world_cos(ob, psys);
+	}
+}
+
 /* always gets atleast the first particlesystem even if PSYS_CURRENT flag is not set */
 ParticleSystem *PE_get_current(Object *ob)
 {
@@ -2022,7 +2038,7 @@ static void PE_radialcontrol_callback(const int mode, const int val)
 	(*PE_radialcontrol()) = NULL;
 }
 
-RadialControl **PE_radialcontrol()
+RadialControl **PE_radialcontrol(void)
 {
 	static RadialControl *rc = NULL;
 	return &rc;
@@ -2408,7 +2424,7 @@ static void brush_add(Object *ob, ParticleSystem *psys, short *mval, short numbe
 			tree=BLI_kdtree_new(psys->totpart);
 			
 			for(i=0, pa=psys->particles; i<totpart; i++, pa++) {
-				psys_particle_on_dm(ob,psmd->dm,psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,cur_co,0,0,0,0,0);
+				psys_particle_on_dm(psmd->dm,psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,cur_co,0,0,0,0,0);
 				BLI_kdtree_insert(tree, i, cur_co, NULL);
 			}
 
@@ -2448,7 +2464,7 @@ static void brush_add(Object *ob, ParticleSystem *psys, short *mval, short numbe
 				int w, maxw;
 				float maxd, mind, dd, totw=0.0, weight[3];
 
-				psys_particle_on_dm(ob,psmd->dm,psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co1,0,0,0,0,0);
+				psys_particle_on_dm(psmd->dm,psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co1,0,0,0,0,0);
 				maxw = BLI_kdtree_find_n_nearest(tree,3,co1,NULL,ptn);
 
 				maxd = ptn[maxw-1].dist;

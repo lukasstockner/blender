@@ -269,7 +269,7 @@ static void del_defgroup_update_users(Object *ob, int id)
 	int a;
 
 	/* these cases don't use names to refer to vertex groups, so when
-	 * they get deleted the numbers get out of synce, this corrects that */
+	 * they get deleted the numbers get out of sync, this corrects that */
 
 	if(ob->soft) {
 		if(ob->soft->vertgroup == id)
@@ -436,6 +436,32 @@ void del_defgroup (Object *ob)
 			}
 		}
 	}
+}
+
+void del_all_defgroups (Object *ob)
+{
+	/* Sanity check */
+	if (ob == NULL)
+		return;
+	
+	/* Remove all DVerts */
+	if (ob->type==OB_MESH) {
+		Mesh *me= ob->data;
+		CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
+		me->dvert= NULL;
+	}
+	else {
+		if (editLatt->dvert) {
+			MEM_freeN(editLatt->dvert);
+			editLatt->dvert= NULL;
+		}
+	}
+	
+	/* Remove all DefGroups */
+	BLI_freelistN(&ob->defbase);
+	
+	/* Fix counters/indices */
+	ob->actdef= 0;
 }
 
 void create_dverts(ID *id)
@@ -1001,9 +1027,9 @@ void vgroup_operation_with_menu(void)
 	
 	/* give user choices of adding to current/new or removing from current */
 	if (ob->actdef)
-		mode = pupmenu("Vertex Groups %t|Change Active Group%x1|Delete Active Group%x2");
+		mode = pupmenu("Vertex Groups %t|Change Active Group%x1|Delete Active Group%x2|Delete All Groups%x3");
 	else
-		mode= pupmenu("Vertex Groups %t|Change Active Group%x1");
+		mode= pupmenu("Vertex Groups %t|Change Active Group%x1|Delete All Groups%x3");
 	
 	/* handle choices */
 	switch (mode) {
@@ -1026,9 +1052,18 @@ void vgroup_operation_with_menu(void)
 		case 2: /* delete active group  */
 			{
 				del_defgroup(ob);
-				allqueue (REDRAWVIEW3D, 1);
+				allqueue(REDRAWVIEW3D, 1);
 				allqueue(REDRAWOOPS, 0);
 				BIF_undo_push("Delete vertex group");
+			}
+			break;
+		case 3: /* delete all groups */
+			{
+				del_all_defgroups(ob);
+				allqueue(REDRAWVIEW3D, 1);
+				allqueue(REDRAWOOPS, 0);
+				allqueue(REDRAWBUTSEDIT, 1);
+				BIF_undo_push("Delete all vertex groups");
 			}
 			break;
 	}

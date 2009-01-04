@@ -117,6 +117,10 @@ Example::
 	attribute.  Only one type can be selected at a time.  Values are
 	BOX, SPHERE, CYLINDER, CONE, and POLYHEDERON
 
+@type EmptyShapes: readonly dictionary
+@var EmptyShapes: Constant dict used for with L{Object.emptyShape} attribute.
+	Only one type can be selected at a time. Values are
+	ARROW, ARROWS, AXES, CIRCLE, CONE, CUBE AND SPHERE
 """
 
 def New (type, name='type'):
@@ -260,7 +264,7 @@ class Object:
 
 	B{Note}:
 	When dealing with properties and functions such as LocX/RotY/getLocation(), getSize() and getEuler(),
-	keep in mind that these transformation properties are relative to the object's parent (if any).
+	keep in mind that these transformation properties are relative to the object itself, ignoring any other transformations.
 
 	To get these values in worldspace (taking into account vertex parents, constraints, etc.)
 	pass the argument 'worldspace' to these functions.
@@ -347,7 +351,7 @@ class Object:
 			ob.layers = []  # object won't be visible
 			ob.layers = [1, 4] # object visible only in layers 1 and 4
 			ls = o.layers
-			ls.append([10])
+			ls.append(10)
 			o.layers = ls
 			print ob.layers # will print: [1, 4, 10]
 		B{Note}: changes will only be visible after the screen (at least
@@ -525,6 +529,8 @@ class Object:
 	@ivar drawType: The object's drawing type.
 		See L{DrawTypes} constant dict for values.
 	@type drawType: int
+	@ivar emptyShape: The empty drawing shape.
+		See L{EmptyShapes} constant dict for values.
 	@ivar parentType: The object's parent type.  Read-only.
 		See L{ParentTypes} constant dict for values.
 	@type parentType: int
@@ -546,6 +552,8 @@ class Object:
 	@ivar transp: Enable transparent materials for the active object
 		(mesh only).  Also see B{TRANSP} bit in L{drawMode} attribute.
 	@type transp: boolean
+	@ivar color: Object color used by the game engine and optionally for materials, 4 floats for RGBA object color.
+	@type color: tuple of 4 floats between 0 and 1
 	@ivar drawMode: The object's drawing mode bitfield.
 		See L{DrawModes} constant dict for values.
 	@type drawMode: int
@@ -648,9 +656,13 @@ class Object:
 		Return a list of particle systems linked to this object (see Blender.Particle).
 		"""
 		
-	def newParticleSystem():
+	def newParticleSystem(name = None):
 		"""
-		Link a new particle system (see Blender.Particle).
+		Link a particle system (see Blender.Particle).  If no name is
+		given, a new particle system is created.  If a name is given and a 
+		particle system  with that name exists, it is linked to the object.
+		@type name: string
+		@param name: The name of the requested Particle system (optional).
 		"""
 		
 	def addVertexGroupsFromArmature(object):
@@ -772,9 +784,9 @@ class Object:
 		"""
 		@type space: string
 		@param space: The desired space for the size:
-			- localspace: (default) relative to the object's parent;
-			- worldspace: absolute, taking vertex parents, tracking and
-					Ipo's into account;
+			- localspace: (default) location without other transformations
+			- worldspace: location taking vertex parents, tracking and
+					Ipos into account
 		Returns the object's localspace rotation as Euler rotation vector (rotX, rotY, rotZ).  Angles are in radians.
 		@rtype: Py_Euler
 		@return: A python Euler. Data is wrapped when euler is present.
@@ -804,9 +816,9 @@ class Object:
 		"""
 		@type space: string
 		@param space: The desired space for the location:
-			- localspace: (default) relative to the object's parent;
-			- worldspace: absolute, taking vertex parents, tracking and
-				Ipo's into account;
+			- localspace: (default) location without other transformations
+			- worldspace: location taking vertex parents, tracking and
+				Ipos into account
 		Returns the object's location (x, y, z).
 		@return: (x, y, z)
 
@@ -887,9 +899,9 @@ class Object:
 		"""
 		@type space: string
 		@param space: The desired space for the size:
-			- localspace: (default) relative to the object's parent;
-			- worldspace: absolute, taking vertex parents, tracking and
-				Ipo's into account;
+			- localspace: (default) location without other transformations
+			- worldspace: location taking vertex parents, tracking and
+					Ipos into account
 		Returns the object's size.
 		@return: (SizeX, SizeY, SizeZ)
 		@note: the worldspace size will not return negative (flipped) scale values.

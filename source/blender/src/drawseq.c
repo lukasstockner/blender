@@ -113,7 +113,7 @@ static void seq_panel_gpencil(short cntrl)	// SEQ_HANDLER_GREASEPENCIL
 	block= uiNewBlock(&curarea->uiblocks, "seq_panel_gpencil", UI_EMBOSS, UI_HELV, curarea->win);
 	uiPanelControl(UI_PNL_SOLID | UI_PNL_CLOSE  | cntrl);
 	uiSetPanelHandler(SEQ_HANDLER_GREASEPENCIL);  // for close and esc
-	if (uiNewPanel(curarea, block, "Grease Pencil", "SpaceSeq", 100, 30, 318, 204)==0) return;
+	if (uiNewPanel(curarea, block, "Grease Pencil", "Seq", 100, 30, 318, 204)==0) return;
 	
 	/* only draw settings if right mode */
 	if (sseq->mainb == 0)
@@ -160,6 +160,8 @@ static void seq_blockhandlers(ScrArea *sa)
 				seq_panel_gpencil(sseq->blockhandler[a+1]);
 				break;
 		}
+		/* clear action value for event */
+		sseq->blockhandler[a+1]= 0;
 	}
 	uiDrawBlocksPanels(sa, 0);
 
@@ -348,7 +350,7 @@ static void drawseqwave(Sequence *seq, float x1, float y1, float x2, float y2, i
 	
 	signed short* s;
 	bSound *sound;
-	Uint8 *stream;
+	uint8_t *stream;
 	
 	audio_makestream(seq->sound);
 	if(seq->sound==NULL || seq->sound->stream==NULL) return;
@@ -922,17 +924,11 @@ static void draw_image_seq(ScrArea *sa)
 
 	if(ibuf->rect_float && ibuf->rect==NULL)
 		IMB_rect_from_float(ibuf);
-
-	if (sseq->zoom > 0) {
-		zoom = sseq->zoom;
-	} else if (sseq->zoom == 0) {
-		zoom = 1.0;
-	} else {
-		zoom = -1.0/sseq->zoom;
-	}
-
+	
 	/* needed for gla draw */
 	glaDefine2DArea(&curarea->winrct);
+	
+	zoom= SEQ_ZOOM_FAC(sseq->zoom);
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
 		zoomx = zoom * ((float)G.scene->r.xasp / (float)G.scene->r.yasp);
 		zoomy = zoom;
@@ -976,7 +972,10 @@ static void draw_image_seq(ScrArea *sa)
 		setlinestyle(0);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
-
+	
+	/* draw grease-pencil (image aligned) */
+	if (sseq->flag & SEQ_DRAW_GPENCIL)
+		draw_gpencil_2dimage(sa, ibuf);
 
 	if (free_ibuf) {
 		IMB_freeImBuf(ibuf);

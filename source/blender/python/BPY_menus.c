@@ -42,6 +42,7 @@
 #endif
 #include "BKE_global.h"
 #include "BKE_utildefines.h"
+#include "BIF_keyval.h"
 #include "BLI_blenlib.h"
 #include "MEM_guardedalloc.h"
 #include "DNA_userdef_types.h"	/* for U.pythondir */
@@ -106,6 +107,8 @@ static int bpymenu_group_atoi( char *str )
 		return PYMENU_ARMATURE;
 	else if( !strcmp( str, "ScriptTemplate" ) )
 		return PYMENU_SCRIPTTEMPLATE;
+	else if( !strcmp( str, "TextPlugin" ) )
+		return PYMENU_TEXTPLUGIN;
 	else if( !strcmp( str, "MeshFaceKey" ) )
 		return PYMENU_MESHFACEKEY;
 	else if( !strcmp( str, "AddMesh" ) )
@@ -183,6 +186,9 @@ char *BPyMenu_group_itoa( short menugroup )
 		break;
 	case PYMENU_SCRIPTTEMPLATE:
 		return "ScriptTemplate";
+		break;
+	case PYMENU_TEXTPLUGIN:
+		return "TextPlugin";
 		break;
 	case PYMENU_MESHFACEKEY:
 		return "MeshFaceKey";
@@ -328,6 +334,23 @@ static void bpymenu_set_tooltip( BPyMenu * pymenu, char *tip )
 	return;
 }
 
+static void bpymenu_set_shortcut( BPyMenu * pymenu, char *combi )
+{
+	unsigned short key, qual;
+
+	if( !pymenu )
+		return;
+
+	if (!decode_key_string(combi, &key, &qual)) {
+		return; /* TODO: Print some error */
+	}
+
+	pymenu->key = key;
+	pymenu->qual = qual;
+
+	return;
+}
+
 /* bpymenu_AddEntry:
  * try to find an existing pymenu entry with the given type and name;
  * if found, update it with new info, otherwise create a new one and fill it.
@@ -456,7 +479,7 @@ static int bpymenu_CreateFromFile( void )
 	char line[255], w1[255], w2[255], tooltip[255], *tip;
 	char upythondir[FILE_MAX];
 	char *homedir = NULL;
-	int parsing, version, is_userdir;
+	int parsing, version, w2_len, is_userdir;
 	short group;
 	BPyMenu *pymenu = NULL;
 
@@ -531,16 +554,31 @@ will use 'Misc'.\n", w1 );
 			else if( line[0] == '\n' )
 				continue;
 			else if( line[0] == '\'' ) {	/* menu entry */
-				parsing =
+/*				parsing =
 					sscanf( line,
 						"'%[^']' %d %s %d '%[^']'\n",
 						w1, &version, w2, &is_userdir,
 						tooltip );
-
-				if( parsing <= 0 ) {	/* invalid line, get rid of it */
+*/
+				/* previously filenames with spaces were not supported;
+				 * this adds support for that w/o breaking the existing
+				 * few, exotic scripts that parse the Bpymenus file */
+				parsing = sscanf( line,
+						"'%[^']' %d %[^'\n] '%[^']'\n",
+						w1, &version, w2, tooltip );
+				if( parsing <= 0 ) { /* invalid line, get rid of it */
 					fgets( line, 255, fp );
-				} else if( parsing == 5 )
+				} else if( parsing == 4 )
 					tip = tooltip;	/* has tooltip */
+
+				w2_len = strlen(w2);
+				if( w2[w2_len-1] == ' ') {
+					w2[w2_len-1] = '\0';
+					w2_len -= 1;
+				}
+				if( w2[w2_len-1] == '1') is_userdir = 1;
+				else is_userdir = 0;
+				w2[w2_len-2] = '\0';
 
 				pymenu = bpymenu_AddEntry( group,
 							   ( short ) version,
@@ -670,13 +708,7 @@ void BPyMenu_PrintAllEntries( void )
 }
 
 /* bpymenu_ParseFile:
- * recursively scans folders looking for scripts to register.
- *
- * This function scans the scripts directory looking for .py files with the
- * right header and menu info, using that to fill the bpymenu structs.
- * is_userdir defines if the script is in the default scripts dir or the
- * user defined one (U.pythondir: is_userdir == 1).
- * Speed is important.
+ * parse a given .py file looking for a proper header.
  *
  * The first line of the script must be '#!BPY'.
  * The header registration lines must appear between the first pair of
@@ -688,6 +720,7 @@ void BPyMenu_PrintAllEntries( void )
  * # Blender: <code>short int</code> (minimal Blender version)
  * # Group: 'group name' (defines menu)
  * # Submenu: 'submenu name' related_1word_arg
+ * # Shortcut: Modifier+Key (optional shortcut combination for supported groups)
  * # Tooltip: 'tooltip for the menu'
  * # \"\"\"
  *
@@ -796,13 +829,19 @@ static int bpymenu_ParseFile(FILE *file, char *fname, int is_userdir)
 					if ((matches == 3) && (strstr(head, "Submenu:") != NULL)) {
 						bpymenu_AddSubEntry(scriptMenu, middle, tail);
 					} else {
-						/* Tooltip: 'tooltip for the menu */
+						/* Shortcut: 'key+combination' */
 						matches = sscanf(line, "%[^']'%[^']'%c", head, middle, tail);
-						if ((matches == 3) && ((strstr(head, "Tooltip:") != NULL) ||
-							(strstr(head, "Tip:") != NULL))) {
-							bpymenu_set_tooltip(scriptMenu, middle);
+						if ((matches == 3) && (strstr(head, "Shortcut:") != NULL)) {
+							bpymenu_set_shortcut(scriptMenu, middle);
+						} else {
+							/* Tooltip: 'tooltip for the menu */
+							matches = sscanf(line, "%[^']'%[^']'%c", head, middle, tail);
+							if ((matches == 3) && ((strstr(head, "Tooltip:") != NULL) ||
+								(strstr(head, "Tip:") != NULL))) {
+								bpymenu_set_tooltip(scriptMenu, middle);
+							}
+							parser_state = 0;
 						}
-						parser_state = 0;
 					}
 					break;
 

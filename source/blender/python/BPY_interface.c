@@ -95,12 +95,13 @@
 PyObject *bpy_pydriver_Dict = NULL;
 PyObject *bpy_orig_syspath_List = NULL;
 
+
 /*
  * set up a weakref list for Armatures
  *    creates list in __main__ module dict 
  */
   
-int setup_armature_weakrefs()
+static int setup_armature_weakrefs()
 {
 	PyObject *maindict;
 	PyObject *main_module;
@@ -159,19 +160,18 @@ ScriptError g_script_error;
 /***************************************************************************
 * Function prototypes 
 ***************************************************************************/
-PyObject *RunPython( Text * text, PyObject * globaldict );
-PyObject *CreateGlobalDictionary( void );
-void ReleaseGlobalDictionary( PyObject * dict );
-void DoAllScriptsFromList( ListBase * list, short event );
+static PyObject *RunPython( Text * text, PyObject * globaldict );
+static PyObject *CreateGlobalDictionary( void );
+static void ReleaseGlobalDictionary( PyObject * dict );
+static void DoAllScriptsFromList( ListBase * list, short event );
 static PyObject *importText( char *name );
-void init_ourImport( void );
-void init_ourReload( void );
-PyObject *blender_import( PyObject * self, PyObject * args );
-PyObject *RunPython2( Text * text, PyObject * globaldict, PyObject *localdict );
+static void init_ourImport( void );
+static void init_ourReload( void );
+static PyObject *blender_import( PyObject * self, PyObject * args,  PyObject * kw);
 
 
-void BPY_Err_Handle( char *script_name );
-PyObject *traceback_getFilename( PyObject * tb );
+static void BPY_Err_Handle( char *script_name );
+static PyObject *traceback_getFilename( PyObject * tb );
 
 /****************************************************************************
 * Description: This function will start the interpreter and load all modules
@@ -195,7 +195,7 @@ void BPY_start_python( int argc, char **argv )
 	//stuff for Registry module
 	bpy_registryDict = PyDict_New(  );/* check comment at start of this file */
 	if( !bpy_registryDict )
-		printf( "Error: Couldn't create the Registry Python Dictionary!" );
+		printf( "Warning: Couldn't create the Registry Python Dictionary!" );
 	Py_SetProgramName( "blender" );
 
 	/* Py_Initialize() will attempt to import the site module and
@@ -223,11 +223,11 @@ void BPY_start_python( int argc, char **argv )
 	
 	//Start the interpreter
 	Py_Initialize(  );
+	
 	PySys_SetArgv( argc_copy, argv_copy );
-
 	/* Initialize thread support (also acquires lock) */
 	PyEval_InitThreads();
-
+	
 	//Overrides __import__
 	init_ourImport(  );
 	init_ourReload(  );
@@ -237,7 +237,6 @@ void BPY_start_python( int argc, char **argv )
 
 	//Look for a python installation
 	init_syspath( first_time ); /* not first_time: some msgs are suppressed */
-
 	py_tstate = PyGILState_GetThisThreadState();
 	PyEval_ReleaseThread(py_tstate);
 
@@ -290,9 +289,6 @@ void syspath_append( char *dirname )
 {
 	PyObject *mod_sys= NULL, *dict= NULL, *path= NULL, *dir= NULL;
 	short ok=1;
-	PyErr_Clear(  );
-
-	dir = Py_BuildValue( "s", dirname );
 
 	mod_sys = PyImport_ImportModule( "sys" );	/* new ref */
 	
@@ -304,39 +300,43 @@ void syspath_append( char *dirname )
 		}
 	} else {
 		/* cant get the sys module */
+		/* PyErr_Clear(); is called below */
 		ok = 0;
 	}
 	
-	if (PySequence_Contains(path, dir)==0) { /* Only add if we need to */
-		if (ok && PyList_Append( path, dir ) != 0)
-			ok = 0; /* append failed */
+	dir = PyString_FromString( dirname );
 	
-		if( (ok==0) || PyErr_Occurred(  ) )
-			Py_FatalError( "could import or build sys.path, can't continue" );
+	if (ok && PySequence_Contains(path, dir)==0) { /* Only add if we need to */
+		if (PyList_Append( path, dir ) != 0) /* decref below */
+			ok = 0; /* append failed */
 	}
+	
+	if( (ok==0) || PyErr_Occurred(  ) )
+		fprintf(stderr, "Warning: could import or build sys.path\n" );
+	
+	PyErr_Clear();
+	Py_DECREF( dir );
 	Py_XDECREF( mod_sys );
 }
 
 void init_syspath( int first_time )
 {
-	PyObject *path;
 	PyObject *mod, *d;
 	char *progname;
 	char execdir[FILE_MAXDIR];	/*defines from DNA_space_types.h */
 
 	int n;
-	
-	
-	path = Py_BuildValue( "s", bprogname );
 
 	mod = PyImport_ImportModule( "Blender.sys" );
 
 	if( mod ) {
 		d = PyModule_GetDict( mod );
-		EXPP_dict_set_item_str( d, "progname", path );
+		EXPP_dict_set_item_str( d, "progname", PyString_FromString( bprogname ) );
 		Py_DECREF( mod );
-	} else
-		printf( "Warning: could not set Blender.sys.progname\n" );
+	} else {
+		printf( "Warning: could not set Blender.sys\n" );
+		PyErr_Clear();
+	}
 
 	progname = BLI_last_slash( bprogname );	/* looks for the last dir separator */
 
@@ -395,7 +395,8 @@ void init_syspath( int first_time )
 		
 		Py_DECREF( mod );
 	} else{
-		printf("import of sys module failed\n");
+		PyErr_Clear( );
+		printf("Warning: import of sys module failed\n");
 	}
 }
 
@@ -408,13 +409,14 @@ void BPY_rebuild_syspath( void )
 
 	mod = PyImport_ImportModule( "sys" );	
 	if (!mod) {
-		printf("error: could not import python sys module. some modules may not import.\n");
+		printf("Warning: could not import python sys module. some modules may not import.\n");
+		PyErr_Clear(  );
 		PyGILState_Release(gilstate);
 		return;
 	}
 	
 	if (!bpy_orig_syspath_List) { /* should never happen */
-		printf("error refershing python path\n");
+		printf("Warning: cant refresh python path, bpy_orig_syspath_List is NULL\n");
 		Py_DECREF(mod);
 		PyGILState_Release(gilstate);
 		return;
@@ -510,7 +512,7 @@ const char *BPY_Err_getFilename( void )
 /*****************************************************************************/
 /* Description: Return PyString filename from a traceback object	    */
 /*****************************************************************************/
-PyObject *traceback_getFilename( PyObject * tb )
+static PyObject *traceback_getFilename( PyObject * tb )
 {
 	PyObject *v = NULL;
 
@@ -530,16 +532,27 @@ PyObject *traceback_getFilename( PyObject * tb )
 	else return PyString_FromString("unknown");
 }
 
+static void BPY_Err_Clear(void)
+{	
+	/* Added in 2.48a, the last_traceback can reference Objects for example, increasing
+	 * their user count. Not to mention holding references to wrapped data.
+	 * This is especially bad when the PyObject for the wrapped data is free'd, after blender 
+	 * has alredy dealocated the pointer */
+	PySys_SetObject( "last_traceback", Py_None);
+	
+	PyErr_Clear();
+}
 /****************************************************************************
 * Description: Blender Python error handler. This catches the error and	
 * stores filename and line number in a global  
 *****************************************************************************/
-void BPY_Err_Handle( char *script_name )
+static void BPY_Err_Handle( char *script_name )
 {
 	PyObject *exception, *err, *tb, *v;
 
 	if( !script_name ) {
 		printf( "Error: script has NULL name\n" );
+		BPY_Err_Clear();
 		return;
 	}
 
@@ -556,6 +569,7 @@ void BPY_Err_Handle( char *script_name )
 	if( exception
 	    && PyErr_GivenExceptionMatches( exception, PyExc_SyntaxError ) ) {
 		/* no traceback available when SyntaxError */
+		PyErr_NormalizeException( &exception, &err, &tb );
 		PyErr_Restore( exception, err, tb );	/* takes away reference! */
 		PyErr_Print(  );
 		v = PyObject_GetAttrString( err, "lineno" );
@@ -565,8 +579,9 @@ void BPY_Err_Handle( char *script_name )
 		} else {
 			g_script_error.lineno = -1;
 		}
-		/* this avoids an abort in Python 2.3's garbage collecting: */
-		PyErr_Clear(  );
+		/* this avoids an abort in Python 2.3's garbage collecting:
+		PyErr_Clear() */
+		BPY_Err_Clear(); /* Calls PyErr_Clear as well */
 		return;
 	} else {
 		PyErr_NormalizeException( &exception, &err, &tb );
@@ -576,6 +591,7 @@ void BPY_Err_Handle( char *script_name )
 
 		if( !tb ) {
 			printf( "\nCan't get traceback\n" );
+			BPY_Err_Clear(); /* incase there is still some data hanging about */
 			return;
 		}
 
@@ -613,7 +629,8 @@ void BPY_Err_Handle( char *script_name )
 		}
 		Py_DECREF( tb );
 	}
-
+	
+	BPY_Err_Clear();
 	return;
 }
 
@@ -722,13 +739,23 @@ int BPY_txt_do_python_Text( struct Text *text )
 * automatically. The script can be a file or a Blender Text in the current 
 * .blend.
 ****************************************************************************/
-void BPY_run_python_script( char *fn )
+void BPY_run_python_script( const char *fn )
 {
+	char filename[FILE_MAXDIR + FILE_MAXFILE];
 	Text *text = NULL;
 	int is_blender_text = 0;
-
-	if (!BLI_exists(fn)) {	/* if there's no such filename ... */
-		text = G.main->text.first;	/* try an already existing Blender Text */
+	
+	BLI_strncpy(filename, fn, FILE_MAXDIR + FILE_MAXFILE);
+	
+	if (!BLI_exists(filename))
+		BLI_convertstringcwd(filename);
+		
+	if (!BLI_exists(filename)) {	/* if there's no such filename ... */
+		/* try an already existing Blender Text.
+		 * use 'fn' rather then filename for this since were looking for
+		 * internal text
+		 */
+		text = G.main->text.first;
 
 		while (text) {
 			if (!strcmp(fn, text->id.name + 2)) break;
@@ -743,11 +770,14 @@ void BPY_run_python_script( char *fn )
 	}
 
 	else {
-		text = add_text(fn);
+		/* use filename here since we know it exists,
+		 * 'fn' may have been a relative path
+		 */
+		text = add_text(filename);
 
 		if (text == NULL) {
 			printf("\nError in BPY_run_python_script:\n"
-				"couldn't create Blender text from %s\n", fn);
+				"couldn't create Blender text from \"%s\"\n", filename);
 		/* Chris: On Windows if I continue I just get a segmentation
 		 * violation.  To get a baseline file I exit here. */
 		exit(2);
@@ -764,13 +794,8 @@ void BPY_run_python_script( char *fn )
 		/* We can't simply free the text, since the script might have called
 		 * Blender.Load() to load a new .blend, freeing previous data.
 		 * So we check if the pointer is still valid. */
-		Text *txtptr = G.main->text.first;
-		while (txtptr) {
-			if (txtptr == text) {
-				free_libblock(&G.main->text, text);
-				break;
-			}
-			txtptr = txtptr->id.next;
+		if (BLI_findindex(&G.main->text, text) != -1) {
+			free_libblock(&G.main->text, text);
 		}
 	}
 }
@@ -780,9 +805,6 @@ int BPY_run_script(Script *script)
 	PyObject *py_dict, *py_res, *pyarg;
 	Text *text = NULL;
 	BPy_constant *info;
-	int len;
-	
-	FILE *fp = NULL;
 	
 	PyGILState_STATE gilstate = PyGILState_Ensure();
 	
@@ -827,12 +849,8 @@ int BPY_run_script(Script *script)
 		Py_INCREF( Py_None );
 		pyarg = Py_None;
 	} else {
-		if (BLI_exists(script->scriptname)) {
-			fp = fopen( script->scriptname, "rb" );
-		}
-		
-		if( !fp ) {
-			printf( "Error loading script: couldn't open file %s\n", script->scriptname );
+		if (!BLI_exists(script->scriptname)) {
+			printf( "Script does not exit %s\n", script->scriptname );
 			free_libblock( &G.main->script, script );
 			PyGILState_Release(gilstate);
 			return 0;
@@ -877,51 +895,17 @@ int BPY_run_script(Script *script)
 	if (text) {
 		py_res = RunPython( text, py_dict );
 	} else {
+		char pystring[sizeof(script->scriptname) + 15];
+		sprintf(pystring, "execfile(r'%s')", script->scriptname);
+		py_res = PyRun_String( pystring, Py_file_input, py_dict, py_dict );
+	}
+
+	if( !py_res ) {		/* Failed execution of the script */
 		/* Previously we used PyRun_File to run directly the code on a FILE 
 		* object, but as written in the Python/C API Ref Manual, chapter 2,
 		* 'FILE structs for different C libraries can be different and 
 		* incompatible'.
 		* So now we load the script file data to a buffer */
-		char *buffer=NULL, *buffer_ofs=NULL, *b_to, *b_from;
-		
-		fseek( fp, 0L, SEEK_END );
-		len = ftell( fp );
-		fseek( fp, 0L, SEEK_SET );
-	
-		buffer = buffer_ofs = MEM_mallocN( len + 2, "pyfilebuf" );	/* len+2 to add '\n\0' */
-		len = fread( buffer, 1, len, fp );
-	
-		buffer[len] = '\n';	/* fix syntax error in files w/o eol */
-		buffer[len + 1] = '\0';
-		
-		
-		/* fast clean-up of dos cr/lf line endings, remove convert '\r\n's to '\n' */
-		if (*buffer_ofs == '\r' && *(buffer_ofs+1) == '\n') {
-			buffer_ofs++;
-		}
-		b_from = b_to = buffer_ofs;
-		
-		while(*b_from != '\0') {
-			if (*b_from == '\r' && *( b_from+1 ) == '\n') {
-				b_from++;
-			}
-			if (b_from != b_to) {
-				*b_to = *b_from;
-			}
-			b_to++;
-			b_from++;
-		}
-		*b_to = '\0';
-		/* done cleaning the string */
-		
-		fclose( fp );
-		
-		py_res = PyRun_String( buffer_ofs, Py_file_input, py_dict, py_dict );
-		MEM_freeN( buffer );
-	}
-
-	if( !py_res ) {		/* Failed execution of the script */
-
 		BPY_Err_Handle( script->id.name + 2 );
 		ReleaseGlobalDictionary( py_dict );
 		script->py_globaldict = NULL;
@@ -965,16 +949,44 @@ int BPY_run_script(Script *script)
 *****************************************************************************/
 int BPY_menu_do_python( short menutype, int event )
 {
-	char *argstr = NULL;
 	BPyMenu *pym;
+	pym = BPyMenu_GetEntry( menutype, ( short ) event );
+	return BPY_menu_invoke( pym, menutype );
+}
+	
+/****************************************************************************
+* Description: This function executes the script by its shortcut.
+* Notes:	It is called by the ui code in src/???.c when a user presses an
+*		unassigned key combination. Scripts are searched in the BPyMenuTable,
+*		using the given menutype and event values to know which one to invoke.
+*****************************************************************************/
+int BPY_menu_do_shortcut( short menutype, unsigned short key, unsigned short qual )
+{
+	BPyMenu *pym;
+	pym = BPyMenu_GetEntry( menutype, 0 );
+
+	while ( pym ) {
+		if ( pym->key && pym->key == key && pym->qual == qual ) {
+			return BPY_menu_invoke( pym, menutype );
+		}
+		pym = pym->next;
+	}
+	
+	return 0;
+}
+
+/****************************************************************************
+* Description: This function executes the script described by a menu item.
+*****************************************************************************/
+int BPY_menu_invoke( BPyMenu *pym, short menutype )
+{
+	char *argstr = NULL;
 	BPySubMenu *pysm;
 	char scriptname[21];
 	Script *script = NULL;
 	int ret, len;
 	PyGILState_STATE gilstate;
 	char filestr[FILE_MAX];
-
-	pym = BPyMenu_GetEntry( menutype, ( short ) event );
 
 	if( !pym )
 		return 0;
@@ -1059,6 +1071,7 @@ int BPY_menu_do_python( short menutype, int event )
 	case PYMENU_RENDER:
 	case PYMENU_WIZARDS:
 	case PYMENU_SCRIPTTEMPLATE:
+	case PYMENU_TEXTPLUGIN:
 	case PYMENU_MESHFACEKEY:
 		break;
 
@@ -1233,6 +1246,8 @@ static int bpy_pydriver_create_dict(void)
 		PyDict_SetItemString(d, "Blender", mod);
 		PyDict_SetItemString(d, "b", mod);
 		Py_DECREF(mod);
+	} else {
+		PyErr_Clear();
 	}
 
 	mod = PyImport_ImportModule("math");
@@ -1250,6 +1265,8 @@ static int bpy_pydriver_create_dict(void)
 		PyDict_SetItemString(d, "noise", mod);
 		PyDict_SetItemString(d, "n", mod);
 		Py_DECREF(mod);
+	} else {
+		PyErr_Clear();
 	}
 
 	/* If there's a Blender text called pydrivers.py, import it.
@@ -1275,6 +1292,8 @@ static int bpy_pydriver_create_dict(void)
 			PyDict_SetItemString(d, "ob", fcn);
 			Py_DECREF(fcn);
 		}
+	} else {
+		PyErr_Clear();
 	}
 	
 	/* TODO - change these */
@@ -1287,6 +1306,8 @@ static int bpy_pydriver_create_dict(void)
 			PyDict_SetItemString(d, "me", fcn);
 			Py_DECREF(fcn);
 		}
+	} else {
+		PyErr_Clear();
 	}
 
 	/* ma(matname) == Blender.Material.Get(matname) */
@@ -1298,6 +1319,8 @@ static int bpy_pydriver_create_dict(void)
 			PyDict_SetItemString(d, "ma", fcn);
 			Py_DECREF(fcn);
 		}
+	} else {
+		PyErr_Clear();
 	}
 
 	return 0;
@@ -2169,8 +2192,14 @@ void BPY_clear_bad_scriptlinks( struct Text *byebye )
 *	For the scene, only the current active scene the scripts are 
 *	executed (if any).
 *****************************************************************************/
-void BPY_do_all_scripts( short event )
+void BPY_do_all_scripts( short event, short anim )
 {
+	/* during stills rendering we disable FRAMECHANGED events */
+	static char disable_frame_changed = 0;
+
+	if ((event == SCRIPT_FRAMECHANGED) && disable_frame_changed)
+		return;
+
 	DoAllScriptsFromList( &( G.main->object ), event );
 	DoAllScriptsFromList( &( G.main->lamp ), event );
 	DoAllScriptsFromList( &( G.main->camera ), event );
@@ -2186,9 +2215,12 @@ void BPY_do_all_scripts( short event )
 	 * "import sys; sys.setcheckinterval(sys.maxint)" */
 	if (event == SCRIPT_RENDER) {
 		_Py_CheckInterval = PyInt_GetMax();
+		if (!anim)
+			disable_frame_changed = 1;
 	}
 	else if (event == SCRIPT_POSTRENDER) {
 		_Py_CheckInterval = 100; /* Python default */
+		disable_frame_changed = 0;
 	}
 
 	return;
@@ -2371,7 +2403,7 @@ int BPY_is_spacehandler(Text *text, char spacetype)
 		char *line = tline->line;
 
 		/* Expected format: # SPACEHANDLER.SPACE.TYPE
-		 * Ex: # SPACEHANDLER.VIEW3D.DRAW
+		 * Exs: # SPACEHANDLER.VIEW3D.DRAW
 		 * The actual checks are forgiving, so slight variations also work. */
 		if (line && line[0] == '#' && strstr(line, "HANDLER")) {
 			line++; /* skip '#' */
@@ -2379,11 +2411,19 @@ int BPY_is_spacehandler(Text *text, char spacetype)
 			/* only done for 3D View right now, trivial to add for others: */
 			switch (spacetype) {
 				case SPACE_VIEW3D:
-					if (strstr(line, "3D")) { /* VIEW3D, 3DVIEW */
+					line = strstr(line, "3D"); /* VIEW3D, 3DVIEW */
+					if (line) {
 						if (strstr(line, "DRAW")) type = SPACEHANDLER_VIEW3D_DRAW;
-						else if (strstr(line, "EVENT")) type = SPACEHANDLER_VIEW3D_EVENT;
+						else {
+							line = strstr(line, "EVENT");
+							if (line) {
+								if (strstr(line, "ALL")) {
+									type = SPACEHANDLER_VIEW3D_EVENT_ALL;
+								} else { type = SPACEHANDLER_VIEW3D_EVENT; }
+							}
+						}
 					}
-					break;
+				break;
 			}
 		}
 	}
@@ -2432,7 +2472,6 @@ int BPY_add_spacehandler(Text *text, ScrArea *sa, char spacetype)
 	if (handlertype) {
 		ScriptLink *slink = &sa->scriptlink;
 		void *stmp, *ftmp;
-		unsigned short space_event = SPACEHANDLER_VIEW3D_EVENT;
 
 		/* extend slink */
 
@@ -2452,17 +2491,8 @@ int BPY_add_spacehandler(Text *text, ScrArea *sa, char spacetype)
 			MEM_freeN(ftmp);
 		}
 
-		switch (spacetype) {
-			case SPACE_VIEW3D:
-				if (handlertype == 1) space_event = SPACEHANDLER_VIEW3D_EVENT;
-				else space_event = SPACEHANDLER_VIEW3D_DRAW;
-				break;
-			default:
-				break;
-		}
-
 		slink->scripts[slink->totscript] = (ID *)text;
-		slink->flag[slink->totscript]= space_event;
+		slink->flag[slink->totscript]= handlertype;
 
 		slink->totscript++;
 		slink->actscript = slink->totscript;
@@ -2472,10 +2502,11 @@ int BPY_add_spacehandler(Text *text, ScrArea *sa, char spacetype)
 }
 
 int BPY_do_spacehandlers( ScrArea *sa, unsigned short event,
-	unsigned short space_event )
+	short eventValue, unsigned short space_event )
 {
 	ScriptLink *scriptlink;
 	int retval = 0;
+	short slink_event, spacehandlers_match;
 	PyGILState_STATE gilstate;
 	
 	if (!sa || !(G.f & G_DOSCRIPTLINKS)) return 0;
@@ -2512,11 +2543,21 @@ int BPY_do_spacehandlers( ScrArea *sa, unsigned short event,
 		PyDict_SetItemString(g_blenderdict, "bylink", Py_True);
 		/* unlike normal scriptlinks, here Blender.link is int (space event type) */
 		EXPP_dict_set_item_str(g_blenderdict, "link", PyInt_FromLong(space_event));
-		/* note: DRAW space_events set event to 0 */
+		/* note: DRAW space_events set event and val to 0 */
 		EXPP_dict_set_item_str(g_blenderdict, "event", PyInt_FromLong(event));
+		EXPP_dict_set_item_str(g_blenderdict, "eventValue", PyInt_FromLong(eventValue));
 		/* now run all assigned space handlers for this space and space_event */
 		for( index = 0; index < scriptlink->totscript; index++ ) {
-			
+
+			spacehandlers_match = 0;
+
+			slink_event = scriptlink->flag[index];
+			if( slink_event == space_event )
+				spacehandlers_match = 1;
+			else if( ( space_event == SPACEHANDLER_VIEW3D_EVENT ) &&
+					( slink_event == SPACEHANDLER_VIEW3D_EVENT_ALL ) )
+				spacehandlers_match = 1;
+
 			/* for DRAW handlers: */
 			if (event == 0) {
 				glPushAttrib(GL_ALL_ATTRIB_BITS);
@@ -2525,8 +2566,8 @@ int BPY_do_spacehandlers( ScrArea *sa, unsigned short event,
 				glMatrixMode(GL_MODELVIEW);
 				glPushMatrix();
 			}
-			
-			if( ( scriptlink->flag[index] == space_event ) &&
+
+			if( spacehandlers_match &&
 			    ( scriptlink->scripts[index] != NULL ) ) {
 				dict = CreateGlobalDictionary();
 				ret = RunPython( ( Text * ) scriptlink->scripts[index], dict );
@@ -2708,8 +2749,10 @@ int BPY_call_importloader( char *name )
 * Description: This function executes the python script passed by text.	
 *		The Python dictionary containing global variables needs to
 *		be passed in globaldict.
+*		NOTE: Make sure BPY_Err_Handle() runs if this returns NULL
+*		otherwise pointers can be left in sys.last_traceback that become invalid.
 *****************************************************************************/
-PyObject *RunPython( Text * text, PyObject * globaldict )
+static PyObject *RunPython( Text * text, PyObject * globaldict )
 {
 	char *buf = NULL;
 
@@ -2737,7 +2780,7 @@ PyObject *RunPython( Text * text, PyObject * globaldict )
 /*****************************************************************************
 * Description: This function creates a new Python dictionary object.
 *****************************************************************************/
-PyObject *CreateGlobalDictionary( void )
+static PyObject *CreateGlobalDictionary( void )
 {
 	PyObject *dict = PyDict_New(  );
 
@@ -2751,7 +2794,7 @@ PyObject *CreateGlobalDictionary( void )
 /*****************************************************************************
 * Description: This function deletes a given Python dictionary object.
 *****************************************************************************/
-void ReleaseGlobalDictionary( PyObject * dict )
+static void ReleaseGlobalDictionary( PyObject * dict )
 {
 	PyDict_Clear( dict );
 	Py_DECREF( dict );	/* Release dictionary. */
@@ -2764,7 +2807,7 @@ void ReleaseGlobalDictionary( PyObject * dict )
 *		list argument. The event by which the function has been	
 *		called, is passed in the event argument.
 *****************************************************************************/
-void DoAllScriptsFromList( ListBase * list, short event )
+static void DoAllScriptsFromList( ListBase * list, short event )
 {
 	ID *id;
 
@@ -2814,20 +2857,31 @@ static PyObject *importText( char *name )
 }
 
 static PyMethodDef bimport[] = {
-	{"blimport", blender_import, METH_VARARGS, "our own import"}
+	{"blimport", blender_import, METH_KEYWORDS, "our own import"}
 };
 
-PyObject *blender_import( PyObject * self, PyObject * args )
+static PyObject *blender_import( PyObject * self, PyObject * args,  PyObject * kw)
 {
 	PyObject *exception, *err, *tb;
 	char *name;
 	PyObject *globals = NULL, *locals = NULL, *fromlist = NULL;
 	PyObject *m;
-
-	if( !PyArg_ParseTuple( args, "s|OOO:bimport",
+	
+	//PyObject_Print(args, stderr, 0);
+#if (PY_VERSION_HEX >= 0x02060000)
+	int dummy_val; /* what does this do?*/
+	static char *kwlist[] = {"name", "globals", "locals", "fromlist", "level", 0};
+	
+	if( !PyArg_ParseTupleAndKeywords( args, kw, "s|OOOi:bimport", kwlist,
+			       &name, &globals, &locals, &fromlist, &dummy_val) )
+		return NULL;
+#else
+	static char *kwlist[] = {"name", "globals", "locals", "fromlist", 0};
+	
+	if( !PyArg_ParseTupleAndKeywords( args, kw, "s|OOO:bimport", kwlist,
 			       &name, &globals, &locals, &fromlist ) )
 		return NULL;
-
+#endif
 	m = PyImport_ImportModuleEx( name, globals, locals, fromlist );
 
 	if( m )
@@ -2848,7 +2902,7 @@ PyObject *blender_import( PyObject * self, PyObject * args )
 	return m;
 }
 
-void init_ourImport( void )
+static void init_ourImport( void )
 {
 	PyObject *m, *d;
 	PyObject *import = PyCFunction_New( bimport, NULL );
@@ -2949,7 +3003,7 @@ static PyMethodDef breload[] = {
 	{"blreload", blender_reload, METH_VARARGS, "our own reload"}
 };
 
-void init_ourReload( void )
+static void init_ourReload( void )
 {
 	PyObject *m, *d;
 	PyObject *reload = PyCFunction_New( breload, NULL );

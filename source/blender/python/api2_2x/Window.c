@@ -577,8 +577,6 @@ static PyObject * FileAndImageSelector(PyObject * self, PyObject * args, int typ
 			"\nexpected a callback function (and optionally one or two strings) "
 			"as argument(s)" );
 
-	Py_INCREF(pycallback);
-
 /* trick: we move to a spacescript because then the fileselector will properly
  * unset our SCRIPT_FILESEL flag when the user chooses a file or cancels the
  * selection.  This is necessary because when a user cancels, the
@@ -605,9 +603,18 @@ static PyObject * FileAndImageSelector(PyObject * self, PyObject * args, int typ
 		script->lastspace = startspace;
 		sc->script = script;
 	}
-
+	
+	if (!script) {
+		/* should never happen unless we are executed
+		* from the BGE or somthing really strange like that */
+		return EXPP_ReturnPyObjError( PyExc_AttributeError,
+			"Could not allocate a screen for an unknown reason." );
+	}
+	
+	Py_INCREF(pycallback);
+	
 	script->flags |= SCRIPT_FILESEL;
-
+	
 	/* clear any previous callback (nested calls to selector) */
 	if (script->py_browsercallback) {
 		Py_DECREF((PyObject *)script->py_browsercallback);
@@ -1209,7 +1216,7 @@ static PyObject *M_Window_QHandle( PyObject * self, PyObject * args )
 
 	if( sa ) {
 		BWinEvent evt;
-		short do_redraw = 0, do_change = 0;
+		short do_redraw = 0;
 
 		if( sa != curarea || sa->win != mywinget(  ) ) {
 			oldsa = curarea;
@@ -1221,7 +1228,6 @@ static PyObject *M_Window_QHandle( PyObject * self, PyObject * args )
 				do_redraw = 1;
 			} else if( evt.event == CHANGED ) {
 				sa->win_swap = 0;
-				do_change = 1;
 				do_redraw = 1;
 			} else {
 				scrarea_do_winhandle( sa, &evt );
@@ -1249,9 +1255,10 @@ static PyObject *M_Window_TestBreak( PyObject * self )
 		
 static PyObject *M_Window_GetMouseCoords( PyObject * self )
 {
-	short mval[2];
+	short mval[2] = {0, 0};
 
-	getmouse( mval );
+	if (!G.background)
+		getmouse( mval );
 
 	return Py_BuildValue( "hh", mval[0], mval[1] );
 }
@@ -1283,16 +1290,12 @@ static PyObject *M_Window_SetMouseCoords( PyObject * self, PyObject * args )
 
 static PyObject *M_Window_GetMouseButtons( PyObject * self )
 {
-	short mbut = get_mbut(  );
-
-	return Py_BuildValue( "h", mbut );
+	return PyInt_FromLong(G.background ? 0 : (int)get_mbut() );
 }
 
 static PyObject *M_Window_GetKeyQualifiers( PyObject * self )
 {
-	short qual = get_qual(  );
-
-	return Py_BuildValue( "h", qual );
+	return PyInt_FromLong( (int)get_qual() );
 }
 
 static PyObject *M_Window_SetKeyQualifiers( PyObject * self, PyObject * args )

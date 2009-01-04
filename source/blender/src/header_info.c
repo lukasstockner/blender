@@ -115,8 +115,13 @@
 
 #include "MEM_guardedalloc.h"
 
+#ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
 #include "BPY_menus.h"
+#endif
+
+#include "GPU_extensions.h"
+#include "GPU_material.h"
 
 #include "blendef.h"
 #include "interface.h"
@@ -329,8 +334,9 @@ Scene *copy_scene(Scene *sce, int level)
 			obase= obase->next;
 			base= base->next;
 		}
+#ifndef DISABLE_PYTHON
 		BPY_copy_scriptlink(&sce->scriptlink);
-		
+#endif
 		/* sculpt data */
 		sce->sculptdata.session = NULL;
 		if (sce->sculptdata.cumap) {
@@ -647,12 +653,14 @@ static void do_info_file_importmenu(void *arg, int event)
 		areawinset(sa->win);
 	}
 
+#ifndef DISABLE_PYTHON
 	/* events >=3 are registered bpython scripts */
 	if (event >= 3) {
 		BPY_menu_do_python(PYMENU_IMPORT, event - 3);
 		BIF_undo_push("Import file");
-	}
-	else {
+	} else 
+#endif
+	{
 		switch(event) {
 									
 		case 0: /* DXF */
@@ -674,7 +682,9 @@ static uiBlock *info_file_importmenu(void *arg_unused)
 {
 	uiBlock *block;
 	short yco = 20, menuwidth = 120;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i = 0;
 
 	block= uiNewBlock(&curarea->uiblocks, "importmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
@@ -687,13 +697,13 @@ static uiBlock *info_file_importmenu(void *arg_unused)
 			 0, yco-=20, 120, 19, NULL, 0.0, 0.0, 1, 0, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "STL...",
 			 0, yco-=20, 120, 19, NULL, 0.0, 0.0, 1, 2, "");
-
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "", 0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
 	for (pym = BPyMenuTable[PYMENU_IMPORT]; pym; pym = pym->next, i++) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, i+3, pym->tooltip?pym->tooltip:pym->filename);
 	}
-
+#endif
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
 
@@ -709,11 +719,12 @@ static void do_info_file_exportmenu(void *arg, int event)
 		if (!sa) sa= closest_bigger_area();
 		areawinset(sa->win);
 	}
-
+#ifndef DISABLE_PYTHON
 	/* events >=3 are registered bpython scripts */
 	if (event >= 3) BPY_menu_do_python(PYMENU_EXPORT, event - 3);
-
-	else switch(event) {
+	else
+#endif
+	switch(event) {
 									
 	case 0:
 		write_vrml_fs();
@@ -732,7 +743,9 @@ static uiBlock *info_file_exportmenu(void *arg_unused)
 {
 	uiBlock *block;
 	short yco = 20, menuwidth = 120;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i = 0;
 
 	block= uiNewBlock(&curarea->uiblocks, "exportmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
@@ -746,6 +759,7 @@ static uiBlock *info_file_exportmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "STL...",
 			 0, yco-=20, 120, 19, NULL, 0.0, 0.0, 1, 2, "");
 
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "", 0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
 	/* note that we acount for the 3 previous entries with i+3: */
@@ -754,7 +768,7 @@ static uiBlock *info_file_exportmenu(void *arg_unused)
 				 NULL, 0.0, 0.0, 1, i+3, 
 				 pym->tooltip?pym->tooltip:pym->filename);
 	}
-
+#endif
 
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
@@ -924,7 +938,7 @@ static void do_info_filemenu(void *arg, int event)
 			winqueue_break= 1;	/* leave queues everywhere */
 		
 			BKE_reset_undo();
-			BKE_write_undo("original");	/* save current state */
+			BKE_write_undo("Original");	/* save current state */
 			refresh_interface_font();
 		}
 		break;
@@ -1017,7 +1031,7 @@ static void do_info_externalfiles(void *arg, int event)
 			pupmenu("Can't set relative paths with an unsaved blend file");
 		}
 		break;
-	case 11: /* make all paths relative */
+	case 11: /* make all paths absolute */
 		{
 			int tot,changed,failed,linked;
 			char str[512];
@@ -1157,9 +1171,12 @@ static uiBlock *info_filemenu(void *arg_unused)
 
 void do_info_add_meshmenu(void *arg, int event)
 {
+#ifndef DISABLE_PYTHON
 	if (event>=20) {
 		BPY_menu_do_python(PYMENU_ADDMESH, event - 20);
-	} else {
+	} else
+#endif
+	{
 		switch(event) {		
 			case 0:
 				/* Plane */
@@ -1211,7 +1228,9 @@ static uiBlock *info_add_meshmenu(void *arg_unused)
 	short yco= 0;
 	
 	/* Python Menu */
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i=0;
 	
 	block= uiNewBlock(&curarea->uiblocks, "add_meshmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
@@ -1228,7 +1247,7 @@ static uiBlock *info_add_meshmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Grid|",				0, yco-=20, 160, 19, NULL, 0.0, 0.0, 1, 8, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Monkey|",			0, yco-=20, 160, 19, NULL, 0.0, 0.0, 1, 9, "");
 
-
+#ifndef DISABLE_PYTHON
 	pym = BPyMenuTable[PYMENU_ADDMESH];
 	if (pym) {
 		uiDefIconTextBut(block, SEPR, 0, ICON_BLANK1, "",					0, yco-=6,	160, 6,  NULL, 0.0, 0.0, 0, 0, "");
@@ -1237,7 +1256,8 @@ static uiBlock *info_add_meshmenu(void *arg_unused)
 			uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, 160, 19, NULL, 0.0, 0.0, 1, i+20, pym->tooltip?pym->tooltip:pym->filename);
 		}
 	}
-		
+#endif
+
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 50);
 		
@@ -1493,9 +1513,12 @@ static uiBlock *info_add_groupmenu(void *arg_unused)
 
 void do_info_addmenu(void *arg, int event)
 {
+#ifndef DISABLE_PYTHON
 	if (event>=20) {
 		BPY_menu_do_python(PYMENU_ADD, event - 20);
-	} else {
+	} else
+#endif
+	{
 		switch(event) {		
 			case 0:
 				/* Mesh */
@@ -1544,7 +1567,9 @@ static uiBlock *info_addmenu(void *arg_unused)
 {
 /*		static short tog=0; */
 	uiBlock *block;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i=0;
 	short yco= 0;
 
@@ -1572,6 +1597,7 @@ static uiBlock *info_addmenu(void *arg_unused)
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Armature",			0, yco-=20, 120, 19, NULL, 0.0, 0.0, 1, 8, "");
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Lattice",			0, yco-=20, 120, 19, NULL, 0.0, 0.0, 1, 9, "");
 
+#ifndef DISABLE_PYTHON
 	pym = BPyMenuTable[PYMENU_ADD];
 	if (pym) {
 		uiDefIconTextBut(block, SEPR, 0, ICON_BLANK1, "",					0, yco-=6,	1620, 6,  NULL, 0.0, 0.0, 0, 0, "");
@@ -1580,7 +1606,8 @@ static uiBlock *info_addmenu(void *arg_unused)
 			uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, 120, 19, NULL, 0.0, 0.0, 1, i+20, pym->tooltip?pym->tooltip:pym->filename);
 		}
 	}
-
+#endif
+	
 	uiBlockSetDirection(block, UI_DOWN);
 	uiTextBoundsBlock(block, 80);
 		
@@ -1589,19 +1616,83 @@ static uiBlock *info_addmenu(void *arg_unused)
 
 /************************** GAME *****************************/
 
+void do_info_game_glslmenu(void *arg, int event)
+{
+	switch (event) {
+	case G_FILE_GLSL_NO_LIGHTS:
+	case G_FILE_GLSL_NO_SHADERS:
+	case G_FILE_GLSL_NO_SHADOWS:
+	case G_FILE_GLSL_NO_RAMPS:
+	case G_FILE_GLSL_NO_NODES:
+	case G_FILE_GLSL_NO_EXTRA_TEX:
+		G.fileflags ^= event;
+		GPU_materials_free();
+		allqueue(REDRAWINFO, 0);
+		allqueue(REDRAWVIEW3D, 0);
+		break;
+	default:
+		break;
+	}	
+}
+
+static uiBlock *info_game_glslmenu(void *arg_unused)
+{
+	uiBlock *block;
+	short yco= 0, menuwidth=160;
+	int check;
 	
+	block= uiNewBlock(&curarea->uiblocks, "game_glslmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
+	uiBlockSetButmFunc(block, do_info_game_glslmenu, NULL);
+
+	check = (G.fileflags & G_FILE_GLSL_NO_LIGHTS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Lights",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_LIGHTS,
+		"Enable using lights in GLSL materials.");
+	check = (G.fileflags & G_FILE_GLSL_NO_SHADERS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Shaders",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_SHADERS,
+		"Enable using shaders other than Lambert in GLSL materials");
+	check = (G.fileflags & G_FILE_GLSL_NO_SHADOWS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Shadows",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_SHADOWS,
+		"Enable using shadows in GLSL materials");
+	check = (G.fileflags & G_FILE_GLSL_NO_RAMPS)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Ramps",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_RAMPS,
+		"Enable using ramps in GLSL materials");
+	check = (G.fileflags & G_FILE_GLSL_NO_NODES)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Nodes",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_NODES,
+		"Enable using nodes in GLSL materials.");
+	check = (G.fileflags & G_FILE_GLSL_NO_EXTRA_TEX)? ICON_CHECKBOX_DEHLT: ICON_CHECKBOX_HLT;
+	uiDefIconTextBut(block, BUTM, 1, check, "Enable Extra Textures",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GLSL_NO_EXTRA_TEX,
+		"Enable using texture channels other than Col and Alpha in GLSL materials.");
+
+	uiBlockSetDirection(block, UI_RIGHT);
+	uiTextBoundsBlock(block, 50);
+		
+	return block;
+}
+
 static void do_info_gamemenu(void *arg, int event)
 {
 	switch (event) {
+	case G_FILE_IGNORE_DEPRECATION_WARNINGS:
 	case G_FILE_ENABLE_ALL_FRAMES:
-	case G_FILE_DIAPLAY_LISTS:
+	case G_FILE_DISPLAY_LISTS:
 	case G_FILE_SHOW_FRAMERATE:
 	case G_FILE_SHOW_DEBUG_PROPS:
 	case G_FILE_AUTOPLAY:
 	case G_FILE_GAME_TO_IPO:
-	case G_FILE_GAME_MAT:
 	case G_FILE_SHOW_PHYSICS:
 		G.fileflags ^= event;
+		break;
+	case G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL:
+		G.fileflags &= ~(G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL);
+		break;
+	case G_FILE_GAME_MAT:
+		G.fileflags |= G_FILE_GAME_MAT;
+		G.fileflags &= ~G_FILE_GAME_MAT_GLSL;
+		break;
+	case G_FILE_GAME_MAT_GLSL:
+		if(!GPU_extensions_minimum_support())
+			error("GLSL not supported with this graphics card or driver.");
+		G.fileflags |= (G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL);
 		break;
 	default:
 		; /* ignore the rest */
@@ -1633,22 +1724,14 @@ static uiBlock *info_gamemenu(void *arg_unused)
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
 	} else {
 
-	if(G.fileflags & G_FILE_DIAPLAY_LISTS) {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DIAPLAY_LISTS, "");
+	if(G.fileflags & G_FILE_DISPLAY_LISTS) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DISPLAY_LISTS, "");
 	} else {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DIAPLAY_LISTS, "");
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DISPLAY_LISTS, "");
 	}	
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
 	}
 	
-	if(G.fileflags & G_FILE_GAME_MAT) {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Use Blender Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT, "");
-	} else {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Use Blender Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT, "");
-	}	
-
-
-
 	if(G.fileflags & G_FILE_SHOW_FRAMERATE) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Show Framerate and Profile",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_SHOW_FRAMERATE, "");
 	} else {
@@ -1667,6 +1750,34 @@ static uiBlock *info_gamemenu(void *arg_unused)
 	} else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Show Debug Properties",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_SHOW_DEBUG_PROPS, "");
 	}
+
+	if(G.fileflags & G_FILE_IGNORE_DEPRECATION_WARNINGS) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Ignore Deprecation Warnings",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_IGNORE_DEPRECATION_WARNINGS, ""); 
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Ignore Deprecation Warnings",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_IGNORE_DEPRECATION_WARNINGS, "");
+	}
+
+	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 1, 0, "");
+
+	if(!(G.fileflags & G_FILE_GAME_MAT)) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Texture Face Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Texture Face Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL, "");
+	}	
+
+	if((G.fileflags & G_FILE_GAME_MAT) && !(G.fileflags & G_FILE_GAME_MAT_GLSL)) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Blender Multitexture Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Blender Multitexture Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT, "");
+	}	
+
+	if((G.fileflags & G_FILE_GAME_MAT) && (G.fileflags & G_FILE_GAME_MAT_GLSL)) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Blender GLSL Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
+	} else {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Blender GLSL Materials",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_MAT_GLSL, "");
+	}	
+
+	uiDefIconTextBlockBut(block, info_game_glslmenu, NULL, ICON_RIGHTARROW_THIN, "GLSL Material Settings", 0, yco-=20, menuwidth, 19, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 1, 0, "");
 
@@ -1868,9 +1979,10 @@ static void do_info_rendermenu(void *arg, int event)
 			if (!sa) sa= closest_bigger_area();
 			areawinset(sa->win);
 		}
-
+#ifndef DISABLE_PYTHON
 		BPY_menu_do_python(PYMENU_RENDER, event - 10);
 		BIF_undo_push("Rendering Script");
+#endif
 	}
 	else {
 	switch(event) {
@@ -1918,7 +2030,9 @@ static void do_info_rendermenu(void *arg, int event)
 static uiBlock *info_rendermenu(void *arg_unused)
 {
 	uiBlock *block;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	short yco= 0;
 	short menuwidth=120;
 	int i=0;
@@ -1946,12 +2060,14 @@ static uiBlock *info_rendermenu(void *arg_unused)
 
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Render Settings|F10",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 7, "");
 
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 
 	for (pym = BPyMenuTable[PYMENU_RENDER]; pym; pym = pym->next, i++) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, i+10, pym->tooltip?pym->tooltip:pym->filename);
 	}
-
+#endif
+	
 	uiBlockSetDirection(block, UI_DOWN);
 	uiTextBoundsBlock(block, 80);
 
@@ -1962,8 +2078,9 @@ static uiBlock *info_rendermenu(void *arg_unused)
 
 static void do_info_help_websitesmenu(void *arg, int event)
 {
+#ifndef DISABLE_PYTHON
 	BPY_menu_do_python(PYMENU_HELPWEBSITES, event);
-
+#endif
 	allqueue(REDRAWVIEW3D, 0);
 }
 
@@ -1971,17 +2088,19 @@ static void do_info_help_websitesmenu(void *arg, int event)
 static uiBlock *info_help_websitesmenu(void *arg_unused)
 {
 	uiBlock *block;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	short yco = 20, menuwidth = 120;
 	int i = 0;
 
 	block= uiNewBlock(&curarea->uiblocks, "info_help_websitesmenu", UI_EMBOSSP, UI_HELV, G.curscreen->mainwin);
 	uiBlockSetButmFunc(block, do_info_help_websitesmenu, NULL);
-	
+#ifndef DISABLE_PYTHON
 	for (pym = BPyMenuTable[PYMENU_HELPWEBSITES]; pym; pym = pym->next, i++) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, i, pym->tooltip?pym->tooltip:pym->filename);
 	}
-	
+#endif
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
 		
@@ -1991,8 +2110,11 @@ static uiBlock *info_help_websitesmenu(void *arg_unused)
 static void do_info_help_systemmenu(void *arg, int event)
 {
 	/* events >=10 are registered bpython scripts */
+#ifndef DISABLE_PYTHON
 	if (event >= 10) BPY_menu_do_python(PYMENU_HELPSYSTEM, event - 10);
-	else {
+	else
+#endif
+	{
 		switch(event) {
 
 		case 1: /* Benchmark */
@@ -2022,7 +2144,9 @@ static void do_info_help_systemmenu(void *arg, int event)
 static uiBlock *info_help_systemmenu(void *arg_unused)
 {
 	uiBlock *block;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	short yco = 20, menuwidth = 120;
 	int i = 0;
 
@@ -2030,11 +2154,11 @@ static uiBlock *info_help_systemmenu(void *arg_unused)
 	uiBlockSetButmFunc(block, do_info_help_systemmenu, NULL);
 	
 	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Benchmark",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 1, "");
-	
+#ifndef DISABLE_PYTHON
 	for (pym = BPyMenuTable[PYMENU_HELPSYSTEM]; pym; pym = pym->next, i++) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, i+10, pym->tooltip?pym->tooltip:pym->filename);
 	}
-	
+#endif
 	uiBlockSetDirection(block, UI_RIGHT);
 	uiTextBoundsBlock(block, 60);
 		
@@ -2052,8 +2176,11 @@ static void do_info_helpmenu(void *arg, int event)
 	}
 
 	/* events >=10 are registered bpython scripts */
+#ifndef DISABLE_PYTHON
 	if (event >= 10) BPY_menu_do_python(PYMENU_HELP, event - 10);
-	else {
+	else
+#endif
+	{
 		switch(event) {
 									
 		case 0: /* About Blender */
@@ -2070,20 +2197,22 @@ static uiBlock *info_helpmenu(void *arg_unused)
 	uiBlock *block;
 	short yco= 0;
 	short menuwidth=120;
+#ifndef DISABLE_PYTHON
 	BPyMenu *pym;
+#endif
 	int i = 0;
 	
 	block= uiNewBlock(&curarea->uiblocks, "info_helpmenu", UI_EMBOSSP, UI_HELV, curarea->headwin);
 	uiBlockSetButmFunc(block, do_info_helpmenu, NULL);
 	
 	uiDefIconTextBut(block, BUTM, B_SHOWSPLASH, ICON_BLANK1, "About Blender...",	0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 0, "");
-	
+#ifndef DISABLE_PYTHON
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	for (pym = BPyMenuTable[PYMENU_HELP]; pym; pym = pym->next, i++) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_PYTHON, pym->name, 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, i+10, pym->tooltip?pym->tooltip:pym->filename);
 	}
-	
+#endif
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
 	uiDefIconTextBlockBut(block, info_help_websitesmenu, NULL, ICON_RIGHTARROW_THIN, "Websites", 0, yco-=20, 120, 19, "");
@@ -2106,12 +2235,15 @@ static void info_text(int x, int y)
 {
 	Object *ob= OBACT;
 	extern float hashvectf[];
-	extern unsigned long mem_in_use, mmap_in_use;
+	uintptr_t mem_in_use, mmap_in_use;
 	unsigned int swatch_color;
 	float fac1, fac2, fac3;
 	char infostr[300], memstr[64];
 	char *headerstr, *s;
 	int hsize;
+
+	mem_in_use= MEM_get_memory_in_use();
+	mmap_in_use= MEM_get_mapped_memory_in_use();
 
 	s= memstr + sprintf(memstr," | Mem:%.2fM ", ((mem_in_use-mmap_in_use)>>10)/1024.0);
 	if(mmap_in_use)

@@ -97,13 +97,17 @@ COMLIB += $(OCGDIR)/blender/blenloader/$(DEBUG_DIR)libblenloader.a
 COMLIB += $(OCGDIR)/blender/blenpluginapi/$(DEBUG_DIR)libblenpluginapi.a
 COMLIB += $(OCGDIR)/blender/nodes_shd/$(DEBUG_DIR)libnodes_shd.a
 COMLIB += $(OCGDIR)/blender/nodes_cmp/$(DEBUG_DIR)libnodes_cmp.a
+COMLIB += $(OCGDIR)/blender/nodes_tex/$(DEBUG_DIR)libnodes_tex.a
 COMLIB += $(OCGDIR)/blender/nodes/$(DEBUG_DIR)libnodes.a
 COMLIB += $(OCGDIR)/blender/imbuf/$(DEBUG_DIR)libimbuf.a
 COMLIB += $(OCGDIR)/blender/blenlib/$(DEBUG_DIR)libblenlib.a
+COMLIB += $(NAN_IKSOLVER)/lib/libiksolver.a
 COMLIB += $(NAN_OPENNL)/lib/$(DEBUG_DIR)libopennl.a
 COMLIB += $(NAN_SUPERLU)/lib/$(DEBUG_DIR)libsuperlu.a	
 COMLIB += $(OCGDIR)/blender/avi/$(DEBUG_DIR)libavi.a
 COMLIB += $(NAN_JPEG)/lib/libjpeg.a
+COMLIB += $(OCGDIR)/blender/gpu/$(DEBUG_DIR)libgpu.a
+COMLIB += $(NAN_GLEW)/lib/libglew.a
 
 ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/bloutines/$(DEBUG_DIR)libbloutines.a
@@ -139,6 +143,7 @@ ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/OpenGLrasterizer/$(DEBUG_DIR)libOpenGLrasterizer.a
     COMLIB += $(OCGDIR)/gameengine/expression/$(DEBUG_DIR)libexpression.a
     COMLIB += $(OCGDIR)/gameengine/scenegraph/$(DEBUG_DIR)libscenegraph.a
+    COMLIB += $(OCGDIR)/gameengine/videotex/$(DEBUG_DIR)libvideotex.a
 #    COMLIB += $(OCGDIR)/sumo/$(DEBUG_DIR)libfuzzics.a
 #    COMLIB += $(OCGDIR)/sumo/$(DEBUG_DIR)libsolid.a
     COMLIB += $(NAN_MOTO)/lib/libmoto.a
@@ -157,7 +162,6 @@ COMLIB += $(NAN_BMFONT)/lib/$(DEBUG_DIR)libbmfont.a
 COMLIB += $(NAN_PNG)/lib/libpng.a
 COMLIB += $(OCGDIR)/blender/yafray/$(DEBUG_DIR)libyafrayexport.a
 COMLIB += $(OCGDIR)/blender/blenlib/$(DEBUG_DIR)libblenlib.a
-COMLIB += $(NAN_GLEW)/lib/libglew.a
 
 ifeq ($(WITH_QUICKTIME), true)
     COMLIB += $(OCGDIR)/blender/blenderqt/$(DEBUG_DIR)libblenderqt.a
@@ -190,7 +194,7 @@ ifeq ($(WITH_FREETYPE2), true)
     else
       COMLIB += $(NAN_FTGL)/lib/libftgl.a
       ifeq ($(OS), irix)
-        COMLIB += $(NAN_FREETYPE)/lib32/libfreetype.a
+        COMLIB += $(NAN_FREETYPE)/lib/libfreetype.a
         else
             COMLIB += $(NAN_FREETYPE)/lib/libfreetype.a
       endif
@@ -226,8 +230,7 @@ ifeq ($(WITH_OPENEXR), true)
     COMLIB += $(NAN_OPENEXR_LIBS)
 endif
 
-PULIB = $(NAN_IKSOLVER)/lib/libiksolver.a
-PULIB += $(NAN_MOTO)/lib/libmoto.a
+PULIB = $(NAN_MOTO)/lib/libmoto.a
 PULIB += $(NAN_ELBEEM)/lib/$(DEBUG_DIR)libelbeem.a
 PULIB += $(OCGDIR)/blender/readblenfile/$(DEBUG_DIR)libreadblenfile.a
 PULIB += $(OCGDIR)/blender/src/$(DEBUG_DIR)libsrcpublisher.a
@@ -241,6 +244,7 @@ endif
 
 SPLIB1 = $(OCGDIR)/gameengine/GamePlayer/ghost/$(DEBUG_DIR)libghost.a
 SPLIB1 += $(OCGDIR)/gameengine/GamePlayer/common/$(DEBUG_DIR)libcommon.a
+SPLIB1 += $(OCGDIR)/gameengine/blconverter/$(DEBUG_DIR)libblconverter.a
 SPLIB1 += $(NAN_STRING)/lib/$(DEBUG_DIR)libstring.a
 SPLIB1 += $(NAN_GHOST)/lib/$(DEBUG_DIR)libghost.a
 
@@ -250,6 +254,7 @@ SPLIB += $(OCGDIR)/blender/readblenfile/$(DEBUG_DIR)libreadblenfile.a
 # but somehow it consistently fails to resolve these symbols... or 
 # can I just not check them? nm claims they aren't...
 SPLIB += $(OCGDIR)/blender/blenkernel/blenkernel_blc/$(DEBUG_DIR)libblenkernel_blc.a
+SPLIB += $(OCGDIR)/blender/python/$(DEBUG_DIR)libpython.a
 
 # These three need to be explicitly mentioned on the cl, because 
 # if they are offered as a lib, they are optimized away. (nzc)
@@ -390,9 +395,16 @@ else
         NAN_SND_LIBS += $(ALUT)
         NAN_SND_LIBS += $(SOUNDSYSTEM)
       else
-        NAN_SND_LIBS =  $(SOUNDSYSTEM)
-        NAN_SND_LIBS += $(DUMMYSOUND)
-        NAN_SND_LIBS += $(SOUNDSYSTEM)
+        ifeq ($(OS), irix)
+           NAN_SND_LIBS = $(SOUNDSYSTEM)
+           NAN_SND_LIBS += $(DUMMYSOUND)
+           NAN_SND_LIBS += $(SDLSOUND)
+           NAN_SND_LIBS += $(SOUNDSYSTEM)
+        else
+           NAN_SND_LIBS =  $(SOUNDSYSTEM)
+           NAN_SND_LIBS += $(DUMMYSOUND)
+           NAN_SND_LIBS += $(SOUNDSYSTEM)
+        endif
       endif
     endif
   endif

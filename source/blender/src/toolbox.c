@@ -93,6 +93,7 @@
 #include "BIF_graphics.h"
 #include "BIF_imasel.h"
 #include "BIF_interface.h"
+#include "BIF_keyframing.h"
 #include "BIF_mainqueue.h"
 #include "BIF_mywindow.h"
 #include "BIF_renderwin.h"
@@ -120,8 +121,12 @@
 #include "mydevice.h"
 
 /* bpymenu */
+#ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
 #include "BPY_menus.h"
+#endif
+
+#include "BLO_sys_types.h" // for intptr_t support
 
 void asciitoraw(int ch, unsigned short *event, unsigned short *qual)
 {
@@ -238,7 +243,7 @@ void error_libdata(void)
 
 int saveover(char *file)
 {
-	int len= strlen(file);
+	size_t len= strlen(file);
 	
 	if(len==0) 
 		return 0;
@@ -894,6 +899,8 @@ static TBitem tb_object_select_grouped[]= {
 {	0, "Objects in Same Group|Shift G, 7", 	7, NULL},
 {	0, "Object Hooks|Shift G, 8", 	8, NULL},
 {	0, "Object PassIndex|Shift G, 9", 	9, NULL},
+{	0, "Object Color|Shift G, 0", 	9, NULL},
+{	0, "Game Properties|Shift G, Alt+1", 	9, NULL},
 {  -1, "", 			0, do_view3d_select_object_groupedmenu}};
 
 static TBitem tb_object_select[]= {
@@ -1588,6 +1595,17 @@ static TBitem tb_node_addcomp[]= {
 	{	0, "Group",		9, NULL},
 	{	0, "Dynamic",	10, NULL},
 	{  	-1, "", 		0, NULL}};
+	
+static TBitem tb_node_addtex[]= {
+	{    0, "Input",        1, NULL},
+	{    0, "Output",       2, NULL},
+	{    0, "Color",        3, NULL},
+	{    0, "Convertor",    4, NULL},
+	{    0, "Patterns",     5, NULL},
+	{    0, "Textures",     6, NULL},
+	{    0, "Distort",      7, NULL},
+	{    0, "Group",        8, NULL},
+	{   -1, "",             0, NULL}};
 
 /* do_node_addmenu() in header_node.c, prototype in BSE_headerbuttons.h */
 
@@ -1756,8 +1774,8 @@ static uiBlock *tb_makemenu(void *arg)
 static int tb_mainx= 1234, tb_mainy= 0;
 static void store_main(void *arg1, void *arg2)
 {
-	tb_mainx= (long)arg1;
-	tb_mainy= (long)arg2;
+	tb_mainx= (intptr_t)arg1;
+	tb_mainy= (intptr_t)arg2;
 }
 
 static void do_group_addmenu(void *arg, int event)
@@ -1919,12 +1937,15 @@ static TBitem *create_mesh_sublevel(ListBase *storage)
 	Link *link;
 	TBitem *meshmenu, *mm;
 	int totmenu= 10, totpymenu=0, a=0;
-	
+
+#ifndef DISABLE_PYTHON
 	/* Python Menu */
 	BPyMenu *pym;
 	
 	/* count the python menu items*/
 	for (pym = BPyMenuTable[PYMENU_ADDMESH]; pym; pym = pym->next, totpymenu++) {}
+#endif
+
 	if (totpymenu) totmenu += totpymenu+1; /* add 1 for the seperator */
 	
 	link= MEM_callocN(sizeof(Link) + sizeof(TBitem)*(totmenu+1), "mesh menu");
@@ -1943,6 +1964,7 @@ static TBitem *create_mesh_sublevel(ListBase *storage)
 	mm->icon = 0; mm->retval= a; mm->name = "Monkey"; 		mm++; a++;
 	/* a == 10 */
 	
+#ifndef DISABLE_PYTHON
 	if (totpymenu) {
 		int i=0;
 		mm->icon = 0; mm->retval= 0; mm->name = "SEPR"; 	mm++;
@@ -1955,7 +1977,8 @@ static TBitem *create_mesh_sublevel(ListBase *storage)
 			mm++; a++;
 		}
 	}
-	
+#endif
+
 	/* terminate the menu */
 	mm->icon= -1; mm->retval= a; mm->name= ""; mm->poin= do_info_add_meshmenu;
 	
@@ -2114,7 +2137,7 @@ void toolbox_n(void)
 					menu3= tb__select;
 					menu4= tb_edit;
 					menu5= tb_transform_editmode2;
-				}
+				}                                                               
 				else if(G.obedit->type==OB_LATTICE) {
 					menu1= tb_empty;str1= "Lattice";
 					menu2= tb_empty;
@@ -2133,8 +2156,11 @@ void toolbox_n(void)
 		
 		if(snode->treetype==NTREE_COMPOSIT)
 			menu1= tb_node_addcomp; 
-		else
+		else if(snode->treetype==NTREE_SHADER)
 			menu1= tb_node_addsh; 
+		else if(snode->treetype==NTREE_TEXTURE)
+			menu1= tb_node_addtex;
+		
 		str1= "Add";
 		menu2= tb_node_node; str2= "Node";
 		menu3= tb_node_select; str3= "Select";
@@ -2161,8 +2187,17 @@ void toolbox_n(void)
 			menu1[7].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_DISTORT);
 			menu1[8].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_GROUP);
 			menu1[9].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_OP_DYNAMIC);
-
 		}
+		else if(snode->treetype==NTREE_TEXTURE) {
+			menu1[0].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_INPUT);
+			menu1[1].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_OUTPUT);
+			menu1[2].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_OP_COLOR);
+			menu1[3].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_CONVERTOR);
+			menu1[4].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_PATTERN);
+			menu1[5].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_TEXTURE);
+			menu1[6].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_DISTORT);
+			menu1[7].poin= node_add_sublevel(&storage, snode->nodetree, NODE_CLASS_GROUP);
+		}                                                                     
 		
 		dx= 96;
 		tot= 5;
@@ -2185,27 +2220,27 @@ void toolbox_n(void)
 	
 		but=uiDefBlockBut(block, tb_makemenu, menu1, str1,	mval[0]-(1.5*dx)+tb_mainx,mval[1]+tb_mainy, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_TOP|UI_MAKE_RIGHT);
-		uiButSetFunc(but, store_main, (void *)(long)dx, (void *)(long)-5);
+		uiButSetFunc(but, store_main, (void *)(intptr_t)dx, (void *)(intptr_t)-5);
 
 		but=uiDefBlockBut(block, tb_makemenu, menu2, str2,	mval[0]-(0.5*dx)+tb_mainx,mval[1]+tb_mainy, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_TOP);
-		uiButSetFunc(but, store_main, (void *)(long)0, (void *)(long)-5);
+		uiButSetFunc(but, store_main, (void *)(intptr_t)0, (void *)(intptr_t)-5);
 
 		but=uiDefBlockBut(block, tb_makemenu, menu3, str3,	mval[0]+(0.5*dx)+tb_mainx,mval[1]+tb_mainy, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_TOP|UI_MAKE_LEFT);
-		uiButSetFunc(but, store_main, (void *)(long)-dx, (void *)(long)-5);
+		uiButSetFunc(but, store_main, (void *)(intptr_t)-dx, (void *)(intptr_t)-5);
 
 		but=uiDefBlockBut(block, tb_makemenu, menu4, str4,	mval[0]-(1.5*dx)+tb_mainx,mval[1]+tb_mainy-20, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_DOWN|UI_MAKE_RIGHT);
-		uiButSetFunc(but, store_main, (void *)(long)dx, (void *)(long)5);
+		uiButSetFunc(but, store_main, (void *)(intptr_t)dx, (void *)(intptr_t)5);
 
 		but=uiDefBlockBut(block, tb_makemenu, menu5, str5,	mval[0]-(0.5*dx)+tb_mainx,mval[1]+tb_mainy-20, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_DOWN);
-		uiButSetFunc(but, store_main, (void *)(long)0, (void *)(long)5);
+		uiButSetFunc(but, store_main, (void *)(intptr_t)0, (void *)(intptr_t)5);
 
 		but=uiDefBlockBut(block, tb_makemenu, menu6, str6,	mval[0]+(0.5*dx)+tb_mainx,mval[1]+tb_mainy-20, dx, 19, "");
 		uiButSetFlag(but, UI_MAKE_DOWN|UI_MAKE_LEFT);
-		uiButSetFunc(but, store_main, (void *)(long)-dx, (void *)(long)5);
+		uiButSetFunc(but, store_main, (void *)(intptr_t)-dx, (void *)(intptr_t)5);
 	} else if (tot==5 || tot==7) {
                 /* check if it fits, dubious */
 		if(mval[0]-0.25*dx+tb_mainx < 6) mval[0]= 6 + 0.25*dx -tb_mainx;
@@ -2280,9 +2315,9 @@ void toolbox_generic( TBitem *generic_menu )
 	uiBlock *block;
 	uiBut *but;
 	TBitem *menu;
-	int dx=96;
+	int dx=96, first=1, len;
 	short event, mval[2];
-	long ypos = -5;
+	intptr_t ypos = -5;
 	
 	tb_mainx= -32;
 	tb_mainy= -5;
@@ -2301,11 +2336,17 @@ void toolbox_generic( TBitem *generic_menu )
 	
 	/* Add the menu */
 	for (menu = generic_menu; menu->icon != -1; menu++) {
-		if(strcmp(menu->name, "SEPR")==0) {
+		if (first && (len=strlen(menu->name)) > 2 && menu->name[len-2]=='%' && menu->name[len-1]=='t') {
+			menu->name[len-2] = '\0';
+			uiSetCurFont(block, UI_HELVB);
+			uiDefIconTextBut(block, LABEL, 0, ICON_BLANK1, menu->name, mval[0]+tb_mainx,mval[1]+tb_mainy+ypos+5, dx, 19, NULL, 0.0, 0.0, 0, 0, "");
+			uiSetCurFont(block, UI_HELV);
+			ypos-=20;
+		} else if(strcmp(menu->name, "SEPR")==0) {
 			uiDefBut(block, SEPR, 0, "", mval[0]+tb_mainx,mval[1]+tb_mainy+ypos+5, dx, 6, NULL, 0.0, 0.0, 0, 0, "");
 			ypos-=6;
 		} else {
-			 if (menu->poin) {
+			if (menu->poin) {
 				but=uiDefIconTextBlockBut(block, tb_makemenu, menu->poin, ICON_RIGHTARROW_THIN, menu->name, mval[0]+tb_mainx,mval[1]+tb_mainy+ypos+5, dx, 19, "");
 				uiButSetFlag(but, UI_MAKE_RIGHT);
 			
@@ -2316,6 +2357,7 @@ void toolbox_generic( TBitem *generic_menu )
 			}
 			ypos-=20;
 		}
+		first= 0;
 	}
 	
 	uiBlockSetButmFunc(block, menu->poin, NULL);

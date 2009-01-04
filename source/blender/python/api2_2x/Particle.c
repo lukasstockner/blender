@@ -138,7 +138,7 @@ static PyObject *Part_GetAge( BPy_PartSys * self, PyObject * args );
 /*****************************************************************************/
 /* Python Effect_Type callback function prototypes:                           */
 /*****************************************************************************/
-static PyObject *ParticleSys_repr( void );
+static PyObject *ParticleSys_repr( BPy_PartSys * self );
 
 /*****************************************************************************/
 /* The following string definitions are used for documentation strings.      */
@@ -415,13 +415,14 @@ PyTypeObject ParticleSys_Type = {
 
 /*****************************************************************************/
 /* Function:    PARTICLESYS_repr                                             */
-/* Description: This is a callback function for the BPy_Effect type. It      */
-/*              builds a meaninful string to represent effcte objects.       */
+/* Description: This is a callback function for the BPy_PartSys type. It     */
+/*              builds a meaningful string to represent effect objects.      */
 /*****************************************************************************/
 
-static PyObject *ParticleSys_repr( void )
+static PyObject *ParticleSys_repr( BPy_PartSys * self )
 {
-	return PyString_FromString( "ParticleSys" );
+	return PyString_FromFormat( "ParticleSys \"%s\"",
+			self->psys->part->id.name+2 );
 }
 
 /*****************************************************************************/
@@ -526,15 +527,18 @@ throws NameError if name not found
 
 PyObject *M_ParticleSys_Get( PyObject * self, PyObject * args ) 
 {
+#if 1
+	return EXPP_ReturnPyObjError( PyExc_NotImplementedError,
+		"Particle.Get() not implemented" );
+#else
 	ParticleSettings *psys_iter;
 	char *name = NULL;
-#if 0
 
 	ParticleSystem *blparticlesys = 0;
 	Object *ob;
 
 	PyObject *partsyslist,*current;
-#endif
+
 	if( !PyArg_ParseTuple( args, "|s", &name ) )
 		return EXPP_ReturnPyObjError( PyExc_TypeError,
 				"expected string argument" );
@@ -577,7 +581,6 @@ PyObject *M_ParticleSys_Get( PyObject * self, PyObject * args )
 		}
 		
 		while( psys_iter ){
-#if 0
 			pyobj = ParticleSystem_CreatePyObject( psys_iter);
 			if( !pyobj){
 				Py_DECREF( pylist );
@@ -586,7 +589,6 @@ PyObject *M_ParticleSys_Get( PyObject * self, PyObject * args )
 					"could not create ParticleSystem PyObject");
 			}
 			PyList_SET_ITEM( pylist, index, pyobj);
-#endif
 			printf("name is %s\n", psys_iter->id.name+2);
 			psys_iter = psys_iter->id.next;
 			index++;
@@ -596,10 +598,6 @@ PyObject *M_ParticleSys_Get( PyObject * self, PyObject * args )
 			
 	}
 			
-		
-
-#if 0
-
 	for( ob = G.main->particlesystem.first; ob; ob = ob->id.next )
 		if( !strcmp( name, ob->id.name + 2 ) )
 			break;
@@ -626,7 +624,6 @@ PyObject *M_ParticleSys_Get( PyObject * self, PyObject * args )
 	}
 
 	return partsyslist;
-
 #endif
 }
 
@@ -804,7 +801,7 @@ static PyObject *Part_GetLoc( BPy_PartSys * self, PyObject * args )
 {
 	ParticleSystem *psys = 0L;
 	Object *ob = 0L;
-	PyObject *partlist,*seglist;
+	PyObject *partlist,*seglist=0L;
 	ParticleCacheKey **cache,*path;
 	PyObject* loc = 0L;
 	ParticleKey state;
@@ -1107,7 +1104,7 @@ static PyObject *Part_GetSize( BPy_PartSys * self, PyObject * args )
 	ParticleSystem *psys = 0L;
 	ParticleData *data;
 	Object *ob = 0L;
-	PyObject *partlist,*tuple;
+	PyObject *partlist,*tuple=0L;
 	DerivedMesh* dm;
 	float vm[4][4],wm[4][4];
 	float size;
@@ -1217,7 +1214,7 @@ static PyObject *Part_GetAge( BPy_PartSys * self, PyObject * args )
 	ParticleSystem *psys = 0L;
 	ParticleData *data;
 	Object *ob = 0L;
-	PyObject *partlist,*tuple;
+	PyObject *partlist,*tuple=0L;
 	DerivedMesh* dm;
 	float vm[4][4],wm[4][4];
 	float life;

@@ -157,10 +157,10 @@ typedef struct Global {
 /* **************** GLOBAL ********************* */
 
 /* G.f */
-#define G_DISABLE_OK	(1 <<  0)
+#define G_RENDER_OGL	(1 <<  0)
 #define G_PLAYANIM		(1 <<  1)
 /* also uses G_FILE_AUTOPLAY */
-#define G_SIMULATION	(1 <<  3)
+#define G_RENDER_SHADOW	(1 <<  3)
 #define G_BACKBUFSEL	(1 <<  4)
 #define G_PICKSEL		(1 <<  5)
 #define G_DRAWNORMALS	(1 <<  6)
@@ -218,8 +218,16 @@ typedef struct Global {
 #define G_FILE_NO_UI			 (1 << 10)
 #define G_FILE_GAME_TO_IPO		 (1 << 11)
 #define G_FILE_GAME_MAT			 (1 << 12)
-#define G_FILE_DIAPLAY_LISTS	 (1 << 13)
+#define G_FILE_DISPLAY_LISTS	 (1 << 13)
 #define G_FILE_SHOW_PHYSICS		 (1 << 14)
+#define G_FILE_GAME_MAT_GLSL	 (1 << 15)
+#define G_FILE_GLSL_NO_LIGHTS	 (1 << 16)
+#define G_FILE_GLSL_NO_SHADERS	 (1 << 17)
+#define G_FILE_GLSL_NO_SHADOWS	 (1 << 18)
+#define G_FILE_GLSL_NO_RAMPS	 (1 << 19)
+#define G_FILE_GLSL_NO_NODES	 (1 << 20)
+#define G_FILE_GLSL_NO_EXTRA_TEX (1 << 21)
+#define G_FILE_IGNORE_DEPRECATION_WARNINGS	(1 << 22)
 
 /* G.windowstate */
 #define G_WINDOWSTATE_USERDEF		0

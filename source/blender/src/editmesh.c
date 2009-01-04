@@ -632,6 +632,7 @@ void free_editMesh(EditMesh *em)
 
 	if(em->retopo_paint_data) retopo_free_paint_data(em->retopo_paint_data);
 	em->retopo_paint_data= NULL;
+	em->act_face = NULL;
 }
 
 /* on G.editMesh */
@@ -891,7 +892,7 @@ void make_editMesh()
 		return;
 	}
 #endif
-
+	
 	/* Needed if multires mesh has been changed but updates haven't been stored yet */
 	multires_force_update(G.obedit);
 
@@ -916,8 +917,11 @@ void make_editMesh()
 		strcpy(G.editModeTitleExtra, "(Key) ");
 		key_to_mesh(actkey, me);
 		tot= actkey->totelem;
+		/* undo-ing in past for previous editmode sessions gives corrupt 'keyindex' values */
+		undo_editmode_clear();
 	}
 
+	
 	/* make editverts */
 	CustomData_copy(&me->vdata, &em->vdata, CD_MASK_EDITMESH, CD_CALLOC, 0);
 	mvert= me->mvert;
@@ -1344,7 +1348,7 @@ void load_editMesh(void)
 	{
 		Object *ob;
 		ModifierData *md;
-		EditVert *eve, **vertMap = NULL;
+		EditVert **vertMap = NULL;
 		int i,j;
 
 		for (ob=G.main->object.first; ob; ob=ob->id.next) {
@@ -1600,15 +1604,6 @@ void separate_mesh(void)
 		return;
 	}
 	
-	/* blender crashes in derivedmesh drawing if I don't do this... but why? 
-		Anyhoo, this function is horrible anyway (ton) 
-		the fluidsimFlag also has to be reset btw. (n_t) */
-	if(G.obedit->fluidsimSettings) {
-		fluidsimSettingsFree(G.obedit->fluidsimSettings);
-		G.obedit->fluidsimSettings = NULL;
-		G.obedit->fluidsimFlag = 0;
-	}
-	
 	if(em->selected.first) BLI_freelistN(&(em->selected)); /* clear the selection order */
 		
 	EM_selectmode_set();	// enforce full consistant selection flags 
@@ -1682,6 +1677,10 @@ void separate_mesh(void)
 	efa= em->faces.first;
 	while(efa) {
 		vl1= efa->next;
+		if (efa == G.editMesh->act_face && (efa->f & SELECT)) {
+			EM_set_actFace(NULL);
+		}
+
 		if((efa->f & SELECT)==0) {
 			BLI_remlink(&em->faces, efa);
 			BLI_addtail(&edvl, efa);
@@ -1780,13 +1779,6 @@ void separate_mesh_loose(void)
 	if(me->key) {
 		error("Can't separate a mesh with vertex keys");
 		return;
-	}
-	
-	/* same problem as in separate_mesh above (n_t) */
-	if(G.obedit->fluidsimSettings) {
-		fluidsimSettingsFree(G.obedit->fluidsimSettings);
-		G.obedit->fluidsimSettings = NULL;
-		G.obedit->fluidsimFlag = 0;
 	}
 
 	TEST_EDITMESH

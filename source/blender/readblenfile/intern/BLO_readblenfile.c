@@ -67,7 +67,7 @@ char *headerMagic = "BLENDFI";
  */
 void BLO_setversionnumber(char array[4], int version)
 {
-	memset(array, 0, sizeof(array));
+	memset(array, 0, sizeof(char)*4);
 
 	array[1] = version / 100;
 	array[2] = version % 100;
@@ -159,7 +159,7 @@ blo_read_runtime(
 	} else {	
 		//printf("starting to read runtime from %s at datastart %d\n", path, datastart);
 		lseek(fd, datastart, SEEK_SET);
-		bfd = blo_read_blendafterruntime(fd, actualsize-datastart, error_r);
+		bfd = blo_read_blendafterruntime(fd, path, actualsize-datastart, error_r);
 		fd= -1;	// file was closed in blo_read_blendafterruntime()
 	}
 	
