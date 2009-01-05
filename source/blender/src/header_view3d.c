@@ -2791,10 +2791,8 @@ void do_view3d_edit_mesh_edgesmenu(void *arg, int event)
 		editmesh_mark_seam(1);
 		break;
 	case 9: /* Crease SubSurf */
-		if(!multires_level1_test()) {
-			initTransform(TFM_CREASE, CTX_EDGE);
-			Transform();
-		}
+		initTransform(TFM_CREASE, CTX_EDGE);
+		Transform();
 		break;
 	case 10: /* Rotate Edge */
 		edge_rotate_selected(2);
@@ -2827,10 +2825,8 @@ void do_view3d_edit_mesh_edgesmenu(void *arg, int event)
 		DAG_object_flush_update(G.scene, G.obedit, OB_RECALC_DATA);
 		break;
 	case 17: /* Adjust Bevel Weight */
-		if(!multires_level1_test()) {
-			initTransform(TFM_BWEIGHT, CTX_EDGE);
-			Transform();
-		}
+		initTransform(TFM_BWEIGHT, CTX_EDGE);
+		Transform();
 		break;
 	}
 	allqueue(REDRAWVIEW3D, 0);
@@ -3256,10 +3252,8 @@ static uiBlock *view3d_edit_meshmenu(void *arg_unused)
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");
 	
-	/* PITA but we should let users know that automerge cant work with multires :/ */
 	uiDefIconTextBut(block, BUTM, 1,
-			G.scene->automerge ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT,
-			((Mesh*)G.obedit->data)->mr ? "AutoMerge Editing (disabled by multires)" : "AutoMerge Editing",
+			G.scene->automerge ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT, "AutoMerge Editing",
 			0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 13, "");
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");

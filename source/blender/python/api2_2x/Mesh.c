@@ -57,7 +57,6 @@
 #include "BKE_mesh.h"
 #include "BKE_material.h"
 #include "BKE_main.h"
-#include "BKE_multires.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_DerivedMesh.h"
@@ -87,7 +86,6 @@
 #include "constant.h"
 #include "gen_utils.h"
 #include "gen_library.h"
-#include "multires.h"
 
 /* EXPP Mesh defines */
 
@@ -6840,10 +6838,6 @@ static PyObject *Mesh_insertKey( BPy_Mesh * self, PyObject * args )
 	char *type = NULL;
 	short typenum;
 	
-	if (mesh->mr)
-		return EXPP_ReturnPyObjError( PyExc_RuntimeError,
-					      "Shape Keys cannot be added to meshes with multires" );
-	
 	if( !PyArg_ParseTuple( args, "|is", &fra, &type ) )
 		return EXPP_ReturnPyObjError( PyExc_TypeError,
 					      "expected nothing or an int and optionally a string as arguments" );
@@ -7092,19 +7086,20 @@ static int Mesh_setActiveLayer( BPy_Mesh * self, PyObject * value, void *type )
 /* multires */
 static PyObject *Mesh_getMultiresLevelCount( BPy_Mesh * self )
 {
-	int i;
+	/*int i;
 	if (!self->mesh->mr)
 		i=0;
 	else
 		i= self->mesh->mr->level_count;
 	
-	return PyInt_FromLong(i);
+		return PyInt_FromLong(i);*/
+	return NULL;
 }
 
 
 static PyObject *Mesh_getMultires( BPy_Mesh * self, void *type )
 {	
-	int i=0;
+	/*int i=0;
 	if (self->mesh->mr) {
 		switch (GET_INT_FROM_POINTER(type)) {
 		case MESH_MULTIRES_LEVEL:
@@ -7122,12 +7117,13 @@ static PyObject *Mesh_getMultires( BPy_Mesh * self, void *type )
 		}
 	}
 	
-	return PyInt_FromLong(i);
+	return PyInt_FromLong(i);*/
+	return NULL;
 }
 
 static int Mesh_setMultires( BPy_Mesh * self, PyObject *value, void *type )
 {
-	int i;
+	/*int i;
 	if( !PyInt_Check( value ) )
 		return EXPP_ReturnIntError( PyExc_TypeError,
 					"expected integer argument" );
@@ -7165,14 +7161,14 @@ static int Mesh_setMultires( BPy_Mesh * self, PyObject *value, void *type )
 	case MESH_MULTIRES_RENDER:
 		self->mesh->mr->renderlvl = i;
 		break;
-	}
+		}*/
 	
 	return 0;
 }
 
 static PyObject *Mesh_addMultiresLevel( BPy_Mesh * self, PyObject * args )
 {
-	char typenum;
+	/*char typenum;
 	int i, levels = 1;
 	char *type = NULL;
 	if( G.obedit )
@@ -7197,7 +7193,8 @@ static PyObject *Mesh_addMultiresLevel( BPy_Mesh * self, PyObject * args )
 	multires_update_levels(self->mesh, 0);
 	multires_level_to_editmesh(self->object, self->mesh, 0);	
 	multires_finish_mesh_update(self->object);
-	Py_RETURN_NONE;
+	Py_RETURN_NONE;*/
+	return NULL;
 }
 
 /* end multires */
@@ -8043,7 +8040,7 @@ static int Mesh_setFlag( BPy_Mesh * self, PyObject *value, void *type )
 			}
 		}
 		return 0;
-	case MESH_HASMULTIRES:
+		/*case MESH_HASMULTIRES:
 		if (!self->object)
 			return EXPP_ReturnIntError( PyExc_RuntimeError,
 				"This mesh must be linked to an object" ); 
@@ -8060,7 +8057,7 @@ static int Mesh_setFlag( BPy_Mesh * self, PyObject *value, void *type )
 				multires_make(self->object, mesh);
 			}
 		}
-		return 0;
+		return 0;*/
 	default:
 		return EXPP_ReturnIntError( PyExc_RuntimeError,
 					"couldn't get attribute" );
