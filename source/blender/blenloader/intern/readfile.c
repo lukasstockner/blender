@@ -2786,6 +2786,19 @@ static void direct_link_dverts(FileData *fd, int count, MDeformVert *mdverts)
 	}
 }
 
+static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps)
+{
+	if(mdisps) {
+		int i;
+
+		for(i = 0; i < count; ++i) {
+			mdisps[i].disps = newdataadr(fd, mdisps[i].disps);
+			if(!mdisps[i].disps)
+				mdisps[i].totdisp = 0;
+		}
+	}       
+}
+
 static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 {
 	int i = 0;
@@ -2797,6 +2810,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 
 		if (CustomData_verify_versions(data, i)) {
 			layer->data = newdataadr(fd, layer->data);
+			if(layer->type == CD_MDISPS)
+				direct_link_mdisps(fd, count, layer->data);
 			i++;
 		}
 	}
@@ -3243,6 +3258,12 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					for(a=0; a<mmd->totvert; a++)
 						SWITCH_INT(mmd->dynverts[a])
 			}
+		}
+		else if (md->type==eModifierType_Multires) {
+			MultiresModifierData *mmd = (MultiresModifierData*) md;
+			
+			mmd->undo_verts = newdataadr(fd, mmd->undo_verts);
+			mmd->undo_signal = !!mmd->undo_verts;
 		}
 	}
 }
