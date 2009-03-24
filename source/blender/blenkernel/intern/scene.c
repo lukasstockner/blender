@@ -230,6 +230,10 @@ Scene *add_scene(char *name)
 	sce->r.threads= 1;
 	
 	sce->r.stereomode = 1;  // no stereo
+	sce->r.domesize = 1.0f;
+	sce->r.domeres = 4;
+	sce->r.domemode = 1;
+	sce->r.domeangle = 180;
 
 	sce->r.simplify_subsurf= 6;
 	sce->r.simplify_particles= 1.0f;

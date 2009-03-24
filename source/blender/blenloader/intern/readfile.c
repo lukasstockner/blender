@@ -8025,6 +8025,18 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 3)) {
+		Scene *sce;
+
+		/*  Dome (Fisheye) default parameters  */
+		for (sce= main->scene.first; sce; sce= sce->id.next) {
+			sce->r.domesize = 1.0f;
+			sce->r.domeres = 4;
+			sce->r.domemode = 1;
+			sce->r.domeangle = 180;
+		}
+	}
+
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in src/usiblender.c! */
 
