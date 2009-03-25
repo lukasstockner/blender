@@ -8034,6 +8034,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			sce->r.domeres = 4;
 			sce->r.domemode = 1;
 			sce->r.domeangle = 180;
+			sce->r.domeresbuf = 1.0f;
 		}
 	}
 

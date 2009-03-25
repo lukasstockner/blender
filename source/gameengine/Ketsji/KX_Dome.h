@@ -62,8 +62,8 @@ public:
 	float size,
 	short res,
 	short mode,
-	short angle
-//	float offset
+	short angle,
+	float resbuf
 	);
 
 	/// destructor
@@ -71,12 +71,8 @@ public:
 
 	//openGL checks:
 	bool	dlistSupported;
-	bool	fboSupported;
-	bool	fboUsed;
 
 	//openGL names:
-	GLuint fboId[6];			// ID of FBO
-	GLuint rboId[6];			// ID of Renderbuffer object
 	GLuint domefacesId[6];		// ID of the images -- room for 6 images, using only 4 for 180º x 360º dome
 	GLuint dlistId;				// ID of the Display Lists of the images (used as an offset)
 	
@@ -123,25 +119,28 @@ public:
 
 	//setting up openGL
 	void CreateGLImages(void);
-	void CreateFBO(void);
-	void ClearFBO(void);
+	void ClearGLImages(void);//called on resize
 	void CreateDL(void); //create Display Lists
 	void ClearDL(void);  //remove Display Lists 
 
 	void CalculateCameraOrientation();
 	void CalculateImageSize(); //set m_imagesize
 
+	int canvaswidth;
+	int canvasheight;
+	int m_buffersize;
+
 protected:
 	int m_drawingmode;
 
 	int m_imagesize;
-	int m_numfaces; // 4 to 6 depending on the kind of dome image
+	int m_numfaces;		// 4 to 6 depending on the kind of dome image
 	
-	float m_size; // size to adjust
-	short m_resolution; //resolution to tesselate the mesh
-	short m_mode; // the mode (truncated, warped, panoramic,...)
-	short m_angle; //the angle of the fisheye
-	float m_offset; //the offset of the camera //not using now
+	float m_size;		// size to adjust
+	short m_resolution;	//resolution to tesselate the mesh
+	short m_mode;		// the mode (truncated, warped, panoramic,...)
+	short m_angle;		//the angle of the fisheye
+	float m_resbuffer;	//the resolution of the buffer
 	
 	RAS_Rect m_viewport;
 	

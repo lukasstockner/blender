@@ -211,7 +211,7 @@ public:
 	RAS_IRenderTools*	    GetRenderTools(){return m_rendertools;};
 
 	/// Dome functions
-	void			InitDome(float size, short res, short mode, short angle); 
+	void			InitDome(float size, short res, short mode, short angle, float resbuf); 
 	void			EndDome();
 	void			RenderDome();
 	bool			usedome;

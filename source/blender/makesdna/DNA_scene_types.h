@@ -319,7 +319,7 @@ typedef struct RenderData {
 	short domeres, domemode;
 	short domeangle, pad9;
 	float domesize;
-	float pad10;
+	float domeresbuf;
 } RenderData;
 
 /* control render convert and shading engine */

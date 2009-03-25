@@ -259,9 +259,9 @@ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter* sceneconverter)
 	m_sceneconverter = sceneconverter;
 }
 
-void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle)
+void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle, float resbuf)
 {
-	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle);
+	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle, resbuf);
 	usedome = true;
 }
 
@@ -274,7 +274,7 @@ void KX_KetsjiEngine::RenderDome()
 	
 //	printf("RenderDome->glGetViewport(%d, %d, %d, %d)\n", viewport[0], viewport[1], viewport[2], viewport[3]);
 	m_dome->SetViewPort(viewport);
-	m_dome->CalculateImageSize(); //it could be called from m_dome->SetViewPort()
+//	m_dome->CalculateImageSize();
 
 	KX_Scene* firstscene = *m_scenes.begin();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();

@@ -1832,8 +1832,8 @@ static uiBlock *framing_render_menu(void *arg_unused)
 	uiDefButS(block, NUM, 0, "Mode:",		xco+=90, yco, 88, 19, &G.scene->r.domemode, 1.0, 3.0, 0, 0, "Dome mode - 1 fisheye, 2 truncated, 3 panoramic");//, 4 (tests), 5 offset, 6 warped");
 
 	uiDefButF(block, NUM, 0, "Size:",		xco-=180, yco-=21, 88, 19, &G.scene->r.domesize, 0.5, 3.5, 0, 0, "Size adjustemnts");
-	uiDefButS(block, NUM, 0, "Res:",		xco+=90, yco, 88, 19, &G.scene->r.domeres, 1.0, 8.0, 0, 0, "Resolution of the dome - 1 to 8");
-//	uiDefButF(block, NUM, 0, "Off:",		xco+=90, yco, 88, 19, &G.scene->r.domeoffset, 0.0, 0.999, 0, 0, "Offset - only works in mode 4");
+	uiDefButS(block, NUM, 0, "Def:",		xco+=90, yco, 88, 19, &G.scene->r.domeres, 1.0, 8.0, 0, 0, "Resolution of the dome - 1 to 8");
+	uiDefButF(block, NUM, 0, "Res:",	xco+=90, yco, 88, 19, &G.scene->r.domeresbuf, 0.1, 1.0, 0, 0, "Buffer Resolution - decrease it to increase speed");
 	uiBlockEndAlign(block);
 
 	uiBlockSetDirection(block, UI_TOP);

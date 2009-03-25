@@ -234,6 +234,7 @@ Scene *add_scene(char *name)
 	sce->r.domeres = 4;
 	sce->r.domemode = 1;
 	sce->r.domeangle = 180;
+	sce->r.domeresbuf = 1.0f;
 
 	sce->r.simplify_subsurf= 6;
 	sce->r.simplify_particles= 1.0f;
