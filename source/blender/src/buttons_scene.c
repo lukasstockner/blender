@@ -109,9 +109,9 @@
 
 #ifdef WITH_FFMPEG
 
-#include <ffmpeg/avcodec.h> /* for PIX_FMT_* and CODEC_ID_* */
-#include <ffmpeg/avformat.h>
-#include <ffmpeg/opt.h>
+#include <libavcodec/avcodec.h> /* for PIX_FMT_* and CODEC_ID_* */
+#include <libavformat/avformat.h>
+#include <libavcodec/opt.h>
 
 static int ffmpeg_preset_sel = 0;
 
@@ -296,17 +296,11 @@ void do_soundbuts(unsigned short event)
 static void sound_panel_listener(void)
 {
 	uiBlock *block;
-	int xco= 100, yco=100, mixrate;
-	char mixrateinfo[256];
+	int xco= 100, yco=100;
 	
 	block= uiNewBlock(&curarea->uiblocks, "sound_panel_listener", UI_EMBOSS, UI_HELV, curarea->win);
 	if(uiNewPanel(curarea, block, "Listener", "Sound", 320, 0, 318, 204)==0) return;
 
-	mixrate = sound_get_mixrate();
-	sprintf(mixrateinfo, "Game Mixrate: %d Hz", mixrate);
-	uiDefBut(block, LABEL, 0, mixrateinfo, xco,yco,295,20, 0, 0, 0, 0, 0, "");
-
-	yco -= 30;
 	uiDefBut(block, LABEL, 0, "Game listener settings:",xco,yco,195,20, 0, 0, 0, 0, 0, "");
 
 	yco -= 30;

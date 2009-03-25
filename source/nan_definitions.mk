@@ -75,6 +75,7 @@ else
     export NAN_SOLID ?= $(LCGDIR)/solid
     export NAN_QHULL ?= $(LCGDIR)/qhull
 endif
+    export BF_PROFILE ?= false
     export NAN_USE_BULLET ?= true
     export NAN_BULLET2 ?= $(LCGDIR)/bullet2
     export NAN_SUMO ?= $(SRCHOME)/gameengine/Physics/Sumo
@@ -184,7 +185,6 @@ endif
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= $(LCGDIR)/openal
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= $(LCGDIR)/tiff
@@ -238,7 +238,6 @@ endif
     endif
 
     export NAN_OPENAL ?= $(LCGDIR)/openal
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= $(LCGDIR)/tiff
@@ -296,7 +295,6 @@ endif
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= /usr/local
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= /usr/local
     export NAN_PNG ?= /usr/local
     export NAN_TIFF ?= /usr/local
@@ -341,7 +339,6 @@ endif
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a -lpthread
     export NAN_OPENAL ?= $(LCGDIR)/openal
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= $(LCGDIR)/tiff
@@ -391,7 +388,6 @@ endif
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= /usr
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= /usr
     export NAN_PNG ?= /usr
     export NAN_TIFF ?= /usr
@@ -449,7 +445,6 @@ endif
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= $(LCGDIR)/openal
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= $(LCGDIR)/tiff
@@ -492,7 +487,6 @@ endif
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= $(LCGDIR)/openal 
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= /usr
@@ -549,7 +543,6 @@ endif
       export NAN_SDLCFLAGS ?= -I$(NAN_SDL)/include
     endif
     export NAN_OPENAL ?= $(LCGDIR)/openal
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= $(LCGDIR)/tiff
@@ -593,7 +586,6 @@ endif
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
 
     export NAN_OPENAL ?= $(LCGDIR)/openal
-    export NAN_FMOD ?= $(LCGDIR)/fmod
     export NAN_JPEG ?= $(LCGDIR)/jpeg
     export NAN_PNG ?= $(LCGDIR)/png
     export NAN_TIFF ?= $(LCGDIR)/tiff
