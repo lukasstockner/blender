@@ -288,7 +288,6 @@ void KX_KetsjiEngine::RenderDome()
 	// only once per frame
 
 	m_canvas->BeginDraw();
-//	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);//XXX to be removed
 
 	// BeginFrame() sets the actual drawing area. You can use a part of the window
 	if (!BeginFrame())
@@ -304,6 +303,7 @@ void KX_KetsjiEngine::RenderDome()
 			KX_Scene* scene = *sceneit;
 			KX_Camera* cam = scene->GetActiveCamera();
 
+			m_rendertools->BeginFrame(m_rasterizer);
 			// pass the scene's worldsettings to the rasterizer
 			SetWorldSettings(scene->GetWorldInfo());
 

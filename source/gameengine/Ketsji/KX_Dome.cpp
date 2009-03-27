@@ -1478,11 +1478,6 @@ void KX_Dome::RotateCamera(KX_Camera* m_camera, int i)
 
 void KX_Dome::Draw(void)
 {
-//	printf("Drawing Mode: %d\n", m_drawingmode);
-//	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
-//		printf("WIREFRAME !!!!!\n");
-//	else
-//		printf("Boring MODE !!!\n");
 	switch(m_mode){
 		case DOME_FISHEYE:
 			DrawDomeFisheye();
@@ -1552,8 +1547,10 @@ void KX_Dome::DrawDomeFisheye(void)
 
 //	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_DEPTH_TEST);
-	glPolygonMode(GL_FRONT, GL_FILL);
-	glPolygonMode(GL_BACK, GL_LINE);	
+	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+		glPolygonMode(GL_FRONT, GL_LINE);
+	else
+		glPolygonMode(GL_FRONT, GL_FILL);
 	glShadeModel(GL_SMOOTH);
 	glDisable(GL_LIGHTING);
 
@@ -1633,9 +1630,10 @@ void KX_Dome::DrawPanorama(void)
 
 	glDisable(GL_DEPTH_TEST);
 
-//	glPolygonMode(GL_BACK, GL_LINE);
-//	glPolygonMode(GL_FRONT, GL_LINE);
-	glPolygonMode(GL_FRONT, GL_FILL);
+	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+		glPolygonMode(GL_FRONT, GL_LINE);
+	else
+		glPolygonMode(GL_FRONT, GL_FILL);
 	glShadeModel(GL_SMOOTH);
 	glDisable(GL_LIGHTING);
 
