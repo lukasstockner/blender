@@ -99,8 +99,8 @@ public:
 	void RotateCamera(KX_Camera* m_camera, int i);
 
 	//Mesh  Creating Functions
-	void CreateMeshDome180(int resolution);
-	void CreateMeshDome250(int resolution);
+	void CreateMeshDome180(void);
+	void CreateMeshDome250(void);
 	void CreateMeshPanorama(void);
 
 	void SplitFace(vector <DomeFace>& face, int *nfaces);
@@ -165,4 +165,3 @@ protected:
 };
 
 #endif
-

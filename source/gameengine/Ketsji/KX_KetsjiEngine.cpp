@@ -272,9 +272,7 @@ void KX_KetsjiEngine::RenderDome()
 	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
 //	unsigned int m_viewport[4] = {viewport[0], viewport[1], viewport[2], viewport[3]};
 	
-//	printf("RenderDome->glGetViewport(%d, %d, %d, %d)\n", viewport[0], viewport[1], viewport[2], viewport[3]);
 	m_dome->SetViewPort(viewport);
-//	m_dome->CalculateImageSize();
 
 	KX_Scene* firstscene = *m_scenes.begin();
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
@@ -290,8 +288,7 @@ void KX_KetsjiEngine::RenderDome()
 	// only once per frame
 
 	m_canvas->BeginDraw();
-
-	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);//XXX to be removed
+//	m_rasterizer->SetEye(RAS_IRasterizer::RAS_STEREO_LEFTEYE);//XXX to be removed
 
 	// BeginFrame() sets the actual drawing area. You can use a part of the window
 	if (!BeginFrame())
@@ -300,8 +297,6 @@ void KX_KetsjiEngine::RenderDome()
 	int n_renders=m_dome->GetNumberRenders();// usually 4 or 6
 	KX_SceneList::iterator sceneit;
 	for (int i=0;i<n_renders;i++){
-//		printf("Rendering %d\n",i);
-		//m_dome->clearBuffer(i);//clear using the background color
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
 		// for each scene, call the proceed functions
@@ -309,15 +304,14 @@ void KX_KetsjiEngine::RenderDome()
 			KX_Scene* scene = *sceneit;
 			KX_Camera* cam = scene->GetActiveCamera();
 
-//			m_rasterizer->BeginFrame(m_drawingmode,m_engine->GetClockTime());//XXX testing
-			m_rendertools->BeginFrame(m_rasterizer);	// XXX testing
 			// pass the scene's worldsettings to the rasterizer
 			SetWorldSettings(scene->GetWorldInfo());
 
 			// shadow buffers
-			RenderShadowBuffers(scene);
-			scene->UpdateMeshTransformations();//I need to run it somewherelse, otherwise Im overrunning it
-
+			if (i == 0){
+				RenderShadowBuffers(scene);
+				scene->UpdateMeshTransformations();//I need to run it somewherelse, otherwise Im overrunning it
+			}
 			// Avoid drawing the scene with the active camera twice when it's viewport is enabled
 			if(cam && !cam->GetViewport())
 			{
@@ -1804,6 +1798,5 @@ void KX_KetsjiEngine::GetOverrideFrameColor(float& r, float& g, float& b) const
 	g = m_overrideFrameColorG;
 	b = m_overrideFrameColorB;
 }
-
 
 

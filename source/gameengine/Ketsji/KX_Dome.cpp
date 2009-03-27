@@ -93,7 +93,7 @@ KX_Dome::KX_Dome (
 				cubeleft.resize(2);
 				cuberight.resize(2);
 
-				CreateMeshDome180(m_resolution);
+				CreateMeshDome180();
 				m_numfaces = 4;
 			}else if (m_angle > 180 && m_angle <= 250){
 				cubetop.resize(2);
@@ -102,7 +102,7 @@ KX_Dome::KX_Dome (
 				cubefront.resize(2);
 				cuberight.resize(2);
 
-				CreateMeshDome250(m_resolution);
+				CreateMeshDome250();
 				m_numfaces = 5;
 			}else{
 				cubetop.resize(2);
@@ -112,7 +112,7 @@ KX_Dome::KX_Dome (
 				cuberight.resize(2);
 				cubeback.resize(2);
 
-				CreateMeshDome250(m_resolution);
+				CreateMeshDome250();
 				m_numfaces = 6;
 			}
 			break;
@@ -123,7 +123,7 @@ KX_Dome::KX_Dome (
 			cuberight.resize(2);
 
 			m_angle = 180;
-			CreateMeshDome180(m_resolution);
+			CreateMeshDome180();
 			m_numfaces = 4;
 			break;
 		case DOME_PANORAM_SPH:
@@ -131,10 +131,12 @@ KX_Dome::KX_Dome (
 			cubeleftback.resize(2);
 			cuberight.resize(2);
 			cuberightback.resize(2);
+			cubetop.resize(2);
+			cubebottom.resize(2);
 
 			m_angle = 360;
 			CreateMeshPanorama();
-			m_numfaces = 4;
+			m_numfaces = 6;
 			break;
 		case DOME_OFFSET:
 			//the same as DOME_FISHEYE > 250º
@@ -147,7 +149,7 @@ KX_Dome::KX_Dome (
 
 //		m_offset = 0.99;
 			m_angle = 360;
-			CreateMeshDome250(m_resolution);
+			CreateMeshDome250();
 			m_numfaces = 6;
 			break;
 		default: // temporary
@@ -248,23 +250,31 @@ void KX_Dome::CreateDL(){
 			}
 		}
 		else if (m_mode == DOME_PANORAM_SPH){
+
 			glNewList(dlistId, GL_COMPILE);
-				GLDrawTriangles(cubeleft, nfacesleft);
+				GLDrawTriangles(cubetop, nfacestop);
 			glEndList();
 
 			glNewList(dlistId+1, GL_COMPILE);
-				GLDrawTriangles(cuberight, nfacesright);
-			glEndList();
-
-			glNewList(dlistId+3, GL_COMPILE);
-				GLDrawTriangles(cubeleftback, nfacesleftback);
+				GLDrawTriangles(cubebottom, nfacesbottom);
 			glEndList();
 
 			glNewList(dlistId+2, GL_COMPILE);
+				GLDrawTriangles(cubeleft, nfacesleft);
+			glEndList();
+
+			glNewList(dlistId+3, GL_COMPILE);
+				GLDrawTriangles(cuberight, nfacesright);
+			glEndList();
+
+			glNewList(dlistId+4, GL_COMPILE);
+				GLDrawTriangles(cubeleftback, nfacesleftback);
+			glEndList();
+
+			glNewList(dlistId+5, GL_COMPILE);
 				GLDrawTriangles(cuberightback, nfacesrightback);
 			glEndList();
 		}
-
 		//clearing the vectors 
 		cubetop.clear();
 		cubebottom.clear();
@@ -291,7 +301,7 @@ void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
 		}
 	glEnd();
 }
-void KX_Dome::CreateMeshDome180(int cubeRes)
+void KX_Dome::CreateMeshDome180(void)
 {
 /*
 1)-  Define the faces of half of a cube 
@@ -372,6 +382,7 @@ void KX_Dome::CreateMeshDome180(int cubeRes)
 	cubeleft[0].u[2] = 0.0;
 	cubeleft[0].v[2] = uv_ratio;
 
+	//second triangle
 	cubeleft[1].verts[0][0] = -sqrt_2 / 2.0;
 	cubeleft[1].verts[0][1] = 0.0;
 	cubeleft[1].verts[0][2] = 0.5;
@@ -411,6 +422,7 @@ void KX_Dome::CreateMeshDome180(int cubeRes)
 	cuberight[0].u[2] = uv_ratio;
 	cuberight[0].v[2] = uv_ratio;
 
+	//second triangle
 	cuberight[1].verts[0][0] = 0.0;
 	cuberight[1].verts[0][1] = sqrt_2 / 2.0;
 	cuberight[1].verts[0][2] = -0.5;
@@ -434,7 +446,7 @@ void KX_Dome::CreateMeshDome180(int cubeRes)
 	//Refine a triangular mesh by bisecting each edge forms 3 new triangles for each existing triangle on each iteration
 	//Could be made more efficient for drawing if the triangles were ordered in a fan. Not that important since we are using DisplayLists
 
-	for(i=0;i<cubeRes;i++){
+	for(i=0;i<m_resolution;i++){
 		cubetop.resize(4*nfacestop);
 		SplitFace(cubetop,&nfacestop);
 		cubebottom.resize(4*nfacesbottom);
@@ -469,7 +481,7 @@ void KX_Dome::CreateMeshDome180(int cubeRes)
 
 }
 
-void KX_Dome::CreateMeshDome250(int resolution)
+void KX_Dome::CreateMeshDome250(void)
 {
 /*
 1)-  Define the faces of a cube without the back face
@@ -701,7 +713,7 @@ void KX_Dome::CreateMeshDome250(int resolution)
 
 	nfacesbottom = 2;
 
-	if(m_angle > 250){
+	if(m_angle > 250){ //not using
 	
 		cubeback[0].verts[0][0] = 1.0;
 		cubeback[0].verts[0][1] =-1.0;
@@ -746,7 +758,7 @@ void KX_Dome::CreateMeshDome250(int resolution)
 	//Refine a triangular mesh by bisecting each edge forms 3 new triangles for each existing triangle on each iteration
 	//It could be made more efficient for drawing if the triangles were ordered in a strip!
 
-	for(i=0;i<resolution;i++){
+	for(i=0;i<m_resolution;i++){
 		cubefront.resize(4*nfacesfront);
 		SplitFace(cubefront,&nfacesfront);
 		cubetop.resize(4*nfacestop);
@@ -762,6 +774,7 @@ void KX_Dome::CreateMeshDome250(int resolution)
 			SplitFace(cubeback,&nfacesback);
 		}
 	}
+/*
 	if(m_mode == DOME_OFFSET){ // double the resolution of the top (front)
 			cubefront.resize(4*nfacesfront);
 			SplitFace(cubefront,&nfacesfront);
@@ -849,13 +862,89 @@ void KX_Dome::CreateMeshPanorama(void)
 */
 	int i,j;
 	float uv_ratio;
-//	float verts_height;
-//	float rad_ang = m_angle * MT_PI / 180.0;
 	float sqrt_2 = sqrt(2.0);
-//	verts_height = tan((rad_ang/2) - (MT_PI/2));//for 180 - M_PI/2 for 270 - 
 
 	uv_ratio = (float)m_buffersize / m_imagesize;
-	printf("uv_ratio: %4.2f\n", uv_ratio);//XXX
+
+	/* Top face - two triangles */
+	cubetop[0].verts[0][0] = -sqrt_2;
+	cubetop[0].verts[0][1] = 0.0;
+	cubetop[0].verts[0][2] = 1.0;
+	cubetop[0].u[0] = 0.0;
+	cubetop[0].v[0] = uv_ratio;
+
+	cubetop[0].verts[1][0] = 0.0;
+	cubetop[0].verts[1][1] = sqrt_2;
+	cubetop[0].verts[1][2] = 1.0;
+	cubetop[0].u[1] = 0.0;
+	cubetop[0].v[1] = 0.0;
+
+	//second triangle
+	cubetop[0].verts[2][0] = sqrt_2;
+	cubetop[0].verts[2][1] = 0.0;
+	cubetop[0].verts[2][2] = 1.0;
+	cubetop[0].u[2] = uv_ratio;
+	cubetop[0].v[2] = 0.0;
+
+	cubetop[1].verts[0][0] = sqrt_2;
+	cubetop[1].verts[0][1] = 0.0;
+	cubetop[1].verts[0][2] = 1.0;
+	cubetop[1].u[0] = uv_ratio;
+	cubetop[1].v[0] = 0.0;
+
+	cubetop[1].verts[1][0] = 0.0;
+	cubetop[1].verts[1][1] = -sqrt_2;
+	cubetop[1].verts[1][2] = 1.0;
+	cubetop[1].u[1] = uv_ratio;
+	cubetop[1].v[1] = uv_ratio;
+
+	cubetop[1].verts[2][0] = -sqrt_2;
+	cubetop[1].verts[2][1] = 0.0;
+	cubetop[1].verts[2][2] = 1.0;
+	cubetop[1].u[2] = 0.0;
+	cubetop[1].v[2] = uv_ratio;
+
+	nfacestop = 2;
+
+	/* Bottom face - two triangles */
+	cubebottom[0].verts[0][0] = -sqrt_2;
+	cubebottom[0].verts[0][1] = 0.0;
+	cubebottom[0].verts[0][2] = -1.0;
+	cubebottom[0].u[0] = uv_ratio;
+	cubebottom[0].v[0] = 0.0;
+
+	cubebottom[0].verts[1][0] = sqrt_2;
+	cubebottom[0].verts[1][1] = 0.0;
+	cubebottom[0].verts[1][2] = -1.0;
+	cubebottom[0].u[1] = 0.0;
+	cubebottom[0].v[1] = uv_ratio;
+
+	cubebottom[0].verts[2][0] = 0.0;
+	cubebottom[0].verts[2][1] = sqrt_2;
+	cubebottom[0].verts[2][2] = -1.0;
+	cubebottom[0].u[2] = 0.0;
+	cubebottom[0].v[2] = 0.0;
+
+	//second triangle
+	cubebottom[1].verts[0][0] = sqrt_2;
+	cubebottom[1].verts[0][1] = 0.0;
+	cubebottom[1].verts[0][2] = -1.0;
+	cubebottom[1].u[0] = 0.0;
+	cubebottom[1].v[0] = uv_ratio;
+
+	cubebottom[1].verts[1][0] = -sqrt_2;
+	cubebottom[1].verts[1][1] = 0.0;
+	cubebottom[1].verts[1][2] = -1.0;
+	cubebottom[1].u[1] = uv_ratio;
+	cubebottom[1].v[1] = 0.0;
+
+	cubebottom[1].verts[2][0] = 0.0;
+	cubebottom[1].verts[2][1] = -sqrt_2;
+	cubebottom[1].verts[2][2] = -1.0;
+	cubebottom[1].u[2] = uv_ratio;
+	cubebottom[1].v[2] = uv_ratio;
+
+	nfacesbottom = 2;
 
 	/* Left Back (135º) face - two triangles */
 
@@ -877,6 +966,7 @@ void KX_Dome::CreateMeshPanorama(void)
 	cubeleftback[0].u[2] = 0;
 	cubeleftback[0].v[2] = uv_ratio;
 
+	//second triangle
 	cubeleftback[1].verts[0][0] = 0;
 	cubeleftback[1].verts[0][1] = -sqrt_2;
 	cubeleftback[1].verts[0][2] = 1.0;
@@ -917,6 +1007,7 @@ void KX_Dome::CreateMeshPanorama(void)
 	cubeleft[0].u[2] = 0;
 	cubeleft[0].v[2] = uv_ratio;
 
+	//second triangle
 	cubeleft[1].verts[0][0] = -sqrt_2;
 	cubeleft[1].verts[0][1] = 0;
 	cubeleft[1].verts[0][2] = 1.0;
@@ -956,6 +1047,7 @@ void KX_Dome::CreateMeshPanorama(void)
 	cuberight[0].u[2] = uv_ratio;
 	cuberight[0].v[2] = uv_ratio;
 
+	//second triangle
 	cuberight[1].verts[0][0] = 0;
 	cuberight[1].verts[0][1] = sqrt_2;
 	cuberight[1].verts[0][2] = -1.0;
@@ -995,6 +1087,7 @@ void KX_Dome::CreateMeshPanorama(void)
 	cuberightback[0].u[2] = uv_ratio;
 	cuberightback[0].v[2] = uv_ratio;
 
+	//second triangle
 	cuberightback[1].verts[0][0] = sqrt_2;
 	cuberightback[1].verts[0][1] = 0;
 	cuberightback[1].verts[0][2] = -1.0;
@@ -1025,6 +1118,10 @@ void KX_Dome::CreateMeshPanorama(void)
 		SplitFace(cubeleftback,&nfacesleftback);
 		cuberightback.resize(4*nfacesrightback);
 		SplitFace(cuberightback,&nfacesrightback);
+		cubetop.resize(4*nfacestop);
+		SplitFace(cubetop,&nfacestop);
+		cubebottom.resize(4*nfacesbottom);
+		SplitFace(cubebottom,&nfacesbottom);
 	}
 
 	// Spherize the cube
@@ -1037,6 +1134,10 @@ void KX_Dome::CreateMeshPanorama(void)
 			cuberight[i].verts[j].normalize();
 		for(i=0;i<nfacesrightback;i++)
 			cuberightback[i].verts[j].normalize();
+		for(i=0;i<nfacestop;i++)
+			cubetop[i].verts[j].normalize();
+		for(i=0;i<nfacesbottom;i++)
+			cubebottom[i].verts[j].normalize();
 	}
 
 	//Flatten onto xz plane
@@ -1048,6 +1149,10 @@ void KX_Dome::CreateMeshPanorama(void)
 		FlattenPanorama(cuberight[i].verts);
 	for(i=0;i<nfacesrightback;i++)
 		FlattenPanorama(cuberightback[i].verts);
+	for(i=0;i<nfacestop;i++)
+		FlattenPanorama(cubetop[i].verts);
+	for(i=0;i<nfacesbottom;i++)
+		FlattenPanorama(cubebottom[i].verts);
 }
 
 void KX_Dome::FlattenDome(MT_Vector3 verts[3])
@@ -1076,32 +1181,41 @@ void KX_Dome::FlattenDome(MT_Vector3 verts[3])
 
 void KX_Dome::FlattenPanorama(MT_Vector3 verts[3])
 {
-	//: increase, remove backward faces
+// it creates a full spherical panoramic (360º)
+	int i;
 	double phi;
 	float angle = m_angle * M_PI/180.0;
+	bool edge=false;
 
-	for (int i=0;i<3;i++){
+	for (i=0;i<3;i++){
 		phi = atan2(verts[i][1], verts[i][0]);
 		phi *= -1.0; //flipping
-		
-		verts[i][0] = phi/ MT_PI;
+
+		if (phi == -MT_PI) //It's on the edge
+			edge=true;
+
+		verts[i][0] = phi / MT_PI;
 		verts[i][1] = 0;
 
-		if(verts[i][2] > 0.5)
-			verts[i][2] = 0.5;
-		else if(verts[i][2] < -0.5)
-			verts[i][2] = -0.5;
-
-		verts[i][2] = atan2(verts[i][2], 1.0)/ MT_PI * 2;
-
-/*
-		if(verts[i][2] > 0.5)
-			verts[i][2] = 0.5;
-		else if(verts[i][2] < -0.5)
-			verts[i][2] = -0.5;
-//*/
+		verts[i][2] = atan2(verts[i][2], 1.0);
+		verts[i][2] /= MT_PI / 2;
 	}
+	if(edge){
+		bool right=false;
 
+		for (i=0;i<3;i++){
+			if(fmod(verts[i][0],1.0) > 0.0){
+				right=true;
+				break;
+			}
+		}
+		if(right){
+			for (i=0;i<3;i++){
+				if(verts[i][0] < 0.0)
+					verts[i][0] *= -1.0;
+			}
+		}
+	}
 }
 
 void KX_Dome::SplitFace(vector <DomeFace>& face, int *nfaces)
@@ -1160,9 +1274,9 @@ void KX_Dome::SplitFace(vector <DomeFace>& face, int *nfaces)
 
 void KX_Dome::CalculateFrustum(KX_Camera * m_camera)
 {
+	/*
 	//  manually creating a 90º Field of View Frustum 
 
-	/*
 	 the original formula:
 	top = tan(fov*3.14159/360.0) * near [for fov in degrees]
 	fov*0.5 = arctan ((top-bottom)*0.5 / near) [for fov in radians]
@@ -1187,26 +1301,30 @@ void KX_Dome::CalculateFrustum(KX_Camera * m_camera)
 	m_projmat = m_rasterizer->GetFrustumMatrix(
 	m_frustrum.x1, m_frustrum.x2, m_frustrum.y1, m_frustrum.y2, m_frustrum.camnear, m_frustrum.camfar);
 
-	m_camera->SetProjectionMatrix(m_projmat); //this can be moved somewhere else to be runned while rendering
+//	m_camera->SetProjectionMatrix(m_projmat);
 
 	/*
 //	the glu call:
+
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(90.0,1.0,m_camera->GetCameraNear(),m_camera->GetCameraFar());
-	/**/
+	*/
 }
 
 void KX_Dome::CalculateCameraOrientation()
 {
 /*
 Uses 4 cameras for angles up to 180º
-Uses 5 camera for angles up to 250 º
+Uses 5 cameras for angles up to 250 º
+Uses 6 cameras for angles up to 360 º
 */
 	float deg45 = MT_PI / 4;
 	float deg135 = 3 * deg45;
 	MT_Scalar c = cos(deg45);
 	MT_Scalar s = sin(deg45);
+	MT_Scalar c135 = cos(-deg135);
+	MT_Scalar s135 = sin(-deg135);
 
 	if ((m_mode == DOME_FISHEYE && m_angle <= 180)|| m_mode == DOME_TRUNCATED || m_mode == DOME_WARPED){
 
@@ -1229,6 +1347,16 @@ Uses 5 camera for angles up to 250 º
 						c, 0.0, -s,
 						0.0, 1.0, 0.0,
 						s, 0.0, c);
+
+		m_locRot[4] = MT_Matrix3x3( // 135º - Left - for panorama
+						-s, 0.0, c,
+						0, 1.0, 0.0,
+						-c, 0.0, -s);
+
+		m_locRot[5] = MT_Matrix3x3( // 135º - Right - for panorama
+						-s, 0.0, -c,
+						0.0, 1.0, 0.0,
+						c, 0.0, -s);
 
 	}else if ((m_mode == DOME_FISHEYE && m_angle > 180)||m_mode == DOME_OFFSET){
 	//WIP
@@ -1264,25 +1392,36 @@ Uses 5 camera for angles up to 250 º
 
 	} else if (m_mode == DOME_PANORAM_SPH){
 
-		m_locRot[0] = MT_Matrix3x3( // 135º - Left
+		m_locRot[0] = MT_Matrix3x3( // Top 
+						c, s, 0.0,
+						0.0,0.0, -1.0,
+						-s, c, 0.0);
+
+		m_locRot[1] = MT_Matrix3x3( // Bottom
+						c, s, 0.0,
+						0.0 ,0.0, 1.0,
+						s, -c, 0.0);
+
+		m_locRot[2] = MT_Matrix3x3( // 45º - Left
 						-s, 0.0, c,
 						0, 1.0, 0.0,
 						-c, 0.0, -s);
 
-		m_locRot[1] = MT_Matrix3x3( // 45º - Left
+		m_locRot[3] = MT_Matrix3x3( // 45º - Right
 						c, 0.0, s,
 						0, 1.0, 0.0,
 						-s, 0.0, c);
 
-		m_locRot[2] = MT_Matrix3x3( // 45º - Right
+		m_locRot[4] = MT_Matrix3x3( // 135º - LeftBack
+						-s, 0.0, -c,
+						0.0, 1.0, 0.0,
+						c, 0.0, -s);
+
+		m_locRot[5] = MT_Matrix3x3( // 135º - RightBack
 						c, 0.0, -s,
 						0.0, 1.0, 0.0,
 						s, 0.0, c);
 
-		m_locRot[3] = MT_Matrix3x3( // 135º - Right
-						-s, 0.0, -c,
-						0.0, 1.0, 0.0,
-						c, 0.0, -s);
 	} else {
 		m_locRot[0] = MT_Matrix3x3( // 90º - Top
 						0.0,-1.0, 0.0,
@@ -1339,9 +1478,11 @@ void KX_Dome::RotateCamera(KX_Camera* m_camera, int i)
 
 void KX_Dome::Draw(void)
 {
-	/* XXX
-	I think the best solution here is to calculate the framing and other stuffs beforehand,
-	*/
+//	printf("Drawing Mode: %d\n", m_drawingmode);
+//	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+//		printf("WIREFRAME !!!!!\n");
+//	else
+//		printf("Boring MODE !!!\n");
 	switch(m_mode){
 		case DOME_FISHEYE:
 			DrawDomeFisheye();
@@ -1352,10 +1493,10 @@ void KX_Dome::Draw(void)
 		case DOME_PANORAM_SPH:
 			DrawPanorama();
 			break;
-		case DOME_OFFSET:
+		case DOME_OFFSET://not implemented
 			DrawDomeFisheye();
 			break;
-		case DOME_WARPED: //tmp
+		case DOME_WARPED: //not implemented
 			DrawDomeTmp();
 			break;
 		default:
@@ -1447,7 +1588,7 @@ void KX_Dome::DrawDomeFisheye(void)
 			glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
 			GLDrawTriangles(cubefront, nfacesfront);
 		}
-		if (m_angle > 250){
+		if (m_angle > 250){//not using this
 			// backtriangle
 			glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
 			GLDrawTriangles(cubeback, nfacesback);
@@ -1473,12 +1614,12 @@ void KX_Dome::DrawPanorama(void)
 	float ortho_width = 1.0;
 
 	//using all the screen
-	if ((can_width / 4) <= (can_height)){
+	if ((can_width / 2) <= (can_height)){
 		ortho_width = 1.0;
 		ortho_height = (float)can_height/can_width;
 	}else{
-		ortho_width = (float)can_width/can_height * 0.75;
-		ortho_height = 0.75;
+		ortho_width = (float)can_width/can_height * 0.5;
+		ortho_height = 0.5;
 	}
 
 	ortho_width /= m_size;
@@ -1492,10 +1633,8 @@ void KX_Dome::DrawPanorama(void)
 
 	glDisable(GL_DEPTH_TEST);
 
-	//I'm culling because there are some faces backwarded
-	glEnable(GL_CULL_FACE);
-	glCullFace(GL_BACK);
-	glPolygonMode(GL_BACK, GL_LINE);
+//	glPolygonMode(GL_BACK, GL_LINE);
+//	glPolygonMode(GL_FRONT, GL_LINE);
 	glPolygonMode(GL_FRONT, GL_FILL);
 	glShadeModel(GL_SMOOTH);
 	glDisable(GL_LIGHTING);
@@ -1511,21 +1650,29 @@ void KX_Dome::DrawPanorama(void)
 		}
 	}
 	else {
-		// domefacesId[1] => -45º (left)
+		// domefacesId[4] =>  (top)
+		glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
+			GLDrawTriangles(cubetop, nfacestop);
+
+		// domefacesId[5] =>  (bottom)
 		glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
+			GLDrawTriangles(cubebottom, nfacesbottom);
+
+		// domefacesId[1] => -45º (left)
+		glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
 			GLDrawTriangles(cubeleft, nfacesleft);
 
 		// domefacesId[2] => 45º (right)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
+		glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
 			GLDrawTriangles(cuberight, nfacesright);
 
-		// domefacesId[3] => 135º (rightback)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
-			GLDrawTriangles(cuberightback, nfacesrightback);
-
 		// domefacesId[0] => -135º (left)
-		glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
+		glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
 			GLDrawTriangles(cubeleftback, nfacesleftback);
+
+		// domefacesId[3] => 135º (rightback)
+		glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
+			GLDrawTriangles(cuberightback, nfacesrightback);
 	}
 	glDisable(GL_TEXTURE_2D);
 	glEnable(GL_DEPTH_TEST);
@@ -1533,20 +1680,13 @@ void KX_Dome::DrawPanorama(void)
 
 void KX_Dome::BindImages(int i)
 {
-	RAS_Rect canvas_rect = m_canvas->GetWindowArea();
-	int left = canvas_rect.GetLeft();
-	int bottom = canvas_rect.GetBottom();
-
-	left += m_imagesize;
-	bottom  += m_imagesize;
-
+/*
+todo: I'm copying more than I need.
+I would like to change glCopyTexImage by glCopyTexSubImage but I couldn't make it work.
+the copy size can be only m_buffersize
+*/
 	glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
 	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_viewport.GetLeft(), m_viewport.GetBottom(), m_imagesize, m_imagesize, 0); //XXX WORKS
-
-//	printf("\nm_viewport.GetBottom(): %d\n", m_viewport.GetBottom());
-//	printf("m_viewport.GetLeft(): %d\n", m_viewport.GetLeft());
-//	printf("canvas_rect.GetBottom(): %d\n", bottom);
-//	printf("canvas_rect.GetLeft(): %d\n", left);
 }
 
 void KX_Dome::SetViewPort(GLuint viewport[4])
@@ -1566,24 +1706,17 @@ void KX_Dome::SetViewPort(GLuint viewport[4])
 
 void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 {
-	bool override_camera;
-//	RAS_Rect viewport, area;
-	float left, right, bottom, top, nearfrust, farfrust, focallength;
-	const float ortho = 100.0;
-	float m_cameraZoom = 1.0; //tmp
-//	KX_Camera* cam = scene->GetActiveCamera();
-	
 	if (!cam)
 		return;
 
-//	m_canvas->SetViewPort(0,0,m_imagesize-1,m_imagesize-1);
 	m_canvas->SetViewPort(0,0,m_buffersize,m_buffersize);
-//	m_canvas->SetViewPort(m_viewport.GetLeft(), m_viewport.GetBottom(), m_buffersize,m_buffersize);
-	// see KX_BlenderMaterial::Activate
+
 	//m_rasterizer->SetAmbient();
 	m_rasterizer->DisplayFog();
-	
-	CalculateFrustum(cam);
+
+	CalculateFrustum(cam); //calculates m_projmat
+	cam->SetProjectionMatrix(m_projmat);
+	m_rasterizer->SetProjectionMatrix(cam->GetProjectionMatrix());
 //	Dome_RotateCamera(cam,i);
 
 	MT_Matrix3x3 camori = cam->GetSGNode()->GetLocalOrientation();
@@ -1597,38 +1730,20 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 		cam->GetCameraLocation(), cam->GetCameraOrientation());
 	cam->SetModelviewMatrix(viewmat);
 
-//	scene->UpdateMeshTransformations();//I need to run it somewherelse, otherwise Im overrunning it
-
-	// The following actually reschedules all vertices to be
-	// redrawn. There is a cache between the actual rescheduling
-	// and this call though. Visibility is imparted when this call
-	// runs through the individual objects.
-
-//	MT_Transform camtrans(cam->GetWorldToCamera());
-
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
-
 	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 	
-		// restore the original orientation
+	// restore the original orientation
 	cam->NodeSetLocalOrientation(camori);
 	cam->NodeUpdateGS(0.f,true);
 }
-/*
-void KX_Dome::clearBuffer(int i){
-	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
-}
-*/
 
 void KX_Dome::DrawDomeTmp(void)
 {
-	//Skybox => 4 images
-//	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
 	// Making the viewport always square 
-
 	int can_width = m_viewport.GetRight();
 	int can_height = m_viewport.GetTop();
 
