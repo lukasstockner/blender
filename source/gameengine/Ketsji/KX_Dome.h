@@ -40,9 +40,7 @@ Developed as part of a Research and Development project for SAT - La Société des
 #define DOME_FISHEYE		1
 #define DOME_TRUNCATED		2
 #define DOME_PANORAM_SPH	3
-#define DOME_WARPED			4
-#define DOME_OFFSET			5
-#define DOME_NUM_MODES		6
+#define DOME_NUM_MODES		4
 
 
 /// class for render 3d scene
@@ -92,11 +90,10 @@ public:
 	void RenderDome(void);
 	void RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i);
 	void BindImages(int i);
-//	void clearBuffer(int i);
 
 	void SetViewPort(GLuint viewport[4]);
-	void CalculateFrustum(KX_Camera* m_camera);
-	void RotateCamera(KX_Camera* m_camera, int i);
+	void CalculateFrustum(KX_Camera* cam);
+	void RotateCamera(KX_Camera* cam, int i);
 
 	//Mesh  Creating Functions
 	void CreateMeshDome180(void);
@@ -114,8 +111,6 @@ public:
 
 	void DrawDomeFisheye(void);
 	void DrawPanorama(void);
-	void DrawDomeTmp(void); //XXX
-	//	void DrawDomeWarped(void); //not using yet
 
 	//setting up openGL
 	void CreateGLImages(void);
@@ -128,28 +123,30 @@ public:
 
 	int canvaswidth;
 	int canvasheight;
-	int m_buffersize;
 
 protected:
 	int m_drawingmode;
 
 	int m_imagesize;
+	int m_buffersize;	// canvas small dimension
 	int m_numfaces;		// 4 to 6 depending on the kind of dome image
 	
 	float m_size;		// size to adjust
 	short m_resolution;	//resolution to tesselate the mesh
 	short m_mode;		// the mode (truncated, warped, panoramic,...)
 	short m_angle;		//the angle of the fisheye
+	float m_radangle;	//the angle of the fisheye in radians
 	float m_resbuffer;	//the resolution of the buffer
 	
 	RAS_Rect m_viewport;
-	
+
+	MT_Matrix4x4 m_projmat;
+
+	MT_Matrix3x3 m_locRot [6];// the rotation matrix
+
 	/// rendered scene
 	KX_Scene * m_scene;
-	/// camera for render
-	KX_Camera * m_camera;
 
-	float m_clip;		// clipping distance
     /// canvas
     RAS_ICanvas* m_canvas;
     /// rasterizer
@@ -158,10 +155,6 @@ protected:
     RAS_IRenderTools* m_rendertools;
     /// engine
     KX_KetsjiEngine* m_engine;
-
-	MT_Matrix4x4 m_projmat; // this is nice
-
-	MT_Matrix3x3 m_locRot [6];//the rotation matrix - room for 6 elements, using only 4 sometimes
 };
 
 #endif
