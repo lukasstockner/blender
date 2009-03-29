@@ -1300,7 +1300,7 @@ Uses 6 cameras for angles up to 360º
 
 void KX_Dome::RotateCamera(KX_Camera* cam, int i)
 {
-// I'm not using it, I'm doing inline call for these commands
+// I'm not using it, I'm doing inline calls for these commands
 // but it's nice to have it here in case I need it
 
 	MT_Matrix3x3 camori = cam->GetSGNode()->GetLocalOrientation();

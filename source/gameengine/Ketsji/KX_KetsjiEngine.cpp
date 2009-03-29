@@ -145,6 +145,8 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_stereo(false),
 	m_curreye(0),
 
+	m_usedome(false),
+
 	m_logger(NULL),
 	
 	// Set up timing info display variables
@@ -180,7 +182,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 KX_KetsjiEngine::~KX_KetsjiEngine()
 {
 	delete m_logger;
-	if(usedome)
+	if(m_usedome)
 		delete m_dome;
 }
 
@@ -262,7 +264,7 @@ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter* sceneconverter)
 void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle, float resbuf)
 {
 	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle, resbuf);
-	usedome = true;
+	m_usedome = true;
 }
 
 void KX_KetsjiEngine::RenderDome()
@@ -739,7 +741,7 @@ else
 
 void KX_KetsjiEngine::Render()
 {
-	if(usedome){
+	if(m_usedome){
 		RenderDome();
 		return;
 	}

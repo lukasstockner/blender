@@ -37,7 +37,6 @@
 #include "KX_Scene.h"
 #include "KX_Python.h"
 #include "KX_WorldInfo.h"
-#include "RAS_IRasterizer.h"
 #include <vector>
 #include <set>
 
@@ -214,7 +213,7 @@ public:
 	void			InitDome(float size, short res, short mode, short angle, float resbuf); 
 	void			EndDome();
 	void			RenderDome();
-	bool			usedome;
+	bool			m_usedome;
 
 	///returns true if an update happened to indicate -> Render
 	bool			NextFrame();

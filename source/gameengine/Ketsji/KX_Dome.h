@@ -108,7 +108,6 @@ public:
 	//Draw functions
 	void GLDrawTriangles(vector <DomeFace>& face, int nfaces);
 	void Draw(void);
-
 	void DrawDomeFisheye(void);
 	void DrawPanorama(void);
 
