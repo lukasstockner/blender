@@ -49,7 +49,8 @@ KX_Dome::KX_Dome (
 	short res,		//resolution of the mesh
 	short mode,		//mode - fisheye, truncated, warped, panoramic, ...
 	short angle,
-	float resbuf	//size adjustment of the buffer
+	float resbuf,	//size adjustment of the buffer
+	struct Text* warptext
 
 ):
 	m_canvas(canvas),
@@ -65,9 +66,22 @@ KX_Dome::KX_Dome (
 	canvaswidth(-1), canvasheight(-1),
 	dlistSupported(false)
 {
-	if (mode > DOME_NUM_MODES)
+	warp.usemesh = false;
+
+	if (mode >= DOME_NUM_MODES)
 		m_mode = DOME_FISHEYE;
-	
+
+	if (warptext) // it there is a text data try to warp it
+	{
+		char *buf;
+		buf = txt_to_buf(warptext);
+		if (buf)
+		{
+			warp.usemesh = ParseWarpMesh(STR_String(buf));
+			MEM_freeN(buf);
+		}
+	}
+
 	//setting the viewport size
 	GLuint	viewport[4]={0};
 	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
@@ -118,33 +132,58 @@ KX_Dome::KX_Dome (
 			break;
 	}
 
+	m_numimages =(warp.usemesh?m_numfaces+1:m_numfaces);
+
 	CalculateCameraOrientation();
 
 	CreateGLImages();
 
-	//openGL check 
-	if(GLEW_VERSION_1_1){
-		dlistSupported = true;
-		CreateDL();
-	}
+	dlistSupported = CreateDL();
 }
 
 // destructor
 KX_Dome::~KX_Dome (void)
 {
+	GLuint m_numimages = m_numfaces;
+
 	ClearGLImages();
 
 	if(dlistSupported)
-		glDeleteLists(dlistId, (GLsizei) m_numfaces);
+		glDeleteLists(dlistId, (GLsizei) m_numimages);
 }
 
-void KX_Dome::CreateGLImages(void){
-	glGenTextures(m_numfaces, (GLuint*)&domefacesId);
+void KX_Dome::SetViewPort(GLuint viewport[4])
+{
+	if(canvaswidth != m_canvas->GetWidth() || canvasheight != m_canvas->GetHeight())
+	{
+		m_viewport.SetLeft(viewport[0]); 
+		m_viewport.SetBottom(viewport[1]);
+		m_viewport.SetRight(viewport[2]);
+		m_viewport.SetTop(viewport[3]);
+
+		CalculateImageSize();
+	}
+}
+
+void KX_Dome::CreateGLImages(void)
+{
+	glGenTextures(m_numimages, (GLuint*)&domefacesId);
 
 	for (int j=0;j<m_numfaces;j++){
 		glBindTexture(GL_TEXTURE_2D, domefacesId[j]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16, m_imagesize, m_imagesize, 0, GL_RGBA,
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, m_imagesize, m_imagesize, 0, GL_RGB8,
 				GL_UNSIGNED_BYTE, 0);
+		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, m_imagesize, m_imagesize, 0);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	}
+	if(warp.usemesh){
+		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, warp.imagewidth, warp.imageheight, 0, GL_RGB8,
+				GL_UNSIGNED_BYTE, 0);
+		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, warp.imagewidth, warp.imageheight, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -154,9 +193,9 @@ void KX_Dome::CreateGLImages(void){
 
 void KX_Dome::ClearGLImages(void)
 {
-	glDeleteTextures(m_numfaces, (GLuint*)&domefacesId);
+	glDeleteTextures(m_numimages, (GLuint*)&domefacesId);
 /*
-	for (int i=0;i<m_numfaces;i++)
+	for (int i=0;i<m_numimages;i++)
 		if(glIsTexture(domefacesId[i]))
 			glDeleteTextures(1, (GLuint*)&domefacesId[i]);
 */
@@ -180,12 +219,27 @@ void KX_Dome::CalculateImageSize(void)
 	while ((1 << i) <= m_buffersize)
 		i++;
 	m_imagesize = (1 << i);
+
+	if (warp.usemesh){
+		warp.bufferwidth = canvaswidth;
+		warp.bufferheight = canvasheight;
+
+		i = 0;
+		while ((1 << i) <= warp.bufferwidth)
+			i++;
+		warp.imagewidth = (1 << i);
+
+		i = 0;
+		while ((1 << i) <= warp.bufferheight)
+			i++;
+		warp.imageheight = (1 << i);
+	}
 }
 
-void KX_Dome::CreateDL(){
+bool KX_Dome::CreateDL(){
 	int i,j;
 
-	dlistId = glGenLists((GLsizei) m_numfaces);
+	dlistId = glGenLists((GLsizei) m_numimages);
 	if (dlistId != 0) {
 		if(m_mode == DOME_FISHEYE || m_mode == DOME_TRUNCATED){
 			glNewList(dlistId, GL_COMPILE);
@@ -210,8 +264,8 @@ void KX_Dome::CreateDL(){
 				glEndList();
 			}
 		}
-		else if (m_mode == DOME_PANORAM_SPH){
-
+		else if (m_mode == DOME_PANORAM_SPH)
+		{
 			glNewList(dlistId, GL_COMPILE);
 				GLDrawTriangles(cubetop, nfacestop);
 			glEndList();
@@ -236,6 +290,13 @@ void KX_Dome::CreateDL(){
 				GLDrawTriangles(cuberightback, nfacesrightback);
 			glEndList();
 		}
+
+		if(warp.usemesh){
+			glNewList((dlistId + m_numfaces), GL_COMPILE);
+				GLDrawWarpQuads();
+			glEndList();
+		}
+
 		//clearing the vectors 
 		cubetop.clear();
 		cubebottom.clear();
@@ -244,9 +305,12 @@ void KX_Dome::CreateDL(){
 		cubefront.clear();
 		cubeleftback.clear();
 		cuberightback.clear();
+		warp.nodes.clear();
 
 	} else // genList failed
-		dlistSupported = false;
+		return false;
+
+	return true;
 }
 
 void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
@@ -261,6 +325,148 @@ void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
 		}
 	glEnd();
 }
+
+void KX_Dome::GLDrawWarpQuads(void)
+{
+	int i, j, i2;
+	float uv_width = (float)warp.bufferwidth / warp.imagewidth;
+	float uv_height = (float)warp.bufferheight / warp.imageheight;
+
+	if(warp.mode ==2 ){
+		glBegin(GL_QUADS);
+		for (i=0;i<warp.n_height-1;i++) {
+			for (j=0;j<warp.n_width-1;j++) {
+				if(warp.nodes[i][j].i < 0 || warp.nodes[i+1][j].i < 0 || warp.nodes[i+1][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
+					continue;
+
+				glColor3f(warp.nodes[i][j].i, warp.nodes[i][j].i, warp.nodes[i][j].i);
+				glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
+				glVertex3f(warp.nodes[i][j].x, warp.nodes[i][j].y,0.0);
+
+				glColor3f(warp.nodes[i+1][j].i, warp.nodes[i+1][j].i, warp.nodes[i+1][j].i);
+				glTexCoord2f((warp.nodes[i+1][j].u * uv_width), (warp.nodes[i+1][j].v * uv_height));
+				glVertex3f(warp.nodes[i+1][j].x, warp.nodes[i+1][j].y,0.0);
+
+				glColor3f(warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i, warp.nodes[i+1][j+1].i);
+				glTexCoord2f((warp.nodes[i+1][j+1].u * uv_width), (warp.nodes[i+1][j+1].v * uv_height));
+				glVertex3f(warp.nodes[i+1][j+1].x, warp.nodes[i+1][j+1].y,0.0);
+
+				glColor3f(warp.nodes[i][j+1].i, warp.nodes[i][j+1].i, warp.nodes[i][j+1].i);
+				glTexCoord2f((warp.nodes[i][j+1].u * uv_width), (warp.nodes[i][j+1].v * uv_height));
+				glVertex3f(warp.nodes[i][j+1].x, warp.nodes[i][j+1].y,0.0);
+			}
+		}
+		glEnd();
+	}
+	else if (warp.mode == 1){
+		glBegin(GL_QUADS);
+		for (i=0;i<warp.n_height-1;i++) {
+			for (j=0;j<warp.n_width-1;j++) {
+				i2 = (i+1) % warp.n_width; // Wrap around, i = warp.n_width = 0
+
+				if (warp.nodes[i][j].i < 0 || warp.nodes[i2][j].i < 0 || warp.nodes[i2][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
+					continue;
+
+				 glColor3f(warp.nodes[i][j].i,warp.nodes[i][j].i,warp.nodes[i][j].i);
+				 glTexCoord2f((warp.nodes[i][j].u * uv_width), (warp.nodes[i][j].v * uv_height));
+				 glVertex3f(warp.nodes[i][j].x,warp.nodes[i][j].y,0.0);
+
+				 glColor3f(warp.nodes[i2][j].i,warp.nodes[i2][j].i,warp.nodes[i2][j].i);
+				 glTexCoord2f((warp.nodes[i2][j].u * uv_width), (warp.nodes[i2][j].v * uv_height));
+				 glVertex3f(warp.nodes[i2][j].x,warp.nodes[i2][j].y,0.0);
+
+				 glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
+				 glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
+				 glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
+
+				 glColor3f(warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i,warp.nodes[i2][j+1].i);
+				 glTexCoord2f((warp.nodes[i2][j+1].u * uv_width), (warp.nodes[i2][j+1].v * uv_height));
+				 glVertex3f(warp.nodes[i2][j+1].x,warp.nodes[i2][j+1].y,0.0);
+
+			}
+		}
+		glEnd();
+	} else{
+		printf("Error: Warp Mode unsupported. Try 1 for Polar Mesh or 2 for Fisheye.\n");
+	}
+}
+
+
+bool KX_Dome::ParseWarpMesh(STR_String text)
+{
+/*
+//Notes about the supported data format:
+File example::
+	mode
+	width height
+	n0_x n0_y n0_u n0_v n0_i
+	n1_x n1_y n1_u n1_v n1_i
+	n2_x n1_y n2_u n2_v n2_i
+	n3_x n3_y n3_u n3_v n3_i
+	(...)
+First line is the image type the mesh is support to be applied to: 2 = fisheye, 1=radial
+Tthe next line has the mesh dimensions
+Rest of the lines are the nodes of the mesh. Each line has x y u v i
+  (x,y) are the normalised screen coordinates
+  (u,v) texture coordinates
+  i a multiplicative intensity factor
+
+x varies from -screen aspect to screen aspect
+y varies from -1 to 1
+u and v vary from 0 to 1
+i ranges from 0 to 1, if negative don't draw that mesh node
+*/
+	int i,j,k;
+	int nodeX=0, nodeY=0;
+
+	vector<STR_String> columns, lines;
+
+	lines = text.Explode('\n');
+	if(lines.size() < 6){
+		printf("Error: Warp Mesh File with insufficient data!\n");
+		return false;
+	}
+	columns = lines[1].Explode(' ');
+
+	if(columns.size() !=2){
+		printf("Error: Warp Mesh File incorrect. The second line should contain: width height.\n");
+		return false;
+	}
+
+	warp.mode = atoi(lines[0]);// 1 = radial, 2 = fisheye
+
+	warp.n_width = atoi(columns[0]);
+	warp.n_height = atoi(columns[1]);
+
+	if (lines.size() < 2 + (warp.n_width * warp.n_height)){
+		printf("Error: Warp Mesh File with insufficient data!\n");
+		return false;
+	}else{
+		warp.nodes = vector<vector <WarpMeshNode>> (warp.n_height, vector<WarpMeshNode>(warp.n_width));
+
+		for(i=2; i-2 < (warp.n_width*warp.n_height); i++){
+			columns = lines[i].Explode(' ');
+
+			if (columns.size() == 5){
+				nodeX = (i-2)%warp.n_width;
+				nodeY = ((i-2) - nodeX) / warp.n_width;
+
+				warp.nodes[nodeY][nodeX].x = atof(columns[0]);
+				warp.nodes[nodeY][nodeX].y = atof(columns[1]);
+				warp.nodes[nodeY][nodeX].u = atof(columns[2]);
+				warp.nodes[nodeY][nodeX].v = atof(columns[3]);
+				warp.nodes[nodeY][nodeX].i = atof(columns[4]);
+			}
+			else{
+				warp.nodes.clear();
+				printf("Error: Warp Mesh File with wrong number of fields. You should use 5: x y u v i.\n");
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
 void KX_Dome::CreateMeshDome180(void)
 {
 /*
@@ -1321,6 +1527,7 @@ void KX_Dome::RotateCamera(KX_Camera* cam, int i)
 
 void KX_Dome::Draw(void)
 {
+
 	switch(m_mode){
 		case DOME_FISHEYE:
 			DrawDomeFisheye();
@@ -1331,6 +1538,13 @@ void KX_Dome::Draw(void)
 		case DOME_PANORAM_SPH:
 			DrawPanorama();
 			break;
+	}
+
+	if(warp.usemesh)
+	{
+		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
+		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_viewport.GetLeft(), m_viewport.GetBottom(), warp.bufferwidth+1, warp.bufferheight+1);
+		DrawDomeWarped();
 	}
 }
 
@@ -1349,15 +1563,17 @@ void KX_Dome::DrawDomeFisheye(void)
 
 	float ortho_width, ortho_height;
 
-	if (m_mode == DOME_TRUNCATED){
-			ortho_width = 1.0;
-			ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
-			
-			ortho_width /= m_size;
-			ortho_height /= m_size;
+	if (warp.usemesh)
+		glOrtho((-1.0), 1.0, (-1.0), 1.0, -20.0, 10.0); //stretch the image to reduce resolution lost
 
-			glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_width, -20.0, 10.0);
-			
+	else if(m_mode == DOME_TRUNCATED){
+		ortho_width = 1.0;
+		ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
+		
+		ortho_width /= m_size;
+		ortho_height /= m_size;
+
+		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_width, -20.0, 10.0);
 	} else {
 		if (can_width < can_height){
 			ortho_width = 1.0;
@@ -1439,19 +1655,24 @@ void KX_Dome::DrawPanorama(void)
 	float ortho_height = 1.0;
 	float ortho_width = 1.0;
 
-	//using all the screen
-	if ((can_width / 2) <= (can_height)){
-		ortho_width = 1.0;
-		ortho_height = (float)can_height/can_width;
-	}else{
-		ortho_width = (float)can_width/can_height * 0.5;
-		ortho_height = 0.5;
-	}
+	if (warp.usemesh)
+		glOrtho((-1.0), 1.0, (-0.5), 0.5, -20.0, 10.0); //stretch the image to reduce resolution lost
 
-	ortho_width /= m_size;
-	ortho_height /= m_size;
-	
-	glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
+	else {
+		//using all the screen
+		if ((can_width / 2) <= (can_height)){
+			ortho_width = 1.0;
+			ortho_height = (float)can_height/can_width;
+		}else{
+			ortho_width = (float)can_width/can_height * 0.5;
+			ortho_height = 0.5;
+		}
+
+		ortho_width /= m_size;
+		ortho_height /= m_size;
+		
+		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
+	}
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
@@ -1506,28 +1727,62 @@ void KX_Dome::DrawPanorama(void)
 	glEnable(GL_DEPTH_TEST);
 }
 
-void KX_Dome::BindImages(int i)
+void KX_Dome::DrawDomeWarped(void)
 {
-/*
-todo: I'm copying more than I need.
-I would like to change glCopyTexImage by glCopyTexSubImage but I couldn't make it work.
-the copy size can be only m_buffersize
-*/
-	glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
-	glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, m_viewport.GetLeft(), m_viewport.GetBottom(), m_imagesize, m_imagesize, 0);
+	int i,j;
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	// Making the viewport always square 
+	int can_width = m_viewport.GetRight();
+	int can_height = m_viewport.GetTop();
+
+	double screen_ratio = can_width/ (double) can_height;	
+	screen_ratio /= m_size;
+
+    glOrtho(-screen_ratio,screen_ratio,-1.0,1.0,-20.0,10.0);
+
+
+	glMatrixMode(GL_TEXTURE);
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);
+
+	if(m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
+		glPolygonMode(GL_FRONT, GL_LINE);
+	else
+		glPolygonMode(GL_FRONT, GL_FILL);
+
+	glShadeModel(GL_SMOOTH);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+
+	glEnable(GL_TEXTURE_2D);
+	glColor3f(1.0,1.0,1.0);
+
+
+	float uv_width = (float)warp.bufferwidth / warp.imagewidth;
+	float uv_height = (float)warp.bufferheight / warp.imageheight;
+
+	if (dlistSupported){
+		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
+		glCallList(dlistId + m_numfaces);
+	}
+	else{
+		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
+		GLDrawWarpQuads();
+	}
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_DEPTH_TEST);
 }
 
-void KX_Dome::SetViewPort(GLuint viewport[4])
+void KX_Dome::BindImages(int i)
 {
-	if(canvaswidth != m_canvas->GetWidth() || canvasheight != m_canvas->GetHeight())
-	{
-		m_viewport.SetLeft(viewport[0]); 
-		m_viewport.SetBottom(viewport[1]);
-		m_viewport.SetRight(viewport[2]);
-		m_viewport.SetTop(viewport[3]);
-
-		CalculateImageSize();
-	}
+	glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_viewport.GetLeft(), m_viewport.GetBottom(), m_buffersize+1, m_buffersize+1);
 }
 
 void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
@@ -1537,7 +1792,7 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 
 	m_canvas->SetViewPort(0,0,m_buffersize,m_buffersize);
 
-	//m_rasterizer->SetAmbient();
+//	m_rasterizer->SetAmbient();
 	m_rasterizer->DisplayFog();
 
 	CalculateFrustum(cam); //calculates m_projmat

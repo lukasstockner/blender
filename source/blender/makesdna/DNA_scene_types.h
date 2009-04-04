@@ -45,6 +45,7 @@ struct World;
 struct Scene;
 struct Image;
 struct Group;
+struct Text;
 struct bNodeTree;
 
 typedef struct Base {
@@ -320,6 +321,8 @@ typedef struct RenderData {
 	short domeangle, pad9;
 	float domesize;
 	float domeresbuf;
+	struct Text *dometext;
+
 } RenderData;
 
 /* control render convert and shading engine */

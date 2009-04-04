@@ -1766,13 +1766,13 @@ static uiBlock *edge_render_menu(void *arg_unused)
 static uiBlock *framing_render_menu(void *arg_unused)
 {
 	uiBlock *block;
-	short yco = 241, xco = 0;
+	short yco = 267, xco = 0;
 	int randomcolorindex = 1234;
 
 	block= uiNewBlock(&curarea->uiblocks, "framing_options", UI_EMBOSS, UI_HELV, curarea->win);
 
 	/* use this for a fake extra empy space around the buttons */
-	uiDefBut(block, LABEL, 0, "",			-5, -10, 295, 275, NULL, 0, 0, 0, 0, "");
+	uiDefBut(block, LABEL, 0, "",			-5, -10, 295, 300, NULL, 0, 0, 0, 0, "");
 
 	uiDefBut(block, LABEL, 0, "Framing:", xco, yco, 68,19, 0, 0, 0, 0, 0, "");
 	uiBlockBeginAlign(block);
@@ -1834,6 +1834,8 @@ static uiBlock *framing_render_menu(void *arg_unused)
 	uiDefButF(block, NUM, 0, "Size:",		xco-=180, yco-=21, 88, 19, &G.scene->r.domesize, 0.5, 3.5, 0, 0, "Size adjustments");
 	uiDefButS(block, NUM, 0, "Tes:",		xco+=90, yco, 88, 19, &G.scene->r.domeres, 1.0, 8.0, 0, 0, "Tesselation level - 1 to 8");
 	uiDefButF(block, NUM, 0, "Res:",	xco+=90, yco, 88, 19, &G.scene->r.domeresbuf, 0.1, 1.0, 0, 0, "Buffer Resolution - decrease it to increase speed");
+
+	uiDefIDPoinBut(block, test_scriptpoin_but, ID_SCRIPT, 1, "Warp Data: ", xco-180,yco-=21,268, 19, &G.scene->r.dometext, "Custom Warp Mesh data file");
 	uiBlockEndAlign(block);
 
 	uiBlockSetDirection(block, UI_TOP);

@@ -261,15 +261,14 @@ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter* sceneconverter)
 	m_sceneconverter = sceneconverter;
 }
 
-void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle, float resbuf)
+void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle, float resbuf, struct Text* text)
 {
-	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle, resbuf);
+	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle, resbuf, text);
 	m_usedome = true;
 }
 
 void KX_KetsjiEngine::RenderDome()
 {
-
 	GLuint	viewport[4]={0};
 	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
 //	unsigned int m_viewport[4] = {viewport[0], viewport[1], viewport[2], viewport[3]};

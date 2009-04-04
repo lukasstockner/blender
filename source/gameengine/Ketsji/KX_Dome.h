@@ -36,6 +36,10 @@ Developed as part of a Research and Development project for SAT - La Société des
 #include <BIF_gl.h>
 #include <vector>
 
+#include "MEM_guardedalloc.h"
+#include "BKE_text.h"
+//#include "BLI_blenlib.h"
+
 //Dome modes: limit hardcoded in buttons_scene.c
 #define DOME_FISHEYE		1
 #define DOME_TRUNCATED		2
@@ -61,7 +65,8 @@ public:
 	short res,
 	short mode,
 	short angle,
-	float resbuf
+	float resbuf,
+	struct Text* warptext
 	);
 
 	/// destructor
@@ -71,7 +76,7 @@ public:
 	bool	dlistSupported;
 
 	//openGL names:
-	GLuint domefacesId[6];		// ID of the images -- room for 6 images, using only 4 for 180º x 360º dome
+	GLuint domefacesId[7];		// ID of the images -- room for 7 images, using only 4 for 180º x 360º dome, 6 for panoramic and +1 for warp mesh
 	GLuint dlistId;				// ID of the Display Lists of the images (used as an offset)
 	
 	typedef struct {
@@ -79,7 +84,23 @@ public:
 		MT_Vector3 verts[3]; //three verts
 	} DomeFace;
 
-	vector <DomeFace> cubetop, cubebottom, cuberight, cubeleft, cubefront, cubeback; //for dome
+	//mesh warp functions
+	typedef struct {
+		double x, y, u, v, i;
+	} WarpMeshNode;
+
+	struct {
+		bool usemesh;
+		int mode;
+		int n_width, n_height; //nodes width and height
+		int imagewidth, imageheight;
+		int bufferwidth, bufferheight;
+		vector <vector <WarpMeshNode> > nodes;
+	} warp;
+
+	bool ParseWarpMesh(STR_String text);
+
+	vector <DomeFace> cubetop, cubebottom, cuberight, cubeleft, cubefront, cubeback; //for fisheye
 	vector <DomeFace> cubeleftback, cuberightback; //for panorama
 	
 	int nfacestop, nfacesbottom, nfacesleft, nfacesright, nfacesfront, nfacesback;
@@ -107,14 +128,16 @@ public:
 
 	//Draw functions
 	void GLDrawTriangles(vector <DomeFace>& face, int nfaces);
+	void GLDrawWarpQuads(void);
 	void Draw(void);
 	void DrawDomeFisheye(void);
 	void DrawPanorama(void);
+	void DrawDomeWarped(void);
 
 	//setting up openGL
 	void CreateGLImages(void);
 	void ClearGLImages(void);//called on resize
-	void CreateDL(void); //create Display Lists
+	bool CreateDL(void); //create Display Lists
 	void ClearDL(void);  //remove Display Lists 
 
 	void CalculateCameraOrientation();
@@ -129,6 +152,7 @@ protected:
 	int m_imagesize;
 	int m_buffersize;	// canvas small dimension
 	int m_numfaces;		// 4 to 6 depending on the kind of dome image
+	int m_numimages;	//numfaces +1 if we have warp mesh
 	
 	float m_size;		// size to adjust
 	short m_resolution;	//resolution to tesselate the mesh

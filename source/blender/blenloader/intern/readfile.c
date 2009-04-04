@@ -3531,7 +3531,9 @@ static void lib_link_scene(FileData *fd, Main *main)
 				srl->mat_override= newlibadr_us(fd, sce->id.lib, srl->mat_override);
 				srl->light_override= newlibadr_us(fd, sce->id.lib, srl->light_override);
 			}
-			
+			/*Game Settings: Dome Warp Text*/
+			sce->r.dometext= newlibadr_us(fd, sce->id.lib, sce->r.dometext);
+
 			sce->id.flag -= LIB_NEEDLINK;
 		}
 
@@ -8035,7 +8037,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
-	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 3)) {
+	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 4)) {
 		Scene *sce;
 
 		/*  Dome (Fisheye) default parameters  */
@@ -8854,7 +8856,9 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 		expand_doit(fd, mainvar, srl->mat_override);
 		expand_doit(fd, mainvar, srl->light_override);
 	}
-				
+
+	if(sce->r.dometext)
+		expand_doit(fd, mainvar, sce->r.dometext);
 }
 
 static void expand_camera(FileData *fd, Main *mainvar, Camera *ca)
