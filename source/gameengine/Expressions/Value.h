@@ -217,14 +217,14 @@ public:
 
 	CValue(PyTypeObject *T = &Type);
 	//static PyObject*	PyMake(PyObject*,PyObject*);
-	virtual PyObject *_repr(void)
+	virtual PyObject *py_repr(void)
 	{
 		return Py_BuildValue("s",(const char*)GetText());
 	}
 
 
 
-	virtual PyObject*			_getattr(const char *attr);
+	virtual PyObject*			py_getattro(PyObject *attr);
 
 	void	SpecialRelease()
 	{
@@ -251,8 +251,8 @@ public:
 	virtual CValue*	ConvertPythonToValue(PyObject* pyobj);
 
 
-	virtual int				_delattr(const char *attr);
-	virtual int				_setattr(const char *attr, PyObject* value);
+	virtual int				py_delattro(PyObject *attr);
+	virtual int				py_setattro(PyObject *attr, PyObject* value);
 	
 	virtual PyObject* ConvertKeysToPython( void );
 	
@@ -283,10 +283,12 @@ public:
 
 	/// Property Management
 	virtual void		SetProperty(const STR_String& name,CValue* ioProperty);						// Set property <ioProperty>, overwrites and releases a previous property with the same name if needed
-	virtual CValue*		GetProperty(const STR_String & inName);							// Get pointer to a property with name <inName>, returns NULL if there is no property named <inName>
+	virtual void		SetProperty(const char* name,CValue* ioProperty);
+	virtual CValue*		GetProperty(const char* inName);							// Get pointer to a property with name <inName>, returns NULL if there is no property named <inName>
+	virtual CValue*		GetProperty(const STR_String & inName);
 	STR_String			GetPropertyText(const STR_String & inName,const STR_String& deftext="");						// Get text description of property with name <inName>, returns an empty string if there is no property named <inName>
 	float				GetPropertyNumber(const STR_String& inName,float defnumber);
-	virtual bool		RemoveProperty(const STR_String & inName);						// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
+	virtual bool		RemoveProperty(const char *inName);						// Remove the property named <inName>, returns true if the property was succesfully removed, false if property was not found or could not be removed
 	virtual vector<STR_String>	GetPropertyNames();
 	virtual void		ClearProperties();										// Clear all properties
 

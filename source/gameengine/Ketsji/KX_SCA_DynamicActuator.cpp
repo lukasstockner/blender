@@ -36,6 +36,7 @@
 // Please look here for revision history.
 
 #include "KX_SCA_DynamicActuator.h"
+#include "blendef.h"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -49,25 +50,23 @@
 
 	PyTypeObject 
 
-KX_SCA_DynamicActuator::
-
-Type = {
-	PyObject_HEAD_INIT(&PyType_Type)
+KX_SCA_DynamicActuator::Type = {
+	PyObject_HEAD_INIT(NULL)
 	0,
 	"KX_SCA_DynamicActuator",
 	sizeof(KX_SCA_DynamicActuator),
 	0,
 	PyDestructor,
 	0,
-	__getattr,
-	__setattr,
-	0, 
-	__repr,
-	0, 
 	0,
 	0,
 	0,
-	0
+	py_base_repr,
+	0,0,0,0,0,0,
+	py_base_getattro,
+	py_base_setattro,
+	0,0,0,0,0,0,0,0,0,
+	Methods
 };
 
 PyParentObject KX_SCA_DynamicActuator::Parents[] = {
@@ -80,21 +79,34 @@ PyParentObject KX_SCA_DynamicActuator::Parents[] = {
 
 
 PyMethodDef KX_SCA_DynamicActuator::Methods[] = {
+	// ---> deprecated
 	KX_PYMETHODTABLE(KX_SCA_DynamicActuator, setOperation),
    	KX_PYMETHODTABLE(KX_SCA_DynamicActuator, getOperation),
 	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef KX_SCA_DynamicActuator::Attributes[] = {
+	KX_PYATTRIBUTE_SHORT_RW("operation",0,4,false,KX_SCA_DynamicActuator,m_dyn_operation),
+	KX_PYATTRIBUTE_FLOAT_RW("mass",0.0,MAXFLOAT,KX_SCA_DynamicActuator,m_setmass),
 	{ NULL }	//Sentinel
 };
 
 
-PyObject* KX_SCA_DynamicActuator::_getattr(const char *attr)
+PyObject* KX_SCA_DynamicActuator::py_getattro(PyObject *attr)
 {
-  _getattr_up(SCA_IActuator);
+	PyObject* object = py_getattro_self(Attributes, this, attr);
+	if (object != NULL)
+		return object;
+	py_getattro_up(SCA_IActuator);
 }
 
+int KX_SCA_DynamicActuator::py_setattro(PyObject *attr, PyObject* value)
+{
+	int ret = py_setattro_self(Attributes, this, attr, value);
+	if (ret >= 0)
+		return ret;
+	return SCA_IActuator::py_setattro(attr, value);
+}
 
 
 /* 1. setOperation */
@@ -107,6 +119,7 @@ KX_PYMETHODDEF_DOC(KX_SCA_DynamicActuator, setOperation,
 "\t                3 = disable rigid body\n"
 "Change the dynamic status of the parent object.\n")
 {
+	ShowDeprecationWarning("setOperation()", "the operation property");
 	int dyn_operation;
 	
 	if (!PyArg_ParseTuple(args, "i", &dyn_operation))
@@ -126,6 +139,7 @@ KX_PYMETHODDEF_DOC(KX_SCA_DynamicActuator, getOperation,
 "Returns the operation type of this actuator.\n"
 )
 {
+	ShowDeprecationWarning("getOperation()", "the operation property");
 	return PyInt_FromLong((long)m_dyn_operation);
 }
 

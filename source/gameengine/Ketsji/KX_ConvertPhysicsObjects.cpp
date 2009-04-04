@@ -882,10 +882,9 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 					shapeInfo->SetMesh(meshobj, false,false);
 				}
 
-				// Note! since 2.48a bullet mesh conversion has been sped up not to remove doubles
-				// if softbody needs this there should be some post processing filter for softbody meshes.
+				// Soft bodies require welding. Only avoid remove doubles for non-soft bodies!
 				if (objprop->m_softbody)
-					shapeInfo->setVertexWeldingThreshold(0.01f); //todo: expose this to the UI
+					shapeInfo->setVertexWeldingThreshold1(0.01f); //todo: expose this to the UI
 
 				bm = shapeInfo->CreateBulletShape();
 				//no moving concave meshes, so don't bother calculating inertia
@@ -1106,16 +1105,19 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 
 		if (rbody)
 		{
-			btVector3 linearFactor(
-				objprop->m_lockXaxis? 0 : 1,
-				objprop->m_lockYaxis? 0 : 1,
-				objprop->m_lockZaxis? 0 : 1);
-			btVector3 angularFactor(
-				objprop->m_lockXRotaxis? 0 : 1,
-				objprop->m_lockYRotaxis? 0 : 1,
-				objprop->m_lockZRotaxis? 0 : 1);
-			rbody->setLinearFactor(linearFactor);
-			rbody->setAngularFactor(angularFactor);
+			if (objprop->m_angular_rigidbody)
+			{
+				btVector3 linearFactor(
+					objprop->m_lockXaxis? 0 : 1,
+					objprop->m_lockYaxis? 0 : 1,
+					objprop->m_lockZaxis? 0 : 1);
+				btVector3 angularFactor(
+					objprop->m_lockXRotaxis? 0 : 1,
+					objprop->m_lockYRotaxis? 0 : 1,
+					objprop->m_lockZRotaxis? 0 : 1);
+				rbody->setLinearFactor(linearFactor);
+				rbody->setAngularFactor(angularFactor);
+			}
 
 			if (rbody && objprop->m_disableSleeping)
 			{

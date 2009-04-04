@@ -47,13 +47,14 @@ public:
 	virtual CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	virtual const STR_String &	GetText();
 	virtual float		GetNumber();
+	virtual RAS_MeshObject* GetMesh() { return m_meshobj; }
 	virtual STR_String	GetName();
 	virtual void		SetName(STR_String name);								// Set the name of the value
 	virtual void		ReplicaSetName(STR_String name);
 	virtual CValue*		GetReplica();
 
 // stuff for python integration
-	virtual PyObject*  _getattr(const char *attr);
+	virtual PyObject*  py_getattro(PyObject *attr);
 	KX_PYMETHOD(KX_MeshProxy,GetNumMaterials);
 	KX_PYMETHOD(KX_MeshProxy,GetMaterialName);
 	KX_PYMETHOD(KX_MeshProxy,GetTextureName);

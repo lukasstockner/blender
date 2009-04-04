@@ -942,14 +942,14 @@ const MT_Vector3& KX_GameObject::NodeGetWorldScaling() const
 }
 
 
-
+static MT_Point3 dummy_point= MT_Point3(0.0, 0.0, 0.0);
 const MT_Point3& KX_GameObject::NodeGetWorldPosition() const
 {
 	// check on valid node in case a python controller holds a reference to a deleted object
 	if (GetSGNode())
 		return GetSGNode()->GetWorldPosition();
 	else
-		return MT_Point3(0.0, 0.0, 0.0);
+		return dummy_point;
 }
 
 /* Suspend/ resume: for the dynamic behaviour, there is a simple
@@ -1043,6 +1043,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RW_FUNCTION("scaling",	KX_GameObject, pyattr_get_scaling,	pyattr_set_scaling),
 	KX_PYATTRIBUTE_RW_FUNCTION("timeOffset",KX_GameObject, pyattr_get_timeOffset,pyattr_set_timeOffset),
 	KX_PYATTRIBUTE_RW_FUNCTION("state",		KX_GameObject, pyattr_get_state,	pyattr_set_state),
+	KX_PYATTRIBUTE_RO_FUNCTION("__dict__",	KX_GameObject, pyattr_get_dir_dict),
 	{NULL} //Sentinel
 };
 
@@ -1103,25 +1104,102 @@ PyObject* KX_GameObject::PyGetPosition(PyObject* self)
 }
 
 
+Py_ssize_t KX_GameObject::Map_Len(PyObject* self_v)
+{
+	return (static_cast<KX_GameObject*>(self_v))->GetPropertyCount();
+}
+
+
+PyObject *KX_GameObject::Map_GetItem(PyObject *self_v, PyObject *item)
+{
+	KX_GameObject* self= static_cast<KX_GameObject*>(self_v);
+	const char *attr= PyString_AsString(item);
+	CValue* resultattr;
+	PyObject* pyconvert;
+	
+	
+	if(attr==NULL) {
+		PyErr_SetString(PyExc_TypeError, "KX_GameObject key but a string");
+		return NULL;
+	}
+	
+	resultattr = self->GetProperty(attr);
+	
+	if(resultattr==NULL) {
+		PyErr_SetString(PyExc_KeyError, "KX_GameObject key does not exist");
+		return NULL;
+	}
+	
+	pyconvert = resultattr->ConvertValueToPython();
+	
+	return pyconvert ? pyconvert:resultattr;
+}
+
+
+int KX_GameObject::Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val)
+{
+	KX_GameObject* self= static_cast<KX_GameObject*>(self_v);
+	const char *attr= PyString_AsString(key);
+	
+	if(attr==NULL) {
+		PyErr_SetString(PyExc_TypeError, "KX_GameObject key but a string");
+		return 1;
+	}
+	
+	if (val==NULL) { /* del ob["key"] */
+		if (self->RemoveProperty(attr)==false) {
+			PyErr_Format(PyExc_KeyError, "KX_GameObject key \"%s\" not found", attr);
+			return 1;
+		}
+	}
+	else { /* ob["key"] = value */
+		CValue* vallie = self->ConvertPythonToValue(val);
+		
+		if(vallie==NULL)
+			return 1; /* ConvertPythonToValue sets the error */
+		
+		CValue* oldprop = self->GetProperty(attr);
+		
+		if (oldprop)
+			oldprop->SetValue(vallie);
+		else
+			self->SetProperty(attr, vallie);
+		
+		vallie->Release();
+	}
+	
+	return 0;
+}
+
+
+PyMappingMethods KX_GameObject::Mapping = {
+	(lenfunc)KX_GameObject::Map_Len, 			/*inquiry mp_length */
+	(binaryfunc)KX_GameObject::Map_GetItem,		/*binaryfunc mp_subscript */
+	(objobjargproc)KX_GameObject::Map_SetItem,	/*objobjargproc mp_ass_subscript */
+};
+
 
 PyTypeObject KX_GameObject::Type = {
-	PyObject_HEAD_INIT(&PyType_Type)
+	PyObject_HEAD_INIT(NULL)
 		0,
 		"KX_GameObject",
 		sizeof(KX_GameObject),
 		0,
 		PyDestructor,
 		0,
-		__getattr,
-		__setattr,
-		0, //&MyPyCompare,
-		__repr,
-		0, //&cvalue_as_number,
 		0,
 		0,
 		0,
-		0
+		py_base_repr,
+		0,0,0,0,0,0,
+		py_base_getattro,
+		py_base_setattro,
+		0,0,0,0,0,0,0,0,0,
+		Methods
 };
+
+
+
 
 
 
@@ -1338,26 +1416,49 @@ int KX_GameObject::pyattr_set_state(void *self_v, const KX_PYATTRIBUTE_DEF *attr
 	return 0;
 }
 
-PyObject* KX_GameObject::_getattr(const char *attr)
+/* __dict__ only for the purpose of giving useful dir() results */
+PyObject* KX_GameObject::pyattr_get_dir_dict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
-	PyObject* object = _getattr_self(Attributes, this, attr);
+	KX_GameObject* self= static_cast<KX_GameObject*>(self_v);
+	PyObject *dict_str = PyString_FromString("__dict__");
+	PyObject *dict= _getattr_dict(self->SCA_IObject::py_getattro(dict_str), KX_GameObject::Methods, KX_GameObject::Attributes);
+	Py_DECREF(dict_str);
+	
+	if(dict==NULL)
+		return NULL;
+	
+	/* Not super fast getting as a list then making into dict keys but its only for dir() */
+	PyObject *list= self->ConvertKeysToPython();
+	if(list)
+	{
+		int i;
+		for(i=0; i<PyList_Size(list); i++)
+			PyDict_SetItem(dict, PyList_GET_ITEM(list, i), Py_None);
+	}
+	else
+		PyErr_Clear();
+	
+	Py_DECREF(list);
+	
+	return dict;
+}
+
+PyObject* KX_GameObject::py_getattro(PyObject *attr)
+{
+	PyObject* object = py_getattro_self(Attributes, this, attr);
 	if (object != NULL)
 		return object;
 	
-	if (!strcmp(attr, "__dict__")) { /* python 3.0 uses .__dir__()*/
-		return _getattr_dict(SCA_IObject::_getattr(attr), Methods, Attributes);
-	}
-	
-	_getattr_up(SCA_IObject);
+	py_getattro_up(SCA_IObject);
 }
 
-int KX_GameObject::_setattr(const char *attr, PyObject *value)	// _setattr method
+int KX_GameObject::py_setattro(PyObject *attr, PyObject *value)	// py_setattro method
 {
-	int ret = _setattr_self(Attributes, this, attr, value);
+	int ret = py_setattro_self(Attributes, this, attr, value);
 	if (ret >= 0)
 		return ret;
 	
-	return SCA_IObject::_setattr(attr, value);
+	return SCA_IObject::py_setattro(attr, value);
 }
 
 PyObject* KX_GameObject::PyApplyForce(PyObject* self, PyObject* args)

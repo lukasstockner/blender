@@ -90,24 +90,24 @@ KX_VisibilityActuator::Update()
 
 
 /* Integration hooks ------------------------------------------------------- */
-PyTypeObject 
-KX_VisibilityActuator::Type = {
-	PyObject_HEAD_INIT(&PyType_Type)
+PyTypeObject KX_VisibilityActuator::Type = {
+	PyObject_HEAD_INIT(NULL)
 	0,
 	"KX_VisibilityActuator",
 	sizeof(KX_VisibilityActuator),
 	0,
 	PyDestructor,
 	0,
-	__getattr,
-	__setattr,
-	0, //&MyPyCompare,
-	__repr,
-	0, //&cvalue_as_number,
 	0,
 	0,
 	0,
-	0
+	py_base_repr,
+	0,0,0,0,0,0,
+	py_base_getattro,
+	py_base_setattro,
+	0,0,0,0,0,0,0,0,0,
+	Methods
+
 };
 
 PyParentObject 
@@ -121,20 +121,34 @@ KX_VisibilityActuator::Parents[] = {
 
 PyMethodDef 
 KX_VisibilityActuator::Methods[] = {
-	{"set", (PyCFunction) KX_VisibilityActuator::sPySetVisible, 
-	 METH_VARARGS, (PY_METHODCHAR)SetVisible_doc},
+	// Deprecated ----->
+	{"set", (PyCFunction) KX_VisibilityActuator::sPySetVisible, METH_VARARGS,
+		(PY_METHODCHAR) SetVisible_doc},
+	// <-----
 	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef KX_VisibilityActuator::Attributes[] = {
+	KX_PYATTRIBUTE_BOOL_RW("visibility", KX_VisibilityActuator, m_visible),
+	KX_PYATTRIBUTE_BOOL_RW("recursion", KX_VisibilityActuator, m_recursive),
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_VisibilityActuator::_getattr(const char *attr) 
+PyObject* KX_VisibilityActuator::py_getattro(PyObject *attr)
 {
-	_getattr_up(SCA_IActuator);
-};
+	PyObject* object = py_getattro_self(Attributes, this, attr);
+	if (object != NULL)
+		return object;
+	py_getattro_up(SCA_IActuator);
+}
 
+int KX_VisibilityActuator::py_setattro(PyObject *attr, PyObject *value)
+{
+	int ret = py_setattro_self(Attributes, this, attr, value);
+	if (ret >= 0)
+		return ret;
+	return SCA_IActuator::py_setattro(attr, value);
+}
 
 
 /* set visibility ---------------------------------------------------------- */
@@ -149,6 +163,7 @@ KX_VisibilityActuator::PySetVisible(PyObject* self,
 				    PyObject* args, 
 				    PyObject* kwds) {
 	int vis;
+	ShowDeprecationWarning("SetVisible()", "the visible property");
 
 	if(!PyArg_ParseTuple(args, "i", &vis)) {
 		return NULL;

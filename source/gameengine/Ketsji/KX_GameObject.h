@@ -756,9 +756,9 @@ public:
 	 * @section Python interface functions.
 	 */
 
-	virtual PyObject* _getattr(const char *attr);
-	virtual int _setattr(const char *attr, PyObject *value);		// _setattr method
-	virtual PyObject* _repr(void) { return PyString_FromString(GetName().ReadPtr()); }
+	virtual PyObject* py_getattro(PyObject *attr);
+	virtual int py_setattro(PyObject *attr, PyObject *value);		// py_setattro method
+	virtual PyObject* py_repr(void) { return PyString_FromString(GetName().ReadPtr()); }
 	
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetPosition);
 	KX_PYMETHOD_O(KX_GameObject,SetPosition);
@@ -822,7 +822,16 @@ public:
 	static PyObject*	pyattr_get_state(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_state(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	
-
+	/* for dir(), python3 uses __dir__() */
+	static PyObject*	pyattr_get_dir_dict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	
+	/* getitem/setitem */
+	static Py_ssize_t			Map_Len(PyObject* self);
+	static PyMappingMethods	Mapping;
+	static PyObject*			Map_GetItem(PyObject *self_v, PyObject *item);
+	static int					Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val);
+	
+	
 private :
 
 	/**	

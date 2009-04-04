@@ -108,11 +108,6 @@ protected:
 	bool         m_set_frustum_center;
 
 	/**
-	 * Python module doc string.
-	 */
-	static char doc[];
-
-	/**
 	 * Extracts the camera clip frames from the projection and world-to-camera matrices.
 	 */
 	void ExtractClipPlanes();
@@ -270,8 +265,8 @@ public:
 	KX_PYMETHOD_DOC_VARARGS(KX_Camera, setViewport);	
 	KX_PYMETHOD_DOC_NOARGS(KX_Camera, setOnTop);	
 
-	virtual PyObject* _getattr(const char *attr); /* lens, near, far, projection_matrix */
-	virtual int       _setattr(const char *attr, PyObject *pyvalue);
+	virtual PyObject* py_getattro(PyObject *attr); /* lens, near, far, projection_matrix */
+	virtual int       py_setattro(PyObject *attr, PyObject *pyvalue);
 
 };
 

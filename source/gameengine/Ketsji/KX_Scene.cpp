@@ -32,7 +32,6 @@
 #pragma warning (disable : 4786)
 #endif //WIN32
 
-
 #include "KX_Scene.h"
 #include "MT_assert.h"
 
@@ -1518,22 +1517,22 @@ double KX_Scene::getSuspendedDelta()
 //Python
 
 PyTypeObject KX_Scene::Type = {
-	PyObject_HEAD_INIT(&PyType_Type)
+	PyObject_HEAD_INIT(NULL)
 		0,
 		"KX_Scene",
 		sizeof(KX_Scene),
 		0,
 		PyDestructor,
 		0,
-		__getattr,
-		__setattr,
-		0, //&MyPyCompare,
-		__repr,
-		0, //&cvalue_as_number,
 		0,
 		0,
 		0,
-		0, 0, 0, 0, 0, 0
+		py_base_repr,
+		0,0,0,0,0,0,
+		py_base_getattro,
+		py_base_setattro,
+		0,0,0,0,0,0,0,0,0,
+		Methods
 };
 
 PyParentObject KX_Scene::Parents[] = {
@@ -1551,52 +1550,76 @@ PyMethodDef KX_Scene::Methods[] = {
 	{NULL,NULL} //Sentinel
 };
 
+PyObject* KX_Scene::pyattr_get_name(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene* self= static_cast<KX_Scene*>(self_v);
+	return PyString_FromString(self->GetName().ReadPtr());
+}
+
+PyObject* KX_Scene::pyattr_get_objects(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene* self= static_cast<KX_Scene*>(self_v);
+	return self->GetObjectList()->AddRef();
+}
+
+PyObject* KX_Scene::pyattr_get_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene* self= static_cast<KX_Scene*>(self_v);
+	return self->GetActiveCamera()->AddRef();
+}
+
+/* __dict__ only for the purpose of giving useful dir() results */
+PyObject* KX_Scene::pyattr_get_dir_dict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_Scene* self= static_cast<KX_Scene*>(self_v);
+	/* Useually done by py_getattro_up but in this case we want to include m_attrlist dict */
+	PyObject *dict_str= PyString_FromString("__dict__");
+	PyObject *dict= _getattr_dict(self->PyObjectPlus::py_getattro(dict_str), KX_Scene::Methods, KX_Scene::Attributes);
+	Py_DECREF(dict_str);
+	
+	PyDict_Update(dict, self->m_attrlist);
+	return dict;
+}
+
 PyAttributeDef KX_Scene::Attributes[] = {
+	KX_PYATTRIBUTE_RO_FUNCTION("name",			KX_Scene, pyattr_get_name),
+	KX_PYATTRIBUTE_RO_FUNCTION("objects",		KX_Scene, pyattr_get_objects),
+	KX_PYATTRIBUTE_RO_FUNCTION("active_camera",	KX_Scene, pyattr_get_active_camera),
+	KX_PYATTRIBUTE_BOOL_RO("suspended",			KX_Scene, m_suspend),
+	KX_PYATTRIBUTE_BOOL_RO("activity_culling",	KX_Scene, m_activity_culling),
+	KX_PYATTRIBUTE_FLOAT_RW("activity_culling_radius", 0.5f, FLT_MAX, KX_Scene, m_activity_box_radius),
+	KX_PYATTRIBUTE_RO_FUNCTION("__dict__",		KX_Scene, pyattr_get_dir_dict),
 	{ NULL }	//Sentinel
 };
 
-PyObject* KX_Scene::_getattr(const char *attr)
+PyObject* KX_Scene::py_getattro(PyObject *attr)
 {
-	if (!strcmp(attr, "name"))
-		return PyString_FromString(GetName());
+	PyObject* object = py_getattro_self(Attributes, this, attr);
+	if (object != NULL)
+		return object;
 	
-	if (!strcmp(attr, "objects"))
-		return (PyObject*) m_objectlist->AddRef();
-	
-	if (!strcmp(attr, "active_camera"))
-		return (PyObject*) GetActiveCamera()->AddRef();
-	
-	if (!strcmp(attr, "suspended"))
-		return PyInt_FromLong(m_suspend);
-	
-	if (!strcmp(attr, "activity_culling"))
-		return PyInt_FromLong(m_activity_culling);
-	
-	if (!strcmp(attr, "activity_culling_radius"))
-		return PyFloat_FromDouble(m_activity_box_radius);
-	
-	PyObject* value = PyDict_GetItemString(m_attrlist, attr);
-	if (value)
+	object = PyDict_GetItem(m_attrlist, attr);
+	if (object)
 	{
-		Py_INCREF(value);
-		return value;
+		Py_INCREF(object);
+		return object;
 	}
 	
-	_getattr_up(PyObjectPlus);
+	py_getattro_up(PyObjectPlus);
 }
 
-int KX_Scene::_delattr(const char *attr)
+int KX_Scene::py_delattro(PyObject *attr)
 {
-	PyDict_DelItemString(m_attrlist, attr);
+	PyDict_DelItem(m_attrlist, attr);
 	return 0;
 }
 
-int KX_Scene::_setattr(const char *attr, PyObject *pyvalue)
+int KX_Scene::py_setattro(PyObject *attr, PyObject *pyvalue)
 {
-	if (!PyDict_SetItemString(m_attrlist, attr, pyvalue))
+	if (!PyDict_SetItem(m_attrlist, attr, pyvalue))
 		return 0;
 
-	return PyObjectPlus::_setattr(attr, pyvalue);
+	return PyObjectPlus::py_setattro(attr, pyvalue);
 }
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_Scene, getLightList,
