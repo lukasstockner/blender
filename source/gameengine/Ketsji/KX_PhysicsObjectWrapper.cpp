@@ -51,12 +51,10 @@ KX_PhysicsObjectWrapper::~KX_PhysicsObjectWrapper()
 }
 
 
-PyObject* KX_PhysicsObjectWrapper::PySetPosition(PyObject* self, 
-											PyObject* args, 
-											PyObject* kwds)
+PyObject* KX_PhysicsObjectWrapper::PySetPosition(PyObject* args)
 {
 	float x,y,z;
-	if (PyArg_ParseTuple(args,"fff",&x,&y,&z))
+	if (PyArg_ParseTuple(args,"fff:setPosition",&x,&y,&z))
 	{
 		m_ctrl->setPosition(x,y,z);
 	}
@@ -67,13 +65,11 @@ PyObject* KX_PhysicsObjectWrapper::PySetPosition(PyObject* self,
 }
 
 
-PyObject* KX_PhysicsObjectWrapper::PySetLinearVelocity(PyObject* self, 
-											PyObject* args, 
-											PyObject* kwds)
+PyObject* KX_PhysicsObjectWrapper::PySetLinearVelocity(PyObject* args)
 {
 	float x,y,z;
 	int local;
-	if (PyArg_ParseTuple(args,"fffi",&x,&y,&z,&local))
+	if (PyArg_ParseTuple(args,"fffi:setLinearVelocity",&x,&y,&z,&local))
 	{
 		m_ctrl->SetLinearVelocity(x,y,z,local != 0);
 	}
@@ -83,13 +79,11 @@ PyObject* KX_PhysicsObjectWrapper::PySetLinearVelocity(PyObject* self,
 	Py_RETURN_NONE;
 }
 
-PyObject* KX_PhysicsObjectWrapper::PySetAngularVelocity(PyObject* self, 
-											PyObject* args, 
-											PyObject* kwds)
+PyObject* KX_PhysicsObjectWrapper::PySetAngularVelocity(PyObject* args)
 {
 	float x,y,z;
 	int local;
-	if (PyArg_ParseTuple(args,"fffi",&x,&y,&z,&local))
+	if (PyArg_ParseTuple(args,"fffi:setAngularVelocity",&x,&y,&z,&local))
 	{
 		m_ctrl->SetAngularVelocity(x,y,z,local != 0);
 	}
@@ -99,12 +93,10 @@ PyObject* KX_PhysicsObjectWrapper::PySetAngularVelocity(PyObject* self,
 	Py_RETURN_NONE;
 }
 
-PyObject*	KX_PhysicsObjectWrapper::PySetActive(PyObject* self, 
-											PyObject* args, 
-											PyObject* kwds)
+PyObject*	KX_PhysicsObjectWrapper::PySetActive(PyObject* args)
 {
 	int active;
-	if (PyArg_ParseTuple(args,"i",&active))
+	if (PyArg_ParseTuple(args,"i:setActive",&active))
 	{
 		m_ctrl->SetActive(active!=0);
 	}
@@ -121,12 +113,17 @@ PyAttributeDef KX_PhysicsObjectWrapper::Attributes[] = {
 
 //python specific stuff
 PyTypeObject KX_PhysicsObjectWrapper::Type = {
-	PyObject_HEAD_INIT(NULL)
-		0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 		"KX_PhysicsObjectWrapper",
-		sizeof(KX_PhysicsObjectWrapper),
+		sizeof(PyObjectPlus_Proxy),
 		0,
-		PyDestructor,
+		py_base_dealloc,
 		0,
 		0,
 		0,
@@ -144,11 +141,14 @@ PyParentObject KX_PhysicsObjectWrapper::Parents[] = {
 	NULL
 };
 
-PyObject*	KX_PhysicsObjectWrapper::py_getattro(PyObject *attr)
+PyObject* KX_PhysicsObjectWrapper::py_getattro(PyObject *attr)
 {
 	py_getattro_up(PyObjectPlus);
 }
 
+PyObject* KX_PhysicsObjectWrapper::py_getattro_dict() {
+	py_getattro_dict_up(PyObjectPlus);
+}
 
 int	KX_PhysicsObjectWrapper::py_setattro(PyObject *attr,PyObject *pyobj)
 {

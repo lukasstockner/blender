@@ -75,7 +75,7 @@ bool KX_NetworkMessageActuator::Update()
 			m_toPropName,
 			GetParent()->GetName(),
 			m_subject,
-			GetParent()->GetPropertyText(m_body,""));
+			GetParent()->GetPropertyText(m_body));
 	} else
 	{
 		m_networkscene->SendMessage(
@@ -93,9 +93,6 @@ CValue* KX_NetworkMessageActuator::GetReplica()
 	    new KX_NetworkMessageActuator(*this);
 	replica->ProcessReplica();
 
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
-
 	return replica;
 }
 
@@ -105,12 +102,17 @@ CValue* KX_NetworkMessageActuator::GetReplica()
 
 /* Integration hooks -------------------------------------------------- */
 PyTypeObject KX_NetworkMessageActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_NetworkMessageActuator",
-	sizeof(KX_NetworkMessageActuator),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -154,30 +156,27 @@ PyAttributeDef KX_NetworkMessageActuator::Attributes[] = {
 };
 
 PyObject* KX_NetworkMessageActuator::py_getattro(PyObject *attr) {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
 }
 
+PyObject* KX_NetworkMessageActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
+}
+
 int KX_NetworkMessageActuator::py_setattro(PyObject *attr, PyObject *value) {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 // Deprecated ----->
 // 1. SetToPropName
 PyObject* KX_NetworkMessageActuator::PySetToPropName(
-	PyObject* self,
 	PyObject* args,
 	PyObject* kwds)
 {
 	ShowDeprecationWarning("setToProp()", "the propName property");
     char* ToPropName;
 
-	if (PyArg_ParseTuple(args, "s", &ToPropName)) {
+	if (PyArg_ParseTuple(args, "s:setToPropName", &ToPropName)) {
 	     m_toPropName = ToPropName;
 	}
 	else {
@@ -189,14 +188,13 @@ PyObject* KX_NetworkMessageActuator::PySetToPropName(
 
 // 2. SetSubject
 PyObject* KX_NetworkMessageActuator::PySetSubject(
-	PyObject* self,
 	PyObject* args,
 	PyObject* kwds)
 {
 	ShowDeprecationWarning("setSubject()", "the subject property");
     char* Subject;
 
-	if (PyArg_ParseTuple(args, "s", &Subject)) {
+	if (PyArg_ParseTuple(args, "s:setSubject", &Subject)) {
 	     m_subject = Subject;
 	}
 	else {
@@ -208,14 +206,13 @@ PyObject* KX_NetworkMessageActuator::PySetSubject(
 
 // 3. SetBodyType
 PyObject* KX_NetworkMessageActuator::PySetBodyType(
-	PyObject* self,
 	PyObject* args,
 	PyObject* kwds)
 {
 	ShowDeprecationWarning("setBodyType()", "the usePropBody property");
     int BodyType;
 
-	if (PyArg_ParseTuple(args, "i", &BodyType)) {
+	if (PyArg_ParseTuple(args, "i:setBodyType", &BodyType)) {
 		m_bPropBody = (BodyType != 0);
 	}
 	else {
@@ -227,14 +224,13 @@ PyObject* KX_NetworkMessageActuator::PySetBodyType(
 
 // 4. SetBody
 PyObject* KX_NetworkMessageActuator::PySetBody(
-	PyObject* self,
 	PyObject* args,
 	PyObject* kwds)
 {
 	ShowDeprecationWarning("setBody()", "the body property");
     char* Body;
 
-	if (PyArg_ParseTuple(args, "s", &Body)) {
+	if (PyArg_ParseTuple(args, "s:setBody", &Body)) {
 	     m_body = Body;
 	}
 	else {

@@ -45,6 +45,7 @@ class KX_Camera : public KX_GameObject
 {
 	Py_Header;
 protected:
+	friend class KX_Scene;
 	/** Camera parameters (clips distances, focal lenght). These
 	 * params are closely tied to Blender. In the gameengine, only the
 	 * projection and modelview matrices are relevant. There's a
@@ -67,6 +68,7 @@ protected:
 	 * Storage for the projection matrix that is passed to the
 	 * rasterizer. */
 	MT_Matrix4x4 m_projection_matrix;
+	//MT_Matrix4x4 m_projection_matrix1;
 
 	/**
 	 * Storage for the modelview matrix that is passed to the
@@ -119,6 +121,16 @@ protected:
 	 * Extracts the bound sphere of the view frustum.
 	 */
 	void ExtractFrustumSphere();
+	/**
+	 * return the clip plane
+	 */
+	MT_Vector4 *GetNormalizedClipPlanes()
+	{
+		ExtractClipPlanes();
+		NormalizeClipPlanes();
+		return m_planes;
+	}
+
 public:
 
 	enum { INSIDE, INTERSECT, OUTSIDE } ;
@@ -133,15 +145,6 @@ public:
 	 */
 	virtual	CValue*				
 	GetReplica(
-	);
-	
-	/**
-	 * Inherited from CValue -- Makes sure any internal 
-	 * data owned by this class is deep copied. Called internally
-	 */
-	virtual	void				
-	ProcessReplica(
-		KX_Camera* replica
 	);
 
 	MT_Transform		GetWorldToCamera() const;
@@ -181,6 +184,8 @@ public:
 
 	/** Gets the aperture. */
 	float				GetLens() const;
+	/** Gets the ortho scale. */
+	float				GetScale() const;
 	/** Gets the near clip distance. */
 	float				GetCameraNear() const;
 	/** Gets the far clip distance. */
@@ -266,8 +271,32 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_Camera, setOnTop);	
 
 	virtual PyObject* py_getattro(PyObject *attr); /* lens, near, far, projection_matrix */
+	virtual PyObject* py_getattro_dict();
 	virtual int       py_setattro(PyObject *attr, PyObject *pyvalue);
+	
+	static PyObject*	pyattr_get_perspective(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_perspective(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
+	static PyObject*	pyattr_get_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	
+	static PyObject*	pyattr_get_is_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_is_viewport(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	
+	static PyObject*	pyattr_get_projection_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_projection_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	
+	static PyObject*	pyattr_get_modelview_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_camera_to_world(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_world_to_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	
+	static PyObject*	pyattr_get_INSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_OUTSIDE(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_INTERSECT(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 };
 
 #endif //__KX_CAMERA

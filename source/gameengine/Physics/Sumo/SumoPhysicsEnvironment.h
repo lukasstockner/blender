@@ -54,7 +54,7 @@ public:
 	virtual	void		beginFrame();
 	virtual void		endFrame();
 // Perform an integration step of duration 'timeStep'.
-	virtual	bool		proceedDeltaTime(double  curTime,float timeStep);
+	virtual	bool		proceedDeltaTime(double  curTime,float timeStep,float interval);
 	virtual	void		setFixedTimeStep(bool useFixedTimeStep,float fixedTimeStep);
 	virtual	float		getFixedTimeStep();
 
@@ -76,6 +76,7 @@ public:
 	}
 
 	virtual PHY_IPhysicsController* rayTest(PHY_IRayCastFilterCallback &filterCallback,float fromX,float fromY,float fromZ, float toX,float toY,float toZ);
+	virtual bool cullingTest(PHY_CullingCallback callback, void* userData, PHY__Vector4 *planes, int nplanes, int occlusionRes) { return false; }
 
 	
 	//gamelogic callbacks

@@ -381,7 +381,7 @@ static PyObject* gPyGetVehicleConstraint(PyObject* self,
 			if (vehicle)
 			{
 				KX_VehicleWrapper* pyWrapper = new KX_VehicleWrapper(vehicle,PHY_GetActiveEnvironment());
-				return pyWrapper;
+				return pyWrapper->NewProxy(true);
 			}
 
 		}
@@ -440,7 +440,7 @@ static PyObject* gPyCreateConstraint(PyObject* self,
 				KX_ConstraintWrapper* wrap = new KX_ConstraintWrapper((enum PHY_ConstraintType)constrainttype,constraintid,PHY_GetActiveEnvironment());
 				
 
-				return wrap;
+				return wrap->NewProxy(true);
 			}
 			
 			
@@ -565,6 +565,19 @@ static struct PyMethodDef physicsconstraints_methods[] = {
 };
 
 
+#if (PY_VERSION_HEX >= 0x03000000)
+static struct PyModuleDef PhysicsConstraints_module_def = {
+	{}, /* m_base */
+	"PhysicsConstraints",  /* m_name */
+	PhysicsConstraints_module_documentation,  /* m_doc */
+	0,  /* m_size */
+	physicsconstraints_methods,  /* m_methods */
+	0,  /* m_reload */
+	0,  /* m_traverse */
+	0,  /* m_clear */
+	0,  /* m_free */
+};
+#endif
 
 PyObject*	initPythonConstraintBinding()
 {
@@ -573,15 +586,30 @@ PyObject*	initPythonConstraintBinding()
   PyObject* m;
   PyObject* d;
 
-
-  m = Py_InitModule4("PhysicsConstraints", physicsconstraints_methods,
+	/* Use existing module where possible
+	 * be careful not to init any runtime vars after this */
+	m = PyImport_ImportModule( "PhysicsConstraints" );
+	if(m) {
+		Py_DECREF(m);
+		return m;
+	}
+	else {
+		PyErr_Clear();
+	
+#if (PY_VERSION_HEX >= 0x03000000)
+		m = PyModule_Create(&PhysicsConstraints_module_def);
+#else
+		m = Py_InitModule4("PhysicsConstraints", physicsconstraints_methods,
 		     PhysicsConstraints_module_documentation,
 		     (PyObject*)NULL,PYTHON_API_VERSION);
+#endif
+	}
 
   // Add some symbolic constants to the module
   d = PyModule_GetDict(m);
   ErrorObject = PyString_FromString("PhysicsConstraints.error");
   PyDict_SetItemString(d, "error", ErrorObject);
+  Py_DECREF(ErrorObject);
 
   // XXXX Add constants here
 

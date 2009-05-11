@@ -62,8 +62,6 @@ KX_StateActuator::GetReplica(
 {
 	KX_StateActuator* replica = new KX_StateActuator(*this);
 	replica->ProcessReplica();
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
 	return replica;
 }
 
@@ -109,12 +107,17 @@ KX_StateActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_StateActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_StateActuator",
-	sizeof(KX_StateActuator),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -138,22 +141,34 @@ KX_StateActuator::Parents[] = {
 
 PyMethodDef 
 KX_StateActuator::Methods[] = {
+	// deprecated -->
 	{"setOperation", (PyCFunction) KX_StateActuator::sPySetOperation, 
 	 METH_VARARGS, (PY_METHODCHAR)SetOperation_doc},
 	{"setMask", (PyCFunction) KX_StateActuator::sPySetMask, 
 	 METH_VARARGS, (PY_METHODCHAR)SetMask_doc},
+	 // <--
 	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef KX_StateActuator::Attributes[] = {
+	KX_PYATTRIBUTE_INT_RW("operation",KX_StateActuator::OP_NOP+1,KX_StateActuator::OP_COUNT-1,false,KX_StateActuator,m_operation),
+	KX_PYATTRIBUTE_INT_RW("mask",0,0x3FFFFFFF,false,KX_StateActuator,m_mask),
 	{ NULL }	//Sentinel
 };
 
 PyObject* KX_StateActuator::py_getattro(PyObject *attr)
 {
 	py_getattro_up(SCA_IActuator);
-};
+}
 
+PyObject* KX_StateActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
+}
+
+int KX_StateActuator::py_setattro(PyObject *attr, PyObject* value)
+{
+	py_setattro_up(SCA_IActuator);
+}
 
 
 /* set operation ---------------------------------------------------------- */
@@ -165,12 +180,11 @@ KX_StateActuator::SetOperation_doc[] =
 "\tUse setMask() to specify the bits that will be modified.\n";
 PyObject* 
 
-KX_StateActuator::PySetOperation(PyObject* self, 
-				    PyObject* args, 
-				    PyObject* kwds) {
+KX_StateActuator::PySetOperation(PyObject* args) {
+	ShowDeprecationWarning("setOperation()", "the operation property");
 	int oper;
 
-	if(!PyArg_ParseTuple(args, "i", &oper)) {
+	if(!PyArg_ParseTuple(args, "i:setOperation", &oper)) {
 		return NULL;
 	}
 
@@ -190,12 +204,11 @@ KX_StateActuator::SetMask_doc[] =
 "\twhich copies the value to the object state.\n";
 PyObject* 
 
-KX_StateActuator::PySetMask(PyObject* self, 
-				    PyObject* args, 
-				    PyObject* kwds) {
+KX_StateActuator::PySetMask(PyObject* args) {
+	ShowDeprecationWarning("setMask()", "the mask property");
 	int mask;
 
-	if(!PyArg_ParseTuple(args, "i", &mask)) {
+	if(!PyArg_ParseTuple(args, "i:setMask", &mask)) {
 		return NULL;
 	}
 

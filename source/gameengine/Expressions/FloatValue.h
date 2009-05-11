@@ -23,12 +23,12 @@ class CFloatValue : public CPropValue
 public:
 	CFloatValue();
 	CFloatValue(float fl);
-	CFloatValue(float fl,STR_String name,AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CFloatValue(float fl,const char *name,AllocationTYPE alloctype=CValue::HEAPVALUE);
 
 	virtual const STR_String & GetText();
 
 	void Configure(CValue* menuvalue);
-	virtual float GetNumber();
+	virtual double GetNumber();
 	virtual void SetValue(CValue* newval);
 	float GetFloat();
 	void SetFloat(float fl);

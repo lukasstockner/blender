@@ -26,14 +26,14 @@ class CStringValue : public CPropValue
 public:
 	/// Construction / destruction
 	CStringValue();
-	CStringValue (STR_String txt, STR_String name , AllocationTYPE alloctype = CValue::HEAPVALUE);
+	CStringValue (const char *txt, const char *name , AllocationTYPE alloctype = CValue::HEAPVALUE);
 
 	virtual ~CStringValue() {
 	};
 	/// CValue implementation
 	virtual bool		IsEqual(const STR_String & other);
 	virtual const STR_String &	GetText();
-	virtual float		GetNumber();
+	virtual double		GetNumber();
 	
 	virtual	CValue*		Calc(VALUE_OPERATOR op, CValue *val);
 	virtual	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);

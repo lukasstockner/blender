@@ -537,6 +537,7 @@ def get_float_func(filepath):
 	'''
 	file= open(filepath, 'rU')
 	for line in file: #.xreadlines():
+		line = line.lstrip()
 		if line.startswith('v'): # vn vt v 
 			if ',' in line:
 				return lambda f: float(f.replace(',', '.'))
@@ -586,10 +587,11 @@ def load_obj(filepath, CLAMP_SIZE= 0.0, CREATE_FGONS= True, CREATE_SMOOTH_GROUPS
 	# so we need to know weather 
 	multi_line_face= False
 	
-	print '\tpassing obj file "%s"...' % filepath,
+	print '\tparsing obj file "%s"...' % filepath,
 	time_sub= sys.time()
 	file= open(filepath, 'rU')
 	for line in file: #.xreadlines():
+		line = line.lstrip() # rare cases there is white space at the start of the line
 		
 		if line.startswith('v '):
 			line_split= line.split()

@@ -97,6 +97,7 @@ const char KX_KetsjiEngine::m_profileLabels[tc_numCategories][15] = {
 };
 
 double KX_KetsjiEngine::m_ticrate = DEFAULT_LOGIC_TIC_RATE;
+int	   KX_KetsjiEngine::m_maxLogicFrame = 5;
 double KX_KetsjiEngine::m_anim_framerate = 25.0;
 double KX_KetsjiEngine::m_suspendedtime = 0.0;
 double KX_KetsjiEngine::m_suspendeddelta = 0.0;
@@ -145,8 +146,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_stereo(false),
 	m_curreye(0),
 
-	m_usedome(false),
-
 	m_logger(NULL),
 	
 	// Set up timing info display variables
@@ -164,7 +163,9 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_overrideFrameColor(false),
 	m_overrideFrameColorR(0.0),
 	m_overrideFrameColorG(0.0),
-	m_overrideFrameColorB(0.0)
+	m_overrideFrameColorB(0.0),
+
+	m_usedome(false)
 {
 	// Initialize the time logger
 	m_logger = new KX_TimeCategoryLogger (25);
@@ -294,8 +295,16 @@ void KX_KetsjiEngine::RenderDome()
 	if (!BeginFrame())
 		return;
 
-	int n_renders=m_dome->GetNumberRenders();// usually 4 or 6
 	KX_SceneList::iterator sceneit;
+
+	// This is now done incrementally in KX_Scene::CalculateVisibleMeshes()
+	//for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
+	//{
+	//	// do this only once per scene
+	//	(*sceneit)->UpdateMeshTransformations();
+	//}
+
+	int n_renders=m_dome->GetNumberRenders();// usually 4 or 6
 	for (int i=0;i<n_renders;i++){
 		m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
@@ -311,7 +320,6 @@ void KX_KetsjiEngine::RenderDome()
 			// shadow buffers
 			if (i == 0){
 				RenderShadowBuffers(scene);
-				scene->UpdateMeshTransformations();//I need to run it somewherelse, otherwise Im overrunning it
 			}
 			// Avoid drawing the scene with the active camera twice when it's viewport is enabled
 			if(cam && !cam->GetViewport())
@@ -348,7 +356,6 @@ void KX_KetsjiEngine::RenderDome()
 		m_dome->BindImages(i);
 	}	
 
-//	m_dome->Dome_PostRender(scene, cam, stereomode);
 	m_canvas->EndFrame();//XXX do we really need that?
 
 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
@@ -376,7 +383,8 @@ void KX_KetsjiEngine::RenderDome()
 
 	m_dome->Draw();
 
-	//run 2dfilters
+	// run the 2dfilters and motion blur once for all the scenes
+	PostRenderFrame();
 	EndFrame();
 }
 
@@ -394,6 +402,7 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 	m_firstframe = true;
 	m_bInitialized = true;
 	m_ticrate = DEFAULT_LOGIC_TIC_RATE;
+	m_maxLogicFrame = 5;
 	
 	if (m_game2ipo)
 	{
@@ -506,7 +515,8 @@ void KX_KetsjiEngine::EndFrame()
 
 bool KX_KetsjiEngine::NextFrame()
 {
-
+	double timestep = 1.0/m_ticrate;
+	double framestep = timestep;
 //	static hidden::Clock sClock;
 
 m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(),true);
@@ -515,7 +525,7 @@ m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(),true);
 //sClock.reset();
 
 if (m_bFixedTime)
-	m_clockTime += 1./m_ticrate;
+	m_clockTime += timestep;
 else
 {
 
@@ -534,7 +544,7 @@ else
 
 
 	// Compute the number of logic frames to do each update (fixed tic bricks)
-	int frames =int(deltatime*m_ticrate);
+	int frames =int(deltatime*m_ticrate+1e-6);
 //	if (frames>1)
 //		printf("****************************************");
 //	printf("dt = %f, deltatime = %f, frames = %d\n",dt, deltatime,frames);
@@ -549,18 +559,24 @@ else
 	{
 	
 	//	printf("framedOut: %d\n",frames);
-		m_frameTime+=(frames-frameOut)*(1.0/m_ticrate);
+		m_frameTime+=(frames-frameOut)*timestep;
 		frames = frameOut;
 	}
 	
 
 	bool doRender = frames>0;
 
+	if (frames > m_maxLogicFrame)
+	{
+		framestep = (frames*timestep)/m_maxLogicFrame;
+		frames = m_maxLogicFrame;
+	}
+		
 	while (frames)
 	{
 	
 
-		m_frameTime += 1.0/m_ticrate;
+		m_frameTime += framestep;
 		
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
 		// for each scene, call the proceed functions
@@ -587,12 +603,15 @@ else
 
 				
 				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_NETWORK);
 				scene->GetNetworkScene()->proceed(m_frameTime);
 	
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				scene->UpdateParents(m_frameTime);
+				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				//SG_SetActiveStage(SG_STAGE_NETWORK_UPDATE);
+				//scene->UpdateParents(m_frameTime);
 				
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_PHYSICS1);
 				// set Python hooks for each scene
 				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 				KX_SetActiveScene(scene);
@@ -601,38 +620,45 @@ else
 				
 				// Update scenegraph after physics step. This maps physics calculations
 				// into node positions.		
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				scene->UpdateParents(m_frameTime);
+				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				//SG_SetActiveStage(SG_STAGE_PHYSICS1_UPDATE);
+				//scene->UpdateParents(m_frameTime);
 				
 				// Process sensors, and controllers
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_CONTROLLER);
 				scene->LogicBeginFrame(m_frameTime);
 	
 				// Scenegraph needs to be updated again, because Logic Controllers 
 				// can affect the local matrices.
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_CONTROLLER_UPDATE);
 				scene->UpdateParents(m_frameTime);
 	
 				// Process actuators
 	
 				// Do some cleanup work for this logic frame
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_ACTUATOR);
 				scene->LogicUpdateFrame(m_frameTime, true);
 				
 				scene->LogicEndFrame();
 	
 				// Actuators can affect the scenegraph
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
 				scene->UpdateParents(m_frameTime);
 				
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->GetPhysicsEnvironment()->beginFrame();
 		
 				// Perform physics calculations on the scene. This can involve 
 				// many iterations of the physics solver.
-				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_frameTime,1.0/m_ticrate);//m_deltatimerealDeltaTime);
+				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_frameTime,timestep,framestep);//m_deltatimerealDeltaTime);
 
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
 				scene->UpdateParents(m_frameTime);
 			
 			
@@ -696,15 +722,17 @@ else
 				KX_SetActiveScene(scene);
 				
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_PHYSICS1);
 				scene->UpdateParents(m_clockTime);
 
 				// Perform physics calculations on the scene. This can involve 
 				// many iterations of the physics solver.
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
-				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,0.f);
+				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,timestep,timestep);
 				// Update scenegraph after physics step. This maps physics calculations
 				// into node positions.		
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->UpdateParents(m_clockTime);
 				
 				// Do some cleanup work for this logic frame
@@ -713,6 +741,7 @@ else
 
 				// Actuators can affect the scenegraph
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+				SG_SetActiveStage(SG_STAGE_ACTUATOR);
 				scene->UpdateParents(m_clockTime);
 				 
  				scene->setSuspendedTime(0.0);
@@ -748,6 +777,7 @@ void KX_KetsjiEngine::Render()
 	const RAS_FrameSettings &framesettings = firstscene->GetFramingType();
 
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
+	SG_SetActiveStage(SG_STAGE_RENDER);
 
 	// hiding mouse cursor each frame
 	// (came back when going out of focus and then back in again)
@@ -797,6 +827,9 @@ void KX_KetsjiEngine::Render()
 		KX_Camera* cam = scene->GetActiveCamera();
 		// pass the scene's worldsettings to the rasterizer
 		SetWorldSettings(scene->GetWorldInfo());
+
+		// this is now done incrementatlly in KX_Scene::CalculateVisibleMeshes
+		//scene->UpdateMeshTransformations();
 
 		// shadow buffers
 		RenderShadowBuffers(scene);
@@ -975,7 +1008,7 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 			wi->getAmbientColorBlue()
 		);
 
-		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED)
+		if (m_drawingmode >= RAS_IRasterizer::KX_SOLID)
 		{	
 			if (wi->hasMist())
 			{
@@ -986,10 +1019,6 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 					wi->getMistColorGreen(),
 					wi->getMistColorBlue()
 				);
-			}
-			else
-			{
-				m_rasterizer->DisableFog();
 			}
 		}
 	}
@@ -1072,7 +1101,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera* cam, RAS_Rect
 
 		area = userviewport;
 	}
-	else if ( m_overrideCam || (scene->GetName() != m_overrideSceneName) ||  m_overrideCamUseOrtho ) {
+	else if ( !m_overrideCam || (scene->GetName() != m_overrideSceneName) ||  m_overrideCamUseOrtho ) {
 		RAS_FramingManager::ComputeViewport(
 			scene->GetFramingType(),
 			m_canvas->GetDisplayArea(),
@@ -1092,16 +1121,13 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera* cam, RAS_Rect
 
 void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 {
-	CListValue *objectlist = scene->GetObjectList();
+	CListValue *lightlist = scene->GetLightList();
 	int i, drawmode;
 
 	m_rendertools->SetAuxilaryClientInfo(scene);
 
-	for(i=0; i<objectlist->GetCount(); i++) {
-		KX_GameObject *gameobj = (KX_GameObject*)objectlist->GetValue(i);
-
-		if(!gameobj->IsLight())
-			continue;
+	for(i=0; i<lightlist->GetCount(); i++) {
+		KX_GameObject *gameobj = (KX_GameObject*)lightlist->GetValue(i);
 
 		KX_LightObject *light = (KX_LightObject*)gameobj;
 
@@ -1123,7 +1149,6 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			light->BindShadowBuffer(m_rasterizer, cam, camtrans);
 
 			/* update scene */
-			scene->UpdateMeshTransformations();
 			scene->CalculateVisibleMeshes(m_rasterizer, cam, light->GetShadowLayer());
 
 			/* render */
@@ -1143,13 +1168,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 {
 	bool override_camera;
 	RAS_Rect viewport, area;
-	float left, right, bottom, top, nearfrust, farfrust, focallength;
-	const float ortho = 100.0;
+	float nearfrust, farfrust, focallength;
 //	KX_Camera* cam = scene->GetActiveCamera();
 	
 	if (!cam)
 		return;
-
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// store the computed viewport in the scene
@@ -1167,19 +1190,24 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	override_camera = override_camera && (cam->GetName() == "__default__cam__");
 
 	if (override_camera && m_overrideCamUseOrtho) {
-		MT_CmMatrix4x4 projmat = m_overrideCamProjMat;
-		m_rasterizer->SetProjectionMatrix(projmat);
+		m_rasterizer->SetProjectionMatrix(m_overrideCamProjMat);
+		if (!cam->hasValidProjectionMatrix()) {
+			// needed to get frustrum planes for culling
+			MT_Matrix4x4 projmat;
+			projmat.setValue(m_overrideCamProjMat.getPointer());
+			cam->SetProjectionMatrix(projmat);
+		}
 	} else if (cam->hasValidProjectionMatrix() && !cam->GetViewport() )
 	{
 		m_rasterizer->SetProjectionMatrix(cam->GetProjectionMatrix());
 	} else
 	{
 		RAS_FrameFrustum frustum;
-		float lens = cam->GetLens();
 		bool orthographic = !cam->GetCameraData()->m_perspective;
 		nearfrust = cam->GetCameraNear();
 		farfrust = cam->GetCameraFar();
 		focallength = cam->GetFocalLength();
+		MT_Matrix4x4 projmat;
 
 		if(override_camera) {
 			nearfrust = m_overrideCamNear;
@@ -1187,54 +1215,70 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 		}
 
 		if (orthographic) {
-			lens *= ortho;
-			nearfrust = (nearfrust + 1.0)*ortho;
-			farfrust *= ortho;
+
+			RAS_FramingManager::ComputeOrtho(
+				scene->GetFramingType(),
+				area,
+				viewport,
+				cam->GetScale(),
+				nearfrust,
+				farfrust,
+				frustum
+			);
+			if (!cam->GetViewport()) {
+				frustum.x1 *= m_cameraZoom;
+				frustum.x2 *= m_cameraZoom;
+				frustum.y1 *= m_cameraZoom;
+				frustum.y2 *= m_cameraZoom;
+			}
+			projmat = m_rasterizer->GetOrthoMatrix(
+				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar);
+
+		} else {
+			RAS_FramingManager::ComputeFrustum(
+				scene->GetFramingType(),
+				area,
+				viewport,
+				cam->GetLens(),
+				nearfrust,
+				farfrust,
+				frustum
+			);
+
+			if (!cam->GetViewport()) {
+				frustum.x1 *= m_cameraZoom;
+				frustum.x2 *= m_cameraZoom;
+				frustum.y1 *= m_cameraZoom;
+				frustum.y2 *= m_cameraZoom;
+			}
+			projmat = m_rasterizer->GetFrustumMatrix(
+				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar, focallength);
 		}
-		
-		RAS_FramingManager::ComputeFrustum(
-			scene->GetFramingType(),
-			area,
-			viewport,
-			lens,
-			nearfrust,
-			farfrust,
-			frustum
-		);
-
-		left = frustum.x1 * m_cameraZoom;
-		right = frustum.x2 * m_cameraZoom;
-		bottom = frustum.y1 * m_cameraZoom;
-		top = frustum.y2 * m_cameraZoom;
-		nearfrust = frustum.camnear;
-		farfrust = frustum.camfar;
-
-		MT_Matrix4x4 projmat = m_rasterizer->GetFrustumMatrix(
-			left, right, bottom, top, nearfrust, farfrust, focallength);
-
 		cam->SetProjectionMatrix(projmat);
 		
 		// Otherwise the projection matrix for each eye will be the same...
-		if (m_rasterizer->Stereo())
+		if (!orthographic && m_rasterizer->Stereo())
 			cam->InvalidateProjectionMatrix();
 	}
 
 	MT_Transform camtrans(cam->GetWorldToCamera());
-	if (!cam->GetCameraData()->m_perspective)
-		camtrans.getOrigin()[2] *= ortho;
 	MT_Matrix4x4 viewmat(camtrans);
 	
-	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldPosition(),
-		cam->GetCameraLocation(), cam->GetCameraOrientation());
+	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
-
-	scene->UpdateMeshTransformations();
 
 	// The following actually reschedules all vertices to be
 	// redrawn. There is a cache between the actual rescheduling
 	// and this call though. Visibility is imparted when this call
 	// runs through the individual objects.
+
+	m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
+	SG_SetActiveStage(SG_STAGE_CULLING);
+
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
+
+	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
+	SG_SetActiveStage(SG_STAGE_RENDER);
 
 	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 	
@@ -1243,15 +1287,14 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	
 	m_rasterizer->FlushDebugLines();
 
+	//it's running once for every scene (i.e. overlay scenes have  it running twice). That's not the ideal.
 	PostRenderFrame();
 }
 
 void KX_KetsjiEngine::PostRenderFrame()
 {
-	m_rendertools->PushMatrix();
 	m_rendertools->Render2DFilters(m_canvas);
 	m_rendertools->MotionBlur(m_rasterizer);
-	m_rendertools->PopMatrix();
 }
 
 void KX_KetsjiEngine::StopEngine()
@@ -1292,15 +1335,17 @@ void KX_KetsjiEngine::AddScene(KX_Scene* scene)
 void KX_KetsjiEngine::PostProcessScene(KX_Scene* scene)
 {
 	bool override_camera = (m_overrideCam && (scene->GetName() == m_overrideSceneName));
-	
-		// if there is no activecamera, or the camera is being
-		// overridden we need to construct a temporarily camera
+
+	SG_SetActiveStage(SG_STAGE_SCENE);
+
+	// if there is no activecamera, or the camera is being
+	// overridden we need to construct a temporarily camera
 	if (!scene->GetActiveCamera() || override_camera)
 	{
 		KX_Camera* activecam = NULL;
 
 		RAS_CameraData camdata = RAS_CameraData();
-		activecam = new KX_Camera(scene,KX_Scene::m_callbacks,camdata, false);
+		activecam = new KX_Camera(scene,KX_Scene::m_callbacks,camdata);
 		activecam->SetName("__default__cam__");
 	
 			// set transformation
@@ -1312,11 +1357,11 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene* scene)
 			
 			activecam->NodeSetLocalPosition(camtrans.getOrigin());
 			activecam->NodeSetLocalOrientation(camtrans.getBasis());
-			activecam->NodeUpdateGS(0,true);
+			activecam->NodeUpdateGS(0);
 		} else {
 			activecam->NodeSetLocalPosition(MT_Point3(0.0, 0.0, 0.0));
 			activecam->NodeSetLocalOrientation(MT_Vector3(0.0, 0.0, 0.0));
-			activecam->NodeUpdateGS(0,true);
+			activecam->NodeUpdateGS(0);
 		}
 
 		scene->AddCamera(activecam);
@@ -1371,7 +1416,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 										m_canvas->GetWidth(), 
 										m_canvas->GetHeight());
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
-			debugtxt.Format("%2.2f %%", time/tottime * 100.f);
+			debugtxt.Format("%.3fms (%2.2f %%)", time*1000.f, time/tottime * 100.f);
 			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
 										debugtxt.Ptr(),
 										xcoord + 60 ,ycoord,
@@ -1687,6 +1732,16 @@ double KX_KetsjiEngine::GetTicRate()
 void KX_KetsjiEngine::SetTicRate(double ticrate)
 {
 	m_ticrate = ticrate;
+}
+
+int KX_KetsjiEngine::GetMaxLogicFrame()
+{
+	return m_maxLogicFrame;
+}
+
+void KX_KetsjiEngine::SetMaxLogicFrame(int frame)
+{
+	m_maxLogicFrame = frame;
 }
 
 double KX_KetsjiEngine::GetAnimFrameRate()

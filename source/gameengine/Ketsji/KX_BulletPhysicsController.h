@@ -13,6 +13,8 @@ private:
 	short int m_savedCollisionFilterGroup;
 	short int m_savedCollisionFilterMask;
 	MT_Scalar m_savedMass;
+	bool m_savedDyna;
+	bool m_suspended;
 	btCollisionShape* m_bulletChildShape;
 
 public:
@@ -42,6 +44,7 @@ public:
 	virtual	void setScaling(const MT_Vector3& scaling);
 	virtual	MT_Scalar	GetMass();
 	virtual	void	SetMass(MT_Scalar newmass);
+	virtual	MT_Vector3	GetLocalInertia();
 	virtual	MT_Vector3	getReactionForce();
 	virtual void	setRigidBody(bool rigid);
 	virtual void    AddCompoundChild(KX_IPhysicsController* child);
@@ -55,7 +58,11 @@ public:
 	virtual	SG_Controller*	GetReplica(class SG_Node* destnode);
 
 	virtual MT_Scalar GetRadius();
-
+	
+	virtual float GetLinVelocityMin();
+	virtual void  SetLinVelocityMin(float val);
+	virtual float GetLinVelocityMax();
+	virtual void  SetLinVelocityMax(float val);
 
 	virtual void	SetSumoTransform(bool nondynaonly);
 	// todo: remove next line !

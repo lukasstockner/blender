@@ -87,7 +87,7 @@ KX_SCA_AddObjectActuator::~KX_SCA_AddObjectActuator()
 	if (m_OriginalObject)
 		m_OriginalObject->UnregisterActuator(this);
 	if (m_lastCreatedObject)
-		m_lastCreatedObject->Release();
+		m_lastCreatedObject->UnregisterActuator(this);
 } 
 
 
@@ -125,7 +125,6 @@ CValue* KX_SCA_AddObjectActuator::GetReplica()
 
 	// this will copy properties and so on...
 	replica->ProcessReplica();
-	CValue::AddDataToReplica(replica);
 
 	return replica;
 }
@@ -144,6 +143,12 @@ bool KX_SCA_AddObjectActuator::UnlinkObject(SCA_IObject* clientobj)
 	{
 		// this object is being deleted, we cannot continue to track it.
 		m_OriginalObject = NULL;
+		return true;
+	}
+	if (clientobj == m_lastCreatedObject)
+	{
+		// this object is being deleted, we cannot continue to track it.
+		m_lastCreatedObject = NULL;
 		return true;
 	}
 	return false;
@@ -167,12 +172,17 @@ void KX_SCA_AddObjectActuator::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_SCA_AddObjectActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_SCA_AddObjectActuator",
-	sizeof(KX_SCA_AddObjectActuator),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -223,7 +233,7 @@ PyObject* KX_SCA_AddObjectActuator::pyattr_get_object(void *self, const struct K
 	if (!actuator->m_OriginalObject)	
 		Py_RETURN_NONE;
 	else
-		return actuator->m_OriginalObject->AddRef();
+		return actuator->m_OriginalObject->GetProxy();
 }
 
 int KX_SCA_AddObjectActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -231,7 +241,7 @@ int KX_SCA_AddObjectActuator::pyattr_set_object(void *self, const struct KX_PYAT
 	KX_SCA_AddObjectActuator* actuator = static_cast<KX_SCA_AddObjectActuator*>(self);
 	KX_GameObject *gameobj;
 		
-	if (!ConvertPythonToGameObject(value, &gameobj, true))
+	if (!ConvertPythonToGameObject(value, &gameobj, true, "actuator.object = value: KX_SCA_AddObjectActuator"))
 		return 1; // ConvertPythonToGameObject sets the error
 		
 	if (actuator->m_OriginalObject != NULL)
@@ -251,24 +261,22 @@ PyObject* KX_SCA_AddObjectActuator::pyattr_get_objectLastCreated(void *self, con
 	if (!actuator->m_lastCreatedObject)
 		Py_RETURN_NONE;
 	else
-		return actuator->m_lastCreatedObject->AddRef();
+		return actuator->m_lastCreatedObject->GetProxy();
 }
 
 
 PyObject* KX_SCA_AddObjectActuator::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
+}
+
+PyObject* KX_SCA_AddObjectActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
 }
 
 int KX_SCA_AddObjectActuator::py_setattro(PyObject *attr, PyObject* value) 
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 /* 1. setObject */
@@ -277,13 +285,13 @@ const char KX_SCA_AddObjectActuator::SetObject_doc[] =
 "\t- object: KX_GameObject, string or None\n"
 "\tSets the object that will be added. There has to be an object\n"
 "\tof this name. If not, this function does nothing.\n";
-PyObject* KX_SCA_AddObjectActuator::PySetObject(PyObject* self, PyObject* value)
+PyObject* KX_SCA_AddObjectActuator::PySetObject(PyObject* value)
 {
 	KX_GameObject *gameobj;
 	
 	ShowDeprecationWarning("setObject()", "the object property");
 	
-	if (!ConvertPythonToGameObject(value, &gameobj, true))
+	if (!ConvertPythonToGameObject(value, &gameobj, true, "actuator.setObject(value): KX_SCA_AddObjectActuator"))
 		return NULL; // ConvertPythonToGameObject sets the error
 	
 	if (m_OriginalObject != NULL)
@@ -306,7 +314,7 @@ const char KX_SCA_AddObjectActuator::SetTime_doc[] =
 "\tIf the duration is negative, it is set to 0.\n";
 
 
-PyObject* KX_SCA_AddObjectActuator::PySetTime(PyObject* self, PyObject* value)
+PyObject* KX_SCA_AddObjectActuator::PySetTime(PyObject* value)
 {
 	ShowDeprecationWarning("setTime()", "the time property");
 	int deltatime = PyInt_AsLong(value);
@@ -329,7 +337,7 @@ const char KX_SCA_AddObjectActuator::GetTime_doc[] =
 "\tReturns the lifetime of the object that will be added.\n";
 
 
-PyObject* KX_SCA_AddObjectActuator::PyGetTime(PyObject* self)
+PyObject* KX_SCA_AddObjectActuator::PyGetTime()
 {
 	ShowDeprecationWarning("getTime()", "the time property");
 	return PyInt_FromLong(m_timeProp);
@@ -341,22 +349,22 @@ const char KX_SCA_AddObjectActuator::GetObject_doc[] =
 "getObject(name_only = 1)\n"
 "name_only - optional arg, when true will return the KX_GameObject rather then its name\n"
 "\tReturns the name of the object that will be added.\n";
-PyObject* KX_SCA_AddObjectActuator::PyGetObject(PyObject* self, PyObject* args)
+PyObject* KX_SCA_AddObjectActuator::PyGetObject(PyObject* args)
 {
 	int ret_name_only = 1;
 	
 	ShowDeprecationWarning("getObject()", "the object property");
 	
-	if (!PyArg_ParseTuple(args, "|i", &ret_name_only))
+	if (!PyArg_ParseTuple(args, "|i:getObject", &ret_name_only))
 		return NULL;
 	
 	if (!m_OriginalObject)
 		Py_RETURN_NONE;
 	
 	if (ret_name_only)
-		return PyString_FromString(m_OriginalObject->GetName());
+		return PyString_FromString(m_OriginalObject->GetName().ReadPtr());
 	else
-		return m_OriginalObject->AddRef();
+		return m_OriginalObject->GetProxy();
 }
 
 
@@ -367,7 +375,7 @@ const char KX_SCA_AddObjectActuator::GetLinearVelocity_doc[] =
 "\tReturns the linear velocity that will be assigned to \n"
 "\tthe created object.\n";
 
-PyObject* KX_SCA_AddObjectActuator::PyGetLinearVelocity(PyObject* self)
+PyObject* KX_SCA_AddObjectActuator::PyGetLinearVelocity()
 {
 	ShowDeprecationWarning("getLinearVelocity()", "the linearVelocity property");
 	PyObject *retVal = PyList_New(3);
@@ -390,12 +398,12 @@ const char KX_SCA_AddObjectActuator::SetLinearVelocity_doc[] =
 "\t- local: bool\n"
 "\tAssign this velocity to the created object. \n";
 
-PyObject* KX_SCA_AddObjectActuator::PySetLinearVelocity(PyObject* self, PyObject* args)
+PyObject* KX_SCA_AddObjectActuator::PySetLinearVelocity(PyObject* args)
 {
 	ShowDeprecationWarning("setLinearVelocity()", "the linearVelocity property");
 	
 	float vecArg[3];
-	if (!PyArg_ParseTuple(args, "fff", &vecArg[0], &vecArg[1], &vecArg[2]))
+	if (!PyArg_ParseTuple(args, "fff:setLinearVelocity", &vecArg[0], &vecArg[1], &vecArg[2]))
 		return NULL;
 
 	m_linear_velocity[0] = vecArg[0];
@@ -410,7 +418,7 @@ const char KX_SCA_AddObjectActuator::GetAngularVelocity_doc[] =
 "\tReturns the angular velocity that will be assigned to \n"
 "\tthe created object.\n";
 
-PyObject* KX_SCA_AddObjectActuator::PyGetAngularVelocity(PyObject* self)
+PyObject* KX_SCA_AddObjectActuator::PyGetAngularVelocity()
 {
 	ShowDeprecationWarning("getAngularVelocity()", "the angularVelocity property");
 	PyObject *retVal = PyList_New(3);
@@ -433,12 +441,12 @@ const char KX_SCA_AddObjectActuator::SetAngularVelocity_doc[] =
 "\t- local: bool\n"
 "\tAssign this angular velocity to the created object. \n";
 
-PyObject* KX_SCA_AddObjectActuator::PySetAngularVelocity(PyObject* self, PyObject* args)
+PyObject* KX_SCA_AddObjectActuator::PySetAngularVelocity(PyObject* args)
 {
 	ShowDeprecationWarning("setAngularVelocity()", "the angularVelocity property");
 	
 	float vecArg[3];
-	if (!PyArg_ParseTuple(args, "fff", &vecArg[0], &vecArg[1], &vecArg[2]))
+	if (!PyArg_ParseTuple(args, "fff:setAngularVelocity", &vecArg[0], &vecArg[1], &vecArg[2]))
 		return NULL;
 
 	m_angular_velocity[0] = vecArg[0];
@@ -462,19 +470,27 @@ void	KX_SCA_AddObjectActuator::InstantAddObject()
 		// keep a copy of the last object, to allow python scripters to change it
 		if (m_lastCreatedObject)
 		{
-			//careful with destruction, it might still have outstanding collision callbacks
-			m_scene->DelayedReleaseObject(m_lastCreatedObject);
-			m_lastCreatedObject->Release();
+			//Let's not keep a reference to the object: it's bad, if the object is deleted
+			//this will force to keep a "zombie" in the game for no good reason.
+			//m_scene->DelayedReleaseObject(m_lastCreatedObject);
+			//m_lastCreatedObject->Release();
+
+			//Instead we use the registration mechanism
+			m_lastCreatedObject->UnregisterActuator(this);
+			m_lastCreatedObject = NULL;
 		}
 		
 		m_lastCreatedObject = replica;
-		m_lastCreatedObject->AddRef();
+		// no reference
+		//m_lastCreatedObject->AddRef();
+		// but registration
+		m_lastCreatedObject->RegisterActuator(this);
 		// finished using replica? then release it
 		replica->Release();
 	}
 }
 
-PyObject* KX_SCA_AddObjectActuator::PyInstantAddObject(PyObject* self)
+PyObject* KX_SCA_AddObjectActuator::PyInstantAddObject()
 {
 	InstantAddObject();
 
@@ -489,7 +505,7 @@ const char KX_SCA_AddObjectActuator::GetLastCreatedObject_doc[] =
 "\tReturn the last created object. \n";
 
 
-PyObject* KX_SCA_AddObjectActuator::PyGetLastCreatedObject(PyObject* self)
+PyObject* KX_SCA_AddObjectActuator::PyGetLastCreatedObject()
 {
 	ShowDeprecationWarning("getLastCreatedObject()", "the objectLastCreated property");
 	SCA_IObject* result = this->GetLastCreatedObject();
@@ -498,8 +514,7 @@ PyObject* KX_SCA_AddObjectActuator::PyGetLastCreatedObject(PyObject* self)
 	// it means the object has ended, The BGE python api crashes in many places if the object is returned.
 	if (result && (static_cast<KX_GameObject *>(result))->GetSGNode()) 
 	{
-		result->AddRef();
-		return result;
+		return result->GetProxy();
 	}
 	// don't return NULL to python anymore, it gives trouble in the scripts
 	Py_RETURN_NONE;

@@ -74,9 +74,6 @@ CValue* KX_CDActuator::GetReplica()
 {
 	KX_CDActuator* replica = new KX_CDActuator(*this);
 	replica->ProcessReplica();
-	
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
 	return replica;
 };
 
@@ -158,12 +155,17 @@ bool KX_CDActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_CDActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-		0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 		"KX_SoundActuator",
-		sizeof(KX_CDActuator),
+		sizeof(PyObjectPlus_Proxy),
 		0,
-		PyDestructor,
+		py_base_dealloc,
 		0,
 		0,
 		0,
@@ -217,18 +219,16 @@ int KX_CDActuator::pyattr_setGain(void *self, const struct KX_PYATTRIBUTE_DEF *a
 
 PyObject* KX_CDActuator::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
+}
+
+PyObject* KX_CDActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
 }
 
 int KX_CDActuator::py_setattro(PyObject *attr, PyObject *value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 
@@ -295,11 +295,11 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CDActuator, playAll,
 }     
 
 // Deprecated ----->
-PyObject* KX_CDActuator::PySetGain(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_CDActuator::PySetGain(PyObject* args)
 {
 	float gain = 1.0;
 	ShowDeprecationWarning("setGain()", "the volume property");
-	if (!PyArg_ParseTuple(args, "f", &gain))
+	if (!PyArg_ParseTuple(args, "f:setGain", &gain))
 		return NULL;
 	
 	SND_CDObject::Instance()->SetGain(gain);
@@ -309,7 +309,7 @@ PyObject* KX_CDActuator::PySetGain(PyObject* self, PyObject* args, PyObject* kwd
 
 
 
-PyObject* KX_CDActuator::PyGetGain(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_CDActuator::PyGetGain(PyObject* args)
 {
 	float gain = SND_CDObject::Instance()->GetGain();
 	ShowDeprecationWarning("getGain()", "the volume property");

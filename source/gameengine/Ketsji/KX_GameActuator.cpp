@@ -73,8 +73,6 @@ CValue* KX_GameActuator::GetReplica()
 {
 	KX_GameActuator* replica = new KX_GameActuator(*this);
 	replica->ProcessReplica();
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
 	
 	return replica;
 }
@@ -208,12 +206,17 @@ bool KX_GameActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_GameActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-		0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 		"KX_GameActuator",
-		sizeof(KX_GameActuator),
+		sizeof(PyObjectPlus_Proxy),
 		0,
-		PyDestructor,
+		py_base_dealloc,
 		0,
 		0,
 		0,
@@ -250,24 +253,22 @@ PyMethodDef KX_GameActuator::Methods[] =
 
 PyAttributeDef KX_GameActuator::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW("file",0,100,false,KX_GameActuator,m_filename),
+	KX_PYATTRIBUTE_INT_RW("mode", KX_GAME_NODEF+1, KX_GAME_MAX-1, true, KX_GameActuator, m_mode),
 	{ NULL }	//Sentinel
 };
 
-PyObject*
-KX_GameActuator::py_getattro(PyObject *attr)
+PyObject* KX_GameActuator::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
+}
+
+PyObject* KX_GameActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
 }
 
 int KX_GameActuator::py_setattro(PyObject *attr, PyObject *value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 
@@ -276,7 +277,7 @@ int KX_GameActuator::py_setattro(PyObject *attr, PyObject *value)
 const char KX_GameActuator::GetFile_doc[] = 
 "getFile()\n"
 "get the name of the file to start.\n";
-PyObject* KX_GameActuator::PyGetFile(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_GameActuator::PyGetFile(PyObject* args, PyObject* kwds)
 {	
 	ShowDeprecationWarning("getFile()", "the file property");
 	return PyString_FromString(m_filename);
@@ -286,13 +287,13 @@ PyObject* KX_GameActuator::PyGetFile(PyObject* self, PyObject* args, PyObject* k
 const char KX_GameActuator::SetFile_doc[] =
 "setFile(name)\n"
 "set the name of the file to start.\n";
-PyObject* KX_GameActuator::PySetFile(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_GameActuator::PySetFile(PyObject* args, PyObject* kwds)
 {
 	char* new_file;
 
 	ShowDeprecationWarning("setFile()", "the file property");
 	
-	if (!PyArg_ParseTuple(args, "s", &new_file))
+	if (!PyArg_ParseTuple(args, "s:setFile", &new_file))
 	{
 		return NULL;
 	}

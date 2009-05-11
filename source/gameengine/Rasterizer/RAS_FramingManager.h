@@ -163,6 +163,13 @@ struct RAS_FrameFrustum
 	float x2,y2;
 };	
 
+/* must match R_CULLING_... from DNA_scene_types.h */
+enum RAS_CullingMode
+{
+	RAS_CULLING_DBVT = 0,
+	RAS_CULLING_NORMAL,
+	RAS_CULLING_NONE
+};
 
 /**
  * @section RAS_FramingManager
@@ -202,6 +209,18 @@ public :
 
 	static
 		void
+	ComputeOrtho(
+		const RAS_FrameSettings &settings,
+		const RAS_Rect &availableViewport,
+		const RAS_Rect &viewport,
+		const float scale,
+		const float camnear,
+		const float camfar,
+		RAS_FrameFrustum &frustum
+	);
+
+	static
+		void
 	ComputeFrustum(
 		const RAS_FrameSettings &settings,
 		const RAS_Rect &availableViewport,
@@ -221,6 +240,16 @@ public :
 		const float design_aspect_ratio,
 		RAS_FrameFrustum & frustum
 	);	
+
+	static
+		void
+	ComputeDefaultOrtho(
+		const float camnear,
+		const float camfar,
+		const float scale,
+		const float design_aspect_ratio,
+		RAS_FrameFrustum & frustum
+	);
 
 private :
 

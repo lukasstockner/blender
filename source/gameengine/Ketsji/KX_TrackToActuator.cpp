@@ -83,6 +83,10 @@ KX_TrackToActuator::KX_TrackToActuator(SCA_IObject *gameobj,
 				// if so, store the initial local rotation
 				// this is needed to revert the effect of the parent inverse node (TBC)
 				m_parentlocalmat = m_parentobj->GetSGNode()->GetLocalOrientation();
+				// use registration mechanism rather than AddRef, it creates zombie objects
+				m_parentobj->RegisterActuator(this);
+				// GetParent did AddRef, undo here
+				m_parentobj->Release();
 			}
 		}
 	}
@@ -189,7 +193,7 @@ KX_TrackToActuator::~KX_TrackToActuator()
 	if (m_object)
 		m_object->UnregisterActuator(this);
 	if (m_parentobj)
-		m_parentobj->Release();
+		m_parentobj->UnregisterActuator(this);
 } /* end of destructor */
 
 void KX_TrackToActuator::ProcessReplica()
@@ -198,7 +202,7 @@ void KX_TrackToActuator::ProcessReplica()
 	if (m_object)
 		m_object->RegisterActuator(this);
 	if (m_parentobj)
-		m_parentobj->AddRef();
+		m_parentobj->RegisterActuator(this);
 	SCA_IActuator::ProcessReplica();
 }
 
@@ -209,6 +213,11 @@ bool KX_TrackToActuator::UnlinkObject(SCA_IObject* clientobj)
 	{
 		// this object is being deleted, we cannot continue to track it.
 		m_object = NULL;
+		return true;
+	}
+	if (clientobj == m_parentobj)
+	{
+		m_parentobj = NULL;
 		return true;
 	}
 	return false;
@@ -227,9 +236,9 @@ void KX_TrackToActuator::Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map)
 	void **h_parobj = (*obj_map)[m_parentobj];
 	if (h_parobj) {
 		if (m_parentobj)
-			m_parentobj->Release();
+			m_parentobj->UnregisterActuator(this);
 		m_parentobj= (KX_GameObject*)(*h_parobj);
-		m_parentobj->AddRef();
+		m_parentobj->RegisterActuator(this);
 	}
 }
 
@@ -425,12 +434,17 @@ bool KX_TrackToActuator::Update(double curtime, bool frame)
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_TrackToActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_TrackToActuator",
-	sizeof(KX_TrackToActuator),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -458,9 +472,9 @@ PyParentObject KX_TrackToActuator::Parents[] = {
 PyMethodDef KX_TrackToActuator::Methods[] = {
 	// ---> deprecated
 	{"setTime", (PyCFunction) KX_TrackToActuator::sPySetTime, METH_VARARGS, (PY_METHODCHAR)SetTime_doc},
-	{"getTime", (PyCFunction) KX_TrackToActuator::sPyGetTime, METH_VARARGS, (PY_METHODCHAR)GetTime_doc},
+	{"getTime", (PyCFunction) KX_TrackToActuator::sPyGetTime, METH_NOARGS, (PY_METHODCHAR)GetTime_doc},
 	{"setUse3D", (PyCFunction) KX_TrackToActuator::sPySetUse3D, METH_VARARGS, (PY_METHODCHAR)SetUse3D_doc},
-	{"getUse3D", (PyCFunction) KX_TrackToActuator::sPyGetUse3D, METH_VARARGS, (PY_METHODCHAR)GetUse3D_doc},
+	{"getUse3D", (PyCFunction) KX_TrackToActuator::sPyGetUse3D, METH_NOARGS, (PY_METHODCHAR)GetUse3D_doc},
 	{"setObject", (PyCFunction) KX_TrackToActuator::sPySetObject, METH_O, (PY_METHODCHAR)SetObject_doc},
 	{"getObject", (PyCFunction) KX_TrackToActuator::sPyGetObject, METH_VARARGS, (PY_METHODCHAR)GetObject_doc},
 	
@@ -469,7 +483,7 @@ PyMethodDef KX_TrackToActuator::Methods[] = {
 
 PyAttributeDef KX_TrackToActuator::Attributes[] = {
 	KX_PYATTRIBUTE_INT_RW("time",0,1000,true,KX_TrackToActuator,m_time),
-	KX_PYATTRIBUTE_BOOL_RW("user3D",KX_TrackToActuator,m_allow3D),
+	KX_PYATTRIBUTE_BOOL_RW("use3D",KX_TrackToActuator,m_allow3D),
 	KX_PYATTRIBUTE_RW_FUNCTION("object", KX_TrackToActuator, pyattr_get_object, pyattr_set_object),
 
 	{ NULL }	//Sentinel
@@ -481,7 +495,7 @@ PyObject* KX_TrackToActuator::pyattr_get_object(void *self, const struct KX_PYAT
 	if (!actuator->m_object)	
 		Py_RETURN_NONE;
 	else
-		return actuator->m_object->AddRef();
+		return actuator->m_object->GetProxy();
 }
 
 int KX_TrackToActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
@@ -489,7 +503,7 @@ int KX_TrackToActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUT
 	KX_TrackToActuator* actuator = static_cast<KX_TrackToActuator*>(self);
 	KX_GameObject *gameobj;
 		
-	if (!ConvertPythonToGameObject(value, &gameobj, true))
+	if (!ConvertPythonToGameObject(value, &gameobj, true, "actuator.object = value: KX_TrackToActuator"))
 		return 1; // ConvertPythonToGameObject sets the error
 		
 	if (actuator->m_object != NULL)
@@ -506,18 +520,16 @@ int KX_TrackToActuator::pyattr_set_object(void *self, const struct KX_PYATTRIBUT
 
 PyObject* KX_TrackToActuator::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
+}
+
+PyObject* KX_TrackToActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
 }
 
 int KX_TrackToActuator::py_setattro(PyObject *attr, PyObject* value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 /* 1. setObject */
@@ -525,13 +537,13 @@ const char KX_TrackToActuator::SetObject_doc[] =
 "setObject(object)\n"
 "\t- object: KX_GameObject, string or None\n"
 "\tSet the object to track with the parent of this actuator.\n";
-PyObject* KX_TrackToActuator::PySetObject(PyObject* self, PyObject* value)
+PyObject* KX_TrackToActuator::PySetObject(PyObject* value)
 {
 	KX_GameObject *gameobj;
 	
 	ShowDeprecationWarning("setObject()", "the object property");
 	
-	if (!ConvertPythonToGameObject(value, &gameobj, true))
+	if (!ConvertPythonToGameObject(value, &gameobj, true, "actuator.setObject(value): KX_TrackToActuator"))
 		return NULL; // ConvertPythonToGameObject sets the error
 	
 	if (m_object != NULL)
@@ -551,13 +563,13 @@ const char KX_TrackToActuator::GetObject_doc[] =
 "getObject(name_only = 1)\n"
 "name_only - optional arg, when true will return the KX_GameObject rather then its name\n"
 "\tReturns the object to track with the parent of this actuator\n";
-PyObject* KX_TrackToActuator::PyGetObject(PyObject* self, PyObject* args)
+PyObject* KX_TrackToActuator::PyGetObject(PyObject* args)
 {
 	int ret_name_only = 1;
 	
 	ShowDeprecationWarning("getObject()", "the object property");
 	
-	if (!PyArg_ParseTuple(args, "|i", &ret_name_only))
+	if (!PyArg_ParseTuple(args, "|i:getObject", &ret_name_only))
 		return NULL;
 	
 	if (!m_object)
@@ -566,7 +578,7 @@ PyObject* KX_TrackToActuator::PyGetObject(PyObject* self, PyObject* args)
 	if (ret_name_only)
 		return PyString_FromString(m_object->GetName());
 	else
-		return m_object->AddRef();
+		return m_object->GetProxy();
 }
 
 
@@ -576,12 +588,12 @@ const char KX_TrackToActuator::SetTime_doc[] =
 "setTime(time)\n"
 "\t- time: integer\n"
 "\tSet the time in frames with which to delay the tracking motion.\n";
-PyObject* KX_TrackToActuator::PySetTime(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_TrackToActuator::PySetTime(PyObject* args)
 {
 	ShowDeprecationWarning("setTime()", "the timer property");
 	int timeArg;
 	
-	if (!PyArg_ParseTuple(args, "i", &timeArg))
+	if (!PyArg_ParseTuple(args, "i:setTime", &timeArg))
 	{
 		return NULL;
 	}
@@ -598,7 +610,7 @@ const char KX_TrackToActuator::GetTime_doc[] =
 "getTime()\n"
 "\t- time: integer\n"
 "\tReturn the time in frames with which the tracking motion is delayed.\n";
-PyObject* KX_TrackToActuator::PyGetTime(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_TrackToActuator::PyGetTime()
 {
 	ShowDeprecationWarning("getTime()", "the timer property");
 	return PyInt_FromLong(m_time);
@@ -610,7 +622,7 @@ PyObject* KX_TrackToActuator::PyGetTime(PyObject* self, PyObject* args, PyObject
 const char KX_TrackToActuator::GetUse3D_doc[] = 
 "getUse3D()\n"
 "\tReturns 1 if the motion is allowed to extend in the z-direction.\n";
-PyObject* KX_TrackToActuator::PyGetUse3D(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_TrackToActuator::PyGetUse3D()
 {
 	ShowDeprecationWarning("setTime()", "the use3D property");
 	return PyInt_FromLong(!(m_allow3D == 0));
@@ -624,12 +636,12 @@ const char KX_TrackToActuator::SetUse3D_doc[] =
 "\t- value: 0 or 1\n"
 "\tSet to 1 to allow the tracking motion to extend in the z-direction,\n"
 "\tset to 0 to lock the tracking motion to the x-y plane.\n";
-PyObject* KX_TrackToActuator::PySetUse3D(PyObject* self, PyObject* args, PyObject* kwds)
+PyObject* KX_TrackToActuator::PySetUse3D(PyObject* args)
 {
 	ShowDeprecationWarning("setTime()", "the use3D property");
 	int boolArg;
 	
-	if (!PyArg_ParseTuple(args, "i", &boolArg)) {
+	if (!PyArg_ParseTuple(args, "i:setUse3D", &boolArg)) {
 		return NULL;
 	}
 	

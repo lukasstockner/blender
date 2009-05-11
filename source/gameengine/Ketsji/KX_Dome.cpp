@@ -33,7 +33,6 @@ Developed as part of a Research and Development project for SAT - La Société des
 #include "BLI_arithb.h"
 
 #include "GL/glew.h"
-#include "GL/glu.h"
 
 // constructor
 KX_Dome::KX_Dome (
@@ -53,20 +52,21 @@ KX_Dome::KX_Dome (
 	struct Text* warptext
 
 ):
-	m_canvas(canvas),
-	m_rasterizer(rasterizer),
-	m_rendertools(rendertools),
-	m_engine(engine),
+	dlistSupported(false),
+	canvaswidth(-1), canvasheight(-1),
 	m_drawingmode(engine->GetDrawType()),
 	m_size(size),
 	m_resolution(res),
 	m_mode(mode),
 	m_angle(angle),
 	m_resbuffer(resbuf),
-	canvaswidth(-1), canvasheight(-1),
-	dlistSupported(false)
+	m_canvas(canvas),
+	m_rasterizer(rasterizer),
+	m_rendertools(rendertools),
+	m_engine(engine)
 {
 	warp.usemesh = false;
+	fboSupported = false;
 
 	if (mode >= DOME_NUM_MODES)
 		m_mode = DOME_FISHEYE;
@@ -108,15 +108,9 @@ KX_Dome::KX_Dome (
 				CreateMeshDome250();
 				m_numfaces = 5;
 			} break;
-		case DOME_TRUNCATED:
-			cubetop.resize(1);
-			cubebottom.resize(1);
-			cubeleft.resize(2);
-			cuberight.resize(2);
-
-			m_angle = 180;
-			CreateMeshDome180();
-			m_numfaces = 4;
+		case DOME_ENVMAP:
+			m_angle = 360;
+			m_numfaces = 6;
 			break;
 		case DOME_PANORAM_SPH:
 			cubeleft.resize(2);
@@ -130,6 +124,25 @@ KX_Dome::KX_Dome (
 			CreateMeshPanorama();
 			m_numfaces = 6;
 			break;
+		default: //DOME_TRUNCATED_DOWN and DOME_TRUNCATED_UP
+			if (m_angle <= 180){
+				cubetop.resize(1);
+				cubebottom.resize(1);
+				cubeleft.resize(2);
+				cuberight.resize(2);
+
+				CreateMeshDome180();
+				m_numfaces = 4;
+			}else if (m_angle > 180){
+				cubetop.resize(2);
+				cubebottom.resize(2);
+				cubeleft.resize(2);
+				cubefront.resize(2);
+				cuberight.resize(2);
+
+				CreateMeshDome250();
+				m_numfaces = 5;
+			} break;
 	}
 
 	m_numimages =(warp.usemesh?m_numfaces+1:m_numfaces);
@@ -138,15 +151,19 @@ KX_Dome::KX_Dome (
 
 	CreateGLImages();
 
+	if(warp.usemesh)
+		fboSupported = CreateFBO();
+
 	dlistSupported = CreateDL();
 }
 
 // destructor
 KX_Dome::~KX_Dome (void)
 {
-	GLuint m_numimages = m_numfaces;
-
 	ClearGLImages();
+
+	if(fboSupported)
+		glDeleteFramebuffersEXT(1, &warp.fboId);
 
 	if(dlistSupported)
 		glDeleteLists(dlistId, (GLsizei) m_numimages);
@@ -154,7 +171,7 @@ KX_Dome::~KX_Dome (void)
 
 void KX_Dome::SetViewPort(GLuint viewport[4])
 {
-	if(canvaswidth != m_canvas->GetWidth() || canvasheight != m_canvas->GetHeight())
+	if(canvaswidth != m_viewport.GetWidth() || canvasheight != m_viewport.GetHeight())
 	{
 		m_viewport.SetLeft(viewport[0]); 
 		m_viewport.SetBottom(viewport[1]);
@@ -181,9 +198,9 @@ void KX_Dome::CreateGLImages(void)
 	}
 	if(warp.usemesh){
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, warp.imagewidth, warp.imageheight, 0, GL_RGB8,
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, warp.imagesize, warp.imagesize, 0, GL_RGB8,
 				GL_UNSIGNED_BYTE, 0);
-		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, warp.imagewidth, warp.imageheight, 0);
+		glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, 0, 0, warp.imagesize, warp.imagesize, 0);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -208,12 +225,25 @@ void KX_Dome::CalculateImageSize(void)
 - reduce the buffer for better performace
 - create a power of 2 texture bigger than the buffer
 */
+/*
+Blender handles Canvas size differently when in fullscreen mode.
+We are manually checking for that. Although it's a hack, it works.
+
+Bug reported here: #18655 - Inconsistency of pixels in canvas dimensions when in maximized mode (affecting BGE Dome)
+http://projects.blender.org/tracker/?func=detail&aid=18655&group_id=9&atid=125
+*/
 
 	canvaswidth = m_canvas->GetWidth();
 	canvasheight = m_canvas->GetHeight();
 
+	bool fullscreen(false); //XXX HACK
+	fullscreen = (canvaswidth != m_viewport.GetWidth());
+
 	m_buffersize = (canvaswidth > canvasheight?canvasheight:canvaswidth);
-	m_buffersize *= m_resbuffer; //reduce buffer size for better performance
+	m_buffersize = (int)(m_buffersize*m_resbuffer); //reduce buffer size for better performance
+	
+	if (fullscreen) //XXX HACK
+		m_buffersize --;
 
 	int i = 0;
 	while ((1 << i) <= m_buffersize)
@@ -221,27 +251,25 @@ void KX_Dome::CalculateImageSize(void)
 	m_imagesize = (1 << i);
 
 	if (warp.usemesh){
-		warp.bufferwidth = canvaswidth;
+		// warp FBO needs to be up to twice as big as m_buffersize to get more resolution
+		warp.imagesize = m_imagesize;
+		if (m_buffersize == m_imagesize)
+			warp.imagesize *= 2;
+
+		//if FBO is not working/supported, we use the canvas dimension as buffer
+		warp.bufferwidth  = canvaswidth;
 		warp.bufferheight = canvasheight;
-
-		i = 0;
-		while ((1 << i) <= warp.bufferwidth)
-			i++;
-		warp.imagewidth = (1 << i);
-
-		i = 0;
-		while ((1 << i) <= warp.bufferheight)
-			i++;
-		warp.imageheight = (1 << i);
 	}
+
+	//XXX HACK
+	canvaswidth  = m_viewport.GetWidth();
+	canvasheight = m_viewport.GetHeight();
 }
 
 bool KX_Dome::CreateDL(){
-	int i,j;
-
 	dlistId = glGenLists((GLsizei) m_numimages);
 	if (dlistId != 0) {
-		if(m_mode == DOME_FISHEYE || m_mode == DOME_TRUNCATED){
+		if(m_mode == DOME_FISHEYE || m_mode == DOME_TRUNCATED_UP || m_mode == DOME_TRUNCATED_DOWN){
 			glNewList(dlistId, GL_COMPILE);
 				GLDrawTriangles(cubetop, nfacestop);
 			glEndList();
@@ -313,6 +341,46 @@ bool KX_Dome::CreateDL(){
 	return true;
 }
 
+bool KX_Dome::CreateFBO(void)
+{
+	if (!GLEW_EXT_framebuffer_object)
+	{
+		printf("Dome Error: FrameBuffer unsupported. Using low resolution warp image.");
+		return false;
+	}
+
+	glGenFramebuffersEXT(1, &warp.fboId);
+	if(warp.fboId==0)
+	{
+		printf("Dome Error: Invalid frame buffer object. Using low resolution warp image.");
+		return false;
+	}
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, warp.fboId);
+
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+		GL_TEXTURE_2D, domefacesId[m_numfaces], 0);
+
+	GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+
+	if(status == GL_FRAMEBUFFER_UNSUPPORTED_EXT)
+	{
+		printf("Dome Error: FrameBuffer settings unsupported. Using low resolution warp image.");
+		return false;
+	}
+	else if(status != GL_FRAMEBUFFER_COMPLETE_EXT)
+	{
+		glDeleteFramebuffersEXT(1, &warp.fboId);
+		return false;
+	}
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+
+	//nothing failed: we can use the whole FBO as buffersize
+	warp.bufferwidth = warp.bufferheight = warp.imagesize;
+	return true;
+}
+
 void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
 {
 	int i,j;
@@ -329,8 +397,9 @@ void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
 void KX_Dome::GLDrawWarpQuads(void)
 {
 	int i, j, i2;
-	float uv_width = (float)warp.bufferwidth / warp.imagewidth;
-	float uv_height = (float)warp.bufferheight / warp.imageheight;
+
+	float uv_width = (float)(warp.bufferwidth) / warp.imagesize;
+	float uv_height = (float)(warp.bufferheight) / warp.imagesize;
 
 	if(warp.mode ==2 ){
 		glBegin(GL_QUADS);
@@ -387,7 +456,7 @@ void KX_Dome::GLDrawWarpQuads(void)
 		}
 		glEnd();
 	} else{
-		printf("Error: Warp Mode unsupported. Try 1 for Polar Mesh or 2 for Fisheye.\n");
+		printf("Dome Error: Warp Mode %d unsupported. Try 1 for Polar Mesh or 2 for Fisheye.\n", warp.mode);
 	}
 }
 
@@ -416,20 +485,22 @@ y varies from -1 to 1
 u and v vary from 0 to 1
 i ranges from 0 to 1, if negative don't draw that mesh node
 */
-	int i,j,k;
+	int i;
 	int nodeX=0, nodeY=0;
 
 	vector<STR_String> columns, lines;
 
 	lines = text.Explode('\n');
 	if(lines.size() < 6){
-		printf("Error: Warp Mesh File with insufficient data!\n");
+		printf("Dome Error: Warp Mesh File with insufficient data!\n");
 		return false;
 	}
 	columns = lines[1].Explode(' ');
+	if(columns.size() == 1)
+		columns = lines[1].Explode('\t');
 
 	if(columns.size() !=2){
-		printf("Error: Warp Mesh File incorrect. The second line should contain: width height.\n");
+		printf("Dome Error: Warp Mesh File incorrect. The second line should contain: width height.\n");
 		return false;
 	}
 
@@ -438,14 +509,16 @@ i ranges from 0 to 1, if negative don't draw that mesh node
 	warp.n_width = atoi(columns[0]);
 	warp.n_height = atoi(columns[1]);
 
-	if (lines.size() < 2 + (warp.n_width * warp.n_height)){
-		printf("Error: Warp Mesh File with insufficient data!\n");
+	if ((int)lines.size() < 2 + (warp.n_width * warp.n_height)){
+		printf("Dome Error: Warp Mesh File with insufficient data!\n");
 		return false;
 	}else{
-		warp.nodes = vector<vector <WarpMeshNode>> (warp.n_height, vector<WarpMeshNode>(warp.n_width));
+		warp.nodes = vector<vector<WarpMeshNode> > (warp.n_height, vector<WarpMeshNode>(warp.n_width));
 
 		for(i=2; i-2 < (warp.n_width*warp.n_height); i++){
 			columns = lines[i].Explode(' ');
+			if(columns.size() == 1)
+				columns = lines[i].Explode('\t');
 
 			if (columns.size() == 5){
 				nodeX = (i-2)%warp.n_width;
@@ -459,7 +532,7 @@ i ranges from 0 to 1, if negative don't draw that mesh node
 			}
 			else{
 				warp.nodes.clear();
-				printf("Error: Warp Mesh File with wrong number of fields. You should use 5: x y u v i.\n");
+				printf("Dome Error: Warp Mesh File with wrong number of fields. You should use 5: x y u v i.\n");
 				return false;
 			}
 		}
@@ -481,7 +554,7 @@ void KX_Dome::CreateMeshDome180(void)
 */
 	int i,j;
 	float sqrt_2 = sqrt(2.0);
-	float uv_ratio = (float)m_buffersize / m_imagesize;
+	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 
 	m_radangle = m_angle * M_PI/180.0;//calculates the radians angle, used for flattening
 
@@ -665,7 +738,7 @@ void KX_Dome::CreateMeshDome250(void)
 	float verts_height;
 
 	float rad_ang = m_angle * MT_PI / 180.0;
-	float uv_ratio = (float)m_buffersize / m_imagesize;
+	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 
 	m_radangle = m_angle * M_PI/180.0;//calculates the radians angle, used for flattening
 /*
@@ -946,7 +1019,7 @@ void KX_Dome::CreateMeshPanorama(void)
 	int i,j;
 
 	float sqrt_2 = sqrt(2.0);
-	float uv_ratio = (float)m_buffersize / m_imagesize;
+	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
 
 	/* Top face - two triangles */
 	cubetop[0].verts[0][0] = -sqrt_2;
@@ -1374,7 +1447,7 @@ void KX_Dome::CalculateFrustum(KX_Camera * cam)
 	/*
 	// manually creating a 90º Field of View Frustum 
 
-	 the original formula:
+	the original formula:
 	top = tan(fov*3.14159/360.0) * near [for fov in degrees]
 	fov*0.5 = arctan ((top-bottom)*0.5 / near) [for fov in radians]
 	bottom = -top
@@ -1416,7 +1489,9 @@ Uses 6 cameras for angles up to 360º
 	MT_Scalar c = cos(deg45);
 	MT_Scalar s = sin(deg45);
 
-	if ((m_mode == DOME_FISHEYE && m_angle <= 180)|| m_mode == DOME_TRUNCATED){
+	if (m_angle <= 180 && (m_mode == DOME_FISHEYE 
+		|| m_mode == DOME_TRUNCATED_UP 
+		|| m_mode == DOME_TRUNCATED_DOWN)){
 
 		m_locRot[0] = MT_Matrix3x3( // 90º - Top
 						c, -s, 0.0,
@@ -1438,7 +1513,9 @@ Uses 6 cameras for angles up to 360º
 						0.0, 1.0, 0.0,
 						s, 0.0, c);
 
-	} else if ((m_mode == DOME_FISHEYE && m_angle > 180)){
+	} else if (m_mode == DOME_ENVMAP || (m_angle > 180 && (m_mode == DOME_FISHEYE
+		|| m_mode == DOME_TRUNCATED_UP 
+		|| m_mode == DOME_TRUNCATED_DOWN))){
 
 		m_locRot[0] = MT_Matrix3x3( // 90º - Top
 						 1.0, 0.0, 0.0,
@@ -1465,7 +1542,7 @@ Uses 6 cameras for angles up to 360º
 						0.0, 1.0, 0.0,
 						0.0, 0.0, 1.0);
 
-		m_locRot[5] = MT_Matrix3x3( // 180º - Back - NOT USING
+		m_locRot[5] = MT_Matrix3x3( // 180º - Back - USED for ENVMAP only
 						-1.0, 0.0, 0.0,
 						 0.0, 1.0, 0.0,
 						 0.0, 0.0,-1.0);
@@ -1512,46 +1589,64 @@ void KX_Dome::RotateCamera(KX_Camera* cam, int i)
 	MT_Matrix3x3 camori = cam->GetSGNode()->GetLocalOrientation();
 
 	cam->NodeSetLocalOrientation(camori*m_locRot[i]);
-	cam->NodeUpdateGS(0.f,true);
+	cam->NodeUpdateGS(0.f);
 
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
-	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldPosition(),
-		cam->GetCameraLocation(), cam->GetCameraOrientation());
+	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
 
 	// restore the original orientation
 	cam->NodeSetLocalOrientation(camori);
-	cam->NodeUpdateGS(0.f,true);
+	cam->NodeUpdateGS(0.f);
 }
 
 void KX_Dome::Draw(void)
 {
 
+	if (fboSupported){
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, warp.fboId);
+
+		glViewport(0,0,warp.imagesize, warp.imagesize);
+		glScissor(0,0,warp.imagesize, warp.imagesize);
+	}
+
 	switch(m_mode){
 		case DOME_FISHEYE:
 			DrawDomeFisheye();
 			break;
-		case DOME_TRUNCATED:
-			DrawDomeFisheye();
+		case DOME_ENVMAP:
+			DrawEnvMap();
 			break;
 		case DOME_PANORAM_SPH:
 			DrawPanorama();
+			break;
+		case DOME_TRUNCATED_UP:
+			DrawDomeFisheye();
+			break;
+		case DOME_TRUNCATED_DOWN:
+			DrawDomeFisheye();
 			break;
 	}
 
 	if(warp.usemesh)
 	{
-		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
-		glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_viewport.GetLeft(), m_viewport.GetBottom(), warp.bufferwidth+1, warp.bufferheight+1);
+		if(fboSupported)
+		{
+			m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
+			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+		}
+		else
+		{
+			glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
+			glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_viewport.GetLeft(), m_viewport.GetBottom(), warp.bufferwidth, warp.bufferheight);
+		}
 		DrawDomeWarped();
 	}
 }
 
-void KX_Dome::DrawDomeFisheye(void)
+void KX_Dome::DrawEnvMap(void)
 {
-	int i,j;
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -1564,29 +1659,168 @@ void KX_Dome::DrawDomeFisheye(void)
 	float ortho_width, ortho_height;
 
 	if (warp.usemesh)
-		glOrtho((-1.0), 1.0, (-1.0), 1.0, -20.0, 10.0); //stretch the image to reduce resolution lost
+		glOrtho((-1.0), 1.0, (-0.66), 0.66, -20.0, 10.0); //stretch the image to reduce resolution lost
 
-	else if(m_mode == DOME_TRUNCATED){
-		ortho_width = 1.0;
-		ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
-		
-		ortho_width /= m_size;
-		ortho_height /= m_size;
-
-		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_width, -20.0, 10.0);
-	} else {
-		if (can_width < can_height){
+	else {
+		if (can_width/3 <= can_height/2){
 			ortho_width = 1.0;
 			ortho_height = (float)can_height/can_width;
 		}else{
-			ortho_width = (float)can_width/can_height;
-			ortho_height = 1.0;
+			ortho_height = 2.0f / 3;
+			ortho_width = (float)can_width/can_height * ortho_height;
 		}
 		
 		ortho_width /= m_size;
 		ortho_height /= m_size;
 		
 		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
+	}
+
+	glMatrixMode(GL_TEXTURE);
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	gluLookAt(0.0,0.0,1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);
+
+	glPolygonMode(GL_FRONT, GL_FILL);
+	glShadeModel(GL_SMOOTH);
+	glDisable(GL_LIGHTING);
+	glDisable(GL_DEPTH_TEST);
+
+	glEnable(GL_TEXTURE_2D);
+	glColor3f(1.0,1.0,1.0);
+
+	float uv_ratio = (float)(m_buffersize-1) / m_imagesize;
+	double onebythree = 1.0f / 3;
+
+	// domefacesId[0] =>  (top)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
+	glBegin(GL_QUADS);
+		glTexCoord2f(uv_ratio,uv_ratio);
+		glVertex3f( onebythree, 0.0f, 3.0f);
+		glTexCoord2f(0.0,uv_ratio);
+		glVertex3f(-onebythree, 0.0f, 3.0f);
+		glTexCoord2f(0.0,0.0);
+		glVertex3f(-onebythree,-2 * onebythree, 3.0f);
+		glTexCoord2f(uv_ratio,0.0);
+		glVertex3f(onebythree,-2 * onebythree, 3.0f);
+	glEnd();
+
+	// domefacesId[1] =>  (bottom)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
+	glBegin(GL_QUADS);
+		glTexCoord2f(uv_ratio,uv_ratio);
+		glVertex3f(-onebythree, 0.0f, 3.0f);
+		glTexCoord2f(0.0,uv_ratio);
+		glVertex3f(-1.0f, 0.0f, 3.0f);
+		glTexCoord2f(0.0,0.0);
+		glVertex3f(-1.0f,-2 * onebythree, 3.0f);
+		glTexCoord2f(uv_ratio,0.0);
+		glVertex3f(-onebythree,-2 * onebythree, 3.0f);
+	glEnd();
+
+	// domefacesId[2] => -90º (left)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
+	glBegin(GL_QUADS);
+		glTexCoord2f(uv_ratio,uv_ratio);
+		glVertex3f(-onebythree, 2 * onebythree, 3.0f);
+		glTexCoord2f(0.0,uv_ratio);
+		glVertex3f(-1.0f, 2 * onebythree, 3.0f);
+		glTexCoord2f(0.0,0.0);
+		glVertex3f(-1.0f, 0.0f, 3.0f);
+		glTexCoord2f(uv_ratio,0.0);
+		glVertex3f(-onebythree, 0.0f, 3.0f);
+	glEnd();
+
+	// domefacesId[3] => 90º (right)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
+	glBegin(GL_QUADS);
+		glTexCoord2f(uv_ratio,uv_ratio);
+		glVertex3f( 1.0f, 2 * onebythree, 3.0f);
+		glTexCoord2f(0.0,uv_ratio);
+		glVertex3f( onebythree, 2 * onebythree, 3.0f);
+		glTexCoord2f(0.0,0.0);
+		glVertex3f( onebythree, 0.0f, 3.0f);
+		glTexCoord2f(uv_ratio,0.0);
+		glVertex3f(1.0f, 0.0f, 3.0f);
+	glEnd();
+
+	// domefacesId[4] => 0º (front)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
+	glBegin(GL_QUADS);
+		glTexCoord2f(uv_ratio,uv_ratio);
+		glVertex3f( 1.0f, 0.0f, 3.0f);
+		glTexCoord2f(0.0,uv_ratio);
+		glVertex3f( onebythree, 0.0f, 3.0f);
+		glTexCoord2f(0.0,0.0);
+		glVertex3f( onebythree,-2 * onebythree, 3.0f);
+		glTexCoord2f(uv_ratio,0.0);
+		glVertex3f(1.0f, -2 * onebythree, 3.0f);
+	glEnd();
+
+	// domefacesId[5] => 180º (back)
+	glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
+	glBegin(GL_QUADS);
+		glTexCoord2f(uv_ratio,uv_ratio);
+		glVertex3f( onebythree, 2 * onebythree, 3.0f);
+		glTexCoord2f(0.0,uv_ratio);
+		glVertex3f(-onebythree, 2 * onebythree, 3.0f);
+		glTexCoord2f(0.0,0.0);
+		glVertex3f(-onebythree, 0.0f, 3.0f);
+		glTexCoord2f(uv_ratio,0.0);
+		glVertex3f(onebythree, 0.0f, 3.0f);
+	glEnd();
+
+	glDisable(GL_TEXTURE_2D);
+	glEnable(GL_DEPTH_TEST);
+}
+
+void KX_Dome::DrawDomeFisheye(void)
+{
+	int i;
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	// Making the viewport always square 
+
+	int can_width = m_viewport.GetRight();
+	int can_height = m_viewport.GetTop();
+
+	float ortho_width, ortho_height;
+
+	if(m_mode == DOME_FISHEYE) {
+		if (warp.usemesh)
+			glOrtho((-1.0), 1.0, (-1.0), 1.0, -20.0, 10.0); //stretch the image to reduce resolution lost
+
+		else {
+			if (can_width < can_height){
+				ortho_width = 1.0;
+				ortho_height = (float)can_height/can_width;
+			}else{
+				ortho_width = (float)can_width/can_height;
+				ortho_height = 1.0;
+			}
+			
+			ortho_width /= m_size;
+			ortho_height /= m_size;
+			
+			glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
+		}
+	}
+	else if(m_mode == DOME_TRUNCATED_UP)
+	{
+		ortho_width = 1.0;
+		ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
+
+		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_width, -20.0, 10.0);
+	}
+	else { //m_mode == DOME_TRUNCATED_DOWN
+		ortho_width = 1.0;
+		ortho_height = 2 * ((float)can_height/can_width) - 1.0 ;
+
+		glOrtho((-ortho_width), ortho_width, (-ortho_width), ortho_height, -20.0, 10.0);
 	}
 
 	glMatrixMode(GL_TEXTURE);
@@ -1642,7 +1876,7 @@ void KX_Dome::DrawDomeFisheye(void)
 
 void KX_Dome::DrawPanorama(void)
 {
-	int i,j;
+	int i;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -1729,8 +1963,6 @@ void KX_Dome::DrawPanorama(void)
 
 void KX_Dome::DrawDomeWarped(void)
 {
-	int i,j;
-
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -1763,10 +1995,6 @@ void KX_Dome::DrawDomeWarped(void)
 	glEnable(GL_TEXTURE_2D);
 	glColor3f(1.0,1.0,1.0);
 
-
-	float uv_width = (float)warp.bufferwidth / warp.imagewidth;
-	float uv_height = (float)warp.bufferheight / warp.imageheight;
-
 	if (dlistSupported){
 		glBindTexture(GL_TEXTURE_2D, domefacesId[m_numfaces]);
 		glCallList(dlistId + m_numfaces);
@@ -1782,7 +2010,7 @@ void KX_Dome::DrawDomeWarped(void)
 void KX_Dome::BindImages(int i)
 {
 	glBindTexture(GL_TEXTURE_2D, domefacesId[i]);
-	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_viewport.GetLeft(), m_viewport.GetBottom(), m_buffersize+1, m_buffersize+1);
+	glCopyTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, m_viewport.GetLeft(), m_viewport.GetBottom(), m_buffersize, m_buffersize);
 }
 
 void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
@@ -1790,7 +2018,7 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 	if (!cam)
 		return;
 
-	m_canvas->SetViewPort(0,0,m_buffersize,m_buffersize);
+	m_canvas->SetViewPort(0,0,m_buffersize-1,m_buffersize-1);
 
 //	m_rasterizer->SetAmbient();
 	m_rasterizer->DisplayFog();
@@ -1803,12 +2031,11 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 	MT_Matrix3x3 camori = cam->GetSGNode()->GetLocalOrientation();
 
 	cam->NodeSetLocalOrientation(camori*m_locRot[i]);
-	cam->NodeUpdateGS(0.f,true);
+	cam->NodeUpdateGS(0.f);
 
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
-	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldPosition(),
-		cam->GetCameraLocation(), cam->GetCameraOrientation());
+	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), 1.0);
 	cam->SetModelviewMatrix(viewmat);
 
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
@@ -1816,5 +2043,6 @@ void KX_Dome::RenderDomeFrame(KX_Scene* scene, KX_Camera* cam, int i)
 	
 	// restore the original orientation
 	cam->NodeSetLocalOrientation(camori);
-	cam->NodeUpdateGS(0.f,true);
+	cam->NodeUpdateGS(0.f);
 }
+

@@ -92,6 +92,7 @@ int pytype_is_pynode(struct PyObject *pyob);
 struct Oops;
 void free_oops(struct Oops *oops);
 void error(char *str, ...);
+int okee(char *str, ...);
 
 /* anim.c */
 extern struct ListBase editNurb;
@@ -160,8 +161,8 @@ void bglEnd(void);
 struct Object;
 
 /* booleanops.c */
-struct DerivedMesh *NewBooleanDerivedMesh(struct Object *ob,
-                                struct Object *ob_select, int int_op_type);
+struct DerivedMesh *NewBooleanDerivedMesh(struct DerivedMesh *dm, struct Object *ob, struct DerivedMesh *dm_select, struct Object *ob_select,
+                                   int int_op_type);
 
 /* verse_*.c */
 struct VerseVert;

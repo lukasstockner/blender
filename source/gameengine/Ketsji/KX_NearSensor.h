@@ -70,7 +70,8 @@ public:
 	virtual ~KX_NearSensor(); 
 	virtual void SynchronizeTransform();
 	virtual CValue* GetReplica();
-	virtual bool Evaluate(CValue* event);
+	virtual void ProcessReplica();
+	virtual bool Evaluate();
 
 	virtual void ReParent(SCA_IObject* parent);
 	virtual bool	NewHandleCollision(void* obj1,void* obj2,
@@ -83,6 +84,7 @@ public:
 	/* Python interface ---------------------------------------------------- */
 	/* --------------------------------------------------------------------- */
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject* value);
 
 	//No methods

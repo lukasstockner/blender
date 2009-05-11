@@ -32,8 +32,6 @@
 
 #include "KX_PhysicsEngineEnums.h"
 
-#include "MT_CmMatrix4x4.h"
-
 #include <vector>
 #include <set>
 #include <list>
@@ -43,7 +41,7 @@
 #include "SG_IObject.h"
 #include "SCA_IScene.h"
 #include "MT_Transform.h"
-#include "SND_Scene.h"
+
 #include "RAS_FramingManager.h"
 #include "RAS_Rect.h"
 
@@ -85,6 +83,8 @@ class RAS_IRenderTools;
 class SCA_JoystickManager;
 class btCollisionShape;
 class KX_BlenderSceneConverter;
+struct KX_ClientObjectInfo;
+
 /**
  * The KX_Scene holds all data for an independent scene. It relates
  * KX_Objects to the specific objects in the modules.
@@ -92,6 +92,12 @@ class KX_BlenderSceneConverter;
 class KX_Scene : public PyObjectPlus, public SCA_IScene
 {
 	Py_Header;
+
+	struct CullingInfo {
+		int m_layer;
+		CullingInfo(int layer) : m_layer(layer) {}
+	};
+
 protected:
 	RAS_BucketManager*	m_bucketmanager;
 	CListValue*			m_tempObjectList;
@@ -102,16 +108,16 @@ protected:
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
 	CListValue*	m_euthanasyobjects;
-	/**
-	* The list of objects that couldn't be released during logic update.
-	* for example, AddObject actuator sometimes releases an object that was cached from previous frame
-	*/
-	CListValue*	m_delayReleaseObjects;
 
 	CListValue*			m_objectlist;
 	CListValue*			m_parentlist; // all 'root' parents
 	CListValue*			m_lightlist;
 	CListValue*			m_inactivelist;	// all objects that are not in the active layer
+	
+	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
+										// the Dlist is not object that must be updated
+										// the Qlist is for objects that needs to be rescheduled
+										// for updates after udpate is over (slow parent, bone parent)
 
 	/**
 	 *  The tree of objects in the scene.
@@ -183,15 +189,6 @@ protected:
 	 */
 	KX_Camera* m_active_camera;
 
-	/** 
-	 * The projection and view matrices of this scene 
-	 * The projection matrix is computed externally by KX_Engine	
-	 * The view mat is stored as a side effect of GetViewMatrix()
-	 * and is totally unnessary.
-	 */
-	MT_CmMatrix4x4				m_projectionmat;
-	MT_CmMatrix4x4				m_viewmat;
-
 	/** Desired canvas width set at design time. */
 	unsigned int m_canvasDesignWidth;
 	/** Desired canvas height set at design time. */
@@ -252,6 +249,16 @@ protected:
 	bool m_activity_culling;
 	
 	/**
+	 * Toggle to enable or disable culling via DBVT broadphase of Bullet.
+	 */
+	bool m_dbvt_culling;
+	
+	/**
+	 * Occlusion culling resolution
+	 */ 
+	int m_dbvt_occlusion_res;
+
+	/**
 	 * The framing settings used by this scene
 	 */
 
@@ -269,6 +276,7 @@ protected:
 	void MarkVisible(SG_Tree *node, RAS_IRasterizer* rasty, KX_Camera*cam,int layer=0);
 	void MarkSubTreeVisible(SG_Tree *node, RAS_IRasterizer* rasty, bool visible, KX_Camera*cam,int layer=0);
 	void MarkVisible(RAS_IRasterizer* rasty, KX_GameObject* gameobj, KX_Camera*cam, int layer=0);
+	static void PhysicsCullingCallback(KX_ClientObjectInfo* objectInfo, void* cullingInfo);
 
 	double				m_suspendedtime;
 	double				m_suspendeddelta;
@@ -276,7 +284,7 @@ protected:
 	/**
 	 * This stores anything from python
 	 */
-	PyObject* m_attrlist;
+	PyObject* m_attr_dict;
 
 	struct Scene* m_blenderScene;
 
@@ -299,6 +307,8 @@ public:
 	/**
 	 * Update all transforms according to the scenegraph.
 	 */
+	static bool KX_ScenegraphUpdateFunc(SG_IObject* node,void* gameobj,void* scene);
+	static bool KX_ScenegraphRescheduleFunc(SG_IObject* node,void* gameobj,void* scene);
 	void UpdateParents(double curtime);
 	void DupliGroupRecurse(CValue* gameobj, int level);
 	bool IsObjectInGroup(CValue* gameobj)
@@ -316,8 +326,6 @@ public:
 	void RemoveObject(CValue* gameobj);
 	void DelayedRemoveObject(CValue* gameobj);
 	
-	void DelayedReleaseObject(CValue* gameobj);
-
 	int NewRemoveObject(CValue* gameobj);
 	void ReplaceMesh(CValue* gameobj,
 					 void* meshobj);
@@ -401,25 +409,6 @@ public:
 		void
 	SetCameraOnTop(
 		class KX_Camera*
-	);
-
-	/** Return the viewmatrix as used by the last frame. */
-		MT_CmMatrix4x4&			
-	GetViewMatrix(
-	);
-
-	/** 
-	 * Return the projectionmatrix as used by the last frame. This is
-	 * set by hand :) 
-	 */
-		MT_CmMatrix4x4&			
-	GetProjectionMatrix(
-	);
-
-	/** Sets the projection matrix. */
-		void					
-	SetProjectionMatrix(
-		MT_CmMatrix4x4& pmat
 	);
 
 	/**
@@ -530,6 +519,11 @@ public:
 	bool IsSuspended();
 	bool IsClearingZBuffer();
 	void EnableZBufferClearing(bool isclearingZbuffer);
+	// use of DBVT tree for camera culling
+	void SetDbvtCulling(bool b) { m_dbvt_culling = b; };
+	bool GetDbvtCulling() { return m_dbvt_culling; };
+	void SetDbvtOcclusionRes(int i) { m_dbvt_occlusion_res = i; };
+	int GetDbvtOcclusionRes() { return m_dbvt_occlusion_res; };
 	
 	void SetSceneConverter(class KX_BlenderSceneConverter* sceneConverter);
 
@@ -568,17 +562,20 @@ public:
 	/* attributes */
 	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_objects(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_objects_inactive(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_lights(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_cameras(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_active_camera(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	
-	/* for dir(), python3 uses __dir__() */
-	static PyObject*	pyattr_get_dir_dict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	
 
 	virtual PyObject* py_getattro(PyObject *attr); /* name, active_camera, gravity, suspended, viewport, framing, activity_culling, activity_culling_radius */
+	virtual PyObject* py_getattro_dict();
+	
 	virtual int py_setattro(PyObject *attr, PyObject *pyvalue);
 	virtual int py_delattro(PyObject *attr);
 	virtual PyObject* py_repr(void) { return PyString_FromString(GetName().ReadPtr()); }
 
+	PyObject* py_getattro__internal(PyObject *attr);
+	int py_setattro__internal(PyObject *attr, PyObject *pyvalue);
 		
 	/**
 	 * Sets the time the scene was suspended

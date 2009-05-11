@@ -59,7 +59,8 @@ public:
 	void SetExecutePriority(int execute_Priority);
 	void SetUeberExecutePriority(int execute_Priority);
 
-	SCA_IObject*	GetParent();
+	SCA_IObject*	GetParent() { return m_gameobj; }
+
 	virtual void	ReParent(SCA_IObject* parent);
 	virtual void	Relink(GEN_Map<GEN_HashedPtr, void*> *obj_map);
 	virtual void Delete() { Release(); }
@@ -69,17 +70,32 @@ public:
 	virtual CValue*	CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 
 	virtual const STR_String &	GetText();
-	virtual float		GetNumber();
-	virtual STR_String	GetName();
-	virtual void		SetName(STR_String name);
-	virtual void		ReplicaSetName(STR_String name);
+	virtual double		GetNumber();
+	virtual STR_String&	GetName();
+	virtual void		SetName(const char *);
 		
-	bool				IsActive();
-	void				SetActive(bool active) ;
+	bool				IsActive()
+	{
+		return m_bActive;
+	}
+
+	void				SetActive(bool active)
+	{
+		m_bActive=active;
+	}
+
+	// insert in a QList at position corresponding to m_Execute_Priority
+	void			    InsertActiveQList(SG_QList& head)
+	{
+		SG_QList::iterator<SCA_ILogicBrick> it(head);
+		for(it.begin(); !it.end() && m_Execute_Priority > (*it)->m_Execute_Priority; ++it);
+		it.add_back(this);
+	}
 
 	virtual	bool		LessComparedTo(SCA_ILogicBrick* other);
 	
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);
 
 	static class SCA_LogicManager*	m_sCurrentLogicManager;
@@ -88,8 +104,10 @@ public:
 	// python methods
 
 	KX_PYMETHOD_NOARGS(SCA_ILogicBrick,GetOwner);
-	KX_PYMETHOD(SCA_ILogicBrick,SetExecutePriority);
+	KX_PYMETHOD_VARARGS(SCA_ILogicBrick,SetExecutePriority);
 	KX_PYMETHOD_NOARGS(SCA_ILogicBrick,GetExecutePriority);
+	
+	static PyObject*	pyattr_get_owner(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 
 	// check that attribute is a property
 	static int CheckProperty(void *self, const PyAttributeDef *attrdef);

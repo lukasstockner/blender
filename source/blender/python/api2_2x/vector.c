@@ -20,7 +20,7 @@
  * All rights reserved.
  *
  * 
- * Contributor(s): Willian P. Germano & Joseph Gilbert, Ken Hughes
+ * Contributor(s): Willian P. Germano, Joseph Gilbert, Ken Hughes, Alex Fraser, Campbell Barton
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -30,8 +30,14 @@
 #include "BLI_blenlib.h"
 #include "BKE_utildefines.h"
 #include "BLI_arithb.h"
-#include "gen_utils.h"
 
+#define MAX_DIMENSIONS 4
+/* Swizzle axes get packed into a single value that is used as a closure. Each
+   axis uses SWIZZLE_BITS_PER_AXIS bits. The first bit (SWIZZLE_VALID_AXIS) is
+   used as a sentinel: if it is unset, the axis is not valid. */
+#define SWIZZLE_BITS_PER_AXIS 3
+#define SWIZZLE_VALID_AXIS 0x4
+#define SWIZZLE_AXIS       0x3
 
 /*-------------------------DOC STRINGS ---------------------------*/
 char Vector_Zero_doc[] = "() - set all values in the vector to 0";
@@ -40,10 +46,10 @@ char Vector_Negate_doc[] = "() - changes vector to it's additive inverse";
 char Vector_Resize2D_doc[] = "() - resize a vector to [x,y]";
 char Vector_Resize3D_doc[] = "() - resize a vector to [x,y,z]";
 char Vector_Resize4D_doc[] = "() - resize a vector to [x,y,z,w]";
-char Vector_toPoint_doc[] = "() - create a new Point Object from this vector";
 char Vector_ToTrackQuat_doc[] = "(track, up) - extract a quaternion from the vector and the track and up axis";
 char Vector_reflect_doc[] = "(mirror) - return a vector reflected on the mirror normal";
 char Vector_copy_doc[] = "() - return a copy of the vector";
+char Vector_swizzle_doc[] = "Swizzle: Get or set axes in specified order";
 /*-----------------------METHOD DEFINITIONS ----------------------*/
 struct PyMethodDef Vector_methods[] = {
 	{"zero", (PyCFunction) Vector_Zero, METH_NOARGS, Vector_Zero_doc},
@@ -52,7 +58,6 @@ struct PyMethodDef Vector_methods[] = {
 	{"resize2D", (PyCFunction) Vector_Resize2D, METH_NOARGS, Vector_Resize2D_doc},
 	{"resize3D", (PyCFunction) Vector_Resize3D, METH_NOARGS, Vector_Resize2D_doc},
 	{"resize4D", (PyCFunction) Vector_Resize4D, METH_NOARGS, Vector_Resize2D_doc},
-	{"toPoint", (PyCFunction) Vector_toPoint, METH_NOARGS, Vector_toPoint_doc},
 	{"toTrackQuat", ( PyCFunction ) Vector_ToTrackQuat, METH_VARARGS, Vector_ToTrackQuat_doc},
 	{"reflect", ( PyCFunction ) Vector_reflect, METH_O, Vector_reflect_doc},
 	{"copy", (PyCFunction) Vector_copy, METH_NOARGS, Vector_copy_doc},
@@ -60,24 +65,7 @@ struct PyMethodDef Vector_methods[] = {
 	{NULL, NULL, 0, NULL}
 };
 
-/*-----------------------------METHODS----------------------------
-  --------------------------Vector.toPoint()----------------------
-  create a new point object to represent this vector */
-PyObject *Vector_toPoint(VectorObject * self)
-{
-	float coord[3];
-	int i;
-
-	if(self->size < 2 || self->size > 3) {
-		return EXPP_ReturnPyObjError(PyExc_AttributeError,
-			"Vector.toPoint(): inappropriate vector size - expects 2d or 3d vector\n");
-	} 
-	for(i = 0; i < self->size; i++){
-		coord[i] = self->vec[i];
-	}
-	
-	return newPointObject(coord, self->size, Py_NEW);
-}
+/*-----------------------------METHODS---------------------------- */
 /*----------------------------Vector.zero() ----------------------
   set the vector data to 0,0,0 */
 PyObject *Vector_Zero(VectorObject * self)
@@ -86,7 +74,8 @@ PyObject *Vector_Zero(VectorObject * self)
 	for(i = 0; i < self->size; i++) {
 		self->vec[i] = 0.0f;
 	}
-	return EXPP_incr_ret((PyObject*)self);
+	Py_INCREF(self);
+	return (PyObject*)self;
 }
 /*----------------------------Vector.normalize() -----------------
   normalize the vector data to a unit vector */
@@ -102,7 +91,8 @@ PyObject *Vector_Normalize(VectorObject * self)
 	for(i = 0; i < self->size; i++) {
 		self->vec[i] /= norm;
 	}
-	return EXPP_incr_ret((PyObject*)self);
+	Py_INCREF(self);
+	return (PyObject*)self;
 }
 
 
@@ -110,50 +100,54 @@ PyObject *Vector_Normalize(VectorObject * self)
   resize the vector to x,y */
 PyObject *Vector_Resize2D(VectorObject * self)
 {
-	if(self->wrapped==Py_WRAP)
-		return EXPP_ReturnPyObjError(PyExc_TypeError,
-			"vector.resize2d(): cannot resize wrapped data - only python vectors\n");
-
+	if(self->wrapped==Py_WRAP) {
+		PyErr_SetString(PyExc_TypeError, "vector.resize2d(): cannot resize wrapped data - only python vectors\n");
+		return NULL;
+	}
 	self->vec = PyMem_Realloc(self->vec, (sizeof(float) * 2));
-	if(self->vec == NULL)
-		return EXPP_ReturnPyObjError(PyExc_MemoryError,
-			"vector.resize2d(): problem allocating pointer space\n\n");
+	if(self->vec == NULL) {
+		PyErr_SetString(PyExc_MemoryError, "vector.resize2d(): problem allocating pointer space\n\n");
+		return NULL;
+	}
 	
 	self->size = 2;
-	return EXPP_incr_ret((PyObject*)self);
+	Py_INCREF(self);
+	return (PyObject*)self;
 }
 /*----------------------------Vector.resize3D() ------------------
   resize the vector to x,y,z */
 PyObject *Vector_Resize3D(VectorObject * self)
 {
-	if (self->wrapped==Py_WRAP)
-		return EXPP_ReturnPyObjError(PyExc_TypeError,
-			"vector.resize3d(): cannot resize wrapped data - only python vectors\n");
-
+	if (self->wrapped==Py_WRAP) {
+		PyErr_SetString(PyExc_TypeError, "vector.resize3d(): cannot resize wrapped data - only python vectors\n");
+		return NULL;
+	}
 	self->vec = PyMem_Realloc(self->vec, (sizeof(float) * 3));
-	if(self->vec == NULL)
-		return EXPP_ReturnPyObjError(PyExc_MemoryError,
-			"vector.resize3d(): problem allocating pointer space\n\n");
+	if(self->vec == NULL) {
+		PyErr_SetString(PyExc_MemoryError, "vector.resize3d(): problem allocating pointer space\n\n");
+		return NULL;
+	}
 	
 	if(self->size == 2)
 		self->vec[2] = 0.0f;
 	
 	self->size = 3;
-	return EXPP_incr_ret((PyObject*)self);
+	Py_INCREF(self);
+	return (PyObject*)self;
 }
 /*----------------------------Vector.resize4D() ------------------
   resize the vector to x,y,z,w */
 PyObject *Vector_Resize4D(VectorObject * self)
 {
-	if(self->wrapped==Py_WRAP)
-		return EXPP_ReturnPyObjError(PyExc_TypeError,
-			"vector.resize4d(): cannot resize wrapped data - only python vectors\n");
-
+	if(self->wrapped==Py_WRAP) {
+		PyErr_SetString(PyExc_TypeError, "vector.resize4d(): cannot resize wrapped data - only python vectors");
+		return NULL;
+	}
 	self->vec = PyMem_Realloc(self->vec, (sizeof(float) * 4));
-	if(self->vec == NULL)
-		return EXPP_ReturnPyObjError(PyExc_MemoryError,
-			"vector.resize4d(): problem allocating pointer space\n\n");
-	
+	if(self->vec == NULL) {
+		PyErr_SetString(PyExc_MemoryError, "vector.resize4d(): problem allocating pointer space\n\n");
+		return NULL;
+	}
 	if(self->size == 2){
 		self->vec[2] = 0.0f;
 		self->vec[3] = 1.0f;
@@ -161,7 +155,8 @@ PyObject *Vector_Resize4D(VectorObject * self)
 		self->vec[3] = 1.0f;
 	}
 	self->size = 4;
-	return EXPP_incr_ret((PyObject*)self);
+	Py_INCREF(self);
+	return (PyObject*)self;
 }
 /*----------------------------Vector.toTrackQuat(track, up) ----------------------
   extract a quaternion from the vector and the track and up axis */
@@ -172,11 +167,12 @@ PyObject *Vector_ToTrackQuat( VectorObject * self, PyObject * args )
 	short track = 2, up = 1;
 
 	if( !PyArg_ParseTuple ( args, "|ss", &strack, &sup ) ) {
-		return EXPP_ReturnPyObjError( PyExc_TypeError, 
-			"expected optional two strings\n" );
+		PyErr_SetString( PyExc_TypeError, "expected optional two strings\n" );
+		return NULL;
 	}
 	if (self->size != 3) {
-		return EXPP_ReturnPyObjError( PyExc_TypeError, "only for 3D vectors\n" );
+		PyErr_SetString( PyExc_TypeError, "only for 3D vectors\n" );
+		return NULL;
 	}
 
 	if (strack) {
@@ -196,13 +192,13 @@ PyObject *Vector_ToTrackQuat( VectorObject * self, PyObject * args )
 						track = 5;
 						break;
 					default:
-						return EXPP_ReturnPyObjError( PyExc_ValueError,
-										  "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+						PyErr_SetString( PyExc_ValueError, "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+						return NULL;
 				}
 			}
 			else {
-				return EXPP_ReturnPyObjError( PyExc_ValueError,
-								  "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+				PyErr_SetString( PyExc_ValueError, "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+				return NULL;
 			}
 		}
 		else if (strlen(strack) == 1) {
@@ -221,13 +217,13 @@ PyObject *Vector_ToTrackQuat( VectorObject * self, PyObject * args )
 				track = 2;
 				break;
 			default:
-				return EXPP_ReturnPyObjError( PyExc_ValueError,
-								  "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+				PyErr_SetString( PyExc_ValueError, "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+				return NULL;
 			}
 		}
 		else {
-			return EXPP_ReturnPyObjError( PyExc_ValueError,
-							  "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+			PyErr_SetString( PyExc_ValueError, "only X, -X, Y, -Y, Z or -Z for track axis\n" );
+			return NULL;
 		}
 	}
 
@@ -247,19 +243,19 @@ PyObject *Vector_ToTrackQuat( VectorObject * self, PyObject * args )
 				up = 2;
 				break;
 			default:
-				return EXPP_ReturnPyObjError( PyExc_ValueError,
-								  "only X, Y or Z for up axis\n" );
+				PyErr_SetString( PyExc_ValueError, "only X, Y or Z for up axis\n" );
+				return NULL;
 			}
 		}
 		else {
-			return EXPP_ReturnPyObjError( PyExc_ValueError,
-							  "only X, Y or Z for up axis\n" );
+			PyErr_SetString( PyExc_ValueError, "only X, Y or Z for up axis\n" );
+			return NULL;
 		}
 	}
 
 	if (track == up) {
-			return EXPP_ReturnPyObjError( PyExc_ValueError,
-						      "Can't have the same axis for track and up\n" );
+		PyErr_SetString( PyExc_ValueError, "Can't have the same axis for track and up\n" );
+		return NULL;
 	}
 
 	/*
@@ -291,9 +287,10 @@ PyObject *Vector_reflect( VectorObject * self, PyObject * value )
 	int i;
 	float norm = 0.0f;
 	
-	if (!VectorObject_Check(value)) 
-		return EXPP_ReturnPyObjError( PyExc_TypeError, "expected a vector argument" );
-	
+	if (!VectorObject_Check(value)) {
+		PyErr_SetString( PyExc_TypeError, "expected a vector argument" );
+		return NULL;
+	}
 	mirrvec = (VectorObject *)value;
 	
 	mirror[0] = mirrvec->vec[0];
@@ -375,9 +372,10 @@ static int Vector_len(VectorObject * self)
   sequence accessor (get)*/
 static PyObject *Vector_item(VectorObject * self, int i)
 {
-	if(i < 0 || i >= self->size)
-		return EXPP_ReturnPyObjError(PyExc_IndexError,
-		"vector[index]: out of range\n");
+	if(i < 0 || i >= self->size) {
+		PyErr_SetString(PyExc_IndexError,"vector[index]: out of range\n");
+		return NULL;
+	}
 
 	return PyFloat_FromDouble(self->vec[i]);
 
@@ -388,13 +386,13 @@ static int Vector_ass_item(VectorObject * self, int i, PyObject * ob)
 {
 	
 	if(!(PyNumber_Check(ob))) { /* parsed item not a number */
-		return EXPP_ReturnIntError(PyExc_TypeError, 
-			"vector[index] = x: index argument not a number\n");
+		PyErr_SetString(PyExc_TypeError, "vector[index] = x: index argument not a number\n");
+		return -1;
 	}
 
 	if(i < 0 || i >= self->size){
-		return EXPP_ReturnIntError(PyExc_IndexError,
-			"vector[index] = x: assignment index out of range\n");
+		PyErr_SetString(PyExc_IndexError, "vector[index] = x: assignment index out of range\n");
+		return -1;
 	}
 	self->vec[i] = (float)PyFloat_AsDouble(ob);
 	return 0;
@@ -436,21 +434,21 @@ static int Vector_ass_slice(VectorObject * self, int begin, int end,
 
 	size = PySequence_Length(seq);
 	if(size != (end - begin)){
-		return EXPP_ReturnIntError(PyExc_TypeError,
-			"vector[begin:end] = []: size mismatch in slice assignment\n");
+		PyErr_SetString(PyExc_TypeError, "vector[begin:end] = []: size mismatch in slice assignment\n");
+		return -1;
 	}
 
 	for (i = 0; i < size; i++) {
 		v = PySequence_GetItem(seq, i);
 		if (v == NULL) { /* Failed to read sequence */
-			return EXPP_ReturnIntError(PyExc_RuntimeError, 
-				"vector[begin:end] = []: unable to read sequence\n");
+			PyErr_SetString(PyExc_RuntimeError, "vector[begin:end] = []: unable to read sequence\n");
+			return -1;
 		}
 		
 		if(!PyNumber_Check(v)) { /* parsed item not a number */
 			Py_DECREF(v);
-			return EXPP_ReturnIntError(PyExc_TypeError, 
-				"vector[begin:end] = []: sequence argument not a number\n");
+			PyErr_SetString(PyExc_TypeError, "vector[begin:end] = []: sequence argument not a number\n");
+			return -1;
 		}
 
 		vec[i] = (float)PyFloat_AsDouble(v);
@@ -481,33 +479,18 @@ static PyObject *Vector_add(PyObject * v1, PyObject * v2)
 	/* make sure v1 is always the vector */
 	if (vec1 && vec2 ) {
 		/*VECTOR + VECTOR*/
-		if(vec1->size != vec2->size)
-			return EXPP_ReturnPyObjError(PyExc_AttributeError,
-			"Vector addition: vectors must have the same dimensions for this operation\n");
-		
+		if(vec1->size != vec2->size) {
+			PyErr_SetString(PyExc_AttributeError, "Vector addition: vectors must have the same dimensions for this operation\n");
+			return NULL;
+		}
 		for(i = 0; i < vec1->size; i++) {
 			vec[i] = vec1->vec[i] +	vec2->vec[i];
 		}
 		return newVectorObject(vec, vec1->size, Py_NEW);
 	}
 	
-	if(PointObject_Check(v2)){  /*VECTOR + POINT*/
-		/*Point translation*/
-		PointObject *pt = (PointObject*)v2;
-		
-		if(pt->size == vec1->size){
-			for(i = 0; i < vec1->size; i++){
-				vec[i] = vec1->vec[i] + pt->coord[i];
-			}
-		}else{
-			return EXPP_ReturnPyObjError(PyExc_AttributeError,
-				"Vector addition: arguments are the wrong size....\n");
-		}
-		return newPointObject(vec, vec1->size, Py_NEW);
-	}
-	
-	return EXPP_ReturnPyObjError(PyExc_AttributeError,
-		"Vector addition: arguments not valid for this operation....\n");
+	PyErr_SetString(PyExc_AttributeError, "Vector addition: arguments not valid for this operation....\n");
+	return NULL;
 }
 
 /*  ------------------------obj += obj------------------------------
@@ -527,10 +510,10 @@ static PyObject *Vector_iadd(PyObject * v1, PyObject * v2)
 	/* make sure v1 is always the vector */
 	if (vec1 && vec2 ) {
 		/*VECTOR + VECTOR*/
-		if(vec1->size != vec2->size)
-			return EXPP_ReturnPyObjError(PyExc_AttributeError,
-			"Vector addition: vectors must have the same dimensions for this operation\n");
-		
+		if(vec1->size != vec2->size) {
+			PyErr_SetString(PyExc_AttributeError, "Vector addition: vectors must have the same dimensions for this operation\n");
+			return NULL;
+		}
 		for(i = 0; i < vec1->size; i++) {
 			vec1->vec[i] +=	vec2->vec[i];
 		}
@@ -538,24 +521,8 @@ static PyObject *Vector_iadd(PyObject * v1, PyObject * v2)
 		return v1;
 	}
 	
-	if(PointObject_Check(v2)){  /*VECTOR + POINT*/
-		/*Point translation*/
-		PointObject *pt = (PointObject*)v2;
-		
-		if(pt->size == vec1->size){
-			for(i = 0; i < vec1->size; i++){
-				vec1->vec[i] += pt->coord[i];
-			}
-		}else{
-			return EXPP_ReturnPyObjError(PyExc_AttributeError,
-				"Vector addition: arguments are the wrong size....\n");
-		}
-		Py_INCREF( v1 );
-		return v1;
-	}
-	
-	return EXPP_ReturnPyObjError(PyExc_AttributeError,
-		"Vector addition: arguments not valid for this operation....\n");
+	PyErr_SetString(PyExc_AttributeError, "Vector addition: arguments not valid for this operation....\n");
+	return NULL;
 }
 
 /*------------------------obj - obj------------------------------
@@ -566,17 +533,17 @@ static PyObject *Vector_sub(PyObject * v1, PyObject * v2)
 	float vec[4];
 	VectorObject *vec1 = NULL, *vec2 = NULL;
 
-	if (!VectorObject_Check(v1) || !VectorObject_Check(v2))
-		return EXPP_ReturnPyObjError(PyExc_AttributeError,
-			"Vector subtraction: arguments not valid for this operation....\n");
-	
+	if (!VectorObject_Check(v1) || !VectorObject_Check(v2)) {
+		PyErr_SetString(PyExc_AttributeError, "Vector subtraction: arguments not valid for this operation....\n");
+		return NULL;
+	}
 	vec1 = (VectorObject*)v1;
 	vec2 = (VectorObject*)v2;
 	
-	if(vec1->size != vec2->size)
-		return EXPP_ReturnPyObjError(PyExc_AttributeError,
-		"Vector subtraction: vectors must have the same dimensions for this operation\n");
-	
+	if(vec1->size != vec2->size) {
+		PyErr_SetString(PyExc_AttributeError, "Vector subtraction: vectors must have the same dimensions for this operation\n");
+		return NULL;
+	}
 	for(i = 0; i < vec1->size; i++) {
 		vec[i] = vec1->vec[i] -	vec2->vec[i];
 	}
@@ -591,16 +558,17 @@ static PyObject *Vector_isub(PyObject * v1, PyObject * v2)
 	int i, size;
 	VectorObject *vec1 = NULL, *vec2 = NULL;
 
-	if (!VectorObject_Check(v1) || !VectorObject_Check(v2))
-		return EXPP_ReturnPyObjError(PyExc_AttributeError,
-			"Vector subtraction: arguments not valid for this operation....\n");
-	
+	if (!VectorObject_Check(v1) || !VectorObject_Check(v2)) {
+		PyErr_SetString(PyExc_AttributeError, "Vector subtraction: arguments not valid for this operation....\n");
+		return NULL;
+	}
 	vec1 = (VectorObject*)v1;
 	vec2 = (VectorObject*)v2;
 	
-	if(vec1->size != vec2->size)
-		return EXPP_ReturnPyObjError(PyExc_AttributeError,
-		"Vector subtraction: vectors must have the same dimensions for this operation\n");
+	if(vec1->size != vec2->size) {
+		PyErr_SetString(PyExc_AttributeError, "Vector subtraction: vectors must have the same dimensions for this operation\n");
+		return NULL;
+	}
 
 	size = vec1->size;
 	for(i = 0; i < vec1->size; i++) {
@@ -628,9 +596,10 @@ static PyObject *Vector_mul(PyObject * v1, PyObject * v2)
 		int i;
 		double dot = 0.0f;
 		
-		if(vec1->size != vec2->size)
-		return EXPP_ReturnPyObjError(PyExc_AttributeError,
-			"Vector multiplication: vectors must have the same dimensions for this operation\n");
+		if(vec1->size != vec2->size) {
+			PyErr_SetString(PyExc_AttributeError, "Vector multiplication: vectors must have the same dimensions for this operation\n");
+			return NULL;
+		}
 		
 		/*dot product*/
 		for(i = 0; i < vec1->size; i++) {
@@ -664,15 +633,15 @@ static PyObject *Vector_mul(PyObject * v1, PyObject * v2)
 			return row_vector_multiplication(vec1, (MatrixObject*)v2);
 	} else if (QuaternionObject_Check(v2)) {
 		QuaternionObject *quat = (QuaternionObject*)v2;
-		if(vec1->size != 3)
-			return EXPP_ReturnPyObjError(PyExc_TypeError, 
-				"Vector multiplication: only 3D vector rotations (with quats) currently supported\n");
-		
+		if(vec1->size != 3) {
+			PyErr_SetString(PyExc_TypeError, "Vector multiplication: only 3D vector rotations (with quats) currently supported\n");
+			return NULL;
+		}
 		return quat_rotation((PyObject*)vec1, (PyObject*)quat);
 	}
 	
-	return EXPP_ReturnPyObjError(PyExc_TypeError,
-		"Vector multiplication: arguments not acceptable for this operation\n");
+	PyErr_SetString(PyExc_TypeError, "Vector multiplication: arguments not acceptable for this operation\n");
+	return NULL;
 }
 
 /*------------------------obj *= obj------------------------------
@@ -702,8 +671,8 @@ static PyObject *Vector_imul(PyObject * v1, PyObject * v2)
 		
 		if(mat->colSize != size){
 			if(mat->rowSize == 4 && vec->size != 3){
-				return EXPP_ReturnPyObjError(PyExc_AttributeError, 
-					"vector * matrix: matrix column size and the vector size must be the same");
+				PyErr_SetString(PyExc_AttributeError, "vector * matrix: matrix column size and the vector size must be the same");
+				return NULL;
 			} else {
 				vecCopy[3] = 1.0f;
 			}
@@ -726,8 +695,8 @@ static PyObject *Vector_imul(PyObject * v1, PyObject * v2)
 		Py_INCREF( v1 );
 		return v1;
 	}
-	return EXPP_ReturnPyObjError(PyExc_TypeError,
-		"Vector multiplication: arguments not acceptable for this operation\n");
+	PyErr_SetString(PyExc_TypeError, "Vector multiplication: arguments not acceptable for this operation\n");
+	return NULL;
 }
 
 /*------------------------obj / obj------------------------------
@@ -738,22 +707,22 @@ static PyObject *Vector_div(PyObject * v1, PyObject * v2)
 	float vec[4], scalar;
 	VectorObject *vec1 = NULL;
 	
-	if(!VectorObject_Check(v1)) /* not a vector */
-		return EXPP_ReturnPyObjError(PyExc_TypeError, 
-			"Vector division: Vector must be divided by a float\n");
-	
+	if(!VectorObject_Check(v1)) { /* not a vector */
+		PyErr_SetString(PyExc_TypeError, "Vector division: Vector must be divided by a float\n");
+		return NULL;
+	}
 	vec1 = (VectorObject*)v1; /* vector */
 	
-	if(!PyNumber_Check(v2)) /* parsed item not a number */
-		return EXPP_ReturnPyObjError(PyExc_TypeError, 
-			"Vector division: Vector must be divided by a float\n");
-
+	if(!PyNumber_Check(v2)) { /* parsed item not a number */
+		PyErr_SetString(PyExc_TypeError, "Vector division: Vector must be divided by a float\n");
+		return NULL;
+	}
 	scalar = (float)PyFloat_AsDouble(v2);
 	
-	if(scalar==0.0) /* not a vector */
-		return EXPP_ReturnPyObjError(PyExc_ZeroDivisionError, 
-			"Vector division: divide by zero error.\n");
-	
+	if(scalar==0.0) { /* not a vector */
+		PyErr_SetString(PyExc_ZeroDivisionError, "Vector division: divide by zero error.\n");
+		return NULL;
+	}
 	size = vec1->size;
 	for(i = 0; i < size; i++) {
 		vec[i] = vec1->vec[i] /	scalar;
@@ -769,22 +738,24 @@ static PyObject *Vector_idiv(PyObject * v1, PyObject * v2)
 	float scalar;
 	VectorObject *vec1 = NULL;
 	
-	/*if(!VectorObject_Check(v1))
-		return EXPP_ReturnIntError(PyExc_TypeError, 
-			"Vector division: Vector must be divided by a float\n");*/
+	/*if(!VectorObject_Check(v1)) {
+		PyErr_SetString(PyExc_TypeError, "Vector division: Vector must be divided by a float\n");
+		return -1;
+	}*/
 	
 	vec1 = (VectorObject*)v1; /* vector */
 	
-	if(!PyNumber_Check(v2)) /* parsed item not a number */
-		return EXPP_ReturnPyObjError(PyExc_TypeError, 
-			"Vector division: Vector must be divided by a float\n");
+	if(!PyNumber_Check(v2)) { /* parsed item not a number */
+		PyErr_SetString(PyExc_TypeError, "Vector division: Vector must be divided by a float\n");
+		return NULL;
+	}
 
 	scalar = (float)PyFloat_AsDouble(v2);
 	
-	if(scalar==0.0) /* not a vector */
-		return EXPP_ReturnPyObjError(PyExc_ZeroDivisionError, 
-			"Vector division: divide by zero error.\n");
-	
+	if(scalar==0.0) { /* not a vector */
+		PyErr_SetString(PyExc_ZeroDivisionError, "Vector division: divide by zero error.\n");
+		return NULL;
+	}
 	size = vec1->size;
 	for(i = 0; i < size; i++) {
 		vec1->vec[i] /=	scalar;
@@ -854,9 +825,9 @@ PyObject* Vector_richcmpr(PyObject *objectA, PyObject *objectB, int comparison_t
 
 	if (!VectorObject_Check(objectA) || !VectorObject_Check(objectB)){
 		if (comparison_type == Py_NE){
-			return EXPP_incr_ret(Py_True); 
+			Py_RETURN_TRUE;
 		}else{
-			return EXPP_incr_ret(Py_False);
+			Py_RETURN_FALSE;
 		}
 	}
 	vecA = (VectorObject*)objectA;
@@ -864,9 +835,9 @@ PyObject* Vector_richcmpr(PyObject *objectA, PyObject *objectB, int comparison_t
 
 	if (vecA->size != vecB->size){
 		if (comparison_type == Py_NE){
-			return EXPP_incr_ret(Py_True); 
+			Py_RETURN_TRUE;
 		}else{
-			return EXPP_incr_ret(Py_False);
+			Py_RETURN_FALSE;
 		}
 	}
 
@@ -919,9 +890,9 @@ PyObject* Vector_richcmpr(PyObject *objectA, PyObject *objectB, int comparison_t
 			break;
 	}
 	if (result == 1){
-		return EXPP_incr_ret(Py_True);
+		Py_RETURN_TRUE;
 	}else{
-		return EXPP_incr_ret(Py_False);
+		Py_RETURN_FALSE;
 	}
 }
 /*-----------------PROTCOL DECLARATIONS--------------------------*/
@@ -1003,37 +974,36 @@ static PyObject *Vector_getAxis( VectorObject * self, void *type )
     case 'Y':
 		return PyFloat_FromDouble(self->vec[1]);
     case 'Z':	/* these are backwards, but that how it works */
-		if(self->size < 3)
-			return EXPP_ReturnPyObjError(PyExc_AttributeError,
-				"vector.z: error, cannot get this axis for a 2D vector\n");
-		else
+		if(self->size < 3) {
+			PyErr_SetString(PyExc_AttributeError, "vector.z: error, cannot get this axis for a 2D vector\n");
+			return NULL;
+		}
+		else {
 			return PyFloat_FromDouble(self->vec[2]);
+		}
     case 'W':
-		if(self->size < 4)
-			return EXPP_ReturnPyObjError(PyExc_AttributeError,
-				"vector.w: error, cannot get this axis for a 3D vector\n");
+		if(self->size < 4) {
+			PyErr_SetString(PyExc_AttributeError, "vector.w: error, cannot get this axis for a 3D vector\n");
+			return NULL;
+		}
 	
 		return PyFloat_FromDouble(self->vec[3]);
 	default:
 		{
-			char errstr[1024];
-			sprintf( errstr, "undefined type '%d' in Vector_getAxis",
-					(int)((long)type & 0xff));
-			return EXPP_ReturnPyObjError( PyExc_RuntimeError, errstr );
+			PyErr_SetString( PyExc_RuntimeError, "undefined type in Vector_getAxis" );
+			return NULL;
 		}
 	}
 }
 
 static int Vector_setAxis( VectorObject * self, PyObject * value, void * type )
 {
-	float param;
+	float param= (float)PyFloat_AsDouble( value );
 	
-	if (!PyNumber_Check(value))
-		return EXPP_ReturnIntError( PyExc_TypeError,
-			"expected a number for the vector axis" );
-	
-	param= (float)PyFloat_AsDouble( value );
-	
+	if (param==-1 && PyErr_Occurred()) {
+		PyErr_SetString( PyExc_TypeError, "expected a number for the vector axis" );
+		return -1;
+	}
 	switch( (long)type ) {
     case 'X':	/* these are backwards, but that how it works */
 		self->vec[0]= param;
@@ -1042,25 +1012,19 @@ static int Vector_setAxis( VectorObject * self, PyObject * value, void * type )
 		self->vec[1]= param;
 		break;
     case 'Z':	/* these are backwards, but that how it works */
-		if(self->size < 3)
-			return EXPP_ReturnIntError(PyExc_AttributeError,
-				"vector.z: error, cannot get this axis for a 2D vector\n");
+		if(self->size < 3) {
+			PyErr_SetString(PyExc_AttributeError, "vector.z: error, cannot get this axis for a 2D vector\n");
+			return -1;
+		}
 		self->vec[2]= param;
 		break;
     case 'W':
-		if(self->size < 4)
-			return EXPP_ReturnIntError(PyExc_AttributeError,
-				"vector.w: error, cannot get this axis for a 3D vector\n");
-	
+		if(self->size < 4) {
+			PyErr_SetString(PyExc_AttributeError, "vector.w: error, cannot get this axis for a 3D vector\n");
+			return -1;
+		}
 		self->vec[3]= param;
 		break;
-	default:
-		{
-			char errstr[1024];
-			sprintf( errstr, "undefined type '%d' in Vector_setAxis",
-					(int)((long)type & 0xff));
-			return EXPP_ReturnIntError( PyExc_RuntimeError, errstr );
-		}
 	}
 
 	return 0;
@@ -1083,16 +1047,16 @@ static int Vector_setLength( VectorObject * self, PyObject * value )
 	double dot = 0.0f, param;
 	int i;
 	
-	if (!PyNumber_Check(value))
-		return EXPP_ReturnIntError( PyExc_TypeError,
-			"expected a number for the vector axis" );
-	
+	if (!PyNumber_Check(value)) {
+		PyErr_SetString( PyExc_TypeError, "expected a number for the vector axis" );
+		return -1;
+	}
 	param= PyFloat_AsDouble( value );
 	
-	if (param < 0)
-		return EXPP_ReturnIntError( PyExc_TypeError,
-			"cannot set a vectors length to a negative value" );
-	
+	if (param < 0) {
+		PyErr_SetString( PyExc_TypeError, "cannot set a vectors length to a negative value" );
+		return -1;
+	}
 	if (param==0) {
 		for(i = 0; i < self->size; i++){
 			self->vec[i]= 0;
@@ -1130,6 +1094,130 @@ static PyObject *Vector_getWrapped( VectorObject * self, void *type )
 }
 
 
+/* Get a new Vector according to the provided swizzle. This function has little
+   error checking, as we are in control of the inputs: the closure is set by us
+   in Vector_createSwizzleGetSeter. */
+static PyObject *Vector_getSwizzle(VectorObject * self, void *closure)
+{
+	size_t axisA;
+	size_t axisB;
+	float vec[MAX_DIMENSIONS];
+	unsigned int swizzleClosure;
+	
+	/* Unpack the axes from the closure into an array. */
+	axisA = 0;
+	swizzleClosure = (unsigned int) closure;
+	while (swizzleClosure & SWIZZLE_VALID_AXIS)
+	{
+		axisB = swizzleClosure & SWIZZLE_AXIS;
+		vec[axisA] = self->vec[axisB];
+		swizzleClosure = swizzleClosure >> SWIZZLE_BITS_PER_AXIS;
+		axisA++;
+	}
+	
+	return newVectorObject(vec, axisA, Py_NEW);
+}
+
+/* Set the items of this vector using a swizzle.
+   - If value is a vector or list this operates like an array copy, except that
+     the destination is effectively re-ordered as defined by the swizzle. At
+     most min(len(source), len(dest)) values will be copied.
+   - If the value is scalar, it is copied to all axes listed in the swizzle.
+   - If an axis appears more than once in the swizzle, the final occurrance is
+     the one that determines its value.
+
+   Returns 0 on success and -1 on failure. On failure, the vector will be
+   unchanged. */
+static int Vector_setSwizzle(VectorObject * self, PyObject * value, void *closure)
+{
+	VectorObject *vecVal;
+	PyObject *item;
+	size_t listLen;
+	float scalarVal;
+
+	size_t axisB;
+	size_t axisA;
+	unsigned int swizzleClosure;
+	
+	float vecTemp[MAX_DIMENSIONS];
+	
+	/* Check that the closure can be used with this vector: even 2D vectors have
+	   swizzles defined for axes z and w, but they would be invalid. */
+	swizzleClosure = (unsigned int) closure;
+	while (swizzleClosure & SWIZZLE_VALID_AXIS)
+	{
+		axisA = swizzleClosure & SWIZZLE_AXIS;
+		if (axisA >= self->size)
+		{
+			PyErr_SetString(PyExc_AttributeError, "Error: vector does not have specified axis.\n");
+			return -1;
+		}
+		swizzleClosure = swizzleClosure >> SWIZZLE_BITS_PER_AXIS;
+	}
+	
+	if (VectorObject_Check(value))
+	{
+		/* Copy vector contents onto swizzled axes. */
+		vecVal = (VectorObject*) value;
+		axisB = 0;
+		swizzleClosure = (unsigned int) closure;
+		while (swizzleClosure & SWIZZLE_VALID_AXIS && axisB < vecVal->size)
+		{
+			axisA = swizzleClosure & SWIZZLE_AXIS;
+			vecTemp[axisA] = vecVal->vec[axisB];
+			
+			swizzleClosure = swizzleClosure >> SWIZZLE_BITS_PER_AXIS;
+			axisB++;
+		}
+		memcpy(self->vec, vecTemp, axisB * sizeof(float));
+		return 0;
+	}
+	else if (PyList_Check(value))
+	{
+		/* Copy list contents onto swizzled axes. */
+		listLen = PyList_Size(value);
+		swizzleClosure = (unsigned int) closure;
+		axisB = 0;
+		while (swizzleClosure & SWIZZLE_VALID_AXIS && axisB < listLen)
+		{
+			item = PyList_GetItem(value, axisB);
+			if (!PyNumber_Check(item))
+			{
+				PyErr_SetString(PyExc_AttributeError, "Error: vector does not have specified axis.\n");
+				return -1;
+			}
+			scalarVal = (float)PyFloat_AsDouble(item);
+			
+			axisA = swizzleClosure & SWIZZLE_AXIS;
+			vecTemp[axisA] = scalarVal;
+			
+			swizzleClosure = swizzleClosure >> SWIZZLE_BITS_PER_AXIS;
+			axisB++;
+		}
+		memcpy(self->vec, vecTemp, axisB * sizeof(float));
+		return 0;
+	}
+	else if (PyNumber_Check(value))
+	{
+		/* Assign the same value to each axis. */
+		scalarVal = (float)PyFloat_AsDouble(value);
+		swizzleClosure = (unsigned int) closure;
+		while (swizzleClosure & SWIZZLE_VALID_AXIS)
+		{
+			axisA = swizzleClosure & SWIZZLE_AXIS;
+			self->vec[axisA] = scalarVal;
+			
+			swizzleClosure = swizzleClosure >> SWIZZLE_BITS_PER_AXIS;
+		}
+		return 0;
+	}
+	else
+	{
+		PyErr_SetString( PyExc_TypeError, "Expected a Vector, list or scalar value." );
+		return -1;
+	}
+}
+
 /*****************************************************************************/
 /* Python attributes get/set structure:                                      */
 /*****************************************************************************/
@@ -1160,10 +1248,390 @@ static PyGetSetDef Vector_getseters[] = {
 	 NULL},
 	{"wrapped",
 	 (getter)Vector_getWrapped, (setter)NULL,
-	 "Vector Length",
+	 "True when this wraps blenders internal data",
 	 NULL},
+	
+	/* autogenerated swizzle attrs, see python script below */
+	{"xx",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 36 */
+	{"xxx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 292 */
+	{"xxxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2340 */
+	{"xxxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2852 */
+	{"xxxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3364 */
+	{"xxxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3876 */
+	{"xxy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 356 */
+	{"xxyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2404 */
+	{"xxyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2916 */
+	{"xxyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3428 */
+	{"xxyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3940 */
+	{"xxz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 420 */
+	{"xxzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2468 */
+	{"xxzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2980 */
+	{"xxzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3492 */
+	{"xxzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4004 */
+	{"xxw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 484 */
+	{"xxwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2532 */
+	{"xxwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3044 */
+	{"xxwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3556 */
+	{"xxww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4068 */
+	{"xy",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 44 */
+	{"xyx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 300 */
+	{"xyxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2348 */
+	{"xyxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2860 */
+	{"xyxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3372 */
+	{"xyxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3884 */
+	{"xyy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 364 */
+	{"xyyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2412 */
+	{"xyyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2924 */
+	{"xyyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3436 */
+	{"xyyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3948 */
+	{"xyz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 428 */
+	{"xyzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2476 */
+	{"xyzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2988 */
+	{"xyzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3500 */
+	{"xyzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4012 */
+	{"xyw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 492 */
+	{"xywx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2540 */
+	{"xywy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3052 */
+	{"xywz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3564 */
+	{"xyww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4076 */
+	{"xz",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 52 */
+	{"xzx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 308 */
+	{"xzxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2356 */
+	{"xzxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2868 */
+	{"xzxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3380 */
+	{"xzxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3892 */
+	{"xzy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 372 */
+	{"xzyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2420 */
+	{"xzyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2932 */
+	{"xzyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3444 */
+	{"xzyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3956 */
+	{"xzz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 436 */
+	{"xzzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2484 */
+	{"xzzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2996 */
+	{"xzzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3508 */
+	{"xzzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4020 */
+	{"xzw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 500 */
+	{"xzwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2548 */
+	{"xzwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3060 */
+	{"xzwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3572 */
+	{"xzww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4084 */
+	{"xw",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 60 */
+	{"xwx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 316 */
+	{"xwxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2364 */
+	{"xwxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2876 */
+	{"xwxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3388 */
+	{"xwxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3900 */
+	{"xwy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 380 */
+	{"xwyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2428 */
+	{"xwyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2940 */
+	{"xwyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3452 */
+	{"xwyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3964 */
+	{"xwz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 444 */
+	{"xwzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2492 */
+	{"xwzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3004 */
+	{"xwzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3516 */
+	{"xwzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4028 */
+	{"xww",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 508 */
+	{"xwwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2556 */
+	{"xwwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3068 */
+	{"xwwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3580 */
+	{"xwww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((0|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4092 */
+	{"yx",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 37 */
+	{"yxx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 293 */
+	{"yxxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2341 */
+	{"yxxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2853 */
+	{"yxxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3365 */
+	{"yxxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3877 */
+	{"yxy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 357 */
+	{"yxyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2405 */
+	{"yxyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2917 */
+	{"yxyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3429 */
+	{"yxyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3941 */
+	{"yxz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 421 */
+	{"yxzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2469 */
+	{"yxzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2981 */
+	{"yxzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3493 */
+	{"yxzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4005 */
+	{"yxw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 485 */
+	{"yxwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2533 */
+	{"yxwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3045 */
+	{"yxwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3557 */
+	{"yxww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4069 */
+	{"yy",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 45 */
+	{"yyx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 301 */
+	{"yyxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2349 */
+	{"yyxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2861 */
+	{"yyxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3373 */
+	{"yyxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3885 */
+	{"yyy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 365 */
+	{"yyyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2413 */
+	{"yyyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2925 */
+	{"yyyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3437 */
+	{"yyyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3949 */
+	{"yyz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 429 */
+	{"yyzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2477 */
+	{"yyzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2989 */
+	{"yyzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3501 */
+	{"yyzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4013 */
+	{"yyw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 493 */
+	{"yywx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2541 */
+	{"yywy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3053 */
+	{"yywz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3565 */
+	{"yyww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4077 */
+	{"yz",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 53 */
+	{"yzx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 309 */
+	{"yzxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2357 */
+	{"yzxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2869 */
+	{"yzxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3381 */
+	{"yzxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3893 */
+	{"yzy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 373 */
+	{"yzyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2421 */
+	{"yzyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2933 */
+	{"yzyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3445 */
+	{"yzyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3957 */
+	{"yzz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 437 */
+	{"yzzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2485 */
+	{"yzzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2997 */
+	{"yzzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3509 */
+	{"yzzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4021 */
+	{"yzw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 501 */
+	{"yzwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2549 */
+	{"yzwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3061 */
+	{"yzwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3573 */
+	{"yzww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4085 */
+	{"yw",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 61 */
+	{"ywx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 317 */
+	{"ywxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2365 */
+	{"ywxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2877 */
+	{"ywxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3389 */
+	{"ywxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3901 */
+	{"ywy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 381 */
+	{"ywyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2429 */
+	{"ywyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2941 */
+	{"ywyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3453 */
+	{"ywyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3965 */
+	{"ywz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 445 */
+	{"ywzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2493 */
+	{"ywzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3005 */
+	{"ywzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3517 */
+	{"ywzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4029 */
+	{"yww",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 509 */
+	{"ywwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2557 */
+	{"ywwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3069 */
+	{"ywwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3581 */
+	{"ywww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((1|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4093 */
+	{"zx",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 38 */
+	{"zxx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 294 */
+	{"zxxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2342 */
+	{"zxxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2854 */
+	{"zxxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3366 */
+	{"zxxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3878 */
+	{"zxy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 358 */
+	{"zxyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2406 */
+	{"zxyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2918 */
+	{"zxyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3430 */
+	{"zxyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3942 */
+	{"zxz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 422 */
+	{"zxzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2470 */
+	{"zxzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2982 */
+	{"zxzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3494 */
+	{"zxzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4006 */
+	{"zxw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 486 */
+	{"zxwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2534 */
+	{"zxwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3046 */
+	{"zxwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3558 */
+	{"zxww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4070 */
+	{"zy",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 46 */
+	{"zyx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 302 */
+	{"zyxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2350 */
+	{"zyxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2862 */
+	{"zyxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3374 */
+	{"zyxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3886 */
+	{"zyy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 366 */
+	{"zyyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2414 */
+	{"zyyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2926 */
+	{"zyyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3438 */
+	{"zyyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3950 */
+	{"zyz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 430 */
+	{"zyzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2478 */
+	{"zyzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2990 */
+	{"zyzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3502 */
+	{"zyzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4014 */
+	{"zyw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 494 */
+	{"zywx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2542 */
+	{"zywy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3054 */
+	{"zywz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3566 */
+	{"zyww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4078 */
+	{"zz",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 54 */
+	{"zzx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 310 */
+	{"zzxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2358 */
+	{"zzxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2870 */
+	{"zzxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3382 */
+	{"zzxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3894 */
+	{"zzy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 374 */
+	{"zzyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2422 */
+	{"zzyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2934 */
+	{"zzyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3446 */
+	{"zzyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3958 */
+	{"zzz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 438 */
+	{"zzzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2486 */
+	{"zzzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2998 */
+	{"zzzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3510 */
+	{"zzzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4022 */
+	{"zzw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 502 */
+	{"zzwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2550 */
+	{"zzwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3062 */
+	{"zzwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3574 */
+	{"zzww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4086 */
+	{"zw",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 62 */
+	{"zwx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 318 */
+	{"zwxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2366 */
+	{"zwxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2878 */
+	{"zwxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3390 */
+	{"zwxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3902 */
+	{"zwy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 382 */
+	{"zwyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2430 */
+	{"zwyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2942 */
+	{"zwyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3454 */
+	{"zwyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3966 */
+	{"zwz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 446 */
+	{"zwzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2494 */
+	{"zwzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3006 */
+	{"zwzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3518 */
+	{"zwzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4030 */
+	{"zww",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 510 */
+	{"zwwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2558 */
+	{"zwwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3070 */
+	{"zwwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3582 */
+	{"zwww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((2|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4094 */
+	{"wx",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 39 */
+	{"wxx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 295 */
+	{"wxxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2343 */
+	{"wxxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2855 */
+	{"wxxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3367 */
+	{"wxxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3879 */
+	{"wxy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 359 */
+	{"wxyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2407 */
+	{"wxyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2919 */
+	{"wxyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3431 */
+	{"wxyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3943 */
+	{"wxz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 423 */
+	{"wxzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2471 */
+	{"wxzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2983 */
+	{"wxzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3495 */
+	{"wxzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4007 */
+	{"wxw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 487 */
+	{"wxwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2535 */
+	{"wxwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3047 */
+	{"wxwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3559 */
+	{"wxww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4071 */
+	{"wy",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 47 */
+	{"wyx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 303 */
+	{"wyxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2351 */
+	{"wyxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2863 */
+	{"wyxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3375 */
+	{"wyxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3887 */
+	{"wyy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 367 */
+	{"wyyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2415 */
+	{"wyyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2927 */
+	{"wyyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3439 */
+	{"wyyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3951 */
+	{"wyz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 431 */
+	{"wyzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2479 */
+	{"wyzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2991 */
+	{"wyzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3503 */
+	{"wyzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4015 */
+	{"wyw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 495 */
+	{"wywx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2543 */
+	{"wywy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3055 */
+	{"wywz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3567 */
+	{"wyww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4079 */
+	{"wz",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 55 */
+	{"wzx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 311 */
+	{"wzxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2359 */
+	{"wzxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2871 */
+	{"wzxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3383 */
+	{"wzxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3895 */
+	{"wzy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 375 */
+	{"wzyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2423 */
+	{"wzyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2935 */
+	{"wzyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3447 */
+	{"wzyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3959 */
+	{"wzz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 439 */
+	{"wzzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2487 */
+	{"wzzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2999 */
+	{"wzzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3511 */
+	{"wzzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4023 */
+	{"wzw",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 503 */
+	{"wzwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2551 */
+	{"wzwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3063 */
+	{"wzwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3575 */
+	{"wzww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4087 */
+	{"ww",   (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS)))}, /* 63 */
+	{"wwx",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 319 */
+	{"wwxx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2367 */
+	{"wwxy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2879 */
+	{"wwxz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3391 */
+	{"wwxw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3903 */
+	{"wwy",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 383 */
+	{"wwyx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2431 */
+	{"wwyy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2943 */
+	{"wwyz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3455 */
+	{"wwyw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3967 */
+	{"wwz",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 447 */
+	{"wwzx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2495 */
+	{"wwzy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3007 */
+	{"wwzz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3519 */
+	{"wwzw", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4031 */
+	{"www",  (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2))))}, /* 511 */
+	{"wwwx", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((0|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 2559 */
+	{"wwwy", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((1|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3071 */
+	{"wwwz", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((2|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 3583 */
+	{"wwww", (getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)((3|SWIZZLE_VALID_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((3|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  )}, /* 4095 */
 	{NULL,NULL,NULL,NULL,NULL}  /* Sentinel */
 };
+
+/* Python script used to make swizzle array */
+/*
+SWIZZLE_BITS_PER_AXIS = 3
+SWIZZLE_VALID_AXIS = 0x4
+
+axis_dict = {}
+axis_pos = {'x':0, 'y':1, 'z':2, 'w':3}
+axises = 'xyzw'
+while len(axises) >= 2:
+	
+	for axis_0 in axises:
+		axis_0_pos = axis_pos[axis_0]
+		for axis_1 in axises:
+			axis_1_pos = axis_pos[axis_1]
+			axis_dict[axis_0+axis_1] = '((%s|SWIZZLE_VALID_AXIS) | ((%s|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS))' % (axis_0_pos, axis_1_pos)
+			if len(axises)>2:
+				for axis_2 in axises:
+					axis_2_pos = axis_pos[axis_2]
+					axis_dict[axis_0+axis_1+axis_2] = '((%s|SWIZZLE_VALID_AXIS) | ((%s|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((%s|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)))' % (axis_0_pos, axis_1_pos, axis_2_pos)
+					if len(axises)>3:
+						for axis_3 in axises:
+							axis_3_pos = axis_pos[axis_3]
+							axis_dict[axis_0+axis_1+axis_2+axis_3] = '((%s|SWIZZLE_VALID_AXIS) | ((%s|SWIZZLE_VALID_AXIS)<<SWIZZLE_BITS_PER_AXIS) | ((%s|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*2)) | ((%s|SWIZZLE_VALID_AXIS)<<(SWIZZLE_BITS_PER_AXIS*3)))  ' % (axis_0_pos, axis_1_pos, axis_2_pos, axis_3_pos)
+	
+	axises = axises[:-1]
+
+
+items = axis_dict.items()
+items.sort(key = lambda a: a[0].replace('x', '0').replace('y', '1').replace('z', '2').replace('w', '3'))
+
+unique = set()
+for key, val in items:
+	num = eval(val)
+	print '\t{"%s", %s(getter)Vector_getSwizzle, (setter)Vector_setSwizzle, Vector_swizzle_doc, (void *)((unsigned int)%s)}, // %s' % (key, (' '*(4-len(key))), axis_dict[key], num)
+	unique.add(num)
+
+if len(unique) != len(items):
+	print "ERROR"
+
+*/
+
 
 
 
@@ -1233,7 +1701,7 @@ PyTypeObject vector_Type = {
   /*** Attribute descriptor and subclassing stuff ***/
 	Vector_methods,           /* struct PyMethodDef *tp_methods; */
 	NULL,                       /* struct PyMemberDef *tp_members; */
-	Vector_getseters,         /* struct PyGetSetDef *tp_getset; */
+	Vector_getseters,           /* struct PyGetSetDef *tp_getset; */
 	NULL,                       /* struct _typeobject *tp_base; */
 	NULL,                       /* PyObject *tp_dict; */
 	NULL,                       /* descrgetfunc tp_descr_get; */
@@ -1306,8 +1774,8 @@ PyObject *Vector_Negate(VectorObject * self)
 		self->vec[i] = -(self->vec[i]);
 	}
 	/*printf("Vector.negate(): Deprecated: use -vector instead\n");*/
-	return EXPP_incr_ret((PyObject*)self);
+	Py_INCREF(self);
+	return (PyObject*)self;
 }
 /*###################################################################
   ###########################DEPRECATED##############################*/
-

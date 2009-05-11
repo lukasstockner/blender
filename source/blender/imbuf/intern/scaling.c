@@ -299,7 +299,6 @@ struct ImBuf *IMB_onehalf(struct ImBuf *ibuf1)
 	if (ibuf1->rect==NULL && ibuf1->rect_float==NULL) return (0);
 
 	do_rect= (ibuf1->rect != NULL);
-	do_float= (ibuf1->rect_float != NULL);
 
 	if (ibuf1->x <= 1) return(IMB_half_y(ibuf1));
 	if (ibuf1->y <= 1) return(IMB_half_x(ibuf1));
@@ -311,6 +310,8 @@ struct ImBuf *IMB_onehalf(struct ImBuf *ibuf1)
 	destf=ibuf2->rect_float;
 	p1 = (uchar *) ibuf1->rect;
 	dest=(uchar *) ibuf2->rect;
+
+	do_float= (ibuf1->rect_float != NULL && ibuf2->rect_float != NULL);
 
 	for(y=ibuf2->y;y>0;y--){
 		if (do_rect) p2 = p1 + (ibuf1->x << 2);
@@ -608,34 +609,35 @@ static void shrink_picture_byte(
 
 			w = (weight1y * weight1x) >> 16;
 
-			dst_line1[x].r += (line[0] * w) >> 16;
-			dst_line1[x].g += (line[1] * w) >> 16;
-			dst_line1[x].b += (line[2] * w) >> 16;
-			dst_line1[x].a += (line[3] * w) >> 16;
+			/* ensure correct rounding, without this you get ugly banding (ton) */
+			dst_line1[x].r += (line[0] * w + 32767) >> 16;
+			dst_line1[x].g += (line[1] * w + 32767) >> 16;
+			dst_line1[x].b += (line[2] * w + 32767) >> 16;
+			dst_line1[x].a += (line[3] * w + 32767) >> 16;
 			dst_line1[x].weight += w;
 
 			w = (weight2y * weight1x) >> 16;
 
-			dst_line2[x].r += (line[0] * w) >> 16;
-			dst_line2[x].g += (line[1] * w) >> 16;
-			dst_line2[x].b += (line[2] * w) >> 16;
-			dst_line2[x].a += (line[3] * w) >> 16;
+			dst_line2[x].r += (line[0] * w + 32767) >> 16;
+			dst_line2[x].g += (line[1] * w + 32767) >> 16;
+			dst_line2[x].b += (line[2] * w + 32767) >> 16;
+			dst_line2[x].a += (line[3] * w + 32767) >> 16;
 			dst_line2[x].weight += w;
 
 			w = (weight1y * weight2x) >> 16;
 
-			dst_line1[x+1].r += (line[0] * w) >> 16;
-			dst_line1[x+1].g += (line[1] * w) >> 16;
-			dst_line1[x+1].b += (line[2] * w) >> 16;
-			dst_line1[x+1].a += (line[3] * w) >> 16;
+			dst_line1[x+1].r += (line[0] * w + 32767) >> 16;
+			dst_line1[x+1].g += (line[1] * w + 32767) >> 16;
+			dst_line1[x+1].b += (line[2] * w + 32767) >> 16;
+			dst_line1[x+1].a += (line[3] * w + 32767) >> 16;
 			dst_line1[x+1].weight += w;
 
 			w = (weight2y * weight2x) >> 16;
 
-			dst_line2[x+1].r += (line[0] * w) >> 16;
-			dst_line2[x+1].g += (line[1] * w) >> 16;
-			dst_line2[x+1].b += (line[2] * w) >> 16;
-			dst_line2[x+1].a += (line[3] * w) >> 16;
+			dst_line2[x+1].r += (line[0] * w + 32767) >> 16;
+			dst_line2[x+1].g += (line[1] * w + 32767) >> 16;
+			dst_line2[x+1].b += (line[2] * w + 32767) >> 16;
+			dst_line2[x+1].a += (line[3] * w + 32767) >> 16;
 			dst_line2[x+1].weight += w;
 
 			x_dst += dx_dst;

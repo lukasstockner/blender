@@ -37,15 +37,16 @@ class	KX_PhysicsObjectWrapper : public PyObjectPlus
 	Py_Header;
 
 	virtual PyObject*		py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int 			py_setattro(PyObject *attr, PyObject *value);
 public:
 	KX_PhysicsObjectWrapper(class PHY_IPhysicsController* ctrl,class PHY_IPhysicsEnvironment* physenv,PyTypeObject *T = &Type);
 	virtual ~KX_PhysicsObjectWrapper();
 	
-	KX_PYMETHOD(KX_PhysicsObjectWrapper , SetPosition);
-	KX_PYMETHOD(KX_PhysicsObjectWrapper,SetLinearVelocity);
-	KX_PYMETHOD(KX_PhysicsObjectWrapper,SetAngularVelocity);
-	KX_PYMETHOD(KX_PhysicsObjectWrapper,SetActive);
+	KX_PYMETHOD_VARARGS(KX_PhysicsObjectWrapper,SetPosition);
+	KX_PYMETHOD_VARARGS(KX_PhysicsObjectWrapper,SetLinearVelocity);
+	KX_PYMETHOD_VARARGS(KX_PhysicsObjectWrapper,SetAngularVelocity);
+	KX_PYMETHOD_VARARGS(KX_PhysicsObjectWrapper,SetActive);
 
 private:
 	class PHY_IPhysicsController*	m_ctrl;

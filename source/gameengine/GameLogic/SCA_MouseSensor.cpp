@@ -111,7 +111,7 @@ CValue* SCA_MouseSensor::GetReplica()
 {
 	SCA_MouseSensor* replica = new SCA_MouseSensor(*this);
 	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
+	replica->ProcessReplica();
 	replica->Init();
 
 	return replica;
@@ -144,7 +144,7 @@ SCA_IInputDevice::KX_EnumInputs SCA_MouseSensor::GetHotKey()
 
 
 
-bool SCA_MouseSensor::Evaluate(CValue* event)
+bool SCA_MouseSensor::Evaluate()
 {
 	bool result = false;
 	bool reset = m_reset && m_level;
@@ -252,9 +252,7 @@ const char SCA_MouseSensor::GetXPosition_doc[] =
 "\tReturns the x-coordinate of the mouse sensor, in frame coordinates.\n"
 "\tThe lower-left corner is the origin. The coordinate is given in\n"
 "\tpixels\n";
-PyObject* SCA_MouseSensor::PyGetXPosition(PyObject* self, 
-										 PyObject* args, 
-										 PyObject* kwds) {
+PyObject* SCA_MouseSensor::PyGetXPosition() {
 	ShowDeprecationWarning("getXPosition()", "the position property");
 	return PyInt_FromLong(m_x);
 }
@@ -265,9 +263,7 @@ const char SCA_MouseSensor::GetYPosition_doc[] =
 "\tReturns the y-coordinate of the mouse sensor, in frame coordinates.\n"
 "\tThe lower-left corner is the origin. The coordinate is given in\n"
 "\tpixels\n";
-PyObject* SCA_MouseSensor::PyGetYPosition(PyObject* self, 
-										 PyObject* args, 
-										 PyObject* kwds) {
+PyObject* SCA_MouseSensor::PyGetYPosition() {
 	ShowDeprecationWarning("getYPosition()", "the position property");
 	return PyInt_FromLong(m_y);
 }
@@ -275,7 +271,7 @@ PyObject* SCA_MouseSensor::PyGetYPosition(PyObject* self,
 
 KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 "getButtonStatus(button)\n"
-"\tGet the given button's status (KX_NO_INPUTSTATUS, KX_JUSTACTIVATED, KX_ACTIVE or KX_JUSTRELEASED).\n")
+"\tGet the given button's status (KX_INPUT_NONE, KX_INPUT_NONE, KX_INPUT_JUST_ACTIVATED, KX_INPUT_ACTIVE, KX_INPUT_JUST_RELEASED).\n")
 {
 	if (PyInt_Check(value))
 	{
@@ -283,7 +279,7 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 		
 		if ((button < SCA_IInputDevice::KX_LEFTMOUSE)
 			|| (button > SCA_IInputDevice::KX_RIGHTMOUSE)){
-			PyErr_SetString(PyExc_ValueError, "invalid button specified!");
+			PyErr_SetString(PyExc_ValueError, "sensor.getButtonStatus(int): Mouse Sensor, invalid button specified!");
 			return NULL;
 		}
 		
@@ -300,12 +296,17 @@ KX_PYMETHODDEF_DOC_O(SCA_MouseSensor, getButtonStatus,
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject SCA_MouseSensor::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"SCA_MouseSensor",
-	sizeof(SCA_MouseSensor),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -343,18 +344,16 @@ PyAttributeDef SCA_MouseSensor::Attributes[] = {
 
 PyObject* SCA_MouseSensor::py_getattro(PyObject *attr) 
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_ISensor);
+}
+
+PyObject* SCA_MouseSensor::py_getattro_dict() {
+	py_getattro_dict_up(SCA_ISensor);
 }
 
 int SCA_MouseSensor::py_setattro(PyObject *attr, PyObject *value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_ISensor::py_setattro(attr, value);
+	py_setattro_up(SCA_ISensor);
 }
 
 /* eof */

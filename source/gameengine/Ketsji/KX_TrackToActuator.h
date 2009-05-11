@@ -61,8 +61,6 @@ class KX_TrackToActuator : public SCA_IActuator
 	virtual CValue* GetReplica() {
 		KX_TrackToActuator* replica = new KX_TrackToActuator(*this);
 		replica->ProcessReplica();
-		// this will copy properties and so on...
-		CValue::AddDataToReplica(replica);
 		return replica;
 	};
 
@@ -73,6 +71,7 @@ class KX_TrackToActuator : public SCA_IActuator
 
 	/* Python part */
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject* value);
 
 	/* These are used to get and set m_ob */
@@ -84,13 +83,13 @@ class KX_TrackToActuator : public SCA_IActuator
 	/* 2. getObject */
 	KX_PYMETHOD_DOC_VARARGS(KX_TrackToActuator,GetObject);
 	/* 3. setTime */
-	KX_PYMETHOD_DOC(KX_TrackToActuator,SetTime);
+	KX_PYMETHOD_DOC_VARARGS(KX_TrackToActuator,SetTime);
 	/* 4. getTime */
-	KX_PYMETHOD_DOC(KX_TrackToActuator,GetTime);
+	KX_PYMETHOD_DOC_NOARGS(KX_TrackToActuator,GetTime);
 	/* 5. getUse3D */
-	KX_PYMETHOD_DOC(KX_TrackToActuator,GetUse3D);
+	KX_PYMETHOD_DOC_NOARGS(KX_TrackToActuator,GetUse3D);
 	/* 6. setUse3D */
-	KX_PYMETHOD_DOC(KX_TrackToActuator,SetUse3D);
+	KX_PYMETHOD_DOC_VARARGS(KX_TrackToActuator,SetUse3D);
 	
 }; /* end of class KX_TrackToActuator : public KX_EditObjectActuator */
 

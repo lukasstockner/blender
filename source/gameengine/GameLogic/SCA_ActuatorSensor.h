@@ -52,7 +52,7 @@ public:
 	virtual ~SCA_ActuatorSensor();
 	virtual CValue* GetReplica();
 	virtual void Init();
-	virtual bool Evaluate(CValue* event);
+	virtual bool Evaluate();
 	virtual bool	IsPositiveTrigger();
 	virtual void	ReParent(SCA_IObject* parent);
 	void Update();
@@ -62,10 +62,11 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);
 
 	/* 3. setProperty */
-	KX_PYMETHOD_DOC(SCA_ActuatorSensor,SetActuator);
+	KX_PYMETHOD_DOC_VARARGS(SCA_ActuatorSensor,SetActuator);
 	/* 4. getProperty */
 	KX_PYMETHOD_DOC_NOARGS(SCA_ActuatorSensor,GetActuator);
 	

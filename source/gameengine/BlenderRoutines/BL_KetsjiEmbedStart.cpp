@@ -280,6 +280,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 				if(blenderdata) {
 					BLI_strncpy(G.sce, blenderdata->name, sizeof(G.sce));
 					BLI_strncpy(pathname, blenderdata->name, sizeof(pathname));
+					setGamePythonPath(G.sce);
 				}
 			}
 			// else forget it, we can't find it
@@ -309,12 +310,11 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 		{
 			int startFrame = blscene->r.cfra;
 			ketsjiengine->SetGame2IpoMode(game2ipo,startFrame);
+			
+			// Quad buffered needs a special window.
+			if (blscene->r.stereomode != RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)
+				rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) blscene->r.stereomode);
 		}
-
-
-		// Quad buffered needs a special window.
-		if (blscene->r.stereomode != RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)
-			rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) blscene->r.stereomode);
 		
 		if (exitrequested != KX_EXIT_REQUEST_QUIT_GAME)
 		{
@@ -357,7 +357,7 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 				blscene);
 			
 			// some python things
-			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest);
+			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest, blenderdata);
 			ketsjiengine->SetPythonDictionary(dictionaryobject);
 			initRasterizer(rasterizer, canvas);
 			PyObject *gameLogic = initGameLogic(ketsjiengine, startscene);
@@ -368,6 +368,8 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 			initGameKeys();
 			initPythonConstraintBinding();
 			initMathutils();
+			initGeometry();
+			initBGL();
 #ifdef WITH_FFMPEG
 			initVideoTexture();
 #endif
@@ -531,7 +533,9 @@ extern "C" void StartKetsjiShell(struct ScrArea *area,
 		SND_DeviceManager::Unsubscribe();
 	
 	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
-
+	
+	Py_DECREF(pyGlobalDict);
+	
 	if (bfd) BLO_blendfiledata_free(bfd);
 
 	BLI_strncpy(G.sce, oldsce, sizeof(G.sce));
@@ -660,7 +664,7 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 				blscene);
 
 			// some python things
-			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest);
+			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest, blenderdata);
 			ketsjiengine->SetPythonDictionary(dictionaryobject);
 			initRasterizer(rasterizer, canvas);
 			PyObject *gameLogic = initGameLogic(ketsjiengine, startscene);
@@ -668,6 +672,8 @@ extern "C" void StartKetsjiShellSimulation(struct ScrArea *area,
 			initGameKeys();
 			initPythonConstraintBinding();
 			initMathutils();
+			initGeometry();
+			initBGL();
 #ifdef WITH_FFMPEG
 			initVideoTexture();
 #endif

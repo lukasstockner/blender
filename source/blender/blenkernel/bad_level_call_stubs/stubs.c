@@ -160,6 +160,7 @@ void BPY_pyconstraint_target(struct bPythonConstraint *con, struct bConstraintTa
 void free_oops(struct Oops *oops){}
 void exit_posemode(int freedata){}
 void error(char *str, ...){}
+int okee(char *str, ...){}
 
 /* anim.c */
 ListBase editNurb;
@@ -240,7 +241,8 @@ void bglVertex3f(float x, float y, float z) {}
 void bglEnd(void) {}
 
 /* booleanops.c */
-struct DerivedMesh *NewBooleanDerivedMesh(struct Object *ob, struct Object *ob_select, int int_op_type) { return 0; }
+struct DerivedMesh *NewBooleanDerivedMesh(struct DerivedMesh *dm, struct Object *ob, struct DerivedMesh *dm_select, struct Object *ob_select,
+                                   int int_op_type) { return 0; }
 
 /* LOD_decimation.cpp */
 int LOD_LoadMesh(struct LOD_Decimation_Info* info) { return 0;};
@@ -326,7 +328,7 @@ void antialias_tagbuf(int xsize, int ysize, char *rectmove) {}
 /* imagetexture.c stub */
 void ibuf_sample(struct ImBuf *ibuf, float fx, float fy, float dx, float dy, float *result) {}
 
-void update_for_newframe() {}
+void update_for_newframe(void) {}
 
 struct FileList;
 void BIF_filelist_freelib(struct FileList* filelist) {};
@@ -335,7 +337,8 @@ void BIF_filelist_freelib(struct FileList* filelist) {};
 TimeMarker *get_frame_marker(int frame){return 0;};
 
 /* editseq.c */
-Sequence *get_forground_frame_seq(int frame){return 0;};
+#include "BIF_editseq.h" // And fix the missing void there
+Sequence *get_foreground_frame_seq(int frame){return 0;};
 void clear_last_seq(Sequence *seq){};
     
 

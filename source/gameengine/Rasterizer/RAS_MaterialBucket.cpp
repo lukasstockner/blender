@@ -42,7 +42,7 @@
 
 /* mesh slot */
 
-RAS_MeshSlot::RAS_MeshSlot()
+RAS_MeshSlot::RAS_MeshSlot() : SG_QList()
 {
 	m_clientObj = NULL;
 	m_pDeformer = NULL;
@@ -56,16 +56,19 @@ RAS_MeshSlot::RAS_MeshSlot()
 	m_DisplayList = NULL;
 	m_bDisplayList = true;
 	m_joinSlot = NULL;
+	m_pDerivedMesh = NULL;
 }
 
 RAS_MeshSlot::~RAS_MeshSlot()
 {
-	vector<RAS_DisplayArray*>::iterator it;
+	RAS_DisplayArrayList::iterator it;
 
+#ifdef USE_SPLIT
 	Split(true);
 
 	while(m_joinedSlots.size())
 		m_joinedSlots.front()->Split(true);
+#endif
 
 	for(it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
 		(*it)->m_users--;
@@ -79,12 +82,13 @@ RAS_MeshSlot::~RAS_MeshSlot()
 	}
 }
 
-RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot)
+RAS_MeshSlot::RAS_MeshSlot(const RAS_MeshSlot& slot) : SG_QList()
 {
-	vector<RAS_DisplayArray*>::iterator it;
+	RAS_DisplayArrayList::iterator it;
 
 	m_clientObj = NULL;
 	m_pDeformer = NULL;
+	m_pDerivedMesh = NULL;
 	m_OpenGLMatrix = NULL;
 	m_mesh = slot.m_mesh;
 	m_bucket = slot.m_bucket;
@@ -203,7 +207,7 @@ RAS_DisplayArray *RAS_MeshSlot::CurrentDisplayArray()
 
 void RAS_MeshSlot::SetDisplayArray(int numverts)
 {
-	vector<RAS_DisplayArray*>::iterator it;
+	RAS_DisplayArrayList::iterator it;
 	RAS_DisplayArray *darray = NULL;
 	
 	for(it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
@@ -277,6 +281,43 @@ void RAS_MeshSlot::AddPolygonVertex(int offset)
 		m_endindex++;
 }
 
+void RAS_MeshSlot::SetDeformer(RAS_Deformer* deformer)
+{
+	if (deformer && m_pDeformer != deformer) {
+		// we create local copy of RAS_DisplayArray when we have a deformer:
+		// this way we can avoid conflict between the vertex cache of duplicates
+		RAS_DisplayArrayList::iterator it;
+		for(it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
+			if (deformer->UseVertexArray()) {
+				// the deformer makes use of vertex array, make sure we have our local copy
+				if ((*it)->m_users > 1) {
+					// only need to copy if there are other users
+					// note that this is the usual case as vertex arrays are held by the material base slot
+					RAS_DisplayArray *newarray = new RAS_DisplayArray(*(*it));
+					newarray->m_users = 1;
+					(*it)->m_users--;
+					*it = newarray;
+				}
+			} else {
+				// the deformer is not using vertex array (Modifier), release them
+				(*it)->m_users--;
+				if((*it)->m_users == 0)
+					delete *it;
+			}
+		}
+		if (!deformer->UseVertexArray()) {
+			m_displayArrays.clear();
+			m_startarray = 0;
+			m_startvertex = 0;
+			m_startindex = 0;
+			m_endarray = 0;
+			m_endvertex = 0;
+			m_endindex = 0;
+		}
+	}
+	m_pDeformer = deformer;
+}
+
 bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
 {
 	if(!m_OpenGLMatrix || !target->m_OpenGLMatrix)
@@ -295,7 +336,7 @@ bool RAS_MeshSlot::Equals(RAS_MeshSlot *target)
 
 bool RAS_MeshSlot::Join(RAS_MeshSlot *target, MT_Scalar distance)
 {
-	vector<RAS_DisplayArray*>::iterator it;
+	RAS_DisplayArrayList::iterator it;
 	iterator mit;
 	size_t i;
 
@@ -330,6 +371,9 @@ bool RAS_MeshSlot::Join(RAS_MeshSlot *target, MT_Scalar distance)
 	for(begin(mit); !end(mit); next(mit))
 		for(i=mit.startvertex; i<mit.endvertex; i++)
 			mit.vertex[i].Transform(transform, ntransform);
+	
+	/* We know we'll need a list at least this big, reserve in advance */
+	target->m_displayArrays.reserve(target->m_displayArrays.size() + m_displayArrays.size());
 
 	for(it=m_displayArrays.begin(); it!=m_displayArrays.end(); it++) {
 		target->m_displayArrays.push_back(*it);
@@ -357,7 +401,7 @@ bool RAS_MeshSlot::Split(bool force)
 {
 	list<RAS_MeshSlot*>::iterator jit;
 	RAS_MeshSlot *target = m_joinSlot;
-	vector<RAS_DisplayArray*>::iterator it, jt;
+	RAS_DisplayArrayList::iterator it, jt;
 	iterator mit;
 	size_t i, found0 = 0, found1 = 0;
 
@@ -417,21 +461,21 @@ bool RAS_MeshSlot::Split(bool force)
 	return false;
 }
 
+
+#ifdef USE_SPLIT	
 bool RAS_MeshSlot::IsCulled()
 {
-	list<RAS_MeshSlot*>::iterator it;
-
 	if(m_joinSlot)
 		return true;
 	if(!m_bCulled)
 		return false;
-	
+	list<RAS_MeshSlot*>::iterator it;
 	for(it=m_joinedSlots.begin(); it!=m_joinedSlots.end(); it++)
 		if(!(*it)->m_bCulled)
 			return false;
-	
 	return true;
 }
+#endif	
 
 /* material bucket sorting */
 

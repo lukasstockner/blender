@@ -38,11 +38,13 @@
 KX_VisibilityActuator::KX_VisibilityActuator(
 	SCA_IObject* gameobj,
 	bool visible,
+	bool occlusion,
 	bool recursive,
 	PyTypeObject* T
 	) 
 	: SCA_IActuator(gameobj,T),
 	  m_visible(visible),
+	  m_occlusion(occlusion),
 	  m_recursive(recursive)
 {
 	// intentionally empty
@@ -62,8 +64,6 @@ KX_VisibilityActuator::GetReplica(
 {
 	KX_VisibilityActuator* replica = new KX_VisibilityActuator(*this);
 	replica->ProcessReplica();
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
 	return replica;
 }
 
@@ -78,6 +78,7 @@ KX_VisibilityActuator::Update()
 	KX_GameObject *obj = (KX_GameObject*) GetParent();
 	
 	obj->SetVisible(m_visible, m_recursive);
+	obj->SetOccluder(m_occlusion, m_recursive);
 	obj->UpdateBuckets(m_recursive);
 
 	return false;
@@ -91,12 +92,17 @@ KX_VisibilityActuator::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject KX_VisibilityActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_VisibilityActuator",
-	sizeof(KX_VisibilityActuator),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -130,24 +136,23 @@ KX_VisibilityActuator::Methods[] = {
 
 PyAttributeDef KX_VisibilityActuator::Attributes[] = {
 	KX_PYATTRIBUTE_BOOL_RW("visibility", KX_VisibilityActuator, m_visible),
+	KX_PYATTRIBUTE_BOOL_RW("occlusion", KX_VisibilityActuator, m_occlusion),
 	KX_PYATTRIBUTE_BOOL_RW("recursion", KX_VisibilityActuator, m_recursive),
 	{ NULL }	//Sentinel
 };
 
 PyObject* KX_VisibilityActuator::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
+}
+
+PyObject* KX_VisibilityActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
 }
 
 int KX_VisibilityActuator::py_setattro(PyObject *attr, PyObject *value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 
@@ -159,13 +164,11 @@ KX_VisibilityActuator::SetVisible_doc[] =
 "\tSet the properties of the actuator.\n";
 PyObject* 
 
-KX_VisibilityActuator::PySetVisible(PyObject* self, 
-				    PyObject* args, 
-				    PyObject* kwds) {
+KX_VisibilityActuator::PySetVisible(PyObject* args) {
 	int vis;
 	ShowDeprecationWarning("SetVisible()", "the visible property");
 
-	if(!PyArg_ParseTuple(args, "i", &vis)) {
+	if(!PyArg_ParseTuple(args, "i:setVisible", &vis)) {
 		return NULL;
 	}
 

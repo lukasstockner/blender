@@ -614,6 +614,9 @@ static void exit_pydraw( SpaceScript * sc, short err )
 
 	if( err ) {
 		PyErr_Print(  );
+		PyErr_Clear(  );
+		PySys_SetObject("last_traceback", NULL);
+		
 		script->flags = 0;	/* mark script struct for deletion */
 		SCRIPT_SET_NULL(script);
 		script->scriptname[0] = '\0';
@@ -838,6 +841,8 @@ static void exec_but_callback(void *pyobj, void *data)
 	if (!result) {
 		Py_DECREF(pyvalue);
 		PyErr_Print(  );
+		PyErr_Clear(  );
+		PySys_SetObject("last_traceback", NULL);
 		error_pyscript(  );
 	}
 	Py_XDECREF( result );
@@ -910,12 +915,12 @@ static PyObject *Method_Exit( PyObject * self )
 	exit_pydraw( sc, 0 );
 
 	script = sc->script;
-
-	/* remove our lock to the current namespace */
-	script->flags &= ~SCRIPT_GUI;
-	script->scriptname[0] = '\0';
-	script->scriptarg[0] = '\0';
-
+	if(script) { /* in very rare cases this can be NULL, (when saving and loading see bug #18654)*/
+		/* remove our lock to the current namespace */
+		script->flags &= ~SCRIPT_GUI;
+		script->scriptname[0] = '\0';
+		script->scriptarg[0] = '\0';
+	}
 	Py_RETURN_NONE;
 }
 
@@ -1129,6 +1134,8 @@ static PyObject *Method_UIBlock( PyObject * self, PyObject * args )
 	
 	if (!result) {
 		PyErr_Print(  );
+		PyErr_Clear(  );
+		PySys_SetObject("last_traceback", NULL);
 		error_pyscript(  );
 	} else {
 		/* copied from do_clever_numbuts in toolbox.c */

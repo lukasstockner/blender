@@ -89,6 +89,7 @@ public:
 
 	RAS_MeshMaterial* 	GetMeshMaterial(unsigned int matid);
 	RAS_MeshMaterial*	GetMeshMaterial(RAS_IPolyMaterial *mat);
+	int					GetMaterialId(RAS_IPolyMaterial *mat);
 
 	list<RAS_MeshMaterial>::iterator GetFirstMaterial();
 	list<RAS_MeshMaterial>::iterator GetLastMaterial();
@@ -96,8 +97,8 @@ public:
 	unsigned int		GetLightLayer();
 
 	/* name */
-	void				SetName(STR_String name);
-	const STR_String&	GetName();
+	void				SetName(const char *name);
+	STR_String&			GetName();
 
 	/* modification state */
 	bool				MeshModified();
@@ -129,7 +130,7 @@ public:
 	RAS_Polygon*		GetPolygon(int num) const;
 	
 	/* buckets */
-	virtual void		AddMeshUser(void *clientobj);
+	virtual void		AddMeshUser(void *clientobj, SG_QList *head);
 	virtual void		UpdateBuckets(
 							void* clientobj,
 							double* oglmatrix,

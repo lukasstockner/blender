@@ -174,7 +174,7 @@ void clear_last_seq()
 	_last_seq_init = 0;
 }
 
-Sequence *get_forground_frame_seq(int frame)
+Sequence *get_foreground_frame_seq(int frame)
 {
 	Editing *ed;
 	Sequence *seq, *best_seq=NULL;
@@ -1183,6 +1183,10 @@ static Sequence *sfile_to_ramsnd_sequence(SpaceFile *sfile,
 	strncpy(str, sfile->dir, FILE_MAXDIR-1);
 	strncat(str, sfile->file, FILE_MAXFILE-1);
 
+	if(sfile->flag & FILE_STRINGCODE) {
+		BLI_makestringcode(G.sce, str);
+	}
+	
 	sound= sound_new_sound(str);
 	if (!sound || sound->sample->type == SAMPLE_INVALID) {
 		error("Unsupported audio format");

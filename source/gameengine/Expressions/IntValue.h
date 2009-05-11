@@ -18,19 +18,21 @@
 
 #include "Value.h"
 
+typedef long long cInt; 
+
 class CIntValue : public CPropValue  
 {
 	//PLUGIN_DECLARE_SERIAL (CIntValue,CValue)
 
 public:
 	virtual const STR_String& GetText();
-	virtual float			GetNumber();
+	virtual double			GetNumber();
 	
-	int GetInt();
+	cInt GetInt();
 	CIntValue();
-	CIntValue(int innie);
-	CIntValue(int innie,
-			  STR_String name,
+	CIntValue(cInt innie);
+	CIntValue(cInt innie,
+			  const char *name,
 			  AllocationTYPE alloctype=CValue::HEAPVALUE);
 	
 	virtual	CValue* Calc(VALUE_OPERATOR op,
@@ -51,7 +53,7 @@ protected:
 	virtual			~CIntValue();
 
 private:
-	int				m_int;
+	cInt			m_int;
 	STR_String*		m_pstrRep;
 
 };

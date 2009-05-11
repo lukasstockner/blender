@@ -48,33 +48,25 @@ KX_ConstraintWrapper::KX_ConstraintWrapper(
 KX_ConstraintWrapper::~KX_ConstraintWrapper()
 {
 }
-//python integration methods
-PyObject* KX_ConstraintWrapper::PyTestMethod(PyObject* self, 
-											PyObject* args, 
-											PyObject* kwds)
-{
-	
-	Py_RETURN_NONE;
-}
 
-PyObject* KX_ConstraintWrapper::PyGetConstraintId(PyObject* self, 
-											PyObject* args, 
-											PyObject* kwds)
+PyObject* KX_ConstraintWrapper::PyGetConstraintId(PyObject* args, PyObject* kwds)
 {
 	return PyInt_FromLong(m_constraintId);
 }
 
-
-
-
 //python specific stuff
 PyTypeObject KX_ConstraintWrapper::Type = {
-	PyObject_HEAD_INIT(NULL)
-		0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 		"KX_ConstraintWrapper",
-		sizeof(KX_ConstraintWrapper),
+		sizeof(PyObjectPlus_Proxy),
 		0,
-		PyDestructor,
+		py_base_dealloc,
 		0,
 		0,
 		0,
@@ -92,45 +84,28 @@ PyParentObject KX_ConstraintWrapper::Parents[] = {
 	NULL
 };
 
-PyObject*	KX_ConstraintWrapper::py_getattro(PyObject *attr)
+//here you can search for existing data members (like mass,friction etc.)
+PyObject* KX_ConstraintWrapper::py_getattro(PyObject *attr)
 {
-	//here you can search for existing data members (like mass,friction etc.)
 	py_getattro_up(PyObjectPlus);
 }
 
-int	KX_ConstraintWrapper::py_setattro(PyObject *attr,PyObject* pyobj)
+PyObject* KX_ConstraintWrapper::py_getattro_dict() {
+	py_getattro_dict_up(PyObjectPlus);
+}
+
+int	KX_ConstraintWrapper::py_setattro(PyObject *attr,PyObject* value)
 {
-	int result = 1;
-
-	if (PyList_Check(pyobj))
-	{
-		result = 0;
-	}
-	if (PyFloat_Check(pyobj))
-	{
-		result = 0;
-
-	}
-	if (PyInt_Check(pyobj))
-	{
-		result = 0;
-	}
-	if (PyString_Check(pyobj))
-	{
-		result = 0;
-	}
-	if (result)
-		result = PyObjectPlus::py_setattro(attr,pyobj);
-	return result;
+	py_setattro_up(PyObjectPlus);	
 };
 
 
 PyMethodDef KX_ConstraintWrapper::Methods[] = {
-	{"testMethod",(PyCFunction) KX_ConstraintWrapper::sPyTestMethod, METH_VARARGS},
 	{"getConstraintId",(PyCFunction) KX_ConstraintWrapper::sPyGetConstraintId, METH_VARARGS},
 	{NULL,NULL} //Sentinel
 };
 
 PyAttributeDef KX_ConstraintWrapper::Attributes[] = {
+	//KX_PYATTRIBUTE_TODO("constraintId"),
 	{ NULL }	//Sentinel
 };

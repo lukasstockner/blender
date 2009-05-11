@@ -24,11 +24,13 @@ class KX_BlenderMaterial :  public PyObjectPlus, public RAS_IPolyMaterial
 public:
 	// --------------------------------
 	KX_BlenderMaterial(
+		PyTypeObject*	T=&Type
+	);
+	void Initialize(
 		class KX_Scene*	scene,
 		BL_Material*	mat,
 		bool			skin,
-		int				lightlayer,
-		PyTypeObject*	T=&Type
+		int				lightlayer
 	);
 
 	virtual ~KX_BlenderMaterial();
@@ -73,7 +75,6 @@ public:
 	Image * getImage (unsigned int idx) { 
 		return (idx < MAXTEX && mMaterial) ? mMaterial->img[idx] : NULL; 
 	}
-
 	// for ipos
 	void UpdateIPO(
 		MT_Vector4 rgba, MT_Vector3 specrgb,
@@ -83,7 +84,9 @@ public:
 	
 	// --------------------------------
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int       py_setattro(PyObject *attr, PyObject *pyvalue);
+	virtual PyObject* py_repr(void) { return PyString_FromString(mMaterial->matname.ReadPtr()); }
 
 	KX_PYMETHOD_DOC( KX_BlenderMaterial, getShader );
 	KX_PYMETHOD_DOC( KX_BlenderMaterial, getMaterialIndex );
@@ -115,6 +118,10 @@ private:
 	void ActivateTexGen( RAS_IRasterizer *ras ) const;
 
 	bool UsesLighting(RAS_IRasterizer *rasty) const;
+	void GetMaterialRGBAColor(unsigned char *rgba) const;
+	Material* GetBlenderMaterial() const;
+	Scene* GetBlenderScene() const;
+	void ReleaseMaterial();
 
 	// message centers
 	void	setTexData( bool enable,RAS_IRasterizer *ras);

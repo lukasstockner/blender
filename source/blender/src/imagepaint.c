@@ -186,7 +186,7 @@ typedef struct ImagePaintPartialRedraw {
 // #define PROJ_BUCKET_CLONE_INIT	1<<1
 
 /* used for testing doubles, if a point is on a line etc */
-#define PROJ_GEOM_TOLERANCE 0.0002f
+#define PROJ_GEOM_TOLERANCE 0.00075f
 
 /* vert flags */
 #define PROJ_VERT_CULL 1
@@ -334,7 +334,7 @@ typedef struct UndoTile {
 typedef struct UndoElem {
 	struct UndoElem *next, *prev;
 	char name[MAXUNDONAME];
-	unsigned long undosize;
+	uintptr_t undosize;
 
 	ImBuf *ibuf;
 	ListBase tiles;
@@ -478,12 +478,12 @@ static void undo_imagepaint_push_begin(char *name)
 static void undo_imagepaint_push_end()
 {
 	UndoElem *uel;
-	unsigned long totmem, maxmem;
+	uintptr_t totmem, maxmem;
 
 	if(U.undomemory != 0) {
 		/* limit to maximum memory (afterwards, we can't know in advance) */
 		totmem= 0;
-		maxmem= ((unsigned long)U.undomemory)*1024*1024;
+		maxmem= ((uintptr_t)U.undomemory)*1024*1024;
 
 		uel= undobase.last;
 		while(uel) {
@@ -672,8 +672,8 @@ static int project_paint_PickFace(const ProjPaintState *ps, float pt[2], float w
 static void uvco_to_wrapped_pxco(float uv[2], int ibuf_x, int ibuf_y, float *x, float *y)
 {
 	/* use */
-	*x = (float)fmod(uv[0], 1.0f);
-	*y = (float)fmod(uv[1], 1.0f);
+	*x = (float)fmodf(uv[0], 1.0f);
+	*y = (float)fmodf(uv[1], 1.0f);
 	
 	if (*x < 0.0f) *x += 1.0f;
 	if (*y < 0.0f) *y += 1.0f;
@@ -707,9 +707,8 @@ static int project_paint_PickColor(const ProjPaintState *ps, float pt[2], float 
 		Vec2Weightf(uv, tf->uv[0], tf->uv[2], tf->uv[3], w);
 	}
 	
-	ibuf = BKE_image_get_ibuf((Image *)tf->tpage, NULL); /* TODO - this may be slow, the only way around it is to have an ibuf index per face */
-	
-
+	ibuf = tf->tpage->ibufs.first; /* we must have got the imbuf before getting here */
+	if (!ibuf) return 0;
 	
 	if (interp) {
 		float x, y;
@@ -896,7 +895,7 @@ static int line_isect_y(const float p1[2], const float p2[2], const float y_leve
 		return ISECT_TRUE_P2;
 	}
 	
-	y_diff= fabs(p1[1]-p2[1]); /* yuck, horizontal line, we cant do much here */
+	y_diff= fabsf(p1[1]-p2[1]); /* yuck, horizontal line, we cant do much here */
 	
 	if (y_diff < 0.000001f) {
 		*x_isect = (p1[0]+p2[0]) * 0.5f;
@@ -929,7 +928,7 @@ static int line_isect_x(const float p1[2], const float p2[2], const float x_leve
 		return ISECT_TRUE_P2;
 	}
 	
-	x_diff= fabs(p1[0]-p2[0]); /* yuck, horizontal line, we cant do much here */
+	x_diff= fabsf(p1[0]-p2[0]); /* yuck, horizontal line, we cant do much here */
 	
 	if (x_diff < 0.000001) { /* yuck, vertical line, we cant do much here */
 		*y_isect = (p1[0]+p2[0]) * 0.5f;
@@ -956,11 +955,11 @@ static int line_isect_x(const float p1[2], const float p2[2], const float x_leve
 static int cmp_uv(const float vec2a[2], const float vec2b[2])
 {
 	/* if the UV's are not between 0.0 and 1.0 */
-	float xa = (float)fmod(vec2a[0], 1.0f);
-	float ya = (float)fmod(vec2a[1], 1.0f);
+	float xa = (float)fmodf(vec2a[0], 1.0f);
+	float ya = (float)fmodf(vec2a[1], 1.0f);
 	
-	float xb = (float)fmod(vec2b[0], 1.0f);
-	float yb = (float)fmod(vec2b[1], 1.0f);	
+	float xb = (float)fmodf(vec2b[0], 1.0f);
+	float yb = (float)fmodf(vec2b[1], 1.0f);	
 	
 	if (xa < 0.0f) xa += 1.0f;
 	if (ya < 0.0f) ya += 1.0f;
@@ -968,7 +967,7 @@ static int cmp_uv(const float vec2a[2], const float vec2b[2])
 	if (xb < 0.0f) xb += 1.0f;
 	if (yb < 0.0f) yb += 1.0f;
 	
-	return ((fabs(xa-xb) < PROJ_GEOM_TOLERANCE) && (fabs(ya-yb) < PROJ_GEOM_TOLERANCE)) ? 1:0;
+	return ((fabsf(xa-xb) < PROJ_GEOM_TOLERANCE) && (fabsf(ya-yb) < PROJ_GEOM_TOLERANCE)) ? 1:0;
 }
 
 
@@ -1107,7 +1106,7 @@ static float angleToLength(float angle)
 		return 1.0f;
 	}
 	else {
-		return fabs(1.0f / cos(angle * (M_PI/180.0f)));
+		return fabsf(1.0f / cosf(angle * (M_PI/180.0f)));
 	}
 }
 
@@ -1363,7 +1362,7 @@ float project_paint_uvpixel_mask(
 		ImBuf *ibuf_other;
 		const MTFace *tf_other = ps->dm_mtface_mask + face_index;
 		
-		if (tf_other->tpage && (ibuf_other = BKE_image_get_ibuf((Image *)tf_other->tpage, NULL))) {
+		if (tf_other->tpage && (ibuf_other = BKE_image_get_ibuf(tf_other->tpage, NULL))) {
 			/* BKE_image_get_ibuf - TODO - this may be slow */
 			unsigned char rgba_ub[4];
 			float rgba_f[4];
@@ -1519,7 +1518,7 @@ static ProjPixel *project_paint_uvpixel_init(
 			ImBuf *ibuf_other;
 			const MTFace *tf_other = ps->dm_mtface_clone + face_index;
 			
-			if (tf_other->tpage && (ibuf_other = BKE_image_get_ibuf((Image *)tf_other->tpage, NULL))) {
+			if (tf_other->tpage && (ibuf_other = BKE_image_get_ibuf(tf_other->tpage, NULL))) {
 				/* BKE_image_get_ibuf - TODO - this may be slow */
 				
 				if (ibuf->rect_float) {
@@ -1588,7 +1587,7 @@ static int line_clip_rect2f(
 {
 	/* first account for horizontal, then vertical lines */
 	/* horiz */
-	if (fabs(l1[1]-l2[1]) < PROJ_GEOM_TOLERANCE) {
+	if (fabsf(l1[1]-l2[1]) < PROJ_GEOM_TOLERANCE) {
 		/* is the line out of range on its Y axis? */
 		if (l1[1] < rect->ymin || l1[1] > rect->ymax) {
 			return 0;
@@ -1599,7 +1598,7 @@ static int line_clip_rect2f(
 		}
 		
 		
-		if (fabs(l1[0]-l2[0]) < PROJ_GEOM_TOLERANCE) { /* this is a single point  (or close to)*/
+		if (fabsf(l1[0]-l2[0]) < PROJ_GEOM_TOLERANCE) { /* this is a single point  (or close to)*/
 			if (BLI_in_rctf(rect, l1[0], l1[1])) {
 				VECCOPY2D(l1_clip, l1);
 				VECCOPY2D(l2_clip, l2);
@@ -1616,7 +1615,7 @@ static int line_clip_rect2f(
 		CLAMP(l2_clip[0], rect->xmin, rect->xmax);
 		return 1;
 	}
-	else if (fabs(l1[0]-l2[0]) < PROJ_GEOM_TOLERANCE) {
+	else if (fabsf(l1[0]-l2[0]) < PROJ_GEOM_TOLERANCE) {
 		/* is the line out of range on its X axis? */
 		if (l1[0] < rect->xmin || l1[0] > rect->xmax) {
 			return 0;
@@ -1627,7 +1626,7 @@ static int line_clip_rect2f(
 			return 0;
 		}
 		
-		if (fabs(l1[1]-l2[1]) < PROJ_GEOM_TOLERANCE) { /* this is a single point  (or close to)*/
+		if (fabsf(l1[1]-l2[1]) < PROJ_GEOM_TOLERANCE) { /* this is a single point  (or close to)*/
 			if (BLI_in_rctf(rect, l1[0], l1[1])) {
 				VECCOPY2D(l1_clip, l1);
 				VECCOPY2D(l2_clip, l2);
@@ -1921,7 +1920,7 @@ static void rect_to_uvspace_persp(
 }
 
 /* This works as we need it to but we can save a few steps and not use it */
-
+#if 0
 static float angle_2d_clockwise(const float p1[2], const float p2[2], const float p3[2])
 {
 	float v1[2], v2[2];
@@ -1931,6 +1930,7 @@ static float angle_2d_clockwise(const float p1[2], const float p2[2], const floa
 	
 	return -atan2(v1[0]*v2[1] - v1[1]*v2[0], v1[0]*v2[0]+v1[1]*v2[1]);
 }
+#endif
 
 #define ISECT_1 (1)
 #define ISECT_2 (1<<1)
@@ -1969,7 +1969,6 @@ static void project_bucket_clip_face(
 	const int flip = ((SIDE_OF_LINE(v1coSS, v2coSS, v3coSS) > 0.0f) != (SIDE_OF_LINE(uv1co, uv2co, uv3co) > 0.0f));
 	
 	float bucket_bounds_ss[4][2];
-	float w[3];
 
 	/* get the UV space bounding box */
 	inside_bucket_flag |= BLI_in_rctf(bucket_bounds, v1coSS[0], v1coSS[1]);
@@ -2040,6 +2039,7 @@ static void project_bucket_clip_face(
 		/* Maximum possible 6 intersections when using a rectangle and triangle */
 		float isectVCosSS[8][3]; /* The 3rd float is used to store angle for qsort(), NOT as a Z location */
 		float v1_clipSS[2], v2_clipSS[2];
+		float w[3];
 		
 		/* calc center*/
 		float cent[2] = {0.0f, 0.0f};
@@ -2082,6 +2082,7 @@ static void project_bucket_clip_face(
 		
 		if ((*tot) < 3) { /* no intersections to speak of */
 			*tot = 0;
+			return;
 		}
 	
 		/* now we have all points we need, collect their angles and sort them clockwise */
@@ -2110,16 +2111,15 @@ static void project_bucket_clip_face(
 		for(i=0; i<(*tot); i++) {
 			v2_clipSS[0] = isectVCosSS[i][0] - cent[0];
 			v2_clipSS[1] = isectVCosSS[i][1] - cent[1];
-			isectVCosSS[i][2] = atan2(v1_clipSS[0]*v2_clipSS[1] - v1_clipSS[1]*v2_clipSS[0], v1_clipSS[0]*v2_clipSS[0]+v1_clipSS[1]*v2_clipSS[1]); 
+			isectVCosSS[i][2] = atan2f(v1_clipSS[0]*v2_clipSS[1] - v1_clipSS[1]*v2_clipSS[0], v1_clipSS[0]*v2_clipSS[0]+v1_clipSS[1]*v2_clipSS[1]); 
 		}
 		
 		if (flip)	qsort(isectVCosSS, *tot, sizeof(float)*3, float_z_sort_flip);
 		else		qsort(isectVCosSS, *tot, sizeof(float)*3, float_z_sort);
 		
-		
 		/* remove doubles */
 		/* first/last check */
-		if (fabs(isectVCosSS[0][0]-isectVCosSS[(*tot)-1][0]) < PROJ_GEOM_TOLERANCE &&  fabs(isectVCosSS[0][1]-isectVCosSS[(*tot)-1][1]) < PROJ_GEOM_TOLERANCE) {
+		if (fabsf(isectVCosSS[0][0]-isectVCosSS[(*tot)-1][0]) < PROJ_GEOM_TOLERANCE &&  fabsf(isectVCosSS[0][1]-isectVCosSS[(*tot)-1][1]) < PROJ_GEOM_TOLERANCE) {
 			(*tot)--;
 		}
 		
@@ -2134,8 +2134,8 @@ static void project_bucket_clip_face(
 		while (doubles==TRUE) {
 			doubles = FALSE;
 			for(i=1; i<(*tot); i++) {
-				if (fabs(isectVCosSS[i-1][0]-isectVCosSS[i][0]) < PROJ_GEOM_TOLERANCE &&
-					fabs(isectVCosSS[i-1][1]-isectVCosSS[i][1]) < PROJ_GEOM_TOLERANCE)
+				if (fabsf(isectVCosSS[i-1][0]-isectVCosSS[i][0]) < PROJ_GEOM_TOLERANCE &&
+					fabsf(isectVCosSS[i-1][1]-isectVCosSS[i][1]) < PROJ_GEOM_TOLERANCE)
 				{
 					int j;
 					for(j=i+1; j<(*tot); j++) {
@@ -2263,6 +2263,19 @@ int IsectPoly2Df(const float pt[2], float uv[][2], const int tot)
 	
 	return 1;
 }
+static int IsectPoly2Df_twoside(const float pt[2], float uv[][2], const int tot)
+{
+	int i;
+	int side = (SIDE_OF_LINE(uv[tot-1], uv[0], pt) > 0.0f);
+	
+	for (i=1; i<tot; i++) {
+		if ((SIDE_OF_LINE(uv[i-1], uv[i], pt) > 0.0f) != side)
+			return 0;
+		
+	}
+	
+	return 1;
+}
 
 /* One of the most important function for projectiopn painting, since it selects the pixels to be added into each bucket.
  * initialize pixels from this face where it intersects with the bucket_index, optionally initialize pixels for removing seams */
@@ -2306,6 +2319,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	float uv_clip[8][2];
 	int uv_clip_tot;
 	const short is_ortho = ps->is_ortho;
+	const short do_backfacecull = ps->do_backfacecull;
 	
 	vCo[0] = ps->dm_mvert[mf->v1].co;
 	vCo[1] = ps->dm_mvert[mf->v2].co;
@@ -2315,9 +2329,20 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 	/* Use tf_uv_pxoffset instead of tf->uv so we can offset the UV half a pixel
 	 * this is done so we can avoid offseting all the pixels by 0.5 which causes
 	 * problems when wrapping negative coords */
-	xhalfpx = 0.5f / ibuf_xf;
-	yhalfpx = 0.5f / ibuf_yf;
+	xhalfpx = (0.5f+   (PROJ_GEOM_TOLERANCE/3.0f)   ) / ibuf_xf;
+	yhalfpx = (0.5f+   (PROJ_GEOM_TOLERANCE/4.0f)   ) / ibuf_yf;
 	
+	/* Note about (PROJ_GEOM_TOLERANCE/x) above...
+	  Needed to add this offset since UV coords are often quads aligned to pixels.
+	  In this case pixels can be exactly between 2 triangles causing nasty
+	  artifacts.
+	  
+	  This workaround can be removed and painting will still work on most cases
+	  but since the first thing most people try is painting onto a quad- better make it work.
+	 */
+
+
+
 	tf_uv_pxoffset[0][0] = tf->uv[0][0] - xhalfpx;
 	tf_uv_pxoffset[0][1] = tf->uv[0][1] - yhalfpx;
 
@@ -2353,8 +2378,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 		v1coSS = ps->screenCoords[ (*(&mf->v1 + i1)) ];
 		v2coSS = ps->screenCoords[ (*(&mf->v1 + i2)) ];
 		v3coSS = ps->screenCoords[ (*(&mf->v1 + i3)) ];
-
-
+		
 		/* This funtion gives is a concave polyline in UV space from the clipped quad and tri*/
 		project_bucket_clip_face(
 				is_ortho, bucket_bounds,
@@ -2362,8 +2386,7 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 				uv1co, uv2co, uv3co,
 				uv_clip, &uv_clip_tot
 		);
-		
-		
+
 		/* sometimes this happens, better just allow for 8 intersectiosn even though there should be max 6 */
 		/*
 		if (uv_clip_tot>6) {
@@ -2385,7 +2408,10 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 					//uv[0] = (((float)x) + 0.5f) / ibuf->x;
 					uv[0] = (float)x / ibuf_xf; /* use pixel offset UV coords instead */
 					
-					if (IsectPoly2Df(uv, uv_clip, uv_clip_tot)) {
+					/* Note about IsectPoly2Df_twoside, checking the face or uv flipping doesnt work,
+					 * could check the poly direction but better to do this */
+					if(	(do_backfacecull		&& IsectPoly2Df(uv, uv_clip, uv_clip_tot)) ||
+						(do_backfacecull==0		&& IsectPoly2Df_twoside(uv, uv_clip, uv_clip_tot))) {
 						
 						has_x_isect = has_isect = 1;
 						
@@ -3030,7 +3056,7 @@ static void project_paint_begin(ProjPaintState *ps, short mval[2])
 	ps->buckets_x = (int)(ps->screen_width / (((float)ps->brush->size) / PROJ_BUCKET_BRUSH_DIV));
 	ps->buckets_y = (int)(ps->screen_height / (((float)ps->brush->size) / PROJ_BUCKET_BRUSH_DIV));
 	
-	printf("\tscreenspace bucket division x:%d y:%d\n", ps->buckets_x, ps->buckets_y);
+	/* printf("\tscreenspace bucket division x:%d y:%d\n", ps->buckets_x, ps->buckets_y); */
 	
 	/* really high values could cause problems since it has to allocate a few
 	 * (ps->buckets_x*ps->buckets_y) sized arrays  */
@@ -3203,7 +3229,7 @@ static void project_paint_begin(ProjPaintState *ps, short mval[2])
 				
 				image_index = BLI_linklist_index(image_LinkList, tf->tpage);
 				
-				if (image_index==-1 && BKE_image_get_ibuf((Image *)tf->tpage, NULL)) { /* MemArena dosnt have an append func */
+				if (image_index==-1 && BKE_image_get_ibuf(tf->tpage, NULL)) { /* MemArena dosnt have an append func */
 					BLI_linklist_append(&image_LinkList, tf->tpage);
 					image_index = ps->image_tot;
 					ps->image_tot++;
@@ -3225,10 +3251,10 @@ static void project_paint_begin(ProjPaintState *ps, short mval[2])
 	
 	for (node= image_LinkList, i=0; node; node= node->next, i++, projIma++) {
 		projIma->ima = node->link;
-		// calloced - projIma->touch = 0;
+		projIma->touch = 0;
 		projIma->ibuf = BKE_image_get_ibuf(projIma->ima, NULL);
 		projIma->partRedrawRect =  BLI_memarena_alloc(arena, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
-		// calloced - memset(projIma->partRedrawRect, 0, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
+		memset(projIma->partRedrawRect, 0, sizeof(ImagePaintPartialRedraw) * PROJ_BOUNDBOX_SQUARED);
 	}
 	
 	/* we have built the array, discard the linked list */
@@ -3378,7 +3404,7 @@ static void partial_redraw_array_init(ImagePaintPartialRedraw *pr)
 
 static int partial_redraw_array_merge(ImagePaintPartialRedraw *pr, ImagePaintPartialRedraw *pr_other, int tot)
 {
-	int touch;
+	int touch= 0;
 	while (tot--) {
 		pr->x1 = MIN2(pr->x1, pr_other->x1);
 		pr->y1 = MIN2(pr->y1, pr_other->y1);
@@ -3506,6 +3532,7 @@ static void blend_color_mix(unsigned char *cp, const unsigned char *cp1, const u
 	cp[0]= (mfac*cp1[0]+fac*cp2[0])/255;
 	cp[1]= (mfac*cp1[1]+fac*cp2[1])/255;
 	cp[2]= (mfac*cp1[2]+fac*cp2[2])/255;
+	cp[3]= (mfac*cp1[3]+fac*cp2[3])/255;
 }
 
 static void blend_color_mix_float(float *cp, const float *cp1, const float *cp2, const float fac)
@@ -3514,6 +3541,7 @@ static void blend_color_mix_float(float *cp, const float *cp1, const float *cp2,
 	cp[0]= mfac*cp1[0] + fac*cp2[0];
 	cp[1]= mfac*cp1[1] + fac*cp2[1];
 	cp[2]= mfac*cp1[2] + fac*cp2[2];
+	cp[3]= mfac*cp1[3] + fac*cp2[3];
 }
 
 static void do_projectpaint_clone(ProjPaintState *ps, ProjPixel *projPixel, float *rgba, float alpha, float mask)
@@ -3550,8 +3578,8 @@ static void do_projectpaint_smear(ProjPaintState *ps, ProjPixel *projPixel, floa
 	
 	if (project_paint_PickColor(ps, co, NULL, rgba_ub, 1)==0)
 		return; 
-	
-	((ProjPixelClone *)projPixel)->clonepx.uint = IMB_blend_color(*projPixel->pixel.uint_pt, *((unsigned int *)rgba_ub), (int)(alpha*mask*255), ps->blend);
+	/* ((ProjPixelClone *)projPixel)->clonepx.uint = IMB_blend_color(*projPixel->pixel.uint_pt, *((unsigned int *)rgba_ub), (int)(alpha*mask*255), ps->blend); */
+	blend_color_mix(((ProjPixelClone *)projPixel)->clonepx.ch, projPixel->pixel.ch_pt, rgba_ub, (int)(alpha*mask*255));
 	BLI_linklist_prepend_arena(smearPixels, (void *)projPixel, smearArena);
 } 
 
@@ -3564,7 +3592,8 @@ static void do_projectpaint_smear_f(ProjPaintState *ps, ProjPixel *projPixel, fl
 		return;
 	
 	IMAPAINT_FLOAT_RGBA_TO_CHAR(rgba_smear, projPixel->pixel.f_pt);
-	((ProjPixelClone *)projPixel)->clonepx.uint = IMB_blend_color(*((unsigned int *)rgba_smear), *((unsigned int *)rgba_ub), (int)(alpha*mask*255), ps->blend);
+	/* (ProjPixelClone *)projPixel)->clonepx.uint = IMB_blend_color(*((unsigned int *)rgba_smear), *((unsigned int *)rgba_ub), (int)(alpha*mask*255), ps->blend); */
+	blend_color_mix(((ProjPixelClone *)projPixel)->clonepx.ch, rgba_smear, (rgba_ub), (int)(alpha*mask*255)); 
 	BLI_linklist_prepend_arena(smearPixels_f, (void *)projPixel, smearArena);
 }
 
@@ -3675,12 +3704,12 @@ static void *do_projectpaint_thread(void *ph_v)
 			
 			projPixel = (ProjPixel *)node->link;
 			
-			/*dist = Vec2Lenf(projPixel->projCoSS, pos);*/ /* correct but uses a sqrt */
+			/*dist = Vec2Lenf(projPixel->projCoSS, pos);*/ /* correct but uses a sqrtf */
 			dist_nosqrt = Vec2Lenf_nosqrt(projPixel->projCoSS, pos);
 			
-			/*if (dist < s->brush->size) {*/ /* correct but uses a sqrt */
+			/*if (dist < s->brush->size) {*/ /* correct but uses a sqrtf */
 			if (dist_nosqrt < brush_size_sqared) {
-				falloff = brush_sample_falloff_noalpha(ps->brush, sqrt(dist_nosqrt));
+				falloff = brush_sample_falloff_noalpha(ps->brush, sqrtf(dist_nosqrt));
 				if (falloff > 0.0f) {
 					if (ps->is_texbrush) {
 						brush_sample_tex(ps->brush, projPixel->projCoSS, rgba);
@@ -3769,10 +3798,9 @@ static void *do_projectpaint_thread(void *ph_v)
 			*projPixel->pixel.uint_pt = ((ProjPixelClone *)projPixel)->clonepx.uint;
 		}
 		
-		for (node= smearPixels_f; node; node= node->next) { /* this wont run for a float image */
+		for (node= smearPixels_f; node; node= node->next) {
 			projPixel = node->link;
 			IMAPAINT_CHAR_RGBA_TO_FLOAT(projPixel->pixel.f_pt,  ((ProjPixelClone *)projPixel)->clonepx.ch);
-			node = node->next;
 		}
 		
 		BLI_memarena_free(smearArena);
@@ -4325,7 +4353,7 @@ static void imapaint_paint_stroke(ImagePaintState *s, BrushPainter *painter, sho
 		) {
 			ImBuf *ibuf;
 			
-			newimage = (Image*)((s->me->mtface+newfaceindex)->tpage);
+			newimage = (s->me->mtface+newfaceindex)->tpage;
 			ibuf= BKE_image_get_ibuf(newimage, G.sima?&G.sima->iuser:NULL);
 
 			if(ibuf && ibuf->rect)

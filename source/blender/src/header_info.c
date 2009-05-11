@@ -1720,15 +1720,15 @@ static uiBlock *info_gamemenu(void *arg_unused)
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Enable All Frames",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_ENABLE_ALL_FRAMES, "");
 	}
 	
-	if(G.fileflags & G_FILE_GAME_TO_IPO) {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
-	} else {
-
 	if(G.fileflags & G_FILE_DISPLAY_LISTS) {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DISPLAY_LISTS, "");
 	} else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Generate Display Lists",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_DISPLAY_LISTS, "");
 	}	
+
+	if(G.fileflags & G_FILE_GAME_TO_IPO) {
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
+	} else {
 		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Record Game Physics to IPO",	 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, G_FILE_GAME_TO_IPO, "");
 	}
 	
@@ -1929,7 +1929,7 @@ static uiBlock *info_timelinemenu(void *arg_unused)
 void do_info_render_bakemenu(void *arg, int event)
 {
 	switch (event) {
-	case 6:
+	case (R_BAKE_TO_ACTIVE|R_BAKE_OSA):
 		G.scene->r.bake_flag ^= event;
 		break;
 	default:
@@ -1948,9 +1948,9 @@ static uiBlock *info_render_bakemenu(void *arg_unused)
 	uiBlockSetButmFunc(block, do_info_render_bakemenu, NULL);
 	
 	if(G.scene->r.bake_flag & R_BAKE_TO_ACTIVE) {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Selected to Active",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 6, "");
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_HLT, "Selected to Active",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, (R_BAKE_TO_ACTIVE|R_BAKE_OSA), "");
 	} else {
-		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Selected to Active",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 6, "");
+		uiDefIconTextBut(block, BUTM, 1, ICON_CHECKBOX_DEHLT, "Selected to Active",		 0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, (R_BAKE_TO_ACTIVE|R_BAKE_OSA), "");
 	}
 	
 	uiDefBut(block, SEPR, 0, "",				0, yco-=6, menuwidth, 6, NULL, 0.0, 0.0, 0, 0, "");

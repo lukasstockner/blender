@@ -1437,7 +1437,6 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	Object *ob= obr->ob;
 	Object *tob=0;
 	Material *ma=0;
-	MTFace *mtface;
 	ParticleSystemModifierData *psmd;
 	ParticleSystem *tpsys=0;
 	ParticleSettings *part, *tpart=0;
@@ -4374,24 +4373,8 @@ void RE_Database_Free(Render *re)
 static int allow_render_object(Object *ob, int nolamps, int onlyselected, Object *actob)
 {
 	/* override not showing object when duplis are used with particles */
-	if(ob->transflag & OB_DUPLIPARTS){
-		int allow= 0;
-
-		if(ob->particlesystem.first) {
-			ParticleSystem *psys;
-			ParticleSettings *part;
-
-			for(psys=ob->particlesystem.first; psys; psys=psys->next){
-				part=psys->part;
-
-				if(part->draw & PART_DRAW_EMITTER)
-					allow= 1;
-			}
-		}
-
-		if(!allow)
-			return 0;
-	}
+	if(ob->transflag & OB_DUPLIPARTS)
+		; /* let particle system(s) handle showing vs. not showing */
 	else if((ob->transflag & OB_DUPLI) && !(ob->transflag & OB_DUPLIFRAMES))
 		return 0;
 	

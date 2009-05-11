@@ -32,7 +32,7 @@ public:
 	void SetVector(double newvec[]);
 	void Configure(CValue* menuvalue);
 	virtual double* GetVector3(bool bGetTransformedVec=false);
-	virtual float		GetNumber();
+	virtual double		GetNumber();
 	
 	CValue*		Calc(VALUE_OPERATOR op, CValue *val) {
 		return val->CalcFinal(VALUE_VECTOR_TYPE, op, this);
@@ -41,7 +41,7 @@ public:
 	CValue*		CalcFinal(VALUE_DATA_TYPE dtype, VALUE_OPERATOR op, CValue *val);
 	
 	
-	CVectorValue(double vec[],STR_String name,AllocationTYPE alloctype=CValue::HEAPVALUE);
+	CVectorValue(double vec[],const char *name,AllocationTYPE alloctype=CValue::HEAPVALUE);
 	CVectorValue() {};
 
 	CVectorValue(double vec[],AllocationTYPE alloctype=CValue::HEAPVALUE);

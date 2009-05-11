@@ -77,6 +77,7 @@
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
+#include "BKE_bvhutils.h"
 
 #include "PIL_time.h"
 
@@ -202,8 +203,11 @@ static void realloc_particles(Object *ob, ParticleSystem *psys, int new_totpart)
 		if(psys->particles->keys)
 			MEM_freeN(psys->particles->keys);
 
-		for(i=0, pa=psys->particles; i<totsaved; i++, pa++)
-			if(pa->keys) pa->keys= NULL;
+		for(i=totsaved, pa=psys->particles+totsaved; i<psys->totpart; i++, pa++)
+			if(pa->keys) {
+				pa->keys= NULL;
+				pa->totkey= 0;
+			}
 
 		for(i=totsaved, pa=psys->particles+totsaved; i<psys->totpart; i++, pa++)
 			if(pa->hair) MEM_freeN(pa->hair);
@@ -1301,7 +1305,8 @@ int psys_threads_init_distribution(ParticleThread *threads, DerivedMesh *finaldm
 	MEM_freeN(sum);
 
 	/* for hair, sort by origindex, allows optimizations in rendering */
-	if(part->type == PART_HAIR) {
+	/* however with virtual parents the children need to be in random order */
+	if(part->type == PART_HAIR && !(part->childtype==PART_CHILD_FACES && part->parents!=0.0)) {
 		COMPARE_ORIG_INDEX= dm->getFaceDataArray(dm, CD_ORIGINDEX);
 		if(COMPARE_ORIG_INDEX)
 			qsort(index, totpart, sizeof(int), compare_orig_index);
@@ -1615,7 +1620,7 @@ void initialize_particle(ParticleData *pa, int p, Object *ob, ParticleSystem *ps
 
 	NormalQuat(pa->r_rot);
 
-	if(part->distr!=PART_DISTR_GRID && part->from != PART_FROM_VERT){
+	if(part->type!=PART_HAIR && part->distr!=PART_DISTR_GRID && part->from != PART_FROM_VERT){
 		/* any unique random number will do (r_ave[0]) */
 		if(ptex.exist < 0.5*(1.0+pa->r_ave[0]))
 			pa->flag |= PARS_UNEXIST;
@@ -1734,6 +1739,8 @@ void reset_particle(ParticleData *pa, ParticleSystem *psys, ParticleSystemModifi
 		VECSUB(p_vel,pa->r_ve,p_vel);
 		Normalize(p_vel);
 		VecMulf(p_vel,speed);
+
+		VECCOPY(pa->fuv,loc); /* abusing pa->fuv (not used for "from particle") for storing emit location */
 	}
 	else{
 		/* get precise emitter matrix if particle is born */
@@ -2003,7 +2010,6 @@ static void set_keyed_keys(Object *ob, ParticleSystem *psys)
 	Object *kob = ob;
 	ParticleSystem *kpsys = psys;
 	ParticleData *pa;
-	ParticleKey state;
 	int totpart = psys->totpart, i, k, totkeys = psys->totkeyed + 1;
 	float prevtime, nexttime, keyedtime;
 
@@ -2027,10 +2033,11 @@ static void set_keyed_keys(Object *ob, ParticleSystem *psys)
 	}
 	
 	psys->flag &= ~PSYS_KEYED;
-	state.time=-1.0;
 
 	for(k=0; k<totkeys; k++) {
 		for(i=0,pa=psys->particles; i<totpart; i++, pa++) {
+			(pa->keys + k)->time = -1.0; /* use current time */
+
 			if(kpsys->totpart > 0)
 				psys_get_particle_state(kob, kpsys, i%kpsys->totpart, pa->keys + k, 1);
 
@@ -2444,7 +2451,6 @@ void psys_end_effectors(ParticleSystem *psys)
 			
 			if(ec->rng)
 				rng_free(ec->rng);
-			
 		}
 
 		BLI_freelistN(lb);
@@ -2483,7 +2489,12 @@ static void precalc_effectors(Object *ob, ParticleSystem *psys, ParticleSystemMo
 				ec->locations=MEM_callocN(totpart*3*sizeof(float),"particle locations");
 
 				for(p=0,pa=psys->particles; p<totpart; p++, pa++){
-					psys_particle_on_emitter(psmd,part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,loc,0,0,0,0,0);
+					if(part->from == PART_FROM_PARTICLE) {
+						VECCOPY(loc, pa->fuv);
+					}
+					else
+						psys_particle_on_emitter(psmd,part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,loc,0,0,0,0,0);
+
 					Mat4MulVecfl(ob->obmat,loc);
 					ec->distances[p]=VecLenf(loc,vec);
 					VECSUB(loc,loc,vec);
@@ -2536,6 +2547,7 @@ void do_effectors(int pa_no, ParticleData *pa, ParticleKey *state, Object *ob, P
 	ParticleData *epa;
 	ParticleKey estate;
 	PartDeflect *pd;
+	SurfaceModifierData *surmd = NULL;
 	ListBase *lb=&psys->effectors;
 	ParticleEffectorCache *ec;
 	float distance, vec_to_part[3];
@@ -2563,8 +2575,34 @@ void do_effectors(int pa_no, ParticleData *pa, ParticleKey *state, Object *ob, P
 				if(psys->part->type!=PART_HAIR && psys->part->integrator)
 					where_is_object_time(eob,cfra);
 
-				/* use center of object for distance calculus */
-				VecSubf(vec_to_part, state->co, eob->obmat[3]);
+				if(pd && pd->flag&PFIELD_SURFACE) {
+					surmd = (SurfaceModifierData *)modifiers_findByType ( eob, eModifierType_Surface );
+				}
+				if(surmd) {
+					/* closest point in the object surface is an effector */
+					BVHTreeNearest nearest;
+					float velocity[3];
+
+					nearest.index = -1;
+					nearest.dist = FLT_MAX;
+
+					/* using velocity corrected location allows for easier sliding over effector surface */
+					VecCopyf(velocity, state->vel);
+					VecMulf(velocity, psys_get_timestep(psys->part));
+					VecAddf(vec_to_part, state->co, velocity);
+
+					BLI_bvhtree_find_nearest(surmd->bvhtree->tree, vec_to_part, &nearest, surmd->bvhtree->nearest_callback, surmd->bvhtree);
+
+					if(nearest.index != -1) {
+						VecSubf(vec_to_part, state->co, nearest.co);
+					}
+					else
+						vec_to_part[0] = vec_to_part[1] = vec_to_part[2] = 0.0f;
+				}
+				else 
+					/* use center of object for distance calculus */
+					VecSubf(vec_to_part, state->co, eob->obmat[3]);
+
 				distance = VecLength(vec_to_part);
 
 				falloff=effector_falloff(pd,eob->obmat[2],vec_to_part);

@@ -60,7 +60,7 @@ CValue* SCA_ActuatorSensor::GetReplica()
 {
 	SCA_ActuatorSensor* replica = new SCA_ActuatorSensor(*this);
 	// m_range_expr must be recalculated on replica!
-	CValue::AddDataToReplica(replica);
+	replica->ProcessReplica();
 	replica->Init();
 
 	return replica;
@@ -89,7 +89,7 @@ SCA_ActuatorSensor::~SCA_ActuatorSensor()
 
 
 
-bool SCA_ActuatorSensor::Evaluate(CValue* event)
+bool SCA_ActuatorSensor::Evaluate()
 {
 	if (m_actuator)
 	{
@@ -122,12 +122,17 @@ void SCA_ActuatorSensor::Update()
 
 /* Integration hooks ------------------------------------------------------- */
 PyTypeObject SCA_ActuatorSensor::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"SCA_ActuatorSensor",
-	sizeof(SCA_ActuatorSensor),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -162,10 +167,15 @@ PyAttributeDef SCA_ActuatorSensor::Attributes[] = {
 };
 
 PyObject* SCA_ActuatorSensor::py_getattro(PyObject *attr) {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
-	py_getattro_up(SCA_ISensor); /* implicit return! */
+	py_getattro_up(SCA_ISensor);
+}
+
+PyObject* SCA_ActuatorSensor::py_getattro_dict() {
+	py_getattro_dict_up(SCA_ISensor);
+}
+
+int SCA_ActuatorSensor::py_setattro(PyObject *attr, PyObject *value) {
+	py_setattro_up(SCA_ISensor);
 }
 
 int SCA_ActuatorSensor::CheckActuator(void *self, const PyAttributeDef*)
@@ -180,18 +190,11 @@ int SCA_ActuatorSensor::CheckActuator(void *self, const PyAttributeDef*)
 	return 1;
 }
 
-int SCA_ActuatorSensor::py_setattro(PyObject *attr, PyObject *value) {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_ISensor::py_setattro(attr, value);
-}
-
 /* 3. getActuator */
 const char SCA_ActuatorSensor::GetActuator_doc[] = 
 "getActuator()\n"
 "\tReturn the Actuator with which the sensor operates.\n";
-PyObject* SCA_ActuatorSensor::PyGetActuator(PyObject* self) 
+PyObject* SCA_ActuatorSensor::PyGetActuator() 
 {
 	ShowDeprecationWarning("getActuator()", "the actuator property");
 	return PyString_FromString(m_checkactname);
@@ -203,14 +206,14 @@ const char SCA_ActuatorSensor::SetActuator_doc[] =
 "\t- name: string\n"
 "\tSets the Actuator with which to operate. If there is no Actuator\n"
 "\tof this name, the call is ignored.\n";
-PyObject* SCA_ActuatorSensor::PySetActuator(PyObject* self, PyObject* args, PyObject* kwds) 
+PyObject* SCA_ActuatorSensor::PySetActuator(PyObject* args) 
 {
 	ShowDeprecationWarning("setActuator()", "the actuator property");
 	/* We should query whether the name exists. Or should we create a prop   */
 	/* on the fly?                                                           */
 	char *actNameArg = NULL;
 
-	if (!PyArg_ParseTuple(args, "s", &actNameArg)) {
+	if (!PyArg_ParseTuple(args, "s:setActuator", &actNameArg)) {
 		return NULL;
 	}
 

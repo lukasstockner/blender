@@ -2520,11 +2520,13 @@ void esubdivideflag(int flag, float rad, int beauty, int numcuts, int seltype)
 								}
 							}
 						}
-						sort[hold]->f &= ~SELECT;
-						sort[hold]->f2 |= EDGENEW;
-						length[hold] = -1;
-					}							
-				} 
+						if (hold > -1) {
+							sort[hold]->f &= ~SELECT;
+							sort[hold]->f2 |= EDGENEW;
+							length[hold] = -1;
+						}
+					}
+				}
 				
 				// Beauty Long Edges
 				else {
@@ -2541,13 +2543,15 @@ void esubdivideflag(int flag, float rad, int beauty, int numcuts, int seltype)
 								}
 							}
 						}
-						sort[hold]->f &= ~SELECT;
-						sort[hold]->f2 |= EDGENEW;
-						length[hold] = -1;
-					}							
-				}   
+						if (hold > -1) {
+							sort[hold]->f &= ~SELECT;
+							sort[hold]->f2 |= EDGENEW;
+							length[hold] = -1;
+						}
+					}
+				}
 			}
-		}	
+		}
 	}
 
 	gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp); 
@@ -5619,6 +5623,8 @@ void mesh_rip(void)
 	EditFace *efa, *sefa= NULL;
 	float projectMat[4][4], viewMat[4][4], vec[3], dist, mindist;
 	short doit= 1, mval[2],propmode,prop;
+	
+	if(multires_test()) return;
 	
 	propmode = G.scene->prop_mode;
 	G.scene->prop_mode = 0;

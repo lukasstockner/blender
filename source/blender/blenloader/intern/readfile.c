@@ -1850,6 +1850,13 @@ static void lib_link_constraints(FileData *fd, ID *id, ListBase *conlist)
 				data->tar = newlibadr(fd, id->lib, data->tar);
 			}
 			break;
+		case CONSTRAINT_TYPE_SHRINKWRAP:
+			{
+				bShrinkwrapConstraint *data;
+				data= ((bShrinkwrapConstraint*)con->data);
+				data->target = newlibadr(fd, id->lib, data->target);
+			}
+			break;
 		case CONSTRAINT_TYPE_NULL:
 			break;
 		}
@@ -2869,6 +2876,18 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 			lvl->map_mem= NULL;
 		}
 	}
+
+	/* Gracefully handle corrupted mesh */
+	if(mesh->mr && !mesh->mr->verts) {
+		/* If totals match, simply load the current mesh verts into multires */
+		if(mesh->totvert == ((MultiresLevel*)mesh->mr->levels.last)->totvert)
+			mesh->mr->verts = MEM_dupallocN(mesh->mvert);
+		else {
+			/* Otherwise, we can't recover the data, silently remove multires */
+			multires_free(mesh->mr);
+			mesh->mr = NULL;
+		}
+	}
 	
 	if((fd->flags & FD_FLAGS_SWITCH_ENDIAN) && mesh->tface) {
 		TFace *tf= mesh->tface;
@@ -3157,6 +3176,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 
 			smd->emCache = smd->mCache = 0;
 		}
+		else if (md->type==eModifierType_Armature) {
+			ArmatureModifierData *amd = (ArmatureModifierData*) md;
+			
+			amd->prevCos= NULL;
+		}
 		else if (md->type==eModifierType_Cloth) {
 			ClothModifierData *clmd = (ClothModifierData*) md;
 			
@@ -3206,6 +3230,12 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			collmd->bvhtree = NULL;
 			collmd->mfaces = NULL;
 			
+		}
+		else if (md->type==eModifierType_Surface) {
+			SurfaceModifierData *surmd = (SurfaceModifierData*) md;
+
+			surmd->dm = NULL;
+			surmd->bvhtree = NULL;
 		}
 		else if (md->type==eModifierType_Hook) {
 			HookModifierData *hmd = (HookModifierData*) md;
@@ -8039,6 +8069,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	
 	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 4)) {
 		Scene *sce;
+		World *wrld;
 
 		/*  Dome (Fisheye) default parameters  */
 		for (sce= main->scene.first; sce; sce= sce->id.next) {
@@ -8047,6 +8078,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			sce->r.domesize = 1.0f;
 			sce->r.domeres = 4;
 			sce->r.domeresbuf = 1.0f;
+		}
+		/* DBVT culling by default */
+		for(wrld=main->world.first; wrld; wrld= wrld->id.next) {
+			wrld->mode |= WO_DBVT_CULLING;
+			wrld->occlusionRes = 128;
 		}
 	}
 
@@ -8619,6 +8655,12 @@ static void expand_constraints(FileData *fd, Main *mainvar, ListBase *lb)
 			{
 				bDistLimitConstraint *data = (bDistLimitConstraint*)curcon->data;
 				expand_doit(fd, mainvar, data->tar);
+			}
+			break;
+		case CONSTRAINT_TYPE_SHRINKWRAP:
+			{
+				bShrinkwrapConstraint *data = (bShrinkwrapConstraint*)curcon->data;
+				expand_doit(fd, mainvar, data->target);
 			}
 			break;
 		default:

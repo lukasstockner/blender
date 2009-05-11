@@ -93,6 +93,7 @@ class SCA_JoystickSensor :public SCA_ISensor
 		KX_JOYSENSORMODE_AXIS,
 		KX_JOYSENSORMODE_BUTTON,
 		KX_JOYSENSORMODE_HAT,
+		KX_JOYSENSORMODE_AXIS_SINGLE,
 		KX_JOYSENSORMODE_MAX
 	};
 	bool isValid(KX_JOYSENSORMODE);
@@ -109,7 +110,7 @@ public:
 	virtual ~SCA_JoystickSensor();
 	virtual CValue* GetReplica();
 	
-	virtual bool Evaluate(CValue* event);
+	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
 	virtual void Init();
 	
@@ -122,6 +123,7 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);
 
 	/* Joystick Index */
@@ -147,6 +149,14 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,NumberOfButtons);
 	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,NumberOfHats);
 	KX_PYMETHOD_DOC_NOARGS(SCA_JoystickSensor,Connected);
+
+	static PyObject*	pyattr_get_axis_values(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_axis_single(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_num_axis(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_num_buttons(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_num_hats(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_connected(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	
 
 	/* attribute check */
 	static int CheckAxis(void *self, const PyAttributeDef*)

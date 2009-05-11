@@ -51,22 +51,37 @@
 
 #include "KX_PyMath.h"
 
-KX_PolygonMaterial::KX_PolygonMaterial(const STR_String &texname,
-											   Material *material,
-											   int tile,
-											   int tilexrep,
-											   int tileyrep,
-											   int mode,
-											   int transp,
-											   bool alpha,
-											   bool zsort,
-											   int lightlayer,
-											   struct MTFace* tface,
-											   unsigned int* mcol,
-											   PyTypeObject *T)
+KX_PolygonMaterial::KX_PolygonMaterial(PyTypeObject *T) 
 		: PyObjectPlus(T),
-		  RAS_IPolyMaterial(texname,
-							STR_String(material?material->id.name:""),
+		  RAS_IPolyMaterial(),
+
+	m_tface(NULL),
+	m_mcol(NULL),
+	m_material(NULL),
+	m_pymaterial(NULL),
+	m_pass(0)
+{
+}
+
+void KX_PolygonMaterial::Initialize(
+		const STR_String &texname,
+		Material* ma,
+		int materialindex,
+		int tile,
+		int tilexrep,
+		int tileyrep,
+		int mode,
+		int transp,
+		bool alpha,
+		bool zsort,
+		int lightlayer,
+		struct MTFace* tface,
+		unsigned int* mcol)
+{
+	RAS_IPolyMaterial::Initialize(
+							texname,
+							ma?ma->id.name:"",
+							materialindex,
 							tile,
 							tilexrep,
 							tileyrep,
@@ -74,13 +89,12 @@ KX_PolygonMaterial::KX_PolygonMaterial(const STR_String &texname,
 							transp,
 							alpha,
 							zsort,
-							lightlayer),
-		m_tface(tface),
-		m_mcol(mcol),
-		m_material(material),
-		m_pymaterial(0),
-		m_pass(0)
-{
+							lightlayer);
+	m_tface = tface;
+	m_mcol = mcol;
+	m_material = ma;
+	m_pymaterial = 0;
+	m_pass = 0;
 }
 
 KX_PolygonMaterial::~KX_PolygonMaterial()
@@ -98,8 +112,7 @@ bool KX_PolygonMaterial::Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingI
 	{
 		PyObject *pyRasty = PyCObject_FromVoidPtr((void*)rasty, NULL);	/* new reference */
 		PyObject *pyCachingInfo = PyCObject_FromVoidPtr((void*) &cachingInfo, NULL); /* new reference */
-		
-		PyObject *ret = PyObject_CallMethod(m_pymaterial, "activate", "(NNO)", pyRasty, pyCachingInfo, (PyObject*) this);
+		PyObject *ret = PyObject_CallMethod(m_pymaterial, "activate", "(NNO)", pyRasty, pyCachingInfo, (PyObject*) this->m_proxy);
 		if (ret)
 		{
 			bool value = PyInt_AsLong(ret);
@@ -109,6 +122,8 @@ bool KX_PolygonMaterial::Activate(RAS_IRasterizer* rasty, TCachingInfo& cachingI
 		else
 		{
 			PyErr_Print();
+			PyErr_Clear();
+			PySys_SetObject( (char *)"last_traceback", NULL);
 		}
 	}
 	else
@@ -157,14 +172,31 @@ void KX_PolygonMaterial::DefaultActivate(RAS_IRasterizer* rasty, TCachingInfo& c
 			rasty->SetLines(true);
 		else
 			rasty->SetLines(false);
+		rasty->SetSpecularity(m_specular[0],m_specular[1],m_specular[2],m_specularity);
+		rasty->SetShinyness(m_shininess);
+		rasty->SetDiffuse(m_diffuse[0], m_diffuse[1],m_diffuse[2], 1.0);
+		if (m_material)
+			rasty->SetPolygonOffset(-m_material->zoffs, 0.0);
 	}
 
-	rasty->SetSpecularity(m_specular[0],m_specular[1],m_specular[2],m_specularity);
-	rasty->SetShinyness(m_shininess);
-	rasty->SetDiffuse(m_diffuse[0], m_diffuse[1],m_diffuse[2], 1.0);
-	if (m_material)
-		rasty->SetPolygonOffset(-m_material->zoffs, 0.0);
+	//rasty->SetSpecularity(m_specular[0],m_specular[1],m_specular[2],m_specularity);
+	//rasty->SetShinyness(m_shininess);
+	//rasty->SetDiffuse(m_diffuse[0], m_diffuse[1],m_diffuse[2], 1.0);
+	//if (m_material)
+	//	rasty->SetPolygonOffset(-m_material->zoffs, 0.0);
 }
+
+void KX_PolygonMaterial::GetMaterialRGBAColor(unsigned char *rgba) const
+{
+	if (m_material) {
+		*rgba++ = (unsigned char) (m_material->r*255.0);
+		*rgba++ = (unsigned char) (m_material->g*255.0);
+		*rgba++ = (unsigned char) (m_material->b*255.0);
+		*rgba++ = (unsigned char) (m_material->alpha*255.0);
+	} else
+		RAS_IPolyMaterial::GetMaterialRGBAColor(rgba);
+}
+
 
 //----------------------------------------------------------------------------
 //Python
@@ -181,16 +213,43 @@ PyMethodDef KX_PolygonMaterial::Methods[] = {
 };
 
 PyAttributeDef KX_PolygonMaterial::Attributes[] = {
+	KX_PYATTRIBUTE_RO_FUNCTION("texture",	KX_PolygonMaterial, pyattr_get_texture),
+	KX_PYATTRIBUTE_RO_FUNCTION("material",	KX_PolygonMaterial, pyattr_get_material), /* should probably be .name ? */
+	
+	KX_PYATTRIBUTE_INT_RW("tile", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_tile),
+	KX_PYATTRIBUTE_INT_RW("tilexrep", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_tilexrep),
+	KX_PYATTRIBUTE_INT_RW("tileyrep", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_tileyrep),
+	KX_PYATTRIBUTE_INT_RW("drawingmode", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_drawingmode),	
+	KX_PYATTRIBUTE_INT_RW("lightlayer", INT_MIN, INT_MAX, true, KX_PolygonMaterial, m_lightlayer),
+
+	KX_PYATTRIBUTE_BOOL_RW("transparent", KX_PolygonMaterial, m_alpha),
+	KX_PYATTRIBUTE_BOOL_RW("zsort", KX_PolygonMaterial, m_zsort),
+	
+	KX_PYATTRIBUTE_FLOAT_RW("shininess", 0.0f, 1000.0f, KX_PolygonMaterial, m_shininess),
+	KX_PYATTRIBUTE_FLOAT_RW("specularity", 0.0f, 1000.0f, KX_PolygonMaterial, m_specularity),
+	
+	KX_PYATTRIBUTE_RW_FUNCTION("diffuse", KX_PolygonMaterial, pyattr_get_texture, pyattr_set_diffuse),
+	KX_PYATTRIBUTE_RW_FUNCTION("specular",KX_PolygonMaterial, pyattr_get_specular, pyattr_set_specular),	
+	
+	KX_PYATTRIBUTE_RO_FUNCTION("tface",	KX_PolygonMaterial, pyattr_get_tface), /* How the heck is this even useful??? - Campbell */
+	KX_PYATTRIBUTE_RO_FUNCTION("gl_texture", KX_PolygonMaterial, pyattr_get_gl_texture), /* could be called 'bindcode' */
+	
+	/* triangle used to be an attribute, removed for 2.49, nobody should be using it */
 	{ NULL }	//Sentinel
 };
 
 PyTypeObject KX_PolygonMaterial::Type = {
-	PyObject_HEAD_INIT(NULL)
-		0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 		"KX_PolygonMaterial",
-		sizeof(KX_PolygonMaterial),
+		sizeof(PyObjectPlus_Proxy),
 		0,
-		PyDestructor,
+		py_base_dealloc,
 		0,
 		0,
 		0,
@@ -210,158 +269,23 @@ PyParentObject KX_PolygonMaterial::Parents[] = {
 };
 
 PyObject* KX_PolygonMaterial::py_getattro(PyObject *attr)
-{
-	char *attr_str= PyString_AsString(attr);
-	if (!strcmp(attr_str, "texture"))
-		return PyString_FromString(m_texturename.ReadPtr());
-	if (!strcmp(attr_str, "material"))
-		return PyString_FromString(m_materialname.ReadPtr());
-		
-	if (!strcmp(attr_str, "tface"))
-		return PyCObject_FromVoidPtr(m_tface, NULL);
-		
-	if (!strcmp(attr_str, "gl_texture"))
-	{
-		Image *ima = m_tface->tpage;
-		int bind = 0;
-		if (ima)
-			bind = ima->bindcode;
-		
-		return PyInt_FromLong(bind);
-	}
-	
-	if (!strcmp(attr_str, "tile"))
-		return PyInt_FromLong(m_tile);
-	if (!strcmp(attr_str, "tilexrep"))
-		return PyInt_FromLong(m_tilexrep);
-	if (!strcmp(attr_str, "tileyrep"))
-		return PyInt_FromLong(m_tileyrep);
-	
-	if (!strcmp(attr_str, "drawingmode"))
-		return PyInt_FromLong(m_drawingmode);
-	if (!strcmp(attr_str, "transparent"))
-		return PyInt_FromLong(m_alpha);
-	if (!strcmp(attr_str, "zsort"))
-		return PyInt_FromLong(m_zsort);
-	if (!strcmp(attr_str, "lightlayer"))
-		return PyInt_FromLong(m_lightlayer);
-	if (!strcmp(attr_str, "triangle"))
-		// deprecated, triangle/quads shouldn't have been a material property
-		return 0;
-		
-	if (!strcmp(attr_str, "diffuse"))
-		return PyObjectFrom(m_diffuse);
-	if (!strcmp(attr_str, "shininess"))
-		return PyFloat_FromDouble(m_shininess);
-	if (!strcmp(attr_str, "specular"))
-		return PyObjectFrom(m_specular);
-	if (!strcmp(attr_str, "specularity"))
-		return PyFloat_FromDouble(m_specularity);
-	
+{	
 	py_getattro_up(PyObjectPlus);
 }
 
-int KX_PolygonMaterial::py_setattro(PyObject *attr, PyObject *pyvalue)
-{
-	char *attr_str= PyString_AsString(attr);
-	if (PyFloat_Check(pyvalue))
-	{
-		float value = PyFloat_AsDouble(pyvalue);
-		if (!strcmp(attr_str, "shininess"))
-		{
-			m_shininess = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "specularity"))
-		{
-			m_specularity = value;
-			return 0;
-		}
-	}
-	
-	if (PyInt_Check(pyvalue))
-	{
-		int value = PyInt_AsLong(pyvalue);
-		if (!strcmp(attr_str, "tile"))
-		{
-			m_tile = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "tilexrep"))
-		{
-			m_tilexrep = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "tileyrep"))
-		{
-			m_tileyrep = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "drawingmode"))
-		{
-			m_drawingmode = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "transparent"))
-		{
-			m_alpha = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "zsort"))
-		{
-			m_zsort = value;
-			return 0;
-		}
-		
-		if (!strcmp(attr_str, "lightlayer"))
-		{
-			m_lightlayer = value;
-			return 0;
-		}
-		
-		// This probably won't work...
-		if (!strcmp(attr_str, "triangle"))
-		{
-			// deprecated, triangle/quads shouldn't have been a material property
-			return 0;
-		}
-	}
-	
-	if (PySequence_Check(pyvalue))
-	{
-		if (PySequence_Size(pyvalue) == 3)
-		{
-			MT_Vector3 value;
-			if (PyVecTo(pyvalue, value))
-			{
-				if (!strcmp(attr_str, "diffuse"))
-				{
-					m_diffuse = value;
-					return 0;
-				}
-				
-				if (!strcmp(attr_str, "specular"))
-				{
-					m_specular = value;
-					return 0;
-				}
-			}
-		}
-	}
+PyObject* KX_PolygonMaterial::py_getattro_dict() {
+	py_getattro_dict_up(PyObjectPlus);
+}
 
-	return PyObjectPlus::py_setattro(attr, pyvalue);
+int KX_PolygonMaterial::py_setattro(PyObject *attr, PyObject *value)
+{
+	py_setattro_up(PyObjectPlus);
 }
 
 KX_PYMETHODDEF_DOC(KX_PolygonMaterial, setCustomMaterial, "setCustomMaterial(material)")
 {
 	PyObject *material;
-	if (PyArg_ParseTuple(args, "O", &material))
+	if (PyArg_ParseTuple(args, "O:setCustomMaterial", &material))
 	{
 		if (m_pymaterial) {
 			Py_DECREF(m_pymaterial);
@@ -377,7 +301,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, setCustomMaterial, "setCustomMaterial(mat
 KX_PYMETHODDEF_DOC(KX_PolygonMaterial, updateTexture, "updateTexture(tface, rasty)")
 {
 	PyObject *pyrasty, *pytface;
-	if (PyArg_ParseTuple(args, "O!O!", &PyCObject_Type, &pytface, &PyCObject_Type, &pyrasty))
+	if (PyArg_ParseTuple(args, "O!O!:updateTexture", &PyCObject_Type, &pytface, &PyCObject_Type, &pyrasty))
 	{
 		MTFace *tface = (MTFace*) PyCObject_AsVoidPtr(pytface);
 		RAS_IRasterizer *rasty = (RAS_IRasterizer*) PyCObject_AsVoidPtr(pyrasty);
@@ -393,7 +317,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, updateTexture, "updateTexture(tface, rast
 KX_PYMETHODDEF_DOC(KX_PolygonMaterial, setTexture, "setTexture(tface)")
 {
 	PyObject *pytface;
-	if (PyArg_ParseTuple(args, "O!", &PyCObject_Type, &pytface))
+	if (PyArg_ParseTuple(args, "O!:setTexture", &PyCObject_Type, &pytface))
 	{
 		MTFace *tface = (MTFace*) PyCObject_AsVoidPtr(pytface);
 		GPU_set_tpage(tface);
@@ -406,7 +330,7 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, setTexture, "setTexture(tface)")
 KX_PYMETHODDEF_DOC(KX_PolygonMaterial, activate, "activate(rasty, cachingInfo)")
 {
 	PyObject *pyrasty, *pyCachingInfo;
-	if (PyArg_ParseTuple(args, "O!O!", &PyCObject_Type, &pyrasty, &PyCObject_Type, &pyCachingInfo))
+	if (PyArg_ParseTuple(args, "O!O!:activate", &PyCObject_Type, &pyrasty, &PyCObject_Type, &pyCachingInfo))
 	{
 		RAS_IRasterizer *rasty = static_cast<RAS_IRasterizer*>(PyCObject_AsVoidPtr(pyrasty));
 		TCachingInfo *cachingInfo = static_cast<TCachingInfo*>(PyCObject_AsVoidPtr(pyCachingInfo));
@@ -418,4 +342,70 @@ KX_PYMETHODDEF_DOC(KX_PolygonMaterial, activate, "activate(rasty, cachingInfo)")
 	}
 	
 	return NULL;
+}
+
+PyObject* KX_PolygonMaterial::pyattr_get_texture(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	return PyString_FromString(self->m_texturename.ReadPtr());
+}
+
+PyObject* KX_PolygonMaterial::pyattr_get_material(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	return PyString_FromString(self->m_materialname.ReadPtr());
+}
+
+/* this does not seem useful */
+PyObject* KX_PolygonMaterial::pyattr_get_tface(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	return PyCObject_FromVoidPtr(self->m_tface, NULL);
+}
+
+PyObject* KX_PolygonMaterial::pyattr_get_gl_texture(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	int bindcode= 0;
+	if (self->m_tface && self->m_tface->tpage)
+		bindcode= self->m_tface->tpage->bindcode;
+	
+	return PyInt_FromLong(bindcode);
+}
+
+
+PyObject* KX_PolygonMaterial::pyattr_get_diffuse(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	return PyObjectFrom(self->m_diffuse);
+}
+
+int KX_PolygonMaterial::pyattr_set_diffuse(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	MT_Vector3 vec;
+	
+	if (!PyVecTo(value, vec))
+		return -1;
+	
+	self->m_diffuse= vec;
+	return 0;
+}
+
+PyObject* KX_PolygonMaterial::pyattr_get_specular(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	return PyObjectFrom(self->m_specular);
+}
+
+int KX_PolygonMaterial::pyattr_set_specular(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
+{
+	KX_PolygonMaterial* self= static_cast<KX_PolygonMaterial*>(self_v);
+	MT_Vector3 vec;
+	
+	if (!PyVecTo(value, vec))
+		return -1;
+	
+	self->m_specular= vec;
+	return 0;
 }

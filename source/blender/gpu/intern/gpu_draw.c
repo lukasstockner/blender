@@ -79,29 +79,55 @@ void GPU_render_text(MTFace *tface, int mode,
 	const char *textstr, int textlen, unsigned int *col,
 	float *v1, float *v2, float *v3, float *v4, int glattrib)
 {
-	if (mode & TF_BMFONT) {
-		Image* ima;
-		int characters, index, character;
+	if ((mode & TF_BMFONT) && (textlen>0) && tface->tpage) {
+		Image* ima = (Image*)tface->tpage;
+		int index, character;
 		float centerx, centery, sizex, sizey, transx, transy, movex, movey, advance;
+		float advance_tab;
+		
+		/* multiline */
+		float line_start= 0.0f, line_height;
+		
+		if (v4)
+			line_height= MAX4(v1[1], v2[1], v3[1], v4[2]) - MIN4(v1[1], v2[1], v3[1], v4[2]);
+		else
+			line_height= MAX3(v1[1], v2[1], v3[1]) - MIN3(v1[1], v2[1], v3[1]);
+		line_height *= 1.2; /* could be an option? */
+		/* end multiline */
 
-		characters = textlen;
-
-		ima = (Image*)tface->tpage;
-		if (ima == NULL)
-			characters = 0;
-
-		// color has been set
+		
+		/* color has been set */
 		if (tface->mode & TF_OBCOL)
 			col= NULL;
 		else if (!col)
 			glColor3f(1.0f, 1.0f, 1.0f);
 
 		glPushMatrix();
-		for (index = 0; index < characters; index++) {
+		
+		/* get the tab width */
+		matrixGlyph((ImBuf *)ima->ibufs.first, ' ', & centerx, &centery,
+			&sizex, &sizey, &transx, &transy, &movex, &movey, &advance);
+		
+		advance_tab= advance * 4; /* tab width could also be an option */
+		
+		
+		for (index = 0; index < textlen; index++) {
 			float uv[4][2];
 
 			// lets calculate offset stuff
 			character = textstr[index];
+			
+			if (character=='\n') {
+				glTranslatef(line_start, -line_height, 0.0);
+				line_start = 0.0f;
+				continue;
+			}
+			else if (character=='\t') {
+				glTranslatef(advance_tab, 0.0, 0.0);
+				line_start -= advance_tab; /* so we can go back to the start of the line */
+				continue;
+				
+			}
 			
 			// space starts at offset 1
 			// character = character - ' ' + 1;
@@ -143,6 +169,7 @@ void GPU_render_text(MTFace *tface, int mode,
 			glEnd();
 
 			glTranslatef(advance, 0.0, 0.0);
+			line_start -= advance; /* so we can go back to the start of the line */
 		}
 		glPopMatrix();
 	}

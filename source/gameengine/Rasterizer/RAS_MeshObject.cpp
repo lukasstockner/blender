@@ -179,14 +179,14 @@ list<RAS_MeshMaterial>::iterator RAS_MeshObject::GetLastMaterial()
 
 
 
-void RAS_MeshObject::SetName(STR_String name)
+void RAS_MeshObject::SetName(const char *name)
 {
 	m_name = name;
 }
 
 
 
-const STR_String& RAS_MeshObject::GetName()
+STR_String& RAS_MeshObject::GetName()
 {
 	return m_name;
 }
@@ -215,6 +215,19 @@ RAS_MeshMaterial *RAS_MeshObject::GetMeshMaterial(RAS_IPolyMaterial *mat)
 	return NULL;
 }
 
+int RAS_MeshObject::GetMaterialId(RAS_IPolyMaterial *mat)
+{
+	list<RAS_MeshMaterial>::iterator mit;
+	int imat;
+
+	/* find a mesh material */
+	for(imat=0, mit = m_materials.begin(); mit != m_materials.end(); mit++, imat++)
+		if(mit->m_bucket->GetPolyMaterial() == mat)
+			return imat;
+
+	return -1;
+}
+
 RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts)
 {
 	RAS_MeshMaterial *mmat;
@@ -229,6 +242,7 @@ RAS_Polygon* RAS_MeshObject::AddPolygon(RAS_MaterialBucket *bucket, int numverts
 		RAS_MeshMaterial meshmat;
 		meshmat.m_bucket = bucket;
 		meshmat.m_baseslot = meshmat.m_bucket->AddMesh(numverts);
+		meshmat.m_baseslot->m_mesh = this;
 		m_materials.push_back(meshmat);
 		mmat = &m_materials.back();
 	}
@@ -291,7 +305,7 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 	slot = mmat->m_baseslot;
 	darray = slot->CurrentDisplayArray();
 
-	if(!flat) {
+	{ /* Shared Vertex! */
 		/* find vertices shared between faces, with the restriction
 		 * that they exist in the same display array, and have the
 		 * same uv coordinate etc */
@@ -319,7 +333,7 @@ void RAS_MeshObject::AddVertex(RAS_Polygon *poly, int i,
 		slot->AddPolygonVertex(offset);
 	poly->SetVertexOffset(i, offset);
 
-	if(!flat) {
+	{ /* Shared Vertex! */
 		SharedVertex shared;
 		shared.m_darray = darray;
 		shared.m_offset = offset;
@@ -368,7 +382,7 @@ RAS_TexVert* RAS_MeshObject::GetVertex(unsigned int matid,
 	return NULL;
 }
 
-void RAS_MeshObject::AddMeshUser(void *clientobj)
+void RAS_MeshObject::AddMeshUser(void *clientobj, SG_QList *head)
 {
 	list<RAS_MeshMaterial>::iterator it;
 
@@ -378,6 +392,7 @@ void RAS_MeshObject::AddMeshUser(void *clientobj)
 		RAS_MeshSlot *ms = it->m_bucket->CopyMesh(it->m_baseslot);
 		ms->m_clientObj = clientobj;
 		it->m_slots.insert(clientobj, ms);
+		head->QAddBack(ms);
 	}
 }
 
@@ -389,7 +404,7 @@ void RAS_MeshObject::UpdateBuckets(void* clientobj,
 							   bool culled)
 {
 	list<RAS_MeshMaterial>::iterator it;
-
+	
 	for(it = m_materials.begin();it!=m_materials.end();++it) {
 		RAS_MeshSlot **msp = it->m_slots[clientobj];
 
@@ -404,9 +419,13 @@ void RAS_MeshObject::UpdateBuckets(void* clientobj,
 		ms->m_RGBAcolor = rgbavec;
 		ms->m_bVisible = visible;
 		ms->m_bCulled = culled || !visible;
+		if (!ms->m_bCulled)
+			ms->m_bucket->ActivateMesh(ms);
 
 		/* split if necessary */
+#ifdef USE_SPLIT
 		ms->Split();
+#endif
 	}
 }
 

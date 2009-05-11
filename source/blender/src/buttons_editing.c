@@ -1031,7 +1031,7 @@ static uiBlock *modifiers_add_menu(void *ob_v)
 		/* Only allow adding through appropriate other interfaces */
 		if(ELEM3(i, eModifierType_Softbody, eModifierType_Hook, eModifierType_ParticleSystem)) continue;
 		
-		if(ELEM3(i, eModifierType_Cloth, eModifierType_Collision, eModifierType_Fluidsim)) continue;
+		if(ELEM4(i, eModifierType_Cloth, eModifierType_Collision, eModifierType_Surface, eModifierType_Fluidsim)) continue;
 
 		if((mti->flags&eModifierTypeFlag_AcceptsCVs) ||
 		   (ob->type==OB_MESH && (mti->flags&eModifierTypeFlag_AcceptsMesh))) {
@@ -1735,6 +1735,7 @@ static int modifier_is_fluid_particles(ModifierData *md) {
 	}
 	return 0;
 }
+
 static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco, int *yco, int index, int cageIndex, int lastCageIndex)
 {
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
@@ -1771,7 +1772,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 		uiDefBut(block, TEX, B_MODIFIER_REDRAW, "", x+10, y-1, buttonWidth-60, 19, md->name, 0.0, sizeof(md->name)-1, 0.0, 0.0, "Modifier name"); 
 
 		/* Softbody not allowed in this situation, enforce! */
-		if ((md->type!=eModifierType_Softbody && md->type!=eModifierType_Collision) || !(ob->pd && ob->pd->deflect)) {
+		if (((md->type!=eModifierType_Softbody && md->type!=eModifierType_Collision) || !(ob->pd && ob->pd->deflect)) && (md->type!=eModifierType_Surface)) {
 			uiDefIconButBitI(block, TOG, eModifierMode_Render, B_MODIFIER_RECALC, ICON_SCENE, x+10+buttonWidth-60, y-1, 19, 19,&md->mode, 0, 0, 1, 0, "Enable modifier during rendering");
 			but= uiDefIconButBitI(block, TOG, eModifierMode_Realtime, B_MODIFIER_RECALC, VICON_VIEW3D, x+10+buttonWidth-40, y-1, 19, 19,&md->mode, 0, 0, 1, 0, "Enable modifier during interactive display");
 			if (mti->flags&eModifierTypeFlag_SupportsEditmode) {
@@ -1813,7 +1814,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 		
 		// deletion over the deflection panel
 		// fluid particle modifier can't be deleted here
-		if(md->type!=eModifierType_Fluidsim && md->type!=eModifierType_Collision && !modifier_is_fluid_particles(md))
+		if(md->type!=eModifierType_Fluidsim && md->type!=eModifierType_Collision && md->type!=eModifierType_Surface && !modifier_is_fluid_particles(md))
 		{
 			but = uiDefIconBut(block, BUT, B_MODIFIER_RECALC, VICON_X, x+width-70+40, y, 16, 16, NULL, 0.0, 0.0, 0.0, 0.0, "Delete modifier");
 			uiButSetFunc(but, modifiers_del, ob, md);
@@ -1884,6 +1885,8 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			height = 31;
 		} else if (md->type==eModifierType_Collision) {
 			height = 31;
+		} else if (md->type==eModifierType_Surface) {
+			height = 31;
 		} else if (md->type==eModifierType_Fluidsim) {
 			height = 31;
 		} else if (md->type==eModifierType_Boolean) {
@@ -1901,12 +1904,10 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			height = 94;
 		} else if (md->type==eModifierType_Shrinkwrap) {
 			ShrinkwrapModifierData *smd = (ShrinkwrapModifierData*) md;
-			height = 86 + 3;
+			height = 105 + 3;
+
 			if (smd->shrinkType == MOD_SHRINKWRAP_PROJECT)
-			{
 				height += 19*5;
-				if(smd->projAxis == 0) height += 19;
-			}
 			else if (smd->shrinkType == MOD_SHRINKWRAP_NEAREST_SURFACE)
 				height += 19;
 		} else if (md->type == eModifierType_Mask) {
@@ -1924,7 +1925,7 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 
 		y -= 18;
 
-		if (!isVirtual && (md->type!=eModifierType_Collision)) {
+		if (!isVirtual && (md->type!=eModifierType_Collision) && (md->type!=eModifierType_Surface)) {
 			uiSetButLock(object_data_is_libdata(ob), ERROR_LIBDATA_MESSAGE); /* only here obdata, the rest of modifiers is ob level */
 
 			uiBlockBeginAlign(block);
@@ -2369,6 +2370,8 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 
 		} else if (md->type==eModifierType_Collision) {
 			uiDefBut(block, LABEL, 1, "See Collision panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
+		} else if (md->type==eModifierType_Surface) {
+			uiDefBut(block, LABEL, 1, "See Fields panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
 		} else if (md->type==eModifierType_Fluidsim) {
 			uiDefBut(block, LABEL, 1, "See Fluidsim panel.",	lx, (cy-=19), buttonWidth,19, NULL, 0.0, 0.0, 0, 0, "");
 		} else if (md->type==eModifierType_Boolean) {
@@ -2592,16 +2595,14 @@ static void draw_modifier(uiBlock *block, Object *ob, ModifierData *md, int *xco
 			cy -= 3;
 			uiDefButS(block, MENU, B_MODIFIER_RECALC, shrinktypemenu, lx,(cy-=19),buttonWidth,19, &smd->shrinkType, 0, 0, 0, 0, "Selects type of shrinkwrap algorithm for target position.");
 
+			uiDefButC(block, NUM, B_MODIFIER_RECALC, "SS Levels:",		lx, (cy-=19), buttonWidth,19, &smd->subsurfLevels, 0, 6, 0, 0, "This indicates the number of CCSubdivisions that must be performed before extracting vertexs positions and normals");
+
 			if (smd->shrinkType == MOD_SHRINKWRAP_PROJECT){
 
 
 				/* UI for projection axis */
 				uiBlockBeginAlign(block);
 				uiDefButC(block, ROW, B_MODIFIER_RECALC, "Normal"    , lx,(cy-=19),buttonWidth,19, &smd->projAxis, 18.0, MOD_SHRINKWRAP_PROJECT_OVER_NORMAL, 0, 0, "Projection over X axis");
-				if(smd->projAxis == 0)
-				{
-					uiDefButC(block, NUM, B_MODIFIER_RECALC, "SS Levels:",		lx, (cy-=19), buttonWidth,19, &smd->subsurfLevels, 0, 6, 0, 0, "This indicates the number of CCSubdivisions that must be performed before extracting vertexs positions and normals");
-				}
 
 				uiDefButBitC(block, TOG, MOD_SHRINKWRAP_PROJECT_OVER_X_AXIS, B_MODIFIER_RECALC, "X",	lx+buttonWidth/3*0,(cy-=19),buttonWidth/3,19, &smd->projAxis, 0, 0, 0, 0, "Projection over X axis");
 				uiDefButBitC(block, TOG, MOD_SHRINKWRAP_PROJECT_OVER_Y_AXIS, B_MODIFIER_RECALC, "Y",	lx+buttonWidth/3*1,cy,buttonWidth/3,19, &smd->projAxis, 0, 0, 0, 0, "Projection over Y axis");
@@ -3727,6 +3728,9 @@ static void editing_panel_camera_type(Object *ob, Camera *cam)
 				  10, 160, 150, 20, &cam->ortho_scale, 0.01, 1000.0, 50, 0, "Specify the ortho scaling of the used camera");
 	} else {
 		if(cam->flag & CAM_ANGLETOGGLE) {
+			/* ensure animated lens value is always copied */
+			do_lenstoangleconversion_cb(&cam->lens, &cam->angle);
+			
 			but= uiDefButF(block, NUM,REDRAWVIEW3D, "Lens:",
 					  10, 160, 130, 20, &cam->angle, 7.323871, 172.847331, 100, 0, "Specify the lens of the camera in degrees");		
 			uiButSetFunc(but,do_angletolensconversion_cb, &cam->lens, &cam->angle);
@@ -6615,7 +6619,10 @@ static void editing_panel_mesh_uvautocalculation(void)
 	uiDefButBitS(block, TOGN, UVCALC_NO_ASPECT_CORRECT, B_NOP, "Image Aspect",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Scale the UV Unwrapping to correct for the current images aspect ratio");
 
 	row-= butHB+butS;	
-		uiDefButBitS(block, TOG, UVCALC_TRANSFORM_CORRECT, B_NOP, "Transform Correction",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Correct for UV distortion while transforming, (only works with edge slide now)");
+	uiDefButBitS(block, TOG, UVCALC_TRANSFORM_CORRECT, B_NOP, "Transform Correction",100,row,200,butH,&G.scene->toolsettings->uvcalc_flag, 0, 0, 0, 0,  "Correct for UV distortion while transforming, (only works with edge slide now)");
+	
+	row-= butHB+butS;	
+	uiDefButF(block, NUM,B_NOP ,"Pack Margin:",100,row,200,butH, &G.scene->toolsettings->uvcalc_margin, 0.0, 1.0, 10, 2, "Add a margin between UV islands when unwrapping or with 'Pack Islands' in the UV window");
 
 	row= 180;
 	
@@ -6961,3 +6968,4 @@ void editing_panels()
 	}
 	uiClearButLock();
 }
+

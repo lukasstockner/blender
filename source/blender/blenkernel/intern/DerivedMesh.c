@@ -77,6 +77,7 @@
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
 #include "BKE_particle.h"
+#include "BKE_bvhutils.h"
 
 #include "BLO_sys_types.h" // for intptr_t support
 
@@ -182,6 +183,8 @@ void DM_init_funcs(DerivedMesh *dm)
 	dm->getVertDataArray = DM_get_vert_data_layer;
 	dm->getEdgeDataArray = DM_get_edge_data_layer;
 	dm->getFaceDataArray = DM_get_face_data_layer;
+
+	bvhcache_init(&dm->bvhCache);
 }
 
 void DM_init(DerivedMesh *dm,
@@ -218,6 +221,8 @@ void DM_from_template(DerivedMesh *dm, DerivedMesh *source,
 int DM_release(DerivedMesh *dm)
 {
 	if (dm->needsFree) {
+		bvhcache_free(&dm->bvhCache);
+
 		CustomData_free(&dm->vertData, dm->numVertData);
 		CustomData_free(&dm->edgeData, dm->numEdgeData);
 		CustomData_free(&dm->faceData, dm->numFaceData);
@@ -904,7 +909,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 	glShadeModel(GL_SMOOTH);
 
 	for (i=0,eve=em->verts.first; eve; eve= eve->next)
-		eve->tmp.l = (long) i++;
+		eve->tmp.l = (intptr_t) i++;
 
 #define PASSATTRIB(efa, eve, vert) {											\
 	if(attribs.totorco) {														\
@@ -2106,6 +2111,11 @@ static void add_orco_dm(Object *ob, EditMesh *em, DerivedMesh *dm, DerivedMesh *
 		DM_add_vert_layer(dm, CD_ORCO, CD_ASSIGN, orco);
 }
 
+/* new value for useDeform -1  (hack for the gameengine):
+ * - apply only the modifier stack of the object, skipping the virtual modifiers,
+ * - don't apply the key
+ * - apply deform modifiers and input vertexco
+ */
 static void mesh_calc_modifiers(Object *ob, float (*inputVertexCos)[3],
                                 DerivedMesh **deform_r, DerivedMesh **final_r,
                                 int useRenderParams, int useDeform,
@@ -2120,7 +2130,7 @@ static void mesh_calc_modifiers(Object *ob, float (*inputVertexCos)[3],
 	int numVerts = me->totvert;
 	int required_mode;
 
-	md = firstmd = modifiers_getVirtualModifierList(ob);
+	md = firstmd = (useDeform<0) ? ob->modifiers.first : modifiers_getVirtualModifierList(ob);
 
 	modifiers_clearErrors(ob);
 
@@ -2137,8 +2147,10 @@ static void mesh_calc_modifiers(Object *ob, float (*inputVertexCos)[3],
 	else required_mode = eModifierMode_Realtime;
 
 	if(useDeform) {
-		if(do_ob_key(ob)) /* shape key makes deform verts */
+		if(useDeform > 0 && do_ob_key(ob)) /* shape key makes deform verts */
 			deformedVerts = mesh_getVertexCos(me, &numVerts);
+		else if(inputVertexCos)
+			deformedVerts = inputVertexCos;
 		
 		/* Apply all leading deforming modifiers */
 		for(;md; md = md->next, curr = curr->next) {
@@ -2146,6 +2158,7 @@ static void mesh_calc_modifiers(Object *ob, float (*inputVertexCos)[3],
 
 			if((md->mode & required_mode) != required_mode) continue;
 			if(mti->isDisabled && mti->isDisabled(md)) continue;
+			if(useDeform < 0 && mti->dependsOnTime && mti->dependsOnTime(md)) continue;
 
 			if(mti->type == eModifierTypeType_OnlyDeform) {
 				if(!deformedVerts)
@@ -2216,6 +2229,7 @@ static void mesh_calc_modifiers(Object *ob, float (*inputVertexCos)[3],
 		}
 		if(mti->isDisabled && mti->isDisabled(md)) continue;
 		if(needMapping && !modifier_supportsMapping(md)) continue;
+		if(useDeform < 0 && mti->dependsOnTime && mti->dependsOnTime(md)) continue;
 
 		/* add an orco layer if needed by this modifier */
 		if(dm && mti->requiredDataMask) {
@@ -2938,6 +2952,16 @@ DerivedMesh *mesh_create_derived_no_deform(Object *ob, float (*vertCos)[3],
 	DerivedMesh *final;
 	
 	mesh_calc_modifiers(ob, vertCos, NULL, &final, 0, 0, 0, dataMask, -1);
+
+	return final;
+}
+
+DerivedMesh *mesh_create_derived_no_virtual(Object *ob, float (*vertCos)[3],
+                                            CustomDataMask dataMask)
+{
+	DerivedMesh *final;
+	
+	mesh_calc_modifiers(ob, vertCos, NULL, &final, 0, -1, 0, dataMask, -1);
 
 	return final;
 }

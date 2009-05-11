@@ -38,8 +38,13 @@
 // cool things like (IF(LOD==1,CCurvedValue,IF(LOD==2,CCurvedValue2)) etc...
 #include "IfExpr.h" 
 
-#if defined(WIN32) || defined(WIN64)
-#define strcasecmp _stricmp
+#if (defined(WIN32) || defined(WIN64)) && !defined(FREE_WINDOWS)
+#define strcasecmp	_stricmp
+
+#ifndef strtoll
+#define strtoll		_strtoi64
+#endif
+
 #endif /* Def WIN32 or Def WIN64 */
 
 #define NUM_PRIORITY 6
@@ -61,7 +66,7 @@ CParser::~CParser()
 
 
 
-void CParser::ScanError(STR_String str)
+void CParser::ScanError(const char *str)
 {
 	// sets the global variable errmsg to an errormessage with
 	// contents str, appending if it already exists
@@ -76,7 +81,7 @@ void CParser::ScanError(STR_String str)
 
 
 
-CExpression* CParser::Error(STR_String str)
+CExpression* CParser::Error(const char *str)
 {
 	// makes and returns a new CConstExpr filled with an CErrorValue
 	// with string str
@@ -319,12 +324,14 @@ void CParser::NextSym()
 	}
 }
 
+#if 0
 int CParser::MakeInt() {
 	// returns the integer representation of the value in the global
 	// variable const_as_string
 	// pre: const_as_string contains only numercal chars
 	return atoi(const_as_string);
 }
+#endif
 
 STR_String CParser::Symbol2Str(int s) {
 	// returns a string representation of of symbol s,
@@ -436,8 +443,8 @@ CExpression *CParser::Ex(int i) {
 					break;
 				case inttype:
 					{
-						int temp;
-						temp = atoi(const_as_string);
+						cInt temp;
+						temp = strtoll(const_as_string, NULL, 10); /* atoi is for int only */
 						e1 = new CConstExpr(new CIntValue(temp));
 						break;
 					}
@@ -530,7 +537,7 @@ CExpression *CParser::Expr() {
 }
 
 CExpression* CParser::ProcessText
-(STR_String intext) {
+(const char *intext) {
 	
 	// and parses the string in intext and returns it.
 	
@@ -567,7 +574,7 @@ CExpression* CParser::ProcessText
 
 
 
-float CParser::GetFloat(STR_String txt)
+float CParser::GetFloat(STR_String& txt)
 {
 	// returns parsed text into a float
 	// empty string returns -1
@@ -580,7 +587,7 @@ float CParser::GetFloat(STR_String txt)
 	CExpression* expr = ProcessText(txt);
 	if (expr) {
 		val = expr->Calculate();
-		result=val->GetNumber();
+		result=(float)val->GetNumber();
 		
 		
 	
@@ -592,7 +599,7 @@ float CParser::GetFloat(STR_String txt)
 	return result;
 }
 
-CValue* CParser::GetValue(STR_String txt, bool bFallbackToText)
+CValue* CParser::GetValue(STR_String& txt, bool bFallbackToText)
 {
 	// returns parsed text into a value, 
 	// empty string returns NULL value !
@@ -642,7 +649,7 @@ PyObject*	CParserPyMake(PyObject* ignored,PyObject* args)
 	CExpression* expr = parser.ProcessText(txt);
 	CValue* val = expr->Calculate();
 	expr->Release();
-	return val;
+	return val->GetProxy();
 }
 
 static PyMethodDef	CParserMethods[] = 
@@ -651,10 +658,41 @@ static PyMethodDef	CParserMethods[] =
 	{ NULL,NULL}	// Sentinel
 };
 
+
+#if (PY_VERSION_HEX >= 0x03000000)
+static struct PyModuleDef Expression_module_def = {
+	{}, /* m_base */
+	"Expression",  /* m_name */
+	0,  /* m_doc */
+	0,  /* m_size */
+	CParserMethods,  /* m_methods */
+	0,  /* m_reload */
+	0,  /* m_traverse */
+	0,  /* m_clear */
+	0,  /* m_free */
+};
+#endif
+
 extern "C" {
 	void initExpressionModule(void)
 	{
-		Py_InitModule("Expression",CParserMethods);
+		PyObject *m;
+		/* Use existing module where possible
+		 * be careful not to init any runtime vars after this */
+		m = PyImport_ImportModule( "Expression" );
+		if(m) {
+			Py_DECREF(m);
+			//return m;
+		}
+		else {
+			PyErr_Clear();
+		
+#if (PY_VERSION_HEX >= 0x03000000)
+			PyModule_Create(&Expression_module_def);
+#else
+			Py_InitModule("Expression",CParserMethods);
+#endif
+		}
 	}
 }
 

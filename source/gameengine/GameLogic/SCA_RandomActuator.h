@@ -97,19 +97,20 @@ class SCA_RandomActuator : public SCA_IActuator
 	/* --------------------------------------------------------------------- */
 
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);
 
 	static PyObject* pyattr_get_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static int pyattr_set_seed(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	// Deprecated methods ----->
-	KX_PYMETHOD_DOC(SCA_RandomActuator,SetSeed);
-	KX_PYMETHOD_DOC(SCA_RandomActuator,GetSeed);
-	KX_PYMETHOD_DOC(SCA_RandomActuator,GetPara1);
-	KX_PYMETHOD_DOC(SCA_RandomActuator,GetPara2);
-	KX_PYMETHOD_DOC(SCA_RandomActuator,GetDistribution);
-	KX_PYMETHOD_DOC(SCA_RandomActuator,SetProperty);
-	KX_PYMETHOD_DOC(SCA_RandomActuator,GetProperty);
+	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator,SetSeed);
+	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator,GetSeed);
+	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator,GetPara1);
+	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator,GetPara2);
+	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator,GetDistribution);
+	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator,SetProperty);
+	KX_PYMETHOD_DOC_NOARGS(SCA_RandomActuator,GetProperty);
 	// <-----
 
 	KX_PYMETHOD_DOC_VARARGS(SCA_RandomActuator, setBoolConst);

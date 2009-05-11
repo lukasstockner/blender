@@ -109,52 +109,34 @@ void KX_NearSensor::UnregisterSumo(KX_TouchEventManager* touchman)
 CValue* KX_NearSensor::GetReplica()
 {
 	KX_NearSensor* replica = new KX_NearSensor(*this);
-	replica->m_colliders = new CListValue();
-	replica->Init();
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
-	
-	replica->m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject, KX_ClientObjectInfo::NEAR);
-	
-	if (replica->m_physCtrl)
-	{
-		replica->m_physCtrl = replica->m_physCtrl->GetReplica();
-		if (replica->m_physCtrl)
-		{
-			//static_cast<KX_TouchEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
-			replica->m_physCtrl->SetMargin(m_Margin);
-			replica->m_physCtrl->setNewClientInfo(replica->m_client_info);
-		}
-		
-	}
-	//static_cast<KX_TouchEventManager*>(m_eventmgr)->RegisterSensor(this);
-	//todo: make sure replication works fine
-	//>m_sumoObj = new SM_Object(DT_NewSphere(0.0),NULL,NULL,NULL);
-	//replica->m_sumoObj->setMargin(m_Margin);
-	//replica->m_sumoObj->setClientObject(replica->m_client_info);
-	
-	((KX_GameObject*)replica->GetParent())->GetSGNode()->ComputeWorldTransforms(NULL);
-	replica->SynchronizeTransform();
-	
+	replica->ProcessReplica();
 	return replica;
 }
 
-
+void KX_NearSensor::ProcessReplica()
+{
+	KX_TouchSensor::ProcessReplica();
+	
+	m_client_info = new KX_ClientObjectInfo(m_client_info->m_gameobject, KX_ClientObjectInfo::NEAR);
+	
+	if (m_physCtrl)
+	{
+		m_physCtrl = m_physCtrl->GetReplica();
+		if (m_physCtrl)
+		{
+			//static_cast<KX_TouchEventManager*>(m_eventmgr)->GetPhysicsEnvironment()->addSensor(replica->m_physCtrl);
+			m_physCtrl->SetMargin(m_Margin);
+			m_physCtrl->setNewClientInfo(m_client_info);
+		}
+		
+	}
+}
 
 void KX_NearSensor::ReParent(SCA_IObject* parent)
 {
 	m_client_info->m_gameobject = static_cast<KX_GameObject*>(parent); 
 	m_client_info->m_sensors.push_back(this);
-	
-
-/*	KX_ClientObjectInfo *client_info = gameobj->getClientInfo();
-	client_info->m_gameobject = gameobj;
-	client_info->m_auxilary_info = NULL;
-	
-	client_info->m_sensors.push_back(this);
-	SCA_ISensor::ReParent(parent);
-*/
-	((KX_GameObject*)GetParent())->GetSGNode()->ComputeWorldTransforms(NULL);
+	//Synchronize here with the actual parent.
 	SynchronizeTransform();
 	SCA_ISensor::ReParent(parent);
 }
@@ -178,7 +160,7 @@ KX_NearSensor::~KX_NearSensor()
 }
 
 
-bool KX_NearSensor::Evaluate(CValue* event)
+bool KX_NearSensor::Evaluate()
 {
 	bool result = false;
 //	KX_GameObject* parent = static_cast<KX_GameObject*>(GetParent());
@@ -287,12 +269,17 @@ bool	KX_NearSensor::NewHandleCollision(void* obj1,void* obj2,const PHY_CollData 
 /* ------------------------------------------------------------------------- */
 
 PyTypeObject KX_NearSensor::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_NearSensor",
-	sizeof(KX_NearSensor),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -332,18 +319,14 @@ PyAttributeDef KX_NearSensor::Attributes[] = {
 
 PyObject* KX_NearSensor::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
-
 	py_getattro_up(KX_TouchSensor);
+}
+
+PyObject* KX_NearSensor::py_getattro_dict() {
+	py_getattro_dict_up(KX_TouchSensor);
 }
 
 int KX_NearSensor::py_setattro(PyObject*attr, PyObject* value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-
-	return KX_TouchSensor::py_setattro(attr, value);
+	py_setattro_up(KX_TouchSensor);
 }

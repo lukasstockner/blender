@@ -51,7 +51,7 @@ public:
 					PyTypeObject* T =&Type);
 	virtual ~SCA_DelaySensor();
 	virtual CValue* GetReplica();
-	virtual bool Evaluate(CValue* event);
+	virtual bool Evaluate();
 	virtual bool IsPositiveTrigger();
 	virtual void Init();
 
@@ -61,12 +61,13 @@ public:
 	/* --------------------------------------------------------------------- */
 	
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject*		py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);
 
 	/* setProperty */
-	KX_PYMETHOD_DOC(SCA_DelaySensor,SetDelay);
-	KX_PYMETHOD_DOC(SCA_DelaySensor,SetDuration);
-	KX_PYMETHOD_DOC(SCA_DelaySensor,SetRepeat);
+	KX_PYMETHOD_DOC_VARARGS(SCA_DelaySensor,SetDelay);
+	KX_PYMETHOD_DOC_VARARGS(SCA_DelaySensor,SetDuration);
+	KX_PYMETHOD_DOC_VARARGS(SCA_DelaySensor,SetRepeat);
 	/* getProperty */
 	KX_PYMETHOD_DOC_NOARGS(SCA_DelaySensor,GetDelay);
 	KX_PYMETHOD_DOC_NOARGS(SCA_DelaySensor,GetDuration);

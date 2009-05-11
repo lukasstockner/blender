@@ -38,7 +38,7 @@
 
 #include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertActuators.h"
-
+#include "SND_Scene.h"
 // Actuators
 //SCA logiclibrary native logicbricks
 #include "SCA_PropertyActuator.h"
@@ -105,7 +105,6 @@ void BL_ConvertActuators(char* maggiename,
 						 SCA_LogicManager* logicmgr,
 						 KX_Scene* scene,
 						 KX_KetsjiEngine* ketsjiEngine,
-						 int & executePriority, 
 						 int activeLayerBitInfo,
 						 bool isInActiveLayer,
 						 RAS_IRenderTools* rendertools,
@@ -114,11 +113,20 @@ void BL_ConvertActuators(char* maggiename,
 {
 	
 	int uniqueint = 0;
+	int actcount = 0;
+	int executePriority = 0;
 	bActuator* bact = (bActuator*) blenderobject->actuators.first;
+	while (bact)
+	{
+		actcount++;
+		bact = bact->next;
+	}
+	gameobj->ReserveActuator(actcount);
+	bact = (bActuator*) blenderobject->actuators.first;
 	while(bact)
 	{
 		STR_String uniquename = bact->name;
-		STR_String objectname = gameobj->GetName();
+		STR_String& objectname = gameobj->GetName();
 		
 		SCA_IActuator* baseact = NULL;
 		switch (bact->type)
@@ -1008,9 +1016,10 @@ void BL_ConvertActuators(char* maggiename,
 			bVisibilityActuator *vis_act = (bVisibilityActuator *) bact->data;
 			KX_VisibilityActuator * tmp_vis_act = NULL;
 			bool v = ((vis_act->flag & ACT_VISIBILITY_INVISIBLE) != 0);
+			bool o = ((vis_act->flag & ACT_VISIBILITY_OCCLUSION) != 0);
 			bool recursive = ((vis_act->flag & ACT_VISIBILITY_RECURSIVE) != 0);
 
-			tmp_vis_act = new KX_VisibilityActuator(gameobj, !v, recursive);
+			tmp_vis_act = new KX_VisibilityActuator(gameobj, !v, o, recursive);
 			
 			baseact = tmp_vis_act;
 		}
@@ -1096,7 +1105,7 @@ void BL_ConvertActuators(char* maggiename,
 				buf = txt_to_buf(_2dfilter->text);
 				if (buf)
 				{
-					tmp->SetShaderText(STR_String(buf));
+					tmp->SetShaderText(buf);
 					MEM_freeN(buf);
 				}
 			}
@@ -1143,7 +1152,7 @@ void BL_ConvertActuators(char* maggiename,
 			CIntValue* uniqueval = new CIntValue(uniqueint);
 			uniquename += uniqueval->GetText();
 			uniqueval->Release();
-			baseact->SetName(STR_String(bact->name));
+			baseact->SetName(bact->name);
 			//gameobj->SetProperty(uniquename,baseact);
 			gameobj->AddActuator(baseact);
 			

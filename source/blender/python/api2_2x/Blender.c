@@ -1074,7 +1074,7 @@ void M_Blender_Init(void)
 
 	PyDict_SetItemString(dict, "Armature", Armature_Init());
 	PyDict_SetItemString(dict, "BezTriple", BezTriple_Init());
-	PyDict_SetItemString(dict, "BGL", BGL_Init());
+	PyDict_SetItemString(dict, "BGL", BGL_Init("Blender.BGL"));
 	PyDict_SetItemString(dict, "CurNurb", CurNurb_Init());
 	PyDict_SetItemString(dict, "Constraint", Constraint_Init());
 	PyDict_SetItemString(dict, "Curve", Curve_Init());
@@ -1092,7 +1092,7 @@ void M_Blender_Init(void)
 	PyDict_SetItemString(dict, "Mesh", Mesh_Init()); 
 	PyDict_SetItemString(dict, "Metaball", Metaball_Init());
 	PyDict_SetItemString(dict, "Mathutils", Mathutils_Init("Blender.Mathutils"));
-	PyDict_SetItemString(dict, "Geometry", Geometry_Init());
+	PyDict_SetItemString(dict, "Geometry", Geometry_Init("Blender.Geometry"));
 	PyDict_SetItemString(dict, "Modifier", Modifier_Init());
 	PyDict_SetItemString(dict, "NMesh", NMesh_Init());
 	PyDict_SetItemString(dict, "Node", Node_Init());

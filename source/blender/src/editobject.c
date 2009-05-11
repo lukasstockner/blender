@@ -216,6 +216,7 @@ void add_object_draw(int type)	/* for toolbox or menus, only non-editmode stuff 
 		else if(type==OB_LAMP) {
 			BIF_undo_push("Add Lamp");
 			reshadeall_displist();	/* only frees */
+			BIF_preview_changed(ID_LA);
 		}
 		else if(type==OB_LATTICE) BIF_undo_push("Add Lattice");
 		else if(type==OB_CAMERA) BIF_undo_push("Add Camera");
@@ -3205,14 +3206,12 @@ static void copymenu_properties(Object *ob)
 		prop= prop->next;
 	}
 	
-	if(tot==0) {
-		error("No properties in the active object to copy");
-		return;
-	}
-	
 	str= MEM_callocN(50 + 33*tot, "copymenu prop");
 	
-	strcpy(str, "Copy Property %t|Replace All|Merge All|%l");
+	if (tot)
+		strcpy(str, "Copy Property %t|Replace All|Merge All|%l");
+	else
+		strcpy(str, "Copy Property %t|Clear All (no properties on active)");
 	
 	tot= 0;	
 	prop= ob->prop.first;
@@ -3526,7 +3525,8 @@ void copy_attr(short event)
 					base->object->formfactor = ob->formfactor;
 					base->object->damping= ob->damping;
 					base->object->rdamping= ob->rdamping;
-					base->object->mass= ob->mass;
+					base->object->min_vel= ob->min_vel;
+					base->object->max_vel= ob->max_vel;
 					if (ob->gameflag & OB_BOUNDS) {
 						base->object->boundtype = ob->boundtype;
 					}

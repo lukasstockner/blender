@@ -128,8 +128,6 @@ public:
 	virtual CValue* GetReplica() {
 		KX_IpoActuator* replica = new KX_IpoActuator(*this);//m_float,GetName());
 		replica->ProcessReplica();
-		// this will copy properties and so on...
-		CValue::AddDataToReplica(replica);
 		return replica;
 	};
 
@@ -142,23 +140,24 @@ public:
 	/* --------------------------------------------------------------------- */
 
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);
 	
 	//KX_PYMETHOD_DOC
-	KX_PYMETHOD_DOC(KX_IpoActuator,Set);
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetProperty);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,Set);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetProperty);
 /*  	KX_PYMETHOD_DOC(KX_IpoActuator,SetKey2Key); */
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetStart);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetStart);
 	KX_PYMETHOD_DOC_NOARGS(KX_IpoActuator,GetStart);
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetEnd);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetEnd);
 	KX_PYMETHOD_DOC_NOARGS(KX_IpoActuator,GetEnd);
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetIpoAsForce);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetIpoAsForce);
 	KX_PYMETHOD_DOC_NOARGS(KX_IpoActuator,GetIpoAsForce);
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetIpoAdd);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetIpoAdd);
 	KX_PYMETHOD_DOC_NOARGS(KX_IpoActuator,GetIpoAdd);
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetType);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetType);
 	KX_PYMETHOD_DOC_NOARGS(KX_IpoActuator,GetType);
-	KX_PYMETHOD_DOC(KX_IpoActuator,SetForceIpoActsLocal);
+	KX_PYMETHOD_DOC_VARARGS(KX_IpoActuator,SetForceIpoActsLocal);
 	KX_PYMETHOD_DOC_NOARGS(KX_IpoActuator,GetForceIpoActsLocal);
 	
 };

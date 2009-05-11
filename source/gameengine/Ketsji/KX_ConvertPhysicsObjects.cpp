@@ -34,7 +34,7 @@
 
 // defines USE_ODE to choose physics engine
 #include "KX_ConvertPhysicsObject.h"
-#include "KX_GameObject.h"
+#include "BL_DeformableGameObject.h"
 #include "RAS_MeshObject.h"
 #include "KX_Scene.h"
 #include "SYS_System.h"
@@ -670,11 +670,11 @@ void	KX_ConvertODEEngineObject(KX_GameObject* gameobj,
 							
 	class KX_SoftBodyDeformer : public RAS_Deformer
 	{
-		class RAS_MeshObject*	m_pMeshObject;
-		class KX_GameObject*	m_gameobj;
+		class RAS_MeshObject*			m_pMeshObject;
+		class BL_DeformableGameObject*	m_gameobj;
 
 	public:
-		KX_SoftBodyDeformer(RAS_MeshObject*	pMeshObject,KX_GameObject*	gameobj)
+		KX_SoftBodyDeformer(RAS_MeshObject*	pMeshObject,BL_DeformableGameObject*	gameobj)
 			:m_pMeshObject(pMeshObject),
 			m_gameobj(gameobj)
 		{
@@ -687,7 +687,15 @@ void	KX_ConvertODEEngineObject(KX_GameObject* gameobj,
 		};
 		virtual void Relink(GEN_Map<class GEN_HashedPtr, void*>*map)
 		{
-			//printf("relink\n");
+			void **h_obj = (*map)[m_gameobj];
+
+			if (h_obj) {
+				m_gameobj = (BL_DeformableGameObject*)(*h_obj);
+				m_pMeshObject = m_gameobj->GetMesh(0);
+			} else {
+				m_gameobj = NULL;
+				m_pMeshObject = NULL;
+			}
 		}
 		virtual bool Apply(class RAS_IPolyMaterial *polymat)
 		{
@@ -751,12 +759,23 @@ void	KX_ConvertODEEngineObject(KX_GameObject* gameobj,
 			//printf("update\n");
 			return true;//??
 		}
-		virtual RAS_Deformer *GetReplica(class KX_GameObject* replica)
+		virtual bool UpdateBuckets(void)
 		{
-			KX_SoftBodyDeformer* deformer = new KX_SoftBodyDeformer(replica->GetMesh(0),replica);
-			return deformer;
+			// this is to update the mesh slots outside the rasterizer, 
+			// no need to do it for this deformer, it's done in any case in Apply()
+			return false;
 		}
 
+		virtual RAS_Deformer *GetReplica()
+		{
+			KX_SoftBodyDeformer* deformer = new KX_SoftBodyDeformer(*this);
+			deformer->ProcessReplica();
+			return deformer;
+		}
+		virtual void ProcessReplica()
+		{
+			// we have two pointers to deal with but we cannot do it now, will be done in Relink
+		}
 		virtual bool SkipVertexTransform()
 		{
 			return true;
@@ -801,6 +820,8 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 	ci.m_gravity = btVector3(0,0,0);
 	ci.m_localInertiaTensor =btVector3(0,0,0);
 	ci.m_mass = objprop->m_dyna ? shapeprops->m_mass : 0.f;
+	ci.m_clamp_vel_min = shapeprops->m_clamp_vel_min;
+	ci.m_clamp_vel_max = shapeprops->m_clamp_vel_max;
 	ci.m_margin = objprop->m_margin;
 	shapeInfo->m_radius = objprop->m_radius;
 	isbulletdyna = objprop->m_dyna;
@@ -884,7 +905,9 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 
 				// Soft bodies require welding. Only avoid remove doubles for non-soft bodies!
 				if (objprop->m_softbody)
-					shapeInfo->setVertexWeldingThreshold1(0.01f); //todo: expose this to the UI
+				{
+					shapeInfo->setVertexWeldingThreshold1(objprop->m_soft_welding); //todo: expose this to the UI
+				}
 
 				bm = shapeInfo->CreateBulletShape();
 				//no moving concave meshes, so don't bother calculating inertia
@@ -1185,9 +1208,8 @@ void	KX_ConvertBulletObject(	class	KX_GameObject* gameobj,
 		if (softBody && gameobj->GetMesh(0))//only the first mesh, if any
 		{
 			//should be a mesh then, so add a soft body deformer
-			KX_SoftBodyDeformer* softbodyDeformer = new KX_SoftBodyDeformer( gameobj->GetMesh(0),gameobj);
+			KX_SoftBodyDeformer* softbodyDeformer = new KX_SoftBodyDeformer( gameobj->GetMesh(0),(BL_DeformableGameObject*)gameobj);
 			gameobj->SetDeformer(softbodyDeformer);
-			
 		}
 	}
 

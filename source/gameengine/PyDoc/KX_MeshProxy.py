@@ -1,7 +1,9 @@
 # $Id$
 # Documentation for KX_MeshProxy
 
-class KX_MeshProxy:
+from SCA_IObject import *
+
+class KX_MeshProxy(SCA_IObject):
 	"""
 	A mesh object.
 	
@@ -45,7 +47,14 @@ class KX_MeshProxy:
 			m_i += 1
 			mesh = obj.getMesh(m_i)
 	
-			
+	@ivar materials: 
+	@type materials: list of L{KX_BlenderMaterial} or L{KX_PolygonMaterial} types
+
+	@ivar numPolygons:
+	@type numPolygons: integer
+
+	@ivar numMaterials:
+	@type numMaterials: integer
 	"""
 	
 	def getNumMaterials():

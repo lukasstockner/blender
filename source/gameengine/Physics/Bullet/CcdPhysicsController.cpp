@@ -572,10 +572,22 @@ bool		CcdPhysicsController::SynchronizeMotionStates(float time)
 	btSoftBody* sb = GetSoftBody();
 	if (sb)
 	{
-		btVector3 aabbMin,aabbMax;
-		sb->getAabb(aabbMin,aabbMax);
-		btVector3 worldPos  = (aabbMax+aabbMin)*0.5f;
-		m_MotionState->setWorldPosition(worldPos[0],worldPos[1],worldPos[2]);
+		if (sb->m_pose.m_bframe) 
+		{
+			btVector3 worldPos = sb->m_pose.m_com;
+			btQuaternion worldquat;
+			btMatrix3x3	trs = sb->m_pose.m_rot*sb->m_pose.m_scl;
+			trs.getRotation(worldquat);
+			m_MotionState->setWorldPosition(worldPos[0],worldPos[1],worldPos[2]);
+			m_MotionState->setWorldOrientation(worldquat[0],worldquat[1],worldquat[2],worldquat[3]);
+		}
+		else 
+		{
+			btVector3 aabbMin,aabbMax;
+			sb->getAabb(aabbMin,aabbMax);
+			btVector3 worldPos  = (aabbMax+aabbMin)*0.5f;
+			m_MotionState->setWorldPosition(worldPos[0],worldPos[1],worldPos[2]);
+		}
 		m_MotionState->calculateWorldTransformations();
 		return true;
 	}
@@ -584,7 +596,19 @@ bool		CcdPhysicsController::SynchronizeMotionStates(float time)
 
 	if (body && !body->isStaticObject())
 	{
-
+		
+		if ((m_cci.m_clamp_vel_max>0.0) || (m_cci.m_clamp_vel_min>0.0))
+		{
+			const btVector3& linvel = body->getLinearVelocity();
+			float len= linvel.length();
+			
+			if((m_cci.m_clamp_vel_max>0.0) && (len > m_cci.m_clamp_vel_max))
+					body->setLinearVelocity(linvel * (m_cci.m_clamp_vel_max / len));
+			
+			else if ((m_cci.m_clamp_vel_min>0.0) && btFuzzyZero(len)==0 && (len < m_cci.m_clamp_vel_min))
+				body->setLinearVelocity(linvel * (m_cci.m_clamp_vel_min / len));
+		}
+		
 		const btVector3& worldPos = body->getCenterOfMassPosition();
 		m_MotionState->setWorldPosition(worldPos[0],worldPos[1],worldPos[2]);
 		
@@ -940,7 +964,14 @@ void		CcdPhysicsController::ApplyTorque(float torqueX,float torqueY,float torque
 			torque	= xform.getBasis()*torque;
 		}
 		if (body)
+		{
+			//workaround for incompatibility between 'DYNAMIC' game object, and angular factor
+			//a DYNAMIC object has some inconsistency: it has no angular effect due to collisions, but still has torque
+			const btVector3& angFac = body->getAngularFactor();
+			body->setAngularFactor(1.f);
 			body->applyTorque(torque);
+			body->setAngularFactor(angFac);
+		}
 	}
 }
 
@@ -1245,6 +1276,22 @@ void	DefaultMotionState::getWorldOrientation(float& quatIma0,float& quatIma1,flo
 	quatReal = m_worldTransform.getRotation()[3];
 }
 		
+void	DefaultMotionState::getWorldOrientation(float* ori)
+{
+	*ori++ = m_worldTransform.getBasis()[0].x();
+	*ori++ = m_worldTransform.getBasis()[1].x();
+	*ori++ = m_worldTransform.getBasis()[1].x();
+	*ori++ = 0.f;
+	*ori++ = m_worldTransform.getBasis()[0].y();
+	*ori++ = m_worldTransform.getBasis()[1].y();
+	*ori++ = m_worldTransform.getBasis()[1].y();
+	*ori++ = 0.f;
+	*ori++ = m_worldTransform.getBasis()[0].z();
+	*ori++ = m_worldTransform.getBasis()[1].z();
+	*ori++ = m_worldTransform.getBasis()[1].z();
+	*ori++ = 0.f;
+}
+
 void	DefaultMotionState::setWorldPosition(float posX,float posY,float posZ)
 {
 	btVector3 pos(posX,posY,posZ);
@@ -1328,9 +1375,9 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject* meshobj, bool polytope,bo
 			}
 		}
 
-		m_vertexArray.resize(tot_bt_verts);
+		m_vertexArray.resize(tot_bt_verts*3);
 
-		btVector3 *bt= &m_vertexArray[0];
+		btScalar *bt= &m_vertexArray[0];
 
 		for (int p2=0; p2<numpolys; p2++)
 		{
@@ -1348,8 +1395,9 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject* meshobj, bool polytope,bo
 						const float* vtx = v->getXYZ();
 						vert_tag_array[orig_index]= false;
 
-						bt->setX(vtx[0]);  bt->setY(vtx[1]);  bt->setZ(vtx[2]);
-						bt++;
+						*bt++ = vtx[0];
+						*bt++ = vtx[1];
+						*bt++ = vtx[2];
 					}
 				}
 			}
@@ -1381,11 +1429,11 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject* meshobj, bool polytope,bo
 			}
 		}
 
-		m_vertexArray.resize(tot_bt_verts);
+		m_vertexArray.resize(tot_bt_verts*3);
 		m_polygonIndexArray.resize(tot_bt_tris);
 		m_triFaceArray.resize(tot_bt_tris*3);
 
-		btVector3 *bt= &m_vertexArray[0];
+		btScalar *bt= &m_vertexArray[0];
 		int *poly_index_pt= &m_polygonIndexArray[0];
 		int *tri_pt= &m_triFaceArray[0];
 
@@ -1419,20 +1467,23 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject* meshobj, bool polytope,bo
 				if (vert_tag_array[i1]==true) { /* *** v1 *** */
 					vert_tag_array[i1]= false;
 					vtx = v1->getXYZ();
-					bt->setX(vtx[0]);	bt->setY( vtx[1]);	bt->setZ(vtx[2]);
-					bt++;
+					*bt++ = vtx[0];
+					*bt++ = vtx[1];
+					*bt++ = vtx[2];
 				}
 				if (vert_tag_array[i2]==true) { /* *** v2 *** */
 					vert_tag_array[i2]= false;
 					vtx = v2->getXYZ();
-					bt->setX(vtx[0]);	bt->setY(vtx[1]);	bt->setZ(vtx[2]);
-					bt++;
+					*bt++ = vtx[0];
+					*bt++ = vtx[1];
+					*bt++ = vtx[2];
 				}
 				if (vert_tag_array[i3]==true) { /* *** v3 *** */
 					vert_tag_array[i3]= false;
 					vtx = v3->getXYZ();
-					bt->setX(vtx[0]);	bt->setY(vtx[1]);	bt->setZ(vtx[2]);
-					bt++;
+					*bt++ = vtx[0];	
+					*bt++ = vtx[1];
+					*bt++ = vtx[2];
 				}
 
 				if (poly->VertexCount()==4)
@@ -1453,8 +1504,9 @@ bool CcdShapeConstructionInfo::SetMesh(RAS_MeshObject* meshobj, bool polytope,bo
 					if (vert_tag_array[i4]==true) { /* *** v4 *** */
 						vert_tag_array[i4]= false;
 						vtx = v4->getXYZ();
-						bt->setX(vtx[0]);	bt->setY(vtx[1]);	bt->setZ(vtx[2]);
-						bt++;
+						*bt++ = vtx[0];
+						*bt++ = vtx[1];	
+						*bt++ = vtx[2];
 					}
 				}
 			}
@@ -1537,7 +1589,7 @@ btCollisionShape* CcdShapeConstructionInfo::CreateBulletShape()
 		break;
 
 	case PHY_SHAPE_POLYTOPE:
-		collisionShape = new btConvexHullShape(&m_vertexArray[0].getX(), m_vertexArray.size());
+		collisionShape = new btConvexHullShape(&m_vertexArray[0], m_vertexArray.size()/3, 3*sizeof(btScalar));
 		break;
 
 	case PHY_SHAPE_MESH:
@@ -1554,9 +1606,9 @@ btCollisionShape* CcdShapeConstructionInfo::CreateBulletShape()
 						m_polygonIndexArray.size(),
 						&m_triFaceArray[0],
 						3*sizeof(int),
-						m_vertexArray.size(),
-						(btScalar*) &m_vertexArray[0].x(),
-						sizeof(btVector3)
+						m_vertexArray.size()/3,
+						&m_vertexArray[0],
+						3*sizeof(btScalar)
 				);
 				
 				btGImpactMeshShape* gimpactShape =  new btGImpactMeshShape(indexVertexArrays);
@@ -1579,12 +1631,13 @@ btCollisionShape* CcdShapeConstructionInfo::CreateBulletShape()
 					bool removeDuplicateVertices=true;
 					// m_vertexArray not in multiple of 3 anymore, use m_triFaceArray
 					for(int i=0; i<m_triFaceArray.size(); i+=3) {
-						collisionMeshData->addTriangle(
-								m_vertexArray[m_triFaceArray[i]],
-								m_vertexArray[m_triFaceArray[i+1]],
-								m_vertexArray[m_triFaceArray[i+2]],
-								removeDuplicateVertices
-						);
+						btScalar *bt = &m_vertexArray[3*m_triFaceArray[i]];
+						btVector3 v1(bt[0], bt[1], bt[2]);
+						bt = &m_vertexArray[3*m_triFaceArray[i+1]];
+						btVector3 v2(bt[0], bt[1], bt[2]);
+						bt = &m_vertexArray[3*m_triFaceArray[i+2]];
+						btVector3 v3(bt[0], bt[1], bt[2]);
+						collisionMeshData->addTriangle(v1, v2, v3, removeDuplicateVertices);
 					}
 					indexVertexArrays = collisionMeshData;
 
@@ -1594,9 +1647,9 @@ btCollisionShape* CcdShapeConstructionInfo::CreateBulletShape()
 							m_polygonIndexArray.size(),
 							&m_triFaceArray[0],
 							3*sizeof(int),
-							m_vertexArray.size(),
-							(btScalar*) &m_vertexArray[0].x(),
-							sizeof(btVector3));
+							m_vertexArray.size()/3,
+							&m_vertexArray[0],
+							3*sizeof(btScalar));
 				}
 				
 				// this shape will be shared and not deleted until shapeInfo is deleted

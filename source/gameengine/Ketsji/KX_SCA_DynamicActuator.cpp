@@ -51,12 +51,17 @@
 	PyTypeObject 
 
 KX_SCA_DynamicActuator::Type = {
-	PyObject_HEAD_INIT(NULL)
-	0,
+#if (PY_VERSION_HEX >= 0x02060000)
+	PyVarObject_HEAD_INIT(NULL, 0)
+#else
+	/* python 2.5 and below */
+	PyObject_HEAD_INIT( NULL )  /* required py macro */
+	0,                          /* ob_size */
+#endif
 	"KX_SCA_DynamicActuator",
-	sizeof(KX_SCA_DynamicActuator),
+	sizeof(PyObjectPlus_Proxy),
 	0,
-	PyDestructor,
+	py_base_dealloc,
 	0,
 	0,
 	0,
@@ -94,18 +99,16 @@ PyAttributeDef KX_SCA_DynamicActuator::Attributes[] = {
 
 PyObject* KX_SCA_DynamicActuator::py_getattro(PyObject *attr)
 {
-	PyObject* object = py_getattro_self(Attributes, this, attr);
-	if (object != NULL)
-		return object;
 	py_getattro_up(SCA_IActuator);
+}
+
+PyObject* KX_SCA_DynamicActuator::py_getattro_dict() {
+	py_getattro_dict_up(SCA_IActuator);
 }
 
 int KX_SCA_DynamicActuator::py_setattro(PyObject *attr, PyObject* value)
 {
-	int ret = py_setattro_self(Attributes, this, attr, value);
-	if (ret >= 0)
-		return ret;
-	return SCA_IActuator::py_setattro(attr, value);
+	py_setattro_up(SCA_IActuator);
 }
 
 
@@ -122,7 +125,7 @@ KX_PYMETHODDEF_DOC(KX_SCA_DynamicActuator, setOperation,
 	ShowDeprecationWarning("setOperation()", "the operation property");
 	int dyn_operation;
 	
-	if (!PyArg_ParseTuple(args, "i", &dyn_operation))
+	if (!PyArg_ParseTuple(args, "i:setOperation", &dyn_operation))
 	{
 		return NULL;	
 	}
@@ -217,10 +220,6 @@ CValue* KX_SCA_DynamicActuator::GetReplica()
 		return NULL;
 
 	replica->ProcessReplica();
-
-	// this will copy properties and so on...
-	CValue::AddDataToReplica(replica);
-
 	return replica;
 };
 
