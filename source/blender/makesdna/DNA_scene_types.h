@@ -318,7 +318,7 @@ typedef struct RenderData {
 
 	/* Dome variables */
 	short domeres, domemode;
-	short domeangle, pad9;
+	short domeangle, dometilt;
 	float domesize;
 	float domeresbuf;
 	struct Text *dometext;

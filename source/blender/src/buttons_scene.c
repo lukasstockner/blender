@@ -1833,13 +1833,14 @@ static uiBlock *framing_render_menu(void *arg_unused)
 	uiBlockBeginAlign(block);
 	uiDefButS(block, ROW, 0, "Dome",	xco, yco-=30, 88, 19, &(G.scene->r.stereomode), 7.0, 8.0, 0, 0, "Enables dome camera");
 	uiDefButS(block, NUM, 0, "Ang:",	xco+90, yco, 88, 19, &G.scene->r.domeangle, 90.0, 250.0, 0, 0, "Angle (Aperture) of the Dome - it only works in mode 1");
-	uiDefButS(block, NUM, 0, "Mode:",	xco+180, yco, 88, 19, &G.scene->r.domemode, 1.0, 3.0, 0, 0, "1 fisheye, 2 environment map, 3 spherical panoramic");
+	uiDefButS(block, NUM, 0, "Mode:",	xco+180, yco, 88, 19, &G.scene->r.domemode, 1.0, 5.0, 0, 0, "1 fisheye, 2 environment map, 3 spherical panoramic, 4 front-truncated, 5 rear-truncated");
 
 	uiDefButF(block, NUM, 0, "Size:",	xco, yco-=21, 88, 19, &G.scene->r.domesize, 0.5, 3.5, 0, 0, "Size adjustments");
 	uiDefButS(block, NUM, 0, "Tes:",	xco+90, yco, 88, 19, &G.scene->r.domeres, 1.0, 8.0, 0, 0, "Tesselation level - 1 to 8");
 	uiDefButF(block, NUM, 0, "Res:",	xco+180, yco, 88, 19, &G.scene->r.domeresbuf, 0.1, 1.0, 0, 0, "Buffer Resolution - decrease it to increase speed");
 
-	uiDefIDPoinBut(block, test_scriptpoin_but, ID_SCRIPT, 1, "Warp Data: ", xco,yco-=21,268, 19, &G.scene->r.dometext, "Custom Warp Mesh data file");
+	uiDefButS(block, NUM, 0, "Tilt:",	xco, yco-=21, 88, 19, &G.scene->r.dometilt, -359, 359, 0, 0, "Vertical Camera Tilt");
+	uiDefIDPoinBut(block, test_scriptpoin_but, ID_SCRIPT, 1, "Warp Data: ", xco+90,yco,178, 19, &G.scene->r.dometext, "Custom Warp Mesh data file");
 	uiBlockEndAlign(block);
 
 	uiBlockSetDirection(block, UI_TOP);

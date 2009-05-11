@@ -67,6 +67,7 @@ public:
 	short mode,
 	short angle,
 	float resbuf,
+	short tilt,
 	struct Text* warptext
 	);
 
@@ -166,6 +167,7 @@ protected:
 	short m_angle;		//the angle of the fisheye
 	float m_radangle;	//the angle of the fisheye in radians
 	float m_resbuffer;	//the resolution of the buffer
+	short m_tilt;		//the camera vertical tilt
 	
 	RAS_Rect m_viewport;
 

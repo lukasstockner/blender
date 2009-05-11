@@ -262,9 +262,9 @@ void KX_KetsjiEngine::SetSceneConverter(KX_ISceneConverter* sceneconverter)
 	m_sceneconverter = sceneconverter;
 }
 
-void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle, float resbuf, struct Text* text)
+void KX_KetsjiEngine::InitDome(float size, short res, short mode, short angle, float resbuf, short tilt, struct Text* text)
 {
-	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle, resbuf, text);
+	m_dome = new KX_Dome(m_canvas, m_rasterizer, m_rendertools,this, size, res, mode, angle, resbuf, tilt, text);
 	m_usedome = true;
 }
 

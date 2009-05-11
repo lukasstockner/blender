@@ -49,6 +49,7 @@ KX_Dome::KX_Dome (
 	short mode,		//mode - fisheye, truncated, warped, panoramic, ...
 	short angle,
 	float resbuf,	//size adjustment of the buffer
+	short tilt,
 	struct Text* warptext
 
 ):
@@ -60,6 +61,7 @@ KX_Dome::KX_Dome (
 	m_mode(mode),
 	m_angle(angle),
 	m_resbuffer(resbuf),
+	m_tilt(tilt),
 	m_canvas(canvas),
 	m_rasterizer(rasterizer),
 	m_rendertools(rendertools),
@@ -1485,6 +1487,7 @@ Uses 4 cameras for angles up to 180º
 Uses 5 cameras for angles up to 250º
 Uses 6 cameras for angles up to 360º
 */
+	int i;
 	float deg45 = MT_PI / 4;
 	MT_Scalar c = cos(deg45);
 	MT_Scalar s = sin(deg45);
@@ -1578,6 +1581,23 @@ Uses 6 cameras for angles up to 360º
 						c, 0.0, -s,
 						0.0, 1.0, 0.0,
 						s, 0.0, c);
+	}
+
+	if (m_tilt)
+	{
+		printf("\n\n\\n\n\nTILTOU\n\n");
+		float degtilt = ((m_tilt % 360) * 2 * MT_PI) / 360;
+		c = cos(degtilt);
+		s = sin(degtilt);
+
+		MT_Matrix3x3 tilt_mat = MT_Matrix3x3(
+		1.0, 0.0, 0.0,
+		0.0, c, -s,
+		0.0, s,  c
+		);
+
+		for (i =0;i<6;i++)
+			m_locRot[i] = tilt_mat * m_locRot[i];
 	}
 }
 
