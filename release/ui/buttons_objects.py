@@ -7,14 +7,14 @@ class ObjectButtonsPanel(bpy.types.Panel):
 	__context__ = "object"
 
 	def poll(self, context):
-		return (context.active_object != None)
+		return (context.object != None)
 
 class OBJECT_PT_transform(ObjectButtonsPanel):
 	__idname__ = "OBJECT_PT_transform"
 	__label__ = "Transform"
 
 	def draw(self, context):
-		ob = context.active_object
+		ob = context.object
 		layout = self.layout
 
 		row = layout.row()
@@ -27,7 +27,7 @@ class OBJECT_PT_groups(ObjectButtonsPanel):
 	__label__ = "Groups"
 
 	def draw(self, context):
-		ob = context.active_object
+		ob = context.object
 		layout = self.layout
 
 		row = layout.row()
@@ -39,22 +39,22 @@ class OBJECT_PT_groups(ObjectButtonsPanel):
 
 		for group in bpy.data.groups:
 			if ob in group.objects:
-				box = layout.box()
+				col = layout.column(align=True)
 
-				row = box.row()
-				row.itemR(group, "name")
+				row = col.box().row()
+				row.itemR(group, "name", text="")
 				#row.itemO("OBJECT_OT_remove_group")
 
-				row = box.row()
-				row.column().itemR(group, "layer")
-				row.column().itemR(group, "dupli_offset")
+				split = col.box().split()
+				split.column().itemR(group, "layer")
+				split.column().itemR(group, "dupli_offset")
 
 class OBJECT_PT_display(ObjectButtonsPanel):
 	__idname__ = "OBJECT_PT_display"
 	__label__ = "Display"
 
 	def draw(self, context):
-		ob = context.active_object
+		ob = context.object
 		layout = self.layout
 			
 		row = layout.row()
@@ -74,7 +74,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel):
 	__label__ = "Duplication"
 
 	def draw(self, context):
-		ob = context.active_object
+		ob = context.object
 		layout = self.layout
 
 		layout.itemR(ob, "dupli_type", expand=True)
@@ -108,7 +108,7 @@ class OBJECT_PT_animation(ObjectButtonsPanel):
 	__label__ = "Animation"
 
 	def draw(self, context):
-		ob = context.active_object
+		ob = context.object
 		layout = self.layout
 		
 		split = layout.split()
@@ -132,3 +132,4 @@ bpy.types.register(OBJECT_PT_groups)
 bpy.types.register(OBJECT_PT_display)
 bpy.types.register(OBJECT_PT_duplication)
 bpy.types.register(OBJECT_PT_animation)
+

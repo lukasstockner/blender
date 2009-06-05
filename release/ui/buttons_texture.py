@@ -7,8 +7,17 @@ class TextureButtonsPanel(bpy.types.Panel):
 	__context__ = "texture"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture != None)
-		except:return False
+		return (context.texture != None)
+
+class TEXTURE_PT_preview(TextureButtonsPanel):
+	__idname__= "TEXTURE_PT_preview"
+	__label__ = "Preview"
+
+	def draw(self, context):
+		layout = self.layout
+
+		tex = context.texture
+		layout.template_preview(tex)
 
 class TEXTURE_PT_texture(TextureButtonsPanel):
 	__idname__= "TEXTURE_PT_texture"
@@ -16,21 +25,38 @@ class TEXTURE_PT_texture(TextureButtonsPanel):
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemR(tex, "type")
+
+class TEXTURE_PT_colors(TextureButtonsPanel):
+	__idname__= "TEXTURE_PT_colors"
+	__label__ = "Colors"
+
+	def draw(self, context):
+		layout = self.layout
+		tex = context.texture
+
+		if tex.color_ramp:
+			layout.template_color_ramp(tex.color_ramp, expand=True)
+		else:
+			layout.itemR(tex, "rgb_factor")
+
+		row = layout.row()
+		row.itemR(tex, "brightness")
+		row.itemR(tex, "contrast")
 
 class TEXTURE_PT_clouds(TextureButtonsPanel):
 	__idname__= "TEXTURE_PT_clouds"
 	__label__ = "Clouds"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'CLOUDS')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'CLOUDS')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemR(tex, "stype", expand=True)
 		layout.itemL(text="Noise:")
@@ -47,12 +73,12 @@ class TEXTURE_PT_wood(TextureButtonsPanel):
 	__label__ = "Wood"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'WOOD')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'WOOD')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemR(tex, "stype", expand=True)
 		layout.itemR(tex, "noisebasis2", expand=True)
@@ -70,12 +96,12 @@ class TEXTURE_PT_marble(TextureButtonsPanel):
 	__label__ = "Marble"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'MARBLE')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'MARBLE')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemR(tex, "stype", expand=True)
 		layout.itemR(tex, "noisebasis2", expand=True)
@@ -94,12 +120,12 @@ class TEXTURE_PT_magic(TextureButtonsPanel):
 	__label__ = "Magic"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'MAGIC')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'MAGIC')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 			
 		row = layout.row()
 		row.itemR(tex, "noise_depth", text="Depth")
@@ -110,12 +136,12 @@ class TEXTURE_PT_blend(TextureButtonsPanel):
 	__label__ = "Blend"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'BLEND')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'BLEND')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 
 		layout.itemR(tex, "progression")
 		layout.itemR(tex, "flip_axis")
@@ -125,12 +151,12 @@ class TEXTURE_PT_stucci(TextureButtonsPanel):
 	__label__ = "Stucci"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'STUCCI')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'STUCCI')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemR(tex, "stype", expand=True)
 		layout.itemL(text="Noise:")
@@ -146,12 +172,12 @@ class TEXTURE_PT_image(TextureButtonsPanel):
 	__label__ = "Image/Movie"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'IMAGE')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'IMAGE')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		split = layout.split()
 		
@@ -173,12 +199,12 @@ class TEXTURE_PT_mapping(TextureButtonsPanel):
 	__label__ = "Mapping"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'IMAGE')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'IMAGE')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 				
 		split = layout.split()
 		
@@ -216,12 +242,12 @@ class TEXTURE_PT_plugin(TextureButtonsPanel):
 	__label__ = "Plugin"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'PLUGIN')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'PLUGIN')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemL(text="Nothing yet")
 		
@@ -230,12 +256,12 @@ class TEXTURE_PT_envmap(TextureButtonsPanel):
 	__label__ = "Environment Map"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'ENVIRONMENT_MAP')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'ENVIRONMENT_MAP')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemL(text="Nothing yet")
 		
@@ -244,12 +270,12 @@ class TEXTURE_PT_musgrave(TextureButtonsPanel):
 	__label__ = "Musgrave"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'MUSGRAVE')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'MUSGRAVE')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 		
 		layout.itemR(tex, "musgrave_type")	
 		
@@ -279,13 +305,12 @@ class TEXTURE_PT_voronoi(TextureButtonsPanel):
 	__label__ = "Voronoi"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'VORONOI')
-		except:return False
-
+		tex = context.texture
+		return (tex and tex.type == 'VORONOI')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 	
 		layout.itemR(tex, "distance_metric")
 		layout.itemR(tex, "coloring")
@@ -311,12 +336,12 @@ class TEXTURE_PT_distortednoise(TextureButtonsPanel):
 	__label__ = "Distorted Noise"
 	
 	def poll(self, context):
-		try:	return (context.active_object.active_material.active_texture.texture.type == 'DISTORTED_NOISE')
-		except:return False
+		tex = context.texture
+		return (tex and tex.type == 'DISTORTED_NOISE')
 
 	def draw(self, context):
 		layout = self.layout
-		tex = context.active_object.active_material.active_texture.texture
+		tex = context.texture
 
 		layout.itemR(tex, "noise_distortion")
 		layout.itemR(tex, "noise_basis", text="Basis")
@@ -330,7 +355,9 @@ class TEXTURE_PT_distortednoise(TextureButtonsPanel):
 		sub = split.column()
 		sub.itemR(tex, "nabla")	
 
+bpy.types.register(TEXTURE_PT_preview)
 bpy.types.register(TEXTURE_PT_texture)
+bpy.types.register(TEXTURE_PT_colors)
 bpy.types.register(TEXTURE_PT_clouds)
 bpy.types.register(TEXTURE_PT_wood)
 bpy.types.register(TEXTURE_PT_marble)
@@ -344,3 +371,4 @@ bpy.types.register(TEXTURE_PT_envmap)
 bpy.types.register(TEXTURE_PT_musgrave)
 bpy.types.register(TEXTURE_PT_voronoi)
 bpy.types.register(TEXTURE_PT_distortednoise)
+

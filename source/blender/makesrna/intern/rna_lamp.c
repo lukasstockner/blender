@@ -108,6 +108,7 @@ static void rna_def_lamp_mtex(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "object");
 	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Object", "Object to use for mapping with Object texture coordinates.");
 
 	prop= RNA_def_property(srna, "map_to_color", PROP_BOOLEAN, PROP_NONE);
@@ -262,6 +263,7 @@ static void rna_def_lamp(BlenderRNA *brna)
 	srna= RNA_def_struct(brna, "Lamp", "ID");
 	RNA_def_struct_refine_func(srna, "rna_Lamp_refine");
 	RNA_def_struct_ui_text(srna, "Lamp", "Lamp datablock for lighting a scene.");
+	RNA_def_struct_ui_icon(srna, ICON_LAMP_DATA);
 
 	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_type_items);
@@ -328,7 +330,6 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 		{0, NULL, NULL, NULL}};
 
 	prop= RNA_def_property(srna, "falloff_type", PROP_ENUM, PROP_NONE);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE); /* needs to be able to create curve mapping */
 	RNA_def_property_enum_items(prop, prop_fallofftype_items);
 	RNA_def_property_ui_text(prop, "Falloff Type", "Intensity Decay with distance.");
 	RNA_def_property_update(prop, NC_LAMP|ND_LIGHTING, NULL);
@@ -652,6 +653,8 @@ static void rna_def_sun_lamp(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "LampSkySettings");
 	RNA_def_property_pointer_funcs(prop, "rna_Lamp_sky_settings_get", NULL);
 	RNA_def_property_ui_text(prop, "Sky Settings", "Sky related settings for sun lamps.");
+
+	rna_def_lamp_sky_settings(brna);
 }
 
 static void rna_def_hemi_lamp(BlenderRNA *brna)
@@ -671,7 +674,6 @@ void RNA_def_lamp(BlenderRNA *brna)
 	rna_def_spot_lamp(brna);
 	rna_def_sun_lamp(brna);
 	rna_def_hemi_lamp(brna);
-	rna_def_lamp_sky_settings(brna);
 	rna_def_lamp_mtex(brna);
 }
 

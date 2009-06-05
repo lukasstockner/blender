@@ -78,7 +78,7 @@ static PyObject *Method_defButO( PyObject * self, PyObject * args )
 	
 	/* Optional python doctionary used to set python properties, just like how keyword args are used */
 	if (py_keywords && PyDict_Size(py_keywords)) {
-		if (PYOP_props_from_dict(uiButGetOperatorPtrRNA(but), py_keywords) == -1)
+		if (pyrna_pydict_to_props(uiButGetOperatorPtrRNA(but), py_keywords, "") == -1)
 			return NULL;
 	}
 	
@@ -296,7 +296,7 @@ static PyObject *Method_registerKey( PyObject * self, PyObject * args )
 	
 	/* Optional python doctionary used to set python properties, just like how keyword args are used */
 	if (py_keywords && PyDict_Size(py_keywords)) {
-		if (PYOP_props_from_dict(km->ptr, py_keywords) == -1)
+		if (pyrna_pydict_to_props(km->ptr, py_keywords, "Registering keybinding") == -1)
 			return NULL;
 	}
 	
@@ -387,7 +387,7 @@ PyObject *BPY_ui_module( void )
 #if PY_VERSION_HEX >= 0x03000000
 	submodule= PyModule_Create(&ui_module);
 #else /* Py2.x */
-	submodule= Py_InitModule3( "bpyui", ui_methods, "" );
+	submodule= Py_InitModule3( "bpy.ui", ui_methods, "" );
 #endif
 	
 	/* uiBlock->flag (controls) */
@@ -558,8 +558,10 @@ PyObject *BPY_ui_module( void )
 	PyModule_AddObject( mod, "TIME", PyLong_FromSsize_t(SPACE_TIME) );
 	PyModule_AddObject( mod, "NODE", PyLong_FromSsize_t(SPACE_NODE) );
 	
-	
-	
+	/* INCREF since its its assumed that all these functions return the
+	 * module with a new ref like PyDict_New, since they are passed to
+	  * PyModule_AddObject which steals a ref */
+	Py_INCREF(submodule);
 	
 	return submodule;
 }

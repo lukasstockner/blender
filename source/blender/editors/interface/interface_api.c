@@ -54,6 +54,12 @@ void RNA_api_ui_layout(StructRNA *srna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
+	static EnumPropertyItem curve_type_items[] = {
+		{0, "NONE", "None", ""},
+		{'v', "VECTOR", "Vector", ""},
+		{'c', "COLOR", "Color", ""},
+		{0, NULL, NULL, NULL}};
+
 	/* simple layout specifiers */
 	func= RNA_def_function(srna, "row", "uiLayoutRow");
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
@@ -175,6 +181,13 @@ void RNA_api_ui_layout(StructRNA *srna)
 
 	func= RNA_def_function(srna, "itemS", "uiItemS");
 
+	/* context */
+	func= RNA_def_function(srna, "set_context_pointer", "uiLayoutSetContextPointer");
+	parm= RNA_def_string(func, "name", "", 0, "Name", "Name of entry in the context.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_pointer(func, "data", "AnyType", "", "Pointer to put in context.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
 	/* templates */
 	func= RNA_def_function(srna, "template_header", "uiTemplateHeader");
 	parm= RNA_def_pointer(func, "context", "Context", "", "Current context.");
@@ -202,5 +215,19 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
 	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "template_preview", "uiTemplatePreview");
+	parm= RNA_def_pointer(func, "id", "ID", "", "ID datablock.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func= RNA_def_function(srna, "template_curve_mapping", "uiTemplateCurveMapping");
+	parm= RNA_def_pointer(func, "curvemap", "CurveMapping", "", "Curve mapping pointer.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_enum(func, "type", curve_type_items, 0, "Type", "Type of curves to display.");
+
+	func= RNA_def_function(srna, "template_color_ramp", "uiTemplateColorRamp");
+	parm= RNA_def_pointer(func, "ramp", "ColorRamp", "", "Color ramp pointer.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "expand", 0, "", "Expand button to show more detail.");
 }
 

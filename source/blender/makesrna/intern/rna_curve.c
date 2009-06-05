@@ -370,6 +370,7 @@ static void rna_def_font(BlenderRNA *brna, StructRNA *srna)
 	/* pointers */
 	prop= RNA_def_property(srna, "text_on_curve", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "textoncurve");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Text on Curve", "Curve deforming text object.");
 	
 	prop= RNA_def_property(srna, "font", PROP_POINTER, PROP_NONE);
@@ -458,6 +459,7 @@ void rna_def_curve(BlenderRNA *brna)
 	
 	srna= RNA_def_struct(brna, "Curve", "ID");
 	RNA_def_struct_ui_text(srna, "Curve", "Curve datablock storing curves, splines and NURBS.");
+	RNA_def_struct_ui_icon(srna, ICON_CURVE_DATA);
 	
 	rna_def_animdata_common(srna);
 	rna_def_texmat_common(srna, "rna_Curve_texspace_editable");
@@ -520,10 +522,12 @@ void rna_def_curve(BlenderRNA *brna)
 	/* pointers */
 	prop= RNA_def_property(srna, "bevel_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "bevobj");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Bevel Object", "Curve object name that defines the bevel shape.");
 	
 	prop= RNA_def_property(srna, "taper_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "taperobj");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Taper Object", "Curve object name that defines the taper (width).");
 	
 	/* Flags */
