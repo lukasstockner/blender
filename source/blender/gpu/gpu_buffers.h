@@ -85,7 +85,7 @@ void GPU_drawobject_free( GPUDrawObject *object );
 
 GPUBuffer *GPU_buffer_vertex( struct DerivedMesh *dm, GPUDrawObject *object );
 GPUBuffer *GPU_buffer_normal( struct DerivedMesh *dm, GPUDrawObject *object );
-GPUBuffer *GPU_buffer_color( struct DerivedMesh *dm, GPUDrawObject *object );
 GPUBuffer *GPU_buffer_uv( struct DerivedMesh *dm, GPUDrawObject *object );
+GPUBuffer *GPU_buffer_color( struct DerivedMesh *dm, GPUDrawObject *object );
 
 #endif
