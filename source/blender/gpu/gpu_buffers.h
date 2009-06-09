@@ -35,6 +35,8 @@
 
 #define MAX_FREE_GPU_BUFFERS 8
 
+struct DerivedMesh;
+
 typedef struct GPUBuffer
 {
 	int size;	/* in bytes */
@@ -52,10 +54,38 @@ typedef struct GPUBufferPool
 	GPUBuffer* buffers[MAX_FREE_GPU_BUFFERS];
 } GPUBufferPool;
 
+typedef struct GPUBufferMaterial
+{
+	int start;	/* at which vertex in the buffer the material starts */
+	int end;	/* at which vertex it ends */
+	char mat_nr;
+} GPUBufferMaterial;
+
+typedef struct GPUDrawObject
+{
+	GPUBuffer *vertices;
+	GPUBuffer *normals;
+	GPUBuffer *uv;
+	GPUBuffer *colors;
+
+	GPUBufferMaterial *materials;
+
+	int nmaterials;
+	int nelements;
+} GPUDrawObject;
+
 GPUBufferPool *GPU_buffer_pool_new();
 void GPU_buffer_pool_free( GPUBufferPool *pool );
 
 GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool );
 void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool );
+
+GPUDrawObject *GPU_drawobject_new( struct DerivedMesh *dm );
+void GPU_drawobject_free( GPUDrawObject *object );
+
+GPUBuffer *GPU_buffer_vertex( struct DerivedMesh *dm, GPUDrawObject *object );
+GPUBuffer *GPU_buffer_normal( struct DerivedMesh *dm, GPUDrawObject *object );
+GPUBuffer *GPU_buffer_color( struct DerivedMesh *dm, GPUDrawObject *object );
+GPUBuffer *GPU_buffer_uv( struct DerivedMesh *dm, GPUDrawObject *object );
 
 #endif

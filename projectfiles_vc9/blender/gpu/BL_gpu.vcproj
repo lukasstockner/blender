@@ -474,7 +474,7 @@
 			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 			>
 			<File
-				RelativePath=".\gpu_buffers.c"
+				RelativePath="..\..\..\source\blender\gpu\intern\gpu_buffers.c"
 				>
 			</File>
 			<File
@@ -507,7 +507,7 @@
 			Filter="h;hpp;hxx;hm;inl"
 			>
 			<File
-				RelativePath=".\gpu_buffers.h"
+				RelativePath="..\..\..\source\blender\gpu\gpu_buffers.h"
 				>
 			</File>
 			<File
