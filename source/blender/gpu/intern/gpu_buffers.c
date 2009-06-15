@@ -142,6 +142,7 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 			glGenBuffersARB( 1, &allocated->id );
 			glBindBufferARB( GL_ARRAY_BUFFER_ARB, allocated->id );
 			glBufferDataARB( GL_ARRAY_BUFFER_ARB, size, 0, GL_STATIC_DRAW_ARB );
+			glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 		}
 		else {
 			allocated->pointer = MEM_mallocN(size, "GPU_buffer_alloc_vertexarray");
@@ -199,12 +200,10 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
 		if( mface[i].v4 )
-			numverts[mface[i].mat_nr] += 6;	/* split every quad into two triangles */
+			numverts[mface[i].mat_nr+127] += 6;	/* split every quad into two triangles */
 		else
-			numverts[mface[i].mat_nr] += 3;
+			numverts[mface[i].mat_nr+127] += 3;
 	}
-
-	//float *array = MEM_calloc(dm->getNumVerts(dm)*sizeof(float)*3); for(i = 0; i < dm->getNumVerts(dm); i++) { VECCOPY(array[i], mvert[i].co);}
 
 	for( i = 0; i < 256; i++ ) {
 		if( numverts[i] > 0 ) {
@@ -272,6 +271,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 			(*copy_f)( dm, varray, index, redir );
 			uploaded = glUnmapBufferARB( GL_ARRAY_BUFFER_ARB );	/* returns false if data got corruped during transfer */
 		}
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 	else {
 		varray = buffer->pointer;
@@ -295,11 +295,11 @@ void GPU_buffer_copy_vertex( DerivedMesh *dm, float *varray, int *index, int *re
 	mface = dm->getFaceArray(dm);
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr]];
+		start = index[redir[mface[i].mat_nr+127]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr]] += 18;
+			index[redir[mface[i].mat_nr+127]] += 18;
 		else
-			index[redir[mface[i].mat_nr]] += 9;
+			index[redir[mface[i].mat_nr+127]] += 9;
 
 		/* v1 v2 v3 */
 		VECCOPY(&varray[start],mvert[mface[i].v1].co);
@@ -315,9 +315,9 @@ void GPU_buffer_copy_vertex( DerivedMesh *dm, float *varray, int *index, int *re
 	}
 }
 
-GPUBuffer *GPU_buffer_vertex( DerivedMesh *dm, GPUDrawObject *object )
+GPUBuffer *GPU_buffer_vertex( DerivedMesh *dm )
 {
-	return GPU_buffer_setup( dm, object, sizeof(float)*3*object->nelements, GPU_buffer_copy_vertex);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, GPU_buffer_copy_vertex);
 }
 
 void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *redir )
@@ -333,11 +333,11 @@ void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *re
 	mface = dm->getFaceArray(dm);
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr]];
+		start = index[redir[mface[i].mat_nr+127]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr]] += 18;
+			index[redir[mface[i].mat_nr+127]] += 18;
 		else
-			index[redir[mface[i].mat_nr]] += 9;
+			index[redir[mface[i].mat_nr+127]] += 9;
 
 		/* v1 v2 v3 */
 		if( mface->flag & ME_SMOOTH ) {
@@ -371,9 +371,9 @@ void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *re
 	}
 }
 
-GPUBuffer *GPU_buffer_normal( struct DerivedMesh *dm, GPUDrawObject *object )
+GPUBuffer *GPU_buffer_normal( DerivedMesh *dm )
 {
-	return GPU_buffer_setup( dm, object, sizeof(float)*3*object->nelements, GPU_buffer_copy_normal);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, GPU_buffer_copy_normal);
 }
 
 void GPU_buffer_copy_uv( DerivedMesh *dm, float *varray, int *index, int *redir )
@@ -387,12 +387,17 @@ void GPU_buffer_copy_uv( DerivedMesh *dm, float *varray, int *index, int *redir 
 	mface = dm->getFaceArray(dm);
 	mtface = DM_get_face_data_layer(dm, CD_MTFACE);
 
+	if( mtface == 0 ) {
+		printf("Texture coordinates do not exist for this mesh");
+		return;
+	}
+		
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr]];
+		start = index[redir[mface[i].mat_nr+127]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr]] += 12;
+			index[redir[mface[i].mat_nr+127]] += 12;
 		else
-			index[redir[mface[i].mat_nr]] += 6;
+			index[redir[mface[i].mat_nr+127]] += 6;
 
 		/* v1 v2 v3 */
 		VECCOPY2D(&varray[start],mtface[i].uv[0]);
@@ -408,9 +413,9 @@ void GPU_buffer_copy_uv( DerivedMesh *dm, float *varray, int *index, int *redir 
 	}
 }
 
-GPUBuffer *GPU_buffer_uv( struct DerivedMesh *dm, GPUDrawObject *object )
+GPUBuffer *GPU_buffer_uv( DerivedMesh *dm )
 {
-	return GPU_buffer_setup( dm, object, sizeof(float)*2*object->nelements, GPU_buffer_copy_uv);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*2*dm->drawObject->nelements, GPU_buffer_copy_uv);
 }
 
 void GPU_buffer_copy_color( DerivedMesh *dm, float *varray_, int *index, int *redir )
@@ -430,11 +435,11 @@ void GPU_buffer_copy_color( DerivedMesh *dm, float *varray_, int *index, int *re
 		mcol = DM_get_face_data_layer(dm, CD_MCOL);
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr]];
+		start = index[redir[mface[i].mat_nr+127]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr]] += 18;
+			index[redir[mface[i].mat_nr+127]] += 18;
 		else
-			index[redir[mface[i].mat_nr]] += 9;
+			index[redir[mface[i].mat_nr+127]] += 9;
 
 		/* v1 v2 v3 */
 		varray[start] = mcol[i*4].r;
@@ -462,7 +467,51 @@ void GPU_buffer_copy_color( DerivedMesh *dm, float *varray_, int *index, int *re
 	}
 }
 
-GPUBuffer *GPU_buffer_color( struct DerivedMesh *dm, GPUDrawObject *object )
+GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 {
-	return GPU_buffer_setup( dm, object, sizeof(char)*3*object->nelements, GPU_buffer_copy_color);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, GPU_buffer_copy_color );
+}
+
+void GPU_vertex_setup( DerivedMesh *dm )
+{
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new( dm );
+	if( dm->drawObject->vertices == 0 )
+		GPU_buffer_vertex( dm );
+	glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->vertices->id );
+	glEnableClientState( GL_VERTEX_ARRAY );
+	glVertexPointer( 3, GL_FLOAT, 0, 0 );
+}
+
+void GPU_normal_setup( DerivedMesh *dm )
+{
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new( dm );
+	if( dm->drawObject->normals == 0 )
+		GPU_buffer_normal( dm );
+	glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->normals->id );
+	glEnableClientState( GL_NORMAL_ARRAY );
+	glNormalPointer( GL_FLOAT, 0, 0 );
+}
+
+void GPU_uv_setup( DerivedMesh *dm )
+{
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new( dm );
+	if( dm->drawObject->uv == 0 )
+		GPU_buffer_uv( dm );
+	glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id );
+	glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+	glTexCoordPointer( 2, GL_FLOAT, 0, 0 );
+}
+
+void GPU_color_setup( DerivedMesh *dm )
+{
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new( dm );
+	if( dm->drawObject->colors == 0 )
+		GPU_buffer_uv( dm );
+	glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->colors->id );
+	glEnableClientState( GL_COLOR_ARRAY );
+	glColorPointer( 3, GL_UNSIGNED_BYTE, 0, 0 );
 }

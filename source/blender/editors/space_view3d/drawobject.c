@@ -95,6 +95,7 @@
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
+#include "GPU_buffers.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
