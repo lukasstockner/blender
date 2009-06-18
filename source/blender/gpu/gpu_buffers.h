@@ -83,20 +83,14 @@ void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool );
 GPUDrawObject *GPU_drawobject_new( struct DerivedMesh *dm );
 void GPU_drawobject_free( GPUDrawObject *object );
 
-/* collect the data into buffers */
-/*GPUBuffer *GPU_buffer_vertex( struct DerivedMesh *dm );
-GPUBuffer *GPU_buffer_normal( struct DerivedMesh *dm );
-GPUBuffer *GPU_buffer_uv( struct DerivedMesh *dm );
-GPUBuffer *GPU_buffer_color( struct DerivedMesh *dm );*/
-
 /* called before drawing */
 void GPU_vertex_setup( struct DerivedMesh *dm );
 void GPU_normal_setup( struct DerivedMesh *dm );
 void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 
-void GPU_buffer_draw( struct DerivedMesh *dm );
-void GPU_buffer_draw_selected( struct DerivedMesh *dm, int selected );
+/* upload three unsigned chars, representing RGB colors, for each vertex */
+void GPU_color_upload( struct DerivedMesh *dm, char *data );
 
 /* called after drawing */
 void GPU_buffer_unbind();

@@ -60,6 +60,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -252,72 +253,16 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))
 {
-	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
-	MVert *mvert = cddm->mvert;
-	MFace *mface = cddm->mface;
-	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
-	int a, glmode = -1, shademodel = -1, matnr = -1, drawCurrentMat = 1;
-
-#define PASSVERT(index) {						\
-	if(shademodel == GL_SMOOTH) {				\
-		short *no = mvert[index].no;			\
-		glNormal3sv(no);						\
-	}											\
-	glVertex3fv(mvert[index].co);	\
-}
-
-	glBegin(glmode = GL_QUADS);
-	for(a = 0; a < dm->numFaceData; a++, mface++) {
-		int new_glmode, new_matnr, new_shademodel;
-
-		new_glmode = mface->v4?GL_QUADS:GL_TRIANGLES;
-		new_matnr = mface->mat_nr + 1;
-		new_shademodel = (mface->flag & ME_SMOOTH)?GL_SMOOTH:GL_FLAT;
-		
-		if(new_glmode != glmode || new_matnr != matnr
-		   || new_shademodel != shademodel) {
-			glEnd();
-
-			drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
-
-			glShadeModel(shademodel = new_shademodel);
-			glBegin(glmode = new_glmode);
-		} 
-		
-		if(drawCurrentMat) {
-			if(shademodel == GL_FLAT) {
-				if (nors) {
-					glNormal3fv(nors);
-				}
-				else {
-					/* TODO make this better (cache facenormals as layer?) */
-					float nor[3];
-					if(mface->v4) {
-						CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
-									   mvert[mface->v3].co, mvert[mface->v4].co,
-									   nor);
-					} else {
-						CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
-									  mvert[mface->v3].co, nor);
-					}
-					glNormal3fv(nor);
-				}
-			}
-
-			PASSVERT(mface->v1);
-			PASSVERT(mface->v2);
-			PASSVERT(mface->v3);
-			if(mface->v4) {
-				PASSVERT(mface->v4);
-			}
-		}
-
-		if(nors) nors += 3;
+	int i;
+	GPU_vertex_setup( dm );
+	GPU_normal_setup( dm );
+	glShadeModel(GL_SMOOTH);
+	for( i = 0; i < dm->drawObject->nmaterials; i++ ) {
+		setMaterial(dm->drawObject->materials[i].mat_nr+1, NULL);
+		glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[i].start, dm->drawObject->materials[i].end);
 	}
-	glEnd();
-
+	GPU_buffer_unbind( );
 	glShadeModel(GL_FLAT);
-#undef PASSVERT
 }
 
 static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned char *col1, unsigned char *col2)
