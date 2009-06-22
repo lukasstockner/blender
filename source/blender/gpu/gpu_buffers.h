@@ -95,4 +95,7 @@ void GPU_color_upload( struct DerivedMesh *dm, char *data );
 /* called after drawing */
 void GPU_buffer_unbind();
 
+/* called when destroying DerivedMesh */
+void GPU_buffer_release( struct DerivedMesh *dm );
+
 #endif

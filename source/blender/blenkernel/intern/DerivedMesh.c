@@ -83,6 +83,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "gpu_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -217,7 +218,7 @@ int DM_release(DerivedMesh *dm)
 {
 	if (dm->needsFree) {
 		bvhcache_free(&dm->bvhCache);
-
+		GPU_buffer_release(dm);
 		CustomData_free(&dm->vertData, dm->numVertData);
 		CustomData_free(&dm->edgeData, dm->numEdgeData);
 		CustomData_free(&dm->faceData, dm->numFaceData);
