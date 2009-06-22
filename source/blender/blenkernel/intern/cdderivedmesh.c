@@ -318,8 +318,70 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	MTFace *tf = DM_get_face_data_layer(dm, CD_MTFACE);
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
+	int startFace = 0, lastFlag = 0xdeadbeef;
+	GPU_vertex_setup( dm );
+	GPU_normal_setup( dm );
+	GPU_uv_setup( dm );
+	if( mcol != 0 ) {
+		if( dm->drawObject->colType != CD_MCOL ) {
+			unsigned char *colors = MEM_mallocN(dm->getNumFaces(dm)*3*sizeof(unsigned char), "cdDM_drawFacesTex_common");
+			for( i=0; i < dm->getNumFaces(dm); i++ ) {
+				colors[i*3] = mcol[i].r;
+				colors[i*3+1] = mcol[i].g;
+				colors[i*3+2] = mcol[i].b;
+			}
+			GPU_color3_upload(dm,colors);
+			MEM_freeN(colors);
+			dm->drawObject->colType = CD_MCOL;
+		}
+		GPU_color_setup( dm );
+	}
 
-	for(i = 0; i < dm->numFaceData; i++, mf++) {
+	glShadeModel( GL_SMOOTH );
+	for(i = 0; i < dm->drawObject->nelements/3; i++) {
+		int actualFace = dm->drawObject->faceRemap[i];
+		int flag;
+		unsigned char *cp = NULL;
+
+		if(drawParams) {
+			flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
+		}
+		else {
+			if(index) {
+				orig = index[actualFace];
+				if(drawParamsMapped)
+					flag = drawParamsMapped(userData, orig);
+			}
+			else
+				if(drawParamsMapped)
+					flag = drawParamsMapped(userData, actualFace);
+		}
+		if( flag != lastFlag ) {
+			if( startFace < i ) {
+				if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+					if (lastFlag==1 && mcol)
+						GPU_color_switch(1);
+					else
+						GPU_color_switch(0);
+					glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
+				}
+			}
+			lastFlag = flag;
+			startFace = i;
+		}
+	}
+	if( startFace < dm->drawObject->nelements/3 ) {
+		if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+			if (lastFlag==1 && mcol)
+				GPU_color_switch(1);
+			else
+				GPU_color_switch(0);
+			glDrawArrays(GL_TRIANGLES,startFace*3,((dm->drawObject->nelements/3)-startFace)*3);
+		}
+	}
+	GPU_buffer_unbind();
+	glShadeModel( GL_FLAT );
+	/*for(i = 0; i < dm->numFaceData; i++, mf++) {
 		MVert *mvert;
 		int flag;
 		unsigned char *cp = NULL;
@@ -339,7 +401,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				else	{ if(nors) nors += 3; continue; }
 		}
 		
-		if(flag != 0) { /* if the flag is 0 it means the face is hidden or invisible */
+		if(flag != 0) {
 			if (flag==1 && mcol)
 				cp= (unsigned char*) &mcol[i*4];
 
@@ -348,7 +410,6 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 					glNormal3fv(nors);
 				}
 				else {
-					/* TODO make this better (cache facenormals as layer?) */
 					float nor[3];
 					if(mf->v4) {
 						CalcNormFloat4(mv[mf->v1].co, mv[mf->v2].co,
@@ -392,7 +453,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 		}
 		
 		if(nors) nors += 3;
-	}
+	}*/
 }
 
 static void cdDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tface, MCol *mcol, int matnr))

@@ -67,6 +67,8 @@ typedef struct GPUDrawObject
 	GPUBuffer *normals;
 	GPUBuffer *uv;
 	GPUBuffer *colors;
+	int	*faceRemap;		/* at what index was the face originally in DerivedMesh */
+	int colType;
 
 	GPUBufferMaterial *materials;
 
@@ -89,10 +91,12 @@ void GPU_normal_setup( struct DerivedMesh *dm );
 void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 
-/* upload three unsigned chars, representing RGB colors, for each vertex */
+/* upload three unsigned chars, representing RGB colors, for each vertex. Resets dm->drawObject->colType to -1 */
 void GPU_color3_upload( struct DerivedMesh *dm, char *data );
-/* upload four unsigned chars, representing RGBA colors, for each vertex */
+/* upload four unsigned chars, representing RGBA colors, for each vertex. Resets dm->drawObject->colType to -1 */
 void GPU_color4_upload( struct DerivedMesh *dm, char *data );
+/* switch color rendering on=1/off=0 */
+void GPU_color_switch( int mode );
 
 /* called after drawing */
 void GPU_buffer_unbind();

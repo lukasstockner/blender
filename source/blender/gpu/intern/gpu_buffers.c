@@ -195,6 +195,10 @@ void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool )
 
 	if( buffer == 0 )
 		return;
+	if( pool == 0 )
+		pool = globalPool;
+	if( pool == 0 )
+		globalPool = GPU_buffer_pool_new();
 
 	while( pool->start < 0 )
 		pool->start += MAX_FREE_GPU_BUFFERS;
@@ -216,6 +220,8 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	MVert *mvert;
 	MFace *mface;
 	int numverts[256];	/* material number is an 8-bit char so there's at most 256 materials */
+	int redir[256];		/* material number is an 8-bit char so there's at most 256 materials */
+	int *index;
 	int i;
 	int curmat, curverts;
 
@@ -242,18 +248,36 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 		}
 	}
 	object->materials = MEM_mallocN(sizeof(GPUBufferMaterial)*object->nmaterials,"GPU_drawobject_new_materials");
+	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup_index");
 
 	curmat = curverts = 0;
 	for( i = 0; i < 256; i++ ) {
 		if( numverts[i] > 0 ) {
 			object->materials[curmat].mat_nr = i-127;
 			object->materials[curmat].start = curverts;
+			index[curmat] = curverts/3;
 			object->materials[curmat].end = curverts+numverts[i];
 			curverts += numverts[i];
 			curmat++;
 		}
 	}
+	object->faceRemap = MEM_mallocN(sizeof(int)*object->nelements/3,"GPU_drawobject_new_faceRemap");
+	for( i = 0; i < object->nmaterials; i++ ) {
+		redir[object->materials[i].mat_nr+127] = i;	/* material number -> material index */
+	}
 
+	for( i=0; i < dm->getNumFaces(dm); i++ ) {
+		object->faceRemap[index[redir[mface[i].mat_nr+127]]] = i; 
+		if( mface[i].v4 ) {
+			object->faceRemap[index[redir[mface[i].mat_nr+127]]+1] = i;
+			index[redir[mface[i].mat_nr+127]]+=2;
+		}
+		else
+		{
+			index[redir[mface[i].mat_nr+127]]++;
+		}
+	}
+	MEM_freeN(index);
 	return object;
 }
 
@@ -265,7 +289,7 @@ void GPU_drawobject_free( GPUDrawObject *object )
 	DEBUG_VBO("GPU_drawobject_free\n");
 
 	MEM_freeN(object->materials);
-
+	MEM_freeN(object->faceRemap);
 	GPU_buffer_free( object->vertices, globalPool );
 	GPU_buffer_free( object->normals, globalPool );
 	GPU_buffer_free( object->uv, globalPool );
@@ -462,8 +486,10 @@ void GPU_buffer_copy_uv( DerivedMesh *dm, float *varray, int *index, int *redir,
 GPUBuffer *GPU_buffer_uv( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_uv\n");
-
-	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*2*dm->drawObject->nelements, 0, GPU_buffer_copy_uv);
+	if( DM_get_face_data_layer(dm, CD_MTFACE) != 0 )
+		return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*2*dm->drawObject->nelements, 0, GPU_buffer_copy_uv);
+	else
+		return 0;
 }
 
 void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *redir, void *user )
@@ -477,6 +503,7 @@ void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *r
 
 	DEBUG_VBO("GPU_buffer_copy_color3\n");
 
+	dm->drawObject->colType = -1;
 	mcol = user;
 	varray = (unsigned char *)varray_;
 
@@ -513,6 +540,7 @@ void GPU_buffer_copy_color4( DerivedMesh *dm, float *varray_, int *index, int *r
 
 	DEBUG_VBO("GPU_buffer_copy_color4\n");
 
+	dm->drawObject->colType = -1;
 	mcol = (unsigned char *)user;
 	varray = (unsigned char *)varray_;
 
@@ -547,8 +575,9 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 	DEBUG_VBO("GPU_buffer_color\n");
 
 	mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
-	if(!mcol)
+	if(!mcol) {
 		mcol = DM_get_face_data_layer(dm, CD_MCOL);
+	}
 
 	colors = MEM_mallocN(dm->getNumFaces(dm)*3*sizeof(unsigned char), "GPU_buffer_color");
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
@@ -556,7 +585,14 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 		colors[i*3+1] = mcol[i].g;
 		colors[i*3+2] = mcol[i].b;
 	}
+
 	result = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, colors, GPU_buffer_copy_color3 );
+
+	mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
+	dm->drawObject->colType = CD_WEIGHT_MCOL;
+	if(!mcol) {
+		dm->drawObject->colType = CD_MCOL;
+	}
 	MEM_freeN(colors);
 	return result;
 }
@@ -608,16 +644,19 @@ void GPU_uv_setup( DerivedMesh *dm )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->uv == 0 )
 		dm->drawObject->uv = GPU_buffer_uv( dm );
-	glEnableClientState( GL_TEXTURE_COORD_ARRAY );
-	if( useVBOs ) {
-		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id );
-		glTexCoordPointer( 2, GL_FLOAT, 0, 0 );
-	}
-	else {
-		glTexCoordPointer( 2, GL_FLOAT, 0, dm->drawObject->uv->pointer );
-	}
 
-	GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+	if( dm->drawObject->uv != 0 ) {
+		glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+		if( useVBOs ) {
+			glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->uv->id );
+			glTexCoordPointer( 2, GL_FLOAT, 0, 0 );
+		}
+		else {
+			glTexCoordPointer( 2, GL_FLOAT, 0, dm->drawObject->uv->pointer );
+		}
+
+		GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+	}
 }
 
 void GPU_color_setup( DerivedMesh *dm )
@@ -626,7 +665,7 @@ void GPU_color_setup( DerivedMesh *dm )
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->colors == 0 )
-		dm->drawObject->colors = GPU_buffer_uv( dm );
+		dm->drawObject->colors = GPU_buffer_color( dm );
 	glEnableClientState( GL_COLOR_ARRAY );
 	if( useVBOs ) {
 		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->colors->id );
@@ -670,4 +709,18 @@ void GPU_color4_upload( struct DerivedMesh *dm, char *data )
 		dm->drawObject = GPU_drawobject_new(dm);
 	GPU_buffer_free(dm->drawObject->colors,globalPool);
 	dm->drawObject->colors = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, data, GPU_buffer_copy_color4 );
+}
+
+void GPU_color_switch( int mode )
+{
+	if( mode ) {
+		if( !GLStates & GPU_BUFFER_COLOR_STATE )
+			glEnableClientState( GL_COLOR_ARRAY );
+		GLStates |= GPU_BUFFER_COLOR_STATE;
+	}
+	else {
+		if( GLStates & GPU_BUFFER_COLOR_STATE )
+			glDisableClientState( GL_COLOR_ARRAY );
+		GLStates &= (!GPU_BUFFER_COLOR_STATE);
+	}
 }
