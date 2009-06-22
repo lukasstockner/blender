@@ -490,14 +490,14 @@ void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *r
 			index[redir[mface[i].mat_nr+127]] += 9;
 
 		/* v1 v2 v3 */
-		VECCOPY(&varray[start],&mcol[i*4]);
-		VECCOPY(&varray[start+3],&mcol[i*4+3]);
-		VECCOPY(&varray[start+6],&mcol[i*4+6]);
+		VECCOPY(&varray[start],&mcol[i*12]);
+		VECCOPY(&varray[start+3],&mcol[i*12+3]);
+		VECCOPY(&varray[start+6],&mcol[i*12+6]);
 		if( mface[i].v4 ) {
 			/* v3 v4 v1 */
-			VECCOPY(&varray[start+9],&mcol[i*4+6]);
-			VECCOPY(&varray[start+12],&mcol[i*4+9]);
-			VECCOPY(&varray[start+15],&mcol[i*4]);
+			VECCOPY(&varray[start+9],&mcol[i*12+6]);
+			VECCOPY(&varray[start+12],&mcol[i*12+9]);
+			VECCOPY(&varray[start+15],&mcol[i*12]);
 		}
 	}
 }
@@ -513,7 +513,7 @@ void GPU_buffer_copy_color4( DerivedMesh *dm, float *varray_, int *index, int *r
 
 	DEBUG_VBO("GPU_buffer_copy_color4\n");
 
-	mcol = user;
+	mcol = (unsigned char *)user;
 	varray = (unsigned char *)varray_;
 
 	mface = dm->getFaceArray(dm);
@@ -526,14 +526,14 @@ void GPU_buffer_copy_color4( DerivedMesh *dm, float *varray_, int *index, int *r
 			index[redir[mface[i].mat_nr+127]] += 9;
 
 		/* v1 v2 v3 */
-		VECCOPY(&varray[start],&mcol[i*4]);
-		VECCOPY(&varray[start+3],&mcol[i*4+4]);
-		VECCOPY(&varray[start+6],&mcol[i*4+8]);
+		VECCOPY(&varray[start],&mcol[i*16]);
+		VECCOPY(&varray[start+3],&mcol[i*16+4]);
+		VECCOPY(&varray[start+6],&mcol[i*16+8]);
 		if( mface[i].v4 ) {
 			/* v3 v4 v1 */
-			VECCOPY(&varray[start+9],&mcol[i*4+8]);
-			VECCOPY(&varray[start+12],&mcol[i*4+12]);
-			VECCOPY(&varray[start+15],&mcol[i*4]);
+			VECCOPY(&varray[start+9],&mcol[i*16+8]);
+			VECCOPY(&varray[start+12],&mcol[i*16+12]);
+			VECCOPY(&varray[start+15],&mcol[i*16]);
 		}
 	}
 }

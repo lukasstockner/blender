@@ -286,11 +286,11 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 	/* we need that as mesh option builtin, next to double sided lighting */
 	if(col1 && col2)
 		glEnable(GL_CULL_FACE);
-	
-	/* TODO: why does the code below give different results? */
-	/*GPU_color4_upload(dm,cp1);
+
+	GPU_color4_upload(dm,cp1);
 	GPU_vertex_setup(dm);
 	GPU_color_setup(dm);
+	glShadeModel(GL_SMOOTH);
 	glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
 
 	if( useTwoSided ) {
@@ -300,45 +300,7 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 		glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
 		glCullFace(GL_BACK);
 	}
-	GPU_buffer_unbind();*/
-
-	/* old code */
-	glShadeModel(GL_SMOOTH);
-	glBegin(glmode = GL_QUADS);
-	for(a = 0; a < dm->numFaceData; a++, mface++, cp1 += 16) {
-		int new_glmode = mface->v4?GL_QUADS:GL_TRIANGLES;
-
-		if(new_glmode != glmode) {
-			glEnd();
-			glBegin(glmode = new_glmode);
-		}
-			
-		glColor3ub(cp1[0], cp1[1], cp1[2]);
-		glVertex3fv(mvert[mface->v1].co);
-		glColor3ub(cp1[4], cp1[5], cp1[6]);
-		glVertex3fv(mvert[mface->v2].co);
-		glColor3ub(cp1[8], cp1[9], cp1[10]);
-		glVertex3fv(mvert[mface->v3].co);
-		if(mface->v4) {
-			glColor3ub(cp1[12], cp1[13], cp1[14]);
-			glVertex3fv(mvert[mface->v4].co);
-		}
-			
-		if(useTwoSided) {
-			glColor3ub(cp2[8], cp2[9], cp2[10]);
-			glVertex3fv(mvert[mface->v3].co );
-			glColor3ub(cp2[4], cp2[5], cp2[6]);
-			glVertex3fv(mvert[mface->v2].co );
-			glColor3ub(cp2[0], cp2[1], cp2[2]);
-			glVertex3fv(mvert[mface->v1].co );
-			if(mface->v4) {
-				glColor3ub(cp2[12], cp2[13], cp2[14]);
-				glVertex3fv(mvert[mface->v4].co );
-			}
-		}
-		if(col2) cp2 += 16;
-	}
-	glEnd();
+	GPU_buffer_unbind();
 
 	glShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);
