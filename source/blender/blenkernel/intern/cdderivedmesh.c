@@ -287,6 +287,22 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 	if(col1 && col2)
 		glEnable(GL_CULL_FACE);
 	
+	/* TODO: why does the code below give different results? */
+	/*GPU_color4_upload(dm,cp1);
+	GPU_vertex_setup(dm);
+	GPU_color_setup(dm);
+	glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
+
+	if( useTwoSided ) {
+		GPU_color4_upload(dm,cp2);
+		GPU_color_setup(dm);
+		glCullFace(GL_FRONT);
+		glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
+		glCullFace(GL_BACK);
+	}
+	GPU_buffer_unbind();*/
+
+	/* old code */
 	glShadeModel(GL_SMOOTH);
 	glBegin(glmode = GL_QUADS);
 	for(a = 0; a < dm->numFaceData; a++, mface++, cp1 += 16) {
@@ -435,7 +451,18 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 	if(!mc)
 		mc = DM_get_face_data_layer(dm, CD_MCOL);
 
-	for(i = 0; i < dm->numFaceData; i++, mf++) {
+	/* TODO: not yet tested */
+	GPU_vertex_setup(dm);
+	GPU_normal_setup(dm);
+	if( useColors && mc )
+		GPU_color_setup(dm);
+	glShadeModel(GL_SMOOTH);
+	glDrawArrays(GL_TRIANGLES,0,dm->drawObject->nelements);
+	glShadeModel(GL_FLOAT);
+	GPU_buffer_unbind();
+
+	/* old code */
+	/*for(i = 0; i < dm->numFaceData; i++, mf++) {
 		int drawSmooth = (mf->flag & ME_SMOOTH);
 
 		if(index) {
@@ -460,7 +487,6 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 					glNormal3fv(nors);
 				}
 				else {
-					/* TODO make this better (cache facenormals as layer?) */
 					float nor[3];
 					if(mf->v4) {
 						CalcNormFloat4(mv[mf->v1].co, mv[mf->v2].co,
@@ -504,7 +530,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		}
 		
 		if (nors) nors += 3;
-	}
+	}*/
 }
 
 static void cdDM_drawMappedFacesTex(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData)

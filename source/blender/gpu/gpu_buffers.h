@@ -90,12 +90,11 @@ void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 
 /* upload three unsigned chars, representing RGB colors, for each vertex */
-void GPU_color_upload( struct DerivedMesh *dm, char *data );
+void GPU_color3_upload( struct DerivedMesh *dm, char *data );
+/* upload four unsigned chars, representing RGBA colors, for each vertex */
+void GPU_color4_upload( struct DerivedMesh *dm, char *data );
 
 /* called after drawing */
 void GPU_buffer_unbind();
-
-/* called when destroying DerivedMesh */
-void GPU_buffer_release( struct DerivedMesh *dm );
 
 #endif
