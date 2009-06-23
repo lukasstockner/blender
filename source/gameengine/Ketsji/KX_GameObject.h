@@ -63,6 +63,10 @@ struct Object;
 /* utility conversion function */
 bool ConvertPythonToGameObject(PyObject * value, KX_GameObject **object, bool py_none_ok, const char *error_prefix);
 
+#ifdef USE_MATHUTILS
+void KX_GameObject_Mathutils_Callback_Init(void);
+#endif
+
 /**
  * KX_GameObject is the main class for dynamic objects.
  */
@@ -77,6 +81,7 @@ protected:
 	STR_String							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
+	SG_QList							m_meshSlots;	// head of mesh slots of this 
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
 	
@@ -170,7 +175,7 @@ public:
 	/** 
 	 * Sets the parent of this object to a game object
 	 */			
-	void SetParent(KX_Scene *scene, KX_GameObject *obj);
+	void SetParent(KX_Scene *scene, KX_GameObject *obj, bool addToCompound=true, bool ghost=true);
 
 	/** 
 	 * Removes the parent of this object to a game object
@@ -191,11 +196,6 @@ public:
 	virtual 
 	~KX_GameObject(
 	);
-
-		CValue*				
-	AddRef() { 
-		/* temporarily to find memleaks */ return CValue::AddRef(); 
-	}
 
 	/** 
 	 * @section Stuff which is here due to poor design.
@@ -245,7 +245,7 @@ public:
 	/**
 	 * Inherited from CValue -- returns the name of this object.
 	 */
-		STR_String			
+		STR_String&			
 	GetName(
 	);
 
@@ -254,15 +254,7 @@ public:
 	 */
 		void				
 	SetName(
-		STR_String name
-	);
-
-	/**
-	 * Inherited from CValue -- does nothing.
-	 */
-		void				
-	ReplicaSetName(
-		STR_String name
+		const char *name
 	);
 
 	/** 
@@ -279,9 +271,7 @@ public:
 	 * data owned by this class is deep copied. Called internally
 	 */
 	virtual	void				
-	ProcessReplica(
-		KX_GameObject* replica
-	);
+	ProcessReplica();
 
 	/** 
 	 * Return the linear velocity of the game object.
@@ -395,6 +385,10 @@ public:
 	{ 
 		m_pGraphicController = graphiccontroller;
 	}
+	/*
+	 * @add/remove the graphic controller to the physic system
+	 */
+	void ActivateGraphicController(bool recurse);
 
 	/**
 	 * @section Coordinate system manipulation functions
@@ -403,6 +397,7 @@ public:
 	void	NodeSetLocalPosition(const MT_Point3& trans	);
 
 	void	NodeSetLocalOrientation(const MT_Matrix3x3& rot	);
+	void	NodeSetGlobalOrientation(const MT_Matrix3x3& rot	);
 
 	void	NodeSetLocalScale(	const MT_Vector3& scale	);
 
@@ -416,21 +411,13 @@ public:
 		double time
 	);
 
-	const 
-		MT_Matrix3x3&			
-	NodeGetWorldOrientation(
-	) const;
+	const MT_Matrix3x3& NodeGetWorldOrientation(  ) const;
+	const MT_Vector3& NodeGetWorldScaling(  ) const;
+	const MT_Point3& NodeGetWorldPosition(  ) const;
 
-	const 
-		MT_Vector3&			
-	NodeGetWorldScaling(
-	) const;
-
-	const 
-		MT_Point3&			
-	NodeGetWorldPosition(
-	) const;
-
+	const MT_Matrix3x3& NodeGetLocalOrientation(  ) const;
+	const MT_Vector3& NodeGetLocalScaling(  ) const;
+	const MT_Point3& NodeGetLocalPosition(  ) const;
 
 	/**
 	 * @section scene graph node accessor functions.
@@ -568,6 +555,13 @@ public:
 	);
 
 	static void UpdateTransformFunc(SG_IObject* node, void* gameobj, void* scene);
+
+	/**
+	 * only used for sensor objects
+	 */
+	void SynchronizeTransform();
+
+	static void SynchronizeTransformFunc(SG_IObject* node, void* gameobj, void* scene);
 
 	/**
 	 * Function to set IPO option at start of IPO
@@ -816,6 +810,7 @@ public:
 	 */
 	
 	virtual PyObject* py_getattro(PyObject *attr);
+	virtual PyObject* py_getattro_dict();
 	virtual int py_setattro(PyObject *attr, PyObject *value);		// py_setattro method
 	virtual int				py_delattro(PyObject *attr);
 	virtual PyObject* py_repr(void)
@@ -860,7 +855,7 @@ public:
 	KX_PYMETHOD_VARARGS(KX_GameObject,ApplyImpulse);
 	KX_PYMETHOD_O(KX_GameObject,SetCollisionMargin);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetParent);
-	KX_PYMETHOD_O(KX_GameObject,SetParent);
+	KX_PYMETHOD_VARARGS(KX_GameObject,SetParent);
 	KX_PYMETHOD_NOARGS(KX_GameObject,RemoveParent);
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetChildren);	
 	KX_PYMETHOD_NOARGS(KX_GameObject,GetChildrenRecursive);
@@ -874,6 +869,11 @@ public:
 	KX_PYMETHOD_DOC_O(KX_GameObject,getDistanceTo);
 	KX_PYMETHOD_DOC_O(KX_GameObject,getVectTo);
 	KX_PYMETHOD_DOC_VARARGS(KX_GameObject, sendMessage);
+	
+	/* Dict access */
+	KX_PYMETHOD_VARARGS(KX_GameObject,get);
+	KX_PYMETHOD_O(KX_GameObject,has_key);
+	
 	/* attributes */
 	static PyObject*	pyattr_get_name(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_parent(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -893,6 +893,7 @@ public:
 	static PyObject*	pyattr_get_localInertia(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_localInertia(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldOrientation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_worldOrientation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localOrientation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_localOrientation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldScaling(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -903,9 +904,9 @@ public:
 	static PyObject*	pyattr_get_state(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_state(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_meshes(void* self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	
-	/* for dir(), python3 uses __dir__() */
-	static PyObject*	pyattr_get_dir_dict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_children(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_children_recursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static PyObject*	pyattr_get_attrDict(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	
 	/* Experemental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -913,10 +914,8 @@ public:
 	static PyObject*	pyattr_get_actuators(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	
 	/* getitem/setitem */
-	static Py_ssize_t			Map_Len(PyObject* self);
 	static PyMappingMethods	Mapping;
-	static PyObject*			Map_GetItem(PyObject *self_v, PyObject *item);
-	static int					Map_SetItem(PyObject *self_v, PyObject *key, PyObject *val);
+	static PySequenceMethods	Sequence;
 	
 private :
 

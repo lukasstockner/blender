@@ -32,8 +32,87 @@
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 
+#include "WM_types.h"
+
 #ifdef RNA_RUNTIME
 
+#include "MEM_guardedalloc.h"
+
+#include "BKE_context.h"
+#include "BKE_pointcache.h"
+
+#include "BLI_blenlib.h"
+
+static void rna_Cache_toggle_disk_cache(bContext *C, PointerRNA *ptr)
+{
+	Object *ob = CTX_data_active_object(C);
+	PointCache *cache = (PointCache*)ptr->data;
+	PTCacheID *pid = NULL;
+	ListBase pidlist;
+
+	if(!ob)
+		return;
+
+	BKE_ptcache_ids_from_object(&pidlist, ob);
+
+	for(pid=pidlist.first; pid; pid=pid->next) {
+		if(pid->cache==cache)
+			break;
+	}
+
+	if(pid)
+		BKE_ptcache_toggle_disk_cache(pid);
+
+	BLI_freelistN(&pidlist);
+}
+
+static void rna_Cache_idname_change(bContext *C, PointerRNA *ptr)
+{
+	Object *ob = CTX_data_active_object(C);
+	PointCache *cache = (PointCache*)ptr->data;
+	PTCacheID *pid = NULL, *pid2;
+	ListBase pidlist;
+	int new_name = 1;
+	char name[80];
+
+	if(!ob)
+		return;
+
+	/* TODO: check for proper characters */
+
+	BKE_ptcache_ids_from_object(&pidlist, ob);
+
+	for(pid=pidlist.first; pid; pid=pid->next) {
+		if(pid->cache==cache)
+			pid2 = pid;
+		else if(strcmp(cache->name, "") && strcmp(cache->name,pid->cache->name)==0) {
+			/*TODO: report "name exists" to user */
+			strcpy(cache->name, cache->prev_name);
+			new_name = 0;
+		}
+	}
+
+	if(new_name) {
+		if(pid2 && cache->flag & PTCACHE_DISK_CACHE) {
+			strcpy(name, cache->name);
+			strcpy(cache->name, cache->prev_name);
+
+			cache->flag &= ~PTCACHE_DISK_CACHE;
+
+			BKE_ptcache_toggle_disk_cache(pid2);
+
+			strcpy(cache->name, name);
+
+			cache->flag |= PTCACHE_DISK_CACHE;
+
+			BKE_ptcache_toggle_disk_cache(pid2);
+		}
+
+		strcpy(cache->prev_name, cache->name);
+	}
+
+	BLI_freelistN(&pidlist);
+}
 #else
 
 static void rna_def_pointcache(BlenderRNA *brna)
@@ -60,6 +139,32 @@ static void rna_def_pointcache(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "baking", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_BAKING);
+
+	prop= RNA_def_property(srna, "disk_cache", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_DISK_CACHE);
+	RNA_def_property_ui_text(prop, "Disk Cache", "Save cache files to disk");
+	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_toggle_disk_cache");
+
+	prop= RNA_def_property(srna, "outdated", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_OUTDATED);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Cache is outdated", "");
+
+	prop= RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_ui_text(prop, "Name", "Cache name");
+	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_idname_change");
+
+	prop= RNA_def_property(srna, "autocache", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PTCACHE_AUTOCACHE);
+	RNA_def_property_ui_text(prop, "Auto Cache", "Cache changes automatically");
+	//RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_toggle_autocache");
+
+	prop= RNA_def_property(srna, "info", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "info");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Cache Info", "Info on current cache status.");
+
 }
 
 static void rna_def_collision(BlenderRNA *brna)
@@ -136,29 +241,29 @@ static void rna_def_field(BlenderRNA *brna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem field_type_items[] = {
-		{0, "NONE", "None", ""},
-		{PFIELD_FORCE, "SPHERICAL", "Spherical", ""},
-		{PFIELD_VORTEX, "VORTEX", "Vortex", ""},
-		{PFIELD_MAGNET, "MAGNET", "Magnetic", ""},
-		{PFIELD_WIND, "WIND", "Wind", ""},
-		{PFIELD_GUIDE, "GUIDE", "Curve Guide", ""},
-		{PFIELD_TEXTURE, "TEXTURE", "Texture", ""},
-		{PFIELD_HARMONIC, "HARMONIC", "Harmonic", ""},
-		{PFIELD_CHARGE, "CHARGE", "Charge", ""},
-		{PFIELD_LENNARDJ, "LENNARDJ", "Lennard-Jones", ""},
-		{0, NULL, NULL, NULL}};
+		{0, "NONE", 0, "None", ""},
+		{PFIELD_FORCE, "SPHERICAL", 0, "Spherical", ""},
+		{PFIELD_VORTEX, "VORTEX", 0, "Vortex", ""},
+		{PFIELD_MAGNET, "MAGNET", 0, "Magnetic", ""},
+		{PFIELD_WIND, "WIND", 0, "Wind", ""},
+		{PFIELD_GUIDE, "GUIDE", 0, "Curve Guide", ""},
+		{PFIELD_TEXTURE, "TEXTURE", 0, "Texture", ""},
+		{PFIELD_HARMONIC, "HARMONIC", 0, "Harmonic", ""},
+		{PFIELD_CHARGE, "CHARGE", 0, "Charge", ""},
+		{PFIELD_LENNARDJ, "LENNARDJ", 0, "Lennard-Jones", ""},
+		{0, NULL, 0, NULL, NULL}};
 		
 	static EnumPropertyItem falloff_items[] = {
-		{PFIELD_FALL_SPHERE, "SPHERE", "Sphere", ""},
-		{PFIELD_FALL_TUBE, "TUBE", "Tube", ""},
-		{PFIELD_FALL_CONE, "CONE", "Cone", ""},
-		{0, NULL, NULL, NULL}};
+		{PFIELD_FALL_SPHERE, "SPHERE", 0, "Sphere", ""},
+		{PFIELD_FALL_TUBE, "TUBE", 0, "Tube", ""},
+		{PFIELD_FALL_CONE, "CONE", 0, "Cone", ""},
+		{0, NULL, 0, NULL, NULL}};
 		
 	static EnumPropertyItem texture_items[] = {
-		{PFIELD_TEX_RGB, "RGB", "RGB", ""},
-		{PFIELD_TEX_GRAD, "GRADIENT", "Gradient", ""},
-		{PFIELD_TEX_CURL, "CURL", "Curl", ""},
-		{0, NULL, NULL, NULL}};
+		{PFIELD_TEX_RGB, "RGB", 0, "RGB", ""},
+		{PFIELD_TEX_GRAD, "GRADIENT", 0, "Gradient", ""},
+		{PFIELD_TEX_CURL, "CURL", 0, "Curl", ""},
+		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "FieldSettings", NULL);
 	RNA_def_struct_sdna(srna, "PartDeflect");
@@ -232,6 +337,10 @@ static void rna_def_field(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "f_noise");
 	RNA_def_property_range(prop, 0.0f, 10.0f);
 	RNA_def_property_ui_text(prop, "Noise", "Noise of the wind force");
+
+	prop= RNA_def_property(srna, "seed", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 1, 128);
+	RNA_def_property_ui_text(prop, "Seed", "Seed of the wind noise");
 
 	/* Boolean */
 	

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile 11904 2007-08-31 16:16:33Z sirdude $
+# $Id$
 #
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
@@ -37,6 +37,7 @@ CFLAGS += $(LEVEL_1_C_WARNINGS)
 
 # OpenGL and Python
 CPPFLAGS += $(OGL_CPPFLAGS)
+CPPFLAGS += -I$(NAN_GLEW)/include
 CPPFLAGS += -I$(NAN_PYTHON)/include/python$(NAN_PYTHON_VERSION)
 
 # PreProcessor stuff 

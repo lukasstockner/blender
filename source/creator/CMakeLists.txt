@@ -180,14 +180,14 @@ IF(WIN32)
     ADD_CUSTOM_COMMAND(TARGET blender
       POST_BUILD
       MAIN_DEPENDENCY blender
-      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\avcodec-51.dll\" \"${TARGETDIR}\\\"
+      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\avcodec-52.dll\" \"${TARGETDIR}\\\"
       COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\avformat-52.dll\" \"${TARGETDIR}\\\"
       COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\avdevice-52.dll\" \"${TARGETDIR}\\\"
-      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\avutil-49.dll\" \"${TARGETDIR}\\\"
+      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\avutil-50.dll\" \"${TARGETDIR}\\\"
       COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\libfaac-0.dll\" \"${TARGETDIR}\\\"
-      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\libfaad-0.dll\" \"${TARGETDIR}\\\"
+      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\libfaad-2.dll\" \"${TARGETDIR}\\\"
       COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\libmp3lame-0.dll\" \"${TARGETDIR}\\\"
-      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\libx264-59.dll\" \"${TARGETDIR}\\\"
+      COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\libx264-67.dll\" \"${TARGETDIR}\\\"
       COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\swscale-0.dll\" \"${TARGETDIR}\\\"
       COMMAND copy /Y \"${WIN_LIBDIR}\\ffmpeg\\lib\\xvidcore.dll\" \"${TARGETDIR}\\\"
     )
@@ -198,7 +198,7 @@ ADD_DEPENDENCIES(blender makesdna)
 
 FILE(READ ${CMAKE_BINARY_DIR}/cmake_blender_libs.txt BLENDER_LINK_LIBS)
 
-SET(BLENDER_LINK_LIBS bf_nodes ${BLENDER_LINK_LIBS} bf_windowmanager bf_editors blender_render blender_radiosity)
+SET(BLENDER_LINK_LIBS bf_nodes ${BLENDER_LINK_LIBS} bf_windowmanager bf_editors blender_render)
 
 IF(WITH_ELBEEM)
   SET(BLENDER_LINK_LIBS ${BLENDER_LINK_LIBS} bf_elbeem)
@@ -218,9 +218,9 @@ IF(UNIX)
     bf_ghost 
     bf_string 
     blender_render 
-    blender_radiosity 
     blender_ONL 
     bf_python 
+    bf_gen_python 
     bf_blenkernel 
     bf_nodes
 	bf_gpu
@@ -237,7 +237,6 @@ IF(UNIX)
     bf_kernel 
     bf_decimation 
     bf_elbeem 
-    bf_yafray 
     bf_IK 
     bf_memutil 
     bf_guardedalloc 
@@ -263,12 +262,10 @@ IF(UNIX)
     bf_ngnetwork 
     extern_bullet 
     bf_loopbacknetwork 
-    bf_sumo 
     bf_common 
-    extern_solid 
-    extern_qhull 
     bf_moto 
     bf_python
+    bf_gen_python
     bf_quicktime
     extern_binreloc
     extern_glew

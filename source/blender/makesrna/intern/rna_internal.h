@@ -145,7 +145,6 @@ void RNA_def_object_force(struct BlenderRNA *brna);
 void RNA_def_packedfile(struct BlenderRNA *brna);
 void RNA_def_particle(struct BlenderRNA *brna);
 void RNA_def_pose(struct BlenderRNA *brna);
-void RNA_def_radio(struct BlenderRNA *brna);
 void RNA_def_rna(struct BlenderRNA *brna);
 void RNA_def_scene(struct BlenderRNA *brna);
 void RNA_def_screen(struct BlenderRNA *brna);
@@ -188,7 +187,11 @@ void rna_object_vcollayer_name_set(struct PointerRNA *ptr, const char *value, ch
 
 /* API functions */
 
+void RNA_api_main(struct StructRNA *srna);
+void RNA_api_mesh(struct StructRNA *srna);
+void RNA_api_object(struct StructRNA *srna);
 void RNA_api_ui_layout(struct StructRNA *srna);
+void RNA_api_wm(struct StructRNA *srna);
 
 /* ID Properties */
 
@@ -213,6 +216,7 @@ void rna_builtin_properties_begin(struct CollectionPropertyIterator *iter, struc
 void rna_builtin_properties_next(struct CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_properties_get(struct CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_type_get(struct PointerRNA *ptr);
+PointerRNA rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key);
 
 /* Iterators */
 

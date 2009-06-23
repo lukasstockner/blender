@@ -44,6 +44,7 @@ struct wmWindowManager;
 #define OPTYPE_UNDO			2
 
 /* context to call operator in for WM_operator_name_call */
+/* rna_ui.c contains EnumPropertyItem's of these, keep in sync */
 enum {
 	/* if there's invoke, call it, otherwise exec */
 	WM_OP_INVOKE_DEFAULT,
@@ -56,37 +57,6 @@ enum {
 	WM_OP_EXEC_AREA,
 	WM_OP_EXEC_SCREEN
 };
-
-/* ************** wmEvent ************************ */
-
-/* each event should have full modifier state */
-/* event comes from eventmanager and from keymap */
-typedef struct wmEvent {
-	struct wmEvent *next, *prev;
-	
-	short type;			/* event code itself (short, is also in keymap) */
-	short val;			/* press, release, scrollvalue */
-	short x, y;			/* mouse pointer position, screen coord */
-	short mval[2];		/* region mouse position, name convention pre 2.5 :) */
-	short prevx, prevy;	/* previous mouse pointer position */
-	short unicode;		/* future, ghost? */
-	char ascii;			/* from ghost */
-	char pad;
-	
-	/* modifier states */
-	short shift, ctrl, alt, oskey;	/* oskey is apple or windowskey, value denotes order of pressed */
-	short keymodifier;				/* rawkey modifier */
-	
-	/* keymap item, set by handler (weak?) */
-	const char *keymap_idname;
-	
-	/* custom data */
-	short custom;	/* custom data type, stylus, 6dof, see wm_event_types.h */
-	void *customdata;	/* ascii, unicode, mouse coords, angles, vectors, dragdrop info */
-	short customdatafree;
-	
-} wmEvent;
-
 
 /* ************** wmKeyMap ************************ */
 
@@ -157,6 +127,7 @@ typedef struct wmNotifier {
 #define	NC_IMAGE			(10<<24)
 #define	NC_BRUSH			(11<<24)
 #define	NC_TEXT				(12<<24)
+#define NC_WORLD			(13<<24)
 
 /* data type, 256 entries is enough, it can overlap */
 #define NOTE_DATA			0x00FF0000

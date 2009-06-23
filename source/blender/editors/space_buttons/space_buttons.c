@@ -33,6 +33,7 @@
 #include "DNA_space_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -79,6 +80,14 @@ static SpaceLink *buttons_new(const bContext *C)
 	ar->regiontype= RGN_TYPE_HEADER;
 	ar->alignment= RGN_ALIGN_BOTTOM;
 	
+#if 0
+	/* context area */
+	ar= MEM_callocN(sizeof(ARegion), "context area for buts");
+	BLI_addtail(&sbuts->regionbase, ar);
+	ar->regiontype= RGN_TYPE_CHANNELS;
+	ar->alignment= RGN_ALIGN_TOP;
+#endif
+
 	/* main area */
 	ar= MEM_callocN(sizeof(ARegion), "main area for buts");
 	
@@ -176,8 +185,6 @@ static void buttons_main_area_draw(const bContext *C, ARegion *ar)
 		ED_region_panels(C, ar, vertical, "scene");
 	else if(sbuts->mainb == BCONTEXT_WORLD)
 		ED_region_panels(C, ar, vertical, "world");
-	else if(sbuts->mainb == BCONTEXT_SEQUENCER)
-		ED_region_panels(C, ar, vertical, "sequencer");
 	else if(sbuts->mainb == BCONTEXT_OBJECT)
 		ED_region_panels(C, ar, vertical, "object");
 	else if(sbuts->mainb == BCONTEXT_DATA)
@@ -203,7 +210,9 @@ static void buttons_main_area_draw(const bContext *C, ARegion *ar)
 
 void buttons_operatortypes(void)
 {
-	
+	WM_operatortype_append(MATERIAL_OT_new);
+	WM_operatortype_append(TEXTURE_OT_new);
+	WM_operatortype_append(WORLD_OT_new);
 }
 
 void buttons_keymap(struct wmWindowManager *wm)
@@ -211,14 +220,23 @@ void buttons_keymap(struct wmWindowManager *wm)
 	
 }
 
+//#define PY_HEADER
 /* add handlers, stuff you only do once or on area/region changes */
 static void buttons_header_area_init(wmWindowManager *wm, ARegion *ar)
 {
+#ifdef PY_HEADER
+	ED_region_header_init(ar);
+#else
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
+#endif
 }
 
 static void buttons_header_area_draw(const bContext *C, ARegion *ar)
 {
+#ifdef PY_HEADER
+	ED_region_header(C, ar);
+#else
+
 	float col[3];
 	
 	/* clear */
@@ -234,21 +252,80 @@ static void buttons_header_area_draw(const bContext *C, ARegion *ar)
 	UI_view2d_view_ortho(C, &ar->v2d);
 	
 	buttons_header_buttons(C, ar);
-	
+#endif	
+
 	/* restore view matrix? */
 	UI_view2d_view_restore(C);
 }
 
-/* reused! */
-static void buttons_area_listener(ARegion *ar, wmNotifier *wmn)
+#if 0
+/* add handlers, stuff you only do once or on area/region changes */
+static void buttons_context_area_init(wmWindowManager *wm, ARegion *ar)
 {
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
+}
+
+#define CONTEXTY	30
+
+static void buttons_context_area_draw(const bContext *C, ARegion *ar)
+{
+	SpaceButs *sbuts= (SpaceButs*)CTX_wm_space_data(C);
+	uiStyle *style= U.uistyles.first;
+	uiBlock *block;
+	uiLayout *layout;
+	View2D *v2d= &ar->v2d;
+	float col[3];
+	int x, y, w, h;
+
+	buttons_context_compute(C, sbuts);
+
+	w= v2d->cur.xmax - v2d->cur.xmin;
+	h= v2d->cur.ymax - v2d->cur.ymin;
+	UI_view2d_view_ortho(C, v2d);
+
+	/* create UI */
+	block= uiBeginBlock(C, ar, "buttons_context", UI_EMBOSS);
+	layout= uiBlockLayout(block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_PANEL,
+		style->panelspace, h - (h-UI_UNIT_Y)/2, w, 20, style);
+
+	buttons_context_draw(C, layout);
+
+	uiBlockLayoutResolve(C, block, &x, &y);
+	uiEndBlock(C, block);
+
+	/* draw */
+	UI_SetTheme(SPACE_BUTS, RGN_TYPE_WINDOW); /* XXX */
+
+	UI_GetThemeColor3fv(TH_BACK, col);
+	glClearColor(col[0], col[1], col[2], 0.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	UI_view2d_totRect_set(v2d, x, -y);
+	UI_view2d_view_ortho(C, v2d);
+
+	uiDrawBlock(C, block);
+
+	/* restore view matrix */
+	UI_view2d_view_restore(C);
+}
+#endif
+
+/* reused! */
+static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
+{
+	SpaceButs *sbuts= sa->spacedata.first;
+
 	/* context changes */
 	switch(wmn->category) {
 		case NC_SCENE:
 			switch(wmn->data) {
 				case ND_FRAME:
+					ED_area_tag_redraw(sa);
+					break;
+					
 				case ND_OB_ACTIVE:
-					ED_region_tag_redraw(ar);
+					ED_area_tag_redraw(sa);
+					sbuts->preview= 1;
 					break;
 			}
 			break;
@@ -258,10 +335,31 @@ static void buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 				case ND_BONE_ACTIVE:
 				case ND_BONE_SELECT:
 				case ND_GEOM_SELECT:
-					ED_region_tag_redraw(ar);
+					ED_area_tag_redraw(sa);
 					break;
 			}
 			break;
+		case NC_MATERIAL:
+			ED_area_tag_redraw(sa);
+			
+			switch(wmn->data) {
+				case ND_SHADING:
+				case ND_SHADING_DRAW:
+					/* currently works by redraws... if preview is set, it (re)starts job */
+					sbuts->preview= 1;
+					printf("shader notifier \n");
+					break;
+			}					
+			break;
+		case NC_WORLD:
+			ED_area_tag_redraw(sa);
+			sbuts->preview= 1;
+		case NC_LAMP:
+			ED_area_tag_redraw(sa);
+			sbuts->preview= 1;
+		case NC_TEXTURE:
+			ED_area_tag_redraw(sa);
+			sbuts->preview= 1;
 	}
 }
 
@@ -279,6 +377,7 @@ void ED_spacetype_buttons(void)
 	st->duplicate= buttons_duplicate;
 	st->operatortypes= buttons_operatortypes;
 	st->keymap= buttons_keymap;
+	st->listener= buttons_area_listener;
 	st->context= buttons_context;
 	
 	/* regions: main window */
@@ -286,7 +385,6 @@ void ED_spacetype_buttons(void)
 	art->regionid = RGN_TYPE_WINDOW;
 	art->init= buttons_main_area_init;
 	art->draw= buttons_main_area_draw;
-	art->listener= buttons_area_listener;
 	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_FRAMES;
 	BLI_addhead(&st->regiontypes, art);
 
@@ -300,19 +398,20 @@ void ED_spacetype_buttons(void)
 	
 	art->init= buttons_header_area_init;
 	art->draw= buttons_header_area_draw;
-	art->listener= buttons_area_listener;
 	BLI_addhead(&st->regiontypes, art);
-	
-	/* regions: channels */
+
+#if 0
+	/* regions: context */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype buttons region");
 	art->regionid = RGN_TYPE_CHANNELS;
-	art->minsizex= 80;
-	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D;
-	
-//	art->init= buttons_channel_area_init;
-//	art->draw= buttons_channel_area_draw;
+	art->minsizey= CONTEXTY;
+	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_FRAMES;
+	art->init= buttons_context_area_init;
+	art->draw= buttons_context_area_draw;;
+	art->listener= buttons_area_listener;
 	
 	BLI_addhead(&st->regiontypes, art);
+#endif
 	
 	BKE_spacetype_register(st);
 }

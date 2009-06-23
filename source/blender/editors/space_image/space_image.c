@@ -270,13 +270,6 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 				
 				if(sima->flag & SI_EDITTILE);
 				else sima->curtile= tf->tile;
-				
-				if(ima) {
-					if(tf->mode & TF_TILES)
-						ima->tpageflag |= IMA_TILES;
-					else
-						ima->tpageflag &= ~IMA_TILES;
-				}
 			}
 		}
 
@@ -286,8 +279,6 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 
 static void image_listener(ScrArea *sa, wmNotifier *wmn)
 {
-	SpaceImage *sima= sa->spacedata.first;
-
 	/* context changes */
 	switch(wmn->category) {
 		case NC_SCENE:
@@ -301,8 +292,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_IMAGE:	
-			if(!wmn->reference || wmn->reference == sima->image)
-				ED_area_tag_redraw(sa);
+			ED_area_tag_redraw(sa);
 			break;
 	}
 }
@@ -311,7 +301,11 @@ static int image_context(const bContext *C, const char *member, bContextDataResu
 {
 	SpaceImage *sima= (SpaceImage*)CTX_wm_space_data(C);
 
-	if(CTX_data_equals(member, "edit_image")) {
+	if(CTX_data_dir(member)) {
+		static const char *dir[] = {"edit_image", NULL};
+		CTX_data_dir_set(result, dir);
+	}
+	else if(CTX_data_equals(member, "edit_image")) {
 		CTX_data_id_pointer_set(result, (ID*)ED_space_image(sima));
 		return 1;
 	}
@@ -333,12 +327,10 @@ static void image_main_area_set_view2d(SpaceImage *sima, ARegion *ar, Scene *sce
 #endif
 	if(sima->image) {
 		ImBuf *ibuf= ED_space_image_buffer(sima);
-		float xuser_asp, yuser_asp;
 		
-		ED_image_aspect(sima->image, &xuser_asp, &yuser_asp);
 		if(ibuf) {
-			width= ibuf->x*xuser_asp;
-			height= ibuf->y*yuser_asp;
+			width= ibuf->x;
+			height= ibuf->y;
 		}
 		else if(sima->image->type==IMA_TYPE_R_RESULT) {
 			/* not very important, just nice */
@@ -508,11 +500,17 @@ static void image_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 /* add handlers, stuff you only do once or on area/region changes */
 static void image_header_area_init(wmWindowManager *wm, ARegion *ar)
 {
+#if 0
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_HEADER, ar->winx, ar->winy);
+#else
+	ED_region_header_init(ar);
+#endif
 }
 
 static void image_header_area_draw(const bContext *C, ARegion *ar)
 {
+	ED_region_header(C, ar);
+#if 0
 	float col[3];
 	
 	/* clear */
@@ -531,6 +529,7 @@ static void image_header_area_draw(const bContext *C, ARegion *ar)
 	
 	/* restore view matrix? */
 	UI_view2d_view_restore(C);
+#endif
 }
 
 /**************************** spacetype *****************************/
@@ -616,10 +615,12 @@ void ED_space_image_set(bContext *C, SpaceImage *sima, Scene *scene, Object *obe
 	if(sima->image && sima->image->id.us==0)
 		sima->image->id.us= 1;
 
-	if(obedit)
-		WM_event_add_notifier(C, NC_OBJECT|ND_GEOM_DATA, obedit);
+	if(C) {
+		if(obedit)
+			WM_event_add_notifier(C, NC_OBJECT|ND_GEOM_DATA, obedit);
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+		ED_area_tag_redraw(CTX_wm_area(C));
+	}
 }
 
 ImBuf *ED_space_image_buffer(SpaceImage *sima)
@@ -680,7 +681,7 @@ void ED_image_aspect(Image *ima, float *aspx, float *aspy)
 	*aspx= *aspy= 1.0;
 
 	if((ima == NULL) || (ima->type == IMA_TYPE_R_RESULT) || (ima->type == IMA_TYPE_COMPOSITE) ||
-	   (ima->tpageflag & IMA_TILES) || (ima->aspx==0.0 || ima->aspy==0.0))
+	   (ima->aspx==0.0 || ima->aspy==0.0))
 		return;
 
 	/* x is always 1 */

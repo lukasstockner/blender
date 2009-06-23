@@ -20,11 +20,6 @@ BF_OPENAL_LIB = 'openal'
 BF_OPENAL_LIB_STATIC = '${BF_OPENAL}/lib/libopenal.a'
 BF_OPENAL_LIBPATH = LIBDIR + '/lib'
 
-# some distros have a separate libalut
-# if you get linker complaints, you need to uncomment the line below
-# BF_OPENAL_LIB = 'openal alut'  
-# BF_OPENAL_LIB_STATIC = '${BF_OPENAL}/lib/libopenal.a ${BF_OPENAL}/lib/libalut.a'
-
 BF_CXX = '/usr'
 WITH_BF_STATICCXX = 'false'
 BF_CXX_LIB_STATIC = '${BF_CXX}/lib/libstdc++.a'
@@ -79,19 +74,10 @@ BF_GETTEXT_LIBPATH = '${BF_GETTEXT}/lib'
 
 WITH_BF_GAMEENGINE='false'
 
-WITH_BF_ODE = 'false'
-BF_ODE = LIBDIR + '/ode'
-BF_ODE_INC = BF_ODE + '/include'
-BF_ODE_LIB = BF_ODE + '/lib/libode.a'
-
 WITH_BF_BULLET = 'true'
 BF_BULLET = '#extern/bullet2/src'
 BF_BULLET_INC = '${BF_BULLET}'
 BF_BULLET_LIB = 'extern_bullet'
-
-BF_SOLID = '#extern/solid'
-BF_SOLID_INC = '${BF_SOLID}'
-BF_SOLID_LIB = 'extern_solid'
 
 #WITH_BF_NSPR = 'true'
 #BF_NSPR = $(LIBDIR)/nspr

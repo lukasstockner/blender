@@ -225,7 +225,7 @@ void PE_hide_keys_time(Scene *scene, ParticleSystem *psys, float cfra)
 	ParticleEditSettings *pset=PE_settings(scene);
 	int i, k, totpart= psys->totpart;
 
-	if(pset->draw_timed && scene->selectmode==SCE_SELECT_POINT) {
+	if(pset->draw_timed && pset->selectmode==SCE_SELECT_POINT) {
 		LOOP_PARTICLES(i, pa) {
 			LOOP_KEYS(k, key) {
 				if(fabs(cfra-*key->time) < pset->draw_timed)
@@ -425,11 +425,12 @@ static void for_mouse_hit_keys(PEData *data, ForKeyFunc func, int nearest)
 	ParticleEdit *edit= psys->edit;
 	ParticleData *pa;
 	ParticleEditKey *key;
+	ParticleEditSettings *pset= PE_settings(data->scene);
 	int i, k, totpart, nearest_pa, nearest_key;
 	float dist= data->rad;
 
 	/* in path select mode we have no keys */
-	if(data->scene->selectmode==SCE_SELECT_PATH)
+	if(pset->selectmode==SCE_SELECT_PATH)
 		return;
 
 	totpart= psys->totpart;
@@ -439,7 +440,7 @@ static void for_mouse_hit_keys(PEData *data, ForKeyFunc func, int nearest)
 	LOOP_PARTICLES(i, pa) {
 		if(pa->flag & PARS_HIDE) continue;
 
-		if(data->scene->selectmode == SCE_SELECT_END) {
+		if(pset->selectmode == SCE_SELECT_END) {
 			/* only do end keys */
 			key= edit->keys[i] + pa->totkey-1;
 
@@ -481,18 +482,19 @@ static void foreach_mouse_hit_particle(PEData *data, ForParticleFunc func, int s
 	ParticleSystem *psys= data->psys;
 	ParticleData *pa;
 	ParticleEditKey *key;
+	ParticleEditSettings *pset= PE_settings(data->scene);
 	int i, k, totpart;
 
 	totpart= psys->totpart;
 
 	/* all is selected in path mode */
-	if(data->scene->selectmode==SCE_SELECT_PATH)
+	if(pset->selectmode==SCE_SELECT_PATH)
 		selected=0;
 
 	LOOP_PARTICLES(i, pa) {
 		if(pa->flag & PARS_HIDE) continue;
 
-		if(data->scene->selectmode==SCE_SELECT_END) {
+		if(pset->selectmode==SCE_SELECT_END) {
 			/* only do end keys */
 			key= psys->edit->keys[i] + pa->totkey-1;
 
@@ -522,6 +524,7 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 	ParticleData *pa;
 	ParticleEditKey *key;
 	ParticleSystemModifierData *psmd=0;
+	ParticleEditSettings *pset= PE_settings(data->scene);
 	int i, k, totpart;
 	float mat[4][4], imat[4][4];
 
@@ -529,7 +532,7 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 	totpart= psys->totpart;
 
 	/* all is selected in path mode */
-	if(data->scene->selectmode==SCE_SELECT_PATH)
+	if(pset->selectmode==SCE_SELECT_PATH)
 		selected= 0;
 
 	Mat4One(imat);
@@ -541,7 +544,7 @@ static void foreach_mouse_hit_key(PEData *data, ForKeyMatFunc func, int selected
 		psys_mat_hair_to_global(data->ob, psmd->dm, psys->part->from, pa, mat);
 		Mat4Invert(imat,mat);
 
-		if(data->scene->selectmode==SCE_SELECT_END) {
+		if(pset->selectmode==SCE_SELECT_END) {
 			/* only do end keys */
 			key= psys->edit->keys[i] + pa->totkey-1;
 
@@ -610,6 +613,7 @@ static int count_selected_keys(Scene *scene, ParticleSystem *psys)
 {
 	ParticleData *pa;
 	ParticleEditKey *key;
+	ParticleEditSettings *pset= PE_settings(scene);
 	int i, k, totpart, sel= 0;
 
 	totpart= psys->totpart;
@@ -619,12 +623,12 @@ static int count_selected_keys(Scene *scene, ParticleSystem *psys)
 
 		key= psys->edit->keys[i];
 
-		if(scene->selectmode==SCE_SELECT_POINT) {
+		if(pset->selectmode==SCE_SELECT_POINT) {
 			for(k=0; k<pa->totkey; k++,key++)
 				if(key->flag & PEK_SELECT)
 					sel++;
 		}
-		else if(scene->selectmode==SCE_SELECT_END) {
+		else if(pset->selectmode==SCE_SELECT_END) {
 			key += pa->totkey-1;
 
 			if(key->flag & PEK_SELECT)
@@ -1454,6 +1458,7 @@ int PE_lasso_select(bContext *C, short mcords[][2], short moves, short select)
 	ParticleEdit *edit;
 	ParticleData *pa;
 	ParticleEditKey *key;
+	ParticleEditSettings *pset= PE_settings(scene);
 	float co[3], mat[4][4];
 	short vertco[2];
 	int i, k, totpart;
@@ -1470,7 +1475,7 @@ int PE_lasso_select(bContext *C, short mcords[][2], short moves, short select)
 
 		psys_mat_hair_to_global(ob, psmd->dm, psys->part->from, pa, mat);
 
-		if(scene->selectmode==SCE_SELECT_POINT) {
+		if(pset->selectmode==SCE_SELECT_POINT) {
 			LOOP_KEYS(k, key) {
 				VECCOPY(co, key->co);
 				Mat4MulVecfl(mat, co);
@@ -1487,7 +1492,7 @@ int PE_lasso_select(bContext *C, short mcords[][2], short moves, short select)
 				}
 			}
 		}
-		else if(scene->selectmode==SCE_SELECT_END) {
+		else if(pset->selectmode==SCE_SELECT_END) {
 			key= edit->keys[i] + pa->totkey - 1;
 
 			VECCOPY(co, key->co);
@@ -2347,9 +2352,9 @@ void PARTICLE_OT_brush_radial_control(wmOperatorType *ot)
 enum { DEL_PARTICLE, DEL_KEY };
 
 static EnumPropertyItem delete_type_items[]= {
-	{DEL_PARTICLE, "PARTICLE", "Particle", ""},
-	{DEL_KEY, "KEY", "Key", ""},
-	{0, NULL, NULL}};
+	{DEL_PARTICLE, "PARTICLE", 0, "Particle", ""},
+	{DEL_KEY, "KEY", 0, "Key", ""},
+	{0, NULL, 0, NULL, NULL}};
 
 static void set_delete_particle(PEData *data, int pa_index)
 {
@@ -2455,13 +2460,16 @@ static void PE_mirror_x(Scene *scene, Object *ob, int tagged)
 		new_pars= MEM_callocN(newtotpart*sizeof(ParticleData), "ParticleData new");
 		new_keys= MEM_callocN(newtotpart*sizeof(ParticleEditKey*), "ParticleEditKey new");
 
-		memcpy(new_pars, psys->particles, totpart*sizeof(ParticleData));
-		memcpy(new_keys, edit->keys, totpart*sizeof(ParticleEditKey*));
-
-		if(psys->particles) MEM_freeN(psys->particles);
+		if(psys->particles) {
+			memcpy(new_pars, psys->particles, totpart*sizeof(ParticleData));
+			MEM_freeN(psys->particles);
+		}
 		psys->particles= new_pars;
 
-		if(edit->keys) MEM_freeN(edit->keys);
+		if(edit->keys) {
+			memcpy(new_keys, edit->keys, totpart*sizeof(ParticleEditKey*));
+			MEM_freeN(edit->keys);
+		}
 		edit->keys= new_keys;
 
 		if(edit->mirror_cache) {
@@ -2560,15 +2568,15 @@ void PARTICLE_OT_mirror(wmOperatorType *ot)
 /*********************** set brush operator **********************/
 
 static EnumPropertyItem brush_type_items[]= {
-	{PE_BRUSH_NONE, "NONE", "None", ""},
-	{PE_BRUSH_COMB, "COMB", "Comb", ""},
-	{PE_BRUSH_SMOOTH, "SMOOTH", "Smooth", ""},
-	{PE_BRUSH_WEIGHT, "WEIGHT", "Weight", ""},
-	{PE_BRUSH_ADD, "ADD", "Add", ""},
-	{PE_BRUSH_LENGTH, "LENGTH", "Length", ""},
-	{PE_BRUSH_PUFF, "PUFF", "Puff", ""},
-	{PE_BRUSH_CUT, "CUT", "Cut", ""},
-	{0, NULL, NULL, NULL}
+	{PE_BRUSH_NONE, "NONE", 0, "None", ""},
+	{PE_BRUSH_COMB, "COMB", 0, "Comb", ""},
+	{PE_BRUSH_SMOOTH, "SMOOTH", 0, "Smooth", ""},
+	{PE_BRUSH_WEIGHT, "WEIGHT", 0, "Weight", ""},
+	{PE_BRUSH_ADD, "ADD", 0, "Add", ""},
+	{PE_BRUSH_LENGTH, "LENGTH", 0, "Length", ""},
+	{PE_BRUSH_PUFF, "PUFF", 0, "Puff", ""},
+	{PE_BRUSH_CUT, "CUT", 0, "Cut", ""},
+	{0, NULL, 0, NULL, NULL}
 };
 
 static int set_brush_exec(bContext *C, wmOperator *op)
@@ -3839,6 +3847,7 @@ void PE_change_act_psys(Scene *scene, Object *ob, ParticleSystem *psys)
 static int specials_menu_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	Scene *scene= CTX_data_scene(C);
+	ParticleEditSettings *pset=PE_settings(scene);
 	uiPopupMenu *pup;
 	uiLayout *layout;
 
@@ -3846,7 +3855,7 @@ static int specials_menu_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	layout= uiPupMenuLayout(pup);
 
 	uiItemO(layout, NULL, 0, "PARTICLE_OT_rekey");
-	if(scene->selectmode & SCE_SELECT_POINT) {
+	if(pset->selectmode & SCE_SELECT_POINT) {
 		uiItemO(layout, NULL, 0, "PARTICLE_OT_subdivide");
 		uiItemO(layout, NULL, 0, "PARTICLE_OT_select_first");
 		uiItemO(layout, NULL, 0, "PARTICLE_OT_select_last");

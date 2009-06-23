@@ -1,5 +1,5 @@
 /*
- * $Id: BLI_blenlib.h 17433 2008-11-12 21:16:53Z blendix $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -26,7 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  *
- * $Id: $ 
+ * $Id$ 
 */
 
 #ifndef BLI_STRING_H
@@ -96,6 +96,7 @@ int BLI_strcaseeq(const char *a, const char *b);
 char *BLI_strcasestr(const char *s, const char *find);
 int BLI_strcasecmp(const char *s1, const char *s2);
 int BLI_strncasecmp(const char *s1, const char *s2, int n);
+int BLI_natstrcmp(const char *s1, const char *s2);
 
 void BLI_timestr(double _time, char *str); /* time var is global */
 

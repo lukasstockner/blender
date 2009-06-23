@@ -62,13 +62,6 @@
 #include <sys/vfs.h>
 #endif
 
-#ifdef __BeOS
-struct statfs {
-	int f_bsize;
-	int f_bfree;
-};
-#endif
-
 #ifdef __APPLE__
 /* For statfs */
 #include <sys/param.h>
@@ -77,7 +70,7 @@ struct statfs {
 
 
 #include <fcntl.h>
-#if !defined(__BeOS) && !defined(WIN32)
+#if !defined(WIN32)
 #include <sys/mtio.h>			/* tape comando's */
 #endif
 #include <string.h>			/* strcpy etc.. */
@@ -154,7 +147,7 @@ int BLI_compare(struct direntry *entry1, struct direntry *entry2)
 	if( strcmp(entry1->relname, "..")==0 ) return (-1);
 	if( strcmp(entry2->relname, "..")==0 ) return (1);
 
-	return (BLI_strcasecmp(entry1->relname,entry2->relname));
+	return (BLI_natstrcmp(entry1->relname,entry2->relname));
 }
 
 
@@ -200,9 +193,6 @@ double BLI_diskfree(char *dir)
 
 #if defined (__FreeBSD__) || defined (linux) || defined (__OpenBSD__) || defined (__APPLE__) 
 	if (statfs(name, &disk)) return(-1);
-#endif
-#ifdef __BeOS
-	return -1;
 #endif
 
 #if defined (__sun__) || defined (__sun) || defined (__sgi)
@@ -330,7 +320,7 @@ void BLI_builddir(char *dirname, char *relname)
 void BLI_adddirstrings()
 {
 	char datum[100];
-	char buf[250];
+	char buf[512];
 	char size[250];
 	static char * types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 	int num, mode;
@@ -426,9 +416,6 @@ void BLI_adddirstrings()
 			sprintf(size, "> %4.1f M", (double) (st_size / (1024.0 * 1024.0)));
 			sprintf(size, "%10d", (int) st_size);
 		}
-
-		sprintf(buf,"%s %s %10s %s", files[num].date, files[num].time, size,
-			files[num].relname);
 
 		sprintf(buf,"%s %s %s %7s %s %s %10s %s", file->mode1, file->mode2, file->mode3, files[num].owner, files[num].date, files[num].time, size,
 			files[num].relname);

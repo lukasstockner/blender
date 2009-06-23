@@ -115,25 +115,16 @@ ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/ketsji/$(DEBUG_DIR)libketsji.a
     COMLIB += $(OCGDIR)/gameengine/blconverter/$(DEBUG_DIR)libblconverter.a
     COMLIB += $(OCGDIR)/gameengine/blconverter/$(DEBUG_DIR)libblconverter.a
-    COMLIB += $(NAN_SOLID)/lib/libsolid.a
-    COMLIB += $(NAN_SOLID)/lib/libsolid_broad.a
-    COMLIB += $(NAN_SOLID)/lib/libsolid_complex.a
-    COMLIB += $(NAN_SOLID)/lib/libsolid_convex.a
-    COMLIB += $(OCGDIR)/gameengine/blphys/sumo/$(DEBUG_DIR)libsumo.a
     COMLIB += $(OCGDIR)/gameengine/blphys/fuzzics/$(DEBUG_DIR)libfuzzics.a
     COMLIB += $(NAN_QHULL)/lib/libqhull.a
     COMLIB += $(OCGDIR)/gameengine/blphys/dummy/$(DEBUG_DIR)libdummy.a
     COMLIB += $(OCGDIR)/gameengine/blphys/common/$(DEBUG_DIR)libcommon.a
-#    COMLIB += $(OCGDIR)/gameengine/blphys/sumo/$(DEBUG_DIR)libsumo.a
     COMLIB += $(OCGDIR)/gameengine/blphys/dummy/$(DEBUG_DIR)libdummy.a
     COMLIB += $(OCGDIR)/gameengine/ketsji/$(DEBUG_DIR)libketsji.a
     COMLIB += $(OCGDIR)/gameengine/blphys/common/$(DEBUG_DIR)libcommon.a
-#    COMLIB += $(OCGDIR)/gameengine/blphys/blode/$(DEBUG_DIR)libblode.a
-#    COMLIB += $(OCGDIR)/gameengine/blphys/sumo/$(DEBUG_DIR)libsumo.a
     COMLIB += $(OCGDIR)/gameengine/blphys/dummy/$(DEBUG_DIR)libdummy.a
     COMLIB += $(OCGDIR)/gameengine/blphys/blbullet/$(DEBUG_DIR)libblbullet.a
     COMLIB += $(OCGDIR)/gameengine/blphys/common/$(DEBUG_DIR)libcommon.a
-#    COMLIB += $(OCGDIR)/gameengine/blphys/sumo/$(DEBUG_DIR)libsumo.a
     COMLIB += $(OCGDIR)/gameengine/blphys/dummy/$(DEBUG_DIR)libdummy.a
     COMLIB += $(OCGDIR)/gameengine/ketsji/$(DEBUG_DIR)libketsji.a
     COMLIB += $(OCGDIR)/gameengine/logic/$(DEBUG_DIR)liblogic.a
@@ -143,8 +134,6 @@ ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(OCGDIR)/gameengine/expression/$(DEBUG_DIR)libexpression.a
     COMLIB += $(OCGDIR)/gameengine/scenegraph/$(DEBUG_DIR)libscenegraph.a
     COMLIB += $(OCGDIR)/gameengine/videotex/$(DEBUG_DIR)libvideotex.a
-#    COMLIB += $(OCGDIR)/sumo/$(DEBUG_DIR)libfuzzics.a
-#    COMLIB += $(OCGDIR)/sumo/$(DEBUG_DIR)libsolid.a
     COMLIB += $(NAN_MOTO)/lib/libmoto.a
     COMLIB += $(NAN_SND_LIBS)
     COMLIB += $(OCGDIR)/kernel/gen_system/$(DEBUG_DIR)libgen_system.a
@@ -155,10 +144,14 @@ ifneq ($(NAN_NO_KETSJI),true)
     COMLIB += $(NAN_BULLET2)/lib/libbullet2.a
 endif
 
+# Cloth requires bullet2, gameegine does not matter anymore
+#COMLIB += $(NAN_BULLET2)/lib/libbullet2.a
+
 COMLIB += $(OCGDIR)/blender/makesdna/$(DEBUG_DIR)libdna.a
 COMLIB += $(NAN_GUARDEDALLOC)/lib/libguardedalloc.a
 COMLIB += $(NAN_MEMUTIL)/lib/libmemutil.a
 COMLIB += $(NAN_PNG)/lib/libpng.a
+COMLIB += $(OCGDIR)/blender/gen_python/$(DEBUG_DIR)libgen_python.a
 
 ifeq ($(WITH_QUICKTIME), true)
     COMLIB += $(OCGDIR)/blender/blenderqt/$(DEBUG_DIR)libblenderqt.a
@@ -223,6 +216,7 @@ PULIB += $(OCGDIR)/blender/ed_action/$(DEBUG_DIR)libed_action.a
 PULIB += $(OCGDIR)/blender/ed_nla/$(DEBUG_DIR)libed_nla.a
 PULIB += $(OCGDIR)/blender/ed_script/$(DEBUG_DIR)libed_script.a
 PULIB += $(OCGDIR)/blender/ed_text/$(DEBUG_DIR)libed_text.a
+PULIB += $(OCGDIR)/blender/ed_logic/$(DEBUG_DIR)libed_logic.a
 PULIB += $(OCGDIR)/blender/ed_sequencer/$(DEBUG_DIR)libed_sequencer.a
 PULIB += $(OCGDIR)/blender/ed_file/$(DEBUG_DIR)libed_file.a
 PULIB += $(OCGDIR)/blender/ed_info/$(DEBUG_DIR)libed_info.a
@@ -274,6 +268,7 @@ SPLIB = $(OCGDIR)/blender/readblenfile/$(DEBUG_DIR)libreadblenfile.a
 # can I just not check them? nm claims they aren't...
 SPLIB += $(OCGDIR)/blender/blenkernel/blenkernel_blc/$(DEBUG_DIR)libblenkernel_blc.a
 SPLIB += $(OCGDIR)/blender/makesrna/$(DEBUG_DIR)librna.a
+SPLIB += $(OCGDIR)/blender/blenlib/$(DEBUG_DIR)libblenlib.a
 
 # These three need to be explicitly mentioned on the cl, because 
 # if they are offered as a lib, they are optimized away. (nzc)
@@ -375,8 +370,6 @@ else
         NAN_SND_LIBS += $(OPENALSOUND)
         NAN_SND_LIBS += $(SDLSOUND)
         NAN_SND_LIBS += $(NAN_OPENAL)/lib/libopenal.a
-        ALUT = $(wildcard $(NAN_OPENAL)/lib/libalut.a)
-        NAN_SND_LIBS += $(ALUT)
         NAN_SND_LIBS += $(SOUNDSYSTEM)
     else
       ifeq ($(OS),windows)
@@ -385,8 +378,6 @@ else
         NAN_SND_LIBS += $(OPENALSOUND)
         NAN_SND_LIBS += $(SDLSOUND)
         NAN_SND_LIBS += $(NAN_OPENAL)/lib/openal_static.lib
-        ALUT = $(wildcard $(NAN_OPENAL)/lib/alut_static.lib)
-        NAN_SND_LIBS += $(ALUT)
         NAN_SND_LIBS += $(SOUNDSYSTEM)
       else
         NAN_SND_LIBS =  $(SOUNDSYSTEM)
@@ -400,8 +391,6 @@ else
       NAN_SND_LIBS += $(DUMMYSOUND)
       NAN_SND_LIBS += $(OPENALSOUND)
       NAN_SND_LIBS += $(NAN_OPENAL)/lib/libopenal.a
-      ALUT = $(wildcard $(NAN_OPENAL)/lib/libalut.a)
-      NAN_SND_LIBS += $(ALUT)
       NAN_SND_LIBS += $(SOUNDSYSTEM)
     else
       ifeq ($(OS), solaris)
@@ -410,8 +399,6 @@ else
         NAN_SND_LIBS += $(OPENALSOUND)
         NAN_SND_LIBS += $(SDLSOUND)
         NAN_SND_LIBS += $(NAN_OPENAL)/lib/libopenal.a
-        ALUT = $(wildcard $(NAN_OPENAL)/lib/libalut.a)
-        NAN_SND_LIBS += $(ALUT)
         NAN_SND_LIBS += $(SOUNDSYSTEM)
       else
         ifeq ($(OS), irix)

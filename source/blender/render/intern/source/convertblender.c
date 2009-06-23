@@ -104,7 +104,6 @@
 #include "rendercore.h"
 #include "renderdatabase.h"
 #include "renderpipeline.h"
-#include "radio.h"
 #include "shadbuf.h"
 #include "shading.h"
 #include "strand.h"
@@ -1760,7 +1759,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 					if(parent->num < psmd->dm->getNumFaces(psmd->dm))
 						num = parent->num;
 
-				get_particle_uvco_mcol(part->from, psmd->dm, pa->fuv, num, &sd);
+				get_particle_uvco_mcol(part->from, psmd->dm, parent->fuv, num, &sd);
 			}
 
 			dosimplify = psys_render_simplify_params(psys, cpa, simplify);
@@ -1857,8 +1856,6 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 					strand->totvert++;
 				}
 				else{
-					sd.first = 0;
-					sd.time = time;
 					sd.size = hasize;
 
 					if(k==1){
@@ -1866,7 +1863,12 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 						sd.time = 0.0f;
 						VECSUB(loc0,loc1,loc);
 						VECADD(loc0,loc1,loc0);
+
+						render_new_particle(re, obr, psmd->dm, ma, &sd, loc1, loc0, seed);
 					}
+
+					sd.first = 0;
+					sd.time = time;
 
 					if(k)
 						render_new_particle(re, obr, psmd->dm, ma, &sd, loc, loc1, seed);
@@ -1882,6 +1884,9 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 			state.time=cfra;
 			if(psys_get_particle_state(re->scene,ob,psys,a,&state,0)==0)
 				continue;
+
+			if(psys->parent)
+				Mat4MulVecfl(psys->parent->obmat, state.co);
 
 			VECCOPY(loc,state.co);
 			if(part->ren_as!=PART_DRAW_BB)
@@ -2558,7 +2563,7 @@ static void init_render_surf(Render *re, ObjectRen *obr)
 	if(need_orco) orcobase= orco= get_object_orco(re, ob);
 
 	displist.first= displist.last= 0;
-	makeDispListSurf(re->scene, ob, &displist, 1);
+	makeDispListSurf(re->scene, ob, &displist, 1, 0);
 
 	dl= displist.first;
 	/* walk along displaylist and create rendervertices/-faces */
@@ -4305,8 +4310,9 @@ void RE_Database_Free(Render *re)
 	}
 
 	free_mesh_orco_hash(re);
-
+#if 0	/* radio can be redone better */
 	end_radio_render();
+#endif
 	end_render_materials();
 	end_render_textures();
 	
@@ -4733,10 +4739,11 @@ void RE_Database_FromScene(Render *re, Scene *scene, int use_camera_view)
 		/* yafray: 'direct' radiosity, environment maps and raytree init not needed for yafray render */
 		/* although radio mode could be useful at some point, later */
 		if (re->r.renderer==R_INTERN) {
+#if 0		/* RADIO was removed */
 			/* RADIO (uses no R anymore) */
 			if(!re->test_break(re->tbh))
 				if(re->r.mode & R_RADIO) do_radio_render(re);
-			
+#endif
 			/* raytree */
 			if(!re->test_break(re->tbh)) {
 				if(re->r.mode & R_RAYTRACE) {

@@ -51,8 +51,6 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "BIF_gl.h"
-
 #include "ED_util.h"
 #include "ED_types.h"
 #include "ED_screen.h"
@@ -147,16 +145,15 @@ typedef struct uiLayoutItemFlow {
 	int totcol;
 } uiLayoutItemFlow;
 
-typedef struct uiLayoutItemSplt {
-	uiLayout litem;
-	int number;
-	int lr;
-} uiLayoutItemSplt;
-
 typedef struct uiLayoutItemBx {
 	uiLayout litem;
 	uiBut *roundbox;
 } uiLayoutItemBx;
+
+typedef struct uiLayoutItemSplt {
+	uiLayout litem;
+	float percentage;
+} uiLayoutItemSplt;
 
 typedef struct uiLayoutItemRoot {
 	uiLayout litem;
@@ -430,19 +427,29 @@ static void ui_item_array(uiLayout *layout, uiBlock *block, char *name, int icon
 	uiBlockSetCurLayout(block, layout);
 }
 
-static void ui_item_enum_row(uiLayout *layout, uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int x, int y, int w, int h)
+static void ui_item_enum_row(uiLayout *layout, uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, char *uiname, int x, int y, int w, int h)
 {
 	const EnumPropertyItem *item;
-	int a, totitem, itemw;
-	const char *propname;
+	const char *identifier;
+	char *name;
+	int a, totitem, itemw, icon, value;
 
-	propname= RNA_property_identifier(prop);
+	identifier= RNA_property_identifier(prop);
 	RNA_property_enum_items(ptr, prop, &item, &totitem);
 
 	uiBlockSetCurLayout(block, ui_item_local_sublayout(layout, layout, 1));
 	for(a=0; a<totitem; a++) {
-		itemw= ui_text_icon_width(block->curlayout, (char*)item[a].name, 0);
-		uiDefButR(block, ROW, 0, NULL, 0, 0, itemw, h, ptr, propname, -1, 0, item[a].value, -1, -1, NULL);
+		name= (!uiname || uiname[0])? (char*)item[a].name: "";
+		icon= item[a].icon;
+		value= item[a].value;
+		itemw= ui_text_icon_width(block->curlayout, name, icon);
+
+		if(icon && strcmp(name, "") != 0)
+			uiDefIconTextButR(block, ROW, 0, icon, name, 0, 0, itemw, h, ptr, identifier, -1, 0, value, -1, -1, NULL);
+		else if(icon)
+			uiDefIconButR(block, ROW, 0, icon, 0, 0, itemw, h, ptr, identifier, -1, 0, value, -1, -1, NULL);
+		else
+			uiDefButR(block, ROW, 0, name, 0, 0, itemw, h, ptr, identifier, -1, 0, value, -1, -1, NULL);
 	}
 	uiBlockSetCurLayout(block, layout);
 }
@@ -594,8 +601,43 @@ void uiItemsEnumO(uiLayout *layout, char *opname, char *propname)
 		RNA_property_enum_items(&ptr, prop, &item, &totitem);
 
 		for(i=0; i<totitem; i++)
-			uiItemEnumO(layout, NULL, 0, opname, propname, item[i].value);
+			uiItemEnumO(layout, (char*)item[i].name, item[i].icon, opname, propname, item[i].value);
 	}
+}
+
+/* for use in cases where we have */
+void uiItemEnumO_string(uiLayout *layout, char *name, int icon, char *opname, char *propname, char *value_str)
+{
+	PointerRNA ptr;
+	
+	/* for getting the enum */
+	PropertyRNA *prop;
+	const EnumPropertyItem *item;
+	int totitem;
+	int value;
+
+	WM_operator_properties_create(&ptr, opname);
+	
+	/* enum lookup */
+	if((prop= RNA_struct_find_property(&ptr, propname))) {
+		RNA_property_enum_items(&ptr, prop, &item, &totitem);
+		if(RNA_enum_value_from_id(item, value_str, &value)==0) {
+			printf("uiItemEnumO_string: %s.%s, enum %s not found.\n", RNA_struct_identifier(ptr.type), propname, value_str);
+			return;
+		}
+	}
+	else {
+		printf("uiItemEnumO_string: %s.%s not found.\n", RNA_struct_identifier(ptr.type), propname);
+		return;
+	}
+	
+	RNA_property_enum_set(&ptr, prop, value);
+	
+	/* same as uiItemEnumO */
+	if(!name)
+		name= ui_menu_enumpropname(opname, propname, value);
+
+	uiItemFullO(layout, name, icon, opname, ptr.data, layout->root->opcontext);
 }
 
 void uiItemBooleanO(uiLayout *layout, char *name, int icon, char *opname, char *propname, int value)
@@ -674,6 +716,8 @@ static void ui_item_rna_size(uiLayout *layout, char *name, int icon, PropertyRNA
 	else if(ui_layout_vary_direction(layout) == UI_ITEM_VARY_X) {
 		if(type == PROP_BOOLEAN && strcmp(name, "") != 0)
 			w += UI_UNIT_X;
+		else if(type == PROP_ENUM)
+			w += UI_UNIT_X/2;
 	}
 
 	*r_w= w;
@@ -700,10 +744,14 @@ void uiItemFullR(uiLayout *layout, char *name, int icon, PointerRNA *ptr, Proper
 	/* set name and icon */
 	if(!name)
 		name= (char*)RNA_property_ui_name(prop);
+	if(!icon)
+		icon= RNA_property_ui_icon(prop);
 
-	if(ELEM5(type, PROP_INT, PROP_FLOAT, PROP_STRING, PROP_ENUM, PROP_POINTER))
+	if(ELEM4(type, PROP_INT, PROP_FLOAT, PROP_STRING, PROP_POINTER))
 		name= ui_item_name_add_colon(name, namestr);
-	if(type == PROP_BOOLEAN && len)
+	else if(type == PROP_BOOLEAN && len)
+		name= ui_item_name_add_colon(name, namestr);
+	else if(type == PROP_ENUM && index != RNA_ENUM_VALUE)
 		name= ui_item_name_add_colon(name, namestr);
 
 	if(layout->root->type == UI_LAYOUT_MENU) {
@@ -732,7 +780,7 @@ void uiItemFullR(uiLayout *layout, char *name, int icon, PointerRNA *ptr, Proper
 	}
 	/* expanded enum */
 	else if(type == PROP_ENUM && expand)
-		ui_item_enum_row(layout, block, ptr, prop, 0, 0, w, h);
+		ui_item_enum_row(layout, block, ptr, prop, name, 0, 0, w, h);
 	/* property with separate label */
 	else if(type == PROP_ENUM || type == PROP_STRING || type == PROP_POINTER)
 		ui_item_with_label(layout, block, name, icon, ptr, prop, index, 0, 0, w, h);
@@ -826,7 +874,7 @@ static void ui_item_menu(uiLayout *layout, char *name, int icon, uiMenuCreateFun
 	uiBlockSetCurLayout(block, layout);
 
 	if(layout->root->type == UI_LAYOUT_HEADER)
-		uiBlockSetEmboss(block, UI_EMBOSSP);
+		uiBlockSetEmboss(block, UI_EMBOSS);
 
 	if(!name)
 		name= "";
@@ -837,7 +885,7 @@ static void ui_item_menu(uiLayout *layout, char *name, int icon, uiMenuCreateFun
 	h= UI_UNIT_Y;
 
 	if(layout->root->type == UI_LAYOUT_HEADER) /* ugly .. */
-		w -= 3;
+		w -= 10;
 
 	if(icon)
 		but= uiDefIconTextMenuBut(block, func, arg, icon, (char*)name, 0, 0, w, h, "");
@@ -1084,7 +1132,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 
 			x += neww;
 
-			if(neww < minw && w != 0) {
+			if((neww < minw || itemw == minw) && w != 0) {
 				/* fixed size */
 				item->flag= 1;
 				fixedw += minw;
@@ -1409,9 +1457,9 @@ static void ui_litem_layout_free(uiLayout *litem)
 	totw -= minx;
 	toth -= miny;
 
-	if(litem->w && totw > litem->w)
+	if(litem->w && totw > 0)
 		scalex= (float)litem->w/(float)totw;
-	if(litem->h && toth > litem->h)
+	if(litem->h && toth > 0)
 		scaley= (float)litem->h/(float)toth;
 	
 	x= litem->x;
@@ -1422,15 +1470,15 @@ static void ui_litem_layout_free(uiLayout *litem)
 		ui_item_size(item, &itemw, &itemh);
 
 		if(scalex != 1.0f) {
-			newx= itemx*scalex;
-			itemw= (itemx + itemw)*scalex - newx;
-			itemx= newx;
+			newx= (itemx - minx)*scalex;
+			itemw= (itemx - minx + itemw)*scalex - newx;
+			itemx= minx + newx;
 		}
 
 		if(scaley != 1.0f) {
-			newy= itemy*scaley;
-			itemh= (itemy + itemh)*scaley - newy;
-			itemy= newy;
+			newy= (itemy - miny)*scaley;
+			itemh= (itemy - miny + itemh)*scaley - newy;
+			itemy= miny + newy;
 		}
 
 		ui_item_position(item, x+itemx-minx, y+itemy-miny, itemw, itemh);
@@ -1450,12 +1498,13 @@ static void ui_litem_estimate_split(uiLayout *litem)
 
 static void ui_litem_layout_split(uiLayout *litem)
 {
+	uiLayoutItemSplt *split= (uiLayoutItemSplt*)litem;
 	uiItem *item;
+	float percentage;
 	int itemh, x, y, w, tot=0, colw=0;
 
 	x= litem->x;
 	y= litem->y;
-	w= litem->w;
 
 	for(item=litem->items.first; item; item=item->next)
 		tot++;
@@ -1463,7 +1512,10 @@ static void ui_litem_layout_split(uiLayout *litem)
 	if(tot == 0)
 		return;
 	
-	colw= (litem->w - (tot-1)*litem->space)/tot;
+	percentage= (split->percentage == 0.0f)? 1.0f/(float)tot: split->percentage;
+	
+	w= (litem->w - (tot-1)*litem->space);
+	colw= w*percentage;
 	colw= MAX2(colw, 0);
 
 	for(item=litem->items.first; item; item=item->next) {
@@ -1472,8 +1524,12 @@ static void ui_litem_layout_split(uiLayout *litem)
 		ui_item_position(item, x, y-itemh, colw, itemh);
 		x += colw;
 
-		if(item->next)
+		if(item->next) {
+			colw= (w - (int)(w*percentage))/(tot-1);
+			colw= MAX2(colw, 0);
+
 			x += litem->space;
+		}
 	}
 
 	litem->w= x - litem->x;
@@ -1589,18 +1645,23 @@ uiBlock *uiLayoutFreeBlock(uiLayout *layout)
 	return block;
 }
 
-uiLayout *uiLayoutSplit(uiLayout *layout)
+uiLayout *uiLayoutSplit(uiLayout *layout, float percentage)
 {
-	uiLayout *litem;
+	uiLayoutItemSplt *split;
 
-	litem= uiLayoutRow(layout, 0);
-	litem->item.type = ITEM_LAYOUT_SPLIT;
-	litem->root= layout->root;
-	litem->space= layout->root->style->columnspace;
+	split= MEM_callocN(sizeof(uiLayoutItemSplt), "uiLayoutItemSplt");
+	split->litem.item.type= ITEM_LAYOUT_SPLIT;
+	split->litem.root= layout->root;
+	split->litem.active= 1;
+	split->litem.enabled= 1;
+	split->litem.context= layout->context;
+	split->litem.space= layout->root->style->columnspace;
+	split->percentage= percentage;
+	BLI_addtail(&layout->items, split);
 
-	uiBlockSetCurLayout(layout->root->block, litem);
+	uiBlockSetCurLayout(layout->root->block, &split->litem);
 
-	return litem;
+	return &split->litem;
 }
 
 void uiLayoutSetActive(uiLayout *layout, int active)
@@ -1908,6 +1969,12 @@ uiBlock *uiLayoutGetBlock(uiLayout *layout)
 {
 	return layout->root->block;
 }
+
+int uiLayoutGetOperatorContext(uiLayout *layout)
+{
+	return layout->root->opcontext;
+}
+
 
 void uiBlockSetCurLayout(uiBlock *block, uiLayout *layout)
 {

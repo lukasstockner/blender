@@ -85,10 +85,25 @@ float BLF_height_default(char *str);
 void BLF_rotation(float angle);
 void BLF_clipping(float xmin, float ymin, float xmax, float ymax);
 void BLF_blur(int size);
-
+void BLF_kerning(float space);
 
 void BLF_enable(int option);
 void BLF_disable(int option);
+
+/*
+ * Shadow options, level is the blur level, can be 3, 5 or 0 and
+ * the other argument are the rgba color.
+ * Take care that shadow need to be enable using BLF_enable!!.
+ */
+void BLF_shadow(int level, float r, float g, float b, float a);
+
+/*
+ * Set the offset for shadow text, this is the current cursor
+ * position plus this offset, don't need call BLF_position before
+ * this function, the current position is calculate only on
+ * BLF_draw, so it's safe call this whenever you like.
+ */
+void BLF_shadow_offset(int x, int y);
 
 /*
  * Search the path directory to the locale files, this try all
@@ -117,6 +132,10 @@ void BLF_dir_free(char **dirs, int count);
 /* font->flags. */
 #define BLF_ROTATION (1<<0)
 #define BLF_CLIPPING (1<<1)
+#define BLF_FONT_KERNING (1<<2)
+#define BLF_USER_KERNING (1<<3)
+#define BLF_SHADOW (1<<4)
+#define BLF_OVERLAP_CHAR (1<<5)
 
 /* font->mode. */
 #define BLF_MODE_TEXTURE 0

@@ -156,6 +156,8 @@
 
 #include "readfile.h"
 
+#include "PIL_time.h"
+
 #include <errno.h>
 
 /*
@@ -611,10 +613,16 @@ static BHeadN *get_bhead(FileData *fd)
 	BHead  bhead;
 	BHeadN *new_bhead = 0;
 	int readsize;
-
+	
 	if (fd) {
 		if ( ! fd->eof) {
 
+			/* not strictly needed but shuts valgrind up
+			 * since uninitialized memory gets compared */
+			memset(&bhead8, 0, sizeof(BHead8));
+			memset(&bhead4, 0, sizeof(BHead4));
+			memset(&bhead,  0, sizeof(BHead));
+			
 			// First read the bhead structure.
 			// Depending on the platform the file was written on this can
 			// be a big or little endian BHead4 or BHead8 structure.
@@ -1489,6 +1497,8 @@ static void lib_link_brush(FileData *fd, Main *main)
 		if(brush->id.flag & LIB_NEEDLINK) {
 			brush->id.flag -= LIB_NEEDLINK;
 
+			brush->clone.image= newlibadr_us(fd, brush->id.lib, brush->clone.image);
+			
 			for(a=0; a<MAX_MTEX; a++) {
 				mtex= brush->mtex[a];
 				if(mtex)
@@ -2868,6 +2878,16 @@ static void direct_link_material(FileData *fd, Material *ma)
 
 static void direct_link_pointcache(FileData *fd, PointCache *cache)
 {
+	if((cache->flag & PTCACHE_DISK_CACHE)==0) {
+		PTCacheMem *pm;
+
+		link_list(fd, &cache->mem_cache);
+
+		pm = cache->mem_cache.first;
+
+		for(; pm; pm=pm->next)
+			pm->data = newdataadr(fd, pm->data);
+	}
 	cache->flag &= ~(PTCACHE_SIMULATION_VALID|PTCACHE_BAKE_EDIT_ACTIVE);
 	cache->simframe= 0;
 }
@@ -3132,10 +3152,8 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 		direct_link_dverts(fd, lvl->totvert, CustomData_get(&mesh->mr->vdata, 0, CD_MDEFORMVERT));
 		direct_link_customdata(fd, &mesh->mr->fdata, lvl->totface);
 		
-		if(!mesh->mr->edge_flags)
-			mesh->mr->edge_flags= MEM_callocN(sizeof(short)*lvl->totedge, "Multires Edge Flags");
-		if(!mesh->mr->edge_creases)
-			mesh->mr->edge_creases= MEM_callocN(sizeof(char)*lvl->totedge, "Multires Edge Creases");
+		mesh->mr->edge_flags= newdataadr(fd, mesh->mr->edge_flags);
+		mesh->mr->edge_creases= newdataadr(fd, mesh->mr->edge_creases);
 
 		mesh->mr->verts = newdataadr(fd, mesh->mr->verts);
 			
@@ -3144,6 +3162,18 @@ static void direct_link_mesh(FileData *fd, Mesh *mesh)
 			lvl->faces= newdataadr(fd, lvl->faces);
 			lvl->edges= newdataadr(fd, lvl->edges);
 			lvl->colfaces= newdataadr(fd, lvl->colfaces);
+		}
+	}
+
+	/* Gracefully handle corrupted mesh */
+	if(mesh->mr && !mesh->mr->verts) {
+		/* If totals match, simply load the current mesh verts into multires */
+		if(mesh->totvert == ((MultiresLevel*)mesh->mr->levels.last)->totvert)
+			mesh->mr->verts = MEM_dupallocN(mesh->mvert);
+		else {
+			/* Otherwise, we can't recover the data, silently remove multires */
+			multires_free(mesh->mr);
+			mesh->mr = NULL;
 		}
 	}
 	
@@ -3337,6 +3367,10 @@ static void lib_link_object(FileData *fd, Main *main)
 					bAddObjectActuator *eoa= act->data;
 					if(eoa) eoa->ob= newlibadr(fd, ob->id.lib, eoa->ob);
 				}
+				else if(act->type==ACT_OBJECT) {
+					bObjectActuator *oa= act->data;
+					oa->reference= newlibadr(fd, ob->id.lib, oa->reference);
+				}
 				else if(act->type==ACT_EDIT_OBJECT) {
 					bEditObjectActuator *eoa= act->data;
 					if(eoa==NULL) {
@@ -3345,6 +3379,15 @@ static void lib_link_object(FileData *fd, Main *main)
 					else {
 						eoa->ob= newlibadr(fd, ob->id.lib, eoa->ob);
 						eoa->me= newlibadr(fd, ob->id.lib, eoa->me);
+					}
+				}
+				else if(act->type==ACT_OBJECT) {
+					bObjectActuator *oa= act->data;
+					if(oa==NULL) {
+						init_actuator(act);
+					}
+					else {
+						oa->reference= newlibadr(fd, ob->id.lib, oa->reference);
 					}
 				}
 				else if(act->type==ACT_SCENE) {
@@ -3450,6 +3493,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			SubsurfModifierData *smd = (SubsurfModifierData*) md;
 
 			smd->emCache = smd->mCache = 0;
+		}
+		else if (md->type==eModifierType_Armature) {
+			ArmatureModifierData *amd = (ArmatureModifierData*) md;
+			
+			amd->prevCos= NULL;
 		}
 		else if (md->type==eModifierType_Cloth) {
 			ClothModifierData *clmd = (ClothModifierData*) md;
@@ -3787,12 +3835,19 @@ static void lib_link_scene(FileData *fd, Main *main)
 			sce->world= newlibadr_us(fd, sce->id.lib, sce->world);
 			sce->set= newlibadr(fd, sce->id.lib, sce->set);
 			sce->ima= newlibadr_us(fd, sce->id.lib, sce->ima);
+			
 			sce->toolsettings->imapaint.brush=
 				newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.brush);
 			if(sce->toolsettings->sculpt)
 				sce->toolsettings->sculpt->brush=
 					newlibadr_us(fd, sce->id.lib, sce->toolsettings->sculpt->brush);
-
+			if(sce->toolsettings->vpaint)
+				sce->toolsettings->vpaint->brush=
+					newlibadr_us(fd, sce->id.lib, sce->toolsettings->vpaint->brush);
+			if(sce->toolsettings->wpaint)
+				sce->toolsettings->wpaint->brush=
+					newlibadr_us(fd, sce->id.lib, sce->toolsettings->wpaint->brush);
+			
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 
 			for(base= sce->base.first; base; base= next) {
@@ -3886,8 +3941,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	direct_link_keyingsets(fd, &sce->keyingsets);
 	
 	sce->basact= newdataadr(fd, sce->basact);
-
-	sce->radio= newdataadr(fd, sce->radio);
 	
 	sce->toolsettings= newdataadr(fd, sce->toolsettings);
 	if(sce->toolsettings) {
@@ -3957,6 +4010,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 				if (seq->flag & SEQ_USE_PROXY) {
 					seq->strip->proxy = newdataadr(
 						fd, seq->strip->proxy);
+					seq->strip->proxy->anim = 0;
 				} else {
 					seq->strip->proxy = 0;
 				}
@@ -4389,6 +4443,22 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					if((v3d->layact & v3d->lay)==0) v3d->layact= v3d->lay;
 					
 				}
+				else if(sl->spacetype==SPACE_IPO) {
+					/* XXX animato */
+#if 0
+					SpaceIpo *sipo= (SpaceIpo *)sl;
+
+					sipo->ipo= restore_pointer_by_name(newmain, (ID *)sipo->ipo, 0);
+					if(sipo->blocktype==ID_SEQ) 
+						sipo->from= (ID *)find_sequence_from_ipo_helper(newmain, sipo->ipo);
+					else 
+						sipo->from= restore_pointer_by_name(newmain, (ID *)sipo->from, 0);
+					
+					// not free sipo->ipokey, creates dependency with src/
+					if(sipo->editipo) MEM_freeN(sipo->editipo);
+					sipo->editipo= NULL;
+#endif
+				}
 				else if(sl->spacetype==SPACE_BUTS) {
 					SpaceButs *sbuts= (SpaceButs *)sl;
 					sbuts->lockpoin= NULL;
@@ -4668,6 +4738,14 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 					direct_link_gpencil(fd, snode->gpd);
 				}
 				snode->nodetree= snode->edittree= NULL;
+			}
+			else if(sl->spacetype==SPACE_LOGIC) {
+				SpaceLogic *slogic= (SpaceLogic *)sl;
+				
+				if(slogic->gpd) {
+					slogic->gpd= newdataadr(fd, slogic->gpd);
+					direct_link_gpencil(fd, slogic->gpd);
+				}
 			}
 			else if(sl->spacetype==SPACE_SEQ) {
 				SpaceSeq *sseq= (SpaceSeq *)sl;
@@ -5528,6 +5606,16 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				ar->regiontype= RGN_TYPE_UI;
 				ar->alignment= RGN_ALIGN_TOP;
 				break;
+
+#if 0
+			case SPACE_BUTS:
+				/* context UI region */
+				ar= MEM_callocN(sizeof(ARegion), "area region from do_versions");
+				BLI_addtail(lb, ar);
+				ar->regiontype= RGN_TYPE_CHANNELS;
+				ar->alignment= RGN_ALIGN_TOP;
+				break;
+#endif
 		}
 	}
 
@@ -7014,22 +7102,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	
 
 	if(main->versionfile <= 234) {
-		Scene *sce;
 		World *wo;
 		bScreen *sc;
-		int set_zbuf_sel=0;
 		
 		// force sumo engine to be active
 		for (wo = main->world.first; wo; wo= wo->id.next) {
 			if(wo->physicsEngine==0) wo->physicsEngine = 2;
 		}
 		
-		for (sce= main->scene.first; sce; sce= sce->id.next) {
-			if(sce->selectmode==0) {
-				sce->selectmode= SCE_SELECT_VERTEX;
-				set_zbuf_sel= 1;
-			}
-		}
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
 			for (sa= sc->areabase.first; sa; sa= sa->next) {
@@ -7037,7 +7117,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				for (sl= sa->spacedata.first; sl; sl= sl->next) {
 					if(sl->spacetype==SPACE_VIEW3D) {
 						View3D *v3d= (View3D *)sl;
-						if(set_zbuf_sel) v3d->flag |= V3D_ZBUF_SELECT;
+						v3d->flag |= V3D_ZBUF_SELECT;
 					}
 					else if(sl->spacetype==SPACE_TEXT) {
 						SpaceText *st= (SpaceText *)sl;
@@ -7072,16 +7152,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 	if(main->versionfile <= 236) {
 		Object *ob;
-		Scene *sce= main->scene.first;
 		Camera *cam= main->camera.first;
 		Material *ma;
 		bScreen *sc;
 
-		while(sce) {
-			if(sce->editbutsize==0.0) sce->editbutsize= 0.1f;
-			
-			sce= sce->id.next;
-		}
 		while(cam) {
 			if(cam->ortho_scale==0.0) {
 				cam->ortho_scale= 256.0f/cam->lens;
@@ -8707,15 +8781,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	/* autokey mode settings now used from scene, but need to be initialised off userprefs */
-	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 8)) {
-		Scene *sce;
-		
-		for (sce= main->scene.first; sce; sce= sce->id.next) {
-			if (sce->autokey_mode == 0)
-				sce->autokey_mode= U.autokey_mode;
-		}
-	}
 
 	if (main->versionfile < 247 || (main->versionfile == 247 && main->subversionfile < 9)) {
 		Lamp *la= main->lamp.first;
@@ -8842,7 +8907,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		/* Adjustments needed after Bullets update */
 		for(ob = main->object.first; ob; ob= ob->id.next) {
 			ob->damping *= 0.635f;
-			ob->rdamping = 0.1 + (0.59f * ob->rdamping);
+			ob->rdamping = 0.1 + (0.8f * ob->rdamping);
 		}
 	}
 	
@@ -8854,15 +8919,86 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for (sce= main->scene.first; sce; sce= sce->id.next) {
 			sce->r.domeangle = 180;
 			sce->r.domemode = 1;
-			sce->r.domesize = 1.0f;
 			sce->r.domeres = 4;
 			sce->r.domeresbuf = 1.0f;
+			sce->r.dometilt = 0;
 		}
 		/* DBVT culling by default */
 		for(wrld=main->world.first; wrld; wrld= wrld->id.next) {
 			wrld->mode |= WO_DBVT_CULLING;
 			wrld->occlusionRes = 128;
 		}
+	}
+
+	if (main->versionfile < 248 || (main->versionfile == 248 && main->subversionfile < 5)) {
+		Object *ob;
+		World *wrld;
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			ob->m_contactProcessingThreshold = 1.; //pad3 is used for m_contactProcessingThreshold
+			if(ob->parent) {
+				/* check if top parent has compound shape set and if yes, set this object
+				   to compound shaper as well (was the behaviour before, now it's optional) */
+				Object *parent= newlibadr(fd, lib, ob->parent);
+				while (parent && parent->parent != NULL) {
+					parent = newlibadr(fd, lib, parent->parent);
+				}
+				if(parent) {
+					if (parent->gameflag & OB_CHILD)
+						ob->gameflag |= OB_CHILD;
+				}
+			}
+		}
+		for(wrld=main->world.first; wrld; wrld= wrld->id.next) {
+			wrld->ticrate = 60;
+			wrld->maxlogicstep = 5;
+			wrld->physubstep = 1;
+			wrld->maxphystep = 5;
+		}
+	}
+
+	if (main->versionfile < 249) {
+		Scene *sce;
+		for (sce= main->scene.first; sce; sce= sce->id.next)
+			sce->r.renderer= 0;
+		
+	}
+	
+	// correct introduce of seed for wind force
+	if (main->versionfile < 249 && main->subversionfile < 1) {
+		Object *ob;
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			if(ob->pd)
+				ob->pd->seed = ((unsigned int)(ceil(PIL_check_seconds_timer()))+1) % 128;
+		}
+	
+	}
+
+	if (main->versionfile < 249 && main->subversionfile < 2) {
+		Scene *sce= main->scene.first;
+		Sequence *seq;
+		Editing *ed;
+		
+		while(sce) {
+			ed= sce->ed;
+			if(ed) {
+				SEQP_BEGIN(ed, seq) {
+					if (seq->strip && seq->strip->proxy){
+						if (sce->r.size != 100.0) {
+							seq->strip->proxy->size
+								= sce->r.size;
+						} else {
+							seq->strip->proxy->size
+								= 25.0;
+						}
+						seq->strip->proxy->quality =90;
+					}
+				}
+				SEQ_END
+			}
+			
+			sce= sce->id.next;
+		}
+
 	}
 
 	if (main->versionfile < 250) {
@@ -8873,6 +9009,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Scene *sce;
 		Tex *tx;
 		ParticleSettings *part;
+		Object *ob;
 		
 		for(screen= main->screen.first; screen; screen= screen->id.next) {
 			do_versions_windowmanager_2_50(screen);
@@ -8915,7 +9052,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			me->drawflag= ME_DRAWEDGES|ME_DRAWFACES|ME_DRAWCREASES;
 		}
 
-		/* particle settings conversion */
+		/* particle draw and render types */
 		for(part= main->particle.first; part; part= part->id.next) {
 			if(part->draw_as) {
 				if(part->draw_as == PART_DRAW_DOT) {
@@ -8931,6 +9068,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+		/* set old pointcaches to have disk cache flag */
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			ParticleSystem *psys = ob->particlesystem.first;
+
+			for(; psys; psys=psys->next) {
+				if(psys->pointcache)
+					psys->pointcache->flag |= PTCACHE_DISK_CACHE;
+			}
+
+			/* TODO: softbody & cloth caches */
+		}
 	}
 
 	/* TODO: should be moved into one of the version blocks once this branch moves to trunk and we can
@@ -8938,6 +9086,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	{
 		Object *ob;
 		Material *ma;
+		Scene *sce;
+		ToolSettings *ts;
 		int i;
 
 		for(ob = main->object.first; ob; ob = ob->id.next) {
@@ -8991,7 +9141,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
                                        
 					multires_load_old(dm, me->mr);
 
-					*MultiresDM_get_flags(dm) |= MULTIRES_DM_UPDATE_ALWAYS;
+					MultiresDM_mark_as_modified(dm);
 					dm->release(dm);
 					orig->release(orig);
 
@@ -9008,6 +9158,15 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(ma->mode & MA_HALO) {
 				ma->material_type= MA_TYPE_HALO;
 				ma->mode &= ~MA_HALO;
+			}
+		}
+
+		for(sce = main->scene.first; sce; sce = sce->id.next) {
+			ts= sce->toolsettings;
+			if(ts->normalsize == 0.0) {
+				ts->normalsize= 0.1f;
+				ts->selectmode= SCE_SELECT_VERTEX;
+				ts->autokey_mode= U.autokey_mode;
 			}
 		}
 	}
@@ -9837,6 +9996,10 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 				expand_doit(fd, mainvar, eoa->ob);
 				expand_doit(fd, mainvar, eoa->me);
 			}
+		}
+		else if(act->type==ACT_OBJECT) {
+			bObjectActuator *oa= act->data;
+			expand_doit(fd, mainvar, oa->reference);
 		}
 		else if(act->type==ACT_SCENE) {
 			bSceneActuator *sa= act->data;

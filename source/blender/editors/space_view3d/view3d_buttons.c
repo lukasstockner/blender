@@ -1132,9 +1132,10 @@ static void view3d_panel_brush(const bContext *C, Panel *pa)
 		uiDefButC(block,ROW,B_REDR,"Pinch",cx+134,cy,67,19,&br->sculpt_tool,14.0,SCULPT_TOOL_PINCH,0,0,"Interactively pinch areas of the model");
 		uiDefButC(block,ROW,B_REDR,"Inflate",cx+201,cy,67,19,&br->sculpt_tool,14,SCULPT_TOOL_INFLATE,0,0,"Push vertices along the direction of their normals");
 		cy-= 20;
-		uiDefButC(block,ROW,B_REDR,"Grab", cx,cy,89,19,&br->sculpt_tool,14,SCULPT_TOOL_GRAB,0,0,"Grabs a group of vertices and moves them with the mouse");
-		uiDefButC(block,ROW,B_REDR,"Layer", cx+89,cy,89,19,&br->sculpt_tool,14, SCULPT_TOOL_LAYER,0,0,"Adds a layer of depth");
-		uiDefButC(block,ROW,B_REDR,"Flatten", cx+178,cy,90,19,&br->sculpt_tool,14, SCULPT_TOOL_FLATTEN,0,0,"Interactively flatten areas of the model");
+		uiDefButC(block,ROW,B_REDR,"Grab", cx,cy,67,19,&br->sculpt_tool,14,SCULPT_TOOL_GRAB,0,0,"Grabs a group of vertices and moves them with the mouse");
+		uiDefButC(block,ROW,B_REDR,"Layer", cx+67,cy,67,19,&br->sculpt_tool,14, SCULPT_TOOL_LAYER,0,0,"Adds a layer of depth");
+		uiDefButC(block,ROW,B_REDR,"Flatten", cx+134,cy,67,19,&br->sculpt_tool,14, SCULPT_TOOL_FLATTEN,0,0,"Interactively flatten areas of the model");
+		uiDefButC(block,ROW,B_REDR,"Clay", cx+201,cy,67,19,&br->sculpt_tool,14, SCULPT_TOOL_CLAY,0,0,"Build up depth quickly");
 		cy-= 25;
 		uiBlockEndAlign(block);
 	}
@@ -1157,11 +1158,13 @@ static void view3d_panel_brush(const bContext *C, Panel *pa)
 	cy-= 20;
 	uiBlockEndAlign(block);
 
-	rect.xmin= cx; rect.xmax= cx + w;
-	rect.ymin= cy - 200; rect.ymax= cy;
-	uiBlockBeginAlign(block);
-	curvemap_buttons(block, br->curve, (char)0, B_NOP, 0, &rect);
-	uiBlockEndAlign(block);
+	if(br->curve) {
+		rect.xmin= cx; rect.xmax= cx + w;
+		rect.ymin= cy - 200; rect.ymax= cy;
+		uiBlockBeginAlign(block);
+		curvemap_buttons(block, br->curve, (char)0, B_NOP, 0, &rect);
+		uiBlockEndAlign(block);
+	}
 }
 
 static void sculptmode_draw_interface_tools(Scene *scene, uiBlock *block, unsigned short cx, unsigned short cy)
@@ -1576,7 +1579,7 @@ static void view3d_panel_bonesketch_spaces(const bContext *C, Panel *pa)
 	uiBlockBeginAlign(block);
 	
 	/* use real flag instead of 1 */
-	uiDefButBitC(block, TOG, BONE_SKETCHING, B_REDR, "Use Bone Sketching", 10, yco, 160, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Use sketching to create and edit bones");
+	uiDefButBitC(block, TOG, BONE_SKETCHING, B_REDR, "Use Bone Sketching", 10, yco, 160, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Use sketching to create and edit bones, (Ctrl snaps to mesh volume)");
 	uiDefButBitC(block, TOG, BONE_SKETCHING_ADJUST, B_REDR, "A", 170, yco, 20, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Adjust strokes by drawing near them");
 	uiDefButBitC(block, TOG, BONE_SKETCHING_QUICK, B_REDR, "Q", 190, yco, 20, 20, &scene->toolsettings->bone_sketching, 0, 0, 0, 0, "Automatically convert and delete on stroke end");
 	yco -= 20;
@@ -1660,7 +1663,7 @@ static void view3d_panel_bonesketch_spaces(const bContext *C, Panel *pa)
 
 	uiBlockEndAlign(block);
 	
-	uiDefButBitS(block, TOG, SCE_SNAP_PEEL_OBJECT, B_NOP, "Peel Objects", 10, yco, 200, 20, &scene->snap_flag, 0, 0, 0, 0, "Peel whole objects as one");
+	uiDefButBitS(block, TOG, SCE_SNAP_PEEL_OBJECT, B_NOP, "Peel Objects", 10, yco, 200, 20, &scene->toolsettings->snap_flag, 0, 0, 0, 0, "Peel whole objects as one");
 }
 
 

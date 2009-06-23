@@ -142,8 +142,6 @@ void free_scene(Scene *sce)
 
 	BLI_freelistN(&sce->base);
 	seq_free_editing(sce->ed);
-	if(sce->radio) MEM_freeN(sce->radio);
-	sce->radio= 0;
 	
 #ifndef DISABLE_PYTHON
 	BPY_free_scriptlink(&sce->scriptlink);
@@ -205,9 +203,6 @@ Scene *add_scene(char *name)
 
 	sce= alloc_libblock(&G.main->scene, ID_SCE, name);
 	sce->lay= 1;
-	sce->selectmode= SCE_SELECT_VERTEX;
-	sce->editbutsize= 0.1;
-	sce->autokey_mode= U.autokey_mode;
 	
 	sce->r.mode= R_GAMMA;
 	sce->r.cfra= 1;
@@ -245,9 +240,9 @@ Scene *add_scene(char *name)
 	sce->r.stereomode = 1;  // no stereo
 	sce->r.domeangle = 180;
 	sce->r.domemode = 1;
-	sce->r.domesize = 1.0f;
 	sce->r.domeres = 4;
 	sce->r.domeresbuf = 1.0f;
+	sce->r.dometilt = 0;
 
 	sce->r.simplify_subsurf= 6;
 	sce->r.simplify_particles= 1.0f;
@@ -276,6 +271,10 @@ Scene *add_scene(char *name)
 	sce->toolsettings->unwrapper = 1;
 	sce->toolsettings->select_thresh= 0.01f;
 	sce->toolsettings->jointrilimit = 0.8f;
+
+	sce->toolsettings->selectmode= SCE_SELECT_VERTEX;
+	sce->toolsettings->normalsize= 0.1;
+	sce->toolsettings->autokey_mode= U.autokey_mode;
 
 	sce->toolsettings->skgen_resolution = 100;
 	sce->toolsettings->skgen_threshold_internal 	= 0.01f;
@@ -411,16 +410,25 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 {
 	static ListBase *duplilist= NULL;
 	static DupliObject *dupob;
-	static int fase;
+	static int fase= F_START, in_next_object= 0;
 	int run_again=1;
 	
 	/* init */
 	if(val==0) {
 		fase= F_START;
 		dupob= NULL;
+		
+		/* XXX particle systems with metas+dupligroups call this recursively */
+		/* see bug #18725 */
+		if(in_next_object) {
+			printf("ERROR: MetaBall generation called recursively, not supported\n");
+			
+			return F_ERROR;
+		}
 	}
 	else {
-
+		in_next_object= 1;
+		
 		/* run_again is set when a duplilist has been ended */
 		while(run_again) {
 			run_again= 0;
@@ -501,6 +509,9 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 			}
 		}
 	}
+	
+	/* reset recursion test */
+	in_next_object= 0;
 	
 	return fase;
 }
