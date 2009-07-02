@@ -34,7 +34,12 @@
 #define __GPU_BUFFERS_H__
 
 #define MAX_FREE_GPU_BUFFERS 8
+
+#ifdef _DEBUG
 #define DEBUG_VBO(X) printf(X)
+#else
+#define DEBUG_VBO(X)
+#endif
 
 struct DerivedMesh;
 
@@ -79,7 +84,7 @@ typedef struct GPUDrawObject
 } GPUDrawObject;
 
 GPUBufferPool *GPU_buffer_pool_new();
-void GPU_buffer_pool_free( GPUBufferPool *pool );
+void GPU_buffer_pool_free( GPUBufferPool *pool );	/* TODO: Find a place where to call this function on exit */
 
 GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool );
 void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool );

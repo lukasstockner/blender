@@ -311,17 +311,20 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 
 	DEBUG_VBO("GPU_buffer_setup\n");
 
-	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup");
-	for( i = 0; i < object->nmaterials; i++ ) {
-		index[i] = object->materials[i].start;
-		redir[object->materials[i].mat_nr+127] = i;
-	}
-
 	if( globalPool == 0 )
 		globalPool = GPU_buffer_pool_new();
 	buffer = GPU_buffer_alloc(size,globalPool);
 	if( buffer == 0 ) {
 		dm->drawObject->legacy = 1;
+	}
+	if( dm->drawObject->legacy ) {
+		return 0;
+	}
+
+	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup");
+	for( i = 0; i < object->nmaterials; i++ ) {
+		index[i] = object->materials[i].start;
+		redir[object->materials[i].mat_nr+127] = i;
 	}
 
 	if( useVBOs ) {
@@ -331,7 +334,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 			glBufferDataARB( GL_ARRAY_BUFFER_ARB, buffer->size, 0, GL_STATIC_DRAW_ARB );	/* discard previous data, avoid stalling gpu */
 			varray = glMapBufferARB( GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB );
 			if( varray == 0 ) {
-				DEBUG_VBO( "Failed to map buffer to client address space" ); 
+				DEBUG_VBO( "Failed to map buffer to client address space\n" ); 
 				GPU_buffer_free( buffer, globalPool );
 				GPU_buffer_pool_delete_last( globalPool );
 				if( globalPool->size > 0 ) {
@@ -352,10 +355,12 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 			}
 		}
 
-		uploaded = GL_FALSE;
-		while( !uploaded ) {
-			(*copy_f)( dm, varray, index, redir, user );
-			uploaded = glUnmapBufferARB( GL_ARRAY_BUFFER_ARB );	/* returns false if data got corruped during transfer */
+		if( dm->drawObject->legacy == 0 ) {
+			uploaded = GL_FALSE;
+			while( !uploaded ) {
+				(*copy_f)( dm, varray, index, redir, user );
+				uploaded = glUnmapBufferARB( GL_ARRAY_BUFFER_ARB );	/* returns false if data got corruped during transfer */
+			}
 		}
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
@@ -630,6 +635,10 @@ void GPU_vertex_setup( DerivedMesh *dm )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->vertices == 0 )
 		dm->drawObject->vertices = GPU_buffer_vertex( dm );
+	if( dm->drawObject->vertices == 0 ) {
+		DEBUG_VBO( "Failed to setup vertices\n" );
+		return;
+	}
 
 	glEnableClientState( GL_VERTEX_ARRAY );
 	if( useVBOs ) {
@@ -650,7 +659,10 @@ void GPU_normal_setup( DerivedMesh *dm )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->normals == 0 )
 		dm->drawObject->normals = GPU_buffer_normal( dm );
-
+	if( dm->drawObject->normals == 0 ) {
+		DEBUG_VBO( "Failed to setup normals\n" );
+		return;
+	}
 	glEnableClientState( GL_NORMAL_ARRAY );
 	if( useVBOs ) {
 		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->normals->id );
@@ -670,7 +682,7 @@ void GPU_uv_setup( DerivedMesh *dm )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->uv == 0 )
 		dm->drawObject->uv = GPU_buffer_uv( dm );
-
+	
 	if( dm->drawObject->uv != 0 ) {
 		glEnableClientState( GL_TEXTURE_COORD_ARRAY );
 		if( useVBOs ) {
@@ -692,6 +704,10 @@ void GPU_color_setup( DerivedMesh *dm )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->colors == 0 )
 		dm->drawObject->colors = GPU_buffer_color( dm );
+	if( dm->drawObject->colors == 0 ) {
+		DEBUG_VBO( "Failed to setup colors\n" );
+		return;
+	}
 	glEnableClientState( GL_COLOR_ARRAY );
 	if( useVBOs ) {
 		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->colors->id );

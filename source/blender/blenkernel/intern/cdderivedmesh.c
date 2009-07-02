@@ -268,7 +268,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *a
 }
 
 	if( GPU_buffer_legacy(dm) ) {
-		DEBUG_VBO( "Using legacy code. cdDM_drawFacesSolid" );
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesSolid\n" );
 		glBegin(glmode = GL_QUADS);
 		for(a = 0; a < dm->numFaceData; a++, mface++) {
 			int new_glmode, new_matnr, new_shademodel;
@@ -357,7 +357,7 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 		glEnable(GL_CULL_FACE);
 
 	if( GPU_buffer_legacy(dm) ) {
-		DEBUG_VBO( "Using legacy code. cdDM_drawFacesColored" );
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesColored\n" );
 		glShadeModel(GL_SMOOTH);
 		glBegin(glmode = GL_QUADS);
 		for(a = 0; a < dm->numFaceData; a++, mface++, cp1 += 16) {
@@ -431,7 +431,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	int startFace = 0, lastFlag = 0xdeadbeef;
 
 	if( GPU_buffer_legacy(dm) ) {
-		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common" );
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common\n" );
 		for(i = 0; i < dm->numFaceData; i++, mf++) {
 			MVert *mvert;
 			int flag;
@@ -590,7 +590,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		mc = DM_get_face_data_layer(dm, CD_MCOL);
 
 	if( GPU_buffer_legacy(dm) ) {
-		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common" );
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common\n" );
 		for(i = 0; i < dm->numFaceData; i++, mf++) {
 			int drawSmooth = (mf->flag & ME_SMOOTH);
 
