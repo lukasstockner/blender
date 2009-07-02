@@ -74,6 +74,7 @@ typedef struct GPUDrawObject
 
 	int nmaterials;
 	int nelements;
+	int legacy;	/* if there was a failure allocating some buffer, use old rendering code */
 } GPUDrawObject;
 
 GPUBufferPool *GPU_buffer_pool_new();

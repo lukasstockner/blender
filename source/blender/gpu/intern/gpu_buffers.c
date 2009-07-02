@@ -110,6 +110,9 @@ void GPU_buffer_pool_delete_last( GPUBufferPool *pool )
 
 	DEBUG_VBO("GPU_buffer_pool_delete_last\n");
 
+	if( pool->size == 0 )
+		return;
+
 	last = pool->start+pool->size-1;
 	while( last < 0 )
 		last += MAX_FREE_GPU_BUFFERS;
@@ -164,7 +167,7 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 			glGenBuffersARB( 1, &allocated->id );
 			glBindBufferARB( GL_ARRAY_BUFFER_ARB, allocated->id );
 			glBufferDataARB( GL_ARRAY_BUFFER_ARB, size, 0, GL_STATIC_DRAW_ARB );
-			glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+			glBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 		}
 		else {
 			allocated->pointer = MEM_mallocN(size, "GPU_buffer_alloc_vertexarray");
@@ -173,7 +176,7 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 				allocated->pointer = MEM_mallocN(size, "GPU_buffer_alloc_vertexarray");
 			}
 			if( allocated->pointer == 0 && pool->size == 0 ) {
-				/* report an out of memory error. not sure how to do that */
+				return 0;
 			}
 		}
 	}
@@ -305,6 +308,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 	int redir[256];
 	int *index;
 	int i;
+	int success;
 	GLboolean uploaded;
 
 	DEBUG_VBO("GPU_buffer_setup\n");
@@ -318,13 +322,33 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 	if( globalPool == 0 )
 		globalPool = GPU_buffer_pool_new();
 	buffer = GPU_buffer_alloc(size,globalPool);
+	if( buffer == 0 ) {
+		dm->drawObject->legacy = 1;
+	}
 
 	if( useVBOs ) {
-		glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
-		glBufferDataARB( GL_ARRAY_BUFFER_ARB, buffer->size, 0, GL_STATIC_DRAW_ARB );	/* discard previous data, avoid stalling gpu */
-		varray = glMapBufferARB( GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB );
-		if( varray == 0 )
-			printf( "Failed to map buffer to client address space" );
+		success = 0;
+		while( success == 0 ) {
+			glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
+			glBufferDataARB( GL_ARRAY_BUFFER_ARB, buffer->size, 0, GL_STATIC_DRAW_ARB );	/* discard previous data, avoid stalling gpu */
+			varray = glMapBufferARB( GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB );
+			if( varray == 0 ) {
+				DEBUG_VBO( "Failed to map buffer to client address space" ); 
+				GPU_buffer_free( buffer, globalPool );
+				GPU_buffer_pool_delete_last( globalPool );
+				if( globalPool->size > 0 ) {
+					GPU_buffer_pool_delete_last( globalPool );
+					buffer = GPU_buffer_alloc( size, globalPool );
+				}
+				else {
+					dm->drawObject->legacy = 1;
+					success = 1;
+				}
+			}
+			else {
+				success = 1;
+			}
+		}
 
 		uploaded = GL_FALSE;
 		while( !uploaded ) {
