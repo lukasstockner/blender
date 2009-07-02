@@ -103,4 +103,6 @@ void GPU_color_switch( int mode );
 /* called after drawing */
 void GPU_buffer_unbind();
 
+int GPU_buffer_legacy( struct DerivedMesh *dm );
+
 #endif

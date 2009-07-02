@@ -722,14 +722,14 @@ void GPU_buffer_unbind()
 		glBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 }
 
-void GPU_color3_upload( struct DerivedMesh *dm, char *data )
+void GPU_color3_upload( DerivedMesh *dm, char *data )
 {
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new(dm);
 	GPU_buffer_free(dm->drawObject->colors,globalPool);
 	dm->drawObject->colors = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, data, GPU_buffer_copy_color3 );
 }
-void GPU_color4_upload( struct DerivedMesh *dm, char *data )
+void GPU_color4_upload( DerivedMesh *dm, char *data )
 {
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new(dm);
@@ -749,4 +749,11 @@ void GPU_color_switch( int mode )
 			glDisableClientState( GL_COLOR_ARRAY );
 		GLStates &= (!GPU_BUFFER_COLOR_STATE);
 	}
+}
+
+int GPU_buffer_legacy( DerivedMesh *dm )
+{
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new(dm);
+	return dm->drawObject->legacy;
 }

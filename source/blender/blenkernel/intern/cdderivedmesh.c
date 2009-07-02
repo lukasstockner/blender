@@ -267,7 +267,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *a
 	glVertex3fv(mvert[index].co);	\
 }
 
-	if( dm->drawObject->legacy ) {
+	if( GPU_buffer_legacy(dm) ) {
 		DEBUG_VBO( "Using legacy code. cdDM_drawFacesSolid" );
 		glBegin(glmode = GL_QUADS);
 		for(a = 0; a < dm->numFaceData; a++, mface++) {
@@ -356,7 +356,7 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 	if(col1 && col2)
 		glEnable(GL_CULL_FACE);
 
-	if( dm->drawObject->legacy ) {
+	if( GPU_buffer_legacy(dm) ) {
 		DEBUG_VBO( "Using legacy code. cdDM_drawFacesColored" );
 		glShadeModel(GL_SMOOTH);
 		glBegin(glmode = GL_QUADS);
@@ -429,141 +429,146 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	MTFace *tf = DM_get_face_data_layer(dm, CD_MTFACE);
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 	int startFace = 0, lastFlag = 0xdeadbeef;
-	GPU_vertex_setup( dm );
-	GPU_normal_setup( dm );
-	GPU_uv_setup( dm );
-	if( mcol != 0 ) {
-		if( dm->drawObject->colType != CD_MCOL ) {
-			unsigned char *colors = MEM_mallocN(dm->getNumFaces(dm)*3*sizeof(unsigned char), "cdDM_drawFacesTex_common");
-			for( i=0; i < dm->getNumFaces(dm); i++ ) {
-				colors[i*3] = mcol[i].r;
-				colors[i*3+1] = mcol[i].g;
-				colors[i*3+2] = mcol[i].b;
-			}
-			GPU_color3_upload(dm,colors);
-			MEM_freeN(colors);
-			dm->drawObject->colType = CD_MCOL;
-		}
-		GPU_color_setup( dm );
-	}
 
-	glShadeModel( GL_SMOOTH );
-	for(i = 0; i < dm->drawObject->nelements/3; i++) {
-		int actualFace = dm->drawObject->faceRemap[i];
-		int flag;
-		unsigned char *cp = NULL;
+	if( GPU_buffer_legacy(dm) ) {
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common" );
+		for(i = 0; i < dm->numFaceData; i++, mf++) {
+			MVert *mvert;
+			int flag;
+			unsigned char *cp = NULL;
 
-		if(drawParams) {
-			flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
-		}
-		else {
-			if(index) {
-				orig = index[actualFace];
-				if(drawParamsMapped)
-					flag = drawParamsMapped(userData, orig);
+			if(drawParams) {
+				flag = drawParams(tf? &tf[i]: NULL, mcol? &mcol[i*4]: NULL, mf->mat_nr);
 			}
-			else
-				if(drawParamsMapped)
-					flag = drawParamsMapped(userData, actualFace);
-		}
-		if( flag != lastFlag ) {
-			if( startFace < i ) {
-				if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
-					if (lastFlag==1 && mcol)
-						GPU_color_switch(1);
-					else
-						GPU_color_switch(0);
-					glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
+			else {
+				if(index) {
+					orig = *index++;
+					if(orig == ORIGINDEX_NONE)		{ if(nors) nors += 3; continue; }
+					if(drawParamsMapped) flag = drawParamsMapped(userData, orig);
+					else	{ if(nors) nors += 3; continue; }
 				}
+				else
+					if(drawParamsMapped) flag = drawParamsMapped(userData, i);
+					else	{ if(nors) nors += 3; continue; }
 			}
-			lastFlag = flag;
-			startFace = i;
-		}
-	}
-	if( startFace < dm->drawObject->nelements/3 ) {
-		if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
-			if (lastFlag==1 && mcol)
-				GPU_color_switch(1);
-			else
-				GPU_color_switch(0);
-			glDrawArrays(GL_TRIANGLES,startFace*3,((dm->drawObject->nelements/3)-startFace)*3);
-		}
-	}
-	GPU_buffer_unbind();
-	glShadeModel( GL_FLAT );
-	/*for(i = 0; i < dm->numFaceData; i++, mf++) {
-		MVert *mvert;
-		int flag;
-		unsigned char *cp = NULL;
+			
+			if(flag != 0) {
+				if (flag==1 && mcol)
+					cp= (unsigned char*) &mcol[i*4];
 
-		if(drawParams) {
-			flag = drawParams(tf? &tf[i]: NULL, mcol? &mcol[i*4]: NULL, mf->mat_nr);
-		}
-		else {
-			if(index) {
-				orig = *index++;
-				if(orig == ORIGINDEX_NONE)		{ if(nors) nors += 3; continue; }
-				if(drawParamsMapped) flag = drawParamsMapped(userData, orig);
-				else	{ if(nors) nors += 3; continue; }
-			}
-			else
-				if(drawParamsMapped) flag = drawParamsMapped(userData, i);
-				else	{ if(nors) nors += 3; continue; }
-		}
-		
-		if(flag != 0) {
-			if (flag==1 && mcol)
-				cp= (unsigned char*) &mcol[i*4];
-
-			if(!(mf->flag&ME_SMOOTH)) {
-				if (nors) {
-					glNormal3fv(nors);
-				}
-				else {
-					float nor[3];
-					if(mf->v4) {
-						CalcNormFloat4(mv[mf->v1].co, mv[mf->v2].co,
-									   mv[mf->v3].co, mv[mf->v4].co,
-									   nor);
-					} else {
-						CalcNormFloat(mv[mf->v1].co, mv[mf->v2].co,
-									  mv[mf->v3].co, nor);
+				if(!(mf->flag&ME_SMOOTH)) {
+					if (nors) {
+						glNormal3fv(nors);
 					}
-					glNormal3fv(nor);
+					else {
+						float nor[3];
+						if(mf->v4) {
+							CalcNormFloat4(mv[mf->v1].co, mv[mf->v2].co,
+										   mv[mf->v3].co, mv[mf->v4].co,
+										   nor);
+						} else {
+							CalcNormFloat(mv[mf->v1].co, mv[mf->v2].co,
+										  mv[mf->v3].co, nor);
+						}
+						glNormal3fv(nor);
+					}
 				}
-			}
 
-			glBegin(mf->v4?GL_QUADS:GL_TRIANGLES);
-			if(tf) glTexCoord2fv(tf[i].uv[0]);
-			if(cp) glColor3ub(cp[3], cp[2], cp[1]);
-			mvert = &mv[mf->v1];
-			if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
-			glVertex3fv(mvert->co);
-				
-			if(tf) glTexCoord2fv(tf[i].uv[1]);
-			if(cp) glColor3ub(cp[7], cp[6], cp[5]);
-			mvert = &mv[mf->v2];
-			if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
-			glVertex3fv(mvert->co);
-
-			if(tf) glTexCoord2fv(tf[i].uv[2]);
-			if(cp) glColor3ub(cp[11], cp[10], cp[9]);
-			mvert = &mv[mf->v3];
-			if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
-			glVertex3fv(mvert->co);
-
-			if(mf->v4) {
-				if(tf) glTexCoord2fv(tf[i].uv[3]);
-				if(cp) glColor3ub(cp[15], cp[14], cp[13]);
-				mvert = &mv[mf->v4];
+				glBegin(mf->v4?GL_QUADS:GL_TRIANGLES);
+				if(tf) glTexCoord2fv(tf[i].uv[0]);
+				if(cp) glColor3ub(cp[3], cp[2], cp[1]);
+				mvert = &mv[mf->v1];
 				if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
 				glVertex3fv(mvert->co);
+					
+				if(tf) glTexCoord2fv(tf[i].uv[1]);
+				if(cp) glColor3ub(cp[7], cp[6], cp[5]);
+				mvert = &mv[mf->v2];
+				if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
+				glVertex3fv(mvert->co);
+
+				if(tf) glTexCoord2fv(tf[i].uv[2]);
+				if(cp) glColor3ub(cp[11], cp[10], cp[9]);
+				mvert = &mv[mf->v3];
+				if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
+				glVertex3fv(mvert->co);
+
+				if(mf->v4) {
+					if(tf) glTexCoord2fv(tf[i].uv[3]);
+					if(cp) glColor3ub(cp[15], cp[14], cp[13]);
+					mvert = &mv[mf->v4];
+					if(mf->flag&ME_SMOOTH) glNormal3sv(mvert->no);
+					glVertex3fv(mvert->co);
+				}
+				glEnd();
 			}
-			glEnd();
+			
+			if(nors) nors += 3;
 		}
-		
-		if(nors) nors += 3;
-	}*/
+	} else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		GPU_vertex_setup( dm );
+		GPU_normal_setup( dm );
+		GPU_uv_setup( dm );
+		if( mcol != 0 ) {
+			if( dm->drawObject->colType != CD_MCOL ) {
+				unsigned char *colors = MEM_mallocN(dm->getNumFaces(dm)*3*sizeof(unsigned char), "cdDM_drawFacesTex_common");
+				for( i=0; i < dm->getNumFaces(dm); i++ ) {
+					colors[i*3] = mcol[i].r;
+					colors[i*3+1] = mcol[i].g;
+					colors[i*3+2] = mcol[i].b;
+				}
+				GPU_color3_upload(dm,colors);
+				MEM_freeN(colors);
+				dm->drawObject->colType = CD_MCOL;
+			}
+			GPU_color_setup( dm );
+		}
+
+		glShadeModel( GL_SMOOTH );
+		for(i = 0; i < dm->drawObject->nelements/3; i++) {
+			int actualFace = dm->drawObject->faceRemap[i];
+			int flag;
+			unsigned char *cp = NULL;
+
+			if(drawParams) {
+				flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
+			}
+			else {
+				if(index) {
+					orig = index[actualFace];
+					if(drawParamsMapped)
+						flag = drawParamsMapped(userData, orig);
+				}
+				else
+					if(drawParamsMapped)
+						flag = drawParamsMapped(userData, actualFace);
+			}
+			if( flag != lastFlag ) {
+				if( startFace < i ) {
+					if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+						if (lastFlag==1 && mcol)
+							GPU_color_switch(1);
+						else
+							GPU_color_switch(0);
+						glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
+					}
+				}
+				lastFlag = flag;
+				startFace = i;
+			}
+		}
+		if( startFace < dm->drawObject->nelements/3 ) {
+			if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+				if (lastFlag==1 && mcol)
+					GPU_color_switch(1);
+				else
+					GPU_color_switch(0);
+				glDrawArrays(GL_TRIANGLES,startFace*3,((dm->drawObject->nelements/3)-startFace)*3);
+			}
+		}
+		GPU_buffer_unbind();
+		glShadeModel( GL_FLAT );
+	}
 }
 
 static void cdDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tface, MCol *mcol, int matnr))
@@ -584,86 +589,88 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 	if(!mc)
 		mc = DM_get_face_data_layer(dm, CD_MCOL);
 
-	/* TODO: not yet tested */
-	GPU_vertex_setup(dm);
-	GPU_normal_setup(dm);
-	if( useColors && mc )
-		GPU_color_setup(dm);
-	glShadeModel(GL_SMOOTH);
-	glDrawArrays(GL_TRIANGLES,0,dm->drawObject->nelements);
-	glShadeModel(GL_FLOAT);
-	GPU_buffer_unbind();
+	if( GPU_buffer_legacy(dm) ) {
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common" );
+		for(i = 0; i < dm->numFaceData; i++, mf++) {
+			int drawSmooth = (mf->flag & ME_SMOOTH);
 
-	/* old code */
-	/*for(i = 0; i < dm->numFaceData; i++, mf++) {
-		int drawSmooth = (mf->flag & ME_SMOOTH);
-
-		if(index) {
-			orig = *index++;
-			if(setDrawOptions && orig == ORIGINDEX_NONE)
-				{ if(nors) nors += 3; continue; }
-		}
-		else
-			orig = i;
-
-		if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
-			unsigned char *cp = NULL;
-
-			if(useColors && mc)
-				cp = (unsigned char *)&mc[i * 4];
-
-			glShadeModel(drawSmooth?GL_SMOOTH:GL_FLAT);
-			glBegin(mf->v4?GL_QUADS:GL_TRIANGLES);
-
-			if (!drawSmooth) {
-				if (nors) {
-					glNormal3fv(nors);
-				}
-				else {
-					float nor[3];
-					if(mf->v4) {
-						CalcNormFloat4(mv[mf->v1].co, mv[mf->v2].co,
-									   mv[mf->v3].co, mv[mf->v4].co,
-									   nor);
-					} else {
-						CalcNormFloat(mv[mf->v1].co, mv[mf->v2].co,
-									  mv[mf->v3].co, nor);
-					}
-					glNormal3fv(nor);
-				}
-
-				if(cp) glColor3ub(cp[3], cp[2], cp[1]);
-				glVertex3fv(mv[mf->v1].co);
-				if(cp) glColor3ub(cp[7], cp[6], cp[5]);
-				glVertex3fv(mv[mf->v2].co);
-				if(cp) glColor3ub(cp[11], cp[10], cp[9]);
-				glVertex3fv(mv[mf->v3].co);
-				if(mf->v4) {
-					if(cp) glColor3ub(cp[15], cp[14], cp[13]);
-					glVertex3fv(mv[mf->v4].co);
-				}
-			} else {
-				if(cp) glColor3ub(cp[3], cp[2], cp[1]);
-				glNormal3sv(mv[mf->v1].no);
-				glVertex3fv(mv[mf->v1].co);
-				if(cp) glColor3ub(cp[7], cp[6], cp[5]);
-				glNormal3sv(mv[mf->v2].no);
-				glVertex3fv(mv[mf->v2].co);
-				if(cp) glColor3ub(cp[11], cp[10], cp[9]);
-				glNormal3sv(mv[mf->v3].no);
-				glVertex3fv(mv[mf->v3].co);
-				if(mf->v4) {
-					if(cp) glColor3ub(cp[15], cp[14], cp[13]);
-					glNormal3sv(mv[mf->v4].no);
-					glVertex3fv(mv[mf->v4].co);
-				}
+			if(index) {
+				orig = *index++;
+				if(setDrawOptions && orig == ORIGINDEX_NONE)
+					{ if(nors) nors += 3; continue; }
 			}
+			else
+				orig = i;
 
-			glEnd();
+			if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
+				unsigned char *cp = NULL;
+
+				if(useColors && mc)
+					cp = (unsigned char *)&mc[i * 4];
+
+				glShadeModel(drawSmooth?GL_SMOOTH:GL_FLAT);
+				glBegin(mf->v4?GL_QUADS:GL_TRIANGLES);
+
+				if (!drawSmooth) {
+					if (nors) {
+						glNormal3fv(nors);
+					}
+					else {
+						float nor[3];
+						if(mf->v4) {
+							CalcNormFloat4(mv[mf->v1].co, mv[mf->v2].co,
+										   mv[mf->v3].co, mv[mf->v4].co,
+										   nor);
+						} else {
+							CalcNormFloat(mv[mf->v1].co, mv[mf->v2].co,
+										  mv[mf->v3].co, nor);
+						}
+						glNormal3fv(nor);
+					}
+
+					if(cp) glColor3ub(cp[3], cp[2], cp[1]);
+					glVertex3fv(mv[mf->v1].co);
+					if(cp) glColor3ub(cp[7], cp[6], cp[5]);
+					glVertex3fv(mv[mf->v2].co);
+					if(cp) glColor3ub(cp[11], cp[10], cp[9]);
+					glVertex3fv(mv[mf->v3].co);
+					if(mf->v4) {
+						if(cp) glColor3ub(cp[15], cp[14], cp[13]);
+						glVertex3fv(mv[mf->v4].co);
+					}
+				} else {
+					if(cp) glColor3ub(cp[3], cp[2], cp[1]);
+					glNormal3sv(mv[mf->v1].no);
+					glVertex3fv(mv[mf->v1].co);
+					if(cp) glColor3ub(cp[7], cp[6], cp[5]);
+					glNormal3sv(mv[mf->v2].no);
+					glVertex3fv(mv[mf->v2].co);
+					if(cp) glColor3ub(cp[11], cp[10], cp[9]);
+					glNormal3sv(mv[mf->v3].no);
+					glVertex3fv(mv[mf->v3].co);
+					if(mf->v4) {
+						if(cp) glColor3ub(cp[15], cp[14], cp[13]);
+						glNormal3sv(mv[mf->v4].no);
+						glVertex3fv(mv[mf->v4].co);
+					}
+				}
+
+				glEnd();
+			}
+			
+			if (nors) nors += 3;
 		}
-		
-		if (nors) nors += 3;
-	}*/
+	}
+	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		GPU_vertex_setup(dm);
+		GPU_normal_setup(dm);
+		if( useColors && mc )
+			GPU_color_setup(dm);
+		glShadeModel(GL_SMOOTH);
+		glDrawArrays(GL_TRIANGLES,0,dm->drawObject->nelements);
+		glShadeModel(GL_FLOAT);
+		GPU_buffer_unbind();
+	}
 }
 
 static void cdDM_drawMappedFacesTex(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData)
