@@ -34,6 +34,7 @@
 #define __GPU_BUFFERS_H__
 
 #define MAX_FREE_GPU_BUFFERS 8
+#define DEBUG_VBO(X) printf(X)
 
 struct DerivedMesh;
 

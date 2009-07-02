@@ -253,15 +253,84 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))
 {
-	int i;
-	GPU_vertex_setup( dm );
-	GPU_normal_setup( dm );
-	glShadeModel(GL_SMOOTH);
-	for( i = 0; i < dm->drawObject->nmaterials; i++ ) {
-		setMaterial(dm->drawObject->materials[i].mat_nr+1, NULL);
-		glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[i].start, dm->drawObject->materials[i].end);
+	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
+	MVert *mvert = cddm->mvert;
+	MFace *mface = cddm->mface;
+	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
+	int a, glmode = -1, shademodel = -1, matnr = -1, drawCurrentMat = 1;
+
+#define PASSVERT(index) {						\
+	if(shademodel == GL_SMOOTH) {				\
+		short *no = mvert[index].no;			\
+		glNormal3sv(no);						\
+	}											\
+	glVertex3fv(mvert[index].co);	\
+}
+
+	if( dm->drawObject->legacy ) {
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesSolid" );
+		glBegin(glmode = GL_QUADS);
+		for(a = 0; a < dm->numFaceData; a++, mface++) {
+			int new_glmode, new_matnr, new_shademodel;
+
+			new_glmode = mface->v4?GL_QUADS:GL_TRIANGLES;
+			new_matnr = mface->mat_nr + 1;
+			new_shademodel = (mface->flag & ME_SMOOTH)?GL_SMOOTH:GL_FLAT;
+			
+			if(new_glmode != glmode || new_matnr != matnr
+			   || new_shademodel != shademodel) {
+				glEnd();
+
+				drawCurrentMat = setMaterial(matnr = new_matnr, NULL);
+
+				glShadeModel(shademodel = new_shademodel);
+				glBegin(glmode = new_glmode);
+			} 
+			
+			if(drawCurrentMat) {
+				if(shademodel == GL_FLAT) {
+					if (nors) {
+						glNormal3fv(nors);
+					}
+					else {
+						/* TODO make this better (cache facenormals as layer?) */
+						float nor[3];
+						if(mface->v4) {
+							CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
+										   mvert[mface->v3].co, mvert[mface->v4].co,
+										   nor);
+						} else {
+							CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
+										  mvert[mface->v3].co, nor);
+						}
+						glNormal3fv(nor);
+					}
+				}
+
+				PASSVERT(mface->v1);
+				PASSVERT(mface->v2);
+				PASSVERT(mface->v3);
+				if(mface->v4) {
+					PASSVERT(mface->v4);
+				}
+			}
+
+			if(nors) nors += 3;
+		}
+		glEnd();
 	}
-	GPU_buffer_unbind( );
+	else {	/* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		GPU_vertex_setup( dm );
+		GPU_normal_setup( dm );
+		glShadeModel(GL_SMOOTH);
+		for( a = 0; a < dm->drawObject->nmaterials; a++ ) {
+			setMaterial(dm->drawObject->materials[a].mat_nr+1, NULL);
+			glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].end);
+		}
+		GPU_buffer_unbind( );
+	}
+
+#undef PASSVERT
 	glShadeModel(GL_FLAT);
 }
 
@@ -287,20 +356,61 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 	if(col1 && col2)
 		glEnable(GL_CULL_FACE);
 
-	GPU_color4_upload(dm,cp1);
-	GPU_vertex_setup(dm);
-	GPU_color_setup(dm);
-	glShadeModel(GL_SMOOTH);
-	glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
+	if( dm->drawObject->legacy ) {
+		DEBUG_VBO( "Using legacy code. cdDM_drawFacesColored" );
+		glShadeModel(GL_SMOOTH);
+		glBegin(glmode = GL_QUADS);
+		for(a = 0; a < dm->numFaceData; a++, mface++, cp1 += 16) {
+			int new_glmode = mface->v4?GL_QUADS:GL_TRIANGLES;
 
-	if( useTwoSided ) {
-		GPU_color4_upload(dm,cp2);
-		GPU_color_setup(dm);
-		glCullFace(GL_FRONT);
-		glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
-		glCullFace(GL_BACK);
+			if(new_glmode != glmode) {
+				glEnd();
+				glBegin(glmode = new_glmode);
+			}
+				
+			glColor3ub(cp1[0], cp1[1], cp1[2]);
+			glVertex3fv(mvert[mface->v1].co);
+			glColor3ub(cp1[4], cp1[5], cp1[6]);
+			glVertex3fv(mvert[mface->v2].co);
+			glColor3ub(cp1[8], cp1[9], cp1[10]);
+			glVertex3fv(mvert[mface->v3].co);
+			if(mface->v4) {
+				glColor3ub(cp1[12], cp1[13], cp1[14]);
+				glVertex3fv(mvert[mface->v4].co);
+			}
+				
+			if(useTwoSided) {
+				glColor3ub(cp2[8], cp2[9], cp2[10]);
+				glVertex3fv(mvert[mface->v3].co );
+				glColor3ub(cp2[4], cp2[5], cp2[6]);
+				glVertex3fv(mvert[mface->v2].co );
+				glColor3ub(cp2[0], cp2[1], cp2[2]);
+				glVertex3fv(mvert[mface->v1].co );
+				if(mface->v4) {
+					glColor3ub(cp2[12], cp2[13], cp2[14]);
+					glVertex3fv(mvert[mface->v4].co );
+				}
+			}
+			if(col2) cp2 += 16;
+		}
+		glEnd();
 	}
-	GPU_buffer_unbind();
+	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		GPU_color4_upload(dm,cp1);
+		GPU_vertex_setup(dm);
+		GPU_color_setup(dm);
+		glShadeModel(GL_SMOOTH);
+		glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
+
+		if( useTwoSided ) {
+			GPU_color4_upload(dm,cp2);
+			GPU_color_setup(dm);
+			glCullFace(GL_FRONT);
+			glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
+			glCullFace(GL_BACK);
+		}
+		GPU_buffer_unbind();
+	}
 
 	glShadeModel(GL_FLAT);
 	glDisable(GL_CULL_FACE);

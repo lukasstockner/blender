@@ -46,8 +46,6 @@
 #define GPU_BUFFER_TEXCOORD_STATE 4
 #define GPU_BUFFER_COLOR_STATE 8
 
-#define DEBUG_VBO(X) printf(X)
-
 /* -1 - undefined, 0 - vertex arrays, 1 - VBOs */
 int useVBOs = -1;
 GPUBufferPool *globalPool = 0;
@@ -339,6 +337,10 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 				if( globalPool->size > 0 ) {
 					GPU_buffer_pool_delete_last( globalPool );
 					buffer = GPU_buffer_alloc( size, globalPool );
+					if( buffer == 0 ) {
+						dm->drawObject->legacy = 1;
+						success = 1;
+					}
 				}
 				else {
 					dm->drawObject->legacy = 1;
