@@ -145,9 +145,10 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		pool->start += MAX_FREE_GPU_BUFFERS;
 
 	for( i = 0; i < pool->size; i++ ) {
-		cursize = pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]->size;
+		int actuali = (pool->start+i)%MAX_FREE_GPU_BUFFERS;
+		cursize = pool->buffers[actuali]->size;
 		if( cursize == size ) {
-			allocated = pool->buffers[pool->start+i];
+			allocated = pool->buffers[actuali];
 			GPU_buffer_pool_remove(i,pool);
 			DEBUG_VBO("free buffer of exact size found\n");
 			return allocated;
@@ -183,10 +184,10 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		}
 	}
 	else {
-		sprintf(buffer,"free buffer found. Wasted %d bytes\n", pool->buffers[pool->start+bestfit]->size-size);
+		sprintf(buffer,"free buffer found. Wasted %d bytes\n", pool->buffers[(pool->start+bestfit)%MAX_FREE_GPU_BUFFERS]->size-size);
 		DEBUG_VBO(buffer);
 
-		allocated = pool->buffers[pool->start+bestfit];
+		allocated = pool->buffers[(pool->start+bestfit)%MAX_FREE_GPU_BUFFERS];
 		GPU_buffer_pool_remove(bestfit,pool);
 	}
 	return allocated;
@@ -556,15 +557,31 @@ void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *r
 		else
 			index[redir[mface[i].mat_nr+127]] += 9;
 
+		varray[start] = mcol[i*12];
+		varray[start+1] = mcol[i*12+1];
+		varray[start+2] = mcol[i*12+2];
+
+		varray[start+3] = mcol[i*12+3];
+		varray[start+4] = mcol[i*12+4];
+		varray[start+5] = mcol[i*12+5];
+
+		varray[start+6] = mcol[i*12+6];
+		varray[start+7] = mcol[i*12+7];
+		varray[start+8] = mcol[i*12+8];
 		/* v1 v2 v3 */
-		VECCOPY(&varray[start],&mcol[i*12]);
-		VECCOPY(&varray[start+3],&mcol[i*12+3]);
-		VECCOPY(&varray[start+6],&mcol[i*12+6]);
 		if( mface[i].v4 ) {
 			/* v3 v4 v1 */
-			VECCOPY(&varray[start+9],&mcol[i*12+6]);
-			VECCOPY(&varray[start+12],&mcol[i*12+9]);
-			VECCOPY(&varray[start+15],&mcol[i*12]);
+			varray[start+9] = mcol[i*12+6];
+			varray[start+10] = mcol[i*12+7];
+			varray[start+11] = mcol[i*12+8];
+
+			varray[start+12] = mcol[i*12+9];
+			varray[start+13] = mcol[i*12+10];
+			varray[start+14] = mcol[i*12+11];
+
+			varray[start+15] = mcol[i*12];
+			varray[start+16] = mcol[i*12+1];
+			varray[start+17] = mcol[i*12+2];
 		}
 	}
 }
@@ -615,24 +632,21 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 	DEBUG_VBO("GPU_buffer_color\n");
 
 	mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
+	dm->drawObject->colType = CD_WEIGHT_MCOL;
 	if(!mcol) {
 		mcol = DM_get_face_data_layer(dm, CD_MCOL);
+		dm->drawObject->colType = CD_MCOL;
 	}
 
-	colors = MEM_mallocN(dm->getNumFaces(dm)*3*sizeof(unsigned char), "GPU_buffer_color");
-	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		colors[i*3] = mcol[i].r;
+	colors = MEM_mallocN(dm->getNumFaces(dm)*12*sizeof(unsigned char), "GPU_buffer_color");
+	for( i=0; i < dm->getNumFaces(dm)*4; i++ ) {
+		colors[i*3] = mcol[i].b;
 		colors[i*3+1] = mcol[i].g;
-		colors[i*3+2] = mcol[i].b;
+		colors[i*3+2] = mcol[i].r;
 	}
 
 	result = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, colors, GPU_buffer_copy_color3 );
 
-	mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
-	dm->drawObject->colType = CD_WEIGHT_MCOL;
-	if(!mcol) {
-		dm->drawObject->colType = CD_MCOL;
-	}
 	MEM_freeN(colors);
 	return result;
 }

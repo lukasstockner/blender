@@ -563,7 +563,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 					GPU_color_switch(1);
 				else
 					GPU_color_switch(0);
-				glDrawArrays(GL_TRIANGLES,startFace*3,((dm->drawObject->nelements/3)-startFace)*3);
+				glDrawArrays(GL_TRIANGLES,startFace*3,dm->drawObject->nelements-startFace*3);
 			}
 		}
 		GPU_buffer_unbind();
@@ -662,13 +662,40 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		}
 	}
 	else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		int state = 1;
+		int prevstate = 1;
+		int prevstart = 0;
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
 		if( useColors && mc )
 			GPU_color_setup(dm);
 		glShadeModel(GL_SMOOTH);
-		glDrawArrays(GL_TRIANGLES,0,dm->drawObject->nelements);
-		glShadeModel(GL_FLOAT);
+		for( i = 0; i < dm->drawObject->nelements/3; i++ ) {
+			int actualFace = dm->drawObject->faceRemap[i];
+			int drawSmooth = (mf[actualFace].flag & ME_SMOOTH);
+			if(index) {
+				orig = index[actualFace];
+			}
+			else
+				orig = i;
+			if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
+				state = 1;
+			}
+			else {
+				state = 0;
+			}
+			if( prevstate != state && prevstate == 1 ) {
+				if( i-prevstart > 0 ) {
+					glDrawArrays(GL_TRIANGLES,prevstart*3,(i-prevstart)*3);
+				}
+				prevstart = i;
+			}
+			prevstate = state;
+		}
+		if(state==1) {
+			glDrawArrays(GL_TRIANGLES,prevstart*3,dm->drawObject->nelements-prevstart*3);
+		}
+		glShadeModel(GL_FLAT);
 		GPU_buffer_unbind();
 	}
 }
