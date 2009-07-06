@@ -58,10 +58,14 @@ GPUBufferPool *GPU_buffer_pool_new()
 	DEBUG_VBO("GPU_buffer_pool_new\n");
 
 	if( useVBOs < 0 ) {
-		if( GL_ARB_vertex_buffer_object )
+		if( GL_ARB_vertex_buffer_object ) {
+			DEBUG_VBO( "Vertex Buffer Objects supported.\n" );
 			useVBOs = 1;
-		else
+		}
+		else {
+			DEBUG_VBO( "Vertex Buffer Objects NOT supported.\n" );
 			useVBOs = 0;
+		}
 	}
 
 	pool = MEM_callocN(sizeof(GPUBufferPool), "GPU_buffer_pool_new");
@@ -323,7 +327,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 
 	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup");
 	for( i = 0; i < object->nmaterials; i++ ) {
-		index[i] = object->materials[i].start;
+		index[i] = object->materials[i].start*3;
 		redir[object->materials[i].mat_nr+127] = i;
 	}
 
@@ -365,8 +369,13 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 	else {
-		varray = buffer->pointer;
-		(*copy_f)( dm, varray, index, redir, user );
+		if( buffer->pointer != 0 ) {
+			varray = buffer->pointer;
+			(*copy_f)( dm, varray, index, redir, user );
+		}
+		else {
+			dm->drawObject->legacy = 1;
+		}
 	}
 
 	MEM_freeN(index);
