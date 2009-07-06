@@ -82,7 +82,8 @@ typedef struct PTCacheMem {
 } PTCacheMem;
 
 typedef struct PointCache {
-	int flag, rt;		/* generic flag */
+	int flag;		/* generic flag */
+	int step;		/* frames between cached frames */
 	int simframe;	/* current frame of simulation (only if SIMULATION_VALID) */
 	int startframe;	/* simulation start frame */
 	int endframe;	/* simulation end frame */
@@ -263,10 +264,14 @@ typedef struct SoftBody {
 #define PTCACHE_BAKE_EDIT			16
 #define PTCACHE_BAKE_EDIT_ACTIVE	32
 #define PTCACHE_DISK_CACHE			64
-#define PTCACHE_AUTOCACHE			128
+#define PTCACHE_QUICK_CACHE			128
+#define PTCACHE_FRAMES_SKIPPED		256
+
+/* PTCACHE_OUTDATED + PTCACHE_FRAMES_SKIPPED */
+#define PTCACHE_REDO_NEEDED			258
 
 /* ob->softflag */
-#define OB_SB_ENABLE	1
+#define OB_SB_ENABLE	1		/* deprecated, use modifier */
 #define OB_SB_GOAL		2
 #define OB_SB_EDGES		4
 #define OB_SB_QUADS		8

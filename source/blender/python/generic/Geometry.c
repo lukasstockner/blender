@@ -165,7 +165,7 @@ static PyObject *M_Geometry_PolyFill( PyObject * self, PyObject * polyLineSeq )
 				polyVec= PySequence_GetItem( polyLine, index );
 				if(VectorObject_Check(polyVec)) {
 					
-					if(!Vector_ReadCallback((VectorObject *)polyVec))
+					if(!BaseMath_ReadCallback((VectorObject *)polyVec))
 						ls_error= 1;
 					
 					fp[0] = ((VectorObject *)polyVec)->vec[0];
@@ -238,7 +238,7 @@ static PyObject *M_Geometry_LineIntersect2D( PyObject * self, PyObject * args )
 		return NULL;
 	}
 	
-	if(!Vector_ReadCallback(line_a1) || !Vector_ReadCallback(line_a2) || !Vector_ReadCallback(line_b1) || !Vector_ReadCallback(line_b2))
+	if(!BaseMath_ReadCallback(line_a1) || !BaseMath_ReadCallback(line_a2) || !BaseMath_ReadCallback(line_b1) || !BaseMath_ReadCallback(line_b2))
 		return NULL;
 	
 	a1x= line_a1->vec[0];
@@ -273,7 +273,7 @@ static PyObject *M_Geometry_LineIntersect2D( PyObject * self, PyObject * args )
 			/*X of vert, Y of hoz. no calculation needed */
 			newvec[0]= a1x;
 			newvec[1]= b1y;
-			return newVectorObject(newvec, 2, Py_NEW);
+			return newVectorObject(newvec, 2, Py_NEW, NULL);
 		}
 		
 		yi = (float)(((b1y / fabs(b1x - b2x)) * fabs(b2x - a1x)) + ((b2y / fabs(b1x - b2x)) * fabs(b1x - a1x)));
@@ -285,7 +285,7 @@ static PyObject *M_Geometry_LineIntersect2D( PyObject * self, PyObject * args )
 		}
 		newvec[0]= a1x;
 		newvec[1]= yi;
-		return newVectorObject(newvec, 2, Py_NEW);
+		return newVectorObject(newvec, 2, Py_NEW, NULL);
 	} else if (fabs(a2y-a1y) < eul) {  /* hoz line1 */
 		if (fabs(b2y-b1y) < eul) { /*hoz line2*/
 			Py_RETURN_NONE; /*2 hoz lines dont intersect*/
@@ -300,7 +300,7 @@ static PyObject *M_Geometry_LineIntersect2D( PyObject * self, PyObject * args )
 		}
 		newvec[0]= xi;
 		newvec[1]= a1y;
-		return newVectorObject(newvec, 2, Py_NEW);
+		return newVectorObject(newvec, 2, Py_NEW, NULL);
 	}
 	
 	b1 = (a2y-a1y)/(a2x-a1x);
@@ -317,7 +317,7 @@ static PyObject *M_Geometry_LineIntersect2D( PyObject * self, PyObject * args )
 	if ((a1x-xi)*(xi-a2x) >= 0 && (b1x-xi)*(xi-b2x) >= 0 && (a1y-yi)*(yi-a2y) >= 0 && (b1y-yi)*(yi-b2y)>=0) {
 		newvec[0]= xi;
 		newvec[1]= yi;
-		return newVectorObject(newvec, 2, Py_NEW);
+		return newVectorObject(newvec, 2, Py_NEW, NULL);
 	}
 	Py_RETURN_NONE;
 }
@@ -338,7 +338,7 @@ static PyObject *M_Geometry_ClosestPointOnLine( PyObject * self, PyObject * args
 		return NULL;
 	}
 	
-	if(!Vector_ReadCallback(pt) || !Vector_ReadCallback(line_1) || !Vector_ReadCallback(line_2))
+	if(!BaseMath_ReadCallback(pt) || !BaseMath_ReadCallback(line_1) || !BaseMath_ReadCallback(line_2))
 		return NULL;
 	
 	/* accept 2d verts */
@@ -355,7 +355,7 @@ static PyObject *M_Geometry_ClosestPointOnLine( PyObject * self, PyObject * args
 	lambda = lambda_cp_line_ex(pt_in, l1, l2, pt_out);
 	
 	ret = PyTuple_New(2);
-	PyTuple_SET_ITEM( ret, 0, newVectorObject(pt_out, 3, Py_NEW) );
+	PyTuple_SET_ITEM( ret, 0, newVectorObject(pt_out, 3, Py_NEW, NULL) );
 	PyTuple_SET_ITEM( ret, 1, PyFloat_FromDouble(lambda) );
 	return ret;
 }
@@ -374,7 +374,7 @@ static PyObject *M_Geometry_PointInTriangle2D( PyObject * self, PyObject * args 
 		return NULL;
 	}
 	
-	if(!Vector_ReadCallback(pt_vec) || !Vector_ReadCallback(tri_p1) || !Vector_ReadCallback(tri_p2) || !Vector_ReadCallback(tri_p3))
+	if(!BaseMath_ReadCallback(pt_vec) || !BaseMath_ReadCallback(tri_p1) || !BaseMath_ReadCallback(tri_p2) || !BaseMath_ReadCallback(tri_p3))
 		return NULL;
 	
 	return PyLong_FromLong(IsectPT2Df(pt_vec->vec, tri_p1->vec, tri_p2->vec, tri_p3->vec));
@@ -395,7 +395,7 @@ static PyObject *M_Geometry_PointInQuad2D( PyObject * self, PyObject * args )
 		return NULL;
 	}
 	
-	if(!Vector_ReadCallback(pt_vec) || !Vector_ReadCallback(quad_p1) || !Vector_ReadCallback(quad_p2) || !Vector_ReadCallback(quad_p3) || !Vector_ReadCallback(quad_p4))
+	if(!BaseMath_ReadCallback(pt_vec) || !BaseMath_ReadCallback(quad_p1) || !BaseMath_ReadCallback(quad_p2) || !BaseMath_ReadCallback(quad_p3) || !BaseMath_ReadCallback(quad_p4))
 		return NULL;
 	
 	return PyLong_FromLong(IsectPQ2Df(pt_vec->vec, quad_p1->vec, quad_p2->vec, quad_p3->vec, quad_p4->vec));
@@ -517,7 +517,7 @@ static PyObject *M_Geometry_BezierInterp( PyObject * self, PyObject * args )
 		return NULL;
 	}
 	
-	if(!Vector_ReadCallback(vec_k1) || !Vector_ReadCallback(vec_h1) || !Vector_ReadCallback(vec_k2) || !Vector_ReadCallback(vec_h2))
+	if(!BaseMath_ReadCallback(vec_k1) || !BaseMath_ReadCallback(vec_h1) || !BaseMath_ReadCallback(vec_k2) || !BaseMath_ReadCallback(vec_h2))
 		return NULL;
 	
 	dims= MAX4(vec_k1->size, vec_h1->size, vec_h2->size, vec_k2->size);
@@ -535,7 +535,7 @@ static PyObject *M_Geometry_BezierInterp( PyObject * self, PyObject * args )
 	list= PyList_New(resolu);
 	fp= coord_array;
 	for(i=0; i<resolu; i++, fp= fp+dims) {
-		PyList_SET_ITEM(list, i, newVectorObject(fp, dims, Py_NEW));
+		PyList_SET_ITEM(list, i, newVectorObject(fp, dims, Py_NEW, NULL));
 	}
 	MEM_freeN(coord_array);
 	return list;

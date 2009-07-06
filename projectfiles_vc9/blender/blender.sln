@@ -1,5 +1,5 @@
 Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+# Visual C++ Express 2008
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "blender", "blender.vcproj", "{F78B7FC9-DE32-465E-9F26-BB0B6B7A2EAF}"
 	ProjectSection(ProjectDependencies) = postProject
 		{E5F2F004-C704-4DCC-A08F-6EB1E38EAB9F} = {E5F2F004-C704-4DCC-A08F-6EB1E38EAB9F}
@@ -294,7 +294,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ED_editors", "editors\ED_ed
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "RNA_makesrna", "makesrna\RNA_makesrna.vcproj", "{8C2BCCF8-4D9E-46D3-BABF-C1545A332CE6}"
 	ProjectSection(ProjectDependencies) = postProject
-		{FB88301F-F725-401B-ACD7-D2ABBF333B71} = {FB88301F-F725-401B-ACD7-D2ABBF333B71}
 		{7495FE37-933A-4AC1-BB2A-B3FDB4DE4284} = {7495FE37-933A-4AC1-BB2A-B3FDB4DE4284}
 	EndProjectSection
 EndProject
@@ -986,8 +985,8 @@ Global
 		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.3D Plugin Debug|Win32.Build.0 = 3DPlugin Debug|Win32
 		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.3D Plugin Release|Win32.ActiveCfg = 3DPlugin Debug|Win32
 		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.3D Plugin Release|Win32.Build.0 = 3DPlugin Debug|Win32
-		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.Blender Debug|Win32.ActiveCfg = Blender Debug|Win32
-		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.Blender Debug|Win32.Build.0 = Blender Debug|Win32
+		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.Blender Debug|Win32.ActiveCfg = Blender Release|Win32
+		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.Blender Debug|Win32.Build.0 = Blender Release|Win32
 		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.Blender Release|Win32.ActiveCfg = Blender Release|Win32
 		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.Blender Release|Win32.Build.0 = Blender Release|Win32
 		{76D90B92-ECC7-409C-9F98-A8814B90F3C0}.BlenderPlayer Debug|Win32.ActiveCfg = Blender Debug|Win32

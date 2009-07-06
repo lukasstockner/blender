@@ -107,15 +107,9 @@ static int PYTHON_OT_generic(int mode, bContext *C, wmOperator *op, wmEvent *eve
 		
 		/* Assign instance attributes from operator properties */
 		{
-			PropertyRNA *prop, *iterprop;
-			CollectionPropertyIterator iter;
 			const char *arg_name;
 
-			iterprop= RNA_struct_iterator_property(op->ptr->type);
-			RNA_property_collection_begin(op->ptr, iterprop, &iter);
-
-			for(; iter.valid; RNA_property_collection_next(&iter)) {
-				prop= iter.ptr.data;
+			RNA_STRUCT_BEGIN(op->ptr, prop) {
 				arg_name= RNA_property_identifier(prop);
 
 				if (strcmp(arg_name, "rna_type")==0) continue;
@@ -124,8 +118,7 @@ static int PYTHON_OT_generic(int mode, bContext *C, wmOperator *op, wmEvent *eve
 				PyObject_SetAttrString(py_class_instance, arg_name, item);
 				Py_DECREF(item);
 			}
-
-			RNA_property_collection_end(&iter);
+			RNA_STRUCT_END;
 		}
 
 		/* set operator pointer RNA as instance "__operator__" attribute */
@@ -360,7 +353,8 @@ PyObject *PYOP_wrap_add(PyObject *self, PyObject *py_class)
 	
 	/* remove if it already exists */
 	if ((ot=WM_operatortype_find(idname))) {
-		Py_XDECREF((PyObject*)ot->pyop_data);
+		if(ot->pyop_data)
+			Py_XDECREF((PyObject*)ot->pyop_data);
 		WM_operatortype_remove(idname);
 	}
 	

@@ -34,6 +34,8 @@
 
 #include "DNA_ID.h"
 
+struct AnimData;
+
 typedef struct HairKey {
 	float co[3];	/* location of hair vertex */
 	float time;		/* time along hair, default 0-100 */
@@ -100,6 +102,7 @@ typedef struct ParticleData {
 
 typedef struct ParticleSettings {
 	ID id;
+	struct AnimData *adt;
 
 	int flag;
 	short type, from, distr;
@@ -128,7 +131,7 @@ typedef struct ParticleSettings {
 
 	/* general values */
 	float sta, end, lifetime, randlife;
-	float timetweak, jitfac, keyed_time, eff_hair, rt;
+	float timetweak, jitfac, keyed_time, eff_hair;
 	int totpart, userjit, grid_res;
 
 	/* initial velocity factors */
@@ -156,6 +159,8 @@ typedef struct ParticleSettings {
 	float branch_thres;
 	/* drawing stuff */
 	float draw_line[2];
+	float path_start, path_end;
+	int trail_count;
 
 	/* boids */
 	float max_vel, max_lat_acc, max_tan_acc;
@@ -167,7 +172,7 @@ typedef struct ParticleSettings {
 	struct Group *eff_group;
 	struct Object *dup_ob;
 	struct Object *bb_ob;
-	struct Ipo *ipo;
+	struct Ipo *ipo;				// xxx depreceated... old animation system
 	struct PartDeflect *pd;
 	struct PartDeflect *pd2;
 } ParticleSettings;
@@ -308,8 +313,8 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 #define PART_DRAW_SIZE		4
 #define PART_DRAW_EMITTER	8	/* render emitter also */
 //#define PART_DRAW_HEALTH	16
-//#define PART_DRAW_TIMED_PATH  32
-//#define PART_DRAW_CACHED_PATH 64
+#define PART_ABS_PATH_TIME  32
+//#define PART_DRAW_TRAIL		64
 #define PART_DRAW_BB_LOCK	128
 #define PART_DRAW_PARENT	256
 #define PART_DRAW_NUM		512

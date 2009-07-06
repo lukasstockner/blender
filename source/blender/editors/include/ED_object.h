@@ -63,6 +63,7 @@ struct Base *ED_object_add_duplicate(struct Scene *scene, struct Base *base, int
 #define EM_FREEDATA		1
 #define EM_FREEUNDO		2
 #define EM_WAITCURSOR	4
+#define EM_DO_UNDO		8
 void ED_object_exit_editmode(struct bContext *C, int flag);
 void ED_object_enter_editmode(struct bContext *C, int flag);
 
@@ -102,7 +103,8 @@ void key_to_curve(struct KeyBlock *kb, struct Curve  *cu, struct ListBase *nurb)
 void curve_to_key(struct Curve *cu, struct KeyBlock *kb, struct ListBase *nurb);
 
 /* object_modifier.c */
-int ED_object_modifier_delete(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
+int ED_object_modifier_add(struct ReportList *reports, struct Scene *scene, struct Object *ob, int type);
+int ED_object_modifier_remove(struct ReportList *reports, struct Scene *scene, struct Object *ob, struct ModifierData *md);
 int ED_object_modifier_move_down(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 int ED_object_modifier_move_up(struct ReportList *reports, struct Object *ob, struct ModifierData *md);
 int ED_object_modifier_convert(struct ReportList *reports, struct Scene *scene, struct Object *ob, struct ModifierData *md);

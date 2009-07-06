@@ -91,7 +91,8 @@ typedef struct ParticleTexture{
 	float ivel;							/* used in reset */
 	float time, life, exist, size;		/* used in init */
 	float pvel[3];						/* used in physics */
-	float length, clump, kink, rough;	/* used in path caching */
+	float length, clump, kink, effector;/* used in path caching */
+	float rough1, rough2, roughe;		/* used in path caching */
 } ParticleTexture;
 
 typedef struct BoidVecFunc{
@@ -217,6 +218,7 @@ char *psys_menu_string(struct Object *ob, int for_sb);
 
 struct ParticleSystem *psys_get_current(struct Object *ob);
 short psys_get_current_num(struct Object *ob);
+void psys_set_current_num(Object *ob, int index);
 struct Object *psys_find_object(struct Scene *scene, struct ParticleSystem *psys);
 //struct ParticleSystem *psys_get(struct Object *ob, int index);
 struct ParticleData *psys_get_selected_particle(struct ParticleSystem *psys, int *index);
@@ -250,9 +252,10 @@ void copy_particle_key(struct ParticleKey *to, struct ParticleKey *from, int tim
 void psys_particle_on_emitter(struct ParticleSystemModifierData *psmd, int distr, int index, int index_dmcache, float *fuv, float foffset, float *vec, float *nor, float *utan, float *vtan, float *orco, float *ornor);
 struct ParticleSystemModifierData *psys_get_modifier(struct Object *ob, struct ParticleSystem *psys);
 
+void object_add_particle_system(struct Scene *scene, struct Object *ob);
+void object_remove_particle_system(struct Scene *scene, struct Object *ob);
 struct ParticleSettings *psys_new_settings(char *name, struct Main *main);
 struct ParticleSettings *psys_copy_settings(struct ParticleSettings *part);
-int psys_count_autocache(struct Scene *scene, struct ParticleSettings *part);
 void psys_flush_particle_settings(struct Scene *scene, struct ParticleSettings *part, int recalc);
 void make_local_particlesettings(struct ParticleSettings *part);
 
@@ -268,7 +271,7 @@ void psys_update_world_cos(struct Object *ob, struct ParticleSystem *psys);
 int do_guide(struct Scene *scene, struct ParticleKey *state, int pa_num, float time, struct ListBase *lb);
 float psys_get_size(struct Object *ob, struct Material *ma, struct ParticleSystemModifierData *psmd, struct IpoCurve *icu_size, struct ParticleSystem *psys, struct ParticleSettings *part, struct ParticleData *pa, float *vg_size);
 float psys_get_timestep(struct ParticleSettings *part);
-float psys_get_child_time(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra);
+float psys_get_child_time(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *birthtime, float *dietime);
 float psys_get_child_size(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *pa_time);
 void psys_get_particle_on_path(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, int pa_num, struct ParticleKey *state, int vel);
 int psys_get_particle_state(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, int p, struct ParticleKey *state, int always);

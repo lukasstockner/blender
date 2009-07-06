@@ -383,6 +383,7 @@ static void image_editcursor_buts(const bContext *C, View2D *v2d, uiBlock *block
 	}
 }
 
+#if 0
 static void image_panel_view_properties(const bContext *C, Panel *pa)
 {
 	SpaceImage *sima= (SpaceImage*)CTX_wm_space_data(C);
@@ -439,6 +440,7 @@ static void image_panel_view_properties(const bContext *C, Panel *pa)
 	}
 	image_editcursor_buts(C, &ar->v2d, block);
 }
+#endif
 
 void brush_buttons(const bContext *C, uiBlock *block, short fromsima,
 				   int evt_nop, int evt_change,
@@ -1086,7 +1088,7 @@ static void image_pack_cb(bContext *C, void *ima_v, void *iuser_v)
 				}
 				
 				if ((G.fileflags & G_AUTOPACK) == 0) {
-					unpackImage(ima, PF_ASK);
+					unpackImage(NULL, ima, PF_ASK); /* XXX report errors */
 					ED_undo_push(C, "Unpack image");
 				}
 			} 
@@ -1095,7 +1097,7 @@ static void image_pack_cb(bContext *C, void *ima_v, void *iuser_v)
 				if (ibuf && (ibuf->userflags & IB_BITMAPDIRTY)) {
 					// XXX error("Can't pack painted image. Save image or use Repack as PNG.");
 				} else {
-					ima->packedfile = newPackedFile(ima->name);
+					ima->packedfile = newPackedFile(NULL, ima->name); /* XXX report errors */
 					ED_undo_push(C, "Pack image");
 				}
 			}

@@ -210,9 +210,20 @@ static void buttons_main_area_draw(const bContext *C, ARegion *ar)
 
 void buttons_operatortypes(void)
 {
+	WM_operatortype_append(OBJECT_OT_material_slot_add);
+	WM_operatortype_append(OBJECT_OT_material_slot_remove);
+	WM_operatortype_append(OBJECT_OT_material_slot_assign);
+	WM_operatortype_append(OBJECT_OT_material_slot_select);
+	WM_operatortype_append(OBJECT_OT_material_slot_deselect);
+
 	WM_operatortype_append(MATERIAL_OT_new);
 	WM_operatortype_append(TEXTURE_OT_new);
 	WM_operatortype_append(WORLD_OT_new);
+
+	WM_operatortype_append(OBJECT_OT_particle_system_add);
+	WM_operatortype_append(OBJECT_OT_particle_system_remove);
+
+	WM_operatortype_append(PARTICLE_OT_new);
 }
 
 void buttons_keymap(struct wmWindowManager *wm)
@@ -320,6 +331,7 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 		case NC_SCENE:
 			switch(wmn->data) {
 				case ND_FRAME:
+				case ND_MODE:
 					ED_area_tag_redraw(sa);
 					break;
 					
@@ -337,6 +349,11 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_GEOM_SELECT:
 					ED_area_tag_redraw(sa);
 					break;
+				case ND_SHADING:
+				case ND_SHADING_DRAW:
+					/* currently works by redraws... if preview is set, it (re)starts job */
+					sbuts->preview= 1;
+					break;
 			}
 			break;
 		case NC_MATERIAL:
@@ -347,7 +364,6 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_SHADING_DRAW:
 					/* currently works by redraws... if preview is set, it (re)starts job */
 					sbuts->preview= 1;
-					printf("shader notifier \n");
 					break;
 			}					
 			break;

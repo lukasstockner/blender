@@ -1,10 +1,6 @@
 
 import bpy
 
-# temporary
-ICON_TEXT = 120
-ICON_HELP = 1
-
 class TEXT_HT_header(bpy.types.Header):
 	__space_type__ = "TEXT_EDITOR"
 	__idname__ = "TEXT_HT_header"
@@ -33,7 +29,7 @@ class TEXT_HT_header(bpy.types.Header):
 		row.itemR(st, "word_wrap", text="")
 		row.itemR(st, "syntax_highlight", text="")
 
-		layout.template_ID(st, "text", new="TEXT_OT_new", open="TEXT_OT_open", unlink="TEXT_OT_unlink")
+		layout.template_ID(st, "text", new="TEXT_OT_new", unlink="TEXT_OT_unlink")
 
 		if text:
 			row = layout.row()

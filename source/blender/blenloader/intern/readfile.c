@@ -2899,7 +2899,9 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 	part= main->particle.first;
 	while(part) {
 		if(part->id.flag & LIB_NEEDLINK) {
+			if (part->adt) lib_link_animdata(fd, &part->id, part->adt);
 			part->ipo= newlibadr_us(fd, part->id.lib, part->ipo); // XXX depreceated - old animation system
+			
 			part->dup_ob = newlibadr(fd, part->id.lib, part->dup_ob);
 			part->dup_group = newlibadr(fd, part->id.lib, part->dup_group);
 			part->eff_group = newlibadr(fd, part->id.lib, part->eff_group);
@@ -2912,6 +2914,7 @@ static void lib_link_particlesettings(FileData *fd, Main *main)
 
 static void direct_link_particlesettings(FileData *fd, ParticleSettings *part)
 {
+	part->adt= newdataadr(fd, part->adt);
 	part->pd= newdataadr(fd, part->pd);
 	part->pd2= newdataadr(fd, part->pd2);
 }
@@ -5592,21 +5595,6 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				/* temporarily hide it */
 				ar->flag = RGN_FLAG_HIDDEN;
 				break;
-				
-			case SPACE_FILE:
-				/* channel (bookmarks/directories) region */
-				ar= MEM_callocN(sizeof(ARegion), "area region from do_versions");
-				BLI_addtail(lb, ar);
-				ar->regiontype= RGN_TYPE_CHANNELS;
-				ar->alignment= RGN_ALIGN_LEFT;
-				ar->v2d.scroll= V2D_SCROLL_RIGHT;
-				/* button UI region */
-				ar= MEM_callocN(sizeof(ARegion), "area region from do_versions");
-				BLI_addtail(lb, ar);
-				ar->regiontype= RGN_TYPE_UI;
-				ar->alignment= RGN_ALIGN_TOP;
-				break;
-
 #if 0
 			case SPACE_BUTS:
 				/* context UI region */
@@ -9010,6 +8998,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Tex *tx;
 		ParticleSettings *part;
 		Object *ob;
+		PTCacheID *pid;
+		ListBase pidlist;
 		
 		for(screen= main->screen.first; screen; screen= screen->id.next) {
 			do_versions_windowmanager_2_50(screen);
@@ -9021,12 +9011,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		 */
 		//do_versions_ipos_to_animato(main);
 		
-		/* struct audio data moved to renderdata */
+		/* toolsettings */
 		for(scene= main->scene.first; scene; scene= scene->id.next) {
 			scene->r.audio = scene->audio;
 			
-			if(!scene->toolsettings->uv_selectmode)
+			if(!scene->toolsettings->uv_selectmode) {
 				scene->toolsettings->uv_selectmode= UV_SELECT_VERTEX;
+				scene->toolsettings->vgroup_weight= 1.0f;
+			}
 		}
 		
 		/* shader, composit and texture node trees have id.name empty, put something in
@@ -9067,17 +9059,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					part->draw_as = PART_DRAW_REND;
 				}
 			}
+			part->path_end = 1.0f;
 		}
 		/* set old pointcaches to have disk cache flag */
 		for(ob = main->object.first; ob; ob= ob->id.next) {
-			ParticleSystem *psys = ob->particlesystem.first;
 
-			for(; psys; psys=psys->next) {
-				if(psys->pointcache)
-					psys->pointcache->flag |= PTCACHE_DISK_CACHE;
-			}
+			BKE_ptcache_ids_from_object(&pidlist, ob);
 
-			/* TODO: softbody & cloth caches */
+			for(pid=pidlist.first; pid; pid=pid->next)
+				pid->cache->flag |= PTCACHE_DISK_CACHE;
+
+			BLI_freelistN(&pidlist);
 		}
 	}
 
@@ -9522,6 +9514,8 @@ static void expand_particlesettings(FileData *fd, Main *mainvar, ParticleSetting
 	expand_doit(fd, mainvar, part->dup_group);
 	expand_doit(fd, mainvar, part->eff_group);
 	expand_doit(fd, mainvar, part->bb_ob);
+	
+	expand_animdata(fd, mainvar, part->adt);
 }
 
 static void expand_group(FileData *fd, Main *mainvar, Group *group)

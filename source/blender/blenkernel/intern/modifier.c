@@ -63,6 +63,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_object_fluidsim.h"
 #include "DNA_object_force.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
@@ -3543,7 +3544,7 @@ static void displaceModifier_updateDepgraph(
 	}
 }
 
-static void validate_layer_name(const CustomData *data, int type, char *name)
+static void validate_layer_name(const CustomData *data, int type, char *name, char *outname)
 {
 	int index = -1;
 
@@ -3556,8 +3557,10 @@ static void validate_layer_name(const CustomData *data, int type, char *name)
 		* deleted, so assign the active layer to name
 		*/
 		index = CustomData_get_active_layer_index(data, CD_MTFACE);
-		strcpy(name, data->layers[index].name);
+		strcpy(outname, data->layers[index].name);
 	}
+	else
+		strcpy(outname, name);
 }
 
 static void get_texture_coords(DisplaceModifierData *dmd, Object *ob,
@@ -3583,12 +3586,11 @@ static void get_texture_coords(DisplaceModifierData *dmd, Object *ob,
 			char *done = MEM_callocN(sizeof(*done) * numVerts,
 					"get_texture_coords done");
 			int numFaces = dm->getNumFaces(dm);
+			char uvname[32];
 			MTFace *tf;
 
-			validate_layer_name(&dm->faceData, CD_MTFACE, dmd->uvlayer_name);
-
-			tf = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
-					dmd->uvlayer_name);
+			validate_layer_name(&dm->faceData, CD_MTFACE, dmd->uvlayer_name, uvname);
+			tf = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, uvname);
 
 			/* verts are given the UV from the first face that uses them */
 			for(i = 0, mf = mface; i < numFaces; ++i, ++mf, ++tf) {
@@ -3884,6 +3886,7 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 	Projector projectors[MOD_UVPROJECT_MAXPROJECTORS];
 	int num_projectors = 0;
 	float aspect;
+	char uvname[32];
 	
 	if(umd->aspecty != 0) aspect = umd->aspectx / umd->aspecty;
 	else aspect = 1.0f;
@@ -3898,12 +3901,11 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 	if(!dm->getFaceDataArray(dm, CD_MTFACE)) return dm;
 
 	/* make sure we're using an existing layer */
-	validate_layer_name(&dm->faceData, CD_MTFACE, umd->uvlayer_name);
+	validate_layer_name(&dm->faceData, CD_MTFACE, umd->uvlayer_name, uvname);
 
 	/* make sure we are not modifying the original UV layer */
 	tface = CustomData_duplicate_referenced_layer_named(&dm->faceData,
-			CD_MTFACE,
-   umd->uvlayer_name);
+			CD_MTFACE, uvname);
 
 	numVerts = dm->getNumVerts(dm);
 
@@ -5185,12 +5187,11 @@ static void wavemod_get_texture_coords(WaveModifierData *wmd, Object *ob,
 			char *done = MEM_callocN(sizeof(*done) * numVerts,
 					"get_texture_coords done");
 			int numFaces = dm->getNumFaces(dm);
+			char uvname[32];
 			MTFace *tf;
 
-			validate_layer_name(&dm->faceData, CD_MTFACE, wmd->uvlayer_name);
-
-			tf = CustomData_get_layer_named(&dm->faceData, CD_MTFACE,
-					wmd->uvlayer_name);
+			validate_layer_name(&dm->faceData, CD_MTFACE, wmd->uvlayer_name, uvname);
+			tf = CustomData_get_layer_named(&dm->faceData, CD_MTFACE, uvname);
 
 			/* verts are given the UV from the first face that uses them */
 			for(i = 0, mf = mface; i < numFaces; ++i, ++mf, ++tf) {
@@ -6295,6 +6296,9 @@ CustomDataMask particleSystemModifier_requiredDataMask(Object *ob, ModifierData 
 	MTex *mtex;
 	int i;
 
+	if(!psmd->psys->part)
+		return 0;
+
 	ma= give_current_material(ob, psmd->psys->part->omat);
 	if(ma) {
 		for(i=0; i<MAX_MTEX; i++) {
@@ -6386,6 +6390,7 @@ static void particleSystemModifier_deformVerts(
 		  }
 
 		  if(psys){
+			  psmd->flag &= ~eParticleSystemFlag_psys_updated;
 			  particle_system_update(md->scene, ob, psys);
 			  psmd->flag |= eParticleSystemFlag_psys_updated;
 			  psmd->flag &= ~eParticleSystemFlag_DM_changed;
@@ -6417,6 +6422,8 @@ static void particleInstanceModifier_initData(ModifierData *md)
 	pimd->flag = eParticleInstanceFlag_Parents|eParticleInstanceFlag_Unborn|
 			eParticleInstanceFlag_Alive|eParticleInstanceFlag_Dead;
 	pimd->psys = 1;
+	pimd->position = 1.0f;
+	pimd->axis = 2;
 
 }
 static void particleInstanceModifier_copyData(ModifierData *md, ModifierData *target)
@@ -6427,6 +6434,8 @@ static void particleInstanceModifier_copyData(ModifierData *md, ModifierData *ta
 	tpimd->ob = pimd->ob;
 	tpimd->psys = pimd->psys;
 	tpimd->flag = pimd->flag;
+	tpimd->position = pimd->position;
+	tpimd->random_position = pimd->random_position;
 }
 
 static int particleInstanceModifier_dependsOnTime(ModifierData *md) 
@@ -6466,8 +6475,9 @@ static DerivedMesh * particleInstanceModifier_applyModifier(
 	MFace *mface, *orig_mface;
 	MVert *mvert, *orig_mvert;
 	int i,totvert, totpart=0, totface, maxvert, maxface, first_particle=0;
-	short track=ob->trackflag%3, trackneg;
+	short track=ob->trackflag%3, trackneg, axis = pimd->axis;
 	float max_co=0.0, min_co=0.0, temp_co[3], cross[3];
+	float *size=NULL;
 
 	trackneg=((ob->trackflag>2)?1:0);
 
@@ -6494,6 +6504,25 @@ static DerivedMesh * particleInstanceModifier_applyModifier(
 	if(totpart==0)
 		return derivedData;
 
+	if(pimd->flag & eParticleInstanceFlag_UseSize) {
+		int p;
+		float *si;
+		si = size = MEM_callocN(totpart * sizeof(float), "particle size array");
+
+		if(pimd->flag & eParticleInstanceFlag_Parents) {
+			for(p=0, pa= psys->particles; p<psys->totpart; p++, pa++, si++)
+				*si = pa->size;
+		}
+
+		if(pimd->flag & eParticleInstanceFlag_Children) {
+			ChildParticle *cpa = psys->child;
+
+			for(p=0; p<psys->totchild; p++, cpa++, si++) {
+				*si = psys_get_child_size(psys, cpa, 0.0f, NULL);
+			}
+		}
+	}
+
 	pars=psys->particles;
 
 	totvert=dm->getNumVerts(dm);
@@ -6504,7 +6533,7 @@ static DerivedMesh * particleInstanceModifier_applyModifier(
 
 	psys->lattice=psys_get_lattice(md->scene, ob, psys);
 
-	if(psys->flag & (PSYS_HAIR_DONE|PSYS_KEYED)){
+	if(psys->flag & (PSYS_HAIR_DONE|PSYS_KEYED) || psys->pointcache->flag & PTCACHE_BAKED){
 
 		float min_r[3], max_r[3];
 		INIT_MINMAX(min_r, max_r);
@@ -6529,40 +6558,59 @@ static DerivedMesh * particleInstanceModifier_applyModifier(
 
 		/*change orientation based on object trackflag*/
 		VECCOPY(temp_co,mv->co);
-		mv->co[0]=temp_co[track];
-		mv->co[1]=temp_co[(track+1)%3];
-		mv->co[2]=temp_co[(track+2)%3];
+		mv->co[axis]=temp_co[track];
+		mv->co[(axis+1)%3]=temp_co[(track+1)%3];
+		mv->co[(axis+2)%3]=temp_co[(track+2)%3];
 
-		if(psys->flag & (PSYS_HAIR_DONE|PSYS_KEYED) && pimd->flag & eParticleInstanceFlag_Path){
-			state.time=(mv->co[0]-min_co)/(max_co-min_co);
-			if(trackneg)
-				state.time=1.0f-state.time;
+		if((psys->flag & (PSYS_HAIR_DONE|PSYS_KEYED) || psys->pointcache->flag & PTCACHE_BAKED) && pimd->flag & eParticleInstanceFlag_Path){
+			float ran = 0.0f;
+			if(pimd->random_position != 0.0f) {
+				/* just use some static collection of random numbers */
+				/* TODO: use something else that's unique to each instanced object */
+				pa = psys->particles + (i/totvert)%totpart;
+				ran = pimd->random_position * 0.5 * (1.0f + pa->r_ave[0]);
+			}
+
+			if(pimd->flag & eParticleInstanceFlag_KeepShape) {
+				state.time = pimd->position * (1.0f - ran);
+			}
+			else {
+				state.time=(mv->co[axis]-min_co)/(max_co-min_co) * pimd->position * (1.0f - ran);
+
+				if(trackneg)
+					state.time=1.0f-state.time;
+				
+				mv->co[axis] = 0.0;
+			}
+
 			psys_get_particle_on_path(md->scene, pimd->ob, psys,first_particle + i/totvert, &state,1);
-
-			mv->co[0] = 0.0;
 
 			Normalize(state.vel);
 			
-			if(state.vel[0] < -0.9999 || state.vel[0] > 0.9999) {
-				state.rot[0] = 1.0;
+			/* TODO: incremental rotations somehow */
+			if(state.vel[axis] < -0.9999 || state.vel[axis] > 0.9999) {
+				state.rot[0] = 1;
 				state.rot[1] = state.rot[2] = state.rot[3] = 0.0f;
 			}
 			else {
-				/* a cross product of state.vel and a unit vector in x-direction */
-				cross[0] = 0.0f;
-				cross[1] = -state.vel[2];
-				cross[2] = state.vel[1];
+				float temp[3] = {0.0f,0.0f,0.0f};
+				temp[axis] = 1.0f;
 
-				/* state.vel[0] is the only component surviving from a dot product with a vector in x-direction*/
-				VecRotToQuat(cross,saacos(state.vel[0]),state.rot);
+				Crossf(cross, temp, state.vel);
+
+				/* state.vel[axis] is the only component surviving from a dot product with the axis */
+				VecRotToQuat(cross,saacos(state.vel[axis]),state.rot);
 			}
+
 		}
 		else{
 			state.time=-1.0;
-			psys_get_particle_state(md->scene, pimd->ob, psys, i/totvert, &state,1);
+			psys_get_particle_state(md->scene, pimd->ob, psys, first_particle + i/totvert, &state,1);
 		}	
 
 		QuatMulVecf(state.rot,mv->co);
+		if(pimd->flag & eParticleInstanceFlag_UseSize)
+			VecMulf(mv->co, size[i/totvert]);
 		VECADD(mv->co,mv->co,state.co);
 	}
 
@@ -6614,6 +6662,9 @@ static DerivedMesh * particleInstanceModifier_applyModifier(
 		end_latt_deform(psys->lattice);
 		psys->lattice= NULL;
 	}
+
+	if(size)
+		MEM_freeN(size);
 
 	return result;
 }
@@ -7253,10 +7304,10 @@ static DerivedMesh * explodeModifier_explodeMesh(ExplodeModifierData *emd,
 
 	timestep= psys_get_timestep(part);
 
-	if(part->flag & PART_GLOB_TIME)
+	//if(part->flag & PART_GLOB_TIME)
 		cfra=bsystem_time(scene, 0,(float)scene->r.cfra,0.0);
-	else
-		cfra=bsystem_time(scene, ob,(float)scene->r.cfra,0.0);
+	//else
+	//	cfra=bsystem_time(scene, ob,(float)scene->r.cfra,0.0);
 
 	/* hash table for vertice <-> particle relations */
 	vertpahash= BLI_edgehash_new();
@@ -8384,7 +8435,8 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		mti = INIT_TYPE(Softbody);
 		mti->type = eModifierTypeType_OnlyDeform;
 		mti->flags = eModifierTypeFlag_AcceptsCVs
-				| eModifierTypeFlag_RequiresOriginalData;
+				| eModifierTypeFlag_RequiresOriginalData
+				| eModifierTypeFlag_Single;
 		mti->deformVerts = softbodyModifier_deformVerts;
 		mti->dependsOnTime = softbodyModifier_dependsOnTime;
 	
@@ -8392,7 +8444,8 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		mti->type = eModifierTypeType_Nonconstructive;
 		mti->initData = clothModifier_initData;
 		mti->flags = eModifierTypeFlag_AcceptsMesh
-				| eModifierTypeFlag_UsesPointCache;
+				| eModifierTypeFlag_UsesPointCache
+				| eModifierTypeFlag_Single;
 		mti->dependsOnTime = clothModifier_dependsOnTime;
 		mti->freeData = clothModifier_freeData; 
 		mti->requiredDataMask = clothModifier_requiredDataMask;
@@ -8403,7 +8456,8 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		mti = INIT_TYPE(Collision);
 		mti->type = eModifierTypeType_OnlyDeform;
 		mti->initData = collisionModifier_initData;
-		mti->flags = eModifierTypeFlag_AcceptsMesh;
+		mti->flags = eModifierTypeFlag_AcceptsMesh
+				| eModifierTypeFlag_Single;
 		mti->dependsOnTime = collisionModifier_dependsOnTime;
 		mti->freeData = collisionModifier_freeData; 
 		mti->deformVerts = collisionModifier_deformVerts;
@@ -8486,7 +8540,8 @@ ModifierTypeInfo *modifierType_getInfo(ModifierType type)
 		
 		mti = INIT_TYPE(Fluidsim);
 		mti->type = eModifierTypeType_Nonconstructive
-				| eModifierTypeFlag_RequiresOriginalData;
+				| eModifierTypeFlag_RequiresOriginalData
+				| eModifierTypeFlag_Single;
 		mti->flags = eModifierTypeFlag_AcceptsMesh;
 		mti->initData = fluidsimModifier_initData;
 		mti->freeData = fluidsimModifier_freeData;

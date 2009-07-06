@@ -78,6 +78,9 @@ void make_editLatt(Object *obedit);
 void load_editLatt(Object *obedit);
 void remake_editLatt(Object *obedit);
 
+void LATTICE_OT_select_all_toggle(struct wmOperatorType *ot);
+void LATTICE_OT_make_regular(struct wmOperatorType *ot);
+
 /* editgroup.c */
 void GROUP_OT_group_create(struct wmOperatorType *ot);
 void GROUP_OT_objects_remove(struct wmOperatorType *ot);
@@ -86,11 +89,31 @@ void GROUP_OT_objects_remove_active(struct wmOperatorType *ot);
 
 /* object_modifier.c */
 void OBJECT_OT_modifier_add(struct wmOperatorType *ot);
+void OBJECT_OT_modifier_remove(struct wmOperatorType *ot);
+void OBJECT_OT_modifier_move_up(struct wmOperatorType *ot);
+void OBJECT_OT_modifier_move_down(struct wmOperatorType *ot);
+void OBJECT_OT_modifier_apply(struct wmOperatorType *ot);
+void OBJECT_OT_modifier_convert(struct wmOperatorType *ot);
+void OBJECT_OT_modifier_copy(struct wmOperatorType *ot);
 void OBJECT_OT_multires_subdivide(struct wmOperatorType *ot);
 void OBJECT_OT_modifier_mdef_bind(struct wmOperatorType *ot);
 
 /* editconstraint.c */
 void OBJECT_OT_constraint_add(struct wmOperatorType *ot);
+
+/* object_vgroup.c */
+void OBJECT_OT_vertex_group_add(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_remove(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_assign(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_remove_from(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_select(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_deselect(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_copy_to_linked(struct wmOperatorType *ot);
+void OBJECT_OT_vertex_group_copy(struct wmOperatorType *ot);
+
+/* editkey.c */
+void OBJECT_OT_shape_key_add(struct wmOperatorType *ot);
+void OBJECT_OT_shape_key_remove(struct wmOperatorType *ot);
 
 #endif /* ED_OBJECT_INTERN_H */
 

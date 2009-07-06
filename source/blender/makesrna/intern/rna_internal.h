@@ -185,6 +185,9 @@ void rna_object_vgroup_name_set(struct PointerRNA *ptr, const char *value, char 
 void rna_object_uvlayer_name_set(struct PointerRNA *ptr, const char *value, char *result, int maxlen);
 void rna_object_vcollayer_name_set(struct PointerRNA *ptr, const char *value, char *result, int maxlen);
 
+void rna_Object_update(struct bContext *C, struct PointerRNA *ptr);
+void rna_Object_update_data(struct bContext *C, struct PointerRNA *ptr);
+
 /* API functions */
 
 void RNA_api_main(struct StructRNA *srna);
@@ -255,6 +258,7 @@ void rna_freelistN(struct ListBase *listbase);
 StructDefRNA *rna_find_struct_def(StructRNA *srna);
 FunctionDefRNA *rna_find_function_def(FunctionRNA *func);
 PropertyDefRNA *rna_find_parameter_def(PropertyRNA *parm);
+PropertyDefRNA *rna_find_struct_property_def(StructRNA *srna, PropertyRNA *prop);
 
 /* Pointer Handling */
 
