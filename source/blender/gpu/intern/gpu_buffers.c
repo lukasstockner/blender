@@ -535,76 +535,44 @@ GPUBuffer *GPU_buffer_uv( DerivedMesh *dm )
 
 void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *redir, void *user )
 {
-	int start;
 	int i;
-	
-	MFace *mface;
-	unsigned char *varray;
-	unsigned char *mcol;
+	unsigned char *varray = varray_;
+	unsigned char *mcol = user;
+	MFace *mface = dm->getFaceArray(dm);
 
 	DEBUG_VBO("GPU_buffer_copy_color3\n");
 
-	dm->drawObject->colType = -1;
-	mcol = user;
-	varray = (unsigned char *)varray_;
-
-	mface = dm->getFaceArray(dm);
-
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr+127]];
+		int start = index[redir[mface[i].mat_nr+127]];
 		if( mface[i].v4 )
 			index[redir[mface[i].mat_nr+127]] += 18;
 		else
 			index[redir[mface[i].mat_nr+127]] += 9;
 
-		varray[start] = mcol[i*12];
-		varray[start+1] = mcol[i*12+1];
-		varray[start+2] = mcol[i*12+2];
-
-		varray[start+3] = mcol[i*12+3];
-		varray[start+4] = mcol[i*12+4];
-		varray[start+5] = mcol[i*12+5];
-
-		varray[start+6] = mcol[i*12+6];
-		varray[start+7] = mcol[i*12+7];
-		varray[start+8] = mcol[i*12+8];
 		/* v1 v2 v3 */
+		VECCOPY(&varray[start],&mcol[i*12]);
+		VECCOPY(&varray[start+3],&mcol[i*12+3]);
+		VECCOPY(&varray[start+6],&mcol[i*12+6]);
 		if( mface[i].v4 ) {
 			/* v3 v4 v1 */
-			varray[start+9] = mcol[i*12+6];
-			varray[start+10] = mcol[i*12+7];
-			varray[start+11] = mcol[i*12+8];
-
-			varray[start+12] = mcol[i*12+9];
-			varray[start+13] = mcol[i*12+10];
-			varray[start+14] = mcol[i*12+11];
-
-			varray[start+15] = mcol[i*12];
-			varray[start+16] = mcol[i*12+1];
-			varray[start+17] = mcol[i*12+2];
+			VECCOPY(&varray[start+9],&mcol[i*12+6]);
+			VECCOPY(&varray[start+12],&mcol[i*12+9]);
+			VECCOPY(&varray[start+15],&mcol[i*12]);
 		}
 	}
 }
 
 void GPU_buffer_copy_color4( DerivedMesh *dm, float *varray_, int *index, int *redir, void *user )
 {
-	int start;
 	int i;
-	
-	MFace *mface;
-	unsigned char *varray;
-	unsigned char *mcol;
+	unsigned char *varray = varray_;
+	unsigned char *mcol = user;
+	MFace *mface = dm->getFaceArray(dm);
 
 	DEBUG_VBO("GPU_buffer_copy_color4\n");
 
-	dm->drawObject->colType = -1;
-	mcol = (unsigned char *)user;
-	varray = (unsigned char *)varray_;
-
-	mface = dm->getFaceArray(dm);
-
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr+127]];
+		int start = index[redir[mface[i].mat_nr+127]];
 		if( mface[i].v4 )
 			index[redir[mface[i].mat_nr+127]] += 18;
 		else

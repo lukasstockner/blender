@@ -326,7 +326,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *a
 			glShadeModel(GL_SMOOTH);
 			for( a = 0; a < dm->drawObject->nmaterials; a++ ) {
 				setMaterial(dm->drawObject->materials[a].mat_nr+1, NULL);
-				glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].end);
+				glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].end-dm->drawObject->materials[a].start);
 			}
 		}
 		GPU_buffer_unbind( );
@@ -672,23 +672,31 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		int prevstart = 0;
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
+		if( useColors && mc )
+			GPU_color_setup(dm);
 		if( !GPU_buffer_legacy(dm) ) {
-			if( useColors && mc )
-				GPU_color_setup(dm);
 			glShadeModel(GL_SMOOTH);
 			for( i = 0; i < dm->drawObject->nelements/3; i++ ) {
 				int actualFace = dm->drawObject->faceRemap[i];
 				int drawSmooth = (mf[actualFace].flag & ME_SMOOTH);
+				int dontdraw = 0;
 				if(index) {
 					orig = index[actualFace];
+					if(setDrawOptions && orig == ORIGINDEX_NONE)
+						dontdraw = 1;
 				}
 				else
 					orig = i;
-				if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
-					state = 1;
+				if( dontdraw ) {
+					state = 0;
 				}
 				else {
-					state = 0;
+					if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
+						state = 1;
+					}
+					else {
+						state = 0;
+					}
 				}
 				if( prevstate != state && prevstate == 1 ) {
 					if( i-prevstart > 0 ) {
