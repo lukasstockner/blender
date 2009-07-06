@@ -322,10 +322,12 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *a
 	else {	/* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		GPU_vertex_setup( dm );
 		GPU_normal_setup( dm );
-		glShadeModel(GL_SMOOTH);
-		for( a = 0; a < dm->drawObject->nmaterials; a++ ) {
-			setMaterial(dm->drawObject->materials[a].mat_nr+1, NULL);
-			glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].end);
+		if( !GPU_buffer_legacy(dm) ) {
+			glShadeModel(GL_SMOOTH);
+			for( a = 0; a < dm->drawObject->nmaterials; a++ ) {
+				setMaterial(dm->drawObject->materials[a].mat_nr+1, NULL);
+				glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].end);
+			}
 		}
 		GPU_buffer_unbind( );
 	}
@@ -399,15 +401,17 @@ static void cdDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned cha
 		GPU_color4_upload(dm,cp1);
 		GPU_vertex_setup(dm);
 		GPU_color_setup(dm);
-		glShadeModel(GL_SMOOTH);
-		glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
-
-		if( useTwoSided ) {
-			GPU_color4_upload(dm,cp2);
-			GPU_color_setup(dm);
-			glCullFace(GL_FRONT);
+		if( !GPU_buffer_legacy(dm) ) {
+			glShadeModel(GL_SMOOTH);
 			glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
-			glCullFace(GL_BACK);
+
+			if( useTwoSided ) {
+				GPU_color4_upload(dm,cp2);
+				GPU_color_setup(dm);
+				glCullFace(GL_FRONT);
+				glDrawArrays(GL_TRIANGLES, 0, dm->drawObject->nelements);
+				glCullFace(GL_BACK);
+			}
 		}
 		GPU_buffer_unbind();
 	}
@@ -523,47 +527,48 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 			GPU_color_setup( dm );
 		}
+		if( !GPU_buffer_legacy(dm) ) {
+			glShadeModel( GL_SMOOTH );
+			for(i = 0; i < dm->drawObject->nelements/3; i++) {
+				int actualFace = dm->drawObject->faceRemap[i];
+				int flag;
+				unsigned char *cp = NULL;
 
-		glShadeModel( GL_SMOOTH );
-		for(i = 0; i < dm->drawObject->nelements/3; i++) {
-			int actualFace = dm->drawObject->faceRemap[i];
-			int flag;
-			unsigned char *cp = NULL;
-
-			if(drawParams) {
-				flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
-			}
-			else {
-				if(index) {
-					orig = index[actualFace];
-					if(drawParamsMapped)
-						flag = drawParamsMapped(userData, orig);
+				if(drawParams) {
+					flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
 				}
-				else
-					if(drawParamsMapped)
-						flag = drawParamsMapped(userData, actualFace);
-			}
-			if( flag != lastFlag ) {
-				if( startFace < i ) {
-					if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
-						if (lastFlag==1 && mcol)
-							GPU_color_switch(1);
-						else
-							GPU_color_switch(0);
-						glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
+				else {
+					if(index) {
+						orig = index[actualFace];
+						if(drawParamsMapped)
+							flag = drawParamsMapped(userData, orig);
 					}
+					else
+						if(drawParamsMapped)
+							flag = drawParamsMapped(userData, actualFace);
 				}
-				lastFlag = flag;
-				startFace = i;
+				if( flag != lastFlag ) {
+					if( startFace < i ) {
+						if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+							if (lastFlag==1 && mcol)
+								GPU_color_switch(1);
+							else
+								GPU_color_switch(0);
+							glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
+						}
+					}
+					lastFlag = flag;
+					startFace = i;
+				}
 			}
-		}
-		if( startFace < dm->drawObject->nelements/3 ) {
-			if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
-				if (lastFlag==1 && mcol)
-					GPU_color_switch(1);
-				else
-					GPU_color_switch(0);
-				glDrawArrays(GL_TRIANGLES,startFace*3,dm->drawObject->nelements-startFace*3);
+			if( startFace < dm->drawObject->nelements/3 ) {
+				if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+					if (lastFlag==1 && mcol)
+						GPU_color_switch(1);
+					else
+						GPU_color_switch(0);
+					glDrawArrays(GL_TRIANGLES,startFace*3,dm->drawObject->nelements-startFace*3);
+				}
 			}
 		}
 		GPU_buffer_unbind();
@@ -667,35 +672,37 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		int prevstart = 0;
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
-		if( useColors && mc )
-			GPU_color_setup(dm);
-		glShadeModel(GL_SMOOTH);
-		for( i = 0; i < dm->drawObject->nelements/3; i++ ) {
-			int actualFace = dm->drawObject->faceRemap[i];
-			int drawSmooth = (mf[actualFace].flag & ME_SMOOTH);
-			if(index) {
-				orig = index[actualFace];
-			}
-			else
-				orig = i;
-			if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
-				state = 1;
-			}
-			else {
-				state = 0;
-			}
-			if( prevstate != state && prevstate == 1 ) {
-				if( i-prevstart > 0 ) {
-					glDrawArrays(GL_TRIANGLES,prevstart*3,(i-prevstart)*3);
+		if( !GPU_buffer_legacy(dm) ) {
+			if( useColors && mc )
+				GPU_color_setup(dm);
+			glShadeModel(GL_SMOOTH);
+			for( i = 0; i < dm->drawObject->nelements/3; i++ ) {
+				int actualFace = dm->drawObject->faceRemap[i];
+				int drawSmooth = (mf[actualFace].flag & ME_SMOOTH);
+				if(index) {
+					orig = index[actualFace];
 				}
-				prevstart = i;
+				else
+					orig = i;
+				if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
+					state = 1;
+				}
+				else {
+					state = 0;
+				}
+				if( prevstate != state && prevstate == 1 ) {
+					if( i-prevstart > 0 ) {
+						glDrawArrays(GL_TRIANGLES,prevstart*3,(i-prevstart)*3);
+					}
+					prevstart = i;
+				}
+				prevstate = state;
 			}
-			prevstate = state;
+			if(state==1) {
+				glDrawArrays(GL_TRIANGLES,prevstart*3,dm->drawObject->nelements-prevstart*3);
+			}
+			glShadeModel(GL_FLAT);
 		}
-		if(state==1) {
-			glDrawArrays(GL_TRIANGLES,prevstart*3,dm->drawObject->nelements-prevstart*3);
-		}
-		glShadeModel(GL_FLAT);
 		GPU_buffer_unbind();
 	}
 }
