@@ -600,7 +600,8 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 	DEBUG_VBO("GPU_buffer_color\n");
 
 	mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
-	dm->drawObject->colType = CD_WEIGHT_MCOL;
+	if( mcol )
+		dm->drawObject->colType = CD_WEIGHT_MCOL;
 	if(!mcol) {
 		mcol = DM_get_face_data_layer(dm, CD_MCOL);
 		dm->drawObject->colType = CD_MCOL;

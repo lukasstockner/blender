@@ -1716,12 +1716,44 @@ static int draw_dm_faces_sel__setDrawOptions(void *userData, int index, int *dra
 static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol, unsigned char *actCol, EditFace *efa_act) 
 {
 	struct { unsigned char *cols[3]; EditFace *efa_act; } data;
+	unsigned char *colors;
+	int i,j;
 	data.cols[0] = baseCol;
 	data.cols[1] = selCol;
 	data.cols[2] = actCol;
 	data.efa_act = efa_act;
-	
+
+	/* TODO: check this later. not this function... */
+	/*colors = MEM_mallocN((sizeof(unsigned char)*dm->getNumFaces(dm)*16),"draw_dm_faces_sel");
+	for(i=0; i < dm->getNumFaces(dm); i++) {
+		EditFace *efa = EM_get_face_for_index(i);
+		unsigned char *col;
+		if (efa->h==0) {
+			if (efa == efa_act) {
+				for(j=0;j<4;j++) {
+					colors[i*16+j*4] = data.cols[2][0];
+					colors[i*16+j*4+1] = data.cols[2][1];
+					colors[i*16+j*4+2] = data.cols[2][2];
+					colors[i*16+j*4+3] = data.cols[2][3];
+				}
+			} else {
+				col = data.cols[(efa->f&SELECT)?1:0];
+				if (col[3]==0) memset(&colors[i*16],0,sizeof(unsigned char)*16);
+				for(j=0;j<4;j++) {
+					colors[i*16+j*4] = col[0];
+					colors[i*16+j*4+1] = col[1];
+					colors[i*16+j*4+2] = col[2];
+					colors[i*16+j*4+3] = col[3];
+				}
+			}
+		} else
+		{
+			memset(&colors[i*16],0,sizeof(unsigned char)*16);
+		}
+	}*/
+	//CustomData_add_layer( &dm->faceData, CD_WEIGHT_PAINT, CD_ASSIGN, colors, dm->numFaceData );
 	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, &data, 0);
+	//CustomData_free_layer( &dm->faceData, CD_WEIGHT_PAINT, dm->numFaceData, 0 );
 }
 
 static int draw_dm_creases__setDrawOptions(void *userData, int index)
@@ -5579,9 +5611,33 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, v3d->customdata_mask);
 	Mesh *me = (Mesh*)ob->data;
+	MCol *colors;
+	int i,j;
 	
 	glColor3ub(0, 0, 0);
-	dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 0);
+	
+
+	colors = MEM_mallocN(dm->getNumFaces(dm)*sizeof(MCol)*4,"bbs_mesh_solid");
+	for(i=0;i<dm->getNumFaces(dm);i++) {
+		if (!(me->mface[i].flag&ME_HIDE)) {
+			unsigned int fbindex = index_to_framebuffer(i);
+			for(j=0;j<4;j++) {
+				colors[i*4+j].b = ((fbindex)&0xFF);
+				colors[i*4+j].g = (((fbindex)>>8)&0xFF);
+				colors[i*4+j].r = (((fbindex)>>16)&0xFF);
+				colors[i*4+j].a = 255;
+			}
+		}
+		else {
+			memset(&colors[i*4],0,sizeof(MCol));
+		}
+	}
+		
+	CustomData_add_layer( &dm->faceData, CD_WEIGHT_MCOL, CD_ASSIGN, colors, dm->numFaceData );
+	GPU_buffer_free(dm->drawObject->colors,0);
+	dm->drawObject->colors = 0;
+	dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 1);
+	CustomData_free_layer( &dm->faceData, CD_WEIGHT_MCOL, dm->numFaceData, 0 );
 
 	dm->release(dm);
 }

@@ -590,12 +590,13 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 
+
 	mc = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
 	if(!mc)
 		mc = DM_get_face_data_layer(dm, CD_MCOL);
 
 	if( GPU_buffer_legacy(dm) ) {
-		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common\n" );
+		DEBUG_VBO( "Using legacy code. cdDM_drawMappedFaces\n" );
 		for(i = 0; i < dm->numFaceData; i++, mf++) {
 			int drawSmooth = (mf->flag & ME_SMOOTH);
 
