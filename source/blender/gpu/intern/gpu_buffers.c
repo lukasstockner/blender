@@ -536,8 +536,8 @@ GPUBuffer *GPU_buffer_uv( DerivedMesh *dm )
 void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *redir, void *user )
 {
 	int i;
-	unsigned char *varray = varray_;
-	unsigned char *mcol = user;
+	unsigned char *varray = (unsigned char *)varray_;
+	unsigned char *mcol = (unsigned char *)user;
 	MFace *mface = dm->getFaceArray(dm);
 
 	DEBUG_VBO("GPU_buffer_copy_color3\n");
@@ -565,8 +565,8 @@ void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *r
 void GPU_buffer_copy_color4( DerivedMesh *dm, float *varray_, int *index, int *redir, void *user )
 {
 	int i;
-	unsigned char *varray = varray_;
-	unsigned char *mcol = user;
+	unsigned char *varray = (unsigned char *)varray_;
+	unsigned char *mcol = (unsigned char *)user;
 	MFace *mface = dm->getFaceArray(dm);
 
 	DEBUG_VBO("GPU_buffer_copy_color4\n");
