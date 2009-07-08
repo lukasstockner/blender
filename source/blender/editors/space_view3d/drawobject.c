@@ -5633,9 +5633,12 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 		}
 	}
 		
+	CustomData_free_layers( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm) );
 	CustomData_add_layer( &dm->faceData, CD_WEIGHT_MCOL, CD_ASSIGN, colors, dm->numFaceData );
-	GPU_buffer_free(dm->drawObject->colors,0);
-	dm->drawObject->colors = 0;
+	if( !GPU_buffer_legacy(dm) ) {
+		GPU_buffer_free(dm->drawObject->colors,0);
+		dm->drawObject->colors = 0;
+	}
 	dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 1);
 	CustomData_free_layer( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm), 0 );
 
