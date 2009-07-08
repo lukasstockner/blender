@@ -5599,6 +5599,16 @@ static int bbs_mesh_solid__setDrawOpts(void *userData, int index, int *drawSmoot
 	Mesh *me = userData;
 
 	if (!(me->mface[index].flag&ME_HIDE)) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+static int bbs_mesh_solid__setDrawOpts_legacy(void *userData, int index, int *drawSmooth_r)
+{
+	Mesh *me = userData;
+
+	if (!(me->mface[index].flag&ME_HIDE)) {
 		WM_set_framebuffer_index_color(index+1);
 		return 1;
 	} else {
@@ -5615,32 +5625,33 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 	int i,j;
 	
 	glColor3ub(0, 0, 0);
-	
-
-	colors = MEM_mallocN(dm->getNumFaces(dm)*sizeof(MCol)*4,"bbs_mesh_solid");
-	for(i=0;i<dm->getNumFaces(dm);i++) {
-		if (!(me->mface[i].flag&ME_HIDE)) {
-			unsigned int fbindex = index_to_framebuffer(i+1);
-			for(j=0;j<4;j++) {
-				colors[i*4+j].b = ((fbindex)&0xFF);
-				colors[i*4+j].g = (((fbindex)>>8)&0xFF);
-				colors[i*4+j].r = (((fbindex)>>16)&0xFF);
-				//colors[i*4+j].a = 255;
+		
+	if( !GPU_buffer_legacy(dm) ) {
+		colors = MEM_mallocN(dm->getNumFaces(dm)*sizeof(MCol)*4,"bbs_mesh_solid");
+		for(i=0;i<dm->getNumFaces(dm);i++) {
+			if (!(me->mface[i].flag&ME_HIDE)) {
+				unsigned int fbindex = index_to_framebuffer(i+1);
+				for(j=0;j<4;j++) {
+					colors[i*4+j].b = ((fbindex)&0xFF);
+					colors[i*4+j].g = (((fbindex)>>8)&0xFF);
+					colors[i*4+j].r = (((fbindex)>>16)&0xFF);
+				}
+			}
+			else {
+				memset(&colors[i*4],0,sizeof(MCol)*4);
 			}
 		}
-		else {
-			memset(&colors[i*4],0,sizeof(MCol)*4);
-		}
-	}
-		
-	CustomData_free_layers( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm) );
-	CustomData_add_layer( &dm->faceData, CD_WEIGHT_MCOL, CD_ASSIGN, colors, dm->numFaceData );
-	if( !GPU_buffer_legacy(dm) ) {
+
+		CustomData_free_layers( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm) );
+		CustomData_add_layer( &dm->faceData, CD_WEIGHT_MCOL, CD_ASSIGN, colors, dm->numFaceData );
 		GPU_buffer_free(dm->drawObject->colors,0);
 		dm->drawObject->colors = 0;
+		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 1);
+		CustomData_free_layer( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm), 0 );
 	}
-	dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 1);
-	CustomData_free_layer( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm), 0 );
+	else {
+		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts_legacy, me, 0);
+	}
 
 	dm->release(dm);
 }
