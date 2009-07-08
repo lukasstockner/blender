@@ -5620,16 +5620,16 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 	colors = MEM_mallocN(dm->getNumFaces(dm)*sizeof(MCol)*4,"bbs_mesh_solid");
 	for(i=0;i<dm->getNumFaces(dm);i++) {
 		if (!(me->mface[i].flag&ME_HIDE)) {
-			unsigned int fbindex = index_to_framebuffer(i);
+			unsigned int fbindex = index_to_framebuffer(i+1);
 			for(j=0;j<4;j++) {
 				colors[i*4+j].b = ((fbindex)&0xFF);
 				colors[i*4+j].g = (((fbindex)>>8)&0xFF);
 				colors[i*4+j].r = (((fbindex)>>16)&0xFF);
-				colors[i*4+j].a = 255;
+				//colors[i*4+j].a = 255;
 			}
 		}
 		else {
-			memset(&colors[i*4],0,sizeof(MCol));
+			memset(&colors[i*4],0,sizeof(MCol)*4);
 		}
 	}
 		
@@ -5637,7 +5637,7 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 	GPU_buffer_free(dm->drawObject->colors,0);
 	dm->drawObject->colors = 0;
 	dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 1);
-	CustomData_free_layer( &dm->faceData, CD_WEIGHT_MCOL, dm->numFaceData, 0 );
+	CustomData_free_layer( &dm->faceData, CD_WEIGHT_MCOL, dm->getNumFaces(dm), 0 );
 
 	dm->release(dm);
 }
