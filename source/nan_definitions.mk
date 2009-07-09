@@ -99,6 +99,7 @@ endif
     export NAN_BSP ?= $(LCGDIR)/bsp
     export NAN_BOOLOP ?= $(LCGDIR)/boolop
     export NAN_SOUNDSYSTEM ?= $(LCGDIR)/SoundSystem
+    export NAN_AUDASPACE ?= $(LCGDIR)/audaspace
     export NAN_STRING ?= $(LCGDIR)/string
     export NAN_MEMUTIL ?= $(LCGDIR)/memutil
     export NAN_CONTAINER ?= $(LCGDIR)/container

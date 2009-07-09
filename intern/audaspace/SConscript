@@ -1,0 +1,13 @@
+#!/usr/bin/python
+
+Import ('env')
+
+sources = env.Glob('SDL/*.cpp') + env.Glob('intern/*.cpp')
+
+incs = '. intern intern SDL ffmpeg ' + env['BF_SDL_INC']
+defs = ''
+if env['WITH_BF_FFMPEG']:
+	sources += env.Glob('ffmpeg/*.cpp')
+	incs += ' ' + env['BF_FFMPEG_INC']
+
+env.BlenderLib ('bf_audaspace', sources, Split(incs), Split(defs), libtype=['intern'], priority = [25] )

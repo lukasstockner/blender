@@ -276,6 +276,7 @@ IF(UNIX)
     bf_dna
     bf_blenfont
     bf_soundsystem 
+    bf_audaspace
   )
 
   FOREACH(SORTLIB ${BLENDER_SORTED_LIBS})

@@ -1093,9 +1093,11 @@ void uiItemM(uiLayout *layout, bContext *C, char *name, int icon, char *menuname
 			if(layout->root->type == UI_LAYOUT_MENU && !icon)
 				icon= ICON_BLANK1;
 			ui_item_menu(layout, name, icon, ui_item_menutype_func, mt, NULL);
-			break;
+			return;
 		}
 	}
+
+	printf("uiItemM: not found %s\n", menuname);
 }
 
 /* label item */
@@ -1259,7 +1261,7 @@ static void ui_litem_estimate_row(uiLayout *litem)
 
 static int ui_litem_min_width(int itemw)
 {
-	return MIN2(UI_UNIT_X, itemw);
+	return MIN2(2*UI_UNIT_X, itemw);
 }
 
 static void ui_litem_layout_row(uiLayout *litem)

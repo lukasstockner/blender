@@ -25,18 +25,18 @@
 # ***** END GPL LICENSE BLOCK *****
 
 #-----------------------------------------------------------------------------
-# We don't allow in-source builds. This causes no end of troubles because 
-# all out-of-source builds will use the CMakeCache.txt file there and even 
-# build the libs and objects in it. It will also conflict with the current 
+# We don't allow in-source builds. This causes no end of troubles because
+# all out-of-source builds will use the CMakeCache.txt file there and even
+# build the libs and objects in it. It will also conflict with the current
 # Makefile system for Blender
 
 IF(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
-MESSAGE(FATAL_ERROR "CMake generation for blender is not allowed within the source directory! 
-Remove the CMakeCache.txt file and try again from another folder, e.g.: 
+MESSAGE(FATAL_ERROR "CMake generation for blender is not allowed within the source directory!
+Remove the CMakeCache.txt file and try again from another folder, e.g.:
 
-   rm CMakeCache.txt 
+   rm CMakeCache.txt
    cd ..
-   mkdir cmake-make 
+   mkdir cmake-make
    cd cmake-make
    cmake -G \"Unix Makefiles\" ../blender
 ")
@@ -61,7 +61,7 @@ OPTION(WITH_ELBEEM		"Enable Elbeem (Fluid Simulation)"			ON)
 OPTION(WITH_QUICKTIME		"Enable Quicktime Support"				OFF)
 OPTION(WITH_OPENEXR		"Enable OpenEXR Support (http://www.openexr.com)"	ON)
 OPTION(WITH_DDS			"Enable DDS Support"                                   	ON)
-OPTION(WITH_FFMPEG		"Enable FFMPeg Support (http://ffmpeg.mplayerhq.hu/)"	OFF)
+OPTION(WITH_FFMPEG		"Enable FFMPeg Support(http://ffmpeg.mplayerhq.hu/)"	ON)
 OPTION(WITH_PYTHON		"Enable Embedded Python API"				ON)
 OPTION(WITH_OPENJPEG		"Enable OpenJpeg Support (http://www.openjpeg.org/)"	OFF)
 OPTION(WITH_OPENAL		"Enable OpenAL Support (http://www.openal.org)"		ON)
@@ -73,9 +73,9 @@ IF(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 ENDIF(NOT WITH_GAMEENGINE AND WITH_PLAYER)
 
 # For alternate Python locations the commandline can be used to override detected/default cache settings, e.g:
-# On Unix: 
+# On Unix:
 #   cmake -D PYTHON_LIB=/usr/local/lib/python2.3/config/libpython2.3.so -D PYTHON_INC=/usr/local/include/python2.3 -D PYTHON_BINARY=/usr/local/bin/python2.3 -G "Unix Makefiles" ../blender
-# On Macs: 
+# On Macs:
 #   cmake -D PYTHON_INC=/System/Library/Frameworks/Python.framework/Versions/2.5/include/python2.5 -D PYTHON_LIBPATH=/System/Library/Frameworks/Python.framework/Versions/2.5/lib/python2.5/config -D PYTHON_BINARY=/System/Library/Frameworks/Python.framework/Versions/2.5/bin/python2.5 -G Xcode ../blender
 #
 # When changing any of this remember to update the notes in doc/blender-cmake.txt
@@ -89,40 +89,40 @@ INCLUDE(CMake/macros.cmake)
 
 IF(UNIX AND NOT APPLE)
   IF(WITH_OPENAL)
-    FIND_PACKAGE(OpenAL)
-    IF(OPENAL_FOUND)
-      SET(WITH_OPENAL ON)
-      SET(OPENAL_LIB ${OPENAL_LIBRARY})
-      SET(OPENAL_INC ${OPENAL_INCLUDE_DIR})
-    ELSE(OPENAL_FOUND)
-      SET(WITH_OPENAL OFF)
-    ENDIF(OPENAL_FOUND)
+	FIND_PACKAGE(OpenAL)
+	IF(OPENAL_FOUND)
+	  SET(WITH_OPENAL ON)
+	  SET(OPENAL_LIB ${OPENAL_LIBRARY})
+	  SET(OPENAL_INC ${OPENAL_INCLUDE_DIR})
+	ELSE(OPENAL_FOUND)
+	  SET(WITH_OPENAL OFF)
+	ENDIF(OPENAL_FOUND)
   ENDIF(WITH_OPENAL)
 
   FIND_LIBRARY(INTL_LIBRARY
-    NAMES intl
-    PATHS
-    /sw/lib
+	NAMES intl
+	PATHS
+	/sw/lib
   )
   FIND_LIBRARY(ICONV_LIBRARY
-    NAMES iconv
-    PATHS
-    /sw/lib
+	NAMES iconv
+	PATHS
+	/sw/lib
   )
   IF(INTL_LIBRARY AND ICONV_LIBRARY)
-    SET(GETTEXT_LIB ${INTL_LIBRARY} ${ICONV_LIBRARY})
+	SET(GETTEXT_LIB ${INTL_LIBRARY} ${ICONV_LIBRARY})
   ENDIF(INTL_LIBRARY AND ICONV_LIBRARY)
-  
+
   FIND_PATH(FREETYPE_INC
-    freetype
-    PATHS
-    /usr/local/include/freetype2
-    /usr/include/freetype2
-    /sw/include/freetype2
-    /opt/local/include/freetype2
-    /opt/csw/include/freetype2
-    /opt/include/freetype2
-    NO_DEFAULT_PATH
+	freetype
+	PATHS
+	/usr/local/include/freetype2
+	/usr/include/freetype2
+	/sw/include/freetype2
+	/opt/local/include/freetype2
+	/opt/csw/include/freetype2
+	/opt/include/freetype2
+	NO_DEFAULT_PATH
   )
   SET(FREETYPE_LIB freetype)
 
@@ -138,14 +138,14 @@ IF(UNIX AND NOT APPLE)
   SET(SDL_LIB ${SDL_LIBRARY})
 
   FIND_PATH(OPENEXR_INC
-    ImfXdr.h
-    PATHS
-    /usr/local/include/OpenEXR
-    /usr/include/OpenEXR
-    /sw/include/OpenEXR
-    /opt/local/include/OpenEXR
-    /opt/csw/include/OpenEXR
-    /opt/include/OpenEXR
+	ImfXdr.h
+	PATHS
+	/usr/local/include/OpenEXR
+	/usr/include/OpenEXR
+	/sw/include/OpenEXR
+	/opt/local/include/OpenEXR
+	/opt/csw/include/OpenEXR
+	/opt/include/OpenEXR
   )
   SET(OPENEXR_LIB Half IlmImf Iex Imath)
 
@@ -163,9 +163,9 @@ IF(UNIX AND NOT APPLE)
   SET(LLIBS "-lXi -lutil -lc -lm -lpthread -lstdc++ -lX11 -ldl")
 
   IF(WITH_OPENMP)
-    SET(LLIBS "${LLIBS} -lgomp")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
+	SET(LLIBS "${LLIBS} -lgomp")
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp")
   ENDIF(WITH_OPENMP)
 
 
@@ -183,13 +183,13 @@ IF(WIN32)
 
   # this file is included anyway when building under Windows with cl.exe
   #  INCLUDE(${CMAKE_ROOT}/Modules/Platform/Windows-cl.cmake)
-  
+
   SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/windows)
 
   # Setup 64bit and 64bit windows systems
   IF(CMAKE_CL_64)
-    message("64 bit compiler detected.")
-    SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/win64)
+	message("64 bit compiler detected.")
+	SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/win64)
   ENDIF(CMAKE_CL_64)
 
   SET(PYTHON ${LIBDIR}/python)
@@ -200,19 +200,19 @@ IF(WIN32)
   SET(PYTHON_LIBPATH ${PYTHON}/lib)
 
   IF(CMAKE_CL_64)
-    SET(WITH_OPENAL OFF)
+	SET(WITH_OPENAL OFF)
   ELSE(CMAKE_CL_64)
-    #SET(WITH_OPENAL ON)
-    SET(OPENAL ${LIBDIR}/openal)
-    SET(OPENAL_INC ${OPENAL}/include ${OPENAL}/include/AL)
-    SET(OPENAL_LIB openal_static)
-    SET(OPENAL_LIBPATH ${OPENAL}/lib)
+	#SET(WITH_OPENAL ON)
+	SET(OPENAL ${LIBDIR}/openal)
+	SET(OPENAL_INC ${OPENAL}/include ${OPENAL}/include/AL)
+	SET(OPENAL_LIB openal_static)
+	SET(OPENAL_LIBPATH ${OPENAL}/lib)
   ENDIF(CMAKE_CL_64)
 
   IF(CMAKE_CL_64)
 	SET(PNG_LIBRARIES libpng)
   ELSE(CMAKE_CL_64)
-    SET(PNG_LIBRARIES libpng_st)
+	SET(PNG_LIBRARIES libpng_st)
   ENDIF(CMAKE_CL_64)
   SET(JPEG_LIBRARY libjpeg)
 
@@ -220,23 +220,23 @@ IF(WIN32)
   SET(ZLIB_INC ${ZLIB}/include)
   SET(ZLIB_LIBRARIES zlib)
   SET(ZLIB_LIBPATH ${ZLIB}/lib)
-  
+
   SET(PTHREADS ${LIBDIR}/pthreads)
   SET(PTHREADS_INC ${PTHREADS}/include)
   SET(PTHREADS_LIB pthreadVC2)
   SET(PTHREADS_LIBPATH ${PTHREADS}/lib)
-  
+
   SET(ICONV ${LIBDIR}/iconv)
   SET(ICONV_INC ${ICONV}/include)
   SET(ICONV_LIB iconv)
   SET(ICONV_LIBPATH ${ICONV}/lib)
-  
+
   SET(GETTEXT ${LIBDIR}/gettext)
   SET(GETTEXT_INC ${GETTEXT}/include)
   IF(CMAKE_CL_64)
-  	SET(GETTEXT_LIB gettextlib)
+	SET(GETTEXT_LIB gettextlib)
   ELSE(CMAKE_CL_64)
-  	SET(GETTEXT_LIB gnu_gettext)
+	SET(GETTEXT_LIB gnu_gettext)
   ENDIF(CMAKE_CL_64)
   SET(GETTEXT_LIBPATH ${GETTEXT}/lib)
 
@@ -244,7 +244,7 @@ IF(WIN32)
   SET(FREETYPE_INC ${FREETYPE}/include ${FREETYPE}/include/freetype2)
   SET(FREETYPE_LIBPATH ${FREETYPE}/lib)
   SET(FREETYPE_LIB freetype2ST)
-  
+
   SET(OPENEXR ${LIBDIR}/openexr)
   SET(OPENEXR_INC ${OPENEXR}/include ${OPENEXR}/include/IlmImf ${OPENEXR}/include/Iex ${OPENEXR}/include/Imath)
   SET(OPENEXR_LIB Iex Half IlmImf Imath IlmThread)
@@ -257,7 +257,7 @@ IF(WIN32)
   SET(OPENEXR_LIBPATH ${OPENEXR}/lib_vs2008)
   ENDIF(MSVC90)
 
-  
+
   SET(QUICKTIME ${LIBDIR}/QTDevWin)
   SET(QUICKTIME_INC ${QUICKTIME}/CIncludes)
   SET(QUICKTIME_LIB qtmlClient)
@@ -273,9 +273,9 @@ IF(WIN32)
   ELSE(CMAKE_CL_64)
   SET(LLIBS kernel32 user32 gdi32 comdlg32 advapi32 shell32 ole32 oleaut32 uuid ws2_32 vfw32 winmm)
   ENDIF(CMAKE_CL_64)
-  
+
   IF(WITH_OPENAL)
-    SET(LLIBS ${LLIBS} dxguid)
+	SET(LLIBS ${LLIBS} dxguid)
   ENDIF(WITH_OPENAL)
 
   SET(CMAKE_CXX_FLAGS_DEBUG "/D_CRT_NONSTDC_NO_DEPRECATE /D_CRT_SECURE_NO_DEPRECATE /D_SCL_SECURE_NO_DEPRECATE /wd4800 /wd4244 /wd4305 /D_DEBUG /Od /Gm /EHsc /RTC1 /MTd /W3 /nologo /ZI /J" CACHE STRING "MSVC MT flags " FORCE)
@@ -288,8 +288,8 @@ IF(WIN32)
   SET(CMAKE_C_FLAGS_RELWITHDEBINFO "/D_CRT_NONSTDC_NO_DEPRECATE /D_CRT_SECURE_NO_DEPRECATE /D_SCL_SECURE_NO_DEPRECATE /wd4800 /wd4244 /wd4305 /O2 /Ob1 /DNDEBUG /EHsc /MT /W3 /nologo /Zi /J" CACHE STRING "MSVC MT flags " FORCE)
 
   IF(WITH_OPENMP)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /openmp ")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp ")
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /openmp ")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp ")
   ENDIF(WITH_OPENMP)
 
   SET(SDL ${LIBDIR}/sdl)
@@ -307,8 +307,8 @@ IF(WIN32)
 
   SET(TIFF ${LIBDIR}/tiff)
   SET(TIFF_INC ${TIFF}/include)
-  
-  SET(WINTAB_INC ${LIBDIR}/wintab/include) 
+
+  SET(WINTAB_INC ${LIBDIR}/wintab/include)
 
   IF(CMAKE_CL_64)
   SET(PLATFORM_LINKFLAGS "/MANIFEST:NO /MANIFESTUAC:NO /MACHINE:X64 /NODEFAULTLIB:libc.lib;MSVCRT.lib ")
@@ -320,20 +320,20 @@ ENDIF(WIN32)
 
 IF(APPLE)
   IF(CMAKE_OSX_ARCHITECTURES MATCHES i386)
-    SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-8.x.i386)
+	SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-8.x.i386)
   ELSE(CMAKE_OSX_ARCHITECTURES MATCHES i386)
-    SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-6.1-powerpc)
+	SET(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/darwin-6.1-powerpc)
   ENDIF(CMAKE_OSX_ARCHITECTURES MATCHES i386)
 
   IF(WITH_OPENAL)
-    FIND_PACKAGE(OpenAL)
-    IF(OPENAL_FOUND)
-      SET(WITH_OPENAL ON)
-      SET(OPENAL_LIB ${OPENAL_LIBRARY})
-      SET(OPENAL_INC ${OPENAL_INCLUDE_DIR})
-    ELSE(OPENAL_FOUND)
-      SET(WITH_OPENAL OFF)
-    ENDIF(OPENAL_FOUND)
+	FIND_PACKAGE(OpenAL)
+	IF(OPENAL_FOUND)
+	  SET(WITH_OPENAL ON)
+	  SET(OPENAL_LIB ${OPENAL_LIBRARY})
+	  SET(OPENAL_INC ${OPENAL_INCLUDE_DIR})
+	ELSE(OPENAL_FOUND)
+	  SET(WITH_OPENAL OFF)
+	ENDIF(OPENAL_FOUND)
   ENDIF(WITH_OPENAL)
 
   SET(PYTHON /System/Library/Frameworks/Python.framework/Versions/)
@@ -345,7 +345,7 @@ IF(APPLE)
   IF(CMAKE_SYSTEM_VERSION GREATER 10.4)
 	SET(PYTHON_LINKFLAGS "-u _PyMac_Error -framework System -framework Python")
   ELSE(CMAKE_SYSTEM_VERSION GREATER 10.4)
-    SET(PYTHON_LINKFLAGS "-u _PyMac_Error -framework System -framework Python")
+	SET(PYTHON_LINKFLAGS "-u _PyMac_Error -framework System -framework Python")
   ENDIF(CMAKE_SYSTEM_VERSION GREATER 10.4)
 
   SET(GETTEXT ${LIBDIR}/gettext)
@@ -368,9 +368,9 @@ IF(APPLE)
   SET(OPENEXR ${LIBDIR}/openexr)
   SET(OPENEXR_INC ${OPENEXR}/include/OpenEXR ${OPENEXR}/include)
   IF(CMAKE_OSX_ARCHITECTURES MATCHES i386)
-    SET(OPENEXR_LIB Iex Half IlmImf Imath IlmThread)
+	SET(OPENEXR_LIB Iex Half IlmImf Imath IlmThread)
   ELSE(CMAKE_OSX_ARCHITECTURES MATCHES i386)
-    SET(OPENEXR_LIB Iex Half IlmImf Imath)
+	SET(OPENEXR_LIB Iex Half IlmImf Imath)
   ENDIF(CMAKE_OSX_ARCHITECTURES MATCHES i386)
   SET(OPENEXR_LIBPATH ${OPENEXR}/lib)
 
@@ -380,9 +380,9 @@ IF(APPLE)
   SET(PLATFORM_LINKFLAGS "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Carbon -framework AGL -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework QuickTime")
 
   IF(WITH_OPENMP)
-    SET(LLIBS "${LLIBS} -lgomp ")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp ")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp ")
+	SET(LLIBS "${LLIBS} -lgomp ")
+	SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fopenmp ")
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fopenmp ")
   ENDIF(WITH_OPENMP)
 
   SET(SDL ${LIBDIR}/sdl)
@@ -419,7 +419,7 @@ set(OPENJPEG_LIb extern_libopenjpeg)
 #-----------------------------------------------------------------------------
 # Blender WebPlugin
 
-IF(WITH_WEBPLUGIN) 
+IF(WITH_WEBPLUGIN)
   SET(GECKO_DIR "${CMAKE_SOURCE_DIR}/../gecko-sdk/" CACHE PATH "Gecko SDK path")
   SET(WEBPLUGIN_SANDBOX_MODE "apparmor" CACHE STRING "WEB Plugin sandbox mode, can be apparmor, privsep, none")
 
