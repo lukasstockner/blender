@@ -108,7 +108,7 @@ BF_ICONV_LIB = 'iconv'
 BF_ICONV_LIBPATH = '${BF_ICONV}/lib'
 
 # enable ffmpeg  support
-WITH_BF_FFMPEG = False  # -DWITH_FFMPEG
+WITH_BF_FFMPEG = True # -DWITH_FFMPEG
 BF_FFMPEG = '/usr/local'
 BF_FFMPEG_INC = '${BF_FFMPEG}/include'
 BF_FFMPEG_LIBPATH='${BF_FFMPEG}/lib'

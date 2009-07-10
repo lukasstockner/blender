@@ -23,7 +23,7 @@ BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 # Warning, this static lib configuration is untested! users of this OS please confirm.
 BF_OPENAL_LIB_STATIC = '${BF_OPENAL}/lib/libopenal.a'
 
-WITH_BF_FFMPEG = False
+WITH_BF_FFMPEG = True
 BF_FFMPEG_LIB = 'avformat swscale avcodec avutil avdevice xvidcore x264'
 BF_FFMPEG_LIBPATH = LIBDIR + '/gcc/ffmpeg/lib'
 BF_FFMPEG_INC =  LIBDIR + '/gcc/ffmpeg/include'
@@ -80,6 +80,7 @@ BF_GETTEXT_LIB = 'gnu_gettext'
 BF_GETTEXT_LIBPATH = '${BF_GETTEXT}/lib'
 
 WITH_BF_GAMEENGINE = False
+WITH_BF_PLAYER = False
 
 WITH_BF_BULLET = True
 BF_BULLET = '#extern/bullet2/src'

@@ -2,7 +2,7 @@ LCGDIR = '#../lib/win64'
 LIBDIR = '${LCGDIR}'
 
 # enable ffmpeg  support
-WITH_BF_FFMPEG = False # -DWITH_FFMPEG
+WITH_BF_FFMPEG = True # -DWITH_FFMPEG
 BF_FFMPEG = LIBDIR +'/ffmpeg'
 BF_FFMPEG_INC = '${BF_FFMPEG}/include'
 BF_FFMPEG_LIBPATH='${BF_FFMPEG}/lib'
