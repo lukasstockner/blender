@@ -73,7 +73,7 @@ ifndef CONFIG_GUESS
     export WITH_BF_DYNAMICOPENGL ?= true
     export WITH_BF_STATICOPENGL ?= false
     export WITH_BF_BLENDERGAMEENGINE ?= true
-    export WITH_BF_BLENDERPLAYER ?= true
+    export WITH_BF_BLENDERPLAYER ?= false
     ifeq ($(NAN_NO_PLUGIN), true)
         export WITH_BF_WEBPLUGIN = false
     else
@@ -310,7 +310,7 @@ endif
     export NAN_PYTHON ?= /usr
     export NAN_PYTHON_VERSION ?= 2.5
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
-    export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/python$(NAN_PYTHON_VERSION)/config/libpython$(NAN_PYTHON_VERSION).a
+    export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= /usr
     export NAN_JPEG ?= /usr
     export NAN_PNG ?= /usr

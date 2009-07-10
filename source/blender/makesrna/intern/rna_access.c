@@ -392,6 +392,11 @@ PropertyRNA *RNA_struct_iterator_property(StructRNA *type)
 	return type->iteratorproperty;
 }
 
+StructRNA *RNA_struct_base(StructRNA *type)
+{
+	return type->base;
+}
+
 int RNA_struct_is_ID(StructRNA *type)
 {
 	return (type->flag & STRUCT_ID) != 0;
@@ -661,7 +666,7 @@ int RNA_property_enum_value(PointerRNA *ptr, PropertyRNA *prop, const char *iden
 	RNA_property_enum_items(ptr, prop, &item, NULL);
 	
 	for(; item->identifier; item++) {
-		if(strcmp(item->identifier, identifier)==0) {
+		if(item->identifier[0] && strcmp(item->identifier, identifier)==0) {
 			*value = item->value;
 			return 1;
 		}
@@ -673,7 +678,7 @@ int RNA_property_enum_value(PointerRNA *ptr, PropertyRNA *prop, const char *iden
 int RNA_enum_identifier(const EnumPropertyItem *item, const int value, const char **identifier)
 {
 	for (; item->identifier; item++) {
-		if(item->value==value) {
+		if(item->identifier[0] && item->value==value) {
 			*identifier = item->identifier;
 			return 1;
 		}
@@ -684,7 +689,7 @@ int RNA_enum_identifier(const EnumPropertyItem *item, const int value, const cha
 int RNA_enum_name(const EnumPropertyItem *item, const int value, const char **name)
 {
 	for (; item->identifier; item++) {
-		if(item->value==value) {
+		if(item->identifier[0] && item->value==value) {
 			*name = item->name;
 			return 1;
 		}

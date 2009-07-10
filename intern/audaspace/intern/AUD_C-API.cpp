@@ -35,7 +35,7 @@ extern "C" {
 
 typedef AUD_IFactory AUD_Sound;
 
-AUD_IDevice* AUD_device = NULL;
+static AUD_IDevice* AUD_device = NULL;
 
 bool AUD_init()
 {
