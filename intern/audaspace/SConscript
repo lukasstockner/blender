@@ -4,7 +4,7 @@ Import ('env')
 
 sources = env.Glob('SDL/*.cpp') + env.Glob('intern/*.cpp')
 
-incs = '. intern intern SDL ffmpeg ' + env['BF_SDL_INC']
+incs = '. intern intern SDL ffmpeg ' + env['BF_SDL_INC'] + ' ' + env['BF_PTHREADS_INC']
 defs = ''
 if env['WITH_BF_FFMPEG']:
 	sources += env.Glob('ffmpeg/*.cpp')
