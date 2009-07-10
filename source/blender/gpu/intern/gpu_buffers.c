@@ -79,6 +79,11 @@ void GPU_buffer_pool_free(GPUBufferPool *pool)
 
 	DEBUG_VBO("GPU_buffer_pool_free\n");
 
+	if( pool == 0 )
+		pool = globalPool;
+	if( pool == 0 )
+		return;
+
 	while( pool->start < 0 )
 		pool->start += MAX_FREE_GPU_BUFFERS;
 
@@ -87,9 +92,11 @@ void GPU_buffer_pool_free(GPUBufferPool *pool)
 			glDeleteBuffersARB( 1, &pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]->id );
 		}
 		else {
-			MEM_freeN( pool->buffers[(pool->start+i) % MAX_FREE_GPU_BUFFERS ]->pointer );
+			MEM_freeN( pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]->pointer );
 		}
+		MEM_freeN(pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]);
 	}
+	MEM_freeN(pool);
 }
 
 void GPU_buffer_pool_remove( int index, GPUBufferPool *pool )
@@ -234,7 +241,7 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	DEBUG_VBO("GPU_drawobject_new\n");
 
 	object = MEM_callocN(sizeof(GPUDrawObject),"GPU_drawobject_new");
-
+	//object->legacy = 1;
 	memset(numverts,0,sizeof(int)*256);
 
 	mvert = dm->getVertArray(dm);
@@ -599,9 +606,12 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 	GPUBuffer *result;
 	DEBUG_VBO("GPU_buffer_color\n");
 
-	mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
-	if( mcol )
+	mcol = DM_get_face_data_layer(dm, CD_ID_MCOL);
+	dm->drawObject->colType = CD_ID_MCOL;
+	if(!mcol) {
+		mcol = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
 		dm->drawObject->colType = CD_WEIGHT_MCOL;
+	}
 	if(!mcol) {
 		mcol = DM_get_face_data_layer(dm, CD_MCOL);
 		dm->drawObject->colType = CD_MCOL;
@@ -726,6 +736,8 @@ void GPU_buffer_unbind()
 		glDisableClientState( GL_COLOR_ARRAY );
 	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE | GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE );
 
+	if( GLStates != 0 )
+		DEBUG_VBO( "Some weird OpenGL state is still set. Why?" );
 	if( useVBOs )
 		glBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 }

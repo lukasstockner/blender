@@ -397,8 +397,7 @@ static void draw_textured_end()
 	glPopMatrix();
 }
 
-
-static int draw_tface__set_draw(MTFace *tface, MCol *mcol, int matnr)
+static int draw_tface__set_draw_legacy(MTFace *tface, MCol *mcol, int matnr)
 {
 	if (tface && (tface->mode&TF_INVISIBLE)) return 0;
 
@@ -419,6 +418,84 @@ static int draw_tface__set_draw(MTFace *tface, MCol *mcol, int matnr)
 	} else {
 		return 1; /* Set color from mcol */
 	}
+}
+static int draw_tface__set_draw(MTFace *tface, MCol *mcol, int matnr)
+{
+	if (tface && (tface->mode&TF_INVISIBLE)) return 0;
+
+	if (tface && set_draw_settings_cached(0, Gtexdraw.istex, tface, Gtexdraw.islit, Gtexdraw.ob, matnr, TF_TWOSIDE)) {
+		return 2; /* Don't set color */
+	} else if (tface && tface->mode&TF_OBCOL) {
+		return 2; /* Don't set color */
+	} else if (!mcol) {
+		return 2; /* Don't set color */
+	} else {
+		return 1; /* Set color from mcol */
+	}
+}
+static void add_tface_color_layer(DerivedMesh *dm)
+{
+	MTFace *tface = DM_get_face_data_layer(dm, CD_MTFACE);
+	MFace *mface = DM_get_face_data_layer(dm, CD_MFACE);
+	MCol *mcol = dm->getFaceDataArray(dm, CD_MCOL);
+	MCol *finalCol;
+	int i,j;
+	finalCol = MEM_mallocN(sizeof(MCol)*4*dm->getNumFaces(dm),"add_tface_color_layer");
+	for(i=0;i<dm->getNumFaces(dm);i++) {
+		if (tface && (tface->mode&TF_INVISIBLE)) {
+			if( mcol )
+				memcpy(&finalCol[i*4],&mcol[i*4],sizeof(MCol)*4);
+			else
+				for(j=0;j<4;j++) {
+					finalCol[i*4+j].b = 255;
+					finalCol[i*4+j].g = 255;
+					finalCol[i*4+j].r = 255;
+				}
+		}
+		else if (tface && mface && set_draw_settings_cached(0, Gtexdraw.istex, tface, Gtexdraw.islit, Gtexdraw.ob, mface[i].mat_nr, TF_TWOSIDE)) {
+			for(j=0;j<4;j++) {
+				finalCol[i*4+j].b = 255;
+				finalCol[i*4+j].g = 0;
+				finalCol[i*4+j].r = 255;
+			}
+		} else if (tface && tface->mode&TF_OBCOL) {
+			for(j=0;j<4;j++) {
+				finalCol[i*4+j].r = Gtexdraw.obcol[0];
+				finalCol[i*4+j].g = Gtexdraw.obcol[1];
+				finalCol[i*4+j].b = Gtexdraw.obcol[2];
+			}
+		} else if (!mcol) {
+			if (tface) {
+				for(j=0;j<4;j++) {
+					finalCol[i*4+j].b = 255;
+					finalCol[i*4+j].g = 255;
+					finalCol[i*4+j].r = 255;
+				}
+			}
+			else {
+				Material *ma= give_current_material(Gtexdraw.ob, mface[i].mat_nr+1);
+				if(ma) 
+					for(j=0;j<4;j++) {
+						finalCol[i*4+j].b = ma->b;
+						finalCol[i*4+j].g = ma->g;
+						finalCol[i*4+j].r = ma->r;
+					}
+				else
+					for(j=0;j<4;j++) {
+						finalCol[i*4+j].b = 255;
+						finalCol[i*4+j].g = 255;
+						finalCol[i*4+j].r = 255;
+					}
+			}
+		} else {
+			for(j=0;j<4;j++) {
+				finalCol[i*4+j].b = mcol[i*4+j].r;
+				finalCol[i*4+j].g = mcol[i*4+j].g;
+				finalCol[i*4+j].r = mcol[i*4+j].b;
+			}
+		}
+	}
+	CustomData_add_layer( &dm->faceData, CD_TEXTURE_MCOL, CD_ASSIGN, finalCol, dm->numFaceData );
 }
 
 static int draw_tface_mapped__set_draw(void *userData, int index)
@@ -568,7 +645,13 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 			dm->drawMappedFacesTex(dm, draw_tface_mapped__set_draw, me);
 	}
 	else {
-		dm->drawFacesTex(dm, draw_tface__set_draw);
+		if( GPU_buffer_legacy(dm) )
+			dm->drawFacesTex(dm, draw_tface__set_draw_legacy);
+		else {
+			if( !CustomData_has_layer(&dm->faceData,CD_TEXTURE_MCOL) )
+				add_tface_color_layer(dm);
+			dm->drawFacesTex(dm, draw_tface__set_draw);
+		}
 	}
 
 	/* draw game engine text hack */

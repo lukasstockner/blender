@@ -427,11 +427,12 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mv = cddm->mvert;
-	MFace *mf = cddm->mface;
+	MFace *mf = DM_get_face_data_layer(dm, CD_MFACE);
 	MCol *mcol = dm->getFaceDataArray(dm, CD_MCOL);
+	MCol *realcol = dm->getFaceDataArray(dm, CD_TEXTURE_MCOL);
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	MTFace *tf = DM_get_face_data_layer(dm, CD_MTFACE);
-	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
+	int i, j, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 	int startFace = 0, lastFlag = 0xdeadbeef;
 
 	if( GPU_buffer_legacy(dm) ) {
@@ -510,67 +511,82 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 			if(nors) nors += 3;
 		}
 	} else { /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		MCol *col = realcol;
+		if(!col)
+			col = mcol;
+
 		GPU_vertex_setup( dm );
 		GPU_normal_setup( dm );
 		GPU_uv_setup( dm );
-		if( mcol != 0 ) {
-			if( dm->drawObject->colType != CD_MCOL ) {
-				unsigned char *colors = MEM_mallocN(dm->getNumFaces(dm)*3*sizeof(unsigned char), "cdDM_drawFacesTex_common");
+		if( col != 0 ) {
+			/*if( realcol && dm->drawObject->colType == CD_TEXTURE_MCOL )  {
+				col = 0;
+			} else if( mcol && dm->drawObject->colType == CD_MCOL ) {
+				col = 0;
+			}
+			
+			if( col != 0 ) {*/
+				unsigned char *colors = MEM_mallocN(dm->getNumFaces(dm)*4*3*sizeof(unsigned char), "cdDM_drawFacesTex_common");
 				for( i=0; i < dm->getNumFaces(dm); i++ ) {
-					colors[i*3] = mcol[i].r;
-					colors[i*3+1] = mcol[i].g;
-					colors[i*3+2] = mcol[i].b;
+					for( j=0; j < 4; j++ ) {
+						colors[i*12+j*3] = col[i*4+j].r;
+						colors[i*12+j*3+1] = col[i*4+j].g;
+						colors[i*12+j*3+2] = col[i*4+j].b;
+					}
 				}
 				GPU_color3_upload(dm,colors);
 				MEM_freeN(colors);
-				dm->drawObject->colType = CD_MCOL;
-			}
+				if(realcol)
+					dm->drawObject->colType = CD_TEXTURE_MCOL;
+				else if(mcol)
+					dm->drawObject->colType = CD_MCOL;
+			//}
 			GPU_color_setup( dm );
 		}
-		if( !GPU_buffer_legacy(dm) ) {
-			glShadeModel( GL_SMOOTH );
-			for(i = 0; i < dm->drawObject->nelements/3; i++) {
-				int actualFace = dm->drawObject->faceRemap[i];
-				int flag;
-				unsigned char *cp = NULL;
 
-				if(drawParams) {
-					flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
-				}
-				else {
-					if(index) {
-						orig = index[actualFace];
-						if(drawParamsMapped)
-							flag = drawParamsMapped(userData, orig);
-					}
-					else
-						if(drawParamsMapped)
-							flag = drawParamsMapped(userData, actualFace);
-				}
-				if( flag != lastFlag ) {
-					if( startFace < i ) {
-						if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
-							if (lastFlag==1 && mcol)
-								GPU_color_switch(1);
-							else
-								GPU_color_switch(0);
-							glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
-						}
-					}
-					lastFlag = flag;
-					startFace = i;
-				}
+		glShadeModel( GL_SMOOTH );
+		for(i = 0; i < dm->drawObject->nelements/3; i++) {
+			int actualFace = dm->drawObject->faceRemap[i];
+			int flag = 1;
+			unsigned char *cp = NULL;
+
+			if(drawParams) {
+				flag = drawParams(tf? &tf[actualFace]: NULL, mcol? &mcol[actualFace*4]: NULL, mf[actualFace].mat_nr);
 			}
-			if( startFace < dm->drawObject->nelements/3 ) {
-				if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
-					if (lastFlag==1 && mcol)
-						GPU_color_switch(1);
-					else
-						GPU_color_switch(0);
-					glDrawArrays(GL_TRIANGLES,startFace*3,dm->drawObject->nelements-startFace*3);
+			else {
+				if(index) {
+					orig = index[actualFace];
+					if(drawParamsMapped)
+						flag = drawParamsMapped(userData, orig);
 				}
+				else
+					if(drawParamsMapped)
+						flag = drawParamsMapped(userData, actualFace);
+			}
+			if( flag != lastFlag ) {
+				if( startFace < i ) {
+					if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+						if (lastFlag==1 && mcol)
+							GPU_color_switch(1);
+						else
+							GPU_color_switch(0);
+						glDrawArrays(GL_TRIANGLES,startFace*3,(i-startFace)*3);
+					}
+				}
+				lastFlag = flag;
+				startFace = i;
 			}
 		}
+		if( startFace < dm->drawObject->nelements/3 ) {
+			if( lastFlag != 0 ) { /* if the flag is 0 it means the face is hidden or invisible */
+				if (lastFlag==1 && mcol)
+					GPU_color_switch(1);
+				else
+					GPU_color_switch(0);
+				glDrawArrays(GL_TRIANGLES,startFace*3,dm->drawObject->nelements-startFace*3);
+			}
+		}
+
 		GPU_buffer_unbind();
 		glShadeModel( GL_FLAT );
 	}
@@ -591,7 +607,9 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 
 
-	mc = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
+	mc = DM_get_face_data_layer(dm, CD_ID_MCOL);
+	if(!mc)
+		mc = DM_get_face_data_layer(dm, CD_WEIGHT_MCOL);
 	if(!mc)
 		mc = DM_get_face_data_layer(dm, CD_MCOL);
 
