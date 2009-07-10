@@ -34,6 +34,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
+#include "RNA_access.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "BIF_gl.h"
@@ -122,6 +124,18 @@ static void file_free(SpaceLink *sl)
 		sfile->files= NULL;
 	}
 
+	if(sfile->folders_prev) {
+		folderlist_free(sfile->folders_prev);
+		MEM_freeN(sfile->folders_prev);
+		sfile->folders_prev= NULL;
+	}
+
+	if(sfile->folders_next) {
+		folderlist_free(sfile->folders_next);
+		MEM_freeN(sfile->folders_next);
+		sfile->folders_next= NULL;
+	}
+
 	if (sfile->params) {
 		if(sfile->params->pupmenu)
 			MEM_freeN(sfile->params->pupmenu);
@@ -151,11 +165,15 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 	sfilen->op = NULL; /* file window doesn't own operators */
 
 	sfilen->files = filelist_new();
-	
+	if(sfileo->folders_prev)
+		sfilen->folders_prev = MEM_dupallocN(sfileo->folders_prev);
+
+	if(sfileo->folders_next)
+		sfilen->folders_next = MEM_dupallocN(sfileo->folders_next);
+
 	if(sfileo->params) {
 		sfilen->params= MEM_dupallocN(sfileo->params);
-	
-		filelist_setdir(sfilen->files, sfilen->params->dir);
+		file_change_dir(sfilen);
 	}
 	if (sfileo->layout) {
 		sfilen->layout= MEM_dupallocN(sfileo->layout);
@@ -168,9 +186,11 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	SpaceFile *sfile= (SpaceFile*)CTX_wm_space_data(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 
+	if (!sfile->folders_prev)
+		sfile->folders_prev = folderlist_new();
 	if (!sfile->files) {
 		sfile->files = filelist_new();
-		filelist_setdir(sfile->files, params->dir);
+		file_change_dir(sfile);
 		params->active_file = -1; // added this so it opens nicer (ton)
 	}
 	filelist_hidedot(sfile->files, params->flag & FILE_HIDE_DOT);
@@ -293,12 +313,16 @@ void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_exec);
 	WM_operatortype_append(FILE_OT_cancel);
 	WM_operatortype_append(FILE_OT_parent);
+	WM_operatortype_append(FILE_OT_previous);
+	WM_operatortype_append(FILE_OT_next);
 	WM_operatortype_append(FILE_OT_refresh);
 	WM_operatortype_append(FILE_OT_bookmark_toggle);
 	WM_operatortype_append(FILE_OT_add_bookmark);
 	WM_operatortype_append(FILE_OT_delete_bookmark);
 	WM_operatortype_append(FILE_OT_hidedot);
 	WM_operatortype_append(FILE_OT_filenum);
+	WM_operatortype_append(FILE_OT_directory_new);
+	WM_operatortype_append(FILE_OT_delete);
 }
 
 /* NOTE: do not add .blend file reading on this level */
@@ -311,6 +335,10 @@ void file_keymap(struct wmWindowManager *wm)
 	WM_keymap_add_item(keymap, "FILE_OT_parent", PKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_add_bookmark", BKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_hidedot", HKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "FILE_OT_previous", BACKSPACEKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap, "FILE_OT_next", BACKSPACEKEY, KM_PRESS, KM_SHIFT, 0);
+	/* WM_keymap_add_item(keymap, "FILE_OT_directory_new", IKEY, KM_PRESS, 0, 0); */ /* XXX needs button */
+	WM_keymap_add_item(keymap, "FILE_OT_delete", XKEY, KM_PRESS, 0, 0);
 
 	/* keys for main area */
 	keymap= WM_keymap_listbase(wm, "FileMain", SPACE_FILE, 0);
@@ -476,7 +504,6 @@ void ED_spacetype_file(void)
 	art->draw= file_channel_area_draw;
 	BLI_addhead(&st->regiontypes, art);
 	file_panels_register(art);
-
 
 	BKE_spacetype_register(st);
 

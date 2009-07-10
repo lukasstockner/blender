@@ -439,6 +439,9 @@ static void ui_item_enum_row(uiLayout *layout, uiBlock *block, PointerRNA *ptr, 
 
 	uiBlockSetCurLayout(block, ui_item_local_sublayout(layout, layout, 1));
 	for(a=0; a<totitem; a++) {
+		if(!item[a].identifier[0])
+			continue;
+
 		name= (!uiname || uiname[0])? (char*)item[a].name: "";
 		icon= item[a].icon;
 		value= item[a].value;
@@ -556,14 +559,12 @@ static char *ui_menu_enumpropname(char *opname, char *propname, int retval)
 
 	if(prop) {
 		const EnumPropertyItem *item;
-		int totitem, i;
+		int totitem;
+		const char *name;
 
 		RNA_property_enum_items(&ptr, prop, &item, &totitem);
-
-		for (i=0; i<totitem; i++) {
-			if(item[i].value==retval)
-				return (char*)item[i].name;
-		}
+		if(RNA_enum_name(item, retval, &name))
+			return (char*)name;
 	}
 
 	return "";
@@ -603,7 +604,10 @@ void uiItemsEnumO(uiLayout *layout, char *opname, char *propname)
 		RNA_property_enum_items(&ptr, prop, &item, &totitem);
 
 		for(i=0; i<totitem; i++)
-			uiItemEnumO(layout, (char*)item[i].name, item[i].icon, opname, propname, item[i].value);
+			if(item[i].identifier[0])
+				uiItemEnumO(layout, (char*)item[i].name, item[i].icon, opname, propname, item[i].value);
+			else
+				uiItemS(layout);
 	}
 }
 
@@ -889,7 +893,10 @@ void uiItemsEnumR(uiLayout *layout, struct PointerRNA *ptr, char *propname)
 		RNA_property_enum_items(ptr, prop, &item, &totitem);
 
 		for(i=0; i<totitem; i++)
-			uiItemEnumR(layout, (char*)item[i].name, 0, ptr, propname, item[i].value);
+			if(item[i].identifier[0])
+				uiItemEnumR(layout, (char*)item[i].name, 0, ptr, propname, item[i].value);
+			else
+				uiItemS(layout);
 	}
 }
 
@@ -1093,9 +1100,11 @@ void uiItemM(uiLayout *layout, bContext *C, char *name, int icon, char *menuname
 			if(layout->root->type == UI_LAYOUT_MENU && !icon)
 				icon= ICON_BLANK1;
 			ui_item_menu(layout, name, icon, ui_item_menutype_func, mt, NULL);
-			break;
+			return;
 		}
 	}
+
+	printf("uiItemM: not found %s\n", menuname);
 }
 
 /* label item */
@@ -1259,7 +1268,7 @@ static void ui_litem_estimate_row(uiLayout *litem)
 
 static int ui_litem_min_width(int itemw)
 {
-	return MIN2(UI_UNIT_X, itemw);
+	return MIN2(2*UI_UNIT_X, itemw);
 }
 
 static void ui_litem_layout_row(uiLayout *litem)

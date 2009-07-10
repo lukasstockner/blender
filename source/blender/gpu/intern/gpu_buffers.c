@@ -241,7 +241,7 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	DEBUG_VBO("GPU_drawobject_new\n");
 
 	object = MEM_callocN(sizeof(GPUDrawObject),"GPU_drawobject_new");
-	//object->legacy = 1;
+	/*object->legacy = 1;*/
 	memset(numverts,0,sizeof(int)*256);
 
 	mvert = dm->getVertArray(dm);

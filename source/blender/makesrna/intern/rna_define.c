@@ -1117,7 +1117,7 @@ void RNA_def_property_enum_items(PropertyRNA *prop, const EnumPropertyItem *item
 			for(i=0; item[i].identifier; i++) {
 				eprop->totitem++;
 
-				if(item[i].value == eprop->defaultvalue)
+				if(item[i].identifier[0] && item[i].value == eprop->defaultvalue)
 					defaultfound= 1;
 			}
 
@@ -1280,7 +1280,7 @@ void RNA_def_property_enum_default(PropertyRNA *prop, int value)
 			eprop->defaultvalue= value;
 
 			for(i=0; i<eprop->totitem; i++) {
-				if(eprop->item[i].value == eprop->defaultvalue)
+				if(eprop->item[i].identifier[0] && eprop->item[i].value == eprop->defaultvalue)
 					defaultfound= 1;
 			}
 
@@ -1958,6 +1958,12 @@ PropertyRNA *RNA_def_enum(StructOrFunctionRNA *cont_, const char *identifier, co
 	RNA_def_property_ui_text(prop, ui_name, ui_description);
 
 	return prop;
+}
+
+void RNA_def_enum_funcs(PropertyRNA *prop, EnumPropertyItemFunc itemfunc)
+{
+	EnumPropertyRNA *eprop= (EnumPropertyRNA*)prop;
+	eprop->itemf= itemfunc;
 }
 
 PropertyRNA *RNA_def_float(StructOrFunctionRNA *cont_, const char *identifier, float default_value, 
