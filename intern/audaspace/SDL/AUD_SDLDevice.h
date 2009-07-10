@@ -62,7 +62,7 @@ public:
 	/**
 	 * Closes the SDL audio device.
 	 */
-	~AUD_SDLDevice();
+	virtual ~AUD_SDLDevice();
 
 	/**
 	 * Mixes the next bytes into the buffer.

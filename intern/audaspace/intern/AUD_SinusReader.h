@@ -71,7 +71,7 @@ public:
 	/**
 	 * Destroys the reader.
 	 */
-	~AUD_SinusReader();
+	virtual ~AUD_SinusReader();
 
 	virtual bool isSeekable();
 	virtual void seek(int position);

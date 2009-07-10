@@ -23,6 +23,7 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
+//#define AUD_CAPI_IMPLEMENTATION
 //#include "AUD_C-API.h"
 #include "AUD_FFMPEGFactory.h"
 #include "AUD_SDLDevice.h"
@@ -32,36 +33,93 @@ extern "C" {
 }
 #include <assert.h>
 
-typedef AUD_IDevice AUD_Device;
 typedef AUD_IFactory AUD_Sound;
 
-AUD_Device* AUD_init()
+AUD_IDevice* AUD_device = NULL;
+
+bool AUD_init()
 {
 	av_register_all();
-	return new AUD_SDLDevice();
+	try
+	{
+		AUD_device = new AUD_SDLDevice();
+		return true;
+	}
+	catch(AUD_Exception e)
+	{
+		return false;
+	}
 }
 
-void AUD_exit(AUD_Device* device)
+void AUD_exit()
 {
-	assert(device);
-	delete device;
+	assert(AUD_device);
+	delete AUD_device;
 }
 
-AUD_Sound* openSound(const char* filename)
+AUD_Sound* AUD_load(const char* filename)
 {
 	assert(filename);
 	return new AUD_FFMPEGFactory(filename);
 }
 
-void closeSound(AUD_Sound* sound)
+void AUD_unload(AUD_Sound* sound)
 {
 	assert(sound);
 	delete sound;
 }
 
-void playSound(AUD_Device* device, AUD_Sound* sound)
+AUD_Handle* AUD_play(AUD_Sound* sound,
+					 AUD_EndBehaviour endBehaviour,
+					 double seekTo)
 {
-	assert(device);
+	assert(AUD_device);
 	assert(sound);
-	device->play(sound);
+	int position = (int)(seekTo * AUD_device->getSpecs().rate);
+	try
+	{
+		return AUD_device->play(sound, endBehaviour, position);
+	}
+	catch(AUD_Exception e)
+	{
+		return NULL;
+	}
+}
+
+bool AUD_pause(AUD_Handle* handle)
+{
+	assert(AUD_device);
+	return AUD_device->pause(handle);
+}
+
+bool AUD_resume(AUD_Handle* handle)
+{
+	assert(AUD_device);
+	return AUD_device->resume(handle);
+}
+
+bool AUD_stop(AUD_Handle* handle)
+{
+	assert(AUD_device);
+	return AUD_device->stop(handle);
+}
+
+bool AUD_setEndBehaviour(AUD_Handle* handle,
+						 AUD_EndBehaviour endBehaviour)
+{
+	assert(AUD_device);
+	return AUD_device->setEndBehaviour(handle, endBehaviour);
+}
+
+bool AUD_seek(AUD_Handle* handle, double seekTo)
+{
+	assert(AUD_device);
+	int position = (int)(seekTo * AUD_device->getSpecs().rate);
+	return AUD_device->seek(handle, position);
+}
+
+AUD_Status AUD_getStatus(AUD_Handle* handle)
+{
+	assert(AUD_device);
+	return AUD_device->getStatus(handle);
 }
