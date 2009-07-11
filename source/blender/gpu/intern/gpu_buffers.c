@@ -438,13 +438,11 @@ void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *re
 	int start;
 	float norm[3];
 
-	MVert *mvert;
-	MFace *mface;
+	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
+	MVert *mvert = dm->getVertArray(dm);
+	MFace *mface = dm->getFaceArray(dm);
 
 	DEBUG_VBO("GPU_buffer_copy_normal\n");
-
-	mvert = dm->getVertArray(dm);
-	mface = dm->getFaceArray(dm);
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
 		start = index[redir[mface[i].mat_nr+127]];
@@ -454,12 +452,17 @@ void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *re
 			index[redir[mface[i].mat_nr+127]] += 9;
 
 		/* v1 v2 v3 */
-		if( mface->flag & ME_SMOOTH ) {
+		if( mface[i].flag & ME_SMOOTH ) {
 			VECCOPY(&varray[start],mvert[mface[i].v1].no);
 			VECCOPY(&varray[start+3],mvert[mface[i].v2].no);
 			VECCOPY(&varray[start+6],mvert[mface[i].v3].no);
 		}
 		else {
+			if( nors ) {
+				VECCOPY(&varray[start],&nors[i*3]);
+				VECCOPY(&varray[start+3],&nors[i*3]);
+				VECCOPY(&varray[start+6],&nors[i*3]);
+			}
 			if( mface[i].v4 )
 				CalcNormFloat4(mvert[mface[i].v1].co, mvert[mface[i].v2].co, mvert[mface[i].v3].co, mvert[mface[i].v4].co, norm);
 			else
@@ -471,7 +474,7 @@ void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *re
 
 		if( mface[i].v4 ) {
 			/* v3 v4 v1 */
-			if( mface->flag & ME_SMOOTH ) {
+			if( mface[i].flag & ME_SMOOTH ) {
 				VECCOPY(&varray[start+9],mvert[mface[i].v3].no);
 				VECCOPY(&varray[start+12],mvert[mface[i].v4].no);
 				VECCOPY(&varray[start+15],mvert[mface[i].v1].no);
