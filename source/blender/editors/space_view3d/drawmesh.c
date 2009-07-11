@@ -69,6 +69,7 @@
 #include "UI_resources.h"
 #include "UI_interface_icons.h"
 
+#include "gpu_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
 
@@ -437,9 +438,12 @@ static void add_tface_color_layer(DerivedMesh *dm)
 {
 	MTFace *tface = DM_get_face_data_layer(dm, CD_MTFACE);
 	MFace *mface = DM_get_face_data_layer(dm, CD_MFACE);
-	MCol *mcol = dm->getFaceDataArray(dm, CD_MCOL);
 	MCol *finalCol;
 	int i,j;
+	MCol *mcol = dm->getFaceDataArray(dm, CD_WEIGHT_MCOL);
+	if(!mcol)
+		mcol = dm->getFaceDataArray(dm, CD_MCOL);
+
 	finalCol = MEM_mallocN(sizeof(MCol)*4*dm->getNumFaces(dm),"add_tface_color_layer");
 	for(i=0;i<dm->getNumFaces(dm);i++) {
 		if (tface && (tface->mode&TF_INVISIBLE)) {
@@ -648,6 +652,7 @@ void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *o
 		if( GPU_buffer_legacy(dm) )
 			dm->drawFacesTex(dm, draw_tface__set_draw_legacy);
 		else {
+			glColor3f(1.0f,1.0f,1.0f);
 			if( !CustomData_has_layer(&dm->faceData,CD_TEXTURE_MCOL) )
 				add_tface_color_layer(dm);
 			dm->drawFacesTex(dm, draw_tface__set_draw);

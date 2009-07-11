@@ -428,12 +428,14 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mv = cddm->mvert;
 	MFace *mf = DM_get_face_data_layer(dm, CD_MFACE);
-	MCol *mcol = dm->getFaceDataArray(dm, CD_MCOL);
 	MCol *realcol = dm->getFaceDataArray(dm, CD_TEXTURE_MCOL);
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	MTFace *tf = DM_get_face_data_layer(dm, CD_MTFACE);
 	int i, j, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 	int startFace = 0, lastFlag = 0xdeadbeef;
+	MCol *mcol = dm->getFaceDataArray(dm, CD_WEIGHT_MCOL);
+	if(!mcol)
+		mcol = dm->getFaceDataArray(dm, CD_MCOL);
 
 	if( GPU_buffer_legacy(dm) ) {
 		DEBUG_VBO( "Using legacy code. cdDM_drawFacesTex_common\n" );

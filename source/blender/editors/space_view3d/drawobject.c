@@ -5574,10 +5574,16 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 	glColor3ub(0, 0, 0);
 		
 	if( !GPU_buffer_legacy(dm) ) {
+		int *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
+		int ind;
 		colors = MEM_mallocN(dm->getNumFaces(dm)*sizeof(MCol)*4,"bbs_mesh_solid");
 		for(i=0;i<dm->getNumFaces(dm);i++) {
-			if (!(me->mface[i].flag&ME_HIDE)) {
-				unsigned int fbindex = index_to_framebuffer(i+1);
+			if( index != 0 )
+				ind = index[i];
+			else
+				ind = i;
+			if (!(me->mface[ind].flag&ME_HIDE)) {
+				unsigned int fbindex = index_to_framebuffer(ind+1);
 				for(j=0;j<4;j++) {
 					colors[i*4+j].b = ((fbindex)&0xFF);
 					colors[i*4+j].g = (((fbindex)>>8)&0xFF);
@@ -5593,7 +5599,6 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 		GPU_buffer_free(dm->drawObject->colors,0);
 		dm->drawObject->colors = 0;
 		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts, me, 1);
-		CustomData_free_layer( &dm->faceData, CD_ID_MCOL, dm->getNumFaces(dm), 0 );
 	}
 	else {
 		dm->drawMappedFaces(dm, bbs_mesh_solid__setDrawOpts_legacy, me, 0);
