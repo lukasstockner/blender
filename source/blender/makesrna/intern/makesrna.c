@@ -1597,7 +1597,6 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 						DefRNA.error= 1;
 					}
 				}
-				else if(eprop->itemf);
 				else {
 					fprintf(stderr, "rna_generate_structs: %s%s.%s, enum must have items defined.\n", srna->identifier, errnest, prop->identifier);
 					DefRNA.error= 1;
@@ -1922,6 +1921,7 @@ RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_mesh.c", "rna_mesh_api.c", RNA_def_mesh},
 	{"rna_meta.c", NULL, RNA_def_meta},
 	{"rna_modifier.c", NULL, RNA_def_modifier},
+	{"rna_nla.c", NULL, RNA_def_nla},
 	{"rna_nodetree.c", NULL, RNA_def_nodetree},
 	{"rna_object.c", "rna_object_api.c", RNA_def_object},
 	{"rna_object_force.c", NULL, RNA_def_object_force},

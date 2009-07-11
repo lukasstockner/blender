@@ -147,6 +147,9 @@ int ED_fileselect_layout_offset(FileLayout* layout, int x, int y)
 	int offsetx, offsety;
 	int active_file;
 
+	if (layout == NULL)
+		return NULL;
+	
 	offsetx = (x)/(layout->tile_w + 2*layout->tile_border_x);
 	offsety = (y)/(layout->tile_h + 2*layout->tile_border_y);
 	
@@ -298,7 +301,7 @@ FileLayout* ED_fileselect_get_layout(struct SpaceFile *sfile, struct ARegion *ar
 
 void file_change_dir(struct SpaceFile *sfile)
 {
-	if (sfile->params) {
+	if (sfile->params && BLI_exists(sfile->params->dir)) {
 		filelist_setdir(sfile->files, sfile->params->dir);
 
 		if(folderlist_clear_next(sfile))
@@ -328,4 +331,28 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern)
 		}
 	}
 	return match;
+}
+
+
+void autocomplete_directory(struct bContext *C, char *str, void *arg_v)
+{
+	char tmp[FILE_MAX];
+	SpaceFile *sfile= (SpaceFile*)CTX_wm_space_data(C);
+
+	/* search if str matches the beginning of name */
+	if(str[0] && sfile->files) {
+		AutoComplete *autocpl= autocomplete_begin(str, FILE_MAX);
+		int nentries = filelist_numfiles(sfile->files);
+		int i;
+
+		for(i= 0; i<nentries; ++i) {
+			struct direntry* file = filelist_file(sfile->files, i);
+			char* dir = filelist_dir(sfile->files);
+			if (file && S_ISDIR(file->type))	{
+				BLI_make_file_string(G.sce, tmp, dir, file->relname);
+				autocomplete_do_name(autocpl,tmp);
+			}
+		}
+		autocomplete_end(autocpl, str);
+	}
 }

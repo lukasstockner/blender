@@ -166,6 +166,7 @@ int ED_operator_node_active(bContext *C)
 	return 0;
 }
 
+// XXX rename
 int ED_operator_ipo_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_IPO);
@@ -179,6 +180,11 @@ int ED_operator_sequencer_active(bContext *C)
 int ED_operator_image_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_IMAGE);
+}
+
+int ED_operator_nla_active(bContext *C)
+{
+	return ed_spacetype_test(C, SPACE_NLA);
 }
 
 int ED_operator_logic_active(bContext *C)
@@ -497,8 +503,10 @@ void SCREEN_OT_actionzone(wmOperatorType *ot)
 	
 	ot->invoke= actionzone_invoke;
 	ot->modal= actionzone_modal;
-	
 	ot->poll= actionzone_area_poll;
+
+	ot->flag= OPTYPE_BLOCKING;
+	
 	RNA_def_int(ot->srna, "modifier", 0, 0, 2, "modifier", "modifier state", 0, 2);
 }
 
@@ -612,6 +620,8 @@ static void SCREEN_OT_area_swap(wmOperatorType *ot)
 	ot->invoke= area_swap_invoke;
 	ot->modal= area_swap_modal;
 	ot->poll= ED_operator_areaactive;
+
+	ot->flag= OPTYPE_BLOCKING;
 }
 
 /* *********** Duplicate area as new window operator ****************** */
@@ -906,8 +916,9 @@ void SCREEN_OT_area_move(wmOperatorType *ot)
 	ot->invoke= area_move_invoke;
 	ot->cancel= area_move_cancel;
 	ot->modal= area_move_modal;
-
 	ot->poll= ED_operator_screen_mainwinactive; /* when mouse is over area-edge */
+
+	ot->flag= OPTYPE_BLOCKING;
 
 	/* rna */
 	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
@@ -1221,7 +1232,7 @@ void SCREEN_OT_area_split(wmOperatorType *ot)
 	ot->modal= area_split_modal;
 	
 	ot->poll= ED_operator_areaactive;
-	ot->flag= OPTYPE_REGISTER;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
 	
 	/* rna */
 	RNA_def_enum(ot->srna, "direction", prop_direction_items, 'h', "Direction", "");
@@ -1338,6 +1349,8 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 	ot->modal= region_scale_modal;
 	
 	ot->poll= ED_operator_areaactive;
+	
+	ot->flag= OPTYPE_BLOCKING;
 }
 
 
@@ -1719,8 +1732,9 @@ void SCREEN_OT_area_join(wmOperatorType *ot)
 	ot->exec= area_join_exec;
 	ot->invoke= area_join_invoke;
 	ot->modal= area_join_modal;
-
 	ot->poll= ED_operator_areaactive;
+
+	ot->flag= OPTYPE_BLOCKING;
 
 	/* rna */
 	RNA_def_int(ot->srna, "x1", -100, INT_MIN, INT_MAX, "X 1", "", INT_MIN, INT_MAX);
@@ -2070,19 +2084,40 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		
 		if(scene->audio.flag & AUDIO_SYNC) {
 			int step = floor(wt->duration * FPS);
-			scene->r.cfra += step;
+			if (sad->reverse) // XXX does this option work with audio?
+				scene->r.cfra -= step;
+			else
+				scene->r.cfra += step;
 			wt->duration -= ((float)step)/FPS;
 		}
-		else
-			scene->r.cfra++;
+		else {
+			if (sad->reverse)
+				scene->r.cfra--;
+			else
+				scene->r.cfra++;
+		}
 		
-		if (scene->r.psfra) {
-			if(scene->r.cfra > scene->r.pefra)
-				scene->r.cfra= scene->r.psfra;
+		if (sad->reverse) {
+			/* jump back to end */
+			if (scene->r.psfra) {
+				if(scene->r.cfra < scene->r.psfra)
+					scene->r.cfra= scene->r.pefra;
+			}
+			else {
+				if(scene->r.cfra < scene->r.sfra)
+					scene->r.cfra= scene->r.efra;
+			}
 		}
 		else {
-			if(scene->r.cfra > scene->r.efra)
-				scene->r.cfra= scene->r.sfra;
+			/* jump back to start */
+			if (scene->r.psfra) {
+				if(scene->r.cfra > scene->r.pefra)
+					scene->r.cfra= scene->r.psfra;
+			}
+			else {
+				if(scene->r.cfra > scene->r.efra)
+					scene->r.cfra= scene->r.sfra;
+			}
 		}
 
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
@@ -2130,8 +2165,9 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 		ED_screen_animation_timer(C, 0, 0);
 	}
 	else {
-		/* todo: RNA properties to define play types */
-		ED_screen_animation_timer(C, TIME_REGION|TIME_ALL_3D_WIN, 1);
+		int mode= (RNA_boolean_get(op->ptr, "reverse")) ? -1 : 1;
+		
+		ED_screen_animation_timer(C, TIME_REGION|TIME_ALL_3D_WIN, mode);
 		
 		if(screen->animtimer) {
 			wmTimer *wt= screen->animtimer;
@@ -2155,7 +2191,7 @@ void SCREEN_OT_animation_play(wmOperatorType *ot)
 	
 	ot->poll= ED_operator_screenactive;
 	
-	
+	RNA_def_boolean(ot->srna, "reverse", 0, "Play in Reverse", "Animation is played backwards");
 }
 
 /* ************** border select operator (template) ***************************** */

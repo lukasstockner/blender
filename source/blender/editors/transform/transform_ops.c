@@ -109,10 +109,6 @@ TransformModeItem transform_modes[] =
 static int select_orientation_exec(bContext *C, wmOperator *op)
 {
 	int orientation = RNA_enum_get(op->ptr, "orientation");
-	int custom_index= RNA_int_get(op->ptr, "custom_index");;
-
-	if(orientation == V3D_MANIP_CUSTOM)
-		orientation += custom_index;
 
 	BIF_selectTransformOrientationValue(C, orientation);
 
@@ -126,20 +122,26 @@ static int select_orientation_invoke(bContext *C, wmOperator *op, wmEvent *event
 
 	pup= uiPupMenuBegin(C, "Orientation", 0);
 	layout= uiPupMenuLayout(pup);
-	BIF_menuTransformOrientation(C, layout, NULL);
+	uiItemsEnumO(layout, "TFM_OT_select_orientation", "orientation");
 	uiPupMenuEnd(C, pup);
 
 	return OPERATOR_CANCELLED;
 }
 
+static EnumPropertyItem *select_orientation_itemf(bContext *C, PointerRNA *ptr, int *free)
+{
+	*free= 1;
+	return BIF_enumTransformOrientation(C);
+}
+
 void TFM_OT_select_orientation(struct wmOperatorType *ot)
 {
+	PropertyRNA *prop;
 	static EnumPropertyItem orientation_items[]= {
 		{V3D_MANIP_GLOBAL, "GLOBAL", 0, "Global", ""},
 		{V3D_MANIP_NORMAL, "NORMAL", 0, "Normal", ""},
 		{V3D_MANIP_LOCAL, "LOCAL", 0, "Local", ""},
 		{V3D_MANIP_VIEW, "VIEW", 0, "View", ""},
-		{V3D_MANIP_CUSTOM, "CUSTOM", 0, "Custom", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	/* identifiers */
@@ -151,8 +153,8 @@ void TFM_OT_select_orientation(struct wmOperatorType *ot)
 	ot->exec   = select_orientation_exec;
 	ot->poll   = ED_operator_areaactive;
 
-	RNA_def_enum(ot->srna, "orientation", orientation_items, V3D_MANIP_CUSTOM, "Orientation", "DOC_BROKEN");
-	RNA_def_int(ot->srna, "custom_index", 0, 0, INT_MAX, "Custom Index", "", 0, INT_MAX);
+	prop= RNA_def_enum(ot->srna, "orientation", orientation_items, V3D_MANIP_GLOBAL, "Orientation", "DOC_BROKEN");
+	RNA_def_enum_funcs(prop, select_orientation_itemf);
 }
 
 static void transformops_exit(bContext *C, wmOperator *op)
@@ -300,7 +302,7 @@ void TFM_OT_translation(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Translation";
 	ot->idname = OP_TRANSLATION;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -325,7 +327,7 @@ void TFM_OT_resize(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Resize";
 	ot->idname = OP_RESIZE;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -351,7 +353,7 @@ void TFM_OT_trackball(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Trackball";
 	ot->idname = OP_TRACKBALL;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -372,7 +374,7 @@ void TFM_OT_rotation(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Rotation";
 	ot->idname = OP_ROTATION;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -397,7 +399,7 @@ void TFM_OT_tilt(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Tilt";
 	ot->idname = OP_TILT;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -420,7 +422,7 @@ void TFM_OT_warp(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Warp";
 	ot->idname = OP_WARP;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -444,7 +446,7 @@ void TFM_OT_shear(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Shear";
 	ot->idname = OP_SHEAR;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -468,7 +470,7 @@ void TFM_OT_shrink_fatten(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Shrink/Fatten";
 	ot->idname = OP_SHRINK_FATTEN;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -489,7 +491,7 @@ void TFM_OT_tosphere(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "To Sphere";
 	ot->idname = OP_TOSPHERE;
-	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -540,7 +542,7 @@ void TFM_OT_transform(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name   = "Transform";
 	ot->idname = "TFM_OT_transform";
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
 
 	/* api callbacks */
 	ot->invoke = transform_invoke;
@@ -631,6 +633,19 @@ void transform_keymap_for_space(struct wmWindowManager *wm, struct ListBase *key
 			km = WM_keymap_add_item(keymap, "TFM_OT_rotation", RKEY, KM_PRESS, 0, 0);
 
 			km = WM_keymap_add_item(keymap, "TFM_OT_resize", SKEY, KM_PRESS, 0, 0);
+			break;
+		case SPACE_NLA:
+			km= WM_keymap_add_item(keymap, "TFM_OT_transform", GKEY, KM_PRESS, 0, 0);
+			RNA_int_set(km->ptr, "mode", TFM_TRANSLATION);
+			
+			km= WM_keymap_add_item(keymap, "TFM_OT_transform", EVT_TWEAK_S, KM_ANY, 0, 0);
+			RNA_int_set(km->ptr, "mode", TFM_TRANSLATION);
+			
+			km= WM_keymap_add_item(keymap, "TFM_OT_transform", EKEY, KM_PRESS, 0, 0);
+			RNA_int_set(km->ptr, "mode", TFM_TIME_EXTEND);
+			
+			km= WM_keymap_add_item(keymap, "TFM_OT_transform", SKEY, KM_PRESS, 0, 0);
+			RNA_int_set(km->ptr, "mode", TFM_TIME_SCALE);
 			break;
 		case SPACE_NODE:
 			km= WM_keymap_add_item(keymap, "TFM_OT_translation", GKEY, KM_PRESS, 0, 0);
