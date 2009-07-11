@@ -29,7 +29,7 @@
 */
 
 #ifdef WIN32
-#pragma warning (disable : 4786) 
+#pragma warning (disable : 4786)
 #endif //WIN32
 
 #define BLENDER_HACK_DTIME 0.02
@@ -38,7 +38,9 @@
 
 #include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertActuators.h"
-#include "SND_Scene.h"
+// AUD_XXX
+//#include "SND_Scene.h"
+#include "AUD_C-API.h"
 // Actuators
 //SCA logiclibrary native logicbricks
 #include "SCA_PropertyActuator.h"
@@ -93,8 +95,8 @@
 
 #include "BL_BlenderDataConversion.h"
 
-/** 
-KX_BLENDERTRUNC needed to round 'almost' zero values to zero, else velocities etc. are incorrectly set 
+/**
+KX_BLENDERTRUNC needed to round 'almost' zero values to zero, else velocities etc. are incorrectly set
 */
 
 #define KX_BLENDERTRUNC(x)  (( x < 0.0001 && x > -0.0001 )  ? 0.0 : x)
@@ -111,7 +113,7 @@ void BL_ConvertActuators(char* maggiename,
 						 KX_BlenderSceneConverter* converter
 						 )
 {
-	
+
 	int uniqueint = 0;
 	int actcount = 0;
 	int executePriority = 0;
@@ -127,7 +129,7 @@ void BL_ConvertActuators(char* maggiename,
 	{
 		STR_String uniquename = bact->name;
 		STR_String& objectname = gameobj->GetName();
-		
+
 		SCA_IActuator* baseact = NULL;
 		switch (bact->type)
 		{
@@ -150,20 +152,20 @@ void BL_ConvertActuators(char* maggiename,
 					KX_BLENDERTRUNC(obact->angularvelocity[1]),
 					KX_BLENDERTRUNC(obact->angularvelocity[2]));
 				short damping = obact->damping;
-				
+
 				drotvec /=		BLENDER_HACK_DTIME;
 				//drotvec /=		BLENDER_HACK_DTIME;
 				drotvec *= MT_2_PI/360.0;
 				//dlocvec /= BLENDER_HACK_DTIME;
 				//linvelvec /=	BLENDER_HACK_DTIME;
 				//angvelvec /=	BLENDER_HACK_DTIME;
-				
+
 				/* Blender uses a bit vector internally for the local-flags. In */
 				/* KX, we have four bools. The compiler should be smart enough  */
 				/* to do the right thing. We need to explicitly convert here!   */
-				
+
 				KX_LocalFlags bitLocalFlag;
-				
+
 				bitLocalFlag.Force = bool((obact->flag & ACT_FORCE_LOCAL)!=0);
 				bitLocalFlag.Torque = bool((obact->flag & ACT_TORQUE_LOCAL) !=0);//rlocal;
 				bitLocalFlag.DLoc = bool((obact->flag & ACT_DLOC_LOCAL)!=0);
@@ -176,7 +178,7 @@ void BL_ConvertActuators(char* maggiename,
 				{
 					obref = converter->FindGameObject(obact->reference);
 				}
-				
+
 				KX_ObjectActuator* tmpbaseact = new KX_ObjectActuator(gameobj,
 					obref,
 					forcevec.getValue(),
@@ -197,7 +199,7 @@ void BL_ConvertActuators(char* maggiename,
 					bActionActuator* actact = (bActionActuator*) bact->data;
 					STR_String propname = (actact->name ? actact->name : "");
 					STR_String propframe = (actact->frameProp ? actact->frameProp : "");
-					
+
 					BL_ActionActuator* tmpbaseact = new BL_ActionActuator(
 						gameobj,
 						propname,
@@ -224,7 +226,7 @@ void BL_ConvertActuators(char* maggiename,
 					bActionActuator* actact = (bActionActuator*) bact->data;
 					STR_String propname = (actact->name ? actact->name : "");
 					STR_String propframe = (actact->frameProp ? actact->frameProp : "");
-					
+
 					BL_ShapeActionActuator* tmpbaseact = new BL_ShapeActionActuator(
 						gameobj,
 						propname,
@@ -254,7 +256,7 @@ void BL_ConvertActuators(char* maggiename,
 				bool ipo_as_force = (ipoact->flag & ACT_IPOFORCE);
 				bool local = (ipoact->flag & ACT_IPOLOCAL);
 				bool ipo_add = (ipoact->flag & ACT_IPOADD);
-				
+
 				KX_IpoActuator* tmpbaseact = new KX_IpoActuator(
 					gameobj,
 					propname ,
@@ -279,8 +281,8 @@ void BL_ConvertActuators(char* maggiename,
 				bCameraActuator *camact = (bCameraActuator *) bact->data;
 				if (camact->ob) {
 					KX_GameObject *tmpgob = converter->FindGameObject(camact->ob);
-					
-					/* visifac, fac and axis are not copied from the struct...   */ 
+
+					/* visifac, fac and axis are not copied from the struct...   */
 					/* that's some internal state...                             */
 					KX_CameraActuator *tmpcamact
 						= new KX_CameraActuator(gameobj,
@@ -296,7 +298,7 @@ void BL_ConvertActuators(char* maggiename,
 		case ACT_MESSAGE:
 			{
 				bMessageActuator *msgAct = (bMessageActuator *) bact->data;
-				
+
 				/**
 				* Get the name of the properties that objects must own that
 				* we're sending to, if present
@@ -307,19 +309,19 @@ void BL_ConvertActuators(char* maggiename,
 				/* BGE Wants "OB" prefix */
 				if (toPropName != "")
 					toPropName = "OB" + toPropName;
-				
+
 				/**
 				* Get the Message Subject to send.
 				*/
 				STR_String subject = (msgAct->subject
 					? (char*) msgAct->subject
 					: "");
-				
+
 				/**
 				* Get the bodyType
 				*/
 				int bodyType = msgAct->bodyType;
-				
+
 				/**
 				* Get the body (text message or property name whose value
 				* we'll be sending, might be empty
@@ -327,8 +329,8 @@ void BL_ConvertActuators(char* maggiename,
 				STR_String body = (msgAct->body
 					? (char*) msgAct->body
 					: "");
-				
-				KX_NetworkMessageActuator *tmpmsgact = 
+
+				KX_NetworkMessageActuator *tmpmsgact =
 					new KX_NetworkMessageActuator(
 					gameobj,					// actuator controlling object
 					scene->GetNetworkScene(),	// needed for replication
@@ -348,9 +350,9 @@ void BL_ConvertActuators(char* maggiename,
 				bSoundActuator* soundact = (bSoundActuator*) bact->data;
 				/* get type, and possibly a start and end frame */
 				short startFrame = soundact->sta, stopFrame = soundact->end;
-				KX_SoundActuator::KX_SOUNDACT_TYPE 
+				KX_SoundActuator::KX_SOUNDACT_TYPE
 					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_NODEF;
-				
+
 				switch(soundact->type) {
 				case ACT_SND_PLAY_STOP_SOUND:
 					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_PLAYSTOP;
@@ -370,28 +372,30 @@ void BL_ConvertActuators(char* maggiename,
 				case ACT_SND_LOOP_BIDIRECTIONAL_STOP_SOUND:
 					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP;
 					break;
-					
+
 				default:
 					/* This is an error!!! */
 					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_NODEF;
 				}
-				
-				if (soundActuatorType != KX_SoundActuator::KX_SOUNDACT_NODEF) 
+
+				if (soundActuatorType != KX_SoundActuator::KX_SOUNDACT_NODEF)
 				{
-					SND_Scene* soundscene = scene->GetSoundScene();
+// AUD_XXX					SND_Scene* soundscene = scene->GetSoundScene();
 					STR_String samplename = "";
 					bool sampleisloaded = false;
-					
+
+// AUD_XXX
+#if 0
 					if (soundact->sound) {
 						/* Need to convert the samplename into absolute path
 						 * before checking if its loaded */
 						char fullpath[FILE_MAX];
-						
+
 						/* dont modify soundact->sound->name, only change a copy */
 						BLI_strncpy(fullpath, soundact->sound->name, sizeof(fullpath));
 						BLI_convertstringcode(fullpath, maggiename);
 						samplename = fullpath;
-						
+
 						/* let's see if the sample was already loaded */
 						if (soundscene->IsSampleLoaded(samplename))
 						{
@@ -400,7 +404,7 @@ void BL_ConvertActuators(char* maggiename,
 						else {
 							/* if not, make it so */
 							PackedFile* pf = soundact->sound->newpackedfile;
-							
+
 							/* but we need a packed file then */
 							if (pf)
 							{
@@ -425,10 +429,11 @@ void BL_ConvertActuators(char* maggiename,
 										"\" from object \"" <<  blenderobject->id.name+2 <<
 										"\" has no sound datablock." << std::endl;
 					}
-					
+
 					/* Note, allowing actuators for sounds that are not there was added since 2.47
 					 * This is because python may expect the actuator and raise an exception if it dosnt find it
 					 * better just to add a dummy sound actuator. */
+
 					SND_SoundObject* sndobj = NULL;
 					if (sampleisloaded)
 					{
@@ -452,12 +457,12 @@ void BL_ConvertActuators(char* maggiename,
 							else {
 								sndobj->SetLoopMode(SND_LOOP_OFF);
 							}
-							
+
 							if (soundact->sound->flags & SOUND_FLAGS_PRIORITY)
 								sndobj->SetHighPriority(true);
 							else
 								sndobj->SetHighPriority(false);
-							
+
 							if (soundact->sound->flags & SOUND_FLAGS_3D)
 								sndobj->Set3D(true);
 							else
@@ -474,18 +479,48 @@ void BL_ConvertActuators(char* maggiename,
 							sndobj->Set3D(false);
 						}
 					}
-					KX_SoundActuator* tmpsoundact = 
-						new KX_SoundActuator(gameobj, 
-						sndobj,
-						scene->GetSoundScene(), // needed for replication!
+#else
+					AUD_Sound* sound = NULL;
+					if (soundact->sound) {
+						/* Need to convert the samplename into absolute path
+						 * before checking if its loaded */
+						char fullpath[FILE_MAX];
+
+						/* dont modify soundact->sound->name, only change a copy */
+						BLI_strncpy(fullpath, soundact->sound->name, sizeof(fullpath));
+						BLI_convertstringcode(fullpath, maggiename);
+						samplename = fullpath;
+
+						/* load sound */
+						PackedFile* pf = soundact->sound->newpackedfile;
+
+						/* but we need a packed file then */
+						if (pf)
+							sound = AUD_loadBuffer((unsigned char*) pf->data, pf->size);
+						/* or else load it from disk */
+						else
+							sound = AUD_load(samplename);
+					}
+					if(!sound)
+					{
+						std::cout <<	"WARNING: Sound actuator \"" << bact->name <<
+										"\" from object \"" <<  blenderobject->id.name+2 <<
+										"\" has no sound datablock." << std::endl;
+					}
+#endif
+					KX_SoundActuator* tmpsoundact =
+						new KX_SoundActuator(gameobj,
+						sound,
+// AUD_XXX						sndobj,
+// AUD_XXX						scene->GetSoundScene(), // needed for replication!
 						soundActuatorType,
 						startFrame,
 						stopFrame);
-					
+
 					tmpsoundact->SetName(bact->name);
 					baseact = tmpsoundact;
-					if (sndobj)
-						soundscene->AddObject(sndobj);
+// AUD_XXX					if (sndobj)
+// AUD_XXX						soundscene->AddObject(sndobj);
 				}
 				break;
 			}
@@ -494,9 +529,9 @@ void BL_ConvertActuators(char* maggiename,
 				bCDActuator* cdact = (bCDActuator*) bact->data;
 				/* get type, and possibly a start and end frame */
 				short startFrame = cdact->sta, stopFrame = cdact->end;
-				KX_CDActuator::KX_CDACT_TYPE 
+				KX_CDActuator::KX_CDACT_TYPE
 					cdActuatorType = KX_CDActuator::KX_CDACT_NODEF;
-				
+
 				switch(cdact->type)
 				{
 				case ACT_CD_PLAY_ALL:
@@ -520,31 +555,34 @@ void BL_ConvertActuators(char* maggiename,
 				case ACT_CD_RESUME:
 					cdActuatorType = KX_CDActuator::KX_CDACT_RESUME;
 					break;
-					
+
 				default:
 					/* This is an error!!! */
 					cdActuatorType = KX_CDActuator::KX_CDACT_NODEF;
 				}
-				
-				if (cdActuatorType != KX_CDActuator::KX_CDACT_NODEF) 
+
+				if (cdActuatorType != KX_CDActuator::KX_CDACT_NODEF)
 				{
+// AUD_XXX
+#if 0
 					SND_CDObject* pCD = SND_CDObject::Instance();
-					
+
 					if (pCD)
 					{
 						pCD->SetGain(cdact->volume);
-						
-						KX_CDActuator* tmpcdact = 
-							new KX_CDActuator(gameobj, 
+
+						KX_CDActuator* tmpcdact =
+							new KX_CDActuator(gameobj,
 							scene->GetSoundScene(), // needed for replication!
 							cdActuatorType,
 							cdact->track,
 							startFrame,
 							stopFrame);
-						
+
 						tmpcdact->SetName(bact->name);
 						baseact = tmpcdact;
 					}
+#endif
 				}
 				break;
 			}
@@ -552,7 +590,7 @@ void BL_ConvertActuators(char* maggiename,
 			{
 				bPropertyActuator* propact = (bPropertyActuator*) bact->data;
 				SCA_IObject* destinationObj = NULL;
-				
+
 				/*
 				here the destinationobject is searched. problem with multiple scenes: other scenes
 				have not been converted yet, so the destobj will not be found, so the prop will
@@ -563,7 +601,7 @@ void BL_ConvertActuators(char* maggiename,
 				*/
 				if (propact->ob)
 					destinationObj = converter->FindGameObject(propact->ob);
-				
+
 				SCA_PropertyActuator* tmppropact = new SCA_PropertyActuator(
 					gameobj,
 					destinationObj,
@@ -576,16 +614,16 @@ void BL_ConvertActuators(char* maggiename,
 			}
 		case ACT_EDIT_OBJECT:
 			{
-				bEditObjectActuator *editobact 
+				bEditObjectActuator *editobact
 					= (bEditObjectActuator *) bact->data;
 				/* There are four different kinds of 'edit object' thingies  */
 				/* The alternative to this lengthy conversion is packing     */
 				/* several actuators in one, which is not very nice design.. */
 				switch (editobact->type) {
-				case ACT_EDOB_ADD_OBJECT: 
+				case ACT_EDOB_ADD_OBJECT:
 					{
-						
-						// does the 'original' for replication exists, and 
+
+						// does the 'original' for replication exists, and
 						// is it in a non-active layer ?
 						SCA_IObject* originalval = NULL;
 						if (editobact->ob)
@@ -598,10 +636,10 @@ void BL_ConvertActuators(char* maggiename,
 								originalval = converter->FindGameObject(editobact->ob);
 							}
 						}
-						
-						KX_SCA_AddObjectActuator* tmpaddact = 
+
+						KX_SCA_AddObjectActuator* tmpaddact =
 							new KX_SCA_AddObjectActuator(
-								gameobj, 
+								gameobj,
 								originalval,
 								editobact->time,
 								scene,
@@ -610,14 +648,14 @@ void BL_ConvertActuators(char* maggiename,
 								editobact->angVelocity,
 								(editobact->localflag & ACT_EDOB_LOCAL_ANGV)!=0
 								);
-								
+
 								//editobact->ob to gameobj
 								baseact = tmpaddact;
 					}
 					break;
 				case ACT_EDOB_END_OBJECT:
 					{
-						KX_SCA_EndObjectActuator* tmpendact 
+						KX_SCA_EndObjectActuator* tmpendact
 							= new KX_SCA_EndObjectActuator(gameobj,scene);
 						baseact = tmpendact;
 					}
@@ -640,7 +678,7 @@ void BL_ConvertActuators(char* maggiename,
 								tmpmesh,
 								scene
 								);
-							
+
 							baseact = tmpreplaceact;
 					}
 					break;
@@ -649,9 +687,9 @@ void BL_ConvertActuators(char* maggiename,
 						SCA_IObject* originalval = NULL;
 						if (editobact->ob)
 							originalval = converter->FindGameObject(editobact->ob);
-							
-						KX_TrackToActuator* tmptrackact 
-							= new KX_TrackToActuator(gameobj, 
+
+						KX_TrackToActuator* tmptrackact
+							= new KX_TrackToActuator(gameobj,
 								originalval,
 								editobact->time,
 								editobact->flag,
@@ -663,8 +701,8 @@ void BL_ConvertActuators(char* maggiename,
 					}
 				case ACT_EDOB_DYNAMICS:
 					{
-						KX_SCA_DynamicActuator* tmpdynact 
-							= new KX_SCA_DynamicActuator(gameobj, 
+						KX_SCA_DynamicActuator* tmpdynact
+							= new KX_SCA_DynamicActuator(gameobj,
 								editobact->dyn_operation,
 								editobact->mass
 								);
@@ -678,10 +716,10 @@ void BL_ConvertActuators(char* maggiename,
 				float min = 0.0, max = 0.0;
 				char *prop = NULL;
 				KX_ConstraintActuator::KX_CONSTRAINTTYPE locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_NODEF;
-				bConstraintActuator *conact 
+				bConstraintActuator *conact
 					= (bConstraintActuator*) bact->data;
-				/* convert settings... degrees in the ui become radians  */ 
-				/* internally                                            */ 
+				/* convert settings... degrees in the ui become radians  */
+				/* internally                                            */
 				if (conact->type == ACT_CONST_TYPE_ORI) {
 					min = (MT_2_PI * conact->minloc[0])/360.0;
 					max = (MT_2_PI * conact->maxloc[0])/360.0;
@@ -767,12 +805,12 @@ void BL_ConvertActuators(char* maggiename,
 				} else {
 					switch (conact->flag) {
 					case ACT_CONST_LOCX:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCX; 
+						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCX;
 						min = conact->minloc[0];
 						max = conact->maxloc[0];
 						break;
 					case ACT_CONST_LOCY:
-						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCY; 
+						locrot = KX_ConstraintActuator::KX_ACT_CONSTRAINT_LOCY;
 						min = conact->minloc[1];
 						max = conact->maxloc[1];
 						break;
@@ -797,10 +835,10 @@ void BL_ConvertActuators(char* maggiename,
 						max = MT_2_PI * conact->maxrot[2] / 360.0;
 						break;
 					default:
-						; /* error */ 
+						; /* error */
 					}
 				}
-				KX_ConstraintActuator *tmpconact 
+				KX_ConstraintActuator *tmpconact
 					= new KX_ConstraintActuator(gameobj,
 						conact->damp,
 						conact->rotdamp,
@@ -823,7 +861,7 @@ void BL_ConvertActuators(char* maggiename,
 			{
 				bSceneActuator *sceneact = (bSceneActuator *) bact->data;
 				STR_String nextSceneName("");
-				
+
 				KX_SceneActuator* tmpsceneact;
 				int mode = KX_SceneActuator::KX_SCENE_NODEF;
 				KX_Camera *cam = NULL;
@@ -859,12 +897,12 @@ void BL_ConvertActuators(char* maggiename,
 							mode = KX_SceneActuator::KX_SCENE_SET_SCENE;
 							break;
 						};
-						
+
 						if (sceneact->scene)
 						{
 							nextSceneName = sceneact->scene->id.name + 2; // this '2' is necessary to remove prefix 'SC'
 						}
-						
+
 						break;
 					}
 				case ACT_SCENE_CAMERA:
@@ -876,7 +914,7 @@ void BL_ConvertActuators(char* maggiename,
 					break;
 				case ACT_SCENE_RESTART:
 					{
-						
+
 						mode =  KX_SceneActuator::KX_SCENE_RESTART;
 						break;
 					}
@@ -950,21 +988,21 @@ void BL_ConvertActuators(char* maggiename,
 			}
 		case ACT_RANDOM:
 			{
-				bRandomActuator *randAct 
+				bRandomActuator *randAct
 					= (bRandomActuator *) bact->data;
-				
+
 				unsigned long seedArg = randAct->seed;
 				if (seedArg == 0)
 				{
 					seedArg = (int)(ketsjiEngine->GetRealTime()*100000.0);
 					seedArg ^= (intptr_t)randAct;
 				}
-				SCA_RandomActuator::KX_RANDOMACT_MODE modeArg 
+				SCA_RandomActuator::KX_RANDOMACT_MODE modeArg
 					= SCA_RandomActuator::KX_RANDOMACT_NODEF;
 				SCA_RandomActuator *tmprandomact;
 				float paraArg1 = 0.0;
 				float paraArg2 = 0.0;
-				
+
 				switch  (randAct->distribution) {
 				case ACT_RANDOM_BOOL_CONST:
 					modeArg = SCA_RandomActuator::KX_RANDOMACT_BOOL_CONST;
@@ -1009,11 +1047,11 @@ void BL_ConvertActuators(char* maggiename,
 					modeArg = SCA_RandomActuator::KX_RANDOMACT_FLOAT_NEGATIVE_EXPONENTIAL;
 					break;
 				default:
-					; /* error */				
+					; /* error */
 				}
 				tmprandomact = new SCA_RandomActuator(gameobj,
 					seedArg,
-					modeArg, 
+					modeArg,
 					paraArg1,
 					paraArg2,
 					randAct->propname);
@@ -1030,7 +1068,7 @@ void BL_ConvertActuators(char* maggiename,
 			bool recursive = ((vis_act->flag & ACT_VISIBILITY_RECURSIVE) != 0);
 
 			tmp_vis_act = new KX_VisibilityActuator(gameobj, !v, o, recursive);
-			
+
 			baseact = tmp_vis_act;
 		}
 		break;
@@ -1040,9 +1078,9 @@ void BL_ConvertActuators(char* maggiename,
 			bStateActuator *sta_act = (bStateActuator *) bact->data;
 			KX_StateActuator * tmp_sta_act = NULL;
 
-			tmp_sta_act = 
+			tmp_sta_act =
 				new KX_StateActuator(gameobj, sta_act->type, sta_act->mask);
-			
+
 			baseact = tmp_sta_act;
 		}
 		break;
@@ -1050,7 +1088,7 @@ void BL_ConvertActuators(char* maggiename,
 		case ACT_2DFILTER:
 		{
 			bTwoDFilterActuator *_2dfilter = (bTwoDFilterActuator*) bact->data;
-            SCA_2DFilterActuator *tmp = NULL;
+			SCA_2DFilterActuator *tmp = NULL;
 
 			RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode;
 			switch(_2dfilter->type)
@@ -1104,7 +1142,7 @@ void BL_ConvertActuators(char* maggiename,
 					filtermode = RAS_2DFilterManager::RAS_2DFILTER_NOFILTER;
 					break;
 			}
-            
+
 			tmp = new SCA_2DFilterActuator(gameobj, filtermode, _2dfilter->flag,
 				_2dfilter->float_arg,_2dfilter->int_arg,ketsjiEngine->GetRasterizer(),rendertools);
 
@@ -1120,8 +1158,8 @@ void BL_ConvertActuators(char* maggiename,
 				}
 			}
 
-            baseact = tmp;
-			
+			baseact = tmp;
+
 		}
 		break;
 		case ACT_PARENT:
@@ -1145,7 +1183,7 @@ void BL_ConvertActuators(char* maggiename,
 						tmpgob = NULL;
 						break;
 				}
-	
+
 				KX_ParentActuator *tmpparact
 					= new KX_ParentActuator(gameobj,
 					mode,
@@ -1155,11 +1193,11 @@ void BL_ConvertActuators(char* maggiename,
 				baseact = tmpparact;
 				break;
 			}
-		
+
 		default:
 			; /* generate some error */
 		}
-		
+
 		if (baseact)
 		{
 			baseact->SetExecutePriority(executePriority++);
@@ -1171,12 +1209,12 @@ void BL_ConvertActuators(char* maggiename,
 			baseact->SetName(bact->name);
 			//gameobj->SetProperty(uniquename,baseact);
 			gameobj->AddActuator(baseact);
-			
+
 			converter->RegisterGameActuator(baseact, bact);
 			// done with baseact, release it
 			baseact->Release();
 		}
-		
+
 		bact = bact->next;
 	}
 }

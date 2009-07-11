@@ -63,8 +63,9 @@ class SCA_TimeEventManager;
 class SCA_MouseManager;
 class SCA_ISystem;
 class SCA_IInputDevice;
-class SND_Scene;
-class SND_IAudioDevice;
+// AUD_XXX
+//class SND_Scene;
+//class SND_IAudioDevice;
 class NG_NetworkDeviceInterface;
 class NG_NetworkScene;
 class SG_IObject;
@@ -104,7 +105,7 @@ protected:
 
 	/**
 	 * The list of objects which have been removed during the
-	 * course of one frame. They are actually destroyed in 
+	 * course of one frame. They are actually destroyed in
 	 * LogicEndFrame() via a call to RemoveObject().
 	 */
 	CListValue*	m_euthanasyobjects;
@@ -113,7 +114,7 @@ protected:
 	CListValue*			m_parentlist; // all 'root' parents
 	CListValue*			m_lightlist;
 	CListValue*			m_inactivelist;	// all objects that are not in the active layer
-	
+
 	SG_QList			m_sghead;		// list of nodes that needs scenegraph update
 										// the Dlist is not object that must be updated
 										// the Qlist is for objects that needs to be rescheduled
@@ -154,7 +155,7 @@ protected:
 	 * The name of the scene
 	 */
 	STR_String	m_sceneName;
-	
+
 	/**
 	 * stores the worldsettings for a scene
 	 */
@@ -168,10 +169,10 @@ protected:
 	/**
 	 * Sound scenes
 	 */
-	SND_Scene* m_soundScene;
-	SND_IAudioDevice* m_adi;
+// AUD_XXX	SND_Scene* m_soundScene;
+// AUD_XXX	SND_IAudioDevice* m_adi;
 
-	/** 
+	/**
 	 * Network scene.
 	 */
 	NG_NetworkDeviceInterface*	m_networkDeviceInterface;
@@ -198,23 +199,23 @@ protected:
 
 	/**
 	 * Another temporary variable outstaying its welcome
-	 * used in AddReplicaObject to keep a record of all added 
-	 * objects. Logic can only be updated when all objects 
+	 * used in AddReplicaObject to keep a record of all added
+	 * objects. Logic can only be updated when all objects
 	 * have been updated. This stores a list of the new objects.
 	 */
 	std::vector<KX_GameObject*>	m_logicHierarchicalGameObjects;
-	
+
 	/**
-	 * This temporary variable will contain the list of 
+	 * This temporary variable will contain the list of
 	 * object that can be added during group instantiation.
-	 * objects outside this list will not be added (can 
+	 * objects outside this list will not be added (can
 	 * happen with children that are outside the group).
 	 * Used in AddReplicaObject. If the list is empty, it
 	 * means don't care.
 	 */
 	std::set<CValue*>	m_groupGameObjects;
-	
-	/** 
+
+	/**
 	 * Pointer to system variable passed in in constructor
 	 * only used in constructor so we do not need to keep it
 	 * around in this class.
@@ -224,7 +225,7 @@ protected:
 
 	/**
 	 * The execution priority of replicated object actuators?
-	 */	
+	 */
 	int	m_ueberExecutionPriority;
 
 	/**
@@ -242,15 +243,15 @@ protected:
 	 * Toggle to enable or disable activity culling.
 	 */
 	bool m_activity_culling;
-	
+
 	/**
 	 * Toggle to enable or disable culling via DBVT broadphase of Bullet.
 	 */
 	bool m_dbvt_culling;
-	
+
 	/**
 	 * Occlusion culling resolution
-	 */ 
+	 */
 	int m_dbvt_occlusion_res;
 
 	/**
@@ -259,12 +260,12 @@ protected:
 
 	RAS_FrameSettings m_frame_settings;
 
-	/** 
+	/**
 	 * This scenes viewport into the game engine
 	 * canvas.Maintained externally, initially [0,0] -> [0,0]
 	 */
 	RAS_Rect m_viewport;
-	
+
 	/**
 	 * Visibility testing functions.
 	 */
@@ -275,7 +276,7 @@ protected:
 
 	double				m_suspendedtime;
 	double				m_suspendeddelta;
-	
+
 	/**
 	 * This stores anything from python
 	 */
@@ -287,11 +288,11 @@ public:
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		class SCA_IInputDevice* mousedevice,
 		class NG_NetworkDeviceInterface* ndi,
-		class SND_IAudioDevice* adi,
+// AUD_XXX		class SND_IAudioDevice* adi,
 		const STR_String& scenename,
 		struct Scene* scene);
 
-	virtual	
+	virtual
 	~KX_Scene();
 
 	RAS_BucketManager* GetBucketManager();
@@ -307,8 +308,8 @@ public:
 	void UpdateParents(double curtime);
 	void DupliGroupRecurse(CValue* gameobj, int level);
 	bool IsObjectInGroup(CValue* gameobj)
-	{ 
-		return (m_groupGameObjects.empty() || 
+	{
+		return (m_groupGameObjects.empty() ||
 				m_groupGameObjects.find(gameobj) != m_groupGameObjects.end());
 	}
 	SCA_IObject* AddReplicaObject(CValue* gameobj,
@@ -320,7 +321,7 @@ public:
 								  CValue* gameobj);
 	void RemoveObject(CValue* gameobj);
 	void DelayedRemoveObject(CValue* gameobj);
-	
+
 	int NewRemoveObject(CValue* gameobj);
 	void ReplaceMesh(CValue* gameobj,
 					 void* meshobj);
@@ -331,68 +332,68 @@ public:
 	void LogicBeginFrame(double curtime);
 	void LogicUpdateFrame(double curtime, bool frame);
 
-		void						
+		void
 	LogicEndFrame(
 	);
 
-		CListValue*				
+		CListValue*
 	GetObjectList(
 	);
 
-		CListValue*				
+		CListValue*
 	GetInactiveList(
 	);
 
-		CListValue*				
+		CListValue*
 	GetRootParentList(
 	);
 
-		CListValue*				
+		CListValue*
 	GetLightList(
 	);
 
-		SCA_LogicManager*		
+		SCA_LogicManager*
 	GetLogicManager(
 	);
 
-		SCA_TimeEventManager*	
+		SCA_TimeEventManager*
 	GetTimeEventManager(
 	);
 
 		list<class KX_Camera*>*
 	GetCameras(
 	);
- 
+
 
 	/** Find a camera in the scene by pointer. */
-		KX_Camera*              
+		KX_Camera*
 	FindCamera(
 		KX_Camera*
 	);
 
 	/** Find a scene in the scene by name. */
-		KX_Camera*              
+		KX_Camera*
 	FindCamera(
 		STR_String&
 	);
 
 	/** Add a camera to this scene. */
-		void                    
+		void
 	AddCamera(
 		KX_Camera*
 	);
 
 	/** Find the currently active camera. */
-		KX_Camera*				
+		KX_Camera*
 	GetActiveCamera(
 	);
 
-	/** 
+	/**
 	 * Set this camera to be the active camera in the scene. If the
 	 * camera is not present in the camera list, it will be added
 	 */
 
-		void					
+		void
 	SetActiveCamera(
 		class KX_Camera*
 	);
@@ -410,7 +411,7 @@ public:
 	 * Activates new desired canvas width set at design time.
 	 * @param width	The new desired width.
 	 */
-		void					
+		void
 	SetCanvasDesignWidth(
 		unsigned int width
 	);
@@ -418,7 +419,7 @@ public:
 	 * Activates new desired canvas height set at design time.
 	 * @param width	The new desired height.
 	 */
-		void					
+		void
 	SetCanvasDesignHeight(
 		unsigned int height
 	);
@@ -426,7 +427,7 @@ public:
 	 * Returns the current desired canvas width set at design time.
 	 * @return The desired width.
 	 */
-		unsigned int			
+		unsigned int
 	GetCanvasDesignWidth(
 		void
 	) const;
@@ -435,7 +436,7 @@ public:
 	 * Returns the current desired canvas height set at design time.
 	 * @return The desired height.
 	 */
-		unsigned int			
+		unsigned int
 	GetCanvasDesignHeight(
 		void
 	) const;
@@ -450,7 +451,7 @@ public:
 	);
 
 	/**
-	 * Return a const reference to the framing 
+	 * Return a const reference to the framing
 	 * type set by the above call.
 	 * The contents are not guarenteed to be sensible
 	 * if you don't call the above function.
@@ -462,18 +463,18 @@ public:
 	) const;
 
 	/**
-	 * Store the current scene's viewport on the 
+	 * Store the current scene's viewport on the
 	 * game engine canvas.
 	 */
 	void SetSceneViewport(const RAS_Rect &viewport);
 
 	/**
 	 * Get the current scene's viewport on the
-	 * game engine canvas. This maintained 
+	 * game engine canvas. This maintained
 	 * externally in KX_GameEngine
 	 */
 	const RAS_Rect& GetSceneViewport() const;
-	
+
 	/**
 	 * @section Accessors to different scenes of this scene
 	 */
@@ -484,7 +485,7 @@ public:
 	void CalculateVisibleMeshes(RAS_IRasterizer* rasty, KX_Camera *cam, int layer=0);
 	void UpdateMeshTransformations();
 	KX_Camera* GetpCamera();
-	SND_Scene* GetSoundScene();
+// AUD_XXX	SND_Scene* GetSoundScene();
 	NG_NetworkDeviceInterface* GetNetworkDeviceInterface();
 	NG_NetworkScene* GetNetworkScene();
 
@@ -496,13 +497,13 @@ public:
 	static SG_Callbacks	m_callbacks;
 
 	const STR_String& GetName();
-	
+
 	// Suspend the entire scene.
 	void Suspend();
 
 	// Resume a suspended scene.
 	void Resume();
-	
+
 	// Update the activity box settings for objects in this scene, if needed.
 	void UpdateObjectActivity(void);
 
@@ -519,7 +520,7 @@ public:
 	bool GetDbvtCulling() { return m_dbvt_culling; };
 	void SetDbvtOcclusionRes(int i) { m_dbvt_occlusion_res = i; };
 	int GetDbvtOcclusionRes() { return m_dbvt_occlusion_res; };
-	
+
 	void SetSceneConverter(class KX_BlenderSceneConverter* sceneConverter);
 
 	class PHY_IPhysicsEnvironment*		GetPhysicsEnvironment()
@@ -530,7 +531,7 @@ public:
 	void SetPhysicsEnvironment(class PHY_IPhysicsEnvironment*	physEnv);
 
 	void	SetGravity(const MT_Vector3& gravity);
-	
+
 	/**
 	 * Sets the node tree for this scene.
 	 */
@@ -540,16 +541,16 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_Scene, getObjectList);
 	KX_PYMETHOD_DOC_NOARGS(KX_Scene, getName);
 	KX_PYMETHOD_DOC(KX_Scene, addObject);
-/*	
+/*
 	KX_PYMETHOD_DOC(KX_Scene, getActiveCamera);
 	KX_PYMETHOD_DOC(KX_Scene, getActiveCamera);
 	KX_PYMETHOD_DOC(KX_Scene, findCamera);
-	
+
 	KX_PYMETHOD_DOC(KX_Scene, getGravity);
-	
+
 	KX_PYMETHOD_DOC(KX_Scene, setActivityCulling);
 	KX_PYMETHOD_DOC(KX_Scene, setActivityCullingRadius);
-	
+
 	KX_PYMETHOD_DOC(KX_Scene, setSceneViewport);
 	KX_PYMETHOD_DOC(KX_Scene, setSceneViewport);
 	*/
@@ -564,19 +565,19 @@ public:
 	static int			pyattr_set_active_camera(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	virtual PyObject* py_repr(void) { return PyUnicode_FromString(GetName().ReadPtr()); }
-		
+
 	/**
 	 * Sets the time the scene was suspended
-	 */ 
+	 */
 	void setSuspendedTime(double suspendedtime);
 	/**
 	 * Returns the "curtime" the scene was suspended
-	 */ 
+	 */
 	double getSuspendedTime();
 	/**
 	 * Sets the difference between the local time of the scene (when it
 	 * was running and not suspended) and the "curtime"
-	 */ 
+	 */
 	void setSuspendedDelta(double suspendeddelta);
 	/**
 	 * Returns the difference between the local time of the scene (when it

@@ -39,7 +39,17 @@ private:
 	/**
 	 * The filename of the sound source file.
 	 */
-	const char* m_filename;
+	char* m_filename;
+
+	/**
+	 * The buffer to read from.
+	 */
+	unsigned char* m_buffer;
+
+	/**
+	 * The size of the buffer.
+	 */
+	int m_size;
 
 public:
 	/**
@@ -47,6 +57,18 @@ public:
 	 * \param filename The sound file path.
 	 */
 	AUD_FFMPEGFactory(const char* filename);
+
+	/**
+	 * Creates a new factory.
+	 * \param buffer The buffer to read from.
+	 * \param size The size of the buffer.
+	 */
+	AUD_FFMPEGFactory(unsigned char* buffer, int size);
+
+	/**
+	 * Destroys the factory.
+	 */
+	~AUD_FFMPEGFactory();
 
 	virtual AUD_IReader* createReader();
 };

@@ -27,16 +27,43 @@
 #include "AUD_FFMPEGReader.h"
 #include "AUD_Space.h"
 
+extern "C" {
+#include <libavformat/avformat.h>
+}
+
 AUD_FFMPEGFactory::AUD_FFMPEGFactory(const char* filename)
 {
-	m_filename = filename;
+	m_filename = new char[strlen(filename)+1];
+	strcpy(m_filename, filename);
+	m_buffer = 0;
+	m_size = 0;
+}
+
+AUD_FFMPEGFactory::AUD_FFMPEGFactory(unsigned char* buffer, int size)
+{
+	m_filename = 0;
+	m_buffer = (unsigned char*)av_malloc(size);
+	m_size = size;
+	memcpy(m_buffer, buffer, size);
+}
+
+AUD_FFMPEGFactory::~AUD_FFMPEGFactory()
+{
+	if(m_filename)
+		delete[] m_filename;
+	if(m_buffer)
+		av_free(m_buffer);
 }
 
 AUD_IReader* AUD_FFMPEGFactory::createReader()
 {
 	try
 	{
-		AUD_IReader* reader = new AUD_FFMPEGReader(m_filename);
+		AUD_IReader* reader;
+		if(m_filename)
+			reader = new AUD_FFMPEGReader(m_filename);
+		else
+			reader = new AUD_FFMPEGReader(m_buffer, m_size);
 		AUD_NEW("reader")
 		return reader;
 	}

@@ -23,8 +23,6 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
-//#define AUD_CAPI_IMPLEMENTATION
-//#include "AUD_C-API.h"
 #include "AUD_FFMPEGFactory.h"
 #include "AUD_SDLDevice.h"
 
@@ -35,9 +33,12 @@ extern "C" {
 
 typedef AUD_IFactory AUD_Sound;
 
+#define AUD_CAPI_IMPLEMENTATION
+#include "AUD_C-API.h"
+
 static AUD_IDevice* AUD_device = NULL;
 
-bool AUD_init()
+int AUD_init()
 {
 	av_register_all();
 	try
@@ -63,6 +64,12 @@ AUD_Sound* AUD_load(const char* filename)
 	return new AUD_FFMPEGFactory(filename);
 }
 
+AUD_Sound* AUD_loadBuffer(unsigned char* buffer, int size)
+{
+	assert(buffer);
+	return new AUD_FFMPEGFactory(buffer, size);
+}
+
 void AUD_unload(AUD_Sound* sound)
 {
 	assert(sound);
@@ -86,32 +93,32 @@ AUD_Handle* AUD_play(AUD_Sound* sound,
 	}
 }
 
-bool AUD_pause(AUD_Handle* handle)
+int AUD_pause(AUD_Handle* handle)
 {
 	assert(AUD_device);
 	return AUD_device->pause(handle);
 }
 
-bool AUD_resume(AUD_Handle* handle)
+int AUD_resume(AUD_Handle* handle)
 {
 	assert(AUD_device);
 	return AUD_device->resume(handle);
 }
 
-bool AUD_stop(AUD_Handle* handle)
+int AUD_stop(AUD_Handle* handle)
 {
 	assert(AUD_device);
 	return AUD_device->stop(handle);
 }
 
-bool AUD_setEndBehaviour(AUD_Handle* handle,
+int AUD_setEndBehaviour(AUD_Handle* handle,
 						 AUD_EndBehaviour endBehaviour)
 {
 	assert(AUD_device);
 	return AUD_device->setEndBehaviour(handle, endBehaviour);
 }
 
-bool AUD_seek(AUD_Handle* handle, double seekTo)
+int AUD_seek(AUD_Handle* handle, double seekTo)
 {
 	assert(AUD_device);
 	int position = (int)(seekTo * AUD_device->getSpecs().rate);

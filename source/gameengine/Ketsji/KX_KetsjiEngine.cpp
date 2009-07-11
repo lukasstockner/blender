@@ -25,7 +25,7 @@
  * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
- * The engine ties all game modules together. 
+ * The engine ties all game modules together.
  */
 
 #ifdef WIN32
@@ -61,8 +61,9 @@
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 
-#include "SND_Scene.h"
-#include "SND_IAudioDevice.h"
+// AUD_XXX
+//#include "SND_Scene.h"
+//#include "SND_IAudioDevice.h"
 
 #include "NG_NetworkScene.h"
 #include "NG_NetworkDeviceInterface.h"
@@ -107,13 +108,13 @@ double KX_KetsjiEngine::m_average_framerate = 0.0;
  *	Constructor of the Ketsji Engine
  */
 KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
-     :	m_canvas(NULL),
+	 :	m_canvas(NULL),
 	m_rasterizer(NULL),
 	m_kxsystem(system),
 	m_rendertools(NULL),
 	m_sceneconverter(NULL),
 	m_networkdevice(NULL),
-	m_audiodevice(NULL),
+// AUD_XXX	m_audiodevice(NULL),
 	m_pythondictionary(NULL),
 	m_keyboarddevice(NULL),
 	m_mousedevice(NULL),
@@ -123,9 +124,9 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_bInitialized(false),
 	m_activecam(0),
 	m_bFixedTime(false),
-	
+
 	m_firstframe(true),
-	
+
 	m_frameTime(0.f),
 	m_clockTime(0.f),
 	m_previousClockTime(0.f),
@@ -133,10 +134,10 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 
 	m_exitcode(KX_EXIT_REQUEST_NO_REQUEST),
 	m_exitstring(""),
-	
+
 	m_drawingmode(5),
 	m_cameraZoom(1.0),
-	
+
 	m_overrideCam(false),
 	m_overrideCamUseOrtho(false),
 	m_overrideCamNear(0.0),
@@ -146,7 +147,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_curreye(0),
 
 	m_logger(NULL),
-	
+
 	// Set up timing info display variables
 	m_show_framerate(false),
 	m_show_profile(false),
@@ -171,7 +172,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 
 	for (int i = tc_first; i < tc_numCategories; i++)
 		m_logger->AddCategory((KX_TimeCategory)i);
-		
+
 }
 
 
@@ -211,12 +212,14 @@ void KX_KetsjiEngine::SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice)
 }
 
 
-
+// AUD_XXX
+#if 0
 void KX_KetsjiEngine::SetAudioDevice(SND_IAudioDevice* audiodevice)
 {
 	MT_assert(audiodevice);
 	m_audiodevice = audiodevice;
 }
+#endif
 
 
 
@@ -271,7 +274,7 @@ void KX_KetsjiEngine::RenderDome()
 {
 	GLuint	viewport[4]={0};
 	glGetIntegerv(GL_VIEWPORT,(GLint *)viewport);
-	
+
 	m_dome->SetViewPort(viewport);
 
 	KX_Scene* firstscene = *m_scenes.begin();
@@ -317,15 +320,15 @@ void KX_KetsjiEngine::RenderDome()
 			{
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
-		
+
 				m_rendertools->SetAuxilaryClientInfo(scene);
-		
+
 				// do the rendering
 				m_dome->RenderDomeFrame(scene,cam, i);
 			}
-			
+
 			list<class KX_Camera*>* cameras = scene->GetCameras();
-			
+
 			// Draw the scene once for each camera with an enabled viewport
 			list<KX_Camera*>::iterator it = cameras->begin();
 			while(it != cameras->end())
@@ -334,18 +337,18 @@ void KX_KetsjiEngine::RenderDome()
 				{
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->ClearDepthBuffer();
-			
+
 					m_rendertools->SetAuxilaryClientInfo(scene);
-			
+
 					// do the rendering
 					m_dome->RenderDomeFrame(scene, (*it),i);
 				}
-				
+
 				it++;
 			}
 		}
 		m_dome->BindImages(i);
-	}	
+	}
 
 	m_canvas->EndFrame();//XXX do we really need that?
 
@@ -406,7 +409,7 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 		m_maxLogicFrame = 5;
 		m_maxPhysicsFrame = 5;
 	}
-	
+
 	if (m_game2ipo)
 	{
 		m_sceneconverter->ResetPhysicsObjectsAnimationIpo(clearIpo);
@@ -461,7 +464,7 @@ void KX_KetsjiEngine::ClearFrame()
 		SetBackGround(firstscene->GetWorldInfo());
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(),
-			clearvp.GetRight(), clearvp.GetTop());	
+			clearvp.GetRight(), clearvp.GetTop());
 		m_rasterizer->ClearColorBuffer();
 	}
 }
@@ -480,9 +483,9 @@ bool KX_KetsjiEngine::BeginFrame()
 
 		return true;
 	}
-	
+
 	return false;
-}		
+}
 
 
 void KX_KetsjiEngine::EndFrame()
@@ -508,7 +511,7 @@ void KX_KetsjiEngine::EndFrame()
 	m_rasterizer->SwapBuffers();
 	m_rendertools->EndFrame(m_rasterizer);
 
-	
+
 	m_canvas->EndDraw();
 }
 
@@ -535,7 +538,7 @@ else
 //	m_clockTime += dt;
 	m_clockTime = m_kxsystem->GetTimeInSeconds();
 }
-	
+
 	double deltatime = m_clockTime - m_frameTime;
 	if (deltatime<0.f)
 	{
@@ -551,20 +554,20 @@ else
 //	if (frames>1)
 //		printf("****************************************");
 //	printf("dt = %f, deltatime = %f, frames = %d\n",dt, deltatime,frames);
-	
+
 //	if (!frames)
 //		PIL_sleep_ms(1);
-	
+
 	KX_SceneList::iterator sceneit;
-	
+
 	if (frames>m_maxPhysicsFrame)
 	{
-	
+
 	//	printf("framedOut: %d\n",frames);
 		m_frameTime+=(frames-m_maxPhysicsFrame)*timestep;
 		frames = m_maxPhysicsFrame;
 	}
-	
+
 
 	bool doRender = frames>0;
 
@@ -573,18 +576,18 @@ else
 		framestep = (frames*timestep)/m_maxLogicFrame;
 		frames = m_maxLogicFrame;
 	}
-		
+
 	while (frames)
 	{
-	
+
 
 		m_frameTime += framestep;
-		
+
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
 		// for each scene, call the proceed functions
 		{
 			KX_Scene* scene = *sceneit;
-	
+
 			/* Suspension holds the physics and logic processing for an
 			* entire scene. Objects can be suspended individually, and
 			* the settings for that preceed the logic and physics
@@ -594,7 +597,7 @@ else
 			m_sceneconverter->resetNoneDynamicObjectToIpo();//this is for none dynamic objects with ipo
 
 			scene->UpdateObjectActivity();
-	
+
 			if (!scene->IsSuspended())
 			{
 				// if the scene was suspended recalcutlate the delta tu "curtime"
@@ -603,69 +606,69 @@ else
 					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
 				m_suspendeddelta = scene->getSuspendedDelta();
 
-				
+
 				m_logger->StartLog(tc_network, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_NETWORK);
 				scene->GetNetworkScene()->proceed(m_frameTime);
-	
+
 				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				//SG_SetActiveStage(SG_STAGE_NETWORK_UPDATE);
 				//scene->UpdateParents(m_frameTime);
-				
+
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS1);
 				// set Python hooks for each scene
 				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 				KX_SetActiveScene(scene);
-	
+
 				scene->GetPhysicsEnvironment()->endFrame();
-				
+
 				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.		
+				// into node positions.
 				//m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				//SG_SetActiveStage(SG_STAGE_PHYSICS1_UPDATE);
 				//scene->UpdateParents(m_frameTime);
-				
+
 				// Process sensors, and controllers
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_CONTROLLER);
 				scene->LogicBeginFrame(m_frameTime);
-	
-				// Scenegraph needs to be updated again, because Logic Controllers 
+
+				// Scenegraph needs to be updated again, because Logic Controllers
 				// can affect the local matrices.
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_CONTROLLER_UPDATE);
 				scene->UpdateParents(m_frameTime);
-	
+
 				// Process actuators
-	
+
 				// Do some cleanup work for this logic frame
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR);
 				scene->LogicUpdateFrame(m_frameTime, true);
-				
+
 				scene->LogicEndFrame();
-	
+
 				// Actuators can affect the scenegraph
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
 				scene->UpdateParents(m_frameTime);
-				
+
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->GetPhysicsEnvironment()->beginFrame();
-		
-				// Perform physics calculations on the scene. This can involve 
+
+				// Perform physics calculations on the scene. This can involve
 				// many iterations of the physics solver.
 				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_frameTime,timestep,framestep);//m_deltatimerealDeltaTime);
 
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2_UPDATE);
 				scene->UpdateParents(m_frameTime);
-			
-			
+
+
 				if (m_game2ipo)
-				{					
+				{
 					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
 				}
 
@@ -674,9 +677,9 @@ else
 			else
 				if(scene->getSuspendedTime()==0.0)
 					scene->setSuspendedTime(m_clockTime);
-	
+
 			DoSound(scene);
-			
+
 			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
 		}
 
@@ -684,26 +687,29 @@ else
 		m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 		if (m_keyboarddevice)
 			m_keyboarddevice->NextFrame();
-	
+
 		if (m_mousedevice)
 			m_mousedevice->NextFrame();
-		
+
 		if (m_networkdevice)
 			m_networkdevice->NextFrame();
-	
+
+// AUD_XXX
+#if 0
 		if (m_audiodevice)
 			m_audiodevice->NextFrame();
-	
+#endif
+
 		// scene management
 		ProcessScheduledScenes();
-		
+
 		frames--;
 	}
 
 	bool bUseAsyncLogicBricks= false;//true;
 
 	if (bUseAsyncLogicBricks)
-	{	
+	{
 		// Logic update sub frame: this will let some logic bricks run at the
 		// full frame rate.
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
@@ -718,25 +724,25 @@ else
 				if (scene->getSuspendedTime()!=0.0)
 					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
 				m_suspendeddelta = scene->getSuspendedDelta();
-				
+
 				// set Python hooks for each scene
 				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 				KX_SetActiveScene(scene);
-				
+
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS1);
 				scene->UpdateParents(m_clockTime);
 
-				// Perform physics calculations on the scene. This can involve 
+				// Perform physics calculations on the scene. This can involve
 				// many iterations of the physics solver.
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				scene->GetPhysicsEnvironment()->proceedDeltaTime(m_clockTime,timestep,timestep);
 				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.		
+				// into node positions.
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->UpdateParents(m_clockTime);
-				
+
 				// Do some cleanup work for this logic frame
 				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
 				scene->LogicUpdateFrame(m_clockTime, false);
@@ -745,12 +751,12 @@ else
 				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_ACTUATOR);
 				scene->UpdateParents(m_clockTime);
-				 
- 				scene->setSuspendedTime(0.0);
+
+				scene->setSuspendedTime(0.0);
 			} // suspended
- 			else
- 				if(scene->getSuspendedTime()==0.0)
- 					scene->setSuspendedTime(m_clockTime);
+			else
+				if(scene->getSuspendedTime()==0.0)
+					scene->setSuspendedTime(m_clockTime);
 
 			DoSound(scene);
 
@@ -760,10 +766,10 @@ else
 
 
 	m_previousClockTime = m_clockTime;
-	
+
 	// Start logging time spend outside main loop
 	m_logger->StartLog(tc_outside, m_kxsystem->GetTimeInSeconds(), true);
-	
+
 	return doRender;
 }
 
@@ -841,15 +847,15 @@ void KX_KetsjiEngine::Render()
 		{
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
-	
+
 			m_rendertools->SetAuxilaryClientInfo(scene);
-	
+
 			// do the rendering
 			RenderFrame(scene, cam);
 		}
-		
+
 		list<class KX_Camera*>* cameras = scene->GetCameras();
-		
+
 		// Draw the scene once for each camera with an enabled viewport
 		list<KX_Camera*>::iterator it = cameras->begin();
 		while(it != cameras->end())
@@ -858,13 +864,13 @@ void KX_KetsjiEngine::Render()
 			{
 				if (scene->IsClearingZBuffer())
 					m_rasterizer->ClearDepthBuffer();
-		
+
 				m_rendertools->SetAuxilaryClientInfo(scene);
-		
+
 				// do the rendering
 				RenderFrame(scene, (*it));
 			}
-			
+
 			it++;
 		}
 	}
@@ -886,7 +892,7 @@ void KX_KetsjiEngine::Render()
 
 			// pass the scene's worldsettings to the rasterizer
 			SetWorldSettings(scene->GetWorldInfo());
-		
+
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
 
@@ -897,8 +903,8 @@ void KX_KetsjiEngine::Render()
 			//RenderFrame(scene);
 			RenderFrame(scene, cam);
 
-			list<class KX_Camera*>* cameras = scene->GetCameras();			
-	
+			list<class KX_Camera*>* cameras = scene->GetCameras();
+
 			// Draw the scene once for each camera with an enabled viewport
 			list<KX_Camera*>::iterator it = cameras->begin();
 			while(it != cameras->end())
@@ -907,13 +913,13 @@ void KX_KetsjiEngine::Render()
 				{
 					if (scene->IsClearingZBuffer())
 						m_rasterizer->ClearDepthBuffer();
-			
+
 					m_rendertools->SetAuxilaryClientInfo(scene);
-			
+
 					// do the rendering
 					RenderFrame(scene, (*it));
 				}
-				
+
 				it++;
 			}
 		}
@@ -970,6 +976,8 @@ void KX_KetsjiEngine::DoSound(KX_Scene* scene)
 	MT_Vector3 listenervelocity = cam->GetLinearVelocity();
 	MT_Matrix3x3 listenerorientation = cam->NodeGetWorldOrientation();
 
+// AUD_XXX
+#if 0
 	SND_Scene* soundscene = scene->GetSoundScene();
 	soundscene->SetListenerTransform(
 		listenerposition,
@@ -977,6 +985,7 @@ void KX_KetsjiEngine::DoSound(KX_Scene* scene)
 		listenerorientation);
 
 	soundscene->Proceed();
+#endif
 }
 
 
@@ -986,7 +995,7 @@ void KX_KetsjiEngine::SetBackGround(KX_WorldInfo* wi)
 	if (wi->hasWorld())
 	{
 		if (m_drawingmode == RAS_IRasterizer::KX_TEXTURED)
-		{	
+		{
 			m_rasterizer->SetBackColor(
 				wi->getBackColorRed(),
 				wi->getBackColorGreen(),
@@ -1011,7 +1020,7 @@ void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
 		);
 
 		if (m_drawingmode >= RAS_IRasterizer::KX_SOLID)
-		{	
+		{
 			if (wi->hasMist())
 			{
 				m_rasterizer->SetFog(
@@ -1034,7 +1043,7 @@ void KX_KetsjiEngine::SetDrawType(int drawingmode)
 }
 
 
-	
+
 void KX_KetsjiEngine::EnableCameraOverride(const STR_String& forscene)
 {
 	m_overrideCam = true;
@@ -1090,7 +1099,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera* cam, RAS_Rect
 	if (cam->GetViewport()) {
 		RAS_Rect userviewport;
 
-		userviewport.SetLeft(cam->GetViewportLeft()); 
+		userviewport.SetLeft(cam->GetViewportLeft());
 		userviewport.SetBottom(cam->GetViewportBottom());
 		userviewport.SetRight(cam->GetViewportRight());
 		userviewport.SetTop(cam->GetViewportTop());
@@ -1117,7 +1126,7 @@ void KX_KetsjiEngine::GetSceneViewport(KX_Scene *scene, KX_Camera* cam, RAS_Rect
 
 		area = m_canvas->GetDisplayArea();
 	} else {
-		viewport.SetLeft(0); 
+		viewport.SetLeft(0);
 		viewport.SetBottom(0);
 		viewport.SetRight(int(m_canvas->GetWidth()));
 		viewport.SetTop(int(m_canvas->GetHeight()));
@@ -1169,7 +1178,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 		}
 	}
 }
-	
+
 // update graphics
 void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 {
@@ -1177,18 +1186,18 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	RAS_Rect viewport, area;
 	float nearfrust, farfrust, focallength;
 //	KX_Camera* cam = scene->GetActiveCamera();
-	
+
 	if (!cam)
 		return;
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// store the computed viewport in the scene
-	scene->SetSceneViewport(viewport);	
+	scene->SetSceneViewport(viewport);
 
 	// set the viewport for this frame and scene
 	m_canvas->SetViewPort(viewport.GetLeft(), viewport.GetBottom(),
-		viewport.GetRight(), viewport.GetTop());	
-	
+		viewport.GetRight(), viewport.GetTop());
+
 	// see KX_BlenderMaterial::Activate
 	//m_rasterizer->SetAmbient();
 	m_rasterizer->DisplayFog();
@@ -1262,7 +1271,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 				frustum.x1, frustum.x2, frustum.y1, frustum.y2, frustum.camnear, frustum.camfar, focallength);
 		}
 		cam->SetProjectionMatrix(projmat);
-		
+
 		// Otherwise the projection matrix for each eye will be the same...
 		if (!orthographic && m_rasterizer->Stereo())
 			cam->InvalidateProjectionMatrix();
@@ -1270,7 +1279,7 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 
 	MT_Transform camtrans(cam->GetWorldToCamera());
 	MT_Matrix4x4 viewmat(camtrans);
-	
+
 	m_rasterizer->SetViewMatrix(viewmat, cam->NodeGetWorldOrientation(), cam->NodeGetWorldPosition(), cam->GetCameraData()->m_perspective);
 	cam->SetModelviewMatrix(viewmat);
 
@@ -1288,10 +1297,10 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
 	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
-	
+
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->debugDrawWorld();
-	
+
 	m_rasterizer->FlushDebugLines();
 
 	//it's running once for every scene (i.e. overlay scenes have  it running twice). That's not the ideal.
@@ -1320,10 +1329,10 @@ void KX_KetsjiEngine::StopEngine()
 		{
 			KX_Scene* scene = *sceneit;
 			m_sceneconverter->RemoveScene(scene);
-		}	
+		}
 		m_scenes.clear();
 
-		// cleanup all the stuff		
+		// cleanup all the stuff
 		m_rasterizer->Exit();
 	}
 }
@@ -1331,7 +1340,7 @@ void KX_KetsjiEngine::StopEngine()
 // Scene Management is able to switch between scenes
 // and have several scene's running in parallel
 void KX_KetsjiEngine::AddScene(KX_Scene* scene)
-{ 
+{
 	m_scenes.push_back(scene);
 	PostProcessScene(scene);
 	SceneListsChanged();
@@ -1356,14 +1365,14 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene* scene)
 
 		activecam = new KX_Camera(scene,KX_Scene::m_callbacks,camdata);
 		activecam->SetName("__default__cam__");
-	
+
 			// set transformation
 		if (override_camera) {
 			const MT_CmMatrix4x4& cammatdata = m_overrideCamViewMat;
 			MT_Transform trans = MT_Transform(cammatdata.getPointer());
 			MT_Transform camtrans;
 			camtrans.invert(trans);
-			
+
 			activecam->NodeSetLocalPosition(camtrans.getOrigin());
 			activecam->NodeSetLocalOrientation(camtrans.getBasis());
 			activecam->NodeUpdateGS(0);
@@ -1380,7 +1389,7 @@ void KX_KetsjiEngine::PostProcessScene(KX_Scene* scene)
 		//done with activecam
 		activecam->Release();
 	}
-	
+
 	scene->UpdateParents(0.0);
 }
 
@@ -1400,36 +1409,36 @@ void KX_KetsjiEngine::RenderDebugProperties()
 	// Set viewport to entire canvas
 	RAS_Rect viewport;
 	m_canvas->SetViewPort(0, 0, int(m_canvas->GetWidth()), int(m_canvas->GetHeight()));
-	
+
 	/* Framerate display */
 	if (m_show_framerate) {
 		debugtxt.Format("swap : %.3f (%.3f frames per second)", tottime, 1.0/tottime);
-		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
+		m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
 									debugtxt.Ptr(),
 									xcoord,
-									ycoord, 
-									m_canvas->GetWidth() /* RdV, TODO ?? */, 
+									ycoord,
+									m_canvas->GetWidth() /* RdV, TODO ?? */,
 									m_canvas->GetHeight() /* RdV, TODO ?? */);
 		ycoord += 14;
 	}
 
 	/* Profile and framerate display */
 	if (m_show_profile)
-	{		
+	{
 		for (int j = tc_first; j < tc_numCategories; j++)
 		{
 			debugtxt.Format(m_profileLabels[j]);
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
+			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
 										debugtxt.Ptr(),
 										xcoord,ycoord,
-										m_canvas->GetWidth(), 
+										m_canvas->GetWidth(),
 										m_canvas->GetHeight());
 			double time = m_logger->GetAverage((KX_TimeCategory)j);
 			debugtxt.Format("%.3fms (%2.2f %%)", time*1000.f, time/tottime * 100.f);
-			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
+			m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
 										debugtxt.Ptr(),
 										xcoord + 60 ,ycoord,
-										m_canvas->GetWidth(), 
+										m_canvas->GetWidth(),
 										m_canvas->GetHeight());
 			ycoord += 14;
 		}
@@ -1444,7 +1453,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 			KX_Scene* scene = *sceneit;
 			/* the 'normal' debug props */
 			vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
-			
+
 			for (vector<SCA_DebugProp*>::iterator it = debugproplist.begin();
 				 !(it==debugproplist.end());it++)
 			{
@@ -1470,7 +1479,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 							first = false;
 						}
 					}
-					m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
+					m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
 													debugtxt.Ptr(),
 													xcoord,
 													ycoord,
@@ -1485,7 +1494,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 					{
 						STR_String text = propval->GetText();
 						debugtxt = objname + "." + propname + " = " + text;
-						m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED, 
+						m_rendertools->RenderText2D(RAS_IRenderTools::RAS_TEXT_PADDED,
 													debugtxt.Ptr(),
 													xcoord,
 													ycoord,
@@ -1502,7 +1511,7 @@ void KX_KetsjiEngine::RenderDebugProperties()
 
 KX_SceneList* KX_KetsjiEngine::CurrentScenes()
 {
-	return &m_scenes;	
+	return &m_scenes;
 }
 
 
@@ -1511,14 +1520,14 @@ KX_Scene* KX_KetsjiEngine::FindScene(const STR_String& scenename)
 {
 	KX_SceneList::iterator sceneit = m_scenes.begin();
 
-	// bit risky :) better to split the second clause 
-	while ( (sceneit != m_scenes.end()) 
+	// bit risky :) better to split the second clause
+	while ( (sceneit != m_scenes.end())
 			&& ((*sceneit)->GetName() != scenename))
 	{
 		sceneit++;
 	}
 
-	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);	
+	return ((sceneit == m_scenes.end()) ? NULL : *sceneit);
 }
 
 
@@ -1581,7 +1590,7 @@ void KX_KetsjiEngine::RemoveScheduledScenes()
 					m_scenes.erase(sceneit);
 					break;
 				}
-			}	
+			}
 		}
 		m_removingScenes.clear();
 	}
@@ -1595,7 +1604,7 @@ KX_Scene* KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 	KX_Scene* tmpscene = new KX_Scene(m_keyboarddevice,
 									  m_mousedevice,
 									  m_networkdevice,
-									  m_audiodevice,
+// AUD_XXX									  m_audiodevice,
 									  scenename,
 									  scene);
 
@@ -1628,7 +1637,7 @@ void KX_KetsjiEngine::AddScheduledScenes()
 		}
 		m_addingOverlayScenes.clear();
 	}
-	
+
 	if (m_addingBackgroundScenes.size())
 	{
 		for (scenenameit = m_addingBackgroundScenes.begin();
@@ -1661,7 +1670,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 	if (m_replace_scenes.size())
 	{
 		set<pair<STR_String,STR_String> >::iterator scenenameit;
-		
+
 		for (scenenameit = m_replace_scenes.begin();
 			scenenameit != m_replace_scenes.end();
 			scenenameit++)
@@ -1685,7 +1694,7 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 			}
 		}
 		m_replace_scenes.clear();
-	}	
+	}
 }
 
 
@@ -1833,7 +1842,7 @@ void KX_KetsjiEngine::SceneListsChanged(void)
 	while ((sceneit != m_scenes.end()) && (!m_propertiesPresent))
 	{
 		KX_Scene* scene = *sceneit;
-		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();	
+		vector<SCA_DebugProp*>& debugproplist = scene->GetDebugProperties();
 		m_propertiesPresent = !debugproplist.empty();
 		sceneit++;
 	}

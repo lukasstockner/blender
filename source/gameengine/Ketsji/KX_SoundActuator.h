@@ -34,14 +34,20 @@
 
 #include "SCA_IActuator.h"
 
+// AUD_XXX
+#include "AUD_C-API.h"
+
 class KX_SoundActuator : public SCA_IActuator
 {
 	Py_Header;
 	bool					m_lastEvent;
 	bool					m_isplaying;
 	/* just some handles to the audio-data... */
-	class SND_SoundObject*	m_soundObject;
-	class SND_Scene*		m_soundScene;
+// AUD_XXX
+	AUD_Sound*				m_sound;
+	AUD_Handle*				m_handle;
+//	class SND_SoundObject*	m_soundObject;
+//	class SND_Scene*		m_soundScene;
 	short					m_startFrame;
 	short					m_endFrame;
 	bool					m_pino;
@@ -62,15 +68,16 @@ public:
 	KX_SOUNDACT_TYPE		m_type;
 
 	KX_SoundActuator(SCA_IObject* gameobj,
-					class SND_SoundObject* sndobj,
-					class SND_Scene*	sndscene,
+					 AUD_Sound* sound,
+// AUD_XXX					class SND_SoundObject* sndobj,
+// AUD_XXX					class SND_Scene*	sndscene,
 					KX_SOUNDACT_TYPE type,
 					short start,
 					short end);
 
 	~KX_SoundActuator();
 
-	void setSoundObject(class SND_SoundObject* soundobject);
+// AUD_XXX	void setSoundObject(class SND_SoundObject* soundobject);
 	virtual bool Update(double curtime, bool frame);
 
 	CValue* GetReplica();

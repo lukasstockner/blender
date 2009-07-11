@@ -46,22 +46,25 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
-								   SND_SoundObject* sndobj,
-								   SND_Scene*	sndscene,
+								   AUD_Sound* sound,
+// AUD_XXX								   SND_SoundObject* sndobj,
+// AUD_XXX								   SND_Scene*	sndscene,
 								   KX_SOUNDACT_TYPE type,
 								   short start,
 								   short end)
 								   : SCA_IActuator(gameobj)
 {
-	m_soundObject = sndobj;
-	m_soundScene = sndscene;
+// AUD_XXX	m_soundObject = sndobj;
+// AUD_XXX	m_soundScene = sndscene;
+	m_sound = sound;
+	m_handle = NULL;
 	m_type = type;
 	m_lastEvent = true;
 	m_isplaying = false;
 	m_startFrame = start;
 	m_endFrame = end;
 	m_pino = false;
-	
+
 
 }
 
@@ -69,11 +72,18 @@ KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
 
 KX_SoundActuator::~KX_SoundActuator()
 {
+// AUD_XXX
+	if(m_handle)
+		AUD_stop(m_handle);
+	if(m_sound)
+		delete m_sound;
+#if 0
 	if (m_soundObject)
 	{
 		m_soundScene->RemoveActiveObject(m_soundObject);
 		m_soundScene->DeleteObject(m_soundObject);
 	}
+#endif
 }
 
 
@@ -88,13 +98,16 @@ CValue* KX_SoundActuator::GetReplica()
 void KX_SoundActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
+// AUD_XXX
+#if 0
 	if (m_soundObject)
 	{
-	    SND_SoundObject* soundobj = new SND_SoundObject(*m_soundObject);
+		SND_SoundObject* soundobj = new SND_SoundObject(*m_soundObject);
 		setSoundObject(soundobj);
 		m_soundScene->AddObject(soundobj);
 	}
-}	
+#endif
+}
 
 bool KX_SoundActuator::Update(double curtime, bool frame)
 {
@@ -107,11 +120,12 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 
 	RemoveAllEvents();
 
-	if (!m_soundObject)
+// AUD_XXX	if (!m_soundObject)
+	if(!m_sound)
 		return false;
 
 	// actual audio device playing state
-	bool isplaying = (m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true : false;
+	bool isplaying = /*AUD_XXX(m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true :*/ AUD_getStatus(m_handle) == AUD_STATUS_PLAYING ? true : false;
 
 	if (m_pino)
 	{
@@ -120,9 +134,9 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 	}
 
 	if (bNegativeEvent)
-	{	
+	{
 		// here must be a check if it is still playing
-		if (m_isplaying && isplaying) 
+		if (m_isplaying && isplaying)
 		{
 			switch (m_type)
 			{
@@ -130,19 +144,21 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			case KX_SOUNDACT_LOOPSTOP:
 			case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
 				{
-					m_soundScene->RemoveActiveObject(m_soundObject);
+// AUD_XXX					m_soundScene->RemoveActiveObject(m_soundObject);
+					AUD_stop(m_handle);
 					break;
 				}
 			case KX_SOUNDACT_PLAYEND:
 				{
-					m_soundObject->SetPlaystate(SND_MUST_STOP_WHEN_FINISHED);
+// AUD_XXX					m_soundObject->SetPlaystate(SND_MUST_STOP_WHEN_FINISHED);
 					break;
 				}
 			case KX_SOUNDACT_LOOPEND:
 			case KX_SOUNDACT_LOOPBIDIRECTIONAL:
 				{
-					m_soundObject->SetLoopMode(SND_LOOP_OFF);
-					m_soundObject->SetPlaystate(SND_MUST_STOP_WHEN_FINISHED);
+// AUD_XXX					m_soundObject->SetLoopMode(SND_LOOP_OFF);
+// AUD_XXX					m_soundObject->SetPlaystate(SND_MUST_STOP_WHEN_FINISHED);
+					AUD_setEndBehaviour(m_handle, AUD_BEHAVIOUR_STOP);
 					break;
 				}
 			default:
@@ -159,6 +175,8 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 		{
 			switch (m_type)
 			{
+// AUD_XXX
+#if 0
 			case KX_SOUNDACT_LOOPBIDIRECTIONAL:
 			case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
 				{
@@ -186,6 +204,26 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 					result = true;
 					break;
 				}
+#else
+			case KX_SOUNDACT_LOOPBIDIRECTIONAL:
+			case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
+			case KX_SOUNDACT_LOOPEND:
+			case KX_SOUNDACT_LOOPSTOP:
+				{
+					m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_LOOP, 0);
+					m_isplaying = true;
+					result = true;
+					break;
+				}
+			case KX_SOUNDACT_PLAYSTOP:
+			case KX_SOUNDACT_PLAYEND:
+				{
+					m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_STOP, 0);
+					m_isplaying = true;
+					result = true;
+					break;
+				}
+#endif
 			default:
 				// implement me !!
 				break;
@@ -193,13 +231,16 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 		}
 	}
 	// verify that the sound is still playing
-	isplaying = (m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true : false;
+	isplaying = /*AUD_XXX(m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true :*/ AUD_getStatus(m_handle) == AUD_STATUS_PLAYING ? true : false;
 
 	if (isplaying)
 	{
+// AUD_XXX
+#if 0
 		m_soundObject->SetPosition(((KX_GameObject*)this->GetParent())->NodeGetWorldPosition());
 		m_soundObject->SetVelocity(((KX_GameObject*)this->GetParent())->GetLinearVelocity());
 		m_soundObject->SetOrientation(((KX_GameObject*)this->GetParent())->NodeGetWorldOrientation());
+#endif
 		result = true;
 	}
 	else
@@ -217,11 +258,13 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 }
 
 
-
+// AUD_XXX
+#if 0
 void KX_SoundActuator::setSoundObject(class SND_SoundObject* soundobject)
 {
 	m_soundObject = soundobject;
 }
+#endif
 
 
 
@@ -299,34 +342,46 @@ PyAttributeDef KX_SoundActuator::Attributes[] = {
 };
 
 /* Methods ----------------------------------------------------------------- */
-KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound, 
+KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound,
 "startSound()\n"
 "\tStarts the sound.\n")
 {
-	if (m_soundObject)
+// AUD_XXX	if (m_soundObject)
 		// This has no effect if the actuator is not active.
-		// To start the sound you must activate the actuator. 
+		// To start the sound you must activate the actuator.
 		// This function is to restart the sound.
-		m_soundObject->StartSound();	
+// AUD_XXX		m_soundObject->StartSound();
+	switch(AUD_getStatus(m_handle))
+	{
+	case AUD_STATUS_PLAYING:
+		break;
+	case AUD_STATUS_PAUSED:
+		AUD_resume(m_handle);
+		break;
+	default:
+		m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_STOP, 0);
+	}
 	Py_RETURN_NONE;
-}         
+}
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, pauseSound,
 "pauseSound()\n"
 "\tPauses the sound.\n")
 {
-	if (m_soundObject)
+// AUD_XXX	if (m_soundObject)
 		// unfortunately, openal does not implement pause correctly, it is equivalent to a stop
-		m_soundObject->PauseSound();	
+// AUD_XXX		m_soundObject->PauseSound();
+	AUD_pause(m_handle);
 	Py_RETURN_NONE;
-} 
+}
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
 "stopSound()\n"
 "\tStops the sound.\n")
 {
-	if (m_soundObject)
-		m_soundObject->StopSound();	
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->StopSound();
+	AUD_stop(m_handle);
 	Py_RETURN_NONE;
 }
 
@@ -335,64 +390,67 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
 PyObject* KX_SoundActuator::pyattr_get_filename(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	if (!actuator->m_soundObject)
-	{
+// AUD_XXX	if (!actuator->m_soundObject)
+// AUD_XXX	{
 		return PyUnicode_FromString("");
+// AUD_XXX
+#if 0
 	}
 	STR_String objectname = actuator->m_soundObject->GetObjectName();
 	char* name = objectname.Ptr();
-	
+
 	if (!name) {
 		PyErr_SetString(PyExc_RuntimeError, "value = actuator.fileName: KX_SoundActuator, unable to get sound fileName");
 		return NULL;
 	} else
 		return PyUnicode_FromString(name);
+#endif
 }
 
 PyObject* KX_SoundActuator::pyattr_get_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	float gain = (actuator->m_soundObject) ? actuator->m_soundObject->GetGain() : 1.0f;
+	float gain = /*AUD_XXX(actuator->m_soundObject) ? actuator->m_soundObject->GetGain() :*/ 1.0f;
 
 	PyObject* result = PyFloat_FromDouble(gain);
-	
+
 	return result;
 }
 
 PyObject* KX_SoundActuator::pyattr_get_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	float pitch = (actuator->m_soundObject) ? actuator->m_soundObject->GetPitch() : 1.0;
+	float pitch = /*AUD_XXX(actuator->m_soundObject) ? actuator->m_soundObject->GetPitch() :*/ 1.0;
 	PyObject* result = PyFloat_FromDouble(pitch);
-	
+
 	return result;
 }
 
 PyObject* KX_SoundActuator::pyattr_get_rollOffFactor(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	float rollofffactor = (actuator->m_soundObject) ? actuator->m_soundObject->GetRollOffFactor() : 1.0;
+	float rollofffactor = /*AUD_XXX(actuator->m_soundObject) ? actuator->m_soundObject->GetRollOffFactor() :*/ 1.0;
 	PyObject* result = PyFloat_FromDouble(rollofffactor);
-	
+
 	return result;
 }
 
 PyObject* KX_SoundActuator::pyattr_get_looping(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
-	int looping = (actuator->m_soundObject) ? actuator->m_soundObject->GetLoopMode() : (int)SND_LOOP_OFF;
+	int looping = /*AUD_XXX(actuator->m_soundObject) ? actuator->m_soundObject->GetLoopMode() :*/ (int)SND_LOOP_OFF;
 	PyObject* result = PyLong_FromSsize_t(looping);
-	
+
 	return result;
 }
 
-PyObject* KX_SoundActuator::pyattr_get_position(void * self, const struct KX_PYATTRIBUTE_DEF *attrdef) 
+PyObject* KX_SoundActuator::pyattr_get_position(void * self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 	MT_Vector3 pos(0.0, 0.0, 0.0);
 
-	if (actuator->m_soundObject)
-		pos = actuator->m_soundObject->GetPosition();
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		pos = actuator->m_soundObject->GetPosition();
 
 	PyObject * result = PyObjectFrom(pos);
 	return result;
@@ -403,20 +461,20 @@ PyObject* KX_SoundActuator::pyattr_get_velocity(void *self, const struct KX_PYAT
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 	MT_Vector3 vel;
 
-	if (actuator->m_soundObject)
-		vel = actuator->m_soundObject->GetVelocity();
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		vel = actuator->m_soundObject->GetVelocity();
 
 	PyObject * result = PyObjectFrom(vel);
 	return result;
 }
 
-PyObject* KX_SoundActuator::pyattr_get_orientation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef) 
+PyObject* KX_SoundActuator::pyattr_get_orientation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 	MT_Matrix3x3 ori;
 
-	if (actuator->m_soundObject)
-		ori = actuator->m_soundObject->GetOrientation();
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		ori = actuator->m_soundObject->GetOrientation();
 
 	PyObject * result = PyObjectFrom(ori);
 	return result;
@@ -427,14 +485,14 @@ int KX_SoundActuator::pyattr_set_filename(void *self, const struct KX_PYATTRIBUT
 	char *soundName = NULL;
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator*> (self);
 	// void *soundPointer = NULL; /*unused*/
-	
+
 	if (!PyArg_Parse(value, "s", &soundName))
 		return PY_SET_ATTR_FAIL;
 
-	if (actuator->m_soundObject) {
-		actuator->m_soundObject->SetObjectName(soundName);
-	}
-	
+// AUD_XXX	if (actuator->m_soundObject) {
+// AUD_XXX		actuator->m_soundObject->SetObjectName(soundName);
+// AUD_XXX	}
+
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -445,12 +503,12 @@ int KX_SoundActuator::pyattr_set_gain(void *self, const struct KX_PYATTRIBUTE_DE
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 	if (!PyArg_Parse(value, "f", &gain))
 		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_soundObject)
-		actuator->m_soundObject->SetGain(gain);
-	
+
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		actuator->m_soundObject->SetGain(gain);
+
 	return PY_SET_ATTR_SUCCESS;
-}         
+}
 
 int KX_SoundActuator::pyattr_set_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -458,12 +516,12 @@ int KX_SoundActuator::pyattr_set_pitch(void *self, const struct KX_PYATTRIBUTE_D
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 	if (!PyArg_Parse(value, "f", &pitch))
 		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_soundObject)
-		actuator->m_soundObject->SetPitch(pitch);
-	
+
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		actuator->m_soundObject->SetPitch(pitch);
+
 	return PY_SET_ATTR_SUCCESS;
-}         
+}
 
 int KX_SoundActuator::pyattr_set_rollOffFactor(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -471,12 +529,12 @@ int KX_SoundActuator::pyattr_set_rollOffFactor(void *self, const struct KX_PYATT
 	float rollofffactor = 1.0;
 	if (!PyArg_Parse(value, "f", &rollofffactor))
 		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_soundObject)
-		actuator->m_soundObject->SetRollOffFactor(rollofffactor);
+
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		actuator->m_soundObject->SetRollOffFactor(rollofffactor);
 
 	return PY_SET_ATTR_SUCCESS;
-}         
+}
 
 int KX_SoundActuator::pyattr_set_looping(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -484,12 +542,12 @@ int KX_SoundActuator::pyattr_set_looping(void *self, const struct KX_PYATTRIBUTE
 	int looping = 1;
 	if (!PyArg_Parse(value, "i", &looping))
 		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_soundObject)
-		actuator->m_soundObject->SetLoopMode(looping);
-	
+
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		actuator->m_soundObject->SetLoopMode(looping);
+
 	return PY_SET_ATTR_SUCCESS;
-}         
+}
 
 int KX_SoundActuator::pyattr_set_position(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -499,12 +557,12 @@ int KX_SoundActuator::pyattr_set_position(void *self, const struct KX_PYATTRIBUT
 
 	if (!PyArg_ParseTuple(value, "fff", &pos[0], &pos[1], &pos[2]))
 		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_soundObject)
-		actuator->m_soundObject->SetPosition(MT_Vector3(pos));
-	
+
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		actuator->m_soundObject->SetPosition(MT_Vector3(pos));
+
 	return PY_SET_ATTR_SUCCESS;
-}         
+}
 
 int KX_SoundActuator::pyattr_set_velocity(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -514,13 +572,13 @@ int KX_SoundActuator::pyattr_set_velocity(void *self, const struct KX_PYATTRIBUT
 
 	if (!PyArg_ParseTuple(value, "fff", &vel[0], &vel[1], &vel[2]))
 		return PY_SET_ATTR_FAIL;
-	
-	if (actuator->m_soundObject)
-		actuator->m_soundObject->SetVelocity(MT_Vector3(vel));
-	
+
+// AUD_XXX	if (actuator->m_soundObject)
+// AUD_XXX		actuator->m_soundObject->SetVelocity(MT_Vector3(vel));
+
 	return PY_SET_ATTR_SUCCESS;
 
-}         
+}
 
 int KX_SoundActuator::pyattr_set_orientation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -531,14 +589,14 @@ int KX_SoundActuator::pyattr_set_orientation(void *self, const struct KX_PYATTRI
 	/* if value is not a sequence PyOrientationTo makes an error */
 	if (!PyOrientationTo(value, rot, "actuator.orientation = value: KX_SoundActuator"))
 		return PY_SET_ATTR_FAIL;
-	
+
 	/* Since not having m_soundObject didn't do anything in the old version,
 	 * it probably should be kept that way  */
-	if (!actuator->m_soundObject)
+// AUD_XXX	if (!actuator->m_soundObject)
 		return PY_SET_ATTR_SUCCESS;
-	
-	actuator->m_soundObject->SetOrientation(rot);
-	return PY_SET_ATTR_SUCCESS;
+
+// AUD_XXX	actuator->m_soundObject->SetOrientation(rot);
+// AUD_XXX	return PY_SET_ATTR_SUCCESS;
 }
 
 // Deprecated ----->
@@ -547,7 +605,7 @@ PyObject* KX_SoundActuator::PySetFilename(PyObject* args)
 	char *soundName = NULL;
 	ShowDeprecationWarning("setFilename()", "the fileName property");
 	// void *soundPointer = NULL; /*unused*/
-	
+
 	if (!PyArg_ParseTuple(args, "s", &soundName))
 		return NULL;
 
@@ -557,18 +615,21 @@ PyObject* KX_SoundActuator::PySetFilename(PyObject* args)
 PyObject* KX_SoundActuator::PyGetFilename()
 {
 	ShowDeprecationWarning("getFilename()", "the fileName property");
-	if (!m_soundObject)
-	{
+// AUD_XXX	if (!m_soundObject)
+// AUD_XXX	{
 		return PyUnicode_FromString("");
+// AUD_XXX
+#if 0
 	}
 	STR_String objectname = m_soundObject->GetObjectName();
 	char* name = objectname.Ptr();
-	
+
 	if (!name) {
 		PyErr_SetString(PyExc_RuntimeError, "Unable to get sound fileName");
 		return NULL;
 	} else
 		return PyUnicode_FromString(name);
+#endif
 }
 
 PyObject* KX_SoundActuator::PySetGain(PyObject* args)
@@ -577,21 +638,21 @@ PyObject* KX_SoundActuator::PySetGain(PyObject* args)
 	float gain = 1.0;
 	if (!PyArg_ParseTuple(args, "f:setGain", &gain))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetGain(gain);
-	
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetGain(gain);
+
 	Py_RETURN_NONE;
-}         
+}
 
 
 
 PyObject* KX_SoundActuator::PyGetGain()
 {
 	ShowDeprecationWarning("getGain()", "the volume property");
-	float gain = (m_soundObject) ? m_soundObject->GetGain() : 1.0f;
+	float gain = /*AUD_XXX(m_soundObject) ? m_soundObject->GetGain() :*/ 1.0f;
 	PyObject* result = PyFloat_FromDouble(gain);
-	
+
 	return result;
 }
 
@@ -603,21 +664,21 @@ PyObject* KX_SoundActuator::PySetPitch(PyObject* args)
 	float pitch = 1.0;
 	if (!PyArg_ParseTuple(args, "f:setPitch", &pitch))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetPitch(pitch);
-	
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetPitch(pitch);
+
 	Py_RETURN_NONE;
-}         
+}
 
 
 
 PyObject* KX_SoundActuator::PyGetPitch()
 {
 	ShowDeprecationWarning("getPitch()", "the pitch property");
-	float pitch = (m_soundObject) ? m_soundObject->GetPitch() : 1.0;
+	float pitch = /*AUD_XXX(m_soundObject) ? m_soundObject->GetPitch() :*/ 1.0;
 	PyObject* result = PyFloat_FromDouble(pitch);
-	
+
 	return result;
 }
 
@@ -629,21 +690,21 @@ PyObject* KX_SoundActuator::PySetRollOffFactor(PyObject* args)
 	float rollofffactor = 1.0;
 	if (!PyArg_ParseTuple(args, "f:setRollOffFactor", &rollofffactor))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetRollOffFactor(rollofffactor);
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetRollOffFactor(rollofffactor);
 
 	Py_RETURN_NONE;
-}         
+}
 
 
 
 PyObject* KX_SoundActuator::PyGetRollOffFactor()
 {
 	ShowDeprecationWarning("getRollOffFactor()", "the rollOffFactor property");
-	float rollofffactor = (m_soundObject) ? m_soundObject->GetRollOffFactor() : 1.0;
+	float rollofffactor = /*AUD_XXX(m_soundObject) ? m_soundObject->GetRollOffFactor() :*/ 1.0;
 	PyObject* result = PyFloat_FromDouble(rollofffactor);
-	
+
 	return result;
 }
 
@@ -655,21 +716,21 @@ PyObject* KX_SoundActuator::PySetLooping(PyObject* args)
 	bool looping = 1;
 	if (!PyArg_ParseTuple(args, "i:setLooping", &looping))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetLoopMode(looping);
-	
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetLoopMode(looping);
+
 	Py_RETURN_NONE;
-}         
+}
 
 
 
 PyObject* KX_SoundActuator::PyGetLooping()
 {
 	ShowDeprecationWarning("getLooping()", "the looping property");
-	int looping = (m_soundObject) ? m_soundObject->GetLoopMode() : (int)SND_LOOP_OFF;
+	int looping = /*AUD_XXX(m_soundObject) ? m_soundObject->GetLoopMode() :*/ (int)SND_LOOP_OFF;
 	PyObject* result = PyLong_FromSsize_t(looping);
-	
+
 	return result;
 }
 
@@ -685,12 +746,12 @@ PyObject* KX_SoundActuator::PySetPosition(PyObject* args)
 
 	if (!PyArg_ParseTuple(args, "fff:setPosition", &pos[0], &pos[1], &pos[2]))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetPosition(pos);
-	
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetPosition(pos);
+
 	Py_RETURN_NONE;
-}         
+}
 
 
 
@@ -704,12 +765,12 @@ PyObject* KX_SoundActuator::PySetVelocity(PyObject* args)
 
 	if (!PyArg_ParseTuple(args, "fff:setVelocity", &vel[0], &vel[1], &vel[2]))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetVelocity(vel);
-	
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetVelocity(vel);
+
 	Py_RETURN_NONE;
-}         
+}
 
 
 
@@ -729,10 +790,10 @@ PyObject* KX_SoundActuator::PySetOrientation(PyObject* args)
 
 	if (!PyArg_ParseTuple(args, "fffffffff:setOrientation", &ori[0][0], &ori[0][1], &ori[0][2], &ori[1][0], &ori[1][1], &ori[1][2], &ori[2][0], &ori[2][1], &ori[2][2]))
 		return NULL;
-	
-	if (m_soundObject)
-		m_soundObject->SetOrientation(ori);
-	
+
+// AUD_XXX	if (m_soundObject)
+// AUD_XXX		m_soundObject->SetOrientation(ori);
+
 	Py_RETURN_NONE;
 }
 

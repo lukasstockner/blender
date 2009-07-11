@@ -55,6 +55,7 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
 {
 	m_position = 0;
 	m_pkgbuf_left = 0;
+	m_byteiocontext = NULL;
 
 	// open file
 	if(av_open_input_file(&m_formatCtx, filename, NULL, 0, NULL)!=0)
@@ -106,11 +107,85 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
 	m_pkgbuf = new AUD_Buffer(AVCODEC_MAX_AUDIO_FRAME_SIZE<<1);
 }
 
+AUD_FFMPEGReader::AUD_FFMPEGReader(unsigned char* buffer, int size)
+{
+	m_position = 0;
+	m_pkgbuf_left = 0;
+	m_byteiocontext = (ByteIOContext*)av_mallocz(sizeof(ByteIOContext));
+
+	if(init_put_byte(m_byteiocontext, buffer, size, 0,
+					 NULL, NULL, NULL, NULL) != 0)
+		AUD_THROW(AUD_ERROR_FILE);
+
+	AVProbeData probe_data;
+	probe_data.filename = "";
+	probe_data.buf = buffer;
+	probe_data.buf_size = size;
+	AVInputFormat* fmt = av_probe_input_format(&probe_data, 1);
+
+	// open stream
+	if(av_open_input_stream(&m_formatCtx, m_byteiocontext, "", fmt, NULL)!=0)
+		AUD_THROW(AUD_ERROR_FILE);
+
+	try
+	{
+		if(av_find_stream_info(m_formatCtx)<0)
+			AUD_THROW(AUD_ERROR_FFMPEG);
+
+		// XXX this prints stream information to stdout:
+		//dump_format(m_formatCtx, 0, NULL, 0);
+
+		// find audio stream and codec
+		m_stream = -1;
+
+		for(int i = 0; i < m_formatCtx->nb_streams; i++)
+			if((m_formatCtx->streams[i]->codec->codec_type == CODEC_TYPE_AUDIO)
+				&& (m_stream < 0))
+			{
+				m_stream=i;
+				break;
+			}
+		if(m_stream == -1)
+			AUD_THROW(AUD_ERROR_FFMPEG);
+
+		m_codecCtx = m_formatCtx->streams[m_stream]->codec;
+
+		m_specs.channels = (AUD_Channels) m_codecCtx->channels;
+		m_specs.format = FFMPEG_TO_AUD(m_codecCtx->sample_fmt);
+		m_specs.rate = (AUD_SampleRate) m_codecCtx->sample_rate;
+
+		// get a decoder and open it
+		AVCodec *aCodec = avcodec_find_decoder(m_codecCtx->codec_id);
+		if(!aCodec)
+			AUD_THROW(AUD_ERROR_FFMPEG);
+
+		if(avcodec_open(m_codecCtx, aCodec)<0)
+			AUD_THROW(AUD_ERROR_FFMPEG);
+	}
+	catch(AUD_Exception e)
+	{
+		av_close_input_stream(m_formatCtx);
+		delete m_byteiocontext;
+		throw;
+	}
+
+	// last but not least if there hasn't been any error, create the buffers
+	m_buffer = new AUD_Buffer(0); AUD_NEW("buffer")
+	m_pkgbuf = new AUD_Buffer(AVCODEC_MAX_AUDIO_FRAME_SIZE<<1);
+}
+
 AUD_FFMPEGReader::~AUD_FFMPEGReader()
 {
-	// close the file
 	avcodec_close(m_codecCtx);
-	av_close_input_file(m_formatCtx);
+
+	if(m_byteiocontext)
+	{
+		av_close_input_stream(m_formatCtx);
+		av_free(m_byteiocontext);
+	}
+	else
+		av_close_input_file(m_formatCtx);
+
 	delete m_buffer; AUD_DELETE("buffer")
 	delete m_pkgbuf;
 }

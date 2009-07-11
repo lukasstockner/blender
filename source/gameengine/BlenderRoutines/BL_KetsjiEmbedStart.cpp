@@ -104,7 +104,7 @@ static BlendFileData *load_game_data(char *filename)
 {
 	ReportList reports;
 	BlendFileData *bfd;
-	
+
 	BKE_reports_init(&reports, RPT_STORE);
 	bfd= BLO_read_from_file(filename, &reports);
 
@@ -125,8 +125,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 	struct ARegion *ar= CTX_wm_region(C);
 	struct Scene *scene= CTX_data_scene(C);
 	struct Main* maggie1= CTX_data_main(C);
-	
-	
+
+
 	int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
 	Main* blenderdata = maggie1;
 
@@ -143,9 +143,9 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 	// Acquire Python's GIL (global interpreter lock)
 	// so we can safely run Python code and API calls
 	PyGILState_STATE gilstate = PyGILState_Ensure();
-	
+
 	PyObject *pyGlobalDict = PyDict_New(); /* python utility storage, spans blend file loading */
-	
+
 	bgl::InitExtensions(true);
 
 	do
@@ -168,7 +168,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 		canvas->SetMouseState(RAS_ICanvas::MOUSE_INVISIBLE);
 		RAS_IRenderTools* rendertools = new KX_BlenderRenderTools();
 		RAS_IRasterizer* rasterizer = NULL;
-		
+
 		if(displaylists) {
 			if (GLEW_VERSION_1_1 && !novertexarrays)
 				rasterizer = new RAS_ListRasterizer(canvas, true, true);
@@ -179,16 +179,18 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			rasterizer = new RAS_VAOpenGLRasterizer(canvas, false);
 		else
 			rasterizer = new RAS_OpenGLRasterizer(canvas);
-		
+
 		// create the inputdevices
 		KX_BlenderKeyboardDevice* keyboarddevice = new KX_BlenderKeyboardDevice();
 		KX_BlenderMouseDevice* mousedevice = new KX_BlenderMouseDevice();
-		
+
 		// create a networkdevice
 		NG_NetworkDeviceInterface* networkdevice = new
 			NG_LoopBackNetworkDeviceInterface();
-		
+
 		//
+// AUD_XXX
+#if 0
 		SYS_SystemHandle hSystem = SYS_GetSystem();
 		bool noaudio = SYS_GetCommandLineInt(hSystem,"noaudio",0);
 
@@ -199,13 +201,14 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 		SND_DeviceManager::Subscribe();
 		SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
 		audiodevice->UseCD();
-		
+#endif
+
 		// create a ketsji/blendersystem (only needed for timing and stuff)
 		KX_BlenderSystem* kxsystem = new KX_BlenderSystem();
-		
+
 		// create the ketsjiengine
 		KX_KetsjiEngine* ketsjiengine = new KX_KetsjiEngine(kxsystem);
-		
+
 		// set the devices
 		ketsjiengine->SetKeyboardDevice(keyboarddevice);
 		ketsjiengine->SetMouseDevice(mousedevice);
@@ -214,7 +217,8 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 		ketsjiengine->SetRenderTools(rendertools);
 		ketsjiengine->SetRasterizer(rasterizer);
 		ketsjiengine->SetNetworkDevice(networkdevice);
-		ketsjiengine->SetAudioDevice(audiodevice);
+// AUD_XXX
+//		ketsjiengine->SetAudioDevice(audiodevice);
 		ketsjiengine->SetUseFixedTime(usefixed);
 		ketsjiengine->SetTimingDisplay(frameRate, profile, properties);
 
@@ -246,7 +250,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			float *projmat_linear= (float*) rv3d->winmat;
 			projmat.setElem(i, projmat_linear[i]);
 		}
-		
+
 		if(rv3d->persp==V3D_CAMOB) {
 			camzoom = (1.41421 + (rv3d->camzoom / 50.0));
 			camzoom *= camzoom;
@@ -255,16 +259,16 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			camzoom = 2.0;
 
 		camzoom = 4.0 / camzoom;
-		
+
 		ketsjiengine->SetDrawType(v3d->drawtype);
 		ketsjiengine->SetCameraZoom(camzoom);
-		
+
 		// if we got an exitcode 3 (KX_EXIT_REQUEST_START_OTHER_GAME) load a different file
 		if (exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME || exitrequested == KX_EXIT_REQUEST_RESTART_GAME)
 		{
 			exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
 			if (bfd) BLO_blendfiledata_free(bfd);
-			
+
 			char basedpath[240];
 			// base the actuator filename with respect
 			// to the original file working directory
@@ -278,7 +282,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			// that happened to be loaded first
 			BLI_convertstringcode(basedpath, pathname);
 			bfd = load_game_data(basedpath);
-			
+
 			// if it wasn't loaded, try it forced relative
 			if (!bfd)
 			{
@@ -286,11 +290,11 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 				char temppath[242];
 				strcpy(temppath, "//");
 				strcat(temppath, basedpath);
-				
+
 				BLI_convertstringcode(temppath, pathname);
 				bfd = load_game_data(temppath);
 			}
-			
+
 			// if we got a loaded blendfile, proceed
 			if (bfd)
 			{
@@ -309,7 +313,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 				exitrequested = KX_EXIT_REQUEST_QUIT_GAME;
 			}
 		}
-		
+
 		Scene *blscene = NULL;
 		if (!bfd)
 		{
@@ -330,12 +334,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 		{
 			int startFrame = blscene->r.cfra;
 			ketsjiengine->SetGame2IpoMode(game2ipo,startFrame);
-			
+
 			// Quad buffered needs a special window.
 			if (blscene->r.stereomode != RAS_IRasterizer::RAS_STEREO_QUADBUFFERED)
 				rasterizer->SetStereoMode((RAS_IRasterizer::StereoMode) blscene->r.stereomode);
 		}
-		
+
 		if (exitrequested != KX_EXIT_REQUEST_QUIT_GAME)
 		{
 			if (rv3d->persp != V3D_CAMOB)
@@ -347,7 +351,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 				ketsjiengine->SetCameraOverrideClipping(v3d->near, v3d->far);
 				ketsjiengine->SetCameraOverrideLens(v3d->lens);
 			}
-			
+
 			// create a scene converter, create and convert the startingscene
 			KX_ISceneConverter* sceneconverter = new KX_BlenderSceneConverter(blenderdata, ketsjiengine);
 			ketsjiengine->SetSceneConverter(sceneconverter);
@@ -365,18 +369,18 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			else if(G.fileflags & G_FILE_GAME_MAT_GLSL)
 				usemat = false;
 
-            if(usemat && (G.fileflags & G_FILE_GAME_MAT))
+			if(usemat && (G.fileflags & G_FILE_GAME_MAT))
 				sceneconverter->SetMaterials(true);
 			if(useglslmat && (G.fileflags & G_FILE_GAME_MAT_GLSL))
 				sceneconverter->SetGLSLMaterials(true);
-					
+
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,
 				mousedevice,
 				networkdevice,
-				audiodevice,
+// AUD_XXX				audiodevice,
 				startscenename,
 				blscene);
-			
+
 			// some python things
 			PyObject* dictionaryobject = initGamePythonScripting("Ketsji", psl_Lowest, blenderdata);
 			ketsjiengine->SetPythonDictionary(dictionaryobject);
@@ -385,7 +389,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			PyDict_SetItemString(PyModule_GetDict(gameLogic), "globalDict", pyGlobalDict); // Same as importing the module.
 			PyObject *gameLogic_keys = PyDict_Keys(PyModule_GetDict(gameLogic));
 			PyDict_SetItemString(dictionaryobject, "GameLogic", gameLogic); // Same as importing the module.
-			
+
 			initGameKeys();
 			initPythonConstraintBinding();
 			initMathutils();
@@ -410,47 +414,47 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 					rendertools,
 					canvas);
 				ketsjiengine->AddScene(startscene);
-				
+
 				// init the rasterizer
 				rasterizer->Init();
-				
+
 				// start the engine
 				ketsjiengine->StartEngine(true);
-				
+
 
 				// Set the animation playback rate for ipo's and actions
 				// the framerate below should patch with FPS macro defined in blendef.h
 				// Could be in StartEngine set the framerate, we need the scene to do this
 				ketsjiengine->SetAnimFrameRate( (((double) blscene->r.frs_sec) / blscene->r.frs_sec_base) );
-				
+
 				// the mainloop
 				printf("\nBlender Game Engine Started\n\n");
 				while (!exitrequested)
 				{
 					// first check if we want to exit
 					exitrequested = ketsjiengine->GetExitCode();
-					
+
 					// kick the engine
 					bool render = ketsjiengine->NextFrame(); // XXX 2.5 Bug, This is never true! FIXME-  Campbell
-					
+
 					if (render)
 					{
 						// render the frame
 						ketsjiengine->Render();
 					}
-					
+
 					wm_window_process_events_nosleep(C);
-					
+
 					// test for the ESC key
 					//XXX while (qtest())
 					while(wmEvent *event= (wmEvent *)win->queue.first)
 					{
 						short val = 0;
 						//unsigned short event = 0; //XXX extern_qread(&val);
-						
+
 						if (keyboarddevice->ConvertBlenderEvent(event->type,event->val))
 							exitrequested = KX_EXIT_REQUEST_BLENDER_ESC;
-						
+
 							/* Coordinate conversion... where
 							* should this really be?
 						*/
@@ -458,33 +462,33 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 							/* Note nice! XXX 2.5 event hack */
 							val = event->x - ar->winrct.xmin;
 							mousedevice->ConvertBlenderEvent(MOUSEX, val);
-							
+
 							val = ar->winy - (event->y - ar->winrct.ymin) - 1;
 							mousedevice->ConvertBlenderEvent(MOUSEY, val);
 						}
 						else {
 							mousedevice->ConvertBlenderEvent(event->type,event->val);
 						}
-						
+
 						BLI_remlink(&win->queue, event);
 						wm_event_free(event);
 					}
-					
+
 				}
 				printf("\nBlender Game Engine Finished\n\n");
 				exitstring = ketsjiengine->GetExitString();
 
 
 				// when exiting the mainloop
-				
+
 				// Clears the dictionary by hand:
 				// This prevents, extra references to global variables
 				// inside the GameLogic dictionary when the python interpreter is finalized.
 				// which allows the scene to safely delete them :)
 				// see: (space.c)->start_game
-				
+
 				//PyDict_Clear(PyModule_GetDict(gameLogic));
-				
+
 				// Keep original items, means python plugins will autocomplete members
 				int listIndex;
 				PyObject *gameLogic_keys_new = PyDict_Keys(PyModule_GetDict(gameLogic));
@@ -496,7 +500,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 				}
 				Py_DECREF(gameLogic_keys_new);
 				gameLogic_keys_new = NULL;
-				
+
 				ketsjiengine->StopEngine();
 				exitGamePythonScripting();
 				networkdevice->Disconnect();
@@ -506,7 +510,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 				delete sceneconverter;
 				sceneconverter = NULL;
 			}
-			
+
 			Py_DECREF(gameLogic_keys);
 			gameLogic_keys = NULL;
 		}
@@ -518,10 +522,10 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 
 		// set the cursor back to normal
 		canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
-		
+
 		// clean up some stuff
-		audiodevice->StopCD();
-		
+// AUD_XXX		audiodevice->StopCD();
+
 		if (ketsjiengine)
 		{
 			delete ketsjiengine;
@@ -563,11 +567,11 @@ extern "C" void StartKetsjiShell(struct bContext *C, int always_use_expand_frami
 			canvas = NULL;
 		}
 		SND_DeviceManager::Unsubscribe();
-	
+
 	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
-	
+
 	Py_DECREF(pyGlobalDict);
-	
+
 	if (bfd) BLO_blendfiledata_free(bfd);
 
 	BLI_strncpy(G.sce, oldsce, sizeof(G.sce));
@@ -582,7 +586,7 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 								 struct Main* maggie,
 								 int always_use_expand_framing)
 {
-    int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
+	int exitrequested = KX_EXIT_REQUEST_NO_REQUEST;
 
 	Main* blenderdata = maggie;
 
@@ -638,10 +642,13 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 		NG_NetworkDeviceInterface* networkdevice = new
 			NG_LoopBackNetworkDeviceInterface();
 
+// AUD_XXX
+#if 0
 		// get an audiodevice
 		SND_DeviceManager::Subscribe();
 		SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
 		audiodevice->UseCD();
+#endif
 
 		// create a ketsji/blendersystem (only needed for timing and stuff)
 		KX_BlenderSystem* kxsystem = new KX_BlenderSystem();
@@ -661,7 +668,7 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 			}
 		}
 
-        int cframe = 1, startFrame;
+		int cframe = 1, startFrame;
 		if (blscene)
 		{
 			cframe=blscene->r.cfra;
@@ -681,7 +688,7 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 			KX_ISceneConverter* sceneconverter = new KX_BlenderSceneConverter(maggie, ketsjiengine);
 			ketsjiengine->SetSceneConverter(sceneconverter);
 			sceneconverter->addInitFromFrame=true;
-			
+
 			if (always_use_expand_framing)
 				sceneconverter->SetAlwaysUseExpandFraming(true);
 
@@ -691,7 +698,7 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,
 				mousedevice,
 				networkdevice,
-				audiodevice,
+// AUD_XXX				audiodevice,
 				startscenename,
 				blscene);
 
@@ -724,9 +731,9 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 
 				// start the engine
 				ketsjiengine->StartEngine(false);
-				
+
 				ketsjiengine->SetUseFixedTime(true);
-				
+
 				ketsjiengine->SetTicRate(
 					(double) blscene->r.frs_sec /
 					(double) blscene->r.frs_sec_base);
@@ -734,15 +741,15 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 				// the mainloop
 				while ((blscene->r.cfra<=blscene->r.efra)&&(!exitrequested))
 				{
-                    printf("frame %i\n",blscene->r.cfra);
-                    // first check if we want to exit
+					printf("frame %i\n",blscene->r.cfra);
+					// first check if we want to exit
 					exitrequested = ketsjiengine->GetExitCode();
-	
+
 					// kick the engine
 					ketsjiengine->NextFrame();
-				    blscene->r.cfra=blscene->r.cfra+1;
-				    // update_for_newframe(); // XXX scene_update_for_newframe wont cut it
-					
+					blscene->r.cfra=blscene->r.cfra+1;
+					// update_for_newframe(); // XXX scene_update_for_newframe wont cut it
+
 				}
 				exitstring = ketsjiengine->GetExitString();
 			}
@@ -757,7 +764,7 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 		canvas->SetMouseState(RAS_ICanvas::MOUSE_NORMAL);
 
 		// clean up some stuff
-		audiodevice->StopCD();
+// AUD_XXX		audiodevice->StopCD();
 		if (ketsjiengine)
 		{
 			delete ketsjiengine;

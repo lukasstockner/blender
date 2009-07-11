@@ -13,6 +13,7 @@ incs += ' ../makesrna ../gpu ../blenfont'
 
 incs += ' #/intern/guardedalloc #/intern/memutil #/intern/ghost'
 incs += ' #/intern/elbeem #/extern/glew/include'
+incs += ' #intern/audaspace'
 
 defs = []
 

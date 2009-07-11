@@ -28,8 +28,10 @@
 
 #include "AUD_IReader.h"
 class AUD_Buffer;
-struct AVFormatContext;
 struct AVCodecContext;
+extern "C" {
+#include <libavformat/avformat.h>
+}
 
 /**
  * This class reads a sound file via ffmpeg.
@@ -80,6 +82,11 @@ private:
 	AVCodecContext* m_codecCtx;
 
 	/**
+	 * The ByteIOContext to read the data from.
+	 */
+	ByteIOContext* m_byteiocontext;
+
+	/**
 	 * The stream ID in the file.
 	 */
 	int m_stream;
@@ -92,6 +99,15 @@ public:
 	 *            cannot be read with ffmpeg.
 	 */
 	AUD_FFMPEGReader(const char* filename);
+
+	/**
+	 * Creates a new reader.
+	 * \param buffer The buffer to read from.
+	 * \param size The size of the buffer.
+	 * \exception AUD_Exception Thrown if the buffer specified cannot be read
+	 *                          with ffmpeg.
+	 */
+	AUD_FFMPEGReader(unsigned char* buffer, int size);
 
 	/**
 	 * Destroys the reader and closes the file.

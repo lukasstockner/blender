@@ -70,7 +70,7 @@ private:
 	class RAS_IRenderTools*				m_rendertools;
 	class KX_ISceneConverter*			m_sceneconverter;
 	class NG_NetworkDeviceInterface*		m_networkdevice;
-	class SND_IAudioDevice*				m_audiodevice;
+// AUD_XXX	class SND_IAudioDevice*				m_audiodevice;
 	PyObject*					m_pythondictionary;
 	class SCA_IInputDevice*				m_keyboarddevice;
 	class SCA_IInputDevice*				m_mousedevice;
@@ -88,13 +88,13 @@ private:
 	/* The current list of scenes. */
 	KX_SceneList		m_scenes;
 	/* State variable recording the presence of object debug info in the current scene list. */
-	bool				m_propertiesPresent;	
+	bool				m_propertiesPresent;
 
 	bool				m_bInitialized;
 	int					m_activecam;
 	bool				m_bFixedTime;
-	
-	
+
+
 	bool				m_firstframe;
 	int					m_currentFrame;
 
@@ -120,10 +120,10 @@ private:
 		 */
 	int				m_drawingmode;
 	float			m_cameraZoom;
-	
-	bool			m_overrideCam;	
+
+	bool			m_overrideCam;
 	STR_String		m_overrideSceneName;
-	
+
 	bool			m_overrideCamUseOrtho;
 	MT_CmMatrix4x4	m_overrideCamProjMat;
 	MT_CmMatrix4x4	m_overrideCamViewMat;
@@ -152,7 +152,7 @@ private:
 
 	/** Time logger. */
 	KX_TimeCategoryLogger*	m_logger;
-	
+
 	/** Labels for profiling display. */
 	static const char		m_profileLabels[tc_numCategories][15];
 	/** Last estimated framerate */
@@ -200,7 +200,7 @@ public:
 	void			SetKeyboardDevice(SCA_IInputDevice* keyboarddevice);
 	void			SetMouseDevice(SCA_IInputDevice* mousedevice);
 	void			SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice);
-	void			SetAudioDevice(SND_IAudioDevice* audiodevice);
+// AUD_XXX	void			SetAudioDevice(SND_IAudioDevice* audiodevice);
 	void			SetCanvas(RAS_ICanvas* canvas);
 	void			SetRenderTools(RAS_IRenderTools* rendertools);
 	void			SetRasterizer(RAS_IRasterizer* rasterizer);
@@ -213,7 +213,7 @@ public:
 	RAS_IRenderTools*	    GetRenderTools(){return m_rendertools;};
 
 	/// Dome functions
-	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text); 
+	void			InitDome(short res, short mode, short angle, float resbuf, short tilt, struct Text* text);
 	void			EndDome();
 	void			RenderDome();
 	bool			m_usedome;
@@ -221,7 +221,7 @@ public:
 	///returns true if an update happened to indicate -> Render
 	bool			NextFrame();
 	void			Render();
-	
+
 	void			StartEngine(bool clearIpo);
 	void			StopEngine();
 	void			Export(const STR_String& filename);
@@ -247,25 +247,25 @@ public:
 	int  GetDrawType(){return m_drawingmode;};
 
 	void SetCameraZoom(float camzoom);
-	
+
 	void EnableCameraOverride(const STR_String& forscene);
-	
+
 	void SetCameraOverrideUseOrtho(bool useOrtho);
 	void SetCameraOverrideProjectionMatrix(const MT_CmMatrix4x4& mat);
 	void SetCameraOverrideViewMatrix(const MT_CmMatrix4x4& mat);
 	void SetCameraOverrideClipping(float near, float far);
 	void SetCameraOverrideLens(float lens);
-	
+
 	/**
 	 * Sets display of all frames.
 	 * @param bUseFixedTime	New setting for display all frames.
-	 */ 
+	 */
 	void SetUseFixedTime(bool bUseFixedTime);
 
 	/**
 	 * Returns display of all frames.
 	 * @return Current setting for display all frames.
-	 */ 
+	 */
 	bool GetUseFixedTime(void) const;
 
 	/**
@@ -324,7 +324,7 @@ public:
 	 * @param frameRate		Display for frame rate on or off.
 	 * @param profile		Display for individual components on or off.
 	 * @param properties	Display of scene object debug properties on or off.
-	 */ 
+	 */
 	void SetTimingDisplay(bool frameRate, bool profile, bool properties);
 
 	/**
@@ -332,34 +332,34 @@ public:
 	 * @param frameRate		Display for frame rate on or off.
 	 * @param profile		Display for individual components on or off.
 	 * @param properties	Display of scene object debug properties on or off.
-	 */ 
+	 */
 	void GetTimingDisplay(bool& frameRate, bool& profile, bool& properties) const;
 
-	/** 
+	/**
 	 * Sets cursor hiding on every frame.
 	 * @param hideCursor Turns hiding on or off.
 	 */
 	void SetHideCursor(bool hideCursor);
 
-	/** 
+	/**
 	 * Returns the current setting for cursor hiding.
 	 * @return The current setting for cursor hiding.
 	 */
 	bool GetHideCursor(void) const;
 
-	/** 
+	/**
 	 * Enables/disables the use of the framing bar color of the Blender file's scenes.
 	 * @param overrideFrameColor The new setting.
 	 */
 	void SetUseOverrideFrameColor(bool overrideFrameColor);
 
-	/** 
+	/**
 	 * Enables/disables the use of the framing bar color of the Blender file's scenes.
 	 * @param useSceneFrameColor The new setting.
 	 */
-	bool GetUseOverrideFrameColor(void) const; 
+	bool GetUseOverrideFrameColor(void) const;
 
-	/** 
+	/**
 	 * Set the color used for framing bar color instead of the one in the Blender file's scenes.
 	 * @param r Red component of the override color.
 	 * @param g Green component of the override color.
@@ -367,14 +367,14 @@ public:
 	 */
 	void SetOverrideFrameColor(float r, float g, float b);
 
-	/** 
+	/**
 	 * Returns the color used for framing bar color instead of the one in the Blender file's scenes.
 	 * @param r Red component of the override color.
 	 * @param g Green component of the override color.
 	 * @param b Blue component of the override color.
 	 */
 	void GetOverrideFrameColor(float& r, float& g, float& b) const;
-	
+
 protected:
 	/**
 	 * Processes all scheduled scene activity.
@@ -394,7 +394,7 @@ protected:
 	void			ReplaceScheduledScenes(void);
 	void			PostProcessScene(class KX_Scene* scene);
 	KX_Scene*		CreateScene(const STR_String& scenename);
-	
+
 	bool			BeginFrame();
 	void			ClearFrame();
 	void			EndFrame();

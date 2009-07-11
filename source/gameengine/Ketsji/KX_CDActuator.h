@@ -33,7 +33,7 @@
 #define __KX_CDACTUATOR
 
 #include "SCA_IActuator.h"
-#include "SND_CDObject.h"
+// AUD_XXX #include "SND_CDObject.h"
 
 class KX_CDActuator : public SCA_IActuator
 {
@@ -41,9 +41,9 @@ class KX_CDActuator : public SCA_IActuator
 	bool					m_lastEvent;
 	bool					m_isplaying;
 	/* just some handles to the audio-data... */
-	class SND_Scene*		m_soundscene;
+// AUD_XXX	class SND_Scene*		m_soundscene;
 	int						m_track;
-	float					m_gain;
+// AUD_XXX	float					m_gain;
 	short					m_startFrame;
 	short					m_endFrame;
 
@@ -64,7 +64,7 @@ public:
 	KX_CDACT_TYPE			m_type;
 
 	KX_CDActuator(SCA_IObject* gameobject,
-				  SND_Scene* soundscene,
+// AUD_XXX				  SND_Scene* soundscene,
 				  KX_CDACT_TYPE type,
 				  int track,
 				  short start,

@@ -30,17 +30,17 @@
 extern "C" {
 #endif
 
-#include "AUD_Space.h"
+#include "intern/AUD_Space.h"
 
-//#ifndef AUD_CAPI_IMPLEMENTATION
-typedef struct AUD_Sound;
-//#endif
+#ifndef AUD_CAPI_IMPLEMENTATION
+	typedef struct {} AUD_Sound;
+#endif
 
 /**
  * Initializes an audio device.
  * \return Whether the device has been initialized.
  */
-extern bool AUD_init();
+extern int AUD_init();
 
 /**
  * Unitinitializes an audio device.
@@ -53,6 +53,14 @@ extern void AUD_exit();
  * \return A handle of the sound file.
  */
 extern AUD_Sound* AUD_load(const char* filename);
+
+/**
+ * Loads a sound file.
+ * \param buffer The buffer which contains the sound file.
+ * \param size The size of the buffer.
+ * \return A handle of the sound file.
+ */
+extern AUD_Sound* AUD_loadBuffer(unsigned char* buffer, int size);
 
 /**
  * Unloads a sound file.
@@ -71,29 +79,29 @@ extern void AUD_unload(AUD_Sound* sound);
  * \return A handle to the played back sound.
  */
 extern AUD_Handle* AUD_play(AUD_Sound* sound,
-							AUD_EndBehaviour endBehaviour = AUD_BEHAVIOUR_STOP,
-							double seekTo = 0);
+							AUD_EndBehaviour endBehaviour,
+							double seekTo);
 
 /**
  * Pauses a played back sound.
  * \param handle The handle to the sound.
  * \return Whether the handle has been playing or not.
  */
-extern bool AUD_pause(AUD_Handle* handle);
+extern int AUD_pause(AUD_Handle* handle);
 
 /**
  * Resumes a paused sound.
  * \param handle The handle to the sound.
  * \return Whether the handle has been paused or not.
  */
-extern bool AUD_resume(AUD_Handle* handle);
+extern int AUD_resume(AUD_Handle* handle);
 
 /**
  * Stops a playing or paused sound.
  * \param handle The handle to the sound.
  * \return Whether the handle has been valid or not.
  */
-extern bool AUD_stop(AUD_Handle* handle);
+extern int AUD_stop(AUD_Handle* handle);
 
 /**
  * Sets the end behaviour of a playing or paused sound.
@@ -101,7 +109,7 @@ extern bool AUD_stop(AUD_Handle* handle);
  * \param endBehaviour The behaviour after the end of the file has been reached.
  * \return Whether the handle has been valid or not.
  */
-extern bool AUD_setEndBehaviour(AUD_Handle* handle,
+extern int AUD_setEndBehaviour(AUD_Handle* handle,
 								AUD_EndBehaviour endBehaviour);
 
 /**
@@ -112,7 +120,7 @@ extern bool AUD_setEndBehaviour(AUD_Handle* handle,
  *               before playback starts.
  * \return Whether the handle has been valid or not.
  */
-extern bool AUD_seek(AUD_Handle* handle, int seekTo);
+extern int AUD_seek(AUD_Handle* handle, int seekTo);
 
 /**
  * Returns the status of a playing, paused or stopped sound.

@@ -31,9 +31,9 @@
  */
 
 #include "KX_CDActuator.h"
-#include "SND_CDObject.h"
+// AUD_XXX #include "SND_CDObject.h"
 #include "KX_GameObject.h"
-#include "SND_Scene.h" // needed for replication
+// AUD_XXX #include "SND_Scene.h" // needed for replication
 #include <iostream>
 
 #ifdef HAVE_CONFIG_H
@@ -44,21 +44,21 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 KX_CDActuator::KX_CDActuator(SCA_IObject* gameobject,
-							 SND_Scene* soundscene,
+// AUD_XXX							 SND_Scene* soundscene,
 							 KX_CDACT_TYPE type,
 							 int track,
 							 short start,
 							 short end)
 							 : SCA_IActuator(gameobject)
 {
-	m_soundscene = soundscene;
+// AUD_XXX	m_soundscene = soundscene;
 	m_type = type;
 	m_track = track;
 	m_lastEvent = true;
 	m_isplaying = false;
 	m_startFrame = start;
 	m_endFrame = end;
-	m_gain = SND_CDObject::Instance()->GetGain();
+// AUD_XXX	m_gain = SND_CDObject::Instance()->GetGain();
 }
 
 
@@ -82,13 +82,15 @@ bool KX_CDActuator::Update()
 {
 	bool result = false;
 	bool bNegativeEvent = IsNegativeEvent();
-	
+
 	RemoveAllEvents();
-	
+
 	if (!bNegativeEvent)
 	{
 		switch (m_type)
 		{
+// AUD_XXX
+#if 0
 		case KX_CDACT_PLAY_ALL:
 			{
 				SND_CDObject::Instance()->SetPlaymode(SND_CD_ALL);
@@ -136,6 +138,7 @@ bool KX_CDActuator::Update()
 				//result = true;
 				break;
 			}
+#endif
 		default:
 			// implement me !!
 			break;
@@ -196,7 +199,7 @@ PyMethodDef KX_CDActuator::Methods[] = {
 };
 
 PyAttributeDef KX_CDActuator::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("volume", 0.0, 1.0, KX_CDActuator, m_gain,pyattr_setGain),
+// AUD_XXX	KX_PYATTRIBUTE_FLOAT_RW_CHECK("volume", 0.0, 1.0, KX_CDActuator, m_gain,pyattr_setGain),
 	KX_PYATTRIBUTE_INT_RW("track", 1, 99, false, KX_CDActuator, m_track),
 	{ NULL }	//Sentinel
 };
@@ -204,7 +207,7 @@ PyAttributeDef KX_CDActuator::Attributes[] = {
 int KX_CDActuator::pyattr_setGain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_CDActuator* act = static_cast<KX_CDActuator*>(self);
-	SND_CDObject::Instance()->SetGain(act->m_gain);
+// AUD_XXX	SND_CDObject::Instance()->SetGain(act->m_gain);
 	return PY_SET_ATTR_SUCCESS;
 }
 
@@ -212,34 +215,34 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CDActuator, startCD,
 "startCD()\n"
 "\tStarts the CD playing.\n")
 {
-	SND_CDObject::Instance()->SetPlaystate(SND_MUST_PLAY);
+// AUD_XXX	SND_CDObject::Instance()->SetPlaystate(SND_MUST_PLAY);
 	Py_RETURN_NONE;
-}         
+}
 
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_CDActuator, pauseCD,
 "pauseCD()\n"
 "\tPauses the CD playing.\n")
 {
-	SND_CDObject::Instance()->SetPlaystate(SND_MUST_PAUSE);
+// AUD_XXX	SND_CDObject::Instance()->SetPlaystate(SND_MUST_PAUSE);
 	Py_RETURN_NONE;
-} 
+}
 
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_CDActuator, resumeCD,
 "resumeCD()\n"
 "\tResumes the CD playing.\n")
 {
-	SND_CDObject::Instance()->SetPlaystate(SND_MUST_RESUME);
+// AUD_XXX	SND_CDObject::Instance()->SetPlaystate(SND_MUST_RESUME);
 	Py_RETURN_NONE;
-} 
+}
 
 
 KX_PYMETHODDEF_DOC_NOARGS(KX_CDActuator, stopCD,
 "stopCD()\n"
 "\tStops the CD playing.\n")
 {
-	SND_CDObject::Instance()->SetPlaystate(SND_MUST_STOP);
+// AUD_XXX	SND_CDObject::Instance()->SetPlaystate(SND_MUST_STOP);
 	Py_RETURN_NONE;
 }
 
@@ -250,9 +253,12 @@ KX_PYMETHODDEF_DOC_O(KX_CDActuator, playTrack,
 {
 	if (PyLong_Check(value)) {
 		int track = PyLong_AsSsize_t(value);
+// AUD_XXX
+#if 0
 		SND_CDObject::Instance()->SetPlaymode(SND_CD_TRACK);
 		SND_CDObject::Instance()->SetTrack(track);
 		SND_CDObject::Instance()->SetPlaystate(SND_MUST_PLAY);
+#endif
 	}
 	Py_RETURN_NONE;
 }
@@ -263,11 +269,14 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_CDActuator, playAll,
 "playAll()\n"
 "\tPlays the CD from the beginning.\n")
 {
+// AUD_XXX
+#if 0
 	SND_CDObject::Instance()->SetPlaymode(SND_CD_ALL);
 	SND_CDObject::Instance()->SetTrack(1);
 	SND_CDObject::Instance()->SetPlaystate(SND_MUST_PLAY);
+#endif
 	Py_RETURN_NONE;
-}     
+}
 
 // Deprecated ----->
 PyObject* KX_CDActuator::PySetGain(PyObject* args)
@@ -276,20 +285,20 @@ PyObject* KX_CDActuator::PySetGain(PyObject* args)
 	ShowDeprecationWarning("setGain()", "the volume property");
 	if (!PyArg_ParseTuple(args, "f:setGain", &gain))
 		return NULL;
-	
-	SND_CDObject::Instance()->SetGain(gain);
-	
+
+// AUD_XXX	SND_CDObject::Instance()->SetGain(gain);
+
 	Py_RETURN_NONE;
-}         
+}
 
 
 
 PyObject* KX_CDActuator::PyGetGain(PyObject* args)
 {
-	float gain = SND_CDObject::Instance()->GetGain();
+	float gain = 1.0;// AUD_XXXSND_CDObject::Instance()->GetGain();
 	ShowDeprecationWarning("getGain()", "the volume property");
 	PyObject* result = PyFloat_FromDouble(gain);
-	
+
 	return result;
 }
 // <-----
