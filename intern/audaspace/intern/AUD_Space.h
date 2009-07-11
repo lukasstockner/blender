@@ -168,9 +168,4 @@ typedef struct
 	// void* userData; - for the case it is needed someday
 } AUD_Exception;
 
-/// Handle structure.
-typedef struct
-{
-} AUD_Handle;
-
 #endif //AUD_ENUMS

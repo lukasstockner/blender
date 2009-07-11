@@ -33,7 +33,8 @@ extern "C" {
 #include "intern/AUD_Space.h"
 
 #ifndef AUD_CAPI_IMPLEMENTATION
-	typedef struct {} AUD_Sound;
+	typedef void AUD_Sound;
+	typedef void AUD_Handle;
 #endif
 
 /**

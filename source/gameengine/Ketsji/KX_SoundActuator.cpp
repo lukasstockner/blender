@@ -210,6 +210,8 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			case KX_SOUNDACT_LOOPEND:
 			case KX_SOUNDACT_LOOPSTOP:
 				{
+					if(m_handle)
+						AUD_stop(m_handle);
 					m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_LOOP, 0);
 					m_isplaying = true;
 					result = true;
@@ -218,6 +220,8 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			case KX_SOUNDACT_PLAYSTOP:
 			case KX_SOUNDACT_PLAYEND:
 				{
+					if(m_handle)
+						AUD_stop(m_handle);
 					m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_STOP, 0);
 					m_isplaying = true;
 					result = true;
@@ -359,6 +363,8 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound,
 		AUD_resume(m_handle);
 		break;
 	default:
+		if(m_handle)
+			AUD_stop(m_handle);
 		m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_STOP, 0);
 	}
 	Py_RETURN_NONE;

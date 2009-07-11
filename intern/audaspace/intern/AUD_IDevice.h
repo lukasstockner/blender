@@ -29,6 +29,11 @@
 #include "AUD_Space.h"
 class AUD_IFactory;
 
+/// Handle structure, for inherition.
+typedef struct
+{
+} AUD_Handle;
+
 /**
  * This class represents an output device for sound sources.
  * Output devices may be several backends such as plattform independand like
