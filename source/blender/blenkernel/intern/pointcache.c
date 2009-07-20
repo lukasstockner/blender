@@ -196,15 +196,14 @@ static int ptcache_path(PTCacheID *pid, char *filename)
 		
 		snprintf(filename, MAX_PTCACHE_PATH, "//"PTCACHE_PATH"%s", file); /* add blend file name to pointcache dir */
 		BLI_convertstringcode(filename, blendfilename);
-		BLI_add_slash(filename);
-		return strlen(filename);
+		return BLI_add_slash(filename); /* new strlen() */
 	}
 	
 	/* use the temp path. this is weak but better then not using point cache at all */
 	/* btempdir is assumed to exist and ALWAYS has a trailing slash */
 	snprintf(filename, MAX_PTCACHE_PATH, "%s"PTCACHE_PATH"%d", btempdir, abs(getpid()));
-	BLI_add_slash(filename);
-	return strlen(filename);
+	
+	return BLI_add_slash(filename); /* new strlen() */
 }
 
 static int BKE_ptcache_id_filename(PTCacheID *pid, char *filename, int cfra, short do_path, short do_ext)
@@ -315,8 +314,10 @@ static int ptcache_pid_totelem(PTCacheID *pid)
 		ParticleSystem *psys = pid->data;
 		return psys->totpart;
 	}
-	else if(pid->type==PTCACHE_TYPE_CLOTH)
-		return 0; // TODO
+	else if(pid->type==PTCACHE_TYPE_CLOTH) {
+		ClothModifierData *clmd = pid->data;
+		return clmd->clothObject->numverts;
+	}
 
 	return 0;
 }
@@ -429,6 +430,7 @@ int BKE_ptcache_read_cache(PTCacheReader *reader)
 
 		if(pf) {
 			BKE_ptcache_file_close(pf);
+			pf = NULL;
 			MEM_freeN(data);
 		}
 
@@ -523,7 +525,9 @@ int BKE_ptcache_read_cache(PTCacheReader *reader)
 
 		if(pf) {
 			BKE_ptcache_file_close(pf);
+			pf = NULL;
 			BKE_ptcache_file_close(pf2);
+			pf2 = NULL;
 			MEM_freeN(data1);
 			MEM_freeN(data2);
 		}
@@ -567,10 +571,13 @@ int BKE_ptcache_read_cache(PTCacheReader *reader)
 
 		if(pf) {
 			BKE_ptcache_file_close(pf);
+			pf = NULL;
 			MEM_freeN(data);
 		}
-		if(pf2)
+		if(pf2) {
 			BKE_ptcache_file_close(pf2);
+			pf = NULL;
+		}
 
 		ret = PTCACHE_READ_OLD;
 	}
@@ -602,13 +609,15 @@ int BKE_ptcache_write_cache(PTCacheWriter *writer)
 	PTCacheFile *pf= NULL;
 	int elemsize = ptcache_pid_elemsize(writer->pid);
 	int i, incr = elemsize / sizeof(float);
-	int add = 0, overwrite = 0, ocfra;
+	int add = 0, overwrite = 0;
 	float temp[14];
 
 	if(writer->totelem == 0 || writer->cfra <= 0)
 		return 0;
 
 	if(cache->flag & PTCACHE_DISK_CACHE) {
+		int cfra = cache->endframe;
+
 		/* allways start from scratch on the first frame */
 		if(writer->cfra == cache->startframe) {
 			BKE_ptcache_id_clear(writer->pid, PTCACHE_CLEAR_ALL, writer->cfra);
@@ -616,7 +625,7 @@ int BKE_ptcache_write_cache(PTCacheWriter *writer)
 			add = 1;
 		}
 		else {
-			int cfra = cache->endframe;
+			int ocfra;
 			/* find last cached frame */
 			while(cfra > cache->startframe && !BKE_ptcache_id_exist(writer->pid, cfra))
 				cfra--;
@@ -626,7 +635,7 @@ int BKE_ptcache_write_cache(PTCacheWriter *writer)
 			while(ocfra > cache->startframe && !BKE_ptcache_id_exist(writer->pid, ocfra))
 				ocfra--;
 
-			if(writer->cfra > cfra) {
+			if(cfra >= cache->startframe && writer->cfra > cfra) {
 				if(ocfra >= cache->startframe && cfra - ocfra < cache->step)
 					overwrite = 1;
 				else
@@ -636,7 +645,7 @@ int BKE_ptcache_write_cache(PTCacheWriter *writer)
 
 		if(add || overwrite) {
 			if(overwrite)
-				BKE_ptcache_id_clear(writer->pid, PTCACHE_CLEAR_FRAME, ocfra);
+				BKE_ptcache_id_clear(writer->pid, PTCACHE_CLEAR_FRAME, cfra);
 
 			pf = BKE_ptcache_file_open(writer->pid, PTCACHE_FILE_WRITE, writer->cfra);
 			if(!pf)
@@ -665,7 +674,7 @@ int BKE_ptcache_write_cache(PTCacheWriter *writer)
 			pm2 = cache->mem_cache.last;
 
 			if(pm2 && writer->cfra > pm2->frame) {
-				if(pm2 && pm2->prev && pm2->frame - pm2->prev->frame < cache->step)
+				if(pm2->prev && pm2->frame - pm2->prev->frame < cache->step)
 					overwrite = 1;
 				else
 					add = 1;
@@ -1102,6 +1111,10 @@ PointCache *BKE_ptcache_copy(PointCache *cache)
 
 	ncache= MEM_dupallocN(cache);
 
+	/* hmm, should these be copied over instead? */
+	ncache->mem_cache.first = NULL;
+	ncache->mem_cache.last = NULL;
+
 	ncache->flag= 0;
 	ncache->simframe= 0;
 
@@ -1211,8 +1224,9 @@ void BKE_ptcache_make_cache(PTCacheBaker* baker)
 			cache = pid->cache;
 			if((cache->flag & PTCACHE_BAKED)==0) {
 				if(pid->type==PTCACHE_TYPE_PARTICLES) {
-					/* skip hair particles */
-					if(((ParticleSystem*)pid->data)->part->type == PART_HAIR)
+					ParticleSystem *psys = (ParticleSystem*)pid->data;
+					/* skip hair & keyed particles */
+					if(psys->part->type == PART_HAIR || psys->part->phystype == PART_PHYS_KEYED)
 						continue;
 
 					psys_get_pointcache_start_end(scene, pid->data, &cache->startframe, &cache->endframe);
@@ -1310,6 +1324,7 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid) {
 
 	if (!G.relbase_valid){
 		cache->flag &= ~PTCACHE_DISK_CACHE;
+		printf("File must be saved before using disk cache!\n");
 		return;
 	}
 

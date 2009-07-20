@@ -284,6 +284,21 @@ static int layers_exec(bContext *C, wmOperator *op)
 	else 
 		v3d->lay = (1<<nr);
 	
+	/* set active layer, ensure to always have one */
+	if(v3d->lay & (1<<nr))
+	   v3d->layact= 1<<nr;
+	else if((v3d->lay & v3d->layact)==0) {
+		int bit= 0;
+		
+		while(bit<32) {
+			if(v3d->lay & (1<<bit)) {
+				v3d->layact= 1<<bit;
+				break;
+			}
+			bit++;
+		}
+	}
+	
 	if(v3d->scenelock) handle_view3d_lock(C);
 	
 	/* new layers might need unflushed events events */
@@ -1978,12 +1993,8 @@ static void view3d_edit_object_trackmenu(bContext *C, uiLayout *layout, void *ar
 
 static void view3d_edit_object_constraintsmenu(bContext *C, uiLayout *layout, void *arg_unused)
 {
-#if 0
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Add Constraint...|Ctrl Alt C",			0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 1, "");
-	add_constraint(0);
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Clear Constraints",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
-	ob_clear_constraints();
-#endif
+	uiItemO(layout, NULL, 0, "OBJECT_OT_constraint_add_with_targets");
+	uiItemO(layout, NULL, 0, "OBJECT_OT_constraints_clear");
 }
 
 static void view3d_edit_object_showhidemenu(bContext *C, uiLayout *layout, void *arg_unused)
@@ -4419,7 +4430,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	Object *ob= OBACT;
 	Object *obedit = CTX_data_edit_object(C);
 	uiBlock *block;
-	int a, xco, maxco=0, yco= 3;
+	int a, xco=0, maxco=0, yco= 0;
 	
 	block= uiLayoutFreeBlock(layout);
 	uiBlockSetHandleFunc(block, do_view3d_header_buttons, NULL);

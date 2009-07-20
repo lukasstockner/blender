@@ -34,11 +34,13 @@ struct Base;
 struct Bone;
 struct bArmature;
 struct bPoseChannel;
+struct wmOperator;
 struct wmWindowManager;
 struct ListBase;
 struct View3D;
 struct ViewContext;
 struct RegionView3D;
+struct SK_Sketch;
 
 typedef struct EditBone
 {
@@ -100,6 +102,7 @@ void ED_armature_edit_remake(struct Object *obedit);
 int ED_do_pose_selectbuffer(struct Scene *scene, struct Base *base, unsigned int *buffer, 
 							short hits, short extend);
 void mouse_armature(struct bContext *C, short mval[2], int extend);
+int join_armature_exec(struct bContext *C, struct wmOperator *op);
 struct Bone *get_indexed_bone (struct Object *ob, int index);
 float ED_rollBoneToVector(EditBone *bone, float new_up_axis[3]);
 EditBone *ED_armature_bone_get_mirrored(struct ListBase *edbo, EditBone *ebo); // XXX this is needed for populating the context iterators
@@ -114,7 +117,7 @@ void docenter_armature (struct Scene *scene, struct View3D *v3d, struct Object *
 
 void auto_align_armature(struct Scene *scene, struct View3D *v3d, short mode);
 void unique_editbone_name(struct ListBase *ebones, char *name, EditBone *bone); /* if bone is already in list, pass it as param to ignore it */
-void armature_bone_rename(struct Object *ob, char *oldnamep, char *newnamep);
+void ED_armature_bone_rename(struct bArmature *arm, char *oldnamep, char *newnamep);
 
 void undo_push_armature(struct bContext *C, char *name);
 
@@ -130,7 +133,9 @@ int ED_operator_sketch_mode_active_stroke(struct bContext *C);
 int ED_operator_sketch_full_mode(struct bContext *C);
 int ED_operator_sketch_mode(const struct bContext *C);
 
-void BIF_freeSketch(struct bContext *C);
+void ED_freeSketch(struct SK_Sketch *sketch);
+struct SK_Sketch* ED_createSketch();
+
 void BIF_convertSketch(struct bContext *C);
 void BIF_deleteSketch(struct bContext *C);
 void BIF_selectAllSketch(struct bContext *C, int mode); /* -1: deselect, 0: select, 1: toggle */

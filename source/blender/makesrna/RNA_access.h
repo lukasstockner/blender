@@ -221,6 +221,7 @@ extern StructRNA RNA_Key;
 extern StructRNA RNA_KeyboardSensor;
 extern StructRNA RNA_KeyingSet;
 extern StructRNA RNA_KeyingSetPath;
+extern StructRNA RNA_KeyedParticleTarget;
 extern StructRNA RNA_KinematicConstraint;
 extern StructRNA RNA_Lamp;
 extern StructRNA RNA_LampSkySettings;
@@ -370,6 +371,7 @@ extern StructRNA RNA_SoundSequence;
 extern StructRNA RNA_Space;
 extern StructRNA RNA_Space3DView;
 extern StructRNA RNA_SpaceButtonsWindow;
+extern StructRNA RNA_SpaceConsole;
 extern StructRNA RNA_SpaceDopeSheetEditor;
 extern StructRNA RNA_SpaceGraphEditor;
 extern StructRNA RNA_SpaceImageEditor;
@@ -756,8 +758,9 @@ const struct ListBase *RNA_function_defined_parameters(FunctionRNA *func);
 
 /* Utility */
 
-ParameterList *RNA_parameter_list_create(PointerRNA *ptr, FunctionRNA *func);
+ParameterList *RNA_parameter_list_create(ParameterList *parms, PointerRNA *ptr, FunctionRNA *func);
 void RNA_parameter_list_free(ParameterList *parms);
+int  RNA_parameter_list_size(ParameterList *parms);
 
 void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter);
 void RNA_parameter_list_next(ParameterIterator *iter);

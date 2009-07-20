@@ -640,38 +640,6 @@ void pose_clear_IK(Scene *scene)
 	BIF_undo_push("Remove IK constraint(s)");
 }
 
-void pose_clear_constraints(Scene *scene)
-{
-	Object *obedit= scene->obedit; // XXX context
-	Object *ob= OBACT;
-	bArmature *arm= ob->data;
-	bPoseChannel *pchan;
-	
-	/* paranoia checks */
-	if(!ob && !ob->pose) return;
-	if(ob==obedit || (ob->flag & OB_POSEMODE)==0) return;
-	
-	if(pose_has_protected_selected(ob, 0, 1))
-		return;
-	
-	if(okee("Remove Constraints")==0) return;
-	
-	/* find active */
-	for(pchan= ob->pose->chanbase.first; pchan; pchan= pchan->next) {
-		if(arm->layer & pchan->bone->layer) {
-			if(pchan->bone->flag & (BONE_ACTIVE|BONE_SELECTED)) {
-				free_constraints(&pchan->constraints);
-				pchan->constflag= 0;
-			}
-		}
-	}
-	
-	DAG_object_flush_update(scene, ob, OB_RECALC_DATA);	// and all its relations
-	
-	BIF_undo_push("Remove Constraint(s)");
-	
-}
-
 
 void pose_copy_menu(Scene *scene)
 {
@@ -1346,7 +1314,7 @@ void pose_flip_names(Scene *scene)
 			if(pchan->bone->flag & (BONE_ACTIVE|BONE_SELECTED)) {
 				BLI_strncpy(newname, pchan->name, sizeof(newname));
 				bone_flip_name(newname, 1);	// 1 = do strip off number extensions
-				armature_bone_rename(ob, pchan->name, newname);
+				ED_armature_bone_rename(arm, pchan->name, newname);
 			}
 		}
 	}
@@ -1375,7 +1343,7 @@ void pose_autoside_names(Scene *scene, short axis)
 			if(pchan->bone->flag & (BONE_ACTIVE|BONE_SELECTED)) {
 				BLI_strncpy(newname, pchan->name, sizeof(newname));
 				bone_autoside_name(newname, 1, axis, pchan->bone->head[axis], pchan->bone->tail[axis]);
-				armature_bone_rename(ob, pchan->name, newname);
+				ED_armature_bone_rename(arm, pchan->name, newname);
 			}
 		}
 	}
