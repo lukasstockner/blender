@@ -27,9 +27,8 @@
 #define AUD_SOFTWAREDEVICE
 
 #include "AUD_IDevice.h"
-class AUD_MixerFactory;
-class AUD_ISuperposer;
 struct AUD_SoftwareHandle;
+class AUD_IMixer;
 
 #include <list>
 #include <pthread.h>
@@ -38,7 +37,7 @@ struct AUD_SoftwareHandle;
  * This device plays is a generic device with software mixing.
  * Classes implementing this have to:
  *  - Implement the playing function.
- *  - Prepare the m_specs, m_mixer and m_superposer variables.
+ *  - Prepare the m_specs, m_mixer variables.
  *  - Call the create and destroy functions.
  *  - Call the mix function to retrieve their audio data.
  */
@@ -51,14 +50,9 @@ protected:
 	AUD_Specs m_specs;
 
 	/**
-	 * The resampling factory. Will be deleted by the destroy function.
+	 * The mixer. Will be deleted by the destroy function.
 	 */
-	AUD_MixerFactory* m_mixer;
-
-	/**
-	 * The superposer. Will be deleted by the destroy function.
-	 */
-	AUD_ISuperposer* m_superposer;
+	AUD_IMixer* m_mixer;
 
 	/**
 	 * Initializes member variables.
@@ -104,20 +98,39 @@ private:
 	 */
 	pthread_mutex_t m_mutex;
 
+	/**
+	 * The overall volume of the device.
+	 */
+	float m_volume;
+
+	/**
+	 * Checks if a handle is valid.
+	 * \param handle The handle to check.
+	 * \return Whether the handle is valid.
+	 */
+	bool isValid(AUD_Handle* handle);
+
 public:
+	/**
+	 * Sets a new mixer.
+	 * \param mixer The new mixer.
+	 */
+	void setMixer(AUD_IMixer* mixer);
+
 	virtual AUD_Specs getSpecs();
-	virtual AUD_Handle* play(AUD_IFactory* factory,
-							 AUD_EndBehaviour endBehaviour = AUD_BEHAVIOUR_STOP,
-							 int seekTo = 0);
+	virtual AUD_Handle* play(AUD_IFactory* factory, bool keep = false);
 	virtual bool pause(AUD_Handle* handle);
 	virtual bool resume(AUD_Handle* handle);
 	virtual bool stop(AUD_Handle* handle);
-	virtual bool setEndBehaviour(AUD_Handle* handle,
-								 AUD_EndBehaviour endBehaviour);
-	virtual bool seek(AUD_Handle* handle, int position);
+	virtual bool setKeep(AUD_Handle* handle, bool keep);
+	virtual bool sendMessage(AUD_Handle* handle, AUD_Message &message);
+	virtual bool seek(AUD_Handle* handle, float position);
 	virtual AUD_Status getStatus(AUD_Handle* handle);
 	virtual void lock();
 	virtual void unlock();
+	virtual bool checkCapability(int capability);
+	virtual bool setCapability(int capability, void *value);
+	virtual bool getCapability(int capability, void *value);
 };
 
 #endif //AUD_SOFTWAREDEVICE

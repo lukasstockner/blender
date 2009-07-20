@@ -79,6 +79,7 @@ public:
 	virtual int getPosition();
 	virtual AUD_Specs getSpecs();
 	virtual AUD_ReaderType getType();
+	virtual bool notify(AUD_Message &message);
 	virtual void read(int & length, sample_t* & buffer);
 };
 

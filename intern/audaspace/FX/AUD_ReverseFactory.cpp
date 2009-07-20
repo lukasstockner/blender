@@ -23,25 +23,21 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
-#ifndef AUD_SDLSUPERPOSER
-#define AUD_SDLSUPERPOSER
+#include "AUD_ReverseFactory.h"
+#include "AUD_ReverseReader.h"
+#include "AUD_Space.h"
 
-#include "AUD_ISuperposer.h"
+AUD_ReverseFactory::AUD_ReverseFactory(AUD_IFactory* factory) :
+		AUD_EffectFactory(factory) {}
 
-/**
- * This class is able to superpose two audiosignals with the help of SDL.
- * The specification of the audio signals has to be the same as the
- * specification of the device.
- */
-class AUD_SDLSuperposer : public AUD_ISuperposer
+AUD_IReader* AUD_ReverseFactory::createReader()
 {
-public:
-	/**
-	 * Creates the superposer.
-	 */
-	AUD_SDLSuperposer();
+	AUD_IReader* reader = getReader();
 
-	virtual void superpose(sample_t* destination, sample_t* source, int length);
-};
+	if(reader != 0)
+	{
+		reader = new AUD_ReverseReader(reader); AUD_NEW("reader")
+	}
 
-#endif //AUD_SDLSUPERPOSER
+	return reader;
+}

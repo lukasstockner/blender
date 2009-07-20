@@ -26,6 +26,8 @@
 #ifndef AUD_BUFFER
 #define AUD_BUFFER
 
+#include "AUD_Space.h"
+
 /**
  * This class is a simple buffer in RAM which is 16 Byte aligned and provides
  * resize functionality.
@@ -37,14 +39,14 @@ private:
 	int m_size;
 
 	/// The pointer to the buffer memory.
-	unsigned char* m_buffer;
+	sample_t* m_buffer;
 
 public:
 	/**
 	 * Creates a new buffer.
 	 * \param size The size of the buffer in bytes.
 	 */
-	AUD_Buffer(int size);
+	AUD_Buffer(int size = 0);
 
 	/**
 	 * Destroys the buffer.
@@ -54,7 +56,7 @@ public:
 	/**
 	 * Returns the pointer to the buffer in memory.
 	 */
-	unsigned char* getBuffer();
+	sample_t* getBuffer();
 
 	/**
 	 * Returns the size of the buffer in bytes.
@@ -67,7 +69,7 @@ public:
 	 * \param keep Whether to keep the old data. If the new buffer is smaller,
 	 *        the data at the end will be lost.
 	 */
-	void resize(int size, bool keep = true);
+	void resize(int size, bool keep = false);
 };
 
 #endif //AUD_BUFFER

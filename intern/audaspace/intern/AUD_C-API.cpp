@@ -43,7 +43,11 @@ int AUD_init()
 	av_register_all();
 	try
 	{
-		AUD_device = new AUD_SDLDevice();
+		AUD_Specs specs;
+		specs.channels = AUD_CHANNELS_STEREO;
+		specs.format = AUD_FORMAT_S16;
+		specs.rate = AUD_RATE_44100;
+		AUD_device = new AUD_SDLDevice(specs);
 		return true;
 	}
 	catch(AUD_Exception e)
@@ -76,16 +80,13 @@ void AUD_unload(AUD_Sound* sound)
 	delete sound;
 }
 
-AUD_Handle* AUD_play(AUD_Sound* sound,
-					 AUD_EndBehaviour endBehaviour,
-					 double seekTo)
+AUD_Handle* AUD_play(AUD_Sound* sound, int keep)
 {
 	assert(AUD_device);
 	assert(sound);
-	int position = (int)(seekTo * AUD_device->getSpecs().rate);
 	try
 	{
-		return AUD_device->play(sound, endBehaviour, position);
+		return AUD_device->play(sound, keep);
 	}
 	catch(AUD_Exception e)
 	{
@@ -111,11 +112,10 @@ int AUD_stop(AUD_Handle* handle)
 	return AUD_device->stop(handle);
 }
 
-int AUD_setEndBehaviour(AUD_Handle* handle,
-						 AUD_EndBehaviour endBehaviour)
+int AUD_setKeep(AUD_Handle* handle, int keep)
 {
 	assert(AUD_device);
-	return AUD_device->setEndBehaviour(handle, endBehaviour);
+	return AUD_device->setKeep(handle, keep);
 }
 
 int AUD_seek(AUD_Handle* handle, double seekTo)

@@ -46,6 +46,11 @@ class AUD_IDevice
 {
 public:
 	/**
+	 * Destroys the device.
+	 */
+	virtual ~AUD_IDevice() {}
+
+	/**
 	 * Returns the specification of the device.
 	 */
 	virtual AUD_Specs getSpecs()=0;
@@ -53,17 +58,14 @@ public:
 	/**
 	 * Plays a sound source.
 	 * \param factory The factory to create the reader for the sound source.
-	 * \param endBehaviour The behaviour of the device when the sound source
-	 *                     doesn't return any more data.
-	 * \param seekTo A seek value for the start of the playback.
+	 * \param keep When keep is true the sound source will not be deleted but
+	 *             set to paused when its end has been reached.
 	 * \return Returns a handle with which the playback can be controlled.
 	 *         This is NULL if the sound couldn't be played back.
 	 * \exception AUD_Exception Thrown if there's an unexpected (from the
 	 *            device side) error during creation of the reader.
 	 */
-	virtual AUD_Handle* play(AUD_IFactory* factory,
-							 AUD_EndBehaviour endBehaviour = AUD_BEHAVIOUR_STOP,
-							 int seekTo = 0)=0;
+	virtual AUD_Handle* play(AUD_IFactory* factory, bool keep = false)=0;
 
 	/**
 	 * Pauses a played back sound.
@@ -96,29 +98,33 @@ public:
 	 * Sets the behaviour of the device for a played back sound when the sound
 	 * doesn't return any more samples.
 	 * \param handle The handle returned by the play function.
-	 * \param endBehaviour The new behaviour.
+	 * \param keep True when the source should be paused and not deleted.
 	 * \return
 	 *        - true if the behaviour has been changed.
 	 *        - false if the handle is invalid.
-	 * \see AUD_EndBehaviour
 	 */
-	virtual bool setEndBehaviour(AUD_Handle* handle,
-								 AUD_EndBehaviour endBehaviour)=0;
+	virtual bool setKeep(AUD_Handle* handle, bool keep)=0;
+
+	/**
+	 * Sends a message to a sound or all sounds that are currently played or
+	 * paused.
+	 * \param handle The sound that should receive the message or NULL if all
+	 *        sounds should receive it.
+	 * \param message The message.
+	 * \return True if the message has been read by at least one sound.
+	 */
+	virtual bool sendMessage(AUD_Handle* handle, AUD_Message &message)=0;
 
 	/**
 	 * Seeks in a played back sound.
 	 * \param handle The handle returned by the play function.
-	 * \param position The new position from where to play back, measured in
-	 *        samples. To get this value simply multiply the desired time in
-	 *        seconds with the sample rate of the device.
-	 *        A negative value indicates that the playback should be started
-	 *        from the start after -position samples.
+	 * \param position The new position from where to play back, in seconds.
 	 * \return
 	 *        - true if the handle is valid.
 	 *        - false if the handle is invalid.
 	 * \warning Whether the seek works or not depends on the sound source.
 	 */
-	virtual bool seek(AUD_Handle* handle, int position)=0;
+	virtual bool seek(AUD_Handle* handle, float position)=0;
 
 	/**
 	 * Returns the status of a played back sound.
@@ -146,6 +152,31 @@ public:
 	 * Unlocks the previously locked device.
 	 */
 	virtual void unlock()=0;
+
+	/**
+	 * Checks if a specific capability as available on a device.
+	 * \param capability The capability.
+	 * \return Whether it is available or not.
+	 */
+	virtual bool checkCapability(int capability)=0;
+
+	/**
+	 * Set a value of a capability. The data behind the pointer depends on the
+	 * capability.
+	 * \param capability The capability.
+	 * \param value The value.
+	 * \return Whether the action succeeded or not.
+	 */
+	virtual bool setCapability(int capability, void *value)=0;
+
+	/**
+	 * Retrieves a value of a capability. The data behind the pointer depends on
+	 * the capability.
+	 * \param capability The capability.
+	 * \param value The value.
+	 * \return Whether the action succeeded or not.
+	 */
+	virtual bool getCapability(int capability, void *value)=0;
 };
 
 #endif //AUD_IDevice

@@ -23,10 +23,9 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
+#include "AUD_SDLMixer.h"
 #include "AUD_SDLDevice.h"
-#include "AUD_SDLMixerFactory.h"
 #include "AUD_IReader.h"
-#include "AUD_SDLSuperposer.h"
 
 #include <SDL.h>
 
@@ -37,13 +36,18 @@ void mixAudio(void *data, Uint8* buffer, int length)
 	device->SDLmix((sample_t *)buffer, length);
 }
 
-void AUD_SDLDevice::init()
+AUD_SDLDevice::AUD_SDLDevice(AUD_Specs specs, int buffersize)
 {
-	SDL_AudioSpec format, obtained;
+	if(specs.channels == AUD_CHANNELS_INVALID)
+		specs.channels = AUD_CHANNELS_STEREO;
+	if(specs.format == AUD_FORMAT_INVALID)
+		specs.format = AUD_FORMAT_S16;
+	if(specs.rate == AUD_RATE_INVALID)
+		specs.rate = AUD_RATE_44100;
 
-	// SDL only supports mono and stereo
-	if(m_specs.channels > 2)
-		m_specs.channels = AUD_CHANNELS_STEREO;
+	m_specs = specs;
+
+	SDL_AudioSpec format, obtained;
 
 	format.freq = m_specs.rate;
 	if(m_specs.format == AUD_FORMAT_U8)
@@ -51,7 +55,7 @@ void AUD_SDLDevice::init()
 	else
 		format.format = AUDIO_S16SYS;
 	format.channels = m_specs.channels;
-	format.samples = 1024;
+	format.samples = buffersize;
 	format.callback = &mixAudio;
 	format.userdata = this;
 
@@ -67,33 +71,19 @@ void AUD_SDLDevice::init()
 	else
 		AUD_THROW(AUD_ERROR_SDL);
 
-	m_mixer = new AUD_SDLMixerFactory(m_specs);
-	m_superposer = new AUD_SDLSuperposer();
+	m_mixer = new AUD_SDLMixer(); AUD_NEW("mixer")
+	m_mixer->setSpecs(m_specs);
 
 	create();
 }
 
-AUD_SDLDevice::AUD_SDLDevice(AUD_Specs specs)
-{
-	m_specs = specs;
-
-	init();
-}
-
-AUD_SDLDevice::AUD_SDLDevice()
-{
-	m_specs.channels = AUD_CHANNELS_STEREO;
-	m_specs.format = AUD_FORMAT_S16;
-	m_specs.rate = AUD_RATE_44100;
-
-	init();
-}
-
 AUD_SDLDevice::~AUD_SDLDevice()
 {
-	destroy();
-
+	lock();
 	SDL_CloseAudio();
+	unlock();
+
+	destroy();
 }
 
 void AUD_SDLDevice::SDLmix(sample_t* buffer, int length)

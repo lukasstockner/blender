@@ -72,16 +72,11 @@ extern void AUD_unload(AUD_Sound* sound);
 /**
  * Plays back a sound file.
  * \param sound The handle of the sound file.
- * \param endBehaviour The behaviour after the end of the sound file has been
- *                     reached.
- * \param seekTo From where the sound file should be played back in seconds.
- *               A negative value indicates the seconds that should be waited
- *               before playback starts.
+ * \param keep When keep is true the sound source will not be deleted but set to
+ *             paused when its end has been reached.
  * \return A handle to the played back sound.
  */
-extern AUD_Handle* AUD_play(AUD_Sound* sound,
-							AUD_EndBehaviour endBehaviour,
-							double seekTo);
+extern AUD_Handle* AUD_play(AUD_Sound* sound, int keep);
 
 /**
  * Pauses a played back sound.
@@ -107,11 +102,11 @@ extern int AUD_stop(AUD_Handle* handle);
 /**
  * Sets the end behaviour of a playing or paused sound.
  * \param handle The handle to the sound.
- * \param endBehaviour The behaviour after the end of the file has been reached.
+ * \param keep When keep is true the sound source will not be deleted but set to
+ *             paused when its end has been reached.
  * \return Whether the handle has been valid or not.
  */
-extern int AUD_setEndBehaviour(AUD_Handle* handle,
-								AUD_EndBehaviour endBehaviour);
+extern int AUD_setKeep(AUD_Handle* handle, int keep);
 
 /**
  * Seeks a playing or paused sound.

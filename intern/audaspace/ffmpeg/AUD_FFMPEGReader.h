@@ -38,10 +38,8 @@ extern "C" {
  * \warning Seeking may not be accurate! Moreover the position is updated after
  *          a buffer reading call. So calling getPosition right after seek
  *          normally results in a wrong value.
- * \bug When tried playing back a wav file with S24 or FLOAT32 as sample format
- *      ffmpeg always returned S16 as sample format, resulting in wrong
- *      playback.
- * \bug Playback of an ogg file seems to result in a segfault on windows.
+ * \warning Playback of an ogg with some outdated ffmpeg versions results in a
+ *          segfault on windows.
  */
 class AUD_FFMPEGReader : public AUD_IReader
 {
@@ -120,6 +118,7 @@ public:
 	virtual int getPosition();
 	virtual AUD_Specs getSpecs();
 	virtual AUD_ReaderType getType();
+	virtual bool notify(AUD_Message &message);
 	virtual void read(int & length, sample_t* & buffer);
 };
 

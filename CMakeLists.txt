@@ -66,6 +66,7 @@ OPTION(WITH_PYTHON		"Enable Embedded Python API"				ON)
 OPTION(WITH_OPENJPEG		"Enable OpenJpeg Support (http://www.openjpeg.org/)"	OFF)
 OPTION(WITH_OPENAL		"Enable OpenAL Support (http://www.openal.org)"		ON)
 OPTION(WITH_OPENMP		"Enable OpenMP (has to be supported by the compiler)"	OFF)
+OPTION(WITH_SDL		"Enable SDL Support(http://www.libsdl.org/)"	ON)
 OPTION(WITH_WEBPLUGIN		"Enable Web Plugin (Unix only)"				OFF)
 
 IF(NOT WITH_GAMEENGINE AND WITH_PLAYER)
@@ -153,6 +154,11 @@ IF(UNIX AND NOT APPLE)
   SET(FFMPEG_INC ${FFMPEG}/include)
   SET(FFMPEG_LIB avformat avcodec avutil avdevice swscale)
   SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
+
+  SET(LIBSAMPLERATE /usr)
+  SET(LIBSAMPLERATE_INC ${LIBSAMPLERATE}/include)
+  SET(LIBSAMPLERATE_LIB samplerate)
+  SET(LIBSAMPLERATE_LIBPATH ${LIBSAMPLERATE}/lib)
 
   FIND_PACKAGE(JPEG REQUIRED)
 
@@ -267,6 +273,11 @@ IF(WIN32)
   SET(FFMPEG_INC ${FFMPEG}/include)
   SET(FFMPEG_LIB avcodec-52 avformat-52 avdevice-52 avutil-50 swscale-0)
   SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
+
+  SET(LIBSAMPLERATE ${LIBDIR}/SRC)
+  SET(LIBSAMPLERATE_INC ${LIBSAMPLERATE}/include)
+  SET(LIBSAMPLERATE_LIB samplerate)
+  SET(LIBSAMPLERATE_LIBPATH ${LIBSAMPLERATE}/lib)
 
   IF(CMAKE_CL_64)
   SET(LLIBS kernel32 user32 vfw32 winmm ws2_32 )

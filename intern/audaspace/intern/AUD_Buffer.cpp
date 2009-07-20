@@ -34,15 +34,15 @@
 AUD_Buffer::AUD_Buffer(int size)
 {
 	m_size = size;
-	m_buffer = (unsigned char*) malloc(size+15);
+	m_buffer = (sample_t*) malloc(size+16); AUD_NEW("buffer")
 }
 
 AUD_Buffer::~AUD_Buffer()
 {
-	free(m_buffer);
+	free(m_buffer); AUD_DELETE("buffer")
 }
 
-unsigned char* AUD_Buffer::getBuffer()
+sample_t* AUD_Buffer::getBuffer()
 {
 	return AUD_ALIGN(m_buffer);
 }
@@ -54,13 +54,13 @@ int AUD_Buffer::getSize()
 
 void AUD_Buffer::resize(int size, bool keep)
 {
-	unsigned char* buffer = (unsigned char*) malloc(size+15);
+	sample_t* buffer = (sample_t*) malloc(size+16); AUD_NEW("buffer")
 
 	// copy old data over if wanted
 	if(keep)
 		memcpy(AUD_ALIGN(buffer), AUD_ALIGN(m_buffer), AUD_MIN(size, m_size));
 
-	free(m_buffer);
+	free(m_buffer); AUD_DELETE("buffer")
 
 	m_buffer = buffer;
 	m_size = size;

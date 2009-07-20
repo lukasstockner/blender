@@ -45,7 +45,7 @@ public:
 	AUD_Reference(T* reference = 0)
 	{
 		m_reference = reference;
-		m_refcount = new int;
+		m_refcount = new int; AUD_NEW("int")
 		*m_refcount = 1;
 	}
 
@@ -70,8 +70,10 @@ public:
 		if(*m_refcount == 0)
 		{
 			if(m_reference != 0)
-				delete m_reference;
-			delete m_refcount;
+			{
+				delete m_reference; AUD_DELETE("buffer")
+			}
+			delete m_refcount; AUD_DELETE("int")
 		}
 	}
 
@@ -88,8 +90,10 @@ public:
 		if(*m_refcount == 0)
 		{
 			if(m_reference != 0)
-				delete m_reference;
-			delete m_refcount;
+			{
+				delete m_reference; AUD_DELETE("buffer")
+			}
+			delete m_refcount; AUD_DELETE("int")
 		}
 
 		m_reference = ref.m_reference;

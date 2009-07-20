@@ -2,12 +2,23 @@
 
 Import ('env')
 
-sources = env.Glob('SDL/*.cpp') + env.Glob('intern/*.cpp')
-
-incs = '. intern intern SDL ffmpeg ' + env['BF_SDL_INC'] + ' ' + env['BF_PTHREADS_INC']
+sources = env.Glob('intern/*.cpp') + env.Glob('FX/*.cpp') + env.Glob('SRC/*.cpp')
+incs = '. intern FX SRC ' + env['BF_PTHREADS_INC'] + ' ' + env['BF_LIBSAMPLERATE_INC']
 defs = ''
+
 if env['WITH_BF_FFMPEG']:
 	sources += env.Glob('ffmpeg/*.cpp')
-	incs += ' ' + env['BF_FFMPEG_INC']
+	incs += ' ffmpeg ' + env['BF_FFMPEG_INC']
+	defs = 'WITH_FFMPEG'
+
+if env['WITH_BF_SDL']:
+	sources += env.Glob('SDL/*.cpp')
+	incs += ' SDL ' + env['BF_SDL_INC']
+	defs = 'WITH_SDL'
+
+if env['WITH_BF_OPENAL']:
+	sources += env.Glob('OpenAL/*.cpp')
+	incs += ' OpenAL ' + env['BF_OPENAL_INC']
+	defs = 'WITH_OPENAL'
 
 env.BlenderLib ('bf_audaspace', sources, Split(incs), Split(defs), libtype=['intern'], priority = [25] )

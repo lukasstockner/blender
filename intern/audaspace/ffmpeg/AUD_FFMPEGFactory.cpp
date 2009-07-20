@@ -33,8 +33,13 @@ extern "C" {
 
 AUD_FFMPEGFactory::AUD_FFMPEGFactory(const char* filename)
 {
-	m_filename = new char[strlen(filename)+1];
-	strcpy(m_filename, filename);
+	if(filename != 0)
+	{
+		m_filename = new char[strlen(filename)+1]; AUD_NEW("string")
+		strcpy(m_filename, filename);
+	}
+	else
+		m_filename = 0;
 	m_buffer = 0;
 	m_size = 0;
 }
@@ -42,7 +47,7 @@ AUD_FFMPEGFactory::AUD_FFMPEGFactory(const char* filename)
 AUD_FFMPEGFactory::AUD_FFMPEGFactory(unsigned char* buffer, int size)
 {
 	m_filename = 0;
-	m_buffer = (unsigned char*)av_malloc(size);
+	m_buffer = (unsigned char*)av_malloc(size); AUD_NEW("buffer")
 	m_size = size;
 	memcpy(m_buffer, buffer, size);
 }
@@ -50,9 +55,13 @@ AUD_FFMPEGFactory::AUD_FFMPEGFactory(unsigned char* buffer, int size)
 AUD_FFMPEGFactory::~AUD_FFMPEGFactory()
 {
 	if(m_filename)
-		delete[] m_filename;
+	{
+		delete[] m_filename; AUD_DELETE("string")
+	}
 	if(m_buffer)
-		av_free(m_buffer);
+	{
+		av_free(m_buffer); AUD_DELETE("buffer")
+	}
 }
 
 AUD_IReader* AUD_FFMPEGFactory::createReader()

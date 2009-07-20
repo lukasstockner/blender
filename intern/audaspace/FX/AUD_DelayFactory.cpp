@@ -23,20 +23,36 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
-#include "AUD_SDLSuperposer.h"
+#include "AUD_DelayFactory.h"
+#include "AUD_DelayReader.h"
+#include "AUD_Space.h"
 
-#include <SDL.h>
+AUD_DelayFactory::AUD_DelayFactory(AUD_IFactory* factory, float delay) :
+		AUD_EffectFactory(factory),
+		m_delay(delay) {}
 
-AUD_SDLSuperposer::AUD_SDLSuperposer()
+AUD_DelayFactory::AUD_DelayFactory(float delay) :
+		AUD_EffectFactory(0),
+		m_delay(delay) {}
+
+float AUD_DelayFactory::getDelay()
 {
+	return m_delay;
 }
 
-void AUD_SDLSuperposer::superpose(sample_t* destination,
-								  sample_t* source,
-								  int length)
+void AUD_DelayFactory::setDelay(float delay)
 {
-	SDL_MixAudio((Uint8*)destination,
-				 (Uint8*)source,
-				 length,
-				 SDL_MIX_MAXVOLUME);
+	m_delay = delay;
+}
+
+AUD_IReader* AUD_DelayFactory::createReader()
+{
+	AUD_IReader* reader = getReader();
+
+	if(reader != 0)
+	{
+		reader = new AUD_DelayReader(reader, m_delay); AUD_NEW("reader")
+	}
+
+	return reader;
 }

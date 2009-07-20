@@ -29,7 +29,7 @@
 #include "AUD_IFactory.h"
 
 /**
- * This factory creates a resampling reader.
+ * This factory is a base class for all mixer factories.
  */
 class AUD_MixerFactory : public AUD_IFactory
 {

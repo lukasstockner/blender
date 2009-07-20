@@ -28,6 +28,11 @@ BF_FFMPEG_LIB = 'avformat swscale avcodec avutil avdevice xvidcore x264'
 BF_FFMPEG_LIBPATH = LIBDIR + '/gcc/ffmpeg/lib'
 BF_FFMPEG_INC =  LIBDIR + '/gcc/ffmpeg/include'
 
+BF_LIBSAMPLERATE = LIBDIR + '/SRC'
+BF_LIBSAMPLERATE_INC = '${BF_LIBSAMPLERATE}/include'
+BF_LIBSAMPLERATE_LIB = 'samplerate'
+BF_LIBSAMPLERATE_LIBPATH = '${BF_LIBSAMPLERATE}/lib'
+
 WITH_BF_SDL = True
 BF_SDL = LIBDIR + '/sdl'
 BF_SDL_INC = '${BF_SDL}/include'

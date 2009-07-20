@@ -158,7 +158,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 				{
 // AUD_XXX					m_soundObject->SetLoopMode(SND_LOOP_OFF);
 // AUD_XXX					m_soundObject->SetPlaystate(SND_MUST_STOP_WHEN_FINISHED);
-					AUD_setEndBehaviour(m_handle, AUD_BEHAVIOUR_STOP);
+// AUD_XXX					AUD_setEndBehaviour(m_handle, AUD_BEHAVIOUR_STOP);
 					break;
 				}
 			default:
@@ -212,7 +212,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 				{
 					if(m_handle)
 						AUD_stop(m_handle);
-					m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_LOOP, 0);
+					m_handle = AUD_play(m_sound, 0);
 					m_isplaying = true;
 					result = true;
 					break;
@@ -222,7 +222,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 				{
 					if(m_handle)
 						AUD_stop(m_handle);
-					m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_STOP, 0);
+					m_handle = AUD_play(m_sound, 0);
 					m_isplaying = true;
 					result = true;
 					break;
@@ -365,7 +365,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound,
 	default:
 		if(m_handle)
 			AUD_stop(m_handle);
-		m_handle = AUD_play(m_sound, AUD_BEHAVIOUR_STOP, 0);
+		m_handle = AUD_play(m_sound, 0);
 	}
 	Py_RETURN_NONE;
 }

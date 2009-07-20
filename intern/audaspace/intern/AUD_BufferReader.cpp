@@ -52,7 +52,7 @@ void AUD_BufferReader::seek(int position)
 
 int AUD_BufferReader::getLength()
 {
-	return m_buffer.get()->getSize()/AUD_SAMPLE_SIZE(m_specs)-m_position;
+	return m_buffer.get()->getSize()/AUD_SAMPLE_SIZE(m_specs);
 }
 
 int AUD_BufferReader::getPosition()
@@ -70,6 +70,11 @@ AUD_ReaderType AUD_BufferReader::getType()
 	return AUD_TYPE_BUFFER;
 }
 
+bool AUD_BufferReader::notify(AUD_Message &message)
+{
+	return false;
+}
+
 void AUD_BufferReader::read(int & length, sample_t* & buffer)
 {
 	int sample_size = AUD_SAMPLE_SIZE(m_specs);
@@ -80,5 +85,7 @@ void AUD_BufferReader::read(int & length, sample_t* & buffer)
 	if(m_buffer.get()->getSize() < (m_position+length)*sample_size)
 		length = m_buffer.get()->getSize()/sample_size-m_position;
 
+	if(length < 0)
+		length = 0;
 	m_position += length;
 }

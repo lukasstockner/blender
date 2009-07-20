@@ -94,6 +94,11 @@ BF_CXX = '/usr'
 WITH_BF_STATICCXX = False
 BF_CXX_LIB_STATIC = '${BF_CXX}/lib/libstdc++.a'
 
+BF_LIBSAMPLERATE = LIBDIR + '/SRC'
+BF_LIBSAMPLERATE_INC = '${BF_LIBSAMPLERATE}/include'
+BF_LIBSAMPLERATE_LIB = 'samplerate'
+BF_LIBSAMPLERATE_LIBPATH = '${BF_LIBSAMPLERATE}/lib'
+
 WITH_BF_SDL = True
 BF_SDL = LIBDIR + '/sdl' #$(shell sdl-config --prefix)
 BF_SDL_INC = '${BF_SDL}/include' #$(shell $(BF_SDL)/bin/sdl-config --cflags)

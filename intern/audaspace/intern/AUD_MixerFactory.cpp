@@ -74,7 +74,9 @@ AUD_MixerFactory::AUD_MixerFactory(AUD_Specs specs)
 AUD_MixerFactory::~AUD_MixerFactory()
 {
 	if(m_reader != 0)
-		delete m_reader;
+	{
+		delete m_reader; AUD_DELETE("reader")
+	}
 }
 
 AUD_Specs AUD_MixerFactory::getSpecs()
@@ -90,7 +92,9 @@ void AUD_MixerFactory::setSpecs(AUD_Specs specs)
 void AUD_MixerFactory::setReader(AUD_IReader* reader)
 {
 	if(m_reader != 0)
-		delete m_reader;
+	{
+		delete m_reader; AUD_DELETE("reader")
+	}
 	m_reader = reader;
 }
 

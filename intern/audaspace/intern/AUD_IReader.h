@@ -60,10 +60,9 @@ public:
 	virtual void seek(int position)=0;
 
 	/**
-	 * Returns an aproximated remaining length of the source in samples.
-	 * For readers of the type buffer this has to return a correct
-	 * value!
-	 * \return The remaining length as sample count. May be negative if unknown.
+	 * Returns an aproximated length of the source in samples.
+	 * For readers of the type buffer this has to return a correct value!
+	 * \return The length as sample count. May be negative if unknown.
 	 * \see getType
 	 */
 	virtual int getLength()=0;
@@ -92,6 +91,15 @@ public:
 	 * \return AUD_TYPE_BUFFER or AUD_TYPE_STREAM.
 	 */
 	virtual AUD_ReaderType getType()=0;
+
+	/**
+	 * Sends a message to this reader and if it has subreaders it broadcasts
+	 * the message to them.
+	 * \param message The message.
+	 * \return Whether the message has been read by the reader or one of his
+	 *         subreaders.
+	 */
+	virtual bool notify(AUD_Message &message)=0;
 
 	/**
 	 * Request to read the next length samples out of the source.

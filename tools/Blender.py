@@ -117,6 +117,7 @@ def setup_staticlibs(lenv):
 		lenv['BF_JPEG_LIBPATH'],
 		lenv['BF_PNG_LIBPATH'],
 		lenv['BF_ZLIB_LIBPATH'],
+		lenv['BF_LIBSAMPLERATE_LIBPATH'],
 		lenv['BF_ICONV_LIBPATH']
 		]
 
@@ -155,7 +156,8 @@ def setup_syslibs(lenv):
 		
 		lenv['BF_JPEG_LIB'],
 		lenv['BF_PNG_LIB'],
-		lenv['BF_ZLIB_LIB']
+		lenv['BF_ZLIB_LIB'],
+		lenv['BF_LIBSAMPLERATE_LIB']
 		]
 
 	syslibs += Split(lenv['BF_FREETYPE_LIB'])
@@ -191,7 +193,6 @@ def setup_syslibs(lenv):
 		syslibs += Split(lenv['BF_PTHREADS_LIB'])
 	if lenv['WITH_BF_LCMS']:
 		syslibs.append(lenv['BF_LCMS_LIB'])
-
 
 	syslibs += lenv['LLIBS']
 

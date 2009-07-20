@@ -28,8 +28,6 @@
 
 #include "AUD_SoftwareDevice.h"
 
-#include <list>
-
 /**
  * This device plays back through SDL, the simple direct media layer.
  */
@@ -38,26 +36,15 @@ class AUD_SDLDevice : public AUD_SoftwareDevice
 protected:
 	virtual void playing(bool playing);
 
-private:
-	/**
-	 * Initializes the device.
-	 */
-	void init();
-
 public:
 	/**
 	 * Opens the SDL audio device for playback.
-	 * \exception AUD_Exception Thrown if the audio device cannot be opened.
-	 */
-	AUD_SDLDevice();
-
-	/**
-	 * Opens the SDL audio device for playback.
 	 * \param specs The wanted audio specification.
+	 * \param buffersize The size of the internal buffer.
 	 * \note The specification really used for opening the device may differ.
 	 * \exception AUD_Exception Thrown if the audio device cannot be opened.
 	 */
-	AUD_SDLDevice(AUD_Specs specs);
+	AUD_SDLDevice(AUD_Specs specs, int buffersize = AUD_DEFAULT_BUFFER_SIZE);
 
 	/**
 	 * Closes the SDL audio device.

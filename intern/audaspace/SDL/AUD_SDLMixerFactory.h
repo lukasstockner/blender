@@ -35,12 +35,9 @@
 class AUD_SDLMixerFactory : public AUD_MixerFactory
 {
 public:
-	AUD_SDLMixerFactory(AUD_IReader* reader, AUD_Specs specs) :
-			AUD_MixerFactory(reader, specs) {}
-	AUD_SDLMixerFactory(AUD_IFactory* factory, AUD_Specs specs) :
-			AUD_MixerFactory(factory, specs) {}
-	AUD_SDLMixerFactory(AUD_Specs specs) :
-			AUD_MixerFactory(specs) {}
+	AUD_SDLMixerFactory(AUD_IReader* reader, AUD_Specs specs);
+	AUD_SDLMixerFactory(AUD_IFactory* factory, AUD_Specs specs);
+	AUD_SDLMixerFactory(AUD_Specs specs);
 
 	virtual AUD_IReader* createReader();
 };

@@ -26,21 +26,37 @@
 #include "AUD_SDLMixerFactory.h"
 #include "AUD_SDLMixerReader.h"
 
+AUD_SDLMixerFactory::AUD_SDLMixerFactory(AUD_IReader* reader, AUD_Specs specs) :
+		AUD_MixerFactory(reader, specs) {}
+
+AUD_SDLMixerFactory::AUD_SDLMixerFactory(AUD_IFactory* factory, AUD_Specs specs) :
+		AUD_MixerFactory(factory, specs) {}
+
+AUD_SDLMixerFactory::AUD_SDLMixerFactory(AUD_Specs specs) :
+		AUD_MixerFactory(specs) {}
+
 AUD_IReader* AUD_SDLMixerFactory::createReader()
 {
 	AUD_IReader* reader = getReader();
 
 	if(reader != 0)
 	{
-		try
+		AUD_Specs specs = reader->getSpecs();
+		if(memcmp(&m_specs, &specs, sizeof(AUD_Specs)) != 0)
 		{
-			reader = new AUD_SDLMixerReader(reader, m_specs); AUD_NEW("reader")
-		}
-		catch(AUD_Exception e)
-		{
-			// return 0 in case SDL cannot mix the source
-			if(e.error != AUD_ERROR_SDL)
-				throw;
+			try
+			{
+				reader = new AUD_SDLMixerReader(reader, m_specs);
+				AUD_NEW("reader")
+			}
+			catch(AUD_Exception e)
+			{
+				// return 0 in case SDL cannot mix the source
+				if(e.error != AUD_ERROR_SDL)
+					throw;
+				else
+					reader = NULL;
+			}
 		}
 	}
 	return reader;

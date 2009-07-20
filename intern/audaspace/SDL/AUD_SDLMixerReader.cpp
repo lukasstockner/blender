@@ -75,10 +75,7 @@ AUD_SDLMixerReader::AUD_SDLMixerReader(AUD_IReader* reader,
 
 	try
 	{
-		// SDL only supports mono and stereo
-		if(m_tspecs.channels > 2 || m_sspecs.channels > 2)
-			AUD_THROW(AUD_ERROR_SDL);
-
+		// SDL only supports 8 and 16 bit sample formats
 		if(SDL_BuildAudioCVT(&m_cvt,
 							 AUD_TO_SDL(m_sspecs.format),
 							 m_sspecs.channels,
@@ -100,8 +97,8 @@ AUD_SDLMixerReader::AUD_SDLMixerReader(AUD_IReader* reader,
 	m_ssize = m_sspecs.rate / gcd(specs.rate, m_sspecs.rate);
 	m_tsize = m_tspecs.rate * m_ssize / m_sspecs.rate;
 
-	m_buffer = new AUD_Buffer(0); AUD_NEW("buffer")
-	m_rsbuffer = new AUD_Buffer(0); AUD_NEW("buffer")
+	m_buffer = new AUD_Buffer(); AUD_NEW("buffer")
+	m_rsbuffer = new AUD_Buffer(); AUD_NEW("buffer")
 }
 
 AUD_SDLMixerReader::~AUD_SDLMixerReader()
@@ -142,6 +139,11 @@ AUD_ReaderType AUD_SDLMixerReader::getType()
 	return m_reader->getType();
 }
 
+bool AUD_SDLMixerReader::notify(AUD_Message &message)
+{
+	return m_reader->notify(message);
+}
+
 void AUD_SDLMixerReader::read(int & length, sample_t* & buffer)
 {
 	// sample count for the target buffer without getting a shift
@@ -158,15 +160,15 @@ void AUD_SDLMixerReader::read(int & length, sample_t* & buffer)
 
 	// resize if necessary
 	if(m_rsbuffer->getSize() < buf_size)
-		m_rsbuffer->resize(buf_size);
+		m_rsbuffer->resize(buf_size, true);
 
 	if(m_buffer->getSize() < length*tss)
-		m_buffer->resize(length*tss, false);
+		m_buffer->resize(length*tss);
 
 	buffer = m_buffer->getBuffer();
 	int size;
 	int index = 0;
-	unsigned char* buf;
+	sample_t* buf;
 
 	while(index < length)
 	{

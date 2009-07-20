@@ -66,9 +66,6 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
 		if(av_find_stream_info(m_formatCtx)<0)
 			AUD_THROW(AUD_ERROR_FFMPEG);
 
-		// this prints file information to stdout:
-		//dump_format(m_formatCtx, 0, filename, 0);
-
 		// find audio stream and codec
 		m_stream = -1;
 
@@ -84,10 +81,6 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
 
 		m_codecCtx = m_formatCtx->streams[m_stream]->codec;
 
-		m_specs.channels = (AUD_Channels) m_codecCtx->channels;
-		m_specs.format = FFMPEG_TO_AUD(m_codecCtx->sample_fmt);
-		m_specs.rate = (AUD_SampleRate) m_codecCtx->sample_rate;
-
 		// get a decoder and open it
 		AVCodec *aCodec = avcodec_find_decoder(m_codecCtx->codec_id);
 		if(!aCodec)
@@ -95,6 +88,13 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
 
 		if(avcodec_open(m_codecCtx, aCodec)<0)
 			AUD_THROW(AUD_ERROR_FFMPEG);
+
+		// XXX this prints file information to stdout:
+		//dump_format(m_formatCtx, 0, filename, 0);
+
+		m_specs.channels = (AUD_Channels) m_codecCtx->channels;
+		m_specs.format = FFMPEG_TO_AUD(m_codecCtx->sample_fmt);
+		m_specs.rate = (AUD_SampleRate) m_codecCtx->sample_rate;
 	}
 	catch(AUD_Exception e)
 	{
@@ -103,8 +103,9 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
 	}
 
 	// last but not least if there hasn't been any error, create the buffers
-	m_buffer = new AUD_Buffer(0); AUD_NEW("buffer")
+	m_buffer = new AUD_Buffer(); AUD_NEW("buffer")
 	m_pkgbuf = new AUD_Buffer(AVCODEC_MAX_AUDIO_FRAME_SIZE<<1);
+	AUD_NEW("buffer")
 }
 
 AUD_FFMPEGReader::AUD_FFMPEGReader(unsigned char* buffer, int size)
@@ -112,6 +113,7 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(unsigned char* buffer, int size)
 	m_position = 0;
 	m_pkgbuf_left = 0;
 	m_byteiocontext = (ByteIOContext*)av_mallocz(sizeof(ByteIOContext));
+	AUD_NEW("byteiocontext")
 
 	if(init_put_byte(m_byteiocontext, buffer, size, 0,
 					 NULL, NULL, NULL, NULL) != 0)
@@ -132,9 +134,6 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(unsigned char* buffer, int size)
 		if(av_find_stream_info(m_formatCtx)<0)
 			AUD_THROW(AUD_ERROR_FFMPEG);
 
-		// XXX this prints stream information to stdout:
-		//dump_format(m_formatCtx, 0, NULL, 0);
-
 		// find audio stream and codec
 		m_stream = -1;
 
@@ -150,10 +149,6 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(unsigned char* buffer, int size)
 
 		m_codecCtx = m_formatCtx->streams[m_stream]->codec;
 
-		m_specs.channels = (AUD_Channels) m_codecCtx->channels;
-		m_specs.format = FFMPEG_TO_AUD(m_codecCtx->sample_fmt);
-		m_specs.rate = (AUD_SampleRate) m_codecCtx->sample_rate;
-
 		// get a decoder and open it
 		AVCodec *aCodec = avcodec_find_decoder(m_codecCtx->codec_id);
 		if(!aCodec)
@@ -161,17 +156,25 @@ AUD_FFMPEGReader::AUD_FFMPEGReader(unsigned char* buffer, int size)
 
 		if(avcodec_open(m_codecCtx, aCodec)<0)
 			AUD_THROW(AUD_ERROR_FFMPEG);
+
+		// XXX this prints stream information to stdout:
+		//dump_format(m_formatCtx, 0, NULL, 0);
+
+		m_specs.channels = (AUD_Channels) m_codecCtx->channels;
+		m_specs.format = FFMPEG_TO_AUD(m_codecCtx->sample_fmt);
+		m_specs.rate = (AUD_SampleRate) m_codecCtx->sample_rate;
 	}
 	catch(AUD_Exception e)
 	{
 		av_close_input_stream(m_formatCtx);
-		delete m_byteiocontext;
+		av_free(m_byteiocontext); AUD_DELETE("byteiocontext")
 		throw;
 	}
 
 	// last but not least if there hasn't been any error, create the buffers
-	m_buffer = new AUD_Buffer(0); AUD_NEW("buffer")
+	m_buffer = new AUD_Buffer(); AUD_NEW("buffer")
 	m_pkgbuf = new AUD_Buffer(AVCODEC_MAX_AUDIO_FRAME_SIZE<<1);
+	AUD_NEW("buffer")
 }
 
 AUD_FFMPEGReader::~AUD_FFMPEGReader()
@@ -181,13 +184,13 @@ AUD_FFMPEGReader::~AUD_FFMPEGReader()
 	if(m_byteiocontext)
 	{
 		av_close_input_stream(m_formatCtx);
-		av_free(m_byteiocontext);
+		av_free(m_byteiocontext); AUD_DELETE("byteiocontext")
 	}
 	else
 		av_close_input_file(m_formatCtx);
 
 	delete m_buffer; AUD_DELETE("buffer")
-	delete m_pkgbuf;
+	delete m_pkgbuf; AUD_DELETE("buffer")
 }
 
 bool AUD_FFMPEGReader::isSeekable()
@@ -240,6 +243,11 @@ AUD_ReaderType AUD_FFMPEGReader::getType()
 	return AUD_TYPE_STREAM;
 }
 
+bool AUD_FFMPEGReader::notify(AUD_Message &message)
+{
+	return false;
+}
+
 void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 {
 	// read packages and decode them
@@ -255,7 +263,7 @@ void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 
 	// resize output buffer if necessary
 	if(m_buffer->getSize() < length*sample_size)
-		m_buffer->resize(length*sample_size, false);
+		m_buffer->resize(length*sample_size);
 
 	buffer = m_buffer->getBuffer();
 	pkgbuf_pos = m_pkgbuf_left;
@@ -289,12 +297,16 @@ void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 				{
 					// XXX printf("resizing\n");
 					m_pkgbuf->resize(pkgbuf_size +
-									 AVCODEC_MAX_AUDIO_FRAME_SIZE);
+									 AVCODEC_MAX_AUDIO_FRAME_SIZE, true);
 					pkgbuf_size += AVCODEC_MAX_AUDIO_FRAME_SIZE;
 				}
 
 				// read samples from the packet
 				data_size = pkgbuf_size-pkgbuf_pos;
+				/*read_length = avcodec_decode_audio3(m_codecCtx,
+					(int16_t*)(m_pkgbuf->getBuffer()+pkgbuf_pos),
+					&data_size,
+					&packet);*/
 				read_length = avcodec_decode_audio2(m_codecCtx,
 					(int16_t*)(m_pkgbuf->getBuffer()+pkgbuf_pos),
 					&data_size,
@@ -328,6 +340,8 @@ void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 	}
 
 	buffer = m_buffer->getBuffer();
-	length -= left;
+
+	if(left > 0)
+		length -= left;
 	m_position += length;
 }

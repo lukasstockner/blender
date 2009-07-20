@@ -37,12 +37,12 @@ AUD_StreamBufferFactory::AUD_StreamBufferFactory(AUD_IFactory* factory)
 		AUD_THROW(AUD_ERROR_READER);
 
 	m_specs = reader->getSpecs();
-	m_buffer = AUD_Reference<AUD_Buffer>(new AUD_Buffer(0));
+	m_buffer = AUD_Reference<AUD_Buffer>(new AUD_Buffer()); AUD_NEW("buffer")
 
 	int sample_size = AUD_SAMPLE_SIZE(m_specs);
 	int length;
 	int index = 0;
-	unsigned char* buffer;
+	sample_t* buffer;
 
 	// get an aproximated size if possible
 	int size = reader->getLength();
@@ -56,7 +56,7 @@ AUD_StreamBufferFactory::AUD_StreamBufferFactory(AUD_IFactory* factory)
 	while(index == m_buffer.get()->getSize() / sample_size)
 	{
 		// increase
-		m_buffer.get()->resize(size*sample_size);
+		m_buffer.get()->resize(size*sample_size, true);
 
 		// read more
 		length = size-index;
@@ -68,7 +68,7 @@ AUD_StreamBufferFactory::AUD_StreamBufferFactory(AUD_IFactory* factory)
 		index += length;
 	}
 
-	m_buffer.get()->resize(index*sample_size);
+	m_buffer.get()->resize(index*sample_size, true);
 	delete reader; AUD_DELETE("reader")
 }
 

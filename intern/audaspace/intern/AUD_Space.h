@@ -23,9 +23,11 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
-#ifndef AUD_ENUMS
-#define AUD_ENUMS
+#ifndef AUD_SPACE
+#define AUD_SPACE
 
+/// The size of a format in bytes.
+#define AUD_FORMAT_SIZE(format) (format & 0x0F)
 /// The size of a sample in the specified format in bytes.
 #define AUD_SAMPLE_SIZE(specs) (specs.channels * (specs.format & 0x0F))
 /// Throws a AUD_Exception with the provided error code.
@@ -40,7 +42,56 @@
 /// The size by which a buffer should be resized if the final extent is unknown.
 #define AUD_BUFFER_RESIZE_BYTES 5292000
 
-/// Used for debugging memory leaks.
+/// The default playback buffer size of a device.
+#define AUD_DEFAULT_BUFFER_SIZE 1024
+
+// Capability defines
+
+/// This capability checks whether a device is a 3D device. See AUD_I3DDevice.h.
+#define AUD_CAPS_3D_DEVICE			0x0001
+
+/**
+ * This capability checks whether a device is a software device. See
+ * AUD_SoftwareDevice.
+ */
+#define AUD_CAPS_SOFTWARE_DEVICE	0x0002
+
+/**
+ * This capability enables the user to set the overall volume of the device.
+ * You can set and get it with the pointer pointing to a float value between
+ * 0.0 (muted) and 1.0 (maximum volume).
+ */
+#define AUD_CAPS_VOLUME				0x0101
+
+/**
+ * This capability enables the user to set the volume of a source.
+ * You can set and get it with the pointer pointing to a AUD_SourceValue
+ * structure defined in AUD_SourceCaps.h.
+ */
+#define AUD_CAPS_SOURCE_VOLUME		0x1001
+
+/**
+ * This capability enables the user to set the pitch of a source.
+ * You can set and get it with the pointer pointing to a AUD_SourceValue
+ * structure defined in AUD_SourceCaps.h.
+ */
+#define AUD_CAPS_SOURCE_PITCH		0x1002
+
+/**
+ * This capability enables the user to buffer a factory into the device.
+ * Setting with the factory as pointer loads the factory into a device internal
+ * buffer. Play function calls with the buffered factory as argument result in
+ * the internal buffer being played back, so there's no reader created, what
+ * also results in not being able to send messages to that handle.
+ * A repeated call with the same factory doesn't do anything.
+ * A set call with a NULL pointer results in all buffered factories being
+ * deleted.
+ * \note This is only possible with factories that create readers of the buffer
+ *       type.
+ */
+#define AUD_CAPS_BUFFERED_FACTORY	0x2001
+
+// Used for debugging memory leaks.
 //#define AUD_DEBUG_MEMORY
 
 #ifdef AUD_DEBUG_MEMORY
@@ -51,14 +102,6 @@ int AUD_References(int count = 0, const char* text = "");
 #define AUD_NEW(text)
 #define AUD_DELETE(text)
 #endif
-
-/// The behaviour of the playback device for a source that reached its end.
-typedef enum
-{
-	AUD_BEHAVIOUR_STOP,				/// Stop the sound (deletes the reader).
-	AUD_BEHAVIOUR_PAUSE,			/// Pause the sound.
-	AUD_BEHAVIOUR_LOOP				/// Seek to front and replay.
-} AUD_EndBehaviour;
 
 /**
  * The format of a sample.
@@ -71,7 +114,6 @@ typedef enum
 	AUD_FORMAT_S16     = 0x12,		/// 2 byte signed integer.
 	AUD_FORMAT_S24     = 0x13,		/// 3 byte signed integer.
 	AUD_FORMAT_S32     = 0x14,		/// 4 byte signed integer.
-	AUD_FORMAT_S64     = 0x18,		/// 8 byte signed integer.
 	AUD_FORMAT_FLOAT32 = 0x24,		/// 4 byte float.
 	AUD_FORMAT_FLOAT64 = 0x28		/// 8 byte float.
 } AUD_SampleFormat;
@@ -137,8 +179,24 @@ typedef enum
 	AUD_ERROR_FACTORY,
 	AUD_ERROR_FILE,
 	AUD_ERROR_FFMPEG,
-	AUD_ERROR_SDL
+	AUD_ERROR_SDL,
+	AUD_ERROR_OPENAL
 } AUD_Error;
+
+/// Message codes.
+typedef enum
+{
+	AUD_MSG_INVALID = 0,			/// Invalid message.
+	AUD_MSG_LOOP,					/// Loop reader message.
+	AUD_MSG_VOLUME					/// Volume reader message.
+} AUD_MessageType;
+
+/// Fading types.
+typedef enum
+{
+	AUD_FADE_IN,
+	AUD_FADE_OUT
+} AUD_FadeType;
 
 /// Sample pointer type.
 typedef unsigned char sample_t;
@@ -168,4 +226,22 @@ typedef struct
 	// void* userData; - for the case it is needed someday
 } AUD_Exception;
 
-#endif //AUD_ENUMS
+/// Message structure.
+typedef struct
+{
+	/**
+	 * The message type.
+	 */
+	AUD_MessageType type;
+
+	union
+	{
+		// loop reader
+		int loopcount;
+
+		// volume reader
+		float volume;
+	};
+} AUD_Message;
+
+#endif //AUD_SPACE

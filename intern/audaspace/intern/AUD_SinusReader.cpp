@@ -36,7 +36,7 @@ AUD_SinusReader::AUD_SinusReader(double frequency, AUD_SampleRate sampleRate)
 {
 	m_frequency = frequency;
 	m_position = 0;
-	m_buffer = new AUD_Buffer(0); AUD_NEW("buffer")
+	m_buffer = new AUD_Buffer(); AUD_NEW("buffer")
 	m_sampleRate = sampleRate;
 }
 
@@ -79,11 +79,16 @@ AUD_ReaderType AUD_SinusReader::getType()
 	return AUD_TYPE_STREAM;
 }
 
+bool AUD_SinusReader::notify(AUD_Message &message)
+{
+	return false;
+}
+
 void AUD_SinusReader::read(int & length, sample_t* & buffer)
 {
 	// resize if necessary
 	if(m_buffer->getSize() < length*4)
-		m_buffer->resize(length*4, false);
+		m_buffer->resize(length*4);
 
 	// fill with sine data
 	short* buf = (short*) m_buffer->getBuffer();
@@ -94,6 +99,6 @@ void AUD_SinusReader::read(int & length, sample_t* & buffer)
 		buf[i*2+1] = buf[i*2];
 	}
 
-	buffer = (unsigned char*)buf;
+	buffer = (sample_t*)buf;
 	m_position += length;
 }

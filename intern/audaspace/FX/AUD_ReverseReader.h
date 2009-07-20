@@ -23,31 +23,52 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
-#ifndef AUD_ISUPERPOSER
-#define AUD_ISUPERPOSER
+#ifndef AUD_REVERSEREADER
+#define AUD_REVERSEREADER
 
-#include "AUD_Space.h"
+#include "AUD_EffectReader.h"
+class AUD_Buffer;
 
 /**
- * This class is able to superpose two audiosignals.
+ * This class reads another reader from back to front.
+ * \note The underlying reader must be a buffer.
  */
-class AUD_ISuperposer
+class AUD_ReverseReader : public AUD_EffectReader
 {
+private:
+	/**
+	 * The current position.
+	 */
+	int m_position;
+
+	/**
+	 * The sample count.
+	 */
+	int m_length;
+
+	/**
+	 * The playback buffer.
+	 */
+	AUD_Buffer* m_buffer;
+
 public:
 	/**
-	 * Destroys the superposer.
+	 * Creates a new reverse reader.
+	 * \param reader The reader to read from.
+	 * \exception AUD_Exception Thrown if the reader specified is NULL or not
+	 *            a buffer.
 	 */
-	virtual ~AUD_ISuperposer(){}
+	AUD_ReverseReader(AUD_IReader* reader);
 
 	/**
-	 * Creates a reader for playback of the sound source.
-	 * \param target The target buffer for superposing.
-	 * \param source The source buffer for superposing.
-	 * \param length The count of bytes to superpose.
+	 * Destroys the reader.
 	 */
-	virtual void superpose(sample_t* destination,
-						   sample_t* source,
-						   int length)=0;
+	virtual ~AUD_ReverseReader();
+
+	virtual void seek(int position);
+	virtual int getLength();
+	virtual int getPosition();
+	virtual void read(int & length, sample_t* & buffer);
 };
 
-#endif //AUD_ISUPERPOSER
+#endif //AUD_REVERSEREADER
