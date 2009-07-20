@@ -117,6 +117,8 @@ static void wm_free_reports(bContext *C)
 /* only called once, for startup */
 void WM_init(bContext *C)
 {
+	// AUD_XXX
+	AUD_Specs specs;
 
 	wm_ghost_init(C);	/* note: it assigns C to ghost! */
 	wm_init_cursor_data();
@@ -139,7 +141,7 @@ void WM_init(bContext *C)
 	WM_read_homefile(C, NULL);
 
 	wm_init_reports(C); /* reports cant be initialized before the wm */
-	
+
 	UI_init();
 
 	//	clear_matcopybuf(); /* XXX */
@@ -159,7 +161,12 @@ void WM_init(bContext *C)
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
 
 	// AUD_XXX
-	AUD_init();
+	specs.channels = AUD_CHANNELS_STEREO;
+	specs.format = AUD_FORMAT_S16;
+	specs.rate = AUD_RATE_44100;
+
+	if(!AUD_init(AUD_OPENAL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
+		AUD_init(AUD_NULL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE);
 }
 
 /* free strings of open recent files */
