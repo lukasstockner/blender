@@ -36,13 +36,13 @@ class PARTICLE_PT_particles(ParticleButtonsPanel):
 			row.template_list(ob, "particle_systems", ob, "active_particle_system_index")
 
 			col = row.column(align=True)
-			col.itemO("OBJECT_OT_particle_system_add", icon="ICON_ZOOMIN", text="")
-			col.itemO("OBJECT_OT_particle_system_remove", icon="ICON_ZOOMOUT", text="")
+			col.itemO("object.particle_system_add", icon="ICON_ZOOMIN", text="")
+			col.itemO("object.particle_system_remove", icon="ICON_ZOOMOUT", text="")
 
 		if psys:
 			split = layout.split(percentage=0.65)
 			
-			split.template_ID(psys, "settings", new="PARTICLE_OT_new")
+			split.template_ID(psys, "settings", new="particle.new")
 			
 			#row = layout.row()
 			#row.itemL(text="Viewport")
@@ -65,9 +65,9 @@ class PARTICLE_PT_particles(ParticleButtonsPanel):
 				split = layout.split(percentage=0.65)
 				if part.type=='HAIR':
 					if psys.editable==True:
-						split.itemO("PARTICLE_OT_editable_set", text="Free Edit")
+						split.itemO("particle.editable_set", text="Free Edit")
 					else:
-						split.itemO("PARTICLE_OT_editable_set", text="Make Editable")
+						split.itemO("particle.editable_set", text="Make Editable")
 					row = split.row()
 					row.enabled = particle_panel_enabled(psys)
 					row.itemR(part, "hair_step")
@@ -131,6 +131,9 @@ class PARTICLE_PT_cache(ParticleButtonsPanel):
 		psys = context.particle_system
 		if psys==None:	return False
 		if psys.settings==None:  return False
+		phystype = psys.settings.physics_type
+		if phystype == 'NO' or phystype == 'KEYED':
+			return False
 		return psys.settings.type in ('EMITTER', 'REACTOR')
 
 	def draw(self, context):
@@ -146,17 +149,17 @@ class PARTICLE_PT_cache(ParticleButtonsPanel):
 		row = layout.row()
 		
 		if cache.baked == True:
-			row.itemO("PTCACHE_OT_free_bake_particle_system", text="Free Bake")
+			row.itemO("ptcache.free_bake_particle_system", text="Free Bake")
 		else:
-			row.item_booleanO("PTCACHE_OT_cache_particle_system", "bake", True, text="Bake")
+			row.item_booleanO("ptcache.cache_particle_system", "bake", True, text="Bake")
 		
 		subrow = row.row()
 		subrow.enabled = (cache.frames_skipped or cache.outdated) and particle_panel_enabled(psys)
-		subrow.itemO("PTCACHE_OT_cache_particle_system", text="Calculate to Current Frame")
+		subrow.itemO("ptcache.cache_particle_system", text="Calculate to Current Frame")
 		
 		row = layout.row()
 		row.enabled = particle_panel_enabled(psys)
-		row.itemO("PTCACHE_OT_bake_from_particles_cache", text="Current Cache to Bake")
+		row.itemO("ptcache.bake_from_particles_cache", text="Current Cache to Bake")
 		row.itemR(cache, "step");
 	
 		row = layout.row()
@@ -169,9 +172,9 @@ class PARTICLE_PT_cache(ParticleButtonsPanel):
 		layout.itemS()
 		
 		row = layout.row()
-		row.item_booleanO("PTCACHE_OT_bake_all", "bake", True, text="Bake All Dynamics")
-		row.itemO("PTCACHE_OT_free_bake_all", text="Free All Bakes")
-		layout.itemO("PTCACHE_OT_bake_all", text="Update All Dynamics to current frame")
+		row.item_booleanO("ptcache.bake_all", "bake", True, text="Bake All Dynamics")
+		row.itemO("ptcache.free_bake_all", text="Free All Bakes")
+		layout.itemO("ptcache.bake_all", text="Update All Dynamics to current frame")
 		
 		# for particles these are figured out automatically
 		#row.itemR(cache, "start_frame")
@@ -277,16 +280,40 @@ class PARTICLE_PT_physics(ParticleButtonsPanel):
 			sub.itemR(part, "acceleration")
 			
 		elif part.physics_type == 'KEYED':
-			sub.itemR(psys, "keyed_first")
-			if psys.keyed_first==True:
-				sub.itemR(psys, "timed_keys", text="Key timing")
-			else:
-				sub.itemR(part, "keyed_time")
-			sub = split.column()
-			sub.itemL(text="Next key from object:")
-			sub.itemR(psys, "keyed_object", text="")
-			sub.itemR(psys, "keyed_particle_system")
-		
+			row = layout.row()
+			col = row.column()
+			col.active = not psys.keyed_timing
+			col.itemR(part, "keyed_loops", text="Loops")
+			row.itemR(psys, "keyed_timing", text="Use Timing")
+			
+			layout.itemL(text="Keys:")
+			row = layout.row()
+			
+			row.template_list(psys, "keyed_targets", psys, "active_keyed_target_index")
+			
+			col = row.column()
+			subrow = col.row()
+			subcol = subrow.column(align=True)
+			subcol.itemO("particle.new_keyed_target", icon="ICON_ZOOMIN", text="")
+			subcol.itemO("particle.remove_keyed_target", icon="ICON_ZOOMOUT", text="")
+			subrow = col.row()
+			subcol = subrow.column(align=True)
+			subcol.itemO("particle.keyed_target_move_up", icon="VICON_MOVE_UP", text="")
+			subcol.itemO("particle.keyed_target_move_down", icon="VICON_MOVE_DOWN", text="")
+			
+			key = psys.active_keyed_target
+			if key:
+				row = layout.row()
+				col = row.column()
+				#doesn't work yet
+				#col.red_alert = key.valid
+				col.itemR(key, "object", text="")
+				col.itemR(key, "system", text="System")
+				col = row.column();
+				col.active = psys.keyed_timing
+				col.itemR(key, "time")
+				col.itemR(key, "duration")
+			
 		if part.physics_type=='NEWTON' or part.physics_type=='BOIDS':
 
 			sub.itemR(part, "size_deflect")
@@ -308,7 +335,7 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
 
 		psys = context.particle_system
 		part = psys.settings
-		
+
 		row = layout.row()
 		row.itemR(part, "material")
 		row.itemR(psys, "parent");
@@ -336,7 +363,7 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
 			sub.itemR(part, "velocity_length")
 		elif part.ren_as == 'PATH':
 		
-			if (part.type!='HAIR' and psys.point_cache.baked==False):
+			if (part.type!='HAIR' and part.physics_type!='KEYED' and psys.point_cache.baked==False):
 				box = layout.box()
 				box.itemL(text="Baked or keyed particles needed for correct rendering.")
 				return
@@ -460,7 +487,7 @@ class PARTICLE_PT_draw(ParticleButtonsPanel):
 			
 		path = (part.ren_as=='PATH' and part.draw_as=='RENDER') or part.draw_as=='PATH'
 			
-		if path and part.type!='HAIR' and psys.point_cache.baked==False:
+		if path and part.type!='HAIR' and part.physics_type!='KEYED' and psys.point_cache.baked==False:
 			box = layout.box()
 			box.itemL(text="Baked or keyed particles needed for correct drawing.")
 			return
@@ -548,6 +575,15 @@ class PARTICLE_PT_children(ParticleButtonsPanel):
 		col.itemR(part, "rough2")
 		col.itemR(part, "rough2_size")
 		col.itemR(part, "rough2_thres", slider=True)
+		
+		row = layout.row()
+		col = row.column(align=True)
+		col.itemR(part, "child_length", slider=True)
+		col.itemR(part, "child_length_thres", slider=True)
+		
+		col = row.column(align=True)
+		col.itemL(text="Space reserved for")
+		col.itemL(text="hair parting controls")
 		
 		layout.row().itemL(text="Kink:")
 		layout.row().itemR(part, "kink", expand=True)

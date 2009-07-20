@@ -66,9 +66,8 @@ typedef struct uiFont {
 typedef struct uiFontStyle {
 	short uifont_id;		/* saved in file, 0 is default */
 	short points;			/* actual size depends on 'global' dpi */
-	float kerning;			/* kerning space between characters. */
-	short overlap;			/* check overlaped characters. */
-	short pad;
+	short kerning;			/* unfitted or default kerning value. */
+	char pad[6];
 	short italic, bold;		/* style hint */
 	short shadow;			/* value is amount of pixels blur */
 	short shadx, shady;		/* shadow offset in pixels */
@@ -95,6 +94,8 @@ typedef struct uiStyle {
 	uiFontStyle widgetlabel;
 	uiFontStyle widget;
 	
+	float panelzoom;
+	
 	short minlabelchars;	/* in characters */
 	short minwidgetchars;	/* in characters */
 
@@ -106,7 +107,7 @@ typedef struct uiStyle {
 	short panelspace;
 	short panelouter;
 
-	short pad[3];
+	short pad[1];
 } uiStyle;
 
 typedef struct uiWidgetColors {
@@ -121,6 +122,16 @@ typedef struct uiWidgetColors {
 	short pad;
 } uiWidgetColors;
 
+typedef struct uiWidgetStateColors {
+	char inner_anim[4];
+	char inner_anim_sel[4];
+	char inner_key[4];
+	char inner_key_sel[4];
+	char inner_driven[4];
+	char inner_driven_sel[4];
+	float blend, pad;
+} uiWidgetStateColors;
+
 typedef struct ThemeUI {
 	
 	/* Interface Elements (buttons, menus, icons) */
@@ -129,6 +140,8 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_num, wcol_numslider;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item;
 	uiWidgetColors wcol_box, wcol_scroll;
+
+	uiWidgetStateColors wcol_state;
 	
 	char iconfile[80];	// FILE_MAXFILE length
 	

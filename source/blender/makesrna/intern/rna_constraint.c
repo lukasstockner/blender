@@ -68,6 +68,17 @@ EnumPropertyItem constraint_type_items[] ={
 	{CONSTRAINT_TYPE_NULL, "NULL", 0, "Null", ""},
 	{0, NULL, 0, NULL, NULL}};
 
+EnumPropertyItem space_pchan_items[] = {
+	{0, "WORLD", 0, "World Space", ""},
+	{2, "POSE", 0, "Pose Space", ""},
+	{3, "LOCAL_WITH_PARENT", 0, "Local With Parent", ""},
+	{1, "LOCAL", 0, "Local Space", ""},
+	{0, NULL, 0, NULL, NULL}};
+
+EnumPropertyItem space_object_items[] = {
+	{0, "WORLD", 0, "World Space", ""},
+	{1, "LOCAL", 0, "Local (Without Parent) Space", ""},
+	{0, NULL, 0, NULL, NULL}};
 
 #ifdef RNA_RUNTIME
 
@@ -166,22 +177,24 @@ static void rna_Constraint_influence_update(bContext *C, PointerRNA *ptr)
 	rna_Constraint_update(C, ptr);
 }
 
-static EnumPropertyItem space_pchan_items[] = {
-	{0, "WORLD", 0, "World Space", ""},
-	{2, "POSE", 0, "Pose Space", ""},
-	{3, "LOCAL_WITH_PARENT", 0, "Local With Parent", ""},
-	{1, "LOCAL", 0, "Local Space", ""},
-	{0, NULL, 0, NULL, NULL}};
-
-static EnumPropertyItem space_object_items[] = {
-	{0, "WORLD", 0, "World Space", ""},
-	{1, "LOCAL", 0, "Local (Without Parent) Space", ""},
-	{0, NULL, 0, NULL, NULL}};
-
-static EnumPropertyItem *rna_Constraint_owner_space_itemf(PointerRNA *ptr)
+static EnumPropertyItem *rna_Constraint_owner_space_itemf(bContext *C, PointerRNA *ptr, int *free)
 {
 	Object *ob= (Object*)ptr->id.data;
 	bConstraint *con= (bConstraint*)ptr->data;
+	
+	if(C==NULL) {
+		EnumPropertyItem *item= NULL;
+		int totitem= 0;
+		
+		/* needed for doc generation */
+		RNA_enum_items_add(&item, &totitem, space_object_items);
+		RNA_enum_items_add(&item, &totitem, space_pchan_items);
+		RNA_enum_item_end(&item, &totitem);
+		
+		*free= 1;
+		
+		return item;
+	}
 
 	if(BLI_findindex(&ob->constraints, con) == -1)
 		return space_pchan_items;
@@ -189,12 +202,26 @@ static EnumPropertyItem *rna_Constraint_owner_space_itemf(PointerRNA *ptr)
 		return space_object_items;
 }
 
-static EnumPropertyItem *rna_Constraint_target_space_itemf(PointerRNA *ptr)
+static EnumPropertyItem *rna_Constraint_target_space_itemf(bContext *C, PointerRNA *ptr, int *free)
 {
 	bConstraint *con= (bConstraint*)ptr->data;
 	bConstraintTypeInfo *cti= constraint_get_typeinfo(con);
 	ListBase targets = {NULL, NULL};
 	bConstraintTarget *ct;
+	
+	if(C==NULL) {
+		EnumPropertyItem *item= NULL;
+		int totitem= 0;
+		
+		/* needed for doc generation */
+		RNA_enum_items_add(&item, &totitem, space_object_items);
+		RNA_enum_items_add(&item, &totitem, space_pchan_items);
+		RNA_enum_item_end(&item, &totitem);
+		
+		*free= 1;
+		
+		return item;
+	}
 	
 	if(cti && cti->get_constraint_targets) {
 		cti->get_constraint_targets(con, &targets);
@@ -689,15 +716,15 @@ static void rna_def_constraint_action(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem transform_channel_items[] = {
-		{00, "ROTATION_X", 0, "Rotation X", ""},
-		{01, "ROTATION_Y", 0, "Rotation Y", ""},
-		{02, "ROTATION_Z", 0, "Rotation Z", ""},
-		{10, "SIZE_X", 0, "Scale X", ""},
-		{11, "SIZE_Y", 0, "Scale Y", ""},
-		{12, "SIZE_Z", 0, "Scale Z", ""},
 		{20, "LOCATION_X", 0, "Location X", ""},
 		{21, "LOCATION_Y", 0, "Location Y", ""},
 		{22, "LOCATION_Z", 0, "Location Z", ""},
+		{00, "ROTATION_X", 0, "Rotation X", ""},
+		{01, "ROTATION_Y", 0, "Rotation Y", ""},
+		{02, "ROTATION_Z", 0, "Rotation Z", ""},
+		{10, "SCALE_X", 0, "Scale X", ""},
+		{11, "SCALE_Y", 0, "Scale Y", ""},
+		{12, "SCALE_Z", 0, "Scale Z", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "ActionConstraint", "Constraint");
@@ -729,13 +756,13 @@ static void rna_def_constraint_action(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "start_frame", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "start");
-	RNA_def_property_range(prop, MINFRAME, MAXFRAME);
+	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
 	RNA_def_property_ui_text(prop, "Start Frame", "First frame of the Action to use.");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 
 	prop= RNA_def_property(srna, "end_frame", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "end");
-	RNA_def_property_range(prop, MINFRAME, MAXFRAME);
+	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
 	RNA_def_property_ui_text(prop, "End Frame", "Last frame of the Action to use.");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 
@@ -1505,11 +1532,13 @@ void RNA_def_constraint(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "owner_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "ownspace");
+	RNA_def_property_enum_items(prop, space_pchan_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Constraint_owner_space_itemf");
 	RNA_def_property_ui_text(prop, "Owner Space", "Space that owner is evaluated in.");
 
 	prop= RNA_def_property(srna, "target_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "tarspace");
+	RNA_def_property_enum_items(prop, space_pchan_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Constraint_target_space_itemf");
 	RNA_def_property_ui_text(prop, "Target Space", "Space that target is evaluated in.");
 

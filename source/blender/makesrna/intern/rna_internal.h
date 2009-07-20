@@ -139,6 +139,7 @@ void RNA_def_material(struct BlenderRNA *brna);
 void RNA_def_mesh(struct BlenderRNA *brna);
 void RNA_def_meta(struct BlenderRNA *brna);
 void RNA_def_modifier(struct BlenderRNA *brna);
+void RNA_def_nla(struct BlenderRNA *brna);
 void RNA_def_nodetree(struct BlenderRNA *brna);
 void RNA_def_object(struct BlenderRNA *brna);
 void RNA_def_object_force(struct BlenderRNA *brna);
@@ -168,7 +169,7 @@ void RNA_def_world(struct BlenderRNA *brna);
 void rna_def_animdata_common(struct StructRNA *srna);
 
 void rna_def_texmat_common(struct StructRNA *srna, const char *texspace_editable);
-void rna_def_mtex_common(struct StructRNA *srna, const char *begin, const char *activeget, const char *structname);
+void rna_def_mtex_common(struct StructRNA *srna, const char *begin, const char *activeget, const char *activeset, const char *structname);
 
 void rna_ID_name_get(struct PointerRNA *ptr, char *value);
 int rna_ID_name_length(struct PointerRNA *ptr);
@@ -239,11 +240,12 @@ void rna_iterator_listbase_end(struct CollectionPropertyIterator *iter);
 typedef struct ArrayIterator {
 	char *ptr;
 	char *endptr;
+	void *free_ptr; /* will be free'd if set */
 	int itemsize;
 	IteratorSkipFunc skip;
 } ArrayIterator;
 
-void rna_iterator_array_begin(struct CollectionPropertyIterator *iter, void *ptr, int itemsize, int length, IteratorSkipFunc skip);
+void rna_iterator_array_begin(struct CollectionPropertyIterator *iter, void *ptr, int itemsize, int length, int free_ptr, IteratorSkipFunc skip);
 void rna_iterator_array_next(struct CollectionPropertyIterator *iter);
 void *rna_iterator_array_get(struct CollectionPropertyIterator *iter);
 void *rna_iterator_array_dereference_get(struct CollectionPropertyIterator *iter);

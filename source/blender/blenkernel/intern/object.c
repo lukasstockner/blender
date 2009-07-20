@@ -243,7 +243,9 @@ void free_object(Object *ob)
 		if(ob->mat[a]) ob->mat[a]->id.us--;
 	}
 	if(ob->mat) MEM_freeN(ob->mat);
+	if(ob->matbits) MEM_freeN(ob->matbits);
 	ob->mat= 0;
+	ob->matbits= 0;
 	if(ob->bb) MEM_freeN(ob->bb); 
 	ob->bb= 0;
 	if(ob->path) free_path(ob->path); 
@@ -427,17 +429,14 @@ void unlink_object(Scene *scene, Object *ob)
 		if(obt->particlesystem.first) {
 			ParticleSystem *tpsys= obt->particlesystem.first;
 			for(; tpsys; tpsys=tpsys->next) {
-				if(tpsys->keyed_ob==ob) {
-					ParticleSystem *psys= BLI_findlink(&ob->particlesystem,tpsys->keyed_psys-1);
-
-					if(psys && psys->keyed_ob) {
-						tpsys->keyed_ob= psys->keyed_ob;
-						tpsys->keyed_psys= psys->keyed_psys;
+				KeyedParticleTarget *kpt = tpsys->keyed_targets.first;
+				for(; kpt; kpt=kpt->next) {
+					if(kpt->ob==ob) {
+						BLI_remlink(&tpsys->keyed_targets, kpt);
+						MEM_freeN(kpt);
+						obt->recalc |= OB_RECALC_DATA;
+						break;
 					}
-					else
-						tpsys->keyed_ob= NULL;
-
-					obt->recalc |= OB_RECALC_DATA;
 				}
 
 				if(tpsys->target_ob==ob) {
@@ -716,7 +715,7 @@ void *add_lamp(char *name)
 	
 	la->r= la->g= la->b= la->k= 1.0f;
 	la->haint= la->energy= 1.0f;
-	la->dist= 20.0f;
+	la->dist= 25.0f;
 	la->spotsize= 45.0f;
 	la->spotblend= 0.15f;
 	la->att2= 1.0f;
@@ -735,7 +734,7 @@ void *add_lamp(char *name)
 	la->ray_samp_method = LA_SAMP_HALTON;
 	la->adapt_thresh = 0.001f;
 	la->preview=NULL;
-	la->falloff_type = LA_FALLOFF_INVLINEAR;
+	la->falloff_type = LA_FALLOFF_INVSQUARE;
 	la->curfalloff = curvemapping_add(1, 0.0f, 1.0f, 1.0f, 0.0f);
 	la->sun_effect_type = 0;
 	la->horizon_brightness = 1.0;
@@ -945,7 +944,6 @@ Object *add_only_object(int type, char *name)
 	Mat4One(ob->parentinv);
 	Mat4One(ob->obmat);
 	ob->dt= OB_SHADED;
-	if(U.flag & USER_MAT_ON_OB) ob->colbits= -1;
 	ob->empty_drawtype= OB_ARROWS;
 	ob->empty_drawsize= 1.0;
 
@@ -1050,18 +1048,23 @@ ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	psysn= MEM_dupallocN(psys);
 	psysn->particles= MEM_dupallocN(psys->particles);
 	psysn->child= MEM_dupallocN(psys->child);
+	if(psysn->particles->keys)
+		psysn->particles->keys = MEM_dupallocN(psys->particles->keys);
 
 	for(a=0, pa=psysn->particles; a<psysn->totpart; a++, pa++) {
 		if(pa->hair)
 			pa->hair= MEM_dupallocN(pa->hair);
-		if(pa->keys)
-			pa->keys= MEM_dupallocN(pa->keys);
+		if(a)
+			pa->keys= (pa-1)->keys + (pa-1)->totkey;
 	}
 
 	if(psys->soft) {
 		psysn->soft= copy_softbody(psys->soft);
 		psysn->soft->particles = psysn;
 	}
+
+	if(psys->keyed_targets.first)
+		BLI_duplicatelist(&psysn->keyed_targets, &psys->keyed_targets);
 	
 	psysn->pathcache= NULL;
 	psysn->childcache= NULL;
@@ -1168,6 +1171,7 @@ Object *copy_object(Object *ob)
 	
 	if(ob->totcol) {
 		obn->mat= MEM_dupallocN(ob->mat);
+		obn->matbits= MEM_dupallocN(ob->matbits);
 	}
 	
 	if(ob->bb) obn->bb= MEM_dupallocN(ob->bb);
@@ -1198,18 +1202,12 @@ Object *copy_object(Object *ob)
 			armature_rebuild_pose(obn, obn->data);
 	}
 	copy_defgroups(&obn->defbase, &ob->defbase);
-#if 0 // XXX old animation system
-	copy_nlastrips(&obn->nlastrips, &ob->nlastrips);
-#endif // XXX old animation system
 	copy_constraints(&obn->constraints, &ob->constraints);
 
 	/* increase user numbers */
 	id_us_plus((ID *)obn->data);
-#if 0 // XXX old animation system
-	id_us_plus((ID *)obn->ipo);
-	id_us_plus((ID *)obn->action);
-#endif // XXX old animation system
 	id_us_plus((ID *)obn->dup_group);
+	// FIXME: add this for animdata too...
 
 	for(a=0; a<obn->totcol; a++) id_us_plus((ID *)obn->mat[a]);
 	
@@ -1325,7 +1323,18 @@ void make_local_object(Object *ob)
 	expand_local_object(ob);
 }
 
-/* returns true if the Object data is a from an external blend file (libdata) */
+/*
+ * Returns true if the Object is a from an external blend file (libdata)
+ */
+int object_is_libdata(Object *ob)
+{
+	if (!ob) return 0;
+	if (ob->proxy) return 0;
+	if (ob->id.lib) return 1;
+	return 0;
+}
+
+/* Returns true if the Object data is a from an external blend file (libdata) */
 int object_data_is_libdata(Object *ob)
 {
 	if(!ob) return 0;
@@ -1401,7 +1410,9 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	/* copy material and index information */
 	ob->actcol= ob->totcol= 0;
 	if(ob->mat) MEM_freeN(ob->mat);
+	if(ob->matbits) MEM_freeN(ob->matbits);
 	ob->mat = NULL;
+	ob->matbits= NULL;
 	if ((target->totcol) && (target->mat) && ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL)) { //XXX OB_SUPPORT_MATERIAL
 		int i;
 		ob->colbits = target->colbits;
@@ -1410,6 +1421,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 		ob->totcol= target->totcol;
 		
 		ob->mat = MEM_dupallocN(target->mat);
+		ob->matbits = MEM_dupallocN(target->matbits);
 		for(i=0; i<target->totcol; i++) {
 			/* dont need to run test_object_materials since we know this object is new and not used elsewhere */
 			id_us_plus((ID *)ob->mat[i]); 
@@ -1575,14 +1587,14 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 	}
 	/* catch exceptions: curve paths used as a duplicator */
 	else if(enable_cu_speed) {
-		ctime= bsystem_time(scene, ob, (float)scene->r.cfra, 0.0);
-		
-#if 0 // XXX old animation system
-		if(calc_ipo_spec(cu->ipo, CU_SPEED, &ctime)==0) {
-			ctime /= cu->pathlen;
-			CLAMP(ctime, 0.0, 1.0);
-		}
-#endif // XXX old animation system
+		/* ctime is now a proper var setting of Curve which gets set by Animato like any other var that's animated,
+		 * but this will only work if it actually is animated... 
+		 *
+		 * we firstly calculate the modulus of cu->ctime/cu->pathlen to clamp ctime within the 0.0 to 1.0 times pathlen
+		 * range, then divide this (the modulus) by pathlen to get a value between 0.0 and 1.0
+		 */
+		ctime= fmod(cu->ctime, cu->pathlen) / cu->pathlen;
+		CLAMP(ctime, 0.0, 1.0);
 	}
 	else {
 		ctime= scene->r.cfra - give_timeoffset(ob);

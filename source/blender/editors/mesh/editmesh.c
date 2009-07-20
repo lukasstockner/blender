@@ -1132,7 +1132,7 @@ void load_editMesh(Scene *scene, Object *ob)
 		else
 			VECCOPY(mvert->co, eve->co);
 
-		mvert->mat_nr= 255;  /* what was this for, halos? */
+		mvert->mat_nr= 32767;  /* what was this for, halos? */
 		
 		/* vertex normal */
 		VECCOPY(nor, eve->no);
@@ -1218,14 +1218,14 @@ void load_editMesh(Scene *scene, Object *ob)
 		/* mat_nr in vertex */
 		if(me->totcol>1) {
 			mvert= me->mvert+mface->v1;
-			if(mvert->mat_nr == (char)255) mvert->mat_nr= mface->mat_nr;
+			if(mvert->mat_nr == (char)32767) mvert->mat_nr= mface->mat_nr;
 			mvert= me->mvert+mface->v2;
-			if(mvert->mat_nr == (char)255) mvert->mat_nr= mface->mat_nr;
+			if(mvert->mat_nr == (char)32767) mvert->mat_nr= mface->mat_nr;
 			mvert= me->mvert+mface->v3;
-			if(mvert->mat_nr == (char)255) mvert->mat_nr= mface->mat_nr;
+			if(mvert->mat_nr == (char)32767) mvert->mat_nr= mface->mat_nr;
 			if(mface->v4) {
 				mvert= me->mvert+mface->v4;
-				if(mvert->mat_nr == (char)255) mvert->mat_nr= mface->mat_nr;
+				if(mvert->mat_nr == (char)32767) mvert->mat_nr= mface->mat_nr;
 			}
 		}
 			
@@ -1606,13 +1606,13 @@ static int mesh_separate_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
 	Base *base= CTX_data_active_base(C);
-	int retval= 0;
+	int retval= 0, type= RNA_enum_get(op->ptr, "type");
 	
-	if(RNA_enum_is_equal(op->ptr, "type", "SELECTED"))
+	if(type == 0)
 		retval= mesh_separate_selected(scene, base);
-	else if(RNA_enum_is_equal(op->ptr, "type", "MATERIAL"))
+	else if(type == 1)
 		retval= mesh_separate_material (scene, base);
-	else if(RNA_enum_is_equal(op->ptr, "type", "LOOSE"))
+	else if(type == 2)
 		retval= mesh_separate_loose(scene, base);
 	   
 	if(retval) {
@@ -1669,8 +1669,8 @@ typedef struct EditEdgeC
 typedef struct EditFaceC
 {
 	int v1, v2, v3, v4;
-	unsigned char mat_nr, flag, f, h, fgonf;
-	short pad1;
+	unsigned char flag, f, h, fgonf, pad1;
+	short mat_nr;
 } EditFaceC;
 
 typedef struct EditSelectionC{

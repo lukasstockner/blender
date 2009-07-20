@@ -117,8 +117,7 @@
 #define TEST_EDITMESH	if(obedit==0) return; \
 						if( (v3d->lay & obedit->lay)==0 ) return;
 
-/* XXX port over */
-static void handle_view3d_lock(void) {}
+/* XXX port over */	
 static void countall(void) {}
 extern void borderselect();
 static int retopo_mesh_paint_check() {return 0;}
@@ -201,6 +200,25 @@ static RegionView3D *wm_region_view3d(const bContext *C)
 	return NULL;
 }
 
+// XXX quickly ported across
+static void handle_view3d_lock(bContext *C) 
+{
+	Scene *scene= CTX_data_scene(C);
+	ScrArea *sa= CTX_wm_area(C);
+	View3D *v3d= (View3D *)CTX_wm_space_data(C);
+	
+	if (v3d != NULL && sa != NULL) {
+		if(v3d->localview==0 && v3d->scenelock && sa->spacetype==SPACE_VIEW3D) {
+			
+			/* copy to scene */
+			scene->lay= v3d->lay;
+			scene->camera= v3d->camera;
+			
+			//copy_view3d_lock(REDRAW);
+		}
+	}
+}
+
 /* XXX; all this context stuff...  should become operator */
 void do_layer_buttons(bContext *C, short event)
 {
@@ -230,7 +248,7 @@ void do_layer_buttons(bContext *C, short event)
 			v3d->lay= (1<<20)-1;
 		}
 		
-		if(v3d->scenelock) handle_view3d_lock();
+		if(v3d->scenelock) handle_view3d_lock(C);
 		
 		/* new layers might need unflushed events events */
 		DAG_scene_update_flags(scene, v3d->lay);	/* tags all that moves and flushes */
@@ -266,7 +284,22 @@ static int layers_exec(bContext *C, wmOperator *op)
 	else 
 		v3d->lay = (1<<nr);
 	
-	if(v3d->scenelock) handle_view3d_lock();
+	/* set active layer, ensure to always have one */
+	if(v3d->lay & (1<<nr))
+	   v3d->layact= 1<<nr;
+	else if((v3d->lay & v3d->layact)==0) {
+		int bit= 0;
+		
+		while(bit<32) {
+			if(v3d->lay & (1<<bit)) {
+				v3d->layact= 1<<bit;
+				break;
+			}
+			bit++;
+		}
+	}
+	
+	if(v3d->scenelock) handle_view3d_lock(C);
 	
 	/* new layers might need unflushed events events */
 	DAG_scene_update_flags(scene, v3d->lay);	/* tags all that moves and flushes */
@@ -618,86 +651,6 @@ static void do_view3d_viewmenu(bContext *C, void *arg, int event)
 }
 #endif
 
-static void view3d_view_viewnavmenu(bContext *C, uiLayout *layout, void *arg_unused)
-{
-//	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_fly_mode");
-	
-//	uiItemS(layout);
-	
-	uiItemsEnumO(layout, "VIEW3D_OT_view_orbit", "type");
-	
-	uiItemS(layout);
-	
-	uiItemsEnumO(layout, "VIEW3D_OT_view_pan", "type");
-	
-	uiItemS(layout);
-	
-	uiItemFloatO(layout, "Zoom in", 0, "VIEW3D_OT_zoom", "delta", 1.0f);
-	uiItemFloatO(layout, "Zoom out", 0, "VIEW3D_OT_zoom", "delta", -1.0f);
-	
-}
-static void view3d_view_alignviewmenu(bContext *C, uiLayout *layout, void *arg_unused)
-{
-	
-}
-
-static void view3d_viewmenu(bContext *C, uiLayout *layout, void *arg_unused)
-{
-	ScrArea *sa= CTX_wm_area(C);
-
-	uiItemO(layout, NULL, ICON_MENU_PANEL, "VIEW3D_OT_properties");
-	uiItemO(layout, NULL, ICON_MENU_PANEL, "VIEW3D_OT_toolbar");
-	
-//	uiItemO(layout, ICON_MENU_PANEL, "VIEW3D_OT_toggle_transform_orientations_panel"); // Transform Orientations...
-//	uiItemO(layout, ICON_MENU_PANEL, "VIEW3D_OT_toggle_render_preview_panel"); // render preview...
-//	uiItemO(layout, ICON_MENU_PANEL, "VIEW3D_OT_toggle_view_properties_panel"); // View Properties....
-//	uiItemO(layout, ICON_MENU_PANEL, "VIEW3D_OT_toggle_background_image_panel"); // Background Image....
-//	uiItemO(layout, ICON_MENU_PANEL, "VIEW3D_OT_toggle_grease_pencil_panel"); // Grease Pencil....
-	
-	uiItemS(layout);
-	
-	uiItemEnumO(layout, NULL, 0, "VIEW3D_OT_viewnumpad", "type", V3D_VIEW_CAMERA);
-	uiItemEnumO(layout, NULL, 0, "VIEW3D_OT_viewnumpad", "type", V3D_VIEW_TOP);
-	uiItemEnumO(layout, NULL, 0, "VIEW3D_OT_viewnumpad", "type", V3D_VIEW_FRONT);
-	uiItemEnumO(layout, NULL, 0, "VIEW3D_OT_viewnumpad", "type", V3D_VIEW_RIGHT);
-	
-	//uiItemMenuF(layout, "Cameras", view3d_view_camerasmenu);
-	
-	uiItemS(layout);
-
-	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_persportho");
-	
-	uiItemS(layout);
-	
-//	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_show_all_layers");	
-	
-//	uiItemS(layout);
-	
-//	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_local_view");
-//	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_global_view");
-	
-//	uiItemS(layout);
-	
-	uiItemMenuF(layout, "View Navigation", 0, view3d_view_viewnavmenu);
-	uiItemMenuF(layout, "Align View", 0, view3d_view_alignviewmenu);
-	
-	uiItemS(layout);
-
-	uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_REGION_WIN);	
-
-	uiItemO(layout, NULL, 0, "VIEW3D_OT_clip_border");
-	uiItemO(layout, NULL, 0, "VIEW3D_OT_zoom_border");
-	
-	uiItemS(layout);
-	
-	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_center");
-	uiItemO(layout, NULL, 0, "VIEW3D_OT_view_all");
-	
-	uiItemS(layout);
-	
-	if(sa->full) uiItemO(layout, NULL, 0, "SCREEN_OT_screen_full_area"); // "Tile Window", Ctrl UpArrow
-	else uiItemO(layout, NULL, 0, "SCREEN_OT_screen_full_area"); // "Maximize Window", Ctr DownArrow
-}
 #if 0
 static uiBlock *view3d_viewmenu(bContext *C, ARegion *ar, void *arg_unused)
 {
@@ -1021,6 +974,7 @@ static void view3d_select_objectmenu(bContext *C, uiLayout *layout, void *arg_un
 	uiItemO(layout, "Random", 0, "OBJECT_OT_select_random");
 	uiItemO(layout, "Select All by Layer", 0, "OBJECT_OT_select_by_layer");
 	uiItemMenuEnumO(layout, "Select All by Type", 0, "OBJECT_OT_select_by_type", "type");
+	uiItemMenuEnumO(layout, "Select Grouped", 0, "OBJECT_OT_select_grouped", "type");
 
 #if 0
 	uiDefIconTextBlockBut(block, view3d_select_object_layermenu, NULL, ICON_RIGHTARROW_THIN, "Select All by Layer", 0, yco-=20, 120, 19, "");
@@ -2039,12 +1993,8 @@ static void view3d_edit_object_trackmenu(bContext *C, uiLayout *layout, void *ar
 
 static void view3d_edit_object_constraintsmenu(bContext *C, uiLayout *layout, void *arg_unused)
 {
-#if 0
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Add Constraint...|Ctrl Alt C",			0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 1, "");
-	add_constraint(0);
-	uiDefIconTextBut(block, BUTM, 1, ICON_BLANK1, "Clear Constraints",		0, yco-=20, menuwidth, 19, NULL, 0.0, 0.0, 1, 2, "");
-	ob_clear_constraints();
-#endif
+	uiItemBooleanO(layout, NULL, 0, "OBJECT_OT_constraint_add", "set_targets", 1); // XXX it'd be better to have the version which sets links...
+	uiItemO(layout, NULL, 0, "OBJECT_OT_constraints_clear");
 }
 
 static void view3d_edit_object_showhidemenu(bContext *C, uiLayout *layout, void *arg_unused)
@@ -4303,7 +4253,7 @@ static void do_view3d_header_buttons(bContext *C, void *arg, int event)
 				v3d->layact= v3d->lay;
 			}
 			
-			if(v3d->scenelock) handle_view3d_lock();
+			if(v3d->scenelock) handle_view3d_lock(C);
 			
 			ED_area_tag_redraw(sa);
 			countall();
@@ -4325,7 +4275,6 @@ static void view3d_header_pulldowns(const bContext *C, uiBlock *block, Object *o
 	RegionView3D *rv3d= wm_region_view3d(C);
 	short xmax, xco= *xcoord;
 	
-	
 	/* compensate for local mode when setting up the viewing menu/iconrow values */
 	if(rv3d->view==7) rv3d->viewbut= 1;
 	else if(rv3d->view==1) rv3d->viewbut= 2;
@@ -4335,11 +4284,6 @@ static void view3d_header_pulldowns(const bContext *C, uiBlock *block, Object *o
 	/* the 'xmax - 3' rather than xmax is to prevent some weird flickering where the highlighted
 	 * menu is drawn wider than it should be. The ypos of -2 is to make it properly fill the
 	 * height of the header */
-	
-	xmax= GetButStringLength("View");
-	uiDefMenuBut(block, view3d_viewmenu, NULL, "View", xco, yco, xmax-3, 20, "");
-	//uiDefPulldownBut(block, view3d_viewmenu, NULL, "View", xco, yco, xmax-3, 20, "");
-	xco+= xmax;
 	
 	xmax= GetButStringLength("Select");
 	if (obedit) {
@@ -4476,8 +4420,9 @@ static void header_xco_step(ARegion *ar, int *xco, int *yco, int *maxco, int ste
 	}
 }
 
-void view3d_header_buttons(const bContext *C, ARegion *ar)
+void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 {
+	ARegion *ar= CTX_wm_region(C);
 	ScrArea *sa= CTX_wm_area(C);
 	View3D *v3d= sa->spacedata.first;
 	Scene *scene= CTX_data_scene(C);
@@ -4485,13 +4430,11 @@ void view3d_header_buttons(const bContext *C, ARegion *ar)
 	Object *ob= OBACT;
 	Object *obedit = CTX_data_edit_object(C);
 	uiBlock *block;
-	int a, xco, maxco=0, yco= 3;
+	int a, xco=0, maxco=0, yco= 0;
 	
-	block= uiBeginBlock(C, ar, "header buttons", UI_EMBOSS);
+	block= uiLayoutFreeBlock(layout);
 	uiBlockSetHandleFunc(block, do_view3d_header_buttons, NULL);
 	
-	xco= ED_area_header_standardbuttons(C, block, yco);
-
 	if((sa->flag & HEADER_NO_PULLDOWN)==0) 
 		view3d_header_pulldowns(C, block, ob, &xco, yco);
 

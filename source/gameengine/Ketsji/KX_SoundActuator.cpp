@@ -76,7 +76,7 @@ KX_SoundActuator::~KX_SoundActuator()
 	if(m_handle)
 		AUD_stop(m_handle);
 	if(m_sound)
-		delete m_sound;
+		AUD_unload(m_sound);
 #if 0
 	if (m_soundObject)
 	{

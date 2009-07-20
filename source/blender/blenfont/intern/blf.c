@@ -398,6 +398,16 @@ float BLF_width(char *str)
 	return(0.0f);
 }
 
+float BLF_fixed_width(void)
+{
+	FontBLF *font;
+
+	font= global_font[global_font_cur];
+	if (font)
+		return(blf_font_fixed_width(font));
+	return(0.0f);
+}
+
 float BLF_width_default(char *str)
 {
 	FontBLF *font;
@@ -503,15 +513,6 @@ void BLF_mode(int mode)
 	font= global_font[global_font_cur];
 	if (font)
 		font->mode= mode;
-}
-
-void BLF_kerning(float space)
-{
-	FontBLF *font;
-
-	font= global_font[global_font_cur];
-	if (font)
-		font->kerning= space;
 }
 
 void BLF_shadow(int level, float r, float g, float b, float a)

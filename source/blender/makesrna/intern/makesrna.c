@@ -699,9 +699,9 @@ static char *rna_def_property_begin_func(FILE *f, StructRNA *srna, PropertyRNA *
 		}
 		else {
 			if(dp->dnalengthname)
-				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), data->%s, NULL);\n", dp->dnaname, dp->dnaname, dp->dnalengthname);
+				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), data->%s, 0, NULL);\n", dp->dnaname, dp->dnaname, dp->dnalengthname);
 			else
-				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), %d, NULL);\n", dp->dnaname, dp->dnaname, dp->dnalengthfixed);
+				fprintf(f, "\n	rna_iterator_array_begin(iter, data->%s, sizeof(data->%s[0]), %d, 0, NULL);\n", dp->dnaname, dp->dnaname, dp->dnalengthfixed);
 		}
 	}
 	else {
@@ -1597,7 +1597,6 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 						DefRNA.error= 1;
 					}
 				}
-				else if(eprop->itemf);
 				else {
 					fprintf(stderr, "rna_generate_structs: %s%s.%s, enum must have items defined.\n", srna->identifier, errnest, prop->identifier);
 					DefRNA.error= 1;
@@ -1922,6 +1921,7 @@ RNAProcessItem PROCESS_ITEMS[]= {
 	{"rna_mesh.c", "rna_mesh_api.c", RNA_def_mesh},
 	{"rna_meta.c", NULL, RNA_def_meta},
 	{"rna_modifier.c", NULL, RNA_def_modifier},
+	{"rna_nla.c", NULL, RNA_def_nla},
 	{"rna_nodetree.c", NULL, RNA_def_nodetree},
 	{"rna_object.c", "rna_object_api.c", RNA_def_object},
 	{"rna_object_force.c", NULL, RNA_def_object_force},

@@ -28,6 +28,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_util.h"
+#include "BLI_fileops.h"
 #include "BLI_string.h"
 
 #include "BKE_context.h"
@@ -65,7 +66,7 @@ static void bpy_init_modules( void )
 	/* PyModule_AddObject( mod, "doc", BPY_rna_doc() ); */
 	PyModule_AddObject( mod, "types", BPY_rna_types() );
 	PyModule_AddObject( mod, "props", BPY_rna_props() );
-	PyModule_AddObject( mod, "ops", BPY_operator_module() );
+	PyModule_AddObject( mod, "__ops__", BPY_operator_module() ); /* ops is now a python module that does the conversion from SOME_OT_foo -> some.foo */
 	PyModule_AddObject( mod, "ui", BPY_ui_module() ); // XXX very experimental, consider this a test, especially PyCObject is not meant to be permanent
 	
 	/* add the module so we can import it */
@@ -441,6 +442,26 @@ int BPY_run_python_script_space(const char *modulename, const char *func)
 #include "PIL_time.h"
 #endif
 
+/* for use by BPY_run_ui_scripts only */
+static int bpy_import_module(char *modname, int reload)
+{
+	PyObject *mod= PyImport_ImportModuleLevel(modname, NULL, NULL, NULL, 0);
+	if (mod) {
+		if (reload) {
+			PyObject *mod_orig= mod;
+			mod= PyImport_ReloadModule(mod);
+			Py_DECREF(mod_orig);
+		}
+	}
+
+	if(mod) {
+		Py_DECREF(mod); /* could be NULL from reloading */
+		return 0;
+	} else {
+		return -1;
+	}
+}
+
 /* XXX this is temporary, need a proper script registration system for 2.5 */
 void BPY_run_ui_scripts(bContext *C, int reload)
 {
@@ -452,19 +473,21 @@ void BPY_run_ui_scripts(bContext *C, int reload)
 	char *file_extension;
 	char *dirname;
 	char path[FILE_MAX];
-	char *dirs[] = {"io", "ui", NULL};
-	int a;
+	char *dirs[] = {"ui", "io", NULL};
+	int a, err;
 	
 	PyGILState_STATE gilstate;
-	PyObject *mod;
-	PyObject *sys_path_orig;
-	PyObject *sys_path_new;
+	PyObject *sys_path;
 
 	gilstate = PyGILState_Ensure();
 	
 	// XXX - evil, need to access context
 	BPy_SetContext(C);
 	bpy_import_main_set(CTX_data_main(C));
+
+
+	sys_path= PySys_GetObject("path"); /* borrow */
+	PyList_Insert(sys_path, 0, Py_None); /* place holder, resizes the list */
 
 	for(a=0; dirs[a]; a++) {
 		dirname= BLI_gethome_folder(dirs[a]);
@@ -476,49 +499,51 @@ void BPY_run_ui_scripts(bContext *C, int reload)
 
 		if(!dir)
 			continue;
-
-		/* backup sys.path */
-		sys_path_orig= PySys_GetObject("path");
-		Py_INCREF(sys_path_orig); /* dont free it */
 		
-		sys_path_new= PyList_New(1);
-		PyList_SET_ITEM(sys_path_new, 0, PyUnicode_FromString(dirname));
-		PySys_SetObject("path", sys_path_new);
-		Py_DECREF(sys_path_new);
+		/* set the first dir in the sys.path for fast importing of modules */
+		PyList_SetItem(sys_path, 0, PyUnicode_FromString(dirname)); /* steals the ref */
 			
 		while((de = readdir(dir)) != NULL) {
 			/* We could stat the file but easier just to let python
 			 * import it and complain if theres a problem */
+			err = 0;
 
-			file_extension = strstr(de->d_name, ".py");
-			
-			if(file_extension && file_extension[3] == '\0') {
-				BLI_strncpy(path, de->d_name, (file_extension - de->d_name) + 1); /* cut off the .py on copy */
-				mod= PyImport_ImportModuleLevel(path, NULL, NULL, NULL, 0);
-				if (mod) {
-					if (reload) {
-						PyObject *mod_orig= mod;
-						mod= PyImport_ReloadModule(mod);
-						Py_DECREF(mod_orig);
-					}
+			if (de->d_name[0] == '.') {
+				/* do nothing, probably .svn */
+			}
+#ifndef __linux__
+			else if( BLI_join_dirfile(path, dirname, de->d_name), S_ISDIR(BLI_exists(path))) {
+#else
+			else if(de->d_type==DT_DIR) {
+				BLI_join_dirfile(path, dirname, de->d_name);
+#endif
+				/* support packages */
+				BLI_join_dirfile(path, path, "__init__.py");
+
+				if(BLI_exists(path)) {
+					bpy_import_module(de->d_name, reload);
 				}
+			} else {
+				/* normal py files */
+				file_extension = strstr(de->d_name, ".py");
 				
-				if(mod) {
-					Py_DECREF(mod); /* could be NULL from reloading */
-				} else {
-					BPy_errors_to_report(NULL);
-					fprintf(stderr, "unable to import \"%s\"  %s/%s\n", path, dirname, de->d_name);
+				if(file_extension && file_extension[3] == '\0') {
+					de->d_name[(file_extension - de->d_name) + 1] = '\0';
+					bpy_import_module(de->d_name, reload);
 				}
+			}
 
+			if(err==-1) {
+				BPy_errors_to_report(NULL);
+				fprintf(stderr, "unable to import %s/%s\n", dirname, de->d_name);
 			}
 		}
 
 		closedir(dir);
-
-		PySys_SetObject("path", sys_path_orig);
-		Py_DECREF(sys_path_orig);
 	}
 	
+	PyList_SetSlice(sys_path, 0, 1, NULL); /* remove the first item */
+
 	bpy_import_main_set(NULL);
 	
 	PyGILState_Release(gilstate);

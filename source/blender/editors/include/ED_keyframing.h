@@ -30,6 +30,7 @@
 
 struct ListBase;
 struct ID;
+struct Scene;
 
 struct KeyingSet;
 
@@ -42,6 +43,9 @@ struct bConstraint;
 
 struct bContext;
 struct wmOperatorType;
+
+struct PointerRNA;
+struct PropertyRNA;
 
 /* ************ Keyframing Management **************** */
 
@@ -68,6 +72,16 @@ int insert_bezt_fcurve(struct FCurve *fcu, struct BezTriple *bezt);
  *	already exists. It will insert a keyframe using the current value being keyframed.
  */
 void insert_vert_fcurve(struct FCurve *fcu, float x, float y, short flag);
+
+/* -------- */
+
+/* Secondary Keyframing API calls: 
+ *	Use this to insert a keyframe using the current value being keyframed, in the 
+ *	nominated F-Curve (no creation of animation data performed). Returns success.
+ */
+short insert_keyframe_direct(struct PointerRNA ptr, struct PropertyRNA *prop, struct FCurve *fcu, float cfra, short flag);
+
+
 
 /* -------- */
 
@@ -155,7 +169,7 @@ void ANIM_OT_keyingset_add_destination(struct wmOperatorType *ot);
 /* Main Driver Management API calls:
  * 	Add a new driver for the specified property on the given ID block
  */
-short ANIM_add_driver (struct ID *id, const char rna_path[], int array_index, short flag);
+short ANIM_add_driver (struct ID *id, const char rna_path[], int array_index, short flag, int type);
 
 /* Main Driver Management API calls:
  * 	Remove the driver for the specified property on the given ID block (if available)
@@ -184,7 +198,15 @@ void ANIM_OT_remove_driver_button(struct wmOperatorType *ot);
 	/* check if a flag is set for auto-keyframing (as userprefs only!) */
 #define IS_AUTOKEY_FLAG(flag)	(U.autokey_flag & AUTOKEY_FLAG_##flag)
 
+/* auto-keyframing feature - checks for whether anything should be done for the current frame */
+int autokeyframe_cfra_can_key(struct Scene *scene, struct ID *id);
+
 /* ************ Keyframe Checking ******************** */
+
+/* Lesser Keyframe Checking API call:
+ *	- Used for the buttons to check for keyframes...
+ */
+short fcurve_frame_has_keyframe(struct FCurve *fcu, float frame, short filter);
 
 /* Main Keyframe Checking API call:
  * Checks whether a keyframe exists for the given ID-block one the given frame.

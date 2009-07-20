@@ -33,11 +33,14 @@
 /* ******************* Registration Function ********************** */
 
 struct wmWindowManager;
+struct wmOperatorType;
 struct ListBase;
 struct wmEvent;
 struct bContext;
 struct Object;
 struct uiLayout;
+struct EnumPropertyItem;
+struct wmOperatorType;
 
 void transform_keymap_for_space(struct wmWindowManager *wm, struct ListBase *keymap, int spaceid);
 void transform_operatortypes(void);
@@ -114,19 +117,21 @@ int BIF_menuselectTransformOrientation(void);
 void BIF_selectTransformOrientation(struct bContext *C, struct TransformOrientation *ts);
 void BIF_selectTransformOrientationValue(struct bContext *C, int orientation);
 
-void BIF_menuTransformOrientation(struct bContext *C, struct uiLayout *layout, void *arg);
+struct EnumPropertyItem *BIF_enumTransformOrientation(struct bContext *C);
 char * BIF_menustringTransformOrientation(const struct bContext *C, char *title); /* the returned value was allocated and needs to be freed after use */
 int BIF_countTransformOrientation(const struct bContext *C);
-
-void BIF_getPropCenter(float *center);
 
 void BIF_TransformSetUndo(char *str);
 
 void BIF_selectOrientation(void);
 
+/* to be able to add operator properties to other operators */
+
+void Properties_Proportional(struct wmOperatorType *ot);
+void Properties_Snapping(struct wmOperatorType *ot, short align);
+void Properties_Constraints(struct wmOperatorType *ot);
+
 /* view3d manipulators */
-void initManipulator(int mode);
-void ManipulatorTransform();
 
 int BIF_do_manipulator(struct bContext *C, struct wmEvent *event, struct wmOperator *op);
 void BIF_draw_manipulator(const struct bContext *C);

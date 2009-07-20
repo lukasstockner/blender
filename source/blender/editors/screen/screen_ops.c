@@ -41,6 +41,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_blender.h"
+#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_global.h"
@@ -166,6 +167,7 @@ int ED_operator_node_active(bContext *C)
 	return 0;
 }
 
+// XXX rename
 int ED_operator_ipo_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_IPO);
@@ -179,6 +181,11 @@ int ED_operator_sequencer_active(bContext *C)
 int ED_operator_image_active(bContext *C)
 {
 	return ed_spacetype_test(C, SPACE_IMAGE);
+}
+
+int ED_operator_nla_active(bContext *C)
+{
+	return ed_spacetype_test(C, SPACE_NLA);
 }
 
 int ED_operator_logic_active(bContext *C)
@@ -497,8 +504,10 @@ void SCREEN_OT_actionzone(wmOperatorType *ot)
 	
 	ot->invoke= actionzone_invoke;
 	ot->modal= actionzone_modal;
-	
 	ot->poll= actionzone_area_poll;
+
+	ot->flag= OPTYPE_BLOCKING;
+	
 	RNA_def_int(ot->srna, "modifier", 0, 0, 2, "modifier", "modifier state", 0, 2);
 }
 
@@ -612,6 +621,8 @@ static void SCREEN_OT_area_swap(wmOperatorType *ot)
 	ot->invoke= area_swap_invoke;
 	ot->modal= area_swap_modal;
 	ot->poll= ED_operator_areaactive;
+
+	ot->flag= OPTYPE_BLOCKING;
 }
 
 /* *********** Duplicate area as new window operator ****************** */
@@ -906,8 +917,9 @@ void SCREEN_OT_area_move(wmOperatorType *ot)
 	ot->invoke= area_move_invoke;
 	ot->cancel= area_move_cancel;
 	ot->modal= area_move_modal;
-
 	ot->poll= ED_operator_screen_mainwinactive; /* when mouse is over area-edge */
+
+	ot->flag= OPTYPE_BLOCKING;
 
 	/* rna */
 	RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
@@ -1221,7 +1233,7 @@ void SCREEN_OT_area_split(wmOperatorType *ot)
 	ot->modal= area_split_modal;
 	
 	ot->poll= ED_operator_areaactive;
-	ot->flag= OPTYPE_REGISTER;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
 	
 	/* rna */
 	RNA_def_enum(ot->srna, "direction", prop_direction_items, 'h', "Direction", "");
@@ -1338,6 +1350,8 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 	ot->modal= region_scale_modal;
 	
 	ot->poll= ED_operator_areaactive;
+	
+	ot->flag= OPTYPE_BLOCKING;
 }
 
 
@@ -1719,8 +1733,9 @@ void SCREEN_OT_area_join(wmOperatorType *ot)
 	ot->exec= area_join_exec;
 	ot->invoke= area_join_invoke;
 	ot->modal= area_join_modal;
-
 	ot->poll= ED_operator_areaactive;
+
+	ot->flag= OPTYPE_BLOCKING;
 
 	/* rna */
 	RNA_def_int(ot->srna, "x1", -100, INT_MIN, INT_MAX, "X 1", "", INT_MIN, INT_MAX);
@@ -2070,19 +2085,40 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		
 		if(scene->audio.flag & AUDIO_SYNC) {
 			int step = floor(wt->duration * FPS);
-			scene->r.cfra += step;
+			if (sad->reverse) // XXX does this option work with audio?
+				scene->r.cfra -= step;
+			else
+				scene->r.cfra += step;
 			wt->duration -= ((float)step)/FPS;
 		}
-		else
-			scene->r.cfra++;
+		else {
+			if (sad->reverse)
+				scene->r.cfra--;
+			else
+				scene->r.cfra++;
+		}
 		
-		if (scene->r.psfra) {
-			if(scene->r.cfra > scene->r.pefra)
-				scene->r.cfra= scene->r.psfra;
+		if (sad->reverse) {
+			/* jump back to end */
+			if (scene->r.psfra) {
+				if(scene->r.cfra < scene->r.psfra)
+					scene->r.cfra= scene->r.pefra;
+			}
+			else {
+				if(scene->r.cfra < scene->r.sfra)
+					scene->r.cfra= scene->r.efra;
+			}
 		}
 		else {
-			if(scene->r.cfra > scene->r.efra)
-				scene->r.cfra= scene->r.sfra;
+			/* jump back to start */
+			if (scene->r.psfra) {
+				if(scene->r.cfra > scene->r.pefra)
+					scene->r.cfra= scene->r.psfra;
+			}
+			else {
+				if(scene->r.cfra > scene->r.efra)
+					scene->r.cfra= scene->r.sfra;
+			}
 		}
 
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
@@ -2130,8 +2166,9 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 		ED_screen_animation_timer(C, 0, 0);
 	}
 	else {
-		/* todo: RNA properties to define play types */
-		ED_screen_animation_timer(C, TIME_REGION|TIME_ALL_3D_WIN, 1);
+		int mode= (RNA_boolean_get(op->ptr, "reverse")) ? -1 : 1;
+		
+		ED_screen_animation_timer(C, TIME_REGION|TIME_ALL_3D_WIN, mode);
 		
 		if(screen->animtimer) {
 			wmTimer *wt= screen->animtimer;
@@ -2155,7 +2192,7 @@ void SCREEN_OT_animation_play(wmOperatorType *ot)
 	
 	ot->poll= ED_operator_screenactive;
 	
-	
+	RNA_def_boolean(ot->srna, "reverse", 0, "Play in Reverse", "Animation is played backwards");
 }
 
 /* ************** border select operator (template) ***************************** */
@@ -2284,6 +2321,42 @@ static ScrArea *find_area_showing_r_result(bContext *C)
 	return sa;
 }
 
+static ScrArea *find_area_image_empty(bContext *C)
+{
+	bScreen *sc= CTX_wm_screen(C);
+	ScrArea *sa;
+	SpaceImage *sima;
+	
+	/* find an imagewindow showing render result */
+	for(sa=sc->areabase.first; sa; sa= sa->next) {
+		if(sa->spacetype==SPACE_IMAGE) {
+			sima= sa->spacedata.first;
+			if(!sima->image)
+				break;
+		}
+	}
+	return sa;
+}
+
+#if 0 // XXX not used
+static ScrArea *find_empty_image_area(bContext *C)
+{
+	bScreen *sc= CTX_wm_screen(C);
+	ScrArea *sa;
+	SpaceImage *sima;
+	
+	/* find an imagewindow showing render result */
+	for(sa=sc->areabase.first; sa; sa= sa->next) {
+		if(sa->spacetype==SPACE_IMAGE) {
+			sima= sa->spacedata.first;
+			if(!sima->image)
+				break;
+		}
+	}
+	return sa;
+}
+#endif // XXX not used
+
 static void screen_set_image_output(bContext *C)
 {
 	Scene *scene= CTX_data_scene(C);
@@ -2298,6 +2371,8 @@ static void screen_set_image_output(bContext *C)
 	else {
 	
 		sa= find_area_showing_r_result(C);
+		if(sa==NULL)
+			sa= find_area_image_empty(C);
 		
 		if(sa==NULL) {
 			/* find largest open non-image area */
@@ -2501,21 +2576,46 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 	rectf+= 4*(rr->rectx*ymin + xmin);
 	rectc= (char *)(ibuf->rect + ibuf->x*rymin + rxmin);
 
-	for(y1= 0; y1<ymax; y1++) {
-		float *rf= rectf;
-		char *rc= rectc;
-		
-		/* XXX temp. because crop offset */
-		if( rectc >= (char *)(ibuf->rect)) {
-			for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
-				rc[0]= FTOCHAR(rf[0]);
-				rc[1]= FTOCHAR(rf[1]);
-				rc[2]= FTOCHAR(rf[2]);
-				rc[3]= FTOCHAR(rf[3]);
+	/* XXX make nice consistent functions for this */
+	if (rj->scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+		for(y1= 0; y1<ymax; y1++) {
+			float *rf= rectf;
+			float srgb[3];
+			char *rc= rectc;
+			
+			/* XXX temp. because crop offset */
+			if( rectc >= (char *)(ibuf->rect)) {
+				for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
+					srgb[0]= linearrgb_to_srgb(rf[0]);
+					srgb[1]= linearrgb_to_srgb(rf[1]);
+					srgb[2]= linearrgb_to_srgb(rf[2]);
+
+					rc[0]= FTOCHAR(srgb[0]);
+					rc[1]= FTOCHAR(srgb[1]);
+					rc[2]= FTOCHAR(srgb[2]);
+					rc[3]= FTOCHAR(rf[3]);
+				}
 			}
+			rectf += 4*rr->rectx;
+			rectc += 4*ibuf->x;
 		}
-		rectf += 4*rr->rectx;
-		rectc += 4*ibuf->x;
+	} else {
+		for(y1= 0; y1<ymax; y1++) {
+			float *rf= rectf;
+			char *rc= rectc;
+			
+			/* XXX temp. because crop offset */
+			if( rectc >= (char *)(ibuf->rect)) {
+				for(x1= 0; x1<xmax; x1++, rf += 4, rc+=4) {
+					rc[0]= FTOCHAR(rf[0]);
+					rc[1]= FTOCHAR(rf[1]);
+					rc[2]= FTOCHAR(rf[2]);
+					rc[3]= FTOCHAR(rf[3]);
+				}
+			}
+			rectf += 4*rr->rectx;
+			rectc += 4*ibuf->x;
+		}
 	}
 	
 	/* make jobs timer to send notifier */
@@ -2780,7 +2880,10 @@ void ED_operatortypes_screen(void)
 /* called in spacetypes.c */
 void ED_keymap_screen(wmWindowManager *wm)
 {
-	ListBase *keymap= WM_keymap_listbase(wm, "Screen", 0, 0);
+	ListBase *keymap;
+	
+	/* Screen General ------------------------------------------------ */
+	keymap= WM_keymap_listbase(wm, "Screen", 0, 0);
 	
 	/* standard timers */
 	WM_keymap_add_item(keymap, "SCREEN_OT_animation_step", TIMER0, KM_ANY, KM_ANY, 0);
@@ -2833,13 +2936,17 @@ void ED_keymap_screen(wmWindowManager *wm)
 	WM_keymap_add_item(keymap, "SCREEN_OT_render_view_cancel", ESCKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_render_view_show", F11KEY, KM_PRESS, 0, 0);
 	
-	/* frame offsets & play */
+	/* Anim Playback ------------------------------------------------ */
 	keymap= WM_keymap_listbase(wm, "Frames", 0, 0);
+	
+	/* frame offsets */
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", UPARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", 10);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", DOWNARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", -10);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", LEFTARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", -1);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", RIGHTARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", 1);
-	WM_keymap_add_item(keymap, "SCREEN_OT_animation_play", AKEY, KM_PRESS, KM_ALT, 0);
 	
+	/* play (forward and backwards) */
+	WM_keymap_add_item(keymap, "SCREEN_OT_animation_play", AKEY, KM_PRESS, KM_ALT, 0);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "SCREEN_OT_animation_play", AKEY, KM_PRESS, KM_ALT|KM_SHIFT, 0)->ptr, "reverse", 1);
 }
 

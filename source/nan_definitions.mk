@@ -308,7 +308,7 @@ endif
     export FREEDESKTOP ?= true
 
     export NAN_PYTHON ?= /usr
-    export NAN_PYTHON_VERSION ?= 2.5
+    export NAN_PYTHON_VERSION ?= 2.6
     export NAN_PYTHON_BINARY ?= $(NAN_PYTHON)/bin/python$(NAN_PYTHON_VERSION)
     export NAN_PYTHON_LIB ?= $(NAN_PYTHON)/lib/libpython$(NAN_PYTHON_VERSION).a
     export NAN_OPENAL ?= /usr
