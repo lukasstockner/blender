@@ -98,6 +98,9 @@ void GPU_normal_setup( struct DerivedMesh *dm );
 void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 
+void *GPU_buffer_lock( GPUBuffer *buffer );
+void GPU_buffer_unlock( GPUBuffer *buffer );
+
 /* upload three unsigned chars, representing RGB colors, for each vertex. Resets dm->drawObject->colType to -1 */
 void GPU_color3_upload( struct DerivedMesh *dm, char *data );
 /* upload four unsigned chars, representing RGBA colors, for each vertex. Resets dm->drawObject->colType to -1 */

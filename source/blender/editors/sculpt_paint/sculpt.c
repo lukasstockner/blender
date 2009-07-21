@@ -90,6 +90,7 @@
 #include "RE_shader_ext.h" /*for multitex_ext*/
 
 #include "GPU_draw.h"
+#include "gpu_buffers.h"
 
 #include <math.h>
 #include <stdlib.h>
@@ -330,21 +331,43 @@ static void calc_area_normal(Sculpt *sd, float out[3], const ListBase* active_ve
 static void do_draw_brush(Sculpt *sd, SculptSession *ss, const ListBase* active_verts)
 {
 	float area_normal[3];
+	int i, j, found;
 	ActiveData *node= active_verts->first;
+	float* buffer;
 
 	calc_area_normal(sd, area_normal, active_verts);
 	
+	buffer = (float *)GPU_buffer_lock( ss->drawobject->vertices );
 	while(node){
 		float *co= ss->mvert[node->Index].co;
 
 		const float val[3]= {co[0]+area_normal[0]*ss->cache->radius*node->Fade*ss->cache->scale[0],
 		                     co[1]+area_normal[1]*ss->cache->radius*node->Fade*ss->cache->scale[1],
 		                     co[2]+area_normal[2]*ss->cache->radius*node->Fade*ss->cache->scale[2]};
-		                     
+
+		if( buffer != 0 ) {
+			for( i = 0; i < ss->drawobject->nelements/3; i++ ) {
+				int realface = ss->drawobject->faceRemap[i];
+				if( ss->mface[realface].v1 == node->Index ||
+					ss->mface[realface].v2 == node->Index ||
+					ss->mface[realface].v3 == node->Index ||
+					ss->mface[realface].v4 == node->Index ) {
+						for( j = 0; j < 3; j++ ) {
+							float dx = co[0]-buffer[i*9+j*3], dy = co[1]-buffer[i*9+j*3+1], dz = co[2]-buffer[i*9+j*3+2];
+							if( dx*dx + dy*dy + dz*dz < 0.0001 ) {
+								sculpt_clip(sd, &buffer[i*9+j*3], val);
+							}
+						}
+				}
+			}
+		}
+
 		sculpt_clip(sd, co, val);
-		
+
 		node= node->next;
 	}
+	if( buffer != 0 )
+		GPU_buffer_unlock( ss->drawobject->vertices );
 }
 
 /* For the smooth brush, uses the neighboring vertices around vert to calculate
@@ -994,10 +1017,11 @@ static void sculpt_update_mesh_elements(bContext *C)
 {
 	SculptSession *ss = CTX_data_tool_settings(C)->sculpt->session;
 	Object *ob = CTX_data_active_object(C);
+	DerivedMesh *dm = mesh_get_derived_final(CTX_data_scene(C), ob, CD_MASK_BAREMESH);
 	int oldtotvert = ss->totvert;
 
 	if((ss->multires = sculpt_multires_active(ob))) {
-		DerivedMesh *dm = mesh_get_derived_final(CTX_data_scene(C), ob, CD_MASK_BAREMESH);
+		//DerivedMesh *dm = mesh_get_derived_final(CTX_data_scene(C), ob, CD_MASK_BAREMESH);
 		ss->totvert = dm->getNumVerts(dm);
 		ss->totface = dm->getNumFaces(dm);
 		ss->mvert = dm->getVertDataArray(dm, CD_MVERT);
@@ -1011,6 +1035,12 @@ static void sculpt_update_mesh_elements(bContext *C)
 		ss->mvert = me->mvert;
 		ss->mface = me->mface;
 		ss->face_normals = NULL;
+	}
+	if( GPU_buffer_legacy( dm ) ) {
+		ss->drawobject = 0;
+	}
+	else {
+		ss->drawobject = dm->drawObject;
 	}
 
 	if(ss->totvert != oldtotvert) {

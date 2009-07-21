@@ -760,106 +760,209 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 	transp = GPU_get_material_blend_mode();
 	orig_transp = transp;
 
-	memset(&attribs, 0, sizeof(attribs));
-
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_QUADS);
 
-	for(a = 0; a < dm->numFaceData; a++, mface++) {
-		new_matnr = mface->mat_nr + 1;
+	if( GPU_buffer_legacy(dm) ) {
+		DEBUG_VBO( "Using legacy code. cdDM_drawMappedFacesGLSL\n" );
+		memset(&attribs, 0, sizeof(attribs));
 
-		if(new_matnr != matnr) {
-			glEnd();
+		glBegin(GL_QUADS);
 
-			dodraw = setMaterial(matnr = new_matnr, &gattribs);
-			if(dodraw)
-				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+		for(a = 0; a < dm->numFaceData; a++, mface++) {
+			new_matnr = mface->mat_nr + 1;
 
-			glBegin(GL_QUADS);
-		}
-
-		if(!dodraw) {
-			continue;
-		}
-		else if(setDrawOptions) {
-			orig = index[a];
-
-			if(orig == ORIGINDEX_NONE)
-				continue;
-			else if(!setDrawOptions(userData, orig))
-				continue;
-		}
-
-		if(tf) {
-			new_transp = tf[a].transp;
-
-			if(new_transp != transp) {
+			if(new_matnr != matnr) {
 				glEnd();
 
-				if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
-					GPU_set_material_blend_mode(orig_transp);
-				else
-					GPU_set_material_blend_mode(new_transp);
-				transp = new_transp;
+				dodraw = setMaterial(matnr = new_matnr, &gattribs);
+				if(dodraw)
+					DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
 				glBegin(GL_QUADS);
 			}
-		}
 
-		smoothnormal = (mface->flag & ME_SMOOTH);
-
-		if(!smoothnormal) {
-			if(nors) {
-				glNormal3fv(nors[a]);
+			if(!dodraw) {
+				continue;
 			}
-			else {
-				/* TODO ideally a normal layer should always be available */
-				float nor[3];
-				if(mface->v4) {
-					CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
-								   mvert[mface->v3].co, mvert[mface->v4].co,
-								   nor);
-				} else {
-					CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
-								  mvert[mface->v3].co, nor);
+			else if(setDrawOptions) {
+				orig = index[a];
+
+				if(orig == ORIGINDEX_NONE)
+					continue;
+				else if(!setDrawOptions(userData, orig))
+					continue;
+			}
+
+			if(tf) {
+				new_transp = tf[a].transp;
+
+				if(new_transp != transp) {
+					glEnd();
+
+					if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
+						GPU_set_material_blend_mode(orig_transp);
+					else
+						GPU_set_material_blend_mode(new_transp);
+					transp = new_transp;
+
+					glBegin(GL_QUADS);
 				}
-				glNormal3fv(nor);
 			}
-		}
+
+			smoothnormal = (mface->flag & ME_SMOOTH);
+
+			if(!smoothnormal) {
+				if(nors) {
+					glNormal3fv(nors[a]);
+				}
+				else {
+					/* TODO ideally a normal layer should always be available */
+					float nor[3];
+					if(mface->v4) {
+						CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
+									   mvert[mface->v3].co, mvert[mface->v4].co,
+									   nor);
+					} else {
+						CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
+									  mvert[mface->v3].co, nor);
+					}
+					glNormal3fv(nor);
+				}
+			}
 
 #define PASSVERT(index, vert) {													\
-	if(attribs.totorco)															\
-		glVertexAttrib3fvARB(attribs.orco.glIndex, attribs.orco.array[index]);	\
-	for(b = 0; b < attribs.tottface; b++) {										\
-		MTFace *tf = &attribs.tface[b].array[a];								\
-		glVertexAttrib2fvARB(attribs.tface[b].glIndex, tf->uv[vert]);			\
-	}																			\
-	for(b = 0; b < attribs.totmcol; b++) {										\
-		MCol *cp = &attribs.mcol[b].array[a*4 + vert];							\
-		GLubyte col[4];															\
-		col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
-		glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
-	}																			\
-	if(attribs.tottang) {														\
-		float *tang = attribs.tang.array[a*4 + vert];							\
-		glVertexAttrib3fvARB(attribs.tang.glIndex, tang);						\
-	}																			\
-	if(smoothnormal)															\
-		glNormal3sv(mvert[index].no);											\
-	glVertex3fv(mvert[index].co);												\
-}
+		if(attribs.totorco)															\
+			glVertexAttrib3fvARB(attribs.orco.glIndex, attribs.orco.array[index]);	\
+		for(b = 0; b < attribs.tottface; b++) {										\
+			MTFace *tf = &attribs.tface[b].array[a];								\
+			glVertexAttrib2fvARB(attribs.tface[b].glIndex, tf->uv[vert]);			\
+		}																			\
+		for(b = 0; b < attribs.totmcol; b++) {										\
+			MCol *cp = &attribs.mcol[b].array[a*4 + vert];							\
+			GLubyte col[4];															\
+			col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
+			glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
+		}																			\
+		if(attribs.tottang) {														\
+			float *tang = attribs.tang.array[a*4 + vert];							\
+			glVertexAttrib3fvARB(attribs.tang.glIndex, tang);						\
+		}																			\
+		if(smoothnormal)															\
+			glNormal3sv(mvert[index].no);											\
+		glVertex3fv(mvert[index].co);												\
+	}
 
-		PASSVERT(mface->v1, 0);
-		PASSVERT(mface->v2, 1);
-		PASSVERT(mface->v3, 2);
-		if(mface->v4)
-			PASSVERT(mface->v4, 3)
-		else
-			PASSVERT(mface->v3, 2)
+			PASSVERT(mface->v1, 0);
+			PASSVERT(mface->v2, 1);
+			PASSVERT(mface->v3, 2);
+			if(mface->v4)
+				PASSVERT(mface->v4, 3)
+			else
+				PASSVERT(mface->v3, 2)
 
 #undef PASSVERT
+		}
+		glEnd();
 	}
-	glEnd();
+	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+		memset(&attribs, 0, sizeof(attribs));
+
+		for(a = 0; a < dm->numFaceData; a++, mface++) {
+			new_matnr = mface->mat_nr + 1;
+
+			if(new_matnr != matnr) {
+				glEnd();
+
+				dodraw = setMaterial(matnr = new_matnr, &gattribs);
+				if(dodraw)
+					DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+
+				glBegin(GL_QUADS);
+			}
+
+			if(!dodraw) {
+				continue;
+			}
+			else if(setDrawOptions) {
+				orig = index[a];
+
+				if(orig == ORIGINDEX_NONE)
+					continue;
+				else if(!setDrawOptions(userData, orig))
+					continue;
+			}
+
+			if(tf) {
+				new_transp = tf[a].transp;
+
+				if(new_transp != transp) {
+					glEnd();
+
+					if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
+						GPU_set_material_blend_mode(orig_transp);
+					else
+						GPU_set_material_blend_mode(new_transp);
+					transp = new_transp;
+
+					glBegin(GL_QUADS);
+				}
+			}
+
+			smoothnormal = (mface->flag & ME_SMOOTH);
+
+			if(!smoothnormal) {
+				if(nors) {
+					glNormal3fv(nors[a]);
+				}
+				else {
+					/* TODO ideally a normal layer should always be available */
+					float nor[3];
+					if(mface->v4) {
+						CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
+									   mvert[mface->v3].co, mvert[mface->v4].co,
+									   nor);
+					} else {
+						CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
+									  mvert[mface->v3].co, nor);
+					}
+					glNormal3fv(nor);
+				}
+			}
+
+#define PASSVERT(index, vert) {													\
+		if(attribs.totorco)															\
+			glVertexAttrib3fvARB(attribs.orco.glIndex, attribs.orco.array[index]);	\
+		for(b = 0; b < attribs.tottface; b++) {										\
+			MTFace *tf = &attribs.tface[b].array[a];								\
+			glVertexAttrib2fvARB(attribs.tface[b].glIndex, tf->uv[vert]);			\
+		}																			\
+		for(b = 0; b < attribs.totmcol; b++) {										\
+			MCol *cp = &attribs.mcol[b].array[a*4 + vert];							\
+			GLubyte col[4];															\
+			col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
+			glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
+		}																			\
+		if(attribs.tottang) {														\
+			float *tang = attribs.tang.array[a*4 + vert];							\
+			glVertexAttrib3fvARB(attribs.tang.glIndex, tang);						\
+		}																			\
+		if(smoothnormal)															\
+			glNormal3sv(mvert[index].no);											\
+		glVertex3fv(mvert[index].co);												\
+	}
+
+			PASSVERT(mface->v1, 0);
+			PASSVERT(mface->v2, 1);
+			PASSVERT(mface->v3, 2);
+			if(mface->v4)
+				PASSVERT(mface->v4, 3)
+			else
+				PASSVERT(mface->v3, 2)
+
+#undef PASSVERT
+		}
+		glEnd();
+	}
 
 	glShadeModel(GL_FLAT);
 }

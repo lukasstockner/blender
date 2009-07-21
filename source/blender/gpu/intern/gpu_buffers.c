@@ -232,8 +232,8 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	GPUDrawObject *object;
 	MVert *mvert;
 	MFace *mface;
-	int numverts[256];	/* material number is an 8-bit char so there's at most 256 materials */
-	int redir[256];		/* material number is an 8-bit char so there's at most 256 materials */
+	int numverts[32768];	/* material number is an 16-bit short so there's at most 32768 materials */
+	int redir[32768];		/* material number is an 16-bit short so there's at most 32768 materials */
 	int *index;
 	int i;
 	int curmat, curverts;
@@ -242,19 +242,19 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 
 	object = MEM_callocN(sizeof(GPUDrawObject),"GPU_drawobject_new");
 	/*object->legacy = 1;*/
-	memset(numverts,0,sizeof(int)*256);
+	memset(numverts,0,sizeof(int)*32768);
 
 	mvert = dm->getVertArray(dm);
 	mface = dm->getFaceArray(dm);
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
 		if( mface[i].v4 )
-			numverts[mface[i].mat_nr+127] += 6;	/* split every quad into two triangles */
+			numverts[mface[i].mat_nr+16383] += 6;	/* split every quad into two triangles */
 		else
-			numverts[mface[i].mat_nr+127] += 3;
+			numverts[mface[i].mat_nr+16383] += 3;
 	}
 
-	for( i = 0; i < 256; i++ ) {
+	for( i = 0; i < 32768; i++ ) {
 		if( numverts[i] > 0 ) {
 			object->nmaterials++;
 			object->nelements += numverts[i];
@@ -264,9 +264,9 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup_index");
 
 	curmat = curverts = 0;
-	for( i = 0; i < 256; i++ ) {
+	for( i = 0; i < 32768; i++ ) {
 		if( numverts[i] > 0 ) {
-			object->materials[curmat].mat_nr = i-127;
+			object->materials[curmat].mat_nr = i-16383;
 			object->materials[curmat].start = curverts;
 			index[curmat] = curverts/3;
 			object->materials[curmat].end = curverts+numverts[i];
@@ -276,18 +276,18 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	}
 	object->faceRemap = MEM_mallocN(sizeof(int)*object->nelements/3,"GPU_drawobject_new_faceRemap");
 	for( i = 0; i < object->nmaterials; i++ ) {
-		redir[object->materials[i].mat_nr+127] = i;	/* material number -> material index */
+		redir[object->materials[i].mat_nr+16383] = i;	/* material number -> material index */
 	}
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		object->faceRemap[index[redir[mface[i].mat_nr+127]]] = i; 
+		object->faceRemap[index[redir[mface[i].mat_nr+16383]]] = i; 
 		if( mface[i].v4 ) {
-			object->faceRemap[index[redir[mface[i].mat_nr+127]]+1] = i;
-			index[redir[mface[i].mat_nr+127]]+=2;
+			object->faceRemap[index[redir[mface[i].mat_nr+16383]]+1] = i;
+			index[redir[mface[i].mat_nr+16383]]+=2;
 		}
 		else
 		{
-			index[redir[mface[i].mat_nr+127]]++;
+			index[redir[mface[i].mat_nr+16383]]++;
 		}
 	}
 	MEM_freeN(index);
@@ -315,7 +315,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 {
 	GPUBuffer *buffer;
 	float *varray;
-	int redir[256];
+	int redir[32768];
 	int *index;
 	int i;
 	int success;
@@ -336,7 +336,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup");
 	for( i = 0; i < object->nmaterials; i++ ) {
 		index[i] = object->materials[i].start*3;
-		redir[object->materials[i].mat_nr+127] = i;
+		redir[object->materials[i].mat_nr+16383] = i;
 	}
 
 	if( useVBOs ) {
@@ -405,11 +405,11 @@ void GPU_buffer_copy_vertex( DerivedMesh *dm, float *varray, int *index, int *re
 	mface = dm->getFaceArray(dm);
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr+127]];
+		start = index[redir[mface[i].mat_nr+16383]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr+127]] += 18;
+			index[redir[mface[i].mat_nr+16383]] += 18;
 		else
-			index[redir[mface[i].mat_nr+127]] += 9;
+			index[redir[mface[i].mat_nr+16383]] += 9;
 
 		/* v1 v2 v3 */
 		VECCOPY(&varray[start],mvert[mface[i].v1].co);
@@ -445,11 +445,11 @@ void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *re
 	DEBUG_VBO("GPU_buffer_copy_normal\n");
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr+127]];
+		start = index[redir[mface[i].mat_nr+16383]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr+127]] += 18;
+			index[redir[mface[i].mat_nr+16383]] += 18;
 		else
-			index[redir[mface[i].mat_nr+127]] += 9;
+			index[redir[mface[i].mat_nr+16383]] += 9;
 
 		/* v1 v2 v3 */
 		if( mface[i].flag & ME_SMOOTH ) {
@@ -514,11 +514,11 @@ void GPU_buffer_copy_uv( DerivedMesh *dm, float *varray, int *index, int *redir,
 	}
 		
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		start = index[redir[mface[i].mat_nr+127]];
+		start = index[redir[mface[i].mat_nr+16383]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr+127]] += 12;
+			index[redir[mface[i].mat_nr+16383]] += 12;
 		else
-			index[redir[mface[i].mat_nr+127]] += 6;
+			index[redir[mface[i].mat_nr+16383]] += 6;
 
 		/* v1 v2 v3 */
 		VECCOPY2D(&varray[start],mtface[i].uv[0]);
@@ -553,11 +553,11 @@ void GPU_buffer_copy_color3( DerivedMesh *dm, float *varray_, int *index, int *r
 	DEBUG_VBO("GPU_buffer_copy_color3\n");
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		int start = index[redir[mface[i].mat_nr+127]];
+		int start = index[redir[mface[i].mat_nr+16383]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr+127]] += 18;
+			index[redir[mface[i].mat_nr+16383]] += 18;
 		else
-			index[redir[mface[i].mat_nr+127]] += 9;
+			index[redir[mface[i].mat_nr+16383]] += 9;
 
 		/* v1 v2 v3 */
 		VECCOPY(&varray[start],&mcol[i*12]);
@@ -582,11 +582,11 @@ void GPU_buffer_copy_color4( DerivedMesh *dm, float *varray_, int *index, int *r
 	DEBUG_VBO("GPU_buffer_copy_color4\n");
 
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		int start = index[redir[mface[i].mat_nr+127]];
+		int start = index[redir[mface[i].mat_nr+16383]];
 		if( mface[i].v4 )
-			index[redir[mface[i].mat_nr+127]] += 18;
+			index[redir[mface[i].mat_nr+16383]] += 18;
 		else
-			index[redir[mface[i].mat_nr+127]] += 9;
+			index[redir[mface[i].mat_nr+16383]] += 9;
 
 		/* v1 v2 v3 */
 		VECCOPY(&varray[start],&mcol[i*16]);
@@ -779,4 +779,38 @@ int GPU_buffer_legacy( DerivedMesh *dm )
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new(dm);
 	return dm->drawObject->legacy;
+}
+
+void *GPU_buffer_lock( GPUBuffer *buffer )
+{
+	float *varray;
+
+	DEBUG_VBO("GPU_buffer_lock\n");
+	if( buffer == 0 ) {
+		DEBUG_VBO( "Failed to lock NULL buffer\n" );
+		return 0;
+	}
+
+	if( useVBOs ) {
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
+		varray = glMapBufferARB( GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB );
+		if( varray == 0 ) {
+			DEBUG_VBO( "Failed to map buffer to client address space\n" ); 
+		}
+		return varray;
+	}
+	else {
+		return buffer->pointer;
+	}
+}
+
+void GPU_buffer_unlock( GPUBuffer *buffer )
+{
+	DEBUG_VBO( "GPU_buffer_unlock" ); 
+	if( useVBOs ) {
+		if( glUnmapBufferARB( GL_ARRAY_BUFFER_ARB ) == 0 ) {
+			DEBUG_VBO( "Failed to copy new data\n" ); 
+		}
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	}
 }

@@ -43,6 +43,7 @@ typedef struct SculptSession {
 	struct MultiresModifierData *multires; /* Special handling for multires meshes */
 	struct MVert *mvert;
 	struct MFace *mface;
+	struct GPUDrawObject *drawobject;
 	int totvert, totface;
 	float *face_normals;
 	
