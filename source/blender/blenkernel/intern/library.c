@@ -1,6 +1,6 @@
-/** 
+/**
  * $Id$
- * 
+ *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -30,7 +30,7 @@
 /*
  *  Contains management of ID's and libraries
  *  allocate and free of all library data
- * 
+ *
  */
 
 
@@ -250,9 +250,9 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++]= &(main->tex);
 	lb[a++]= &(main->mat);
 	lb[a++]= &(main->vfont);
-	
+
 	/* Important!: When adding a new object type,
-	 * the specific data should be inserted here 
+	 * the specific data should be inserted here
 	 */
 
 	lb[a++]= &(main->armature);
@@ -265,14 +265,14 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++]= &(main->latt);
 	lb[a++]= &(main->lamp);
 	lb[a++]= &(main->camera);
-	
+
 	lb[a++]= &(main->text);
 	lb[a++]= &(main->sound);
 	lb[a++]= &(main->group);
 	lb[a++]= &(main->brush);
 	lb[a++]= &(main->script);
 	lb[a++]= &(main->particle);
-	
+
 	lb[a++]= &(main->world);
 	lb[a++]= &(main->screen);
 	lb[a++]= &(main->object);
@@ -280,14 +280,14 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++]= &(main->library);
 	lb[a++]= &(main->wm);
 	lb[a++]= &(main->gpencil);
-	
+
 	lb[a]= NULL;
 
 	return a;
 }
 
 /* *********** ALLOC AND FREE *****************
-  
+
 free_libblock(ListBase *lb, ID *id )
 	provide a list-basis and datablock, but only ID is read
 
@@ -299,7 +299,7 @@ void *alloc_libblock(ListBase *lb, type, name)
 static ID *alloc_libblock_notest(short type)
 {
 	ID *id= NULL;
-	
+
 	switch( type ) {
 		case ID_SCE:
 			id= MEM_callocN(sizeof(Scene), "scene");
@@ -381,10 +381,10 @@ static ID *alloc_libblock_notest(short type)
 			break;
 		case ID_PA:
 			id = MEM_callocN(sizeof(ParticleSettings), "ParticleSettings");
-  			break;
+			break;
 		case ID_WM:
 			id = MEM_callocN(sizeof(wmWindowManager), "Window manager");
-  			break;
+			break;
 		case ID_GD:
 			id = MEM_callocN(sizeof(bGPdata), "Grease Pencil");
 			break;
@@ -396,7 +396,7 @@ static ID *alloc_libblock_notest(short type)
 void *alloc_libblock(ListBase *lb, short type, const char *name)
 {
 	ID *id= NULL;
-	
+
 	id= alloc_libblock_notest(type);
 	if(id) {
 		BLI_addtail(lb, id);
@@ -409,7 +409,7 @@ void *alloc_libblock(ListBase *lb, short type, const char *name)
 	return id;
 }
 
-/* GS reads the memory pointed at in a specific ordering. 
+/* GS reads the memory pointed at in a specific ordering.
    only use this definition, makes little and big endian systems
    work fine, in conjunction with MAKE_ID */
 
@@ -452,7 +452,7 @@ static void id_copy_animdata(ID *id)
 			((World *)id)->adt= BKE_copy_animdata(((World *)id)->adt);
 			break;
 	}
-	
+
 }
 
 /* used everywhere in blenkernel and text.c */
@@ -462,35 +462,35 @@ void *copy_libblock(void *rt)
 	ListBase *lb;
 	char *cp, *cpn;
 	int idn_len;
-	
+
 	id= rt;
 
 	lb= wich_libbase(G.main, GS(id->name));
 	idn= alloc_libblock(lb, GS(id->name), id->name+2);
-	
+
 	if(idn==NULL) {
 		printf("ERROR: Illegal ID name for %s (Crashing now)\n", id->name);
 	}
-	
+
 	idn_len= MEM_allocN_len(idn);
 	if(idn_len - sizeof(ID) > 0) {
 		cp= (char *)id;
 		cpn= (char *)idn;
 		memcpy(cpn+sizeof(ID), cp+sizeof(ID), idn_len - sizeof(ID));
 	}
-	
+
 	id->newid= idn;
 	idn->flag |= LIB_NEW;
 	if (id->properties) idn->properties = IDP_CopyProperty(id->properties);
 
 	id_copy_animdata(id);
-	
+
 	return idn;
 }
 
 static void free_library(Library *lib)
 {
-    /* no freeing needed for libraries yet */
+	/* no freeing needed for libraries yet */
 }
 
 static void (*free_windowmanager_cb)(bContext *, wmWindowManager *)= NULL;
@@ -504,7 +504,7 @@ void set_free_windowmanager_cb(void (*func)(bContext *C, wmWindowManager *) )
 void free_libblock(ListBase *lb, void *idv)
 {
 	ID *id= idv;
-	
+
 	switch( GS(id->name) ) {	/* GetShort from util.h */
 		case ID_SCE:
 			free_scene((Scene *)id);
@@ -567,7 +567,8 @@ void free_libblock(ListBase *lb, void *idv)
 			//XXX free_script((Script *)id);
 			break;
 		case ID_SO:
-			sound_free_sound((bSound *)id);
+// AUD_XXX			sound_free_sound((bSound *)id);
+			sound_free((bSound*) id);
 			break;
 		case ID_GR:
 			free_group((Group *)id);
@@ -608,7 +609,7 @@ void free_libblock(ListBase *lb, void *idv)
 void free_libblock_us(ListBase *lb, void *idv)		/* test users */
 {
 	ID *id= idv;
-	
+
 	id->us--;
 
 	if(id->us<0) {
@@ -617,7 +618,7 @@ void free_libblock_us(ListBase *lb, void *idv)		/* test users */
 	}
 	if(id->us==0) {
 		if( GS(id->name)==ID_OB ) unlink_object(NULL, (Object *)id);
-		
+
 		free_libblock(lb, id);
 	}
 }
@@ -633,7 +634,7 @@ void free_main(Main *mainvar)
 	while(a--) {
 		ListBase *lb= lbarray[a];
 		ID *id;
-		
+
 		while ( (id= lb->first) ) {
 			free_libblock(lb, id);
 		}
@@ -649,19 +650,19 @@ ID *find_id(char *type, char *name)		/* type: "OB" or "MA" etc */
 {
 	ID *id;
 	ListBase *lb;
-	
+
 	lb= wich_libbase(G.main, GS(type));
-	
+
 	id= lb->first;
 	while(id) {
-		if(id->name[2]==name[0] && strcmp(id->name+2, name)==0 ) 
+		if(id->name[2]==name[0] && strcmp(id->name+2, name)==0 )
 			return id;
 		id= id->next;
 	}
 	return 0;
 }
 
-static void get_flags_for_id(ID *id, char *buf) 
+static void get_flags_for_id(ID *id, char *buf)
 {
 	int isfake= id->flag & LIB_FAKEUSER;
 	int isnode=0;
@@ -676,7 +677,7 @@ static void get_flags_for_id(ID *id, char *buf)
 		isnode= ((Material *)id)->use_nodes;
 	if(GS(id->name)==ID_TE)
 		isnode= ((Tex *)id)->use_nodes;
-	
+
 	if (id->us<0)
 		sprintf(buf, "-1W ");
 	else if (!id->lib && !isfake && id->us && !isnode)
@@ -692,18 +693,18 @@ static void get_flags_for_id(ID *id, char *buf)
 static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, short *nr, int hideflag)
 {
 	int i, nids= BLI_countlist(lb);
-		
+
 	if (nr) *nr= -1;
-	
+
 	if (nr && nids>MAX_IDPUP) {
 		BLI_dynstr_append(pupds, "DataBrowse %x-2");
 		*nr= -2;
 	} else {
 		ID *id;
-		
+
 		for (i=0, id= lb->first; id; id= id->next, i++) {
 			char buf[32];
-			
+
 			if (nr && id==link) *nr= i+1;
 
 			if (U.uiflag & USER_HIDE_DOT && id->name[2]=='.')
@@ -712,14 +713,14 @@ static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, shor
 				if (GS(id->name)==ID_IM)
 					if ( ((Image *)id)->source==IMA_SRC_VIEWER )
 						continue;
-			
+
 			get_flags_for_id(id, buf);
-				
+
 			BLI_dynstr_append(pupds, buf);
 			BLI_dynstr_append(pupds, id->name+2);
 			sprintf(buf, "%%x%d", i+1);
 			BLI_dynstr_append(pupds, buf);
-			
+
 			/* icon */
 			switch(GS(id->name))
 			{
@@ -734,7 +735,7 @@ static void IDnames_to_dyn_pupstring(DynStr *pupds, ListBase *lb, ID *link, shor
 			default:
 				break;
 			}
-			
+
 			if(id->next)
 				BLI_dynstr_append(pupds, "|");
 		}
@@ -752,7 +753,7 @@ void IDnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb,
 		BLI_dynstr_append(pupds, title);
 		BLI_dynstr_append(pupds, "%t|");
 	}
-	
+
 	if (extraops) {
 		BLI_dynstr_append(pupds, extraops);
 		if (BLI_dynstr_get_len(pupds))
@@ -760,7 +761,7 @@ void IDnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb,
 	}
 
 	IDnames_to_dyn_pupstring(pupds, lb, link, nr, 0);
-	
+
 	*str= BLI_dynstr_get_cstring(pupds);
 	BLI_dynstr_free(pupds);
 }
@@ -769,20 +770,20 @@ void IDnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb,
 void IMAnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb, ID *link, short *nr)
 {
 	DynStr *pupds= BLI_dynstr_new();
-	
+
 	if (title) {
 		BLI_dynstr_append(pupds, title);
 		BLI_dynstr_append(pupds, "%t|");
 	}
-	
+
 	if (extraops) {
 		BLI_dynstr_append(pupds, extraops);
 		if (BLI_dynstr_get_len(pupds))
 			BLI_dynstr_append(pupds, "|");
 	}
-	
+
 	IDnames_to_dyn_pupstring(pupds, lb, link, nr, IDPUP_NO_VIEWER);
-	
+
 	*str= BLI_dynstr_get_cstring(pupds);
 	BLI_dynstr_free(pupds);
 }
@@ -792,13 +793,13 @@ void IMAnames_to_pupstring(char **str, char *title, char *extraops, ListBase *lb
 void splitIDname(char *name, char *left, int *nr)
 {
 	int a;
-	
+
 	*nr= 0;
 	strncpy(left, name, 21);
-	
+
 	a= strlen(name);
 	if(a>1 && name[a-1]=='.') return;
-	
+
 	while(a--) {
 		if( name[a]=='.' ) {
 			left[a]= 0;
@@ -806,20 +807,20 @@ void splitIDname(char *name, char *left, int *nr)
 			return;
 		}
 		if( isdigit(name[a])==0 ) break;
-		
+
 		left[a]= 0;
 	}
-	strcpy(left, name);	
+	strcpy(left, name);
 }
 
 static void sort_alpha_id(ListBase *lb, ID *id)
 {
 	ID *idtest;
-	
+
 	/* insert alphabetically */
 	if(lb->first!=lb->last) {
 		BLI_remlink(lb, id);
-		
+
 		idtest= lb->first;
 		while(idtest) {
 			if(BLI_strcasecmp(idtest->name, id->name)>0 || idtest->lib) {
@@ -833,10 +834,10 @@ static void sort_alpha_id(ListBase *lb, ID *id)
 			BLI_addtail(lb, id);
 		}
 	}
-	
+
 }
 
-/* 
+/*
  * Check to see if an ID name is already used, and find a new one if so.
  * Return 1 if created a new name (returned in name).
  *
@@ -852,7 +853,7 @@ int check_for_dupid(ListBase *lb, ID *id, char *name)
 	int nr= 0, nrtest, a;
 	const int maxtest=32;
 	char left[32], leftest[32], in_use[32];
-	
+
 	/* make sure input name is terminated properly */
 	if( strlen(name) > 21 ) name[21]= 0;
 
@@ -860,7 +861,7 @@ int check_for_dupid(ListBase *lb, ID *id, char *name)
 
 		/* phase 1: id already exists? */
 		for( idtest = lb->first; idtest; idtest = idtest->next ) {
-				/* if idtest is not a lib */ 
+				/* if idtest is not a lib */
 			if( id != idtest && idtest->lib == NULL ) {
 				/* do not test alphabetic! */
 				/* optimized */
@@ -934,7 +935,7 @@ int new_id(ListBase *lb, ID *id, const char *tname)
 {
 	int result;
 	char name[22];
-	
+
 	/* if library, don't rename */
 	if(id->lib) return 0;
 
@@ -962,9 +963,9 @@ int new_id(ListBase *lb, ID *id, const char *tname)
 	 * functions work, so sort every time */
 	/* if( result )
 		sort_alpha_id(lb, id);*/
-	
+
 	sort_alpha_id(lb, id);
-	
+
 	return result;
 }
 
@@ -1000,31 +1001,31 @@ static void image_fix_relative_path(Image *ima)
 
 static void lib_indirect_test_id(ID *id)
 {
-	
+
 	if(id->lib)
 		return;
-	
-	if(GS(id->name)==ID_OB) {		
+
+	if(GS(id->name)==ID_OB) {
 		Object *ob= (Object *)id;
 		bActionStrip *strip;
 		Mesh *me;
 
 		int a;
-	
+
 		// XXX old animation system!
 		for (strip=ob->nlastrips.first; strip; strip=strip->next){
-			LIBTAG(strip->object); 
+			LIBTAG(strip->object);
 			LIBTAG(strip->act);
 			LIBTAG(strip->ipo);
 		}
-	
+
 		for(a=0; a<ob->totcol; a++) {
 			LIBTAG(ob->mat[a]);
 		}
-	
+
 		LIBTAG(ob->dup_group);
 		LIBTAG(ob->proxy);
-		
+
 		me= ob->data;
 		LIBTAG(me);
 	}
@@ -1041,15 +1042,15 @@ void all_local(Library *lib, int untagged_only)
 	a= set_listbasepointers(G.main, lbarray);
 	while(a--) {
 		id= lbarray[a]->first;
-		
+
 		while(id) {
 			id->newid= NULL;
 			idn= id->next;		/* id is possibly being inserted again */
-			
+
 			/* The check on the second line (LIB_APPEND_TAG) is done so its
 			 * possible to tag data you dont want to be made local, used for
 			 * appending data, so any libdata alredy linked wont become local
-			 * (very nasty to discover all your links are lost after appending)  
+			 * (very nasty to discover all your links are lost after appending)
 			 * */
 			if(id->flag & (LIB_EXTERN|LIB_INDIRECT|LIB_NEW) &&
 			  (untagged_only==0 || !(id->flag & LIB_APPEND_TAG)))
@@ -1061,7 +1062,7 @@ void all_local(Library *lib, int untagged_only)
 						/* relative file patch */
 						if(GS(id->name)==ID_IM)
 							image_fix_relative_path((Image *)id);
-						
+
 						id->lib= NULL;
 						new_id(lbarray[a], id, 0);	/* new_id only does it with double names */
 						sort_alpha_id(lbarray[a], id);
@@ -1070,7 +1071,7 @@ void all_local(Library *lib, int untagged_only)
 			}
 			id= idn;
 		}
-		
+
 		/* patch2: make it aphabetically */
 		while( (id=tempbase.first) ) {
 			BLI_remlink(&tempbase, id);
@@ -1093,11 +1094,11 @@ void test_idbutton(char *name)
 	/* called from buttons: when name already exists: call new_id */
 	ListBase *lb;
 	ID *idtest;
-	
+
 
 	lb= wich_libbase(G.main, GS(name-2) );
 	if(lb==0) return;
-	
+
 	/* search for id */
 	idtest= lb->first;
 	while(idtest) {
@@ -1113,17 +1114,17 @@ void text_idbutton(struct ID *id, char *text)
 	if(id) {
 		if(GS(id->name)==ID_SCE)
 			strcpy(text, "SCE: ");
-        else if(GS(id->name)==ID_SCE)
+		else if(GS(id->name)==ID_SCE)
 			strcpy(text, "SCR: ");
-        else if(GS(id->name)==ID_MA && ((Material*)id)->use_nodes)
+		else if(GS(id->name)==ID_MA && ((Material*)id)->use_nodes)
 			strcpy(text, "NT: ");
-        else {
+		else {
 			text[0]= id->name[0];
 			text[1]= id->name[1];
 			text[2]= ':';
 			text[3]= ' ';
 			text[4]= 0;
-        }
+		}
 	}
 	else
 		strcpy(text, "");
@@ -1132,10 +1133,10 @@ void text_idbutton(struct ID *id, char *text)
 void rename_id(ID *id, char *name)
 {
 	ListBase *lb;
-	
+
 	strncpy(id->name+2, name, 21);
 	lb= wich_libbase(G.main, GS(id->name) );
-	
-	new_id(lb, id, name);				
+
+	new_id(lb, id, name);
 }
 

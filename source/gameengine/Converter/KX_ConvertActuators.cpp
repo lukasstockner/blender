@@ -492,7 +492,7 @@ void BL_ConvertActuators(char* maggiename,
 						samplename = fullpath;
 
 						/* load sound */
-						PackedFile* pf = soundact->sound->newpackedfile;
+						PackedFile* pf = soundact->sound->packedfile;
 
 						/* but we need a packed file then */
 						if (pf)

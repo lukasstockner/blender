@@ -229,6 +229,7 @@ void AUD_OpenALDevice::updateStreams()
 		{
 			unlock();
 			m_playing = false;
+			m_thread = 0;
 			pthread_exit(NULL);
 		}
 
@@ -295,6 +296,7 @@ AUD_OpenALDevice::AUD_OpenALDevice(AUD_Specs specs, int buffersize)
 	m_specs = specs;
 	m_buffersize = buffersize;
 	m_playing = false;
+	m_thread = 0;
 
 	m_playingSounds = new std::list<AUD_OpenALHandle*>(); AUD_NEW("list")
 	m_pausedSounds = new std::list<AUD_OpenALHandle*>(); AUD_NEW("list")
@@ -360,7 +362,8 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 	unlock();
 
 	// wait for the thread to stop
-	pthread_join(m_thread, NULL);
+	if(m_thread != 0)
+		pthread_join(m_thread, NULL);
 
 	// quit OpenAL
 	alcMakeContextCurrent(NULL);

@@ -1,6 +1,6 @@
 /**
  * sound.c (mar-2001 nzc)
- *	
+ *
  * $Id$
  */
 
@@ -25,34 +25,37 @@
 #include <config.h>
 #endif
 
-ListBase _samples = {0,0}, *samples = &_samples;
+// AUD_XXX ListBase _samples = {0,0}, *samples = &_samples;
 
-void sound_free_sound(bSound *sound)
-{
+/*void sound_free_sound(bSound *sound)
+{*/
 	/* when sounds have been loaded, but not played, the packedfile was not copied
 	   to sample block and not freed otherwise */
-	if(sound->sample==NULL) {
+// AUD_XXX
+/*	if(sound->sample==NULL) {
 		if (sound->newpackedfile) {
-			freePackedFile(sound->newpackedfile); 
+			freePackedFile(sound->newpackedfile);
 			sound->newpackedfile = NULL;
 		}
 	}
 	if (sound->stream) free(sound->stream);
-}
+}*/
 
+// AUD_XXX
+/*
 void sound_free_sample(bSample *sample)
 {
-	if (sample) {	
+	if (sample) {
 		if (sample->data != &sample->fakedata[0] && sample->data != NULL) {
 			MEM_freeN(sample->data);
 			sample->data = &sample->fakedata[0];
 		}
-		
+
 		if (sample->packedfile) {
-			freePackedFile(sample->packedfile);  //FIXME: crashes sometimes 
+			freePackedFile(sample->packedfile);  //FIXME: crashes sometimes
 			sample->packedfile = NULL;
 		}
-		
+
 		if (sample->alindex != SAMPLE_INVALID) {
 //			AUD_free_sample(sample->snd_sample);
 			sample->alindex = SAMPLE_INVALID;
@@ -60,32 +63,38 @@ void sound_free_sample(bSample *sample)
 
 		sample->type = SAMPLE_INVALID;
 	}
-}
+}*/
 
 /* this is called after file reading or undos */
+// AUD_XXX
+/*
 void sound_free_all_samples(void)
 {
-	bSample *sample;
+// AUD_XXX 	bSample *sample;
 	bSound *sound;
-	
+*/
 	/* ensure no sample pointers exist, and check packedfile */
-	for(sound= G.main->sound.first; sound; sound= sound->id.next) {
+// AUD_XXX
+/*	for(sound= G.main->sound.first; sound; sound= sound->id.next) {
 		if(sound->sample && sound->sample->packedfile==sound->newpackedfile)
 			sound->newpackedfile= NULL;
 		sound->sample= NULL;
-	}
-	
-	/* now free samples */
-	for(sample= samples->first; sample; sample= sample->id.next)
-		sound_free_sample(sample);
-	BLI_freelistN(samples);
-	
-}
+	}*/
 
+	/* now free samples */
+// AUD_XXX
+/*	for(sample= samples->first; sample; sample= sample->id.next)
+		sound_free_sample(sample);
+	BLI_freelistN(samples);*/
+
+// AUD_XXX }
+
+// AUD_XXX
+/*
 void sound_set_packedfile(bSample *sample, PackedFile *pf)
 {
 	bSound *sound;
-	
+
 	if (sample) {
 		sample->packedfile = pf;
 		sound = G.main->sound.first;
@@ -101,28 +110,28 @@ void sound_set_packedfile(bSample *sample, PackedFile *pf)
 	}
 }
 
-PackedFile* sound_find_packedfile(bSound *sound) 
+PackedFile* sound_find_packedfile(bSound *sound)
 {
 	bSound *search;
 	PackedFile *pf = NULL;
 	char soundname[FILE_MAXDIR + FILE_MAXFILE], searchname[FILE_MAXDIR + FILE_MAXFILE];
-	
+
 	// convert sound->name to abolute filename
 	strcpy(soundname, sound->name);
 	BLI_convertstringcode(soundname, G.sce);
-	
+
 	search = G.main->sound.first;
 	while (search) {
 		if (search->sample && search->sample->packedfile) {
 			strcpy(searchname, search->sample->name);
 			BLI_convertstringcode(searchname, G.sce);
-			
+
 			if (BLI_streq(searchname, soundname)) {
 				pf = search->sample->packedfile;
 				break;
 			}
-		} 
-		
+		}
+
 		if (search->newpackedfile) {
 			strcpy(searchname, search->name);
 			BLI_convertstringcode(searchname, G.sce);
@@ -133,6 +142,40 @@ PackedFile* sound_find_packedfile(bSound *sound)
 		}
 		search = search->id.next;
 	}
-	
+
 	return (pf);
+}*/
+
+// AUD_XXX
+
+#include "AUD_C-API.h"
+
+void sound_init()
+{
+	AUD_Specs specs;
+	specs.channels = AUD_CHANNELS_STEREO;
+	specs.format = AUD_FORMAT_S16;
+	specs.rate = AUD_RATE_44100;
+
+	if(!AUD_init(AUD_OPENAL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
+		if(!AUD_init(AUD_SDL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
+			AUD_init(AUD_NULL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE);
+}
+
+void sound_exit()
+{
+	AUD_exit();
+}
+
+void sound_load(struct bSound* sound)
+{
+}
+
+void sound_free(struct bSound* sound)
+{
+	if (sound->packedfile)
+	{
+		freePackedFile(sound->packedfile);
+		sound->packedfile = NULL;
+	}
 }

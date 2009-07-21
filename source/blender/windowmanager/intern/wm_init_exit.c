@@ -91,7 +91,7 @@
 #include "GPU_draw.h"
 
 // AUD_XXX
-#include "AUD_C-API.h"
+#include "BKE_sound.h"
 
 /* XXX */
 static void sound_init_listener(void)
@@ -117,9 +117,6 @@ static void wm_free_reports(bContext *C)
 /* only called once, for startup */
 void WM_init(bContext *C)
 {
-	// AUD_XXX
-	AUD_Specs specs;
-
 	wm_ghost_init(C);	/* note: it assigns C to ghost! */
 	wm_init_cursor_data();
 	wm_operatortype_init();
@@ -161,12 +158,7 @@ void WM_init(bContext *C)
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
 
 	// AUD_XXX
-	specs.channels = AUD_CHANNELS_STEREO;
-	specs.format = AUD_FORMAT_S16;
-	specs.rate = AUD_RATE_44100;
-
-	if(!AUD_init(AUD_OPENAL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
-		AUD_init(AUD_NULL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE);
+	sound_init();
 }
 
 /* free strings of open recent files */
@@ -196,7 +188,7 @@ void WM_exit(bContext *C)
 	wmWindow *win;
 
 	// AUD_XXX
-	AUD_exit();
+	sound_exit();
 
 	/* first wrap up running stuff, we assume only the active WM is running */
 	/* modal handlers are on window level freed, others too? */

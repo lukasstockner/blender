@@ -39,7 +39,6 @@ SET(INC .
   ../nodes
   ../gpu
   ../blenfont
-  ../../../intern/audaspace
   ${SDL_INC}
 )
 

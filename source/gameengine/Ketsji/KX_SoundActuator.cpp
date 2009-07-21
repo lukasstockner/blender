@@ -125,7 +125,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 		return false;
 
 	// actual audio device playing state
-	bool isplaying = /*AUD_XXX(m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true :*/ AUD_getStatus(m_handle) == AUD_STATUS_PLAYING ? true : false;
+	bool isplaying = /*AUD_XXX(m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true : false*/ AUD_getStatus(m_handle) == AUD_STATUS_PLAYING;
 
 	if (m_pino)
 	{

@@ -183,7 +183,7 @@ typedef struct {
 	int file;
 	unsigned char *buf;
 	MemFile *compare, *current;
-	
+
 	int tot, count, error, memsize;
 } WriteData;
 
@@ -218,7 +218,7 @@ static void writedata_do_write(WriteData *wd, void *mem, int memlen)
 	else {
 		if (write(wd->file, mem, memlen) != memlen)
 			wd->error= 1;
-		
+
 	}
 }
 
@@ -240,7 +240,7 @@ int mywfile;
  * @param len Length of new chunk of data
  * @warning Talks to other functions with global parameters
  */
- 
+
 #define MYWRITE_FLUSH		NULL
 
 static void mywrite( WriteData *wd, void *adr, int len)
@@ -257,7 +257,7 @@ static void mywrite( WriteData *wd, void *adr, int len)
 	}
 
 	wd->tot+= len;
-	
+
 	/* if we have a single big chunk, write existing data in
 	 * buffer and write out big chunk in smaller pieces */
 	if(len>MYWRITE_MAX_CHUNK) {
@@ -303,7 +303,7 @@ static WriteData *bgnwrite(int file, MemFile *compare, MemFile *current, int wri
 	wd->current= current;
 	/* this inits comparing */
 	add_memfilechunk(compare, NULL, NULL, 0);
-	
+
 	return wd;
 }
 
@@ -321,7 +321,7 @@ static int endwrite(WriteData *wd)
 		writedata_do_write(wd, wd->buf, wd->count);
 		wd->count= 0;
 	}
-	
+
 	err= wd->error;
 	writedata_free(wd);
 
@@ -457,7 +457,7 @@ void IDP_WriteProperty(IDProperty *prop, void *wd)
 static void write_curvemapping(WriteData *wd, CurveMapping *cumap)
 {
 	int a;
-	
+
 	writestruct(wd, DATA, "CurveMapping", 1, cumap);
 	for(a=0; a<CM_TOT; a++)
 		writestruct(wd, DATA, "CurveMapPoint", cumap->cm[a].totpoint, cumap->cm[a].curve);
@@ -469,9 +469,9 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 	bNode *node;
 	bNodeSocket *sock;
 	bNodeLink *link;
-	
+
 	/* for link_list() speed, we write per list */
-	
+
 	for(node= ntree->nodes.first; node; node= node->next)
 		writestruct(wd, DATA, "bNode", 1, node);
 
@@ -484,7 +484,7 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 				write_curvemapping(wd, node->storage);
 			else if(ntree->type==NTREE_TEXTURE && (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME) )
 				write_curvemapping(wd, node->storage);
-			else 
+			else
 				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 		}
 		for(sock= node->inputs.first; sock; sock= sock->next)
@@ -492,7 +492,7 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 		for(sock= node->outputs.first; sock; sock= sock->next)
 			writestruct(wd, DATA, "bNodeSocket", 1, sock);
 	}
-	
+
 	for(link= ntree->links.first; link; link= link->next)
 		writestruct(wd, DATA, "bNodeLink", 1, link);
 }
@@ -789,22 +789,22 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 {
 	FModifier *fcm;
-	
+
 	/* Modifiers */
 	for (fcm= fmodifiers->first; fcm; fcm= fcm->next) {
 		FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
-		
+
 		/* Write the specific data */
 		if (fmi && fcm->data) {
 			/* firstly, just write the plain fmi->data struct */
 			writestruct(wd, DATA, fmi->structName, 1, fcm->data);
-			
+
 			/* do any modifier specific stuff */
 			switch (fcm->type) {
 				case FMODIFIER_TYPE_GENERATOR:
 				{
 					FMod_Generator *data= (FMod_Generator *)fcm->data;
-					
+
 					/* write coefficients array */
 					if (data->coefficients)
 						writedata(wd, DATA, sizeof(float)*(data->arraysize), data->coefficients);
@@ -813,7 +813,7 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 				case FMODIFIER_TYPE_ENVELOPE:
 				{
 					FMod_Envelope *data= (FMod_Envelope *)fcm->data;
-					
+
 					/* write envelope data */
 					if (data->data)
 						writedata(wd, DATA, sizeof(FCM_EnvelopeData)*(data->totvert), data->data);
@@ -822,7 +822,7 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 				case FMODIFIER_TYPE_PYTHON:
 				{
 					FMod_Python *data = (FMod_Python *)fcm->data;
-					
+
 					/* Write ID Properties -- and copy this comment EXACTLY for easy finding
 					 of library blocks that implement this.*/
 					IDP_WriteProperty(data->prop, wd);
@@ -830,7 +830,7 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 					break;
 			}
 		}
-		
+
 		/* Write the modifier */
 		writestruct(wd, DATA, "FModifier", 1, fcm);
 	}
@@ -839,36 +839,36 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 static void write_fcurves(WriteData *wd, ListBase *fcurves)
 {
 	FCurve *fcu;
-	
+
 	for (fcu=fcurves->first; fcu; fcu=fcu->next) {
 		/* F-Curve */
 		writestruct(wd, DATA, "FCurve", 1, fcu);
-		
+
 		/* curve data */
-		if (fcu->bezt)  	
+		if (fcu->bezt)
 			writestruct(wd, DATA, "BezTriple", fcu->totvert, fcu->bezt);
 		if (fcu->fpt)
 			writestruct(wd, DATA, "FPoint", fcu->totvert, fcu->fpt);
-			
+
 		if (fcu->rna_path)
 			writedata(wd, DATA, strlen(fcu->rna_path)+1, fcu->rna_path);
-		
+
 		/* driver data */
 		if (fcu->driver) {
 			ChannelDriver *driver= fcu->driver;
 			DriverTarget *dtar;
-			
+
 			writestruct(wd, DATA, "ChannelDriver", 1, driver);
-			
+
 			/* targets */
 			for (dtar= driver->targets.first; dtar; dtar= dtar->next) {
 				writestruct(wd, DATA, "DriverTarget", 1, dtar);
-				
+
 				if (dtar->rna_path)
 					writedata(wd, DATA, strlen(dtar->rna_path)+1, dtar->rna_path);
 			}
 		}
-		
+
 		/* write F-Modifiers */
 		write_fmodifiers(wd, &fcu->modifiers);
 	}
@@ -879,24 +879,24 @@ static void write_actions(WriteData *wd, ListBase *idbase)
 	bAction	*act;
 	bActionGroup *grp;
 	TimeMarker *marker;
-	
+
 	for(act=idbase->first; act; act= act->id.next) {
 		if (act->id.us>0 || wd->current) {
 			writestruct(wd, ID_AC, "bAction", 1, act);
 			if (act->id.properties) IDP_WriteProperty(act->id.properties, wd);
-			
+
 			write_fcurves(wd, &act->curves);
-			
+
 			for (grp=act->groups.first; grp; grp=grp->next) {
 				writestruct(wd, DATA, "bActionGroup", 1, grp);
 			}
-			
+
 			for (marker=act->markers.first; marker; marker=marker->next) {
 				writestruct(wd, DATA, "TimeMarker", 1, marker);
 			}
 		}
 	}
-	
+
 	/* flush helps the compression for undo-save */
 	mywrite(wd, MYWRITE_FLUSH, 0);
 }
@@ -905,16 +905,16 @@ static void write_keyingsets(WriteData *wd, ListBase *list)
 {
 	KeyingSet *ks;
 	KS_Path *ksp;
-	
+
 	for (ks= list->first; ks; ks= ks->next) {
 		/* KeyingSet */
 		writestruct(wd, DATA, "KeyingSet", 1, ks);
-		
+
 		/* Paths */
 		for (ksp= ks->paths.first; ksp; ksp= ksp->next) {
 			/* Path */
 			writestruct(wd, DATA, "KS_Path", 1, ksp);
-			
+
 			if (ksp->rna_path)
 				writedata(wd, DATA, strlen(ksp->rna_path)+1, ksp->rna_path);
 		}
@@ -924,15 +924,15 @@ static void write_keyingsets(WriteData *wd, ListBase *list)
 static void write_nlastrips(WriteData *wd, ListBase *strips)
 {
 	NlaStrip *strip;
-	
+
 	for (strip= strips->first; strip; strip= strip->next) {
 		/* write the strip first */
 		writestruct(wd, DATA, "NlaStrip", 1, strip);
-		
+
 		/* write the strip's F-Curves and modifiers */
 		write_fcurves(wd, &strip->fcurves);
 		write_fmodifiers(wd, &strip->modifiers);
-		
+
 		/* write the strip's children */
 		write_nlastrips(wd, &strip->strips);
 	}
@@ -941,12 +941,12 @@ static void write_nlastrips(WriteData *wd, ListBase *strips)
 static void write_nladata(WriteData *wd, ListBase *nlabase)
 {
 	NlaTrack *nlt;
-	
+
 	/* write all the tracks */
 	for (nlt= nlabase->first; nlt; nlt= nlt->next) {
 		/* write the track first */
 		writestruct(wd, DATA, "NlaTrack", 1, nlt);
-		
+
 		/* write the track's strips */
 		write_nlastrips(wd, &nlt->strips);
 	}
@@ -955,13 +955,13 @@ static void write_nladata(WriteData *wd, ListBase *nlabase)
 static void write_animdata(WriteData *wd, AnimData *adt)
 {
 	AnimOverride *aor;
-	
+
 	/* firstly, just write the AnimData block */
 	writestruct(wd, DATA, "AnimData", 1, adt);
-	
+
 	/* write drivers */
 	write_fcurves(wd, &adt->drivers);
-	
+
 	/* write overrides */
 	// FIXME: are these needed?
 	for (aor= adt->overrides.first; aor; aor= aor->next) {
@@ -969,9 +969,9 @@ static void write_animdata(WriteData *wd, AnimData *adt)
 		writestruct(wd, DATA, "AnimOverride", 1, aor);
 		writedata(wd, DATA, strlen(aor->rna_path)+1, aor->rna_path);
 	}
-	
+
 	// TODO write the remaps (if they are needed)
-	
+
 	/* write NLA data */
 	write_nladata(wd, &adt->nla_tracks);
 }
@@ -982,23 +982,23 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 
 	for (con=conlist->first; con; con=con->next) {
 		bConstraintTypeInfo *cti= constraint_get_typeinfo(con);
-		
+
 		/* Write the specific data */
 		if (cti && con->data) {
 			/* firstly, just write the plain con->data struct */
 			writestruct(wd, DATA, cti->structName, 1, con->data);
-			
+
 			/* do any constraint specific stuff */
 			switch (con->type) {
 				case CONSTRAINT_TYPE_PYTHON:
 				{
 					bPythonConstraint *data = (bPythonConstraint *)con->data;
 					bConstraintTarget *ct;
-					
+
 					/* write targets */
 					for (ct= data->targets.first; ct; ct= ct->next)
 						writestruct(wd, DATA, "bConstraintTarget", 1, ct);
-					
+
 					/* Write ID Properties -- and copy this comment EXACTLY for easy finding
 					 of library blocks that implement this.*/
 					IDP_WriteProperty(data->prop, wd);
@@ -1006,7 +1006,7 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 				break;
 			}
 		}
-		
+
 		/* Write the constraint */
 		writestruct(wd, DATA, "bConstraint", 1, con);
 	}
@@ -1027,18 +1027,18 @@ static void write_pose(WriteData *wd, bPose *pose)
 		 of library blocks that implement this.*/
 		if (chan->prop)
 			IDP_WriteProperty(chan->prop, wd);
-		
+
 		write_constraints(wd, &chan->constraints);
-		
+
 		/* prevent crashes with autosave, when a bone duplicated in editmode has not yet been assigned to its posechannel */
-		if (chan->bone) 
+		if (chan->bone)
 			chan->selectflag= chan->bone->flag & (BONE_SELECTED|BONE_ACTIVE); /* gets restored on read, for library armatures */
-		
+
 		writestruct(wd, DATA, "bPoseChannel", 1, chan);
 	}
-	
+
 	/* Write groups */
-	for (grp=pose->agroups.first; grp; grp=grp->next) 
+	for (grp=pose->agroups.first; grp; grp=grp->next)
 		writestruct(wd, DATA, "bActionGroup", 1, grp);
 
 	/* Write this pose */
@@ -1061,31 +1061,31 @@ static void write_modifiers(WriteData *wd, ListBase *modbase, int write_undo)
 	for (md=modbase->first; md; md= md->next) {
 		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 		if (mti == NULL) return;
-		
+
 		writestruct(wd, DATA, mti->structName, 1, md);
-			
+
 		if (md->type==eModifierType_Hook) {
 			HookModifierData *hmd = (HookModifierData*) md;
-			
+
 			writedata(wd, DATA, sizeof(int)*hmd->totindex, hmd->indexar);
 		}
 		else if(md->type==eModifierType_Cloth) {
 			ClothModifierData *clmd = (ClothModifierData*) md;
-			
+
 			writestruct(wd, DATA, "ClothSimSettings", 1, clmd->sim_parms);
 			writestruct(wd, DATA, "ClothCollSettings", 1, clmd->coll_parms);
 			write_pointcaches(wd, clmd->point_cache, PTCACHE_WRITE_CLOTH);
-		} 
+		}
 		else if(md->type==eModifierType_Fluidsim) {
 			FluidsimModifierData *fluidmd = (FluidsimModifierData*) md;
-			
+
 			writestruct(wd, DATA, "FluidsimSettings", 1, fluidmd->fss);
-		} 
+		}
 		else if (md->type==eModifierType_Collision) {
-			
+
 			/*
 			CollisionModifierData *collmd = (CollisionModifierData*) md;
-			// TODO: CollisionModifier should use pointcache 
+			// TODO: CollisionModifier should use pointcache
 			// + have proper reset events before enabling this
 			writestruct(wd, DATA, "MVert", collmd->numverts, collmd->x);
 			writestruct(wd, DATA, "MVert", collmd->numverts, collmd->xnew);
@@ -1116,19 +1116,19 @@ static void write_modifiers(WriteData *wd, ListBase *modbase, int write_undo)
 static void write_objects(WriteData *wd, ListBase *idbase, int write_undo)
 {
 	Object *ob;
-	
+
 	ob= idbase->first;
 	while(ob) {
 		if(ob->id.us>0 || wd->current) {
 			/* write LibData */
 			writestruct(wd, ID_OB, "Object", 1, ob);
-			
+
 			/*Write ID Properties -- and copy this comment EXACTLY for easy finding
 			  of library blocks that implement this.*/
 			if (ob->id.properties) IDP_WriteProperty(ob->id.properties, wd);
-			
+
 			if (ob->adt) write_animdata(wd, ob->adt);
-			
+
 			/* direct data */
 			writedata(wd, DATA, sizeof(void *)*ob->totcol, ob->mat);
 			writedata(wd, DATA, sizeof(char)*ob->totcol, ob->matbits);
@@ -1141,12 +1141,12 @@ static void write_objects(WriteData *wd, ListBase *idbase, int write_undo)
 			write_pose(wd, ob->pose);
 			write_defgroups(wd, &ob->defbase);
 			write_constraints(wd, &ob->constraints);
-			
+
 			writestruct(wd, DATA, "PartDeflect", 1, ob->pd);
 			writestruct(wd, DATA, "SoftBody", 1, ob->soft);
 			if(ob->soft) writestruct(wd, DATA, "PointCache", 1, ob->soft->pointcache);
 			writestruct(wd, DATA, "BulletSoftBody", 1, ob->bsoft);
-			
+
 			write_particlesystems(wd, &ob->particlesystem);
 			write_modifiers(wd, &ob->modifiers, write_undo);
 		}
@@ -1195,9 +1195,9 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 			/* write LibData */
 			writestruct(wd, ID_KE, "Key", 1, key);
 			if (key->id.properties) IDP_WriteProperty(key->id.properties, wd);
-			
+
 			if (key->adt) write_animdata(wd, key->adt);
-			
+
 			/* direct data */
 			kb= key->block.first;
 			while(kb) {
@@ -1223,9 +1223,9 @@ static void write_cameras(WriteData *wd, ListBase *idbase)
 			/* write LibData */
 			writestruct(wd, ID_CA, "Camera", 1, cam);
 			if (cam->id.properties) IDP_WriteProperty(cam->id.properties, wd);
-			
+
 			if (cam->adt) write_animdata(wd, cam->adt);
-			
+
 			/* direct data */
 			write_scriptlink(wd, &cam->scriptlink);
 		}
@@ -1276,16 +1276,16 @@ static void write_curves(WriteData *wd, ListBase *idbase)
 		if(cu->id.us>0 || wd->current) {
 			/* write LibData */
 			writestruct(wd, ID_CU, "Curve", 1, cu);
-			
+
 			/* direct data */
 			writedata(wd, DATA, sizeof(void *)*cu->totcol, cu->mat);
 			if (cu->id.properties) IDP_WriteProperty(cu->id.properties, wd);
 			if (cu->adt) write_animdata(wd, cu->adt);
-			
+
 			if(cu->vfont) {
 				writedata(wd, DATA, amount_of_chars(cu->str)+1, cu->str);
 				writestruct(wd, DATA, "CharInfo", cu->len, cu->strinfo);
-				writestruct(wd, DATA, "TextBox", cu->totbox, cu->tb);				
+				writestruct(wd, DATA, "TextBox", cu->totbox, cu->tb);
 			}
 			else {
 				/* is also the order of reading */
@@ -1318,10 +1318,10 @@ static void write_dverts(WriteData *wd, int count, MDeformVert *dvlist)
 {
 	if (dvlist) {
 		int i;
-		
+
 		/* Write the dvert list */
 		writestruct(wd, DATA, "MDeformVert", count, dvlist);
-		
+
 		/* Write deformation data for each dvert */
 		for (i=0; i<count; i++) {
 			if (dvlist[i].dw)
@@ -1334,7 +1334,7 @@ static void write_mdisps(WriteData *wd, int count, MDisps *mdlist)
 {
 	if(mdlist) {
 		int i;
-		
+
 		writestruct(wd, DATA, "MDisps", count, mdlist);
 		for(i = 0; i < count; ++i) {
 			if(mdlist[i].disps)
@@ -1422,7 +1422,7 @@ static void write_meshs(WriteData *wd, ListBase *idbase)
 static void write_lattices(WriteData *wd, ListBase *idbase)
 {
 	Lattice *lt;
-	
+
 	lt= idbase->first;
 	while(lt) {
 		if(lt->id.us>0 || wd->current) {
@@ -1432,9 +1432,9 @@ static void write_lattices(WriteData *wd, ListBase *idbase)
 
 			/* direct data */
 			writestruct(wd, DATA, "BPoint", lt->pntsu*lt->pntsv*lt->pntsw, lt->def);
-			
+
 			write_dverts(wd, lt->pntsu*lt->pntsv*lt->pntsw, lt->dvert);
-			
+
 		}
 		lt= lt->id.next;
 	}
@@ -1513,13 +1513,13 @@ static void write_textures(WriteData *wd, ListBase *idbase)
 			if(tex->type == TEX_PLUGIN && tex->plugin) writestruct(wd, DATA, "PluginTex", 1, tex->plugin);
 			if(tex->coba) writestruct(wd, DATA, "ColorBand", 1, tex->coba);
 			if(tex->type == TEX_ENVMAP && tex->env) writestruct(wd, DATA, "EnvMap", 1, tex->env);
-			
+
 			/* nodetree is integral part of texture, no libdata */
 			if(tex->nodetree) {
 				writestruct(wd, DATA, "bNodeTree", 1, tex->nodetree);
 				write_nodetree(wd, tex->nodetree);
 			}
-			
+
 			write_previews(wd, tex->preview);
 		}
 		tex= tex->id.next;
@@ -1539,31 +1539,31 @@ static void write_materials(WriteData *wd, ListBase *idbase)
 		if(ma->id.us>0 || wd->current) {
 			/* write LibData */
 			writestruct(wd, ID_MA, "Material", 1, ma);
-			
+
 			/*Write ID Properties -- and copy this comment EXACTLY for easy finding
 			  of library blocks that implement this.*/
 			/*manually set head group property to IDP_GROUP, just in case it hadn't been
 			  set yet :) */
 			if (ma->id.properties) IDP_WriteProperty(ma->id.properties, wd);
-			
+
 			if (ma->adt) write_animdata(wd, ma->adt);
 
 			for(a=0; a<MAX_MTEX; a++) {
 				if(ma->mtex[a]) writestruct(wd, DATA, "MTex", 1, ma->mtex[a]);
 			}
-			
+
 			if(ma->ramp_col) writestruct(wd, DATA, "ColorBand", 1, ma->ramp_col);
 			if(ma->ramp_spec) writestruct(wd, DATA, "ColorBand", 1, ma->ramp_spec);
-			
+
 			write_scriptlink(wd, &ma->scriptlink);
-			
+
 			/* nodetree is integral part of material, no libdata */
 			if(ma->nodetree) {
 				writestruct(wd, DATA, "bNodeTree", 1, ma->nodetree);
 				write_nodetree(wd, ma->nodetree);
 			}
 
-			write_previews(wd, ma->preview);			
+			write_previews(wd, ma->preview);
 		}
 		ma= ma->id.next;
 	}
@@ -1580,15 +1580,15 @@ static void write_worlds(WriteData *wd, ListBase *idbase)
 			/* write LibData */
 			writestruct(wd, ID_WO, "World", 1, wrld);
 			if (wrld->id.properties) IDP_WriteProperty(wrld->id.properties, wd);
-			
+
 			if (wrld->adt) write_animdata(wd, wrld->adt);
-			
+
 			for(a=0; a<MAX_MTEX; a++) {
 				if(wrld->mtex[a]) writestruct(wd, DATA, "MTex", 1, wrld->mtex[a]);
 			}
-			
+
 			write_scriptlink(wd, &wrld->scriptlink);
-			
+
 			write_previews(wd, wrld->preview);
 		}
 		wrld= wrld->id.next;
@@ -1606,21 +1606,21 @@ static void write_lamps(WriteData *wd, ListBase *idbase)
 			/* write LibData */
 			writestruct(wd, ID_LA, "Lamp", 1, la);
 			if (la->id.properties) IDP_WriteProperty(la->id.properties, wd);
-			
+
 			if (la->adt) write_animdata(wd, la->adt);
-			
+
 			/* direct data */
 			for(a=0; a<MAX_MTEX; a++) {
 				if(la->mtex[a]) writestruct(wd, DATA, "MTex", 1, la->mtex[a]);
 			}
-			
+
 			if(la->curfalloff)
-				write_curvemapping(wd, la->curfalloff);	
-			
+				write_curvemapping(wd, la->curfalloff);
+
 			write_scriptlink(wd, &la->scriptlink);
-			
+
 			write_previews(wd, la->preview);
-			
+
 		}
 		la= la->id.next;
 	}
@@ -1638,23 +1638,23 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 	TimeMarker *marker;
 	TransformOrientation *ts;
 	SceneRenderLayer *srl;
-	
+
 	sce= scebase->first;
 	while(sce) {
 		/* write LibData */
 		writestruct(wd, ID_SCE, "Scene", 1, sce);
 		if (sce->id.properties) IDP_WriteProperty(sce->id.properties, wd);
-		
+
 		if (sce->adt) write_animdata(wd, sce->adt);
 		write_keyingsets(wd, &sce->keyingsets);
-		
+
 		/* direct data */
 		base= sce->base.first;
 		while(base) {
 			writestruct(wd, DATA, "Base", 1, base);
 			base= base->next;
 		}
-		
+
 		writestruct(wd, DATA, "ToolSettings", 1, sce->toolsettings);
 		if(sce->toolsettings->vpaint)
 			writestruct(wd, DATA, "VPaint", 1, sce->toolsettings->vpaint);
@@ -1666,19 +1666,19 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 		ed= sce->ed;
 		if(ed) {
 			writestruct(wd, DATA, "Editing", 1, ed);
-			
+
 			/* reset write flags too */
-			
+
 			SEQ_BEGIN(ed, seq) {
 				if(seq->strip) seq->strip->done= 0;
 				writestruct(wd, DATA, "Sequence", 1, seq);
 			}
 			SEQ_END
-			
+
 			SEQ_BEGIN(ed, seq) {
 				if(seq->strip && seq->strip->done==0) {
 					/* write strip with 'done' at 0 because readfile */
-					
+
 					if(seq->plugin) writestruct(wd, DATA, "PluginSeq", 1, seq->plugin);
 					if(seq->effectdata) {
 						switch(seq->type){
@@ -1699,7 +1699,7 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 							break;
 						}
 					}
-					
+
 					strip= seq->strip;
 					writestruct(wd, DATA, "Strip", 1, strip);
 					if(seq->flag & SEQ_USE_CROP && strip->crop) {
@@ -1718,20 +1718,20 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 						writestruct(wd, DATA, "StripElem", MEM_allocN_len(strip->stripdata) / sizeof(struct StripElem), strip->stripdata);
 					else if(seq->type==SEQ_MOVIE || seq->type==SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND)
 						writestruct(wd, DATA, "StripElem", 1, strip->stripdata);
-					
+
 					strip->done= 1;
 				}
 			}
 			SEQ_END
-				
+
 			/* new; meta stack too, even when its nasty restore code */
 			for(ms= ed->metastack.first; ms; ms= ms->next) {
 				writestruct(wd, DATA, "MetaStack", 1, ms);
 			}
 		}
-		
+
 		write_scriptlink(wd, &sce->scriptlink);
-		
+
 		if (sce->r.avicodecdata) {
 			writestruct(wd, DATA, "AviCodecData", 1, sce->r.avicodecdata);
 			if (sce->r.avicodecdata->lpFormat) writedata(wd, DATA, sce->r.avicodecdata->cbFormat, sce->r.avicodecdata->lpFormat);
@@ -1749,19 +1749,19 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 		/* writing dynamic list of TimeMarkers to the blend file */
 		for(marker= sce->markers.first; marker; marker= marker->next)
 			writestruct(wd, DATA, "TimeMarker", 1, marker);
-		
+
 		/* writing dynamic list of TransformOrientations to the blend file */
 		for(ts = sce->transform_spaces.first; ts; ts = ts->next)
 			writestruct(wd, DATA, "TransformOrientation", 1, ts);
-		
+
 		for(srl= sce->r.layers.first; srl; srl= srl->next)
 			writestruct(wd, DATA, "SceneRenderLayer", 1, srl);
-		
+
 		if(sce->nodetree) {
 			writestruct(wd, DATA, "bNodeTree", 1, sce->nodetree);
 			write_nodetree(wd, sce->nodetree);
 		}
-		
+
 		sce= sce->id.next;
 	}
 	/* flush helps the compression for undo-save */
@@ -1774,23 +1774,23 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 	bGPDlayer *gpl;
 	bGPDframe *gpf;
 	bGPDstroke *gps;
-	
+
 	for (gpd= lb->first; gpd; gpd= gpd->id.next) {
 		/* write gpd data block to file */
 		writestruct(wd, ID_GD, "bGPdata", 1, gpd);
-		
+
 		/* write grease-pencil layers to file */
 		for (gpl= gpd->layers.first; gpl; gpl= gpl->next) {
 			writestruct(wd, DATA, "bGPDlayer", 1, gpl);
-			
+
 			/* write this layer's frames to file */
 			for (gpf= gpl->frames.first; gpf; gpf= gpf->next) {
 				writestruct(wd, DATA, "bGPDframe", 1, gpf);
-				
+
 				/* write strokes */
 				for (gps= gpf->strokes.first; gps; gps= gps->next) {
 					writestruct(wd, DATA, "bGPDstroke", 1, gps);
-					writestruct(wd, DATA, "bGPDspoint", gps->totpoints, gps->points);				
+					writestruct(wd, DATA, "bGPDspoint", gps->totpoints, gps->points);
 				}
 			}
 		}
@@ -1801,29 +1801,29 @@ static void write_windowmanagers(WriteData *wd, ListBase *lb)
 {
 	wmWindowManager *wm;
 	wmWindow *win;
-	
+
 	for(wm= lb->first; wm; wm= wm->id.next) {
 		writestruct(wd, ID_WM, "wmWindowManager", 1, wm);
-		
+
 		for(win= wm->windows.first; win; win= win->next)
 			writestruct(wd, DATA, "wmWindow", 1, win);
 	}
 }
 
 static void write_region(WriteData *wd, ARegion *ar, int spacetype)
-{	
+{
 	writestruct(wd, DATA, "ARegion", 1, ar);
-	
+
 	if(ar->regiondata) {
 		switch(spacetype) {
 			case SPACE_VIEW3D:
 				if(ar->regiontype==RGN_TYPE_WINDOW) {
 					RegionView3D *rv3d= ar->regiondata;
 					writestruct(wd, DATA, "RegionView3D", 1, rv3d);
-					
+
 					if(rv3d->localvd)
 						writestruct(wd, DATA, "RegionView3D", 1, rv3d->localvd);
-					if(rv3d->clipbb) 
+					if(rv3d->clipbb)
 						writestruct(wd, DATA, "BoundBox", 1, rv3d->clipbb);
 
 				}
@@ -1845,42 +1845,42 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 
 	sc= scrbase->first;
 	while(sc) {
-		
+
 		/* write LibData */
 		/* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
 		writestruct(wd, ID_SCRN, "Screen", 1, sc);
-		if (sc->id.properties) 
+		if (sc->id.properties)
 			IDP_WriteProperty(sc->id.properties, wd);
-		
+
 		/* direct data */
 		for(sv= sc->vertbase.first; sv; sv= sv->next)
 			writestruct(wd, DATA, "ScrVert", 1, sv);
-		
-		for(se= sc->edgebase.first; se; se= se->next) 
+
+		for(se= sc->edgebase.first; se; se= se->next)
 			writestruct(wd, DATA, "ScrEdge", 1, se);
-		
+
 		for(sa= sc->areabase.first; sa; sa= sa->next) {
 			SpaceLink *sl;
 			Panel *pa;
 			ARegion *ar;
-			
+
 			writestruct(wd, DATA, "ScrArea", 1, sa);
-			
+
 			for(ar= sa->regionbase.first; ar; ar= ar->next) {
 				write_region(wd, ar, sa->spacetype);
-				
+
 				for(pa= ar->panels.first; pa; pa= pa->next)
 					writestruct(wd, DATA, "Panel", 1, pa);
 			}
-			
+
 			/* space handler scriptlinks */
 			write_scriptlink(wd, &sa->scriptlink);
-			
+
 			sl= sa->spacedata.first;
 			while(sl) {
 				for(ar= sl->regionbase.first; ar; ar= ar->next)
 					write_region(wd, ar, sl->spacetype);
-				
+
 				if(sl->spacetype==SPACE_VIEW3D) {
 					View3D *v3d= (View3D *) sl;
 					writestruct(wd, DATA, "View3D", 1, v3d);
@@ -1890,13 +1890,13 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				else if(sl->spacetype==SPACE_IPO) {
 					SpaceIpo *sipo= (SpaceIpo *)sl;
 					ListBase tmpGhosts = sipo->ghostCurves;
-					
+
 					/* temporarily disable ghost curves when saving */
 					sipo->ghostCurves.first= sipo->ghostCurves.last= NULL;
-					
+
 					writestruct(wd, DATA, "SpaceIpo", 1, sl);
 					if(sipo->ads) writestruct(wd, DATA, "bDopeSheet", 1, sipo->ads);
-					
+
 					/* reenable ghost curves */
 					sipo->ghostCurves= tmpGhosts;
 				}
@@ -1911,7 +1911,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				}
 				else if(sl->spacetype==SPACE_OUTLINER) {
 					SpaceOops *so= (SpaceOops *)sl;
-					
+
 					writestruct(wd, DATA, "SpaceOops", 1, so);
 
 					/* outliner */
@@ -1923,7 +1923,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				}
 				else if(sl->spacetype==SPACE_IMAGE) {
 					SpaceImage *sima= (SpaceImage *)sl;
-					
+
 					writestruct(wd, DATA, "SpaceImage", 1, sl);
 					if(sima->cumap)
 						write_curvemapping(wd, sima->cumap);
@@ -1947,7 +1947,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				}
 				else if(sl->spacetype==SPACE_NLA){
 					SpaceNla *snla= (SpaceNla *)sl;
-					
+
 					writestruct(wd, DATA, "SpaceNla", 1, snla);
 					if(snla->ads) writestruct(wd, DATA, "bDopeSheet", 1, snla->ads);
 				}
@@ -2013,10 +2013,10 @@ static void write_bone(WriteData *wd, Bone* bone)
 
 	// PATCH for upward compatibility after 2.37+ armature recode
 	bone->size[0]= bone->size[1]= bone->size[2]= 1.0f;
-		
+
 	// Write this bone
 	writestruct(wd, DATA, "Bone", 1, bone);
-	
+
 	// Write Children
 	cbone= bone->childbase.first;
 	while(cbone) {
@@ -2098,23 +2098,25 @@ static void write_texts(WriteData *wd, ListBase *idbase)
 static void write_sounds(WriteData *wd, ListBase *idbase)
 {
 	bSound *sound;
-	bSample *sample;
+// AUD_XXX	bSample *sample;
 
 	PackedFile * pf;
 
 	// set all samples to unsaved status
 
-	sample = samples->first; // samples is a global defined in sound.c
+// AUD_XXX
+/*	sample = samples->first; // samples is a global defined in sound.c
 	while (sample) {
 		sample->flags |= SAMPLE_NEEDS_SAVE;
 		sample = sample->id.next;
-	}
+	}*/
 
 	sound= idbase->first;
 	while(sound) {
 		if(sound->id.us>0 || wd->current) {
 			// do we need to save the packedfile as well ?
-			sample = sound->sample;
+// AUD_XXX
+			/*sample = sound->sample;
 			if (sample) {
 				if (sample->flags & SAMPLE_NEEDS_SAVE) {
 					sound->newpackedfile = sample->packedfile;
@@ -2122,13 +2124,19 @@ static void write_sounds(WriteData *wd, ListBase *idbase)
 				} else {
 					sound->newpackedfile = NULL;
 				}
-			}
+			}*/
 
 			/* write LibData */
 			writestruct(wd, ID_SO, "bSound", 1, sound);
 			if (sound->id.properties) IDP_WriteProperty(sound->id.properties, wd);
 
-			if (sound->newpackedfile) {
+// AUD_XXX
+			if (sound->packedfile) {
+				pf = sound->packedfile;
+				writestruct(wd, DATA, "PackedFile", 1, pf);
+				writedata(wd, DATA, pf->size, pf->data);
+			}
+/*			if (sound->newpackedfile) {
 				pf = sound->newpackedfile;
 				writestruct(wd, DATA, "PackedFile", 1, pf);
 				writedata(wd, DATA, pf->size, pf->data);
@@ -2136,7 +2144,7 @@ static void write_sounds(WriteData *wd, ListBase *idbase)
 
 			if (sample) {
 				sound->newpackedfile = sample->packedfile;
-			}
+			}*/
 		}
 		sound= sound->id.next;
 	}
@@ -2168,14 +2176,14 @@ static void write_groups(WriteData *wd, ListBase *idbase)
 static void write_nodetrees(WriteData *wd, ListBase *idbase)
 {
 	bNodeTree *ntree;
-	
+
 	for(ntree=idbase->first; ntree; ntree= ntree->id.next) {
 		if (ntree->id.us>0 || wd->current) {
 			writestruct(wd, ID_NT, "bNodeTree", 1, ntree);
 			write_nodetree(wd, ntree);
-			
+
 			if (ntree->id.properties) IDP_WriteProperty(ntree->id.properties, wd);
-			
+
 			if (ntree->adt) write_animdata(wd, ntree->adt);
 		}
 	}
@@ -2185,7 +2193,7 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 {
 	Brush *brush;
 	int a;
-	
+
 	for(brush=idbase->first; brush; brush= brush->id.next) {
 		if(brush->id.us>0 || wd->current) {
 			writestruct(wd, ID_BR, "Brush", 1, brush);
@@ -2203,7 +2211,7 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 static void write_scripts(WriteData *wd, ListBase *idbase)
 {
 	Script *script;
-	
+
 	for(script=idbase->first; script; script= script->id.next) {
 		if(script->id.us>0 || wd->current) {
 			writestruct(wd, ID_SCRIPT, "Script", 1, script);
@@ -2220,7 +2228,7 @@ static void write_global(WriteData *wd, Main *mainvar)
 	FileGlobal fg;
 	bScreen *screen;
 	char subvstr[8];
-	
+
 	current_screen_compat(mainvar, &screen);
 
 	/* XXX still remap G */
@@ -2233,7 +2241,7 @@ static void write_global(WriteData *wd, Main *mainvar)
 
 	sprintf(subvstr, "%4d", BLENDER_SUBVERSION);
 	memcpy(fg.subvstr, subvstr, 4);
-	
+
 	fg.subversion= BLENDER_SUBVERSION;
 	fg.minversion= BLENDER_MINVERSION;
 	fg.minsubversion= BLENDER_MINSUBVERSION;
@@ -2242,7 +2250,7 @@ static void write_global(WriteData *wd, Main *mainvar)
 }
 
 /* if MemFile * there's filesave to memory */
-static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFile *current, 
+static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFile *current,
 							 int write_user_block, int write_flags)
 {
 	BHead bhead;
@@ -2253,7 +2261,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	blo_split_main(&mainlist, mainvar);
 
 	wd= bgnwrite(handle, compare, current, write_flags);
-	
+
 	sprintf(buf, "BLENDER%c%c%.3d", (sizeof(void*)==8)?'-':'_', (ENDIAN_ORDER==B_ENDIAN)?'V':'v', BLENDER_VERSION);
 	mywrite(wd, buf, 12);
 
@@ -2289,13 +2297,13 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 	write_brushes  (wd, &mainvar->brush);
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
-	if(current==NULL)	
+	if(current==NULL)
 		write_libraries(wd,  mainvar->next); /* no library save in undo */
 
 	if (write_user_block) {
 		write_userdef(wd);
 	}
-							
+
 	/* dna as last, because (to be implemented) test for which structs are written */
 	writedata(wd, DNA1, wd->sdna->datalen, wd->sdna->data);
 
@@ -2332,11 +2340,11 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 
 	if(!err) {
 		if(write_flags & G_FILE_COMPRESS)
-		{	
+		{
 			// compressed files have the same ending as regular files... only from 2.4!!!
-			
+
 			int ret = BLI_gzip(tempname, dir);
-			
+
 			if(-1==ret) {
 				BKE_report(reports, RPT_ERROR, "Failed opening .gz file.");
 				return 0;
@@ -2352,7 +2360,7 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 			return 0;
 		}
 
-		
+
 	} else {
 		BKE_report(reports, RPT_ERROR, strerror(errno));
 		remove(tempname);
@@ -2369,7 +2377,7 @@ int BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int wr
 	int err;
 
 	err= write_file_handle(mainvar, 0, compare, current, 0, write_flags);
-	
+
 	if(err==0) return 1;
 	return 0;
 }
@@ -2420,7 +2428,7 @@ static int recursive_copy_runtime(char *outname, char *exename, ReportList *repo
 		goto cleanup;
 	}
 	//printf("runtimepath %s\n", runtime);
-		
+
 	progfd= open(runtime, O_BINARY|O_RDONLY, 0);
 	if (progfd==-1) {
 		BKE_report(reports, RPT_ERROR, "Unable to find runtime");
@@ -2444,7 +2452,7 @@ cleanup:
 	return !error;
 }
 
-int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *reports) 
+int BLO_write_runtime(Main *mainvar, char *file, char *exename, ReportList *reports)
 {
 	char gamename[FILE_MAXDIR+FILE_MAXFILE];
 	int outfd = -1, error= 0;
@@ -2522,7 +2530,7 @@ cleanup:
 	return !error;
 }
 
-static int handle_write_msb_int(int handle, int i) 
+static int handle_write_msb_int(int handle, int i)
 {
 	unsigned char buf[4];
 	buf[0]= (i>>24)&0xFF;

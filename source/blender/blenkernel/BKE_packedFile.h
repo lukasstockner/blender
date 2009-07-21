@@ -1,7 +1,7 @@
 /**
  * blenlib/BKE_packedFile.h (mar-2001 nzc)
- *	
- * $Id$ 
+ *
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -34,7 +34,6 @@
 #define RET_OK		0
 #define RET_ERROR	1
 
-struct bSample;
 struct bSound;
 struct Image;
 struct Main;
@@ -51,7 +50,8 @@ void packAll(struct Main *bmain, struct ReportList *reports);
 /* unpack */
 char *unpackFile(struct ReportList *reports, char *abs_name, char *local_name, struct PackedFile *pf, int how);
 int unpackVFont(struct ReportList *reports, struct VFont *vfont, int how);
-int unpackSample(struct ReportList *reports, struct bSample *sample, int how);
+// AUD_XXX int unpackSample(struct ReportList *reports, struct bSample *sample, int how);
+int unpackSound(struct ReportList *reports, struct bSound *sound, int how);
 int unpackImage(struct ReportList *reports, struct Image *ima, int how);
 void unpackAll(struct Main *bmain, struct ReportList *reports, int how);
 

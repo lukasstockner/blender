@@ -1,7 +1,7 @@
 /**
  * sound.h (mar-2001 nzc)
- *	
- * $Id$ 
+ *
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,20 +33,30 @@
 
 struct PackedFile;
 struct bSound;
-struct bSample;
-struct ListBase;
+// AUD_XXX struct bSample;
 
 /* bad bad global... */
-extern struct ListBase *samples;
+// AUD_XXX
+/*extern struct ListBase *samples;
 
-void sound_free_all_samples(void);
+void sound_free_all_samples(void);*/
 
 /*  void *sound_get_listener(void); implemented in src!also declared there now  */
 
-void sound_set_packedfile(struct bSample* sample, struct PackedFile* pf);
+// AUD_XXX
+/*void sound_set_packedfile(struct bSample* sample, struct PackedFile* pf);
 struct PackedFile* sound_find_packedfile(struct bSound* sound);
 void sound_free_sample(struct bSample* sample);
-void sound_free_sound(struct bSound* sound);
+void sound_free_sound(struct bSound* sound);*/
+
+// AUD_XXX
+void sound_init();
+
+void sound_exit();
+
+void sound_load(struct bSound* sound);
+
+void sound_free(struct bSound* sound);
 
 #endif
 
