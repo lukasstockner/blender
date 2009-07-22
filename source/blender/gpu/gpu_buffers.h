@@ -67,20 +67,30 @@ typedef struct GPUBufferMaterial
 	char mat_nr;
 } GPUBufferMaterial;
 
+typedef struct IndexLink {
+	int element;
+	struct IndexLink *next;
+} IndexLink;
+
 typedef struct GPUDrawObject
 {
 	GPUBuffer *vertices;
 	GPUBuffer *normals;
 	GPUBuffer *uv;
 	GPUBuffer *colors;
-	int	*faceRemap;		/* at what index was the face originally in DerivedMesh */
+	int	*faceRemap;			/* at what index was the face originally in DerivedMesh */
+	IndexLink *indices;		/* given an index, find all elements using it */
+	IndexLink *indexMem;	/* for faster memory allocation/freeing */
+	int indexMemUsage;		/* how many are already allocated */
 	int colType;
 
 	GPUBufferMaterial *materials;
 
 	int nmaterials;
 	int nelements;
+	int nindices;
 	int legacy;	/* if there was a failure allocating some buffer, use old rendering code */
+
 } GPUDrawObject;
 
 GPUBufferPool *GPU_buffer_pool_new();

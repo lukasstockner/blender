@@ -240,7 +240,13 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 
 	DEBUG_VBO("GPU_drawobject_new\n");
 
-	object = MEM_callocN(sizeof(GPUDrawObject),"GPU_drawobject_new");
+	object = MEM_callocN(sizeof(GPUDrawObject),"GPU_drawobject_new_object");
+	object->nindices = dm->getNumVerts(dm);
+	object->indices = MEM_mallocN(sizeof(IndexLink)*object->nindices, "GPU_drawobject_new_indices");
+	for( i = 0; i < object->nindices; i++ ) {
+		object->indices[i].element = -1;
+		object->indices[i].next = 0;
+	}
 	/*object->legacy = 1;*/
 	memset(numverts,0,sizeof(int)*32768);
 
@@ -261,7 +267,7 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 		}
 	}
 	object->materials = MEM_mallocN(sizeof(GPUBufferMaterial)*object->nmaterials,"GPU_drawobject_new_materials");
-	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_buffer_setup_index");
+	index = MEM_mallocN(sizeof(int)*object->nmaterials,"GPU_drawobject_new_index");
 
 	curmat = curverts = 0;
 	for( i = 0; i < 32768; i++ ) {
@@ -279,10 +285,32 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 		redir[object->materials[i].mat_nr+16383] = i;	/* material number -> material index */
 	}
 
+	object->indexMem = MEM_callocN(sizeof(IndexLink)*object->nelements,"GPU_drawobject_new_indexMem");
+	object->indexMemUsage = 0;
+
+#define ADDLINK( INDEX, ACTUAL ) \
+	if( object->indices[INDEX].element == -1 ) { \
+			object->indices[INDEX].element = ACTUAL; \
+		} else { \
+			IndexLink *lnk = &object->indices[INDEX]; \
+			while( lnk->next != 0 ) lnk = lnk->next; \
+			lnk->next = &object->indexMem[object->indexMemUsage]; \
+			lnk->next->element = ACTUAL; \
+			object->indexMemUsage++; \
+		}
+
 	for( i=0; i < dm->getNumFaces(dm); i++ ) {
-		object->faceRemap[index[redir[mface[i].mat_nr+16383]]] = i; 
+		int curInd = index[redir[mface[i].mat_nr+16383]];
+		object->faceRemap[curInd] = i; 
+		ADDLINK( mface[i].v1, curInd*3 );
+		ADDLINK( mface[i].v2, curInd*3+1 );
+		ADDLINK( mface[i].v3, curInd*3+2 );
 		if( mface[i].v4 ) {
-			object->faceRemap[index[redir[mface[i].mat_nr+16383]]+1] = i;
+			object->faceRemap[curInd+1] = i;
+			ADDLINK( mface[i].v3, curInd*3+3 );
+			ADDLINK( mface[i].v4, curInd*3+4 );
+			ADDLINK( mface[i].v1, curInd*3+5 );
+
 			index[redir[mface[i].mat_nr+16383]]+=2;
 		}
 		else
@@ -290,6 +318,8 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 			index[redir[mface[i].mat_nr+16383]]++;
 		}
 	}
+#undef ADDLINK
+
 	MEM_freeN(index);
 	return object;
 }
@@ -303,6 +333,8 @@ void GPU_drawobject_free( GPUDrawObject *object )
 
 	MEM_freeN(object->materials);
 	MEM_freeN(object->faceRemap);
+	MEM_freeN(object->indices);
+	MEM_freeN(object->indexMem);
 	GPU_buffer_free( object->vertices, globalPool );
 	GPU_buffer_free( object->normals, globalPool );
 	GPU_buffer_free( object->uv, globalPool );
@@ -806,7 +838,7 @@ void *GPU_buffer_lock( GPUBuffer *buffer )
 
 void GPU_buffer_unlock( GPUBuffer *buffer )
 {
-	DEBUG_VBO( "GPU_buffer_unlock" ); 
+	DEBUG_VBO( "GPU_buffer_unlock\n" ); 
 	if( useVBOs ) {
 		if( glUnmapBufferARB( GL_ARRAY_BUFFER_ARB ) == 0 ) {
 			DEBUG_VBO( "Failed to copy new data\n" ); 
