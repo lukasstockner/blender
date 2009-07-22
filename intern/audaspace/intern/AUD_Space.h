@@ -288,7 +288,7 @@ typedef struct
 	float velocity[3];
 
 	/// 3x3 matrix telling the orientation of the object.
-	float orientation[3][3];
+	float orientation[9];
 } AUD_3DData;
 
 #endif //AUD_SPACE

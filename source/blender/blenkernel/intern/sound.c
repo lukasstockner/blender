@@ -169,6 +169,24 @@ void sound_exit()
 
 void sound_load(struct bSound* sound)
 {
+	if(sound)
+	{
+		char fullpath[FILE_MAX];
+
+		/* load sound */
+		PackedFile* pf = sound->packedfile;
+
+		/* dont modify soundact->sound->name, only change a copy */
+		BLI_strncpy(fullpath, sound->name, sizeof(fullpath));
+		BLI_convertstringcode(fullpath, G.sce);
+
+		/* but we need a packed file then */
+		if (pf)
+			sound->stream = AUD_loadBuffer((unsigned char*) pf->data, pf->size);
+		/* or else load it from disk */
+		else
+			sound->stream = AUD_load(fullpath);
+	}
 }
 
 void sound_free(struct bSound* sound)
@@ -177,5 +195,11 @@ void sound_free(struct bSound* sound)
 	{
 		freePackedFile(sound->packedfile);
 		sound->packedfile = NULL;
+	}
+
+	if(sound->stream)
+	{
+		AUD_unload(sound->stream);
+		sound->stream = NULL;
 	}
 }

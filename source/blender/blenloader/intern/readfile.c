@@ -147,6 +147,9 @@
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_idprop.h"
 
+// AUD_XXX
+#include "BKE_sound.h"
+
 //XXX #include "BIF_butspace.h" // badlevel, for do_versions, patching event codes
 //XXX #include "BIF_filelist.h" // badlevel too, where to move this? - elubie
 //XXX #include "BIF_previewrender.h" // bedlelvel, for struct RenderInfo
@@ -4971,7 +4974,7 @@ static void lib_link_sound(FileData *fd, Main *main)
 		if(sound->id.flag & LIB_NEEDLINK) {
 			sound->id.flag -= LIB_NEEDLINK;
 			sound->ipo= newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX depreceated - old animation system
-			sound->stream = 0;
+// AUD_XXX			sound->stream = 0;
 		}
 		sound= sound->id.next;
 	}
@@ -9229,6 +9232,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				sound->packedfile = sound->newpackedfile;
 				sound->newpackedfile = NULL;
 			}
+			sound_load(sound);
 		}
 
 		for(ob = main->object.first; ob; ob = ob->id.next) {

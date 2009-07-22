@@ -480,27 +480,8 @@ void BL_ConvertActuators(char* maggiename,
 						}
 					}
 #else
-					AUD_Sound* sound = NULL;
-					if (soundact->sound) {
-						/* Need to convert the samplename into absolute path
-						 * before checking if its loaded */
-						char fullpath[FILE_MAX];
+					bSound* sound = soundact->sound;
 
-						/* dont modify soundact->sound->name, only change a copy */
-						BLI_strncpy(fullpath, soundact->sound->name, sizeof(fullpath));
-						BLI_convertstringcode(fullpath, maggiename);
-						samplename = fullpath;
-
-						/* load sound */
-						PackedFile* pf = soundact->sound->packedfile;
-
-						/* but we need a packed file then */
-						if (pf)
-							sound = AUD_loadBuffer((unsigned char*) pf->data, pf->size);
-						/* or else load it from disk */
-						else
-							sound = AUD_load(samplename);
-					}
 					if(!sound)
 					{
 						std::cout <<	"WARNING: Sound actuator \"" << bact->name <<

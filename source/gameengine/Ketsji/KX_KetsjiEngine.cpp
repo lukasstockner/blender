@@ -62,6 +62,7 @@
 #include "PHY_IPhysicsEnvironment.h"
 
 // AUD_XXX
+#include "AUD_C-API.h"
 //#include "SND_Scene.h"
 //#include "SND_IAudioDevice.h"
 
@@ -985,6 +986,41 @@ void KX_KetsjiEngine::DoSound(KX_Scene* scene)
 		listenerorientation);
 
 	soundscene->Proceed();
+#else
+	{
+		AUD_3DData data;
+		float f;
+
+		listenerorientation.getValue3x3(data.orientation);
+		listenerposition.getValue(data.position);
+		listenervelocity.getValue(data.velocity);
+
+		f = data.position[1];
+		data.position[1] = data.position[2];
+		data.position[2] = -f;
+
+		f = data.velocity[1];
+		data.velocity[1] = data.velocity[2];
+		data.velocity[2] = -f;
+
+		f = data.orientation[1];
+		data.orientation[1] = data.orientation[2];
+		data.orientation[2] = -f;
+
+		f = data.orientation[3];
+		data.orientation[3] = -data.orientation[6];
+		data.orientation[6] = f;
+
+		f = data.orientation[4];
+		data.orientation[4] = -data.orientation[8];
+		data.orientation[8] = -f;
+
+		f = data.orientation[5];
+		data.orientation[5] = data.orientation[7];
+		data.orientation[7] = f;
+
+		AUD_updateListener(&data);
+	}
 #endif
 }
 

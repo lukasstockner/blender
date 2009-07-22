@@ -35,6 +35,7 @@
 #include "AUD_PingPongFactory.h"
 #include "AUD_LoopFactory.h"
 #include "AUD_ReadDevice.h"
+#include "AUD_SourceCaps.h"
 
 /*
 #define WITH_SDL
@@ -106,7 +107,7 @@ int AUD_init(AUD_DeviceType device, AUD_Specs specs, int buffersize)
 		}
 
 		if(AUD_device->checkCapability(AUD_CAPS_3D_DEVICE))
-			AUD_3ddevice = (AUD_I3DDevice*) AUD_device;
+			AUD_3ddevice = dynamic_cast<AUD_I3DDevice*>(AUD_device);
 
 		return true;
 	}
@@ -229,20 +230,21 @@ AUD_Sound* AUD_loopSound(AUD_Sound* sound)
 
 int AUD_stopLoop(AUD_Handle* handle)
 {
-	assert(handle);
-
-	AUD_Message message;
-	message.type = AUD_MSG_LOOP;
-	message.loopcount = 0;
-
-	try
+	if(handle)
 	{
-		return AUD_device->sendMessage(handle, message);
+		AUD_Message message;
+		message.type = AUD_MSG_LOOP;
+		message.loopcount = 0;
+
+		try
+		{
+			return AUD_device->sendMessage(handle, message);
+		}
+		catch(AUD_Exception e)
+		{
+		}
 	}
-	catch(AUD_Exception e)
-	{
-		return false;
-	}
+	return false;
 }
 
 void AUD_unload(AUD_Sound* sound)
@@ -368,17 +370,19 @@ float AUD_get3DSetting(AUD_3DSetting setting)
 
 int AUD_update3DSource(AUD_Handle* handle, AUD_3DData* data)
 {
-	assert(AUD_device);
-	assert(handle);
-	assert(data);
+	if(handle)
+	{
+		assert(AUD_device);
+		assert(data);
 
-	try
-	{
-		if(AUD_3ddevice)
-			return AUD_3ddevice->updateSource(handle, *data);
-	}
-	catch(AUD_Exception e)
-	{
+		try
+		{
+			if(AUD_3ddevice)
+				return AUD_3ddevice->updateSource(handle, *data);
+		}
+		catch(AUD_Exception e)
+		{
+		}
 	}
 	return false;
 }
@@ -386,63 +390,77 @@ int AUD_update3DSource(AUD_Handle* handle, AUD_3DData* data)
 int AUD_set3DSourceSetting(AUD_Handle* handle,
 						   AUD_3DSourceSetting setting, float value)
 {
-	assert(AUD_device);
-	assert(handle);
+	if(handle)
+	{
+		assert(AUD_device);
 
-	try
-	{
-		if(AUD_3ddevice)
-			return AUD_3ddevice->setSourceSetting(handle, setting, value);
-	}
-	catch(AUD_Exception e)
-	{
+		try
+		{
+			if(AUD_3ddevice)
+				return AUD_3ddevice->setSourceSetting(handle, setting, value);
+		}
+		catch(AUD_Exception e)
+		{
+		}
 	}
 	return false;
 }
 
 float AUD_get3DSourceSetting(AUD_Handle* handle, AUD_3DSourceSetting setting)
 {
-	assert(AUD_device);
-	assert(handle);
+	if(handle)
+	{
+		assert(AUD_device);
 
-	try
-	{
-		if(AUD_3ddevice)
-			return AUD_3ddevice->getSourceSetting(handle, setting);
-	}
-	catch(AUD_Exception e)
-	{
+		try
+		{
+			if(AUD_3ddevice)
+				return AUD_3ddevice->getSourceSetting(handle, setting);
+		}
+		catch(AUD_Exception e)
+		{
+		}
 	}
 	return 0.0;
 }
 
 int AUD_setSoundVolume(AUD_Handle* handle, float volume)
 {
-	assert(AUD_device);
-	assert(handle);
+	if(handle)
+	{
+		assert(AUD_device);
+		AUD_SourceCaps caps;
+		caps.handle = handle;
+		caps.value = volume;
 
-	try
-	{
-		return AUD_device->setCapability(AUD_CAPS_SOURCE_VOLUME, &volume);
-	}
-	catch(AUD_Exception e)
-	{
-		return false;
+		try
+		{
+			return AUD_device->setCapability(AUD_CAPS_SOURCE_VOLUME, &caps);
+		}
+		catch(AUD_Exception e)
+		{
+			return false;
+		}
 	}
 }
 
 int AUD_setSoundPitch(AUD_Handle* handle, float pitch)
 {
-	assert(AUD_device);
-	assert(handle);
+	if(handle)
+	{
+		assert(AUD_device);
+		AUD_SourceCaps caps;
+		caps.handle = handle;
+		caps.value = pitch;
 
-	try
-	{
-		return AUD_device->setCapability(AUD_CAPS_SOURCE_VOLUME, &pitch);
-	}
-	catch(AUD_Exception e)
-	{
-		return false;
+		try
+		{
+			return AUD_device->setCapability(AUD_CAPS_SOURCE_PITCH, &caps);
+		}
+		catch(AUD_Exception e)
+		{
+			return false;
+		}
 	}
 }
 

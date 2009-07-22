@@ -36,6 +36,7 @@
 
 // AUD_XXX
 #include "AUD_C-API.h"
+#include "BKE_sound.h"
 
 class KX_SoundActuator : public SCA_IActuator
 {
@@ -44,7 +45,7 @@ class KX_SoundActuator : public SCA_IActuator
 	bool					m_isplaying;
 	/* just some handles to the audio-data... */
 // AUD_XXX
-	AUD_Sound*				m_sound;
+	bSound*					m_sound;
 	AUD_Handle*				m_handle;
 //	class SND_SoundObject*	m_soundObject;
 //	class SND_Scene*		m_soundScene;
@@ -68,7 +69,7 @@ public:
 	KX_SOUNDACT_TYPE		m_type;
 
 	KX_SoundActuator(SCA_IObject* gameobj,
-					 AUD_Sound* sound,
+					 bSound* sound,
 // AUD_XXX					class SND_SoundObject* sndobj,
 // AUD_XXX					class SND_Scene*	sndscene,
 					KX_SOUNDACT_TYPE type,

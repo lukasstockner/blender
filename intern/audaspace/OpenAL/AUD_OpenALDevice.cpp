@@ -1097,7 +1097,7 @@ bool AUD_OpenALDevice::updateListener(AUD_3DData &data)
 {
 	alListenerfv(AL_POSITION, (ALfloat*)data.position);
 	alListenerfv(AL_VELOCITY, (ALfloat*)data.velocity);
-	alListenerfv(AL_ORIENTATION, (ALfloat*)data.orientation);
+	alListenerfv(AL_ORIENTATION, (ALfloat*)&(data.orientation[3]));
 }
 
 bool AUD_OpenALDevice::setSetting(AUD_3DSetting setting, float value)
@@ -1162,6 +1162,8 @@ float AUD_OpenALDevice::getSetting(AUD_3DSetting setting)
 	return std::numeric_limits<float>::quiet_NaN();
 }
 
+#include <stdio.h>
+
 bool AUD_OpenALDevice::updateSource(AUD_Handle* handle, AUD_3DData &data)
 {
 	lock();
@@ -1171,7 +1173,7 @@ bool AUD_OpenALDevice::updateSource(AUD_Handle* handle, AUD_3DData &data)
 		int source = ((AUD_OpenALHandle*)handle)->source;
 		alSourcefv(source, AL_POSITION, (ALfloat*)data.position);
 		alSourcefv(source, AL_VELOCITY, (ALfloat*)data.velocity);
-		alSourcefv(source, AL_ORIENTATION, (ALfloat*)data.orientation);
+		alSourcefv(source, AL_DIRECTION, (ALfloat*)&(data.orientation[3]));
 		unlock();
 		return true;
 	}
