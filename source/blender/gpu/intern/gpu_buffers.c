@@ -243,6 +243,8 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	object = MEM_callocN(sizeof(GPUDrawObject),"GPU_drawobject_new_object");
 	object->nindices = dm->getNumVerts(dm);
 	object->indices = MEM_mallocN(sizeof(IndexLink)*object->nindices, "GPU_drawobject_new_indices");
+	object->nedges = dm->getNumEdges(dm);
+
 	for( i = 0; i < object->nindices; i++ ) {
 		object->indices[i].element = -1;
 		object->indices[i].next = 0;
@@ -355,8 +357,15 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 
 	DEBUG_VBO("GPU_buffer_setup\n");
 
-	if( globalPool == 0 )
+	if( globalPool == 0 ) {
 		globalPool = GPU_buffer_pool_new();
+
+		/* somehow GL_NORMAL_ARRAY is enabled on startup and causes edge drawing code to crash */
+		glDisableClientState( GL_VERTEX_ARRAY );
+		glDisableClientState( GL_NORMAL_ARRAY );
+		glDisableClientState( GL_TEXTURE_COORD_ARRAY );
+		glDisableClientState( GL_COLOR_ARRAY );
+	}
 	buffer = GPU_buffer_alloc(size,globalPool);
 	if( buffer == 0 ) {
 		dm->drawObject->legacy = 1;
@@ -665,6 +674,31 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 	return result;
 }
 
+void GPU_buffer_copy_edge( DerivedMesh *dm, float *varray, int *index, int *redir, void *user )
+{
+	int i;
+
+	MVert *mvert;
+	MEdge *medge;
+ 
+	DEBUG_VBO("GPU_buffer_copy_edge\n");
+
+	mvert = dm->getVertArray(dm);
+	medge = dm->getEdgeArray(dm);
+
+	for(i = 0; i < dm->getNumEdges(dm); i++) {
+		VECCOPY(&varray[i*6],mvert[medge[i].v1].co);
+		VECCOPY(&varray[i*6+3],mvert[medge[i].v2].co);
+	}
+}
+
+GPUBuffer *GPU_buffer_edge( DerivedMesh *dm )
+{
+	DEBUG_VBO("GPU_buffer_edge\n");
+
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*6*dm->drawObject->nedges, 0, GPU_buffer_copy_edge);
+}
+
 void GPU_vertex_setup( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_vertex_setup\n");
@@ -755,6 +789,29 @@ void GPU_color_setup( DerivedMesh *dm )
 	}
 
 	GLStates |= GPU_BUFFER_COLOR_STATE;
+}
+
+void GPU_edge_setup( DerivedMesh *dm )
+{
+	DEBUG_VBO("GPU_buffer_edge_setup\n");
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new( dm );
+	if( dm->drawObject->edges == 0 )
+		dm->drawObject->edges = GPU_buffer_edge( dm );
+	if( dm->drawObject->edges == 0 ) {
+		DEBUG_VBO( "Failed to setup edges\n" );
+		return;
+	}
+	glEnableClientState( GL_VERTEX_ARRAY );
+	if( useVBOs ) {
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->edges->id );
+		glVertexPointer( 3, GL_FLOAT, 0, 0 );
+	}
+	else {
+		glVertexPointer( 3, GL_FLOAT, 0, dm->drawObject->edges->pointer );
+	}
+
+	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
 
 void GPU_buffer_unbind()

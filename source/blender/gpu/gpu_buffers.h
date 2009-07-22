@@ -78,6 +78,8 @@ typedef struct GPUDrawObject
 	GPUBuffer *normals;
 	GPUBuffer *uv;
 	GPUBuffer *colors;
+	GPUBuffer *edges;
+
 	int	*faceRemap;			/* at what index was the face originally in DerivedMesh */
 	IndexLink *indices;		/* given an index, find all elements using it */
 	IndexLink *indexMem;	/* for faster memory allocation/freeing */
@@ -88,6 +90,7 @@ typedef struct GPUDrawObject
 
 	int nmaterials;
 	int nelements;
+	int nedges;
 	int nindices;
 	int legacy;	/* if there was a failure allocating some buffer, use old rendering code */
 
@@ -107,6 +110,7 @@ void GPU_vertex_setup( struct DerivedMesh *dm );
 void GPU_normal_setup( struct DerivedMesh *dm );
 void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
+void GPU_edge_setup( struct DerivedMesh *dm );	/* does not mix with other data */
 
 void *GPU_buffer_lock( GPUBuffer *buffer );
 void GPU_buffer_unlock( GPUBuffer *buffer );
