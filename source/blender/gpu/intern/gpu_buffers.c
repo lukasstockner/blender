@@ -45,6 +45,7 @@
 #define GPU_BUFFER_NORMAL_STATE 2
 #define GPU_BUFFER_TEXCOORD_STATE 4
 #define GPU_BUFFER_COLOR_STATE 8
+#define GPU_BUFFER_ELEMENT_STATE 16
 
 /* -1 - undefined, 0 - vertex arrays, 1 - VBOs */
 int useVBOs = -1;
@@ -175,8 +176,8 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		allocated->size = size;
 		if( useVBOs == 1 ) {
 			glGenBuffersARB( 1, &allocated->id );
-			glBindBufferARB( GL_ARRAY_BUFFER_ARB, allocated->id );
-			glBufferDataARB( GL_ARRAY_BUFFER_ARB, size, 0, GL_STATIC_DRAW_ARB );
+			/*glBindBufferARB( GL_ARRAY_BUFFER_ARB, allocated->id );
+			glBufferDataARB( GL_ARRAY_BUFFER_ARB, size, 0, GL_STATIC_DRAW_ARB );*/
 			glBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 		}
 		else {
@@ -291,7 +292,7 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	object->indexMemUsage = 0;
 
 #define ADDLINK( INDEX, ACTUAL ) \
-	if( object->indices[INDEX].element == -1 ) { \
+		if( object->indices[INDEX].element == -1 ) { \
 			object->indices[INDEX].element = ACTUAL; \
 		} else { \
 			IndexLink *lnk = &object->indices[INDEX]; \
@@ -345,7 +346,7 @@ void GPU_drawobject_free( GPUDrawObject *object )
 	MEM_freeN(object);
 }
 
-GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, void *user, void (*copy_f)(DerivedMesh *, float *, int *, int *, void *) )
+GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, GLenum target, void *user, void (*copy_f)(DerivedMesh *, float *, int *, int *, void *) )
 {
 	GPUBuffer *buffer;
 	float *varray;
@@ -383,9 +384,9 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 	if( useVBOs ) {
 		success = 0;
 		while( success == 0 ) {
-			glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
-			glBufferDataARB( GL_ARRAY_BUFFER_ARB, buffer->size, 0, GL_STATIC_DRAW_ARB );	/* discard previous data, avoid stalling gpu */
-			varray = glMapBufferARB( GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB );
+			glBindBufferARB( target, buffer->id );
+			glBufferDataARB( target, buffer->size, 0, GL_STATIC_DRAW_ARB );	/* discard previous data, avoid stalling gpu */
+			varray = glMapBufferARB( target, GL_WRITE_ONLY_ARB );
 			if( varray == 0 ) {
 				DEBUG_VBO( "Failed to map buffer to client address space\n" ); 
 				GPU_buffer_free( buffer, globalPool );
@@ -412,10 +413,10 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, v
 			uploaded = GL_FALSE;
 			while( !uploaded ) {
 				(*copy_f)( dm, varray, index, redir, user );
-				uploaded = glUnmapBufferARB( GL_ARRAY_BUFFER_ARB );	/* returns false if data got corruped during transfer */
+				uploaded = glUnmapBufferARB( target );	/* returns false if data got corruped during transfer */
 			}
 		}
-		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+		glBindBufferARB(target, 0);
 	}
 	else {
 		if( buffer->pointer != 0 ) {
@@ -470,7 +471,7 @@ GPUBuffer *GPU_buffer_vertex( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_vertex\n");
 
-	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, 0, GPU_buffer_copy_vertex);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_vertex);
 }
 
 void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *redir, void *user )
@@ -533,7 +534,7 @@ GPUBuffer *GPU_buffer_normal( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_normal\n");
 
-	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, 0, GPU_buffer_copy_normal);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_normal);
 }
 
 void GPU_buffer_copy_uv( DerivedMesh *dm, float *varray, int *index, int *redir, void *user )
@@ -579,7 +580,7 @@ GPUBuffer *GPU_buffer_uv( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_uv\n");
 	if( DM_get_face_data_layer(dm, CD_MTFACE) != 0 )
-		return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*2*dm->drawObject->nelements, 0, GPU_buffer_copy_uv);
+		return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*2*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_uv);
 	else
 		return 0;
 }
@@ -668,7 +669,7 @@ GPUBuffer *GPU_buffer_color( DerivedMesh *dm )
 		colors[i*3+2] = mcol[i].r;
 	}
 
-	result = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, colors, GPU_buffer_copy_color3 );
+	result = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, colors, GPU_buffer_copy_color3 );
 
 	MEM_freeN(colors);
 	return result;
@@ -680,6 +681,7 @@ void GPU_buffer_copy_edge( DerivedMesh *dm, float *varray, int *index, int *redi
 
 	MVert *mvert;
 	MEdge *medge;
+	unsigned int *varray_ = (unsigned int *)varray;
  
 	DEBUG_VBO("GPU_buffer_copy_edge\n");
 
@@ -687,8 +689,8 @@ void GPU_buffer_copy_edge( DerivedMesh *dm, float *varray, int *index, int *redi
 	medge = dm->getEdgeArray(dm);
 
 	for(i = 0; i < dm->getNumEdges(dm); i++) {
-		VECCOPY(&varray[i*6],mvert[medge[i].v1].co);
-		VECCOPY(&varray[i*6+3],mvert[medge[i].v2].co);
+		varray_[i*2] = (unsigned int)dm->drawObject->indices[medge[i].v1].element;
+		varray_[i*2+1] = (unsigned int)dm->drawObject->indices[medge[i].v2].element;
 	}
 }
 
@@ -696,7 +698,7 @@ GPUBuffer *GPU_buffer_edge( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_edge\n");
 
-	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*6*dm->drawObject->nedges, 0, GPU_buffer_copy_edge);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(int)*2*dm->drawObject->nedges, GL_ELEMENT_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_edge);
 }
 
 void GPU_vertex_setup( DerivedMesh *dm )
@@ -802,16 +804,29 @@ void GPU_edge_setup( DerivedMesh *dm )
 		DEBUG_VBO( "Failed to setup edges\n" );
 		return;
 	}
+	if( dm->drawObject->vertices == 0 )
+		dm->drawObject->vertices = GPU_buffer_vertex( dm );
+	if( dm->drawObject->vertices == 0 ) {
+		DEBUG_VBO( "Failed to setup vertices\n" );
+		return;
+	}
+
 	glEnableClientState( GL_VERTEX_ARRAY );
 	if( useVBOs ) {
-		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->edges->id );
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->vertices->id );
 		glVertexPointer( 3, GL_FLOAT, 0, 0 );
 	}
 	else {
-		glVertexPointer( 3, GL_FLOAT, 0, dm->drawObject->edges->pointer );
+		glVertexPointer( 3, GL_FLOAT, 0, dm->drawObject->vertices->pointer );
+	}
+	
+	GLStates |= GPU_BUFFER_VERTEX_STATE;
+
+	if( useVBOs ) {
+		glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->edges->id );
 	}
 
-	GLStates |= GPU_BUFFER_VERTEX_STATE;
+	GLStates |= GPU_BUFFER_ELEMENT_STATE;
 }
 
 void GPU_buffer_unbind()
@@ -826,7 +841,9 @@ void GPU_buffer_unbind()
 		glDisableClientState( GL_TEXTURE_COORD_ARRAY );
 	if( GLStates & GPU_BUFFER_COLOR_STATE )
 		glDisableClientState( GL_COLOR_ARRAY );
-	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE | GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE );
+	if( GLStates & GPU_BUFFER_ELEMENT_STATE )
+		glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
+	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE | GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE | GPU_BUFFER_ELEMENT_STATE);
 
 	if( GLStates != 0 )
 		DEBUG_VBO( "Some weird OpenGL state is still set. Why?" );
@@ -839,14 +856,14 @@ void GPU_color3_upload( DerivedMesh *dm, char *data )
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new(dm);
 	GPU_buffer_free(dm->drawObject->colors,globalPool);
-	dm->drawObject->colors = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, data, GPU_buffer_copy_color3 );
+	dm->drawObject->colors = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, data, GPU_buffer_copy_color3 );
 }
 void GPU_color4_upload( DerivedMesh *dm, char *data )
 {
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new(dm);
 	GPU_buffer_free(dm->drawObject->colors,globalPool);
-	dm->drawObject->colors = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, data, GPU_buffer_copy_color4 );
+	dm->drawObject->colors = GPU_buffer_setup( dm, dm->drawObject, sizeof(char)*3*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, data, GPU_buffer_copy_color4 );
 }
 
 void GPU_color_switch( int mode )
@@ -901,5 +918,15 @@ void GPU_buffer_unlock( GPUBuffer *buffer )
 			DEBUG_VBO( "Failed to copy new data\n" ); 
 		}
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
+	}
+}
+
+void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count )
+{
+	if( useVBOs ) {
+		glDrawElements( mode, count, GL_UNSIGNED_INT, start );
+	}
+	else {
+		glDrawElements( mode, count, GL_UNSIGNED_INT, ((int *)elements->pointer)+start );
 	}
 }

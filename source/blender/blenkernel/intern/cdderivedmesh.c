@@ -177,10 +177,17 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 	MVert *mv = cddm->mvert;
 	int i;
 
-	glBegin(GL_POINTS);
-	for(i = 0; i < dm->numVertData; i++, mv++)
-		glVertex3fv(mv->co);
-	glEnd();
+	if( GPU_buffer_legacy(dm) ) {
+		glBegin(GL_POINTS);
+		for(i = 0; i < dm->numVertData; i++, mv++)
+			glVertex3fv(mv->co);
+		glEnd();
+	}
+	else {
+		GPU_vertex_setup(dm);
+		glDrawArrays(GL_POINTS,0,dm->drawObject->nelements);
+		GPU_buffer_unbind();
+	}
 }
 
 static void cdDM_drawUVEdges(DerivedMesh *dm)
@@ -251,13 +258,15 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges)
 					draw = 0;
 				}
 				if( prevdraw != draw && prevdraw > 0 && (i-prevstart) > 0) {
-					glDrawArrays(GL_LINES,prevstart*2,(i-prevstart)*2);
+					GPU_buffer_draw_elements( dm->drawObject->edges, GL_LINES, prevstart*2, (i-prevstart)*2  );
+					//glDrawArrays(GL_LINES,prevstart*2,(i-prevstart)*2);
 					prevstart = i;
 				}
 				prevdraw = draw;
 			}
 			if( prevdraw > 0 && (i-prevstart) > 0 ) {
-				glDrawArrays(GL_LINES,prevstart*2,(i-prevstart)*2);
+				//glDrawArrays(GL_LINES,prevstart*2,(i-prevstart)*2);
+				GPU_buffer_draw_elements( dm->drawObject->edges, GL_LINES, prevstart*2, (i-prevstart)*2  );
 			}
 		}
 		GPU_buffer_unbind();

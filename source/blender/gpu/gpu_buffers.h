@@ -112,6 +112,7 @@ void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 void GPU_edge_setup( struct DerivedMesh *dm );	/* does not mix with other data */
 
+void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
 void *GPU_buffer_lock( GPUBuffer *buffer );
 void GPU_buffer_unlock( GPUBuffer *buffer );
 
