@@ -42,6 +42,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
+#include "DNA_boid_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
@@ -265,10 +266,6 @@ void free_object(Object *ob)
 	free_actuators(&ob->actuators);
 	
 	free_constraints(&ob->constraints);
-
-#ifndef DISABLE_PYTHON	
-	BPY_free_scriptlink(&ob->scriptlink);
-#endif
 	
 	if(ob->pd){
 		if(ob->pd->tex)
@@ -429,11 +426,13 @@ void unlink_object(Scene *scene, Object *ob)
 		if(obt->particlesystem.first) {
 			ParticleSystem *tpsys= obt->particlesystem.first;
 			for(; tpsys; tpsys=tpsys->next) {
-				KeyedParticleTarget *kpt = tpsys->keyed_targets.first;
-				for(; kpt; kpt=kpt->next) {
-					if(kpt->ob==ob) {
-						BLI_remlink(&tpsys->keyed_targets, kpt);
-						MEM_freeN(kpt);
+				BoidState *state = NULL;
+				BoidRule *rule = NULL;
+
+				ParticleTarget *pt = tpsys->targets.first;
+				for(; pt; pt=pt->next) {
+					if(pt->ob==ob) {
+						pt->ob = NULL;
 						obt->recalc |= OB_RECALC_DATA;
 						break;
 					}
@@ -455,6 +454,22 @@ void unlink_object(Scene *scene, Object *ob)
 						if(pa->stick_ob==ob) {
 							pa->stick_ob= 0;
 							pa->flag &= ~PARS_STICKY;
+						}
+					}
+				}
+				if(tpsys->part->boids) {
+					for(state = tpsys->part->boids->states.first; state; state=state->next) {
+						for(rule = state->rules.first; rule; rule=rule->next) {
+							if(rule->type==eBoidRuleType_Avoid) {
+								BoidRuleGoalAvoid *gabr = (BoidRuleGoalAvoid*)rule;
+								if(gabr->ob==ob)
+									gabr->ob= NULL;
+							}
+							else if(rule->type==eBoidRuleType_FollowLeader) {
+								BoidRuleFollowLeader *flbr = (BoidRuleFollowLeader*)rule;
+								if(flbr->ob==ob)
+									flbr->ob= NULL;
+							}
 						}
 					}
 				}
@@ -626,10 +641,7 @@ Camera *copy_camera(Camera *cam)
 	
 	camn= copy_libblock(cam);
 	camn->adt= BKE_copy_animdata(cam->adt);
-
-#ifndef DISABLE_PYTHON
-	BPY_copy_scriptlink(&camn->scriptlink);
-#endif	
+	
 	return camn;
 }
 
@@ -778,9 +790,7 @@ Lamp *copy_lamp(Lamp *la)
 #endif // XXX old animation system
 
 	if (la->preview) lan->preview = BKE_previewimg_copy(la->preview);
-#ifndef DISABLE_PYTHON
-	BPY_copy_scriptlink(&la->scriptlink);
-#endif
+	
 	return lan;
 }
 
@@ -838,9 +848,6 @@ void make_local_lamp(Lamp *la)
 
 void free_camera(Camera *ca)
 {
-#ifndef DISABLE_PYTHON
-	BPY_free_scriptlink(&ca->scriptlink);
-#endif
 	BKE_free_animdata((ID *)ca);
 }
 
@@ -848,11 +855,6 @@ void free_lamp(Lamp *la)
 {
 	MTex *mtex;
 	int a;
-
-	/* scriptlinks */
-#ifndef DISABLE_PYTHON
-	BPY_free_scriptlink(&la->scriptlink);
-#endif
 
 	for(a=0; a<MAX_MTEX; a++) {
 		mtex= la->mtex[a];
@@ -1063,8 +1065,14 @@ ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 		psysn->soft->particles = psysn;
 	}
 
-	if(psys->keyed_targets.first)
-		BLI_duplicatelist(&psysn->keyed_targets, &psys->keyed_targets);
+	if(psys->particles->boid) {
+		psysn->particles->boid = MEM_dupallocN(psys->particles->boid);
+		for(a=1, pa=psysn->particles+1; a<psysn->totpart; a++, pa++)
+			pa->boid = (pa-1)->boid + 1;
+	}
+
+	if(psys->targets.first)
+		BLI_duplicatelist(&psysn->targets, &psys->targets);
 	
 	psysn->pathcache= NULL;
 	psysn->childcache= NULL;
@@ -1185,9 +1193,7 @@ Object *copy_object(Object *ob)
 		modifier_copyData(md, nmd);
 		BLI_addtail(&obn->modifiers, nmd);
 	}
-#ifndef DISABLE_PYTHON	
-	BPY_copy_scriptlink(&ob->scriptlink);
-#endif
+
 	obn->prop.first = obn->prop.last = NULL;
 	copy_properties(&obn->prop, &ob->prop);
 	
@@ -1818,26 +1824,6 @@ void set_no_parent_ipo(int val)
 	no_parent_ipo= val;
 }
 
-static int during_script_flag=0;
-void disable_where_script(short on)
-{
-	during_script_flag= on;
-}
-
-int during_script(void) {
-	return during_script_flag;
-}
-
-static int during_scriptlink_flag=0;
-void disable_where_scriptlink(short on)
-{
-	during_scriptlink_flag= on;
-}
-
-int during_scriptlink(void) {
-	return during_scriptlink_flag;
-}
-
 void where_is_object_time(Scene *scene, Object *ob, float ctime)
 {
 	float *fp1, *fp2, slowmat[4][4] = MAT4_UNITY;
@@ -1937,11 +1923,6 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 		
 		constraints_clear_evalob(cob);
 	}
-#ifndef DISABLE_PYTHON
-	if(ob->scriptlink.totscript && !during_script()) {
-		if (G.f & G_DOSCRIPTLINKS) BPY_do_pyscript((ID *)ob, SCRIPT_REDRAW);
-	}
-#endif
 	
 	/* set negative scale flag in object */
 	Crossf(vec, ob->obmat[0], ob->obmat[1]);
@@ -2313,9 +2294,6 @@ void object_handle_update(Scene *scene, Object *ob)
 			}
 			else
 				where_is_object(scene, ob);
-#ifndef DISABLE_PYTHON
-			if (G.f & G_DOSCRIPTLINKS) BPY_do_pyscript((ID *)ob, SCRIPT_OBJECTUPDATE);
-#endif
 		}
 		
 		if(ob->recalc & OB_RECALC_DATA) {
@@ -2369,10 +2347,17 @@ void object_handle_update(Scene *scene, Object *ob)
 			if(ob->particlesystem.first) {
 				ParticleSystem *tpsys, *psys;
 				DerivedMesh *dm;
+				ob->transflag &= ~OB_DUPLIPARTS;
 				
 				psys= ob->particlesystem.first;
 				while(psys) {
 					if(psys_check_enabled(ob, psys)) {
+						/* check use of dupli objects here */
+						if(psys->part && psys->part->draw_as == PART_DRAW_REND &&
+							((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob)
+							|| (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
+							ob->transflag |= OB_DUPLIPARTS;
+
 						particle_system_update(scene, ob, psys);
 						psys= psys->next;
 					}
@@ -2397,9 +2382,6 @@ void object_handle_update(Scene *scene, Object *ob)
 						psys_get_modifier(ob, psys)->flag &= ~eParticleSystemFlag_psys_updated;
 				}
 			}
-#ifndef DISABLE_PYTHON
-			if (G.f & G_DOSCRIPTLINKS) BPY_do_pyscript((ID *)ob, SCRIPT_OBDATAUPDATE);
-#endif
 		}
 
 		/* the no-group proxy case, we call update */

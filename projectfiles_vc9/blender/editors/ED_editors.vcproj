@@ -1387,6 +1387,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\source\blender\editors\physics\physics_boids.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\source\blender\editors\physics\physics_intern.h"
 				>
 			</File>

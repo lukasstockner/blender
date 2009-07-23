@@ -234,7 +234,7 @@ static int rna_VertexGroup_index_get(PointerRNA *ptr)
 static PointerRNA rna_Object_active_vertex_group_get(PointerRNA *ptr)
 {
 	Object *ob= (Object*)ptr->id.data;
-	return rna_pointer_inherit_refine(ptr, &RNA_VertexGroup, BLI_findlink(&ob->defbase, ob->actdef));
+	return rna_pointer_inherit_refine(ptr, &RNA_VertexGroup, BLI_findlink(&ob->defbase, ob->actdef-1));
 }
 
 static int rna_Object_active_vertex_group_index_get(PointerRNA *ptr)
@@ -705,7 +705,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "properties", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "prop", NULL);
-	RNA_def_property_struct_type(prop, "GameProperty");
+	RNA_def_property_struct_type(prop, "GameProperty"); /* rna_property.c */
 	RNA_def_property_ui_text(prop, "Properties", "Game engine properties.");
 
 	prop= RNA_def_property(srna, "show_sensors", PROP_BOOLEAN, PROP_NONE);
@@ -1308,12 +1308,6 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "ipoflag", OB_OFFS_PARENTADD);
 	RNA_def_property_ui_text(prop, "Time Offset Add Parent", "Add the parents time offset value");
 	RNA_def_property_update(prop, NC_OBJECT|ND_TRANSFORM, "rna_Object_update");
-
-	/* script link */
-
-	prop= RNA_def_property(srna, "script_link", PROP_POINTER, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "scriptlink");
-	RNA_def_property_ui_text(prop, "Script Link", "Scripts linked to this object.");
 
 	/* drawing */
 

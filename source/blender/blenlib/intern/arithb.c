@@ -92,6 +92,26 @@ float sasqrt(float fac)
 	return (float)sqrt(fac);
 }
 
+float saacosf(float fac)
+{
+	if(fac<= -1.0f) return (float)M_PI;
+	else if(fac>=1.0f) return 0.0f;
+	else return (float)acosf(fac);
+}
+
+float saasinf(float fac)
+{
+	if(fac<= -1.0f) return (float)-M_PI/2.0f;
+	else if(fac>=1.0f) return (float)M_PI/2.0f;
+	else return (float)asinf(fac);
+}
+
+float sasqrtf(float fac)
+{
+	if(fac<=0.0) return 0.0;
+	return (float)sqrtf(fac);
+}
+
 float Normalize(float *n)
 {
 	float d;
@@ -2197,25 +2217,23 @@ void VecNegf(float *v1)
 
 void VecOrthoBasisf(float *v, float *v1, float *v2)
 {
-	float f = (float)sqrt(v[0]*v[0] + v[1]*v[1]);
+	const float f = (float)sqrt(v[0]*v[0] + v[1]*v[1]);
 
 	if (f < 1e-35f) {
 		// degenerate case
-		v1[0] = 0.0f; v1[1] = 1.0f; v1[2] = 0.0f;
-		if (v[2] > 0.0f) {
-			v2[0] = 1.0f; v2[1] = v2[2] = 0.0f;
-		}
-		else {
-			v2[0] = -1.0f; v2[1] = v2[2] = 0.0f;
-		}
+		v1[0] = (v[2] < 0.0f) ? -1.0f : 1.0f;
+		v1[1] = v1[2] = v2[0] = v2[2] = 0.0f;
+		v2[1] = 1.0f;
 	}
 	else  {
-		f = 1.0f/f;
-		v1[0] = v[1]*f;
-		v1[1] = -v[0]*f;
-		v1[2] = 0.0f;
+		const float d= 1.0f/f;
 
-		Crossf(v2, v, v1);
+		v1[0] =  v[1]*d;
+		v1[1] = -v[0]*d;
+		v1[2] = 0.0f;
+		v2[0] = -v[2]*v1[1];
+		v2[1] = v[2]*v1[0];
+		v2[2] = v[0]*v1[1] - v[1]*v1[0];
 	}
 }
 

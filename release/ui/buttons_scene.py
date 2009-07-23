@@ -18,6 +18,8 @@ class RENDER_PT_render(RenderButtonsPanel):
 		row.item_booleanO("screen.render", "anim", True, text="Animation", icon='ICON_SEQUENCE')
 
 		layout.itemR(rd, "display_mode", text="Display")
+		if rd.multiple_engines:
+			layout.itemR(rd, "engine")
 
 class RENDER_PT_layers(RenderButtonsPanel):
 	__label__ = "Layers"
@@ -114,9 +116,9 @@ class RENDER_PT_shading(RenderButtonsPanel):
 		col.itemR(rd, "render_textures", text="Textures")
 		col.itemR(rd, "render_shadows", text="Shadows")
 		col.itemR(rd, "render_sss", text="Subsurface Scattering")
+		col.itemR(rd, "render_envmaps", text="Environment Map")
 		
 		col = split.column()
-		col.itemR(rd, "render_envmaps", text="Environment Map")
 		col.itemR(rd, "render_raytracing", text="Ray Tracing")
 		col.itemR(rd, "color_management")
 		col.itemR(rd, "alpha_mode", text="Alpha")
@@ -330,7 +332,7 @@ class RENDER_PT_antialiasing(RenderButtonsPanel):
 		col.itemR(rd, "full_sample")
 
 		col = split.column()
-		col.itemR(rd, "pixel_filter", text="Filter")
+		col.itemR(rd, "pixel_filter", text="")
 		col.itemR(rd, "filter_size", text="Size", slider=True)
 	
 class RENDER_PT_dimensions(RenderButtonsPanel):
@@ -412,13 +414,13 @@ class RENDER_PT_stamp(RenderButtonsPanel):
 		rowsub.itemR(rd, "stamp_note_text", text="")
 
 bpy.types.register(RENDER_PT_render)
+bpy.types.register(RENDER_PT_layers)
 bpy.types.register(RENDER_PT_dimensions)
 bpy.types.register(RENDER_PT_antialiasing)
-bpy.types.register(RENDER_PT_layers)
 bpy.types.register(RENDER_PT_shading)
-bpy.types.register(RENDER_PT_post_processing)
-bpy.types.register(RENDER_PT_performance)
 bpy.types.register(RENDER_PT_output)
 bpy.types.register(RENDER_PT_encoding)
+bpy.types.register(RENDER_PT_performance)
+bpy.types.register(RENDER_PT_post_processing)
 bpy.types.register(RENDER_PT_stamp)
 

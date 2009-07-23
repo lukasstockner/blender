@@ -160,28 +160,8 @@ void BPY_start_python_path(void)
 	/* set the environment path */
 	printf("found bundled python: %s\n", py_path_bundle);
 
-#if (defined(WIN32) || defined(WIN64))
-#if defined(FREE_WINDOWS)
-	{
-		char py_path[FILE_MAXDIR + 11] = "";
-		sprintf(py_path, "PYTHONPATH=%s", py_path_bundle);
-		putenv(py_path);
-	}
-#else
-	_putenv_s("PYTHONPATH", py_path_bundle);
-#endif
-#else
-#ifdef __sgi
-	{
-		char py_path[FILE_MAXDIR + 11] = "";
-		sprintf(py_path, "PYTHONPATH=%s", py_path_bundle);
-		putenv(py_path);
-	}
-#else
-	setenv("PYTHONPATH", py_path_bundle, 1);
-#endif
-#endif
-
+	BLI_setenv("PYTHONHOME", py_path_bundle);
+	BLI_setenv("PYTHONPATH", py_path_bundle);
 }
 
 
@@ -514,8 +494,8 @@ void BPY_run_ui_scripts(bContext *C, int reload)
 			else if ((file_extension = strstr(de->d_name, ".py"))) {
 				/* normal py files? */
 				if(file_extension && file_extension[3] == '\0') {
-					de->d_name[(file_extension - de->d_name) + 1] = '\0';
-					bpy_import_module(de->d_name, reload);
+					de->d_name[(file_extension - de->d_name)] = '\0';
+					err= bpy_import_module(de->d_name, reload);
 				}
 			}
 #ifndef __linux__
@@ -528,7 +508,7 @@ void BPY_run_ui_scripts(bContext *C, int reload)
 				BLI_join_dirfile(path, path, "__init__.py");
 
 				if(BLI_exists(path)) {
-					bpy_import_module(de->d_name, reload);
+					err= bpy_import_module(de->d_name, reload);
 				}
 			}
 
