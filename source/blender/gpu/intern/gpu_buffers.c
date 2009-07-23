@@ -924,7 +924,7 @@ void GPU_buffer_unlock( GPUBuffer *buffer )
 void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count )
 {
 	if( useVBOs ) {
-		glDrawElements( mode, count, GL_UNSIGNED_INT, start );
+		glDrawElements( mode, count, GL_UNSIGNED_INT, start*sizeof(unsigned int) );
 	}
 	else {
 		glDrawElements( mode, count, GL_UNSIGNED_INT, ((int *)elements->pointer)+start );
