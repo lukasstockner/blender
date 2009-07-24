@@ -39,6 +39,12 @@ typedef enum
 	AUD_OPENAL_DEVICE
 } AUD_DeviceType;
 
+typedef struct
+{
+	AUD_Specs specs;
+	float length;
+} AUD_SoundInfo;
+
 #ifndef AUD_CAPI_IMPLEMENTATION
 	typedef void AUD_Sound;
 	typedef void AUD_Handle;
@@ -64,6 +70,13 @@ extern int* AUD_enumDevices();
  * Unitinitializes an audio device.
  */
 extern void AUD_exit();
+
+/**
+ * Returns information about a sound.
+ * \param sound The sound to get the info about.
+ * \return The AUD_SoundInfo structure with filled in data.
+ */
+extern AUD_SoundInfo AUD_getInfo(AUD_Sound* sound);
 
 /**
  * Loads a sound file.
@@ -174,11 +187,9 @@ extern int AUD_setKeep(AUD_Handle* handle, int keep);
  * Seeks a playing or paused sound.
  * \param handle The handle to the sound.
  * \param seekTo From where the sound file should be played back in seconds.
- *               A negative value indicates the seconds that should be waited
- *               before playback starts.
  * \return Whether the handle has been valid or not.
  */
-extern int AUD_seek(AUD_Handle* handle, int seekTo);
+extern int AUD_seek(AUD_Handle* handle, float seekTo);
 
 /**
  * Returns the status of a playing, paused or stopped sound.

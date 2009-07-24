@@ -9130,6 +9130,18 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		PTCacheID *pid;
 		ListBase pidlist;
 
+// AUD_XXX
+		bSound *sound;
+
+		for(sound = main->sound.first; sound; sound = sound->id.next)
+		{
+			if(sound->newpackedfile)
+			{
+				sound->packedfile = sound->newpackedfile;
+				sound->newpackedfile = NULL;
+			}
+		}
+
 		for(screen= main->screen.first; screen; screen= screen->id.next) {
 			do_versions_windowmanager_2_50(screen);
 			do_versions_gpencil_2_50(main, screen);
@@ -9221,19 +9233,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Scene *sce;
 		ToolSettings *ts;
 		int i;
-
 // AUD_XXX
 		bSound *sound;
 
 		for(sound = main->sound.first; sound; sound = sound->id.next)
-		{
-			if(sound->newpackedfile)
-			{
-				sound->packedfile = sound->newpackedfile;
-				sound->newpackedfile = NULL;
-			}
 			sound_load(sound);
-		}
 
 		for(ob = main->object.first; ob; ob = ob->id.next) {
 

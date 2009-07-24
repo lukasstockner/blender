@@ -9,7 +9,7 @@
  * of the License, or (at your option) any later version. The Blender
  * Foundation also sells licenses for use in proprietary software under
  * the Blender License.  See http://www.blender.org/BL/ for information
- * about this.	
+ * about this.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -37,13 +37,13 @@ struct Strip;
 struct StripElem;
 struct ImBuf;
 struct Scene;
+struct bContext;
 
 #define MAXSEQ          32
 
 #define BUILD_SEQAR_COUNT_NOTHING  0
 #define BUILD_SEQAR_COUNT_CURRENT  1
 #define BUILD_SEQAR_COUNT_CHILDREN 2
-
 
 /* sequence iterator */
 
@@ -65,7 +65,7 @@ void seq_array(struct Editing *ed, struct Sequence ***seqarray, int *tot, int us
 	SeqIterator iter;\
 		for(seq_begin(ed, &iter, 1); iter.valid; seq_next(&iter)) { \
 			seq= iter.seq;
-			
+
 #define SEQ_BEGIN(ed, seq) \
 	{ \
 		SeqIterator iter;\
@@ -90,41 +90,41 @@ struct SeqEffectHandle {
 	/* init & init_plugin are _only_ called on first creation */
 	void (*init)(struct Sequence *seq);
 	void (*init_plugin)(struct Sequence *seq, const char *fname);
-	
-	/* number of input strips needed 
+
+	/* number of input strips needed
 		(called directly after construction) */
 	int (*num_inputs)();
-	
+
 	/* load is called first time after readblenfile in
 		get_sequence_effect automatically */
 	void (*load)(struct Sequence *seq);
-	
+
 	/* duplicate */
 	void (*copy)(struct Sequence *dst, struct Sequence *src);
-	
+
 	/* destruct */
 	void (*free)(struct Sequence *seq);
-	
+
 	/* returns: -1: no input needed,
-	0: no early out, 
-	1: out = ibuf1, 
+	0: no early out,
+	1: out = ibuf1,
 	2: out = ibuf2 */
 	int (*early_out)(struct Sequence *seq,
-					 float facf0, float facf1); 
-	
+					 float facf0, float facf1);
+
 	/* stores the y-range of the effect IPO */
 	void (*store_icu_yrange)(struct Sequence * seq,
 							 short adrcode, float *ymin, float *ymax);
-	
+
 	/* stores the default facf0 and facf1 if no IPO is present */
 	void (*get_default_fac)(struct Sequence *seq, int cfra,
 							float * facf0, float * facf1);
-	
+
 	/* execute the effect
 		sequence effects are only required to either support
-		float-rects or byte-rects 
+		float-rects or byte-rects
 		(mixed cases are handled one layer up...) */
-	
+
 	void (*execute)(struct Sequence *seq, int cfra,
 					float facf0, float facf1,
 					int x, int y,
@@ -182,4 +182,12 @@ void fix_single_seq(struct Sequence *seq);
 int seq_test_overlap(struct ListBase * seqbasep, struct Sequence *test);
 int shuffle_seq(struct ListBase * seqbasep, struct Sequence *test);
 void free_imbuf_seq(struct ListBase * seqbasep);
+
+// AUD_XXX
+void seq_play_seq(struct bContext *C, struct Sequence *seq, int start, int end, int keep);
+void seq_stop_seq(struct bContext *C, struct Sequence *seq);
+void seq_update_seq(struct bContext *C, struct Sequence *seq, int frame);
+void seq_play_audio(struct bContext *C);
+void seq_stop_audio(struct bContext *C);
+void seq_update_audio(struct bContext *C, int frame);
 

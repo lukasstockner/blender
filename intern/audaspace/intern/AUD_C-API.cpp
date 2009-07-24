@@ -36,12 +36,7 @@
 #include "AUD_LoopFactory.h"
 #include "AUD_ReadDevice.h"
 #include "AUD_SourceCaps.h"
-
-/*
-#define WITH_SDL
-#define WITH_OPENAL
-#define WITH_FFMPEG
-//*/
+#include "AUD_IReader.h"
 
 #ifdef WITH_SDL
 #include "AUD_SDLDevice.h"
@@ -136,6 +131,30 @@ void AUD_exit()
 	delete AUD_device;
 	AUD_device = NULL;
 	AUD_3ddevice = NULL;
+}
+
+AUD_SoundInfo AUD_getInfo(AUD_Sound* sound)
+{
+	assert(sound);
+
+	AUD_IReader* reader = sound->createReader();
+
+	AUD_SoundInfo info;
+
+	if(reader)
+	{
+		info.specs = reader->getSpecs();
+		info.length = reader->getLength() / (float) info.specs.rate;
+	}
+	else
+	{
+		info.specs.channels = AUD_CHANNELS_INVALID;
+		info.specs.format = AUD_FORMAT_INVALID;
+		info.specs.rate = AUD_RATE_INVALID;
+		info.length = 0.0;
+	}
+
+	return info;
 }
 
 AUD_Sound* AUD_load(const char* filename)
@@ -291,11 +310,10 @@ int AUD_setKeep(AUD_Handle* handle, int keep)
 	return AUD_device->setKeep(handle, keep);
 }
 
-int AUD_seek(AUD_Handle* handle, double seekTo)
+int AUD_seek(AUD_Handle* handle, float seekTo)
 {
 	assert(AUD_device);
-	int position = (int)(seekTo * AUD_device->getSpecs().rate);
-	return AUD_device->seek(handle, position);
+	return AUD_device->seek(handle, seekTo);
 }
 
 AUD_Status AUD_getStatus(AUD_Handle* handle)

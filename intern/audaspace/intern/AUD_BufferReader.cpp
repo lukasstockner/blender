@@ -45,7 +45,7 @@ void AUD_BufferReader::seek(int position)
 	if(position < 0)
 		m_position = 0;
 	else if(position > m_buffer.get()->getSize() / AUD_SAMPLE_SIZE(m_specs))
-		position = m_buffer.get()->getSize() / AUD_SAMPLE_SIZE(m_specs);
+		m_position = m_buffer.get()->getSize() / AUD_SAMPLE_SIZE(m_specs);
 	else
 		m_position = position;
 }

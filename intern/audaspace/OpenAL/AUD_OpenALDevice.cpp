@@ -61,6 +61,9 @@ struct AUD_OpenALHandle : AUD_Handle
 
 	/// The first buffer to be read next.
 	int current;
+
+	/// Whether the stream doesn't return any more data.
+	bool data_end;
 };
 
 struct AUD_OpenALBufferedFactory
@@ -145,7 +148,7 @@ void AUD_OpenALDevice::updateStreams()
 					while(info--)
 					{
 						// if there's still data to play back
-						if(sound->current >= 0)
+						if(!sound->data_end)
 						{
 							// read data
 							length = m_buffersize;
@@ -154,7 +157,7 @@ void AUD_OpenALDevice::updateStreams()
 							// read nothing?
 							if(length == 0)
 							{
-								sound->current = -1;
+								sound->data_end = true;
 								break;
 							}
 
@@ -164,7 +167,7 @@ void AUD_OpenALDevice::updateStreams()
 							ALenum err;
 							if((err = alGetError()) != AL_NO_ERROR)
 							{
-								sound->current = -1;
+								sound->data_end = true;
 								break;
 							}
 
@@ -177,7 +180,7 @@ void AUD_OpenALDevice::updateStreams()
 
 							if(alGetError() != AL_NO_ERROR)
 							{
-								sound->current = -1;
+								sound->data_end = true;
 								break;
 							}
 
@@ -186,7 +189,7 @@ void AUD_OpenALDevice::updateStreams()
 											&sound->buffers[sound->current]);
 							if(alGetError() != AL_NO_ERROR)
 							{
-								sound->current = -1;
+								sound->data_end = true;
 								break;
 							}
 
@@ -204,14 +207,11 @@ void AUD_OpenALDevice::updateStreams()
 			if(info == AL_STOPPED)
 			{
 				// if it really stopped
-				if(sound->current < 0)
+				if(sound->data_end)
 				{
 					// pause or
 					if(sound->keep)
-					{
-						alSourceRewind(sound->source);
 						pause(sound);
-					}
 					// stop
 					else
 						stop(sound);
@@ -332,7 +332,6 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 		delete sound; AUD_DELETE("handle")
 		m_playingSounds->erase(m_playingSounds->begin());
 	}
-	delete m_playingSounds; AUD_DELETE("list")
 
 	// delete all paused sounds
 	while(!m_pausedSounds->empty())
@@ -347,7 +346,6 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 		delete sound; AUD_DELETE("handle")
 		m_pausedSounds->erase(m_pausedSounds->begin());
 	}
-	delete m_pausedSounds; AUD_DELETE("list")
 
 	// delete all buffered factories
 	while(!m_bufferedFactories->empty())
@@ -356,10 +354,13 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 		delete *m_bufferedFactories->begin(); AUD_DELETE("bufferedfactory");
 		m_bufferedFactories->erase(m_bufferedFactories->begin());
 	}
-	delete m_bufferedFactories; AUD_DELETE("list")
 
 	alcProcessContext(m_context);
 	unlock();
+
+	delete m_playingSounds; AUD_DELETE("list")
+	delete m_pausedSounds; AUD_DELETE("list")
+	delete m_bufferedFactories; AUD_DELETE("list")
 
 	// wait for the thread to stop
 	if(m_thread != 0)
@@ -521,6 +522,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 			sound->keep = keep;
 			sound->current = -1;
 			sound->isBuffered = true;
+			sound->data_end = true;
 
 			alcSuspendContext(m_context);
 
@@ -598,6 +600,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 	sound->reader = reader;
 	sound->current = 0;
 	sound->isBuffered = false;
+	sound->data_end = false;
 
 	valid &= getFormat(sound->format, specs);
 
@@ -702,15 +705,30 @@ bool AUD_OpenALDevice::pause(AUD_Handle* handle)
 
 bool AUD_OpenALDevice::resume(AUD_Handle* handle)
 {
-	// only songs that are paused can be resumed
+	ALint info;
 	lock();
+
+	// only songs that are paused can be resumed
 	for(AUD_HandleIterator i = m_pausedSounds->begin();
 		i != m_pausedSounds->end(); i++)
 	{
 		if(*i == handle)
 		{
 			m_playingSounds->push_back(*i);
-			alSourcePlay((*i)->source);
+
+			alGetSourcei((*i)->source, AL_SOURCE_STATE, &info);
+
+			switch(info)
+			{
+			case AL_PLAYING:
+				break;
+			case AL_STOPPED:
+//				alSourceRewind((*i)->source);
+			default:
+//				alSourcePlay((*i)->source);
+				break;
+			}
+
 			start();
 			m_pausedSounds->erase(i);
 			unlock();
@@ -813,8 +831,11 @@ bool AUD_OpenALDevice::seek(AUD_Handle* handle, float position)
 		if(alhandle->isBuffered)
 			alSourcef(alhandle->source, AL_SEC_OFFSET, position);
 		else
+		{
 			alhandle->reader->seek((int)(position *
 										 alhandle->reader->getSpecs().rate));
+			alhandle->data_end = false;
+		}
 		unlock();
 		return true;
 	}
@@ -1098,6 +1119,8 @@ bool AUD_OpenALDevice::updateListener(AUD_3DData &data)
 	alListenerfv(AL_POSITION, (ALfloat*)data.position);
 	alListenerfv(AL_VELOCITY, (ALfloat*)data.velocity);
 	alListenerfv(AL_ORIENTATION, (ALfloat*)&(data.orientation[3]));
+
+	return true;
 }
 
 bool AUD_OpenALDevice::setSetting(AUD_3DSetting setting, float value)
@@ -1161,8 +1184,6 @@ float AUD_OpenALDevice::getSetting(AUD_3DSetting setting)
 	}
 	return std::numeric_limits<float>::quiet_NaN();
 }
-
-#include <stdio.h>
 
 bool AUD_OpenALDevice::updateSource(AUD_Handle* handle, AUD_3DData &data)
 {

@@ -34,6 +34,7 @@
 struct PackedFile;
 struct bSound;
 // AUD_XXX struct bSample;
+struct bContext;
 
 /* bad bad global... */
 // AUD_XXX
@@ -53,6 +54,10 @@ void sound_free_sound(struct bSound* sound);*/
 void sound_init();
 
 void sound_exit();
+
+struct bSound* sound_new(struct bContext *C, char* filename);
+
+void sound_delete(struct bContext *C, struct bSound* sound);
 
 void sound_load(struct bSound* sound);
 

@@ -19,6 +19,8 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_sound.h"
+#include "BKE_context.h"
+#include "BKE_library.h"
 #include "BKE_packedFile.h"
 
 #ifdef HAVE_CONFIG_H
@@ -165,6 +167,52 @@ void sound_init()
 void sound_exit()
 {
 	AUD_exit();
+}
+
+struct bSound* sound_new(struct bContext *C, char* filename)
+{
+	bSound* sound = NULL;
+
+	char str[FILE_MAX];
+	int len;
+
+	strcpy(str, filename);
+	BLI_convertstringcode(str, G.sce);
+
+	len = strlen(filename);
+	while(len > 0 && filename[len-1] != '/' && filename[len-1] != '\\')
+		len--;
+
+	sound = alloc_libblock(&CTX_data_main(C)->sound, ID_SO, filename+len);
+	strcpy(sound->name, filename);
+
+	sound_load(sound);
+
+	if(!sound->stream)
+	{
+		free_libblock(&CTX_data_main(C)->sound, sound);
+		sound = NULL;
+	}
+	else
+	{
+		sound->volume = 1.0;
+		sound->attenuation = 1.0;
+		sound->distance = 1.0;
+		sound->min_gain = 0.0;
+		sound->max_gain = 1.0;
+	}
+
+	return sound;
+}
+
+void sound_delete(struct bContext *C, struct bSound* sound)
+{
+	if(sound)
+	{
+		sound_free(sound);
+
+		free_libblock(&CTX_data_main(C)->sound, sound);
+	}
 }
 
 void sound_load(struct bSound* sound)
