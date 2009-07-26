@@ -152,6 +152,10 @@ typedef struct uiAfterFunc {
 	uiButHandleNFunc funcN;
 	void *func_argN;
 
+	uiButHandleRenameFunc rename_func;
+	void *rename_arg1;
+	void *rename_orig;
+	
 	uiBlockHandleFunc handle_func;
 	void *handle_func_arg;
 	int retval;
@@ -188,7 +192,7 @@ static uiBut *ui_but_prev(uiBut *but)
 {
 	while(but->prev) {
 		but= but->prev;
-		if(but->type!=LABEL && but->type!=SEPR && but->type!=ROUNDBOX) return but;
+		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
 	}
 	return NULL;
 }
@@ -197,7 +201,7 @@ static uiBut *ui_but_next(uiBut *but)
 {
 	while(but->next) {
 		but= but->next;
-		if(but->type!=LABEL && but->type!=SEPR && but->type!=ROUNDBOX) return but;
+		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
 	}
 	return NULL;
 }
@@ -208,7 +212,7 @@ static uiBut *ui_but_first(uiBlock *block)
 	
 	but= block->buttons.first;
 	while(but) {
-		if(but->type!=LABEL && but->type!=SEPR && but->type!=ROUNDBOX) return but;
+		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
 		but= but->next;
 	}
 	return NULL;
@@ -220,7 +224,7 @@ static uiBut *ui_but_last(uiBlock *block)
 	
 	but= block->buttons.last;
 	while(but) {
-		if(but->type!=LABEL && but->type!=SEPR && but->type!=ROUNDBOX) return but;
+		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
 		but= but->prev;
 	}
 	return NULL;
@@ -239,7 +243,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 	 * handling is done, i.e. menus are closed, in order to avoid conflicts
 	 * with these functions removing the buttons we are working with */
 
-	if(but->func || but->funcN || block->handle_func || (but->type == BUTM && block->butm_func) || but->optype || but->rnaprop) {
+	if(but->func || but->funcN || block->handle_func || but->rename_func || (but->type == BUTM && block->butm_func) || but->optype || but->rnaprop) {
 		after= MEM_callocN(sizeof(uiAfterFunc), "uiAfterFunc");
 
 		after->func= but->func;
@@ -250,6 +254,10 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
 		after->funcN= but->funcN;
 		after->func_argN= but->func_argN;
 
+		after->rename_func= but->rename_func;
+		after->rename_arg1= but->rename_arg1;
+		after->rename_orig= but->rename_orig; /* needs free! */
+		
 		after->handle_func= block->handle_func;
 		after->handle_func_arg= block->handle_func_arg;
 		after->retval= but->retval;
@@ -284,7 +292,7 @@ static void ui_apply_autokey_undo(bContext *C, uiBut *but)
 	uiAfterFunc *after;
 	char *str= NULL;
 
-	if ELEM5(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX);
+	if ELEM6(but->type, BLOCK, BUT, LABEL, PULLDOWN, ROUNDBOX, LISTBOX);
 	else {
 		/* define which string to use for undo */
 		if ELEM(but->type, LINK, INLINK) str= "Add button link";
@@ -344,7 +352,12 @@ static void ui_apply_but_funcs_after(bContext *C)
 			after.handle_func(C, after.handle_func_arg, after.retval);
 		if(after.butm_func)
 			after.butm_func(C, after.butm_func_arg, after.a2);
-
+		
+		if(after.rename_func)
+			after.rename_func(C, after.rename_arg1, after.rename_orig);
+		if(after.rename_orig)
+			MEM_freeN(after.rename_orig);
+		
 		if(after.undostr[0])
 			ED_undo_push(C, after.undostr);
 	}
@@ -449,7 +462,7 @@ static void ui_apply_but_ROW(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 	
 	/* states of other row buttons */
 	for(bt= block->buttons.first; bt; bt= bt->next)
-		if(bt!=but && bt->poin==but->poin && bt->type==ROW)
+		if(bt!=but && bt->poin==but->poin && ELEM(bt->type, ROW, LISTROW))
 			ui_check_but(bt);
 	
 	ui_apply_but_func(C, but);
@@ -468,10 +481,10 @@ static void ui_apply_but_TEX(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 	/* give butfunc the original text too */
 	/* feature used for bone renaming, channels, etc */
-	/* XXX goes via uiButHandleRenameFunc now */
-//	if(but->func_arg2==NULL) but->func_arg2= data->origstr;
+	/* afterfunc frees origstr */
+	but->rename_orig= data->origstr;
+	data->origstr= NULL;
 	ui_apply_but_func(C, but);
-//	if(but->func_arg2==data->origstr) but->func_arg2= NULL;
 
 	data->retval= but->retval;
 	data->applied= 1;
@@ -782,6 +795,7 @@ static void ui_apply_button(bContext *C, uiBlock *block, uiBut *but, uiHandleBut
 			ui_apply_but_TOG(C, block, but, data);
 			break;
 		case ROW:
+		case LISTROW:
 			ui_apply_but_ROW(C, block, but, data);
 			break;
 		case SCROLL:
@@ -1392,7 +1406,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 	uiBut *but;
 
 	/* label and roundbox can overlap real buttons (backdrops...) */
-	if(actbut->type==LABEL && actbut->type==ROUNDBOX)
+	if(ELEM4(actbut->type, LABEL, SEPR, ROUNDBOX, LISTBOX))
 		return;
 
 	for(but= actbut->next; but; but= but->next) {
@@ -1416,7 +1430,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 	uiBut *but;
 
 	/* label and roundbox can overlap real buttons (backdrops...) */
-	if(actbut->type==LABEL && actbut->type==ROUNDBOX)
+	if(ELEM4(actbut->type, LABEL, SEPR, ROUNDBOX, LISTBOX))
 		return;
 
 	for(but= actbut->prev; but; but= but->prev) {
@@ -3183,9 +3197,11 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 		retval= ui_do_but_SLI(C, block, but, data, event);
 		break;
 	case ROUNDBOX:	
+	case LISTBOX:
 	case LABEL:	
 	case TOG3:	
 	case ROW:
+	case LISTROW:
 		retval= ui_do_but_EXIT(C, but, data, event);
 		break;
 	case TEX:
@@ -3331,7 +3347,7 @@ static uiBut *ui_but_find_mouse_over(ARegion *ar, int x, int y)
 		ui_window_to_block(ar, block, &mx, &my);
 
 		for(but=block->buttons.first; but; but= but->next) {
-			if(ELEM3(but->type, LABEL, ROUNDBOX, SEPR))
+			if(ELEM4(but->type, LABEL, ROUNDBOX, SEPR, LISTBOX))
 				continue;
 			if(but->flag & UI_HIDDEN)
 				continue;
@@ -3481,7 +3497,7 @@ static void button_activate_init(bContext *C, ARegion *ar, uiBut *but, uiButtonA
 	data= MEM_callocN(sizeof(uiHandleButtonData), "uiHandleButtonData");
 	data->window= CTX_wm_window(C);
 	data->region= ar;
-	if( ELEM(but->type, BUT_CURVE, SEARCH_MENU) );  // XXX curve is temp
+	if( ELEM3(but->type, TEX, BUT_CURVE, SEARCH_MENU) );  // XXX curve is temp
 	else data->interactive= 1;
 	
 	data->state = BUTTON_STATE_INIT;
@@ -3625,6 +3641,23 @@ static int ui_handle_button_over(bContext *C, wmEvent *event, ARegion *ar)
 	}
 
 	return WM_UI_HANDLER_CONTINUE;
+}
+
+/* exported to interface.c: uiButActiveOnly() */
+void ui_button_activate_do(bContext *C, ARegion *ar, uiBut *but)
+{
+	wmWindow *win= CTX_wm_window(C);
+	wmEvent event;
+	
+	button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
+	
+	event= *(win->eventstate);	/* XXX huh huh? make api call */
+	event.type= EVT_BUT_OPEN;
+	event.val= KM_PRESS;
+	event.customdata= but;
+	event.customdatafree= FALSE;
+	
+	ui_do_button(C, but->block, but, &event);
 }
 
 static void ui_handle_button_activate(bContext *C, ARegion *ar, uiBut *but, uiButtonActivateType type)

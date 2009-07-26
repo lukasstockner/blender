@@ -442,7 +442,7 @@ static int ui_but_equals_old(uiBut *but, uiBut *oldbut)
 	if(but->retval != oldbut->retval) return 0;
 	if(but->rnapoin.data != oldbut->rnapoin.data) return 0;
 	if(but->rnaprop != oldbut->rnaprop)
-	if(but->rnaindex != oldbut->rnaindex) return 0;
+		if(but->rnaindex != oldbut->rnaindex) return 0;
 	if(but->func != oldbut->func) return 0;
 	if(but->funcN != oldbut->funcN) return 0;
 	if(oldbut->func_arg1 != oldbut && but->func_arg1 != oldbut->func_arg1) return 0;
@@ -494,6 +494,43 @@ static int ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBut
 	}
 	
 	return found;
+}
+
+/* needed for temporarily rename buttons, such as in outliner or fileselect,
+   they should keep calling uiDefButs to keep them alive */
+/* returns 0 when button removed */
+int uiButActiveOnly(const bContext *C, uiBlock *block, uiBut *but)
+{
+	uiBlock *oldblock;
+	uiBut *oldbut;
+	int activate= 0, found= 0, isactive= 0;
+	
+	oldblock= block->oldblock;
+	if(!oldblock)
+		activate= 1;
+	else {
+		for(oldbut=oldblock->buttons.first; oldbut; oldbut=oldbut->next) {
+			if(ui_but_equals_old(oldbut, but)) {
+				found= 1;
+				
+				if(oldbut->active)
+					isactive= 1;
+				
+				break;
+			}
+		}
+	}
+	if(activate || found==0) {
+		ui_button_activate_do( (bContext *)C, CTX_wm_region(C), but);
+	}
+	else if(found && isactive==0) {
+		
+		BLI_remlink(&block->buttons, but);
+		ui_free_but(C, but);
+		return 0;
+	}
+	
+	return 1;
 }
 
 void ui_menu_block_set_keymaps(const bContext *C, uiBlock *block)
@@ -720,6 +757,7 @@ static void ui_is_but_sel(uiBut *but)
 			if(value==0.0) push= 1;
 			break;
 		case ROW:
+		case LISTROW:
 			if(value == but->hardmax) push= 1;
 			break;
 		case COL:
@@ -2149,7 +2187,7 @@ uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, char *str, short x1,
 
 				freestr= 1;
 			}
-			else if(type == ROW && proptype == PROP_ENUM) {
+			else if(ELEM(type, ROW, LISTROW) && proptype == PROP_ENUM) {
 				EnumPropertyItem *item;
 				int i, totitem, free;
 
@@ -2202,7 +2240,7 @@ uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, char *str, short x1,
 				RNA_property_int_range(ptr, prop, &hardmin, &hardmax);
 				RNA_property_int_ui_range(ptr, prop, &softmin, &softmax, &step);
 
-				if(type != ROW && min == max) {
+				if(!ELEM(type, ROW, LISTROW) && min == max) {
 					min= hardmin;
 					max= hardmax;
 				}
@@ -2217,7 +2255,7 @@ uiBut *ui_def_but_rna(uiBlock *block, int type, int retval, char *str, short x1,
 				RNA_property_float_range(ptr, prop, &hardmin, &hardmax);
 				RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
 
-				if(type != ROW && min == max) {
+				if(!ELEM(type, ROW, LISTROW) && min == max) {
 					min= hardmin;
 					max= hardmax;
 				}
@@ -2766,14 +2804,16 @@ void uiBlockSetFunc(uiBlock *block, uiButHandleFunc func, void *arg1, void *arg2
 	block->func_arg2= arg2;
 }
 
-void uiBlockSetRenameFunc(uiBlock *block, uiButHandleRenameFunc func, void *arg1)
+void uiButSetRenameFunc(uiBut *but, uiButHandleRenameFunc func, void *arg1)
 {
-	
+	but->rename_func= func;
+	but->rename_arg1= arg1;
 }
 
-void uiBlockSetDrawExtraFunc(uiBlock *block, void (*func)(const bContext *C, void *idv, rcti *rect))
+void uiBlockSetDrawExtraFunc(uiBlock *block, void (*func)(const bContext *C, void *idv, void *argv, rcti *rect), void *arg)
 {
 	block->drawextra= func;
+	block->drawextra_arg= arg;
 }
 
 void uiButSetFunc(uiBut *but, uiButHandleFunc func, void *arg1, void *arg2)

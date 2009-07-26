@@ -139,7 +139,7 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
 	uiWidgetColors wcol_num, wcol_numslider;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item;
-	uiWidgetColors wcol_box, wcol_scroll;
+	uiWidgetColors wcol_box, wcol_scroll, wcol_list_item;
 
 	uiWidgetStateColors wcol_state;
 	
@@ -293,7 +293,7 @@ typedef struct UserDef {
 	short userpref, viewzoom;
 	
 	int mixbufsize;
-	int pad1;
+	int scrollback; /* console scrollback limit */
 	int dpi;		/* range 48-128? */
 	short encoding;
 	short transopts;

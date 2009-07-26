@@ -70,7 +70,6 @@ static SpaceLink *buttons_new(const bContext *C)
 	
 	sbuts= MEM_callocN(sizeof(SpaceButs), "initbuts");
 	sbuts->spacetype= SPACE_BUTS;
-	sbuts->scaflag= BUTS_SENS_LINK|BUTS_SENS_ACT|BUTS_CONT_ACT|BUTS_ACT_ACT|BUTS_ACT_LINK;
 	sbuts->align= BUT_AUTO;
 
 	/* header */
@@ -139,7 +138,12 @@ static SpaceLink *buttons_duplicate(SpaceLink *sl)
 /* add handlers, stuff you only do once or on area/region changes */
 static void buttons_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
+	ListBase *keymap;
+
 	ED_region_panels_init(wm, ar);
+
+	keymap= WM_keymap_listbase(wm, "Buttons Generic", SPACE_BUTS, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
 }
 
 static void buttons_main_area_draw(const bContext *C, ARegion *ar)
@@ -196,18 +200,22 @@ void buttons_operatortypes(void)
 	WM_operatortype_append(OBJECT_OT_particle_system_remove);
 
 	WM_operatortype_append(PARTICLE_OT_new);
-	WM_operatortype_append(PARTICLE_OT_new_keyed_target);
-	WM_operatortype_append(PARTICLE_OT_remove_keyed_target);
-	WM_operatortype_append(PARTICLE_OT_keyed_target_move_up);
-	WM_operatortype_append(PARTICLE_OT_keyed_target_move_down);
+	WM_operatortype_append(PARTICLE_OT_new_target);
+	WM_operatortype_append(PARTICLE_OT_remove_target);
+	WM_operatortype_append(PARTICLE_OT_target_move_up);
+	WM_operatortype_append(PARTICLE_OT_target_move_down);
 
 	WM_operatortype_append(SCENE_OT_render_layer_add);
 	WM_operatortype_append(SCENE_OT_render_layer_remove);
+
+	WM_operatortype_append(BUTTONS_OT_toolbox);
 }
 
 void buttons_keymap(struct wmWindowManager *wm)
 {
+	ListBase *keymap= WM_keymap_listbase(wm, "Buttons Generic", SPACE_BUTS, 0);
 	
+	WM_keymap_add_item(keymap, "BUTTONS_OT_toolbox", RIGHTMOUSE, KM_PRESS, 0, 0);
 }
 
 //#define PY_HEADER
@@ -311,6 +319,7 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 			switch(wmn->data) {
 				case ND_FRAME:
 				case ND_MODE:
+				case ND_RENDER_OPTIONS:
 					ED_area_tag_redraw(sa);
 					break;
 					
@@ -326,6 +335,7 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_BONE_ACTIVE:
 				case ND_BONE_SELECT:
 				case ND_GEOM_SELECT:
+				case ND_CONSTRAINT:
 					ED_area_tag_redraw(sa);
 					break;
 				case ND_SHADING:
@@ -391,7 +401,7 @@ void ED_spacetype_buttons(void)
 	/* regions: header */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype buttons region");
 	art->regionid = RGN_TYPE_HEADER;
-	art->minsizey= HEADERY;
+	art->minsizey= BUTS_HEADERY;
 	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D|ED_KEYMAP_FRAMES;
 	
 	art->init= buttons_header_area_init;

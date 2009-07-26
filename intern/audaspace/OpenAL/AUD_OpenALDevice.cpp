@@ -358,13 +358,13 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 	alcProcessContext(m_context);
 	unlock();
 
-	delete m_playingSounds; AUD_DELETE("list")
-	delete m_pausedSounds; AUD_DELETE("list")
-	delete m_bufferedFactories; AUD_DELETE("list")
-
 	// wait for the thread to stop
 	if(m_thread != 0)
 		pthread_join(m_thread, NULL);
+
+	delete m_playingSounds; AUD_DELETE("list")
+	delete m_pausedSounds; AUD_DELETE("list")
+	delete m_bufferedFactories; AUD_DELETE("list")
 
 	// quit OpenAL
 	alcMakeContextCurrent(NULL);

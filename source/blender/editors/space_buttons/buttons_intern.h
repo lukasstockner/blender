@@ -49,6 +49,9 @@ struct wmOperatorType;
 #define BUTS_SENS_STATE		512
 #define BUTS_ACT_STATE		1024
 
+#define BUTS_HEADERY		(HEADERY*1.2)
+#define BUTS_UI_UNIT		(UI_UNIT_Y*1.2)
+
 /* internal exports only */
 
 /* buttons_header.c */
@@ -78,13 +81,15 @@ void OBJECT_OT_particle_system_add(struct wmOperatorType *ot);
 void OBJECT_OT_particle_system_remove(struct wmOperatorType *ot);
 
 void PARTICLE_OT_new(struct wmOperatorType *ot);
-void PARTICLE_OT_new_keyed_target(struct wmOperatorType *ot);
-void PARTICLE_OT_remove_keyed_target(struct wmOperatorType *ot);
-void PARTICLE_OT_keyed_target_move_up(struct wmOperatorType *ot);
-void PARTICLE_OT_keyed_target_move_down(struct wmOperatorType *ot);
+void PARTICLE_OT_new_target(struct wmOperatorType *ot);
+void PARTICLE_OT_remove_target(struct wmOperatorType *ot);
+void PARTICLE_OT_target_move_up(struct wmOperatorType *ot);
+void PARTICLE_OT_target_move_down(struct wmOperatorType *ot);
 
 void SCENE_OT_render_layer_add(struct wmOperatorType *ot);
 void SCENE_OT_render_layer_remove(struct wmOperatorType *ot);
+
+void BUTTONS_OT_toolbox(struct wmOperatorType *ot);
 
 #endif /* ED_BUTTONS_INTERN_H */
 

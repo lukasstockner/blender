@@ -8,7 +8,8 @@ class PhysicButtonsPanel(bpy.types.Panel):
 
 	def poll(self, context):
 		ob = context.object
-		return (ob and ob.type == 'MESH')
+		rd = context.scene.render_data
+		return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
 		
 class PHYSICS_PT_fluid(PhysicButtonsPanel):
 	__idname__ = "PHYSICS_PT_fluid"
@@ -43,17 +44,8 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel):
 		
 		if fluid:
 			
-
 			col = layout.column(align=True)
-			row = col.row()
-			row.item_enumR(fluid, "type", "DOMAIN")
-			row.item_enumR(fluid, "type", "FLUID")
-			row.item_enumR(fluid, "type", "OBSTACLE")
-			row = col.row()
-			row.item_enumR(fluid, "type", "INFLOW")
-			row.item_enumR(fluid, "type", "OUTFLOW")
-			row.item_enumR(fluid, "type", "PARTICLE")
-			row.item_enumR(fluid, "type", "CONTROL")
+			col.itemR(fluid, "type")
 
 			if fluid.type == 'DOMAIN':
 				layout.itemO("fluid.bake", text="BAKE")
@@ -105,7 +97,7 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel):
 				colsub=col.column(align=True)
 				colsub.itemR(fluid, "slip_type", text="")
 				if fluid.slip_type == 'PARTIALSLIP':
-					colsub.itemR(fluid, "partial_slip_amount", text="Amount")
+					colsub.itemR(fluid, "partial_slip_amount", slider=True, text="Amount")
 					
 				col.itemR(fluid, "impact_factor")
 				
@@ -199,8 +191,8 @@ class PHYSICS_PT_domain_gravity(PhysicButtonsPanel):
 		col.itemL(text="Gravity:")
 		col.itemR(fluid, "gravity", text="")
 		
-		col.itemL(text="Size:")
-		col.itemR(fluid, "real_world_size", text="Real World Size")
+		col.itemL(text="Real World Size:")
+		col.itemR(fluid, "real_world_size", text="Metres")
 		
 		col = split.column()
 		col.itemL(text="Viscosity Presets:")
@@ -217,7 +209,7 @@ class PHYSICS_PT_domain_gravity(PhysicButtonsPanel):
 		col.itemL(text="Optimization:")
 		col=col.column(align=True)
 		col.itemR(fluid, "grid_levels", slider=True)
-		col.itemR(fluid, "compressibility")
+		col.itemR(fluid, "compressibility", slider=True)
 	
 class PHYSICS_PT_domain_boundary(PhysicButtonsPanel):
 	__idname__ = "PHYSICS_PT_domain_boundary"
@@ -243,7 +235,7 @@ class PHYSICS_PT_domain_boundary(PhysicButtonsPanel):
 		col=col.column(align=True)
 		col.itemR(fluid, "slip_type", text="")
 		if fluid.slip_type == 'PARTIALSLIP':
-			col.itemR(fluid, "partial_slip_amount", text="Amount")
+			col.itemR(fluid, "partial_slip_amount", slider=True, text="Amount")
 		col = split.column()
 		col.itemL(text="Surface:")
 		col=col.column(align=True)

@@ -46,6 +46,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
@@ -252,10 +253,9 @@ static void nla_draw_strip_curves (NlaStrip *strip, View2D *v2d, float yminc, fl
 	// XXX nasty hacked color for now... which looks quite bad too...
 	glColor3f(0.7f, 0.7f, 0.7f);
 	
-	/* draw with AA'd line, 2 units thick (it's either 1 or 2 px) */
+	/* draw with AA'd line */
 	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_BLEND);
-	glLineWidth(2.0f);
 	
 	/* influence -------------------------- */
 	if (strip->flag & NLASTRIP_FLAG_USR_INFLUENCE) {
@@ -302,11 +302,10 @@ static void nla_draw_strip_curves (NlaStrip *strip, View2D *v2d, float yminc, fl
 	/* turn off AA'd lines */
 	glDisable(GL_LINE_SMOOTH);
 	glDisable(GL_BLEND);
-	glLineWidth(1.0f);
 }
 
 /* main call for drawing a single NLA-strip */
-static void nla_draw_strip (AnimData *adt, NlaTrack *nlt, NlaStrip *strip, View2D *v2d, float yminc, float ymaxc)
+static void nla_draw_strip (SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStrip *strip, View2D *v2d, float yminc, float ymaxc)
 {
 	float color[3];
 	
@@ -373,8 +372,11 @@ static void nla_draw_strip (AnimData *adt, NlaTrack *nlt, NlaStrip *strip, View2
 	gl_round_box_shade(GL_POLYGON, strip->start, yminc, strip->end, ymaxc, 0.0, 0.5, 0.1);
 	
 	
-	/* draw strip's control 'curves' */
-	nla_draw_strip_curves(strip, v2d, yminc, ymaxc);
+	/* draw strip's control 'curves'
+	 *	- only if user hasn't hidden them...
+	 */
+	if ((snla->flag & SNLA_NOSTRIPCURVES) == 0)
+		nla_draw_strip_curves(strip, v2d, yminc, ymaxc);
 	
 	/* draw strip outline 
 	 *	- color used here is to indicate active vs non-active
@@ -527,7 +529,7 @@ void draw_nla_main_data (bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					for (strip=nlt->strips.first, index=1; strip; strip=strip->next, index++) {
 						if (BKE_nlastrip_within_bounds(strip, v2d->cur.xmin, v2d->cur.xmax)) {
 							/* draw the visualisation of the strip */
-							nla_draw_strip(adt, nlt, strip, v2d, yminc, ymaxc);
+							nla_draw_strip(snla, adt, nlt, strip, v2d, yminc, ymaxc);
 							
 							/* add the text for this strip to the cache */
 							nla_draw_strip_text(nlt, strip, index, v2d, yminc, ymaxc);
@@ -692,6 +694,22 @@ void draw_nla_channel_list (bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					strcpy(name, "Materials");
 				}
 					break;
+				case ANIMTYPE_FILLPARTD: /* object particles (dopesheet) expand widget */
+				{
+					Object *ob = (Object *)ale->data;
+					
+					group = 4;
+					indent = 1;
+					special = ICON_PARTICLE_DATA;
+					
+					if (FILTER_PART_OBJC(ob))
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+						
+					strcpy(name, "Particles");
+				}
+					break;
 				
 				
 				case ANIMTYPE_DSMAT: /* single material (dopesheet) expand widget */
@@ -792,6 +810,23 @@ void draw_nla_channel_list (bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					strcpy(name, wo->id.name+2);
 				}
 					break;
+				case ANIMTYPE_DSPART: /* particle (dopesheet) expand widget */
+				{
+					ParticleSettings *part= (ParticleSettings*)ale->data;
+					
+					group = 0;
+					indent = 0;
+					special = ICON_PARTICLE_DATA;
+					offset = 21;
+					
+					if (FILTER_PART_OBJD(part))	
+						expand = ICON_TRIA_DOWN;
+					else
+						expand = ICON_TRIA_RIGHT;
+					
+					strcpy(name, part->id.name+2);
+				}
+					break;
 				
 				case ANIMTYPE_NLATRACK: /* NLA Track */
 				{
@@ -800,8 +835,8 @@ void draw_nla_channel_list (bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					indent= 0;
 					
 					if (ale->id) {
-						/* special exception for materials */
-						if (GS(ale->id->name) == ID_MA) {
+						/* special exception for materials and particles */
+						if (ELEM(GS(ale->id->name),ID_MA,ID_PA)) {
 							offset= 21;
 							indent= 1;
 						}
@@ -845,8 +880,8 @@ void draw_nla_channel_list (bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					group = 5;
 					
 					if (ale->id) {
-						/* special exception for materials */
-						if (GS(ale->id->name) == ID_MA) {
+						/* special exception for materials and particles */
+						if (ELEM(GS(ale->id->name),ID_MA,ID_PA)) {
 							offset= 21;
 							indent= 1;
 						}

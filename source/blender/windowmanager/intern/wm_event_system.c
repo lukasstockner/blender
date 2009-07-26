@@ -267,7 +267,7 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 			ED_undo_push_op(C, op);
 		
 		if(repeat==0) {
-			if(op->type->flag & OPTYPE_REGISTER)
+			if((op->type->flag & OPTYPE_REGISTER) || (G.f & G_DEBUG))
 				wm_operator_register(C, op);
 			else
 				WM_operator_free(op);
@@ -373,7 +373,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, P
 			if(ot->flag & OPTYPE_UNDO)
 				ED_undo_push_op(C, op);
 			
-			if(ot->flag & OPTYPE_REGISTER)
+			if((ot->flag & OPTYPE_REGISTER) || (G.f & G_DEBUG))
 				wm_operator_register(C, op);
 			else
 				WM_operator_free(op);
@@ -451,7 +451,7 @@ int WM_operator_name_call(bContext *C, const char *opstring, int context, Pointe
 
 				CTX_wm_region_set(C, NULL);
 				CTX_wm_area_set(C, NULL);
-				retval= wm_operator_invoke(C, ot, window->eventstate, properties);
+				retval= wm_operator_invoke(C, ot, event, properties);
 				CTX_wm_region_set(C, ar);
 				CTX_wm_area_set(C, area);
 
@@ -513,8 +513,12 @@ static void wm_handler_op_context(bContext *C, wmEventHandler *handler)
 			for(sa= screen->areabase.first; sa; sa= sa->next)
 				if(sa==handler->op_area)
 					break;
-			if(sa==NULL)
-				printf("internal error: handler (%s) has invalid area\n", handler->op->type->idname);
+			if(sa==NULL) {
+				/* when changing screen layouts with running modal handlers (like render display), this
+				   is not an error to print */
+				if(handler->op==NULL)
+					printf("internal error: handler (%s) has invalid area\n", handler->op->type->idname);
+			}
 			else {
 				ARegion *ar;
 				CTX_wm_area_set(C, sa);
@@ -652,6 +656,22 @@ static int wm_event_always_pass(wmEvent *event)
 	return ELEM5(event->type, TIMER, TIMER0, TIMER1, TIMER2, TIMERJOBS);
 }
 
+/* operator exists */
+static void wm_event_modalkeymap(wmOperator *op, wmEvent *event)
+{
+	if(op->type->modalkeymap) {
+		wmKeymapItem *kmi;
+		
+		for(kmi= op->type->modalkeymap->keymap.first; kmi; kmi= kmi->next) {
+			if(wm_eventmatch(event, kmi)) {
+					
+				event->type= EVT_MODAL_MAP;
+				event->val= kmi->propvalue;
+			}
+		}
+	}
+}
+
 /* Warning: this function removes a modal handler, when finished */
 static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHandler *handler, wmEvent *event, PointerRNA *properties)
 {
@@ -668,8 +688,9 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 			ARegion *region= CTX_wm_region(C);
 			
 			wm_handler_op_context(C, handler);
-			
 			wm_region_mouse_co(C, event);
+			wm_event_modalkeymap(op, event);
+			
 			retval= ot->modal(C, op, event);
 
 			/* putting back screen context, reval can pass trough after modal failures! */
@@ -696,7 +717,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 				if(ot->flag & OPTYPE_UNDO)
 					ED_undo_push_op(C, op);
 				
-				if(ot->flag & OPTYPE_REGISTER)
+				if((ot->flag & OPTYPE_REGISTER) || (G.f & G_DEBUG))
 					wm_operator_register(C, op);
 				else
 					WM_operator_free(op);
@@ -1414,6 +1435,19 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 				
 				update_tablet_data(win, &event);
 				wm_event_add(win, &event);
+
+				cx = abs((win->downx - event.x));
+				cy = abs((win->downy - event.y));
+
+				/* probably minimum drag size should be #defined instead of hardcoded 3 */
+				if (win->downstate == LEFTMOUSE && (cx > 3 || cy > 3)) {
+					wmEvent dragevt= *evt;
+					dragevt.type= MOUSEDRAG;
+					dragevt.customdata= NULL;
+					dragevt.customdatafree= 0;
+
+					wm_event_add(win, &dragevt);
+				}
 			}
 			break;
 		}
@@ -1437,6 +1471,23 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 			
 			update_tablet_data(win, &event);
 			wm_event_add(win, &event);
+
+			if (event.val) {
+				win->downstate= event.type;
+				win->downx= event.x;
+				win->downy= event.y;
+			}
+			else if (win->downstate) {
+				wmEvent dropevt= *evt;
+				dropevt.type= MOUSEDROP;
+				dropevt.customdata= NULL;
+				dropevt.customdatafree= 0;
+				win->downstate= 0;
+				win->downx= 0;
+				win->downy= 0;
+
+				wm_event_add(win, &dropevt);
+			}
 			
 			break;
 		}
@@ -1446,7 +1497,7 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 			GHOST_TEventKeyData *kd= customdata;
 			event.type= convert_key(kd->key);
 			event.ascii= kd->ascii;
-			event.val= (type==GHOST_kEventKeyDown); /* XXX eventmatch uses defines, bad code... */
+			event.val= (type==GHOST_kEventKeyDown)?KM_PRESS:KM_RELEASE;
 			
 			/* exclude arrow keys, esc, etc from text input */
 			if(type==GHOST_kEventKeyUp || (event.ascii<32 && event.ascii>14))
@@ -1454,30 +1505,30 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 			
 			/* modifiers */
 			if (event.type==LEFTSHIFTKEY || event.type==RIGHTSHIFTKEY) {
-				event.shift= evt->shift= event.val;
-				if(event.val && (evt->ctrl || evt->alt || evt->oskey))
+				event.shift= evt->shift= (event.val==KM_PRESS);
+				if(event.val==KM_PRESS && (evt->ctrl || evt->alt || evt->oskey))
 				   event.shift= evt->shift = 3;		// define?
 			} 
 			else if (event.type==LEFTCTRLKEY || event.type==RIGHTCTRLKEY) {
-				event.ctrl= evt->ctrl= event.val;
-				if(event.val && (evt->shift || evt->alt || evt->oskey))
+				event.ctrl= evt->ctrl= (event.val==KM_PRESS);
+				if(event.val==KM_PRESS && (evt->shift || evt->alt || evt->oskey))
 				   event.ctrl= evt->ctrl = 3;		// define?
 			} 
 			else if (event.type==LEFTALTKEY || event.type==RIGHTALTKEY) {
-				event.alt= evt->alt= event.val;
-				if(event.val && (evt->ctrl || evt->shift || evt->oskey))
+				event.alt= evt->alt= (event.val==KM_PRESS);
+				if(event.val==KM_PRESS && (evt->ctrl || evt->shift || evt->oskey))
 				   event.alt= evt->alt = 3;		// define?
 			} 
 			else if (event.type==COMMANDKEY) {
-				event.oskey= evt->oskey= event.val;
-				if(event.val && (evt->ctrl || evt->alt || evt->shift))
+				event.oskey= evt->oskey= (event.val==KM_PRESS);
+				if(event.val==KM_PRESS && (evt->ctrl || evt->alt || evt->shift))
 				   event.oskey= evt->oskey = 3;		// define?
 			}
 			
-			/* if test_break set, it catches this. Keep global for now? */
+			/* if test_break set, it catches this. XXX Keep global for now? */
 			if(event.type==ESCKEY)
 				G.afbreek= 1;
-			
+
 			wm_event_add(win, &event);
 			
 			break;

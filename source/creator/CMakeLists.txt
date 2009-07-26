@@ -62,6 +62,10 @@ ELSE(WITH_PYTHON)
   ADD_DEFINITIONS(-DDISABLE_PYTHON)
 ENDIF(WITH_PYTHON)
 
+IF(NOT WITH_SDL)
+  ADD_DEFINITIONS(-DDISABLE_SDL)
+ENDIF(NOT WITH_SDL)
+
 IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   ADD_DEFINITIONS(-DWITH_BINRELOC)
   INCLUDE_DIRECTORIES(${BINRELOC_INC})
@@ -124,8 +128,9 @@ IF(APPLE)
     COMMAND cp -R ${CMAKE_SOURCE_DIR}/bin/.blender/locale ${TARGETDIR}/blender.app/Contents/Resources/
     COMMAND cp -R ${CMAKE_SOURCE_DIR}/bin/.blender/locale ${TARGETDIR}/blender.app/Contents/MacOS/.blender/
     COMMAND cp ${CMAKE_SOURCE_DIR}/bin/.blender/.Blanguages ${TARGETDIR}/blender.app/Contents/Resources/
-    COMMAND cp -R ${CMAKE_SOURCE_DIR}/release/scripts ${TARGETDIR}/blender.app/Contents/MacOS/.blender/
-    COMMAND cp -R ${CMAKE_SOURCE_DIR}/release/ui ${TARGETDIR}/blender.app/Contents/MacOS/.blender/
+    COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/scripts ${TARGETDIR}/blender.app/Contents/MacOS/.blender/
+    COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/ui ${TARGETDIR}/blender.app/Contents/MacOS/.blender/
+    COMMAND cp -Rf ${CMAKE_SOURCE_DIR}/release/darwin/extra/python ${TARGETDIR}/blender.app/Contents/MacOS/.blender/
     COMMAND find ${TARGETDIR}/blender.app -name CVS -prune -exec rm -rf {} "\;"
     COMMAND find ${TARGETDIR}/blender.app -name CVS.sandboxinfo -prune -exec rm -rf {} "\;"
     COMMAND find ${TARGETDIR}/blender.app -name .DS_Store -prune -exec rm -rf {} "\;"
