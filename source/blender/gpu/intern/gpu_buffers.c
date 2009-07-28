@@ -316,9 +316,15 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 
 			index[redir[mface[i].mat_nr+16383]]+=2;
 		}
-		else
-		{
+		else {
 			index[redir[mface[i].mat_nr+16383]]++;
+		}
+	}
+
+	for( i = 0; i < object->nindices; i++ ) {
+		if( object->indices[i].element == -1 ) {
+			object->indices[i].element = object->nelements + object->nlooseverts;
+			object->nlooseverts++;
 		}
 	}
 #undef ADDLINK
@@ -342,6 +348,7 @@ void GPU_drawobject_free( GPUDrawObject *object )
 	GPU_buffer_free( object->normals, globalPool );
 	GPU_buffer_free( object->uv, globalPool );
 	GPU_buffer_free( object->colors, globalPool );
+	GPU_buffer_free( object->edges, globalPool );
 
 	MEM_freeN(object);
 }
@@ -436,7 +443,7 @@ GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, G
 void GPU_buffer_copy_vertex( DerivedMesh *dm, float *varray, int *index, int *redir, void *user )
 {
 	int start;
-	int i;
+	int i, j;
 
 	MVert *mvert;
 	MFace *mface;
@@ -465,13 +472,20 @@ void GPU_buffer_copy_vertex( DerivedMesh *dm, float *varray, int *index, int *re
 			VECCOPY(&varray[start+15],mvert[mface[i].v1].co);
 		}
 	}
+	j = dm->drawObject->nelements*3;
+	for( i = 0; i < dm->drawObject->nindices; i++ ) {
+		if( dm->drawObject->indices[i].element >= dm->drawObject->nelements ) {
+			VECCOPY(&varray[j],mvert[i].co);
+			j+=3;
+		}
+	}
 }
 
 GPUBuffer *GPU_buffer_vertex( DerivedMesh *dm )
 {
 	DEBUG_VBO("GPU_buffer_vertex\n");
 
-	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*dm->drawObject->nelements, GL_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_vertex);
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*3*(dm->drawObject->nelements+dm->drawObject->nlooseverts), GL_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_vertex);
 }
 
 void GPU_buffer_copy_normal( DerivedMesh *dm, float *varray, int *index, int *redir, void *user )

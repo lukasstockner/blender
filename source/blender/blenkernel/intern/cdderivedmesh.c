@@ -259,8 +259,10 @@ static void cdDM_drawEdges(DerivedMesh *dm, int drawLooseEdges)
 				else {
 					draw = 0;
 				}
-				if( prevdraw != draw && prevdraw > 0 && (i-prevstart) > 0) {
-					GPU_buffer_draw_elements( dm->drawObject->edges, GL_LINES, prevstart*2, (i-prevstart)*2  );
+				if( prevdraw != draw ) {
+					if( prevdraw > 0 && (i-prevstart) > 0 ) {
+						GPU_buffer_draw_elements( dm->drawObject->edges, GL_LINES, prevstart*2, (i-prevstart)*2  );
+					}
 					prevstart = i;
 				}
 				prevdraw = draw;
@@ -280,14 +282,45 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 	MEdge *medge = cddm->medge;
 	int i;
 
-	glBegin(GL_LINES);
-	for(i = 0; i < dm->numEdgeData; i++, medge++) {
-		if(medge->flag&ME_LOOSEEDGE) {
-			glVertex3fv(mvert[medge->v1].co);
-			glVertex3fv(mvert[medge->v2].co);
+	if( GPU_buffer_legacy(dm) ) {
+		DEBUG_VBO( "Using legacy code. cdDM_drawLooseEdges\n" );
+		glBegin(GL_LINES);
+		for(i = 0; i < dm->numEdgeData; i++, medge++) {
+			if(medge->flag&ME_LOOSEEDGE) {
+				glVertex3fv(mvert[medge->v1].co);
+				glVertex3fv(mvert[medge->v2].co);
+			}
 		}
+		glEnd();
 	}
-	glEnd();
+	else {
+		int prevstart = 0;
+		int prevdraw = 1;
+		int draw = 1;
+
+		GPU_edge_setup(dm);
+		if( !GPU_buffer_legacy(dm) ) {
+			for(i = 0; i < dm->numEdgeData; i++, medge++) {
+				if(medge->flag&ME_LOOSEEDGE) {
+					draw = 1;
+				} 
+				else {
+					draw = 0;
+				}
+				if( prevdraw != draw ) {
+					if( prevdraw > 0 && (i-prevstart) > 0) {
+						GPU_buffer_draw_elements( dm->drawObject->edges, GL_LINES, prevstart*2, (i-prevstart)*2  );
+					}
+					prevstart = i;
+				}
+				prevdraw = draw;
+			}
+			if( prevdraw > 0 && (i-prevstart) > 0 ) {
+				GPU_buffer_draw_elements( dm->drawObject->edges, GL_LINES, prevstart*2, (i-prevstart)*2  );
+			}
+		}
+		GPU_buffer_unbind();
+	}
 }
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm, int (*setMaterial)(int, void *attribs))

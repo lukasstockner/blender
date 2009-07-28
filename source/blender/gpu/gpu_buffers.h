@@ -89,7 +89,8 @@ typedef struct GPUDrawObject
 	GPUBufferMaterial *materials;
 
 	int nmaterials;
-	int nelements;
+	int nelements;	/* (number of faces) * 3 */
+	int nlooseverts;
 	int nedges;
 	int nindices;
 	int legacy;	/* if there was a failure allocating some buffer, use old rendering code */
