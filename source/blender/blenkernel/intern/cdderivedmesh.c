@@ -200,28 +200,65 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 	int i;
 
 	if(mf) {
-		glBegin(GL_LINES);
-		for(i = 0; i < dm->numFaceData; i++, mf++, tf++) {
-			if(!(mf->flag&ME_HIDE)) {
-				glVertex2fv(tf->uv[0]);
-				glVertex2fv(tf->uv[1]);
-
-				glVertex2fv(tf->uv[1]);
-				glVertex2fv(tf->uv[2]);
-
-				if(!mf->v4) {
-					glVertex2fv(tf->uv[2]);
+		if( GPU_buffer_legacy(dm) ) {
+			glBegin(GL_LINES);
+			for(i = 0; i < dm->numFaceData; i++, mf++, tf++) {
+				if(!(mf->flag&ME_HIDE)) {
 					glVertex2fv(tf->uv[0]);
-				} else {
-					glVertex2fv(tf->uv[2]);
-					glVertex2fv(tf->uv[3]);
+					glVertex2fv(tf->uv[1]);
 
-					glVertex2fv(tf->uv[3]);
-					glVertex2fv(tf->uv[0]);
+					glVertex2fv(tf->uv[1]);
+					glVertex2fv(tf->uv[2]);
+
+					if(!mf->v4) {
+						glVertex2fv(tf->uv[2]);
+						glVertex2fv(tf->uv[0]);
+					} else {
+						glVertex2fv(tf->uv[2]);
+						glVertex2fv(tf->uv[3]);
+
+						glVertex2fv(tf->uv[3]);
+						glVertex2fv(tf->uv[0]);
+					}
 				}
 			}
+			glEnd();
 		}
-		glEnd();
+		else {
+			int prevstart = 0;
+			int prevdraw = 1;
+			int draw = 1;
+			int curpos = 0;
+
+			GPU_uvedge_setup(dm);
+			if( !GPU_buffer_legacy(dm) ) {
+				for(i = 0; i < dm->numFaceData; i++, mf++) {
+					if(mf->flag&ME_LOOSEEDGE) {
+						draw = 1;
+					} 
+					else {
+						draw = 0;
+					}
+					if( prevdraw != draw ) {
+						if( prevdraw > 0 && (curpos-prevstart) > 0) {
+							glDrawArrays(GL_LINES,prevstart,curpos-prevstart);
+						}
+						prevstart = curpos;
+					}
+					if( mf->v4 ) {
+						curpos += 8;
+					}
+					else {
+						curpos += 6;
+					}
+					prevdraw = draw;
+				}
+				if( prevdraw > 0 && (curpos-prevstart) > 0 ) {
+					glDrawArrays(GL_LINES,prevstart,curpos-prevstart);
+				}
+			}
+			GPU_buffer_unbind();
+		}
 	}
 }
 
@@ -293,7 +330,7 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 		}
 		glEnd();
 	}
-	else {
+	else {	/* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
 		int prevstart = 0;
 		int prevdraw = 1;
 		int draw = 1;
@@ -938,7 +975,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 		}
 		glEnd();
 	}
-	else {  /* use OpenGL VBOs or Vertex Arrays instead for better, faster rendering */
+	else {  /* TODO */
 		memset(&attribs, 0, sizeof(attribs));
 
 		for(a = 0; a < dm->numFaceData; a++, mface++) {

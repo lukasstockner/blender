@@ -333,12 +333,17 @@ GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
 	return object;
 }
 
-void GPU_drawobject_free( GPUDrawObject *object )
+void GPU_drawobject_free( DerivedMesh *dm )
 {
-	if( object == 0 )
-		return;
+	GPUDrawObject *object;
 
 	DEBUG_VBO("GPU_drawobject_free\n");
+
+	if( dm == 0 )
+		return;
+	object = dm->drawObject;
+	if( object == 0 )
+		return;
 
 	MEM_freeN(object->materials);
 	MEM_freeN(object->faceRemap);
@@ -351,6 +356,7 @@ void GPU_drawobject_free( GPUDrawObject *object )
 	GPU_buffer_free( object->edges, globalPool );
 
 	MEM_freeN(object);
+	dm->drawObject = 0;
 }
 
 GPUBuffer *GPU_buffer_setup( DerivedMesh *dm, GPUDrawObject *object, int size, GLenum target, void *user, void (*copy_f)(DerivedMesh *, float *, int *, int *, void *) )
@@ -715,9 +721,54 @@ GPUBuffer *GPU_buffer_edge( DerivedMesh *dm )
 	return GPU_buffer_setup( dm, dm->drawObject, sizeof(int)*2*dm->drawObject->nedges, GL_ELEMENT_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_edge);
 }
 
+void GPU_buffer_copy_uvedge( DerivedMesh *dm, float *varray, int *index, int *redir, void *user )
+{
+	MTFace *tf = DM_get_face_data_layer(dm, CD_MTFACE);
+	int i, j=0;
+
+	DEBUG_VBO("GPU_buffer_copy_uvedge\n");
+
+	if(tf) {
+		for(i = 0; i < dm->numFaceData; i++, tf++) {
+			MFace mf;
+			dm->getFace(dm,i,&mf);
+
+			VECCOPY2D(&varray[j],tf->uv[0]);
+			VECCOPY2D(&varray[j+2],tf->uv[1]);
+
+			VECCOPY2D(&varray[j+4],tf->uv[1]);
+			VECCOPY2D(&varray[j+6],tf->uv[2]);
+
+			if(!mf.v4) {
+				VECCOPY2D(&varray[j+8],tf->uv[2]);
+				VECCOPY2D(&varray[j+10],tf->uv[0]);
+				j+=12;
+			} else {
+				VECCOPY2D(&varray[j+8],tf->uv[2]);
+				VECCOPY2D(&varray[j+10],tf->uv[3]);
+
+				VECCOPY2D(&varray[j+12],tf->uv[3]);
+				VECCOPY2D(&varray[j+14],tf->uv[0]);
+				j+=16;
+			}
+		}
+	}
+	else {
+		DEBUG_VBO("Could not get MTFACE data layer");
+	}
+}
+
+GPUBuffer *GPU_buffer_uvedge( DerivedMesh *dm )
+{
+	DEBUG_VBO("GPU_buffer_uvedge\n");
+
+	return GPU_buffer_setup( dm, dm->drawObject, sizeof(float)*2*(dm->drawObject->nelements/3)*2, GL_ARRAY_BUFFER_ARB, 0, GPU_buffer_copy_uvedge);
+}
+
+
 void GPU_vertex_setup( DerivedMesh *dm )
 {
-	DEBUG_VBO("GPU_buffer_vertex_setup\n");
+	DEBUG_VBO("GPU_vertex_setup\n");
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->vertices == 0 )
@@ -741,7 +792,7 @@ void GPU_vertex_setup( DerivedMesh *dm )
 
 void GPU_normal_setup( DerivedMesh *dm )
 {
-	DEBUG_VBO("GPU_buffer_normal_setup\n");
+	DEBUG_VBO("GPU_normal_setup\n");
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->normals == 0 )
@@ -764,7 +815,7 @@ void GPU_normal_setup( DerivedMesh *dm )
 
 void GPU_uv_setup( DerivedMesh *dm )
 {
-	DEBUG_VBO("GPU_buffer_uv_setup\n");
+	DEBUG_VBO("GPU_uv_setup\n");
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->uv == 0 )
@@ -786,7 +837,7 @@ void GPU_uv_setup( DerivedMesh *dm )
 
 void GPU_color_setup( DerivedMesh *dm )
 {
-	DEBUG_VBO("GPU_buffer_color_setup\n");
+	DEBUG_VBO("GPU_color_setup\n");
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->colors == 0 )
@@ -809,7 +860,7 @@ void GPU_color_setup( DerivedMesh *dm )
 
 void GPU_edge_setup( DerivedMesh *dm )
 {
-	DEBUG_VBO("GPU_buffer_edge_setup\n");
+	DEBUG_VBO("GPU_edge_setup\n");
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new( dm );
 	if( dm->drawObject->edges == 0 )
@@ -841,6 +892,30 @@ void GPU_edge_setup( DerivedMesh *dm )
 	}
 
 	GLStates |= GPU_BUFFER_ELEMENT_STATE;
+}
+
+void GPU_uvedge_setup( DerivedMesh *dm )
+{
+	DEBUG_VBO("GPU_uvedge_setup\n");
+	if( dm->drawObject == 0 )
+		dm->drawObject = GPU_drawobject_new( dm );
+	if( dm->drawObject->uvedges == 0 )
+		dm->drawObject->uvedges = GPU_buffer_uvedge( dm );
+	if( dm->drawObject->uvedges == 0 ) {
+		DEBUG_VBO( "Failed to setup UV edges\n" );
+		return;
+	}
+
+	glEnableClientState( GL_VERTEX_ARRAY );
+	if( useVBOs ) {
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, dm->drawObject->uvedges->id );
+		glVertexPointer( 2, GL_FLOAT, 0, 0 );
+	}
+	else {
+		glVertexPointer( 2, GL_FLOAT, 0, dm->drawObject->uvedges->pointer );
+	}
+	
+	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
 
 void GPU_buffer_unbind()

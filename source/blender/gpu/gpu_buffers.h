@@ -79,6 +79,7 @@ typedef struct GPUDrawObject
 	GPUBuffer *uv;
 	GPUBuffer *colors;
 	GPUBuffer *edges;
+	GPUBuffer *uvedges;
 
 	int	*faceRemap;			/* at what index was the face originally in DerivedMesh */
 	IndexLink *indices;		/* given an index, find all elements using it */
@@ -104,7 +105,7 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool );
 void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool );
 
 GPUDrawObject *GPU_drawobject_new( struct DerivedMesh *dm );
-void GPU_drawobject_free( GPUDrawObject *object );
+void GPU_drawobject_free( struct DerivedMesh *dm );
 
 /* called before drawing */
 void GPU_vertex_setup( struct DerivedMesh *dm );
@@ -112,6 +113,7 @@ void GPU_normal_setup( struct DerivedMesh *dm );
 void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 void GPU_edge_setup( struct DerivedMesh *dm );	/* does not mix with other data */
+void GPU_uvedge_setup( struct DerivedMesh *dm );
 
 void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
 void *GPU_buffer_lock( GPUBuffer *buffer );
