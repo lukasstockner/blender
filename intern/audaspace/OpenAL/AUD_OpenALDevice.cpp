@@ -204,7 +204,7 @@ void AUD_OpenALDevice::updateStreams()
 			// check if the sound has been stopped
 			alGetSourcei(sound->source, AL_SOURCE_STATE, &info);
 
-			if(info == AL_STOPPED)
+			if(info != AL_PLAYING)
 			{
 				// if it really stopped
 				if(sound->data_end)
@@ -538,11 +538,6 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 					alSourcei(sound->source, AL_BUFFER, (*i)->buffer);
 					if(alGetError() != AL_NO_ERROR)
 						AUD_THROW(AUD_ERROR_OPENAL);
-
-					alSourcePlay(sound->source);
-
-					if(alGetError() != AL_NO_ERROR)
-						AUD_THROW(AUD_ERROR_OPENAL);
 				}
 				catch(AUD_Exception e)
 				{
@@ -645,11 +640,6 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 				alSourceQueueBuffers(sound->source, 3, sound->buffers);
 				if(alGetError() != AL_NO_ERROR)
 					AUD_THROW(AUD_ERROR_OPENAL);
-
-				alSourcePlay(sound->source);
-
-				if(alGetError() != AL_NO_ERROR)
-					AUD_THROW(AUD_ERROR_OPENAL);
 			}
 			catch(AUD_Exception e)
 			{
@@ -715,20 +705,6 @@ bool AUD_OpenALDevice::resume(AUD_Handle* handle)
 		if(*i == handle)
 		{
 			m_playingSounds->push_back(*i);
-
-			alGetSourcei((*i)->source, AL_SOURCE_STATE, &info);
-
-			switch(info)
-			{
-			case AL_PLAYING:
-				break;
-			case AL_STOPPED:
-//				alSourceRewind((*i)->source);
-			default:
-//				alSourcePlay((*i)->source);
-				break;
-			}
-
 			start();
 			m_pausedSounds->erase(i);
 			unlock();
@@ -835,6 +811,41 @@ bool AUD_OpenALDevice::seek(AUD_Handle* handle, float position)
 			alhandle->reader->seek((int)(position *
 										 alhandle->reader->getSpecs().rate));
 			alhandle->data_end = false;
+
+			ALint info;
+
+			alGetSourcei(alhandle->source, AL_SOURCE_STATE, &info);
+
+			if(info != AL_PLAYING)
+			{
+				if(info != AL_STOPPED)
+					alSourceStop(alhandle->source);
+
+				alSourceUnqueueBuffers(alhandle->source, 3, alhandle->buffers);
+				if(alGetError() == AL_NO_ERROR)
+				{
+					sample_t* buf;
+					int length;
+					AUD_Specs specs = alhandle->reader->getSpecs();
+
+					for(int i=0; i<3; i++)
+					{
+						length = m_buffersize;
+						alhandle->reader->read(length, buf);
+						alBufferData(alhandle->buffers[i], alhandle->format,
+									 buf, length * AUD_SAMPLE_SIZE(specs),
+									 specs.rate);
+
+						if(alGetError() != AL_NO_ERROR)
+							break;
+					}
+
+					alSourceQueueBuffers(alhandle->source, 3,
+										 alhandle->buffers);
+				}
+
+				alSourceRewind(alhandle->source);
+			}
 		}
 		unlock();
 		return true;
@@ -842,6 +853,26 @@ bool AUD_OpenALDevice::seek(AUD_Handle* handle, float position)
 
 	unlock();
 	return false;
+}
+
+float AUD_OpenALDevice::getPosition(AUD_Handle* handle)
+{
+	lock();
+
+	float position = 0.0;
+
+	if(isValid(handle))
+	{
+		AUD_OpenALHandle* h = (AUD_OpenALHandle*)handle;
+		if(h->isBuffered)
+			alGetSourcef(h->source, AL_SEC_OFFSET, &position);
+		else
+			position = h->reader->getPosition() /
+					   (float)h->reader->getSpecs().rate;
+	}
+
+	unlock();
+	return position;
 }
 
 AUD_Status AUD_OpenALDevice::getStatus(AUD_Handle* handle)

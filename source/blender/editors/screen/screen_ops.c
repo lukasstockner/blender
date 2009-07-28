@@ -55,6 +55,8 @@
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
+// AUD_XXX
+#include "BKE_sound.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -2228,7 +2230,7 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		ED_update_for_newframe(C, 1);
 
 		// AUD_XXX
-		seq_update_audio(C, CFRA);
+		sound_update_playing(C);
 
 		for(sa= screen->areabase.first; sa; sa= sa->next) {
 			ARegion *ar;
@@ -2271,7 +2273,7 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 	if(screen->animtimer) {
 		ED_screen_animation_timer(C, 0, 0);
 		// AUD_XXX
-		seq_stop_audio(C);
+		sound_stop_all(C);
 	}
 	else {
 		int mode= (RNA_boolean_get(op->ptr, "reverse")) ? -1 : 1;
@@ -2283,10 +2285,6 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 			ScreenAnimData *sad= wt->customdata;
 
 			sad->ar= CTX_wm_region(C);
-
-			// AUD_XXX
-			if(mode == 1)
-				seq_play_audio(C);
 		}
 	}
 

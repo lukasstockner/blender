@@ -74,6 +74,11 @@ bool AUD_NULLDevice::seek(AUD_Handle* handle, float position)
 	return false;
 }
 
+float AUD_NULLDevice::getPosition(AUD_Handle* handle)
+{
+	return 0.0f;
+}
+
 AUD_Status AUD_NULLDevice::getStatus(AUD_Handle* handle)
 {
 	return AUD_STATUS_INVALID;

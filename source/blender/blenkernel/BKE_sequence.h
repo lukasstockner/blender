@@ -137,9 +137,9 @@ struct SeqEffectHandle {
 /* sequence.c */
 
 // extern
-void seq_free_sequence(struct Editing *ed, struct Sequence *seq);
+void seq_free_sequence(struct Scene *scene, struct Sequence *seq);
 void seq_free_strip(struct Strip *strip);
-void seq_free_editing(struct Editing *ed);
+void seq_free_editing(struct Scene *scene);
 struct Editing *seq_give_editing(struct Scene *scene, int alloc);
 char *give_seqname(struct Sequence *seq);
 struct ImBuf *give_ibuf_seq(struct Scene *scene, int rectx, int recty, int cfra, int chanshown, int render_size);
@@ -184,10 +184,4 @@ int shuffle_seq(struct ListBase * seqbasep, struct Sequence *test);
 void free_imbuf_seq(struct ListBase * seqbasep);
 
 // AUD_XXX
-void seq_play_seq(struct bContext *C, struct Sequence *seq, int start, int end, int keep);
-void seq_stop_seq(struct bContext *C, struct Sequence *seq);
-void seq_update_seq(struct bContext *C, struct Sequence *seq, int frame);
-void seq_play_audio(struct bContext *C);
-void seq_stop_audio(struct bContext *C);
-void seq_update_audio(struct bContext *C, int frame);
-
+void seq_update_sound(struct Sequence *seq);

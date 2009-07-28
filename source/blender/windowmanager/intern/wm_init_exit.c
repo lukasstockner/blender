@@ -157,7 +157,7 @@ void WM_init(bContext *C)
 	read_Blog();
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
 
-	// AUD_XXX
+	// AUD_XXX - should be also on file load?!
 	sound_init();
 }
 

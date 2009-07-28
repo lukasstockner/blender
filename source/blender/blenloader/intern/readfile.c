@@ -3993,7 +3993,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 					}
 				}
 				seq->anim= 0;
-				seq->hdaudio = 0;
+// AUD_XXX				seq->hdaudio = 0;
 			}
 			SEQ_END
 
@@ -4971,7 +4971,7 @@ static void lib_link_sound(FileData *fd, Main *main)
 		if(sound->id.flag & LIB_NEEDLINK) {
 			sound->id.flag -= LIB_NEEDLINK;
 			sound->ipo= newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX depreceated - old animation system
-// AUD_XXX			sound->stream = 0;
+			sound->stream = 0;
 		}
 		sound= sound->id.next;
 	}
@@ -9119,6 +9119,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			{
 				sound->packedfile = sound->newpackedfile;
 				sound->newpackedfile = NULL;
+				sound->type = SOUND_TYPE_FILE;
 			}
 		}
 
@@ -9220,7 +9221,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		bSound *sound;
 
 		for(sound = main->sound.first; sound; sound = sound->id.next)
+		{
+			sound->snd_sound = NULL;
 			sound_load(sound);
+		}
 
 		for(ob = main->object.first; ob; ob = ob->id.next) {
 

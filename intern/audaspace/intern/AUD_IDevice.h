@@ -127,6 +127,14 @@ public:
 	virtual bool seek(AUD_Handle* handle, float position)=0;
 
 	/**
+	 * Retrieves the current playback position of a sound.
+	 * \param handle The handle returned by the play function.
+	 * \return The playback position in seconds, or 0.0 if the handle is
+	 *         invalid.
+	 */
+	virtual float getPosition(AUD_Handle* handle)=0;
+
+	/**
 	 * Returns the status of a played back sound.
 	 * \param handle The handle returned by the play function.
 	 * \return

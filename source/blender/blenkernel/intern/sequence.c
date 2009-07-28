@@ -53,6 +53,7 @@
 
 // AUD_XXX
 #include "BKE_context.h"
+#include "BKE_sound.h"
 #include "AUD_C-API.h"
 
 #ifdef WIN32
@@ -181,12 +182,18 @@ void seq_free_strip(Strip *strip)
 	MEM_freeN(strip);
 }
 
-void seq_free_sequence(Editing *ed, Sequence *seq)
+// AUD_XXX
+void seq_free_sequence(Scene *scene, Sequence *seq)
 {
+	Editing *ed = scene->ed;
+
 	if(seq->strip) seq_free_strip(seq->strip);
 
 	if(seq->anim) IMB_free_anim(seq->anim);
 	//XXX if(seq->hdaudio) sound_close_hdaudio(seq->hdaudio);
+	// AUD_XXX
+	if(seq->sound_handle)
+		sound_delete_handle(scene, seq->sound_handle);
 
 	if (seq->type & SEQ_EFFECT) {
 		struct SeqEffectHandle sh = get_sequence_effect(seq);
@@ -211,8 +218,9 @@ Editing *seq_give_editing(Scene *scene, int alloc)
 	return scene->ed;
 }
 
-void seq_free_editing(Editing *ed)
+void seq_free_editing(Scene *scene)
 {
+	Editing *ed = scene->ed;
 	MetaStack *ms;
 	Sequence *seq;
 
@@ -220,7 +228,7 @@ void seq_free_editing(Editing *ed)
 		return;
 
 	SEQ_BEGIN(ed, seq) {
-		seq_free_sequence(ed, seq);
+		seq_free_sequence(scene, seq);
 	}
 	SEQ_END
 
@@ -511,6 +519,9 @@ void calc_sequence(Sequence *seq)
 		}
 		calc_sequence_disp(seq);
 	}
+
+	// AUD_XXX
+	seq_update_sound(seq);
 }
 
 void reload_sequence_new_file(Scene *scene, Sequence * seq)
@@ -572,8 +583,8 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 
 // XXX		seq->len = sound_hdaudio_get_duration(seq->hdaudio, FPS) - seq->anim_startofs - seq->anim_endofs;
 // AUD_XXX
-		if(seq->sound && seq->sound->stream)
-			seq->len = AUD_getInfo(seq->sound->stream).length * FPS - seq->anim_startofs - seq->anim_endofs;
+		if(seq->sound && seq->sound->snd_sound)
+			seq->len = AUD_getInfo(seq->sound->snd_sound).length * FPS - seq->anim_startofs - seq->anim_endofs;
 
 		if (seq->len < 0) {
 			seq->len = 0;
@@ -581,7 +592,7 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 		seq->strip->len = seq->len;
 	} else if (seq->type == SEQ_RAM_SOUND) {
 // AUD_XXX
-		seq->len = AUD_getInfo(seq->sound->stream).length * FPS;
+		seq->len = AUD_getInfo(seq->sound->snd_sound).length * FPS;
 /*		seq->len = (int) ( ((float)(seq->sound->streamlen-1)/
 					((float)scene->audio.mixrate*4.0 ))
 				   * FPS);*/
@@ -3471,185 +3482,14 @@ int shuffle_seq(ListBase * seqbasep, Sequence *test)
 }
 
 // AUD_XXX
-static int seq_audio_last_frame;
-static int seq_audio_playing;
-
-void seq_play_seq(struct bContext *C, struct Sequence *seq, int start, int end, int keep)
+void seq_update_sound(struct Sequence *seq)
 {
-	Scene* scene = CTX_data_scene(C);
-
-	while(seq)
+	if(seq->type == SEQ_RAM_SOUND)
 	{
-		if(seq->type == SEQ_META)
-			seq_play_seq(C, seq->seqbase.first, start, end, keep);
-
-		/* XXX don't play back scene sounds as the calculation is wrong for them
-		if (seq->type == SEQ_SCENE
-			&& seq->scene
-			&& (seq->scene->r.scemode & R_DOSEQ)
-			&& !(seq->scene->r.scemode & R_RECURS_PROTECTION))
-		{
-			Editing *ed;
-
-			seq->scene->r.scemode |= R_RECURS_PROTECTION;
-
-			ed = seq->scene->ed;
-
-			if (ed)
-			{
-				// XXX Calculation?!
-				int sce_cfra = seq->sfra + seq->anim_startofs
-					+ start - seq->startdisp;
-				int sce_efra = seq->anim_endofs + end - seq->enddisp;
-
-				seq_play_seq(C, ed->seqbasep->first, sce_cfra, sce_efra, keep);
-			}
-
-			seq->scene->r.scemode &= ~R_RECURS_PROTECTION;
-		}*/
-
-		if((seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) &&
-		   seq->sound && seq->sound->stream)
-		{
-			int e = seq->len - seq->endofs;
-			int delay = seq->start - SFRA;
-
-			AUD_Sound *limiter, *delayer, *buffer;
-
-			if(e + delay > end - SFRA)
-				e = end - SFRA - seq->start + seq->startofs;
-
-			limiter = AUD_limitSound(seq->sound->stream, seq->startofs / FPS, (++e) / FPS);
-			delayer = AUD_delaySound(limiter, delay / FPS);
-			buffer = AUD_bufferSound(delayer);
-
-			seq->effectdata = AUD_play(buffer, keep);
-
-			if(start - SFRA > 0)
-				AUD_seek(seq->effectdata, (start - SFRA) / FPS);
-
-			AUD_unload(buffer);
-			AUD_unload(delayer);
-			AUD_unload(limiter);
-		}
-
-		seq = seq->next;
-	}
-}
-
-void seq_stop_seq(struct bContext *C, struct Sequence *seq)
-{
-	while(seq)
-	{
-		if(seq->type == SEQ_META)
-			seq_stop_seq(C, seq->seqbase.first);
-
-		/* XXX don't play back scene sounds as the calculation is wrong for them
-		if (seq->type == SEQ_SCENE
-			&& seq->scene
-			&& (seq->scene->r.scemode & R_DOSEQ)
-			&& !(seq->scene->r.scemode & R_RECURS_PROTECTION))
-		{
-			Editing *ed;
-
-			seq->scene->r.scemode |= R_RECURS_PROTECTION;
-
-			ed = seq->scene->ed;
-
-			if (ed)
-				seq_stop_seq(C, ed->seqbasep->first);
-
-			seq->scene->r.scemode &= ~R_RECURS_PROTECTION;
-		}*/
-
-		if((seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) &&
-		   seq->sound && seq->sound->stream)
-			AUD_stop(seq->effectdata);
-
-		seq = seq->next;
-	}
-}
-
-void seq_update_seq(struct bContext *C, struct Sequence *seq, int frame)
-{
-	Scene* scene = CTX_data_scene(C);
-
-	while(seq)
-	{
-		if(seq->type == SEQ_META)
-			seq_update_seq(C, seq->seqbase.first, frame);
-
-		/* XXX don't play back scene sounds as the calculation is wrong for them
-		if (seq->type == SEQ_SCENE
-			&& seq->scene
-			&& (seq->scene->r.scemode & R_DOSEQ)
-			&& !(seq->scene->r.scemode & R_RECURS_PROTECTION))
-		{
-			Editing *ed;
-
-			seq->scene->r.scemode |= R_RECURS_PROTECTION;
-
-			ed = seq->scene->ed;
-
-			if (ed)
-				seq_update_seq(C, ed->seqbasep->first, frame);
-
-			seq->scene->r.scemode &= ~R_RECURS_PROTECTION;
-		}*/
-
-		if((seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) &&
-		   seq->sound && seq->sound->stream)
-		{
-			AUD_seek(seq->effectdata, (frame-SFRA) / FPS);
-			if(AUD_getStatus(seq->effectdata) == AUD_STATUS_PAUSED)
-			{
-				AUD_resume(seq->effectdata);
-			}
-		}
-
-		seq = seq->next;
-	}
-}
-
-void seq_play_audio(struct bContext *C)
-{
-	Scene *scene = CTX_data_scene(C);
-
-	if(scene->ed && scene->ed->seqbasep)
-	{
-		seq_play_seq(C, scene->ed->seqbasep->first, CFRA, EFRA, 1);
-
-		seq_audio_last_frame = CFRA;
-		seq_audio_playing = 1;
-	}
-}
-
-void seq_stop_audio(struct bContext *C)
-{
-	Scene *scene = CTX_data_scene(C);
-	if(seq_audio_playing)
-	{
-		seq_stop_seq(C, scene->ed->seqbasep->first);
-		seq_audio_playing = 0;
-	}
-}
-
-void seq_update_audio(struct bContext *C, int frame)
-{
-	if(seq_audio_playing)
-	{
-		if(seq_audio_last_frame+1 != frame)
-		{
-			Scene *scene = CTX_data_scene(C);
-
-			seq_update_seq(C, scene->ed->seqbasep->first, frame);
-		}
-		seq_audio_last_frame = frame;
-	}
-	else
-	{
-		Scene *scene = CTX_data_scene(C);
-		if(scene->ed && scene->ed->seqbasep)
-			seq_play_seq(C, scene->ed->seqbasep->first, CFRA, CFRA+1, 0);
+		seq->sound_handle->startframe = seq->startdisp;
+		seq->sound_handle->endframe = seq->enddisp;
+		seq->sound_handle->frameskip = seq->startofs + seq->anim_startofs;
+		seq->sound_handle->mute = seq->flag & SEQ_MUTE ? 1 : 0;
+		seq->sound_handle->changed = -1;
 	}
 }

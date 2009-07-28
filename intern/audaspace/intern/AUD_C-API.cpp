@@ -133,6 +133,18 @@ void AUD_exit()
 	AUD_3ddevice = NULL;
 }
 
+void AUD_lock()
+{
+	assert(AUD_device);
+	AUD_device->lock();
+}
+
+void AUD_unlock()
+{
+	assert(AUD_device);
+	AUD_device->unlock();
+}
+
 AUD_SoundInfo AUD_getInfo(AUD_Sound* sound)
 {
 	assert(sound);
@@ -300,8 +312,9 @@ int AUD_resume(AUD_Handle* handle)
 
 int AUD_stop(AUD_Handle* handle)
 {
-	assert(AUD_device);
-	return AUD_device->stop(handle);
+	if(AUD_device)
+		return AUD_device->stop(handle);
+	return false;
 }
 
 int AUD_setKeep(AUD_Handle* handle, int keep)
@@ -314,6 +327,12 @@ int AUD_seek(AUD_Handle* handle, float seekTo)
 {
 	assert(AUD_device);
 	return AUD_device->seek(handle, seekTo);
+}
+
+float AUD_getPosition(AUD_Handle* handle)
+{
+	assert(AUD_device);
+	return AUD_device->getPosition(handle);
 }
 
 AUD_Status AUD_getStatus(AUD_Handle* handle)

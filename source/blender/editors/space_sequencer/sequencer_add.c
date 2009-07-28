@@ -351,18 +351,18 @@ static int sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 // XXX	sound= sound_new_sound(filename);
 
 	// AUD_XXX
-	sound = sound_new(C, filename);
+	sound = sound_new_file(C, filename);
 
 //	sound= NULL;
 
 // AUD_XXX	if (sound==NULL || sound->sample->type == SAMPLE_INVALID) {
-	if (sound==NULL || sound->stream == NULL) {
+	if (sound==NULL || sound->snd_sound == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Unsupported audio format");
 		return OPERATOR_CANCELLED;
 	}
 
 	// AUD_XXX
-	info = AUD_getInfo(sound->stream);
+	info = AUD_getInfo(sound->snd_sound);
 
 	if (info.specs.format == AUD_FORMAT_INVALID) {
 		sound_delete(C, sound);
@@ -397,6 +397,9 @@ static int sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 
 	calc_sequence_disp(seq);
 	sort_seq(scene);
+
+	// AUD_XXX
+	seq->sound_handle = sound_new_handle(scene, sound, seq->startdisp, seq->enddisp, seq->startofs);
 
 	/* last active name */
 	strncpy(ed->act_sounddir, strip->dir, FILE_MAXDIR-1);
@@ -607,7 +610,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 
 		if(seq->plugin==NULL) {
 			BLI_remlink(ed->seqbasep, seq);
-			seq_free_sequence(ed, seq);
+			seq_free_sequence(scene, seq);
 			BKE_reportf(op->reports, RPT_ERROR, "Sequencer plugin \"%s\" could not load.", filename);
 			return OPERATOR_CANCELLED;
 		}

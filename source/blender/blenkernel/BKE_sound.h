@@ -35,6 +35,7 @@ struct PackedFile;
 struct bSound;
 // AUD_XXX struct bSample;
 struct bContext;
+struct ListBase;
 
 /* bad bad global... */
 // AUD_XXX
@@ -55,7 +56,9 @@ void sound_init();
 
 void sound_exit();
 
-struct bSound* sound_new(struct bContext *C, char* filename);
+struct bSound* sound_new_file(struct bContext *C, char* filename);
+
+struct bSound* sound_new_buffer(struct bContext *C, struct bSound *source);
 
 void sound_delete(struct bContext *C, struct bSound* sound);
 
@@ -63,5 +66,14 @@ void sound_load(struct bSound* sound);
 
 void sound_free(struct bSound* sound);
 
-#endif
+void sound_unlink(struct bContext *C, struct bSound* sound);
 
+struct SoundHandle* sound_new_handle(struct Scene *scene, struct bSound* sound, int startframe, int endframe, int frameskip);
+
+void sound_delete_handle(struct Scene *scene, struct SoundHandle *handle);
+
+void sound_update_playing(struct bContext *C);
+
+void sound_stop_all(struct bContext *C);
+
+#endif

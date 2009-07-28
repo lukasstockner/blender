@@ -324,6 +324,22 @@ bool AUD_SoftwareDevice::seek(AUD_Handle* handle, float position)
 	return false;
 }
 
+float AUD_SoftwareDevice::getPosition(AUD_Handle* handle)
+{
+	lock();
+
+	float position = 0.0f;
+
+	if(isValid(handle))
+	{
+		AUD_SoftwareHandle* h = (AUD_SoftwareHandle*)handle;
+		position = h->reader->getPosition() / (float)m_specs.rate;
+	}
+
+	unlock();
+	return position;
+}
+
 AUD_Status AUD_SoftwareDevice::getStatus(AUD_Handle* handle)
 {
 	lock();

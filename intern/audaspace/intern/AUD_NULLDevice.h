@@ -53,6 +53,7 @@ public:
 	virtual bool setKeep(AUD_Handle* handle, bool keep);
 	virtual bool sendMessage(AUD_Handle* handle, AUD_Message &message);
 	virtual bool seek(AUD_Handle* handle, float position);
+	virtual float getPosition(AUD_Handle* handle);
 	virtual AUD_Status getStatus(AUD_Handle* handle);
 	virtual void lock();
 	virtual void unlock();

@@ -72,6 +72,16 @@ extern int* AUD_enumDevices();
 extern void AUD_exit();
 
 /**
+ * Locks the playback device.
+ */
+extern void AUD_lock();
+
+/**
+ * Unlocks the device.
+ */
+extern void AUD_unlock();
+
+/**
  * Returns information about a sound.
  * \param sound The sound to get the info about.
  * \return The AUD_SoundInfo structure with filled in data.
@@ -190,6 +200,13 @@ extern int AUD_setKeep(AUD_Handle* handle, int keep);
  * \return Whether the handle has been valid or not.
  */
 extern int AUD_seek(AUD_Handle* handle, float seekTo);
+
+/**
+ * Retrieves the playback position of a handle.
+ * \return The current playback position in seconds or 0.0 if the handle is
+ *         invalid.
+ */
+extern float AUD_getPosition(AUD_Handle* handle);
 
 /**
  * Returns the status of a playing, paused or stopped sound.
