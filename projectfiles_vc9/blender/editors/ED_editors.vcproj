@@ -1443,6 +1443,22 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+			Name="metaball"
+			>
+			<File
+				RelativePath="..\..\..\source\blender\editors\metaball\editmball.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\source\blender\editors\metaball\mball_intern.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\source\blender\editors\metaball\mball_ops.c"
+				>
+			</File>
+		</Filter>
 	</Files>
 	<Globals>
 	</Globals>

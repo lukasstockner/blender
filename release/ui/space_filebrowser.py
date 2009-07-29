@@ -4,7 +4,6 @@ import bpy
 
 class FILEBROWSER_HT_header(bpy.types.Header):
 	__space_type__ = "FILE_BROWSER"
-	__idname__ = "FILEBROWSER_HT_header"
 
 	def draw(self, context):
 		st = context.space_data
@@ -49,6 +48,7 @@ class FILEBROWSER_MT_directory(bpy.types.Menu):
 	def draw(self, context):
 		layout = self.layout
 
+		layout.itemO("file.directory_new", text="New Directory", icon='ICON_NEWFOLDER')
 		layout.itemO("file.refresh", text="Refresh", icon='ICON_FILE_REFRESH')
 		layout.itemO("file.parent", text="Parent", icon='ICON_FILE_PARENT')
 		

@@ -146,7 +146,9 @@ typedef struct wmWindow {
 	short cursor;		/* current mouse cursor type */
 	short lastcursor;	/* for temp waitcursor */
 	short addmousemove;	/* internal: tag this for extra mousemove event, makes cursors/buttons active on UI switching */
-	int pad3;
+	short downstate; /* used for drag & drop: remembers mouse button down state */
+	short downx, downy; /* mouse coords for button down event */
+	short pad3, pad4, pad5;
 	
 	struct wmEvent *eventstate;	/* storage for event system */
 	
@@ -227,6 +229,10 @@ typedef struct wmKeymapItem {
 	short keymodifier;				/* rawkey modifier */
 	
 	short propvalue;				/* if used, the item is from modal map */
+	
+	short inactive;					/* if set, deactivated item */
+	short maptype;						/* keymap editor */
+	short pad2, pad3;
 } wmKeymapItem;
 
 

@@ -267,7 +267,7 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 			ED_undo_push_op(C, op);
 		
 		if(repeat==0) {
-			if(op->type->flag & OPTYPE_REGISTER)
+			if((op->type->flag & OPTYPE_REGISTER) || (G.f & G_DEBUG))
 				wm_operator_register(C, op);
 			else
 				WM_operator_free(op);
@@ -373,7 +373,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, P
 			if(ot->flag & OPTYPE_UNDO)
 				ED_undo_push_op(C, op);
 			
-			if(ot->flag & OPTYPE_REGISTER)
+			if((ot->flag & OPTYPE_REGISTER) || (G.f & G_DEBUG))
 				wm_operator_register(C, op);
 			else
 				WM_operator_free(op);
@@ -451,7 +451,7 @@ int WM_operator_name_call(bContext *C, const char *opstring, int context, Pointe
 
 				CTX_wm_region_set(C, NULL);
 				CTX_wm_area_set(C, NULL);
-				retval= wm_operator_invoke(C, ot, window->eventstate, properties);
+				retval= wm_operator_invoke(C, ot, event, properties);
 				CTX_wm_region_set(C, ar);
 				CTX_wm_area_set(C, area);
 
@@ -513,8 +513,12 @@ static void wm_handler_op_context(bContext *C, wmEventHandler *handler)
 			for(sa= screen->areabase.first; sa; sa= sa->next)
 				if(sa==handler->op_area)
 					break;
-			if(sa==NULL)
-				printf("internal error: handler (%s) has invalid area\n", handler->op->type->idname);
+			if(sa==NULL) {
+				/* when changing screen layouts with running modal handlers (like render display), this
+				   is not an error to print */
+				if(handler->op==NULL)
+					printf("internal error: handler (%s) has invalid area\n", handler->op->type->idname);
+			}
 			else {
 				ARegion *ar;
 				CTX_wm_area_set(C, sa);
@@ -622,6 +626,8 @@ static int wm_eventmatch(wmEvent *winevent, wmKeymapItem *kmi)
 {
 	int kmitype= wm_userdef_event_map(kmi->type);
 
+	if(kmi->inactive) return 0;
+	
 	/* the matching rules */
 	if(kmitype==KM_TEXTINPUT)
 		if(ISKEYBOARD(winevent->type)) return 1;
@@ -663,7 +669,6 @@ static void wm_event_modalkeymap(wmOperator *op, wmEvent *event)
 					
 				event->type= EVT_MODAL_MAP;
 				event->val= kmi->propvalue;
-				printf("found modal event %s %d\n", kmi->idname, kmi->propvalue);
 			}
 		}
 	}
@@ -714,7 +719,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 				if(ot->flag & OPTYPE_UNDO)
 					ED_undo_push_op(C, op);
 				
-				if(ot->flag & OPTYPE_REGISTER)
+				if((ot->flag & OPTYPE_REGISTER) || (G.f & G_DEBUG))
 					wm_operator_register(C, op);
 				else
 					WM_operator_free(op);
@@ -815,18 +820,8 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 				/* settings for filebrowser, sfile is not operator owner but sends events */
 				sfile= (SpaceFile*)CTX_wm_space_data(C);
 				sfile->op= handler->op;
-				
-				/* XXX for now take the settings from the existing (previous) filebrowser 
-				   should be stored in settings and passed via the operator */
-				if (sfile->params) {
-					flag = sfile->params->flag;
-					filter = sfile->params->filter;
-					display = sfile->params->display;
-					sort = sfile->params->sort;
-					dir = sfile->params->dir;
-				}
 
-				ED_fileselect_set_params(sfile, handler->op->type->name, dir, path, flag, display, filter, sort);
+				ED_fileselect_set_params(sfile);
 				dir = NULL;
 				MEM_freeN(path);
 				
@@ -890,10 +885,22 @@ static int handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
 		if(handler->bblocal) {
 			rcti rect= *handler->bblocal;
 			BLI_translate_rcti(&rect, handler->bbwin->xmin, handler->bbwin->ymin);
-			return BLI_in_rcti(&rect, event->x, event->y);
+
+			if(BLI_in_rcti(&rect, event->x, event->y))
+				return 1;
+			else if(event->type==MOUSEMOVE && BLI_in_rcti(&rect, event->prevx, event->prevy))
+				return 1;
+			else
+				return 0;
 		}
-		else 
-			return BLI_in_rcti(handler->bbwin, event->x, event->y);
+		else {
+			if(BLI_in_rcti(handler->bbwin, event->x, event->y))
+				return 1;
+			else if(event->type==MOUSEMOVE && BLI_in_rcti(handler->bbwin, event->prevx, event->prevy))
+				return 1;
+			else
+				return 0;
+		}
 	}
 	return 1;
 }
@@ -1432,6 +1439,23 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 				
 				update_tablet_data(win, &event);
 				wm_event_add(win, &event);
+
+				cx = abs((win->downx - event.x));
+				cy = abs((win->downy - event.y));
+
+				/* probably minimum drag size should be #defined instead of hardcoded 3
+				 * also, cy seems always to be 6 pixels off, not sure why
+				 */
+				if ((win->downstate == LEFTMOUSE || win->downstate == MOUSEDRAG) && (cx > 3 || cy > 9)) {
+					wmEvent dragevt= *evt;
+					dragevt.type= MOUSEDRAG;
+					dragevt.customdata= NULL;
+					dragevt.customdatafree= 0;
+
+					win->downstate= MOUSEDRAG;
+
+					wm_event_add(win, &dragevt);
+				}
 			}
 			break;
 		}
@@ -1455,6 +1479,28 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 			
 			update_tablet_data(win, &event);
 			wm_event_add(win, &event);
+
+			if (event.val) {
+				win->downstate= event.type;
+				win->downx= event.x;
+				win->downy= event.y;
+			}
+			else {
+				short downstate= win->downstate;
+
+				win->downstate= 0;
+				win->downx= 0;
+				win->downy= 0;
+
+				if (downstate == MOUSEDRAG) {
+					wmEvent dropevt= *evt;
+					dropevt.type= MOUSEDROP;
+					dropevt.customdata= NULL;
+					dropevt.customdatafree= 0;
+
+					wm_event_add(win, &dropevt);
+				}
+			}
 			
 			break;
 		}

@@ -151,6 +151,12 @@ static void view_pan_apply(bContext *C, wmOperator *op)
 	/* request updates to be done... */
 	ED_area_tag_redraw(vpd->sa);
 	UI_view2d_sync(vpd->sc, vpd->sa, v2d, V2D_LOCK_COPY);
+	
+	/* exceptions */
+	if(vpd->sa->spacetype==SPACE_OUTLINER) {
+		SpaceOops *soops= vpd->sa->spacedata.first;
+		soops->storeflag |= SO_TREESTORE_REDRAW;
+	}
 }
 
 /* cleanup temp customdata  */
@@ -464,7 +470,7 @@ void VIEW2D_OT_scroll_up(wmOperatorType *ot)
 /* ------------------ 'Shared' stuff ------------------------ */
  
 /* check if step-zoom can be applied */
-static short view_zoomstep_ok(bContext *C)
+static int view_zoom_poll(bContext *C)
 {
 	ARegion *ar= CTX_wm_region(C);
 	View2D *v2d;
@@ -527,7 +533,7 @@ static void view_zoomstep_apply(bContext *C, wmOperator *op)
 static int view_zoomin_exec(bContext *C, wmOperator *op)
 {
 	/* check that there's an active region, as View2D data resides there */
-	if (!view_zoomstep_ok(C))
+	if (!view_zoom_poll(C))
 		return OPERATOR_PASS_THROUGH;
 	
 	/* set RNA-Props - zooming in by uniform factor */
@@ -563,7 +569,7 @@ void VIEW2D_OT_zoom_in(wmOperatorType *ot)
 static int view_zoomout_exec(bContext *C, wmOperator *op)
 {
 	/* check that there's an active region, as View2D data resides there */
-	if (!view_zoomstep_ok(C))
+	if (!view_zoom_poll(C))
 		return OPERATOR_PASS_THROUGH;
 	
 	/* set RNA-Props - zooming in by uniform factor */
@@ -831,6 +837,8 @@ void VIEW2D_OT_zoom(wmOperatorType *ot)
 	ot->invoke= view_zoomdrag_invoke;
 	ot->modal= view_zoomdrag_modal;
 	
+	ot->poll= view_zoom_poll;
+	
 	/* operator is repeatable */
 	// ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
 	
@@ -929,7 +937,7 @@ void VIEW2D_OT_zoom_border(wmOperatorType *ot)
 	ot->exec= view_borderzoom_exec;
 	ot->modal= WM_border_select_modal;
 	
-	ot->poll= ED_operator_areaactive;
+	ot->poll= view_zoom_poll;
 	
 	/* rna */
 	RNA_def_int(ot->srna, "event_type", 0, INT_MIN, INT_MAX, "Event Type", "", INT_MIN, INT_MAX);

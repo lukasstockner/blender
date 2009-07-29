@@ -34,9 +34,12 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_space_types.h" /* FILE_MAX */
+
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_dynstr.h"
+#include "BLI_string.h"
 
 #ifdef WIN32
 #include <windows.h> /* need to include windows.h so _WIN32_IE is defined  */
@@ -48,9 +51,15 @@
 #endif
 
 #ifdef __APPLE__
+/* XXX BIG WARNING: carbon.h can not be included in blender code, it conflicts with struct ID */
+#define ID ID_
 #include <CoreServices/CoreServices.h>
 
 #include "BKE_utildefines.h"
+#endif
+
+#ifdef __linux__
+#include <mntent.h>
 #endif
 
 #include "fsmenu.h"  /* include ourselves */
@@ -245,7 +254,7 @@ void fsmenu_read_file(struct FSMenu* fsmenu, const char *filename)
 	FSMenuCategory category = FS_CATEGORY_BOOKMARKS;
 	FILE *fp;
 
-	#ifdef WIN32
+#ifdef WIN32
 	/* Add the drive names to the listing */
 	{
 		__int64 tmp;
@@ -272,8 +281,7 @@ void fsmenu_read_file(struct FSMenu* fsmenu, const char *filename)
 		SHGetSpecialFolderPath(0, folder, CSIDL_DESKTOPDIRECTORY, 0);
 		fsmenu_insert_entry(fsmenu, FS_CATEGORY_BOOKMARKS, folder, 1, 0);
 	}
-#endif
-
+#else
 #ifdef __APPLE__
 	{
 		OSErr err=noErr;
@@ -293,6 +301,49 @@ void fsmenu_read_file(struct FSMenu* fsmenu, const char *filename)
 			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)path, 1, 0);
 		}
 	}
+#else
+	/* unix */
+	{
+		char dir[FILE_MAXDIR];
+		char *home= BLI_gethome();
+
+		// fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, "/", 1, 0);
+
+		if(home) {
+			BLI_snprintf(dir, FILE_MAXDIR, "%s/", home);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_BOOKMARKS, dir, 1, 0);
+			BLI_snprintf(dir, FILE_MAXDIR, "%s/Desktop/", home);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_BOOKMARKS, dir, 1, 0);
+		}
+
+		{
+			/* loop over mount points */
+			struct mntent *mnt;
+			FILE *fp;
+			fp = setmntent (MOUNTED, "r");
+			if (fp == NULL) {
+				fprintf(stderr, "could not get a list of mounted filesystemts\n");
+			}
+			else {
+				while ((mnt = getmntent (fp))) {
+					/* printf("%s %s %s %s %s %s\n", mnt->mnt_fsname, mnt->mnt_dir, mnt->mnt_type, mnt->mnt_opts, mnt->mnt_freq, mnt->mnt_passno); */
+
+					/* probably need to add more here */
+					if(	(strcmp (mnt->mnt_fsname, "none")==0) ||	/* /sys, /dev/pts */
+						(strcmp (mnt->mnt_type, "ramfs")==0)		/* /dev */
+					) {
+						continue;
+					}
+
+					fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, mnt->mnt_dir, 1, 0);
+				}
+				if (endmntent (fp) == 0) {
+					fprintf(stderr, "could not close the list of mounted filesystemts\n");
+				}
+			}
+		}
+	}
+#endif
 #endif
 
 	fp = fopen(filename, "r");
@@ -310,7 +361,9 @@ void fsmenu_read_file(struct FSMenu* fsmenu, const char *filename)
 				if (line[len-1] == '\n') {
 					line[len-1] = '\0';
 				}
-				fsmenu_insert_entry(fsmenu, category, line, 0, 1);
+				if (BLI_exist(line)) {
+					fsmenu_insert_entry(fsmenu, category, line, 0, 1);
+				}
 			}
 		}
 	}

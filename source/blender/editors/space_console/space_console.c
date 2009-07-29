@@ -171,7 +171,7 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 		console_scrollback_add_str(C, "Cursor:           Left/Right Home/End", 0);
 		console_scrollback_add_str(C, "Remove:           Backspace/Delete", 0);
 		console_scrollback_add_str(C, "Execute:          Enter", 0);
-		console_scrollback_add_str(C, "Autocomplete:     Ctrl+Enter", 0);
+		console_scrollback_add_str(C, "Autocomplete:     Ctrl+Space", 0);
 		console_scrollback_add_str(C, "Ctrl +/-  Wheel:  Zoom", 0);
 		console_scrollback_add_str(C, "Builtin Modules: bpy, bpy.data, bpy.ops, bpy.props, bpy.types, bpy.ui", 0);
 	}
@@ -214,6 +214,7 @@ void console_operatortypes(void)
 	
 	WM_operatortype_append(CONSOLE_OT_clear); 
 	WM_operatortype_append(CONSOLE_OT_history_cycle);
+	WM_operatortype_append(CONSOLE_OT_copy);
 	WM_operatortype_append(CONSOLE_OT_zoom);
 
 
@@ -277,8 +278,10 @@ void console_keymap(struct wmWindowManager *wm)
 
 #ifndef DISABLE_PYTHON
 	WM_keymap_add_item(keymap, "CONSOLE_OT_exec", RETKEY, KM_PRESS, 0, 0); /* python operator - space_text.py */
+	WM_keymap_add_item(keymap, "CONSOLE_OT_exec", PADENTER, KM_PRESS, 0, 0);
+	
 	//WM_keymap_add_item(keymap, "CONSOLE_OT_autocomplete", TABKEY, KM_PRESS, 0, 0); /* python operator - space_text.py */
-	WM_keymap_add_item(keymap, "CONSOLE_OT_autocomplete", RETKEY, KM_PRESS, KM_CTRL, 0); /* python operator - space_text.py */
+	WM_keymap_add_item(keymap, "CONSOLE_OT_autocomplete", SPACEKEY, KM_PRESS, KM_CTRL, 0); /* python operator - space_text.py */
 #endif
 
 	/* report selection */
@@ -290,14 +293,11 @@ void console_keymap(struct wmWindowManager *wm)
 	WM_keymap_add_item(keymap, "CONSOLE_OT_report_delete", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CONSOLE_OT_report_delete", DELKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CONSOLE_OT_report_copy", CKEY, KM_PRESS, KM_CTRL, 0);
-
-
-
-
-
+	
+	WM_keymap_add_item(keymap, "CONSOLE_OT_copy", CKEY, KM_PRESS, KM_CTRL, 0);
 
 	RNA_string_set(WM_keymap_add_item(keymap, "CONSOLE_OT_insert", TABKEY, KM_PRESS, 0, 0)->ptr, "text", "    "); /* fake tabs */
-	WM_keymap_add_item(keymap, "CONSOLE_OT_insert", KM_TEXTINPUT, KM_PRESS, KM_ANY, 0); // last!
+	WM_keymap_add_item(keymap, "CONSOLE_OT_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 }
 
 /****************** header region ******************/

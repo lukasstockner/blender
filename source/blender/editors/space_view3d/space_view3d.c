@@ -280,7 +280,7 @@ static void view3d_modal_keymaps(wmWindowManager *wm, ARegion *ar, int stype)
 	
 	/* copy last mode, then we can re-init the region maps */
 	rv3d->lastmode= stype;
-	
+
 	keymap= WM_keymap_listbase(wm, "Object Mode", 0, 0);
 	if(ELEM(stype, 0, NS_MODE_OBJECT))
 		WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -305,6 +305,12 @@ static void view3d_modal_keymaps(wmWindowManager *wm, ARegion *ar, int stype)
 	else
 		WM_event_remove_keymap_handler(&ar->handlers, keymap);
 
+	keymap= WM_keymap_listbase(wm, "Metaball", 0, 0);
+	if(stype==NS_EDITMODE_MBALL)
+		WM_event_add_keymap_handler(&ar->handlers, keymap);
+	else
+		WM_event_remove_keymap_handler(&ar->handlers, keymap);
+	
 	keymap= WM_keymap_listbase(wm, "Lattice", 0, 0);
 	if(stype==NS_EDITMODE_LATTICE)
 		WM_event_add_keymap_handler(&ar->handlers, keymap);

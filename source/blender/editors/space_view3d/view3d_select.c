@@ -82,6 +82,7 @@
 #include "ED_screen.h"
 #include "ED_types.h"
 #include "ED_util.h"
+#include "ED_mball.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -1361,9 +1362,10 @@ static int view3d_borderselect_exec(bContext *C, wmOperator *op)
 			do_nurbs_box_select(&vc, &rect, val==LEFTMOUSE);
 		}
 		else if(obedit->type==OB_MBALL) {
+			MetaBall *mb = (MetaBall*)obedit->data;
 			hits= view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect);
 			
-			ml= NULL; // XXX editelems.first;
+			ml= mb->editelems->first;
 			
 			while(ml) {
 				for(a=0; a<hits; a++) {
@@ -1569,6 +1571,8 @@ static int view3d_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			mouse_lattice(C, event->mval, extend);
 		else if(ELEM(obedit->type, OB_CURVE, OB_SURF))
 			mouse_nurb(C, event->mval, extend);
+		else if(obedit->type==OB_MBALL)
+			mouse_mball(C, event->mval, extend);
 			
 	}
 	else if(G.f & G_PARTICLEEDIT)
@@ -1595,6 +1599,56 @@ void VIEW3D_OT_select(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_boolean(ot->srna, "extend", 0, "Extend", "Extend selection instead of deselecting everyting first.");
+}
+
+
+/* ****** Drag & Drop ****** */
+
+static int view3d_drag_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	wmWindow *win= CTX_wm_window(C);
+	Object *ob= CTX_data_active_object(C);
+	PointerRNA ptr;
+
+	RNA_pointer_create(NULL, &RNA_Object, ob, &ptr);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int view3d_drag_modal(bContext *C, wmOperator *op, wmEvent *event)
+{
+	switch(event->type) {
+		case MOUSEDRAG:
+
+			break;
+		case MOUSEDROP:
+			return OPERATOR_FINISHED;
+		case ESCKEY:
+			return OPERATOR_CANCELLED;
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static int view3d_drag_exec(bContext *C, wmOperator *op)
+{
+	return OPERATOR_FINISHED;
+}
+
+void VIEW3D_OT_drag(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Drag";
+	ot->idname= "VIEW3D_OT_drag";
+	
+	/* api callbacks */
+	ot->invoke= view3d_drag_invoke;
+	ot->modal= view3d_drag_modal;
+	ot->exec= view3d_drag_exec;
+	ot->poll= ED_operator_view3d_active;
+	
+	/* flags */
+	/* ot->flag= OPTYPE_UNDO; */
 }
 
 

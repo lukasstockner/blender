@@ -2508,6 +2508,8 @@ static void direct_link_mball(FileData *fd, MetaBall *mb)
 	mb->disp.first= mb->disp.last= NULL;
 	mb->editelems= NULL;
 	mb->bb= NULL;
+/*	mb->edit_elems.first= mb->edit_elems.last= NULL;*/
+	mb->lastelem= NULL;
 }
 
 /* ************ READ WORLD ***************** */
@@ -4126,6 +4128,9 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 				} else {
 					seq->strip->color_balance = 0;
 				}
+				if (seq->strip->color_balance) {
+					// seq->strip->color_balance->gui = 0; // XXX - peter, is this relevant in 2.5?
+				}
 			}
 		}
 		SEQ_END
@@ -4345,9 +4350,10 @@ static void lib_link_screen(FileData *fd, Main *main)
 					}
 					else if(sl->spacetype==SPACE_BUTS) {
 						SpaceButs *sbuts= (SpaceButs *)sl;
-						sbuts->lockpoin= NULL;
 						sbuts->ri= NULL;
 						sbuts->pinid= newlibadr(fd, sc->id.lib, sbuts->pinid);
+						sbuts->mainbo= sbuts->mainb;
+						sbuts->mainbuser= sbuts->mainb;
 						if(main->versionfile<132)
 							butspace_version_132(sbuts);
 					}
@@ -4556,7 +4562,6 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 				}
 				else if(sl->spacetype==SPACE_BUTS) {
 					SpaceButs *sbuts= (SpaceButs *)sl;
-					sbuts->lockpoin= NULL;
 					sbuts->pinid = restore_pointer_by_name(newmain, sbuts->pinid, 0);
 					//XXX if (sbuts->ri) sbuts->ri->curtile = 0;
 				}
@@ -6267,7 +6272,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	if(main->versionfile <= 191) {
-		bScreen *sc= main->screen.first;
 		Object *ob= main->object.first;
 		Material *ma = main->mat.first;
 
@@ -6282,22 +6286,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			ob->damping= 0.1f;
 			/*ob->quat[1]= 1.0f;*/ /* quats arnt used yet */
 			ob= ob->id.next;
-		}
-
-		while(sc) {
-			ScrArea *sa= sc->areabase.first;
-			while(sa) {
-				SpaceLink *sl= sa->spacedata.first;
-				while(sl) {
-					if(sl->spacetype==SPACE_BUTS) {
-						SpaceButs *sbuts= (SpaceButs*) sl;
-						sbuts->scaflag= BUTS_SENS_LINK|BUTS_SENS_ACT|BUTS_CONT_ACT|BUTS_ACT_ACT|BUTS_ACT_LINK;
-					}
-					sl= sl->next;
-				}
-				sa= sa->next;
-			}
-			sc= sc->id.next;
 		}
 	}
 
@@ -9188,6 +9176,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 			part->path_end = 1.0f;
+			part->clength = 1.0f;
 		}
 		/* set old pointcaches to have disk cache flag */
 		for(ob = main->object.first; ob; ob= ob->id.next) {
@@ -9294,6 +9283,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 
 		for(ma = main->mat.first; ma; ma = ma->id.next) {
+			if(ma->mode & MA_WIRE) {
+				ma->material_type= MA_TYPE_WIRE;
+				ma->mode &= ~MA_WIRE;
+			}
 			if(ma->mode & MA_HALO) {
 				ma->material_type= MA_TYPE_HALO;
 				ma->mode &= ~MA_HALO;
@@ -9764,7 +9757,8 @@ static void expand_particlesettings(FileData *fd, Main *mainvar, ParticleSetting
 	expand_doit(fd, mainvar, part->eff_group);
 	expand_doit(fd, mainvar, part->bb_ob);
 	
-	expand_animdata(fd, mainvar, part->adt);
+	if(part->adt)
+		expand_animdata(fd, mainvar, part->adt);
 }
 
 static void expand_group(FileData *fd, Main *mainvar, Group *group)
