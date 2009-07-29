@@ -23,6 +23,9 @@
  * ***** END LGPL LICENSE BLOCK *****
  */
 
+// needed for INT64_C
+#define __STDC_CONSTANT_MACROS
+
 #include "AUD_FFMPEGReader.h"
 #include "AUD_Buffer.h"
 
@@ -49,6 +52,53 @@ static inline AUD_SampleFormat FFMPEG_TO_AUD(SampleFormat fmt)
 	default:
 		return AUD_FORMAT_INVALID;
 	}
+}
+
+int AUD_FFMPEGReader::decode(AVPacket* packet, AUD_Buffer* buffer)
+{
+	// save packet parameters
+	uint8_t *audio_pkg_data = packet->data;
+	int audio_pkg_size = packet->size;
+
+	int buf_size = buffer->getSize();
+	int buf_pos = 0;
+
+	int read_length, data_size;
+
+	// as long as there is still data in the package
+	while(audio_pkg_size > 0)
+	{
+		// resize buffer if needed
+		if(buf_size - buf_pos < AVCODEC_MAX_AUDIO_FRAME_SIZE)
+		{
+			buffer->resize(buf_size + AVCODEC_MAX_AUDIO_FRAME_SIZE, true);
+			buf_size += AVCODEC_MAX_AUDIO_FRAME_SIZE;
+		}
+
+		// read samples from the packet
+		data_size = buf_size - buf_pos;
+		/*read_length = avcodec_decode_audio3(m_codecCtx,
+			(int16_t*)(buffer->getBuffer()+buf_pos),
+			&data_size,
+			packet);*/
+		read_length = avcodec_decode_audio2(m_codecCtx,
+			(int16_t*)(buffer->getBuffer()+buf_pos),
+			&data_size,
+			audio_pkg_data,
+			audio_pkg_size);
+
+		buf_pos += data_size;
+
+		// read error, next packet!
+		if(read_length < 0)
+			break;
+
+		// move packet parameters
+		audio_pkg_data += read_length;
+		audio_pkg_size -= read_length;
+	}
+
+	return buf_pos;
 }
 
 AUD_FFMPEGReader::AUD_FFMPEGReader(const char* filename)
@@ -212,11 +262,41 @@ void AUD_FFMPEGReader::seek(int position)
 		{
 			avcodec_flush_buffers(m_codecCtx);
 			m_position = position;
-			m_pkgbuf_left = 0;
+
+			AVPacket packet;
+			bool search = true;
+
+			while(search && av_read_frame(m_formatCtx, &packet) >= 0)
+			{
+				// is it a frame from the audio stream?
+				if(packet.stream_index == m_stream)
+				{
+					// decode the package
+					m_pkgbuf_left = decode(&packet, m_pkgbuf);
+					search = false;
+
+					// check position
+					if(packet.pts != AV_NOPTS_VALUE)
+					{
+						// calculate real position, and read to frame!
+						m_position = packet.pts *
+							av_q2d(m_formatCtx->streams[m_stream]->time_base) *
+							m_specs.rate;
+
+						if(m_position < position)
+						{
+							sample_t* buf;
+							int length = position - m_position;
+							read(length, buf);
+						}
+					}
+				}
+				av_free_packet(&packet);
+			}
 		}
 		else
 		{
-			// XXX printf("Seeking failed!\n");
+			// Seeking failed, do nothing.
 		}
 	}
 }
@@ -252,9 +332,6 @@ void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 {
 	// read packages and decode them
 	AVPacket packet;
-	int audio_pkg_size;
-	uint8_t *audio_pkg_data;
-	int read_length;
 	int data_size = 0;
 	int pkgbuf_size = m_pkgbuf->getSize();
 	int pkgbuf_pos;
@@ -272,7 +349,7 @@ void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 	// there may still be data in the buffer from the last call
 	if(pkgbuf_pos > 0)
 	{
-		data_size = AUD_MIN(pkgbuf_pos, left*sample_size);
+		data_size = AUD_MIN(pkgbuf_pos, left * sample_size);
 		memcpy(buffer, m_pkgbuf->getBuffer(), data_size);
 		buffer += data_size;
 		left -= data_size/sample_size;
@@ -284,47 +361,11 @@ void AUD_FFMPEGReader::read(int & length, sample_t* & buffer)
 		// is it a frame from the audio stream?
 		if(packet.stream_index == m_stream)
 		{
-			// save packet parameters
-			audio_pkg_data = packet.data;
-			audio_pkg_size = packet.size;
-			pkgbuf_pos = 0;
+			// decode the package
+			pkgbuf_pos = decode(&packet, m_pkgbuf);
 
-			// as long as there is still data in the package
-			while(audio_pkg_size > 0)
-			{
-				// resize buffer if needed
-				if(pkgbuf_size-pkgbuf_pos < AVCODEC_MAX_AUDIO_FRAME_SIZE)
-				{
-					// XXX printf("resizing\n");
-					m_pkgbuf->resize(pkgbuf_size +
-									 AVCODEC_MAX_AUDIO_FRAME_SIZE, true);
-					pkgbuf_size += AVCODEC_MAX_AUDIO_FRAME_SIZE;
-				}
-
-				// read samples from the packet
-				data_size = pkgbuf_size-pkgbuf_pos;
-				/*read_length = avcodec_decode_audio3(m_codecCtx,
-					(int16_t*)(m_pkgbuf->getBuffer()+pkgbuf_pos),
-					&data_size,
-					&packet);*/
-				read_length = avcodec_decode_audio2(m_codecCtx,
-					(int16_t*)(m_pkgbuf->getBuffer()+pkgbuf_pos),
-					&data_size,
-					audio_pkg_data,
-					audio_pkg_size);
-
-				pkgbuf_pos += data_size;
-
-				// read error, next packet!
-				if(read_length < 0)
-					break;
-
-				// move packet parameters
-				audio_pkg_data += read_length;
-				audio_pkg_size -= read_length;
-			}
 			// copy to output buffer
-			data_size = AUD_MIN(pkgbuf_pos, left*sample_size);
+			data_size = AUD_MIN(pkgbuf_pos, left * sample_size);
 			memcpy(buffer, m_pkgbuf->getBuffer(), data_size);
 			buffer += data_size;
 			left -= data_size/sample_size;

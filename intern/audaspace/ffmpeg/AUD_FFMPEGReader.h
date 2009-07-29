@@ -89,6 +89,14 @@ private:
 	 */
 	int m_stream;
 
+	/**
+	 * Decodes a packet into the given buffer.
+	 * \param packet The AVPacket to decode.
+	 * \param buffer The target buffer.
+	 * \return The count of read bytes.
+	 */
+	int decode(AVPacket* packet, AUD_Buffer* buffer);
+
 public:
 	/**
 	 * Creates a new reader.
