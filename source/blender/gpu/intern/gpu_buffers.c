@@ -149,6 +149,12 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 
 	DEBUG_VBO("GPU_buffer_alloc\n");
 
+	if( pool == 0 ) {
+		if( globalPool == 0 )
+			globalPool = GPU_buffer_pool_new();
+		pool = globalPool;
+	}
+
 	while( pool->start < 0 )
 		pool->start += MAX_FREE_GPU_BUFFERS;
 
@@ -176,8 +182,8 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		allocated->size = size;
 		if( useVBOs == 1 ) {
 			glGenBuffersARB( 1, &allocated->id );
-			/*glBindBufferARB( GL_ARRAY_BUFFER_ARB, allocated->id );
-			glBufferDataARB( GL_ARRAY_BUFFER_ARB, size, 0, GL_STATIC_DRAW_ARB );*/
+			glBindBufferARB( GL_ARRAY_BUFFER_ARB, allocated->id );
+			glBufferDataARB( GL_ARRAY_BUFFER_ARB, size, 0, GL_STATIC_DRAW_ARB );
 			glBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 		}
 		else {
@@ -918,6 +924,92 @@ void GPU_uvedge_setup( DerivedMesh *dm )
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
 
+void GPU_interleaved_setup( GPUBuffer *buffer, int data[] ) {
+	int i;
+	int elementsize = 0;
+	int offset = 0;
+	for( i = 0; data[i] != GPU_BUFFER_INTER_END; i++ ) {
+		switch( data[i] ) {
+			case GPU_BUFFER_INTER_V3F:
+				elementsize += 3*sizeof(float);
+				break;
+			case GPU_BUFFER_INTER_N3F:
+				elementsize += 3*sizeof(float);
+				break;
+			case GPU_BUFFER_INTER_T2F:
+				elementsize += 2*sizeof(float);
+				break;
+			case GPU_BUFFER_INTER_C3UB:
+				elementsize += 3*sizeof(unsigned char);
+				break;
+			default:
+				DEBUG_VBO( "Unknown element in data type array in GPU_interleaved_setup\n" );
+		}
+	}
+
+	if( useVBOs ) {
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
+		for( i = 0; data[i] != GPU_BUFFER_INTER_END; i++ ) {
+			switch( data[i] ) {
+					case GPU_BUFFER_INTER_V3F:
+						glEnableClientState( GL_VERTEX_ARRAY );
+						glVertexPointer( 3, GL_FLOAT, elementsize, (void *)offset );
+						GLStates |= GPU_BUFFER_VERTEX_STATE;
+						offset += 3*sizeof(float);
+						break;
+					case GPU_BUFFER_INTER_N3F:
+						glEnableClientState( GL_NORMAL_ARRAY );
+						glNormalPointer( GL_FLOAT, elementsize, (void *)offset );
+						GLStates |= GPU_BUFFER_NORMAL_STATE;
+						offset += 3*sizeof(float);
+						break;
+					case GPU_BUFFER_INTER_T2F:
+						glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+						glTexCoordPointer( 2, GL_FLOAT, elementsize, (void *)offset );
+						GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+						offset += 2*sizeof(float);
+						break;
+					case GPU_BUFFER_INTER_C3UB:
+						glEnableClientState( GL_COLOR_ARRAY );
+						glColorPointer( 3, GL_UNSIGNED_BYTE, elementsize, (void *)offset );
+						GLStates |= GPU_BUFFER_COLOR_STATE;
+						offset += 3*sizeof(unsigned char);
+						break;
+			}
+		}
+	}
+	else {
+		for( i = 0; data[i] != GPU_BUFFER_INTER_END; i++ ) {
+			switch( data[i] ) {
+					case GPU_BUFFER_INTER_V3F:
+						glEnableClientState( GL_VERTEX_ARRAY );
+						glVertexPointer( 3, GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
+						GLStates |= GPU_BUFFER_VERTEX_STATE;
+						offset += 3*sizeof(float);
+						break;
+					case GPU_BUFFER_INTER_N3F:
+						glEnableClientState( GL_NORMAL_ARRAY );
+						glNormalPointer( GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
+						GLStates |= GPU_BUFFER_NORMAL_STATE;
+						offset += 3*sizeof(float);
+						break;
+					case GPU_BUFFER_INTER_T2F:
+						glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+						glTexCoordPointer( 2, GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
+						GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+						offset += 2*sizeof(float);
+						break;
+					case GPU_BUFFER_INTER_C3UB:
+						glEnableClientState( GL_COLOR_ARRAY );
+						glColorPointer( 3, GL_UNSIGNED_BYTE, elementsize, offset+(char *)buffer->pointer );
+						GLStates |= GPU_BUFFER_COLOR_STATE;
+						offset += 3*sizeof(unsigned char);
+						break;
+			}
+		}
+	}
+}
+
 void GPU_buffer_unbind()
 {
 	DEBUG_VBO("GPU_buffer_unbind\n");
@@ -1013,7 +1105,7 @@ void GPU_buffer_unlock( GPUBuffer *buffer )
 void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count )
 {
 	if( useVBOs ) {
-		glDrawElements( mode, count, GL_UNSIGNED_INT, start*sizeof(unsigned int) );
+		glDrawElements( mode, count, GL_UNSIGNED_INT, (void *)(start*sizeof(unsigned int)) );
 	}
 	else {
 		glDrawElements( mode, count, GL_UNSIGNED_INT, ((int *)elements->pointer)+start );

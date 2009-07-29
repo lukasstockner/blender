@@ -43,6 +43,14 @@
 
 struct DerivedMesh;
 
+/* V - vertex, N - normal, T - uv, C - color
+   F - float, UB - unsigned byte */
+#define GPU_BUFFER_INTER_V3F	1
+#define GPU_BUFFER_INTER_N3F	2
+#define GPU_BUFFER_INTER_T2F	3
+#define GPU_BUFFER_INTER_C3UB	4
+#define GPU_BUFFER_INTER_END	-1
+
 typedef struct GPUBuffer
 {
 	int size;	/* in bytes */
@@ -114,6 +122,7 @@ void GPU_uv_setup( struct DerivedMesh *dm );
 void GPU_color_setup( struct DerivedMesh *dm );
 void GPU_edge_setup( struct DerivedMesh *dm );	/* does not mix with other data */
 void GPU_uvedge_setup( struct DerivedMesh *dm );
+void GPU_interleaved_setup( GPUBuffer *buffer, int data[] );
 
 void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
 void *GPU_buffer_lock( GPUBuffer *buffer );
