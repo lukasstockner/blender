@@ -74,6 +74,8 @@ void sound_delete_handle(struct Scene *scene, struct SoundHandle *handle);
 
 void sound_update_playing(struct bContext *C);
 
+void sound_scrub(struct bContext *C);
+
 void sound_stop_all(struct bContext *C);
 
 #endif

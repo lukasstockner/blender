@@ -57,7 +57,7 @@
 #include "ED_screen.h"
 
 // AUD_XXX
-//#include "BKE_sound.h"
+#include "BKE_sound.h"
 
 /* ********************** frame change operator ***************************/
 
@@ -95,8 +95,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 	CFRA= cfra;
 	
 	// AUD_XXX
-/*	if(scene->audio.flag & AUDIO_SCRUB)
-		seq_update_audio(C, CFRA);*/
+	sound_scrub(C);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 }

@@ -14,6 +14,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_packedFile_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_utildefines.h"
 #include "BKE_global.h"
@@ -480,4 +481,33 @@ void sound_update_playing(struct bContext *C)
 	}
 
 	AUD_unlock();
+}
+
+void sound_scrub(struct bContext *C)
+{
+	SoundHandle *handle;
+	Scene* scene = CTX_data_scene(C);
+	int cfra = CFRA;
+	float fps = FPS;
+
+	if(scene->audio.flag & AUDIO_SCRUB && !CTX_wm_screen(C)->animtimer)
+	{
+		AUD_lock();
+
+		for(handle = scene->sound_handles.first; handle; handle = handle->next)
+		{
+			if(cfra >= handle->startframe && cfra < handle->endframe && !handle->mute)
+			{
+				if(handle->source && handle->source->snd_sound)
+				{
+					int frameskip = handle->frameskip + cfra - handle->startframe;
+					AUD_Sound* limiter = AUD_limitSound(handle->source->snd_sound, frameskip / fps, (frameskip + 1)/fps);
+					AUD_play(limiter, 0);
+					AUD_unload(limiter);
+				}
+			}
+		}
+
+		AUD_unlock();
+	}
 }
