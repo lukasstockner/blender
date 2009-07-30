@@ -35,8 +35,9 @@
 
 // quicktime movie output functions
 struct RenderData;
+struct Scene;
 
-void start_qt(struct RenderData *rd, int rectx, int recty);	//for movie handle (BKE writeavi.c now)
+void start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty);	//for movie handle (BKE writeavi.c now)
 void append_qt(struct RenderData *rd, int frame, int *pixels, int rectx, int recty);
 void end_qt(void);
 

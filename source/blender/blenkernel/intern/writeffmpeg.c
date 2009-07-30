@@ -65,6 +65,11 @@
 
 #include "DNA_scene_types.h"
 
+// AUD_XXX
+#include "AUD_C-API.h"
+#include "BKE_sound.h"
+#include "BKE_main.h"
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -95,6 +100,9 @@ static uint8_t* audio_input_buffer = 0;
 static int audio_input_frame_size = 0;
 static uint8_t* audio_output_buffer = 0;
 static int audio_outbuf_size = 0;
+
+// AUD_XXX
+static AUD_Device* audio_mixdown_device = 0;
 
 #define FFMPEG_AUTOSPLIT_SIZE 2000000000
 
@@ -130,6 +138,10 @@ static int write_audio_frame(void)
 	//XXX audiostream_fill(audio_input_buffer, 
 	//		 audio_input_frame_size 
 	//		 * sizeof(short) * c->channels);
+
+	// AUD_XXX
+	if(audio_mixdown_device)
+		AUD_readDevice(audio_mixdown_device, audio_input_buffer, audio_input_frame_size);
 
 	av_init_packet(&pkt);
 
@@ -827,11 +839,22 @@ static void makeffmpegstring(RenderData* rd, char* string) {
 }
 
 
-void start_ffmpeg(RenderData *rd, int rectx, int recty)
+void start_ffmpeg(struct Scene *scene, RenderData *rd, int rectx, int recty)
 {
 	ffmpeg_autosplit_count = 0;
 
 	start_ffmpeg_impl(rd, rectx, recty);
+
+	// AUD_XXX
+	if(ffmpeg_multiplex_audio && audio_stream)
+	{
+		AVCodecContext* c = get_codec_from_stream(audio_stream);
+		AUD_Specs specs;
+		specs.channels = c->channels;
+		specs.format = AUD_FORMAT_S16;
+		specs.rate = rd->audio.mixrate;
+		audio_mixdown_device = sound_mixdown(scene, specs, rd->sfra, rd->efra);
+	}
 }
 
 void end_ffmpeg(void);
@@ -883,6 +906,13 @@ void end_ffmpeg(void)
 
 	if (audio_stream && video_stream) {
 		write_audio_frames();
+	}
+
+	// AUD_XXX
+	if(audio_mixdown_device)
+	{
+		AUD_closeReadDevice(audio_mixdown_device);
+		audio_mixdown_device = 0;
 	}
 	
 	if (outfile) {

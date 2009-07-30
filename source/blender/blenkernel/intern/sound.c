@@ -16,6 +16,9 @@
 #include "DNA_packedFile_types.h"
 #include "DNA_screen_types.h"
 
+// AUD_XXX
+#include "AUD_C-API.h"
+
 #include "BKE_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -150,8 +153,6 @@ PackedFile* sound_find_packedfile(bSound *sound)
 }*/
 
 // AUD_XXX
-
-#include "AUD_C-API.h"
 
 void sound_init()
 {
@@ -510,4 +511,41 @@ void sound_scrub(struct bContext *C)
 
 		AUD_unlock();
 	}
+}
+
+AUD_Device* sound_mixdown(struct Scene *scene, AUD_Specs specs, int start, int end)
+{
+	AUD_Device* mixdown = AUD_openReadDevice(specs);
+	SoundHandle *handle;
+	float fps = FPS;
+	AUD_Sound *limiter, *delayer;
+	int frameskip, s, e;
+
+	end++;
+
+	for(handle = scene->sound_handles.first; handle; handle = handle->next)
+	{
+		if(start < handle->endframe && end > handle->startframe && !handle->mute && handle->source && handle->source->snd_sound)
+		{
+			frameskip = handle->frameskip;
+			s = handle->startframe - start;
+			e = handle->frameskip + AUD_MIN(handle->endframe, end) - handle->startframe;
+
+			if(s < 0)
+			{
+				frameskip -= s;
+				s = 0;
+			}
+
+			limiter = AUD_limitSound(handle->source->snd_sound, frameskip / fps, e / fps);
+			delayer = AUD_delaySound(limiter, s / fps);
+
+			AUD_playDevice(mixdown, delayer);
+
+			AUD_unload(delayer);
+			AUD_unload(limiter);
+		}
+	}
+
+	return mixdown;
 }

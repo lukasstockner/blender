@@ -438,7 +438,7 @@ void makeqtstring (RenderData *rd, char *string) {
 }
 
 
-void start_qt(struct RenderData *rd, int rectx, int recty) {
+void start_qt(struct Scene *scene, struct RenderData *rd, int rectx, int recty) {
 	OSErr err = noErr;
 
 	char name[2048];

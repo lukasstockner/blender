@@ -76,6 +76,10 @@ void sound_update_playing(struct bContext *C);
 
 void sound_scrub(struct bContext *C);
 
+#ifdef AUD_CAPI
+AUD_Device* sound_mixdown(struct Scene *scene, AUD_Specs specs, int start, int end);
+#endif
+
 void sound_stop_all(struct bContext *C);
 
 #endif
