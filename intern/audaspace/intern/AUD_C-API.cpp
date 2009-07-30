@@ -75,32 +75,37 @@ int AUD_init(AUD_DeviceType device, AUD_Specs specs, int buffersize)
 #ifdef WITH_FFMPEG
 	av_register_all();
 #endif
+	AUD_IDevice* dev = NULL;
 
 	try
 	{
 		switch(device)
 		{
 		case AUD_NULL_DEVICE:
-			AUD_device = new AUD_NULLDevice();
+			dev = new AUD_NULLDevice();
 			break;
 #ifdef WITH_SDL
 		case AUD_SDL_DEVICE:
 			{
-				AUD_device = new AUD_SDLDevice(specs, buffersize);
+				dev = new AUD_SDLDevice(specs, buffersize);
 				AUD_FloatMixer* mixer = new AUD_FloatMixer();
-				((AUD_SDLDevice*)AUD_device)->setMixer(mixer);
+				((AUD_SDLDevice*)dev)->setMixer(mixer);
 				break;
 			}
 #endif
 #ifdef WITH_OPENAL
 		case AUD_OPENAL_DEVICE:
-			AUD_device = new AUD_OpenALDevice(specs, buffersize);
+			dev = new AUD_OpenALDevice(specs, buffersize);
 			break;
 #endif
 		default:
 			return false;
 		}
 
+		if(AUD_device)
+			AUD_exit();
+
+		AUD_device = dev;
 		if(AUD_device->checkCapability(AUD_CAPS_3D_DEVICE))
 			AUD_3ddevice = dynamic_cast<AUD_I3DDevice*>(AUD_device);
 

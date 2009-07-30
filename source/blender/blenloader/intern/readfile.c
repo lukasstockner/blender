@@ -3986,10 +3986,13 @@ static void lib_link_scene(FileData *fd, Main *main)
 				if(seq->ipo) seq->ipo= newlibadr_us(fd, sce->id.lib, seq->ipo);
 				if(seq->scene) seq->scene= newlibadr(fd, sce->id.lib, seq->scene);
 				if(seq->sound) {
+					printf("old sound: %d\n", seq->sound);
 					seq->sound= newlibadr(fd, sce->id.lib, seq->sound);
+					printf("new sound: %d\n", seq->sound);
 					if (seq->sound) {
 						seq->sound->id.us++;
 						seq->sound->flags |= SOUND_FLAGS_SEQUENCE;
+						seq->sound_handle= sound_new_handle(sce, seq->sound, seq->startdisp, seq->enddisp, seq->startofs);
 					}
 				}
 				seq->anim= 0;
@@ -4037,6 +4040,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->theDag = NULL;
 	sce->dagisvalid = 0;
 	sce->obedit= NULL;
+	memset(&sce->sound_handles, 0, sizeof(sce->sound_handles));
 
 	/* set users to one by default, not in lib-link, this will increase it for compo nodes */
 	sce->id.us= 1;

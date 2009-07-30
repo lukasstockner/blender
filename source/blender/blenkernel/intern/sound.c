@@ -15,6 +15,7 @@
 #include "DNA_sound_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_userdef_types.h"
 
 // AUD_XXX
 #include "AUD_C-API.h"
@@ -161,9 +162,36 @@ void sound_init()
 	specs.format = AUD_FORMAT_S16;
 	specs.rate = AUD_RATE_44100;
 
-	if(!AUD_init(AUD_OPENAL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE*4))
-		if(!AUD_init(AUD_SDL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
+	if(!AUD_init(AUD_SDL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
+		if(!AUD_init(AUD_OPENAL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE*4))
 			AUD_init(AUD_NULL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE);
+}
+
+void sound_reinit(struct bContext *C)
+{
+	AUD_Specs specs;
+	int device, buffersize;
+
+	device = U.audiodevice;
+	buffersize = U.mixbufsize;
+	specs.channels = U.audiochannels;
+	specs.format = U.audioformat;
+	specs.rate = U.audiorate;
+
+	if(buffersize < 128)
+		buffersize = AUD_DEFAULT_BUFFER_SIZE;
+
+	if(specs.rate < AUD_RATE_8000)
+		specs.rate = AUD_RATE_44100;
+
+	if(specs.format <= AUD_FORMAT_INVALID)
+		specs.format = AUD_FORMAT_S16;
+
+	if(specs.channels <= AUD_CHANNELS_INVALID)
+		specs.channels = AUD_CHANNELS_STEREO;
+
+	if(!AUD_init(device, specs, buffersize))
+		AUD_init(AUD_NULL_DEVICE, specs, buffersize);
 }
 
 void sound_exit()

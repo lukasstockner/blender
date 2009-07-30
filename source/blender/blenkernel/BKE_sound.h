@@ -54,6 +54,8 @@ void sound_free_sound(struct bSound* sound);*/
 // AUD_XXX
 void sound_init();
 
+void sound_reinit(struct bContext *C);
+
 void sound_exit();
 
 struct bSound* sound_new_file(struct bContext *C, char* filename);
