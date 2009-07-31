@@ -49,6 +49,7 @@ struct DerivedMesh;
 #define GPU_BUFFER_INTER_N3F	2
 #define GPU_BUFFER_INTER_T2F	3
 #define GPU_BUFFER_INTER_C3UB	4
+#define GPU_BUFFER_INTER_C4UB	5
 #define GPU_BUFFER_INTER_END	-1
 
 typedef struct GPUBuffer

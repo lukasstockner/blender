@@ -942,6 +942,9 @@ void GPU_interleaved_setup( GPUBuffer *buffer, int data[] ) {
 			case GPU_BUFFER_INTER_C3UB:
 				elementsize += 3*sizeof(unsigned char);
 				break;
+			case GPU_BUFFER_INTER_C4UB:
+				elementsize += 4*sizeof(unsigned char);
+				break;
 			default:
 				DEBUG_VBO( "Unknown element in data type array in GPU_interleaved_setup\n" );
 		}
@@ -951,60 +954,72 @@ void GPU_interleaved_setup( GPUBuffer *buffer, int data[] ) {
 		glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
 		for( i = 0; data[i] != GPU_BUFFER_INTER_END; i++ ) {
 			switch( data[i] ) {
-					case GPU_BUFFER_INTER_V3F:
-						glEnableClientState( GL_VERTEX_ARRAY );
-						glVertexPointer( 3, GL_FLOAT, elementsize, (void *)offset );
-						GLStates |= GPU_BUFFER_VERTEX_STATE;
-						offset += 3*sizeof(float);
-						break;
-					case GPU_BUFFER_INTER_N3F:
-						glEnableClientState( GL_NORMAL_ARRAY );
-						glNormalPointer( GL_FLOAT, elementsize, (void *)offset );
-						GLStates |= GPU_BUFFER_NORMAL_STATE;
-						offset += 3*sizeof(float);
-						break;
-					case GPU_BUFFER_INTER_T2F:
-						glEnableClientState( GL_TEXTURE_COORD_ARRAY );
-						glTexCoordPointer( 2, GL_FLOAT, elementsize, (void *)offset );
-						GLStates |= GPU_BUFFER_TEXCOORD_STATE;
-						offset += 2*sizeof(float);
-						break;
-					case GPU_BUFFER_INTER_C3UB:
-						glEnableClientState( GL_COLOR_ARRAY );
-						glColorPointer( 3, GL_UNSIGNED_BYTE, elementsize, (void *)offset );
-						GLStates |= GPU_BUFFER_COLOR_STATE;
-						offset += 3*sizeof(unsigned char);
-						break;
+				case GPU_BUFFER_INTER_V3F:
+					glEnableClientState( GL_VERTEX_ARRAY );
+					glVertexPointer( 3, GL_FLOAT, elementsize, (void *)offset );
+					GLStates |= GPU_BUFFER_VERTEX_STATE;
+					offset += 3*sizeof(float);
+					break;
+				case GPU_BUFFER_INTER_N3F:
+					glEnableClientState( GL_NORMAL_ARRAY );
+					glNormalPointer( GL_FLOAT, elementsize, (void *)offset );
+					GLStates |= GPU_BUFFER_NORMAL_STATE;
+					offset += 3*sizeof(float);
+					break;
+				case GPU_BUFFER_INTER_T2F:
+					glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+					glTexCoordPointer( 2, GL_FLOAT, elementsize, (void *)offset );
+					GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+					offset += 2*sizeof(float);
+					break;
+				case GPU_BUFFER_INTER_C3UB:
+					glEnableClientState( GL_COLOR_ARRAY );
+					glColorPointer( 3, GL_UNSIGNED_BYTE, elementsize, (void *)offset );
+					GLStates |= GPU_BUFFER_COLOR_STATE;
+					offset += 3*sizeof(unsigned char);
+					break;
+				case GPU_BUFFER_INTER_C4UB:
+					glEnableClientState( GL_COLOR_ARRAY );
+					glColorPointer( 4, GL_UNSIGNED_BYTE, elementsize, (void *)offset );
+					GLStates |= GPU_BUFFER_COLOR_STATE;
+					offset += 4*sizeof(unsigned char);
+					break;
 			}
 		}
 	}
 	else {
 		for( i = 0; data[i] != GPU_BUFFER_INTER_END; i++ ) {
 			switch( data[i] ) {
-					case GPU_BUFFER_INTER_V3F:
-						glEnableClientState( GL_VERTEX_ARRAY );
-						glVertexPointer( 3, GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
-						GLStates |= GPU_BUFFER_VERTEX_STATE;
-						offset += 3*sizeof(float);
-						break;
-					case GPU_BUFFER_INTER_N3F:
-						glEnableClientState( GL_NORMAL_ARRAY );
-						glNormalPointer( GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
-						GLStates |= GPU_BUFFER_NORMAL_STATE;
-						offset += 3*sizeof(float);
-						break;
-					case GPU_BUFFER_INTER_T2F:
-						glEnableClientState( GL_TEXTURE_COORD_ARRAY );
-						glTexCoordPointer( 2, GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
-						GLStates |= GPU_BUFFER_TEXCOORD_STATE;
-						offset += 2*sizeof(float);
-						break;
-					case GPU_BUFFER_INTER_C3UB:
-						glEnableClientState( GL_COLOR_ARRAY );
-						glColorPointer( 3, GL_UNSIGNED_BYTE, elementsize, offset+(char *)buffer->pointer );
-						GLStates |= GPU_BUFFER_COLOR_STATE;
-						offset += 3*sizeof(unsigned char);
-						break;
+				case GPU_BUFFER_INTER_V3F:
+					glEnableClientState( GL_VERTEX_ARRAY );
+					glVertexPointer( 3, GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
+					GLStates |= GPU_BUFFER_VERTEX_STATE;
+					offset += 3*sizeof(float);
+					break;
+				case GPU_BUFFER_INTER_N3F:
+					glEnableClientState( GL_NORMAL_ARRAY );
+					glNormalPointer( GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
+					GLStates |= GPU_BUFFER_NORMAL_STATE;
+					offset += 3*sizeof(float);
+					break;
+				case GPU_BUFFER_INTER_T2F:
+					glEnableClientState( GL_TEXTURE_COORD_ARRAY );
+					glTexCoordPointer( 2, GL_FLOAT, elementsize, offset+(char *)buffer->pointer );
+					GLStates |= GPU_BUFFER_TEXCOORD_STATE;
+					offset += 2*sizeof(float);
+					break;
+				case GPU_BUFFER_INTER_C3UB:
+					glEnableClientState( GL_COLOR_ARRAY );
+					glColorPointer( 3, GL_UNSIGNED_BYTE, elementsize, offset+(char *)buffer->pointer );
+					GLStates |= GPU_BUFFER_COLOR_STATE;
+					offset += 3*sizeof(unsigned char);
+					break;
+				case GPU_BUFFER_INTER_C4UB:
+					glEnableClientState( GL_COLOR_ARRAY );
+					glColorPointer( 4, GL_UNSIGNED_BYTE, elementsize, offset+(char *)buffer->pointer );
+					GLStates |= GPU_BUFFER_COLOR_STATE;
+					offset += 4*sizeof(unsigned char);
+					break;
 			}
 		}
 	}

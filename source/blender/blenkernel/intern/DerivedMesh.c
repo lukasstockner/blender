@@ -491,14 +491,51 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		}
 		glEnd();
 	} else {
-		glBegin(GL_LINES);
-		for(i=0,eed= emdm->em->edges.first; eed; i++,eed= eed->next) {
-			if(!setDrawOptions || setDrawOptions(userData, i)) {
-				glVertex3fv(eed->v1->co);
-				glVertex3fv(eed->v2->co);
+		GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*3*2*emdm->em->totedge, 0 );
+		float *varray;
+		if( (varray = GPU_buffer_lock( buffer )) ) {
+			int prevdraw = 0;
+			int numedges = 0;
+			int draw = 0;
+			int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_END };
+			GPU_buffer_unlock( buffer );
+			GPU_interleaved_setup( buffer, datatype );
+			GPU_buffer_lock( buffer );
+			for(i=0,eed= emdm->em->edges.first; eed; i++,eed= eed->next) {
+				if(!setDrawOptions || setDrawOptions(userData, i)) {
+					draw = 1;
+				} else {
+					draw = 0;
+				}
+				if( prevdraw != draw && prevdraw != 0 && numedges > 0) {
+					GPU_buffer_unlock( buffer );
+					glDrawArrays(GL_LINES,0,numedges*2);
+					varray = GPU_buffer_lock( buffer );
+					numedges = 0;
+				}
+				if( draw != 0 ) {
+					VECCOPY(&varray[numedges*6],eed->v1->co);
+					VECCOPY(&varray[numedges*6+3],eed->v2->co);
+					numedges++;
+				}
+				prevdraw = draw;
 			}
+			GPU_buffer_unlock( buffer );
+			if( prevdraw != 0 && numedges > 0) {
+				glDrawArrays(GL_LINES,0,numedges*2);
+			}
+			GPU_buffer_unbind();
+		} else {
+			glBegin(GL_LINES);
+			for(i=0,eed= emdm->em->edges.first; eed; i++,eed= eed->next) {
+				if(!setDrawOptions || setDrawOptions(userData, i)) {
+					glVertex3fv(eed->v1->co);
+					glVertex3fv(eed->v2->co);
+				}
+			}
+			glEnd();
 		}
-		glEnd();
+		GPU_buffer_free( buffer, 0 );
 	}
 }
 static void emDM_drawEdges(DerivedMesh *dm, int drawLooseEdges)
@@ -735,12 +772,12 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 				}
 				prevdraw = draw;
 			}
+			GPU_buffer_unlock( buffer );
 			if( prevdraw != 0 && numfaces > 0) {
 				if( prevdraw==2 ) {
 					glEnable(GL_POLYGON_STIPPLE);
 	  				glPolygonStipple(stipple_quarttone);
 				}
-				GPU_buffer_unlock( buffer );
 				glDrawArrays(GL_TRIANGLES,0,numfaces*3);
 				if( prevdraw==2 ) {
 					glDisable(GL_POLYGON_STIPPLE);

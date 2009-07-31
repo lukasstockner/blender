@@ -1601,12 +1601,52 @@ static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int i
 				col0[2] + (col1[2]-col0[2])*t,
 				col0[3] + (col1[3]-col0[3])*t);
 }
+
+typedef struct {
+	DerivedMesh dm;
+
+	EditMesh *em;
+} EMDM;
+
 static void draw_dm_edges_sel_interp(DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol)
 {
 	unsigned char *cols[2];
+	int elemsize = sizeof(float)*3+sizeof(unsigned char)*4;
+	EditMesh *em= *((EditMesh **)(dm+1));
+	char *varray;
+	int i;
+	GPUBuffer *buffer;
 	cols[0] = baseCol;
 	cols[1] = selCol;
-	dm->drawMappedEdgesInterp(dm, draw_dm_edges_sel_interp__setDrawOptions, draw_dm_edges_sel_interp__setDrawInterpOptions, cols);
+
+	buffer = GPU_buffer_alloc( elemsize*em->totedge*2, 0 );
+	if( (varray = GPU_buffer_lock( buffer )) ) {
+		EditEdge *eed;
+		int numedges = 0;
+		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_C4UB, GPU_BUFFER_INTER_END };
+		GPU_buffer_unlock( buffer );
+		GPU_interleaved_setup( buffer, datatype );
+		GPU_buffer_lock( buffer );
+		for (i=0,eed= em->edges.first; eed; i++,eed= eed->next) {
+			if(eed->h==0) {
+				unsigned char *col0 = cols[(eed->v1->f&SELECT)?1:0];
+				unsigned char *col1 = cols[(eed->v2->f&SELECT)?1:0];
+
+				VECCOPY(((float *)&varray[elemsize*numedges*2]),eed->v1->co);
+				QUATCOPY(&varray[elemsize*numedges*2+sizeof(float)*3],col0);
+				VECCOPY(((float *)&varray[elemsize*numedges*2+elemsize]),eed->v2->co);
+				QUATCOPY(&varray[elemsize*numedges*2+elemsize+sizeof(float)*3],col1);
+				numedges++;
+			}
+		}
+		GPU_buffer_unlock( buffer );
+		glDrawArrays(GL_LINES,0,numedges*2);
+		GPU_buffer_unbind();
+	}
+	else {
+		dm->drawMappedEdgesInterp(dm, draw_dm_edges_sel_interp__setDrawOptions, draw_dm_edges_sel_interp__setDrawInterpOptions, cols);
+	}
+	GPU_buffer_free( buffer, 0 );
 }
 
 	/* Draw only seam edges */
