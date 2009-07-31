@@ -113,7 +113,6 @@ typedef struct FileList
 	int numfiles;
 	int numfiltered;
 	char dir[FILE_MAX];
-	int has_func;
 	short prv_w;
 	short prv_h;
 	short hide_dot;
@@ -698,7 +697,6 @@ struct direntry * filelist_file(struct FileList* filelist, int index)
 	return &filelist->filelist[fidx];
 }
 
-
 int filelist_find(struct FileList* filelist, char *file)
 {
 	int index = -1;
@@ -842,7 +840,15 @@ void filelist_setfiletypes(struct FileList* filelist, short has_quicktime)
 				||	BLI_testextensie(file->relname, ".mv")) {
 				file->flags |= MOVIEFILE;			
 			}
-			else if(BLI_testextensie(file->relname, ".wav")) {
+			else if(BLI_testextensie(file->relname, ".wav")
+				||	BLI_testextensie(file->relname, ".ogg")
+				||	BLI_testextensie(file->relname, ".oga")
+				||	BLI_testextensie(file->relname, ".mp3")
+				||	BLI_testextensie(file->relname, ".mp2")
+				||	BLI_testextensie(file->relname, ".ac3")
+				||	BLI_testextensie(file->relname, ".aac")
+				||	BLI_testextensie(file->relname, ".flac")
+				||	BLI_testextensie(file->relname, ".eac3")) {
 				file->flags |= SOUNDFILE;
 			}
 		} else { // no quicktime
@@ -877,7 +883,15 @@ void filelist_setfiletypes(struct FileList* filelist, short has_quicktime)
 				||	BLI_testextensie(file->relname, ".mv")) {
 				file->flags |= MOVIEFILE;			
 			}
-			else if(BLI_testextensie(file->relname, ".wav")) {
+			else if(BLI_testextensie(file->relname, ".wav")
+				||	BLI_testextensie(file->relname, ".ogg")
+				||	BLI_testextensie(file->relname, ".oga")
+				||	BLI_testextensie(file->relname, ".mp3")
+				||	BLI_testextensie(file->relname, ".mp2")
+				||	BLI_testextensie(file->relname, ".ac3")
+				||	BLI_testextensie(file->relname, ".aac")
+				||	BLI_testextensie(file->relname, ".flac")
+				||	BLI_testextensie(file->relname, ".eac3")) {
 				file->flags |= SOUNDFILE;
 			}
 		}
@@ -905,9 +919,6 @@ void filelist_swapselect(struct FileList* filelist)
 
 void filelist_sort(struct FileList* filelist, short sort)
 {
-	struct direntry *file;
-	int num;/*  , act= 0; */
-
 	switch(sort) {
 	case FILE_SORT_ALPHA:
 		qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_name);	
@@ -922,9 +933,5 @@ void filelist_sort(struct FileList* filelist, short sort)
 		qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_extension);	
 	}
 
-	file= filelist->filelist;
-	for(num=0; num<filelist->numfiles; num++, file++) {
-		file->flags &= ~HILITE;
-	}
 	filelist_filter(filelist);
 }

@@ -200,6 +200,8 @@ typedef struct SpaceFile {
 
 	struct FileLayout *layout;
 	
+	short recentnr, bookmarknr;
+	short systemnr, pad2;
 } SpaceFile;
 
 typedef struct SpaceOops {
@@ -642,7 +644,8 @@ enum FileSortTypeE {
 #define FILE_BOOKMARKS		512
 
 /* files in filesel list: 2=ACTIVE  */
-#define HILITE				1
+#define EDITING				1
+#define ACTIVE				2
 #define BLENDERFILE			4
 #define PSXFILE				8
 #define IMAGEFILE			16
@@ -708,6 +711,8 @@ enum FileSortTypeE {
 #define SIPO_NOHANDLES			(1<<2)
 #define SIPO_NODRAWCFRANUM		(1<<3)
 #define SIPO_DRAWTIME			(1<<4)
+#define SIPO_SELCUVERTSONLY		(1<<5)
+#define SIPO_DRAWNAMES			(1<<6)
 
 /* SpaceIpo->mode (Graph Editor Mode) */
 enum {
@@ -749,6 +754,7 @@ enum {
 #define SO_SEQUENCE		10
 #define SO_DATABLOCKS	11
 #define SO_USERDEF		12
+#define SO_KEYMAP		13
 
 /* SpaceOops->storeflag */
 #define SO_TREESTORE_CLEANUP	1

@@ -40,6 +40,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_meta_types.h"
 
 #include "BKE_blender.h"
 #include "BKE_colortools.h"
@@ -170,11 +171,11 @@ int ED_operator_buttons_active(bContext *C)
 
 int ED_operator_node_active(bContext *C)
 {
-	if(ed_spacetype_test(C, SPACE_NODE)) {
-		SpaceNode *snode= (SpaceNode *)CTX_wm_space_data(C);
-		if(snode->edittree)
-			return 1;
-	}
+	SpaceNode *snode= CTX_wm_space_node(C);
+
+	if(snode && snode->edittree)
+		return 1;
+
 	return 0;
 }
 
@@ -311,6 +312,14 @@ int ED_operator_editlattice(bContext *C)
 	Object *obedit= CTX_data_edit_object(C);
 	if(obedit && obedit->type==OB_LATTICE)
 		return NULL != ((Lattice *)obedit->data)->editlatt;
+	return 0;
+}
+
+int ED_operator_editmball(bContext *C)
+{
+	Object *obedit= CTX_data_edit_object(C);
+	if(obedit && obedit->type==OB_MBALL)
+		return NULL != ((MetaBall *)obedit->data)->editelems;
 	return 0;
 }
 
@@ -3118,7 +3127,6 @@ void ED_keymap_screen(wmWindowManager *wm)
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_screen_set", LEFTARROWKEY, KM_PRESS, KM_CTRL, 0)->ptr, "delta", -1);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", UPARROWKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", DOWNARROWKEY, KM_PRESS, KM_CTRL, 0);
-	WM_keymap_add_item(keymap, "SCREEN_OT_screen_full_area", SPACEKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screenshot", F3KEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "SCREEN_OT_screencast", F3KEY, KM_PRESS, KM_ALT, 0);
 

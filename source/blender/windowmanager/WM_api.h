@@ -96,9 +96,11 @@ wmKeyMap	*WM_modalkeymap_get(struct wmWindowManager *wm, const char *nameid);
 void		WM_modalkeymap_add_item(wmKeyMap *km, short type, short val, int modifier, short keymodifier, short value);
 void		WM_modalkeymap_assign(wmKeyMap *km, const char *opname);
 
+int			WM_key_event_is_tweak(short type);
 
 const char	*WM_key_event_string(short type);
 char		*WM_key_event_operator_string(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, char *str, int len);
+void		WM_key_event_operator_change(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, short key, short modifier);
 
 			/* handlers */
 
@@ -156,6 +158,10 @@ void		WM_operatortype_append	(void (*opfunc)(wmOperatorType*));
 void		WM_operatortype_append_ptr	(void (*opfunc)(wmOperatorType*, void *), void *userdata);
 int			WM_operatortype_remove(const char *idname);
 
+wmOperatorType *WM_operatortype_append_macro(char *idname, char *name, int flag);
+wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname);
+
+
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
 int         WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
@@ -163,9 +169,10 @@ int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, struct 
 
 void		WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring);
 void		WM_operator_properties_free(struct PointerRNA *ptr);
+void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter);
 
 		/* operator as a python command (resultuing string must be free'd) */
-char		*WM_operator_pystring(struct wmOperator *op);
+char		*WM_operator_pystring(struct wmOperatorType *ot, struct PointerRNA *opptr, int all_args);
 void		WM_operator_bl_idname(char *to, const char *from);
 void		WM_operator_py_idname(char *to, const char *from);
 

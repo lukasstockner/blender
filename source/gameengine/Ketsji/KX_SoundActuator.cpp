@@ -49,24 +49,32 @@
 /* Native functions                                                          */
 /* ------------------------------------------------------------------------- */
 KX_SoundActuator::KX_SoundActuator(SCA_IObject* gameobj,
-								   bSound* sound,
+								   AUD_Sound* sound,
+								   float volume,
+								   float pitch,
+								   bool is3d,
+								   KX_3DSoundSettings settings,
 // AUD_XXX								   SND_SoundObject* sndobj,
 // AUD_XXX								   SND_Scene*	sndscene,
-								   KX_SOUNDACT_TYPE type,
-								   short start,
-								   short end)
+								   KX_SOUNDACT_TYPE type)//,
+// AUD_XXX								   short start,
+// AUD_XXX								   short end)
 								   : SCA_IActuator(gameobj)
 {
 // AUD_XXX	m_soundObject = sndobj;
 // AUD_XXX	m_soundScene = sndscene;
 	m_sound = sound;
+	m_volume = volume;
+	m_pitch = pitch;
+	m_is3d = is3d;
+	m_3d = settings;
 	m_handle = NULL;
 	m_type = type;
-	m_lastEvent = true;
+// AUD_XXX	m_lastEvent = true;
 	m_isplaying = false;
-	m_startFrame = start;
-	m_endFrame = end;
-	m_pino = false;
+// AUD_XXX	m_startFrame = start;
+// AUD_XXX	m_endFrame = end;
+// AUD_XXX	m_pino = false;
 
 
 }
@@ -87,7 +95,60 @@ KX_SoundActuator::~KX_SoundActuator()
 #endif
 }
 
+void KX_SoundActuator::play()
+{
+	if(m_handle)
+		AUD_stop(m_handle);
 
+	if(!m_sound)
+		return;
+
+	AUD_Sound* sound = m_sound;
+	AUD_Sound* sound2 = NULL;
+	AUD_Sound* sound3 = NULL;
+
+	switch (m_type)
+	{
+	case KX_SOUNDACT_LOOPBIDIRECTIONAL:
+	case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
+		sound2 = AUD_pingpongSound(sound);
+		sound = sound3 = AUD_loopSound(sound2);
+		break;
+	case KX_SOUNDACT_LOOPEND:
+	case KX_SOUNDACT_LOOPSTOP:
+		sound = sound2 = AUD_loopSound(sound);
+		break;
+	case KX_SOUNDACT_PLAYSTOP:
+	case KX_SOUNDACT_PLAYEND:
+	default:
+		break;
+	}
+
+	if(m_is3d)
+	{
+		m_handle = AUD_play3D(sound, 0);
+
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_MAX_GAIN, m_3d.max_gain);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_MIN_GAIN, m_3d.min_gain);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_REFERENCE_DISTANCE, m_3d.reference_distance);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_MAX_DISTANCE, m_3d.max_distance);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_ROLLOFF_FACTOR, m_3d.rolloff_factor);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_CONE_INNER_ANGLE, m_3d.cone_inner_angle);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_CONE_OUTER_ANGLE, m_3d.cone_outer_angle);
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_CONE_OUTER_GAIN, m_3d.cone_outer_gain);
+	}
+	else
+		m_handle = AUD_play(sound, 0);
+
+	AUD_setSoundPitch(m_handle, m_pitch);
+	AUD_setSoundVolume(m_handle, m_volume);
+	m_isplaying = true;
+
+	if(sound3)
+		AUD_unload(sound3);
+	if(sound2)
+		AUD_unload(sound2);
+}
 
 CValue* KX_SoundActuator::GetReplica()
 {
@@ -100,6 +161,7 @@ void KX_SoundActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 // AUD_XXX
+	m_handle = 0;
 #if 0
 	if (m_soundObject)
 	{
@@ -123,17 +185,18 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 	RemoveAllEvents();
 
 // AUD_XXX	if (!m_soundObject)
-	if(!m_sound || !m_sound->stream)
+	if(!m_sound)
 		return false;
 
 	// actual audio device playing state
 	bool isplaying = /*AUD_XXX(m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true : false*/ AUD_getStatus(m_handle) == AUD_STATUS_PLAYING;
 
+	/* AUD_XXX
 	if (m_pino)
 	{
 		bNegativeEvent = true;
 		m_pino = false;
-	}
+	}*/
 
 	if (bNegativeEvent)
 	{
@@ -183,143 +246,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			// the negative pulse is done continuesly
 #endif
 		if (!m_isplaying)
-		{
-			switch (m_type)
-			{
-// AUD_XXX
-#if 0
-			case KX_SOUNDACT_LOOPBIDIRECTIONAL:
-			case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
-				{
-					m_soundObject->SetLoopMode(SND_LOOP_BIDIRECTIONAL);
-					m_soundScene->AddActiveObject(m_soundObject, curtime);
-					m_isplaying = true;
-					result = true;
-					break;
-				}
-			case KX_SOUNDACT_LOOPEND:
-			case KX_SOUNDACT_LOOPSTOP:
-				{
-					m_soundObject->SetLoopMode(SND_LOOP_NORMAL);
-					m_soundScene->AddActiveObject(m_soundObject, curtime);
-					m_isplaying = true;
-					result = true;
-					break;
-				}
-			case KX_SOUNDACT_PLAYSTOP:
-			case KX_SOUNDACT_PLAYEND:
-				{
-					m_soundObject->SetLoopMode(SND_LOOP_OFF);
-					m_soundScene->AddActiveObject(m_soundObject, curtime);
-					m_isplaying = true;
-					result = true;
-					break;
-				}
-#else
-			case KX_SOUNDACT_LOOPBIDIRECTIONAL:
-			case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
-				{
-					if(m_handle)
-						AUD_stop(m_handle);
-					if(m_sound->stream)
-					{
-						AUD_Sound* sound1, *sound2, *sound3;
-						sound1 = AUD_bufferSound(m_sound->stream);
-						sound2 = AUD_pingpongSound(sound1);
-						sound3 = AUD_loopSound(sound2);
-
-						if(m_sound->flags & SOUND_FLAGS_3D)
-						{
-							AUD_3DData data;
-							float f;
-
-							m_handle = AUD_play3D(sound3, 0);
-
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_MAX_GAIN, m_sound->max_gain);
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_MIN_GAIN, m_sound->min_gain);
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_REFERENCE_DISTANCE, m_sound->distance);
-						}
-						else
-							m_handle = AUD_play(sound3, 0);
-
-						AUD_setSoundPitch(m_handle, exp((m_sound->pitch / 12.0) * log(2.0)));
-						AUD_setSoundVolume(m_handle, m_sound->volume);
-
-						AUD_unload(sound3);
-						AUD_unload(sound2);
-						AUD_unload(sound1);
-						m_isplaying = true;
-						result = true;
-					}
-					break;
-				}
-			case KX_SOUNDACT_LOOPEND:
-			case KX_SOUNDACT_LOOPSTOP:
-				{
-					if(m_handle)
-						AUD_stop(m_handle);
-					if(m_sound->stream)
-					{
-						AUD_Sound* sound = AUD_loopSound(m_sound->stream);
-
-						if(m_sound->flags & SOUND_FLAGS_3D)
-						{
-							AUD_3DData data;
-							float f;
-
-							m_handle = AUD_play3D(sound, 0);
-
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_MAX_GAIN, m_sound->max_gain);
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_MIN_GAIN, m_sound->min_gain);
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_REFERENCE_DISTANCE, m_sound->distance);
-						}
-						else
-							m_handle = AUD_play(sound, 0);
-
-						AUD_setSoundPitch(m_handle, exp((m_sound->pitch / 12.0) * log(2.0)));
-						AUD_setSoundVolume(m_handle, m_sound->volume);
-
-						AUD_unload(sound);
-						m_isplaying = true;
-						result = true;
-					}
-					break;
-				}
-			case KX_SOUNDACT_PLAYSTOP:
-			case KX_SOUNDACT_PLAYEND:
-				{
-					if(m_handle)
-						AUD_stop(m_handle);
-					if(m_sound->stream)
-					{
-						if(m_sound->flags & SOUND_FLAGS_3D)
-						{
-							AUD_3DData data;
-							float f;
-
-							m_handle = AUD_play3D(m_sound->stream, 0);
-
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_MAX_GAIN, m_sound->max_gain);
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_MIN_GAIN, m_sound->min_gain);
-							AUD_set3DSourceSetting(m_handle, AUD_3DSS_REFERENCE_DISTANCE, m_sound->distance);
-						}
-						else
-							m_handle = AUD_play(m_sound->stream, 0);
-
-						AUD_setSoundPitch(m_handle, exp((m_sound->pitch / 12.0) * log(2.0)));
-						AUD_setSoundVolume(m_handle, m_sound->volume);
-
-						m_isplaying = true;
-						result = true;
-					}
-					break;
-				}
-#endif
-			default:
-				// implement me !!
-				break;
-			}
-		}
+			play();
 	}
 	// verify that the sound is still playing
 	isplaying = /*AUD_XXX(m_soundObject->GetPlaystate() != SND_STOPPED && m_soundObject->GetPlaystate() != SND_INITIAL) ? true :*/ AUD_getStatus(m_handle) == AUD_STATUS_PLAYING ? true : false;
@@ -332,7 +259,7 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 		m_soundObject->SetVelocity(((KX_GameObject*)this->GetParent())->GetLinearVelocity());
 		m_soundObject->SetOrientation(((KX_GameObject*)this->GetParent())->NodeGetWorldOrientation());
 #else
-		if(m_sound->flags & SOUND_FLAGS_3D)
+		if(m_is3d)
 		{
 			AUD_3DData data;
 			float f;
@@ -427,19 +354,19 @@ PyTypeObject KX_SoundActuator::Type = {
 
 PyMethodDef KX_SoundActuator::Methods[] = {
 	// Deprecated ----->
-	{"setFilename", (PyCFunction) KX_SoundActuator::sPySetFilename, METH_VARARGS,NULL},
-	{"getFilename", (PyCFunction) KX_SoundActuator::sPyGetFilename, METH_NOARGS,NULL},
+// AUD_XXX	{"setFilename", (PyCFunction) KX_SoundActuator::sPySetFilename, METH_VARARGS,NULL},
+// AUD_XXX	{"getFilename", (PyCFunction) KX_SoundActuator::sPyGetFilename, METH_NOARGS,NULL},
 	{"setGain",(PyCFunction) KX_SoundActuator::sPySetGain,METH_VARARGS,NULL},
 	{"getGain",(PyCFunction) KX_SoundActuator::sPyGetGain,METH_NOARGS,NULL},
 	{"setPitch",(PyCFunction) KX_SoundActuator::sPySetPitch,METH_VARARGS,NULL},
 	{"getPitch",(PyCFunction) KX_SoundActuator::sPyGetPitch,METH_NOARGS,NULL},
 	{"setRollOffFactor",(PyCFunction) KX_SoundActuator::sPySetRollOffFactor,METH_VARARGS,NULL},
 	{"getRollOffFactor",(PyCFunction) KX_SoundActuator::sPyGetRollOffFactor,METH_NOARGS,NULL},
-	{"setLooping",(PyCFunction) KX_SoundActuator::sPySetLooping,METH_VARARGS,NULL},
-	{"getLooping",(PyCFunction) KX_SoundActuator::sPyGetLooping,METH_NOARGS,NULL},
-	{"setPosition",(PyCFunction) KX_SoundActuator::sPySetPosition,METH_VARARGS,NULL},
-	{"setVelocity",(PyCFunction) KX_SoundActuator::sPySetVelocity,METH_VARARGS,NULL},
-	{"setOrientation",(PyCFunction) KX_SoundActuator::sPySetOrientation,METH_VARARGS,NULL},
+// AUD_XXX	{"setLooping",(PyCFunction) KX_SoundActuator::sPySetLooping,METH_VARARGS,NULL},
+// AUD_XXX	{"getLooping",(PyCFunction) KX_SoundActuator::sPyGetLooping,METH_NOARGS,NULL},
+// AUD_XXX	{"setPosition",(PyCFunction) KX_SoundActuator::sPySetPosition,METH_VARARGS,NULL},
+// AUD_XXX	{"setVelocity",(PyCFunction) KX_SoundActuator::sPySetVelocity,METH_VARARGS,NULL},
+// AUD_XXX	{"setOrientation",(PyCFunction) KX_SoundActuator::sPySetOrientation,METH_VARARGS,NULL},
 	{"setType",(PyCFunction) KX_SoundActuator::sPySetType,METH_VARARGS,NULL},
 	{"getType",(PyCFunction) KX_SoundActuator::sPyGetType,METH_NOARGS,NULL},
 	// <-----
@@ -451,14 +378,14 @@ PyMethodDef KX_SoundActuator::Methods[] = {
 };
 
 PyAttributeDef KX_SoundActuator::Attributes[] = {
-	KX_PYATTRIBUTE_RW_FUNCTION("fileName", KX_SoundActuator, pyattr_get_filename, pyattr_set_filename),
+// AUD_XXX	KX_PYATTRIBUTE_RW_FUNCTION("fileName", KX_SoundActuator, pyattr_get_filename, pyattr_set_filename),
 	KX_PYATTRIBUTE_RW_FUNCTION("volume", KX_SoundActuator, pyattr_get_gain, pyattr_set_gain),
 	KX_PYATTRIBUTE_RW_FUNCTION("pitch", KX_SoundActuator, pyattr_get_pitch, pyattr_set_pitch),
 	KX_PYATTRIBUTE_RW_FUNCTION("rollOffFactor", KX_SoundActuator, pyattr_get_rollOffFactor, pyattr_set_rollOffFactor),
-	KX_PYATTRIBUTE_RW_FUNCTION("looping", KX_SoundActuator, pyattr_get_looping, pyattr_set_looping),
-	KX_PYATTRIBUTE_RW_FUNCTION("position", KX_SoundActuator, pyattr_get_position, pyattr_set_position),
-	KX_PYATTRIBUTE_RW_FUNCTION("velocity", KX_SoundActuator, pyattr_get_velocity, pyattr_set_velocity),
-	KX_PYATTRIBUTE_RW_FUNCTION("orientation", KX_SoundActuator, pyattr_get_orientation, pyattr_set_orientation),
+// AUD_XXX	KX_PYATTRIBUTE_RW_FUNCTION("looping", KX_SoundActuator, pyattr_get_looping, pyattr_set_looping),
+// AUD_XXX	KX_PYATTRIBUTE_RW_FUNCTION("position", KX_SoundActuator, pyattr_get_position, pyattr_set_position),
+// AUD_XXX	KX_PYATTRIBUTE_RW_FUNCTION("velocity", KX_SoundActuator, pyattr_get_velocity, pyattr_set_velocity),
+// AUD_XXX	KX_PYATTRIBUTE_RW_FUNCTION("orientation", KX_SoundActuator, pyattr_get_orientation, pyattr_set_orientation),
 	KX_PYATTRIBUTE_ENUM_RW("mode",KX_SoundActuator::KX_SOUNDACT_NODEF+1,KX_SoundActuator::KX_SOUNDACT_MAX-1,false,KX_SoundActuator,m_type),
 	{ NULL }	//Sentinel
 };
@@ -481,13 +408,7 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, startSound,
 		AUD_resume(m_handle);
 		break;
 	default:
-		if(m_handle)
-			AUD_stop(m_handle);
-		if(m_sound->stream)
-		{
-			m_handle = AUD_play(m_sound->stream, 0);
-			m_isplaying = true;
-		}
+		play();
 	}
 	Py_RETURN_NONE;
 }
@@ -515,14 +436,14 @@ KX_PYMETHODDEF_DOC_NOARGS(KX_SoundActuator, stopSound,
 
 /* Atribute setting and getting -------------------------------------------- */
 
+// AUD_XXX
+#if 0
 PyObject* KX_SoundActuator::pyattr_get_filename(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 // AUD_XXX	if (!actuator->m_soundObject)
 // AUD_XXX	{
 		return PyUnicode_FromString("");
-// AUD_XXX
-#if 0
 	}
 	STR_String objectname = actuator->m_soundObject->GetObjectName();
 	char* name = objectname.Ptr();
@@ -532,14 +453,14 @@ PyObject* KX_SoundActuator::pyattr_get_filename(void *self, const struct KX_PYAT
 		return NULL;
 	} else
 		return PyUnicode_FromString(name);
-#endif
 }
+#endif
 
 PyObject* KX_SoundActuator::pyattr_get_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 // AUD_XXX	float gain = (actuator->m_soundObject) ? actuator->m_soundObject->GetGain() : 1.0f;
-	float gain = actuator->m_sound ? actuator->m_sound->volume : 1.0f;
+	float gain = actuator->m_volume;
 
 	PyObject* result = PyFloat_FromDouble(gain);
 
@@ -550,7 +471,7 @@ PyObject* KX_SoundActuator::pyattr_get_pitch(void *self, const struct KX_PYATTRI
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 // AUD_XXX	float pitch = (actuator->m_soundObject) ? actuator->m_soundObject->GetPitch() : 1.0;
-	float pitch = (actuator->m_sound) ? actuator->m_sound->pitch : 1.0;
+	float pitch = actuator->m_pitch;
 
 	PyObject* result = PyFloat_FromDouble(pitch);
 
@@ -561,12 +482,14 @@ PyObject* KX_SoundActuator::pyattr_get_rollOffFactor(void *self, const struct KX
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
 // AUD_XXX	float rollofffactor = (actuator->m_soundObject) ? actuator->m_soundObject->GetRollOffFactor() : 1.0;
-	float rollofffactor = 1.0;
+	float rollofffactor = actuator->m_3d.rolloff_factor;
 	PyObject* result = PyFloat_FromDouble(rollofffactor);
 
 	return result;
 }
 
+// AUD_XXX
+#if 0
 PyObject* KX_SoundActuator::pyattr_get_looping(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
@@ -634,7 +557,7 @@ int KX_SoundActuator::pyattr_set_filename(void *self, const struct KX_PYATTRIBUT
 
 	return PY_SET_ATTR_SUCCESS;
 }
-
+#endif
 
 int KX_SoundActuator::pyattr_set_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
@@ -646,6 +569,7 @@ int KX_SoundActuator::pyattr_set_gain(void *self, const struct KX_PYATTRIBUTE_DE
 // AUD_XXX	if (actuator->m_soundObject)
 // AUD_XXX		actuator->m_soundObject->SetGain(gain);
 
+	actuator->m_volume = gain;
 	if(actuator->m_handle)
 		AUD_setSoundVolume(actuator->m_handle, gain);
 
@@ -662,6 +586,7 @@ int KX_SoundActuator::pyattr_set_pitch(void *self, const struct KX_PYATTRIBUTE_D
 // AUD_XXX	if (actuator->m_soundObject)
 // AUD_XXX		actuator->m_soundObject->SetPitch(pitch);
 
+	actuator->m_pitch = pitch;
 	if(actuator->m_handle)
 		AUD_setSoundPitch(actuator->m_handle, pitch);
 
@@ -678,9 +603,15 @@ int KX_SoundActuator::pyattr_set_rollOffFactor(void *self, const struct KX_PYATT
 // AUD_XXX	if (actuator->m_soundObject)
 // AUD_XXX		actuator->m_soundObject->SetRollOffFactor(rollofffactor);
 
+	actuator->m_3d.rolloff_factor = rollofffactor;
+	if(actuator->m_handle)
+		AUD_set3DSourceSetting(actuator->m_handle, AUD_3DSS_ROLLOFF_FACTOR, rollofffactor);
+
 	return PY_SET_ATTR_SUCCESS;
 }
 
+// AUD_XXX
+#if 0
 int KX_SoundActuator::pyattr_set_looping(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value)
 {
 	KX_SoundActuator * actuator = static_cast<KX_SoundActuator *> (self);
@@ -763,8 +694,6 @@ PyObject* KX_SoundActuator::PyGetFilename()
 // AUD_XXX	if (!m_soundObject)
 // AUD_XXX	{
 		return PyUnicode_FromString("");
-// AUD_XXX
-#if 0
 	}
 	STR_String objectname = m_soundObject->GetObjectName();
 	char* name = objectname.Ptr();
@@ -774,8 +703,8 @@ PyObject* KX_SoundActuator::PyGetFilename()
 		return NULL;
 	} else
 		return PyUnicode_FromString(name);
-#endif
 }
+#endif
 
 PyObject* KX_SoundActuator::PySetGain(PyObject* args)
 {
@@ -787,6 +716,10 @@ PyObject* KX_SoundActuator::PySetGain(PyObject* args)
 // AUD_XXX	if (m_soundObject)
 // AUD_XXX		m_soundObject->SetGain(gain);
 
+	m_volume = gain;
+	if(m_handle)
+		AUD_setSoundVolume(m_handle, gain);
+
 	Py_RETURN_NONE;
 }
 
@@ -795,7 +728,8 @@ PyObject* KX_SoundActuator::PySetGain(PyObject* args)
 PyObject* KX_SoundActuator::PyGetGain()
 {
 	ShowDeprecationWarning("getGain()", "the volume property");
-	float gain = /*AUD_XXX(m_soundObject) ? m_soundObject->GetGain() :*/ 1.0f;
+// AUD_XXX	float gain = AUD_XXX(m_soundObject) ? m_soundObject->GetGain() : 1.0f;
+	float gain = m_volume;
 	PyObject* result = PyFloat_FromDouble(gain);
 
 	return result;
@@ -813,6 +747,10 @@ PyObject* KX_SoundActuator::PySetPitch(PyObject* args)
 // AUD_XXX	if (m_soundObject)
 // AUD_XXX		m_soundObject->SetPitch(pitch);
 
+	m_pitch = pitch;
+	if(m_handle)
+		AUD_setSoundPitch(m_handle, pitch);
+
 	Py_RETURN_NONE;
 }
 
@@ -821,7 +759,8 @@ PyObject* KX_SoundActuator::PySetPitch(PyObject* args)
 PyObject* KX_SoundActuator::PyGetPitch()
 {
 	ShowDeprecationWarning("getPitch()", "the pitch property");
-	float pitch = /*AUD_XXX(m_soundObject) ? m_soundObject->GetPitch() :*/ 1.0;
+// AUD_XXX	float pitch = AUD_XXX(m_soundObject) ? m_soundObject->GetPitch() : 1.0;
+	float pitch = m_pitch;
 	PyObject* result = PyFloat_FromDouble(pitch);
 
 	return result;
@@ -839,6 +778,10 @@ PyObject* KX_SoundActuator::PySetRollOffFactor(PyObject* args)
 // AUD_XXX	if (m_soundObject)
 // AUD_XXX		m_soundObject->SetRollOffFactor(rollofffactor);
 
+	m_3d.rolloff_factor = rollofffactor;
+	if(m_handle)
+		AUD_set3DSourceSetting(m_handle, AUD_3DSS_ROLLOFF_FACTOR, rollofffactor);
+
 	Py_RETURN_NONE;
 }
 
@@ -847,7 +790,8 @@ PyObject* KX_SoundActuator::PySetRollOffFactor(PyObject* args)
 PyObject* KX_SoundActuator::PyGetRollOffFactor()
 {
 	ShowDeprecationWarning("getRollOffFactor()", "the rollOffFactor property");
-	float rollofffactor = /*AUD_XXX(m_soundObject) ? m_soundObject->GetRollOffFactor() :*/ 1.0;
+// AUD_XXX	float rollofffactor = AUD_XXX(m_soundObject) ? m_soundObject->GetRollOffFactor() : 1.0;
+	float rollofffactor = m_3d.rolloff_factor;
 	PyObject* result = PyFloat_FromDouble(rollofffactor);
 
 	return result;
@@ -855,6 +799,8 @@ PyObject* KX_SoundActuator::PyGetRollOffFactor()
 
 
 
+// AUD_XXX
+#if 0
 PyObject* KX_SoundActuator::PySetLooping(PyObject* args)
 {
 	ShowDeprecationWarning("setLooping()", "the looping property");
@@ -880,7 +826,6 @@ PyObject* KX_SoundActuator::PyGetLooping()
 }
 
 
-
 PyObject* KX_SoundActuator::PySetPosition(PyObject* args)
 {
 	MT_Point3 pos;
@@ -897,7 +842,6 @@ PyObject* KX_SoundActuator::PySetPosition(PyObject* args)
 
 	Py_RETURN_NONE;
 }
-
 
 
 PyObject* KX_SoundActuator::PySetVelocity(PyObject* args)
@@ -941,6 +885,7 @@ PyObject* KX_SoundActuator::PySetOrientation(PyObject* args)
 
 	Py_RETURN_NONE;
 }
+#endif
 
 PyObject* KX_SoundActuator::PySetType(PyObject* args)
 {

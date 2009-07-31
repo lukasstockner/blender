@@ -78,8 +78,7 @@ typedef struct SoundHandle {
 	float volume;
 } SoundHandle;
 
-// AUD_XXX unused yet
-/*
+// AUD_XXX
 typedef struct Sound3D
 {
 	float min_gain;
@@ -90,7 +89,7 @@ typedef struct Sound3D
 	float cone_inner_angle;
 	float cone_outer_angle;
 	float cone_outer_gain;
-} Sound3D;*/
+} Sound3D;
 
 typedef struct bSound {
 	ID id;

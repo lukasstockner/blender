@@ -94,6 +94,7 @@
 #include "DNA_sdna_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_smoke_types.h"
 #include "DNA_sound_types.h"
 #include "DNA_space_types.h"
 #include "DNA_texture_types.h"
@@ -2511,6 +2512,8 @@ static void direct_link_mball(FileData *fd, MetaBall *mb)
 	mb->disp.first= mb->disp.last= NULL;
 	mb->editelems= NULL;
 	mb->bb= NULL;
+/*	mb->edit_elems.first= mb->edit_elems.last= NULL;*/
+	mb->lastelem= NULL;
 }
 
 /* ************ READ WORLD ***************** */
@@ -3541,6 +3544,17 @@ static void lib_link_object(FileData *fd, Main *main)
 					fluidmd->fss->ipo = newlibadr_us(fd, ob->id.lib, fluidmd->fss->ipo);
 			}
 
+			{
+				SmokeModifierData *smd = (SmokeModifierData *)modifiers_findByType(ob, eModifierType_Smoke);
+				
+				if(smd && smd->type == MOD_SMOKE_TYPE_DOMAIN && smd->domain) 
+				{
+					smd->domain->coll_group = newlibadr_us(fd, ob->id.lib, smd->domain->coll_group);
+					smd->domain->eff_group = newlibadr_us(fd, ob->id.lib, smd->domain->eff_group);
+					smd->domain->fluid_group = newlibadr_us(fd, ob->id.lib, smd->domain->fluid_group);
+				}
+			}
+			
 			/* texture field */
 			if(ob->pd)
 				if(ob->pd->tex)
@@ -3630,6 +3644,47 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 
 			fluidmd->fss= newdataadr(fd, fluidmd->fss);
 			fluidmd->fss->meshSurfNormals = 0;
+		}
+		else if (md->type==eModifierType_Smoke) {
+			SmokeModifierData *smd = (SmokeModifierData*) md;
+
+			smd->point_cache = NULL;
+
+			if(smd->type==MOD_SMOKE_TYPE_DOMAIN)
+			{
+				smd->flow = NULL;
+				smd->coll = NULL;
+				smd->domain = newdataadr(fd, smd->domain);
+				smd->domain->smd = smd;
+
+				smd->domain->fluid = NULL;
+				smd->domain->tvox = NULL;
+				smd->domain->tray = NULL;
+				smd->domain->tvoxbig = NULL;
+				smd->domain->traybig = NULL;
+				smd->domain->bind = NULL;
+				smd->domain->max_textures = 0;
+				smd->domain->viewsettings = 0; // reset view for new frame
+			}
+			else if(smd->type==MOD_SMOKE_TYPE_FLOW)
+			{
+				smd->domain = NULL;
+				smd->coll = NULL;
+				smd->flow = newdataadr(fd, smd->flow);
+				smd->flow->smd = smd;
+				smd->flow->psys = newdataadr(fd, smd->flow->psys);
+			}
+			else if(smd->type==MOD_SMOKE_TYPE_COLL)
+			{
+				smd->flow = NULL;
+				smd->domain = NULL;
+				smd->coll = NULL;
+				/*
+				smd->coll = newdataadr(fd, smd->coll);
+				smd->coll->points = NULL;
+				smd->coll->numpoints = 0;
+				*/
+			}
 		}
 		else if (md->type==eModifierType_Collision) {
 
@@ -4686,6 +4741,9 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 		}
 	}
 
+	ar->v2d.tab_offset= NULL;
+	ar->v2d.tab_num= 0;
+	ar->v2d.tab_cur= 0;
 	ar->handlers.first= ar->handlers.last= NULL;
 	ar->uiblocks.first= ar->uiblocks.last= NULL;
 	ar->headerstr= NULL;
@@ -4848,7 +4906,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 			}
 			else if(sl->spacetype==SPACE_LOGIC) {
 				SpaceLogic *slogic= (SpaceLogic *)sl;
-
+					
 				if(slogic->gpd) {
 					slogic->gpd= newdataadr(fd, slogic->gpd);
 					direct_link_gpencil(fd, slogic->gpd);
@@ -5659,7 +5717,7 @@ static void area_add_header_region(ScrArea *sa, ListBase *lb)
 
 	/* initialise view2d data for header region, to allow panning */
 	/* is copy from ui_view2d.c */
-	ar->v2d.keepzoom = (V2D_LOCKZOOM_X|V2D_LOCKZOOM_Y|V2D_KEEPZOOM|V2D_KEEPASPECT);
+	ar->v2d.keepzoom = (V2D_LOCKZOOM_X|V2D_LOCKZOOM_Y|V2D_LIMITZOOM|V2D_KEEPASPECT);
 	ar->v2d.keepofs = V2D_LOCKOFS_Y;
 	ar->v2d.keeptot = V2D_KEEPTOT_STRICT;
 	ar->v2d.align = V2D_ALIGN_NO_NEG_X|V2D_ALIGN_NO_NEG_Y;
@@ -5852,7 +5910,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				memcpy(&ar->v2d, &snode->v2d, sizeof(View2D));
 
 				ar->v2d.scroll= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM);
-				ar->v2d.keepzoom= V2D_KEEPZOOM|V2D_KEEPASPECT;
+				ar->v2d.keepzoom= V2D_LIMITZOOM|V2D_KEEPASPECT;
 				break;
 			}
 			case SPACE_BUTS:
@@ -5873,7 +5931,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				ar->regiontype= RGN_TYPE_WINDOW;
 				ar->v2d.scroll = (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM_O);
 				ar->v2d.align = (V2D_ALIGN_NO_NEG_X|V2D_ALIGN_NO_POS_Y);
-				ar->v2d.keepzoom = (V2D_LOCKZOOM_X|V2D_LOCKZOOM_Y|V2D_KEEPZOOM|V2D_KEEPASPECT);
+				ar->v2d.keepzoom = (V2D_LOCKZOOM_X|V2D_LOCKZOOM_Y|V2D_LIMITZOOM|V2D_KEEPASPECT);
 				break;
 			}
 			case SPACE_TEXT:
@@ -8204,7 +8262,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 							simasel->v2d.minzoom= 0.5f;
 							simasel->v2d.maxzoom= 1.21f;
 							simasel->v2d.scroll= 0;
-							simasel->v2d.keepzoom= V2D_KEEPZOOM|V2D_KEEPASPECT;
+							simasel->v2d.keepzoom= V2D_LIMITZOOM|V2D_KEEPASPECT;
 							simasel->v2d.keeptot= 0;
 							simasel->prv_h = 96;
 							simasel->prv_w = 96;
@@ -10152,6 +10210,16 @@ static void expand_modifier(FileData *fd, Main *mainvar, ModifierData *md)
 
 		expand_doit(fd, mainvar, dmd->map_object);
 		expand_doit(fd, mainvar, dmd->texture);
+	}
+	else if (md->type==eModifierType_Smoke) {
+		SmokeModifierData *smd = (SmokeModifierData*) md;
+			
+		if(smd->type==MOD_SMOKE_TYPE_DOMAIN && smd->domain)
+		{	
+			expand_doit(fd, mainvar, smd->domain->coll_group);
+			expand_doit(fd, mainvar, smd->domain->fluid_group);
+			expand_doit(fd, mainvar, smd->domain->eff_group);
+		}
 	}
 }
 

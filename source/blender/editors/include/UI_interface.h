@@ -142,6 +142,7 @@ typedef struct uiLayout uiLayout;
 #define UI_BUT_ANIMATED_KEY	(1<<21)
 #define UI_BUT_DRIVEN		(1<<22)
 #define UI_BUT_INACTIVE		(1<<23)
+#define UI_BUT_LAST_ACTIVE	(1<<24)
 
 #define UI_PANEL_WIDTH			340
 #define UI_COMPACT_PANEL_WIDTH	160
@@ -206,6 +207,8 @@ typedef struct uiLayout uiLayout;
 #define HSVCIRCLE	(42<<9)
 #define LISTBOX		(43<<9)
 #define LISTROW		(44<<9)
+#define HOTKEYEVT	(45<<9)
+
 #define BUTTYPE		(63<<9)
 
 /* Drawing
@@ -426,6 +429,7 @@ uiBut *uiDefIconBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, int 
 uiBut *uiDefIconTextBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, int icon, char *str, short x1, short y1, short x2, short y2, char *tip);
 
 void uiDefKeyevtButS(uiBlock *block, int retval, char *str, short x1, short y1, short x2, short y2, short *spoin, char *tip);
+uiBut *uiDefHotKeyevtButS(uiBlock *block, int retval, char *str, short x1, short y1, short x2, short y2, short *keypoin, short *modkeypoin, char *tip);
 
 uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxlen, short x1, short y1, short x2, short y2, char *tip);
 
@@ -671,9 +675,9 @@ void uiItemMenuF(uiLayout *layout, char *name, int icon, uiMenuCreateFunc func);
 void uiItemMenuEnumO(uiLayout *layout, char *name, int icon, char *opname, char *propname);
 void uiItemMenuEnumR(uiLayout *layout, char *name, int icon, struct PointerRNA *ptr, char *propname);
 
-/* Animation */
-
+/* Helpers for Operators */
 void uiAnimContextProperty(const struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA **prop, int *index);
+void uiFileBrowseContextProperty(const struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA **prop);
 
 /* Styled text draw */
 void uiStyleFontSet(struct uiFontStyle *fs);

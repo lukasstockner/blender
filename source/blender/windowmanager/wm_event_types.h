@@ -56,9 +56,6 @@
 		/* only use if you want user option switch possible */
 #define ACTIONMOUSE		0x005
 #define SELECTMOUSE		0x006
-		/* drag & drop support */
-#define MOUSEDRAG		0x007
-#define MOUSEDROP		0x008
 		/* defaults from ghost */
 #define WHEELUPMOUSE	0x00a	
 #define WHEELDOWNMOUSE	0x00b
@@ -195,6 +192,10 @@
 /* for event checks */
 	/* only used for KM_TEXTINPUT, so assume that we want all user-inputtable ascii codes included */
 #define ISKEYBOARD(event)	(event >=' ' && event <=255)
+
+/* test whether event type is acceptable as hotkey, excluding modifiers */
+#define ISHOTKEY(event)	(event >=' ' && event <=320 && !(event>=LEFTCTRLKEY && event<=ESCKEY) && !(event>=UNKNOWNKEY && event<=GRLESSKEY))
+
 
 /* **************** BLENDER GESTURE EVENTS ********************* */
 

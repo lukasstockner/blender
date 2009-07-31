@@ -439,6 +439,7 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 		{10, "SEQUENCE", 0, "Sequence", ""},
 		{11, "DATABLOCKS", 0, "Datablocks", ""},
 		{12, "USER_PREFERENCES", 0, "User Preferences", ""},
+		{13, "KEYMAPS", 0, "Key Maps", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "SpaceOutliner", "Space");
@@ -476,24 +477,29 @@ static void rna_def_background_image(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "image_user", PROP_POINTER, PROP_NEVER_NULL);
 	RNA_def_property_pointer_sdna(prop, NULL, "iuser");
 	RNA_def_property_ui_text(prop, "Image User", "Parameters defining which layer, pass and frame of the image is displayed.");
+	RNA_def_property_update(prop, NC_OBJECT, NULL);
 	
 	prop= RNA_def_property(srna, "x_offset", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "xof");
 	RNA_def_property_ui_text(prop, "X Offset", "Offsets image horizontally from the view center");
+	RNA_def_property_update(prop, NC_OBJECT, NULL);
 	
 	prop= RNA_def_property(srna, "y_offset", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "yof");
 	RNA_def_property_ui_text(prop, "Y Offset", "Offsets image vertically from the view center");
+	RNA_def_property_update(prop, NC_OBJECT, NULL);
 	
 	prop= RNA_def_property(srna, "size", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "size");
 	RNA_def_property_ui_text(prop, "Size", "Scaling factor for the background image.");
 	RNA_def_property_range(prop, 0.0, FLT_MAX);
+	RNA_def_property_update(prop, NC_OBJECT, NULL);
 	
 	prop= RNA_def_property(srna, "transparency", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "blend");
 	RNA_def_property_ui_text(prop, "Transparency", "Amount to blend the image against the background color.");
 	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_update(prop, NC_OBJECT, NULL);
 
 }
 
@@ -1059,6 +1065,10 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIPO_NOHANDLES);
 	RNA_def_property_ui_text(prop, "Show Handles", "Show handles of Bezier control points.");
 	
+	prop= RNA_def_property(srna, "only_selected_curves_handles", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIPO_SELCUVERTSONLY);
+	RNA_def_property_ui_text(prop, "Only Selected Curve Keyframes", "Only keyframes of selected F-Curves are visible and editable.");
+	
 	/* editing */
 	prop= RNA_def_property(srna, "automerge_keyframes", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SIPO_NOTRANSKEYCULL);
@@ -1227,7 +1237,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "do_filter", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", FILE_FILTER);
 	RNA_def_property_ui_text(prop, "Filter Files", "Enable filtering of files.");
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "hide_dot", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", FILE_HIDE_DOT);
@@ -1244,49 +1254,49 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", IMAGEFILE);
 	RNA_def_property_ui_text(prop, "Filter Images", "Show image files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_IMAGE, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_blender", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", BLENDERFILE);
 	RNA_def_property_ui_text(prop, "Filter Blender", "Show .blend files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_BLEND, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_movie", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", MOVIEFILE);
 	RNA_def_property_ui_text(prop, "Filter Movies", "Show movie files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_MOVIE, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_script", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", PYSCRIPTFILE);
 	RNA_def_property_ui_text(prop, "Filter Script", "Show script files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_SCRIPT, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_font", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", FTFONTFILE);
 	RNA_def_property_ui_text(prop, "Filter Fonts", "Show font files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_FONT, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_sound", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", SOUNDFILE);
 	RNA_def_property_ui_text(prop, "Filter Sound", "Show sound files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_SOUND, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_text", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", TEXTFILE);
 	RNA_def_property_ui_text(prop, "Filter Text", "Show text files.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_BLANK, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	prop= RNA_def_property(srna, "filter_folder", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", FOLDERFILE);
 	RNA_def_property_ui_text(prop, "Filter Folder", "Show folders.");
 	RNA_def_property_ui_icon(prop, ICON_FILE_FOLDER, 0);
-	RNA_def_property_update(prop, NC_FILE | ND_PARAMS, NULL);
+	RNA_def_property_update(prop, NC_FILE | ND_FILELIST, NULL);
 
 	
 }

@@ -171,7 +171,7 @@ static PyObject *pyrna_struct_repr( BPy_StructRNA * self )
 	char *name;
 
 	/* print name if available */
-	name= RNA_struct_name_get_alloc(&self->ptr, NULL, 0);
+	name= RNA_struct_name_get_alloc(&self->ptr, NULL, FALSE);
 	if(name) {
 		pyob= PyUnicode_FromFormat( "[BPy_StructRNA \"%.200s\" -> \"%.200s\"]", RNA_struct_identifier(self->ptr.type), name);
 		MEM_freeN(name);
@@ -190,7 +190,7 @@ static PyObject *pyrna_prop_repr( BPy_PropertyRNA * self )
 	/* if a pointer, try to print name of pointer target too */
 	if(RNA_property_type(self->prop) == PROP_POINTER) {
 		ptr= RNA_property_pointer_get(&self->ptr, self->prop);
-		name= RNA_struct_name_get_alloc(&ptr, NULL, 0);
+		name= RNA_struct_name_get_alloc(&ptr, NULL, FALSE);
 
 		if(name) {
 			pyob= PyUnicode_FromFormat( "[BPy_PropertyRNA \"%.200s\" -> \"%.200s\" -> \"%.200s\" ]", RNA_struct_identifier(self->ptr.type), RNA_property_identifier(self->prop), name);
@@ -225,7 +225,7 @@ static char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
 {
 	EnumPropertyItem *item;
 	char *result;
-	int free= 0;
+	int free= FALSE;
 	
 	RNA_property_enum_items(BPy_GetContext(), ptr, prop, &item, NULL, &free);
 	if(item) {
@@ -258,31 +258,31 @@ PyObject * pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 			switch(RNA_property_subtype(prop)) {
 			case PROP_VECTOR:
 				if(len>=2 && len <= 4) {
-					PyObject *vec_cb= newVectorObject_cb(ret, len, mathutils_rna_array_cb_index, 0);
+					PyObject *vec_cb= newVectorObject_cb(ret, len, mathutils_rna_array_cb_index, FALSE);
 					Py_DECREF(ret); /* the vector owns now */
 					ret= vec_cb; /* return the vector instead */
 				}
 				break;
 			case PROP_MATRIX:
 				if(len==16) {
-					PyObject *mat_cb= newMatrixObject_cb(ret, 4,4, mathutils_rna_matrix_cb_index, 0);
+					PyObject *mat_cb= newMatrixObject_cb(ret, 4,4, mathutils_rna_matrix_cb_index, FALSE);
 					Py_DECREF(ret); /* the matrix owns now */
 					ret= mat_cb; /* return the matrix instead */
 				}
 				else if (len==9) {
-					PyObject *mat_cb= newMatrixObject_cb(ret, 3,3, mathutils_rna_matrix_cb_index, 0);
+					PyObject *mat_cb= newMatrixObject_cb(ret, 3,3, mathutils_rna_matrix_cb_index, FALSE);
 					Py_DECREF(ret); /* the matrix owns now */
 					ret= mat_cb; /* return the matrix instead */
 				}
 				break;
 			case PROP_ROTATION:
 				if(len==3) { /* euler */
-					PyObject *eul_cb= newEulerObject_cb(ret, mathutils_rna_array_cb_index, 0);
+					PyObject *eul_cb= newEulerObject_cb(ret, mathutils_rna_array_cb_index, FALSE);
 					Py_DECREF(ret); /* the matrix owns now */
 					ret= eul_cb; /* return the matrix instead */
 				}
 				else if (len==4) {
-					PyObject *quat_cb= newQuaternionObject_cb(ret, mathutils_rna_array_cb_index, 0);
+					PyObject *quat_cb= newQuaternionObject_cb(ret, mathutils_rna_array_cb_index, FALSE);
 					Py_DECREF(ret); /* the matrix owns now */
 					ret= quat_cb; /* return the matrix instead */
 				}
@@ -325,7 +325,7 @@ PyObject * pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 			ret = PyUnicode_FromString( identifier );
 		} else {
 			EnumPropertyItem *item;
-			int free= 0;
+			int free= FALSE;
 
 			/* don't throw error here, can't trust blender 100% to give the
 			 * right values, python code should not generate error for that */
@@ -375,9 +375,9 @@ PyObject * pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 	return ret;
 }
 
-/* This function is only used by operators right now
- * Its used for taking keyword args and filling in property values */
-int pyrna_pydict_to_props(PointerRNA *ptr, PyObject *kw, const char *error_prefix)
+/* This function is used by operators and converting dicts into collections.
+ * Its takes keyword args and fills them with property values */
+int pyrna_pydict_to_props(PointerRNA *ptr, PyObject *kw, int all_args, const char *error_prefix)
 {
 	int error_val = 0;
 	int totkw;
@@ -397,20 +397,21 @@ int pyrna_pydict_to_props(PointerRNA *ptr, PyObject *kw, const char *error_prefi
 			break;
 		}
 
-		item= PyDict_GetItemString(kw, arg_name);
+		item= PyDict_GetItemString(kw, arg_name); /* wont set an error */
 
 		if (item == NULL) {
-			PyErr_Format( PyExc_TypeError, "%.200s: keyword \"%.200s\" missing", error_prefix, arg_name ? arg_name : "<UNKNOWN>");
-			error_val = -1; /* pyrna_py_to_prop sets the error */
-			break;
+			if(all_args) {
+				PyErr_Format( PyExc_TypeError, "%.200s: keyword \"%.200s\" missing", error_prefix, arg_name ? arg_name : "<UNKNOWN>");
+				error_val = -1; /* pyrna_py_to_prop sets the error */
+				break;
+			}
+		} else {
+			if (pyrna_py_to_prop(ptr, prop, NULL, item, error_prefix)) {
+				error_val= -1;
+				break;
+			}
+			totkw--;
 		}
-
-		if (pyrna_py_to_prop(ptr, prop, NULL, item, error_prefix)) {
-			error_val= -1;
-			break;
-		}
-
-		totkw--;
 	}
 	RNA_STRUCT_END;
 
@@ -673,7 +674,7 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *v
 				return -1;
 			} else {
 				BPy_StructRNA *param= (BPy_StructRNA*)value;
-				int raise_error= 0;
+				int raise_error= FALSE;
 				if(data) {
 					int flag = RNA_property_flag(prop);
 
@@ -690,7 +691,7 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *v
 						*((void**)data)= param->ptr.data;
 					}
 					else {
-						raise_error= 1;
+						raise_error= TRUE;
 					}
 				}
 				else {
@@ -753,7 +754,7 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *v
 				else
 					RNA_property_collection_add(ptr, prop, &itemptr);
 
-				if(pyrna_pydict_to_props(&itemptr, item, "Converting a python list to an RNA collection")==-1) {
+				if(pyrna_pydict_to_props(&itemptr, item, 1, "Converting a python list to an RNA collection")==-1) {
 					Py_DECREF(item);
 					return -1;
 				}
@@ -1465,13 +1466,13 @@ static void foreach_attr_type(	BPy_PropertyRNA *self, char *attr,
 	PropertyRNA *prop;
 	*raw_type= -1;
 	*attr_tot= 0;
-	*attr_signed= 0;
+	*attr_signed= FALSE;
 
 	RNA_PROP_BEGIN(&self->ptr, itemptr, self->prop) {
 		prop = RNA_struct_find_property(&itemptr, attr);
 		*raw_type= RNA_property_raw_type(prop);
 		*attr_tot = RNA_property_array_length(prop);
-		*attr_signed= (RNA_property_subtype(prop)==PROP_UNSIGNED) ? 0:1;
+		*attr_signed= (RNA_property_subtype(prop)==PROP_UNSIGNED) ? FALSE:TRUE;
 		break;
 	}
 	RNA_PROP_END;
@@ -1489,7 +1490,7 @@ static int foreach_parse_args(
 	int target_tot;
 #endif
 
-	*size= *raw_type= *attr_tot= *attr_signed= 0;
+	*size= *raw_type= *attr_tot= *attr_signed= FALSE;
 
 	if(!PyArg_ParseTuple(args, "sO", attr, seq) || (!PySequence_Check(*seq) && PyObject_CheckBuffer(*seq))) {
 		PyErr_SetString( PyExc_TypeError, "foreach_get(attr, sequence) expects a string and a sequence" );
@@ -1569,7 +1570,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
 
 
 	if(set) { /* get the array from python */
-		buffer_is_compat = 0;
+		buffer_is_compat = FALSE;
 		if(PyObject_CheckBuffer(seq)) {
 			Py_buffer buf;
 			PyObject_GetBuffer(seq, &buf, PyBUF_SIMPLE | PyBUF_FORMAT);
@@ -1616,7 +1617,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
 		}
 	}
 	else {
-		buffer_is_compat = 0;
+		buffer_is_compat = FALSE;
 		if(PyObject_CheckBuffer(seq)) {
 			Py_buffer buf;
 			PyObject_GetBuffer(seq, &buf, PyBUF_SIMPLE | PyBUF_FORMAT);
@@ -1867,8 +1868,12 @@ PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *data)
 				newptr= *(PointerRNA*)data;
 			}
 			else {
-				/* XXX this is missing the ID part! */
-				RNA_pointer_create(NULL, type, *(void**)data, &newptr);
+				if(RNA_struct_is_ID(type)) {
+					RNA_id_pointer_create(*(void**)data, &newptr);
+				} else {
+					/* XXX this is missing the ID part! */
+					RNA_pointer_create(NULL, type, *(void**)data, &newptr);
+				}
 			}
 
 			if (newptr.data) {
@@ -1962,14 +1967,14 @@ static PyObject * pyrna_func_call(PyObject * self, PyObject *args, PyObject *kw)
 			item= PyTuple_GET_ITEM(args, i);
 			i++;
 
-			kw_arg= 0;
+			kw_arg= FALSE;
 		}
 		else if (kw != NULL) {
 			item= PyDict_GetItemString(kw, parm_id);  /* borrow ref */
 			if(item)
 				kw_tot++; /* make sure invalid keywords are not given */
 
-			kw_arg= 1;
+			kw_arg= TRUE;
 		}
 
 		if (item==NULL) {
@@ -1990,7 +1995,7 @@ static PyObject * pyrna_func_call(PyObject * self, PyObject *args, PyObject *kw)
 			char error_prefix[512];
 			PyErr_Clear(); /* re-raise */
 
-			if(kw_arg)
+			if(kw_arg==TRUE)
 				snprintf(error_prefix, sizeof(error_prefix), "%s.%s(): error with keyword argument \"%s\" - ", RNA_struct_identifier(self_ptr->type), RNA_function_identifier(self_func), parm_id);
 			else
 				snprintf(error_prefix, sizeof(error_prefix), "%s.%s(): error with argument %d, \"%s\" - ", RNA_struct_identifier(self_ptr->type), RNA_function_identifier(self_func), i, parm_id);
@@ -2013,12 +2018,12 @@ static PyObject * pyrna_func_call(PyObject * self, PyObject *args, PyObject *kw)
 		DynStr *good_args= BLI_dynstr_new();
 
 		char *arg_name, *bad_args_str, *good_args_str;
-		int found= 0, first=1;
+		int found= FALSE, first= TRUE;
 
 		while (PyDict_Next(kw, &pos, &key, &value)) {
 
 			arg_name= _PyUnicode_AsString(key);
-			found= 0;
+			found= FALSE;
 
 			if(arg_name==NULL) { /* unlikely the argname is not a string but ignore if it is*/
 				PyErr_Clear();
@@ -2029,28 +2034,28 @@ static PyObject * pyrna_func_call(PyObject * self, PyObject *args, PyObject *kw)
 				for(; iter.valid; RNA_parameter_list_next(&iter)) {
 					parm= iter.parm;
 					if (strcmp(arg_name, RNA_property_identifier(parm))==0) {
-						found= 1;
+						found= TRUE;
 						break;
 					}
 				}
 
 				RNA_parameter_list_end(&iter);
 
-				if(!found) {
+				if(found==FALSE) {
 					BLI_dynstr_appendf(bad_args, first ? "%s" : ", %s", arg_name);
-					first= 0;
+					first= FALSE;
 				}
 			}
 		}
 
 		/* list good args */
-		first= 1;
+		first= TRUE;
 
 		RNA_parameter_list_begin(&parms, &iter);
 		for(; iter.valid; RNA_parameter_list_next(&iter)) {
 			parm= iter.parm;
 			BLI_dynstr_appendf(good_args, first ? "%s" : ", %s", RNA_property_identifier(parm));
-			first= 0;
+			first= FALSE;
 		}
 		RNA_parameter_list_end(&iter);
 
@@ -2403,7 +2408,7 @@ PyObject *pyrna_struct_CreatePyObject( PointerRNA *ptr )
 	}
 	
 	pyrna->ptr= *ptr;
-	pyrna->freeptr= 0;
+	pyrna->freeptr= FALSE;
 	
 	// PyObSpit("NewStructRNA: ", (PyObject *)pyrna);
 	

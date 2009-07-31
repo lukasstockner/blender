@@ -99,9 +99,7 @@
 
 /* ************* XXX *************** */
 static int okee() {return 0;}
-static int pupmenu() {return 0;}
-static void BIF_undo_push() {}
-static void adduplicate() {}
+static void BIF_undo_push(const char *msg) {}
 /* ************* XXX *************** */
 
 /* **************** tools on Editmode Armature **************** */
@@ -1043,9 +1041,7 @@ static int separate_armature_exec (bContext *C, wmOperator *op)
 	ED_armature_edit_free(obedit);
 	
 	/* 2) duplicate base */
-	adduplicate(1, USER_DUP_ARM); /* no transform and zero so do get a linked dupli */
-	
-	newbase= BASACT; /* basact is set in adduplicate() */
+	newbase= ED_object_add_duplicate(scene, oldbase, USER_DUP_ARM); /* only duplicate linked armature */
 	newob= newbase->object;		
 	newbase->flag &= ~SELECT;
 	
@@ -1064,8 +1060,6 @@ static int separate_armature_exec (bContext *C, wmOperator *op)
 	
 	/* 5) restore original conditions */
 	obedit= oldob;
-	BASACT= oldbase;
-	BASACT->flag |= SELECT;
 	
 	ED_armature_to_edit(obedit);
 	
@@ -1274,7 +1268,6 @@ static int pose_setflag_exec (bContext *C, wmOperator *op)
 /* callback for editbones setflag */
 static int armature_bones_setflag_exec (bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
 	int flag= RNA_enum_get(op->ptr, "type");
 	int mode= RNA_enum_get(op->ptr, "mode");
 	
@@ -2040,7 +2033,7 @@ static EnumPropertyItem prop_calc_roll_types[] = {
 static int armature_calc_roll_exec(bContext *C, wmOperator *op) 
 {
 	Scene *scene= CTX_data_scene(C);
-	View3D *v3d= (View3D *)CTX_wm_space_data(C);
+	View3D *v3d= CTX_wm_view3d(C);
 	Object *ob= CTX_data_edit_object(C);
 	void (*roll_func)(Scene *, View3D *, EditBone *) = NULL;
 	
@@ -2858,7 +2851,7 @@ static int armature_fill_bones_exec (bContext *C, wmOperator *op)
 	Object *obedit= CTX_data_edit_object(C);
 	bArmature *arm= (obedit) ? obedit->data : NULL;
 	Scene *scene= CTX_data_scene(C);
-	View3D *v3d= (View3D *)CTX_wm_space_data(C);
+	View3D *v3d= CTX_wm_view3d(C);
 	EditBone *newbone=NULL;
 	ListBase points = {NULL, NULL};
 	int count;

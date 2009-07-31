@@ -69,7 +69,7 @@ static void graph_viewmenu(bContext *C, uiLayout *layout, void *arg_unused)
 {
 	bScreen *sc= CTX_wm_screen(C);
 	ScrArea *sa= CTX_wm_area(C);
-	SpaceIpo *sipo= (SpaceIpo*)CTX_wm_space_data(C);
+	SpaceIpo *sipo= CTX_wm_space_graph(C);
 	PointerRNA spaceptr;
 	
 	/* retrieve state */
@@ -87,6 +87,7 @@ static void graph_viewmenu(bContext *C, uiLayout *layout, void *arg_unused)
 	else
 		uiItemO(layout, "Show Handles", ICON_CHECKBOX_HLT, "GRAPH_OT_handles_view_toggle");
 	
+	uiItemR(layout, NULL, 0, &spaceptr, "only_selected_curves_handles", 0, 0, 0);
 	uiItemR(layout, NULL, 0, &spaceptr, "automerge_keyframes", 0, 0, 0);
 	
 	if (sipo->flag & SIPO_DRAWTIME)
@@ -251,7 +252,7 @@ static void do_graph_buttons(bContext *C, void *arg, int event)
 void graph_header_buttons(const bContext *C, ARegion *ar)
 {
 	ScrArea *sa= CTX_wm_area(C);
-	SpaceIpo *sipo= (SpaceIpo *)CTX_wm_space_data(C);
+	SpaceIpo *sipo= CTX_wm_space_graph(C);
 	uiBlock *block;
 	int xco, yco= 3;
 	
@@ -313,13 +314,6 @@ void graph_header_buttons(const bContext *C, ARegion *ar)
 		xco += 6*XIC + 15;
 	}
 	
-	/* copy + paste */
-	uiBlockBeginAlign(block);
-		uiDefIconButO(block, BUT, "GRAPH_OT_copy", WM_OP_INVOKE_REGION_WIN, ICON_COPYDOWN, xco+=XIC,yco,XIC,YIC, "Copies the selected keyframes from the selected channel(s) to the buffer");
-		uiDefIconButO(block, BUT, "GRAPH_OT_paste", WM_OP_INVOKE_REGION_WIN, ICON_PASTEDOWN, xco+=XIC,yco,XIC,YIC, "Pastes the keyframes from the buffer");
-	uiBlockEndAlign(block);
-	xco += (XIC + 8);
-	
 	/* auto-snap selector */
 	if (sipo->flag & SIPO_DRAWTIME) {
 		uiDefButS(block, MENU, B_REDR,
@@ -334,6 +328,13 @@ void graph_header_buttons(const bContext *C, ARegion *ar)
 				"Auto-snapping mode for keyframe times when transforming");
 	}
 	xco += 98;
+	
+	/* copy + paste */
+	uiBlockBeginAlign(block);
+		uiDefIconButO(block, BUT, "GRAPH_OT_copy", WM_OP_INVOKE_REGION_WIN, ICON_COPYDOWN, xco+=XIC,yco,XIC,YIC, "Copies the selected keyframes from the selected channel(s) to the buffer");
+		uiDefIconButO(block, BUT, "GRAPH_OT_paste", WM_OP_INVOKE_REGION_WIN, ICON_PASTEDOWN, xco+=XIC,yco,XIC,YIC, "Pastes the keyframes from the buffer");
+	uiBlockEndAlign(block);
+	xco += (XIC + 8);
 	
 	/* ghost curves */
 	// XXX these icons need to be changed

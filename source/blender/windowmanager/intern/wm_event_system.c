@@ -244,6 +244,23 @@ void wm_event_do_notifiers(bContext *C)
 
 /* ********************* operators ******************* */
 
+static int wm_operator_poll(bContext *C, wmOperatorType *ot)
+{
+	wmOperatorTypeMacro *otmacro;
+	
+	for(otmacro= ot->macro.first; otmacro; otmacro= otmacro->next) {
+		wmOperatorType *ot= WM_operatortype_find(otmacro->idname, 0);
+		
+		if(0==wm_operator_poll(C, ot))
+			return 0;
+	}
+	
+	if(ot->poll)
+		return ot->poll(C);
+	
+	return 1;
+}
+
 /* if repeat is true, it doesn't register again, nor does it free */
 static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 {
@@ -252,7 +269,7 @@ static int wm_operator_exec(bContext *C, wmOperator *op, int repeat)
 	if(op==NULL || op->type==NULL)
 		return retval;
 	
-	if(op->type->poll && op->type->poll(C)==0)
+	if(0==wm_operator_poll(C, op->type))
 		return retval;
 	
 	if(op->type->exec)
@@ -320,12 +337,32 @@ static wmOperator *wm_operator_create(wmWindowManager *wm, wmOperatorType *ot, P
 		BKE_reports_init(op->reports, RPT_STORE);
 	}
 	
+	/* recursive filling of operator macro list */
+	if(ot->macro.first) {
+		static wmOperator *motherop= NULL;
+		wmOperatorTypeMacro *otmacro;
+		
+		/* ensure all ops are in execution order in 1 list */
+		if(motherop==NULL) 
+			motherop= op;
+		
+		for(otmacro= ot->macro.first; otmacro; otmacro= otmacro->next) {
+			wmOperatorType *otm= WM_operatortype_find(otmacro->idname, 0);
+			wmOperator *opm= wm_operator_create(wm, otm, otmacro->ptr, NULL);
+			
+			BLI_addtail(&motherop->macro, opm);
+			opm->opm= motherop; /* pointer to mom, for modal() */
+		}
+		
+		motherop= NULL;
+	}
+	
 	return op;
 }
 
 static void wm_operator_print(wmOperator *op)
 {
-	char *buf = WM_operator_pystring(op);
+	char *buf = WM_operator_pystring(op->type, op->ptr, 1);
 	printf("%s\n", buf);
 	MEM_freeN(buf);
 }
@@ -345,7 +382,7 @@ static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, P
 	wmWindowManager *wm= CTX_wm_manager(C);
 	int retval= OPERATOR_PASS_THROUGH;
 
-	if(ot->poll==NULL || ot->poll(C)) {
+	if(wm_operator_poll(C, ot)) {
 		wmOperator *op= wm_operator_create(wm, ot, properties, NULL);
 		
 		if((G.f & G_DEBUG) && event && event->type!=MOUSEMOVE)
@@ -626,6 +663,8 @@ static int wm_eventmatch(wmEvent *winevent, wmKeymapItem *kmi)
 {
 	int kmitype= wm_userdef_event_map(kmi->type);
 
+	if(kmi->inactive) return 0;
+	
 	/* the matching rules */
 	if(kmitype==KM_TEXTINPUT)
 		if(ISKEYBOARD(winevent->type)) return 1;
@@ -807,7 +846,6 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 		case EVT_FILESELECT_OPEN: 
 		case EVT_FILESELECT_FULL_OPEN: 
 			{
-				short flag =0; short display =FILE_SHORTDISPLAY; short filter =0; short sort =FILE_SORT_ALPHA;
 				char *dir= NULL; char *path= RNA_string_get_alloc(handler->op->ptr, "filename", NULL, 0);
 					
 				if(event->val==EVT_FILESELECT_OPEN)
@@ -818,18 +856,8 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 				/* settings for filebrowser, sfile is not operator owner but sends events */
 				sfile= (SpaceFile*)CTX_wm_space_data(C);
 				sfile->op= handler->op;
-				
-				/* XXX for now take the settings from the existing (previous) filebrowser 
-				   should be stored in settings and passed via the operator */
-				if (sfile->params) {
-					flag = sfile->params->flag;
-					filter = sfile->params->filter;
-					display = sfile->params->display;
-					sort = sfile->params->sort;
-					dir = sfile->params->dir;
-				}
 
-				ED_fileselect_set_params(sfile, handler->op->type->name, dir, path, flag, display, filter, sort);
+				ED_fileselect_set_params(sfile);
 				dir = NULL;
 				MEM_freeN(path);
 				
@@ -893,10 +921,22 @@ static int handler_boundbox_test(wmEventHandler *handler, wmEvent *event)
 		if(handler->bblocal) {
 			rcti rect= *handler->bblocal;
 			BLI_translate_rcti(&rect, handler->bbwin->xmin, handler->bbwin->ymin);
-			return BLI_in_rcti(&rect, event->x, event->y);
+
+			if(BLI_in_rcti(&rect, event->x, event->y))
+				return 1;
+			else if(event->type==MOUSEMOVE && BLI_in_rcti(&rect, event->prevx, event->prevy))
+				return 1;
+			else
+				return 0;
 		}
-		else 
-			return BLI_in_rcti(handler->bbwin, event->x, event->y);
+		else {
+			if(BLI_in_rcti(handler->bbwin, event->x, event->y))
+				return 1;
+			else if(event->type==MOUSEMOVE && BLI_in_rcti(handler->bbwin, event->prevx, event->prevy))
+				return 1;
+			else
+				return 0;
+		}
 	}
 	return 1;
 }
@@ -1194,7 +1234,17 @@ void WM_event_set_handler_flag(wmEventHandler *handler, int flag)
 wmEventHandler *WM_event_add_modal_handler(bContext *C, ListBase *handlers, wmOperator *op)
 {
 	wmEventHandler *handler= MEM_callocN(sizeof(wmEventHandler), "event modal handler");
-	handler->op= op;
+	
+	/* operator was part of macro */
+	if(op->opm) {
+		/* give the mother macro to the handler */
+		handler->op= op->opm;
+		/* mother macro opm becomes the macro element */
+		handler->op->opm= op;
+	}
+	else
+		handler->op= op;
+	
 	handler->op_area= CTX_wm_area(C);		/* means frozen screen context for modal handlers! */
 	handler->op_region= CTX_wm_region(C);
 	
@@ -1435,19 +1485,6 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 				
 				update_tablet_data(win, &event);
 				wm_event_add(win, &event);
-
-				cx = abs((win->downx - event.x));
-				cy = abs((win->downy - event.y));
-
-				/* probably minimum drag size should be #defined instead of hardcoded 3 */
-				if (win->downstate == LEFTMOUSE && (cx > 3 || cy > 3)) {
-					wmEvent dragevt= *evt;
-					dragevt.type= MOUSEDRAG;
-					dragevt.customdata= NULL;
-					dragevt.customdatafree= 0;
-
-					wm_event_add(win, &dragevt);
-				}
 			}
 			break;
 		}
@@ -1471,23 +1508,6 @@ void wm_event_add_ghostevent(wmWindow *win, int type, void *customdata)
 			
 			update_tablet_data(win, &event);
 			wm_event_add(win, &event);
-
-			if (event.val) {
-				win->downstate= event.type;
-				win->downx= event.x;
-				win->downy= event.y;
-			}
-			else if (win->downstate) {
-				wmEvent dropevt= *evt;
-				dropevt.type= MOUSEDROP;
-				dropevt.customdata= NULL;
-				dropevt.customdatafree= 0;
-				win->downstate= 0;
-				win->downx= 0;
-				win->downy= 0;
-
-				wm_event_add(win, &dropevt);
-			}
 			
 			break;
 		}

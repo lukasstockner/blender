@@ -95,6 +95,8 @@ typedef struct TreeElement {
 #define TSE_RNA_PROPERTY	31
 #define TSE_RNA_ARRAY_ELEM	32
 #define TSE_NLA_TRACK		33
+#define TSE_KEYMAP			34
+#define TSE_KEYMAP_ITEM		35
 
 /* outliner search flags */
 #define OL_FIND					0
@@ -126,8 +128,6 @@ void OUTLINER_OT_object_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_group_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_id_operation(struct wmOperatorType *ot);
 void OUTLINER_OT_data_operation(struct wmOperatorType *ot);
-
-void OUTLINER_OT_drag(struct wmOperatorType *ot);
 
 void OUTLINER_OT_show_one_level(struct wmOperatorType *ot);
 void OUTLINER_OT_show_active(struct wmOperatorType *ot);

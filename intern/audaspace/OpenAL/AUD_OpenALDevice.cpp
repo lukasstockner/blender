@@ -556,6 +556,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 			// play sound
 			m_playingSounds->push_back(sound);
 
+			alSourcei(sound->source, AL_SOURCE_RELATIVE, 1);
 			start();
 
 			alcProcessContext(m_context);
@@ -664,6 +665,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 
 	// play sound
 	m_playingSounds->push_back(sound);
+	alSourcei(sound->source, AL_SOURCE_RELATIVE, 1);
 
 	start();
 
@@ -1142,7 +1144,10 @@ bool AUD_OpenALDevice::getCapability(int capability, void *value)
 
 AUD_Handle* AUD_OpenALDevice::play3D(AUD_IFactory* factory, bool keep)
 {
-	return play(factory, keep);
+	AUD_OpenALHandle* handle = (AUD_OpenALHandle*)play(factory, keep);
+	if(handle)
+		alSourcei(handle->source, AL_SOURCE_RELATIVE, 0);
+	return handle;
 }
 
 bool AUD_OpenALDevice::updateListener(AUD_3DData &data)
@@ -1261,7 +1266,7 @@ bool AUD_OpenALDevice::setSourceSetting(AUD_Handle* handle,
 			result = true;
 			break;
 		case AUD_3DSS_IS_RELATIVE:
-			alSourcei(source, AL_SOURCE_RELATIVE, value > 1.0);
+			alSourcei(source, AL_SOURCE_RELATIVE, value > 0.0);
 			result = true;
 			break;
 		case AUD_3DSS_MAX_DISTANCE:

@@ -137,7 +137,7 @@ void WM_operatortype_append(void (*opfunc)(wmOperatorType*))
 		ot->name= dummy_name;
 	}
 
-	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description:""); // XXX All ops should have a description but for now allow them not to.
+	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description:"(undocumented operator)"); // XXX All ops should have a description but for now allow them not to.
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 	BLI_addtail(&global_ops, ot);
 }
@@ -149,10 +149,138 @@ void WM_operatortype_append_ptr(void (*opfunc)(wmOperatorType*, void*), void *us
 	ot= MEM_callocN(sizeof(wmOperatorType), "operatortype");
 	ot->srna= RNA_def_struct(&BLENDER_RNA, "", "OperatorProperties");
 	opfunc(ot, userdata);
-	RNA_def_struct_ui_text(ot->srna, ot->name, "DOC_BROKEN"); /* TODO - add a discription to wmOperatorType? */
+	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description:"(undocumented operator)");
 	RNA_def_struct_identifier(ot->srna, ot->idname);
 	BLI_addtail(&global_ops, ot);
 }
+
+/* ********************* macro operator ******************** */
+
+/* macro exec only runs exec calls */
+static int wm_macro_exec(bContext *C, wmOperator *op)
+{
+	wmOperator *opm;
+	int retval= OPERATOR_FINISHED;
+	
+//	printf("macro exec %s\n", op->type->idname);
+	
+	for(opm= op->macro.first; opm; opm= opm->next) {
+		
+		if(opm->type->exec) {
+//			printf("macro exec %s\n", opm->type->idname);
+			retval= opm->type->exec(C, opm);
+		
+			if(!(retval & OPERATOR_FINISHED))
+				break;
+		}
+	}
+//	if(opm)
+//		printf("macro ended not finished\n");
+//	else
+//		printf("macro end\n");
+	
+	return retval;
+}
+
+static int wm_macro_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	wmOperator *opm;
+	int retval= OPERATOR_FINISHED;
+	
+//	printf("macro invoke %s\n", op->type->idname);
+	
+	for(opm= op->macro.first; opm; opm= opm->next) {
+		
+		if(opm->type->invoke)
+			retval= opm->type->invoke(C, opm, event);
+		else if(opm->type->exec)
+			retval= opm->type->exec(C, opm);
+		
+		if(!(retval & OPERATOR_FINISHED))
+			break;
+	}
+	
+//	if(opm)
+//		printf("macro ended not finished\n");
+//	else
+//		printf("macro end\n");
+	
+	
+	return retval;
+}
+
+static int wm_macro_modal(bContext *C, wmOperator *op, wmEvent *event)
+{
+//	printf("macro modal %s\n", op->type->idname);
+	
+	if(op->opm==NULL)
+		printf("macro error, calling NULL modal()\n");
+	else {
+//		printf("macro modal %s\n", op->opm->type->idname);
+		return op->opm->type->modal(C, op->opm, event);
+	}	
+	
+	return OPERATOR_FINISHED;
+}
+
+/* Names have to be static for now */
+wmOperatorType *WM_operatortype_append_macro(char *idname, char *name, int flag)
+{
+	wmOperatorType *ot;
+	
+	if(WM_operatortype_exists(idname)) {
+		printf("Macro error: operator %s exists\n", idname);
+		return NULL;
+	}
+	
+	ot= MEM_callocN(sizeof(wmOperatorType), "operatortype");
+	ot->srna= RNA_def_struct(&BLENDER_RNA, "", "OperatorProperties");
+	
+	ot->idname= idname;
+	ot->name= name;
+	ot->flag= OPTYPE_MACRO | flag;
+	
+	ot->exec= wm_macro_exec;
+	ot->invoke= wm_macro_invoke;
+	ot->modal= wm_macro_modal;
+	ot->poll= NULL;
+	
+	RNA_def_struct_ui_text(ot->srna, ot->name, ot->description ? ot->description:"(undocumented operator)"); // XXX All ops should have a description but for now allow them not to.
+	RNA_def_struct_identifier(ot->srna, ot->idname);
+
+	BLI_addtail(&global_ops, ot);
+
+	return ot;
+}
+
+wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname)
+{
+	wmOperatorTypeMacro *otmacro= MEM_callocN(sizeof(wmOperatorTypeMacro), "wmOperatorTypeMacro");
+	
+	BLI_strncpy(otmacro->idname, idname, OP_MAX_TYPENAME);
+
+	/* do this on first use, since operatordefinitions might have been not done yet */
+//	otmacro->ptr= MEM_callocN(sizeof(PointerRNA), "optype macro ItemPtr");
+//	WM_operator_properties_create(otmacro->ptr, idname);
+	
+	BLI_addtail(&ot->macro, otmacro);
+	
+	return otmacro;
+}
+
+static void wm_operatortype_free_macro(wmOperatorType *ot)
+{
+	wmOperatorTypeMacro *otmacro;
+	
+	for(otmacro= ot->macro.first; otmacro; otmacro= otmacro->next) {
+		if(otmacro->ptr) {
+			WM_operator_properties_free(otmacro->ptr);
+			MEM_freeN(otmacro->ptr);
+		}
+	}
+	BLI_freelistN(&ot->macro);
+}
+
 
 int WM_operatortype_remove(const char *idname)
 {
@@ -163,6 +291,10 @@ int WM_operatortype_remove(const char *idname)
 	
 	BLI_remlink(&global_ops, ot);
 	RNA_struct_free(&BLENDER_RNA, ot->srna);
+	
+	if(ot->macro.first)
+		wm_operatortype_free_macro(ot);
+	
 	MEM_freeN(ot);
 
 	return 1;
@@ -208,8 +340,12 @@ void WM_operator_bl_idname(char *to, const char *from)
 }
 
 /* print a string representation of the operator, with the args that it runs 
- * so python can run it again */
-char *WM_operator_pystring(wmOperator *op)
+ * so python can run it again,
+ *
+ * When calling from an existing wmOperator do.
+ * WM_operator_pystring(op->type, op->ptr);
+ */
+char *WM_operator_pystring(wmOperatorType *ot, PointerRNA *opptr, int all_args)
 {
 	const char *arg_name= NULL;
 	char idname_py[OP_MAX_TYPENAME];
@@ -219,27 +355,60 @@ char *WM_operator_pystring(wmOperator *op)
 	/* for building the string */
 	DynStr *dynstr= BLI_dynstr_new();
 	char *cstring, *buf;
-	int first_iter=1;
+	int first_iter=1, ok= 1;
 
-	WM_operator_py_idname(idname_py, op->idname);
+
+	/* only to get the orginal props for comparisons */
+	PointerRNA opptr_default;
+	PropertyRNA *prop_default;
+	char *buf_default;
+	if(!all_args) {
+		WM_operator_properties_create(&opptr_default, ot->idname);
+	}
+
+
+	WM_operator_py_idname(idname_py, ot->idname);
 	BLI_dynstr_appendf(dynstr, "bpy.ops.%s(", idname_py);
 
-	iterprop= RNA_struct_iterator_property(op->ptr->type);
+	iterprop= RNA_struct_iterator_property(opptr->type);
 
-	RNA_PROP_BEGIN(op->ptr, propptr, iterprop) {
+	RNA_PROP_BEGIN(opptr, propptr, iterprop) {
 		prop= propptr.data;
 		arg_name= RNA_property_identifier(prop);
 
 		if (strcmp(arg_name, "rna_type")==0) continue;
 
-		buf= RNA_property_as_string(op->ptr, prop);
+		buf= RNA_property_as_string(opptr, prop);
 		
-		BLI_dynstr_appendf(dynstr, first_iter?"%s=%s":", %s=%s", arg_name, buf);
+		ok= 1;
+
+		if(!all_args) {
+			/* not verbose, so only add in attributes that use non-default values
+			 * slow but good for tooltips */
+			prop_default= RNA_struct_find_property(&opptr_default, arg_name);
+
+			if(prop_default) {
+				buf_default= RNA_property_as_string(&opptr_default, prop_default);
+
+				if(strcmp(buf, buf_default)==0)
+					ok= 0; /* values match, dont bother printing */
+
+				MEM_freeN(buf_default);
+			}
+
+		}
+		if(ok) {
+			BLI_dynstr_appendf(dynstr, first_iter?"%s=%s":", %s=%s", arg_name, buf);
+			first_iter = 0;
+		}
 
 		MEM_freeN(buf);
-		first_iter = 0;
+
 	}
 	RNA_PROP_END;
+
+	if(all_args==0)
+		WM_operator_properties_free(&opptr_default);
 
 	BLI_dynstr_append(dynstr, ")");
 
@@ -320,6 +489,21 @@ int WM_operator_filesel(bContext *C, wmOperator *op, wmEvent *event)
 	}
 }
 
+/* default properties for fileselect */
+void WM_operator_properties_filesel(wmOperatorType *ot, int filter)
+{
+	RNA_def_string_file_path(ot->srna, "filename", "", FILE_MAX, "Filename", "Path to file.");
+
+	RNA_def_boolean(ot->srna, "filter_blender", (filter & BLENDERFILE), "Filter .blend files", "");
+	RNA_def_boolean(ot->srna, "filter_image", (filter & IMAGEFILE), "Filter image files", "");
+	RNA_def_boolean(ot->srna, "filter_movie", (filter & MOVIEFILE), "Filter movie files", "");
+	RNA_def_boolean(ot->srna, "filter_python", (filter & PYSCRIPTFILE), "Filter python files", "");
+	RNA_def_boolean(ot->srna, "filter_font", (filter & FTFONTFILE), "Filter font files", "");
+	RNA_def_boolean(ot->srna, "filter_sound", (filter & SOUNDFILE), "Filter sound files", "");
+	RNA_def_boolean(ot->srna, "filter_text", (filter & TEXTFILE), "Filter text files", "");
+	RNA_def_boolean(ot->srna, "filter_folder", (filter & FOLDERFILE), "Filter folders", "");
+}
+
 /* op->poll */
 int WM_operator_winactive(bContext *C)
 {
@@ -333,7 +517,7 @@ static void redo_cb(bContext *C, void *arg_op, void *arg2)
 	wmOperator *lastop= arg_op;
 	
 	if(lastop) {
-		ED_undo_pop(C);
+		ED_undo_pop_op(C, lastop);
 		WM_operator_repeat(C, lastop);
 	}
 }
@@ -521,6 +705,14 @@ static int wm_search_menu_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	return OPERATOR_CANCELLED;
 }
 
+/* op->poll */
+int wm_search_menu_poll(bContext *C)
+{
+	if(CTX_wm_window(C)==NULL) return 0;
+	if(CTX_wm_area(C) && CTX_wm_area(C)->spacetype==SPACE_CONSOLE) return 0;  // XXX - so we can use the shortcut in the console
+	return 1;
+}
+
 static void WM_OT_search_menu(wmOperatorType *ot)
 {
 	ot->name= "Search Menu";
@@ -528,7 +720,7 @@ static void WM_OT_search_menu(wmOperatorType *ot)
 	
 	ot->invoke= wm_search_menu_invoke;
 	ot->exec= wm_search_menu_exec;
-	ot->poll= WM_operator_winactive;
+	ot->poll= wm_search_menu_poll;
 }
 
 
@@ -670,7 +862,6 @@ static void untitled(char *name)
 
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-
 	RNA_string_set(op->ptr, "filename", G.sce);
 	WM_event_add_fileselect(C, op);
 
@@ -700,7 +891,7 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	ot->exec= wm_open_mainfile_exec;
 	ot->poll= WM_operator_winactive;
 	
-	RNA_def_property(ot->srna, "filename", PROP_STRING, PROP_FILEPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|BLENDERFILE);
 }
 
 static int wm_recover_last_session_exec(bContext *C, wmOperator *op)
@@ -793,7 +984,7 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	ot->exec= wm_save_as_mainfile_exec;
 	ot->poll= WM_operator_winactive;
 	
-	RNA_def_string_file_path(ot->srna, "filename", "", 0, "Filename", "");
+	WM_operator_properties_filesel(ot, FOLDERFILE|BLENDERFILE);
 	RNA_def_boolean(ot->srna, "compress", 0, "Compress", "Write compressed .blend file.");
 }
 
@@ -822,7 +1013,7 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	ot->exec= wm_save_as_mainfile_exec;
 	ot->poll= WM_operator_winactive;
 	
-	RNA_def_string_file_path(ot->srna, "filename", "", 0, "Filename", "");
+	WM_operator_properties_filesel(ot, FOLDERFILE|BLENDERFILE);
 	RNA_def_boolean(ot->srna, "compress", 0, "Compress", "Write compressed .blend file.");
 }
 
@@ -906,7 +1097,7 @@ void WM_paint_cursor_end(wmWindowManager *wm, void *handle)
    It stores 4 values (xmin, xmax, ymin, ymax) and event it ended with (event_type)
 */
 
-static int border_apply(bContext *C, wmOperator *op, int event_type)
+static int border_apply(bContext *C, wmOperator *op, int event_type, int event_orig)
 {
 	wmGesture *gesture= op->customdata;
 	rcti *rect= gesture->customdata;
@@ -924,9 +1115,14 @@ static int border_apply(bContext *C, wmOperator *op, int event_type)
 	RNA_int_set(op->ptr, "ymin", rect->ymin);
 	RNA_int_set(op->ptr, "xmax", rect->xmax);
 	RNA_int_set(op->ptr, "ymax", rect->ymax);
-	if( RNA_struct_find_property(op->ptr, "event_type") )
-		RNA_int_set(op->ptr, "event_type", event_type);
 	
+	/* XXX weak; border should be configured for this without reading event types */
+	if( RNA_struct_find_property(op->ptr, "event_type") ) {
+		if(ELEM4(event_orig, EVT_TWEAK_L, EVT_TWEAK_R, EVT_TWEAK_A, EVT_TWEAK_S))
+			event_type= LEFTMOUSE;
+		
+		RNA_int_set(op->ptr, "event_type", event_type);
+	}
 	op->type->exec(C, op);
 	
 	return 1;
@@ -947,7 +1143,10 @@ static void wm_gesture_end(bContext *C, wmOperator *op)
 
 int WM_border_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	op->customdata= WM_gesture_new(C, event, WM_GESTURE_CROSS_RECT);
+	if(WM_key_event_is_tweak(event->type))
+		op->customdata= WM_gesture_new(C, event, WM_GESTURE_RECT);
+	else
+		op->customdata= WM_gesture_new(C, event, WM_GESTURE_CROSS_RECT);
 
 	/* add modal handler */
 	WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
@@ -984,14 +1183,14 @@ int WM_border_select_modal(bContext *C, wmOperator *op, wmEvent *event)
 		case LEFTMOUSE:
 		case MIDDLEMOUSE:
 		case RIGHTMOUSE:
-			if(event->val==1) {
+			if(event->val==KM_PRESS) {
 				if(gesture->type==WM_GESTURE_CROSS_RECT && gesture->mode==0) {
 					gesture->mode= 1;
 					wm_gesture_tag_redraw(C);
 				}
 			}
 			else {
-				if(border_apply(C, op, event->type)) {
+				if(border_apply(C, op, event->type, gesture->event_type)) {
 					wm_gesture_end(C, op);
 					return OPERATOR_FINISHED;
 				}
@@ -1647,6 +1846,12 @@ static void WM_OT_ten_timer(wmOperatorType *ot)
 /* called on initialize WM_exit() */
 void wm_operatortype_free(void)
 {
+	wmOperatorType *ot;
+	
+	for(ot= global_ops.first; ot; ot= ot->next)
+		if(ot->macro.first)
+			wm_operatortype_free_macro(ot);
+	
 	BLI_freelistN(&global_ops);
 }
 
@@ -1691,7 +1896,7 @@ void wm_window_keymap(wmWindowManager *wm)
 	/* debug/testing */
 	WM_keymap_verify_item(keymap, "WM_OT_ten_timer", TKEY, KM_PRESS, KM_ALT|KM_CTRL, 0);
 	WM_keymap_verify_item(keymap, "WM_OT_debug_menu", DKEY, KM_PRESS, KM_ALT|KM_CTRL, 0);
-	WM_keymap_verify_item(keymap, "WM_OT_search_menu", FKEY, KM_PRESS, KM_ALT|KM_CTRL, 0);
+	WM_keymap_verify_item(keymap, "WM_OT_search_menu", SPACEKEY, KM_PRESS, KM_CTRL, 0);
 	
 }
 

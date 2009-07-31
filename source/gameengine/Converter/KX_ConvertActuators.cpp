@@ -349,7 +349,8 @@ void BL_ConvertActuators(char* maggiename,
 			{
 				bSoundActuator* soundact = (bSoundActuator*) bact->data;
 				/* get type, and possibly a start and end frame */
-				short startFrame = soundact->sta, stopFrame = soundact->end;
+				// AUD_XXX
+//				short startFrame = soundact->sta, stopFrame = soundact->end;
 				KX_SoundActuator::KX_SOUNDACT_TYPE
 					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_NODEF;
 
@@ -380,12 +381,12 @@ void BL_ConvertActuators(char* maggiename,
 
 				if (soundActuatorType != KX_SoundActuator::KX_SOUNDACT_NODEF)
 				{
-// AUD_XXX					SND_Scene* soundscene = scene->GetSoundScene();
+// AUD_XXX
+#if 0
+					SND_Scene* soundscene = scene->GetSoundScene();
 					STR_String samplename = "";
 					bool sampleisloaded = false;
 
-// AUD_XXX
-#if 0
 					if (soundact->sound) {
 						/* Need to convert the samplename into absolute path
 						 * before checking if its loaded */
@@ -481,6 +482,17 @@ void BL_ConvertActuators(char* maggiename,
 					}
 #else
 					bSound* sound = soundact->sound;
+					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
+					AUD_Sound* snd_sound = NULL;
+					KX_3DSoundSettings settings;
+					settings.cone_inner_angle = soundact->sound3D.cone_inner_angle;
+					settings.cone_outer_angle = soundact->sound3D.cone_outer_angle;
+					settings.cone_outer_gain = soundact->sound3D.cone_outer_gain;
+					settings.max_distance = soundact->sound3D.max_distance;
+					settings.max_gain = soundact->sound3D.max_gain;
+					settings.min_gain = soundact->sound3D.min_gain;
+					settings.reference_distance = soundact->sound3D.reference_distance;
+					settings.rolloff_factor = soundact->sound3D.rolloff_factor;
 
 					if(!sound)
 					{
@@ -488,15 +500,21 @@ void BL_ConvertActuators(char* maggiename,
 										"\" from object \"" <<  blenderobject->id.name+2 <<
 										"\" has no sound datablock." << std::endl;
 					}
+					else
+						snd_sound = sound->snd_sound;
 #endif
 					KX_SoundActuator* tmpsoundact =
 						new KX_SoundActuator(gameobj,
-						sound,
+						snd_sound,
+						soundact->volume,
+						exp((soundact->pitch / 12.0) * log(2.0)),
+						is3d,
+						settings,
 // AUD_XXX						sndobj,
 // AUD_XXX						scene->GetSoundScene(), // needed for replication!
-						soundActuatorType,
-						startFrame,
-						stopFrame);
+						soundActuatorType);//,
+// AUD_XXX						startFrame,
+// AUD_XXX						stopFrame);
 
 					tmpsoundact->SetName(bact->name);
 					baseact = tmpsoundact;
@@ -657,7 +675,10 @@ void BL_ConvertActuators(char* maggiename,
 							= new KX_SCA_ReplaceMeshActuator(
 								gameobj,
 								tmpmesh,
-								scene
+								scene,
+								(editobact->flag & ACT_EDOB_REPLACE_MESH_NOGFX)==0,
+								(editobact->flag & ACT_EDOB_REPLACE_MESH_PHYS)!=0
+								
 								);
 
 							baseact = tmpreplaceact;

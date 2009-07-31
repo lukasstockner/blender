@@ -118,7 +118,7 @@ static SpaceLink *node_new(const bContext *C)
 	ar->v2d.maxzoom= 1.21f;
 	
 	ar->v2d.scroll= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM);
-	ar->v2d.keepzoom= V2D_KEEPZOOM|V2D_KEEPASPECT;
+	ar->v2d.keepzoom= V2D_LIMITZOOM|V2D_KEEPASPECT;
 	ar->v2d.keeptot= 0;
 	
 	return (SpaceLink *)snode;
@@ -285,7 +285,7 @@ static void node_region_listener(ARegion *ar, wmNotifier *wmn)
 
 static int node_context(const bContext *C, const char *member, bContextDataResult *result)
 {
-	SpaceNode *snode= (SpaceNode*)CTX_wm_space_data(C);
+	SpaceNode *snode= CTX_wm_space_node(C);
 	
 	if(CTX_data_dir(member)) {
 		static const char *dir[] = {"selected_nodes", NULL};
