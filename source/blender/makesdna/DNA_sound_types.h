@@ -133,6 +133,7 @@ typedef struct bSound {
 	int type;
 	int changed;
 	struct bSound* child_sound;
+	void* cache;
 
 	// SOUND_TYPE_LIMITER
 	float start, end;

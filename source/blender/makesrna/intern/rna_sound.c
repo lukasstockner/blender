@@ -151,6 +151,8 @@ static void rna_def_sound(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Packed File", "");
 
 	/* game engine settings */
+// AUD_XXX DEPRECATED!
+#if 0
 	prop= RNA_def_property(srna, "volume", PROP_FLOAT, PROP_UNSIGNED);
 	RNA_def_property_float_sdna(prop, NULL, "volume");
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 10, 4);
@@ -214,6 +216,7 @@ static void rna_def_sound(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "priority", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SOUND_FLAGS_PRIORITY);
 	RNA_def_property_ui_text(prop, "Priority", "Make sound higher priority."); */
+#endif
 }
 
 void RNA_def_sound(BlenderRNA *brna)

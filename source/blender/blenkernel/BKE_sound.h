@@ -60,9 +60,16 @@ void sound_exit();
 
 struct bSound* sound_new_file(struct bContext *C, char* filename);
 
+// AUD_XXX unused currently
+#if 0
 struct bSound* sound_new_buffer(struct bContext *C, struct bSound *source);
 
+struct bSound* sound_new_limiter(struct bContext *C, struct bSound *source, float start, float end);
+#endif
+
 void sound_delete(struct bContext *C, struct bSound* sound);
+
+void sound_cache(struct bSound* sound, int ignore);
 
 void sound_load(struct bSound* sound);
 

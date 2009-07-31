@@ -501,7 +501,7 @@ void BL_ConvertActuators(char* maggiename,
 										"\" has no sound datablock." << std::endl;
 					}
 					else
-						snd_sound = sound->snd_sound;
+						snd_sound = sound->cache ? sound->cache : sound->snd_sound;
 #endif
 					KX_SoundActuator* tmpsoundact =
 						new KX_SoundActuator(gameobj,

@@ -258,8 +258,6 @@ static Sequence* sequencer_add_sound_strip(bContext *C, wmOperator *op, int star
 		return NULL;
 	}
 
-	sound->flags |= SOUND_FLAGS_SEQUENCE;
-
 	seq = alloc_sequence(ed->seqbasep, start_frame, channel);
 
 	seq->type= SEQ_SOUND;
@@ -404,6 +402,10 @@ static int sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "name", seq->name);
 
+	if (RNA_boolean_get(op->ptr, "cache")) {
+		sound_cache(seq->sound, 0);
+	}
+
 	if (RNA_boolean_get(op->ptr, "replace_sel")) {
 		deselect_all_seq(scene);
 		set_last_seq(scene, seq);
@@ -443,7 +445,7 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot)
 
 	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE);
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
-	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Load the sound as streaming audio"); // XXX need to impliment this
+	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Cache the sound in memory.");
 }
 
 /* add image operator */

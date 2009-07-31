@@ -228,6 +228,8 @@ struct bSound* sound_new_file(struct bContext *C, char* filename)
 	return sound;
 }
 
+// AUD_XXX unused currently
+#if 0
 struct bSound* sound_new_buffer(struct bContext *C, struct bSound *source)
 {
 	bSound* sound = NULL;
@@ -277,6 +279,7 @@ struct bSound* sound_new_limiter(struct bContext *C, struct bSound *source, floa
 
 	return sound;
 }
+#endif
 
 void sound_delete(struct bContext *C, struct bSound* sound)
 {
@@ -288,6 +291,14 @@ void sound_delete(struct bContext *C, struct bSound* sound)
 
 		free_libblock(&CTX_data_main(C)->sound, sound);
 	}
+}
+
+void sound_cache(struct bSound* sound, int ignore)
+{
+	if(sound->cache && !ignore)
+		AUD_unload(sound->cache);
+
+	sound->cache = AUD_bufferSound(sound->snd_sound);
 }
 
 void sound_load(struct bSound* sound)
@@ -329,6 +340,11 @@ void sound_load(struct bSound* sound)
 			if(sound->child_sound && sound->child_sound->snd_sound)
 				sound->snd_sound = AUD_limitSound(sound->child_sound, sound->start, sound->end);
 			break;
+		}
+
+		if(sound->cache)
+		{
+
 		}
 	}
 }
@@ -488,7 +504,7 @@ void sound_update_playing(struct bContext *C)
 				{
 					if(handle->source && handle->source->snd_sound)
 					{
-						AUD_Sound* limiter = AUD_limitSound(handle->source->snd_sound, handle->frameskip / fps, (handle->frameskip + handle->endframe - handle->startframe)/fps);
+						AUD_Sound* limiter = AUD_limitSound(handle->source->cache ? handle->source->cache : handle->source->snd_sound, handle->frameskip / fps, (handle->frameskip + handle->endframe - handle->startframe)/fps);
 						handle->handle = AUD_play(limiter, 1);
 						AUD_unload(limiter);
 						if(handle->handle)
@@ -530,7 +546,7 @@ void sound_scrub(struct bContext *C)
 				if(handle->source && handle->source->snd_sound)
 				{
 					int frameskip = handle->frameskip + cfra - handle->startframe;
-					AUD_Sound* limiter = AUD_limitSound(handle->source->snd_sound, frameskip / fps, (frameskip + 1)/fps);
+					AUD_Sound* limiter = AUD_limitSound(handle->source->cache ? handle->source->cache : handle->source->snd_sound, frameskip / fps, (frameskip + 1)/fps);
 					AUD_play(limiter, 0);
 					AUD_unload(limiter);
 				}
