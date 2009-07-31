@@ -455,6 +455,9 @@ void calc_sequence_disp(Sequence *seq)
 	else if(seq->enddisp-seq->startdisp > 250) {
 		seq->handsize= (float)((seq->enddisp-seq->startdisp)/25);
 	}
+
+	// AUD_XXX
+	seq_update_sound(seq);
 }
 
 void calc_sequence(Sequence *seq)
@@ -519,9 +522,6 @@ void calc_sequence(Sequence *seq)
 		}
 		calc_sequence_disp(seq);
 	}
-
-	// AUD_XXX
-	seq_update_sound(seq);
 }
 
 void reload_sequence_new_file(Scene *scene, Sequence * seq)
@@ -529,7 +529,7 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 	char str[FILE_MAXDIR+FILE_MAXFILE];
 
 	if (!(seq->type == SEQ_MOVIE || seq->type == SEQ_IMAGE ||
-		  seq->type == SEQ_HD_SOUND || seq->type == SEQ_RAM_SOUND ||
+		  seq->type == SEQ_SOUND ||
 		  seq->type == SEQ_SCENE || seq->type == SEQ_META)) {
 		return;
 	}
@@ -572,6 +572,8 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 			seq->len = 0;
 		}
 		seq->strip->len = seq->len;
+// AUD_XXX
+#if 0
 	} else if (seq->type == SEQ_HD_SOUND) {
 // XXX		if(seq->hdaudio) sound_close_hdaudio(seq->hdaudio);
 //		seq->hdaudio = sound_open_hdaudio(str);
@@ -590,12 +592,10 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 			seq->len = 0;
 		}
 		seq->strip->len = seq->len;
-	} else if (seq->type == SEQ_RAM_SOUND) {
+#endif
 // AUD_XXX
+	} else if (seq->type == SEQ_SOUND) {
 		seq->len = AUD_getInfo(seq->sound->snd_sound).length * FPS;
-/*		seq->len = (int) ( ((float)(seq->sound->streamlen-1)/
-					((float)scene->audio.mixrate*4.0 ))
-				   * FPS);*/
 		seq->len -= seq->anim_startofs;
 		seq->len -= seq->anim_endofs;
 		if (seq->len < 0) {
@@ -714,8 +714,9 @@ char *give_seqname_by_type(int type)
 	case SEQ_IMAGE:      return "Image";
 	case SEQ_SCENE:      return "Scene";
 	case SEQ_MOVIE:      return "Movie";
-	case SEQ_RAM_SOUND:  return "Audio (RAM)";
-	case SEQ_HD_SOUND:   return "Audio (HD)";
+	case SEQ_SOUND:  return "Audio";
+// AUD_XXX	case SEQ_RAM_SOUND:  return "Audio (RAM)";
+// AUD_XXX	case SEQ_HD_SOUND:   return "Audio (HD)";
 	case SEQ_CROSS:      return "Cross";
 	case SEQ_GAMCROSS:   return "Gamma Cross";
 	case SEQ_ADD:        return "Add";
@@ -1094,8 +1095,9 @@ static int video_seq_is_rendered(Sequence * seq)
 {
 	return (seq
 		&& !(seq->flag & SEQ_MUTE)
-		&& seq->type != SEQ_RAM_SOUND
-		&& seq->type != SEQ_HD_SOUND);
+// AUD_XXX		&& seq->type != SEQ_RAM_SOUND
+// AUD_XXX		&& seq->type != SEQ_HD_SOUND);
+		&& seq->type != SEQ_SOUND);
 }
 
 static int get_shown_sequences(	ListBase * seqbasep, int cfra, int chanshown, Sequence ** seq_arr_out)
@@ -3383,7 +3385,8 @@ void seq_tx_handle_xlimits(Sequence *seq, int leftflag, int rightflag)
 	}
 
 	/* sounds cannot be extended past their endpoints */
-	if (seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) {
+// AUD_XXX	if (seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) {
+	if (seq->type == SEQ_SOUND) {
 		seq->startstill= 0;
 		seq->endstill= 0;
 	}
@@ -3484,7 +3487,7 @@ int shuffle_seq(ListBase * seqbasep, Sequence *test)
 // AUD_XXX
 void seq_update_sound(struct Sequence *seq)
 {
-	if(seq->type == SEQ_RAM_SOUND)
+	if(seq->type == SEQ_SOUND)
 	{
 		seq->sound_handle->startframe = seq->startdisp;
 		seq->sound_handle->endframe = seq->enddisp;

@@ -192,10 +192,11 @@ static StructRNA* rna_Sequence_refine(struct PointerRNA *ptr)
 		case SEQ_SCENE:
 			return &RNA_SceneSequence;
 		case SEQ_MOVIE:
-		case SEQ_MOVIE_AND_HD_SOUND:
+// AUD_XXX		case SEQ_MOVIE_AND_HD_SOUND:
 			return &RNA_MovieSequence;
-		case SEQ_RAM_SOUND:
-		case SEQ_HD_SOUND:
+// AUD_XXX		case SEQ_RAM_SOUND:
+// AUD_XXX		case SEQ_HD_SOUND:
+		case SEQ_SOUND:
 			return &RNA_SoundSequence;
 		case SEQ_CROSS:
 		case SEQ_ADD:
@@ -362,9 +363,10 @@ static void rna_def_sequence(BlenderRNA *brna)
 		{SEQ_META, "META", 0, "Meta", ""}, 
 		{SEQ_SCENE, "SCENE", 0, "Scene", ""}, 
 		{SEQ_MOVIE, "MOVIE", 0, "Movie", ""}, 
-		{SEQ_RAM_SOUND, "RAM_SOUND", 0, "Ram Sound", ""}, 
-		{SEQ_HD_SOUND, "HD_SOUND", 0, "HD Sound", ""}, 
-		{SEQ_MOVIE_AND_HD_SOUND, "MOVIE_AND_HD_SOUND", 0, "Movie and HD Sound", ""}, 
+// AUD_XXX		{SEQ_RAM_SOUND, "RAM_SOUND", 0, "Ram Sound", ""},
+// AUD_XXX		{SEQ_HD_SOUND, "HD_SOUND", 0, "HD Sound", ""},
+		{SEQ_SOUND, "_SOUND", 0, "Sound", ""},
+// AUD_XXX		{SEQ_MOVIE_AND_HD_SOUND, "MOVIE_AND_HD_SOUND", 0, "Movie and HD Sound", ""},
 		{SEQ_EFFECT, "REPLACE", 0, "Replace", ""}, 
 		{SEQ_CROSS, "CROSS", 0, "Cross", ""}, 
 		{SEQ_ADD, "ADD", 0, "Add", ""}, 
@@ -616,6 +618,8 @@ static void rna_def_filter_video(StructRNA *srna)
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, NULL);
 }
 
+// AUD_XXX
+#if 0
 static void rna_def_filter_sound(StructRNA *srna)
 {
 	PropertyRNA *prop;
@@ -630,6 +634,7 @@ static void rna_def_filter_sound(StructRNA *srna)
 	RNA_def_property_range(prop, -1.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Sound Pan", "Stereo sound balance.");
 }
+#endif
 
 static void rna_def_proxy(StructRNA *srna)
 {
@@ -772,7 +777,7 @@ static void rna_def_sound(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "strip->dir");
 	RNA_def_property_ui_text(prop, "Directory", "");
 
-	rna_def_filter_sound(srna);
+// AUD_XXX	rna_def_filter_sound(srna);
 	rna_def_input(srna);
 }
 
