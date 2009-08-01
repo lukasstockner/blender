@@ -127,6 +127,7 @@ void GPU_interleaved_setup( GPUBuffer *buffer, int data[] );
 
 void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
 void *GPU_buffer_lock( GPUBuffer *buffer );
+void *GPU_buffer_lock_stream( GPUBuffer *buffer );
 void GPU_buffer_unlock( GPUBuffer *buffer );
 
 /* upload three unsigned chars, representing RGB colors, for each vertex. Resets dm->drawObject->colType to -1 */

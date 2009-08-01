@@ -1625,13 +1625,13 @@ static void draw_dm_edges_sel_interp(DerivedMesh *dm, unsigned char *baseCol, un
 	cols[1] = selCol;
 
 	buffer = GPU_buffer_alloc( elemsize*em->totedge*2, 0 );
-	if( (varray = GPU_buffer_lock( buffer )) ) {
+	if( (varray = GPU_buffer_lock_stream( buffer )) ) {
 		EditEdge *eed;
 		int numedges = 0;
 		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_C4UB, GPU_BUFFER_INTER_END };
 		GPU_buffer_unlock( buffer );
 		GPU_interleaved_setup( buffer, datatype );
-		GPU_buffer_lock( buffer );
+		GPU_buffer_lock_stream( buffer );
 		for (i=0,eed= em->edges.first; eed; i++,eed= eed->next) {
 			if(eed->h==0) {
 				unsigned char *col0 = cols[(eed->v1->f&SELECT)?1:0];
@@ -1731,14 +1731,14 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 
 	buffer = GPU_buffer_alloc( elemsize*emdm->em->totface*3*2, 0 );
-	if( (varray = GPU_buffer_lock( buffer )) ) {
+	if( (varray = GPU_buffer_lock_stream( buffer )) ) {
 		int prevdraw = 0;
 		int numfaces = 0;
 		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_C4UB, GPU_BUFFER_INTER_END };
 		GPU_buffer_unlock( buffer );
 		GPU_interleaved_setup( buffer, datatype );
 		glShadeModel(GL_SMOOTH);
-		GPU_buffer_lock( buffer );
+		GPU_buffer_lock_stream( buffer );
 		for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
 			int drawSmooth = (efa->flag & ME_SMOOTH);
 			if (efa->h==0) {
@@ -1763,7 +1763,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 				if( prevdraw==2 ) {
 					glDisable(GL_POLYGON_STIPPLE);
 				}
-				varray = GPU_buffer_lock( buffer );
+				varray = GPU_buffer_lock_stream( buffer );
 				numfaces = 0;
 			}
 
@@ -2361,14 +2361,14 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			if( (varray = GPU_buffer_lock( buffer )) ) {
+			if( (varray = GPU_buffer_lock_stream( buffer )) ) {
 				int prevdraw = 0, prevmat = 0;
 				int numfaces = 0;
 				int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_END };
 				GPU_buffer_unlock( buffer );
 				GPU_interleaved_setup( buffer, datatype );
 				glShadeModel(GL_SMOOTH);
-				GPU_buffer_lock( buffer );
+				GPU_buffer_lock_stream( buffer );
 				for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
 					int drawSmooth = (efa->flag & ME_SMOOTH);
 					if( efa->h == 0 ) {
@@ -2389,7 +2389,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 						if( prevdraw==2 ) {
 							glDisable(GL_POLYGON_STIPPLE);
 						}
-						varray = GPU_buffer_lock( buffer );
+						varray = GPU_buffer_lock_stream( buffer );
 						numfaces = 0;
 					}
 					if( draw != 0 ) {

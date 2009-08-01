@@ -1106,6 +1106,30 @@ void *GPU_buffer_lock( GPUBuffer *buffer )
 	}
 }
 
+void *GPU_buffer_lock_stream( GPUBuffer *buffer )
+{
+	float *varray;
+
+	DEBUG_VBO("GPU_buffer_lock_stream\n");
+	if( buffer == 0 ) {
+		DEBUG_VBO( "Failed to lock NULL buffer\n" );
+		return 0;
+	}
+
+	if( useVBOs ) {
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
+		glBufferDataARB( GL_ARRAY_BUFFER_ARB, buffer->size, 0, GL_STREAM_DRAW_ARB );	/* discard previous data, avoid stalling gpu */
+		varray = glMapBufferARB( GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB );
+		if( varray == 0 ) {
+			DEBUG_VBO( "Failed to map buffer to client address space\n" ); 
+		}
+		return varray;
+	}
+	else {
+		return buffer->pointer;
+	}
+}
+
 void GPU_buffer_unlock( GPUBuffer *buffer )
 {
 	DEBUG_VBO( "GPU_buffer_unlock\n" ); 

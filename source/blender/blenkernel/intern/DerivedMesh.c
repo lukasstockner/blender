@@ -496,14 +496,14 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		if( setDrawOptions == 0 ) {
 			buffer = GPU_buffer_alloc( sizeof(float)*3*2*emdm->em->totedge, 0 );
 		}
-		if( buffer != 0 && (varray = GPU_buffer_lock( buffer )) ) {
+		if( buffer != 0 && (varray = GPU_buffer_lock_stream( buffer )) ) {
 			int prevdraw = 0;
 			int numedges = 0;
 			int draw = 0;
 			int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_END };
 			GPU_buffer_unlock( buffer );
 			GPU_interleaved_setup( buffer, datatype );
-			GPU_buffer_lock( buffer );
+			GPU_buffer_lock_stream( buffer );
 			for(i=0,eed= emdm->em->edges.first; eed; i++,eed= eed->next) {
 				if(!setDrawOptions || setDrawOptions(userData, i)) {
 					draw = 1;
@@ -513,7 +513,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 				if( prevdraw != draw && prevdraw != 0 && numedges > 0) {
 					GPU_buffer_unlock( buffer );
 					glDrawArrays(GL_LINES,0,numedges*2);
-					varray = GPU_buffer_lock( buffer );
+					varray = GPU_buffer_lock_stream( buffer );
 					numedges = 0;
 				}
 				if( draw != 0 ) {
@@ -706,14 +706,14 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			/* 3 floats for position, 3 for normal and times two because the faces may actually be quads instead of triangles */
 			buffer = GPU_buffer_alloc( sizeof(float)*6*emdm->em->totface*3*2, 0 );
 		}
-		if( buffer != 0 && (varray = GPU_buffer_lock( buffer )) ) {
+		if( buffer != 0 && (varray = GPU_buffer_lock_stream( buffer )) ) {
 			int prevdraw = 0;
 			int numfaces = 0;
 			int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_END };
 			GPU_buffer_unlock( buffer );
 			GPU_interleaved_setup( buffer, datatype );
 			glShadeModel(GL_SMOOTH);
-			GPU_buffer_lock( buffer );
+			GPU_buffer_lock_stream( buffer );
 			for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
 				int drawSmooth = (efa->flag & ME_SMOOTH);
 				draw = setDrawOptions==NULL ? 1 : setDrawOptions(userData, i, &drawSmooth);
@@ -727,7 +727,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 					if( prevdraw==2 ) {
 						glDisable(GL_POLYGON_STIPPLE);
 					}
-					varray = GPU_buffer_lock( buffer );
+					varray = GPU_buffer_lock_stream( buffer );
 					numfaces = 0;
 				}
 				if( draw != 0 ) {
