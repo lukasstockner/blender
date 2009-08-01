@@ -1602,18 +1602,23 @@ static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int i
 				col0[3] + (col1[3]-col0[3])*t);
 }
 
+/* originally defined in DerivedMesh.c */
 typedef struct {
 	DerivedMesh dm;
 
 	EditMesh *em;
-} EMDM;
+	float (*vertexCos)[3];
+	float (*vertexNos)[3];
+	float (*faceNos)[3];
+} EditMeshDerivedMesh;
 
 static void draw_dm_edges_sel_interp(DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol)
 {
 	unsigned char *cols[2];
 	int elemsize = sizeof(float)*3+sizeof(unsigned char)*4;
-	EditMesh *em= *((EditMesh **)(dm+1));
-	char *varray;
+	EditMeshDerivedMesh *emdm = (EditMeshDerivedMesh *)dm;
+	EditMesh *em= emdm->em;
+	unsigned char *varray;
 	int i;
 	GPUBuffer *buffer;
 	cols[0] = baseCol;
@@ -1632,9 +1637,19 @@ static void draw_dm_edges_sel_interp(DerivedMesh *dm, unsigned char *baseCol, un
 				unsigned char *col0 = cols[(eed->v1->f&SELECT)?1:0];
 				unsigned char *col1 = cols[(eed->v2->f&SELECT)?1:0];
 
-				VECCOPY(((float *)&varray[elemsize*numedges*2]),eed->v1->co);
+				if( emdm->vertexCos ) {
+					VECCOPY(((float *)&varray[elemsize*numedges*2]),emdm->vertexCos[(int) eed->v1->tmp.l]);
+				}
+				else {
+					VECCOPY(((float *)&varray[elemsize*numedges*2]),eed->v1->co);
+				}
 				QUATCOPY(&varray[elemsize*numedges*2+sizeof(float)*3],col0);
-				VECCOPY(((float *)&varray[elemsize*numedges*2+elemsize]),eed->v2->co);
+				if( emdm->vertexCos ) {
+					VECCOPY(((float *)&varray[elemsize*numedges*2+elemsize]),emdm->vertexCos[(int) eed->v2->tmp.l]);
+				}
+				else {
+					VECCOPY(((float *)&varray[elemsize*numedges*2+elemsize]),eed->v2->co);
+				}
 				QUATCOPY(&varray[elemsize*numedges*2+elemsize+sizeof(float)*3],col1);
 				numedges++;
 			}
@@ -1700,44 +1715,237 @@ static int draw_dm_faces_sel__setDrawOptions(void *userData, int index, int *dra
 static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol, unsigned char *actCol, EditFace *efa_act) 
 {
 	struct { unsigned char *cols[3]; EditFace *efa_act; } data;
+	EditMeshDerivedMesh *emdm = (EditMeshDerivedMesh *)dm;
+	EditFace *efa;
+	unsigned char *col;
 	unsigned char *colors;
-	int i,j;
+	GPUBuffer *buffer;
+	unsigned char *varray;
+	unsigned char black[] = { 0, 0, 0, 0 };
+	int i,j,draw=0;
+	int elemsize = (sizeof(float)*6+sizeof(unsigned char)*4);
 	data.cols[0] = baseCol;
 	data.cols[1] = selCol;
 	data.cols[2] = actCol;
 	data.efa_act = efa_act;
 
-	/* TODO: check this later. not this function... */
-	/*colors = MEM_mallocN((sizeof(unsigned char)*dm->getNumFaces(dm)*16),"draw_dm_faces_sel");
-	for(i=0; i < dm->getNumFaces(dm); i++) {
-		EditFace *efa = EM_get_face_for_index(i);
-		unsigned char *col;
-		if (efa->h==0) {
-			if (efa == efa_act) {
-				for(j=0;j<4;j++) {
-					colors[i*16+j*4] = data.cols[2][0];
-					colors[i*16+j*4+1] = data.cols[2][1];
-					colors[i*16+j*4+2] = data.cols[2][2];
-					colors[i*16+j*4+3] = data.cols[2][3];
-				}
-			} else {
-				col = data.cols[(efa->f&SELECT)?1:0];
-				if (col[3]==0) memset(&colors[i*16],0,sizeof(unsigned char)*16);
-				for(j=0;j<4;j++) {
-					colors[i*16+j*4] = col[0];
-					colors[i*16+j*4+1] = col[1];
-					colors[i*16+j*4+2] = col[2];
-					colors[i*16+j*4+3] = col[3];
+
+	buffer = GPU_buffer_alloc( elemsize*emdm->em->totface*3*2, 0 );
+	if( (varray = GPU_buffer_lock( buffer )) ) {
+		int prevdraw = 0;
+		int numfaces = 0;
+		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_C4UB, GPU_BUFFER_INTER_END };
+		GPU_buffer_unlock( buffer );
+		GPU_interleaved_setup( buffer, datatype );
+		glShadeModel(GL_SMOOTH);
+		GPU_buffer_lock( buffer );
+		for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
+			int drawSmooth = (efa->flag & ME_SMOOTH);
+			if (efa->h==0) {
+				if (efa == data.efa_act) {
+					draw = 2;
+				} else {
+					col = data.cols[(efa->f&SELECT)?1:0];
+					if (col[3]==0) draw = 0;
+					else draw = 1;
 				}
 			}
-		} else
-		{
-			memset(&colors[i*16],0,sizeof(unsigned char)*16);
+			else {
+				draw = 0;
+			}
+			if( prevdraw != draw && prevdraw != 0 && numfaces > 0) {
+				if( prevdraw==2 ) {
+					glEnable(GL_POLYGON_STIPPLE);
+	  				glPolygonStipple(stipple_quarttone);
+				}
+				GPU_buffer_unlock( buffer );
+				glDrawArrays(GL_TRIANGLES,0,numfaces*3);
+				if( prevdraw==2 ) {
+					glDisable(GL_POLYGON_STIPPLE);
+				}
+				varray = GPU_buffer_lock( buffer );
+				numfaces = 0;
+			}
+
+			if( draw != 0 ) {
+				if(!drawSmooth) {
+					if (emdm->vertexCos) {
+						VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v1->tmp.l]);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->faceNos[i]);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],emdm->vertexCos[(int) efa->v2->tmp.l]);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],emdm->faceNos[i]);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v3->tmp.l]);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->faceNos[i]);
+					}
+					else {
+						VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v1->co);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->n);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],efa->v2->co);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],efa->n);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v3->co);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->n);
+					}
+					if( draw == 2 ) {
+						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[2]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[2]);
+					}
+					else if( draw == 1 ) {
+						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+					}
+					else {
+						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],black);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],black);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],black);
+					}
+
+					numfaces++;
+					if( efa->v4 ) {
+						if (emdm->vertexCos) {
+							VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v3->tmp.l]);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->faceNos[i]);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],emdm->vertexCos[(int) efa->v4->tmp.l]);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],emdm->faceNos[i]);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v1->tmp.l]);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->faceNos[i]);
+						}
+						else {
+							VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v3->co);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->n);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],efa->v4->co);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],efa->n);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v1->co);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->n);
+						}
+
+						if( draw == 2 ) {
+							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[2]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[2]);
+						}
+						else if( draw == 1 ) {
+							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+						}
+						else {
+							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],black);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],black);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],black);
+						}
+
+						numfaces++;
+					}
+				}
+				else {
+					if (emdm->vertexCos) {
+						VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v1->tmp.l]);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->vertexNos[(int) efa->v1->tmp.l]);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],emdm->vertexCos[(int) efa->v2->tmp.l]);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],emdm->vertexNos[(int) efa->v2->tmp.l]);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v3->tmp.l]);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->vertexNos[(int) efa->v3->tmp.l]);
+					}
+					else {
+						VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v1->co);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->v1->no);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],efa->v2->co);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],efa->v2->no);
+
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v3->co);
+						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->v3->no);
+					}
+
+					if( draw == 2 ) {
+						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[2]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[2]);
+					}
+					else if( draw == 1 ) {
+						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+					}
+					else {
+						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],black);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],black);
+						QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],black);
+					}
+
+					numfaces++;
+					if( efa->v4 ) {
+						if (emdm->vertexCos) {
+							VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v3->tmp.l]);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->vertexNos[(int) efa->v1->tmp.l]);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],emdm->vertexCos[(int) efa->v4->tmp.l]);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],emdm->vertexNos[(int) efa->v2->tmp.l]);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v1->tmp.l]);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->vertexNos[(int) efa->v3->tmp.l]);
+						}
+						else {
+							VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v3->co);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->v3->no);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize],efa->v4->co);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize+sizeof(float)*3],efa->v4->no);
+
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v1->co);
+							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->v1->no);
+						}
+
+						if( draw == 2 ) {
+							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[2]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[2]);
+						}
+						else if( draw == 1 ) {
+							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],data.cols[(efa->f&SELECT)?1:0]);
+						}
+						else {
+							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],black);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],black);
+							QUATCOPY(&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*6],black);
+						}
+
+						numfaces++;
+					}
+				}
+			}
+			prevdraw = draw;
 		}
-	}*/
-	//CustomData_add_layer( &dm->faceData, CD_WEIGHT_PAINT, CD_ASSIGN, colors, dm->numFaceData );
-	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, &data, 0);
-	//CustomData_free_layer( &dm->faceData, CD_WEIGHT_PAINT, dm->numFaceData, 0 );
+		GPU_buffer_unlock( buffer );
+		if( prevdraw != 0 && numfaces > 0) {
+			if( prevdraw==2 ) {
+				glEnable(GL_POLYGON_STIPPLE);
+  				glPolygonStipple(stipple_quarttone);
+			}
+			glDrawArrays(GL_TRIANGLES,0,numfaces*3);
+			if( prevdraw==2 ) {
+				glDisable(GL_POLYGON_STIPPLE);
+			}
+		}
+		GPU_buffer_unbind();
+	} else {
+		dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, &data, 0);
+	}
+	GPU_buffer_free( buffer, 0 );
 }
 
 static int draw_dm_creases__setDrawOptions(void *userData, int index)

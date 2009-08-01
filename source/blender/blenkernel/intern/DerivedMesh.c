@@ -491,7 +491,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		}
 		glEnd();
 	} else {
-		GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*3*2*emdm->em->totedge, 0 );
+		/*GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*3*2*emdm->em->totedge, 0 );
 		float *varray;
 		if( (varray = GPU_buffer_lock( buffer )) ) {
 			int prevdraw = 0;
@@ -525,7 +525,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 				glDrawArrays(GL_LINES,0,numedges*2);
 			}
 			GPU_buffer_unbind();
-		} else {
+		} else {*/
 			glBegin(GL_LINES);
 			for(i=0,eed= emdm->em->edges.first; eed; i++,eed= eed->next) {
 				if(!setDrawOptions || setDrawOptions(userData, i)) {
@@ -534,8 +534,8 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 				}
 			}
 			glEnd();
-		}
-		GPU_buffer_free( buffer, 0 );
+		/*}
+		GPU_buffer_free( buffer, 0 );*/
 	}
 }
 static void emDM_drawEdges(DerivedMesh *dm, int drawLooseEdges)
@@ -697,7 +697,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 		}
 	} else {
 		/* 3 floats for position, 3 for normal and times two because the faces may actually be quads instead of triangles */
-		GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*6*emdm->em->totface*3*2, 0 );
+		/*GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*6*emdm->em->totface*3*2, 0 );
 		float *varray;
 		if( (varray = GPU_buffer_lock( buffer )) ) {
 			int prevdraw = 0;
@@ -784,7 +784,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 				}
 			}
 			GPU_buffer_unbind();
-		} else {
+		} else {*/
 			for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
 				int drawSmooth = (efa->flag & ME_SMOOTH);
 				draw = setDrawOptions==NULL ? 1 : setDrawOptions(userData, i, &drawSmooth);
@@ -820,8 +820,8 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 						glDisable(GL_POLYGON_STIPPLE);
 				}
 			}
-		}
-		GPU_buffer_free( buffer, 0 );
+		/*}
+		GPU_buffer_free( buffer, 0 );*/
 	}
 }
 
