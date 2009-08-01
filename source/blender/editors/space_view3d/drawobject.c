@@ -2349,12 +2349,166 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 			}
 		}
 		else {
+			EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) finalDM;
+			/* 3 floats for position, 3 for normal and times two because the faces may actually be quads instead of triangles */
+			GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*6*emdm->em->totface*3*2, 0 );
+			float *varray;
+			EditFace *efa;
+			int i, curmat = 0, draw = 0;
+
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED);
 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, 0, 0);
+			if( (varray = GPU_buffer_lock( buffer )) ) {
+				int prevdraw = 0, prevmat = 0;
+				int numfaces = 0;
+				int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_END };
+				GPU_buffer_unlock( buffer );
+				GPU_interleaved_setup( buffer, datatype );
+				glShadeModel(GL_SMOOTH);
+				GPU_buffer_lock( buffer );
+				for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
+					int drawSmooth = (efa->flag & ME_SMOOTH);
+					if( efa->h == 0 ) {
+						curmat = efa->mat_nr+1;
+						draw = 1;
+					} 
+					else {
+						draw = 0;
+					}
+					if( ((prevdraw != draw) || (curmat != prevmat)) && prevdraw != 0 && numfaces > 0) {
+						if( prevdraw==2 ) {
+							glEnable(GL_POLYGON_STIPPLE);
+		  					glPolygonStipple(stipple_quarttone);
+						}
+						GPU_buffer_unlock( buffer );
+						GPU_enable_material(prevmat, NULL);
+						glDrawArrays(GL_TRIANGLES,0,numfaces*3);
+						if( prevdraw==2 ) {
+							glDisable(GL_POLYGON_STIPPLE);
+						}
+						varray = GPU_buffer_lock( buffer );
+						numfaces = 0;
+					}
+					if( draw != 0 ) {
+						if(!drawSmooth) {
+							if( emdm->vertexCos )
+							{
+								VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v1->tmp.l]);
+								VECCOPY(&varray[numfaces*18+3],emdm->faceNos[i]);
+
+								VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v2->tmp.l]);
+								VECCOPY(&varray[numfaces*18+9],emdm->faceNos[i]);
+
+								VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v3->tmp.l]);
+								VECCOPY(&varray[numfaces*18+15],emdm->faceNos[i]);
+								numfaces++;
+								if( efa->v4 ) {
+									VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v3->tmp.l]);
+									VECCOPY(&varray[numfaces*18+3],emdm->faceNos[i]);
+
+									VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v4->tmp.l]);
+									VECCOPY(&varray[numfaces*18+9],emdm->faceNos[i]);
+
+									VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v1->tmp.l]);
+									VECCOPY(&varray[numfaces*18+15],emdm->faceNos[i]);
+									numfaces++;
+								}
+							}
+							else {
+								VECCOPY(&varray[numfaces*18],efa->v1->co);
+								VECCOPY(&varray[numfaces*18+3],efa->n);
+
+								VECCOPY(&varray[numfaces*18+6],efa->v2->co);
+								VECCOPY(&varray[numfaces*18+9],efa->n);
+
+								VECCOPY(&varray[numfaces*18+12],efa->v3->co);
+								VECCOPY(&varray[numfaces*18+15],efa->n);
+								numfaces++;
+								if( efa->v4 ) {
+									VECCOPY(&varray[numfaces*18],efa->v3->co);
+									VECCOPY(&varray[numfaces*18+3],efa->n);
+
+									VECCOPY(&varray[numfaces*18+6],efa->v4->co);
+									VECCOPY(&varray[numfaces*18+9],efa->n);
+
+									VECCOPY(&varray[numfaces*18+12],efa->v1->co);
+									VECCOPY(&varray[numfaces*18+15],efa->n);
+									numfaces++;
+								}
+							}
+						}
+						else {
+							if( emdm->vertexCos )
+							{
+								VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v1->tmp.l]);
+								VECCOPY(&varray[numfaces*18+3],emdm->vertexNos[(int) efa->v1->tmp.l]);
+
+								VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v2->tmp.l]);
+								VECCOPY(&varray[numfaces*18+9],emdm->vertexNos[(int) efa->v2->tmp.l]);
+
+								VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v3->tmp.l]);
+								VECCOPY(&varray[numfaces*18+15],emdm->vertexNos[(int) efa->v3->tmp.l]);
+								numfaces++;
+								if( efa->v4 ) {
+									VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v3->tmp.l]);
+									VECCOPY(&varray[numfaces*18+3],emdm->vertexNos[(int) efa->v3->tmp.l]);
+
+									VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v4->tmp.l]);
+									VECCOPY(&varray[numfaces*18+9],emdm->vertexNos[(int) efa->v4->tmp.l]);
+
+									VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v1->tmp.l]);
+									VECCOPY(&varray[numfaces*18+15],emdm->vertexNos[(int) efa->v1->tmp.l]);
+									numfaces++;
+								}
+							}
+							else {
+								VECCOPY(&varray[numfaces*18],efa->v1->co);
+								VECCOPY(&varray[numfaces*18+3],efa->v1->no);
+
+								VECCOPY(&varray[numfaces*18+6],efa->v2->co);
+								VECCOPY(&varray[numfaces*18+9],efa->v2->no);
+
+								VECCOPY(&varray[numfaces*18+12],efa->v3->co);
+								VECCOPY(&varray[numfaces*18+15],efa->v3->no);
+								numfaces++;
+								if( efa->v4 ) {
+									VECCOPY(&varray[numfaces*18],efa->v3->co);
+									VECCOPY(&varray[numfaces*18+3],efa->v3->no);
+
+									VECCOPY(&varray[numfaces*18+6],efa->v4->co);
+									VECCOPY(&varray[numfaces*18+9],efa->v4->no);
+
+									VECCOPY(&varray[numfaces*18+12],efa->v1->co);
+									VECCOPY(&varray[numfaces*18+15],efa->v1->no);
+									numfaces++;
+								}
+							}
+						}
+					}
+					prevdraw = draw;
+					prevmat = curmat;
+				}
+				GPU_buffer_unlock( buffer );
+				if( prevdraw != 0 && numfaces > 0) {
+					if( prevdraw==2 ) {
+						glEnable(GL_POLYGON_STIPPLE);
+	  					glPolygonStipple(stipple_quarttone);
+					}
+					GPU_enable_material(prevmat, NULL);
+					glDrawArrays(GL_TRIANGLES,0,numfaces*3);
+					if( prevdraw==2 ) {
+						glDisable(GL_POLYGON_STIPPLE);
+					}
+				}
+				GPU_buffer_unbind();
+			}
+			else {
+				finalDM->drawMappedFaces(finalDM, draw_em_fancy__setFaceOpts, 0, 0);
+			}
+			GPU_buffer_free(buffer,0);
 
 			glFrontFace(GL_CCW);
 			glDisable(GL_LIGHTING);
