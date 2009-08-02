@@ -2150,3 +2150,6 @@ void resetGamePythonPath()
 {
 	gp_GamePythonPathOrig[0] = '\0';
 }
+
+
+

@@ -666,7 +666,6 @@ void BL_ConvertActuators(char* maggiename,
 							tmpmesh = BL_ConvertMesh(
 								editobact->me,
 								blenderobject,
-								rendertools,
 								scene,
 								converter
 								);

@@ -410,7 +410,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, int alw
 				sceneconverter->ConvertScene(
 					startscene,
 					dictionaryobject,
-					keyboarddevice,
 					rendertools,
 					canvas);
 				ketsjiengine->AddScene(startscene);
@@ -725,7 +724,6 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 				sceneconverter->ConvertScene(
 					startscene,
 					dictionaryobject,
-					keyboarddevice,
 					rendertools,
 					canvas);
 				ketsjiengine->AddScene(startscene);
@@ -790,6 +788,16 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 		{
 			delete mousedevice;
 			mousedevice = NULL;
+		}
+		if (rasterizer)
+		{
+			delete rasterizer;
+			rasterizer = NULL;
+		}
+		if (rendertools)
+		{
+			delete rendertools;
+			rendertools = NULL;
 		}
 		SND_DeviceManager::Unsubscribe();
 
