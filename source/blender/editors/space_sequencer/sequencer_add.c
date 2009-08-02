@@ -241,7 +241,7 @@ static Sequence* sequencer_add_sound_strip(bContext *C, wmOperator *op, int star
 
 	AUD_SoundInfo info;
 
-	sound = sound_new_file(C, filename);
+	sound = sound_new_file(CTX_data_main(C), filename);
 
 	if (sound==NULL || sound->snd_sound == NULL) {
 		if(op)

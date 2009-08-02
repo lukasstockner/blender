@@ -4042,7 +4042,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 				if(seq->scene) seq->scene= newlibadr(fd, sce->id.lib, seq->scene);
 				// AUD_XXX
 				if(seq->sound) {
-					seq->sound= newlibadr(fd, sce->id.lib, seq->sound);
+					if(seq->type == SEQ_HD_SOUND)
+						seq->type = SEQ_SOUND;
+					else
+						seq->sound= newlibadr(fd, sce->id.lib, seq->sound);
 					if (seq->sound) {
 						seq->sound->id.us++;
 						seq->sound_handle= sound_new_handle(sce, seq->sound, seq->startdisp, seq->enddisp, seq->startofs);
@@ -5033,6 +5036,9 @@ static void lib_link_sound(FileData *fd, Main *main)
 			sound->id.flag -= LIB_NEEDLINK;
 			sound->ipo= newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX depreceated - old animation system
 			sound->stream = 0;
+
+			// AUD_XXX
+			sound_load(sound);
 		}
 		sound= sound->id.next;
 	}
@@ -9173,6 +9179,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 // AUD_XXX
 		bSound *sound;
+		Sequence *seq;
+		bActuator *act;
 
 		for(sound = main->sound.first; sound; sound = sound->id.next)
 		{
@@ -9180,7 +9188,54 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			{
 				sound->packedfile = sound->newpackedfile;
 				sound->newpackedfile = NULL;
-				sound->type = SOUND_TYPE_FILE;
+			}
+		}
+
+		for(ob = main->object.first; ob; ob= ob->id.next) {
+			for(act= ob->actuators.first; act; act= act->next) {
+				if (act->type == ACT_SOUND) {
+					bSoundActuator *sAct = (bSoundActuator*) act->data;
+/* that would only work if do_versions was called after the linking
+					if(sAct->sound)
+					{
+						sAct->flag = sAct->sound->flags | SOUND_FLAGS_3D ? ACT_SND_3D_SOUND : 0;
+						sAct->pitch = sAct->sound->pitch;
+						sAct->volume = sAct->sound->volume;
+						sAct->sound3D.reference_distance = sAct->sound->distance;
+						sAct->sound3D.max_gain = sAct->sound->max_gain;
+						sAct->sound3D.min_gain = sAct->sound->min_gain;
+						sAct->sound3D.rolloff_factor = sAct->sound->attenuation;
+					}
+					else*/
+					{
+						sAct->sound3D.reference_distance = 1.0f;
+						sAct->flag = ACT_SND_3D_SOUND;
+						sAct->volume = 1.0f;
+						sAct->sound3D.max_gain = 1.0f;
+						sAct->sound3D.rolloff_factor = 1.0f;
+					}
+					sAct->sound3D.cone_inner_angle = 360.0f;
+					sAct->sound3D.cone_outer_angle = 360.0f;
+					sAct->sound3D.max_distance = FLT_MAX;
+				}
+			}
+		}
+
+		for(scene = main->scene.first; scene; scene = scene->id.next)
+		{
+			if(scene->ed && scene->ed->seqbasep)
+			{
+				for(seq = scene->ed->seqbasep->first; seq; seq = seq->next)
+				{
+					if(seq->type == SEQ_HD_SOUND)
+					{
+						char str[FILE_MAX];
+						BLI_join_dirfile(str, seq->strip->dir, seq->strip->stripdata->name);
+						BLI_convertstringcode(str, G.sce);
+						BLI_convertstringframe(str, scene->r.cfra);
+						seq->sound = sound_new_file(main, str);
+					}
+				}
 			}
 		}
 
@@ -9278,14 +9333,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Scene *sce;
 		ToolSettings *ts;
 		int i, a;
-// AUD_XXX
-		bSound *sound;
-
-		for(sound = main->sound.first; sound; sound = sound->id.next)
-		{
-			sound->snd_sound = NULL;
-			sound_load(sound);
-		}
 
 		for(ob = main->object.first; ob; ob = ob->id.next) {
 

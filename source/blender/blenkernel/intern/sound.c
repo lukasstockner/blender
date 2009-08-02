@@ -199,7 +199,7 @@ void sound_exit()
 	AUD_exit();
 }
 
-struct bSound* sound_new_file(struct bContext *C, char* filename)
+struct bSound* sound_new_file(struct Main *main, char* filename)
 {
 	bSound* sound = NULL;
 
@@ -213,7 +213,7 @@ struct bSound* sound_new_file(struct bContext *C, char* filename)
 	while(len > 0 && filename[len-1] != '/' && filename[len-1] != '\\')
 		len--;
 
-	sound = alloc_libblock(&CTX_data_main(C)->sound, ID_SO, filename+len);
+	sound = alloc_libblock(&main->sound, ID_SO, filename+len);
 	strcpy(sound->name, filename);
 	sound->type = SOUND_TYPE_FILE;
 
@@ -221,7 +221,7 @@ struct bSound* sound_new_file(struct bContext *C, char* filename)
 
 	if(!sound->snd_sound)
 	{
-		free_libblock(&CTX_data_main(C)->sound, sound);
+		free_libblock(&main->sound, sound);
 		sound = NULL;
 	}
 

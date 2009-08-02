@@ -36,6 +36,7 @@ struct bSound;
 // AUD_XXX struct bSample;
 struct bContext;
 struct ListBase;
+struct Main;
 
 /* bad bad global... */
 // AUD_XXX
@@ -58,7 +59,7 @@ void sound_reinit(struct bContext *C);
 
 void sound_exit();
 
-struct bSound* sound_new_file(struct bContext *C, char* filename);
+struct bSound* sound_new_file(struct Main *main, char* filename);
 
 // AUD_XXX unused currently
 #if 0

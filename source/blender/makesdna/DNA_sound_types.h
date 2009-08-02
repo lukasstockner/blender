@@ -141,8 +141,8 @@ typedef struct bSound {
 } bSound;
 
 typedef enum eSound_Type {
-	SOUND_TYPE_INVALID = 0,
-	SOUND_TYPE_FILE,
+	SOUND_TYPE_INVALID = -1,
+	SOUND_TYPE_FILE = 0,
 	SOUND_TYPE_BUFFER,
 	SOUND_TYPE_LIMITER
 } eSound_Type;
