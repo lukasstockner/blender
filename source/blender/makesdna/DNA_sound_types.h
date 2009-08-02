@@ -68,7 +68,7 @@ typedef struct bSample {
 typedef struct SoundHandle {
 	struct SoundHandle *next, *prev;
 	struct bSound *source;
-	void* handle;
+	void *handle;
 	int state;
 	int startframe;
 	int endframe;
@@ -76,6 +76,7 @@ typedef struct SoundHandle {
 	int mute;
 	int changed;
 	float volume;
+	float pad;
 } SoundHandle;
 
 // AUD_XXX
@@ -132,8 +133,8 @@ typedef struct bSound {
 	// AUD_XXX NEW
 	int type;
 	int changed;
-	struct bSound* child_sound;
-	void* cache;
+	struct bSound *child_sound;
+	void *cache;
 
 	// SOUND_TYPE_LIMITER
 	float start, end;
