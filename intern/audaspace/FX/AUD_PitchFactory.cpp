@@ -27,10 +27,6 @@
 #include "AUD_PitchReader.h"
 #include "AUD_Space.h"
 
-extern "C" {
-#include <libavformat/avformat.h>
-}
-
 AUD_PitchFactory::AUD_PitchFactory(AUD_IFactory* factory, float pitch) :
 		AUD_EffectFactory(factory),
 		m_pitch(pitch) {}
