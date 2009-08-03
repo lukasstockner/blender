@@ -1512,7 +1512,7 @@ static void draw_dm_verts__mapFunc(void *userData, int index, float *co, float *
 			
 			bglEnd();
 			
-			glPointSize(size);
+			//glPointSize(size);
 			bglBegin(GL_POINTS);
 			bglVertex3fv(co);
 			bglEnd();
@@ -1525,15 +1525,72 @@ static void draw_dm_verts__mapFunc(void *userData, int index, float *co, float *
 		}
 	}
 }
+/* originally defined in DerivedMesh.c */
+typedef struct {
+	DerivedMesh dm;
+
+	EditMesh *em;
+	float (*vertexCos)[3];
+	float (*vertexNos)[3];
+	float (*faceNos)[3];
+} EditMeshDerivedMesh;
+
 static void draw_dm_verts(DerivedMesh *dm, int sel, EditVert *eve_act)
 {
 	struct { int sel; EditVert *eve_act; } data;
+	GPUBuffer *buffer;
+	float *varray;
 	data.sel = sel;
 	data.eve_act = eve_act;
-	
-	bglBegin(GL_POINTS);
-	dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data);
-	bglEnd();
+
+	/* first come the unselected vertices, then the selected */
+	buffer = GPU_buffer_alloc( sizeof(float)*3*dm->getNumVerts(dm)*2, 0 );
+
+	if( (varray = GPU_buffer_lock_stream( buffer )) && bglPointHack() == 0 ) {
+		EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
+		EditVert *eve;
+		int i;
+		int numverts = 0, numselected = 0;
+		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_END };
+		GPU_buffer_unlock( buffer );
+		GPU_interleaved_setup( buffer, datatype );
+		GPU_buffer_lock_stream( buffer );
+
+		glBegin(GL_POINTS);
+		for (i=0,eve= emdm->em->verts.first; eve; i++,eve=eve->next) {
+			if (eve->h==0 && (eve->f&SELECT)==data.sel) {
+				if (eve==data.eve_act) {
+					if (emdm->vertexCos) {
+						VECCOPY(&varray[3*(dm->getNumVerts(dm)+numselected)],emdm->vertexCos[i]);
+					}
+					else {
+						VECCOPY(&varray[3*(dm->getNumVerts(dm)+numselected)],eve->co);
+					}
+					numselected++;
+				} else {
+					if (emdm->vertexCos) {
+						VECCOPY(&varray[3*numverts],emdm->vertexCos[i]);
+					} else {
+						VECCOPY(&varray[3*numverts],eve->co);
+					}
+					numverts++;
+				}
+			}
+		}
+		glEnd();
+		GPU_buffer_unlock( buffer );
+		glDrawArrays(GL_POINTS,0,numverts);
+		UI_ThemeColor4(TH_EDITMESH_ACTIVE);
+		glDrawArrays(GL_POINTS,dm->getNumVerts(dm),numselected);
+		UI_ThemeColor4(data.sel?TH_VERTEX_SELECT:TH_VERTEX);
+		GPU_buffer_unbind();
+	}
+	else {
+		bglBegin(GL_POINTS);
+		dm->foreachMappedVert(dm, draw_dm_verts__mapFunc, &data);
+		bglEnd();
+	}
+	GPU_buffer_free( buffer, 0 );
 }
 
 	/* Draw edges with color set based on selection */
@@ -1601,16 +1658,6 @@ static void draw_dm_edges_sel_interp__setDrawInterpOptions(void *userData, int i
 				col0[2] + (col1[2]-col0[2])*t,
 				col0[3] + (col1[3]-col0[3])*t);
 }
-
-/* originally defined in DerivedMesh.c */
-typedef struct {
-	DerivedMesh dm;
-
-	EditMesh *em;
-	float (*vertexCos)[3];
-	float (*vertexNos)[3];
-	float (*faceNos)[3];
-} EditMeshDerivedMesh;
 
 static void draw_dm_edges_sel_interp(DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol)
 {
