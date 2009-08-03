@@ -2010,7 +2010,10 @@ static short draw_actuatorbuttons(Object *ob, bActuator *act, uiBlock *block, sh
 					uiDefButF(block, NUM, 0, "Pitch:",xco+wval+10,yco-66,wval, 19, &sa->pitch,-12.0, 12.0, 0, 0, "Sets the pitch of this sound");
 					uiDefButS(block, TOG | BIT, 0, "3D Sound", xco+10, yco-88, width-20, 19, &sa->flag, 0.0, 1.0, 0.0, 0.0, "Plays the sound positioned in 3D space.");
 					if(sa->flag & ACT_SND_3D_SOUND)
+					{
 						uiDefButF(block, NUM, 0, "Rolloff: ", xco+10, yco-110, wval, 19, &sa->sound3D.rolloff_factor, 0.0, 5.0, 0.0, 0.0, "The rolloff factor defines the influence factor on volume depending on distance.");
+						uiDefButF(block, NUM, 0, "Reference distance: ", xco+wval+10, yco-110, wval, 19, &sa->sound3D.reference_distance, 0.0, 1000.0, 0.0, 0.0, "The reference distance is the distance where the sound has a gain of 1.0.");
+					}
 				}
 				MEM_freeN(str);
 			} 

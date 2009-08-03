@@ -9195,21 +9195,20 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			for(act= ob->actuators.first; act; act= act->next) {
 				if (act->type == ACT_SOUND) {
 					bSoundActuator *sAct = (bSoundActuator*) act->data;
-/* that would only work if do_versions was called after the linking
 					if(sAct->sound)
 					{
-						sAct->flag = sAct->sound->flags | SOUND_FLAGS_3D ? ACT_SND_3D_SOUND : 0;
-						sAct->pitch = sAct->sound->pitch;
-						sAct->volume = sAct->sound->volume;
-						sAct->sound3D.reference_distance = sAct->sound->distance;
-						sAct->sound3D.max_gain = sAct->sound->max_gain;
-						sAct->sound3D.min_gain = sAct->sound->min_gain;
-						sAct->sound3D.rolloff_factor = sAct->sound->attenuation;
+						sound = newlibadr(fd, lib, sAct->sound);
+						sAct->flag = sound->flags | SOUND_FLAGS_3D ? ACT_SND_3D_SOUND : 0;
+						sAct->pitch = sound->pitch;
+						sAct->volume = sound->volume;
+						sAct->sound3D.reference_distance = sound->distance;
+						sAct->sound3D.max_gain = sound->max_gain;
+						sAct->sound3D.min_gain = sound->min_gain;
+						sAct->sound3D.rolloff_factor = sound->attenuation;
 					}
-					else*/
+					else
 					{
 						sAct->sound3D.reference_distance = 1.0f;
-						sAct->flag = ACT_SND_3D_SOUND;
 						sAct->volume = 1.0f;
 						sAct->sound3D.max_gain = 1.0f;
 						sAct->sound3D.rolloff_factor = 1.0f;
@@ -9566,6 +9565,16 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	// XXX
 	bfd->user->uifonts.first= bfd->user->uifonts.last= NULL;
 	bfd->user->uistyles.first= bfd->user->uistyles.last= NULL;
+
+	// AUD_XXX
+	if(bfd->user->audiochannels == 0)
+		bfd->user->audiochannels = 2;
+	if(bfd->user->audiodevice == 0)
+		bfd->user->audiodevice = 1;
+	if(bfd->user->audioformat == 0)
+		bfd->user->audioformat = 0x12;
+	if(bfd->user->audiorate == 0)
+		bfd->user->audiorate = 44100;
 
 	bhead = blo_nextbhead(fd, bhead);
 
