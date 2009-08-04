@@ -873,7 +873,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 
 	glShadeModel(GL_SMOOTH);
 
-	if( GPU_buffer_legacy(dm) ) {
+	if( GPU_buffer_legacy(dm) || setDrawOptions != 0 ) {
 		DEBUG_VBO( "Using legacy code. cdDM_drawMappedFacesGLSL\n" );
 		memset(&attribs, 0, sizeof(attribs));
 
@@ -976,103 +976,203 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 		glEnd();
 	}
 	else {  /* TODO */
+		GPUBuffer *buffer = 0;
+		char *varray = 0;
+		int numdata = 0, elementsize = 0, offset;
+		int start = 0, numfaces = 0, prevdraw = 0, curface = 0;
+		GPUAttrib datatypes[32];
 		memset(&attribs, 0, sizeof(attribs));
 
-		for(a = 0; a < dm->numFaceData; a++, mface++) {
-			new_matnr = mface->mat_nr + 1;
+		GPU_vertex_setup(dm);
+		GPU_normal_setup(dm);
 
-			if(new_matnr != matnr) {
-				glEnd();
+		if( !GPU_buffer_legacy(dm) ) {
+			for(a = 0; a < dm->numFaceData; a++, mface++) {
+				new_matnr = mface->mat_nr + 1;
 
-				dodraw = setMaterial(matnr = new_matnr, &gattribs);
-				if(dodraw)
-					DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
-
-				glBegin(GL_QUADS);
-			}
-
-			if(!dodraw) {
-				continue;
-			}
-			else if(setDrawOptions) {
-				orig = index[a];
-
-				if(orig == ORIGINDEX_NONE)
-					continue;
-				else if(!setDrawOptions(userData, orig))
-					continue;
-			}
-
-			if(tf) {
-				new_transp = tf[a].transp;
-
-				if(new_transp != transp) {
-					glEnd();
-
-					if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
-						GPU_set_material_blend_mode(orig_transp);
-					else
-						GPU_set_material_blend_mode(new_transp);
-					transp = new_transp;
-
-					glBegin(GL_QUADS);
-				}
-			}
-
-			smoothnormal = (mface->flag & ME_SMOOTH);
-
-			if(!smoothnormal) {
-				if(nors) {
-					glNormal3fv(nors[a]);
-				}
-				else {
-					/* TODO ideally a normal layer should always be available */
-					float nor[3];
-					if(mface->v4) {
-						CalcNormFloat4(mvert[mface->v1].co, mvert[mface->v2].co,
-									   mvert[mface->v3].co, mvert[mface->v4].co,
-									   nor);
-					} else {
-						CalcNormFloat(mvert[mface->v1].co, mvert[mface->v2].co,
-									  mvert[mface->v3].co, nor);
+				if(new_matnr != matnr ) {
+					numfaces = curface - start;
+					if( numfaces > 0 ) {
+						if( prevdraw ) {
+							GPU_buffer_unlock(buffer);
+							GPU_interleaved_attrib_setup(buffer,datatypes,numdata);
+							glDrawArrays(GL_TRIANGLES,start*3,numfaces*3);
+							GPU_buffer_free(buffer,0);
+						}
 					}
-					glNormal3fv(nor);
+					start = curface;
+					prevdraw = dodraw;
+					dodraw = setMaterial(matnr = new_matnr, &gattribs);
+					if(dodraw) {
+						DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
+
+						if(attribs.totorco) {
+							datatypes[numdata].index = attribs.orco.glIndex;
+							datatypes[numdata].size = 3;
+							datatypes[numdata].type = GL_FLOAT;
+							numdata++;
+						}
+						for(b = 0; b < attribs.tottface; b++) {
+							datatypes[numdata].index = attribs.tface[b].glIndex;
+							datatypes[numdata].size = 2;
+							datatypes[numdata].type = GL_FLOAT;
+							numdata++;
+						}	
+						for(b = 0; b < attribs.totmcol; b++) {
+							datatypes[numdata].index = attribs.mcol[b].glIndex;
+							datatypes[numdata].size = 4;
+							datatypes[numdata].type = GL_UNSIGNED_BYTE;
+							numdata++;
+						}	
+						if(attribs.tottang) {
+							datatypes[numdata].index = attribs.tang.glIndex;
+							datatypes[numdata].size = 3;
+							datatypes[numdata].type = GL_FLOAT;
+							numdata++;
+						}
+						if( numdata != 0 ) {
+							elementsize = GPU_attrib_element_size( datatypes, numdata );
+							buffer = GPU_buffer_alloc( elementsize*dm->drawObject->nelements, 0 );
+							if( buffer == 0 ) {
+								GPU_buffer_unbind();
+								dm->drawObject->legacy = 1;
+								return;
+							}
+							varray = GPU_buffer_lock_stream(buffer);
+							if( varray == 0 ) {
+								GPU_buffer_unbind();
+								GPU_buffer_free(buffer, 0);
+								dm->drawObject->legacy = 1;
+								return;
+							}
+						}
+					}
+				}
+				if(!dodraw) {
+					continue;
+				}
+
+				if(tf) {
+					new_transp = tf[a].transp;
+
+					if(new_transp != transp) {
+						numfaces = curface - start;
+						if( numfaces > 0 ) {
+							if( dodraw ) {
+								if( numdata != 0 ) {
+									GPU_buffer_unlock(buffer);
+									GPU_interleaved_attrib_setup(buffer,datatypes,numdata);
+								}
+								glDrawArrays(GL_TRIANGLES,start*3,(curface-start)*3);
+								if( numdata != 0 ) {
+									varray = GPU_buffer_lock_stream(buffer);
+								}
+							}
+						}
+						start = curface;
+
+						if(new_transp == GPU_BLEND_SOLID && orig_transp != GPU_BLEND_SOLID)
+							GPU_set_material_blend_mode(orig_transp);
+						else
+							GPU_set_material_blend_mode(new_transp);
+						transp = new_transp;
+					}
+				}
+				
+				if( numdata != 0 ) {
+					offset = 0;
+					if(attribs.totorco) {
+						VECCOPY((float *)&varray[elementsize*curface*3],(float *)attribs.orco.array[mface->v1]);
+						VECCOPY((float *)&varray[elementsize*curface*3+elementsize],(float *)attribs.orco.array[mface->v2]);
+						VECCOPY((float *)&varray[elementsize*curface*3+elementsize*2],(float *)attribs.orco.array[mface->v3]);
+						offset += sizeof(float)*3;
+					}
+					for(b = 0; b < attribs.tottface; b++) {
+						MTFace *tf = &attribs.tface[b].array[a];
+						VECCOPY((float *)&varray[elementsize*curface*3+offset],tf->uv[0]);
+						VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize],tf->uv[1]);
+						VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize*2],tf->uv[2]);
+						offset += sizeof(float)*2;
+					}
+					for(b = 0; b < attribs.totmcol; b++) {
+						MCol *cp = &attribs.mcol[b].array[a*4 + 0];
+						GLubyte col[4];
+						col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
+						QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset], col);
+						cp = &attribs.mcol[b].array[a*4 + 1];
+						col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
+						QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize], col);
+						cp = &attribs.mcol[b].array[a*4 + 2];
+						col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
+						QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize*2], col);
+						offset += sizeof(unsigned char)*4;
+					}	
+					if(attribs.tottang) {
+						float *tang = attribs.tang.array[a*4 + 0];
+						VECCOPY((float *)&varray[elementsize*curface*3+offset], tang);
+						tang = attribs.tang.array[a*4 + 1];
+						VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
+						tang = attribs.tang.array[a*4 + 2];
+						VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
+						offset += sizeof(float)*3;
+					}
+				}
+				curface++;
+				if(mface->v4) {
+					if( numdata != 0 ) {
+						offset = 0;
+						if(attribs.totorco) {
+							VECCOPY((float *)&varray[elementsize*curface*3],(float *)attribs.orco.array[mface->v3]);
+							VECCOPY((float *)&varray[elementsize*curface*3+elementsize],(float *)attribs.orco.array[mface->v4]);
+							VECCOPY((float *)&varray[elementsize*curface*3+elementsize*2],(float *)attribs.orco.array[mface->v1]);
+							offset += sizeof(float)*3;
+						}
+						for(b = 0; b < attribs.tottface; b++) {
+							MTFace *tf = &attribs.tface[b].array[a];
+							VECCOPY((float *)&varray[elementsize*curface*3+offset],tf->uv[2]);
+							VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize],tf->uv[3]);
+							VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize*2],tf->uv[0]);
+							offset += sizeof(float)*2;
+						}
+						for(b = 0; b < attribs.totmcol; b++) {
+							MCol *cp = &attribs.mcol[b].array[a*4 + 2];
+							GLubyte col[4];
+							col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
+							QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset], col);
+							cp = &attribs.mcol[b].array[a*4 + 3];
+							col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
+							QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize], col);
+							cp = &attribs.mcol[b].array[a*4 + 0];
+							col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;
+							QUATCOPY((unsigned char *)&varray[elementsize*curface*3+offset+elementsize*2], col);
+							offset += sizeof(unsigned char)*4;
+						}	
+						if(attribs.tottang) {
+							float *tang = attribs.tang.array[a*4 + 2];
+							VECCOPY((float *)&varray[elementsize*curface*3+offset], tang);
+							tang = attribs.tang.array[a*4 + 3];
+							VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
+							tang = attribs.tang.array[a*4 + 0];
+							VECCOPY((float *)&varray[elementsize*curface*3+offset+elementsize], tang);
+							offset += sizeof(float)*3;
+						}
+					}
+					curface++;
 				}
 			}
-
-#define PASSVERT(index, vert) {													\
-		if(attribs.totorco)															\
-			glVertexAttrib3fvARB(attribs.orco.glIndex, attribs.orco.array[index]);	\
-		for(b = 0; b < attribs.tottface; b++) {										\
-			MTFace *tf = &attribs.tface[b].array[a];								\
-			glVertexAttrib2fvARB(attribs.tface[b].glIndex, tf->uv[vert]);			\
-		}																			\
-		for(b = 0; b < attribs.totmcol; b++) {										\
-			MCol *cp = &attribs.mcol[b].array[a*4 + vert];							\
-			GLubyte col[4];															\
-			col[0]= cp->b; col[1]= cp->g; col[2]= cp->r; col[3]= cp->a;				\
-			glVertexAttrib4ubvARB(attribs.mcol[b].glIndex, col);					\
-		}																			\
-		if(attribs.tottang) {														\
-			float *tang = attribs.tang.array[a*4 + vert];							\
-			glVertexAttrib3fvARB(attribs.tang.glIndex, tang);						\
-		}																			\
-		if(smoothnormal)															\
-			glNormal3sv(mvert[index].no);											\
-		glVertex3fv(mvert[index].co);												\
-	}
-
-			PASSVERT(mface->v1, 0);
-			PASSVERT(mface->v2, 1);
-			PASSVERT(mface->v3, 2);
-			if(mface->v4)
-				PASSVERT(mface->v4, 3)
-			else
-				PASSVERT(mface->v3, 2)
-
-#undef PASSVERT
+			numfaces = curface - start;
+			if( numfaces > 0 ) {
+				if( dodraw ) {
+					if( numdata != 0 ) {
+						GPU_buffer_unlock(buffer);
+						GPU_interleaved_attrib_setup(buffer,datatypes,numdata);
+					}
+					glDrawArrays(GL_TRIANGLES,start*3,(curface-start)*3);
+				}
+			}
+			GPU_buffer_unbind();
 		}
-		glEnd();
+		GPU_buffer_free( buffer, 0 );
 	}
 
 	glShadeModel(GL_FLAT);

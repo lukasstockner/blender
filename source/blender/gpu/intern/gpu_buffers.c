@@ -47,10 +47,13 @@
 #define GPU_BUFFER_COLOR_STATE 8
 #define GPU_BUFFER_ELEMENT_STATE 16
 
+#define MAX_GPU_ATTRIB_DATA 32
+
 /* -1 - undefined, 0 - vertex arrays, 1 - VBOs */
 int useVBOs = -1;
 GPUBufferPool *globalPool = 0;
 int GLStates = 0;
+GPUAttrib attribData[MAX_GPU_ATTRIB_DATA] = { { -1, 0, 0 } };
 
 GPUBufferPool *GPU_buffer_pool_new()
 {
@@ -928,6 +931,9 @@ void GPU_interleaved_setup( GPUBuffer *buffer, int data[] ) {
 	int i;
 	int elementsize = 0;
 	int offset = 0;
+
+	DEBUG_VBO("GPU_interleaved_setup\n");
+
 	for( i = 0; data[i] != GPU_BUFFER_INTER_END; i++ ) {
 		switch( data[i] ) {
 			case GPU_BUFFER_INTER_V3F:
@@ -1025,8 +1031,79 @@ void GPU_interleaved_setup( GPUBuffer *buffer, int data[] ) {
 	}
 }
 
+static int GPU_typesize( int type ) {
+	switch( type ) {
+		case GL_FLOAT:
+			return sizeof(float);
+		case GL_INT:
+			return sizeof(int);
+		case GL_UNSIGNED_INT:
+			return sizeof(unsigned int);
+		case GL_BYTE:
+			return sizeof(char);
+		case GL_UNSIGNED_BYTE:
+			return sizeof(unsigned char);
+		default:
+			return 0;
+	}
+}
+
+int GPU_attrib_element_size( GPUAttrib data[], int numdata ) {
+	int i, elementsize = 0;
+
+	for( i = 0; i < numdata; i++ ) {
+		int typesize = GPU_typesize(data[i].type);
+		if( typesize == 0 )
+			DEBUG_VBO( "Unknown element in data type array in GPU_attrib_element_size\n" );
+		else {
+			elementsize += typesize*data[i].size;
+		}
+	}
+	return elementsize;
+}
+
+void GPU_interleaved_attrib_setup( GPUBuffer *buffer, GPUAttrib data[], int numdata ) {
+	int i;
+	int elementsize;
+	int offset = 0;
+
+	DEBUG_VBO("GPU_interleaved_attrib_setup\n");
+
+	for( i = 0; i < MAX_GPU_ATTRIB_DATA; i++ ) {
+		if( attribData[i].index != -1 ) {
+			glDisableVertexAttribArrayARB( attribData[i].index );
+		}
+		else
+			break;
+	}
+	elementsize = GPU_attrib_element_size( data, numdata );
+
+	if( useVBOs ) {
+		glBindBufferARB( GL_ARRAY_BUFFER_ARB, buffer->id );
+		for( i = 0; i < numdata; i++ ) {
+			glEnableVertexAttribArrayARB( data[i].index );
+			glVertexAttribPointerARB( data[i].index, data[i].size, data[i].type, GL_TRUE, elementsize, (void *)offset );
+			offset += data[i].size*GPU_typesize(data[i].type);
+
+			attribData[i].index = data[i].index;
+			attribData[i].size = data[i].size;
+			attribData[i].type = data[i].type;
+		}
+		attribData[numdata].index = -1;
+	}
+	else {
+		for( i = 0; i < numdata; i++ ) {
+			glEnableVertexAttribArrayARB( data[i].index );
+			glVertexAttribPointerARB( data[i].index, data[i].size, data[i].type, GL_TRUE, elementsize, (char *)buffer->pointer + offset );
+			offset += data[i].size*GPU_typesize(data[i].type);
+		}
+	}
+}
+
+
 void GPU_buffer_unbind()
 {
+	int i;
 	DEBUG_VBO("GPU_buffer_unbind\n");
 
 	if( GLStates & GPU_BUFFER_VERTEX_STATE )
@@ -1041,6 +1118,13 @@ void GPU_buffer_unbind()
 		glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
 	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE | GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE | GPU_BUFFER_ELEMENT_STATE);
 
+	for( i = 0; i < MAX_GPU_ATTRIB_DATA; i++ ) {
+		if( attribData[i].index != -1 ) {
+			glDisableVertexAttribArrayARB( attribData[i].index );
+		}
+		else
+			break;
+	}
 	if( GLStates != 0 )
 		DEBUG_VBO( "Some weird OpenGL state is still set. Why?" );
 	if( useVBOs )

@@ -107,6 +107,13 @@ typedef struct GPUDrawObject
 
 } GPUDrawObject;
 
+typedef struct GPUAttrib
+{
+	int index;
+	int size;
+	int type;
+} GPUAttrib;
+
 GPUBufferPool *GPU_buffer_pool_new();
 void GPU_buffer_pool_free( GPUBufferPool *pool );	/* TODO: Find a place where to call this function on exit */
 
@@ -124,6 +131,8 @@ void GPU_color_setup( struct DerivedMesh *dm );
 void GPU_edge_setup( struct DerivedMesh *dm );	/* does not mix with other data */
 void GPU_uvedge_setup( struct DerivedMesh *dm );
 void GPU_interleaved_setup( GPUBuffer *buffer, int data[] );
+int GPU_attrib_element_size( GPUAttrib data[], int numdata );
+void GPU_interleaved_attrib_setup( GPUBuffer *buffer, GPUAttrib data[], int numdata );
 
 void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
 void *GPU_buffer_lock( GPUBuffer *buffer );
@@ -138,6 +147,7 @@ void GPU_color4_upload( struct DerivedMesh *dm, char *data );
 void GPU_color_switch( int mode );
 
 /* called after drawing */
+void GPU_attrib_unbind( int index );
 void GPU_buffer_unbind();
 
 int GPU_buffer_legacy( struct DerivedMesh *dm );
