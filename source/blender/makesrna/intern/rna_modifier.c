@@ -34,6 +34,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
+#include "DNA_object_force.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_bmesh.h" /* For BevelModifierData */
@@ -61,7 +62,7 @@ EnumPropertyItem modifier_type_items[] ={
 	{eModifierType_Mask, "MASK", ICON_MOD_MASK, "Mask", ""},
 	{eModifierType_MeshDeform, "MESH_DEFORM", ICON_MOD_MESHDEFORM, "Mesh Deform", ""},
 	{eModifierType_Mirror, "MIRROR", ICON_MOD_MIRROR, "Mirror", ""},
-	{eModifierType_Multires, "MULTIRES", ICON_MOD_MULTIRES, "Multires", ""},
+	{eModifierType_Multires, "MULTIRES", ICON_MOD_MULTIRES, "Multiresolution", ""},
 	{eModifierType_ParticleInstance, "PARTICLE_INSTANCE", ICON_MOD_PARTICLES, "Particle Instance", ""},
 	{eModifierType_ParticleSystem, "PARTICLE_SYSTEM", ICON_MOD_PARTICLES, "Particle System", ""},
 	{eModifierType_Shrinkwrap, "SHRINKWRAP", ICON_MOD_SHRINKWRAP, "Shrinkwrap", ""},
@@ -69,7 +70,7 @@ EnumPropertyItem modifier_type_items[] ={
 	{eModifierType_Smoke, "SMOKE", 0, "Smoke", ""},
 	{eModifierType_Smooth, "SMOOTH", ICON_MOD_SMOOTH, "Smooth", ""},
 	{eModifierType_Softbody, "SOFTBODY", ICON_MOD_SOFT, "Soft Body", ""},
-	{eModifierType_Subsurf, "SUBSURF", ICON_MOD_SUBSURF, "Subsurf", ""},
+	{eModifierType_Subsurf, "SUBSURF", ICON_MOD_SUBSURF, "Subdivision Surface", ""},
 	{eModifierType_Surface, "SURFACE", ICON_MOD_PHYSICS, "Surface", ""},
 	{eModifierType_UVProject, "UV_PROJECT", ICON_MOD_UVPROJECT, "UV Project", ""},
 	{eModifierType_Wave, "WAVE", ICON_MOD_WAVE, "Wave", ""},
@@ -381,6 +382,12 @@ static PointerRNA rna_SoftBodyModifier_settings_get(PointerRNA *ptr)
 {
 	Object *ob= (Object*)ptr->id.data;
 	return rna_pointer_inherit_refine(ptr, &RNA_SoftBodySettings, ob->soft);
+}
+
+static PointerRNA rna_SoftBodyModifier_point_cache_get(PointerRNA *ptr)
+{
+	Object *ob= (Object*)ptr->id.data;
+	return rna_pointer_inherit_refine(ptr, &RNA_PointCache, ob->soft->pointcache);
 }
 
 static PointerRNA rna_CollisionModifier_settings_get(PointerRNA *ptr)
@@ -883,6 +890,11 @@ static void rna_def_modifier_softbody(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "SoftBodySettings");
 	RNA_def_property_pointer_funcs(prop, "rna_SoftBodyModifier_settings_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Soft Body Settings", "");
+
+	prop= RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "PointCache");
+	RNA_def_property_pointer_funcs(prop, "rna_SoftBodyModifier_point_cache_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Soft Body Point Cache", "");
 }
 
 static void rna_def_modifier_boolean(BlenderRNA *brna)

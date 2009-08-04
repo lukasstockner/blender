@@ -2491,7 +2491,8 @@ static void lib_link_mball(FileData *fd, Main *main)
 	mb= main->mball.first;
 	while(mb) {
 		if(mb->id.flag & LIB_NEEDLINK) {
-
+			if (mb->adt) lib_link_animdata(fd, &mb->id, mb->adt);
+			
 			for(a=0; a<mb->totcol; a++) mb->mat[a]= newlibadr_us(fd, mb->id.lib, mb->mat[a]);
 
 			mb->ipo= newlibadr_us(fd, mb->id.lib, mb->ipo); // XXX depreceated - old animation system
@@ -2504,6 +2505,9 @@ static void lib_link_mball(FileData *fd, Main *main)
 
 static void direct_link_mball(FileData *fd, MetaBall *mb)
 {
+	mb->adt= newdataadr(fd, mb->adt);
+	direct_link_animdata(fd, mb->adt);
+	
 	mb->mat= newdataadr(fd, mb->mat);
 	test_pointer_array(fd, (void **)&mb->mat);
 
@@ -5743,6 +5747,14 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				ar->regiontype= RGN_TYPE_CHANNELS;
 				ar->alignment= RGN_ALIGN_LEFT;
 				ar->v2d.scroll= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM);
+				
+					// for some reason, this doesn't seem to go auto like for NLA...
+				ar= MEM_callocN(sizeof(ARegion), "area region from do_versions");
+				BLI_addtail(lb, ar);
+				ar->regiontype= RGN_TYPE_UI;
+				ar->alignment= RGN_ALIGN_RIGHT;
+				ar->v2d.scroll= V2D_SCROLL_RIGHT;
+				ar->v2d.flag = RGN_FLAG_HIDDEN;
 				break;
 
 			case SPACE_ACTION:
@@ -9490,28 +9502,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			sce->gm.depth= sce->r.depth;
 
 			//Physic (previously stored in world)
-			//temporarily getting the correct world address
-			wo = newlibadr(fd, sce->id.lib, sce->world);
-			if (wo){
-				sce->gm.gravity = wo->gravity;
-				sce->gm.physicsEngine= wo->physicsEngine;
-				sce->gm.mode = wo->mode;
-				sce->gm.occlusionRes = wo->occlusionRes;
-				sce->gm.ticrate = wo->ticrate;
-				sce->gm.maxlogicstep = wo->maxlogicstep;
-				sce->gm.physubstep = wo->physubstep;
-				sce->gm.maxphystep = wo->maxphystep;
-			}
-			else{
-				sce->gm.gravity =9.8f;
-				sce->gm.physicsEngine= WOPHY_BULLET;// Bullet by default
-				sce->gm.mode = WO_DBVT_CULLING;	// DBVT culling by default
-				sce->gm.occlusionRes = 128;
-				sce->gm.ticrate = 60;
-				sce->gm.maxlogicstep = 5;
-				sce->gm.physubstep = 1;
-				sce->gm.maxphystep = 5;
-			}
+			sce->gm.gravity =9.8f;
+			sce->gm.physicsEngine= WOPHY_BULLET;// Bullet by default
+			sce->gm.mode = WO_DBVT_CULLING;	// DBVT culling by default
+			sce->gm.occlusionRes = 128;
+			sce->gm.ticrate = 60;
+			sce->gm.maxlogicstep = 5;
+			sce->gm.physubstep = 1;
+			sce->gm.maxphystep = 5;
 		}
 	}
 
@@ -10021,6 +10019,9 @@ static void expand_mball(FileData *fd, Main *mainvar, MetaBall *mb)
 	for(a=0; a<mb->totcol; a++) {
 		expand_doit(fd, mainvar, mb->mat[a]);
 	}
+	
+	if(mb->adt)
+		expand_animdata(fd, mainvar, mb->adt);
 }
 
 static void expand_curve(FileData *fd, Main *mainvar, Curve *cu)
