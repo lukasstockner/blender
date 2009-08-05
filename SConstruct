@@ -566,7 +566,6 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc'):
 				'${BF_ZLIB_LIBPATH}/zlib.dll',
 				'${BF_TIFF_LIBPATH}/${BF_TIFF_LIB}.dll']
 	dllsources += ['${BF_PTHREADS_LIBPATH}/${BF_PTHREADS_LIB}.dll']
-	dllsources.append('${LCGDIR}/samplerate/lib/libsamplerate-0.dll')
 	if env['WITH_BF_SDL']:
 		if env['OURPLATFORM'] == 'win64-vc':
 			pass # we link statically already to SDL on win64
