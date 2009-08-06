@@ -1218,8 +1218,10 @@ void GPU_buffer_unlock( GPUBuffer *buffer )
 {
 	DEBUG_VBO( "GPU_buffer_unlock\n" ); 
 	if( useVBOs ) {
-		if( glUnmapBufferARB( GL_ARRAY_BUFFER_ARB ) == 0 ) {
-			DEBUG_VBO( "Failed to copy new data\n" ); 
+		if( buffer != 0 ) {
+			if( glUnmapBufferARB( GL_ARRAY_BUFFER_ARB ) == 0 ) {
+				DEBUG_VBO( "Failed to copy new data\n" ); 
+			}
 		}
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}

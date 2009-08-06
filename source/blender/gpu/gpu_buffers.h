@@ -134,8 +134,8 @@ void GPU_interleaved_setup( GPUBuffer *buffer, int data[] );
 int GPU_attrib_element_size( GPUAttrib data[], int numdata );
 void GPU_interleaved_attrib_setup( GPUBuffer *buffer, GPUAttrib data[], int numdata );
 
-void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
-void *GPU_buffer_lock( GPUBuffer *buffer );
+/* can't lock more than one buffer at once */
+void *GPU_buffer_lock( GPUBuffer *buffer );	
 void *GPU_buffer_lock_stream( GPUBuffer *buffer );
 void GPU_buffer_unlock( GPUBuffer *buffer );
 
@@ -146,8 +146,9 @@ void GPU_color4_upload( struct DerivedMesh *dm, char *data );
 /* switch color rendering on=1/off=0 */
 void GPU_color_switch( int mode );
 
+void GPU_buffer_draw_elements( GPUBuffer *elements, unsigned int mode, int start, int count );
+
 /* called after drawing */
-void GPU_attrib_unbind( int index );
 void GPU_buffer_unbind();
 
 int GPU_buffer_legacy( struct DerivedMesh *dm );

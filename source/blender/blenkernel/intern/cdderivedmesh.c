@@ -975,7 +975,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, vo
 		}
 		glEnd();
 	}
-	else {  /* TODO */
+	else {
 		GPUBuffer *buffer = 0;
 		char *varray = 0;
 		int numdata = 0, elementsize = 0, offset;
