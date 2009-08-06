@@ -38,6 +38,8 @@
 #include <unistd.h>
 #endif
 
+#define AUD_OPENAL_CYCLE_BUFFERS 3
+
 /// Saves the data for playback.
 struct AUD_OpenALHandle : AUD_Handle
 {
@@ -57,7 +59,7 @@ struct AUD_OpenALHandle : AUD_Handle
 	ALuint source;
 
 	/// OpenAL buffers.
-	ALuint buffers[3];
+	ALuint buffers[AUD_OPENAL_CYCLE_BUFFERS];
 
 	/// The first buffer to be read next.
 	int current;
@@ -193,7 +195,8 @@ void AUD_OpenALDevice::updateStreams()
 								break;
 							}
 
-							sound->current = (sound->current+1) % 3;
+							sound->current = (sound->current+1) %
+											 AUD_OPENAL_CYCLE_BUFFERS;
 						}
 						else
 							break;
@@ -325,7 +328,7 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 		if(!sound->isBuffered)
 		{
 			delete sound->reader; AUD_DELETE("reader")
-			alDeleteBuffers(3, sound->buffers);
+			alDeleteBuffers(AUD_OPENAL_CYCLE_BUFFERS, sound->buffers);
 		}
 		delete sound; AUD_DELETE("handle")
 		m_playingSounds->erase(m_playingSounds->begin());
@@ -339,7 +342,7 @@ AUD_OpenALDevice::~AUD_OpenALDevice()
 		if(!sound->isBuffered)
 		{
 			delete sound->reader; AUD_DELETE("reader")
-			alDeleteBuffers(3, sound->buffers);
+			alDeleteBuffers(AUD_OPENAL_CYCLE_BUFFERS, sound->buffers);
 		}
 		delete sound; AUD_DELETE("handle")
 		m_pausedSounds->erase(m_pausedSounds->begin());
@@ -615,7 +618,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 	// OpenAL playback code
 	try
 	{
-		alGenBuffers(3, sound->buffers);
+		alGenBuffers(AUD_OPENAL_CYCLE_BUFFERS, sound->buffers);
 		if(alGetError() != AL_NO_ERROR)
 			AUD_THROW(AUD_ERROR_OPENAL);
 
@@ -624,7 +627,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 			sample_t* buf;
 			int length;
 
-			for(int i=0; i<3; i++)
+			for(int i = 0; i < AUD_OPENAL_CYCLE_BUFFERS; i++)
 			{
 				length = m_buffersize;
 				reader->read(length, buf);
@@ -640,7 +643,8 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 
 			try
 			{
-				alSourceQueueBuffers(sound->source, 3, sound->buffers);
+				alSourceQueueBuffers(sound->source, AUD_OPENAL_CYCLE_BUFFERS,
+									 sound->buffers);
 				if(alGetError() != AL_NO_ERROR)
 					AUD_THROW(AUD_ERROR_OPENAL);
 			}
@@ -652,7 +656,7 @@ AUD_Handle* AUD_OpenALDevice::play(AUD_IFactory* factory, bool keep)
 		}
 		catch(AUD_Exception e)
 		{
-			alDeleteBuffers(3, sound->buffers);
+			alDeleteBuffers(AUD_OPENAL_CYCLE_BUFFERS, sound->buffers);
 			throw;
 		}
 	}
@@ -734,7 +738,7 @@ bool AUD_OpenALDevice::stop(AUD_Handle* handle)
 			if(!sound->isBuffered)
 			{
 				delete sound->reader; AUD_DELETE("reader")
-				alDeleteBuffers(3, sound->buffers);
+				alDeleteBuffers(AUD_OPENAL_CYCLE_BUFFERS, sound->buffers);
 			}
 			delete *i; AUD_DELETE("handle")
 			m_playingSounds->erase(i);
@@ -752,7 +756,7 @@ bool AUD_OpenALDevice::stop(AUD_Handle* handle)
 			if(!sound->isBuffered)
 			{
 				delete sound->reader; AUD_DELETE("reader")
-				alDeleteBuffers(3, sound->buffers);
+				alDeleteBuffers(AUD_OPENAL_CYCLE_BUFFERS, sound->buffers);
 			}
 			delete *i; AUD_DELETE("handle")
 			m_pausedSounds->erase(i);
@@ -825,14 +829,16 @@ bool AUD_OpenALDevice::seek(AUD_Handle* handle, float position)
 				if(info != AL_STOPPED)
 					alSourceStop(alhandle->source);
 
-				alSourceUnqueueBuffers(alhandle->source, 3, alhandle->buffers);
+				alSourceUnqueueBuffers(alhandle->source,
+									   AUD_OPENAL_CYCLE_BUFFERS,
+									   alhandle->buffers);
 				if(alGetError() == AL_NO_ERROR)
 				{
 					sample_t* buf;
 					int length;
 					AUD_Specs specs = alhandle->reader->getSpecs();
 
-					for(int i=0; i<3; i++)
+					for(int i = 0; i < AUD_OPENAL_CYCLE_BUFFERS; i++)
 					{
 						length = m_buffersize;
 						alhandle->reader->read(length, buf);
@@ -844,7 +850,8 @@ bool AUD_OpenALDevice::seek(AUD_Handle* handle, float position)
 							break;
 					}
 
-					alSourceQueueBuffers(alhandle->source, 3,
+					alSourceQueueBuffers(alhandle->source,
+										 AUD_OPENAL_CYCLE_BUFFERS,
 										 alhandle->buffers);
 				}
 

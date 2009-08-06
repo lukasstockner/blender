@@ -90,7 +90,6 @@
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
 
-// AUD_XXX
 #include "BKE_sound.h"
 
 /* XXX */
@@ -157,7 +156,6 @@ void WM_init(bContext *C)
 	read_Blog();
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
 
-	// AUD_XXX - should be also on file load?!
 	sound_init();
 }
 
@@ -188,7 +186,6 @@ void WM_exit(bContext *C)
 {
 	wmWindow *win;
 
-	// AUD_XXX
 	sound_exit();
 
 	/* first wrap up running stuff, we assume only the active WM is running */

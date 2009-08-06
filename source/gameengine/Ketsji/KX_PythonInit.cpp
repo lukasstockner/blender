@@ -79,8 +79,6 @@ extern "C" {
 #include "ListValue.h"
 #include "InputParser.h"
 #include "KX_Scene.h"
-// AUD_XXX
-//#include "SND_DeviceManager.h"
 
 #include "NG_NetworkScene.h" //Needed for sendMessage()
 
@@ -213,11 +211,12 @@ static bool usedsp = false;
 // this gets a pointer to an array filled with floats
 static PyObject* gPyGetSpectrum(PyObject*)
 {
-// AUD_XXX	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
+// SHOULD BE REMOVED
+// XXX	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
 
 	PyObject* resultlist = PyList_New(512);
 
-// AUD_XXX
+// XXX
 #if 0
 	if (audiodevice)
 	{
@@ -240,7 +239,7 @@ static PyObject* gPyGetSpectrum(PyObject*)
 		{
 			PyList_SET_ITEM(resultlist, index, PyFloat_FromDouble(0.0));
 		}
-// AUD_XXX	}
+// XXX	}
 
 	return resultlist;
 }
@@ -268,7 +267,7 @@ static PyObject* gPyStartDSP(PyObject*, PyObject* args)
 
 static PyObject* gPyStopDSP(PyObject*, PyObject* args)
 {
-// AUD_XXX
+// XXX SHOULD BE REMOVED
 #if 0
 	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
 
@@ -276,7 +275,6 @@ static PyObject* gPyStopDSP(PyObject*, PyObject* args)
 #endif
 		PyErr_SetString(PyExc_RuntimeError, "no audio device available");
 		return NULL;
-// AUD_XXX
 #if 0
 	}
 

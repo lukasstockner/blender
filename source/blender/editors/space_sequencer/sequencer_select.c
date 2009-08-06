@@ -153,7 +153,6 @@ void select_single_seq(Scene *scene, Sequence *seq, int deselect_all) /* BRING B
 		if(seq->strip)
 			strncpy(ed->act_imagedir, seq->strip->dir, FILE_MAXDIR-1);
 	}
-// AUD_XXX	else if((seq->type==SEQ_HD_SOUND) || (seq->type==SEQ_RAM_SOUND)) {
 	else if(seq->type==SEQ_SOUND) {
 		if(seq->strip)
 			strncpy(ed->act_sounddir, seq->strip->dir, FILE_MAXDIR-1);
@@ -337,7 +336,6 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 					strncpy(ed->act_imagedir, seq->strip->dir, FILE_MAXDIR-1);
 				}
 			} else
-// AUD_XXX			if (seq->type == SEQ_HD_SOUND || seq->type == SEQ_RAM_SOUND) {
 			if (seq->type == SEQ_SOUND) {
 				if(seq->strip) {
 					strncpy(ed->act_sounddir, seq->strip->dir, FILE_MAXDIR-1);

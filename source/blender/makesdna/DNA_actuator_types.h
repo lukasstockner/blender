@@ -37,7 +37,7 @@ struct Scene;
 struct Group;
 struct Text;
 
-// AUD_XXX for Sound3D
+// for Sound3D
 #include "DNA_sound_types.h"
 
 /* ****************** ACTUATORS ********************* */

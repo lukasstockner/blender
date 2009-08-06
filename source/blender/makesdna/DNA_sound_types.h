@@ -64,7 +64,7 @@ typedef struct bSample {
 	short us;
 } bSample;
 
-// AUD_XXX runtime only - no saving
+// runtime only - no saving
 typedef struct SoundHandle {
 	struct SoundHandle *next, *prev;
 	struct bSound *source;
@@ -79,7 +79,6 @@ typedef struct SoundHandle {
 	float pad;
 } SoundHandle;
 
-// AUD_XXX
 typedef struct Sound3D
 {
 	float min_gain;

@@ -52,7 +52,6 @@
 #include "BLI_threads.h"
 #include <pthread.h>
 
-// AUD_XXX
 #include "BKE_context.h"
 #include "BKE_sound.h"
 #include "AUD_C-API.h"
@@ -183,7 +182,6 @@ void seq_free_strip(Strip *strip)
 	MEM_freeN(strip);
 }
 
-// AUD_XXX
 void seq_free_sequence(Scene *scene, Sequence *seq)
 {
 	Editing *ed = scene->ed;
@@ -191,8 +189,7 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 	if(seq->strip) seq_free_strip(seq->strip);
 
 	if(seq->anim) IMB_free_anim(seq->anim);
-	//XXX if(seq->hdaudio) sound_close_hdaudio(seq->hdaudio);
-	// AUD_XXX
+
 	if(seq->sound_handle)
 		sound_delete_handle(scene, seq->sound_handle);
 
@@ -457,7 +454,6 @@ void calc_sequence_disp(Sequence *seq)
 		seq->handsize= (float)((seq->enddisp-seq->startdisp)/25);
 	}
 
-	// AUD_XXX
 	seq_update_sound(seq);
 }
 
@@ -573,28 +569,6 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 			seq->len = 0;
 		}
 		seq->strip->len = seq->len;
-// AUD_XXX
-#if 0
-	} else if (seq->type == SEQ_HD_SOUND) {
-// XXX		if(seq->hdaudio) sound_close_hdaudio(seq->hdaudio);
-//		seq->hdaudio = sound_open_hdaudio(str);
-
-// AUD_XXX
-/*		if (!seq->hdaudio) {
-			return;
-		}*/
-
-// XXX		seq->len = sound_hdaudio_get_duration(seq->hdaudio, FPS) - seq->anim_startofs - seq->anim_endofs;
-// AUD_XXX
-		if(seq->sound && seq->sound->snd_sound)
-			seq->len = AUD_getInfo(seq->sound->snd_sound).length * FPS - seq->anim_startofs - seq->anim_endofs;
-
-		if (seq->len < 0) {
-			seq->len = 0;
-		}
-		seq->strip->len = seq->len;
-#endif
-// AUD_XXX
 	} else if (seq->type == SEQ_SOUND) {
 		seq->len = AUD_getInfo(seq->sound->snd_sound).length * FPS;
 		seq->len -= seq->anim_startofs;
@@ -715,9 +689,7 @@ char *give_seqname_by_type(int type)
 	case SEQ_IMAGE:      return "Image";
 	case SEQ_SCENE:      return "Scene";
 	case SEQ_MOVIE:      return "Movie";
-	case SEQ_SOUND:  return "Audio";
-// AUD_XXX	case SEQ_RAM_SOUND:  return "Audio (RAM)";
-// AUD_XXX	case SEQ_HD_SOUND:   return "Audio (HD)";
+	case SEQ_SOUND:      return "Audio";
 	case SEQ_CROSS:      return "Cross";
 	case SEQ_GAMCROSS:   return "Gamma Cross";
 	case SEQ_ADD:        return "Add";
@@ -1096,8 +1068,6 @@ static int video_seq_is_rendered(Sequence * seq)
 {
 	return (seq
 		&& !(seq->flag & SEQ_MUTE)
-// AUD_XXX		&& seq->type != SEQ_RAM_SOUND
-// AUD_XXX		&& seq->type != SEQ_HD_SOUND);
 		&& seq->type != SEQ_SOUND);
 }
 
@@ -3333,7 +3303,6 @@ void seq_tx_handle_xlimits(Sequence *seq, int leftflag, int rightflag)
 	}
 
 	/* sounds cannot be extended past their endpoints */
-// AUD_XXX	if (seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) {
 	if (seq->type == SEQ_SOUND) {
 		seq->startstill= 0;
 		seq->endstill= 0;
@@ -3432,7 +3401,6 @@ int shuffle_seq(ListBase * seqbasep, Sequence *test)
 	}
 }
 
-// AUD_XXX
 void seq_update_sound(struct Sequence *seq)
 {
 	if(seq->type == SEQ_SOUND)

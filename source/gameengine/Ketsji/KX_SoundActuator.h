@@ -34,7 +34,6 @@
 
 #include "SCA_IActuator.h"
 
-// AUD_XXX
 #include "AUD_C-API.h"
 #include "BKE_sound.h"
 
@@ -92,15 +91,10 @@ public:
 					 float pitch,
 					 bool is3d,
 					 KX_3DSoundSettings settings,
-// AUD_XXX					class SND_SoundObject* sndobj,
-// AUD_XXX					class SND_Scene*	sndscene,
-					KX_SOUNDACT_TYPE type);//,
-// AUD_XXX					short start,
-// AUD_XXX					short end);
+					 KX_SOUNDACT_TYPE type);
 
 	~KX_SoundActuator();
 
-// AUD_XXX	void setSoundObject(class SND_SoundObject* soundobject);
 	virtual bool Update(double curtime, bool frame);
 
 	CValue* GetReplica();
@@ -114,40 +108,23 @@ public:
 	KX_PYMETHOD_DOC_NOARGS(KX_SoundActuator, pauseSound);
 	KX_PYMETHOD_DOC_NOARGS(KX_SoundActuator, stopSound);
 
-// AUD_XXX	static int pyattr_set_filename(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_rollOffFactor(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-// AUD_XXX	static int pyattr_set_looping(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-// AUD_XXX	static int pyattr_set_position(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-// AUD_XXX	static int pyattr_set_velocity(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-// AUD_XXX	static int pyattr_set_orientation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static int pyattr_set_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
-// AUD_XXX	static PyObject* pyattr_get_filename(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_gain(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_pitch(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-// AUD_XXX	static PyObject* pyattr_get_looping(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_rollOffFactor(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-// AUD_XXX	static PyObject* pyattr_get_position(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-// AUD_XXX	static PyObject* pyattr_get_velocity(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
-// AUD_XXX	static PyObject* pyattr_get_orientation(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject* pyattr_get_type(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 
 	// Deprecated ----->
-// AUD_XXX	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetFilename);
-// AUD_XXX	KX_PYMETHOD_NOARGS(KX_SoundActuator,GetFilename);
 	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetGain);
 	KX_PYMETHOD_NOARGS(KX_SoundActuator,GetGain);
 	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetPitch);
 	KX_PYMETHOD_NOARGS(KX_SoundActuator,GetPitch);
 	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetRollOffFactor);
 	KX_PYMETHOD_NOARGS(KX_SoundActuator,GetRollOffFactor);
-// AUD_XXX	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetLooping);
-// AUD_XXX	KX_PYMETHOD_NOARGS(KX_SoundActuator,GetLooping);
-// AUD_XXX	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetPosition);
-// AUD_XXX	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetVelocity);
-// AUD_XXX	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetOrientation);
 	KX_PYMETHOD_VARARGS(KX_SoundActuator,SetType);
 	KX_PYMETHOD_NOARGS(KX_SoundActuator,GetType);
 	// <-----

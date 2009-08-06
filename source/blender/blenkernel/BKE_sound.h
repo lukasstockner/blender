@@ -33,26 +33,10 @@
 
 struct PackedFile;
 struct bSound;
-// AUD_XXX struct bSample;
 struct bContext;
 struct ListBase;
 struct Main;
 
-/* bad bad global... */
-// AUD_XXX
-/*extern struct ListBase *samples;
-
-void sound_free_all_samples(void);*/
-
-/*  void *sound_get_listener(void); implemented in src!also declared there now  */
-
-// AUD_XXX
-/*void sound_set_packedfile(struct bSample* sample, struct PackedFile* pf);
-struct PackedFile* sound_find_packedfile(struct bSound* sound);
-void sound_free_sample(struct bSample* sample);
-void sound_free_sound(struct bSound* sound);*/
-
-// AUD_XXX
 void sound_init();
 
 void sound_reinit(struct bContext *C);
@@ -61,7 +45,7 @@ void sound_exit();
 
 struct bSound* sound_new_file(struct Main *main, char* filename);
 
-// AUD_XXX unused currently
+// XXX unused currently
 #if 0
 struct bSound* sound_new_buffer(struct bContext *C, struct bSound *source);
 

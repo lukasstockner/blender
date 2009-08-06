@@ -123,7 +123,6 @@ int countPackedFiles(Main *bmain)
 {
 	Image *ima;
 	VFont *vf;
-// AUD_XXX 	bSample *sample;
 	bSound *sound;
 	int count = 0;
 
@@ -136,14 +135,9 @@ int countPackedFiles(Main *bmain)
 		if(vf->packedfile)
 			count++;
 
-// AUD_XXX
 	for(sound=bmain->sound.first; sound; sound=sound->id.next)
 		if(sound->packedfile)
 			count++;
-/*	if(samples)
-		for(sample=samples->first; sample; sample=sample->id.next)
-			if(sample->packedfile)
-				count++;*/
 
 	return count;
 }
@@ -213,7 +207,6 @@ void packAll(Main *bmain, ReportList *reports)
 {
 	Image *ima;
 	VFont *vf;
-// AUD_XXX 	bSample *sample;
 	bSound *sound;
 
 	for(ima=bmain->image.first; ima; ima=ima->id.next)
@@ -224,14 +217,9 @@ void packAll(Main *bmain, ReportList *reports)
 		if(vf->packedfile == NULL)
 			vf->packedfile = newPackedFile(reports, vf->name);
 
-// AUD_XXX
 	for(sound=bmain->sound.first; sound; sound=sound->id.next)
 		if(sound->packedfile == NULL)
 			sound->packedfile = newPackedFile(reports, sound->name);
-/*	if(samples)
-		for(sample=samples->first; sample; sample=sample->id.next)
-			if(sample->packedfile == NULL)
-				sound_set_packedfile(sample, newPackedFile(reports, sample->name));*/
 }
 
 
@@ -466,36 +454,6 @@ int unpackVFont(ReportList *reports, VFont *vfont, int how)
 	return (ret_value);
 }
 
-/*int unpackSample(ReportList *reports, bSample *sample, int how)
-{
-	char localname[FILE_MAXDIR + FILE_MAX], fi[FILE_MAX];
-	char *newname;
-	int ret_value = RET_ERROR;
-	PackedFile *pf;
-
-	if (sample != NULL) {
-		strcpy(localname, sample->name);
-		BLI_splitdirstring(localname, fi);
-		sprintf(localname, "//samples/%s", fi);
-
-		newname = unpackFile(reports, sample->name, localname, sample->packedfile, how);
-		if (newname != NULL) {
-			strcpy(sample->name, newname);
-			MEM_freeN(newname);
-
-			pf = sample->packedfile;
-			// because samples and sounds can point to the
-			// same packedfile we have to check them all
-// AUD_XXX			sound_set_packedfile(sample, NULL);
-			freePackedFile(pf);
-
-			ret_value = RET_OK;
-		}
-	}
-
-	return(ret_value);
-}*/
-
 int unpackSound(ReportList *reports, bSound *sound, int how)
 {
 	char localname[FILE_MAXDIR + FILE_MAX], fi[FILE_MAX];
@@ -512,13 +470,9 @@ int unpackSound(ReportList *reports, bSound *sound, int how)
 			strcpy(sound->name, newname);
 			MEM_freeN(newname);
 
-			// because samples and sounds can point to the
-			// same packedfile we have to check them all
-// AUD_XXX			sound_set_packedfile(sample, NULL);
 			freePackedFile(sound->packedfile);
 			sound->packedfile = 0;
 
-// AUD_XXX
 			sound_load(sound);
 
 			ret_value = RET_OK;
@@ -557,7 +511,6 @@ void unpackAll(Main *bmain, ReportList *reports, int how)
 {
 	Image *ima;
 	VFont *vf;
-// AUD_XXX 	bSample *sample;
 	bSound *sound;
 
 	for(ima=bmain->image.first; ima; ima=ima->id.next)
@@ -571,11 +524,5 @@ void unpackAll(Main *bmain, ReportList *reports, int how)
 	for(sound=bmain->sound.first; sound; sound=sound->id.next)
 		if(sound->packedfile)
 			unpackSound(reports, sound, how);
-
-// AUD_XXX
-/*	if(samples)
-		for(sample=samples->first; sample; sample=sample->id.next)
-			if(sample->packedfile)
-				unpackSample(reports, sample, how);*/
 }
 

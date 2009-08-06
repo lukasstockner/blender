@@ -149,7 +149,6 @@
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
 #include "BKE_idprop.h"
 
-// AUD_XXX
 #include "BKE_sound.h"
 
 //XXX #include "BIF_butspace.h" // badlevel, for do_versions, patching event codes
@@ -4044,7 +4043,6 @@ static void lib_link_scene(FileData *fd, Main *main)
 			SEQ_BEGIN(sce->ed, seq) {
 				if(seq->ipo) seq->ipo= newlibadr_us(fd, sce->id.lib, seq->ipo);
 				if(seq->scene) seq->scene= newlibadr(fd, sce->id.lib, seq->scene);
-				// AUD_XXX
 				if(seq->sound) {
 					if(seq->type == SEQ_HD_SOUND)
 						seq->type = SEQ_SOUND;
@@ -4056,7 +4054,6 @@ static void lib_link_scene(FileData *fd, Main *main)
 					}
 				}
 				seq->anim= 0;
-// AUD_XXX				seq->hdaudio = 0;
 			}
 			SEQ_END
 
@@ -4100,7 +4097,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->theDag = NULL;
 	sce->dagisvalid = 0;
 	sce->obedit= NULL;
-	// AUD_XXX
+
 	memset(&sce->sound_handles, 0, sizeof(sce->sound_handles));
 
 	/* set users to one by default, not in lib-link, this will increase it for compo nodes */
@@ -5041,7 +5038,6 @@ static void lib_link_sound(FileData *fd, Main *main)
 			sound->ipo= newlibadr_us(fd, sound->id.lib, sound->ipo); // XXX depreceated - old animation system
 			sound->stream = 0;
 
-			// AUD_XXX
 			sound_load(sound);
 		}
 		sound= sound->id.next;
@@ -9189,7 +9185,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		PTCacheID *pid;
 		ListBase pidlist;
 
-// AUD_XXX
 		bSound *sound;
 		Sequence *seq;
 		bActuator *act;

@@ -38,8 +38,6 @@
 
 #include "KX_BlenderSceneConverter.h"
 #include "KX_ConvertActuators.h"
-// AUD_XXX
-//#include "SND_Scene.h"
 #include "AUD_C-API.h"
 // Actuators
 //SCA logiclibrary native logicbricks
@@ -349,8 +347,6 @@ void BL_ConvertActuators(char* maggiename,
 			{
 				bSoundActuator* soundact = (bSoundActuator*) bact->data;
 				/* get type, and possibly a start and end frame */
-				// AUD_XXX
-//				short startFrame = soundact->sta, stopFrame = soundact->end;
 				KX_SoundActuator::KX_SOUNDACT_TYPE
 					soundActuatorType = KX_SoundActuator::KX_SOUNDACT_NODEF;
 
@@ -381,106 +377,6 @@ void BL_ConvertActuators(char* maggiename,
 
 				if (soundActuatorType != KX_SoundActuator::KX_SOUNDACT_NODEF)
 				{
-// AUD_XXX
-#if 0
-					SND_Scene* soundscene = scene->GetSoundScene();
-					STR_String samplename = "";
-					bool sampleisloaded = false;
-
-					if (soundact->sound) {
-						/* Need to convert the samplename into absolute path
-						 * before checking if its loaded */
-						char fullpath[FILE_MAX];
-
-						/* dont modify soundact->sound->name, only change a copy */
-						BLI_strncpy(fullpath, soundact->sound->name, sizeof(fullpath));
-						BLI_convertstringcode(fullpath, maggiename);
-						samplename = fullpath;
-
-						/* let's see if the sample was already loaded */
-						if (soundscene->IsSampleLoaded(samplename))
-						{
-							sampleisloaded = true;
-						}
-						else {
-							/* if not, make it so */
-							PackedFile* pf = soundact->sound->newpackedfile;
-
-							/* but we need a packed file then */
-							if (pf)
-							{
-								if (soundscene->LoadSample(samplename, pf->data, pf->size) > -1)
-									sampleisloaded = true;
-							}
-							/* or else load it from disk */
-							else
-							{
-								if (soundscene->LoadSample(samplename, NULL, 0) > -1) {
-									sampleisloaded = true;
-								}
-								else {
-									std::cout <<	"WARNING: Sound actuator \"" << bact->name <<
-													"\" from object \"" <<  blenderobject->id.name+2 <<
-													"\" failed to load sample." << std::endl;
-								}
-							}
-						}
-					} else {
-						std::cout <<	"WARNING: Sound actuator \"" << bact->name <<
-										"\" from object \"" <<  blenderobject->id.name+2 <<
-										"\" has no sound datablock." << std::endl;
-					}
-
-					/* Note, allowing actuators for sounds that are not there was added since 2.47
-					 * This is because python may expect the actuator and raise an exception if it dosnt find it
-					 * better just to add a dummy sound actuator. */
-
-					SND_SoundObject* sndobj = NULL;
-					if (sampleisloaded)
-					{
-						/* setup the SND_SoundObject */
-						sndobj = new SND_SoundObject();
-						sndobj->SetSampleName(samplename.Ptr());
-						sndobj->SetObjectName(bact->name);
-						if (soundact->sound) {
-							sndobj->SetRollOffFactor(soundact->sound->attenuation);
-							sndobj->SetGain(soundact->sound->volume);
-							sndobj->SetPitch(exp((soundact->sound->pitch / 12.0) * log(2.0)));
-							//							sndobj->SetLoopStart(soundact->sound->loopstart);
-							//							sndobj->SetLoopStart(soundact->sound->loopend);
-							if (soundact->sound->flags & SOUND_FLAGS_LOOP)
-							{
-								if (soundact->sound->flags & SOUND_FLAGS_BIDIRECTIONAL_LOOP)
-									sndobj->SetLoopMode(SND_LOOP_BIDIRECTIONAL);
-								else
-									sndobj->SetLoopMode(SND_LOOP_NORMAL);
-							}
-							else {
-								sndobj->SetLoopMode(SND_LOOP_OFF);
-							}
-
-							if (soundact->sound->flags & SOUND_FLAGS_PRIORITY)
-								sndobj->SetHighPriority(true);
-							else
-								sndobj->SetHighPriority(false);
-
-							if (soundact->sound->flags & SOUND_FLAGS_3D)
-								sndobj->Set3D(true);
-							else
-								sndobj->Set3D(false);
-						}
-						else {
-							/* dummy values for a NULL sound
-							* see editsound.c - defaults are unlikely to change soon */
-							sndobj->SetRollOffFactor(1.0);
-							sndobj->SetGain(1.0);
-							sndobj->SetPitch(1.0);
-							sndobj->SetLoopMode(SND_LOOP_OFF);
-							sndobj->SetHighPriority(false);
-							sndobj->Set3D(false);
-						}
-					}
-#else
 					bSound* sound = soundact->sound;
 					bool is3d = soundact->flag & ACT_SND_3D_SOUND ? true : false;
 					AUD_Sound* snd_sound = NULL;
@@ -502,7 +398,6 @@ void BL_ConvertActuators(char* maggiename,
 					}
 					else
 						snd_sound = sound->cache ? sound->cache : sound->snd_sound;
-#endif
 					KX_SoundActuator* tmpsoundact =
 						new KX_SoundActuator(gameobj,
 						snd_sound,
@@ -510,16 +405,10 @@ void BL_ConvertActuators(char* maggiename,
 						exp((soundact->pitch / 12.0) * log(2.0)),
 						is3d,
 						settings,
-// AUD_XXX						sndobj,
-// AUD_XXX						scene->GetSoundScene(), // needed for replication!
-						soundActuatorType);//,
-// AUD_XXX						startFrame,
-// AUD_XXX						stopFrame);
+						soundActuatorType);
 
 					tmpsoundact->SetName(bact->name);
 					baseact = tmpsoundact;
-// AUD_XXX					if (sndobj)
-// AUD_XXX						soundscene->AddObject(sndobj);
 				}
 				break;
 			}
@@ -558,30 +447,6 @@ void BL_ConvertActuators(char* maggiename,
 				default:
 					/* This is an error!!! */
 					cdActuatorType = KX_CDActuator::KX_CDACT_NODEF;
-				}
-
-				if (cdActuatorType != KX_CDActuator::KX_CDACT_NODEF)
-				{
-// AUD_XXX
-#if 0
-					SND_CDObject* pCD = SND_CDObject::Instance();
-
-					if (pCD)
-					{
-						pCD->SetGain(cdact->volume);
-
-						KX_CDActuator* tmpcdact =
-							new KX_CDActuator(gameobj,
-							scene->GetSoundScene(), // needed for replication!
-							cdActuatorType,
-							cdact->track,
-							startFrame,
-							stopFrame);
-
-						tmpcdact->SetName(bact->name);
-						baseact = tmpcdact;
-					}
-#endif
 				}
 				break;
 			}

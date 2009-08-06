@@ -567,7 +567,6 @@ void free_libblock(ListBase *lb, void *idv)
 			//XXX free_script((Script *)id);
 			break;
 		case ID_SO:
-// AUD_XXX			sound_free_sound((bSound *)id);
 			sound_free((bSound*)id);
 			break;
 		case ID_GR:

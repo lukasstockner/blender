@@ -65,7 +65,6 @@
 
 #include "DNA_scene_types.h"
 
-// AUD_XXX
 #include "AUD_C-API.h"
 #include "BKE_sound.h"
 #include "BKE_main.h"
@@ -101,7 +100,6 @@ static int audio_input_frame_size = 0;
 static uint8_t* audio_output_buffer = 0;
 static int audio_outbuf_size = 0;
 
-// AUD_XXX
 static AUD_Device* audio_mixdown_device = 0;
 
 #define FFMPEG_AUTOSPLIT_SIZE 2000000000
@@ -135,11 +133,6 @@ static int write_audio_frame(void)
 
 	c = get_codec_from_stream(audio_stream);
 
-	//XXX audiostream_fill(audio_input_buffer, 
-	//		 audio_input_frame_size 
-	//		 * sizeof(short) * c->channels);
-
-	// AUD_XXX
 	if(audio_mixdown_device)
 		AUD_readDevice(audio_mixdown_device, audio_input_buffer, audio_input_frame_size);
 
@@ -845,7 +838,6 @@ void start_ffmpeg(struct Scene *scene, RenderData *rd, int rectx, int recty)
 
 	start_ffmpeg_impl(rd, rectx, recty);
 
-	// AUD_XXX
 	if(ffmpeg_multiplex_audio && audio_stream)
 	{
 		AVCodecContext* c = get_codec_from_stream(audio_stream);
@@ -908,7 +900,6 @@ void end_ffmpeg(void)
 		write_audio_frames();
 	}
 
-	// AUD_XXX
 	if(audio_mixdown_device)
 	{
 		AUD_closeReadDevice(audio_mixdown_device);

@@ -37,7 +37,6 @@
 
 #include "BKE_utildefines.h"
 
-// AUD_XXX
 #include "BKE_sound.h"
 
 #ifdef RNA_RUNTIME
@@ -119,7 +118,6 @@ static PointerRNA rna_UserDef_system_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_UserPreferencesSystem, ptr->data);
 }
 
-// AUD_XXX
 static void rna_UserDef_audio_update(bContext *C, PointerRNA *ptr)
 {
 	sound_reinit(C);

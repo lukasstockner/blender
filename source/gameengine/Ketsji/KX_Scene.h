@@ -63,9 +63,6 @@ class SCA_TimeEventManager;
 class SCA_MouseManager;
 class SCA_ISystem;
 class SCA_IInputDevice;
-// AUD_XXX
-//class SND_Scene;
-//class SND_IAudioDevice;
 class NG_NetworkDeviceInterface;
 class NG_NetworkScene;
 class SG_IObject;
@@ -160,13 +157,6 @@ protected:
 	/**
 	 * @section Different scenes, linked to ketsji scene
 	 */
-
-
-	/**
-	 * Sound scenes
-	 */
-// AUD_XXX	SND_Scene* m_soundScene;
-// AUD_XXX	SND_IAudioDevice* m_adi;
 
 	/**
 	 * Network scene.
@@ -284,7 +274,6 @@ public:
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		class SCA_IInputDevice* mousedevice,
 		class NG_NetworkDeviceInterface* ndi,
-// AUD_XXX		class SND_IAudioDevice* adi,
 		const STR_String& scenename,
 		struct Scene* scene);
 
@@ -481,7 +470,6 @@ public:
 	void CalculateVisibleMeshes(RAS_IRasterizer* rasty, KX_Camera *cam, int layer=0);
 	void UpdateMeshTransformations();
 	KX_Camera* GetpCamera();
-// AUD_XXX	SND_Scene* GetSoundScene();
 	NG_NetworkDeviceInterface* GetNetworkDeviceInterface();
 	NG_NetworkScene* GetNetworkScene();
 

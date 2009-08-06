@@ -56,7 +56,6 @@
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
-// AUD_XXX
 #include "BKE_sound.h"
 
 #include "WM_api.h"
@@ -2280,7 +2279,6 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
 		ED_update_for_newframe(C, 1);
 
-		// AUD_XXX
 		sound_update_playing(C);
 
 		for(sa= screen->areabase.first; sa; sa= sa->next) {
@@ -2327,7 +2325,6 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 
 	if(screen->animtimer) {
 		ED_screen_animation_timer(C, 0, 0);
-		// AUD_XXX
 		sound_stop_all(C);
 	}
 	else {

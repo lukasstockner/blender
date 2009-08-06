@@ -34,8 +34,6 @@
 
 #include "KX_Scene.h"
 #include "MT_assert.h"
-// AUD_XXX
-//#include "SND_Scene.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
 #include "RAS_IPolygonMaterial.h"
@@ -136,7 +134,6 @@ extern bool gUseVisibilityTemp;
 KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
 				   class NG_NetworkDeviceInterface *ndi,
-// AUD_XXX				   class SND_IAudioDevice* adi,
 				   const STR_String& sceneName,
 				   Scene *scene):
 	PyObjectPlus(),
@@ -145,7 +142,6 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_sceneConverter(NULL),
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
-// AUD_XXX	m_adi(adi),
 	m_networkDeviceInterface(ndi),
 	m_active_camera(NULL),
 	m_ueberExecutionPriority(0),
@@ -201,7 +197,6 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		m_logicmgr->RegisterEventManager(joymgr);
 	}
 
-// AUD_XXX	m_soundScene = new SND_Scene(adi);
 	MT_assert (m_networkDeviceInterface != NULL);
 	m_networkScene = new NG_NetworkScene(m_networkDeviceInterface);
 
@@ -250,12 +245,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_physicsEnvironment)
 		delete m_physicsEnvironment;
-
-// AUD_XXX
-#if 0
-	if (m_soundScene)
-		delete m_soundScene;
-#endif
 
 	if (m_networkScene)
 		delete m_networkScene;
@@ -367,14 +356,6 @@ class KX_WorldInfo* KX_Scene::GetWorldInfo()
 	return m_worldinfo;
 }
 
-
-// AUD_XXX
-#if 0
-SND_Scene* KX_Scene::GetSoundScene()
-{
-	return m_soundScene;
-}
-#endif
 
 const STR_String& KX_Scene::GetName()
 {

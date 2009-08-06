@@ -89,7 +89,6 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-// AUD_XXX
 #include "BKE_sound.h"
 #include "AUD_C-API.h"
 

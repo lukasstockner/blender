@@ -61,10 +61,7 @@
 #include "KX_PyConstraintBinding.h"
 #include "PHY_IPhysicsEnvironment.h"
 
-// AUD_XXX
 #include "AUD_C-API.h"
-//#include "SND_Scene.h"
-//#include "SND_IAudioDevice.h"
 
 #include "NG_NetworkScene.h"
 #include "NG_NetworkDeviceInterface.h"
@@ -115,7 +112,6 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_rendertools(NULL),
 	m_sceneconverter(NULL),
 	m_networkdevice(NULL),
-// AUD_XXX	m_audiodevice(NULL),
 	m_pythondictionary(NULL),
 	m_keyboarddevice(NULL),
 	m_mousedevice(NULL),
@@ -211,17 +207,6 @@ void KX_KetsjiEngine::SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice)
 	MT_assert(networkdevice);
 	m_networkdevice = networkdevice;
 }
-
-
-// AUD_XXX
-#if 0
-void KX_KetsjiEngine::SetAudioDevice(SND_IAudioDevice* audiodevice)
-{
-	MT_assert(audiodevice);
-	m_audiodevice = audiodevice;
-}
-#endif
-
 
 
 void KX_KetsjiEngine::SetCanvas(RAS_ICanvas* canvas)
@@ -695,12 +680,6 @@ else
 		if (m_networkdevice)
 			m_networkdevice->NextFrame();
 
-// AUD_XXX
-#if 0
-		if (m_audiodevice)
-			m_audiodevice->NextFrame();
-#endif
-
 		// scene management
 		ProcessScheduledScenes();
 
@@ -977,16 +956,6 @@ void KX_KetsjiEngine::DoSound(KX_Scene* scene)
 	MT_Vector3 listenervelocity = cam->GetLinearVelocity();
 	MT_Matrix3x3 listenerorientation = cam->NodeGetWorldOrientation();
 
-// AUD_XXX
-#if 0
-	SND_Scene* soundscene = scene->GetSoundScene();
-	soundscene->SetListenerTransform(
-		listenerposition,
-		listenervelocity,
-		listenerorientation);
-
-	soundscene->Proceed();
-#else
 	{
 		AUD_3DData data;
 		float f;
@@ -1021,7 +990,6 @@ void KX_KetsjiEngine::DoSound(KX_Scene* scene)
 
 		AUD_updateListener(&data);
 	}
-#endif
 }
 
 
@@ -1640,7 +1608,6 @@ KX_Scene* KX_KetsjiEngine::CreateScene(const STR_String& scenename)
 	KX_Scene* tmpscene = new KX_Scene(m_keyboarddevice,
 									  m_mousedevice,
 									  m_networkdevice,
-// AUD_XXX									  m_audiodevice,
 									  scenename,
 									  scene);
 

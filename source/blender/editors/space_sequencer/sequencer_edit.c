@@ -65,7 +65,6 @@
 #include "BKE_scene.h"
 #include "BKE_utildefines.h"
 #include "BKE_report.h"
-// AUD_XXX
 #include "BKE_sound.h"
 
 #include "WM_api.h"
@@ -168,7 +167,6 @@ Sequence *get_foreground_frame_seq(Scene *scene, int frame)
 		if(seq->flag & SEQ_MUTE || seq->startdisp > frame || seq->enddisp <= frame)
 			continue;
 		/* only use elements you can see - not */
-// AUD_XXX		if (ELEM6(seq->type, SEQ_IMAGE, SEQ_META, SEQ_SCENE, SEQ_MOVIE, SEQ_MOVIE_AND_HD_SOUND, SEQ_COLOR)) {
 		if (ELEM5(seq->type, SEQ_IMAGE, SEQ_META, SEQ_SCENE, SEQ_MOVIE, SEQ_COLOR)) {
 			if (seq->machine > best_machine) {
 				best_seq = seq;
@@ -725,7 +723,6 @@ int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequen
 
 	for(seq=ed->seqbasep->first; seq; seq=seq->next) {
 		if(seq->flag & SELECT) {
-// AUD_XXX			if (seq->type == SEQ_RAM_SOUND || seq->type == SEQ_HD_SOUND) {
 			if (seq->type == SEQ_SOUND) {
 				*error_str= "Can't apply effects to audio sequence strips";
 				return 0;
@@ -860,7 +857,6 @@ static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short de
 	while(seq) {
 		seqn= seq->next;
 		if((seq->flag & flag) || deleteall) {
-// AUD_XXX			if(seq->type==SEQ_RAM_SOUND && seq->sound)
 			if(seq->type==SEQ_SOUND && seq->sound)
 				seq->sound->id.us--;
 
@@ -940,19 +936,13 @@ static Sequence *dupli_seq(struct Scene *scene, Sequence *seq)
 		seqn->strip->stripdata = 
 				MEM_dupallocN(seq->strip->stripdata);
 		seqn->anim= 0;
-// AUD_XXX	} else if(seq->type == SEQ_RAM_SOUND) {
 	} else if(seq->type == SEQ_SOUND) {
-		// AUD_XXX
 		seqn->strip->stripdata =
 				MEM_dupallocN(seq->strip->stripdata);
 		if(seq->sound_handle)
 			seqn->sound_handle = sound_new_handle(scene, seqn->sound, seq->sound_handle->startframe, seq->sound_handle->endframe, seq->sound_handle->frameskip);
 
 		seqn->sound->id.us++;
-/* AUD_XXX	} else if(seq->type == SEQ_HD_SOUND) {
-		seqn->strip->stripdata = 
-				MEM_dupallocN(seq->strip->stripdata);
-		seqn->hdaudio = 0;*/
 	} else if(seq->type == SEQ_IMAGE) {
 		seqn->strip->stripdata = 
 				MEM_dupallocN(seq->strip->stripdata);
@@ -1502,14 +1492,12 @@ static int sequencer_mute_exec(bContext *C, wmOperator *op)
 			if(selected){ /* mute unselected */
 				if (seq->flag & SELECT) {
 					seq->flag |= SEQ_MUTE;
-					// AUD_XXX
 					seq_update_sound(seq);
 				}
 			}
 			else {
 				if ((seq->flag & SELECT)==0) {
 					seq->flag |= SEQ_MUTE;
-					// AUD_XXX
 					seq_update_sound(seq);
 				}
 			}
@@ -1557,14 +1545,12 @@ static int sequencer_unmute_exec(bContext *C, wmOperator *op)
 			if(selected){ /* unmute unselected */
 				if (seq->flag & SELECT) {
 					seq->flag &= ~SEQ_MUTE;
-					// AUD_XXX
 					seq_update_sound(seq);
 				}
 			}
 			else {
 				if ((seq->flag & SELECT)==0) {
 					seq->flag &= ~SEQ_MUTE;
-					// AUD_XXX
 					seq_update_sound(seq);
 				}
 			}
@@ -2147,7 +2133,6 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
 	while(seq) {
 		if(seq->flag & SELECT) {
 			tot++;
-// AUD_XXX			if (seq->type == SEQ_RAM_SOUND) {
 			if (seq->type == SEQ_SOUND) {
 				BKE_report(op->reports, RPT_ERROR, "Can't make Meta Strip from audio");
 				return OPERATOR_CANCELLED;;

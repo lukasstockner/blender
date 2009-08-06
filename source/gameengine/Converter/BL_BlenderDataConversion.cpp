@@ -101,10 +101,6 @@
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderSceneConverter.h"
 
-// AUD_XXX
-//#include"SND_Scene.h"
-//#include "SND_SoundListener.h"
-
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
 #include "BLI_winstuff.h"
@@ -2618,23 +2614,6 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	}
 
 	sumolist->Release();
-
-	// convert global sound stuff
-
-	/* XXX, glob is the very very wrong place for this
-	 * to be, re-enable once the listener has been moved into
-	 * the scene. */
-// AUD_XXX
-#if 0
-	SND_Scene* soundscene = kxscene->GetSoundScene();
-	SND_SoundListener* listener = soundscene->GetListener();
-	if (listener && G.listener)
-	{
-		listener->SetDopplerFactor(G.listener->dopplerfactor);
-		listener->SetDopplerVelocity(G.listener->dopplervelocity);
-		listener->SetGain(G.listener->gain);
-	}
-#endif
 
 	// convert world
 	KX_WorldInfo* worldinfo = new BlenderWorldInfo(blenderscene->world);
