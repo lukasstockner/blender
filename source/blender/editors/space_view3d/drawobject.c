@@ -2396,9 +2396,8 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 			}
 		}
 		else {
-			EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) finalDM;
 			/* 3 floats for position, 3 for normal and times two because the faces may actually be quads instead of triangles */
-			GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*6*emdm->em->totface*3*2, 0 );
+			GPUBuffer *buffer = GPU_buffer_alloc( sizeof(float)*6*em->totface*3*2, 0 );
 			float *varray;
 			EditFace *efa;
 			int i, curmat = 0, draw = 0;
@@ -2408,7 +2407,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			if( (varray = GPU_buffer_lock_stream( buffer )) ) {
+			if( finalDM->getVertCos == 0 && (varray = GPU_buffer_lock_stream( buffer )) ) {
 				int prevdraw = 0, prevmat = 0;
 				int numfaces = 0;
 				int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_END };
@@ -2416,7 +2415,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 				GPU_interleaved_setup( buffer, datatype );
 				glShadeModel(GL_SMOOTH);
 				GPU_buffer_lock_stream( buffer );
-				for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
+				for (i=0,efa= em->faces.first; efa; i++,efa= efa->next) {
 					int drawSmooth = (efa->flag & ME_SMOOTH);
 					if( efa->h == 0 ) {
 						curmat = efa->mat_nr+1;
@@ -2441,97 +2440,47 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 					}
 					if( draw != 0 ) {
 						if(!drawSmooth) {
-							if( emdm->vertexCos )
-							{
-								VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v1->tmp.l]);
-								VECCOPY(&varray[numfaces*18+3],emdm->faceNos[i]);
+							VECCOPY(&varray[numfaces*18],efa->v1->co);
+							VECCOPY(&varray[numfaces*18+3],efa->n);
 
-								VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v2->tmp.l]);
-								VECCOPY(&varray[numfaces*18+9],emdm->faceNos[i]);
+							VECCOPY(&varray[numfaces*18+6],efa->v2->co);
+							VECCOPY(&varray[numfaces*18+9],efa->n);
 
-								VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v3->tmp.l]);
-								VECCOPY(&varray[numfaces*18+15],emdm->faceNos[i]);
-								numfaces++;
-								if( efa->v4 ) {
-									VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v3->tmp.l]);
-									VECCOPY(&varray[numfaces*18+3],emdm->faceNos[i]);
-
-									VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v4->tmp.l]);
-									VECCOPY(&varray[numfaces*18+9],emdm->faceNos[i]);
-
-									VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v1->tmp.l]);
-									VECCOPY(&varray[numfaces*18+15],emdm->faceNos[i]);
-									numfaces++;
-								}
-							}
-							else {
-								VECCOPY(&varray[numfaces*18],efa->v1->co);
+							VECCOPY(&varray[numfaces*18+12],efa->v3->co);
+							VECCOPY(&varray[numfaces*18+15],efa->n);
+							numfaces++;
+							if( efa->v4 ) {
+								VECCOPY(&varray[numfaces*18],efa->v3->co);
 								VECCOPY(&varray[numfaces*18+3],efa->n);
 
-								VECCOPY(&varray[numfaces*18+6],efa->v2->co);
+								VECCOPY(&varray[numfaces*18+6],efa->v4->co);
 								VECCOPY(&varray[numfaces*18+9],efa->n);
 
-								VECCOPY(&varray[numfaces*18+12],efa->v3->co);
+								VECCOPY(&varray[numfaces*18+12],efa->v1->co);
 								VECCOPY(&varray[numfaces*18+15],efa->n);
 								numfaces++;
-								if( efa->v4 ) {
-									VECCOPY(&varray[numfaces*18],efa->v3->co);
-									VECCOPY(&varray[numfaces*18+3],efa->n);
-
-									VECCOPY(&varray[numfaces*18+6],efa->v4->co);
-									VECCOPY(&varray[numfaces*18+9],efa->n);
-
-									VECCOPY(&varray[numfaces*18+12],efa->v1->co);
-									VECCOPY(&varray[numfaces*18+15],efa->n);
-									numfaces++;
-								}
 							}
 						}
 						else {
-							if( emdm->vertexCos )
-							{
-								VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v1->tmp.l]);
-								VECCOPY(&varray[numfaces*18+3],emdm->vertexNos[(int) efa->v1->tmp.l]);
+							VECCOPY(&varray[numfaces*18],efa->v1->co);
+							VECCOPY(&varray[numfaces*18+3],efa->v1->no);
 
-								VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v2->tmp.l]);
-								VECCOPY(&varray[numfaces*18+9],emdm->vertexNos[(int) efa->v2->tmp.l]);
+							VECCOPY(&varray[numfaces*18+6],efa->v2->co);
+							VECCOPY(&varray[numfaces*18+9],efa->v2->no);
 
-								VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v3->tmp.l]);
-								VECCOPY(&varray[numfaces*18+15],emdm->vertexNos[(int) efa->v3->tmp.l]);
+							VECCOPY(&varray[numfaces*18+12],efa->v3->co);
+							VECCOPY(&varray[numfaces*18+15],efa->v3->no);
+							numfaces++;
+							if( efa->v4 ) {
+								VECCOPY(&varray[numfaces*18],efa->v3->co);
+								VECCOPY(&varray[numfaces*18+3],efa->v3->no);
+
+								VECCOPY(&varray[numfaces*18+6],efa->v4->co);
+								VECCOPY(&varray[numfaces*18+9],efa->v4->no);
+
+								VECCOPY(&varray[numfaces*18+12],efa->v1->co);
+								VECCOPY(&varray[numfaces*18+15],efa->v1->no);
 								numfaces++;
-								if( efa->v4 ) {
-									VECCOPY(&varray[numfaces*18],emdm->vertexCos[(int) efa->v3->tmp.l]);
-									VECCOPY(&varray[numfaces*18+3],emdm->vertexNos[(int) efa->v3->tmp.l]);
-
-									VECCOPY(&varray[numfaces*18+6],emdm->vertexCos[(int) efa->v4->tmp.l]);
-									VECCOPY(&varray[numfaces*18+9],emdm->vertexNos[(int) efa->v4->tmp.l]);
-
-									VECCOPY(&varray[numfaces*18+12],emdm->vertexCos[(int) efa->v1->tmp.l]);
-									VECCOPY(&varray[numfaces*18+15],emdm->vertexNos[(int) efa->v1->tmp.l]);
-									numfaces++;
-								}
-							}
-							else {
-								VECCOPY(&varray[numfaces*18],efa->v1->co);
-								VECCOPY(&varray[numfaces*18+3],efa->v1->no);
-
-								VECCOPY(&varray[numfaces*18+6],efa->v2->co);
-								VECCOPY(&varray[numfaces*18+9],efa->v2->no);
-
-								VECCOPY(&varray[numfaces*18+12],efa->v3->co);
-								VECCOPY(&varray[numfaces*18+15],efa->v3->no);
-								numfaces++;
-								if( efa->v4 ) {
-									VECCOPY(&varray[numfaces*18],efa->v3->co);
-									VECCOPY(&varray[numfaces*18+3],efa->v3->no);
-
-									VECCOPY(&varray[numfaces*18+6],efa->v4->co);
-									VECCOPY(&varray[numfaces*18+9],efa->v4->no);
-
-									VECCOPY(&varray[numfaces*18+12],efa->v1->co);
-									VECCOPY(&varray[numfaces*18+15],efa->v1->no);
-									numfaces++;
-								}
 							}
 						}
 					}
