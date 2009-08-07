@@ -192,13 +192,20 @@ void sound_load(struct bSound* sound)
 		case SOUND_TYPE_FILE:
 		{
 			char fullpath[FILE_MAX];
+			char *path;
 
 			/* load sound */
 			PackedFile* pf = sound->packedfile;
 
 			/* dont modify soundact->sound->name, only change a copy */
 			BLI_strncpy(fullpath, sound->name, sizeof(fullpath));
-			BLI_convertstringcode(fullpath, G.sce);
+
+			if(sound->id.lib)
+				path = sound->id.lib->filename;
+			else
+				path = G.sce;
+
+			BLI_convertstringcode(fullpath, path);
 
 			/* but we need a packed file then */
 			if (pf)

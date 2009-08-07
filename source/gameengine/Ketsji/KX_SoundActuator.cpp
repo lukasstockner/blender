@@ -80,7 +80,9 @@ void KX_SoundActuator::play()
 	if(!m_sound)
 		return;
 
+	// this is the sound that will be played and not deleted afterwards
 	AUD_Sound* sound = m_sound;
+	// this sounds are for temporary stacked sounds, will be deleted if not NULL
 	AUD_Sound* sound2 = NULL;
 	AUD_Sound* sound3 = NULL;
 
@@ -88,11 +90,14 @@ void KX_SoundActuator::play()
 	{
 	case KX_SOUNDACT_LOOPBIDIRECTIONAL:
 	case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
+		// create a ping pong sound on sound2 stacked on the orignal sound
 		sound2 = AUD_pingpongSound(sound);
+		// create a loop sound on sound3 stacked on the pingpong sound and let that one play (save it to sound)
 		sound = sound3 = AUD_loopSound(sound2);
 		break;
 	case KX_SOUNDACT_LOOPEND:
 	case KX_SOUNDACT_LOOPSTOP:
+		// create a loop sound on sound2 stacked on the pingpong sound and let that one play (save it to sound)
 		sound = sound2 = AUD_loopSound(sound);
 		break;
 	case KX_SOUNDACT_PLAYSTOP:
@@ -103,6 +108,7 @@ void KX_SoundActuator::play()
 
 	if(m_is3d)
 	{
+		// sound shall be played 3D
 		m_handle = AUD_play3D(sound, 0);
 
 		AUD_set3DSourceSetting(m_handle, AUD_3DSS_MAX_GAIN, m_3d.max_gain);
@@ -121,6 +127,8 @@ void KX_SoundActuator::play()
 	AUD_setSoundVolume(m_handle, m_volume);
 	m_isplaying = true;
 
+	// now we unload the pingpong and loop sounds, as we don't need them anymore
+	// the started sound will continue playing like it was created, don't worry!
 	if(sound3)
 		AUD_unload(sound3);
 	if(sound2)
@@ -169,16 +177,19 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			case KX_SOUNDACT_LOOPSTOP:
 			case KX_SOUNDACT_LOOPBIDIRECTIONAL_STOP:
 				{
+					// stop immediately
 					AUD_stop(m_handle);
 					break;
 				}
 			case KX_SOUNDACT_PLAYEND:
 				{
+					// do nothing, sound will stop anyway when it's finished
 					break;
 				}
 			case KX_SOUNDACT_LOOPEND:
 			case KX_SOUNDACT_LOOPBIDIRECTIONAL:
 				{
+					// stop the looping so that the sound stops when it finished
 					AUD_stopLoop(m_handle);
 					break;
 				}
@@ -217,6 +228,12 @@ bool KX_SoundActuator::Update(double curtime, bool frame)
 			((KX_GameObject*)this->GetParent())->GetLinearVelocity().getValue(data.velocity);
 			((KX_GameObject*)this->GetParent())->NodeGetWorldOrientation().getValue3x3(data.orientation);
 
+			/*
+			 * The 3D data from blender has to be transformed for OpenAL:
+			 *  - In blender z is up and y is forwards
+			 *  - In OpenAL y is up and z is backwards
+			 * We have to do that for all 5 vectors.
+			 */
 			f = data.position[1];
 			data.position[1] = data.position[2];
 			data.position[2] = -f;

@@ -86,7 +86,8 @@ public:
 	virtual bool resume(AUD_Handle* handle)=0;
 
 	/**
-	 * Stops a played back or paused sound.
+	 * Stops a played back or paused sound. The handle is definitely invalid
+	 * afterwards.
 	 * \param handle The handle returned by the play function.
 	 * \return
 	 *        - true if the sound has been stopped.
