@@ -2501,7 +2501,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (i=0;i<sumolist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
-		struct Object* blenderobject = converter->FindBlenderObject(gameobj);
+		struct Object* blenderobject = gameobj->GetBlenderObject();
 		int nummeshes = gameobj->GetMeshCount();
 		RAS_MeshObject* meshobj = 0;
 		if (nummeshes > 0)
@@ -2517,7 +2517,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (i=0;i<sumolist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
-		struct Object* blenderobject = converter->FindBlenderObject(gameobj);
+		struct Object* blenderobject = gameobj->GetBlenderObject();
 		int nummeshes = gameobj->GetMeshCount();
 		RAS_MeshObject* meshobj = 0;
 		if (nummeshes > 0)
@@ -2545,7 +2545,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (i=0;i<sumolist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = (KX_GameObject*) sumolist->GetValue(i);
-		struct Object* blenderobject = converter->FindBlenderObject(gameobj);
+		struct Object* blenderobject = gameobj->GetBlenderObject();
 		ListBase *conlist;
 		bConstraint *curcon;
 		conlist = get_active_constraints2(blenderobject);
@@ -2626,7 +2626,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for (i=0;i<logicbrick_conversionlist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = static_cast<KX_GameObject*>(logicbrick_conversionlist->GetValue(i));
-		struct Object* blenderobj = converter->FindBlenderObject(gameobj);
+		struct Object* blenderobj = gameobj->GetBlenderObject();
 		int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
 		bool isInActiveLayer = (blenderobj->lay & layerMask)!=0;
 		BL_ConvertActuators(maggie->name, blenderobj,gameobj,logicmgr,kxscene,ketsjiEngine,layerMask,isInActiveLayer,rendertools,converter);
@@ -2634,7 +2634,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for ( i=0;i<logicbrick_conversionlist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = static_cast<KX_GameObject*>(logicbrick_conversionlist->GetValue(i));
-		struct Object* blenderobj = converter->FindBlenderObject(gameobj);
+		struct Object* blenderobj = gameobj->GetBlenderObject();
 		int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
 		bool isInActiveLayer = (blenderobj->lay & layerMask)!=0;
 		BL_ConvertControllers(blenderobj,gameobj,logicmgr,pythondictionary,layerMask,isInActiveLayer,converter);
@@ -2642,7 +2642,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 	for ( i=0;i<logicbrick_conversionlist->GetCount();i++)
 	{
 		KX_GameObject* gameobj = static_cast<KX_GameObject*>(logicbrick_conversionlist->GetValue(i));
-		struct Object* blenderobj = converter->FindBlenderObject(gameobj);
+		struct Object* blenderobj = gameobj->GetBlenderObject();
 		int layerMask = (groupobj.find(blenderobj) == groupobj.end()) ? activeLayerBitInfo : 0;
 		bool isInActiveLayer = (blenderobj->lay & layerMask)!=0;
 		BL_ConvertSensors(blenderobj,gameobj,logicmgr,kxscene,ketsjiEngine,layerMask,isInActiveLayer,canvas,converter);

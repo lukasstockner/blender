@@ -93,11 +93,9 @@ static int PYTHON_OT_generic(int mode, bContext *C, wmOperator *op, wmEvent *eve
 	PointerRNA ptr_event;
 	PyObject *py_operator;
 
-	PyGILState_STATE gilstate = PyGILState_Ensure();
+	PyGILState_STATE gilstate;
 
-	bpy_import_main_set(CTX_data_main(C));
-	
-	BPY_update_modules(); // XXX - the RNA pointers can change so update before running, would like a nicer solutuon for this.
+	bpy_context_set(C, &gilstate);
 
 	args = PyTuple_New(1);
 	PyTuple_SET_ITEM(args, 0, PyObject_GetAttrString(py_class, "__rna__")); // need to use an rna instance as the first arg
@@ -221,8 +219,7 @@ static int PYTHON_OT_generic(int mode, bContext *C, wmOperator *op, wmEvent *eve
 	}
 #endif
 
-	PyGILState_Release(gilstate);
-	bpy_import_main_set(NULL);
+	bpy_context_clear(C, &gilstate);
 
 	return ret_flag;
 }
@@ -299,7 +296,7 @@ void PYTHON_OT_wrapper(wmOperatorType *ot, void *userdata)
 			PyObject *py_func_ptr, *py_kw, *py_srna_cobject, *py_ret;
 			item = PyList_GET_ITEM(props, i);
 			
-			if (PyArg_ParseTuple(item, "O!O!", &PyCObject_Type, &py_func_ptr, &PyDict_Type, &py_kw)) {
+			if (PyArg_ParseTuple(item, "O!O!:PYTHON_OT_wrapper", &PyCObject_Type, &py_func_ptr, &PyDict_Type, &py_kw)) {
 				
 				PyObject *(*pyfunc)(PyObject *, PyObject *, PyObject *);
 				pyfunc = PyCObject_AsVoidPtr(py_func_ptr);
@@ -309,6 +306,8 @@ void PYTHON_OT_wrapper(wmOperatorType *ot, void *userdata)
 				if (py_ret) {
 					Py_DECREF(py_ret);
 				} else {
+					fprintf(stderr, "BPy Operator \"%s\" registration error: %s item %d could not run\n", ot->idname, PYOP_ATTR_PROP, i);
+					PyLineSpit();
 					PyErr_Print();
 					PyErr_Clear();
 				}

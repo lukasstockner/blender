@@ -703,7 +703,6 @@ bool AUD_OpenALDevice::pause(AUD_Handle* handle)
 
 bool AUD_OpenALDevice::resume(AUD_Handle* handle)
 {
-	ALint info;
 	lock();
 
 	// only songs that are paused can be resumed
@@ -1196,8 +1195,9 @@ bool AUD_OpenALDevice::setSetting(AUD_3DSetting setting, float value)
 	case AUD_3DS_SPEED_OF_SOUND:
 		alSpeedOfSound(value);
 		return true;
+	default:
+		return false;
 	}
-	return false;
 }
 
 float AUD_OpenALDevice::getSetting(AUD_3DSetting setting)
@@ -1226,8 +1226,9 @@ float AUD_OpenALDevice::getSetting(AUD_3DSetting setting)
 		return alGetFloat(AL_DOPPLER_FACTOR);
 	case AUD_3DS_SPEED_OF_SOUND:
 		return alGetFloat(AL_SPEED_OF_SOUND);
+	default:
+		return std::numeric_limits<float>::quiet_NaN();
 	}
-	return std::numeric_limits<float>::quiet_NaN();
 }
 
 bool AUD_OpenALDevice::updateSource(AUD_Handle* handle, AUD_3DData &data)
@@ -1298,6 +1299,8 @@ bool AUD_OpenALDevice::setSourceSetting(AUD_Handle* handle,
 			alSourcef(source, AL_ROLLOFF_FACTOR, value);
 			result = true;
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -1348,6 +1351,8 @@ float AUD_OpenALDevice::getSourceSetting(AUD_Handle* handle,
 			break;
 		case AUD_3DSS_ROLLOFF_FACTOR:
 			alGetSourcef(source, AL_ROLLOFF_FACTOR, &result);
+			break;
+		default:
 			break;
 		}
 	}

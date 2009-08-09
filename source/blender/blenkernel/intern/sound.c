@@ -371,9 +371,12 @@ void sound_update_playing(struct bContext *C)
 						action = 3;
 					else
 					{
-						int position = AUD_getPosition(handle->handle);
-						if(fabs(position - (cfra - handle->startframe) / fps) > SOUND_PLAYBACK_LAMBDA)
-// AUD_XXX						if(fabs(position * fps - cfra + handle->startframe) > 5.0f)
+						float diff = AUD_getPosition(handle->handle) - (cfra - handle->startframe) / fps;
+// AUD_XXX						float diff = AUD_getPosition(handle->handle) * fps - cfra + handle->startframe
+						if(diff < 0.0)
+							diff = -diff;
+						if(diff > SOUND_PLAYBACK_LAMBDA)
+// AUD_XXX						if(diff > 5.0f)
 						{
 							action = 2;
 						}

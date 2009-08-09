@@ -3661,13 +3661,23 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				smd->domain->smd = smd;
 
 				smd->domain->fluid = NULL;
+				smd->domain->wt = NULL;
 				smd->domain->tvox = NULL;
 				smd->domain->tray = NULL;
 				smd->domain->tvoxbig = NULL;
 				smd->domain->traybig = NULL;
 				smd->domain->bind = NULL;
-				smd->domain->max_textures = 0;
-				smd->domain->viewsettings = 0; // reset view for new frame
+				smd->domain->max_textures= 0;
+
+				// do_versions trick
+				if(smd->domain->strength < 1.0)
+					smd->domain->strength = 2.0;
+
+				// reset 3dview
+				if(smd->domain->viewsettings < MOD_SMOKE_VIEW_USEBIG)
+					smd->domain->viewsettings = 0;
+				else
+					smd->domain->viewsettings = MOD_SMOKE_VIEW_USEBIG;
 			}
 			else if(smd->type==MOD_SMOKE_TYPE_FLOW)
 			{
@@ -9273,7 +9283,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			/* move to cameras */
 			if(sce->r.scemode & R_PANORAMA) {
-				for(base=scene->base.first; base; base=base->next) {
+				for(base=sce->base.first; base; base=base->next) {
 					ob= newlibadr(fd, lib, base->object);
 
 					if(ob->type == OB_CAMERA && !ob->id.lib) {
@@ -9431,10 +9441,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			/* set new bump for unused slots */
 			for(a=0; a<MAX_MTEX; a++) {
 				if(ma->mtex[a]) {
-					if(!ma->mtex[a]->tex)
+					tex= ma->mtex[a]->tex;
+					if(!tex)
 						ma->mtex[a]->texflag |= MTEX_NEW_BUMP;
-					else if(((Tex*)newlibadr(fd, ma->id.lib, ma->mtex[a]->tex))->type == 0)
-						ma->mtex[a]->texflag |= MTEX_NEW_BUMP;
+					else {
+						tex= (Tex*)newlibadr(fd, ma->id.lib, tex);
+						if(tex && tex->type == 0) /* invalid type */
+							ma->mtex[a]->texflag |= MTEX_NEW_BUMP;
+					}
 				}
 			}
 		}

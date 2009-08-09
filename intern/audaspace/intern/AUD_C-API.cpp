@@ -479,11 +479,9 @@ int AUD_setSoundVolume(AUD_Handle* handle, float volume)
 		{
 			return AUD_device->setCapability(AUD_CAPS_SOURCE_VOLUME, &caps);
 		}
-		catch(AUD_Exception e)
-		{
-			return false;
-		}
+		catch(AUD_Exception e) {}
 	}
+	return false;
 }
 
 int AUD_setSoundPitch(AUD_Handle* handle, float pitch)
@@ -499,11 +497,9 @@ int AUD_setSoundPitch(AUD_Handle* handle, float pitch)
 		{
 			return AUD_device->setCapability(AUD_CAPS_SOURCE_PITCH, &caps);
 		}
-		catch(AUD_Exception e)
-		{
-			return false;
-		}
+		catch(AUD_Exception e) {}
 	}
+	return false;
 }
 
 AUD_Device* AUD_openReadDevice(AUD_Specs specs)

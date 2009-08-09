@@ -32,8 +32,8 @@ struct AUD_OpenALHandle;
 struct AUD_OpenALBufferedFactory;
 class AUD_ConverterFactory;
 
-#include <al.h>
-#include <alc.h>
+#include <AL/al.h>
+#include <AL/alc.h>
 #include <list>
 #include <pthread.h>
 

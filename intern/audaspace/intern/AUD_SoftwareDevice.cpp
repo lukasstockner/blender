@@ -95,7 +95,7 @@ void AUD_SoftwareDevice::mix(sample_t* buffer, int length)
 	lock();
 
 	AUD_SoftwareHandle* sound;
-	int len, left;
+	int len;
 	sample_t* buf;
 	int sample_size = AUD_SAMPLE_SIZE(m_specs);
 	std::list<AUD_SoftwareHandle*> stopSounds;

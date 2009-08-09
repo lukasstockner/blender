@@ -5349,7 +5349,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			float *buffer = NULL;
 			int res[3];
 			float bigfactor = 1.0;
-			int big = smd->domain->flags & MOD_SMOKE_HIGHRES;
+			int big = (smd->domain->flags & MOD_SMOKE_HIGHRES) && (smd->domain->viewsettings & MOD_SMOKE_VIEW_USEBIG);
 			int new = 0;
 			
 			// GUI sent redraw event
@@ -5367,8 +5367,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			}
 			else
 			{
-				smoke_get_bigres(smd->domain->fluid, res);
-				bigfactor = 1.0 / smd->domain->amplify;
+				smoke_turbulence_get_res(smd->domain->wt, res);
+				bigfactor = 1.0 / (smd->domain->amplify + 1);
 			}
 
 			wmLoadMatrix(rv3d->viewmat);

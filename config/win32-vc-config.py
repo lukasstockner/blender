@@ -16,13 +16,10 @@ BF_PYTHON_LIB = 'python31'
 BF_PYTHON_LIBPATH = '${BF_PYTHON}/lib'
 
 WITH_BF_OPENAL = True
-WITH_BF_STATICOPENAL = False
 BF_OPENAL = LIBDIR + '/openal'
-BF_OPENAL_INC = '${BF_OPENAL}/include ${BF_OPENAL}/include/AL '
-BF_OPENAL_LIB = 'OpenAL32 wrap_oal' #'dxguid openal_static'
+BF_OPENAL_INC = '${BF_OPENAL}/include '
+BF_OPENAL_LIB = 'wrap_oal'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
-# Warning, this static lib configuration is untested! users of this OS please confirm.
-BF_OPENAL_LIB_STATIC = '${BF_OPENAL}/lib/libopenal.a'
 
 # TODO - are these useful on win32?
 # BF_CXX = '/usr'
@@ -140,6 +137,12 @@ BF_OPENJPEG = '#extern/libopenjpeg'
 BF_OPENJPEG_LIB = ''
 BF_OPENJPEG_INC = '${BF_OPENJPEG}'
 BF_OPENJPEG_LIBPATH='${BF_OPENJPEG}/lib'
+
+WITH_BF_FFTW3 = False
+BF_FFTW3 = LIBDIR + '/fftw3'
+BF_FFTW3_INC = '${BF_FFTW3}/include'
+BF_FFTW3_LIB = 'libfftw'
+BF_FFTW3_LIBPATH = '${BF_FFTW3}/lib'
 
 WITH_BF_REDCODE = False  
 BF_REDCODE_INC = '#extern'
