@@ -176,8 +176,6 @@ void pushpop_test()
 void free_blender(void)
 {
 	/* samples are in a global list..., also sets G.main->sound->sample NULL */
-	sound_free_all_samples();
-	
 	free_main(G.main);
 	G.main= NULL;
 
@@ -329,9 +327,6 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 		U= *bfd->user;
 		MEM_freeN(bfd->user);
 	}
-	
-	/* samples is a global list... */
-	sound_free_all_samples();
 	
 	/* case G_FILE_NO_UI or no screens in file */
 	if(mode) {
@@ -687,6 +682,22 @@ void BKE_undo_number(bContext *C, int nr)
 	curundo= uel;
 	BKE_undo_step(C, 0);
 }
+
+/* go back to the last occurance of name in stack */
+void BKE_undo_name(bContext *C, const char *name)
+{
+	UndoElem *uel;
+	
+	for(uel= undobase.last; uel; uel= uel->prev) {
+		if(strcmp(name, uel->name)==0)
+			break;
+	}
+	if(uel && uel->prev) {
+		curundo= uel->prev;
+		BKE_undo_step(C, 0);
+	}
+}
+
 
 char *BKE_undo_menu_string(void)
 {

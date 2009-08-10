@@ -22,6 +22,11 @@ BF_CXX = '/usr'
 WITH_BF_STATICCXX = False
 BF_CXX_LIB_STATIC = '${BF_CXX}/lib/libstdc++.a'
 
+BF_LIBSAMPLERATE = '/usr'
+BF_LIBSAMPLERATE_INC = '${BF_LIBSAMPLERATE}/include'
+BF_LIBSAMPLERATE_LIB = 'samplerate'
+BF_LIBSAMPLERATE_LIBPATH = '${BF_LIBSAMPLERATE}/lib'
+
 WITH_BF_SDL = True
 BF_SDL = '/usr' #$(shell sdl-config --prefix)
 BF_SDL_INC = '${BF_SDL}/include/SDL' #$(shell $(BF_SDL)/bin/sdl-config --cflags)
@@ -67,7 +72,7 @@ BF_GETTEXT_LIB = 'gettextlib'
 BF_GETTEXT_LIBPATH = '${BF_GETTEXT}/lib'
 
 WITH_BF_GAMEENGINE = True
-WITH_BF_PLAYER = True
+WITH_BF_PLAYER = False
 
 WITH_BF_BULLET = True
 BF_BULLET = '#extern/bullet2/src'
@@ -129,6 +134,12 @@ BF_OPENJPEG = '#extern/libopenjpeg'
 BF_OPENJPEG_LIB = ''
 BF_OPENJPEG_INC = '${BF_OPENJPEG}'
 BF_OPENJPEG_LIBPATH='${BF_OPENJPEG}/lib'
+
+WITH_BF_FFTW3 = False
+BF_FFTW3 = LIBDIR + '/usr'
+BF_FFTW3_INC = '${BF_FFTW3}/include'
+BF_FFTW3_LIB = 'fftw3'
+BF_FFTW3_LIBPATH = '${BF_FFTW3}/lib'
 
 WITH_BF_REDCODE = False  
 BF_REDCODE = '#extern/libredcode'

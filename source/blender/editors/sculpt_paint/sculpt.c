@@ -146,8 +146,6 @@ typedef struct StrokeCache {
 	ViewContext vc;
 	bglMats *mats;
 
-	float *layer_disps; /* Displacements for each vertex */
- 	float (*mesh_store)[3]; /* Copy of the mesh vertices' locations */
 	short (*orig_norms)[3]; /* Copy of the mesh vertices' normals */
 	float (*face_norms)[3]; /* Copy of the mesh faces' normals */
 	float rotation; /* Texture rotation (radians) for anchored and rake modes */
@@ -510,7 +508,7 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, const ListBase *active
 
 	buffer = (float *)GPU_buffer_lock( ss->drawobject->vertices );
 	while(node){
-		float *disp= &ss->cache->layer_disps[node->Index];
+		float *disp= &ss->layer_disps[node->Index];
 		float *co= ss->mvert[node->Index].co;
 		float val[3];
 		
@@ -520,9 +518,9 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, const ListBase *active
 		if((lim < 0 && *disp < lim) || (lim > 0 && *disp > lim))
 			*disp = lim;
 		
-		val[0] = ss->cache->mesh_store[node->Index][0]+area_normal[0] * *disp*ss->cache->scale[0];
-		val[1] = ss->cache->mesh_store[node->Index][1]+area_normal[1] * *disp*ss->cache->scale[1];
-		val[2] = ss->cache->mesh_store[node->Index][2]+area_normal[2] * *disp*ss->cache->scale[2];
+		val[0] = ss->mesh_co_orig[node->Index][0]+area_normal[0] * *disp*ss->cache->scale[0];
+		val[1] = ss->mesh_co_orig[node->Index][1]+area_normal[1] * *disp*ss->cache->scale[1];
+		val[2] = ss->mesh_co_orig[node->Index][2]+area_normal[2] * *disp*ss->cache->scale[2];
 
 		if( buffer != 0 ) {
 			IndexLink *cur = &ss->drawobject->indices[node->Index];
@@ -1286,10 +1284,6 @@ static float unproject_brush_radius(SculptSession *ss, float offset)
 
 static void sculpt_cache_free(StrokeCache *cache)
 {
-	if(cache->layer_disps)
-		MEM_freeN(cache->layer_disps);
-	if(cache->mesh_store)
-		MEM_freeN(cache->mesh_store);
 	if(cache->orig_norms)
 		MEM_freeN(cache->orig_norms);
 	if(cache->face_norms)
@@ -1325,14 +1319,24 @@ static void sculpt_update_cache_invariants(Sculpt *sd, bContext *C, wmOperator *
 
 	sculpt_update_mesh_elements(C);
 
-	if(sd->brush->sculpt_tool == SCULPT_TOOL_LAYER)
-		cache->layer_disps = MEM_callocN(sizeof(float) * sd->session->totvert, "layer brush displacements");
+	/* Initialize layer brush displacements */
+	if(sd->brush->sculpt_tool == SCULPT_TOOL_LAYER &&
+	   (!sd->session->layer_disps || !(sd->brush->flag & BRUSH_PERSISTENT))) {
+		if(sd->session->layer_disps)
+			MEM_freeN(sd->session->layer_disps);
+		sd->session->layer_disps = MEM_callocN(sizeof(float) * sd->session->totvert, "layer brush displacements");
+	}
 
 	/* Make copies of the mesh vertex locations and normals for some tools */
 	if(sd->brush->sculpt_tool == SCULPT_TOOL_LAYER || (sd->brush->flag & BRUSH_ANCHORED)) {
-		cache->mesh_store= MEM_mallocN(sizeof(float) * 3 * sd->session->totvert, "sculpt mesh vertices copy");
-		for(i = 0; i < sd->session->totvert; ++i)
-			VecCopyf(cache->mesh_store[i], sd->session->mvert[i].co);
+		if(sd->brush->sculpt_tool != SCULPT_TOOL_LAYER ||
+		   !sd->session->mesh_co_orig || !(sd->brush->flag & BRUSH_PERSISTENT)) {
+			if(!sd->session->mesh_co_orig)
+				sd->session->mesh_co_orig= MEM_mallocN(sizeof(float) * 3 * sd->session->totvert,
+								       "sculpt mesh vertices copy");
+			for(i = 0; i < sd->session->totvert; ++i)
+				VecCopyf(sd->session->mesh_co_orig[i], sd->session->mvert[i].co);
+		}
 
 		if(sd->brush->flag & BRUSH_ANCHORED) {
 			cache->orig_norms= MEM_mallocN(sizeof(short) * 3 * sd->session->totvert, "Sculpt orig norm");
@@ -1477,10 +1481,10 @@ static void sculpt_restore_mesh(Sculpt *sd)
 	int i;
 
 	/* Restore the mesh before continuing with anchored stroke */
-	if((sd->brush->flag & BRUSH_ANCHORED) && cache->mesh_store) {
+	if((sd->brush->flag & BRUSH_ANCHORED) && ss->mesh_co_orig) {
 		buffer = (float *)GPU_buffer_lock( ss->drawobject->normals );
 		for(i = 0; i < ss->totvert; ++i) {
-			VecCopyf(ss->mvert[i].co, cache->mesh_store[i]);
+			VecCopyf(ss->mvert[i].co, ss->mesh_co_orig[i]);
 			ss->mvert[i].no[0] = cache->orig_norms[i][0];
 			ss->mvert[i].no[1] = cache->orig_norms[i][1];
 			ss->mvert[i].no[2] = cache->orig_norms[i][2];
@@ -1502,7 +1506,7 @@ static void sculpt_restore_mesh(Sculpt *sd)
 		}
 
 		if(sd->brush->sculpt_tool == SCULPT_TOOL_LAYER)
-			memset(cache->layer_disps, 0, sizeof(float) * ss->totvert);
+			memset(ss->layer_disps, 0, sizeof(float) * ss->totvert);
 	}
 }
 
@@ -1737,6 +1741,38 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 	RNA_def_float(ot->srna, "depth", 0.0f, 0.0f, FLT_MAX, "depth", "", 0.0f, FLT_MAX);
 }
 
+/**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/
+
+static int sculpt_set_persistent_base(bContext *C, wmOperator *op)
+{
+	SculptSession *ss = CTX_data_tool_settings(C)->sculpt->session;
+
+	if(ss) {
+		if(ss->layer_disps)
+			MEM_freeN(ss->layer_disps);
+		ss->layer_disps = NULL;
+
+		if(ss->mesh_co_orig)
+			MEM_freeN(ss->mesh_co_orig);
+		ss->mesh_co_orig = NULL;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Set Persistent Base";
+	ot->idname= "SCULPT_OT_set_persistent_base";
+	
+	/* api callbacks */
+	ot->exec= sculpt_set_persistent_base;
+	ot->poll= sculpt_mode_poll;
+	
+	ot->flag= OPTYPE_REGISTER;
+}
+
 /**** Toggle operator for turning sculpt mode on or off ****/
 
 static int sculpt_toggle_mode(bContext *C, wmOperator *op)
@@ -1797,4 +1833,5 @@ void ED_operatortypes_sculpt()
 	WM_operatortype_append(SCULPT_OT_brush_stroke);
 	WM_operatortype_append(SCULPT_OT_sculptmode_toggle);
 	WM_operatortype_append(SCULPT_OT_brush_curve_preset);
+	WM_operatortype_append(SCULPT_OT_set_persistent_base);
 }

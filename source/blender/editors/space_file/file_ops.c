@@ -716,6 +716,7 @@ void FILE_OT_directory_new(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Create New Directory";
 	ot->idname= "FILE_OT_directory_new";
+	ot->description= "Create a new directory";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_confirm;
@@ -933,7 +934,7 @@ int file_delete_poll(bContext *C)
 	SpaceFile *sfile= CTX_wm_space_file(C);
 	struct direntry* file;
 
-	if (sfile->params) {
+	if (sfile && sfile->params) {
 		if (sfile->params->active_file < 0) { 
 			poll= 0;
 		} else {

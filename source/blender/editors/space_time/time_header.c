@@ -69,7 +69,8 @@
 
 /* ************************ header time area region *********************** */
 
-static ARegion *time_top_left_3dwindow(bScreen *screen)
+/* exported for use in screen_ops.c */
+ARegion *time_top_left_3dwindow(bScreen *screen)
 {
 	ARegion *aret= NULL;
 	ScrArea *sa;
@@ -203,12 +204,6 @@ static void do_time_viewmenu(bContext *C, void *arg, int event)
 			break;
 		case 7:
 			//nextprev_marker(-1);
-			break;
-		case 8:
-			//nextprev_timeline_key(1);
-			break;
-		case 9:
-			//nextprev_timeline_key(-1);
 			break;
 		case 10:
 			//timeline_frame_to_center();
@@ -360,10 +355,8 @@ static uiBlock *time_framemenu(bContext *C, ARegion *ar, void *arg_unused)
 
 
 #define B_REDRAWALL		750
-#define B_TL_REW		751
 #define B_TL_PLAY		752
 #define B_TL_RPLAY		760
-#define B_TL_FF			753
 #define B_TL_STOP		756
 #define B_TL_PREVIEWON	757
 
@@ -374,8 +367,6 @@ static uiBlock *time_framemenu(bContext *C, ARegion *ar, void *arg_unused)
 
 void do_time_buttons(bContext *C, void *arg, int event)
 {
-	bScreen *screen= CTX_wm_screen(C);
-	SpaceTime *stime= CTX_wm_space_time(C);
 	Scene *scene= CTX_data_scene(C);
 	
 	switch(event) {
@@ -385,45 +376,6 @@ void do_time_buttons(bContext *C, void *arg, int event)
 		case B_NEWFRAME:
 			WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 			break;
-		case B_TL_REW:
-			scene->r.cfra= PSFRA;
-			WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
-			//update_for_newframe();
-			break;
-		case B_TL_PLAY:
-			ED_screen_animation_timer(C, stime->redraws, 1);
-			
-			/* update region if TIME_REGION was set, to leftmost 3d window */
-			if(screen->animtimer && (stime->redraws & TIME_REGION)) {
-				wmTimer *wt= screen->animtimer;
-				ScreenAnimData *sad= wt->customdata;
-				
-				sad->ar= time_top_left_3dwindow(screen);
-			}
-			
-			break;
-		case B_TL_RPLAY:
-			ED_screen_animation_timer(C, stime->redraws, -1);
-			
-			/* update region if TIME_REGION was set, to leftmost 3d window */
-			if(screen->animtimer && (stime->redraws & TIME_REGION)) {
-				wmTimer *wt= screen->animtimer;
-				ScreenAnimData *sad= wt->customdata;
-				
-				sad->ar= time_top_left_3dwindow(screen);
-			}
-			
-			break;
-		case B_TL_STOP:
-			ED_screen_animation_timer(C, 0, 0);
-			break;
-		case B_TL_FF:
-			/* end frame */
-			scene->r.cfra= PEFRA;
-			WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
-			//update_for_newframe();
-			break;
-			
 		case B_TL_PREVIEWON:
 			if (scene->r.psfra) {
 				/* turn on preview range */
@@ -447,6 +399,7 @@ void time_header_buttons(const bContext *C, ARegion *ar)
 	ScrArea *sa= CTX_wm_area(C);
 	SpaceTime *stime= CTX_wm_space_time(C);
 	Scene *scene= CTX_data_scene(C);
+	wmTimer *animtimer= CTX_wm_screen(C)->animtimer;
 	uiBlock *block;
 	uiBut *but;
 	int xco, yco= 3;
@@ -527,30 +480,28 @@ void time_header_buttons(const bContext *C, ARegion *ar)
 	xco += (short)(3.5 * XIC);
 	
 	uiBlockBeginAlign(block);
-
-	uiDefIconBut(block, BUT, B_TL_REW, ICON_REW,
-				 xco, yco, XIC, YIC, 0, 0, 0, 0, 0, "Skip to Start frame (Shift DownArrow)");
+	
+	but= uiDefIconButO(block, BUT, "SCREEN_OT_frame_jump", WM_OP_INVOKE_REGION_WIN, ICON_REW, xco,yco,XIC,YIC, "Skip to Start frame (Shift DownArrow)");
+		RNA_boolean_set(uiButGetOperatorPtrRNA(but), "end", 0);
 	xco+= XIC;
 	
 	but= uiDefIconButO(block, BUT, "SCREEN_OT_keyframe_jump", WM_OP_INVOKE_REGION_WIN, ICON_PREV_KEYFRAME, xco,yco,XIC,YIC, "Skip to previous keyframe (Ctrl PageDown)");
 		RNA_boolean_set(uiButGetOperatorPtrRNA(but), "next", 0);
 	xco+= XIC;
 	
-	if(CTX_wm_screen(C)->animtimer) {
+	if (animtimer) {
 		/* pause button 2*size to keep buttons in place */
-		uiDefIconBut(block, BUT, B_TL_STOP, ICON_PAUSE,
-					 xco, yco, XIC*2, YIC, 0, 0, 0, 0, 0, "Stop Playing Timeline");
-					 
+		but=uiDefIconButO(block, BUT, "SCREEN_OT_animation_play", WM_OP_INVOKE_REGION_WIN, ICON_PAUSE, xco,yco,XIC*2,YIC, "Stop Playing Timeline");
+		
 		xco+= XIC;
 	}
 	else {	   
-		uiDefIconBut(block, BUT, B_TL_RPLAY, ICON_PLAY_REVERSE,
-					 xco, yco, XIC, YIC, 0, 0, 0, 0, 0, "Play Timeline in Reverse");
-					 
+		but=uiDefIconButO(block, BUT, "SCREEN_OT_animation_play", WM_OP_INVOKE_REGION_WIN, ICON_PLAY_REVERSE, xco,yco,XIC,YIC, "Play Timeline in Reverse");
+			RNA_boolean_set(uiButGetOperatorPtrRNA(but), "reverse", 1);	
 		xco+= XIC;
 					 
-		uiDefIconBut(block, BUT, B_TL_PLAY, ICON_PLAY,
-					 xco, yco, XIC, YIC, 0, 0, 0, 0, 0, "Play Timeline ");
+		but=uiDefIconButO(block, BUT, "SCREEN_OT_animation_play", WM_OP_INVOKE_REGION_WIN, ICON_PLAY, xco,yco,XIC,YIC, "Play Timeline");
+			RNA_boolean_set(uiButGetOperatorPtrRNA(but), "reverse", 0);	
 	}
 	xco+= XIC;
 	
@@ -558,23 +509,32 @@ void time_header_buttons(const bContext *C, ARegion *ar)
 		RNA_boolean_set(uiButGetOperatorPtrRNA(but), "next", 1);
 	xco+= XIC;
 	
-	uiDefIconBut(block, BUT, B_TL_FF, ICON_FF,
-				 xco, yco, XIC, YIC, 0, 0, 0, 0, 0, "Skip to End frame (Shift UpArrow)");
+	but= uiDefIconButO(block, BUT, "SCREEN_OT_frame_jump", WM_OP_INVOKE_REGION_WIN, ICON_FF, xco,yco,XIC,YIC, "Skip to End frame (Shift UpArrow)");
+		RNA_boolean_set(uiButGetOperatorPtrRNA(but), "end", 1);
+	xco+= XIC;
 	uiBlockEndAlign(block);
 
-	xco+= 2*XIC;
+	xco+= 1.5*XIC;
 	
 	uiBlockBeginAlign(block);
 	uiDefIconButBitS(block, TOG, AUTOKEY_ON, B_REDRAWALL, ICON_REC,
 					 xco, yco, XIC, YIC, &(scene->toolsettings->autokey_mode), 0, 0, 0, 0, "Automatic keyframe insertion for Objects and Bones");
 	xco+= XIC;
-
-	if(IS_AUTOKEY_ON(scene)) {
+	
+	if (IS_AUTOKEY_ON(scene)) {
 		uiDefButS(block, MENU, B_REDRAWALL, 
 				  "Auto-Keying Mode %t|Add/Replace Keys%x3|Replace Keys %x5", 
 				  xco, yco, (int)5.5*XIC, YIC, &(scene->toolsettings->autokey_mode), 0, 1, 0, 0, 
 				  "Mode of automatic keyframe insertion for Objects and Bones");
 		xco+= (5.5*XIC);
+		
+		if (animtimer) {
+			uiDefButBitS(block, TOG, ANIMRECORD_FLAG_WITHNLA, B_REDRAWALL, "Layered",	
+				  xco,yco, XIC*2.5, YIC,
+				  &(scene->toolsettings->autokey_flag),0, 1, 0, 0,
+				  "Add a new NLA Track + Strip for every loop/pass made over the animation to allow non-destructive tweaking.");
+			xco+= (3*XIC);
+		}
 	}
 	else
 		xco+= 6;

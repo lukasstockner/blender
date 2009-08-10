@@ -391,6 +391,20 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		data->linedark[data->totline]= 1;
 		data->totline++;
 	}
+	else if (but->optype) {
+		PointerRNA *opptr;
+		char *str;
+		opptr= uiButGetOperatorPtrRNA(but); /* allocated when needed, the button owns it */
+
+		str= WM_operator_pystring(but->optype, opptr, 0);
+
+		/* operator info */
+		BLI_snprintf(data->lines[data->totline], sizeof(data->lines[0]), "Python: %s", str);
+		data->linedark[data->totline]= 1;
+		data->totline++;
+
+		MEM_freeN(str);
+	}
 
 	if(data->totline == 0) {
 		MEM_freeN(data);
@@ -748,12 +762,14 @@ void ui_searchbox_autocomplete(bContext *C, ARegion *ar, uiBut *but, char *str)
 {
 	uiSearchboxData *data= ar->regiondata;
 
-	data->items.autocpl= autocomplete_begin(str, ui_get_but_string_max_length(but));
+	if(str[0]) {
+		data->items.autocpl= autocomplete_begin(str, ui_get_but_string_max_length(but));
 
-	but->search_func(C, but->search_arg, but->editstr, &data->items);
+		but->search_func(C, but->search_arg, but->editstr, &data->items);
 
-	autocomplete_end(data->items.autocpl, str);
-	data->items.autocpl= NULL;
+		autocomplete_end(data->items.autocpl, str);
+		data->items.autocpl= NULL;
+	}
 }
 
 static void ui_searchbox_region_draw(const bContext *C, ARegion *ar)

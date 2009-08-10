@@ -41,6 +41,8 @@ CPPFLAGS += -I$(OPENGL_HEADERS)
 CPPFLAGS += -I$(NAN_PYTHON)/include/python$(NAN_PYTHON_VERSION)
 
 CPPFLAGS += -I$(NAN_GUARDEDALLOC)/include
+CPPFLAGS += -I../../../../intern/memutil
+CPPFLAGS += -I$(NAN_AUDASPACE)/include
 # Reference to the types in makesdna and imbuf
 CPPFLAGS += -I../../makesdna
 CPPFLAGS += -I../../makesrna
@@ -68,6 +70,7 @@ CPPFLAGS += -I$(NAN_DECIMATION)/include
 CPPFLAGS += -I$(NAN_ELBEEM)/include
 CPPFLAGS += -I$(NAN_OPENNL)/include
 CPPFLAGS += -I$(NAN_BSP)/include
+CPPFLAGS += -I$(NAN_SMOKE)/include
 
 # path to zlib
 CPPFLAGS += -I$(NAN_ZLIB)/include

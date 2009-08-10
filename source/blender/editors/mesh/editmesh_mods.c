@@ -92,7 +92,7 @@ editmesh_mods.c, UI level access, no geometry changes
 #include "BLO_sys_types.h" // for intptr_t support
 
 /* XXX */
-static void waitcursor() {}
+static void waitcursor(int val) {}
 static int pupmenu() {return 0;}
 
 /* ****************************** MIRROR **************** */
@@ -4299,6 +4299,18 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+static int smooth_vertex_exec(bContext *C, wmOperator *op)
+{
+	int repeat = RNA_int_get(op->ptr, "repeat");
+	int i;
+
+	if (!repeat) repeat = 1;
+
+	for (i=0; i<repeat; i++) {
+		smooth_vertex(C, op);
+	}
+}
+
 void MESH_OT_vertices_smooth(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -4306,11 +4318,13 @@ void MESH_OT_vertices_smooth(wmOperatorType *ot)
 	ot->idname= "MESH_OT_vertices_smooth";
 	
 	/* api callbacks */
-	ot->exec= smooth_vertex;
+	ot->exec= smooth_vertex_exec;
 	ot->poll= ED_operator_editmesh;
 	
 	/* flags */
-	ot->flag= OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_int(ot->srna, "repeat", 1, 1, 100, "Number of times to smooth the mesh", "", 1, INT_MAX);
 }
 
 void vertexnoise(Object *obedit, EditMesh *em)

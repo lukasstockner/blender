@@ -30,7 +30,6 @@
 #include "bpy_operator.h"
 #include "bpy_operator_wrap.h"
 #include "bpy_rna.h" /* for setting arg props only - pyrna_py_to_prop() */
-#include "bpy_compat.h"
 #include "bpy_util.h"
 
 #include "WM_api.h"
@@ -95,7 +94,7 @@ static PyObject *pyop_call( PyObject * self, PyObject * args)
 	RNA_pointer_create(NULL, ot->srna, NULL, &ptr);
 	
 	if(kw && PyDict_Size(kw))
-		error_val= pyrna_pydict_to_props(&ptr, kw, "Converting py args to operator properties: ");
+		error_val= pyrna_pydict_to_props(&ptr, kw, 0, "Converting py args to operator properties: ");
 
 	
 	if (error_val==0) {

@@ -91,7 +91,7 @@
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
 
-
+#include "BKE_sound.h"
 
 /* XXX */
 static void sound_init_listener(void)
@@ -157,6 +157,8 @@ void WM_init(bContext *C)
 	
 	read_Blog();
 	BLI_strncpy(G.lib, G.sce, FILE_MAX);
+
+	sound_init();
 }
 
 /* free strings of open recent files */
@@ -185,7 +187,9 @@ extern void free_posebuf();
 void WM_exit(bContext *C)
 {
 	wmWindow *win;
-	
+
+	sound_exit();
+
 	/* first wrap up running stuff, we assume only the active WM is running */
 	/* modal handlers are on window level freed, others too? */
 	/* note; same code copied in wm_files.c */
@@ -276,6 +280,8 @@ void WM_exit(bContext *C)
 
 	RNA_exit();
 	
+	wm_ghost_exit();
+
 	CTX_free(C);
 	
 	if(MEM_get_memory_blocks_in_use()!=0) {

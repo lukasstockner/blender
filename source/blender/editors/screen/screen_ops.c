@@ -56,6 +56,7 @@
 #include "BKE_report.h"
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
+#include "BKE_sound.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -1411,6 +1412,37 @@ static void SCREEN_OT_frame_offset(wmOperatorType *ot)
 	RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
 }
 
+
+/* function to be called outside UI context, or for redo */
+static int frame_jump_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene= CTX_data_scene(C);
+	
+	if (RNA_boolean_get(op->ptr, "end"))
+		CFRA= PEFRA;
+	else
+		CFRA= PSFRA;
+
+	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+
+	return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_frame_jump(wmOperatorType *ot)
+{
+	ot->name = "Jump to Endpoint";
+	ot->idname = "SCREEN_OT_frame_jump";
+
+	ot->exec= frame_jump_exec;
+
+	ot->poll= ED_operator_screenactive;
+	ot->flag= 0;
+
+	/* rna */
+	RNA_def_boolean(ot->srna, "end", 0, "Last Frame", "Jump to the last frame of the frame range.");
+}
+
+
 /* ************** jump to keyframe operator ***************************** */
 
 /* helper function - find actkeycolumn that occurs on cframe, or the nearest one if not found */
@@ -2197,45 +2229,58 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		
 		if(scene->audio.flag & AUDIO_SYNC) {
 			int step = floor(wt->duration * FPS);
-			if (sad->reverse) // XXX does this option work with audio?
+			if (sad->flag & ANIMPLAY_FLAG_REVERSE) // XXX does this option work with audio?
 				scene->r.cfra -= step;
 			else
 				scene->r.cfra += step;
 			wt->duration -= ((float)step)/FPS;
 		}
 		else {
-			if (sad->reverse)
+			if (sad->flag & ANIMPLAY_FLAG_REVERSE)
 				scene->r.cfra--;
 			else
 				scene->r.cfra++;
 		}
 		
-		if (sad->reverse) {
-			/* jump back to end */
+		/* reset 'jumped' flag before checking if we need to jump... */
+		sad->flag &= ~ANIMPLAY_FLAG_JUMPED;
+		
+		if (sad->flag & ANIMPLAY_FLAG_REVERSE) {
+			/* jump back to end? */
 			if (scene->r.psfra) {
-				if(scene->r.cfra < scene->r.psfra)
+				if (scene->r.cfra < scene->r.psfra) {
 					scene->r.cfra= scene->r.pefra;
+					sad->flag |= ANIMPLAY_FLAG_JUMPED;
+				}
 			}
 			else {
-				if(scene->r.cfra < scene->r.sfra)
+				if (scene->r.cfra < scene->r.sfra) {
 					scene->r.cfra= scene->r.efra;
+					sad->flag |= ANIMPLAY_FLAG_JUMPED;
+				}
 			}
 		}
 		else {
-			/* jump back to start */
+			/* jump back to start? */
 			if (scene->r.psfra) {
-				if(scene->r.cfra > scene->r.pefra)
+				if (scene->r.cfra > scene->r.pefra) {
 					scene->r.cfra= scene->r.psfra;
+					sad->flag |= ANIMPLAY_FLAG_JUMPED;
+				}
 			}
 			else {
-				if(scene->r.cfra > scene->r.efra)
+				if (scene->r.cfra > scene->r.efra) {
 					scene->r.cfra= scene->r.sfra;
+					sad->flag |= ANIMPLAY_FLAG_JUMPED;
+				}
 			}
 		}
 
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
 		ED_update_for_newframe(C, 1);
-		
+
+		sound_update_playing(C);
+
 		for(sa= screen->areabase.first; sa; sa= sa->next) {
 			ARegion *ar;
 			for(ar= sa->regionbase.first; ar; ar= ar->next) {
@@ -2269,6 +2314,10 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
 
 /* ****************** anim player, starts or ends timer ***************** */
 
+/* helper for screen_animation_play() - only to be used for TimeLine */
+// NOTE: defined in time_header.c for now...
+extern ARegion *time_top_left_3dwindow(bScreen *screen);
+
 /* toggle operator */
 static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 {
@@ -2276,17 +2325,35 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 	
 	if(screen->animtimer) {
 		ED_screen_animation_timer(C, 0, 0);
+		sound_stop_all(C);
 	}
 	else {
+		ScrArea *sa= CTX_wm_area(C);
 		int mode= (RNA_boolean_get(op->ptr, "reverse")) ? -1 : 1;
 		
-		ED_screen_animation_timer(C, TIME_REGION|TIME_ALL_3D_WIN, mode);
-		
-		if(screen->animtimer) {
-			wmTimer *wt= screen->animtimer;
-			ScreenAnimData *sad= wt->customdata;
+		/* timeline gets special treatment since it has it's own menu for determining redraws */
+		if ((sa) && (sa->spacetype == SPACE_TIME)) {
+			SpaceTime *stime= (SpaceTime *)sa->spacedata.first;
 			
-			sad->ar= CTX_wm_region(C);
+			ED_screen_animation_timer(C, stime->redraws, mode);
+			
+			/* update region if TIME_REGION was set, to leftmost 3d window */
+			if(screen->animtimer && (stime->redraws & TIME_REGION)) {
+				wmTimer *wt= screen->animtimer;
+				ScreenAnimData *sad= wt->customdata;
+				
+				sad->ar= time_top_left_3dwindow(screen);
+			}
+		}
+		else {
+			ED_screen_animation_timer(C, TIME_REGION|TIME_ALL_3D_WIN, mode);
+			
+			if(screen->animtimer) {
+				wmTimer *wt= screen->animtimer;
+				ScreenAnimData *sad= wt->customdata;
+				
+				sad->ar= CTX_wm_region(C);
+			}
 		}
 	}
 	
@@ -3051,6 +3118,7 @@ void ED_operatortypes_screen(void)
 	
 	/*frame changes*/
 	WM_operatortype_append(SCREEN_OT_frame_offset);
+	WM_operatortype_append(SCREEN_OT_frame_jump);
 	WM_operatortype_append(SCREEN_OT_keyframe_jump);
 	
 	WM_operatortype_append(SCREEN_OT_animation_step);
@@ -3162,6 +3230,9 @@ void ED_keymap_screen(wmWindowManager *wm)
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", DOWNARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", -10);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", LEFTARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", -1);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", RIGHTARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", 1);
+	
+	WM_keymap_add_item(keymap, "SCREEN_OT_frame_jump", DOWNARROWKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_jump", UPARROWKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "end", 1);
 	
 	WM_keymap_add_item(keymap, "SCREEN_OT_keyframe_jump", PAGEUPKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(WM_keymap_add_item(keymap, "SCREEN_OT_keyframe_jump", PAGEDOWNKEY, KM_PRESS, KM_CTRL, 0)->ptr, "next", 0);

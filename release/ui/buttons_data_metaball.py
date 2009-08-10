@@ -6,7 +6,7 @@ class DataButtonsPanel(bpy.types.Panel):
 	__context__ = "data"
 	
 	def poll(self, context):
-		return (context.meta_ball != None)
+		return (context.meta_ball)
 
 class DATA_PT_context_metaball(DataButtonsPanel):
 	__show_header__ = False
@@ -36,36 +36,77 @@ class DATA_PT_metaball(DataButtonsPanel):
 		mball = context.meta_ball
 		
 		split = layout.split()
-		sub = split.column()
 		
-		sub.itemL(text="Settings:")
-		sub.itemR(mball, "threshold", text="Threshold")
-		sub.itemR(mball, "wire_size", text="View Resolution")
-		sub.itemR(mball, "render_size", text="Render Resolution")
+		col = split.column()
+		col.itemL(text="Resolution:")
+		sub = col.column(align=True)
+		sub.itemR(mball, "wire_size", text="View")
+		sub.itemR(mball, "render_size", text="Render")	
 		
-		sub.itemL(text="Update:")		
-		sub.itemR(mball, "flag", expand=True)
+		col = split.column()
+		col.itemL(text="Settings:")
+		col.itemR(mball, "threshold", text="Threshold")
 
-class DATA_PT_metaball_metaelem(DataButtonsPanel):
-	__label__ = "MetaElem"
+		layout.itemL(text="Update:")
+		layout.itemR(mball, "flag", expand=True)
+
+class DATA_PT_metaball_element(DataButtonsPanel):
+	__label__ = "Active Element"
+	
+	def poll(self, context):
+		return (context.meta_ball and context.meta_ball.active_element)
 
 	def draw(self, context):
 		layout = self.layout
 		
-		metaelem = context.meta_ball.last_selected_element
+		metaelem = context.meta_ball.active_element
 		
-		if(metaelem != None):
-			split = layout.split()
-			sub = split.column()
+		split = layout.split(percentage=0.3)
+		split.itemL(text="Type:")	
+		split.itemR(metaelem, "type", text="")
+		
+		split = layout.split()
 			
-			sub.itemL(text="Settings:")
-			sub.itemR(metaelem, "stiffness", text="Stiffness")
-			sub.itemR(metaelem, "size", text="Size")
-			sub.itemL(text="Type:")
-			sub.itemR(metaelem, "type", expand=True)
-			sub.itemR(metaelem, "negative", text="Negative")
-
+		col = split.column()
+		col.itemL(text="Settings:")
+		col.itemR(metaelem, "stiffness", text="Stiffness")
+		col.itemR(metaelem, "negative", text="Negative")
+		col.itemR(metaelem, "hide", text="Hide")
 		
+		if metaelem.type == 'BALL':
+		
+			col = split.column(align=True)
+			
+		elif metaelem.type == 'CUBE':
+		
+			col = split.column(align=True)
+			col.itemL(text="Size:")	
+			col.itemR(metaelem, "size_x", text="X")
+			col.itemR(metaelem, "size_y", text="Y")
+			col.itemR(metaelem, "size_z", text="Z")
+			
+		elif metaelem.type == 'TUBE':
+		
+			col = split.column(align=True)
+			col.itemL(text="Size:")	
+			col.itemR(metaelem, "size_x", text="X")
+			
+		elif metaelem.type == 'PLANE':
+			
+			col = split.column(align=True)
+			col.itemL(text="Size:")	
+			col.itemR(metaelem, "size_x", text="X")
+			col.itemR(metaelem, "size_y", text="Y")
+			
+		elif metaelem.type == 'ELLIPSOID':
+			
+			col = split.column(align=True)
+			col.itemL(text="Size:")	
+			col.itemR(metaelem, "size_x", text="X")
+			col.itemR(metaelem, "size_y", text="Y")
+			col.itemR(metaelem, "size_z", text="Z")
+		
+
 bpy.types.register(DATA_PT_context_metaball)
 bpy.types.register(DATA_PT_metaball)
-bpy.types.register(DATA_PT_metaball_metaelem)
+bpy.types.register(DATA_PT_metaball_element)

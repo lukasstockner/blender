@@ -34,7 +34,6 @@
 
 #include "KX_Scene.h"
 #include "MT_assert.h"
-#include "SND_Scene.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
 #include "RAS_IPolygonMaterial.h"
@@ -135,7 +134,6 @@ extern bool gUseVisibilityTemp;
 KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 				   class SCA_IInputDevice* mousedevice,
 				   class NG_NetworkDeviceInterface *ndi,
-				   class SND_IAudioDevice* adi,
 				   const STR_String& sceneName,
 				   Scene *scene): 
 	PyObjectPlus(),
@@ -144,7 +142,6 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 	m_sceneConverter(NULL),
 	m_physicsEnvironment(0),
 	m_sceneName(sceneName),
-	m_adi(adi),
 	m_networkDeviceInterface(ndi),
 	m_active_camera(NULL),
 	m_ueberExecutionPriority(0),
@@ -200,7 +197,6 @@ KX_Scene::KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		m_logicmgr->RegisterEventManager(joymgr);
 	}
 
-	m_soundScene = new SND_Scene(adi);
 	MT_assert (m_networkDeviceInterface != NULL);
 	m_networkScene = new NG_NetworkScene(m_networkDeviceInterface);
 	
@@ -249,9 +245,6 @@ KX_Scene::~KX_Scene()
 
 	if (m_physicsEnvironment)
 		delete m_physicsEnvironment;
-
-	if (m_soundScene)
-		delete m_soundScene;
 
 	if (m_networkScene)
 		delete m_networkScene;
@@ -363,12 +356,6 @@ class KX_WorldInfo* KX_Scene::GetWorldInfo()
 	return m_worldinfo;
 }
 
-
-
-SND_Scene* KX_Scene::GetSoundScene()
-{
-	return m_soundScene;
-}
 
 const STR_String& KX_Scene::GetName()
 {
@@ -1008,8 +995,12 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 	// in case this is a camera
 	m_cameras.remove((KX_Camera*)newobj);
 
+	/* currently does nothing, keep incase we need to Unregister something */
+#if 0
 	if (m_sceneConverter)
 		m_sceneConverter->UnregisterGameObject(newobj);
+#endif
+	
 	// return value will be 0 if the object is actually deleted (all reference gone)
 	
 	return ret;
@@ -1017,17 +1008,18 @@ int KX_Scene::NewRemoveObject(class CValue* gameobj)
 
 
 
-void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj)
+void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj, bool use_gfx, bool use_phys)
 {
 	KX_GameObject* gameobj = static_cast<KX_GameObject*>(obj);
 	RAS_MeshObject* mesh = static_cast<RAS_MeshObject*>(meshobj);
 
-	if(!gameobj || !mesh)
-	{
-		std::cout << "warning: invalid object, mesh will not be replaced" << std::endl;
+	if(!gameobj) {
+		std::cout << "KX_Scene::ReplaceMesh Warning: invalid object, doing nothing" << std::endl;
 		return;
 	}
 
+	if(use_gfx && mesh != NULL)
+	{		
 	gameobj->RemoveMeshes();
 	gameobj->AddMesh(mesh);
 	
@@ -1156,6 +1148,11 @@ void KX_Scene::ReplaceMesh(class CValue* obj,void* meshobj)
 	}
 
 	gameobj->AddMeshUser();
+	}
+	
+	if(use_phys) { /* update the new assigned mesh with the physics mesh */
+		KX_ReInstanceBulletShapeFromMesh(gameobj, NULL, use_gfx?NULL:mesh);
+	}
 }
 
 KX_Camera* KX_Scene::FindCamera(KX_Camera* cam)
@@ -1573,11 +1570,6 @@ void	KX_Scene::SetGravity(const MT_Vector3& gravity)
 	GetPhysicsEnvironment()->setGravity(gravity[0],gravity[1],gravity[2]);
 }
 
-void KX_Scene::SetNodeTree(SG_Tree* root)
-{
-	m_objecttree = root;
-}
-
 void KX_Scene::SetSceneConverter(class KX_BlenderSceneConverter* sceneConverter)
 {
 	m_sceneConverter = sceneConverter;
@@ -1613,31 +1605,25 @@ double KX_Scene::getSuspendedDelta()
 //Python
 
 PyTypeObject KX_Scene::Type = {
-#if (PY_VERSION_HEX >= 0x02060000)
 	PyVarObject_HEAD_INIT(NULL, 0)
-#else
-	/* python 2.5 and below */
-	PyObject_HEAD_INIT( NULL )  /* required py macro */
-	0,                          /* ob_size */
-#endif
-		"KX_Scene",
-		sizeof(PyObjectPlus_Proxy),
-		0,
-		py_base_dealloc,
-		0,
-		0,
-		0,
-		0,
-		py_base_repr,
-		0,0,0,0,0,0,0,0,0,
-		Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
-		0,0,0,0,0,0,0,
-		Methods,
-		0,
-		0,
-		&CValue::Type,
-		0,0,0,0,0,0,
-		py_base_new
+	"KX_Scene",
+	sizeof(PyObjectPlus_Proxy),
+	0,
+	py_base_dealloc,
+	0,
+	0,
+	0,
+	0,
+	py_base_repr,
+	0,0,0,0,0,0,0,0,0,
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE,
+	0,0,0,0,0,0,0,
+	Methods,
+	0,
+	0,
+	&CValue::Type,
+	0,0,0,0,0,0,
+	py_base_new
 };
 
 PyMethodDef KX_Scene::Methods[] = {

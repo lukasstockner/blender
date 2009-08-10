@@ -570,7 +570,7 @@ typedef struct ToolSettings {
 	float clean_thresh;
 
 	/* Auto-Keying Mode */
-	short autokey_mode, pad2;	/* defines in DNA_userdef_types.h */
+	short autokey_mode, autokey_flag;	/* defines in DNA_userdef_types.h */
 	
 	/* Retopo */
 	char retopo_mode;
@@ -662,6 +662,7 @@ typedef struct Scene {
 	ListBase markers;
 	ListBase transform_spaces;
 	
+	ListBase sound_handles;
 	
 	/* none of the dependancy graph  vars is mean to be saved */
 	struct  DagForest *theDag;

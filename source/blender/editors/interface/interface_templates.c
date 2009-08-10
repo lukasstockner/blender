@@ -432,31 +432,21 @@ static uiLayout *draw_modifier(uiLayout *layout, Object *ob, ModifierData *md, i
 		/* Softbody not allowed in this situation, enforce! */
 		if(((md->type!=eModifierType_Softbody && md->type!=eModifierType_Collision) || !(ob->pd && ob->pd->deflect)) && (md->type!=eModifierType_Surface)) {
 			uiItemR(row, "", ICON_SCENE, &ptr, "render", 0, 0, 0);
-			uiItemR(row, "", ICON_VIEW3D, &ptr, "realtime", 0, 0, 0);
+			uiItemR(row, "", ICON_RESTRICT_VIEW_OFF, &ptr, "realtime", 0, 0, 0);
 
 			if(mti->flags & eModifierTypeFlag_SupportsEditmode)
-				uiItemR(row, "", ICON_VIEW3D, &ptr, "editmode", 0, 0, 0);
+				uiItemR(row, "", ICON_EDITMODE_HLT, &ptr, "editmode", 0, 0, 0);
 		}
-		uiBlockEndAlign(block);
+		
 
 		/* XXX uiBlockSetEmboss(block, UI_EMBOSSR); */
 
 		if(ob->type==OB_MESH && modifier_couldBeCage(md) && index<=lastCageIndex) {
-			int icon; //, color;
 
-			if(index==cageIndex) {
-				// XXX color = TH_BUT_SETTING;
-				icon = VICON_EDITMODE_HLT;
-			} else if(index<cageIndex) {
-				// XXX color = TH_BUT_NEUTRAL;
-				icon = VICON_EDITMODE_DEHLT;
-			} else {
-				// XXX color = TH_BUT_NEUTRAL;
-				icon = ICON_BLANK1;
-			}
 			/* XXX uiBlockSetCol(block, color); */
-			but = uiDefIconBut(block, BUT, 0, icon, 0, 0, 16, 16, NULL, 0.0, 0.0, 0.0, 0.0, "Apply modifier to editing cage during Editmode");
+			but = uiDefIconBut(block, BUT, 0, ICON_MESH_DATA, 0, 0, 16, 20, NULL, 0.0, 0.0, 0.0, 0.0, "Apply modifier to editing cage during Editmode");
 			uiButSetFunc(but, modifiers_setOnCage, ob, md);
+			uiBlockEndAlign(block);
 			/* XXX uiBlockSetCol(block, TH_AUTO); */
 		}
 	}
@@ -464,8 +454,10 @@ static uiLayout *draw_modifier(uiLayout *layout, Object *ob, ModifierData *md, i
 	/* up/down/delete */
 	if(!isVirtual) {
 		/* XXX uiBlockSetCol(block, TH_BUT_ACTION); */
+		uiBlockBeginAlign(block);
 		uiItemO(row, "", VICON_MOVE_UP, "OBJECT_OT_modifier_move_up");
 		uiItemO(row, "", VICON_MOVE_DOWN, "OBJECT_OT_modifier_move_down");
+		uiBlockEndAlign(block);
 		
 		uiBlockSetEmboss(block, UI_EMBOSSN);
 
@@ -919,82 +911,7 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 				draw_constraint_spaceselect(block, con, xco, yco-(73+theight), is_armature_owner(ob), -1);
 			}
 			break;
-#endif /* DISABLE_PYTHON */
-		
-		/*case CONSTRAINT_TYPE_RIGIDBODYJOINT:
-			{
-				if (data->type==CONSTRAINT_RB_GENERIC6DOF) {
-					// Draw Pairs of LimitToggle+LimitValue 
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 1, B_CONSTRAINT_TEST, "LinMinX", xco, yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use minimum x limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+togButWidth, yco-offsetY, (textButWidth-5), 18, &(data->minLimit[0]), -extremeLin, extremeLin, 0.1,0.5,"min x limit"); 
-					uiBlockEndAlign(block);
-					
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 1, B_CONSTRAINT_TEST, "LinMaxX", xco+(width-(textButWidth-5)-togButWidth), yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use maximum x limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+(width-textButWidth-5), yco-offsetY, (textButWidth), 18, &(data->maxLimit[0]), -extremeLin, extremeLin, 0.1,0.5,"max x limit"); 
-					uiBlockEndAlign(block);
-					
-					offsetY += 20;
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 2, B_CONSTRAINT_TEST, "LinMinY", xco, yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use minimum y limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+togButWidth, yco-offsetY, (textButWidth-5), 18, &(data->minLimit[1]), -extremeLin, extremeLin, 0.1,0.5,"min y limit"); 
-					uiBlockEndAlign(block);
-					
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 2, B_CONSTRAINT_TEST, "LinMaxY", xco+(width-(textButWidth-5)-togButWidth), yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use maximum y limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+(width-textButWidth-5), yco-offsetY, (textButWidth), 18, &(data->maxLimit[1]), -extremeLin, extremeLin, 0.1,0.5,"max y limit"); 
-					uiBlockEndAlign(block);
-					
-					offsetY += 20;
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 4, B_CONSTRAINT_TEST, "LinMinZ", xco, yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use minimum z limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+togButWidth, yco-offsetY, (textButWidth-5), 18, &(data->minLimit[2]), -extremeLin, extremeLin, 0.1,0.5,"min z limit"); 
-					uiBlockEndAlign(block);
-					
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 4, B_CONSTRAINT_TEST, "LinMaxZ", xco+(width-(textButWidth-5)-togButWidth), yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use maximum z limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+(width-textButWidth-5), yco-offsetY, (textButWidth), 18, &(data->maxLimit[2]), -extremeLin, extremeLin, 0.1,0.5,"max z limit"); 
-					uiBlockEndAlign(block);
-					offsetY += 20;
-				}
-				if ((data->type==CONSTRAINT_RB_GENERIC6DOF) || (data->type==CONSTRAINT_RB_CONETWIST)) {
-					// Draw Pairs of LimitToggle+LimitValue /
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 8, B_CONSTRAINT_TEST, "AngMinX", xco, yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use minimum x limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+togButWidth, yco-offsetY, (textButWidth-5), 18, &(data->minLimit[3]), -extremeAngX, extremeAngX, 0.1,0.5,"min x limit"); 
-					uiBlockEndAlign(block);
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 8, B_CONSTRAINT_TEST, "AngMaxX", xco+(width-(textButWidth-5)-togButWidth), yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use maximum x limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+(width-textButWidth-5), yco-offsetY, (textButWidth), 18, &(data->maxLimit[3]), -extremeAngX, extremeAngX, 0.1,0.5,"max x limit"); 
-					uiBlockEndAlign(block);
-					
-					offsetY += 20;
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 16, B_CONSTRAINT_TEST, "AngMinY", xco, yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use minimum y limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+togButWidth, yco-offsetY, (textButWidth-5), 18, &(data->minLimit[4]), -extremeAngY, extremeAngY, 0.1,0.5,"min y limit"); 
-					uiBlockEndAlign(block);
-					
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 16, B_CONSTRAINT_TEST, "AngMaxY", xco+(width-(textButWidth-5)-togButWidth), yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use maximum y limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+(width-textButWidth-5), yco-offsetY, (textButWidth), 18, &(data->maxLimit[4]), -extremeAngY, extremeAngY, 0.1,0.5,"max y limit"); 
-					uiBlockEndAlign(block);
-					
-					offsetY += 20;
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 32, B_CONSTRAINT_TEST, "AngMinZ", xco, yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use minimum z limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+togButWidth, yco-offsetY, (textButWidth-5), 18, &(data->minLimit[5]), -extremeAngZ, extremeAngZ, 0.1,0.5,"min z limit"); 
-					uiBlockEndAlign(block);
-					
-					uiBlockBeginAlign(block); 
-						uiDefButBitS(block, TOG, 32, B_CONSTRAINT_TEST, "AngMaxZ", xco+(width-(textButWidth-5)-togButWidth), yco-offsetY, togButWidth, 18, &data->flag, 0, 24, 0, 0, "Use maximum z limit"); 
-						uiDefButF(block, NUM, B_CONSTRAINT_TEST, "", xco+(width-textButWidth-5), yco-offsetY, (textButWidth), 18, &(data->maxLimit[5]), -extremeAngZ, extremeAngZ, 0.1,0.5,"max z limit"); 
-					uiBlockEndAlign(block);
-				}
-				
-			}
-			break;
-			*/
+#endif 
 
 		case CONSTRAINT_TYPE_NULL:
 			{
@@ -1227,7 +1144,7 @@ void uiTemplatePreview(uiLayout *layout, ID *id, ID *parent)
 			uiDefIconButC(block, ROW, B_MATPRV, ICON_MATCUBE,   0, 0,UI_UNIT_X*1.5,UI_UNIT_Y, &(ma->pr_type), 10, MA_CUBE, 0, 0, "Preview type: Cube");
 			uiDefIconButC(block, ROW, B_MATPRV, ICON_MONKEY,    0, 0,UI_UNIT_X*1.5,UI_UNIT_Y, &(ma->pr_type), 10, MA_MONKEY, 0, 0, "Preview type: Monkey");
 			uiDefIconButC(block, ROW, B_MATPRV, ICON_HAIR,      0, 0,UI_UNIT_X*1.5,UI_UNIT_Y, &(ma->pr_type), 10, MA_HAIR, 0, 0, "Preview type: Hair strands");
-			uiDefIconButC(block, ROW, B_MATPRV, ICON_MATSPHERE, 0, 0,UI_UNIT_X*1.5,UI_UNIT_Y, &(ma->pr_type), 10, MA_SPHERE_A, 0, 0, "Preview type: Large sphere with sky");
+			uiDefIconButC(block, ROW, B_MATPRV, ICON_MAT_SPHERE_SKY, 0, 0,UI_UNIT_X*1.5,UI_UNIT_Y, &(ma->pr_type), 10, MA_SPHERE_A, 0, 0, "Preview type: Large sphere with sky");
 		}
 
 		if(pr_texture) {

@@ -146,8 +146,4 @@ void BLF_dir_free(char **dirs, int count);
 #define BLF_SHADOW (1<<2)
 #define BLF_KERNING_DEFAULT (1<<3)
 
-/* font->mode. */
-#define BLF_MODE_TEXTURE 0
-#define BLF_MODE_BITMAP 1
-
 #endif /* BLF_API_H */

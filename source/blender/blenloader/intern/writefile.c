@@ -130,6 +130,7 @@ Any case: direct data is ALWAYS after the lib block
 #include "DNA_sdna_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_sensor_types.h"
+#include "DNA_smoke_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sound_types.h"
@@ -1116,6 +1117,18 @@ static void write_modifiers(WriteData *wd, ListBase *modbase, int write_undo)
 			writestruct(wd, DATA, "ClothCollSettings", 1, clmd->coll_parms);
 			write_pointcaches(wd, clmd->point_cache, PTCACHE_WRITE_CLOTH);
 		} 
+		else if(md->type==eModifierType_Smoke) {
+			SmokeModifierData *smd = (SmokeModifierData*) md;
+			
+			if(smd->type==MOD_SMOKE_TYPE_DOMAIN)
+				writestruct(wd, DATA, "SmokeDomainSettings", 1, smd->domain);
+			else if(smd->type==MOD_SMOKE_TYPE_FLOW)
+				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);
+			/*
+			else if(smd->type==MOD_SMOKE_TYPE_COLL)
+				writestruct(wd, DATA, "SmokeCollSettings", 1, smd->coll);
+			*/
+		} 
 		else if(md->type==eModifierType_Fluidsim) {
 			FluidsimModifierData *fluidmd = (FluidsimModifierData*) md;
 			
@@ -1284,6 +1297,7 @@ static void write_mballs(WriteData *wd, ListBase *idbase)
 
 			/* direct data */
 			writedata(wd, DATA, sizeof(void *)*mb->totcol, mb->mat);
+			if (mb->adt) write_animdata(wd, mb->adt);
 
 			ml= mb->elems.first;
 			while(ml) {
@@ -2123,44 +2137,20 @@ static void write_texts(WriteData *wd, ListBase *idbase)
 static void write_sounds(WriteData *wd, ListBase *idbase)
 {
 	bSound *sound;
-	bSample *sample;
 
 	PackedFile * pf;
-
-	// set all samples to unsaved status
-
-	sample = samples->first; // samples is a global defined in sound.c
-	while (sample) {
-		sample->flags |= SAMPLE_NEEDS_SAVE;
-		sample = sample->id.next;
-	}
 
 	sound= idbase->first;
 	while(sound) {
 		if(sound->id.us>0 || wd->current) {
-			// do we need to save the packedfile as well ?
-			sample = sound->sample;
-			if (sample) {
-				if (sample->flags & SAMPLE_NEEDS_SAVE) {
-					sound->newpackedfile = sample->packedfile;
-					sample->flags &= ~SAMPLE_NEEDS_SAVE;
-				} else {
-					sound->newpackedfile = NULL;
-				}
-			}
-
 			/* write LibData */
 			writestruct(wd, ID_SO, "bSound", 1, sound);
 			if (sound->id.properties) IDP_WriteProperty(sound->id.properties, wd);
 
-			if (sound->newpackedfile) {
-				pf = sound->newpackedfile;
+			if (sound->packedfile) {
+				pf = sound->packedfile;
 				writestruct(wd, DATA, "PackedFile", 1, pf);
 				writedata(wd, DATA, pf->size, pf->data);
-			}
-
-			if (sample) {
-				sound->newpackedfile = sample->packedfile;
 			}
 		}
 		sound= sound->id.next;
