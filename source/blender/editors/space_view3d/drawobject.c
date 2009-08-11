@@ -1765,7 +1765,7 @@ static int draw_dm_faces_sel__setDrawOptions(void *userData, int index, int *dra
 static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned char *selCol, unsigned char *actCol, EditFace *efa_act) 
 {
 	struct { unsigned char *cols[3]; EditFace *efa_act; } data;
-	EditMeshDerivedMesh *emdm = (EditMeshDerivedMesh *)dm;
+	//EditMeshDerivedMesh *emdm = (EditMeshDerivedMesh *)dm;
 	EditFace *efa;
 	unsigned char *col;
 	unsigned char *colors;
@@ -1780,8 +1780,8 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 	data.efa_act = efa_act;
 
 
-	buffer = GPU_buffer_alloc( elemsize*emdm->em->totface*3*2, 0 );
-	if( (varray = GPU_buffer_lock_stream( buffer )) ) {
+	buffer = GPU_buffer_alloc( elemsize*dm->getNumFaces(dm)*3*2, 0 );
+	if( dm->getVertCos == 0 && (varray = GPU_buffer_lock_stream( buffer )) ) {
 		int prevdraw = 0;
 		int numfaces = 0;
 		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_N3F, GPU_BUFFER_INTER_C4UB, GPU_BUFFER_INTER_END };
@@ -1789,7 +1789,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 		GPU_interleaved_setup( buffer, datatype );
 		glShadeModel(GL_SMOOTH);
 		GPU_buffer_lock_stream( buffer );
-		for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
+		for (i=0,efa= efa_act; efa; i++,efa= efa->next) {
 			int drawSmooth = (efa->flag & ME_SMOOTH);
 			if (efa->h==0) {
 				if (efa == data.efa_act) {
@@ -1819,7 +1819,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 			if( draw != 0 ) {
 				if(!drawSmooth) {
-					if (emdm->vertexCos) {
+					/*if (emdm->vertexCos) {
 						VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v1->tmp.l]);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->faceNos[i]);
 
@@ -1829,7 +1829,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v3->tmp.l]);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->faceNos[i]);
 					}
-					else {
+					else {*/
 						VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v1->co);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->n);
 
@@ -1838,7 +1838,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v3->co);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->n);
-					}
+					/*}*/
 					if( draw == 2 ) {
 						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
 						QUATCOPY(&varray[elemsize*3*numfaces+elemsize+sizeof(float)*6],data.cols[2]);
@@ -1857,7 +1857,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 					numfaces++;
 					if( efa->v4 ) {
-						if (emdm->vertexCos) {
+						/*if (emdm->vertexCos) {
 							VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v3->tmp.l]);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->faceNos[i]);
 
@@ -1867,7 +1867,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v1->tmp.l]);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->faceNos[i]);
 						}
-						else {
+						else {*/
 							VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v3->co);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->n);
 
@@ -1876,7 +1876,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v1->co);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->n);
-						}
+						/*}*/
 
 						if( draw == 2 ) {
 							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
@@ -1898,7 +1898,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 					}
 				}
 				else {
-					if (emdm->vertexCos) {
+					/*if (emdm->vertexCos) {
 						VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v1->tmp.l]);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->vertexNos[(int) efa->v1->tmp.l]);
 
@@ -1908,7 +1908,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v3->tmp.l]);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->vertexNos[(int) efa->v3->tmp.l]);
 					}
-					else {
+					else {*/
 						VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v1->co);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->v1->no);
 
@@ -1917,7 +1917,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v3->co);
 						VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->v3->no);
-					}
+					/*}*/
 
 					if( draw == 2 ) {
 						QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);
@@ -1937,7 +1937,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 					numfaces++;
 					if( efa->v4 ) {
-						if (emdm->vertexCos) {
+						/*if (emdm->vertexCos) {
 							VECCOPY((float *)&varray[elemsize*3*numfaces],emdm->vertexCos[(int) efa->v3->tmp.l]);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],emdm->vertexNos[(int) efa->v1->tmp.l]);
 
@@ -1947,7 +1947,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],emdm->vertexCos[(int) efa->v1->tmp.l]);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],emdm->vertexNos[(int) efa->v3->tmp.l]);
 						}
-						else {
+						else {*/
 							VECCOPY((float *)&varray[elemsize*3*numfaces],efa->v3->co);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+sizeof(float)*3],efa->v3->no);
 
@@ -1956,7 +1956,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2],efa->v1->co);
 							VECCOPY((float *)&varray[elemsize*3*numfaces+elemsize*2+sizeof(float)*3],efa->v1->no);
-						}
+						/*}*/
 
 						if( draw == 2 ) {
 							QUATCOPY(&varray[elemsize*3*numfaces+sizeof(float)*6],data.cols[2]);

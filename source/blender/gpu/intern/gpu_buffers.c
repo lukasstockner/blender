@@ -363,6 +363,7 @@ void GPU_drawobject_free( DerivedMesh *dm )
 	GPU_buffer_free( object->uv, globalPool );
 	GPU_buffer_free( object->colors, globalPool );
 	GPU_buffer_free( object->edges, globalPool );
+	GPU_buffer_free( object->uvedges, globalPool );
 
 	MEM_freeN(object);
 	dm->drawObject = 0;
