@@ -848,6 +848,7 @@ void filelist_setfiletypes(struct FileList* filelist, short has_quicktime)
 				||	BLI_testextensie(file->relname, ".ac3")
 				||	BLI_testextensie(file->relname, ".aac")
 				||	BLI_testextensie(file->relname, ".flac")
+				||	BLI_testextensie(file->relname, ".wma")
 				||	BLI_testextensie(file->relname, ".eac3")) {
 				file->flags |= SOUNDFILE;
 			}
@@ -891,6 +892,7 @@ void filelist_setfiletypes(struct FileList* filelist, short has_quicktime)
 				||	BLI_testextensie(file->relname, ".ac3")
 				||	BLI_testextensie(file->relname, ".aac")
 				||	BLI_testextensie(file->relname, ".flac")
+				||	BLI_testextensie(file->relname, ".wma")
 				||	BLI_testextensie(file->relname, ".eac3")) {
 				file->flags |= SOUNDFILE;
 			}

@@ -198,6 +198,7 @@ def setup_syslibs(lenv):
 	if lenv['WITH_BF_LCMS']:
 		syslibs.append(lenv['BF_LCMS_LIB'])
 
+
 	syslibs += lenv['LLIBS']
 
 	return syslibs

@@ -35,7 +35,6 @@ SET(INC
   ../nodes ../../../extern/glew/include ../gpu ../makesrna ../../../intern/smoke/extern
   ../../../intern/bsp/extern
   ../../../intern/audaspace
-  ${SDL_INC}
   ${ZLIB_INC}
 )
 

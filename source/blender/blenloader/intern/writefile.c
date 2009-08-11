@@ -2140,8 +2140,6 @@ static void write_sounds(WriteData *wd, ListBase *idbase)
 
 	PackedFile * pf;
 
-	// set all samples to unsaved status
-
 	sound= idbase->first;
 	while(sound) {
 		if(sound->id.us>0 || wd->current) {

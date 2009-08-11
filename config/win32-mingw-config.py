@@ -21,7 +21,7 @@ BF_OPENAL_INC = '${BF_OPENAL}/include'
 BF_OPENAL_LIB = 'wrap_oal'
 BF_OPENAL_LIBPATH = '${BF_OPENAL}/lib'
 
-WITH_BF_FFMPEG = True
+WITH_BF_FFMPEG = False
 BF_FFMPEG_LIB = 'avformat swscale avcodec avutil avdevice xvidcore x264'
 BF_FFMPEG_LIBPATH = LIBDIR + '/gcc/ffmpeg/lib'
 BF_FFMPEG_INC =  LIBDIR + '/gcc/ffmpeg/include'

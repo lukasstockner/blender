@@ -14,7 +14,7 @@ BF_PYTHON_LIB_STATIC = '${BF_PYTHON}/lib/libpython${BF_PYTHON_VERSION}.a'
 WITH_BF_OPENAL = True
 WITH_BF_STATICOPENAL = False
 BF_OPENAL = '/usr'
-BF_OPENAL_INC = '${BF_OPENAL}/include/AL'
+BF_OPENAL_INC = '${BF_OPENAL}/include'
 BF_OPENAL_LIB = 'openal'
 BF_OPENAL_LIB_STATIC = '${BF_OPENAL}/lib/libopenal.a'
 
