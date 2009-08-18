@@ -21,15 +21,22 @@
 //////////////////////////////////////////////////////////////////////
 
 #include "FLUID_3D.h"
-
+#include <cstring>
 #define SOLVER_ACCURACY 1e-06
 
 void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 {
-	int x, y, z, index;
+	int x, y, z;
+	size_t index;
 
 	// i = 0
 	int i = 0;
+
+	memset(_residual, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_q, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_direction, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_h, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_Precond, 0, sizeof(float)*_xRes*_yRes*_zRes);
 
 	// r = b - Ax
 	index = _slabSize + _xRes + 1;
@@ -78,7 +85,7 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 			deltaNew += _residual[index] * _direction[index];
 
 	// delta0 = deltaNew
-	float delta0 = deltaNew;
+	// float delta0 = deltaNew;
 
   // While deltaNew > (eps^2) * delta0
   const float eps  = SOLVER_ACCURACY;
@@ -191,10 +198,15 @@ void FLUID_3D::solvePressurePre(float* field, float* b, unsigned char* skip)
 //////////////////////////////////////////////////////////////////////
 void FLUID_3D::solvePressure(float* field, float* b, unsigned char* skip)
 {
-  int x, y, z, index;
+	int x, y, z;
+	size_t index;
 
-  // i = 0
-  int i = 0;
+	// i = 0
+	int i = 0;
+
+	memset(_residual, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_q, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_direction, 0, sizeof(float)*_xRes*_yRes*_zRes);
 
   // r = b - Ax
   index = _slabSize + _xRes + 1;
@@ -338,11 +350,16 @@ void FLUID_3D::solvePressure(float* field, float* b, unsigned char* skip)
 //////////////////////////////////////////////////////////////////////
 void FLUID_3D::solveHeat(float* field, float* b, unsigned char* skip)
 {
-  int x, y, z, index;
-  const float heatConst = _dt * _heatDiffusion / (_dx * _dx);
+	int x, y, z;
+	size_t index;
+	const float heatConst = _dt * _heatDiffusion / (_dx * _dx);
 
-  // i = 0
-  int i = 0;
+	// i = 0
+	int i = 0;
+
+  	memset(_residual, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_q, 0, sizeof(float)*_xRes*_yRes*_zRes);
+	memset(_direction, 0, sizeof(float)*_xRes*_yRes*_zRes);
 
   // r = b - Ax
   index = _slabSize + _xRes + 1;

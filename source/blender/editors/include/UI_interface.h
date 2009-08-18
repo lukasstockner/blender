@@ -545,6 +545,7 @@ void autocomplete_vgroup(struct bContext *C, char *str, void *arg_v);
 
 struct rctf;
 void curvemap_buttons(uiBlock *block, struct CurveMapping *cumap, char labeltype, short event, short redraw, struct rctf *rect);
+void curvemap_layout(uiLayout *layout, struct CurveMapping *cumap, char labeltype, short event, short redraw, struct rctf *rect);
 void colorband_buttons(uiBlock *block, struct ColorBand *coba, struct rctf *rect, int small);
 
 
@@ -607,6 +608,7 @@ int uiLayoutGetEnabled(uiLayout *layout);
 int uiLayoutGetRedAlert(uiLayout *layout);
 int uiLayoutGetAlignment(uiLayout *layout);
 int uiLayoutGetKeepAspect(uiLayout *layout);
+int uiLayoutGetWidth(uiLayout *layout);
 float uiLayoutGetScaleX(uiLayout *layout);
 float uiLayoutGetScaleY(uiLayout *layout);
 ListBase *uiLayoutBoxGetList(uiLayout *layout);
@@ -623,20 +625,24 @@ uiLayout *uiLayoutSplit(uiLayout *layout, float percentage);
 uiBlock *uiLayoutFreeBlock(uiLayout *layout);
 
 /* templates */
-void uiTemplateHeader(uiLayout *layout, struct bContext *C);
+void uiTemplateHeader(uiLayout *layout, struct bContext *C, int menus);
 void uiTemplateID(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname,
 	char *newop, char *unlinkop);
 uiLayout *uiTemplateModifier(uiLayout *layout, struct PointerRNA *ptr);
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplatePreview(uiLayout *layout, struct ID *id, struct ID *parent);
 void uiTemplateColorRamp(uiLayout *layout, struct ColorBand *coba, int expand);
-void uiTemplateCurveMapping(uiLayout *layout, struct CurveMapping *cumap, int type);
+void uiTemplateCurveMapping(uiLayout *layout, struct CurveMapping *cumap, int type, int compact);
 void uiTemplateTriColorSet(uiLayout *layout, struct PointerRNA *ptr, char *propname);
 void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, char *propname);
 void uiTemplateImageLayers(uiLayout *layout, struct bContext *C, struct Image *ima, struct ImageUser *iuser);
 void uiTemplateRunningJobs(uiLayout *layout, struct bContext *C);
 void uiTemplateOperatorSearch(uiLayout *layout);
 void uiTemplateHeader3D(uiLayout *layout, struct bContext *C);
+void uiTemplate_view3d_select_metaballmenu(uiLayout *layout, struct bContext *C);
+void uiTemplate_view3d_select_armaturemenu(uiLayout *layout, struct bContext *C);
+void uiTemplate_view3d_select_posemenu(uiLayout *layout, struct bContext *C);
+void uiTemplate_view3d_select_faceselmenu(uiLayout *layout, struct bContext *C);
 void uiTemplateTextureImage(uiLayout *layout, struct bContext *C, struct Tex *tex);
 
 typedef struct uiListItem {

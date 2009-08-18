@@ -260,6 +260,7 @@ typedef struct bTheme {
 	ThemeSpace ttime;
 	ThemeSpace tnode;
 	ThemeSpace tlogic;
+	ThemeSpace tuserpref;	
 	
 	/* 20 sets of bone colors for this theme */
 	ThemeWireColor tarm[20];
@@ -415,7 +416,6 @@ extern UserDef U; /* from blenkernel blender.c */
 #define		AUTOKEY_FLAG_AUTOMATKEY		(1<<2)
 	/* toolsettings->autokey_flag */
 #define 	ANIMRECORD_FLAG_WITHNLA		(1<<10)
-
 
 /* transopts */
 #define	USER_TR_TOOLTIPS		(1 << 0)

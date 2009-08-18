@@ -2,12 +2,13 @@
 import bpy
 
 class TextureButtonsPanel(bpy.types.Panel):
-	__space_type__ = "BUTTONS_WINDOW"
+	__space_type__ = "PROPERTIES"
 	__region_type__ = "WINDOW"
 	__context__ = "texture"
 	
 	def poll(self, context):
-		return (context.texture and context.texture.type != 'NONE')
+		tex = context.texture
+		return (tex and (tex.type != 'NONE' or tex.use_nodes))
 		
 class TEXTURE_PT_preview(TextureButtonsPanel):
 	__label__ = "Preview"
@@ -31,7 +32,7 @@ class TEXTURE_PT_preview(TextureButtonsPanel):
 			layout.template_preview(tex, parent=br)
 		else:
 			layout.template_preview(tex)
-
+			
 class TEXTURE_PT_context_texture(TextureButtonsPanel):
 	__show_header__ = False
 
@@ -61,27 +62,62 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
 		elif tex:
 			split.template_ID(space, "pin_id")
 
-		if (not space.pin_id) and (	context.sculpt_object or \
-									context.vertex_paint_object or \
-									context.weight_paint_object or \
-									context.texture_paint_object \
-									):
+		if (not space.pin_id) and (
+			context.sculpt_object or
+			context.vertex_paint_object or
+			context.weight_paint_object or
+			context.texture_paint_object
+		):
 			split.itemR(space, "brush_texture", text="Brush", toggle=True)
-		
-		layout.itemS()
 
 		if tex:
+			layout.itemR(tex, "use_nodes")
+			
 			split = layout.split(percentage=0.2)
-		
-			split.itemL(text="Type:")
-			split.itemR(tex, "type", text="")
+			
+			if tex.use_nodes:
+				slot = context.texture_slot
+				split.itemL(text="Output:")
+				split.itemR(slot, "output_node", text="")
 
-class TEXTURE_PT_mapping(TextureButtonsPanel):
+			else:
+				split.itemL(text="Type:")
+				split.itemR(tex, "type", text="")
+			
+class TEXTURE_PT_colors(TextureButtonsPanel):
+	__label__ = "Colors"
+	__default_closed__ = True
+
+	def draw(self, context):
+		layout = self.layout
+		
+		tex = context.texture
+
+		layout.itemR(tex, "use_color_ramp", text="Ramp")
+		if tex.use_color_ramp:
+			layout.template_color_ramp(tex.color_ramp, expand=True)
+
+		split = layout.split()
+		
+		split.itemR(tex, "rgb_factor", text="Multiply RGB")
+
+		col = split.column()
+		col.itemL(text="Adjust:")
+		col.itemR(tex, "brightness")
+		col.itemR(tex, "contrast")
+			
+# Texture Slot Panels #
+			
+class TextureSlotPanel(TextureButtonsPanel):
+	def poll(self, context):
+		return (
+			context.texture_slot and 
+			TextureButtonsPanel.poll(self, context)
+		)
+				
+class TEXTURE_PT_mapping(TextureSlotPanel):
 	__label__ = "Mapping"
 	
-	def poll(self, context):
-		return (context.texture_slot and context.texture and context.texture.type != 'NONE')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -137,16 +173,24 @@ class TEXTURE_PT_mapping(TextureButtonsPanel):
 			row.itemR(tex, "y_mapping", text="")
 			row.itemR(tex, "z_mapping", text="")
 
-		row = layout.row()
-		row.column().itemR(tex, "offset")
-		row.column().itemR(tex, "size")
+		if br:
+			layout.itemR(tex, "brush_map_mode", expand=True)
+			
+			row = layout.row()
+			row.active = tex.brush_map_mode in ('FIXED', 'TILED')
+			row.itemR(tex, "angle")
 
-class TEXTURE_PT_influence(TextureButtonsPanel):
+			row = layout.row()
+			row.active = tex.brush_map_mode in ('TILED', '3D')
+			row.column().itemR(tex, "size")
+		else:
+			row = layout.row()
+			row.column().itemR(tex, "offset")
+			row.column().itemR(tex, "size")
+
+class TEXTURE_PT_influence(TextureSlotPanel):
 	__label__ = "Influence"
 	
-	def poll(self, context):
-		return (context.texture_slot and context.texture and context.texture.type != 'NONE' and (not context.brush))
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -226,36 +270,16 @@ class TEXTURE_PT_influence(TextureButtonsPanel):
 		if ma or wo:
 			col.itemR(tex, "default_value", text="DVar", slider=True)
 
-class TEXTURE_PT_colors(TextureButtonsPanel):
-	__label__ = "Colors"
-	__default_closed__ = True
-
-	def draw(self, context):
-		layout = self.layout
-		
-		tex = context.texture
-
-		layout.itemR(tex, "use_color_ramp", text="Ramp")
-		if tex.use_color_ramp:
-			layout.template_color_ramp(tex.color_ramp, expand=True)
-
-		split = layout.split()
-		
-		split.itemR(tex, "rgb_factor", text="Multiply RGB")
-
-		col = split.column()
-		col.itemL(text="Adjust:")
-		col.itemR(tex, "brightness")
-		col.itemR(tex, "contrast")
-		
 # Texture Type Panels #
 
-class TEXTURE_PT_clouds(TextureButtonsPanel):
-	__label__ = "Clouds"
-	
+class TextureTypePanel(TextureButtonsPanel):
 	def poll(self, context):
 		tex = context.texture
-		return (tex and tex.type == 'CLOUDS')
+		return (tex and tex.type == self.tex_type and not tex.use_nodes)
+
+class TEXTURE_PT_clouds(TextureTypePanel):
+	__label__ = "Clouds"
+	tex_type = 'CLOUDS'
 
 	def draw(self, context):
 		layout = self.layout
@@ -272,12 +296,9 @@ class TEXTURE_PT_clouds(TextureButtonsPanel):
 		flow.itemR(tex, "noise_depth", text="Depth")
 		flow.itemR(tex, "nabla", text="Nabla")
 
-class TEXTURE_PT_wood(TextureButtonsPanel):
+class TEXTURE_PT_wood(TextureTypePanel):
 	__label__ = "Wood"
-	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'WOOD')
+	tex_type = 'WOOD'
 
 	def draw(self, context):
 		layout = self.layout
@@ -299,13 +320,10 @@ class TEXTURE_PT_wood(TextureButtonsPanel):
 		flow.itemR(tex, "turbulence")
 		flow.itemR(tex, "nabla")
 		
-class TEXTURE_PT_marble(TextureButtonsPanel):
+class TEXTURE_PT_marble(TextureTypePanel):
 	__label__ = "Marble"
+	tex_type = 'MARBLE'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'MARBLE')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -323,13 +341,10 @@ class TEXTURE_PT_marble(TextureButtonsPanel):
 		flow.itemR(tex, "turbulence")
 		flow.itemR(tex, "nabla")
 
-class TEXTURE_PT_magic(TextureButtonsPanel):
+class TEXTURE_PT_magic(TextureTypePanel):
 	__label__ = "Magic"
+	tex_type = 'MAGIC'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'MAGIC')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -339,13 +354,10 @@ class TEXTURE_PT_magic(TextureButtonsPanel):
 		row.itemR(tex, "noise_depth", text="Depth")
 		row.itemR(tex, "turbulence")
 
-class TEXTURE_PT_blend(TextureButtonsPanel):
+class TEXTURE_PT_blend(TextureTypePanel):
 	__label__ = "Blend"
+	tex_type = 'BLEND'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'BLEND')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -354,13 +366,10 @@ class TEXTURE_PT_blend(TextureButtonsPanel):
 		layout.itemR(tex, "progression")
 		layout.itemR(tex, "flip_axis")
 			
-class TEXTURE_PT_stucci(TextureButtonsPanel):
+class TEXTURE_PT_stucci(TextureTypePanel):
 	__label__ = "Stucci"
+	tex_type = 'STUCCI'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'STUCCI')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -375,13 +384,10 @@ class TEXTURE_PT_stucci(TextureButtonsPanel):
 		row.itemR(tex, "noise_size", text="Size")
 		row.itemR(tex, "turbulence")
 		
-class TEXTURE_PT_image(TextureButtonsPanel):
+class TEXTURE_PT_image(TextureTypePanel):
 	__label__ = "Image"
+	tex_type = 'IMAGE'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'IMAGE')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -389,14 +395,11 @@ class TEXTURE_PT_image(TextureButtonsPanel):
 
 		layout.template_texture_image(tex)
 
-class TEXTURE_PT_image_sampling(TextureButtonsPanel):
+class TEXTURE_PT_image_sampling(TextureTypePanel):
 	__label__ = "Image Sampling"
 	__default_closed__ = True
+	tex_type = 'IMAGE'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'IMAGE')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -440,14 +443,11 @@ class TEXTURE_PT_image_sampling(TextureButtonsPanel):
 			else:
 				col.itemR(tex, "filter_eccentricity", text="Eccentricity")
 
-class TEXTURE_PT_image_mapping(TextureButtonsPanel):
+class TEXTURE_PT_image_mapping(TextureTypePanel):
 	__label__ = "Image Mapping"
 	__default_closed__ = True
+	tex_type = 'IMAGE'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'IMAGE')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -490,13 +490,10 @@ class TEXTURE_PT_image_mapping(TextureButtonsPanel):
 		col.itemR(tex, "crop_max_x", text="X")
 		col.itemR(tex, "crop_max_y", text="Y")
 	
-class TEXTURE_PT_plugin(TextureButtonsPanel):
+class TEXTURE_PT_plugin(TextureTypePanel):
 	__label__ = "Plugin"
+	tex_type = 'PLUGIN'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'PLUGIN')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -504,13 +501,10 @@ class TEXTURE_PT_plugin(TextureButtonsPanel):
 		
 		layout.itemL(text="Nothing yet")
 		
-class TEXTURE_PT_envmap(TextureButtonsPanel):
+class TEXTURE_PT_envmap(TextureTypePanel):
 	__label__ = "Environment Map"
+	tex_type = 'ENVIRONMENT_MAP'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'ENVIRONMENT_MAP')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -518,13 +512,10 @@ class TEXTURE_PT_envmap(TextureButtonsPanel):
 		
 		layout.itemL(text="Nothing yet")
 		
-class TEXTURE_PT_musgrave(TextureButtonsPanel):
+class TEXTURE_PT_musgrave(TextureTypePanel):
 	__label__ = "Musgrave"
+	tex_type = 'MUSGRAVE'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'MUSGRAVE')
-
 	def draw(self, context):
 		layout = self.layout
 		
@@ -554,12 +545,9 @@ class TEXTURE_PT_musgrave(TextureButtonsPanel):
 		row.itemR(tex, "noise_size", text="Size")
 		row.itemR(tex, "nabla")
 
-class TEXTURE_PT_voronoi(TextureButtonsPanel):
+class TEXTURE_PT_voronoi(TextureTypePanel):
 	__label__ = "Voronoi"
-	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'VORONOI')
+	tex_type = 'VORONOI'
 
 	def draw(self, context):
 		layout = self.layout
@@ -591,13 +579,10 @@ class TEXTURE_PT_voronoi(TextureButtonsPanel):
 		row.itemR(tex, "noise_size", text="Size")
 		row.itemR(tex, "nabla")
 			
-class TEXTURE_PT_distortednoise(TextureButtonsPanel):
+class TEXTURE_PT_distortednoise(TextureTypePanel):
 	__label__ = "Distorted Noise"
+	tex_type = 'DISTORTED_NOISE'
 	
-	def poll(self, context):
-		tex = context.texture
-		return (tex and tex.type == 'DISTORTED_NOISE')
-
 	def draw(self, context):
 		layout = self.layout
 		

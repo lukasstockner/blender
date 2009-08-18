@@ -1366,7 +1366,7 @@ void IDP_LibLinkProperty(IDProperty *prop, int switch_endian, FileData *fd);
 
 static void IDP_DirectLinkIDPArray(IDProperty *prop, int switch_endian, FileData *fd)
 {
-	IDProperty **array;
+	IDProperty *array;
 	int i;
 
 	/*since we didn't save the extra buffer, set totallen to len.*/
@@ -1374,11 +1374,10 @@ static void IDP_DirectLinkIDPArray(IDProperty *prop, int switch_endian, FileData
 	prop->data.pointer = newdataadr(fd, prop->data.pointer);
 
 	if (switch_endian) {
-		test_pointer_array(fd, prop->data.pointer);
-		array= (IDProperty**) prop->data.pointer;
+		array= (IDProperty*) prop->data.pointer;
 
 		for(i=0; i<prop->len; i++)
-			IDP_DirectLinkProperty(array[i], switch_endian, fd);
+			IDP_DirectLinkProperty(&array[i], switch_endian, fd);
 	}
 }
 
@@ -2929,19 +2928,47 @@ static void direct_link_pointcache(FileData *fd, PointCache *cache)
 {
 	if((cache->flag & PTCACHE_DISK_CACHE)==0) {
 		PTCacheMem *pm;
+		int i;
 
 		link_list(fd, &cache->mem_cache);
 
 		pm = cache->mem_cache.first;
 
-		for(; pm; pm=pm->next)
-			pm->data = newdataadr(fd, pm->data);
+		for(; pm; pm=pm->next) {
+			if(pm->index_array)
+				pm->index_array = newdataadr(fd, pm->index_array);
+			
+			for(i=0; i<BPHYS_TOT_DATA; i++) {
+				if(pm->data[i] && pm->data_types & (1<<i))
+					pm->data[i] = newdataadr(fd, pm->data[i]);
+			}
+		}
 	}
 	else
 		cache->mem_cache.first = cache->mem_cache.last = NULL;
 
 	cache->flag &= ~(PTCACHE_SIMULATION_VALID|PTCACHE_BAKE_EDIT_ACTIVE);
 	cache->simframe= 0;
+}
+
+static void direct_link_pointcache_list(FileData *fd, ListBase *ptcaches, PointCache **ocache)
+{
+	PointCache *cache;
+
+	if(ptcaches->first) {
+		link_list(fd, ptcaches);
+		for(cache=ptcaches->first; cache; cache=cache->next)
+			direct_link_pointcache(fd, cache);
+
+		*ocache = newdataadr(fd, *ocache);
+	}
+	else if(*ocache) {
+		/* old "single" caches need to be linked too */
+		*ocache = newdataadr(fd, *ocache);
+		direct_link_pointcache(fd, *ocache);
+
+		ptcaches->first = ptcaches->last = *ocache;
+	}
 }
 
 static void lib_link_particlesettings(FileData *fd, Main *main)
@@ -3089,9 +3116,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			sb->bspring= NULL;
 			sb->scratch= NULL;
 
-			sb->pointcache= newdataadr(fd, sb->pointcache);
-			if(sb->pointcache)
-				direct_link_pointcache(fd, sb->pointcache);
+			direct_link_pointcache_list(fd, &sb->ptcaches, &sb->pointcache);
 		}
 
 		link_list(fd, &psys->targets);
@@ -3104,9 +3129,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->childcachebufs.first = psys->childcachebufs.last = 0;
 		psys->reactevents.first = psys->reactevents.last = 0;
 
-		psys->pointcache= newdataadr(fd, psys->pointcache);
-		if(psys->pointcache)
-			direct_link_pointcache(fd, psys->pointcache);
+		direct_link_pointcache_list(fd, &psys->ptcaches, &psys->pointcache);
 
 		psys->tree = NULL;
 	}
@@ -3406,7 +3429,7 @@ static void lib_link_object(FileData *fd, Main *main)
 				if(ob->pose) {
 					free_pose(ob->pose);
 					ob->pose= NULL;
-					ob->flag &= ~OB_POSEMODE;
+					ob->mode &= ~OB_MODE_POSE;
 				}
 			}
 			for(a=0; a<ob->totcol; a++) ob->mat[a]= newlibadr_us(fd, ob->id.lib, ob->mat[a]);
@@ -3466,9 +3489,6 @@ static void lib_link_object(FileData *fd, Main *main)
 				if(act->type==ACT_SOUND) {
 					bSoundActuator *sa= act->data;
 					sa->sound= newlibadr_us(fd, ob->id.lib, sa->sound);
-				}
-				else if(act->type==ACT_CD) {
-					/* bCDActuator *cda= act->data; */
 				}
 				else if(act->type==ACT_GAME) {
 					/* bGameActuator *ga= act->data; */
@@ -3631,10 +3651,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			
 			clmd->sim_parms= newdataadr(fd, clmd->sim_parms);
 			clmd->coll_parms= newdataadr(fd, clmd->coll_parms);
-			clmd->point_cache= newdataadr(fd, clmd->point_cache);
 
-			if(clmd->point_cache)
-				direct_link_pointcache(fd, clmd->point_cache);
+			direct_link_pointcache_list(fd, &clmd->ptcaches, &clmd->point_cache);
 			
 			if(clmd->sim_parms) {
 				if(clmd->sim_parms->presets > 10)
@@ -3889,9 +3907,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 			}
 		}
 
-		sb->pointcache= newdataadr(fd, sb->pointcache);
-		if(sb->pointcache)
-			direct_link_pointcache(fd, sb->pointcache);
+		direct_link_pointcache_list(fd, &sb->ptcaches, &sb->pointcache);
 	}
 	ob->bsoft= newdataadr(fd, ob->bsoft);
 	ob->fluidsimSettings= newdataadr(fd, ob->fluidsimSettings); /* NT */
@@ -3977,6 +3993,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	ob->derivedDeform= NULL;
 	ob->derivedFinal= NULL;
 	ob->gpulamp.first= ob->gpulamp.last= NULL;
+
+	if(ob->sculpt)
+		ob->sculpt= MEM_callocN(sizeof(SculptSession), "reload sculpt session");
 }
 
 /* ************ READ SCENE ***************** */
@@ -3991,6 +4010,14 @@ static void composite_patch(bNodeTree *ntree, Scene *scene)
 			node->id= &scene->id;
 }
 
+static void link_paint(FileData *fd, Scene *sce, Paint *p)
+{
+	if(p && p->brushes) {
+		int i;
+		for(i = 0; i < p->brush_count; ++i)
+			p->brushes[i]= newlibadr_us(fd, sce->id.lib, p->brushes[i]);
+	}
+}
 
 static void lib_link_scene(FileData *fd, Main *main)
 {
@@ -4014,18 +4041,11 @@ static void lib_link_scene(FileData *fd, Main *main)
 			sce->set= newlibadr(fd, sce->id.lib, sce->set);
 			sce->ima= newlibadr_us(fd, sce->id.lib, sce->ima);
 			
-			sce->toolsettings->imapaint.brush=
-				newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.brush);
-			if(sce->toolsettings->sculpt)
-				sce->toolsettings->sculpt->brush=
-					newlibadr_us(fd, sce->id.lib, sce->toolsettings->sculpt->brush);
-			if(sce->toolsettings->vpaint)
-				sce->toolsettings->vpaint->brush=
-					newlibadr_us(fd, sce->id.lib, sce->toolsettings->vpaint->brush);
-			if(sce->toolsettings->wpaint)
-				sce->toolsettings->wpaint->brush=
-					newlibadr_us(fd, sce->id.lib, sce->toolsettings->wpaint->brush);
-			
+			link_paint(fd, sce, &sce->toolsettings->sculpt->paint);
+			link_paint(fd, sce, &sce->toolsettings->vpaint->paint);
+			link_paint(fd, sce, &sce->toolsettings->wpaint->paint);
+			link_paint(fd, sce, &sce->toolsettings->imapaint.paint);
+
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 
 			for(base= sce->base.first; base; base= next) {
@@ -4098,6 +4118,13 @@ static void link_recurs_seq(FileData *fd, ListBase *lb)
 			link_recurs_seq(fd, &seq->seqbase);
 }
 
+static void direct_link_paint(FileData *fd, Paint **paint)
+{
+	(*paint)= newdataadr(fd, (*paint));
+	if(*paint)
+		(*paint)->brushes= newdataadr(fd, (*paint)->brushes);
+}
+
 static void direct_link_scene(FileData *fd, Scene *sce)
 {
 	Editing *ed;
@@ -4125,14 +4152,14 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	
 	sce->toolsettings= newdataadr(fd, sce->toolsettings);
 	if(sce->toolsettings) {
-		sce->toolsettings->vpaint= newdataadr(fd, sce->toolsettings->vpaint);
-		sce->toolsettings->wpaint= newdataadr(fd, sce->toolsettings->wpaint);
-		sce->toolsettings->sculpt= newdataadr(fd, sce->toolsettings->sculpt);
+		direct_link_paint(fd, (Paint**)&sce->toolsettings->sculpt);
+		direct_link_paint(fd, (Paint**)&sce->toolsettings->vpaint);
+		direct_link_paint(fd, (Paint**)&sce->toolsettings->wpaint);
+
+		sce->toolsettings->imapaint.paint.brushes= newdataadr(fd, sce->toolsettings->imapaint.paint.brushes);
+
 		sce->toolsettings->imapaint.paintcursor= NULL;
 		sce->toolsettings->particle.paintcursor= NULL;
-
-		if(sce->toolsettings->sculpt)
-			sce->toolsettings->sculpt->session= MEM_callocN(sizeof(SculptSession), "reload sculpt session");
 	}
 
 	if(sce->ed) {
@@ -5030,7 +5057,6 @@ static void fix_relpaths_library(const char *basepath, Main *main)
 
 static void direct_link_sound(FileData *fd, bSound *sound)
 {
-	sound->sample = NULL;
 	sound->snd_sound = NULL;
 
 	sound->packedfile = direct_link_packedfile(fd, sound->packedfile);
@@ -5319,6 +5345,9 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	bfd->curscene= fg->curscene;
 	
 	MEM_freeN(fg);
+
+	fd->globalf= bfd->globalf;
+	fd->fileflags= bfd->fileflags;
 	
 	return blo_nextbhead(fd, bhead);
 }
@@ -5710,7 +5739,7 @@ static void alphasort_version_246(FileData *fd, Library *lib, Mesh *me)
 				tf = ((MTFace*)me->fdata.layers[b].data) + a;
 
 				tf->mode &= ~TF_ALPHASORT;
-				if(ma && (ma->mode & MA_ZTRA))
+				if(ma && (ma->mode & MA_ZTRANSP))
 					if(ELEM(tf->transp, TF_ALPHA, TF_ADD) || (texalpha && (tf->transp != TF_CLIP)))
 						tf->mode |= TF_ALPHASORT;
 			}
@@ -8305,20 +8334,20 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		/* add point caches */
 		for(ob=main->object.first; ob; ob=ob->id.next) {
 			if(ob->soft && !ob->soft->pointcache)
-				ob->soft->pointcache= BKE_ptcache_add();
+				ob->soft->pointcache= BKE_ptcache_add(&ob->soft->ptcaches);
 
 			for(psys=ob->particlesystem.first; psys; psys=psys->next) {
 				if(psys->soft && !psys->soft->pointcache)
-					psys->soft->pointcache= BKE_ptcache_add();
+					psys->soft->pointcache= BKE_ptcache_add(&psys->soft->ptcaches);
 				if(!psys->pointcache)
-					psys->pointcache= BKE_ptcache_add();
+					psys->pointcache= BKE_ptcache_add(&psys->ptcaches);
 			}
 
 			for(md=ob->modifiers.first; md; md=md->next) {
 				if(md->type==eModifierType_Cloth) {
 					ClothModifierData *clmd = (ClothModifierData*) md;
 					if(!clmd->point_cache)
-						clmd->point_cache= BKE_ptcache_add();
+						clmd->point_cache= BKE_ptcache_add(&clmd->ptcaches);
 				}
 			}
 		}
@@ -8606,7 +8635,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 				/* create new particle system */
 				psys = MEM_callocN(sizeof(ParticleSystem), "particle_system");
-				psys->pointcache = BKE_ptcache_add();
+				psys->pointcache = BKE_ptcache_add(&psys->ptcaches);
 
 				part = psys->part = psys_new_settings("ParticleSettings", main);
 				
@@ -9192,8 +9221,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Tex *tx;
 		ParticleSettings *part;
 		Object *ob;
-		PTCacheID *pid;
-		ListBase pidlist;
+		//PTCacheID *pid;
+		//ListBase pidlist;
 
 		bSound *sound;
 		Sequence *seq;
@@ -9327,30 +9356,34 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		/* set old pointcaches to have disk cache flag */
 		for(ob = main->object.first; ob; ob= ob->id.next) {
 
-			BKE_ptcache_ids_from_object(&pidlist, ob);
+			//BKE_ptcache_ids_from_object(&pidlist, ob);
 
-			for(pid=pidlist.first; pid; pid=pid->next)
-				pid->cache->flag |= PTCACHE_DISK_CACHE;
+			//for(pid=pidlist.first; pid; pid=pid->next)
+			//	pid->cache->flag |= PTCACHE_DISK_CACHE;
 
-			BLI_freelistN(&pidlist);
+			//BLI_freelistN(&pidlist);
 		}
 	}
 
 	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 1)) {
-	}
-
-	/* TODO: should be moved into one of the version blocks once this branch moves to trunk and we can
-	   bump the version (or sub-version.) */
-	{
-		World *wo;
 		Object *ob;
 		Material *ma;
 		Tex *tex;
 		Scene *sce;
 		ToolSettings *ts;
+		//PTCacheID *pid;
+		//ListBase pidlist;
 		int i, a;
 
 		for(ob = main->object.first; ob; ob = ob->id.next) {
+			//BKE_ptcache_ids_from_object(&pidlist, ob);
+
+			//for(pid=pidlist.first; pid; pid=pid->next) {
+			//	if(pid->ptcaches->first == NULL)
+			//		pid->ptcaches->first = pid->ptcaches->last = pid->cache;
+			//}
+
+			//BLI_freelistN(&pidlist);
 
 			if(ob->type == OB_MESH) {
 				Mesh *me = newlibadr(fd, lib, ob->data);
@@ -9438,6 +9471,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				ma->mode &= ~MA_HALO;
 			}
 
+			if(ma->mode & (MA_ZTRANSP|MA_RAYTRANSP)) {
+				ma->mode |= MA_TRANSP;
+			}
+			else {
+				ma->mode |= MA_ZTRANSP;
+				ma->mode &= ~MA_TRANSP;
+			}
+
 			/* set new bump for unused slots */
 			for(a=0; a<MAX_MTEX; a++) {
 				if(ma->mtex[a]) {
@@ -9520,6 +9561,46 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			sce->gm.physubstep = 1;
 			sce->gm.maxphystep = 5;
 		}
+	}
+
+	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 2)) {
+		Scene *sce;
+
+		for(sce = main->scene.first; sce; sce = sce->id.next) {
+			if(fd->fileflags & G_FILE_ENABLE_ALL_FRAMES)
+				sce->gm.flag |= GAME_ENABLE_ALL_FRAMES;
+			if(fd->fileflags & G_FILE_SHOW_DEBUG_PROPS)
+				sce->gm.flag |= GAME_SHOW_DEBUG_PROPS;
+			if(fd->fileflags & G_FILE_SHOW_FRAMERATE)
+				sce->gm.flag |= GAME_SHOW_FRAMERATE;
+			if(fd->fileflags & G_FILE_SHOW_PHYSICS)
+				sce->gm.flag |= GAME_SHOW_PHYSICS;
+			if(fd->fileflags & G_FILE_GLSL_NO_SHADOWS)
+				sce->gm.flag |= GAME_GLSL_NO_SHADOWS;
+			if(fd->fileflags & G_FILE_GLSL_NO_SHADERS)
+				sce->gm.flag |= GAME_GLSL_NO_SHADERS;
+			if(fd->fileflags & G_FILE_GLSL_NO_RAMPS)
+				sce->gm.flag |= GAME_GLSL_NO_RAMPS;
+			if(fd->fileflags & G_FILE_GLSL_NO_NODES)
+				sce->gm.flag |= GAME_GLSL_NO_NODES;
+			if(fd->fileflags & G_FILE_GLSL_NO_EXTRA_TEX)
+				sce->gm.flag |= GAME_GLSL_NO_EXTRA_TEX;
+			if(fd->fileflags & G_FILE_IGNORE_DEPRECATION_WARNINGS)
+				sce->gm.flag |= GAME_IGNORE_DEPRECATION_WARNINGS;
+
+			if(fd->fileflags & G_FILE_GAME_MAT_GLSL)
+				sce->gm.matmode= GAME_MAT_GLSL;
+			else if(fd->fileflags & G_FILE_GAME_MAT)
+				sce->gm.matmode= GAME_MAT_MULTITEX;
+			else
+				sce->gm.matmode= GAME_MAT_TEXFACE;
+
+			sce->gm.flag |= GAME_DISPLAY_LISTS;
+		}
+	}
+
+	/* put 2.50 compatibility code here until next subversion bump */
+	{
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

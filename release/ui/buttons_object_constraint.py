@@ -2,7 +2,7 @@
 import bpy
 
 class ConstraintButtonsPanel(bpy.types.Panel):
-	__space_type__ = "BUTTONS_WINDOW"
+	__space_type__ = "PROPERTIES"
 	__region_type__ = "WINDOW"
 	__context__ = "constraint"
 
@@ -94,21 +94,29 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 		self.target_template(layout, con)
 		
 		layout.itemR(con, "pole_target")
+	
 		if con.pole_target and con.pole_target.type == 'ARMATURE':
 			layout.item_pointerR(con, "pole_subtarget", con.pole_target.data, "bones", text="Bone")
 		
-		flow = layout.column_flow()
-		flow.itemR(con, "iterations")
-		flow.itemR(con, "pole_angle")
-		flow.itemR(con, "weight")
-		flow.itemR(con, "orient_weight")
-		flow.itemR(con, "chain_length")
+		split = layout.split()
+	
+		col = split.column()
+		col.itemR(con, "iterations")
+		col.itemR(con, "chain_length")
+		sub = col.column()
+		sub.active = con.pole_target
+		sub.itemR(con, "pole_angle")
+		col.itemL(text="Weight:")
+		col.itemR(con, "weight", text="Position", slider=True)
+		sub = col.column()
+		sub.active = con.rotation
+		sub.itemR(con, "orient_weight", text="Rotation", slider=True)
 		
-		flow = layout.column_flow()
-		flow.itemR(con, "tail")
-		flow.itemR(con, "rotation")
-		flow.itemR(con, "targetless")
-		flow.itemR(con, "stretch")
+		col = split.column()
+		col.itemR(con, "tail")
+		col.itemR(con, "rotation")
+		col.itemR(con, "targetless")
+		col.itemR(con, "stretch")
 		
 	def FOLLOW_PATH(self, layout, con):
 		self.target_template(layout, con)
@@ -353,9 +361,9 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 	def STRETCH_TO(self, layout, con):
 		self.target_template(layout, con)
 		
-		col = layout.column(align=True)
-		col.itemR(con, "original_length", text="Rest Length")
-		col.itemO("constraint.stretchto_reset")
+		row = layout.row()
+		row.itemR(con, "original_length", text="Rest Length")
+		row.itemO("constraint.stretchto_reset", text="Reset")
 		
 		col = layout.column()
 		col.itemR(con, "bulge", text="Volume Variation")
@@ -387,19 +395,21 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 		
 		row = layout.row()
 		row.itemR(con, "disable_linked_collision", text="No Collision")
-		row.itemR(con, "draw_pivot")
+		row.itemR(con, "draw_pivot", text="Display Pivot")
 		
 		split = layout.split()
 		
-		col = split.column()
-		col.itemR(con, "pivot_x")
-		col.itemR(con, "pivot_y")
-		col.itemR(con, "pivot_z")
+		col = split.column(align=True)
+		col.itemL(text="Pivot:")
+		col.itemR(con, "pivot_x", text="X")
+		col.itemR(con, "pivot_y", text="Y")
+		col.itemR(con, "pivot_z", text="Z")
 		
-		col = split.column()
-		col.itemR(con, "axis_x")
-		col.itemR(con, "axis_y")
-		col.itemR(con, "axis_z")
+		col = split.column(align=True)
+		col.itemL(text="Axis:")
+		col.itemR(con, "axis_x", text="X")
+		col.itemR(con, "axis_y", text="Y")
+		col.itemR(con, "axis_z", text="Z")
 		
 		#Missing: Limit arrays (not wrapped in RNA yet) 
 	

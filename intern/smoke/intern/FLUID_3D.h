@@ -37,7 +37,7 @@ class WTURBULENCE;
 class FLUID_3D  
 {
 	public:
-		FLUID_3D(int *res, int amplify, float *p0, float dt);
+		FLUID_3D(int *res, /* int amplify, */ float *p0, float dt);
 		FLUID_3D() {};
 		virtual ~FLUID_3D();
 
@@ -161,13 +161,13 @@ class FLUID_3D
 		static void advectFieldSemiLagrange(const float dt, const float* velx, const float* vely,  const float* velz,
 				float* oldField, float* newField, Vec3Int res);
 		static void advectFieldMacCormack(const float dt, const float* xVelocity, const float* yVelocity, const float* zVelocity, 
-				float* oldField, float* newField, float* temp1, float* temp2, Vec3Int res, const float* obstacles);
+				float* oldField, float* newField, float* temp1, float* temp2, Vec3Int res, const unsigned char* obstacles);
 
 		// maccormack helper functions
 		static void clampExtrema(const float dt, const float* xVelocity, const float* yVelocity,  const float* zVelocity,
 				float* oldField, float* newField, Vec3Int res);
 		static void clampOutsideRays(const float dt, const float* xVelocity, const float* yVelocity,  const float* zVelocity,
-				float* oldField, float* newField, Vec3Int res, const float* obstacles, const float *oldAdvection);
+				float* oldField, float* newField, Vec3Int res, const unsigned char* obstacles, const float *oldAdvection);
 
 		// output helper functions
 		// static void writeImageSliceXY(const float *field, Vec3Int res, int slice, string prefix, int picCnt, float scale=1.);

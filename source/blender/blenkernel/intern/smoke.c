@@ -1,5 +1,5 @@
 /**
- * BKE_cloth.h
+ * smoke.c
  *
  * $Id$
  *
@@ -207,7 +207,7 @@ int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene, Derive
 		// printf("res[0]: %d, res[1]: %d, res[2]: %d\n", smd->domain->res[0], smd->domain->res[1], smd->domain->res[2]);
 
 		// dt max is 0.1
-		smd->domain->fluid = smoke_init(smd->domain->res, 0, smd->domain->p0, smd->domain->p1, 2.5 / FPS);
+		smd->domain->fluid = smoke_init(smd->domain->res, smd->domain->p0, 0.1);
 		smd->domain->wt = smoke_turbulence_init(smd->domain->res,  (smd->domain->flags & MOD_SMOKE_HIGHRES) ? (smd->domain->amplify + 1) : 0, smd->domain->noise);
 		smd->time = scene->r.cfra;
 		smd->domain->firstframe = smd->time;
@@ -228,6 +228,17 @@ int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene, Derive
 
 		// update particle lifetime to be one frame
 		// smd->flow->psys->part->lifetime = scene->r.efra + 1;
+/*
+		if(!smd->flow->bvh)
+		{
+			// smd->flow->bvh = MEM_callocN(sizeof(BVHTreeFromMesh), "smoke_bvhfromfaces");
+			// bvhtree_from_mesh_faces(smd->flow->bvh, dm, 0.0, 2, 6);
+
+			// copy obmat
+			// Mat4CpyMat4(smd->flow->mat, ob->obmat);
+			// Mat4CpyMat4(smd->flow->mat_old, ob->obmat);
+		}
+*/
 
 		return 1;
 	}
@@ -249,7 +260,7 @@ int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene, Derive
 			int *tridivs = NULL;
 			float cell_len = 1.0 / 50.0; // for res = 50
 			size_t newdivs = 0;
-			size_t max_points = 0;
+			//size_t max_points = 0;
 			size_t quads = 0, facecounter = 0;
 
 			// copy obmat
@@ -291,7 +302,7 @@ int smokeModifier_init (SmokeModifierData *smd, Object *ob, Scene *scene, Derive
 					size_t j, k;
 					int divs1 = tridivs[3 * facecounter + 0];
 					int divs2 = tridivs[3 * facecounter + 1];
-					int divs3 = tridivs[3 * facecounter + 2];
+					//int divs3 = tridivs[3 * facecounter + 2];
 					float side1[3], side2[3], trinormorg[3], trinorm[3];
 					
 					if(again == 1 && mface[i].v4)
@@ -527,6 +538,14 @@ void smokeModifier_freeFlow(SmokeModifierData *smd)
 {
 	if(smd->flow)
 	{
+/*
+		if(smd->flow->bvh)
+		{
+			free_bvhtree_from_mesh(smd->flow->bvh);
+			MEM_freeN(smd->flow->bvh);
+		}
+		smd->flow->bvh = NULL;
+*/
 		MEM_freeN(smd->flow);
 		smd->flow = NULL;
 	}
@@ -604,7 +623,14 @@ void smokeModifier_reset(struct SmokeModifierData *smd)
 		}
 		else if(smd->flow)
 		{
-						
+			/*
+			if(smd->flow->bvh)
+			{
+				free_bvhtree_from_mesh(smd->flow->bvh);
+				MEM_freeN(smd->flow->bvh);
+			}
+			smd->flow->bvh = NULL;
+			*/
 		}
 		else if(smd->coll)
 		{
@@ -662,10 +688,11 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 			smd->domain->omega = 1.0;
 			smd->domain->alpha = -0.001;
 			smd->domain->beta = 0.1;
-			smd->domain->flags = 0;
+			smd->domain->flags = MOD_SMOKE_DISSOLVE_LOG;
 			smd->domain->strength = 2.0;
 			smd->domain->noise = MOD_SMOKE_NOISEWAVE;
 			smd->domain->visibility = 1;
+			smd->domain->diss_speed = 5;
 
 			// init 3dview buffer
 			smd->domain->tvox = NULL;
@@ -722,6 +749,12 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		{
 			// XXX TODO
 			smd->time = scene->r.cfra;
+
+			// rigid movement support
+			/*
+			Mat4CpyMat4(smd->flow->mat_old, smd->flow->mat);
+			Mat4CpyMat4(smd->flow->mat, ob->obmat);
+			*/
 		}
 		else if(scene->r.cfra < smd->time)
 		{
@@ -759,9 +792,16 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		{
 			GroupObject *go = NULL;
 			Base *base = NULL;
-			int cnt_domain = 0;
 			
 			tstart();
+			
+			if(sds->flags & MOD_SMOKE_DISSOLVE)
+			{
+				smoke_dissolve(sds->fluid, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
+				
+				if(sds->wt)
+					smoke_dissolve_wavelet(sds->wt, sds->diss_speed, sds->flags & MOD_SMOKE_DISSOLVE_LOG);
+			}
 
 			/* reset view for new frame */
 			if(sds->viewsettings < MOD_SMOKE_VIEW_USEBIG)
@@ -769,34 +809,13 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			else
 				sds->viewsettings = MOD_SMOKE_VIEW_USEBIG;
 
-			/* check for 2nd domain, if not there -> no groups are necessary */
-			for(base = scene->base.first; base; base= base->next) 
-			{
-				Object *ob1= base->object;
-				
-				if(ob1 && ob1 != ob)
-				{
-					ModifierData *tmd = modifiers_findByType(ob1, eModifierType_Smoke);
-
-					if(tmd && tmd->mode & (eModifierMode_Realtime | eModifierMode_Render))
-					{
-						SmokeModifierData *tsmd = (SmokeModifierData *)tmd;
-
-						if((tsmd->type & MOD_SMOKE_TYPE_DOMAIN))
-						{
-							cnt_domain++;
-						}
-					}
-				}
-			}
-
 			// do flows and fluids
-			if(sds->fluid_group || !cnt_domain)
+			if(1)
 			{
 				Object *otherobj = NULL;
 				ModifierData *md = NULL;
 
-				if(cnt_domain && !sds->fluid_group) // we use groups since we have 2 domains
+				if(sds->fluid_group) // we use groups since we have 2 domains
 					go = sds->fluid_group->gobject.first;
 				else
 					base = scene->base.first;
@@ -805,7 +824,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 				{
 					otherobj = NULL;
 
-					if(cnt_domain && !sds->fluid_group) 
+					if(sds->fluid_group) 
 					{
 						if(go->ob)
 							otherobj = go->ob;
@@ -815,7 +834,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 
 					if(!otherobj)
 					{
-						if(cnt_domain && !sds->fluid_group)
+						if(sds->fluid_group)
 							go = go->next;
 						else
 							base= base->next;
@@ -848,7 +867,10 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 								float *velocity_x = smoke_get_velocity_x(sds->fluid);
 								float *velocity_y = smoke_get_velocity_y(sds->fluid);
 								float *velocity_z = smoke_get_velocity_z(sds->fluid);
-								int bigres[3];								
+								unsigned char *obstacle = smoke_get_obstacle(sds->fluid);
+								int bigres[3];	
+
+								printf("found flow psys\n");
 								
 								// mostly copied from particle code
 								for(p=0, pa=psys->particles; p<psys->totpart; p++, pa++)
@@ -885,15 +907,20 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 									// 2. set cell values (heat, density and velocity)
 									index = smoke_get_index(cell[0], sds->res[0], cell[1], sds->res[1], cell[2]);
 									
-									if(!(sfs->type & MOD_SMOKE_FLOW_TYPE_OUTFLOW)) // this is inflow
+									if(!(sfs->type & MOD_SMOKE_FLOW_TYPE_OUTFLOW) && !(obstacle[index] & 2)) // this is inflow
 									{
+										// heat[index] += sfs->temp * 0.1;
+										// density[index] += sfs->density * 0.1;
+
 										heat[index] = sfs->temp;
 										density[index] = sfs->density;
+
 										/*
 										velocity_x[index] = pa->state.vel[0];
 										velocity_y[index] = pa->state.vel[1];
 										velocity_z[index] = pa->state.vel[2];
 										*/
+										obstacle[index] |= 2;
 
 										// we need different handling for the high-res feature
 										if(bigdensity)
@@ -912,7 +939,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 													}
 										}
 									}
-									else // outflow
+									else if(sfs->type & MOD_SMOKE_FLOW_TYPE_OUTFLOW) // outflow
 									{
 										heat[index] = 0.f;
 										density[index] = 0.f;
@@ -938,11 +965,25 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 										}
 									}
 								}
-							}	
+							}
+							else
+							{
+								/*
+								for()
+								{
+									// no psys
+									BVHTreeNearest nearest;
+
+									nearest.index = -1;
+									nearest.dist = FLT_MAX;
+
+									BLI_bvhtree_find_nearest(sfs->bvh->tree, pco, &nearest, sfs->bvh->nearest_callback, sfs->bvh);
+								}*/
+							}
 						}	
 					}
 
-					if(cnt_domain && !sds->fluid_group)
+					if(sds->fluid_group)
 						go = go->next;
 					else
 						base= base->next;
@@ -967,12 +1008,12 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			*/
 
 			// do collisions	
-			if(sds->coll_group || !cnt_domain)
+			if(1)
 			{
 				Object *otherobj = NULL;
 				ModifierData *md = NULL;
 
-				if(cnt_domain && !sds->coll_group) // we use groups since we have 2 domains
+				if(sds->coll_group) // we use groups since we have 2 domains
 					go = sds->coll_group->gobject.first;
 				else
 					base = scene->base.first;
@@ -981,7 +1022,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 				{
 					otherobj = NULL;
 
-					if(cnt_domain && !sds->coll_group) 
+					if(sds->coll_group) 
 					{
 						if(go->ob)
 							otherobj = go->ob;
@@ -991,7 +1032,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 
 					if(!otherobj)
 					{
-						if(cnt_domain && !sds->coll_group)
+						if(sds->coll_group)
 							go = go->next;
 						else
 							base= base->next;
@@ -1065,7 +1106,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 						}
 					}
 
-					if(cnt_domain && !sds->coll_group)
+					if(sds->coll_group)
 						go = go->next;
 					else
 						base= base->next;
@@ -1076,7 +1117,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			smd->time = scene->r.cfra;
 
 			// simulate the actual smoke (c++ code in intern/smoke)
-			smoke_step(sds->fluid);
+			smoke_step(sds->fluid, smd->time);
 			if(sds->wt)
 				smoke_turbulence_step(sds->wt, sds->fluid);
 

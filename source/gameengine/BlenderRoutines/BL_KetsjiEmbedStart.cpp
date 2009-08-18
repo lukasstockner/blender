@@ -61,7 +61,6 @@
 #include "RAS_ListRasterizer.h"
 
 #include "NG_LoopBackNetworkDeviceInterface.h"
-#include "SND_DeviceManager.h"
 
 #include "SYS_System.h"
 
@@ -351,12 +350,12 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, int alw
 
 			if(GPU_extensions_minimum_support())
 				useglslmat = true;
-			else if(G.fileflags & G_FILE_GAME_MAT_GLSL)
+			else if(blscene->gm.matmode == GAME_MAT_GLSL)
 				usemat = false;
 
-            if(usemat && (G.fileflags & G_FILE_GAME_MAT))
+            if(usemat && (blscene->gm.matmode != GAME_MAT_TEXFACE))
 				sceneconverter->SetMaterials(true);
-			if(useglslmat && (G.fileflags & G_FILE_GAME_MAT_GLSL))
+			if(useglslmat && (blscene->gm.matmode == GAME_MAT_GLSL))
 				sceneconverter->SetGLSLMaterials(true);
 					
 			KX_Scene* startscene = new KX_Scene(keyboarddevice,
@@ -545,8 +544,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, int alw
 		{
 			delete canvas;
 			canvas = NULL;
-		}
-		SND_DeviceManager::Unsubscribe();
+                }
 	
 	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
 	
@@ -769,8 +767,7 @@ extern "C" void StartKetsjiShellSimulation(struct wmWindow *win,
 		{
 			delete rendertools;
 			rendertools = NULL;
-		}
-		SND_DeviceManager::Unsubscribe();
+                }
 
 	} while (exitrequested == KX_EXIT_REQUEST_RESTART_GAME || exitrequested == KX_EXIT_REQUEST_START_OTHER_GAME);
 

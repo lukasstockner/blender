@@ -79,7 +79,6 @@ extern "C" {
 #include "ListValue.h"
 #include "InputParser.h"
 #include "KX_Scene.h"
-#include "SND_DeviceManager.h"
 
 #include "NG_NetworkScene.h" //Needed for sendMessage()
 
@@ -93,6 +92,7 @@ extern "C" {
 
 /* we only need this to get a list of libraries from the main struct */
 #include "DNA_ID.h"
+#include "DNA_scene_types.h"
 
 
 #include "marshal.h" /* python header for loading/saving dicts */
@@ -207,74 +207,24 @@ static PyObject* gPySendMessage(PyObject*, PyObject* args)
 	Py_RETURN_NONE;
 }
 
-static bool usedsp = false;
-
 // this gets a pointer to an array filled with floats
 static PyObject* gPyGetSpectrum(PyObject*)
 {
-	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
-
 	PyObject* resultlist = PyList_New(512);
 
-	if (audiodevice)
-	{
-		if (!usedsp)
-		{
-			audiodevice->StartUsingDSP();
-			usedsp = true;
-		}
-			
-		float* spectrum = audiodevice->GetSpectrum();
-
-		for (int index = 0; index < 512; index++)
-		{
-			PyList_SET_ITEM(resultlist, index, PyFloat_FromDouble(spectrum[index]));
-		}
-	}
-	else {
-		for (int index = 0; index < 512; index++)
-		{
-			PyList_SET_ITEM(resultlist, index, PyFloat_FromDouble(0.0));
-		}
-	}
+        for (int index = 0; index < 512; index++)
+        {
+                PyList_SET_ITEM(resultlist, index, PyFloat_FromDouble(0.0));
+        }
 
 	return resultlist;
 }
 
 
-#if 0 // unused
-static PyObject* gPyStartDSP(PyObject*, PyObject* args)
-{
-	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
-
-	if (!audiodevice) {
-		PyErr_SetString(PyExc_RuntimeError, "no audio device available");
-		return NULL;
-	}
-	
-	if (!usedsp) {
-		audiodevice->StartUsingDSP();
-		usedsp = true;
-	}
-	
-	Py_RETURN_NONE;
-}
-#endif
-
-
 static PyObject* gPyStopDSP(PyObject*, PyObject* args)
 {
-	SND_IAudioDevice* audiodevice = SND_DeviceManager::Instance();
-
-	if (!audiodevice) {
-		PyErr_SetString(PyExc_RuntimeError, "no audio device available");
-		return NULL;
-	}
-	
-	if (usedsp) {
-		audiodevice->StopUsingDSP();
-		usedsp = true;
-	}
+        PyErr_SetString(PyExc_RuntimeError, "no audio device available");
+        return NULL;
 	
 	Py_RETURN_NONE;
 }
@@ -818,17 +768,17 @@ static PyObject* gPyDisableMotionBlur(PyObject*)
 int getGLSLSettingFlag(char *setting)
 {
 	if(strcmp(setting, "lights") == 0)
-		return G_FILE_GLSL_NO_LIGHTS;
+		return GAME_GLSL_NO_LIGHTS;
 	else if(strcmp(setting, "shaders") == 0)
-		return G_FILE_GLSL_NO_SHADERS;
+		return GAME_GLSL_NO_SHADERS;
 	else if(strcmp(setting, "shadows") == 0)
-		return G_FILE_GLSL_NO_SHADOWS;
+		return GAME_GLSL_NO_SHADOWS;
 	else if(strcmp(setting, "ramps") == 0)
-		return G_FILE_GLSL_NO_RAMPS;
+		return GAME_GLSL_NO_RAMPS;
 	else if(strcmp(setting, "nodes") == 0)
-		return G_FILE_GLSL_NO_NODES;
+		return GAME_GLSL_NO_NODES;
 	else if(strcmp(setting, "extra_textures") == 0)
-		return G_FILE_GLSL_NO_EXTRA_TEX;
+		return GAME_GLSL_NO_EXTRA_TEX;
 	else
 		return -1;
 }
@@ -837,8 +787,9 @@ static PyObject* gPySetGLSLMaterialSetting(PyObject*,
 											PyObject* args,
 											PyObject*)
 {
+	GameData *gm= &(gp_KetsjiScene->GetBlenderScene()->gm);
 	char *setting;
-	int enable, flag, fileflags;
+	int enable, flag, sceneflag;
 
 	if (!PyArg_ParseTuple(args,"si:setGLSLMaterialSetting",&setting,&enable))
 		return NULL;
@@ -850,15 +801,15 @@ static PyObject* gPySetGLSLMaterialSetting(PyObject*,
 		return NULL;
 	}
 
-	fileflags = G.fileflags;
+	sceneflag= gm->flag;
 	
 	if (enable)
-		G.fileflags &= ~flag;
+		gm->flag &= ~flag;
 	else
-		G.fileflags |= flag;
+		gm->flag |= flag;
 
 	/* display lists and GLSL materials need to be remade */
-	if(G.fileflags != fileflags) {
+	if(sceneflag != gm->flag) {
 		GPU_materials_free();
 		if(gp_KetsjiEngine) {
 			KX_SceneList *scenes = gp_KetsjiEngine->CurrentScenes();
@@ -879,6 +830,7 @@ static PyObject* gPyGetGLSLMaterialSetting(PyObject*,
 									 PyObject* args, 
 									 PyObject*)
 {
+	GameData *gm= &(gp_KetsjiScene->GetBlenderScene()->gm);
 	char *setting;
 	int enabled = 0, flag;
 
@@ -892,7 +844,7 @@ static PyObject* gPyGetGLSLMaterialSetting(PyObject*,
 		return NULL;
 	}
 
-	enabled = ((G.fileflags & flag) != 0);
+	enabled = ((gm->flag & flag) != 0);
 	return PyLong_FromSsize_t(enabled);
 }
 
@@ -904,35 +856,34 @@ static PyObject* gPySetMaterialType(PyObject*,
 									PyObject* args,
 									PyObject*)
 {
-	int flag, type;
+	GameData *gm= &(gp_KetsjiScene->GetBlenderScene()->gm);
+	int type;
 
 	if (!PyArg_ParseTuple(args,"i:setMaterialType",&type))
 		return NULL;
 
 	if(type == KX_BLENDER_GLSL_MATERIAL)
-		flag = G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL;
+		gm->matmode= GAME_MAT_GLSL;
 	else if(type == KX_BLENDER_MULTITEX_MATERIAL)
-		flag = G_FILE_GAME_MAT;
+		gm->matmode= GAME_MAT_MULTITEX;
 	else if(type == KX_TEXFACE_MATERIAL)
-		flag = 0;
+		gm->matmode= GAME_MAT_TEXFACE;
 	else {
 		PyErr_SetString(PyExc_ValueError, "Rasterizer.setMaterialType(int): material type is not known");
 		return NULL;
 	}
-
-	G.fileflags &= ~(G_FILE_GAME_MAT|G_FILE_GAME_MAT_GLSL);
-	G.fileflags |= flag;
 
 	Py_RETURN_NONE;
 }
 
 static PyObject* gPyGetMaterialType(PyObject*)
 {
+	GameData *gm= &(gp_KetsjiScene->GetBlenderScene()->gm);
 	int flag;
 
-	if(G.fileflags & G_FILE_GAME_MAT_GLSL)
+	if(gm->matmode == GAME_MAT_GLSL)
 		flag = KX_BLENDER_GLSL_MATERIAL;
-	else if(G.fileflags & G_FILE_GAME_MAT)
+	else if(gm->matmode == GAME_MAT_MULTITEX)
 		flag = KX_BLENDER_MULTITEX_MATERIAL;
 	else
 		flag = KX_TEXFACE_MATERIAL;

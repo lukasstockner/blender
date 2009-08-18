@@ -154,9 +154,15 @@ static void bpy_init_modules( void )
 
 void BPY_update_modules( void )
 {
+#if 0 // slow, this runs all the time poll, draw etc 100's of time a sec.
 	PyObject *mod= PyImport_ImportModuleLevel("bpy", NULL, NULL, NULL, 0);
 	PyModule_AddObject( mod, "data", BPY_rna_module() );
-	PyModule_AddObject( mod, "types", BPY_rna_types() );
+	PyModule_AddObject( mod, "types", BPY_rna_types() ); // atm this does not need updating
+#endif
+
+	/* refreshes the main struct */
+	BPY_update_rna_module();
+
 }
 
 /*****************************************************************************
@@ -264,16 +270,22 @@ void BPY_start_python( int argc, char **argv )
 		PyDict_SetItemString(d, "__import__",	item=PyCFunction_New(bpy_import_meth, NULL));	Py_DECREF(item);
 	}
 	
+	pyrna_alloc_types();
+
 	py_tstate = PyGILState_GetThisThreadState();
 	PyEval_ReleaseThread(py_tstate);
 }
 
 void BPY_end_python( void )
 {
+	// fprintf(stderr, "Ending Python!\n");
+
 	PyGILState_Ensure(); /* finalizing, no need to grab the state */
 	
 	// free other python data.
-	//BPY_rna_free_types();
+	pyrna_free_types();
+
+	/* clear all python data from structs */
 	
 	Py_Finalize(  );
 	
@@ -291,6 +303,8 @@ void BPY_end_python( void )
 		printf("tot usage %.4f%%", (bpy_timer_run_tot/bpy_timer)*100.0);
 
 	printf("\n");
+
+	// fprintf(stderr, "Ending Python Done!\n");
 
 #endif
 
@@ -804,3 +818,56 @@ float BPY_pydriver_eval (ChannelDriver *driver)
 
 	return result;
 }
+
+int BPY_button_eval(bContext *C, char *expr, double *value)
+{
+	PyGILState_STATE gilstate;
+	PyObject *dict, *retval;
+	int error_ret = 0;
+	
+	if (!value || !expr || expr[0]=='\0') return -1;
+	
+	bpy_context_set(C, &gilstate);
+	
+	dict= CreateGlobalDictionary(C);
+	retval = PyRun_String(expr, Py_eval_input, dict, dict);
+	
+	if (retval == NULL) {
+		error_ret= -1;
+	}
+	else {
+		double val;
+
+		if(PyTuple_Check(retval)) {
+			/* Users my have typed in 10km, 2m
+			 * add up all values */
+			int i;
+			val= 0.0;
+
+			for(i=0; i<PyTuple_GET_SIZE(retval); i++) {
+				val+= PyFloat_AsDouble(PyTuple_GET_ITEM(retval, i));
+			}
+		}
+		else {
+			val = PyFloat_AsDouble(retval);
+		}
+		Py_DECREF(retval);
+		
+		if(val==-1 && PyErr_Occurred()) {
+			error_ret= -1;
+		}
+		else {
+			*value= val;
+		}
+	}
+	
+	if(error_ret) {
+		BPy_errors_to_report(CTX_wm_reports(C));
+	}
+	
+	Py_DECREF(dict);
+	bpy_context_clear(C, &gilstate);
+	
+	return error_ret;
+}
+
