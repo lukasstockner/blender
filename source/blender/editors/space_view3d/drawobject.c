@@ -1557,7 +1557,7 @@ static void draw_dm_verts(DerivedMesh *dm, int sel, EditVert *eve_act)
 		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_END };
 		GPU_buffer_unlock( buffer );
 		GPU_interleaved_setup( buffer, datatype );
-		GPU_buffer_lock_stream( buffer );
+		varray = GPU_buffer_lock_stream( buffer );
 
 		glBegin(GL_POINTS);
 		for (i=0,eve= emdm->em->verts.first; eve; i++,eve=eve->next) {
@@ -1681,7 +1681,7 @@ static void draw_dm_edges_sel_interp(DerivedMesh *dm, unsigned char *baseCol, un
 		int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_C4UB, GPU_BUFFER_INTER_END };
 		GPU_buffer_unlock( buffer );
 		GPU_interleaved_setup( buffer, datatype );
-		GPU_buffer_lock_stream( buffer );
+		varray = GPU_buffer_lock_stream( buffer );
 		for (i=0,eed= em->edges.first; eed; i++,eed= eed->next) {
 			if(eed->h==0) {
 				unsigned char *col0 = cols[(eed->v1->f&SELECT)?1:0];
@@ -1788,7 +1788,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 		GPU_buffer_unlock( buffer );
 		GPU_interleaved_setup( buffer, datatype );
 		glShadeModel(GL_SMOOTH);
-		GPU_buffer_lock_stream( buffer );
+		varray = GPU_buffer_lock_stream( buffer );
 		for (i=0,efa= efa_act; efa; i++,efa= efa->next) {
 			int drawSmooth = (efa->flag & ME_SMOOTH);
 			if (efa->h==0) {
@@ -2417,7 +2417,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 				GPU_buffer_unlock( buffer );
 				GPU_interleaved_setup( buffer, datatype );
 				glShadeModel(GL_SMOOTH);
-				GPU_buffer_lock_stream( buffer );
+				varray = GPU_buffer_lock_stream( buffer );
 				for (i=0,efa= em->faces.first; efa; i++,efa= efa->next) {
 					int drawSmooth = (efa->flag & ME_SMOOTH);
 					if( efa->h == 0 ) {

@@ -1115,8 +1115,11 @@ void GPU_buffer_unbind()
 		glDisableClientState( GL_TEXTURE_COORD_ARRAY );
 	if( GLStates & GPU_BUFFER_COLOR_STATE )
 		glDisableClientState( GL_COLOR_ARRAY );
-	if( GLStates & GPU_BUFFER_ELEMENT_STATE )
-		glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
+	if( GLStates & GPU_BUFFER_ELEMENT_STATE ) {
+		if( useVBOs ) {
+			glBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
+		}
+	}
 	GLStates &= !(GPU_BUFFER_VERTEX_STATE | GPU_BUFFER_NORMAL_STATE | GPU_BUFFER_TEXCOORD_STATE | GPU_BUFFER_COLOR_STATE | GPU_BUFFER_ELEMENT_STATE);
 
 	for( i = 0; i < MAX_GPU_ATTRIB_DATA; i++ ) {

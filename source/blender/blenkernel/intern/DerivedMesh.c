@@ -503,7 +503,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			int datatype[] = { GPU_BUFFER_INTER_V3F, GPU_BUFFER_INTER_END };
 			GPU_buffer_unlock( buffer );
 			GPU_interleaved_setup( buffer, datatype );
-			GPU_buffer_lock_stream( buffer );
+			varray = GPU_buffer_lock_stream( buffer );
 			for(i=0,eed= emdm->em->edges.first; eed; i++,eed= eed->next) {
 				if(!setDrawOptions || setDrawOptions(userData, i)) {
 					draw = 1;
@@ -713,7 +713,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 			GPU_buffer_unlock( buffer );
 			GPU_interleaved_setup( buffer, datatype );
 			glShadeModel(GL_SMOOTH);
-			GPU_buffer_lock_stream( buffer );
+			varray = GPU_buffer_lock_stream( buffer );
 			for (i=0,efa= emdm->em->faces.first; efa; i++,efa= efa->next) {
 				int drawSmooth = (efa->flag & ME_SMOOTH);
 				draw = setDrawOptions==NULL ? 1 : setDrawOptions(userData, i, &drawSmooth);
