@@ -242,13 +242,13 @@ static Sequence* sequencer_add_sound_strip(bContext *C, wmOperator *op, int star
 
 	sound = sound_new_file(CTX_data_main(C), filename);
 
-	if (sound==NULL || sound->snd_sound == NULL) {
+	if (sound==NULL || sound->handle == NULL) {
 		if(op)
 			BKE_report(op->reports, RPT_ERROR, "Unsupported audio format");
 		return NULL;
 	}
 
-	info = AUD_getInfo(sound->snd_sound);
+	info = AUD_getInfo(sound->handle);
 
 	if (info.specs.format == AUD_FORMAT_INVALID) {
 		sound_delete(C, sound);
@@ -291,7 +291,7 @@ static int sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
 	struct anim *an;
 	char filename[FILE_MAX];
 
-	Sequence *seq, *soundseq;	/* generic strip vars */
+	Sequence *seq, *soundseq=NULL;	/* generic strip vars */
 	Strip *strip;
 	StripElem *se;
 
@@ -662,7 +662,7 @@ void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Effect Strip";
 	ot->idname= "SEQUENCER_OT_effect_strip_add";
-	ot->description= "Add an effect to the sequencer, most are applied ontop of existing strips";
+	ot->description= "Add an effect to the sequencer, most are applied on top of existing strips";
 
 	/* api callbacks */
 	ot->invoke= sequencer_add_effect_strip_invoke;

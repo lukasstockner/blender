@@ -485,7 +485,7 @@ static void texture_node_event(SpaceNode *snode, short event)
 #endif /* 0  */
 /* assumes nothing being done in ntree yet, sets the default in/out node */
 /* called from shading buttons or header */
-void node_shader_default(Material *ma)
+void ED_node_shader_default(Material *ma)
 {
 	bNode *in, *out;
 	bNodeSocket *fromsock, *tosock;
@@ -515,7 +515,7 @@ void node_shader_default(Material *ma)
 
 /* assumes nothing being done in ntree yet, sets the default in/out node */
 /* called from shading buttons or header */
-void node_composit_default(Scene *sce)
+void ED_node_composit_default(Scene *sce)
 {
 	bNode *in, *out;
 	bNodeSocket *fromsock, *tosock;
@@ -549,7 +549,7 @@ void node_composit_default(Scene *sce)
 
 /* assumes nothing being done in ntree yet, sets the default in/out node */
 /* called from shading buttons or header */
-void node_texture_default(Tex *tx)
+void ED_node_texture_default(Tex *tx)
 {
 	bNode *in, *out;
 	bNodeSocket *fromsock, *tosock;
@@ -574,7 +574,6 @@ void node_texture_default(Tex *tx)
 	nodeAddLink(tx->nodetree, in, fromsock, out, tosock);
 	
 	ntreeSolveOrder(tx->nodetree);	/* needed for pointers */
-	ntreeTexUpdatePreviews(tx->nodetree); /* XXX texture nodes should follow shader node methods (ton) */
 }
 
 /* Here we set the active tree(s), even called for each redraw now, so keep it fast :) */
@@ -591,7 +590,7 @@ void snode_set_context(SpaceNode *snode, Scene *scene)
 		if(ob) {
 			Material *ma= give_current_material(ob, ob->actcol);
 			if(ma) {
-				snode->from= material_from(ob, ob->actcol);
+				snode->from= &ob->id;
 				snode->id= &ma->id;
 				snode->nodetree= ma->nodetree;
 			}
@@ -613,7 +612,13 @@ void snode_set_context(SpaceNode *snode, Scene *scene)
 		if(snode->texfrom==SNODE_TEX_OBJECT) {
 			if(ob) {
 				tx= give_current_texture(ob, ob->actcol);
-				snode->from= (ID *)ob;
+
+				if(ob->type == OB_LAMP)
+					snode->from= (ID*)ob->data;
+				else
+					snode->from= (ID*)give_current_material(ob, ob->actcol);
+
+				/* from is not set fully for material nodes, should be ID + Node then */
 			}
 		}
 		else if(snode->texfrom==SNODE_TEX_WORLD) {
@@ -624,21 +629,18 @@ void snode_set_context(SpaceNode *snode, Scene *scene)
 			MTex *mtex= NULL;
 			Brush *brush= NULL;
 			
-			if(ob && ob->mode & OB_MODE_SCULPT) {
+			if(ob && (ob->mode & OB_MODE_SCULPT))
 				brush= paint_brush(&scene->toolsettings->sculpt->paint);
-			}
 			else
 				brush= paint_brush(&scene->toolsettings->imapaint.paint);
 
-			if(brush) {
-				if(brush && brush->texact != -1)
-					mtex= brush->mtex[brush->texact];
-			}
-			
-			if(mtex) {
-				snode->from= (ID *)scene;
+			if(brush && brush->texact != -1)
+				mtex= brush->mtex[brush->texact];
+
+			snode->from= (ID *)brush;
+
+			if(mtex)
 				tx= mtex->tex;
-			}
 		}
 		
 		if(tx) {
@@ -1108,9 +1110,6 @@ static int node_resize_modal(bContext *C, wmOperator *op, wmEvent *event)
 				node->width= nsw->oldwidth + mx - nsw->mxstart;
 				CLAMP(node->width, node->typeinfo->minwidth, node->typeinfo->maxwidth);
 			}
-			// XXX
-			if(snode->nodetree->type == NTREE_TEXTURE)
-				ntreeTexUpdatePreviews(snode->nodetree); /* XXX texture nodes should follow shader node methods (ton) */
 				
 			ED_region_tag_redraw(ar);
 
@@ -1656,7 +1655,6 @@ bNode *node_add_node(SpaceNode *snode, Scene *scene, int type, float locx, float
 	
 	if(snode->nodetree->type==NTREE_TEXTURE) {
 		ntreeTexCheckCyclics(snode->edittree);
-		ntreeTexUpdatePreviews(snode->edittree); /* XXX texture nodes should follow shader node methods (ton) */
 	}
 	
 	return node;
