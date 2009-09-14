@@ -34,6 +34,8 @@
 
 #include "GL/glew.h"
 
+#include "DNA_userdef_types.h"
+
 #include "gpu_buffers.h"
 #include "MEM_guardedalloc.h"
 #include "BKE_DerivedMesh.h"
@@ -1166,6 +1168,10 @@ void GPU_color_switch( int mode )
 
 int GPU_buffer_legacy( DerivedMesh *dm )
 {
+	int test= (U.gameflags & USER_DISABLE_VBO);
+	if( test )
+		return 1;
+
 	if( dm->drawObject == 0 )
 		dm->drawObject = GPU_drawobject_new(dm);
 	return dm->drawObject->legacy;

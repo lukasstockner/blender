@@ -36,7 +36,8 @@
 #define MAX_FREE_GPU_BUFFERS 8
 
 #ifdef _DEBUG
-#define DEBUG_VBO(X) printf(X)
+/*#define DEBUG_VBO(X) printf(X)*/
+#define DEBUG_VBO(X)
 #else
 #define DEBUG_VBO(X)
 #endif
