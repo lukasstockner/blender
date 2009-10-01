@@ -1078,7 +1078,7 @@ void CURVE_OT_spline_weight_set(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_float_percentage(ot->srna, "weight", 1.0f, 0.0f, 1.0f, "Weight", "", 0.0f, 1.0f);
+	RNA_def_float_factor(ot->srna, "weight", 1.0f, 0.0f, 1.0f, "Weight", "", 0.0f, 1.0f);
 }
 
 /******************* set radius operator ******************/
@@ -2546,7 +2546,7 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_enum(ot->srna, "type", type_items, CU_POLY, "Type", "Spline type");
+	RNA_def_enum(ot->srna, "type", type_items, 1, "Type", "Spline type");
 }
 
 /***************** make segment operator **********************/
@@ -4704,6 +4704,7 @@ Nurb *add_nurbs_primitive(bContext *C, int type, int newname)
 	float *curs, cent[3],vec[3],imat[3][3],mat[3][3];
 	float fac,cmat[3][3], grid;
 	int a, b, cutype, stype;
+	int force_3d = ((Curve *)obedit->data)->flag & CU_3D; /* could be adding to an existing 3D curve */
 	
 	cutype= type & CU_TYPE;	// poly, bezier, nurbs, etc
 	stype= type & CU_PRIMITIVE;
@@ -4727,7 +4728,7 @@ Nurb *add_nurbs_primitive(bContext *C, int type, int newname)
 		cent[2]-= obedit->obmat[3][2];
 		
 		if(rv3d) {
-			if (!(newname) || U.flag & USER_ADD_VIEWALIGNED)
+			if (!newname && U.flag & USER_ADD_VIEWALIGNED)
 				Mat3CpyMat4(imat, rv3d->viewmat);
 			else
 				Mat3One(imat);
@@ -4760,7 +4761,7 @@ Nurb *add_nurbs_primitive(bContext *C, int type, int newname)
 			rename_id((ID *)obedit->data, "Curve");
 		}
 		if(cutype==CU_BEZIER) {
-			nu->flag= CU_2D;
+			if (!force_3d) nu->flag |= CU_2D;
 			nu->pntsu= 2;
 			nu->bezt =
 				(BezTriple*)MEM_callocN(2 * sizeof(BezTriple), "addNurbprim1");
@@ -4869,7 +4870,7 @@ Nurb *add_nurbs_primitive(bContext *C, int type, int newname)
 			rename_id((ID *)obedit->data, "CurveCircle");
 		}
 		if(cutype==CU_BEZIER) {
-			nu->flag= CU_2D;
+			if (!force_3d) nu->flag |= CU_2D;
 			nu->pntsu= 4;
 			nu->bezt= callocstructN(BezTriple, 4, "addNurbprim1");
 			nu->flagu= CU_CYCLIC;

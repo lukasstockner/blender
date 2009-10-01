@@ -83,12 +83,12 @@ void		WM_paint_cursor_end(struct wmWindowManager *wm, void *handle);
 
 			/* keymap */
 void		WM_keymap_init		(struct bContext *C);
-wmKeymapItem *WM_keymap_verify_item(ListBase *lb, char *idname, short type, 
+wmKeymapItem *WM_keymap_verify_item(wmKeyMap *keymap, char *idname, short type, 
 								 short val, int modifier, short keymodifier);
-wmKeymapItem *WM_keymap_add_item(ListBase *lb, char *idname, short type, 
+wmKeymapItem *WM_keymap_add_item(wmKeyMap *keymap, char *idname, short type, 
 								 short val, int modifier, short keymodifier);
-void		WM_keymap_tweak	(ListBase *lb, short type, short val, int modifier, short keymodifier);
-ListBase	*WM_keymap_listbase	(struct wmWindowManager *wm, const char *nameid, 
+void		WM_keymap_tweak	(wmKeyMap *keymap, short type, short val, int modifier, short keymodifier);
+wmKeyMap	*WM_keymap_find (struct wmWindowManager *wm, const char *nameid,
 								 short spaceid, short regionid);
 
 wmKeyMap	*WM_modalkeymap_add(struct wmWindowManager *wm, const char *nameid, struct EnumPropertyItem *items);
@@ -104,13 +104,13 @@ void		WM_key_event_operator_change(const struct bContext *C, const char *opname,
 
 			/* handlers */
 
-struct wmEventHandler *WM_event_add_keymap_handler(ListBase *handlers, ListBase *keymap);
+struct wmEventHandler *WM_event_add_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 						/* boundbox, optional subwindow boundbox for offset */
-struct wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, ListBase *keymap, rcti *bb, rcti *swinbb);
+struct wmEventHandler *WM_event_add_keymap_handler_bb(ListBase *handlers, wmKeyMap *keymap, rcti *bb, rcti *swinbb);
 						/* priority not implemented, it adds in begin */
-struct wmEventHandler *WM_event_add_keymap_handler_priority(ListBase *handlers, ListBase *keymap, int priority);
+struct wmEventHandler *WM_event_add_keymap_handler_priority(ListBase *handlers, wmKeyMap *keymap, int priority);
 
-void		WM_event_remove_keymap_handler(ListBase *handlers, ListBase *keymap);
+void		WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap);
 
 struct wmEventHandler *WM_event_add_ui_handler(const struct bContext *C, ListBase *handlers,
 			int (*func)(struct bContext *C, struct wmEvent *event, void *userdata),
@@ -119,7 +119,7 @@ void		WM_event_remove_ui_handler(ListBase *handlers,
 			int (*func)(struct bContext *C, struct wmEvent *event, void *userdata),
 			void (*remove)(struct bContext *C, void *userdata), void *userdata);
 
-struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, ListBase *handlers, struct wmOperator *op);
+struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
 void		WM_event_remove_handlers(struct bContext *C, ListBase *handlers);
 
 void		WM_event_add_mousemove(struct bContext *C);
@@ -139,7 +139,7 @@ void		WM_event_window_timer_sleep(struct wmWindow *win, struct wmTimer *timer, i
 int			WM_menu_invoke			(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 			/* invoke callback, confirm menu + exec */
 int			WM_operator_confirm		(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-		/* invoke callback, file selector "filename" unset + exec */
+		/* invoke callback, file selector "path" unset + exec */
 int			WM_operator_filesel		(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 			/* poll callback, context checks */
 int			WM_operator_winactive	(struct bContext *C);
@@ -162,6 +162,7 @@ wmOperatorType *WM_operatortype_append_macro(char *idname, char *name, int flag)
 wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char *idname);
 
 
+int			WM_operator_poll		(struct bContext *C, struct wmOperatorType *ot);
 int			WM_operator_call		(struct bContext *C, struct wmOperator *op);
 int			WM_operator_repeat		(struct bContext *C, struct wmOperator *op);
 int         WM_operator_name_call	(struct bContext *C, const char *opstring, int context, struct PointerRNA *properties);
@@ -169,7 +170,7 @@ int			WM_operator_call_py(struct bContext *C, struct wmOperatorType *ot, int con
 
 void		WM_operator_properties_create(struct PointerRNA *ptr, const char *opstring);
 void		WM_operator_properties_free(struct PointerRNA *ptr);
-void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter);
+void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type);
 
 		/* operator as a python command (resultuing string must be free'd) */
 char		*WM_operator_pystring(struct bContext *C, struct wmOperatorType *ot, struct PointerRNA *opptr, int all_args);
@@ -225,8 +226,10 @@ void		WM_set_framebuffer_index_color(int index);
 int			WM_framebuffer_to_index(unsigned int col);
 
 			/* threaded Jobs Manager */
+#define WM_JOB_PRIORITY		1
+#define WM_JOB_EXCL_RENDER	2
 
-struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void *owner);
+struct wmJob *WM_jobs_get(struct wmWindowManager *wm, struct wmWindow *win, void *owner, int flag);
 
 int			WM_jobs_test(struct wmWindowManager *wm, void *owner);
 

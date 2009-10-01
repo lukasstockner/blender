@@ -78,6 +78,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_utildefines.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -520,8 +521,8 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
     
 	/* softbody collision  */
 	if((ob->type==OB_MESH) || (ob->type==OB_CURVE) || (ob->type==OB_LATTICE))
-		if(modifiers_isSoftbodyEnabled(ob) || modifiers_isClothEnabled(ob))
-			dag_add_collision_field_relation(dag, scene, ob, node);
+		if(modifiers_isSoftbodyEnabled(ob) || modifiers_isClothEnabled(ob) || ob->particlesystem.first)
+			dag_add_collision_field_relation(dag, scene, ob, node); /* TODO: use effectorweight->group */
 		
 	if (ob->type==OB_MBALL) {
 		Object *mom= find_basis_mball(scene, ob);
@@ -553,13 +554,14 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	
 	psys= ob->particlesystem.first;
 	if(psys) {
-		ParticleEffectorCache *nec;
 		GroupObject *go;
 
 		for(; psys; psys=psys->next) {
 			BoidRule *rule = NULL;
 			BoidState *state = NULL;
 			ParticleSettings *part= psys->part;
+			ListBase *effectors = NULL;
+			EffectorCache *eff;
 
 			dag_add_relation(dag, node, node, DAG_RL_OB_DATA, "Particle-Object Relation");
 
@@ -591,33 +593,16 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				}
 			}
 
-			psys_end_effectors(psys);
-			psys_init_effectors(scene, ob, psys->part->eff_group, psys);
+			effectors = pdInitEffectors(scene, ob, psys, part->effector_weights);
 
-			for(nec= psys->effectors.first; nec; nec= nec->next) {
-				Object *ob1= nec->ob;
-
-				if(nec->type & PSYS_EC_EFFECTOR) {
-					node2 = dag_get_node(dag, ob1);
-					if(ob1->pd->forcefield==PFIELD_GUIDE)
-						dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA|DAG_RL_OB_DATA, "Particle Field");
-					else
-						dag_add_relation(dag, node2, node, DAG_RL_OB_DATA, "Particle Field");
-				}
-				else if(nec->type & PSYS_EC_DEFLECT) {
-					node2 = dag_get_node(dag, ob1);
-					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA|DAG_RL_OB_DATA, "Particle Collision");
-				}
-				else if(nec->type & PSYS_EC_PARTICLE) {
-					node2 = dag_get_node(dag, ob1);
-					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA, "Particle Field");
-				}
-				
-				if(nec->type & PSYS_EC_REACTOR) {
-					node2 = dag_get_node(dag, ob1);
-					dag_add_relation(dag, node, node2, DAG_RL_DATA_DATA, "Particle Reactor");
+			if(effectors) for(eff = effectors->first; eff; eff=eff->next) {
+				if(eff->psys) {
+					node2 = dag_get_node(dag, eff->ob);
+					dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA|DAG_RL_OB_DATA, "Particle Field");
 				}
 			}
+
+			pdEndEffectors(&effectors);
 
 			if(part->boids) {
 				for(state = part->boids->states.first; state; state=state->next) {
@@ -1606,6 +1591,21 @@ void graph_print_adj_list(void)
 
 /* ************************ API *********************** */
 
+/* mechanism to allow editors to be informed of depsgraph updates,
+   to do their own updates based on changes... */
+static void (*EditorsUpdateCb)(Main *bmain, ID *id)= NULL;
+
+void DAG_editors_update_cb(void (*func)(Main *bmain, ID *id))
+{
+	EditorsUpdateCb= func;
+}
+
+static void dag_editors_update(Main *bmain, ID *id)
+{
+	if(EditorsUpdateCb)
+		EditorsUpdateCb(bmain, id);
+}
+
 /* groups with objects in this scene need to be put in the right order as well */
 static void scene_sort_groups(Scene *sce)
 {
@@ -2142,30 +2142,58 @@ void DAG_scene_update_flags(Scene *scene, unsigned int lay)
 	
 }
 
-void DAG_id_flush_update(ID *id, short flag)
+static void dag_current_scene_layers(Main *bmain, Scene **sce, unsigned int *lay)
 {
-	Main *bmain= G.main;
 	wmWindowManager *wm;
 	wmWindow *win;
-	Scene *sce;
-	Object *obt, *ob= NULL;
-	short idtype;
 
 	/* only one scene supported currently, making more scenes work
 	   correctly requires changes beyond just the dependency graph */
 
-	if((wm= bmain->wm.first)) {
-		/* if we have a windowmanager, use sce from first window */
-		for(win=wm->windows.first; win; win=win->next) {
-			sce= (win->screen)? win->screen->scene: NULL;
+	*sce= NULL;
+	*lay= 0;
 
-			if(sce)
-				break;
+	if((wm= bmain->wm.first)) {
+		/* if we have a windowmanager, look into windows */
+		for(win=wm->windows.first; win; win=win->next) {
+			if(win->screen) {
+				if(!*sce) *sce= win->screen->scene;
+				*lay |= BKE_screen_visible_layers(win->screen);
+			}
 		}
 	}
-	else
+	else {
 		/* if not, use the first sce */
-		sce= bmain->scene.first;
+		*sce= bmain->scene.first;
+		if(*sce) *lay= (*sce)->lay;
+
+		/* XXX for background mode, we should get the scen
+		   from somewhere, for the -S option, but it's in
+		   the context, how to get it here? */
+	}
+}
+
+void DAG_ids_flush_update(int time)
+{
+	Main *bmain= G.main;
+	Scene *sce;
+	unsigned int lay;
+
+	dag_current_scene_layers(bmain, &sce, &lay);
+
+	if(sce)
+		DAG_scene_flush_update(sce, lay, time);
+}
+
+void DAG_id_flush_update(ID *id, short flag)
+{
+	Main *bmain= G.main;
+	Scene *sce;
+	Object *obt, *ob= NULL;
+	short idtype;
+	unsigned int lay;
+
+	dag_current_scene_layers(bmain, &sce, &lay);
 
 	if(!id || !sce || !sce->theDag)
 		return;
@@ -2173,7 +2201,7 @@ void DAG_id_flush_update(ID *id, short flag)
 	/* set flags & pointcache for object */
 	if(GS(id->name) == ID_OB) {
 		ob= (Object*)id;
-		ob->recalc |= flag;
+		ob->recalc |= (flag & OB_RECALC);
 		BKE_ptcache_object_reset(sce, ob, PTCACHE_RESET_DEPSGRAPH);
 
 		if(flag & OB_RECALC_DATA) {
@@ -2210,13 +2238,27 @@ void DAG_id_flush_update(ID *id, short flag)
 				}
 			}
 		}
+
+		/* set flags based on particle settings */
+		if(idtype == ID_PA) {
+			ParticleSystem *psys;
+			for(obt=bmain->object.first; obt; obt= obt->id.next) {
+				for(psys=obt->particlesystem.first; psys; psys=psys->next) {
+					if(&psys->part->id == id) {
+						BKE_ptcache_object_reset(sce, obt, PTCACHE_RESET_DEPSGRAPH);
+						obt->recalc |= (flag & OB_RECALC);
+						psys->recalc |= (flag & PSYS_RECALC);
+					}
+				}
+			}
+		}
+
+		/* update editors */
+		dag_editors_update(bmain, id);
 	}
 
 	/* flush to other objects that depend on this one */
-// XXX	if(G.curscreen)
-//		DAG_scene_flush_update(sce, dag_screen_view3d_layers(), 0);
-//	else
-		DAG_scene_flush_update(sce, sce->lay, 0);
+	DAG_scene_flush_update(sce, lay, 0);
 }
 
 /* recursively descends tree, each node only checked once */
@@ -2251,10 +2293,25 @@ static int parent_check_node(DagNode *node, int curtime)
 
 /* all nodes that influence this object get tagged, for calculating the exact
    position of this object at a given timeframe */
-void DAG_object_update_flags(Scene *sce, Object *ob, unsigned int lay)
+void DAG_id_update_flags(ID *id)
 {
+	Main *bmain= G.main;
+	Scene *sce;
 	DagNode *node;
 	DagAdjList *itA;
+	Object *ob;
+	unsigned int lay;
+
+	dag_current_scene_layers(bmain, &sce, &lay);
+
+	if(!id || !sce || !sce->theDag)
+		return;
+	
+	/* objects only currently */
+	if(GS(id->name) != ID_OB)
+		return;
+	
+	ob= (Object*)id;
 	
 	/* tag nodes unchecked */
 	for(node = sce->theDag->DagNode.first; node; node= node->next) 

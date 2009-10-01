@@ -37,14 +37,15 @@
 
 #ifdef RNA_RUNTIME
 
-static void rna_uiItemR(uiLayout *layout, char *name, int icon, PointerRNA *ptr, char *propname, int expand, int slider, int toggle)
+static void rna_uiItemR(uiLayout *layout, char *name, int icon, PointerRNA *ptr, char *propname, int expand, int slider, int toggle, int icon_only)
 {
 	int flag= 0;
 
 	flag |= (slider)? UI_ITEM_R_SLIDER: 0;
 	flag |= (expand)? UI_ITEM_R_EXPAND: 0;
 	flag |= (toggle)? UI_ITEM_R_TOGGLE: 0;
-
+	flag |= (icon_only)? UI_ITEM_R_ICON_ONLY: 0;
+	
 	uiItemR(layout, name, icon, ptr, propname, flag);
 }
 
@@ -88,7 +89,7 @@ static void api_ui_item_rna_common(FunctionRNA *func)
 	PropertyRNA *parm;
 
 	parm= RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property.");
-	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR);
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 	parm= RNA_def_string(func, "property", "", 0, "", "Identifier of property in data.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
@@ -145,6 +146,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_boolean(func, "expand", 0, "", "Expand button to show more detail.");
 	RNA_def_boolean(func, "slider", 0, "", "Use slider widget for numeric values.");
 	RNA_def_boolean(func, "toggle", 0, "", "Use toggle widget for boolean values.");
+	RNA_def_boolean(func, "icon_only", 0, "", "Draw only icons in buttons, no text.");
 
 	func= RNA_def_function(srna, "items_enumR", "uiItemsEnumR");
 	api_ui_item_rna_common(func);
@@ -163,7 +165,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	api_ui_item_common(func);
 	api_ui_item_rna_common(func);
 	parm= RNA_def_pointer(func, "search_data", "AnyType", "", "Data from which to take collection to search in.");
-	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR);
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 	parm= RNA_def_string(func, "search_property", "", 0, "", "Identifier of search collection property.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
@@ -252,31 +254,29 @@ void RNA_api_ui_layout(StructRNA *srna)
 
 	func= RNA_def_function(srna, "template_modifier", "uiTemplateModifier");
 	parm= RNA_def_pointer(func, "data", "Modifier", "", "Modifier data.");
-	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR);
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
 	RNA_def_function_return(func, parm);
 
 	func= RNA_def_function(srna, "template_constraint", "uiTemplateConstraint");
 	parm= RNA_def_pointer(func, "data", "Constraint", "", "Constraint data.");
-	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR);
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
 	RNA_def_function_return(func, parm);
 
 	func= RNA_def_function(srna, "template_preview", "uiTemplatePreview");
 	parm= RNA_def_pointer(func, "id", "ID", "", "ID datablock.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "parent", "ID", "", "ID datablock.");
-	parm= RNA_def_pointer(func, "slot", "TextureSlot", "", "Texture slot.");
+	RNA_def_pointer(func, "parent", "ID", "", "ID datablock.");
+	RNA_def_pointer(func, "slot", "TextureSlot", "", "Texture slot.");
 
 	func= RNA_def_function(srna, "template_curve_mapping", "uiTemplateCurveMapping");
-	parm= RNA_def_pointer(func, "curvemap", "CurveMapping", "", "Curve mapping pointer.");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	api_ui_item_rna_common(func);
 	RNA_def_enum(func, "type", curve_type_items, 0, "Type", "Type of curves to display.");
-	RNA_def_boolean(func, "compact", 0, "", "Use more compact curve mapping.");
+	RNA_def_boolean(func, "levels", 0, "", "Show black/white levels.");
 
 	func= RNA_def_function(srna, "template_color_ramp", "uiTemplateColorRamp");
-	parm= RNA_def_pointer(func, "ramp", "ColorRamp", "", "Color ramp pointer.");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
+	api_ui_item_rna_common(func);
 	RNA_def_boolean(func, "expand", 0, "", "Expand button to show more detail.");
 	
 	func= RNA_def_function(srna, "template_layers", "uiTemplateLayers");
@@ -292,11 +292,21 @@ void RNA_api_ui_layout(StructRNA *srna)
 	parm= RNA_def_pointer(func, "image_user", "ImageUser", "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
-	func= RNA_def_function(srna, "template_list", "uiTemplateList");
+	func= RNA_def_function(srna, "template_image", "uiTemplateImage");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	api_ui_item_rna_common(func);
-	parm= RNA_def_pointer(func, "active_data", "AnyType", "", "Data from which to take property for the active element.");
+	parm= RNA_def_pointer(func, "image_user", "ImageUser", "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR);
+	RNA_def_boolean(func, "compact", 0, "", "Use more compact layout.");
+
+	func= RNA_def_function(srna, "template_list", "uiTemplateList");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+	parm= RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property.");
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR);
+	parm= RNA_def_string(func, "property", "", 0, "", "Identifier of property in data.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_pointer(func, "active_data", "AnyType", "", "Data from which to take property for the active element.");
+	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 	parm= RNA_def_string(func, "active_property", "", 0, "", "Identifier of property in data, for the active element.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm= RNA_def_int(func, "rows", 5, 0, INT_MAX, "", "Number of rows to display.", 0, INT_MAX);
@@ -314,11 +324,6 @@ void RNA_api_ui_layout(StructRNA *srna)
 
 	func= RNA_def_function(srna, "view3d_select_faceselmenu", "uiTemplate_view3d_select_faceselmenu");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-
-	func= RNA_def_function(srna, "template_texture_image", "uiTemplateTextureImage");
-	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-	parm= RNA_def_pointer(func, "texture", "Texture", "", "");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
 #endif

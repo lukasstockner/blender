@@ -889,6 +889,28 @@ static void free_mesh_orco_hash(Render *re)
 	}
 }
 
+static void check_material_mapto(Material *ma)
+{
+	int a;
+	ma->mapto_textured = 0;
+	
+	/* cache which inputs are actually textured.
+	 * this can avoid a bit of time spent iterating through all the texture slots, map inputs and map tos
+	 * every time a property which may or may not be textured is accessed */
+	
+	for(a=0; a<MAX_MTEX; a++) {
+		if(ma->mtex[a] && ma->mtex[a]->tex) {
+			/* currently used only in volume render, so we'll check for those flags */
+			if(ma->mtex[a]->mapto & MAP_DENSITY) ma->mapto_textured |= MAP_DENSITY;
+			if(ma->mtex[a]->mapto & MAP_EMISSION) ma->mapto_textured |= MAP_EMISSION;
+			if(ma->mtex[a]->mapto & MAP_EMISSION_COL) ma->mapto_textured |= MAP_EMISSION_COL;
+			if(ma->mtex[a]->mapto & MAP_SCATTERING) ma->mapto_textured |= MAP_SCATTERING;
+			if(ma->mtex[a]->mapto & MAP_TRANSMISSION_COL) ma->mapto_textured |= MAP_TRANSMISSION_COL;
+			if(ma->mtex[a]->mapto & MAP_REFLECTION) ma->mapto_textured |= MAP_REFLECTION;
+			if(ma->mtex[a]->mapto & MAP_REFLECTION_COL) ma->mapto_textured |= MAP_REFLECTION_COL;
+		}
+	}
+}
 static void flag_render_node_material(Render *re, bNodeTree *ntree)
 {
 	bNode *node;
@@ -929,6 +951,8 @@ static Material *give_render_material(Render *re, Object *ob, int nr)
 
 	if(ma->nodetree && ma->use_nodes)
 		flag_render_node_material(re, ma->nodetree);
+	
+	check_material_mapto(ma);
 	
 	return ma;
 }
@@ -1474,7 +1498,7 @@ static void get_particle_uvco_mcol(short from, DerivedMesh *dm, float *fuv, int 
 static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psys, int timeoffset)
 {
 	Object *ob= obr->ob;
-	Object *tob=0;
+//	Object *tob=0;
 	Material *ma=0;
 	ParticleSystemModifierData *psmd;
 	ParticleSystem *tpsys=0;
@@ -1484,6 +1508,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	ParticleKey state;
 	ParticleCacheKey *cache=0;
 	ParticleBillboardData bb;
+	ParticleSimulationData sim = {re->scene, ob, psys, NULL};
 	ParticleStrandData sd;
 	StrandBuffer *strandbuf=0;
 	StrandVert *svert=0;
@@ -1517,13 +1542,15 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 		return 1;
 
 /* 2. start initialising things */
-	if(part->phystype==PART_PHYS_KEYED)
-		psys_count_keyed_targets(ob,psys);
 
 	/* last possibility to bail out! */
-	psmd= psys_get_modifier(ob,psys);
+	sim.psmd = psmd = psys_get_modifier(ob,psys);
 	if(!(psmd->modifier.mode & eModifierMode_Render))
 		return 0;
+
+	if(part->phystype==PART_PHYS_KEYED)
+		psys_count_keyed_targets(&sim);
+
 
 	if(G.rendering == 0) { /* preview render */
 		totchild = (int)((float)totchild * (float)part->disp / 100.0f);
@@ -1611,14 +1638,14 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 #endif // XXX old animation system
 	cfra = bsystem_time(re->scene, 0, (float)re->scene->r.cfra, 0.0);
 
-/* 2.4 setup reactors */
-	if(part->type == PART_REACTOR){
-		psys_get_reactor_target(ob, psys, &tob, &tpsys);
-		if(tpsys && (part->from==PART_FROM_PARTICLE || part->phystype==PART_PHYS_NO)){
-			psmd = psys_get_modifier(tob,tpsys);
-			tpart = tpsys->part;
-		}
-	}
+///* 2.4 setup reactors */
+//	if(part->type == PART_REACTOR){
+//		psys_get_reactor_target(ob, psys, &tob, &tpsys);
+//		if(tpsys && (part->from==PART_FROM_PARTICLE || part->phystype==PART_PHYS_NO)){
+//			psmd = psys_get_modifier(tob,tpsys);
+//			tpart = tpsys->part;
+//		}
+//	}
 	
 /* 2.5 setup matrices */
 	Mat4MulMat4(mat, ob->obmat, re->viewmat);
@@ -1695,7 +1722,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	}
 
 	if(path_nbr == 0)
-		psys->lattice = psys_get_lattice(re->scene, ob, psys);
+		psys->lattice = psys_get_lattice(&sim);
 
 /* 3. start creating renderable things */
 	for(a=0,pa=pars; a<totpart+totchild; a++, pa++, seed++) {
@@ -1786,8 +1813,8 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 
 			pa_size = psys_get_child_size(psys, cpa, cfra, &pa_time);
 
-			r_tilt = 2.0f * cpa->rand[2];
-			r_length = cpa->rand[1];
+			r_tilt = 2.0f*(PSYS_FRAND(a + 21) - 0.5f);
+			r_length = PSYS_FRAND(a + 22);
 
 			num = cpa->num;
 
@@ -1952,7 +1979,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 						continue;
 
 					state.time = (part->draw & PART_ABS_PATH_TIME) ? -ct : ct;
-					psys_get_particle_on_path(re->scene,ob,psys,a,&state,1);
+					psys_get_particle_on_path(&sim,a,&state,1);
 
 					if(psys->parent)
 						Mat4MulVecfl(psys->parent->obmat, state.co);
@@ -1971,7 +1998,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 			else {
 				time=0.0f;
 				state.time=cfra;
-				if(psys_get_particle_state(re->scene,ob,psys,a,&state,0)==0)
+				if(psys_get_particle_state(&sim,a,&state,0)==0)
 					continue;
 
 				if(psys->parent)

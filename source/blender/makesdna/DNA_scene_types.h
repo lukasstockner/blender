@@ -93,6 +93,8 @@ typedef struct FFMpegCodecData {
 	int audio_codec;
 	int video_bitrate;
 	int audio_bitrate;
+	int audio_mixrate;
+	float audio_volume;
 	int gop_size;
 	int flags;
 
@@ -106,10 +108,13 @@ typedef struct FFMpegCodecData {
 
 
 typedef struct AudioData {
-	int mixrate;
-	float main;		/* Main mix in dB */
+	int mixrate; // 2.5: now in FFMpegCodecData: audio_mixrate
+	float main; // 2.5: now in FFMpegCodecData: audio_volume
+	float speed_of_sound;
+	float doppler_factor;
+	int distance_model;
 	short flag;
-	short pad[3];
+	short pad;
 } AudioData;
 
 typedef struct SceneRenderLayer {
@@ -170,7 +175,6 @@ typedef struct RenderData {
 	struct AviCodecData *avicodecdata;
 	struct QuicktimeCodecData *qtcodecdata;
 	struct FFMpegCodecData ffcodecdata;
-	struct AudioData audio;	/* new in 2.5 */
 	
 	int cfra, sfra, efra;	/* frames as in 'images' */
 	int psfra, pefra;		/* start+end frames of preview range */
@@ -663,6 +667,11 @@ typedef struct UnitSettings {
 	short flag; /* imperial, metric etc */
 } UnitSettings;
 
+typedef struct PhysicsSettings {
+	float gravity[3];
+	int flag;
+} PhysicsSettings;
+
 typedef struct Scene {
 	ID id;
 	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
@@ -697,7 +706,7 @@ typedef struct Scene {
 	/* migrate or replace? depends on some internal things... */
 	/* no, is on the right place (ton) */
 	struct RenderData r;
-	struct AudioData audio;		/* DEPRECATED 2.5 */
+	struct AudioData audio;
 	
 	ListBase markers;
 	ListBase transform_spaces;
@@ -727,6 +736,9 @@ typedef struct Scene {
 	
 	/* Grease Pencil */
 	struct bGPdata *gpd;
+
+	/* Physics simulation settings */
+	struct PhysicsSettings physics_settings;
 } Scene;
 
 
@@ -1122,6 +1134,9 @@ typedef enum SculptFlags {
 /* toolsettings->skgen_retarget_roll */
 #define	SK_RETARGET_ROLL_VIEW			1
 #define	SK_RETARGET_ROLL_JOINT			2
+
+/* physics_settings->flag */
+#define PHYS_GLOBAL_GRAVITY		1
 
 /* UnitSettings */
 

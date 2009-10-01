@@ -98,8 +98,6 @@ static void waitcursor(int val) {}
 static int pupmenu() {return 0;}
 static int qtest() {return 0;}
 #define add_numbut(a, b, c, d, e, f, g) {}
-static int snap_sel_to_curs() {return 0;}
-static int snap_to_center() {return 0;}
 
 /* XXX */
 
@@ -142,7 +140,7 @@ static int vergface(const void *v1, const void *v2)
 
 /* *********************************** */
 
-void convert_to_triface(EditMesh *em, int direction)
+static void convert_to_triface(EditMesh *em, int direction)
 {
 	EditFace *efa, *efan, *next;
 	float fac;
@@ -484,17 +482,16 @@ int removedoublesflag(EditMesh *em, short flag, short automerge, float limit)		/
 static int removedoublesflag_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit= CTX_data_edit_object(C);
-	ToolSettings *ts= CTX_data_tool_settings(C);
 	EditMesh *em= BKE_mesh_get_editmesh(((Mesh *)obedit->data));
-	char msg[100];
+	/*char msg[100];*/
+	int cnt = removedoublesflag(em,1,0,RNA_float_get(op->ptr, "limit"));
 
-	int cnt = removedoublesflag(em,1,0,ts->doublimit);
-
+	/*XXX this messes up last operator panel
 	if(cnt)
 	{
 		sprintf(msg, "Removed %d vertices", cnt);
 		BKE_report(op->reports, RPT_INFO, msg);
-	}
+	}*/
 
 	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
@@ -516,6 +513,8 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_float(ot->srna, "limit", 0.0001f, 0.000001f, 50.0f, "Merge Threshold", "Minimum distance between merged verts", 0.00001f, 2.0f);
 }
 
 // XXX is this needed?
@@ -3121,13 +3120,13 @@ static float measure_facepair(EditVert *v1, EditVert *v2, EditVert *v3, EditVert
 	CalcNormFloat(v1->co, v3->co, v4->co, noA2);
 
 	if(noA1[0] == noA2[0] && noA1[1] == noA2[1] && noA1[2] == noA2[2]) normalADiff = 0.0;
-	else normalADiff = VecAngle2(noA1, noA2);
+	else normalADiff = RAD2DEG(VecAngle2(noA1, noA2));
 		//if(!normalADiff) normalADiff = 179;
 	CalcNormFloat(v2->co, v3->co, v4->co, noB1);
 	CalcNormFloat(v4->co, v1->co, v2->co, noB2);
 
 	if(noB1[0] == noB2[0] && noB1[1] == noB2[1] && noB1[2] == noB2[2]) normalBDiff = 0.0;
-	else normalBDiff = VecAngle2(noB1, noB2);
+	else normalBDiff = RAD2DEG(VecAngle2(noB1, noB2));
 		//if(!normalBDiff) normalBDiff = 179;
 
 	measure += (normalADiff/360) + (normalBDiff/360);
@@ -3142,10 +3141,10 @@ static float measure_facepair(EditVert *v1, EditVert *v2, EditVert *v3, EditVert
 	diff = 0.0;
 
 	diff = (
-		fabs(VecAngle2(edgeVec1, edgeVec2) - 90) +
-		fabs(VecAngle2(edgeVec2, edgeVec3) - 90) +
-		fabs(VecAngle2(edgeVec3, edgeVec4) - 90) +
-		fabs(VecAngle2(edgeVec4, edgeVec1) - 90)) / 360;
+		fabs(RAD2DEG(VecAngle2(edgeVec1, edgeVec2)) - 90) +
+		fabs(RAD2DEG(VecAngle2(edgeVec2, edgeVec3)) - 90) +
+		fabs(RAD2DEG(VecAngle2(edgeVec3, edgeVec4)) - 90) +
+		fabs(RAD2DEG(VecAngle2(edgeVec4, edgeVec1)) - 90)) / 360;
 	if(!diff) return 0.0;
 
 	measure +=  diff;
@@ -3868,11 +3867,11 @@ typedef struct SlideVert {
 	EditVert origvert;
 } SlideVert;
 
+#if 0
 int EdgeSlide(EditMesh *em, wmOperator *op, short immediate, float imperc)
 {
 	return 0;
 /* XXX REFACTOR - #if 0'd for now, otherwise can't make 64bit windows builds on 64bit machine */
-#if 0
 useless:
 	goto useless // because it doesn't do anything right now
 
@@ -4654,11 +4653,12 @@ useless:
 	}
 
 	return 1;
-#endif // END OF XXX
 }
+#endif // END OF XXX
 
 int EdgeLoopDelete(EditMesh *em, wmOperator *op)
 {
+#if 0 //XXX won't work with new edgeslide
 
 	/* temporal flag setting so we keep UVs when deleting edge loops,
 	* this is a bit of a hack but it works how you would want in almost all cases */
@@ -4677,6 +4677,8 @@ int EdgeLoopDelete(EditMesh *em, wmOperator *op)
 	EM_select_flush(em);
 	//	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
 	return 1;
+#endif
+	return 0;
 }
 
 
@@ -5635,7 +5637,7 @@ static void collapseuvs(EditMesh *em, EditVert *mergevert)
 	}
 }
 
-int collapseEdges(EditMesh *em)
+static int collapseEdges(EditMesh *em)
 {
 	EditVert *eve;
 	EditEdge *eed;
@@ -5701,7 +5703,7 @@ int collapseEdges(EditMesh *em)
 	return mergecount;
 }
 
-int merge_firstlast(EditMesh *em, int first, int uvmerge)
+static int merge_firstlast(EditMesh *em, int first, int uvmerge)
 {
 	EditVert *eve,*mergevert;
 	EditSelection *ese;
@@ -5735,13 +5737,59 @@ int merge_firstlast(EditMesh *em, int first, int uvmerge)
 	return removedoublesflag(em, 1, 0, MERGELIMIT);
 }
 
-int merge_target(EditMesh *em, int target, int uvmerge)
+static void em_snap_to_center(EditMesh *em)
+{
+	EditVert *eve;
+	float cent[3] = {0.0f, 0.0f, 0.0f};
+	int i=0;
+
+	for (eve=em->verts.first; eve; eve=eve->next) {
+		if (eve->f & SELECT) {
+			VecAddf(cent, cent, eve->co);
+			i++;
+		}
+	}
+
+	if (!i)
+		return;
+
+	VecMulf(cent, 1.0f / (float)i);
+
+	for (eve=em->verts.first; eve; eve=eve->next) {
+		if (eve->f & SELECT) {
+			VECCOPY(eve->co, cent);
+		}
+	}
+}
+
+static void em_snap_to_cursor(EditMesh *em, bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob= CTX_data_edit_object(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	EditVert *eve;
+	float co[3], *vco, invmat[4][4];
+		
+	Mat4Invert(invmat, ob->obmat);
+
+	vco = give_cursor(scene, v3d);
+	VECCOPY(co, vco);
+	Mat4MulVecfl(invmat, co);
+
+	for (eve=em->verts.first; eve; eve=eve->next) {
+		if (eve->f & SELECT) {
+			VECCOPY(eve->co, co);
+		}
+	}
+}
+
+static int merge_target(bContext *C, EditMesh *em, int target, int uvmerge)
 {
 	EditVert *eve;
 
 	// XXX not working
-	if(target) snap_sel_to_curs();
-	else snap_to_center();
+	if(target) em_snap_to_cursor(em, C);
+	else em_snap_to_center(em);
 
 	if(uvmerge && CustomData_has_layer(&em->fdata, CD_MTFACE)){
 		for(eve=em->verts.first; eve; eve=eve->next) eve->f1 = 0;
@@ -5763,10 +5811,10 @@ static int merge_exec(bContext *C, wmOperator *op)
 
 	switch(RNA_enum_get(op->ptr, "type")) {
 		case 3:
-			count = merge_target(em, 0, uvs);
+			count = merge_target(C, em, 0, uvs);
 			break;
 		case 4:
-			count = merge_target(em, 1, uvs);
+			count = merge_target(C, em, 1, uvs);
 			break;
 		case 1:
 			count = merge_firstlast(em, 0, uvs);
@@ -5774,7 +5822,7 @@ static int merge_exec(bContext *C, wmOperator *op)
 		case 6:
 			count = merge_firstlast(em, 1, uvs);
 			break;
-		case 2:
+		case 5:
 			count = collapseEdges(em);
 			break;
 	}
@@ -5878,7 +5926,7 @@ typedef struct PathEdge {
 #define PATH_SELECT_EDGE_LENGTH 0
 #define PATH_SELECT_TOPOLOGICAL 1
 
-int select_vertex_path_exec(bContext *C, wmOperator *op)
+static int select_vertex_path_exec(bContext *C, wmOperator *op)
 {
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh *)obedit->data);
@@ -7091,7 +7139,7 @@ void MESH_OT_edge_flip(wmOperatorType *ot)
 
 /********************** Smooth/Solid Operators *************************/
 
-void mesh_set_smooth_faces(EditMesh *em, short smooth)
+static void mesh_set_smooth_faces(EditMesh *em, short smooth)
 {
 	EditFace *efa;
 

@@ -1343,7 +1343,8 @@ static void ray_trace_shadow_tra(Isect *is, ShadeInput *origshi, int depth, int 
 			/* mix colors based on shadfac (rgb + amount of light factor) */
 			addAlphaLight(is->col, shr.diff, shr.alpha, d*shi.mat->filter);
 		} else if (shi.mat->material_type == MA_TYPE_VOLUME) {
-			addAlphaLight(is->col, shr.combined, shr.alpha, 1.0f);
+			QUATCOPY(is->col, shr.combined);
+			is->col[3] = 1.f;
 		}
 		
 		if(depth>0 && is->col[3]>0.0f) {
@@ -1900,7 +1901,8 @@ static void ray_shadow_qmc(ShadeInput *shi, LampRen *lar, float *lampco, float *
 		else max_samples = 1;
 	} else {
 		if (do_soft) max_samples = lar->ray_totsamp;
-		else max_samples = (R.osa > 4)?R.osa:5;
+		else if (shi->depth == 0) max_samples = (R.osa > 4)?R.osa:5;
+		else max_samples = 1;
 	}
 	
 	ray_shadow_jittered_coords(shi, max_samples, jitco, &totjitco);

@@ -396,15 +396,7 @@ AZone *is_in_area_actionzone(ScrArea *sa, int x, int y)
 					break;
 			}
 			else if(az->type == AZONE_REGION) {
-				float v1[2], v2[2], v3[2], pt[2];
-				
-				v1[0]= az->x1; v1[1]= az->y1;
-				v2[0]= az->x2; v2[1]= az->y2;
-				v3[0]= az->x3; v3[1]= az->y3;
-				pt[0]= x; pt[1]=y;
-
-				if(IsPointInTri2D(v1, v2, v3, pt)) 
-					break;
+				break;
 			}
 		}
 	}
@@ -464,7 +456,7 @@ static int actionzone_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	}
 	else {
 		/* add modal handler */
-		WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+		WM_event_add_modal_handler(C, op);
 		
 		return OPERATOR_RUNNING_MODAL;
 	}
@@ -596,7 +588,7 @@ static int area_swap_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	/* add modal handler */
 	WM_cursor_modal(CTX_wm_window(C), BC_SWAPAREA_CURSOR);
-	WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+	WM_event_add_modal_handler(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
 
@@ -612,8 +604,8 @@ static int area_swap_modal(bContext *C, wmOperator *op, wmEvent *event)
 			sad->sa2= screen_areahascursor(CTX_wm_screen(C), event->x, event->y);
 			break;
 		case LEFTMOUSE: /* release LMB */
-			if(event->val==0) {
-				if(sad->sa1 == sad->sa2) {
+			if(event->val==KM_RELEASE) {
+				if(!sad->sa2 || sad->sa1 == sad->sa2) {
 
 					return area_swap_cancel(C, op);
 				}
@@ -878,7 +870,7 @@ static int area_move_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		return OPERATOR_PASS_THROUGH;
 	
 	/* add temp handler */
-	WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+	WM_event_add_modal_handler(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -1168,7 +1160,7 @@ static int area_split_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			area_move_set_limits(CTX_wm_screen(C), dir, &sd->bigger, &sd->smaller);
 			
 			/* add temp handler for edge move or cancel */
-			WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+			WM_event_add_modal_handler(C, op);
 			
 			return OPERATOR_RUNNING_MODAL;
 		}
@@ -1233,7 +1225,7 @@ static int area_split_modal(bContext *C, wmOperator *op, wmEvent *event)
 			break;
 			
 		case LEFTMOUSE:
-			if(event->val==0) { /* mouse up */
+			if(event->val==KM_RELEASE) { /* mouse up */
 				area_split_exit(C, op);
 				return OPERATOR_FINISHED;
 			}
@@ -1261,7 +1253,7 @@ static void SCREEN_OT_area_split(wmOperatorType *ot)
 	ot->modal= area_split_modal;
 	
 	ot->poll= ED_operator_areaactive;
-	ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
+	ot->flag= OPTYPE_BLOCKING;
 	
 	/* rna */
 	RNA_def_enum(ot->srna, "direction", prop_direction_items, 'h', "Direction", "");
@@ -1273,7 +1265,9 @@ static void SCREEN_OT_area_split(wmOperatorType *ot)
 /* ************** scale region edge operator *********************************** */
 
 typedef struct RegionMoveData {
+	AZone *az;
 	ARegion *ar;
+	ScrArea *sa;
 	int bigger, smaller, origval;
 	int origx, origy;
 	char edge;
@@ -1290,7 +1284,9 @@ static int region_scale_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		
 		op->customdata= rmd;
 		
+		rmd->az = az;
 		rmd->ar= az->ar;
+		rmd->sa = sad->sa1;
 		rmd->edge= az->edge;
 		rmd->origx= event->x;
 		rmd->origy= event->y;
@@ -1300,7 +1296,7 @@ static int region_scale_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			rmd->origval= rmd->ar->type->minsizey;
 		
 		/* add temp handler */
-		WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+		WM_event_add_modal_handler(C, op);
 		
 		return OPERATOR_RUNNING_MODAL;
 	}
@@ -1322,24 +1318,26 @@ static int region_scale_modal(bContext *C, wmOperator *op, wmEvent *event)
 				if(rmd->edge=='l') delta= -delta;
 				rmd->ar->type->minsizex= rmd->origval + delta;
 				CLAMP(rmd->ar->type->minsizex, 0, 1000);
-				if(rmd->ar->type->minsizex < 10) {
-					rmd->ar->type->minsizex= 10;
-					rmd->ar->flag |= RGN_FLAG_HIDDEN;
+				if(rmd->ar->type->minsizex < 24) {
+					rmd->ar->type->minsizex= rmd->origval;
+					if(!(rmd->ar->flag & RGN_FLAG_HIDDEN))
+						ED_region_toggle_hidden(C, rmd->ar);
 				}
-				else
-					rmd->ar->flag &= ~RGN_FLAG_HIDDEN;
+				else if(rmd->ar->flag & RGN_FLAG_HIDDEN)
+					ED_region_toggle_hidden(C, rmd->ar);
 			}
 			else {
 				delta= event->y - rmd->origy;
 				if(rmd->edge=='b') delta= -delta;
 				rmd->ar->type->minsizey= rmd->origval + delta;
 				CLAMP(rmd->ar->type->minsizey, 0, 1000);
-				if(rmd->ar->type->minsizey < 10) {
-					rmd->ar->type->minsizey= 10;
-					rmd->ar->flag |= RGN_FLAG_HIDDEN;
+				if(rmd->ar->type->minsizey < 24) {
+					rmd->ar->type->minsizey= rmd->origval;
+					if(!(rmd->ar->flag & RGN_FLAG_HIDDEN))
+						ED_region_toggle_hidden(C, rmd->ar);
 				}
-				else
-					rmd->ar->flag &= ~RGN_FLAG_HIDDEN;
+				else if(rmd->ar->flag & RGN_FLAG_HIDDEN)
+					ED_region_toggle_hidden(C, rmd->ar);
 			}
 			
 			WM_event_add_notifier(C, NC_SCREEN|NA_EDITED, NULL);
@@ -1347,12 +1345,14 @@ static int region_scale_modal(bContext *C, wmOperator *op, wmEvent *event)
 			break;
 			
 		case LEFTMOUSE:
-			if(event->val==0) {
+			if(event->val==KM_RELEASE) {
 				
 				if(ABS(event->x - rmd->origx) < 2 && ABS(event->y - rmd->origy) < 2) {
-					rmd->ar->flag ^= RGN_FLAG_HIDDEN;
-					WM_event_add_notifier(C, NC_SCREEN|NA_EDITED, NULL);
-				}				
+					if(rmd->ar->flag & RGN_FLAG_HIDDEN) {
+						ED_region_toggle_hidden(C, rmd->ar);
+						WM_event_add_notifier(C, NC_SCREEN|NA_EDITED, NULL);
+					}
+				}
 				MEM_freeN(op->customdata);
 				op->customdata = NULL;
 
@@ -1445,29 +1445,6 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 
 
 /* ************** jump to keyframe operator ***************************** */
-
-/* helper function - find actkeycolumn that occurs on cframe, or the nearest one if not found */
-// TODO: make this an API func?
-static ActKeyColumn *cfra_find_nearest_next_ak (ActKeyColumn *ak, float cframe, short next)
-{
-	ActKeyColumn *akn= NULL;
-	
-	/* sanity checks */
-	if (ak == NULL)
-		return NULL;
-	
-	/* check if this is a match, or whether it is in some subtree */
-	if (cframe < ak->cfra)
-		akn= cfra_find_nearest_next_ak(ak->left, cframe, next);
-	else if (cframe > ak->cfra)
-		akn= cfra_find_nearest_next_ak(ak->right, cframe, next);
-		
-	/* if no match found (or found match), just use the current one */
-	if (akn == NULL)
-		return ak;
-	else
-		return akn;
-}
 
 /* function to be called outside UI context, or for redo */
 static int keyframe_jump_exec(bContext *C, wmOperator *op)
@@ -1597,7 +1574,7 @@ static int screen_full_area_exec(bContext *C, wmOperator *op)
 
 static void SCREEN_OT_screen_full_area(wmOperatorType *ot)
 {
-	ot->name = "Toggle Make Area Fullscreen";
+	ot->name = "Toggle Full Screen";
 	ot->idname = "SCREEN_OT_screen_full_area";
 	
 	ot->exec= screen_full_area_exec;
@@ -1751,7 +1728,7 @@ static int area_join_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			return OPERATOR_PASS_THROUGH;
 	
 		/* add temp handler */
-		WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+		WM_event_add_modal_handler(C, op);
 	
 		return OPERATOR_RUNNING_MODAL;
 	}
@@ -1851,7 +1828,7 @@ static int area_join_modal(bContext *C, wmOperator *op, wmEvent *event)
 			}
 			break;
 		case LEFTMOUSE:
-			if(event->val==0) {
+			if(event->val==KM_RELEASE) {
 				area_join_apply(C, op);
 				WM_event_add_notifier(C, NC_SCREEN|NA_EDITED, NULL);
 				area_join_exit(C, op);
@@ -2120,14 +2097,14 @@ static int region_foursplit_exec(bContext *C, wmOperator *op)
 static void SCREEN_OT_region_foursplit(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Split Region in 4 Parts";
+	ot->name= "Toggle Quad View";
 	ot->idname= "SCREEN_OT_region_foursplit";
 	
 	/* api callbacks */
 //	ot->invoke= WM_operator_confirm;
 	ot->exec= region_foursplit_exec;
 	ot->poll= ED_operator_areaactive;
-	ot->flag= OPTYPE_REGISTER;
+	ot->flag= 0;
 }
 
 
@@ -2165,7 +2142,7 @@ static void SCREEN_OT_region_flip(wmOperatorType *ot)
 	ot->exec= region_flip_exec;
 	
 	ot->poll= ED_operator_areaactive;
-	ot->flag= OPTYPE_REGISTER;
+	ot->flag= 0;
 
 }
 
@@ -2197,6 +2174,10 @@ static int match_region_with_redraws(int spacetype, int regiontype, int redraws)
 				break;
 			case SPACE_SEQ:
 				if(redraws & (TIME_SEQ|TIME_ALL_ANIM_WIN))
+					return 1;
+				break;
+			case SPACE_NODE:
+				if(redraws & (TIME_NODES))
 					return 1;
 				break;
 			case SPACE_IMAGE:
@@ -2231,7 +2212,7 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		/* sync, don't sync, or follow scene setting */
 		if(sad->flag & ANIMPLAY_FLAG_SYNC) sync= 1;
 		else if(sad->flag & ANIMPLAY_FLAG_NO_SYNC) sync= 0;
-		else sync= (scene->r.audio.flag & AUDIO_SYNC);
+		else sync= (scene->audio.flag & AUDIO_SYNC);
 		
 		if(sync) {
 			/* skip frames */
@@ -2366,7 +2347,7 @@ static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 static void SCREEN_OT_animation_play(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Animation player";
+	ot->name= "Play Animation";
 	ot->idname= "SCREEN_OT_animation_play";
 	
 	/* api callbacks */
@@ -2722,18 +2703,13 @@ static void image_renderinfo_cb(void *rjv, RenderStats *rs)
 }
 
 /* called inside thread! */
-static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrect)
+static void image_buffer_rect_update(RenderJob *rj, RenderResult *rr, ImBuf *ibuf, volatile rcti *renrect)
 {
-	RenderJob *rj= rjv;
-	ImBuf *ibuf;
 	float x1, y1, *rectf= NULL;
 	int ymin, ymax, xmin, xmax;
 	int rymin, rxmin;
 	char *rectc;
 	
-	ibuf= BKE_image_get_ibuf(rj->image, &rj->iuser);
-	if(ibuf==NULL) return;
-
 	/* if renrect argument, we only refresh scanlines */
 	if(renrect) {
 		/* if ymax==recty, rendering of layer is ready, we should not draw, other things happen... */
@@ -2833,6 +2809,18 @@ static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrec
 	*(rj->do_update)= 1;
 }
 
+static void image_rect_update(void *rjv, RenderResult *rr, volatile rcti *renrect)
+{
+	RenderJob *rj= rjv;
+	ImBuf *ibuf;
+	void *lock;
+	
+	ibuf= BKE_image_acquire_ibuf(rj->image, &rj->iuser, &lock);
+	if(ibuf)
+		image_buffer_rect_update(rj, rr, ibuf, renrect);
+	BKE_image_release_ibuf(rj->image, lock);
+}
+
 static void render_startjob(void *rjv, short *stop, short *do_update)
 {
 	RenderJob *rj= rjv;
@@ -2916,7 +2904,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	rj->iuser.ok= 1;
 	
 	/* setup job */
-	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene);
+	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, WM_JOB_EXCL_RENDER|WM_JOB_PRIORITY);
 	WM_jobs_customdata(steve, rj, render_freejob);
 	WM_jobs_timer(steve, 0.2, NC_SCENE|ND_RENDER_RESULT, 0);
 	WM_jobs_callbacks(steve, render_startjob, NULL, NULL);
@@ -2946,7 +2934,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_RESULT, scene);
 
 	/* add modal handler for ESC */
-	WM_event_add_modal_handler(C, &CTX_wm_window(C)->handlers, op);
+	WM_event_add_modal_handler(C, op);
 	
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -3293,19 +3281,15 @@ static void keymap_modal_set(wmWindowManager *wm)
 /* called in spacetypes.c */
 void ED_keymap_screen(wmWindowManager *wm)
 {
-	ListBase *keymap;
+	wmKeyMap *keymap;
 	
-	/* Screen General ------------------------------------------------ */
-	keymap= WM_keymap_listbase(wm, "Screen", 0, 0);
-	
-	
-	/* standard timers */
-	WM_keymap_add_item(keymap, "SCREEN_OT_animation_step", TIMER0, KM_ANY, KM_ANY, 0);
+	/* Screen Editing ------------------------------------------------ */
+	keymap= WM_keymap_find(wm, "Screen Editing", 0, 0);
 	
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_actionzone", LEFTMOUSE, KM_PRESS, 0, 0)->ptr, "modifier", 0);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_actionzone", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0)->ptr, "modifier", 1);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_actionzone", LEFTMOUSE, KM_PRESS, KM_ALT, 0)->ptr, "modifier", 2);
-	
+
 	/* screen tools */
 	WM_keymap_verify_item(keymap, "SCREEN_OT_area_split", EVT_ACTIONZONE_AREA, 0, 0, 0);
 	WM_keymap_verify_item(keymap, "SCREEN_OT_area_join", EVT_ACTIONZONE_AREA, 0, 0, 0);
@@ -3314,6 +3298,14 @@ void ED_keymap_screen(wmWindowManager *wm)
 	WM_keymap_verify_item(keymap, "SCREEN_OT_region_scale", EVT_ACTIONZONE_REGION, 0, 0, 0);
 			/* area move after action zones */
 	WM_keymap_verify_item(keymap, "SCREEN_OT_area_move", LEFTMOUSE, KM_PRESS, 0, 0);
+
+
+	/* Screen General ------------------------------------------------ */
+	keymap= WM_keymap_find(wm, "Screen", 0, 0);
+	
+	/* standard timers */
+	WM_keymap_add_item(keymap, "SCREEN_OT_animation_step", TIMER0, KM_ANY, KM_ANY, 0);
+	
 	
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_screen_set", RIGHTARROWKEY, KM_PRESS, KM_CTRL, 0)->ptr, "delta", 1);
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_screen_set", LEFTARROWKEY, KM_PRESS, KM_CTRL, 0)->ptr, "delta", -1);
@@ -3327,15 +3319,13 @@ void ED_keymap_screen(wmWindowManager *wm)
 	WM_keymap_add_item(keymap, "SCREEN_OT_region_foursplit", SKEY, KM_PRESS, KM_CTRL|KM_ALT|KM_SHIFT, 0);
 	
 	WM_keymap_verify_item(keymap, "SCREEN_OT_repeat_history", F3KEY, KM_PRESS, 0, 0);
-	#ifdef __APPLE__
-	WM_keymap_add_item(keymap, "SCREEN_OT_repeat_last", RKEY, KM_PRESS, KM_OSKEY, 0);
-	#endif
-	WM_keymap_add_item(keymap, "SCREEN_OT_repeat_last", RKEY, KM_PRESS, KM_CTRL, 0);
+
+	WM_keymap_add_item(keymap, "SCREEN_OT_repeat_last", RKEY, KM_PRESS, KM_SHIFT, 0);
 	
 	WM_keymap_add_item(keymap, "SCREEN_OT_region_flip", F5KEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "SCREEN_OT_redo_last", F6KEY, KM_PRESS, 0, 0);
 	
-	RNA_string_set(WM_keymap_add_item(keymap, "SCRIPT_OT_python_file_run", F7KEY, KM_PRESS, 0, 0)->ptr, "filename", "test.py");
+	RNA_string_set(WM_keymap_add_item(keymap, "SCRIPT_OT_python_file_run", F7KEY, KM_PRESS, 0, 0)->ptr, "path", "test.py");
 	WM_keymap_verify_item(keymap, "SCRIPT_OT_python_run_ui_scripts", F8KEY, KM_PRESS, 0, 0);
 
 	/* files */
@@ -3365,7 +3355,7 @@ void ED_keymap_screen(wmWindowManager *wm)
 	
 	
 	/* Anim Playback ------------------------------------------------ */
-	keymap= WM_keymap_listbase(wm, "Frames", 0, 0);
+	keymap= WM_keymap_find(wm, "Frames", 0, 0);
 	
 	/* frame offsets */
 	RNA_int_set(WM_keymap_add_item(keymap, "SCREEN_OT_frame_offset", UPARROWKEY, KM_PRESS, 0, 0)->ptr, "delta", 10);

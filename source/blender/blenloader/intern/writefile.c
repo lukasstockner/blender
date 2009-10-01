@@ -620,6 +620,7 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 			if (part->adt) write_animdata(wd, part->adt);
 			writestruct(wd, DATA, "PartDeflect", 1, part->pd);
 			writestruct(wd, DATA, "PartDeflect", 1, part->pd2);
+			writestruct(wd, DATA, "EffectorWeights", 1, part->effector_weights);
 
 			if(part->boids && part->phystype == PART_PHYS_BOIDS) {
 				BoidState *state = part->boids->states.first;
@@ -711,6 +712,9 @@ static void write_sensors(WriteData *wd, ListBase *lb)
 			break;
 		case SENS_PROPERTY:
 			writestruct(wd, DATA, "bPropertySensor", 1, sens->data);
+			break;
+		case SENS_ARMATURE:
+			writestruct(wd, DATA, "bArmatureSensor", 1, sens->data);
 			break;
 		case SENS_ACTUATOR:
 			writestruct(wd, DATA, "bActuatorSensor", 1, sens->data);
@@ -829,6 +833,9 @@ static void write_actuators(WriteData *wd, ListBase *lb)
 			break;
 		case ACT_STATE:
 			writestruct(wd, DATA, "bStateActuator", 1, act->data);
+			break;
+		case ACT_ARMATURE:
+			writestruct(wd, DATA, "bArmatureActuator", 1, act->data);
 			break;
 		default:
 			; /* error: don't know how to write this file */
@@ -1093,8 +1100,16 @@ static void write_pose(WriteData *wd, bPose *pose)
 	for (grp=pose->agroups.first; grp; grp=grp->next) 
 		writestruct(wd, DATA, "bActionGroup", 1, grp);
 
+	/* write IK param */
+	if (pose->ikparam) {
+		const char *structname = get_ikparam_name(pose);
+		if (structname)
+			writestruct(wd, DATA, structname, 1, pose->ikparam);
+	}
+
 	/* Write this pose */
 	writestruct(wd, DATA, "bPose", 1, pose);
+
 }
 
 static void write_defgroups(WriteData *wd, ListBase *defbase)
@@ -1126,6 +1141,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			
 			writestruct(wd, DATA, "ClothSimSettings", 1, clmd->sim_parms);
 			writestruct(wd, DATA, "ClothCollSettings", 1, clmd->coll_parms);
+			writestruct(wd, DATA, "EffectorWeights", 1, clmd->sim_parms->effector_weights);
 			write_pointcaches(wd, &clmd->ptcaches);
 		} 
 		else if(md->type==eModifierType_Smoke) {
@@ -1213,7 +1229,10 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			
 			writestruct(wd, DATA, "PartDeflect", 1, ob->pd);
 			writestruct(wd, DATA, "SoftBody", 1, ob->soft);
-			if(ob->soft) write_pointcaches(wd, &ob->soft->ptcaches);
+			if(ob->soft) {
+				write_pointcaches(wd, &ob->soft->ptcaches);
+				writestruct(wd, DATA, "EffectorWeights", 1, ob->soft->effector_weights);
+			}
 			writestruct(wd, DATA, "BulletSoftBody", 1, ob->bsoft);
 			
 			write_particlesystems(wd, &ob->particlesystem);
@@ -2115,6 +2134,8 @@ static void write_armatures(WriteData *wd, ListBase *idbase)
 		if (arm->id.us>0 || wd->current) {
 			writestruct(wd, ID_AR, "bArmature", 1, arm);
 			if (arm->id.properties) IDP_WriteProperty(arm->id.properties, wd);
+
+			if (arm->adt) write_animdata(wd, arm->adt);
 
 			/* Direct data */
 			bone= arm->bonebase.first;

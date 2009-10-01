@@ -332,12 +332,23 @@ void ED_object_exit_editmode(bContext *C, int flag)
 		if(freedata) free_editMball(obedit);
 	}
 
-	/* freedata only 0 now on file saves */
+	/* freedata only 0 now on file saves and render */
 	if(freedata) {
+		ListBase pidlist;
+		PTCacheID *pid;
+
 		/* for example; displist make is different in editmode */
 		scene->obedit= NULL; // XXX for context
+
+		/* flag object caches as outdated */
+		BKE_ptcache_ids_from_object(&pidlist, obedit);
+		for(pid=pidlist.first; pid; pid=pid->next) {
+			if(pid->type != PTCACHE_TYPE_PARTICLES) /* particles don't need reset on geometry change */
+				pid->cache->flag |= PTCACHE_OUTDATED;
+		}
+		BLI_freelistN(&pidlist);
 		
-		BKE_ptcache_object_reset(scene, obedit, PTCACHE_RESET_DEPSGRAPH);
+		BKE_ptcache_object_reset(scene, obedit, PTCACHE_RESET_OUTDATED);
 
 		/* also flush ob recalc, doesn't take much overhead, but used for particles */
 		DAG_id_flush_update(&obedit->id, OB_RECALC_OB|OB_RECALC_DATA);
@@ -347,10 +358,10 @@ void ED_object_exit_editmode(bContext *C, int flag)
 		if(flag & EM_WAITCURSOR) waitcursor(0);
 	
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_OBJECT, scene);
-	}
 
-	obedit->mode &= ~OB_MODE_EDIT;
-	ED_object_toggle_modes(C, obedit->restore_mode);
+		obedit->mode &= ~OB_MODE_EDIT;
+		ED_object_toggle_modes(C, obedit->restore_mode);
+	}
 }
 
 
@@ -1947,29 +1958,26 @@ static int object_mode_set_compat(bContext *C, wmOperator *op, Object *ob)
 	ObjectMode mode = RNA_enum_get(op->ptr, "mode");
 
 	if(ob) {
+		if(mode == OB_MODE_OBJECT)
+			return 1;
+
 		switch(ob->type) {
-		case OB_EMPTY:
-		case OB_LAMP:
-		case OB_CAMERA:
-			if(mode & OB_MODE_OBJECT)
-				return 1;
-			return 0;
 		case OB_MESH:
-			if(mode & (	OB_MODE_OBJECT|OB_MODE_EDIT|OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT|OB_MODE_PARTICLE_EDIT))
+			if(mode & (OB_MODE_EDIT|OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT|OB_MODE_PARTICLE_EDIT))
 				return 1;
 			return 0;
 		case OB_CURVE:
 		case OB_SURF:
 		case OB_FONT:
 		case OB_MBALL:
-			if(mode & (OB_MODE_OBJECT|OB_MODE_EDIT))
+			if(mode & (OB_MODE_EDIT))
 				return 1;
 			return 0;
 		case OB_LATTICE:
-			if(mode & (OB_MODE_OBJECT|OB_MODE_EDIT|OB_MODE_WEIGHT_PAINT))
+			if(mode & (OB_MODE_EDIT|OB_MODE_WEIGHT_PAINT))
 				return 1;
 		case OB_ARMATURE:
-			if(mode & (OB_MODE_OBJECT|OB_MODE_EDIT|OB_MODE_POSE))
+			if(mode & (OB_MODE_EDIT|OB_MODE_POSE))
 				return 1;
 		}
 	}
@@ -1985,7 +1993,7 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
 	int toggle = RNA_boolean_get(op->ptr, "toggle");
 
 	if(!ob || !object_mode_set_compat(C, op, ob))
-		return OPERATOR_CANCELLED;
+		return OPERATOR_PASS_THROUGH;
 
 	/* Exit current mode if it's not the mode we're setting */
 	if(ob->mode != OB_MODE_OBJECT && ob->mode != mode)
@@ -2026,7 +2034,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	prop= RNA_def_enum(ot->srna, "mode", object_mode_items, 0, "Mode", "");
+	prop= RNA_def_enum(ot->srna, "mode", object_mode_items, OB_MODE_OBJECT, "Mode", "");
 	RNA_def_enum_funcs(prop, object_mode_set_itemsf);
 
 	RNA_def_boolean(ot->srna, "toggle", 0, "Toggle", "");
