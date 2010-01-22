@@ -64,8 +64,6 @@
 #include "ED_object.h"
 #include "ED_view3d.h"
 
-#include "RE_render_ext.h"
-
 #include "mesh_intern.h"
 
 static void delete_customdata_layer(bContext *C, Object *ob, CustomDataLayer *layer)
@@ -385,73 +383,6 @@ void MESH_OT_vertex_color_remove(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec= vertex_color_remove_exec;
 	ot->poll= layers_poll;
-
-	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-}
-
-/*********************** sticky operators ************************/
-
-static int sticky_add_exec(bContext *C, wmOperator *op)
-{
-	Scene *scene= CTX_data_scene(C);
-	View3D *v3d= CTX_wm_view3d(C);
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
-	Mesh *me= ob->data;
-
-	/*if(me->msticky)
-		return OPERATOR_CANCELLED;*/
-
-	RE_make_sticky(scene, v3d);
-
-	DAG_id_flush_update(&me->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
-
-	return OPERATOR_FINISHED;
-}
-
-void MESH_OT_sticky_add(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Add Sticky";
-	ot->description= "Add sticky UV texture layer.";
-	ot->idname= "MESH_OT_sticky_add";
-	
-	/* api callbacks */
-	ot->poll= layers_poll;
-	ot->exec= sticky_add_exec;
-
-	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-}
-
-static int sticky_remove_exec(bContext *C, wmOperator *op)
-{
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
-	Mesh *me= ob->data;
-
-	if(!me->msticky)
-		return OPERATOR_CANCELLED;
-
-	CustomData_free_layer_active(&me->vdata, CD_MSTICKY, me->totvert);
-	me->msticky= NULL;
-
-	DAG_id_flush_update(&me->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
-
-	return OPERATOR_FINISHED;
-}
-
-void MESH_OT_sticky_remove(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Remove Sticky";
-	ot->description= "Remove sticky UV texture layer.";
-	ot->idname= "MESH_OT_sticky_remove";
-	
-	/* api callbacks */
-	ot->poll= layers_poll;
-	ot->exec= sticky_remove_exec;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;

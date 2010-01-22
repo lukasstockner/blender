@@ -152,7 +152,7 @@ void ntreeTexCheckCyclics(struct bNodeTree *ntree)
 				node->custom2 = 0;
 			
 				node->custom1 = 1;
-				if(tex->use_nodes && tex->nodetree) {
+				if(tex->type == TEX_NODES && tex->nodetree) {
 					ntreeTexCheckCyclics(tex->nodetree);
 				}
 				node->custom1 = 0;

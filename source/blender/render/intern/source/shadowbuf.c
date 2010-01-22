@@ -1,4 +1,6 @@
 /*
+ * $Id$
+ *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
  * This program is free software; you can redistribute it and/or
@@ -26,7 +28,6 @@
 #include <math.h>
 #include <string.h>
 
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_group_types.h"
@@ -37,20 +38,25 @@
 #include "BKE_scene.h"
 #include "BKE_utildefines.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_jitter.h"
+#include "BLI_math.h"
 #include "BLI_memarena.h"
 #include "BLI_rand.h"
 
 #include "PIL_time.h"
 
-#include "renderpipeline.h"
+#include "camera.h"
+#include "database.h"
+#include "lamp.h"
+#include "object_mesh.h"
+#include "part.h"
+#include "pixelfilter.h"
 #include "render_types.h"
-#include "renderdatabase.h"
 #include "rendercore.h"
-#include "shadbuf.h"
 #include "shading.h"
+#include "shadowbuf.h"
+#include "object_strand.h"
 #include "zbuf.h"
 
 /* XXX, could be better implemented... this is for endian issues
@@ -67,11 +73,37 @@
 #define ACOMP	3
 #endif
 
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
-/* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
-/* only to be used here in this file, it's for speed */
-extern struct Render R;
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+struct ISBData;
+
+typedef struct DeepSample {
+	int z;
+	float v;
+} DeepSample;
+ 
+typedef struct ShadSampleBuf {
+	struct ShadSampleBuf *next, *prev;
+	intptr_t *zbuf;
+	char *cbuf;
+	DeepSample **deepbuf;
+	int *totbuf;
+} ShadSampleBuf;
+
+typedef struct ShadBuf {
+	/* regular shadowbuffer */
+	short samp, shadhalostep, totbuf;
+	float persmat[4][4];
+	float viewmat[4][4];
+	float winmat[4][4];
+	float *jit, *weight;
+	float d, clipend, pixsize, soft, compressthresh;
+	int co[3];
+	int size, bias;
+	ListBase buffers;
+	
+	/* irregular shadowbufer, result stored per thread */
+	struct ISBData *isb_result[BLENDER_MAX_THREADS];
+	struct ISBData *isb_result_transp[BLENDER_MAX_THREADS];
+} ShadBuf;
 
 /* ------------------------------------------------------------------------- */
 
@@ -144,7 +176,7 @@ static float *give_jitter_tab(int samp)
 static void make_jitter_weight_tab(Render *re, ShadBuf *shb, short filtertype) 
 {
 	float *jit, totw= 0.0f;
-	int samp= get_render_shadow_samples(&re->r, shb->samp);
+	int samp= get_render_shadow_samples(&re->params.r, shb->samp);
 	int a, tot=samp*samp;
 	
 	shb->weight= MEM_mallocN(sizeof(float)*tot, "weight tab lamp");
@@ -153,7 +185,7 @@ static void make_jitter_weight_tab(Render *re, ShadBuf *shb, short filtertype)
 		if(filtertype==LA_SHADBUF_TENT) 
 			shb->weight[a]= 0.71f - sqrt(jit[0]*jit[0] + jit[1]*jit[1]);
 		else if(filtertype==LA_SHADBUF_GAUSS) 
-			shb->weight[a]= RE_filter_value(R_FILTER_GAUSS, 1.8f*sqrt(jit[0]*jit[0] + jit[1]*jit[1]));
+			shb->weight[a]= RE_filter_value(R_FILTER_GAUSS, 1.8f*sqrt(jit[0]*jit[0] + jit[1]*jit[1]), 1.6f);
 		else
 			shb->weight[a]= 1.0f;
 		
@@ -279,15 +311,15 @@ static int compress_deepsamples(DeepSample *dsample, int tot, float epsilon)
 
 static float deep_alpha(Render *re, int obinr, int facenr, int strand)
 {
-	ObjectInstanceRen *obi= &re->objectinstance[obinr];
+	ObjectInstanceRen *obi= &re->db.objectinstance[obinr];
 	Material *ma;
 
 	if(strand) {
-		StrandRen *strand= RE_findOrAddStrand(obi->obr, facenr-1);
+		StrandRen *strand= render_object_strand_get(obi->obr, facenr-1);
 		ma= strand->buffer->ma;
 	}
 	else {
-		VlakRen *vlr= RE_findOrAddVlak(obi->obr, (facenr-1) & RE_QUAD_MASK);
+		VlakRen *vlr= render_object_vlak_get(obi->obr, (facenr-1) & RE_QUAD_MASK);
 		ma= vlr->mat;
 	}
 
@@ -618,13 +650,13 @@ static void shadowbuf_autoclip(Render *re, LampRen *lar)
 	if(lar->mode & (LA_LAYER|LA_LAYER_SHADOW)) lay= lar->lay;
 
 	maxtotvert= 0;
-	for(obr=re->objecttable.first; obr; obr=obr->next)
+	for(obr=re->db.objecttable.first; obr; obr=obr->next)
 		maxtotvert= MAX2(obr->totvert, maxtotvert);
 
 	clipflag= MEM_callocN(sizeof(char)*maxtotvert, "autoclipflag");
 
 	/* set clip in vertices when face visible */
-	for(i=0, obi=re->instancetable.first; obi; i++, obi=obi->next) {
+	for(i=0, obi=re->db.instancetable.first; obi; i++, obi=obi->next) {
 		obr= obi->obr;
 
 		if(obi->flag & R_TRANSFORMED)
@@ -656,11 +688,11 @@ static void shadowbuf_autoclip(Render *re, LampRen *lar)
 		
 		/* calculate min and max */
 		for(a=0; a< obr->totvert;a++) {
-			if((a & 255)==0) ver= RE_findOrAddVert(obr, a);
+			if((a & 255)==0) ver= render_object_vert_get(obr, a);
 			else ver++;
 			
 			if(clipflag[a]) {
-				VECCOPY(vec, ver->co);
+				copy_v3_v3(vec, ver->co);
 				mul_m4_v3(obviewmat, vec);
 				/* Z on visible side of lamp space */
 				if(vec[2] < 0.0f) {
@@ -713,7 +745,7 @@ static void makeflatshadowbuf(Render *re, LampRen *lar, float *jitbuf)
 		/* create Z tiles (for compression): this system is 24 bits!!! */
 		compress_shadowbuf(shb, rectz, lar->mode & LA_SQUARE);
 
-		if(re->test_break(re->tbh))
+		if(re->cb.test_break(re->cb.tbh))
 			break;
 	}
 	
@@ -729,7 +761,7 @@ static void makedeepshadowbuf(Render *re, LampRen *lar, float *jitbuf)
 
 	/* zbuffering */
 	apixbuf= MEM_callocN(sizeof(APixstr)*shb->size*shb->size, "APixbuf");
-	if(re->totstrand)
+	if(re->db.totstrand)
 		apixbufstrand= MEM_callocN(sizeof(APixstrand)*shb->size*shb->size, "APixbufstrand");
 
 	zbuffer_abuf_shadow(re, lar, shb->persmat, apixbuf, apixbufstrand, &apsmbase, shb->size,
@@ -741,10 +773,10 @@ static void makedeepshadowbuf(Render *re, LampRen *lar, float *jitbuf)
 	MEM_freeN(apixbuf);
 	if(apixbufstrand)
 		MEM_freeN(apixbufstrand);
-	freepsA(&apsmbase);
+	free_alpha_pixel_structs(&apsmbase);
 }
 
-void makeshadowbuf(Render *re, LampRen *lar)
+static void shadowbuf_make(Render *re, LampRen *lar)
 {
 	ShadBuf *shb= lar->shb;
 	float wsize, *jitbuf, twozero[2]= {0.0f, 0.0f}, angle, temp;
@@ -772,7 +804,7 @@ void makeshadowbuf(Render *re, LampRen *lar)
 
 		/* jitter, weights - not threadsafe! */
 		BLI_lock_thread(LOCK_CUSTOM1);
-		shb->jit= give_jitter_tab(get_render_shadow_samples(&re->r, shb->samp));
+		shb->jit= give_jitter_tab(get_render_shadow_samples(&re->params.r, shb->samp));
 		make_jitter_weight_tab(re, shb, lar->filtertype);
 		BLI_unlock_thread(LOCK_CUSTOM1);
 		
@@ -799,7 +831,7 @@ static void *do_shadow_thread(void *re_v)
 
 	do {
 		BLI_lock_thread(LOCK_CUSTOM1);
-		for(lar=re->lampren.first; lar; lar=lar->next) {
+		for(lar=re->db.lampren.first; lar; lar=lar->next) {
 			if(lar->shb && !lar->thread_assigned) {
 				lar->thread_assigned= 1;
 				break;
@@ -809,12 +841,12 @@ static void *do_shadow_thread(void *re_v)
 
 		/* if type is irregular, this only sets the perspective matrix and autoclips */
 		if(lar) {
-			makeshadowbuf(re, lar);
+			shadowbuf_make(re, lar);
 			BLI_lock_thread(LOCK_CUSTOM1);
 			lar->thread_ready= 1;
 			BLI_unlock_thread(LOCK_CUSTOM1);
 		}
-	} while(lar && !re->test_break(re->tbh));
+	} while(lar && !re->cb.test_break(re->cb.tbh));
 
 	return NULL;
 }
@@ -825,39 +857,45 @@ static int thread_break(void *unused)
 	return g_break;
 }
 
-void threaded_makeshadowbufs(Render *re)
+void shadowbufs_make_threaded(Render *re)
 {
 	ListBase threads;
 	LampRen *lar;
-	int a, totthread= 0;
+	int a, totthread= 0, totshb= 0;
 	int (*test_break)(void *);
 
+	/* count shadow buffers */
+	for(lar=re->db.lampren.first; lar; lar= lar->next)
+		if(lar->shb)
+			totshb++;
+
+	if(totshb == 0)
+		return;
+
+	re->cb.i.infostr= "Creating Shadowbuffers";
+	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+
 	/* count number of threads to use */
-	if(G.rendering) {
-		for(lar=re->lampren.first; lar; lar= lar->next)
-			if(lar->shb)
-				totthread++;
-		
-		totthread= MIN2(totthread, re->r.threads);
-	}
+	if(G.rendering)
+		totthread= MIN2(totshb, re->params.r.threads);
 	else
 		totthread= 1; /* preview render */
 
 	if(totthread <= 1) {
-		for(lar=re->lampren.first; lar; lar= lar->next) {
-			if(re->test_break(re->tbh)) break;
+		for(lar=re->db.lampren.first; lar; lar= lar->next) {
+			if(re->cb.test_break(re->cb.tbh)) break;
 			if(lar->shb) {
 				/* if type is irregular, this only sets the perspective matrix and autoclips */
-				makeshadowbuf(re, lar);
+				shadowbuf_make(re, lar);
 			}
 		}
 	}
 	else {
 		/* swap test break function */
-		test_break= re->test_break;
-		re->test_break= thread_break;
+		test_break= re->cb.test_break;
+		re->cb.test_break= thread_break;
 
-		for(lar=re->lampren.first; lar; lar= lar->next) {
+		for(lar=re->db.lampren.first; lar; lar= lar->next) {
 			lar->thread_assigned= 0;
 			lar->thread_ready= 0;
 		}
@@ -869,13 +907,13 @@ void threaded_makeshadowbufs(Render *re)
 
 		/* keep rendering as long as there are shadow buffers not ready */
 		do {
-			if((g_break=test_break(re->tbh)))
+			if((g_break=test_break(re->cb.tbh)))
 				break;
 
 			PIL_sleep_ms(50);
 
 			BLI_lock_thread(LOCK_CUSTOM1);
-			for(lar=re->lampren.first; lar; lar= lar->next)
+			for(lar=re->db.lampren.first; lar; lar= lar->next)
 				if(lar->shb && !lar->thread_ready)
 					break;
 			BLI_unlock_thread(LOCK_CUSTOM1);
@@ -884,12 +922,12 @@ void threaded_makeshadowbufs(Render *re)
 		BLI_end_threads(&threads);
 
 		/* unset threadsafety */
-		re->test_break= test_break;
+		re->cb.test_break= test_break;
 		g_break= 0;
 	}
 }
 
-void freeshadowbuf(LampRen *lar)
+void shadowbuf_free(LampRen *lar)
 {
 	if(lar->shb) {
 		ShadBuf *shb= lar->shb;
@@ -1088,7 +1126,7 @@ static float readshadowbuf(ShadBuf *shb, ShadSampleBuf *shsample, int bias, int 
 
 /* the externally called shadow testing (reading) function */
 /* return 1.0: no shadow at all */
-float testshadowbuf(Render *re, ShadBuf *shb, float *rco, float *dxco, float *dyco, float inp, float mat_bias)
+float shadowbuf_test(Render *re, ShadBuf *shb, float *rco, float *dxco, float *dyco, float inp, float mat_bias)
 {
 	ShadSampleBuf *shsample;
 	float fac, co[4], dx[3], dy[3], shadfac=0.0f;
@@ -1104,7 +1142,7 @@ float testshadowbuf(Render *re, ShadBuf *shb, float *rco, float *dxco, float *dy
 
 	/* rotate renderco en osaco */
 	siz= 0.5f*(float)shb->size;
-	VECCOPY(co, rco);
+	copy_v3_v3(co, rco);
 	co[3]= 1.0f;
 
 	mul_m4_v4(shb->persmat, co);	/* rational hom co */
@@ -1126,7 +1164,7 @@ float testshadowbuf(Render *re, ShadBuf *shb, float *rco, float *dxco, float *dy
 	zs= ((float)0x7FFFFFFF)*fac;
 
 	/* take num*num samples, increase area with fac */
-	num= get_render_shadow_samples(&re->r, shb->samp);
+	num= get_render_shadow_samples(&re->params.r, shb->samp);
 	num= num*num;
 	fac= shb->soft;
 	
@@ -1286,6 +1324,9 @@ float shadow_halo(LampRen *lar, float *p1, float *p2)
 	int x, y, z, xs1, ys1;
 	int dx = 0, dy = 0;
 	
+	if(!shb || !shb->shadhalostep)
+		return 1.0f;
+
 	siz= 0.5*(float)shb->size;
 	
 	co[0]= p1[0];
@@ -1401,11 +1442,47 @@ float shadow_halo(LampRen *lar, float *p1, float *p2)
 
 /* based on several articles describing this method, like:
 The Irregular Z-Buffer and its Application to Shadow Mapping
-Gregory S. Johnson - William R. Mark - Christopher A. Burns 
+Gregory S. Johnson - William re-> Mark - Christopher A. Burns 
 and
 Alias-Free Shadow Maps
 Timo Aila and Samuli Laine
 */
+
+/* data structures have to be accessible both in camview(x, y) as in lampview(x, y) */
+/* since they're created per tile rendered, speed goes over memory requirements */
+
+/* buffer samples, allocated in camera buffer and pointed to in lampbuffer nodes */
+typedef struct ISBSample {
+	float zco[3];			/* coordinate in lampview projection */
+	short *shadfac;			/* initialized zero = full lighted */
+	int obi;				/* object for face lookup */
+	int facenr;				/* index in faces list */	
+} ISBSample;
+
+/* transparent version of buffer sample */
+typedef struct ISBSampleA {
+	float zco[3];				/* coordinate in lampview projection */
+	short *shadfac;				/* NULL = full lighted */
+	int obi;					/* object for face lookup */
+	int facenr;					/* index in faces list */	
+	struct ISBSampleA *next;	/* in end, we want the first items to align with ISBSample */
+} ISBSampleA;
+
+/* used for transparent storage only */
+typedef struct ISBShadfacA {
+	struct ISBShadfacA *next;
+	int obi;
+	int facenr;
+	float shadfac;
+} ISBShadfacA;
+
+/* What needs to be stored to evaluate shadow, for each thread in ShadBuf */
+typedef struct ISBData {
+	short *shadfacs;				/* simple storage for solid only */
+	ISBShadfacA **shadfaca;
+	struct MemArena *memarena;
+	int minx, miny, rectx, recty;	/* copy from part disprect */
+} ISBData;
 
 /* bsp structure (actually kd tree) */
 
@@ -1639,7 +1716,7 @@ static void bspface_init_strand(BSPFace *face)
 	if(face->v4)
 		mid_v3_v3v3(face->vec2, face->v3, face->v4);
 	else
-		VECCOPY(face->vec2, face->v3);
+		copy_v3_v3(face->vec2, face->v3);
 	
 	face->rc[0]= face->vec2[0]-face->vec1[0];
 	face->rc[1]= face->vec2[1]-face->vec1[1];
@@ -1857,6 +1934,7 @@ static void isb_bsp_recalc_box(ISBBranch *root)
 /* callback function for zbuf clip */
 static void isb_bsp_test_strand(ZSpan *zspan, int obi, int zvlnr, float *v1, float *v2, float *v3, float *v4)
 {
+	Render *re= zspan->isb_re;
 	BSPFace face;
 	
 	face.v1= v1;
@@ -1866,8 +1944,8 @@ static void isb_bsp_test_strand(ZSpan *zspan, int obi, int zvlnr, float *v1, flo
 	face.obi= obi;
 	face.facenr= zvlnr & ~RE_QUAD_OFFS;
 	face.type= R_STRAND;
-	if(R.osa)
-		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)R.osa);
+	if(re->params.osa)
+		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)re->params.osa);
 	else
 		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha);
 	
@@ -1891,6 +1969,7 @@ static void isb_bsp_test_strand(ZSpan *zspan, int obi, int zvlnr, float *v1, flo
 /* callback function for zbuf clip */
 static void isb_bsp_test_face(ZSpan *zspan, int obi, int zvlnr, float *v1, float *v2, float *v3, float *v4) 
 {
+	Render *re= zspan->isb_re;
 	BSPFace face;
 	
 	face.v1= v1;
@@ -1900,8 +1979,8 @@ static void isb_bsp_test_face(ZSpan *zspan, int obi, int zvlnr, float *v1, float
 	face.obi= obi;
 	face.facenr= zvlnr & ~RE_QUAD_OFFS;
 	face.type= 0;
-	if(R.osa)
-		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)R.osa);
+	if(re->params.osa)
+		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)re->params.osa);
 	else
 		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha);
 	
@@ -1957,7 +2036,7 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 	if(lar->mode & (LA_LAYER|LA_LAYER_SHADOW)) lay= lar->lay;
 	
 	/* (ab)use zspan, since we use zbuffer clipping code */
-	zbuf_alloc_span(&zspan, size, size, re->clipcrop);
+	zbuf_alloc_span(&zspan, size, size, re->cam.clipcrop);
 	
 	zspan.zmulx=  ((float)size)/2.0f;
 	zspan.zmuly=  ((float)size)/2.0f;
@@ -1970,10 +2049,11 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 	/* filling methods */
 	zspanstrand= zspan;
 	//	zspan.zbuflinefunc= zbufline_onlyZ;
+	zspan.isb_re= re;
 	zspan.zbuffunc= isb_bsp_test_face;
 	zspanstrand.zbuffunc= isb_bsp_test_strand;
 	
-	for(i=0, obi=re->instancetable.first; obi; i++, obi=obi->next) {
+	for(i=0, obi=re->db.instancetable.first; obi; i++, obi=obi->next) {
 		obr= obi->obr;
 
 		if(obi->flag & R_TRANSFORMED)
@@ -2002,11 +2082,11 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 				int partclip;
 				
 				/* create hocos per face, it is while render */
-				projectvert(vlr->v1->co, winmat, hoco[0]); d1= testclip_minmax(hoco[0], minmaxf);
-				projectvert(vlr->v2->co, winmat, hoco[1]); d2= testclip_minmax(hoco[1], minmaxf);
-				projectvert(vlr->v3->co, winmat, hoco[2]); d3= testclip_minmax(hoco[2], minmaxf);
+				camera_matrix_co_to_hoco(winmat, hoco[0], vlr->v1->co); d1= testclip_minmax(hoco[0], minmaxf);
+				camera_matrix_co_to_hoco(winmat, hoco[1], vlr->v2->co); d2= testclip_minmax(hoco[1], minmaxf);
+				camera_matrix_co_to_hoco(winmat, hoco[2], vlr->v3->co); d3= testclip_minmax(hoco[2], minmaxf);
 				if(vlr->v4) {
-					projectvert(vlr->v4->co, winmat, hoco[3]); d4= testclip_minmax(hoco[3], minmaxf);
+					camera_matrix_co_to_hoco(winmat, hoco[3], vlr->v4->co); d4= testclip_minmax(hoco[3], minmaxf);
 				}
 
 				/* minmax clipping */
@@ -2016,11 +2096,11 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 				if(partclip==0) {
 					
 					/* window clipping */
-					c1= testclip(hoco[0]); 
-					c2= testclip(hoco[1]); 
-					c3= testclip(hoco[2]); 
+					c1= camera_hoco_test_clip(hoco[0]); 
+					c2= camera_hoco_test_clip(hoco[1]); 
+					c3= camera_hoco_test_clip(hoco[2]); 
 					if(vlr->v4)
-						c4= testclip(hoco[3]); 
+						c4= camera_hoco_test_clip(hoco[3]); 
 					
 					/* ***** NO WIRE YET */			
 					if(ma->material_type == MA_TYPE_WIRE) {
@@ -2047,13 +2127,13 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 }
 
 /* returns 1 when the viewpixel is visible in lampbuffer */
-static int viewpixel_to_lampbuf(ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *vlr, float x, float y, float *co)
+static int viewpixel_to_lampbuf(Render *re, ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *vlr, float x, float y, float *co)
 {
 	float hoco[4], v1[3], nor[3];
 	float dface, fac, siz;
 	
-	RE_vlakren_get_normal(&R, obi, vlr, nor);
-	VECCOPY(v1, vlr->v1->co);
+	render_vlak_get_normal(obi, vlr, nor);
+	copy_v3_v3(v1, vlr->v1->co);
 	if(obi->flag & R_TRANSFORMED)
 		mul_m4_v3(obi->mat, v1);
 
@@ -2062,13 +2142,13 @@ static int viewpixel_to_lampbuf(ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *v
 	hoco[3]= 1.0f;
 	
 	/* ortho viewplane cannot intersect using view vector originating in (0,0,0) */
-	if(R.r.mode & R_ORTHO) {
+	if(re->cam.type == R_CAM_ORTHO) {
 		/* x and y 3d coordinate can be derived from pixel coord and winmat */
-		float fx= 2.0/(R.winx*R.winmat[0][0]);
-		float fy= 2.0/(R.winy*R.winmat[1][1]);
+		float fx= 2.0/(re->cam.winx*re->cam.winmat[0][0]);
+		float fy= 2.0/(re->cam.winy*re->cam.winmat[1][1]);
 		
-		hoco[0]= (x - 0.5*R.winx)*fx - R.winmat[3][0]/R.winmat[0][0];
-		hoco[1]= (y - 0.5*R.winy)*fy - R.winmat[3][1]/R.winmat[1][1];
+		hoco[0]= (x - 0.5*re->cam.winx)*fx - re->cam.winmat[3][0]/re->cam.winmat[0][0];
+		hoco[1]= (y - 0.5*re->cam.winy)*fy - re->cam.winmat[3][1]/re->cam.winmat[1][1];
 		
 		/* using a*x + b*y + c*z = d equation, (a b c) is normal */
 		if(nor[2]!=0.0f)
@@ -2079,7 +2159,7 @@ static int viewpixel_to_lampbuf(ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *v
 	else {
 		float div, view[3];
 		
-		calc_view_vector(view, x, y);
+		camera_raster_to_view(&re->cam, view, x, y);
 		
 		div= nor[0]*view[0] + nor[1]*view[1] + nor[2]*view[2];
 		if (div==0.0f) 
@@ -2117,14 +2197,14 @@ static int viewpixel_to_lampbuf(ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *v
 }
 
 /* storage of shadow results, solid osa and transp case */
-static void isb_add_shadfac(ISBShadfacA **isbsapp, MemArena *mem, int obi, int facenr, short shadfac, short samples)
+static void isb_add_shadfac(Render *re, ISBShadfacA **isbsapp, MemArena *mem, int obi, int facenr, short shadfac, short samples)
 {
 	ISBShadfacA *new;
 	float shadfacf;
 	
-	/* in osa case, the samples were filled in with factor 1.0/R.osa. if fewer samples we have to correct */
-	if(R.osa)
-		shadfacf= ((float)shadfac*R.osa)/(4096.0*samples);
+	/* in osa case, the samples were filled in with factor 1.0/re->params.osa. if fewer samples we have to correct */
+	if(re->params.osa)
+		shadfacf= ((float)shadfac*re->params.osa)/(4096.0*samples);
 	else
 		shadfacf= ((float)shadfac)/(4096.0);
 	
@@ -2141,7 +2221,7 @@ static void isb_add_shadfac(ISBShadfacA **isbsapp, MemArena *mem, int obi, int f
 }
 
 /* adding samples, solid case */
-static int isb_add_samples(RenderPart *pa, ISBBranch *root, MemArena *memarena, ISBSample **samplebuf)
+static int isb_add_samples(Render *re, RenderPart *pa, ISBBranch *root, MemArena *memarena, ISBSample **samplebuf)
 {
 	int xi, yi, *xcos, *ycos;
 	int sample, bsp_err= 0;
@@ -2156,7 +2236,7 @@ static int isb_add_samples(RenderPart *pa, ISBBranch *root, MemArena *memarena, 
 	BLI_array_randomize(xcos, sizeof(int), pa->rectx, 12345);
 	BLI_array_randomize(ycos, sizeof(int), pa->recty, 54321);
 	
-	for(sample=0; sample<(R.osa?R.osa:1); sample++) {
+	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++) {
 		ISBSample *samp= samplebuf[sample], *samp1;
 		
 		for(yi=0; yi<pa->recty; yi++) {
@@ -2179,20 +2259,20 @@ static int isb_add_samples(RenderPart *pa, ISBBranch *root, MemArena *memarena, 
 
 /* solid version */
 /* lar->shb, pa->rectz and pa->rectp should exist */
-static void isb_make_buffer(RenderPart *pa, LampRen *lar)
+static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 {
 	ShadBuf *shb= lar->shb;
 	ISBData *isbdata;
 	ISBSample *samp, *samplebuf[16];	/* should be RE_MAX_OSA */
 	ISBBranch root;
 	MemArena *memarena;
-	intptr_t *rd;
+	void **rd;
 	int *recto, *rectp, x, y, sindex, sample, bsp_err=0;
 	
 	/* storage for shadow, per thread */
 	isbdata= shb->isb_result[pa->thread];
 	
-	/* to map the shi->xs and ys coordinate */
+	/* to map the shi->geometry.xs and ys coordinate */
 	isbdata->minx= pa->disprect.xmin;
 	isbdata->miny= pa->disprect.ymin;
 	isbdata->rectx= pa->rectx;
@@ -2203,11 +2283,11 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 	BLI_memarena_use_calloc(memarena);
 	
 	/* samplebuf is in camera view space (pixels) */
-	for(sample=0; sample<(R.osa?R.osa:1); sample++)
+	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++)
 		samplebuf[sample]= MEM_callocN(sizeof(ISBSample)*pa->rectx*pa->recty, "isb samplebuf");
 	
 	/* for end result, ISBSamples point to this in non OSA case, otherwise to pixstruct->shadfac */
-	if(R.osa==0)
+	if(re->params.osa==0)
 		isbdata->shadfacs= MEM_callocN(pa->rectx*pa->recty*sizeof(short), "isb shadfacs");
 	
 	/* setup bsp root */
@@ -2221,13 +2301,13 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 			
 			/* this makes it a long function, but splitting it out would mean 10+ arguments */
 			/* first check OSA case */
-			if(R.osa) {
+			if(re->params.osa) {
 				rd= pa->rectdaps + sindex;
 				if(*rd) {
 					float xs= (float)(x + pa->disprect.xmin);
 					float ys= (float)(y + pa->disprect.ymin);
 					
-					for(sample=0; sample<R.osa; sample++) {
+					for(sample=0; sample<re->params.osa; sample++) {
 						PixStr *ps= (PixStr *)(*rd);
 						int mask= (1<<sample);
 						
@@ -2237,13 +2317,13 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 							ps= ps->next;
 						}
 						if(ps && ps->facenr>0) {
-							ObjectInstanceRen *obi= &R.objectinstance[ps->obi];
+							ObjectInstanceRen *obi= &re->db.objectinstance[ps->obi];
 							ObjectRen *obr= obi->obr;
-							VlakRen *vlr= RE_findOrAddVlak(obr, (ps->facenr-1) & RE_QUAD_MASK);
+							VlakRen *vlr= render_object_vlak_get(obr, (ps->facenr-1) & RE_QUAD_MASK);
 							
 							samp= samplebuf[sample] + sindex;
 							/* convert image plane pixel location to lamp buffer space */
-							if(viewpixel_to_lampbuf(shb, obi, vlr, xs + R.jit[sample][0], ys + R.jit[sample][1], samp->zco)) {
+							if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs + re->sample.jit[sample][0], ys + re->sample.jit[sample][1], samp->zco)) {
 								samp->obi= ps->obi;
 								samp->facenr= ps->facenr & ~RE_QUAD_OFFS;
 								ps->shadfac= 0;
@@ -2258,15 +2338,15 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 				rectp= pa->rectp + sindex;
 				recto= pa->recto + sindex;
 				if(*rectp>0) {
-					ObjectInstanceRen *obi= &R.objectinstance[*recto];
+					ObjectInstanceRen *obi= &re->db.objectinstance[*recto];
 					ObjectRen *obr= obi->obr;
-					VlakRen *vlr= RE_findOrAddVlak(obr, (*rectp-1) & RE_QUAD_MASK);
+					VlakRen *vlr= render_object_vlak_get(obr, (*rectp-1) & RE_QUAD_MASK);
 					float xs= (float)(x + pa->disprect.xmin);
 					float ys= (float)(y + pa->disprect.ymin);
 					
 					samp= samplebuf[0] + sindex;
 					/* convert image plane pixel location to lamp buffer space */
-					if(viewpixel_to_lampbuf(shb, obi, vlr, xs, ys, samp->zco)) {
+					if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs, ys, samp->zco)) {
 						samp->obi= *recto;
 						samp->facenr= *rectp & ~RE_QUAD_OFFS;
 						samp->shadfac= isbdata->shadfacs + sindex;
@@ -2284,15 +2364,15 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 		isb_bsp_split_init(&root, memarena, 8);
 		
 		/* insert all samples in BSP now */
-		bsp_err= isb_add_samples(pa, &root, memarena, samplebuf);
+		bsp_err= isb_add_samples(re, pa, &root, memarena, samplebuf);
 			
 		if(bsp_err==0) {
 			/* go over all faces and fill in shadow values */
 			
-			isb_bsp_fillfaces(&R, lar, &root);	/* shb->persmat should have been calculated */
+			isb_bsp_fillfaces(re, lar, &root);	/* shb->persmat should have been calculated */
 			
 			/* copy shadow samples to persistant buffer, reduce memory overhead */
-			if(R.osa) {
+			if(re->params.osa) {
 				ISBShadfacA **isbsa= isbdata->shadfaca= MEM_callocN(pa->rectx*pa->recty*sizeof(void *), "isb shadfacs");
 				
 				isbdata->memarena = BLI_memarena_new(0x8000 * sizeof(ISBSampleA));
@@ -2304,7 +2384,7 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 						PixStr *ps= (PixStr *)(*rd);
 						while(ps) {
 							if(ps->shadfac)
-								isb_add_shadfac(isbsa, isbdata->memarena, ps->obi, ps->facenr, ps->shadfac, count_mask(ps->mask));
+								isb_add_shadfac(re, isbsa, isbdata->memarena, ps->obi, ps->facenr, ps->shadfac, pxf_mask_count(&re->sample, ps->mask));
 							ps= ps->next;
 						}
 					}
@@ -2323,7 +2403,7 @@ static void isb_make_buffer(RenderPart *pa, LampRen *lar)
 	BLI_memarena_free(memarena);
 	
 	/* free samples */
-	for(x=0; x<(R.osa?R.osa:1); x++)
+	for(x=0; x<(re->params.osa?re->params.osa:1); x++)
 		MEM_freeN(samplebuf[x]);
 	
 	if(bsp_err) printf("error in filling bsp\n");
@@ -2345,7 +2425,7 @@ static ISBSampleA *isb_alloc_sample_transp(ISBSampleA **isbsa, MemArena *mem)
 }
 
 /* adding samples in BSP, transparent case */
-static int isb_add_samples_transp(RenderPart *pa, ISBBranch *root, MemArena *memarena, ISBSampleA ***samplebuf)
+static int isb_add_samples_transp(Render *re, RenderPart *pa, ISBBranch *root, MemArena *memarena, ISBSampleA ***samplebuf)
 {
 	int xi, yi, *xcos, *ycos;
 	int sample, bsp_err= 0;
@@ -2360,7 +2440,7 @@ static int isb_add_samples_transp(RenderPart *pa, ISBBranch *root, MemArena *mem
 	BLI_array_randomize(xcos, sizeof(int), pa->rectx, 12345);
 	BLI_array_randomize(ycos, sizeof(int), pa->recty, 54321);
 	
-	for(sample=0; sample<(R.osa?R.osa:1); sample++) {
+	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++) {
 		ISBSampleA **samp= samplebuf[sample], *samp1;
 		
 		for(yi=0; yi<pa->recty; yi++) {
@@ -2387,7 +2467,7 @@ static int isb_add_samples_transp(RenderPart *pa, ISBBranch *root, MemArena *mem
 
 /* Ztransp version */
 /* lar->shb, pa->rectz and pa->rectp should exist */
-static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *lar)
+static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf, LampRen *lar)
 {
 	ShadBuf *shb= lar->shb;
 	ISBData *isbdata;
@@ -2398,9 +2478,9 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 	int x, y, sindex, sample, bsp_err=0;
 	
 	/* storage for shadow, per thread */
-	isbdata= shb->isb_result[pa->thread];
+	isbdata= shb->isb_result_transp[pa->thread];
 	
-	/* to map the shi->xs and ys coordinate */
+	/* to map the shi->geometry.xs and ys coordinate */
 	isbdata->minx= pa->disprect.xmin;
 	isbdata->miny= pa->disprect.ymin;
 	isbdata->rectx= pa->rectx;
@@ -2411,7 +2491,7 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 	BLI_memarena_use_calloc(memarena);
 	
 	/* samplebuf is in camera view space (pixels) */
-	for(sample=0; sample<(R.osa?R.osa:1); sample++)
+	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++)
 		samplebuf[sample]= MEM_callocN(sizeof(void *)*pa->rectx*pa->recty, "isb alpha samplebuf");
 	
 	/* setup bsp root */
@@ -2432,28 +2512,28 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 					int a;
 					for(a=0; a<4; a++) {
 						if(apn->p[a]) {
-							ObjectInstanceRen *obi= &R.objectinstance[apn->obi[a]];
+							ObjectInstanceRen *obi= &re->db.objectinstance[apn->obi[a]];
 							ObjectRen *obr= obi->obr;
-							VlakRen *vlr= RE_findOrAddVlak(obr, (apn->p[a]-1) & RE_QUAD_MASK);
+							VlakRen *vlr= render_object_vlak_get(obr, (apn->p[a]-1) & RE_QUAD_MASK);
 							float zco[3];
 							
 							/* here we store shadfac, easier to create the end storage buffer. needs zero'ed, multiple shadowbufs use it */
 							apn->shadfac[a]= 0;
 							
-							if(R.osa) {
-								for(sample=0; sample<R.osa; sample++) {
+							if(re->params.osa) {
+								for(sample=0; sample<re->params.osa; sample++) {
 									int mask= (1<<sample);
 									
 									if(apn->mask[a] & mask) {
 										
 										/* convert image plane pixel location to lamp buffer space */
-										if(viewpixel_to_lampbuf(shb, obi, vlr, xs + R.jit[sample][0], ys + R.jit[sample][1], zco)) {
+										if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs + re->sample.jit[sample][0], ys + re->sample.jit[sample][1], zco)) {
 											samp= isb_alloc_sample_transp(samplebuf[sample] + sindex, memarena);
 											samp->obi= apn->obi[a];
 											samp->facenr= apn->p[a] & ~RE_QUAD_OFFS;
 											samp->shadfac= &apn->shadfac[a];
 											
-											VECCOPY(samp->zco, zco);
+											copy_v3_v3(samp->zco, zco);
 											bound_rectf((rctf *)&root.box, samp->zco);
 										}
 									}
@@ -2462,14 +2542,14 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 							else {
 								
 								/* convert image plane pixel location to lamp buffer space */
-								if(viewpixel_to_lampbuf(shb, obi, vlr, xs, ys, zco)) {
+								if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs, ys, zco)) {
 									
 									samp= isb_alloc_sample_transp(samplebuf[0] + sindex, memarena);
 									samp->obi= apn->obi[a];
 									samp->facenr= apn->p[a] & ~RE_QUAD_OFFS;
 									samp->shadfac= &apn->shadfac[a];
 									
-									VECCOPY(samp->zco, zco);
+									copy_v3_v3(samp->zco, zco);
 									bound_rectf((rctf *)&root.box, samp->zco);
 								}
 							}
@@ -2487,13 +2567,13 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 		isb_bsp_split_init(&root, memarena, 8);
 		
 		/* insert all samples in BSP now */
-		bsp_err= isb_add_samples_transp(pa, &root, memarena, samplebuf);
+		bsp_err= isb_add_samples_transp(re, pa, &root, memarena, samplebuf);
 		
 		if(bsp_err==0) {
 			ISBShadfacA **isbsa;
 			
 			/* go over all faces and fill in shadow values */
-			isb_bsp_fillfaces(&R, lar, &root);	/* shb->persmat should have been calculated */
+			isb_bsp_fillfaces(re, lar, &root);	/* shb->persmat should have been calculated */
 			
 			/* copy shadow samples to persistant buffer, reduce memory overhead */
 			isbsa= isbdata->shadfaca= MEM_callocN(pa->rectx*pa->recty*sizeof(void *), "isb shadfacs");
@@ -2508,10 +2588,10 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 						int a;
 						for(a=0; a<4; a++) {
 							if(apn->p[a] && apn->shadfac[a]) {
-								if(R.osa)
-									isb_add_shadfac(isbsa, isbdata->memarena, apn->obi[a], apn->p[a], apn->shadfac[a], count_mask(apn->mask[a]));
+								if(re->params.osa)
+									isb_add_shadfac(re, isbsa, isbdata->memarena, apn->obi[a], apn->p[a], apn->shadfac[a], pxf_mask_count(&re->sample, apn->mask[a]));
 								else
-									isb_add_shadfac(isbsa, isbdata->memarena, apn->obi[a], apn->p[a], apn->shadfac[a], 0);
+									isb_add_shadfac(re, isbsa, isbdata->memarena, apn->obi[a], apn->p[a], apn->shadfac[a], 0);
 							}
 						}
 					}
@@ -2524,7 +2604,7 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 	BLI_memarena_free(memarena);
 
 	/* free samples */
-	for(x=0; x<(R.osa?R.osa:1); x++)
+	for(x=0; x<(re->params.osa?re->params.osa:1); x++)
 		MEM_freeN(samplebuf[x]);
 
 	if(bsp_err) printf("error in filling bsp\n");
@@ -2536,18 +2616,23 @@ static void isb_make_buffer_transp(RenderPart *pa, APixstr *apixbuf, LampRen *la
 
 /* returns amount of light (1.0 = no shadow) */
 /* note, shadepixel() rounds the coordinate, not the real sample info */
-float ISB_getshadow(ShadeInput *shi, ShadBuf *shb)
+float irregular_shadowbuf_test(Render *re, ShadBuf *shb, ShadeInput *shi)
 {
 	/* if raytracing, we can't accept irregular shadow */
-	if(shi->depth==0) {
-		ISBData *isbdata= shb->isb_result[shi->thread];
+	if(shi->shading.depth==0) {
+		ISBData *isbdata;
+		
+		if((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP))
+			isbdata= shb->isb_result_transp[shi->shading.thread];
+		else
+			isbdata= shb->isb_result[shi->shading.thread];
 		
 		if(isbdata) {
 			if(isbdata->shadfacs || isbdata->shadfaca) {
-				int x= shi->xs - isbdata->minx;
+				int x= shi->geometry.xs - isbdata->minx;
 				
 				if(x >= 0 && x < isbdata->rectx) {
-					int y= shi->ys - isbdata->miny;
+					int y= shi->geometry.ys - isbdata->miny;
 			
 					if(y >= 0 && y < isbdata->recty) {
 						if(isbdata->shadfacs) {
@@ -2556,11 +2641,11 @@ float ISB_getshadow(ShadeInput *shi, ShadBuf *shb)
 						}
 						else {
 							int sindex= y*isbdata->rectx + x;
-							int obi= shi->obi - R.objectinstance;
+							int obi= shi->primitive.obi - re->db.objectinstance;
 							ISBShadfacA *isbsa= *(isbdata->shadfaca + sindex);
 							
 							while(isbsa) {
-								if(isbsa->facenr==shi->facenr+1 && isbsa->obi==obi)
+								if(isbsa->facenr==shi->primitive.facenr+1 && isbsa->obi==obi)
 									return isbsa->shadfac>=1.0f?0.0f:1.0f - isbsa->shadfac;
 								isbsa= isbsa->next;
 							}
@@ -2574,53 +2659,129 @@ float ISB_getshadow(ShadeInput *shi, ShadBuf *shb)
 }
 
 /* part is supposed to be solid zbuffered (apixbuf==NULL) or transparent zbuffered */
-void ISB_create(RenderPart *pa, APixstr *apixbuf)
+void irregular_shadowbuf_create(Render *re, RenderPart *pa, APixstr *apixbuf)
 {
 	GroupObject *go;
 	
 	/* go over all lamps, and make the irregular buffers */
-	for(go=R.lights.first; go; go= go->next) {
+	for(go=re->db.lights.first; go; go= go->next) {
 		LampRen *lar= go->lampren;
 		
 		if(lar->type==LA_SPOT && lar->shb && lar->buftype==LA_SHADBUF_IRREGULAR) {
-			
 			/* create storage for shadow, per thread */
 			lar->shb->isb_result[pa->thread]= MEM_callocN(sizeof(ISBData), "isb data");
+			isb_make_buffer(re, pa, lar);
 			
-			if(apixbuf)
-				isb_make_buffer_transp(pa, apixbuf, lar);
-			else
-				isb_make_buffer(pa, lar);
+			if(apixbuf) {
+				lar->shb->isb_result_transp[pa->thread]= MEM_callocN(sizeof(ISBData), "isb transp_data");
+				isb_make_buffer_transp(re, pa, apixbuf, lar);
+			}
 		}
 	}
 }
 
 
+static void isb_data_free(ISBData *isbdata)
+{
+	if(isbdata->shadfacs)
+		MEM_freeN(isbdata->shadfacs);
+	if(isbdata->shadfaca)
+		MEM_freeN(isbdata->shadfaca);
+	
+	if(isbdata->memarena)
+		BLI_memarena_free(isbdata->memarena);
+	
+	MEM_freeN(isbdata);
+}
+
 /* end of part rendering, free stored shadow data for this thread from all lamps */
-void ISB_free(RenderPart *pa)
+void irregular_shadowbuf_free(Render *re, RenderPart *pa)
 {
 	GroupObject *go;
 	
 	/* go over all lamps, and free the irregular buffers */
-	for(go=R.lights.first; go; go= go->next) {
+	for(go=re->db.lights.first; go; go= go->next) {
 		LampRen *lar= go->lampren;
 		
 		if(lar->type==LA_SPOT && lar->shb && lar->buftype==LA_SHADBUF_IRREGULAR) {
-			ISBData *isbdata= lar->shb->isb_result[pa->thread];
+			ShadBuf *shb= lar->shb;
 
-			if(isbdata) {
-				if(isbdata->shadfacs)
-					MEM_freeN(isbdata->shadfacs);
-				if(isbdata->shadfaca)
-					MEM_freeN(isbdata->shadfaca);
-				
-				if(isbdata->memarena)
-					BLI_memarena_free(isbdata->memarena);
-				
-				MEM_freeN(isbdata);
+			if(shb->isb_result[pa->thread]) {
+				isb_data_free(shb->isb_result[pa->thread]);
 				lar->shb->isb_result[pa->thread]= NULL;
 			}
+
+			if(shb->isb_result_transp[pa->thread]) {
+				isb_data_free(shb->isb_result_transp[pa->thread]);
+				lar->shb->isb_result_transp[pa->thread]= NULL;
+			}
 		}
+	}
+}
+
+void shadowbuf_create(Render *re, LampRen *lar, float mat[][4])
+{
+	struct ShadBuf *shb;
+	float viewinv[4][4], omat[4][4];
+	
+	/* if(la->spsi<16) return; */
+	
+	/* memory alloc */
+	shb= (struct ShadBuf *)MEM_callocN( sizeof(struct ShadBuf),"initshadbuf");
+	lar->shb= shb;
+	
+	if(shb==NULL) return;
+	
+	VECCOPY(shb->co, lar->co);
+	
+	/* percentage render: keep track of min and max */
+	shb->size= (lar->bufsize*re->params.r.size)/100;
+	
+	if(shb->size<512) shb->size= 512;
+	else if(shb->size > lar->bufsize) shb->size= lar->bufsize;
+	
+	shb->size &= ~15;	/* make sure its multiples of 16 */
+	
+	shb->samp= lar->samp;
+	shb->soft= lar->soft;
+	shb->shadhalostep= lar->shadhalostep;
+	
+	copy_m4_m4(omat, mat);
+	normalize_m4(omat);
+	invert_m4_m4(shb->winmat, mat);	/* winmat is temp */
+	
+	/* matrix: combination of inverse view and lampmat */
+	/* calculate again: the ortho-render has no correct viewinv */
+	invert_m4_m4(viewinv, re->cam.viewmat);
+	mul_m4_m4m4(shb->viewmat, viewinv, shb->winmat);
+	
+	/* projection */
+	shb->d= lar->clipsta;
+	shb->clipend= lar->clipend;
+	
+	/* bias is percentage, made 2x larger because of correction for angle of incidence */
+	/* when a ray is closer to parallel of a face, bias value is increased during render */
+	shb->bias= (0.02*lar->bias)*0x7FFFFFFF;
+	shb->bias= shb->bias*(100/re->params.r.size);
+	
+	/* halfway method (average of first and 2nd z) reduces bias issues */
+	if(ELEM(lar->buftype, LA_SHADBUF_HALFWAY, LA_SHADBUF_DEEP))
+		shb->bias= 0.1f*shb->bias;
+	
+	shb->compressthresh= lar->compressthresh;
+}
+
+void shadowbuf_rotate(LampRen *lar, float mat[][4], int restore)
+{
+	if(restore) {
+		mul_m4_m4m4(lar->shb->persmat, lar->shb->viewmat, lar->shb->winmat);
+	}
+	else {
+		float pmat[4][4], smat[4][4];
+
+		invert_m4_m4(pmat, mat);
+		mul_m4_m4m4(smat, pmat, lar->shb->viewmat);
+		mul_m4_m4m4(lar->shb->persmat, smat, lar->shb->winmat);
 	}
 }
 

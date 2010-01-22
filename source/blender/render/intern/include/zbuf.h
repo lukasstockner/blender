@@ -27,64 +27,52 @@
  * ***** END GPL/BL DUAL LICENSE BLOCK *****
  */
 
-#ifndef ZBUF_H
-#define ZBUF_H
+#ifndef __RENDER_ZBUF_H__
+#define __RENDER_ZBUF_H__
 
-struct RenderPart;
-struct RenderLayer;
-struct LampRen;
-struct VlakRen;
-struct ListBase;
-struct ZSpan;
-struct APixstrand;
 struct APixstr;
+struct APixstrand;
+struct LampRen;
+struct ListBase;
+struct RenderLayer;
+struct RenderPart;
 struct StrandShadeCache;
+struct VlakRen;
+struct ZSpan;
 
-void fillrect(int *rect, int x, int y, int val);
+/* Render Part Rasterization */
 
-/**
- * Converts a world coordinate into a homogenous coordinate in view
- * coordinates. 
- */
-void projectvert(float *v1, float winmat[][4], float *adr);
-void projectverto(float *v1, float winmat[][4], float *adr);
-int testclip(float *v); 
+void zbuffer_solid(struct Render *re, struct RenderPart *pa, struct RenderLayer *rl,
+	struct ListBase *psmlist,
+	void (*edgefunc)(struct Render *re, struct RenderPart *pa, float *rectf, int *rectz),
+	float *edgerect);
 
-void zbuffer_shadow(struct Render *re, float winmat[][4], struct LampRen *lar, int *rectz, int size, float jitx, float jity);
-void zbuffer_abuf_shadow(struct Render *re, struct LampRen *lar, float winmat[][4], struct APixstr *APixbuf, struct APixstrand *apixbuf, struct ListBase *apsmbase, int size, int samples, float (*jit)[2]);
-void zbuffer_solid(struct RenderPart *pa, struct RenderLayer *rl, void (*fillfunc)(struct RenderPart*, struct ZSpan*, int, void*), void *data);
+int zbuffer_alpha(struct Render *re, struct RenderPart *pa, struct RenderLayer *rl,
+	struct APixstr **APixbuf, struct APixstrand **APixbufstrand, struct ListBase *apsmbase,
+	struct StrandShadeCache **sscache);
 
-unsigned short *zbuffer_transp_shade(struct RenderPart *pa, struct RenderLayer *rl, float *pass, struct ListBase *psmlist);
-void zbuffer_sss(RenderPart *pa, unsigned int lay, void *handle, void (*func)(void*, int, int, int, int, int));
-int zbuffer_strands_abuf(struct Render *re, struct RenderPart *pa, struct APixstrand *apixbuf, struct ListBase *apsmbase, unsigned int lay, int negzmask, float winmat[][4], int winx, int winy, int sample, float (*jit)[2], float clipcrop, int shadow, struct StrandShadeCache *cache);
+/* Shadow Rasterization */
 
-typedef struct APixstr {
-    unsigned short mask[4];		/* jitter mask */
-    int z[4];					/* distance    */
-    int p[4];					/* index       */
-	int obi[4];					/* object instance */
-	short shadfac[4];			/* optimize storage for irregular shadow */
-    struct APixstr *next;
-} APixstr;
+void zbuffer_shadow(struct Render *re, float winmat[][4], struct LampRen *lar,
+	int *rectz, int size, float jitx, float jity);
+void zbuffer_abuf_shadow(struct Render *re, struct LampRen *lar, float winmat[][4],
+	struct APixstr *APixbuf, struct APixstrand *apixbuf, struct ListBase *apsmbase,
+	int size, int samples, float (*jit)[2]);
 
-typedef struct APixstrand {
-    unsigned short mask[4];		/* jitter mask */
-    int z[4];					/* distance    */
-    int p[4];					/* index       */
-	int obi[4];					/* object instance */
-	int seg[4];					/* for strands, segment number */
-	float u[4], v[4];			/* for strands, u,v coordinate in segment */
-    struct APixstrand *next;
-} APixstrand;
+/* SSS Rasterization */
 
-typedef struct APixstrMain
-{
-	struct APixstrMain *next, *prev;
-	void *ps;
-} APixstrMain;
+void zbuffer_sss(struct Render *re, struct RenderPart *pa, unsigned int lay,
+	void *handle, void (*func)(void*, int, int, int, int, int));
 
-/* span fill in method, is also used to localize data for zbuffering */
+/* Pixel Struct Utilities */
+
+void free_pixel_structs(struct ListBase *lb);
+void free_alpha_pixel_structs(struct ListBase *lb);
+
+/* Z-Span rasterization methods for filling triangles. */
+
 typedef struct ZSpan {
+	/* Rasterization Data */
 	int rectx, recty;						/* range for clipping */
 	
 	int miny1, maxy1, miny2, maxy2;			/* actual filled in range */
@@ -92,14 +80,15 @@ typedef struct ZSpan {
 	float *span1, *span2;
 	
 	float zmulx, zmuly, zofsx, zofsy;		/* transform from hoco to zbuf co */
-	
+
+	/* Per Rasterization Type Data */
 	int *rectz, *arectz;					/* zbuffers, arectz is for transparant */
 	int *rectz1;							/* seconday z buffer for shadowbuffer (2nd closest z) */
 	int *rectp;								/* polygon index buffer */
 	int *recto;								/* object buffer */
 	int *rectmask;							/* negative zmask buffer */
-	APixstr *apixbuf, *curpstr;				/* apixbuf for transparent */
-	APixstrand *curpstrand;					/* same for strands */
+	struct APixstr *apixbuf, *curpstr;		/* apixbuf for transparent */
+	struct APixstrand *curpstrand;			/* same for strands */
 	struct ListBase *apsmbase;
 	
 	int polygon_offset;						/* offset in Z */
@@ -107,32 +96,41 @@ typedef struct ZSpan {
 	int mask, apsmcounter;					/* in use by apixbuf */
 	int apstrandmcounter;
 
-	float clipcrop;							/* for shadow, was in R global before */
+	float clipcrop;							/* for shadow */
 
 	void *sss_handle;						/* used by sss */
 	void (*sss_func)(void *, int, int, int, int, int);
 	
+	void *isb_re;							/* used by ISB */
 	void (*zbuffunc)(struct ZSpan *, int, int, float *, float *, float *, float *);
 	void (*zbuflinefunc)(struct ZSpan *, int, int, float *, float *);
 	
 } ZSpan;
 
-/* exported to shadbuf.c */
-void zbufclip4(struct ZSpan *zspan, int obi, int zvlnr, float *f1, float *f2, float *f3, float *f4, int c1, int c2, int c3, int c4);
-void zbuf_free_span(struct ZSpan *zspan);
-void freepsA(struct ListBase *lb);
+/* Allocate/Free */
 
-/* to rendercore.c */
-void zspan_scanconvert(struct ZSpan *zpan, void *handle, float *v1, float *v2, float *v3, void (*func)(void *, int, int, float, float) );
-
-/* exported to edge render... */
-void zbufclip(struct ZSpan *zspan, int obi, int zvlnr, float *f1, float *f2, float *f3, int c1, int c2, int c3);
 void zbuf_alloc_span(struct ZSpan *zspan, int rectx, int recty, float clipcrop);
-void zbufclipwire(struct ZSpan *zspan, int obi, int zvlnr, int ec, float *ho1, float *ho2, float *ho3, float *ho4, int c1, int c2, int c3, int c4);
+void zbuf_free_span(struct ZSpan *zspan);
 
-/* exported to shadeinput.c */
-void zbuf_make_winmat(Render *re, float winmat[][4]);
-void zbuf_render_project(float winmat[][4], float *co, float *ho);
+/* Initialize */
 
-#endif
+void zbuf_init_span(struct ZSpan *zspan);
+void zbuf_add_to_span(struct ZSpan *zspan, float *v1, float *v2);
+
+/* Polygon Clipping */
+
+void zbufclip(struct ZSpan *zspan, int obi, int zvlnr,
+	float *f1, float *f2, float *f3, int c1, int c2, int c3);
+void zbufclipwire(struct ZSpan *zspan, int obi, int zvlnr,
+	int ec, float *ho1, float *ho2, float *ho3, float *ho4, int c1, int c2, int c3, int c4);
+void zbufclip4(struct ZSpan *zspan, int obi, int zvlnr,
+	float *f1, float *f2, float *f3, float *f4, int c1, int c2, int c3, int c4);
+
+/* Scan Conversion with Callback */
+
+void zspan_scanconvert(struct ZSpan *zpan, void *handle,
+	float *v1, float *v2, float *v3,
+	void (*func)(void *, int, int, float, float));
+
+#endif /* __RENDER_ZBUF_H__ */
 

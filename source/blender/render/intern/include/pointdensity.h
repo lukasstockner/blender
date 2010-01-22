@@ -29,16 +29,22 @@
 #ifndef POINTDENSITY_H
 #define POINTDENSITY_H 
 
-/**
- * Make point density kd-trees for all point density textures in the scene
- */
-
 struct Render;
 struct TexResult;
+struct RenderParams;
+struct ListBase;
 
-void make_pointdensities(struct Render *re);
-void free_pointdensities(struct Render *re);
-int pointdensitytex(struct Tex *tex, float *texvec, struct TexResult *texres);
+/* Pointdensity Texture */
+
+void tex_pointdensity_init(struct Render *re, struct Tex *tex);
+void tex_pointdensity_free(struct Render *re, struct Tex *tex);
+
+int tex_pointdensity_sample(struct RenderParams *rpm, struct Tex *tex,
+	float *texvec, struct TexResult *texres);
+
+/* Make point density kd-trees for all point density textures in the scene */
+
+void pointdensity_make(struct Render *re, struct ListBase *lb);
 
 #endif /* POINTDENSITY_H */
 

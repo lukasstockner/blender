@@ -46,6 +46,7 @@ struct uiLayout;
 struct rctf;
 struct ListBase;
 struct RenderData;
+struct Render;
 struct Scene;
 struct Main;
 struct Tex;
@@ -91,7 +92,7 @@ typedef struct bNodeType {
 	void (*copystoragefunc)(struct bNode *, struct bNode *);
 	
 	/* for use with dynamic typedefs */
-	ID *id;
+	struct ID *id;
 	void *pynode; /* holds pointer to python script */
 	void *pydict; /* holds pointer to python script dictionary (scope)*/
 
@@ -263,15 +264,15 @@ extern struct ListBase node_all_shaders;
 
 /* API */
 
-void			ntreeShaderExecTree(struct bNodeTree *ntree, struct ShadeInput *shi, struct ShadeResult *shr);
-void			ntreeShaderGetTexcoMode(struct bNodeTree *ntree, int osa, short *texco, int *mode);
-void			nodeShaderSynchronizeID(struct bNode *node, int copyto);
+void ntreeShaderExecTree(struct bNodeTree *ntree, struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
+void ntreeShaderGetTexcoMode(struct bNodeTree *ntree, int osa, short *texco, int *mode);
+void nodeShaderSynchronizeID(struct bNode *node, int copyto);
 
 				/* switch material render loop */
-extern void (*node_shader_lamp_loop)(struct ShadeInput *, struct ShadeResult *);
-void			set_node_shader_lamp_loop(void (*lamp_loop_func)(struct ShadeInput *, struct ShadeResult *));
+extern void (*node_shader_lamp_loop)(struct Render *re, struct ShadeInput *, struct ShadeResult *);
+void set_node_shader_lamp_loop(void (*lamp_loop_func)(struct Render *re, struct ShadeInput *, struct ShadeResult *));
 
-void			ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
+void ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat);
 
 
 /* ************** COMPOSITE NODES *************** */

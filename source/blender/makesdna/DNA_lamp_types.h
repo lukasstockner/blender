@@ -185,16 +185,16 @@ typedef struct Lamp {
 #define LA_AREA_BOX		3
 
 /* ray_samp_method */
-#define LA_SAMP_CONSTANT			0
-#define LA_SAMP_HALTON				1
-#define LA_SAMP_HAMMERSLEY			2
+#define LA_SAMP_CONSTANT	0	/* deprecated */
+#define LA_SAMP_HALTON		1
+#define LA_SAMP_HAMMERSLEY	2
 
 
 /* ray_samp_type */
-#define LA_SAMP_ROUND	1
-#define LA_SAMP_UMBRA	2
-#define LA_SAMP_DITHER	4
-#define LA_SAMP_JITTER	8
+#define LA_SAMP_ROUND	1	/* deprecated */
+#define LA_SAMP_UMBRA	2	/* deprecated */
+#define LA_SAMP_DITHER	4	/* deprecated */
+#define LA_SAMP_JITTER	8	/* deprecated */
 
 /* mapto */
 #define LAMAP_COL		1

@@ -6424,6 +6424,33 @@ static void do_version_mtex_factor_2_50(MTex **mtex_array, short idtype)
 	}
 }
 
+static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
+{
+	Material *ma;
+	Tex *tex;
+	World *wo;
+	Lamp *la;
+	
+	for(ma=main->mat.first; ma; ma=ma->id.next) {
+		if(ma->rampin_col==MA_RAMP_IN_ENERGY)
+			ma->rampin_col= MA_RAMP_IN_RESULT;
+		if(ma->rampin_spec==MA_RAMP_IN_ENERGY)
+			ma->rampin_spec= MA_RAMP_IN_RESULT;
+	}
+
+	for(tex= main->tex.first; tex; tex= tex->id.next)
+		if(tex->use_nodes)
+			tex->type= TEX_NODES;
+
+	for(wo= main->world.first; wo; wo= wo->id.next)
+		if(wo->ao_samp_method == WO_AOSAMP_CONSTANT)
+			wo->ao_samp_method= WO_AOSAMP_HAMMERSLEY;
+
+	for(la= main->lamp.first; la; la= la->id.next)
+		if(la->ray_samp_method == LA_SAMP_CONSTANT)
+			la->ray_samp_method= LA_SAMP_HAMMERSLEY;
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -7486,7 +7513,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		bScreen *sc = main->screen.first;
 		Scene *sce;
 		Lamp *la;
-		World *wrld;
 
 		/* introduction of raytrace */
 		while(ma) {
@@ -7516,13 +7542,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(la->area_sizey==0.0) la->area_sizey= 1.0;
 			if(la->area_sizez==0.0) la->area_sizez= 1.0;
 			la= la->id.next;
-		}
-		wrld= main->world.first;
-		while(wrld) {
-			if(wrld->range==0.0) {
-				wrld->range= 1.0f/wrld->exposure;
-			}
-			wrld= wrld->id.next;
 		}
 
 		/* new bit flags for showing/hiding grid floor and axes */
@@ -10477,8 +10496,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	
 	
 	/* put 2.50 compatibility code here until next subversion bump */
-	if (1) {
-		;
+	{
+		do_version_shading_sys_250(fd, lib, main);
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

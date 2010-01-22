@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,6 +34,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_material_types.h"
+
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_threads.h"
@@ -40,28 +43,41 @@
 
 #include "PIL_time.h"
 
+#include "BKE_global.h"
+
 #include "RE_shader_ext.h"
 #include "RE_raytrace.h"
 
-#include "DNA_material_types.h"
-
+#include "database.h"
+#include "raytrace.h"
 #include "render_types.h"
 #include "rendercore.h"
-#include "renderdatabase.h"
-#include "volumetric.h"
 #include "volume_precache.h"
+#include "volumetric.h"
 
 #if defined( _MSC_VER ) && !defined( __cplusplus )
 # define inline __inline
 #endif // defined( _MSC_VER ) && !defined( __cplusplus )
 
-#include "BKE_global.h"
+/* Structs */
 
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
-/* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
-/* only to be used here in this file, it's for speed */
-extern struct Render R;
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+#define VOL_MS_TIMESTEP	0.1f
+
+typedef struct VolPrecachePart {
+	struct VolPrecachePart *next, *prev;
+	struct Render *re;
+	struct RayObject *tree;
+	struct ShadeInput *shi;
+	struct ObjectInstanceRen *obi;
+	int num;
+	int minx, maxx;
+	int miny, maxy;
+	int minz, maxz;
+	int res[3];
+	float bbmin[3];
+	float voxel[3];
+	int working, done;
+} VolPrecachePart;
 
 /* *** utility code to set up an individual raytree for objectinstance, for checking inside/outside *** */
 
@@ -97,8 +113,8 @@ int point_inside_obi(RayObject *tree, ObjectInstanceRen *obi, float *co)
 	
 	/* set up the isect */
 	memset(&isect, 0, sizeof(isect));
-	VECCOPY(isect.start, co);
-	VECCOPY(isect.vec, vec);
+	copy_v3_v3(isect.start, co);
+	copy_v3_v3(isect.vec, vec);
 	isect.mode= RE_RAY_MIRROR;
 	isect.last_hit= NULL;
 	isect.lay= -1;
@@ -356,9 +372,9 @@ void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
 					if(time-lasttime>1.0f) {
 						char str[64];
 						sprintf(str, "Simulating multiple scattering: %d%%", (int)(100.0f * (c / total)));
-						re->i.infostr= str;
-						re->stats_draw(re->sdh, &re->i);
-						re->i.infostr= NULL;
+						re->cb.i.infostr= str;
+						re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+						re->cb.i.infostr= NULL;
 						lasttime= time;
 					}
 				}
@@ -373,7 +389,7 @@ void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
 		ms_diffuse(sg0, sg, diff, n);
 		ms_diffuse(sb0, sb, diff, n);
 		
-		if (re->test_break(re->tbh)) break;
+		if (re->cb.test_break(re->cb.tbh)) break;
 	}
 	
 	/* normalisation factor to conserve energy */
@@ -439,6 +455,7 @@ static void *vol_precache_part_test(void *data)
 static void *vol_precache_part(void *data)
 {
 	VolPrecachePart *pa =  (VolPrecachePart *)data;
+	Render *re = pa->re;
 	ObjectInstanceRen *obi = pa->obi;
 	RayObject *tree = pa->tree;
 	ShadeInput *shi = pa->shi;
@@ -466,9 +483,9 @@ static void *vol_precache_part(void *data)
 					continue;
 				}
 				
-				copy_v3_v3(shi->view, co);
-				normalize_v3(shi->view);
-				vol_get_scattering(shi, scatter_col, co);
+				copy_v3_v3(shi->geometry.view, co);
+				normalize_v3(shi->geometry.view);
+				vol_get_scattering(re, shi, scatter_col, co);
 			
 				obi->volume_precache->data_r[i] = scatter_col[0];
 				obi->volume_precache->data_g[i] = scatter_col[1];
@@ -486,15 +503,15 @@ static void *vol_precache_part(void *data)
 static void precache_setup_shadeinput(Render *re, ObjectInstanceRen *obi, Material *ma, ShadeInput *shi)
 {
 	memset(shi, 0, sizeof(ShadeInput)); 
-	shi->depth= 1;
-	shi->mask= 1;
-	shi->mat = ma;
-	shi->vlr = NULL;
-	memcpy(&shi->r, &shi->mat->r, 23*sizeof(float));	// note, keep this synced with render_types.h
-	shi->har= shi->mat->har;
-	shi->obi= obi;
-	shi->obr= obi->obr;
-	shi->lay = re->scene->lay;
+	shi->shading.depth= 1;
+	shi->shading.mask= 1;
+	shi->material.mat = ma;
+	shi->primitive.vlr = NULL;
+	memcpy(&shi->material.r, &shi->material.mat->r, 23*sizeof(float));	// note, keep this synced with render_types.h
+	shi->material.har= shi->material.mat->har;
+	shi->primitive.obi= obi;
+	shi->primitive.obr= obi->obr;
+	shi->shading.lay = re->db.scene->lay;
 }
 
 static void precache_init_parts(Render *re, RayObject *tree, ShadeInput *shi, ObjectInstanceRen *obi, int totthread, int *parts)
@@ -509,9 +526,7 @@ static void precache_init_parts(Render *re, RayObject *tree, ShadeInput *shi, Ob
 	int miny, maxy;
 	int minz, maxz;
 	
-	if (!vp) return;
-
-	BLI_freelistN(&re->volume_precache_parts);
+	BLI_freelistN(&re->db.volume_precache_parts);
 	
 	/* currently we just subdivide the box, number of threads per side */
 	parts[0] = parts[1] = parts[2] = totthread;
@@ -547,11 +562,12 @@ static void precache_init_parts(Render *re, RayObject *tree, ShadeInput *shi, Ob
 				pa->working = 0;
 				
 				pa->num = i;
+				pa->re = re;
 				pa->tree = tree;
 				pa->shi = shi;
 				pa->obi = obi;
-				VECCOPY(pa->bbmin, bbmin);
-				VECCOPY(pa->voxel, voxel);
+				copy_v3_v3(pa->bbmin, bbmin);
+				copy_v3_v3(pa->voxel, voxel);
 				VECCOPY(pa->res, res);
 				
 				pa->minx = minx; pa->maxx = maxx;
@@ -559,7 +575,7 @@ static void precache_init_parts(Render *re, RayObject *tree, ShadeInput *shi, Ob
 				pa->minz = minz; pa->maxz = maxz;
 				
 				
-				BLI_addtail(&re->volume_precache_parts, pa);
+				BLI_addtail(&re->db.volume_precache_parts, pa);
 				
 				i++;
 			}
@@ -571,7 +587,7 @@ static VolPrecachePart *precache_get_new_part(Render *re)
 {
 	VolPrecachePart *pa, *nextpa=NULL;
 	
-	for (pa = re->volume_precache_parts.first; pa; pa=pa->next)
+	for (pa = re->db.volume_precache_parts.first; pa; pa=pa->next)
 	{
 		if (pa->done==0 && pa->working==0) {
 			nextpa = pa;
@@ -619,16 +635,14 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 	int parts[3] = {1, 1, 1}, totparts;
 	
 	int caching=1, counter=0;
-	int totthread = re->r.threads;
+	int totthread = re->params.r.threads;
 	
 	double time, lasttime= PIL_check_seconds_timer();
 	
-	R = *re;
-
 	/* create a raytree with just the faces of the instanced ObjectRen, 
 	 * used for checking if the cached point is inside or outside. */
 	//tree = create_raytree_obi(obi, bbmin, bbmax);
-	tree = makeraytree_object(&R, obi);
+	tree = raytree_create_object(re, obi);
 	if (!tree) return;
 	INIT_MINMAX(bbmin, bbmax);
 	RE_rayobject_merge_bb( tree, bbmin, bbmax);
@@ -661,7 +675,7 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 	
 	while(caching) {
 
-		if(BLI_available_threads(&threads) && !(re->test_break(re->tbh))) {
+		if(BLI_available_threads(&threads) && !(re->cb.test_break(re->cb.tbh))) {
 			nextpa = precache_get_new_part(re);
 			if (nextpa) {
 				nextpa->working = 1;
@@ -672,7 +686,7 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 
 		caching=0;
 		counter=0;
-		for(pa= re->volume_precache_parts.first; pa; pa= pa->next) {
+		for(pa= re->db.volume_precache_parts.first; pa; pa= pa->next) {
 			
 			if(pa->done) {
 				counter++;
@@ -681,25 +695,25 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 				caching = 1;
 		}
 		
-		if (re->test_break(re->tbh) && BLI_available_threads(&threads)==totthread)
+		if (re->cb.test_break(re->cb.tbh) && BLI_available_threads(&threads)==totthread)
 			caching=0;
 		
 		time= PIL_check_seconds_timer();
 		if(time-lasttime>1.0f) {
 			char str[64];
 			sprintf(str, "Precaching volume: %d%%", (int)(100.0f * ((float)counter / (float)totparts)));
-			re->i.infostr= str;
-			re->stats_draw(re->sdh, &re->i);
-			re->i.infostr= NULL;
+			re->cb.i.infostr= str;
+			re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+			re->cb.i.infostr= NULL;
 			lasttime= time;
 		}
 	}
 	
 	BLI_end_threads(&threads);
-	BLI_freelistN(&re->volume_precache_parts);
+	BLI_freelistN(&re->db.volume_precache_parts);
 	
 	if(tree) {
-		//TODO: makeraytree_object creates a tree and saves it on OBI, if we free this tree we should also clear other pointers to it
+		//TODO: raytree_create_object creates a tree and saves it on OBI, if we free this tree we should also clear other pointers to it
 		//RE_rayobject_free(tree);
 		//tree= NULL;
 	}
@@ -721,14 +735,14 @@ static int using_lightcache(Material *ma)
 
 /* loop through all objects (and their associated materials)
  * marked for pre-caching in convertblender.c, and pre-cache them */
-void volume_precache(Render *re)
+void volume_precache_create(Render *re)
 {
 	ObjectInstanceRen *obi;
 	VolumeOb *vo;
 
-	for(vo= re->volumes.first; vo; vo= vo->next) {
+	for(vo= re->db.volumes.first; vo; vo= vo->next) {
 		if (using_lightcache(vo->ma)) {
-			for(obi= re->instancetable.first; obi; obi= obi->next) {
+			for(obi= re->db.instancetable.first; obi; obi= obi->next) {
 				if (obi->obr == vo->obr) {
 					vol_precache_objectinstance_threads(re, obi, vo->ma);
 				}
@@ -736,15 +750,15 @@ void volume_precache(Render *re)
 		}
 	}
 	
-	re->i.infostr= NULL;
-	re->stats_draw(re->sdh, &re->i);
+	re->cb.i.infostr= NULL;
+	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
 }
 
-void free_volume_precache(Render *re)
+void volume_precache_free(RenderDB *rdb)
 {
 	ObjectInstanceRen *obi;
 	
-	for(obi= re->instancetable.first; obi; obi= obi->next) {
+	for(obi= rdb->instancetable.first; obi; obi= obi->next) {
 		if (obi->volume_precache != NULL) {
 			MEM_freeN(obi->volume_precache->data_r);
 			MEM_freeN(obi->volume_precache->data_g);
@@ -754,7 +768,7 @@ void free_volume_precache(Render *re)
 		}
 	}
 	
-	BLI_freelistN(&re->volumes);
+	BLI_freelistN(&rdb->volumes);
 }
 
 int point_inside_volume_objectinstance(Render *re, ObjectInstanceRen *obi, float *co)
@@ -762,12 +776,12 @@ int point_inside_volume_objectinstance(Render *re, ObjectInstanceRen *obi, float
 	RayObject *tree;
 	int inside=0;
 	
-	tree = makeraytree_object(re, obi);
+	tree = raytree_create_object(re, obi);
 	if (!tree) return 0;
 	
 	inside = point_inside_obi(tree, obi, co);
 	
-	//TODO: makeraytree_object creates a tree and saves it on OBI, if we free this tree we should also clear other pointers to it
+	//TODO: raytree_create_object creates a tree and saves it on OBI, if we free this tree we should also clear other pointers to it
 	//RE_rayobject_free(tree);
 	//tree= NULL;
 	

@@ -74,6 +74,7 @@
 /* ********* exec data struct, remains internal *********** */
 
 typedef struct ShaderCallData {
+	Render *re;				/* from render pipe */
 	ShadeInput *shi;		/* from render pipe */
 	ShadeResult *shr;		/* from render pipe */
 } ShaderCallData;
@@ -109,7 +110,6 @@ typedef struct ShaderCallData {
 #define MAT_OUT_DIFFUSE	3
 #define MAT_OUT_SPEC		4
 #define MAT_OUT_AO		5
-
 
 extern void node_ID_title_cb(void *node_v, void *unused_v);
 void nodestack_get_vec(float *in, short type_in, bNodeStack *ns);

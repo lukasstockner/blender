@@ -34,6 +34,7 @@
 #include "DNA_vec_types.h"
 #include "BKE_utildefines.h"
 #include "RNA_types.h"
+#include "BLI_threads.h"
 
 struct bNodeTree;
 struct Image;
@@ -130,6 +131,8 @@ typedef struct RenderResult {
 	/* for render results in Image, verify validity for sequences */
 	int framenr;
 	
+	/* mutex for controlling shared access */
+	ThreadRWMutex mutex;
 } RenderResult;
 
 
@@ -177,8 +180,8 @@ void RE_SetDispRect (struct Render *re, rcti *disprect);
 
 /* set up the viewplane/perspective matrix, three choices */
 void RE_SetCamera(struct Render *re, struct Object *camera);
-void RE_SetWindow (struct Render *re, rctf *viewplane, float clipsta, float clipend);
-void RE_SetOrtho (struct Render *re, rctf *viewplane, float clipsta, float clipend);
+void RE_SetWindow(struct Render *re, rctf *viewplane, float clipsta, float clipend, int pano);
+void RE_SetOrtho(struct Render *re, rctf *viewplane, float clipsta, float clipend);
 void RE_SetPixelSize(struct Render *re, float pixsize);
 
 /* option to set viewmatrix before making dbase */
@@ -225,7 +228,7 @@ void RE_test_break_cb	(struct Render *re, void *handle, int (*f)(void *handle));
 void RE_error_cb		(struct Render *re, void *handle, void (*f)(void *handle, char *str));
 
 /* should move to kernel once... still unsure on how/where */
-float RE_filter_value(int type, float x);
+float RE_filter_value(int type, float x, float gaussfac);
 /* vector blur zbuffer method */
 void RE_zbuf_accumulate_vecblur(struct NodeBlurData *nbd, int xsize, int ysize, float *newrect, float *imgrect, float *vecbufrect, float *zbufrect);
 

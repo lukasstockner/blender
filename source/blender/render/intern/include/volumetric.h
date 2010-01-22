@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -16,22 +17,27 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): Matt Ebb.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-float vol_get_density(struct ShadeInput *shi, float *co);
-void vol_get_scattering(ShadeInput *shi, float *scatter_col, float *co_);
+#ifndef __RENDER_VOLUME_H__
+#define __RENDER_VOLUME_H__
 
-void shade_volume_outside(ShadeInput *shi, ShadeResult *shr);
-void shade_volume_inside(ShadeInput *shi, ShadeResult *shr);
-void shade_volume_shadow(struct ShadeInput *shi, struct ShadeResult *shr, struct Isect *last_is);
+struct Material;
+struct ObjectInstanceRen;
+struct ObjectRen;
+struct Render;
+struct ShadeInput;
+struct ShadeResult;
+
+float vol_get_density(Render *re, ShadeInput *shi, float *co);
+void vol_get_scattering(Render *re, ShadeInput *shi, float *scatter_col, float *co_);
+
+void shade_volume_outside(Render *re, ShadeInput *shi, ShadeResult *shr);
+void shade_volume_inside(Render *re, ShadeInput *shi, ShadeResult *shr);
+void shade_volume_shadow(Render *re, ShadeInput *shi, ShadeResult *shr, struct Isect *last_is);
 
 #define STEPSIZE_VIEW	0
 #define STEPSIZE_SHADE	1
@@ -44,3 +50,18 @@ void shade_volume_shadow(struct ShadeInput *shi, struct ShadeResult *shr, struct
 
 #define VOL_SHADE_OUTSIDE	0
 #define VOL_SHADE_INSIDE	1
+
+typedef struct VolumeOb {
+	struct VolumeOb *next, *prev;
+	struct Material *ma;
+	struct ObjectRen *obr;
+} VolumeOb;
+
+typedef struct MatInside {
+	struct MatInside *next, *prev;
+	struct Material *ma;
+	struct ObjectInstanceRen *obi;
+} MatInside;
+
+#endif /* __RENDER_VOLUME_H__ */
+

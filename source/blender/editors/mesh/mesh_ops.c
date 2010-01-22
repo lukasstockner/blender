@@ -145,8 +145,6 @@ void ED_operatortypes_mesh(void)
 	WM_operatortype_append(MESH_OT_uv_texture_remove);
 	WM_operatortype_append(MESH_OT_vertex_color_add);
 	WM_operatortype_append(MESH_OT_vertex_color_remove);
-	WM_operatortype_append(MESH_OT_sticky_add);
-	WM_operatortype_append(MESH_OT_sticky_remove);
 	
 	WM_operatortype_append(MESH_OT_edgering_select);
 	WM_operatortype_append(MESH_OT_loopcut);

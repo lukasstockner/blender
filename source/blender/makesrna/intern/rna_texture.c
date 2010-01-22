@@ -68,6 +68,7 @@ EnumPropertyItem texture_type_items[] = {
 	{TEX_VORONOI, "VORONOI", ICON_TEXTURE, "Voronoi", ""},
 	{TEX_VOXELDATA, "VOXEL_DATA", ICON_TEXTURE, "Voxel Data", ""},
 	{TEX_WOOD, "WOOD", ICON_TEXTURE, "Wood", ""},
+	{TEX_NODES, "NODES", ICON_NODETREE, "Nodes", ""},
 	{0, NULL, 0, NULL, NULL}};
 
 #ifdef RNA_RUNTIME
@@ -120,6 +121,8 @@ static StructRNA *rna_Texture_refine(struct PointerRNA *ptr)
 			return &RNA_VoxelDataTexture;
 		case TEX_WOOD:
 			return &RNA_WoodTexture;
+		case TEX_NODES:
+			return &RNA_NodesTexture;
 		default:
 			return &RNA_Texture;
 	}
@@ -146,14 +149,17 @@ static void rna_Texture_type_set(PointerRNA *ptr, int value)
 {
 	Tex *tex= (Tex*)ptr->data;
 
-	if (value == TEX_VOXELDATA) {
-		if (tex->vd == NULL) {
+	if(value == TEX_VOXELDATA) {
+		if(tex->vd == NULL)
 			tex->vd = BKE_add_voxeldata();
-		}
-	} else if (value == TEX_POINTDENSITY) {
-		if (tex->pd == NULL) {
+	}
+	else if(value == TEX_POINTDENSITY) {
+		if(tex->pd == NULL)
 			tex->pd = BKE_add_pointdensity();
-		}
+	}
+	else if(value == TEX_NODES) {
+		if(tex->nodetree == NULL)
+			ED_node_texture_default(tex);
 	}
 	
 	tex->type = value;
@@ -301,17 +307,6 @@ static void rna_Texture_use_color_ramp_set(PointerRNA *ptr, int value)
 
 	if((tex->flag & TEX_COLORBAND) && tex->coba == NULL)
 		tex->coba= add_colorband(0);
-}
-
-static void rna_Texture_use_nodes_set(PointerRNA *ptr, int v)
-{
-	Tex *tex= (Tex*)ptr->data;
-	
-	tex->use_nodes = v;
-	tex->type = 0;
-	
-	if(v && tex->nodetree==NULL)
-		ED_node_texture_default(tex);
 }
 
 static void rna_ImageTexture_mipmap_set(PointerRNA *ptr, int value)
@@ -1805,6 +1800,21 @@ static void rna_def_texture_voxeldata(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 }
 
+static void rna_def_texture_nodes(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna= RNA_def_struct(brna, "NodesTexture", "Texture");
+	RNA_def_struct_sdna(srna, "Tex");
+	RNA_def_struct_ui_text(srna, "Nodes Texture", "Settings for texture using a node tree.");
+
+	prop= RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "nodetree");
+	RNA_def_property_ui_text(prop, "Node Tree", "Node tree for node-based textures");
+	RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
+}
+
 static void rna_def_texture(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1866,18 +1876,6 @@ static void rna_def_texture(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Factor Blue", "");
 	RNA_def_property_update(prop, 0, "rna_Texture_update");
 	
-	/* nodetree */
-	prop= RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "use_nodes", 1);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_Texture_use_nodes_set");
-	RNA_def_property_ui_text(prop, "Use Nodes", "Make this a node-based texture");
-	RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
-	
-	prop= RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
-	RNA_def_property_pointer_sdna(prop, NULL, "nodetree");
-	RNA_def_property_ui_text(prop, "Node Tree", "Node tree for node-based textures");
-	RNA_def_property_update(prop, 0, "rna_Texture_nodes_update");
-	
 	rna_def_animdata_common(srna);
 
 	/* specific types */
@@ -1896,7 +1894,7 @@ static void rna_def_texture(BlenderRNA *brna)
 	rna_def_texture_distorted_noise(brna);
 	rna_def_texture_pointdensity(brna);
 	rna_def_texture_voxeldata(brna);
-	/* XXX add more types here .. */
+	rna_def_texture_nodes(brna);
 }
 
 void RNA_def_texture(BlenderRNA *brna)

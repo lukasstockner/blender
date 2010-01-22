@@ -58,7 +58,7 @@ class TextureButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         tex = context.texture
-        return (tex and (tex.type != 'NONE' or tex.use_nodes))
+        return (tex and tex.type != 'NONE')
 
 
 class TEXTURE_PT_preview(TextureButtonsPanel):
@@ -133,7 +133,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
         if tex:
             split = layout.split(percentage=0.2)
 
-            if tex.use_nodes:
+            if tex.type == 'NODES':
                 slot = context.texture_slot
 
                 if slot:
@@ -354,6 +354,8 @@ class TEXTURE_PT_influence(TextureSlotPanel):
                 factor_but(col, tex.map_colortransmission, "map_colortransmission", "colortransmission_factor", "Transmission Color")
                 factor_but(col, tex.map_colorreflection, "map_colorreflection", "colorreflection_factor", "Reflection Color")
 
+            layout.separator()
+
         elif type(idblock) == bpy.types.Lamp:
             split = layout.split()
 
@@ -363,6 +365,8 @@ class TEXTURE_PT_influence(TextureSlotPanel):
             if wide_ui:
                 col = split.column()
             factor_but(col, tex.map_shadow, "map_shadow", "shadow_factor", "Shadow")
+
+            layout.separator()
 
         elif type(idblock) == bpy.types.World:
             split = layout.split()
@@ -376,7 +380,7 @@ class TEXTURE_PT_influence(TextureSlotPanel):
             factor_but(col, tex.map_zenith_up, "map_zenith_up", "zenith_up_factor", "Zenith Up")
             factor_but(col, tex.map_zenith_down, "map_zenith_down", "zenith_down_factor", "Zenith Down")
 
-        layout.separator()
+            layout.separator()
 
         split = layout.split()
 
@@ -402,7 +406,7 @@ class TextureTypePanel(TextureButtonsPanel):
 
     def poll(self, context):
         tex = context.texture
-        return (tex and tex.type == self.tex_type and not tex.use_nodes)
+        return (tex and tex.type == self.tex_type and not tex.type == 'NODES')
 
 
 class TEXTURE_PT_clouds(TextureTypePanel):

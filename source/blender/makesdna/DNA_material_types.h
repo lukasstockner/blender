@@ -80,8 +80,7 @@ typedef struct Material {
 	/* note, keep this below synced with render_types.h */
 	float r, g, b;
 	float specr, specg, specb;
-	float mirr, mirg, mirb;
-	float ambr, ambb, ambg;
+	float mirr, mirg, mirb, pad;
 	float amb, emit, ang, spectra, ray_mirror;
 	float alpha, ref, spec, zoffs, add;
 	float translucency;
@@ -255,7 +254,7 @@ typedef struct Material {
 
 /* ramps */
 #define MA_RAMP_IN_SHADER	0
-#define MA_RAMP_IN_ENERGY	1
+#define MA_RAMP_IN_ENERGY	1		/* deprecated */
 #define MA_RAMP_IN_NOR		2
 #define MA_RAMP_IN_RESULT	3
 

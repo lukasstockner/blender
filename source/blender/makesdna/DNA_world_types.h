@@ -58,15 +58,10 @@ typedef struct World {
 	float zenr, zeng, zenb, zenk;
 	float ambr, ambg, ambb, ambk;
 
-	unsigned int fastcol;	
-	
-	/**
-	 * Exposure= mult factor. unused now, but maybe back later. Kept in to be upward compat.
-	 * New is exp/range control. linfac & logfac are constants... don't belong in
-	 * file, but allocating 8 bytes for temp mem isnt useful either.
-	 */
-	float exposure, exp, range;	
-	float linfac, logfac;
+
+	/* deprecated, keep around for now so old blenders don't mess
+	   up rendering completely due to these being 0 */
+	float exp, range;	
 
 	/**
 	 * Gravitation constant for the game world
@@ -151,7 +146,7 @@ typedef struct World {
 #define WO_AOADDSUB	2
 
 /* ao_samp_method - methods for sampling the AO hemi */
-#define WO_AOSAMP_CONSTANT			0
+#define WO_AOSAMP_CONSTANT			0		/* Deprecated */
 #define WO_AOSAMP_HALTON			1
 #define WO_AOSAMP_HAMMERSLEY		2
 

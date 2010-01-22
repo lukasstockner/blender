@@ -342,8 +342,8 @@ typedef struct RenderData {
 	float GIshadowquality, GIrefinement, GIpower, GIindirpower;
 	float YF_gamma, YF_exposure, YF_raybias, YF_AApixelsize, YF_AAthreshold;
 
-	/* paths to backbufffer, output, ftype */
-	char backbuf[160], pic[160];
+	char backbuf[160]; /* deprecated */
+	char pic[160]; /* path to output */
 
 	/* stamps flags. */
 	int stamp;
@@ -797,7 +797,7 @@ typedef struct Scene {
 #define R_OSA			0x0001
 #define R_SHADOW		0x0002
 #define R_GAMMA			0x0004
-#define R_ORTHO			0x0008
+#define R_ORTHO			0x0008	/* deprecated as option in mode */
 #define R_ENVMAP		0x0010
 #define R_EDGE			0x0020
 #define R_FIELDS		0x0040

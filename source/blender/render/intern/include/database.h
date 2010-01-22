@@ -1,6 +1,4 @@
 /*
- * gammacorrectiontables.h
- *
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -8,7 +6,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
+ * of the License, or (at your option) any later version. 
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -19,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
+ * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -29,23 +27,20 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef GAMMACORRECTIONTABLES_H
-#define GAMMACORRECTIONTABLES_H
+#ifndef __RENDER_DATABASE_H__
+#define __RENDER_DATABASE_H__
 
-/**
- * Initialise the gamma lookup tables
- */
-void makeGammaTables(float gamma);
+struct Render;
+struct RenderDB;
+struct Scene;
 
-/**
- * Apply gamma correction on col
- */
-float gammaCorrect(float col);
+/* convertblender.c */
+void RE_Database_FromScene_Vectors(struct Render *re, struct Scene *sce);
 
-/**
- * Apply inverse gamma correction on col
- */
-float invGammaCorrect(float col);
+/* Init/Free */
 
-#endif
+void render_db_init(struct RenderDB *rdb);
+void render_db_free(struct RenderDB *rdb);
+
+#endif /* __RENDER_DATABASE_H__ */
 

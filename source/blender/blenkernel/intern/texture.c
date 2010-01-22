@@ -783,7 +783,7 @@ void autotexname(Tex *tex)
 	char di[FILE_MAXDIR], fi[FILE_MAXFILE];
 	
 	if(tex) {
-		if(tex->use_nodes) {
+		if(tex->type == TEX_NODES) {
 			new_id(&G.main->tex, (ID *)tex, "Noddy");
 		}
 		else
@@ -1174,8 +1174,8 @@ struct VoxelData *BKE_copy_voxeldata(struct VoxelData *vd)
 	return vdn;
 }
 
-
 /* ------------------------------------------------------------------------- */
+
 int BKE_texture_dependsOnTime(const struct Tex *texture)
 {
 	if(texture->plugin) {

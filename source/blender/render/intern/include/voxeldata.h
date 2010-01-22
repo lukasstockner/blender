@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -16,11 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): Raul Fernandez Hernandez (Farsthary), Matt Ebb.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -32,14 +28,11 @@
 struct Render;
 struct TexResult;
 
-typedef struct VoxelDataHeader
-{
-	int resolX, resolY, resolZ;
-	int frames;
-} VoxelDataHeader;
+/* Voxeldata Texture */
 
-void make_voxeldata(struct Render *re);
-void free_voxeldata(struct Render *re);
-int voxeldatatex(struct Tex *tex, float *texvec, struct TexResult *texres);
+void tex_voxeldata_init(struct Render *re, struct Tex *tex);
+void tex_voxeldata_free(struct Render *re, struct Tex *tex);
+
+int tex_voxeldata_sample(struct Tex *tex, float *texvec, struct TexResult *texres);
 
 #endif /* VOXELDATA_H */

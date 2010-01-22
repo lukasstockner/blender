@@ -250,7 +250,7 @@ typedef struct Tex {
 	struct PointDensity *pd;
 	struct VoxelData *vd;
 	
-	char use_nodes;
+	char use_nodes; // deprecated, now a texture type
 	char pad[7];
 	
 } Tex;
@@ -275,21 +275,22 @@ typedef struct TexMapping {
 /* **************** TEX ********************* */
 
 /* type */
-#define TEX_CLOUDS		1
-#define TEX_WOOD		2
-#define TEX_MARBLE		3
-#define TEX_MAGIC		4
-#define TEX_BLEND		5
-#define TEX_STUCCI		6
-#define TEX_NOISE		7
-#define TEX_IMAGE		8
-#define TEX_PLUGIN		9
-#define TEX_ENVMAP		10
-#define TEX_MUSGRAVE	11
-#define TEX_VORONOI		12
-#define TEX_DISTNOISE	13
+#define TEX_CLOUDS			1
+#define TEX_WOOD			2
+#define TEX_MARBLE			3
+#define TEX_MAGIC			4
+#define TEX_BLEND			5
+#define TEX_STUCCI			6
+#define TEX_NOISE			7
+#define TEX_IMAGE			8
+#define TEX_PLUGIN			9
+#define TEX_ENVMAP			10
+#define TEX_MUSGRAVE		11
+#define TEX_VORONOI			12
+#define TEX_DISTNOISE		13
 #define TEX_POINTDENSITY	14
 #define TEX_VOXELDATA		15
+#define TEX_NODES			16
 
 /* musgrave stype */
 #define TEX_MFRACTAL		0

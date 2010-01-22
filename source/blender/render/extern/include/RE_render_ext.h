@@ -34,12 +34,6 @@
 /* this include is for non-render pipeline exports (still old cruft here) */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-/* called by meshtools */
-struct View3D;
-struct Scene;
-
-void	RE_make_sticky(struct Scene *scene, struct View3D *v3d);
-	
 /* for radiosity module */	
 struct RadView;
 struct RNode;

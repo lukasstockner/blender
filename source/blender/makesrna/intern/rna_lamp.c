@@ -429,12 +429,6 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 		{LA_SAMP_HALTON, "ADAPTIVE_QMC", 0, "Adaptive QMC", ""},
 		{LA_SAMP_HAMMERSLEY, "CONSTANT_QMC", 0, "Constant QMC", ""},
 		{0, NULL, 0, NULL, NULL}};
-	
-	static EnumPropertyItem prop_spot_ray_sampling_method_items[] = {
-		{LA_SAMP_HALTON, "ADAPTIVE_QMC", 0, "Adaptive QMC", ""},
-		{LA_SAMP_HAMMERSLEY, "CONSTANT_QMC", 0, "Constant QMC", ""},
-		{LA_SAMP_CONSTANT, "CONSTANT_JITTERED", 0, "Constant Jittered", ""},
-		{0, NULL, 0, NULL, NULL}};
 
 	prop= RNA_def_property(srna, "shadow_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "mode");
@@ -455,7 +449,7 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 
 	prop= RNA_def_property(srna, "shadow_ray_sampling_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "ray_samp_method");
-	RNA_def_property_enum_items(prop, (area)? prop_spot_ray_sampling_method_items: prop_ray_sampling_method_items);
+	RNA_def_property_enum_items(prop, prop_ray_sampling_method_items);
 	RNA_def_property_ui_text(prop, "Shadow Ray Sampling Method", "Method for generating shadow samples: Adaptive QMC is fastest, Constant QMC is less noisy but slower.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
@@ -520,21 +514,6 @@ static void rna_def_area_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_AREA);
 
 	rna_def_lamp_shadow(srna, 0, 1);
-
-	prop= RNA_def_property(srna, "umbra", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ray_samp_type", LA_SAMP_UMBRA);
-	RNA_def_property_ui_text(prop, "Umbra", "Emphasize parts that are fully shadowed (Constant Jittered sampling).");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	prop= RNA_def_property(srna, "dither", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ray_samp_type", LA_SAMP_DITHER);
-	RNA_def_property_ui_text(prop, "Dither", "Use 2x2 dithering for sampling  (Constant Jittered sampling).");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	prop= RNA_def_property(srna, "jitter", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "ray_samp_type", LA_SAMP_JITTER);
-	RNA_def_property_ui_text(prop, "Jitter", "Use noise for sampling  (Constant Jittered sampling).");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop= RNA_def_property(srna, "shape", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "area_shape");

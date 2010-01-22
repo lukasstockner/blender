@@ -68,8 +68,8 @@ int object_remove_material_slot(struct Object *ob);
 
 /* rendering */
 
-void init_render_material(struct Material *, int, float *);
-void init_render_materials(int, float *);
+void init_render_material(struct Material *, int);
+void init_render_materials(int);
 void end_render_material(struct Material *);
 void end_render_materials(void);
 

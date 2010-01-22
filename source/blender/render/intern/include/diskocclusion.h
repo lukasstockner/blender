@@ -1,4 +1,4 @@
-/**
+/* 
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -6,7 +6,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,27 +17,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * The Original Code is Copyright (C) 2006 Blender Foundation.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
- * Contributor(s): none yet.
+ * Contributor(s): Brecht Van Lommel.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef PIPELINE_H
-#define PIPELINE_H
+#ifndef OCCLUSION_H
+#define OCCLUSION_H
 
+struct ObjectRen;
 struct Render;
-struct RenderResult;
-struct RenderLayer;
+struct RenderDB;
+struct RenderPart;
+struct ShadeInput;
+struct ShadeSample;
 
-struct RenderLayer *render_get_active_layer(struct Render *re, struct RenderResult *rr);
-float panorama_pixel_rot(struct Render *re);
+/* Disk Occlusion Create/Free */
 
-#define PASS_VECTOR_MAX	10000.0f
+void disk_occlusion_create(struct Render *re);
+void disk_occlusion_free(struct RenderDB *rdb);
 
-#endif /* PIPELINE_H */
+/* Sample */
+
+void disk_occlusion_sample(struct Render *re, struct ShadeInput *shi);
+
+/* Part Cache */
+
+void disk_occlusion_cache_create(struct Render *re, struct RenderPart *pa, struct ShadeSample *ssamp);
+void disk_occlusion_cache_free(struct Render *re, struct RenderPart *pa);
+
+#endif
 

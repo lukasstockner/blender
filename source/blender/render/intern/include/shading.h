@@ -1,5 +1,5 @@
 /**
-* $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -23,77 +23,104 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#ifndef __RENDER_SHADING_H__
+#define __RENDER_SHADING_H__
+
+#include "result.h"
+
+struct Isect;
+struct HaloRen;
+struct LampRen;
+struct ObjectInstanceRen obi;
+struct PixStr;
+struct RenderLayer;
+struct RenderPart;
 struct ShadeInput;
 struct ShadeResult;
-struct RenderPart;
-struct RenderLayer;
-struct PixStr;
-struct LampRen;
-struct VlakRen;
-struct StrandSegment;
 struct StrandPoint;
-struct ObjectInstanceRen obi;
-struct Isect;
+struct StrandRen;
+struct StrandSegment;
+struct StrandVert;
+struct VlakRen;
 
 /* shadeinput.c */
-
-#define RE_MAX_OSA 16
 
 /* needed to calculate shadow and AO for an entire pixel */
 typedef struct ShadeSample {
 	int tot;						/* amount of shi in use, can be 1 for not FULL_OSA */
-	
-	RenderLayer *rlpp[RE_MAX_OSA];	/* fast lookup from sample to renderlayer (fullsample buf) */
 	
 	/* could be malloced once */
 	ShadeInput shi[RE_MAX_OSA];
 	ShadeResult shr[RE_MAX_OSA];
 } ShadeSample;
 
+/* Shade Input */
 
-	/* also the node shader callback */
-void shade_material_loop(struct ShadeInput *shi, struct ShadeResult *shr);
-void shade_volume_loop(struct ShadeInput *shi, struct ShadeResult *shr);
+void shade_input_set_triangle_i(struct Render *re, struct ShadeInput *shi,
+	struct ObjectInstanceRen *obi, struct VlakRen *vlr, short i1, short i2, short i3);
 
-void shade_input_set_triangle_i(struct ShadeInput *shi, struct ObjectInstanceRen *obi, struct VlakRen *vlr, short i1, short i2, short i3);
-void shade_input_set_triangle(struct ShadeInput *shi, volatile int obi, volatile int facenr, int normal_flip);
-void shade_input_copy_triangle(struct ShadeInput *shi, struct ShadeInput *from);
-void shade_input_calc_viewco(struct ShadeInput *shi, float x, float y, float z, float *view, float *dxyview, float *co, float *dxco, float *dyco);
-void shade_input_set_viewco(struct ShadeInput *shi, float x, float y, float sx, float sy, float z);
+void shade_input_calc_viewco(struct Render *re, struct ShadeInput *shi,
+	float x, float y, float z, float *view, float *dxyview, float *co, float *dxco, float *dyco);
+void shade_input_set_viewco(struct Render *re, struct ShadeInput *shi,
+	float x, float y, float sx, float sy, float z);
+
 void shade_input_set_uv(struct ShadeInput *shi);
 void shade_input_set_normals(struct ShadeInput *shi);
 void shade_input_flip_normals(struct ShadeInput *shi);
-void shade_input_set_shade_texco(struct ShadeInput *shi);
-void shade_input_set_strand(struct ShadeInput *shi, struct StrandRen *strand, struct StrandPoint *spoint);
-void shade_input_set_strand_texco(struct ShadeInput *shi, struct StrandRen *strand, struct StrandVert *svert, struct StrandPoint *spoint);
-void shade_input_do_shade(struct ShadeInput *shi, struct ShadeResult *shr);
+void shade_input_set_shade_texco(struct Render *re, struct ShadeInput *shi);
 
-void shade_input_init_material(struct ShadeInput *shi);
-void shade_input_initialize(struct ShadeInput *shi, struct RenderPart *pa, struct RenderLayer *rl, int sample);
+void shade_input_set_strand(struct Render *re, struct ShadeInput *shi,
+	struct StrandRen *strand, struct StrandPoint *spoint);
+void shade_input_set_strand_texco(struct Render *re, struct ShadeInput *shi,
+	struct StrandRen *strand, struct StrandVert *svert, struct StrandPoint *spoint);
+void shade_input_calc_reflection(struct ShadeInput *shi);
 
-void shade_sample_initialize(struct ShadeSample *ssamp, struct RenderPart *pa, struct RenderLayer *rl);
-void shade_samples_do_AO(struct ShadeSample *ssamp);
-void shade_samples_fill_with_ps(struct ShadeSample *ssamp, struct PixStr *ps, int x, int y);
-int shade_samples(struct ShadeSample *ssamp, struct PixStr *ps, int x, int y);
+void shade_input_init_material(struct Render *re, struct ShadeInput *shi);
 
 void vlr_set_uv_indices(struct VlakRen *vlr, int *i1, int *i2, int *i3);
 
-void	calc_R_ref(struct ShadeInput *shi);
+/* Shading */
 
+/* also the node shader callback */
+void shade_material_loop(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
+void shade_volume_loop(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
+
+void shade_input_do_shade(struct Render *re, struct ShadeInput *shi,
+	struct ShadeResult *shr);
+
+void shade_sample_initialize(struct Render *re, struct ShadeSample *ssamp, struct RenderPart *pa, struct RenderLayer *rl);
+void shade_samples_do_AO(struct Render *re, struct ShadeSample *ssamp);
+void shade_samples_from_ps(struct Render *re, struct ShadeSample *ssamp, struct PixStr *ps, int x, int y);
+void shade_samples(struct Render *re, struct ShadeSample *ssamp);
 
 /* shadeoutput. */
-void shade_lamp_loop(struct ShadeInput *shi, struct ShadeResult *shr);
+void shade_surface(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr, int backside);
 
-void shade_color(struct ShadeInput *shi, ShadeResult *shr);
+void shade_color(struct Render *re, struct ShadeInput *shi, ShadeResult *shr);
 
-void ambient_occlusion_to_diffuse(struct ShadeInput *shi, float *diff);
-void ambient_occlusion(struct ShadeInput *shi);
+/* Utilities */
 
-ListBase *get_lights(struct ShadeInput *shi);
-float lamp_get_visibility(struct LampRen *lar, float *co, float *lv, float *dist);
-void lamp_get_shadow(struct LampRen *lar, ShadeInput *shi, float inp, float *shadfac, int do_real);
+void ambient_occlusion_to_diffuse(struct Render *re, struct ShadeInput *shi, float *diff);
+void ambient_occlusion(struct Render *re, struct ShadeInput *shi);
+float fresnel_fac(float *view, float *vn, float fresnel, float fac);
+void shade_ray(struct Render *re, struct Isect *is, struct ShadeInput *shi, struct ShadeResult *shr);
 
-float	fresnel_fac(float *view, float *vn, float fresnel, float fac);
+/**
+ * Render the pixel at (x,y) for object ap. Apply the jitter mask. 
+ * Output is given in float collector[4]. The type vector:
+ * t[0] - min. distance
+ * t[1] - face/halo index
+ * t[2] - jitter mask                     
+ * t[3] - type ZB_POLY or ZB_HALO
+ * t[4] - max. distance
+ * mask is pixel coverage in bits
+ * @return pointer to the object
+ */
 
-/* rayshade.c */
-extern void shade_ray(struct Isect *is, struct ShadeInput *shi, struct ShadeResult *shr);
+int shadeHaloFloat(struct Render *re, struct HaloRen *har, 
+					float *col, int zz, 
+					float dist, float xn, 
+					float yn, short flarec);
+
+#endif /* __RENDER_SHADING_H__ */
+

@@ -58,27 +58,11 @@ typedef struct ShadeResult
 	float nor[3];
 	float winspeed[4];
 	float rayhits[4];
+	float uv[3];
+	float indexob;
+	float sss[4];
+	float emit[3];
 } ShadeResult;
-
-/* only here for quick copy */
-struct ShadeInputCopy {
-	
-	struct Material *mat;
-	struct VlakRen *vlr;
-	struct StrandRen *strand;
-	struct ObjectInstanceRen *obi;
-	struct ObjectRen *obr;
-	int facenr;
-	float facenor[3];				/* copy from face */
-	short flippednor;				/* is facenor flipped? */
-	struct VertRen *v1, *v2, *v3;	/* vertices can be in any order for quads... */
-	short i1, i2, i3;				/* original vertex indices */
-	short puno;
-	short osatex;
-	float vn[3], vno[3];			/* actual render normal, and a copy to restore it */
-	float n1[3], n2[3], n3[3];		/* vertex normals, corrected */
-	int mode;						/* base material mode (OR-ed result of entire node tree) */
-};
 
 typedef struct ShadeInputUV {
 	float dxuv[3], dyuv[3], uv[3];
@@ -90,38 +74,53 @@ typedef struct ShadeInputCol {
 	char *name;
 } ShadeInputCol;
 
-/* localized renderloop data */
-typedef struct ShadeInput
-{
-	/* copy from face, also to extract tria from quad */
-	/* note it mirrors a struct above for quick copy */
+typedef struct ShadeGeometry {
+	float co[3];			/* location */
+	float vn[3];			/* shading normal */
+	float view[3];			/* view vector */
+	float tang[3];			/* tangent */
+
+	/* coordinates */
+	float camera_co[3];
+	float dxco[3], dyco[3]; /* derivatives of co */
+	float scanco[3];		/* original scanline coordinate without jitter */
+	int xs, ys;				/* pixel to be rendered */
+
+	/* normals */
+	float facenor[3];		/* copy of flat face normal */
+	float vno[3];			/* normal before bump/normal mapping */
+
+	short flippednor;		/* is facenor flipped? */
+	short tangentvn;		/* is vn tangent? */
+
+	float dxno[3], dyno[3];	/* derivatives of vn */
+
+	/* stored copy of original face normal (facenor) 
+	 * before flipping. Used in Front/back output on geometry node */
+	float orignor[3];
+
+	/* strand normal */
+	float surfnor[3], surfdist;
 	
-	struct Material *mat;
-	struct VlakRen *vlr;
-	struct StrandRen *strand;
-	struct ObjectInstanceRen *obi;
-	struct ObjectRen *obr;
-	int facenr;
-	float facenor[3];				/* copy from face */
-	short flippednor;				/* is facenor flipped? */
-	struct VertRen *v1, *v2, *v3;	/* vertices can be in any order for quads... */
-	short i1, i2, i3;				/* original vertex indices */
-	short puno;
+	/* interpolation weights */
+	float u, v;
+	float dx_u, dx_v, dy_u, dy_v;
+	
+	/* view derivatives */
+	float dxview, dyview;
+
+	/* derivatives enabled? */
 	short osatex;
-	float vn[3], vno[3];			/* actual render normal, and a copy to restore it */
-	float n1[3], n2[3], n3[3];		/* vertex normals, corrected */
-	int mode;						/* base material mode (OR-ed result of entire node tree) */
-	
-	/* internal face coordinates */
-	float u, v, dx_u, dx_v, dy_u, dy_v;
-	float co[3], view[3], camera_co[3];
-	
+} ShadeGeometry;
+
+typedef struct ShadeMaterial {
+	struct Material *mat;
+
 	/* copy from material, keep synced so we can do memcopy */
-	/* current size: 23*4 */
+	/* current size: 21*sizeof(float) */
 	float r, g, b;
 	float specr, specg, specb;
-	float mirr, mirg, mirb;
-	float ambr, ambb, ambg;
+	float mirr, mirg, mirb, pad;
 	
 	float amb, emit, ang, spectra, ray_mirror;
 	float alpha, refl, spec, zoffs, add;
@@ -130,11 +129,21 @@ typedef struct ShadeInput
 	
 	/* individual copies: */
 	int har; /* hardness */
-	
+
+	float vcol[4];
+	float refcol[4];
+
+	int mode;						/* base material mode (OR-ed result of entire node tree) */
+
+	struct Group *light_override;
+	struct Material *mat_override;
+} ShadeMaterial;
+
+typedef struct ShadeTexco {
 	/* texture coordinates */
-	float lo[3], gl[3], ref[3], orn[3], winco[3], sticky[3], vcol[4];
-	float refcol[4], displace[3];
-	float strandco, tang[3], nmaptang[3], stress, winspeed[4];
+	float lo[3], gl[3], ref[3], orn[3], winco[3], sticky[3];
+	float displace[3];
+	float strandco, nmaptang[3], stress, winspeed[4];
 	float duplilo[3], dupliuv[3];
 
 	ShadeInputUV uv[8];   /* 8 = MAX_MTFACE */
@@ -142,46 +151,62 @@ typedef struct ShadeInput
 	int totuv, totcol, actuv, actcol;
 	
 	/* dx/dy OSA coordinates */
-	float dxco[3], dyco[3];
 	float dxlo[3], dylo[3], dxgl[3], dygl[3];
 	float dxref[3], dyref[3], dxorn[3], dyorn[3];
-	float dxno[3], dyno[3], dxview, dyview;
 	float dxlv[3], dylv[3];
 	float dxwin[3], dywin[3];
 	float dxsticky[3], dysticky[3];
 	float dxrefract[3], dyrefract[3];
 	float dxstrand, dystrand;
-	
-	/* AO is a pre-process now */
-	float ao[3], indirect[3];
-	
-	int xs, ys;				/* pixel to be rendered */
-	int mask;				/* subsample mask */
-	float scanco[3];		/* original scanline coordinate without jitter */
-	
-	int samplenr;			/* sample counter, to detect if we should do shadow again */
-	int depth;				/* 1 or larger on raytrace shading */
-	int volume_depth;		/* number of intersections through volumes */
-	
-	/* stored copy of original face normal (facenor) 
-	 * before flipping. Used in Front/back output on geometry node */
-	float orignor[3];
-	/* for strand shading, normal at the surface */
-	float surfnor[3], surfdist;
+} ShadeTexco;
 
-	/* from initialize, part or renderlayer */
-	short do_preview;		/* for nodes, in previewrender */
-	short thread, sample;	/* sample: ShadeSample array index */
-	short nodes;			/* indicate node shading, temp hack to prevent recursion */
-	
-	unsigned int lay;
-	int layflag, passflag, combinedflag;
-	struct Group *light_override;
-	struct Material *mat_override;
-	
+typedef struct ShadePrimitive {
+	struct VlakRen *vlr;
+	struct StrandRen *strand;
+	struct ObjectInstanceRen *obi;
+	struct ObjectRen *obr;
+
+	int facenr;
+
+	struct VertRen *v1, *v2, *v3;	/* vertices can be in any order for quads... */
+	short i1, i2, i3;				/* original vertex indices */
+
+	float n1[3], n2[3], n3[3];		/* vertex normals, corrected */
+} ShadePrimitive;
+
+/* localized renderloop data */
+typedef struct ShadeInput
+{
+	/* copy from face, also to extract tria from quad */
+	/* XXX note it mirrors a struct above for quick copy */
+	ShadeGeometry geometry;
+	ShadeMaterial material;
+	ShadeTexco texture;
+	ShadePrimitive primitive;
+
+	struct {
+		/* AO is a pre-process now */
+		float ao[3];
+		float indirect[3];
+		
+		int mask;				/* subsample mask */
+
+		int samplenr;			/* sample counter, to detect if we should do shadow again */
+		int depth;				/* 1 or larger on raytrace shading */
+		int volume_depth;		/* number of intersections through volumes */
+
+		unsigned int lay;
+		int layflag, passflag, combinedflag;
+
+		/* from initialize, part or renderlayer */
+		short do_preview;		/* for nodes, in previewrender */
+		short thread, sample;	/* sample: ShadeSample array index */
+		short nodes;			/* indicate node shading, temp hack to prevent recursion */
+		
 #ifdef RE_RAYCOUNTER
-	RayCounter raycounter;
+		RayCounter raycounter;
 #endif
+	} shading;
 	
 } ShadeInput;
 
@@ -196,9 +221,8 @@ struct Render;
 struct Image;
 struct Object;
 
-void RE_shade_external(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
 int RE_bake_shade_all_selected(struct Render *re, int type, struct Object *actob, short *do_update);
-struct Image *RE_bake_shade_get_image(void);
+struct Image *RE_bake_shade_get_image(struct Render *re);
 
 #endif /* RE_SHADER_EXT_H */
 

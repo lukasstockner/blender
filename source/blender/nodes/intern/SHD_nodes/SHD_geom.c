@@ -52,37 +52,39 @@ static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **in, bNod
 	if(data) {
 		ShadeInput *shi= ((ShaderCallData *)data)->shi;
 		NodeGeometry *ngeo= (NodeGeometry*)node->storage;
-		ShadeInputUV *suv= &shi->uv[shi->actuv];
+		ShadeGeometry *geom= &shi->geometry;
+		ShadeTexco *tex= &shi->texture;
+		ShadeInputUV *suv= &tex->uv[shi->texture.actuv];
 		static float defaultvcol[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 		static float front= 0.0;
 		int i;
 
 		if(ngeo->uvname[0]) {
 			/* find uv layer by name */
-			for(i = 0; i < shi->totuv; i++) {
-				if(strcmp(shi->uv[i].name, ngeo->uvname)==0) {
-					suv= &shi->uv[i];
+			for(i = 0; i < tex->totuv; i++) {
+				if(strcmp(tex->uv[i].name, ngeo->uvname)==0) {
+					suv= &tex->uv[i];
 					break;
 				}
 			}
 		}
 
 		/* out: global, local, view, orco, uv, normal, vertex color */
-		VECCOPY(out[GEOM_OUT_GLOB]->vec, shi->gl);
-		VECCOPY(out[GEOM_OUT_LOCAL]->vec, shi->co);
-		VECCOPY(out[GEOM_OUT_VIEW]->vec, shi->view);
-		VECCOPY(out[GEOM_OUT_ORCO]->vec, shi->lo);
+		VECCOPY(out[GEOM_OUT_GLOB]->vec, tex->gl);
+		VECCOPY(out[GEOM_OUT_LOCAL]->vec, geom->co);
+		VECCOPY(out[GEOM_OUT_VIEW]->vec, geom->view);
+		VECCOPY(out[GEOM_OUT_ORCO]->vec, tex->lo);
 		VECCOPY(out[GEOM_OUT_UV]->vec, suv->uv);
-		VECCOPY(out[GEOM_OUT_NORMAL]->vec, shi->vno);
+		VECCOPY(out[GEOM_OUT_NORMAL]->vec, geom->vno);
 
-		if (shi->totcol) {
+		if (tex->totcol) {
 			/* find vertex color layer by name */
-			ShadeInputCol *scol= &shi->col[0];
+			ShadeInputCol *scol= &tex->col[0];
 
 			if(ngeo->colname[0]) {
-				for(i = 0; i < shi->totcol; i++) {
-					if(strcmp(shi->col[i].name, ngeo->colname)==0) {
-						scol= &shi->col[i];
+				for(i = 0; i < tex->totcol; i++) {
+					if(strcmp(tex->col[i].name, ngeo->colname)==0) {
+						scol= &tex->col[i];
 						break;
 					}
 				}
@@ -94,24 +96,24 @@ static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **in, bNod
 		else
 			memcpy(out[GEOM_OUT_VCOL]->vec, defaultvcol, sizeof(defaultvcol));
 		
-		if(shi->osatex) {
-			out[GEOM_OUT_GLOB]->data= shi->dxgl;
+		if(geom->osatex) {
+			out[GEOM_OUT_GLOB]->data= tex->dxgl;
 			out[GEOM_OUT_GLOB]->datatype= NS_OSA_VECTORS;
-			out[GEOM_OUT_LOCAL]->data= shi->dxco;
+			out[GEOM_OUT_LOCAL]->data= geom->dxco;
 			out[GEOM_OUT_LOCAL]->datatype= NS_OSA_VECTORS;
-			out[GEOM_OUT_VIEW]->data= &shi->dxview;
+			out[GEOM_OUT_VIEW]->data= &geom->dxview;
 			out[GEOM_OUT_VIEW]->datatype= NS_OSA_VALUES;
-			out[GEOM_OUT_ORCO]->data= shi->dxlo;
+			out[GEOM_OUT_ORCO]->data= tex->dxlo;
 			out[GEOM_OUT_ORCO]->datatype= NS_OSA_VECTORS;
 			out[GEOM_OUT_UV]->data= suv->dxuv;
 			out[GEOM_OUT_UV]->datatype= NS_OSA_VECTORS;
-			out[GEOM_OUT_NORMAL]->data= shi->dxno;
+			out[GEOM_OUT_NORMAL]->data= geom->dxno;
 			out[GEOM_OUT_NORMAL]->datatype= NS_OSA_VECTORS;
 		}
 		
 		/* front/back
 		* check the original un-flipped normals to determine front or back side */
-		if (shi->orignor[2] < FLT_EPSILON) {
+		if (geom->orignor[2] < FLT_EPSILON) {
 			front= 1.0f;
 		} else {
 			front = 0.0f;

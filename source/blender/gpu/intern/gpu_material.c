@@ -525,9 +525,6 @@ static void add_to_diffuse(GPUMaterial *mat, Material *ma, GPUShadeInput *shi, G
 		else {
 			/* input */
 			switch(ma->rampin_col) {
-			case MA_RAMP_IN_ENERGY:
-				GPU_link(mat, "ramp_rgbtobw", rgb, &fac);
-				break;
 			case MA_RAMP_IN_SHADER:
 				fac= is;
 				break;
@@ -578,9 +575,6 @@ static void do_specular_ramp(GPUShadeInput *shi, GPUNodeLink *is, GPUNodeLink *t
 		
 		/* input */
 		switch(ma->rampin_spec) {
-		case MA_RAMP_IN_ENERGY:
-			fac = t;
-			break;
 		case MA_RAMP_IN_SHADER:
 			fac = is;
 			break;
@@ -1148,10 +1142,10 @@ void GPU_shadeinput_set(GPUMaterial *mat, Material *ma, GPUShadeInput *shi)
 void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 {
 	GPUMaterial *mat= shi->gpumat;
-	GPUNodeLink *emit, *ulinfac, *ulogfac, *mistfac;
+	GPUNodeLink *emit, *mistfac;
 	Material *ma= shi->mat;
 	World *world= mat->scene->world;
-	float linfac, logfac, misttype;
+	float misttype;
 
 	memset(shr, 0, sizeof(*shr));
 
@@ -1189,20 +1183,6 @@ void GPU_shaderesult_set(GPUShadeInput *shi, GPUShadeResult *shr)
 		shr->alpha = shi->alpha;
 
 		if(world) {
-        	/* exposure correction */
-			if(world->exp!=0.0f || world->range!=1.0f) {
-				linfac= 1.0 + pow((2.0*world->exp + 0.5), -10);
-				logfac= log((linfac-1.0)/linfac)/world->range;
-
-				GPU_link(mat, "set_value", GPU_uniform(&linfac), &ulinfac);
-				GPU_link(mat, "set_value", GPU_uniform(&logfac), &ulogfac);
-
-				GPU_link(mat, "shade_exposure_correct", shr->combined,
-					ulinfac, ulogfac, &shr->combined);
-				GPU_link(mat, "shade_exposure_correct", shr->spec,
-					ulinfac, ulogfac, &shr->spec);
-			}
-
 			/* ambient color */
 			if(world->ambr!=0.0f || world->ambg!=0.0f || world->ambb!=0.0f) {
 				if(GPU_link_changed(shi->amb) || ma->amb != 0.0f)

@@ -19,20 +19,21 @@
  * 
  * ***** END GPL LICENSE BLOCK *****
  */
+
 /**
  * This feature comes from Preetham paper on "A Practical Analytic Model for Daylight" 
  * and example code from Brian Smits, another author of that paper in 
  * http://www.cs.utah.edu/vissim/papers/sunsky/code/
  * */
-#ifndef SUNSKY_H_
-#define SUNSKY_H_
+
+#ifndef __RENDER_SUNSKY_H__
+#define __RENDER_SUNSKY_H__
 
 #define SPECTRUM_MAX_COMPONENTS     100
 #define SPECTRUM_START              350.0
 #define SPECTRUM_END                800.0
 
-typedef struct SunSky
-{
+typedef struct SunSky {
     short effect_type, skyblendtype, sky_colorspace;
     float turbidity;
     float theta, phi;
@@ -141,4 +142,5 @@ void AtmospherePixleShader( struct SunSky* sunSky, float view[3], float s, float
  * */
 void ClipColor(float c[3]);
 
-#endif /*SUNSKY_H_*/
+#endif /* __RENDER_SUNSKY_H__ */
+

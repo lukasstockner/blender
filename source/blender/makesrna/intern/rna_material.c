@@ -274,7 +274,6 @@ static EnumPropertyItem *rna_Material_texture_coordinates_itemf(bContext *C, Poi
 	return item;
 }
 
-
 #else
 
 static void rna_def_material_mtex(BlenderRNA *brna)
@@ -651,7 +650,6 @@ static void rna_def_material_colors(StructRNA *srna)
 
 	static EnumPropertyItem prop_ramp_input_items[] = {
 		{MA_RAMP_IN_SHADER, "SHADER", 0, "Shader", ""},
-		{MA_RAMP_IN_ENERGY, "ENERGY", 0, "Energy", ""},
 		{MA_RAMP_IN_NOR, "NORMAL", 0, "Normal", ""},
 		{MA_RAMP_IN_RESULT, "RESULT", 0, "Result", ""},
 		{0, NULL, 0, NULL, NULL}};
@@ -1305,11 +1303,11 @@ static void rna_def_material_specularity(StructRNA *srna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem prop_specular_shader_items[] = {
-		{MA_SPEC_COOKTORR, "COOKTORR", 0, "CookTorr", ""},
+		{MA_SPEC_COOKTORR, "COOK_TORR", 0, "Cook Torrance", ""},
 		{MA_SPEC_PHONG, "PHONG", 0, "Phong", ""},
 		{MA_SPEC_BLINN, "BLINN", 0, "Blinn", ""},
 		{MA_SPEC_TOON, "TOON", 0, "Toon", ""},
-		{MA_SPEC_WARDISO, "WARDISO", 0, "WardIso", ""},
+		{MA_SPEC_WARDISO, "WARD_ISO", 0, "Ward Isotropic", ""},
 		{0, NULL, 0, NULL, NULL}};
 	
 	prop= RNA_def_property(srna, "specular_shader", PROP_ENUM, PROP_NONE);

@@ -240,8 +240,6 @@ void MESH_OT_uv_texture_add(struct wmOperatorType *ot);
 void MESH_OT_uv_texture_remove(struct wmOperatorType *ot);
 void MESH_OT_vertex_color_add(struct wmOperatorType *ot);
 void MESH_OT_vertex_color_remove(struct wmOperatorType *ot);
-void MESH_OT_sticky_add(struct wmOperatorType *ot);
-void MESH_OT_sticky_remove(struct wmOperatorType *ot);
 
 void MESH_OT_edgering_select(struct wmOperatorType *ot);
 void MESH_OT_loopcut(struct wmOperatorType *ot);

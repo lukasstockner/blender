@@ -79,60 +79,61 @@ static void node_shader_exec_material(void *data, bNode *node, bNodeStack **in, 
 		ShadeResult shrnode;
 		ShadeInput *shi;
 		ShaderCallData *shcd= data;
+		Render *re= shcd->re;
 		float col[4];
 		
 		shi= shcd->shi;
-		shi->mat= (Material *)node->id;
+		shi->material.mat= (Material *)node->id;
 		
 		/* copy all relevant material vars, note, keep this synced with render_types.h */
-		memcpy(&shi->r, &shi->mat->r, 23*sizeof(float));
-		shi->har= shi->mat->har;
+		memcpy(&shi->material.r, &shi->material.mat->r, 23*sizeof(float));
+		shi->material.har= shi->material.mat->har;
 		
 		/* write values */
 		if(in[MAT_IN_COLOR]->hasinput)
-			nodestack_get_vec(&shi->r, SOCK_VECTOR, in[MAT_IN_COLOR]);
+			nodestack_get_vec(&shi->material.r, SOCK_VECTOR, in[MAT_IN_COLOR]);
 		
 		if(in[MAT_IN_SPEC]->hasinput)
-			nodestack_get_vec(&shi->specr, SOCK_VECTOR, in[MAT_IN_SPEC]);
+			nodestack_get_vec(&shi->material.specr, SOCK_VECTOR, in[MAT_IN_SPEC]);
 		
 		if(in[MAT_IN_REFL]->hasinput)
-			nodestack_get_vec(&shi->refl, SOCK_VALUE, in[MAT_IN_REFL]);
+			nodestack_get_vec(&shi->material.refl, SOCK_VALUE, in[MAT_IN_REFL]);
 		
 		/* retrieve normal */
 		if(in[MAT_IN_NORMAL]->hasinput) {
-			nodestack_get_vec(shi->vn, SOCK_VECTOR, in[MAT_IN_NORMAL]);
-			normalize_v3(shi->vn);
+			nodestack_get_vec(shi->geometry.vn, SOCK_VECTOR, in[MAT_IN_NORMAL]);
+			normalize_v3(shi->geometry.vn);
 		}
 		else
-			VECCOPY(shi->vn, shi->vno);
+			VECCOPY(shi->geometry.vn, shi->geometry.vno);
 		
 		/* custom option to flip normal */
 		if(node->custom1 & SH_NODE_MAT_NEG) {
-			shi->vn[0]= -shi->vn[0];
-			shi->vn[1]= -shi->vn[1];
-			shi->vn[2]= -shi->vn[2];
+			shi->geometry.vn[0]= -shi->geometry.vn[0];
+			shi->geometry.vn[1]= -shi->geometry.vn[1];
+			shi->geometry.vn[2]= -shi->geometry.vn[2];
 		}
 		
 		if (node->type == SH_NODE_MATERIAL_EXT) {
 			if(in[MAT_IN_MIR]->hasinput)
-				nodestack_get_vec(&shi->mirr, SOCK_VECTOR, in[MAT_IN_MIR]);
+				nodestack_get_vec(&shi->material.mirr, SOCK_VECTOR, in[MAT_IN_MIR]);
 			if(in[MAT_IN_AMB]->hasinput)
-				nodestack_get_vec(&shi->amb, SOCK_VALUE, in[MAT_IN_AMB]);
+				nodestack_get_vec(&shi->material.amb, SOCK_VALUE, in[MAT_IN_AMB]);
 			if(in[MAT_IN_EMIT]->hasinput)
-				nodestack_get_vec(&shi->emit, SOCK_VALUE, in[MAT_IN_EMIT]);
+				nodestack_get_vec(&shi->material.emit, SOCK_VALUE, in[MAT_IN_EMIT]);
 			if(in[MAT_IN_SPECTRA]->hasinput)
-				nodestack_get_vec(&shi->spectra, SOCK_VALUE, in[MAT_IN_SPECTRA]);
+				nodestack_get_vec(&shi->material.spectra, SOCK_VALUE, in[MAT_IN_SPECTRA]);
 			if(in[MAT_IN_RAY_MIRROR]->hasinput)
-				nodestack_get_vec(&shi->ray_mirror, SOCK_VALUE, in[MAT_IN_RAY_MIRROR]);
+				nodestack_get_vec(&shi->material.ray_mirror, SOCK_VALUE, in[MAT_IN_RAY_MIRROR]);
 			if(in[MAT_IN_ALPHA]->hasinput)
-				nodestack_get_vec(&shi->alpha, SOCK_VALUE, in[MAT_IN_ALPHA]);
+				nodestack_get_vec(&shi->material.alpha, SOCK_VALUE, in[MAT_IN_ALPHA]);
 			if(in[MAT_IN_TRANSLUCENCY]->hasinput)
-				nodestack_get_vec(&shi->translucency, SOCK_VALUE, in[MAT_IN_TRANSLUCENCY]);			
+				nodestack_get_vec(&shi->material.translucency, SOCK_VALUE, in[MAT_IN_TRANSLUCENCY]);			
 		}
 		
-		shi->nodes= 1; /* temp hack to prevent trashadow recursion */
-		node_shader_lamp_loop(shi, &shrnode);	/* clears shrnode */
-		shi->nodes= 0;
+		shi->shading.nodes= 1; /* temp hack to prevent trashadow recursion */
+		node_shader_lamp_loop(re, shi, &shrnode);	/* clears shrnode */
+		shi->shading.nodes= 0;
 		
 		/* write to outputs */
 		if(node->custom1 & SH_NODE_MAT_DIFF) {
@@ -149,19 +150,19 @@ static void node_shader_exec_material(void *data, bNode *node, bNodeStack **in, 
 		
 		col[3]= shrnode.alpha;
 		
-		if(shi->do_preview)
-			nodeAddToPreview(node, col, shi->xs, shi->ys);
+		if(shi->shading.do_preview)
+			nodeAddToPreview(node, col, shi->geometry.xs, shi->geometry.ys);
 		
 		VECCOPY(out[MAT_OUT_COLOR]->vec, col);
 		out[MAT_OUT_ALPHA]->vec[0]= shrnode.alpha;
 		
 		if(node->custom1 & SH_NODE_MAT_NEG) {
-			shi->vn[0]= -shi->vn[0];
-			shi->vn[1]= -shi->vn[1];
-			shi->vn[2]= -shi->vn[2];
+			shi->geometry.vn[0]= -shi->geometry.vn[0];
+			shi->geometry.vn[1]= -shi->geometry.vn[1];
+			shi->geometry.vn[2]= -shi->geometry.vn[2];
 		}
 		
-		VECCOPY(out[MAT_OUT_NORMAL]->vec, shi->vn);
+		VECCOPY(out[MAT_OUT_NORMAL]->vec, shi->geometry.vn);
 		
 		/* Extended material options */
 		if (node->type == SH_NODE_MATERIAL_EXT) {

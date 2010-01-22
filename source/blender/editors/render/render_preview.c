@@ -287,11 +287,6 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		sce->r.scemode |= R_PREVIEWBUTS;
 		/* set world always back, is used now */
 		sce->world= pr_main->world.first;
-		/* now: exposure copy */
-		if(scene->world) {
-			sce->world->exp= scene->world->exp;
-			sce->world->range= scene->world->range;
-		}
 		
 		sce->r.color_mgt_flag = scene->r.color_mgt_flag;
 		/* exception: don't color manage texture previews or icons */
@@ -307,9 +302,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		if(id_type==ID_MA) {
 			Material *mat= (Material *)id;
 			
-			if(id) {
-				init_render_material(mat, 0, NULL);		/* call that retrieves mode_l */
-				end_render_material(mat);
+			if(sp) {
+				init_render_material(mat, 0);		/* call that retrieves mode_l */
 				
 				/* turn on raytracing if needed */
 				if(mat->mode_l & MA_RAYMIRROR)
@@ -364,6 +358,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 			else {
+				end_render_material(mat);
 				sce->r.mode &= ~(R_OSA|R_RAYTRACE|R_SSS);
 			}
 			
@@ -397,7 +392,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 							mat->mtex[0]->which_output = sp->slot->which_output;
 						
 						/* show alpha in this case */
-						if(tex==NULL || (tex->flag & TEX_PRV_ALPHA)) {
+						if(sp==NULL || (tex->flag & TEX_PRV_ALPHA)) {
 							mat->mtex[0]->mapto |= MAP_ALPHA;
 							mat->alpha= 0.0f;
 						}
@@ -409,13 +404,13 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 
-			if(tex && tex->nodetree && sp->pr_method==PR_NODE_RENDER)
+			if(sp && sp->pr_method==PR_NODE_RENDER && tex->nodetree)
 				ntreeInitPreview(tex->nodetree, sp->sizex, sp->sizey);
 		}
 		else if(id_type==ID_LA) {
 			Lamp *la= (Lamp *)id;
 			
-			if(la && la->type==LA_SUN && (la->sun_effect_type & LA_SUN_EFFECT_SKY)) {
+			if(sp && la->type==LA_SUN && (la->sun_effect_type & LA_SUN_EFFECT_SKY)) {
 				sce->lay= 1<<MA_ATMOS;
 				sce->world= scene->world;
 				sce->camera= (Object *)find_object(&pr_main->object, "CameraAtmo");
@@ -722,7 +717,7 @@ void BIF_view3d_previewrender(Scene *scene, ScrArea *sa)
 		if(orth)
 			RE_SetOrtho(re, &viewplane, clipsta, clipend);
 		else
-			RE_SetWindow(re, &viewplane, clipsta, clipend);
+			RE_SetWindow(re, &viewplane, clipsta, clipend, 0);
 		RE_SetPixelSize(re, pixsize);
 		
 		/* until here are no escapes */
@@ -742,7 +737,7 @@ void BIF_view3d_previewrender(Scene *scene, ScrArea *sa)
 			if(orth)
 				RE_SetOrtho(ri->re, &viewplane, clipsta, clipend);
 			else
-				RE_SetWindow(ri->re, &viewplane, clipsta, clipend);
+				RE_SetWindow(ri->re, &viewplane, clipsta, clipend, 0);
 			RE_SetPixelSize(re, pixsize);
 			ri->status |= PR_DISPRECT;
 			ri->curtile= 0;
@@ -777,7 +772,7 @@ void BIF_view3d_previewrender(Scene *scene, ScrArea *sa)
 				if(orth)
 					RE_SetOrtho(ri->re, &viewplane, clipsta, clipend);
 				else
-					RE_SetWindow(ri->re, &viewplane, clipsta, clipend);
+					RE_SetWindow(ri->re, &viewplane, clipsta, clipend, 0);
 				RE_DataBase_ApplyWindow(re);
 				ri->status |= PR_PROJECTED;
 			}
@@ -956,7 +951,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	}
 
 	/* unassign the pointers, reset vars */
-	preview_prepare_scene(sp->scene, NULL, GS(id->name), NULL);
+	preview_prepare_scene(sp->scene, id, GS(id->name), NULL);
 }
 
 /* runs inside thread for material and icons */

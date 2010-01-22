@@ -307,10 +307,12 @@ static ShadeInput shi;
 static void init_fastshade_shadeinput(Render *re)
 {
 	memset(&shi, 0, sizeof(ShadeInput));
-	shi.lay= RE_GetScene(re)->lay;
-	shi.view[2]= -1.0f;
-	shi.passflag= SCE_PASS_COMBINED;
-	shi.combinedflag= -1;
+
+	shi.geometry.view[2]= -1.0f;
+
+	shi.shading.lay= RE_GetScene(re)->lay;
+	shi.shading.passflag= SCE_PASS_COMBINED;
+	shi.shading.combinedflag= -1;
 }
 
 static Render *fastshade_get_render(Scene *scene)
@@ -359,84 +361,89 @@ static void fastshade_customdata(CustomData *fdata, int a, int j, Material *ma)
 	MTFace *mtface;
 	int index, n, needuv= ma->texco & TEXCO_UV;
 	char *vertcol;
+	ShadeTexco *tex= &shi.texture;
+	ShadeMaterial *mat= &shi.material;
 
-	shi.totuv= 0;
-	shi.totcol= 0;
+	tex->totuv= 0;
+	tex->totcol= 0;
 
 	for(index=0; index<fdata->totlayer; index++) {
 		layer= &fdata->layers[index];
 		
-		if(needuv && layer->type == CD_MTFACE && shi.totuv < MAX_MTFACE) {
-			n= fastshade_customdata_layer_num(shi.totuv, layer->active_rnd);
+		if(needuv && layer->type == CD_MTFACE && tex->totuv < MAX_MTFACE) {
+			n= fastshade_customdata_layer_num(tex->totuv, layer->active_rnd);
 			mtface= &((MTFace*)layer->data)[a];
 
-			shi.uv[shi.totuv].uv[0]= 2.0f*mtface->uv[j][0]-1.0f;
-			shi.uv[shi.totuv].uv[1]= 2.0f*mtface->uv[j][1]-1.0f;
-			shi.uv[shi.totuv].uv[2]= 1.0f;
+			tex->uv[tex->totuv].uv[0]= 2.0f*mtface->uv[j][0]-1.0f;
+			tex->uv[tex->totuv].uv[1]= 2.0f*mtface->uv[j][1]-1.0f;
+			tex->uv[tex->totuv].uv[2]= 1.0f;
 
-			shi.uv[shi.totuv].name= layer->name;
-			shi.totuv++;
+			tex->uv[tex->totuv].name= layer->name;
+			tex->totuv++;
 		}
-		else if(layer->type == CD_MCOL && shi.totcol < MAX_MCOL) {
-			n= fastshade_customdata_layer_num(shi.totcol, layer->active_rnd);
+		else if(layer->type == CD_MCOL && tex->totcol < MAX_MCOL) {
+			n= fastshade_customdata_layer_num(tex->totcol, layer->active_rnd);
 			vertcol= (char*)&((MCol*)layer->data)[a*4 + j];
 
-			shi.col[shi.totcol].col[0]= ((float)vertcol[3])/255.0f;
-			shi.col[shi.totcol].col[1]= ((float)vertcol[2])/255.0f;
-			shi.col[shi.totcol].col[2]= ((float)vertcol[1])/255.0f;
+			tex->col[tex->totcol].col[0]= ((float)vertcol[3])/255.0f;
+			tex->col[tex->totcol].col[1]= ((float)vertcol[2])/255.0f;
+			tex->col[tex->totcol].col[2]= ((float)vertcol[1])/255.0f;
 
-			shi.col[shi.totcol].name= layer->name;
-			shi.totcol++;
+			tex->col[tex->totcol].name= layer->name;
+			tex->totcol++;
 		}
 	}
 
-	if(needuv && shi.totuv == 0)
-		VECCOPY(shi.uv[0].uv, shi.lo);
+	if(needuv && tex->totuv == 0)
+		VECCOPY(tex->uv[0].uv, tex->lo);
 
-	if(shi.totcol)
-		VECCOPY(shi.vcol, shi.col[0].col);
+	if(tex->totcol)
+		VECCOPY(mat->vcol, tex->col[0].col);
 }
 
 static void fastshade(float *co, float *nor, float *orco, Material *ma, char *col1, char *col2)
 {
 	ShadeResult shr;
+	ShadeTexco *tex= &shi.texture;
+	ShadeGeometry *geom= &shi.geometry;
 	int a;
 	
-	VECCOPY(shi.co, co);
-	shi.vn[0]= -nor[0];
-	shi.vn[1]= -nor[1];
-	shi.vn[2]= -nor[2];
-	VECCOPY(shi.vno, shi.vn);
-	VECCOPY(shi.facenor, shi.vn);
+	VECCOPY(geom->co, co);
+	geom->vn[0]= -nor[0];
+	geom->vn[1]= -nor[1];
+	geom->vn[2]= -nor[2];
+	VECCOPY(geom->vno, geom->vn);
+	VECCOPY(geom->facenor, geom->vn);
 	
 	if(ma->texco) {
-		VECCOPY(shi.lo, orco);
+		VECCOPY(tex->lo, orco);
 		
 		if(ma->texco & TEXCO_GLOB) {
-			VECCOPY(shi.gl, shi.lo);
+			VECCOPY(tex->gl, tex->lo);
 		}
 		if(ma->texco & TEXCO_WINDOW) {
-			VECCOPY(shi.winco, shi.lo);
+			VECCOPY(tex->winco, tex->lo);
 		}
 		if(ma->texco & TEXCO_STICKY) {
-			VECCOPY(shi.sticky, shi.lo);
+			VECCOPY(tex->sticky, tex->lo);
 		}
 		if(ma->texco & TEXCO_OBJECT) {
-			VECCOPY(shi.co, shi.lo);
+			VECCOPY(geom->co, tex->lo);
 		}
 		if(ma->texco & TEXCO_NORM) {
-			VECCOPY(shi.orn, shi.vn);
+			VECCOPY(tex->orn, geom->vn);
 		}
 		if(ma->texco & TEXCO_REFL) {
-			float inp= 2.0*(shi.vn[2]);
-			shi.ref[0]= (inp*shi.vn[0]);
-			shi.ref[1]= (inp*shi.vn[1]);
-			shi.ref[2]= (-1.0+inp*shi.vn[2]);
+			float inp= 2.0*(geom->vn[2]);
+			tex->ref[0]= (inp*geom->vn[0]);
+			tex->ref[1]= (inp*geom->vn[1]);
+			tex->ref[2]= (-1.0+inp*geom->vn[2]);
 		}
 	}
 	
-	shi.mat= ma;	/* set each time... node shaders change it */
-	RE_shade_external(NULL, &shi, &shr);
+	shi.material.mat= ma;	/* set each time... node shaders change it */
+	// RE_shade_external(NULL, &shi, &shr);
+	memset(&shr, 0, sizeof(shr));
 	
 	a= 256.0f*(shr.combined[0]);
 	col1[0]= CLAMPIS(a, 0, 255);
@@ -446,12 +453,13 @@ static void fastshade(float *co, float *nor, float *orco, Material *ma, char *co
 	col1[2]= CLAMPIS(a, 0, 255);
 	
 	if(col2) {
-		shi.vn[0]= -shi.vn[0];
-		shi.vn[1]= -shi.vn[1];
-		shi.vn[2]= -shi.vn[2];
+		geom->vn[0]= -geom->vn[0];
+		geom->vn[1]= -geom->vn[1];
+		geom->vn[2]= -geom->vn[2];
 		
-		shi.mat= ma;	/* set each time... node shaders change it */
-		RE_shade_external(NULL, &shi, &shr);
+		shi.material.mat= ma;	/* set each time... node shaders change it */
+		// XXX RE_shade_external(NULL, &shi, &shr);
+		memset(&shr, 0, sizeof(shr));
 		
 		a= 256.0f*(shr.combined[0]);
 		col2[0]= CLAMPIS(a, 0, 255);
@@ -465,11 +473,10 @@ static void fastshade(float *co, float *nor, float *orco, Material *ma, char *co
 static void init_fastshade_for_ob(Render *re, Object *ob, int *need_orco_r, float mat[4][4], float imat[3][3])
 {
 	float tmat[4][4];
-	float amb[3]= {0.0f, 0.0f, 0.0f};
 	int a;
 	
 	/* initialize globals in render */
-	RE_shade_external(re, NULL, NULL);
+	// RE_shade_external(re, NULL, NULL);
 
 	/* initialize global here */
 	init_fastshade_shadeinput(re);
@@ -485,7 +492,7 @@ static void init_fastshade_for_ob(Render *re, Object *ob, int *need_orco_r, floa
 	for(a=0; a<ob->totcol; a++) {
 		Material *ma= give_current_material(ob, a+1);
 		if(ma) {
-			init_render_material(ma, 0, amb);
+			init_render_material(ma, 0);
 
 			if(ma->texco & TEXCO_ORCO) {
 				if (need_orco_r) *need_orco_r= 1;

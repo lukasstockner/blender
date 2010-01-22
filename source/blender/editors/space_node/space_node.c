@@ -226,7 +226,7 @@ static void node_area_refresh(const struct bContext *C, struct ScrArea *sa)
 		}
 		else if(snode->treetype==NTREE_TEXTURE) {
 			Tex *tex= (Tex *)snode->id;
-			if(tex->use_nodes) {
+			if(tex->type == TEX_NODES) {
 				ED_preview_shader_job(C, sa, snode->id, NULL, NULL, 100, 100, PR_NODE_RENDER);
 			}
 		}

@@ -1,5 +1,5 @@
 /**
-* $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,47 +29,41 @@
 #include <math.h>
 #include <string.h>
 
-
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 
 #include "DNA_curve_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
 
 #include "BKE_colortools.h"
-#include "BKE_utildefines.h"
 #include "BKE_node.h"
+#include "BKE_utildefines.h"
 
 /* local include */
+#include "camera.h"
+#include "database.h"
+#include "environment.h"
+#include "part.h"
+#include "pixelfilter.h"
 #include "raycounter.h"
-#include "renderpipeline.h"
 #include "render_types.h"
-#include "renderdatabase.h"
 #include "rendercore.h"
-#include "shadbuf.h"
 #include "shading.h"
-#include "strand.h"
-#include "texture.h"
+#include "shadowbuf.h"
+#include "object.h"
+#include "object_mesh.h"
+#include "object_strand.h"
+#include "texture_stack.h"
 #include "volumetric.h"
 #include "zbuf.h"
 
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
-/* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
-/* only to be used here in this file, it's for speed */
-extern struct Render R;
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
-
-
-#define VECADDISFAC(v1,v3,fac) {*(v1)+= *(v3)*(fac); *(v1+1)+= *(v3+1)*(fac); *(v1+2)+= *(v3+2)*(fac);}
-
-
-
 /* Shade Sample order:
 
-- shade_samples_fill_with_ps()
+- shade_samples_from_ps()
 	- for each sample
 		- shade_input_set_triangle()  <- if prev sample-face is same, use shade_input_copy_triangle()
 		- if vlr
@@ -89,137 +83,11 @@ extern struct Render R;
 
 /* initialise material variables in shadeinput, 
  * doing inverse gamma correction where applicable */
-void shade_input_init_material(ShadeInput *shi)
+void shade_input_init_material(Render *re, ShadeInput *shi)
 {
 	/* note, keep this synced with render_types.h */
-	memcpy(&shi->r, &shi->mat->r, 23*sizeof(float));
-	shi->har= shi->mat->har;
-}
-
-/* also used as callback for nodes */
-/* delivers a fully filled in ShadeResult, for all passes */
-void shade_material_loop(ShadeInput *shi, ShadeResult *shr)
-{
-
-	shade_lamp_loop(shi, shr);	/* clears shr */
-	
-	if(shi->translucency!=0.0f) {
-		ShadeResult shr_t;
-		float fac= shi->translucency;
-		
-		shade_input_init_material(shi);
-
-		VECCOPY(shi->vn, shi->vno);
-		VECMUL(shi->vn, -1.0f);
-		VECMUL(shi->facenor, -1.0f);
-		shi->depth++;	/* hack to get real shadow now */
-		shade_lamp_loop(shi, &shr_t);
-		shi->depth--;
-
-		/* a couple of passes */
-		VECADDISFAC(shr->combined, shr_t.combined, fac);
-		if(shi->passflag & SCE_PASS_SPEC)
-			VECADDISFAC(shr->spec, shr_t.spec, fac);
-		if(shi->passflag & SCE_PASS_DIFFUSE)
-			VECADDISFAC(shr->diff, shr_t.diff, fac);
-		if(shi->passflag & SCE_PASS_SHADOW)
-			VECADDISFAC(shr->shad, shr_t.shad, fac);
-
-		VECMUL(shi->vn, -1.0f);
-		VECMUL(shi->facenor, -1.0f);
-	}
-	
-	/* depth >= 1 when ray-shading */
-	if(shi->depth==0) {
-		if(R.r.mode & R_RAYTRACE) {
-			if(shi->ray_mirror!=0.0f || ((shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_RAYTRANSP) && shr->alpha!=1.0f)) {
-				/* ray trace works on combined, but gives pass info */
-				ray_trace(shi, shr);
-			}
-		}
-		/* disable adding of sky for raytransp */
-		if((shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_RAYTRANSP))
-			if((shi->layflag & SCE_LAY_SKY) && (R.r.alphamode==R_ADDSKY))
-				shr->alpha= 1.0f;
-	}	
-	
-	if(R.r.mode & R_RAYTRACE) {
-		if (R.render_volumes_inside.first)
-			shade_volume_inside(shi, shr);
-	}
-}
-
-
-/* do a shade, finish up some passes, apply mist */
-void shade_input_do_shade(ShadeInput *shi, ShadeResult *shr)
-{
-	float alpha;
-	
-	/* ------  main shading loop -------- */
-#ifdef RE_RAYCOUNTER
-	memset(&shi->raycounter, 0, sizeof(shi->raycounter));
-#endif
-	
-	if(shi->mat->nodetree && shi->mat->use_nodes) {
-		ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
-	}
-	else {
-		/* copy all relevant material vars, note, keep this synced with render_types.h */
-		shade_input_init_material(shi);
-		
-		if (shi->mat->material_type == MA_TYPE_VOLUME) {
-			if(R.r.mode & R_RAYTRACE)
-				shade_volume_outside(shi, shr);
-		} else { /* MA_TYPE_SURFACE, MA_TYPE_WIRE */
-			shade_material_loop(shi, shr);
-		}
-	}
-	
-	/* copy additional passes */
-	if(shi->passflag & (SCE_PASS_VECTOR|SCE_PASS_NORMAL|SCE_PASS_RADIO)) {
-		QUATCOPY(shr->winspeed, shi->winspeed);
-		VECCOPY(shr->nor, shi->vn);
-	}
-	
-	/* MIST */
-	if((shi->passflag & SCE_PASS_MIST) || ((R.wrld.mode & WO_MIST) && (shi->mat->mode & MA_NOMIST)==0))  {
-		if(R.r.mode & R_ORTHO)
-			shr->mist= mistfactor(-shi->co[2], shi->co);
-		else
-			shr->mist= mistfactor(len_v3(shi->co), shi->co);
-	}
-	else shr->mist= 0.0f;
-	
-	if((R.wrld.mode & WO_MIST) && (shi->mat->mode & MA_NOMIST)==0 ) {
-		alpha= shr->mist;
-	}
-	else alpha= 1.0f;
-	
-	/* add mist and premul color */
-	if(shr->alpha!=1.0f || alpha!=1.0f) {
-		float fac= alpha*(shr->alpha);
-		shr->combined[3]= fac;
-		
-		if (shi->mat->material_type!= MA_TYPE_VOLUME)
-			mul_v3_fl(shr->combined, fac);
-	}
-	else
-		shr->combined[3]= 1.0f;
-	
-	/* add z */
-	shr->z= -shi->co[2];
-	
-	/* RAYHITS */
-/*
-	if(1 || shi->passflag & SCE_PASS_RAYHITS)
-	{
-		shr->rayhits[0] = (float)shi->raycounter.faces.test;
-		shr->rayhits[1] = (float)shi->raycounter.bb.hit;
-		shr->rayhits[2] = 0.0;
-		shr->rayhits[3] = 1.0;
-	}
- */
-	RE_RC_MERGE(&re_rc_counter[shi->thread], &shi->raycounter);
+	memcpy(&shi->material.r, &shi->material.mat->r, 21*sizeof(float));
+	shi->material.har= shi->material.mat->har;
 }
 
 /* **************************************************************************** */
@@ -251,219 +119,179 @@ void vlr_set_uv_indices(VlakRen *vlr, int *i1, int *i2, int *i3)
 
 /* copy data from face to ShadeInput, general case */
 /* indices 0 1 2 3 only */
-void shade_input_set_triangle_i(ShadeInput *shi, ObjectInstanceRen *obi, VlakRen *vlr, short i1, short i2, short i3)
+void shade_input_set_triangle_i(Render *re, ShadeInput *shi, ObjectInstanceRen *obi, VlakRen *vlr, short i1, short i2, short i3)
 {
 	VertRen **vpp= &vlr->v1;
+	ShadeGeometry *geom= &shi->geometry;
+	ShadePrimitive *prim= &shi->primitive;
+	ShadeMaterial *mat= &shi->material;
 	
-	shi->vlr= vlr;
-	shi->obi= obi;
-	shi->obr= obi->obr;
+	prim->vlr= vlr;
+	prim->obi= obi;
+	prim->obr= obi->obr;
 
-	shi->v1= vpp[i1];
-	shi->v2= vpp[i2];
-	shi->v3= vpp[i3];
+	prim->v1= vpp[i1];
+	prim->v2= vpp[i2];
+	prim->v3= vpp[i3];
 	
-	shi->i1= i1;
-	shi->i2= i2;
-	shi->i3= i3;
+	prim->i1= i1;
+	prim->i2= i2;
+	prim->i3= i3;
 	
-	/* note, shi->mat is set in node shaders */
-	shi->mat= shi->mat_override?shi->mat_override:vlr->mat;
-	
-	shi->osatex= (shi->mat->texco & TEXCO_OSA);
-	shi->mode= shi->mat->mode_l;		/* or-ed result for all nodes */
+	/* note, mat->mat is set in node shaders */
+	mat->mat= (mat->mat_override)? mat->mat_override: vlr->mat;
+	mat->mode= mat->mat->mode_l;		/* or-ed result for all nodes */
+
+	geom->osatex= (mat->mat->texco & TEXCO_OSA);
 
 	/* facenormal copy, can get flipped */
-	shi->flippednor= RE_vlakren_get_normal(&R, obi, vlr, shi->facenor);
-	
+	geom->flippednor= render_vlak_get_normal(obi, vlr, geom->facenor);
+
 	/* copy of original pre-flipped normal, for geometry->front/back node output */
-	VECCOPY(shi->orignor, shi->facenor);
-	if(shi->flippednor)
-		VECMUL(shi->orignor, -1.0f);
-	
-	/* calculate vertexnormals */
-	if(vlr->flag & R_SMOOTH) {
-		VECCOPY(shi->n1, shi->v1->n);
-		VECCOPY(shi->n2, shi->v2->n);
-		VECCOPY(shi->n3, shi->v3->n);
-
-		if(obi->flag & R_TRANSFORMED) {
-			mul_m3_v3(obi->nmat, shi->n1);
-			mul_m3_v3(obi->nmat, shi->n2);
-			mul_m3_v3(obi->nmat, shi->n3);
-		}
-
-		if(!(vlr->flag & (R_NOPUNOFLIP|R_TANGENT))) {
-			if(INPR(shi->facenor, shi->n1) < 0.0f) {
-				shi->n1[0]= -shi->n1[0];
-				shi->n1[1]= -shi->n1[1];
-				shi->n1[2]= -shi->n1[2];
-			}
-			if(INPR(shi->facenor, shi->n2) < 0.0f) {
-				shi->n2[0]= -shi->n2[0];
-				shi->n2[1]= -shi->n2[1];
-				shi->n2[2]= -shi->n2[2];
-			}
-			if(INPR(shi->facenor, shi->n3) < 0.0f) {
-				shi->n3[0]= -shi->n3[0];
-				shi->n3[1]= -shi->n3[1];
-				shi->n3[2]= -shi->n3[2];
-			}
-		}
-	}
+	copy_v3_v3(geom->orignor, geom->facenor);
+	if(geom->flippednor)
+		mul_v3_fl(geom->orignor, -1.0f);
 }
 
 /* note, facenr declared volatile due to over-eager -O2 optimizations
  * on cygwin (particularly -frerun-cse-after-loop)
  */
 
-/* copy data from face to ShadeInput, scanline case */
-void shade_input_set_triangle(ShadeInput *shi, volatile int obi, volatile int facenr, int normal_flip)
-{
-	if(facenr>0) {
-		shi->obi= &R.objectinstance[obi];
-		shi->obr= shi->obi->obr;
-		shi->facenr= (facenr-1) & RE_QUAD_MASK;
-		if( shi->facenr < shi->obr->totvlak ) {
-			VlakRen *vlr= RE_findOrAddVlak(shi->obr, shi->facenr);
-			
-			if(facenr & RE_QUAD_OFFS)
-				shade_input_set_triangle_i(shi, shi->obi, vlr, 0, 2, 3);
-			else
-				shade_input_set_triangle_i(shi, shi->obi, vlr, 0, 1, 2);
-		}
-		else
-			shi->vlr= NULL;	/* general signal we got sky */
-	}
-	else
-		shi->vlr= NULL;	/* general signal we got sky */
-}
-
 /* full osa case: copy static info */
-void shade_input_copy_triangle(ShadeInput *shi, ShadeInput *from)
+static void shade_input_copy_triangle(ShadeInput *shi, ShadeInput *from)
 {
-	/* not so nice, but works... warning is in RE_shader_ext.h */
-	memcpy(shi, from, sizeof(struct ShadeInputCopy));
+	shi->geometry= from->geometry;
+	shi->primitive= from->primitive;
+	shi->material.mode= from->material.mode;
+	shi->material.mat= from->material.mat;
 }
 
 /* copy data from strand to shadeinput */
-void shade_input_set_strand(ShadeInput *shi, StrandRen *strand, StrandPoint *spoint)
+void shade_input_set_strand(Render *re, ShadeInput *shi, StrandRen *strand, StrandPoint *spoint)
 {
-	/* note, shi->mat is set in node shaders */
-	shi->mat= shi->mat_override? shi->mat_override: strand->buffer->ma;
+	ShadeGeometry *geom= &shi->geometry;
+	ShadeMaterial *mat= &shi->material;
+
+	/* note, mat->mat is set in node shaders */
+	mat->mat= mat->mat_override? mat->mat_override: strand->buffer->ma;
 	
-	shi->osatex= (shi->mat->texco & TEXCO_OSA);
-	shi->mode= shi->mat->mode_l;		/* or-ed result for all nodes */
+	geom->osatex= (mat->mat->texco & TEXCO_OSA);
+	mat->mode= mat->mat->mode_l;		/* or-ed result for all nodes */
 
 	/* shade_input_set_viewco equivalent */
-	VECCOPY(shi->co, spoint->co);
-	VECCOPY(shi->view, shi->co);
-	normalize_v3(shi->view);
+	copy_v3_v3(geom->co, spoint->co);
+	copy_v3_v3(geom->view, geom->co);
+	normalize_v3(geom->view);
 
-	shi->xs= (int)spoint->x;
-	shi->ys= (int)spoint->y;
+	geom->xs= (int)spoint->x;
+	geom->ys= (int)spoint->y;
 
-	if(shi->osatex || (R.r.mode & R_SHADOW)) {
-		VECCOPY(shi->dxco, spoint->dtco);
-		VECCOPY(shi->dyco, spoint->dsco);
+	if(geom->osatex || (re->params.r.mode & R_SHADOW)) {
+		copy_v3_v3(geom->dxco, spoint->dtco);
+		copy_v3_v3(geom->dyco, spoint->dsco);
 	}
 
 	/* dxview, dyview, not supported */
 
 	/* facenormal, simply viewco flipped */
-	VECCOPY(shi->facenor, spoint->nor);
-	VECCOPY(shi->orignor, shi->facenor);
+	copy_v3_v3(geom->facenor, spoint->nor);
+	copy_v3_v3(geom->orignor, geom->facenor);
 
 	/* shade_input_set_normals equivalent */
-	if(shi->mat->mode & MA_TANGENT_STR) {
-		VECCOPY(shi->vn, spoint->tan)
+	if(mat->mat->mode & MA_TANGENT_STR) {
+		copy_v3_v3(geom->vn, spoint->tan);
 	}
 	else {
 		float cross[3];
 
 		cross_v3_v3v3(cross, spoint->co, spoint->tan);
-		cross_v3_v3v3(shi->vn, cross, spoint->tan);
-		normalize_v3(shi->vn);
+		cross_v3_v3v3(geom->vn, cross, spoint->tan);
+		normalize_v3(geom->vn);
 
-		if(INPR(shi->vn, shi->view) < 0.0f)
-			negate_v3(shi->vn);
+		if(dot_v3v3(geom->vn, geom->view) < 0.0f)
+			negate_v3(geom->vn);
 	}
 
-	VECCOPY(shi->vno, shi->vn);
+	copy_v3_v3(geom->vno, geom->vn);
+
+	geom->tangentvn= (mat->mat->mode & MA_TANGENT_STR) != 0;
 }
 
-void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert *svert, StrandPoint *spoint)
+void shade_input_set_strand_texco(Render *re, ShadeInput *shi, StrandRen *strand, StrandVert *svert, StrandPoint *spoint)
 {
 	StrandBuffer *strandbuf= strand->buffer;
 	ObjectRen *obr= strandbuf->obr;
 	StrandVert *sv;
-	int mode= shi->mode;		/* or-ed result for all nodes */
-	short texco= shi->mat->texco;
+	ShadeGeometry *geom= &shi->geometry;
+	ShadeTexco *tex= &shi->texture;
+	ShadeMaterial *mat= &shi->material;
+	int mode= mat->mode;		/* or-ed result for all nodes */
+	short texco= mat->mat->texco;
 
-	if((shi->mat->texco & TEXCO_REFL)) {
-		/* shi->dxview, shi->dyview, not supported */
+	if((mat->mat->texco & TEXCO_REFL)) {
+		/* tex->dxview, tex->dyview, not supported */
 	}
 
-	if(shi->osatex && (texco & (TEXCO_NORM|TEXCO_REFL))) {
+	if(geom->osatex && (texco & (TEXCO_NORM|TEXCO_REFL))) {
 		/* not supported */
 	}
 
 	if(mode & (MA_TANGENT_V|MA_NORMAP_TANG)) {
-		VECCOPY(shi->tang, spoint->tan);
-		VECCOPY(shi->nmaptang, spoint->tan);
+		copy_v3_v3(geom->tang, spoint->tan);
+		copy_v3_v3(tex->nmaptang, spoint->tan);
 	}
 
 	if(mode & MA_STR_SURFDIFF) {
-		float *surfnor= RE_strandren_get_surfnor(obr, strand, 0);
+		float *surfnor= render_strand_get_surfnor(obr, strand, 0);
 
 		if(surfnor)
-			VECCOPY(shi->surfnor, surfnor)
+			copy_v3_v3(geom->surfnor, surfnor);
 		else
-			VECCOPY(shi->surfnor, shi->vn)
+			copy_v3_v3(geom->surfnor, geom->vn);
 
-		if(shi->mat->strand_surfnor > 0.0f) {
-			shi->surfdist= 0.0f;
+		if(mat->mat->strand_surfnor > 0.0f) {
+			geom->surfdist= 0.0f;
 			for(sv=strand->vert; sv!=svert; sv++)
-				shi->surfdist+=len_v3v3(sv->co, (sv+1)->co);
-			shi->surfdist += spoint->t*len_v3v3(sv->co, (sv+1)->co);
+				geom->surfdist+=len_v3v3(sv->co, (sv+1)->co);
+			geom->surfdist += spoint->t*len_v3v3(sv->co, (sv+1)->co);
 		}
 	}
 
-	if(R.r.mode & R_SPEED) {
+	if(re->params.r.mode & R_SPEED) {
 		float *speed;
 		
-		speed= RE_strandren_get_winspeed(shi->obi, strand, 0);
+		speed= render_strand_get_winspeed(shi->primitive.obi, strand, 0);
 		if(speed)
-			QUATCOPY(shi->winspeed, speed)
+			copy_v4_v4(tex->winspeed, speed);
 		else
-			shi->winspeed[0]= shi->winspeed[1]= shi->winspeed[2]= shi->winspeed[3]= 0.0f;
+			zero_v4(tex->winspeed);
 	}
 
 	/* shade_input_set_shade_texco equivalent */
 	if(texco & NEED_UV) {
 		if(texco & TEXCO_ORCO) {
-			VECCOPY(shi->lo, strand->orco);
-			/* no shi->osatex, orco derivatives are zero */
+			copy_v3_v3(tex->lo, strand->orco);
+			/* no geom->osatex, orco derivatives are zero */
 		}
 
 		if(texco & TEXCO_GLOB) {
-			VECCOPY(shi->gl, shi->co);
-			mul_m4_v3(R.viewinv, shi->gl);
+			copy_v3_v3(tex->gl, geom->co);
+			mul_m4_v3(re->cam.viewinv, tex->gl);
 			
-			if(shi->osatex) {
-				VECCOPY(shi->dxgl, shi->dxco);
-				mul_m3_v3(R.imat, shi->dxco);
-				VECCOPY(shi->dygl, shi->dyco);
-				mul_m3_v3(R.imat, shi->dyco);
+			if(geom->osatex) {
+				copy_v3_v3(tex->dxgl, geom->dxco);
+				mul_mat3_m4_v3(re->cam.viewinv, geom->dxco);
+				copy_v3_v3(tex->dygl, geom->dyco);
+				mul_mat3_m4_v3(re->cam.viewinv, geom->dyco);
 			}
 		}
 
 		if(texco & TEXCO_STRAND) {
-			shi->strandco= spoint->strandco;
+			tex->strandco= spoint->strandco;
 
-			if(shi->osatex) {
-				shi->dxstrand= spoint->dtstrandco;
-				shi->dystrand= 0.0f;
+			if(geom->osatex) {
+				tex->dxstrand= spoint->dtstrandco;
+				tex->dystrand= 0.0f;
 			}
 		}
 
@@ -473,17 +301,17 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 			char *name;
 			int i;
 
-			shi->totuv= 0;
-			shi->totcol= 0;
-			shi->actuv= obr->actmtface;
-			shi->actcol= obr->actmcol;
+			tex->totuv= 0;
+			tex->totcol= 0;
+			tex->actuv= obr->actmtface;
+			tex->actcol= obr->actmcol;
 
 			if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP)) {
-				for (i=0; (mcol=RE_strandren_get_mcol(obr, strand, i, &name, 0)); i++) {
-					ShadeInputCol *scol= &shi->col[i];
+				for (i=0; (mcol=render_strand_get_mcol(obr, strand, i, &name, 0)); i++) {
+					ShadeInputCol *scol= &tex->col[i];
 					char *cp= (char*)mcol;
 					
-					shi->totcol++;
+					tex->totcol++;
 					scol->name= name;
 
 					scol->col[0]= cp[3]/255.0f;
@@ -491,22 +319,22 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 					scol->col[2]= cp[1]/255.0f;
 				}
 
-				if(shi->totcol) {
-					shi->vcol[0]= shi->col[shi->actcol].col[0];
-					shi->vcol[1]= shi->col[shi->actcol].col[1];
-					shi->vcol[2]= shi->col[shi->actcol].col[2];
+				if(tex->totcol) {
+					mat->vcol[0]= tex->col[tex->actcol].col[0];
+					mat->vcol[1]= tex->col[tex->actcol].col[1];
+					mat->vcol[2]= tex->col[tex->actcol].col[2];
 				}
 				else {
-					shi->vcol[0]= 0.0f;
-					shi->vcol[1]= 0.0f;
-					shi->vcol[2]= 0.0f;
+					mat->vcol[0]= 0.0f;
+					mat->vcol[1]= 0.0f;
+					mat->vcol[2]= 0.0f;
 				}
 			}
 
-			for (i=0; (uv=RE_strandren_get_uv(obr, strand, i, &name, 0)); i++) {
-				ShadeInputUV *suv= &shi->uv[i];
+			for (i=0; (uv=render_strand_get_uv(obr, strand, i, &name, 0)); i++) {
+				ShadeInputUV *suv= &tex->uv[i];
 
-				shi->totuv++;
+				tex->totuv++;
 				suv->name= name;
 
 				if(strandbuf->overrideuv == i) {
@@ -520,7 +348,7 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 					suv->uv[2]= 0.0f;	/* texture.c assumes there are 3 coords */
 				}
 
-				if(shi->osatex) {
+				if(geom->osatex) {
 					suv->dxuv[0]= 0.0f;
 					suv->dxuv[1]= 0.0f;
 					suv->dyuv[0]= 0.0f;
@@ -529,15 +357,15 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 
 				if((mode & MA_FACETEXTURE) && i==obr->actmtface) {
 					if((mode & (MA_VERTEXCOL|MA_VERTEXCOLP))==0) {
-						shi->vcol[0]= 1.0f;
-						shi->vcol[1]= 1.0f;
-						shi->vcol[2]= 1.0f;
+						mat->vcol[0]= 1.0f;
+						mat->vcol[1]= 1.0f;
+						mat->vcol[2]= 1.0f;
 					}
 				}
 			}
 
-			if(shi->totuv == 0) {
-				ShadeInputUV *suv= &shi->uv[0];
+			if(tex->totuv == 0) {
+				ShadeInputUV *suv= &tex->uv[0];
 
 				suv->uv[0]= 0.0f;
 				suv->uv[1]= spoint->strandco;
@@ -545,23 +373,20 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 				
 				if(mode & MA_FACETEXTURE) {
 					/* no tface? set at 1.0f */
-					shi->vcol[0]= 1.0f;
-					shi->vcol[1]= 1.0f;
-					shi->vcol[2]= 1.0f;
+					mat->vcol[0]= 1.0f;
+					mat->vcol[1]= 1.0f;
+					mat->vcol[2]= 1.0f;
 				}
 			}
 
 		}
 
-		if(texco & TEXCO_NORM) {
-			shi->orn[0]= -shi->vn[0];
-			shi->orn[1]= -shi->vn[1];
-			shi->orn[2]= -shi->vn[2];
-		}
+		if(texco & TEXCO_NORM)
+			negate_v3_v3(tex->orn, geom->vn);
 
 		if(texco & TEXCO_REFL) {
 			/* mirror reflection color textures (and envmap) */
-			calc_R_ref(shi);    /* wrong location for normal maps! XXXXXXXXXXXXXX */
+			shade_input_calc_reflection(shi);    /* wrong location for normal maps! XXXXXXXXXXXXXX */
 		}
 
 		if(texco & TEXCO_STRESS) {
@@ -571,25 +396,25 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 		if(texco & TEXCO_TANGENT) {
 			if((mode & MA_TANGENT_V)==0) {
 				/* just prevent surprises */
-				shi->tang[0]= shi->tang[1]= shi->tang[2]= 0.0f;
-				shi->nmaptang[0]= shi->nmaptang[1]= shi->nmaptang[2]= 0.0f;
+				geom->tang[0]= geom->tang[1]= geom->tang[2]= 0.0f;
+				tex->nmaptang[0]= tex->nmaptang[1]= tex->nmaptang[2]= 0.0f;
 			}
 		}
 	}
 
 	/* this only avalailable for scanline renders */
-	if(shi->depth==0) {
+	if(shi->shading.depth==0) {
 		if(texco & TEXCO_WINDOW) {
-			shi->winco[0]= -1.0f + 2.0f*spoint->x/(float)R.winx;
-			shi->winco[1]= -1.0f + 2.0f*spoint->y/(float)R.winy;
-			shi->winco[2]= 0.0f;
+			tex->winco[0]= -1.0f + 2.0f*spoint->x/(float)re->cam.winx;
+			tex->winco[1]= -1.0f + 2.0f*spoint->y/(float)re->cam.winy;
+			tex->winco[2]= 0.0f;
 
 			/* not supported */
-			if(shi->osatex) {
-				shi->dxwin[0]= 0.0f;
-				shi->dywin[1]= 0.0f;
-				shi->dxwin[0]= 0.0f;
-				shi->dywin[1]= 0.0f;
+			if(geom->osatex) {
+				tex->dxwin[0]= 0.0f;
+				tex->dywin[1]= 0.0f;
+				tex->dxwin[0]= 0.0f;
+				tex->dywin[1]= 0.0f;
 			}
 		}
 
@@ -598,158 +423,94 @@ void shade_input_set_strand_texco(ShadeInput *shi, StrandRen *strand, StrandVert
 		}
 	}
 	
-	if (R.r.color_mgt_flag & R_COLOR_MANAGEMENT) {
-		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)) {
-			srgb_to_linearrgb_v3_v3(shi->vcol, shi->vcol);
-		}
-	}
-	
+	if(re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE))
+			srgb_to_linearrgb_v3_v3(mat->vcol, mat->vcol);
 }
 
 /* from scanline pixel coordinates to 3d coordinates, requires set_triangle */
-void shade_input_calc_viewco(ShadeInput *shi, float x, float y, float z, float *view, float *dxyview, float *co, float *dxco, float *dyco)
+void shade_input_calc_viewco(Render *re, ShadeInput *shi, float x, float y, float z, float *view, float *dxyview, float *co, float *dxco, float *dyco)
 {
-	/* returns not normalized, so is in viewplane coords */
-	calc_view_vector(view, x, y);
-	
-	if(shi->mat->material_type == MA_TYPE_WIRE) {
-		/* wire cannot use normal for calculating shi->co, so
-		 * we reconstruct the coordinate less accurate */
-		if(R.r.mode & R_ORTHO)
-			calc_renderco_ortho(co, x, y, z);
-		else
-			calc_renderco_zbuf(co, view, z);
+
+	if(shi->material.mat->material_type == MA_TYPE_WIRE) {
+		/* returns not normalized, so is in viewplane coords */
+		camera_raster_to_view(&re->cam, view, x, y);
+		normalize_v3(view);
+
+		/* wire cannot use normal for calculating shi->geometry.co, so we
+		 * reconstruct the coordinate less accurate using z-value */
+		camera_raster_to_co(&re->cam, co, x, y, z);
+
+		/* TODO dxco/dyco/dxyview ? */
 	}
 	else {
 		/* for non-wire, intersect with the triangle to get the exact coord */
-		float fac, dface, v1[3];
+		float plane[4]; /* plane equation a*x + b*y + c*z = d */
+		float v1[3];
+
+		/* compute plane equation */
+		copy_v3_v3(v1, shi->primitive.v1->co);
+		if(shi->primitive.obi->flag & R_TRANSFORMED)
+			mul_m4_v3(shi->primitive.obi->mat, v1);
 		
-		VECCOPY(v1, shi->v1->co);
-		if(shi->obi->flag & R_TRANSFORMED)
-			mul_m4_v3(shi->obi->mat, v1);
-		
-		dface= v1[0]*shi->facenor[0]+v1[1]*shi->facenor[1]+v1[2]*shi->facenor[2];
-		
-		/* ortho viewplane cannot intersect using view vector originating in (0,0,0) */
-		if(R.r.mode & R_ORTHO) {
-			/* x and y 3d coordinate can be derived from pixel coord and winmat */
-			float fx= 2.0f/(R.winx*R.winmat[0][0]);
-			float fy= 2.0f/(R.winy*R.winmat[1][1]);
-			
-			co[0]= (x - 0.5f*R.winx)*fx - R.winmat[3][0]/R.winmat[0][0];
-			co[1]= (y - 0.5f*R.winy)*fy - R.winmat[3][1]/R.winmat[1][1];
-			
-			/* using a*x + b*y + c*z = d equation, (a b c) is normal */
-			if(shi->facenor[2]!=0.0f)
-				co[2]= (dface - shi->facenor[0]*co[0] - shi->facenor[1]*co[1])/shi->facenor[2];
-			else
-				co[2]= 0.0f;
-			
-			if(dxco && dyco) {
-				dxco[0]= fx;
-				dxco[1]= 0.0f;
-				if(shi->facenor[2]!=0.0f)
-					dxco[2]= (shi->facenor[0]*fx)/shi->facenor[2];
-				else 
-					dxco[2]= 0.0f;
-				
-				dyco[0]= 0.0f;
-				dyco[1]= fy;
-				if(shi->facenor[2]!=0.0f)
-					dyco[2]= (shi->facenor[1]*fy)/shi->facenor[2];
-				else 
-					dyco[2]= 0.0f;
-				
-				if(dxyview) {
-					if(co[2]!=0.0f) fac= 1.0f/co[2]; else fac= 0.0f;
-					dxyview[0]= -R.viewdx*fac;
-					dxyview[1]= -R.viewdy*fac;
-				}
-			}
-		}
-		else {
-			float div;
-			
-			div= shi->facenor[0]*view[0] + shi->facenor[1]*view[1] + shi->facenor[2]*view[2];
-			if (div!=0.0f) fac= dface/div;
-			else fac= 0.0f;
-			
-			co[0]= fac*view[0];
-			co[1]= fac*view[1];
-			co[2]= fac*view[2];
-			
-			/* pixel dx/dy for render coord */
-			if(dxco && dyco) {
-				float u= dface/(div - R.viewdx*shi->facenor[0]);
-				float v= dface/(div - R.viewdy*shi->facenor[1]);
-				
-				dxco[0]= co[0]- (view[0]-R.viewdx)*u;
-				dxco[1]= co[1]- (view[1])*u;
-				dxco[2]= co[2]- (view[2])*u;
-				
-				dyco[0]= co[0]- (view[0])*v;
-				dyco[1]= co[1]- (view[1]-R.viewdy)*v;
-				dyco[2]= co[2]- (view[2])*v;
-				
-				if(dxyview) {
-					if(fac!=0.0f) fac= 1.0f/fac;
-					dxyview[0]= -R.viewdx*fac;
-					dxyview[1]= -R.viewdy*fac;
-				}
-			}
-		}
+		copy_v3_v3(plane, shi->geometry.facenor);
+		plane[3]= v1[0]*plane[0] + v1[1]*plane[1] + v1[2]*plane[2];
+
+		/* reconstruct */
+		camera_raster_plane_to_co(&re->cam, co, dxco, dyco, view, dxyview, x, y, plane);
 	}
 	
 	/* set camera coords - for scanline, it's always 0.0,0.0,0.0 (render is in camera space)
 	 * however for raytrace it can be different - the position of the last intersection */
-	shi->camera_co[0] = shi->camera_co[1] = shi->camera_co[2] = 0.0f;
-	
-	/* cannot normalize earlier, code above needs it at viewplane level */
-	normalize_v3(view);
+	/* TODO this is not correct for ortho! */
+	shi->geometry.camera_co[0] = shi->geometry.camera_co[1] = shi->geometry.camera_co[2] = 0.0f;
 }
 
 /* from scanline pixel coordinates to 3d coordinates, requires set_triangle */
-void shade_input_set_viewco(ShadeInput *shi, float x, float y, float xs, float ys, float z)
+void shade_input_set_viewco(Render *re, ShadeInput *shi, float x, float y, float xs, float ys, float z)
 {
+	ShadeGeometry *geom= &shi->geometry;
 	float *dxyview= NULL, *dxco= NULL, *dyco= NULL;
 	
 	/* currently in use for dithering (soft shadow), node preview, irregular shad */
-	shi->xs= (int)xs;
-	shi->ys= (int)ys;
+	geom->xs= (int)xs;
+	geom->ys= (int)ys;
 
 	/* original scanline coordinate without jitter */
-	shi->scanco[0]= x;
-	shi->scanco[1]= y;
-	shi->scanco[2]= z;
+	geom->scanco[0]= x;
+	geom->scanco[1]= y;
+	geom->scanco[2]= z;
 
 	/* check if we need derivatives */
-	if(shi->osatex || (R.r.mode & R_SHADOW)) {
-		dxco= shi->dxco;
-		dyco= shi->dyco;
+	if(geom->osatex || (re->params.r.mode & R_SHADOW)) {
+		dxco= geom->dxco;
+		dyco= geom->dyco;
 
-		if((shi->mat->texco & TEXCO_REFL))
-			dxyview= &shi->dxview;
+		if((shi->material.mat->texco & TEXCO_REFL))
+			dxyview= &geom->dxview;
 	}
 
-	shade_input_calc_viewco(shi, xs, ys, z, shi->view, dxyview, shi->co, dxco, dyco);
+	shade_input_calc_viewco(re, shi, xs, ys, z, geom->view, dxyview, geom->co, dxco, dyco);
 }
 
 /* calculate U and V, for scanline (silly render face u and v are in range -1 to 0) */
 void shade_input_set_uv(ShadeInput *shi)
 {
-	VlakRen *vlr= shi->vlr;
+	ShadePrimitive *prim= &shi->primitive;
+	ShadeGeometry *geom= &shi->geometry;
+	VlakRen *vlr= prim->vlr;
 	
-	if((vlr->flag & R_SMOOTH) || (shi->mat->texco & NEED_UV) || (shi->passflag & SCE_PASS_UV)) {
+	if((vlr->flag & R_SMOOTH) || (shi->material.mat->texco & NEED_UV) || (shi->shading.passflag & SCE_PASS_UV)) {
 		float v1[3], v2[3], v3[3];
 
-		VECCOPY(v1, shi->v1->co);
-		VECCOPY(v2, shi->v2->co);
-		VECCOPY(v3, shi->v3->co);
+		copy_v3_v3(v1, prim->v1->co);
+		copy_v3_v3(v2, prim->v2->co);
+		copy_v3_v3(v3, prim->v3->co);
 
-		if(shi->obi->flag & R_TRANSFORMED) {
-			mul_m4_v3(shi->obi->mat, v1);
-			mul_m4_v3(shi->obi->mat, v2);
-			mul_m4_v3(shi->obi->mat, v3);
+		if(prim->obi->flag & R_TRANSFORMED) {
+			mul_m4_v3(prim->obi->mat, v1);
+			mul_m4_v3(prim->obi->mat, v2);
+			mul_m4_v3(prim->obi->mat, v3);
 		}
 
 		/* exception case for wire render of edge */
@@ -757,21 +518,21 @@ void shade_input_set_uv(ShadeInput *shi)
 			float lend, lenc;
 			
 			lend= len_v3v3(v2, v1);
-			lenc= len_v3v3(shi->co, v1);
+			lenc= len_v3v3(geom->co, v1);
 			
 			if(lend==0.0f) {
-				shi->u=shi->v= 0.0f;
+				geom->u=geom->v= 0.0f;
 			}
 			else {
-				shi->u= - (1.0f - lenc/lend);
-				shi->v= 0.0f;
+				geom->u= - (1.0f - lenc/lend);
+				geom->v= 0.0f;
 			}
 			
-			if(shi->osatex) {
-				shi->dx_u=  0.0f;
-				shi->dx_v=  0.0f;
-				shi->dy_u=  0.0f;
-				shi->dy_v=  0.0f;
+			if(geom->osatex) {
+				geom->dx_u=  0.0f;
+				geom->dx_v=  0.0f;
+				geom->dy_u=  0.0f;
+				geom->dy_v=  0.0f;
 			}
 		}
 		else {
@@ -780,9 +541,9 @@ void shade_input_set_uv(ShadeInput *shi)
 			int axis1, axis2;
 
 			/* find most stable axis to project */
-			xn= fabs(shi->facenor[0]);
-			yn= fabs(shi->facenor[1]);
-			zn= fabs(shi->facenor[2]);
+			xn= fabs(geom->facenor[0]);
+			yn= fabs(geom->facenor[1]);
+			zn= fabs(geom->facenor[2]);
 
 			if(zn>=xn && zn>=yn) { axis1= 0; axis2= 1; }
 			else if(yn>=xn && yn>=zn) { axis1= 0; axis2= 2; }
@@ -796,629 +557,920 @@ void shade_input_set_uv(ShadeInput *shi)
 			t00*= detsh; t01*=detsh; 
 			t10*=detsh; t11*=detsh;
 
-			shi->u= (shi->co[axis1]-v3[axis1])*t11-(shi->co[axis2]-v3[axis2])*t10;
-			shi->v= (shi->co[axis2]-v3[axis2])*t00-(shi->co[axis1]-v3[axis1])*t01;
-			if(shi->osatex) {
-				shi->dx_u=  shi->dxco[axis1]*t11- shi->dxco[axis2]*t10;
-				shi->dx_v=  shi->dxco[axis2]*t00- shi->dxco[axis1]*t01;
-				shi->dy_u=  shi->dyco[axis1]*t11- shi->dyco[axis2]*t10;
-				shi->dy_v=  shi->dyco[axis2]*t00- shi->dyco[axis1]*t01;
+			geom->u= (geom->co[axis1]-v3[axis1])*t11-(geom->co[axis2]-v3[axis2])*t10;
+			geom->v= (geom->co[axis2]-v3[axis2])*t00-(geom->co[axis1]-v3[axis1])*t01;
+			if(geom->osatex) {
+				geom->dx_u=  geom->dxco[axis1]*t11- geom->dxco[axis2]*t10;
+				geom->dx_v=  geom->dxco[axis2]*t00- geom->dxco[axis1]*t01;
+				geom->dy_u=  geom->dyco[axis1]*t11- geom->dyco[axis2]*t10;
+				geom->dy_v=  geom->dyco[axis2]*t00- geom->dyco[axis1]*t01;
 			}
 
 			/* u and v are in range -1 to 0, we allow a little bit extra but not too much, screws up speedvectors */
-			CLAMP(shi->u, -2.0f, 1.0f);
-			CLAMP(shi->v, -2.0f, 1.0f);
+			CLAMP(geom->u, -2.0f, 1.0f);
+			CLAMP(geom->v, -2.0f, 1.0f);
 		}
 	}	
 }
 
 void shade_input_set_normals(ShadeInput *shi)
 {
-	float u= shi->u, v= shi->v;
+	ShadeGeometry *geom= &shi->geometry;
+	ShadePrimitive *prim= &shi->primitive;
+	ObjectInstanceRen *obi= prim->obi;
+	VlakRen *vlr= prim->vlr;
+	float u= geom->u, v= geom->v;
 	float l= 1.0f+u+v;
+
+	/* calculate vertexnormals */
+	if(vlr->flag & R_SMOOTH) {
+		copy_v3_v3(prim->n1, prim->v1->n);
+		copy_v3_v3(prim->n2, prim->v2->n);
+		copy_v3_v3(prim->n3, prim->v3->n);
+
+		if(obi->flag & R_TRANSFORMED) {
+			mul_m3_v3(obi->nmat, prim->n1);
+			mul_m3_v3(obi->nmat, prim->n2);
+			mul_m3_v3(obi->nmat, prim->n3);
+		}
+
+		if(!(vlr->flag & (R_NOPUNOFLIP|R_TANGENT))) {
+			if(dot_v3v3(geom->facenor, prim->n1) < 0.0f)
+				negate_v3(prim->n1);
+			if(dot_v3v3(geom->facenor, prim->n2) < 0.0f)
+				negate_v3(prim->n2);
+			if(dot_v3v3(geom->facenor, prim->n3) < 0.0f)
+				negate_v3(prim->n3);
+		}
+	}
 	
 	/* calculate vertexnormals */
-	if(shi->vlr->flag & R_SMOOTH) {
-		float *n1= shi->n1, *n2= shi->n2, *n3= shi->n3;
+	if(prim->vlr->flag & R_SMOOTH) {
+		float *n1= prim->n1, *n2= prim->n2, *n3= prim->n3;
 		
-		shi->vn[0]= l*n3[0]-u*n1[0]-v*n2[0];
-		shi->vn[1]= l*n3[1]-u*n1[1]-v*n2[1];
-		shi->vn[2]= l*n3[2]-u*n1[2]-v*n2[2];
+		geom->vn[0]= l*n3[0]-u*n1[0]-v*n2[0];
+		geom->vn[1]= l*n3[1]-u*n1[1]-v*n2[1];
+		geom->vn[2]= l*n3[2]-u*n1[2]-v*n2[2];
 		
-		normalize_v3(shi->vn);
+		normalize_v3(geom->vn);
 	}
 	else
-		VECCOPY(shi->vn, shi->facenor);
-	
-	/* used in nodes */
-	VECCOPY(shi->vno, shi->vn);
+		copy_v3_v3(geom->vn, geom->facenor);
 
+	/* used in nodes */
+	copy_v3_v3(geom->vno, geom->vn);
+
+	geom->tangentvn= (prim->vlr->flag & R_TANGENT);
 }
 
 /* use by raytrace, sss, bake to flip into the right direction */
 void shade_input_flip_normals(ShadeInput *shi)
 {
-	shi->facenor[0]= -shi->facenor[0];
-	shi->facenor[1]= -shi->facenor[1];
-	shi->facenor[2]= -shi->facenor[2];
+	ShadeGeometry *geom= &shi->geometry;
 
-	shi->vn[0]= -shi->vn[0];
-	shi->vn[1]= -shi->vn[1];
-	shi->vn[2]= -shi->vn[2];
+	negate_v3(geom->facenor);
+	negate_v3(geom->vn);
+	negate_v3(geom->vno);
 
-	shi->vno[0]= -shi->vno[0];
-	shi->vno[1]= -shi->vno[1];
-	shi->vno[2]= -shi->vno[2];
-
-	shi->flippednor= !shi->flippednor;
+	geom->flippednor= !geom->flippednor;
 }
 
-void shade_input_set_shade_texco(ShadeInput *shi)
+static void shade_input_vlr_texco_normal(ShadeGeometry *geom, ShadePrimitive *prim)
 {
-	ObjectInstanceRen *obi= shi->obi;
-	ObjectRen *obr= shi->obr;
-	VertRen *v1= shi->v1, *v2= shi->v2, *v3= shi->v3;
-	float u= shi->u, v= shi->v;
-	float l= 1.0f+u+v, dl;
-	int mode= shi->mode;		/* or-ed result for all nodes */
-	short texco= shi->mat->texco;
+	/* normal already set as default, just do derivatives here */
 
-	/* calculate dxno */
-	if(shi->vlr->flag & R_SMOOTH) {
-		
-		if(shi->osatex && (texco & (TEXCO_NORM|TEXCO_REFL)) ) {
-			float *n1= shi->n1, *n2= shi->n2, *n3= shi->n3;
+	if(geom->osatex) {
+		if(prim->vlr->flag & R_SMOOTH) {
+			float *n1= prim->n1, *n2= prim->n2, *n3= prim->n3;
+			float dl;
 			
-			dl= shi->dx_u+shi->dx_v;
-			shi->dxno[0]= dl*n3[0]-shi->dx_u*n1[0]-shi->dx_v*n2[0];
-			shi->dxno[1]= dl*n3[1]-shi->dx_u*n1[1]-shi->dx_v*n2[1];
-			shi->dxno[2]= dl*n3[2]-shi->dx_u*n1[2]-shi->dx_v*n2[2];
-			dl= shi->dy_u+shi->dy_v;
-			shi->dyno[0]= dl*n3[0]-shi->dy_u*n1[0]-shi->dy_v*n2[0];
-			shi->dyno[1]= dl*n3[1]-shi->dy_u*n1[1]-shi->dy_v*n2[1];
-			shi->dyno[2]= dl*n3[2]-shi->dy_u*n1[2]-shi->dy_v*n2[2];
-			
-		}
-	}
+			dl= geom->dx_u + geom->dx_v;
+			geom->dxno[0]= dl*n3[0] - geom->dx_u*n1[0] - geom->dx_v*n2[0];
+			geom->dxno[1]= dl*n3[1] - geom->dx_u*n1[1] - geom->dx_v*n2[1];
+			geom->dxno[2]= dl*n3[2] - geom->dx_u*n1[2] - geom->dx_v*n2[2];
 
-	/* calc tangents */
-	if (mode & (MA_TANGENT_V|MA_NORMAP_TANG) || R.flag & R_NEED_TANGENT) {
-		float *tangent, *s1, *s2, *s3;
-		float tl, tu, tv;
-
-		if(shi->vlr->flag & R_SMOOTH) {
-			tl= l;
-			tu= u;
-			tv= v;
+			dl= geom->dy_u + geom->dy_v;
+			geom->dyno[0]= dl*n3[0] - geom->dy_u*n1[0] - geom->dy_v*n2[0];
+			geom->dyno[1]= dl*n3[1] - geom->dy_u*n1[1] - geom->dy_v*n2[1];
+			geom->dyno[2]= dl*n3[2] - geom->dy_u*n1[2] - geom->dy_v*n2[2];
 		}
 		else {
-			/* qdn: flat faces have tangents too,
-			   could pick either one, using average here */
-			tl= 1.0f/3.0f;
-			tu= -1.0f/3.0f;
-			tv= -1.0f/3.0f;
-		}
-
-		shi->tang[0]= shi->tang[1]= shi->tang[2]= 0.0f;
-		shi->nmaptang[0]= shi->nmaptang[1]= shi->nmaptang[2]= 0.0f;
-
-		if(mode & MA_TANGENT_V) {
-			s1 = RE_vertren_get_tangent(obr, v1, 0);
-			s2 = RE_vertren_get_tangent(obr, v2, 0);
-			s3 = RE_vertren_get_tangent(obr, v3, 0);
-
-			if(s1 && s2 && s3) {
-				shi->tang[0]= (tl*s3[0] - tu*s1[0] - tv*s2[0]);
-				shi->tang[1]= (tl*s3[1] - tu*s1[1] - tv*s2[1]);
-				shi->tang[2]= (tl*s3[2] - tu*s1[2] - tv*s2[2]);
-
-				if(obi->flag & R_TRANSFORMED)
-					mul_m3_v3(obi->nmat, shi->tang);
-
-				normalize_v3(shi->tang);
-				VECCOPY(shi->nmaptang, shi->tang);
-			}
-		}
-
-		if(mode & MA_NORMAP_TANG || R.flag & R_NEED_TANGENT) {
-			tangent= RE_vlakren_get_nmap_tangent(obr, shi->vlr, 0);
-
-			if(tangent) {
-				int j1= shi->i1, j2= shi->i2, j3= shi->i3;
-
-				vlr_set_uv_indices(shi->vlr, &j1, &j2, &j3);
-
-				s1= &tangent[j1*3];
-				s2= &tangent[j2*3];
-				s3= &tangent[j3*3];
-
-				shi->nmaptang[0]= (tl*s3[0] - tu*s1[0] - tv*s2[0]);
-				shi->nmaptang[1]= (tl*s3[1] - tu*s1[1] - tv*s2[1]);
-				shi->nmaptang[2]= (tl*s3[2] - tu*s1[2] - tv*s2[2]);
-
-				if(obi->flag & R_TRANSFORMED)
-					mul_m3_v3(obi->nmat, shi->nmaptang);
-
-				normalize_v3(shi->nmaptang);
-			}
+			/* constant normal over face, zero derivatives */
+			zero_v3(geom->dxno);
+			zero_v3(geom->dyno);
 		}
 	}
+}
 
-	if(mode & MA_STR_SURFDIFF) {
-		float *surfnor= RE_vlakren_get_surfnor(obr, shi->vlr, 0);
-
-		if(surfnor) {
-			VECCOPY(shi->surfnor, surfnor)
-			if(obi->flag & R_TRANSFORMED)
-				mul_m3_v3(obi->nmat, shi->surfnor);
-		}
-		else
-			VECCOPY(shi->surfnor, shi->vn)
-
-		shi->surfdist= 0.0f;
-	}
+static void shade_input_vlr_texco_window(RenderCamera *cam, ShadeTexco *tex, ShadeGeometry *geom)
+{
+	float x= geom->xs;
+	float y= geom->ys;
 	
-	if(R.r.mode & R_SPEED) {
-		float *s1, *s2, *s3;
+	tex->winco[0]= -1.0f + 2.0f*x/(float)cam->winx;
+	tex->winco[1]= -1.0f + 2.0f*y/(float)cam->winy;
+	tex->winco[2]= 0.0f;
+
+	if(geom->osatex) {
+		tex->dxwin[0]= 2.0f/(float)cam->winx;
+		tex->dywin[1]= 2.0f/(float)cam->winy;
+		tex->dxwin[1]= tex->dxwin[2]= 0.0f;
+		tex->dywin[0]= tex->dywin[2]= 0.0f;
+	}
+}
+
+static void shade_input_vlr_texco_sticky(Render *re, ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	ObjectInstanceRen *obi= prim->obi;
+	ObjectRen *obr= prim->obr;
+	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float x= geom->xs;
+	float y= geom->ys;
+	float *s1, *s2, *s3;
+	
+	s1= render_vert_get_sticky(obr, v1, 0);
+	s2= render_vert_get_sticky(obr, v2, 0);
+	s3= render_vert_get_sticky(obr, v3, 0);
+	
+	if(s1 && s2 && s3) {
+		float obwinmat[4][4], winmat[4][4], ho1[4], ho2[4], ho3[4];
+		float Zmulx, Zmuly;
+		float hox, hoy, l, dl, u, v;
+		float s00, s01, s10, s11, detsh;
 		
-		s1= RE_vertren_get_winspeed(obi, v1, 0);
-		s2= RE_vertren_get_winspeed(obi, v2, 0);
-		s3= RE_vertren_get_winspeed(obi, v3, 0);
-		if(s1 && s2 && s3) {
-			shi->winspeed[0]= (l*s3[0] - u*s1[0] - v*s2[0]);
-			shi->winspeed[1]= (l*s3[1] - u*s1[1] - v*s2[1]);
-			shi->winspeed[2]= (l*s3[2] - u*s1[2] - v*s2[2]);
-			shi->winspeed[3]= (l*s3[3] - u*s1[3] - v*s2[3]);
-		}
-		else {
-			shi->winspeed[0]= shi->winspeed[1]= shi->winspeed[2]= shi->winspeed[3]= 0.0f;
+		/* old globals, localized now */
+		Zmulx=  ((float)re->cam.winx)/2.0f; Zmuly=  ((float)re->cam.winy)/2.0f;
+
+		camera_window_matrix(&re->cam, winmat);
+
+		if(prim->obi->flag & R_TRANSFORMED)
+			mul_m4_m4m4(obwinmat, obi->mat, winmat);
+		else
+			copy_m4_m4(obwinmat, winmat);
+
+		camera_matrix_co_to_hoco(obwinmat, ho1, v1->co);
+		camera_matrix_co_to_hoco(obwinmat, ho2, v2->co);
+		camera_matrix_co_to_hoco(obwinmat, ho3, v3->co);
+		
+		s00= ho3[0]/ho3[3] - ho1[0]/ho1[3];
+		s01= ho3[1]/ho3[3] - ho1[1]/ho1[3];
+		s10= ho3[0]/ho3[3] - ho2[0]/ho2[3];
+		s11= ho3[1]/ho3[3] - ho2[1]/ho2[3];
+		
+		detsh= s00*s11-s10*s01;
+		s00/= detsh; s01/=detsh; 
+		s10/=detsh; s11/=detsh;
+		
+		/* recalc u and v again */
+		hox= x/Zmulx -1.0f;
+		hoy= y/Zmuly -1.0f;
+		u= (hox - ho3[0]/ho3[3])*s11 - (hoy - ho3[1]/ho3[3])*s10;
+		v= (hoy - ho3[1]/ho3[3])*s00 - (hox - ho3[0]/ho3[3])*s01;
+		l= 1.0f+u+v;
+		
+		tex->sticky[0]= l*s3[0]-u*s1[0]-v*s2[0];
+		tex->sticky[1]= l*s3[1]-u*s1[1]-v*s2[1];
+		tex->sticky[2]= 0.0f;
+		
+		if(geom->osatex) {
+			float dxuv[2], dyuv[2];
+			dxuv[0]=  s11/Zmulx;
+			dxuv[1]=  - s01/Zmulx;
+			dyuv[0]=  - s10/Zmuly;
+			dyuv[1]=  s00/Zmuly;
+			
+			dl= dxuv[0] + dxuv[1];
+			tex->dxsticky[0]= dl*s3[0] - dxuv[0]*s1[0] - dxuv[1]*s2[0];
+			tex->dxsticky[1]= dl*s3[1] - dxuv[0]*s1[1] - dxuv[1]*s2[1];
+			dl= dyuv[0] + dyuv[1];
+			tex->dysticky[0]= dl*s3[0] - dyuv[0]*s1[0] - dyuv[1]*s2[0];
+			tex->dysticky[1]= dl*s3[1] - dyuv[0]*s1[1] - dyuv[1]*s2[1];
 		}
 	}
+}
+
+static void shade_input_vlr_texco_stress(ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	ObjectRen *obr= prim->obr;
+	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float *s1, *s2, *s3;
+	float u= geom->u, v= geom->v;
+	float l= 1.0f+u+v;
+	
+	s1= render_vert_get_stress(obr, v1, 0);
+	s2= render_vert_get_stress(obr, v2, 0);
+	s3= render_vert_get_stress(obr, v3, 0);
+
+	if(s1 && s2 && s3) {
+		tex->stress= l*s3[0] - u*s1[0] - v*s2[0];
+		if(tex->stress<1.0f) tex->stress-= 1.0f;
+		else tex->stress= (tex->stress-1.0f)/tex->stress;
+	}
+	else tex->stress= 0.0f;
+}
+
+static void shade_input_vlr_texco_orco(ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	ObjectInstanceRen *obi= prim->obi;
+	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float u= geom->u, v= geom->v;
+	float l= 1.0f+u+v, dl;
+
+	if(v1->orco) {
+		float *o1, *o2, *o3;
+		
+		o1= v1->orco;
+		o2= v2->orco;
+		o3= v3->orco;
+		
+		tex->lo[0]= l*o3[0]-u*o1[0]-v*o2[0];
+		tex->lo[1]= l*o3[1]-u*o1[1]-v*o2[1];
+		tex->lo[2]= l*o3[2]-u*o1[2]-v*o2[2];
+		
+		if(geom->osatex) {
+			dl= geom->dx_u+geom->dx_v;
+			tex->dxlo[0]= dl*o3[0]-geom->dx_u*o1[0]-geom->dx_v*o2[0];
+			tex->dxlo[1]= dl*o3[1]-geom->dx_u*o1[1]-geom->dx_v*o2[1];
+			tex->dxlo[2]= dl*o3[2]-geom->dx_u*o1[2]-geom->dx_v*o2[2];
+			dl= geom->dy_u+geom->dy_v;
+			tex->dylo[0]= dl*o3[0]-geom->dy_u*o1[0]-geom->dy_v*o2[0];
+			tex->dylo[1]= dl*o3[1]-geom->dy_u*o1[1]-geom->dy_v*o2[1];
+			tex->dylo[2]= dl*o3[2]-geom->dy_u*o1[2]-geom->dy_v*o2[2];
+		}
+	}
+
+	copy_v3_v3(tex->duplilo, obi->dupliorco);
+}
+
+static void shade_input_vlr_texco_tangent(Render *re, ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim, int mode)
+{
+	ObjectRen *obr= prim->obr;
+	ObjectInstanceRen *obi= prim->obi;
+	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float u= geom->u, v= geom->v;
+	float l= 1.0f+u+v;
+	float *tangent, *s1, *s2, *s3;
+	float tl, tu, tv;
+
+	if(prim->vlr->flag & R_SMOOTH) {
+		tl= l;
+		tu= u;
+		tv= v;
+	}
+	else {
+		/* qdn: flat faces have tangents too,
+		   could pick either one, using average here */
+		tl= 1.0f/3.0f;
+		tu= -1.0f/3.0f;
+		tv= -1.0f/3.0f;
+	}
+
+	geom->tang[0]= geom->tang[1]= geom->tang[2]= 0.0f;
+	tex->nmaptang[0]= tex->nmaptang[1]= tex->nmaptang[2]= 0.0f;
+
+	if(mode & MA_TANGENT_V) {
+		s1 = render_vert_get_tangent(obr, v1, 0);
+		s2 = render_vert_get_tangent(obr, v2, 0);
+		s3 = render_vert_get_tangent(obr, v3, 0);
+
+		if(s1 && s2 && s3) {
+			geom->tang[0]= (tl*s3[0] - tu*s1[0] - tv*s2[0]);
+			geom->tang[1]= (tl*s3[1] - tu*s1[1] - tv*s2[1]);
+			geom->tang[2]= (tl*s3[2] - tu*s1[2] - tv*s2[2]);
+
+			if(obi->flag & R_TRANSFORMED)
+				mul_m3_v3(obi->nmat, geom->tang);
+
+			normalize_v3(geom->tang);
+			copy_v3_v3(tex->nmaptang, geom->tang);
+		}
+	}
+
+	if(mode & MA_NORMAP_TANG || re->params.flag & R_NEED_TANGENT) {
+		tangent= render_vlak_get_nmap_tangent(obr, prim->vlr, 0);
+
+		if(tangent) {
+			int j1= prim->i1, j2= prim->i2, j3= prim->i3;
+
+			vlr_set_uv_indices(prim->vlr, &j1, &j2, &j3);
+
+			s1= &tangent[j1*3];
+			s2= &tangent[j2*3];
+			s3= &tangent[j3*3];
+
+			tex->nmaptang[0]= (tl*s3[0] - tu*s1[0] - tv*s2[0]);
+			tex->nmaptang[1]= (tl*s3[1] - tu*s1[1] - tv*s2[1]);
+			tex->nmaptang[2]= (tl*s3[2] - tu*s1[2] - tv*s2[2]);
+
+			if(obi->flag & R_TRANSFORMED)
+				mul_m3_v3(obi->nmat, tex->nmaptang);
+
+			normalize_v3(tex->nmaptang);
+		}
+	}
+}
+
+static void shade_input_vlr_texco_speed(ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	ObjectInstanceRen *obi= prim->obi;
+	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float *s1, *s2, *s3;
+	float u= geom->u, v= geom->v;
+	float l= 1.0f+u+v;
+	
+	s1= render_vert_get_winspeed(obi, v1, 0);
+	s2= render_vert_get_winspeed(obi, v2, 0);
+	s3= render_vert_get_winspeed(obi, v3, 0);
+	if(s1 && s2 && s3) {
+		tex->winspeed[0]= (l*s3[0] - u*s1[0] - v*s2[0]);
+		tex->winspeed[1]= (l*s3[1] - u*s1[1] - v*s2[1]);
+		tex->winspeed[2]= (l*s3[2] - u*s1[2] - v*s2[2]);
+		tex->winspeed[3]= (l*s3[3] - u*s1[3] - v*s2[3]);
+	}
+	else {
+		tex->winspeed[0]= tex->winspeed[1]= tex->winspeed[2]= tex->winspeed[3]= 0.0f;
+	}
+}
+
+static void shade_input_vlr_texco_surface(ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	ObjectRen *obr= prim->obr;
+	ObjectInstanceRen *obi= prim->obi;
+	float *surfnor= render_vlak_get_surfnor(obr, prim->vlr, 0);
+
+	if(surfnor) {
+		copy_v3_v3(geom->surfnor, surfnor);
+		if(obi->flag & R_TRANSFORMED)
+			mul_m3_v3(obi->nmat, geom->surfnor);
+	}
+	else
+		copy_v3_v3(geom->surfnor, geom->vn);
+
+	geom->surfdist= 0.0f;
+}
+
+static void shade_input_vlr_texco_global(RenderCamera *cam, ShadeTexco *tex, ShadeGeometry *geom)
+{
+	copy_v3_v3(tex->gl, geom->co);
+	mul_m4_v3(cam->viewinv, tex->gl);
+
+	if(geom->osatex) {
+		copy_v3_v3(tex->dxgl, geom->dxco);
+		mul_mat3_m4_v3(cam->viewinv, geom->dxco);
+
+		copy_v3_v3(tex->dygl, geom->dyco);
+		mul_mat3_m4_v3(cam->viewinv, geom->dyco);
+	}
+}
+
+static void shade_input_vlr_texco_strand(ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float u= geom->u, v= geom->v, l= 1.0f+u+v, dl;
+
+	tex->strandco= (l*v3->accum - u*v1->accum - v*v2->accum);
+
+	if(geom->osatex) {
+		dl= geom->dx_u+geom->dx_v;
+		tex->dxstrand= dl*v3->accum-geom->dx_u*v1->accum-geom->dx_v*v2->accum;
+
+		dl= geom->dy_u+geom->dy_v;
+		tex->dystrand= dl*v3->accum-geom->dy_u*v1->accum-geom->dy_v*v2->accum;
+	}
+}
+
+static void shade_input_vlr_texco_uvcol(Render *re, ShadeInput *shi, ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
+{
+	ObjectInstanceRen *obi= prim->obi;
+	ObjectRen *obr= prim->obr;
+	VlakRen *vlr= prim->vlr;
+	MTFace *tface;
+	MCol *mcol;
+	ShadeMaterial *mat= &shi->material;
+	char *name;
+	int i, j1=prim->i1, j2=prim->i2, j3=prim->i3;
+	int mode= shi->material.mode;
+	float u= geom->u, v= geom->v, l= 1.0f+u+v, dl;
+
+	/* uv and vcols are not copied on split, so set them according vlr divide flag */
+	vlr_set_uv_indices(vlr, &j1, &j2, &j3);
+
+	tex->totuv= 0;
+	tex->totcol= 0;
+	tex->actuv= obr->actmtface;
+	tex->actcol= obr->actmcol;
+
+	if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP)) {
+		for (i=0; (mcol=render_vlak_get_mcol(obr, vlr, i, &name, 0)); i++) {
+			ShadeInputCol *scol= &tex->col[i];
+			char *cp1, *cp2, *cp3;
+			
+			tex->totcol++;
+			scol->name= name;
+
+			cp1= (char *)(mcol+j1);
+			cp2= (char *)(mcol+j2);
+			cp3= (char *)(mcol+j3);
+			
+			scol->col[0]= (l*((float)cp3[3]) - u*((float)cp1[3]) - v*((float)cp2[3]))/255.0f;
+			scol->col[1]= (l*((float)cp3[2]) - u*((float)cp1[2]) - v*((float)cp2[2]))/255.0f;
+			scol->col[2]= (l*((float)cp3[1]) - u*((float)cp1[1]) - v*((float)cp2[1]))/255.0f;
+		}
+
+		if(tex->totcol) {
+			mat->vcol[0]= tex->col[tex->actcol].col[0];
+			mat->vcol[1]= tex->col[tex->actcol].col[1];
+			mat->vcol[2]= tex->col[tex->actcol].col[2];
+			mat->vcol[3]= 1.0f;
+		}
+		else {
+			mat->vcol[0]= 0.0f;
+			mat->vcol[1]= 0.0f;
+			mat->vcol[2]= 0.0f;
+			mat->vcol[3]= 1.0f;
+		}
+	}
+
+	for (i=0; (tface=render_vlak_get_tface(obr, vlr, i, &name, 0)); i++) {
+		ShadeInputUV *suv= &tex->uv[i];
+		float *uv1, *uv2, *uv3;
+
+		tex->totuv++;
+		suv->name= name;
+		
+		uv1= tface->uv[j1];
+		uv2= tface->uv[j2];
+		uv3= tface->uv[j3];
+		
+		suv->uv[0]= -1.0f + 2.0f*(l*uv3[0]-u*uv1[0]-v*uv2[0]);
+		suv->uv[1]= -1.0f + 2.0f*(l*uv3[1]-u*uv1[1]-v*uv2[1]);
+		suv->uv[2]= 0.0f;	/* texture.c assumes there are 3 coords */
+
+		if(geom->osatex) {
+			float duv[2];
+			
+			dl= geom->dx_u+geom->dx_v;
+			duv[0]= geom->dx_u; 
+			duv[1]= geom->dx_v;
+			
+			suv->dxuv[0]= 2.0f*(dl*uv3[0]-duv[0]*uv1[0]-duv[1]*uv2[0]);
+			suv->dxuv[1]= 2.0f*(dl*uv3[1]-duv[0]*uv1[1]-duv[1]*uv2[1]);
+			
+			dl= geom->dy_u+geom->dy_v;
+			duv[0]= geom->dy_u; 
+			duv[1]= geom->dy_v;
+			
+			suv->dyuv[0]= 2.0f*(dl*uv3[0]-duv[0]*uv1[0]-duv[1]*uv2[0]);
+			suv->dyuv[1]= 2.0f*(dl*uv3[1]-duv[0]*uv1[1]-duv[1]*uv2[1]);
+		}
+
+		if((mode & MA_FACETEXTURE) && i==obr->actmtface) {
+			if((mode & (MA_VERTEXCOL|MA_VERTEXCOLP))==0) {
+				mat->vcol[0]= 1.0f;
+				mat->vcol[1]= 1.0f;
+				mat->vcol[2]= 1.0f;
+				mat->vcol[3]= 1.0f;
+			}
+			if(tface && tface->tpage)
+				do_realtime_texture(&re->params, shi, tface->tpage);
+		}
+	}
+
+	tex->dupliuv[0]= -1.0f + 2.0f*obi->dupliuv[0];
+	tex->dupliuv[1]= -1.0f + 2.0f*obi->dupliuv[1];
+	tex->dupliuv[2]= 0.0f;
+
+	if(tex->totuv == 0) {
+		ShadeInputUV *suv= &tex->uv[0];
+
+		suv->uv[0]= 2.0f*(u+.5f);
+		suv->uv[1]= 2.0f*(v+.5f);
+		suv->uv[2]= 0.0f;	/* texture.c assumes there are 3 coords */
+		
+		if(mode & MA_FACETEXTURE) {
+			/* no tface? set at 1.0f */
+			mat->vcol[0]= 1.0f;
+			mat->vcol[1]= 1.0f;
+			mat->vcol[2]= 1.0f;
+			mat->vcol[3]= 1.0f;
+		}
+	}
+}
+
+void shade_input_set_shade_texco(Render *re, ShadeInput *shi)
+{
+	ShadePrimitive *prim= &shi->primitive;
+	ShadeTexco *tex= &shi->texture;
+	ShadeGeometry *geom= &shi->geometry;
+	ShadeMaterial *mat= &shi->material;
+	int mode= shi->material.mode;		/* or-ed result for all nodes */
+	short texco= shi->material.mat->texco;
+
+	/* normal */
+	if((texco & (TEXCO_NORM|TEXCO_REFL)))
+		shade_input_vlr_texco_normal(geom, prim);
+
+	/* tangents */
+	if(mode & (MA_TANGENT_V|MA_NORMAP_TANG) || re->params.flag & R_NEED_TANGENT)
+		shade_input_vlr_texco_tangent(re, tex, geom, prim, mode);
+
+	/* surface normal */
+	if(mode & MA_STR_SURFDIFF)
+		shade_input_vlr_texco_surface(geom, prim);
+	
+	/* speed */
+	if(re->params.r.mode & R_SPEED)
+		shade_input_vlr_texco_speed(tex, geom, prim);
 
 	/* pass option forces UV calc */
-	if(shi->passflag & SCE_PASS_UV)
+	if(shi->shading.passflag & SCE_PASS_UV)
 		texco |= (NEED_UV|TEXCO_UV);
 	
-	/* texture coordinates. shi->dxuv shi->dyuv have been set */
+	/* texture coordinates. tex->dxuv tex->dyuv have been set */
 	if(texco & NEED_UV) {
 		
-		if(texco & TEXCO_ORCO) {
-			if(v1->orco) {
-				float *o1, *o2, *o3;
-				
-				o1= v1->orco;
-				o2= v2->orco;
-				o3= v3->orco;
-				
-				shi->lo[0]= l*o3[0]-u*o1[0]-v*o2[0];
-				shi->lo[1]= l*o3[1]-u*o1[1]-v*o2[1];
-				shi->lo[2]= l*o3[2]-u*o1[2]-v*o2[2];
-				
-				if(shi->osatex) {
-					dl= shi->dx_u+shi->dx_v;
-					shi->dxlo[0]= dl*o3[0]-shi->dx_u*o1[0]-shi->dx_v*o2[0];
-					shi->dxlo[1]= dl*o3[1]-shi->dx_u*o1[1]-shi->dx_v*o2[1];
-					shi->dxlo[2]= dl*o3[2]-shi->dx_u*o1[2]-shi->dx_v*o2[2];
-					dl= shi->dy_u+shi->dy_v;
-					shi->dylo[0]= dl*o3[0]-shi->dy_u*o1[0]-shi->dy_v*o2[0];
-					shi->dylo[1]= dl*o3[1]-shi->dy_u*o1[1]-shi->dy_v*o2[1];
-					shi->dylo[2]= dl*o3[2]-shi->dy_u*o1[2]-shi->dy_v*o2[2];
-				}
-			}
-
-			VECCOPY(shi->duplilo, obi->dupliorco);
-		}
+		if(texco & TEXCO_ORCO)
+			shade_input_vlr_texco_orco(tex, geom, prim);
 		
-		if(texco & TEXCO_GLOB) {
-			VECCOPY(shi->gl, shi->co);
-			mul_m4_v3(R.viewinv, shi->gl);
-			if(shi->osatex) {
-				VECCOPY(shi->dxgl, shi->dxco);
-				// TXF: bug was here, but probably should be in convertblender.c, R.imat only valid if there is a world
-				//mul_m3_v3(R.imat, shi->dxco);
-				mul_mat3_m4_v3(R.viewinv, shi->dxco);
-				VECCOPY(shi->dygl, shi->dyco);
-				//mul_m3_v3(R.imat, shi->dyco);
-				mul_mat3_m4_v3(R.viewinv, shi->dyco);
-			}
-		}
+		if(texco & TEXCO_GLOB)
+			shade_input_vlr_texco_global(&re->cam, tex, geom);
 		
-		if(texco & TEXCO_STRAND) {
-			shi->strandco= (l*v3->accum - u*v1->accum - v*v2->accum);
-			if(shi->osatex) {
-				dl= shi->dx_u+shi->dx_v;
-				shi->dxstrand= dl*v3->accum-shi->dx_u*v1->accum-shi->dx_v*v2->accum;
-				dl= shi->dy_u+shi->dy_v;
-				shi->dystrand= dl*v3->accum-shi->dy_u*v1->accum-shi->dy_v*v2->accum;
-			}
-		}
+		if(texco & TEXCO_STRAND)
+			shade_input_vlr_texco_strand(tex, geom, prim);
 				
-		if((texco & TEXCO_UV) || (mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)))  {
-			VlakRen *vlr= shi->vlr;
-			MTFace *tface;
-			MCol *mcol;
-			char *name;
-			int i, j1=shi->i1, j2=shi->i2, j3=shi->i3;
-
-			/* uv and vcols are not copied on split, so set them according vlr divide flag */
-			vlr_set_uv_indices(vlr, &j1, &j2, &j3);
-
-			shi->totuv= 0;
-			shi->totcol= 0;
-			shi->actuv= obr->actmtface;
-			shi->actcol= obr->actmcol;
-
-			if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP)) {
-				for (i=0; (mcol=RE_vlakren_get_mcol(obr, vlr, i, &name, 0)); i++) {
-					ShadeInputCol *scol= &shi->col[i];
-					char *cp1, *cp2, *cp3;
-					
-					shi->totcol++;
-					scol->name= name;
-
-					cp1= (char *)(mcol+j1);
-					cp2= (char *)(mcol+j2);
-					cp3= (char *)(mcol+j3);
-					
-					scol->col[0]= (l*((float)cp3[3]) - u*((float)cp1[3]) - v*((float)cp2[3]))/255.0f;
-					scol->col[1]= (l*((float)cp3[2]) - u*((float)cp1[2]) - v*((float)cp2[2]))/255.0f;
-					scol->col[2]= (l*((float)cp3[1]) - u*((float)cp1[1]) - v*((float)cp2[1]))/255.0f;
-				}
-
-				if(shi->totcol) {
-					shi->vcol[0]= shi->col[shi->actcol].col[0];
-					shi->vcol[1]= shi->col[shi->actcol].col[1];
-					shi->vcol[2]= shi->col[shi->actcol].col[2];
-					shi->vcol[3]= 1.0f;
-				}
-				else {
-					shi->vcol[0]= 0.0f;
-					shi->vcol[1]= 0.0f;
-					shi->vcol[2]= 0.0f;
-					shi->vcol[3]= 1.0f;
-				}
-			}
-
-			for (i=0; (tface=RE_vlakren_get_tface(obr, vlr, i, &name, 0)); i++) {
-				ShadeInputUV *suv= &shi->uv[i];
-				float *uv1, *uv2, *uv3;
-
-				shi->totuv++;
-				suv->name= name;
-				
-				uv1= tface->uv[j1];
-				uv2= tface->uv[j2];
-				uv3= tface->uv[j3];
-				
-				suv->uv[0]= -1.0f + 2.0f*(l*uv3[0]-u*uv1[0]-v*uv2[0]);
-				suv->uv[1]= -1.0f + 2.0f*(l*uv3[1]-u*uv1[1]-v*uv2[1]);
-				suv->uv[2]= 0.0f;	/* texture.c assumes there are 3 coords */
-
-				if(shi->osatex) {
-					float duv[2];
-					
-					dl= shi->dx_u+shi->dx_v;
-					duv[0]= shi->dx_u; 
-					duv[1]= shi->dx_v;
-					
-					suv->dxuv[0]= 2.0f*(dl*uv3[0]-duv[0]*uv1[0]-duv[1]*uv2[0]);
-					suv->dxuv[1]= 2.0f*(dl*uv3[1]-duv[0]*uv1[1]-duv[1]*uv2[1]);
-					
-					dl= shi->dy_u+shi->dy_v;
-					duv[0]= shi->dy_u; 
-					duv[1]= shi->dy_v;
-					
-					suv->dyuv[0]= 2.0f*(dl*uv3[0]-duv[0]*uv1[0]-duv[1]*uv2[0]);
-					suv->dyuv[1]= 2.0f*(dl*uv3[1]-duv[0]*uv1[1]-duv[1]*uv2[1]);
-				}
-
-				if((mode & MA_FACETEXTURE) && i==obr->actmtface) {
-					if((mode & (MA_VERTEXCOL|MA_VERTEXCOLP))==0) {
-						shi->vcol[0]= 1.0f;
-						shi->vcol[1]= 1.0f;
-						shi->vcol[2]= 1.0f;
-						shi->vcol[3]= 1.0f;
-					}
-					if(tface && tface->tpage)
-						render_realtime_texture(shi, tface->tpage);
-				}
-
-
-			}
-
-			shi->dupliuv[0]= -1.0f + 2.0f*obi->dupliuv[0];
-			shi->dupliuv[1]= -1.0f + 2.0f*obi->dupliuv[1];
-			shi->dupliuv[2]= 0.0f;
-
-			if(shi->totuv == 0) {
-				ShadeInputUV *suv= &shi->uv[0];
-
-				suv->uv[0]= 2.0f*(u+.5f);
-				suv->uv[1]= 2.0f*(v+.5f);
-				suv->uv[2]= 0.0f;	/* texture.c assumes there are 3 coords */
-				
-				if(mode & MA_FACETEXTURE) {
-					/* no tface? set at 1.0f */
-					shi->vcol[0]= 1.0f;
-					shi->vcol[1]= 1.0f;
-					shi->vcol[2]= 1.0f;
-					shi->vcol[3]= 1.0f;
-				}
-			}
-		}
+		if((texco & TEXCO_UV) || (mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)))
+			shade_input_vlr_texco_uvcol(re, shi, tex, geom, prim);
 		
-		if(texco & TEXCO_NORM) {
-			shi->orn[0]= -shi->vn[0];
-			shi->orn[1]= -shi->vn[1];
-			shi->orn[2]= -shi->vn[2];
-		}
+		if(texco & TEXCO_NORM)
+			negate_v3_v3(tex->orn, geom->vn);
 		
 		if(texco & TEXCO_REFL) {
 			/* mirror reflection color textures (and envmap) */
-			calc_R_ref(shi);	/* wrong location for normal maps! XXXXXXXXXXXXXX */
+			shade_input_calc_reflection(shi);	/* wrong location for normal maps! XXXXXXXXXXXXXX */
 		}
 		
-		if(texco & TEXCO_STRESS) {
-			float *s1, *s2, *s3;
-			
-			s1= RE_vertren_get_stress(obr, v1, 0);
-			s2= RE_vertren_get_stress(obr, v2, 0);
-			s3= RE_vertren_get_stress(obr, v3, 0);
-			if(s1 && s2 && s3) {
-				shi->stress= l*s3[0] - u*s1[0] - v*s2[0];
-				if(shi->stress<1.0f) shi->stress-= 1.0f;
-				else shi->stress= (shi->stress-1.0f)/shi->stress;
-			}
-			else shi->stress= 0.0f;
-		}
+		if(texco & TEXCO_STRESS)
+			shade_input_vlr_texco_stress(tex, geom, prim);
 		
 		if(texco & TEXCO_TANGENT) {
 			if((mode & MA_TANGENT_V)==0) {
 				/* just prevent surprises */
-				shi->tang[0]= shi->tang[1]= shi->tang[2]= 0.0f;
-				shi->nmaptang[0]= shi->nmaptang[1]= shi->nmaptang[2]= 0.0f;
+				zero_v3(geom->tang);
+				zero_v3(tex->nmaptang);
 			}
 		}
 	}
 	
 	/* this only avalailable for scanline renders */
-	if(shi->depth==0) {
-		float x= shi->xs;
-		float y= shi->ys;
-		
-		if(texco & TEXCO_WINDOW) {
-			shi->winco[0]= -1.0f + 2.0f*x/(float)R.winx;
-			shi->winco[1]= -1.0f + 2.0f*y/(float)R.winy;
-			shi->winco[2]= 0.0f;
-			if(shi->osatex) {
-				shi->dxwin[0]= 2.0f/(float)R.winx;
-				shi->dywin[1]= 2.0f/(float)R.winy;
-				shi->dxwin[1]= shi->dxwin[2]= 0.0f;
-				shi->dywin[0]= shi->dywin[2]= 0.0f;
-			}
-		}
+	if(shi->shading.depth==0) {
+		if(texco & TEXCO_WINDOW)
+			shade_input_vlr_texco_window(&re->cam, tex, geom);
 
-		if(texco & TEXCO_STICKY) {
-			float *s1, *s2, *s3;
-			
-			s1= RE_vertren_get_sticky(obr, v1, 0);
-			s2= RE_vertren_get_sticky(obr, v2, 0);
-			s3= RE_vertren_get_sticky(obr, v3, 0);
-			
-			if(s1 && s2 && s3) {
-				float obwinmat[4][4], winmat[4][4], ho1[4], ho2[4], ho3[4];
-				float Zmulx, Zmuly;
-				float hox, hoy, l, dl, u, v;
-				float s00, s01, s10, s11, detsh;
-				
-				/* old globals, localized now */
-				Zmulx=  ((float)R.winx)/2.0f; Zmuly=  ((float)R.winy)/2.0f;
-
-				zbuf_make_winmat(&R, winmat);
-				if(shi->obi->flag & R_TRANSFORMED)
-					mul_m4_m4m4(obwinmat, obi->mat, winmat);
-				else
-					copy_m4_m4(obwinmat, winmat);
-
-				zbuf_render_project(obwinmat, v1->co, ho1);
-				zbuf_render_project(obwinmat, v2->co, ho2);
-				zbuf_render_project(obwinmat, v3->co, ho3);
-				
-				s00= ho3[0]/ho3[3] - ho1[0]/ho1[3];
-				s01= ho3[1]/ho3[3] - ho1[1]/ho1[3];
-				s10= ho3[0]/ho3[3] - ho2[0]/ho2[3];
-				s11= ho3[1]/ho3[3] - ho2[1]/ho2[3];
-				
-				detsh= s00*s11-s10*s01;
-				s00/= detsh; s01/=detsh; 
-				s10/=detsh; s11/=detsh;
-				
-				/* recalc u and v again */
-				hox= x/Zmulx -1.0f;
-				hoy= y/Zmuly -1.0f;
-				u= (hox - ho3[0]/ho3[3])*s11 - (hoy - ho3[1]/ho3[3])*s10;
-				v= (hoy - ho3[1]/ho3[3])*s00 - (hox - ho3[0]/ho3[3])*s01;
-				l= 1.0f+u+v;
-				
-				shi->sticky[0]= l*s3[0]-u*s1[0]-v*s2[0];
-				shi->sticky[1]= l*s3[1]-u*s1[1]-v*s2[1];
-				shi->sticky[2]= 0.0f;
-				
-				if(shi->osatex) {
-					float dxuv[2], dyuv[2];
-					dxuv[0]=  s11/Zmulx;
-					dxuv[1]=  - s01/Zmulx;
-					dyuv[0]=  - s10/Zmuly;
-					dyuv[1]=  s00/Zmuly;
-					
-					dl= dxuv[0] + dxuv[1];
-					shi->dxsticky[0]= dl*s3[0] - dxuv[0]*s1[0] - dxuv[1]*s2[0];
-					shi->dxsticky[1]= dl*s3[1] - dxuv[0]*s1[1] - dxuv[1]*s2[1];
-					dl= dyuv[0] + dyuv[1];
-					shi->dysticky[0]= dl*s3[0] - dyuv[0]*s1[0] - dyuv[1]*s2[0];
-					shi->dysticky[1]= dl*s3[1] - dyuv[0]*s1[1] - dyuv[1]*s2[1];
-				}
-			}
-		}
-	} /* else {
-	 Note! For raytracing winco is not set, important because thus means all shader input's need to have their variables set to zero else in-initialized values are used
-	*/
-	if (R.r.color_mgt_flag & R_COLOR_MANAGEMENT) {
-		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)) {
-			srgb_to_linearrgb_v3_v3(shi->vcol, shi->vcol);
-		}
+		if(texco & TEXCO_STICKY)
+			shade_input_vlr_texco_sticky(re, tex, geom, prim);
 	}
-	
+	else {
+		/* Note! For raytracing winco is not set, important because this means
+		   all shader input's need to have their variables set to zero else
+		   un-initialized values are used */
+	}
+
+	if(re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE))
+			srgb_to_linearrgb_v3_v3(mat->vcol, mat->vcol);
 }
 
-/* ****************** ShadeSample ************************************** */
+/* --------------------------------------------- */
+/* also called from texture.c */
+void shade_input_calc_reflection(ShadeInput *shi)
+{
+	ShadeGeometry *geom= &shi->geometry;
+	ShadeTexco *texco= &shi->texture;
+
+	reflect_v3_v3v3(texco->ref, geom->view, geom->vn);
+
+	if(geom->osatex) {
+		float dview[3], dno[3], ref[3];
+
+		/* dxref */
+		if(shi->primitive.vlr->flag & R_SMOOTH)
+			add_v3_v3v3(dno, geom->vn, geom->dxno);
+		else
+			copy_v3_v3(dno, geom->vn);
+
+		dview[0]= geom->view[0] + geom->dxview;
+		dview[1]= geom->view[1];
+		dview[2]= geom->view[2];
+
+		reflect_v3_v3v3(ref, dview, dno);
+		sub_v3_v3v3(texco->dxref, texco->ref, ref);
+
+		/* dyref */
+		if(shi->primitive.vlr->flag & R_SMOOTH)
+			add_v3_v3v3(dno, geom->vn, geom->dyno);
+		else
+			copy_v3_v3(dno, geom->vn);
+
+		dview[0]= geom->view[0];
+		dview[1]= geom->view[1] + geom->dyview;
+		dview[2]= geom->view[2];
+
+		reflect_v3_v3v3(ref, dview, dno);
+		sub_v3_v3v3(texco->dyref, texco->ref, ref);
+	}
+}
+
+/******************************* Initialization ******************************/
 
 /* initialize per part, not per pixel! */
-void shade_input_initialize(ShadeInput *shi, RenderPart *pa, RenderLayer *rl, int sample)
+static void shade_input_initialize(Render *re, ShadeInput *shi, RenderPart *pa, RenderLayer *rl, int sample)
 {
 	
 	memset(shi, 0, sizeof(ShadeInput));
 	
-	shi->sample= sample;
-	shi->thread= pa->thread;
-	shi->do_preview= (R.r.scemode & R_MATNODE_PREVIEW) != 0;
-	shi->lay= rl->lay;
-	shi->layflag= rl->layflag;
-	shi->passflag= rl->passflag;
-	shi->combinedflag= ~rl->pass_xor;
-	shi->mat_override= rl->mat_override;
-	shi->light_override= rl->light_override;
-//	shi->rl= rl;
+	shi->shading.sample= sample;
+	shi->shading.thread= pa->thread;
+	shi->shading.do_preview= (re->params.r.scemode & R_MATNODE_PREVIEW) != 0;
+	shi->shading.lay= rl->lay;
+	shi->shading.layflag= rl->layflag;
+	shi->shading.passflag= rl->passflag;
+	shi->shading.combinedflag= ~rl->pass_xor;
+	shi->material.mat_override= rl->mat_override;
+	shi->material.light_override= rl->light_override;
+//	shi->material.rl= rl;
 	/* note shi.depth==0  means first hit, not raytracing */
-	
 }
 
 /* initialize per part, not per pixel! */
-void shade_sample_initialize(ShadeSample *ssamp, RenderPart *pa, RenderLayer *rl)
+void shade_sample_initialize(Render *re, ShadeSample *ssamp, RenderPart *pa, RenderLayer *rl)
 {
 	int a, tot;
 	
-	tot= R.osa==0?1:R.osa;
+	tot= re->params.osa==0?1:re->params.osa;
 	
 	for(a=0; a<tot; a++) {
-		shade_input_initialize(&ssamp->shi[a], pa, rl, a);
+		shade_input_initialize(re, &ssamp->shi[a], pa, rl, a);
 		memset(&ssamp->shr[a], 0, sizeof(ShadeResult));
 	}
-	
-	get_sample_layers(pa, rl, ssamp->rlpp);
 }
 
+/**************************** ShadeInput from Pixstr *************************/
+
+static void shade_input_from_ps(Render *re, ShadeInput *shi, int x, int y, int z, short samp, unsigned short mask)
+{
+	float xs, ys, ofs[2];
+
+	if(shi->primitive.vlr->flag & R_FULL_OSA) {
+		/* zbuffer has this inverse corrected, ensures xs,ys are inside pixel */
+		pxf_sample_offset(&re->sample, samp, ofs);
+	}
+	else {
+		/* averaged offset for mask */
+		pxf_mask_offset(&re->sample, mask, ofs);
+	}
+
+	xs= (float)x + ofs[0];
+	ys= (float)y + ofs[1];
+
+	shi->shading.mask= mask;
+	shi->shading.samplenr= re->sample.shadowsamplenr[shi->shading.thread]++;
+	shade_input_set_viewco(re, shi, x, y, xs, ys, (float)z);
+	shade_input_set_uv(shi);
+	shade_input_set_normals(shi);
+}
+
+static int shade_inputs_from_ps(Render *re, ShadeInput *shi, PixStr *ps, int x, int y)
+{
+	ShadePrimitive *prim= &shi->primitive;
+	unsigned short mask= ps->mask;
+	int tot= 0;
+
+	if(ps->facenr > 0) {
+		prim->obi= &re->db.objectinstance[ps->obi];
+		prim->obr= prim->obi->obr;
+		prim->facenr= (ps->facenr-1) & RE_QUAD_MASK;
+
+		if(prim->facenr < prim->obr->totvlak) {
+			VlakRen *vlr= render_object_vlak_get(prim->obr, prim->facenr);
+			
+			if(ps->facenr & RE_QUAD_OFFS)
+				shade_input_set_triangle_i(re, shi, prim->obi, vlr, 0, 2, 3);
+			else
+				shade_input_set_triangle_i(re, shi, prim->obi, vlr, 0, 1, 2);
+		}
+		else {
+			prim->vlr= NULL;
+			return 0;
+		}
+	}
+	else {
+		prim->vlr= NULL;
+		return 0;
+	}
+
+	/* full osa is only set for OSA renders */
+	if(prim->vlr->flag & R_FULL_OSA) {
+		short samp;
+		
+		for(samp=0; samp<re->params.osa; samp++) {
+			if(mask & (1<<samp)) {
+				if(tot)
+					shade_input_copy_triangle(shi, shi-1);
+				
+				shade_input_from_ps(re, shi, x, y, ps->z, samp, (1<<samp));
+				shi++;
+				tot++;
+			}
+		}
+	}
+	else {
+		shade_input_from_ps(re, shi, x, y, ps->z, 0, mask);
+		shi++;
+		tot++;
+	}
+
+	return tot;
+}
+
+void shade_samples_from_ps(Render *re, ShadeSample *ssamp, PixStr *ps, int x, int y)
+{
+	ShadeInput *shi= ssamp->shi;
+	
+	for(ssamp->tot= 0; ps; ps= ps->next)
+		ssamp->tot += shade_inputs_from_ps(re, shi+ssamp->tot, ps, x, y);
+}
+
+/********************************** Shading **********************************/
+
 /* Do AO or (future) GI */
-void shade_samples_do_AO(ShadeSample *ssamp)
+void shade_samples_do_AO(Render *re, ShadeSample *ssamp)
 {
 	ShadeInput *shi;
 	int sample;
 	
-	if(!(R.r.mode & R_SHADOW))
+	if(!(re->params.r.mode & R_SHADOW))
 		return;
-	if(!(R.r.mode & R_RAYTRACE) && !(R.wrld.ao_gather_method == WO_AOGATHER_APPROX))
+	if(!(re->params.r.mode & R_RAYTRACE) && !(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX))
 		return;
 	
-	if(R.wrld.mode & WO_AMB_OCC) {
+	if(re->db.wrld.mode & WO_AMB_OCC) {
 		shi= &ssamp->shi[0];
 
-		if(((shi->passflag & SCE_PASS_COMBINED) && (shi->combinedflag & SCE_PASS_AO))
-			|| (shi->passflag & SCE_PASS_AO))
+		if(((shi->shading.passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & SCE_PASS_AO))
+			|| (shi->shading.passflag & SCE_PASS_AO))
 			for(sample=0, shi= ssamp->shi; sample<ssamp->tot; shi++, sample++)
-				if(!(shi->mode & MA_SHLESS))
-					ambient_occlusion(shi);		/* stores in shi->ao[] */
-	}
-}
-
-
-void shade_samples_fill_with_ps(ShadeSample *ssamp, PixStr *ps, int x, int y)
-{
-	ShadeInput *shi;
-	float xs, ys;
-	
-	ssamp->tot= 0;
-	
-	for(shi= ssamp->shi; ps; ps= ps->next) {
-		shade_input_set_triangle(shi, ps->obi, ps->facenr, 1);
-		
-		if(shi->vlr) {	/* NULL happens for env material or for 'all z' */
-			unsigned short curmask= ps->mask;
-			
-			/* full osa is only set for OSA renders */
-			if(shi->vlr->flag & R_FULL_OSA) {
-				short shi_cp= 0, samp;
-				
-				for(samp=0; samp<R.osa; samp++) {
-					if(curmask & (1<<samp)) {
-						/* zbuffer has this inverse corrected, ensures xs,ys are inside pixel */
-						xs= (float)x + R.jit[samp][0] + 0.5f;
-						ys= (float)y + R.jit[samp][1] + 0.5f;
-						
-						if(shi_cp)
-							shade_input_copy_triangle(shi, shi-1);
-						
-						shi->mask= (1<<samp);
-//						shi->rl= ssamp->rlpp[samp];
-						shi->samplenr= R.shadowsamplenr[shi->thread]++;	/* this counter is not being reset per pixel */
-						shade_input_set_viewco(shi, x, y, xs, ys, (float)ps->z);
-						shade_input_set_uv(shi);
-						shade_input_set_normals(shi);
-						
-						shi_cp= 1;
-						shi++;
-					}
-				}
-			}
-			else {
-				if(R.osa) {
-					short b= R.samples->centmask[curmask];
-					xs= (float)x + R.samples->centLut[b & 15] + 0.5f;
-					ys= (float)y + R.samples->centLut[b>>4] + 0.5f;
-				}
-				else {
-					xs= (float)x + 0.5f;
-					ys= (float)y + 0.5f;
-				}
-
-				shi->mask= curmask;
-				shi->samplenr= R.shadowsamplenr[shi->thread]++;
-				shade_input_set_viewco(shi, x, y, xs, ys, (float)ps->z);
-				shade_input_set_uv(shi);
-				shade_input_set_normals(shi);
-				shi++;
-			}
-			
-			/* total sample amount, shi->sample is static set in initialize */
-			if(shi!=ssamp->shi)
-				ssamp->tot= (shi-1)->sample + 1;
-		}
+				if(!(shi->material.mode & MA_SHLESS))
+					ambient_occlusion(re, shi);		/* stores in shi->shading.ao[] */
 	}
 }
 
 /* shades samples, returns true if anything happened */
-int shade_samples(ShadeSample *ssamp, PixStr *ps, int x, int y)
+void shade_samples(Render *re, ShadeSample *ssamp)
 {
-	shade_samples_fill_with_ps(ssamp, ps, x, y);
-	
-	if(ssamp->tot) {
-		ShadeInput *shi= ssamp->shi;
-		ShadeResult *shr= ssamp->shr;
-		int samp;
-		
-		/* if shadow or AO? */
-		shade_samples_do_AO(ssamp);
-		
-		/* if shade (all shadepinputs have same passflag) */
-		if(ssamp->shi[0].passflag & ~(SCE_PASS_Z|SCE_PASS_INDEXOB)) {
+	ShadeInput *shi= ssamp->shi;
+	ShadeResult *shr= ssamp->shr;
+	int samp;
 
-			for(samp=0; samp<ssamp->tot; samp++, shi++, shr++) {
-				shade_input_set_shade_texco(shi);
-				shade_input_do_shade(shi, shr);
-			}
+	if(!ssamp->tot)
+		return;
+	
+	/* if AO? */
+	shade_samples_do_AO(re, ssamp);
+	
+	/* if shade (all shadepinputs have same passflag) */
+	if(shi->shading.passflag & ~(SCE_PASS_Z|SCE_PASS_INDEXOB)) {
+		for(samp=0; samp<ssamp->tot; samp++, shi++, shr++) {
+			shade_input_set_shade_texco(re, shi);
+			shade_input_do_shade(re, shi, shr);
 		}
-		
-		return 1;
 	}
-	return 0;
+}
+
+/* also used as callback for nodes */
+/* delivers a fully filled in ShadeResult, for all passes */
+void shade_material_loop(Render *re, ShadeInput *shi, ShadeResult *shr)
+{
+	shade_surface(re, shi, shr, 0); /* clears shr */
+	
+	if(shi->material.translucency!=0.0f) {
+		ShadeResult shr_t;
+		float fac= shi->material.translucency;
+		
+		shade_input_init_material(re, shi);
+
+		copy_v3_v3(shi->geometry.vn, shi->geometry.vno);
+		negate_v3(shi->geometry.vn);
+		negate_v3(shi->geometry.facenor);
+		shi->shading.depth++;	/* hack to get real shadow now */
+
+		shade_surface(re, shi, &shr_t, 1);
+
+		shi->shading.depth--;
+		negate_v3(shi->geometry.vn);
+		negate_v3(shi->geometry.facenor);
+
+		/* a couple of passes */
+		madd_v3_v3fl(shr->combined, shr_t.combined, fac);
+		if(shi->shading.passflag & SCE_PASS_SPEC)
+			madd_v3_v3fl(shr->spec, shr_t.spec, fac);
+		if(shi->shading.passflag & SCE_PASS_DIFFUSE)
+			madd_v3_v3fl(shr->diff, shr_t.diff, fac);
+		if(shi->shading.passflag & SCE_PASS_SHADOW)
+			madd_v3_v3fl(shr->shad, shr_t.shad, fac);
+	}
+
+	/* depth >= 1 when ray-shading */
+	if(shi->shading.depth==0) {
+		/* disable adding of sky for raytransp */
+		if((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_RAYTRANSP))
+			if((shi->shading.layflag & SCE_LAY_SKY) && (re->params.r.alphamode==R_ADDSKY))
+				shr->alpha= 1.0f;
+	}	
+
+	if(re->params.r.mode & R_RAYTRACE) {
+		if (re->db.render_volumes_inside.first)
+			shade_volume_inside(re, shi, shr);
+	}
+}
+
+static void shade_mist(Render *re, ShadeInput *shi, ShadeResult *shr)
+{
+	float mist= 1.0f;
+
+	if((shi->shading.passflag & SCE_PASS_MIST) || ((re->db.wrld.mode & WO_MIST) && (shi->material.mat->mode & MA_NOMIST)==0))  {
+		if(re->cam.type == R_CAM_ORTHO)
+			shr->mist= environment_mist_factor(re, -shi->geometry.co[2], shi->geometry.co);
+		else
+			shr->mist= environment_mist_factor(re, len_v3(shi->geometry.co), shi->geometry.co);
+	}
+	else shr->mist= 0.0f;
+
+	if((re->db.wrld.mode & WO_MIST) && (shi->material.mat->mode & MA_NOMIST)==0 ) {
+		mist= shr->mist;
+
+		if(mist != 1.0f)
+			if(shi->material.mat->material_type!= MA_TYPE_VOLUME)
+				mul_v3_fl(shr->combined, mist);
+	}
+
+	shr->combined[3]= shr->alpha*mist;
+}
+
+/* do a shade, finish up some passes, apply mist */
+void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
+{
+	/* ------  main shading loop -------- */
+#ifdef RE_RAYCOUNTER
+	memset(&shi->material.raycounter, 0, sizeof(shi->material.raycounter));
+#endif
+	
+	if(shi->material.mat->nodetree && shi->material.mat->use_nodes) {
+		ntreeShaderExecTree(shi->material.mat->nodetree, re, shi, shr);
+	}
+	else {
+		/* copy all relevant material vars, note, keep this synced with render_types.h */
+		shade_input_init_material(re, shi);
+		
+		if (shi->material.mat->material_type == MA_TYPE_VOLUME) {
+			if(re->params.r.mode & R_RAYTRACE)
+				shade_volume_outside(re, shi, shr);
+		} else { /* MA_TYPE_SURFACE, MA_TYPE_WIRE */
+			shade_material_loop(re, shi, shr);
+		}
+	}
+	
+	/* vector, normal, indexob pass */
+	if(shi->shading.passflag & (SCE_PASS_VECTOR|SCE_PASS_NORMAL|SCE_PASS_INDEXOB)) {
+		copy_v4_v4(shr->winspeed, shi->texture.winspeed);
+		copy_v3_v3(shr->nor, shi->geometry.vn);
+		shr->indexob= shi->primitive.obr->ob->index;
+	}
+
+	/* uv pass */
+	if(shi->shading.passflag & SCE_PASS_UV) {
+		if(shi->texture.totuv) {
+			shr->uv[0]= 0.5f + 0.5f*shi->texture.uv[shi->texture.actuv].uv[0];
+			shr->uv[1]= 0.5f + 0.5f*shi->texture.uv[shi->texture.actuv].uv[1];
+			shr->uv[2]= 1.0f;
+		}
+	}
+	
+	/* mist pass */
+	shade_mist(re, shi, shr);
+	
+	/* z pass */
+	shr->z= -shi->geometry.co[2];
+	
+	/* RAYHITS */
+/*
+	if(1 || shi->shading.passflag & SCE_PASS_RAYHITS)
+	{
+		shr->rayhits[0] = (float)shi->material.raycounter.faces.test;
+		shr->rayhits[1] = (float)shi->material.raycounter.bb.hit;
+		shr->rayhits[2] = 0.0;
+		shr->rayhits[3] = 1.0;
+	}
+ */
+	RE_RC_MERGE(&re_rc_counter[shi->shading.thread], &shi->material.raycounter);
 }
 

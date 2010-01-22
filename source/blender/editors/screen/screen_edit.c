@@ -1738,9 +1738,8 @@ void ED_update_for_newframe(const bContext *C, int mute)
 	{
 		Tex *tex;
 		for(tex= CTX_data_main(C)->tex.first; tex; tex= tex->id.next)
-			if( tex->use_nodes && tex->nodetree ) {
+			if(tex->type == TEX_NODES)
 				ntreeTexTagAnimated( tex->nodetree );
-			}
 	}
 }
 

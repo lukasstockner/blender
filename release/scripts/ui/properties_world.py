@@ -203,8 +203,6 @@ class WORLD_PT_ambient_occlusion(WorldButtonsPanel):
             if ao.sample_method == 'ADAPTIVE_QMC':
                 sub.prop(ao, "threshold")
                 sub.prop(ao, "adapt_to_speed", slider=True)
-            elif ao.sample_method == 'CONSTANT_JITTERED':
-                sub.prop(ao, "bias")
 
         if ao.gather_method == 'APPROXIMATE':
             if wide_ui:

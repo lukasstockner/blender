@@ -1,6 +1,4 @@
 /*
- * initrender_ext.h
- *
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -29,21 +27,32 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef INITRENDER_H
-#define INITRENDER_H 
+#ifndef TEXTURE_STACK_H
+#define TEXTURE_STACK_H
 
-struct Object;
+struct HaloRen;
+struct Image;
+struct LampRen;
+struct ShadeInput;
+struct Tex;
+struct TexResult;
 
-/* Functions */
+/* Texture Stacks */
 
-void free_sample_tables(Render *re);
-void make_sample_tables(Render *re);
+void do_material_tex(struct Render *re, struct ShadeInput *shi);
+void do_lamp_tex(struct Render *re, struct LampRen *la, float *lavec,
+	struct ShadeInput *shi, float *colf, int effect);
+void do_sky_tex(struct Render *re, float *rco, float *lo, float *dxyview,
+	float *hor, float *zen, float *blend, int skyflag, short thread);
+void do_halo_tex(struct Render *re, struct HaloRen *har, float xn, float yn,
+	float *colf);
+void do_volume_tex(struct Render *re, struct ShadeInput *shi, float *xyz,
+	int mapto_flag, float *col, float *val);
 
-void render_scene_set_window(Render *re, struct Object *camera, int blursample);
+/* TexFace Sample */
 
-void initparts(Render *re);
-void freeparts(Render *re);
+void do_realtime_texture(struct RenderParams *rpm, struct ShadeInput *shi,
+	struct Image *ima);
 
-
-#endif /* INITRENDER_H */
+#endif /* TEXTURE_STACK_H */
 

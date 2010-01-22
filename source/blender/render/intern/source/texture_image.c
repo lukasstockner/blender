@@ -1,6 +1,5 @@
-/**
- *
- * $Id:
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -26,8 +25,6 @@
  * ***** END GPL/BL DUAL LICENSE BLOCK *****
  */
 
-
-
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
@@ -48,26 +45,19 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BLI_threads.h"
 
-#include "BKE_utildefines.h"
 #include "BKE_global.h"
-#include "BKE_main.h"
 #include "BKE_image.h"
-#include "BKE_texture.h"
 #include "BKE_library.h"
+#include "BKE_main.h"
+#include "BKE_texture.h"
+#include "BKE_utildefines.h"
 
-#include "renderpipeline.h"
 #include "render_types.h"
 #include "texture.h"
-
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
-/* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
-/* only to be used here in this file, it's for speed */
-extern struct Render R;
-/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 /* *********** IMAGEWRAPPING ****************** */
 
@@ -80,11 +70,11 @@ static void ibuf_get_color(float *col, struct ImBuf *ibuf, int x, int y)
 	if(ibuf->rect_float) {
 		if(ibuf->channels==4) {
 			float *fp= ibuf->rect_float + 4*ofs;
-			QUATCOPY(col, fp);
+			copy_v4_v4(col, fp);
 		}
 		else if(ibuf->channels==3) {
 			float *fp= ibuf->rect_float + 3*ofs;
-			VECCOPY(col, fp);
+			copy_v3_v3(col, fp);
 			col[3]= 1.0f;
 		}
 		else {
@@ -102,7 +92,7 @@ static void ibuf_get_color(float *col, struct ImBuf *ibuf, int x, int y)
 	}	
 }
 
-int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres)
+int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres)
 {
 	float fx, fy, val1, val2, val3;
 	int x, y, retval;
@@ -118,7 +108,7 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texre
 	if(ima) {
 		
 		/* hack for icon render */
-		if(ima->ibufs.first==NULL && (R.r.scemode & R_NO_IMAGE_LOAD))
+		if(ima->ibufs.first==NULL && (rpm->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 		
 		ibuf= BKE_image_get_ibuf(ima, &tex->iuser);
@@ -139,8 +129,8 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texre
 	if(tex->extend == TEX_CHECKER) {
 		int xs, ys;
 		
-		xs= (int)floor(fx);
-		ys= (int)floor(fy);
+		xs= floorf(fx);
+		ys= floorf(fy);
 		fx-= xs;
 		fy-= ys;
 
@@ -190,13 +180,13 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texre
 	}
 	
 	/* warning, no return before setting back! */
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
+	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
 		ibuf->rect+= (ibuf->x*ibuf->y);
 	}
 
 	ibuf_get_color(&texres->tr, ibuf, x, y);
 	
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
+	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
 		ibuf->rect-= (ibuf->x*ibuf->y);
 	}
 
@@ -236,7 +226,7 @@ int imagewrap(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texre
 		}
 	}
 
-	BRICONTRGB;
+	tex_brightness_contrast_rgb(tex, texres);
 
 	if(texres->talpha) texres->tin= texres->ta;
 	else if(tex->imaflag & TEX_CALCALPHA) {
@@ -526,10 +516,10 @@ static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
 	float muly, mulx, div, col[4];
 	int x, y, startx, endx, starty, endy;
 
-	startx= (int)floor(rf->xmin);
-	endx= (int)floor(rf->xmax);
-	starty= (int)floor(rf->ymin);
-	endy= (int)floor(rf->ymax);
+	startx= floorf(rf->xmin);
+	endx= floorf(rf->xmax);
+	starty= floorf(rf->ymin);
+	endy= floorf(rf->ymax);
 
 	if(startx < 0) startx= 0;
 	if(starty < 0) starty= 0;
@@ -694,7 +684,7 @@ static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float max
 	}
 }	
 
-void image_sample(Image *ima, float fx, float fy, float dx, float dy, float *result)
+void image_sample(RenderParams *rpm, Image *ima, float fx, float fy, float dx, float dy, float *result)
 {
 	TexResult texres;
 	ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
@@ -704,7 +694,7 @@ void image_sample(Image *ima, float fx, float fy, float dx, float dy, float *res
 		return;
 	}
 	
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
+	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
 		ibuf->rect+= (ibuf->x*ibuf->y);
 	
 	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0, 0);
@@ -713,7 +703,7 @@ void image_sample(Image *ima, float fx, float fy, float dx, float dy, float *res
 	result[2]= texres.tb;
 	result[3]= texres.ta;
 
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
+	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
 		ibuf->rect-= (ibuf->x*ibuf->y);
 }
 
@@ -1108,7 +1098,7 @@ static void alpha_clip_aniso(ImBuf *ibuf, float minx, float miny, float maxx, fl
 	}
 }
 
-static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *dxt, float *dyt, TexResult *texres)
+static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *dxt, float *dyt, TexResult *texres)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy;
@@ -1138,7 +1128,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 	if (ibuf==NULL && ima==NULL) return retval;
 
 	if (ima) {	// hack for icon render
-		if ((ima->ibufs.first == NULL) && (R.r.scemode & R_NO_IMAGE_LOAD)) return retval;
+		if ((ima->ibufs.first == NULL) && (rpm->r.scemode & R_NO_IMAGE_LOAD)) return retval;
 		ibuf = BKE_image_get_ibuf(ima, &tex->iuser); 
 	}
 
@@ -1166,8 +1156,8 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 	}
 
 	if (ibuf->flags & IB_fields) {
-		if (R.r.mode & R_FIELDS) {			/* field render */
-			if (R.flag & R_SEC_FIELD) {		/* correction for 2nd field */
+		if (rpm->r.mode & R_FIELDS) {			/* field render */
+			if (rpm->flag & R_SEC_FIELD) {		/* correction for 2nd field */
 				/* fac1= 0.5/( (float)ibuf->y ); */
 				/* fy-= fac1; */
 			}
@@ -1293,7 +1283,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 	intpol = tex->imaflag & TEX_INTERPOL;
 
 	// warning no return!
-	if ((R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields))
+	if ((rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields))
 		ibuf->rect += ibuf->x*ibuf->y;
 
 	// struct common data
@@ -1456,7 +1446,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 		}
 	}
 
-	BRICONTRGB;
+	tex_brightness_contrast_rgb(tex, texres);
 
 	if (tex->imaflag & TEX_CALCALPHA)
 		texres->ta = texres->tin = texres->ta * MAX3(texres->tr, texres->tg, texres->tb);
@@ -1464,7 +1454,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 		texres->tin = texres->ta;
 	if (tex->flag & TEX_NEGALPHA) texres->ta = 1.f - texres->ta;
 	
-	if ((R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields))
+	if ((rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields))
 		ibuf->rect -= ibuf->x*ibuf->y;
 
 	if (texres->nor && (tex->imaflag & TEX_NORMALMAP)) {	// normal from color
@@ -1490,7 +1480,7 @@ static int imagewraposa_aniso(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, 
 }
 
 
-int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, float *DYT, TexResult *texres)
+int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, float *DYT, TexResult *texres)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[3], dyt[3];
@@ -1499,12 +1489,12 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 
 	// TXF: since dxt/dyt might be modified here and since they might be needed after imagewraposa() call,
 	// make a local copy here so that original vecs remain untouched
-	VECCOPY(dxt, DXT);
-	VECCOPY(dyt, DYT);
+	copy_v3_v3(dxt, DXT);
+	copy_v3_v3(dyt, DYT);
 
 	// anisotropic filtering
 	if (!SAT && (tex->texfilter != TXF_BOX))
-		return imagewraposa_aniso(tex, ima, ibuf, texvec, dxt, dyt, texres);
+		return imagewraposa_aniso(rpm, tex, ima, ibuf, texvec, dxt, dyt, texres);
 
 	texres->tin= texres->ta= texres->tr= texres->tg= texres->tb= 0.0f;
 	
@@ -1517,7 +1507,7 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 	if(ima) {
 
 		/* hack for icon render */
-		if(ima->ibufs.first==NULL && (R.r.scemode & R_NO_IMAGE_LOAD))
+		if(ima->ibufs.first==NULL && (rpm->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 		
 		ibuf= BKE_image_get_ibuf(ima, &tex->iuser); 
@@ -1555,8 +1545,8 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 	}
 	
 	if(ibuf->flags & IB_fields) {
-		if(R.r.mode & R_FIELDS) {			/* field render */
-			if(R.flag & R_SEC_FIELD) {		/* correction for 2nd field */
+		if(rpm->r.mode & R_FIELDS) {			/* field render */
+			if(rpm->flag & R_SEC_FIELD) {		/* correction for 2nd field */
 				/* fac1= 0.5/( (float)ibuf->y ); */
 				/* fy-= fac1; */
 			}
@@ -1618,8 +1608,8 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 	if(tex->extend == TEX_CHECKER) {
 		int xs, ys, xs1, ys1, xs2, ys2, boundary;
 		
-		xs= (int)floor(fx);
-		ys= (int)floor(fy);
+		xs= floorf(fx);
+		ys= floorf(fy);
 		
 		// both checkers available, no boundary exceptions, checkerdist will eat aliasing
 		if( (tex->flag & TEX_CHECKER_ODD) && (tex->flag & TEX_CHECKER_EVEN) ) {
@@ -1628,10 +1618,10 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 		}
 		else {
 			
-			xs1= (int)floor(fx-minx);
-			ys1= (int)floor(fy-miny);
-			xs2= (int)floor(fx+minx);
-			ys2= (int)floor(fy+miny);
+			xs1= floorf(fx-minx);
+			ys1= floorf(fy-miny);
+			xs2= floorf(fx+minx);
+			ys2= floorf(fy+miny);
 			boundary= (xs1!=xs2) || (ys1!=ys2);
 
 			if(boundary==0) {
@@ -1703,7 +1693,7 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 	}
 
 	/* warning no return! */
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
+	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
 		ibuf->rect+= (ibuf->x*ibuf->y);
 	}
 
@@ -1856,7 +1846,7 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 		}
 	}
 	
-	BRICONTRGB;
+	tex_brightness_contrast_rgb(tex, texres);
 	
 	if(tex->imaflag & TEX_CALCALPHA) {
 		texres->ta= texres->tin= texres->ta*MAX3(texres->tr, texres->tg, texres->tb);
@@ -1865,7 +1855,7 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 
 	if(tex->flag & TEX_NEGALPHA) texres->ta= 1.0f-texres->ta;
 	
-	if( (R.flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
+	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
 		ibuf->rect-= (ibuf->x*ibuf->y);
 	}
 
@@ -1886,3 +1876,4 @@ int imagewraposa(Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, f
 
 	return retval;
 }
+

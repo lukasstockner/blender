@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: occlusion.h 19820 2009-04-20 15:06:46Z blendix $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

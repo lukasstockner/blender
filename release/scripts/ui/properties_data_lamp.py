@@ -248,13 +248,6 @@ class DATA_PT_shadow(DataButtonsPanel):
                     col.prop(lamp, "shadow_adaptive_threshold", text="Threshold")
                     if wide_ui:
                         col = split.column()
-
-                elif lamp.shadow_ray_sampling_method == 'CONSTANT_JITTERED':
-                    if wide_ui:
-                        col = split.column()
-                    col.prop(lamp, "umbra")
-                    col.prop(lamp, "dither")
-                    col.prop(lamp, "jitter")
                 else:
                     if wide_ui:
                         col = split.column()

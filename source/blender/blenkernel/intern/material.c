@@ -692,24 +692,24 @@ int object_add_material_slot(Object *ob)
 	return TRUE;
 }
 
-static void do_init_render_material(Material *ma, int r_mode, float *amb)
+static void do_init_render_texstack(Material *ma, MTex **mtexarray, int totmtex, int septex, int r_mode)
 {
+	Tex *tex;
 	MTex *mtex;
-	int a, needuv=0, needtang=0;
+ 	int a, needtang= 0, needuv= 0;
 	
-	if(ma->flarec==0) ma->flarec= 1;
-
 	/* add all texcoflags from mtex, texco and mapto were cleared in advance */
-	for(a=0; a<MAX_MTEX; a++) {
-		
+ 	for(a=0; a<totmtex; a++) {
 		/* separate tex switching */
-		if(ma->septex & (1<<a)) continue;
+		if(septex & (1<<a)) continue;
 
-		mtex= ma->mtex[a];
-		if(mtex && mtex->tex && (mtex->tex->type | (mtex->tex->use_nodes && mtex->tex->nodetree) )) {
-			
+		mtex= mtexarray[a];
+		tex= (mtex)? mtex->tex: NULL;
+
+		if(tex) {
 			ma->texco |= mtex->texco;
 			ma->mapto |= mtex->mapto;
+
 			if(r_mode & R_OSA) {
 				if ELEM3(mtex->tex->type, TEX_IMAGE, TEX_PLUGIN, TEX_ENVMAP) ma->texco |= TEXCO_OSA;
 				else if(mtex->texflag & MTEX_NEW_BUMP) ma->texco |= TEXCO_OSA; // NEWBUMP: need texture derivatives for procedurals as well
@@ -726,12 +726,20 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 
 	if(needtang) ma->mode |= MA_NORMAP_TANG;
 	else ma->mode &= ~MA_NORMAP_TANG;
-	
+
+	if(needuv) ma->texco |= NEED_UV;
+}
+
+static void do_init_render_material(Material *ma, int r_mode)
+{
+	if(ma->flarec==0) ma->flarec= 1;
+
+	do_init_render_texstack(ma, ma->mtex, MAX_MTEX, ma->septex, r_mode);
+
 	if(ma->mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE)) {
-		needuv= 1;
+		ma->texco |= NEED_UV;
 		if(r_mode & R_OSA) ma->texco |= TEXCO_OSA;		/* for texfaces */
 	}
-	if(needuv) ma->texco |= NEED_UV;
 	
 	/* since the raytracer doesnt recalc O structs for each ray, we have to preset them all */
 	if(r_mode & R_RAYTRACE) {
@@ -741,11 +749,6 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 		}
 	}
 	
-	if(amb) {
-		ma->ambr= ma->amb*amb[0];
-		ma->ambg= ma->amb*amb[1];
-		ma->ambb= ma->amb*amb[2];
-	}	
 	/* will become or-ed result of all node modes */
 	ma->mode_l= ma->mode;
 	ma->mode_l &= ~MA_SHLESS;
@@ -754,7 +757,7 @@ static void do_init_render_material(Material *ma, int r_mode, float *amb)
 		ma->mode_l |= MA_STR_SURFDIFF;
 }
 
-static void init_render_nodetree(bNodeTree *ntree, Material *basemat, int r_mode, float *amb)
+static void init_render_nodetree(bNodeTree *ntree, Material *basemat, int r_mode)
 {
 	bNode *node;
 	
@@ -763,32 +766,32 @@ static void init_render_nodetree(bNodeTree *ntree, Material *basemat, int r_mode
 			if(GS(node->id->name)==ID_MA) {
 				Material *ma= (Material *)node->id;
 				if(ma!=basemat) {
-					do_init_render_material(ma, r_mode, amb);
+					do_init_render_material(ma, r_mode);
 					basemat->texco |= ma->texco;
 					basemat->mode_l |= ma->mode_l;
 				}
 			}
 			else if(node->type==NODE_GROUP)
-				init_render_nodetree((bNodeTree *)node->id, basemat, r_mode, amb);
+				init_render_nodetree((bNodeTree *)node->id, basemat, r_mode);
 		}
 	}
 	/* parses the geom+tex nodes */
 	ntreeShaderGetTexcoMode(ntree, r_mode, &basemat->texco, &basemat->mode_l);
 }
 
-void init_render_material(Material *mat, int r_mode, float *amb)
+void init_render_material(Material *mat, int r_mode)
 {
 	
-	do_init_render_material(mat, r_mode, amb);
+	do_init_render_material(mat, r_mode);
 	
 	if(mat->nodetree && mat->use_nodes) {
-		init_render_nodetree(mat->nodetree, mat, r_mode, amb);
+		init_render_nodetree(mat->nodetree, mat, r_mode);
 		
 		ntreeBeginExecTree(mat->nodetree); /* has internal flag to detect it only does it once */
 	}
 }
 
-void init_render_materials(int r_mode, float *amb)
+void init_render_materials(int r_mode)
 {
 	Material *ma;
 	
@@ -807,10 +810,10 @@ void init_render_materials(int r_mode, float *amb)
 		/* is_used flag comes back in convertblender.c */
 		ma->flag &= ~MA_IS_USED;
 		if(ma->id.us) 
-			init_render_material(ma, r_mode, amb);
+			init_render_material(ma, r_mode);
 	}
 	
-	do_init_render_material(&defmaterial, r_mode, amb);
+	do_init_render_material(&defmaterial, r_mode);
 }
 
 /* only needed for nodes now */

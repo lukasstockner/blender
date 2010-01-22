@@ -30,6 +30,25 @@
 #ifndef SSS_H
 #define SSS_H
 
+struct Render;
+struct Material;
+struct VlakRen;
+
+/* SSS create/free */
+
+void sss_create(struct Render *re);
+void sss_free(struct RenderDB *rdb);
+
+/* SSS pass */
+
+int sss_pass_done(struct Render *re, struct Material *mat);
+void sss_add_points(struct Render *re, float (*co)[3], float (*color)[3],
+	float *area, int totpoint);
+
+/* Sample SSS at a give point */
+
+int sss_sample(struct Render *re, struct Material *mat, float *co, float *col);
+
 /* Generic multiple scattering API */
 
 struct ScatterSettings;
@@ -47,19 +66,6 @@ ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
 void scatter_tree_build(ScatterTree *tree);
 void scatter_tree_sample(ScatterTree *tree, float *co, float *color);
 void scatter_tree_free(ScatterTree *tree);
-
-/* Internal renderer API */
-
-struct Render;
-struct Material;
-struct VlakRen;
-
-void make_sss_tree(struct Render *re);
-void sss_add_points(Render *re, float (*co)[3], float (*color)[3], float *area, int totpoint);
-void free_sss(struct Render *re);
-
-int sample_sss(struct Render *re, struct Material *mat, float *co, float *col);
-int sss_pass_done(struct Render *re, struct Material *mat);
 
 #endif /*SSS_H*/
 

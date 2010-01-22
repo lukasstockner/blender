@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -16,11 +17,6 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): Raul Fernandez Hernandez (Farsthary), Matt Ebb.
  *
  * ***** END GPL LICENSE BLOCK *****
@@ -32,8 +28,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_math.h"
+#include "DNA_texture_types.h"
+#include "DNA_object_types.h"
+#include "DNA_modifier_types.h"
+#include "DNA_smoke_types.h"
+
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 #include "BLI_voxel.h"
 
 #include "IMB_imbuf.h"
@@ -46,24 +47,23 @@
 
 #include "smoke_API.h"
 
-#include "DNA_texture_types.h"
-#include "DNA_object_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_smoke_types.h"
-
-
+#include "database.h"
 #include "render_types.h"
-#include "renderdatabase.h"
 #include "texture.h"
 #include "voxeldata.h"
 
-void load_frame_blendervoxel(FILE *fp, float *F, int size, int frame, int offset)
+typedef struct VoxelDataHeader {
+	int resolX, resolY, resolZ;
+	int frames;
+} VoxelDataHeader;
+
+static void load_frame_blendervoxel(FILE *fp, float *F, int size, int frame, int offset)
 {	
 	fseek(fp,frame*size*sizeof(float)+offset,0);
 	fread(F,sizeof(float),size,fp);
 }
 
-void load_frame_raw8(FILE *fp, float *F, int size, int frame)
+static void load_frame_raw8(FILE *fp, float *F, int size, int frame)
 {
 	char *tmp;
 	int i;
@@ -79,7 +79,7 @@ void load_frame_raw8(FILE *fp, float *F, int size, int frame)
 	MEM_freeN(tmp);
 }
 
-void load_frame_image_sequence(Render *re, VoxelData *vd, Tex *tex)
+static void load_frame_image_sequence(Render *re, VoxelData *vd, Tex *tex)
 {
 	ImBuf *ibuf;
 	Image *ima = tex->ima;
@@ -133,12 +133,14 @@ void load_frame_image_sequence(Render *re, VoxelData *vd, Tex *tex)
 	}
 }
 
-void write_voxeldata_header(struct VoxelDataHeader *h, FILE *fp)
+#if 0
+static void write_voxeldata_header(struct VoxelDataHeader *h, FILE *fp)
 {
 	fwrite(h,sizeof(struct VoxelDataHeader),1,fp);
 }
+#endif
 
-void read_voxeldata_header(FILE *fp, struct VoxelData *vd)
+static void read_voxeldata_header(FILE *fp, struct VoxelData *vd)
 {
 	VoxelDataHeader *h=(VoxelDataHeader *)MEM_mallocN(sizeof(VoxelDataHeader), "voxel data header");
 	
@@ -152,7 +154,7 @@ void read_voxeldata_header(FILE *fp, struct VoxelData *vd)
 	MEM_freeN(h);
 }
 
-void init_frame_smoke(Render *re, VoxelData *vd, Tex *tex)
+static void init_frame_smoke(Render *re, VoxelData *vd, Tex *tex)
 {
 	Object *ob;
 	ModifierData *md;
@@ -179,7 +181,7 @@ void init_frame_smoke(Render *re, VoxelData *vd, Tex *tex)
 	}
 }
 
-void cache_voxeldata(struct Render *re,Tex *tex)
+static void cache_voxeldata(struct Render *re,Tex *tex)
 {	
 	VoxelData *vd = tex->vd;
 	FILE *fp;
@@ -208,7 +210,7 @@ void cache_voxeldata(struct Render *re,Tex *tex)
 	vd->dataset = MEM_mapallocN(sizeof(float)*size, "voxel dataset");
 		
 	if (vd->flag & TEX_VD_STILL) curframe = vd->still_frame;
-	else curframe = re->r.cfra;
+	else curframe = re->params.r.cfra;
 	
 	switch(vd->file_format) {
 		case TEX_VD_BLENDERVOXEL:
@@ -222,26 +224,20 @@ void cache_voxeldata(struct Render *re,Tex *tex)
 	fclose(fp);
 }
 
-void make_voxeldata(struct Render *re)
+void tex_voxeldata_init(Render *re, Tex *tex)
 {
-    Tex *tex;
+	char *infostr= re->cb.i.infostr;
 	
-	re->i.infostr= "Loading voxel datasets";
-	re->stats_draw(re->sdh, &re->i);
+	re->cb.i.infostr= "Loading voxel datasets";
+	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
 	
-	/* XXX: should be doing only textures used in this render */
-	for (tex= G.main->tex.first; tex; tex= tex->id.next) {
-		if(tex->id.us && tex->type==TEX_VOXELDATA) {
-			cache_voxeldata(re, tex);
-		}
-	}
+	cache_voxeldata(re, tex);
 	
-	re->i.infostr= NULL;
-	re->stats_draw(re->sdh, &re->i);
-	
+	re->cb.i.infostr= infostr;
+	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
 }
 
-static void free_voxeldata_one(Render *re, Tex *tex)
+void tex_voxeldata_free(Render *re, Tex *tex)
 {
 	VoxelData *vd = tex->vd;
 	
@@ -252,19 +248,7 @@ static void free_voxeldata_one(Render *re, Tex *tex)
 	}
 }
 
-
-void free_voxeldata(Render *re)
-{
-	Tex *tex;
-	
-	for (tex= G.main->tex.first; tex; tex= tex->id.next) {
-		if(tex->id.us && tex->type==TEX_VOXELDATA) {
-			free_voxeldata_one(re, tex);
-		}
-	}
-}
-
-int voxeldatatex(struct Tex *tex, float *texvec, struct TexResult *texres)
+int tex_voxeldata_sample(Tex *tex, float *texvec, TexResult *texres)
 {	 
     int retval = TEX_INT;
 	VoxelData *vd = tex->vd;	
@@ -325,15 +309,14 @@ int voxeldatatex(struct Tex *tex, float *texvec, struct TexResult *texres)
 	}
 	
 	texres->tin *= vd->int_multiplier;
-	BRICONT;
+	tex_brightness_contrast(tex, texres);
 	
 	texres->tr = texres->tin;
 	texres->tg = texres->tin;
 	texres->tb = texres->tin;
 	texres->ta = texres->tin;
-	BRICONTRGB;
+	tex_brightness_contrast_rgb(tex, texres);
 	
 	return retval;	
 }
-
 

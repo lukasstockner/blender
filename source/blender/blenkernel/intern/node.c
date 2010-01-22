@@ -2763,9 +2763,9 @@ void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
 
 /* **************** call to switch lamploop for material node ************ */
 
-void (*node_shader_lamp_loop)(struct ShadeInput *, struct ShadeResult *);
+void (*node_shader_lamp_loop)(struct Render *re, struct ShadeInput *, struct ShadeResult *);
 
-void set_node_shader_lamp_loop(void (*lamp_loop_func)(ShadeInput *, ShadeResult *))
+void set_node_shader_lamp_loop(void (*lamp_loop_func)(Render *re, ShadeInput *, ShadeResult *))
 {
 	node_shader_lamp_loop= lamp_loop_func;
 }

@@ -273,7 +273,7 @@ static void node_buts_texture(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
 	short multi = (
 		node->id &&
-		((Tex*)node->id)->use_nodes &&
+		((Tex*)node->id)->type == TEX_NODES &&
 		(node->type != CMP_NODE_TEXTURE) &&
 		(node->type != TEX_NODE_TEXTURE)
 	);

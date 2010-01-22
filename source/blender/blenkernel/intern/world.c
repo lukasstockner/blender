@@ -97,7 +97,7 @@ World *add_world(char *name)
 	wrld->starsize= 2.0f;
 	
 	wrld->exp= 0.0f;
-	wrld->exposure=wrld->range= 1.0f;
+	wrld->range= 1.0f;
 
 	wrld->aodist= 10.0f;
 	wrld->aosamp= 5;

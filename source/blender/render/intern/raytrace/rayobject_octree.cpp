@@ -191,7 +191,7 @@ static Branch *addbranch(Octree *oc, Branch *br, short ocb)
 	index= oc->branchcount>>12;
 	
 	if(oc->adrbranch[index]==NULL)
-		oc->adrbranch[index]= MEM_callocN(4096*sizeof(Branch), "new oc branch");
+		oc->adrbranch[index]= (Branch*)MEM_callocN(4096*sizeof(Branch), "new oc branch");
 
 	if(oc->branchcount>= BRANCH_ARRAY*4096) {
 		printf("error; octree branches full\n");
@@ -209,7 +209,7 @@ static Node *addnode(Octree *oc)
 	index= oc->nodecount>>12;
 	
 	if(oc->adrnode[index]==NULL)
-		oc->adrnode[index]= MEM_callocN(4096*sizeof(Node),"addnode");
+		oc->adrnode[index]= (Node*)MEM_callocN(4096*sizeof(Node),"addnode");
 
 	if(oc->nodecount> NODE_ARRAY*NODE_ARRAY) {
 		printf("error; octree nodes full\n");
@@ -464,7 +464,7 @@ static void RE_rayobject_octree_free(RayObject *tree)
 
 RayObject *RE_rayobject_octree_create(int ocres, int size)
 {
-	Octree *oc= MEM_callocN(sizeof(Octree), "Octree");
+	Octree *oc= (Octree*)MEM_callocN(sizeof(Octree), "Octree");
 	assert( RE_rayobject_isAligned(oc) ); /* RayObject API assumes real data to be 4-byte aligned */	
 	
 	oc->rayobj.api = &octree_api;
@@ -620,13 +620,13 @@ static void RE_rayobject_octree_done(RayObject *tree)
 		RE_rayobject_merge_bb( RE_rayobject_unalignRayFace(oc->ro_nodes[c]), oc->min, oc->max);
 		
 	/* Alloc memory */
-	oc->adrbranch= MEM_callocN(sizeof(void *)*BRANCH_ARRAY, "octree branches");
-	oc->adrnode= MEM_callocN(sizeof(void *)*NODE_ARRAY, "octree nodes");
+	oc->adrbranch= (Branch**)MEM_callocN(sizeof(void *)*BRANCH_ARRAY, "octree branches");
+	oc->adrnode= (Node**)MEM_callocN(sizeof(void *)*NODE_ARRAY, "octree nodes");
 	
 	oc->adrbranch[0]=(Branch *)MEM_callocN(4096*sizeof(Branch), "makeoctree");
 	
 	/* the lookup table, per face, for which nodes to fill in */
-	oc->ocface= MEM_callocN( 3*ocres2 + 8, "ocface");
+	oc->ocface= (char*)MEM_callocN( 3*ocres2 + 8, "ocface");
 	memset(oc->ocface, 0, 3*ocres2);
 
 	for(c=0;c<3;c++) {	/* octree enlarge, still needed? */

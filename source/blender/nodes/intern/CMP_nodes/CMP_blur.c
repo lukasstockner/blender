@@ -52,7 +52,7 @@ static float *make_gausstab(int filtertype, int rad)
 	
 	sum = 0.0f;
 	for (i = -rad; i <= rad; i++) {
-		val= RE_filter_value(filtertype, (float)i/(float)rad);
+		val= RE_filter_value(filtertype, (float)i/(float)rad, 1.6f);
 		sum += val;
 		gausstab[i+rad] = val;
 	}
@@ -372,7 +372,7 @@ static void bokeh_single_image(bNode *node, CompBuf *new, CompBuf *img, float fa
 			float dist= sqrt(fj*fj + fi*fi);
 			
 		//*dgauss= hexagon_filter(fi, fj);
-			*dgauss= RE_filter_value(nbd->filtertype, 2.0f*dist - 1.0f);
+			*dgauss= RE_filter_value(nbd->filtertype, 2.0f*dist - 1.0f, 1.6f);
 
 			val+= *dgauss;
 		}

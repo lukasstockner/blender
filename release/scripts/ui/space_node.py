@@ -56,8 +56,6 @@ class NODE_HT_header(bpy.types.Header):
             id_from = snode.id_from
             if id_from:
                 layout.template_ID(id_from, "active_texture", new="texture.new")
-            if snode_id:
-                layout.prop(snode_id, "use_nodes")
 
         elif snode.tree_type == 'COMPOSITING':
             snode_id = snode.id

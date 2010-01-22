@@ -1,6 +1,4 @@
 /*
- * texture_ext.h
- *
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -29,45 +27,53 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef TEXTURE_EXT_H
-#define TEXTURE_EXT_H
+#ifndef TEXTURE_H
+#define TEXTURE_H
 
-#define BRICONT		texres->tin= (texres->tin-0.5)*tex->contrast+tex->bright-0.5; \
-if(texres->tin<0.0) texres->tin= 0.0; else if(texres->tin>1.0) texres->tin= 1.0;
-
-#define BRICONTRGB	texres->tr= tex->rfac*((texres->tr-0.5)*tex->contrast+tex->bright-0.5); \
-if(texres->tr<0.0) texres->tr= 0.0; \
-texres->tg= tex->gfac*((texres->tg-0.5)*tex->contrast+tex->bright-0.5); \
-if(texres->tg<0.0) texres->tg= 0.0; \
-texres->tb= tex->bfac*((texres->tb-0.5)*tex->contrast+tex->bright-0.5); \
-if(texres->tb<0.0) texres->tb= 0.0; 
-
-
-struct HaloRen;
-struct ShadeInput;
-struct TexResult;
 struct Tex;
+struct TexResult;
 struct Image;
 struct ImBuf;
+struct Render;
+struct RenderParams;
+struct ListBase;
 
-/* texture.h */
+typedef struct TexCoord {
+	float co[3];
+	float dx[3];
+	float dy[3];
+	int osatex;
+} TexCoord;
 
-void do_halo_tex(struct HaloRen *har, float xn, float yn, float *colf);
-void do_sky_tex(float *rco, float *lo, float *dxyview, float *hor, float *zen, float *blend, int skyflag, short thread);
-void do_material_tex(struct ShadeInput *shi);
-void do_lamp_tex(LampRen *la, float *lavec, struct ShadeInput *shi, float *colf, int effect);
-void do_volume_tex(struct ShadeInput *shi, float *xyz, int mapto_flag, float *col, float *val);
+/* Textures */
 
-void init_render_textures(Render *re);
-void end_render_textures(void);
+void tex_init(struct Render *re, struct Tex *tex);
+void tex_free(struct Render *re, struct Tex *tex);
 
-void render_realtime_texture(struct ShadeInput *shi, struct Image *ima);
+void tex_list_init(struct Render *re, struct ListBase *lb);
+void tex_list_free(struct Render *re, struct ListBase *lb);
 
-/* imagetexture.h */
+/*	0: intensity
+	TEX_RGB: color
+	TEX_NOR: normal
+	TEX_RGB|TEX_NOR: everything */
 
-int imagewraposa(struct Tex *tex, struct Image *ima, struct ImBuf *ibuf, float *texvec, float *dxt, float *dyt, struct TexResult *texres);
-int imagewrap(struct Tex *tex, struct Image *ima, struct ImBuf *ibuf, float *texvec, struct TexResult *texres);
-void image_sample(struct Image *ima, float fx, float fy, float dx, float dy, float *result);
+int tex_sample(struct RenderParams *rpm, struct Tex *tex, TexCoord *texco,
+	struct TexResult *texres, short thread, short which_output);
 
-#endif /* TEXTURE_EXT_H */
+/* Image Texture */
+
+int imagewraposa(struct RenderParams *rpm, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
+	float *texvec, float *dxt, float *dyt, struct TexResult *texres);
+int imagewrap(struct RenderParams *rpm, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
+	float *texvec, struct TexResult *texres);
+void image_sample(struct RenderParams *rpm, struct Image *ima, float fx, float fy,
+	float dx, float dy, float *result);
+
+/* Utilities */
+
+void tex_brightness_contrast(struct Tex *tex, struct TexResult *texres);
+void tex_brightness_contrast_rgb(struct Tex *tex, struct TexResult *texres);
+
+#endif /* TEXTURE_H */
 

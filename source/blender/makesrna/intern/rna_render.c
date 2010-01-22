@@ -48,17 +48,17 @@
 
 /* RenderEngine */
 
-static RenderEngineType internal_render_type = {
-	NULL, NULL, "BLENDER_RENDER", "Blender Render", RE_INTERNAL, NULL, {NULL, NULL, NULL, NULL}};
-#if GAMEBLENDER == 1
-static RenderEngineType internal_game_type = {
-	NULL, NULL, "BLENDER_GAME", "Blender Game", RE_INTERNAL|RE_GAME, NULL, {NULL, NULL, NULL, NULL}};
-#endif
-
 ListBase R_engines = {NULL, NULL};
 
 void RE_engines_init()
 {
+	static RenderEngineType internal_render_type = {
+		NULL, NULL, "BLENDER_RENDER", "Blender Render", RE_INTERNAL, NULL, {NULL, NULL, NULL, NULL}};
+#if GAMEBLENDER == 1
+	static RenderEngineType internal_game_type = {
+		NULL, NULL, "BLENDER_GAME", "Blender Game", RE_INTERNAL|RE_GAME, NULL, {NULL, NULL, NULL, NULL}};
+#endif
+
 	BLI_addtail(&R_engines, &internal_render_type);
 #if GAMEBLENDER == 1
 	BLI_addtail(&R_engines, &internal_game_type);

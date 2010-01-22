@@ -33,7 +33,7 @@
 #include "DNA_material_types.h"
 
 #include "RE_raytrace.h"
-#include "render_types.h"
+#include "object_mesh.h"
 #include "rayobject.h"
 #include "raycounter.h"
 
@@ -67,7 +67,7 @@ int RE_rayobject_bb_intersect_test(const Isect *isec, const float *_bb)
 /* only for self-intersecting test with current render face (where ray left) */
 static int intersection2(VlakRen *face, float r0, float r1, float r2, float rx1, float ry1, float rz1)
 {
-	float co1[3], co2[3], co3[3], co4[3];
+	float co1[3], co2[3], co3[3], co4[3]={0};
 	float x0,x1,x2,t00,t01,t02,t10,t11,t12,t20,t21,t22;
 	float m0, m1, m2, divdet, det, det1;
 	float u1, v, u2;
@@ -180,7 +180,7 @@ static inline int rayface_check_cullface(RayFace *face, Isect *is)
 /* this function shall only modify Isect if it detects an hit */
 static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 {
-	float co1[3],co2[3],co3[3],co4[3];
+	float co1[3],co2[3],co3[3],co4[3]={0};
 	float x0,x1,x2,t00,t01,t02,t10,t11,t12,t20,t21,t22,r0,r1,r2;
 	float m0, m1, m2, divdet, det1;
 	float labda, u, v;

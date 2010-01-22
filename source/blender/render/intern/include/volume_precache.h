@@ -1,4 +1,5 @@
-/**
+/*
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -16,18 +17,33 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
- * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
- * All rights reserved.
- *
- * The Original Code is: all of this file.
- *
  * Contributor(s): Matt Ebb.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
- 
-void volume_precache(Render *re);
-void free_volume_precache(Render *re);
-int point_inside_volume_objectinstance(Render *re, ObjectInstanceRen *obi, float *co);
 
-#define VOL_MS_TIMESTEP	0.1f
+#ifndef __RENDER_VOLUME_PRECACHE_H__
+#define __RENDER_VOLUME_PRECACHE_H__
+
+struct ObjectInstanceRen;
+struct Render;
+struct RenderDB;
+ 
+/* Create/Free */
+
+void volume_precache_create(struct Render *re);
+void volume_precache_free(struct RenderDB *rdb);
+
+/* Other */
+
+int point_inside_volume_objectinstance(struct Render *re, struct ObjectInstanceRen *obi, float *co);
+
+typedef struct VolumePrecache {
+	int res[3];
+	float *data_r;
+	float *data_g;
+	float *data_b;
+} VolumePrecache;
+
+#endif /* __RENDER_VOLUME_PRECACHE_H__ */
+

@@ -75,18 +75,19 @@ void nodestack_get_vec(float *in, short type_in, bNodeStack *ns)
 
 /* ******************* execute and parse ************ */
 
-void ntreeShaderExecTree(bNodeTree *ntree, ShadeInput *shi, ShadeResult *shr)
+void ntreeShaderExecTree(bNodeTree *ntree, Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	ShaderCallData scd;
 	
 	/* convert caller data to struct */
+	scd.re= re;
 	scd.shi= shi;
 	scd.shr= shr;
 	
 	/* each material node has own local shaderesult, with optional copying */
 	memset(shr, 0, sizeof(ShadeResult));
-		   
-	ntreeExecTree(ntree, &scd, shi->thread);	/* threads */
+
+	ntreeExecTree(ntree, &scd, shi->shading.thread);	/* threads */
 	
 	/* better not allow negative for now */
 	if(shr->combined[0]<0.0f) shr->combined[0]= 0.0f;

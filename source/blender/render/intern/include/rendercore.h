@@ -1,6 +1,4 @@
 /*
- * rendercore_ext.h
- *
  * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
@@ -29,81 +27,60 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef RENDERCORE_H
-#define RENDERCORE_H 
+#ifndef __RENDERCORE_H__
+#define __RENDERCORE_H__ 
 
-#include "render_types.h"
-
-
-/* vector defines */
-
-#define CROSS(dest, a, b)		{ dest[0]= a[1] * b[2] - a[2] * b[1]; dest[1]= a[2] * b[0] - a[0] * b[2]; dest[2]= a[0] * b[1] - a[1] * b[0]; }
-#define VECMUL(dest, f)			{ dest[0]*= f; dest[1]*= f; dest[2]*= f; }
-
-struct HaloRen;
-struct ShadeInput;
-struct ShadeResult;
-struct World;
+struct Render;
 struct RenderPart;
-struct RenderLayer;
-struct ObjectRen;
-struct ListBase;
 
-/* ------------------------------------------------------------------------- */
+/* Rendering a Part */
 
-typedef struct PixStr
-{
+void render_rasterize_part(struct Render *re, struct RenderPart *pa);
+void render_sss_bake_part(struct Render *re, struct RenderPart *pa);
+
+/* Rasterization Per Pixel Structs */
+
+#define MAX_PIXEL_ROW	2000
+
+typedef struct PixStr {
 	struct PixStr *next;
+
 	int obi, facenr, z, maskz;
 	unsigned short mask;
 	short shadfac;
 } PixStr;
 
-typedef struct PixStrMain
-{
+typedef struct PixStrMain {
 	struct PixStrMain *next, *prev;
+
 	struct PixStr *ps;
 	int counter;
 } PixStrMain;
 
-/* ------------------------------------------------------------------------- */
+typedef struct APixstr {
+    unsigned short mask[4];		/* jitter mask */
+    int z[4];					/* distance    */
+    int p[4];					/* index       */
+	int obi[4];					/* object instance */
+	short shadfac[4];			/* optimize storage for irregular shadow */
+    struct APixstr *next;
+} APixstr;
 
+typedef struct APixstrand {
+    unsigned short mask[4];		/* jitter mask */
+    int z[4];					/* distance    */
+    int p[4];					/* index       */
+	int obi[4];					/* object instance */
+	int seg[4];					/* for strands, segment number */
+	float u[4], v[4];			/* for strands, u,v coordinate in segment */
+    struct APixstrand *next;
+} APixstrand;
 
-void	calc_view_vector(float *view, float x, float y);
-float   mistfactor(float zcor, float *co);	/* dist and height, return alpha */
+typedef struct APixstrMain {
+	struct APixstrMain *next, *prev;
 
-void	renderspothalo(struct ShadeInput *shi, float *col, float alpha);
-void	add_halo_flare(Render *re);
+	void *ps;
+} APixstrMain;
 
-void calc_renderco_zbuf(float *co, float *view, int z);
-void calc_renderco_ortho(float *co, float x, float y, int z);
-
-int count_mask(unsigned short mask);
-
-void zbufshade(void);
-void zbufshadeDA(void);	/* Delta Accum Pixel Struct */
-
-void zbufshade_tile(struct RenderPart *pa);
-void zbufshadeDA_tile(struct RenderPart *pa);
-
-void zbufshade_sss_tile(struct RenderPart *pa);
-
-int get_sample_layers(struct RenderPart *pa, struct RenderLayer *rl, struct RenderLayer **rlpp);
-
-
-/* -------- ray.c ------- */
-
-extern void freeraytree(Render *re);
-extern void makeraytree(Render *re);
-RayObject* makeraytree_object(Render *re, ObjectInstanceRen *obi);
-
-extern void ray_shadow(ShadeInput *, LampRen *, float *);
-extern void ray_trace(ShadeInput *, ShadeResult *);
-extern void ray_ao(ShadeInput *, float *);
-extern void init_jitter_plane(LampRen *lar);
-extern void init_ao_sphere(struct World *wrld);
-extern void init_render_qmcsampler(Render *re);
-extern void free_render_qmcsampler(Render *re);
-
-#endif /* RENDER_EXT_H */
+#endif /* __RENDERCORE_H__ */
 

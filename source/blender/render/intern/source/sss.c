@@ -64,14 +64,13 @@
 #include "BKE_utildefines.h"
 
 /* this module */
+#include "camera.h"
+#include "database.h" 
 #include "render_types.h"
 #include "rendercore.h"
-#include "renderdatabase.h" 
 #include "shading.h"
 #include "sss.h"
 #include "zbuf.h"
-
-extern Render R; // meh
 
 /* Generic Multiple Scattering API */
 
@@ -164,8 +163,8 @@ static float f_Rd(float alpha_, float A, float ro)
 {
 	float sq;
 
-	sq= sqrt(3.0f*(1.0f - alpha_));
-	return (alpha_/2.0f)*(1.0f + exp((-4.0f/3.0f)*A*sq))*exp(-sq) - ro;
+	sq= sqrtf(3.0f*(1.0f - alpha_));
+	return (alpha_/2.0f)*(1.0f + expf((-4.0f/3.0f)*A*sq))*expf(-sq) - ro;
 }
 
 static float compute_reduced_albedo(ScatterSettings *ss)
@@ -211,11 +210,11 @@ static float Rd_rsquare(ScatterSettings *ss, float rr)
 {
 	float sr, sv, Rdr, Rdv;
 
-	sr= sqrt(rr + ss->zr*ss->zr);
-	sv= sqrt(rr + ss->zv*ss->zv);
+	sr= sqrtf(rr + ss->zr*ss->zr);
+	sv= sqrtf(rr + ss->zv*ss->zv);
 
-	Rdr= ss->zr*(1.0f + ss->sigma*sr)*exp(-ss->sigma*sr)/(sr*sr*sr);
-	Rdv= ss->zv*(1.0f + ss->sigma*sv)*exp(-ss->sigma*sv)/(sv*sv*sv);
+	Rdr= ss->zr*(1.0f + ss->sigma*sr)*expf(-ss->sigma*sr)/(sr*sr*sr);
+	Rdv= ss->zv*(1.0f + ss->sigma*sv)*expf(-ss->sigma*sv)/(sv*sv*sv);
 
 	return /*ss->alpha_*/(1.0f/(4.0f*M_PI))*(Rdr + Rdv);
 }
@@ -229,7 +228,7 @@ static float Rd(ScatterSettings *ss, float r)
    separate tables as well for lower and higher numbers to improve
    precision, since the number are poorly distributed because we do
    a lookup with the squared distance for smaller distances, saving
-   another sqrt. */
+   another sqrtf. */
 
 static void approximate_Rd_rgb(ScatterSettings **ss, float rr, float *rd)
 {
@@ -238,7 +237,7 @@ static void approximate_Rd_rgb(ScatterSettings **ss, float rr, float *rd)
 
 	if(rr > (RD_TABLE_RANGE_2*RD_TABLE_RANGE_2));
 	else if(rr > RD_TABLE_RANGE) {
-		rr= sqrt(rr);
+		rr= sqrtf(rr);
 		indexf= rr*(RD_TABLE_SIZE/RD_TABLE_RANGE_2);
 		index= (int)indexf;
 		idxf= (float)index;
@@ -283,7 +282,7 @@ static void build_Rd_table(ScatterSettings *ss)
 		r= i*(RD_TABLE_RANGE/RD_TABLE_SIZE);
 		/*if(r < ss->invsigma_t_*ss->invsigma_t_)
 			r= ss->invsigma_t_*ss->invsigma_t_;*/
-		ss->tableRd[i]= Rd(ss, sqrt(r));
+		ss->tableRd[i]= Rd(ss, sqrtf(r));
 
 		r= i*(RD_TABLE_RANGE_2/RD_TABLE_SIZE);
 		/*if(r < ss->invsigma_t_)
@@ -309,7 +308,7 @@ ScatterSettings *scatter_settings_new(float refl, float radius, float ior, float
 	ss->alpha_= compute_reduced_albedo(ss);
 
 	ss->sigma= 1.0f/ss->ld;
-	ss->sigma_t_= ss->sigma/sqrt(3.0f*(1.0f - ss->alpha_));
+	ss->sigma_t_= ss->sigma/sqrtf(3.0f*(1.0f - ss->alpha_));
 	ss->sigma_s_= ss->alpha_*ss->sigma_t_;
 	ss->sigma_a= ss->sigma_t_ - ss->sigma_s_;
 
@@ -387,8 +386,8 @@ static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int
 		for(i=0; i<node->totpoint; i++) {
 			ScatterPoint *p= &node->points[i];
 
-			VECSUB(sub, co, p->co);
-			dist= INPR(sub, sub);
+			sub_v3_v3v3(sub, co, p->co);
+			dist= dot_v3v3(sub, sub);
 
 			if(p->back)
 				add_radiance(tree, NULL, p->rad, 0.0f, p->area, dist, result);
@@ -411,8 +410,8 @@ static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int
 				}
 				else {
 					/* decide subnode traversal based on maximum solid angle */
-					VECSUB(sub, co, subnode->co);
-					dist= INPR(sub, sub);
+					sub_v3_v3v3(sub, co, subnode->co);
+					dist= dot_v3v3(sub, sub);
 
 					/* actually area/dist > error, but this avoids division */
 					if(subnode->area+subnode->backarea>tree->error*dist) {
@@ -446,11 +445,11 @@ static void compute_radiance(ScatterTree *tree, float *co, float *rad)
 	mul_v3_fl(result.rad, tree->ss[0]->frontweight);
 	mul_v3_fl(result.backrad, tree->ss[0]->backweight);
 
-	VECCOPY(rad, result.rad);
-	VECADD(backrad, result.rad, result.backrad);
+	copy_v3_v3(rad, result.rad);
+	add_v3_v3v3(backrad, result.rad, result.backrad);
 
-	VECCOPY(rdsum, result.rdsum);
-	VECADD(backrdsum, result.rdsum, result.backrdsum);
+	copy_v3_v3(rdsum, result.rdsum);
+	add_v3_v3v3(backrdsum, result.rdsum, result.backrdsum);
 
 	if(rdsum[0] > 1e-16f) rad[0]= tree->ss[0]->color*rad[0]/rdsum[0];
 	if(rdsum[1] > 1e-16f) rad[1]= tree->ss[1]->color*rad[1]/rdsum[1];
@@ -755,8 +754,8 @@ ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
 	INIT_MINMAX(tree->min, tree->max);
 
 	for(i=0; i<totpoint; i++) {
-		VECCOPY(points[i].co, co[i]);
-		VECCOPY(points[i].rad, color[i]);
+		copy_v3_v3(points[i].co, co[i]);
+		copy_v3_v3(points[i].rad, color[i]);
 		points[i].area= fabs(area[i])/(tree->scale*tree->scale);
 		points[i].back= (area[i] < 0.0f);
 
@@ -812,7 +811,7 @@ void scatter_tree_sample(ScatterTree *tree, float *co, float *color)
 {
 	float sco[3];
 
-	VECCOPY(sco, co);
+	copy_v3_v3(sco, co);
 	mul_v3_fl(sco, 1.0f/tree->scale);
 
 	compute_radiance(tree, sco, color);
@@ -853,7 +852,7 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 	float (*co)[3] = NULL, (*color)[3] = NULL, *area = NULL;
 	int totpoint = 0, osa, osaflag, partsdone;
 
-	if(re->test_break(re->tbh))
+	if(re->cb.test_break(re->cb.tbh))
 		return;
 	
 	points.first= points.last= NULL;
@@ -864,41 +863,41 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 	/* do SSS preprocessing render */
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 	rr= re->result;
-	osa= re->osa;
-	osaflag= re->r.mode & R_OSA;
-	partsdone= re->i.partsdone;
+	osa= re->params.osa;
+	osaflag= re->params.r.mode & R_OSA;
+	partsdone= re->cb.i.partsdone;
 
-	re->osa= 0;
-	re->r.mode &= ~R_OSA;
-	re->sss_points= &points;
-	re->sss_mat= mat;
-	re->i.partsdone= 0;
+	re->params.osa= 0;
+	re->params.r.mode &= ~R_OSA;
+	re->db.sss_points= &points;
+	re->db.sss_mat= mat;
+	re->cb.i.partsdone= 0;
 
-	if(!(re->r.scemode & R_PREVIEWBUTS))
+	if(!(re->params.r.scemode & R_PREVIEWBUTS))
 		re->result= NULL;
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
 	RE_TileProcessor(re, 0, 1);
 	
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	if(!(re->r.scemode & R_PREVIEWBUTS)) {
+	if(!(re->params.r.scemode & R_PREVIEWBUTS)) {
 		RE_FreeRenderResult(re->result);
 		re->result= rr;
 	}
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
-	re->i.partsdone= partsdone;
-	re->sss_mat= NULL;
-	re->sss_points= NULL;
-	re->osa= osa;
-	if (osaflag) re->r.mode |= R_OSA;
+	re->cb.i.partsdone= partsdone;
+	re->db.sss_mat= NULL;
+	re->db.sss_points= NULL;
+	re->params.osa= osa;
+	if (osaflag) re->params.r.mode |= R_OSA;
 
 	/* no points? no tree */
 	if(!points.first)
 		return;
 
 	/* merge points together into a single buffer */
-	if(!re->test_break(re->tbh)) {
+	if(!re->cb.test_break(re->cb.tbh)) {
 		for(totpoint=0, p=points.first; p; p=p->next)
 			totpoint += p->totpoint;
 		
@@ -923,15 +922,15 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 	BLI_freelistN(&points);
 
 	/* build tree */
-	if(!re->test_break(re->tbh)) {
+	if(!re->cb.test_break(re->cb.tbh)) {
 		SSSData *sss= MEM_callocN(sizeof(*sss), "SSSData");
 		float ior= mat->sss_ior, cfac= mat->sss_colfac;
 		float *radius= mat->sss_radius;
 		float fw= mat->sss_front, bw= mat->sss_back;
 		float error = mat->sss_error;
 
-		error= get_render_aosss_error(&re->r, error);
-		if((re->r.scemode & R_PREVIEWBUTS) && error < 0.5f)
+		error= get_render_aosss_error(&re->params.r, error);
+		if((re->params.r.scemode & R_PREVIEWBUTS) && error < 0.5f)
 			error= 0.5f;
 		
 		sss->ss[0]= scatter_settings_new(mat->sss_col[0], radius[0], ior, cfac, fw, bw);
@@ -946,7 +945,7 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 
 		scatter_tree_build(sss->tree);
 
-		BLI_ghash_insert(re->sss_hash, mat, sss);
+		BLI_ghash_insert(re->db.sss_hash, mat, sss);
 	}
 	else {
 		if (co) MEM_freeN(co);
@@ -968,7 +967,7 @@ void sss_add_points(Render *re, float (*co)[3], float (*color)[3], float *area, 
 		p->totpoint= totpoint;
 
 		BLI_lock_thread(LOCK_CUSTOM1);
-		BLI_addtail(re->sss_points, p);
+		BLI_addtail(re->db.sss_points, p);
 		BLI_unlock_thread(LOCK_CUSTOM1);
 	}
 }
@@ -984,24 +983,24 @@ static void sss_free_tree(SSSData *sss)
 
 /* public functions */
 
-void make_sss_tree(Render *re)
+void sss_create(Render *re)
 {
 	Material *mat;
 	
-	re->sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	re->db.sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
 
-	re->i.infostr= "SSS preprocessing";
-	re->stats_draw(re->sdh, &re->i);
+	re->cb.i.infostr= "SSS preprocessing";
+	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
 	
 	for(mat= G.main->mat.first; mat; mat= mat->id.next)
 		if(mat->id.us && (mat->flag & MA_IS_USED) && (mat->sss_flag & MA_DIFF_SSS))
 			sss_create_tree_mat(re, mat);
 }
 
-void free_sss(Render *re)
+void sss_free(RenderDB *rdb)
 {
-	if(re->sss_hash) {
-		GHashIterator *it= BLI_ghashIterator_new(re->sss_hash);
+	if(rdb->sss_hash) {
+		GHashIterator *it= BLI_ghashIterator_new(rdb->sss_hash);
 
 		while(!BLI_ghashIterator_isDone(it)) {
 			sss_free_tree(BLI_ghashIterator_getValue(it));
@@ -1009,15 +1008,15 @@ void free_sss(Render *re)
 		}
 
 		BLI_ghashIterator_free(it);
-		BLI_ghash_free(re->sss_hash, NULL, NULL);
-		re->sss_hash= NULL;
+		BLI_ghash_free(rdb->sss_hash, NULL, NULL);
+		rdb->sss_hash= NULL;
 	}
 }
 
-int sample_sss(Render *re, Material *mat, float *co, float *color)
+int sss_sample(Render *re, Material *mat, float *co, float *color)
 {
-	if(re->sss_hash) {
-		SSSData *sss= BLI_ghash_lookup(re->sss_hash, mat);
+	if(re->db.sss_hash) {
+		SSSData *sss= BLI_ghash_lookup(re->db.sss_hash, mat);
 
 		if(sss) {
 			scatter_tree_sample(sss->tree, co, color);
@@ -1035,6 +1034,6 @@ int sample_sss(Render *re, Material *mat, float *co, float *color)
 
 int sss_pass_done(struct Render *re, struct Material *mat)
 {
-	return ((re->flag & R_BAKING) || !(re->r.mode & R_SSS) || (re->sss_hash && BLI_ghash_lookup(re->sss_hash, mat)));
+	return ((re->params.flag & R_BAKING) || !(re->params.r.mode & R_SSS) || (re->db.sss_hash && BLI_ghash_lookup(re->db.sss_hash, mat)));
 }
 
