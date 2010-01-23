@@ -102,6 +102,7 @@ static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int t
 {
 	float col[4], accol[4], fac;
 	int amount, amountm, zz, flarec, sample, fullsample, mask=0;
+	int osa= (re->params.osa)? re->params.osa: 1;
 	
 	fullsample= (totsample > 1);
 	amount= 0;
@@ -123,7 +124,7 @@ static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int t
 							pxf_add_alpha_fac(rlpp[sample]->rectf + od*4, col, har->add);
 				}
 				else {
-					fac= ((float)amountm)/(float)re->params.osa;
+					fac= ((float)amountm)/(float)osa;
 					accol[0]+= fac*col[0];
 					accol[1]+= fac*col[1];
 					accol[2]+= fac*col[2];
@@ -137,11 +138,11 @@ static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int t
 	}
 
 	/* now do the sky sub-pixels */
-	amount= re->params.osa-amount;
+	amount= osa-amount;
 	if(amount) {
 		if(shadeHaloFloat(re, har, col, 0x7FFFFF, dist, xn, yn, flarec)) {
 			if(!fullsample) {
-				fac= ((float)amount)/(float)re->params.osa;
+				fac= ((float)amount)/(float)osa;
 				accol[0]+= fac*col[0];
 				accol[1]+= fac*col[1];
 				accol[2]+= fac*col[2];
@@ -484,7 +485,7 @@ static void edge_enhance_tile(Render *re, RenderPart *pa, float *rectf, int *rec
 	
 }
 
-/******************************* Solid Shade *************************************/
+/************************* Solid and ZTransp Shade ****************************/
 
 static int pixel_row_compare(const void *a1, const void *a2)
 {
@@ -673,8 +674,6 @@ static void pixel_row_shade_lamphalo(Render *re, ShadeResult *samp_shr, ShadeSam
 		ShadeInput *shi= ssamp->shi;
 		float col[4];
 
-		printf("post lamphalo\n");
-
 		/* weak shadeinput setup */
 		memset(&shi->primitive, 0, sizeof(shi->primitive));
 		camera_raster_to_view(&re->cam, shi->geometry.view, x, y);
@@ -714,13 +713,6 @@ static void pixel_row_shade(Render *re, ShadeResult *samp_shr, ShadeSample *ssam
 
 	if((re->params.flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
 		pixel_row_shade_lamphalo(re, samp_shr, ssamp, osa, x, y);
-
-#if 0
-	if(layflag & SCE_LAY_SKY) {
-		pixel_row_shade_atmosphere(re, samp_shr, x, y);
-		pixel_row_shade_environment(re, samp_shr, x, y, ssamp->shi->shading.thread);
-	}
-#endif
 }
 
 static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr* APixbuf, APixstrand *APixbufstrand, ListBase *apsmbase, StrandShadeCache *sscache)
@@ -870,7 +862,7 @@ void render_rasterize_part(Render *re, RenderPart *pa)
 		if(rl->layflag & (SCE_LAY_SOLID|SCE_LAY_ZTRA|SCE_LAY_STRAND))
 			zbuf_rasterize(re, pa, rl, &psmlist, edgerect);
 
-		/* halo before ztra, because ztra fills in zbuffer now */
+		/* halo is now after solid and ztra */
 		if(re->params.flag & R_HALO)
 			if(rl->layflag & SCE_LAY_HALO)
 				halo_tile(re, pa, rl);
