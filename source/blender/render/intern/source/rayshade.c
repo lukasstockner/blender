@@ -1510,13 +1510,11 @@ static void ray_shadow_jittered_coords(Render *re, ShadeInput *shi, int max, flo
 	}
 }
 
-static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *lampco, float *shadfac, Isect *isec)
+static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *shadfac, Isect *isec)
 {
 	QMCSampler *qsa=NULL;
 	int samples=0;
-	float samp3d[3];
-
-	float fac=0.0f, vec[3], end[3];
+	float fac=0.0f, end[3];
 	float colsq[4];
 	float adapt_thresh = lar->adapt_thresh;
 	int min_adapt_samples=4, max_samples = lar->ray_totsamp;
@@ -1564,60 +1562,15 @@ static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *lam
 	
 	isec->hint = &bb_hint;
 	isec->skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
-	copy_v3_v3(vec, lampco);
 	
 	while (samples < max_samples) {
-
-		isec->orig.ob   = shi->primitive.obi;
-		isec->orig.face = shi->primitive.vlr;
-
-		/* manually jitter the start shading co-ord per sample
-		 * based on the pre-generated OSA texture sampling offsets, 
+		/* sample starting position. jitter the start shading coord per
+		 * sample based on the pre-generated OSA texture sampling offsets,
 		 * for anti-aliasing sharp shadow edges. */
 		co = jitco[samples % totjitco];
 
-		if (do_soft) {
-			float r[2];
-
-			sampler_get_float_2d(r, qsa, samples);
-
-			/* sphere shadow source */
-			if (lar->type == LA_LOCAL) {
-				float ru[3], rv[3], v[3], s[3];
-				
-				/* calc tangent plane vectors */
-				v[0] = co[0] - lampco[0];
-				v[1] = co[1] - lampco[1];
-				v[2] = co[2] - lampco[2];
-				normalize_v3(v);
-				ortho_basis_v3v3_v3( ru, rv,v);
-				
-				/* sampling, returns quasi-random vector in area_size disc */
-				sample_project_disc(samp3d, lar->area_size, r);
-
-				/* distribute disc samples across the tangent plane */
-				s[0] = samp3d[0]*ru[0] + samp3d[1]*rv[0];
-				s[1] = samp3d[0]*ru[1] + samp3d[1]*rv[1];
-				s[2] = samp3d[0]*ru[2] + samp3d[1]*rv[2];
-				
-				copy_v3_v3(samp3d, s);
-			}
-			else {
-				/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
-				sample_project_rect(samp3d, lar->area_size, lar->area_sizey, r);
-								
-				/* align samples to lamp vector */
-				mul_m3_v3(lar->mat, samp3d);
-			}
-			end[0] = vec[0]+samp3d[0];
-			end[1] = vec[1]+samp3d[1];
-			end[2] = vec[2]+samp3d[2];
-		} else {
-			copy_v3_v3(end, vec);
-		}
-
+		/* strands need some bias to avoid self intersection */
 		if(shi->primitive.strand) {
-			/* bias away somewhat to avoid self intersection */
 			float jitbias= 0.5f*(len_v3(shi->geometry.dxco) + len_v3(shi->geometry.dyco));
 			float v[3];
 
@@ -1629,10 +1582,21 @@ static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *lam
 			co[2] -= jitbias*v[2];
 		}
 
+		/* sample lamp position */
+		if (do_soft) {
+			float r[2];
+
+			sampler_get_float_2d(r, qsa, samples);
+			lamp_sample(end, lar, co, r);
+		}
+		else
+			lamp_sample(end, lar, co, NULL);
+
+		/* setup intersection */
+		isec->orig.ob = shi->primitive.obi;
+		isec->orig.face = shi->primitive.vlr;
 		copy_v3_v3(isec->start, co);
-		isec->vec[0] = end[0]-isec->start[0];
-		isec->vec[1] = end[1]-isec->start[1];
-		isec->vec[2] = end[2]-isec->start[2];
+		sub_v3_v3v3(isec->vec, end, isec->start);
 		isec->labda = 1.0f; // * normalize_v3(isec->vec);
 		
 		/* trace the ray */
@@ -1690,7 +1654,6 @@ static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *lam
 void ray_shadow(Render *re, ShadeInput *shi, LampRen *lar, float *shadfac)
 {
 	Isect isec;
-	float lampco[3];
 
 	/* setup isec */
 	RE_RC_INIT(isec, *shi);
@@ -1711,29 +1674,7 @@ void ray_shadow(Render *re, ShadeInput *shi, LampRen *lar, float *shadfac)
 		isec.last_hit = NULL;
 	}
 	
-	if(lar->type==LA_SUN || lar->type==LA_HEMI) {
-		/* jitter and QMC sampling add a displace vector to the lamp position
-		 * that's incorrect because a SUN lamp does not has an exact position
-		 * and the displace should be done at the ray vector instead of the
-		 * lamp position.
-		 * This is easily verified by noticing that shadows of SUN lights change
-		 * with the scene BB.
-		 * 
-		 * This was detected during SoC 2009 - Raytrace Optimization, but to keep
-		 * consistency with older render code it wasn't removed.
-		 * 
-		 * If the render code goes through some recode/serious bug-fix then this
-		 * is something to consider!
-		 */
-		lampco[0]= shi->geometry.co[0] - re->db.maxdist*lar->vec[0];
-		lampco[1]= shi->geometry.co[1] - re->db.maxdist*lar->vec[1];
-		lampco[2]= shi->geometry.co[2] - re->db.maxdist*lar->vec[2];
-	}
-	else {
-		copy_v3_v3(lampco, lar->co);
-	}
-	
-	ray_shadow_qmc(re, shi, lar, lampco, shadfac, &isec);
+	ray_shadow_qmc(re, shi, lar, shadfac, &isec);
 	
 	/* for first hit optim, set last interesected shadow face */
 	if(shi->shading.depth==0) {

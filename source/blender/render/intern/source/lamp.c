@@ -566,35 +566,44 @@ void lamp_sample(float lco[3], LampRen *lar, float co[3], float r[2])
 
 	switch(lar->type) {
 		case LA_LOCAL: {
-			/* sphere shadow source */
-			float ru[3], rv[3], v[3], s[3], disc[3];
-			
-			/* calc tangent plane vectors */
-			v[0] = co[0] - lar->co[0];
-			v[1] = co[1] - lar->co[1];
-			v[2] = co[2] - lar->co[2];
-			normalize_v3(v);
-			ortho_basis_v3v3_v3(ru, rv, v);
-			
-			/* sampling, returns quasi-random vector in area_size disc */
-			sample_project_disc(disc, lar->area_size, r);
+			if(r) {
+				/* sphere shadow source */
+				float ru[3], rv[3], v[3], s[3], disc[3];
+				
+				/* calc tangent plane vectors */
+				v[0] = co[0] - lar->co[0];
+				v[1] = co[1] - lar->co[1];
+				v[2] = co[2] - lar->co[2];
+				normalize_v3(v);
+				ortho_basis_v3v3_v3(ru, rv, v);
+				
+				/* sampling, returns quasi-random vector in area_size disc */
+				sample_project_disc(disc, lar->area_size, r);
 
-			/* distribute disc samples across the tangent plane */
-			s[0] = disc[0]*ru[0] + disc[1]*rv[0];
-			s[1] = disc[0]*ru[1] + disc[1]*rv[1];
-			s[2] = disc[0]*ru[2] + disc[1]*rv[2];
-			
-			copy_v3_v3(lco, s);
+				/* distribute disc samples across the tangent plane */
+				s[0] = disc[0]*ru[0] + disc[1]*rv[0];
+				s[1] = disc[0]*ru[1] + disc[1]*rv[1];
+				s[2] = disc[0]*ru[2] + disc[1]*rv[2];
+				
+				add_v3_v3v3(lco, lar->co, s);
+			}
+			else
+				copy_v3_v3(lco, lar->co);
 			break;
 		}
 		case LA_AREA: {
-			float rect[3];
+			if(r) {
+				float rect[3], s[3];
 
-			/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
-			sample_project_rect(rect, lar->area_size, lar->area_sizey, r);
+				/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
+				sample_project_rect(rect, lar->area_size, lar->area_sizey, r);
 
-			/* align samples to lamp vector */
-			mul_v3_m3v3(lco, lar->mat, rect);
+				/* align samples to lamp vector */
+				mul_v3_m3v3(s, lar->mat, rect);
+				add_v3_v3v3(lco, lar->co, s);
+			}
+			else
+				copy_v3_v3(lco, lar->co);
 			break;
 		}
 		default: {
