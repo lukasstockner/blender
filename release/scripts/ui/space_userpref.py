@@ -1053,10 +1053,12 @@ class USERPREF_PT_input(bpy.types.Panel):
         row = col.row()
         row.prop(km, "children_expanded", text="", no_bg=True)
         row.label(text=km.name)
-
+        
         row.label()
         row.label()
 
+        if km.modal:
+            row.label(text="", icon='LINKED')
         if km.user_defined:
             row.operator("wm.keymap_restore", text="Restore")
         else:
@@ -1095,6 +1097,8 @@ class USERPREF_PT_input(bpy.types.Panel):
                     self.draw_entry(kc, entry, col, level + 1)
 
     def draw_kmi(self, kc, km, kmi, layout, level):
+        # reset keymap pointer, it might get changed by modal keymaps added after keymap items
+        layout.set_context_pointer("keymap", km)
         layout.set_context_pointer("keyitem", kmi)
 
         col = self.indented_layout(layout, level)
@@ -1468,6 +1472,8 @@ class WM_OT_keyconfig_export(bpy.types.Operator):
     bl_label = "Export Key Configuration..."
 
     path = bpy.props.StringProperty(name="File Path", description="File path to write file to.")
+    filename = bpy.props.StringProperty(name="File Name", description="Name of the file.")
+    directory = bpy.props.StringProperty(name="Directory", description="Directory of the file.")
     filter_folder = bpy.props.BoolProperty(name="Filter folders", description="", default=True)
     filter_text = bpy.props.BoolProperty(name="Filter text", description="", default=True)
     filter_python = bpy.props.BoolProperty(name="Filter python", description="", default=True)

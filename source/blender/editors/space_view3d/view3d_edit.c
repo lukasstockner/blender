@@ -453,7 +453,7 @@ enum {
 void viewrotate_modal_keymap(wmKeyConfig *keyconf)
 {
 	static EnumPropertyItem modal_items[] = {
-	{VIEW_MODAL_CONFIRM,	"CONFIRM", 0, "Cancel", ""},
+	{VIEW_MODAL_CONFIRM,	"CONFIRM", 0, "Confirm", ""},
 
 	{VIEWROT_MODAL_AXIS_SNAP_ENABLE,	"AXIS_SNAP_ENABLE", 0, "Enable Axis Snap", ""},
 	{VIEWROT_MODAL_AXIS_SNAP_DISABLE,	"AXIS_SNAP_DISABLE", 0, "Disable Axis Snap", ""},
@@ -1046,10 +1046,7 @@ static int viewzoom_modal(bContext *C, wmOperator *op, wmEvent *event)
 	short event_code= VIEW_PASS;
 
 	/* execute the events */
-	if (event->type == TIMER && event->customdata == vod->timer) {
-		event_code= VIEW_APPLY;
-	}
-	else if(event->type==MOUSEMOVE) {
+	if(event->type==MOUSEMOVE) {
 		event_code= VIEW_APPLY;
 	}
 	else if(event->type==EVT_MODAL_MAP) {
@@ -1167,9 +1164,6 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			return OPERATOR_FINISHED;
 		}
 		else {
-			vod->timer= WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
-			vod->timer_lastdraw= PIL_check_seconds_timer();
-
 			/* add temp handler */
 			WM_event_add_modal_handler(C, op);
 

@@ -83,13 +83,15 @@ class INFO_MT_file(bpy.types.Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_AREA'
-        layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK')
+        layout.operator("wm.save_mainfile", text="Save", icon='FILE_TICK').check_existing = False
         layout.operator_context = 'INVOKE_AREA'
         layout.operator("wm.save_as_mainfile", text="Save As...")
 
         layout.separator()
 
         layout.operator("screen.userpref_show", text="User Preferences...", icon='PREFERENCES')
+        
+        layout.operator_context = 'EXEC_AREA'
         layout.operator("wm.read_homefile", text="Load Factory Settings").factory = True
 
         layout.separator()

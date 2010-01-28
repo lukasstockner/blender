@@ -115,6 +115,17 @@ void uiTemplateDopeSheetFilter(uiLayout *layout, bContext *C, PointerRNA *ptr)
 		uiItemR(row, "", 0, ptr, "display_armature", 0);
 	if (mainptr && mainptr->particle.first)
 		uiItemR(row, "", 0, ptr, "display_particle", 0);
+	
+	/* group-based filtering (only when groups are available */
+	if (mainptr && mainptr->group.first) {
+		row= uiLayoutRow(layout, 1);
+		
+		uiItemR(row, "", 0, ptr, "only_group_objects", 0);
+		
+		/* if enabled, show the group selection field too */
+		if (RNA_boolean_get(ptr, "only_group_objects"))
+			uiItemR(row, "", 0, ptr, "filtering_group", 0);
+	}
 }
 
 /********************** Search Callbacks *************************/
@@ -349,8 +360,9 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 		but= uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X*1.6, UI_UNIT_Y, "Browse ID data");
 		if(type) {
 			but->icon= RNA_struct_ui_icon(type);
-			but->flag|= UI_HAS_ICON;
-			but->flag|= UI_ICON_LEFT;
+			/* default dragging of icon for id browse buttons */
+			uiButSetDragID(but, id);
+			uiButSetFlag(but, UI_HAS_ICON|UI_ICON_LEFT);
 		}
 
 		if((idfrom && idfrom->lib))
@@ -603,9 +615,10 @@ void uiTemplatePathBuilder(uiLayout *layout, bContext *C, PointerRNA *ptr, char 
 
 static void modifiers_setOnCage(bContext *C, void *ob_v, void *md_v)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob = ob_v;
 	ModifierData *md= md_v;
-	int i, cageIndex = modifiers_getCageIndex(ob, NULL, 0);
+	int i, cageIndex = modifiers_getCageIndex(scene, ob, NULL, 0);
 
 	/* undo button operation */
 	md->mode ^= eModifierMode_OnCage;
@@ -653,7 +666,7 @@ static int modifier_can_delete(ModifierData *md)
 	return 1;
 }
 
-static uiLayout *draw_modifier(uiLayout *layout, Object *ob, ModifierData *md, int index, int cageIndex, int lastCageIndex, int compact)
+static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob, ModifierData *md, int index, int cageIndex, int lastCageIndex, int compact)
 {
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	PointerRNA ptr;
@@ -747,7 +760,7 @@ static uiLayout *draw_modifier(uiLayout *layout, Object *ob, ModifierData *md, i
 			if (mti->flags & eModifierTypeFlag_SupportsEditmode)
 				uiItemR(row, "", 0, &ptr, "editmode", 0);
 		}
-		if ((ob->type==OB_MESH) && modifier_couldBeCage(md) && (index <= lastCageIndex)) 
+		if ((ob->type==OB_MESH) && modifier_couldBeCage(scene, md) && (index <= lastCageIndex)) 
 		{
 			/* -- convert to rna ? */
 			but = uiDefIconButBitI(block, TOG, eModifierMode_OnCage, 0, ICON_MESH_DATA, 0, 0, 16, 20, &md->mode, 0.0, 0.0, 0.0, 0.0, "Apply modifier to editing cage during Editmode");
@@ -785,8 +798,10 @@ static uiLayout *draw_modifier(uiLayout *layout, Object *ob, ModifierData *md, i
 			if (md->type==eModifierType_ParticleSystem) {
 		    	ParticleSystem *psys= ((ParticleSystemModifierData *)md)->psys;
 				
-	    		if (!(ob->mode & OB_MODE_PARTICLE_EDIT)) {
-					if(ELEM3(psys->part->ren_as, PART_DRAW_PATH, PART_DRAW_GR, PART_DRAW_OB) && psys->pathcache)
+	    		if (!(ob->mode & OB_MODE_PARTICLE_EDIT) && psys->pathcache) {
+					if(ELEM(psys->part->ren_as, PART_DRAW_GR, PART_DRAW_OB))
+						uiItemO(row, "Convert", 0, "OBJECT_OT_duplicates_make_real");
+					else if(psys->part->ren_as == PART_DRAW_PATH)
 						uiItemO(row, "Convert", 0, "OBJECT_OT_modifier_convert");
 				}
 			}
@@ -819,8 +834,9 @@ static uiLayout *draw_modifier(uiLayout *layout, Object *ob, ModifierData *md, i
 	return result;
 }
 
-uiLayout *uiTemplateModifier(uiLayout *layout, PointerRNA *ptr, int compact)
+uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr, int compact)
 {
+	Scene *scene = CTX_data_scene(C);
 	Object *ob;
 	ModifierData *md, *vmd;
 	int i, lastCageIndex, cageIndex;
@@ -842,14 +858,14 @@ uiLayout *uiTemplateModifier(uiLayout *layout, PointerRNA *ptr, int compact)
 	uiBlockSetButLock(uiLayoutGetBlock(layout), (ob && ob->id.lib), ERROR_LIBDATA_MESSAGE);
 	
 	/* find modifier and draw it */
-	cageIndex = modifiers_getCageIndex(ob, &lastCageIndex, 0);
+	cageIndex = modifiers_getCageIndex(scene, ob, &lastCageIndex, 0);
 
 	// XXX virtual modifiers are not accesible for python
 	vmd = modifiers_getVirtualModifierList(ob);
 
 	for(i=0; vmd; i++, vmd=vmd->next) {
 		if(md == vmd)
-			return draw_modifier(layout, ob, md, i, cageIndex, lastCageIndex, compact);
+			return draw_modifier(layout, scene, ob, md, i, cageIndex, lastCageIndex, compact);
 		else if(vmd->mode & eModifierMode_Virtual)
 			i--;
 	}
@@ -1949,26 +1965,29 @@ void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, char *propname, i
 
 #define WHEEL_SIZE	100
 
-void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, char *propname, int value_slider)
+void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, char *propname, int value_slider, int lock)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	uiBlock *block= uiLayoutGetBlock(layout);
 	uiLayout *col, *row;
+	float softmin, softmax, step, precision;
 	
 	if (!prop) {
 		printf("uiTemplateColorWheel: property not found: %s\n", propname);
 		return;
 	}
 	
+	RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
+	
 	col = uiLayoutColumn(layout, 0);
 	row= uiLayoutRow(col, 1);
 	
-	uiDefButR(block, HSVCIRCLE, 0, "",	0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, propname, -1, 0.0, 0.0, 0, 0, "");
+	uiDefButR(block, HSVCIRCLE, 0, "",	0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, propname, -1, 0.0, 0.0, 0, lock, "");
 	
 	uiItemS(row);
 	
 	if (value_slider)
-		uiDefButR(block, HSVCUBE, 0, "", WHEEL_SIZE+6, 0, 14, WHEEL_SIZE, ptr, propname, -1, 0.0, 0.0, 9, 0, "");
+		uiDefButR(block, HSVCUBE, 0, "", WHEEL_SIZE+6, 0, 14, WHEEL_SIZE, ptr, propname, -1, softmin, softmax, 9, 0, "");
 
 	/* maybe a switch for this?
 	row= uiLayoutRow(col, 0);
@@ -2200,7 +2219,7 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		uiBlockSetEmboss(block, UI_EMBOSS);
 	}
 	else
-		uiItemL(sub, name, icon);
+		uiItemLDrag(sub, itemptr, name, icon); /* fails, backdrop LISTROW... */
 
 	/* free name */
 	if(namebuf)
@@ -2284,6 +2303,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propna
 				icon= list_item_icon_get(C, &itemptr, rnaicon);
 				but= uiDefIconButR(block, LISTROW, 0, icon, 0,0,UI_UNIT_X*10,UI_UNIT_Y, activeptr, activepropname, 0, 0, i, 0, 0, "");
 				uiButSetFlag(but, UI_BUT_NO_TOOLTIP);
+				
 
 				i++;
 			}

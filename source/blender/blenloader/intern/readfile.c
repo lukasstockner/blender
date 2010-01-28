@@ -4536,6 +4536,7 @@ static void direct_link_windowmanager(FileData *fd, wmWindowManager *wm)
 	wm->defaultconf= NULL;
 
 	wm->jobs.first= wm->jobs.last= NULL;
+	wm->drags.first= wm->drags.last= NULL;
 	
 	wm->windrawable= NULL;
 	wm->initialized= 0;
@@ -4632,7 +4633,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 				for (sl= sa->spacedata.first; sl; sl= sl->next) {
 					if(sl->spacetype==SPACE_VIEW3D) {
 						View3D *v3d= (View3D*) sl;
-						BGpic *bgpic;
+						BGpic *bgpic = NULL;
 						
 						v3d->camera= newlibadr(fd, sc->id.lib, v3d->camera);
 						v3d->ob_centre= newlibadr(fd, sc->id.lib, v3d->ob_centre);
@@ -4653,9 +4654,12 @@ static void lib_link_screen(FileData *fd, Main *main)
 					}
 					else if(sl->spacetype==SPACE_IPO) {
 						SpaceIpo *sipo= (SpaceIpo *)sl;
+						bDopeSheet *ads= sipo->ads;
 						
-						if(sipo->ads)
-							sipo->ads->source= newlibadr(fd, sc->id.lib, sipo->ads->source);
+						if (ads) {
+							ads->source= newlibadr(fd, sc->id.lib, ads->source);
+							ads->filter_grp= newlibadr(fd, sc->id.lib, ads->filter_grp);
+						}
 					}
 					else if(sl->spacetype==SPACE_BUTS) {
 						SpaceButs *sbuts= (SpaceButs *)sl;
@@ -4686,8 +4690,14 @@ static void lib_link_screen(FileData *fd, Main *main)
 					}
 					else if(sl->spacetype==SPACE_ACTION) {
 						SpaceAction *saction= (SpaceAction *)sl;
+						bDopeSheet *ads= &saction->ads;
+						
+						if (ads) {
+							ads->source= newlibadr(fd, sc->id.lib, ads->source);
+							ads->filter_grp= newlibadr(fd, sc->id.lib, ads->filter_grp);
+						}
+						
 						saction->action = newlibadr(fd, sc->id.lib, saction->action);
-						saction->ads.source= newlibadr(fd, sc->id.lib, saction->ads.source);
 					}
 					else if(sl->spacetype==SPACE_IMAGE) {
 						SpaceImage *sima= (SpaceImage *)sl;
@@ -4695,7 +4705,13 @@ static void lib_link_screen(FileData *fd, Main *main)
 						sima->image= newlibadr_us(fd, sc->id.lib, sima->image);
 					}
 					else if(sl->spacetype==SPACE_NLA){
-						/* SpaceNla *snla= (SpaceNla *)sl;	*/
+						SpaceNla *snla= (SpaceNla *)sl;
+						bDopeSheet *ads= snla->ads;
+						
+						if (ads) {
+							ads->source= newlibadr(fd, sc->id.lib, ads->source);
+							ads->filter_grp= newlibadr(fd, sc->id.lib, ads->filter_grp);
+						}
 					}
 					else if(sl->spacetype==SPACE_TEXT) {
 						SpaceText *st= (SpaceText *)sl;
@@ -4807,10 +4823,14 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 	
 	
 	for(sc= newmain->screen.first; sc; sc= sc->id.next) {
-		
+		Scene *oldscene= sc->scene;
+
 		sc->scene= restore_pointer_by_name(newmain, (ID *)sc->scene, 1);
 		if(sc->scene==NULL)
 			sc->scene= curscene;
+
+		/* keep cursor location through undo */
+		copy_v3_v3(sc->scene->cursor, oldscene->cursor);
 
 		sa= sc->areabase.first;
 		while(sa) {
@@ -4854,20 +4874,15 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					
 				}
 				else if(sl->spacetype==SPACE_IPO) {
-					/* XXX animato */
-#if 0
 					SpaceIpo *sipo= (SpaceIpo *)sl;
-
-					sipo->ipo= restore_pointer_by_name(newmain, (ID *)sipo->ipo, 0);
-					if(sipo->blocktype==ID_SEQ) 
-						sipo->from= (ID *)find_sequence_from_ipo_helper(newmain, sipo->ipo);
-					else 
-						sipo->from= restore_pointer_by_name(newmain, (ID *)sipo->from, 0);
+					bDopeSheet *ads= sipo->ads;
 					
-					// not free sipo->ipokey, creates dependency with src/
-					if(sipo->editipo) MEM_freeN(sipo->editipo);
-					sipo->editipo= NULL;
-#endif
+					if (ads) {
+						ads->source= restore_pointer_by_name(newmain, (ID *)ads->source, 1);
+						
+						if (ads->filter_grp)
+							ads->filter_grp= restore_pointer_by_name(newmain, (ID *)ads->filter_grp, 0);
+					}
 				}
 				else if(sl->spacetype==SPACE_BUTS) {
 					SpaceButs *sbuts= (SpaceButs *)sl;
@@ -4891,8 +4906,12 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 				}
 				else if(sl->spacetype==SPACE_ACTION) {
 					SpaceAction *saction= (SpaceAction *)sl;
+					
 					saction->action = restore_pointer_by_name(newmain, (ID *)saction->action, 1);
 					saction->ads.source= restore_pointer_by_name(newmain, (ID *)saction->ads.source, 1);
+
+					if (saction->ads.filter_grp)
+						saction->ads.filter_grp= restore_pointer_by_name(newmain, (ID *)saction->ads.filter_grp, 0);
 				}
 				else if(sl->spacetype==SPACE_IMAGE) {
 					SpaceImage *sima= (SpaceImage *)sl;
@@ -4900,7 +4919,15 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					sima->image= restore_pointer_by_name(newmain, (ID *)sima->image, 1);
 				}
 				else if(sl->spacetype==SPACE_NLA){
-					/* SpaceNla *snla= (SpaceNla *)sl;	*/
+					SpaceNla *snla= (SpaceNla *)sl;
+					bDopeSheet *ads= snla->ads;
+					
+					if (ads) {
+						ads->source= restore_pointer_by_name(newmain, (ID *)ads->source, 1);
+						
+						if (ads->filter_grp)
+							ads->filter_grp= restore_pointer_by_name(newmain, (ID *)ads->filter_grp, 0);
+					}
 				}
 				else if(sl->spacetype==SPACE_TEXT) {
 					SpaceText *st= (SpaceText *)sl;
@@ -6169,7 +6196,13 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				/* init mainarea view2d */
 				ar->v2d.scroll |= (V2D_SCROLL_BOTTOM|V2D_SCROLL_SCALE_HORIZONTAL);
 				ar->v2d.scroll |= (V2D_SCROLL_LEFT|V2D_SCROLL_SCALE_VERTICAL);
-								
+				
+				ar->v2d.min[0]= FLT_MIN;
+				ar->v2d.min[1]= FLT_MIN;
+				
+				ar->v2d.max[0]= MAXFRAMEF;
+				ar->v2d.max[1]= FLT_MAX;
+				
 				//ar->v2d.flag |= V2D_IS_INITIALISED;
 				break;
 			}
@@ -6188,6 +6221,9 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 				SpaceNla *snla= (SpaceNla *)sl;
 				memcpy(&ar->v2d, &snla->v2d, sizeof(View2D));
 				
+				ar->v2d.tot.ymin= (float)(-sa->winy)/3.0f;
+				ar->v2d.tot.ymax= 0.0f;
+				
 				ar->v2d.scroll |= (V2D_SCROLL_BOTTOM|V2D_SCROLL_SCALE_HORIZONTAL);
 				ar->v2d.scroll |= (V2D_SCROLL_RIGHT);
 				ar->v2d.align = V2D_ALIGN_NO_POS_Y;
@@ -6198,7 +6234,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
 			{
 				/* we totally reinit the view for the Action Editor, as some old instances had some weird cruft set */
 				ar->v2d.tot.xmin= -20.0f;
-				ar->v2d.tot.ymin= (float)(-sa->winy);
+				ar->v2d.tot.ymin= (float)(-sa->winy)/3.0f;
 				ar->v2d.tot.xmax= (float)((sa->winx > 120)? (sa->winx) : 120);
 				ar->v2d.tot.ymax= 0.0f;
 				
@@ -6208,7 +6244,7 @@ static void area_add_window_regions(ScrArea *sa, SpaceLink *sl, ListBase *lb)
  				ar->v2d.min[1]= 0.0f;
 				
 				ar->v2d.max[0]= MAXFRAMEF;
- 				ar->v2d.max[1]= 10000.0f;
+ 				ar->v2d.max[1]= FLT_MAX;
 			 	
 				ar->v2d.minzoom= 0.01f;
 				ar->v2d.maxzoom= 50;
@@ -6449,6 +6485,34 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 	for(la= main->lamp.first; la; la= la->id.next)
 		if(la->ray_samp_method == LA_SAMP_CONSTANT)
 			la->ray_samp_method= LA_SAMP_HAMMERSLEY;
+}
+
+static void do_version_constraints_radians_degrees_250(ListBase *lb)
+{
+	bConstraint *con;
+
+	for	(con=lb->first; con; con=con->next) {
+		if(con->type==CONSTRAINT_TYPE_RIGIDBODYJOINT) {
+			bRigidBodyJointConstraint *data = con->data;
+			data->axX *= M_PI/180.0;
+			data->axY *= M_PI/180.0;
+			data->axZ *= M_PI/180.0;
+		}
+		else if(con->type==CONSTRAINT_TYPE_KINEMATIC) {
+			bKinematicConstraint *data = con->data;
+			data->poleangle *= M_PI/180.0;
+		}
+		else if(con->type==CONSTRAINT_TYPE_ROTLIMIT) {
+			bRotLimitConstraint *data = con->data;
+
+			data->xmin *= M_PI/180.0;
+			data->xmax *= M_PI/180.0;
+			data->ymin *= M_PI/180.0;
+			data->ymax *= M_PI/180.0;
+			data->zmin *= M_PI/180.0;
+			data->zmax *= M_PI/180.0;
+		}
+	}
 }
 
 static void do_versions(FileData *fd, Library *lib, Main *main)
@@ -7769,10 +7833,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 			if(ob->soft && ob->soft->vertgroup==0) {
-				bDeformGroup *locGroup = get_named_vertexgroup(ob, "SOFTGOAL");
+				bDeformGroup *locGroup = defgroup_find_name(ob, "SOFTGOAL");
 				if(locGroup){
 					/* retrieve index for that group */
-					ob->soft->vertgroup =  1 + get_defgroup_num(ob, locGroup); 
+					ob->soft->vertgroup =  1 + defgroup_find_index(ob, locGroup); 
 				}
 			}
 		}
@@ -8458,7 +8522,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			for(curdef= ob->defbase.first; curdef; curdef=curdef->next) {
 				/* replace an empty-string name with unique name */
 				if (curdef->name[0] == '\0') {
-					unique_vertexgroup_name(curdef, ob);
+					defgroup_unique_name(curdef, ob);
 				}
 			}
 
@@ -10494,14 +10558,100 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		
 	}
 	
+	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 13)) {
+		/* NOTE: if you do more conversion, be sure to do it outside of this and
+		   increase subversion again, otherwise it will not be correct */
+		Object *ob;
+		
+		/* convert degrees to radians for internal use */
+		for (ob=main->object.first; ob; ob=ob->id.next) {
+			bPoseChannel *pchan;
+
+			do_version_constraints_radians_degrees_250(&ob->constraints);
+
+			if (ob->pose) {
+				for (pchan=ob->pose->chanbase.first; pchan; pchan=pchan->next) {
+					pchan->limitmin[0] *= M_PI/180.0;
+					pchan->limitmin[1] *= M_PI/180.0;
+					pchan->limitmin[2] *= M_PI/180.0;
+					pchan->limitmax[0] *= M_PI/180.0;
+					pchan->limitmax[1] *= M_PI/180.0;
+					pchan->limitmax[2] *= M_PI/180.0;
+
+					do_version_constraints_radians_degrees_250(&pchan->constraints);
+				}
+			}
+		}
+	}
 	
+	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 14)) {
+		/* fix for bad View2D extents for Animation Editors */
+		bScreen *screen;
+		ScrArea *sa;
+		SpaceLink *sl;
+		
+		for (screen= main->screen.first; screen; screen= screen->id.next) {
+			for (sa= screen->areabase.first; sa; sa= sa->next) {
+				for (sl= sa->spacedata.first; sl; sl= sl->next) {
+					ListBase *regionbase;
+					ARegion *ar;
+					
+					if (sl == sa->spacedata.first)
+						regionbase = &sa->regionbase;
+					else
+						regionbase = &sl->regionbase;
+						
+					if (ELEM(sl->spacetype, SPACE_ACTION, SPACE_NLA)) {
+						for (ar = (ARegion*)regionbase->first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_WINDOW) {
+								ar->v2d.cur.ymax= ar->v2d.tot.ymax= 0.0f;
+								ar->v2d.cur.ymin= ar->v2d.tot.ymin= (float)(-sa->winy) / 3.0f;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	
+	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 15)) {
+		World *wo;
+		Material *ma;
+
+		/* ambient default from 0.5f to 1.0f */
+		for(ma= main->mat.first; ma; ma=ma->id.next)
+			ma->amb *= 2.0f;
+
+		for(wo= main->world.first; wo; wo=wo->id.next) {
+			/* ao splitting into ao/env/indirect */
+			wo->ao_env_energy= wo->aoenergy;
+			wo->aoenergy= 1.0f;
+
+			if(wo->ao_indirect_bounces == 0)
+				wo->ao_indirect_bounces= 1;
+			else
+				wo->mode |= WO_INDIRECT_LIGHT;
+
+			if(wo->aomix == WO_AOSUB)
+				wo->ao_env_energy= -wo->ao_env_energy;
+			else if(wo->aomix == WO_AOADDSUB)
+				wo->mode |= WO_AMB_OCC;
+
+			wo->aomix= WO_AOMUL;
+
+			/* ambient default from 0.5f to 1.0f */
+			mul_v3_fl(&wo->ambr, 0.5f);
+			wo->ao_env_energy *= 0.5f;
+		}
+	}
+
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
 		do_version_shading_sys_250(fd, lib, main);
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
-	/* WATCH IT 2!: Userdef struct init has to be in src/usiblender.c! */
+	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 
 	/* don't forget to set version number in blender.c! */
 }
@@ -11918,7 +12068,7 @@ static void library_append_end(const bContext *C, Main *mainl, FileData **fd, in
 	Main *mainvar= CTX_data_main(C);
 	Scene *scene= CTX_data_scene(C);
 
-	/* make main consistant */
+	/* make main consistent */
 	expand_main(*fd, mainl);
 
 	/* do this when expand found other libs */

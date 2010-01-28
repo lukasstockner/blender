@@ -100,6 +100,9 @@ int shade_result_accumulate(ShadeResult *samp_shr, ShadeSample *ssamp, int tot, 
 					if(passflag & SCE_PASS_NORMAL)
 						madd_v3_v3fl(samp_shr->nor, shr->nor, fac);
 
+					if(passflag & SCE_PASS_EMIT)
+						madd_v3_v3fl(samp_shr->emit, shr->emit, fac);
+
 					if(passflag & SCE_PASS_DIFFUSE)
 						madd_v3_v3fl(samp_shr->diff, shr->diff, fac);
 					
@@ -111,6 +114,12 @@ int shade_result_accumulate(ShadeResult *samp_shr, ShadeSample *ssamp, int tot, 
 
 					if(passflag & SCE_PASS_AO)
 						madd_v3_v3fl(samp_shr->ao, shr->ao, fac);
+
+					if(passflag & SCE_PASS_ENVIRONMENT)
+						madd_v3_v3fl(samp_shr->env, shr->env, fac);
+
+					if(passflag & SCE_PASS_INDIRECT)
+						madd_v3_v3fl(samp_shr->indirect, shr->indirect, fac);
 
 					if(passflag & SCE_PASS_REFLECT)
 						madd_v3_v3fl(samp_shr->refl, shr->refl, fac);
@@ -185,6 +194,8 @@ void shade_result_interpolate(ShadeResult *shr, ShadeResult *shr1, ShadeResult *
 			interpolate_vec3(shr1->nor, shr2->nor, t, negt, shr->nor);
 			normalize_v3(shr->nor);
 		}
+		if(passflag & SCE_PASS_EMIT)
+			interpolate_vec3(shr1->emit, shr2->emit, t, negt, shr->emit);
 		if(passflag & SCE_PASS_DIFFUSE)
 			interpolate_vec3(shr1->diff, shr2->diff, t, negt, shr->diff);
 		if(passflag & SCE_PASS_SPEC)
@@ -193,6 +204,10 @@ void shade_result_interpolate(ShadeResult *shr, ShadeResult *shr1, ShadeResult *
 			interpolate_vec3(shr1->shad, shr2->shad, t, negt, shr->shad);
 		if(passflag & SCE_PASS_AO)
 			interpolate_vec3(shr1->ao, shr2->ao, t, negt, shr->ao);
+		if(passflag & SCE_PASS_ENVIRONMENT)
+			interpolate_vec3(shr1->env, shr2->env, t, negt, shr->env);
+		if(passflag & SCE_PASS_INDIRECT)
+			interpolate_vec3(shr1->indirect, shr2->indirect, t, negt, shr->indirect);
 		if(passflag & SCE_PASS_REFLECT)
 			interpolate_vec3(shr1->refl, shr2->refl, t, negt, shr->refl);
 		if(passflag & SCE_PASS_REFRACT)
@@ -227,6 +242,9 @@ static void shade_result_merge(ShadeResult *shr, RenderLayer *rl, int tot)
 				col= shr->col;
 				pixsize= 4;
 				break;
+			case SCE_PASS_EMIT:
+				col= shr->emit;
+				break;
 			case SCE_PASS_DIFFUSE:
 				col= shr->diff;
 				break;
@@ -238,6 +256,12 @@ static void shade_result_merge(ShadeResult *shr, RenderLayer *rl, int tot)
 				break;
 			case SCE_PASS_AO:
 				col= shr->ao;
+				break;
+			case SCE_PASS_ENVIRONMENT:
+				col= shr->env;
+				break;
+			case SCE_PASS_INDIRECT:
+				col= shr->indirect;
 				break;
 			case SCE_PASS_REFLECT:
 				col= shr->refl;
@@ -317,6 +341,9 @@ static void shade_result_to_layer(Render *re, RenderLayer *rl, int offset, int m
 				col= shr->col;
 				pixsize= 4;
 				break;
+			case SCE_PASS_EMIT:
+				col= shr->emit;
+				break;
 			case SCE_PASS_DIFFUSE:
 				col= shr->diff;
 				break;
@@ -328,6 +355,12 @@ static void shade_result_to_layer(Render *re, RenderLayer *rl, int offset, int m
 				break;
 			case SCE_PASS_AO:
 				col= shr->ao;
+				break;
+			case SCE_PASS_ENVIRONMENT:
+				col= shr->env;
+				break;
+			case SCE_PASS_INDIRECT:
+				col= shr->indirect;
 				break;
 			case SCE_PASS_REFLECT:
 				col= shr->refl;
@@ -404,7 +437,7 @@ static void shade_result_to_layer(Render *re, RenderLayer *rl, int offset, int m
 void shade_result_to_part(Render *re, RenderPart *pa, RenderLayer *rl, int offs, ShadeResult *shr)
 {
 	RenderResult *rr= pa->result;
-	int a, addpassflag= rl->passflag & ~(SCE_PASS_COMBINED);
+	int a, passflag= rl->passflag & ~(SCE_PASS_COMBINED);
 	int osa= (re->params.osa)? re->params.osa: 1;
 	/* previously solid was filtered but transp not... */
 	int filter_passes = 1;
@@ -418,7 +451,7 @@ void shade_result_to_part(Render *re, RenderPart *pa, RenderLayer *rl, int offs,
 			if(alpha > 0.0f) {
 				copy_v4_v4(rl->rectf + 4*offs, shr[a].combined);
 
-				if(addpassflag)
+				if(passflag)
 					shade_result_to_layer(re, rl, offs, 0, a, osa, &shr[a]);
 			}
 		}
@@ -433,7 +466,7 @@ void shade_result_to_part(Render *re, RenderPart *pa, RenderLayer *rl, int offs,
 			alpha+= shr[a].combined[3];
 		}
 		
-		if(addpassflag && alpha > 0.0f) {
+		if(passflag && alpha > 0.0f) {
 			if(filter_passes) {
 				/* add each shade result individually filtered */
 				for(a=0; a<osa; a++)
@@ -601,6 +634,12 @@ static char *get_pass_name(int passtype, int channel)
 		if(channel==2) return "Color.B";
 		return "Color.A";
 	}
+	if(passtype == SCE_PASS_EMIT) {
+		if(channel==-1) return "Emit";
+		if(channel==0) return "Emit.R";
+		if(channel==1) return "Emit.G";
+		return "Emit.B";
+	}
 	if(passtype == SCE_PASS_DIFFUSE) {
 		if(channel==-1) return "Diffuse";
 		if(channel==0) return "Diffuse.R";
@@ -624,6 +663,18 @@ static char *get_pass_name(int passtype, int channel)
 		if(channel==0) return "AO.R";
 		if(channel==1) return "AO.G";
 		return "AO.B";
+	}
+	if(passtype == SCE_PASS_ENVIRONMENT) {
+		if(channel==-1) return "Environment";
+		if(channel==0) return "Environment.R";
+		if(channel==1) return "Environment.G";
+		return "Environment.B";
+	}
+	if(passtype == SCE_PASS_INDIRECT) {
+		if(channel==-1) return "Indirect";
+		if(channel==0) return "Indirect.R";
+		if(channel==1) return "Indirect.G";
+		return "Indirect.B";
 	}
 	if(passtype == SCE_PASS_REFLECT) {
 		if(channel==-1) return "Reflect";
@@ -682,6 +733,9 @@ static int passtype_from_name(char *str)
 	if(strcmp(str, "Color")==0)
 		return SCE_PASS_RGBA;
 
+	if(strcmp(str, "Emit")==0)
+		return SCE_PASS_EMIT;
+
 	if(strcmp(str, "Diffuse")==0)
 		return SCE_PASS_DIFFUSE;
 
@@ -693,6 +747,12 @@ static int passtype_from_name(char *str)
 	
 	if(strcmp(str, "AO")==0)
 		return SCE_PASS_AO;
+
+	if(strcmp(str, "Environment")==0)
+		return SCE_PASS_ENVIRONMENT;
+
+	if(strcmp(str, "Indirect")==0)
+		return SCE_PASS_INDIRECT;
 
 	if(strcmp(str, "Reflect")==0)
 		return SCE_PASS_REFLECT;
@@ -857,12 +917,18 @@ RenderResult *render_result_create(Render *re, rcti *partrct, int crop, int save
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_UV);
 		if(srl->passflag  & SCE_PASS_RGBA)
 			render_layer_add_pass(rr, rl, 4, SCE_PASS_RGBA);
+		if(srl->passflag  & SCE_PASS_EMIT)
+			render_layer_add_pass(rr, rl, 3, SCE_PASS_EMIT);
 		if(srl->passflag  & SCE_PASS_DIFFUSE)
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_DIFFUSE);
 		if(srl->passflag  & SCE_PASS_SPEC)
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_SPEC);
 		if(srl->passflag  & SCE_PASS_AO)
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_AO);
+		if(srl->passflag  & SCE_PASS_ENVIRONMENT)
+			render_layer_add_pass(rr, rl, 3, SCE_PASS_ENVIRONMENT);
+		if(srl->passflag  & SCE_PASS_INDIRECT)
+			render_layer_add_pass(rr, rl, 3, SCE_PASS_INDIRECT);
 		if(srl->passflag  & SCE_PASS_SHADOW)
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_SHADOW);
 		if(srl->passflag  & SCE_PASS_REFLECT)

@@ -119,17 +119,16 @@ def deform(obj, definitions, base_names, options):
     bpy.ops.object.mode_set(mode='EDIT')
     
     eb = obj.data.edit_bones
+    bb = obj.data.bones
     pb = obj.pose.bones
     
-    print("YAHOO")
+    jaw = definitions[1]
     
     # Options
     req_options = ["mesh"]
     for option in req_options:
         if option not in options:
             raise RigifyError("'%s' rig type requires a '%s' option (bone: %s)" % (RIG_TYPE, option, base_names[definitions[0]]))
-    
-    print("YAHOO2")
             
     meshes = options["mesh"].replace(" ", "").split(",")
     
@@ -214,9 +213,17 @@ def deform(obj, definitions, base_names, options):
     eb[dlip7].bbone_segments = 8
     eb[dlip8].bbone_segments = 8
     
-    print("OBJECT MODE1")
+    # Jaw open bones
+    jopen1 = copy_bone_simple(obj.data, jaw, "MCH-"+base_names[jaw]+".track1", parent=True).name
+    eb[jopen1].connected = False
+    eb[jopen1].head = eb[jaw].tail
+    eb[jopen1].tail = eb[jopen1].head + Vector(0, 0, eb[jaw].length/4)
+    
+    jopen2 = copy_bone_simple(obj.data, jopen1, "MCH-"+base_names[jaw]+".track2").name
+    eb[jopen2].parent = eb[jaw]
+    
+    
     bpy.ops.object.mode_set(mode='OBJECT')
-    print("OBJECT MODE2")
     
     # Constraints
     con = pb[dlip1].constraints.new('COPY_TRANSFORMS')
@@ -255,16 +262,13 @@ def deform(obj, definitions, base_names, options):
     bpy.ops.object.mode_set(mode='EDIT')
     
     # Calculate the rotation difference between the bones
-    rotdiff_r = acos(eb[lip1].matrix.toQuat() * eb[lip8].matrix.toQuat()) * 2
-    rotdiff_l = acos(eb[lip4].matrix.toQuat() * eb[lip5].matrix.toQuat()) * 2
-    
-    print (rotdiff_l)
+    rotdiff_r = acos(eb[lip1].matrix.to_quat() * eb[lip8].matrix.to_quat()) * 2
+    rotdiff_l = acos(eb[lip4].matrix.to_quat() * eb[lip5].matrix.to_quat()) * 2
     
     bpy.ops.object.mode_set(mode='OBJECT')
     
     
-    
-    # Left side
+    # Left side shape key
     for mesh_name in meshes:
         mesh_obj = bpy.data.objects[mesh_name]
         shape_key_name = "COR-" + base_names[definitions[4]] + ".L.spread"
@@ -286,10 +290,8 @@ def deform(obj, definitions, base_names, options):
         
         # Set up the variable
         var.type = "ROTATION_DIFF"
-        var.targets[0].id_type = 'OBJECT'
         var.targets[0].id = obj
         var.targets[0].bone_target = lip4
-        var.targets[1].id_type = 'OBJECT'
         var.targets[1].id = obj
         var.targets[1].bone_target = lip5
         
@@ -299,7 +301,7 @@ def deform(obj, definitions, base_names, options):
             mod.coefficients[0] = -rotdiff_l / (pi-rotdiff_l)
             mod.coefficients[1] = 1 / (pi-rotdiff_l)
     
-    # Right side
+    # Right side shape key
     for mesh_name in meshes:
         mesh_obj = bpy.data.objects[mesh_name]
         shape_key_name = "COR-" + base_names[definitions[4]] + ".R.spread"
@@ -321,10 +323,8 @@ def deform(obj, definitions, base_names, options):
         
         # Set up the variable
         var.type = "ROTATION_DIFF"
-        var.targets[0].id_type = 'OBJECT'
         var.targets[0].id = obj
         var.targets[0].bone_target = lip1
-        var.targets[1].id_type = 'OBJECT'
         var.targets[1].id = obj
         var.targets[1].bone_target = lip8
         
@@ -333,7 +333,38 @@ def deform(obj, definitions, base_names, options):
         if rotdiff_r != pi:
             mod.coefficients[0] = -rotdiff_r / (pi-rotdiff_r)
             mod.coefficients[1] = 1 / (pi-rotdiff_r)
+    
+    # Jaw open corrective shape key
+    for mesh_name in meshes:
+        mesh_obj = bpy.data.objects[mesh_name]
+        shape_key_name = "COR-" + base_names[definitions[4]] + ".jaw_open"
+    
+        # Add/get the shape key
+        shape_key = addget_shape_key(mesh_obj, name=shape_key_name)
         
+        # Add/get the shape key driver
+        fcurve = addget_shape_key_driver(mesh_obj, name=shape_key_name)
+        driver = fcurve.driver
+        
+        # Get the variable, or create it if it doesn't already exist
+        var_name = base_names[definitions[4]]
+        if var_name in driver.variables:
+            var = driver.variables[var_name]
+        else:
+            var = driver.variables.new()
+            var.name = var_name
+        
+        # Set up the variable
+        var.type = "LOC_DIFF"
+        var.targets[0].id = obj
+        var.targets[0].bone_target = jopen1
+        var.targets[1].id = obj
+        var.targets[1].bone_target = jopen2
+        
+        # Set fcurve offset
+        mod = fcurve.modifiers[0]
+        mod.coefficients[0] = 0.0
+        mod.coefficients[1] = 1.0 / bb[jaw].length
     
     return (None,)
 
@@ -454,7 +485,7 @@ def control(obj, definitions, base_names, options):
     
     bpy.ops.object.mode_set(mode='OBJECT')
     
-    # Add eye close action if it doesn't already exist
+    # Add mouth open action if it doesn't already exist
     action_name = "mouth_open"
     if action_name in bpy.data.actions:
         open_action = bpy.data.actions[action_name]
@@ -472,6 +503,7 @@ def control(obj, definitions, base_names, options):
     
     open_driver_path = pb[lip1].path_to_id() + '["open_action"]'
     
+    
     # Constraints
     
     # Jaw open tracker stretches to jaw tip
@@ -483,7 +515,7 @@ def control(obj, definitions, base_names, options):
     con.volume = 'NO_VOLUME'
     
     # Head lips to jaw lips
-    influence = [0.0, 0.1, 0.5, 0.25, 0.0]
+    influence = [0.02, 0.15, 0.5, 0.25, 0.0]
     
     con = pb[hlip1].constraints.new('COPY_TRANSFORMS')
     con.target = obj
@@ -723,12 +755,9 @@ def control(obj, definitions, base_names, options):
 
 def main(obj, bone_definition, base_names, options):
     # Create control rig
-    print("CONTROL")
     control(obj, bone_definition, base_names, options)
-    print("DEFORM")
     # Create deform rig
     deform(obj, bone_definition, base_names, options)
-    print("DONE")
 
     return (None,)
 

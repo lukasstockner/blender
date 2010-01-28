@@ -343,7 +343,7 @@ static void rna_Mesh_assign_verts_to_group(Object *ob, bDeformGroup *group, int 
 	}
 
 	Mesh *me = (Mesh*)ob->data;
-	int group_index = get_defgroup_num(ob, group);
+	int group_index = defgroup_find_index(ob, group);
 	if (group_index == -1) {
 		BKE_report(reports, RPT_ERROR, "No deform groups assigned to mesh.");
 		return;
@@ -497,13 +497,13 @@ void RNA_api_object(StructRNA *srna)
 	/* return location and normal */
 	parm= RNA_def_float_vector(func, "location", 3, NULL, -FLT_MAX, FLT_MAX, "Location", "The hit location of this ray cast", -1e4, 1e4);
 	RNA_def_property_flag(parm, PROP_THICK_WRAP);
-	RNA_def_function_return_mark(func, parm);
+	RNA_def_function_output(func, parm);
 	parm= RNA_def_float_vector(func, "normal", 3, NULL, -FLT_MAX, FLT_MAX, "Normal", "The face normal at the ray cast hit location", -1e4, 1e4);
 	RNA_def_property_flag(parm, PROP_THICK_WRAP);
-	RNA_def_function_return_mark(func, parm);
+	RNA_def_function_output(func, parm);
 	
 	parm= RNA_def_int(func, "index", 0, 0, 0, "", "The face index, -1 when no intersection is found.", 0, 0);
-	RNA_def_function_return_mark(func, parm);
+	RNA_def_function_output(func, parm);
 
 	
 	/* DAG */

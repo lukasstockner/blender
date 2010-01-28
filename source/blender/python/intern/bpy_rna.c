@@ -424,6 +424,24 @@ static int pyrna_string_to_enum(PyObject *item, PointerRNA *ptr, PropertyRNA *pr
 	return 1;
 }
 
+PyObject *pyrna_enum_bitfield_to_py(EnumPropertyItem *items, int value)
+{
+	PyObject *ret= PySet_New(NULL);
+	const char *identifier[RNA_ENUM_BITFLAG_SIZE + 1];
+
+	if(RNA_enum_bitflag_identifiers(items, value, identifier)) {
+		PyObject *item;
+		int index;
+		for(index=0; identifier[index]; index++) {
+			item= PyUnicode_FromString(identifier[index]);
+			PySet_Add(ret, item);
+			Py_DECREF(item);
+		}
+	}
+
+	return ret;
+}
+
 static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 {
 	PyObject *item, *ret= NULL;
@@ -575,7 +593,7 @@ int pyrna_pydict_to_props(PointerRNA *ptr, PyObject *kw, int all_args, const cha
 				break;
 			}
 		} else {
-			if (pyrna_py_to_prop(ptr, prop, NULL, item, error_prefix)) {
+			if (pyrna_py_to_prop(ptr, prop, NULL, NULL, item, error_prefix)) {
 				error_val= -1;
 				break;
 			}
@@ -629,7 +647,7 @@ static PyObject *pyrna_func_to_py(BPy_DummyPointerRNA *pyrna, FunctionRNA *func)
 
 
 
-int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *value, const char *error_prefix)
+int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, ParameterList *parms, void *data, PyObject *value, const char *error_prefix)
 {
 	/* XXX hard limits should be checked here */
 	int type = RNA_property_type(prop);
@@ -652,7 +670,7 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *v
 			return -1;
 		}
 		/* done getting the length */
-		ok= pyrna_py_to_array(ptr, prop, data, value, error_prefix);
+		ok= pyrna_py_to_array(ptr, prop, parms, data, value, error_prefix);
 
 		if (!ok) {
 			/* PyErr_Format(PyExc_AttributeError, "%.200s %s", error_prefix, error_str); */
@@ -670,7 +688,7 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *v
 			/* prefer not to have an exception here
 			 * however so many poll functions return None or a valid Object.
 			 * its a hassle to convert these into a bool before returning, */
-			if(RNA_property_flag(prop) & PROP_RETURN)
+			if(RNA_property_flag(prop) & PROP_OUTPUT)
 				param = PyObject_IsTrue( value );
 			else
 				param = PyLong_AsSsize_t( value );
@@ -767,11 +785,17 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyObject *v
 			StructRNA *ptype= RNA_property_pointer_type(ptr, prop);
 			int flag = RNA_property_flag(prop);
 
+			/* if property is an OperatorProperties pointer and value is a map, forward back to pyrna_pydict_to_props */
+			if (RNA_struct_is_a(ptype, &RNA_OperatorProperties) && PyDict_Check(value)) {
+				PointerRNA opptr = RNA_property_pointer_get(ptr, prop);
+				return pyrna_pydict_to_props(&opptr, value, 0, error_prefix);
+			}
+
 			if(!BPy_StructRNA_Check(value) && value != Py_None) {
 				PyErr_Format(PyExc_TypeError, "%.200s expected a %.200s type", error_prefix, RNA_struct_identifier(ptype));
 				return -1;
 			} else if((flag & PROP_NEVER_NULL) && value == Py_None) {
-				PyErr_Format(PyExc_TypeError, "%.200s does not suppory a 'None' assignment %.200s type", error_prefix, RNA_struct_identifier(ptype));
+				PyErr_Format(PyExc_TypeError, "%.200s does not support a 'None' assignment %.200s type", error_prefix, RNA_struct_identifier(ptype));
 				return -1;
 			} else {
 				BPy_StructRNA *param= (BPy_StructRNA*)value;
@@ -1336,6 +1360,8 @@ static int pyrna_prop_ass_subscript( BPy_PropertyRNA *self, PyObject *key, PyObj
 		PyErr_SetString(PyExc_AttributeError, "invalid key, key must be an int");
 		return -1;
 	}
+
+	RNA_property_update(BPy_GetContext(), &self->ptr, self->prop);
 }
 
 
@@ -1874,43 +1900,49 @@ static PyObject *pyrna_struct_getattro( BPy_StructRNA *self, PyObject *pyname )
 		ret = pyrna_func_to_py((BPy_DummyPointerRNA *)self, func);
 	}
 	else if (self->ptr.type == &RNA_Context) {
-		PointerRNA newptr;
-		ListBase newlb;
-		int done;
+		bContext *C = self->ptr.data;
+		if(C==NULL) {
+			PyErr_Format( PyExc_AttributeError, "StructRNA Context is 'NULL', can't get \"%.200s\" from context", name);
+			ret= NULL;
+		}
+		else {
+			PointerRNA newptr;
+			ListBase newlb;
 
-		done= CTX_data_get(self->ptr.data, name, &newptr, &newlb);
+			int done= CTX_data_get(C, name, &newptr, &newlb);
 
-		if(done==1) { /* found */
-			if (newptr.data) {
-				ret = pyrna_struct_CreatePyObject(&newptr);
-			}
-			else if (newlb.first) {
-				CollectionPointerLink *link;
-				PyObject *linkptr;
+			if(done==1) { /* found */
+				if (newptr.data) {
+					ret = pyrna_struct_CreatePyObject(&newptr);
+				}
+				else if (newlb.first) {
+					CollectionPointerLink *link;
+					PyObject *linkptr;
 
-				ret = PyList_New(0);
+					ret = PyList_New(0);
 
-				for(link=newlb.first; link; link=link->next) {
-					linkptr= pyrna_struct_CreatePyObject(&link->ptr);
-					PyList_Append(ret, linkptr);
-					Py_DECREF(linkptr);
+					for(link=newlb.first; link; link=link->next) {
+						linkptr= pyrna_struct_CreatePyObject(&link->ptr);
+						PyList_Append(ret, linkptr);
+						Py_DECREF(linkptr);
+					}
+				}
+				else {
+					ret = Py_None;
+					Py_INCREF(ret);
 				}
 			}
-			else {
+			else if (done==-1) { /* found but not set */
 				ret = Py_None;
 				Py_INCREF(ret);
 			}
-		}
-		else if (done==-1) { /* found but not set */
-			ret = Py_None;
-			Py_INCREF(ret);
-		}
-        else { /* not found in the context */
-        	/* lookup the subclass. raise an error if its not found */
-        	ret = PyObject_GenericGetAttr((PyObject *)self, pyname);
-        }
+			else { /* not found in the context */
+				/* lookup the subclass. raise an error if its not found */
+				ret = PyObject_GenericGetAttr((PyObject *)self, pyname);
+			}
 
-		BLI_freelistN(&newlb);
+			BLI_freelistN(&newlb);
+		}
 	}
 	else {
 #if 0
@@ -1972,7 +2004,7 @@ static int pyrna_struct_setattro( BPy_StructRNA *self, PyObject *pyname, PyObjec
 	}
 		
 	/* pyrna_py_to_prop sets its own exceptions */
-	return pyrna_py_to_prop(&self->ptr, prop, NULL, value, "StructRNA - item.attr = val:");
+	return pyrna_py_to_prop(&self->ptr, prop, NULL, NULL, value, "StructRNA - item.attr = val:");
 }
 
 static PyObject *pyrna_prop_dir(BPy_PropertyRNA *self)
@@ -2048,7 +2080,7 @@ static int pyrna_prop_setattro( BPy_PropertyRNA *self, PyObject *pyname, PyObjec
 		if(RNA_property_collection_type_get(&self->ptr, self->prop, &r_ptr)) {
 			if ((prop = RNA_struct_find_property(&r_ptr, name))) {
 				/* pyrna_py_to_prop sets its own exceptions */
-				return pyrna_py_to_prop(&r_ptr, prop, NULL, value, "BPy_PropertyRNA - Attribute (setattr):");
+				return pyrna_py_to_prop(&r_ptr, prop, NULL, NULL, value, "BPy_PropertyRNA - Attribute (setattr):");
 			}
 		}
 	}
@@ -2616,7 +2648,7 @@ static PyObject * pyrna_prop_new(PyTypeObject *type, PyObject *args, PyObject *k
 	}
 }
 
-PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *data)
+PyObject *pyrna_param_to_py(PointerRNA *ptr, ParameterList *parms, PropertyRNA *prop, void *data)
 {
 	PyObject *ret;
 	int type = RNA_property_type(prop);
@@ -2624,7 +2656,15 @@ PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *data)
 	int a;
 
 	if(RNA_property_array_check(ptr, prop)) {
-		int len = RNA_property_array_length(ptr, prop);
+		int len;
+
+		if (flag & PROP_DYNAMIC) {
+			len= RNA_parameter_length_get_data(parms, prop, data);
+
+			data= *((void **)data);
+		}
+		else
+			len= RNA_property_array_length(ptr, prop);
 
 		/* resolve the array from a new pytype */
 
@@ -2801,7 +2841,7 @@ static PyObject * pyrna_func_call(PyObject *self, PyObject *args, PyObject *kw)
 		flag= RNA_property_flag(parm);
 
 		/* only useful for single argument returns, we'll need another list loop for multiple */
-		if (flag & PROP_RETURN) {
+		if (flag & PROP_OUTPUT) {
 			ret_len++;
 			if (pret_single==NULL) {
 				pret_single= parm;
@@ -2838,7 +2878,7 @@ static PyObject * pyrna_func_call(PyObject *self, PyObject *args, PyObject *kw)
 				continue;
 		}
 
-		err= pyrna_py_to_prop(&funcptr, parm, iter.data, item, "");
+		err= pyrna_py_to_prop(&funcptr, parm, &parms, iter.data, item, "");
 
 		if(err!=0) {
 			/* the error generated isnt that useful, so generate it again with a useful prefix
@@ -2851,7 +2891,7 @@ static PyObject * pyrna_func_call(PyObject *self, PyObject *args, PyObject *kw)
 			else
 				snprintf(error_prefix, sizeof(error_prefix), "%s.%s(): error with argument %d, \"%s\" - ", RNA_struct_identifier(self_ptr->type), RNA_function_identifier(self_func), i, parm_id);
 
-			pyrna_py_to_prop(&funcptr, parm, iter.data, item, error_prefix);
+			pyrna_py_to_prop(&funcptr, parm, &parms, iter.data, item, error_prefix);
 
 			break;
 		}
@@ -2909,7 +2949,7 @@ static PyObject * pyrna_func_call(PyObject *self, PyObject *args, PyObject *kw)
 		RNA_parameter_list_begin(&parms, &iter);
 		for(; iter.valid; RNA_parameter_list_next(&iter)) {
 			parm= iter.parm;
-			if(RNA_property_flag(parm) & PROP_RETURN)
+			if(RNA_property_flag(parm) & PROP_OUTPUT)
 				continue;
 
 			BLI_dynstr_appendf(good_args, first ? "%s" : ", %s", RNA_property_identifier(parm));
@@ -2956,14 +2996,14 @@ static PyObject * pyrna_func_call(PyObject *self, PyObject *args, PyObject *kw)
 						parm= iter.parm;
 						flag= RNA_property_flag(parm);
 
-						if (flag & PROP_RETURN)
-							PyTuple_SET_ITEM(ret, i++, pyrna_param_to_py(&funcptr, parm, iter.data));
+						if (flag & PROP_OUTPUT)
+							PyTuple_SET_ITEM(ret, i++, pyrna_param_to_py(&funcptr, &parms, parm, iter.data));
 					}
 
 					RNA_parameter_list_end(&iter);
 				}
 				else
-					ret= pyrna_param_to_py(&funcptr, pret_single, retdata_single);
+					ret= pyrna_param_to_py(&funcptr, &parms, pret_single, retdata_single);
 
 				/* possible there is an error in conversion */
 				if(ret==NULL)
@@ -3472,8 +3512,13 @@ static PyObject *pyrna_basetype_getattro( BPy_BaseTypeRNA *self, PyObject *pynam
 {
 	PointerRNA newptr;
 	PyObject *ret;
+	char *name= _PyUnicode_AsString(pyname);
 	
-	if (RNA_property_collection_lookup_string(&self->ptr, self->prop, _PyUnicode_AsString(pyname), &newptr)) {
+	if(strcmp(name, "register")==0) {
+		/* this is called so often, make an exception and save a full lookup on all types */
+		ret= PyObject_GenericGetAttr((PyObject *)self, pyname);
+	}
+	else if (RNA_property_collection_lookup_string(&self->ptr, self->prop, name, &newptr)) {
 		ret= pyrna_struct_Subtype(&newptr);
 		if (ret==NULL) {
 			PyErr_Format(PyExc_SystemError, "bpy.types.%.200s subtype could not be generated, this is a bug!", _PyUnicode_AsString(pyname));
@@ -3701,7 +3746,7 @@ static int rna_function_arg_count(FunctionRNA *func)
 
 	for(link=lb->first; link; link=link->next) {
 		parm= (PropertyRNA*)link;
-		if(!(RNA_property_flag(parm) & PROP_RETURN))
+		if(!(RNA_property_flag(parm) & PROP_OUTPUT))
 			count++;
 	}
 	
@@ -3802,7 +3847,7 @@ static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_fun
 			if(strcmp(identifier, rna_attr) == 0) { \
 				item= PyObject_GetAttrString(py_class, py_attr); \
 				if(item && item != Py_None) { \
-					if(pyrna_py_to_prop(dummyptr, prop, NULL, item, "validating class error:") != 0) { \
+					if(pyrna_py_to_prop(dummyptr, prop, NULL, NULL, item, "validating class error:") != 0) { \
 						Py_DECREF(item); \
 						return -1; \
 					} \
@@ -3826,7 +3871,7 @@ static int bpy_class_validate(PointerRNA *dummyptr, void *py_data, int *have_fun
 		else {
 			Py_DECREF(item); /* no need to keep a ref, the class owns it */
 
-			if(pyrna_py_to_prop(dummyptr, prop, NULL, item, "validating class error:") != 0)
+			if(pyrna_py_to_prop(dummyptr, prop, NULL, NULL, item, "validating class error:") != 0)
 				return -1;
 		}
 	}
@@ -3889,7 +3934,7 @@ static int bpy_class_call(PointerRNA *ptr, FunctionRNA *func, ParameterList *par
 				flag= RNA_property_flag(parm);
 
 				/* only useful for single argument returns, we'll need another list loop for multiple */
-				if (flag & PROP_RETURN) {
+				if (flag & PROP_OUTPUT) {
 					ret_len++;
 					if (pret_single==NULL) {
 						pret_single= parm;
@@ -3899,7 +3944,7 @@ static int bpy_class_call(PointerRNA *ptr, FunctionRNA *func, ParameterList *par
 					continue;
 				}
 
-				parmitem= pyrna_param_to_py(&funcptr, parm, iter.data);
+				parmitem= pyrna_param_to_py(&funcptr, parms, parm, iter.data);
 				PyTuple_SET_ITEM(args, i, parmitem);
 				i++;
 			}
@@ -3927,7 +3972,7 @@ static int bpy_class_call(PointerRNA *ptr, FunctionRNA *func, ParameterList *par
 	}
 	else {
 		if(ret_len==1) {
-			err= pyrna_py_to_prop(&funcptr, pret_single, retdata_single, ret, "calling class function:");
+			err= pyrna_py_to_prop(&funcptr, pret_single, parms, retdata_single, ret, "calling class function:");
 		}
 		else if (ret_len > 1) {
 
@@ -3949,8 +3994,8 @@ static int bpy_class_call(PointerRNA *ptr, FunctionRNA *func, ParameterList *par
 					flag= RNA_property_flag(parm);
 
 					/* only useful for single argument returns, we'll need another list loop for multiple */
-					if (flag & PROP_RETURN) {
-						err= pyrna_py_to_prop(&funcptr, parm, iter.data, PyTuple_GET_ITEM(ret, i++), "calling class function:");
+					if (flag & PROP_OUTPUT) {
+						err= pyrna_py_to_prop(&funcptr, parm, parms, iter.data, PyTuple_GET_ITEM(ret, i++), "calling class function:");
 						if(err)
 							break;
 					}

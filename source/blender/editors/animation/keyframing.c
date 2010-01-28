@@ -855,7 +855,7 @@ short insert_keyframe (ID *id, bAction *act, const char group[], const char rna_
 			printf("Insert Key: Could not insert keyframe, as this type does not support animation data (ID = %s, Path = %s)\n", id->name, rna_path);
 			return 0;
 		}
-
+		
 		/* apply NLA-mapping to frame to use (if applicable) */
 		cfra= BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
 	}
@@ -916,6 +916,12 @@ short delete_keyframe (ID *id, bAction *act, const char group[], const char rna_
 {
 	AnimData *adt= BKE_animdata_from_id(id);
 	FCurve *fcu = NULL;
+	
+	/* sanity checks */
+	if ELEM(NULL, id, adt) {
+		printf("ERROR: no ID-block and/or AnimData to delete keyframe from \n");
+		return 0;
+	}	
 	
 	/* get F-Curve
 	 * Note: here is one of the places where we don't want new Action + F-Curve added!

@@ -110,53 +110,77 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 	if((re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) && shi->material.mat->amb!=0.0f)
 		disk_occlusion_sample(re, shi);
 	else if((re->params.r.mode & R_RAYTRACE) && shi->material.mat->amb!=0.0f)
-		ray_ao(re, shi, shi->shading.ao);
+		ray_ao(re, shi, shi->shading.ao, shi->shading.env);
 	else
 		shi->shading.ao[0]= shi->shading.ao[1]= shi->shading.ao[2]= 1.0f;
 }
 
 /* wrld mode was checked for */
-void ambient_occlusion_to_diffuse(Render *re, ShadeInput *shi, float *diff)
+static void ambient_occlusion_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
-	if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) {
-		if(shi->material.amb!=0.0f) {
-			float f= re->db.wrld.aoenergy*shi->material.amb;
+	float f= re->db.wrld.aoenergy;
+	float tmp[3], tmpspec[3];
 
-			if (re->db.wrld.aomix==WO_AOADDSUB) {
-				diff[0] = 2.0f*shi->shading.ao[0]-1.0f;
-				diff[1] = 2.0f*shi->shading.ao[1]-1.0f;
-				diff[2] = 2.0f*shi->shading.ao[2]-1.0f;
-			}
-			else if (re->db.wrld.aomix==WO_AOSUB) {
-				diff[0] = shi->shading.ao[0]-1.0f;
-				diff[1] = shi->shading.ao[1]-1.0f;
-				diff[2] = shi->shading.ao[2]-1.0f;
-			}
-			else {
-				copy_v3_v3(diff, shi->shading.ao);
-			}
-			
-			mul_v3_fl(diff, f);
-			madd_v3_v3fl(diff, shi->shading.indirect, re->db.wrld.ao_indirect_energy*shi->material.amb);
-		}
-		else
-			diff[0]= diff[1]= diff[2]= 0.0f;
+	if(f == 0.0f)
+		return;
+
+	if(re->db.wrld.aomix==WO_AOADD) {
+		shr->diff[0] += shi->shading.ao[0]*shi->material.r*shi->material.refl*f;
+		shr->diff[1] += shi->shading.ao[1]*shi->material.g*shi->material.refl*f;
+		shr->diff[2] += shi->shading.ao[2]*shi->material.b*shi->material.refl*f;
 	}
-	else
-		diff[0]= diff[1]= diff[2]= 0.0f;
+	else if(re->db.wrld.aomix==WO_AOMUL) {
+		mul_v3_v3v3(tmp, shr->diff, shi->shading.ao);
+		mul_v3_v3v3(tmpspec, shr->spec, shi->shading.ao);
+
+		if(f == 1.0f) {
+			copy_v3_v3(shr->diff, tmp);
+			copy_v3_v3(shr->spec, tmpspec);
+		}
+		else {
+			interp_v3_v3v3(shr->diff, shr->diff, tmp, f);
+			interp_v3_v3v3(shr->spec, shr->spec, tmpspec, f);
+		}
+	}
+}
+
+static void environment_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
+{
+	float f= re->db.wrld.ao_env_energy*shi->material.amb;
+
+	if(f == 0.0f)
+		return;
+	
+	shr->diff[0] += shi->shading.env[0]*shi->material.r*shi->material.refl*f;
+	shr->diff[1] += shi->shading.env[1]*shi->material.g*shi->material.refl*f;
+	shr->diff[2] += shi->shading.env[2]*shi->material.b*shi->material.refl*f;
+}
+
+static void indirect_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
+{
+	float f= re->db.wrld.ao_indirect_energy;
+
+	if(f == 0.0f)
+		return;
+
+	shr->diff[0] += shi->shading.indirect[0]*shi->material.r*shi->material.refl*f;
+	shr->diff[1] += shi->shading.indirect[1]*shi->material.g*shi->material.refl*f;
+	shr->diff[2] += shi->shading.indirect[2]*shi->material.b*shi->material.refl*f;
 }
 
 static void shade_compute_ao(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	int passflag= shi->shading.passflag;
 
-	if(re->db.wrld.mode & WO_AMB_OCC) {
-		if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & SCE_PASS_AO))
-			|| (passflag & SCE_PASS_AO)) {
+	if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
+		if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+			|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))) {
 			/* AO was calculated for scanline already */
 			if(shi->shading.depth)
 				ambient_occlusion(re, shi);
 			copy_v3_v3(shr->ao, shi->shading.ao);
+			VECCOPY(shr->env, shi->shading.env); // XXX multiply
+			VECCOPY(shr->indirect, shi->shading.indirect); // XXX multiply
 		}
 	}
 }
@@ -276,7 +300,7 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 	}
 	
 	/* quite disputable this...  also note it doesn't mirror-raytrace */	
-	if((re->db.wrld.mode & WO_AMB_OCC) && shi->material.amb!=0.0f) {
+	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && shi->material.amb!=0.0f) {
 		float f;
 		
 		f= 1.0f - shi->shading.ao[0];
@@ -286,12 +310,8 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 			shr->alpha += f;
 			shr->alpha *= f;
 		}
-		else if(re->db.wrld.aomix==WO_AOSUB) {
-			shr->alpha += f;
-		}
-		else {
+		else if(re->db.wrld.aomix==WO_AOMUL) {
 			shr->alpha *= f;
-			shr->alpha += f;
 		}
 	}
 }
@@ -398,6 +418,9 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 				shr->spec[1] += spec[1]*lainf[1]*lashdw[1];
 				shr->spec[2] += spec[2]*lainf[2]*lashdw[2];
 			}
+
+			VECCOPY(shr->env, shi->shading.env); // XXX multiply
+			VECCOPY(shr->indirect, shi->shading.indirect); // XXX multiply
 		}
 
 		/* accumulate */
@@ -437,22 +460,23 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 
 	shade_compute_ao(re, shi, shr); /* .ao */
 
+	/* add AO in combined? */
+	if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) {
+		if(re->db.wrld.mode & WO_AMB_OCC)
+			if(shi->shading.combinedflag & SCE_PASS_AO)
+				ambient_occlusion_apply(re, shi, shr);
+
+		if(re->db.wrld.mode & WO_ENV_LIGHT)
+			if(shi->shading.combinedflag & SCE_PASS_ENVIRONMENT)
+				environment_lighting_apply(re, shi, shr);
+
+		if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+			if(shi->shading.combinedflag & SCE_PASS_INDIRECT)
+				indirect_lighting_apply(re, shi, shr);
+	}
+		
 	/* ambient light */
 	madd_v3_v3fl(shr->diff, &re->db.wrld.ambr, shi->material.amb);
-
-	/* add AO? */
-	if(re->db.wrld.mode & WO_AMB_OCC) {
-		if(shi->shading.combinedflag & SCE_PASS_AO) {
-			float aodiff[3];
-
-			ambient_occlusion_to_diffuse(re, shi, aodiff);
-			madd_v3_v3v3(shr->diff, color, aodiff);
-			
-			if(shr->diff[0] < 0.f) shr->diff[0]= 0.f;
-			if(shr->diff[1] < 0.f) shr->diff[1]= 0.f;
-			if(shr->diff[2] < 0.f) shr->diff[2]= 0.f;
-		}
-	}
 
 	/* refcol is for envmap only */
 	if(shi->material.refcol[0]!=0.0f) {
@@ -553,7 +577,7 @@ void shade_surface(Render *re, ShadeInput *shi, ShadeResult *shr, int backside)
 		shade_surface_only_shadow(re, shi, shr);
 		return;
 	}
-
+	
 	/* preprocess */
 	mat_shading_begin(re, shi, &shi->material);
 

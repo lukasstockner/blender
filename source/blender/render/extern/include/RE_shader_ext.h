@@ -49,10 +49,13 @@ typedef struct ShadeResult
 	float combined[4];
 	float col[4];
 	float alpha, mist, z;
+	float emit[3];
 	float diff[3];		/* no ramps, shadow, etc */
 	float spec[3];
 	float shad[3];
 	float ao[3];
+	float env[3];
+	float indirect[3];
 	float refl[3];
 	float refr[3];
 	float nor[3];
@@ -61,7 +64,6 @@ typedef struct ShadeResult
 	float uv[3];
 	float indexob;
 	float sss[4];
-	float emit[3];
 } ShadeResult;
 
 typedef struct ShadeInputUV {
@@ -187,6 +189,7 @@ typedef struct ShadeInput
 	struct {
 		/* AO is a pre-process now */
 		float ao[3];
+		float env[3];
 		float indirect[3];
 		
 		int mask;				/* subsample mask */

@@ -632,7 +632,7 @@ static int apply_armature_pose2bones_exec (bContext *C, wmOperator *op)
 	applyarmature_fix_boneparents(scene, ob);
 	
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -1129,7 +1129,7 @@ static int separate_armature_exec (bContext *C, wmOperator *op)
 	ED_armature_to_edit(obedit);
 	
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, obedit);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, obedit);
 	
 	/* recalc/redraw + cleanup */
 	WM_cursor_wait(0);
@@ -1803,7 +1803,7 @@ static int armature_delete_selected_exec(bContext *C, wmOperator *op)
 	
 	ED_armature_sync_selection(arm->edbo);
 
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, obedit);
+	WM_event_add_notifier(C, NC_OBJECT|ND_BONE_SELECT, obedit);
 
 	return OPERATOR_FINISHED;
 }
@@ -2145,7 +2145,7 @@ static int armature_calc_roll_exec(bContext *C, wmOperator *op)
 	
 
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -3176,7 +3176,7 @@ static int armature_merge_exec (bContext *C, wmOperator *op)
 	
 	/* updates */
 	ED_armature_sync_selection(arm->edbo);
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, obedit);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, obedit);
 	
 	return OPERATOR_FINISHED;
 }
@@ -3467,7 +3467,7 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 		add_v3_v3v3(bone->tail, bone->head, imat[2]);	// bone with unit length 1, pointing up Z
 
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, obedit);
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, obedit);
 	
 	return OPERATOR_FINISHED;
 }
@@ -3559,7 +3559,7 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 	CTX_DATA_END;
 	
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, obedit);
+	WM_event_add_notifier(C, NC_OBJECT|ND_BONE_SELECT, obedit);
 	
 	return OPERATOR_FINISHED;
 }
@@ -3729,7 +3729,7 @@ static int armature_switch_direction_exec(bContext *C, wmOperator *op)
 	BLI_freelistN(&chains);	
 
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -3878,7 +3878,7 @@ static int armature_parent_set_exec(bContext *C, wmOperator *op)
 	
 
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -3956,7 +3956,7 @@ static int armature_parent_clear_exec(bContext *C, wmOperator *op)
 	ED_armature_sync_selection(arm->edbo);
 
 	/* note, notifier might evolve */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, ob);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 	
 	return OPERATOR_FINISHED;
 }
@@ -4489,7 +4489,7 @@ static int ED_vgroup_add_unique_bone(Object *ob, Bone *bone, void *data)
 	 * If such a vertex group aleady exist the routine exits.
       */
 	if (!(bone->flag & BONE_NO_DEFORM)) {
-		if (!get_named_vertexgroup(ob,bone->name)) {
+		if (!defgroup_find_name(ob,bone->name)) {
 			ED_vgroup_add_name(ob, bone->name);
 			return 1;
 		}
@@ -4533,7 +4533,7 @@ static int dgroup_skinnable(Object *ob, Bone *bone, void *datap)
 			else
 				segments = 1;
 			
-			if (!(defgroup = get_named_vertexgroup(ob, bone->name)))
+			if (!(defgroup = defgroup_find_name(ob, bone->name)))
 				defgroup = ED_vgroup_add_name(ob, bone->name);
 			
 			if (data->list != NULL) {
@@ -4774,7 +4774,7 @@ void add_verts_to_dgroups(Scene *scene, Object *ob, Object *par, int heat, int m
 	MEM_freeN(verts);
 }
 
-void create_vgroups_from_armature(Scene *scene, Object *ob, Object *par, int mode)
+void create_vgroups_from_armature(Scene *scene, Object *ob, Object *par, int mode, int mirror)
 {
 	/* Lets try to create some vertex groups 
 	 * based on the bones of the parent armature.
@@ -4795,7 +4795,7 @@ void create_vgroups_from_armature(Scene *scene, Object *ob, Object *par, int mod
 		 * that are populated with the vertices for which the
 		 * bone is closest.
 		 */
-		add_verts_to_dgroups(scene, ob, par, (mode == ARM_GROUPS_AUTO), 0);
+		add_verts_to_dgroups(scene, ob, par, (mode == ARM_GROUPS_AUTO), mirror);
 	}
 } 
 /* ************* Clear Pose *****************************/

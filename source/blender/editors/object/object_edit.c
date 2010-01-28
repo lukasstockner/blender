@@ -500,7 +500,7 @@ static int editmode_toggle_poll(bContext *C)
 	Object *ob = CTX_data_active_object(C);
 
 	/* covers proxies too */
-	if(ob->data==NULL || ((ID *)ob->data)->lib)
+	if(ELEM(NULL, ob, ob->data) || ((ID *)ob->data)->lib)
 		return 0;
 
 	return ob && (ob->type == OB_MESH || ob->type == OB_ARMATURE ||
@@ -1656,7 +1656,7 @@ static int object_calculate_paths_exec (bContext *C, wmOperator *op)
 	ED_objects_recalculate_paths(C, scene);
 	
 	/* notifiers for updates */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, NULL);
 	
 	return OPERATOR_FINISHED; 
 }
@@ -1701,7 +1701,7 @@ static int object_clear_paths_exec (bContext *C, wmOperator *op)
 	ED_objects_clear_paths(C, scene);
 	
 	/* notifiers for updates */
-	WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, NULL);
 	
 	return OPERATOR_FINISHED; 
 }
@@ -2077,7 +2077,7 @@ void OBJECT_OT_mode_set(wmOperatorType *ot)
 	ot->poll= ED_operator_object_active_editable;
 	
 	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag= 0; /* no register/undo here, leave it to operators being called */
 	
 	prop= RNA_def_enum(ot->srna, "mode", object_mode_items, OB_MODE_OBJECT, "Mode", "");
 	RNA_def_enum_funcs(prop, object_mode_set_itemsf);

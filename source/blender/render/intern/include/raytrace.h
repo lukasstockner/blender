@@ -22,7 +22,7 @@ struct RayObject* raytree_create_object(struct Render *re, struct ObjectInstance
 
 void ray_shadow(struct Render *re, struct ShadeInput *, struct LampRen *, float *);
 void ray_trace(struct Render *re, struct ShadeInput *, struct ShadeResult *);
-void ray_ao(struct Render *re, struct ShadeInput *, float *);
+void ray_ao(struct Render *re, struct ShadeInput *, float *, float *);
 void ray_trace_mirror(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
 void init_jitter_plane(struct LampRen *lar);
 void init_ao_sphere(struct World *wrld);

@@ -29,6 +29,8 @@
 
 #include "rna_internal.h"
 
+#include "DNA_group_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
@@ -150,15 +152,17 @@ static void rna_Scene_link_object(Scene *scene, ReportList *reports, Object *ob)
 	DAG_scene_sort(scene);
 }
 
-static void rna_Scene_unlink_object(Scene *sce, ReportList *reports, Object *ob)
+static void rna_Scene_unlink_object(Scene *scene, bContext *C, ReportList *reports, Object *ob)
 {
-	Base *base= object_in_scene(ob, sce);
+	Base *base= object_in_scene(ob, scene);
 	if (!base) {
 		BKE_report(reports, RPT_ERROR, "Object is not in this scene.");
 		return;
 	}
 	/* as long as ED_base_object_free_and_unlink calls free_libblock_us, we don't have to decrement ob->id.us */
-	ED_base_object_free_and_unlink(sce, base);
+	ED_base_object_free_and_unlink(scene, base);
+
+	WM_event_add_notifier(C, NC_SCENE|ND_OB_ACTIVE, scene);
 }
 
 static void rna_Scene_skgen_etch_template_set(PointerRNA *ptr, PointerRNA value)
@@ -520,8 +524,22 @@ static int rna_SceneRenderData_engine_get(PointerRNA *ptr)
 
 static void rna_SceneRenderData_color_management_update(Main *bmain, Scene *unused, PointerRNA *ptr)
 {
-	/* reset all generated image block buffers to prevent out-of-date conversions */
-	BKE_image_free_image_ibufs();
+	/* reset image nodes */
+	Scene *scene= (Scene*)ptr->id.data;
+	bNodeTree *ntree=scene->nodetree;
+	bNode *node;
+	
+	if(ntree && scene->use_nodes) {
+		for (node=ntree->nodes.first; node; node=node->next) {
+			if (ELEM(node->type, CMP_NODE_VIEWER, CMP_NODE_IMAGE)) {
+				ED_node_changed_update(&scene->id, node);
+				WM_main_add_notifier(NC_NODE|NA_EDITED, node);
+				
+				if (node->type == CMP_NODE_IMAGE)
+					BKE_image_signal((Image *)node->id, NULL, IMA_SIGNAL_RELOAD);
+			}
+		}
+	}
 }
 
 static void rna_SceneRenderLayer_name_set(PointerRNA *ptr, const char *value)
@@ -624,6 +642,33 @@ static void rna_Scene_editmesh_select_mode_update(Main *bmain, Scene *scene, Poi
 
 	WM_main_add_notifier(NC_GEOM|ND_SELECT, me);
 	WM_main_add_notifier(NC_SCENE|ND_TOOLSETTINGS, NULL);
+}
+
+static void object_simplify_update(Object *ob)
+{
+	ModifierData *md;
+
+	for(md=ob->modifiers.first; md; md=md->next)
+		if(ELEM3(md->type, eModifierType_Subsurf, eModifierType_Multires, eModifierType_ParticleSystem))
+			ob->recalc |= OB_RECALC_DATA;
+	
+	if(ob->dup_group) {
+		GroupObject *gob;
+
+		for(gob=ob->dup_group->gobject.first; gob; gob=gob->next)
+			object_simplify_update(gob->ob);
+	}
+}
+
+static void rna_Scene_simplify_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	Base *base;
+
+	for(base= scene->base.first; base; base= base->next)
+		object_simplify_update(base->object);
+	
+	DAG_ids_flush_update(0);
+	WM_main_add_notifier(NC_GEOM|ND_DATA, NULL);
 }
 
 #else
@@ -804,6 +849,7 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "selectmode", 1);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_Scene_editmesh_select_mode_set");
+	RNA_def_property_ui_text(prop, "Mesh Selection Mode", "Which mesh elements selection works on.");
 	RNA_def_property_update(prop, 0, "rna_Scene_editmesh_select_mode_update");
 
 	prop= RNA_def_property(srna, "vertex_group_weight", PROP_FLOAT, PROP_FACTOR);
@@ -886,6 +932,11 @@ static void rna_def_unit_settings(BlenderRNA  *brna)
 		{USER_UNIT_METRIC, "METRIC", 0, "Metric", ""},
 		{USER_UNIT_IMPERIAL, "IMPERIAL", 0, "Imperial", ""},
 		{0, NULL, 0, NULL, NULL}};
+	
+	static EnumPropertyItem rotation_units[] = {
+		{0, "DEGREES", 0, "Degrees", ""},
+		{USER_UNIT_ROT_RADIANS, "RADIANS", 0, "Radians", ""},
+		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "UnitSettings", NULL);
 	RNA_def_struct_ui_text(srna, "Unit Settings", "");
@@ -905,6 +956,12 @@ static void rna_def_unit_settings(BlenderRNA  *brna)
 	prop= RNA_def_property(srna, "use_separate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_UNIT_OPT_SPLIT);
 	RNA_def_property_ui_text(prop, "Separate Units", "Display units in pairs.");
+	RNA_def_property_update(prop, NC_WINDOW, NULL);
+	
+	prop= RNA_def_property(srna, "rotation_units", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, rotation_units);
+	RNA_def_property_ui_text(prop, "Rotation Units", "Unit to use for displaying/editing rotation values");
 	RNA_def_property_update(prop, NC_WINDOW, NULL);
 }
 
@@ -1099,6 +1156,24 @@ void rna_def_render_layer_common(StructRNA *srna, int scene)
 	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
 	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
+	prop= RNA_def_property(srna, "pass_emit", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "passflag", SCE_PASS_EMIT);
+	RNA_def_property_ui_text(prop, "Emit", "Deliver emission pass.");
+	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "pass_environment", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "passflag", SCE_PASS_ENVIRONMENT);
+	RNA_def_property_ui_text(prop, "Environment", "Deliver environment lighting pass.");
+	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "pass_indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "passflag", SCE_PASS_INDIRECT);
+	RNA_def_property_ui_text(prop, "Indirect", "Deliver indirect lighting pass.");
+	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
 	prop= RNA_def_property(srna, "pass_specular_exclude", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "pass_xor", SCE_PASS_SPEC);
 	RNA_def_property_ui_text(prop, "Specular Exclude", "Exclude specular pass from combined.");
@@ -1126,6 +1201,24 @@ void rna_def_render_layer_common(StructRNA *srna, int scene)
 	prop= RNA_def_property(srna, "pass_refraction_exclude", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "pass_xor", SCE_PASS_REFRACT);
 	RNA_def_property_ui_text(prop, "Refraction Exclude", "Exclude raytraced refraction pass from combined.");
+	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "pass_emit_exclude", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_xor", SCE_PASS_EMIT);
+	RNA_def_property_ui_text(prop, "Emit Exclude", "Exclude emission pass from combined.");
+	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "pass_environment_exclude", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_xor", SCE_PASS_ENVIRONMENT);
+	RNA_def_property_ui_text(prop, "Environment Exclude", "Exclude environment pass from combined.");
+	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
+	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "pass_indirect_exclude", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "pass_xor", SCE_PASS_INDIRECT);
+	RNA_def_property_ui_text(prop, "Indirect Exclude", "Exclude indirect pass from combined.");
 	if(scene) RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_SceneRenderLayer_pass_update");
 	else RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
@@ -2349,10 +2442,37 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Use Game Engine", "Current rendering engine is a game engine.");
 
+	/* simplify */
+	prop= RNA_def_property(srna, "use_simplify", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_SIMPLIFY);
+	RNA_def_property_ui_text(prop, "Use Simplify", "Enable simplification of scene for quicker preview renders.");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
+	prop= RNA_def_property(srna, "simplify_subdivision", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "simplify_subsurf");
+	RNA_def_property_ui_range(prop, 0, 6, 1, 0);
+	RNA_def_property_ui_text(prop, "Simplify Subdivision", "Global maximum subdivision level.");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
+	prop= RNA_def_property(srna, "simplify_child_particles", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "simplify_particles");
+	RNA_def_property_ui_text(prop, "Simplify Child Particles", "Global child particles percentage.");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
+	prop= RNA_def_property(srna, "simplify_shadow_samples", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "simplify_shadowsamples");
+	RNA_def_property_ui_range(prop, 1, 16, 1, 0);
+	RNA_def_property_ui_text(prop, "Simplify Shadow Samples", "Global maximum shadow samples.");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
+	prop= RNA_def_property(srna, "simplify_ao_sss", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "simplify_aosss");
+	RNA_def_property_ui_text(prop, "Simplify AO and SSS", "Global approximate AA and SSS quality factor.");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
 	/* Scene API */
 	RNA_api_scene_render(srna);
 }
-
 
 /* scene.objects */
 static void rna_def_scene_objects(BlenderRNA *brna, PropertyRNA *cprop)
@@ -2376,7 +2496,7 @@ static void rna_def_scene_objects(BlenderRNA *brna, PropertyRNA *cprop)
 
 	func= RNA_def_function(srna, "unlink", "rna_Scene_unlink_object");
 	RNA_def_function_ui_description(func, "Unlink object from scene.");
-	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_REPORTS);
 	parm= RNA_def_pointer(func, "object", "Object", "", "Object to remove from scene.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 

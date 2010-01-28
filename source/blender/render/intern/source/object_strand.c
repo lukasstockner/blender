@@ -385,6 +385,9 @@ void strand_shade_point(Render *re, ShadeSample *ssamp, StrandSegment *sseg, Str
 		vlr.flag |= R_TANGENT;
 
 	shi->primitive.vlr= &vlr;
+	shi->primitive.v1= NULL;
+	shi->primitive.v2= NULL;
+	shi->primitive.v3= NULL;
 	shi->primitive.strand= sseg->strand;
 	shi->primitive.obi= sseg->obi;
 	shi->primitive.obr= sseg->obi->obr;
@@ -1073,6 +1076,7 @@ StrandSurface *cache_strand_surface(Render *re, ObjectRen *obr, DerivedMesh *dm,
 		mesh->totface= totface;
 		mesh->face= MEM_callocN(sizeof(int)*4*mesh->totface, "StrandSurfFaces");
 		mesh->ao= MEM_callocN(sizeof(float)*3*mesh->totvert, "StrandSurfAO");
+		mesh->env= MEM_callocN(sizeof(float)*3*mesh->totvert, "StrandSurfEnv");
 		mesh->indirect= MEM_callocN(sizeof(float)*3*mesh->totvert, "StrandSurfIndirect");
 		BLI_addtail(&re->db.strandsurface, mesh);
 	}
@@ -1112,6 +1116,7 @@ void free_strand_surface(RenderDB *rdb)
 		if(mesh->prevco) MEM_freeN(mesh->prevco);
 		if(mesh->nextco) MEM_freeN(mesh->nextco);
 		if(mesh->ao) MEM_freeN(mesh->ao);
+		if(mesh->env) MEM_freeN(mesh->env);
 		if(mesh->indirect) MEM_freeN(mesh->indirect);
 		if(mesh->face) MEM_freeN(mesh->face);
 	}

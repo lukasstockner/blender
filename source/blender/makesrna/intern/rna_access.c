@@ -36,6 +36,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 
+#include "BKE_animsys.h"
 #include "BKE_context.h"
 #include "BKE_idprop.h"
 #include "BKE_main.h"
@@ -942,15 +943,25 @@ EnumPropertyItem DummyRNA_NULL_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+/* Reuse for dynamic types with default value */
+EnumPropertyItem DummyRNA_DEFAULT_items[] = {
+	{0, "DEFAULT", 0, "Default", ""},
+	{0, NULL, 0, NULL, NULL}
+};
+
 void RNA_property_enum_items(bContext *C, PointerRNA *ptr, PropertyRNA *prop, EnumPropertyItem **item, int *totitem, int *free)
 {
 	EnumPropertyRNA *eprop= (EnumPropertyRNA*)rna_ensure_property(prop);
 
 	*free= 0;
 
-	if(eprop->itemf && C) {
+	if(eprop->itemf && (C != NULL || (prop->flag & PROP_ENUM_NO_CONTEXT))) {
 		int tot= 0;
-		*item= eprop->itemf(C, ptr, free);
+
+		if (prop->flag & PROP_ENUM_NO_CONTEXT)
+			*item= eprop->itemf(NULL, ptr, free);
+		else
+			*item= eprop->itemf(C, ptr, free);
 
 		if(totitem) {
 			if(*item) {
@@ -1110,6 +1121,10 @@ int RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index)
 
 int RNA_property_animateable(PointerRNA *ptr, PropertyRNA *prop)
 {
+	/* check that base ID-block can support animation data */
+	if (!id_type_can_have_animdata(ptr->id.data))
+		return 0;
+	
 	prop= rna_ensure_property(prop);
 
 	if(!(prop->flag & PROP_ANIMATEABLE))
@@ -3603,7 +3618,7 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms, PointerRNA *ptr, 
 
 	/* allocate data */
 	for(parm= func->cont.properties.first; parm; parm= parm->next)
-		tot+= rna_parameter_size(parm);
+		tot+= rna_parameter_size_alloc(parm);
 
 	parms->data= MEM_callocN(tot, "RNA_parameter_list_create");
 	parms->func= func;
@@ -3644,7 +3659,11 @@ ParameterList *RNA_parameter_list_create(ParameterList *parms, PointerRNA *ptr, 
 			}
 		}
 
-		data= ((char*)data) + size;
+		/* set length to 0 */
+		if (parm->flag & PROP_DYNAMIC)
+			*((int *)(((char *)data) + size))= 0;
+
+		data= ((char*)data) + rna_parameter_size_alloc(parm);
 	}
 
 	return parms;
@@ -3666,7 +3685,7 @@ void RNA_parameter_list_free(ParameterList *parms)
 				MEM_freeN(array);
 		}
 
-		tot+= rna_parameter_size(parm);
+		tot+= rna_parameter_size_alloc(parm);
 	}
 
 	MEM_freeN(parms->data);
@@ -3692,7 +3711,7 @@ void RNA_parameter_list_begin(ParameterList *parms, ParameterIterator *iter)
 	iter->offset= 0;
 
 	if(iter->valid) {
-		iter->size= rna_parameter_size(iter->parm);
+		iter->size= rna_parameter_size_alloc(iter->parm);
 		iter->data= (((char*)iter->parms->data)+iter->offset);
 		ptype= RNA_property_type(iter->parm);
 	}
@@ -3707,7 +3726,7 @@ void RNA_parameter_list_next(ParameterIterator *iter)
 	iter->valid= iter->parm != NULL;
 
 	if(iter->valid) {
-		iter->size= rna_parameter_size(iter->parm);
+		iter->size= rna_parameter_size_alloc(iter->parm);
 		iter->data= (((char*)iter->parms->data)+iter->offset);
 		ptype= RNA_property_type(iter->parm);
 	}
@@ -3776,6 +3795,51 @@ void RNA_parameter_set_lookup(ParameterList *parms, const char *identifier, void
 
 	if(parm)
 		RNA_parameter_set(parms, parm, value);
+}
+
+int RNA_parameter_length_get(ParameterList *parms, PropertyRNA *parm)
+{
+	ParameterIterator iter;
+	int len= 0;
+
+	RNA_parameter_list_begin(parms, &iter);
+
+	for(; iter.valid; RNA_parameter_list_next(&iter))
+		if(iter.parm==parm)
+			break;
+
+	if(iter.valid)
+		len= RNA_parameter_length_get_data(parms, parm, iter.data);
+
+	RNA_parameter_list_end(&iter);
+
+	return len;
+}
+
+void RNA_parameter_length_set(ParameterList *parms, PropertyRNA *parm, int length)
+{
+	ParameterIterator iter;
+
+	RNA_parameter_list_begin(parms, &iter);
+
+	for(; iter.valid; RNA_parameter_list_next(&iter))
+		if(iter.parm==parm)
+			break;
+
+	if(iter.valid)
+		RNA_parameter_length_set_data(parms, parm, iter.data, length);
+
+	RNA_parameter_list_end(&iter);
+}
+
+int RNA_parameter_length_get_data(ParameterList *parms, PropertyRNA *parm, void *data)
+{
+	return *((int *)(((char *)data) + rna_parameter_size(parm)));
+}
+
+void RNA_parameter_length_set_data(ParameterList *parms, PropertyRNA *parm, void *data, int length)
+{
+	*((int *)(((char *)data) + rna_parameter_size(parm)))= length;
 }
 
 int RNA_function_call(bContext *C, ReportList *reports, PointerRNA *ptr, FunctionRNA *func, ParameterList *parms)
@@ -4022,7 +4086,7 @@ int RNA_function_call_direct_va(bContext *C, ReportList *reports, PointerRNA *pt
 			retdata= iter.data;
 			continue;
 		}
-		else if (flag & PROP_RETURN) {
+		else if (flag & PROP_OUTPUT) {
 			continue;
 		}
 

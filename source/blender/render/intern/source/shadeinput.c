@@ -1313,11 +1313,11 @@ void shade_samples_do_AO(Render *re, ShadeSample *ssamp)
 	if(!(re->params.r.mode & R_RAYTRACE) && !(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX))
 		return;
 	
-	if(re->db.wrld.mode & WO_AMB_OCC) {
+	if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
 		shi= &ssamp->shi[0];
 
-		if(((shi->shading.passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & SCE_PASS_AO))
-			|| (shi->shading.passflag & SCE_PASS_AO))
+		if(((shi->shading.passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+			|| (shi->shading.passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
 			for(sample=0, shi= ssamp->shi; sample<ssamp->tot; shi++, sample++)
 				if(!(shi->material.mode & MA_SHLESS))
 					ambient_occlusion(re, shi);		/* stores in shi->shading.ao[] */

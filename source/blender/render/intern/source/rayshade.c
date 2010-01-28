@@ -1319,7 +1319,7 @@ int ray_trace_shadow_rad(Render *re, ShadeInput *ship, ShadeResult *shr)
 	return 1;
 }
 
-static void ray_ao_qmc(Render *re, ShadeInput *shi, float *shadfac)
+static void ray_ao_qmc(Render *re, ShadeInput *shi, float *ao, float *env)
 {
 	Isect isec;
 	RayHint point_hint;
@@ -1335,8 +1335,8 @@ static void ray_ao_qmc(Render *re, ShadeInput *shi, float *shadfac)
 	int samples=0;
 	int max_samples = re->db.wrld.aosamp*re->db.wrld.aosamp;
 	
-	float dxyview[3], skyadded=0, div;
-	int aocolor;
+	float dxyview[3], skyadded=0;
+	int envcolor;
 	
 	RE_RC_INIT(isec, *shi);
 	isec.orig.ob   = shi->primitive.obi;
@@ -1356,15 +1356,15 @@ static void ray_ao_qmc(Render *re, ShadeInput *shi, float *shadfac)
 	RE_rayobject_hint_bb( re->db.raytree, &point_hint, isec.start, isec.start );
 	isec.hint = &point_hint;
 
-	
-	shadfac[0]= shadfac[1]= shadfac[2]= 0.0f;
+	zero_v3(ao);
+	zero_v3(env);
 	
 	/* prevent sky colors to be added for only shadow (shadow becomes alpha) */
-	aocolor= re->db.wrld.aocolor;
+	envcolor= re->db.wrld.aocolor;
 	if(shi->material.mat->mode & MA_ONLYSHADOW)
-		aocolor= WO_AOPLAIN;
+		envcolor= WO_AOPLAIN;
 	
-	if(aocolor == WO_AOSKYTEX) {
+	if(envcolor == WO_AOSKYTEX) {
 		dxyview[0]= 1.0f/(float)re->db.wrld.aosamp;
 		dxyview[1]= 1.0f/(float)re->db.wrld.aosamp;
 		dxyview[2]= 0.0f;
@@ -1416,21 +1416,21 @@ static void ray_ao_qmc(Render *re, ShadeInput *shi, float *shadfac)
 			if (re->db.wrld.aomode & WO_AODIST) fac+= exp(-isec.labda*re->db.wrld.aodistfac); 
 			else fac+= 1.0f;
 		}
-		else if(aocolor!=WO_AOPLAIN) {
+		else if(envcolor!=WO_AOPLAIN) {
 			float skycol[4], view[3];
 			
 			view[0]= -dir[0];
 			view[1]= -dir[1];
 			view[2]= -dir[2];
 			
-			if(aocolor==WO_AOSKYCOL)
+			if(envcolor==WO_AOSKYCOL)
 				environment_no_tex_shade(re, skycol, view);
 			else /* WO_AOSKYTEX */
 				environment_shade(re, skycol, isec.start, view, dxyview, shi->shading.thread);
 
-			shadfac[0]+= skycol[0];
-			shadfac[1]+= skycol[1];
-			shadfac[2]+= skycol[2];
+			env[0]+= skycol[0];
+			env[1]+= skycol[1];
+			env[2]+= skycol[2];
 
 			skyadded++;
 		}
@@ -1448,23 +1448,21 @@ static void ray_ao_qmc(Render *re, ShadeInput *shi, float *shadfac)
 		}
 	}
 	
-	if(aocolor!=WO_AOPLAIN && skyadded) {
-		div= (1.0f - fac/(float)samples)/((float)skyadded);
-		
-		shadfac[0]*= div;	// average color times distances/hits formula
-		shadfac[1]*= div;	// average color times distances/hits formula
-		shadfac[2]*= div;	// average color times distances/hits formula
-	} else {
-		shadfac[0]= shadfac[1]= shadfac[2]= 1.0f - fac/(float)samples;
-	}
+	/* average color times distances/hits formula */
+	ao[0]= ao[1]= ao[2]= 1.0f - fac/(float)samples;
+
+	if(envcolor!=WO_AOPLAIN && skyadded)
+		mul_v3_fl(env, (1.0f - fac/(float)samples)/((float)skyadded));
+	else
+		copy_v3_v3(env, ao);
 	
 	if (qsa)
 		sampler_release(re, qsa);
 }
 
-void ray_ao(Render *re, ShadeInput *shi, float *shadfac)
+void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 {
-	ray_ao_qmc(re, shi, shadfac);
+	ray_ao_qmc(re, shi, ao, env);
 }
 
 static void ray_shadow_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco)

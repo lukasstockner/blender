@@ -61,6 +61,7 @@ struct ImageUser;
 struct uiWidgetColors;
 struct Tex;
 struct MTex;
+struct ImBuf;
 
 typedef struct uiBut uiBut;
 typedef struct uiBlock uiBlock;
@@ -342,6 +343,15 @@ void	uiBlockClearFlag	(uiBlock *block, int flag);
 void	uiBlockSetXOfs		(uiBlock *block, int xofs);
 
 int		uiButGetRetVal		(uiBut *but);
+
+void	uiButSetDragID(uiBut *but, struct ID *id);
+void	uiButSetDragRNA(uiBut *but, struct PointerRNA *ptr);
+void	uiButSetDragPath(uiBut *but, const char *path);
+void	uiButSetDragName(uiBut *but, const char *name);
+void	uiButSetDragValue(uiBut *but);
+void	uiButSetDragImage(uiBut *but, const char *path, int icon, struct ImBuf *ima, float scale);
+
+int		UI_but_active_drop_name(struct bContext *C);
 
 void	uiButSetFlag		(uiBut *but, int flag);
 void	uiButClearFlag		(uiBut *but, int flag);
@@ -661,13 +671,13 @@ void uiTemplateAnyID(uiLayout *layout, struct bContext *C, struct PointerRNA *pt
 	char *proptypename, char *text);
 void uiTemplatePathBuilder(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, 
 	struct PointerRNA *root_ptr, char *text);
-uiLayout *uiTemplateModifier(uiLayout *layout, struct PointerRNA *ptr, int compact);
+uiLayout *uiTemplateModifier(uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, int compact);
 uiLayout *uiTemplateConstraint(uiLayout *layout, struct PointerRNA *ptr);
 void uiTemplatePreview(uiLayout *layout, struct ID *id, struct ID *parent, struct MTex *slot);
 void uiTemplateColorRamp(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
 void uiTemplateHistogram(uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand);
 void uiTemplateCurveMapping(uiLayout *layout, struct PointerRNA *ptr, char *propname, int type, int levels, int brush);
-void uiTemplateColorWheel(uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider);
+void uiTemplateColorWheel(uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider, int lock);
 void uiTemplateTriColorSet(uiLayout *layout, struct PointerRNA *ptr, char *propname);
 void uiTemplateLayers(uiLayout *layout, struct PointerRNA *ptr, char *propname,
 		      PointerRNA *used_ptr, char *used_propname, int active_layer);
@@ -700,6 +710,7 @@ void uiItemPointerR(uiLayout *layout, char *name, int icon, struct PointerRNA *p
 void uiItemsFullEnumO(uiLayout *layout, char *opname, char *propname, struct IDProperty *properties, int context, int flag);
 
 void uiItemL(uiLayout *layout, char *name, int icon); /* label */
+void uiItemLDrag(uiLayout *layout, struct PointerRNA *ptr, char *name, int icon); /* label icon for dragging */
 void uiItemM(uiLayout *layout, struct bContext *C, char *name, int icon, char *menuname); /* menu */
 void uiItemV(uiLayout *layout, char *name, int icon, int argval); /* value */
 void uiItemS(uiLayout *layout); /* separator */
