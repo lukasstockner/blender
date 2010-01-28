@@ -732,17 +732,17 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 	/* we set per pixel a fixed seed, for random AO and shadow samples */
 	seed= pa->rectx*pa->disprect.ymin;
 	
+	/* general shader info, passes */
+	shade_sample_initialize(re, &ssamp, pa, rl);
+	passflag= rl->passflag & ~(SCE_PASS_COMBINED);
+	layflag= rl->layflag;
+
 	/* precompute shading data for this tile */
 	if(re->params.r.mode & R_SHADOW)
 		irregular_shadowbuf_create(re, pa, APixbuf);
 
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_create(re, pa, &ssamp);
-
-	/* general shader info, passes */
-	shade_sample_initialize(re, &ssamp, pa, rl);
-	passflag= rl->passflag & ~(SCE_PASS_COMBINED);
-	layflag= rl->layflag;
 
 	/* filtered render, for now we assume only 1 filter size */
 	if(pa->crop) {

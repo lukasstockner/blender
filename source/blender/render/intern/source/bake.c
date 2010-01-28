@@ -538,9 +538,8 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 		bake_shade(handle, ob, shi, quad, x, y, u, v, 0, 0);
 }
 
-static int get_next_bake_face(BakeShade *bs)
+static int get_next_bake_face(Render *re, BakeShade *bs)
 {
-	Render *re= bs->re;
 	ObjectRen *obr;
 	VlakRen *vlr;
 	MTFace *tface;
@@ -553,7 +552,7 @@ static int get_next_bake_face(BakeShade *bs)
 		obi= re->db.instancetable.first;
 		return 0;
 	}
-	
+
 	BLI_lock_thread(LOCK_CUSTOM1);	
 
 	for(; obi; obi=obi->next, v=0) {
@@ -679,7 +678,7 @@ static void *do_bake_thread(void *bs_v)
 	BakeShade *bs= bs_v;
 	Render *re= bs->re;
 	
-	while(get_next_bake_face(bs)) {
+	while(get_next_bake_face(re, bs)) {
 		shade_tface(bs);
 		
 		/* fast threadsafe break test */
@@ -709,7 +708,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	re->bakebuf= NULL;
 	
 	/* initialize static vars */
-	get_next_bake_face(NULL);
+	get_next_bake_face(re, NULL);
 	
 	/* do we need a mask? */
 	if (re->params.r.bake_filter && (re->params.r.bake_flag & R_BAKE_CLEAR)==0)
