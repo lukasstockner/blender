@@ -301,9 +301,7 @@ static void env_rotate_scene(Render *re, float mat[][4], int mode)
 
 static void env_layerflags(Render *re, unsigned int notlay)
 {
-	ObjectRen *obr;
-	VlakRen *vlr = NULL;
-	int a;
+	ObjectInstanceRen *obi;
 	
 	/* invert notlay, so if face is in multiple layers it will still be visible,
 	   unless all 'notlay' bits match the face bits.
@@ -315,49 +313,26 @@ static void env_layerflags(Render *re, unsigned int notlay)
 	
 	notlay= ~notlay;
 	
-	for(obr=re->db.objecttable.first; obr; obr=obr->next) {
-		if((obr->lay & notlay)==0) {
-			for(a=0; a<obr->totvlak; a++) {
-				if((a & 255)==0) vlr= obr->vlaknodes[a>>8].vlak;
-				else vlr++;
-
-				vlr->flag |= R_HIDDEN;
-			}
-		}
-	}
+	for(obi=re->db.instancetable.first; obi; obi=obi->next)
+		if((obi->lay & notlay)==0)
+			obi->flag |= R_HIDDEN;
 }
 
 static void env_hideobject(Render *re, Object *ob)
 {
-	ObjectRen *obr;
-	VlakRen *vlr = NULL;
-	int a;
+	ObjectInstanceRen *obi;
 	
-	for(obr=re->db.objecttable.first; obr; obr=obr->next) {
-		for(a=0; a<obr->totvlak; a++) {
-			if((a & 255)==0) vlr= obr->vlaknodes[a>>8].vlak;
-			else vlr++;
-
-			if(obr->ob == ob)
-				vlr->flag |= R_HIDDEN;
-		}
-	}
+	for(obi=re->db.instancetable.first; obi; obi=obi->next)
+		if(obi->obr->ob == ob)
+			obi->flag |= R_HIDDEN;
 }
 
 static void env_showobjects(Render *re)
 {
-	ObjectRen *obr;
-	VlakRen *vlr = NULL;
-	int a;
+	ObjectInstanceRen *obi;
 	
-	for(obr=re->db.objecttable.first; obr; obr=obr->next) {
-		for(a=0; a<obr->totvlak; a++) {
-			if((a & 255)==0) vlr= obr->vlaknodes[a>>8].vlak;
-			else vlr++;
-
-			vlr->flag &= ~R_HIDDEN;
-		}
-	}
+	for(obi=re->db.instancetable.first; obi; obi=obi->next)
+		obi->flag &= ~R_HIDDEN;
 }
 
 /* ------------------------------------------------------------------------- */

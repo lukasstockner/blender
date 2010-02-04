@@ -370,7 +370,7 @@ static void set_dupli_tex_mat(Render *re, ObjectInstanceRen *obi, DupliObject *d
 static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *dob, int timeoffset, int vectorlay)
 {
 	ObjectRen *obr;
-	ObjectInstanceRen *obi;
+	ObjectInstanceRen *obi= NULL;
 	ParticleSystem *psys;
 	int show_emitter, allow_render= 1, index, psysindex, i;
 
@@ -408,11 +408,24 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 		}
 		else
 			find_dupli_instances(re, obr);
-			
+
 		for (i=1; i<=ob->totcol; i++) {
 			Material* ma = give_render_material(re, ob, i);
 			if (ma && ma->material_type == MA_TYPE_VOLUME)
 				add_volume(re, obr, ma);
+		}
+
+		/* create low resolution version */
+		if(ob->displacebound > 0.0f) {
+			obr->flag |= R_HIGHRES;
+
+			obr->lowres= render_object_create(&re->db, ob, par, index, 0, ob->lay);
+			obr= obr->lowres;
+			obr->flag |= R_LOWRES;
+
+			if(obr->lay & vectorlay)
+				obr->flag |= R_NEED_VECTORS;
+			init_render_object_data(re, obr, timeoffset);
 		}
 	}
 

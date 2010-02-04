@@ -188,6 +188,8 @@ typedef struct Object {
 	char empty_drawtype, pad1[3];
 	float empty_drawsize;
 	float dupfacesca;	/* dupliface scale */
+	float displacebound;		/* displacement bound */
+	float pad3;
 	
 	ListBase prop;
 	ListBase sensors;

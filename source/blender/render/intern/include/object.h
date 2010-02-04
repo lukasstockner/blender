@@ -77,6 +77,8 @@ typedef struct ObjectRen {
 	struct Scene *sce;
 	int index, psysindex, flag, lay;
 
+	struct ObjectRen *lowres;
+
 	float boundbox[2][3];
 
 	int totvert, totvlak, totstrand, tothalo;
@@ -127,12 +129,15 @@ typedef struct ObjectInstanceRen {
 
 /* objectren->flag */
 #define R_INSTANCEABLE		1
+#define R_LOWRES			2
+#define R_HIGHRES			4
 
 /* objectinstance->flag */
 #define R_DUPLI_TRANSFORMED	1
 #define R_ENV_TRANSFORMED	2
 #define R_TRANSFORMED		(1|2)
 #define R_NEED_VECTORS		4
+#define R_HIDDEN			8
 
 /* data layer size */
 #define RE_STICKY_ELEMS		2

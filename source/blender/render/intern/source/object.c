@@ -178,6 +178,8 @@ ObjectRen *render_object_create(RenderDB *rdb, Object *ob, Object *par, int inde
 	obr->psysindex= psysindex;
 	obr->lay= lay;
 
+	obr->lowres= obr;
+
 	return obr;
 }
 

@@ -3148,7 +3148,11 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 		if(need_orco)
 			mask |= CD_MASK_ORCO;
 
-	dm= mesh_create_derived_render(re->db.scene, ob, mask);
+	if(obr->flag & R_LOWRES)
+		dm= mesh_get_derived_final(re->db.scene, ob, mask);
+	else
+		dm= mesh_create_derived_render(re->db.scene, ob, mask);
+
 	if(dm==NULL) return;	/* in case duplicated object fails? */
 
 	if(mask & CD_MASK_ORCO) {
@@ -3380,7 +3384,7 @@ void init_render_object_data(Render *re, ObjectRen *obr, int timeoffset)
 			/* the emitter mesh wasn't rendered so the modifier stack wasn't
 			 * evaluated with render settings */
 			DerivedMesh *dm;
-			dm = mesh_create_derived_render(re->db.scene, ob,	CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL);
+			dm = mesh_create_derived_render(re->db.scene, ob, CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL);
 			dm->release(dm);
 		}
 

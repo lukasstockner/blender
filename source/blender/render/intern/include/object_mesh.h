@@ -36,8 +36,8 @@ struct VlakRen;
 
 /* Find/Add/Copy Verts and Faces */
 
-struct VlakRen *render_object_vlak_get(struct ObjectRen *obr, int nr);
 struct VertRen *render_object_vert_get(struct ObjectRen *obr, int nr);
+struct VlakRen *render_object_vlak_get(struct ObjectRen *obr, int nr);
 
 struct VertRen *render_object_vert_copy(struct ObjectRen *obr, struct VertRen *ver);
 struct VlakRen *render_object_vlak_copy(struct ObjectRen *obr, struct VlakRen *vlr);
@@ -107,7 +107,7 @@ typedef struct VlakRen {
 
 /* vlakren->flag (vlak = face in dutch) char!!! */
 #define R_SMOOTH		1
-#define R_HIDDEN		2
+#define R_UNUSED_FLAG	2
 #define R_STRAND		4 /* strand flag, means special handling */
 #define R_NOPUNOFLIP	8
 #define R_FULL_OSA		16

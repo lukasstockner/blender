@@ -2038,6 +2038,9 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 		for(i=0, obi=re->db.instancetable.first; obi; i++, obi=obi->next) {
 			obr= obi->obr;
 
+			if(obi->flag & R_HIDDEN)
+				continue;
+
 			/* continue happens in 2 different ways... zmaskpass only does lay_zmask stuff */
 			if(zmaskpass) {
 				if((obi->lay & lay_zmask)==0)
@@ -2086,7 +2089,7 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 					ma= NULL;	/* otherwise nofill can hang */
 				}
 
-				if(!(vlr->flag & R_HIDDEN) && nofill==0) {
+				if(nofill==0) {
 					unsigned short partclip;
 					
 					v1= vlr->v1;
@@ -2224,6 +2227,8 @@ void zbuffer_shadow(Render *re, float winmat[][4], LampRen *lar, int *rectz, int
 			continue;
 		else if(!(obi->lay & lay))
 			continue;
+		else if(obi->flag & R_HIDDEN)
+			continue;
 
 		if(obi->flag & R_TRANSFORMED)
 			mul_m4_m4m4(obwinmat, obi->mat, winmat);
@@ -2248,7 +2253,7 @@ void zbuffer_shadow(Render *re, float winmat[][4], LampRen *lar, int *rectz, int
 				if((ma->mode & MA_SHADBUF)==0) ok= 0;
 			}
 
-			if(ok && (obi->lay & lay) && !(vlr->flag & R_HIDDEN)) {
+			if(ok) {
 				c1= zbuf_shadow_project(cache, vlr->v1->index, obwinmat, vlr->v1->co, ho1);
 				c2= zbuf_shadow_project(cache, vlr->v2->index, obwinmat, vlr->v2->co, ho2);
 				c3= zbuf_shadow_project(cache, vlr->v3->index, obwinmat, vlr->v3->co, ho3);
@@ -2663,6 +2668,8 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *
 
 		if(!(obi->lay & lay))
 			continue;
+		else if(obi->flag & R_HIDDEN)
+			continue;
 
 		if(obi->flag & R_TRANSFORMED)
 			mul_m4_m4m4(obwinmat, obi->mat, winmat);
@@ -2685,75 +2692,73 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *
 			}
 			
 			if(dofill) {
-				if(!(vlr->flag & R_HIDDEN) && (obi->lay & lay)) {
-					unsigned short partclip;
-					
-					v1= vlr->v1;
-					v2= vlr->v2;
-					v3= vlr->v3;
-					v4= vlr->v4;
-
-					c1= zbuf_part_project(cache, v1->index, obwinmat, bounds, v1->co, ho1);
-					c2= zbuf_part_project(cache, v2->index, obwinmat, bounds, v2->co, ho2);
-					c3= zbuf_part_project(cache, v3->index, obwinmat, bounds, v3->co, ho3);
-
-					/* partclipping doesn't need viewplane clipping */
-					partclip= c1 & c2 & c3;
-					if(v4) {
-						c4= zbuf_part_project(cache, v4->index, obwinmat, bounds, v4->co, ho4);
-						partclip &= c4;
-					}
-
-					if(partclip==0) {
-						/* a little advantage for transp rendering (a z offset) */
-						if(!shadow && ma->zoffs != 0.0) {
-							mul= 0x7FFFFFFF;
-							zval= mul*(1.0+ho1[2]/ho1[3]);
-
-							copy_v3_v3(vec, v1->co);
-							/* z is negative, otherwise its being clipped */ 
-							vec[2]-= ma->zoffs;
-							camera_matrix_co_to_hoco(obwinmat, hoco, vec);
-							fval= mul*(1.0+hoco[2]/hoco[3]);
-
-							polygon_offset= (int) fabs(zval - fval );
-						}
-						else polygon_offset= 0;
-						
-						zvlnr= v+1;
-
-						c1= camera_hoco_test_clip(ho1);
-						c2= camera_hoco_test_clip(ho2);
-						c3= camera_hoco_test_clip(ho3);
-						if(v4)
-							c4= camera_hoco_test_clip(ho4);
-
-						for(zsample=0; zsample<samples; zsample++) {
-							zspan= &zspans[zsample];
-							zspan->polygon_offset= polygon_offset;
+				unsigned short partclip;
 				
-							if(ma->material_type == MA_TYPE_WIRE) {
-								if(v4)
-									zbufclipwire(zspan, i, zvlnr, vlr->ec, ho1, ho2, ho3, ho4, c1, c2, c3, c4);
-								else
-									zbufclipwire(zspan, i, zvlnr, vlr->ec, ho1, ho2, ho3, 0, c1, c2, c3, 0);
+				v1= vlr->v1;
+				v2= vlr->v2;
+				v3= vlr->v3;
+				v4= vlr->v4;
+
+				c1= zbuf_part_project(cache, v1->index, obwinmat, bounds, v1->co, ho1);
+				c2= zbuf_part_project(cache, v2->index, obwinmat, bounds, v2->co, ho2);
+				c3= zbuf_part_project(cache, v3->index, obwinmat, bounds, v3->co, ho3);
+
+				/* partclipping doesn't need viewplane clipping */
+				partclip= c1 & c2 & c3;
+				if(v4) {
+					c4= zbuf_part_project(cache, v4->index, obwinmat, bounds, v4->co, ho4);
+					partclip &= c4;
+				}
+
+				if(partclip==0) {
+					/* a little advantage for transp rendering (a z offset) */
+					if(!shadow && ma->zoffs != 0.0) {
+						mul= 0x7FFFFFFF;
+						zval= mul*(1.0+ho1[2]/ho1[3]);
+
+						copy_v3_v3(vec, v1->co);
+						/* z is negative, otherwise its being clipped */ 
+						vec[2]-= ma->zoffs;
+						camera_matrix_co_to_hoco(obwinmat, hoco, vec);
+						fval= mul*(1.0+hoco[2]/hoco[3]);
+
+						polygon_offset= (int) fabs(zval - fval );
+					}
+					else polygon_offset= 0;
+					
+					zvlnr= v+1;
+
+					c1= camera_hoco_test_clip(ho1);
+					c2= camera_hoco_test_clip(ho2);
+					c3= camera_hoco_test_clip(ho3);
+					if(v4)
+						c4= camera_hoco_test_clip(ho4);
+
+					for(zsample=0; zsample<samples; zsample++) {
+						zspan= &zspans[zsample];
+						zspan->polygon_offset= polygon_offset;
+			
+						if(ma->material_type == MA_TYPE_WIRE) {
+							if(v4)
+								zbufclipwire(zspan, i, zvlnr, vlr->ec, ho1, ho2, ho3, ho4, c1, c2, c3, c4);
+							else
+								zbufclipwire(zspan, i, zvlnr, vlr->ec, ho1, ho2, ho3, 0, c1, c2, c3, 0);
+						}
+						else {
+							if(v4 && (vlr->flag & R_STRAND)) {
+								zbufclip4(zspan, i, zvlnr, ho1, ho2, ho3, ho4, c1, c2, c3, c4);
 							}
 							else {
-								if(v4 && (vlr->flag & R_STRAND)) {
-									zbufclip4(zspan, i, zvlnr, ho1, ho2, ho3, ho4, c1, c2, c3, c4);
-								}
-								else {
-									zbufclip(zspan, i, zvlnr, ho1, ho2, ho3, c1, c2, c3);
-									if(v4)
-										zbufclip(zspan, i, zvlnr+RE_QUAD_OFFS, ho1, ho3, ho4, c1, c3, c4);
-								}
+								zbufclip(zspan, i, zvlnr, ho1, ho2, ho3, c1, c2, c3);
+								if(v4)
+									zbufclip(zspan, i, zvlnr+RE_QUAD_OFFS, ho1, ho3, ho4, c1, c3, c4);
 							}
 						}
 					}
-					if((v & 255)==255) 
-						if(re->cb.test_break(re->cb.tbh)) 
-							break; 
 				}
+				if((v & 255)==255) 
+					if(re->cb.test_break(re->cb.tbh)) 
+						break; 
 			}
 		}
 

@@ -1922,6 +1922,13 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "dtx", OB_DRAWXRAY);
 	RNA_def_property_ui_text(prop, "X-Ray", "Makes the object draw in front of others.");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, NULL);
+
+	/* displacement bound */
+	prop= RNA_def_property(srna, "displacement_bound", PROP_FLOAT, PROP_TRANSLATION);
+	RNA_def_property_float_sdna(prop, NULL, "displacebound");
+	RNA_def_property_range(prop, 0, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Displacement Bound", "Maximum displacement offset for rendering.");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
 	
 	/* Grease Pencil */
 	prop= RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);

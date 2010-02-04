@@ -220,6 +220,7 @@ class OBJECT_PT_display(ObjectButtonsPanel):
         col.prop(ob, "x_ray", text="X-Ray")
         col.prop(ob, "draw_transparent", text="Transparency")
 
+        layout.prop(ob, "displacement_bound")
 
 class OBJECT_PT_duplication(ObjectButtonsPanel):
     bl_label = "Duplication"
