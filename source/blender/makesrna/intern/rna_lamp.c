@@ -325,10 +325,10 @@ static void rna_def_lamp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Type", "Type of Lamp.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
-	prop= RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
+	prop= RNA_def_property(srna, "falloff_distance", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "dist");
 	RNA_def_property_ui_range(prop, 0, 1000, 1.0, 2);
-	RNA_def_property_ui_text(prop, "Distance", "Falloff distance - the light is at half the original intensity at this point.");
+	RNA_def_property_ui_text(prop, "Falloff distance", "Extra distance added to falloff to smooth harsh light when the lamp is nearby.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "power", PROP_FLOAT, PROP_POWER);
@@ -380,7 +380,6 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 		{LA_FALLOFF_INVLINEAR, "INVERSE_LINEAR", 0, "Inverse Linear", ""},
 		{LA_FALLOFF_INVSQUARE, "INVERSE_SQUARE", 0, "Inverse Square", ""},
 		{LA_FALLOFF_CURVE, "CUSTOM_CURVE", 0, "Custom Curve", ""},
-		{LA_FALLOFF_SLIDERS, "LINEAR_QUADRATIC_WEIGHTED", 0, "Lin/Quad Weighted", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	prop= RNA_def_property(srna, "falloff_type", PROP_ENUM, PROP_NONE);

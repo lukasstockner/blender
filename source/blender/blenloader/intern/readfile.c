@@ -6485,8 +6485,10 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 	for(la= main->lamp.first; la; la= la->id.next) {
 		if(la->ray_samp_method == LA_SAMP_CONSTANT)
 			la->ray_samp_method= LA_SAMP_HAMMERSLEY;
+		if(la->falloff_type == LA_FALLOFF_SLIDERS)
+			la->falloff_type= LA_FALLOFF_INVSQUARE;
 
-		la->energy *= M_PI;
+		la->energy *= M_PI*la->dist;
 	}
 }
 

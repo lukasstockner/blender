@@ -158,11 +158,10 @@ typedef struct Lamp {
 
 /* falloff_type */
 #define LA_FALLOFF_CONSTANT		0
-#define LA_FALLOFF_INVLINEAR		1
+#define LA_FALLOFF_INVLINEAR	1
 #define LA_FALLOFF_INVSQUARE	2
 #define LA_FALLOFF_CURVE		3
-#define LA_FALLOFF_SLIDERS		4
-
+#define LA_FALLOFF_SLIDERS		4	/* deprecated */
 
 /* buftype, no flag */
 #define LA_SHADBUF_REGULAR		0

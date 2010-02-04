@@ -54,6 +54,8 @@ static int area_lamp_energy_multisample(LampRen *lar, float *co, float *vn, floa
 
 /******************************* Visibility ********************************/
 
+#define LAMP_FALLOFF_MIN_DIST 1e-10f /* to division by zero */
+
 static float lamp_falloff(LampRen *lar, float dist)
 {
 	float factor;
@@ -64,17 +66,10 @@ static float lamp_falloff(LampRen *lar, float dist)
 			factor = 1.0f;
 			break;
 		case LA_FALLOFF_INVLINEAR:
-			factor = lar->dist/(lar->dist + dist);
+			factor = 1.0f/(dist + lar->dist + LAMP_FALLOFF_MIN_DIST);
 			break;
 		case LA_FALLOFF_INVSQUARE:
-			factor = lar->dist/(lar->dist + dist*dist);
-			break;
-		case LA_FALLOFF_SLIDERS:
-			factor = 1.0f;
-			if(lar->ld1>0.0f)
-				factor= lar->dist/(lar->dist+lar->ld1*dist);
-			if(lar->ld2>0.0f)
-				factor*= lar->distkw/(lar->distkw+lar->ld2*dist*dist);
+			factor = 1.0f/(dist*dist + lar->dist + LAMP_FALLOFF_MIN_DIST);
 			break;
 		case LA_FALLOFF_CURVE:
 			factor = curvemapping_evaluateF(lar->curfalloff, 0, dist/lar->dist);
@@ -186,7 +181,7 @@ float lamp_visibility(LampRen *lar, float *co, float *vn, float *r_vec, float *r
 			//else
 			//	fac= 0.0f;
 
-			if(fac <= 0.001) fac = 0.0f;
+			if(fac <= 1e-6f) fac = 0.0f;
 			break;
 
 		case LA_SPOT:
@@ -202,8 +197,7 @@ float lamp_visibility(LampRen *lar, float *co, float *vn, float *r_vec, float *r
 			if(lar->type == LA_SPOT)
 				fac= lamp_spot_falloff(lar, vec, fac);
 			
-			if(fac <= 0.001)
-				fac = 0.0f;
+			if(fac <= 1e-6f) fac = 0.0f;
 
 			break;
 	}

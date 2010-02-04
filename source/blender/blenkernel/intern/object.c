@@ -788,8 +788,8 @@ void *add_lamp(char *name)
 	
 	la->r= la->g= la->b= la->k= 1.0f;
 	la->haint= 1.0f;
-	la->energy= 100.0f;
-	la->dist= 25.0f;
+	la->energy= 80.0f;
+	la->dist= 0.0f;
 	la->spotsize= 45.0f;
 	la->spotblend= 0.15f;
 	la->att2= 1.0f;
