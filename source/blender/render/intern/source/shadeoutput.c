@@ -362,13 +362,16 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 	GroupObject *go;
 	ListBase *lights;
 	LampRen *lar;
-	int passflag= shi->shading.passflag;
+	float onlyshadow[3];
+	int doonlyshadow= 0, passflag= shi->shading.passflag;
 
 	/* direct specular & diffuse */
 	if(!(passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE|SCE_PASS_SPEC|SCE_PASS_SHADOW)))
 		return;
 
 	lights= lamps_get(re, shi);
+
+	zero_v3(onlyshadow);
 
 	/* accumulates in shr->diff and shr->spec, and unshadowed in shr->shad */
 	for(go=lights->first; go; go= go->next) {
@@ -393,9 +396,10 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 			mat_bsdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_DIFFUSE);
 
 			if(lar->mode & LA_ONLYSHADOW) {
-				shr->diff[0] -= diff[0]*lainf[0]*(1.0f - lashdw[0]);
-				shr->diff[1] -= diff[1]*lainf[1]*(1.0f - lashdw[1]);
-				shr->diff[2] -= diff[2]*lainf[2]*(1.0f - lashdw[2]);
+				onlyshadow[0] += diff[0]*lainf[0]*(1.0f - lashdw[0]);
+				onlyshadow[1] += diff[1]*lainf[1]*(1.0f - lashdw[1]);
+				onlyshadow[2] += diff[2]*lainf[2]*(1.0f - lashdw[2]);
+				doonlyshadow= 1;
 			}
 			else {
 				shr->diff[0] += diff[0]*lainf[0]*lashdw[0];
@@ -409,9 +413,10 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 			mat_bsdf_f(spec, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_SPECULAR);
 
 			if(lar->mode & LA_ONLYSHADOW) {
-				shr->spec[0] -= spec[0]*lainf[0]*(1.0f - lashdw[0]);
-				shr->spec[1] -= spec[1]*lainf[1]*(1.0f - lashdw[1]);
-				shr->spec[2] -= spec[2]*lainf[2]*(1.0f - lashdw[2]);
+				onlyshadow[0] += spec[0]*lainf[0]*(1.0f - lashdw[0]);
+				onlyshadow[1] += spec[1]*lainf[1]*(1.0f - lashdw[1]);
+				onlyshadow[2] += spec[2]*lainf[2]*(1.0f - lashdw[2]);
+				doonlyshadow= 1;
 			}
 			else {
 				shr->spec[0] += spec[0]*lainf[0]*lashdw[0];
@@ -426,6 +431,19 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 			shr->shad[0] += (diff[0] + spec[0])*lainf[0];
 			shr->shad[1] += (diff[1] + spec[1])*lainf[1];
 			shr->shad[2] += (diff[2] + spec[2])*lainf[2];
+		}
+	}
+
+	/* only shadow apply, do in grayscale to avoid getting ugly discolorations */
+	if(doonlyshadow) {
+		float intensity = rgb_to_grayscale(shr->diff) + rgb_to_grayscale(shr->spec);
+
+		if(intensity > 0.0f) {
+			float shadow = rgb_to_grayscale(onlyshadow);
+			float factor = maxf((intensity - shadow)/intensity, 0.0f);
+
+			mul_v3_fl(shr->diff, factor);
+			mul_v3_fl(shr->spec, factor);
 		}
 	}
 
