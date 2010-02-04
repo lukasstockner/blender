@@ -53,12 +53,10 @@ static void halton_sample(double *ht_invprimes, double *ht_nums, double *v)
 	// "Instant Radiosity", Keller A.
 	unsigned int i;
 	
-	for (i = 0; i < 2; i++)
-	{
+	for(i = 0; i < 2; i++) {
 		double r = fabs((1.0 - ht_nums[i]) - 1e-10);
 		
-		if (ht_invprimes[i] >= r)
-		{
+		if(ht_invprimes[i] >= r) {
 			double lasth;
 			double h = ht_invprimes[i];
 			
@@ -83,13 +81,11 @@ static void hammersley_create(double *out, int n)
 	double p, t;
 	int k, kk;
 
-	for (k = 0; k < n; k++) {
+	for(k = 0; k < n; k++) {
 		t = 0;
-		for (p = 0.5, kk = k; kk; p *= 0.5, kk >>= 1) {
-			if (kk & 1) {		/* kk mod 2 = 1		*/
+		for(p = 0.5, kk = k; kk; p *= 0.5, kk >>= 1)
+			if(kk & 1)		/* kk mod 2 = 1		*/
 				t += p;
-			}
-		}
 	
 		out[2 * k + 0] = (double)k / (double)n;
 		out[2 * k + 1] = t;
@@ -104,7 +100,7 @@ static QMCSampler *qmc_sampler_init(int type, int tot)
 	qsa->tot = tot;
 	qsa->type = type;
 	
-	if (qsa->type==SAMP_TYPE_HAMMERSLEY) 
+	if(qsa->type==SAMP_TYPE_HAMMERSLEY) 
 		hammersley_create(qsa->samp2d, qsa->tot);
 		
 	return qsa;
@@ -112,14 +108,13 @@ static QMCSampler *qmc_sampler_init(int type, int tot)
 
 static void qmc_sampler_init_pixel(QMCSampler *qsa, int thread)
 {
-	if (qsa->type==SAMP_TYPE_HAMMERSLEY)
-	{
+	if(qsa->type==SAMP_TYPE_HAMMERSLEY) {
 		/* hammersley sequence is fixed, already created in QMCSampler init.
 		 * per pixel, gets a random offset. We create separate offsets per thread, for write-safety */
 		qsa->offs[thread][0] = 0.5 * BLI_thread_frand(thread);
 		qsa->offs[thread][1] = 0.5 * BLI_thread_frand(thread);
 	}
-	else { 	/* SAMP_TYPE_HALTON */
+	else { /* SAMP_TYPE_HALTON */
 		
 		/* generate a new randomised halton sequence per pixel
 		 * to alleviate qmc artifacts and make it reproducable 
@@ -133,7 +128,7 @@ static void qmc_sampler_init_pixel(QMCSampler *qsa, int thread)
 		ht_invprimes[0] = 0.5;
 		ht_invprimes[1] = 1.0/3.0;
 		
-		for (i=0; i< qsa->tot; i++) {
+		for(i=0; i< qsa->tot; i++) {
 			halton_sample(ht_invprimes, ht_nums, r);
 			qsa->samp2d[2*i+0] = r[0];
 			qsa->samp2d[2*i+1] = r[1];
@@ -149,7 +144,7 @@ static void qmc_sampler_free(QMCSampler *qsa)
 
 void sampler_get_double_2d(double s[2], QMCSampler *qsa, int num)
 {
-	if (qsa->type == SAMP_TYPE_HAMMERSLEY) {
+	if(qsa->type == SAMP_TYPE_HAMMERSLEY) {
 		int thread= qsa->thread;
 
 		s[0] = fmod(qsa->samp2d[2*num+0] + qsa->offs[thread][0], 1.0f);
@@ -238,12 +233,25 @@ void sample_project_hemi(float vec[3], float s[2])
 {
 	float phi, sqr;
 	
-	phi = s[0]*2.f*M_PI;	
-	sqr = sqrt(s[1]);
+	phi = s[0]*2.0f*(float)M_PI;
+	sqr = sqrtf(1.0f - s[1]*s[1]);
 
-	vec[0] = cos(phi)*sqr;
-	vec[1] = sin(phi)*sqr;
-	vec[2] = 1.f - s[1]*s[1];
+	vec[0] = cosf(phi)*sqr;
+	vec[1] = sinf(phi)*sqr;
+	vec[2] = s[1];
+}
+
+/* cosine weighted hemisphere sampling */
+void sample_project_hemi_cosine_weighted(float vec[3], float s[2])
+{
+	float phi, sqr;
+	
+	phi = s[0]*2.0f*(float)M_PI;	
+	sqr = sqrtf(1.0f - s[1]);
+
+	vec[0] = cosf(phi)*sqr;
+	vec[1] = sinf(phi)*sqr;
+	vec[2] = sqrtf(s[1]);
 }
 
 /* disc of radius 'radius', centred on 0,0 */
@@ -251,19 +259,19 @@ void sample_project_disc(float vec[3], float radius, float s[2])
 {
 	float phi, sqr;
 
-	phi = s[0]*2*M_PI;
-	sqr = sqrt(s[1]);
+	phi = s[0]*2.0f*(float)M_PI;
+	sqr = sqrtf(s[1]);
 
-	vec[0] = cos(phi)*sqr* radius/2.0;
-	vec[1] = sin(phi)*sqr* radius/2.0;
+	vec[0] = cosf(phi)*sqr*radius*0.5f;
+	vec[1] = sinf(phi)*sqr*radius*0.5f;
 	vec[2] = 0.0f;
 }
 
 /* rect of edge lengths sizex, sizey, centred on 0.0,0.0 i.e. ranging from -sizex/2 to +sizey/2 */
 void sample_project_rect(float vec[3], float sizex, float sizey, float s[2])
 {
-	vec[0] = (s[0] - 0.5) * sizex;
-	vec[1] = (s[1] - 0.5) * sizey;
+	vec[0] = (s[0] - 0.5f) * sizex;
+	vec[1] = (s[1] - 0.5f) * sizey;
 	vec[2] = 0.0f;
 }
 
@@ -272,28 +280,12 @@ void sample_project_phong(float vec[3], float blur, float s[2])
 {
 	float phi, pz, sqr;
 
-	phi = s[0]*2*M_PI;
-	pz = pow(s[1], blur);
-	sqr = sqrt(1.0f-pz*pz);
+	phi = s[0]*2.0f*(float)M_PI;
+	pz = powf(s[1], blur);
+	sqr = sqrtf(1.0f-pz*pz);
 
-	vec[0] = cos(phi)*sqr;
-	vec[1] = sin(phi)*sqr;
+	vec[0] = cosf(phi)*sqr;
+	vec[1] = sinf(phi)*sqr;
 	vec[2] = 0.0f;
 }
-
-#if 0 /* currently not used */
-/* cosine weighted hemisphere sampling */
-void sample_project_hemi_cosine_weighted(float vec[3], float s[2])
-{
-	float phi, sqr;
-	
-	phi = s[0]*2.f*M_PI;	
-	sqr = s[1]*sqrt(2-s[1]*s[1]);
-
-	vec[0] = cos(phi)*sqr;
-	vec[1] = sin(phi)*sqr;
-	vec[2] = 1.f - s[1]*s[1];
-
-}
-#endif
 

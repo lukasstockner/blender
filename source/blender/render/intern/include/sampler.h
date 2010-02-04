@@ -50,6 +50,7 @@ void sampler_get_double_2d(double s[2], struct QMCSampler *qsa, int num);
 /* Projection Utities */
 
 void sample_project_hemi(float vec[3], float s[2]);
+void sample_project_hemi_cosine_weighted(float vec[3], float s[2]);
 void sample_project_disc(float vec[3], float radius, float s[2]);
 void sample_project_rect(float vec[3], float sizex, float sizey, float s[2]);
 void sample_project_phong(float vec[3], float blur, float s[2]);
