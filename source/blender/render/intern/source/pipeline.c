@@ -677,6 +677,13 @@ static void threaded_tile_processor(Render *re)
 
 		BLI_end_threads(&threads);
 
+		/* in case we cancelled, free remaining results */
+		while(BLI_thread_queue_size(donequeue)) {
+			pa= BLI_thread_queue_pop(donequeue);
+			render_result_free(&pa->fullresult, pa->result);
+			pa->result= NULL;
+		}
+
 		if((g_break=test_break(re->cb.tbh)))
 			break;
 	}
