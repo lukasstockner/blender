@@ -46,16 +46,17 @@ struct ListBase *lamps_get(struct Render *re, struct ShadeInput *shi);
 void lightgroup_create(struct Render *re, struct Group *group, int exclusive);
 void lightgroup_free(struct Render *re);
 
-/* Visibility factor from point to center of the lamp. */
-
-float lamp_visibility(struct LampRen *lar, float *co, float *vn, float *r_vec, float *r_dist);
-
-/* Lamp influence and shadow on a surface */
+/* Lamp unshadowed influence and shadow (for surfaces only at the moment)
+   unit of influence is irradiance (Watt/m^2) */
 
 int lamp_influence(struct Render *re, struct LampRen *lar,
 	struct ShadeInput *shi, float lainf[3], float lv[3]);;
 void lamp_shadow(struct Render *re, struct LampRen *lar,
 	struct ShadeInput *shi, float lv[3], float lashdw[3]);
+
+/* Visibility factor from point to center of the lamp. */
+
+float lamp_visibility(struct LampRen *lar, float *co, float *vn, float *r_vec, float *r_dist);
 
 /* Sampling of point on the lamp */
 
@@ -95,7 +96,7 @@ typedef struct LampRen {
 	int mode;
 	float r, g, b, k;
 	float shdwr, shdwg, shdwb;
-	float energy, haint;
+	float power, haint;
 	int lay;
 	float spotsi,spotbl;
 	float vec[3];

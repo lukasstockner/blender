@@ -220,11 +220,11 @@ int lamp_influence(Render *re, LampRen *lar, ShadeInput *shi, float lainf[3], fl
 	Material *ma= shi->material.mat;
 	float lampdist, visifac;
 
-	if (lar->energy == 0.0)
+	if(lar->power == 0.0)
 		return 0;
 
 	/* only shadow lamps shouldn't affect shadow-less materials at all */
-	if ((lar->mode & LA_ONLYSHADOW) && (!(ma->mode & MA_SHADOW) || !(re->params.r.mode & R_SHADOW)))
+	if((lar->mode & LA_ONLYSHADOW) && (!(ma->mode & MA_SHADOW) || !(re->params.r.mode & R_SHADOW)))
 		return 0;
 
 	/* optimisation, don't render fully black lamps */
@@ -562,8 +562,6 @@ void lamp_shadow(Render *re, LampRen *lar, ShadeInput *shi, float *lv, float *la
 
 void lamp_sample(float lco[3], LampRen *lar, float co[3], float r[2])
 {
-	/* TODO this function is not complete/optimized and not used yet */
-
 	switch(lar->type) {
 		case LA_LOCAL: {
 			if(r) {
@@ -835,8 +833,8 @@ GroupObject *lamp_create(Render *re, Object *ob)
 	lar->type= la->type;
 	lar->mode= la->mode;
 
-	lar->energy= la->energy;
-	if(la->mode & LA_NEG) lar->energy= -lar->energy;
+	lar->power= la->energy;
+	if(la->mode & LA_NEG) lar->power= -lar->power;
 
 	lar->vec[0]= -mat[2][0];
 	lar->vec[1]= -mat[2][1];
@@ -848,9 +846,9 @@ GroupObject *lamp_create(Render *re, Object *ob)
 	lar->dist= la->dist;
 	lar->haint= la->haint;
 	lar->distkw= lar->dist*lar->dist;
-	lar->r= lar->energy*la->r;
-	lar->g= lar->energy*la->g;
-	lar->b= lar->energy*la->b;
+	lar->r= lar->power*la->r;
+	lar->g= lar->power*la->g;
+	lar->b= lar->power*la->b;
 	lar->shdwr= la->shdwr;
 	lar->shdwg= la->shdwg;
 	lar->shdwb= la->shdwb;

@@ -2080,9 +2080,9 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
                 }
 
 				/* lamp colors were premultiplied with this */
-				col[0]= texres.tr*la->energy;
-				col[1]= texres.tg*la->energy;
-				col[2]= texres.tb*la->energy;
+				col[0]= texres.tr*la->power;
+				col[1]= texres.tg*la->power;
+				col[2]= texres.tb*la->power;
 				
 				texture_rgb_blend(colf, col, colf, texres.tin, mtex->colfac, mtex->blendtype);
 			}

@@ -166,7 +166,7 @@ static void render_lighting_halo(Render *re, HaloRen *har, float *colf)
 						/* shadowbuf_test==0.0 : 100% shadow */
 						shadfac = shadowbuf_test(re, lar->shb, rco, dco, dco, inp, 0.0f);
 						if( shadfac>0.0 ) {
-							shadfac*= inp*soft*lar->energy;
+							shadfac*= inp*soft*lar->power;
 							ir -= shadfac;
 							ig -= shadfac;
 							ib -= shadfac;

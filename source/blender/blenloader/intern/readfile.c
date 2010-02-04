@@ -6482,9 +6482,12 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 		if(wo->ao_samp_method == WO_AOSAMP_CONSTANT)
 			wo->ao_samp_method= WO_AOSAMP_HAMMERSLEY;
 
-	for(la= main->lamp.first; la; la= la->id.next)
+	for(la= main->lamp.first; la; la= la->id.next) {
 		if(la->ray_samp_method == LA_SAMP_CONSTANT)
 			la->ray_samp_method= LA_SAMP_HAMMERSLEY;
+
+		la->energy *= M_PI;
+	}
 }
 
 static void do_version_constraints_radians_degrees_250(ListBase *lb)
@@ -10645,9 +10648,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
+	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 17))
+		do_version_shading_sys_250(fd, lib, main);
+
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
-		do_version_shading_sys_250(fd, lib, main);
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

@@ -179,8 +179,8 @@ static void shade_compute_ao(Render *re, ShadeInput *shi, ShadeResult *shr)
 			if(shi->shading.depth)
 				ambient_occlusion(re, shi);
 			copy_v3_v3(shr->ao, shi->shading.ao);
-			VECCOPY(shr->env, shi->shading.env); // XXX multiply
-			VECCOPY(shr->indirect, shi->shading.indirect); // XXX multiply
+			copy_v3_v3(shr->env, shi->shading.env); // XXX multiply
+			copy_v3_v3(shr->indirect, shi->shading.indirect); // XXX multiply
 		}
 	}
 }
@@ -390,7 +390,7 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 		/* diffuse */
 		if(!(lar->mode & LA_NO_DIFF) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE|SCE_PASS_SHADOW))) {
-			mat_bxdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BXDF_DIFFUSE);
+			mat_bsdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_DIFFUSE);
 
 			if(lar->mode & LA_ONLYSHADOW) {
 				shr->diff[0] -= diff[0]*lainf[0]*(1.0f - lashdw[0]);
@@ -406,7 +406,7 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 		/* specular */
 		if(!(lar->mode & LA_NO_SPEC) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_SPEC|SCE_PASS_SHADOW))) {
-			mat_bxdf_f(spec, &shi->material, &shi->geometry, shi->shading.thread, lv, BXDF_SPECULAR);
+			mat_bsdf_f(spec, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_SPECULAR);
 
 			if(lar->mode & LA_ONLYSHADOW) {
 				shr->spec[0] -= spec[0]*lainf[0]*(1.0f - lashdw[0]);
@@ -418,9 +418,6 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 				shr->spec[1] += spec[1]*lainf[1]*lashdw[1];
 				shr->spec[2] += spec[2]*lainf[2]*lashdw[2];
 			}
-
-			VECCOPY(shr->env, shi->shading.env); // XXX multiply
-			VECCOPY(shr->indirect, shi->shading.indirect); // XXX multiply
 		}
 
 		/* accumulate */

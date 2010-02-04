@@ -89,7 +89,7 @@ class DATA_PT_lamp(DataButtonsPanel):
         col = split.column()
         sub = col.column()
         sub.prop(lamp, "color", text="")
-        sub.prop(lamp, "energy")
+        sub.prop(lamp, "power")
 
         if lamp.type in ('POINT', 'SPOT'):
             sub.label(text="Falloff:")

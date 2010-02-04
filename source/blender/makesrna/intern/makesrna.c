@@ -1565,6 +1565,7 @@ static const char *rna_property_subtypename(PropertyType type)
 		case PROP_COLOR_GAMMA: return "PROP_COLOR_GAMMA";
 		case PROP_LAYER: return "PROP_LAYER";
 		case PROP_LAYER_MEMBER: return "PROP_LAYER_MEMBER";
+		case PROP_POWER: return "PROP_POWER";
 		default: {
 			/* incase we dont have a type preset that includes the subtype */
 			if(RNA_SUBTYPE_UNIT(type)) {
@@ -1589,7 +1590,8 @@ static const char *rna_property_subtype_unit(PropertyType type)
 		case PROP_UNIT_TIME:		return "PROP_UNIT_TIME";
 		case PROP_UNIT_VELOCITY:	return "PROP_UNIT_VELOCITY";
 		case PROP_UNIT_ACCELERATION:return "PROP_UNIT_ACCELERATION";
-		default: return "PROP_UNKNOWN";
+		case PROP_UNIT_POWER:		return "PROP_UNIT_POWER";
+		default:					return "PROP_UNIT_UNKNOWN";
 	}
 }
 

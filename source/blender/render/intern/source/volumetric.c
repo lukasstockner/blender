@@ -469,7 +469,7 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 	
 	if (lar->mode & LA_LAYER) if((lar->lay & shi->primitive.obi->lay)==0) return;
 	if ((lar->lay & shi->shading.lay)==0) return;
-	if (lar->energy == 0.0) return;
+	if (lar->power == 0.0) return;
 	
 	if ((visifac= lamp_visibility(lar, co, lv, NULL, &lampdist)) == 0.f) return;
 	

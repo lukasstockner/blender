@@ -600,24 +600,26 @@ float mat_alpha(ShadeMaterial *mat)
 	return mat->alpha;
 }
 
-void mat_bxdf_f(float bxdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int thread, float lv[3], int flag)
+void mat_bsdf_f(float bsdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int thread, float lv[3], int flag)
 {
 	float tmp[3];
 
-	zero_v3(bxdf);
+	zero_v3(bsdf);
 
-	if(flag & BXDF_DIFFUSE) {
+	if(flag & BSDF_DIFFUSE) {
 		diffuse_shader(tmp, mat, geom, lv);
-		add_v3_v3(bxdf, tmp);
+		add_v3_v3(bsdf, tmp);
 	}
 
-	if(flag & BXDF_SPECULAR) {
+	if(flag & BSDF_SPECULAR) {
 		specular_shader(tmp, mat, geom, lv);
-		add_v3_v3(bxdf, tmp);
+		add_v3_v3(bsdf, tmp);
 	}
+
+	mul_v3_fl(bsdf, M_1_PI);
 }
 
-void mat_bxdf_sample(float lv[3], float pdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int flag, float r[2])
+void mat_bsdf_sample(float lv[3], float pdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int flag, float r[2])
 {
 	/* TODO not implemented */
 	zero_v3(lv);
