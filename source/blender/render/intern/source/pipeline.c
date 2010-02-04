@@ -466,7 +466,10 @@ static void *do_part_thread(void *pa_v)
 			else
 				pa->result= render_result_create(re, &pa->disprect, pa->crop, RR_USEMEM);
 
-			render_rasterize_part(re, pa);
+			if(re->params.r.integrator == R_INTEGRATOR_PATHTRACER)
+				render_path_trace_part(re, pa);
+			else
+				render_rasterize_part(re, pa);
 
 			render_result_merge_part(re, pa->result);
 		}

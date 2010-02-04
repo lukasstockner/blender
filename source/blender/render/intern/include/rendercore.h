@@ -37,6 +37,7 @@ struct RenderPart;
 
 void render_rasterize_part(struct Render *re, struct RenderPart *pa);
 void render_sss_bake_part(struct Render *re, struct RenderPart *pa);
+void render_path_trace_part(struct Render *re, struct RenderPart *pa);
 
 /* Rasterization Per Pixel Structs */
 

@@ -1753,6 +1753,11 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 		{0, "BLENDER_RENDER", 0, "Blender Render", ""},
 		{0, NULL, 0, NULL, NULL}};
 
+	static EnumPropertyItem integrator_items[] = {
+		{R_INTEGRATOR_RASTERIZER, "RASTERIZER", 0, "Rasterizer", ""},
+		{R_INTEGRATOR_PATHTRACER, "PATH_TRACER", 0, "Path Tracer", ""},
+		{0, NULL, 0, NULL, NULL}};
+
 	srna= RNA_def_struct(brna, "SceneRenderData", NULL);
 	RNA_def_struct_sdna(srna, "RenderData");
 	RNA_def_struct_nested(brna, srna, "Scene");
@@ -2441,6 +2446,17 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, "rna_SceneRenderData_use_game_engine_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Use Game Engine", "Current rendering engine is a game engine.");
+
+	/* path */
+	prop= RNA_def_property(srna, "integrator", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, integrator_items);
+	RNA_def_property_ui_text(prop, "Integrator", "Integrator to use for rendering.");
+	RNA_def_property_update(prop, NC_WINDOW, NULL);
+
+	prop= RNA_def_property(srna, "path_samples", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_text(prop, "Path Samples", "Number of samples to use for path tracer.");
+	RNA_def_property_update(prop, NC_WINDOW, NULL);
 
 	/* simplify */
 	prop= RNA_def_property(srna, "use_simplify", PROP_BOOLEAN, PROP_NONE);

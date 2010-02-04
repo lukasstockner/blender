@@ -379,6 +379,10 @@ typedef struct RenderData {
 	float pad2;			//  XXX deprecated since 2.5
 	struct Text *dometext;	//  XXX deprecated since 2.5
 
+	/* path tracing */
+	int integrator;
+	int path_samples;
+
 	/* render engine */
 	char engine[32];
 } RenderData;
@@ -965,6 +969,10 @@ typedef struct Scene {
 #define R_BAKE_SPACE_WORLD	 1
 #define R_BAKE_SPACE_OBJECT	 2
 #define R_BAKE_SPACE_TANGENT 3
+
+/* r->integrator */
+#define R_INTEGRATOR_RASTERIZER	0
+#define R_INTEGRATOR_PATHTRACER	1
 
 /* **************** SCENE ********************* */
 
