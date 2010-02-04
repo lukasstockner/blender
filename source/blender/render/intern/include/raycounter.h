@@ -31,11 +31,14 @@
 
 #include "RE_raytrace.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #ifdef RE_RAYCOUNTER
 
 /* #define RE_RC_INIT(isec, shi) (isec).count = re_rc_counter+(shi).thread */
-#define RE_RC_INIT(isec, shi) (isec).raycounter = &((shi).raycounter)
+#define RE_RC_INIT(isec, shi) (isec).raycounter = &((shi).shading.raycounter)
 void RE_RC_INFO (RayCounter *rc);
 void RE_RC_MERGE(RayCounter *rc, RayCounter *tmp);
 #define RE_RC_COUNT(var) (var)++
@@ -51,5 +54,8 @@ extern RayCounter re_rc_counter[];
 		
 #endif
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

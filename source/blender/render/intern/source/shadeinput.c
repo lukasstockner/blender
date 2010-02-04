@@ -1421,7 +1421,7 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	/* ------  main shading loop -------- */
 #ifdef RE_RAYCOUNTER
-	memset(&shi->material.raycounter, 0, sizeof(shi->material.raycounter));
+	memset(&shi->shading.raycounter, 0, sizeof(shi->shading.raycounter));
 #endif
 	
 	if(shi->material.mat->nodetree && shi->material.mat->use_nodes) {
@@ -1465,12 +1465,12 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 /*
 	if(1 || shi->shading.passflag & SCE_PASS_RAYHITS)
 	{
-		shr->rayhits[0] = (float)shi->material.raycounter.faces.test;
-		shr->rayhits[1] = (float)shi->material.raycounter.bb.hit;
+		shr->rayhits[0] = (float)shi->shading.raycounter.faces.test;
+		shr->rayhits[1] = (float)shi->shading.raycounter.bb.hit;
 		shr->rayhits[2] = 0.0;
 		shr->rayhits[3] = 1.0;
 	}
  */
-	RE_RC_MERGE(&re_rc_counter[shi->shading.thread], &shi->material.raycounter);
+	RE_RC_MERGE(&re_rc_counter[shi->shading.thread], &shi->shading.raycounter);
 }
 

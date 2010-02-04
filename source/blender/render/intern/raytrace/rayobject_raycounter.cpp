@@ -26,6 +26,9 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+#include "RE_raytrace.h"
+
 #include "rayobject.h"
 #include "raycounter.h"
 

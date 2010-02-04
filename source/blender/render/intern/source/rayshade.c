@@ -847,7 +847,7 @@ static void traceray(Render *re, ShadeInput *origshi, ShadeResult *origshr, shor
 	else {
 		ray_fadeout_endcolor(re, col, origshi, &shi, origshr, &isec, vec);
 	}
-	RE_RC_MERGE(&origshi->material.raycounter, &shi.shading.raycounter);
+	RE_RC_MERGE(&origshi->shading.raycounter, &shi.shading.raycounter);
 }
 
 static int adaptive_sample_variance(int samples, float *col, float *colsq, float thresh)
@@ -1242,7 +1242,7 @@ static void ray_trace_shadow_tra(Render *re, Isect *is, ShadeInput *origshi, int
 			ray_trace_shadow_tra(re, is, origshi, depth-1, traflag | RAY_TRA);
 		}
 		
-		RE_RC_MERGE(&origshi->material.raycounter, &shi.raycounter);
+		RE_RC_MERGE(&origshi->shading.raycounter, &shi.shading.raycounter);
 	}
 }
 
