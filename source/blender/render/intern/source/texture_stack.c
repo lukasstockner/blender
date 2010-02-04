@@ -2153,7 +2153,9 @@ int multitex_ext(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, Te
 
 int multitex_thread(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, short thread, short which_output)
 {
-	Render *re= NULL; // this is from outside render engine 
+	/* TODO initialize re to with 0 for now, previously this would
+	   use global R, which contained settings from last render .. */
+	static Render re = {0};
 
 	if(tex==NULL) {
 		memset(texres, 0, sizeof(TexResult));
@@ -2180,12 +2182,12 @@ int multitex_thread(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex,
 			dyt_l[0]= dyt_l[1]= dyt_l[2]= 0.0f;
 		}
 
-		do_2d_mapping(re, &mtex, texvec_l, NULL, NULL, dxt_l, dyt_l);
+		do_2d_mapping(&re, &mtex, texvec_l, NULL, NULL, dxt_l, dyt_l);
 
-		return tex_sample_old(&re->params, tex, texvec_l, dxt_l, dyt_l, osatex, texres, thread, which_output);
+		return tex_sample_old(&re.params, tex, texvec_l, dxt_l, dyt_l, osatex, texres, thread, which_output);
 	}
 	else
-		return tex_sample_old(&re->params, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
+		return tex_sample_old(&re.params, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
 }
 
 int externtex(MTex *mtex, float *vec, float *tin, float *tr, float *tg, float *tb, float *ta)
