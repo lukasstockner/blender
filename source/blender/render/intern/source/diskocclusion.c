@@ -48,6 +48,7 @@
 #include "RE_shader_ext.h"
 
 /* local includes */
+#include "cache.h"
 #include "database.h"
 #include "diskocclusion.h"
 #include "environment.h"
@@ -65,17 +66,6 @@
 #define INVALID_INDEX ((int)(~0))
 #define INVPI 0.31830988618379069f
 #define TOTCHILD 8
-#define CACHE_STEP 3
-
-typedef struct OcclusionCacheSample {
-	float co[3], n[3], ao[3], env[3], indirect[3], intensity, dist2;
-	int x, y, filled;
-} OcclusionCacheSample;
-
-typedef struct OcclusionCache {
-	OcclusionCacheSample *sample;
-	int x, y, w, h, step;
-} OcclusionCache;
 
 typedef struct OccFace {
 	int obi;
@@ -117,12 +107,12 @@ typedef struct OcclusionTree {
 	int totbuildthread;
 	int doindirect;
 
-	OcclusionCache *cache;
+	PixelCache **cache;
 } OcclusionTree;
 
 typedef struct OcclusionThread {
 	Render *re;
-	StrandSurface *mesh;
+	SurfaceCache *mesh;
 	float (*faceao)[3];
 	float (*faceenv)[3];
 	float (*faceindirect)[3];
@@ -664,7 +654,7 @@ static OcclusionTree *occ_tree_build(Render *re)
 	BLI_memarena_use_calloc(tree->arena);
 
 	if(re->db.wrld.aomode & WO_AOCACHE)
-		tree->cache= MEM_callocN(sizeof(OcclusionCache)*BLENDER_MAX_THREADS, "OcclusionCache");
+		tree->cache= MEM_callocN(sizeof(PixelCache*)*BLENDER_MAX_THREADS, "PixelCache*");
 
 	tree->face= MEM_callocN(sizeof(OccFace)*totface, "OcclusionFace");
 	tree->co= MEM_callocN(sizeof(float)*3*totface, "OcclusionCo");
@@ -1423,168 +1413,13 @@ static void sample_occ_tree(Render *re, OcclusionTree *tree, OccFace *exclude, f
 	else zero_v3(indirect);
 }
 
-/* ---------------------------- Caching ------------------------------- */
-
-static OcclusionCacheSample *find_occ_sample(OcclusionCache *cache, int x, int y)
-{
-	x -= cache->x;
-	y -= cache->y;
-
-	x /= cache->step;
-	y /= cache->step;
-	x *= cache->step;
-	y *= cache->step;
-
-	if(x < 0 || x >= cache->w || y < 0 || y >= cache->h)
-		return NULL;
-	else
-		return &cache->sample[y*cache->w + x];
-}
-
-static int sample_occ_cache(OcclusionTree *tree, float *co, float *n, int x, int y, int thread, float *ao, float *env, float *indirect)
-{
-	OcclusionCache *cache;
-	OcclusionCacheSample *samples[4], *sample;
-	float wn[4], wz[4], wb[4], tx, ty, w, totw, mino, maxo;
-	float d[3], dist2;
-	int i, x1, y1, x2, y2;
-
-	if(!tree->cache)
-		return 0;
-	
-	/* first try to find a sample in the same pixel */
-	cache= &tree->cache[thread];
-
-	if(cache->sample && cache->step) {
-		sample= &cache->sample[(y-cache->y)*cache->w + (x-cache->x)];
-		if(sample->filled) {
-			sub_v3_v3v3(d, sample->co, co);
-			dist2= dot_v3v3(d, d);
-			if(dist2 < 0.5f*sample->dist2 && dot_v3v3(sample->n, n) > 0.98f) {
-				copy_v3_v3(ao, sample->ao);
-				copy_v3_v3(env, sample->env);
-				copy_v3_v3(indirect, sample->indirect);
-				return 1;
-			}
-		}
-	}
-	else
-		return 0;
-
-	/* try to interpolate between 4 neighbouring pixels */
-	samples[0]= find_occ_sample(cache, x, y);
-	samples[1]= find_occ_sample(cache, x+cache->step, y);
-	samples[2]= find_occ_sample(cache, x, y+cache->step);
-	samples[3]= find_occ_sample(cache, x+cache->step, y+cache->step);
-
-	for(i=0; i<4; i++)
-		if(!samples[i] || !samples[i]->filled)
-			return 0;
-
-	/* require intensities not being too different */
-	mino= MIN4(samples[0]->intensity, samples[1]->intensity, samples[2]->intensity, samples[3]->intensity);
-	maxo= MAX4(samples[0]->intensity, samples[1]->intensity, samples[2]->intensity, samples[3]->intensity);
-
-	if(maxo - mino > 0.05f)
-		return 0;
-
-	/* compute weighted interpolation between samples */
-	zero_v3(ao);
-	zero_v3(env);
-	zero_v3(indirect);
-	totw= 0.0f;
-
-	x1= samples[0]->x;
-	y1= samples[0]->y;
-	x2= samples[3]->x;
-	y2= samples[3]->y;
-
-	tx= (float)(x2 - x)/(float)(x2 - x1);
-	ty= (float)(y2 - y)/(float)(y2 - y1);
-
-	wb[3]= (1.0f-tx)*(1.0f-ty);
-	wb[2]= (tx)*(1.0f-ty);
-	wb[1]= (1.0f-tx)*(ty);
-	wb[0]= tx*ty;
-
-	for(i=0; i<4; i++) {
-		sub_v3_v3v3(d, samples[i]->co, co);
-		dist2= dot_v3v3(d, d);
-
-		wz[i]= 1.0f; //(samples[i]->dist2/(1e-4f + dist2));
-		wn[i]= pow(dot_v3v3(samples[i]->n, n), 32.0f);
-
-		w= wb[i]*wn[i]*wz[i];
-
-		totw += w;
-		madd_v3_v3fl(ao, samples[i]->ao, w);
-		madd_v3_v3fl(env, samples[i]->env, w);
-		madd_v3_v3fl(indirect, samples[i]->indirect, w);
-	}
-
-	if(totw >= 0.9f) {
-		totw= 1.0f/totw;
-		mul_v3_fl(ao, totw);
-		mul_v3_fl(env, totw);
-		mul_v3_fl(indirect, totw);
-		return 1;
-	}
-
-	return 0;
-}
-
-static void sample_occ_surface(ShadeInput *shi)
-{
-	StrandRen *strand= shi->primitive.strand;
-	StrandSurface *mesh= strand->buffer->surface;
-	int *face, *index = render_strand_get_face(shi->primitive.obr, strand, 0);
-	float w[4], *co1, *co2, *co3, *co4;
-
-	if(mesh && mesh->face && mesh->co && mesh->ao && index) {
-		face= mesh->face[*index];
-
-		co1= mesh->co[face[0]];
-		co2= mesh->co[face[1]];
-		co3= mesh->co[face[2]];
-		co4= (face[3])? mesh->co[face[3]]: NULL;
-
-		interp_weights_face_v3(w, co1, co2, co3, co4, strand->vert->co);
-
-		zero_v3(shi->shading.ao);
-		zero_v3(shi->shading.env);
-		zero_v3(shi->shading.indirect);
-
-		madd_v3_v3fl(shi->shading.ao, mesh->ao[face[0]], w[0]);
-		madd_v3_v3fl(shi->shading.env, mesh->env[face[0]], w[0]);
-		madd_v3_v3fl(shi->shading.indirect, mesh->indirect[face[0]], w[0]);
-		madd_v3_v3fl(shi->shading.ao, mesh->ao[face[1]], w[1]);
-		madd_v3_v3fl(shi->shading.env, mesh->env[face[1]], w[1]);
-		madd_v3_v3fl(shi->shading.indirect, mesh->indirect[face[1]], w[1]);
-		madd_v3_v3fl(shi->shading.ao, mesh->ao[face[2]], w[2]);
-		madd_v3_v3fl(shi->shading.env, mesh->env[face[2]], w[2]);
-		madd_v3_v3fl(shi->shading.indirect, mesh->indirect[face[2]], w[2]);
-		if(face[3]) {
-			madd_v3_v3fl(shi->shading.ao, mesh->ao[face[3]], w[3]);
-			madd_v3_v3fl(shi->shading.env, mesh->env[face[3]], w[3]);
-			madd_v3_v3fl(shi->shading.indirect, mesh->indirect[face[3]], w[3]);
-		}
-	}
-	else {
-		shi->shading.ao[0]= 1.0f;
-		shi->shading.ao[1]= 1.0f;
-		shi->shading.ao[2]= 1.0f;
-		zero_v3(shi->shading.env);
-		zero_v3(shi->shading.indirect);
-	}
-}
-
 /* ------------------------- External Functions --------------------------- */
 
-static void *exec_strandsurface_sample(void *data)
+static void *exec_surface_cache_sample(void *data)
 {
 	OcclusionThread *othread= (OcclusionThread*)data;
 	Render *re= othread->re;
-	StrandSurface *mesh= othread->mesh;
+	SurfaceCache *mesh= othread->mesh;
 	float ao[3], env[3], indirect[3], co[3], n[3], *co1, *co2, *co3, *co4;
 	int a, *face;
 
@@ -1619,7 +1454,7 @@ void disk_occlusion_create(Render *re)
 {
 	OcclusionThread othreads[BLENDER_MAX_THREADS];
 	OcclusionTree *tree;
-	StrandSurface *mesh;
+	SurfaceCache *mesh;
 	ListBase threads;
 	float ao[3], env[3], indirect[3], (*faceao)[3], (*faceenv)[3], (*faceindirect)[3];
 	int a, totface, totthread, *face, *count;
@@ -1635,7 +1470,7 @@ void disk_occlusion_create(Render *re)
 		if(tree->doindirect && (re->db.wrld.mode & WO_INDIRECT_LIGHT))
 			occ_compute_bounces(re, tree, re->db.wrld.ao_indirect_bounces);
 
-		for(mesh=re->db.strandsurface.first; mesh; mesh=mesh->next) {
+		for(mesh=re->db.surfacecache.first; mesh; mesh=mesh->next) {
 			if(!mesh->face || !mesh->co || !mesh->ao)
 				continue;
 
@@ -1658,10 +1493,10 @@ void disk_occlusion_create(Render *re)
 			}
 
 			if(totthread == 1) {
-				exec_strandsurface_sample(&othreads[0]);
+				exec_surface_cache_sample(&othreads[0]);
 			}
 			else {
-				BLI_init_threads(&threads, exec_strandsurface_sample, totthread);
+				BLI_init_threads(&threads, exec_surface_cache_sample, totthread);
 
 				for(a=0; a<totthread; a++)
 					BLI_insert_thread(&threads, &othreads[a]);
@@ -1721,45 +1556,40 @@ void disk_occlusion_free(RenderDB *rdb)
 	}
 }
 
-void disk_occlusion_sample(Render *re, ShadeInput *shi)
+void disk_occlusion_sample_direct(Render *re, ShadeInput *shi)
 {
 	OcclusionTree *tree= re->db.occlusiontree;
-	OcclusionCache *cache;
-	OcclusionCacheSample *sample;
 	OccFace exclude;
 	int onlyshadow;
 
+	onlyshadow= (shi->material.mat->mode & MA_ONLYSHADOW);
+	exclude.obi= shi->primitive.obi - re->db.objectinstance;
+	exclude.facenr= shi->primitive.vlr->index;
+	sample_occ_tree(re, tree, &exclude, shi->geometry.co, shi->geometry.vno, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
+}
+
+void disk_occlusion_sample(Render *re, ShadeInput *shi)
+{
+	OcclusionTree *tree= re->db.occlusiontree;
+	PixelCache *cache;
+
 	if(tree) {
 		if(shi->primitive.strand) {
-			sample_occ_surface(shi);
+			StrandRen *strand= shi->primitive.strand;
+			surface_cache_sample(strand->buffer->surface, shi);
 		}
 		/* try to get result from the cache if possible */
 		else if((shi->shading.depth > 0) ||
 			    ((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP)) ||
-                !sample_occ_cache(tree, shi->geometry.co, shi->geometry.vno, shi->geometry.xs, shi->geometry.ys, shi->shading.thread, shi->shading.ao, shi->shading.env, shi->shading.indirect)) {
+                !(tree->cache && pixel_cache_sample(tree->cache[shi->shading.thread], shi))) {
+
 			/* no luck, let's sample the occlusion */
-			exclude.obi= shi->primitive.obi - re->db.objectinstance;
-			exclude.facenr= shi->primitive.vlr->index;
-			onlyshadow= (shi->material.mat->mode & MA_ONLYSHADOW);
-			sample_occ_tree(re, tree, &exclude, shi->geometry.co, shi->geometry.vno, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
+			disk_occlusion_sample_direct(re, shi);
 
-			/* fill result into sample, each time */
+			/* fill result into cache, each time */
 			if(tree->cache) {
-				cache= &tree->cache[shi->shading.thread];
-
-				if(cache->sample && cache->step) {
-					sample= &cache->sample[(shi->geometry.ys-cache->y)*cache->w + (shi->geometry.xs-cache->x)];
-					copy_v3_v3(sample->co, shi->geometry.co);
-					copy_v3_v3(sample->n, shi->geometry.vno);
-					copy_v3_v3(sample->ao, shi->shading.ao);
-					copy_v3_v3(sample->env, shi->shading.env);
-					copy_v3_v3(sample->indirect, shi->shading.indirect);
-					sample->intensity= MAX3(sample->ao[0], sample->ao[1], sample->ao[2]);
-					sample->intensity= MAX2(sample->intensity, MAX3(sample->env[0], sample->env[1], sample->env[2]));
-					sample->intensity= MAX2(sample->intensity, MAX3(sample->indirect[0], sample->indirect[1], sample->indirect[2]));
-					sample->dist2= dot_v3v3(shi->geometry.dxco, shi->geometry.dxco) + dot_v3v3(shi->geometry.dyco, shi->geometry.dyco);
-					sample->filled= 1;
-				}
+				cache= tree->cache[shi->shading.thread];
+				pixel_cache_insert_sample(cache, shi);
 			}
 		}
 	}
@@ -1768,116 +1598,24 @@ void disk_occlusion_sample(Render *re, ShadeInput *shi)
 		shi->shading.ao[1]= 1.0f;
 		shi->shading.ao[2]= 1.0f;
 
-		shi->shading.env[0]= 1.0f;
-		shi->shading.env[1]= 1.0f;
-		shi->shading.env[2]= 1.0f;
-
-		shi->shading.indirect[0]= 1.0f;
-		shi->shading.indirect[1]= 1.0f;
-		shi->shading.indirect[2]= 1.0f;
+		zero_v3(shi->shading.env);
+		zero_v3(shi->shading.indirect);
 	}
 }
 
 void disk_occlusion_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 {
 	OcclusionTree *tree= re->db.occlusiontree;
-	PixStr ps;
-	OcclusionCache *cache;
-	OcclusionCacheSample *sample;
-	OccFace exclude;
-	ShadeInput *shi;
-	void **rd=NULL;
-	int *ro=NULL, *rp=NULL, *rz=NULL, onlyshadow;
-	int x, y, step = CACHE_STEP;
 
-	if(!tree->cache)
-		return;
-
-	cache= &tree->cache[pa->thread];
-	cache->w= pa->rectx;
-	cache->h= pa->recty;
-	cache->x= pa->disprect.xmin;
-	cache->y= pa->disprect.ymin;
-	cache->step= step;
-	cache->sample= MEM_callocN(sizeof(OcclusionCacheSample)*cache->w*cache->h, "OcclusionCacheSample");
-	sample= cache->sample;
-
-	if(re->params.osa) {
-		rd= pa->rectdaps;
-	}
-	else {
-		/* fake pixel struct for non-osa */
-		ps.next= NULL;
-		ps.mask= 0xFFFF;
-
-		ro= pa->recto;
-		rp= pa->rectp;
-		rz= pa->rectz;
-	}
-
-	/* compute a sample at every step pixels */
-	for(y=pa->disprect.ymin; y<pa->disprect.ymax; y++) {
-		for(x=pa->disprect.xmin; x<pa->disprect.xmax; x++, sample++, rd++, ro++, rp++, rz++) {
-			if(!(((x - pa->disprect.xmin + step) % step) == 0 || x == pa->disprect.xmax-1))
-				continue;
-			if(!(((y - pa->disprect.ymin + step) % step) == 0 || y == pa->disprect.ymax-1))
-				continue;
-
-			if(re->params.osa) {
-				if(!*rd) continue;
-
-				shade_samples_from_ps(re, ssamp, (PixStr *)(*rd), x, y);
-			}
-			else {
-				if(!*rp) continue;
-
-				ps.obi= *ro;
-				ps.facenr= *rp;
-				ps.z= *rz;
-				shade_samples_from_ps(re, ssamp, &ps, x, y);
-			}
-
-			shi= ssamp->shi;
-			if(shi->primitive.vlr) {
-				onlyshadow= (shi->material.mat->mode & MA_ONLYSHADOW);
-				exclude.obi= shi->primitive.obi - re->db.objectinstance;
-				exclude.facenr= shi->primitive.vlr->index;
-				sample_occ_tree(re, tree, &exclude, shi->geometry.co, shi->geometry.vno, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
-
-				copy_v3_v3(sample->co, shi->geometry.co);
-				copy_v3_v3(sample->n, shi->geometry.vno);
-				copy_v3_v3(sample->ao, shi->shading.ao);
-				copy_v3_v3(sample->env, shi->shading.env);
-				copy_v3_v3(sample->indirect, shi->shading.indirect);
-				sample->intensity= MAX3(sample->ao[0], sample->ao[1], sample->ao[2]);
-				sample->intensity= MAX2(sample->intensity, MAX3(sample->env[0], sample->env[1], sample->env[2]));
-				sample->intensity= MAX2(sample->intensity, MAX3(sample->indirect[0], sample->indirect[1], sample->indirect[2]));
-				sample->dist2= dot_v3v3(shi->geometry.dxco, shi->geometry.dxco) + dot_v3v3(shi->geometry.dyco, shi->geometry.dyco);
-				sample->x= shi->geometry.xs;
-				sample->y= shi->geometry.ys;
-				sample->filled= 1;
-			}
-
-			if(re->cb.test_break(re->cb.tbh))
-				break;
-		}
-	}
+	if(tree->cache)
+		tree->cache[pa->thread]= pixel_cache_create(re, pa, ssamp);
 }
 
 void disk_occlusion_cache_free(Render *re, RenderPart *pa)
 {
 	OcclusionTree *tree= re->db.occlusiontree;
-	OcclusionCache *cache;
 
-	if(tree->cache) {
-		cache= &tree->cache[pa->thread];
-
-		if(cache->sample)
-			MEM_freeN(cache->sample);
-
-		cache->w= 0;
-		cache->h= 0;
-		cache->step= 0;
-	}
+	if(tree->cache)
+		pixel_cache_free(tree->cache[pa->thread]);
 }
 

@@ -70,6 +70,7 @@
 
 #include "PIL_time.h"
 
+#include "cache.h"
 #include "camera.h"
 #include "database.h"
 #include "diskocclusion.h"
@@ -888,7 +889,7 @@ static void render_db_preprocess(Render *re)
 		halos_project(&re->db, &re->cam, 0, re->xparts);
 	
 	/* Occlusion */
-	if((re->db.wrld.mode & WO_AMB_OCC) && !re->cb.test_break(re->cb.tbh))
+	if((re->db.wrld.mode & WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && !re->cb.test_break(re->cb.tbh))
 		if(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX)
 			if(re->params.r.renderer==R_INTERN)
 				if(re->params.r.mode & R_SHADOW)
@@ -1115,7 +1116,7 @@ static void calculate_speedvector(float *vectors, int step, float winsq, float w
 	}
 }
 
-static float *calculate_strandsurface_speedvectors(Render *re, ObjectInstanceRen *obi, StrandSurface *mesh)
+static float *calculate_surfacecache_speedvectors(Render *re, ObjectInstanceRen *obi, SurfaceCache *mesh)
 {
 	float winsq= re->cam.winx*re->cam.winy, winroot= sqrt(winsq), (*winspeed)[4];
 	float ho[4], prevho[4], nextho[4], winmat[4][4], vec[2];
@@ -1153,7 +1154,7 @@ static void calculate_speedvectors(Render *re, ObjectInstanceRen *obi, float *ve
 	VertRen *ver= NULL;
 	StrandRen *strand= NULL;
 	StrandBuffer *strandbuf;
-	StrandSurface *mesh= NULL;
+	SurfaceCache *mesh= NULL;
 	float *speed, (*winspeed)[4]=NULL, ho[4], winmat[4][4];
 	float *co1, *co2, *co3, *co4, w[4];
 	float winsq= re->cam.winx*re->cam.winy, winroot= sqrt(winsq);
@@ -1181,7 +1182,7 @@ static void calculate_speedvectors(Render *re, ObjectInstanceRen *obi, float *ve
 
 		/* compute speed vectors at surface vertices */
 		if(mesh)
-			winspeed= (float(*)[4])calculate_strandsurface_speedvectors(re, obi, mesh);
+			winspeed= (float(*)[4])calculate_surfacecache_speedvectors(re, obi, mesh);
 
 		if(winspeed) {
 			for(a=0; a<obr->totstrand; a++, vectors+=2) {
@@ -1372,10 +1373,10 @@ static void free_dbase_object_vectors(ListBase *lb)
 void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 {
 	ObjectInstanceRen *obi, *oldobi;
-	StrandSurface *mesh;
+	SurfaceCache *mesh;
 	ListBase *table;
 	ListBase oldtable= {NULL, NULL}, newtable= {NULL, NULL};
-	ListBase strandsurface;
+	ListBase surfacecache;
 	int step;
 	
 	re->cb.i.infostr= "Calculating previous vectors";
@@ -1390,10 +1391,10 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 	copy_dbase_object_vectors(re, &oldtable);
 		
 	/* free dbase and make the future one */
-	strandsurface= re->db.strandsurface;
-	memset(&re->db.strandsurface, 0, sizeof(ListBase));
+	surfacecache= re->db.surfacecache;
+	memset(&re->db.surfacecache, 0, sizeof(ListBase));
 	RE_Database_Free(re);
-	re->db.strandsurface= strandsurface;
+	re->db.surfacecache= surfacecache;
 	
 	if(!re->cb.test_break(re->cb.tbh)) {
 		/* creates entire dbase */
@@ -1405,10 +1406,10 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 	copy_dbase_object_vectors(re, &newtable);
 	
 	/* free dbase and make the real one */
-	strandsurface= re->db.strandsurface;
-	memset(&re->db.strandsurface, 0, sizeof(ListBase));
+	surfacecache= re->db.surfacecache;
+	memset(&re->db.surfacecache, 0, sizeof(ListBase));
 	RE_Database_Free(re);
-	re->db.strandsurface= strandsurface;
+	re->db.surfacecache= surfacecache;
 	
 	if(!re->cb.test_break(re->cb.tbh))
 		RE_Database_FromScene(re, sce, 1);
@@ -1470,7 +1471,7 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 	free_dbase_object_vectors(&oldtable);
 	free_dbase_object_vectors(&newtable);
 
-	for(mesh=re->db.strandsurface.first; mesh; mesh=mesh->next) {
+	for(mesh=re->db.surfacecache.first; mesh; mesh=mesh->next) {
 		if(mesh->prevco) {
 			MEM_freeN(mesh->prevco);
 			mesh->prevco= NULL;
@@ -1577,7 +1578,7 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 			raytree_create(re);
 	
 	/* occlusion */
-	if((re->db.wrld.mode & WO_AMB_OCC) && !re->cb.test_break(re->cb.tbh))
+	if((re->db.wrld.mode & WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && !re->cb.test_break(re->cb.tbh))
 		if(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX)
 			if(re->params.r.mode & R_SHADOW)
 				disk_occlusion_create(re);

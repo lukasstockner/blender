@@ -96,6 +96,7 @@
 #include "PIL_time.h"
 #include "IMB_imbuf_types.h"
 
+#include "cache.h"
 #include "camera.h"
 #include "database.h"
 #include "environment.h"
@@ -1793,7 +1794,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 
 			if(re->params.r.mode & R_SPEED)
 				dosurfacecache= 1;
-			else if((re->db.wrld.mode & WO_AMB_OCC) && (re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX))
+			else if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && (re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX))
 				if(ma->amb != 0.0f)
 					dosurfacecache= 1;
 
@@ -2118,7 +2119,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 	}
 
 	if(dosurfacecache)
-		strandbuf->surface= cache_strand_surface(re, obr, psmd->dm, mat, timeoffset);
+		strandbuf->surface= surface_cache_create(re, obr, psmd->dm, mat, timeoffset);
 
 /* 4. clean up */
 #if 0 // XXX old animation system

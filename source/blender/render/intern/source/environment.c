@@ -169,7 +169,7 @@ void environment_init(Render *re, World *world)
 				re->db.wrld.aosamp++;
 
 		if(!(re->params.r.mode & R_RAYTRACE) && (re->db.wrld.ao_gather_method == WO_AOGATHER_RAYTRACE))
-			re->db.wrld.mode &= ~WO_AMB_OCC;
+			re->db.wrld.mode &= ~(WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT);
 	}
 	else {
 		memset(&re->db.wrld, 0, sizeof(World));

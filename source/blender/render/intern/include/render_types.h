@@ -97,7 +97,7 @@ typedef struct RenderDB {
 
 	/* approximate ao */
 	void *occlusiontree;
-	ListBase strandsurface;
+	ListBase surfacecache;
 
 	/* volume */
 	ListBase render_volumes_inside;

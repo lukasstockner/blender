@@ -33,6 +33,7 @@
 #include "BLI_listbase.h"
 #include "BLI_memarena.h"
 
+#include "cache.h"
 #include "database.h"
 #include "diskocclusion.h"
 #include "lamp.h"
@@ -105,7 +106,7 @@ void render_db_free(RenderDB *rdb)
 	sss_free(rdb);
 	disk_occlusion_free(rdb);
 	raytree_free(rdb);
-	free_strand_surface(rdb);
+	surface_cache_free(rdb);
 	volume_precache_free(rdb);
 	BLI_freelistN(&rdb->render_volumes_inside);
 

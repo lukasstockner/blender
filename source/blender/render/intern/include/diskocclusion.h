@@ -40,6 +40,7 @@ void disk_occlusion_free(struct RenderDB *rdb);
 /* Sample */
 
 void disk_occlusion_sample(struct Render *re, struct ShadeInput *shi);
+void disk_occlusion_sample_direct(struct Render *re, struct ShadeInput *shi);
 
 /* Part Cache */
 
