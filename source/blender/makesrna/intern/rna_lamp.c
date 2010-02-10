@@ -33,6 +33,8 @@
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
 
+#include "BLI_math_base.h"
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -123,6 +125,20 @@ static void rna_Lamp_sky_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	DAG_id_flush_update(&la->id, 0);
 	WM_main_add_notifier(NC_LAMP|ND_SKY, la);
 }
+
+/* only for rad/deg conversion! can remove later */
+static float rna_Lamp_spot_size_get(PointerRNA *ptr)
+{
+	Lamp *la= ptr->id.data;
+	return la->spotsize * (M_PI / 180.0);
+}
+
+static void rna_Lamp_spot_size_set(PointerRNA *ptr, float value)
+{
+	Lamp *la= ptr->id.data;
+	la->spotsize= value * (180.0 / M_PI);
+}
+
 
 #else
 
@@ -291,12 +307,12 @@ static void rna_def_lamp_sky_settings(BlenderRNA *brna)
 
 	/* boolean */
 	
-	prop= RNA_def_property(srna, "sky", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_sky", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "sun_effect_type", LA_SUN_EFFECT_SKY);
 	RNA_def_property_ui_text(prop, "Sky", "Apply sun effect on sky.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_sky_update");
 
-	prop= RNA_def_property(srna, "atmosphere", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_atmosphere", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "sun_effect_type", LA_SUN_EFFECT_AP);
 	RNA_def_property_ui_text(prop, "Atmosphere", "Apply sun effect on atmosphere.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_sky_update");
@@ -334,7 +350,7 @@ static void rna_def_lamp(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "power", PROP_FLOAT, PROP_POWER);
 	RNA_def_property_float_sdna(prop, NULL, "energy");
 	RNA_def_property_ui_range(prop, 0, 1000.0, 1.0, 2);
-	RNA_def_property_ui_text(prop, "Power", "Amount of light that the lamp emits in Watts.");
+	RNA_def_property_ui_text(prop, "Power", "Amount of light that the lamp emits.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop= RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
@@ -619,10 +635,11 @@ static void rna_def_spot_lamp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Spot Blend", "The softness of the spotlight edge.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
-	prop= RNA_def_property(srna, "spot_size", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "spotsize");
-	RNA_def_property_range(prop, 1.0f ,180.0f);
+	prop= RNA_def_property(srna, "spot_size", PROP_FLOAT, PROP_ANGLE);
+	// RNA_def_property_float_sdna(prop, NULL, "spotsize");
+	RNA_def_property_range(prop, M_PI/180.0f, M_PI);
 	RNA_def_property_ui_text(prop, "Spot Size", "Angle of the spotlight beam in degrees.");
+	RNA_def_property_float_funcs(prop, "rna_Lamp_spot_size_get", "rna_Lamp_spot_size_set", NULL); /* only for deg/rad conversion */
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "show_cone", PROP_BOOLEAN, PROP_NONE);
@@ -644,7 +661,7 @@ static void rna_def_spot_lamp(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "shadow_buffer_bias", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "bias");
-	RNA_def_property_range(prop, 0.0f, 5.0f);
+	RNA_def_property_range(prop, 0.001f, 5.0f);
 	RNA_def_property_ui_text(prop, "Shadow Buffer Bias", "Shadow buffer sampling bias.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 

@@ -371,7 +371,7 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 
 	/* text button with name */
 	if(id) {
-		char name[64];
+		char name[UI_MAX_NAME_STR];
 
 		//text_idbutton(id, name);
 		name[0]= '\0';
@@ -934,18 +934,6 @@ static void constraint_active_func(bContext *C, void *ob_v, void *con_v)
 	ED_object_constraint_set_active(ob_v, con_v);
 }
 
-static void verify_constraint_name_func (bContext *C, void *con_v, void *dummy)
-{
-	Object *ob= CTX_data_active_object(C);
-	bConstraint *con= con_v;
-	
-	if (!con)
-		return;
-	
-	ED_object_constraint_rename(ob, con, NULL);
-	ED_object_constraint_set_active(ob, con);
-	// XXX allqueue(REDRAWACTION, 0); 
-}
 
 /* some commonly used macros in the constraints drawing code */
 #define is_armature_target(target) (target && target->type==OB_ARMATURE)
@@ -1074,7 +1062,7 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 	rb_col= (con->flag & CONSTRAINT_ACTIVE)?50:20;
 	
 	/* open/close */
-	uiDefIconButBitS(block, ICONTOG, CONSTRAINT_EXPAND, B_CONSTRAINT_TEST, ICON_TRIA_RIGHT, xco-10, yco, 20, 20, &con->flag, 0.0, 0.0, 0.0, 0.0, "Collapse/Expand Constraint");
+	uiItemR(subrow, "", 0, &ptr, "expanded", UI_ITEM_R_ICON_ONLY);
 	
 	/* name */	
 	uiBlockSetEmboss(block, UI_EMBOSS);
@@ -1085,13 +1073,10 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con)
 	uiDefBut(block, LABEL, B_CONSTRAINT_TEST, typestr, xco+10, yco, 100, 18, NULL, 0.0, 0.0, 0.0, 0.0, ""); 
 	
 	if(proxy_protected == 0) {
-		but = uiDefBut(block, TEX, B_CONSTRAINT_TEST, "", xco+120, yco, 85, 18, con->name, 0.0, 29.0, 0.0, 0.0, "Constraint name"); 
-		uiButSetFunc(but, verify_constraint_name_func, con, con->name);
+		uiItemR(subrow, "", 0, &ptr, "name", 0);
 	}
 	else
-		uiDefBut(block, LABEL, B_CONSTRAINT_TEST, con->name, xco+120, yco-1, 135, 19, NULL, 0.0, 0.0, 0.0, 0.0, ""); 
-
-	// XXX uiBlockSetCol(block, TH_AUTO);	
+		uiItemL(subrow, con->name, 0);
 
 	subrow= uiLayoutRow(row, 0);
 	uiLayoutSetAlignment(subrow, UI_LAYOUT_ALIGN_RIGHT);
@@ -2219,7 +2204,7 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		uiBlockSetEmboss(block, UI_EMBOSS);
 	}
 	else
-		uiItemLDrag(sub, itemptr, name, icon); /* fails, backdrop LISTROW... */
+		uiItemL(sub, name, icon); /* fails, backdrop LISTROW... */
 
 	/* free name */
 	if(namebuf)

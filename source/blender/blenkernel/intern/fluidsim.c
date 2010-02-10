@@ -432,7 +432,7 @@ DerivedMesh *fluidsim_read_cache(Object *ob, DerivedMesh *orgdm, FluidsimModifie
 	}
 	
 	BLI_convertstringcode(targetDir, G.sce);
-	BLI_convertstringframe(targetDir, curFrame); // fixed #frame-no 
+	BLI_convertstringframe(targetDir, curFrame, 0); // fixed #frame-no 
 	
 	strcpy(targetFile,targetDir);
 	strcat(targetFile, ".bobj.gz");
@@ -561,6 +561,12 @@ void fluid_get_bb(MVert *mvert, int totvert, float obmat[][4],
 	float bbex=1.0, bbey=1.0, bbez=1.0;
 	int i;
 	float vec[3];
+
+	if(totvert == 0) {
+		zero_v3(start);
+		zero_v3(size);
+		return;
+	}
 
 	VECCOPY(vec, mvert[0].co); 
 	mul_m4_v3(obmat, vec);

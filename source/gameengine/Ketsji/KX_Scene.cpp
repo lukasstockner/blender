@@ -33,6 +33,7 @@
 #endif //WIN32
 
 #include "KX_Scene.h"
+#include "KX_PythonInit.h"
 #include "MT_assert.h"
 #include "KX_KetsjiEngine.h"
 #include "KX_BlenderMaterial.h"
@@ -1864,6 +1865,9 @@ PyTypeObject KX_Scene::Type = {
 
 PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, addObject),
+	KX_PYMETHODTABLE(KX_Scene, end),
+	KX_PYMETHODTABLE(KX_Scene, restart),
+	KX_PYMETHODTABLE(KX_Scene, replace),
 	
 	/* dict style access */
 	KX_PYMETHODTABLE(KX_Scene, get),
@@ -2098,7 +2102,8 @@ int KX_Scene::pyattr_set_drawing_callback_post(void *self_v, const KX_PYATTRIBUT
 PyAttributeDef KX_Scene::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("name",				KX_Scene, pyattr_get_name),
 	KX_PYATTRIBUTE_RO_FUNCTION("objects",			KX_Scene, pyattr_get_objects),
-	KX_PYATTRIBUTE_RO_FUNCTION("objectsInactive",	KX_Scene, pyattr_get_objects_inactive),	KX_PYATTRIBUTE_RO_FUNCTION("lights",			KX_Scene, pyattr_get_lights),
+	KX_PYATTRIBUTE_RO_FUNCTION("objectsInactive",	KX_Scene, pyattr_get_objects_inactive),
+	KX_PYATTRIBUTE_RO_FUNCTION("lights",			KX_Scene, pyattr_get_lights),
 	KX_PYATTRIBUTE_RO_FUNCTION("cameras",			KX_Scene, pyattr_get_cameras),
 	KX_PYATTRIBUTE_RO_FUNCTION("lights",			KX_Scene, pyattr_get_lights),
 	KX_PYATTRIBUTE_RW_FUNCTION("active_camera",		KX_Scene, pyattr_get_active_camera, pyattr_set_active_camera),
@@ -2134,6 +2139,39 @@ KX_PYMETHODDEF_DOC(KX_Scene, addObject,
 	// the object is added to the scene so we dont want python to own a reference
 	replica->Release();
 	return replica->GetProxy();
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, end,
+"end()\n"
+"Removes this scene from the game.\n")
+{
+	
+	KX_GetActiveEngine()->RemoveScene(m_sceneName);
+	
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, restart,
+				   "restart()\n"
+				   "Restarts this scene.\n")
+{
+	KX_GetActiveEngine()->ReplaceScene(m_sceneName, m_sceneName);
+	
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, replace,
+				   "replace(newScene)\n"
+				   "Replaces this scene with another one.\n")
+{
+	char* name;
+	
+	if (!PyArg_ParseTuple(args, "s:replace", &name))
+		return NULL;
+	
+	KX_GetActiveEngine()->ReplaceScene(m_sceneName, name);
+	
+	Py_RETURN_NONE;
 }
 
 /* Matches python dict.get(key, [default]) */

@@ -1355,6 +1355,11 @@ void init_userdef_do_versions(void)
 				strcpy(km->idname, "Property Editor");
 		}
 	}
+	if (G.main->versionfile < 250 || (G.main->versionfile == 250 && G.main->subversionfile < 16)) {
+		if(U.wmdrawmethod == USER_DRAW_TRIPLE)
+			U.wmdrawmethod = USER_DRAW_AUTOMATIC;
+	}
+
 	
 	/* GL Texture Garbage Collection (variable abused above!) */
 	if (U.textimeout == 0) {
@@ -1376,6 +1381,9 @@ void init_userdef_do_versions(void)
 	if (U.scrcastfps == 0) {
 		U.scrcastfps = 10;
 		U.scrcastwait = 50;
+	}
+	if (U.v2d_min_gridsize == 0) {
+		U.v2d_min_gridsize= 35;
 	}
 
 	/* funny name, but it is GE stuff, moves userdef stuff to engine */

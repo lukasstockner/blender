@@ -119,12 +119,18 @@ class DOPESHEET_MT_select(bpy.types.Menu):
         layout.operator("action.select_column", text="Columns on Selected Markers").mode = 'MARKERS_COLUMN'
         layout.operator("action.select_column", text="Between Selected Markers").mode = 'MARKERS_BETWEEN'
 
+        layout.separator()
+        layout.operator("action.select_more")
+        layout.operator("action.select_less")
+
 
 class DOPESHEET_MT_channel(bpy.types.Menu):
     bl_label = "Channel"
 
     def draw(self, context):
         layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
         layout.column()
         layout.operator("anim.channels_setting_toggle")

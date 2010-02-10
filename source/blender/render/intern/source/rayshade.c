@@ -747,7 +747,8 @@ static void ray_fadeout(Isect *is, ShadeInput *shi, float *col, float *blendcol,
 	col[2] = col[2]*blendfac + (1.0 - blendfac)*blendcol[2];
 }
 
-/* the main recursive tracer itself */
+/* the main recursive tracer itself
+ * note: 'col' must be initialized */
 static void traceray(Render *re, ShadeInput *origshi, ShadeResult *origshr, short depth, float *start, float *vec, float *col, ObjectInstanceRen *obi, VlakRen *vlr, int traflag)
 {
 	ShadeInput shi;
@@ -1002,7 +1003,8 @@ static void trace_refract(Render *re, float *col, ShadeInput *shi, ShadeResult *
 			/* no blurriness, use the original normal */
 			copy_v3_v3(v_refract_new, v_refract);
 		}
-	
+		
+		sampcol[0]= sampcol[1]= sampcol[2]= sampcol[3]= 0.0f;
 		traceray(re, shi, shr, shi->material.mat->ray_depth_tra, shi->geometry.co, v_refract_new, sampcol, shi->primitive.obi, shi->primitive.vlr, RAY_TRA|RAY_TRAFLIP);
 	
 		col[0] += sampcol[0];
@@ -1102,8 +1104,8 @@ static void trace_reflect(Render *re, float *col, ShadeInput *shi, ShadeResult *
 		else
 			reflection(v_reflect, v_nor_new, shi->geometry.view, NULL);
 		
+		sampcol[0]= sampcol[1]= sampcol[2]= sampcol[3]= 0.0f;
 		traceray(re, shi, shr, shi->material.mat->ray_depth, shi->geometry.co, v_reflect, sampcol, shi->primitive.obi, shi->primitive.vlr, 0);
-
 		
 		col[0] += sampcol[0];
 		col[1] += sampcol[1];

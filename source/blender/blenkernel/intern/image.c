@@ -392,7 +392,6 @@ Image *BKE_add_image_file(const char *name, int frame)
 	
 	BLI_strncpy(str, name, sizeof(str));
 	BLI_convertstringcode(str, G.sce);
-	BLI_convertstringframe(str, frame);
 	
 	/* exists? */
 	file= open(str, O_BINARY|O_RDONLY);
@@ -404,7 +403,6 @@ Image *BKE_add_image_file(const char *name, int frame)
 		if(ima->source!=IMA_SRC_VIEWER && ima->source!=IMA_SRC_GENERATED) {
 			BLI_strncpy(strtest, ima->name, sizeof(ima->name));
 			BLI_convertstringcode(strtest, G.sce);
-			BLI_convertstringframe(strtest, frame);
 			
 			if( strcmp(strtest, str)==0 ) {
 				if(ima->anim==NULL || ima->id.us==0) {
@@ -1013,9 +1011,9 @@ static void stampdata(Scene *scene, StampData *stamp_data, int do_prefix)
 	}
 	
 	if (scene->r.stamp & R_STAMP_MARKER) {
-		TimeMarker *marker = NULL; // XXX get_frame_marker(scene->r.cfra);
+		char *name = scene_find_last_marker_name(scene, CFRA);
 	
-		if (marker) strcpy(text, marker->name);
+		if (name)	strcpy(text, name);
 		else 		strcpy(text, "<none>");
 		
 		if (do_prefix)		sprintf(stamp_data->marker, "Marker %s", text);
@@ -1090,7 +1088,7 @@ static void stampdata(Scene *scene, StampData *stamp_data, int do_prefix)
 	}
 
 	{
-		Render *re= RE_GetRender(scene->id.name);
+		Render *re= RE_GetRender(scene->id.name, RE_SLOT_RENDERING);
 		RenderStats *stats= re ? RE_GetStats(re):NULL;
 
 		if (stats && (scene->r.stamp & R_STAMP_RENDERTIME)) {
@@ -1412,15 +1410,9 @@ int BKE_write_ibuf(Scene *scene, ImBuf *ibuf, char *name, int imtype, int subimt
 void BKE_makepicstring(char *string, char *base, int frame, int imtype, int use_ext)
 {
 	if (string==NULL) return;
-
 	BLI_strncpy(string, base, FILE_MAX - 10);	/* weak assumption */
-	
-	/* if we dont have any #'s to insert numbers into, use 4 numbers by default */
-	if (strchr(string, '#')==NULL)
-		strcat(string, "####"); /* 4 numbers */
-	
 	BLI_convertstringcode(string, G.sce);
-	BLI_convertstringframe(string, frame);
+	BLI_convertstringframe(string, frame, 4);
 
 	if(use_ext)
 		BKE_add_image_extension(string, imtype);
@@ -1607,7 +1599,7 @@ RenderResult *BKE_image_acquire_renderresult(struct Scene *scene, Image *ima)
 	if(ima->rr)
 		return ima->rr;
 	else if(ima->type==IMA_TYPE_R_RESULT)
-		return RE_AcquireResultRead(RE_GetRender(scene->id.name));
+		return RE_AcquireResultRead(RE_GetRender(scene->id.name, RE_SLOT_VIEW));
 	return NULL;
 }
 
@@ -1615,7 +1607,7 @@ void BKE_image_release_renderresult(struct Scene *scene, Image *ima)
 {
 	if(ima->rr);
 	else if(ima->type==IMA_TYPE_R_RESULT)
-		RE_ReleaseResult(RE_GetRender(scene->id.name));
+		RE_ReleaseResult(RE_GetRender(scene->id.name, RE_SLOT_VIEW));
 }
 
 /* after imbuf load, openexr type can return with a exrhandle open */
@@ -1674,8 +1666,6 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 		BLI_convertstringcode(name, ima->id.lib->filename);
 	else
 		BLI_convertstringcode(name, G.sce);
-	
-	BLI_convertstringframe(name, frame); /* TODO - should this be here? */
 	
 	/* read ibuf */
 	ibuf = IMB_loadiffname(name, IB_rect|IB_multilayer);
@@ -1838,7 +1828,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 		else
 			BLI_convertstringcode(str, G.sce);
 		
-		BLI_convertstringframe(str, cfra);
+		BLI_convertstringframe(str, cfra, 0);
 		
 		/* read ibuf */
 		ibuf = IMB_loadiffname(str, IB_rect|IB_multilayer|IB_imginfo);
@@ -1929,7 +1919,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 		return NULL;
 
 	if(iuser && iuser->scene) {
-		re= RE_GetRender(iuser->scene->id.name);
+		re= RE_GetRender(iuser->scene->id.name, RE_SLOT_VIEW);
 		rr= RE_AcquireResultRead(re);
 
 		/* release is done in BKE_image_release_ibuf using lock_r */
@@ -1953,7 +1943,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	}
 	else {
 		RenderResult rres;
-		float *rectf;
+		float *rectf, *rectz;
 		unsigned int *rect;
 		float dither;
 		int channels, layer, pass;
@@ -1963,9 +1953,10 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 		pass= (iuser)? iuser->pass: 0;
 		
 		/* this gives active layer, composite or seqence result */
-		RE_AcquireResultImage(RE_GetRender(iuser->scene->id.name), &rres);
+		RE_AcquireResultImage(RE_GetRender(iuser->scene->id.name, RE_SLOT_VIEW), &rres);
 		rect= (unsigned int *)rres.rect32;
 		rectf= rres.rectf;
+		rectz= rres.rectz;
 		dither= iuser->scene->r.dither_intensity;
 
 		/* get compo/seq result by default */
@@ -1973,18 +1964,24 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 		else if(rr->layers.first) {
 			RenderLayer *rl= BLI_findlink(&rr->layers, layer-(rr->rectf?1:0));
 			if(rl) {
+				RenderPass *rpass;
+
 				/* there's no combined pass, is in renderlayer itself */
 				if(pass==0) {
 					rectf= rl->rectf;
 				}
 				else {
-					RenderPass *rpass= BLI_findlink(&rl->passes, pass-1);
+					rpass= BLI_findlink(&rl->passes, pass-1);
 					if(rpass) {
 						channels= rpass->channels;
 						rectf= rpass->rect;
 						dither= 0.0f; /* don't dither passes */
 					}
 				}
+
+				for(rpass= rl->passes.first; rpass; rpass= rpass->next)
+					if(rpass->passtype == SCE_PASS_Z)
+						rectz= rpass->rect;
 			}
 		}
 		
@@ -2007,7 +2004,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 			ibuf->rect_float= rectf;
 			ibuf->flags |= IB_rectfloat;
 			ibuf->channels= channels;
-			ibuf->zbuf_float= rres.rectz;
+			ibuf->zbuf_float= rectz;
 			ibuf->flags |= IB_zbuffloat;
 			ibuf->dither= dither;
 

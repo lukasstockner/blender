@@ -106,10 +106,15 @@
 /* ********* globals ******** */
 
 /* here we store all renders */
-static struct ListBase RenderList= {NULL, NULL};
+static struct {
+	ListBase renderlist;
 
-/* commandline thread override */
-static int commandline_threads= -1;
+	/* render slots */
+	int viewslot, renderingslot;
+
+	/* commandline thread override */
+	int threads;
+} RenderGlobal = {{NULL, NULL}, 0, 0, -1}; 
 
 /* ********* alloc and free ******** */
 
@@ -170,13 +175,35 @@ static int render_scene_needs_vector(Render *re)
 	return 0;
 }
 
-Render *RE_GetRender(const char *name)
+void RE_SetViewSlot(int slot)
+{
+	RenderGlobal.viewslot = slot;
+}
+
+int RE_GetViewSlot(void)
+{
+	return RenderGlobal.viewslot;
+}
+
+static int re_get_slot(int slot)
+{
+	if(slot == RE_SLOT_VIEW)
+		return RenderGlobal.viewslot;
+	else if(slot == RE_SLOT_RENDERING)
+		return (G.rendering)? RenderGlobal.renderingslot: RenderGlobal.viewslot;
+
+	return slot;
+}
+
+Render *RE_GetRender(const char *name, int slot)
 {
 	Render *re;
+
+	slot= re_get_slot(slot);
 	
 	/* search for existing renders */
-	for(re= RenderList.first; re; re= re->next) {
-		if(strncmp(re->name, name, RE_MAXNAME)==0) {
+	for(re= RenderGlobal.renderlist.first; re; re= re->next) {
+		if(strncmp(re->name, name, RE_MAXNAME)==0 && re->slot==slot) {
 			break;
 		}
 	}
@@ -206,18 +233,21 @@ RenderStats *RE_GetStats(Render *re)
 	return &re->cb.i;
 }
 
-Render *RE_NewRender(const char *name)
+Render *RE_NewRender(const char *name, int slot)
 {
 	Render *re;
+
+	slot= re_get_slot(slot);
 	
 	/* only one render per name exists */
-	re= RE_GetRender(name);
+	re= RE_GetRender(name, slot);
 	if(re==NULL) {
 		
 		/* new render data struct */
 		re= MEM_callocN(sizeof(Render), "new render");
-		BLI_addtail(&RenderList, re);
+		BLI_addtail(&RenderGlobal.renderlist, re);
 		strncpy(re->name, name, RE_MAXNAME);
+		re->slot= slot;
 		BLI_rw_mutex_init(&re->resultmutex);
 	}
 	
@@ -252,15 +282,15 @@ void RE_FreeRender(Render *re)
 	RE_FreeRenderResult(re->result);
 	RE_FreeRenderResult(re->pushedresult);
 	
-	BLI_remlink(&RenderList, re);
+	BLI_remlink(&RenderGlobal.renderlist, re);
 	MEM_freeN(re);
 }
 
 /* exit blender */
 void RE_FreeAllRender(void)
 {
-	while(RenderList.first) {
-		RE_FreeRender(RenderList.first);
+	while(RenderGlobal.renderlist.first) {
+		RE_FreeRender(RenderGlobal.renderlist.first);
 	}
 }
 
@@ -301,6 +331,11 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 #ifdef WITH_OPENEXR
 	if(re->params.r.scemode & R_FULL_SAMPLE)
 		re->params.r.scemode |= R_EXR_TILE_FILE;	/* enable automatic */
+
+	/* Until use_border is made compatible with save_buffers/full_sample, render without the later instead of not rendering at all.*/
+	if(re->params.r.mode & R_BORDER) 
+		re->params.r.scemode &= ~(R_EXR_TILE_FILE|R_FULL_SAMPLE);
+
 #else
 	/* can't do this without openexr support */
 	re->params.r.scemode &= ~(R_EXR_TILE_FILE|R_FULL_SAMPLE);
@@ -852,20 +887,20 @@ static void do_render_blur_3d(Render *re)
 {
 	RenderResult *rres;
 	float blurfac;
-	int blur= re->params.r.osa;
+	int blur= re->params.r.mblur_samples;
 	
 	/* create accumulation render result */
 	rres= render_result_create(re, &re->disprect, 0, RR_USEMEM);
 	
 	/* do the blur steps */
 	while(blur--) {
-		set_mblur_offs( re->params.r.blurfac*((float)(re->params.r.osa-blur))/(float)re->params.r.osa );
+		set_mblur_offs( re->params.r.blurfac*((float)(re->params.r.mblur_samples-blur))/(float)re->params.r.mblur_samples );
 		
-		re->cb.i.curblur= re->params.r.osa-blur;	/* stats */
+		re->cb.i.curblur= re->params.r.mblur_samples-blur;	/* stats */
 		
 		do_render_3d(re);
 		
-		blurfac= 1.0f/(float)(re->params.r.osa-blur);
+		blurfac= 1.0f/(float)(re->params.r.mblur_samples-blur);
 		
 		merge_renderresult_blur(rres, re->result, blurfac, re->params.r.alphamode & R_ALPHAKEY);
 		if(re->cb.test_break(re->cb.tbh)) break;
@@ -978,7 +1013,6 @@ static void do_render_fields_3d(Render *re)
 
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 	re->result= render_result_create(re, &re->disprect, 0, RR_USEMEM);
-	RE_FreeRenderResult(rr1);
 
 	if(rr2) {
 		if(re->params.r.mode & R_ODDFIELD)
@@ -988,6 +1022,8 @@ static void do_render_fields_3d(Render *re)
 		
 		RE_FreeRenderResult(rr2);
 	}
+
+	RE_FreeRenderResult(rr1);
 	
 	re->cb.i.curfield= 0;	/* stats */
 	
@@ -1031,7 +1067,7 @@ static void do_render_fields_blur_3d(Render *re)
 */
 static void render_scene(Render *re, Scene *sce, int cfra)
 {
-	Render *resc= RE_NewRender(sce->id.name);
+	Render *resc= RE_NewRender(sce->id.name, RE_SLOT_RENDERING);
 	int winx= re->cam.winx, winy= re->cam.winy;
 	
 	sce->r.cfra= cfra;
@@ -1169,7 +1205,7 @@ void RE_MergeFullSample(Render *re, Scene *sce, bNodeTree *ntree)
 	re->cb.display_init(re->cb.dih, re->result);
 	re->cb.display_clear(re->cb.dch, re->result);
 	
-	do_merge_fullsample(re, ntree, &RenderList);
+	do_merge_fullsample(re, ntree, &RenderGlobal.renderlist);
 }
 
 /* returns fully composited render-result on given time step (in RenderData) */
@@ -1218,7 +1254,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 						scene_update_for_newframe(re->db.scene, re->db.scene->lay);
 					
 					if(re->params.r.scemode & R_FULL_SAMPLE) 
-						do_merge_fullsample(re, ntree, &RenderList);
+						do_merge_fullsample(re, ntree, &RenderGlobal.renderlist);
 					else
 						ntreeCompositExecTree(ntree, &re->params.r, G.background==0);
 					
@@ -1228,7 +1264,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				}
 			}
 			else if(re->params.r.scemode & R_FULL_SAMPLE)
-				do_merge_fullsample(re, NULL, &RenderList);
+				do_merge_fullsample(re, NULL, &RenderGlobal.renderlist);
 		}
 	}
 
@@ -1240,7 +1276,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 static void renderresult_stampinfo(Scene *scene)
 {
 	RenderResult rres;
-	Render *re= RE_GetRender(scene->id.name);
+	Render *re= RE_GetRender(scene->id.name, RE_SLOT_RENDERING);
 
 	/* this is the basic trick to get the displayed float or char rect from render result */
 	RE_AcquireResultImage(re, &rres);
@@ -1378,10 +1414,6 @@ static int is_rendering_allowed(Render *re)
 		if(re->params.r.border.xmax <= re->params.r.border.xmin || 
 		   re->params.r.border.ymax <= re->params.r.border.ymin) {
 			re->cb.error(re->cb.erh, "No border area selected.");
-			return 0;
-		}
-		if(re->params.r.scemode & (R_EXR_TILE_FILE|R_FULL_SAMPLE)) {
-			re->cb.error(re->cb.erh, "Border render and Buffer-save not supported yet");
 			return 0;
 		}
 	}
@@ -1553,8 +1585,9 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, int frame)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
-	G.rendering= 1;
+	RenderGlobal.renderingslot= re->slot;
 	re->result_ok= 0;
+	G.rendering= 1;
 	
 	scene->r.cfra= frame;
 	
@@ -1563,8 +1596,9 @@ void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, int frame)
 	}
 	
 	/* UGLY WARNING */
-	G.rendering= 0;
 	re->result_ok= 1;
+	G.rendering= 0;
+	RenderGlobal.renderingslot= RenderGlobal.viewslot;
 }
 
 static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, ReportList *reports)
@@ -1609,9 +1643,18 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 			
 			/* float factor for random dither, imbuf takes care of it */
 			ibuf->dither= scene->r.dither_intensity;
+			
 			/* prepare to gamma correct to sRGB color space */
-			if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
-				ibuf->profile = IB_PROFILE_LINEAR_RGB;
+			if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+				/* sequence editor can generate 8bpc render buffers */
+				if (ibuf->rect) {
+					ibuf->profile = IB_PROFILE_SRGB;
+					if (ELEM(scene->r.imtype, R_OPENEXR, R_RADHDR))
+						IMB_float_from_rect(ibuf);
+				} else {				
+					ibuf->profile = IB_PROFILE_LINEAR_RGB;
+				}
+			}
 
 			ok= BKE_write_ibuf(scene, ibuf, name, scene->r.imtype, scene->r.subimtype, scene->r.quality);
 			
@@ -1659,6 +1702,7 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
 	/* is also set by caller renderwin.c */
 	G.rendering= 1;
+	RenderGlobal.renderingslot= re->slot;
 	re->result_ok= 0;
 	
 	if(BKE_imtype_is_movie(scene->r.imtype))
@@ -1755,6 +1799,7 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 	/* UGLY WARNING */
 	G.rendering= 0;
 	re->result_ok= 1;
+	RenderGlobal.renderingslot= RenderGlobal.viewslot;
 }
 
 /* note; repeated win/disprect calc... solve that nicer, also in compo */
@@ -1788,9 +1833,9 @@ void RE_ReadRenderResult(Scene *scene, Scene *scenode)
 		scene= scenode;
 	
 	/* get render: it can be called from UI with draw callbacks */
-	re= RE_GetRender(scene->id.name);
+	re= RE_GetRender(scene->id.name, RE_SLOT_VIEW);
 	if(re==NULL)
-		re= RE_NewRender(scene->id.name);
+		re= RE_NewRender(scene->id.name, RE_SLOT_VIEW);
 	RE_InitState(re, NULL, &scene->r, NULL, winx, winy, &disprect);
 	re->db.scene= scene;
 	
@@ -1799,22 +1844,20 @@ void RE_ReadRenderResult(Scene *scene, Scene *scenode)
 
 void RE_set_max_threads(int threads)
 {
-	if (threads==0) {
-		commandline_threads = BLI_system_thread_count();
-	} else if(threads>=1 && threads<=BLENDER_MAX_THREADS) {
-		commandline_threads= threads;
-	} else {
+	if(threads==0)
+		RenderGlobal.threads = BLI_system_thread_count();
+	else if(threads>=1 && threads<=BLENDER_MAX_THREADS)
+		RenderGlobal.threads= threads;
+	else
 		printf("Error, threads has to be in range 0-%d\n", BLENDER_MAX_THREADS);
-	}
 }
 
 void RE_init_threadcount(Render *re) 
 {
-        if(commandline_threads >= 1) { /* only set as an arg in background mode */
-		re->params.r.threads= MIN2(commandline_threads, BLENDER_MAX_THREADS);
-	} else if ((re->params.r.mode & R_FIXED_THREADS)==0 || commandline_threads == 0) { /* Automatic threads */
+	if(RenderGlobal.threads >= 1) /* only set as an arg in background mode */
+		re->params.r.threads= MIN2(RenderGlobal.threads, BLENDER_MAX_THREADS);
+	else if((re->params.r.mode & R_FIXED_THREADS)==0 || RenderGlobal.threads == 0) /* Automatic threads */
 		re->params.r.threads = BLI_system_thread_count();
-	}
 }
 
 /************************** External Engines ***************************/

@@ -2084,10 +2084,12 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, wmE
 		/* pass on release as press for other keymaps XXX hack alert! */
 		if(event->type==LEFTMOUSE && event->val==KM_RELEASE) {
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
-			event->val= KM_PRESS;
+			event->val= KM_CLICK;
 			return WM_UI_HANDLER_CONTINUE;
 		}
 		
+		/* while wait drag, always block other events to get handled */
+		return WM_UI_HANDLER_BREAK;
 	}
 	
 	return WM_UI_HANDLER_CONTINUE;
@@ -2306,6 +2308,12 @@ static int ui_do_but_NUM(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 			}
 			else if(ELEM(event->type, PADENTER, RETKEY) && event->val==KM_PRESS)
 				click= 1;
+			else if (event->type == MINUSKEY && event->val==KM_PRESS) {
+				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
+				data->value = -data->value;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+				retval= WM_UI_HANDLER_BREAK;
+			}
 		}
 		
 	}
@@ -2523,6 +2531,12 @@ static int ui_do_but_SLI(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 			}
 			else if(ELEM(event->type, PADENTER, RETKEY) && event->val==KM_PRESS)
 				click= 1;
+			else if (event->type == MINUSKEY && event->val==KM_PRESS) {
+				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
+				data->value = -data->value;
+				button_activate_state(C, but, BUTTON_STATE_EXIT);
+				retval= WM_UI_HANDLER_BREAK;
+			}
 		}
 	}
 	else if(data->state == BUTTON_STATE_NUM_EDITING) {
@@ -4078,6 +4092,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 	case LISTROW:
 	case BUT_IMAGE:
 		retval= ui_do_but_EXIT(C, but, data, event);
+		break;
 	case HISTOGRAM:
 		retval= ui_do_but_HISTOGRAM(C, block, but, data, event);
 		break;
@@ -4189,7 +4204,6 @@ static int ui_mouse_inside_region(ARegion *ar, int x, int y)
 {
 	uiBlock *block;
 	
-
 	/* check if the mouse is in the region */
 	if(!BLI_in_rcti(&ar->winrct, x, y)) {
 		for(block=ar->uiblocks.first; block; block=block->next)
@@ -4219,13 +4233,13 @@ static int ui_mouse_inside_region(ARegion *ar, int x, int y)
 		mask_rct.ymin= v2d->mask.ymin;
 		mask_rct.ymax= v2d->mask.ymax;
 		
-		if (v2d->scroll & V2D_SCROLL_VERTICAL_HIDE) {
+		if (v2d->scroll & (V2D_SCROLL_VERTICAL_HIDE|V2D_SCROLL_VERTICAL_FULLR)) {
 			if (v2d->scroll & V2D_SCROLL_LEFT)
 				mask_rct.xmin= v2d->vert.xmin;
 			else if (v2d->scroll & V2D_SCROLL_RIGHT)
 				mask_rct.xmax= v2d->vert.xmax;
 		}
-		if (v2d->scroll & V2D_SCROLL_HORIZONTAL_HIDE) {
+		if (v2d->scroll & (V2D_SCROLL_HORIZONTAL_HIDE|V2D_SCROLL_HORIZONTAL_FULLR)) {
 			if (v2d->scroll & (V2D_SCROLL_BOTTOM|V2D_SCROLL_BOTTOM_O))
 				mask_rct.ymin= v2d->hor.ymin;
 			else if (v2d->scroll & V2D_SCROLL_TOP)
@@ -4683,6 +4697,7 @@ static int ui_handle_button_event(bContext *C, wmEvent *event, uiBut *but)
 	if(data->state == BUTTON_STATE_HIGHLIGHT) {
 		switch(event->type) {
 			case WINDEACTIVATE:
+			case EVT_BUT_CANCEL:
 				data->cancel= 1;
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
 				retval= WM_UI_HANDLER_CONTINUE;
@@ -5137,7 +5152,7 @@ int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle *menu, 
 				case ZEROKEY: 	case PAD0: 
 					if(act==0) act= 10;
 				
-					if(block->flag & UI_BLOCK_NUMSELECT) {
+					if((block->flag & UI_BLOCK_NUMSELECT) && event->val==KM_PRESS) {
 						if(event->alt) act+= 10;
 						
 						count= 0;
@@ -5239,7 +5254,7 @@ int ui_handle_menu_event(bContext *C, wmEvent *event, uiPopupBlockHandle *menu, 
 
 	/* if we are didn't handle the event yet, lets pass it on to
 	 * buttons inside this region. disabled inside check .. not sure
-	 * anymore why it was there? but i meant enter enter didn't work
+	 * anymore why it was there? but it meant enter didn't work
 	 * for example when mouse was not over submenu */
 	if((/*inside &&*/ (!menu->menuretval || menu->menuretval == UI_RETURN_UPDATE) && retval == WM_UI_HANDLER_CONTINUE) || event->type == TIMER) {
 		but= ui_but_find_activated(ar);
@@ -5298,8 +5313,6 @@ static int ui_handle_menu_return_submenu(bContext *C, wmEvent *event, uiPopupBlo
 		}
 
 		update= (submenu->menuretval == UI_RETURN_UPDATE);
-		if(update)
-			menu->menuretval = UI_RETURN_UPDATE;
 
 		/* now let activated button in this menu exit, which
 		 * will actually close the submenu too */

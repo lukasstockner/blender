@@ -141,13 +141,13 @@ typedef struct SpaceSeq {
 
 	View2D v2d; /* deprecated, copied to region */
 	
-	float xof, yof;	/* offset for drawing the image preview */
+	float xof, yof;	/* deprecated: offset for drawing the image preview */
 	short mainb;	/* weird name for the sequencer subtype (seq, image, luma... etc) */
 	short render_size;
 	short chanshown;
 	short zebra;
 	int flag;
-	float zoom;
+	float zoom; /* deprecated, handled by View2D now */
 	int view; /* see SEQ_VIEW_* below */
 	int pad;
 
@@ -650,7 +650,7 @@ enum FileSortTypeE {
 #define FILE_MAIN			2
 #define FILE_LOADFONT		3
 /* filesel op property -> action */
-#define FILE_OPEN			0
+#define FILE_OPENFILE		0
 #define FILE_SAVE			1
 
 /* sfile->flag and simasel->flag */

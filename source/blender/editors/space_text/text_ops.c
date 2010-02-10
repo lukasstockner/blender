@@ -287,7 +287,7 @@ void TEXT_OT_open(wmOperatorType *ot)
 	ot->poll= text_new_poll;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_OPEN);
+	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_OPENFILE);
 }
 
 /******************* reload operator *********************/
@@ -1882,7 +1882,8 @@ static int scroll_bar_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		return scroll_exec(C, op);
 	
 	/* verify we are in the right zone */
-	if(!(mval[0]>ar->winx-20 && mval[0]<ar->winx-2 && mval[1]>2 && mval[1]<ar->winy))
+	if(!(mval[0]>ar->winx-TXT_SCROLL_WIDTH && mval[0]<ar->winx-TXT_SCROLL_SPACE
+		&& mval[1]>TXT_SCROLL_SPACE && mval[1]<ar->winy))
 		return OPERATOR_PASS_THROUGH;
 
 	tsc= MEM_callocN(sizeof(TextScroll), "TextScroll");

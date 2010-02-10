@@ -162,6 +162,8 @@ static void view3d_boxview_clip(ScrArea *sa)
 			if(rv3d->viewlock & RV3D_BOXCLIP) {
 				rv3d->rflag |= RV3D_CLIPPING;
 				memcpy(rv3d->clip, clip, sizeof(clip));
+				if(rv3d->clipbb) MEM_freeN(rv3d->clipbb);
+				rv3d->clipbb= MEM_dupallocN(bb);
 			}
 		}
 	}
@@ -225,6 +227,34 @@ void view3d_boxview_copy(ScrArea *sa, ARegion *ar)
 		}
 	}
 	view3d_boxview_clip(sa);
+}
+
+void ED_view3d_quadview_update(ScrArea *sa, ARegion *ar)
+{
+	RegionView3D *rv3d= ar->regiondata;
+	short viewlock;
+
+	/* this function copies flags from the first of the 3 other quadview
+	   regions to the 2 other, so it assumes this is the region whose
+	   properties are always being edited, weak */
+	viewlock= rv3d->viewlock;
+
+	if((viewlock & RV3D_LOCKED)==0)
+		viewlock= 0;
+	else if((viewlock & RV3D_BOXVIEW)==0)
+		viewlock &= ~RV3D_BOXCLIP;
+
+	for(; ar; ar= ar->prev) {
+		if(ar->alignment==RGN_ALIGN_QSPLIT) {
+			rv3d= ar->regiondata;
+			rv3d->viewlock= viewlock;
+		}
+	}
+
+	if(rv3d->viewlock & RV3D_BOXVIEW)
+		view3d_boxview_copy(sa, sa->regionbase.last);
+
+	ED_area_tag_redraw(sa);
 }
 
 /* ************************** init for view ops **********************************/
@@ -1046,7 +1076,11 @@ static int viewzoom_modal(bContext *C, wmOperator *op, wmEvent *event)
 	short event_code= VIEW_PASS;
 
 	/* execute the events */
-	if(event->type==MOUSEMOVE) {
+	if (event->type == TIMER && event->customdata == vod->timer) {
+		/* continuous zoom */
+		event_code= VIEW_APPLY;
+	}
+	else if(event->type==MOUSEMOVE) {
 		event_code= VIEW_APPLY;
 	}
 	else if(event->type==EVT_MODAL_MAP) {
@@ -1164,6 +1198,12 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			return OPERATOR_FINISHED;
 		}
 		else {
+			if(U.viewzoom == USER_ZOOM_CONT) {
+				/* needs a timer to continue redrawing */
+				vod->timer= WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+				vod->timer_lastdraw= PIL_check_seconds_timer();
+			}
+
 			/* add temp handler */
 			WM_event_add_modal_handler(C, op);
 
@@ -1293,7 +1333,7 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 	Object *ob= OBACT;
 	Object *obedit= CTX_data_edit_object(C);
 	float size, min[3], max[3], afm[3];
-	int ok=0;
+	int ok=0, ok_dist=1;
 
 	/* SMOOTHVIEW */
 	float new_ofs[3];
@@ -1367,11 +1407,21 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 	afm[1]= (max[1]-min[1]);
 	afm[2]= (max[2]-min[2]);
 	size= MAX3(afm[0], afm[1], afm[2]);
-	/* perspective should be a bit farther away to look nice */
-	if(rv3d->persp==RV3D_ORTHO)
-		size*= 0.7;
 
-	if(size <= v3d->near*1.5f) size= v3d->near*1.5f;
+	if(rv3d->persp==RV3D_ORTHO) {
+		if(size < 0.0001f) { /* if its a sinble point. dont even re-scale */
+			ok_dist= 0;
+		}
+		else {
+			/* perspective should be a bit farther away to look nice */
+			size*= 0.7f;
+		}
+	}
+	else {
+		if(size <= v3d->near*1.5f) {
+			size= v3d->near*1.5f;
+		}
+	}
 
 	new_ofs[0]= -(min[0]+max[0])/2.0f;
 	new_ofs[1]= -(min[1]+max[1])/2.0f;
@@ -1391,7 +1441,7 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 		smooth_view(C, v3d->camera, NULL, new_ofs, NULL, &new_dist, NULL);
 	}
 	else {
-		smooth_view(C, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
+		smooth_view(C, NULL, NULL, new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL);
 	}
 
 // XXX	BIF_view3d_previewrender_signal(curarea, PR_DBASE|PR_DISPRECT);
@@ -1852,10 +1902,14 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 				/* lastview -  */
 
 				if(rv3d->persp != RV3D_CAMOB) {
-					/* store settings of current view before allowing overwriting with camera view */
-					QUATCOPY(rv3d->lviewquat, rv3d->viewquat);
-					rv3d->lview= rv3d->view;
-					rv3d->lpersp= rv3d->persp;
+
+					if (!rv3d->smooth_timer) {
+						/* store settings of current view before allowing overwriting with camera view
+						 * only if we're not currently in a view transition */
+						QUATCOPY(rv3d->lviewquat, rv3d->viewquat);
+						rv3d->lview= rv3d->view;
+						rv3d->lpersp= rv3d->persp;
+					}
 
 	#if 0
 					if(G.qual==LR_ALTKEY) {
@@ -2272,9 +2326,19 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	initgrabz(rv3d, fp[0], fp[1], fp[2]);
 
 	if(mval[0]!=IS_CLIPPED) {
+		short depth_used = 0;
 
-		window_to_3d_delta(ar, dvec, mval[0]-mx, mval[1]-my);
-		sub_v3_v3v3(fp, fp, dvec);
+		if (U.uiflag & USER_ORBIT_ZBUF) { /* maybe this should be accessed some other way */
+			short mval_depth[2] = {mx, my};
+			view3d_operator_needs_opengl(C);
+			if (view_autodist(scene, ar, v3d, mval_depth, fp))
+				depth_used= 1;
+		}
+
+		if(depth_used==0) {
+			window_to_3d_delta(ar, dvec, mval[0]-mx, mval[1]-my);
+			sub_v3_v3v3(fp, fp, dvec);
+		}
 	}
 	else {
 

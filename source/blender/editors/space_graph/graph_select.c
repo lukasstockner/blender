@@ -199,7 +199,7 @@ void GRAPH_OT_select_all_toggle (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER/*|OPTYPE_UNDO*/;
 	
 	/* props */
-	RNA_def_boolean(ot->srna, "invert", 0, "Invert", "");
+	ot->prop= RNA_def_boolean(ot->srna, "invert", 0, "Invert", "");
 }
 
 /* ******************** Border Select Operator **************************** */
@@ -361,7 +361,7 @@ void GRAPH_OT_select_border(wmOperatorType *ot)
 	/* rna */
 	WM_operator_properties_gesture_border(ot, FALSE);
 	
-	RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
+	ot->prop= RNA_def_boolean(ot->srna, "axis_range", 0, "Axis Range", "");
 }
 
 /* ******************** Column Select Operator **************************** */
@@ -546,7 +546,119 @@ void GRAPH_OT_select_column (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER/*|OPTYPE_UNDO*/;
 	
 	/* props */
-	RNA_def_enum(ot->srna, "mode", prop_column_select_types, 0, "Mode", "");
+	ot->prop= RNA_def_enum(ot->srna, "mode", prop_column_select_types, 0, "Mode", "");
+}
+
+/* ******************** Select More/Less Operators *********************** */
+
+/* Common code to perform selection */
+static void select_moreless_graph_keys (bAnimContext *ac, short mode)
+{
+	ListBase anim_data= {NULL, NULL};
+	bAnimListElem *ale;
+	int filter;
+	
+	BeztEditData bed;
+	BeztEditFunc build_cb;
+	
+	
+	/* init selmap building data */
+	build_cb= ANIM_editkeyframes_buildselmap(mode);
+	memset(&bed, 0, sizeof(BeztEditData)); 
+	
+	/* loop through all of the keys and select additional keyframes based on these */
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_CURVESONLY);
+	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	
+	for (ale= anim_data.first; ale; ale= ale->next) {
+		FCurve *fcu= (FCurve *)ale->key_data;
+		
+		/* only continue if F-Curve has keyframes */
+		if (fcu->bezt == NULL)
+			continue;
+		
+		/* build up map of whether F-Curve's keyframes should be selected or not */
+		bed.data= MEM_callocN(fcu->totvert, "selmap graphEdit");
+		ANIM_fcurve_keys_bezier_loop(&bed, fcu, NULL, build_cb, NULL);
+		
+		/* based on this map, adjust the selection status of the keyframes */
+		ANIM_fcurve_keys_bezier_loop(&bed, fcu, NULL, bezt_selmap_flush, NULL);
+		
+		/* free the selmap used here */
+		MEM_freeN(bed.data);
+		bed.data= NULL;
+	}
+	
+	/* Cleanup */
+	BLI_freelistN(&anim_data);
+}
+
+/* ----------------- */
+
+static int graphkeys_select_more_exec (bContext *C, wmOperator *op)
+{
+	bAnimContext ac;
+	
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+	
+	/* perform select changes */
+	select_moreless_graph_keys(&ac, SELMAP_MORE);
+	
+	/* set notifier that keyframe selection has changed */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_select_more (wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select More";
+	ot->idname= "GRAPH_OT_select_more";
+	ot->description = "Select keyframes beside already selected ones.";
+	
+	/* api callbacks */
+	ot->exec= graphkeys_select_more_exec;
+	ot->poll= graphop_visible_keyframes_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER/*|OPTYPE_UNDO*/;
+}
+
+/* ----------------- */
+
+static int graphkeys_select_less_exec (bContext *C, wmOperator *op)
+{
+	bAnimContext ac;
+	
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+	
+	/* perform select changes */
+	select_moreless_graph_keys(&ac, SELMAP_LESS);
+	
+	/* set notifier that keyframe selection has changed */
+	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_SELECT, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GRAPH_OT_select_less (wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Less";
+	ot->idname= "GRAPH_OT_select_less";
+	ot->description = "Deselect keyframes on ends of selection islands.";
+	
+	/* api callbacks */
+	ot->exec= graphkeys_select_less_exec;
+	ot->poll= graphop_visible_keyframes_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER/*|OPTYPE_UNDO*/;
 }
 
 /* ******************** Mouse-Click Select Operator *********************** */
@@ -575,7 +687,16 @@ enum {
 	NEAREST_HANDLE_KEY,
 	NEAREST_HANDLE_RIGHT
 } eHandleIndex; 
- 
+
+/* check if its ok to select a handle */
+// XXX also need to check for int-values only?
+static int fcurve_handle_sel_check(SpaceIpo *sipo, BezTriple *bezt)
+{
+	if (sipo->flag & SIPO_NOHANDLES) return 0;
+	if ((sipo->flag & SIPO_SELVHANDLESONLY) && BEZSELECTED(bezt)==0) return 0;
+	return 1;
+}
+
 /* Find the vertex (either handle (0/2) or the keyframe (1)) that is nearest to the mouse cursor (in area coordinates)  
  * Selected verts get a disadvantage, to make it easier to select handles behind.
  * Returns eHandleIndex
@@ -639,8 +760,7 @@ static short findnearest_fcurve_vert (bAnimContext *ac, int mval[2], FCurve **fc
 				}
 				
 				/* handles - only do them if they're visible */
-				// XXX also need to check for int-values only?
-				if ((sipo->flag & SIPO_NOHANDLES)==0) {
+				if (fcurve_handle_sel_check(sipo, bezt1)) {
 					/* first handle only visible if previous segment had handles */
 					if ( (!prevbezt && (bezt1->ipo==BEZT_IPO_BEZ)) || (prevbezt && (prevbezt->ipo==BEZT_IPO_BEZ)) )
 					{

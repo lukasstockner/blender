@@ -1344,6 +1344,10 @@ void shade_samples(Render *re, ShadeSample *ssamp)
 			shade_input_do_shade(re, shi, shr);
 		}
 	}
+	else if(shi->shading.passflag & SCE_PASS_Z) {
+		for(samp=0; samp<ssamp->tot; samp++, shi++, shr++)
+			shr->z= -shi->geometry.co[2];
+	}
 }
 
 /* also used as callback for nodes */

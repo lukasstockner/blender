@@ -1374,6 +1374,7 @@ static int region_scale_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	
 	if(az->ar) {
 		RegionMoveData *rmd= MEM_callocN(sizeof(RegionMoveData), "RegionMoveData");
+		int maxsize;
 		
 		op->customdata= rmd;
 		
@@ -1397,7 +1398,14 @@ static int region_scale_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		} else {
 			rmd->origval= rmd->ar->sizey;
 		}
-		CLAMP(rmd->maxsize, 0, 1000);
+		
+		/* limit headers to standard height for now */
+		if (rmd->ar->regiontype == RGN_TYPE_HEADER)
+			maxsize = rmd->ar->type->prefsizey;
+		else
+			maxsize = 1000;
+		
+		CLAMP(rmd->maxsize, 0, maxsize);
 		
 		/* add temp handler */
 		WM_event_add_modal_handler(C, op);
@@ -1505,9 +1513,11 @@ static int frame_offset_exec(bContext *C, wmOperator *op)
 	int delta;
 	
 	delta = RNA_int_get(op->ptr, "delta");
-	
+
 	CTX_data_scene(C)->r.cfra += delta;
 	
+	sound_seek_scene(C);
+
 	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, CTX_data_scene(C));
 	
 	return OPERATOR_FINISHED;
@@ -2465,12 +2475,13 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 			}
 		}
 		
+		if(sad->flag & ANIMPLAY_FLAG_JUMPED)
+			sound_seek_scene(C);
+
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
 
 		ED_update_for_newframe(C, 1);
 		
-		sound_update_playing(C);
-
 		for(sa= screen->areabase.first; sa; sa= sa->next) {
 			ARegion *ar;
 			for(ar= sa->regionbase.first; ar; ar= ar->next) {
@@ -2513,16 +2524,19 @@ static void SCREEN_OT_animation_step(wmOperatorType *ot)
 static int screen_animation_play(bContext *C, wmOperator *op, wmEvent *event)
 {
 	bScreen *screen= CTX_wm_screen(C);
+	struct Scene* scene = CTX_data_scene(C);
 	
 	if(screen->animtimer) {
 		/* stop playback now */
 		ED_screen_animation_timer(C, 0, 0, 0);
-		sound_stop_all(C);
+		sound_stop_scene(scene);
 	}
 	else {
 		ScrArea *sa= CTX_wm_area(C);
 		int mode= (RNA_boolean_get(op->ptr, "reverse")) ? -1 : 1;
 		int sync= -1;
+		if(mode == 1) // XXX only play audio forwards!?
+			sound_play_scene(scene);
 		
 		if(RNA_property_is_set(op->ptr, "sync"))
 			sync= (RNA_boolean_get(op->ptr, "sync"));
@@ -2871,10 +2885,10 @@ static void screen_set_image_output(bContext *C, int mx, int my)
 static int screen_render_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
-	Render *re= RE_GetRender(scene->id.name);
+	Render *re= RE_GetRender(scene->id.name, RE_SLOT_VIEW);
 	
 	if(re==NULL) {
-		re= RE_NewRender(scene->id.name);
+		re= RE_NewRender(scene->id.name, RE_SLOT_VIEW);
 	}
 	RE_test_break_cb(re, NULL, (int (*)(void *)) blender_test_break);
 	
@@ -3165,7 +3179,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	WM_cursor_wait(1);
 	
 	/* flush multires changes (for sculpt) */
-	multires_force_update(CTX_data_active_object(C));
+	multires_force_render_update(CTX_data_active_object(C));
 	
 	/* get editmode results */
 	ED_object_exit_editmode(C, EM_FREEDATA|EM_DO_UNDO);	/* 0 = does not exit editmode */
@@ -3222,7 +3236,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	rj->image= ima;
 	
 	/* setup new render */
-	re= RE_NewRender(scene->id.name);
+	re= RE_NewRender(scene->id.name, RE_SLOT_VIEW);
 	RE_test_break_cb(re, rj, render_breakjob);
 	RE_display_draw_cb(re, rj, image_rect_update);
 	RE_stats_draw_cb(re, rj, image_renderinfo_cb);
@@ -3315,8 +3329,8 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 	/* read in pixels & stamp */
 	rr= RE_AcquireResultRead(oglrender->re);
 	glReadPixels(0, 0, sizex, sizey, GL_RGBA, GL_FLOAT, rr->rectf);
-	if((scene->r.scemode & R_STAMP_INFO) && (scene->r.stamp & R_STAMP_DRAW))
-		BKE_stamp_buf(scene, (unsigned char *)rr->rect32, rr->rectf, rr->rectx, rr->recty, 3);
+	if((scene->r.stamp & R_STAMP_ALL) && (scene->r.stamp & R_STAMP_DRAW))
+		BKE_stamp_buf(scene, NULL, rr->rectf, rr->rectx, rr->recty, 4);
 	RE_ReleaseResult(oglrender->re);
 	
 	/* update byte from float buffer */
@@ -3384,12 +3398,12 @@ static int screen_opengl_render_init(bContext *C, wmOperator *op)
 	oglrender->iuser.ok= 1;
 	
 	/* create render and render result */
-	oglrender->re= RE_NewRender(scene->id.name);
+	oglrender->re= RE_NewRender(scene->id.name, RE_SLOT_VIEW);
 	RE_InitState(oglrender->re, NULL, &scene->r, NULL, sizex, sizey, NULL);
 	
 	rr= RE_AcquireResultWrite(oglrender->re);
 	if(rr->rectf==NULL)
-		rr->rectf= MEM_mallocN(sizeof(float)*4*sizex*sizex, "32 bits rects");
+		rr->rectf= MEM_mallocN(sizeof(float)*4*sizex*sizey, "32 bits rects");
 	RE_ReleaseResult(oglrender->re);
 	
 	return 1;

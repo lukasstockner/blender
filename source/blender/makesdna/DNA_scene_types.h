@@ -302,7 +302,10 @@ typedef struct RenderData {
 	
 	/* information on different layers to be rendered */
 	ListBase layers;
-	short actlay, pad;
+	short actlay;
+	
+	/* number of mblur samples */
+	short mblur_samples;
 	
 	/**
 	 * Adjustment factors for the aspect ratio in the x direction, was a short in 2.45
@@ -359,8 +362,9 @@ typedef struct RenderData {
 	float bg_stamp[4];
 
 	/* render simplify */
-	int simplify_subsurf;
-	int simplify_shadowsamples;
+	int simplify_flag;
+	short simplify_subsurf;
+	short simplify_shadowsamples;
 	float simplify_particles;
 	float simplify_aosss;
 
@@ -758,7 +762,8 @@ typedef struct Scene {
 	ListBase markers;
 	ListBase transform_spaces;
 	
-	ListBase sound_handles;
+	void *sound_scene;
+	void *sound_scene_handle;
 	
 	/* none of the dependancy graph  vars is mean to be saved */
 	struct  DagForest *theDag;
@@ -974,6 +979,9 @@ typedef struct Scene {
 #define R_INTEGRATOR_RASTERIZER	0
 #define R_INTEGRATOR_PATHTRACER	1
 
+/* simplify_flag */
+#define R_SIMPLE_NO_TRIANGULATE		1
+
 /* **************** SCENE ********************* */
 
 /* for general use */
@@ -1079,7 +1087,7 @@ typedef struct Scene {
 #define AUDIO_SYNC		2
 #define AUDIO_SCRUB		4
 
-#define FFMPEG_MULTIPLEX_AUDIO  1
+#define FFMPEG_MULTIPLEX_AUDIO  1 /* deprecated, you can choose none as audiocodec now */
 #define FFMPEG_AUTOSPLIT_OUTPUT 2
 
 /* Paint.flags */

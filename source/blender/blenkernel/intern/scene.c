@@ -83,6 +83,7 @@
 #include "BKE_sequencer.h"
 #include "BKE_world.h"
 #include "BKE_utildefines.h"
+#include "BKE_sound.h"
 
 //XXX #include "BIF_previewrender.h"
 //XXX #include "BIF_editseq.h"
@@ -233,6 +234,8 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
         }
 	}
 
+	sound_create_scene(scen);
+
 	return scen;
 }
 
@@ -315,6 +318,8 @@ void free_scene(Scene *sce)
 
 	if(sce->stats)
 		MEM_freeN(sce->stats);
+
+	sound_destroy_scene(sce);
 }
 
 Scene *add_scene(char *name)
@@ -367,6 +372,11 @@ Scene *add_scene(char *name)
 	sce->r.cineonblack= 95;
 	sce->r.cineonwhite= 685;
 	sce->r.cineongamma= 1.7f;
+
+	sce->r.border.xmin= 0.0f;
+	sce->r.border.ymin= 0.0f;
+	sce->r.border.xmax= 1.0f;
+	sce->r.border.ymax= 1.0f;
 	
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings),"Tool Settings Struct");
 	sce->toolsettings->cornertype=1;
@@ -474,6 +484,8 @@ Scene *add_scene(char *name)
 
 	sce->gm.flag = GAME_DISPLAY_LISTS;
 	sce->gm.matmode = GAME_MAT_MULTITEX;
+
+	sound_create_scene(sce);
 
 	return sce;
 }
@@ -714,7 +726,7 @@ Object *scene_find_camera_switch(Scene *scene)
 	Object *camera= NULL;
 
 	for (m= scene->markers.first; m; m= m->next) {
-		if(m->camera && (m->frame <= cfra) && (m->frame > frame)) {
+		if(m->camera && (m->camera->restrictflag & OB_RESTRICT_RENDER)==0 && (m->frame <= cfra) && (m->frame > frame)) {
 			camera= m->camera;
 			frame= m->frame;
 
@@ -727,25 +739,46 @@ Object *scene_find_camera_switch(Scene *scene)
 }
 #endif
 
-static char *get_cfra_marker_name(Scene *scene)
+char *scene_find_marker_name(Scene *scene, int frame)
 {
 	ListBase *markers= &scene->markers;
 	TimeMarker *m1, *m2;
 
 	/* search through markers for match */
 	for (m1=markers->first, m2=markers->last; m1 && m2; m1=m1->next, m2=m2->prev) {
-		if (m1->frame==CFRA)
+		if (m1->frame==frame)
 			return m1->name;
 
 		if (m1 == m2)
 			break;
 
-		if (m2->frame==CFRA)
+		if (m2->frame==frame)
 			return m2->name;
 	}
 
 	return NULL;
 }
+
+/* return the current marker for this frame,
+we can have more then 1 marker per frame, this just returns the first :/ */
+char *scene_find_last_marker_name(Scene *scene, int frame)
+{
+	TimeMarker *marker, *best_marker = NULL;
+	int best_frame = -MAXFRAME*2;
+	for (marker= scene->markers.first; marker; marker= marker->next) {
+		if (marker->frame==frame) {
+			return marker->name;
+		}
+
+		if ( marker->frame > best_frame && marker->frame < frame) {
+			best_marker = marker;
+			best_frame = marker->frame;
+		}
+	}
+
+	return best_marker ? best_marker->name : NULL;
+}
+
 
 Base *scene_add_base(Scene *sce, Object *ob)
 {

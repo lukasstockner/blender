@@ -43,6 +43,17 @@ class MATERIAL_MT_sss_presets(bpy.types.Menu):
     draw = bpy.types.Menu.draw_preset
 
 
+class MATERIAL_MT_specials(bpy.types.Menu):
+    bl_label = "Material Specials"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("object.material_slot_copy", icon='COPY_ID')
+        layout.operator("material.copy", icon='COPYDOWN')
+        layout.operator("material.paste", icon='PASTEDOWN')
+
+
 class MaterialButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -87,12 +98,13 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel):
         if ob:
             row = layout.row()
 
-            row.template_list(ob, "materials", ob, "active_material_index", rows=2)
+            row.template_list(ob, "material_slots", ob, "active_material_index", rows=2)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
             col.operator("object.material_slot_remove", icon='ZOOMOUT', text="")
-            col.operator("object.material_slot_copy", icon='COPY_ID', text="")
+
+            col.menu("MATERIAL_MT_specials", icon='DOWNARROW_HLT', text="")
 
             if ob.mode == 'EDIT':
                 row = layout.row(align=True)
@@ -262,7 +274,7 @@ class MATERIAL_PT_options(MaterialButtonsPanel):
         col = split.column()
         col.prop(mat, "traceable")
         col.prop(mat, "full_oversampling")
-        col.prop(mat, "sky")
+        col.prop(mat, "use_sky")
         col.prop(mat, "exclude_mist")
         col.prop(mat, "invert_z")
         sub = col.row()
@@ -641,6 +653,7 @@ class MATERIAL_PT_transp(MaterialButtonsPanel):
             sub.prop(rayt, "gloss_threshold", text="Threshold")
             sub.prop(rayt, "gloss_samples", text="Samples")
 
+
 class MATERIAL_PT_transp_game(MaterialButtonsPanel):
     bl_label = "Transparency"
     bl_default_closed = True
@@ -674,7 +687,7 @@ class MATERIAL_PT_transp_game(MaterialButtonsPanel):
 
         col = split.column()
         col.prop(mat, "alpha")
-    
+
 
 class MATERIAL_PT_halo(MaterialButtonsPanel):
     bl_label = "Halo"
@@ -775,6 +788,7 @@ bpy.types.register(MATERIAL_PT_strand)
 bpy.types.register(MATERIAL_PT_options)
 bpy.types.register(MATERIAL_PT_shadow)
 bpy.types.register(MATERIAL_PT_transp_game)
+
 
 class VolumeButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
@@ -914,6 +928,7 @@ class MATERIAL_PT_volume_integration(VolumeButtonsPanel):
         col.prop(vol, "depth_cutoff")
 
 bpy.types.register(MATERIAL_MT_sss_presets)
+bpy.types.register(MATERIAL_MT_specials)
 
 bpy.types.register(MATERIAL_PT_volume_density)
 bpy.types.register(MATERIAL_PT_volume_shading)

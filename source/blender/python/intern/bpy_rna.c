@@ -55,6 +55,7 @@
 #include "../generic/Mathutils.h" /* so we can have mathutils callbacks */
 #include "../generic/IDProp.h" /* for IDprop lookups */
 
+
 static PyObject *prop_subscript_array_slice(BPy_PropertyRNA *self, PointerRNA *ptr, PropertyRNA *prop, int start, int stop, int length);
 
 /* bpyrna vector/euler/quat callbacks */
@@ -371,11 +372,8 @@ static void pyrna_struct_dealloc( BPy_StructRNA *self )
 {
 	if (self->freeptr && self->ptr.data) {
 		IDP_FreeProperty(self->ptr.data);
-		if (self->ptr.type != &RNA_Context)
-		{
-			MEM_freeN(self->ptr.data);
-			self->ptr.data= NULL;
-		}
+		MEM_freeN(self->ptr.data);
+		self->ptr.data= NULL;
 	}
 
 	/* Note, for subclassed PyObjects we cant just call PyObject_DEL() directly or it will crash */
@@ -391,7 +389,7 @@ static char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
 	
 	RNA_property_enum_items(BPy_GetContext(), ptr, prop, &item, NULL, &free);
 	if(item) {
-		result= (char*)BPy_enum_as_string(item);
+		result= BPy_enum_as_string(item);
 	}
 	else {
 		result= "";
@@ -402,6 +400,7 @@ static char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
 	
 	return result;
 }
+
 
 static int pyrna_string_to_enum(PyObject *item, PointerRNA *ptr, PropertyRNA *prop, int *val, const char *error_prefix)
 {
@@ -422,6 +421,69 @@ static int pyrna_string_to_enum(PyObject *item, PointerRNA *ptr, PropertyRNA *pr
 	}
 
 	return 1;
+}
+
+int pyrna_set_to_enum_bitfield(EnumPropertyItem *items, PyObject *value, int *r_value, const char *error_prefix)
+{
+	/* set of enum items, concatenate all values with OR */
+	int ret, flag= 0;
+
+	/* set looping */
+	Py_ssize_t pos = 0;
+	PyObject *key;
+	long hash;
+
+	*r_value= 0;
+
+	while (_PySet_NextEntry(value, &pos, &key, &hash)) {
+		char *param= _PyUnicode_AsString(key);
+
+		if(param==NULL) {
+			PyErr_Format(PyExc_TypeError, "%s expected a string. found a %.200s", error_prefix, Py_TYPE(key)->tp_name);
+			return -1;
+		}
+
+		if(RNA_enum_value_from_id(items, param, &ret) == 0) {
+			char *enum_str= BPy_enum_as_string(items);
+			PyErr_Format(PyExc_TypeError, "%s \"%.200s\" not found in (%.200s)", error_prefix, param, enum_str);
+			MEM_freeN(enum_str);
+			return -1;
+		}
+
+		flag |= ret;
+	}
+
+	*r_value= flag;
+	return 0;
+}
+
+static int pyrna_prop_to_enum_bitfield(PointerRNA *ptr, PropertyRNA *prop, PyObject *value, int *r_value, const char *error_prefix)
+{
+	EnumPropertyItem *item;
+	int ret;
+	int free= FALSE;
+
+	*r_value= 0;
+
+	RNA_property_enum_items(BPy_GetContext(), ptr, prop, &item, NULL, &free);
+
+	if(item) {
+		ret= pyrna_set_to_enum_bitfield(item, value, r_value, error_prefix);
+	}
+	else {
+		if(PySet_GET_SIZE(value)) {
+			PyErr_Format(PyExc_TypeError, "%s: empty enum \"%.200s\" could not have any values assigned.", error_prefix, RNA_property_identifier(prop));
+			ret= -1;
+		}
+		else {
+			ret= 0;
+		}
+	}
+
+	if(free)
+		MEM_freeN(item);
+
+	return ret;
 }
 
 PyObject *pyrna_enum_bitfield_to_py(EnumPropertyItem *items, int value)
@@ -741,7 +803,7 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, ParameterList *parms, v
 		}
 		case PROP_ENUM:
 		{
-			int val= 0, tmpval;
+			int val= 0;
 
 			if (PyUnicode_Check(value)) {
 				if (!pyrna_string_to_enum(value, ptr, prop, &val, error_prefix))
@@ -750,18 +812,8 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, ParameterList *parms, v
 			else if (PyAnySet_Check(value)) {
 				if(RNA_property_flag(prop) & PROP_ENUM_FLAG) {
 					/* set of enum items, concatenate all values with OR */
-
-					/* set looping */
-					Py_ssize_t pos = 0;
-					PyObject *key;
-					long hash;
-
-					while (_PySet_NextEntry(value, &pos, &key, &hash)) {
-						if (!pyrna_string_to_enum(key, ptr, prop, &tmpval, error_prefix))
-							return -1;
-
-						val |= tmpval;
-					}
+					if(pyrna_prop_to_enum_bitfield(ptr, prop, value, &val, error_prefix) < 0)
+						return -1;
 				}
 				else {
 					PyErr_Format(PyExc_TypeError, "%.200s, %.200s.%.200s is not a bitflag enum type", error_prefix, RNA_struct_identifier(ptr->type), RNA_property_identifier(prop));
@@ -2548,7 +2600,7 @@ PyObject *pyrna_prop_iter(BPy_PropertyRNA *self)
 {
 	/* Try get values from a collection */
 	PyObject *ret;
-	PyObject *iter;
+	PyObject *iter= NULL;
 	
 	if(RNA_property_array_check(&self->ptr, self->prop)) {
 		int len= pyrna_prop_array_length(self);
@@ -2563,9 +2615,13 @@ PyObject *pyrna_prop_iter(BPy_PropertyRNA *self)
 	}
 	
 	
-	/* we know this is a list so no need to PyIter_Check */
-	iter = PyObject_GetIter(ret);
-	Py_DECREF(ret);
+	/* we know this is a list so no need to PyIter_Check
+	 * otherwise it could be NULL (unlikely) if conversion failed */
+	if(ret) {
+		iter = PyObject_GetIter(ret);
+		Py_DECREF(ret);
+	}
+
 	return iter;
 }
 
@@ -3187,7 +3243,9 @@ PyTypeObject pyrna_prop_Type = {
 
 static struct PyMethodDef pyrna_struct_subtype_methods[] = {
 	{"BoolProperty", (PyCFunction)BPy_BoolProperty, METH_VARARGS|METH_KEYWORDS, ""},
+	{"BoolVectorProperty", (PyCFunction)BPy_BoolVectorProperty, METH_VARARGS|METH_KEYWORDS, ""},
 	{"IntProperty", (PyCFunction)BPy_IntProperty, METH_VARARGS|METH_KEYWORDS, ""},
+	{"IntVectorProperty", (PyCFunction)BPy_IntVectorProperty, METH_VARARGS|METH_KEYWORDS, ""},
 	{"FloatProperty", (PyCFunction)BPy_FloatProperty, METH_VARARGS|METH_KEYWORDS, ""},
 	{"FloatVectorProperty", (PyCFunction)BPy_FloatVectorProperty, METH_VARARGS|METH_KEYWORDS, ""},
 	{"StringProperty", (PyCFunction)BPy_StringProperty, METH_VARARGS|METH_KEYWORDS, ""},
@@ -3578,11 +3636,12 @@ PyObject *BPY_rna_types(void)
 	}
 	
 	self= (BPy_BaseTypeRNA *)PyObject_NEW( BPy_BaseTypeRNA, &pyrna_basetype_Type );
-	
+	self->arraydim = self->arrayoffset = 0; /* unused but better set */
+
 	/* avoid doing this lookup for every getattr */
 	RNA_blender_rna_pointer_create(&self->ptr);
 	self->prop = RNA_struct_find_property(&self->ptr, "structs");
-	
+
 	return (PyObject *)self;
 }
 
@@ -3679,7 +3738,9 @@ static int deferred_register_prop(StructRNA *srna, PyObject *item, PyObject *key
 				PyErr_Print();
 				PyErr_Clear();
 
+				// PyLineSpit();
 				PyErr_Format(PyExc_ValueError, "StructRNA \"%.200s\" registration error: %.200s could not register\n", RNA_struct_identifier(srna), _PyUnicode_AsString(key));
+
 				Py_DECREF(dummy_args);
 				return -1;
 			}

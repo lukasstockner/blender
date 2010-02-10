@@ -87,38 +87,39 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
 
     def draw(self, context):
         layout = self.layout
-
+        slot = context.texture_slot
+        node = context.texture_node
         space = context.space_data
         tex = context.texture
         wide_ui = context.region.width > narrowui
         idblock = context_tex_datablock(context)
-        tex_collection = space.pin_id == None and type(idblock) != bpy.types.Brush
-
-        
+        tex_collection = space.pin_id == None and type(idblock) != bpy.types.Brush and not node
 
         if tex_collection:
             row = layout.row()
 
-            row.template_list(idblock, "textures", idblock, "active_texture_index", rows=2)
+            row.template_list(idblock, "texture_slots", idblock, "active_texture_index", rows=2)
 
             col = row.column(align=True)
             col.operator("texture.slot_move", text="", icon='TRIA_UP').type = 'UP'
             col.operator("texture.slot_move", text="", icon='TRIA_DOWN').type = 'DOWN'
-        
+
         if wide_ui:
             split = layout.split(percentage=0.65)
             col = split.column()
         else:
             col = layout.column()
-            
+
         if tex_collection:
             col.template_ID(idblock, "active_texture", new="texture.new")
+        elif node:
+            col.template_ID(node, "texture", new="texture.new")
         elif idblock:
             col.template_ID(idblock, "texture", new="texture.new")
-        
+
         if space.pin_id:
             col.template_ID(space, "pin_id")
-        
+
         if wide_ui:
             col = split.column()
 
@@ -129,7 +130,6 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
             split = layout.split(percentage=0.2)
 
             if tex.type == 'NODES':
-                slot = context.texture_slot
 
                 if slot:
                     split.label(text="Output:")
@@ -281,7 +281,7 @@ class TEXTURE_PT_influence(TextureSlotPanel):
         idblock = context_tex_datablock(context)
         if type(idblock) == bpy.types.Brush:
             return False
-    
+
         return context.texture_slot
 
     def draw(self, context):
@@ -852,7 +852,7 @@ class TEXTURE_PT_voxeldata(TextureButtonsPanel):
             layout.prop(vd, "domain_object")
             layout.prop(vd, "smoke_data_type")
         elif vd.file_format == 'IMAGE_SEQUENCE':
-            layout.template_image(tex, "image", tex.image_user) 
+            layout.template_image(tex, "image", tex.image_user)
 
         layout.prop(vd, "still")
         row = layout.row()

@@ -82,6 +82,8 @@ struct MenuType *WM_menutype_find(const char *idname, int quiet){return (struct 
 void WM_autosave_init(struct bContext *C){}
 void WM_jobs_stop_all(struct wmWindowManager *wm){}
 
+struct wmKeyMapItem *WM_keymap_item_find_id(struct wmKeyMap *keymap, int id){return (struct wmKeyMapItem *) NULL;}
+int WM_enum_search_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event){return 0;}
 void WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference){}
 void WM_main_add_notifier(unsigned int type, void *reference){}
 void ED_armature_bone_rename(struct bArmature *arm, char *oldnamep, char *newnamep){}
@@ -114,6 +116,8 @@ struct wmKeyMap *WM_keymap_add_item(struct wmKeyMap *keymap, char *idname, int t
 struct wmKeyMap *WM_keymap_copy_to_user(struct wmKeyMap *kemap){return (struct wmKeyMap *) NULL;} 
 struct wmKeyMap *WM_keymap_list_find(struct ListBase *lb, char *idname, int spaceid, int regionid){return (struct wmKeyMap *) NULL;}
 struct wmKeyConfig *WM_keyconfig_add(struct wmWindowManager *wm, char *idname){return (struct wmKeyConfig *) NULL;}
+struct wmKeyConfig *WM_keyconfig_add_user(struct wmWindowManager *wm, char *idname){return (struct wmKeyConfig *) NULL;}
+void WM_keyconfig_remove(struct wmWindowManager *wm, char *idname){}
 void WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi){}
 void WM_keymap_restore_to_default(struct wmKeyMap *keymap){}
 void WM_keymap_restore_item_to_default(struct bContext *C, struct wmKeyMap *keymap, struct wmKeyMapItem *kmi){}
@@ -128,12 +132,15 @@ void ED_space_image_release_buffer(struct SpaceImage *sima, void *lock){}
 struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **lock_r){return (struct ImBuf *) NULL;}
 char *ED_info_stats_string(struct Scene *scene){return NULL;}
 void ED_area_tag_redraw(struct ScrArea *sa){}
+void ED_area_tag_refresh(struct ScrArea *sa){}
 void ED_area_newspace(struct bContext *C, struct ScrArea *sa, int type){} 
 void WM_event_add_fileselect(struct bContext *C, struct wmOperator *op){}
+void WM_cursor_wait (int val) {}
 void ED_node_texture_default(struct Tex *tx){}
 void ED_node_changed_update(struct bContext *C, struct bNode *node){}
 void ED_view3d_scene_layers_update(struct Main *bmain, struct Scene *scene){}
 int ED_view3d_scene_layer_set(int lay, const int *values){return 0;}
+void ED_view3d_quadview_update(struct ScrArea *sa, struct ARegion *ar){}
 int text_file_modified(struct Text *text){return 0;}
 void ED_node_shader_default(struct Material *ma){}
 void ED_screen_animation_timer_update(struct bContext *C, int redraws){}
@@ -169,7 +176,6 @@ struct bDeformGroup *ED_vgroup_add_name(struct Object *ob, char *name){return (s
 void ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum, float weight, int assignmode){}
 void ED_sequencer_update_view(struct bContext *C, int view){}
 float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]){return 0.0f;}
-int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me) {return 0;}
 
 void EM_selectmode_set(struct EditMesh *em){}
 void make_editMesh(struct Scene *scene, struct Object *ob){}
@@ -222,8 +228,8 @@ void uiTemplateHeader3D(struct uiLayout *layout, struct bContext *C){}
 void uiTemplateTextureImage(struct uiLayout *layout, struct bContext *C, struct Tex *tex){}
 void uiTemplateImage(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, struct PointerRNA *userptr, int compact){}
 void uiTemplateDopeSheetFilter(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr){}
-void uiTemplateIDPreview(struct uiLayout *layout, struct bContext *C, struct PointerRNA *ptr, char *propname, char *newop, char *openop, char *unlinkop, int rows, int cols) {}
 void uiTemplateColorWheel(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int value_slider){}
+void uiTemplateHistogram(struct uiLayout *layout, struct PointerRNA *ptr, char *propname, int expand){}
 
 /* rna render */
 struct RenderResult *RE_engine_begin_result(struct RenderEngine *engine, int x, int y, int w, int h){return (struct RenderResult *) NULL;}
@@ -293,7 +299,7 @@ void smoke_get_index(void) {return;}
 void smoke_step(void) {return;}
 */
 
-char blender_path(){return NULL;}
+char blender_path(){return (char) NULL;}
 
 /* CSG */
 struct CSG_BooleanOperation * CSG_NewBooleanFunction( void ){return (struct CSG_BooleanOperation *) NULL;}

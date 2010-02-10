@@ -43,7 +43,9 @@ rna_reverse_prop = BoolProperty(name="Reverse",
         description="Cycle backwards", default=False)
 
 rna_relative_prop = BoolProperty(name="Relative",
-        description="Apply relative to the current value (delta)", default=False)
+        description="Apply relative to the current value (delta)",
+        default=False)
+
 
 def context_path_validate(context, path):
     import sys
@@ -105,7 +107,8 @@ class WM_OT_context_set_float(bpy.types.Operator): # same as enum
     bl_undo = True
 
     path = rna_path_prop
-    value = FloatProperty(name="Value", description="Assignment value", default=0.0)
+    value = FloatProperty(name="Value",
+            description="Assignment value", default=0.0)
     relative = rna_relative_prop
 
     execute = execute_context_assign
@@ -288,7 +291,7 @@ class WM_OT_context_cycle_enum(bpy.types.Operator):
         return {'FINISHED'}
 
 doc_id = StringProperty(name="Doc ID",
-        description="", maxlen=1024, default="", hidden=True)
+        description="", maxlen=1024, default="", options={'HIDDEN'})
 
 doc_new = StringProperty(name="Edit Description",
         description="", maxlen=1024, default="")
@@ -411,7 +414,7 @@ class WM_OT_reload_scripts(bpy.types.Operator):
 
     def execute(self, context):
         MOD = type(bpy)
-        bpy.load_scripts(True)
+        bpy.utils.load_scripts(True)
         return {'FINISHED'}
 
 

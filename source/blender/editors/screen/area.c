@@ -106,7 +106,7 @@ void ED_region_pixelspace(ARegion *ar)
 	int height= ar->winrct.ymax-ar->winrct.ymin+1;
 	
 	wmOrtho2(-0.375, (float)width-0.375, -0.375, (float)height-0.375);
-	wmLoadIdentity();
+	glLoadIdentity();
 }
 
 /* only exported for WM */
@@ -932,9 +932,8 @@ void ED_region_init(bContext *C, ARegion *ar)
 	ar->winy= ar->winrct.ymax - ar->winrct.ymin + 1;
 	
 	/* UI convention */
-	wmLoadIdentity();
 	wmOrtho2(-0.01f, ar->winx-0.01f, -0.01f, ar->winy-0.01f);
-	
+	glLoadIdentity();
 }
 
 void ED_region_toggle_hidden(bContext *C, ARegion *ar)
@@ -1391,6 +1390,8 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *ar)
 	// XXX quick hacks for files saved with 2.5 already (i.e. the builtin defaults file)
 		// scrollbars for button regions
 	ar->v2d.scroll |= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM); 
+	ar->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
+	ar->v2d.scroll &= ~V2D_SCROLL_VERTICAL_HIDE;
 	ar->v2d.keepzoom |= V2D_KEEPZOOM;
 
 		// correctly initialised User-Prefs?

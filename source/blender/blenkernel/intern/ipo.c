@@ -865,12 +865,15 @@ static char *get_rna_access (int blocktype, int adrcode, char actname[], char co
 		
 		case ID_SO: /* sound */
 			propname= sound_adrcodes_to_paths(adrcode, &dummy_index);
+			break;
 		
 		case ID_WO: /* world */
 			propname= world_adrcodes_to_paths(adrcode, &dummy_index);
+			break;
 
 		case ID_PA: /* particle */
 			propname= particle_adrcodes_to_paths(adrcode, &dummy_index);
+			break;
 			
 		/* XXX problematic blocktypes */
 		case ID_CU: /* curve */
@@ -1069,7 +1072,7 @@ static ChannelDriver *idriver_to_cdriver (IpoDriver *idriver)
 /* Add F-Curve to the correct list 
  *	- grpname is needed to be used as group name where relevant, and is usually derived from actname
  */
-static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, char *grpname)
+static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, char *grpname, int muteipo)
 {
 	/* If we're adding to an action, we will have groups to write to... */
 	if (groups && grpname) {
@@ -1096,6 +1099,8 @@ static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, c
 				agrp= MEM_callocN(sizeof(bActionGroup), "bActionGroup");
 				
 				agrp->flag = AGRP_SELECTED;
+				if(muteipo) agrp->flag |= AGRP_MUTED;
+
 				BLI_snprintf(agrp->name, 64, grpname);
 				
 				BLI_addtail(&tmp_act.groups, agrp);
@@ -1107,6 +1112,9 @@ static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, c
 		/* WARNING: this func should only need to look at the stuff we initialised, if not, things may crash */
 		action_groups_add_channel(&tmp_act, agrp, fcu);
 		
+		if(agrp->flag & AGRP_MUTED) /* flush down */
+			fcu->flag |= FCURVE_MUTED;
+
 		/* set the output lists based on the ones in the temp action */
 		groups->first= tmp_act.groups.first;
 		groups->last= tmp_act.groups.last;
@@ -1124,7 +1132,7 @@ static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, c
  *	actname: name of Action-Channel (if applicable) that IPO-Curve's IPO-block belonged to
  *	constname: name of Constraint-Channel (if applicable) that IPO-Curve's IPO-block belonged to
  */
-static void icu_to_fcurves (ListBase *groups, ListBase *list, IpoCurve *icu, char *actname, char *constname)
+static void icu_to_fcurves (ListBase *groups, ListBase *list, IpoCurve *icu, char *actname, char *constname, int muteipo)
 {
 	AdrBit2Path *abp;
 	FCurve *fcu;
@@ -1240,7 +1248,7 @@ static void icu_to_fcurves (ListBase *groups, ListBase *list, IpoCurve *icu, cha
 			}
 			
 			/* add new F-Curve to list */
-			fcurve_add_to_list(groups, list, fcurve, actname);
+			fcurve_add_to_list(groups, list, fcurve, actname, muteipo);
 		}
 	}
 	else {
@@ -1314,7 +1322,7 @@ static void icu_to_fcurves (ListBase *groups, ListBase *list, IpoCurve *icu, cha
 		}
 		
 		/* add new F-Curve to list */
-		fcurve_add_to_list(groups, list, fcu, actname);
+		fcurve_add_to_list(groups, list, fcu, actname, muteipo);
 	}
 }
 
@@ -1355,7 +1363,7 @@ static void ipo_to_animato (Ipo *ipo, char actname[], char constname[], ListBase
 		if (icu->driver) {
 			/* Blender 2.4x allowed empty drivers, but we don't now, since they cause more trouble than they're worth */
 			if ((icu->driver->ob) || (icu->driver->type == IPO_DRIVER_TYPE_PYTHON)) {
-				icu_to_fcurves(NULL, drivers, icu, actname, constname);
+				icu_to_fcurves(NULL, drivers, icu, actname, constname, ipo->muteipo);
 			}
 			else {
 				MEM_freeN(icu->driver);
@@ -1363,7 +1371,7 @@ static void ipo_to_animato (Ipo *ipo, char actname[], char constname[], ListBase
 			}
 		}
 		else
-			icu_to_fcurves(animgroups, anim, icu, actname, constname);
+			icu_to_fcurves(animgroups, anim, icu, actname, constname, ipo->muteipo);
 	}
 	
 	/* if this IPO block doesn't have any users after this one, free... */
@@ -1795,18 +1803,36 @@ void do_versions_ipos_to_animato(Main *main)
 		}
 	}
 	
+	/* worlds */
+	for (id= main->world.first; id; id= id->next) {
+		World *wo= (World *)id;
+		
+		if (G.f & G_DEBUG) printf("\tconverting world %s \n", id->name+2);
+		
+		/* we're only interested in the IPO */
+		if (wo->ipo) {
+			/* Add AnimData block */
+			adt= BKE_id_add_animdata(id);
+			
+			/* Convert World data... */
+			ipo_to_animdata(id, wo->ipo, NULL, NULL);
+			wo->ipo->id.us--;
+			wo->ipo= NULL;
+		}
+	}
+	
 	/* sequence strips */
 	for(scene = main->scene.first; scene; scene = scene->id.next) {
 		if(scene->ed && scene->ed->seqbasep) {
 			Sequence * seq;
-
+			
 			for(seq = scene->ed->seqbasep->first; 
 			    seq; seq = seq->next) {
 				short adrcode = SEQ_FAC1;
-
+				
 				if (G.f & G_DEBUG) 
 					printf("\tconverting sequence strip %s \n", seq->name+2);
-
+				
 				if (!seq->ipo || !seq->ipo->curve.first) {
 					seq->flag |= 
 						SEQ_USE_EFFECT_DEFAULT_FADE;

@@ -468,20 +468,25 @@ static void do_lasso_select_mesh(ViewContext *vc, short mcords[][2], short moves
 	data.pass = 0;
 
 	/* workaround: init mats first, EM_mask_init_backbuf_border can change
-	   view matrix to pixel space, breaking edge select with backbuf .. */
-	// XXX not needed anymore, check here if selection is broken
-	//ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
+	   view matrix to pixel space, breaking edge select with backbuf. fixes bug #20936 */
+
+	/* [#21018] breaks zbuf select. run below. only if bbsel fails */
+	/* ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d) */
+
+	glLoadMatrixf(vc->rv3d->viewmat);
 	bbsel= EM_mask_init_backbuf_border(vc, mcords, moves, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 	
 	if(ts->selectmode & SCE_SELECT_VERTEX) {
 		if (bbsel) {
 			EM_backbuf_checkAndSelectVerts(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 			mesh_foreachScreenVert(vc, do_lasso_select_mesh__doSelectVert, &data, 1);
 		}
 	}
 	if(ts->selectmode & SCE_SELECT_EDGE) {
 			/* Does both bbsel and non-bbsel versions (need screen cos for both) */
+		ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 
 		data.pass = 0;
 		mesh_foreachScreenEdge(vc, do_lasso_select_mesh__doSelectEdge, &data, 0);
@@ -496,6 +501,7 @@ static void do_lasso_select_mesh(ViewContext *vc, short mcords[][2], short moves
 		if (bbsel) {
 			EM_backbuf_checkAndSelectFaces(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 			mesh_foreachScreenFace(vc, do_lasso_select_mesh__doSelectFace, &data);
 		}
 	}
@@ -1396,16 +1402,21 @@ static void do_mesh_box_select(ViewContext *vc, rcti *rect, int select, int exte
 		EM_deselect_all(vc->em);
 	}
 
-	/* XXX Don't think we need this, it break selection of transformed objects.
-	 * Also, it's not done by Circle select and that works fine
-	 */
-	//ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
+	/* workaround: init mats first, EM_mask_init_backbuf_border can change
+	   view matrix to pixel space, breaking edge select with backbuf. fixes bug #20936 */
+	/*ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);*/ /* for foreach's screen/vert projection */
+
+	/* [#21018] breaks zbuf select. run below. only if bbsel fails */
+	/* ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d) */
+
+	glLoadMatrixf(vc->rv3d->viewmat);
 	bbsel= EM_init_backbuf_border(vc, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	if(ts->selectmode & SCE_SELECT_VERTEX) {
 		if (bbsel) {
 			EM_backbuf_checkAndSelectVerts(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 			mesh_foreachScreenVert(vc, do_mesh_box_select__doSelectVert, &data, 1);
 		}
 	}
@@ -1425,6 +1436,7 @@ static void do_mesh_box_select(ViewContext *vc, rcti *rect, int select, int exte
 		if(bbsel) {
 			EM_backbuf_checkAndSelectFaces(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 			mesh_foreachScreenFace(vc, do_mesh_box_select__doSelectFace, &data);
 		}
 	}

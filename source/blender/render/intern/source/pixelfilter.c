@@ -221,7 +221,7 @@ float (*pxf_sample_offset_table(Render *re))[2]
 	if(re->params.osa)
 		return re->sample.jit;
 	else if(re->cb.i.curblur)
-		return &re->sample.jit[re->cb.i.curblur-1];
+		return &re->sample.mblur_jit[re->cb.i.curblur-1];
 	else
 		return NULL;
 }
@@ -235,19 +235,27 @@ static float pxf_mask_weight(SampleTables *st, int a, int mask)
 
 /************************* Init/Free ****************************/
 
-static void pxf_init_jit(RenderSampleData *rsd, int osa)
+static void pxf_init_jit(RenderSampleData *rsd, int osa, int mblur_samples)
 {
 	static float jit[32][2];	/* simple caching */
+	static float mblur_jit[32][2];  /* simple caching */
 	static int lastjit= 0;
+	static int last_mblur_jit= 0;
 	
 	/* XXX not thread safe */
-	if(lastjit!=osa) {
+	if(lastjit!=osa || last_mblur_jit != mblur_samples) {
 		memset(jit, 0, sizeof(jit));
 		BLI_initjit(jit[0], osa);
+
+		memset(mblur_jit, 0, sizeof(mblur_jit));
+		BLI_initjit(mblur_jit[0], mblur_samples);
 	}
 	
 	lastjit= osa;
 	memcpy(rsd->jit, jit, sizeof(jit));
+
+	last_mblur_jit= mblur_samples;
+	memcpy(rsd->mblur_jit, mblur_jit, sizeof(mblur_jit));
 }
 
 /* based on settings in render, it makes the lookup tables */
@@ -361,7 +369,7 @@ void pxf_init(Render *re)
 	pxf_free(re);
 
 	/* needed for mblur too */
-	pxf_init_jit(&re->sample, re->params.osa);
+	pxf_init_jit(&re->sample, re->params.osa, re->params.r.mblur_samples);
 
 	if(re->params.osa)
 		pxf_init_table(re);

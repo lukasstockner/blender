@@ -878,6 +878,13 @@ short insert_keyframe (ID *id, bAction *act, const char group[], const char rna_
 	if (array_index == -1) { 
 		array_index= 0;
 		array_index_max= RNA_property_array_length(&ptr, prop);
+		
+		/* for single properties, increase max_index so that the property itself gets included,
+		 * but don't do this for standard arrays since that can cause corruption issues 
+		 * (extra unused curves)
+		 */
+		if (array_index_max == array_index)
+			array_index_max++;
 	}
 	
 	/* will only loop once unless the array index was -1 */
@@ -1420,8 +1427,8 @@ static int insert_key_button_exec (bContext *C, wmOperator *op)
 		/* send updates */
 		DAG_ids_flush_update(0);
 		
-		/* for now, only send ND_KEYS for KeyingSets */
-		WM_event_add_notifier(C, ND_KEYS, NULL);
+		/* send notifiers that keyframes have been changed */
+		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
 	}
 	
 	return (success)? OPERATOR_FINISHED: OPERATOR_CANCELLED;
@@ -1486,12 +1493,12 @@ static int delete_key_button_exec (bContext *C, wmOperator *op)
 	}
 	
 	
-	if(success) {
+	if (success) {
 		/* send updates */
 		DAG_ids_flush_update(0);
 		
-		/* for now, only send ND_KEYS for KeyingSets */
-		WM_event_add_notifier(C, ND_KEYS, NULL);
+		/* send notifiers that keyframes have been changed */
+		WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
 	}
 	
 	return (success)? OPERATOR_FINISHED: OPERATOR_CANCELLED;

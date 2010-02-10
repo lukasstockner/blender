@@ -51,6 +51,7 @@
 
 #include "BLF_api.h"
 
+#include "ED_anim_api.h"
 #include "ED_screen.h"
 
 #include "UI_interface.h"
@@ -61,7 +62,12 @@
 
 /* *********************************************************************** */
 
-/* helper to allow scrollbars to dynamically hide */
+/* helper to allow scrollbars to dynamically hide
+ * 	- returns a copy of the scrollbar settings with the flags to display 
+ *	  horizontal/vertical scrollbars removed
+ *	- input scroll value is the v2d->scroll var
+ *	- hide flags are set per region at drawtime
+ */
 static int view2d_scroll_mapped(int scroll)
 {
 	if(scroll & V2D_SCROLL_HORIZONTAL_HIDE)
@@ -269,7 +275,9 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 				v2d->keeptot= V2D_KEEPTOT_BOUNDS;
 				
 				v2d->scroll |= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM);
-				
+				v2d->scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
+				v2d->scroll &= ~V2D_SCROLL_VERTICAL_HIDE;
+
 				v2d->tot.xmin= 0.0f;
 				v2d->tot.xmax= winx;
 				
@@ -989,7 +997,7 @@ void UI_view2d_view_ortho(const bContext *C, View2D *v2d)
 	wmOrtho2(curmasked.xmin-xofs, curmasked.xmax-xofs, curmasked.ymin-yofs, curmasked.ymax-yofs);
 	
 	/* XXX is this necessary? */
-	wmLoadIdentity();
+	glLoadIdentity();
 }
 
 /* Set view matrices to only use one axis of 'cur' only
@@ -1018,7 +1026,7 @@ void UI_view2d_view_orthoSpecial(const bContext *C, View2D *v2d, short xaxis)
 		wmOrtho2(-xofs, ar->winx-xofs, curmasked.ymin-yofs, curmasked.ymax-yofs);
 		
 	/* XXX is this necessary? */
-	wmLoadIdentity();
+	glLoadIdentity();
 } 
 
 
@@ -1030,16 +1038,13 @@ void UI_view2d_view_restore(const bContext *C)
 	int height= ar->winrct.ymax-ar->winrct.ymin+1;
 	
 	wmOrtho2(0.0f, (float)width, 0.0f, (float)height);
-	wmLoadIdentity();
+	glLoadIdentity();
 	
 	//	ED_region_pixelspace(CTX_wm_region(C));
 }
 
 /* *********************************************************************** */
 /* Gridlines */
-
-/* minimum pixels per gridstep */
-#define MINGRIDSTEP 	35
 
 /* View2DGrid is typedef'd in UI_view2d.h */
 struct View2DGrid {
@@ -1131,7 +1136,7 @@ View2DGrid *UI_view2d_grid_calc(const bContext *C, View2D *v2d, short xunits, sh
 		space= v2d->cur.xmax - v2d->cur.xmin;
 		pixels= (float)(v2d->mask.xmax - v2d->mask.xmin);
 		
-		grid->dx= (MINGRIDSTEP * space) / (seconddiv * pixels);
+		grid->dx= (U.v2d_min_gridsize * space) / (seconddiv * pixels);
 		step_to_grid(&grid->dx, &grid->powerx, xunits);
 		grid->dx *= seconddiv;
 		
@@ -1147,7 +1152,7 @@ View2DGrid *UI_view2d_grid_calc(const bContext *C, View2D *v2d, short xunits, sh
 		space= v2d->cur.ymax - v2d->cur.ymin;
 		pixels= (float)winy;
 		
-		grid->dy= MINGRIDSTEP * space / pixels;
+		grid->dy= U.v2d_min_gridsize * space / pixels;
 		step_to_grid(&grid->dy, &grid->powery, yunits);
 		
 		if (yclamp == V2D_GRID_CLAMP) {
@@ -1192,7 +1197,7 @@ void UI_view2d_grid_draw(const bContext *C, View2D *v2d, View2DGrid *grid, int f
 		vec2[1]= v2d->cur.ymax;
 		
 		/* minor gridlines */
-		step= (v2d->mask.xmax - v2d->mask.xmin + 1) / MINGRIDSTEP;
+		step= (v2d->mask.xmax - v2d->mask.xmin + 1) / U.v2d_min_gridsize;
 		UI_ThemeColor(TH_GRID);
 		
 		for (a=0; a<step; a++) {
@@ -1226,7 +1231,7 @@ void UI_view2d_grid_draw(const bContext *C, View2D *v2d, View2DGrid *grid, int f
 		vec1[0]= grid->startx;
 		vec2[0]= v2d->cur.xmax;
 		
-		step= (v2d->mask.ymax - v2d->mask.ymin + 1) / MINGRIDSTEP;
+		step= (v2d->mask.ymax - v2d->mask.ymin + 1) / U.v2d_min_gridsize;
 		
 		UI_ThemeColor(TH_GRID);
 		for (a=0; a<=step; a++) {
@@ -1413,10 +1418,14 @@ View2DScrollers *UI_view2d_scrollers_calc(const bContext *C, View2D *v2d, short 
 			CLAMP(scrollers->hor_min, hor.xmin, hor.xmax-V2D_SCROLLER_HANDLE_SIZE);
 		}
 		
-		/* check whether sliders can disappear */
+		/* check whether sliders can disappear due to the full-range being used */
 		if(v2d->keeptot) {
-			if(fac1 <= 0.0f && fac2 >= 1.0f) 
+			if ((fac1 <= 0.0f) && (fac2 >= 1.0f)) { 
+				v2d->scroll |= V2D_SCROLL_HORIZONTAL_FULLR;
 				scrollers->horfull= 1;
+			}
+			else	
+				v2d->scroll &= ~V2D_SCROLL_HORIZONTAL_FULLR;
 		}
 	}
 	
@@ -1450,10 +1459,14 @@ View2DScrollers *UI_view2d_scrollers_calc(const bContext *C, View2D *v2d, short 
 			CLAMP(scrollers->vert_min, vert.ymin, vert.ymax-V2D_SCROLLER_HANDLE_SIZE);
 		}
 
-		/* check whether sliders can disappear */
+		/* check whether sliders can disappear due to the full-range being used */
 		if(v2d->keeptot) {
-			if(fac1 <= 0.0f && fac2 >= 1.0f) 
+			if ((fac1 <= 0.0f) && (fac2 >= 1.0f)) { 
+				v2d->scroll |= V2D_SCROLL_VERTICAL_FULLR;
 				scrollers->vertfull= 1;
+			}
+			else	
+				v2d->scroll &= ~V2D_SCROLL_VERTICAL_FULLR;
 		}
 	}
 	
@@ -1491,72 +1504,7 @@ static void scroll_printstr(View2DScrollers *scrollers, Scene *scene, float x, f
 	}
 	
 	/* get string to print */
-	if (unit == V2D_UNIT_SECONDS) {
-		/* Timecode:
-		 *	- In general, minutes and seconds should be shown, as most clips will be
-		 *	  within this length. Hours will only be included if relevant.
-		 *	- Only show frames when zoomed in enough for them to be relevant 
-		 *	  (using separator of '!' for frames).
-		 *	  When showing frames, use slightly different display to avoid confusion with mm:ss format
-		 * TODO: factor into reusable function.
-		 * Meanwhile keep in sync:
-		 *	  source/blender/editors/animation/anim_draw.c
-		 *	  source/blender/editors/interface/view2d.c
-		 */
-		int hours=0, minutes=0, seconds=0, frames=0;
-		char neg[2]= "";
-		
-		/* get values */
-		if (val < 0) {
-			/* correction for negative values */
-			sprintf(neg, "-");
-			val = -val;
-		}
-		if (val >= 3600) {
-			/* hours */
-			/* XXX should we only display a single digit for hours since clips are 
-			 * 	   VERY UNLIKELY to be more than 1-2 hours max? However, that would 
-			 *	   go against conventions...
-			 */
-			hours= (int)val / 3600;
-			val= (float)fmod(val, 3600);
-		}
-		if (val >= 60) {
-			/* minutes */
-			minutes= (int)val / 60;
-			val= (float)fmod(val, 60);
-		}
-		if (power <= 0) {
-			/* seconds + frames
-			 *	Frames are derived from 'fraction' of second. We need to perform some additional rounding
-			 *	to cope with 'half' frames, etc., which should be fine in most cases
-			 */
-			seconds= (int)val;
-			frames= (int)floor( ((val - seconds) * FPS) + 0.5f );
-		}
-		else {
-			/* seconds (with pixel offset) */
-			seconds= (int)floor(val + 0.375f);
-		}
-		
-		/* print timecode to temp string buffer */
-		if (power <= 0) {
-			/* include "frames" in display */
-			if (hours) sprintf(str, "%s%02d:%02d:%02d!%02d", neg, hours, minutes, seconds, frames);
-			else if (minutes) sprintf(str, "%s%02d:%02d!%02d", neg, minutes, seconds, frames);
-			else sprintf(str, "%s%d!%02d", neg, seconds, frames);
-		}
-		else {
-			/* don't include 'frames' in display */
-			if (hours) sprintf(str, "%s%02d:%02d:%02d", neg, hours, minutes, seconds);
-			else sprintf(str, "%s%02d:%02d", neg, minutes, seconds);
-		}
-	}
-	else {
-		/* round to whole numbers if power is >= 1 (i.e. scale is coarse) */
-		if (power <= 0) sprintf(str, "%.*f", 1-power, val);
-		else sprintf(str, "%d", (int)floor(val + 0.375f));
-	}
+	ANIM_timecode_string_from_frame(str, scene, power, (unit == V2D_UNIT_SECONDS), val);
 	
 	/* get length of string, and adjust printing location to fit it into the horizontal scrollbar */
 	len= strlen(str);
@@ -1753,7 +1701,6 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 			val= grid->starty;
 			
 			/* if vertical clamping (to whole numbers) is used (i.e. in Sequencer), apply correction */
-			// XXX only relevant to Sequencer, so need to review this when we port that code
 			if (vs->yclamp == V2D_GRID_CLAMP)
 				fac += 0.5f * dfac;
 				
@@ -2095,7 +2042,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 {
 	View2DString *v2s;
 	
-	//	wmPushMatrix();
+	// glMatrixMode(GL_PROJECTION);
+	// glPushMatrix();
+	// glMatrixMode(GL_MODELVIEW);
+	// glPushMatrix();
 	ED_region_pixelspace(ar);
 	
 	for(v2s= strings.first; v2s; v2s= v2s->next) {
@@ -2117,7 +2067,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 		}
 	}
 	
-	//	wmPopMatrix();
+	// glMatrixMode(GL_PROJECTION);
+	// glPopMatrix();
+	// glMatrixMode(GL_MODELVIEW);
+	// glPopMatrix();
 	
 	if(strings.first) 
 		BLI_freelistN(&strings);

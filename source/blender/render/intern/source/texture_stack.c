@@ -1216,7 +1216,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 							texres.nor[0] = -texres.nor[0];
 							texres.nor[1] = -texres.nor[1];
 						}
-						fact = Tnor*tex->norfac;
+						fact = Tnor*fabsf(tex->norfac);
 						if (fact>1.f) fact = 1.f;
 						facm = 1.f-fact;
 						if(mtex->normapspace == MTEX_NSPACE_TANGENT) {

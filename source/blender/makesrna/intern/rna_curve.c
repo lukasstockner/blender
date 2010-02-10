@@ -42,7 +42,6 @@ EnumPropertyItem beztriple_handle_type_items[] = {
 		{HD_AUTO, "AUTO", 0, "Auto", ""},
 		{HD_VECT, "VECTOR", 0, "Vector", ""},
 		{HD_ALIGN, "ALIGNED", 0, "Aligned", ""},
-		{HD_AUTO_ANIM, "AUTO_CLAMPED", 0, "Auto Clamped", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 EnumPropertyItem beztriple_interpolation_mode_items[] = {
@@ -83,7 +82,7 @@ static PointerRNA rna_Curve_active_nurb_get(PointerRNA *ptr)
 		nu = BLI_findlink(cu->editnurb, cu->actnu);
 
 	if(nu)
-		return rna_pointer_inherit_refine(ptr, &RNA_Nurb, nu);
+		return rna_pointer_inherit_refine(ptr, &RNA_Spline, nu);
 
 	return rna_pointer_inherit_refine(ptr, NULL, NULL);
 }
@@ -355,7 +354,7 @@ static void rna_def_bpoint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "tilt", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "alfa");
 	/*RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);*/
-	RNA_def_property_ui_text(prop, "Tilt", "Tilt in 3d View");
+	RNA_def_property_ui_text(prop, "Tilt", "Tilt in 3D View");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
 	prop= RNA_def_property(srna, "weight_softbody", PROP_FLOAT, PROP_NONE);
@@ -438,7 +437,7 @@ static void rna_def_beztriple(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "tilt", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "alfa");
 	/*RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);*/
-	RNA_def_property_ui_text(prop, "Tilt", "Tilt in 3d View");
+	RNA_def_property_ui_text(prop, "Tilt", "Tilt in 3D View");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 
 	prop= RNA_def_property(srna, "weight", PROP_FLOAT, PROP_NONE);
@@ -461,8 +460,8 @@ static void rna_def_path(BlenderRNA *brna, StructRNA *srna)
 	/* number values */
 	prop= RNA_def_property(srna, "path_length", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "pathlen");
-	RNA_def_property_range(prop, 1, 32767);
-	RNA_def_property_ui_text(prop, "Path Length", "If no speed IPO was set, the length of path in frames.");
+	RNA_def_property_range(prop, 1, MAXFRAME);
+	RNA_def_property_ui_text(prop, "Path Length", "The number of frames that are needed to traverse the path, defining the maximum value for the 'Evaluation Time' setting.");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 	
 	/* flags */
@@ -756,11 +755,11 @@ static void rna_def_curve(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "splines", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "nurb", NULL);
-	RNA_def_property_struct_type(prop, "Nurb");
+	RNA_def_property_struct_type(prop, "Spline");
 	RNA_def_property_ui_text(prop, "Splines", "Collection of splines in this curve data object.");
 
 	prop= RNA_def_property(srna, "active_spline", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "Nurb");
+	RNA_def_property_struct_type(prop, "Spline");
 	RNA_def_property_pointer_funcs(prop, "rna_Curve_active_nurb_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Active Spline", "The active editmode spline");
 
@@ -820,20 +819,20 @@ static void rna_def_curve(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "render_resolution_u", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "resolu_ren");
-	RNA_def_property_ui_range(prop, 1, 1024, 1, 0);
-	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_range(prop, 0, 1024, 1, 0);
+	RNA_def_property_range(prop, 0, INT_MAX);
 	RNA_def_property_ui_text(prop, "Render Resolution U", "Surface resolution in U direction used while rendering. Zero skips this property.");
 	
 	prop= RNA_def_property(srna, "render_resolution_v", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "resolv_ren");
-	RNA_def_property_ui_range(prop, 1, 1024, 1, 0);
-	RNA_def_property_range(prop, 1, INT_MAX);
+	RNA_def_property_ui_range(prop, 0, 1024, 1, 0);
+	RNA_def_property_range(prop, 0, INT_MAX);
 	RNA_def_property_ui_text(prop, "Render Resolution V", "Surface resolution in V direction used while rendering. Zero skips this property.");
 	
 	
 	prop= RNA_def_property(srna, "eval_time", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "ctime");
-	RNA_def_property_ui_text(prop, "Evaluation Time", "Parametric position along the length of the curve that Objects 'following' it should be at.");
+	RNA_def_property_ui_text(prop, "Evaluation Time", "Parametric position along the length of the curve that Objects 'following' it should be at. Position is evaluated by dividing by the 'Path Length' value.");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 	
 	/* pointers */
@@ -903,7 +902,8 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna= RNA_def_struct(brna, "Nurb", NULL);
+	srna= RNA_def_struct(brna, "Spline", NULL);
+    RNA_def_struct_sdna(srna, "Nurb");
 	RNA_def_struct_ui_text(srna, "Spline", "Element of a curve, either Nurbs, Bezier or Polyline or a character with text objects.");
 
 	prop= RNA_def_property(srna, "points", PROP_COLLECTION, PROP_NONE);

@@ -99,7 +99,7 @@ class VIEW3D_PT_tools_meshedit(View3DPanel):
 
         col = layout.column(align=True)
         col.label(text="Add:")
-        col.operator("mesh.extrude_move")
+        col.operator("wm.call_menu", text="Extrude").name = "VIEW3D_MT_edit_mesh_extrude"
         col.operator("mesh.subdivide")
         col.operator("mesh.loopcut_slide")
         col.operator("mesh.duplicate_move", text="Duplicate")
@@ -155,6 +155,7 @@ class VIEW3D_PT_tools_meshedit_options(View3DPanel):
             mesh = context.active_object.data
             col = layout.column(align=True)
             col.prop(mesh, "use_mirror_x")
+            col.prop(context.tool_settings, "edge_path_mode")
 
 # ********** default tools for editmode_curve ****************
 
@@ -644,13 +645,14 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
         settings = self.paint_settings(context)
         brush = settings.brush
         tex_slot = brush.texture_slot
-        
+
         col = layout.column()
-        
+
         col.template_ID_preview(brush, "texture", new="texture.new", rows=2, cols=4)
-        
+
         col.row().prop(tex_slot, "map_mode", expand=True)
-        
+
+
 class VIEW3D_PT_tools_brush_tool(PaintPanel):
     bl_label = "Tool"
     bl_default_closed = True
@@ -658,7 +660,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel):
     def poll(self, context):
         settings = self.paint_settings(context)
         return (settings and settings.brush and
-            (context.sculpt_object or context.texture_paint_object or 
+            (context.sculpt_object or context.texture_paint_object or
             context.vertex_paint_object or context.weight_paint_object))
 
     def draw(self, context):
@@ -895,7 +897,7 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel):
         row = sub.row()
         row.active = (settings.brush.imagepaint_tool == 'CLONE')
 
-        row.prop(ipaint, "use_clone_layer", text="Clone")
+        row.prop(ipaint, "use_clone_layer", text="Layer")
         row.menu("VIEW3D_MT_tools_projectpaint_clone", text=context.active_object.data.uv_texture_clone.name)
 
         sub = col.column()

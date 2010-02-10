@@ -38,10 +38,10 @@
 #include "compile.h"		/* for the PyCodeObject */
 #include "eval.h"		/* for PyEval_EvalCode */
 
+#include "bpy_app.h"
 #include "bpy_rna.h"
 #include "bpy_props.h"
 #include "bpy_operator.h"
-#include "bpy_ui.h"
 #include "bpy_util.h"
 
 #ifndef WIN32
@@ -60,11 +60,9 @@
 #include "BLI_fileops.h"
 #include "BLI_string.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_text.h"
 #include "BKE_context.h"
-#include "BKE_global.h"
 #include "BKE_main.h"
 
 #include "BPY_extern.h"
@@ -210,29 +208,16 @@ static void bpy_init_modules( void )
 	/* PyModule_AddObject( mod, "doc", BPY_rna_doc() ); */
 	PyModule_AddObject( mod, "props", BPY_rna_props() );
 	PyModule_AddObject( mod, "ops", BPY_operator_module() ); /* ops is now a python module that does the conversion from SOME_OT_foo -> some.foo */
-	PyModule_AddObject( mod, "ui", BPY_ui_module() ); // XXX very experimental, consider this a test, especially PyCObject is not meant to be permanent
-
-
+	PyModule_AddObject( mod, "app", BPY_app_struct() );
 
 	/* bpy context */
 	{
 		bpy_context_module= ( BPy_StructRNA * ) PyObject_NEW( BPy_StructRNA, &pyrna_struct_Type );
+
 		RNA_pointer_create(NULL, &RNA_Context, NULL, &bpy_context_module->ptr);
+		bpy_context_module->freeptr= 0;
 
 		PyModule_AddObject(mod, "context", (PyObject *)bpy_context_module);
-	}
-
-	/* blender info that wont change at runtime, add into _bpy */
-	{
-		extern char bprogname[]; /* argv[0] from creator.c */
-
-		PyObject *mod_dict= PyModule_GetDict(mod);
-		char tmpstr[256];
-		PyModule_AddStringConstant(mod, "_HOME",  BLI_gethome());
-		PyDict_SetItemString(mod_dict, "_VERSION", Py_BuildValue("(iii)", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION));
-		sprintf(tmpstr, "%d.%02d (sub %d)", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION);
-		PyModule_AddStringConstant(mod, "_VERSION_STR",  tmpstr);
-		PyModule_AddStringConstant(mod, "_BINPATH",  bprogname);
 	}
 
 	/* add our own modules dir, this is a python package */
@@ -467,11 +452,11 @@ int BPY_run_python_script( bContext *C, const char *fn, struct Text *text, struc
 
 			fclose(fp);
 
-			pystring= malloc(strlen(fn) + 32);
+			pystring= MEM_mallocN(strlen(fn) + 32, "pystring");
 			pystring[0]= '\0';
 			sprintf(pystring, "exec(open(r'%s').read())", fn);
 			py_result = PyRun_String( pystring, Py_file_input, py_dict, py_dict );
-			free(pystring);
+			MEM_freeN(pystring);
 #else
 			py_result = PyRun_File(fp, fn, Py_file_input, py_dict, py_dict);
 			fclose(fp);
@@ -791,7 +776,7 @@ int BPY_context_get(bContext *C, const char *member, bContextDataResult *result)
 		if (item)	printf("Context '%s' not a valid type\n", member);
 		else		printf("Context '%s' not found\n", member);
 	}
-	else if (G.f & G_DEBUG) {
+	else {
 		printf("Context '%s' found\n", member);
 	}
 

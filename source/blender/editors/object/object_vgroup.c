@@ -28,6 +28,7 @@
  */
 
 #include <string.h>
+#include <stddef.h>
 #include <math.h>
 
 #include "MEM_guardedalloc.h"
@@ -74,6 +75,7 @@
 #include "object_intern.h"
 
 /************************ Exported Functions **********************/
+static void vgroup_remap_update_users(Object *ob, int *map);
 
 static Lattice *vgroup_edit_lattice(Object *ob)
 {
@@ -150,6 +152,56 @@ int ED_vgroup_give_array(ID *id, MDeformVert **dvert_arr, int *dvert_tot)
 	*dvert_tot= 0;
 	return FALSE;
 }
+
+/* matching index only */
+int ED_vgroup_copy_array(Object *ob, Object *ob_from)
+{
+	MDeformVert *dvert_array_from, *dvf;
+	MDeformVert *dvert_array, *dv;
+
+	int dvert_tot_from;
+	int dvert_tot;
+	int i;
+	int totdef_from= BLI_countlist(&ob_from->defbase);
+	int totdef= BLI_countlist(&ob->defbase);
+
+	ED_vgroup_give_array(ob_from->data, &dvert_array_from, &dvert_tot_from);
+	ED_vgroup_give_array(ob->data, &dvert_array, &dvert_tot);
+
+	if(ob==ob_from || dvert_tot==0 || (dvert_tot != dvert_tot_from))
+		return 0;
+
+	/* do the copy */
+	BLI_freelistN(&ob->defbase);
+	BLI_duplicatelist(&ob->defbase, &ob_from->defbase);
+	ob->actdef= ob_from->actdef;
+
+	if(totdef_from < totdef) {
+		/* correct vgroup indices because the number of vgroups is being reduced. */
+		int *remap= MEM_mallocN(sizeof(int) * (totdef + 1), "ED_vgroup_copy_array");
+		for(i=0; i<=totdef_from; i++) remap[i]= i;
+		for(; i<=totdef; i++) remap[i]= 0; /* can't use these, so disable */
+
+		vgroup_remap_update_users(ob, remap);
+		MEM_freeN(remap);
+	}
+
+	dvf= dvert_array_from;
+	dv= dvert_array;
+
+	for(i=0; i<dvert_tot; i++, dvf++, dv++) {
+		if(dv->dw)
+			MEM_freeN(dv->dw);
+
+		*dv= *dvf;
+
+		if(dv->dw)
+			dv->dw= MEM_dupallocN(dv->dw);
+	}
+
+	return 1;
+}
+
 /* for mesh in object mode
    lattice can be in editmode */
 void ED_vgroup_nr_vert_remove(Object *ob, int def_nr, int vertnum)
@@ -883,7 +935,7 @@ void ED_vgroup_mirror(Object *ob, int mirror_weights, int flip_vgroups)
 		/* Go through the list of editverts and assign them */
 		for(eve=em->verts.first; eve; eve=eve->next){
 			if((eve_mirr=eve->tmp.v)) {
-				if(eve_mirr->f & SELECT || eve->f & SELECT) {
+				if((eve_mirr->f & SELECT || eve->f & SELECT) && (eve != eve_mirr)) {
 					dvert= CustomData_em_get(&em->vdata, eve->data, CD_MDEFORMVERT);
 					dvert_mirr= CustomData_em_get(&em->vdata, eve_mirr->data, CD_MDEFORMVERT);
 					if(dvert && dvert_mirr) {
@@ -921,7 +973,7 @@ void ED_vgroup_mirror(Object *ob, int mirror_weights, int flip_vgroups)
 	}
 }
 
-static void vgroup_delete_update_users(Object *ob, int id)
+static void vgroup_remap_update_users(Object *ob, int *map)
 {
 	ExplodeModifierData *emd;
 	ModifierData *md;
@@ -933,53 +985,46 @@ static void vgroup_delete_update_users(Object *ob, int id)
 	/* these cases don't use names to refer to vertex groups, so when
 	 * they get deleted the numbers get out of sync, this corrects that */
 
-	if(ob->soft) {
-		if(ob->soft->vertgroup == id)
-			ob->soft->vertgroup= 0;
-		else if(ob->soft->vertgroup > id)
-			ob->soft->vertgroup--;
-	}
+	if(ob->soft)
+		ob->soft->vertgroup= map[ob->soft->vertgroup];
 
 	for(md=ob->modifiers.first; md; md=md->next) {
 		if(md->type == eModifierType_Explode) {
 			emd= (ExplodeModifierData*)md;
-
-			if(emd->vgroup == id)
-				emd->vgroup= 0;
-			else if(emd->vgroup > id)
-				emd->vgroup--;
+			emd->vgroup= map[emd->vgroup];
 		}
 		else if(md->type == eModifierType_Cloth) {
 			clmd= (ClothModifierData*)md;
 			clsim= clmd->sim_parms;
 
 			if(clsim) {
-				if(clsim->vgroup_mass == id)
-					clsim->vgroup_mass= 0;
-				else if(clsim->vgroup_mass > id)
-					clsim->vgroup_mass--;
-
-				if(clsim->vgroup_bend == id)
-					clsim->vgroup_bend= 0;
-				else if(clsim->vgroup_bend > id)
-					clsim->vgroup_bend--;
-
-				if(clsim->vgroup_struct == id)
-					clsim->vgroup_struct= 0;
-				else if(clsim->vgroup_struct > id)
-					clsim->vgroup_struct--;
+				clsim->vgroup_mass= map[clsim->vgroup_mass];
+				clsim->vgroup_bend= map[clsim->vgroup_bend];
+				clsim->vgroup_struct= map[clsim->vgroup_struct];
 			}
 		}
 	}
 
 	for(psys=ob->particlesystem.first; psys; psys=psys->next) {
 		for(a=0; a<PSYS_TOT_VG; a++)
-			if(psys->vgroup[a] == id)
-				psys->vgroup[a]= 0;
-			else if(psys->vgroup[a] > id)
-				psys->vgroup[a]--;
+			psys->vgroup[a]= map[psys->vgroup[a]];
 	}
 }
+
+
+static void vgroup_delete_update_users(Object *ob, int id)
+{
+	int i, tot= BLI_countlist(&ob->defbase) + 1;
+	int *map= MEM_mallocN(sizeof(int) * tot, "vgroup del");
+
+	map[id]= map[0]= 0;
+	for(i=1; i<id; i++) map[i]=i;
+	for(i=id+1; i<tot; i++) map[i]=i-1;
+
+	vgroup_remap_update_users(ob, map);
+	MEM_freeN(map);
+}
+
 
 static void vgroup_delete_object_mode(Object *ob)
 {
@@ -1764,13 +1809,43 @@ static int vertex_group_copy_to_linked_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_vertex_group_copy_to_linked(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Copy Vertex Group to Linked";
+	ot->name= "Copy Vertex Groups to Linked";
 	ot->idname= "OBJECT_OT_vertex_group_copy_to_linked";
 	ot->description= "Copy Vertex Groups to all users of the same Geometry data.";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll;
 	ot->exec= vertex_group_copy_to_linked_exec;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int vertex_group_copy_to_selected_exec(bContext *C, wmOperator *op)
+{
+	Object *obact= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+
+	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects)
+	{
+		if(obact != ob)
+			ED_vgroup_copy_array(ob, obact);
+	}
+	CTX_DATA_END;
+
+	return OPERATOR_FINISHED;
+}
+
+
+void OBJECT_OT_vertex_group_copy_to_selected(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Copy Vertex Group to Selected";
+	ot->idname= "OBJECT_OT_vertex_group_copy_to_selected";
+	ot->description= "Copy Vertex Groups to other selected objects with matching indicies.";
+
+	/* api callbacks */
+	ot->poll= vertex_group_poll;
+	ot->exec= vertex_group_copy_to_selected_exec;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -1840,3 +1915,78 @@ void OBJECT_OT_vertex_group_set_active(wmOperatorType *ot)
 	ot->prop= prop;
 }
 
+static int vgroup_sort(void *def_a_ptr, void *def_b_ptr)
+{
+	bDeformGroup *def_a= (bDeformGroup *)def_a_ptr;
+	bDeformGroup *def_b= (bDeformGroup *)def_b_ptr;
+
+	return strcmp(def_a->name, def_b->name);
+}
+
+#define DEF_GROUP_SIZE (sizeof(((bDeformGroup *)NULL)->name))
+static int vertex_group_sort_exec(bContext *C, wmOperator *op)
+{
+	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	bDeformGroup *def;
+	int def_tot = BLI_countlist(&ob->defbase);
+	char *name;
+	char *name_array= MEM_mallocN(DEF_GROUP_SIZE * sizeof(char) * def_tot, "sort vgroups");
+	int *sort_map_update= MEM_mallocN(DEF_GROUP_SIZE * sizeof(int) * def_tot + 1, "sort vgroups"); /* needs a dummy index at the start*/
+	int *sort_map= sort_map_update + 1;
+	int i;
+
+	MDeformVert *dvert= NULL;
+	int dvert_tot;
+
+	name= name_array;
+	for(def = ob->defbase.first; def; def=def->next){
+		BLI_strncpy(name, def->name, DEF_GROUP_SIZE);
+		name += DEF_GROUP_SIZE;
+	}
+
+	BLI_sortlist(&ob->defbase, vgroup_sort);
+
+	name= name_array;
+	for(def= ob->defbase.first, i=0; def; def=def->next, i++){
+		sort_map[i]= BLI_findstringindex(&ob->defbase, name, offsetof(bDeformGroup, name));
+		name += DEF_GROUP_SIZE;
+	}
+
+	ED_vgroup_give_array(ob->data, &dvert, &dvert_tot);
+	while(dvert && dvert_tot--) {
+		defvert_remap(dvert, sort_map);
+		dvert++;
+	}
+
+	/* update users */
+	for(i=0; i<def_tot; i++)
+		sort_map[i]++;
+
+	sort_map_update[0]= 0;
+
+	vgroup_remap_update_users(ob, sort_map_update);
+
+	MEM_freeN(name_array);
+	MEM_freeN(sort_map_update);
+
+	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_GEOM|ND_DATA, ob);
+
+	return OPERATOR_FINISHED;
+}
+#undef DEF_GROUP_SIZE
+
+
+void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
+{
+	ot->name= "Sort Vertex Groups";
+	ot->idname= "OBJECT_OT_vertex_group_sort";
+	ot->description= "Sorts vertex groups alphabetically.";
+
+	/* api callbacks */
+	ot->poll= vertex_group_poll;
+	ot->exec= vertex_group_sort_exec;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}

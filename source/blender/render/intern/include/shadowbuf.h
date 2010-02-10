@@ -52,7 +52,7 @@ void shadowbufs_make_threaded(struct Render *re);
      to hide bias issues at grazing angles */
 
 float shadowbuf_test(struct Render *re, struct ShadBuf *shb,
-	float *rco, float *dxco, float *dyco, float inp, float mat_bias);	
+	float *co, float *dxco, float *dyco, float inp, float mat_bias);	
 
 /* Determine shadow facetor between two points */
 

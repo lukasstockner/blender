@@ -924,7 +924,7 @@ void GRAPH_OT_clean (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_float(ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
+	ot->prop= RNA_def_float(ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
 }
 
 /* ******************** Bake F-Curve Operator *********************** */
@@ -1138,7 +1138,7 @@ void GRAPH_OT_sound_bake (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPEN);
+	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE);
 	RNA_def_float(ot->srna, "low", 0.0f, 0.0, 100000.0, "Lowest frequency", "", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "high", 100000.0, 0.0, 100000.0, "Highest frequency", "", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "attack", 0.005, 0.0, 2.0, "Attack time", "", 0.01, 0.1);
@@ -1361,47 +1361,53 @@ void GRAPH_OT_interpolation_type (wmOperatorType *ot)
 
 /* ******************** Set Handle-Type Operator *********************** */
 
+EnumPropertyItem graphkeys_handle_type_items[] = {
+	{HD_FREE, "FREE", 0, "Free", ""},
+	{HD_VECT, "VECTOR", 0, "Vector", ""},
+	{HD_ALIGN, "ALIGNED", 0, "Aligned", ""},
+	{0, "", 0, "", ""},
+	{HD_AUTO, "AUTO", 0, "Auto", "Handles that are automatically adjusted upon moving the keyframe. Whole curve."},
+	{HD_AUTO_ANIM, "ANIM_CLAMPED", 0, "Auto Clamped", "Auto handles clamped to not overshoot. Whole curve."},
+	{0, NULL, 0, NULL, NULL}};
+
+/* ------------------- */
+
 /* this function is responsible for setting handle-type of selected keyframes */
 static void sethandles_graph_keys(bAnimContext *ac, short mode) 
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	BeztEditFunc set_cb= ANIM_editkeyframes_handles(mode);
+	
+	BeztEditFunc edit_cb= ANIM_editkeyframes_handles(mode);
+	BeztEditFunc sel_cb= ANIM_editkeyframes_ok(BEZT_OK_SELECTED);
 	
 	/* filter data */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE| ANIMFILTER_FOREDIT | ANIMFILTER_CURVESONLY);
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVESONLY);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* loop through setting flags for handles 
 	 * Note: we do not supply BeztEditData to the looper yet. Currently that's not necessary here...
 	 */
-	// XXX we might need to supply BeztEditData to get it to only affect selected handles
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		if (mode == -1) {	
-			BeztEditFunc toggle_cb;
+		FCurve *fcu= (FCurve *)ale->key_data;
+		
+		/* any selected keyframes for editing? */
+		if (ANIM_fcurve_keys_bezier_loop(NULL, fcu, NULL, sel_cb, NULL)) {
+			/* for auto/auto-clamped, toggle the auto-handles flag on the F-Curve */
+			if (mode == HD_AUTO_ANIM)
+				fcu->flag |= FCURVE_AUTO_HANDLES;
+			else if (mode == HD_AUTO)
+				fcu->flag &= ~FCURVE_AUTO_HANDLES;
 			
-			/* check which type of handle to set (free or aligned) 
-			 *	- check here checks for handles with free alignment already
-			 */
-			if (ANIM_fcurve_keys_bezier_loop(NULL, ale->key_data, NULL, set_cb, NULL))
-				toggle_cb= ANIM_editkeyframes_handles(HD_FREE);
-			else
-				toggle_cb= ANIM_editkeyframes_handles(HD_ALIGN);
-				
-			/* set handle-type */
-			ANIM_fcurve_keys_bezier_loop(NULL, ale->key_data, NULL, toggle_cb, calchandles_fcurve);
-		}
-		else {
-			/* directly set handle-type */
-			ANIM_fcurve_keys_bezier_loop(NULL, ale->key_data, NULL, set_cb, calchandles_fcurve);
+			/* change type of selected handles */
+			ANIM_fcurve_keys_bezier_loop(NULL, fcu, NULL, edit_cb, calchandles_fcurve);
 		}
 	}
 	
 	/* cleanup */
 	BLI_freelistN(&anim_data);
 }
-
 /* ------------------- */
 
 static int graphkeys_handletype_exec(bContext *C, wmOperator *op)
@@ -1422,13 +1428,13 @@ static int graphkeys_handletype_exec(bContext *C, wmOperator *op)
 	/* validate keyframes after editing */
 	ANIM_editkeyframes_refresh(&ac);
 	
-	/* set notifier that things have changed */
+	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_PROP, NULL);
 	
 	return OPERATOR_FINISHED;
 }
  
-void GRAPH_OT_handle_type (wmOperatorType *ot)
+ void GRAPH_OT_handle_type (wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Set Keyframe Handle Type";
@@ -1444,7 +1450,7 @@ void GRAPH_OT_handle_type (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* id-props */
-	ot->prop= RNA_def_enum(ot->srna, "type", beztriple_handle_type_items, 0, "Type", "");
+	ot->prop= RNA_def_enum(ot->srna, "type", graphkeys_handle_type_items, 0, "Type", "");
 }
 
 /* ************************************************************************** */
@@ -2007,7 +2013,7 @@ void GRAPH_OT_fmodifier_add (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* id-props */
-	RNA_def_enum(ot->srna, "type", fmodifier_type_items, 0, "Type", "");
+	ot->prop= RNA_def_enum(ot->srna, "type", fmodifier_type_items, 0, "Type", "");
 	RNA_def_boolean(ot->srna, "only_active", 1, "Only Active", "Only add F-Modifier to active F-Curve.");
 }
 

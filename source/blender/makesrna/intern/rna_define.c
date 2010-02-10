@@ -478,7 +478,7 @@ void RNA_struct_free(BlenderRNA *brna, StructRNA *srna)
 
 	if(srna->flag & STRUCT_RUNTIME) {
 		if(RNA_struct_py_type_get(srna)) {
-			fprintf(stderr, "StructRNA \"%s\" freed while holdng a python reference\n", srna->name);
+			fprintf(stderr, "StructRNA \"%s\" freed while holding a python reference\n", srna->name);
 		}
 	}
 
@@ -938,7 +938,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_, const char *identifier
 		prop->flag= PROP_EDITABLE;
 	
 		if(type != PROP_STRING)
-			prop->flag |= PROP_ANIMATEABLE;
+			prop->flag |= PROP_ANIMATABLE;
 	}
 
 	if(DefRNA.preprocess) {
@@ -1703,6 +1703,7 @@ void RNA_def_property_collection_sdna(PropertyRNA *prop, const char *structname,
 			else {
 				dp->dnalengthstructname= structname;
 				dp->dnalengthname= lengthpropname;
+				prop->totarraylength= 0;
 			}
 
 			cprop->next= (PropCollectionNextFunc)"rna_iterator_array_next";

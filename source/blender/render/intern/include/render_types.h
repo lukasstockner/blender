@@ -112,6 +112,7 @@ typedef struct RenderSampleData {
 	/* samples */
 	struct SampleTables *table;
 	float jit[32][2];
+	float mblur_jit[32][2];
 	ListBase *qmcsamplers;
 	
 	/* shadow counter, detect shadow-reuse for shaders */
@@ -151,6 +152,7 @@ typedef struct RenderParams {
 struct Render {
 	struct Render *next, *prev;
 	char name[RE_MAXNAME];
+	int slot;
 	
 	/* state settings */
 	short ok, result_ok;

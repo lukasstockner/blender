@@ -74,12 +74,12 @@ static int open_exec(bContext *C, wmOperator *op)
 
 	sound = sound_new_file(CTX_data_main(C), path);
 
-	if (sound==NULL || sound->handle == NULL) {
+	if (sound==NULL || sound->playback_handle == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Unsupported audio format");
 		return OPERATOR_CANCELLED;
 	}
 
-	info = AUD_getInfo(sound->handle);
+	info = AUD_getInfo(sound->playback_handle);
 
 	if (info.specs.channels == AUD_CHANNELS_INVALID) {
 		sound_delete(C, sound);
@@ -114,7 +114,7 @@ void SOUND_OT_open(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPEN);
+	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE);
 	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Cache the sound in memory.");
 }
 

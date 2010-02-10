@@ -71,6 +71,7 @@
 #include "BKE_material.h"
 #include "BKE_object.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_utildefines.h"
 
 #include "UI_interface.h"
@@ -436,18 +437,29 @@ void ANIM_flush_setting_anim_channels (bAnimContext *ac, ListBase *anim_data, bA
 			
 			/* if the level is 'less than' (i.e. more important) the level we're matching
 			 * but also 'less than' the level just tried (i.e. only the 1st group above grouped F-Curves, 
-			 * when toggling visibility of F-Curves, gets flushed), flush the new status...
+			 * when toggling visibility of F-Curves, gets flushed, which should happen if we don't let prevLevel
+			 * get updated below once the first 1st group is found)...
 			 */
-			if (level < prevLevel)
+			if (level < prevLevel) {
+				/* flush the new status... */
 				ANIM_channel_setting_set(ac, ale, setting, on);
-			/* however, if the level is 'greater than' (i.e. less important than the previous channel,
-			 * stop searching, since we've already reached the bottom of another hierarchy
-			 */
-			else if (level > matchLevel)
-				break;
-			
-			/* store this level as the 'old' level now */
-			prevLevel= level;
+				
+				/* store this level as the 'old' level now */
+				prevLevel= level;
+			}	
+			/* if the level is 'greater than' (i.e. less important) than the previous level... */
+			else if (level > prevLevel) {
+				/* if previous level was a base-level (i.e. 0 offset / root of one hierarchy),
+				 * stop here
+				 */
+				if (prevLevel == 0)
+					break;
+				/* otherwise, this level weaves into another sibling hierarchy to the previous one just
+				 * finished, so skip until we get to the parent of this level 
+				 */
+				else
+					continue;
+			}
 		}
 	}
 	
@@ -1052,20 +1064,25 @@ static int animchannels_visibility_set_exec(bContext *C, wmOperator *op)
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
 	
+	/* get list of all channels that selection may need to be flushed to */
+	filter= ANIMFILTER_CHANNELS;
+	ANIM_animdata_filter(&ac, &all_data, filter, ac.data, ac.datatype);
 	
 	/* hide all channels not selected */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_UNSEL);
 	ANIM_animdata_filter(&ac, &anim_data, filter, ac.data, ac.datatype);
 	
-	for (ale= anim_data.first; ale; ale= ale->next)
+	for (ale= anim_data.first; ale; ale= ale->next) {
+		/* clear setting first */
 		ANIM_channel_setting_set(&ac, ale, ACHANNEL_SETTING_VISIBLE, ACHANNEL_SETFLAG_CLEAR);
+		
+		/* now also flush selection status as appropriate 
+		 * NOTE: in some cases, this may result in repeat flushing being performed
+		 */
+		ANIM_flush_setting_anim_channels(&ac, &all_data, ale, ACHANNEL_SETTING_VISIBLE, 0);
+	}
 	
 	BLI_freelistN(&anim_data);
-	
-	
-	/* get list of all channels that selection may need to be flushed to */
-	filter= ANIMFILTER_CHANNELS;
-	ANIM_animdata_filter(&ac, &all_data, filter, ac.data, ac.datatype);
 	
 	/* make all the selected channels visible */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_SEL);
@@ -1136,12 +1153,11 @@ static int animchannels_visibility_toggle_exec(bContext *C, wmOperator *op)
 	
 	/* See if we should be making showing all selected or hiding */
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		if (vis == ACHANNEL_SETFLAG_CLEAR) 
-			break;
-		
 		/* set the setting in the appropriate way (if available) */
-		if (ANIM_channel_setting_get(&ac, ale, ACHANNEL_SETTING_VISIBLE))
+		if (ANIM_channel_setting_get(&ac, ale, ACHANNEL_SETTING_VISIBLE)) {
 			vis= ACHANNEL_SETFLAG_CLEAR;
+			break;
+		}
 	}
 
 	/* Now set the flags */
@@ -1167,7 +1183,7 @@ static int animchannels_visibility_toggle_exec(bContext *C, wmOperator *op)
 	
 	return OPERATOR_FINISHED;
 }
- 
+
 void ANIM_OT_channels_visibility_toggle (wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1187,9 +1203,10 @@ void ANIM_OT_channels_visibility_toggle (wmOperatorType *ot)
 
 /* defines for setting animation-channel flags */
 EnumPropertyItem prop_animchannel_setflag_types[] = {
+	{ACHANNEL_SETFLAG_TOGGLE, "TOGGLE", 0, "Toggle", ""},
 	{ACHANNEL_SETFLAG_CLEAR, "DISABLE", 0, "Disable", ""},
 	{ACHANNEL_SETFLAG_ADD, "ENABLE", 0, "Enable", ""},
-	{ACHANNEL_SETFLAG_TOGGLE, "TOGGLE", 0, "Toggle", ""},
+	{ACHANNEL_SETFLAG_INVERT, "INVERT", 0, "Invert", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -1213,24 +1230,57 @@ EnumPropertyItem prop_animchannel_settings_types[] = {
  *	mode: eAnimChannels_SetFlag
  *	onlysel: only selected channels get the flag set
  */
-static void setflag_anim_channels (bAnimContext *ac, short setting, short mode, short onlysel)
+// TODO: enable a setting which turns flushing on/off?
+static void setflag_anim_channels (bAnimContext *ac, short setting, short mode, short onlysel, short flush)
 {
 	ListBase anim_data = {NULL, NULL};
+	ListBase all_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
 	
-	/* filter data */
+	/* filter data that we need if flush is on */
+	if (flush) {
+		/* get list of all channels that selection may need to be flushed to */
+		filter= ANIMFILTER_CHANNELS;
+		ANIM_animdata_filter(ac, &all_data, filter, ac->data, ac->datatype);
+	}
+	
+	/* filter data that we're working on */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CHANNELS);
 	if (onlysel) filter |= ANIMFILTER_SEL;
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
-	/* affect selected channels */
+	/* if toggling, check if disable or enable */
+	if (mode == ACHANNEL_SETFLAG_TOGGLE) {
+		/* default to turn all on, unless we encounter one that's on... */
+		mode= ACHANNEL_SETFLAG_ADD;
+		
+		/* see if we should turn off instead... */
+		for (ale= anim_data.first; ale; ale= ale->next) {
+			/* set the setting in the appropriate way (if available) */
+			if (ANIM_channel_setting_get(ac, ale, setting) > 0) {
+				mode= ACHANNEL_SETFLAG_CLEAR;
+				break;
+			}
+		}
+	}
+	
+	/* apply the setting */
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		/* set the setting in the appropriate way (if available) */
+		/* skip channel if setting is not available */
+		if (ANIM_channel_setting_get(ac, ale, setting) == -1)
+			continue;
+		
+		/* set the setting in the appropriate way */
 		ANIM_channel_setting_set(ac, ale, setting, mode);
+		
+		/* if flush status... */
+		if (flush)
+			ANIM_flush_setting_anim_channels(ac, &all_data, ale, setting, mode);
 	}
 	
 	BLI_freelistN(&anim_data);
+	BLI_freelistN(&all_data);
 }
 
 /* ------------------- */
@@ -1239,6 +1289,7 @@ static int animchannels_setflag_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	short mode, setting;
+	short flush=1;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -1248,8 +1299,14 @@ static int animchannels_setflag_exec(bContext *C, wmOperator *op)
 	mode= RNA_enum_get(op->ptr, "mode");
 	setting= RNA_enum_get(op->ptr, "type");
 	
-	/* modify setting */
-	setflag_anim_channels(&ac, setting, mode, 1);
+	/* check if setting is flushable */
+	if (setting == ACHANNEL_SETTING_EXPAND)
+		flush= 0;
+	
+	/* modify setting 
+	 *	- only selected channels are affected
+	 */
+	setflag_anim_channels(&ac, setting, mode, 1, flush);
 	
 	/* send notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN_EDIT, NULL);
@@ -1302,6 +1359,28 @@ void ANIM_OT_channels_setting_disable (wmOperatorType *ot)
 	ot->prop= RNA_def_enum(ot->srna, "type", prop_animchannel_settings_types, 0, "Type", "");
 }
 
+void ANIM_OT_channels_setting_invert (wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Invert Channel Setting";
+	ot->idname= "ANIM_OT_channels_setting_toggle";
+	ot->description= "Invert specified setting on all selected animation channels.";
+	
+	/* api callbacks */
+	ot->invoke= WM_menu_invoke;
+	ot->exec= animchannels_setflag_exec;
+	ot->poll= animedit_poll_channels_active;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	
+	/* props */
+		/* flag-setting mode */
+	RNA_def_enum(ot->srna, "mode", prop_animchannel_setflag_types, ACHANNEL_SETFLAG_INVERT, "Mode", "");
+		/* setting to set */
+	ot->prop= RNA_def_enum(ot->srna, "type", prop_animchannel_settings_types, 0, "Type", "");
+}
+
 void ANIM_OT_channels_setting_toggle (wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1324,7 +1403,6 @@ void ANIM_OT_channels_setting_toggle (wmOperatorType *ot)
 	ot->prop= RNA_def_enum(ot->srna, "type", prop_animchannel_settings_types, 0, "Type", "");
 }
 
-// XXX currently, this is a separate operator, but perhaps we could in future specify in keymaps whether to call invoke or exec?
 void ANIM_OT_channels_editable_toggle (wmOperatorType *ot)
 {
 	/* identifiers */
@@ -1362,7 +1440,7 @@ static int animchannels_expand_exec (bContext *C, wmOperator *op)
 		onlysel= 0;
 	
 	/* modify setting */
-	setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_ADD, onlysel);
+	setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_ADD, onlysel, 0);
 	
 	/* send notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN_EDIT, NULL);
@@ -1385,7 +1463,7 @@ void ANIM_OT_channels_expand (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* props */
-	RNA_def_boolean(ot->srna, "all", 1, "All", "Expand all channels (not just selected ones)");
+	ot->prop= RNA_def_boolean(ot->srna, "all", 1, "All", "Expand all channels (not just selected ones)");
 }
 
 /* ********************** Collapse Channels Operator *********************** */
@@ -1404,7 +1482,7 @@ static int animchannels_collapse_exec (bContext *C, wmOperator *op)
 		onlysel= 0;
 	
 	/* modify setting */
-	setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_CLEAR, onlysel);
+	setflag_anim_channels(&ac, ACHANNEL_SETTING_EXPAND, ACHANNEL_SETFLAG_CLEAR, onlysel, 0);
 	
 	/* send notifier that things have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_ANIMCHAN_EDIT, NULL);
@@ -1427,7 +1505,7 @@ void ANIM_OT_channels_collapse (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* props */
-	RNA_def_boolean(ot->srna, "all", 1, "All", "Collapse all channels (not just selected ones)");
+	ot->prop= RNA_def_boolean(ot->srna, "all", 1, "All", "Collapse all channels (not just selected ones)");
 }
 
 /* ********************** Select All Operator *********************** */
@@ -1467,7 +1545,7 @@ void ANIM_OT_channels_select_all_toggle (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* props */
-	RNA_def_boolean(ot->srna, "invert", 0, "Invert", "");
+	ot->prop= RNA_def_boolean(ot->srna, "invert", 0, "Invert", "");
 }
 
 /* ******************** Borderselect Operator *********************** */
@@ -1594,7 +1672,8 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 	ale= BLI_findlink(&anim_data, channel_index);
 	if (ale == NULL) {
 		/* channel not found */
-		printf("Error: animation channel (index = %d) not found in mouse_anim_channels() \n", channel_index);
+		if (G.f & G_DEBUG)
+			printf("Error: animation channel (index = %d) not found in mouse_anim_channels() \n", channel_index);
 		
 		BLI_freelistN(&anim_data);
 		return 0;
@@ -1793,7 +1872,7 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 		case ANIMTYPE_GPLAYER:
 		{
 #if 0 // XXX future of this is unclear
-			bGPdata *gpd= (bGPdata *)ale->owner;
+			bGPdata *gpd= (bGPdata *)ale->owner; // xxx depreceated
 			bGPDlayer *gpl= (bGPDlayer *)ale->data;
 			
 			if (x >= (ACHANNEL_NAMEWIDTH-16)) {
@@ -1818,7 +1897,8 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 		}
 			break;
 		default:
-			printf("Error: Invalid channel type in mouse_anim_channels() \n");
+			if (G.f & G_DEBUG)
+				printf("Error: Invalid channel type in mouse_anim_channels() \n");
 	}
 	
 	/* free channels */
@@ -1911,6 +1991,7 @@ void ED_operatortypes_animchannels(void)
 	
 	WM_operatortype_append(ANIM_OT_channels_setting_enable);
 	WM_operatortype_append(ANIM_OT_channels_setting_disable);
+	WM_operatortype_append(ANIM_OT_channels_setting_invert);
 	WM_operatortype_append(ANIM_OT_channels_setting_toggle);
 	
 	WM_operatortype_append(ANIM_OT_channels_delete);

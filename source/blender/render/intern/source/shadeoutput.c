@@ -144,7 +144,7 @@ static void ambient_occlusion_apply(Render *re, ShadeInput *shi, ShadeResult *sh
 	}
 }
 
-static void environment_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
+void environment_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	float f= re->db.wrld.ao_env_energy*shi->material.amb;
 
@@ -300,18 +300,21 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 	}
 	
 	/* quite disputable this...  also note it doesn't mirror-raytrace */	
-	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && shi->material.amb!=0.0f) {
+	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT)) && shi->material.amb!=0.0f) {
 		float f;
 		
-		f= 1.0f - shi->shading.ao[0];
-		f= re->db.wrld.aoenergy*f*shi->material.amb;
-		
-		if(re->db.wrld.aomix==WO_AOADD) {
-			shr->alpha += f;
-			shr->alpha *= f;
+		if(re->db.wrld.mode & WO_AMB_OCC) {
+			f= re->db.wrld.aoenergy*shi->material.amb;
+
+			if(re->db.wrld.aomix==WO_AOADD)
+				shr->alpha += f*(1.0f - rgb_to_grayscale(shi->shading.ao));
+			else
+				shr->alpha= (1.0f - f)*shr->alpha + f*(1.0f - (1.0f - shr->alpha)*rgb_to_grayscale(shi->shading.ao));
 		}
-		else if(re->db.wrld.aomix==WO_AOMUL) {
-			shr->alpha *= f;
+
+		if(re->db.wrld.mode & WO_ENV_LIGHT) {
+			f= re->db.wrld.ao_env_energy*shi->material.amb;
+			shr->alpha += f*(1.0f - rgb_to_grayscale(shi->shading.env));
 		}
 	}
 }

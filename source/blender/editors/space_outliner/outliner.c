@@ -4206,6 +4206,10 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 						UI_icon_draw(x, y, ICON_MOD_FLUIDSIM); break;
 					case eModifierType_Multires:
 						UI_icon_draw(x, y, ICON_MOD_MULTIRES); break;
+					case eModifierType_Smoke:
+						UI_icon_draw(x, y, ICON_MOD_SMOKE); break;
+					case eModifierType_Solidify:
+						UI_icon_draw(x, y, ICON_MOD_SOLIDIFY); break;
 					default:
 						UI_icon_draw(x, y, ICON_DOT); break;
 				}
@@ -4356,6 +4360,11 @@ static void outliner_draw_iconrow(bContext *C, uiBlock *block, Scene *scene, Spa
 	int active;
 
 	for(te= lb->first; te; te= te->next) {
+		
+		/* exit drawing early */
+		if((*offsx) - OL_X > xmax)
+			break;
+
 		tselem= TREESTORE(te);
 		
 		/* object hierarchy always, further constrained on level */

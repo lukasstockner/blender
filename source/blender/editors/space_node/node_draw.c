@@ -92,7 +92,7 @@
 // XXX interface.h
 extern void ui_dropshadow(rctf *rct, float radius, float aspect, int select);
 extern void gl_round_box(int mode, float minx, float miny, float maxx, float maxy, float rad);
-extern void ui_draw_tria_icon(float x, float y, float aspect, char dir);
+extern void ui_draw_tria_icon(float x, float y, char dir);
 
 void ED_node_changed_update(ID *id, bNode *node)
 {
@@ -605,14 +605,12 @@ static void node_draw_preview(bNodePreview *preview, rctf *prv)
 		}
 	}
 	
-#ifdef __APPLE__
-//	if(is_a_really_crappy_nvidia_card()) {	XXX
+//	if(GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_MAC, GPU_DRIVER_OFFICIAL)) {	XXX
 //		float zoomx= curarea->winx/(float)(G.v2d->cur.xmax-G.v2d->cur.xmin);
 //		float zoomy= curarea->winy/(float)(G.v2d->cur.ymax-G.v2d->cur.ymin);
 //		glPixelZoom(zoomx*xscale, zoomy*yscale);
 //	}
 //	else
-#endif
 		glPixelZoom(xscale, yscale);
 
 	glEnable(GL_BLEND);
@@ -664,41 +662,41 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 			icon_id= ICON_MATERIAL;
 		else
 			icon_id= ICON_MATERIAL_DATA;
-		iconofs-= 20.0f;
+		iconofs-=18.0f;
 		glEnable(GL_BLEND);
-		UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, icon_id, snode->aspect, 0.5f);
+		UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, icon_id, 1.0f, 0.5f);
 		glDisable(GL_BLEND);
 	}
 	if(node->type == NODE_GROUP) {
 		
-		iconofs-= 20.0f;
+		iconofs-=18.0f;
 		glEnable(GL_BLEND);
 		if(node->id->lib) {
 			float rgb[3] = {1.0f, 0.7f, 0.3f};
-			UI_icon_draw_aspect_color(iconofs, rct->ymax-NODE_DY, ICON_NODETREE, snode->aspect, rgb);
+			UI_icon_draw_aspect_color(iconofs, rct->ymax-NODE_DY, ICON_NODETREE, 1.0f, rgb);
 		}
 		else {
-			UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, ICON_NODETREE, snode->aspect, 0.5f);
+			UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, ICON_NODETREE, 1.0f, 0.5f);
 		}
 		glDisable(GL_BLEND);
 	}
 	if(node->typeinfo->flag & NODE_OPTIONS) {
-		iconofs-= 20.0f;
+		iconofs-=18.0f;
 		glEnable(GL_BLEND);
-		UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, ICON_BUTS, snode->aspect, 0.5f);
+		UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, ICON_BUTS, 1.0f, 0.5f);
 		glDisable(GL_BLEND);
 	}
 	{	/* always hide/reveal unused sockets */ 
 		int shade;
 
-		iconofs-= 20.0f;
+		iconofs-=18.0f;
 		// XXX re-enable
 		/*if(node_has_hidden_sockets(node))
 			shade= -40;
 		else*/
 			shade= -90;
 		glEnable(GL_BLEND);
-		UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, ICON_PLUS, snode->aspect, 0.5f);
+		UI_icon_draw_aspect(iconofs, rct->ymax-NODE_DY, ICON_PLUS, 1.0f, 0.5f);
 		glDisable(GL_BLEND);
 	}
 	
@@ -709,7 +707,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
 	
 	/* open/close entirely? */
-	ui_draw_tria_icon(rct->xmin+8.0f, rct->ymax-NODE_DY+4.0f, snode->aspect, 'v');
+	ui_draw_tria_icon(rct->xmin+8.0f, rct->ymax-NODE_DY+4.0f, 'v');
 	
 	if(node->flag & SELECT) 
 		UI_ThemeColor(TH_TEXT_HI);
@@ -864,7 +862,7 @@ static void node_draw_hidden(const bContext *C, ARegion *ar, SpaceNode *snode, b
 		UI_ThemeColorBlendShade(TH_TEXT, color_id, 0.4f, 10);
 	
 	/* open entirely icon */
-	ui_draw_tria_icon(rct->xmin+9.0f, centy-6.0f, snode->aspect, 'h');	
+	ui_draw_tria_icon(rct->xmin+9.0f, centy-6.0f, 'h');	
 	
 	/* disable lines */
 	if(node->flag & NODE_MUTED)

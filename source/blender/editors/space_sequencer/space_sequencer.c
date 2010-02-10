@@ -131,6 +131,7 @@ void ED_sequencer_update_view(bContext *C, int view)
 			if (ar_preview->flag & RGN_FLAG_HIDDEN) {
 				ar_preview->flag &= ~RGN_FLAG_HIDDEN;
 				ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
+				ar_preview->v2d.cur = ar_preview->v2d.tot;
 			}
 			ar_main->alignment= RGN_ALIGN_NONE;
 			ar_preview->alignment= RGN_ALIGN_NONE;
@@ -143,6 +144,7 @@ void ED_sequencer_update_view(bContext *C, int view)
 			if (ar_preview->flag & RGN_FLAG_HIDDEN) {
 				ar_preview->flag &= ~RGN_FLAG_HIDDEN;
 				ar_preview->v2d.flag &= ~V2D_IS_INITIALISED;
+				ar_preview->v2d.cur = ar_preview->v2d.tot;
 			}
 			ar_main->alignment= RGN_ALIGN_NONE;
 			ar_preview->alignment= RGN_ALIGN_TOP;
@@ -184,11 +186,28 @@ static SpaceLink *sequencer_new(const bContext *C)
 	ar->flag = RGN_FLAG_HIDDEN;
 	
 	/* preview area */
+	/* NOTE: if you change values here, also change them in sequencer_init_preview_region */
 	ar= MEM_callocN(sizeof(ARegion), "preview area for sequencer");
 	BLI_addtail(&sseq->regionbase, ar);
 	ar->regiontype= RGN_TYPE_PREVIEW;
 	ar->alignment= RGN_ALIGN_TOP;
 	ar->flag |= RGN_FLAG_HIDDEN;
+	/* for now, aspect ratio should be maintained, and zoom is clamped within sane default limits */
+	ar->v2d.keepzoom= V2D_KEEPASPECT | V2D_KEEPZOOM;
+	ar->v2d.minzoom= 0.00001f;
+    ar->v2d.maxzoom= 100000.0f;
+    ar->v2d.tot.xmin= -960.0f; /* 1920 width centered */
+    ar->v2d.tot.ymin= -540.0f; /* 1080 height centered */
+    ar->v2d.tot.xmax= 960.0f;
+    ar->v2d.tot.ymax= 540.0f;
+    ar->v2d.min[0]= 0.0f;
+    ar->v2d.min[1]= 0.0f;
+    ar->v2d.max[0]= 12000.0f;
+    ar->v2d.max[1]= 12000.0f;
+	ar->v2d.cur= ar->v2d.tot;
+	ar->v2d.align= V2D_ALIGN_FREE; 
+	ar->v2d.keeptot= V2D_KEEPTOT_FREE;
+
 
 	/* main area */
 	ar= MEM_callocN(sizeof(ARegion), "main area for sequencer");
@@ -301,6 +320,14 @@ static int movie_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
 	return 0;
 }
 
+static int sound_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+{
+	if(drag->type==WM_DRAG_PATH)
+		if(ELEM(drag->icon, ICON_FILE_SOUND, ICON_FILE_BLANK))	/* rule might not work? */
+			return 1;
+	return 0;
+}
+
 static void sequencer_drop_copy(wmDrag *drag, wmDropBox *drop)
 {
 	/* copy drag path to properties */
@@ -314,6 +341,7 @@ static void sequencer_dropboxes(void)
 	
 	WM_dropbox_add(lb, "SEQUENCER_OT_image_strip_add", image_drop_poll, sequencer_drop_copy);
 	WM_dropbox_add(lb, "SEQUENCER_OT_movie_strip_add", movie_drop_poll, sequencer_drop_copy);
+	WM_dropbox_add(lb, "SEQUENCER_OT_sound_strip_add", sound_drop_poll, sequencer_drop_copy);
 }
 
 /* ************* end drop *********** */
@@ -358,8 +386,8 @@ static void sequencer_main_area_listener(ARegion *ar, wmNotifier *wmn)
 static void sequencer_preview_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
-	
-	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
+
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
 	
 	keymap= WM_keymap_find(wm->defaultconf, "SequencerCommon", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
@@ -377,7 +405,7 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 	
 	/* XXX temp fix for wrong setting in sseq->mainb */
 	if (sseq->mainb == SEQ_DRAW_SEQUENCE) sseq->mainb = SEQ_DRAW_IMG_IMBUF;
-	draw_image_seq(scene, ar, sseq);
+	draw_image_seq(C, scene, ar, sseq);
 }
 
 static void sequencer_preview_area_listener(ARegion *ar, wmNotifier *wmn)
