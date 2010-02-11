@@ -1798,9 +1798,7 @@ void map_to_sphere(float *u, float *v,float x, float y, float z)
 	}
 }
 
-/********************************************************/
-
-/* Tangents */
+/********************************* Tangents **********************************/
 
 /* For normal map tangents we need to detect uv boundaries, and only average
  * tangents in case the uvs are connected. Alternative would be to store 1 
@@ -1877,12 +1875,9 @@ void tangent_from_uv(float *uv1, float *uv2, float *uv3, float *co1, float *co2,
 	}
 }
 
-/********************************************************/
+/****************************** Vector Clouds ********************************/
 
-/* vector clouds */
-/* void vcloud_estimate_transform(int list_size, float (*pos)[3], float *weight,float (*rpos)[3], float *rweight,
-  							   float lloc[3],float rloc[3],float lrot[3][3],float lscale[3][3])
-
+/*
 input
 (
 int list_size

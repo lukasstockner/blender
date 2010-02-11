@@ -32,6 +32,8 @@
 extern "C" {
 #endif
 
+#include "BLI_math_inline.h"
+
 #ifdef BLI_MATH_INLINE
 #include "intern/math_vector_inline.c"
 #endif
