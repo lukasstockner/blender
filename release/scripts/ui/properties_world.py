@@ -256,6 +256,8 @@ class WORLD_PT_gather(WorldButtonsPanel):
                 sub.prop(light, "threshold")
                 sub.prop(light, "adapt_to_speed", slider=True)
 
+            sub.prop(light, "pixel_cache")
+
         if light.gather_method == 'APPROXIMATE':
             col = split.column()
 

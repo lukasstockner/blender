@@ -36,6 +36,7 @@
 #include "diskocclusion.h"
 #include "object_strand.h"
 #include "part.h"
+#include "raytrace.h"
 #include "rendercore.h"
 #include "render_types.h"
 #include "shading.h"
@@ -84,12 +85,15 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 				copy_v3_v3(ao, sample->ao);
 				copy_v3_v3(env, sample->env);
 				copy_v3_v3(indirect, sample->indirect);
+				//printf("success A\n");
 				return 1;
 			}
 		}
 	}
-	else
+	else {
+		//printf("fail A\n");
 		return 0;
+	}
 
 	/* try to interpolate between 4 neighbouring pixels */
 	samples[0]= find_sample(cache, x, y);
@@ -98,15 +102,19 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 	samples[3]= find_sample(cache, x+cache->step, y+cache->step);
 
 	for(i=0; i<4; i++)
-		if(!samples[i] || !samples[i]->filled)
+		if(!samples[i] || !samples[i]->filled) {
+			//printf("fail B\n");
 			return 0;
+		}
 
 	/* require intensities not being too different */
 	mino= MIN4(samples[0]->intensity, samples[1]->intensity, samples[2]->intensity, samples[3]->intensity);
 	maxo= MAX4(samples[0]->intensity, samples[1]->intensity, samples[2]->intensity, samples[3]->intensity);
 
-	if(maxo - mino > 0.05f)
+	if(maxo - mino > 0.05f) {
+		//printf("fail B\n");
 		return 0;
+	}
 
 	/* compute weighted interpolation between samples */
 	zero_v3(ao);
@@ -147,9 +155,11 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 		mul_v3_fl(ao, totw);
 		mul_v3_fl(env, totw);
 		mul_v3_fl(indirect, totw);
+		//printf("success B\n");
 		return 1;
 	}
 
+	//printf("fail C\n");
 	return 0;
 }
 
@@ -209,7 +219,14 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 
 			shi= ssamp->shi;
 			if(shi->primitive.vlr) {
-				disk_occlusion_sample_direct(re, shi);
+				if(re->db.occlusiontree)
+					disk_occlusion_sample_direct(re, shi);
+				else {
+					if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT))
+						ray_ao(re, shi, shi->shading.ao, shi->shading.env);
+					if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+						ray_path(re, shi);
+				}
 
 				copy_v3_v3(sample->co, shi->geometry.co);
 				copy_v3_v3(sample->n, shi->geometry.vno);

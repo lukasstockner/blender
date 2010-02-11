@@ -523,7 +523,7 @@ static void specular_shader(float spec[3], ShadeMaterial *mat, ShadeGeometry *ge
 	int hard= mat->har;
 	int tangent= (geom->tangentvn) || (ma->mode & MA_TANGENT_V);
 
-	if(mat->refl == 0.0) {
+	if(mat->spec == 0.0) {
 		zero_v3(spec);
 		return;
 	}

@@ -46,21 +46,29 @@ struct ListBase *lamps_get(struct Render *re, struct ShadeInput *shi);
 void lightgroup_create(struct Render *re, struct Group *group, int exclusive);
 void lightgroup_free(struct Render *re);
 
-/* Lamp unshadowed influence and shadow (for surfaces only at the moment)
-   unit of influence is irradiance (Watt/m^2) */
+/* Test to see if lamp has any influence on the current shading point,
+   on returning 1 the lamp should be skipped entirely. */
 
-int lamp_influence(struct Render *re, struct LampRen *lar,
-	struct ShadeInput *shi, float lainf[3], float lv[3]);;
-void lamp_shadow(struct Render *re, struct LampRen *lar,
-	struct ShadeInput *shi, float lv[3], float lashdw[3]);
+int lamp_skip(struct Render *re, struct LampRen *lar, struct ShadeInput *shi);
 
-/* Visibility factor from point to center of the lamp. */
+/* Sample a point on lamp (or use center if r == NULL), and return unshadowed
+   influence, shadow and vector from lamp (for surface only at the moment).
+   unit of influence is lux (lm/m^2) */
 
-float lamp_visibility(struct LampRen *lar, float *co, float *vn, float *r_vec, float *r_dist);
+int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
+	struct Render *re, struct LampRen *lar, struct ShadeInput *shi,
+	float co[3], float r[2]);
 
-/* Sampling of point on the lamp */
+/* Lamp shadow */
 
-void lamp_sample(float lco[3], struct LampRen *lar, float co[3], float r[2]);
+void lamp_shadow(float lashdw[3],
+	struct Render *re, struct LampRen *lar, struct ShadeInput *shi,
+	float from[3], float to[3], float lv[3]);
+
+/* Visibility factor from shading point to point on the lamp. */
+
+float lamp_visibility(struct LampRen *lar, float co[3], float vn[3],
+	float lco[3], float r_vec[3], float *r_dist);
 
 /* Spot Halo */
 
@@ -104,7 +112,7 @@ typedef struct LampRen {
 	float halokw, halo;
 	
 	short falloff_type;
-	float ld1,ld2;
+	float falloff_smooth;
 	struct CurveMapping *curfalloff;
 
 	/* copied from Lamp, to decouple more rendering stuff */
@@ -132,7 +140,6 @@ typedef struct LampRen {
 	float compressthresh;
 	
 	short ray_samp, ray_sampy, ray_sampz, ray_samp_method, ray_samp_type, area_shape, ray_totsamp;
-	short xold[BLENDER_MAX_THREADS], yold[BLENDER_MAX_THREADS];	/* last jitter table for area lights */
 	float area_size, area_sizey, area_sizez;
 	float adapt_thresh;
 
@@ -140,7 +147,6 @@ typedef struct LampRen {
 	struct SunSky *sunsky;
 	
 	struct ShadBuf *shb;
-	float *jitter;
 	
 	float imat[3][3];
 	float spottexfac;

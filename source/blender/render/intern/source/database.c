@@ -67,6 +67,14 @@ void render_db_free(RenderDB *rdb)
 	ObjectRen *obr;
 	LampRen *lar;
 	
+	/* rendering structures */
+	sss_free(rdb);
+	disk_occlusion_free(rdb);
+	raytree_free(rdb);
+	surface_cache_free(rdb);
+	volume_precache_free(rdb);
+	BLI_freelistN(&rdb->render_volumes_inside);
+
 	/* objects and instances */
 	for(obr=rdb->objecttable.first; obr; obr=obr->next)
 		render_object_free(obr);
@@ -101,14 +109,6 @@ void render_db_free(RenderDB *rdb)
 	
 	BLI_freelistN(&rdb->lampren);
 	BLI_freelistN(&rdb->lights);
-
-	/* rendering structures */
-	sss_free(rdb);
-	disk_occlusion_free(rdb);
-	raytree_free(rdb);
-	surface_cache_free(rdb);
-	volume_precache_free(rdb);
-	BLI_freelistN(&rdb->render_volumes_inside);
 
 	/* memarea */
 	if(rdb->memArena) {

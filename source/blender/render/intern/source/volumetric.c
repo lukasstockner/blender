@@ -359,7 +359,7 @@ void vol_get_sigma_t(Render *re, ShadeInput *shi, float *sigma_t, float *co)
  * and view direction */
 float vol_get_phasefunc(ShadeInput *shi, float g, float *w, float *wp)
 {
-	const float normalize = 0.25f; // = 1.f/4.f = M_PI/(4.f*M_PI)
+	const float normalize = 1.0f/(4.0f*M_PI); /* normalize over area of unit sphere */
 	
 	/* normalization constant is 1/4 rather than 1/4pi, since
 	 * Blender's shading system doesn't normalise for
@@ -471,7 +471,7 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 	if ((lar->lay & shi->shading.lay)==0) return;
 	if (lar->power == 0.0) return;
 	
-	if ((visifac= lamp_visibility(lar, co, lv, NULL, &lampdist)) == 0.f) return;
+	if ((visifac= lamp_visibility(lar, co, NULL, lar->co, lv, &lampdist)) == 0.f) return;
 	
 	copy_v3_v3(lacol, &lar->r);
 	

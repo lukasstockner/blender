@@ -115,7 +115,7 @@ struct GPULamp {
 	float dynimat[4][4];
 
 	float spotsi, spotbl, k;
-	float dist, att1, att2;
+	float dist;
 
 	float bias, d, clipend;
 	int size;
@@ -395,9 +395,6 @@ static GPUNodeLink *lamp_get_visibility(GPUMaterial *mat, GPULamp *lamp, GPUNode
 				break;
 			case LA_FALLOFF_INVSQUARE:
 				GPU_link(mat, "lamp_falloff_invsquare", GPU_uniform(&lamp->dist), *dist, &visifac);
-				break;
-			case LA_FALLOFF_SLIDERS:
-				GPU_link(mat, "lamp_falloff_sliders", GPU_uniform(&lamp->dist), GPU_uniform(&lamp->att1), GPU_uniform(&lamp->att2), *dist, &visifac);
 				break;
 			case LA_FALLOFF_CURVE:
 				{
@@ -1349,8 +1346,6 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 
 	lamp->dist= la->dist;
 	lamp->falloff_type= la->falloff_type;
-	lamp->att1= la->att1;
-	lamp->att2= la->att2;
 	lamp->curfalloff= la->curfalloff;
 
 	/* initshadowbuf */

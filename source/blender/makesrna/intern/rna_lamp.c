@@ -344,10 +344,15 @@ static void rna_def_lamp(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "falloff_distance", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "dist");
 	RNA_def_property_ui_range(prop, 0, 1000, 1.0, 2);
-	RNA_def_property_ui_text(prop, "Falloff distance", "Extra distance added to falloff to smooth harsh light when the lamp is nearby.");
+	RNA_def_property_ui_text(prop, "Falloff distance", "For custom falloff curve, the distance over which the curve is applied.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
-	prop= RNA_def_property(srna, "power", PROP_FLOAT, PROP_POWER);
+	prop= RNA_def_property(srna, "falloff_smooth", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "falloff_smooth");
+	RNA_def_property_ui_text(prop, "Falloff Smooth", "Artificially smooth lamp falloff to avoid harsh light when the lamp is nearby.");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
+	prop= RNA_def_property(srna, "power", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "energy");
 	RNA_def_property_ui_range(prop, 0, 1000.0, 1.0, 2);
 	RNA_def_property_ui_text(prop, "Power", "Amount of light that the lamp emits.");
@@ -412,18 +417,6 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SPHERE);
 	RNA_def_property_ui_text(prop, "Sphere", "Sets light intensity to zero beyond lamp distance.");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
-
-	prop= RNA_def_property(srna, "linear_attenuation", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "att1");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Linear Attenuation", "Linear distance attentuation.");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	prop= RNA_def_property(srna, "quadratic_attenuation", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "att2");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Quadratic Attenuation", "Quadratic distance attentuation.");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 }
 
 static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)

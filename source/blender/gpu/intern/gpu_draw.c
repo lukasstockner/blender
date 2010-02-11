@@ -1205,8 +1205,8 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[][4
 
 			glLightfv(GL_LIGHT0+count, GL_POSITION, position); 
 			glLightf(GL_LIGHT0+count, GL_CONSTANT_ATTENUATION, 1.0);
-			glLightf(GL_LIGHT0+count, GL_LINEAR_ATTENUATION, la->att1/la->dist);
-			glLightf(GL_LIGHT0+count, GL_QUADRATIC_ATTENUATION, la->att2/(la->dist*la->dist));
+			glLightf(GL_LIGHT0+count, GL_LINEAR_ATTENUATION, 0.0f/la->dist);
+			glLightf(GL_LIGHT0+count, GL_QUADRATIC_ATTENUATION, 1.0f/(la->dist*la->dist));
 			
 			if(la->type==LA_SPOT) {
 				/* spot lamp */

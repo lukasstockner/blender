@@ -56,6 +56,7 @@
 #include "RE_raytrace.h"
 
 /* local includes */
+#include "cache.h"
 #include "camera.h"
 #include "database.h"
 #include "diskocclusion.h"
@@ -743,6 +744,8 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_create(re, pa, &ssamp);
+	else if((re->db.wrld.aomode & WO_AOCACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)))
+		re->db.cache[pa->thread]= pixel_cache_create(re, pa, &ssamp);
 
 	/* filtered render, for now we assume only 1 filter size */
 	if(pa->crop) {
@@ -795,6 +798,11 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 	/* free tile precomputed data */
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_free(re, pa);
+
+	if(re->db.cache[pa->thread]) {
+		pixel_cache_free(re->db.cache[pa->thread]);
+		re->db.cache[pa->thread]= NULL;
+	}
 
 	if(re->params.r.mode & R_SHADOW)
 		irregular_shadowbuf_free(re, pa);

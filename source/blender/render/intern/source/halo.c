@@ -52,176 +52,48 @@ static void render_lighting_halo(Render *re, HaloRen *har, float *colf)
 {
 	GroupObject *go;
 	LampRen *lar;
-	float i, inp, inpr, rco[3], dco[3], lv[3], lampdist, ld, t, *vn;
-	float ir, ig, ib, shadfac, soft, lacol[3];
+	ShadeInput shi;
+	float inp, inf[3], dco[3];
 	
-	ir= ig= ib= 0.0;
-	
-	copy_v3_v3(rco, har->co);	
+	/* Warning, This is not that nice, and possibly a bit slow,
+	however some variables were not initialized properly in, unless using shade_input_initialize(...), we need to do a memset */
+	memset(&shi, 0, sizeof(ShadeInput)); 
+	/* end warning! - Campbell */
+		
 	dco[0]=dco[1]=dco[2]= 1.0/har->rad;
 	
-	vn= har->no;
-	
+	copy_v3_v3(shi.geometry.co, har->co);
+	copy_v3_v3(shi.geometry.dxco, dco);
+	copy_v3_v3(shi.geometry.dyco, dco);
+	copy_v3_v3(shi.geometry.vn, har->no);
+	shi.geometry.osatex= 0;
+	shi.shading.lay= -1;
+	shi.material.mat= har->mat;
+
+	zero_v3(inf);
+
 	for(go=re->db.lights.first; go; go= go->next) {
+		float lv[3], lainf[3], lashdw[3];
+
 		lar= go->lampren;
 		
 		/* test for lamplayer */
 		if(lar->mode & LA_LAYER) if((lar->lay & har->lay)==0) continue;
-		
-		/* lampdist cacluation */
-		if(lar->type==LA_SUN || lar->type==LA_HEMI) {
-			copy_v3_v3(lv, lar->vec);
-			lampdist= 1.0;
-		}
-		else {
-			lv[0]= rco[0]-lar->co[0];
-			lv[1]= rco[1]-lar->co[1];
-			lv[2]= rco[2]-lar->co[2];
-			ld= sqrt(lv[0]*lv[0]+lv[1]*lv[1]+lv[2]*lv[2]);
-			lv[0]/= ld;
-			lv[1]/= ld;
-			lv[2]/= ld;
-			
-			/* ld is re-used further on (texco's) */
-			
-			if(lar->mode & LA_QUAD) {
-				t= 1.0;
-				if(lar->ld1>0.0)
-					t= lar->dist/(lar->dist+lar->ld1*ld);
-				if(lar->ld2>0.0)
-					t*= lar->distkw/(lar->distkw+lar->ld2*ld*ld);
-				
-				lampdist= t;
-			}
-			else {
-				lampdist= (lar->dist/(lar->dist+ld));
-			}
-			
-			if(lar->mode & LA_SPHERE) {
-				t= lar->dist - ld;
-				if(t<0.0) continue;
-				
-				t/= lar->dist;
-				lampdist*= (t);
-			}
-			
-		}
-		
-		lacol[0]= lar->r;
-		lacol[1]= lar->g;
-		lacol[2]= lar->b;
-		
-		if(lar->mode & LA_TEXTURE) {
-			ShadeInput shi;
-			
-			/* Warning, This is not that nice, and possibly a bit slow,
-			however some variables were not initialized properly in, unless using shade_input_initialize(...), we need to do a memset */
-			memset(&shi, 0, sizeof(ShadeInput)); 
-			/* end warning! - Campbell */
-			
-			copy_v3_v3(shi.geometry.co, rco);
-			shi.geometry.osatex= 0;
-			do_lamp_tex(re, lar, lv, &shi, lacol, LA_TEXTURE);
-		}
-		
-		if(lar->type==LA_SPOT) {
-			
-			if(lar->mode & LA_SQUARE) {
-				if(lv[0]*lar->vec[0]+lv[1]*lar->vec[1]+lv[2]*lar->vec[2]>0.0) {
-					float x, lvrot[3];
-					
-					/* rotate view to lampspace */
-					copy_v3_v3(lvrot, lv);
-					mul_m3_v3(lar->imat, lvrot);
-					
-					x= MAX2(fabs(lvrot[0]/lvrot[2]) , fabs(lvrot[1]/lvrot[2]));
-					/* 1.0/(sqrt(1+x*x)) is equivalent to cos(atan(x)) */
-					
-					inpr= 1.0/(sqrt(1.0+x*x));
-				}
-				else inpr= 0.0;
-			}
-			else {
-				inpr= lv[0]*lar->vec[0]+lv[1]*lar->vec[1]+lv[2]*lar->vec[2];
-			}
-			
-			t= lar->spotsi;
-			if(inpr<t) continue;
-			else {
-				t= inpr-t;
-				i= 1.0;
-				soft= 1.0;
-				if(t<lar->spotbl && lar->spotbl!=0.0) {
-					/* soft area */
-					i= t/lar->spotbl;
-					t= i*i;
-					soft= (3.0*t-2.0*t*i);
-					inpr*= soft;
-				}
-				if(lar->mode & LA_ONLYSHADOW) {
-					/* if(ma->mode & MA_SHADOW) { */
-					/* dot product positive: front side face! */
-					inp= vn[0]*lv[0] + vn[1]*lv[1] + vn[2]*lv[2];
-					if(inp>0.0) {
-						/* shadowbuf_test==0.0 : 100% shadow */
-						shadfac = shadowbuf_test(re, lar->shb, rco, dco, dco, inp, 0.0f);
-						if( shadfac>0.0 ) {
-							shadfac*= inp*soft*lar->power;
-							ir -= shadfac;
-							ig -= shadfac;
-							ib -= shadfac;
-							
-							continue;
-						}
-					}
-					/* } */
-				}
-				lampdist*=inpr;
-			}
-			if(lar->mode & LA_ONLYSHADOW) continue;
-			
-		}
-		
-		/* dot product and  reflectivity*/
-		
-		inp= 1.0-fabs(vn[0]*lv[0] + vn[1]*lv[1] + vn[2]*lv[2]);
-		
-		/* inp= cos(0.5*M_PI-acos(inp)); */
-		
-		i= inp;
-		
-		if(lar->type==LA_HEMI) {
-			i= 0.5*i+0.5;
-		}
-		if(i>0.0) {
-			i*= lampdist;
-		}
-		
-		/* shadow  */
-		if(i> -0.41) {			/* heuristic valua! */
-			shadfac= 1.0;
-			if(lar->shb) {
-				shadfac = shadowbuf_test(re, lar->shb, rco, dco, dco, inp, 0.0f);
-				if(shadfac==0.0) continue;
-				i*= shadfac;
-			}
-		}
-		
-		if(i>0.0) {
-			ir+= i*lacol[0];
-			ig+= i*lacol[1];
-			ib+= i*lacol[2];
+		if(lamp_skip(re, lar, &shi)) continue;
+
+		/* XXX test */
+		if(lamp_sample(lv, lainf, lashdw, re, lar, &shi, har->co, NULL)) {
+			inp= maxf(1.0f - fabs(dot_v3v3(har->no, lv)), 0.0);
+
+			inf[0] += lainf[0]*lashdw[0]*inp;
+			inf[1] += lainf[1]*lashdw[1]*inp;
+			inf[2] += lainf[2]*lashdw[2]*inp;
 		}
 	}
 	
-	if(ir<0.0) ir= 0.0;
-	if(ig<0.0) ig= 0.0;
-	if(ib<0.0) ib= 0.0;
-
-	colf[0]*= ir;
-	colf[1]*= ig;
-	colf[2]*= ib;
-	
+	colf[0] *= maxf(inf[0], 0.0f);
+	colf[1] *= maxf(inf[1], 0.0f);
+	colf[2] *= maxf(inf[2], 0.0f);
 }
 
 

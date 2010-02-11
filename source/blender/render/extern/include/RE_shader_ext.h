@@ -63,7 +63,10 @@ typedef struct ShadeResult
 	float rayhits[4];
 	float uv[3];
 	float indexob;
+
+	/* not real passes */
 	float sss[4];
+	float onlyshadow[4];
 } ShadeResult;
 
 typedef struct ShadeInputUV {

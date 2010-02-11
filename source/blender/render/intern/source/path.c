@@ -35,6 +35,7 @@
 
 #include "RE_raytrace.h"
 
+#include "cache.h"
 #include "camera.h"
 #include "database.h"
 #include "environment.h"
@@ -62,7 +63,7 @@ static void shadeinput_from_hit(Render *re, RenderLayer *rl, ShadeInput *shi, Hi
 	copy_v3_v3(shi->geometry.view, view);
 	copy_v3_v3(shi->geometry.co, hit->co);
 
-	shi->material.mat_override= rl->mat_override;
+	shi->material.mat_override= (rl)? rl->mat_override: NULL;
 	shi->material.mat= hit->vlr->mat;
 	shade_input_init_material(re, shi);
 	shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 1, 2);
@@ -86,7 +87,7 @@ static int isec_trace_ray(Render *re, Hit *from, Hit *to, int depth)
 	memset(&isec, 0, sizeof(isec));
 
 	copy_v3_v3(isec.start, from->co);
-	mul_v3_v3fl(isec.vec, from->vec, 100.0f);
+	mul_v3_v3fl(isec.vec, from->vec, 1000.0f);
 	isec.labda= 1.0f;
 
 	isec.mode= RE_RAY_MIRROR;
@@ -182,7 +183,7 @@ static void integrate_pixel(Render *re, RenderLayer *rl, int thread, int x, int 
 	float accum[3], sample[3], raster[2], hemi[2];
 	int a, tot_samples = re->params.r.path_samples;
 
-	accum[0]= accum[1]= accum[2]= 0.0f;
+	zero_v3(accum);
 
 	qsa = sampler_acquire(re, thread, SAMP_TYPE_HAMMERSLEY, tot_samples);
 	qsa2 = sampler_acquire(re, thread, SAMP_TYPE_HAMMERSLEY, tot_samples);
@@ -255,5 +256,106 @@ void render_path_trace_part(Render *re, RenderPart *pa)
 	/* display active layer */
 	rr->renrect.ymin=rr->renrect.ymax= 0;
 	rr->renlay= render_get_active_layer(re, rr);
+}
+
+/* scanline integration hack */
+
+static void ray_path_step(Render *re, ShadeInput *shi, int thread, float sample[3], int depth, float hemi[2])
+{
+	Hit from;
+	float bsdf[3], nsample[3], view[3], probability, basis[3][3], r[2];
+
+	/* generate new ray */
+	if(!hemi) {
+		r[0]= BLI_thread_frand(thread);
+		r[1]= BLI_thread_frand(thread);
+	}
+	else
+		copy_v2_v2(r, hemi);
+
+	memset(&from, 0, sizeof(from));
+	sample_project_hemi_cosine_weighted(from.vec, r);
+	copy_v3_v3(from.co, shi->geometry.co);
+	from.vlr= shi->primitive.vlr;
+	from.obi= shi->primitive.obi;
+
+	copy_v3_v3(basis[2], shi->geometry.vn);
+	ortho_basis_v3v3_v3(basis[0], basis[1], shi->geometry.vn);
+	mul_m3_v3(basis, from.vec);
+
+	/* sample emit & bsdf */
+	mat_emit(sample, &shi->material, &shi->geometry, shi->shading.thread);
+	mat_bsdf_f(bsdf, &shi->material, &shi->geometry, shi->shading.thread, from.vec, BSDF_DIFFUSE);
+
+	if(!is_zero_v3(bsdf)) {
+		/* russian roulette */
+		/*probability= (bsdf[0] + bsdf[1] + bsdf[2])/3.0f;
+		probability= CLAMPIS(probability, 0.0f, 0.9f);*/
+		probability= (depth == 0)? 1.0f: 0.75f;
+
+		if(probability == 1.0f || BLI_thread_frand(thread) < probability) {
+			/* keep going */
+			Hit hit;
+
+			if(isec_trace_ray(re, &from, &hit, depth)) {
+				ShadeInput newshi;
+
+				copy_v3_v3(view, from.vec);
+				negate_v3(view);
+
+				shadeinput_from_hit(re, NULL, &newshi, &hit, view);
+				newshi.shading.thread = thread;
+
+				mat_shading_begin(re, &newshi, &newshi.material);
+				ray_path_step(re, &newshi, thread, nsample, depth+1, NULL);
+				mat_shading_end(re, &newshi.material);
+			}
+			else {
+				/* no hit, sample environment */
+				environment_shade(re, nsample, NULL, from.vec, NULL, thread);
+			}
+
+			/* bsdf & correction for russian roulette */
+			nsample[0]= bsdf[0]*nsample[0];
+			nsample[1]= bsdf[1]*nsample[1];
+			nsample[2]= bsdf[2]*nsample[2];
+			mul_v3_fl(nsample, (float)M_PI/(probability*dot_v3v3(from.vec, shi->geometry.vn)));
+
+			/* accumulate */
+			add_v3_v3v3(sample, sample, nsample);
+		}
+		else
+			; /* path terminated */
+	}
+}
+
+void ray_path(Render *re, ShadeInput *shi)
+{
+	QMCSampler *qsa;
+	float accum[3], sample[3], hemi[2];
+	int thread = shi->shading.thread;
+	int a, tot_samples = re->params.r.path_samples;
+
+	shade_input_init_material(re, shi);
+	mat_shading_begin(re, shi, &shi->material);
+	
+	zero_v3(accum);
+
+	qsa = sampler_acquire(re, thread, SAMP_TYPE_HAMMERSLEY, tot_samples);
+	shade_input_flip_normals(shi);
+
+	for(a=0; a<tot_samples; a++) {
+		sampler_get_float_2d(hemi, qsa, a);
+		ray_path_step(re, shi, thread, sample, 0, hemi);
+		add_v3_v3v3(accum, accum, sample);
+	}
+
+	shade_input_flip_normals(shi);
+	mul_v3_fl(accum, 1.0f/re->params.r.path_samples);
+	copy_v3_v3(shi->shading.indirect, accum);
+
+	sampler_release(re, qsa);
+
+	mat_shading_end(re, &shi->material);
 }
 

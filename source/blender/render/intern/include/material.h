@@ -70,7 +70,7 @@ void mat_color(float color[3], struct ShadeMaterial *mat);
 float mat_alpha(struct ShadeMaterial *mat);
 
 /* Emission: light emitted in direction geom->view
-   unit is radiance, Watt/(m^2.sr) */
+   unit is luminance, lm/(m^2.sr) */
 
 void mat_emit(float emit[3], struct ShadeMaterial *mat, struct ShadeGeometry *geom, int thread);
 

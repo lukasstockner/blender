@@ -44,14 +44,16 @@
 #include "DNA_node_types.h"
 
 /* local include */
+#include "cache.h"
 #include "database.h"
 #include "diskocclusion.h"
 #include "lamp.h"
 #include "material.h"
 #include "object_mesh.h"
+#include "pixelfilter.h"
 #include "raytrace.h"
 #include "render_types.h"
-#include "rendercore.h"
+#include "sampler.h"
 #include "shading.h"
 #include "shadowbuf.h"
 #include "sss.h"
@@ -109,8 +111,16 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 {
 	if((re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) && shi->material.mat->amb!=0.0f)
 		disk_occlusion_sample(re, shi);
-	else if((re->params.r.mode & R_RAYTRACE) && shi->material.mat->amb!=0.0f)
-		ray_ao(re, shi, shi->shading.ao, shi->shading.env);
+	else if((re->params.r.mode & R_RAYTRACE) && shi->material.mat->amb!=0.0f) {
+		int thread= shi->shading.thread;
+
+		if(!(re->db.cache[thread] && pixel_cache_sample(re->db.cache[thread], shi))) {
+			if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT))
+				ray_ao(re, shi, shi->shading.ao, shi->shading.env);
+			if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+				ray_path(re, shi);
+		}
+	}
 	else
 		shi->shading.ao[0]= shi->shading.ao[1]= shi->shading.ao[2]= 1.0f;
 }
@@ -119,15 +129,22 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 static void ambient_occlusion_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	float f= re->db.wrld.aoenergy;
-	float tmp[3], tmpspec[3];
+	float tmp[3], tmpspec[3], color[3];
+
+	copy_v3_v3(shr->ao, shi->shading.ao);
+
+	if(!(shi->shading.combinedflag & SCE_PASS_AO))
+		return;
 
 	if(f == 0.0f)
 		return;
 
 	if(re->db.wrld.aomix==WO_AOADD) {
-		shr->diff[0] += shi->shading.ao[0]*shi->material.r*shi->material.refl*f;
-		shr->diff[1] += shi->shading.ao[1]*shi->material.g*shi->material.refl*f;
-		shr->diff[2] += shi->shading.ao[2]*shi->material.b*shi->material.refl*f;
+		mat_color(color, &shi->material);
+
+		shr->diff[0] += shi->shading.ao[0]*color[0]*f;
+		shr->diff[1] += shi->shading.ao[1]*color[1]*f;
+		shr->diff[2] += shi->shading.ao[2]*color[2]*f;
 	}
 	else if(re->db.wrld.aomix==WO_AOMUL) {
 		mul_v3_v3v3(tmp, shr->diff, shi->shading.ao);
@@ -146,26 +163,39 @@ static void ambient_occlusion_apply(Render *re, ShadeInput *shi, ShadeResult *sh
 
 void environment_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
-	float f= re->db.wrld.ao_env_energy*shi->material.amb;
+	float color[3], f= re->db.wrld.ao_env_energy*shi->material.amb;
 
 	if(f == 0.0f)
 		return;
 	
-	shr->diff[0] += shi->shading.env[0]*shi->material.r*shi->material.refl*f;
-	shr->diff[1] += shi->shading.env[1]*shi->material.g*shi->material.refl*f;
-	shr->diff[2] += shi->shading.env[2]*shi->material.b*shi->material.refl*f;
+	mat_color(color, &shi->material);
+
+	shr->env[0]= shi->shading.env[0]*color[0]*f;
+	shr->env[1]= shi->shading.env[1]*color[1]*f;
+	shr->env[2]= shi->shading.env[2]*color[2]*f;
+
+	if(shi->shading.combinedflag & SCE_PASS_ENVIRONMENT)
+		add_v3_v3(shr->diff, shr->env);
 }
 
 static void indirect_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
-	float f= re->db.wrld.ao_indirect_energy;
+	float color[3], f= re->db.wrld.ao_indirect_energy;
 
 	if(f == 0.0f)
 		return;
 
-	shr->diff[0] += shi->shading.indirect[0]*shi->material.r*shi->material.refl*f;
-	shr->diff[1] += shi->shading.indirect[1]*shi->material.g*shi->material.refl*f;
-	shr->diff[2] += shi->shading.indirect[2]*shi->material.b*shi->material.refl*f;
+	if(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX)
+		mat_color(color, &shi->material);
+	else
+		color[0]= color[1]= color[2]= 1.0f; /* already included in indirect */
+
+	shr->indirect[0]= shi->shading.indirect[0]*color[0]*f;
+	shr->indirect[1]= shi->shading.indirect[1]*color[1]*f;
+	shr->indirect[2]= shi->shading.indirect[2]*color[2]*f;
+
+	if(shi->shading.combinedflag & SCE_PASS_INDIRECT)
+		add_v3_v3(shr->diff, shr->indirect);
 }
 
 static void shade_compute_ao(Render *re, ShadeInput *shi, ShadeResult *shr)
@@ -178,9 +208,6 @@ static void shade_compute_ao(Render *re, ShadeInput *shi, ShadeResult *shr)
 			/* AO was calculated for scanline already */
 			if(shi->shading.depth)
 				ambient_occlusion(re, shi);
-			copy_v3_v3(shr->ao, shi->shading.ao);
-			copy_v3_v3(shr->env, shi->shading.env); // XXX multiply
-			copy_v3_v3(shr->indirect, shi->shading.indirect); // XXX multiply
 		}
 	}
 }
@@ -218,35 +245,6 @@ static float shade_phong_correction(Render *re, LampRen *lar, ShadeInput *shi, f
 	return phongcorr;
 }
 
-/*********************************** Lamps ***********************************/
-
-static int shade_lamp_influence(Render *re, LampRen *lar, ShadeInput *shi, float lv[4], float lainf[3], float lashdw[3])
-{
-	Material *ma= shi->material.mat;
-
-	if(lar->type==LA_YF_PHOTON) return 0;
-	if(lar->mode & LA_LAYER) if((lar->lay & shi->primitive.obi->lay)==0) return 0;
-	if((lar->lay & shi->shading.lay)==0) return 0;
-
-	/* lamp influence & shadow*/
-	if(!lamp_influence(re, lar, shi, lainf, lv))
-		return 0;
-	
-	if((re->params.r.mode & R_SHADOW) && (ma->mode & MA_SHADOW)) {
-		float phongcorr;
-
-		lamp_shadow(re, lar, shi, lv, lashdw);
-
-		/* phong correction */
-		phongcorr= shade_phong_correction(re, lar, shi, lv);
-		mul_v3_fl(lashdw, phongcorr);
-	}
-	else
-		lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
-
-	return 1;
-}
-
 /********************************** Only Shadow ******************************/
 
 static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *shr)
@@ -255,48 +253,32 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 		ListBase *lights;
 		LampRen *lar;
 		GroupObject *go;
-		float inpr, lv[3];
-		float *view, lashdw[3];
-		float ir, accum, visifac, lampdist;
-		float alpha= mat_alpha(&shi->material);
+		float accum, alpha= mat_alpha(&shi->material);
 		
-		view= shi->geometry.view;
-
-		accum= ir= 0.0f;
+		accum= 0.0f;
 		
 		lights= lamps_get(re, shi);
 		for(go=lights->first; go; go= go->next) {
 			lar= go->lampren;
 
-			if(lar==NULL) continue;
-			if(lar->type==LA_YF_PHOTON) continue; /* yafray only */
-			if(lar->mode & LA_LAYER) if((lar->lay & shi->primitive.obi->lay)==0) continue;
-			if((lar->lay & shi->shading.lay)==0) continue;
-			
-			if(lar->shb || (lar->mode & LA_SHAD_RAY)) {
-				visifac= lamp_visibility(lar, shi->geometry.co, shi->geometry.vn, lv, &lampdist);
-				ir+= 1.0f;
+			if(lar && !lamp_skip(re, lar, shi) && (lar->shb || (lar->mode & LA_SHAD_RAY))) {
+				float lv[3], lashdw[3], lainf[3];
 
-				if(visifac <= 0.0f) {
-					accum+= 1.0f;
+				if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, shi->geometry.co, NULL))
 					continue;
-				}
 
-				inpr= dot_v3v3(shi->geometry.vn, lv);
-				if(inpr <= 0.0f) {
-					accum+= 1.0f;
+				if(dot_v3v3(shi->geometry.vn, lv) <= 0.0f)
 					continue;
-				}				
-				lamp_shadow(re, lar, shi, lv, lashdw);
 
-				accum+= (1.0f-visifac) + (visifac)*rgb_to_grayscale(lashdw);
+				lainf[0] *= (1.0f - lashdw[0]);
+				lainf[1] *= (1.0f - lashdw[1]);
+				lainf[2] *= (1.0f - lashdw[2]);
+
+				accum += rgb_to_grayscale(lainf);
 			}
 		}
-		if(ir>0.0f) {
-			accum/= ir;
-			shr->alpha= alpha*(1.0f-accum);
-		}
-		else shr->alpha= alpha;
+
+		shr->alpha= alpha*accum;
 	}
 	
 	/* quite disputable this...  also note it doesn't mirror-raytrace */	
@@ -319,7 +301,7 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 	}
 }
 
-/*********************************** Shading *********************************/
+/**************************** Color & Alpha Pass *****************************/
 
 static void shade_color_alpha(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
@@ -355,9 +337,261 @@ static void shade_color_alpha(Render *re, ShadeInput *shi, ShadeResult *shr)
 	}
 }
 
+/**************************** Direct Lighting ********************************/
+
 static void shade_surface_emission(ShadeInput *shi, ShadeResult *shr)
 {
 	mat_emit(shr->emit, &shi->material, &shi->geometry, shi->shading.thread);
+}
+
+static void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco)
+{
+	/* magic numbers for reordering sample positions to give better
+	 * results with adaptive sample, when it usually only takes 4 samples */
+	int order8[8] = {0, 1, 5, 6, 2, 3, 4, 7};
+	int order11[11] = {1, 3, 8, 10, 0, 2, 4, 5, 6, 7, 9};
+	int order16[16] = {1, 3, 9, 12, 0, 6, 7, 8, 13, 2, 4, 5, 10, 11, 14, 15};
+	int count = pxf_mask_count(&re->sample, shi->shading.mask);
+
+	/* for better antialising shadow samples are distributed over the subpixel
+	 * sample coordinates, this only works for raytracing depth 0 though */
+	if(!shi->primitive.strand && shi->shading.depth == 0 && count > 1 && count <= max) {
+		float xs, ys, zs, view[3];
+		int samp, ordsamp, tot= 0;
+
+		for(samp=0; samp<re->params.osa; samp++) {
+			if(re->params.osa == 8) ordsamp = order8[samp];
+			else if(re->params.osa == 11) ordsamp = order11[samp];
+			else if(re->params.osa == 16) ordsamp = order16[samp];
+			else ordsamp = samp;
+
+			if(shi->shading.mask & (1<<ordsamp)) {
+				float ofs[2];
+
+				/* zbuffer has this inverse corrected, ensures xs,ys are inside pixel */
+				pxf_sample_offset(&re->sample, ordsamp, ofs);
+				xs= (float)shi->geometry.scanco[0] + ofs[0];
+				ys= (float)shi->geometry.scanco[1] + ofs[1];
+				zs= shi->geometry.scanco[2];
+
+				shade_input_calc_viewco(re, shi, xs, ys, zs, view, NULL, jitco[tot], NULL, NULL);
+				tot++;
+			}
+		}
+
+		*totjitco= tot;
+	}
+	else {
+		copy_v3_v3(jitco[0], shi->geometry.co);
+		*totjitco= 1;
+	}
+}
+
+static void shade_lamp_accumulate(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, float lv[3], float lainf[3], float lashdw[3], int passflag)
+{
+	Material *ma= shi->material.mat;
+	float diff[3] = {0.0f, 0.0f, 0.0f};
+	float spec[3] = {0.0f, 0.0f, 0.0f};
+
+	/* if fully shadowed, try to avoid shading */
+	if(is_zero_v3(lashdw) && !((lar->mode & LA_ONLYSHADOW) || (passflag & SCE_PASS_SHADOW)))
+		return;
+
+	/* phong correction */
+	if((re->params.r.mode & R_SHADOW) && (ma->mode & MA_SHADOW))
+		mul_v3_fl(lashdw, shade_phong_correction(re, lar, shi, lv));
+
+	/* diffuse */
+	if(!(lar->mode & LA_NO_DIFF) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE|SCE_PASS_SHADOW))) {
+		mat_bsdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_DIFFUSE);
+
+		if(lar->mode & LA_ONLYSHADOW) {
+			shr->onlyshadow[0] += diff[0]*lainf[0]*(1.0f - lashdw[0]);
+			shr->onlyshadow[1] += diff[1]*lainf[1]*(1.0f - lashdw[1]);
+			shr->onlyshadow[2] += diff[2]*lainf[2]*(1.0f - lashdw[2]);
+		}
+		else {
+			shr->diff[0] += diff[0]*lainf[0]*lashdw[0];
+			shr->diff[1] += diff[1]*lainf[1]*lashdw[1];
+			shr->diff[2] += diff[2]*lainf[2]*lashdw[2];
+		}
+	}
+
+	/* specular */
+	if(!(lar->mode & LA_NO_SPEC) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_SPEC|SCE_PASS_SHADOW))) {
+		mat_bsdf_f(spec, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_SPECULAR);
+
+		if(lar->mode & LA_ONLYSHADOW) {
+			shr->onlyshadow[0] += spec[0]*lainf[0]*(1.0f - lashdw[0]);
+			shr->onlyshadow[1] += spec[1]*lainf[1]*(1.0f - lashdw[1]);
+			shr->onlyshadow[2] += spec[2]*lainf[2]*(1.0f - lashdw[2]);
+		}
+		else {
+			shr->spec[0] += spec[0]*lainf[0]*lashdw[0];
+			shr->spec[1] += spec[1]*lainf[1]*lashdw[1];
+			shr->spec[2] += spec[2]*lainf[2]*lashdw[2];
+		}
+	}
+
+	/* accumulate */
+	if(passflag & SCE_PASS_SHADOW) {
+		/* add unshadowed in shadow pass, for division in the end */
+		shr->shad[0] += (diff[0] + spec[0])*lainf[0];
+		shr->shad[1] += (diff[1] + spec[1])*lainf[1];
+		shr->shad[2] += (diff[2] + spec[2])*lainf[2];
+	}
+}
+
+static int shade_full_osa(Render *re, ShadeInput *shi)
+{
+	return (re->params.r.mode & R_OSA) && (re->params.osa > 0) && (shi->primitive.vlr->flag & R_FULL_OSA);
+}
+
+static int shade_lamp_tot_samples(Render *re, LampRen *lar, ShadeInput *shi)
+{
+	int tot= lar->ray_totsamp;
+
+	if(tot <= 1)
+		return 1;
+	else if(shade_full_osa(re, shi))
+		return tot/re->params.osa + 1;
+	else
+		return tot;
+}
+
+static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, int passflag)
+{
+	/* full shading + shadow multisampling of lamp */
+	QMCSampler *qsa;
+	float jitco[RE_MAX_OSA][3], fac= 1.0f;
+	int sample, totsample, totjitco= 0;
+
+	totsample= shade_lamp_tot_samples(re, lar, shi);
+	shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
+
+	if(lar->ray_samp_method==LA_SAMP_HAMMERSLEY) {
+		/* fix number of samples */
+		qsa= sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HAMMERSLEY, totsample);
+		fac= 1.0f/totsample;
+
+		for(sample=0; sample<totsample; sample++) {
+			float lv[3], lainf[3], lashdw[3], r[2];
+
+			/* get lamp vector, influence and shadow */
+			sampler_get_float_2d(r, qsa, sample);
+			if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, jitco[sample%totjitco], r))
+				continue;
+
+			/* weighting for multisample */
+			mul_v3_fl(lainf, fac);
+
+			shade_lamp_accumulate(re, lar, shi, shr, lv, lainf, lashdw, passflag);
+		}
+	}
+	else {
+		float adapt_thresh= lar->adapt_thresh;
+		int min_adapt_samples= 4;
+		float avg= 0.0f;
+		float pre_diff[3], pre_spec[3], pre_onlyshadow[3], pre_shad[3];
+
+		copy_v3_v3(pre_diff, shr->diff);
+		copy_v3_v3(pre_spec, shr->spec);
+		copy_v3_v3(pre_onlyshadow, shr->onlyshadow);
+		copy_v3_v3(pre_shad, shr->shad);
+
+		/* adaptive number of samples */
+		qsa = sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HALTON, totsample);
+		fac= 1.0f/totsample;
+
+		for(sample=0; sample<totsample; sample++) {
+			float lv[3], lainf[3], lashdw[3], r[2];
+
+			/* get lamp vector, influence and shadow */
+			sampler_get_float_2d(r, qsa, sample);
+			if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, jitco[sample%totjitco], r))
+				continue;
+
+			shade_lamp_accumulate(re, lar, shi, shr, lv, lainf, lashdw, passflag);
+			avg += rgb_to_grayscale(lashdw);
+
+			/* adaptive sampling - consider samples below threshold as in shadow (or vice versa) and exit early */
+			if((totsample > min_adapt_samples) && (adapt_thresh > 0.0) && (sample > totsample/3)) {
+				/* XXX if(isec->mode==RE_RAY_SHADOW_TRA) {
+					if((shadfac[3] / sample > (1.0-adapt_thresh)) || (shadfac[3] / sample < adapt_thresh))
+						break;
+					else if(adaptive_sample_variance(sample, shadfac, colsq, adapt_thresh))
+						break;
+				}
+				else*/ if ((avg/sample > (1.0-adapt_thresh)) || (avg/sample < adapt_thresh))
+					break;
+			}
+		}
+
+		/* XXX evil hack */
+		sub_v3_v3v3(shr->diff, shr->diff, pre_diff);
+		madd_v3_v3v3fl(shr->diff, pre_diff, shr->diff, 1.0f/sample);
+
+		sub_v3_v3v3(shr->spec, shr->spec, pre_spec);
+		madd_v3_v3v3fl(shr->spec, pre_spec, shr->spec, 1.0f/sample);
+
+		sub_v3_v3v3(shr->onlyshadow, shr->onlyshadow, pre_onlyshadow);
+		madd_v3_v3v3fl(shr->onlyshadow, pre_onlyshadow, shr->onlyshadow, 1.0f/sample);
+
+		sub_v3_v3v3(shr->shad, shr->shad, pre_shad);
+		madd_v3_v3v3fl(shr->shad, pre_shad, shr->shad, 1.0f/sample);
+	}
+
+	sampler_release(re, qsa);
+}
+
+static void shade_lamp_multi_shadow(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, int passflag)
+{
+	/* only multisample shadow, we do this for ray shadows at depth 0, to
+	   get antialiasing, shadow buffers do this automatically with soft */
+	QMCSampler *qsa;
+	float jitco[RE_MAX_OSA][3], fac= 1.0f;
+	float accuminf[3], accumshdw[3], accumlv[3];
+	int sample, totsample, totjitco= 0;
+
+	totsample= (re->params.osa > 4)? re->params.osa: 5;
+
+	qsa= sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HAMMERSLEY, totsample);
+	shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
+	fac= 1.0f/totsample;
+
+	zero_v3(accuminf);
+	zero_v3(accumshdw);
+	zero_v3(accumlv);
+
+	for(sample=0; sample<totsample; sample++) {
+		float lv[3], lainf[3], lashdw[3], r[2];
+
+		/* get lamp vector, influence and shadow */
+		sampler_get_float_2d(r, qsa, sample);
+		if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, jitco[sample%totjitco], r))
+			continue;
+
+		madd_v3_v3fl(accuminf, lainf, fac);
+		madd_v3_v3fl(accumshdw, lashdw, fac);
+		add_v3_v3(accumlv, lv);
+	}
+
+	normalize_v3(accumlv);
+
+	shade_lamp_accumulate(re, lar, shi, shr, accumlv, accuminf, accumshdw, passflag);
+
+	sampler_release(re, qsa);
+}
+
+static void shade_lamp_single(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, int passflag)
+{
+	/* simple single shadow + shading evaluation */
+	float lv[3], lainf[3], lashdw[3];
+
+	if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, shi->geometry.co, NULL))
+		return;
+
+	shade_lamp_accumulate(re, lar, shi, shr, lv, lainf, lashdw, passflag);
 }
 
 static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
@@ -365,8 +599,7 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 	GroupObject *go;
 	ListBase *lights;
 	LampRen *lar;
-	float onlyshadow[3];
-	int doonlyshadow= 0, passflag= shi->shading.passflag;
+	int passflag= shi->shading.passflag;
 
 	/* direct specular & diffuse */
 	if(!(passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE|SCE_PASS_SPEC|SCE_PASS_SHADOW)))
@@ -374,75 +607,37 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 	lights= lamps_get(re, shi);
 
-	zero_v3(onlyshadow);
+	zero_v3(shr->onlyshadow);
 
 	/* accumulates in shr->diff and shr->spec, and unshadowed in shr->shad */
 	for(go=lights->first; go; go= go->next) {
-		float lv[3], lainf[3], lashdw[3];
-		float diff[3] = {0.0f, 0.0f, 0.0f};
-		float spec[3] = {0.0f, 0.0f, 0.0f};
-
 		lar= go->lampren;
-		if(!lar)
-			continue;
 
-		/* get lamp vector, influence and shadow */
-		if(!shade_lamp_influence(re, lar, shi, lv, lainf, lashdw))
-			continue;
-		
-		/* if fully shadowed, try to avoid shading */
-		if(is_zero_v3(lashdw) && !((lar->mode & LA_ONLYSHADOW) || (passflag & SCE_PASS_SHADOW)))
-			continue;
-
-		/* diffuse */
-		if(!(lar->mode & LA_NO_DIFF) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE|SCE_PASS_SHADOW))) {
-			mat_bsdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_DIFFUSE);
-
-			if(lar->mode & LA_ONLYSHADOW) {
-				onlyshadow[0] += diff[0]*lainf[0]*(1.0f - lashdw[0]);
-				onlyshadow[1] += diff[1]*lainf[1]*(1.0f - lashdw[1]);
-				onlyshadow[2] += diff[2]*lainf[2]*(1.0f - lashdw[2]);
-				doonlyshadow= 1;
+		if(lar && !lamp_skip(re, lar, shi)) {
+			/* pick type of evualation */
+			if(lar->mode & LA_SHAD_RAY) {
+				if(lar->ray_totsamp > 1)
+					shade_lamp_multi(re, lar, shi, shr, passflag);
+				else if(shi->shading.depth == 0 && !shade_full_osa(re, shi))
+					shade_lamp_multi_shadow(re, lar, shi, shr, passflag);
+				else
+					shade_lamp_single(re, lar, shi, shr, passflag);
 			}
 			else {
-				shr->diff[0] += diff[0]*lainf[0]*lashdw[0];
-				shr->diff[1] += diff[1]*lainf[1]*lashdw[1];
-				shr->diff[2] += diff[2]*lainf[2]*lashdw[2];
+				if(lar->type == LA_AREA)
+					shade_lamp_multi(re, lar, shi, shr, passflag);
+				else
+					shade_lamp_single(re, lar, shi, shr, passflag);
 			}
-		}
-
-		/* specular */
-		if(!(lar->mode & LA_NO_SPEC) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_SPEC|SCE_PASS_SHADOW))) {
-			mat_bsdf_f(spec, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_SPECULAR);
-
-			if(lar->mode & LA_ONLYSHADOW) {
-				onlyshadow[0] += spec[0]*lainf[0]*(1.0f - lashdw[0]);
-				onlyshadow[1] += spec[1]*lainf[1]*(1.0f - lashdw[1]);
-				onlyshadow[2] += spec[2]*lainf[2]*(1.0f - lashdw[2]);
-				doonlyshadow= 1;
-			}
-			else {
-				shr->spec[0] += spec[0]*lainf[0]*lashdw[0];
-				shr->spec[1] += spec[1]*lainf[1]*lashdw[1];
-				shr->spec[2] += spec[2]*lainf[2]*lashdw[2];
-			}
-		}
-
-		/* accumulate */
-		if(passflag & SCE_PASS_SHADOW) {
-			/* add unshadowed in shadow pass, for division in the end */
-			shr->shad[0] += (diff[0] + spec[0])*lainf[0];
-			shr->shad[1] += (diff[1] + spec[1])*lainf[1];
-			shr->shad[2] += (diff[2] + spec[2])*lainf[2];
 		}
 	}
 
 	/* only shadow apply, do in grayscale to avoid getting ugly discolorations */
-	if(doonlyshadow) {
+	if(!is_zero_v3(shr->onlyshadow)) {
 		float intensity = rgb_to_grayscale(shr->diff) + rgb_to_grayscale(shr->spec);
 
 		if(intensity > 0.0f) {
-			float shadow = rgb_to_grayscale(onlyshadow);
+			float shadow = rgb_to_grayscale(shr->onlyshadow);
 			float factor = maxf((intensity - shadow)/intensity, 0.0f);
 
 			mul_v3_fl(shr->diff, factor);
@@ -471,26 +666,20 @@ static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr, int backside)
 {
-	float color[3];
 	int passflag= shi->shading.passflag;
-
-	mat_color(color, &shi->material);
 
 	shade_compute_ao(re, shi, shr); /* .ao */
 
 	/* add AO in combined? */
 	if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) {
 		if(re->db.wrld.mode & WO_AMB_OCC)
-			if(shi->shading.combinedflag & SCE_PASS_AO)
-				ambient_occlusion_apply(re, shi, shr);
+			ambient_occlusion_apply(re, shi, shr);
 
 		if(re->db.wrld.mode & WO_ENV_LIGHT)
-			if(shi->shading.combinedflag & SCE_PASS_ENVIRONMENT)
-				environment_lighting_apply(re, shi, shr);
+			environment_lighting_apply(re, shi, shr);
 
 		if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
-			if(shi->shading.combinedflag & SCE_PASS_INDIRECT)
-				indirect_lighting_apply(re, shi, shr);
+			indirect_lighting_apply(re, shi, shr);
 	}
 		
 	/* ambient light */

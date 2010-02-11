@@ -1371,7 +1371,7 @@ int ray_trace_shadow_rad(Render *re, ShadeInput *ship, ShadeResult *shr)
 	return 1;
 }
 
-static void ray_ao_qmc(Render *re, ShadeInput *shi, float *ao, float *env)
+void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 {
 	Isect isec;
 	RayHint point_hint;
@@ -1512,56 +1512,74 @@ static void ray_ao_qmc(Render *re, ShadeInput *shi, float *ao, float *env)
 		sampler_release(re, qsa);
 }
 
-void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
+void ray_shadow_single(float lashdw[3], Render *re, ShadeInput *shi, LampRen *lar, float sco[3], float lco[3])
 {
-	ray_ao_qmc(re, shi, ao, env);
-}
+	Isect isec;
+	float co[3];
 
-static void ray_shadow_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco)
-{
-	/* magic numbers for reordering sample positions to give better
-	 * results with adaptive sample, when it usually only takes 4 samples */
-	int order8[8] = {0, 1, 5, 6, 2, 3, 4, 7};
-	int order11[11] = {1, 3, 8, 10, 0, 2, 4, 5, 6, 7, 9};
-	int order16[16] = {1, 3, 9, 12, 0, 6, 7, 8, 13, 2, 4, 5, 10, 11, 14, 15};
-	int count = pxf_mask_count(&re->sample, shi->shading.mask);
+	/* setup starting coordinate */
+	copy_v3_v3(co, sco);
 
-	/* for better antialising shadow samples are distributed over the subpixel
-	 * sample coordinates, this only works for raytracing depth 0 though */
-	if(!shi->primitive.strand && shi->shading.depth == 0 && count > 1 && count <= max) {
-		float xs, ys, zs, view[3];
-		int samp, ordsamp, tot= 0;
+	if(shi->primitive.strand) {
+		/* strands need some bias to avoid self intersection */
+		float jitbias= 0.5f*(len_v3(shi->geometry.dxco) + len_v3(shi->geometry.dyco));
+		float v[3];
 
-		for(samp=0; samp<re->params.osa; samp++) {
-			if(re->params.osa == 8) ordsamp = order8[samp];
-			else if(re->params.osa == 11) ordsamp = order11[samp];
-			else if(re->params.osa == 16) ordsamp = order16[samp];
-			else ordsamp = samp;
+		sub_v3_v3v3(v, co, lco);
+		normalize_v3(v);
 
-			if(shi->shading.mask & (1<<ordsamp)) {
-				float ofs[2];
+		co[0] -= jitbias*v[0];
+		co[1] -= jitbias*v[1];
+		co[2] -= jitbias*v[2];
+	}
 
-				/* zbuffer has this inverse corrected, ensures xs,ys are inside pixel */
-				pxf_sample_offset(&re->sample, ordsamp, ofs);
-				xs= (float)shi->geometry.scanco[0] + ofs[0];
-				ys= (float)shi->geometry.scanco[1] + ofs[1];
-				zs= shi->geometry.scanco[2];
+	/* setup isec */
+	RE_RC_INIT(isec, *shi);
+	if(shi->material.mat->mode & MA_SHADOW_TRA) isec.mode= RE_RAY_SHADOW_TRA;
+	else isec.mode= RE_RAY_SHADOW;
+	isec.hint = 0;
+	
+	if(lar->mode & (LA_LAYER|LA_LAYER_SHADOW))
+		isec.lay= lar->lay;
+	else
+		isec.lay= -1;
 
-				shade_input_calc_viewco(re, shi, xs, ys, zs, view, NULL, jitco[tot], NULL, NULL);
-				tot++;
-			}
-		}
+	/* only when not mir tracing, first hit optimm */
+	if(shi->shading.depth==0)
+		isec.last_hit = lar->last_hit[shi->shading.thread];
+	else
+		isec.last_hit = NULL;
 
-		*totjitco= tot;
+	// TODO isec.hint = &bb_hint;
+	isec.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+	
+	/* setup intersection */
+	isec.orig.ob = shi->primitive.obi;
+	isec.orig.face = shi->primitive.vlr;
+	copy_v3_v3(isec.start, co);
+	sub_v3_v3v3(isec.vec, lco, isec.start);
+	isec.labda = 1.0f; // * normalize_v3(isec.vec);
+	
+	/* trace the ray */
+	if(isec.mode==RE_RAY_SHADOW_TRA) {
+		isec.col[0]= isec.col[1]= isec.col[2]=  1.0f;
+		isec.col[3]= 1.0f;
+		
+		ray_trace_shadow_tra(re, &isec, shi, DEPTH_SHADOW_TRA, 0);
+		mul_v3_v3fl(lashdw, isec.col, isec.col[3]);
 	}
 	else {
-		copy_v3_v3(jitco[0], shi->geometry.co);
-		*totjitco= 1;
+		if(re_object_raycast(re->db.raytree, &isec, shi))
+			zero_v3(lashdw);
+		else
+			lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 	}
-}
 
-static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *shadfac, Isect *isec)
-{
+	/* for first hit optim, set last interesected shadow face */
+	if(shi->shading.depth==0)
+		lar->last_hit[shi->shading.thread] = isec.last_hit;
+
+#if 0
 	QMCSampler *qsa=NULL;
 	int samples=0;
 	float fac=0.0f, end[3];
@@ -1637,10 +1655,10 @@ static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *sha
 			float r[2];
 
 			sampler_get_float_2d(r, qsa, samples);
-			lamp_sample(end, lar, co, r);
+			// XXX lamp_sample(end, lar, co, r);
 		}
 		else
-			lamp_sample(end, lar, co, NULL);
+			; // XXX lamp_sample(end, lar, co, NULL);
 
 		/* setup intersection */
 		isec->orig.ob = shi->primitive.obi;
@@ -1698,39 +1716,7 @@ static void ray_shadow_qmc(Render *re, ShadeInput *shi, LampRen *lar, float *sha
 
 	if (qsa)
 		sampler_release(re, qsa);
-}
-
-/* extern call from shade_lamp_loop */
-void ray_shadow(Render *re, ShadeInput *shi, LampRen *lar, float *shadfac)
-{
-	Isect isec;
-
-	/* setup isec */
-	RE_RC_INIT(isec, *shi);
-	if(shi->material.mat->mode & MA_SHADOW_TRA) isec.mode= RE_RAY_SHADOW_TRA;
-	else isec.mode= RE_RAY_SHADOW;
-	isec.hint = 0;
-	
-	if(lar->mode & (LA_LAYER|LA_LAYER_SHADOW))
-		isec.lay= lar->lay;
-	else
-		isec.lay= -1;
-
-	/* only when not mir tracing, first hit optimm */
-	if(shi->shading.depth==0) {
-		isec.last_hit = lar->last_hit[shi->shading.thread];
-	}
-	else {
-		isec.last_hit = NULL;
-	}
-	
-	ray_shadow_qmc(re, shi, lar, shadfac, &isec);
-	
-	/* for first hit optim, set last interesected shadow face */
-	if(shi->shading.depth==0) {
-		lar->last_hit[shi->shading.thread] = isec.last_hit;
-	}
-
+#endif
 }
 
 #if 0

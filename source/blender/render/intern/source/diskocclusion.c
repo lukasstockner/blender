@@ -1581,13 +1581,13 @@ void disk_occlusion_sample(Render *re, ShadeInput *shi)
 		/* try to get result from the cache if possible */
 		else if((shi->shading.depth > 0) ||
 			    ((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP)) ||
-                !(tree->cache && pixel_cache_sample(tree->cache[shi->shading.thread], shi))) {
+                !(tree->cache && tree->cache[shi->shading.thread] && pixel_cache_sample(tree->cache[shi->shading.thread], shi))) {
 
 			/* no luck, let's sample the occlusion */
 			disk_occlusion_sample_direct(re, shi);
 
 			/* fill result into cache, each time */
-			if(tree->cache) {
+			if(tree->cache && tree->cache[shi->shading.thread]) {
 				cache= tree->cache[shi->shading.thread];
 				pixel_cache_insert_sample(cache, shi);
 			}

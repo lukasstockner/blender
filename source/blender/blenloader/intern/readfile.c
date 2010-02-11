@@ -6406,9 +6406,10 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 		if(la->ray_samp_method == LA_SAMP_CONSTANT)
 			la->ray_samp_method= LA_SAMP_HAMMERSLEY;
 		if(la->falloff_type == LA_FALLOFF_SLIDERS)
-			la->falloff_type= LA_FALLOFF_INVSQUARE;
+			la->falloff_type= LA_FALLOFF_INVLINEAR;
 
 		la->energy *= M_PI*la->dist;
+		la->falloff_smooth = 1.0f;
 	}
 }
 

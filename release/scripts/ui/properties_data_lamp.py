@@ -101,18 +101,15 @@ class DATA_PT_lamp(DataButtonsPanel):
         if lamp.type in ('POINT', 'SPOT'):
             sub.label(text="Falloff:")
             sub.prop(lamp, "falloff_type", text="")
-            sub.prop(lamp, "falloff_distance", text="Distance")
-
-            if lamp.falloff_type == 'LINEAR_QUADRATIC_WEIGHTED':
-                col.label(text="Attenuation Factors:")
-                sub = col.column(align=True)
-                sub.prop(lamp, "linear_attenuation", slider=True, text="Linear")
-                sub.prop(lamp, "quadratic_attenuation", slider=True, text="Quadratic")
+            if lamp.falloff_type == 'CUSTOM_CURVE':
+                sub.prop(lamp, "falloff_distance", text="Distance")
+            else:
+                sub.prop(lamp, "falloff_smooth", text="Smooth")
 
             col.prop(lamp, "sphere")
 
         if lamp.type == 'AREA':
-            col.prop(lamp, "fallof_distance", text="Distance")
+            col.prop(lamp, "falloff_distance", text="Distance")
             col.prop(lamp, "gamma")
 
         if wide_ui:

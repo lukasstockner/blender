@@ -889,7 +889,7 @@ static void render_db_preprocess(Render *re)
 		halos_project(&re->db, &re->cam, 0, re->xparts);
 	
 	/* Occlusion */
-	if((re->db.wrld.mode & WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && !re->cb.test_break(re->cb.tbh))
+	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->cb.test_break(re->cb.tbh))
 		if(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX)
 			if(re->params.r.renderer==R_INTERN)
 				if(re->params.r.mode & R_SHADOW)
@@ -1578,7 +1578,7 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 			raytree_create(re);
 	
 	/* occlusion */
-	if((re->db.wrld.mode & WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && !re->cb.test_break(re->cb.tbh))
+	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->cb.test_break(re->cb.tbh))
 		if(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX)
 			if(re->params.r.mode & R_SHADOW)
 				disk_occlusion_create(re);

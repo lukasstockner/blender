@@ -50,8 +50,6 @@
 #include "shadowbuf.h"
 #include "texture_stack.h"
 
-static int area_lamp_energy_multisample(LampRen *lar, float *co, float *vn, float *result, float *dist);
-
 /******************************* Visibility ********************************/
 
 #define LAMP_FALLOFF_MIN_DIST 1e-10f /* to division by zero */
@@ -66,10 +64,10 @@ static float lamp_falloff(LampRen *lar, float dist)
 			factor = 1.0f;
 			break;
 		case LA_FALLOFF_INVLINEAR:
-			factor = 1.0f/(dist + lar->dist + LAMP_FALLOFF_MIN_DIST);
+			factor = 1.0f/(dist + lar->falloff_smooth*lar->power + LAMP_FALLOFF_MIN_DIST);
 			break;
 		case LA_FALLOFF_INVSQUARE:
-			factor = 1.0f/(dist*dist + lar->dist + LAMP_FALLOFF_MIN_DIST);
+			factor = 1.0f/(dist*dist + lar->falloff_smooth*lar->power + LAMP_FALLOFF_MIN_DIST);
 			break;
 		case LA_FALLOFF_CURVE:
 			factor = curvemapping_evaluateF(lar->curfalloff, 0, dist/lar->dist);
@@ -135,7 +133,7 @@ static float lamp_spot_falloff(LampRen *lar, float vec[3], float fac)
 }
 
 /* lampdistance and spot angle, writes in lv and dist */
-float lamp_visibility(LampRen *lar, float *co, float *vn, float *r_vec, float *r_dist)
+float lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], float r_vec[3], float *r_dist)
 {
 	float vec[3], dist, fac;
 
@@ -159,27 +157,9 @@ float lamp_visibility(LampRen *lar, float *co, float *vn, float *r_vec, float *r
 			break;
 
 		case LA_AREA:
-			if(vn) {
-				if(area_lamp_energy_multisample(lar, co, vn, vec, &dist)) {
-					fac= 1.0f;
-				}
-				else {
-					dist= 0.0f;
-					zero_v3(vec);
-					fac= 0.0f;
-				}
-			}
-			else {
-				sub_v3_v3v3(vec, co, lar->co);
-				dist= normalize_v3(vec);
-				fac= 1.0f;
-			}
-
-			/* area is single sided */
-			//if(dot_v3v3(vec, lar->vec) > 0.0f)
-			//	fac= 1.0f;
-			//else
-			//	fac= 0.0f;
+			sub_v3_v3v3(vec, co, lco);
+			dist= normalize_v3(vec);
+			fac= lamp_falloff(lar, dist);
 
 			if(fac <= 1e-6f) fac = 0.0f;
 			break;
@@ -187,7 +167,7 @@ float lamp_visibility(LampRen *lar, float *co, float *vn, float *r_vec, float *r
 		case LA_SPOT:
 		case LA_LOCAL:
 		default:
-			sub_v3_v3v3(vec, co, lar->co);
+			sub_v3_v3v3(vec, co, lco);
 			dist= normalize_v3(vec);
 			fac= lamp_falloff(lar, dist);
 
@@ -209,49 +189,118 @@ float lamp_visibility(LampRen *lar, float *co, float *vn, float *r_vec, float *r
 	return fac;
 }
 
-int lamp_influence(Render *re, LampRen *lar, ShadeInput *shi, float lainf[3], float lv[3])
+static void lamp_sample_location(float lco[3], LampRen *lar, float co[3], float r[2])
+{
+	switch(lar->type) {
+		case LA_LOCAL:
+		case LA_SPOT: {
+			if(r) {
+				/* sphere shadow source */
+				float ru[3], rv[3], v[3], s[3], disc[3];
+				
+				/* calc tangent plane vectors */
+				v[0] = co[0] - lar->co[0];
+				v[1] = co[1] - lar->co[1];
+				v[2] = co[2] - lar->co[2];
+				normalize_v3(v);
+				ortho_basis_v3v3_v3(ru, rv, v);
+				
+				/* sampling, returns quasi-random vector in area_size disc */
+				sample_project_disc(disc, lar->area_size, r);
+
+				/* distribute disc samples across the tangent plane */
+				s[0] = disc[0]*ru[0] + disc[1]*rv[0];
+				s[1] = disc[0]*ru[1] + disc[1]*rv[1];
+				s[2] = disc[0]*ru[2] + disc[1]*rv[2];
+				
+				add_v3_v3v3(lco, lar->co, s);
+			}
+			else
+				copy_v3_v3(lco, lar->co);
+			break;
+		}
+		case LA_AREA: {
+			if(r) {
+				float rect[3], s[3];
+
+				/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
+				sample_project_rect(rect, lar->area_size, lar->area_sizey, r);
+
+				/* align samples to lamp vector */
+				mul_v3_m3v3(s, lar->mat, rect);
+				add_v3_v3v3(lco, lar->co, s);
+			}
+			else
+				copy_v3_v3(lco, lar->co);
+			break;
+		}
+		default: {
+			copy_v3_v3(lco, lar->co);
+			break;
+		}
+	}
+}
+
+int lamp_skip(Render *re, LampRen *lar, ShadeInput *shi)
 {
 	Material *ma= shi->material.mat;
-	float lampdist, visifac;
+
+	if(lar->type==LA_YF_PHOTON) return 1;
+	if(lar->mode & LA_LAYER) if(shi->primitive.obi && (lar->lay & shi->primitive.obi->lay)==0) return 1;
+	if((lar->lay & shi->shading.lay)==0) return 1;
 
 	if(lar->power == 0.0)
-		return 0;
+		return 1;
 
 	/* only shadow lamps shouldn't affect shadow-less materials at all */
 	if((lar->mode & LA_ONLYSHADOW) && (!(ma->mode & MA_SHADOW) || !(re->params.r.mode & R_SHADOW)))
-		return 0;
+		return 1;
 
 	/* optimisation, don't render fully black lamps */
 	if(!(lar->mode & LA_TEXTURE) && is_zero_v3(&lar->r))
+		return 1;
+
+	return 0;
+}
+
+int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
+	Render *re, LampRen *lar, ShadeInput *shi,
+	float co[3], float r[2])
+{
+	float lco[3], dist, fac;
+
+	/* compute sample location, vector and distance */
+	lamp_sample_location(lco, lar, co, r);
+	fac= lamp_visibility(lar, co, shi->geometry.vn, lco, lv, &dist);
+	if(fac == 0.0f)
 		return 0;
-	
-	/* lampdist, spot angle, area side, ... */
-	visifac= lamp_visibility(lar, shi->geometry.co, shi->geometry.vn, lv, &lampdist);
-	if(visifac==0.0f)
-		return 0;
-	
-	if(lar->type==LA_SPOT) {
-		if(lar->mode & LA_OSATEX) {
+
+	/* compute influence */
+	copy_v3_v3(lainf, &lar->r);
+
+	if(lar->mode & LA_TEXTURE) {
+		if(lar->type==LA_SPOT && (lar->mode & LA_OSATEX)) {
 			shi->geometry.osatex= 1;	/* signal for multitex() */
 			
-			shi->texture.dxlv[0]= lv[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/lampdist;
-			shi->texture.dxlv[1]= lv[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/lampdist;
-			shi->texture.dxlv[2]= lv[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/lampdist;
+			shi->texture.dxlv[0]= lv[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/dist;
+			shi->texture.dxlv[1]= lv[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/dist;
+			shi->texture.dxlv[2]= lv[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/dist;
 			
-			shi->texture.dylv[0]= lv[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/lampdist;
-			shi->texture.dylv[1]= lv[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/lampdist;
-			shi->texture.dylv[2]= lv[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/lampdist;
+			shi->texture.dylv[0]= lv[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/dist;
+			shi->texture.dylv[1]= lv[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/dist;
+			shi->texture.dylv[2]= lv[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/dist;
 		}
-	}
-	
-	/* lamp color texture */
-	lainf[0]= lar->r;
-	lainf[1]= lar->g;
-	lainf[2]= lar->b;
-	
-	if(lar->mode & LA_TEXTURE)	do_lamp_tex(re, lar, lv, shi, lainf, LA_TEXTURE);
 
-	mul_v3_fl(lainf, visifac);
+		do_lamp_tex(re, lar, lv, shi, lainf, LA_TEXTURE);
+	}
+
+	mul_v3_fl(lainf, fac);
+
+	/* compute shadow */
+	if((re->params.r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
+		lamp_shadow(lashdw, re, lar, shi, co, lco, lv);
+	else
+		lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 
 	return 1;
 }
@@ -494,13 +543,14 @@ ListBase *lamps_get(Render *re, ShadeInput *shi)
 
 /****************** shadow ***********************/
 
-void lamp_shadow(Render *re, LampRen *lar, ShadeInput *shi, float *lv, float *lashdw)
+void lamp_shadow(float lashdw[3], Render *re, LampRen *lar, ShadeInput *shi,
+	float co[3], float lco[3], float lv[3])
 {
 	LampShadowSubSample *lss= &(lar->shadsamp[shi->shading.thread].s[shi->shading.sample]);
 	/* TODO strand render bias is not same as it was before, but also was
 	   mixed together with the shading code which doesn't work anymore now */
 	float inp = (shi->geometry.tangentvn)? 1.0f: dot_v3v3(shi->geometry.vn, lv);
-	int do_real = shi->shading.depth;
+	int do_real = (lar->ray_totsamp > 1)? 1: shi->shading.depth; // TODO caching doesn't work for multi-sample
 
 	lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 
@@ -514,19 +564,12 @@ void lamp_shadow(Render *re, LampRen *lar, ShadeInput *shi, float *lv, float *la
 			if(lar->buftype==LA_SHADBUF_IRREGULAR)
 				fac= irregular_shadowbuf_test(re, lar->shb, shi);
 			else
-				fac= shadowbuf_test(re, lar->shb, shi->geometry.co, shi->geometry.dxco, shi->geometry.dyco, inp, shi->material.mat->lbias);
+				fac= shadowbuf_test(re, lar->shb, co, shi->geometry.dxco, shi->geometry.dyco, inp, shi->material.mat->lbias);
 
 			lashdw[0]= lashdw[1]= lashdw[2]= fac;
 		}
-		else if(lar->mode & LA_SHAD_RAY) {
-			float shadfac[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-
-			ray_shadow(re, shi, lar, shadfac);
-
-			lashdw[0]= shadfac[0]*shadfac[3];
-			lashdw[1]= shadfac[1]*shadfac[3];
-			lashdw[2]= shadfac[2]*shadfac[3];
-		}
+		else if(lar->mode & LA_SHAD_RAY)
+			ray_shadow_single(lashdw, re, shi, lar, co, lco);
 
 		if(!is_one_v3(lashdw)) {
 			float col[3];
@@ -552,226 +595,6 @@ void lamp_shadow(Render *re, LampRen *lar, ShadeInput *shi, float *lv, float *la
 	}
 	else
 		copy_v3_v3(lashdw, lss->lashdw);
-}
-
-void lamp_sample(float lco[3], LampRen *lar, float co[3], float r[2])
-{
-	switch(lar->type) {
-		case LA_LOCAL: {
-			if(r) {
-				/* sphere shadow source */
-				float ru[3], rv[3], v[3], s[3], disc[3];
-				
-				/* calc tangent plane vectors */
-				v[0] = co[0] - lar->co[0];
-				v[1] = co[1] - lar->co[1];
-				v[2] = co[2] - lar->co[2];
-				normalize_v3(v);
-				ortho_basis_v3v3_v3(ru, rv, v);
-				
-				/* sampling, returns quasi-random vector in area_size disc */
-				sample_project_disc(disc, lar->area_size, r);
-
-				/* distribute disc samples across the tangent plane */
-				s[0] = disc[0]*ru[0] + disc[1]*rv[0];
-				s[1] = disc[0]*ru[1] + disc[1]*rv[1];
-				s[2] = disc[0]*ru[2] + disc[1]*rv[2];
-				
-				add_v3_v3v3(lco, lar->co, s);
-			}
-			else
-				copy_v3_v3(lco, lar->co);
-			break;
-		}
-		case LA_AREA: {
-			if(r) {
-				float rect[3], s[3];
-
-				/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
-				sample_project_rect(rect, lar->area_size, lar->area_sizey, r);
-
-				/* align samples to lamp vector */
-				mul_v3_m3v3(s, lar->mat, rect);
-				add_v3_v3v3(lco, lar->co, s);
-			}
-			else
-				copy_v3_v3(lco, lar->co);
-			break;
-		}
-		default: {
-			copy_v3_v3(lco, lar->co);
-			break;
-		}
-	}
-}
-
-/************************** area lamp *****************************/
-
-#define CROSS(dest, a, b)		{ dest[0]= a[1] * b[2] - a[2] * b[1]; dest[1]= a[2] * b[0] - a[0] * b[2]; dest[2]= a[0] * b[1] - a[1] * b[0]; }
-
-static double Normalize_d(double *n)
-{
-	double d;
-	
-	d= n[0]*n[0]+n[1]*n[1]+n[2]*n[2];
-
-	if(d>0.00000000000000001) {
-		d= sqrt(d);
-
-		n[0]/=d; 
-		n[1]/=d; 
-		n[2]/=d;
-	} else {
-		n[0]=n[1]=n[2]= 0.0;
-		d= 0.0;
-	}
-	return d;
-}
-
-static double saacos_d(double fac)
-{
-	if(fac<= -1.0f) return M_PI;
-	else if(fac>=1.0f) return 0.0;
-	else return acos(fac);
-}
-
-/* Stoke's form factor. Need doubles here for extreme small area sizes */
-static float area_lamp_energy(float (*area)[3], float *co, float *vn)
-{
-	double fac;
-	double vec[4][3];	/* vectors of rendered co to vertices lamp */
-	double cross[4][3];	/* cross products of this */
-	double rad[4];		/* angles between vecs */
-
-	VECSUB(vec[0], co, area[0]);
-	VECSUB(vec[1], co, area[1]);
-	VECSUB(vec[2], co, area[2]);
-	VECSUB(vec[3], co, area[3]);
-	
-	Normalize_d(vec[0]);
-	Normalize_d(vec[1]);
-	Normalize_d(vec[2]);
-	Normalize_d(vec[3]);
-
-	/* cross product */
-	CROSS(cross[0], vec[0], vec[1]);
-	CROSS(cross[1], vec[1], vec[2]);
-	CROSS(cross[2], vec[2], vec[3]);
-	CROSS(cross[3], vec[3], vec[0]);
-
-	Normalize_d(cross[0]);
-	Normalize_d(cross[1]);
-	Normalize_d(cross[2]);
-	Normalize_d(cross[3]);
-
-	/* angles */
-	rad[0]= vec[0][0]*vec[1][0]+ vec[0][1]*vec[1][1]+ vec[0][2]*vec[1][2];
-	rad[1]= vec[1][0]*vec[2][0]+ vec[1][1]*vec[2][1]+ vec[1][2]*vec[2][2];
-	rad[2]= vec[2][0]*vec[3][0]+ vec[2][1]*vec[3][1]+ vec[2][2]*vec[3][2];
-	rad[3]= vec[3][0]*vec[0][0]+ vec[3][1]*vec[0][1]+ vec[3][2]*vec[0][2];
-
-	rad[0]= saacos_d(rad[0]);
-	rad[1]= saacos_d(rad[1]);
-	rad[2]= saacos_d(rad[2]);
-	rad[3]= saacos_d(rad[3]);
-
-	/* Stoke formula */
-	fac=  rad[0]*(vn[0]*cross[0][0]+ vn[1]*cross[0][1]+ vn[2]*cross[0][2]);
-	fac+= rad[1]*(vn[0]*cross[1][0]+ vn[1]*cross[1][1]+ vn[2]*cross[1][2]);
-	fac+= rad[2]*(vn[0]*cross[2][0]+ vn[1]*cross[2][1]+ vn[2]*cross[2][2]);
-	fac+= rad[3]*(vn[0]*cross[3][0]+ vn[1]*cross[3][1]+ vn[2]*cross[3][2]);
-
-	if(fac<=0.0) return 0.0;
-	return fac;
-}
-
-static int area_lamp_energy_multisample(LampRen *lar, float *co, float *vn, float *result, float *dist)
-{
-	/* corner vectors are moved around according lamp jitter */
-	float *jitlamp= lar->jitter, vec[3], energy;
-	float area[4][3], center[3], cvec[3], intens= 0.0f;
-	int a= lar->ray_totsamp;
-
-	zero_v3(result);
-	*dist= 0.0f;
-
-	/* test if co is behind lamp */
-	sub_v3_v3v3(vec, co, lar->co);
-	if(dot_v3v3(vec, lar->vec) < 0.0f)
-		return 0;
-
-	while(a--) {
-		/* compute form factor */
-		vec[0]= jitlamp[0];
-		vec[1]= jitlamp[1];
-		vec[2]= 0.0f;
-		mul_m3_v3(lar->mat, vec);
-		
-		add_v3_v3v3(area[0], lar->area[0], vec);
-		add_v3_v3v3(area[1], lar->area[1], vec);
-		add_v3_v3v3(area[2], lar->area[2], vec);
-		add_v3_v3v3(area[3], lar->area[3], vec);
-		
-		energy= area_lamp_energy(area, co, vn);
-
-		/* average vector and distance */
-		mul_v3_v3fl(center, area[0], 0.25f);
-		madd_v3_v3fl(center, area[1], 0.25f);
-		madd_v3_v3fl(center, area[2], 0.25f);
-		madd_v3_v3fl(center, area[3], 0.25f);
-
-		sub_v3_v3v3(cvec, co, center);
-		*dist += normalize_v3(cvec);
-
-		madd_v3_v3fl(result, cvec, energy);
-		intens += energy;
-		
-		jitlamp+= 2;
-	}
-
-	if(intens != 0.0f) {
-		normalize_v3(result);
-		*dist *= 1.0f/intens;
-	}
-
-	return !is_zero_v3(result);
-#if 0
-	intens /= (float)lar->ray_totsamp;
-	
-	return pow(intens*lar->areasize, lar->k);	// corrected for buttons size and lar->dist^2
-#endif
-}
-
-static void area_lamp_vectors(LampRen *lar)
-{
-	float xsize= 0.5*lar->area_size, ysize= 0.5*lar->area_sizey, multifac;
-
-	/* make it smaller, so area light can be multisampled */
-	multifac= 1.0f/sqrt((float)lar->ray_totsamp);
-	xsize *= multifac;
-	ysize *= multifac;
-	
-	/* corner vectors */
-	lar->area[0][0]= lar->co[0] - xsize*lar->mat[0][0] - ysize*lar->mat[1][0];
-	lar->area[0][1]= lar->co[1] - xsize*lar->mat[0][1] - ysize*lar->mat[1][1];
-	lar->area[0][2]= lar->co[2] - xsize*lar->mat[0][2] - ysize*lar->mat[1][2];	
-
-	/* corner vectors */
-	lar->area[1][0]= lar->co[0] - xsize*lar->mat[0][0] + ysize*lar->mat[1][0];
-	lar->area[1][1]= lar->co[1] - xsize*lar->mat[0][1] + ysize*lar->mat[1][1];
-	lar->area[1][2]= lar->co[2] - xsize*lar->mat[0][2] + ysize*lar->mat[1][2];	
-
-	/* corner vectors */
-	lar->area[2][0]= lar->co[0] + xsize*lar->mat[0][0] + ysize*lar->mat[1][0];
-	lar->area[2][1]= lar->co[1] + xsize*lar->mat[0][1] + ysize*lar->mat[1][1];
-	lar->area[2][2]= lar->co[2] + xsize*lar->mat[0][2] + ysize*lar->mat[1][2];	
-
-	/* corner vectors */
-	lar->area[3][0]= lar->co[0] + xsize*lar->mat[0][0] - ysize*lar->mat[1][0];
-	lar->area[3][1]= lar->co[1] + xsize*lar->mat[0][1] - ysize*lar->mat[1][1];
-	lar->area[3][2]= lar->co[2] + xsize*lar->mat[0][2] - ysize*lar->mat[1][2];	
-	/* only for correction button size, matrix size works on energy */
-	lar->areasize= lar->dist*lar->dist/(4.0*xsize*ysize);
 }
 
 /***************************** Lamp create/free ******************************/
@@ -890,8 +713,6 @@ GroupObject *lamp_create(Render *re, Object *ob)
 			lar->ray_totsamp= lar->ray_samp*lar->ray_sampy*lar->ray_sampz;
 			break;
 		}
-
-		area_lamp_vectors(lar);
 	}
 	else if(lar->type==LA_SUN){
 		lar->ray_totsamp= lar->ray_samp*lar->ray_samp;
@@ -901,6 +722,11 @@ GroupObject *lamp_create(Render *re, Object *ob)
 		environment_sun_init(lar, la, ob->obmat);
 	}
 	else lar->ray_totsamp= 0;
+
+	if(lar->ray_totsamp <= 1 && lar->type != LA_AREA) {
+		lar->area_size= 0.0f;
+		lar->area_sizey= 0.0f;
+	}
 	
 	lar->spotsi= la->spotsize;
 	if(lar->mode & LA_HALO) {
@@ -914,8 +740,7 @@ GroupObject *lamp_create(Render *re, Object *ob)
 	lar->lay= ob->lay & 0xFFFFFF;	// higher 8 bits are localview layers
 
 	lar->falloff_type = la->falloff_type;
-	lar->ld1= la->att1;
-	lar->ld2= la->att2;
+	lar->falloff_smooth = la->falloff_smooth;
 	lar->curfalloff = curvemapping_copy(la->curfalloff);
 
 	if(lar->type==LA_SPOT) {
@@ -1024,7 +849,6 @@ void lamp_free(LampRen *lar)
 {
 	shadowbuf_free(lar);
 
-	if(lar->jitter) MEM_freeN(lar->jitter);
 	if(lar->shadsamp) MEM_freeN(lar->shadsamp);
 	if(lar->sunsky) environment_sun_free(lar);
 	curvemapping_free(lar->curfalloff);

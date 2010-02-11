@@ -793,7 +793,6 @@ void *add_lamp(char *name)
 	la->dist= 0.0f;
 	la->spotsize= 45.0f;
 	la->spotblend= 0.15f;
-	la->att2= 1.0f;
 	la->mode= LA_SHAD_BUF;
 	la->bufsize= 512;
 	la->clipsta= 0.5f;

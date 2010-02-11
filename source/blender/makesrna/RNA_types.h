@@ -81,8 +81,7 @@ typedef enum PropertyUnit {
 	PROP_UNIT_ROTATION = (5<<16),		/* radians */
 	PROP_UNIT_TIME = (6<<16),			/* frame */
 	PROP_UNIT_VELOCITY = (7<<16),		/* m/s */
-	PROP_UNIT_ACCELERATION = (8<<16),	/* m/(s^2) */
-	PROP_UNIT_POWER = (9<<16)			/* Watt */
+	PROP_UNIT_ACCELERATION = (8<<16)	/* m/(s^2) */
 } PropertyUnit;
 
 #define RNA_SUBTYPE_UNIT(subtype) ((subtype) & 0x00FF0000)
@@ -120,7 +119,6 @@ typedef enum PropertySubType {
 	PROP_AXISANGLE = 28,
 	PROP_XYZ = 29,
 	PROP_COLOR_GAMMA = 30,
-	PROP_POWER = 31|PROP_UNIT_POWER,
 
 	/* booleans */
 	PROP_LAYER = 40,

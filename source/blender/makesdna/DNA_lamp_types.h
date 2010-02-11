@@ -51,19 +51,17 @@ typedef struct Lamp {
 	
 	short colormodel, totex;
 	float r, g, b, k;
-	float shdwr, shdwg, shdwb, shdwpad;
+	float shdwr, shdwg, shdwb;
 	
-	float energy, dist, spotsize, spotblend;
+	float energy, spotsize, spotblend;
 	float haint;
 	
-	
-	float att1, att2;	/* Quad1 and Quad2 attenuation */
 	struct CurveMapping *curfalloff;
-	short falloff_type;
-	short pad2;
+	short falloff_type, pad2;
+	float falloff_smooth, dist;
 	
 	float clipsta, clipend, shadspotsize;
-	float bias, soft, compressthresh, pad5[3];
+	float bias, soft, compressthresh, pad5;
 	short bufsize, samp, buffers, filtertype;
 	char bufflag, buftype;
 	
