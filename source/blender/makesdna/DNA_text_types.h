@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -70,8 +70,6 @@ typedef struct Text {
 	double mtime;
 } Text;
 
-	/* TXT_OFFSET used to be 35 when the scrollbar was on the left... */
-#define TXT_OFFSET 15
 #define TXT_TABSIZE	4
 #define TXT_INIT_UNDO 1024
 #define TXT_MAX_UNDO	(TXT_INIT_UNDO*TXT_INIT_UNDO)

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -344,8 +344,8 @@ static void ui_centered_bounds_block(const bContext *C, uiBlock *block)
 static void ui_popup_bounds_block(const bContext *C, uiBlock *block, int bounds_calc)
 {
 	wmWindow *window= CTX_wm_window(C);
-	int startx, starty, endx, endy, width, height;
-	int oldbounds, mx, my, xmax, ymax;
+	int startx, starty, endx, endy, width, height, oldwidth, oldheight;
+	int oldbounds, xmax, ymax;
 
 	oldbounds= block->bounds;
 
@@ -354,9 +354,9 @@ static void ui_popup_bounds_block(const bContext *C, uiBlock *block, int bounds_
 	
 	wm_window_get_size(window, &xmax, &ymax);
 
-	mx= window->eventstate->x + block->minx + block->mx;
-	my= window->eventstate->y + block->miny + block->my;
-	
+	oldwidth= block->maxx - block->minx;
+	oldheight= block->maxy - block->miny;
+
 	/* first we ensure wide enough text bounds */
 	if(bounds_calc==UI_BLOCK_BOUNDS_POPUP_MENU) {
 		if(block->flag & UI_BLOCK_LOOP) {
@@ -372,10 +372,16 @@ static void ui_popup_bounds_block(const bContext *C, uiBlock *block, int bounds_
 	/* and we adjust the position to fit within window */
 	width= block->maxx - block->minx;
 	height= block->maxy - block->miny;
+    
+    /* avoid divide by zero below, caused by calling with no UI, but better not crash */
+    oldwidth= oldwidth > 0 ? oldwidth : MAX2(1, width);
+    oldheight= oldheight > 0 ? oldheight : MAX2(1, height);
 
-	startx= mx-(0.8*(width));
-	starty= my;
-	
+	/* offset block based on mouse position, user offset is scaled
+	   along in case we resized the block in ui_text_bounds_block */
+	startx= window->eventstate->x + block->minx + (block->mx*width)/oldwidth;
+	starty= window->eventstate->y + block->miny + (block->my*height)/oldheight;
+
 	if(startx<10)
 		startx= 10;
 	if(starty<10)
@@ -744,8 +750,11 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	ui_but_to_pixelrect(&rect, ar, block, NULL);
 	
 	/* pixel space for AA widgets */
-	wmPushMatrix();
-	wmLoadIdentity();
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
 	
 	wmOrtho2(-0.01f, ar->winx-0.01f, -0.01f, ar->winy-0.01f);
 	
@@ -763,7 +772,10 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	}
 	
 	/* restore matrix */
-	wmPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
 	
 	ui_draw_links(block);
 }
@@ -1177,6 +1189,12 @@ void ui_get_but_vectorf(uiBut *but, float *vec)
 		float *fp= (float *)but->poin;
 		VECCOPY(vec, fp);
 	}
+    else {
+        if (but->editvec==NULL) {
+            fprintf(stderr, "ui_get_but_vectorf: can't get color, should never happen\n");
+            vec[0]= vec[1]= vec[2]= 0.0f;
+        }
+    }
 }
 
 /* for buttons pointing to color for example */
@@ -1421,6 +1439,12 @@ static double ui_get_but_scale_unit(uiBut *but, double value)
 	if(subtype == PROP_UNIT_LENGTH) {
 		return value * scene->unit.scale_length;
 	}
+	else if(subtype == PROP_UNIT_AREA) {
+		return value * pow(scene->unit.scale_length, 2);
+	}
+	else if(subtype == PROP_UNIT_VOLUME) {
+		return value * pow(scene->unit.scale_length, 3);
+	}
 	else if(subtype == PROP_UNIT_TIME) { /* WARNING - using evil_C :| */
 		return FRA2TIME(value);
 	}
@@ -1481,7 +1505,7 @@ void ui_get_but_string(uiBut *but, char *str, int maxlen)
 		}
 
 		if(!buf) {
-			BLI_strncpy(str, "", maxlen);
+			str[0] = '\0';
 		}
 		else if(buf && buf != str) {
 			/* string was too long, we have to truncate */
@@ -1491,11 +1515,14 @@ void ui_get_but_string(uiBut *but, char *str, int maxlen)
 	}
 	else if(but->type == IDPOIN) {
 		/* ID pointer */
-		ID *id= *(but->idpoin_idpp);
-
-		if(id) BLI_strncpy(str, id->name+2, maxlen);
-		else BLI_strncpy(str, "", maxlen);
-
+		if(but->idpoin_idpp) { /* Can be NULL for ID properties by python */
+			ID *id= *(but->idpoin_idpp);
+			if(id) {
+				BLI_strncpy(str, id->name+2, maxlen);
+				return;
+			}
+		}
+		str[0] = '\0';
 		return;
 	}
 	else if(but->type == TEX) {
@@ -2046,7 +2073,7 @@ void ui_check_but(uiBut *but)
 		
 	case HOTKEYEVT:
 		if (but->flag & UI_SELECT) {
-			strncpy(but->drawstr, "", UI_MAX_DRAW_STR);
+			but->drawstr[0]= '\0';
 			
 			if(but->modifier_key) {
 				char *str= but->drawstr;
@@ -2073,6 +2100,15 @@ void ui_check_but(uiBut *but)
 		if(but->str[0]) {
 			strncpy(but->drawstr, "  ", UI_MAX_DRAW_STR);
 			strncpy(but->drawstr+2, but->str, UI_MAX_DRAW_STR-2);
+		}
+		break;
+
+	case HSVCUBE:
+	case HSVCIRCLE:
+		{
+			float rgb[3];
+			ui_get_but_vectorf(but, rgb);
+			rgb_to_hsv(rgb[0], rgb[1], rgb[2], but->hsv, but->hsv+1, but->hsv+2);
 		}
 		break;
 	default:
@@ -2339,13 +2375,6 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, char *str, short 
 				but->str[slen+1]= 0;
 			}
 		}
-	}
-	
-	if(ELEM(but->type, HSVCUBE, HSVCIRCLE)) { /* hsv buttons temp storage */
-		float rgb[3];
-		ui_get_but_vectorf(but, rgb);
-
-		rgb_to_hsv(rgb[0], rgb[1], rgb[2], but->hsv, but->hsv+1, but->hsv+2);
 	}
 
 	if((block->flag & UI_BLOCK_LOOP) || ELEM7(but->type, MENU, TEX, LABEL, IDPOIN, BLOCK, BUTM, SEARCH_MENU))

@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -141,13 +141,13 @@ typedef struct SpaceSeq {
 
 	View2D v2d; /* deprecated, copied to region */
 	
-	float xof, yof;	/* offset for drawing the image preview */
+	float xof, yof;	/* deprecated: offset for drawing the image preview */
 	short mainb;	/* weird name for the sequencer subtype (seq, image, luma... etc) */
 	short render_size;
 	short chanshown;
 	short zebra;
 	int flag;
-	float zoom;
+	float zoom; /* deprecated, handled by View2D now */
 	int view; /* see SEQ_VIEW_* below */
 	int pad;
 
@@ -650,7 +650,7 @@ enum FileSortTypeE {
 #define FILE_MAIN			2
 #define FILE_LOADFONT		3
 /* filesel op property -> action */
-#define FILE_OPEN			0
+#define FILE_OPENFILE		0
 #define FILE_SAVE			1
 
 /* sfile->flag and simasel->flag */

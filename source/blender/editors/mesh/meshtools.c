@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation
  * All rights reserved.
@@ -732,7 +732,7 @@ void sort_faces(Scene *scene, View3D *v3d)
 				if (event == 1) { /* sort on view axis */
 					mul_m4_v3(mat, vec);
 					face_sort_floats[i] = vec[2] * reverse;
-				} else { /* distance from cursor*/
+				} else if(event == 2) { /* distance from cursor*/
 					face_sort_floats[i] = len_v3v3(cur, vec) * reverse; /* back to front */
 				}
 			}

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
@@ -58,11 +58,15 @@ enum {
 	/* if there's invoke, call it, otherwise exec */
 	WM_OP_INVOKE_DEFAULT,
 	WM_OP_INVOKE_REGION_WIN,
+	WM_OP_INVOKE_REGION_CHANNELS,
+	WM_OP_INVOKE_REGION_PREVIEW,
 	WM_OP_INVOKE_AREA,
 	WM_OP_INVOKE_SCREEN,
 	/* only call exec */
 	WM_OP_EXEC_DEFAULT,
 	WM_OP_EXEC_REGION_WIN,
+	WM_OP_EXEC_REGION_CHANNELS,
+	WM_OP_EXEC_REGION_PREVIEW,
 	WM_OP_EXEC_AREA,
 	WM_OP_EXEC_SCREEN
 };
@@ -144,6 +148,7 @@ typedef struct wmNotifier {
 #define	NC_GEOM				(16<<24)
 #define NC_NODE				(17<<24)
 #define NC_ID				(18<<24)
+#define NC_LOGIC			(19<<24)
 
 /* data type, 256 entries is enough, it can overlap */
 #define NOTE_DATA			0x00FF0000

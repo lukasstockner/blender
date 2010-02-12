@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Blender Foundation (2008).
  *
@@ -99,8 +99,10 @@ static int replace_if_different(char *tmpfile)
 	arr_new= MEM_mallocN(sizeof(char)*len_new, "rna_cmp_file_new");
 	arr_org= MEM_mallocN(sizeof(char)*len_org, "rna_cmp_file_org");
 
-	fread(arr_new, sizeof(char), len_new, fp_new);
-	fread(arr_org, sizeof(char), len_org, fp_org);
+	if(fread(arr_new, sizeof(char), len_new, fp_new) != len_new)
+		fprintf(stderr, "%s:%d, error reading file %s for comparison.\n", __FILE__, __LINE__, tmpfile);
+	if(fread(arr_org, sizeof(char), len_org, fp_org) != len_org)
+		fprintf(stderr, "%s:%d, error reading file %s for comparison.\n", __FILE__, __LINE__, orgfile);
 
 	fclose(fp_new);
 	fclose(fp_org);

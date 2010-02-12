@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation
  * All rights reserved.
@@ -1415,6 +1415,10 @@ int shade_samples(ShadeSample *ssamp, PixStr *ps, int x, int y)
 				shade_input_set_shade_texco(shi);
 				shade_input_do_shade(shi, shr);
 			}
+		}
+		else if(shi->passflag & SCE_PASS_Z) {
+			for(samp=0; samp<ssamp->tot; samp++, shi++, shr++)
+				shr->z= -shi->co[2];
 		}
 		
 		return 1;

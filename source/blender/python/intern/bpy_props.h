@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Campbell Barton
  *
@@ -31,7 +31,9 @@ PyObject *BPY_rna_props( void );
 
 /* functions for setting up new props - experemental */
 PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw);
+PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw);
 PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw);
+PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject *kw);
 PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw);
 PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw);
 PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw);

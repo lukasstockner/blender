@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -220,6 +220,28 @@ void *MEM_dupallocN(void *vmemh)
 		if (newp == NULL) return NULL;
 
 		memcpy(newp, vmemh, memh->len);
+	}
+
+	return newp;
+}
+
+void *MEM_reallocN(void *vmemh, unsigned int len)
+{
+	void *newp= NULL;
+	
+	if (vmemh) {
+		MemHead *memh= vmemh;
+		memh--;
+
+		newp= MEM_mallocN(len, memh->name);
+		if(newp) {
+			if(len < memh->len)
+				memcpy(newp, vmemh, len);
+			else
+				memcpy(newp, vmemh, memh->len);
+		}
+
+		MEM_freeN(vmemh);
 	}
 
 	return newp;

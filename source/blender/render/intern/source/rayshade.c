@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 1990-1998 NeoGeo BV.
  * All rights reserved.
@@ -699,7 +699,8 @@ static void ray_fadeout(Isect *is, ShadeInput *shi, float *col, float *blendcol,
 	col[2] = col[2]*blendfac + (1.0 - blendfac)*blendcol[2];
 }
 
-/* the main recursive tracer itself */
+/* the main recursive tracer itself
+ * note: 'col' must be initialized */
 static void traceray(ShadeInput *origshi, ShadeResult *origshr, short depth, float *start, float *vec, float *col, ObjectInstanceRen *obi, VlakRen *vlr, int traflag)
 {
 	ShadeInput shi;
@@ -1316,7 +1317,9 @@ static void trace_refract(float *col, ShadeInput *shi, ShadeResult *shr)
 			/* no blurriness, use the original normal */
 			VECCOPY(v_refract_new, v_refract);
 		}
-	
+		
+		sampcol[0]= sampcol[1]= sampcol[2]= sampcol[3]= 0.0f;
+
 		traceray(shi, shr, shi->mat->ray_depth_tra, shi->co, v_refract_new, sampcol, shi->obi, shi->vlr, RAY_TRA|RAY_TRAFLIP);
 	
 		col[0] += sampcol[0];
@@ -1414,6 +1417,8 @@ static void trace_reflect(float *col, ShadeInput *shi, ShadeResult *shr, float f
 		else
 			reflection(v_reflect, v_nor_new, shi->view, NULL);
 		
+		sampcol[0]= sampcol[1]= sampcol[2]= sampcol[3]= 0.0f;
+
 		traceray(shi, shr, shi->mat->ray_depth, shi->co, v_reflect, sampcol, shi->obi, shi->vlr, 0);
 
 		

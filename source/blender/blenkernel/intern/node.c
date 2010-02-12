@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
@@ -2872,7 +2872,7 @@ void ntreeCompositTagRender(Scene *curscene)
 static int node_animation_properties(bNodeTree *ntree, bNode *node)
 {
 	bNodeSocket *sock;
-	ListBase *lb;
+	const ListBase *lb;
 	Link *link;
 	PointerRNA ptr;
 	PropertyRNA *prop;

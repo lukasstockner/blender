@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  *
  * The Original Code is written by Rob Haarsma (phase)
@@ -154,8 +154,6 @@ void makeqtstring (RenderData *rd, char *string) {
 }
 
 void filepath_qt(char *string, RenderData *rd) {
-	char txt[64];
-	
 	if (string==NULL) return;
 	
 	strcpy(string, rd->pic);
@@ -168,7 +166,7 @@ void filepath_qt(char *string, RenderData *rd) {
 		if (strchr(string, '#')==NULL)
 			strcat(string, "####"); /* 4 numbers */
 
-		BLI_convertstringframe_range(string, rd->sfra, rd->efra);
+		BLI_convertstringframe_range(string, rd->sfra, rd->efra, 4);
 		strcat(string, ".mov");
 	}
 }

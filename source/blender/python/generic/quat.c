@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -854,13 +854,16 @@ static PyGetSetDef Quaternion_getseters[] = {
 	{"magnitude", (getter)Quaternion_getMagnitude, (setter)NULL, "Size of the quaternion (readonly). **type** float", NULL},
 	{"angle", (getter)Quaternion_getAngle, (setter)NULL, "angle of the quaternion (readonly). **type** float", NULL},
 	{"axis",(getter)Quaternion_getAxisVec, (setter)NULL, "quaternion axis as a vector (readonly). **type** :class:`Vector`", NULL},
-	{"wrapped", (getter)BaseMathObject_getWrapped, (setter)NULL, BaseMathObject_Wrapped_doc, NULL},
+	{"is_wrapped", (getter)BaseMathObject_getWrapped, (setter)NULL, BaseMathObject_Wrapped_doc, NULL},
 	{"_owner", (getter)BaseMathObject_getOwner, (setter)NULL, BaseMathObject_Owner_doc, NULL},
 	{NULL,NULL,NULL,NULL,NULL}  /* Sentinel */
 };
 
 //------------------PY_OBECT DEFINITION--------------------------
-static char quaternion_doc[] = "This object gives access to Quaternions in Blender.";
+static char quaternion_doc[] =
+"This object gives access to Quaternions in Blender.\n"
+"\n"
+".. literalinclude:: ../examples/mathutils_quat.py\n";
 
 PyTypeObject quaternion_Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)

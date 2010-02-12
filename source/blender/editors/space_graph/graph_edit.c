@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -244,7 +244,7 @@ void GRAPH_OT_view_all (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "View All";
 	ot->idname= "GRAPH_OT_view_all";
-	ot->description= "Reset viewable area to show full keyframe range.";
+	ot->description= "Reset viewable area to show full keyframe range";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_viewall_exec;
@@ -359,7 +359,7 @@ void GRAPH_OT_ghost_curves_create (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Create Ghost Curves";
 	ot->idname= "GRAPH_OT_ghost_curves_create";
-	ot->description= "Create snapshot (Ghosts) of selected F-Curves as background aid for active Graph Editor.";
+	ot->description= "Create snapshot (Ghosts) of selected F-Curves as background aid for active Graph Editor";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_create_ghostcurves_exec;
@@ -402,7 +402,7 @@ void GRAPH_OT_ghost_curves_clear (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Clear Ghost Curves";
 	ot->idname= "GRAPH_OT_ghost_curves_clear";
-	ot->description= "Clear F-Curve snapshots (Ghosts) for active Graph Editor.";
+	ot->description= "Clear F-Curve snapshots (Ghosts) for active Graph Editor";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_clear_ghostcurves_exec;
@@ -498,7 +498,7 @@ void GRAPH_OT_keyframe_insert (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Insert Keyframes";
 	ot->idname= "GRAPH_OT_keyframe_insert";
-	ot->description= "Insert keyframes for the specified channels.";
+	ot->description= "Insert keyframes for the specified channels";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -591,7 +591,7 @@ void GRAPH_OT_click_insert (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Click-Insert Keyframes";
 	ot->idname= "GRAPH_OT_click_insert";
-	ot->description= "Insert new keyframe at the cursor position for the active F-Curve.";
+	ot->description= "Insert new keyframe at the cursor position for the active F-Curve";
 	
 	/* api callbacks */
 	ot->invoke= graphkeys_click_insert_invoke;
@@ -673,7 +673,7 @@ void GRAPH_OT_copy (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy Keyframes";
 	ot->idname= "GRAPH_OT_copy";
-	ot->description= "Copy selected keyframes to the copy/paste buffer.";
+	ot->description= "Copy selected keyframes to the copy/paste buffer";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_copy_exec;
@@ -713,7 +713,7 @@ void GRAPH_OT_paste (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Paste Keyframes";
 	ot->idname= "GRAPH_OT_paste";
-	ot->description= "Paste keyframes from copy/paste buffer for the selected channels, starting on the current frame.";
+	ot->description= "Paste keyframes from copy/paste buffer for the selected channels, starting on the current frame";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_paste_exec;
@@ -781,7 +781,7 @@ void GRAPH_OT_duplicate (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Duplicate Keyframes";
 	ot->idname= "GRAPH_OT_duplicate";
-	ot->description= "Make a copy of all selected keyframes.";
+	ot->description= "Make a copy of all selected keyframes";
 	
 	/* api callbacks */
 	ot->invoke= graphkeys_duplicate_invoke;
@@ -851,7 +851,7 @@ void GRAPH_OT_delete (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Delete Keyframes";
 	ot->idname= "GRAPH_OT_delete";
-	ot->description= "Remove all selected keyframes.";
+	ot->description= "Remove all selected keyframes";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_confirm;
@@ -913,7 +913,7 @@ void GRAPH_OT_clean (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Clean Keyframes";
 	ot->idname= "GRAPH_OT_clean";
-	ot->description= "Simplify F-Curves by removing closely spaced keyframes.";
+	ot->description= "Simplify F-Curves by removing closely spaced keyframes";
 	
 	/* api callbacks */
 	//ot->invoke=  // XXX we need that number popup for this! 
@@ -924,7 +924,7 @@ void GRAPH_OT_clean (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_float(ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
+	ot->prop= RNA_def_float(ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
 }
 
 /* ******************** Bake F-Curve Operator *********************** */
@@ -996,7 +996,7 @@ void GRAPH_OT_bake (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Bake Curve";
 	ot->idname= "GRAPH_OT_bake";
-	ot->description= "Bake selected F-Curves to a set of sampled points defining a similar curve.";
+	ot->description= "Bake selected F-Curves to a set of sampled points defining a similar curve";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_confirm; // FIXME...
@@ -1127,7 +1127,7 @@ void GRAPH_OT_sound_bake (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Bake Sound to F-Curves";
 	ot->idname= "GRAPH_OT_sound_bake";
-	ot->description= "Bakes a sound wave to selected F-Curves.";
+	ot->description= "Bakes a sound wave to selected F-Curves";
 
 	/* api callbacks */
 	ot->invoke= graphkeys_sound_bake_invoke;
@@ -1138,7 +1138,7 @@ void GRAPH_OT_sound_bake (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPEN);
+	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE);
 	RNA_def_float(ot->srna, "low", 0.0f, 0.0, 100000.0, "Lowest frequency", "", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "high", 100000.0, 0.0, 100000.0, "Highest frequency", "", 0.1, 1000.00);
 	RNA_def_float(ot->srna, "attack", 0.005, 0.0, 2.0, "Attack time", "", 0.01, 0.1);
@@ -1201,7 +1201,7 @@ void GRAPH_OT_sample (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Sample Keyframes";
 	ot->idname= "GRAPH_OT_sample";
-	ot->description= "Add keyframes on every frame between the selected keyframes.";
+	ot->description= "Add keyframes on every frame between the selected keyframes";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_sample_exec;
@@ -1276,7 +1276,7 @@ void GRAPH_OT_extrapolation_type (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Keyframe Extrapolation";
 	ot->idname= "GRAPH_OT_extrapolation_type";
-	ot->description= "Set extrapolation mode for selected F-Curves.";
+	ot->description= "Set extrapolation mode for selected F-Curves";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1345,7 +1345,7 @@ void GRAPH_OT_interpolation_type (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Keyframe Interpolation";
 	ot->idname= "GRAPH_OT_interpolation_type";
-	ot->description= "Set interpolation mode for the F-Curve segments starting from the selected keyframes.";
+	ot->description= "Set interpolation mode for the F-Curve segments starting from the selected keyframes";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1361,47 +1361,53 @@ void GRAPH_OT_interpolation_type (wmOperatorType *ot)
 
 /* ******************** Set Handle-Type Operator *********************** */
 
+EnumPropertyItem graphkeys_handle_type_items[] = {
+	{HD_FREE, "FREE", 0, "Free", ""},
+	{HD_VECT, "VECTOR", 0, "Vector", ""},
+	{HD_ALIGN, "ALIGNED", 0, "Aligned", ""},
+	{0, "", 0, "", ""},
+	{HD_AUTO, "AUTO", 0, "Auto", "Handles that are automatically adjusted upon moving the keyframe. Whole curve"},
+	{HD_AUTO_ANIM, "ANIM_CLAMPED", 0, "Auto Clamped", "Auto handles clamped to not overshoot. Whole curve"},
+	{0, NULL, 0, NULL, NULL}};
+
+/* ------------------- */
+
 /* this function is responsible for setting handle-type of selected keyframes */
 static void sethandles_graph_keys(bAnimContext *ac, short mode) 
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
 	int filter;
-	BeztEditFunc set_cb= ANIM_editkeyframes_handles(mode);
+	
+	BeztEditFunc edit_cb= ANIM_editkeyframes_handles(mode);
+	BeztEditFunc sel_cb= ANIM_editkeyframes_ok(BEZT_OK_SELECTED);
 	
 	/* filter data */
-	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE| ANIMFILTER_FOREDIT | ANIMFILTER_CURVESONLY);
+	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_CURVESONLY);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* loop through setting flags for handles 
 	 * Note: we do not supply BeztEditData to the looper yet. Currently that's not necessary here...
 	 */
-	// XXX we might need to supply BeztEditData to get it to only affect selected handles
 	for (ale= anim_data.first; ale; ale= ale->next) {
-		if (mode == -1) {	
-			BeztEditFunc toggle_cb;
+		FCurve *fcu= (FCurve *)ale->key_data;
+		
+		/* any selected keyframes for editing? */
+		if (ANIM_fcurve_keys_bezier_loop(NULL, fcu, NULL, sel_cb, NULL)) {
+			/* for auto/auto-clamped, toggle the auto-handles flag on the F-Curve */
+			if (mode == HD_AUTO_ANIM)
+				fcu->flag |= FCURVE_AUTO_HANDLES;
+			else if (mode == HD_AUTO)
+				fcu->flag &= ~FCURVE_AUTO_HANDLES;
 			
-			/* check which type of handle to set (free or aligned) 
-			 *	- check here checks for handles with free alignment already
-			 */
-			if (ANIM_fcurve_keys_bezier_loop(NULL, ale->key_data, NULL, set_cb, NULL))
-				toggle_cb= ANIM_editkeyframes_handles(HD_FREE);
-			else
-				toggle_cb= ANIM_editkeyframes_handles(HD_ALIGN);
-				
-			/* set handle-type */
-			ANIM_fcurve_keys_bezier_loop(NULL, ale->key_data, NULL, toggle_cb, calchandles_fcurve);
-		}
-		else {
-			/* directly set handle-type */
-			ANIM_fcurve_keys_bezier_loop(NULL, ale->key_data, NULL, set_cb, calchandles_fcurve);
+			/* change type of selected handles */
+			ANIM_fcurve_keys_bezier_loop(NULL, fcu, NULL, edit_cb, calchandles_fcurve);
 		}
 	}
 	
 	/* cleanup */
 	BLI_freelistN(&anim_data);
 }
-
 /* ------------------- */
 
 static int graphkeys_handletype_exec(bContext *C, wmOperator *op)
@@ -1422,18 +1428,18 @@ static int graphkeys_handletype_exec(bContext *C, wmOperator *op)
 	/* validate keyframes after editing */
 	ANIM_editkeyframes_refresh(&ac);
 	
-	/* set notifier that things have changed */
+	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION|ND_KEYFRAME_PROP, NULL);
 	
 	return OPERATOR_FINISHED;
 }
  
-void GRAPH_OT_handle_type (wmOperatorType *ot)
+ void GRAPH_OT_handle_type (wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Set Keyframe Handle Type";
 	ot->idname= "GRAPH_OT_handle_type";
-	ot->description= "Set type of handle for selected keyframes.";
+	ot->description= "Set type of handle for selected keyframes";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1444,7 +1450,7 @@ void GRAPH_OT_handle_type (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* id-props */
-	ot->prop= RNA_def_enum(ot->srna, "type", beztriple_handle_type_items, 0, "Type", "");
+	ot->prop= RNA_def_enum(ot->srna, "type", graphkeys_handle_type_items, 0, "Type", "");
 }
 
 /* ************************************************************************** */
@@ -1611,7 +1617,7 @@ void GRAPH_OT_frame_jump (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Jump to Frame";
 	ot->idname= "GRAPH_OT_frame_jump";
-	ot->description= "Set the current frame to the average frame of the selected keyframes.";
+	ot->description= "Set the current frame to the average frame of the selected keyframes";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_framejump_exec;
@@ -1715,7 +1721,7 @@ void GRAPH_OT_snap (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Snap Keys";
 	ot->idname= "GRAPH_OT_snap";
-	ot->description= "Snap selected keyframes to the chosen times/values.";
+	ot->description= "Snap selected keyframes to the chosen times/values";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1839,7 +1845,7 @@ void GRAPH_OT_mirror (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Mirror Keys";
 	ot->idname= "GRAPH_OT_mirror";
-	ot->description= "Flip selected keyframes over the selected mirror line.";
+	ot->description= "Flip selected keyframes over the selected mirror line";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1894,7 +1900,7 @@ void GRAPH_OT_smooth (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Smooth Keys";
 	ot->idname= "GRAPH_OT_smooth";
-	ot->description= "Apply weighted moving means to make selected F-Curves less bumpy.";
+	ot->description= "Apply weighted moving means to make selected F-Curves less bumpy";
 	
 	/* api callbacks */
 	ot->exec= graphkeys_smooth_exec;
@@ -1996,7 +2002,7 @@ void GRAPH_OT_fmodifier_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add F-Curve Modifier";
 	ot->idname= "GRAPH_OT_fmodifier_add";
-	ot->description= "Add F-Modifiers to the selected F-Curves.";
+	ot->description= "Add F-Modifiers to the selected F-Curves";
 	
 	/* api callbacks */
 	ot->invoke= graph_fmodifier_add_invoke;
@@ -2007,7 +2013,7 @@ void GRAPH_OT_fmodifier_add (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* id-props */
-	RNA_def_enum(ot->srna, "type", fmodifier_type_items, 0, "Type", "");
+	ot->prop= RNA_def_enum(ot->srna, "type", fmodifier_type_items, 0, "Type", "");
 	RNA_def_boolean(ot->srna, "only_active", 1, "Only Active", "Only add F-Modifier to active F-Curve.");
 }
 

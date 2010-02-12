@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -165,7 +165,7 @@ void NLA_OT_tweakmode_enter (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Enter Tweak Mode";
 	ot->idname= "NLA_OT_tweakmode_enter";
-	ot->description= "Enter tweaking mode for the action referenced by the active strip.";
+	ot->description= "Enter tweaking mode for the action referenced by the active strip";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_enable_tweakmode_exec;
@@ -230,7 +230,7 @@ void NLA_OT_tweakmode_exit (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Exit Tweak Mode";
 	ot->idname= "NLA_OT_tweakmode_exit";
-	ot->description= "Exit tweaking mode for the action referenced by the active strip.";
+	ot->description= "Exit tweaking mode for the action referenced by the active strip";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_disable_tweakmode_exec;
@@ -247,6 +247,7 @@ void NLA_OT_tweakmode_exit (wmOperatorType *ot)
 /* Add a new Action-Clip strip to the active track (or the active block if no space in the track) */
 
 /* pop up menu allowing user to choose the action to use */
+// TODO: at some point, we may have to migrate to a search menu to manage the case where there are many actions
 static int nlaedit_add_actionclip_invoke (bContext *C, wmOperator *op, wmEvent *evt)
 {
 	Main *m= CTX_data_main(C);
@@ -259,7 +260,7 @@ static int nlaedit_add_actionclip_invoke (bContext *C, wmOperator *op, wmEvent *
 	
 	/* loop through Actions in Main database, adding as items in the menu */
 	for (act= m->action.first; act; act= act->id.next)
-		uiItemStringO(layout, act->id.name+2, 0, "NLA_OT_actionclip_add", "action", act->id.name);
+		uiItemStringO(layout, act->id.name+2, 0, "NLA_OT_actionclip_add", "action", act->id.name+2);
 	uiItemS(layout);
 	
 	uiPupMenuEnd(C, pup);
@@ -278,7 +279,7 @@ static int nlaedit_add_actionclip_exec (bContext *C, wmOperator *op)
 	int filter, items;
 	
 	bAction *act = NULL;
-	char actname[22];
+	char actname[20];
 	float cfra;
 	
 	/* get editor data */
@@ -290,7 +291,7 @@ static int nlaedit_add_actionclip_exec (bContext *C, wmOperator *op)
 		
 	/* get action to use */
 	RNA_string_get(op->ptr, "action", actname);
-	act= (bAction *)find_id("AC", actname+2);
+	act= (bAction *)find_id("AC", actname);
 	
 	if (act == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No valid Action to add.");
@@ -352,7 +353,7 @@ void NLA_OT_actionclip_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Action Strip";
 	ot->idname= "NLA_OT_actionclip_add";
-	ot->description= "Add an Action-Clip strip (i.e. an NLA Strip referencing an Action) to the active track.";
+	ot->description= "Add an Action-Clip strip (i.e. an NLA Strip referencing an Action) to the active track";
 	
 	/* api callbacks */
 	ot->invoke= nlaedit_add_actionclip_invoke;
@@ -364,7 +365,7 @@ void NLA_OT_actionclip_add (wmOperatorType *ot)
 	
 	/* props */
 		// TODO: this would be nicer as an ID-pointer...
-	RNA_def_string(ot->srna, "action", "", 21, "Action", "Name of Action to add as a new Action-Clip Strip.");
+	ot->prop = RNA_def_string(ot->srna, "action", "", 19, "Action", "Name of Action to add as a new Action-Clip Strip.");
 }
 
 /* ******************** Add Transition Operator ***************************** */
@@ -472,7 +473,7 @@ void NLA_OT_transition_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Transition";
 	ot->idname= "NLA_OT_transition_add";
-	ot->description= "Add a transition strip between two adjacent selected strips.";
+	ot->description= "Add a transition strip between two adjacent selected strips";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_add_transition_exec;
@@ -534,7 +535,7 @@ void NLA_OT_meta_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Meta-Strips";
 	ot->idname= "NLA_OT_meta_add";
-	ot->description= "Add new meta-strips incorporating the selected strips.";
+	ot->description= "Add new meta-strips incorporating the selected strips";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_add_meta_exec;
@@ -586,7 +587,7 @@ void NLA_OT_meta_remove (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Remove Meta-Strips";
 	ot->idname= "NLA_OT_meta_remove";
-	ot->description= "Separate out the strips held by the selected meta-strips.";
+	ot->description= "Separate out the strips held by the selected meta-strips";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_remove_meta_exec;
@@ -689,7 +690,7 @@ void NLA_OT_duplicate (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Duplicate Strips";
 	ot->idname= "NLA_OT_duplicate";
-	ot->description= "Duplicate selected NLA-Strips, adding the new strips in new tracks above the originals.";
+	ot->description= "Duplicate selected NLA-Strips, adding the new strips in new tracks above the originals";
 	
 	/* api callbacks */
 	ot->invoke= nlaedit_duplicate_invoke;
@@ -764,7 +765,7 @@ void NLA_OT_delete (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Delete Strips";
 	ot->idname= "NLA_OT_delete";
-	ot->description= "Delete selected strips.";
+	ot->description= "Delete selected strips";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_delete_exec;
@@ -909,7 +910,7 @@ void NLA_OT_split (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Split Strips";
 	ot->idname= "NLA_OT_split";
-	ot->description= "Split selected strips at their midpoints.";
+	ot->description= "Split selected strips at their midpoints";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_split_exec;
@@ -961,7 +962,7 @@ void NLA_OT_bake (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Bake Strips";
 	ot->idname= "NLA_OT_bake";
-	ot->description= "Bake all strips of selected AnimData blocks.";
+	ot->description= "Bake all strips of selected AnimData blocks";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_bake_exec;
@@ -1023,7 +1024,7 @@ void NLA_OT_mute_toggle (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Muting";
 	ot->idname= "NLA_OT_mute_toggle";
-	ot->description= "Mute or un-muted selected strips.";
+	ot->description= "Mute or un-muted selected strips";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_toggle_mute_exec;
@@ -1097,7 +1098,7 @@ void NLA_OT_move_up (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Move Strips Up";
 	ot->idname= "NLA_OT_move_up";
-	ot->description= "Move selected strips up a track if there's room.";
+	ot->description= "Move selected strips up a track if there's room";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_move_up_exec;
@@ -1171,7 +1172,7 @@ void NLA_OT_move_down (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Move Strips Down";
 	ot->idname= "NLA_OT_move_down";
-	ot->description= "Move selected strips down a track if there's room.";
+	ot->description= "Move selected strips down a track if there's room";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_move_down_exec;
@@ -1247,7 +1248,7 @@ void NLA_OT_action_sync_length (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Sync Action Length";
 	ot->idname= "NLA_OT_action_sync_length";
-	ot->description= "Sychronise the length of the referenced Action with the lengths used in the strip.";
+	ot->description= "Sychronise the length of the referenced Action with the lengths used in the strip";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_sync_actlen_exec;
@@ -1348,7 +1349,7 @@ void NLA_OT_apply_scale (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Apply Scale";
 	ot->idname= "NLA_OT_apply_scale";
-	ot->description= "Apply scaling of selected strips to their referenced Actions.";
+	ot->description= "Apply scaling of selected strips to their referenced Actions";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_apply_scale_exec;
@@ -1411,7 +1412,7 @@ void NLA_OT_clear_scale (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Clear Scale";
 	ot->idname= "NLA_OT_clear_scale";
-	ot->description= "Reset scaling of selected strips.";
+	ot->description= "Reset scaling of selected strips";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_clear_scale_exec;
@@ -1552,7 +1553,7 @@ void NLA_OT_snap (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Snap Strips";
 	ot->idname= "NLA_OT_snap";
-	ot->description= "Move start of strips to specified time.";
+	ot->description= "Move start of strips to specified time";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1672,7 +1673,7 @@ void NLA_OT_fmodifier_add (wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* id-props */
-	RNA_def_enum(ot->srna, "type", fmodifier_type_items, 0, "Type", "");
+	ot->prop= RNA_def_enum(ot->srna, "type", fmodifier_type_items, 0, "Type", "");
 	RNA_def_boolean(ot->srna, "only_active", 0, "Only Active", "Only add F-Modifier of the specified type to the active strip.");
 }
 

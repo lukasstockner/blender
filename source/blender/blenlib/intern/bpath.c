@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -486,8 +486,8 @@ static void bpath_as_report(struct BPathIterator *bpi, const char *message, Repo
 	BLI_bpathIterator_getPathExpanded(bpi, path_expanded);
 
 	if(reports) {
-		if (name)	BKE_reportf(reports, RPT_INFO, "%s \"%s\", \"%s\": %s", prefix, name, path_expanded, message);
-		else		BKE_reportf(reports, RPT_INFO, "%s \"%s\": %s", prefix, path_expanded, message);
+		if (name)	BKE_reportf(reports, RPT_WARNING, "%s \"%s\", \"%s\": %s", prefix, name, path_expanded, message);
+		else		BKE_reportf(reports, RPT_WARNING, "%s \"%s\": %s", prefix, path_expanded, message);
 	}
 
 }

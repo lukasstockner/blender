@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation
  * All rights reserved.
@@ -1050,7 +1050,7 @@ static void ambient_occlusion_apply(ShadeInput *shi, ShadeResult *shr)
 	}
 }
 
-static void environment_lighting_apply(ShadeInput *shi, ShadeResult *shr)
+void environment_lighting_apply(ShadeInput *shi, ShadeResult *shr)
 {
 	float f= R.wrld.ao_env_energy*shi->amb;
 
@@ -1538,18 +1538,21 @@ static void shade_lamp_loop_only_shadow(ShadeInput *shi, ShadeResult *shr)
 	}
 	
 	/* quite disputable this...  also note it doesn't mirror-raytrace */	
-	if((R.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && shi->amb!=0.0f) {
+	if((R.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT)) && shi->amb!=0.0f) {
 		float f;
 		
-		f= 1.0f - shi->ao[0];
-		f= R.wrld.aoenergy*f*shi->amb;
-		
-		if(R.wrld.aomix==WO_AOADD) {
-			shr->alpha += f;
-			shr->alpha *= f;
+		if(R.wrld.mode & WO_AMB_OCC) {
+			f= R.wrld.aoenergy*shi->amb;
+
+			if(R.wrld.aomix==WO_AOADD)
+				shr->alpha += f*(1.0f - rgb_to_grayscale(shi->ao));
+			else
+				shr->alpha= (1.0f - f)*shr->alpha + f*(1.0f - (1.0f - shr->alpha)*rgb_to_grayscale(shi->ao));
 		}
-		else if(R.wrld.aomix==WO_AOMUL) {
-			shr->alpha *= f;
+
+		if(R.wrld.mode & WO_ENV_LIGHT) {
+			f= R.wrld.ao_env_energy*shi->amb;
+			shr->alpha += f*(1.0f - rgb_to_grayscale(shi->env));
 		}
 	}
 }

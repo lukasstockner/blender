@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -119,12 +119,18 @@ class DOPESHEET_MT_select(bpy.types.Menu):
         layout.operator("action.select_column", text="Columns on Selected Markers").mode = 'MARKERS_COLUMN'
         layout.operator("action.select_column", text="Between Selected Markers").mode = 'MARKERS_BETWEEN'
 
+        layout.separator()
+        layout.operator("action.select_more")
+        layout.operator("action.select_less")
+
 
 class DOPESHEET_MT_channel(bpy.types.Menu):
     bl_label = "Channel"
 
     def draw(self, context):
         layout = self.layout
+
+        layout.operator_context = 'INVOKE_REGION_CHANNELS'
 
         layout.column()
         layout.operator("anim.channels_setting_toggle")

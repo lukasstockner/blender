@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -174,7 +174,6 @@ def blend_bone_list(obj, apply_bones, from_bones, to_bones, target_bone=None, ta
         blend_transforms(new_pbone, from_bone_name, to_bone_name)
 
 
-
 def add_pole_target_bone(obj, base_bone_name, name, mode='CROSS'):
     '''
     Does not actually create a poll target, just the bone to use as a poll target
@@ -320,10 +319,11 @@ def bone_class_instance(obj, slots, name="BoneContainer"):
     there are also utility functions for manipulating all members.
     '''
 
+    attr_names = tuple(slots) # dont modify the original
+
     if len(slots) != len(set(slots)):
         raise Exception("duplicate entries found %s" % attr_names)
 
-    attr_names = tuple(slots) # dont modify the original
     slots = list(slots) # dont modify the original
     for i in range(len(slots)):
         member = slots[i]

@@ -12,11 +12,11 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
-# <pep8-80 compliant>
+# <pep8 compliant>
 import bpy
 import Mathutils
 from math import cos, sin, pi
@@ -75,14 +75,14 @@ from bpy.props import *
 
 
 class AddTorus(bpy.types.Operator):
-    '''Add a torus mesh.'''
+    '''Add a torus mesh'''
     bl_idname = "mesh.primitive_torus_add"
     bl_label = "Add Torus"
     bl_register = True
     bl_undo = True
 
     major_radius = FloatProperty(name="Major Radius",
-            description="Radius from center of torus to center of it's cross section",
+            description="Radius from the origin to the center of the cross sections",
             default=1.0, min=0.01, max=100.0)
     minor_radius = FloatProperty(name="Minor Radius",
             description="Radius of the torus' cross section",
@@ -92,9 +92,10 @@ class AddTorus(bpy.types.Operator):
             default=48, min=3, max=256)
     minor_segments = IntProperty(name="Minor Segments",
             description="Number of segments for the minor ring of the torus",
-            default=16, min=3, max=256)
+            default=12, min=3, max=256)
     use_abso = BoolProperty(name="Use Int+Ext Controls",
-            description="Use the Int / Ext controls for torus dimensions", default=False)
+            description="Use the Int / Ext controls for torus dimensions",
+            default=False)
     abso_major_rad = FloatProperty(name="Exterior Radius",
             description="Total Exterior Radius of the torus",
             default=1.0, min=0.01, max=100.0)
@@ -103,22 +104,24 @@ class AddTorus(bpy.types.Operator):
             default=0.5, min=0.01, max=100.0)
 
     def execute(self, context):
+        props = self.properties
 
-        if self.properties.use_abso == True:
-            extra_helper = (self.properties.abso_major_rad - self.properties.abso_minor_rad) * 0.5
-            self.properties.major_radius = self.properties.abso_minor_rad + extra_helper
-            self.properties.minor_radius = extra_helper
+        if props.use_abso == True:
+            extra_helper = (props.abso_major_rad - props.abso_minor_rad) * 0.5
+            props.major_radius = props.abso_minor_rad + extra_helper
+            props.minor_radius = extra_helper
 
-        verts_loc, faces = add_torus(self.properties.major_radius,
-                                    self.properties.minor_radius,
-                                    self.properties.major_segments,
-                                    self.properties.minor_segments)
+        verts_loc, faces = add_torus(props.major_radius,
+                                    props.minor_radius,
+                                    props.major_segments,
+                                    props.minor_segments)
 
         mesh = bpy.data.meshes.new("Torus")
 
         mesh.add_geometry(int(len(verts_loc) / 3), 0, int(len(faces) / 4))
         mesh.verts.foreach_set("co", verts_loc)
         mesh.faces.foreach_set("verts_raw", faces)
+        mesh.faces.foreach_set("smooth", [False] * len(mesh.faces))
 
         scene = context.scene
 
@@ -133,12 +136,12 @@ class AddTorus(bpy.types.Operator):
         ob_new.selected = True
 
         ob_new.location = scene.cursor_location
-        
+
         obj_act = scene.objects.active
-        
+
         if obj_act and obj_act.mode == 'EDIT':
             bpy.ops.object.mode_set(mode='OBJECT')
-            
+
             obj_act.selected = True
             scene.update() # apply location
             #scene.objects.active = ob_new

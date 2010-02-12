@@ -1,5 +1,5 @@
 /**
- * $Id$
+ * $Id:
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -15,17 +15,11 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Campbell Barton
  *
- * ***** END GPL LICENSE BLOCK *****
- */
-#ifndef BPY_UI_H__
-#define BPY_UI_H__
-
-#include <Python.h>
-
-PyObject *BPY_ui_module( void );
-
-#endif
+ * ***** END GPL LICENSE BLOCK ***** */
+ 
+void BPy_init_modules( void );
+ 

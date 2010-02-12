@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation.
  * All rights reserved.
@@ -632,7 +632,8 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 	float isect=0.0;
 	float  *scr, co[4];
 	int len=0;
-	short numcuts=1, mode= RNA_int_get(op->ptr, "type");
+	short numcuts= RNA_int_get(op->ptr, "num_cuts"); 
+	short mode= RNA_int_get(op->ptr, "type");
 	
 	/* edit-object needed for matrix, and ar->regiondata for projections to work */
 	if (ELEM3(NULL, obedit, ar, ar->regiondata))
@@ -717,7 +718,7 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
 	PropertyRNA *prop;
 	
 	ot->name= "Knife Cut";
-	ot->description= "Cut selected edges and faces into parts.";
+	ot->description= "Cut selected edges and faces into parts";
 	ot->idname= "MESH_OT_knife_cut";
 	
 	ot->invoke= WM_gesture_lines_invoke;
@@ -732,6 +733,7 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "type", knife_items, KNIFE_EXACT, "Type", "");
 	prop= RNA_def_property(ot->srna, "path", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_runtime(prop, &RNA_OperatorMousePath);
+	RNA_def_int(ot->srna, "num_cuts", 1, 1, MAX_CUTS, "Number of Cuts", "Only for Multi-Cut", 1, MAX_CUTS);
 	
 	/* internal */
 	RNA_def_int(ot->srna, "cursor", BC_KNIFECURSOR, 0, INT_MAX, "Cursor", "", 0, INT_MAX);

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
@@ -1622,7 +1622,7 @@ static void add_weight_mcol_dm(Object *ob, DerivedMesh *dm)
 static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos)[3],
                                 DerivedMesh **deform_r, DerivedMesh **final_r,
                                 int useRenderParams, int useDeform,
-                                int needMapping, CustomDataMask dataMask, int index)
+                                int needMapping, CustomDataMask dataMask, int index, int useCache)
 {
 	Mesh *me = ob->data;
 	ModifierData *firstmd, *md;
@@ -1771,6 +1771,22 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 
 				if((dataMask & CD_MASK_WEIGHT_MCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT))
 					add_weight_mcol_dm(ob, dm);
+
+				/* constructive modifiers need to have an origindex
+				 * otherwise they wont have anywhere to copy the data from */
+				if(needMapping) {
+					int *index, i;
+					DM_add_vert_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+					DM_add_edge_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+					DM_add_face_layer(dm, CD_ORIGINDEX, CD_CALLOC, NULL);
+
+					index = DM_get_vert_data_layer(dm, CD_ORIGINDEX);
+					for(i=0; i<dm->numVertData; i++) *index++= i;
+					index = DM_get_edge_data_layer(dm, CD_ORIGINDEX);
+					for(i=0; i<dm->numEdgeData; i++) *index++= i;
+					index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
+					for(i=0; i<dm->numFaceData; i++) *index++= i;
+				}
 			}
 
 			/* create an orco derivedmesh in parallel */
@@ -1798,7 +1814,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				if(!CustomData_has_layer(&dm->faceData, CD_ORIGSPACE))
 					DM_add_face_layer(dm, CD_ORIGSPACE, CD_DEFAULT, NULL);
 
-			ndm = mti->applyModifier(md, ob, dm, useRenderParams, !inputVertexCos);
+			ndm = mti->applyModifier(md, ob, dm, useRenderParams, useCache);
 
 			if(ndm) {
 				/* if the modifier returned a new dm, release the old one */
@@ -2109,14 +2125,14 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask)
 	Object *obact = scene->basact?scene->basact->object:NULL;
 	int editing = paint_facesel_test(ob);
 	/* weight paint and face select need original indicies because of selection buffer drawing */
-	int needMapping = (ob==obact) && (editing || (ob->mode & OB_MODE_WEIGHT_PAINT) || paint_facesel_test(ob));
+	int needMapping = (ob==obact) && (editing || (ob->mode & OB_MODE_WEIGHT_PAINT) || editing);
 	float min[3], max[3];
-	
+
 	clear_mesh_caches(ob);
 
 	mesh_calc_modifiers(scene, ob, NULL, &ob->derivedDeform,
 						&ob->derivedFinal, 0, 1,
-						needMapping, dataMask, -1);
+						needMapping, dataMask, -1, 1);
 
 	INIT_MINMAX(min, max);
 
@@ -2129,7 +2145,6 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask)
 	ob->derivedFinal->needsFree = 0;
 	ob->derivedDeform->needsFree = 0;
 	ob->lastDataMask = dataMask;
-
 }
 
 static void editmesh_build_data(Scene *scene, Object *obedit, EditMesh *em, CustomDataMask dataMask)
@@ -2203,7 +2218,7 @@ DerivedMesh *mesh_create_derived_render(Scene *scene, Object *ob, CustomDataMask
 {
 	DerivedMesh *final;
 	
-	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 1, 1, 0, dataMask, -1);
+	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 1, 1, 0, dataMask, -1, 0);
 
 	return final;
 }
@@ -2212,7 +2227,7 @@ DerivedMesh *mesh_create_derived_index_render(Scene *scene, Object *ob, CustomDa
 {
 	DerivedMesh *final;
 	
-	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 1, 1, 0, dataMask, index);
+	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 1, 1, 0, dataMask, index, 0);
 
 	return final;
 }
@@ -2221,7 +2236,7 @@ DerivedMesh *mesh_create_derived_view(Scene *scene, Object *ob, CustomDataMask d
 {
 	DerivedMesh *final;
 
-	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 0, 1, 0, dataMask, -1);
+	mesh_calc_modifiers(scene, ob, NULL, NULL, &final, 0, 1, 0, dataMask, -1, 0);
 
 	return final;
 }
@@ -2231,7 +2246,7 @@ DerivedMesh *mesh_create_derived_no_deform(Scene *scene, Object *ob, float (*ver
 {
 	DerivedMesh *final;
 	
-	mesh_calc_modifiers(scene, ob, vertCos, NULL, &final, 0, 0, 0, dataMask, -1);
+	mesh_calc_modifiers(scene, ob, vertCos, NULL, &final, 0, 0, 0, dataMask, -1, 0);
 
 	return final;
 }
@@ -2241,7 +2256,7 @@ DerivedMesh *mesh_create_derived_no_virtual(Scene *scene, Object *ob, float (*ve
 {
 	DerivedMesh *final;
 	
-	mesh_calc_modifiers(scene, ob, vertCos, NULL, &final, 0, -1, 0, dataMask, -1);
+	mesh_calc_modifiers(scene, ob, vertCos, NULL, &final, 0, -1, 0, dataMask, -1, 0);
 
 	return final;
 }
@@ -2252,7 +2267,7 @@ DerivedMesh *mesh_create_derived_no_deform_render(Scene *scene, Object *ob,
 {
 	DerivedMesh *final;
 
-	mesh_calc_modifiers(scene, ob, vertCos, NULL, &final, 1, 0, 0, dataMask, -1);
+	mesh_calc_modifiers(scene, ob, vertCos, NULL, &final, 1, 0, 0, dataMask, -1, 0);
 
 	return final;
 }

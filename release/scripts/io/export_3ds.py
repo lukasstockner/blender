@@ -13,7 +13,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -48,7 +48,7 @@ from the lib3ds project (http://lib3ds.sourceforge.net/) sourcecode.
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ***** END GPL LICENCE BLOCK *****
 # --------------------------------------------------------------------------
@@ -460,7 +460,7 @@ class _3ds_chunk(object):
 def get_material_images(material):
     # blender utility func.
     if material:
-        return [s.texture.image for s in material.textures if s and s.texture.type == 'IMAGE' and s.texture.image]
+        return [s.texture.image for s in material.texture_slots if s and s.texture.type == 'IMAGE' and s.texture.image]
 
     return []
 # 	images = []
@@ -1060,8 +1060,8 @@ def save_3ds(filename, context):
         # make a kf object node for the object:
         kfdata.add_subchunk(make_kf_obj_node(ob, name_to_id))
         '''
-# 		if not blender_mesh.users:
-        bpy.data.meshes.remove(blender_mesh)
+        if not blender_mesh.users:
+            bpy.data.meshes.remove(blender_mesh)
 # 		blender_mesh.verts = None
 
         i+=i
@@ -1122,7 +1122,7 @@ class Export3DS(bpy.types.Operator):
 
     # filename = StringProperty(name="File Name", description="File name used for exporting the 3DS file", maxlen= 1024, default= ""),
     path = StringProperty(name="File Path", description="File path used for exporting the 3DS file", maxlen= 1024, default= "")
-    check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, hidden=True)
+    check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
 
     def execute(self, context):
         save_3ds(self.properties.path, context)

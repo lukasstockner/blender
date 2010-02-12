@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -65,21 +65,25 @@ class VIEW3D_HT_header(bpy.types.Header):
             row_sub.prop(toolsettings, "mesh_selection_mode", text="", index=2, icon='FACESEL')
         '''
 
+        if obj:
+            # Particle edit
+            if obj.mode == 'PARTICLE_EDIT':
+                row.prop(toolsettings.particle_edit, "selection_mode", text="", expand=True, toggle=True)
 
-        # Particle edit
-        if obj and obj.mode == 'PARTICLE_EDIT':
-            row.prop(toolsettings.particle_edit, "selection_mode", text="", expand=True, toggle=True)
+            # Occlude geometry
+            if view.viewport_shading in ('SOLID', 'SHADED', 'TEXTURED') and (obj.mode == 'PARTICLE_EDIT' or (obj.mode == 'EDIT' and obj.type == 'MESH')):
+                row.prop(view, "occlude_geometry", text="")
 
-        # Occlude geometry
-        if obj and view.viewport_shading in ('SOLID', 'SHADED', 'TEXTURED') and (obj.mode == 'PARTICLE_EDIT' or (obj.mode == 'EDIT' and obj.type == 'MESH')):
-            row.prop(view, "occlude_geometry", text="")
-
-        # Proportional editing
-        if obj and obj.mode in ('OBJECT', 'EDIT', 'PARTICLE_EDIT'):
-            row = layout.row(align=True)
-            row.prop(toolsettings, "proportional_editing", text="", icon_only=True)
-            if toolsettings.proportional_editing != 'DISABLED':
-                row.prop(toolsettings, "proportional_editing_falloff", text="", icon_only=True)
+            # Proportional editing
+            if obj.mode in ('OBJECT', 'EDIT', 'PARTICLE_EDIT'):
+                row = layout.row(align=True)
+                row.prop(toolsettings, "proportional_editing", text="", icon_only=True)
+                if toolsettings.proportional_editing != 'DISABLED':
+                    row.prop(toolsettings, "proportional_editing_falloff", text="", icon_only=True)
+            
+            # paint save
+            if mode_string == 'PAINT_TEXTURE':
+                row.operator("image.save_dirty", text="Save Edited")
 
         # Snap
         row = layout.row(align=True)
@@ -385,6 +389,7 @@ class VIEW3D_MT_select_object(bpy.types.Menu):
         layout.operator("object.select_mirror", text="Mirror")
         layout.operator("object.select_by_layer", text="Select All by Layer")
         layout.operator_menu_enum("object.select_by_type", "type", "", text="Select All by Type...")
+        layout.operator("object.select_camera", text="Select Camera")
 
         layout.separator()
 
@@ -659,6 +664,7 @@ class VIEW3D_MT_object(bpy.types.Menu):
         layout.operator("object.delete", text="Delete...")
         layout.operator("object.proxy_make", text="Make Proxy...")
         layout.menu("VIEW3D_MT_make_links", text="Make Links...")
+        layout.operator("object.make_dupli_face", text="Make Dupliface...")
         layout.operator_menu_enum("object.make_local", "type", text="Make Local...")
         layout.menu("VIEW3D_MT_make_single_user")
 
@@ -671,7 +677,6 @@ class VIEW3D_MT_object(bpy.types.Menu):
 
         layout.separator()
 
-        layout.operator("object.join_shapes")
         layout.operator("object.join_uvs")
         layout.operator("object.join")
 
@@ -854,6 +859,7 @@ class VIEW3D_MT_vertex_group(bpy.types.Menu):
 
 # ********** Weight paint menu **********
 
+
 class VIEW3D_MT_paint_weight(bpy.types.Menu):
     bl_label = "Weights"
 
@@ -1012,7 +1018,7 @@ class VIEW3D_MT_pose(bpy.types.Menu):
         layout.operator("pose.autoside_names", text="AutoName Top/Bottom").axis = 'ZAXIS'
 
         layout.operator("pose.flip_names")
-		
+
         layout.operator("pose.quaternions_flip")
 
         layout.separator()
@@ -1130,7 +1136,7 @@ class VIEW3D_MT_edit_mesh(bpy.types.Menu):
 
         layout.separator()
 
-        layout.operator("mesh.extrude_move")
+        layout.operator("wm.call_menu", text="Extrude").name = "VIEW3D_MT_edit_mesh_extrude"
         layout.operator("mesh.duplicate_move")
         layout.operator("mesh.delete", text="Delete...")
 
@@ -1196,6 +1202,19 @@ class VIEW3D_MT_edit_mesh_selection_mode(bpy.types.Menu):
         prop = layout.operator("wm.context_set_value", text="Face", icon='FACESEL')
         prop.value = "(False, False, True)"
         prop.path = "tool_settings.mesh_selection_mode"
+
+class VIEW3D_MT_edit_mesh_extrude(bpy.types.Menu):
+    bl_label = "Extrude"
+
+    def draw(self, context):
+        layout = self.layout
+        
+        layout.operator_context = 'INVOKE_REGION_WIN'
+        
+        layout.operator("mesh.extrude_region_move", text="Region")
+        layout.operator("mesh.extrude_faces_move", text="Individual Faces")
+        layout.operator("mesh.extrude_edges_move", text="Edges Only")
+        layout.operator("mesh.extrude_vertices_move", text="Vertices Only")
 
 
 class VIEW3D_MT_edit_mesh_vertices(bpy.types.Menu):
@@ -1756,6 +1775,7 @@ class VIEW3D_PT_3dview_display(bpy.types.Panel):
             row.enabled = region.lock_rotation and region.box_preview
             row.prop(region, "box_clip")
 
+
 class VIEW3D_PT_3dview_meshdisplay(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -1834,7 +1854,7 @@ class VIEW3D_PT_background_image(bpy.types.Panel):
         layout = self.layout
 
         view = context.space_data
-        
+
         col = layout.column()
         col.operator("view3d.add_background_image", text="Add Image")
 
@@ -1845,9 +1865,9 @@ class VIEW3D_PT_background_image(bpy.types.Panel):
             row.prop(bg, "show_expanded", text="", no_bg=True)
             row.label(text=getattr(bg.image, "name", "Not Set"))
             row.operator("view3d.remove_background_image", text="", icon='X').index = i
-            
+
             box.prop(bg, "view_axis", text="Axis")
-            
+
             if bg.show_expanded:
                 row = box.row()
                 row.template_ID(bg, "image", open="image.open")
@@ -1859,7 +1879,7 @@ class VIEW3D_PT_background_image(bpy.types.Panel):
                     row = box.row(align=True)
                     row.prop(bg, "offset_x", text="X")
                     row.prop(bg, "offset_y", text="Y")
- 
+
 
 class VIEW3D_PT_transform_orientations(bpy.types.Panel):
     bl_space_type = 'VIEW_3D'
@@ -2030,6 +2050,7 @@ bpy.types.register(VIEW3D_MT_edit_mesh_edges)
 bpy.types.register(VIEW3D_MT_edit_mesh_faces)
 bpy.types.register(VIEW3D_MT_edit_mesh_normals)
 bpy.types.register(VIEW3D_MT_edit_mesh_showhide)
+bpy.types.register(VIEW3D_MT_edit_mesh_extrude)
 
 bpy.types.register(VIEW3D_MT_edit_curve)
 bpy.types.register(VIEW3D_MT_edit_curve_ctrlpoints)

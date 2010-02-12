@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -180,11 +180,9 @@ class DATA_PT_pathanim(DataButtonsPanelCurve):
 
         layout.active = curve.use_path
 
-        row = layout.row()
+        col = layout.column()
         layout.prop(curve, "path_length", text="Frames")
-
-        if wide_ui:
-            row.label()
+        layout.prop(curve, "eval_time")
 
         split = layout.split()
 
@@ -283,7 +281,7 @@ class DATA_PT_font(DataButtonsPanel):
         wide_ui = context.region.width > narrowui
 
         layout.template_ID(text, "font", open="font.open", unlink="font.unlink")
-        
+
         #if wide_ui:
         #    layout.prop(text, "font")
         #else:

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -468,20 +468,25 @@ static void do_lasso_select_mesh(ViewContext *vc, short mcords[][2], short moves
 	data.pass = 0;
 
 	/* workaround: init mats first, EM_mask_init_backbuf_border can change
-	   view matrix to pixel space, breaking edge select with backbuf .. */
-	// XXX not needed anymore, check here if selection is broken
-	//ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
+	   view matrix to pixel space, breaking edge select with backbuf. fixes bug #20936 */
+
+	/* [#21018] breaks zbuf select. run below. only if bbsel fails */
+	/* ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d) */
+
+	glLoadMatrixf(vc->rv3d->viewmat);
 	bbsel= EM_mask_init_backbuf_border(vc, mcords, moves, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 	
 	if(ts->selectmode & SCE_SELECT_VERTEX) {
 		if (bbsel) {
 			EM_backbuf_checkAndSelectVerts(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 			mesh_foreachScreenVert(vc, do_lasso_select_mesh__doSelectVert, &data, 1);
 		}
 	}
 	if(ts->selectmode & SCE_SELECT_EDGE) {
 			/* Does both bbsel and non-bbsel versions (need screen cos for both) */
+		ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 
 		data.pass = 0;
 		mesh_foreachScreenEdge(vc, do_lasso_select_mesh__doSelectEdge, &data, 0);
@@ -496,6 +501,7 @@ static void do_lasso_select_mesh(ViewContext *vc, short mcords[][2], short moves
 		if (bbsel) {
 			EM_backbuf_checkAndSelectFaces(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
 			mesh_foreachScreenFace(vc, do_lasso_select_mesh__doSelectFace, &data);
 		}
 	}
@@ -778,7 +784,7 @@ static int view3d_lasso_select_exec(bContext *C, wmOperator *op)
 void VIEW3D_OT_select_lasso(wmOperatorType *ot)
 {
 	ot->name= "Lasso Select";
-	ot->description= "Select items using lasso selection.";
+	ot->description= "Select items using lasso selection";
 	ot->idname= "VIEW3D_OT_select_lasso";
 	
 	ot->invoke= WM_gesture_lasso_invoke;
@@ -1396,16 +1402,21 @@ static void do_mesh_box_select(ViewContext *vc, rcti *rect, int select, int exte
 		EM_deselect_all(vc->em);
 	}
 
-	/* XXX Don't think we need this, it break selection of transformed objects.
-	 * Also, it's not done by Circle select and that works fine
-	 */
-	//ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
+	/* workaround: init mats first, EM_mask_init_backbuf_border can change
+	   view matrix to pixel space, breaking edge select with backbuf. fixes bug #20936 */
+	/*ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);*/ /* for foreach's screen/vert projection */
+
+	/* [#21018] breaks zbuf select. run below. only if bbsel fails */
+	/* ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d) */
+
+	glLoadMatrixf(vc->rv3d->viewmat);
 	bbsel= EM_init_backbuf_border(vc, rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 
 	if(ts->selectmode & SCE_SELECT_VERTEX) {
 		if (bbsel) {
 			EM_backbuf_checkAndSelectVerts(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 			mesh_foreachScreenVert(vc, do_mesh_box_select__doSelectVert, &data, 1);
 		}
 	}
@@ -1425,6 +1436,7 @@ static void do_mesh_box_select(ViewContext *vc, rcti *rect, int select, int exte
 		if(bbsel) {
 			EM_backbuf_checkAndSelectFaces(vc->em, select);
 		} else {
+			ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d);
 			mesh_foreachScreenFace(vc, do_mesh_box_select__doSelectFace, &data);
 		}
 	}
@@ -1692,7 +1704,7 @@ void VIEW3D_OT_select_border(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Border Select";
-	ot->description= "Select items using border selection.";
+	ot->description= "Select items using border selection";
 	ot->idname= "VIEW3D_OT_select_border";
 	
 	/* api callbacks */
@@ -1758,7 +1770,7 @@ void VIEW3D_OT_select(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Activate/Select";
-	ot->description= "Activate/select item(s).";
+	ot->description= "Activate/select item(s)";
 	ot->idname= "VIEW3D_OT_select";
 	
 	/* api callbacks */
@@ -2088,7 +2100,7 @@ static int view3d_circle_select_exec(bContext *C, wmOperator *op)
 void VIEW3D_OT_select_circle(wmOperatorType *ot)
 {
 	ot->name= "Circle Select";
-	ot->description= "Select items using circle selection.";
+	ot->description= "Select items using circle selection";
 	ot->idname= "VIEW3D_OT_select_circle";
 	
 	ot->invoke= WM_gesture_circle_invoke;

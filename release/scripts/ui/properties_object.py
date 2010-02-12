@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -179,7 +179,7 @@ class OBJECT_PT_groups(ObjectButtonsPanel):
                 if wide_ui:
                     col = split.column()
                 col.prop(group, "dupli_offset", text="")
-                
+
                 prop = col.operator("wm.context_set_value", text="From Cursor")
                 prop.path = "object.group_users[%d].dupli_offset" % index
                 prop.value = value

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -318,7 +318,6 @@ void wm_gesture_draw(wmWindow *win)
 	for(; gt; gt= gt->next) {
 		/* all in subwindow space */
 		wmSubWindowSet(win, gt->swinid);
-		wmOrthoPixelSpace();
 		
 		if(gt->type==WM_GESTURE_RECT)
 			wm_gesture_draw_rect(win, gt);

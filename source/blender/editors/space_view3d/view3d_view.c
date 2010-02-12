@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -31,6 +31,7 @@
 #include <math.h>
 #include <float.h>
 
+#include "DNA_anim_types.h"
 #include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
@@ -70,6 +71,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_keyframing.h"
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
@@ -104,9 +106,9 @@ void view3d_operator_needs_opengl(const bContext *C)
 		
 		wmSubWindowSet(CTX_wm_window(C), ar->swinid);
 		glMatrixMode(GL_PROJECTION);
-		wmLoadMatrix(rv3d->winmat);
+		glLoadMatrixf(rv3d->winmat);
 		glMatrixMode(GL_MODELVIEW);
-		wmLoadMatrix(rv3d->viewmat);
+		glLoadMatrixf(rv3d->viewmat);
 	}
 }
 
@@ -282,9 +284,12 @@ void smooth_view(bContext *C, Object *oldcamera, Object *camera, float *ofs, flo
 				sms.orig_lens= v3d->lens;
 			}
 			/* grid draw as floor */
-			sms.orig_view= rv3d->view;
-			rv3d->view= 0;
-			
+			if((rv3d->viewlock & RV3D_LOCKED)==0) {
+				/* use existing if exists, means multiple calls to smooth view wont loose the original 'view' setting */
+				sms.orig_view= rv3d->sms ? rv3d->sms->orig_view : rv3d->view;
+				rv3d->view= 0;
+			}
+
 			/* ensure it shows correct */
 			if(sms.to_camera) rv3d->persp= RV3D_PERSP;
 
@@ -344,8 +349,11 @@ static int view3d_smoothview_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			rv3d->dist = sms->new_dist;
 			v3d->lens = sms->new_lens;
 		}
-		rv3d->view= sms->orig_view;
 		
+		if((rv3d->viewlock & RV3D_LOCKED)==0) {
+			rv3d->view= sms->orig_view;
+		}
+
 		MEM_freeN(rv3d->sms);
 		rv3d->sms= NULL;
 		
@@ -444,7 +452,7 @@ void VIEW3D_OT_setcameratoview(wmOperatorType *ot)
 	
 	/* identifiers */
 	ot->name= "Align Camera To View";
-	ot->description= "Set camera view to active view.";
+	ot->description= "Set camera view to active view";
 	ot->idname= "VIEW3D_OT_camera_to_view";
 	
 	/* api callbacks */
@@ -480,7 +488,7 @@ void VIEW3D_OT_setobjectascamera(wmOperatorType *ot)
 	
 	/* identifiers */
 	ot->name= "Set Active Object as Camera";
-	ot->description= "Set the active object as the active camera for this view or scene.";
+	ot->description= "Set the active object as the active camera for this view or scene";
 	ot->idname= "VIEW3D_OT_object_as_camera";
 	
 	/* api callbacks */
@@ -1068,12 +1076,9 @@ void setwinmatrixview3d(ARegion *ar, View3D *v3d, rctf *rect)		/* rect: for pick
 		else wmFrustum(x1, x2, y1, y2, clipsta, clipend);
 	}
 
-	/* not sure what this was for? (ton) */
-	glMatrixMode(GL_PROJECTION);
-	wmGetMatrix(rv3d->winmat);
-	glMatrixMode(GL_MODELVIEW);
+	/* update matrix in 3d view region */
+	glGetFloatv(GL_PROJECTION_MATRIX, (float*)rv3d->winmat);
 }
-
 
 static void obmat_to_viewmat(View3D *v3d, RegionView3D *rv3d, Object *ob, short smooth)
 {
@@ -1605,7 +1610,7 @@ void VIEW3D_OT_localview(wmOperatorType *ot)
 	
 	/* identifiers */
 	ot->name= "Local View";
-	ot->description= "Toggle display of selected object(s) separately and centered in view.";
+	ot->description= "Toggle display of selected object(s) separately and centered in view";
 	ot->idname= "VIEW3D_OT_localview";
 	
 	/* api callbacks */
@@ -1742,7 +1747,7 @@ int ED_view3d_context_activate(bContext *C)
 	return 1;
 }
 
-static int game_engine_exec(bContext *C, wmOperator *unused)
+static int game_engine_exec(bContext *C, wmOperator *op)
 {
 #if GAMEBLENDER == 1
 	Scene *startscene = CTX_data_scene(C);
@@ -1796,11 +1801,13 @@ static int game_engine_exec(bContext *C, wmOperator *unused)
 	set_scene_bg(startscene);
 	//XXX scene_update_for_newframe(G.scene, G.scene->lay);
 	
-#else
-	printf("GameEngine Disabled\n");
-#endif
 	ED_area_tag_redraw(CTX_wm_area(C));
+
 	return OPERATOR_FINISHED;
+#else
+	BKE_report(op->reports, RPT_ERROR, "Game engine is disabled in this build.");
+	return OPERATOR_CANCELLED;
+#endif
 }
 
 void VIEW3D_OT_game_start(wmOperatorType *ot)
@@ -1808,7 +1815,7 @@ void VIEW3D_OT_game_start(wmOperatorType *ot)
 	
 	/* identifiers */
 	ot->name= "Start Game Engine";
-	ot->description= "Start game engine.";
+	ot->description= "Start game engine";
 	ot->idname= "VIEW3D_OT_game_start";
 	
 	/* api callbacks */
@@ -2027,11 +2034,6 @@ static int initFlyInfo (bContext *C, FlyInfo *fly, wmOperator *op, wmEvent *even
 		mul_v3_fl(fly->rv3d->ofs, -1.0f); /*flip the vector*/
 
 		fly->rv3d->dist=0.0;
-
-		/* used for recording */
-//XXX2.5		if(v3d->camera->ipoflag & OB_ACTION_OB)
-//XXX2.5			actname= "Object";
-
 	} else {
 		/* perspective or ortho */
 		if (fly->rv3d->persp==RV3D_ORTHO)
@@ -2046,6 +2048,10 @@ static int initFlyInfo (bContext *C, FlyInfo *fly, wmOperator *op, wmEvent *even
 		/*Done with correcting for the dist*/
 	}
 
+	
+	/* center the mouse, probably the UI mafia are against this but without its quite annoying */
+	WM_cursor_warp(CTX_wm_window(C), fly->ar->winrct.xmin + fly->ar->winx/2, fly->ar->winrct.ymin + fly->ar->winy/2);
+	
 	return 1;
 }
 
@@ -2239,7 +2245,6 @@ static void flyEvent(FlyInfo *fly, wmEvent *event)
 	}
 }
 
-//int fly_exec(bContext *C, wmOperator *op)
 static int flyApply(FlyInfo *fly)
 {
 	/*
@@ -2266,12 +2271,7 @@ static int flyApply(FlyInfo *fly)
 	unsigned char
 	apply_rotation= 1; /* if the user presses shift they can look about without movinf the direction there looking*/
 
-	/* for recording */
-#if 0 //XXX2.5 todo, get animation recording working again.
-	int playing_anim = 0; //XXX has_screenhandler(G.curscreen, SCREEN_HANDLER_ANIM);
-	int cfra = -1; /*so the first frame always has a key added */
-	char *actname="";
-#endif
+	
 	/* the dist defines a vector that is infront of the offset
 	to rotate the view about.
 	this is no good for fly mode because we
@@ -2484,34 +2484,38 @@ static int flyApply(FlyInfo *fly)
 				headerprint("FlyKeys  Speed:(+/- | Wheel),  Upright Axis:X off/Z off,  Slow:Shift,  Direction:WASDRF,  Ok:LMB,  Pan:MMB,  Cancel:RMB");
 #endif
 
-//XXX2.5			do_screenhandlers(G.curscreen); /* advance the next frame */
-
 			/* we are in camera view so apply the view ofs and quat to the view matrix and set the camera to the view */
 			if (rv3d->persp==RV3D_CAMOB) {
 				rv3d->persp= RV3D_PERSP; /*set this so setviewmatrixview3d uses the ofs and quat instead of the camera */
 				setviewmatrixview3d(scene, v3d, rv3d);
 				setcameratoview3d(v3d, rv3d, v3d->camera);
 				rv3d->persp= RV3D_CAMOB;
-#if 0 //XXX2.5
+				
 				/* record the motion */
-				if (IS_AUTOKEY_MODE(NORMAL) && (!playing_anim || cfra != G.scene->r.cfra)) {
-					cfra = G.scene->r.cfra;
-
+				if (autokeyframe_cfra_can_key(scene, &v3d->camera->id)) {
+					bCommonKeySrc cks;
+					ListBase dsources = {&cks, &cks};
+					int cfra = CFRA;
+					
+					/* init common-key-source for use by KeyingSets */
+					memset(&cks, 0, sizeof(bCommonKeySrc));
+					cks.id= &v3d->camera->id;
+					
+					/* insert keyframes 
+					 *	1) on the first frame
+					 *	2) on each subsequent frame
+					 *		TODO: need to check in future that frame changed before doing this 
+					 */
 					if (fly->xlock || fly->zlock || moffset[0] || moffset[1]) {
-						insertkey(&v3d->camera->id, ID_OB, actname, NULL, OB_ROT_X, 0);
-						insertkey(&v3d->camera->id, ID_OB, actname, NULL, OB_ROT_Y, 0);
-						insertkey(&v3d->camera->id, ID_OB, actname, NULL, OB_ROT_Z, 0);
+						KeyingSet *ks= ANIM_builtin_keyingset_get_named(NULL, "Rotation");
+						modify_keyframes(scene, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 					}
 					if (fly->speed) {
-						insertkey(&v3d->camera->id, ID_OB, actname, NULL, OB_LOC_X, 0);
-						insertkey(&v3d->camera->id, ID_OB, actname, NULL, OB_LOC_Y, 0);
-						insertkey(&v3d->camera->id, ID_OB, actname, NULL, OB_LOC_Z, 0);
+						KeyingSet *ks= ANIM_builtin_keyingset_get_named(NULL, "Location");
+						modify_keyframes(scene, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 					}
 				}
-#endif
 			}
-//XXX2.5			scrarea_do_windraw(curarea);
-//XXX2.5			screen_swapbuffers();
 		} else
 			/*were not redrawing but we need to update the time else the view will jump */
 			fly->time_lastdraw= PIL_check_seconds_timer();
@@ -2591,7 +2595,7 @@ void VIEW3D_OT_fly(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Fly Navigation";
-	ot->description= "Interactively fly around the scene.";
+	ot->description= "Interactively fly around the scene";
 	ot->idname= "VIEW3D_OT_fly";
 
 	/* api callbacks */

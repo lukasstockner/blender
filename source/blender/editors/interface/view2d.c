@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -62,7 +62,12 @@
 
 /* *********************************************************************** */
 
-/* helper to allow scrollbars to dynamically hide */
+/* helper to allow scrollbars to dynamically hide
+ * 	- returns a copy of the scrollbar settings with the flags to display 
+ *	  horizontal/vertical scrollbars removed
+ *	- input scroll value is the v2d->scroll var
+ *	- hide flags are set per region at drawtime
+ */
 static int view2d_scroll_mapped(int scroll)
 {
 	if(scroll & V2D_SCROLL_HORIZONTAL_HIDE)
@@ -270,7 +275,9 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 				v2d->keeptot= V2D_KEEPTOT_BOUNDS;
 				
 				v2d->scroll |= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM);
-				
+				v2d->scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
+				v2d->scroll &= ~V2D_SCROLL_VERTICAL_HIDE;
+
 				v2d->tot.xmin= 0.0f;
 				v2d->tot.xmax= winx;
 				
@@ -990,7 +997,7 @@ void UI_view2d_view_ortho(const bContext *C, View2D *v2d)
 	wmOrtho2(curmasked.xmin-xofs, curmasked.xmax-xofs, curmasked.ymin-yofs, curmasked.ymax-yofs);
 	
 	/* XXX is this necessary? */
-	wmLoadIdentity();
+	glLoadIdentity();
 }
 
 /* Set view matrices to only use one axis of 'cur' only
@@ -1019,7 +1026,7 @@ void UI_view2d_view_orthoSpecial(const bContext *C, View2D *v2d, short xaxis)
 		wmOrtho2(-xofs, ar->winx-xofs, curmasked.ymin-yofs, curmasked.ymax-yofs);
 		
 	/* XXX is this necessary? */
-	wmLoadIdentity();
+	glLoadIdentity();
 } 
 
 
@@ -1031,7 +1038,7 @@ void UI_view2d_view_restore(const bContext *C)
 	int height= ar->winrct.ymax-ar->winrct.ymin+1;
 	
 	wmOrtho2(0.0f, (float)width, 0.0f, (float)height);
-	wmLoadIdentity();
+	glLoadIdentity();
 	
 	//	ED_region_pixelspace(CTX_wm_region(C));
 }
@@ -1411,10 +1418,14 @@ View2DScrollers *UI_view2d_scrollers_calc(const bContext *C, View2D *v2d, short 
 			CLAMP(scrollers->hor_min, hor.xmin, hor.xmax-V2D_SCROLLER_HANDLE_SIZE);
 		}
 		
-		/* check whether sliders can disappear */
+		/* check whether sliders can disappear due to the full-range being used */
 		if(v2d->keeptot) {
-			if(fac1 <= 0.0f && fac2 >= 1.0f) 
+			if ((fac1 <= 0.0f) && (fac2 >= 1.0f)) { 
+				v2d->scroll |= V2D_SCROLL_HORIZONTAL_FULLR;
 				scrollers->horfull= 1;
+			}
+			else	
+				v2d->scroll &= ~V2D_SCROLL_HORIZONTAL_FULLR;
 		}
 	}
 	
@@ -1448,10 +1459,14 @@ View2DScrollers *UI_view2d_scrollers_calc(const bContext *C, View2D *v2d, short 
 			CLAMP(scrollers->vert_min, vert.ymin, vert.ymax-V2D_SCROLLER_HANDLE_SIZE);
 		}
 
-		/* check whether sliders can disappear */
+		/* check whether sliders can disappear due to the full-range being used */
 		if(v2d->keeptot) {
-			if(fac1 <= 0.0f && fac2 >= 1.0f) 
+			if ((fac1 <= 0.0f) && (fac2 >= 1.0f)) { 
+				v2d->scroll |= V2D_SCROLL_VERTICAL_FULLR;
 				scrollers->vertfull= 1;
+			}
+			else	
+				v2d->scroll &= ~V2D_SCROLL_VERTICAL_FULLR;
 		}
 	}
 	
@@ -2027,7 +2042,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 {
 	View2DString *v2s;
 	
-	//	wmPushMatrix();
+	// glMatrixMode(GL_PROJECTION);
+	// glPushMatrix();
+	// glMatrixMode(GL_MODELVIEW);
+	// glPushMatrix();
 	ED_region_pixelspace(ar);
 	
 	for(v2s= strings.first; v2s; v2s= v2s->next) {
@@ -2049,7 +2067,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 		}
 	}
 	
-	//	wmPopMatrix();
+	// glMatrixMode(GL_PROJECTION);
+	// glPopMatrix();
+	// glMatrixMode(GL_MODELVIEW);
+	// glPopMatrix();
 	
 	if(strings.first) 
 		BLI_freelistN(&strings);

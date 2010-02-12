@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -168,6 +168,7 @@ class RENDER_PT_layers(RenderButtonsPanel):
         row.prop(rl, "pass_refraction")
         row.prop(rl, "pass_refraction_exclude", text="", icon='X')
 
+
 class RENDER_PT_shading(RenderButtonsPanel):
     bl_label = "Shading"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
@@ -221,8 +222,8 @@ class RENDER_PT_performance(RenderButtonsPanel):
             col = split.column()
         col.label(text="Memory:")
         sub = col.column()
+        sub.enabled = not (rd.use_border or rd.full_sample) 
         sub.prop(rd, "save_buffers")
-        sub.enabled = not rd.full_sample
         sub = col.column()
         sub.active = rd.use_compositing
         sub.prop(rd, "free_image_textures")
@@ -415,11 +416,11 @@ class RENDER_PT_encoding(RenderButtonsPanel):
         col.prop(rd, "ffmpeg_packetsize", text="Packet Size")
 
         # Audio:
-        layout.prop(rd, "ffmpeg_multiplex_audio", text="Audio")
-
         sub = layout.column()
-        sub.active = rd.ffmpeg_multiplex_audio
-        sub.prop(rd, "ffmpeg_audio_codec", text="Codec")
+
+        if rd.ffmpeg_format not in ('MP3'):
+          sub.prop(rd, "ffmpeg_audio_codec", text="Audio Codec")
+
         sub.separator()
 
         split = sub.split()
@@ -453,13 +454,34 @@ class RENDER_PT_antialiasing(RenderButtonsPanel):
 
         col = split.column()
         col.row().prop(rd, "antialiasing_samples", expand=True)
-        col.prop(rd, "full_sample")
+        sub = col.row() 
+        sub.enabled = not rd.use_border
+        sub.prop(rd, "full_sample")
 
         if wide_ui:
             col = split.column()
         col.prop(rd, "pixel_filter", text="")
         col.prop(rd, "filter_size", text="Size")
+        
 
+class RENDER_PT_motion_blur(RenderButtonsPanel):
+    bl_label = "Full Sample Motion Blur"
+    bl_default_closed = True
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw_header(self, context):
+        rd = context.scene.render_data
+
+        self.layout.prop(rd, "motion_blur", text="")
+
+    def draw(self, context):
+        layout = self.layout
+
+        rd = context.scene.render_data
+        layout.active = rd.motion_blur
+
+        row = layout.row()
+        row.prop(rd, "motion_blur_samples")
 
 class RENDER_PT_dimensions(RenderButtonsPanel):
     bl_label = "Dimensions"
@@ -567,12 +589,12 @@ class RENDER_PT_bake(RenderButtonsPanel):
         wide_ui = context.region.width > narrowui
 
         layout.operator("object.bake_image", icon='RENDER_STILL')
-        
+
         if wide_ui:
             layout.prop(rd, "bake_type")
         else:
             layout.prop(rd, "bake_type", text="")
-        
+
         if rd.bake_type == 'NORMALS':
             if wide_ui:
                 layout.prop(rd, "bake_normal_space")
@@ -580,19 +602,19 @@ class RENDER_PT_bake(RenderButtonsPanel):
                 layout.prop(rd, "bake_normal_space", text="")
         elif rd.bake_type in ('DISPLACEMENT', 'AO'):
             layout.prop(rd, "bake_normalized")
-        
+
         # col.prop(rd, "bake_aa_mode")
         # col.prop(rd, "bake_enable_aa")
-        
+
         layout.separator()
-        
+
         split = layout.split()
 
         col = split.column()
         col.prop(rd, "bake_clear")
         col.prop(rd, "bake_margin")
         col.prop(rd, "bake_quad_split", text="Split")
-        
+
         if wide_ui:
             col = split.column()
         col.prop(rd, "bake_active")
@@ -601,12 +623,13 @@ class RENDER_PT_bake(RenderButtonsPanel):
         sub.prop(rd, "bake_distance")
         sub.prop(rd, "bake_bias")
 
-        
+
 bpy.types.register(RENDER_MT_presets)
 bpy.types.register(RENDER_PT_render)
 bpy.types.register(RENDER_PT_layers)
 bpy.types.register(RENDER_PT_dimensions)
 bpy.types.register(RENDER_PT_antialiasing)
+bpy.types.register(RENDER_PT_motion_blur)
 bpy.types.register(RENDER_PT_shading)
 bpy.types.register(RENDER_PT_output)
 bpy.types.register(RENDER_PT_encoding)

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -487,7 +487,7 @@ LinkNode *BLI_read_file_as_lines(char *name)
 	size= ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 
-	buf= malloc(size);
+	buf= MEM_mallocN(size, "file_as_lines");
 	if (buf) {
 		int i, last= 0;
 		
@@ -506,7 +506,7 @@ LinkNode *BLI_read_file_as_lines(char *name)
 			}
 		}
 		
-		free(buf);
+		MEM_freeN(buf);
 	}
 	
 	fclose(fp);

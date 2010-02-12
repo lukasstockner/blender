@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -77,13 +77,13 @@ typedef struct BGpic {
 
 typedef struct RegionView3D {
 	
-	float winmat[4][4];
-	float viewmat[4][4];
-	float viewinv[4][4];
-	float persmat[4][4];
-	float persinv[4][4];
+	float winmat[4][4];			/* GL_PROJECTION matrix */
+	float viewmat[4][4];		/* GL_MODELVIEW matrix */
+	float viewinv[4][4];		/* inverse of viewmat */
+	float persmat[4][4];		/* viewmat*winmat */
+	float persinv[4][4];		/* inverse of persmat */
 
-	/* local viewmat/persmat, multiplied with object matrix, while drawing */
+	/* viewmat/persmat multiplied with object matrix, while drawing and selection */
 	float viewmatob[4][4];
 	float persmatob[4][4];
 

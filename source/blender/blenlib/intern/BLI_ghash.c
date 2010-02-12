@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -60,7 +60,7 @@ GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp) {
 	GHash *gh= MEM_mallocN(sizeof(*gh), "GHash");
 	gh->hashfp= hashfp;
 	gh->cmpfp= cmpfp;
-	gh->entrypool = BLI_mempool_create(sizeof(Entry), 1024, 1024, 0);
+	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
 
 	gh->cursize= 0;
 	gh->nentries= 0;

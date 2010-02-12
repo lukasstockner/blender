@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -97,8 +97,8 @@ int BLI_has_parent(char *path);
 	 * @retval Returns true if the path was relative (started with "//").
 	 */
 int BLI_convertstringcode(char *path, const char *basepath);
-int BLI_convertstringframe(char *path, int frame);
-int BLI_convertstringframe_range(char *path, int sta, int end);
+int BLI_convertstringframe(char *path, int frame, int digits);
+int BLI_convertstringframe_range(char *path, int sta, int end, int digits);
 int BLI_convertstringcwd(char *path);
 
 void BLI_makestringcode(const char *relfile, char *file);

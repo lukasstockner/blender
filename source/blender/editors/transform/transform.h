@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -325,6 +325,7 @@ typedef struct TransInfo {
 	struct wmTimer *animtimer;
     short       mval[2];        /* current mouse position               */
     struct Object   *obedit;
+    void		*draw_handle_apply;
     void		*draw_handle_view;
     void		*draw_handle_pixel;
     void		*draw_handle_cursor;
@@ -348,6 +349,12 @@ typedef struct TransInfo {
 #define TRANS_RUNNING	1
 #define TRANS_CONFIRM	2
 #define TRANS_CANCEL	3
+
+/* transinfo->redraw */
+#define TREDRAW_NOTHING  	0
+#define TREDRAW_HARD		1
+#define TREDRAW_SOFT		2
+
 
 /* transinfo->flag */
 #define T_OBJECT		(1 << 0)
@@ -440,7 +447,7 @@ void TRANSFORM_OT_transform(struct wmOperatorType *ot);
 int initTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op, struct wmEvent *event, int mode);
 void saveTransform(struct bContext *C, struct TransInfo *t, struct wmOperator *op);
 int  transformEvent(TransInfo *t, struct wmEvent *event);
-void transformApply(struct bContext *C, TransInfo *t);
+void transformApply(const struct bContext *C, TransInfo *t);
 int  transformEnd(struct bContext *C, TransInfo *t);
 
 void setTransformViewMatrices(TransInfo *t);

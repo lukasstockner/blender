@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation.
  * All rights reserved.
@@ -503,7 +503,7 @@ void MESH_OT_remove_doubles(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Remove Doubles";
-	ot->description= "Remove duplicate vertices.";
+	ot->description= "Remove duplicate vertices";
 	ot->idname= "MESH_OT_remove_doubles";
 
 	/* api callbacks */
@@ -623,46 +623,16 @@ void hashvert_flag(EditMesh *em, int flag)
 }
 
 /* generic extern called extruder */
-void extrude_mesh(Scene *scene, Object *obedit, EditMesh *em, wmOperator *op)
+void extrude_mesh(Scene *scene, Object *obedit, EditMesh *em, wmOperator *op, short type)
 {
 	float nor[3]= {0.0, 0.0, 0.0};
-	short nr, transmode= 0;
+	short transmode= 0;
 
-	/* extrude depends on totvertsel etc */
-	EM_stats_update(em);
-	
-	if(em->selectmode & SCE_SELECT_VERTEX) {
-		if(em->totvertsel==0) nr= 0;
-		else if(em->totvertsel==1) nr= 4;
-		else if(em->totedgesel==0) nr= 4;
-		else if(em->totfacesel==0)
-			nr= 3; // pupmenu("Extrude %t|Only Edges%x3|Only Vertices%x4");
-		else if(em->totfacesel==1)
-			nr= 1; // pupmenu("Extrude %t|Region %x1|Only Edges%x3|Only Vertices%x4");
-		else
-			nr= 1; // pupmenu("Extrude %t|Region %x1||Individual Faces %x2|Only Edges%x3|Only Vertices%x4");
-	}
-	else if(em->selectmode & SCE_SELECT_EDGE) {
-		if (em->totedgesel==0) nr = 0;
-		else if (em->totedgesel==1) nr = 3;
-		else if(em->totfacesel==0) nr = 3;
-		else if(em->totfacesel==1)
-			nr= 1; // pupmenu("Extrude %t|Region %x1|Only Edges%x3");
-		else
-			nr= 1; // pupmenu("Extrude %t|Region %x1||Individual Faces %x2|Only Edges%x3");
-	}
-	else {
-		if (em->totfacesel == 0) nr = 0;
-		else if (em->totfacesel == 1) nr = 1;
-		else
-			nr= 1; // pupmenu("Extrude %t|Region %x1||Individual Faces %x2");
-	}
+	if(type<1) return;
 
-	if(nr<1) return;
-
-	if(nr==1)  transmode= extrudeflag(obedit, em, SELECT, nor, 0);
-	else if(nr==4) transmode= extrudeflag_verts_indiv(em, SELECT, nor);
-	else if(nr==3) transmode= extrudeflag_edges_indiv(em, SELECT, nor);
+	if(type==1)  transmode= extrudeflag(obedit, em, SELECT, nor, 0);
+	else if(type==4) transmode= extrudeflag_verts_indiv(em, SELECT, nor);
+	else if(type==3) transmode= extrudeflag_edges_indiv(em, SELECT, nor);
 	else transmode= extrudeflag_face_indiv(em, SELECT, nor);
 
 	if(transmode==0) {
@@ -682,7 +652,7 @@ void extrude_mesh(Scene *scene, Object *obedit, EditMesh *em, wmOperator *op)
 
 		/* individual faces? */
 //		BIF_TransformSetUndo("Extrude");
-		if(nr==2) {
+		if(type==2) {
 //			initTransform(TFM_SHRINKFATTEN, CTX_NO_PET|CTX_NO_MIRROR);
 //			Transform();
 		}
@@ -706,7 +676,7 @@ static int mesh_extrude_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh *)obedit->data);
 	
-	extrude_mesh(scene, obedit, em, op);
+	extrude_mesh(scene, obedit, em, op, RNA_int_get(op->ptr, "type"));
 
 	BKE_mesh_end_editmesh(obedit->data, em);
 
@@ -723,7 +693,7 @@ static int mesh_extrude_exec(bContext *C, wmOperator *op)
 	Object *obedit= CTX_data_edit_object(C);
 	EditMesh *em= BKE_mesh_get_editmesh(obedit->data);
 
-	extrude_mesh(scene, obedit, em, op);
+	extrude_mesh(scene, obedit, em, op, RNA_int_get(op->ptr, "type"));
 
 	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
@@ -732,12 +702,89 @@ static int mesh_extrude_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+EnumPropertyItem extrude_items[] = {
+		{1, "REGION", 0, "Region", ""},
+		{2, "FACES", 0, "Individual Faces", ""},
+		{3, "EDGES", 0, "Only Edges", ""},
+		{4, "VERTS", 0, "Only Vertices", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+
+static EnumPropertyItem *extrude_itemf(bContext *C, PointerRNA *ptr, int *free)
+{
+	EnumPropertyItem *item= NULL;
+	Object *obedit= CTX_data_edit_object(C);
+	EditMesh *em;
+
+	int totitem= 0;
+
+	if(!obedit)
+		return extrude_items;
+
+	em = BKE_mesh_get_editmesh(obedit->data);
+
+	EM_stats_update(em);
+
+	if(em->selectmode & SCE_SELECT_VERTEX) {
+		if(em->totvertsel==0) {}
+		else if(em->totvertsel==1) { RNA_enum_item_add(&item, &totitem, &extrude_items[3]); }
+		else if(em->totedgesel==0) { RNA_enum_item_add(&item, &totitem, &extrude_items[3]); }
+		else if(em->totfacesel==0) {
+			RNA_enum_item_add(&item, &totitem, &extrude_items[2]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[3]);
+		}
+		else if(em->totfacesel==1) {
+			RNA_enum_item_add(&item, &totitem, &extrude_items[0]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[2]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[3]);
+		}
+		else {
+			RNA_enum_item_add(&item, &totitem, &extrude_items[0]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[1]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[2]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[3]);
+		}
+	}
+	else if(em->selectmode & SCE_SELECT_EDGE) {
+		if (em->totedgesel==0) {}
+		else if (em->totedgesel==1) { RNA_enum_item_add(&item, &totitem, &extrude_items[2]); }
+		else if(em->totfacesel==0) { RNA_enum_item_add(&item, &totitem, &extrude_items[2]); }
+		else if(em->totfacesel==1) {
+			RNA_enum_item_add(&item, &totitem, &extrude_items[0]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[2]);
+		}
+		else {
+			RNA_enum_item_add(&item, &totitem, &extrude_items[0]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[1]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[2]);
+		}
+	}
+	else {
+		if (em->totfacesel == 0) {}
+		else if (em->totfacesel == 1) { RNA_enum_item_add(&item, &totitem, &extrude_items[0]); }
+		else {
+			RNA_enum_item_add(&item, &totitem, &extrude_items[0]);
+			RNA_enum_item_add(&item, &totitem, &extrude_items[1]);
+		}
+	}
+
+	if(item) {
+		RNA_enum_item_end(&item, &totitem);
+		*free= 1;
+		return item;
+	}
+	else {
+		return NULL;
+	}
+}
 
 void MESH_OT_extrude(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name= "Extrude";
-	ot->description= "Extrude selected vertices, edges or faces.";
+	ot->description= "Extrude selected vertices, edges or faces";
 	ot->idname= "MESH_OT_extrude";
 
 	/* api callbacks */
@@ -747,6 +794,11 @@ void MESH_OT_extrude(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	/* properties */
+	prop= RNA_def_enum(ot->srna, "type", extrude_items, 0, "Type", "");
+	RNA_def_enum_funcs(prop, extrude_itemf);
+	ot->prop= prop;
 }
 
 static int split_mesh(bContext *C, wmOperator *op)
@@ -775,7 +827,7 @@ void MESH_OT_split(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Split";
-	ot->description= "Split selected geometry into separate disconnected mesh.";
+	ot->description= "Split selected geometry into separate disconnected mesh";
 	ot->idname= "MESH_OT_split";
 
 	/* api callbacks */
@@ -835,7 +887,7 @@ void MESH_OT_extrude_repeat(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Extrude Repeat Mesh";
-	ot->description= "Extrude selected vertices, edges or faces repeatedly.";
+	ot->description= "Extrude selected vertices, edges or faces repeatedly";
 	ot->idname= "MESH_OT_extrude_repeat";
 
 	/* api callbacks */
@@ -969,7 +1021,7 @@ void MESH_OT_spin(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Spin";
-	ot->description= "Extrude selected vertices in a circle around the cursor in indicated viewport.";
+	ot->description= "Extrude selected vertices in a circle around the cursor in indicated viewport";
 	ot->idname= "MESH_OT_spin";
 
 	/* api callbacks */
@@ -1077,7 +1129,7 @@ void MESH_OT_screw(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Screw";
-	ot->description= "Extrude selected vertices in screw-shaped rotation around the cursor in indicated viewport.";
+	ot->description= "Extrude selected vertices in screw-shaped rotation around the cursor in indicated viewport";
 	ot->idname= "MESH_OT_screw";
 
 	/* api callbacks */
@@ -1313,7 +1365,7 @@ void MESH_OT_delete(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Delete";
-	ot->description= "Delete selected vertices, edges or faces.";
+	ot->description= "Delete selected vertices, edges or faces";
 	ot->idname= "MESH_OT_delete";
 
 	/* api callbacks */
@@ -3757,7 +3809,7 @@ void MESH_OT_edge_rotate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Rotate Selected Edge";
-	ot->description= "Rotate selected edge or adjoining faces.";
+	ot->description= "Rotate selected edge or adjoining faces";
 	ot->idname= "MESH_OT_edge_rotate";
 
 	/* api callbacks */
@@ -4994,7 +5046,7 @@ void MESH_OT_rip(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Rip";
-	ot->description= "Rip selection from mesh (quads only).";
+	ot->description= "Rip selection from mesh (quads only)";
 	ot->idname= "MESH_OT_rip";
 
 	/* api callbacks */
@@ -5075,7 +5127,7 @@ void MESH_OT_shape_propagate_to_all(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shape Propagate";
-	ot->description= "Apply selected vertex locations to all other shape keys.";
+	ot->description= "Apply selected vertex locations to all other shape keys";
 	ot->idname= "MESH_OT_shape_propagate_to_all";
 
 	/* api callbacks */
@@ -5170,7 +5222,7 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Blend From Shape";
-	ot->description= "Blend in shape from a shape key.";
+	ot->description= "Blend in shape from a shape key";
 	ot->idname= "MESH_OT_blend_from_shape";
 
 	/* api callbacks */
@@ -5871,7 +5923,7 @@ void MESH_OT_merge(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Merge";
-	ot->description= "Merge selected vertices.";
+	ot->description= "Merge selected vertices";
 	ot->idname= "MESH_OT_merge";
 
 	/* api callbacks */
@@ -6075,7 +6127,7 @@ void MESH_OT_select_vertex_path(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Select Vertex Path";
-	ot->description= "Select shortest path between two vertices by distance type.";
+	ot->description= "Select shortest path between two vertices by distance type";
 	ot->idname= "MESH_OT_select_vertex_path";
 
 	/* api callbacks */
@@ -6137,7 +6189,7 @@ void MESH_OT_region_to_loop(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Region to Loop";
-	ot->description= "Select a region as a loop of connected edges.";
+	ot->description= "Select a region as a loop of connected edges";
 	ot->idname= "MESH_OT_region_to_loop";
 
 	/* api callbacks */
@@ -6313,7 +6365,7 @@ void MESH_OT_loop_to_region(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Loop to Region";
-	ot->description= "Select a loop of connected edges as a region.";
+	ot->description= "Select a loop of connected edges as a region";
 	ot->idname= "MESH_OT_loop_to_region";
 
 	/* api callbacks */
@@ -6608,7 +6660,7 @@ void MESH_OT_uvs_rotate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Rotate UVs";
-	ot->description= "Rotate selected UVs.";
+	ot->description= "Rotate selected UVs";
 	ot->idname= "MESH_OT_uvs_rotate";
 
 	/* api callbacks */
@@ -6626,7 +6678,7 @@ void MESH_OT_uvs_mirror(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Mirror UVs";
-	ot->description= "Mirror selected UVs.";
+	ot->description= "Mirror selected UVs";
 	ot->idname= "MESH_OT_uvs_mirror";
 
 	/* api callbacks */
@@ -6644,7 +6696,7 @@ void MESH_OT_colors_rotate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Rotate Colors";
-	ot->description= "Rotate UV/image color layer.";
+	ot->description= "Rotate UV/image color layer";
 	ot->idname= "MESH_OT_colors_rotate";
 
 	/* api callbacks */
@@ -6662,7 +6714,7 @@ void MESH_OT_colors_mirror(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Mirror Colors";
-	ot->description= "Mirror UV/image color layer.";
+	ot->description= "Mirror UV/image color layer";
 	ot->idname= "MESH_OT_colors_mirror";
 
 	/* api callbacks */
@@ -6705,7 +6757,7 @@ void MESH_OT_subdivide(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Subdivide";
-	ot->description= "Subdivide selected edges.";
+	ot->description= "Subdivide selected edges";
 	ot->idname= "MESH_OT_subdivide";
 
 	/* api callbacks */
@@ -6987,7 +7039,7 @@ void MESH_OT_fill(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Fill";
-	ot->description= "Create a segment, edge or face.";
+	ot->description= "Create a segment, edge or face";
 	ot->idname= "MESH_OT_fill";
 
 	/* api callbacks */
@@ -7017,7 +7069,7 @@ void MESH_OT_beautify_fill(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Beautify Fill";
-	ot->description= "Rearrange geometry on a selected surface to avoid skinny faces.";
+	ot->description= "Rearrange geometry on a selected surface to avoid skinny faces";
 	ot->idname= "MESH_OT_beautify_fill";
 
 	/* api callbacks */
@@ -7048,7 +7100,7 @@ void MESH_OT_quads_convert_to_tris(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Quads to Tris";
-	ot->description= "Convert selected quads to triangles.";
+	ot->description= "Convert selected quads to triangles";
 	ot->idname= "MESH_OT_quads_convert_to_tris";
 
 	/* api callbacks */
@@ -7077,7 +7129,7 @@ void MESH_OT_tris_convert_to_quads(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Tris to Quads";
-	ot->description= "Convert selected triangles to quads.";
+	ot->description= "Convert selected triangles to quads";
 	ot->idname= "MESH_OT_tris_convert_to_quads";
 
 	/* api callbacks */
@@ -7106,7 +7158,7 @@ void MESH_OT_edge_flip(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Edge Flip";
-	ot->description= "Flip selected edge or adjoining faces.";
+	ot->description= "Flip selected edge or adjoining faces";
 	ot->idname= "MESH_OT_edge_flip";
 
 	/* api callbacks */
@@ -7152,7 +7204,7 @@ void MESH_OT_faces_shade_smooth(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shade Smooth";
-	ot->description= "Display faces 'smooth' (using vertex normals).";
+	ot->description= "Display faces 'smooth' (using vertex normals)";
 	ot->idname= "MESH_OT_faces_shade_smooth";
 
 	/* api callbacks */
@@ -7180,7 +7232,7 @@ void MESH_OT_faces_shade_flat(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Shade Flat";
-	ot->description= "Display faces 'flat'.";
+	ot->description= "Display faces 'flat'";
 	ot->idname= "MESH_OT_faces_shade_flat";
 
 	/* api callbacks */
@@ -7257,7 +7309,7 @@ void MESH_OT_select_axis(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Select Axis";
-	ot->description= "Select all data in the mesh on a single axis.";
+	ot->description= "Select all data in the mesh on a single axis";
 	ot->idname= "MESH_OT_select_axis";
 
 	/* api callbacks */

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
@@ -801,7 +801,7 @@ static void filelist_read_dir(struct FileList* filelist)
 	BLI_hide_dot_files(filelist->hide_dot);
 	filelist->numfiles = BLI_getdir(filelist->dir, &(filelist->filelist));
 
-	chdir(wdir);
+	if(!chdir(wdir)) /* fix warning about not checking return value */;
 	filelist_setfiletypes(filelist, G.have_quicktime);
 	filelist_filter(filelist);
 

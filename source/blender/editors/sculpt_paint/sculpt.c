@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software  Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 by Nicholas Bishop
  * All rights reserved.
@@ -152,8 +152,6 @@ typedef struct StrokeCache {
 	float (*face_norms)[3]; /* Copy of the mesh faces' normals */
 	float rotation; /* Texture rotation (radians) for anchored and rake modes */
 	int pixel_radius, previous_pixel_radius;
-	PBVHNode **grab_active_nodes[8]; /* The same list of nodes is used throught grab stroke */
-	int grab_active_totnode[8];
 	float grab_active_location[8][3];
 	float grab_delta[3], grab_delta_symmetry[3];
 	float old_grab_location[3], orig_grab_location[3];
@@ -689,8 +687,7 @@ typedef struct {
 	Sculpt *sd;
 	SculptSession *ss;
 	float radius_squared;
-	ListBase *active_verts;
-	float area_normal[3];
+	int original;
 } SculptSearchSphereData;
 
 /* Test AABB against sphere */
@@ -701,7 +698,10 @@ static int sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
 	float t[3], bb_min[3], bb_max[3];
 	int i;
 
-	BLI_pbvh_node_get_BB(node, bb_min, bb_max);
+	if(data->original)
+		BLI_pbvh_node_get_original_BB(node, bb_min, bb_max);
+	else
+		BLI_pbvh_node_get_BB(node, bb_min, bb_max);
 
 	for(i = 0; i < 3; ++i) {
 		if(bb_min[i] > center[i])
@@ -1276,7 +1276,7 @@ static void do_flatten_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **node
 	Brush *brush = paint_brush(&sd->paint);
 	float bstrength= ss->cache->bstrength;
 	float area_normal[3];
-	float cntr[3], cntr2[3], bstr = 0;
+	float cntr[3], cntr2[3] = {0}, bstr = 0;
 	int n, flip = 0;
 
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
@@ -1351,21 +1351,14 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 	/* Build a list of all nodes that are potentially within the brush's
 	   area of influence */
 	if(brush->sculpt_tool == SCULPT_TOOL_GRAB) {
-		if(cache->first_time) {
-			/* For the grab tool we store these nodes once in the beginning
-			   and then reuse them. */
-			BLI_pbvh_search_gather(ss->tree, sculpt_search_sphere_cb, &data,
+		data.original= 1;
+		BLI_pbvh_search_gather(ss->tree, sculpt_search_sphere_cb, &data,
 				&nodes, &totnode);
-			
-			ss->cache->grab_active_nodes[ss->cache->symmetry]= nodes;
-			ss->cache->grab_active_totnode[ss->cache->symmetry]= totnode;
+
+		if(cache->first_time)
 			copy_v3_v3(ss->cache->grab_active_location[ss->cache->symmetry], ss->cache->location);
-		}
-		else {
-			nodes= ss->cache->grab_active_nodes[ss->cache->symmetry];
-			totnode= ss->cache->grab_active_totnode[ss->cache->symmetry];
+		else
 			copy_v3_v3(ss->cache->location, ss->cache->grab_active_location[ss->cache->symmetry]);
-		}
 	}
 	else {
 		BLI_pbvh_search_gather(ss->tree, sculpt_search_sphere_cb, &data,
@@ -1405,7 +1398,7 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 		/* copy the modified vertices from mesh to the active key */
 		if(ss->kb) mesh_to_key(ss->ob->data, ss->kb);
 		
-		if((brush->sculpt_tool != SCULPT_TOOL_GRAB) && nodes)
+		if(nodes)
 			MEM_freeN(nodes);
 	}	
 }
@@ -1651,15 +1644,10 @@ static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3]
 
 static void sculpt_cache_free(StrokeCache *cache)
 {
-	int i;
 	if(cache->face_norms)
 		MEM_freeN(cache->face_norms);
 	if(cache->mats)
 		MEM_freeN(cache->mats);
-	for(i = 0; i < 8; ++i) {
-		if(cache->grab_active_nodes[i])
-			MEM_freeN(cache->grab_active_nodes[i]);
-	}
 	MEM_freeN(cache);
 }
 
@@ -2078,6 +2066,11 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *stroke)
 		if(ss->refkb) sculpt_key_to_mesh(ss->refkb, ob);
 
 		ss->partial_redraw = 0;
+		
+		/* try to avoid calling this, only for e.g. linked duplicates now */
+		if(((Mesh*)ob->data)->id.us > 1)
+			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+
 		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}
 }

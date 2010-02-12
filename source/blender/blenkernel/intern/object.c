@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -579,6 +579,7 @@ void unlink_object(Scene *scene, Object *ob)
 		if(sce->id.lib==NULL) {
 			if(sce->camera==ob) sce->camera= NULL;
 			if(sce->toolsettings->skgen_template==ob) sce->toolsettings->skgen_template = NULL;
+			if(sce->toolsettings->particle.object==ob) sce->toolsettings->particle.object= NULL;
 
 #ifdef DURIAN_CAMERA_SWITCH
 			{
@@ -1145,8 +1146,8 @@ ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	}
 
 	if(psys->clmd) {
-		ClothModifierData *nclmd = (ClothModifierData *)modifier_new(eModifierType_Cloth);
-		modifier_copyData((ModifierData*)psys->clmd, (ModifierData*)nclmd);
+		psysn->clmd = (ClothModifierData *)modifier_new(eModifierType_Cloth);
+		modifier_copyData((ModifierData*)psys->clmd, (ModifierData*)psysn->clmd);
 		psys->hair_in_dm = psys->hair_out_dm = NULL;
 	}
 
@@ -1163,6 +1164,12 @@ ParticleSystem *copy_particlesystem(ParticleSystem *psys)
 	psysn->renderdata = NULL;
 	
 	psysn->pointcache= BKE_ptcache_copy_list(&psysn->ptcaches, &psys->ptcaches);
+
+	/* XXX - from reading existing code this seems correct but intended usage of
+	 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
+	if(psysn->clmd) {
+		psysn->clmd->point_cache= psysn->pointcache;
+	}
 
 	id_us_plus((ID *)psysn->part);
 
@@ -1980,7 +1987,7 @@ void set_no_parent_ipo(int val)
 void where_is_object_time(Scene *scene, Object *ob, float ctime)
 {
 	float *fp1, *fp2, slowmat[4][4] = MAT4_UNITY;
-	float stime=ctime, fac1, fac2, vec[3];
+	float stime=ctime, fac1, fac2;
 	int a;
 	
 	/* new version: correct parent+vertexparent and track+parent */
@@ -2050,9 +2057,8 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 	}
 	
 	/* set negative scale flag in object */
-	cross_v3_v3v3(vec, ob->obmat[0], ob->obmat[1]);
-	if( dot_v3v3(vec, ob->obmat[2]) < 0.0 ) ob->transflag |= OB_NEG_SCALE;
-	else ob->transflag &= ~OB_NEG_SCALE;
+	if(is_negative_m4(ob->obmat))	ob->transflag |= OB_NEG_SCALE;
+	else							ob->transflag &= ~OB_NEG_SCALE;
 }
 
 static void solve_parenting (Scene *scene, Object *ob, Object *par, float obmat[][4], float slowmat[][4], int simul)

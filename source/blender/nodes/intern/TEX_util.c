@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
@@ -187,46 +187,5 @@ void ntreeTexExecTree(
 	data.cfra= cfra;
 	
 	ntreeExecTree(nodes, &data, thread);
-}
-
-char* ntreeTexOutputMenu(bNodeTree *ntree)
-{
-	bNode *node;
-	int len = 1;
-	char *str;
-	char ctrl[4];
-	int index = 0;
-	
-	for(node= ntree->nodes.first; node; node= node->next)
-		if(node->type == TEX_NODE_OUTPUT) {
-			len += strlen( 
-				((TexNodeOutput*)node->storage)->name
-			) + strlen(" %xNNN|");
-			index ++;
-			
-			if(node->custom1 > 999) {
-				printf("Error: too many outputs");
-				break;
-			}
-		}
-			
-	str = malloc(len * sizeof(char));
-	*str = 0;
-
-	for(node= ntree->nodes.first; node; node= node->next)
-		if(node->type == TEX_NODE_OUTPUT) {
-			strcat(str, ((TexNodeOutput*)node->storage)->name);
-			strcat(str, " %x");
-			
-			sprintf(ctrl, "%d", node->custom1);
-			strcat(str, ctrl);
-			
-			if(--index)
-				strcat(str, "|");
-			else
-				break;
-		}
-	
-	return str;
 }
 

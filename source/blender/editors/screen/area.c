@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -106,7 +106,7 @@ void ED_region_pixelspace(ARegion *ar)
 	int height= ar->winrct.ymax-ar->winrct.ymin+1;
 	
 	wmOrtho2(-0.375, (float)width-0.375, -0.375, (float)height-0.375);
-	wmLoadIdentity();
+	glLoadIdentity();
 }
 
 /* only exported for WM */
@@ -932,9 +932,8 @@ void ED_region_init(bContext *C, ARegion *ar)
 	ar->winy= ar->winrct.ymax - ar->winrct.ymin + 1;
 	
 	/* UI convention */
-	wmLoadIdentity();
 	wmOrtho2(-0.01f, ar->winx-0.01f, -0.01f, ar->winy-0.01f);
-	
+	glLoadIdentity();
 }
 
 void ED_region_toggle_hidden(bContext *C, ARegion *ar)
@@ -1174,8 +1173,8 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
 	but= uiDefIconTextButC(block, ICONTEXTROW, 0, ICON_VIEW3D, 
 						   editortype_pup(), xco, yco, XIC+10, YIC, 
 						   &(sa->butspacetype), 1.0, SPACEICONMAX, 0, 0, 
-						   "Displays Current Editor Type. "
-						   "Click for menu of available types.");
+						   "Displays current editor type. "
+						   "Click for menu of available types");
 	uiButSetFunc(but, spacefunc, NULL, NULL);
 	
 	return xco + XIC + 14;
@@ -1391,6 +1390,8 @@ void ED_region_panels_init(wmWindowManager *wm, ARegion *ar)
 	// XXX quick hacks for files saved with 2.5 already (i.e. the builtin defaults file)
 		// scrollbars for button regions
 	ar->v2d.scroll |= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM); 
+	ar->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
+	ar->v2d.scroll &= ~V2D_SCROLL_VERTICAL_HIDE;
 	ar->v2d.keepzoom |= V2D_KEEPZOOM;
 
 		// correctly initialised User-Prefs?

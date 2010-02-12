@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -766,7 +766,7 @@ void VIEW3D_OT_rotate(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Rotate view";
-	ot->description = "Rotate the view.";
+	ot->description = "Rotate the view";
 	ot->idname= "VIEW3D_OT_rotate";
 
 	/* api callbacks */
@@ -909,7 +909,7 @@ void VIEW3D_OT_move(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Move view";
-	ot->description = "Move the view.";
+	ot->description = "Move the view";
 	ot->idname= "VIEW3D_OT_move";
 
 	/* api callbacks */
@@ -1076,7 +1076,11 @@ static int viewzoom_modal(bContext *C, wmOperator *op, wmEvent *event)
 	short event_code= VIEW_PASS;
 
 	/* execute the events */
-	if(event->type==MOUSEMOVE) {
+	if (event->type == TIMER && event->customdata == vod->timer) {
+		/* continuous zoom */
+		event_code= VIEW_APPLY;
+	}
+	else if(event->type==MOUSEMOVE) {
 		event_code= VIEW_APPLY;
 	}
 	else if(event->type==EVT_MODAL_MAP) {
@@ -1194,6 +1198,12 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			return OPERATOR_FINISHED;
 		}
 		else {
+			if(U.viewzoom == USER_ZOOM_CONT) {
+				/* needs a timer to continue redrawing */
+				vod->timer= WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.01f);
+				vod->timer_lastdraw= PIL_check_seconds_timer();
+			}
+
 			/* add temp handler */
 			WM_event_add_modal_handler(C, op);
 
@@ -1208,7 +1218,7 @@ void VIEW3D_OT_zoom(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Zoom view";
-	ot->description = "Zoom in/out in the view.";
+	ot->description = "Zoom in/out in the view";
 	ot->idname= "VIEW3D_OT_zoom";
 
 	/* api callbacks */
@@ -1293,6 +1303,8 @@ static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.
 
 	if(rv3d->viewlock & RV3D_BOXVIEW)
 		view3d_boxview_copy(CTX_wm_area(C), ar);
+		
+	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_VIEW3D, v3d);
 
 	return OPERATOR_FINISHED;
 }
@@ -1301,7 +1313,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "View All";
-	ot->description = "View all objects in scene.";
+	ot->description = "View all objects in scene";
 	ot->idname= "VIEW3D_OT_view_all";
 
 	/* api callbacks */
@@ -1323,7 +1335,7 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 	Object *ob= OBACT;
 	Object *obedit= CTX_data_edit_object(C);
 	float size, min[3], max[3], afm[3];
-	int ok=0;
+	int ok=0, ok_dist=1;
 
 	/* SMOOTHVIEW */
 	float new_ofs[3];
@@ -1397,11 +1409,21 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 	afm[1]= (max[1]-min[1]);
 	afm[2]= (max[2]-min[2]);
 	size= MAX3(afm[0], afm[1], afm[2]);
-	/* perspective should be a bit farther away to look nice */
-	if(rv3d->persp==RV3D_ORTHO)
-		size*= 0.7;
 
-	if(size <= v3d->near*1.5f) size= v3d->near*1.5f;
+	if(rv3d->persp==RV3D_ORTHO) {
+		if(size < 0.0001f) { /* if its a sinble point. dont even re-scale */
+			ok_dist= 0;
+		}
+		else {
+			/* perspective should be a bit farther away to look nice */
+			size*= 0.7f;
+		}
+	}
+	else {
+		if(size <= v3d->near*1.5f) {
+			size= v3d->near*1.5f;
+		}
+	}
 
 	new_ofs[0]= -(min[0]+max[0])/2.0f;
 	new_ofs[1]= -(min[1]+max[1])/2.0f;
@@ -1421,7 +1443,7 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 		smooth_view(C, v3d->camera, NULL, new_ofs, NULL, &new_dist, NULL);
 	}
 	else {
-		smooth_view(C, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
+		smooth_view(C, NULL, NULL, new_ofs, NULL, ok_dist ? &new_dist : NULL, NULL);
 	}
 
 // XXX	BIF_view3d_previewrender_signal(curarea, PR_DBASE|PR_DISPRECT);
@@ -1436,7 +1458,7 @@ void VIEW3D_OT_view_selected(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "View Selected";
-	ot->description = "Move the view to the selection center.";
+	ot->description = "Move the view to the selection center";
 	ot->idname= "VIEW3D_OT_view_selected";
 
 	/* api callbacks */
@@ -1481,7 +1503,7 @@ void VIEW3D_OT_view_center_cursor(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Center View to Cursor";
-	ot->description= "Centers the view so that the cursor is in the middle of the view.";
+	ot->description= "Centers the view so that the cursor is in the middle of the view";
 	ot->idname= "VIEW3D_OT_view_center_cursor";
 	
 	/* api callbacks */
@@ -1554,7 +1576,7 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Set Render Border";
-	ot->description = "Set the boundries of the border render and enables border render .";
+	ot->description = "Set the boundries of the border render and enables border render ";
 	ot->idname= "VIEW3D_OT_render_border";
 
 	/* api callbacks */
@@ -1728,7 +1750,7 @@ void VIEW3D_OT_zoom_border(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Border Zoom";
-	ot->description = "Zoom in the view to the nearest object contained in the border.";
+	ot->description = "Zoom in the view to the nearest object contained in the border";
 	ot->idname= "VIEW3D_OT_zoom_border";
 
 	/* api callbacks */
@@ -1936,7 +1958,7 @@ void VIEW3D_OT_viewnumpad(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "View numpad";
-	ot->description = "Set the view.";
+	ot->description = "Set the view";
 	ot->idname= "VIEW3D_OT_viewnumpad";
 
 	/* api callbacks */
@@ -2006,7 +2028,7 @@ void VIEW3D_OT_view_orbit(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "View Orbit";
-	ot->description = "Orbit the view.";
+	ot->description = "Orbit the view";
 	ot->idname= "VIEW3D_OT_view_orbit";
 
 	/* api callbacks */
@@ -2056,7 +2078,7 @@ void VIEW3D_OT_view_pan(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "View Pan";
-	ot->description = "Pan the view.";
+	ot->description = "Pan the view";
 	ot->idname= "VIEW3D_OT_view_pan";
 
 	/* api callbacks */
@@ -2088,7 +2110,7 @@ void VIEW3D_OT_view_persportho(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "View Persp/Ortho";
-	ot->description = "Switch the current view from perspective/orthographic.";
+	ot->description = "Switch the current view from perspective/orthographic";
 	ot->idname= "VIEW3D_OT_view_persportho";
 
 	/* api callbacks */
@@ -2128,7 +2150,7 @@ void VIEW3D_OT_add_background_image(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name   = "Add Background Image";
-	ot->description= "Add a new background image.";
+	ot->description= "Add a new background image";
 	ot->idname = "VIEW3D_OT_add_background_image";
 
 	/* api callbacks */
@@ -2261,7 +2283,7 @@ void VIEW3D_OT_clip_border(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Clipping Border";
-	ot->description = "Set the view clipping border.";
+	ot->description = "Set the view clipping border";
 	ot->idname= "VIEW3D_OT_clip_border";
 
 	/* api callbacks */
@@ -2306,9 +2328,19 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	initgrabz(rv3d, fp[0], fp[1], fp[2]);
 
 	if(mval[0]!=IS_CLIPPED) {
+		short depth_used = 0;
 
-		window_to_3d_delta(ar, dvec, mval[0]-mx, mval[1]-my);
-		sub_v3_v3v3(fp, fp, dvec);
+		if (U.uiflag & USER_ORBIT_ZBUF) { /* maybe this should be accessed some other way */
+			short mval_depth[2] = {mx, my};
+			view3d_operator_needs_opengl(C);
+			if (view_autodist(scene, ar, v3d, mval_depth, fp))
+				depth_used= 1;
+		}
+
+		if(depth_used==0) {
+			window_to_3d_delta(ar, dvec, mval[0]-mx, mval[1]-my);
+			sub_v3_v3v3(fp, fp, dvec);
+		}
 	}
 	else {
 
@@ -2336,7 +2368,7 @@ void VIEW3D_OT_cursor3d(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Set 3D Cursor";
-	ot->description = "Set the location of the 3D cursor.";
+	ot->description = "Set the location of the 3D cursor";
 	ot->idname= "VIEW3D_OT_cursor3d";
 
 	/* api callbacks */
@@ -2378,7 +2410,7 @@ void VIEW3D_OT_manipulator(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "3D Manipulator";
-	ot->description = "Manipulate selected item by axis.";
+	ot->description = "Manipulate selected item by axis";
 	ot->idname= "VIEW3D_OT_manipulator";
 
 	/* api callbacks */
@@ -2412,7 +2444,7 @@ void VIEW3D_OT_enable_manipulator(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Enable 3D Manipulator";
-	ot->description = "Enable the transform manipulator for use.";
+	ot->description = "Enable the transform manipulator for use";
 	ot->idname= "VIEW3D_OT_enable_manipulator";
 	
 	/* api callbacks */

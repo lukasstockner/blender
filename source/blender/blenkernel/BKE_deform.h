@@ -20,7 +20,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -58,6 +58,7 @@ float  defvert_array_find_weight_safe(const struct MDeformVert *dvert, int index
 void defvert_copy(struct MDeformVert *dvert_r, const struct MDeformVert *dvert);
 void defvert_sync(struct MDeformVert *dvert_r, const struct MDeformVert *dvert, int use_verify);
 void defvert_sync_mapped(struct MDeformVert *dvert_r, const struct MDeformVert *dvert, int *flip_map, int use_verify);
+void defvert_remap (struct MDeformVert *dvert, int *map);
 void defvert_flip(struct MDeformVert *dvert, int *flip_map);
 void defvert_normalize(struct MDeformVert *dvert);
 

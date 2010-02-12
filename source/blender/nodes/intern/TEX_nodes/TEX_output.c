@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation.
  * All rights reserved.
@@ -144,7 +144,7 @@ static void unique_name(bNode *node)
 					new_len = 31;
 			}
 			
-			new_name = malloc(new_len + 1);
+			new_name = MEM_mallocN(new_len + 1, "new_name");
 			strcpy(new_name, name);
 			name = new_name;
 		}
@@ -153,7 +153,7 @@ static void unique_name(bNode *node)
 	
 	if(new_name) {
 		strcpy(tno->name, new_name);
-		free(new_name);
+		MEM_freeN(new_name);
 	}
 }
 

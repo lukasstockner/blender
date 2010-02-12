@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  *
  * The Original Code is written by Rob Haarsma (phase)
@@ -186,7 +186,7 @@ static ImBuf * nsImageToiBuf(NSImage *sourceImage, int width, int height)
 																		 pixelsWide:width 
 																		 pixelsHigh:height
 																	  bitsPerSample:8 samplesPerPixel:3 hasAlpha:NO isPlanar:NO
-																	 colorSpaceName:NSCalibratedRGBColorSpace 
+																	 colorSpaceName:NSDeviceRGBColorSpace 
 																	   bitmapFormat:0
 																		bytesPerRow:4*width
 																	   bitsPerPixel:32/*RGB format padded to 32bits*/];
@@ -208,7 +208,7 @@ static ImBuf * nsImageToiBuf(NSImage *sourceImage, int width, int height)
 																		  pixelsWide:width
 																		  pixelsHigh:height
 																	   bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO
-																	  colorSpaceName:NSCalibratedRGBColorSpace
+																	  colorSpaceName:NSDeviceRGBColorSpace
 																		bitmapFormat:0
 																		 bytesPerRow:4*width
 																		bitsPerPixel:32/* RGBA */];

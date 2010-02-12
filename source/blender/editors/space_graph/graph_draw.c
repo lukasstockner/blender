@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) Blender Foundation
  *
@@ -300,7 +300,7 @@ static void set_fcurve_vertex_color (SpaceIpo *sipo, FCurve *fcu, short sel)
 }
 
 
-void draw_fcurve_vertices (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, FCurve *fcu)
+static void draw_fcurve_vertices (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, FCurve *fcu, int do_handles)
 {
 	View2D *v2d= &ar->v2d;
 	
@@ -314,8 +314,7 @@ void draw_fcurve_vertices (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, FCurve
 	glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 	
 	/* draw the two handles first (if they're shown, the curve doesn't have just a single keyframe, and the curve is being edited) */
-	if ((fcu->flag & FCURVE_PROTECTED)==0 && (fcu->flag & FCURVE_INT_VALUES)==0 && 
-		(sipo->flag & SIPO_NOHANDLES)==0 && (fcu->totvert > 1)) 
+	if (do_handles)
 	{
 		set_fcurve_vertex_color(sipo, fcu, 0);
 		draw_fcurve_vertices_handles(ac, sipo, fcu, v2d, 0);
@@ -336,15 +335,30 @@ void draw_fcurve_vertices (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, FCurve
 
 /* Handles ---------------- */
 
-/* draw lines for F-Curve handles only (this is only done in EditMode) */
+static int draw_fcurve_handles_check(SpaceIpo *sipo, FCurve *fcu)
+{
+	/* don't draw handle lines if handles are not to be shown */
+	if (	(sipo->flag & SIPO_NOHANDLES) || /* handles shouldn't be shown anywhere */
+			(fcu->flag & FCURVE_PROTECTED) || /* keyframes aren't editable */
+			(fcu->flag & FCURVE_INT_VALUES) || /* editing the handles here will cause weird/incorrect interpolation issues */
+			((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) || /* group that curve belongs to is not editable */
+			(fcu->totvert <= 1) /* do not show handles if there is only 1 keyframe, otherwise they all clump together in an ugly ball */
+		) 
+	{
+		return 0;
+	} 
+	else 
+	{
+		return 1;
+	}
+}
+
+/* draw lines for F-Curve handles only (this is only done in EditMode)
+ * note: draw_fcurve_handles_check must be checked before running this. */
 static void draw_fcurve_handles (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, FCurve *fcu)
 {
 	extern unsigned int nurbcol[];
 	int sel, b;
-	
-	/* don't draw handle lines if handles are not shown */
-	if ((sipo->flag & SIPO_NOHANDLES) || (fcu->flag & FCURVE_PROTECTED) || (fcu->flag & FCURVE_INT_VALUES))
-		return;
 	
 	/* a single call to GL_LINES here around these calls should be sufficient to still
 	 * get separate line segments, but which aren't wrapped with GL_LINE_STRIP everytime we
@@ -416,7 +430,7 @@ static void draw_fcurve_handles (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, 
 		}
 	}
 	
-	glEnd(); // GL_LINES
+	glEnd(); // GL_LINES 
 }
 
 /* Samples ---------------- */
@@ -910,12 +924,16 @@ void graph_draw_curves (bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGri
 				ANIM_unit_mapping_apply_fcurve(ac->scene, ale->id, fcu, 0);
 				
 				if (fcu->bezt) {
-					/* only draw handles/vertices on keyframes */
-					glEnable(GL_BLEND);
-						draw_fcurve_handles(ac, sipo, ar, fcu);
-					glDisable(GL_BLEND);
+					int do_handles = draw_fcurve_handles_check(sipo, fcu);
 					
-					draw_fcurve_vertices(ac, sipo, ar, fcu);
+					if (do_handles) {
+						/* only draw handles/vertices on keyframes */
+						glEnable(GL_BLEND);
+						draw_fcurve_handles(ac, sipo, ar, fcu);
+						glDisable(GL_BLEND);
+					}
+					
+					draw_fcurve_vertices(ac, sipo, ar, fcu, do_handles);
 				}
 				else {
 					/* samples: only draw two indicators at either end as indicators */

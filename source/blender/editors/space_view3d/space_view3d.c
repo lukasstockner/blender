@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -172,10 +172,14 @@ RegionView3D *ED_view3d_context_rv3d(bContext *C)
  */
 void ED_view3d_init_mats_rv3d(struct Object *ob, struct RegionView3D *rv3d)
 {
-	wmMultMatrix(ob->obmat);
 	/* local viewmat and persmat, to calculate projections */
-	wmGetMatrix(rv3d->viewmatob);
-	wmGetSingleMatrix(rv3d->persmatob);
+	mul_m4_m4m4(rv3d->viewmatob, ob->obmat, rv3d->viewmat);
+	mul_m4_m4m4(rv3d->persmatob, ob->obmat, rv3d->persmat);
+
+	/* we have to multiply instead of loading viewmatob to make
+	   it work with duplis using displists, otherwise it will
+	   override the dupli-matrix */
+	glMultMatrixf(ob->obmat);
 
 	/* initializes object space clipping, speeds up clip tests */
 	ED_view3d_local_clipping(rv3d, ob->obmat);
@@ -607,6 +611,8 @@ static void view3d_main_area_listener(ARegion *ar, wmNotifier *wmn)
 			break;
 		case NC_SCREEN:
 			if(wmn->data == ND_GPENCIL)	
+				ED_region_tag_redraw(ar);
+			else if(wmn->data==ND_ANIMPLAY)
 				ED_region_tag_redraw(ar);
 			break;
 	}

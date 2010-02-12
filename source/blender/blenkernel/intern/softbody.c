@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) Blender Foundation
  * All rights reserved.
@@ -2864,7 +2864,7 @@ static void softbody_apply_forces(Object *ob, float forcetime, int mode, float *
 	/* or heun ~ 2nd order runge-kutta steps, mode 1,2 */
 	SoftBody *sb= ob->soft;	/* is supposed to be there */
 	BodyPoint *bp;
-	float dx[3],dv[3],aabbmin[3],aabbmax[3],cm[3]={0.0f,0.0f,0.0f};
+	float dx[3]={0},dv[3],aabbmin[3],aabbmax[3],cm[3]={0.0f,0.0f,0.0f};
 	float timeovermass/*,freezeloc=0.00001f,freezeforce=0.00000000001f*/;
 	float maxerrpos= 0.0f,maxerrvel = 0.0f;
 	int a,fuzzy=0;

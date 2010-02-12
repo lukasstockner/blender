@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -129,11 +129,7 @@ static void filepath_avi (char *string, RenderData *rd)
 	BLI_make_existing_file(string);
 
 	if (!BLI_testextensie(string, ".avi")) {
-		/* if we dont have any #'s to insert numbers into, use 4 numbers by default */
-		if (strchr(string, '#')==NULL)
-			strcat(string, "####"); /* 4 numbers */
-
-		BLI_convertstringframe_range(string, rd->sfra, rd->efra);
+		BLI_convertstringframe_range(string, rd->sfra, rd->efra, 4);
 		strcat(string, ".avi");
 	}
 }

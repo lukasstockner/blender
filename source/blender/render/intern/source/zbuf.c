@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -2070,8 +2070,8 @@ void zbuffer_solid(RenderPart *pa, RenderLayer *rl, void(*fillfunc)(RenderPart*,
 			zspan->zofsy= -pa->disprect.ymin - R.jit[pa->sample+zsample][1];
 		}
 		else if(R.i.curblur) {
-			zspan->zofsx= -pa->disprect.xmin - R.jit[R.i.curblur-1][0];
-			zspan->zofsy= -pa->disprect.ymin - R.jit[R.i.curblur-1][1];
+			zspan->zofsx= -pa->disprect.xmin - R.mblur_jit[R.i.curblur-1][0];
+			zspan->zofsy= -pa->disprect.ymin - R.mblur_jit[R.i.curblur-1][1];
 		}
 		else {
 			zspan->zofsx= -pa->disprect.xmin;
@@ -2288,8 +2288,9 @@ void zbuffer_shadow(Render *re, float winmat[][4], LampRen *lar, int *rectz, int
 	zbuf_alloc_span(&zspan, size, size, 1.0f);
 	zspan.zmulx=  ((float)size)/2.0;
 	zspan.zmuly=  ((float)size)/2.0;
-	zspan.zofsx= jitx;
-	zspan.zofsy= jity;
+	/* -0.5f to center the sample position */
+	zspan.zofsx= jitx - 0.5f;
+	zspan.zofsy= jity - 0.5f;
 	
 	/* the buffers */
 	zspan.rectz= rectz;
@@ -3280,11 +3281,9 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *
 			zspan->zofsy= -pa->disprect.ymin;
 		}
 
-		if(!shadow) {
-			/* to center the sample position */
-			zspan->zofsx -= 0.5f;
-			zspan->zofsy -= 0.5f;
-		}
+		/* to center the sample position */
+		zspan->zofsx -= 0.5f;
+		zspan->zofsy -= 0.5f;
 	}
 	
 	/* we use this to test if nothing was filled in */
@@ -3414,7 +3413,7 @@ static int zbuffer_abuf_render(RenderPart *pa, APixstr *APixbuf, APixstrand *APi
 	if(R.osa)
 		jit= R.jit;
 	else if(R.i.curblur)
-		jit= &R.jit[R.i.curblur-1];
+		jit= &R.mblur_jit[R.i.curblur-1];
 	else
 		jit= NULL;
 	
@@ -3828,6 +3827,11 @@ static int shade_tra_samples(ShadeSample *ssamp, StrandShadeCache *cache, int x,
 						renderspothalo(shi, shr->combined, shr->combined[3]);
 			}
 		}
+		else if(shi->passflag & SCE_PASS_Z) {
+			for(samp=0; samp<ssamp->tot; samp++, shi++, shr++)
+				shr->z= -shi->co[2];
+		}
+
 		return 1;
 	}
 	return 0;

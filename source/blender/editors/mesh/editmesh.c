@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -894,7 +894,7 @@ void make_editMesh(Scene *scene, Object *ob)
 		}
 	}
 	
-	if(EM_get_actFace(em, 0) && efa_last_sel) {
+	if(EM_get_actFace(em, 0)==NULL && efa_last_sel) {
 		EM_set_actFace(em, efa_last_sel);
 	}
 
@@ -1195,11 +1195,40 @@ void load_editMesh(Scene *scene, Object *ob)
 		KeyBlock *currkey;
 		KeyBlock *actkey= BLI_findlink(&me->key->block, em->shapenr-1);
 
+		float (*ofs)[3] = NULL;
+
+		/* editing the base key should update others */
+		if(me->key->type==KEY_RELATIVE && oldverts) {
+			int act_is_basis = 0;
+			/* find if this key is a basis for any others */
+			for(currkey = me->key->block.first; currkey; currkey= currkey->next) {
+				if(em->shapenr-1 == currkey->relative) {
+					act_is_basis = 1;
+					break;
+				}
+			}
+
+			if(act_is_basis) { /* active key is a base */
+				i=0;
+				ofs= MEM_callocN(sizeof(float) * 3 * em->totvert,  "currkey->data");
+				eve= em->verts.first;
+				mvert = me->mvert;
+				while(eve) {
+					VECSUB(ofs[i], mvert->co, oldverts[eve->keyindex].co);
+					eve= eve->next;
+					i++;
+					mvert++;
+				}
+			}
+		}
+
+
 		/* Lets reorder the key data so that things line up roughly
 		 * with the way things were before editmode */
 		currkey = me->key->block.first;
 		while(currkey) {
-			
+			int apply_offset = (ofs && (currkey != actkey) && (em->shapenr-1 == currkey->relative));
+
 			fp= newkey= MEM_callocN(me->key->elemsize*em->totvert,  "currkey->data");
 			oldkey = currkey->data;
 
@@ -1229,6 +1258,12 @@ void load_editMesh(Scene *scene, Object *ob)
 				else {
 					VECCOPY(fp, mvert->co);
 				}
+
+				/* propagate edited basis offsets to other shapes */
+				if(apply_offset) {
+					VECADD(fp, fp, ofs[i]);
+				}
+
 				fp+= 3;
 				++i;
 				++mvert;
@@ -1240,6 +1275,8 @@ void load_editMesh(Scene *scene, Object *ob)
 			
 			currkey= currkey->next;
 		}
+
+		if(ofs) MEM_freeN(ofs);
 	}
 
 	if(oldverts) MEM_freeN(oldverts);
@@ -1466,6 +1503,11 @@ static int mesh_separate_loose(Scene *scene, Base *editbase)
 		
 		selectconnected_mesh_all(em);
 		
+		/* don't separate the very last part */
+		for(eve=em->verts.first; eve; eve= eve->next)
+			if((eve->f & SELECT)==0) break;
+		if(eve==NULL) break;
+
 		/* and now separate */
 		doit= mesh_separate_selected(scene, editbase);
 	}
@@ -1499,7 +1541,7 @@ void MESH_OT_separate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Separate";
-	ot->description= "Separate selected geometry into a new mesh.";
+	ot->description= "Separate selected geometry into a new mesh";
 	ot->idname= "MESH_OT_separate";
 	
 	/* api callbacks */

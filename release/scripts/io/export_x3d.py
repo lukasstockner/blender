@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -56,7 +56,7 @@ Known issues:<br>
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ***** END GPL LICENCE BLOCK *****
 #
@@ -291,7 +291,7 @@ class x3d_class:
 
         # compute cutoff and beamwidth
         intensity=min(lamp.energy/1.75,1.0)
-        beamWidth=((lamp.spot_size*math.pi)/180.0)*.37;
+        beamWidth=lamp.spot_size * 0.37;
         # beamWidth=((lamp.spotSize*math.pi)/180.0)*.37;
         cutOffAngle=beamWidth*1.3
 
@@ -626,7 +626,7 @@ class x3d_class:
                 texCoordList.append(uv)
                 j=j+1
             texIndexList.append(-1)
-			
+
         if self.writingtexture == 0:
             self.file.write("\n\t\t\ttexCoordIndex=\"")
             texIndxStr=""
@@ -1227,8 +1227,8 @@ class ExportX3D(bpy.types.Operator):
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
     path = StringProperty(name="File Path", description="File path used for exporting the X3D file", maxlen= 1024, default= "")
-    check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, hidden=True)
-    
+    check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
+
     apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object.", default=True)
     triangulate = BoolProperty(name="Triangulate", description="Triangulate quads.", default=False)
     compress = BoolProperty(name="Compress", description="GZip the resulting file, requires a full python install.", default=False)

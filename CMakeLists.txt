@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
@@ -87,6 +87,8 @@ IF(UNIX AND NOT APPLE)
 ELSE()
 	OPTION(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" OFF)
 ENDIF()
+
+OPTION(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" OFF) 
 
 IF (APPLE)
 	OPTION(WITH_COCOA	  "Use Cocoa framework instead of deprecated Carbon" ON)
@@ -414,7 +416,7 @@ IF(WIN32)
 	SET(OPENCOLLADA ${LIBDIR}/opencollada)
 	SET(OPENCOLLADA_INC ${OPENCOLLADA}/include)
 	SET(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
-	SET(OPENCOLLADA_LIB OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils OpenCOLLADAStreamWriter MathMLSolver GeneratedSaxParser UTF xml2 )
+	SET(OPENCOLLADA_LIB OpenCOLLADASaxFrameworkLoader OpenCOLLADAFramework OpenCOLLADABaseUtils OpenCOLLADAStreamWriter MathMLSolver GeneratedSaxParser UTF xml2 buffer ftoa)
 	#pcre is bundled with openCollada
 	#SET(PCRE ${LIBDIR}/pcre)
 	#SET(PCRE_LIBPATH ${PCRE}/lib)
@@ -558,7 +560,7 @@ IF(APPLE)
 		SET(OPENCOLLADA ${LIBDIR}/opencollada)
 		SET(OPENCOLLADA_INC ${OPENCOLLADA}/include)
 		SET(OPENCOLLADA_LIBPATH ${OPENCOLLADA}/lib)
-		SET(OPENCOLLADA_LIB "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2" )
+		SET(OPENCOLLADA_LIB "OpenCOLLADASaxFrameworkLoader -lOpenCOLLADAFramework -lOpenCOLLADABaseUtils -lOpenCOLLADAStreamWriter -lMathMLSolver -lGeneratedSaxParser -lUTF -lxml2 -lbuffer -lftoa" )
 		#pcre is bundled with openCollada
 		#SET(PCRE ${LIBDIR}/pcre)
 		#SET(PCRE_LIBPATH ${PCRE}/lib)

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
@@ -43,6 +43,7 @@
 #include "BKE_idprop.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
+#include "BKE_screen.h"
 #include "BKE_utildefines.h"
 
 #include "RNA_access.h"
@@ -60,7 +61,7 @@
 static void keymap_properties_set(wmKeyMapItem *kmi)
 {
 	WM_operator_properties_alloc(&(kmi->ptr), &(kmi->properties), kmi->idname);
-	WM_operator_properties_sanitize(kmi->ptr);
+	WM_operator_properties_sanitize(kmi->ptr, 1);
 }
 
 void WM_keymap_properties_reset(wmKeyMapItem *kmi)
@@ -475,14 +476,26 @@ static wmKeyMapItem *wm_keymap_item_find_props(const bContext *C, const char *op
 	if(found==NULL) {
 		if(ELEM(opcontext, WM_OP_EXEC_REGION_WIN, WM_OP_INVOKE_REGION_WIN)) {
 			if(sa) {
-				ARegion *ar= sa->regionbase.first;
-				for(; ar; ar= ar->next)
-					if(ar->regiontype==RGN_TYPE_WINDOW)
-						break;
-
+				if (!(ar && ar->regiontype == RGN_TYPE_WINDOW))
+					ar= BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+				
 				if(ar)
 					found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, hotkey, compare_props, keymap_r);
 			}
+		}
+		else if(ELEM(opcontext, WM_OP_EXEC_REGION_CHANNELS, WM_OP_INVOKE_REGION_CHANNELS)) {
+			if (!(ar && ar->regiontype == RGN_TYPE_CHANNELS))
+					ar= BKE_area_find_region_type(sa, RGN_TYPE_CHANNELS);
+				
+				if(ar)
+					found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, hotkey, compare_props, keymap_r);
+		}
+		else if(ELEM(opcontext, WM_OP_EXEC_REGION_PREVIEW, WM_OP_INVOKE_REGION_PREVIEW)) {
+			if (!(ar && ar->regiontype == RGN_TYPE_PREVIEW))
+					ar= BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
+				
+				if(ar)
+					found= wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, hotkey, compare_props, keymap_r);
 		}
 		else {
 			if(ar)

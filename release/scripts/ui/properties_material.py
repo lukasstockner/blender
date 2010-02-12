@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -44,7 +44,7 @@ class MATERIAL_MT_sss_presets(bpy.types.Menu):
 
 
 class MATERIAL_MT_specials(bpy.types.Menu):
-    bl_label = "Material Options"
+    bl_label = "Material Specials"
 
     def draw(self, context):
         layout = self.layout
@@ -98,12 +98,12 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel):
         if ob:
             row = layout.row()
 
-            row.template_list(ob, "materials", ob, "active_material_index", rows=2)
+            row.template_list(ob, "material_slots", ob, "active_material_index", rows=2)
 
             col = row.column(align=True)
             col.operator("object.material_slot_add", icon='ZOOMIN', text="")
             col.operator("object.material_slot_remove", icon='ZOOMOUT', text="")
-            
+
             col.menu("MATERIAL_MT_specials", icon='DOWNARROW_HLT', text="")
 
             if ob.mode == 'EDIT':
@@ -274,7 +274,7 @@ class MATERIAL_PT_options(MaterialButtonsPanel):
         col = split.column()
         col.prop(mat, "traceable")
         col.prop(mat, "full_oversampling")
-        col.prop(mat, "sky")
+        col.prop(mat, "use_sky")
         col.prop(mat, "exclude_mist")
         col.prop(mat, "invert_z")
         sub = col.row()
@@ -334,7 +334,7 @@ class MATERIAL_PT_shadow(MaterialButtonsPanel):
         sub = col.column()
         sub.active = (not mat.ray_shadow_bias)
         sub.prop(mat, "shadow_ray_bias", text="Ray Bias")
-
+        col.prop(mat, "cast_approximate")
 
 class MATERIAL_PT_diffuse(MaterialButtonsPanel):
     bl_label = "Diffuse"
@@ -653,6 +653,7 @@ class MATERIAL_PT_transp(MaterialButtonsPanel):
             sub.prop(rayt, "gloss_threshold", text="Threshold")
             sub.prop(rayt, "gloss_samples", text="Samples")
 
+
 class MATERIAL_PT_transp_game(MaterialButtonsPanel):
     bl_label = "Transparency"
     bl_default_closed = True
@@ -686,7 +687,7 @@ class MATERIAL_PT_transp_game(MaterialButtonsPanel):
 
         col = split.column()
         col.prop(mat, "alpha")
-    
+
 
 class MATERIAL_PT_halo(MaterialButtonsPanel):
     bl_label = "Halo"
@@ -787,6 +788,7 @@ bpy.types.register(MATERIAL_PT_strand)
 bpy.types.register(MATERIAL_PT_options)
 bpy.types.register(MATERIAL_PT_shadow)
 bpy.types.register(MATERIAL_PT_transp_game)
+
 
 class VolumeButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'

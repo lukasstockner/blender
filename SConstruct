@@ -169,7 +169,9 @@ if crossbuild and env['PLATFORM'] != 'win32':
 	env.Tool('crossmingw', ['tools'])
 	# todo: determine proper libs/includes etc.
 	# Needed for gui programs, console programs should do without it
-	env.Append(LINKFLAGS=['-mwindows'])
+
+	# Now we don't need this option to have console window
+	# env.Append(LINKFLAGS=['-mwindows'])
 
 userconfig = B.arguments.get('BF_CONFIG', 'user-config.py')
 # first read platform config. B.arguments will override
@@ -186,8 +188,18 @@ opts.Update(env)
 if not env['BF_FANCY']:
 	B.bc.disable()
 
+
+# remove install dir so old and new files are not mixed.
+# NOTE: only do the scripts directory for now, otherwise is too disruptive for developers
+# TODO: perhaps we need an option (off by default) to not do this altogether...
+if not env['WITHOUT_BF_INSTALL'] and not env['WITHOUT_BF_OVERWRITE_INSTALL']:
+	if os.path.isdir(env['BF_INSTALLDIR']):
+		print B.bc.OKGREEN + "Clearing installation directory%s: %s" % (B.bc.ENDC, os.path.abspath(env['BF_INSTALLDIR']))
+		shutil.rmtree(env['BF_INSTALLDIR'])
+
+
 SetOption('num_jobs', int(env['BF_NUMJOBS']))
-print "Build with %d parallel jobs" % (GetOption('num_jobs'))
+print B.bc.OKGREEN + "Build with parallel jobs%s: %s" % (B.bc.ENDC, GetOption('num_jobs'))
 
 # BLENDERPATH is a unix only option to enable typical style paths this is
 # spesifically a data-dir, which is used a lot but cant replace BF_INSTALLDIR
@@ -197,12 +209,6 @@ if env['WITH_BF_FHS']:
 	BLENDERPATH = os.path.join(env['BF_INSTALLDIR'], 'share', 'blender', env['BF_VERSION'])
 else:
 	BLENDERPATH = env['BF_INSTALLDIR']
-
-# disable elbeem (fluidsim) compilation?
-if env['BF_NO_ELBEEM'] == 1:
-	env['CPPFLAGS'].append('-DDISABLE_ELBEEM')
-	env['CXXFLAGS'].append('-DDISABLE_ELBEEM')
-	env['CCFLAGS'].append('-DDISABLE_ELBEEM')
 
 if env['WITH_BF_OPENMP'] == 1:
 		if env['OURPLATFORM'] in ('win32-vc', 'win64-vc'):
@@ -317,6 +323,12 @@ if 'blenderlite' in B.targets:
 		if k not in B.arguments:
 			env[k] = v
 
+# disable elbeem (fluidsim) compilation?
+if env['BF_NO_ELBEEM'] == 1:
+	env['CPPFLAGS'].append('-DDISABLE_ELBEEM')
+	env['CXXFLAGS'].append('-DDISABLE_ELBEEM')
+	env['CCFLAGS'].append('-DDISABLE_ELBEEM')
+
 if env['WITH_BF_SDL'] == False and env['OURPLATFORM'] in ('win32-vc', 'win32-ming', 'win64-vc'):
 	env['PLATFORM_LINKFLAGS'].remove('/ENTRY:mainCRTStartup')
 	env['PLATFORM_LINKFLAGS'].append('/ENTRY:main')
@@ -392,7 +404,7 @@ else:
 	if toolset=='msvc':
 		B.msvc_hack(env)
 
-print B.bc.HEADER+'Building in '+B.bc.ENDC+B.root_build_dir
+print B.bc.HEADER+'Building in: ' + B.bc.ENDC + os.path.abspath(B.root_build_dir)
 env.SConsignFile(B.root_build_dir+'scons-signatures')
 B.init_lib_dict()
 
@@ -524,7 +536,11 @@ if env['OURPLATFORM']=='linux2':
 # TODO - add more libs, for now this lets blenderlite run
 if env['OURPLATFORM']=='linuxcross':
 	dir=env['BF_INSTALLDIR']
-	source = ['../lib/windows/pthreads/lib/pthreadGC2.dll']
+	source = []
+
+	if env['WITH_BF_OPENMP']:
+		source += ['../lib/windows/pthreads/lib/pthreadGC2.dll']
+
 	scriptinstall.append(env.Install(dir=dir, source=source))
 
 #-- plugins
@@ -577,45 +593,69 @@ elif env['OURPLATFORM']=='linux2':
 else:
 		allinstall = [blenderinstall, dotblenderinstall, scriptinstall, plugininstall, textinstall]
 
-if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc'):
-	if env['OURPLATFORM'] == 'win64-vc':
-		dllsources = []
-	else:
-		dllsources = ['${LCGDIR}/gettext/lib/gnu_gettext.dll',
-				'${BF_PNG_LIBPATH}/libpng.dll',
-				'${BF_ZLIB_LIBPATH}/zlib.dll',
-				'${BF_TIFF_LIBPATH}/${BF_TIFF_LIB}.dll']
-	dllsources += ['${BF_PTHREADS_LIBPATH}/${BF_PTHREADS_LIB}.dll']
+if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
+	dllsources = []
+
+	if not env['OURPLATFORM'] in ('win32-mingw', 'win64-vc', 'linuxcross'):
+		# For MinGW and linuxcross static linking will be used
+		dllsources += ['${LCGDIR}/gettext/lib/gnu_gettext.dll']
+
+	#currently win64-vc doesn't appear to have libpng.dll
+	if env['OURPLATFORM'] != 'win64-vc':
+		dllsources += ['${BF_PNG_LIBPATH}/libpng.dll',
+				'${BF_ZLIB_LIBPATH}/zlib.dll']
+
+	dllsources += ['${BF_TIFF_LIBPATH}/${BF_TIFF_LIB}.dll']
+
+	if env['OURPLATFORM'] != 'linuxcross':
+		# pthreads library is already added
+		dllsources += ['${BF_PTHREADS_LIBPATH}/${BF_PTHREADS_LIB}.dll']
+
 	if env['WITH_BF_SDL']:
 		if env['OURPLATFORM'] == 'win64-vc':
 			pass # we link statically already to SDL on win64
 		else:
 			dllsources.append('${BF_SDL_LIBPATH}/SDL.dll')
+
 	if env['WITH_BF_PYTHON']:
 		if env['BF_DEBUG']:
 			dllsources.append('${BF_PYTHON_LIBPATH}/${BF_PYTHON_DLL}_d.dll')
 		else:
 			dllsources.append('${BF_PYTHON_LIBPATH}/${BF_PYTHON_DLL}.dll')
+
 	if env['WITH_BF_ICONV']:
 		if env['OURPLATFORM'] == 'win64-vc':
 			pass # we link statically to iconv on win64
-		else:
+		elif not env['OURPLATFORM'] in ('win32-mingw', 'linuxcross'):
+			#gettext for MinGW and cross-compilation is compiled staticly
 			dllsources += ['${BF_ICONV_LIBPATH}/iconv.dll']
+
 	if env['WITH_BF_OPENAL']:
 		dllsources.append('${LCGDIR}/openal/lib/OpenAL32.dll')
 		dllsources.append('${LCGDIR}/openal/lib/wrap_oal.dll')
+
 	if env['WITH_BF_SNDFILE']:
 		dllsources.append('${LCGDIR}/sndfile/lib/libsndfile-1.dll')
+
 	if env['WITH_BF_FFMPEG']:
-		dllsources += ['${LCGDIR}/ffmpeg/lib/avcodec-52.dll',
-						'${LCGDIR}/ffmpeg/lib/avformat-52.dll',
-						'${LCGDIR}/ffmpeg/lib/avdevice-52.dll',
-						'${LCGDIR}/ffmpeg/lib/avutil-50.dll',
-						'${LCGDIR}/ffmpeg/lib/swscale-0.dll',
-						'${LCGDIR}/ffmpeg/lib/libfaac-0.dll',
-						'${LCGDIR}/ffmpeg/lib/libfaad-2.dll',
-						'${LCGDIR}/ffmpeg/lib/libmp3lame-0.dll',
-						'${LCGDIR}/ffmpeg/lib/libx264-67.dll']
+		dllsources += ['${BF_FFMPEG_LIBPATH}/avcodec-52.dll',
+					'${BF_FFMPEG_LIBPATH}/avformat-52.dll',
+					'${BF_FFMPEG_LIBPATH}/avdevice-52.dll',
+					'${BF_FFMPEG_LIBPATH}/avutil-50.dll',
+					'${BF_FFMPEG_LIBPATH}/swscale-0.dll']
+
+		if env['OURPLATFORM'] != 'linuxcross':
+			#
+			# TODO: Does it mean we haven't got support of this codecs if
+			#       we're using cross-compilation?
+			#       Or in case of native compilation this libraries are
+			#       unneccessary to?
+			#
+			dllsources += ['${LCGDIR}/ffmpeg/lib/libfaac-0.dll',
+							'${LCGDIR}/ffmpeg/lib/libfaad-2.dll',
+							'${LCGDIR}/ffmpeg/lib/libmp3lame-0.dll',
+							'${LCGDIR}/ffmpeg/lib/libx264-67.dll']
+
 	if env['WITH_BF_JACK']:
 		dllsources += ['${LCGDIR}/jack/lib/libjack.dll']
 	windlls = env.Install(dir=env['BF_INSTALLDIR'], source = dllsources)

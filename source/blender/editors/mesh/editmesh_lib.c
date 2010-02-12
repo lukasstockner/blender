@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2004 by Blender Foundation
  * All rights reserved.
@@ -741,6 +741,11 @@ void EM_convertsel(EditMesh *em, short oldmode, short selectmode)
 	EM_nvertices_selected(em);
 	EM_nedges_selected(em);
 	EM_nfaces_selected(em);
+}
+
+void EM_selectmode_to_scene(struct Scene *scene, struct Object *obedit)
+{
+	scene->toolsettings->selectmode= get_mesh(obedit)->edit_mesh->selectmode;
 }
 
 /* when switching select mode, makes sure selection is consistent for editing */

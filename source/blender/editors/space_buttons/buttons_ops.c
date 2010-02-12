@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
@@ -139,7 +139,7 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "File Browse";
-	ot->description="Open a file browser.";
+	ot->description="Open a file browser";
 	ot->idname= "BUTTONS_OT_file_browse";
 	
 	/* api callbacks */
@@ -148,6 +148,6 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
 	ot->cancel= file_browse_cancel;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPEN);
+	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE);
 }
 

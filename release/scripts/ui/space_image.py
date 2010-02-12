@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -387,21 +387,23 @@ class IMAGE_PT_game_properties(bpy.types.Panel):
         col.separator()
         col.prop(ima, "mapping", expand=True)
 
+
 class IMAGE_PT_view_histogram(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'PREVIEW'
     bl_label = "Histogram"
-    
+
     def poll(self, context):
         sima = context.space_data
         return (sima and sima.image)
-    
+
     def draw(self, context):
         layout = self.layout
 
         sima = context.space_data
-                        
+
         layout.template_histogram(sima, "histogram")
+
 
 class IMAGE_PT_view_properties(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -489,10 +491,10 @@ class IMAGE_PT_paint(bpy.types.Panel):
             sub = layout.row(align=True)
         else:
             sub = layout.column(align=True)
-        sub.prop_enum(toolsettings, "tool", 'DRAW')
-        sub.prop_enum(toolsettings, "tool", 'SOFTEN')
-        sub.prop_enum(toolsettings, "tool", 'CLONE')
-        sub.prop_enum(toolsettings, "tool", 'SMEAR')
+        sub.prop_enum(brush, "imagepaint_tool", 'DRAW')
+        sub.prop_enum(brush, "imagepaint_tool", 'SOFTEN')
+        sub.prop_enum(brush, "imagepaint_tool", 'CLONE')
+        sub.prop_enum(brush, "imagepaint_tool", 'SMEAR')
 
         if brush:
             col = layout.column()
@@ -513,6 +515,10 @@ class IMAGE_PT_paint(bpy.types.Panel):
 
             col.prop(brush, "blend", text="Blend")
 
+            if brush.imagepaint_tool == 'CLONE':
+                col.separator()
+                col.prop(brush, "clone_image", text="Image")
+                col.prop(brush, "clone_alpha", text="Alpha")
 
 class IMAGE_PT_paint_stroke(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -542,6 +548,7 @@ class IMAGE_PT_paint_stroke(bpy.types.Panel):
         row.prop(brush, "spacing", text="Distance", slider=True)
         row.prop(brush, "use_spacing_pressure", toggle=True, text="")
 
+        layout.prop(brush, "use_wrap")
 
 class IMAGE_PT_paint_curve(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'

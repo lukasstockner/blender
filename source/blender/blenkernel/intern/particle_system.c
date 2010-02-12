@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 by Janne Karhu.
  * All rights reserved.
@@ -172,12 +172,6 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
 	PARTICLE_P;
 	int totpart, totsaved = 0;
 
-	if(psys->edit && psys->free_edit) {
-		psys->free_edit(psys->edit);
-		psys->edit = NULL;
-		psys->free_edit = NULL;
-	}
-
 	if(new_totpart<0) {
 		if(part->distr==PART_DISTR_GRID  && part->from != PART_FROM_VERT) {
 			totpart= part->grid_res;
@@ -190,6 +184,12 @@ static void realloc_particles(ParticleSimulationData *sim, int new_totpart)
 		totpart=new_totpart;
 
 	if(totpart && totpart != psys->totpart) {
+		if(psys->edit && psys->free_edit) {
+			psys->free_edit(psys->edit);
+			psys->edit = NULL;
+			psys->free_edit = NULL;
+		}
+
 		newpars= MEM_callocN(totpart*sizeof(ParticleData), "particles");
 		if(psys->part->phystype == PART_PHYS_BOIDS)
 			newboids= MEM_callocN(totpart*sizeof(BoidParticle), "boid particles");
@@ -3565,7 +3565,7 @@ static void particles_fluid_step(ParticleSimulationData *sim, int cfra)
 			strcpy(filename, fss->surfdataPath);
 			strcat(filename, suffix);
 			BLI_convertstringcode(filename, G.sce);
-			BLI_convertstringframe(filename, curFrame); // fixed #frame-no 
+			BLI_convertstringframe(filename, curFrame, 0); // fixed #frame-no 
 			strcat(filename, suffix2);
 	
 			gzf = gzopen(filename, "rb");

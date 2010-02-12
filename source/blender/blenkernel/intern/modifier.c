@@ -15,7 +15,7 @@
 *
 * You should have received a copy of the GNU General Public License
 * along with this program; if not, write to the Free Software  Foundation,
-* Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
 * The Original Code is Copyright (C) 2005 by the Blender Foundation.
 * All rights reserved.
@@ -6741,14 +6741,14 @@ static void particleSystemModifier_deformVerts(
 		psmd->totdmvert= psmd->dm->getNumVerts(psmd->dm);
 		psmd->totdmedge= psmd->dm->getNumEdges(psmd->dm);
 		psmd->totdmface= psmd->dm->getNumFaces(psmd->dm);
-		  }
+	}
 
-		  if(psys){
-			  psmd->flag &= ~eParticleSystemFlag_psys_updated;
-			  particle_system_update(md->scene, ob, psys);
-			  psmd->flag |= eParticleSystemFlag_psys_updated;
-			  psmd->flag &= ~eParticleSystemFlag_DM_changed;
-		  }
+	if(psys) {
+		psmd->flag &= ~eParticleSystemFlag_psys_updated;
+		particle_system_update(md->scene, ob, psys);
+		psmd->flag |= eParticleSystemFlag_psys_updated;
+		psmd->flag &= ~eParticleSystemFlag_DM_changed;
+	}
 }
 
 /* disabled particles in editmode for now, until support for proper derivedmesh

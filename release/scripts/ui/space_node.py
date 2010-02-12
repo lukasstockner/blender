@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -120,7 +120,7 @@ class NODE_MT_node(bpy.types.Menu):
 
         layout.separator()
         layout.operator("node.link_make")
-        layout.operator("node.link_make", text="Make and Replace Links").replace=True
+        layout.operator("node.link_make", text="Make and Replace Links").replace = True
 
         layout.separator()
         layout.operator("node.group_edit")

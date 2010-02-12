@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation
  * All rights reserved.
@@ -52,6 +52,7 @@
 #include "BKE_utildefines.h"
 
 #include "ED_util.h"
+#include "ED_mesh.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -269,6 +270,11 @@ void undo_editmode_step(bContext *C, int step)
 		}
 	}
 	
+	/* special case for editmesh, mode must be copied back to the scene */
+	if(obedit->type == OB_MESH) {
+		EM_selectmode_to_scene(CTX_data_scene(C), obedit);
+	}
+
 	DAG_id_flush_update(&obedit->id, OB_RECALC_DATA);
 
 	/* XXX notifiers */
