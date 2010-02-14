@@ -160,7 +160,7 @@ const char *get_joint_name(T *node)
 	return id.size() ? id.c_str() : node->getName().c_str();
 }
 
-float get_float_value(const COLLADAFW::FloatOrDoubleArray& array, int index)
+float get_float_value(const COLLADAFW::FloatOrDoubleArray& array, unsigned int index)
 {
 	if (index >= array.getValuesCount())
 		return 0.0f;
@@ -197,7 +197,7 @@ public:
 
 		unit_m4(mat);
 		
-		for (int i = 0; i < node->getTransformations().getCount(); i++) {
+		for (unsigned int i = 0; i < node->getTransformations().getCount(); i++) {
 
 			COLLADAFW::Transformation *tm = node->getTransformations()[i];
 			COLLADAFW::Transformation::TransformationType type = tm->getTransformationType();
@@ -406,7 +406,7 @@ private:
 
 			// cannot transfer data for FloatOrDoubleArray, copy values manually
 			const COLLADAFW::FloatOrDoubleArray& weight = skin->getWeights();
-			for (int i = 0; i < weight.getValuesCount(); i++)
+			for (unsigned int i = 0; i < weight.getValuesCount(); i++)
 				weights.push_back(get_float_value(weight, i));
 
 			unit_converter->dae_matrix_to_mat4(bind_shape_matrix, skin->getBindShapeMatrix());
@@ -438,7 +438,7 @@ private:
 			controller_uid = co->getUniqueId();
 
 			const COLLADAFW::UniqueIdArray& joint_uids = co->getJoints();
-			for (int i = 0; i < joint_uids.getCount(); i++) {
+			for (unsigned int i = 0; i < joint_uids.getCount(); i++) {
 				joint_data[i].joint_uid = joint_uids[i];
 
 				// // store armature pointer
@@ -489,7 +489,7 @@ private:
 			}
 
 			COLLADAFW::NodePointerArray& children = node->getChildNodes();
-			for (int i = 0; i < children.getCount(); i++) {
+			for (unsigned int i = 0; i < children.getCount(); i++) {
 				if (this->uses_joint(children[i]))
 					return true;
 			}
@@ -543,9 +543,9 @@ private:
 
 			// get def group by index with BLI_findlink
 
-			for (int vertex = 0, weight = 0; vertex < joints_per_vertex.getCount(); vertex++) {
+			for (unsigned int vertex = 0, weight = 0; vertex < joints_per_vertex.getCount(); vertex++) {
 
-				int limit = weight + joints_per_vertex[vertex];
+				unsigned int limit = weight + joints_per_vertex[vertex];
 				for ( ; weight < limit; weight++) {
 					int joint = joint_indices[weight], joint_weight = weight_indices[weight];
 
@@ -677,7 +677,7 @@ private:
 		}
 
 		COLLADAFW::NodePointerArray& children = node->getChildNodes();
-		for (int i = 0; i < children.getCount(); i++) {
+		for (unsigned int i = 0; i < children.getCount(); i++) {
 			create_bone(skin, children[i], bone, children.getCount(), mat, arm);
 		}
 
@@ -953,7 +953,7 @@ public:
 
 		// store join inv bind matrix to use it later in armature construction
 		const COLLADAFW::Matrix4Array& inv_bind_mats = data->getInverseBindMatrices();
-		for (int i = 0; i < data->getJointsCount(); i++) {
+		for (unsigned int i = 0; i < data->getJointsCount(); i++) {
 			skin.add_joint(inv_bind_mats[i]);
 		}
 
@@ -1243,11 +1243,10 @@ private:
 	bool is_nice_mesh(COLLADAFW::Mesh *mesh)
 	{
 		COLLADAFW::MeshPrimitiveArray& prim_arr = mesh->getMeshPrimitives();
-		int i;
 
 		const char *name = get_dae_name(mesh);
 		
-		for (i = 0; i < prim_arr.getCount(); i++) {
+		for (unsigned i = 0; i < prim_arr.getCount(); i++) {
 			
 			COLLADAFW::MeshPrimitive *mp = prim_arr[i];
 			COLLADAFW::MeshPrimitive::PrimitiveType type = mp->getPrimitiveType();
@@ -1260,7 +1259,7 @@ private:
 				COLLADAFW::Polygons *mpvc = (COLLADAFW::Polygons*)mp;
 				COLLADAFW::Polygons::VertexCountArray& vca = mpvc->getGroupedVerticesVertexCountArray();
 				
-				for(int j = 0; j < vca.getCount(); j++){
+				for(unsigned int j = 0; j < vca.getCount(); j++){
 					int count = vca[j];
 					if (count < 3) {
 						fprintf(stderr, "Primitive %s in %s has at least one face with vertex count < 3\n",
@@ -1351,7 +1350,7 @@ private:
 	int count_new_tris(COLLADAFW::Mesh *mesh, Mesh *me)
 	{
 		COLLADAFW::MeshPrimitiveArray& prim_arr = mesh->getMeshPrimitives();
-		int i, j;
+		unsigned int i;
 		int tottri = 0;
 		
 		for (i = 0; i < prim_arr.getCount(); i++) {
@@ -1367,7 +1366,7 @@ private:
 				COLLADAFW::Polygons *mpvc =	(COLLADAFW::Polygons*)mp;
 				COLLADAFW::Polygons::VertexCountArray& vcounta = mpvc->getGroupedVerticesVertexCountArray();
 				
-				for (j = 0; j < prim_totface; j++) {
+				for (unsigned int j = 0; j < prim_totface; j++) {
 					int vcount = vcounta[j];
 					
 					if (vcount > 4) {
@@ -1387,14 +1386,14 @@ private:
 	// TODO: import uv set names
 	void read_faces(COLLADAFW::Mesh *mesh, Mesh *me, int new_tris)
 	{
-		int i;
+		unsigned int i;
 		
 		// allocate faces
 		me->totface = mesh->getFacesCount() + new_tris;
 		me->mface = (MFace*)CustomData_add_layer(&me->fdata, CD_MFACE, CD_CALLOC, NULL, me->totface);
 		
 		// allocate UV layers
-		int totuvset = mesh->getUVCoords().getInputInfosArray().getCount();
+		unsigned int totuvset = mesh->getUVCoords().getInputInfosArray().getCount();
 
 		for (i = 0; i < totuvset; i++) {
 			CustomData_add_layer(&me->fdata, CD_MTFACE, CD_CALLOC, NULL, me->totface);
@@ -1429,7 +1428,7 @@ private:
 			size_t prim_totface = mp->getFaceCount();
 			unsigned int *indices = mp->getPositionIndices().getData();
 			unsigned int *nind = mp->getNormalIndices().getData();
-			int j, k;
+			unsigned int j, k;
 			int type = mp->getPrimitiveType();
 			int index = 0;
 			
@@ -1528,7 +1527,7 @@ private:
 
 							set_face_indices(mface, tri_indices, false);
 							
-							for (int l = 0; l < totuvset; l++) {
+							for (unsigned int l = 0; l < totuvset; l++) {
 								// get mtface by face index and uv set index
 								MTFace *mtface = (MTFace*)CustomData_get_layer_n(&me->fdata, CD_MTFACE, l);
 								set_face_uv(&mtface[face_index], uvs, l, *index_list_array[l], uv_indices);
@@ -1596,8 +1595,10 @@ private:
 	{
 		float a[3], b[3];
 
-		get_vector(a, nor, *nind++);
+		get_vector(a, nor, *nind);
 		normalize_v3(a);
+
+		nind++;
 
 		for (int i = 1; i < count; i++, nind++) {
 			get_vector(b, nor, *nind);
@@ -1875,7 +1876,7 @@ private:
 		// COLLADAFW::FloatOrDoubleArray& outtan = curve->getOutTangentValues();
 		float fps = (float)FPS;
 		size_t dim = curve->getOutDimension();
-		int i;
+		unsigned int i;
 
 		std::vector<FCurve*>& fcurves = curve_map[curve->getUniqueId()];
 
@@ -1924,7 +1925,7 @@ private:
 				//fcu->totvert = curve->getKeyCount();
 				
 				// create beztriple for each key
-				for (int j = 0; j < curve->getKeyCount(); j++) {
+				for (unsigned int j = 0; j < curve->getKeyCount(); j++) {
 					BezTriple bez;
 					memset(&bez, 0, sizeof(BezTriple));
 
@@ -1958,7 +1959,7 @@ private:
 
 	void fcurve_deg_to_rad(FCurve *cu)
 	{
-		for (int i = 0; i < cu->totvert; i++) {
+		for (unsigned int i = 0; i < cu->totvert; i++) {
 			// TODO convert handles too
 			cu->bezt[i].vec[1][1] *= M_PI / 180.0f;
 		}
@@ -2436,7 +2437,7 @@ public:
 
 		std::vector<FCurve*> old_curves;
 
-		int i;
+		unsigned int i;
 
 		// find frames at which to sample plus convert all keys to radians
 		for (i = 0; i < tms.getCount(); i++) {
@@ -2451,7 +2452,7 @@ public:
 					const COLLADAFW::AnimationList::AnimationBindings& bindings = animlist->getAnimationBindings();
 
 					if (bindings.getCount()) {
-						for (int j = 0; j < bindings.getCount(); j++) {
+						for (unsigned int j = 0; j < bindings.getCount(); j++) {
 							std::vector<FCurve*>& curves = curve_map[bindings[j].animation];
 							bool xyz = ((type == COLLADAFW::Transformation::TRANSLATE || type == COLLADAFW::Transformation::SCALE) && bindings[j].animationClass == COLLADAFW::AnimationList::POSITION_XYZ);
 
@@ -2464,7 +2465,7 @@ public:
 									if (is_rotation)
 										fcurve_deg_to_rad(fcu);
 
-									for (int k = 0; k < fcu->totvert; k++) {
+									for (unsigned int k = 0; k < fcu->totvert; k++) {
 										float fra = fcu->bezt[k].vec[1][0];
 										if (std::find(frames.begin(), frames.end(), fra) == frames.end())
 											frames.push_back(fra);
@@ -2555,7 +2556,7 @@ public:
 
 		// new curves
 		FCurve *newcu[4];
-		int totcu = is_rotation ? 4 : 3;
+		unsigned int totcu = is_rotation ? 4 : 3;
 
 		for (i = 0; i < totcu; i++) {
 			newcu[i] = create_fcurve(i, rna_path);
@@ -2693,7 +2694,7 @@ public:
 
 		unit_m4(mat);
 
-		for (int i = 0; i < tms.getCount(); i++) {
+		for (unsigned int i = 0; i < tms.getCount(); i++) {
 			COLLADAFW::Transformation *tm = tms[i];
 			COLLADAFW::Transformation::TransformationType type = tm->getTransformationType();
 			float m[4][4];
@@ -2735,7 +2736,7 @@ public:
 			const COLLADAFW::AnimationList::AnimationBindings& bindings = animlist->getAnimationBindings();
 
 			if (bindings.getCount()) {
-				for (int j = 0; j < bindings.getCount(); j++) {
+				for (unsigned int j = 0; j < bindings.getCount(); j++) {
 					std::vector<FCurve*>& curves = curve_map[bindings[j].animation];
 					COLLADAFW::AnimationList::AnimationClass animclass = bindings[j].animationClass;
 					COLLADAFW::Transformation::TransformationType type = tm->getTransformationType();
@@ -2851,7 +2852,7 @@ public:
 		}
 
 		COLLADAFW::NodePointerArray& children = node->getChildNodes();
-		for (int i = 0; i < children.getCount(); i++) {
+		for (unsigned int i = 0; i < children.getCount(); i++) {
 			if (calc_joint_parent_mat_rest(mat, m, children[i], end))
 				return true;
 		}
@@ -3065,7 +3066,7 @@ public:
 		for (std::vector<const COLLADAFW::VisualScene*>::iterator it = vscenes.begin(); it != vscenes.end(); it++) {
 			const COLLADAFW::NodePointerArray& roots = (*it)->getRootNodes();
 
-			for (int i = 0; i < roots.getCount(); i++)
+			for (unsigned int i = 0; i < roots.getCount(); i++)
 				translate_anim_recursive(roots[i]);
 		}
 
@@ -3089,14 +3090,14 @@ public:
 			COLLADAFW::Transformation::TRANSLATE
 		};
 
-		int i;
+		unsigned int i;
 		Object *ob;
 
 		for (i = 0; i < 3; i++)
 			ob = anim_importer.translate_animation(node, object_map, root_map, types[i]);
 
 		COLLADAFW::NodePointerArray &children = node->getChildNodes();
-		for (int i = 0; i < children.getCount(); i++) {
+		for (i = 0; i < children.getCount(); i++) {
 			translate_anim_recursive(children[i], node, ob);
 		}
 	}
@@ -3221,7 +3222,7 @@ public:
 
 		// if node has child nodes write them
 		COLLADAFW::NodePointerArray &child_nodes = node->getChildNodes();
-		for (int i = 0; i < child_nodes.getCount(); i++) {	
+		for (unsigned int i = 0; i < child_nodes.getCount(); i++) {	
 			write_node(child_nodes[i], node, sce, ob);
 		}
 	}
@@ -3247,7 +3248,7 @@ public:
 		Scene *sce = CTX_data_scene(mContext);
 		const COLLADAFW::NodePointerArray& roots = visualScene->getRootNodes();
 
-		for (int i = 0; i < roots.getCount(); i++) {
+		for (unsigned int i = 0; i < roots.getCount(); i++) {
 			write_node(roots[i], NULL, sce, NULL);
 		}
 
