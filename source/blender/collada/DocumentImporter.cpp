@@ -99,11 +99,13 @@ extern "C"
 #include <float.h>
 
 // #define COLLADA_DEBUG
-#define ARMATURE_TEST
+
+// creates empties for each imported bone on layer 2, for debugging
+// #define ARMATURE_TEST
 
 char *CustomData_get_layer_name(const struct CustomData *data, int type, int n);
 
-const char *primTypeToStr(COLLADAFW::MeshPrimitive::PrimitiveType type)
+static const char *primTypeToStr(COLLADAFW::MeshPrimitive::PrimitiveType type)
 {
 	using namespace COLLADAFW;
 	
@@ -129,7 +131,8 @@ const char *primTypeToStr(COLLADAFW::MeshPrimitive::PrimitiveType type)
 	}
 	return "UNKNOWN";
 }
-const char *geomTypeToStr(COLLADAFW::Geometry::GeometryType type)
+
+static const char *geomTypeToStr(COLLADAFW::Geometry::GeometryType type)
 {
 	switch (type) {
 	case COLLADAFW::Geometry::GEO_TYPE_MESH:
@@ -146,7 +149,7 @@ const char *geomTypeToStr(COLLADAFW::Geometry::GeometryType type)
 
 // works for COLLADAFW::Node, COLLADAFW::Geometry
 template<class T>
-const char *get_dae_name(T *node)
+static const char *get_dae_name(T *node)
 {
 	const std::string& name = node->getName();
 	return name.size() ? name.c_str() : node->getOriginalId().c_str();
@@ -154,13 +157,13 @@ const char *get_dae_name(T *node)
 
 // use this for retrieving bone names, since these must be unique
 template<class T>
-const char *get_joint_name(T *node)
+static const char *get_joint_name(T *node)
 {
 	const std::string& id = node->getOriginalId();
 	return id.size() ? id.c_str() : node->getName().c_str();
 }
 
-float get_float_value(const COLLADAFW::FloatOrDoubleArray& array, unsigned int index)
+static float get_float_value(const COLLADAFW::FloatOrDoubleArray& array, unsigned int index)
 {
 	if (index >= array.getValuesCount())
 		return 0.0f;
@@ -1536,18 +1539,19 @@ private:
 							test_index_face(mface, &me->fdata, face_index, 3);
 
 							if (has_normals) {
-								unsigned int utri[3] = {tri[v], tri[v + 1], tri[v + 2]};
+								unsigned int ntri[3] = {nind[tri[v]], nind[tri[v + 1]], nind[tri[v + 2]]};
 
-								if (!flat_face(utri, nor, 3))
+								if (!flat_face(ntri, nor, 3))
 									mface->flag |= ME_SMOOTH;
-
-								nind += 3;
 							}
 							
 							mface++;
 							face_index++;
 							prim.totface++;
 						}
+
+						if (has_normals)
+							nind += vcount;
 					}
 
 					index += vcount;
@@ -1965,86 +1969,6 @@ private:
 		}
 	}
 
-#if 0
-	void make_fcurves_from_animation(COLLADAFW::AnimationCurve *curve,
-									 COLLADAFW::FloatOrDoubleArray& input,
-									 COLLADAFW::FloatOrDoubleArray& output,
-									 COLLADAFW::FloatOrDoubleArray& intan,
-									 COLLADAFW::FloatOrDoubleArray& outtan, size_t dim, float fps)
-	{
-		int i;
-		// char *path = "location";
-		std::vector<FCurve*>& fcurves = curve_map[curve->getUniqueId()];
-
-		if (dim == 1) {
-			// create fcurve
-			FCurve *fcu = (FCurve*)MEM_callocN(sizeof(FCurve), "FCurve");
-
-			fcu->flag = (FCURVE_VISIBLE|FCURVE_AUTO_HANDLES|FCURVE_SELECTED);
-			// fcu->rna_path = BLI_strdupn(path, strlen(path));
-			fcu->array_index = 0;
-			//fcu->totvert = curve->getKeyCount();
-			
-			// create beztriple for each key
-			for (i = 0; i < curve->getKeyCount(); i++) {
-				BezTriple bez;
-				memset(&bez, 0, sizeof(BezTriple));
-				// intangent
-				bez.vec[0][0] = get_float_value(intan, i + i) * fps;
-				bez.vec[0][1] = get_float_value(intan, i + i + 1);
-				// input, output
-				bez.vec[1][0] = get_float_value(input, i) * fps;
-				bez.vec[1][1] = get_float_value(output, i);
-				// outtangent
-				bez.vec[2][0] = get_float_value(outtan, i + i) * fps;
-				bez.vec[2][1] = get_float_value(outtan, i + i + 1);
-				
-				bez.ipo = U.ipo_new; /* use default interpolation mode here... */
-				bez.f1 = bez.f2 = bez.f3 = SELECT;
-				bez.h1 = bez.h2 = HD_AUTO;
-				insert_bezt_fcurve(fcu, &bez, 0);
-				calchandles_fcurve(fcu);
-			}
-
-			fcurves.push_back(fcu);
-		}
-		else if(dim == 3) {
-			for (i = 0; i < dim; i++ ) {
-				// create fcurve
-				FCurve *fcu = (FCurve*)MEM_callocN(sizeof(FCurve), "FCurve");
-				
-				fcu->flag = (FCURVE_VISIBLE|FCURVE_AUTO_HANDLES|FCURVE_SELECTED);
-				// fcu->rna_path = BLI_strdupn(path, strlen(path));
-				fcu->array_index = 0;
-				//fcu->totvert = curve->getKeyCount();
-				
-				// create beztriple for each key
-				for (int j = 0; j < curve->getKeyCount(); j++) {
-					BezTriple bez;
-					memset(&bez, 0, sizeof(BezTriple));
-					// intangent
-					bez.vec[0][0] = get_float_value(intan, j * 6 + i + i) * fps;
-					bez.vec[0][1] = get_float_value(intan, j * 6 + i + i + 1);
-					// input, output
-					bez.vec[1][0] = get_float_value(input, j) * fps; 
-					bez.vec[1][1] = get_float_value(output, j * 3 + i);
-					// outtangent
-					bez.vec[2][0] = get_float_value(outtan, j * 6 + i + i) * fps;
-					bez.vec[2][1] = get_float_value(outtan, j * 6 + i + i + 1);
-
-					bez.ipo = U.ipo_new; /* use default interpolation mode here... */
-					bez.f1 = bez.f2 = bez.f3 = SELECT;
-					bez.h1 = bez.h2 = HD_AUTO;
-					insert_bezt_fcurve(fcu, &bez, 0);
-					calchandles_fcurve(fcu);
-				}
-
-				fcurves.push_back(fcu);
-			}
-		}
-	}
-#endif
-	
 	void add_fcurves_to_object(Object *ob, std::vector<FCurve*>& curves, char *rna_path, int array_index, Animation *animated)
 	{
 		bAction *act;
@@ -2401,18 +2325,11 @@ public:
 	// prerequisites:
 	// animlist_map - map animlist id -> animlist
 	// curve_map - map anim id -> curve(s)
-#ifdef ARMATURE_TEST
 	Object *translate_animation(COLLADAFW::Node *node,
 								std::map<COLLADAFW::UniqueId, Object*>& object_map,
 								std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
 								COLLADAFW::Transformation::TransformationType tm_type,
 								Object *par_job = NULL)
-#else
-	void translate_animation(COLLADAFW::Node *node,
-							 std::map<COLLADAFW::UniqueId, Object*>& object_map,
-							 std::map<COLLADAFW::UniqueId, COLLADAFW::Node*>& root_map,
-							 COLLADAFW::Transformation::TransformationType tm_type)
-#endif
 	{
 		bool is_rotation = tm_type == COLLADAFW::Transformation::ROTATE;
 		bool is_joint = node->getType() == COLLADAFW::Node::JOINT;
@@ -2422,11 +2339,7 @@ public:
 
 		if (!ob) {
 			fprintf(stderr, "cannot find Object for Node with id=\"%s\"\n", node->getOriginalId().c_str());
-#ifdef ARMATURE_TEST
 			return NULL;
-#else
-			return;
-#endif
 		}
 
 		// frames at which to sample
@@ -2434,8 +2347,6 @@ public:
 
 		// for each <rotate>, <translate>, etc. there is a separate Transformation
 		const COLLADAFW::TransformationPointerArray& tms = node->getTransformations();
-
-		std::vector<FCurve*> old_curves;
 
 		unsigned int i;
 
@@ -2473,11 +2384,8 @@ public:
 								}
 							}
 							else {
-								fprintf(stderr, "expected 1 or 3 curves, got %u\n", curves.size());
+								fprintf(stderr, "expected %d curves, got %u\n", xyz ? 3 : 1, curves.size());
 							}
-
-							for (std::vector<FCurve*>::iterator it = curves.begin(); it != curves.end(); it++)
-								old_curves.push_back(*it);
 						}
 					}
 				}
@@ -2499,11 +2407,7 @@ public:
 			Bone *bone = get_named_bone((bArmature*)ob->data, bone_name);
 			if (!bone) {
 				fprintf(stderr, "cannot find bone \"%s\"\n", bone_name);
-#ifdef ARMATURE_TEST
 				return NULL;
-#else
-				return;
-#endif
 			}
 
 			unit_m4(rest);
@@ -2513,18 +2417,15 @@ public:
 
 		char rna_path[200];
 
+		Object *job = NULL;
+
 #ifdef ARMATURE_TEST
-		Object *job = get_joint_object(root, node, par_job);
 		FCurve *job_curves[4];
+		job = get_joint_object(root, node, par_job);
 #endif
 
-		if (frames.size() == 0) {
-#ifdef ARMATURE_TEST
+		if (frames.size() == 0)
 			return job;
-#else
-			return;
-#endif
-		}
 
 		const char *tm_str = NULL;
 		switch (tm_type) {
@@ -2538,11 +2439,7 @@ public:
 			tm_str = "location";
 			break;
 		default:
-#ifdef ARMATURE_TEST
 			return job;
-#else
-			return;
-#endif
 		}
 
 		if (is_joint) {
@@ -2560,8 +2457,10 @@ public:
 
 		for (i = 0; i < totcu; i++) {
 			newcu[i] = create_fcurve(i, rna_path);
+
 #ifdef ARMATURE_TEST
-			job_curves[i] = create_fcurve(i, tm_str);
+			if (is_joint)
+				job_curves[i] = create_fcurve(i, tm_str);
 #endif
 		}
 
@@ -2643,19 +2542,6 @@ public:
 		verify_adt_action((ID*)&ob->id, 1);
 
 		ListBase *curves = &ob->adt->action->curves;
-		// no longer needed
-#if 0
-		// remove old curves
-		for (std::vector<FCurve*>::iterator it = old_curves.begin(); it != old_curves.end(); it++) {
-			if (is_joint)
-				action_groups_remove_channel(ob->adt->action, *it);
-			else
-				BLI_remlink(curves, *it);
-
-			// std::remove(unused_curves.begin(), unused_curves.end(), *it);
-			// free_fcurve(*it);
-		}
-#endif
 
 		// add curves
 		for (i = 0; i < totcu; i++) {
@@ -2680,9 +2566,7 @@ public:
 			}
 		}
 
-#ifdef ARMATURE_TEST
 		return job;
-#endif
 	}
 
 	// internal, better make it private
@@ -3073,7 +2957,6 @@ public:
 	}
 
 
-#ifdef ARMATURE_TEST
 	void translate_anim_recursive(COLLADAFW::Node *node, COLLADAFW::Node *par = NULL, Object *parob = NULL)
 	{
 		if (par && par->getType() == COLLADAFW::Node::JOINT) {
@@ -3101,9 +2984,6 @@ public:
 			translate_anim_recursive(children[i], node, ob);
 		}
 	}
-#else
-
-#endif
 
 	/** When this method is called, the writer must write the global document asset.
 		@return The writer should return true, if writing succeeded, false otherwise.*/
