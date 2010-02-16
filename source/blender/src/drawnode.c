@@ -3365,7 +3365,7 @@ static void node_draw_basis(ScrArea *sa, SpaceNode *snode, bNode *node)
 	
 	/* preview */
 	if(node->flag & NODE_PREVIEW)
-		if(node->preview && node->preview->rect)
+		if(node->preview && node->preview->rect && !BLI_rctf_is_empty(&node->prvr))
 			node_draw_preview(node->preview, &node->prvr);
 		
 	/* buttons */
