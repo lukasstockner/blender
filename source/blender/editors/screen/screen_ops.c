@@ -3003,11 +3003,11 @@ static void image_buffer_rect_update(Scene *scene, RenderResult *rr, ImBuf *ibuf
 		
 		/* xmin here is first subrect x coord, xmax defines subrect width */
 		xmin = renrect->xmin + rr->crop;
-		xmax = renrect->xmax - xmin - rr->crop;
+		xmax = renrect->xmax - xmin + rr->crop;
 		if (xmax<2) return;
 		
 		ymin= renrect->ymin + rr->crop;
-		ymax= renrect->ymax - ymin - rr->crop;
+		ymax= renrect->ymax - ymin + rr->crop;
 		if(ymax<2)
 			return;
 		renrect->ymin= renrect->ymax;
