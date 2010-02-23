@@ -171,7 +171,7 @@ float RE_rayobject_cost(RayObject *r);
 int RE_rayobjectcontrol_test_break(RayObjectControl *c);
 
 
-#define ISECT_EPSILON ((float)FLT_EPSILON)
+#define ISECT_EPSILON (0) //(float)FLT_EPSILON)
 
 
 
