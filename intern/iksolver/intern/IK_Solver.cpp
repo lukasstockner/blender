@@ -377,3 +377,40 @@ int IK_Solve(IK_Solver *solver, float tolerance, int max_iterations)
 	return ((result)? 1: 0);
 }
 
+#include "TNT/cmat.h"
+#include "TNT/svd.h"
+
+extern "C" {
+void TNT_svd(float m[][4], float *w, float u[][4]);
+}
+
+void TNT_svd(float m[][4], float *w, float u[][4])
+{
+	TNT::Matrix<float> M, V, U;
+	TNT::Vector<float> W, W1, W2;
+	int i, j;
+
+	M.newsize(4, 4);
+	V.newsize(4, 4);
+	U.newsize(4, 4);
+	W.newsize(4);
+	W1.newsize(4);
+	W2.newsize(4);
+
+	for(i=0; i<4; i++)
+		for(j=0; j<4; j++)
+			M[i][j]= m[j][i];
+
+	TNT::SVD(M, V, W, U, W1, W2);
+
+	for(i=0; i<4; i++)
+		w[i]= W[i];
+
+	for(i=0; i<4; i++) {
+		for(j=0; j<4; j++) {
+			m[i][j]= V[j][i];
+			u[i][j]= U[j][i];
+		}
+	}
+}
+
