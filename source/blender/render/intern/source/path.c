@@ -114,11 +114,6 @@ static int isec_trace_ray(Render *re, Hit *from, Hit *to, int depth)
 	copy_v3_v3(to->n, to->vlr->n);
 	mul_v3_fl(to->n, -1.0f);
 
-	/* XXX epsilon problem workaround */
-	/* XXX sub_v3_v3v3(d, to->co, from->co);
-	if(dot_v3v3(d, from->vec) < 0.0f)
-		return 0;*/
-
 	return 1;
 }
 
