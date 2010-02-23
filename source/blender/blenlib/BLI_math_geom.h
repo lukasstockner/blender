@@ -152,6 +152,8 @@ void orthographic_m4(float mat[4][4], float left, float right,
 
 int box_clip_bounds_m4(float boundbox[2][3],
 	float bounds[4], float winmat[4][4]);
+void box_minmax_bounds_m4(float min[3], float max[3],
+	float boundbox[2][3], float mat[4][4]);
 
 /********************************** Mapping **********************************/
 
@@ -189,7 +191,7 @@ MINLINE void mul_sh_fl(float r[9], float f);
 MINLINE void add_sh_shsh(float r[9], float a[9], float b[9]);
 
 MINLINE float eval_shv3(float r[9], float v[3]);
-MINLINE void disc_to_sh(float r[9], float n[3], float area);
+MINLINE void vec_fac_to_sh(float r[9], float v[3], float fac);
 
 #ifdef __cplusplus
 }

@@ -30,9 +30,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math.h"
 #include "BLI_memarena.h"
-#include "MEM_guardedalloc.h"
+
+#include "BKE_utildefines.h"
 
 /********************************** Polygons *********************************/
 
@@ -124,10 +127,6 @@ float area_tri_v3(const float v1[3], const float v2[3], const float v3[3])  /* T
 
 	return (len/2.0f);
 }
-
-#define MAX2(x,y)		((x)>(y) ? (x) : (y))
-#define MAX3(x,y,z)		MAX2(MAX2((x),(y)) , (z))
-
 
 float area_poly_v3(int nr, float verts[][3], float *normal)
 {
@@ -1765,6 +1764,27 @@ int box_clip_bounds_m4(float boundbox[2][3], float bounds[4], float winmat[4][4]
 	}
 
 	return flag;
+}
+
+void box_minmax_bounds_m4(float min[3], float max[3], float boundbox[2][3], float mat[4][4])
+{
+	float mn[3], mx[3], vec[3];
+	int a;
+
+	copy_v3_v3(mn, min);
+	copy_v3_v3(mx, max);
+
+	for(a=0; a<8; a++) {
+		vec[0]= (a & 1)? boundbox[0][0]: boundbox[1][0];
+		vec[1]= (a & 2)? boundbox[0][1]: boundbox[1][1];
+		vec[2]= (a & 4)? boundbox[0][2]: boundbox[1][2];
+
+		mul_m4_v3(mat, vec);
+		DO_MINMAX(vec, mn, mx);
+	}
+
+	copy_v3_v3(min, mn);
+	copy_v3_v3(max, mx);
 }
 
 /********************************** Mapping **********************************/

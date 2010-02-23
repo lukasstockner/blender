@@ -76,15 +76,15 @@ MINLINE float eval_shv3(float sh[9], float v[3])
 	return sum;
 }
 
-MINLINE void disc_to_sh(float r[9], float n[3], float area)
+MINLINE void vec_fac_to_sh(float r[9], float v[3], float fac)
 {
 	/* See formula (3) in:
 	   "An Efficient Representation for Irradiance Environment Maps" */
 	float sh[9], x, y, z;
 
-	x= n[0];
-	y= n[1];
-	z= n[2];
+	x= v[0];
+	y= v[1];
+	z= v[2];
 
 	sh[0]= 0.282095f;
 
@@ -98,7 +98,7 @@ MINLINE void disc_to_sh(float r[9], float n[3], float area)
 	sh[7]= 1.092548f*x*z;
 	sh[8]= 0.546274f*(x*x - y*y);
 
-	mul_sh_fl(sh, area);
+	mul_sh_fl(sh, fac);
 	copy_sh_sh(r, sh);
 }
 

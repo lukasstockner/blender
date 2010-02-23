@@ -95,6 +95,7 @@ MINLINE float len_v2(const float a[2]);
 MINLINE float len_v2v2(const float a[2], const float b[2]);
 MINLINE float len_v3(const float a[3]);
 MINLINE float len_v3v3(const float a[3], const float b[3]);
+MINLINE float len_squared_v3v3(const float a[3], const float b[3]);
 
 MINLINE float normalize_v2(float r[2]);
 MINLINE float normalize_v2_v2(float r[2], const float a[2]);
