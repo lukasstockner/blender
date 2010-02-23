@@ -113,13 +113,22 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 		disk_occlusion_sample(re, shi);
 	else if((re->params.r.mode & R_RAYTRACE) && shi->material.mat->amb!=0.0f) {
 		int thread= shi->shading.thread;
+		float *ao= (re->db.wrld.mode & WO_AMB_OCC)? shi->shading.ao: NULL;
+		float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->shading.env: NULL;
+		float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
+			
+		if(re->db.irrcache[thread]) {
+			ShadeGeometry *geom= &shi->geometry;
 
-		if(!(re->db.cache[thread] && pixel_cache_sample(re->db.cache[thread], shi))) {
-			if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT))
-				ray_ao(re, shi, shi->shading.ao, shi->shading.env);
-			if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
-				ray_path(re, shi);
+			irr_cache_lookup(re, shi, re->db.irrcache[thread],
+				ao, env, indirect,
+				geom->co, geom->dxco, geom->dyco, geom->vn, 0);
 		}
+		else
+			ray_ao_env_indirect(re, shi, ao, env, indirect, NULL);
+
+		if(ao)
+			ao[1]= ao[2]= ao[0];
 	}
 	else
 		shi->shading.ao[0]= shi->shading.ao[1]= shi->shading.ao[2]= 1.0f;
@@ -185,10 +194,7 @@ static void indirect_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *sh
 	if(f == 0.0f)
 		return;
 
-	if(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX)
-		mat_color(color, &shi->material);
-	else
-		color[0]= color[1]= color[2]= 1.0f; /* already included in indirect */
+	mat_color(color, &shi->material);
 
 	shr->indirect[0]= shi->shading.indirect[0]*color[0]*f;
 	shr->indirect[1]= shi->shading.indirect[1]*color[1]*f;
@@ -344,7 +350,7 @@ static void shade_surface_emission(ShadeInput *shi, ShadeResult *shr)
 	mat_emit(shr->emit, &shi->material, &shi->geometry, shi->shading.thread);
 }
 
-static void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco)
+void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco)
 {
 	/* magic numbers for reordering sample positions to give better
 	 * results with adaptive sample, when it usually only takes 4 samples */
@@ -450,6 +456,10 @@ static int shade_full_osa(Render *re, ShadeInput *shi)
 static int shade_lamp_tot_samples(Render *re, LampRen *lar, ShadeInput *shi)
 {
 	int tot= lar->ray_totsamp;
+
+	/* XXX temporary hack */
+	if(shi->shading.depth)
+		return 1;
 
 	if(tot <= 1)
 		return 1;
@@ -594,7 +604,7 @@ static void shade_lamp_single(Render *re, LampRen *lar, ShadeInput *shi, ShadeRe
 	shade_lamp_accumulate(re, lar, shi, shr, lv, lainf, lashdw, passflag);
 }
 
-static void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
+void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	GroupObject *go;
 	ListBase *lights;
@@ -709,8 +719,7 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 		if(re->params.r.mode & R_RAYTRACE) {
 			if(shi->material.ray_mirror!=0.0f || ((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_RAYTRANSP) && shr->alpha!=1.0f)) {
 				/* ray trace works on combined, but gives pass info */
-				ray_trace(re, shi, shr);
-				//ray_trace_mirror(re, shi, shr);
+				ray_trace_specular(re, shi, shr);
 			}
 		}
 	}

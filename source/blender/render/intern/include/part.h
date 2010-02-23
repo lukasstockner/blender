@@ -29,10 +29,14 @@
 
 #include "result.h"
 
+struct APixstr;
+struct APixstrand;
+struct PixStr;
+struct rctf;
 struct Render;
 struct RenderPart;
 struct RenderResult;
-struct rctf;
+struct StrandShadeCache;
 
 /* Create/Free */
 
@@ -62,11 +66,17 @@ typedef struct RenderPart {
 	int *rectp;						/* polygon index table */
 	int *rectz;						/* zbuffer */
 	int *rectmask;					/* negative zmask */
-	void **rectdaps;				/* delta acum buffer for pixel structs */
 	int *rectbacko;					/* object table for backside sss */
 	int *rectbackp;					/* polygon index table for backside sss */
 	int *rectbackz;					/* zbuffer for backside sss */
 	void **rectall;					/* buffer for all faces for sss */
+
+	/* rasterization results */
+	struct PixStr **rectdaps;			/* solid */
+	struct APixstr *apixbuf;			/* ztransp */
+	struct APixstrand *apixbufstrand;	/* strand */
+	struct StrandShadeCache *sscache;	/* cache for per control point strand shading */
+	ListBase apsmbase;					/* storage for apixbuf */
 
 	rcti disprect;					/* part coordinates within total picture */
 	int rectx, recty;				/* the size */

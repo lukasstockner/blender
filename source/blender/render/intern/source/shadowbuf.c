@@ -2270,7 +2270,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 	ISBSample *samp, *samplebuf[16];	/* should be RE_MAX_OSA */
 	ISBBranch root;
 	MemArena *memarena;
-	void **rd;
+	PixStr **rd;
 	int *recto, *rectp, x, y, sindex, sample, bsp_err=0;
 	
 	/* storage for shadow, per thread */

@@ -53,11 +53,13 @@
 #include "database.h"
 #include "environment.h"
 #include "lamp.h"
+#include "material.h"
 #include "object.h"
 #include "object_mesh.h"
 #include "pixelfilter.h"
 #include "raycounter.h"
 #include "rayobject.h"
+#include "raytrace.h"
 #include "render_types.h"
 #include "rendercore.h"
 #include "result.h"
@@ -1149,7 +1151,7 @@ static void trace_reflect(Render *re, float *col, ShadeInput *shi, ShadeResult *
 }
 
 /* extern call from render loop */
-void ray_trace(Render *re, ShadeInput *shi, ShadeResult *shr)
+void ray_trace_specular(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	float i, f, f1, fr, fg, fb;
 	float mircol[4], tracol[4];
@@ -1552,6 +1554,7 @@ void ray_shadow_single(float lashdw[3], Render *re, ShadeInput *shi, LampRen *la
 
 	// TODO isec.hint = &bb_hint;
 	isec.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
+	isec.mode = RE_RAY_SHADOW; // XXX
 	
 	/* setup intersection */
 	isec.orig.ob = shi->primitive.obi;
@@ -1766,4 +1769,276 @@ static void ray_translucent(ShadeInput *shi, LampRen *lar, float *distfac, float
 }
 
 #endif
+
+/* AO, Environment and Indirect */
+
+static int ray_indirect_trace_do(Render *re, ShadeInput *shi, Isect *isec, float start[3], float vec[3], float maxdist, int nearest)
+{
+	memset(isec, 0, sizeof(*isec));
+
+	copy_v3_v3(isec->start, start);
+	mul_v3_v3fl(isec->vec, vec, maxdist);
+	isec->labda= 1.0f;
+
+	isec->mode= (nearest)? RE_RAY_SHADOW_TRA: RE_RAY_SHADOW;
+	isec->skip= RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_RENDER_CHECK|RE_SKIP_VLR_NON_SOLID_MATERIAL;
+
+	isec->orig.ob = shi->primitive.obi;
+	isec->orig.face = shi->primitive.vlr;
+
+	isec->lay= -1;
+
+	if(!RE_rayobject_raycast(re->db.raytree, isec))
+		return 0;
+	
+	return 1;
+}
+
+static void shadeinput_from_isec(Render *re, ShadeInput *oldshi, Isect *isec, float vec[3], int depth, ShadeInput *shi)
+{
+	VlakRen *vlr= (VlakRen*)isec->hit.face;
+	ObjectInstanceRen *obi= isec->hit.ob;
+
+	memset(shi, 0, sizeof(ShadeInput));
+
+	shi->shading.thread= oldshi->shading.thread;
+	shi->shading.lay= oldshi->shading.lay;
+	shi->material.mat_override= oldshi->material.mat_override;
+	shi->shading.depth= depth;
+
+	copy_v3_v3(shi->geometry.view, vec);
+	madd_v3_v3v3fl(shi->geometry.co, isec->start, isec->vec, isec->labda);
+
+	shi->primitive.obi= obi;
+	shi->primitive.obr= obi->obr;
+	shi->primitive.vlr= vlr;
+	shi->material.mat= vlr->mat;
+	shade_input_init_material(re, shi);
+
+	if(vlr->v4) {
+		if(isec->isect==2) 
+			shade_input_set_triangle_i(re, shi, obi, vlr, 2, 1, 3);
+		else
+			shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 3);
+	}
+	else
+		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
+
+	shi->geometry.u= isec->u;
+	shi->geometry.v= isec->v;
+	shi->geometry.osatex= 0;
+
+	shade_input_set_normals(shi);
+
+	/* point normals to viewing direction */
+	if(dot_v3v3(shi->geometry.facenor, shi->geometry.view) < 0.0f)
+		shade_input_flip_normals(shi);
+
+	shade_input_set_shade_texco(re, shi);
+}
+
+static void ray_env_shade(Render *re, ShadeInput *shi, float start[3], float vec[3], float color[3])
+{
+	float dxyvec[3];
+	int envcolor;
+
+	/* environment color depending on user choice */
+	envcolor= re->db.wrld.aocolor;
+	if(shi->material.mat->mode & MA_ONLYSHADOW)
+		envcolor= WO_AOPLAIN;
+
+	if(envcolor == WO_AOPLAIN) {
+		color[0]= color[1]= color[2]= 1.0f;
+	}
+	else if(envcolor == WO_AOSKYCOL) {
+		environment_no_tex_shade(re, color, vec);
+	}
+	else {
+		/* this is wrong .. */
+		dxyvec[0]= 1.0f/(float)re->db.wrld.aosamp;
+		dxyvec[1]= 1.0f/(float)re->db.wrld.aosamp;
+		dxyvec[2]= 0.0f;
+
+		environment_shade(re, color, start, vec, dxyvec, shi->shading.thread);
+	}
+}
+
+static void indirect_shade(Render *re, ShadeInput *oldshi, Isect *isec, float vec[3], float color[3], int depth);
+
+static void indirect_path_trace(Render *re, ShadeInput *shi, float color[3], int depth)
+{
+	Isect isec;
+	float basis[3][3], r[2], vec[3], lvec[3], bsdf[3], probability= 0.75f;
+	int hit, thread= shi->shading.thread;
+
+	zero_v3(color);
+
+	/* maximum depth */
+	if(depth >= re->db.wrld.ao_indirect_bounces)
+		return;
+
+	/* russian roulette for termination */
+	if(BLI_thread_frand(thread) < probability)
+		return;
+
+	/* generate new ray */
+	r[0]= BLI_thread_frand(thread);
+	r[1]= BLI_thread_frand(thread);
+
+	sample_project_hemi_cosine_weighted(vec, r);
+
+	negate_v3_v3(basis[2], shi->geometry.vn);
+	ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
+	mul_m3_v3(basis, vec);
+
+	/* sample bsdf */
+	negate_v3_v3(lvec, vec); // silly inverted normals
+	mat_bsdf_f(bsdf, &shi->material, &shi->geometry, thread, lvec, BSDF_DIFFUSE);
+
+	if(!is_zero_v3(bsdf)) {
+		/* trace ray */
+		hit= ray_indirect_trace_do(re, shi, &isec, shi->geometry.co, vec, re->db.wrld.aodist, 1);
+
+		if(hit)
+			indirect_shade(re, shi, &isec, vec, color, depth+1);
+		else if(re->db.wrld.mode & WO_ENV_LIGHT)
+			ray_env_shade(re, shi, shi->geometry.co, vec, color);
+
+		/* bsdf & correction for russian roulette */
+		color[0]= bsdf[0]*color[0];
+		color[1]= bsdf[1]*color[1];
+		color[2]= bsdf[2]*color[2];
+		mul_v3_fl(color, (float)M_PI/(probability*dot_v3v3(vec, basis[2])));
+	}
+}
+
+static void indirect_shade_direct(Render *re, ShadeInput *shi, float color[3])
+{
+	ShadeResult shr;
+
+	/* direct diffuse lighting */
+	memset(&shr, 0, sizeof(shr));
+	shi->shading.passflag= SCE_PASS_DIFFUSE;
+	shade_surface_direct(re, shi, &shr);
+	copy_v3_v3(color, shr.diff);
+}
+
+static void indirect_shade(Render *re, ShadeInput *oldshi, Isect *isec, float vec[3], float color[3], int depth)
+{
+	ShadeInput shi;
+	float emit_color[3], path_color[3], direct_color[3];
+
+	shadeinput_from_isec(re, oldshi, isec, vec, depth, &shi);
+	mat_shading_begin(re, &shi, &shi.material);
+
+	/* emission + direct lighting + path trace for multiple bounces */
+	mat_emit(emit_color, &shi.material, &shi.geometry, shi.shading.thread);
+	indirect_shade_direct(re, &shi, direct_color);
+	indirect_path_trace(re, &shi, path_color, depth);
+
+	add_v3_v3v3(color, emit_color, direct_color);
+	add_v3_v3(color, path_color);
+
+	mat_shading_end(re, &shi.material);
+}
+
+#define HORIZON_CUTOFF	0.17364817766693041f	/* cos(80°) */
+//#define HARMONIC_MEAN
+
+void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], float indirect[3], float *Rmean)
+{
+	QMCSampler *qsa;
+	Isect isec;
+	float accum_ao, accum_env[3], accum_indirect[3], accum_R;
+	float basis[3][3], r[2], vec[3], normalize, dist, maxdist;
+	float jitco[RE_MAX_OSA][3], start[3], color[3];
+	int a, totsample, totjitco, thread, hit, nearest;
+	
+	thread= shi->shading.thread;
+	totsample= re->db.wrld.aosamp*re->db.wrld.aosamp;
+	maxdist= re->db.wrld.aodist;
+	nearest= (indirect || (ao && (re->db.wrld.aomode & WO_AODIST)) || Rmean);
+
+	/* local orthonormal basis */
+	negate_v3_v3(basis[2], shi->geometry.vn);
+	ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
+
+	/* jittered starting coordinates */
+	shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
+
+	/* clear accumulation variables */
+	accum_ao= 0.0f;
+	zero_v3(accum_env);
+	zero_v3(accum_indirect);
+
+#ifdef HARMONIC_MEAN
+	accum_R= 0.0f;
+#else
+	accum_R= 1e30f;
+#endif
+
+	qsa= sampler_acquire(re, thread, SAMP_TYPE_HAMMERSLEY, totsample);
+
+	/* sample */
+	for(a=0; a<totsample; a++) {
+		/* setup ray start and direction */
+		copy_v3_v3(start, jitco[a % totjitco]);
+
+		sampler_get_float_2d(r, qsa, a);
+		sample_project_hemi_cosine_weighted(vec, r);
+		mul_m3_v3(basis, vec);
+
+		/* trace ray */
+		hit= ray_indirect_trace_do(re, shi, &isec, start, vec, maxdist, nearest);
+
+		/* accumulate AO */
+		if(ao && hit) {
+			if(re->db.wrld.aomode & WO_AODIST)
+				accum_ao += expf(-isec.labda*maxdist);
+			else
+				accum_ao += 1.0f;
+		}
+
+		/* accumulate environment light */
+		if(env && !hit) {
+			ray_env_shade(re, shi, start, vec, color);
+			add_v3_v3(accum_env, color);
+		}
+
+		/* accumulate indirect light */
+		if(indirect && hit) {
+			indirect_shade(re, shi, &isec, vec, color, 1);
+			add_v3_v3(accum_indirect, color);
+		}
+
+		/* harmonic mean for irradiance caching */
+		if(Rmean && hit) {
+			dist= isec.labda*maxdist;
+
+#ifdef HARMONIC_MEAN
+			accum_R += 1.0f/dist;
+#else
+			if((dot_v3v3(basis[2], vec) > HORIZON_CUTOFF))
+				accum_R= minf(accum_R, dist);
+		}
+#endif
+
+		// TODO: adaptive sampling
+	}
+
+	sampler_release(re, qsa);
+
+	/* return normalized values */
+	normalize= 1.0f/totsample;
+
+	if(ao) *ao= 1.0f - accum_ao*normalize;
+	if(env) mul_v3_v3fl(env, accum_env, normalize);
+	if(indirect) mul_v3_v3fl(indirect, accum_indirect, normalize);
+
+#ifdef HARMONIC_MEAN
+	if(Rmean) *Rmean= totsample/accum_R;
+#else
+	if(Rmean) *Rmean= accum_R;
+#endif
+}
 

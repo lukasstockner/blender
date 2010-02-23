@@ -532,7 +532,7 @@ typedef struct StrandPart {
 	int *totapixbuf;
 	int *rectz;
 	int *rectmask;
-	void **rectdaps;
+	PixStr **rectdaps;
 	int rectx, recty;
 	int sample;
 	int shadow;
@@ -626,7 +626,7 @@ static void do_strand_fillac(void *handle, int x, int y, float u, float v, float
 	if(spart->rectdaps) {
 		/* find the z of the sample */
 		PixStr *ps;
-		void **rd= spart->rectdaps + offset;
+		PixStr **rd= spart->rectdaps + offset;
 		
 		bufferz= 0x7FFFFFFF;
 		if(spart->rectmask) maskz= 0x7FFFFFFF;

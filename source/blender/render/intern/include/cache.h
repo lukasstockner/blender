@@ -31,6 +31,7 @@ struct DerivedMesh;
 struct ObjectRen;
 struct Render;
 struct RenderDB;
+struct RenderLayer;
 struct RenderPart;
 struct ShadeInput;
 struct ShadeSample;
@@ -77,6 +78,19 @@ SurfaceCache *surface_cache_create(struct Render *re, struct ObjectRen *obr, str
 void surface_cache_free(struct RenderDB *rdb);
 
 void surface_cache_sample(SurfaceCache *cache, struct ShadeInput *shi);
+
+/* Irradiance Cache */
+
+struct IrrCache;
+typedef struct IrrCache IrrCache;
+
+void irr_cache_create(struct Render *re, struct RenderPart *pa,
+	struct RenderLayer *rl, struct ShadeSample *ssamp);
+void irr_cache_free(struct Render *re, struct RenderPart *pa);
+
+int irr_cache_lookup(struct Render *re, struct ShadeInput *shi,
+	IrrCache *cache, float *ao, float env[3], float indirect[3],
+	float P[3], float dPdu[3], float dPdv[3], float N[3], int do_sample);
 
 #endif /* __RENDER_CACHE_H__ */
 

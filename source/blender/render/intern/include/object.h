@@ -48,6 +48,7 @@ struct ObjectInstanceRen *render_instance_create(struct RenderDB *rdb,
 void render_instance_free(struct ObjectInstanceRen *obi);
 
 void render_instances_init(struct RenderDB *rdb);
+void render_instances_bound(struct RenderDB *db, float boundbox[2][3]);
 
 /* Data Layers */
 

@@ -181,6 +181,11 @@ class WORLD_PT_ambient_occlusion(WorldButtonsPanel):
         split.prop(light, "ao_factor", text="Factor")
         split.prop(light, "ao_blend_mode", text="")
 
+        split = layout.split()
+        split.prop(light, "ao_falloff")
+        sub = split.row()
+        sub.active = light.ao_falloff
+        sub.prop(light, "ao_falloff_strength", text="Strength")
 
 class WORLD_PT_environment_lighting(WorldButtonsPanel):
     bl_label = "Environment Lighting"
@@ -234,19 +239,9 @@ class WORLD_PT_gather(WorldButtonsPanel):
 
         split = layout.split()
 
-        col = split.column()
-        col.label(text="Attenuation:")
-        if light.gather_method == 'RAYTRACE':
-            col.prop(light, "distance")
-        col.prop(light, "falloff")
-        sub = col.row()
-        sub.active = light.falloff
-        sub.prop(light, "falloff_strength", text="Strength")
-
         if light.gather_method == 'RAYTRACE':
             col = split.column()
 
-            col.label(text="Sampling:")
             col.prop(light, "sample_method", text="")
 
             sub = col.column()
@@ -256,16 +251,20 @@ class WORLD_PT_gather(WorldButtonsPanel):
                 sub.prop(light, "threshold")
                 sub.prop(light, "adapt_to_speed", slider=True)
 
-            sub.prop(light, "pixel_cache")
-
         if light.gather_method == 'APPROXIMATE':
             col = split.column()
 
-            col.label(text="Sampling:")
             col.prop(light, "passes")
             col.prop(light, "error_tolerance", text="Error")
-            col.prop(light, "pixel_cache")
             col.prop(light, "correction")
+
+        col = split.column()
+
+        col.prop(light, "use_cache")
+
+        if light.gather_method == 'RAYTRACE':
+            col.label(text="Attenuation:")
+            col.prop(light, "distance")
 
 bpy.types.register(WORLD_PT_context_world)
 bpy.types.register(WORLD_PT_preview)

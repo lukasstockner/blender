@@ -63,7 +63,7 @@
 
 /* Shade Sample order:
 
-- shade_samples_from_ps()
+- shade_samples_from_pixel()
 	- for each sample
 		- shade_input_set_triangle()  <- if prev sample-face is same, use shade_input_copy_triangle()
 		- if vlr
@@ -1216,7 +1216,7 @@ void shade_sample_initialize(Render *re, ShadeSample *ssamp, RenderPart *pa, Ren
 
 /**************************** ShadeInput from Pixstr *************************/
 
-static void shade_input_from_ps(Render *re, ShadeInput *shi, int x, int y, int z, short samp, unsigned short mask)
+static void shade_input_from_pixel(Render *re, ShadeInput *shi, int x, int y, int z, short samp, unsigned short mask)
 {
 	float xs, ys, ofs[2];
 
@@ -1239,21 +1239,21 @@ static void shade_input_from_ps(Render *re, ShadeInput *shi, int x, int y, int z
 	shade_input_set_normals(shi);
 }
 
-static int shade_inputs_from_ps(Render *re, ShadeInput *shi, PixStr *ps, int x, int y)
+static int shade_inputs_from_pixel(Render *re, ShadeInput *shi, PixelRow *row, int x, int y)
 {
 	ShadePrimitive *prim= &shi->primitive;
-	unsigned short mask= ps->mask;
+	unsigned short mask= row->mask;
 	int tot= 0;
 
-	if(ps->facenr > 0) {
-		prim->obi= &re->db.objectinstance[ps->obi];
+	if(row->p > 0) {
+		prim->obi= &re->db.objectinstance[row->obi];
 		prim->obr= prim->obi->obr;
-		prim->facenr= (ps->facenr-1) & RE_QUAD_MASK;
+		prim->facenr= (row->p-1) & RE_QUAD_MASK;
 
 		if(prim->facenr < prim->obr->totvlak) {
 			VlakRen *vlr= render_object_vlak_get(prim->obr, prim->facenr);
 			
-			if(ps->facenr & RE_QUAD_OFFS)
+			if(row->p & RE_QUAD_OFFS)
 				shade_input_set_triangle_i(re, shi, prim->obi, vlr, 0, 2, 3);
 			else
 				shade_input_set_triangle_i(re, shi, prim->obi, vlr, 0, 1, 2);
@@ -1277,14 +1277,14 @@ static int shade_inputs_from_ps(Render *re, ShadeInput *shi, PixStr *ps, int x, 
 				if(tot)
 					shade_input_copy_triangle(shi, shi-1);
 				
-				shade_input_from_ps(re, shi, x, y, ps->z, samp, (1<<samp));
+				shade_input_from_pixel(re, shi, x, y, row->z, samp, (1<<samp));
 				shi++;
 				tot++;
 			}
 		}
 	}
 	else {
-		shade_input_from_ps(re, shi, x, y, ps->z, 0, mask);
+		shade_input_from_pixel(re, shi, x, y, row->z, 0, mask);
 		shi++;
 		tot++;
 	}
@@ -1292,12 +1292,9 @@ static int shade_inputs_from_ps(Render *re, ShadeInput *shi, PixStr *ps, int x, 
 	return tot;
 }
 
-void shade_samples_from_ps(Render *re, ShadeSample *ssamp, PixStr *ps, int x, int y)
+void shade_samples_from_pixel(Render *re, ShadeSample *ssamp, PixelRow *row, int x, int y)
 {
-	ShadeInput *shi= ssamp->shi;
-	
-	for(ssamp->tot= 0; ps; ps= ps->next)
-		ssamp->tot += shade_inputs_from_ps(re, shi+ssamp->tot, ps, x, y);
+	ssamp->tot= shade_inputs_from_pixel(re, ssamp->shi, row, x, y);
 }
 
 /********************************** Shading **********************************/
@@ -1436,8 +1433,10 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 		shade_input_init_material(re, shi);
 		
 		if (shi->material.mat->material_type == MA_TYPE_VOLUME) {
-			if(re->params.r.mode & R_RAYTRACE)
+			if(re->params.r.mode & R_RAYTRACE) {
 				shade_volume_outside(re, shi, shr);
+				shr->combined[3]= shr->alpha;
+			}
 		} else { /* MA_TYPE_SURFACE, MA_TYPE_WIRE */
 			shade_material_loop(re, shi, shr);
 		}

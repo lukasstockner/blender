@@ -77,15 +77,6 @@
 #include "sunsky.h"
 #include "zbuf.h"
 
-typedef struct PixelRow {
-	int obi;
-	int z;
-	int p;
-	int mask;
-	int segment;
-	float u, v;
-} PixelRow;
-
 /******************************* Halo **************************************/
 
 static int calchalo_z(HaloRen *har, int zz)
@@ -173,9 +164,9 @@ static void halo_tile(Render *re, RenderPart *pa, RenderLayer *rl)
 	RenderLayer *rlpp[RE_MAX_OSA];
 	HaloRen *har;
 	rcti disprect= pa->disprect, testrect= pa->disprect;
+	PixStr **rd= NULL;
 	float dist, xsq, ysq, xn, yn;
 	float col[4];
-	void **rd= NULL;
 	int a, *rz, zz, y, sample, totsample, od;
 	short minx, maxx, miny, maxy, x;
 	unsigned int lay= rl->lay;
@@ -545,19 +536,8 @@ static void unref_strand_samples(Render *re, StrandShadeCache *cache, PixelRow *
 	}
 }
 
-static void row_to_ps(PixStr *ps, PixelRow *row)
-{
-	memset(ps, 0, sizeof(*ps));
-
-	ps->z= row->z;
-	ps->mask=row->mask;
-	ps->obi= row->obi;
-	ps->facenr= row->p;
-}
-
 static int pixel_row_shade_samples(Render *re, ShadeSample *ssamp, StrandShadeCache *cache, int x, int y, PixelRow *row, int addpassflag)
 {
-	PixStr ps;
 	int samp;
 
 	if(row->segment != -1) {
@@ -567,8 +547,7 @@ static int pixel_row_shade_samples(Render *re, ShadeSample *ssamp, StrandShadeCa
 	}
 	else {
 		/* vlak shading */
-		row_to_ps(&ps, row);
-		shade_samples_from_ps(re, ssamp, &ps, x, y);
+		shade_samples_from_pixel(re, ssamp, row, x, y);
 
 		if(ssamp->tot) {
 			shade_samples(re, ssamp);
@@ -587,8 +566,11 @@ static int pixel_row_shade_samples(Render *re, ShadeSample *ssamp, StrandShadeCa
 }
 
 /* merge samples from solid, ztransp and strands into a one PixelRow */
-static int pixel_row_fill(Render *re, PixelRow *row, PixStr *ps, APixstr *ap, APixstrand *apstrand)
+int pixel_row_fill(PixelRow *row, Render *re, RenderPart *pa, int offs)
 {
+	PixStr *ps= (pa->rectdaps)? *(pa->rectdaps + offs): NULL;
+	APixstr *ap = (pa->apixbuf)? pa->apixbuf + offs: NULL;
+	APixstrand *apstrand = (pa->apixbufstrand)? pa->apixbufstrand + offs: NULL;
 	APixstr *apn;
 	APixstrand *apnstrand;
 	int a, b, totsample, tot= 0;
@@ -716,12 +698,13 @@ static void pixel_row_shade(Render *re, ShadeResult *samp_shr, ShadeSample *ssam
 		pixel_row_shade_lamphalo(re, samp_shr, ssamp, osa, x, y);
 }
 
-static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr* APixbuf, APixstrand *APixbufstrand, ListBase *apsmbase, StrandShadeCache *sscache)
+static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 {
 	RenderResult *rr= pa->result;
+	StrandShadeCache *sscache= pa->sscache;
 	ShadeSample ssamp;
 	int seed, lamphalo;
-	int x, y, crop=0, offs=0;
+	int x, y, crop, offs;
 	int passflag, layflag;
 
 	if(re->cb.test_break(re->cb.tbh))
@@ -740,14 +723,17 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 
 	/* precompute shading data for this tile */
 	if(re->params.r.mode & R_SHADOW)
-		irregular_shadowbuf_create(re, pa, APixbuf);
+		irregular_shadowbuf_create(re, pa, pa->apixbuf);
 
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_create(re, pa, &ssamp);
-	else if((re->db.wrld.aomode & WO_AOCACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)))
-		re->db.cache[pa->thread]= pixel_cache_create(re, pa, &ssamp);
+	else
+		irr_cache_create(re, pa, rl, &ssamp);
 
 	/* filtered render, for now we assume only 1 filter size */
+	offs= 0;
+	crop= 0;
+	seed= pa->rectx*pa->disprect.ymin;
 	if(pa->crop) {
 		crop= 1;
 		offs= pa->rectx + 1;
@@ -763,19 +749,16 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 	for(y=pa->disprect.ymin+crop; y<pa->disprect.ymax-crop; y++, rr->renrect.ymax++) {
 		for(x=pa->disprect.xmin+crop; x<pa->disprect.xmax-crop; x++) {
 			PixelRow row[MAX_PIXEL_ROW];
-			PixStr *ps= (pa->rectdaps)? *(pa->rectdaps + offs): NULL;
-			APixstr *ap = (APixbuf)? APixbuf + offs: NULL;
-			APixstrand *apstrand = (APixbufstrand)? APixbufstrand + offs: NULL;
 			int totrow;
 
-			/* per pixel fixed seed */
-			BLI_thread_srandom(pa->thread, seed++);
-			
 			/* create shade pixel row, sorted front to back */
-			totrow= pixel_row_fill(re, row, ps, ap, apstrand);
+			totrow= pixel_row_fill(row, re, pa, offs);
 
 			if(totrow || lamphalo) {
 				ShadeResult samp_shr[RE_MAX_OSA];
+
+				/* per pixel fixed seed */
+				BLI_thread_srandom(pa->thread, seed++);
 
 				/* shade and accumulate into samp_shr */
 				pixel_row_shade(re, samp_shr, &ssamp, row, totrow, x, y, sscache, passflag, layflag);
@@ -798,11 +781,8 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 	/* free tile precomputed data */
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_free(re, pa);
-
-	if(re->db.cache[pa->thread]) {
-		pixel_cache_free(re->db.cache[pa->thread]);
-		re->db.cache[pa->thread]= NULL;
-	}
+	else
+		irr_cache_free(re, pa);
 
 	if(re->params.r.mode & R_SHADOW)
 		irregular_shadowbuf_free(re, pa);
@@ -810,11 +790,6 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl, APixstr*
 
 static void zbuf_rasterize(Render *re, RenderPart *pa, RenderLayer *rl, ListBase *psmlist, float *edgerect)
 {
-	APixstr *APixbuf= NULL;      /* Zbuffer: linked list of face samples */
-	APixstrand *APixbufstrand = NULL;
-	ListBase apsmbase={NULL, NULL};
-	StrandShadeCache *sscache= NULL;
-
 	/* rasterization */
 	if((rl->layflag & SCE_LAY_ZMASK) && (rl->layflag & SCE_LAY_NEG_ZMASK))
 		pa->rectmask= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectmask");
@@ -824,7 +799,7 @@ static void zbuf_rasterize(Render *re, RenderPart *pa, RenderLayer *rl, ListBase
 
 	if(re->params.flag & R_ZTRA || re->db.totstrand)
 		if(rl->layflag & (SCE_LAY_ZTRA|SCE_LAY_STRAND))
-			zbuffer_alpha(re, pa, rl, &APixbuf, &APixbufstrand, &apsmbase, &sscache);
+			zbuffer_alpha(re, pa, rl);
 
 	if(pa->rectmask) {
 		MEM_freeN(pa->rectmask);
@@ -832,16 +807,21 @@ static void zbuf_rasterize(Render *re, RenderPart *pa, RenderLayer *rl, ListBase
 	}
 
 	/* shading */
-	zbuf_shade_all(re, pa, rl, APixbuf, APixbufstrand, &apsmbase, sscache);
+	zbuf_shade_all(re, pa, rl);
 
 	/* free */
-	if(APixbuf)
-		MEM_freeN(APixbuf);
-	if(APixbufstrand)
-		MEM_freeN(APixbufstrand);
-	if(sscache)
-		strand_shade_cache_free(sscache);
-	free_alpha_pixel_structs(&apsmbase);	
+	if(pa->apixbuf)
+		MEM_freeN(pa->apixbuf);
+	if(pa->apixbufstrand)
+		MEM_freeN(pa->apixbufstrand);
+	if(pa->sscache)
+		strand_shade_cache_free(pa->sscache);
+	free_alpha_pixel_structs(&pa->apsmbase);	
+
+	pa->apixbuf= NULL;
+	pa->apixbufstrand= NULL;
+	pa->sscache= NULL;
+	pa->apsmbase.first= pa->apsmbase.last= NULL;
 }
 
 /***************************** Main Rasterization Call ********************************/

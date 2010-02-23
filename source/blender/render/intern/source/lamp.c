@@ -183,8 +183,8 @@ float lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], floa
 	}
 
 	/* return values */
-	copy_v3_v3(r_vec, vec);
-	*r_dist= dist;
+	if(r_vec) copy_v3_v3(r_vec, vec);
+	if(r_dist) *r_dist= dist;
 
 	return fac;
 }

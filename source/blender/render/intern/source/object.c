@@ -365,3 +365,27 @@ void render_instances_init(RenderDB *rdb)
 	rdb->instancetable= newlist;
 }
 
+void render_instances_bound(RenderDB *db, float boundbox[2][3])
+{
+	ObjectInstanceRen *obi= db->objectinstance;
+	int a, tot= db->totinstance;
+	float min[3], max[3];
+
+	/* TODO this could be cached somewhere.. */
+
+	INIT_MINMAX(min, max);
+
+	for(a=0; a<tot; a++, obi++) {
+		if(obi->flag & R_DUPLI_TRANSFORMED) {
+			box_minmax_bounds_m4(min, max, obi->obr->boundbox, obi->mat);
+		}
+		else {
+			DO_MIN(obi->obr->boundbox[0], min);
+			DO_MAX(obi->obr->boundbox[1], max);
+		}
+	}
+
+	copy_v3_v3(boundbox[0], min);
+	copy_v3_v3(boundbox[1], max);
+}
+

@@ -2547,9 +2547,8 @@ void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, voi
  */
 static void copyto_abufz(Render *re, RenderPart *pa, int *arectz, int *rectmask, int sample)
 {
-	PixStr *ps;
+	PixStr *ps, **rd;
 	int x, y, *rza, *rma;
-	void **rd;
 	
 	if(re->params.osa==0) {
 		if(!pa->rectz)
@@ -2601,7 +2600,7 @@ static void copyto_abufz(Render *re, RenderPart *pa, int *arectz, int *rectmask,
  * Do accumulation z buffering.
  */
 
-static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *apsmbase, unsigned int lay, int negzmask, float winmat[][4], int winx, int winy, int samples, float (*jit)[2], float clipcrop, int shadow)
+static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *apixbuf, ListBase *apsmbase, unsigned int lay, int negzmask, float winmat[][4], int winx, int winy, int samples, float (*jit)[2], float clipcrop, int shadow)
 {
 	ZbufProjectCache cache[ZBUF_PROJECT_CACHE_SIZE];
 	ZSpan zspans[16], *zspan;	/* MAX_OSA */
@@ -2628,7 +2627,7 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *
 		
 		/* the buffers */
 		zspan->arectz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "Arectz");
-		zspan->apixbuf= APixbuf;
+		zspan->apixbuf= apixbuf;
 		zspan->apsmbase= apsmbase;
 		
 		if(negzmask)
@@ -2775,7 +2774,7 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *APixbuf, ListBase *
 	return zvlnr;
 }
 
-static int zbuffer_abuf_render(Render *re, RenderPart *pa, APixstr *APixbuf, APixstrand *APixbufstrand, ListBase *apsmbase, RenderLayer *rl, StrandShadeCache *sscache)
+static int zbuffer_abuf_render(Render *re, RenderPart *pa, APixstr *apixbuf, APixstrand *apixbufstrand, ListBase *apsmbase, RenderLayer *rl, StrandShadeCache *sscache)
 {
 	float winmat[4][4], (*jit)[2];
 	int samples, negzmask, doztra= 0;
@@ -2788,14 +2787,14 @@ static int zbuffer_abuf_render(Render *re, RenderPart *pa, APixstr *APixbuf, APi
 	camera_window_matrix(&re->cam, winmat);
 
 	if(rl->layflag & SCE_LAY_ZTRA)
-		doztra+= zbuffer_abuf(re, pa, APixbuf, apsmbase, rl->lay, negzmask, winmat, re->cam.winx, re->cam.winy, samples, jit, re->cam.clipcrop, 0);
-	if((rl->layflag & SCE_LAY_STRAND) && APixbufstrand)
-		doztra+= zbuffer_strands_abuf(re, pa, APixbufstrand, apsmbase, rl->lay, negzmask, winmat, re->cam.winx, re->cam.winy, samples, jit, re->cam.clipcrop, 0, sscache);
+		doztra+= zbuffer_abuf(re, pa, apixbuf, apsmbase, rl->lay, negzmask, winmat, re->cam.winx, re->cam.winy, samples, jit, re->cam.clipcrop, 0);
+	if((rl->layflag & SCE_LAY_STRAND) && apixbufstrand)
+		doztra+= zbuffer_strands_abuf(re, pa, apixbufstrand, apsmbase, rl->lay, negzmask, winmat, re->cam.winx, re->cam.winy, samples, jit, re->cam.clipcrop, 0, sscache);
 
 	return doztra;
 }
 
-void zbuffer_abuf_shadow(Render *re, LampRen *lar, float winmat[][4], APixstr *APixbuf, APixstrand *APixbufstrand, ListBase *apsmbase, int size, int samples, float (*jit)[2])
+void zbuffer_abuf_shadow(Render *re, LampRen *lar, float winmat[][4], APixstr *apixbuf, APixstrand *apixbufstrand, ListBase *apsmbase, int size, int samples, float (*jit)[2])
 {
 	RenderPart pa;
 	int lay= -1;
@@ -2810,40 +2809,40 @@ void zbuffer_abuf_shadow(Render *re, LampRen *lar, float winmat[][4], APixstr *A
 	pa.disprect.xmax= size;
 	pa.disprect.ymax= size;
 
-	zbuffer_abuf(re, &pa, APixbuf, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1);
-	if(APixbufstrand)
-		zbuffer_strands_abuf(re, &pa, APixbufstrand, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1, NULL);
+	zbuffer_abuf(re, &pa, apixbuf, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1);
+	if(apixbufstrand)
+		zbuffer_strands_abuf(re, &pa, apixbufstrand, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1, NULL);
 }
 
-int zbuffer_alpha(Render *re, RenderPart *pa, RenderLayer *rl, APixstr **APixbuf, APixstrand **APixbufstrand, ListBase *apsmbase, StrandShadeCache **sscache)
+int zbuffer_alpha(Render *re, RenderPart *pa, RenderLayer *rl)
 {
 	int doztra;
 
 	if(re->cb.test_break(re->cb.tbh))
 		return 0;
 
-	*APixbuf= MEM_callocN(pa->rectx*pa->recty*sizeof(APixstr), "APixbuf");
+	pa->apixbuf= MEM_callocN(pa->rectx*pa->recty*sizeof(APixstr), "apixbuf");
 	if(re->db.totstrand && (rl->layflag & SCE_LAY_STRAND)) {
-		*APixbufstrand= MEM_callocN(pa->rectx*pa->recty*sizeof(APixstrand), "APixbufstrand");
-		*sscache= strand_shade_cache_create();
+		pa->apixbufstrand= MEM_callocN(pa->rectx*pa->recty*sizeof(APixstrand), "apixbufstrand");
+		pa->sscache= strand_shade_cache_create();
 	}
 
 	/* fill the Apixbuf */
-	doztra= zbuffer_abuf_render(re, pa, *APixbuf, *APixbufstrand, apsmbase, rl, *sscache);
+	doztra= zbuffer_abuf_render(re, pa, pa->apixbuf, pa->apixbufstrand, &pa->apsmbase, rl, pa->sscache);
 
 	if(doztra == 0) {
 		/* nothing filled in */
-		MEM_freeN(*APixbuf);
-		if(*APixbufstrand)
-			MEM_freeN(*APixbufstrand);
-		if(*sscache)
-			strand_shade_cache_free(*sscache);
-		free_alpha_pixel_structs(apsmbase);
+		MEM_freeN(pa->apixbuf);
+		if(pa->apixbufstrand)
+			MEM_freeN(pa->apixbufstrand);
+		if(pa->sscache)
+			strand_shade_cache_free(pa->sscache);
+		free_alpha_pixel_structs(&pa->apsmbase);
 
-		*APixbuf= NULL;
-		*APixbufstrand= NULL;
-		*sscache= NULL;
-		apsmbase->first= apsmbase->last= NULL;
+		pa->apixbuf= NULL;
+		pa->apixbufstrand= NULL;
+		pa->sscache= NULL;
+		pa->apsmbase.first= pa->apsmbase.last= NULL;
 	}
 
 	return doztra;
@@ -2884,7 +2883,7 @@ void free_pixel_structs(ListBase *lb)
 	lb->first= lb->last= NULL;
 }
 
-static void addps(ListBase *lb, void **rd, int obi, int facenr, int z, int maskz, unsigned short mask)
+static void addps(ListBase *lb, PixStr **rd, int obi, int facenr, int z, int maskz, unsigned short mask)
 {
 	PixStrMain *psm;
 	PixStr *ps, *last= NULL;
@@ -2939,7 +2938,7 @@ static void make_pixelstructs(Render *re, RenderPart *pa, ZSpan *zspan, int samp
 {
 	ZbufSolidData *sdata= (ZbufSolidData*)data;
 	ListBase *lb= sdata->psmlist;
-	void **rd= pa->rectdaps;
+	PixStr **rd= pa->rectdaps;
 	int *ro= zspan->recto;
 	int *rp= zspan->rectp;
 	int *rz= zspan->rectz;

@@ -43,10 +43,10 @@
 #include "object.h"
 
 struct GHash;
+struct IrrCache;
 struct MemArena;
 struct Object;
 struct ObjectInstanceRen;
-struct PixelCache;
 struct RayFace;
 struct RayObject;
 struct VlakPrimitive;
@@ -108,8 +108,8 @@ typedef struct RenderDB {
 	/* memory pool for quick alloc */
 	struct MemArena *memArena;
 
-	/* pixel cache for AO/env/indirect */
-	struct PixelCache *cache[BLENDER_MAX_THREADS];
+	/* irradiance cache for AO/env/indirect */
+	struct IrrCache *irrcache[BLENDER_MAX_THREADS];
 } RenderDB;
 
 typedef struct RenderSampleData {

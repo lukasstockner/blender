@@ -83,5 +83,18 @@ typedef struct APixstrMain {
 	void *ps;
 } APixstrMain;
 
+typedef struct PixelRow {
+	int obi;
+	int z;
+	int p;
+	int mask;
+	int segment;
+	float u, v;
+} PixelRow;
+
+/* Rasterization Utilities */
+
+int pixel_row_fill(PixelRow *row, struct Render *re, struct RenderPart *pa, int offs);
+
 #endif /* __RENDERCORE_H__ */
 

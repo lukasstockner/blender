@@ -61,7 +61,7 @@ struct ListBase;
 struct RenderResult *render_result_create(struct Render *re, rcti *partrct, int crop, int savebuffers);
 struct RenderResult *render_result_full_sample_create(struct Render *re);
 
-void render_result_free(ListBase *lb, struct RenderResult *rr);
+void render_result_free(struct ListBase *lb, struct RenderResult *rr);
 
 /* Layers and Passes */
 

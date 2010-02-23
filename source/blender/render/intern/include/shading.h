@@ -32,7 +32,7 @@ struct Isect;
 struct HaloRen;
 struct LampRen;
 struct ObjectInstanceRen obi;
-struct PixStr;
+struct PixelRow;
 struct RenderLayer;
 struct RenderPart;
 struct ShadeInput;
@@ -90,13 +90,15 @@ void shade_input_do_shade(struct Render *re, struct ShadeInput *shi,
 
 void shade_sample_initialize(struct Render *re, struct ShadeSample *ssamp, struct RenderPart *pa, struct RenderLayer *rl);
 void shade_samples_do_AO(struct Render *re, struct ShadeSample *ssamp);
-void shade_samples_from_ps(struct Render *re, struct ShadeSample *ssamp, struct PixStr *ps, int x, int y);
+void shade_samples_from_pixel(struct Render *re, struct ShadeSample *ssamp, struct PixelRow *row, int x, int y);
 void shade_samples(struct Render *re, struct ShadeSample *ssamp);
 
 /* shadeoutput. */
 void shade_surface(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr, int backside);
 
 void shade_color(struct Render *re, struct ShadeInput *shi, ShadeResult *shr);
+void shade_jittered_coords(struct Render *re, struct ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco);
+void shade_surface_direct(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
 
 /* Utilities */
 void environment_lighting_apply(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);

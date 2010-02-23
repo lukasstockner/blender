@@ -287,7 +287,7 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Distance", "Length of rays, defines how far away other faces give occlusion effect.");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
-	prop= RNA_def_property(srna, "falloff_strength", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "ao_falloff_strength", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "aodistfac");
 	RNA_def_property_ui_text(prop, "Strength", "Distance attenuation factor, the higher, the 'shorter' the shadows.");
 	RNA_def_property_update(prop, 0, "rna_World_update");
@@ -317,14 +317,14 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Correction", "Ad-hoc correction for over-occlusion due to the approximation (for Approximate).");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
-	prop= RNA_def_property(srna, "falloff", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "ao_falloff", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_AODIST);
 	RNA_def_property_ui_text(prop, "Falloff", "");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
-	prop= RNA_def_property(srna, "pixel_cache", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_cache", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_AOCACHE);
-	RNA_def_property_ui_text(prop, "Pixel Cache", "Cache AO results in pixels and interpolate over neighbouring pixels for speedup (for Approximate).");
+	RNA_def_property_ui_text(prop, "Cache", "Cache AO results and interpolate over neighbouring pixels for speedup.");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
 	prop= RNA_def_property(srna, "samples", PROP_INT, PROP_NONE);

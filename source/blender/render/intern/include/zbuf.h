@@ -47,9 +47,7 @@ void zbuffer_solid(struct Render *re, struct RenderPart *pa, struct RenderLayer 
 	void (*edgefunc)(struct Render *re, struct RenderPart *pa, float *rectf, int *rectz),
 	float *edgerect);
 
-int zbuffer_alpha(struct Render *re, struct RenderPart *pa, struct RenderLayer *rl,
-	struct APixstr **APixbuf, struct APixstrand **APixbufstrand, struct ListBase *apsmbase,
-	struct StrandShadeCache **sscache);
+int zbuffer_alpha(struct Render *re, struct RenderPart *pa, struct RenderLayer *rl);
 
 /* Shadow Rasterization */
 
