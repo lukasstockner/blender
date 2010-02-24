@@ -689,8 +689,6 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 
 /* Lookup */
 
-#include <fenv.h>
-
 int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float cP[3], float dPdu[3], float dPdv[3], float cN[3], int preprocess)
 {
 	IrrCacheSample *sample;
