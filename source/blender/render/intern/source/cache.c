@@ -407,8 +407,9 @@ void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
 #define MAX_PIXEL_DIST			10.0f
 #define MAX_ERROR_K				1.0f
 #define WEIGHT_NORMAL_DENOM		65.823047821929777f		/* 1/(1 - cos(10°)) */
-#define HORIZON_CUTOFF			0.17364817766693041f	/* cos(80°) */
+#define SINGULAR_VALUE_EPSILON	1e-4f
 #define LSQ_RECONSTRUCTION
+#define NEIGHBOUR_CLAMP
 
 /* Data Structures */
 
@@ -471,7 +472,7 @@ void lsq_4D_add(Lsq4DFit *lsq, float a[4], float b[CACHE_DIMENSION], float weigh
 
 void TNT_svd(float m[][4], float *w, float u[][4]);
 
-int svd_invert_m4_m4(float R[4][4], float M[4][4])
+void svd_invert_m4_m4(float R[4][4], float M[4][4])
 {
 	float V[4][4], W[4], Wm[4][4], U[4][4];
 
@@ -479,16 +480,14 @@ int svd_invert_m4_m4(float R[4][4], float M[4][4])
 	TNT_svd(V, W, U);
 
 	zero_m4(Wm);
-	Wm[0][0]= (W[0] < 1e-6f)? 0.0f: 1.0f/W[0];
-	Wm[1][1]= (W[1] < 1e-6f)? 0.0f: 1.0f/W[1];
-	Wm[2][2]= (W[2] < 1e-6f)? 0.0f: 1.0f/W[2];
-	Wm[3][3]= (W[3] < 1e-6f)? 0.0f: 1.0f/W[3];
+	Wm[0][0]= (W[0] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[0];
+	Wm[1][1]= (W[1] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[1];
+	Wm[2][2]= (W[2] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[2];
+	Wm[3][3]= (W[3] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[3];
 
 	transpose_m4(V);
 
 	mul_serie_m4(R, U, Wm, V, 0, 0, 0, 0, 0);
-
-	return 1;
 }
 
 void lsq_4D_solve(Lsq4DFit *lsq, float solution[CACHE_DIMENSION])
@@ -576,6 +575,48 @@ static void irr_sample_get(float C[CACHE_DIMENSION], float *ao, float env[3], fl
 	if(indirect) copy_v3_v3(indirect, C+4);
 }
 
+#ifdef NEIGHBOUR_CLAMP
+/* Neighbour Clamping [Křivánek 2006] */
+
+static void irr_cache_clamp_sample(IrrCache *cache, IrrCacheSample *nsample)
+{
+	IrrCacheSample *sample;
+	IrrCacheNode *node, **stack, **stacknode;
+	float P[3];
+	int i;
+
+	copy_v3_v3(P, nsample->P);
+
+	stack= cache->stack;
+	stacknode= stack;
+
+	*stacknode++= &cache->root;
+	while(stacknode > stack) {
+		node= *(--stacknode);
+
+		/* sum the values in this level */
+		for(sample=node->samples; sample; sample=sample->next) {
+			float l;
+
+			/* avoid issues with coincident points */
+			l= len_squared_v3v3(sample->P, P);
+			l= (l > EPSILON)? sqrtf(l): EPSILON;
+
+			nsample->dP= minf(nsample->dP, sample->dP + l);
+			sample->dP= minf(sample->dP, nsample->dP + l);
+		}
+
+		/* check the children */
+		for(i=0; i<8; i++) {
+			IrrCacheNode *tnode= node->children[i];
+
+			if(tnode && irr_cache_node_point_inside(tnode, 4.0f, 0.0f, P))
+				*stacknode++= tnode;
+		}
+	}
+}
+#endif
+
 /* Add a Sample */
 
 static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float P[3], float dPdu[3], float dPdv[3], float N[3])
@@ -600,6 +641,12 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 		copy_v3_v3(sample->N, N);
 		sample->dP= Rmean;
 		irr_sample_set(sample->C, ao, env, indirect);
+
+#ifdef NEIGHBOUR_CLAMP
+		/* neighbour clamping trick */
+		irr_cache_clamp_sample(cache, sample);
+		Rmean= sample->dP; /* copy dP back so we get the right place in the octree */
+#endif
 
 		/* error multiplier */
 		Rmean /= MAX_ERROR_K;
@@ -642,18 +689,21 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 
 /* Lookup */
 
+#include <fenv.h>
+
 int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float cP[3], float dPdu[3], float dPdv[3], float cN[3], int preprocess)
 {
 	IrrCacheSample *sample;
 	IrrCacheNode *node, **stack, **stacknode;
 	float accum[CACHE_DIMENSION], P[3], N[3], totw;
-	float discard_weight, maxdist;
+	float discard_weight, maxdist, distfac;
 	int i, added= 0, totfound= 0;
 #ifdef LSQ_RECONSTRUCTION
 	Lsq4DFit lsq;
 #endif
 
 	/* XXX check how often this is called! */
+	/* XXX can identical samples end up in the cache now? */
 
 	/* a small value for discard-smoothing of irradiance */
 	discard_weight= (preprocess)? 0.1f: 0.0f;
@@ -676,8 +726,15 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	memset(accum, 0, sizeof(accum));
 #endif
 
-	maxdist= sqrtf(len_v3(dPdu)*len_v3(dPdv)); //*0.5f);
-	maxdist *= (preprocess? MAX_PIXEL_DIST/2: MAX_PIXEL_DIST);
+	/* the motivation for this factor is that in preprocess we only require
+	   one sample for lookup not to fail, whereas for least squares
+	   reconstruction we need more samples for a proper reconstruction. it's
+	   quite arbitrary though and it would be good to have an actual
+	   guarantee that we have enough samples for reconstruction */
+	distfac= (preprocess)? 1.0f: 2.0f;
+
+	maxdist= sqrtf(len_v3(dPdu)*len_v3(dPdv))*0.5f;
+	maxdist *= MAX_PIXEL_DIST*distfac;
 
 	while(stacknode > stack) {
 		node= *(--stacknode);
@@ -696,9 +753,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 			dist= len_v3(D);
 
-			if(preprocess && !(dist < sample->dP))
-				continue;
-			else if(!preprocess && !(dist < sample->dP*2))
+			if(dist > sample->dP*distfac)
 				continue;
 
 #if 0
@@ -720,6 +775,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 			/* compute the weight */
 			w= 1.0f - MAX_ERROR_K*maxf(e1, e2);
+
 			if(w > BLI_thread_frand(cache->thread)*discard_weight) {
 				if(!preprocess) {
 #ifdef LSQ_RECONSTRUCTION
@@ -783,7 +839,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 {
 	RenderResult *rr= pa->result;
 	IrrCache *cache;
-	int offs, crop, x, y, seed;
+	int crop, x, y, seed, step;
 	
 	if(!((re->db.wrld.aomode & WO_AOCACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
 		return;
@@ -793,62 +849,62 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 
 	seed= pa->rectx*pa->disprect.ymin;
 
-	offs= 0;
 	crop= 0;
-	if(pa->crop) {
+	if(pa->crop)
 		crop= 1;
-		offs= pa->rectx + 1;
-	}
 
-	rr->renrect.ymin= 0;
-	rr->renrect.ymax= -2*crop;
-	rr->renlay= rl;
+	//step= MAX2(pa->disprect.ymax - pa->disprect.ymin + 2*crop, pa->disprect.xmax - pa->disprect.xmin + 2*crop);
+	step= 1;
 
-	for(y=pa->disprect.ymin+crop; y<pa->disprect.ymax-crop; y++, rr->renrect.ymax++) {
-		for(x=pa->disprect.xmin+crop; x<pa->disprect.xmax-crop; x++) {
-			int lx = (x - pa->disprect.xmin);
-			int ly = (y - pa->disprect.ymin);
-			int od = lx + ly*(pa->disprect.xmax - pa->disprect.xmin);
-			PixelRow row[MAX_PIXEL_ROW];
-			int a, b, totrow;
+	while(step > 0) {
+		rr->renrect.ymin= 0;
+		rr->renrect.ymax= -2*crop;
+		rr->renlay= rl;
 
-			BLI_thread_srandom(pa->thread, seed++);
+		for(y=pa->disprect.ymin+crop; y<pa->disprect.ymax-crop; y+=step, rr->renrect.ymax++) {
+			for(x=pa->disprect.xmin+crop; x<pa->disprect.xmax-crop; x+=step) {
+				int lx = (x - pa->disprect.xmin);
+				int ly = (y - pa->disprect.ymin);
+				int od = lx + ly*(pa->disprect.xmax - pa->disprect.xmin);
+				PixelRow row[MAX_PIXEL_ROW];
+				int a, b, totrow;
 
-			/* create shade pixel row, sorted front to back */
-			totrow= pixel_row_fill(row, re, pa, od);
+				BLI_thread_srandom(pa->thread, seed++);
 
-			for(a=0; a<totrow; a++) {
-				shade_samples_from_pixel(re, ssamp, &row[a], lx+pa->disprect.xmin, ly+pa->disprect.ymin);
+				/* create shade pixel row, sorted front to back */
+				totrow= pixel_row_fill(row, re, pa, od);
 
-				for(b=0; b<ssamp->tot; b++) {
-					ShadeInput *shi= &ssamp->shi[b];
-					ShadeGeometry *geom= &shi->geometry;
-					float *ao= (re->db.wrld.mode & WO_AMB_OCC)? shi->shading.ao: NULL;
-					float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->shading.env: NULL;
-					float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
-					int added;
+				for(a=0; a<totrow; a++) {
+					shade_samples_from_pixel(re, ssamp, &row[a], lx+pa->disprect.xmin, ly+pa->disprect.ymin);
 
-					added= irr_cache_lookup(re, shi, cache,
-						ao, env, indirect,
-						geom->co, geom->dxco, geom->dyco, geom->vn, 1);
-					
-					if(added) {
-						if(indirect)
-							copy_v3_v3(rl->rectf + od*4, indirect);
-						else if(env)
-							copy_v3_v3(rl->rectf + od*4, env);
-						else if(ao)
-							rl->rectf[od*4]= *ao;
+					for(b=0; b<ssamp->tot; b++) {
+						ShadeInput *shi= &ssamp->shi[b];
+						ShadeGeometry *geom= &shi->geometry;
+						float *ao= (re->db.wrld.mode & WO_AMB_OCC)? shi->shading.ao: NULL;
+						float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->shading.env: NULL;
+						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
+						int added;
+
+						added= irr_cache_lookup(re, shi, cache,
+							ao, env, indirect,
+							geom->co, geom->dxco, geom->dyco, geom->vn, 1);
+						
+						if(added) {
+							if(indirect)
+								add_v3_v3(rl->rectf + od*4, indirect);
+							if(env)
+								add_v3_v3(rl->rectf + od*4, env);
+							if(ao)
+								rl->rectf[od*4] += *ao;
+						}
 					}
 				}
 			}
 
-			offs++;
+			if(re->cb.test_break(re->cb.tbh)) break;
 		}
 
-		offs+= 2*crop;
-
-		if(re->cb.test_break(re->cb.tbh)) break;
+		step /= 2;
 	}
 
 	memset(rl->rectf, 0, sizeof(float)*4*rl->rectx*rl->recty);
