@@ -698,6 +698,8 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 			if(preprocess && !(dist < sample->dP))
 				continue;
+			else if(!preprocess && !(dist < sample->dP*2))
+				continue;
 
 #if 0
 			{
