@@ -47,6 +47,7 @@ struct IrrCache;
 struct MemArena;
 struct Object;
 struct ObjectInstanceRen;
+struct RadioCache;
 struct RayFace;
 struct RayObject;
 struct VlakPrimitive;
@@ -110,6 +111,7 @@ typedef struct RenderDB {
 
 	/* irradiance cache for AO/env/indirect */
 	struct IrrCache *irrcache[BLENDER_MAX_THREADS];
+	struct RadioCache *radiocache[BLENDER_MAX_THREADS];
 } RenderDB;
 
 typedef struct RenderSampleData {

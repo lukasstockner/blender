@@ -74,6 +74,8 @@
 
 #define DEPTH_SHADOW_TRA  10
 
+int TOTRAY = 0;
+
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
 /* only to be used here in this file, it's for speed */
@@ -88,7 +90,7 @@ static int test_break(void *data)
 static int re_object_raycast(RayObject *rayob, Isect *isec, ShadeInput *shi)
 {
 	ObjectRen *obr= shi->primitive.obr;
-	float *vn= shi->geometry.vn;
+	float *vn= shi->geometry.vn, nor[3];
 	float dist= 1.0f, minlambda= 1.0f, offset;
 	int a, hit= 0;
 
@@ -114,8 +116,8 @@ static int re_object_raycast(RayObject *rayob, Isect *isec, ShadeInput *shi)
 		if(!RE_rayobject_raycast(rayob, &subisec))
 			continue;
 
-		vlr= subisec.hit.face;
-		if(dot_v3v3(vlr->n, vn) < 0.0f) /* face normal is flipped */
+		render_vlak_get_normal(subisec.hit.ob, subisec.hit.face, nor);
+		if(dot_v3v3(nor, vn) < 0.0f) /* face normal is flipped */
 			continue;
 
 		if(subisec.labda < minlambda) {
@@ -197,6 +199,9 @@ RayCounter re_rc_counter[BLENDER_MAX_THREADS];
 void raytree_free(RenderDB *rdb)
 {
 	ObjectInstanceRen *obi;
+
+	printf("tot ray: %d (%.3f million)\n", TOTRAY, TOTRAY/1e6);
+	TOTRAY= 0;
 	
 	if(rdb->raytree)
 	{
@@ -1776,6 +1781,8 @@ static int ray_indirect_trace_do(Render *re, ShadeInput *shi, Isect *isec, float
 {
 	memset(isec, 0, sizeof(*isec));
 
+	TOTRAY++;
+
 	copy_v3_v3(isec->start, start);
 	mul_v3_v3fl(isec->vec, vec, maxdist);
 	isec->labda= 1.0f;
@@ -1788,7 +1795,7 @@ static int ray_indirect_trace_do(Render *re, ShadeInput *shi, Isect *isec, float
 
 	isec->lay= -1;
 
-	if(!RE_rayobject_raycast(re->db.raytree, isec))
+	if(!re_object_raycast(re->db.raytree, isec, shi))
 		return 0;
 	
 	return 1;
@@ -1927,19 +1934,25 @@ static void indirect_shade(Render *re, ShadeInput *oldshi, Isect *isec, float ve
 {
 	ShadeInput shi;
 	float emit_color[3], path_color[3], direct_color[3];
+	float dist= isec->labda*re->db.wrld.aodistfac;
 
 	shadeinput_from_isec(re, oldshi, isec, vec, depth, &shi);
-	mat_shading_begin(re, &shi, &shi.material);
 
-	/* emission + direct lighting + path trace for multiple bounces */
-	mat_emit(emit_color, &shi.material, &shi.geometry, shi.shading.thread);
-	indirect_shade_direct(re, &shi, direct_color);
-	indirect_path_trace(re, &shi, path_color, depth);
+	if(!radio_cache_lookup(re, &shi, color, dist)) {
+		mat_shading_begin(re, &shi, &shi.material);
 
-	add_v3_v3v3(color, emit_color, direct_color);
-	add_v3_v3(color, path_color);
+		/* emission + direct lighting + path trace for multiple bounces */
+		mat_emit(emit_color, &shi.material, &shi.geometry, shi.shading.thread);
+		indirect_shade_direct(re, &shi, direct_color);
+		indirect_path_trace(re, &shi, path_color, depth);
 
-	mat_shading_end(re, &shi.material);
+		add_v3_v3v3(color, emit_color, direct_color);
+		add_v3_v3(color, path_color);
+
+		mat_shading_end(re, &shi.material);
+
+		radio_cache_add(re, &shi, color);
+	}
 }
 
 #define HORIZON_CUTOFF	0.17364817766693041f	/* cos(80°) */

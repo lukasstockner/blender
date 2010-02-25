@@ -92,5 +92,12 @@ int irr_cache_lookup(struct Render *re, struct ShadeInput *shi,
 	IrrCache *cache, float *ao, float env[3], float indirect[3],
 	float P[3], float dPdu[3], float dPdv[3], float N[3], int do_sample);
 
+/* Radiosity Cache */
+
+void radio_cache_create(struct Render *re, int thread);
+void radio_cache_free(struct RenderDB *rdb, int thread);
+int radio_cache_lookup(struct Render *re, struct ShadeInput *shi, float color[3], float raylength);
+void radio_cache_add(struct Render *re, struct ShadeInput *shi, float color[3]);
+
 #endif /* __RENDER_CACHE_H__ */
 

@@ -408,8 +408,6 @@ void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
 #define MAX_ERROR_K				1.0f
 #define WEIGHT_NORMAL_DENOM		65.823047821929777f		/* 1/(1 - cos(10°)) */
 #define SINGULAR_VALUE_EPSILON	1e-4f
-#define LSQ_RECONSTRUCTION
-#define NEIGHBOUR_CLAMP
 
 /* Data Structures */
 
@@ -442,10 +440,15 @@ struct IrrCache {
 	MemArena *arena;			/* memory arena for nodes and samples */
 	int thread;					/* thread owning the cache */
 
-	/* test: a stable global coordinate system may help */
 	int totsample;
 	int totlookup;
 	int totpost;
+
+	/* options */
+	int neighbour_clamp;
+	int lsq_reconstruction;
+
+	/* test: a stable global coordinate system may help */
 };
 
 typedef struct Lsq4DFit {
@@ -526,6 +529,10 @@ static IrrCache *irr_cache_new(Render *re, int thread)
 	cache->stacksize= 10;
 	cache->stack= MEM_mallocN(sizeof(IrrCacheNode*)*cache->stacksize*8, "IrrCache stack");
 
+	/* options */
+	cache->lsq_reconstruction= 1;
+	cache->neighbour_clamp= 1;
+
 	return cache;
 }
 
@@ -575,7 +582,6 @@ static void irr_sample_get(float C[CACHE_DIMENSION], float *ao, float env[3], fl
 	if(indirect) copy_v3_v3(indirect, C+4);
 }
 
-#ifdef NEIGHBOUR_CLAMP
 /* Neighbour Clamping [Křivánek 2006] */
 
 static void irr_cache_clamp_sample(IrrCache *cache, IrrCacheSample *nsample)
@@ -615,7 +621,6 @@ static void irr_cache_clamp_sample(IrrCache *cache, IrrCacheSample *nsample)
 		}
 	}
 }
-#endif
 
 /* Add a Sample */
 
@@ -642,11 +647,11 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 		sample->dP= Rmean;
 		irr_sample_set(sample->C, ao, env, indirect);
 
-#ifdef NEIGHBOUR_CLAMP
-		/* neighbour clamping trick */
-		irr_cache_clamp_sample(cache, sample);
-		Rmean= sample->dP; /* copy dP back so we get the right place in the octree */
-#endif
+		if(cache->neighbour_clamp) {
+			/* neighbour clamping trick */
+			irr_cache_clamp_sample(cache, sample);
+			Rmean= sample->dP; /* copy dP back so we get the right place in the octree */
+		}
 
 		/* error multiplier */
 		Rmean /= MAX_ERROR_K;
@@ -695,10 +700,8 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	IrrCacheNode *node, **stack, **stacknode;
 	float accum[CACHE_DIMENSION], P[3], N[3], totw;
 	float discard_weight, maxdist, distfac;
-	int i, added= 0, totfound= 0;
-#ifdef LSQ_RECONSTRUCTION
+	int i, added= 0, totfound= 0, use_lsq;
 	Lsq4DFit lsq;
-#endif
 
 	/* XXX check how often this is called! */
 	/* XXX can identical samples end up in the cache now? */
@@ -718,11 +721,12 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	stacknode= stack;
 	*stacknode++= &cache->root;
 
-#ifdef LSQ_RECONSTRUCTION
-	memset(&lsq, 0, sizeof(lsq));
-#else
-	memset(accum, 0, sizeof(accum));
-#endif
+	use_lsq= cache->lsq_reconstruction;
+
+	if(use_lsq)
+		memset(&lsq, 0, sizeof(lsq));
+	else
+		memset(accum, 0, sizeof(accum));
 
 	/* the motivation for this factor is that in preprocess we only require
 	   one sample for lookup not to fail, whereas for least squares
@@ -776,14 +780,14 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 			if(w > BLI_thread_frand(cache->thread)*discard_weight) {
 				if(!preprocess) {
-#ifdef LSQ_RECONSTRUCTION
-					float a[4]= {D[0], D[1], D[2], 1.0f};
-
-					lsq_4D_add(&lsq, a, sample->C, w);
-#else
-					for(i=0; i<CACHE_DIMENSION; i++)
-						accum[i] += w*sample->C[i];
-#endif
+					if(use_lsq) {
+						float a[4]= {D[0], D[1], D[2], 1.0f};
+						lsq_4D_add(&lsq, a, sample->C, w);
+					}
+					else {
+						for(i=0; i<CACHE_DIMENSION; i++)
+							accum[i] += w*sample->C[i];
+					}
 				}
 
 				totw += w;
@@ -803,14 +807,15 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	/* do we have anything ? */
 	if(totw > EPSILON && totfound >= 1) {
 		if(!preprocess) {
-#ifdef LSQ_RECONSTRUCTION
-			lsq_4D_solve(&lsq, accum);
-#else
-			float invw= 1.0/totw;
+			if(use_lsq) {
+				lsq_4D_solve(&lsq, accum);
+			}
+			else {
+				float invw= 1.0/totw;
 
-			for(i=0; i<CACHE_DIMENSION; i++)
-				accum[i] *= invw;
-#endif
+				for(i=0; i<CACHE_DIMENSION; i++)
+					accum[i] *= invw;
+			}
 
 			irr_sample_get(accum, ao, env, indirect);
 		}
@@ -841,6 +846,8 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 	
 	if(!((re->db.wrld.aomode & WO_AOCACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
 		return;
+
+	//radio_cache_create(re, pa->thread);
 
 	cache= irr_cache_new(re, pa->thread);
 	re->db.irrcache[pa->thread]= cache;
@@ -897,9 +904,9 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 						}
 					}
 				}
-			}
 
-			if(re->cb.test_break(re->cb.tbh)) break;
+				if(re->cb.test_break(re->cb.tbh)) break;
+			}
 		}
 
 		step /= 2;
@@ -915,6 +922,314 @@ void irr_cache_free(Render *re, RenderPart *pa)
 	if(cache) {
 		irr_cache_delete(cache);
 		re->db.irrcache[pa->thread]= NULL;
+	}
+
+	radio_cache_free(&re->db, pa->thread);
+}
+
+/****************************** Radiosity Cache ******************************/
+
+#if 0
+#define RADIO_CACHE_MAX_CHILD	8
+
+/* Data Structures */
+
+typedef struct RadioCacheSample {
+	/* cache sample in a node */
+	struct RadioCacheSample *next;
+
+	float P[3];
+	float C[3];
+} RadioCacheSample;
+
+typedef struct RadioCacheNode {
+	/* node in the cache tree */
+	float center[3];					/* center of node */
+	float side;							/* max side length */
+	RadioCacheSample *samples;			/* samples in the node */
+	struct RadioCacheNode *children[8];	/* child nodes */
+	int totsample;
+} RadioCacheNode;
+
+typedef struct RadioCache {
+	/* radioadiance cache */
+	RadioCacheNode root;			/* root node of the tree */
+	int maxdepth;				/* maximum tree dist */
+
+	RadioCacheNode **stack;		/* stack for traversal */
+	int stacksize;				/* stack size */
+
+	MemArena *arena;			/* memory arena for nodes and samples */
+	int thread;					/* thread owning the cache */
+
+	int totsample;
+	int totlookup;
+} RadioCache;
+
+/* Create and Free */
+
+void radio_cache_create(Render *re, int thread)
+{
+	RadioCache *cache;
+	float bb[2][3];
+
+	cache= MEM_callocN(sizeof(RadioCache), "RadioCache");
+	cache->thread= thread;
+	cache->maxdepth= 1;
+
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	BLI_memarena_use_calloc(cache->arena);
+
+	/* initialize root node with bounds */
+	render_instances_bound(&re->db, bb);
+	mid_v3_v3v3(cache->root.center, bb[0], bb[1]);
+	cache->root.side= MAX3(bb[1][0]-bb[0][0], bb[1][1]-bb[0][1], bb[1][2]-bb[0][2]);
+
+	/* allocate stack */
+	cache->stacksize= 10;
+	cache->stack= MEM_mallocN(sizeof(RadioCacheNode*)*cache->stacksize*8, "RadioCache stack");
+
+	re->db.radiocache[thread]= cache;
+}
+
+void radio_cache_free(RenderDB *rdb, int thread)
+{
+	RadioCache *cache= rdb->radiocache[thread];
+
+	if(cache) {
+		printf("radio cache %d/%d, efficiency %f\n", cache->totsample, cache->totlookup, (float)cache->totsample/(float)cache->totlookup);
+
+		BLI_memarena_free(cache->arena);
+		MEM_freeN(cache->stack);
+		MEM_freeN(cache);
+		
+		rdb->radiocache[thread]= NULL;
+	}
+}
+
+void radio_cache_check_stack(RadioCache *cache)
+{
+	/* increase stack size as more nodes are added */
+	if(cache->maxdepth > cache->stacksize) {
+		cache->stacksize= cache->maxdepth + 5;
+		MEM_freeN(cache->stack);
+		cache->stack= MEM_mallocN(sizeof(RadioCacheNode*)*cache->stacksize*8, "RadioCache stack");
+	}
+}
+
+static int radio_cache_node_point_inside(RadioCacheNode *node, float scale, float add, float P[3])
+{
+	float side= node->side*scale + add;
+
+	return (((node->center[0] + side) > P[0]) &&
+	        ((node->center[1] + side) > P[1]) &&
+	        ((node->center[2] + side) > P[2]) &&
+	        ((node->center[0] - side) < P[0]) &&
+	        ((node->center[1] - side) < P[1]) &&
+	        ((node->center[2] - side) < P[2]));
+}
+
+void radio_cache_add(Render *re, ShadeInput *shi, float C[3])
+{
+	RadioCache *cache= re->db.radiocache[shi->shading.thread];
+	RadioCacheSample *sample;
+	RadioCacheNode *node;
+	float P[3];
+	int i, j, depth;
+
+	if(!cache)
+		return;
+
+	sample= BLI_memarena_alloc(cache->arena, sizeof(RadioCacheSample));
+
+	/* record the data */
+	copy_v3_v3(P, shi->geometry.co);
+	copy_v3_v3(sample->P, P);
+	copy_v3_v3(sample->C, C);
+
+	/* insert the new sample into the cache */
+	node= &cache->root;
+	depth= 0;
+	while(node->totsample > RADIO_CACHE_MAX_CHILD) {
+		depth++;
+
+		j= 0;
+		for(i=0; i<3; i++)
+			if(P[i] > node->center[i])
+				j |= 1 << i;
+
+		if(node->children[j] == NULL) {
+			RadioCacheNode *nnode= BLI_memarena_alloc(cache->arena, sizeof(RadioCacheNode));
+
+			for(i=0; i<3; i++) {
+				float fac= (P[i] > node->center[i])? 0.25f: -0.25f;
+				nnode->center[i]= node->center[i] + fac*node->side;
+			}
+
+			nnode->side= node->side*0.5f;
+			node->children[j]= nnode;
+		}
+
+		node= node->children[j];
+	}
+
+	sample->next= node->samples;
+	node->samples= sample;
+	node->totsample++;
+
+	cache->maxdepth= MAX2(depth, cache->maxdepth);
+	radio_cache_check_stack(cache);
+
+	cache->totsample++;
+}
+
+/* Lookup */
+
+int radio_cache_lookup(Render *re, ShadeInput *shi, float C[3], float raylength)
+{
+	RadioCache *cache= re->db.radiocache[shi->shading.thread];
+	RadioCacheSample *sample;
+	RadioCacheNode *node, **stack, **stacknode;
+	float P[3], accum[3], totw, maxdist;
+	int i, totfound= 0;
+
+	if(!cache)
+		return 0;
+
+	cache->totlookup++;
+
+	/* transform the lookup point to the correct coordinate system */
+	copy_v3_v3(P, shi->geometry.co);
+	
+	/* setup tree traversal */
+	stack= cache->stack;
+	stacknode= stack;
+	*stacknode++= &cache->root;
+
+	zero_v3(accum);
+	totw= 0.0f;
+
+	raylength= maxf(0.01, raylength);
+	maxdist= 1000.0f*(raylength*raylength);
+
+	while(stacknode > stack) {
+		node= *(--stacknode);
+
+		/* sum the values in this level */
+		for(sample=node->samples; sample; sample=sample->next) {
+			float e1, w, dist;
+
+			/* positional error */
+			dist= len_v3v3(P, sample->P);
+			e1= dist/maxdist;
+			w= 1.0f - e1;
+
+			if(w > 0.0f) {
+				madd_v3_v3fl(accum, sample->C, w);
+				totw += w;
+				totfound++;
+			}
+		}
+
+		/* check the children */
+		for(i=0; i<8; i++) {
+			RadioCacheNode *tnode= node->children[i];
+
+			if(tnode && radio_cache_node_point_inside(tnode, 1.0f, maxdist, P))
+				*stacknode++= tnode;
+		}
+	}
+
+	/* do we have anything ? */
+	if(totw > EPSILON && totfound >= 1) {
+		mul_v3_v3fl(C, accum, 1.0f/totw);
+		return 1;
+	}
+
+	return 0;
+}
+#endif
+
+#include "BLI_ghash.h"
+#include "object_mesh.h"
+
+typedef struct RadioCache {
+	GHash *hash;
+	MemArena *arena;
+	int thread;
+} RadioCache;
+
+void radio_cache_create(Render *re, int thread)
+{
+	RadioCache *cache;
+	
+	cache= MEM_callocN(sizeof(RadioCache), "RadioCache");
+	re->db.radiocache[thread]= cache;
+
+	cache->hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+}
+
+void radio_cache_free(RenderDB *rdb, int thread)
+{
+	RadioCache *cache= rdb->radiocache[thread];
+
+	if(cache) {
+		BLI_memarena_free(cache->arena);
+		BLI_ghash_free(cache->hash, NULL, NULL);
+	}
+}
+
+static void camera_hoco_to_zco(RenderCamera *cam, float zco[3], float hoco[4])
+{
+	float div= 1.0f/hoco[3];
+
+	zco[0]= cam->winx*0.5f*(1.0 + hoco[0]*div);
+	zco[1]= cam->winy*0.5f*(1.0 + hoco[1]*div);
+	zco[2]= (hoco[2]*div);
+
+}
+static float face_projected_area(RenderCamera *cam, VlakRen *vlr)
+{
+	float area, hoco[4][4], zco[4][3];
+	int a;
+
+	/* instances .. */
+	for(a=0; a<3; a++) {
+		camera_matrix_co_to_hoco(cam->winmat, hoco[a], ((VertRen**)&(vlr->v1))[a]->co);
+		camera_hoco_to_zco(cam, zco[a], hoco[a]);
+	}
+
+	area= area_tri_v3(zco[0], zco[1], zco[2]);
+
+	return area;
+}
+
+int radio_cache_lookup(Render *re, ShadeInput *shi, float color[3], float raylength)
+{
+	RadioCache *cache= re->db.radiocache[shi->shading.thread];
+
+	if(cache) {
+		float *store= BLI_ghash_lookup(cache->hash, shi->primitive.vlr);
+
+		if(store) {
+			copy_v3_v3(color, store);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+void radio_cache_add(Render *re, ShadeInput *shi, float color[3])
+{
+	RadioCache *cache= re->db.radiocache[shi->shading.thread];
+
+	if(cache) {
+		float *store= BLI_memarena_alloc(cache->arena, sizeof(float)*3);
+
+		copy_v3_v3(store, color);
+		BLI_ghash_insert(cache->hash, shi->primitive.vlr, store);
 	}
 }
 
