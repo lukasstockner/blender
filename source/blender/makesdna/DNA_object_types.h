@@ -188,8 +188,11 @@ typedef struct Object {
 	char empty_drawtype, pad1[3];
 	float empty_drawsize;
 	float dupfacesca;	/* dupliface scale */
+
 	float displacebound;		/* displacement bound */
-	float pad3;
+	float shadingrate;
+	float rayresolution;
+	char renderflag, pad[3];
 	
 	ListBase prop;
 	ListBase sensors;
@@ -404,6 +407,8 @@ extern Object workob;
 #define OB_BOUND_POLYT		5
 #define OB_BOUND_DYN_MESH   6
 
+/* renderflag */
+#define OB_RENDER_SUBDIVIDE	1
 
 /* **************** BASE ********************* */
 

@@ -33,6 +33,7 @@ struct ObjectRen;
 struct Render;
 struct RenderCamera;
 struct RenderDB;
+struct RenderPart;
 
 /* Object */
 
@@ -58,6 +59,13 @@ void render_object_customdata_set(struct ObjectRen *obr, struct CustomData *data
 /* Material */
 
 struct Material *give_render_material(struct Render *re, struct Object *ob, int nr);
+
+/* Adaptive Subdivision */
+
+void part_subdivide_objects(struct Render *re, struct RenderPart *pa);
+void part_subdivide_free(struct RenderPart *pa);
+struct ObjectInstanceRen *part_get_instance(struct RenderPart *pa, struct ObjectInstanceRen *obi);
+
 
 /* Structs */
 
@@ -132,6 +140,7 @@ typedef struct ObjectInstanceRen {
 #define R_INSTANCEABLE		1
 #define R_LOWRES			2
 #define R_HIGHRES			4
+#define R_TEMP_COPY			8
 
 /* objectinstance->flag */
 #define R_DUPLI_TRANSFORMED	1

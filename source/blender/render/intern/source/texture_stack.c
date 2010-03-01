@@ -847,7 +847,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					// NOTE: test for shi->primitive.obr->ob here, since vlr/obr/obi can be 'fake' when called from fastshade(), another reason to move it..
 					// NOTE: shi->v1 is NULL when called from displace_render_vert, assigning verts in this case is not trivial because the shi quad face side is not known.
 					if ((mtex->texflag & MTEX_NEW_BUMP) && shi->primitive.obr && shi->primitive.obr->ob && shi->primitive.v1) {
-						if(mtex->mapto & (MAP_NORM|MAP_DISPLACE|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
+						if(mtex->mapto & (MAP_NORM|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
 							MTFace* tf = render_vlak_get_tface(shi->primitive.obr, shi->primitive.vlr, i, NULL, 0);
 							int j1 = shi->primitive.i1, j2 = shi->primitive.i2, j3 = shi->primitive.i3;
 
@@ -918,7 +918,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 			else continue;	// can happen when texco defines disappear and it renders old files
 
 			/* the pointer defines if bumping happens */
-			if(mtex->mapto & (MAP_NORM|MAP_DISPLACE|MAP_WARP)) {
+			if(mtex->mapto & (MAP_NORM|MAP_WARP)) {
 				texres.nor= norvec;
 				norvec[0]= norvec[1]= norvec[2]= 0.0;
 			}

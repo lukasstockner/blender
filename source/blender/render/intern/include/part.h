@@ -31,12 +31,13 @@
 
 struct APixstr;
 struct APixstrand;
+struct GHash;
 struct PixStr;
-struct rctf;
 struct Render;
 struct RenderPart;
 struct RenderResult;
 struct StrandShadeCache;
+struct rctf;
 
 /* Create/Free */
 
@@ -85,6 +86,9 @@ typedef struct RenderPart {
 	short thread;					/* thread id */
 	
 	char *clipflag;					/* clipflags for part zbuffering */
+
+	/* adaptive subdivision */
+	struct GHash *subdivhash;
 } RenderPart;
 
 #endif /* __RENDER_PART_H__ */

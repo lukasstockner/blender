@@ -1190,6 +1190,7 @@ static void shade_input_initialize(Render *re, ShadeInput *shi, RenderPart *pa, 
 	
 	shi->shading.sample= sample;
 	shi->shading.thread= pa->thread;
+	shi->shading.pa= pa;
 	shi->shading.do_preview= (re->params.r.scemode & R_MATNODE_PREVIEW) != 0;
 	shi->shading.lay= rl->lay;
 	shi->shading.layflag= rl->layflag;
@@ -1246,7 +1247,7 @@ static int shade_inputs_from_pixel(Render *re, ShadeInput *shi, PixelRow *row, i
 	int tot= 0;
 
 	if(row->p > 0) {
-		prim->obi= &re->db.objectinstance[row->obi];
+		prim->obi= part_get_instance(shi->shading.pa, &re->db.objectinstance[row->obi]);
 		prim->obr= prim->obi->obr;
 		prim->facenr= (row->p-1) & RE_QUAD_MASK;
 

@@ -402,7 +402,6 @@ void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
        and Neighbor Clamping. Křivánek, Bouatouch, Pattanaik, Žára. 2006. */
 
 #define EPSILON					1e-6f
-#define INFINITY				1e30f
 #define CACHE_DIMENSION			(1+3+3)
 #define MAX_PIXEL_DIST			10.0f
 #define MAX_ERROR_K				1.0f
@@ -1180,15 +1179,6 @@ void radio_cache_free(RenderDB *rdb, int thread)
 	}
 }
 
-static void camera_hoco_to_zco(RenderCamera *cam, float zco[3], float hoco[4])
-{
-	float div= 1.0f/hoco[3];
-
-	zco[0]= cam->winx*0.5f*(1.0 + hoco[0]*div);
-	zco[1]= cam->winy*0.5f*(1.0 + hoco[1]*div);
-	zco[2]= (hoco[2]*div);
-
-}
 static float face_projected_area(RenderCamera *cam, VlakRen *vlr)
 {
 	float area, hoco[4][4], zco[4][3];

@@ -417,7 +417,7 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 		}
 
 		/* create low resolution version */
-		if(ob->displacebound > 0.0f && modifiers_findByType(ob, eModifierType_Subsurf)) {
+		if(ob->rayresolution > 0.0f && modifiers_findByType(ob, eModifierType_Subsurf)) {
 			ObjectRen *lowobr;
 			int a, offset;
 

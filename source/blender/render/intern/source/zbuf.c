@@ -1697,17 +1697,9 @@ static int zbuf_shadow_project(ZbufProjectCache *cache, int index, float winmat[
 	}
 }
 
-static void zbuffer_part_bounds(int winx, int winy, RenderPart *pa, float *bounds)
-{
-	bounds[0]= (2*pa->disprect.xmin - winx-1)/(float)winx;
-	bounds[1]= (2*pa->disprect.xmax - winx+1)/(float)winx;
-	bounds[2]= (2*pa->disprect.ymin - winy-1)/(float)winy;
-	bounds[3]= (2*pa->disprect.ymax - winy+1)/(float)winy;
-}
-
 static int zbuf_part_project(ZbufProjectCache *cache, int index, float winmat[][4], float *bounds, float *co, float *ho)
 {
-	float vec[3], wco;
+	float wco;
 	int clipflag= 0, cindex= index & 255;
 
 	if(cache[cindex].index == index) {
@@ -1715,7 +1707,6 @@ static int zbuf_part_project(ZbufProjectCache *cache, int index, float winmat[][
 		return cache[cindex].clip;
 	}
 	else {
-		copy_v3_v3(vec, co);
 		camera_matrix_co_to_hoco(winmat, ho, co);
 
 		wco= ho[3];
@@ -1963,6 +1954,7 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 	short neg_zmask= (rl->layflag & SCE_LAY_ZMASK) && (rl->layflag & SCE_LAY_NEG_ZMASK);
 
 	camera_window_matrix(&re->cam, winmat);
+	camera_window_rect_bounds(re->cam.winx, re->cam.winy, &pa->disprect, bounds);
 	
 	samples= (re->params.osa? re->params.osa: 1);
 	samples= MIN2(4, samples-pa->sample);
@@ -1970,7 +1962,6 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 	for(zsample=0; zsample<samples; zsample++) {
 		zspan= &zspans[zsample];
 
-		zbuffer_part_bounds(re->cam.winx, re->cam.winy, pa, bounds);
 		zbuf_alloc_span(zspan, pa->rectx, pa->recty, re->cam.clipcrop);
 		
 		/* needed for transform from hoco to zbuffer co */
@@ -2035,7 +2026,8 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 		}
 
 		/* regular zbuffering loop, does all sample buffers */
-		for(i=0, obi=re->db.instancetable.first; obi; i++, obi=obi->next) {
+		for(i=0; i < re->db.totinstance; i++) {
+			obi= part_get_instance(pa, &re->db.objectinstance[i]);
 			obr= obi->obr;
 
 			if(obi->flag & R_HIDDEN)
@@ -2435,8 +2427,8 @@ void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, voi
 	short nofill=0, env=0, wire=0;
 	
 	camera_window_matrix(&re->cam, winmat);
+	camera_window_rect_bounds(re->cam.winx, re->cam.winy, &pa->disprect, bounds);
 
-	zbuffer_part_bounds(re->cam.winx, re->cam.winy, pa, bounds);
 	zbuf_alloc_span(&zspan, pa->rectx, pa->recty, re->cam.clipcrop);
 
 	zspan.sss_handle= handle;
@@ -2614,7 +2606,7 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *apixbuf, ListBase *
 	int i, v, zvlnr, c1, c2, c3, c4=0, dofill= 0;
 	int zsample, polygon_offset;
 
-	zbuffer_part_bounds(winx, winy, pa, bounds);
+	camera_window_rect_bounds(winx, winy, &pa->disprect, bounds);
 
 	for(zsample=0; zsample<samples; zsample++) {
 		zspan= &zspans[zsample];
@@ -2660,8 +2652,9 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *apixbuf, ListBase *
 	
 	/* we use this to test if nothing was filled in */
 	zvlnr= 0;
-		
-	for(i=0, obi=re->db.instancetable.first; obi; i++, obi=obi->next) {
+
+	for(i=0; i < re->db.totinstance; i++) {
+		obi= part_get_instance(pa, &re->db.objectinstance[i]);
 		obr= obi->obr;
 
 		if(!(obi->lay & lay))

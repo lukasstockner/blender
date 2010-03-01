@@ -90,10 +90,9 @@ typedef struct VertRen
 	float co[3];
 	float n[3];
 	float *orco;
-	short clip;
-	unsigned short flag;		/* in use for clipping zbuffer parts, temp setting stuff in convertblender.c */
-	float accum;		/* accum for radio weighting, and for strand texco static particles */
-	int index;			/* index allows extending vertren with any property */
+	unsigned short flag;	/* in use for temp setting stuff in object_mesh.c */
+	float accum;			/* accum for radio weighting, and for strand texco static particles */
+	int index;				/* index allows extending vertren with any property */
 } VertRen;
 
 typedef struct VlakRen {

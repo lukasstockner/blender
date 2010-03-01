@@ -42,8 +42,8 @@ struct MemFile;
 struct bContext;
 struct ReportList;
 
-#define BLENDER_VERSION			250
-#define BLENDER_SUBVERSION		17
+#define BLENDER_VERSION			251
+#define BLENDER_SUBVERSION		1
 
 #define BLENDER_MINVERSION		250
 #define BLENDER_MINSUBVERSION	0

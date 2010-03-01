@@ -287,6 +287,14 @@ void camera_window_matrix(RenderCamera *cam, float winmat[][4])
 		copy_m4_m4(winmat, cam->winmat);
 }
 
+void camera_window_rect_bounds(int winx, int winy, rcti *rect, float bounds[4])
+{
+	bounds[0]= (2*rect->xmin - winx-1)/(float)winx;
+	bounds[1]= (2*rect->xmax - winx+1)/(float)winx;
+	bounds[2]= (2*rect->ymin - winy-1)/(float)winy;
+	bounds[3]= (2*rect->ymax - winy+1)/(float)winy;
+}
+
 int camera_hoco_test_clip(float hoco[4])
 {
 	/* WATCH IT: this function should do the same as cliptestf,
@@ -308,6 +316,16 @@ int camera_hoco_test_clip(float hoco[4])
 	else if(hoco[1] < -abs4) c+=8;
 	
 	return c;
+}
+
+void camera_hoco_to_zco(RenderCamera *cam, float zco[3], float hoco[4])
+{
+	float div= 1.0f/hoco[3];
+
+	zco[0]= cam->winx*0.5f*(1.0 + hoco[0]*div);
+	zco[1]= cam->winy*0.5f*(1.0 + hoco[1]*div);
+	zco[2]= (hoco[2]*div);
+
 }
 
 /********************************* Panorama **********************************/

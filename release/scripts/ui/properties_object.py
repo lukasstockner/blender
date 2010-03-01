@@ -127,8 +127,6 @@ class OBJECT_PT_relations(ObjectButtonsPanel):
 
         col = split.column()
         col.prop(ob, "layers")
-        col.separator()
-        col.prop(ob, "pass_index")
 
         if wide_ui:
             col = split.column()
@@ -220,7 +218,29 @@ class OBJECT_PT_display(ObjectButtonsPanel):
         col.prop(ob, "x_ray", text="X-Ray")
         col.prop(ob, "draw_transparent", text="Transparency")
 
-        layout.prop(ob, "displacement_bound")
+class OBJECT_PT_render(ObjectButtonsPanel):
+    bl_label = "Render"
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        wide_ui = context.region.width > narrowui
+
+        split = layout.split()
+        col = split.column()
+
+        col.prop(ob, "pass_index")
+        col.separator()
+
+        col.prop(ob, "render_subdivide")
+        col.prop(ob, "shading_rate")
+
+        if wide_ui:
+            col = split.column()
+
+        col.prop(ob, "displacement_bound")
+        col.prop(ob, "ray_resolution")
 
 class OBJECT_PT_duplication(ObjectButtonsPanel):
     bl_label = "Duplication"
@@ -312,6 +332,7 @@ bpy.types.register(OBJECT_PT_transform_locks)
 bpy.types.register(OBJECT_PT_relations)
 bpy.types.register(OBJECT_PT_groups)
 bpy.types.register(OBJECT_PT_display)
+bpy.types.register(OBJECT_PT_render)
 bpy.types.register(OBJECT_PT_duplication)
 bpy.types.register(OBJECT_PT_animation)
 

@@ -790,6 +790,9 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 
 static void zbuf_rasterize(Render *re, RenderPart *pa, RenderLayer *rl, ListBase *psmlist, float *edgerect)
 {
+	/* adaptive subdivision */
+	part_subdivide_objects(re, pa);
+
 	/* rasterization */
 	if((rl->layflag & SCE_LAY_ZMASK) && (rl->layflag & SCE_LAY_NEG_ZMASK))
 		pa->rectmask= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectmask");
@@ -822,6 +825,8 @@ static void zbuf_rasterize(Render *re, RenderPart *pa, RenderLayer *rl, ListBase
 	pa->apixbufstrand= NULL;
 	pa->sscache= NULL;
 	pa->apsmbase.first= pa->apsmbase.last= NULL;
+
+	part_subdivide_free(pa);
 }
 
 /***************************** Main Rasterization Call ********************************/

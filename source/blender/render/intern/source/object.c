@@ -268,34 +268,36 @@ void render_object_free(ObjectRen *obr)
 	if(obr->vlaknodes)
 		free_object_vlaknodes(obr->vlaknodes);
 
-	if(obr->bloha) {
-		for(a=0; obr->bloha[a]; a++)
-			MEM_freeN(obr->bloha[a]);
+	if(!(obr->flag & R_TEMP_COPY)) {
+		if(obr->bloha) {
+			for(a=0; obr->bloha[a]; a++)
+				MEM_freeN(obr->bloha[a]);
 
-		MEM_freeN(obr->bloha);
+			MEM_freeN(obr->bloha);
+		}
+
+		if(obr->strandnodes)
+			free_object_strandnodes(obr->strandnodes);
+
+		strandbuf= obr->strandbuf;
+		if(strandbuf) {
+			if(strandbuf->vert) MEM_freeN(strandbuf->vert);
+			if(strandbuf->bound) MEM_freeN(strandbuf->bound);
+			MEM_freeN(strandbuf);
+		}
+
+		if(obr->mtface)
+			MEM_freeN(obr->mtface);
+		if(obr->mcol)
+			MEM_freeN(obr->mcol);
+			
+		if(obr->rayfaces)
+			MEM_freeN(obr->rayfaces);
+		if(obr->rayprimitives)
+			MEM_freeN(obr->rayprimitives);
+		if(obr->raytree)
+			RE_rayobject_free(obr->raytree);
 	}
-
-	if(obr->strandnodes)
-		free_object_strandnodes(obr->strandnodes);
-
-	strandbuf= obr->strandbuf;
-	if(strandbuf) {
-		if(strandbuf->vert) MEM_freeN(strandbuf->vert);
-		if(strandbuf->bound) MEM_freeN(strandbuf->bound);
-		MEM_freeN(strandbuf);
-	}
-
-	if(obr->mtface)
-		MEM_freeN(obr->mtface);
-	if(obr->mcol)
-		MEM_freeN(obr->mcol);
-		
-	if(obr->rayfaces)
-		MEM_freeN(obr->rayfaces);
-	if(obr->rayprimitives)
-		MEM_freeN(obr->rayprimitives);
-	if(obr->raytree)
-		RE_rayobject_free(obr->raytree);
 }
 
 /******************************* Instances **********************************/

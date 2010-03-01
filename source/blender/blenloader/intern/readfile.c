@@ -6386,6 +6386,7 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 	Tex *tex;
 	World *wo;
 	Lamp *la;
+	Object *ob;
 	
 	for(ma=main->mat.first; ma; ma=ma->id.next) {
 		if(ma->rampin_col==MA_RAMP_IN_ENERGY)
@@ -6410,6 +6411,12 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 
 		la->energy *= M_PI*la->dist;
 		la->falloff_smooth = 1.0f;
+	}
+
+	for(ob= main->object.first; ob; ob= ob->id.next) {
+		ob->rayresolution= 1.0f;
+		ob->displacebound= 0.1f;
+		ob->shadingrate= 1.0f;
 	}
 }
 
@@ -10588,9 +10595,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 17))
-		do_version_shading_sys_250(fd, lib, main);
-
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
 		Scene *sce;
@@ -10648,6 +10652,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		} /* sequencer changes */
 	}
+
+	if (main->versionfile < 251 || (main->versionfile == 251 && main->subversionfile < 1))
+		do_version_shading_sys_250(fd, lib, main);
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */

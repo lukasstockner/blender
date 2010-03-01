@@ -1046,6 +1046,11 @@ Object *add_only_object(int type, char *name)
 	ob->fluidsimSettings = NULL;
 
 	ob->pc_ids.first = ob->pc_ids.last = NULL;
+
+	/* render */
+	ob->shadingrate= 1.0f;
+	ob->rayresolution= 1.0f;
+	ob->displacebound= 0.1f;
 	
 	/* Animation Visualisation defaults */
 	animviz_settings_init(&ob->avs);

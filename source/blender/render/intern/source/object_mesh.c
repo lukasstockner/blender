@@ -3353,7 +3353,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	}
 	
 	if(!timeoffset) {
-		if (test_for_displace(re, ob ) ) {
+		if (!(ob->flag & OB_RENDER_SUBDIVIDE) && test_for_displace(re, ob ) ) {
 			calc_vertexnormals(re, obr, 0, 0);
 			if(do_autosmooth)
 				do_displacement(re, obr, mat, imat);
@@ -3667,7 +3667,7 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 		/* the exception below is because displace code now is in init_render_mesh call, 
 		I will look at means to have autosmooth enabled for all object types 
 		and have it as general postprocess, like displace */
-		if(ob->type!=OB_MESH && test_for_displace(re, ob)) 
+		if((ob->type!=OB_MESH || obr->flag & R_TEMP_COPY) && test_for_displace(re, ob)) 
 			do_displacement(re, obr, NULL, NULL);
 	
 		if(!timeoffset) {

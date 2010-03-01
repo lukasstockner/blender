@@ -48,6 +48,8 @@ void camera_raster_plane_to_co(struct RenderCamera *cam, float co[3], float dxco
 void camera_halo_co_to_hoco(struct RenderCamera *cam, float hoco[4], float co[3]);
 void camera_matrix_co_to_hoco(float winmat[][4], float hoco[4], float co[3]);
 void camera_window_matrix(struct RenderCamera *cam, float winmat[][4]);
+void camera_window_rect_bounds(int winx, int winy, struct rcti *rect, float bounds[4]);
+void camera_hoco_to_zco(struct RenderCamera *cam, float zco[3], float hoco[4]);
 
 int camera_hoco_test_clip(float hoco[4]);
 

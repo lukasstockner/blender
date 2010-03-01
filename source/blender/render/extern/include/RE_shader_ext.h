@@ -35,6 +35,8 @@
 /* this include is for shading and texture exports            */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
+struct RenderPart;
+
 /* localized texture result data */
 /* note; tr tg tb ta has to remain in this order */
 typedef struct TexResult {
@@ -208,6 +210,7 @@ typedef struct ShadeInput
 		short do_preview;		/* for nodes, in previewrender */
 		short thread, sample;	/* sample: ShadeSample array index */
 		short nodes;			/* indicate node shading, temp hack to prevent recursion */
+		struct RenderPart *pa;
 		
 #ifdef RE_RAYCOUNTER
 		RayCounter raycounter;
