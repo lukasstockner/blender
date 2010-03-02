@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -612,6 +612,8 @@ static void view3d_main_area_listener(ARegion *ar, wmNotifier *wmn)
 		case NC_SCREEN:
 			if(wmn->data == ND_GPENCIL)	
 				ED_region_tag_redraw(ar);
+			else if(wmn->data==ND_ANIMPLAY)
+				ED_region_tag_redraw(ar);
 			break;
 	}
 }
@@ -749,6 +751,10 @@ static void view3d_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 			if(wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_SCREEN: 
+			if(wmn->data == ND_GPENCIL)
+				ED_region_tag_redraw(ar);
+			break;
 	}
 }
 
@@ -881,7 +887,7 @@ void space_view3d_listener(struct ScrArea *area, struct wmNotifier *wmn)
 		for (; bgpic; bgpic = bgpic->next) {
 			if (bgpic->ima) {
 				Scene *scene = wmn->reference;
-				BKE_image_user_calc_imanr(&bgpic->iuser, scene->r.cfra, 0);
+				BKE_image_user_calc_frame(&bgpic->iuser, scene->r.cfra, 0);
 			}
 		}
 	}

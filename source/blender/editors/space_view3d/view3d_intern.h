@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -107,8 +107,9 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 void drawaxes(float size, int flag, char drawtype);
 
 void view3d_cached_text_draw_begin(void);
-void view3d_cached_text_draw_add(float x, float y, float z, char *str, short xoffs);
+void view3d_cached_text_draw_add(float x, float y, float z, char *str, short xoffs, short flag);
 void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, float mat[][4]);
+#define V3D_CACHE_TEXT_ZBUF 1
 
 /* drawarmature.c */
 int draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base, int dt, int flag);

@@ -15,7 +15,7 @@
 *
 * You should have received a copy of the GNU General Public License
 * along with this program; if not, write to the Free Software Foundation,
-* Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
 * The Original Code is Copyright (C) Blender Foundation
 * All rights reserved.
@@ -1550,8 +1550,8 @@ static int cloth_bvh_objcollisions_resolve ( ClothModifierData * clmd, Collision
 // cloth - object collisions
 int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, float dt )
 {
-	Cloth *cloth=NULL;
-	BVHTree *cloth_bvh=NULL;
+	Cloth *cloth= clmd->clothObject;
+	BVHTree *cloth_bvh= cloth->bvhtree;
 	int i=0, numfaces = 0, numverts = 0, k, l, j;
 	int rounds = 0; // result counts applied collisions; ic is for debug output;
 	ClothVertex *verts = NULL;
@@ -1559,16 +1559,12 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 	Object **collobjs = NULL;
 	int numcollobj = 0;
 
-	if ( ( clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_COLLOBJ ) || ! ( ( ( Cloth * ) clmd->clothObject )->bvhtree ) )
-	{
+	if ((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_COLLOBJ) || cloth_bvh==NULL)
 		return 0;
-	}
 
-	cloth = clmd->clothObject;
 	verts = cloth->verts;
-	cloth_bvh = ( BVHTree * ) cloth->bvhtree;
-	numfaces = clmd->clothObject->numfaces;
-	numverts = clmd->clothObject->numverts;
+	numfaces = cloth->numfaces;
+	numverts = cloth->numverts;
 
 	////////////////////////////////////////////////////////////
 	// static collisions
@@ -1672,8 +1668,8 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				// collisions = 1;
 				verts = cloth->verts; // needed for openMP
 	
-				numfaces = clmd->clothObject->numfaces;
-				numverts = clmd->clothObject->numverts;
+				numfaces = cloth->numfaces;
+				numverts = cloth->numverts;
 	
 				verts = cloth->verts;
 	

@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -159,6 +159,7 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		scen->obedit= NULL;
 		scen->toolsettings= MEM_dupallocN(sce->toolsettings);
 		scen->stats= NULL;
+		scen->fps_info= NULL;
 
 		ts= scen->toolsettings;
 		if(ts) {
@@ -318,6 +319,8 @@ void free_scene(Scene *sce)
 
 	if(sce->stats)
 		MEM_freeN(sce->stats);
+	if(sce->fps_info)
+		MEM_freeN(sce->fps_info);
 
 	sound_destroy_scene(sce);
 }
@@ -361,6 +364,7 @@ Scene *add_scene(char *name)
 
 	sce->r.scemode= R_DOCOMP|R_DOSEQ|R_EXTENSION;
 	sce->r.stamp= R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_SCENE|R_STAMP_CAMERA|R_STAMP_RENDERTIME;
+	sce->r.stamp_font_id= 12;
 	
 	sce->r.threads= 1;
 
@@ -859,20 +863,6 @@ static void scene_update_newframe(Scene *sce, unsigned int lay)
 {
 	Base *base;
 	Object *ob;
-	float ctime = frame_to_float(sce, sce->r.cfra); 
-	
-	if(sce->theDag==NULL)
-		DAG_scene_sort(sce);
-	
-	DAG_scene_update_flags(sce, lay);   // only stuff that moves or needs display still
-	
-	/* All 'standard' (i.e. without any dependencies) animation is handled here,
-	 * with an 'local' to 'macro' order of evaluation. This should ensure that
-	 * settings stored nestled within a hierarchy (i.e. settings in a Texture block
-	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy 
-	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
-	 */
-	BKE_animsys_evaluate_all_animation(G.main, ctime);
 	
 	for(base= sce->base.first; base; base= base->next) {
 		ob= base->object;
@@ -925,16 +915,37 @@ void scene_update_tagged(Scene *scene)
 /* applies changes right away, does all sets too */
 void scene_update_for_newframe(Scene *sce, unsigned int lay)
 {
-	Scene *scene= sce;
+	float ctime = frame_to_float(sce, sce->r.cfra);
+	Scene *sce_iter;
 	
 	/* clear animation overrides */
 	// XXX TODO...
-	
-	/* sets first, we allow per definition current scene to have dependencies on sets */
-	for(sce= sce->set; sce; sce= sce->set)
-		scene_update_newframe(sce, lay);
 
-	scene_update_newframe(scene, lay);
+	for(sce_iter= sce; sce_iter; sce_iter= sce_iter->set) {
+		if(sce_iter->theDag==NULL)
+			DAG_scene_sort(sce_iter);
+	}
+
+
+	/* Following 2 functions are recursive
+	 * so dont call within 'scene_update_newframe' */
+	DAG_scene_update_flags(sce, lay);   // only stuff that moves or needs display still
+
+	/* All 'standard' (i.e. without any dependencies) animation is handled here,
+	 * with an 'local' to 'macro' order of evaluation. This should ensure that
+	 * settings stored nestled within a hierarchy (i.e. settings in a Texture block
+	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy
+	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
+	 */
+	BKE_animsys_evaluate_all_animation(G.main, ctime);
+	/*...done with recusrive funcs */
+
+
+	/* sets first, we allow per definition current scene to have dependencies on sets */
+	for(sce_iter= sce->set; sce_iter; sce_iter= sce_iter->set)
+		scene_update_newframe(sce_iter, lay);
+
+	scene_update_newframe(sce, lay);
 }
 
 /* return default layer, also used to patch old files */
@@ -944,8 +955,8 @@ void scene_add_render_layer(Scene *sce)
 //	int tot= 1 + BLI_countlist(&sce->r.layers);
 	
 	srl= MEM_callocN(sizeof(SceneRenderLayer), "new render layer");
-	sprintf(srl->name, "RenderLayer");
-	BLI_uniquename(&sce->r.layers, srl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), 32);
+	strcpy(srl->name, "RenderLayer");
+	BLI_uniquename(&sce->r.layers, srl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), sizeof(srl->name));
 	BLI_addtail(&sce->r.layers, srl);
 
 	/* note, this is also in render, pipeline.c, to make layer when scenedata doesnt have it */

@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -36,7 +36,7 @@ class RenderButtonsPanel(bpy.types.Panel):
     # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (context.scene and rd.use_game_engine is False) and (rd.engine in self.COMPAT_ENGINES)
 
 
@@ -47,7 +47,7 @@ class RENDER_PT_render(RenderButtonsPanel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         split = layout.split()
@@ -72,7 +72,7 @@ class RENDER_PT_layers(RenderButtonsPanel):
         layout = self.layout
 
         scene = context.scene
-        rd = scene.render_data
+        rd = scene.render
         wide_ui = context.region.width > narrowui
 
         row = layout.row()
@@ -177,7 +177,7 @@ class RENDER_PT_shading(RenderButtonsPanel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         split = layout.split()
@@ -203,7 +203,7 @@ class RENDER_PT_performance(RenderButtonsPanel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         split = layout.split()
@@ -223,7 +223,7 @@ class RENDER_PT_performance(RenderButtonsPanel):
             col = split.column()
         col.label(text="Memory:")
         sub = col.column()
-        sub.enabled = not (rd.use_border or rd.full_sample) 
+        sub.enabled = not (rd.use_border or rd.full_sample)
         sub.prop(rd, "save_buffers")
         sub = col.column()
         sub.active = rd.use_compositing
@@ -247,7 +247,7 @@ class RENDER_PT_post_processing(RenderButtonsPanel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         split = layout.split()
@@ -290,7 +290,7 @@ class RENDER_PT_output(RenderButtonsPanel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         layout.prop(rd, "output_path", text="")
@@ -356,7 +356,7 @@ class RENDER_PT_output(RenderButtonsPanel):
 
         elif rd.file_format == 'QUICKTIME_CARBON':
             split = layout.split()
-            split.operator("scene.render_data_set_quicktime_codec")
+            split.operator("scene.render_set_quicktime_codec")
 
         elif rd.file_format == 'QUICKTIME_QTKIT':
             split = layout.split()
@@ -371,13 +371,13 @@ class RENDER_PT_encoding(RenderButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return rd.file_format in ('FFMPEG', 'XVID', 'H264', 'THEORA')
 
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         split = layout.split()
@@ -420,7 +420,7 @@ class RENDER_PT_encoding(RenderButtonsPanel):
         sub = layout.column()
 
         if rd.ffmpeg_format not in ('MP3'):
-          sub.prop(rd, "ffmpeg_audio_codec", text="Audio Codec")
+            sub.prop(rd, "ffmpeg_audio_codec", text="Audio Codec")
 
         sub.separator()
 
@@ -440,14 +440,14 @@ class RENDER_PT_antialiasing(RenderButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw_header(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
 
         self.layout.prop(rd, "antialiasing", text="")
 
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
         layout.active = rd.antialiasing
 
@@ -455,7 +455,7 @@ class RENDER_PT_antialiasing(RenderButtonsPanel):
 
         col = split.column()
         col.row().prop(rd, "antialiasing_samples", expand=True)
-        sub = col.row() 
+        sub = col.row()
         sub.enabled = not rd.use_border
         sub.prop(rd, "full_sample")
 
@@ -463,7 +463,7 @@ class RENDER_PT_antialiasing(RenderButtonsPanel):
             col = split.column()
         col.prop(rd, "pixel_filter", text="")
         col.prop(rd, "filter_size", text="Size")
-        
+
 
 class RENDER_PT_motion_blur(RenderButtonsPanel):
     bl_label = "Full Sample Motion Blur"
@@ -471,18 +471,19 @@ class RENDER_PT_motion_blur(RenderButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw_header(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
 
         self.layout.prop(rd, "motion_blur", text="")
 
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         layout.active = rd.motion_blur
 
         row = layout.row()
         row.prop(rd, "motion_blur_samples")
+
 
 class RENDER_PT_dimensions(RenderButtonsPanel):
     bl_label = "Dimensions"
@@ -492,7 +493,7 @@ class RENDER_PT_dimensions(RenderButtonsPanel):
         layout = self.layout
 
         scene = context.scene
-        rd = scene.render_data
+        rd = scene.render
         wide_ui = context.region.width > narrowui
 
         row = layout.row().split()
@@ -538,14 +539,14 @@ class RENDER_PT_stamp(RenderButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw_header(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
 
         self.layout.prop(rd, "render_stamp", text="")
 
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         layout.active = rd.render_stamp
@@ -586,7 +587,7 @@ class RENDER_PT_bake(RenderButtonsPanel):
     def draw(self, context):
         layout = self.layout
 
-        rd = context.scene.render_data
+        rd = context.scene.render
         wide_ui = context.region.width > narrowui
 
         layout.operator("object.bake_image", icon='RENDER_STILL')
@@ -625,16 +626,32 @@ class RENDER_PT_bake(RenderButtonsPanel):
         sub.prop(rd, "bake_bias")
 
 
-bpy.types.register(RENDER_MT_presets)
-bpy.types.register(RENDER_PT_render)
-bpy.types.register(RENDER_PT_layers)
-bpy.types.register(RENDER_PT_dimensions)
-bpy.types.register(RENDER_PT_antialiasing)
-bpy.types.register(RENDER_PT_motion_blur)
-bpy.types.register(RENDER_PT_shading)
-bpy.types.register(RENDER_PT_output)
-bpy.types.register(RENDER_PT_encoding)
-bpy.types.register(RENDER_PT_performance)
-bpy.types.register(RENDER_PT_post_processing)
-bpy.types.register(RENDER_PT_stamp)
-bpy.types.register(RENDER_PT_bake)
+classes = [
+    RENDER_MT_presets,
+    RENDER_PT_render,
+    RENDER_PT_layers,
+    RENDER_PT_dimensions,
+    RENDER_PT_antialiasing,
+    RENDER_PT_motion_blur,
+    RENDER_PT_shading,
+    RENDER_PT_output,
+    RENDER_PT_encoding,
+    RENDER_PT_performance,
+    RENDER_PT_post_processing,
+    RENDER_PT_stamp,
+    RENDER_PT_bake]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -62,7 +62,7 @@ class MaterialButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         mat = context.material
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (engine in self.COMPAT_ENGINES)
 
 
@@ -83,7 +83,7 @@ class MATERIAL_PT_context_material(MaterialButtonsPanel):
         # An exception, dont call the parent poll func because
         # this manages materials for all engine types
 
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return (context.material or context.object) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -149,7 +149,7 @@ class MATERIAL_PT_shading(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE', 'HALO')) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -188,7 +188,7 @@ class MATERIAL_PT_strand(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = context.material
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE', 'HALO')) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -260,7 +260,7 @@ class MATERIAL_PT_options(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE', 'HALO')) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -306,7 +306,7 @@ class MATERIAL_PT_shadow(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE')) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -334,6 +334,7 @@ class MATERIAL_PT_shadow(MaterialButtonsPanel):
         sub = col.column()
         sub.active = (not mat.ray_shadow_bias)
         sub.prop(mat, "shadow_ray_bias", text="Ray Bias")
+        col.prop(mat, "cast_approximate")
 
 
 class MATERIAL_PT_diffuse(MaterialButtonsPanel):
@@ -342,7 +343,7 @@ class MATERIAL_PT_diffuse(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE')) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -413,7 +414,7 @@ class MATERIAL_PT_specular(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE')) and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -483,7 +484,7 @@ class MATERIAL_PT_sss(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE')) and (engine in self.COMPAT_ENGINES)
 
     def draw_header(self, context):
@@ -535,7 +536,7 @@ class MATERIAL_PT_mirror(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE')) and (engine in self.COMPAT_ENGINES)
 
     def draw_header(self, context):
@@ -594,7 +595,7 @@ class MATERIAL_PT_transp(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type in ('SURFACE', 'WIRE')) and (engine in self.COMPAT_ENGINES)
 
     def draw_header(self, context):
@@ -661,7 +662,7 @@ class MATERIAL_PT_transp_game(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = active_node_mat(context.material)
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat  and (engine in self.COMPAT_ENGINES)
 
     def draw_header(self, context):
@@ -695,7 +696,7 @@ class MATERIAL_PT_halo(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = context.material
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type == 'HALO') and (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -745,7 +746,7 @@ class MATERIAL_PT_flare(MaterialButtonsPanel):
 
     def poll(self, context):
         mat = context.material
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type == 'HALO') and (engine in self.COMPAT_ENGINES)
 
     def draw_header(self, context):
@@ -773,22 +774,6 @@ class MATERIAL_PT_flare(MaterialButtonsPanel):
         col.prop(halo, "flares_sub", text="Subflares")
         col.prop(halo, "flare_subsize", text="Subsize")
 
-bpy.types.register(MATERIAL_PT_context_material)
-bpy.types.register(MATERIAL_PT_preview)
-bpy.types.register(MATERIAL_PT_diffuse)
-bpy.types.register(MATERIAL_PT_specular)
-bpy.types.register(MATERIAL_PT_shading)
-bpy.types.register(MATERIAL_PT_transp)
-bpy.types.register(MATERIAL_PT_mirror)
-bpy.types.register(MATERIAL_PT_sss)
-bpy.types.register(MATERIAL_PT_halo)
-bpy.types.register(MATERIAL_PT_flare)
-bpy.types.register(MATERIAL_PT_physics)
-bpy.types.register(MATERIAL_PT_strand)
-bpy.types.register(MATERIAL_PT_options)
-bpy.types.register(MATERIAL_PT_shadow)
-bpy.types.register(MATERIAL_PT_transp_game)
-
 
 class VolumeButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
@@ -797,7 +782,7 @@ class VolumeButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         mat = context.material
-        engine = context.scene.render_data.engine
+        engine = context.scene.render.engine
         return mat and (mat.type == 'VOLUME') and (engine in self.COMPAT_ENGINES)
 
 
@@ -927,14 +912,47 @@ class MATERIAL_PT_volume_integration(VolumeButtonsPanel):
         col.label()
         col.prop(vol, "depth_cutoff")
 
-bpy.types.register(MATERIAL_MT_sss_presets)
-bpy.types.register(MATERIAL_MT_specials)
 
-bpy.types.register(MATERIAL_PT_volume_density)
-bpy.types.register(MATERIAL_PT_volume_shading)
-bpy.types.register(MATERIAL_PT_volume_lighting)
-bpy.types.register(MATERIAL_PT_volume_transp)
+classes = [
+    MATERIAL_PT_context_material,
+    MATERIAL_PT_preview,
+    MATERIAL_PT_diffuse,
+    MATERIAL_PT_specular,
+    MATERIAL_PT_shading,
+    MATERIAL_PT_transp,
+    MATERIAL_PT_mirror,
+    MATERIAL_PT_sss,
+    MATERIAL_PT_halo,
+    MATERIAL_PT_flare,
+    MATERIAL_PT_physics,
+    MATERIAL_PT_strand,
+    MATERIAL_PT_options,
+    MATERIAL_PT_shadow,
+    MATERIAL_PT_transp_game,
 
-bpy.types.register(MATERIAL_PT_volume_integration)
+    MATERIAL_MT_sss_presets,
+    MATERIAL_MT_specials,
 
-bpy.types.register(MATERIAL_PT_custom_props)
+    MATERIAL_PT_volume_density,
+    MATERIAL_PT_volume_shading,
+    MATERIAL_PT_volume_lighting,
+    MATERIAL_PT_volume_transp,
+
+    MATERIAL_PT_volume_integration,
+
+    MATERIAL_PT_custom_props]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

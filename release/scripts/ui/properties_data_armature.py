@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -253,12 +253,33 @@ class DATA_PT_iksolver_itasc(DataButtonsPanel):
                 row.prop(itasc, "dampmax", text="Damp", slider=True)
                 row.prop(itasc, "dampeps", text="Eps", slider=True)
 
+# import generic panels from other files 
+from properties_animviz import DATA_PT_motion_paths, DATA_PT_onion_skinning
 
-bpy.types.register(DATA_PT_context_arm)
-bpy.types.register(DATA_PT_skeleton)
-bpy.types.register(DATA_PT_display)
-bpy.types.register(DATA_PT_bone_groups)
-bpy.types.register(DATA_PT_ghost)
-bpy.types.register(DATA_PT_iksolver_itasc)
+classes = [
+    DATA_PT_context_arm,
+    DATA_PT_skeleton,
+    DATA_PT_display,
+    DATA_PT_bone_groups,
+    DATA_PT_ghost,
+    DATA_PT_iksolver_itasc,
 
-bpy.types.register(DATA_PT_custom_props_arm)
+    DATA_PT_motion_paths,
+    #DATA_PT_onion_skinning,
+
+    DATA_PT_custom_props_arm]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

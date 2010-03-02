@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -26,6 +26,7 @@ op_dir = ops_module.dir
 op_call = ops_module.call
 op_as_string = ops_module.as_string
 op_get_rna = ops_module.get_rna
+
 
 class bpy_ops(object):
     '''
@@ -158,7 +159,12 @@ class bpy_ops_submodule_op(object):
 
         if 'FINISHED' in ret:
             import bpy
-            bpy.context.scene.update()
+            scene = bpy.context.scene
+            if scene: # None in backgroud mode
+                scene.update()
+            else:
+                for scene in bpy.data.scenes:
+                    scene.update()
 
         return ret
 
@@ -169,7 +175,11 @@ class bpy_ops_submodule_op(object):
         return op_get_rna(self.idname())
 
     def __repr__(self): # useful display, repr(op)
-        return op_as_string(self.idname())
+        import bpy
+        idname = self.idname()
+        as_string = op_as_string(idname)
+        descr = getattr(bpy.types, idname).bl_rna.description
+        return as_string + "\n" + descr
 
     def __str__(self): # used for print(...)
         return "<function bpy.ops.%s.%s at 0x%x'>" % \

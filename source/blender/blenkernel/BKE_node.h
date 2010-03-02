@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
@@ -434,7 +434,7 @@ extern struct ListBase node_all_textures;
 /* API */
 int  ntreeTexTagAnimated(struct bNodeTree *ntree);
 void ntreeTexSetPreviewFlag(int);
-void ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target, float *coord, float *dxt, float *dyt, short thread, struct Tex *tex, short which_output, int cfra, int preview);
+int ntreeTexExecTree(struct bNodeTree *ntree, struct TexResult *target, float *coord, float *dxt, float *dyt, int osatex, short thread, struct Tex *tex, short which_output, int cfra, int preview, struct ShadeInput *shi, struct MTex *mtex);
 void ntreeTexCheckCyclics(struct bNodeTree *ntree);
 char* ntreeTexOutputMenu(struct bNodeTree *ntree);
 

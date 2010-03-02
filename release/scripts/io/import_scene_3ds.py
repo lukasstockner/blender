@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -130,7 +130,7 @@ Loader is based on 3ds loader from www.gametutorials.com (Thanks DigiBen).
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ***** END GPL LICENCE BLOCK *****
 # --------------------------------------------------------------------------
@@ -293,12 +293,12 @@ def skip_to_end(file, skip_chunk):
 
 def add_texture_to_material(image, texture, material, mapto):
     #print('assigning %s to %s' % (texture, material))
-    
+
     if mapto not in ("COLOR", "SPECULARITY", "ALPHA", "NORMAL"):
         print('/tError:  Cannot map to "%s"\n\tassuming diffuse color. modify material "%s" later.' % (mapto, material.name))
         mapto = "COLOR"
 
-    if image: 
+    if image:
         texture.image = image
 # 	if image: texture.setImage(image) # double check its an image.
 
@@ -413,13 +413,12 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
 # 								targetFace.uv = [contextMeshUV[vindex] for vindex in myContextMesh_facels[i]]
                             if img:
                                 uf.image = img
-                                
+
                                 # to get this image to show up in 'Textured' shading mode
-                                uf.tex = True 
+                                uf.tex = True
 
             # bmesh.transform(contextMatrix)
-            ob = bpy.data.objects.new(tempName, 'MESH')
-            ob.data = bmesh
+            ob = bpy.data.objects.new(tempName, bmesh)
             SCN.objects.link(ob)
 # 			ob = SCN_OBJECTS.new(bmesh, tempName)
             '''
@@ -638,8 +637,7 @@ def process_next_chunk(file, previous_chunk, importedObjects, IMAGE_SEARCH):
             x,y,z = struct.unpack('<3f', temp_data)
             new_chunk.bytes_read += STRUCT_SIZE_3FLOAT
 
-            ob = bpy.data.objects.new("Lamp", 'LAMP')
-            ob.data = bpy.data.lamps.new("Lamp")
+            ob = bpy.data.objects.new("Lamp", bpy.data.lamps.new("Lamp"))
             SCN.objects.link(ob)
 
             contextLamp[1]= ob.data
@@ -1017,7 +1015,7 @@ class IMPORT_OT_autodesk_3ds(bpy.types.Operator):
     path = StringProperty(name="File Path", description="File path used for importing the 3DS file", maxlen= 1024, default= "")
     filename = StringProperty(name="File Name", description="Name of the file.")
     directory = StringProperty(name="Directory", description="Directory of the file.")
-	
+
 # 	size_constraint = FloatProperty(name="Size Constraint", description="Scale the model by 10 until it reacehs the size constraint. Zero Disables.", min=0.0, max=1000.0, soft_min=0.0, soft_max=1000.0, default=10.0),
 # 	search_images = BoolProperty(name="Image Search", description="Search subdirectories for any assosiated images (Warning, may be slow)", default=True),
 # 	apply_matrix = BoolProperty(name="Transform Fix", description="Workaround for object transformations importing incorrectly", default=False),
@@ -1031,11 +1029,22 @@ class IMPORT_OT_autodesk_3ds(bpy.types.Operator):
         wm.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
-bpy.types.register(IMPORT_OT_autodesk_3ds)
 
-menu_func = lambda self, context: self.layout.operator(IMPORT_OT_autodesk_3ds.bl_idname, text="3D Studio (.3ds)...")
-bpy.types.INFO_MT_file_import.append(menu_func)
+menu_func = lambda self, context: self.layout.operator(IMPORT_OT_autodesk_3ds.bl_idname, text="3D Studio (.3ds)")
+
+
+def register():
+    bpy.types.register(IMPORT_OT_autodesk_3ds)
+    bpy.types.INFO_MT_file_import.append(menu_func)
+
+def unregister():
+    bpy.types.unregister(IMPORT_OT_autodesk_3ds)
+    bpy.types.INFO_MT_file_import.remove(menu_func)
 
 # NOTES:
 # why add 1 extra vertex? and remove it when done? - "Answer - eekadoodle - would need to re-order UV's without this since face order isnt always what we give blender, BMesh will solve :D"
 # disabled scaling to size, this requires exposing bb (easy) and understanding how it works (needs some time)
+
+if __name__ == "__main__":
+    register()
+

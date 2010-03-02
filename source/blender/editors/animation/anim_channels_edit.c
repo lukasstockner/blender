@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -261,6 +261,8 @@ void ANIM_deselect_anim_channels (bAnimContext *ac, void *data, short datatype, 
 				case ANIMTYPE_DSMBALL:
 				case ANIMTYPE_DSARM:
 				case ANIMTYPE_DSMESH:
+				case ANIMTYPE_DSNTREE:
+				case ANIMTYPE_DSTEX:
 				{
 					if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED))
 						sel= ACHANNEL_SETFLAG_CLEAR;
@@ -342,6 +344,8 @@ void ANIM_deselect_anim_channels (bAnimContext *ac, void *data, short datatype, 
 			case ANIMTYPE_DSMBALL:
 			case ANIMTYPE_DSARM:
 			case ANIMTYPE_DSMESH:
+			case ANIMTYPE_DSNTREE:
+			case ANIMTYPE_DSTEX:
 			{
 				/* need to verify that this data is valid for now */
 				if (ale->adt) {
@@ -1039,7 +1043,7 @@ void ANIM_OT_channels_delete (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Delete Channels";
 	ot->idname= "ANIM_OT_channels_delete";
-	ot->description= "Delete all selected animation channels.";
+	ot->description= "Delete all selected animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_delete_exec;
@@ -1116,7 +1120,7 @@ void ANIM_OT_channels_visibility_set (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Visibility";
 	ot->idname= "ANIM_OT_channels_visibility_set";
-	ot->description= "Make only the selected animation channels visible in the Graph Editor.";
+	ot->description= "Make only the selected animation channels visible in the Graph Editor";
 	
 	/* api callbacks */
 	ot->exec= animchannels_visibility_set_exec;
@@ -1189,7 +1193,7 @@ void ANIM_OT_channels_visibility_toggle (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Visibility";
 	ot->idname= "ANIM_OT_channels_visibility_toggle";
-	ot->description= "Toggle visibility in Graph Editor of all selected animation channels.";
+	ot->description= "Toggle visibility in Graph Editor of all selected animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_visibility_toggle_exec;
@@ -1320,7 +1324,7 @@ void ANIM_OT_channels_setting_enable (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Enable Channel Setting";
 	ot->idname= "ANIM_OT_channels_setting_enable";
-	ot->description= "Enable specified setting on all selected animation channels.";
+	ot->description= "Enable specified setting on all selected animation channels";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1342,7 +1346,7 @@ void ANIM_OT_channels_setting_disable (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Disable Channel Setting";
 	ot->idname= "ANIM_OT_channels_setting_disable";
-	ot->description= "Disable specified setting on all selected animation channels.";
+	ot->description= "Disable specified setting on all selected animation channels";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1364,7 +1368,7 @@ void ANIM_OT_channels_setting_invert (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Invert Channel Setting";
 	ot->idname= "ANIM_OT_channels_setting_toggle";
-	ot->description= "Invert specified setting on all selected animation channels.";
+	ot->description= "Invert specified setting on all selected animation channels";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1386,7 +1390,7 @@ void ANIM_OT_channels_setting_toggle (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Channel Setting";
 	ot->idname= "ANIM_OT_channels_setting_toggle";
-	ot->description= "Toggle specified setting on all selected animation channels.";
+	ot->description= "Toggle specified setting on all selected animation channels";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1408,7 +1412,7 @@ void ANIM_OT_channels_editable_toggle (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Channel Editability";
 	ot->idname= "ANIM_OT_channels_editable_toggle";
-	ot->description= "Toggle editability of selected channels.";
+	ot->description= "Toggle editability of selected channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_setflag_exec;
@@ -1453,7 +1457,7 @@ void ANIM_OT_channels_expand (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Expand Channels";
 	ot->idname= "ANIM_OT_channels_expand";
-	ot->description= "Expand (i.e. open) all selected expandable animation channels.";
+	ot->description= "Expand (i.e. open) all selected expandable animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_expand_exec;
@@ -1495,7 +1499,7 @@ void ANIM_OT_channels_collapse (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Collapse Channels";
 	ot->idname= "ANIM_OT_channels_collapse";
-	ot->description= "Collapse (i.e. close) all selected expandable animation channels.";
+	ot->description= "Collapse (i.e. close) all selected expandable animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_collapse_exec;
@@ -1535,7 +1539,7 @@ void ANIM_OT_channels_select_all_toggle (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Select All";
 	ot->idname= "ANIM_OT_channels_select_all_toggle";
-	ot->description= "Toggle selection of all animation channels.";
+	ot->description= "Toggle selection of all animation channels";
 	
 	/* api callbacks */
 	ot->exec= animchannels_deselectall_exec;
@@ -1637,7 +1641,7 @@ void ANIM_OT_channels_select_border(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Border Select";
 	ot->idname= "ANIM_OT_channels_select_border";
-	ot->description= "Select all animation channels within the specified region.";
+	ot->description= "Select all animation channels within the specified region";
 	
 	/* api callbacks */
 	ot->invoke= WM_border_select_invoke;
@@ -1742,8 +1746,6 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 				if (adt) adt->flag |= ADT_UI_SELECTED;
 			}
 			
-			/* xxx should be ED_base_object_activate(), but we need context pointer for that... */
-			//set_active_base(base);
 			if ((adt) && (adt->flag & ADT_UI_SELECTED))
 				adt->flag |= ADT_UI_ACTIVE;
 			
@@ -1762,6 +1764,8 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 		case ANIMTYPE_DSMBALL:
 		case ANIMTYPE_DSARM:
 		case ANIMTYPE_DSMESH:
+		case ANIMTYPE_DSNTREE:
+		case ANIMTYPE_DSTEX:
 		{
 			/* sanity checking... */
 			if (ale->adt) {
@@ -1966,7 +1970,7 @@ void ANIM_OT_channels_click (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Mouse Click on Channels";
 	ot->idname= "ANIM_OT_channels_click";
-	ot->description= "Handle mouse-clicks over animation channels.";
+	ot->description= "Handle mouse-clicks over animation channels";
 	
 	/* api callbacks */
 	ot->invoke= animchannels_mouseclick_invoke;

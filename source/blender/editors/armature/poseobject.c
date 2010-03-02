@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -52,6 +52,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_anim.h"
+#include "BKE_idprop.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
@@ -260,7 +261,7 @@ void POSE_OT_paths_calculate (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Calculate Bone Paths";
 	ot->idname= "POSE_OT_paths_calculate";
-	ot->description= "Calculate paths for the selected bones.";
+	ot->description= "Calculate paths for the selected bones";
 	
 	/* api callbacks */
 	ot->exec= pose_calculate_paths_exec;
@@ -321,7 +322,7 @@ void POSE_OT_paths_clear (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Clear Bone Paths";
 	ot->idname= "POSE_OT_paths_clear";
-	ot->description= "Clear path caches for selected bones.";
+	ot->description= "Clear path caches for selected bones";
 	
 	/* api callbacks */
 	ot->exec= pose_clear_paths_exec;
@@ -615,7 +616,7 @@ void POSE_OT_select_grouped (wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Select Grouped";
-	ot->description = "Select all visible bones grouped by various properties.";
+	ot->description = "Select all visible bones grouped by various properties";
 	ot->idname= "POSE_OT_select_grouped";
 	
 	/* api callbacks */
@@ -840,6 +841,15 @@ static bPose *g_posebuf = NULL;
 void free_posebuf(void) 
 {
 	if (g_posebuf) {
+		bPoseChannel *pchan;
+
+		for (pchan= g_posebuf->chanbase.first; pchan; pchan= pchan->next) {
+			if(pchan->prop) {
+				IDP_FreeProperty(pchan->prop);
+				MEM_freeN(pchan->prop);
+			}
+		}
+
 		/* was copied without constraints */
 		BLI_freelistN(&g_posebuf->chanbase);
 		MEM_freeN(g_posebuf);
@@ -876,7 +886,7 @@ void POSE_OT_copy (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy Pose";
 	ot->idname= "POSE_OT_copy";
-	ot->description= "Copies the current pose of the selected bones to copy/paste buffer.";
+	ot->description= "Copies the current pose of the selected bones to copy/paste buffer";
 	
 	/* api callbacks */
 	ot->exec= pose_copy_exec;
@@ -891,7 +901,8 @@ void POSE_OT_copy (wmOperatorType *ot)
 /* Pointers to the builtin KeyingSets that we want to use */
 static KeyingSet *posePaste_ks_locrotscale = NULL;		/* the only keyingset we'll need */
 
-/* ---- */
+/* transform.h */
+extern void autokeyframe_pose_cb_func(struct bContext *C, struct Scene *scene, struct View3D *v3d, struct Object *ob, int tmode, short targetless_ik);
 
 static int pose_paste_exec (bContext *C, wmOperator *op)
 {
@@ -1002,31 +1013,53 @@ static int pose_paste_exec (bContext *C, wmOperator *op)
 					}
 				}
 				
-				if (autokeyframe_cfra_can_key(scene, &ob->id)) {
-					/* Set keys on pose
-					 *	- KeyingSet to use depends on rotation mode 
-					 *	(but that's handled by the templates code)  
-					 */
-					// TODO: for getting the KeyingSet used, we should really check which channels were affected
-					if (posePaste_ks_locrotscale == NULL)
-						posePaste_ks_locrotscale= ANIM_builtin_keyingset_get_named(NULL, "LocRotScale");
-					
-					/* init cks for this PoseChannel, then use the relative KeyingSets to keyframe it */
-					cks.pchan= pchan;
-					
-					modify_keyframes(scene, &dsources, NULL, posePaste_ks_locrotscale, MODIFYKEY_MODE_INSERT, (float)CFRA);
-					
-					/* clear any unkeyed tags */
-					if (chan->bone)
-						chan->bone->flag &= ~BONE_UNKEYED;
+				/* ID property */
+				if(pchan->prop) {
+					IDP_FreeProperty(pchan->prop);
+					MEM_freeN(pchan->prop);
+					pchan->prop= NULL;
 				}
-				else {
-					/* add unkeyed tags */
-					if (chan->bone)
-						chan->bone->flag |= BONE_UNKEYED;
+
+				if(chan->prop) {
+					pchan->prop= IDP_CopyProperty(chan->prop);
+				}
+
+				/* auto key, TODO, fix up this INSERTAVAIL vs all other cases */
+				if (IS_AUTOKEY_FLAG(INSERTAVAIL) == 0) { /* deal with this case later */
+					if (autokeyframe_cfra_can_key(scene, &ob->id)) {
+
+						/* Set keys on pose
+						 *	- KeyingSet to use depends on rotation mode
+						 *	(but that's handled by the templates code)
+						 */
+						// TODO: for getting the KeyingSet used, we should really check which channels were affected
+						if (posePaste_ks_locrotscale == NULL)
+							posePaste_ks_locrotscale= ANIM_builtin_keyingset_get_named(NULL, "LocRotScale");
+
+						/* init cks for this PoseChannel, then use the relative KeyingSets to keyframe it */
+						cks.pchan= pchan;
+
+						modify_keyframes(scene, &dsources, NULL, posePaste_ks_locrotscale, MODIFYKEY_MODE_INSERT, (float)CFRA);
+
+						/* clear any unkeyed tags */
+						if (chan->bone)
+							chan->bone->flag &= ~BONE_UNKEYED;
+					}
+					else {
+						/* add unkeyed tags */
+						if (chan->bone)
+							chan->bone->flag |= BONE_UNKEYED;
+					}
 				}
 			}
 		}
+	}
+
+	if (IS_AUTOKEY_FLAG(INSERTAVAIL)) {
+		View3D *v3d= CTX_wm_view3d(C);
+		autokeyframe_pose_cb_func(C, scene, v3d, ob, TFM_TRANSLATION, 0);
+		autokeyframe_pose_cb_func(C, scene, v3d, ob, TFM_ROTATION, 0);
+		autokeyframe_pose_cb_func(C, scene, v3d, ob, TFM_TIME_SCALE, 0);
 	}
 
 	/* Update event for pose and deformation children */
@@ -1053,7 +1086,7 @@ void POSE_OT_paste (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Paste Pose";
 	ot->idname= "POSE_OT_paste";
-	ot->description= "Pastes the stored pose on to the current pose.";
+	ot->description= "Pastes the stored pose on to the current pose";
 	
 	/* api callbacks */
 	ot->exec= pose_paste_exec;
@@ -1098,7 +1131,7 @@ void POSE_OT_group_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Bone Group";
 	ot->idname= "POSE_OT_group_add";
-	ot->description= "Add a new bone group.";
+	ot->description= "Add a new bone group";
 	
 	/* api callbacks */
 	ot->exec= pose_group_add_exec;
@@ -1138,7 +1171,7 @@ void POSE_OT_group_remove (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Remove Bone Group";
 	ot->idname= "POSE_OT_group_remove";
-	ot->description= "Removes the active bone group.";
+	ot->description= "Removes the active bone group";
 	
 	/* api callbacks */
 	ot->exec= pose_group_remove_exec;
@@ -1254,7 +1287,7 @@ void POSE_OT_group_assign (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Selected to Bone Group";
 	ot->idname= "POSE_OT_group_assign";
-	ot->description= "Add selected bones to the chosen bone group.";
+	ot->description= "Add selected bones to the chosen bone group";
 	
 	/* api callbacks */
 	ot->invoke= pose_groups_menu_invoke;
@@ -1367,7 +1400,7 @@ void POSE_OT_flip_names (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Flip Names";
 	ot->idname= "POSE_OT_flip_names";
-	ot->description= "Flips (and corrects) the names of selected bones.";
+	ot->description= "Flips (and corrects) the names of selected bones";
 	
 	/* api callbacks */
 	ot->exec= pose_flip_names_exec;
@@ -1420,7 +1453,7 @@ void POSE_OT_autoside_names (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "AutoName by Axis";
 	ot->idname= "POSE_OT_autoside_names";
-	ot->description= "Automatically renames the selected bones according to which side of the target axis they fall on.";
+	ot->description= "Automatically renames the selected bones according to which side of the target axis they fall on";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1527,7 +1560,7 @@ void POSE_OT_armature_layers (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Change Armature Layers";
 	ot->idname= "POSE_OT_armature_layers";
-	ot->description= "Change the visible armature layers.";
+	ot->description= "Change the visible armature layers";
 	
 	/* callbacks */
 	ot->invoke= pose_armature_layers_invoke;
@@ -1546,7 +1579,7 @@ void ARMATURE_OT_armature_layers (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Change Armature Layers";
 	ot->idname= "ARMATURE_OT_armature_layers";
-	ot->description= "Change the visible armature layers.";
+	ot->description= "Change the visible armature layers";
 	
 	/* callbacks */
 	ot->invoke= pose_armature_layers_invoke;
@@ -1620,7 +1653,7 @@ void POSE_OT_bone_layers (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Change Bone Layers";
 	ot->idname= "POSE_OT_bone_layers";
-	ot->description= "Change the layers that the selected bones belong to.";
+	ot->description= "Change the layers that the selected bones belong to";
 	
 	/* callbacks */
 	ot->invoke= pose_bone_layers_invoke;
@@ -1694,7 +1727,7 @@ void ARMATURE_OT_bone_layers (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Change Bone Layers";
 	ot->idname= "ARMATURE_OT_bone_layers";
-	ot->description= "Change the layers that the selected bones belong to.";
+	ot->description= "Change the layers that the selected bones belong to";
 	
 	/* callbacks */
 	ot->invoke= armature_bone_layers_invoke;
@@ -1773,7 +1806,7 @@ void POSE_OT_quaternions_flip (wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Flip Quats";
 	ot->idname= "POSE_OT_quaternions_flip";
-	ot->description= "Flip quaternion values to achieve desired rotations, while maintaining the same orientations.";
+	ot->description= "Flip quaternion values to achieve desired rotations, while maintaining the same orientations";
 	
 	/* callbacks */
 	ot->exec= pose_flip_quats_exec;

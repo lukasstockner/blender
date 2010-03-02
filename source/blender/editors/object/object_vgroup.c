@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -59,6 +59,7 @@
 #include "BKE_mesh.h"
 #include "BKE_paint.h"
 #include "BKE_utildefines.h"
+#include "BKE_report.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -168,7 +169,7 @@ int ED_vgroup_copy_array(Object *ob, Object *ob_from)
 	ED_vgroup_give_array(ob_from->data, &dvert_array_from, &dvert_tot_from);
 	ED_vgroup_give_array(ob->data, &dvert_array, &dvert_tot);
 
-	if(ob==ob_from || dvert_tot==0 || (dvert_tot != dvert_tot_from))
+	if(ob==ob_from || dvert_tot==0 || (dvert_tot != dvert_tot_from) || dvert_array_from==NULL || dvert_array==NULL)
 		return 0;
 
 	/* do the copy */
@@ -1732,7 +1733,7 @@ void OBJECT_OT_vertex_group_clean(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Clean Vertex Group";
 	ot->idname= "OBJECT_OT_vertex_group_clean";
-	ot->description= "Remove Vertex Group assignments which aren't required.";
+	ot->description= "Remove Vertex Group assignments which aren't required";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll;
@@ -1765,7 +1766,7 @@ void OBJECT_OT_vertex_group_mirror(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Mirror Vertex Group";
 	ot->idname= "OBJECT_OT_vertex_group_mirror";
-	ot->description= "Mirror weights, and flip vertex group names, copying when only one side is selected.";
+	ot->description= "Mirror weights, and flip vertex group names, copying when only one side is selected";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll_edit;
@@ -1811,7 +1812,7 @@ void OBJECT_OT_vertex_group_copy_to_linked(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy Vertex Groups to Linked";
 	ot->idname= "OBJECT_OT_vertex_group_copy_to_linked";
-	ot->description= "Copy Vertex Groups to all users of the same Geometry data.";
+	ot->description= "Copy Vertex Groups to all users of the same Geometry data";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll;
@@ -1841,7 +1842,7 @@ void OBJECT_OT_vertex_group_copy_to_selected(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Copy Vertex Group to Selected";
 	ot->idname= "OBJECT_OT_vertex_group_copy_to_selected";
-	ot->description= "Copy Vertex Groups to other selected objects with matching indicies.";
+	ot->description= "Copy Vertex Groups to other selected objects with matching indicies";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll;
@@ -1899,7 +1900,7 @@ void OBJECT_OT_vertex_group_set_active(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Active Vertex Group";
 	ot->idname= "OBJECT_OT_vertex_group_set_active";
-	ot->description= "Set the active vertex group.";
+	ot->description= "Set the active vertex group";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll;
@@ -1952,10 +1953,30 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 		name += DEF_GROUP_SIZE;
 	}
 
-	ED_vgroup_give_array(ob->data, &dvert, &dvert_tot);
-	while(dvert && dvert_tot--) {
-		defvert_remap(dvert, sort_map);
-		dvert++;
+	if(ob->mode == OB_MODE_EDIT) {
+		if(ob->type==OB_MESH) {
+			EditMesh *em = BKE_mesh_get_editmesh(ob->data);
+			EditVert *eve;
+
+			for(eve=em->verts.first; eve; eve=eve->next){
+				dvert= CustomData_em_get(&em->vdata, eve->data, CD_MDEFORMVERT);
+				if(dvert && dvert->totweight){
+					defvert_remap(dvert, sort_map);
+				}
+			}
+		}
+		else {
+			BKE_report(op->reports, RPT_ERROR, "Editmode lattice isnt supported yet.");
+			return OPERATOR_CANCELLED;
+		}
+	}
+	else {
+		ED_vgroup_give_array(ob->data, &dvert, &dvert_tot);
+		while(dvert && dvert_tot--) {
+			if(dvert->totweight)
+				defvert_remap(dvert, sort_map);
+			dvert++;
+		}
 	}
 
 	/* update users */
@@ -1965,6 +1986,8 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 	sort_map_update[0]= 0;
 
 	vgroup_remap_update_users(ob, sort_map_update);
+
+	ob->actdef= sort_map_update[ob->actdef];
 
 	MEM_freeN(name_array);
 	MEM_freeN(sort_map_update);
@@ -1981,7 +2004,7 @@ void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 {
 	ot->name= "Sort Vertex Groups";
 	ot->idname= "OBJECT_OT_vertex_group_sort";
-	ot->description= "Sorts vertex groups alphabetically.";
+	ot->description= "Sorts vertex groups alphabetically";
 
 	/* api callbacks */
 	ot->poll= vertex_group_poll;

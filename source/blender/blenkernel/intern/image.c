@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -1656,6 +1656,10 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 	unsigned short numlen;
 	char name[FILE_MAX], head[FILE_MAX], tail[FILE_MAX];
 	
+	/* XXX temp stuff? */
+	if(ima->lastframe != frame)
+		ima->tpageflag |= IMA_TPAGE_REFRESH;
+
 	ima->lastframe= frame;
 
 	BLI_stringdec(ima->name, head, tail, &numlen);
@@ -2029,11 +2033,20 @@ static ImBuf *image_get_ibuf_threadsafe(Image *ima, ImageUser *iuser, int *frame
 	if(ima->source==IMA_SRC_MOVIE) {
 		frame= iuser?iuser->framenr:ima->lastframe;
 		ibuf= image_get_ibuf(ima, 0, frame);
+		/* XXX temp stuff? */
+		if(ima->lastframe != frame)
+			ima->tpageflag |= IMA_TPAGE_REFRESH;
+		ima->lastframe = frame;
 	}
 	else if(ima->source==IMA_SRC_SEQUENCE) {
 		if(ima->type==IMA_TYPE_IMAGE) {
 			frame= iuser?iuser->framenr:ima->lastframe;
 			ibuf= image_get_ibuf(ima, 0, frame);
+			
+			/* XXX temp stuff? */
+			if(ima->lastframe != frame)
+				ima->tpageflag |= IMA_TPAGE_REFRESH;
+			ima->lastframe = frame;
 		}
 		else if(ima->type==IMA_TYPE_MULTILAYER) {
 			frame= iuser?iuser->framenr:ima->lastframe;
@@ -2247,104 +2260,3 @@ void BKE_image_user_calc_frame(ImageUser *iuser, int cfra, int fieldnr)
 		if(iuser->ok==0) iuser->ok= 1;
 	}
 }
-
-/*
-  Produce image export path.
-
-  Fails returning 0 if image filename is empty or if destination path
-  matches image path (i.e. both are the same file).
-
-  Trailing slash in dest_dir is optional.
-
-  Logic:
-
-  - if an image is "below" current .blend file directory, rebuild the
-    same dir structure in dest_dir
-
-  For example //textures/foo/bar.png becomes
-  [dest_dir]/textures/foo/bar.png.
-
-  - if an image is not "below" current .blend file directory,
-  disregard it's path and copy it in the same directory where 3D file
-  goes.
-
-  For example //../foo/bar.png becomes [dest_dir]/bar.png.
-
-  This logic will help ensure that all image paths are relative and
-  that a user gets his images in one place. It'll also provide
-  consistent behaviour across exporters.
- */
-int BKE_get_image_export_path(struct Image *im, const char *dest_dir, char *abs, int abs_size, char *rel, int rel_size)
-{
-	char path[FILE_MAX];
-	char dir[FILE_MAX];
-	char base[FILE_MAX];
-	char blend_dir[FILE_MAX];	/* directory, where current .blend file resides */
-	char dest_path[FILE_MAX];
-	char rel_dir[FILE_MAX];
-	int len;
-
-	if (abs)
-		abs[0]= 0;
-
-	if (rel)
-		rel[0]= 0;
-
-	BLI_split_dirfile_basic(G.sce, blend_dir, NULL);
-
-	if (!strlen(im->name)) {
-		if (G.f & G_DEBUG) printf("Invalid image type.\n");
-		return 0;
-	}
-
-	BLI_strncpy(path, im->name, sizeof(path));
-
-	/* expand "//" in filename and get absolute path */
-	BLI_convertstringcode(path, G.sce);
-
-	/* get the directory part */
-	BLI_split_dirfile_basic(path, dir, base);
-
-	len= strlen(blend_dir);
-
-	rel_dir[0] = 0;
-
-	/* if image is "below" current .blend file directory */
-	if (!strncmp(path, blend_dir, len)) {
-
-		/* if image is _in_ current .blend file directory */
-		if (!strcmp(dir, blend_dir)) {
-			BLI_join_dirfile(dest_path, dest_dir, base);
-		}
-		/* "below" */
-		else {
-			/* rel = image_path_dir - blend_dir */
-			BLI_strncpy(rel_dir, dir + len, sizeof(rel_dir));
-
-			BLI_join_dirfile(dest_path, dest_dir, rel_dir);
-			BLI_join_dirfile(dest_path, dest_path, base);
-		}
-			
-	}
-	/* image is out of current directory */
-	else {
-		BLI_join_dirfile(dest_path, dest_dir, base);
-	}
-
-	if (abs)
-		BLI_strncpy(abs, dest_path, abs_size);
-
-	if (rel) {
-		strncat(rel, rel_dir, rel_size);
-		strncat(rel, base, rel_size);
-	}
-
-	/* return 2 if src=dest */
-	if (!strcmp(path, dest_path)) {
-		if (G.f & G_DEBUG) printf("%s and %s are the same file\n", path, dest_path);
-		return 2;
-	}
-
-	return 1;
-}
-

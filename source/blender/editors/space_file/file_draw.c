@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -207,13 +207,13 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 		but = uiDefIconButO(block, BUT, "FILE_OT_filenum", 0, ICON_ZOOMOUT,
 		        min_x + line2_w + separator, line2_y, 
 		        btn_fn_w, btn_h, 
-		        "Decrement the filename number.");    
+		        "Decrement the filename number");    
 		RNA_int_set(uiButGetOperatorPtrRNA(but), "increment", -1); 
 	
 		but = uiDefIconButO(block, BUT, "FILE_OT_filenum", 0, ICON_ZOOMIN, 
 		        min_x + line2_w + separator + btn_fn_w, line2_y, 
 		        btn_fn_w, btn_h, 
-		        "Increment the filename number.");    
+		        "Increment the filename number");    
 		RNA_int_set(uiButGetOperatorPtrRNA(but), "increment", 1); 
 		uiBlockEndAlign(block);
 	}

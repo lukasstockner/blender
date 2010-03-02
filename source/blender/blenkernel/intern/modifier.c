@@ -15,7 +15,7 @@
 *
 * You should have received a copy of the GNU General Public License
 * along with this program; if not, write to the Free Software  Foundation,
-* Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
 * The Original Code is Copyright (C) 2005 by the Blender Foundation.
 * All rights reserved.
@@ -353,15 +353,14 @@ static void latticeModifier_updateDepgraph(ModifierData *md, DagForest *forest, 
 
 static void modifier_vgroup_cache(ModifierData *md, float (*vertexCos)[3])
 {
-	md= md->next;
-	if(md) {
-		if(md->type==eModifierType_Armature) {
-			ArmatureModifierData *amd = (ArmatureModifierData*) md;
-			if(amd->multi)
-				amd->prevCos= MEM_dupallocN(vertexCos);
-		}
-		/* lattice/mesh modifier too */
+	while((md=md->next) && md->type==eModifierType_Armature) {
+		ArmatureModifierData *amd = (ArmatureModifierData*) md;
+		if(amd->multi && amd->prevCos==NULL)
+			amd->prevCos= MEM_dupallocN(vertexCos);
+		else
+			break;
 	}
+	/* lattice/mesh modifier too */
 }
 
 
@@ -4826,8 +4825,14 @@ static void castModifier_deformVerts(
 				     ModifierData *md, Object *ob, DerivedMesh *derivedData,
 	 float (*vertexCos)[3], int numVerts, int useRenderParams, int isFinalCalc)
 {
-	DerivedMesh *dm = get_dm(md->scene, ob, NULL, derivedData, NULL, 0);
+	DerivedMesh *dm = NULL;
 	CastModifierData *cmd = (CastModifierData *)md;
+
+	if (ob->type == OB_MESH) {
+		/* DerivedMesh is used only in case object is MESH */
+		/* so we could optimize modifier applying by skipping DM creation */
+		dm = get_dm(md->scene, ob, NULL, derivedData, NULL, 0);
+	}
 
 	if (cmd->type == MOD_CAST_TYPE_CUBOID) {
 		castModifier_cuboid_do(cmd, ob, dm, vertexCos, numVerts);

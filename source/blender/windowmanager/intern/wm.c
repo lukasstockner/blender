@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
@@ -54,6 +54,7 @@
 #include "wm.h"
 
 #include "ED_screen.h"
+#include "BPY_extern.h"
 
 #include "RNA_types.h"
 
@@ -63,6 +64,12 @@
 
 void WM_operator_free(wmOperator *op)
 {
+	if(op->py_instance) {
+		/* do this first incase there are any __del__ functions or
+		 * similar that use properties */
+		BPY_DECREF(op->py_instance);
+	}
+
 	if(op->ptr) {
 		op->properties= op->ptr->data;
 		MEM_freeN(op->ptr);

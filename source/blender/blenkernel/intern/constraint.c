@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -96,7 +96,7 @@
 /* Find the first available, non-duplicate name for a given constraint */
 void unique_constraint_name (bConstraint *con, ListBase *list)
 {
-	BLI_uniquename(list, con, "Const", '.', offsetof(bConstraint, name), 32);
+	BLI_uniquename(list, con, "Const", '.', offsetof(bConstraint, name), sizeof(con->name));
 }
 
 /* ----------------- Evaluation Loop Preparation --------------- */
@@ -402,7 +402,7 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 /* function that sets the given matrix based on given vertex group in mesh */
 static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, float mat[][4])
 {
-	DerivedMesh *dm;
+	DerivedMesh *dm = NULL;
 	Mesh *me= ob->data;
 	EditMesh *em = BKE_mesh_get_editmesh(me);
 	float vec[3] = {0.0f, 0.0f, 0.0f}, tvec[3];
@@ -1947,7 +1947,7 @@ static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintT
 		
 		/* only execute target calculation if allowed */
 #ifndef DISABLE_PYTHON
-		if (G.f & G_DOSCRIPTLINKS)
+		if (G.f & G_SCRIPT_AUTOEXEC)
 			BPY_pyconstraint_target(data, ct);
 #endif
 	}
@@ -1963,7 +1963,7 @@ static void pycon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targ
 	bPythonConstraint *data= con->data;
 	
 	/* only evaluate in python if we're allowed to do so */
-	if ((G.f & G_DOSCRIPTLINKS)==0)  return;
+	if ((G.f & G_SCRIPT_AUTOEXEC)==0)  return;
 	
 /* currently removed, until I this can be re-implemented for multiple targets */
 #if 0
@@ -3903,6 +3903,26 @@ int remove_constraint_index (ListBase *list, int index)
 		return 0;
 }
 
+/* Remove all the constraints of the specified type from the given constraint stack */
+void remove_constraints_type (ListBase *list, short type, short last_only)
+{
+	bConstraint *con, *conp;
+	
+	if (list == NULL)
+		return;
+	
+	/* remove from the end of the list to make it faster to find the last instance */
+	for (con= list->last; con; con= conp) {
+		conp= con->prev;
+		
+		if (con->type == type) {
+			remove_constraint(list, con);
+			if (last_only) 
+				return;
+		}
+	}
+}
+
 /* ......... */
 
 /* Creates a new constraint, initialises its data, and returns it */
@@ -4061,9 +4081,6 @@ void copy_constraints (ListBase *dst, const ListBase *src)
 		
 		/* make a new copy of the constraint's data */
 		con->data = MEM_dupallocN(con->data);
-		
-		// NOTE: depreceated... old animation system
-		id_us_plus((ID *)con->ipo);
 		
 		/* only do specific constraints if required */
 		if (cti) {

@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -56,7 +56,7 @@ Known issues:<br>
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ***** END GPL LICENCE BLOCK *****
 #
@@ -228,7 +228,7 @@ class x3d_class:
     '''
 
     def writeViewpoint(self, ob, mat, scene):
-        context = scene.render_data
+        context = scene.render
         # context = scene.render
         ratio = float(context.resolution_x)/float(context.resolution_y)
         # ratio = float(context.imageSizeY())/float(context.imageSizeX())
@@ -794,7 +794,7 @@ class x3d_class:
             pic = tex.image
 
             # using .expandpath just in case, os.path may not expect //
-            basename = os.path.basename(pic.get_abs_filename())
+            basename = os.path.basename(bpy.utils.expandpath(pic.filename))
 
             pic = alltextures[i].image
             # pic = alltextures[i].getImage()
@@ -1229,9 +1229,9 @@ class ExportX3D(bpy.types.Operator):
     path = StringProperty(name="File Path", description="File path used for exporting the X3D file", maxlen= 1024, default= "")
     check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
 
-    apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object.", default=True)
+    apply_modifiers = BoolProperty(name="Apply Modifiers", description="Use transformed mesh data from each object", default=True)
     triangulate = BoolProperty(name="Triangulate", description="Triangulate quads.", default=False)
-    compress = BoolProperty(name="Compress", description="GZip the resulting file, requires a full python install.", default=False)
+    compress = BoolProperty(name="Compress", description="GZip the resulting file, requires a full python install", default=False)
 
     def execute(self, context):
         x3d_export(self.properties.path, context, self.properties.apply_modifiers, self.properties.triangulate, self.properties.compress)
@@ -1242,14 +1242,23 @@ class ExportX3D(bpy.types.Operator):
         wm.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
-bpy.types.register(ExportX3D)
-
 
 def menu_func(self, context):
     default_path = bpy.data.filename.replace(".blend", ".x3d")
-    self.layout.operator(ExportX3D.bl_idname, text="X3D Extensible 3D (.x3d)...").path = default_path
+    self.layout.operator(ExportX3D.bl_idname, text="X3D Extensible 3D (.x3d)").path = default_path
 
-bpy.types.INFO_MT_file_export.append(menu_func)
+
+def register():
+    bpy.types.register(ExportX3D)
+    bpy.types.INFO_MT_file_export.append(menu_func)
+
+def unregister():
+    bpy.types.unregister(ExportX3D)
+    bpy.types.INFO_MT_file_export.remove(menu_func)
 
 # NOTES
 # - blender version is hardcoded
+
+if __name__ == "__main__":
+    register()
+

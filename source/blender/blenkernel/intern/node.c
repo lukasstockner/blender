@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
@@ -57,6 +57,7 @@
 #include "BKE_texture.h"
 #include "BKE_text.h"
 #include "BKE_utildefines.h"
+#include "BKE_animsys.h" /* BKE_free_animdata only */
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -908,7 +909,7 @@ void nodeAddSockets(bNode *node, bNodeType *ntype)
 /* Find the first available, non-duplicate name for a given node */
 void nodeUniqueName(bNodeTree *ntree, bNode *node)
 {
-	BLI_uniquename(&ntree->nodes, node, "Node", '.', offsetof(bNode, name), 32);
+	BLI_uniquename(&ntree->nodes, node, "Node", '.', offsetof(bNode, name), sizeof(node->name));
 }
 
 bNode *nodeAddNodeType(bNodeTree *ntree, int type, bNodeTree *ngroup, ID *id)
@@ -1104,10 +1105,12 @@ bNodeTree *ntreeCopyTree(bNodeTree *ntree, int internal_select)
 		/* is ntree part of library? */
 		for(newtree=G.main->nodetree.first; newtree; newtree= newtree->id.next)
 			if(newtree==ntree) break;
-		if(newtree)
+		if(newtree) {
 			newtree= copy_libblock(ntree);
-		else
+		} else {
 			newtree= MEM_dupallocN(ntree);
+			copy_libblock_data(&newtree->id, &ntree->id); /* copy animdata and ID props */
+		}
 		newtree->nodes.first= newtree->nodes.last= NULL;
 		newtree->links.first= newtree->links.last= NULL;
 	}
@@ -1343,6 +1346,8 @@ void ntreeFreeTree(bNodeTree *ntree)
 	
 	ntreeEndExecTree(ntree);	/* checks for if it is still initialized */
 	
+	BKE_free_animdata((ID *)ntree);
+
 	BLI_freelistN(&ntree->links);	/* do first, then unlink_node goes fast */
 	
 	for(node= ntree->nodes.first; node; node= next) {

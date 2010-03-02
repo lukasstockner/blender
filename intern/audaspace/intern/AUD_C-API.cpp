@@ -113,7 +113,7 @@ int AUD_init(AUD_DeviceType device, AUD_DeviceSpecs specs, int buffersize)
 #endif
 #ifdef WITH_JACK
 		case AUD_JACK_DEVICE:
-			dev = new AUD_JackDevice(specs);
+			dev = new AUD_JackDevice(specs, buffersize);
 			break;
 #endif
 		default:
@@ -759,6 +759,69 @@ int AUD_readSound(AUD_Sound* sound, sample_t* buffer, int length)
 	delete reader; AUD_DELETE("reader")
 
 	return length;
+}
+
+void AUD_startPlayback()
+{
+#ifdef WITH_JACK
+	AUD_JackDevice* device = dynamic_cast<AUD_JackDevice*>(AUD_device);
+	if(device)
+		device->startPlayback();
+#endif
+}
+
+void AUD_stopPlayback()
+{
+#ifdef WITH_JACK
+	AUD_JackDevice* device = dynamic_cast<AUD_JackDevice*>(AUD_device);
+	if(device)
+		device->stopPlayback();
+#endif
+}
+
+void AUD_seekSequencer(AUD_Handle* handle, float time)
+{
+#ifdef WITH_JACK
+	AUD_JackDevice* device = dynamic_cast<AUD_JackDevice*>(AUD_device);
+	if(device)
+		device->seekPlayback(time);
+	else
+#endif
+	{
+		AUD_device->seek(handle, time);
+	}
+}
+
+float AUD_getSequencerPosition(AUD_Handle* handle)
+{
+#ifdef WITH_JACK
+	AUD_JackDevice* device = dynamic_cast<AUD_JackDevice*>(AUD_device);
+	if(device)
+		return device->getPlaybackPosition();
+	else
+#endif
+	{
+		return AUD_device->getPosition(handle);
+	}
+}
+
+#ifdef WITH_JACK
+void AUD_setSyncCallback(AUD_syncFunction function, void* data)
+{
+	AUD_JackDevice* device = dynamic_cast<AUD_JackDevice*>(AUD_device);
+	if(device)
+		device->setSyncCallback(function, data);
+}
+#endif
+
+int AUD_doesPlayback()
+{
+#ifdef WITH_JACK
+	AUD_JackDevice* device = dynamic_cast<AUD_JackDevice*>(AUD_device);
+	if(device)
+		return device->doesPlayback();
+#endif
+	return -1;
 }
 
 #ifdef AUD_DEBUG_MEMORY

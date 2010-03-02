@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -2190,7 +2190,9 @@ static int ui_numedit_but_NUM(uiBut *but, uiHandleButtonData *data, float fac, i
 			}
 		}
 		else {
-			fac = 0.5; /* simple 2px == 1 */
+			if(softrange > 256)		fac= 1.0;		/* 1px == 1 */
+			else if(softrange > 32)	fac= 1.0/2.0;	/* 2px == 1 */
+			else					fac= 1.0/16.0;	/* 16px == 1? */
 
 			temp= data->startvalue + ((mx - data->dragstartx) * fac);
 			temp= ui_numedit_apply_snap(temp, softmin, softmax, snap);
@@ -4013,7 +4015,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 			if(event->alt)
 				ui_but_anim_remove_keyingset(C);
 			else
-				ui_but_anim_remove_keyingset(C);
+				ui_but_anim_add_keyingset(C);
 				
 			ED_region_tag_redraw(CTX_wm_region(C));
 			

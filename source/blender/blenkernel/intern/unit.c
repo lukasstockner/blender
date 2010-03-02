@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Campbell Barton
  *
@@ -24,8 +24,11 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#ifdef WIN32
+#define _USE_MATH_DEFINES
+#endif
+#include <math.h>
 
-#include "BLI_math.h"
 #include "BLI_winstuff.h"
 
 #define TEMP_STR_SIZE 256
@@ -33,7 +36,7 @@
 #define SEP_CHR		'#'
 #define SEP_STR		"#"
 
-#define EUL 0.000001
+#define EPS 0.000001
 
 
 /* define a single unit */
@@ -118,7 +121,7 @@ static struct bUnitCollection buNaturalTimeCollecton = {buNaturalTimeDef, 3, 0, 
 
 
 static struct bUnitDef buNaturalRotDef[] = {
-	{"degree", "degrees",			"°", NULL, "Degrees",		M_PI/180.f, 0.0,	B_UNIT_DEF_NONE},
+	{"degree", "degrees",			"°", NULL, "Degrees",		M_PI/180.0, 0.0,	B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL, NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buNaturalRotCollection = {buNaturalRotDef, 0, 0, sizeof(buNaturalRotDef)/sizeof(bUnitDef)};
@@ -152,7 +155,7 @@ static bUnitDef *unit_best_fit(double value, bUnitCollection *usys, bUnitDef *un
 		if(suppress && (unit->flag & B_UNIT_DEF_SUPPRESS))
 			continue;
 
-		if (value_abs >= unit->scalar*(1.0-EUL)) /* scale down scalar so 1cm doesnt convert to 10mm because of float error */
+		if (value_abs >= unit->scalar*(1.0-EPS)) /* scale down scalar so 1cm doesnt convert to 10mm because of float error */
 			return unit;
 	}
 
@@ -167,7 +170,7 @@ static void unit_dual_convert(double value, bUnitCollection *usys,
 {
 	bUnitDef *unit= unit_best_fit(value, usys, NULL, 1);
 
-	*value_a= floor(value/unit->scalar) * unit->scalar;
+	*value_a=  (value < 0.0 ? ceil:floor)(value/unit->scalar) * unit->scalar;
 	*value_b= value - (*value_a);
 
 	*unit_a=	unit;

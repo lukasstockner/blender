@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Blender Foundation (2008).
  *
@@ -49,6 +49,7 @@ extern StructRNA RNA_ActionConstraint;
 extern StructRNA RNA_ActionGroup;
 extern StructRNA RNA_Actuator;
 extern StructRNA RNA_ActuatorSensor;
+extern StructRNA RNA_Addon;
 extern StructRNA RNA_AlwaysSensor;
 extern StructRNA RNA_AndController;
 extern StructRNA RNA_AnimData;
@@ -372,11 +373,11 @@ extern StructRNA RNA_RenderEngine;
 extern StructRNA RNA_RenderLayer;
 extern StructRNA RNA_RenderPass;
 extern StructRNA RNA_RenderResult;
+extern StructRNA RNA_RenderSettings;
 extern StructRNA RNA_RGBANodeSocket;
 extern StructRNA RNA_RigidBodyJointConstraint;
 extern StructRNA RNA_Scene;
 extern StructRNA RNA_SceneGameData;
-extern StructRNA RNA_SceneRenderData;
 extern StructRNA RNA_SceneRenderLayer;
 extern StructRNA RNA_SceneSequence;
 extern StructRNA RNA_Screen;
@@ -647,6 +648,9 @@ void RNA_property_int_ui_range(PointerRNA *ptr, PropertyRNA *prop, int *softmin,
 void RNA_property_float_range(PointerRNA *ptr, PropertyRNA *prop, float *hardmin, float *hardmax);
 void RNA_property_float_ui_range(PointerRNA *ptr, PropertyRNA *prop, float *softmin, float *softmax, float *step, float *precision);
 
+int RNA_property_float_clamp(PointerRNA *ptr, PropertyRNA *prop, float *value);
+int RNA_property_int_clamp(PointerRNA *ptr, PropertyRNA *prop, int *value);
+
 int RNA_enum_identifier(EnumPropertyItem *item, const int value, const char **identifier);
 int RNA_enum_bitflag_identifiers(EnumPropertyItem *item, const int value, const char **identifier);
 int RNA_enum_name(EnumPropertyItem *item, const int value, const char **name);
@@ -660,6 +664,7 @@ StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop);
 
 int RNA_property_editable(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_editable_index(PointerRNA *ptr, PropertyRNA *prop, int index);
+int RNA_property_editable_flag(PointerRNA *ptr, PropertyRNA *prop); /* without lib check, only checks the flag */
 int RNA_property_animateable(PointerRNA *ptr, PropertyRNA *prop);
 int RNA_property_animated(PointerRNA *ptr, PropertyRNA *prop);
 
@@ -804,6 +809,7 @@ void RNA_float_set_array(PointerRNA *ptr, const char *name, const float *values)
 
 int RNA_enum_get(PointerRNA *ptr, const char *name);
 void RNA_enum_set(PointerRNA *ptr, const char *name, int value);
+void RNA_enum_set_identifier(PointerRNA *ptr, const char *name, const char *id);
 int RNA_enum_is_equal(struct bContext *C, PointerRNA *ptr, const char *name, const char *enumname);
 
 /* lower level functions that donr use a PointerRNA */

@@ -188,8 +188,19 @@ opts.Update(env)
 if not env['BF_FANCY']:
 	B.bc.disable()
 
+
+# remove install dir so old and new files are not mixed.
+# NOTE: only do the scripts directory for now, otherwise is too disruptive for developers
+# TODO: perhaps we need an option (off by default) to not do this altogether...
+if not env['WITHOUT_BF_INSTALL'] and not env['WITHOUT_BF_OVERWRITE_INSTALL']:
+	scriptsDir = env['BF_INSTALLDIR'] + os.sep + '.blender' + os.sep + 'scripts'
+	if os.path.isdir(scriptsDir):
+		print B.bc.OKGREEN + "Clearing installation directory%s: %s" % (B.bc.ENDC, os.path.abspath(scriptsDir))
+		shutil.rmtree(scriptsDir)
+
+
 SetOption('num_jobs', int(env['BF_NUMJOBS']))
-print "Build with %d parallel jobs" % (GetOption('num_jobs'))
+print B.bc.OKGREEN + "Build with parallel jobs%s: %s" % (B.bc.ENDC, GetOption('num_jobs'))
 
 # BLENDERPATH is a unix only option to enable typical style paths this is
 # spesifically a data-dir, which is used a lot but cant replace BF_INSTALLDIR
@@ -199,12 +210,6 @@ if env['WITH_BF_FHS']:
 	BLENDERPATH = os.path.join(env['BF_INSTALLDIR'], 'share', 'blender', env['BF_VERSION'])
 else:
 	BLENDERPATH = env['BF_INSTALLDIR']
-
-# disable elbeem (fluidsim) compilation?
-if env['BF_NO_ELBEEM'] == 1:
-	env['CPPFLAGS'].append('-DDISABLE_ELBEEM')
-	env['CXXFLAGS'].append('-DDISABLE_ELBEEM')
-	env['CCFLAGS'].append('-DDISABLE_ELBEEM')
 
 if env['WITH_BF_OPENMP'] == 1:
 		if env['OURPLATFORM'] in ('win32-vc', 'win64-vc'):
@@ -238,40 +243,6 @@ if env.has_key('BF_DEBUG_LIBS'):
 	B.quickdebug += env['BF_DEBUG_LIBS']
 
 printdebug = B.arguments.get('BF_LISTDEBUG', 0)
-
-# see if this linux distro has libalut
-
-if env['OURPLATFORM'] == 'linux2' :
-	if env['WITH_BF_OPENAL']:
-		mylib_test_source_file = """
-		#include "AL/alut.h"
-		int main(int argc, char **argv)
-		{
-			alutGetMajorVersion();
-			return 0;
-		}
-		"""
-
-		def CheckFreeAlut(context,env):
-			context.Message( B.bc.OKGREEN + "Linux platform detected:\n  checking for FreeAlut... " + B.bc.ENDC )
-			env['LIBS'] = 'alut'
-			result = context.TryLink(mylib_test_source_file, '.c')
-			context.Result(result)
-			return result
-
-		env2 = env.Clone( LIBPATH = env['BF_OPENAL'] ) 
-		sconf_temp = mkdtemp()
-		conf = Configure( env2, {'CheckFreeAlut' : CheckFreeAlut}, sconf_temp, '/dev/null' )
-		if conf.CheckFreeAlut( env2 ):
-			env['BF_OPENAL_LIB'] += ' alut'
-		del env2
-		root = ''
-		for root, dirs, files in os.walk(sconf_temp, topdown=False):
-			for name in files:
-				os.remove(os.path.join(root, name))
-			for name in dirs:
-				os.rmdir(os.path.join(root, name))
-		if root: os.rmdir(root)
 
 if len(B.quickdebug) > 0 and printdebug != 0:
 	print B.bc.OKGREEN + "Buildings these libs with debug symbols:" + B.bc.ENDC
@@ -318,6 +289,12 @@ if 'blenderlite' in B.targets:
 	for k,v in target_env_defs.iteritems():
 		if k not in B.arguments:
 			env[k] = v
+
+# disable elbeem (fluidsim) compilation?
+if env['BF_NO_ELBEEM'] == 1:
+	env['CPPFLAGS'].append('-DDISABLE_ELBEEM')
+	env['CXXFLAGS'].append('-DDISABLE_ELBEEM')
+	env['CCFLAGS'].append('-DDISABLE_ELBEEM')
 
 if env['WITH_BF_SDL'] == False and env['OURPLATFORM'] in ('win32-vc', 'win32-ming', 'win64-vc'):
 	env['PLATFORM_LINKFLAGS'].remove('/ENTRY:mainCRTStartup')
@@ -394,7 +371,7 @@ else:
 	if toolset=='msvc':
 		B.msvc_hack(env)
 
-print B.bc.HEADER+'Building in '+B.bc.ENDC+B.root_build_dir
+print B.bc.HEADER+'Building in: ' + B.bc.ENDC + os.path.abspath(B.root_build_dir)
 env.SConsignFile(B.root_build_dir+'scons-signatures')
 B.init_lib_dict()
 
@@ -633,18 +610,6 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 					'${BF_FFMPEG_LIBPATH}/avdevice-52.dll',
 					'${BF_FFMPEG_LIBPATH}/avutil-50.dll',
 					'${BF_FFMPEG_LIBPATH}/swscale-0.dll']
-
-		if env['OURPLATFORM'] != 'linuxcross':
-			#
-			# TODO: Does it mean we haven't got support of this codecs if
-			#       we're using cross-compilation?
-			#       Or in case of native compilation this libraries are
-			#       unneccessary to?
-			#
-			dllsources += ['${LCGDIR}/ffmpeg/lib/libfaac-0.dll',
-							'${LCGDIR}/ffmpeg/lib/libfaad-2.dll',
-							'${LCGDIR}/ffmpeg/lib/libmp3lame-0.dll',
-							'${LCGDIR}/ffmpeg/lib/libx264-67.dll']
 
 	if env['WITH_BF_JACK']:
 		dllsources += ['${LCGDIR}/jack/lib/libjack.dll']

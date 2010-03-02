@@ -15,7 +15,7 @@
 *
 * You should have received a copy of the GNU General Public License
 * along with this program; if not, write to the Free Software Foundation,
-* Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+* Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
 * The Original Code is Copyright (C) Blender Foundation
 * All rights reserved.
@@ -545,7 +545,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 		implicit_set_positions(clmd);
 		cache->flag |= PTCACHE_SIMULATION_VALID;
 	}
-	else if(ob->id.lib || (cache->flag & PTCACHE_BAKED)) {
+	else if( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 		/* if baked and nothing in cache, do nothing */
 		cache->flag &= ~PTCACHE_SIMULATION_VALID;
 		cache->simframe= 0;

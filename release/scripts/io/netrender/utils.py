@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -197,12 +197,12 @@ def thumbnail(filename):
         return thumbname
 
     if bpy:
-        sce = bpy.data.scenes[0]
-        sce.render_data.file_format = "JPEG"
-        sce.render_data.quality = 90
+        scene = bpy.data.scenes[0] # FIXME, this is dodgy!
+        scene.render.file_format = "JPEG"
+        scene.render.quality = 90
         bpy.ops.image.open(path = filename)
         img = bpy.data.images[imagename]
-        img.save(thumbname, scene = sce)
+        img.save_render(thumbname, scene=scene)
 
         try:
             process = subprocess.Popen(["convert", thumbname, "-resize", "300x300", thumbname])

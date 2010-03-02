@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Blender Foundation (2008).
  *
@@ -61,8 +61,6 @@ static StructRNA* rna_Actuator_refine(struct PointerRNA *ptr)
 			return &RNA_RandomActuator;
 		case ACT_MESSAGE:
 			return &RNA_MessageActuator;
-//		case ACT_ACTION:
-//			return &RNA_ActionActuator;
 		case ACT_GAME:
 			return &RNA_GameActuator;
 		case ACT_VISIBILITY:
@@ -111,7 +109,7 @@ void rna_def_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "Actuator", NULL);
-	RNA_def_struct_ui_text(srna, "Actuator", "Actuator to apply actions in the game engine.");
+	RNA_def_struct_ui_text(srna, "Actuator", "Actuator to apply actions in the game engine");
 	RNA_def_struct_sdna(srna, "bActuator");
 	RNA_def_struct_refine_func(srna, "rna_Actuator_refine");
 
@@ -137,7 +135,7 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "ObjectActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Motion Actuator", "Actuator to control the object movement.");
+	RNA_def_struct_ui_text(srna, "Motion Actuator", "Actuator to control the object movement");
 	RNA_def_struct_sdna_from(srna, "bObjectActuator", "data");
 
 
@@ -310,13 +308,13 @@ static void rna_def_ipo_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 	
 	srna= RNA_def_struct(brna, "IpoActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Ipo Actuator", "Actuator to animate the object.");
+	RNA_def_struct_ui_text(srna, "Ipo Actuator", "Actuator to animate the object");
 	RNA_def_struct_sdna_from(srna, "bIpoActuator", "data");
 
 	prop= RNA_def_property(srna, "play_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type");
 	RNA_def_property_enum_items(prop, prop_type_items);
-	RNA_def_property_ui_text(prop, "Ipo Type", "Specify the way you want to play the animation.");
+	RNA_def_property_ui_text(prop, "Ipo Type", "Specify the way you want to play the animation");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 	
 	prop= RNA_def_property(srna, "start_frame", PROP_INT, PROP_NONE);
@@ -350,7 +348,7 @@ static void rna_def_ipo_actuator(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "local", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_IPOLOCAL);
-	RNA_def_property_ui_text(prop, "L", "Let the ipo acts in local coordinates, used in Force and Add mode.");
+	RNA_def_property_ui_text(prop, "L", "Let the ipo acts in local coordinates, used in Force and Add mode");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "child", PROP_BOOLEAN, PROP_NONE);
@@ -377,7 +375,7 @@ static void rna_def_camera_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 	
 	srna= RNA_def_struct(brna, "CameraActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Camera Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "Camera Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bCameraActuator", "data");
 
 	prop= RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
@@ -408,7 +406,7 @@ static void rna_def_camera_actuator(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "axis");
 	RNA_def_property_enum_items(prop, prop_axis_items);
-	RNA_def_property_ui_text(prop, "Axis", "Specify the axy the Camera will try to get behind.");
+	RNA_def_property_ui_text(prop, "Axis", "Specify the axy the Camera will try to get behind");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
@@ -487,19 +485,19 @@ static void rna_def_sound_actuator(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "cone_outer_gain_3d", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_outer_gain");
 	RNA_def_property_ui_range(prop, 0.0, 1.0, 0.1, 0.01);
-	RNA_def_property_ui_text(prop, "Cone Outer Gain", "The gain outside the outer cone. The gain in the outer cone will be interpolated between this value and the normal gain in the inner cone.");
+	RNA_def_property_ui_text(prop, "Cone Outer Gain", "The gain outside the outer cone. The gain in the outer cone will be interpolated between this value and the normal gain in the inner cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "cone_outer_angle_3d", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_outer_angle");
 	RNA_def_property_ui_range(prop, 0.0, 360.0, 1.0, 0.01);
-	RNA_def_property_ui_text(prop, "Cone Outer Angle", "The angle of the outer cone.");
+	RNA_def_property_ui_text(prop, "Cone Outer Angle", "The angle of the outer cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "cone_inner_angle_3d", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sound3D.cone_inner_angle");
 	RNA_def_property_ui_range(prop, 0.0, 360.0, 1.0, 0.01);
-	RNA_def_property_ui_text(prop, "Cone Inner Angle", "The angle of the inner cone.");
+	RNA_def_property_ui_text(prop, "Cone Inner Angle", "The angle of the inner cone");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 	
 	/* booleans */
@@ -546,8 +544,16 @@ static void rna_def_constraint_actuator(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem prop_type_items[] ={
+		{ACT_CONST_TYPE_LOC, "LOC", 0, "Location Constraint", ""},
+		{ACT_CONST_TYPE_DIST, "DIST", 0, "Distance Constraint", ""},
+		{ACT_CONST_TYPE_ORI, "ORI", 0, "Orientation Constraint", ""},
+		{ACT_CONST_TYPE_FH, "FH", 0, "Force Field Constraint", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna= RNA_def_struct(brna, "ConstraintActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Constraint Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "Constraint Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bConstraintActuator", "data");
 
 	//XXX
@@ -559,18 +565,108 @@ static void rna_def_edit_object_actuator(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem prop_type_items[] ={
-		{ACT_CONST_TYPE_LOC, "LOC", 0, "Location Constraint", ""},
-		{ACT_CONST_TYPE_DIST, "DIST", 0, "Distance Constraint", ""},
-		{ACT_CONST_TYPE_ORI, "ORI", 0, "Orientation Constraint", ""},
-		{ACT_CONST_TYPE_FH, "FH", 0, "Force Field Constraint", ""},
-		{0, NULL, 0, NULL, NULL}
-	};
+		{ACT_EDOB_ADD_OBJECT, "ADDOBJECT", 0, "Add Object", ""},
+		{ACT_EDOB_END_OBJECT, "ENDOBJECT", 0, "End Object", ""},
+		{ACT_EDOB_REPLACE_MESH, "REPLACEMESH", 0, "Replace Mesh", ""},
+		{ACT_EDOB_TRACK_TO, "TRACKTO", 0, "Track to", ""},
+		{ACT_EDOB_DYNAMICS, "DYNAMICS", 0, "Dynamics", ""},
+		{0, NULL, 0, NULL, NULL} };
+
+	static EnumPropertyItem prop_dyn_items[] ={
+		{ACT_EDOB_RESTORE_DYN, "RESTOREDYN", 0, "Restore Dynamics", ""},
+		{ACT_EDOB_SUSPEND_DYN, "SUSPENDDYN", 0, "Suspend Dynamics", ""},
+		{ACT_EDOB_ENABLE_RB, "ENABLERIGIDBOBY", 0, "Enable Rigid Body", ""},
+		{ACT_EDOB_DISABLE_RB, "DISABLERIGIDBOBY", 0, "Disable Rigid Body", ""},
+		{ACT_EDOB_SET_MASS, "SETMASS", 0, "Set Mass", ""},
+		{0, NULL, 0, NULL, NULL} };
 
 	srna= RNA_def_struct(brna, "EditObjectActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Edit Object Actuator", "Actuator to handle real-time constraints");
+	RNA_def_struct_ui_text(srna, "Edit Object Actuator", "Actuator used to edit objects");
 	RNA_def_struct_sdna_from(srna, "bEditObjectActuator", "data");
 
-	//XXX
+	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, prop_type_items);
+	RNA_def_property_ui_text(prop, "Edit Object", "The mode of the actuator");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "dynamic_operation", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "dyn_operation");
+	RNA_def_property_enum_items(prop, prop_dyn_items);
+	RNA_def_property_ui_text(prop, "Dynamic Operation", "");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_sdna(prop, NULL, "ob");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Add this Object and all its children (cant be on an visible layer)");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "track_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Object");
+	RNA_def_property_pointer_sdna(prop, NULL, "ob");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Object", "Track to this Object");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+	
+	prop= RNA_def_property(srna, "mesh", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "Mesh");
+	RNA_def_property_pointer_sdna(prop, NULL, "me");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Mesh", "Replace the existing, when left blank 'Phys' will remake the existing physics mesh");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "time", PROP_INT, PROP_NONE);
+	RNA_def_property_ui_range(prop, 0, 2000, 1, 1);
+	RNA_def_property_ui_text(prop, "Time", "Duration the new Object lives or the track takes");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "mass", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_range(prop, 0, 10000, 1, 0.01);
+	RNA_def_property_ui_text(prop, "Mass", "The mass of the object");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* floats 3 Arrays*/
+	prop= RNA_def_property(srna, "linear_velocity", PROP_FLOAT, PROP_TRANSLATION);
+	RNA_def_property_float_sdna(prop, NULL, "linVelocity");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_range(prop, -100.0, 100.0, 0.1, 0.01);
+	RNA_def_property_ui_text(prop, "Linear Velocity", "Velocity upon creation");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "angular_velocity", PROP_FLOAT, PROP_TRANSLATION);
+	RNA_def_property_float_sdna(prop, NULL, "angVelocity");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_range(prop, -10000.0, 10000.0, 1.0, 0.01);
+	RNA_def_property_ui_text(prop, "Angular Velocity", "Angular velocity upon creation");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	/* booleans */
+	prop= RNA_def_property(srna, "local_linear_velocity", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "localflag", ACT_EDOB_LOCAL_LINV);
+	RNA_def_property_ui_text(prop, "L", "Apply the transformation locally");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "local_angular_velocity", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "localflag", ACT_EDOB_LOCAL_ANGV);
+	RNA_def_property_ui_text(prop, "L", "Apply the rotation locally");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "replace_display_mesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_EDOB_REPLACE_MESH_NOGFX);
+	RNA_def_property_ui_text(prop, "Gfx", "Replace the display mesh");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "replace_physics_mesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_EDOB_REPLACE_MESH_PHYS);
+	RNA_def_property_ui_text(prop, "Phys", "Replace the physics mesh (triangle bounds only - compound shapes not supported)");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "enable_3d_tracking", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_TRACK_3D);
+	RNA_def_property_ui_text(prop, "3D", "Enable 3D tracking");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
 static void rna_def_scene_actuator(BlenderRNA *brna)
@@ -590,7 +686,7 @@ static void rna_def_scene_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};	
 		
 	srna= RNA_def_struct(brna, "SceneActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Scene Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "Scene Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bSceneActuator", "data");
 
 	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
@@ -646,7 +742,7 @@ static void rna_def_random_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};	
 
 	srna= RNA_def_struct(brna, "RandomActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Random Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "Random Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bRandomActuator", "data");
 
 	prop= RNA_def_property(srna, "seed", PROP_INT, PROP_NONE);
@@ -763,7 +859,7 @@ static void rna_def_message_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "MessageActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Message Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "Message Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bMessageActuator", "data");
 
 	prop= RNA_def_property(srna, "to_property", PROP_STRING, PROP_NONE);
@@ -846,7 +942,7 @@ static void rna_def_visibility_actuator(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "children", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", ACT_VISIBILITY_RECURSIVE);
-	RNA_def_property_ui_text(prop, "Children", "Sets all the children of this object to the same visibility/occlusion recursively");
+	RNA_def_property_ui_text(prop, "Children", "Set all the children of this object to the same visibility/occlusion recursively");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
 
@@ -875,7 +971,7 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "TwoDFilterActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "2D Filter Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "2D Filter Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bTwoDFilterActuator", "data");
 
 	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
@@ -953,12 +1049,79 @@ static void rna_def_parent_actuator(BlenderRNA *brna)
 static void rna_def_shape_action_actuator(BlenderRNA *brna)
 {
 	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem prop_type_items[] ={
+		{ACT_ACTION_PLAY, "PLAY", 0, "Play", ""},
+		{ACT_ACTION_FLIPPER, "FLIPPER", 0, "Flipper", ""},
+		{ACT_ACTION_LOOP_STOP, "LOOPSTOP", 0, "Loop Stop", ""},
+		{ACT_ACTION_LOOP_END, "LOOPEND", 0, "Loop End", ""},
+		{ACT_ACTION_FROM_PROP, "PROPERTY", 0, "Property", ""},
+#ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
+		{ACT_ACTION_MOTION, "MOTION", 0, "Displacement", ""},
+#endif
+		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "ShapeActionActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Shape Action Actuator", "Actuator to ...");
-	RNA_def_struct_sdna_from(srna, "bShapeActionActuator", "data");
+	RNA_def_struct_ui_text(srna, "Shape Action Actuator", "Actuator to ..");
+	RNA_def_struct_sdna_from(srna, "bActionActuator", "data");
+	
+	prop= RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_type_items);
+	RNA_def_property_ui_text(prop, "Action type", "Action playback type");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	//XXX
+	prop= RNA_def_property(srna, "action", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "act");
+	RNA_def_property_struct_type(prop, "Action");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Action", "");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "continue_last_frame", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "end_reset", 1);
+	RNA_def_property_ui_text(prop, "Continue", "Restore last frame when switching on/off, otherwise play from the start each time");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+	
+	prop= RNA_def_property(srna, "property", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_ui_text(prop, "Property", "Use this property to define the Action position");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "start_frame", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "sta");
+	RNA_def_property_range(prop, 0, MAXFRAME);
+	RNA_def_property_ui_text(prop, "Start frame", "");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "end_frame", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "end");
+	RNA_def_property_range(prop, 0, MAXFRAME);
+	RNA_def_property_ui_text(prop, "End frame", "");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "blendin", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0, 32767);
+	RNA_def_property_ui_text(prop, "Blendin", "Number of frames of motion blending");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "priority", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_text(prop, "Priority", "Execution priority - lower numbers will override actions with higher numbers. With 2 or more actions at once, the overriding channels must be lower in the stack");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "frame_property", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "frameProp");
+	RNA_def_property_ui_text(prop, "Frame Property", "Assign the action's current frame number to this property");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+#ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
+	prop= RNA_def_property(srna, "stride_length", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "stridelength");
+	RNA_def_property_range(prop, 0.0, 2500.0);
+	RNA_def_property_ui_text(prop, "Cycle", "Distance covered by a single cycle of the action");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+#endif
 }
 
 static void rna_def_state_actuator(BlenderRNA *brna)
@@ -1007,7 +1170,7 @@ static void rna_def_armature_actuator(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "ArmatureActuator", "Actuator");
-	RNA_def_struct_ui_text(srna, "Armature Actuator", "Actuator to ...");
+	RNA_def_struct_ui_text(srna, "Armature Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bArmatureActuator", "data");
 
 	prop= RNA_def_property(srna, "contraint_type", PROP_ENUM, PROP_NONE);
@@ -1062,16 +1225,15 @@ void RNA_def_actuator(BlenderRNA *brna)
 	rna_def_sound_actuator(brna);
 	rna_def_property_actuator(brna);
 	rna_def_constraint_actuator(brna);	// to be done
-	rna_def_edit_object_actuator(brna);	// to be done
+	rna_def_edit_object_actuator(brna);
 	rna_def_scene_actuator(brna);
 	rna_def_random_actuator(brna);
 	rna_def_message_actuator(brna);
-//	rna_def_action_actuator(brna);		/* deprecated */
 	rna_def_game_actuator(brna);
 	rna_def_visibility_actuator(brna);
 	rna_def_twodfilter_actuator(brna);
 	rna_def_parent_actuator(brna);
-	rna_def_shape_action_actuator(brna);// to be done
+	rna_def_shape_action_actuator(brna);
 	rna_def_state_actuator(brna);
 	rna_def_armature_actuator(brna);
 }

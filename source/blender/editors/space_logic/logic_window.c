@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
@@ -981,7 +981,7 @@ static void test_scriptpoin_but(struct bContext *C, char *name, ID **idpp)
 
 static void test_actionpoin_but(struct bContext *C, char *name, ID **idpp)
 {
-	*idpp= BLI_findstring(&CTX_data_main(C)->text, name, offsetof(ID, name) + 2);
+	*idpp= BLI_findstring(&CTX_data_main(C)->action, name, offsetof(ID, name) + 2);
 	if(*idpp)
 		id_us_plus(*idpp);
 }

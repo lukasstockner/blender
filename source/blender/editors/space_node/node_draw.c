@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -205,7 +205,7 @@ static void node_update(const bContext *C, bNodeTree *ntree, bNode *node)
 
 	node->prvr.xmin= node->locx + NODE_DYS;
 	node->prvr.xmax= node->locx + node->width- NODE_DYS;
-	
+
 	/* preview rect? */
 	if(node->flag & NODE_PREVIEW) {
 		/* only recalculate size when there's a preview actually, otherwise we use stored result */
@@ -820,7 +820,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	/* preview */
 	if(node->flag & NODE_PREVIEW) {
 		BLI_lock_thread(LOCK_PREVIEW);
-		if(node->preview && node->preview->rect)
+		if(node->preview && node->preview->rect && !BLI_rctf_is_empty(&node->prvr))
 			node_draw_preview(node->preview, &node->prvr);
 		BLI_unlock_thread(LOCK_PREVIEW);
 	}

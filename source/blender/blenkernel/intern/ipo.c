@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -1101,10 +1101,10 @@ static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, c
 				agrp->flag = AGRP_SELECTED;
 				if(muteipo) agrp->flag |= AGRP_MUTED;
 
-				BLI_snprintf(agrp->name, 64, grpname);
+				strncpy(agrp->name, grpname, sizeof(agrp->name));
 				
 				BLI_addtail(&tmp_act.groups, agrp);
-				BLI_uniquename(&tmp_act.groups, agrp, "Group", '.', offsetof(bActionGroup, name), 64);
+				BLI_uniquename(&tmp_act.groups, agrp, "Group", '.', offsetof(bActionGroup, name), sizeof(agrp->name));
 			}
 		}
 		

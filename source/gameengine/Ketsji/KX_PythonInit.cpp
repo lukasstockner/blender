@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -40,7 +40,7 @@ extern "C" {
 	#include "bpy_internal_import.h"  /* from the blender python api, but we want to import text too! */
 	#include "Mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
 	#include "Geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
-	#include "BGL.h"
+	#include "bgl.h"
 
 	#include "marshal.h" /* python header for loading/saving dicts */
 }
@@ -504,7 +504,6 @@ static PyObject* gPyAddScene(PyObject*, PyObject* args)
 {
 	char* name;
 	int overlay = 1;
-	KX_Scene* scene = NULL;
 	
 	if (!PyArg_ParseTuple(args, "s|i:addScene", &name , &overlay))
 		return NULL;
@@ -1623,7 +1622,7 @@ PyObject *KXpy_import(PyObject *self, PyObject *args)
 	/* quick hack for GamePython modules 
 		TODO: register builtin modules properly by ExtendInittab */
 	if (!strcmp(name, "GameLogic") || !strcmp(name, "GameKeys") || !strcmp(name, "PhysicsConstraints") ||
-		!strcmp(name, "Rasterizer") || !strcmp(name, "Mathutils") || !strcmp(name, "BGL") || !strcmp(name, "Geometry")) {
+		!strcmp(name, "Rasterizer") || !strcmp(name, "Mathutils") || !strcmp(name, "bgl") || !strcmp(name, "Geometry")) {
 		return PyImport_ImportModuleEx(name, globals, locals, fromlist);
 	}
 	

@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -38,8 +38,10 @@ import sys as _sys
 
 def _main():
 
-    # security issue, dont allow the $CWD in the path.
-    _sys.path[:] = filter(None, _sys.path)
+    ## security issue, dont allow the $CWD in the path.
+    ## note: this removes "" but not "." which are the same, security
+    ## people need to explain how this is even a fix.
+    # _sys.path[:] = filter(None, _sys.path)
 
     # a bit nasty but this prevents help() and input() from locking blender
     # Ideally we could have some way for the console to replace sys.stdin but

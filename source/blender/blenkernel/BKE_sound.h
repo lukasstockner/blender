@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -38,7 +38,7 @@ struct ListBase;
 struct Main;
 struct Sequence;
 
-void sound_init();
+void sound_init(struct Main *main);
 
 void sound_exit();
 
@@ -85,6 +85,10 @@ void sound_play_scene(struct Scene *scene);
 void sound_stop_scene(struct Scene *scene);
 
 void sound_seek_scene(struct bContext *C);
+
+float sound_sync_scene(struct Scene *scene);
+
+int sound_scene_playing(struct Scene *scene);
 
 int sound_read_sound_buffer(struct bSound* sound, float* buffer, int length);
 

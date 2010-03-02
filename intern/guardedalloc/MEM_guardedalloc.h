@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -122,7 +122,7 @@ extern "C" {
 	void MEM_printmemlist_stats(void);
 	
 	/** Set the callback function for error output. */
-	void MEM_set_error_callback(void (*func)(char *));
+	void MEM_set_error_callback(void (*func)(const char *));
 
 	/**
 	 * Are the start/end block markers still correct ?

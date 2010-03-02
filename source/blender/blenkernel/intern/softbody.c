@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) Blender Foundation
  * All rights reserved.
@@ -3486,7 +3486,9 @@ static void lattice_to_softbody(Scene *scene, Object *ob)
 	sb= ob->soft;	/* can be created in renew_softbody() */
 	
 	/* weights from bpoints, same code used as for mesh vertices */
-	if((ob->softflag & OB_SB_GOAL) && sb->vertgroup) {
+	/* if((ob->softflag & OB_SB_GOAL) && sb->vertgroup) { 2.4x one*/
+	/* new! take the weights from lattice vertex anyhow */
+	if(ob->softflag & OB_SB_GOAL){
 		BodyPoint *bp= sb->bpoint;
 		BPoint *bpnt= lt->def;
 		float goalfac= ABS(sb->maxgoal - sb->mingoal);
@@ -3538,7 +3540,9 @@ static void curve_surf_to_softbody(Scene *scene, Object *ob)
 	bs= sb->bspring;
 	
 	/* weights from bpoints, same code used as for mesh vertices */
-	if((ob->softflag & OB_SB_GOAL) && sb->vertgroup)
+	/* if((ob->softflag & OB_SB_GOAL) && sb->vertgroup) 2.4x hack*/
+	/* new! take the weights from curve vertex anyhow */
+	if(ob->softflag & OB_SB_GOAL) 
 		setgoal= 1;
 		
 	for(nu= cu->nurb.first; nu; nu= nu->next) {

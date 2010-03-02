@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -81,6 +81,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 	
 	/* set the new frame number */
 	CFRA= RNA_int_get(op->ptr, "frame");
+	FRAMENUMBER_MIN_CLAMP(CFRA);
 	
 	/* do updates */
 	sound_seek_scene(C);
@@ -165,7 +166,7 @@ void ANIM_OT_change_frame(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Change frame";
 	ot->idname= "ANIM_OT_change_frame";
-	ot->description= "Interactively change the current frame number.";
+	ot->description= "Interactively change the current frame number";
 	
 	/* api callbacks */
 	ot->exec= change_frame_exec;

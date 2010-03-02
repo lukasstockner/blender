@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -164,10 +164,6 @@ class WM_OT_properties_edit(bpy.types.Operator):
     max = rna_max
     description = StringProperty(name="Tip", default="")
 
-    # the class instance is not persistant, need to store in the class
-    # not ideal but changes as the op runs.
-    _last_prop = ['']
-
     def execute(self, context):
         path = self.properties.path
         value = self.properties.value
@@ -179,9 +175,6 @@ class WM_OT_properties_edit(bpy.types.Operator):
         except:
             value_eval = value
 
-        if type(value_eval) == str:
-            value_eval = '"' + value_eval + '"'
-
         # First remove
         item = eval("context.%s" % path)
 
@@ -192,7 +185,7 @@ class WM_OT_properties_edit(bpy.types.Operator):
 
 
         # Reassign
-        exec_str = "item['%s'] = %s" % (prop, value_eval)
+        exec_str = "item['%s'] = %s" % (prop, repr(value_eval))
         # print(exec_str)
         exec(exec_str)
         self._last_prop[:] = [prop]
@@ -212,7 +205,7 @@ class WM_OT_properties_edit(bpy.types.Operator):
 
     def invoke(self, context, event):
 
-        self._last_prop[:] = [self.properties.property]
+        self._last_prop = [self.properties.property]
 
         item = eval("context.%s" % self.properties.path)
 

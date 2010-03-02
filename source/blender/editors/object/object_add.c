@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -89,6 +89,7 @@
 #include "ED_mball.h"
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_render.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
 
@@ -294,6 +295,7 @@ Object *ED_object_add_type(bContext *C, int type, float *loc, float *rot, int en
 	ED_object_base_init_transform(C, BASACT, loc, rot);
 
 	DAG_scene_sort(scene);
+	ED_render_id_flush_update(G.main, ob->data);
 
 	if(enter_editmode)
 		ED_object_enter_editmode(C, EM_IGNORE_LAYER);
@@ -318,7 +320,7 @@ void OBJECT_OT_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Object";
-	ot->description = "Add an object to the scene.";
+	ot->description = "Add an object to the scene";
 	ot->idname= "OBJECT_OT_add";
 	
 	/* api callbacks */
@@ -410,7 +412,7 @@ void OBJECT_OT_effector_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Effector";
-	ot->description = "Add an empty object with a physics effector to the scene.";
+	ot->description = "Add an empty object with a physics effector to the scene";
 	ot->idname= "OBJECT_OT_effector_add";
 	
 	/* api callbacks */
@@ -461,7 +463,7 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Camera";
-	ot->description = "Add a camera object to the scene.";
+	ot->description = "Add a camera object to the scene";
 	ot->idname= "OBJECT_OT_camera_add";
 	
 	/* api callbacks */
@@ -548,7 +550,7 @@ void OBJECT_OT_curve_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Curve";
-	ot->description = "Add a curve object to the scene.";
+	ot->description = "Add a curve object to the scene";
 	ot->idname= "OBJECT_OT_curve_add";
 	
 	/* api callbacks */
@@ -615,7 +617,7 @@ void OBJECT_OT_surface_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Surface";
-	ot->description = "Add a surface object to the scene.";
+	ot->description = "Add a surface object to the scene";
 	ot->idname= "OBJECT_OT_surface_add";
 	
 	/* api callbacks */
@@ -699,7 +701,7 @@ void OBJECT_OT_metaball_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Metaball";
-	ot->description= "Add an metaball object to the scene.";
+	ot->description= "Add an metaball object to the scene";
 	ot->idname= "OBJECT_OT_metaball_add";
 
 	/* api callbacks */
@@ -795,7 +797,7 @@ void OBJECT_OT_armature_add(wmOperatorType *ot)
 {	
 	/* identifiers */
 	ot->name= "Add Armature";
-	ot->description = "Add an armature object to the scene.";
+	ot->description = "Add an armature object to the scene";
 	ot->idname= "OBJECT_OT_armature_add";
 	
 	/* api callbacks */
@@ -829,16 +831,16 @@ static int object_lamp_add_exec(bContext *C, wmOperator *op)
 void OBJECT_OT_lamp_add(wmOperatorType *ot)
 {	
 	static EnumPropertyItem lamp_type_items[] = {
-		{LA_LOCAL, "POINT", ICON_LAMP_POINT, "Point", "Omnidirectional point light source."},
-		{LA_SUN, "SUN", ICON_LAMP_SUN, "Sun", "Constant direction parallel ray light source."},
-		{LA_SPOT, "SPOT", ICON_LAMP_SPOT, "Spot", "Directional cone light source."},
-		{LA_HEMI, "HEMI", ICON_LAMP_HEMI, "Hemi", "180 degree constant light source."},
-		{LA_AREA, "AREA", ICON_LAMP_AREA, "Area", "Directional area light source."},
+		{LA_LOCAL, "POINT", ICON_LAMP_POINT, "Point", "Omnidirectional point light source"},
+		{LA_SUN, "SUN", ICON_LAMP_SUN, "Sun", "Constant direction parallel ray light source"},
+		{LA_SPOT, "SPOT", ICON_LAMP_SPOT, "Spot", "Directional cone light source"},
+		{LA_HEMI, "HEMI", ICON_LAMP_HEMI, "Hemi", "180 degree constant light source"},
+		{LA_AREA, "AREA", ICON_LAMP_AREA, "Area", "Directional area light source"},
 		{0, NULL, 0, NULL, NULL}};
 
 	/* identifiers */
 	ot->name= "Add Lamp";
-	ot->description = "Add a lamp object to the scene.";
+	ot->description = "Add a lamp object to the scene";
 	ot->idname= "OBJECT_OT_lamp_add";
 	
 	/* api callbacks */
@@ -889,7 +891,7 @@ void OBJECT_OT_group_instance_add(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Add Group Instance";
-	ot->description = "Add a dupligroup instance.";
+	ot->description = "Add a dupligroup instance";
 	ot->idname= "OBJECT_OT_group_instance_add";
 
 	/* api callbacks */
@@ -951,7 +953,7 @@ void OBJECT_OT_delete(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Delete";
-	ot->description = "Delete selected objects.";
+	ot->description = "Delete selected objects";
 	ot->idname= "OBJECT_OT_delete";
 	
 	/* api callbacks */
@@ -1149,7 +1151,7 @@ void OBJECT_OT_duplicates_make_real(wmOperatorType *ot)
 	
 	/* identifiers */
 	ot->name= "Make Duplicates Real";
-	ot->description = "Make dupli objects attached to this object real.";
+	ot->description = "Make dupli objects attached to this object real";
 	ot->idname= "OBJECT_OT_duplicates_make_real";
 	
 	/* api callbacks */
@@ -1397,7 +1399,7 @@ void OBJECT_OT_convert(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Convert";
-	ot->description = "Convert selected objects to another type.";
+	ot->description = "Convert selected objects to another type";
 	ot->idname= "OBJECT_OT_convert";
 	
 	/* api callbacks */
@@ -1628,13 +1630,16 @@ static Base *object_add_duplicate_internal(Scene *scene, Base *base, int dupflag
 Base *ED_object_add_duplicate(Scene *scene, Base *base, int dupflag)
 {
 	Base *basen;
+	Object *ob;
 
 	clear_id_newpoins();
 	clear_sca_new_poins();	/* sensor/contr/act */
 	
 	basen= object_add_duplicate_internal(scene, base, dupflag);
+	ob= basen->object;
 	
 	DAG_scene_sort(scene);
+	ED_render_id_flush_update(G.main, ob->data);
 	
 	return basen;
 }
@@ -1660,6 +1665,7 @@ static int duplicate_exec(bContext *C, wmOperator *op)
 		if(BASACT==base)
 			ED_base_object_activate(C, basen);
 		
+		ED_render_id_flush_update(G.main, basen->object->data);
 	}
 	CTX_DATA_END;
 
@@ -1677,7 +1683,7 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Duplicate";
-	ot->description = "Duplicate selected objects.";
+	ot->description = "Duplicate selected objects";
 	ot->idname= "OBJECT_OT_duplicate";
 	
 	/* api callbacks */
@@ -1754,7 +1760,7 @@ void OBJECT_OT_add_named(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Named Object";
-	ot->description = "Add named object.";
+	ot->description = "Add named object";
 	ot->idname= "OBJECT_OT_add_named";
 	
 	/* api callbacks */
@@ -1812,7 +1818,7 @@ void OBJECT_OT_join(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Join";
-	ot->description = "Join selected objects into active object.";
+	ot->description = "Join selected objects into active object";
 	ot->idname= "OBJECT_OT_join";
 	
 	/* api callbacks */
@@ -1861,7 +1867,7 @@ void OBJECT_OT_join_shapes(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Join as Shapes";
-	ot->description = "Merge selected objects to shapes of active object.";
+	ot->description = "Merge selected objects to shapes of active object";
 	ot->idname= "OBJECT_OT_join_shapes";
 	
 	/* api callbacks */

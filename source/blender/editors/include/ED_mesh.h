@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -78,7 +78,7 @@ struct rcti;
 /* meshtools.c */
 
 intptr_t	mesh_octree_table(struct Object *ob, struct EditMesh *em, float *co, char mode);
-struct EditVert   *editmesh_get_x_mirror_vert(struct Object *ob, struct EditMesh *em, float *co);
+struct EditVert   *editmesh_get_x_mirror_vert(struct Object *ob, struct EditMesh *em, struct EditVert *eve, float *co, int index);
 int			mesh_get_x_mirror_vert(struct Object *ob, int index);
 int			*mesh_get_x_mirror_faces(struct Object *ob, struct EditMesh *em);
 
@@ -178,6 +178,7 @@ int face_select(struct bContext *C, struct Object *ob, short mval[2], int extend
 void face_borderselect(struct bContext *C, struct Object *ob, struct rcti *rect, int select, int extend);
 void selectall_tface(struct Object *ob, int action);
 void select_linked_tfaces(struct bContext *C, struct Object *ob, short mval[2], int mode);
+int minmax_tface(struct Object *ob, float *min, float *max);
 
 /* object_vgroup.c */
 

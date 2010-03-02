@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -129,6 +129,9 @@ def ik(obj, bone_definition, base_names, options):
 
     # keep the foot_ik as the parent
     ik_chain.toe_e.connected = False
+
+    # Foot uses pose space, not local space, for translation
+    ik_chain.foot_e.local_location = False
 
     # must be after disconnecting the toe
     ik_chain.foot_e.align_orientation(mt_chain.toe_e)
@@ -259,6 +262,8 @@ def ik(obj, bone_definition, base_names, options):
     con = ik.foot_roll_01_p.constraints.new('COPY_ROTATION')
     con.target = obj
     con.subtarget = ik.foot_roll
+    con.target_space = 'LOCAL'
+    con.owner_space = 'LOCAL'
 
 
     # IK

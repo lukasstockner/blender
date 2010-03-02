@@ -13,7 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software Foundation,
-# Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # The Original Code is Copyright (C) 2006, Blender Foundation
 # All rights reserved.
@@ -276,15 +276,10 @@ IF(WIN32)
 	SET(PYTHON_LIB python31)
 	SET(PYTHON_LIBPATH ${PYTHON}/lib)
 
-	IF(CMAKE_CL_64)
-		SET(WITH_OPENAL OFF)
-	ELSE(CMAKE_CL_64)
-		#SET(WITH_OPENAL ON)
-		SET(OPENAL ${LIBDIR}/openal)
-		SET(OPENAL_INCLUDE_DIR ${OPENAL}/include)
-		SET(OPENAL_LIBRARY wrap_oal)
-		SET(OPENAL_LIBPATH ${OPENAL}/lib)
-	ENDIF(CMAKE_CL_64)
+	SET(OPENAL ${LIBDIR}/openal)
+	SET(OPENAL_INCLUDE_DIR ${OPENAL}/include)
+	SET(OPENAL_LIBRARY wrap_oal)
+	SET(OPENAL_LIBPATH ${OPENAL}/lib)
 
 	IF(WITH_JACK)
 		SET(JACK ${LIBDIR}/jack)
@@ -508,7 +503,7 @@ IF(APPLE)
 
 	SET(ZLIB /usr)
 	SET(ZLIB_INC "${ZLIB}/include")
-	SET(ZLIB_LIBRARIES z)
+	SET(ZLIB_LIBRARIES z bz2)
 
 	SET(FREETYPE ${LIBDIR}/freetype)
 	SET(FREETYPE_INCLUDE_DIRS ${FREETYPE}/include ${FREETYPE}/include/freetype2)
@@ -521,8 +516,8 @@ IF(APPLE)
 	SET(OPENEXR_LIBPATH ${OPENEXR}/lib)
 
 	SET(FFMPEG ${LIBDIR}/ffmpeg)
-	SET(FFMPEG_INC ${CMAKE_SOURCE_DIR}/extern/ffmpeg)
-	SET(FFMPEG_LIB avcodec avdevice avformat avutil mp3lame swscale x264 xvidcore)
+	SET(FFMPEG_INC ${FFMPEG}/include)
+	SET(FFMPEG_LIB avcodec avdevice avformat avutil mp3lame swscale x264 xvidcore theora theoradec theoraenc vorbis vorbisenc vorbisfile ogg)
 	SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
 
 	SET(LIBSAMPLERATE ${LIBDIR}/samplerate)
@@ -689,4 +684,3 @@ ADD_SUBDIRECTORY(source/creator)
 IF(WITH_PLAYER)
 	ADD_SUBDIRECTORY(source/blenderplayer)
 ENDIF(WITH_PLAYER)
-

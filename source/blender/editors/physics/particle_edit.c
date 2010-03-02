@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 by Janne Karhu.
  * All rights reserved.
@@ -205,7 +205,7 @@ static PTCacheEdit *pe_get_current(Scene *scene, Object *ob, int create)
 	ListBase pidlist;
 	PTCacheID *pid;
 
-	if(pset==NULL || pset->object==NULL)
+	if(pset==NULL || ob==NULL)
 		return NULL;
 
 	pset->scene = scene;

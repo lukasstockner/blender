@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -113,6 +113,10 @@ typedef struct Lamp {
 
 /* flag */
 #define LA_DS_EXPAND	1
+	/* NOTE: this must have the same value as MA_DS_SHOW_TEXS, 
+	 * otherwise anim-editors will not read correctly
+	 */
+#define LA_DS_SHOW_TEXS	4
 
 /* type */
 #define LA_LOCAL		0

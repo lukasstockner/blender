@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -50,7 +50,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_animsys.h"
 #include "BKE_action.h"
-
+#include "BKE_armature.h"
 #include "BKE_curve.h" 
 #include "BKE_global.h"
 #include "BKE_idprop.h"
@@ -326,7 +326,7 @@ FCurve *rna_get_fcurve(PointerRNA *ptr, PropertyRNA *prop, int rnaindex, bAction
 }
 
 /* threshold for binary-searching keyframes - threshold here should be good enough for now, but should become userpref */
-#define BEZT_BINARYSEARCH_THRESH 	0.00001f
+#define BEZT_BINARYSEARCH_THRESH 	0.01f /* was 0.00001, but giving errors */
 
 /* Binary search algorithm for finding where to insert BezTriple. (for use by insert_bezt_fcurve)
  * Returns the index to insert at (data already at that index will be offset if replace is 0)
@@ -801,13 +801,19 @@ typedef struct DriverVarTypeInfo {
 
 /* ......... */
 
+static ID *dtar_id_ensure_proxy_from(ID *id)
+{
+	if (id && GS(id->name)==ID_OB && ((Object *)id)->proxy_from)
+		return (ID *)(((Object *)id)->proxy_from);
+	return id;
+}
+
 /* Helper function to obtain a value using RNA from the specified source (for evaluating drivers) */
 static float dtar_get_prop_val (ChannelDriver *driver, DriverTarget *dtar)
 {
 	PointerRNA id_ptr, ptr;
 	PropertyRNA *prop;
 	ID *id;
-	char *path;
 	int index;
 	float value= 0.0f;
 	
@@ -815,22 +821,22 @@ static float dtar_get_prop_val (ChannelDriver *driver, DriverTarget *dtar)
 	if ELEM(NULL, driver, dtar)
 		return 0.0f;
 	
-	/* get RNA-pointer for the ID-block given in target */
-	RNA_id_pointer_create(dtar->id, &id_ptr);
-	id= dtar->id;
-	path= dtar->rna_path;
+	id= dtar_id_ensure_proxy_from(dtar->id);
 	
 	/* error check for missing pointer... */
 	// TODO: tag the specific target too as having issues
 	if (id == NULL) {
 		printf("Error: driver has an invalid target to use \n");
-		if (G.f & G_DEBUG) printf("\tpath = %s\n", path);
+		if (G.f & G_DEBUG) printf("\tpath = %s\n", dtar->rna_path);
 		driver->flag |= DRIVER_FLAG_INVALID;
 		return 0.0f;
 	}
 	
+	/* get RNA-pointer for the ID-block given in target */
+	RNA_id_pointer_create(id, &id_ptr);
+	
 	/* get property to read from, and get value as appropriate */
-	if (RNA_path_resolve_full(&id_ptr, path, &ptr, &prop, &index)) {
+	if (RNA_path_resolve_full(&id_ptr, dtar->rna_path, &ptr, &prop, &index)) {
 		switch (RNA_property_type(prop)) {
 			case PROP_BOOLEAN:
 				if (RNA_property_array_length(&ptr, prop))
@@ -859,7 +865,7 @@ static float dtar_get_prop_val (ChannelDriver *driver, DriverTarget *dtar)
 	}
 	else {
 		if (G.f & G_DEBUG)
-			printf("Driver Evaluation Error: cannot resolve target for %s -> %s \n", id->name, path);
+			printf("Driver Evaluation Error: cannot resolve target for %s -> %s \n", id->name, dtar->rna_path);
 		
 		driver->flag |= DRIVER_FLAG_INVALID;
 		return 0.0f;
@@ -871,13 +877,16 @@ static float dtar_get_prop_val (ChannelDriver *driver, DriverTarget *dtar)
 /* Helper function to obtain a pointer to a Pose Channel (for evaluating drivers) */
 static bPoseChannel *dtar_get_pchan_ptr (ChannelDriver *driver, DriverTarget *dtar)
 {
+	ID *id;
 	/* sanity check */
 	if ELEM(NULL, driver, dtar)
 		return NULL;
-		
+
+	id= dtar_id_ensure_proxy_from(dtar->id);
+
 	/* check if the ID here is a valid object */
-	if ((dtar->id) && GS(dtar->id->name)) {
-		Object *ob= (Object *)dtar->id;
+	if (id && GS(id->name)) {
+		Object *ob= (Object *)id;
 		
 		/* get pose, and subsequently, posechannel */
 		return get_pose_channel(ob->pose, dtar->pchan_name);
@@ -947,12 +956,12 @@ static float dvar_eval_locDiff (ChannelDriver *driver, DriverVar *dvar)
 	DRIVER_TARGETS_USED_LOOPER(dvar)
 	{
 		/* get pointer to loc values to store in */
-		Object *ob= (Object *)dtar->id;
+		Object *ob= (Object *)dtar_id_ensure_proxy_from(dtar->id);
 		bPoseChannel *pchan;
 		float tmp_loc[3];
 		
 		/* check if this target has valid data */
-		if ((ob == NULL) || (GS(dtar->id->name) != ID_OB)) {
+		if ((ob == NULL) || (GS(ob->id.name) != ID_OB)) {
 			/* invalid target, so will not have enough targets */
 			driver->flag |= DRIVER_FLAG_INVALID;
 			return 0.0f;
@@ -1007,14 +1016,14 @@ static float dvar_eval_locDiff (ChannelDriver *driver, DriverVar *dvar)
 static float dvar_eval_transChan (ChannelDriver *driver, DriverVar *dvar)
 {
 	DriverTarget *dtar= &dvar->targets[0];
-	Object *ob= (Object *)dtar->id;
+	Object *ob= (Object *)dtar_id_ensure_proxy_from(dtar->id);
 	bPoseChannel *pchan;
 	float mat[4][4];
 	float eul[3] = {0.0f,0.0f,0.0f};
 	short useEulers=0, rotOrder=ROT_MODE_EUL;
 	
 	/* check if this target has valid data */
-	if ((ob == NULL) || (GS(dtar->id->name) != ID_OB)) {
+	if ((ob == NULL) || (GS(ob->id.name) != ID_OB)) {
 		/* invalid target, so will not have enough targets */
 		driver->flag |= DRIVER_FLAG_INVALID;
 		return 0.0f;
@@ -1032,8 +1041,12 @@ static float dvar_eval_transChan (ChannelDriver *driver, DriverVar *dvar)
 			useEulers = 1;
 		}
 		
-		if (dtar->flag & DTAR_FLAG_LOCALSPACE)
-			copy_m4_m4(mat, pchan->chan_mat);
+		if (dtar->flag & DTAR_FLAG_LOCALSPACE) {
+			/* specially calculate local matrix, since chan_mat is not valid 
+			 * since it stores delta transform of pose_mat so that deforms work
+			 */
+			pchan_to_mat4(pchan, mat);
+		}
 		else
 			mul_m4_m4m4(mat, pchan->pose_mat, ob->obmat);
 	}
@@ -1199,7 +1212,7 @@ DriverVar *driver_add_new_variable (ChannelDriver *driver)
 	
 	/* give the variable a 'unique' name */
 	strcpy(dvar->name, "var");
-	BLI_uniquename(&driver->variables, dvar, "var", '_', offsetof(DriverVar, name), 64);
+	BLI_uniquename(&driver->variables, dvar, "var", '_', offsetof(DriverVar, name), sizeof(dvar->name));
 	
 	/* set the default type to 'single prop' */
 	driver_change_variable_type(dvar, DVAR_TYPE_SINGLE_PROP);
@@ -1281,7 +1294,7 @@ ChannelDriver *fcurve_copy_driver (ChannelDriver *driver)
 float driver_get_variable_value (ChannelDriver *driver, DriverVar *dvar)
 {
 	DriverVarTypeInfo *dvti;
-	
+
 	/* sanity check */
 	if (ELEM(NULL, driver, dvar))
 		return 0.0f;
@@ -1714,9 +1727,13 @@ static float fcurve_eval_keyframes (FCurve *fcu, BezTriple *bezts, float evaltim
 	{
 		/* evaltime occurs somewhere in the middle of the curve */
 		for (a=0; prevbezt && bezt && (a < fcu->totvert-1); a++, prevbezt=bezt, bezt++) 
-		{  
+		{
+			/* use if the key is directly on the frame, rare cases this is needed else we get 0.0 instead. */
+			if(fabs(bezt->vec[1][0] - evaltime) < SMALL_NUMBER) {
+				cvalue= bezt->vec[1][1];
+			}
 			/* evaltime occurs within the interval defined by these two keyframes */
-			if ((prevbezt->vec[1][0] <= evaltime) && (bezt->vec[1][0] >= evaltime)) 
+			else if ((prevbezt->vec[1][0] <= evaltime) && (bezt->vec[1][0] >= evaltime))
 			{
 				/* value depends on interpolation mode */
 				if ((prevbezt->ipo == BEZT_IPO_CONST) || (fcu->flag & FCURVE_DISCRETE_VALUES))

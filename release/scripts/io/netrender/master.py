@@ -12,12 +12,12 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
 import sys, os
-import http, http.client, http.server, urllib, socket
+import http, http.client, http.server, urllib, socket, socketserver, threading
 import subprocess, shutil, time, hashlib
 import select # for select.error
 
@@ -80,7 +80,7 @@ class MRenderJob(netrender.model.RenderJob):
 
     def initInfo(self):
         if not self.resolution:
-            self.resolution = tuple(getFileInfo(self.files[0].filepath, ["bpy.context.scene.render_data.resolution_x", "bpy.context.scene.render_data.resolution_y", "bpy.context.scene.render_data.resolution_percentage"]))
+            self.resolution = tuple(getFileInfo(self.files[0].filepath, ["bpy.context.scene.render.resolution_x", "bpy.context.scene.render.resolution_y", "bpy.context.scene.render.resolution_percentage"]))
 
     def save(self):
         if self.save_path:
@@ -860,7 +860,7 @@ class RenderHandler(http.server.BaseHTTPRequestHandler):
             else: # invalid url
                 self.send_head(http.client.NO_CONTENT)
 
-class RenderMasterServer(http.server.HTTPServer):
+class RenderMasterServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     def __init__(self, address, handler_class, path):
         super().__init__(address, handler_class)
         self.jobs = []

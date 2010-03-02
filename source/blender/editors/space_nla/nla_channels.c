@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -173,8 +173,6 @@ static int mouse_nla_channels (bAnimContext *ac, float x, int channel_index, sho
 					if (adt) adt->flag |= ADT_UI_SELECTED;
 				}
 				
-				/* xxx should be ED_base_object_activate(), but we need context pointer for that... */
-				//set_active_base(base);
 				if ((adt) && (adt->flag & ADT_UI_SELECTED))
 					adt->flag |= ADT_UI_ACTIVE;
 				
@@ -195,6 +193,8 @@ static int mouse_nla_channels (bAnimContext *ac, float x, int channel_index, sho
 		case ANIMTYPE_DSPART:
 		case ANIMTYPE_DSMBALL:
 		case ANIMTYPE_DSARM:
+		case ANIMTYPE_DSMESH:
+		case ANIMTYPE_DSTEX:
 		{
 			/* sanity checking... */
 			if (ale->adt) {
@@ -437,7 +437,7 @@ void NLA_OT_tracks_add (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Add Track(s)";
 	ot->idname= "NLA_OT_tracks_add";
-	ot->description= "Add NLA-Tracks above/after the selected tracks.";
+	ot->description= "Add NLA-Tracks above/after the selected tracks";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_add_tracks_exec;
@@ -493,7 +493,7 @@ void NLA_OT_delete_tracks (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Delete Tracks";
 	ot->idname= "NLA_OT_delete_tracks";
-	ot->description= "Delete selected NLA-Tracks and the strips they contain.";
+	ot->description= "Delete selected NLA-Tracks and the strips they contain";
 	
 	/* api callbacks */
 	ot->exec= nlaedit_delete_tracks_exec;

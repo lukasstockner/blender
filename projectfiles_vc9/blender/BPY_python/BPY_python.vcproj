@@ -336,6 +336,10 @@
 				Name="internal"
 				>
 				<File
+					RelativePath="..\..\..\source\blender\python\intern\bpy.c"
+					>
+				</File>
+				<File
 					RelativePath="..\..\..\source\blender\python\intern\bpy_app.c"
 					>
 				</File>
@@ -368,6 +372,10 @@
 					>
 				</File>
 				<File
+					RelativePath="..\..\..\source\blender\python\intern\bpy_rna_callback.c"
+					>
+				</File>
+				<File
 					RelativePath="..\..\..\source\blender\python\intern\bpy_util.c"
 					>
 				</File>
@@ -380,7 +388,11 @@
 				Name="generic"
 				>
 				<File
-					RelativePath="..\..\..\source\blender\python\generic\BGL.c"
+					RelativePath="..\..\..\source\blender\python\generic\bgl.c"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\blf.c"
 					>
 				</File>
 				<File
@@ -429,6 +441,10 @@
 				Name="internal"
 				>
 				<File
+					RelativePath="..\..\..\source\blender\python\intern\bpy.h"
+					>
+				</File>
+				<File
 					RelativePath="..\..\..\source\blender\python\intern\bpy_app.h"
 					>
 				</File>
@@ -462,6 +478,50 @@
 				</File>
 				<File
 					RelativePath="..\..\..\source\blender\python\intern\bpy_util.h"
+					>
+				</File>
+			</Filter>
+			<Filter
+				Name="generic"
+				>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\bgl.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\blf.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\bpy_internal_import.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\euler.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\Geometry.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\IDProp.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\Mathutils.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\matrix.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\quat.h"
+					>
+				</File>
+				<File
+					RelativePath="..\..\..\source\blender\python\generic\vector.h"
 					>
 				</File>
 			</Filter>

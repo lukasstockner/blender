@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -97,41 +97,19 @@ static int add_win32_extension(char *name);
 
 /* implementation */
 
-int BLI_stringdec(char *string, char *kop, char *start, unsigned short *numlen)
+int BLI_stringdec(char *string, char *head, char *start, unsigned short *numlen)
 {
-	unsigned short len, len2, nums = 0, nume = 0;
+	unsigned short len, len2, lenlslash = 0, nums = 0, nume = 0;
 	short i, found = 0;
-
+	char *lslash = BLI_last_slash(string);
 	len2 = len = strlen(string);
-	
-	if (len > 6) {
-		if (BLI_strncasecmp(string + len - 6, ".blend", 6) == 0) len -= 6;
-		else if (BLI_strncasecmp(string + len - 6, ".trace", 6) == 0) len -= 6;
-	}
-	
-	if (len > 9) {
-		if (BLI_strncasecmp(string + len - 9, ".blend.gz", 9) == 0) len -= 9;
-	}
-		
-	if (len == len2) {
-		if (len > 4) {
-			/* handle .jf0 en .jf1 for jstreams */
-			if (BLI_strncasecmp(string + len - 4, ".jf", 3) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".tga", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".jpg", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".png", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".txt", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".cyc", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".enh", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".rgb", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".psx", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".ble", 4) == 0) len -= 4;
-			else if (BLI_strncasecmp(string + len - 4, ".exr", 4) == 0) len -= 4;
-		}
-	}
-	
-	for (i = len - 1; i >= 0; i--) {
-		if (string[i] == '/') break;
+	if(lslash)
+		lenlslash= (int)(lslash - string);
+
+	while(len > lenlslash && string[--len] != '.') {};
+	if(len == lenlslash && string[len] != '.') len = len2;
+
+	for (i = len - 1; i >= lenlslash; i--) {
 		if (isdigit(string[i])) {
 			if (found){
 				nums = i;
@@ -148,39 +126,29 @@ int BLI_stringdec(char *string, char *kop, char *start, unsigned short *numlen)
 	}
 	if (found){
 		if (start) strcpy(start,&string[nume+1]);
-		if (kop) {
-			strcpy(kop,string);
-			kop[nums]=0;
+		if (head) {
+			strcpy(head,string);
+			head[nums]=0;
 		}
 		if (numlen) *numlen = nume-nums+1;
 		return ((int)atoi(&(string[nums])));
 	}
 	if (start) strcpy(start, string + len);
-	if (kop) {
-		strncpy(kop, string, len);
-		kop[len] = 0;
+	if (head) {
+		strncpy(head, string, len);
+		head[len] = 0;
 	}
 	if (numlen) *numlen=0;
 	return 0;
 }
 
 
-void BLI_stringenc(char *string, char *kop, char *start, unsigned short numlen, int pic)
+void BLI_stringenc(char *string, char *head, char *start, unsigned short numlen, int pic)
 {
-	char numstr[10]="";
-	unsigned short len,i;
-
-	strcpy(string,kop);
-	
-	if (pic>0 || numlen==4) {
-		len= sprintf(numstr,"%d",pic);
-		
-		for(i=len;i<numlen;i++){
-			strcat(string,"0");
-		}
-		strcat(string,numstr);
-	}
-	strcat(string, start);
+	char fmtstr[16]="";
+	if(pic < 0) pic= 0;
+	sprintf(fmtstr, "%%s%%.%dd%%s", numlen);
+	sprintf(string, fmtstr, head, pic, start);
 }
 
 
@@ -257,12 +225,12 @@ void BLI_uniquename(ListBase *list, void *vlink, const char defname[], char deli
 		return;
 
 	/* Strip off the suffix */
-	dot = strchr(GIVE_STRADDR(vlink, name_offs), delim);
+	dot = strrchr(GIVE_STRADDR(vlink, name_offs), delim);
 	if (dot)
 		*dot=0;
 	
 	for (number = 1; number <= 999; number++) {
-		BLI_snprintf(tempname, 128, "%s%c%03d", GIVE_STRADDR(vlink, name_offs), delim, number);
+		BLI_snprintf(tempname, sizeof(tempname), "%s%c%03d", GIVE_STRADDR(vlink, name_offs), delim, number);
 		
 		exists = 0;
 		for (link= list->first; link; link= link->next) {
@@ -1351,6 +1319,106 @@ void BLI_join_dirfile(char *string, const char *dir, const char *file)
 		BLI_strncpy(string + sl_dir, file, FILE_MAX-sl_dir);
 	}
 }
+
+
+/*
+  Produce image export path.
+
+  Fails returning 0 if image filename is empty or if destination path
+  matches image path (i.e. both are the same file).
+
+  Trailing slash in dest_dir is optional.
+
+  Logic:
+
+  - if an image is "below" current .blend file directory, rebuild the
+    same dir structure in dest_dir
+
+  For example //textures/foo/bar.png becomes
+  [dest_dir]/textures/foo/bar.png.
+
+  - if an image is not "below" current .blend file directory,
+  disregard it's path and copy it in the same directory where 3D file
+  goes.
+
+  For example //../foo/bar.png becomes [dest_dir]/bar.png.
+
+  This logic will help ensure that all image paths are relative and
+  that a user gets his images in one place. It'll also provide
+  consistent behaviour across exporters.
+ */
+int BKE_rebase_path(char *abs, int abs_size, char *rel, int rel_size, const char *base_dir, const char *src_dir, const char *dest_dir)
+{
+	char path[FILE_MAX];
+	char dir[FILE_MAX];
+	char base[FILE_MAX];
+	char blend_dir[FILE_MAX];	/* directory, where current .blend file resides */
+	char dest_path[FILE_MAX];
+	char rel_dir[FILE_MAX];
+	int len;
+
+	if (abs)
+		abs[0]= 0;
+
+	if (rel)
+		rel[0]= 0;
+
+	BLI_split_dirfile_basic(base_dir, blend_dir, NULL);
+
+	if (src_dir[0]=='\0')
+		return 0;
+
+	BLI_strncpy(path, src_dir, sizeof(path));
+
+	/* expand "//" in filename and get absolute path */
+	BLI_convertstringcode(path, base_dir);
+
+	/* get the directory part */
+	BLI_split_dirfile_basic(path, dir, base);
+
+	len= strlen(blend_dir);
+
+	rel_dir[0] = 0;
+
+	/* if image is "below" current .blend file directory */
+	if (!strncmp(path, blend_dir, len)) {
+
+		/* if image is _in_ current .blend file directory */
+		if (!strcmp(dir, blend_dir)) {
+			BLI_join_dirfile(dest_path, dest_dir, base);
+		}
+		/* "below" */
+		else {
+			/* rel = image_path_dir - blend_dir */
+			BLI_strncpy(rel_dir, dir + len, sizeof(rel_dir));
+
+			BLI_join_dirfile(dest_path, dest_dir, rel_dir);
+			BLI_join_dirfile(dest_path, dest_path, base);
+		}
+
+	}
+	/* image is out of current directory */
+	else {
+		BLI_join_dirfile(dest_path, dest_dir, base);
+	}
+
+	if (abs)
+		BLI_strncpy(abs, dest_path, abs_size);
+
+	if (rel) {
+		strncat(rel, rel_dir, rel_size);
+		strncat(rel, base, rel_size);
+	}
+
+	/* return 2 if src=dest */
+	if (!strcmp(path, dest_path)) {
+		// if (G.f & G_DEBUG) printf("%s and %s are the same file\n", path, dest_path);
+		return 2;
+	}
+
+	return 1;
+}
+
 
 static int add_win32_extension(char *name)
 {

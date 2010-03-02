@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -196,15 +196,17 @@ typedef struct ThemeSpace {
 	char face[4], face_select[4];	// solid faces
 	char face_dot[4];				// selected color
 	char normal[4];
+	char vertex_normal[4];
 	char bone_solid[4], bone_pose[4];
 	char strip[4], strip_select[4];
 	char cframe[4];
 	char ds_channel[4], ds_subchannel[4]; // dopesheet
 	
-	char console_output[4], console_input[4], console_info[4], console_error[4]; // Console 
+	char console_output[4], console_input[4], console_info[4], console_error[4];
+	char console_cursor[4];
 	
 	char vertex_size, facedot_size;
-	char bpad[2]; 
+	char bpad[2];
 
 	char syntaxl[4], syntaxn[4], syntaxb[4]; // syntax for textwindow and nodes
 	char syntaxv[4], syntaxc[4];
@@ -273,6 +275,12 @@ typedef struct bTheme {
 	
 } bTheme;
 
+/* for the moment only the name. may want to store options with this later */
+typedef struct bAddon {
+	struct bAddon *next, *prev;
+	char module[64];
+} bAddon;
+
 typedef struct SolidLight {
 	int flag, pad;
 	float col[4], spec[4], vec[4];
@@ -319,6 +327,7 @@ typedef struct UserDef {
 	struct ListBase uifonts;
 	struct ListBase uistyles;
 	struct ListBase keymaps;
+	struct ListBase addons;
 	char keyconfigstr[64];
 	
 	short undosteps;
@@ -369,6 +378,7 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_SECTION_SYSTEM		3
 #define USER_SECTION_THEME		4
 #define USER_SECTION_INPUT		5
+#define USER_SECTION_ADDONS 	6
 
 /* flag */
 #define USER_AUTOSAVE			(1 << 0)
@@ -393,8 +403,16 @@ extern UserDef U; /* from blenkernel blender.c */
 #define USER_ADD_VIEWALIGNED	(1 << 19)
 #define USER_RELPATHS			(1 << 20)
 #define USER_DRAGIMMEDIATE		(1 << 21)
-#define USER_DONT_DOSCRIPTLINKS	(1 << 22)
+#define USER_SCRIPT_AUTOEXEC_DISABLE	(1 << 22)
 #define USER_FILENOUI			(1 << 23)
+#define USER_NONEGFRAMES		(1 << 24)
+
+/* helper macro for checking frame clamping */
+#define FRAMENUMBER_MIN_CLAMP(cfra) \
+	{ \
+		if ((U.flag & USER_NONEGFRAMES) && (cfra < 0)) \
+			cfra = 0; \
+	}
 
 /* viewzom */
 #define USER_ZOOM_CONT			0
@@ -438,8 +456,10 @@ extern UserDef U; /* from blenkernel blender.c */
 #define		AUTOKEY_MODE_NORMAL		3
 #define		AUTOKEY_MODE_EDITKEYS	5
 
-/* Auto-Keying flag */
-	/* U.autokey_flag (not strictly used when autokeying only - is also used when keyframing these days) */
+/* Auto-Keying flag
+ * U.autokey_flag (not strictly used when autokeying only - is also used when keyframing these days)
+ * note: AUTOKEY_FLAG_* is used with a macro, search for lines like IS_AUTOKEY_FLAG(INSERTAVAIL)
+ */
 #define		AUTOKEY_FLAG_INSERTAVAIL	(1<<0)
 #define		AUTOKEY_FLAG_INSERTNEEDED	(1<<1)
 #define		AUTOKEY_FLAG_AUTOMATKEY		(1<<2)

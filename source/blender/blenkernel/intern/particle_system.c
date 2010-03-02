@@ -17,7 +17,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 by Janne Karhu.
  * All rights reserved.
@@ -1056,6 +1056,8 @@ static int psys_threads_init_distribution(ParticleThread *threads, Scene *scene,
 					cpa->num=-1;
 				}
 			}
+			/* dmcache must be updated for parent particles if children from faces is used */
+			psys_calc_dmcache(ob, finaldm, psys);
 
 			return 0;
 		}
@@ -1820,8 +1822,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 		project_v3_v3v3(dvec, r_vel, pa->state.ave);
 		sub_v3_v3v3(mat[0], pa->state.ave, dvec);
 		normalize_v3(mat[0]);
-		VECCOPY(mat[2], r_vel);
-		mul_v3_fl(mat[2], -1.0f);
+		negate_v3_v3(mat[2], r_vel);
 		normalize_v3(mat[2]);
 		cross_v3_v3v3(mat[1], mat[2], mat[0]);
 		
@@ -3313,6 +3314,8 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
 			if(pa->alive==PARS_UNBORN
 				&& (part->flag & PART_UNBORN || cfra + psys->pointcache->step > pa->time))
 				reset_particle(sim, pa, dtime, cfra);
+			else if(part->phystype == PART_PHYS_NO)
+				reset_particle(sim, pa, dtime, cfra);
 
 			if(dfra>0.0 && ELEM(pa->alive,PARS_ALIVE,PARS_DYING)){
 				switch(part->phystype){
@@ -3805,7 +3808,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 					pa->alive = PARS_ALIVE;
 			}
 		}
-		else if(cfra != startframe && (sim->ob->id.lib || (cache->flag & PTCACHE_BAKED))) {
+		else if(cfra != startframe && ( /*sim->ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED))) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 			psys_reset(psys, PSYS_RESET_CACHE_MISS);
 			psys->cfra=cfra;
 			psys->recalc = 0;
@@ -3925,6 +3928,9 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 	if(!sim.psmd->dm)
 		return;
 
+	/* execute drivers only, as animation has already been done */
+	BKE_animsys_evaluate_animdata(&psys->part->id, psys->part->adt, cfra, ADT_RECALC_DRIVERS);
+
 	if(psys->recalc & PSYS_RECALC_TYPE)
 		psys_changed_type(&sim);
 	else if(psys->recalc & PSYS_RECALC_PHYS)
@@ -3942,6 +3948,7 @@ void particle_system_update(Scene *scene, Object *ob, ParticleSystem *psys)
 
 		for(i=0; i<=psys->part->hair_step; i++){
 			hcfra=100.0f*(float)i/(float)psys->part->hair_step;
+			BKE_animsys_evaluate_animdata(&psys->part->id, psys->part->adt, hcfra, ADT_RECALC_ANIM);
 			system_step(&sim, hcfra);
 			save_hair(&sim, hcfra);
 		}

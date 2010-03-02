@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -74,6 +74,7 @@
 #include "BIF_glutil.h"
 
 #include "WM_api.h"
+#include "WM_types.h"
 #include "BLF_api.h"
 
 #include "ED_armature.h"
@@ -82,6 +83,7 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_space_api.h"
+#include "ED_screen_types.h"
 #include "ED_util.h"
 #include "ED_transform.h"
 #include "ED_types.h"
@@ -1476,6 +1478,19 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 	draw_dupli_objects_color was added because when drawing set dupli's
 	we need to force the color
  */
+
+#if 0
+int dupli_ob_sort(void *arg1, void *arg2)
+{
+	void *p1= ((DupliObject *)arg1)->ob;
+	void *p2= ((DupliObject *)arg2)->ob;
+	int val = 0;
+	if (p1 < p2)		val = -1;
+	else if (p1 > p2)	val = 1;
+	return val;
+}
+#endif
+
 static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int color)
 {	
 	RegionView3D *rv3d= ar->regiondata;
@@ -1491,6 +1506,7 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 	
 	tbase.flag= OB_FROMDUPLI|base->flag;
 	lb= object_duplilist(scene, base->object);
+	// BLI_sortlist(lb, dupli_ob_sort); // might be nice to have if we have a dupli list with mixed objects.
 	
 	for(dob= lb->first; dob; dob= dob->next) {
 		if(dob->no_draw);
@@ -1518,7 +1534,12 @@ static void draw_dupli_objects_color(Scene *scene, ARegion *ar, View3D *v3d, Bas
 			if(use_displist == -1) {
 				
 				/* lamp drawing messes with matrices, could be handled smarter... but this works */
-				if(dob->ob->type==OB_LAMP || dob->type==OB_DUPLIGROUP || !(bb_tmp= object_get_boundbox(dob->ob)))
+
+				/* note, since this was added, its checked dob->type==OB_DUPLIGROUP
+				 * however this is very slow, it was probably needed for the NLA
+				 * offset feature (used in group-duplicate.blend but no longer works in 2.5)
+				 * so for now it should be ok to - campbell */
+				if(dob->ob->type==OB_LAMP || (dob->type==OB_DUPLIGROUP && dob->animated) || !(bb_tmp= object_get_boundbox(dob->ob)))
 					use_displist= 0;
 				else {
 					bb= *bb_tmp; /* must make a copy  */
@@ -1726,7 +1747,12 @@ void draw_depth(Scene *scene, ARegion *ar, View3D *v3d, int (* func)(void *))
 		v3d->transp= FALSE;
 	}
 	
+	if(rv3d->rflag & RV3D_CLIPPING)
+		view3d_clr_clipping();
+	
 	v3d->zbuf = zbuf;
+	if(!v3d->zbuf) glDisable(GL_DEPTH_TEST);
+
 	U.glalphaclip = glalphaclip;
 	v3d->flag = flag;
 	U.obcenter_dia= obcenter_dia;
@@ -1989,6 +2015,57 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 	glPopMatrix();
 }
 
+/* NOTE: the info that this uses is updated in ED_refresh_viewport_fps(), 
+ * which currently gets called during SCREEN_OT_animation_step.
+ */
+static void draw_viewport_fps(Scene *scene, ARegion *ar)
+{
+	ScreenFrameRateInfo *fpsi= scene->fps_info;
+	float fps;
+	char printable[16];
+	int i, tot;
+	
+	if (!fpsi || !fpsi->lredrawtime || !fpsi->redrawtime)
+		return;
+	
+	printable[0] = '\0';
+	
+#if 0
+	/* this is too simple, better do an average */
+	fps = (float)(1.0/(fpsi->lredrawtime-fpsi->redrawtime))
+#else
+	fpsi->redrawtimes_fps[fpsi->redrawtime_index] = (float)(1.0/(fpsi->lredrawtime-fpsi->redrawtime));
+	
+	for (i=0, tot=0, fps=0.0f ; i < REDRAW_FRAME_AVERAGE ; i++) {
+		if (fpsi->redrawtimes_fps[i]) {
+			fps += fpsi->redrawtimes_fps[i];
+			tot++;
+		}
+	}
+	if (tot) {
+		fpsi->redrawtime_index = (fpsi->redrawtime_index + 1) % REDRAW_FRAME_AVERAGE;
+		
+		//fpsi->redrawtime_index++;
+		//if (fpsi->redrawtime >= REDRAW_FRAME_AVERAGE)
+		//	fpsi->redrawtime = 0;
+		
+		fps = fps / tot;
+	}
+#endif
+	
+	/* is this more then half a frame behind? */
+	if (fps+0.5 < FPS) {
+		UI_ThemeColor(TH_REDALERT);
+		sprintf(printable, "fps: %.2f", (float)fps);
+	} 
+	else {
+		UI_ThemeColor(TH_TEXT_HI);
+		sprintf(printable, "fps: %i", (int)(fps+0.5));
+	}
+	
+	BLF_draw_default(22,  ar->winy-17, 0.0f, printable);
+}
+
 void view3d_main_area_draw(const bContext *C, ARegion *ar)
 {
 	Scene *scene= CTX_data_scene(C);
@@ -2176,8 +2253,10 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	else	
 		draw_view_icon(rv3d);
 	
-	/* XXX removed viewport fps */
-	if(U.uiflag & USER_SHOW_VIEWPORTNAME) {
+	if((U.uiflag & USER_SHOW_FPS) && (CTX_wm_screen(C)->animtimer)) {
+		draw_viewport_fps(scene, ar);
+	}
+	else if(U.uiflag & USER_SHOW_VIEWPORTNAME) {
 		draw_viewport_name(ar, v3d);
 	}
 	if (grid_unit) { /* draw below the viewport name */

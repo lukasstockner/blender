@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Campbell Barton
  *
@@ -32,6 +32,8 @@
 
 extern PyTypeObject pyrna_struct_Type;
 extern PyTypeObject pyrna_prop_Type;
+extern PyTypeObject pyrna_prop_array_Type;
+extern PyTypeObject pyrna_prop_collection_Type;
 
 #define BPy_StructRNA_Check(v)			(PyObject_TypeCheck(v, &pyrna_struct_Type))
 #define BPy_StructRNA_CheckExact(v)		(Py_TYPE(v) == &pyrna_struct_Type)
@@ -81,6 +83,8 @@ PyObject * pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop);
 
 PyObject *pyrna_enum_bitfield_to_py(struct EnumPropertyItem *items, int value);
 int pyrna_set_to_enum_bitfield(EnumPropertyItem *items, PyObject *value, int *r_value, const char *error_prefix);
+
+int pyrna_enum_value_from_id(EnumPropertyItem *item, const char *identifier, int *value, const char *error_prefix);
 
 /* function for registering types */
 PyObject *pyrna_basetype_register(PyObject *self, PyObject *args);

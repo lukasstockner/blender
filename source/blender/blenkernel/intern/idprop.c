@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -383,6 +383,49 @@ IDProperty *IDP_CopyGroup(IDProperty *prop)
 	}
 
 	return newp;
+}
+
+/* use for syncing proxies.
+ * When values name and types match, copy the values, else ignore */
+void IDP_SyncGroupValues(IDProperty *dest, IDProperty *src)
+{
+	IDProperty *loop, *prop;
+	for (prop=src->data.group.first; prop; prop=prop->next) {
+		for (loop=dest->data.group.first; loop; loop=loop->next) {
+			if (BSTR_EQ(loop->name, prop->name)) {
+				int copy_done= 0;
+
+				if(prop->type==loop->type) {
+
+					switch (prop->type) {
+						case IDP_INT:
+						case IDP_FLOAT:
+						case IDP_DOUBLE:
+							loop->data= prop->data;
+							copy_done= 1;
+							break;
+						case IDP_GROUP:
+							IDP_SyncGroupValues(loop, prop);
+							copy_done= 1;
+							break;
+						default:
+						{
+							IDProperty *tmp= loop;
+							IDProperty *copy= IDP_CopyProperty(prop);
+
+							BLI_insertlinkafter(&dest->data.group, loop, copy);
+							BLI_remlink(&dest->data.group, tmp);
+							loop = copy;
+
+							IDP_FreeProperty(tmp);
+							MEM_freeN(tmp);
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
 }
 
 /*

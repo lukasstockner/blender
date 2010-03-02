@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -32,6 +32,7 @@
 #include <limits.h>
 #include <stdio.h> // for printf fopen fwrite fclose sprintf FILE
 #include <stdlib.h> // for getenv atoi
+#include <stddef.h> // for offsetof
 #include <fcntl.h> // for open
 #include <string.h> // for strrchr strncmp strstr
 #include <math.h> // for fabs
@@ -580,7 +581,8 @@ static void bh4_from_bh8(BHead *bhead, BHead8 *bhead8, int do_endian_swap)
 
 	if (bhead4->code != ENDB) {
 
-		// why is this here ??
+		//perform a endian swap on 64bit pointers, otherwise the pointer might map to zero
+		//0x0000000000000000000012345678 would become 0x12345678000000000000000000000000
 		if (do_endian_swap) {
 			SWITCH_LONGINT(bhead8->old);
 		}
@@ -3436,6 +3438,7 @@ static void lib_link_object(FileData *fd, Main *main)
 				if(ob->proxy->id.lib==NULL) {
 					ob->proxy->proxy_from= NULL;
 					ob->proxy= NULL;
+					printf("Proxy lost from  object %s lib %s\n", ob->id.name+2, ob->id.lib->name);
 				}
 				else {
 					/* this triggers object_update to always use a copy */
@@ -3450,11 +3453,14 @@ static void lib_link_object(FileData *fd, Main *main)
 			ob->data= newlibadr_us(fd, ob->id.lib, ob->data);
 			   
 			if(ob->data==NULL && poin!=NULL) {
+				if(ob->id.lib)
+					printf("Can't find obdata of %s lib %s\n", ob->id.name+2, ob->id.lib->name);
+				else
+					printf("Object %s lost data.\n", ob->id.name+2);
+
 				ob->type= OB_EMPTY;
 				warn= 1;
-				if(ob->id.lib) printf("Can't find obdata of %s lib %s\n", ob->id.name+2, ob->id.lib->name);
-				else printf("Object %s lost data.\n", ob->id.name+2);
-				
+
 				if(ob->pose) {
 					free_pose(ob->pose);
 					ob->pose= NULL;
@@ -4216,6 +4222,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 	sce->dagisvalid = 0;
 	sce->obedit= NULL;
 	sce->stats= 0;
+	sce->fps_info= NULL;
 
 	sound_create_scene(sce);
 
@@ -5119,6 +5126,18 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				//	cl->line= newdataadr(fd, cl->line);
 				
 			}
+			else if(sl->spacetype==SPACE_FILE) {
+				SpaceFile *sfile= (SpaceFile *)sl;
+				
+				/* this sort of info is probably irrelevant for reloading...
+				 * plus, it isn't saved to files yet!
+				 */
+				sfile->folders_prev= sfile->folders_next= NULL;
+				sfile->files= NULL;
+				sfile->layout= NULL;
+				sfile->op= NULL;
+				sfile->params= NULL;
+			}
 		}
 		
 		sa->actionzones.first= sa->actionzones.last= NULL;
@@ -5306,7 +5325,7 @@ static BHead *read_data_into_oldnewmap(FileData *fd, BHead *bhead, char *allocna
 
 	while(bhead && bhead->code==DATA) {
 		void *data;
-#if 0		
+#if 0
 		/* XXX DUMB DEBUGGING OPTION TO GIVE NAMES for guarded malloc errors */		
 		short *sp= fd->filesdna->structs[bhead->SDNAnr];
 		char *allocname = fd->filesdna->types[ sp[0] ];
@@ -5314,8 +5333,9 @@ static BHead *read_data_into_oldnewmap(FileData *fd, BHead *bhead, char *allocna
 		
 		strcpy(tmp, allocname);
 		data= read_struct(fd, bhead, tmp);
-#endif
+#else
 		data= read_struct(fd, bhead, allocname);
+#endif
 		
 		if (data) {
 			oldnewmap_insert(fd->datamap, bhead->old, data, 0);
@@ -10143,7 +10163,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				{
 					seq=sce->ed->seqbasep->first;
 					while(seq) {
-						seqUniqueName(sce->ed->seqbasep, seq);
+						seqbase_unique_name_recursive(&sce->ed->seqbase, seq);
 						seq=seq->next;
 					}
 				}
@@ -10595,10 +10615,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-	/* put 2.50 compatibility code here until next subversion bump */
-	{
+	if (main->versionfile < 250 || (main->versionfile == 250 && main->subversionfile < 17)) {
 		Scene *sce;
 		Sequence *seq;
+		Material *ma;
 
 		/* initialize to sane default so toggling on border shows something */
 		for(sce = main->scene.first; sce; sce = sce->id.next) {
@@ -10618,6 +10638,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 			SEQ_END
 		}
+
+		for(ma = main->mat.first; ma; ma=ma->id.next)
+			if(ma->mode & MA_TRACEBLE)
+				ma->shade_flag |= MA_APPROX_OCCLUSION;
 
 		/* sequencer changes */
 		{
@@ -10655,6 +10679,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 	if (main->versionfile < 251 || (main->versionfile == 251 && main->subversionfile < 1))
 		do_version_shading_sys_250(fd, lib, main);
+
+	/* put 2.50 compatibility code here until next subversion bump */
+	{
+	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
@@ -10710,6 +10738,7 @@ static BHead *read_userdef(BlendFileData *bfd, FileData *fd, BHead *bhead)
 
 	link_list(fd, &user->themes);
 	link_list(fd, &user->keymaps);
+	link_list(fd, &user->addons);
 
 	for(keymap=user->keymaps.first; keymap; keymap=keymap->next) {
 		keymap->modal_items= NULL;
@@ -10902,20 +10931,9 @@ char *bhead_id_name(FileData *fd, BHead *bhead)
 
 static ID *is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
 {
-	ListBase *lb;
-	char *idname= bhead_id_name(fd, bhead);
-
-	lb= wich_libbase(mainvar, GS(idname));
-	
-	if(lb) {
-		ID *id= lb->first;
-		while(id) {
-			if( strcmp(id->name, idname)==0 ) 
-				return id;
-			id= id->next;
-		}
-	}
-	return NULL;
+	const char *idname= bhead_id_name(fd, bhead);
+	/* wich_libbase can be NULL, intentionally not using idname+2 */
+	return BLI_findstring(wich_libbase(mainvar, GS(idname)), idname, offsetof(ID, name));
 }
 
 static void expand_doit(FileData *fd, Main *mainvar, void *old)

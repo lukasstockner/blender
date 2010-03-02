@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -1754,6 +1754,13 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 				phys_ctrl->SetPhysicsEnvironment(to->GetPhysicsEnvironment());
 		}
 	}
+
+	/* Add the object to the scene's logic manager */
+	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);
+	to->GetLogicManager()->RegisterGameObj(gameobj->GetBlenderObject(), gameobj);
+
+	for (int i=0; i<gameobj->GetMeshCount(); ++i)
+		to->GetLogicManager()->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), gameobj->GetBlenderObject());
 }
 
 bool KX_Scene::MergeScene(KX_Scene *other)
@@ -1823,7 +1830,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		//SCA_EventManager *evtmgr;
 		SCA_EventManager *evtmgr_other;
 
-		for(int i= 0; i < evtmgrs.size(); i++) {
+		for(unsigned int i= 0; i < evtmgrs.size(); i++) {
 			evtmgr_other= logicmgr_other->FindEventManager(evtmgrs[i]->GetType());
 
 			if(evtmgr_other) /* unlikely but possible one scene has a joystick and not the other */

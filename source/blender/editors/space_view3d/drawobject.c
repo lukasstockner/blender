@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -129,6 +129,7 @@
 #define CHECK_OB_DRAWFACEDOT(sce, vd, dt) \
 (	(sce->toolsettings->selectmode & SCE_SELECT_FACE) && \
 	(vd->drawtype<=OB_SOLID) && \
+	(G.f & G_BACKBUFSEL)==0 && \
 	(((vd->drawtype==OB_SOLID) && (dt>=OB_SOLID) && (vd->flag2 & V3D_SOLID_TEX) && (vd->flag & V3D_ZBUF_SELECT)) == 0) \
 	)
 
@@ -350,7 +351,7 @@ void drawaxes(float size, int flag, char drawtype)
 			float v2[3]= {0.0, 0.0, 0.0};
 			
 			glBegin(GL_LINES);
-
+			
 			v1[axis]= size;
 			v2[axis]= -size;
 			glVertex3fv(v1);
@@ -416,7 +417,7 @@ void drawaxes(float size, int flag, char drawtype)
 			int arrow_axis= (axis==0)?1:0;
 			
 			glBegin(GL_LINES);
-
+			
 			v2[axis]= size;
 			glVertex3fv(v1);
 			glVertex3fv(v2);
@@ -429,7 +430,7 @@ void drawaxes(float size, int flag, char drawtype)
 			v1[arrow_axis]= size*0.125;
 			glVertex3fv(v1);
 			glVertex3fv(v2);
-
+			
 			glEnd();
 				
 			v2[axis]+= size*0.125;
@@ -437,11 +438,11 @@ void drawaxes(float size, int flag, char drawtype)
 			// patch for 3d cards crashing on glSelect for text drawing (IBM)
 			if((flag & DRAW_PICKING) == 0) {
 				if (axis==0)
-					view3d_cached_text_draw_add(v2[0], v2[1], v2[2], "x", 0);
+					view3d_cached_text_draw_add(v2[0], v2[1], v2[2], "x", 0, V3D_CACHE_TEXT_ZBUF);
 				else if (axis==1)
-					view3d_cached_text_draw_add(v2[0], v2[1], v2[2], "y", 0);
+					view3d_cached_text_draw_add(v2[0], v2[1], v2[2], "y", 0, V3D_CACHE_TEXT_ZBUF);
 				else
-					view3d_cached_text_draw_add(v2[0], v2[1], v2[2], "z", 0);
+					view3d_cached_text_draw_add(v2[0], v2[1], v2[2], "z", 0, V3D_CACHE_TEXT_ZBUF);
 			}
 		}
 		break;
@@ -500,7 +501,6 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, float *vec, int se
 }
 
 /* *********** text drawing for object/particles/armature ************* */
-
 static ListBase CachedText[3];
 static int CachedTextLevel= 0;
 
@@ -510,6 +510,7 @@ typedef struct ViewCachedString {
 	char str[128]; 
 	short mval[2];
 	short xoffs;
+	short flag;
 } ViewCachedString;
 
 void view3d_cached_text_draw_begin()
@@ -519,7 +520,7 @@ void view3d_cached_text_draw_begin()
 	CachedTextLevel++;
 }
 
-void view3d_cached_text_draw_add(float x, float y, float z, char *str, short xoffs)
+void view3d_cached_text_draw_add(float x, float y, float z, char *str, short xoffs, short flag)
 {
 	ListBase *strings= &CachedText[CachedTextLevel-1];
 	ViewCachedString *vos= MEM_callocN(sizeof(ViewCachedString), "ViewCachedString");
@@ -531,6 +532,7 @@ void view3d_cached_text_draw_add(float x, float y, float z, char *str, short xof
 	vos->vec[2]= z;
 	glGetFloatv(GL_CURRENT_COLOR, vos->col);
 	vos->xoffs= xoffs;
+	vos->flag= flag;
 }
 
 void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, float mat[][4])
@@ -550,6 +552,14 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, floa
 	}
 
 	if(tot) {
+		bglMats mats; /* ZBuffer depth vars */
+		double ux, uy, uz;
+		float depth;
+
+		if(v3d->zbuf)
+			bgl_get_mats(&mats);
+
+
 		if(rv3d->rflag & RV3D_CLIPPING)
 			for(a=0; a<6; a++)
 				glDisable(GL_CLIP_PLANE0+a);
@@ -566,6 +576,15 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, int depth_write, floa
 		else glDepthMask(0);
 		
 		for(vos= strings->first; vos; vos= vos->next) {
+
+			if(v3d->zbuf && (vos->flag & V3D_CACHE_TEXT_ZBUF)) {
+				gluProject(vos->vec[0], vos->vec[1], vos->vec[2], mats.modelview, mats.projection, (GLint *)mats.viewport, &ux, &uy, &uz);
+				glReadPixels(ar->winrct.xmin+vos->mval[0]+vos->xoffs, ar->winrct.ymin+vos->mval[1], 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &depth);
+
+				if(uz > depth)
+					continue;
+			}
+
 			if(vos->mval[0]!=IS_CLIPPED) {
 				glColor3fv(vos->col);
 				BLF_draw_default((float)vos->mval[0]+vos->xoffs, (float)vos->mval[1], (depth_write)? 0.0f: 2.0f, vos->str);
@@ -2033,7 +2052,7 @@ static void draw_em_measure_stats(View3D *v3d, RegionView3D *rv3d, Object *ob, E
 				else
 					sprintf(val, conv_float, len_v3v3(v1, v2));
 				
-				view3d_cached_text_draw_add(x, y, z, val, 0);
+				view3d_cached_text_draw_add(x, y, z, val, 0, 0);
 			}
 		}
 	}
@@ -2072,7 +2091,7 @@ static void draw_em_measure_stats(View3D *v3d, RegionView3D *rv3d, Object *ob, E
 				else
 					sprintf(val, conv_float, area);
 
-				view3d_cached_text_draw_add(efa->cent[0], efa->cent[1], efa->cent[2], val, 0);
+				view3d_cached_text_draw_add(efa->cent[0], efa->cent[1], efa->cent[2], val, 0, 0);
 			}
 		}
 	}
@@ -2114,13 +2133,13 @@ static void draw_em_measure_stats(View3D *v3d, RegionView3D *rv3d, Object *ob, E
 				/* Vec 1 */
 				sprintf(val,"%.3f", RAD2DEG(angle_v3v3v3(v4, v1, v2)));
 				interp_v3_v3v3(fvec, efa->cent, efa->v1->co, 0.8f);
-				view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0);
+				view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0, 0);
 			}
 			if( (e1->f & e2->f & SELECT) || (G.moving && (efa->v2->f & SELECT)) ) {
 				/* Vec 2 */
 				sprintf(val,"%.3f", RAD2DEG(angle_v3v3v3(v1, v2, v3)));
 				interp_v3_v3v3(fvec, efa->cent, efa->v2->co, 0.8f);
-				view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0);
+				view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0, 0);
 			}
 			if( (e2->f & e3->f & SELECT) || (G.moving && (efa->v3->f & SELECT)) ) {
 				/* Vec 3 */
@@ -2129,14 +2148,14 @@ static void draw_em_measure_stats(View3D *v3d, RegionView3D *rv3d, Object *ob, E
 				else
 					sprintf(val,"%.3f", RAD2DEG(angle_v3v3v3(v2, v3, v1)));
 				interp_v3_v3v3(fvec, efa->cent, efa->v3->co, 0.8f);
-				view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0);
+				view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0, 0);
 			}
 				/* Vec 4 */
 			if(efa->v4) {
 				if( (e3->f & e4->f & SELECT) || (G.moving && (efa->v4->f & SELECT)) ) {
 					sprintf(val,"%.3f", RAD2DEG(angle_v3v3v3(v3, v4, v1)));
 					interp_v3_v3v3(fvec, efa->cent, efa->v4->co, 0.8f);
-					view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0);
+					view3d_cached_text_draw_add(fvec[0], fvec[1], fvec[2], val, 0, 0);
 				}
 			}
 		}
@@ -2313,7 +2332,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 			draw_dm_face_normals(scene, cageDM);
 		}
 		if(me->drawflag & ME_DRAW_VNORMALS) {
-			UI_ThemeColor(TH_NORMAL);
+			UI_ThemeColor(TH_VNORMAL);
 			draw_dm_vert_normals(scene, cageDM);
 		}
 
@@ -3689,7 +3708,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 						strcat(val, tval);
 					}
 					/* in path drawing state.co is the end point */
-					view3d_cached_text_draw_add(state.co[0],  state.co[1],  state.co[2], val, 0);
+					view3d_cached_text_draw_add(state.co[0],  state.co[1],  state.co[2], val, 0, 0);
 				}
 			}
 		}
@@ -5204,11 +5223,11 @@ void drawRBpivot(bRigidBodyJointConstraint *data)
 		glVertex3fv(v);			
 		glEnd();
 		if (axis==0)
-			view3d_cached_text_draw_add(v[0], v[1], v[2], "px", 0);
+			view3d_cached_text_draw_add(v[0], v[1], v[2], "px", 0, 0);
 		else if (axis==1)
-			view3d_cached_text_draw_add(v[0], v[1], v[2], "py", 0);
+			view3d_cached_text_draw_add(v[0], v[1], v[2], "py", 0, 0);
 		else
-			view3d_cached_text_draw_add(v[0], v[1], v[2], "pz", 0);
+			view3d_cached_text_draw_add(v[0], v[1], v[2], "pz", 0, 0);
 	}
 	glLineWidth (1.0f);
 	setlinestyle(0);
@@ -5803,7 +5822,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			/* patch for several 3d cards (IBM mostly) that crash on glSelect with text drawing */
 			/* but, we also dont draw names for sets or duplicators */
 			if(flag == 0) {
-				view3d_cached_text_draw_add(0.0f, 0.0f, 0.0f, ob->id.name+2, 10);
+				view3d_cached_text_draw_add(0.0f, 0.0f, 0.0f, ob->id.name+2, 10, 0);
 			}
 		}
 		/*if(dtx & OB_DRAWIMAGE) drawDispListwire(&ob->disp);*/

@@ -16,7 +16,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Campbell Barton
  *
@@ -72,7 +72,7 @@ static PyObject *pyop_call( PyObject * self, PyObject * args)
 	}
 	
 	if(context_str) {
-		if(RNA_enum_value_from_id(operator_context_items, context_str, &operator_ret)==0) {
+		if(RNA_enum_value_from_id(operator_context_items, context_str, &context)==0) {
 			char *enum_str= BPy_enum_as_string(operator_context_items);
 			PyErr_Format(PyExc_TypeError, "Calling operator \"bpy.ops.%s\" error, expected a string enum in (%.200s)", opname, enum_str);
 			MEM_freeN(enum_str);

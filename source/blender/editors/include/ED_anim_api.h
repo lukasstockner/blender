@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -134,6 +134,7 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_FILLDRIVERS,
 	ANIMTYPE_FILLMATD,
 	ANIMTYPE_FILLPARTD,
+	ANIMTYPE_FILLTEXD,
 	
 	ANIMTYPE_DSMAT,
 	ANIMTYPE_DSLAM,
@@ -146,6 +147,7 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_DSMBALL,
 	ANIMTYPE_DSARM,
 	ANIMTYPE_DSMESH,
+	ANIMTYPE_DSTEX,
 	
 	ANIMTYPE_SHAPEKEY,
 	
@@ -225,8 +227,13 @@ typedef enum eAnimFilter_Flags {
 	/* 'Sub-object/Action' channels (flags stored in Action) */
 #define SEL_ACTC(actc) ((actc->flag & ACT_SELECTED))
 #define EXPANDED_ACTC(actc) ((actc->flag & ACT_COLLAPSED)==0)
-	/* 'Sub-AnimData' chanenls */
+	/* 'Sub-AnimData' channels */
 #define EXPANDED_DRVD(adt) ((adt->flag & ADT_DRIVERS_COLLAPSED)==0)
+	/* Texture expanders */
+#define FILTER_TEX_MATC(ma) ((ma->flag & MA_DS_SHOW_TEXS))
+#define FILTER_TEX_LAMC(la) ((la->flag & LA_DS_SHOW_TEXS))
+#define FILTER_TEX_WORC(wa) ((wo->flag & WO_DS_SHOW_TEXS))
+#define FILTER_TEX_DATA(tex) ((tex->flag & TEX_DS_EXPAND))
 
 /* Actions (also used for Dopesheet) */
 	/* Action Channel Group */

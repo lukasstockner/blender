@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -159,17 +159,17 @@ static char Vector_Resize2D_doc[] =
 static PyObject *Vector_Resize2D(VectorObject * self)
 {
 	if(self->wrapped==Py_WRAP) {
-		PyErr_SetString(PyExc_TypeError, "vector.resize2d(): cannot resize wrapped data - only python vectors\n");
+		PyErr_SetString(PyExc_TypeError, "vector.resize2D(): cannot resize wrapped data - only python vectors\n");
 		return NULL;
 	}
 	if(self->cb_user) {
-		PyErr_SetString(PyExc_TypeError, "vector.resize2d(): cannot resize a vector that has an owner");
+		PyErr_SetString(PyExc_TypeError, "vector.resize2D(): cannot resize a vector that has an owner");
 		return NULL;
 	}
 	
 	self->vec = PyMem_Realloc(self->vec, (sizeof(float) * 2));
 	if(self->vec == NULL) {
-		PyErr_SetString(PyExc_MemoryError, "vector.resize2d(): problem allocating pointer space\n\n");
+		PyErr_SetString(PyExc_MemoryError, "vector.resize2D(): problem allocating pointer space\n\n");
 		return NULL;
 	}
 	
@@ -189,17 +189,17 @@ static char Vector_Resize3D_doc[] =
 static PyObject *Vector_Resize3D(VectorObject * self)
 {
 	if (self->wrapped==Py_WRAP) {
-		PyErr_SetString(PyExc_TypeError, "vector.resize3d(): cannot resize wrapped data - only python vectors\n");
+		PyErr_SetString(PyExc_TypeError, "vector.resize3D(): cannot resize wrapped data - only python vectors\n");
 		return NULL;
 	}
 	if(self->cb_user) {
-		PyErr_SetString(PyExc_TypeError, "vector.resize3d(): cannot resize a vector that has an owner");
+		PyErr_SetString(PyExc_TypeError, "vector.resize3D(): cannot resize a vector that has an owner");
 		return NULL;
 	}
 	
 	self->vec = PyMem_Realloc(self->vec, (sizeof(float) * 3));
 	if(self->vec == NULL) {
-		PyErr_SetString(PyExc_MemoryError, "vector.resize3d(): problem allocating pointer space\n\n");
+		PyErr_SetString(PyExc_MemoryError, "vector.resize3D(): problem allocating pointer space\n\n");
 		return NULL;
 	}
 	
@@ -222,17 +222,17 @@ static char Vector_Resize4D_doc[] =
 static PyObject *Vector_Resize4D(VectorObject * self)
 {
 	if(self->wrapped==Py_WRAP) {
-		PyErr_SetString(PyExc_TypeError, "vector.resize4d(): cannot resize wrapped data - only python vectors");
+		PyErr_SetString(PyExc_TypeError, "vector.resize4D(): cannot resize wrapped data - only python vectors");
 		return NULL;
 	}
 	if(self->cb_user) {
-		PyErr_SetString(PyExc_TypeError, "vector.resize4d(): cannot resize a vector that has an owner");
+		PyErr_SetString(PyExc_TypeError, "vector.resize4D(): cannot resize a vector that has an owner");
 		return NULL;
 	}
 	
 	self->vec = PyMem_Realloc(self->vec, (sizeof(float) * 4));
 	if(self->vec == NULL) {
-		PyErr_SetString(PyExc_MemoryError, "vector.resize4d(): problem allocating pointer space\n\n");
+		PyErr_SetString(PyExc_MemoryError, "vector.resize4D(): problem allocating pointer space\n\n");
 		return NULL;
 	}
 	if(self->size == 2){
@@ -265,7 +265,7 @@ static PyObject *Vector_ToTuple(VectorObject * self, PyObject *value)
 	PyObject *ret;
 
 	if(ndigits > 22 || ndigits < 0) { /* accounts for non ints */
-		PyErr_SetString(PyExc_TypeError, "vector.key(ndigits): ndigits must be between 0 and 21");
+		PyErr_SetString(PyExc_TypeError, "vector.to_tuple(ndigits): ndigits must be between 0 and 21");
 		return NULL;
 	}
 
@@ -300,7 +300,7 @@ static PyObject *Vector_ToTrackQuat( VectorObject * self, PyObject * args )
 	char *strack, *sup;
 	short track = 2, up = 1;
 
-	if( !PyArg_ParseTuple ( args, "|ss", &strack, &sup ) ) {
+	if(!PyArg_ParseTuple( args, "|ss:to_track_quat", &strack, &sup)) {
 		PyErr_SetString( PyExc_TypeError, "expected optional two strings\n" );
 		return NULL;
 	}
@@ -558,11 +558,7 @@ static PyObject *Vector_Angle(VectorObject * self, VectorObject * value)
 
 	angleRads = (double)saacos(dot);
 
-#ifdef USE_MATHUTILS_DEG
-	return PyFloat_FromDouble(angleRads * (180/ Py_PI));
-#else
 	return PyFloat_FromDouble(angleRads);
-#endif
 }
 
 static char Vector_Difference_doc[] =
@@ -666,12 +662,12 @@ static PyObject *Vector_Lerp(VectorObject * self, PyObject * args)
 	float fac, ifac, vec[4];
 	int x;
 
-	if(!PyArg_ParseTuple(args, "O!f", &vector_Type, &vec2, &fac)) {
+	if(!PyArg_ParseTuple(args, "O!f:lerp", &vector_Type, &vec2, &fac)) {
 		PyErr_SetString(PyExc_TypeError, "vector.lerp(): expects a vector of the same size and float");
 		return NULL;
 	}
 	if(self->size != vec2->size) {
-		PyErr_SetString(PyExc_AttributeError, "Mathutils.MidpointVecs(): expects (2) vector objects of the same size");
+		PyErr_SetString(PyExc_AttributeError, "vector.lerp(): expects (2) vector objects of the same size");
 		return NULL;
 	}
 
@@ -1256,12 +1252,7 @@ static PyObject* Vector_richcmpr(PyObject *objectA, PyObject *objectB, int compa
 			result = EXPP_VectorsAreEqual(vecA->vec, vecB->vec, vecA->size, 1);
 			break;
 		case Py_NE:
-			result = EXPP_VectorsAreEqual(vecA->vec, vecB->vec, vecA->size, 1);
-			if (result == 0){
-				result = 1;
-			}else{
-				result = 0;
-			}
+			result = !EXPP_VectorsAreEqual(vecA->vec, vecB->vec, vecA->size, 1);
 			break;
 		case Py_GT:
 			lenA = vec_magnitude_nosqrt(vecA->vec, vecA->size);
@@ -2133,9 +2124,7 @@ static struct PyMethodDef Vector_methods[] = {
 */
 
 static char vector_doc[] =
-"This object gives access to Vectors in Blender.\n"
-"\n"
-".. literalinclude:: ../examples/mathutils_vector.py\n";
+"This object gives access to Vectors in Blender.";
 
 PyTypeObject vector_Type = {
 	PyVarObject_HEAD_INIT(NULL, 0)

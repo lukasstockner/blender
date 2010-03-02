@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Blender Foundation (2008).
  *
@@ -574,6 +574,19 @@ const struct ListBase *RNA_struct_defined_properties(StructRNA *srna)
 
 FunctionRNA *RNA_struct_find_function(PointerRNA *ptr, const char *identifier)
 {
+#if 1
+	FunctionRNA *func;
+	StructRNA *type;
+	for(type= ptr->type; type; type= type->base) {
+		for(func= type->functions.first; func; func= func->cont.next) {
+			if(strcmp(func->identifier, identifier)==0)
+				return func;
+		}
+	}
+	return NULL;
+
+	/* funcitonal but slow */
+#else
 	PointerRNA tptr;
 	PropertyRNA *iterprop;
 	FunctionRNA *func;
@@ -592,6 +605,7 @@ FunctionRNA *RNA_struct_find_function(PointerRNA *ptr, const char *identifier)
 	RNA_PROP_END;
 
 	return func;
+#endif
 }
 
 const struct ListBase *RNA_struct_defined_functions(StructRNA *srna)
@@ -909,6 +923,44 @@ void RNA_property_float_ui_range(PointerRNA *ptr, PropertyRNA *prop, float *soft
 	*precision= (float)fprop->precision;
 }
 
+int RNA_property_float_clamp(PointerRNA *ptr, PropertyRNA *prop, float *value)
+{
+	float min, max;
+
+	RNA_property_float_range(ptr, prop, &min, &max);
+
+	if(*value < min) {
+		*value= min;
+		return -1;
+	}
+	else if(*value > max) {
+		*value= max;
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+int RNA_property_int_clamp(PointerRNA *ptr, PropertyRNA *prop, int *value)
+{
+	int min, max;
+
+	RNA_property_int_range(ptr, prop, &min, &max);
+
+	if(*value < min) {
+		*value= min;
+		return -1;
+	}
+	else if(*value > max) {
+		*value= max;
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 /* this is the max length including \0 terminator */
 int RNA_property_string_maxlength(PropertyRNA *prop)
 {
@@ -1083,19 +1135,21 @@ int RNA_property_ui_icon(PropertyRNA *prop)
 
 int RNA_property_editable(PointerRNA *ptr, PropertyRNA *prop)
 {
-	ID *id;
+	ID *id= ptr->id.data;
 	int flag;
 
 	prop= rna_ensure_property(prop);
-
-	if(prop->editable)
-		flag= prop->editable(ptr);
-	else
-		flag= prop->flag;
-	
-	id= ptr->id.data;
-
+	flag= prop->editable ? prop->editable(ptr) : prop->flag;
 	return (flag & PROP_EDITABLE) && (!id || !id->lib || (prop->flag & PROP_LIB_EXCEPTION));
+}
+
+int RNA_property_editable_flag(PointerRNA *ptr, PropertyRNA *prop)
+{
+	int flag;
+
+	prop= rna_ensure_property(prop);
+	flag= prop->editable ? prop->editable(ptr) : prop->flag;
+	return (flag & PROP_EDITABLE);
 }
 
 /* same as RNA_property_editable(), except this checks individual items in an array */
@@ -1161,7 +1215,7 @@ static void rna_property_update(bContext *C, Main *bmain, Scene *scene, PointerR
 	else {
 		/* WARNING! This is so property drivers update the display!
 		 * not especially nice  */
-		DAG_id_flush_update(ptr->id.data, OB_RECALC_OB);
+		DAG_id_flush_update(ptr->id.data, OB_RECALC);
 		WM_main_add_notifier(NC_WINDOW, NULL);
 	}
 
@@ -1885,8 +1939,12 @@ void RNA_property_pointer_set(PointerRNA *ptr, PropertyRNA *prop, PointerRNA ptr
 	else {
 		PointerPropertyRNA *pprop= (PointerPropertyRNA*)prop;
 
-		if(pprop->set && !((prop->flag & PROP_NEVER_NULL) && ptr_value.data == NULL))
+		if(		pprop->set &&
+				!((prop->flag & PROP_NEVER_NULL) && ptr_value.data == NULL) &&
+				!((prop->flag & PROP_ID_SELF_CHECK) && ptr->id.data == ptr_value.id.data)
+		) {
 			pprop->set(ptr, ptr_value);
+		}
 	}
 }
 
@@ -2022,7 +2080,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
 
 		item= IDP_New(IDP_GROUP, val, "");
 		IDP_AppendArray(idprop, item);
-		IDP_FreeProperty(item);
+		// IDP_FreeProperty(item); // IDP_AppendArray does a shallow copy (memcpy), only free memory 
 		MEM_freeN(item);
 	}
 	else if(prop->flag & PROP_IDPROPERTY) {
@@ -2036,7 +2094,7 @@ void RNA_property_collection_add(PointerRNA *ptr, PropertyRNA *prop, PointerRNA 
 
 			item= IDP_New(IDP_GROUP, val, "");
 			IDP_AppendArray(idprop, item);
-			IDP_FreeProperty(item);
+			// IDP_FreeProperty(item); // IDP_AppendArray does a shallow copy (memcpy), only free memory
 			MEM_freeN(item);
 		}
 	}
@@ -3235,6 +3293,20 @@ void RNA_enum_set(PointerRNA *ptr, const char *name, int value)
 		RNA_property_enum_set(ptr, prop, value);
 	else
 		printf("RNA_enum_set: %s.%s not found.\n", ptr->type->identifier, name);
+}
+
+void RNA_enum_set_identifier(PointerRNA *ptr, const char *name, const char *id)
+{
+	PropertyRNA *prop= RNA_struct_find_property(ptr, name);
+
+	if(prop) {
+		int value;
+		if(RNA_property_enum_value(NULL, ptr, prop, id, &value))
+			RNA_property_enum_set(ptr, prop, value);
+		else
+			printf("RNA_enum_set_identifier: %s.%s has no enum id '%s'.\n", ptr->type->identifier, name, id);
+	} else
+		printf("RNA_enum_set_identifier: %s.%s not found.\n", ptr->type->identifier, name);
 }
 
 int RNA_enum_is_equal(bContext *C, PointerRNA *ptr, const char *name, const char *enumname)

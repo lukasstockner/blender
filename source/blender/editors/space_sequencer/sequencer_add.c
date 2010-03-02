@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -513,7 +513,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 	else
 		strcpy(seq->name+2, give_seqname(seq));
 
-	seqUniqueName(ed->seqbasep, seq);
+	seqbase_unique_name_recursive(&ed->seqbase, seq);
 
 	sh = get_sequence_effect(seq);
 

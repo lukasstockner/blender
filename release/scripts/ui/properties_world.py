@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -30,7 +30,7 @@ class WorldButtonsPanel(bpy.types.Panel):
     # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (context.world) and (not rd.use_game_engine) and (rd.engine in self.COMPAT_ENGINES)
 
 
@@ -48,7 +48,7 @@ class WORLD_PT_context_world(WorldButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (not rd.use_game_engine) and (rd.engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -266,14 +266,31 @@ class WORLD_PT_gather(WorldButtonsPanel):
             col.label(text="Attenuation:")
             col.prop(light, "distance")
 
-bpy.types.register(WORLD_PT_context_world)
-bpy.types.register(WORLD_PT_preview)
-bpy.types.register(WORLD_PT_world)
-bpy.types.register(WORLD_PT_ambient_occlusion)
-bpy.types.register(WORLD_PT_environment_lighting)
-bpy.types.register(WORLD_PT_indirect_lighting)
-bpy.types.register(WORLD_PT_gather)
-bpy.types.register(WORLD_PT_mist)
-bpy.types.register(WORLD_PT_stars)
+classes = [
+    WORLD_PT_context_world,
+    WORLD_PT_preview,
+    WORLD_PT_world,
+    WORLD_PT_ambient_occlusion,
+    WORLD_PT_environment_lighting,
+    WORLD_PT_indirect_lighting,
+    WORLD_PT_gather,
+    WORLD_PT_mist,
+    WORLD_PT_stars,
 
-bpy.types.register(WORLD_PT_custom_props)
+    WORLD_PT_custom_props]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()
+

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -2460,7 +2460,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		ver->n[1]= imat[1][0]*xn+imat[1][1]*yn+imat[1][2]*zn;
 		ver->n[2]= imat[2][0]*xn+imat[2][1]*yn+imat[2][2]*zn;
 		normalize_v3(ver->n);
-		//if(ob->transflag & OB_NEG_SCALE) mul_v3_fl(ver->n. -1.0);
+		//if(ob->transflag & OB_NEG_SCALE) negate_v3(ver->n);
 		
 		if(need_orco) ver->orco= orco;
 	}

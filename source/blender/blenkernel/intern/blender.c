@@ -18,7 +18,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -291,8 +291,6 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 	if (G.f & G_SWAP_EXCHANGE) bfd->globalf |= G_SWAP_EXCHANGE;
 	else bfd->globalf &= ~G_SWAP_EXCHANGE;
 
-	if ((U.flag & USER_DONT_DOSCRIPTLINKS)) bfd->globalf &= ~G_DOSCRIPTLINKS;
-
 	G.f= bfd->globalf;
 
 	if (!G.background) {
@@ -358,7 +356,7 @@ void BKE_userdef_free(void)
 	BLI_freelistN(&U.uifonts);
 	BLI_freelistN(&U.themes);
 	BLI_freelistN(&U.keymaps);
-	
+	BLI_freelistN(&U.addons);
 }
 
 /* returns:
@@ -371,6 +369,9 @@ int BKE_read_file(bContext *C, char *dir, void *unused, ReportList *reports)
 {
 	BlendFileData *bfd;
 	int retval= 1;
+
+	if(strstr(dir, ".B25.blend")==0) /* dont print user-pref loading */
+		printf("read blend: %s\n", dir);
 
 	bfd= BLO_read_from_file(dir, reports);
 	if (bfd) {
@@ -417,6 +418,7 @@ int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *report
 
 	return (bfd?1:0);
 }
+
 
 /* *****************  testing for break ************* */
 
@@ -705,5 +707,22 @@ void BKE_undo_save_quit(void)
 	
 	if(chunk) ; //XXX error("Unable to save %s, internal error", str);
 	else printf("Saved session recovery to %s\n", str);
+}
+
+/* sets curscene */
+Main *BKE_undo_get_main(Scene **scene)
+{
+	Main *mainp= NULL;
+	BlendFileData *bfd= BLO_read_from_memfile(G.main, G.sce, &curundo->memfile, NULL);
+	
+	if(bfd) {
+		mainp= bfd->main;
+		if(scene)
+			*scene= bfd->curscene;
+		
+		MEM_freeN(bfd);
+	}
+	
+	return mainp;
 }
 

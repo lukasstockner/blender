@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -381,15 +381,31 @@ class DATA_PT_falloff_curve(DataButtonsPanel):
         self.layout.template_curve_mapping(lamp, "falloff_curve")
 
 
-bpy.types.register(LAMP_MT_sunsky_presets)
+classes = [
+    LAMP_MT_sunsky_presets,
 
-bpy.types.register(DATA_PT_context_lamp)
-bpy.types.register(DATA_PT_preview)
-bpy.types.register(DATA_PT_lamp)
-bpy.types.register(DATA_PT_falloff_curve)
-bpy.types.register(DATA_PT_area)
-bpy.types.register(DATA_PT_spot)
-bpy.types.register(DATA_PT_shadow)
-bpy.types.register(DATA_PT_sunsky)
+    DATA_PT_context_lamp,
+    DATA_PT_preview,
+    DATA_PT_lamp,
+    DATA_PT_falloff_curve,
+    DATA_PT_area,
+    DATA_PT_spot,
+    DATA_PT_shadow,
+    DATA_PT_sunsky,
 
-bpy.types.register(DATA_PT_custom_props_lamp)
+    DATA_PT_custom_props_lamp]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

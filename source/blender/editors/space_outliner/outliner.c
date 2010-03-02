@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2004 Blender Foundation.
  * All rights reserved.
@@ -1502,7 +1502,7 @@ void OUTLINER_OT_visibility_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Visability";
 	ot->idname= "OUTLINER_OT_visibility_toggle";
-	ot->description= "Toggle the visibility of selected items.";
+	ot->description= "Toggle the visibility of selected items";
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_visibility_exec;
@@ -1580,7 +1580,7 @@ void OUTLINER_OT_renderability_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Renderability";
 	ot->idname= "OUTLINER_OT_renderability_toggle";
-	ot->description= "Toggle the renderbility of selected items.";
+	ot->description= "Toggle the renderbility of selected items";
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_renderability_exec;
@@ -1611,7 +1611,7 @@ void OUTLINER_OT_expanded_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Expand/Collapse All";
 	ot->idname= "OUTLINER_OT_expanded_toggle";
-	ot->description= "Expand/Collapse all items.";
+	ot->description= "Expand/Collapse all items";
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_expanded_exec;
@@ -1644,7 +1644,7 @@ void OUTLINER_OT_selected_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Selected";
 	ot->idname= "OUTLINER_OT_selected_toggle";
-	ot->description= "Toggle the Outliner selection of items.";
+	ot->description= "Toggle the Outliner selection of items";
 	
 	/* callbacks */
 	ot->exec= outliner_toggle_selected_exec;
@@ -2640,7 +2640,7 @@ void OUTLINER_OT_show_active(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Show Active";
 	ot->idname= "OUTLINER_OT_show_active";
-	ot->description= "Adjust the view so that the active Object is shown centered.";
+	ot->description= "Adjust the view so that the active Object is shown centered";
 	
 	/* callbacks */
 	ot->exec= outliner_show_active_exec;
@@ -2848,7 +2848,7 @@ void OUTLINER_OT_show_hierarchy(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Show Hierarchy";
 	ot->idname= "OUTLINER_OT_show_hierarchy";
-	ot->description= "Open all object entries and close all others.";
+	ot->description= "Open all object entries and close all others";
 	
 	/* callbacks */
 	ot->exec= outliner_show_hierarchy_exec;
@@ -3864,7 +3864,7 @@ void OUTLINER_OT_drivers_add_selected(wmOperatorType *ot)
 	/* api callbacks */
 	ot->idname= "OUTLINER_OT_drivers_add_selected";
 	ot->name= "Add Drivers for Selected";
-	ot->description= "Add drivers to selected items.";
+	ot->description= "Add drivers to selected items";
 	
 	/* api callbacks */
 	ot->exec= outliner_drivers_addsel_exec;
@@ -3899,7 +3899,7 @@ void OUTLINER_OT_drivers_delete_selected(wmOperatorType *ot)
 	/* identifiers */
 	ot->idname= "OUTLINER_OT_drivers_delete_selected";
 	ot->name= "Delete Drivers for Selected";
-	ot->description= "Delete drivers assigned to selected items.";
+	ot->description= "Delete drivers assigned to selected items";
 	
 	/* api callbacks */
 	ot->exec= outliner_drivers_deletesel_exec;
@@ -3977,14 +3977,14 @@ static void do_outliner_keyingset_editop(SpaceOops *soops, KeyingSet *ks, ListBa
 					{
 						/* add a new path with the information obtained (only if valid) */
 						// TODO: what do we do with group name? for now, we don't supply one, and just let this use the KeyingSet name
-						BKE_keyingset_add_destination(ks, id, NULL, path, array_index, flag, groupmode);
+						BKE_keyingset_add_path(ks, id, NULL, path, array_index, flag, groupmode);
 						ks->active_path= BLI_countlist(&ks->paths);
 					}
 						break;
 					case KEYINGSET_EDITMODE_REMOVE:
 					{
 						/* find the relevant path, then remove it from the KeyingSet */
-						KS_Path *ksp= BKE_keyingset_find_destination(ks, id, NULL, path, array_index, groupmode);
+						KS_Path *ksp= BKE_keyingset_find_path(ks, id, NULL, path, array_index, groupmode);
 						
 						if (ksp) {
 							/* free path's data */
@@ -4885,7 +4885,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					Object *ob= (Object *)tselem->id; // id = object
 					bActionGroup *grp= te->directdata;
 					
-					BLI_uniquename(&ob->pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), 32);
+					BLI_uniquename(&ob->pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), sizeof(grp->name));
 					WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 				}
 				break;

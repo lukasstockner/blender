@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -70,11 +70,11 @@ void BKE_animdata_make_local(struct AnimData *adt);
 /* Used to create a new 'custom' KeyingSet for the user, that will be automatically added to the stack */
 struct KeyingSet *BKE_keyingset_add(struct ListBase *list, const char name[], short flag, short keyingflag);
 
-/* Add a destination to a KeyingSet */
-void BKE_keyingset_add_destination(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, short flag, short groupmode);
+/* Add a path to a KeyingSet */
+void BKE_keyingset_add_path(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, short flag, short groupmode);
 
 /* Find the destination matching the criteria given */
-struct KS_Path *BKE_keyingset_find_destination(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode);
+struct KS_Path *BKE_keyingset_find_path(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode);
 
 /* Copy all KeyingSets in the given list */
 void BKE_keyingsets_copy(struct ListBase *newlist, struct ListBase *list);

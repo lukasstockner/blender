@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -83,7 +83,7 @@ class RenderButtonsPanel(bpy.types.Panel):
     # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (rd.use_game_engine==False) and (rd.engine in self.COMPAT_ENGINES)
 
 # Setting panel, use in the scene for now.
@@ -136,7 +136,7 @@ class RENDER_PT_network_slave_settings(RenderButtonsPanel):
         layout = self.layout
 
         scene = context.scene
-        rd = scene.render_data
+        rd = scene.render
         netsettings = scene.network_render
 
         layout.prop(netsettings, "slave_clear")
@@ -381,7 +381,8 @@ NetRenderSettings.StringProperty( attr="path",
                 name="Path",
                 description="Path for temporary files",
                 maxlen = 128,
-                default = default_path)
+                default = default_path,
+                subtype='FILE_PATH')
 
 NetRenderSettings.StringProperty( attr="job_name",
                 name="Job name",

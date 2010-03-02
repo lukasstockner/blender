@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -854,6 +854,8 @@ GHOST_TSuccess GHOST_WindowCocoa::setModifiedState(bool isUnsavedChanges)
 
 GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 {
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	
 	GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::setOrder(): window invalid")
     if (order == GHOST_kWindowOrderTop) {
 		[m_window makeKeyAndOrderFront:nil];
@@ -869,6 +871,8 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 			[[windowsList objectAtIndex:0] makeKeyAndOrderFront:nil];
 		}
     }
+	
+	[pool drain];
     return GHOST_kSuccess;
 }
 

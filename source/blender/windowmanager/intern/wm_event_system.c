@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
@@ -28,6 +28,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
@@ -50,6 +51,7 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
+#include "BKE_sound.h"
 
 #include "ED_fileselect.h"
 #include "ED_info.h"
@@ -1208,6 +1210,10 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 							if(G.f & G_DEBUG)
 								wm_operator_print(handler->op);
 						
+						if(wm->op_undo_depth == 0)
+							if(handler->op->type->flag & OPTYPE_UNDO)
+								ED_undo_push_op(C, handler->op);
+
 						if(handler->op->reports->list.first) {
 
 							/* FIXME, temp setting window, this is really bad!
@@ -1526,6 +1532,37 @@ void wm_event_do_handlers(bContext *C)
 		
 		if( win->screen==NULL )
 			wm_event_free_all(win);
+		else
+		{
+			Scene* scene = win->screen->scene;
+			if(scene)
+			{
+				int playing = sound_scene_playing(win->screen->scene);
+				if(playing != -1)
+				{
+					CTX_wm_window_set(C, win);
+					CTX_wm_screen_set(C, win->screen);
+					CTX_data_scene_set(C, scene);
+					if(((playing == 1) && (!win->screen->animtimer)) || ((playing == 0) && (win->screen->animtimer)))
+					{
+						ED_screen_animation_play(C, -1, 1);
+					}
+					if(playing == 0)
+					{
+						int ncfra = floor(sound_sync_scene(scene) * FPS);
+						if(ncfra != scene->r.cfra)
+						{
+							scene->r.cfra = ncfra;
+							ED_update_for_newframe(C, 1);
+							WM_event_add_notifier(C, NC_WINDOW, NULL);
+						}
+					}
+					CTX_data_scene_set(C, NULL);
+					CTX_wm_screen_set(C, NULL);
+					CTX_wm_window_set(C, NULL);
+				}
+			}
+		}
 		
 		while( (event= win->queue.first) ) {
 			int action = WM_HANDLER_CONTINUE;

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -791,34 +791,12 @@ static void recurs_del_seq_flag(Scene *scene, ListBase *lb, short flag, short de
 static Sequence *dupli_seq(struct Scene *scene, Sequence *seq)
 {
 	Sequence *seqn = MEM_dupallocN(seq);
-	// XXX animato: ID *id;
 
 	seq->tmp = seqn;
-		
 	seqn->strip= MEM_dupallocN(seq->strip);
 
-	// XXX animato
-#if 0
-	if (seqn->ipo) {
-		if (U.dupflag & USER_DUP_IPO) {
-			id= (ID *)seqn->ipo;
-			seqn->ipo= copy_ipo(seqn->ipo);
-			/* we don't need to decrease the number
-			 * of the ipo because we never increase it,
-			 * for example, adduplicate need decrease
-			 * the number but only because copy_object
-			 * call id_us_plus for the ipo block and
-			 * single_ipo_users only work if id->us > 1.
-			 *
-			 * need call ipo_idnew here, for drivers ??
-			 * - Diego
-			 */
-		}
-		else
-			seqn->ipo->id.us++;
-	}
-#endif
-
+	// XXX: add F-Curve duplication stuff?
+		
 	seqn->strip->tstripdata = 0;
 	seqn->strip->tstripdata_startstill = 0;
 	seqn->strip->tstripdata_endstill = 0;
@@ -884,7 +862,7 @@ static Sequence *dupli_seq(struct Scene *scene, Sequence *seq)
 						" now...\n");
 	}
 
-	seqUniqueName(scene->ed->seqbasep, seqn);
+	seqbase_unique_name_recursive(&scene->ed->seqbase, seqn);
 
 	return seqn;
 }
@@ -1385,7 +1363,7 @@ void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Snap strips";
 	ot->idname= "SEQUENCER_OT_snap";
-	ot->description="Frame where selected strips will be snapped.";
+	ot->description="Frame where selected strips will be snapped";
 	
 	/* api callbacks */
 	ot->invoke= sequencer_snap_invoke;
@@ -1436,7 +1414,7 @@ void SEQUENCER_OT_mute(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Mute Strips";
 	ot->idname= "SEQUENCER_OT_mute";
-	ot->description="Mute selected strips.";
+	ot->description="Mute selected strips";
 	
 	/* api callbacks */
 	ot->exec= sequencer_mute_exec;
@@ -1487,7 +1465,7 @@ void SEQUENCER_OT_unmute(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "UnMute Strips";
 	ot->idname= "SEQUENCER_OT_unmute";
-	ot->description="UnMute unselected rather than selected strips.";
+	ot->description="UnMute unselected rather than selected strips";
 	
 	/* api callbacks */
 	ot->exec= sequencer_unmute_exec;
@@ -1527,7 +1505,7 @@ void SEQUENCER_OT_lock(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Lock Strips";
 	ot->idname= "SEQUENCER_OT_lock";
-	ot->description="Lock the active strip so that it can't be transformed.";
+	ot->description="Lock the active strip so that it can't be transformed";
 	
 	/* api callbacks */
 	ot->exec= sequencer_lock_exec;
@@ -1564,7 +1542,7 @@ void SEQUENCER_OT_unlock(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "UnLock Strips";
 	ot->idname= "SEQUENCER_OT_unlock";
-	ot->description="Unlock the active strip so that it can't be transformed.";
+	ot->description="Unlock the active strip so that it can't be transformed";
 	
 	/* api callbacks */
 	ot->exec= sequencer_unlock_exec;
@@ -1601,7 +1579,7 @@ void SEQUENCER_OT_reload(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Reload Strips";
 	ot->idname= "SEQUENCER_OT_reload";
-	ot->description="Reload strips in the sequencer.";
+	ot->description="Reload strips in the sequencer";
 	
 	/* api callbacks */
 	ot->exec= sequencer_reload_exec;
@@ -1633,7 +1611,7 @@ void SEQUENCER_OT_refresh_all(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Refresh Sequencer";
 	ot->idname= "SEQUENCER_OT_refresh_all";
-	ot->description="Refresh the sequencer editor.";
+	ot->description="Refresh the sequencer editor";
 	
 	/* api callbacks */
 	ot->exec= sequencer_refresh_all_exec;
@@ -1729,7 +1707,7 @@ void SEQUENCER_OT_cut(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Cut Strips";
 	ot->idname= "SEQUENCER_OT_cut";
-	ot->description="Cut the selected strips.";
+	ot->description="Cut the selected strips";
 	
 	/* api callbacks */
 	ot->invoke= sequencer_cut_invoke;
@@ -1757,11 +1735,20 @@ static int sequencer_add_duplicate_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	recurs_dupli_seq(scene, ed->seqbasep, &new, TRUE);
-	addlisttolist(ed->seqbasep, &new);
 
-	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
+	if(new.first) {
+		Sequence * seq= new.first;
+		/* rely on the new list being added at the end */
+		addlisttolist(ed->seqbasep, &new);
 
-	return OPERATOR_FINISHED;
+		for( ; seq; seq= seq->next)
+			seqbase_unique_name_recursive(&ed->seqbase, seq);
+
+		WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
+		return OPERATOR_FINISHED;
+	}
+
+	return OPERATOR_CANCELLED;
 }
 
 static int sequencer_add_duplicate_invoke(bContext *C, wmOperator *op, wmEvent *event)
@@ -1780,7 +1767,7 @@ void SEQUENCER_OT_duplicate(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Duplicate";
 	ot->idname= "SEQUENCER_OT_duplicate";
-	ot->description="Duplicate the selected strips.";
+	ot->description="Duplicate the selected strips";
 	
 	/* api callbacks */
 	ot->invoke= sequencer_add_duplicate_invoke;
@@ -1862,7 +1849,7 @@ void SEQUENCER_OT_delete(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Erase Strips";
 	ot->idname= "SEQUENCER_OT_delete";
-	ot->description="Erase selected strips from the sequencer.";
+	ot->description="Erase selected strips from the sequencer";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_confirm;
@@ -1927,7 +1914,7 @@ static int sequencer_separate_images_exec(bContext *C, wmOperator *op)
 					shuffle_seq(ed->seqbasep, seq_new, scene);
 				}
 
-				seqUniqueName(scene->ed->seqbasep, seq_new);
+				seqbase_unique_name_recursive(&scene->ed->seqbase, seq_new);
 
 				cfra++;
 				start_ofs += step;
@@ -1954,7 +1941,7 @@ void SEQUENCER_OT_images_separate(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Separate Images";
 	ot->idname= "SEQUENCER_OT_images_separate";
-	ot->description="On image sequences strips, it return a strip for each image.";
+	ot->description="On image sequences strips, it return a strip for each image";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_props_popup;
@@ -2031,7 +2018,7 @@ void SEQUENCER_OT_meta_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Toggle Meta Strip";
 	ot->idname= "SEQUENCER_OT_meta_toggle";
-	ot->description="Toggle a metastrip (to edit enclosed strips).";
+	ot->description="Toggle a metastrip (to edit enclosed strips)";
 	
 	/* api callbacks */
 	ot->exec= sequencer_meta_toggle_exec;
@@ -2091,7 +2078,7 @@ static int sequencer_meta_make_exec(bContext *C, wmOperator *op)
 
 	seq_update_muting(scene, ed);
 
-	seqUniqueName(scene->ed->seqbasep, seqm);
+	seqbase_unique_name_recursive(&scene->ed->seqbase, seqm);
 
 	WM_event_add_notifier(C, NC_SCENE|ND_SEQUENCER, scene);
 
@@ -2103,7 +2090,7 @@ void SEQUENCER_OT_meta_make(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Make Meta Strip";
 	ot->idname= "SEQUENCER_OT_meta_make";
-	ot->description="Group selected strips into a metastrip.";
+	ot->description="Group selected strips into a metastrip";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_confirm;
@@ -2175,7 +2162,7 @@ void SEQUENCER_OT_meta_separate(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "UnMeta Strip";
 	ot->idname= "SEQUENCER_OT_meta_separate";
-	ot->description="Put the contents of a metastrip back in the sequencer.";
+	ot->description="Put the contents of a metastrip back in the sequencer";
 	
 	/* api callbacks */
 	ot->invoke= WM_operator_confirm;
@@ -2209,7 +2196,7 @@ void SEQUENCER_OT_view_all(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "View All";
 	ot->idname= "SEQUENCER_OT_view_all";
-	ot->description="View all the strips in the sequencer.";
+	ot->description="View all the strips in the sequencer";
 	
 	/* api callbacks */
 	ot->exec= sequencer_view_all_exec;
@@ -2276,7 +2263,7 @@ void SEQUENCER_OT_view_all_preview(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "View All";
 	ot->idname= "SEQUENCER_OT_view_all_preview";
-	ot->description="Zoom preview to fit in the area.";
+	ot->description="Zoom preview to fit in the area";
 	
 	/* api callbacks */
 	ot->exec= sequencer_view_all_preview_exec;
@@ -2313,7 +2300,7 @@ void SEQUENCER_OT_view_toggle(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "View Toggle";
 	ot->idname= "SEQUENCER_OT_view_toggle";
-	ot->description="Toggle between sequencer views (sequence, preview, both).";
+	ot->description="Toggle between sequencer views (sequence, preview, both)";
 	
 	/* api callbacks */
 	ot->exec= sequencer_view_toggle_exec;
@@ -2393,7 +2380,7 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "View Selected";
 	ot->idname= "SEQUENCER_OT_view_selected";
-	ot->description="Zoom the sequencer on the selected strips.";
+	ot->description="Zoom the sequencer on the selected strips";
 	
 	/* api callbacks */
 	ot->exec= sequencer_view_selected_exec;
@@ -2479,7 +2466,7 @@ void SEQUENCER_OT_next_edit(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Next Edit";
 	ot->idname= "SEQUENCER_OT_next_edit";
-	ot->description="Move frame to next edit point.";
+	ot->description="Move frame to next edit point";
 	
 	/* api callbacks */
 	ot->exec= sequencer_next_edit_exec;
@@ -2509,7 +2496,7 @@ void SEQUENCER_OT_previous_edit(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Previous Edit";
 	ot->idname= "SEQUENCER_OT_previous_edit";
-	ot->description="Move frame to previous edit point.";
+	ot->description="Move frame to previous edit point";
 	
 	/* api callbacks */
 	ot->exec= sequencer_previous_edit_exec;
@@ -2614,7 +2601,7 @@ void SEQUENCER_OT_swap(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Swap Strip";
 	ot->idname= "SEQUENCER_OT_swap";
-	ot->description="Swap active strip with strip to the left.";
+	ot->description="Swap active strip with strip to the left";
 	
 	/* api callbacks */
 	ot->exec= sequencer_swap_exec;
@@ -2664,7 +2651,7 @@ void SEQUENCER_OT_rendersize(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Render Size";
 	ot->idname= "SEQUENCER_OT_rendersize";
-	ot->description="Set render size and aspect from active sequence.";
+	ot->description="Set render size and aspect from active sequence";
 	
 	/* api callbacks */
 	ot->exec= sequencer_rendersize_exec;

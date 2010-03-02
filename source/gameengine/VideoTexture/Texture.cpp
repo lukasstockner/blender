@@ -186,11 +186,12 @@ int Texture_init (Texture *self, PyObject *args, PyObject *kwds)
 	// texture object with shared texture ID
 	Texture * texObj = NULL;
 
-	static char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", NULL};
+	static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", NULL};
 
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|hhO!", kwlist, &obj, &matID,
-		&texID, &TextureType, &texObj))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|hhO!",
+		const_cast<char**>(kwlist), &obj, &matID, &texID, &TextureType,
+		&texObj))
 		return -1; 
 
 	// if parameters are available
@@ -454,7 +455,7 @@ PyTypeObject TextureType =
 	0,                         /*tp_str*/
 	0,                         /*tp_getattro*/
 	0,                         /*tp_setattro*/
-	0,                         /*tp_as_buffer*/
+	&imageBufferProcs,         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Texture objects",       /* tp_doc */
 	0,		               /* tp_traverse */

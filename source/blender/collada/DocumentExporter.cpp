@@ -173,9 +173,9 @@ const unsigned char translate_map[256] = {
 static std::string translate_id(const std::string &id)
 {
 	std::string id_translated = id;
-	for (int i=0; i < id_translated.size(); i++)
+	for (unsigned int i=0; i < id_translated.size(); i++)
 	{
-		id_translated[i] = translate_map[id_translated[i]];
+		id_translated[i] = translate_map[(unsigned int)id_translated[i]];
 	}
 	return id_translated;
 }
@@ -471,7 +471,7 @@ public:
 		int num_layers = CustomData_number_of_layers(&me->fdata, CD_MTFACE);
 
 		for (i = 0; i < num_layers; i++) {
-			char *name = CustomData_get_layer_name(&me->fdata, CD_MTFACE, i);
+			// char *name = CustomData_get_layer_name(&me->fdata, CD_MTFACE, i);
 			COLLADASW::Input input3(COLLADASW::TEXCOORD,
 									makeUrl(makeTexcoordSourceId(geom_id, i)),
 									2, // offset always 2, this is only until we have optimized UV sets
@@ -582,7 +582,7 @@ public:
 		// each <source> will get id like meshName + "map-channel-1"
 		for (int a = 0; a < num_layers; a++) {
 			MTFace *tface = (MTFace*)CustomData_get_layer_n(&me->fdata, CD_MTFACE, a);
-			char *name = CustomData_get_layer_name(&me->fdata, CD_MTFACE, a);
+			// char *name = CustomData_get_layer_name(&me->fdata, CD_MTFACE, a);
 			
 			COLLADASW::FloatSourceF source(mSW);
 			std::string layer_id = makeTexcoordSourceId(geom_id, a);
@@ -650,7 +650,6 @@ public:
 		for (i = 0; i < me->totface; i++) {
 			MFace *fa = &me->mface[i];
 			Face f;
-			Normal n;
 			unsigned int *nn = &f.v1;
 			unsigned int *vv = &fa->v1;
 
@@ -658,10 +657,12 @@ public:
 			v = fa->v4 == 0 ? 3 : 4;
 
 			if (!(fa->flag & ME_SMOOTH)) {
+				Normal n;
 				if (v == 4)
 					normal_quad_v3(&n.x, vert[fa->v1].co, vert[fa->v2].co, vert[fa->v3].co, vert[fa->v4].co);
 				else
 					normal_tri_v3(&n.x, vert[fa->v1].co, vert[fa->v2].co, vert[fa->v3].co);
+				nor.push_back(n);
 			}
 
 			for (j = 0; j < v; j++) {
@@ -681,7 +682,6 @@ public:
 					vv++;
 				}
 				else {
-					nor.push_back(n);
 					*nn = nor.size() - 1;
 				}
 				nn++;
@@ -751,7 +751,7 @@ protected:
 		float rot[3], loc[3], scale[3];
 
 		if (ob->parent) {
-			float C[4][4], D[4][4], tmat[4][4], imat[4][4], mat[4][4];
+			float C[4][4], tmat[4][4], imat[4][4], mat[4][4];
 
 			// factor out scale from obmat
 
@@ -985,8 +985,6 @@ private:
 
 	void add_bone_transform(Object *ob_arm, Bone *bone, COLLADASW::Node& node)
 	{
-		bPose *pose = ob_arm->pose;
-
 		bPoseChannel *pchan = get_pose_channel(ob_arm->pose, bone->name);
 
 		float mat[4][4];
@@ -1067,11 +1065,10 @@ private:
 		COLLADASW::JointsElement joints(mSW);
 		COLLADASW::InputList &input = joints.getInputList();
 
-		int offset = 0;
 		input.push_back(COLLADASW::Input(COLLADASW::JOINT, // constant declared in COLLADASWInputList.h
-										 COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, joints_source_id)));
-        input.push_back(COLLADASW::Input(COLLADASW::BINDMATRIX,
-										 COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, inv_bind_mat_source_id)));
+								   COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, joints_source_id)));
+		input.push_back(COLLADASW::Input(COLLADASW::BINDMATRIX,
+								   COLLADASW::URI(COLLADABU::Utils::EMPTY_STRING, inv_bind_mat_source_id)));
 		joints.add();
 	}
 
@@ -1438,9 +1435,9 @@ public:
 				
 				BLI_split_dirfile_basic(mfilename, dir, NULL);
 
-				BKE_get_image_export_path(image, dir, abs, sizeof(abs), rel, sizeof(rel));
+				BKE_rebase_path(abs, sizeof(abs), rel, sizeof(rel), G.sce, image->name, dir);
 
-				if (strlen(abs)) {
+				if (abs[0] != '\0') {
 
 					// make absolute source path
 					BLI_strncpy(src, image->name, sizeof(src));
@@ -1964,7 +1961,7 @@ protected:
 				// write x, y, z curves separately if it is rotation
 				float *c = (float*)MEM_callocN(sizeof(float) * fra.size(), "temp. anim frames");
 				for (int i = 0; i < 3; i++) {
-					for (int j = 0; j < fra.size(); j++)
+					for (unsigned int j = 0; j < fra.size(); j++)
 						c[j] = v[j * 3 + i];
 
 					dae_bone_animation(fra, c, transform_type, i, id_name(ob_arm), bone->name);
@@ -2006,7 +2003,7 @@ protected:
 			float ctime = bsystem_time(scene, ob_arm, *it, 0.0f);
 
 			BKE_animsys_evaluate_animdata(&ob_arm->id, ob_arm->adt, *it, ADT_RECALC_ANIM);
-			where_is_pose_bone(scene, ob_arm, pchan, ctime);
+			where_is_pose_bone(scene, ob_arm, pchan, ctime, 1);
 
 			// compute bone local mat
 			if (bone->parent) {
@@ -2115,6 +2112,8 @@ protected:
 			return INTANGENT_SOURCE_ID_SUFFIX;
 		case Sampler::OUT_TANGENT:
 			return OUTTANGENT_SOURCE_ID_SUFFIX;
+		default:
+			break;
 		}
 		return "";
 	}
@@ -2146,6 +2145,8 @@ protected:
 			param.push_back("X");
 			param.push_back("Y");
 			break;
+		default:
+			break;
 		}
 	}
 
@@ -2170,6 +2171,9 @@ protected:
 			// XXX
 			*length = 2;
 			break;
+		default:
+			*length = 0;
+			break;
 		}
 	}
 
@@ -2193,9 +2197,9 @@ protected:
 
 		source.prepareToAppendValues();
 
-		for (int i = 0; i < fcu->totvert; i++) {
+		for (unsigned int i = 0; i < fcu->totvert; i++) {
 			float values[3]; // be careful!
-			int length;
+			int length = 0;
 
 			get_source_values(&fcu->bezt[i], semantic, is_rotation, values, &length);
 			for (int j = 0; j < length; j++)
@@ -2353,7 +2357,7 @@ protected:
 
 			char *name = extract_transform_name(fcu->rna_path);
 			if (!strcmp(name, tm_name)) {
-				for (int i = 0; i < fcu->totvert; i++) {
+				for (unsigned int i = 0; i < fcu->totvert; i++) {
 					float f = fcu->bezt[i].vec[1][0];
 					if (std::find(fra.begin(), fra.end(), f) == fra.end())
 						fra.push_back(f);

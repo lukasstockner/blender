@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -67,6 +67,7 @@
 #include "ED_screen.h"
 #include "ED_types.h"
 #include "ED_util.h"
+#include "ED_numinput.h"
 
 /* ************* Marker API **************** */
 
@@ -365,7 +366,7 @@ static void MARKER_OT_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Time Marker";
-	ot->description= "Add a new time marker.";
+	ot->description= "Add a new time marker";
 	ot->idname= "MARKER_OT_add";
 	
 	/* api callbacks */
@@ -407,6 +408,7 @@ typedef struct MarkerMove {
 	ListBase *markers;
 	int event_type;		/* store invoke-event, to verify */
 	int *oldframe, evtx, firstx;
+	NumInput num;
 } MarkerMove;
 
 /* copy selection to temp buffer */
@@ -430,6 +432,11 @@ static int ed_marker_move_init(bContext *C, wmOperator *op)
 	mm->slink= CTX_wm_space_data(C);
 	mm->markers= markers;
 	mm->oldframe= MEM_callocN(totmark*sizeof(int), "MarkerMove oldframe");
+
+	initNumInput(&mm->num);
+	mm->num.idx_max = 0; /* one axis */
+	mm->num.flag |= NUM_NO_FRACTION;
+	mm->num.increment = 1.0f;
 	
 	for (a=0, marker= markers->first; marker; marker= marker->next) {
 		if (marker->flag & SELECT) {
@@ -518,6 +525,8 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 			ed_marker_move_cancel(C, op);
 			return OPERATOR_CANCELLED;
 		
+		case RETKEY:
+		case PADENTER:
 		case LEFTMOUSE:
 		case MIDDLEMOUSE:
 		case RIGHTMOUSE:
@@ -529,6 +538,9 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 			
 			break;
 		case MOUSEMOVE:
+			if(hasNumInput(&mm->num))
+				break;
+
 			dx= v2d->mask.xmax-v2d->mask.xmin;
 			dx= (v2d->cur.xmax-v2d->cur.xmin)/dx;
 			
@@ -602,6 +614,26 @@ static int ed_marker_move_modal(bContext *C, wmOperator *op, wmEvent *evt)
 			}
 	}
 
+	if(evt->val==KM_PRESS) {
+		float vec[3];
+		char str_tx[256];
+
+		if (handleNumInput(&mm->num, evt))
+		{
+			applyNumInput(&mm->num, vec);
+			outputNumInput(&mm->num, str_tx);
+
+			RNA_int_set(op->ptr, "frames", vec[0]);
+			ed_marker_move_apply(C, op);
+			// ed_marker_header_update(C, op, str, (int)vec[0]);
+			// strcat(str, str_tx);
+			sprintf(str, "Marker offset %s", str_tx);
+			ED_area_headerprint(CTX_wm_area(C), str);
+
+			WM_event_add_notifier(C, NC_SCENE|ND_MARKERS, NULL);
+		}
+	}
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -619,7 +651,7 @@ static void MARKER_OT_move(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Move Time Marker";
-	ot->description= "Move selected time marker(s).";
+	ot->description= "Move selected time marker(s)";
 	ot->idname= "MARKER_OT_move";
 	
 	/* api callbacks */
@@ -707,7 +739,7 @@ static void MARKER_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Duplicate Time Marker";
-	ot->description= "Duplicate selected time marker(s).";
+	ot->description= "Duplicate selected time marker(s)";
 	ot->idname= "MARKER_OT_duplicate";
 	
 	/* api callbacks */
@@ -784,7 +816,7 @@ static void MARKER_OT_select(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Select Time Marker";
-	ot->description= "Select time marker(s).";
+	ot->description= "Select time marker(s)";
 	ot->idname= "MARKER_OT_select";
 	
 	/* api callbacks */
@@ -865,7 +897,7 @@ static void MARKER_OT_select_border(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Marker Border select";
-	ot->description= "Select all time markers using border selection.";
+	ot->description= "Select all time markers using border selection";
 	ot->idname= "MARKER_OT_select_border";
 	
 	/* api callbacks */
@@ -930,7 +962,7 @@ static void MARKER_OT_select_all(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "(De)select all markers";
-	ot->description= "Change selection of all time markers.";
+	ot->description= "Change selection of all time markers";
 	ot->idname= "MARKER_OT_select_all";
 	
 	/* api callbacks */
@@ -975,7 +1007,7 @@ static void MARKER_OT_delete(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Delete Markers";
-	ot->description= "Delete selected time marker(s).";
+	ot->description= "Delete selected time marker(s)";
 	ot->idname= "MARKER_OT_delete";
 	
 	/* api callbacks */
@@ -1021,7 +1053,7 @@ static void MARKER_OT_make_links_scene(wmOperatorType *ot)
 
 	/* identifiers */
 	ot->name= "Make Links to Scene";
-	ot->description= "Link markers to another scene.";
+	ot->description= "Link markers to another scene";
 	ot->idname= "MARKER_OT_make_links_scene";
 
 	/* api callbacks */
@@ -1067,7 +1099,7 @@ static void MARKER_OT_camera_bind(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Bind Camera to Markers";
-	ot->description= "Bind the active camera to selected markers(s).";
+	ot->description= "Bind the active camera to selected markers(s)";
 	ot->idname= "MARKER_OT_camera_bind";
 
 	/* api callbacks */

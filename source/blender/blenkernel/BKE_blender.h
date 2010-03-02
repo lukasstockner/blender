@@ -19,7 +19,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -41,7 +41,9 @@ struct ListBase;
 struct MemFile;
 struct bContext;
 struct ReportList;
-
+struct Scene;
+struct Main;
+	
 #define BLENDER_VERSION			251
 #define BLENDER_SUBVERSION		1
 
@@ -70,6 +72,7 @@ extern void BKE_reset_undo(void);
 extern char *BKE_undo_menu_string(void);
 extern void BKE_undo_number(struct bContext *C, int nr);
 extern void BKE_undo_save_quit(void);
+extern struct Main *BKE_undo_get_main(struct Scene **scene);
 
 #ifdef __cplusplus
 }

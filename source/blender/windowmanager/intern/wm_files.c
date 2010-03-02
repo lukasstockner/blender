@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -236,11 +236,15 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 }
 
 /* in case UserDef was read, we re-initialize all, and do versioning */
-static void wm_init_userdef()
+static void wm_init_userdef(bContext *C)
 {
 	UI_init_userdef();
 	MEM_CacheLimiter_set_maximum(U.memcachelimit * 1024 * 1024);
-	sound_init();
+	sound_init(CTX_data_main(C));
+
+	/* set the python auto-execute setting from user prefs */
+	if (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE)	G.f &= ~G_SCRIPT_AUTOEXEC;
+	else										G.f |=  G_SCRIPT_AUTOEXEC;
 }
 
 void WM_read_file(bContext *C, char *name, ReportList *reports)
@@ -269,7 +273,7 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 		
 // XXX		mainwindow_set_filename_to_title(G.main->name);
 
-		if(retval==2) wm_init_userdef();	// in case a userdef is read from regular .blend
+		if(retval==2) wm_init_userdef(C);	// in case a userdef is read from regular .blend
 		
 		if (retval!=0) {
 			G.relbase_valid = 1;
@@ -338,7 +342,7 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 
 	strcpy(G.sce, scestr); /* restore */
 	
-	wm_init_userdef();
+	wm_init_userdef(C);
 	
 	/* When loading factory settings, the reset solid OpenGL lights need to be applied. */
 	if (!G.background) GPU_default_lights();

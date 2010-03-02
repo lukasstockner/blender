@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -162,7 +162,11 @@ def autocomplete(context):
             line=current_line.line,
             cursor=current_line.current_character,
             namespace=console.locals,
-            private='-d' in sys.argv)
+            private=bpy.app.debug)
+
+    # Separate automplete output by command prompts
+    if scrollback != '':
+        bpy.ops.console.scrollback_append(text=sc.prompt + current_line.line, type='INPUT')
 
     # Now we need to copy back the line from blender back into the
     # text editor. This will change when we dont use the text editor
@@ -186,8 +190,9 @@ def banner(context):
     add_scrollback("Execute:          Enter", 'OUTPUT')
     add_scrollback("Autocomplete:     Ctrl+Space", 'OUTPUT')
     add_scrollback("Ctrl +/-  Wheel:  Zoom", 'OUTPUT')
-    add_scrollback("Builtin Modules: bpy, bpy.data, bpy.ops, bpy.props, bpy.types, bpy.context, Mathutils, Geometry, BGL", 'OUTPUT')
+    add_scrollback("Builtin Modules: bpy, bpy.data, bpy.ops, bpy.props, bpy.types, bpy.context, bgl, blf, Mathutils, Geometry", 'OUTPUT')
     add_scrollback("", 'OUTPUT')
+    add_scrollback("  WARNING!!! Blender 2.5 API is subject to change, see API reference for more info.", 'ERROR')
     add_scrollback("", 'OUTPUT')
     sc.prompt = PROMPT
 
@@ -196,3 +201,15 @@ def banner(context):
     console.locals["C"] = bpy.context
 
     return {'FINISHED'}
+
+
+def register():
+    pass
+
+
+def unregister():
+    pass
+
+
+if __name__ == "__main__":
+    register()

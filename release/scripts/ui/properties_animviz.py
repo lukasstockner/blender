@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -29,6 +29,7 @@ class MotionPathButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_label = "Motion Paths"
+    bl_default_closed = True
 
     def draw_settings(self, context, avs, wide_ui, bones=False):
         layout = self.layout
@@ -68,6 +69,7 @@ class OnionSkinButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_label = "Onion Skinning"
+    bl_default_closed = True
 
     def draw(self, context):
         layout = self.layout
@@ -101,7 +103,6 @@ class OnionSkinButtonsPanel(bpy.types.Panel):
 ################################################
 # Specific Panels for DataTypes
 
-
 class OBJECT_PT_motion_paths(MotionPathButtonsPanel):
     #bl_label = "Object Motion Paths"
     bl_context = "object"
@@ -128,9 +129,23 @@ class OBJECT_PT_motion_paths(MotionPathButtonsPanel):
             col = split.column()
         col.operator("object.paths_clear", text="Clear Paths")
 
+class OBJECT_PT_onion_skinning(OnionSkinButtonsPanel):
+    #bl_label = "Object Onion Skinning"
+    bl_context = "object"
+
+    def poll(self, context):
+        return (context.object)
+        
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        wide_ui = context.region.width > narrowui
+
+        self.draw_settings(context, ob.animation_visualisation, wide_ui)
 
 class DATA_PT_motion_paths(MotionPathButtonsPanel):
-    #bl_label = "Bone Motion Paths"
+    #bl_label = "Bones Motion Paths"
     bl_context = "data"
 
     def poll(self, context):
@@ -156,9 +171,43 @@ class DATA_PT_motion_paths(MotionPathButtonsPanel):
             col = split.column()
         col.operator("pose.paths_clear", text="Clear Paths")
 
+class DATA_PT_onion_skinning(OnionSkinButtonsPanel):
+    #bl_label = "Bones Onion Skinning"
+    bl_context = "data"
+
+    def poll(self, context):
+        # XXX: include posemode check?
+        return (context.object) and (context.armature)
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        wide_ui = context.region.width > narrowui
+
+        self.draw_settings(context, ob.pose.animation_visualisation, wide_ui, bones=True)
+
+# NOTE: 
+# The specialised panel types defined here (i.e. OBJECT_PT_*, etc.)
+# aren't registered here, but are rather imported to (and registered)
+# in the files defining the contexts where they reside. Otherwise,
+# these panels appear at the top of the lists by default.
+#
+# However, we keep these empty register funcs here just in case
+# something will need them again one day, and also to make 
+# it easier to maintain these scripts.
+classes = []
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
 
 
-#bpy.types.register(OBJECT_PT_onion_skinning)
-#bpy.types.register(DATA_PT_onion_skinning)
-bpy.types.register(OBJECT_PT_motion_paths)
-bpy.types.register(DATA_PT_motion_paths)
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

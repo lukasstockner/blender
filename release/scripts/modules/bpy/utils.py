@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -27,8 +27,76 @@ import bpy as _bpy
 import os as _os
 import sys as _sys
 
+from _bpy import home_paths
+
+
+def _test_import(module_name, loaded_modules):
+    import traceback
+    import time
+    if module_name in loaded_modules:
+        return None
+    if "." in module_name:
+        print("Ignoring '%s', can't import files containing multiple periods." % module_name)
+        return None
+
+    t = time.time()
+    try:
+        mod = __import__(module_name)
+    except:
+        traceback.print_exc()
+        return None
+
+    if _bpy.app.debug:
+        print("time %s %.4f" % (module_name, time.time() - t))
+
+    loaded_modules.add(mod.__name__) # should match mod.__name__ too
+    return mod
+
+
+def modules_from_path(path, loaded_modules):
+    """
+    Load all modules in a path and return them as a list.
+
+    :arg path: this path is scanned for scripts and packages.
+    :type path: string
+    :arg loaded_modules: alredy loaded module names, files matching these names will be ignored.
+    :type loaded_modules: set
+    :return: all loaded modules.
+    :rtype: list
+    """
+    import traceback
+    import time
+
+    modules = []
+
+    for f in sorted(_os.listdir(path)):
+        if f.endswith(".py"):
+            # python module
+            mod = _test_import(f[0:-3], loaded_modules)
+        elif ("." not in f) and (_os.path.isfile(_os.path.join(path, f, "__init__.py"))):
+            # python package
+            mod = _test_import(f, loaded_modules)
+        else:
+            mod = None
+
+        if mod:
+            modules.append(mod)
+
+    return modules
+
+_loaded = [] # store loaded modules for reloading.
+_bpy_types = __import__("bpy_types") # keep for comparisons, never ever reload this.
+
 
 def load_scripts(reload_scripts=False, refresh_scripts=False):
+    """
+    Load scripts and run each modules register function.
+
+    :arg reload_scripts: Causes all scripts to have their unregister method called before loading.
+    :type reload_scripts: bool
+    :arg refresh_scripts: only load scripts which are not already loaded as modules.
+    :type refresh_scripts: bool
+    """
     import traceback
     import time
 
@@ -36,28 +104,44 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
 
     loaded_modules = set()
 
-    def test_import(module_name):
-        if module_name in loaded_modules:
-            return None
-        if "." in module_name:
-            print("Ignoring '%s', can't import files containing multiple periods." % module_name)
-            return None
+    if refresh_scripts:
+        original_modules = _sys.modules.values()
+
+    def sys_path_ensure(path):
+        if path not in _sys.path: # reloading would add twice
+            _sys.path.insert(0, path)
+
+    def test_reload(mod):
+        # reloading this causes internal errors
+        # because the classes from this module are stored internally
+        # possibly to refresh internal references too but for now, best not to.
+        if mod == _bpy_types:
+            return mod
 
         try:
-            t = time.time()
-            ret = __import__(module_name)
-            if _bpy.app.debug:
-                print("time %s %.4f" % (module_name, time.time() - t))
-            return ret
+            return reload(mod)
         except:
             traceback.print_exc()
-            return None
 
-    def test_reload(module):
-        try:
-            reload(module)
-        except:
-            traceback.print_exc()
+    def test_register(mod):
+
+        if refresh_scripts and mod in original_modules:
+            return
+
+        if reload_scripts and mod:
+            print("Reloading:", mod)
+            mod = test_reload(mod)
+
+        if mod:
+            register = getattr(mod, "register", None)
+            if register:
+                try:
+                    register()
+                except:
+                    traceback.print_exc()
+            else:
+                print("\nWarning! '%s' has no register function, this is now a requirement for registerable scripts." % mod.__file__)
+            _loaded.append(mod)
 
     if reload_scripts:
         # reload modules that may not be directly included
@@ -68,35 +152,54 @@ def load_scripts(reload_scripts=False, refresh_scripts=False):
             if module_name and module_name != "bpy.types": # hard coded for C types
                 loaded_modules.add(module_name)
 
-        for module_name in loaded_modules:
+        # sorting isnt needed but rather it be pradictable
+        for module_name in sorted(loaded_modules):
             print("Reloading:", module_name)
             test_reload(_sys.modules[module_name])
 
-    for base_path in script_paths():
-        for path_subdir in ("", "ui", "op", "io", "cfg"):
+        # loop over and unload all scripts
+        _loaded.reverse()
+        for mod in _loaded:
+            unregister = getattr(mod, "unregister", None)
+            if unregister:
+                try:
+                    unregister()
+                except:
+                    traceback.print_exc()
+        _loaded[:] = []
+
+    for base_path in script_paths(user=False):
+        for path_subdir in ("ui", "op", "io", "cfg"):
             path = _os.path.join(base_path, path_subdir)
             if _os.path.isdir(path):
+                sys_path_ensure(path)
 
-                # needed to load scripts after the users script path changes
-                # we should also support a full reload but since this is now unstable it can be postponed.
-                if refresh_scripts and path in _sys.path:
-                    continue
+                for mod in modules_from_path(path, loaded_modules):
+                    test_register(mod)
 
-                if path not in _sys.path: # reloading would add twice
-                    _sys.path.insert(0, path)
-                for f in sorted(_os.listdir(path)):
-                    if f.endswith(".py"):
-                        # python module
-                        mod = test_import(f[0:-3])
-                    elif ("." not in f) and (_os.path.isfile(_os.path.join(path, f, "__init__.py"))):
-                        # python package
-                        mod = test_import(f)
-                    else:
-                        mod = None
+    user_path = user_script_path()
+    if user_path:
+        for path_subdir in ("", "ui", "op", "io", "cfg"):
+            path = _os.path.join(user_path, path_subdir)
+            if _os.path.isdir(path):
+                sys_path_ensure(path)
 
-                    if reload_scripts and mod:
-                        print("Reloading:", mod)
-                        test_reload(mod)
+                for mod in modules_from_path(path, loaded_modules):
+                    test_register(mod)
+
+    # load addons
+    used_ext = {ext.module for ext in _bpy.context.user_preferences.addons}
+    paths = script_paths("addons")
+    for path in paths:
+        sys_path_ensure(path)
+
+    for module_name in sorted(used_ext):
+        mod = _test_import(module_name, loaded_modules)
+        test_register(mod)
+
+    if reload_scripts:
+        import gc
+        print("gc.collect() -> %d" % gc.collect())
 
     if _bpy.app.debug:
         print("Time %.4f" % (time.time() - t_main))
@@ -130,7 +233,7 @@ def clean_name(name, replace="_"):
     """
     Returns a name with characters replaced that may cause problems under various circumstances, such as writing to a file.
     All characters besides A-Z/a-z, 0-9 are replaced with "_"
-    or the replace argumet if defined.
+    or the replace argument if defined.
     """
     for ch in _unclean_chars:
         name = name.replace(ch, replace)
@@ -161,7 +264,17 @@ _scripts = _os.path.join(_os.path.dirname(__file__), _os.path.pardir, _os.path.p
 _scripts = (_os.path.normpath(_scripts), )
 
 
-def script_paths(*args):
+def user_script_path():
+    path = _bpy.context.user_preferences.filepaths.python_scripts_directory
+
+    if path:
+        path = _os.path.normpath(path)
+        return path
+    else:
+        return None
+
+
+def script_paths(subdir=None, user=True):
     """
     Returns a list of valid script paths from the home directory and user preferences.
 
@@ -170,21 +283,20 @@ def script_paths(*args):
     scripts = list(_scripts)
 
     # add user scripts dir
-    user_script_path = _bpy.context.user_preferences.filepaths.python_scripts_directory
+    if user:
+        user_script_path = _bpy.context.user_preferences.filepaths.python_scripts_directory
+    else:
+        user_script_path = None
 
-    if not user_script_path:
-        # XXX - WIN32 needs checking, perhaps better call a blender internal function.
-        user_script_path = _os.path.join(_os.path.expanduser("~"), ".blender", "scripts")
+    for path in home_paths("scripts") + (user_script_path, ):
+        if path:
+            path = _os.path.normpath(path)
+            if path not in scripts and _os.path.isdir(path):
+                scripts.append(path)
 
-    user_script_path = _os.path.normpath(user_script_path)
-
-    if user_script_path not in scripts and _os.path.isdir(user_script_path):
-        scripts.append(user_script_path)
-
-    if not args:
+    if not subdir:
         return scripts
 
-    subdir = _os.path.join(*args)
     script_paths = []
     for path in scripts:
         path_subdir = _os.path.join(path, subdir)

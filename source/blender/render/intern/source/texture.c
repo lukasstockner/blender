@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -843,8 +843,8 @@ static int tex_nodes_sample(RenderParams *rpm, Tex *tex, float *texvec, float *d
 	bNodeTree *nodes = tex->nodetree;
 	int retval = TEX_INT;
 
-	ntreeTexExecTree(nodes, texres, texvec, (osatex)? dxt: NULL, (osatex)? dyt: NULL,
-		thread, tex, which_output, rpm->r.cfra, (rpm->r.scemode & R_TEXNODE_PREVIEW) != 0);
+	retval = ntreeTexExecTree(nodes, texres, texvec, (osatex)? dxt: NULL, (osatex)? dyt: NULL, osatex,
+		thread, tex, which_output, rpm->r.cfra, (rpm->r.scemode & R_TEXNODE_PREVIEW) != 0, NULL, NULL);
 
 	if(texres->nor) retval |= TEX_NOR;
 	retval |= TEX_RGB;

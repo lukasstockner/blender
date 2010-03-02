@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -542,6 +542,7 @@ static void write_userdef(WriteData *wd)
 	bTheme *btheme;
 	wmKeyMap *keymap;
 	wmKeyMapItem *kmi;
+	bAddon *bext;
 
 	writestruct(wd, USER, "UserDef", 1, &U);
 
@@ -558,6 +559,9 @@ static void write_userdef(WriteData *wd)
 				IDP_WriteProperty(kmi->properties, wd);
 		}
 	}
+
+	for(bext= U.addons.first; bext; bext=bext->next)
+		writestruct(wd, DATA, "bAddon", 1, bext);
 }
 
 static void write_boid_state(WriteData *wd, BoidState *state)
@@ -2076,6 +2080,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 						write_curvemapping(wd, sima->cumap);
 				}
 				else if(sl->spacetype==SPACE_IMASEL) {
+					// XXX: depreceated... do we still want to keep this?
 					writestruct(wd, DATA, "SpaceImaSel", 1, sl);
 				}
 				else if(sl->spacetype==SPACE_TEXT) {

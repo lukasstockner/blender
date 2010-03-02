@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -250,9 +250,9 @@ static void set_constraint_nth_target (bConstraint *con, Object *target, char su
 /* ------------- Constraint Sanity Testing ------------------- */
 
 /* checks validity of object pointers, and NULLs,
- * if Bone doesnt exist it sets the CONSTRAINT_DISABLE flag 
+ * if Bone doesnt exist it sets the CONSTRAINT_DISABLE flag.
  */
-static void test_constraints (Object *owner, const char substring[])
+static void test_constraints (Object *owner, bPoseChannel *pchan)
 {
 	bConstraint *curcon;
 	ListBase *conlist= NULL;
@@ -261,7 +261,7 @@ static void test_constraints (Object *owner, const char substring[])
 	if (owner==NULL) return;
 	
 	/* Check parents */
-	if (strlen(substring)) {
+	if (pchan) {
 		switch (owner->type) {
 			case OB_ARMATURE:
 				type = CONSTRAINT_OBTYPE_BONE;
@@ -280,16 +280,7 @@ static void test_constraints (Object *owner, const char substring[])
 			conlist = &owner->constraints;
 			break;
 		case CONSTRAINT_OBTYPE_BONE:
-			{
-				Bone *bone;
-				bPoseChannel *chan;
-				
-				bone = get_named_bone( ((bArmature *)owner->data), substring );
-				chan = get_pose_channel(owner->pose, substring);
-				if (bone && chan) {
-					conlist = &chan->constraints;
-				}
-			}
+			conlist = &pchan->constraints;
 			break;
 	}
 	
@@ -431,25 +422,17 @@ static void test_constraints (Object *owner, const char substring[])
 	}
 }
 
-static void test_bonelist_constraints (Object *owner, ListBase *list)
-{
-	Bone *bone;
-
-	for (bone = list->first; bone; bone = bone->next) {
-		test_constraints(owner, bone->name);
-		test_bonelist_constraints(owner, &bone->childbase);
-	}
-}
-
 void object_test_constraints (Object *owner)
 {
-	test_constraints(owner, "");
+	if(owner->constraints.first)
+		test_constraints(owner, NULL);
 
-	if (owner->type==OB_ARMATURE) {
-		bArmature *arm= get_armature(owner);
-		
-		if (arm)
-			test_bonelist_constraints(owner, &arm->bonebase);
+	if (owner->type==OB_ARMATURE && owner->pose) {
+		bPoseChannel *pchan;
+
+		for (pchan= owner->pose->chanbase.first; pchan; pchan= pchan->next)
+			if(pchan->constraints.first)
+				test_constraints(owner, pchan);
 	}
 }
 
@@ -480,7 +463,7 @@ void CONSTRAINT_OT_stretchto_reset (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Reset Original Length";
 	ot->idname= "CONSTRAINT_OT_stretchto_reset";
-	ot->description= "Reset original length of bone for Stretch To Constraint.";
+	ot->description= "Reset original length of bone for Stretch To Constraint";
 	
 	ot->exec= stretchto_reset_exec;
 	ot->poll= stretchto_poll;
@@ -512,7 +495,7 @@ void CONSTRAINT_OT_limitdistance_reset (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Reset Distance";
 	ot->idname= "CONSTRAINT_OT_limitdistance_reset";
-	ot->description= "Reset limiting distance for Limit Distance Constraint.";
+	ot->description= "Reset limiting distance for Limit Distance Constraint";
 	
 	ot->exec= limitdistance_reset_exec;
 	ot->poll= limitdistance_poll;
@@ -592,7 +575,7 @@ void CONSTRAINT_OT_childof_set_inverse (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Inverse";
 	ot->idname= "CONSTRAINT_OT_childof_set_inverse";
-	ot->description= "Set inverse correction for ChildOf constraint.";
+	ot->description= "Set inverse correction for ChildOf constraint";
 	
 	ot->exec= childof_set_inverse_exec;
 	ot->poll= childof_poll;
@@ -622,7 +605,7 @@ void CONSTRAINT_OT_childof_clear_inverse (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Clear Inverse";
 	ot->idname= "CONSTRAINT_OT_childof_clear_inverse";
-	ot->description= "Clear inverse correction for ChildOf constraint.";
+	ot->description= "Clear inverse correction for ChildOf constraint";
 	
 	ot->exec= childof_clear_inverse_exec;
 	ot->poll= childof_poll;
@@ -698,7 +681,7 @@ void CONSTRAINT_OT_delete (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Delete Constraint";
 	ot->idname= "CONSTRAINT_OT_delete";
-	ot->description= "Remove constraitn from constraint stack.";
+	ot->description= "Remove constraitn from constraint stack";
 	
 	/* callbacks */
 	ot->exec= constraint_delete_exec;
@@ -735,7 +718,7 @@ void CONSTRAINT_OT_move_down (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Move Constraint Down";
 	ot->idname= "CONSTRAINT_OT_move_down";
-	ot->description= "Move constraint down constraint stack.";
+	ot->description= "Move constraint down constraint stack";
 	
 	/* callbacks */
 	ot->exec= constraint_move_down_exec;
@@ -773,7 +756,7 @@ void CONSTRAINT_OT_move_up (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Move Constraint Up";
 	ot->idname= "CONSTRAINT_OT_move_up";
-	ot->description= "Move constraint up constraint stack.";
+	ot->description= "Move constraint up constraint stack";
 	
 	/* callbacks */
 	ot->exec= constraint_move_up_exec;
@@ -815,7 +798,7 @@ void POSE_OT_constraints_clear(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Clear Constraints";
 	ot->idname= "POSE_OT_constraints_clear";
-	ot->description= "Clear all the constraints for the selected bones.";
+	ot->description= "Clear all the constraints for the selected bones";
 	
 	/* callbacks */
 	ot->exec= pose_constraints_clear_exec;
@@ -847,7 +830,7 @@ void OBJECT_OT_constraints_clear(wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Clear Constraints";
 	ot->idname= "OBJECT_OT_constraints_clear";
-	ot->description= "Clear all the constraints for the active Object only.";
+	ot->description= "Clear all the constraints for the active Object only";
 	
 	/* callbacks */
 	ot->exec= object_constraints_clear_exec;
@@ -1172,7 +1155,7 @@ void OBJECT_OT_constraint_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Constraint";
-	ot->description = "Add a constraint to the active object.";
+	ot->description = "Add a constraint to the active object";
 	ot->idname= "OBJECT_OT_constraint_add";
 	
 	/* api callbacks */
@@ -1191,7 +1174,7 @@ void OBJECT_OT_constraint_add_with_targets(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Constraint (with Targets)";
-	ot->description = "Add a constraint to the active object, with target (where applicable) set to the selected Objects/Bones.";
+	ot->description = "Add a constraint to the active object, with target (where applicable) set to the selected Objects/Bones";
 	ot->idname= "OBJECT_OT_constraint_add_with_targets";
 	
 	/* api callbacks */
@@ -1210,7 +1193,7 @@ void POSE_OT_constraint_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Constraint";
-	ot->description = "Add a constraint to the active bone.";
+	ot->description = "Add a constraint to the active bone";
 	ot->idname= "POSE_OT_constraint_add";
 	
 	/* api callbacks */
@@ -1229,7 +1212,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Constraint (with Targets)";
-	ot->description = "Add a constraint to the active bone, with target (where applicable) set to the selected Objects/Bones.";
+	ot->description = "Add a constraint to the active bone, with target (where applicable) set to the selected Objects/Bones";
 	ot->idname= "POSE_OT_constraint_add_with_targets";
 	
 	/* api callbacks */
@@ -1315,7 +1298,7 @@ void POSE_OT_ik_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add IK to Bone";
-	ot->description= "Add IK Constraint to the active Bone.";
+	ot->description= "Add IK Constraint to the active Bone";
 	ot->idname= "POSE_OT_ik_add";
 	
 	/* api callbacks */
@@ -1366,7 +1349,7 @@ void POSE_OT_ik_clear(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Remove IK";
-	ot->description= "Remove all IK Constraints from selected bones.";
+	ot->description= "Remove all IK Constraints from selected bones";
 	ot->idname= "POSE_OT_ik_clear";
 	
 	/* api callbacks */

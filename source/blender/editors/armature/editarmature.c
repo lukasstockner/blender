@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -637,15 +637,73 @@ static int apply_armature_pose2bones_exec (bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-void POSE_OT_apply (wmOperatorType *ot)
+void POSE_OT_armature_apply (wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Apply Pose as Rest Pose";
-	ot->idname= "POSE_OT_apply";
-	ot->description= "Apply the current pose as the new rest pose.";
+	ot->idname= "POSE_OT_armature_apply";
+	ot->description= "Apply the current pose as the new rest pose";
 	
 	/* callbacks */
 	ot->exec= apply_armature_pose2bones_exec;
+	ot->poll= ED_operator_posemode;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+
+/* set the current pose as the restpose */
+static int pose_visual_transform_apply_exec (bContext *C, wmOperator *op)
+{
+	Scene *scene= CTX_data_scene(C);
+	Object *ob= CTX_data_active_object(C); // must be active object, not edit-object
+
+	/* don't check if editmode (should be done by caller) */
+	if (ob->type!=OB_ARMATURE)
+		return OPERATOR_CANCELLED;
+
+	/* loop over all selected pchans
+	 *
+	 * TODO, loop over children before parents if multiple bones
+	 * at once are to be predictable*/
+	CTX_DATA_BEGIN(C, bPoseChannel *, pchan, selected_pose_bones)
+	{
+		float delta_mat[4][4], imat[4][4], mat[4][4];
+
+		where_is_pose_bone(scene, ob, pchan, CFRA, 1);
+
+		copy_m4_m4(mat, pchan->pose_mat);
+
+		/* calculate pchan->pose_mat without loc/size/rot & constraints applied */
+		where_is_pose_bone(scene, ob, pchan, CFRA, 0);
+		invert_m4_m4(imat, pchan->pose_mat);
+		mul_m4_m4m4(delta_mat, mat, imat);
+
+		pchan_apply_mat4(pchan, delta_mat);
+
+		where_is_pose_bone(scene, ob, pchan, CFRA, 1);
+	}
+	CTX_DATA_END;
+
+	// ob->pose->flag |= (POSE_LOCKED|POSE_DO_UNLOCK);
+	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+
+	/* note, notifier might evolve */
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+void POSE_OT_visual_transform_apply (wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Apply Visual Transform to Pose";
+	ot->idname= "POSE_OT_visual_transform_apply";
+	ot->description= "Apply final constrained position of pose bones to their transform.";
+	
+	/* callbacks */
+	ot->exec= pose_visual_transform_apply_exec;
 	ot->poll= ED_operator_posemode;
 	
 	/* flags */
@@ -1142,7 +1200,7 @@ void ARMATURE_OT_separate (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Separate Bones";
 	ot->idname= "ARMATURE_OT_separate";
-	ot->description= "Isolate selected bones into a separate armature.";
+	ot->description= "Isolate selected bones into a separate armature";
 	
 	/* callbacks */
 	ot->invoke= WM_operator_confirm;
@@ -1374,7 +1432,7 @@ void ARMATURE_OT_flags_set (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Bone Flags";
 	ot->idname= "ARMATURE_OT_flags_set";
-	ot->description= "Set flags for armature bones.";
+	ot->description= "Set flags for armature bones";
 	
 	/* callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -1394,7 +1452,7 @@ void POSE_OT_flags_set (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Set Bone Flags";
 	ot->idname= "POSE_OT_flags_set";
-	ot->description= "Set flags for armature bones.";
+	ot->description= "Set flags for armature bones";
 	
 	/* callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -3012,6 +3070,9 @@ static int armature_fill_bones_exec (bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
+	/* updates */
+	WM_event_add_notifier(C, NC_OBJECT|ND_POSE, obedit);
+	
 	/* free points */
 	BLI_freelistN(&points);
 	
@@ -3023,7 +3084,7 @@ void ARMATURE_OT_fill (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Fill Between Joints";
 	ot->idname= "ARMATURE_OT_fill";
-	ot->description= "Add bone between selected joint(s) and/or 3D-Cursor.";
+	ot->description= "Add bone between selected joint(s) and/or 3D-Cursor";
 	
 	/* callbacks */
 	ot->exec= armature_fill_bones_exec;
@@ -3191,7 +3252,7 @@ void ARMATURE_OT_merge (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Merge Bones";
 	ot->idname= "ARMATURE_OT_merge";
-	ot->description= "Merge continuous chains of selected bones.";
+	ot->description= "Merge continuous chains of selected bones";
 	
 	/* callbacks */
 	ot->invoke= WM_menu_invoke;
@@ -4279,7 +4340,7 @@ void ARMATURE_OT_align(wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Align Bones";
 	ot->idname= "ARMATURE_OT_align";
-	ot->description= "Align selected bones to the active bone (or to their parent).";
+	ot->description= "Align selected bones to the active bone (or to their parent)";
 	
 	/* api callbacks */
 	ot->invoke = WM_operator_confirm;
@@ -5508,7 +5569,7 @@ void ARMATURE_OT_flip_names (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "Flip Names";
 	ot->idname= "ARMATURE_OT_flip_names";
-	ot->description= "Flips (and corrects) the names of selected bones.";
+	ot->description= "Flips (and corrects) the names of selected bones";
 	
 	/* api callbacks */
 	ot->exec= armature_flip_names_exec;
@@ -5560,7 +5621,7 @@ void ARMATURE_OT_autoside_names (wmOperatorType *ot)
 	/* identifiers */
 	ot->name= "AutoName by Axis";
 	ot->idname= "ARMATURE_OT_autoside_names";
-	ot->description= "Automatically renames the selected bones according to which side of the target axis they fall on.";
+	ot->description= "Automatically renames the selected bones according to which side of the target axis they fall on";
 	
 	/* api callbacks */
 	ot->invoke= WM_menu_invoke;

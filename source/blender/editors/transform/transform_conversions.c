@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -1116,6 +1116,7 @@ static void createTransArmatureVerts(bContext *C, TransInfo *t)
 
 					td->loc = NULL;
 					td->ext = NULL;
+					td->ob = t->obedit;
 
 					td++;
 				}
@@ -1131,6 +1132,7 @@ static void createTransArmatureVerts(bContext *C, TransInfo *t)
 
 					td->loc = NULL;
 					td->ext = NULL;
+					td->ob = t->obedit;
 
 					td++;
 				}
@@ -1165,6 +1167,7 @@ static void createTransArmatureVerts(bContext *C, TransInfo *t)
 					normalize_m3(td->axismtx);
 
 					td->ext = NULL;
+					td->ob = t->obedit;
 
 					td++;
 				}
@@ -1181,6 +1184,7 @@ static void createTransArmatureVerts(bContext *C, TransInfo *t)
 					td->flag= TD_SELECTED;
 
 					td->ext = NULL;
+					td->ob = t->obedit;
 
 					td++;
 				}
@@ -1209,6 +1213,7 @@ static void createTransArmatureVerts(bContext *C, TransInfo *t)
 
 					td->ext = NULL;
 					td->val = NULL;
+					td->ob = t->obedit;
 
 					td++;
 				}
@@ -1231,6 +1236,7 @@ static void createTransArmatureVerts(bContext *C, TransInfo *t)
 
 					td->ext = NULL;
 					td->val = NULL;
+					td->ob = t->obedit;
 
 					td++;
 				}
@@ -2272,8 +2278,10 @@ static void createTransEditVerts(bContext *C, TransInfo *t)
 
 				/* Mirror? */
 				if( (mirror>0 && tob->iloc[0]>0.0f) || (mirror<0 && tob->iloc[0]<0.0f)) {
-					EditVert *vmir= editmesh_get_x_mirror_vert(t->obedit, em, tob->iloc);	/* initializes octree on first call */
-					if(vmir != eve) tob->extra = vmir;
+					EditVert *vmir= editmesh_get_x_mirror_vert(t->obedit, em, eve, tob->iloc, a);	/* initializes octree on first call */
+					if(vmir != eve) {
+						tob->extra = vmir;
+					}
 				}
 				tob++;
 			}
@@ -3444,7 +3452,7 @@ static void createTransGraphEditData(bContext *C, TransInfo *t)
 		AnimData *adt= ANIM_nla_mapping_get(&ac, ale);
 		FCurve *fcu= (FCurve *)ale->key_data;
 		short intvals= (fcu->flag & FCURVE_INT_VALUES);
-		
+
 		/* convert current-frame to action-time (slightly less accurate, espcially under
 		 * higher scaling ratios, but is faster than converting all points)
 		 */
@@ -3713,7 +3721,7 @@ void flushTransGraphData(TransInfo *t)
 	Scene *scene= t->scene;
 	double secf= FPS;
 	int a;
-	
+
 	/* flush to 2d vector from internally used 3d vector */
 	for (a=0, td= t->data, td2d=t->data2d; a<t->total; a++, td++, td2d++) {
 		AnimData *adt= (AnimData *)td->extra; /* pointers to relevant AnimData blocks are stored in the td->extra pointers */
@@ -4605,8 +4613,20 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 				/* only insert into available channels? */
 				else if (IS_AUTOKEY_FLAG(INSERTAVAIL)) {
 					if (act) {
-						for (fcu= act->curves.first; fcu; fcu= fcu->next)
-							insert_keyframe(id, act, ((fcu->grp)?(fcu->grp->name):(NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+						for (fcu= act->curves.first; fcu; fcu= fcu->next) {
+							/* only insert keyframes for this F-Curve if it affects the current bone */
+							if (strstr(fcu->rna_path, "bones")) {
+								char *pchanName= BLI_getQuotedStr(fcu->rna_path, "bones[");
+								
+								/* only if bone name matches too... 
+								 * NOTE: this will do constraints too, but those are ok to do here too?
+								 */
+								if (pchanName && strcmp(pchanName, pchan->name) == 0) 
+									insert_keyframe(id, act, ((fcu->grp)?(fcu->grp->name):(NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+									
+								if (pchanName) MEM_freeN(pchanName);
+							}
+						}
 					}
 				}
 				/* only insert keyframe if needed? */
@@ -4698,7 +4718,7 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	Object *ob;
 //	short redrawipo=0, resetslowpar=1;
 	int cancelled= (t->state == TRANS_CANCEL);
-	short duplicate= (t->undostr && strstr(t->undostr, "Duplicate")) ? 1 : 0;
+	short duplicate= (t->undostr && strstr(t->undostr, "Duplicate")) ? 1 : 0; /* see bugreport #21229 for reasons for this data */
 	
 	/* early out when nothing happened */
 	if (t->total == 0 || t->mode == TFM_DUMMY)

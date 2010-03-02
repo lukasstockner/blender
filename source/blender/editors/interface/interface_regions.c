@@ -13,7 +13,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -2271,7 +2271,7 @@ void uiPupMenuReports(bContext *C, ReportList *reports)
 		else if(report->type >= RPT_WARNING)
 			BLI_dynstr_appendf(ds, "Warning %%i%d%%t|%s", ICON_ERROR, report->message);
 		else if(report->type >= RPT_INFO)
-			BLI_dynstr_appendf(ds, "Info %%t|%s", report->message);
+			BLI_dynstr_appendf(ds, "Info %%i%d%%t|%s", ICON_INFO, report->message);
 	}
 
 	str= BLI_dynstr_get_cstring(ds);

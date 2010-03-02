@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -512,7 +512,7 @@ void iksolver_execute_tree(struct Scene *scene, struct Object *ob,  struct bPose
 		/* 4. walk over the tree for regular solving */
 		for(a=0; a<tree->totchannel; a++) {
 			if(!(tree->pchan[a]->flag & POSE_DONE))	// successive trees can set the flag
-				where_is_pose_bone(scene, ob, tree->pchan[a], ctime);
+				where_is_pose_bone(scene, ob, tree->pchan[a], ctime, 1);
 			// tell blender that this channel was controlled by IK, it's cleared on each where_is_pose()
 			tree->pchan[a]->flag |= POSE_CHAIN;
 		}

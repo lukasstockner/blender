@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) Blender Foundation.
  * All rights reserved.
@@ -99,6 +99,13 @@
 #define PR_YMIN		5
 #define PR_XMAX		200
 #define PR_YMAX		195
+
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+/* ************** libgomp (Apple gcc 4.2.1) TLS bug workaround *************** */
+#include <pthread.h>
+extern pthread_key_t gomp_tls_key;
+static void *thread_tls_data;
+#endif
 
 /* XXX */
 static int qtest() {return 0;}
@@ -1093,6 +1100,11 @@ static void common_preview_startjob(void *customdata, short *stop, short *do_upd
 {
 	ShaderPreview *sp= customdata;
 
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+	// Workaround for Apple gcc 4.2.1 omp vs background thread bug
+	pthread_setspecific (gomp_tls_key, thread_tls_data);
+#endif
+	
 	if(sp->pr_method == PR_ICON_RENDER)
 		icon_preview_startjob(customdata, stop, do_update);
 	else
@@ -1122,7 +1134,12 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 	WM_jobs_customdata(steve, sp, shader_preview_free);
 	WM_jobs_timer(steve, 0.1, NC_MATERIAL, NC_MATERIAL);
 	WM_jobs_callbacks(steve, common_preview_startjob, NULL, NULL);
-	
+
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+	// Workaround for Apple gcc 4.2.1 omp vs background thread bug
+	thread_tls_data = pthread_getspecific(gomp_tls_key);
+#endif
+		
 	WM_jobs_start(CTX_wm_manager(C), steve);
 }
 
@@ -1148,6 +1165,11 @@ void ED_preview_shader_job(const bContext *C, void *owner, ID *id, ID *parent, M
 	WM_jobs_customdata(steve, sp, shader_preview_free);
 	WM_jobs_timer(steve, 0.1, NC_MATERIAL, NC_MATERIAL);
 	WM_jobs_callbacks(steve, common_preview_startjob, NULL, shader_preview_updatejob);
+	
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+	// Workaround for Apple gcc 4.2.1 omp vs background thread bug
+	thread_tls_data = pthread_getspecific(gomp_tls_key);
+#endif
 	
 	WM_jobs_start(CTX_wm_manager(C), steve);
 }

@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -191,9 +191,25 @@ class DOPESHEET_MT_key_transform(bpy.types.Menu):
         layout.operator("transform.resize", text="Scale")
 
 
-bpy.types.register(DOPESHEET_HT_header) # header/menu classes
-bpy.types.register(DOPESHEET_MT_view)
-bpy.types.register(DOPESHEET_MT_select)
-bpy.types.register(DOPESHEET_MT_channel)
-bpy.types.register(DOPESHEET_MT_key)
-bpy.types.register(DOPESHEET_MT_key_transform)
+classes = [
+    DOPESHEET_HT_header, # header/menu classes
+    DOPESHEET_MT_view,
+    DOPESHEET_MT_select,
+    DOPESHEET_MT_channel,
+    DOPESHEET_MT_key,
+    DOPESHEET_MT_key_transform]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

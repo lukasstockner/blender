@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Blender Foundation (2008).
  *
@@ -1547,6 +1547,7 @@ static const char *rna_property_subtypename(PropertyType type)
 	switch(type) {
 		case PROP_NONE: return "PROP_NONE";
 		case PROP_FILEPATH: return "PROP_FILEPATH";
+		case PROP_FILENAME: return "PROP_FILENAME";
 		case PROP_DIRPATH: return "PROP_DIRPATH";
 		case PROP_UNSIGNED: return "PROP_UNSIGNED";
 		case PROP_PERCENTAGE: return "PROP_PERCENTAGE";
@@ -2590,7 +2591,7 @@ static int rna_preprocess(char *outfile)
 	return status;
 }
 
-static void mem_error_cb(char *errorStr)
+static void mem_error_cb(const char *errorStr)
 {
 	fprintf(stderr, "%s", errorStr);
 	fflush(stderr);

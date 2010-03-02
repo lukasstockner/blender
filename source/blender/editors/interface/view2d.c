@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -289,8 +289,7 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 				v2d->cur.xmax= (winx - V2D_SCROLL_WIDTH)*panelzoom;
 				
 				v2d->cur.ymax= 0.0f;
-				/* bad workaround for keeping zoom level with scrollers */
-				v2d->cur.ymin= (-winy + V2D_SCROLL_HEIGHT)*panelzoom;
+				v2d->cur.ymin= (-winy)*panelzoom;
 			}
 				break;
 				

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -653,7 +653,17 @@ static void id_copy_animdata(ID *id)
 	}
 }
 
-/* used everywhere in blenkernel and text.c */
+/* material nodes use this since they are not treated as libdata */
+void copy_libblock_data(ID *id, const ID *id_from)
+{
+	if (id_from->properties)
+		id->properties = IDP_CopyProperty(id_from->properties);
+
+	/* the duplicate should get a copy of the animdata */
+	id_copy_animdata(id);
+}
+
+/* used everywhere in blenkernel */
 void *copy_libblock(void *rt)
 {
 	ID *idn, *id;
@@ -679,10 +689,8 @@ void *copy_libblock(void *rt)
 	
 	id->newid= idn;
 	idn->flag |= LIB_NEW;
-	if (id->properties) idn->properties = IDP_CopyProperty(id->properties);
-	
-	/* the duplicate should get a copy of the animdata */
-	id_copy_animdata(idn);
+
+	copy_libblock_data(idn, id);
 	
 	return idn;
 }

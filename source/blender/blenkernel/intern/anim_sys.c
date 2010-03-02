@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -547,7 +547,7 @@ void BKE_all_animdata_fix_paths_rename (char *prefix, char *oldName, char *newNa
 
 /* Find the first path that matches the given criteria */
 // TODO: do we want some method to perform partial matches too?
-KS_Path *BKE_keyingset_find_destination (KeyingSet *ks, ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode)
+KS_Path *BKE_keyingset_find_path (KeyingSet *ks, ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode)
 {
 	KS_Path *ksp;
 	
@@ -604,7 +604,7 @@ KeyingSet *BKE_keyingset_add (ListBase *list, const char name[], short flag, sho
 	ks= MEM_callocN(sizeof(KeyingSet), "KeyingSet");
 	
 	if (name)
-		BLI_snprintf(ks->name, 64, name);
+		strncpy(ks->name, name, sizeof(ks->name));
 	else
 		strcpy(ks->name, "KeyingSet");
 	
@@ -615,7 +615,7 @@ KeyingSet *BKE_keyingset_add (ListBase *list, const char name[], short flag, sho
 	BLI_addtail(list, ks);
 	
 	/* make sure KeyingSet has a unique name (this helps with identification) */
-	BLI_uniquename(list, ks, "KeyingSet", '.', offsetof(KeyingSet, name), 64);
+	BLI_uniquename(list, ks, "KeyingSet", '.', offsetof(KeyingSet, name), sizeof(ks->name));
 	
 	/* return new KeyingSet for further editing */
 	return ks;
@@ -624,7 +624,7 @@ KeyingSet *BKE_keyingset_add (ListBase *list, const char name[], short flag, sho
 /* Add a destination to a KeyingSet. Nothing is returned for now...
  * Checks are performed to ensure that destination is appropriate for the KeyingSet in question
  */
-void BKE_keyingset_add_destination (KeyingSet *ks, ID *id, const char group_name[], const char rna_path[], int array_index, short flag, short groupmode)
+void BKE_keyingset_add_path (KeyingSet *ks, ID *id, const char group_name[], const char rna_path[], int array_index, short flag, short groupmode)
 {
 	KS_Path *ksp;
 	
@@ -643,7 +643,7 @@ void BKE_keyingset_add_destination (KeyingSet *ks, ID *id, const char group_name
 	}
 	
 	/* don't add if there is already a matching KS_Path in the KeyingSet */
-	if (BKE_keyingset_find_destination(ks, id, group_name, rna_path, array_index, groupmode)) {
+	if (BKE_keyingset_find_path(ks, id, group_name, rna_path, array_index, groupmode)) {
 		if (G.f & G_DEBUG)
 			printf("ERROR: destination already exists in Keying Set \n");
 		return;

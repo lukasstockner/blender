@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * Contributor(s): Blender Foundation 2009.
  *
@@ -77,26 +77,23 @@ void uiTemplateDopeSheetFilter(uiLayout *layout, bContext *C, PointerRNA *ptr)
 	ScrArea *sa= CTX_wm_area(C);
 	uiLayout *row= layout;
 	short nlaActive= ((sa) && (sa->spacetype==SPACE_NLA));
-
+	
 	/* more 'generic' filtering options */
-	if (nlaActive)
-		row= uiLayoutRow(layout, 1);
-
+	row= uiLayoutRow(layout, 1);
+	
 	uiItemR(row, "", 0, ptr, "only_selected", 0);
-
+	uiItemR(row, "", 0, ptr, "display_transforms", 0); // xxx: include in another position instead?
+	
 	if (nlaActive)
 		uiItemR(row, "", 0, ptr, "include_missing_nla", 0);
-
-	if (nlaActive)
-		row= layout;
-
+	
 	/* datatype based - only available datatypes are shown */
 	row= uiLayoutRow(layout, 1);
 
 	uiItemR(row, "", 0, ptr, "display_scene", 0);
 	uiItemR(row, "", 0, ptr, "display_world", 0);
 	uiItemR(row, "", 0, ptr, "display_node", 0);
-
+	
 	if (mainptr && mainptr->mesh.first)
 		uiItemR(row, "", 0, ptr, "display_mesh", 0);
 	if (mainptr && mainptr->key.first)
@@ -105,6 +102,8 @@ void uiTemplateDopeSheetFilter(uiLayout *layout, bContext *C, PointerRNA *ptr)
 		uiItemR(row, "", 0, ptr, "display_material", 0);
 	if (mainptr && mainptr->lamp.first)
 		uiItemR(row, "", 0, ptr, "display_lamp", 0);
+	if (mainptr && mainptr->tex.first)
+		uiItemR(row, "", 0, ptr, "display_texture", 0);
 	if (mainptr && mainptr->camera.first)
 		uiItemR(row, "", 0, ptr, "display_camera", 0);
 	if (mainptr && mainptr->curve.first)
@@ -158,16 +157,19 @@ static void id_search_cb(const bContext *C, void *arg_template, char *str, uiSea
 {
 	TemplateID *template= (TemplateID*)arg_template;
 	ListBase *lb= template->idlb;
-	ID *id;
+	ID *id, *id_from= template->ptr.id.data;
 	int iconid;
+	int flag= RNA_property_flag(template->prop);
 
 	/* ID listbase */
 	for(id= lb->first; id; id= id->next) {
-		if(BLI_strcasestr(id->name+2, str)) {
-			iconid= ui_id_icon_get((bContext*)C, id, 0);
+		if(!((flag & PROP_ID_SELF_CHECK) && id == id_from)) {
+			if(BLI_strcasestr(id->name+2, str)) {
+				iconid= ui_id_icon_get((bContext*)C, id, 0);
 
-			if(!uiSearchItemAdd(items, id->name+2, id, iconid))
-				break;
+				if(!uiSearchItemAdd(items, id->name+2, id, iconid))
+					break;
+			}
 		}
 	}
 }
@@ -282,6 +284,10 @@ static void template_id_cb(bContext *C, void *arg_litem, void *arg_event)
 			memset(&idptr, 0, sizeof(idptr));
 			RNA_property_pointer_set(&template->ptr, template->prop, idptr);
 			RNA_property_update(C, &template->ptr, template->prop);
+
+			if(id && CTX_wm_window(C)->eventstate->shift) /* useful hidden functionality, */
+				id->us= 0;
+
 			break;
 		case UI_ID_FAKE_USER:
 			if(id) {
@@ -448,8 +454,11 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 			but= uiDefIconButO(block, BUT, unlinkop, WM_OP_INVOKE_REGION_WIN, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL);
 		}
 		else {
-			but= uiDefIconBut(block, BUT, 0, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, NULL);
+			but= uiDefIconBut(block, BUT, 0, ICON_X, 0, 0, UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, "Unlink datablock, Shift + Click to force removal on save");
 			uiButSetNFunc(but, template_id_cb, MEM_dupallocN(template), SET_INT_IN_POINTER(UI_ID_DELETE));
+
+			if(RNA_property_flag(template->prop) & PROP_NEVER_NULL)
+				uiButSetFlag(but, UI_BUT_DISABLED);
 		}
 
 		if((idfrom && idfrom->lib))
@@ -887,7 +896,6 @@ uiLayout *uiTemplateModifier(uiLayout *layout, bContext *C, PointerRNA *ptr, int
 #define REDRAWACTION				4
 #define B_CONSTRAINT_TEST			5
 #define B_CONSTRAINT_CHANGETARGET	6
-#define B_CONSTRAINT_INF			7
 #define REMAKEIPO					8
 #define B_DIFF						9
 
@@ -902,11 +910,6 @@ void do_constraint_panels(bContext *C, void *arg, int event)
 		// XXX allqueue(REDRAWBUTSOBJECT, 0);
 		// XXX allqueue(REDRAWBUTSEDIT, 0);
 		break;  // no handling
-	case B_CONSTRAINT_INF:
-		/* influence; do not execute actions for 1 dag_flush */
-		if (ob->pose)
-			ob->pose->flag |= (POSE_LOCKED|POSE_DO_UNLOCK);
-		break;
 	case B_CONSTRAINT_CHANGETARGET:
 		if (ob->pose) ob->pose->flag |= POSE_RECALC;	// checks & sorts pose channels
 		DAG_scene_sort(scene);
@@ -915,9 +918,11 @@ void do_constraint_panels(bContext *C, void *arg, int event)
 		break;
 	}
 
-	object_test_constraints(ob);
-	
-	if(ob->pose) update_pose_constraint_flags(ob->pose);
+	// note: RNA updates now call this, commenting else it gets called twice.
+	// if there are problems because of this, then rna needs changed update functions.
+	// 
+	// object_test_constraints(ob);
+	// if(ob->pose) update_pose_constraint_flags(ob->pose);
 	
 	if(ob->type==OB_ARMATURE) DAG_id_flush_update(&ob->id, OB_RECALC_DATA|OB_RECALC_OB);
 	else DAG_id_flush_update(&ob->id, OB_RECALC_OB);
@@ -2479,4 +2484,45 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 		uiDefIconTextBut(block, BUT, B_STOPANIM, ICON_CANCEL, "Anim Player", 0,0,100,UI_UNIT_Y, NULL, 0.0f, 0.0f, 0, 0, "Stop animation playback");
 }
 
+/************************* Reports for Last Operator Template **************************/
+
+void uiTemplateReportsBanner(uiLayout *layout, bContext *C, wmOperator *op)
+{
+	ReportList *reports = op->reports;
+	uiLayout *box;
+	
+	/* sanity checks */
+	if (ELEM(NULL, op, reports)) {
+		printf("uiTemplateReportsBanner: no operator with reports!\n");
+		return;
+	}
+	
+	/* make a box around the report to make it stand out */
+	box = uiLayoutBox(layout);
+	uiLayoutSetScaleY(box, 0.48); /* experimentally determined value to reduce execessive padding... */
+	
+	/* if more than one report, we need to show the popup when user clicks on the temp label... */
+	if (reports->list.first != reports->list.last) {
+		int numReports = BLI_countlist(&reports->list);
+		char buf[64];
+		
+		// XXX: we need uiItem* to return uiBut pointer so that we can use it to set callbacks
+		// used to call uiPupMenuReports... as alternative, we could fall back to the "old ways"
+		//sprintf(buf, "Last Operator had %d errors. Click to see more...", numReports);
+		sprintf(buf, "Last Operator had %d errors", numReports);
+		uiItemL(box, buf, ICON_INFO);
+	}
+	else {
+		/* single report, so show report directly */
+		// XXX: what if the report is too long? should we truncate the text?
+		Report *report= (Report *)reports->list.first;
+		
+		if(report->type >= RPT_ERROR)
+			uiItemL(box, report->message, ICON_ERROR);
+		else if(report->type >= RPT_WARNING)
+			uiItemL(box, report->message, ICON_ERROR);
+		else if(report->type >= RPT_INFO)
+			uiItemL(box, report->message, ICON_INFO);
+	}
+}
 

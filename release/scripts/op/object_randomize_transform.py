@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -80,11 +80,10 @@ from bpy.props import *
 
 
 class RandomizeLocRotSize(bpy.types.Operator):
-    '''Randomize objects loc/rot/scale.'''
-    bl_idname = "object.randomize_locrotsize"
-    bl_label = "Randomize Loc Rot Size"
-    bl_register = True
-    bl_undo = True
+    '''Randomize objects loc/rot/scale'''
+    bl_idname = "object.randomize_transform"
+    bl_label = "Randomize Transform"
+    bl_options = {'REGISTER', 'UNDO'}
 
     random_seed = IntProperty(name="Random Seed",
         description="Seed value for the random generator",
@@ -134,13 +133,20 @@ class RandomizeLocRotSize(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Register the operator
-bpy.types.register(RandomizeLocRotSize)
-
-
 def menu_func(self, context):
     if context.mode == 'OBJECT':
         self.layout.operator(RandomizeLocRotSize.bl_idname,
-        text="Randomize Loc Rot Size")
+        text="Randomize Transform")
 
-bpy.types.VIEW3D_MT_transform.append(menu_func)
+
+def register():
+    bpy.types.register(RandomizeLocRotSize)
+    bpy.types.VIEW3D_MT_transform.append(menu_func)
+
+
+def unregister():
+    bpy.types.unregister(RandomizeLocRotSize)
+    bpy.types.VIEW3D_MT_transform.remove(menu_func)
+
+if __name__ == "__main__":
+    register()

@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation, Joshua Leung
  * All rights reserved.
@@ -258,8 +258,8 @@ NlaTrack *add_nlatrack (AnimData *adt, NlaTrack *prev)
 	BKE_nlatrack_set_active(&adt->nla_tracks, nlt);
 	
 	/* must have unique name, but we need to seed this */
-	sprintf(nlt->name, "NlaTrack");
-	BLI_uniquename(&adt->nla_tracks, nlt, "NlaTrack", '.', offsetof(NlaTrack, name), 64);
+	strcpy(nlt->name, "NlaTrack");
+	BLI_uniquename(&adt->nla_tracks, nlt, "NlaTrack", '.', offsetof(NlaTrack, name), sizeof(nlt->name));
 	
 	/* return the new track */
 	return nlt;

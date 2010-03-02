@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -466,7 +466,6 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 
         self.space_template(layout, con, wide_ui)
 
-
     #def SCRIPT(self, context, layout, con):
 
     def ACTION(self, context, layout, con, wide_ui):
@@ -754,5 +753,22 @@ class BONE_PT_constraints(ConstraintButtonsPanel):
         for con in context.pose_bone.constraints:
             self.draw_constraint(context, con)
 
-bpy.types.register(OBJECT_PT_constraints)
-bpy.types.register(BONE_PT_constraints)
+
+classes = [
+    OBJECT_PT_constraints,
+    BONE_PT_constraints]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

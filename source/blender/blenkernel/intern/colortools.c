@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2005 Blender Foundation.
  * All rights reserved.
@@ -143,6 +143,7 @@ void curvemapping_free(CurveMapping *cumap)
 		for(a=0; a<CM_TOT; a++) {
 			if(cumap->cm[a].curve) MEM_freeN(cumap->cm[a].curve);
 			if(cumap->cm[a].table) MEM_freeN(cumap->cm[a].table);
+			if(cumap->cm[a].premultable) MEM_freeN(cumap->cm[a].premultable);
 		}
 		MEM_freeN(cumap);
 	}
@@ -159,6 +160,8 @@ CurveMapping *curvemapping_copy(CurveMapping *cumap)
 				cumapn->cm[a].curve= MEM_dupallocN(cumap->cm[a].curve);
 			if(cumap->cm[a].table) 
 				cumapn->cm[a].table= MEM_dupallocN(cumap->cm[a].table);
+			if(cumap->cm[a].premultable) 
+				cumapn->cm[a].premultable= MEM_dupallocN(cumap->cm[a].premultable);
 		}
 		return cumapn;
 	}

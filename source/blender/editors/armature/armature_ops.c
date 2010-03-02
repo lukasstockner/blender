@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2009 Blender Foundation.
  * All rights reserved.
@@ -111,7 +111,8 @@ void ED_operatortypes_armature(void)
 	WM_operatortype_append(POSE_OT_hide);
 	WM_operatortype_append(POSE_OT_reveal);
 	
-	WM_operatortype_append(POSE_OT_apply);
+	WM_operatortype_append(POSE_OT_armature_apply);
+	WM_operatortype_append(POSE_OT_visual_transform_apply);
 	
 	WM_operatortype_append(POSE_OT_rot_clear);
 	WM_operatortype_append(POSE_OT_loc_clear);
@@ -285,9 +286,9 @@ void ED_keymap_armature(wmKeyConfig *keyconf)
 	kmi= WM_keymap_add_item(keymap, "POSE_OT_hide", HKEY, KM_PRESS, KM_SHIFT, 0);
 		RNA_boolean_set(kmi->ptr, "unselected", 1);
 	WM_keymap_add_item(keymap, "POSE_OT_reveal", HKEY, KM_PRESS, KM_ALT, 0);
-	
-	WM_keymap_add_item(keymap, "POSE_OT_apply", AKEY, KM_PRESS, KM_CTRL, 0);
-	
+
+	WM_keymap_add_menu(keymap, "VIEW3D_MT_pose_apply", AKEY, KM_PRESS, KM_CTRL, 0);
+
 	// TODO: clear pose
 	WM_keymap_add_item(keymap, "POSE_OT_rot_clear", RKEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "POSE_OT_loc_clear", GKEY, KM_PRESS, KM_ALT, 0);

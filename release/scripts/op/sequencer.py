@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -25,8 +25,7 @@ class SequencerCrossfadeSounds(bpy.types.Operator):
 
     bl_idname = "sequencer.crossfade_sounds"
     bl_label = "Crossfade sounds"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     def poll(self, context):
         if context.scene and context.scene.sequence_editor and context.scene.sequence_editor.active_strip:
@@ -70,7 +69,13 @@ class SequencerCrossfadeSounds(bpy.types.Operator):
             self.report({'ERROR'}, "The selected strips don't overlap.")
             return {'CANCELLED'}
 
-bpy.types.register(SequencerCrossfadeSounds)
+
+def register():
+    bpy.types.register(SequencerCrossfadeSounds)
+
+def unregister():
+    bpy.types.unregister(SequencerCrossfadeSounds)
 
 if __name__ == "__main__":
-    bpy.ops.sequencer.crossfade_sounds()
+    register()
+

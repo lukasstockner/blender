@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2007 Blender Foundation.
  * All rights reserved.
@@ -271,8 +271,9 @@ typedef struct wmOperator {
 	IDProperty *properties;		/* saved, user-settable properties */
 
 	/* runtime */
-	struct wmOperatorType *type;		/* operator type definition from idname */
+	struct wmOperatorType *type;/* operator type definition from idname */
 	void *customdata;			/* custom storage, only while operator runs */
+	void *py_instance;			/* python stores the class instance here */
 
 	struct PointerRNA *ptr;		/* rna pointer to access properties */
 	struct ReportList *reports;	/* errors and warnings storage */

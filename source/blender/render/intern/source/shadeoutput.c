@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2006 Blender Foundation
  * All rights reserved.
@@ -294,15 +294,17 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 		if(re->db.wrld.mode & WO_AMB_OCC) {
 			f= re->db.wrld.aoenergy*shi->material.amb;
 
-			if(re->db.wrld.aomix==WO_AOADD)
-				shr->alpha += f*(1.0f - rgb_to_grayscale(shi->shading.ao));
+			if(re->db.wrld.aomix==WO_AOADD) {
+				f= f*(1.0f - rgb_to_grayscale(shi->shading.ao));
+				shr->alpha= (shr->alpha + f)*f;
+			}
 			else
 				shr->alpha= (1.0f - f)*shr->alpha + f*(1.0f - (1.0f - shr->alpha)*rgb_to_grayscale(shi->shading.ao));
 		}
 
 		if(re->db.wrld.mode & WO_ENV_LIGHT) {
-			f= re->db.wrld.ao_env_energy*shi->material.amb;
-			shr->alpha += f*(1.0f - rgb_to_grayscale(shi->shading.env));
+			f= re->db.wrld.ao_env_energy*shi->material.amb*(1.0f - rgb_to_grayscale(shi->shading.env));
+			shr->alpha= (shr->alpha + f)*f;
 		}
 	}
 }

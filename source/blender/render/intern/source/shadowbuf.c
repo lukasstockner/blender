@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -1024,8 +1024,9 @@ static float readdeepvisibility(DeepSample *dsample, int tot, int z, int bias, f
 	if(a == 0)
 		return 1.0f; /* completely in front of all samples */
 
+	/* converting to float early here because ds->z - prevds->z can overflow */
 	prevds= ds-1;
-	t= (float)(z-bias - prevds->z)/(float)(ds->z - prevds->z);
+	t= ((float)(z-bias) - (float)prevds->z)/((float)ds->z - (float)prevds->z);
 	return t*ds->v + (1.0f-t)*prevds->v;
 }
 

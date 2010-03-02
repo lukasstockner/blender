@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -26,8 +26,7 @@ class MeshSelectInteriorFaces(bpy.types.Operator):
 
     bl_idname = "mesh.faces_select_interior"
     bl_label = "Select Interior Faces"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     def poll(self, context):
         ob = context.active_object
@@ -68,8 +67,7 @@ class MeshMirrorUV(bpy.types.Operator):
     '''Copy mirror UV coordinates on the X axis based on a mirrored mesh'''
     bl_idname = "mesh.faces_miror_uv"
     bl_label = "Copy Mirrored UV coords"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     def poll(self, context):
         ob = context.active_object
@@ -173,10 +171,23 @@ class MeshMirrorUV(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
 # Register the operator
-bpy.types.register(MeshSelectInteriorFaces)
-bpy.types.register(MeshMirrorUV)
+classes = [
+    MeshSelectInteriorFaces,
+    MeshMirrorUV]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
 
 if __name__ == "__main__":
-    # bpy.ops.mesh.faces_select_interior()
-    bpy.ops.mesh.faces_miror_uv()
+    register()

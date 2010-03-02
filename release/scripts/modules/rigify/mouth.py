@@ -12,7 +12,7 @@
 #
 #  You should have received a copy of the GNU General Public License
 #  along with this program; if not, write to the Free Software Foundation,
-#  Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+#  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
 # ##### END GPL LICENSE BLOCK #####
 
@@ -197,23 +197,23 @@ def deform(obj, definitions, base_names, options):
     con = pb[lip4].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[5]
-    
+
     con = pb[lip5].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[6]
-    
+
     con = pb[lip6].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[7]
-    
+
     con = pb[lip7].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[8]
-    
+
     con = pb[lip8].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[9]
-    
+
     # Constraint mouth corner spread bones
     con = pb[spread_l_1].constraints.new('DAMPED_TRACK')
     con.target = obj
@@ -234,12 +234,12 @@ def deform(obj, definitions, base_names, options):
     con = pb[spread_r_2].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = spread_r_1
-    
+
     con = pb[spread_r_2].constraints.new('DAMPED_TRACK')
     con.target = obj
     con.subtarget = lip8
 
-    
+
     # Corrective shape keys for the corners of the mouth.
     bpy.ops.object.mode_set(mode='EDIT')
 

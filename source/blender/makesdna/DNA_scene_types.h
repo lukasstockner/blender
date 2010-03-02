@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -491,6 +491,7 @@ typedef struct GameData {
 #define GAME_GLSL_NO_NODES					(1 << 10)
 #define GAME_GLSL_NO_EXTRA_TEX				(1 << 11)
 #define GAME_IGNORE_DEPRECATION_WARNINGS	(1 << 12)
+#define GAME_ENABLE_ANIMATION_RECORD		(1 << 13)
 
 /* GameData.matmode */
 #define GAME_MAT_TEXFACE	0
@@ -765,6 +766,8 @@ typedef struct Scene {
 	void *sound_scene;
 	void *sound_scene_handle;
 	
+	void *fps_info;	 				/* (runtime) info/cache used for presenting playback framerate info to the user */
+	
 	/* none of the dependancy graph  vars is mean to be saved */
 	struct  DagForest *theDag;
 	short dagisvalid, dagflags;
@@ -988,8 +991,8 @@ typedef struct Scene {
 #define MAXFRAME	300000
 #define MAXFRAMEF	300000.0f
 
-#define MINFRAME	1
-#define MINFRAMEF	1.0f
+#define MINFRAME	0
+#define MINFRAMEF	0.0f
 
 /* (minimum frame number for current-frame) */
 #define MINAFRAME	-300000
@@ -1073,6 +1076,7 @@ typedef struct Scene {
 #define SCE_DS_SELECTED			(1<<0)
 #define SCE_DS_COLLAPSED		(1<<1)
 #define SCE_NLA_EDIT_ON			(1<<2)
+#define SCE_FRAME_DROP			(1<<3)
 
 
 	/* return flag next_object function */

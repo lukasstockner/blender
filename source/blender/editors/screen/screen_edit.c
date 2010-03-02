@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2008 Blender Foundation.
  * All rights reserved.
@@ -51,6 +51,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_image.h"
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 
@@ -1614,6 +1615,32 @@ void ED_screen_full_restore(bContext *C, ScrArea *sa)
 	}
 }
 
+/* update frame rate info for viewport drawing */
+void ED_refresh_viewport_fps(bContext *C)
+{
+	wmTimer *animtimer= CTX_wm_screen(C)->animtimer;
+	Scene *scene= CTX_data_scene(C);
+	
+	/* is anim playback running? */
+	if (animtimer && (U.uiflag & USER_SHOW_FPS)) {
+		ScreenFrameRateInfo *fpsi= scene->fps_info;
+		
+		/* if there isn't any info, init it first */
+		if (fpsi == NULL)
+			fpsi= scene->fps_info= MEM_callocN(sizeof(ScreenFrameRateInfo), "refresh_viewport_fps fps_info");
+		
+		/* update the values */
+		fpsi->redrawtime= fpsi->lredrawtime;
+		fpsi->lredrawtime= animtimer->ltime;
+	}
+	else {	
+		/* playback stopped or shouldn't be running */
+		if (scene->fps_info)
+			MEM_freeN(scene->fps_info);
+		scene->fps_info= NULL;
+	}
+}
+
 /* redraws: uses defines from stime->redraws 
  * enable: 1 - forward on, -1 - backwards on, 0 - off
  */
@@ -1735,6 +1762,9 @@ void ED_update_for_newframe(const bContext *C, int mute)
 	if(scene->use_nodes && scene->nodetree)
 		ntreeCompositTagAnimated(scene->nodetree);
 	
+	/* update animated image textures for gpu, etc */
+	ED_image_update_frame(C);
+	
 	/* update animated texture nodes */
 	{
 		Tex *tex;
@@ -1742,6 +1772,7 @@ void ED_update_for_newframe(const bContext *C, int mute)
 			if(tex->type == TEX_NODES)
 				ntreeTexTagAnimated( tex->nodetree );
 	}
+	
 }
 
 

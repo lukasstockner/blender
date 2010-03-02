@@ -15,7 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software Foundation,
- * Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
@@ -307,8 +307,10 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 		WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 		
 		/* for realtime animation record - send notifiers recognised by animation editors */
+		// XXX: is this notifier a lame duck?
 		if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
 			WM_event_add_notifier(C, NC_OBJECT|ND_KEYS, NULL);
+		
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		//SpaceAction *saction= (SpaceAction *)t->sa->spacedata.first;
@@ -341,7 +343,13 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 static void viewRedrawPost(TransInfo *t)
 {
 	ED_area_headerprint(t->sa, NULL);
-
+	
+	if(t->spacetype == SPACE_VIEW3D) {
+		/* if autokeying is enabled, send notifiers that keyframes were added */
+		if (IS_AUTOKEY_ON(t->scene))
+			WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+	}
+	
 #if 0 // TRANSFORM_FIX_ME
 	if(t->spacetype==SPACE_VIEW3D) {
 		allqueue(REDRAWBUTSOBJECT, 0);
@@ -496,8 +504,8 @@ wmKeyMap* transform_modal_keymap(wmKeyConfig *keyconf)
 	{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Remove Constraints", ""},
 	{TFM_MODAL_ADD_SNAP, "ADD_SNAP", 0, "Add Snap Point", ""},
 	{TFM_MODAL_REMOVE_SNAP, "REMOVE_SNAP", 0, "Remove Last Snap Point", ""},
-	{TFM_MODAL_INCREMENT_UP, "INCREMENT_UP", 0, "Numinput Increment Up", ""},
-	{TFM_MODAL_INCREMENT_DOWN, "INCREMENT_DOWN", 0, "Numinput Increment Down", ""},
+	{NUM_MODAL_INCREMENT_UP, "INCREMENT_UP", 0, "Numinput Increment Up", ""},
+	{NUM_MODAL_INCREMENT_DOWN, "INCREMENT_DOWN", 0, "Numinput Increment Down", ""},
 	{0, NULL, 0, NULL, NULL}};
 	
 	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "Transform Modal Map");
@@ -525,8 +533,8 @@ wmKeyMap* transform_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, 0, 0, TFM_MODAL_ADD_SNAP);
 	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, KM_ALT, 0, TFM_MODAL_REMOVE_SNAP);
 
-	WM_modalkeymap_add_item(keymap, UPARROWKEY, KM_PRESS, 0, 0, TFM_MODAL_INCREMENT_UP);
-	WM_modalkeymap_add_item(keymap, DOWNARROWKEY, KM_PRESS, 0, 0, TFM_MODAL_INCREMENT_DOWN);
+	WM_modalkeymap_add_item(keymap, UPARROWKEY, KM_PRESS, 0, 0, NUM_MODAL_INCREMENT_UP);
+	WM_modalkeymap_add_item(keymap, DOWNARROWKEY, KM_PRESS, 0, 0, NUM_MODAL_INCREMENT_DOWN);
 
 	return keymap;
 }
@@ -713,7 +721,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		}
 
 		// Modal numinput events
-		t->redraw |= handleNumInput(&(t->num), event, t->snap[1]);
+		t->redraw |= handleNumInput(&(t->num), event);
 	}
 	/* else do non-mapped events */
 	else if (event->val==KM_PRESS) {
@@ -966,7 +974,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		}
 
 		// Numerical input events
-		t->redraw |= handleNumInput(&(t->num), event, t->snap[1]);
+		t->redraw |= handleNumInput(&(t->num), event);
 
 		// NDof input events
 		switch(handleNDofInput(&(t->ndof), event))
@@ -2073,6 +2081,8 @@ void initWarp(TransInfo *t)
 	t->snap[1] = 5.0f;
 	t->snap[2] = 1.0f;
 	
+	t->num.increment = 1.0f;
+
 	t->flag |= T_NO_CONSTRAINT;
 	
 	/* we need min/max in view space */
@@ -2229,6 +2239,8 @@ void initShear(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 	
+	t->num.increment = 0.1f;
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -2355,6 +2367,8 @@ void initResize(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerResize(TransInfo *t, float vec[3], char *str) {
@@ -2606,6 +2620,8 @@ void initToSphere(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 	
+	t->num.increment = t->snap[1];
+
 	t->num.flag |= NUM_NULL_ONE | NUM_NO_NEGATIVE;
 	t->flag |= T_NO_CONSTRAINT;
 	
@@ -2697,11 +2713,12 @@ void initRotation(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 	
+	t->num.increment = 1.0f;
+
 	if (t->flag & T_2D_EDIT)
 		t->flag |= T_NO_CONSTRAINT;
 
-	VECCOPY(t->axis, t->viewinv[2]);
-	mul_v3_fl(t->axis, -1.0f);
+	negate_v3_v3(t->axis, t->viewinv[2]);
 	normalize_v3(t->axis);
 }
 
@@ -2955,8 +2972,12 @@ int Rotation(TransInfo *t, short mval[2])
 	
 	snapGrid(t, &final);
 	
-	if (t->con.applyRot) {
+	if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
 		t->con.applyRot(t, NULL, t->axis, &final);
+	} else {
+		/* reset axis if constraint is not set */
+		negate_v3_v3(t->axis, t->viewinv[2]);
+		normalize_v3(t->axis);
 	}
 	
 	applySnapping(t, &final);
@@ -3018,6 +3039,8 @@ void initTrackball(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
+
+	t->num.increment = 1.0f;
 
 	t->flag |= T_NO_CONSTRAINT;
 }
@@ -3136,6 +3159,8 @@ void initTranslation(TransInfo *t)
 		t->snap[0] = 0.0f;
 		t->snap[1] = t->snap[2] = 1.0f;
 	}
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTranslation(TransInfo *t, float vec[3], char *str) {
@@ -3326,6 +3351,8 @@ void initShrinkFatten(TransInfo *t)
 		t->snap[1] = 1.0f;
 		t->snap[2] = t->snap[1] * 0.1f;
 
+		t->num.increment = t->snap[1];
+
 		t->flag |= T_NO_CONSTRAINT;
 	}
 }
@@ -3400,6 +3427,8 @@ void initTilt(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -3469,6 +3498,11 @@ void initCurveShrinkFatten(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 
+	t->num.increment = t->snap[1];
+
+	t->flag |= T_NO_ZERO;
+	t->num.flag |= NUM_NO_ZERO;
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -3506,7 +3540,7 @@ int CurveShrinkFatten(TransInfo *t, short mval[2])
 		if(td->val) {
 			//*td->val= ratio;
 			*td->val= td->ival*ratio;
-			if (*td->val <= 0.0f) *td->val = 0.0001f;
+			if (*td->val <= 0.0f) *td->val = 0.001f;
 		}
 	}
 
@@ -3535,6 +3569,8 @@ void initPushPull(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 1.0f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 
@@ -3622,6 +3658,8 @@ void initBevel(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 
 	/* DON'T KNOW WHY THIS IS NEEDED */
 	if (G.editBMesh->imval[0] == 0 && G.editBMesh->imval[1] == 0) {
@@ -3732,6 +3770,8 @@ void initBevelWeight(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -3802,6 +3842,8 @@ void initCrease(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 
 	t->flag |= T_NO_CONSTRAINT;
 }
@@ -3877,6 +3919,8 @@ void initBoneSize(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerBoneSize(TransInfo *t, float vec[3], char *str) {
@@ -3993,6 +4037,8 @@ void initBoneEnvelope(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 	
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -4570,6 +4616,8 @@ void initEdgeSlide(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -4738,6 +4786,8 @@ void initBoneRoll(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 
+	t->num.increment = 1.0f;
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -4798,6 +4848,8 @@ void initBakeTime(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 1.0f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 int BakeTime(TransInfo *t, short mval[2])
@@ -5015,6 +5067,8 @@ void initSeqSlide(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = floor(t->scene->r.frs_sec / t->scene->r.frs_sec_base);
 	t->snap[2] = 10.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerSeqSlide(TransInfo *t, float val[2], char *str)
@@ -5230,6 +5284,8 @@ void initTimeTranslate(TransInfo *t)
 	/* initialise snap like for everything else */
 	t->snap[0] = 0.0f;
 	t->snap[1] = t->snap[2] = 1.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTimeTranslate(TransInfo *t, char *str)
@@ -5376,6 +5432,8 @@ void initTimeSlide(TransInfo *t)
 	/* initialise snap like for everything else */
 	t->snap[0] = 0.0f;
 	t->snap[1] = t->snap[2] = 1.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTimeSlide(TransInfo *t, float sval, char *str)
@@ -5508,6 +5566,8 @@ void initTimeScale(TransInfo *t)
 	/* initialise snap like for everything else */
 	t->snap[0] = 0.0f;
 	t->snap[1] = t->snap[2] = 1.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTimeScale(TransInfo *t, char *str) {
