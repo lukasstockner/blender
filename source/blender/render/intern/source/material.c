@@ -579,9 +579,7 @@ void mat_shading_begin(Render *re, ShadeInput *shi, ShadeMaterial *smat, int do_
 			smat->alpha*= fresnel_fac(shi->geometry.view, shi->geometry.vn, ma->fresnel_tra_i, ma->fresnel_tra);
 			
 		smat->refl *= smat->alpha;
-		/* TODO NSHAD
-		if(smat->mode & MA_TRANSP)
-			smat->spec *= smat->spectra;*/
+		smat->spec *= smat->spectra;
 		smat->ray_mirror *= smat->alpha;
 	}
 }
