@@ -327,6 +327,11 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Cache", "Cache AO results and interpolate over neighbouring pixels for speedup.");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
+	prop= RNA_def_property(srna, "use_cache_file", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_AOCACHE_FILE);
+	RNA_def_property_ui_text(prop, "Cache File", "Dump cache to file and read back to reuse samples for faster re-rendering.");
+	RNA_def_property_update(prop, 0, "rna_World_update");
+
 	prop= RNA_def_property(srna, "samples", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "aosamp");
 	RNA_def_property_range(prop, 1, 128);

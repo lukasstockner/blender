@@ -66,7 +66,7 @@ void shade_color(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	ShadeMaterial *smat= &shi->material;
 
-	mat_shading_begin(re, shi, smat);
+	mat_shading_begin(re, shi, smat, 1);
 
 	mat_color(shr->diff, smat);
 	shr->alpha= mat_alpha(smat);
@@ -795,7 +795,7 @@ void shade_surface(Render *re, ShadeInput *shi, ShadeResult *shr, int backside)
 	}
 	
 	/* preprocess */
-	mat_shading_begin(re, shi, &shi->material);
+	mat_shading_begin(re, shi, &shi->material, 1);
 
 	/* color and alpha pass */
 	shade_color_alpha(re, shi, shr);

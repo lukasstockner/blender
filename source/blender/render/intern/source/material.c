@@ -556,7 +556,7 @@ void mat_displacement(Render *re, ShadeInput *shi, float displacement[3])
 	copy_v3_v3(displacement, shi->texture.displace);
 }
 
-void mat_shading_begin(Render *re, ShadeInput *shi, ShadeMaterial *smat)
+void mat_shading_begin(Render *re, ShadeInput *shi, ShadeMaterial *smat, int do_textures)
 {
 	Material *ma= smat->mat;
   
@@ -571,7 +571,7 @@ void mat_shading_begin(Render *re, ShadeInput *shi, ShadeMaterial *smat)
 			smat->alpha= smat->vcol[3];
 	}
 
-	if(ma->texco)
+	if(do_textures && ma->texco)
 		do_material_tex(re, shi);
 
 	if(!(ma->mode & MA_SHLESS)) {

@@ -550,5 +550,10 @@ void RE_SetView(Render *re, float mat[][4])
 	/* re->ok flag? */
 	copy_m4_m4(cam->viewmat, mat);
 	invert_m4_m4(cam->viewinv, cam->viewmat);
+
+	copy_m3_m4(cam->viewnmat, cam->viewinv);
+	transpose_m3(cam->viewnmat);
+	copy_m3_m4(cam->viewninv, cam->viewmat);
+	transpose_m3(cam->viewninv);
 }
 

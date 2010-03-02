@@ -33,6 +33,7 @@
 #include "BLI_math.h"
 #include "BLI_memarena.h"
 #include "BLI_rand.h"
+#include "BLI_threads.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
@@ -418,6 +419,7 @@ typedef struct IrrCacheSample {
 	float N[3];						/* normal */
 	float dP;						/* radius */
 	float C[CACHE_DIMENSION];		/* irradiance */
+	int read;						/* read from file */
 } IrrCacheSample;
 
 typedef struct IrrCacheNode {
@@ -440,12 +442,14 @@ struct IrrCache {
 	int thread;					/* thread owning the cache */
 
 	int totsample;
+	int totnode;
 	int totlookup;
 	int totpost;
 
 	/* options */
 	int neighbour_clamp;
 	int lsq_reconstruction;
+	int locked;
 
 	/* test: a stable global coordinate system may help */
 };
@@ -510,7 +514,7 @@ void lsq_4D_solve(Lsq4DFit *lsq, float solution[CACHE_DIMENSION])
 static IrrCache *irr_cache_new(Render *re, int thread)
 {
 	IrrCache *cache;
-	float bb[2][3];
+	float bb[2][3], viewbb[2][3];
 
 	cache= MEM_callocN(sizeof(IrrCache), "IrrCache");
 	cache->thread= thread;
@@ -520,7 +524,9 @@ static IrrCache *irr_cache_new(Render *re, int thread)
 	BLI_memarena_use_calloc(cache->arena);
 
 	/* initialize root node with bounds */
-	render_instances_bound(&re->db, bb);
+	render_instances_bound(&re->db, viewbb);
+	INIT_MINMAX(bb[0], bb[1]);
+	box_minmax_bounds_m4(bb[0], bb[1], viewbb, re->cam.viewinv);
 	mid_v3_v3v3(cache->root.center, bb[0], bb[1]);
 	cache->root.side= MAX3(bb[1][0]-bb[0][0], bb[1][1]-bb[0][1], bb[1][2]-bb[0][2]);
 
@@ -550,7 +556,8 @@ void irr_cache_check_stack(IrrCache *cache)
 	/* increase stack size as more nodes are added */
 	if(cache->maxdepth > cache->stacksize) {
 		cache->stacksize= cache->maxdepth + 5;
-		MEM_freeN(cache->stack);
+		if(cache->stack)
+			MEM_freeN(cache->stack);
 		cache->stack= MEM_mallocN(sizeof(IrrCacheNode*)*cache->stacksize*8, "IrrCache stack");
 	}
 }
@@ -621,83 +628,100 @@ static void irr_cache_clamp_sample(IrrCache *cache, IrrCacheSample *nsample)
 	}
 }
 
+/* Insert Sample */
+
+static void irr_cache_insert(IrrCache *cache, IrrCacheSample *sample)
+{
+	IrrCacheNode *node;
+	float dist, P[3];
+	int i, j, depth;
+
+	copy_v3_v3(P, sample->P);
+
+	/* error multiplier */
+	dist = sample->dP/MAX_ERROR_K;
+	
+	/* insert the new sample into the cache */
+	node= &cache->root;
+	depth= 0;
+	while(node->side > (2*dist)) {
+		depth++;
+
+		j= 0;
+		for(i=0; i<3; i++)
+			if(P[i] > node->center[i])
+				j |= 1 << i;
+
+		if(node->children[j] == NULL) {
+			IrrCacheNode *nnode= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheNode));
+
+			for(i=0; i<3; i++) {
+				float fac= (P[i] > node->center[i])? 0.25f: -0.25f;
+				nnode->center[i]= node->center[i] + fac*node->side;
+			}
+
+			nnode->side= node->side*0.5f;
+			node->children[j]= nnode;
+
+			cache->totnode++;
+		}
+
+		node= node->children[j];
+	}
+
+	sample->next= node->samples;
+	node->samples= sample;
+
+	cache->maxdepth= MAX2(depth, cache->maxdepth);
+	irr_cache_check_stack(cache);
+
+	cache->totsample++;
+}
+
 /* Add a Sample */
 
 static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float P[3], float dPdu[3], float dPdv[3], float N[3])
 {
 	IrrCacheSample *sample;
-	IrrCacheNode *node;
 	float Rmean;
-	int i, j, depth;
 	
 	ray_ao_env_indirect(re, shi, ao, env, indirect, &Rmean);
 
 	/* save sample to cache? */
-	if(1) { ///*(MAX_ERROR != 0) &&*/ (*ao > EPSILON)) { // XXX?
-		sample= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheSample));
+	if(!1) ///*(MAX_ERROR != 0) &&*/ (*ao > EPSILON)) { // XXX?
+		return;
 
-		// XXX too large? try setting pixel dist to 0!
-		/* compute the radius of validity [Tabellion 2004] */
+	sample= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheSample));
+
+	// XXX too large? try setting pixel dist to 0!
+	/* compute the radius of validity [Tabellion 2004] */
+	if(re->db.wrld.aomode & WO_AOCACHE_FILE)
+		Rmean= Rmean*0.5f; /* XXX pixel dist is not reusable .. */
+	else
 		Rmean= minf(Rmean*0.5f, MAX_PIXEL_DIST*(len_v3(dPdu) + len_v3(dPdv))*0.5f);
-		
-		/* record the data */
-		copy_v3_v3(sample->P, P);
-		copy_v3_v3(sample->N, N);
-		sample->dP= Rmean;
-		irr_sample_set(sample->C, ao, env, indirect);
+	
+	/* record the data */
+	copy_v3_v3(sample->P, P);
+	copy_v3_v3(sample->N, N);
+	sample->dP= Rmean;
+	irr_sample_set(sample->C, ao, env, indirect);
 
-		if(cache->neighbour_clamp) {
-			/* neighbour clamping trick */
-			irr_cache_clamp_sample(cache, sample);
-			Rmean= sample->dP; /* copy dP back so we get the right place in the octree */
-		}
-
-		/* error multiplier */
-		Rmean /= MAX_ERROR_K;
-		
-		/* insert the new sample into the cache */
-		node= &cache->root;
-		depth= 0;
-		while(node->side > (2*Rmean)) {
-			depth++;
-
-			j= 0;
-			for(i=0; i<3; i++)
-				if(P[i] > node->center[i])
-					j |= 1 << i;
-
-			if(node->children[j] == NULL) {
-				IrrCacheNode *nnode= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheNode));
-
-				for(i=0; i<3; i++) {
-					float fac= (P[i] > node->center[i])? 0.25f: -0.25f;
-					nnode->center[i]= node->center[i] + fac*node->side;
-				}
-
-				nnode->side= node->side*0.5f;
-				node->children[j]= nnode;
-			}
-
-			node= node->children[j];
-		}
-
-		sample->next= node->samples;
-		node->samples= sample;
-
-		cache->maxdepth= MAX2(depth, cache->maxdepth);
-		irr_cache_check_stack(cache);
-
-		cache->totsample++;
+	if(cache->neighbour_clamp) {
+		/* neighbour clamping trick */
+		irr_cache_clamp_sample(cache, sample);
+		Rmean= sample->dP; /* copy dP back so we get the right place in the octree */
 	}
+
+	irr_cache_insert(cache, sample);
 }
 
 /* Lookup */
 
-int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float cP[3], float dPdu[3], float dPdv[3], float cN[3], int preprocess)
+int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float cP[3], float cdPdu[3], float cdPdv[3], float cN[3], int preprocess)
 {
 	IrrCacheSample *sample;
 	IrrCacheNode *node, **stack, **stacknode;
-	float accum[CACHE_DIMENSION], P[3], N[3], totw;
+	float accum[CACHE_DIMENSION], P[3], N[3], dPdu[3], dPdv[3], totw;
 	float discard_weight, maxdist, distfac;
 	int i, added= 0, totfound= 0, use_lsq;
 	Lsq4DFit lsq;
@@ -712,6 +736,15 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	copy_v3_v3(P, cP);
 	copy_v3_v3(N, cN);
 	negate_v3(N); /* blender normal is negated */
+	copy_v3_v3(dPdu, cdPdu);
+	copy_v3_v3(dPdv, cdPdv);
+
+	mul_m4_v3(re->cam.viewinv, P);
+	mul_m3_v3(re->cam.viewninv, N);
+	mul_m3_v3(re->cam.viewninv, dPdu);
+	mul_m3_v3(re->cam.viewninv, dPdv);
+
+	//print_m3("nm", re->cam.viewnmat);
 	
 	totw= 0.0f;
 
@@ -819,7 +852,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 			irr_sample_get(accum, ao, env, indirect);
 		}
 	}
-	else {
+	else if(!cache->locked) {
 		/* create a new sample */
 		irr_cache_add(re, shi, cache, ao, env, indirect, P, dPdu, dPdv, N);
 		added= 1;
@@ -848,8 +881,18 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 
 	//radio_cache_create(re, pa->thread);
 
-	cache= irr_cache_new(re, pa->thread);
-	re->db.irrcache[pa->thread]= cache;
+	BLI_lock_thread(LOCK_RCACHE);
+	if((re->db.wrld.aomode & WO_AOCACHE_FILE) && (cache=irr_cache_read(re, pa->thread))) {
+		re->db.irrcache[pa->thread]= cache;
+	}
+	else {
+		cache= irr_cache_new(re, pa->thread);
+		re->db.irrcache[pa->thread]= cache;
+	}
+	BLI_unlock_thread(LOCK_RCACHE);
+
+	if(cache->locked)
+		return;
 
 	seed= pa->rectx*pa->disprect.ymin;
 
@@ -919,11 +962,183 @@ void irr_cache_free(Render *re, RenderPart *pa)
 	IrrCache *cache= re->db.irrcache[pa->thread];
 
 	if(cache) {
+		if((re->db.wrld.aomode & WO_AOCACHE_FILE) && !re->cb.test_break(re->cb.tbh))
+			if(!cache->locked)
+				irr_cache_merge(re, cache);
+
 		irr_cache_delete(cache);
 		re->db.irrcache[pa->thread]= NULL;
 	}
 
 	radio_cache_free(&re->db, pa->thread);
+}
+
+#define CACHE_FILENAME "/tmp/cache.irr"
+
+void irr_cache_write(Render *re, IrrCache *cache)
+{
+	FILE *f;
+	IrrCacheNode *node, **stack, **stacknode;
+	IrrCacheSample *sample;
+	int i;
+	
+	f= fopen(CACHE_FILENAME, "w");
+
+	/* write cache */
+	fwrite(cache, sizeof(IrrCache), 1, f);
+
+	/* write nodes */
+	stack= cache->stack;
+	stacknode= stack;
+
+	*stacknode++= &cache->root;
+	while(stacknode > stack) {
+		node= *(--stacknode);
+
+		/* XXX perhaps we should only write samples with a decent
+		   minimum radius, or alternatively increase the radius */
+
+		/* write samples */
+		for(sample=node->samples; sample; sample=sample->next)
+			fwrite(sample, sizeof(IrrCacheSample), 1, f);
+
+		/* push children on stack */
+		for(i=0; i<8; i++) {
+			IrrCacheNode *tnode= node->children[i];
+
+			if(tnode) {
+				fwrite(tnode, sizeof(IrrCacheNode), 1, f);
+				*stacknode++= tnode;
+			}
+		}
+	}
+
+	fclose(f);
+}
+
+IrrCache *irr_cache_read(Render *re, int thread)
+{
+	FILE *f;
+	IrrCache *cache;
+	IrrCacheNode *node, **stack, **stacknode;
+	IrrCacheSample *sample, **sample_p;
+	int i;
+
+	f= fopen(CACHE_FILENAME, "r");
+	if(!f)
+		return NULL;
+
+	/* read cache */
+	cache= MEM_callocN(sizeof(IrrCache), "IrrCache");
+
+	if(fread(cache, sizeof(IrrCache), 1, f) != 1) {
+		MEM_freeN(cache);
+		fclose(f);
+		return NULL;
+	}
+
+	cache->thread= thread;
+
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	BLI_memarena_use_calloc(cache->arena);
+
+	cache->stack= NULL;
+	cache->stacksize= 0;
+	irr_cache_check_stack(cache);
+
+	//cache->locked= 1;
+
+	/* read nodes */
+	stack= cache->stack;
+	stacknode= stack;
+
+	*stacknode++= &cache->root;
+	while(stacknode > stack) {
+		node= *(--stacknode);
+
+		/* read samples */
+		sample_p= &node->samples;
+		for(sample=node->samples; sample; sample=sample->next) {
+			*sample_p= sample= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheSample));
+			if(fread(sample, sizeof(IrrCacheSample), 1, f) != 1) {
+				fclose(f);
+				irr_cache_delete(cache);
+				return NULL;
+			}
+
+			sample->read= 1;
+			sample_p= &sample->next;
+		}
+
+		/* push children on stack */
+		for(i=0; i<8; i++) {
+			IrrCacheNode *tnode= node->children[i];
+
+			if(tnode) {
+				node->children[i]= tnode= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheNode));
+				if(fread(tnode, sizeof(IrrCacheNode), 1, f) != 1) {
+					fclose(f);
+					irr_cache_delete(cache);
+					return NULL;
+				}
+
+				*stacknode++= tnode;
+			}
+		}
+	}
+
+	fclose(f);
+
+	return cache;
+}
+
+void irr_cache_merge(Render *re, IrrCache *from)
+{
+	IrrCache *to;
+	IrrCacheNode *node, **stack, **stacknode;
+	IrrCacheSample *sample, *newsample;
+	int i;
+
+	BLI_lock_thread(LOCK_RCACHE);
+	to= irr_cache_read(re, from->thread);
+
+	if(!to) {
+		irr_cache_write(re, from);
+		BLI_unlock_thread(LOCK_RCACHE);
+		return;
+	}
+
+	stack= from->stack;
+	stacknode= stack;
+
+	*stacknode++= &from->root;
+	while(stacknode > stack) {
+		node= *(--stacknode);
+
+		/* insert samples */
+		for(sample=node->samples; sample; sample=sample->next) {
+			if(!sample->read) {
+				newsample= BLI_memarena_alloc(to->arena, sizeof(IrrCacheSample));
+				memcpy(newsample, sample, sizeof(IrrCacheSample));
+				irr_cache_insert(to, newsample);
+			}
+		}
+
+		/* push children on stack */
+		for(i=0; i<8; i++) {
+			IrrCacheNode *tnode= node->children[i];
+
+			if(tnode)
+				*stacknode++= tnode;
+		}
+	}
+
+	printf("final %d %d (+= %d)\n", to->totsample, to->totnode, from->totsample);
+
+	irr_cache_write(re, to);
+	irr_cache_delete(to);
+
+	BLI_unlock_thread(LOCK_RCACHE);
 }
 
 /****************************** Radiosity Cache ******************************/

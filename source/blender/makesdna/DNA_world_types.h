@@ -154,9 +154,10 @@ typedef struct World {
 #define WO_AOSAMP_HAMMERSLEY		2
 
 /* aomode (use distances & random sampling modes) */
-#define WO_AODIST		1
-#define WO_AORNDSMP		2
-#define WO_AOCACHE		4
+#define WO_AODIST			1
+#define WO_AORNDSMP			2
+#define WO_AOCACHE			4
+#define WO_AOCACHE_FILE		8
 
 /* aocolor */
 #define WO_AOPLAIN	0

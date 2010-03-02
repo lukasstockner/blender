@@ -75,6 +75,8 @@ typedef struct RenderCamera {
 	/* matrices */
 	float viewmat[4][4];	/* world to camera */
 	float viewinv[4][4];	/* camera to world */
+	float viewnmat[3][3];	/* world to camera for normals */
+	float viewninv[3][3];	/* camera to world for normals */
 	float winmat[4][4];		/* camera to raster */
 	float viewzvec[3];		/* normalized z-axis of viewmat */
 

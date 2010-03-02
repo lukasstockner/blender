@@ -439,6 +439,8 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 				copy_v3_v3(lowv->n, v->n);
 			}
 		}
+		else if(ob->renderflag & OB_RENDER_SUBDIVIDE)
+			obr->flag |= R_HIGHRES;
 	}
 
 	/* and one render object per particle system */

@@ -1900,7 +1900,9 @@ static void indirect_path_trace(Render *re, ShadeInput *shi, float color[3], int
 
 	/* sample bsdf */
 	negate_v3_v3(lvec, vec); // silly inverted normals
-	mat_bsdf_f(bsdf, &shi->material, &shi->geometry, thread, lvec, BSDF_DIFFUSE);
+	mat_color(color, &shi->material);
+	// mat_bsdf_f(bsdf, &shi->material, &shi->geometry, thread, lvec, BSDF_DIFFUSE);
+	// this needs *M_PI
 
 	if(!is_zero_v3(bsdf)) {
 		/* trace ray */
@@ -1915,7 +1917,7 @@ static void indirect_path_trace(Render *re, ShadeInput *shi, float color[3], int
 		color[0]= bsdf[0]*color[0];
 		color[1]= bsdf[1]*color[1];
 		color[2]= bsdf[2]*color[2];
-		mul_v3_fl(color, (float)M_PI/(probability*dot_v3v3(vec, basis[2])));
+		mul_v3_fl(color, (float)1.0f/(probability)); //*dot_v3v3(vec, basis[2])));
 	}
 }
 
@@ -1939,7 +1941,7 @@ static void indirect_shade(Render *re, ShadeInput *oldshi, Isect *isec, float ve
 	shadeinput_from_isec(re, oldshi, isec, vec, depth, &shi);
 
 	if(!radio_cache_lookup(re, &shi, color, dist)) {
-		mat_shading_begin(re, &shi, &shi.material);
+		mat_shading_begin(re, &shi, &shi.material, 0);
 
 		/* emission + direct lighting + path trace for multiple bounces */
 		mat_emit(emit_color, &shi.material, &shi.geometry, shi.shading.thread);
@@ -2046,7 +2048,7 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], f
 
 	if(ao) *ao= 1.0f - accum_ao*normalize;
 	if(env) mul_v3_v3fl(env, accum_env, normalize);
-	if(indirect) mul_v3_v3fl(indirect, accum_indirect, normalize);
+	if(indirect) mul_v3_v3fl(indirect, accum_indirect, M_PI*normalize); // XXX
 
 #ifdef HARMONIC_MEAN
 	if(Rmean) *Rmean= totsample/accum_R;

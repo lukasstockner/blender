@@ -129,7 +129,7 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 
 		shadeinput_from_hit(re, rl, &shi, &to, view);
 
-		mat_shading_begin(re, &shi, &shi.material);
+		mat_shading_begin(re, &shi, &shi.material, 1);
 
 		/* generate new ray */
 		if(!hemi) {

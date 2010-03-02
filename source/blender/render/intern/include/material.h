@@ -36,7 +36,7 @@ struct ShadeMaterial;
  * color, alpha, bsdf, emit, .. must be done between begin and end. */
 
 void mat_shading_begin(struct Render *re, struct ShadeInput *shi,
-	struct ShadeMaterial *smat);
+	struct ShadeMaterial *smat, int do_textures);
 void mat_shading_end(struct Render *re, struct ShadeMaterial *smat);
 
 /* BSDF: combination of brdf and btdf
