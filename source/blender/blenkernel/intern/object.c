@@ -789,8 +789,9 @@ void *add_lamp(char *name)
 	
 	la->r= la->g= la->b= la->k= 1.0f;
 	la->haint= 1.0f;
-	la->energy= 80.0f;
-	la->dist= 0.0f;
+	la->energy= 1.0f;
+	la->power= 80.0f;
+	la->dist= 30.0f;
 	la->spotsize= 45.0f;
 	la->spotblend= 0.15f;
 	la->mode= LA_SHAD_BUF;

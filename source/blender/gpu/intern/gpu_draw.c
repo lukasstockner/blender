@@ -1170,7 +1170,7 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[][4
 	Base *base;
 	Lamp *la;
 	int count;
-	float position[4], direction[4], energy[4];
+	float position[4], direction[4], energy[4], power;
 	
 	/* disable all lights */
 	for(count=0; count<8; count++)
@@ -1226,11 +1226,13 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[][4
 			else
 				glLightf(GL_LIGHT0+count, GL_SPOT_CUTOFF, 180.0);
 		}
+
+		power= (ELEM(la->type, LA_SUN, LA_HEMI))? la->energy*M_PI: la->power;
 		
 		/* setup energy */
-		energy[0]= la->energy*la->r;
-		energy[1]= la->energy*la->g;
-		energy[2]= la->energy*la->b;
+		energy[0]= power*la->r;
+		energy[1]= power*la->g;
+		energy[2]= power*la->b;
 		energy[3]= 1.0;
 
 		glLightfv(GL_LIGHT0+count, GL_DIFFUSE, energy); 

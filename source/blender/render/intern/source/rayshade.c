@@ -50,6 +50,7 @@
 
 #include "RE_raytrace.h"
 
+#include "cache.h"
 #include "database.h"
 #include "environment.h"
 #include "lamp.h"
@@ -101,7 +102,6 @@ static int re_object_raycast(RayObject *rayob, Isect *isec, ShadeInput *shi)
 
 	for(a=0; a<2; a++) {
 		Isect subisec;
-		VlakRen *vlr;
 		float direction= (a == 0)? -1.0f: 1.0f;
 
 		memset(&subisec, 0, sizeof(subisec));

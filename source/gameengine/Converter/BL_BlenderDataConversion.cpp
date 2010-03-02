@@ -1625,7 +1625,7 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	lightobj.m_green = la->g;
 	lightobj.m_blue = la->b;
 	lightobj.m_distance = la->dist;
-	lightobj.m_energy = la->energy;
+	lightobj.m_energy = (ELEM(la->type, LA_SUN, LA_HEMI))? la->energy*M_PI: la->power;
 	lightobj.m_layer = layerflag;
 	lightobj.m_spotblend = la->spotblend;
 	lightobj.m_spotsize = la->spotsize;

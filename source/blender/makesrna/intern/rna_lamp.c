@@ -344,23 +344,6 @@ static void rna_def_lamp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Type", "Type of Lamp");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
-	prop= RNA_def_property(srna, "falloff_distance", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_float_sdna(prop, NULL, "dist");
-	RNA_def_property_ui_range(prop, 0, 1000, 1.0, 2);
-	RNA_def_property_ui_text(prop, "Falloff distance", "For custom falloff curve, the distance over which the curve is applied.");
-	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
-
-	prop= RNA_def_property(srna, "falloff_smooth", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "falloff_smooth");
-	RNA_def_property_ui_text(prop, "Falloff Smooth", "Artificially smooth lamp falloff to avoid harsh light when the lamp is nearby.");
-	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
-
-	prop= RNA_def_property(srna, "power", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "energy");
-	RNA_def_property_ui_range(prop, 0, 1000.0, 1.0, 2);
-	RNA_def_property_ui_text(prop, "Power", "Amount of light that the lamp emits.");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
 	prop= RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "r");
 	RNA_def_property_array(prop, 3);
@@ -395,6 +378,25 @@ static void rna_def_lamp(BlenderRNA *brna)
 		"rna_Lamp_active_texture_set", "LampTextureSlot", "rna_Lamp_update");
 }
 
+static void rna_def_lamp_power(StructRNA *srna, int type)
+{
+	PropertyRNA *prop;
+
+	if(type == LA_SUN || type == LA_HEMI) {
+		prop= RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
+		RNA_def_property_ui_range(prop, 0, 10, 1, 3);
+		RNA_def_property_ui_text(prop, "Energy", "Amount of light that the lamp emits");
+		RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+	}
+	else {
+		prop= RNA_def_property(srna, "power", PROP_FLOAT, PROP_NONE);
+		RNA_def_property_float_sdna(prop, NULL, "power");
+		RNA_def_property_ui_range(prop, 0, 1000.0, 1, 3);
+		RNA_def_property_ui_text(prop, "Power", "Amount of light that the lamp emits.");
+		RNA_def_property_update(prop, 0, "rna_Lamp_update");
+	}
+}
+
 static void rna_def_lamp_falloff(StructRNA *srna)
 {
 	PropertyRNA *prop;
@@ -415,6 +417,19 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 	RNA_def_property_pointer_sdna(prop, NULL, "curfalloff");
 	RNA_def_property_ui_text(prop, "Falloff Curve", "Custom Lamp Falloff Curve");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+
+	prop= RNA_def_property(srna, "falloff_distance", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "dist");
+	RNA_def_property_ui_range(prop, 0, 1000, 1.0, 2);
+	RNA_def_property_ui_text(prop, "Falloff distance", "For custom falloff curve, the distance over which the curve is applied.");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
+	prop= RNA_def_property(srna, "falloff_smooth", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "falloff_smooth");
+	RNA_def_property_range(prop, 0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0, 1, 1, 2);
+	RNA_def_property_ui_text(prop, "Falloff Smooth", "Artificially smooth lamp falloff to avoid harsh light when the lamp is nearby.");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "sphere", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SPHERE);
@@ -506,6 +521,7 @@ static void rna_def_point_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Point Lamp", "Omnidirectional point lamp");
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_POINT);
 
+	rna_def_lamp_power(srna, LA_LOCAL);
 	rna_def_lamp_falloff(srna);
 	rna_def_lamp_shadow(srna, 0, 0);
 }
@@ -545,11 +561,8 @@ static void rna_def_area_lamp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Size Y", "Size of the area of the area Lamp in the Y direction for Rectangle shapes");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
-	prop= RNA_def_property(srna, "gamma", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "k");
-	RNA_def_property_ui_range(prop, 0.001, 2.0, 0.1, 3);
-	RNA_def_property_ui_text(prop, "Gamma", "Light gamma correction value");
-	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+	rna_def_lamp_power(srna, LA_AREA);
+	rna_def_lamp_falloff(srna);
 }
 
 static void rna_def_spot_lamp(BlenderRNA *brna)
@@ -581,6 +594,7 @@ static void rna_def_spot_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Spot Lamp", "Directional cone lamp");
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_SPOT);
 
+	rna_def_lamp_power(srna, LA_SPOT);
 	rna_def_lamp_falloff(srna);
 	rna_def_lamp_shadow(srna, 1, 0);
 
@@ -706,6 +720,7 @@ static void rna_def_sun_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Sun Lamp", "Constant direction parallel ray lamp");
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_SUN);
 
+	rna_def_lamp_power(srna, LA_SUN);
 	rna_def_lamp_shadow(srna, 0, 0);
 
 	/* sky */
@@ -726,6 +741,8 @@ static void rna_def_hemi_lamp(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "Lamp");
 	RNA_def_struct_ui_text(srna, "Hemi Lamp", "180 degree constant lamp");
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_HEMI);
+
+	rna_def_lamp_power(srna, LA_HEMI);
 }
 
 void RNA_def_lamp(BlenderRNA *brna)

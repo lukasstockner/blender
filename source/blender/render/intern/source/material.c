@@ -592,8 +592,10 @@ void mat_shading_end(Render *re, ShadeMaterial *smat)
 
 void mat_color(float color[3], ShadeMaterial *mat)
 {
-	// use to be copy_v3_v3(color, &mat->r);
-	mul_v3_v3fl(color, &mat->r, mat->refl);
+	if(mat->mat->mode & MA_SHLESS)
+		copy_v3_v3(color, &mat->r);
+	else
+		mul_v3_v3fl(color, &mat->r, mat->refl);
 }
 
 float mat_alpha(ShadeMaterial *mat)

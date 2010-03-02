@@ -105,8 +105,8 @@ struct GPULamp {
 
 	int type, mode, lay;
 
-	float dynenergy, dyncol[3];
-	float energy, col[3];
+	float dynpower, dyncol[3];
+	float power, col[3];
 
 	float co[3], vec[3];
 	float dynco[3], dynvec[3];
@@ -257,11 +257,11 @@ void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double tim
 			lamp= nlink->data;
 
 			if((lamp->lay & viewlay) && (!(lamp->mode & LA_LAYER) || (lamp->lay & oblay))) {
-				lamp->dynenergy = lamp->energy;
+				lamp->dynpower = lamp->power;
 				VECCOPY(lamp->dyncol, lamp->col);
 			}
 			else {
-				lamp->dynenergy = 0.0f;
+				lamp->dynpower = 0.0f;
 				lamp->dyncol[0]= lamp->dyncol[1]= lamp->dyncol[2] = 0.0f;
 			}
 		}
@@ -673,7 +673,7 @@ static void shade_one_light(GPUShadeInput *shi, GPUShadeResult *shr, GPULamp *la
 			
 			if(lamp->mode & LA_ONLYSHADOW) {
 				GPU_link(mat, "shade_only_shadow", i, shadfac,
-					GPU_dynamic_uniform(&lamp->dynenergy), &shadfac);
+					GPU_dynamic_uniform(&lamp->dynpower), &shadfac);
 				
 				if(!(lamp->mode & LA_NO_DIFF))
 					GPU_link(mat, "shade_only_shadow_diffuse", shadfac, shi->rgb,
@@ -1302,14 +1302,14 @@ void GPU_lamp_update(GPULamp *lamp, int lay, float obmat[][4])
 	invert_m4_m4(lamp->imat, mat);
 }
 
-void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float energy)
+void GPU_lamp_update_colors(GPULamp *lamp, float r, float g, float b, float power)
 {
-	lamp->energy = energy;
-	if(lamp->mode & LA_NEG) lamp->energy= -lamp->energy;
+	lamp->power = power;
+	if(lamp->mode & LA_NEG) lamp->power= -lamp->power;
 
-	lamp->col[0]= r* lamp->energy;
-	lamp->col[1]= g* lamp->energy;
-	lamp->col[2]= b* lamp->energy;
+	lamp->col[0]= r* lamp->power;
+	lamp->col[1]= g* lamp->power;
+	lamp->col[2]= b* lamp->power;
 }
 
 static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *la, GPULamp *lamp)
@@ -1325,12 +1325,12 @@ static void gpu_lamp_from_blender(Scene *scene, Object *ob, Object *par, Lamp *l
 	lamp->mode = la->mode;
 	lamp->type = la->type;
 
-	lamp->energy = la->energy;
-	if(lamp->mode & LA_NEG) lamp->energy= -lamp->energy;
+	lamp->power= (ELEM(la->type, LA_SUN, LA_HEMI))? la->energy*M_PI: la->power;
+	if(lamp->mode & LA_NEG) lamp->power= -lamp->power;
 
-	lamp->col[0]= la->r*lamp->energy;
-	lamp->col[1]= la->g*lamp->energy;
-	lamp->col[2]= la->b*lamp->energy;
+	lamp->col[0]= la->r*lamp->power;
+	lamp->col[1]= la->g*lamp->power;
+	lamp->col[2]= la->b*lamp->power;
 
 	GPU_lamp_update(lamp, ob->lay, ob->obmat);
 

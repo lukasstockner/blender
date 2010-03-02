@@ -878,6 +878,8 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 	
 	if(!((re->db.wrld.aomode & WO_AOCACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
 		return;
+	if((re->params.r.mode & R_RAYTRACE) == 0)
+		return;
 
 	//radio_cache_create(re, pa->thread);
 

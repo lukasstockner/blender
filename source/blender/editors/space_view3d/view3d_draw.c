@@ -1773,7 +1773,7 @@ static void gpu_render_lamp_update(Scene *scene, View3D *v3d, Object *ob, Object
 	
 	if(lamp) {
 		GPU_lamp_update(lamp, ob->lay, obmat);
-		GPU_lamp_update_colors(lamp, la->r, la->g, la->b, la->energy);
+		GPU_lamp_update_colors(lamp, la->r, la->g, la->b, la->power);
 		
 		if((ob->lay & v3d->lay) && GPU_lamp_has_shadow_buffer(lamp)) {
 			shadow= MEM_callocN(sizeof(View3DShadow), "View3DShadow");

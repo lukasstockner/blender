@@ -96,9 +96,9 @@ class DATA_PT_lamp(DataButtonsPanel):
         col = split.column()
         sub = col.column()
         sub.prop(lamp, "color", text="")
-        sub.prop(lamp, "power")
 
-        if lamp.type in ('POINT', 'SPOT'):
+        if lamp.type in ('POINT', 'SPOT', 'AREA'):
+            sub.prop(lamp, "power")
             sub.label(text="Falloff:")
             sub.prop(lamp, "falloff_type", text="")
             if lamp.falloff_type == 'CUSTOM_CURVE':
@@ -107,10 +107,8 @@ class DATA_PT_lamp(DataButtonsPanel):
                 sub.prop(lamp, "falloff_smooth", text="Smooth")
 
             col.prop(lamp, "sphere")
-
-        if lamp.type == 'AREA':
-            col.prop(lamp, "falloff_distance", text="Distance")
-            col.prop(lamp, "gamma")
+        else:
+            sub.prop(lamp, "energy")
 
         if wide_ui:
             col = split.column()
@@ -258,8 +256,6 @@ class DATA_PT_shadow(DataButtonsPanel):
                 else:
                     if wide_ui:
                         col = split.column()
-
-
         elif lamp.shadow_method == 'BUFFER_SHADOW':
             col = layout.column()
             col.label(text="Buffer Type:")
@@ -306,6 +302,9 @@ class DATA_PT_shadow(DataButtonsPanel):
             sub.active = not lamp.auto_clip_end
             sub.prop(lamp, "shadow_buffer_clip_end", text=" Clip End")
 
+        elif lamp.type == 'AREA':
+            col = layout.column()
+            col.prop(lamp, "shadow_ray_samples_x", text="Samples")
 
 class DATA_PT_area(DataButtonsPanel):
     bl_label = "Area Shape"

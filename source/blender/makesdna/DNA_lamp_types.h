@@ -53,8 +53,8 @@ typedef struct Lamp {
 	float r, g, b, k;
 	float shdwr, shdwg, shdwb;
 	
-	float energy, spotsize, spotblend;
-	float haint;
+	float energy, power, spotsize, spotblend;
+	float haint, pad6;
 	
 	struct CurveMapping *curfalloff;
 	short falloff_type, pad2;

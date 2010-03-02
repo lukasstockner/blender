@@ -52,7 +52,7 @@
 
 /******************************* Visibility ********************************/
 
-#define LAMP_FALLOFF_MIN_DIST 1e-10f /* to division by zero */
+#define LAMP_FALLOFF_MIN_DIST 1e-10f /* to avoid division by zero */
 
 static float lamp_falloff(LampRen *lar, float dist)
 {
@@ -160,6 +160,9 @@ float lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], floa
 			sub_v3_v3v3(vec, co, lco);
 			dist= normalize_v3(vec);
 			fac= lamp_falloff(lar, dist);
+
+			if(lar->mode & LA_SPHERE)
+				fac= lamp_sphere_factor(lar, dist, fac);
 
 			if(fac <= 1e-6f) fac = 0.0f;
 			break;
@@ -650,7 +653,7 @@ GroupObject *lamp_create(Render *re, Object *ob)
 	lar->type= la->type;
 	lar->mode= la->mode;
 
-	lar->power= la->energy;
+	lar->power= (ELEM(la->type, LA_SUN, LA_HEMI))? la->energy*M_PI: la->power;
 	if(la->mode & LA_NEG) lar->power= -lar->power;
 
 	lar->vec[0]= -mat[2][0];

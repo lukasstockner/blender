@@ -6429,8 +6429,18 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 		if(la->falloff_type == LA_FALLOFF_SLIDERS)
 			la->falloff_type= LA_FALLOFF_INVLINEAR;
 
-		la->energy *= M_PI*la->dist;
-		la->falloff_smooth = 1.0f;
+		la->power= la->energy*M_PI*la->dist;
+		la->falloff_smooth = 1.0f/(M_PI*la->energy);
+
+		if(la->type == LA_AREA) {
+			la->mode &= ~LA_SPHERE;
+
+			if(la->ray_samp == 1)
+				la->ray_samp = 5;
+
+			la->power *= M_PI/2*la->dist;
+			la->falloff_smooth = 0.0f;
+		}
 	}
 
 	for(ob= main->object.first; ob; ob= ob->id.next) {
