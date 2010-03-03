@@ -217,82 +217,6 @@ static void occ_build_shade(Render *re, OcclusionTree *tree)
 	}
 }
 
-/* ------------------------- Spherical Harmonics --------------------------- */
-
-/* Use 2nd order SH => 9 coefficients, stored in this order:
-   0 = (0,0),
-   1 = (1,-1), 2 = (1,0), 3 = (1,1),
-   4 = (2,-2), 5 = (2,-1), 6 = (2,0), 7 = (2,1), 8 = (2,2) */
-
-static void sh_copy(float *shresult, float *sh)
-{
-	memcpy(shresult, sh, sizeof(float)*9);
-}
-
-static void sh_mul(float *sh, float f)
-{
-	int i;
-
-	for(i=0; i<9; i++)
-		sh[i] *= f;
-}
-
-static void sh_add(float *shresult, float *sh1, float *sh2)
-{
-	int i;
-
-	for(i=0; i<9; i++)
-		shresult[i]= sh1[i] + sh2[i];
-}
-
-static void sh_from_disc(float *n, float area, float *shresult)
-{
-	/* See formula (3) in:
-	   "An Efficient Representation for Irradiance Environment Maps" */
-	float sh[9], x, y, z;
-
-	x= n[0];
-	y= n[1];
-	z= n[2];
-
-	sh[0]= 0.282095f;
-
-	sh[1]= 0.488603f*y;
-	sh[2]= 0.488603f*z;
-	sh[3]= 0.488603f*x;
-	
-	sh[4]= 1.092548f*x*y;
-	sh[5]= 1.092548f*y*z;
-	sh[6]= 0.315392f*(3.0f*z*z - 1.0f);
-	sh[7]= 1.092548f*x*z;
-	sh[8]= 0.546274f*(x*x - y*y);
-
-	sh_mul(sh, area);
-	sh_copy(shresult, sh);
-}
-
-static float sh_eval(float *sh, float *v)
-{
-	/* See formula (13) in:
-	   "An Efficient Representation for Irradiance Environment Maps" */
-	static const float c1 = 0.429043f, c2 = 0.511664f, c3 = 0.743125f;
-	static const float c4 = 0.886227f, c5 = 0.247708f;
-	float x, y, z, sum;
-
-	x= v[0];
-	y= v[1];
-	z= v[2];
-
-	sum= c1*sh[8]*(x*x - y*y);
-	sum += c3*sh[6]*z*z;
-	sum += c4*sh[0];
-	sum += -c5*sh[6];
-	sum += 2.0f*c1*(sh[4]*x*y + sh[7]*x*z + sh[5]*y*z);
-	sum += 2.0f*c2*(sh[3]*x + sh[1]*y + sh[2]*z);
-
-	return sum;
-}
-
 /* ------------------------------ Building --------------------------------- */
 
 static void occ_face(Render *re, const OccFace *face, float *co, float *normal, float *area)
@@ -409,7 +333,7 @@ static void occ_node_from_face(Render *re, OccFace *face, OccNode *node)
 
 	occ_face(re, face, node->co, n, &node->area);
 	node->dco= 0.0f;
-	sh_from_disc(n, node->area, node->sh);
+	vec_fac_to_sh(node->sh, n, node->area);
 }
 
 static void occ_build_dco(Render *re, OcclusionTree *tree, OccNode *node, float *co, float *dco)
@@ -588,7 +512,7 @@ static void occ_build_recursive(Render *re, OcclusionTree *tree, OccNode *node, 
 
 		if(child) {
 			node->area += child->area;
-			sh_add(node->sh, node->sh, child->sh);
+			add_sh_shsh(node->sh, node->sh, child->sh);
 			madd_v3_v3v3fl(node->co, node->co, child->co, child->area);
 		}
 	}
@@ -608,7 +532,7 @@ static void occ_build_sh_normalize(OccNode *node)
 	int b;
 
 	if(node->area != 0.0f)
-		sh_mul(node->sh, 1.0f/node->area);
+		mul_sh_fl(node->sh, 1.0f/node->area);
 
 	for(b=0; b<TOTCHILD; b++) {
 		if(node->childflag & (1<<b));
@@ -737,7 +661,7 @@ static float occ_solid_angle(OccNode *node, float *v, float d2, float invd2, flo
 	ev[0]= -v[0]*invd2;
 	ev[1]= -v[1]*invd2;
 	ev[2]= -v[2]*invd2;
-	dotemit= sh_eval(node->sh, ev);
+	dotemit= eval_shv3(node->sh, ev);
 	dotreceive= dot_v3v3(receivenormal, v)*invd2;
 
 	CLAMP(dotemit, 0.0f, 1.0f);
