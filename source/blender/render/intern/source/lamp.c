@@ -50,6 +50,39 @@
 #include "shadowbuf.h"
 #include "texture_stack.h"
 
+/******************************** Area Lamp *********************************/
+
+static void area_lamp_location(float co[3], LampRen *lar, float rx, float ry)
+{
+	float r[2]= {rx, ry};
+
+	/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
+	sample_project_rect(co, lar->area_size, lar->area_sizey, r);
+
+	/* align samples to lamp vector */
+	mul_m3_v3(lar->mat, co);
+	add_v3_v3(co, lar->co);
+}
+
+static float area_lamp_form_factor(LampRen *lar, float co[3], float n[3], float lv[3])
+{
+	float v1[3], v2[3], v3[3], v4[3], fn[3], ff, inp;
+
+	area_lamp_location(v1, lar, 0.0f, 0.0f);
+	area_lamp_location(v2, lar, 1.0f, 0.0f);
+	area_lamp_location(v3, lar, 1.0f, 1.0f);
+	area_lamp_location(v4, lar, 0.0f, 1.0f);
+
+	negate_v3_v3(fn, n);
+	ff= form_factor_hemi_poly(co, fn, v4, v3, v2, v1)*(M_PI/area_quad_v3(v1, v2, v3, v4));
+
+	/* TODO ugly compensation for cosine term being included here and again in
+	   material, doesn't work with shaders that don't include this.. */
+	inp= maxf(dot_v3v3(n, lv), 1e-8f);
+
+	return ff/inp;
+}
+
 /******************************* Visibility ********************************/
 
 #define LAMP_FALLOFF_MIN_DIST 1e-10f /* to avoid division by zero */
@@ -133,7 +166,7 @@ static float lamp_spot_falloff(LampRen *lar, float vec[3], float fac)
 }
 
 /* lampdistance and spot angle, writes in lv and dist */
-float lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], float r_vec[3], float *r_dist)
+int lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], float r_vec[3], float *r_dist, float *r_fac)
 {
 	float vec[3], dist, fac;
 
@@ -159,12 +192,26 @@ float lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], floa
 		case LA_AREA:
 			sub_v3_v3v3(vec, co, lco);
 			dist= normalize_v3(vec);
-			fac= lamp_falloff(lar, dist);
 
-			if(lar->mode & LA_SPHERE)
-				fac= lamp_sphere_factor(lar, dist, fac);
+			if(dot_v3v3(lar->vec, vec) > 0.0f) {
 
-			if(fac <= 1e-6f) fac = 0.0f;
+				if(lar->mode & LA_MULTI_SHADE) {
+					fac= lamp_falloff(lar, dist);
+					fac *= dot_v3v3(lar->vec, vec);
+
+					if(lar->mode & LA_SPHERE)
+						fac= lamp_sphere_factor(lar, dist, fac);
+				}
+				else if(r_fac) /* optimization, skip for only shadow */
+					fac= area_lamp_form_factor(lar, co, vn, vec);
+				else
+					fac= 1.0f;
+
+				if(fac <= 1e-6f) fac = 0.0f;
+			}
+			else
+				fac= 0.0f;
+
 			break;
 
 		case LA_SPOT:
@@ -188,8 +235,9 @@ float lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], floa
 	/* return values */
 	if(r_vec) copy_v3_v3(r_vec, vec);
 	if(r_dist) *r_dist= dist;
+	if(r_fac) *r_fac= fac;
 
-	return fac;
+	return (fac != 0.0f);
 }
 
 static void lamp_sample_location(float lco[3], LampRen *lar, float co[3], float r[2])
@@ -223,16 +271,8 @@ static void lamp_sample_location(float lco[3], LampRen *lar, float co[3], float 
 			break;
 		}
 		case LA_AREA: {
-			if(r) {
-				float rect[3], s[3];
-
-				/* sampling, returns quasi-random vector in [sizex,sizey]^2 plane */
-				sample_project_rect(rect, lar->area_size, lar->area_sizey, r);
-
-				/* align samples to lamp vector */
-				mul_v3_m3v3(s, lar->mat, rect);
-				add_v3_v3v3(lco, lar->co, s);
-			}
+			if(r)
+				area_lamp_location(lco, lar, r[0], r[1]);
 			else
 				copy_v3_v3(lco, lar->co);
 			break;
@@ -270,41 +310,47 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 	Render *re, LampRen *lar, ShadeInput *shi,
 	float co[3], float r[2])
 {
-	float lco[3], dist, fac;
+	float lco[3], dist, fac, vec[3];
 
 	/* compute sample location, vector and distance */
 	lamp_sample_location(lco, lar, co, r);
-	fac= lamp_visibility(lar, co, shi->geometry.vn, lco, lv, &dist);
-	if(fac == 0.0f)
+	if(!lamp_visibility(lar, co, shi->geometry.vn, lco, vec, (lainf)? &dist: NULL, (lainf)? &fac: NULL))
 		return 0;
 
-	/* compute influence */
-	copy_v3_v3(lainf, &lar->r);
+	if(lainf) {
+		/* compute influence */
+		copy_v3_v3(lainf, &lar->r);
 
-	if(lar->mode & LA_TEXTURE) {
-		if(lar->type==LA_SPOT && (lar->mode & LA_OSATEX)) {
-			shi->geometry.osatex= 1;	/* signal for multitex() */
-			
-			shi->texture.dxlv[0]= lv[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/dist;
-			shi->texture.dxlv[1]= lv[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/dist;
-			shi->texture.dxlv[2]= lv[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/dist;
-			
-			shi->texture.dylv[0]= lv[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/dist;
-			shi->texture.dylv[1]= lv[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/dist;
-			shi->texture.dylv[2]= lv[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/dist;
+		if(lar->mode & LA_TEXTURE) {
+			if(lar->type==LA_SPOT && (lar->mode & LA_OSATEX)) {
+				shi->geometry.osatex= 1;	/* signal for multitex() */
+				
+				shi->texture.dxlv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/dist;
+				shi->texture.dxlv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/dist;
+				shi->texture.dxlv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/dist;
+				
+				shi->texture.dylv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/dist;
+				shi->texture.dylv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/dist;
+				shi->texture.dylv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/dist;
+			}
+
+			do_lamp_tex(re, lar, vec, shi, lainf, LA_TEXTURE);
 		}
 
-		do_lamp_tex(re, lar, lv, shi, lainf, LA_TEXTURE);
+		mul_v3_fl(lainf, fac);
 	}
 
-	mul_v3_fl(lainf, fac);
+	if(lashdw) {
+		/* compute shadow */
+		if((re->params.r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
+			/* TODO: we need caching to still work with multi sample .. */
+			lamp_shadow(lashdw, re, lar, shi, co, lco, vec, (shi->shading.depth || r));
+		else
+			lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
+	}
 
-	/* compute shadow */
-	if((re->params.r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
-		/* TODO: we need caching to still work with multi sample .. */
-		lamp_shadow(lashdw, re, lar, shi, co, lco, lv, (shi->shading.depth || r));
-	else
-		lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
+	if(lv)
+		copy_v3_v3(lv, vec);
 
 	return 1;
 }
@@ -676,12 +722,9 @@ GroupObject *lamp_create(Render *re, Object *ob)
 
 	// area
 	lar->ray_samp= la->ray_samp;
-	lar->ray_sampy= la->ray_sampy;
-	lar->ray_sampz= la->ray_sampz;
 	
 	lar->area_size= la->area_size;
 	lar->area_sizey= la->area_sizey;
-	lar->area_sizez= la->area_sizez;
 
 	lar->area_shape= la->area_shape;
 	
@@ -699,21 +742,10 @@ GroupObject *lamp_create(Render *re, Object *ob)
 		switch(lar->area_shape) {
 		case LA_AREA_SQUARE:
 			lar->ray_totsamp= lar->ray_samp*lar->ray_samp;
-			lar->ray_sampy= lar->ray_samp;
 			lar->area_sizey= lar->area_size;
 			break;
 		case LA_AREA_RECT:
-			lar->ray_totsamp= lar->ray_samp*lar->ray_sampy;
-			break;
-		case LA_AREA_CUBE:
-			lar->ray_totsamp= lar->ray_samp*lar->ray_samp*lar->ray_samp;
-			lar->ray_sampy= lar->ray_samp;
-			lar->ray_sampz= lar->ray_samp;
-			lar->area_sizey= lar->area_size;
-			lar->area_sizez= lar->area_size;
-			break;
-		case LA_AREA_BOX:
-			lar->ray_totsamp= lar->ray_samp*lar->ray_sampy*lar->ray_sampz;
+			lar->ray_totsamp= lar->ray_samp*lar->ray_samp;
 			break;
 		}
 	}

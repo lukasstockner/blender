@@ -2464,10 +2464,8 @@ float form_factor_hemi_poly(float p[3], float n[3], float v1[3], float v2[3], fl
 	if(ff_visible_quad(p, n, v1, v2, v3, q0, q1, q2, q3))
 		contrib += ff_quad_form_factor(p, n, q0, q1, q2, q3);
 	
-	if(v4) {
-		if(ff_visible_quad(p, n, v1, v3, v4, q0, q1, q2, q3))
-			contrib += ff_quad_form_factor(p, n, q0, q1, q2, q3);
-	}
+	if(v4 && ff_visible_quad(p, n, v1, v3, v4, q0, q1, q2, q3))
+		contrib += ff_quad_form_factor(p, n, q0, q1, q2, q3);
 
 	return contrib;
 }

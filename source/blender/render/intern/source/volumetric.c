@@ -471,7 +471,7 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 	if ((lar->lay & shi->shading.lay)==0) return;
 	if (lar->power == 0.0) return;
 	
-	if ((visifac= lamp_visibility(lar, co, NULL, lar->co, lv, &lampdist)) == 0.f) return;
+	if (!lamp_visibility(lar, co, NULL, lar->co, lv, &lampdist, &visifac)) return;
 	
 	copy_v3_v3(lacol, &lar->r);
 	

@@ -99,14 +99,16 @@ class DATA_PT_lamp(DataButtonsPanel):
 
         if lamp.type in ('POINT', 'SPOT', 'AREA'):
             sub.prop(lamp, "power")
-            sub.label(text="Falloff:")
-            sub.prop(lamp, "falloff_type", text="")
-            if lamp.falloff_type == 'CUSTOM_CURVE':
-                sub.prop(lamp, "falloff_distance", text="Distance")
-            else:
-                sub.prop(lamp, "falloff_smooth", text="Smooth")
 
-            col.prop(lamp, "sphere")
+            if lamp.type != 'AREA' or lamp.multi_shade:
+                sub.label(text="Falloff:")
+                sub.prop(lamp, "falloff_type", text="")
+                if lamp.falloff_type == 'CUSTOM_CURVE':
+                    sub.prop(lamp, "falloff_distance", text="Distance")
+                else:
+                    sub.prop(lamp, "falloff_smooth", text="Smooth")
+
+                col.prop(lamp, "sphere")
         else:
             sub.prop(lamp, "energy")
 
@@ -116,7 +118,8 @@ class DATA_PT_lamp(DataButtonsPanel):
         col.prop(lamp, "layer", text="This Layer Only")
         col.prop(lamp, "specular")
         col.prop(lamp, "diffuse")
-
+        if lamp.type in ('POINT', 'SPOT', 'AREA'):
+            col.prop(lamp, "multi_shade")
 
 class DATA_PT_sunsky(DataButtonsPanel):
     bl_label = "Sky & Atmosphere"
@@ -243,11 +246,7 @@ class DATA_PT_shadow(DataButtonsPanel):
 
                 col = split.column()
 
-                if lamp.shape == 'SQUARE':
-                    col.prop(lamp, "shadow_ray_samples_x", text="Samples")
-                elif lamp.shape == 'RECTANGLE':
-                    col.prop(lamp, "shadow_ray_samples_x", text="Samples X")
-                    col.prop(lamp, "shadow_ray_samples_y", text="Samples Y")
+                col.prop(lamp, "shadow_ray_samples", text="Samples")
 
                 if lamp.shadow_ray_sampling_method == 'ADAPTIVE_QMC':
                     col.prop(lamp, "shadow_adaptive_threshold", text="Threshold")
@@ -302,9 +301,9 @@ class DATA_PT_shadow(DataButtonsPanel):
             sub.active = not lamp.auto_clip_end
             sub.prop(lamp, "shadow_buffer_clip_end", text=" Clip End")
 
-        elif lamp.type == 'AREA':
+        elif lamp.type == 'AREA' and lamp.multi_shade:
             col = layout.column()
-            col.prop(lamp, "shadow_ray_samples_x", text="Samples")
+            col.prop(lamp, "shadow_ray_samples", text="Samples")
 
 class DATA_PT_area(DataButtonsPanel):
     bl_label = "Area Shape"

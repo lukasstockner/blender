@@ -44,7 +44,7 @@ void mat_shading_end(struct Render *re, struct ShadeMaterial *smat);
    note that we include the cos(geom->vn, lv) term in the bsdf. this
    makes it easier to implement bsdf's that use some approximation
    tricks. also note that for physically correct results (energy
-   conversvation) the returned values would be in the range 0 to 1/pi,
+   conservation) the returned values would be in the range 0 to 1/pi,
    and have unit 1/sr */
 
 #define BSDF_DIFFUSE		1

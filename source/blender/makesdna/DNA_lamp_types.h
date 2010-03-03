@@ -65,10 +65,10 @@ typedef struct Lamp {
 	short bufsize, samp, buffers, filtertype;
 	char bufflag, buftype;
 	
-	short ray_samp, ray_sampy, ray_sampz;
+	short ray_samp;
 	short ray_samp_type;
 	short area_shape;
-	float area_size, area_sizey, area_sizez;
+	float area_size, area_sizey;
 	float adapt_thresh;
 	short ray_samp_method;
 	short pad1;
@@ -148,6 +148,7 @@ typedef struct Lamp {
 #define LA_LAYER_SHADOW	32768
 #define LA_SHAD_TEX     (1<<16)
 #define LA_SHOW_CONE    (1<<17)
+#define LA_MULTI_SHADE  (1<<18)
 
 /* layer_shadow */
 #define LA_LAYER_SHADOW_BOTH	0

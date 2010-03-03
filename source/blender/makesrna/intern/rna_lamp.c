@@ -370,6 +370,11 @@ static void rna_def_lamp(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Diffuse", "Lamp does diffuse shading");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 	
+	prop= RNA_def_property(srna, "multi_shade", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_MULTI_SHADE);
+	RNA_def_property_ui_text(prop, "Multi Shade", "Do full area lamp shading per sample, more accurate but also noisy");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
 	/* common */
 	rna_def_animdata_common(srna);
 	
@@ -437,7 +442,7 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 }
 
-static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
+static void rna_def_lamp_shadow(StructRNA *srna, int type)
 {
 	PropertyRNA *prop;
 
@@ -459,7 +464,7 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 
 	prop= RNA_def_property(srna, "shadow_method", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "mode");
-	RNA_def_property_enum_items(prop, (spot)? prop_spot_shadow_items: prop_shadow_items);
+	RNA_def_property_enum_items(prop, (type == LA_SPOT)? prop_spot_shadow_items: prop_shadow_items);
 	RNA_def_property_ui_text(prop, "Shadow Method", "Method to compute lamp shadow with");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
@@ -480,19 +485,11 @@ static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)
 	RNA_def_property_ui_text(prop, "Shadow Ray Sampling Method", "Method for generating shadow samples: Adaptive QMC is fastest, Constant QMC is less noisy but slower");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
-	prop= RNA_def_property(srna, (area)? "shadow_ray_samples_x": "shadow_ray_samples", PROP_INT, PROP_NONE);
+	prop= RNA_def_property(srna, "shadow_ray_samples", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "ray_samp");
 	RNA_def_property_range(prop, 1, 64);
-	RNA_def_property_ui_text(prop, (area)? "Shadow Ray Samples": "Shadow Ray Samples X","Amount of samples taken extra (samples x samples)");
+	RNA_def_property_ui_text(prop, "Shadow Ray Samples","Amount of samples taken extra (samples x samples)");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
-
-	if(area) {
-		prop= RNA_def_property(srna, "shadow_ray_samples_y", PROP_INT, PROP_NONE);
-		RNA_def_property_int_sdna(prop, NULL, "ray_sampy");
-		RNA_def_property_range(prop, 1, 64);
-		RNA_def_property_ui_text(prop, "Shadow Ray Samples Y", "Amount of samples taken extra (samples x samples)");
-		RNA_def_property_update(prop, 0, "rna_Lamp_update");
-	}
 
 	prop= RNA_def_property(srna, "shadow_adaptive_threshold", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "adapt_thresh");
@@ -523,7 +520,7 @@ static void rna_def_point_lamp(BlenderRNA *brna)
 
 	rna_def_lamp_power(srna, LA_LOCAL);
 	rna_def_lamp_falloff(srna);
-	rna_def_lamp_shadow(srna, 0, 0);
+	rna_def_lamp_shadow(srna, 0);
 }
 
 static void rna_def_area_lamp(BlenderRNA *brna)
@@ -541,7 +538,7 @@ static void rna_def_area_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Area Lamp", "Directional area lamp");
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_AREA);
 
-	rna_def_lamp_shadow(srna, 0, 1);
+	rna_def_lamp_shadow(srna, LA_AREA);
 
 	prop= RNA_def_property(srna, "shape", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "area_shape");
@@ -596,7 +593,7 @@ static void rna_def_spot_lamp(BlenderRNA *brna)
 
 	rna_def_lamp_power(srna, LA_SPOT);
 	rna_def_lamp_falloff(srna);
-	rna_def_lamp_shadow(srna, 1, 0);
+	rna_def_lamp_shadow(srna, LA_SPOT);
 
 	prop= RNA_def_property(srna, "square", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_SQUARE);
@@ -721,7 +718,7 @@ static void rna_def_sun_lamp(BlenderRNA *brna)
 	RNA_def_struct_ui_icon(srna, ICON_LAMP_SUN);
 
 	rna_def_lamp_power(srna, LA_SUN);
-	rna_def_lamp_shadow(srna, 0, 0);
+	rna_def_lamp_shadow(srna, LA_SUN);
 
 	/* sky */
 	prop= RNA_def_property(srna, "sky", PROP_POINTER, PROP_NONE);

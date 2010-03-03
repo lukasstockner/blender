@@ -7563,11 +7563,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		while(la) {
 			if(la->k==0.0) la->k= 1.0;
 			if(la->ray_samp==0) la->ray_samp= 1;
-			if(la->ray_sampy==0) la->ray_sampy= 1;
-			if(la->ray_sampz==0) la->ray_sampz= 1;
 			if(la->area_size==0.0) la->area_size= 1.0;
 			if(la->area_sizey==0.0) la->area_sizey= 1.0;
-			if(la->area_sizez==0.0) la->area_sizez= 1.0;
 			la= la->id.next;
 		}
 

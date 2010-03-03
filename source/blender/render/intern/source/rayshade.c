@@ -2041,7 +2041,7 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], f
 
 	if(ao) *ao= 1.0f - accum_ao*normalize;
 	if(env) mul_v3_v3fl(env, accum_env, normalize);
-	if(indirect) mul_v3_v3fl(indirect, accum_indirect, M_PI*normalize); // XXX
+	if(indirect) mul_v3_v3fl(indirect, accum_indirect, M_PI*normalize);
 
 #ifdef HARMONIC_MEAN
 	if(Rmean) *Rmean= totsample/accum_R;

@@ -501,15 +501,12 @@ static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeRes
 		}
 	}
 	else {
+		ShadeResult tmp_shr;
 		float adapt_thresh= lar->adapt_thresh;
 		int min_adapt_samples= 4;
 		float avg= 0.0f;
-		float pre_diff[3], pre_spec[3], pre_onlyshadow[3], pre_shad[3];
 
-		copy_v3_v3(pre_diff, shr->diff);
-		copy_v3_v3(pre_spec, shr->spec);
-		copy_v3_v3(pre_onlyshadow, shr->onlyshadow);
-		copy_v3_v3(pre_shad, shr->shad);
+		memset(&tmp_shr, 0, sizeof(tmp_shr));
 
 		/* adaptive number of samples */
 		qsa = sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HALTON, totsample);
@@ -523,7 +520,7 @@ static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeRes
 			if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, jitco[sample%totjitco], r))
 				continue;
 
-			shade_lamp_accumulate(re, lar, shi, shr, lv, lainf, lashdw, passflag);
+			shade_lamp_accumulate(re, lar, shi, &tmp_shr, lv, lainf, lashdw, passflag);
 			avg += rgb_to_grayscale(lashdw);
 
 			/* adaptive sampling - consider samples below threshold as in shadow (or vice versa) and exit early */
@@ -539,18 +536,10 @@ static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeRes
 			}
 		}
 
-		/* XXX evil hack */
-		sub_v3_v3v3(shr->diff, shr->diff, pre_diff);
-		madd_v3_v3v3fl(shr->diff, pre_diff, shr->diff, 1.0f/sample);
-
-		sub_v3_v3v3(shr->spec, shr->spec, pre_spec);
-		madd_v3_v3v3fl(shr->spec, pre_spec, shr->spec, 1.0f/sample);
-
-		sub_v3_v3v3(shr->onlyshadow, shr->onlyshadow, pre_onlyshadow);
-		madd_v3_v3v3fl(shr->onlyshadow, pre_onlyshadow, shr->onlyshadow, 1.0f/sample);
-
-		sub_v3_v3v3(shr->shad, shr->shad, pre_shad);
-		madd_v3_v3v3fl(shr->shad, pre_shad, shr->shad, 1.0f/sample);
+		madd_v3_v3v3fl(shr->diff, shr->diff, tmp_shr.diff, 1.0f/sample);
+		madd_v3_v3v3fl(shr->spec, shr->spec, tmp_shr.spec, 1.0f/sample);
+		madd_v3_v3v3fl(shr->onlyshadow, shr->onlyshadow, tmp_shr.onlyshadow, 1.0f/sample);
+		madd_v3_v3v3fl(shr->shad, shr->shad, tmp_shr.shad, 1.0f/sample);
 	}
 
 	sampler_release(re, qsa);
@@ -559,10 +548,10 @@ static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeRes
 static void shade_lamp_multi_shadow(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, int passflag)
 {
 	/* only multisample shadow, we do this for ray shadows at depth 0, to
-	   get antialiasing, shadow buffers do this automatically with soft */
+	   get antialiasing, or area lamps without multi shade enabled */
 	QMCSampler *qsa;
 	float jitco[RE_MAX_OSA][3], fac= 1.0f;
-	float accuminf[3], accumshdw[3], accumlv[3];
+	float accumshdw[3], lainf[3], lv[3];
 	int sample, totsample, totjitco= 0;
 
 	totsample= (re->params.osa > 4)? re->params.osa: 5;
@@ -571,26 +560,26 @@ static void shade_lamp_multi_shadow(Render *re, LampRen *lar, ShadeInput *shi, S
 	shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
 	fac= 1.0f/totsample;
 
-	zero_v3(accuminf);
 	zero_v3(accumshdw);
-	zero_v3(accumlv);
 
+	/* sample & accumulate shadow */
 	for(sample=0; sample<totsample; sample++) {
-		float lv[3], lainf[3], lashdw[3], r[2];
+		float lashdw[3], r[2];
 
-		/* get lamp vector, influence and shadow */
 		sampler_get_float_2d(r, qsa, sample);
-		if(!lamp_sample(lv, lainf, lashdw, re, lar, shi, jitco[sample%totjitco], r))
+		if(!lamp_sample(NULL, NULL, lashdw, re, lar, shi, jitco[sample%totjitco], r))
 			continue;
 
-		madd_v3_v3fl(accuminf, lainf, fac);
 		madd_v3_v3fl(accumshdw, lashdw, fac);
-		add_v3_v3(accumlv, lv);
 	}
 
-	normalize_v3(accumlv);
+	/* get vector and influence non-sampled */
+	if(!lamp_sample(lv, lainf, NULL, re, lar, shi, shi->geometry.co, NULL)) {
+		sampler_release(re, qsa);
+		return;
+	}
 
-	shade_lamp_accumulate(re, lar, shi, shr, accumlv, accuminf, accumshdw, passflag);
+	shade_lamp_accumulate(re, lar, shi, shr, lv, lainf, accumshdw, passflag);
 
 	sampler_release(re, qsa);
 }
@@ -628,7 +617,7 @@ void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 		if(lar && !lamp_skip(re, lar, shi)) {
 			/* pick type of evualation */
 			if(lar->mode & LA_SHAD_RAY) {
-				if(lar->ray_totsamp > 1)
+				if((lar->ray_totsamp > 1) && (lar->mode & LA_MULTI_SHADE))
 					shade_lamp_multi(re, lar, shi, shr, passflag);
 				else if(shi->shading.depth == 0 && !shade_full_osa(re, shi))
 					shade_lamp_multi_shadow(re, lar, shi, shr, passflag);
@@ -636,7 +625,7 @@ void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 					shade_lamp_single(re, lar, shi, shr, passflag);
 			}
 			else {
-				if(lar->type == LA_AREA)
+				if(lar->type == LA_AREA && (lar->mode & LA_MULTI_SHADE))
 					shade_lamp_multi(re, lar, shi, shr, passflag);
 				else
 					shade_lamp_single(re, lar, shi, shr, passflag);

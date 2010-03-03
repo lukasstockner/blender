@@ -105,7 +105,7 @@ static void check_material_mapto(Material *ma)
 	 * every time a property which may or may not be textured is accessed */
 	
 	for(a=0; a<MAX_MTEX; a++) {
-		if(ma->mtex[a] && ma->mtex[a]->tex) {
+		if(ma->mtex && ma->mtex[a] && ma->mtex[a]->tex) {
 			/* currently used only in volume render, so we'll check for those flags */
 			if(ma->mtex[a]->mapto & MAP_DENSITY) ma->mapto_textured |= MAP_DENSITY;
 			if(ma->mtex[a]->mapto & MAP_EMISSION) ma->mapto_textured |= MAP_EMISSION;

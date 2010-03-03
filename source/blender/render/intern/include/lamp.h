@@ -67,8 +67,8 @@ void lamp_shadow(float lashdw[3],
 
 /* Visibility factor from shading point to point on the lamp. */
 
-float lamp_visibility(struct LampRen *lar, float co[3], float vn[3],
-	float lco[3], float r_vec[3], float *r_dist);
+int lamp_visibility(struct LampRen *lar, float co[3], float vn[3],
+	float lco[3], float r_vec[3], float *r_dist, float *r_fac);
 
 /* Spot Halo */
 
@@ -139,8 +139,8 @@ typedef struct LampRen {
 	/* Compression threshold for deep shadow maps */
 	float compressthresh;
 	
-	short ray_samp, ray_sampy, ray_sampz, ray_samp_method, ray_samp_type, area_shape, ray_totsamp;
-	float area_size, area_sizey, area_sizez;
+	short ray_samp, ray_samp_method, ray_samp_type, area_shape, ray_totsamp;
+	float area_size, area_sizey;
 	float adapt_thresh;
 
 	/* sun/sky */
