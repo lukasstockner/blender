@@ -63,7 +63,7 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 
 void lamp_shadow(float lashdw[3],
 	struct Render *re, struct LampRen *lar, struct ShadeInput *shi,
-	float from[3], float to[3], float lv[3]);
+	float from[3], float to[3], float lv[3], int do_real);
 
 /* Visibility factor from shading point to point on the lamp. */
 

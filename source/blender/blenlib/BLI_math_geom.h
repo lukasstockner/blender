@@ -193,6 +193,11 @@ MINLINE void add_sh_shsh(float r[9], float a[9], float b[9]);
 MINLINE float eval_shv3(float r[9], float v[3]);
 MINLINE void vec_fac_to_sh(float r[9], float v[3], float fac);
 
+/********************************* Form Factor *******************************/
+
+float form_factor_hemi_poly(float p[3], float n[3],
+	float v1[3], float v2[3], float v3[3], float v4[3]);
+
 #ifdef __cplusplus
 }
 #endif
