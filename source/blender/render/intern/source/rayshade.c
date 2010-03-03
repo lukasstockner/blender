@@ -75,8 +75,6 @@
 
 #define DEPTH_SHADOW_TRA  10
 
-int TOTRAY = 0;
-
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
 /* only to be used here in this file, it's for speed */
@@ -200,9 +198,6 @@ void raytree_free(RenderDB *rdb)
 {
 	ObjectInstanceRen *obi;
 
-	printf("tot ray: %d (%.3f million)\n", TOTRAY, TOTRAY/1e6);
-	TOTRAY= 0;
-	
 	if(rdb->raytree)
 	{
 		RE_rayobject_free(rdb->raytree);
@@ -1780,8 +1775,6 @@ static void ray_translucent(ShadeInput *shi, LampRen *lar, float *distfac, float
 static int ray_indirect_trace_do(Render *re, ShadeInput *shi, Isect *isec, float start[3], float vec[3], float maxdist, int nearest)
 {
 	memset(isec, 0, sizeof(*isec));
-
-	TOTRAY++;
 
 	copy_v3_v3(isec->start, start);
 	mul_v3_v3fl(isec->vec, vec, maxdist);

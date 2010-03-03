@@ -301,7 +301,8 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 
 	/* compute shadow */
 	if((re->params.r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
-		lamp_shadow(lashdw, re, lar, shi, co, lco, lv);
+		/* TODO: we need caching to still work with multi sample .. */
+		lamp_shadow(lashdw, re, lar, shi, co, lco, lv, (shi->shading.depth || r));
 	else
 		lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 
@@ -547,13 +548,12 @@ ListBase *lamps_get(Render *re, ShadeInput *shi)
 /****************** shadow ***********************/
 
 void lamp_shadow(float lashdw[3], Render *re, LampRen *lar, ShadeInput *shi,
-	float co[3], float lco[3], float lv[3])
+	float co[3], float lco[3], float lv[3], int do_real)
 {
 	LampShadowSubSample *lss= &(lar->shadsamp[shi->shading.thread].s[shi->shading.sample]);
 	/* TODO strand render bias is not same as it was before, but also was
 	   mixed together with the shading code which doesn't work anymore now */
 	float inp = (shi->geometry.tangentvn)? 1.0f: dot_v3v3(shi->geometry.vn, lv);
-	int do_real = (lar->ray_totsamp > 1)? 1: shi->shading.depth; // TODO caching doesn't work for multi-sample
 
 	lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 
