@@ -1619,8 +1619,8 @@ static KX_LightObject *gamelight_from_blamp(Object *ob, Lamp *la, unsigned int l
 	RAS_LightObject lightobj;
 	KX_LightObject *gamelight;
 	
-	lightobj.m_att1 = la->att1;
-	lightobj.m_att2 = (la->mode & LA_QUAD)?la->att2:0.0;
+	lightobj.m_att1 = 0.0f;
+	lightobj.m_att2 = 1.0f;
 	lightobj.m_red = la->r;
 	lightobj.m_green = la->g;
 	lightobj.m_blue = la->b;

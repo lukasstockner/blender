@@ -60,8 +60,6 @@ class RENDER_PT_render(RenderButtonsPanel):
         col.operator("screen.render", text="Animation", icon='RENDER_ANIMATION').animation = True
 
         layout.prop(rd, "display_mode", text="Display")
-        layout.prop(rd, "integrator")
-        layout.prop(rd, "path_samples")
 
 class RENDER_PT_layers(RenderButtonsPanel):
     bl_label = "Layers"
