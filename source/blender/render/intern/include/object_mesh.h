@@ -57,7 +57,7 @@ struct MTFace *render_vlak_get_tface(struct ObjectRen *obr, struct VlakRen *ren,
 struct MCol *render_vlak_get_mcol(struct ObjectRen *obr, struct VlakRen *ren, int n, char **name, int verify);
 float *render_vlak_get_surfnor(struct ObjectRen *obr, struct VlakRen *ren, int verify);
 float *render_vlak_get_nmap_tangent(struct ObjectRen *obr, struct VlakRen *ren, int verify);
-int render_vlak_get_normal(struct ObjectInstanceRen *obi, struct VlakRen *vlr, float *nor);
+int render_vlak_get_normal(struct ObjectInstanceRen *obi, struct VlakRen *vlr, float *nor, int quad);
 
 /* Conversion */
 

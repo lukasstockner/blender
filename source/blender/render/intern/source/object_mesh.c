@@ -415,19 +415,29 @@ VlakRen *render_object_vlak_copy(ObjectRen *obr, VlakRen *vlr)
 	return vlr1;
 }
 
-int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor)
+int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int quad)
 {
-	float v1[3], (*nmat)[3]= obi->nmat;
+	float v1[3], n[3], (*nmat)[3]= obi->nmat;
 	int flipped= 0;
 
+	if(vlr->v4) {
+		/* in case of non-planar quad the normal is not accurate */
+		if(quad)
+			normal_tri_v3(n, vlr->v4->co, vlr->v3->co, vlr->v1->co);
+		else
+			normal_tri_v3(n, vlr->v3->co, vlr->v2->co, vlr->v1->co);
+	}
+	else
+		copy_v3_v3(n, vlr->n);
+
 	if(obi->flag & R_TRANSFORMED) {
-		copy_v3_v3(nor, vlr->n);
+		copy_v3_v3(nor, n);
 		
 		mul_m3_v3(nmat, nor);
 		normalize_v3(nor);
 	}
 	else
-		copy_v3_v3(nor, vlr->n);
+		copy_v3_v3(nor, n);
 
 	if((vlr->flag & R_NOPUNOFLIP)==0) {
 		copy_v3_v3(v1, vlr->v1->co);

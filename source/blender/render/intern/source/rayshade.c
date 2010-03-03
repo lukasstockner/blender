@@ -114,7 +114,7 @@ static int re_object_raycast(RayObject *rayob, Isect *isec, ShadeInput *shi)
 		if(!RE_rayobject_raycast(rayob, &subisec))
 			continue;
 
-		render_vlak_get_normal(subisec.hit.ob, subisec.hit.face, nor);
+		render_vlak_get_normal(subisec.hit.ob, subisec.hit.face, nor, (subisec.isect == 2));
 		if(dot_v3v3(nor, vn) < 0.0f) /* face normal is flipped */
 			continue;
 
@@ -561,15 +561,10 @@ void shade_ray(Render *re, Isect *is, ShadeInput *shi, ShadeResult *shr)
 		shi->geometry.dyno[0]= shi->geometry.dyno[1]= shi->geometry.dyno[2]= 0.0f;
 	}
 
-	if(vlr->v4) {
-		if(is->isect==2) 
-			shade_input_set_triangle_i(re, shi, obi, vlr, 2, 1, 3);
-		else
-			shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 3);
-	}
-	else {
+	if(is->isect==2) 
+		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 2, 3);
+	else
 		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
-	}
 
 	shi->geometry.u= is->u;
 	shi->geometry.v= is->v;
@@ -1815,12 +1810,8 @@ static void shadeinput_from_isec(Render *re, ShadeInput *oldshi, Isect *isec, fl
 	shi->material.mat= vlr->mat;
 	shade_input_init_material(re, shi);
 
-	if(vlr->v4) {
-		if(isec->isect==2) 
-			shade_input_set_triangle_i(re, shi, obi, vlr, 2, 1, 3);
-		else
-			shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 3);
-	}
+	if(isec->isect==2) 
+		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 2, 3);
 	else
 		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
 

@@ -981,7 +981,7 @@ static void shade_sample_sss(Render *re, ShadeSample *ssamp, Material *mat, Obje
 	   then clamp to avoid a too large contribution from a single pixel */
 	shi->geometry.osatex= 1;
 	
-	render_vlak_get_normal(obi, vlr, shi->geometry.facenor);
+	render_vlak_get_normal(obi, vlr, shi->geometry.facenor, quad);
 	copy_v3_v3(nor, shi->geometry.facenor);
 	camera_raster_to_view(&re->cam, shi->geometry.facenor, sx, sy);
 	normalize_v3(shi->geometry.facenor);

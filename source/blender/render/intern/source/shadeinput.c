@@ -145,7 +145,7 @@ void shade_input_set_triangle_i(Render *re, ShadeInput *shi, ObjectInstanceRen *
 	geom->osatex= (mat->mat->texco & TEXCO_OSA);
 
 	/* facenormal copy, can get flipped */
-	geom->flippednor= render_vlak_get_normal(obi, vlr, geom->facenor);
+	geom->flippednor= render_vlak_get_normal(obi, vlr, geom->facenor, (i3 == 3));
 
 	/* copy of original pre-flipped normal, for geometry->front/back node output */
 	copy_v3_v3(geom->orignor, geom->facenor);
@@ -445,13 +445,14 @@ void shade_input_calc_viewco(Render *re, ShadeInput *shi, float x, float y, floa
 	}
 	else {
 		/* for non-wire, intersect with the triangle to get the exact coord */
+		ShadePrimitive *prim= &shi->primitive;
 		float plane[4]; /* plane equation a*x + b*y + c*z = d */
 		float v1[3];
 
 		/* compute plane equation */
-		copy_v3_v3(v1, shi->primitive.v1->co);
-		if(shi->primitive.obi->flag & R_TRANSFORMED)
-			mul_m4_v3(shi->primitive.obi->mat, v1);
+		copy_v3_v3(v1, prim->v1->co);
+		if(prim->obi->flag & R_TRANSFORMED)
+			mul_m4_v3(prim->obi->mat, v1);
 		
 		copy_v3_v3(plane, shi->geometry.facenor);
 		plane[3]= v1[0]*plane[0] + v1[1]*plane[1] + v1[2]*plane[2];

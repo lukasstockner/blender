@@ -239,9 +239,7 @@ static void occ_face(Render *re, const OccFace *face, float *co, float *normal, 
 	}
 	
 	if(normal) {
-		normal[0]= -vlr->n[0];
-		normal[1]= -vlr->n[1];
-		normal[2]= -vlr->n[2];
+		negate_v3_v3(normal, vlr->n);
 
 		if(obi->flag & R_TRANSFORMED)
 			mul_m3_v3(obi->nmat, normal);

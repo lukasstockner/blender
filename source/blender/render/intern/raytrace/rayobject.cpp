@@ -63,85 +63,6 @@ int RE_rayobject_bb_intersect_test(const Isect *isec, const float *_bb)
 	return 1;
 }
 
-
-/* only for self-intersecting test with current render face (where ray left) */
-static int intersection2(VlakRen *face, float r0, float r1, float r2, float rx1, float ry1, float rz1)
-{
-	float co1[3], co2[3], co3[3], co4[3]={0};
-	float x0,x1,x2,t00,t01,t02,t10,t11,t12,t20,t21,t22;
-	float m0, m1, m2, divdet, det, det1;
-	float u1, v, u2;
-
-	VECCOPY(co1, face->v1->co);
-	VECCOPY(co2, face->v2->co);
-	if(face->v4)
-	{
-		VECCOPY(co3, face->v4->co);
-		VECCOPY(co4, face->v3->co);
-	}
-	else
-	{
-		VECCOPY(co3, face->v3->co);
-	}
-
-	t00= co3[0]-co1[0];
-	t01= co3[1]-co1[1];
-	t02= co3[2]-co1[2];
-	t10= co3[0]-co2[0];
-	t11= co3[1]-co2[1];
-	t12= co3[2]-co2[2];
-	
-	x0= t11*r2-t12*r1;
-	x1= t12*r0-t10*r2;
-	x2= t10*r1-t11*r0;
-
-	divdet= t00*x0+t01*x1+t02*x2;
-
-	m0= rx1-co3[0];
-	m1= ry1-co3[1];
-	m2= rz1-co3[2];
-	det1= m0*x0+m1*x1+m2*x2;
-	
-	if(divdet!=0.0f) {
-		u1= det1/divdet;
-
-		if(u1<ISECT_EPSILON) {
-			det= t00*(m1*r2-m2*r1);
-			det+= t01*(m2*r0-m0*r2);
-			det+= t02*(m0*r1-m1*r0);
-			v= det/divdet;
-
-			if(v<ISECT_EPSILON && (u1 + v) > -(1.0f+ISECT_EPSILON)) {
-				return 1;
-			}
-		}
-	}
-
-	if(face->v4) {
-
-		t20= co3[0]-co4[0];
-		t21= co3[1]-co4[1];
-		t22= co3[2]-co4[2];
-
-		divdet= t20*x0+t21*x1+t22*x2;
-		if(divdet!=0.0f) {
-			u2= det1/divdet;
-		
-			if(u2<ISECT_EPSILON) {
-				det= t20*(m1*r2-m2*r1);
-				det+= t21*(m2*r0-m0*r2);
-				det+= t22*(m0*r1-m1*r0);
-				v= det/divdet;
-	
-				if(v<ISECT_EPSILON && (u2 + v) >= -(1.0f+ISECT_EPSILON)) {
-					return 2;
-				}
-			}
-		}
-	}
-	return 0;
-}
-
 static inline int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen *vlr)
 {
 	/* for baking selected to active non-traceable materials might still
@@ -176,20 +97,162 @@ static inline int rayface_check_cullface(RayFace *face, Isect *is)
 	return (INPR(nor, is->vec) < 0);
 }
 
+static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2], float *lambda)
+{
+	float co1[3], co2[3], co3[3], co4[4];
+	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1, l;
+	int quad;
+
+	quad= RE_rayface_isQuad(face);
+
+	copy_v3_v3(co1, face->v1);
+	copy_v3_v3(co2, face->v2);
+	copy_v3_v3(co3, face->v3);
+
+	copy_v3_v3(r, vec);
+
+	/* intersect triangle */
+	sub_v3_v3v3(t0, co3, co2);
+	sub_v3_v3v3(t1, co3, co1);
+
+	cross_v3_v3v3(x, r, t1);
+	divdet= dot_v3v3(t0, x);
+
+	sub_v3_v3v3(m, start, co3);
+	det1= dot_v3v3(m, x);
+	
+	if(divdet != 0.0f) {
+		divdet= 1.0f/divdet;
+		v= det1*divdet;
+
+		if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+			float cros[3];
+
+			cross_v3_v3v3(cros, m, t0);
+			u= divdet*dot_v3v3(cros, r);
+
+			if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON)) {
+				l= divdet*dot_v3v3(cros, t1);
+
+				/* check if intersection is within ray length */
+				if(l > -ISECT_EPSILON && l < *lambda) {
+					uv[0]= u;
+					uv[1]= v;
+					*lambda= l;
+					return 1;
+				}
+			}
+		}
+	}
+
+	/* intersect second triangle in quad */
+	if(quad) {
+		copy_v3_v3(co4, face->v4);
+		sub_v3_v3v3(t0, co3, co4);
+		divdet= dot_v3v3(t0, x);
+
+		if(divdet != 0.0f) {
+			divdet= 1.0f/divdet;
+			v = det1*divdet;
+			
+			if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+				float cros[3];
+
+				cross_v3_v3v3(cros, m, t0);
+				u= divdet*dot_v3v3(cros, r);
+	
+				if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON)) {
+					l= divdet*dot_v3v3(cros, t1);
+					
+					if(l >- ISECT_EPSILON && l < *lambda) {
+						uv[0]= u;
+						uv[1]= -(1.0f + v + u);
+						*lambda= l;
+						return 2;
+					}
+				}
+			}
+		}
+	}
+
+	return 0;
+}
+
+static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
+{
+	float co1[3], co2[3], co3[3], co4[4];
+	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1;
+	int quad;
+
+	quad= RE_rayface_isQuad(face);
+
+	copy_v3_v3(co1, face->v1);
+	copy_v3_v3(co2, face->v2);
+	copy_v3_v3(co3, face->v3);
+
+	negate_v3_v3(r, vec); /* note, different than above function */
+
+	/* intersect triangle */
+	sub_v3_v3v3(t0, co3, co2);
+	sub_v3_v3v3(t1, co3, co1);
+
+	cross_v3_v3v3(x, r, t1);
+	divdet= dot_v3v3(t0, x);
+
+	sub_v3_v3v3(m, start, co3);
+	det1= dot_v3v3(m, x);
+	
+	if(divdet != 0.0f) {
+		divdet= 1.0f/divdet;
+		v= det1*divdet;
+
+		if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+			float cros[3];
+
+			cross_v3_v3v3(cros, m, t0);
+			u= divdet*dot_v3v3(cros, r);
+
+			if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON))
+				return 1;
+		}
+	}
+
+	/* intersect second triangle in quad */
+	if(quad) {
+		sub_v3_v3v3(t0, co3, co4);
+		divdet= dot_v3v3(t0, x);
+
+		if(divdet != 0.0f) {
+			divdet= 1.0f/divdet;
+			v = det1*divdet;
+			
+			if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+				float cros[3];
+
+				cross_v3_v3v3(cros, m, t0);
+				u= divdet*dot_v3v3(cros, r);
+	
+				if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON))
+					return 2;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /* ray - triangle or quad intersection */
 /* this function shall only modify Isect if it detects an hit */
 static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 {
-	float co1[3],co2[3],co3[3],co4[3]={0};
-	float x0,x1,x2,t00,t01,t02,t10,t11,t12,t20,t21,t22,r0,r1,r2;
-	float m0, m1, m2, divdet, det1;
-	float labda, u, v;
-	short ok=0;
+	float labda, uv[2];
+	int ok= 0;
 	
+	/* avoid self-intersection */
 	if(is->orig.ob == face->ob && is->orig.face == face->face)
 		return 0;
 		
-
+	/* check if we should intersect this face */
 	if(is->skip & RE_SKIP_VLR_RENDER_CHECK)
 	{
 		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
@@ -206,93 +269,11 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 			return 0;
 	}
 
+	/* ray counter */
 	RE_RC_COUNT(is->raycounter->faces.test);
 
-	//Load coords
-	VECCOPY(co1, face->v1);
-	VECCOPY(co2, face->v2);
-	if(RE_rayface_isQuad(face))
-	{
-		VECCOPY(co3, face->v4);
-		VECCOPY(co4, face->v3);
-	}
-	else
-	{
-		VECCOPY(co3, face->v3);
-	}
-
-	t00= co3[0]-co1[0];
-	t01= co3[1]-co1[1];
-	t02= co3[2]-co1[2];
-	t10= co3[0]-co2[0];
-	t11= co3[1]-co2[1];
-	t12= co3[2]-co2[2];
-	
-	r0= is->vec[0];
-	r1= is->vec[1];
-	r2= is->vec[2];
-	
-	x0= t12*r1-t11*r2;
-	x1= t10*r2-t12*r0;
-	x2= t11*r0-t10*r1;
-
-	divdet= t00*x0+t01*x1+t02*x2;
-
-	m0= is->start[0]-co3[0];
-	m1= is->start[1]-co3[1];
-	m2= is->start[2]-co3[2];
-	det1= m0*x0+m1*x1+m2*x2;
-	
-	if(divdet!=0.0f) {
-
-		divdet= 1.0f/divdet;
-		u= det1*divdet;
-		if(u<ISECT_EPSILON && u>-(1.0f+ISECT_EPSILON)) {
-			float cros0, cros1, cros2;
-			
-			cros0= m1*t02-m2*t01;
-			cros1= m2*t00-m0*t02;
-			cros2= m0*t01-m1*t00;
-			v= divdet*(cros0*r0 + cros1*r1 + cros2*r2);
-
-			if(v<ISECT_EPSILON && (u + v) > -(1.0f+ISECT_EPSILON)) {
-				labda= divdet*(cros0*t10 + cros1*t11 + cros2*t12);
-
-				if(labda>-ISECT_EPSILON && labda<is->labda) {
-					ok= 1;
-				}
-			}
-		}
-	}
-
-	if(ok==0 && RE_rayface_isQuad(face)) {
-
-		t20= co3[0]-co4[0];
-		t21= co3[1]-co4[1];
-		t22= co3[2]-co4[2];
-
-		divdet= t20*x0+t21*x1+t22*x2;
-		if(divdet!=0.0f) {
-			divdet= 1.0f/divdet;
-			u = det1*divdet;
-			
-			if(u<ISECT_EPSILON && u>-(1.0f+ISECT_EPSILON)) {
-				float cros0, cros1, cros2;
-				cros0= m1*t22-m2*t21;
-				cros1= m2*t20-m0*t22;
-				cros2= m0*t21-m1*t20;
-				v= divdet*(cros0*r0 + cros1*r1 + cros2*r2);
-	
-				if(v<ISECT_EPSILON && (u + v) >-(1.0f+ISECT_EPSILON)) {
-					labda= divdet*(cros0*t10 + cros1*t11 + cros2*t12);
-					
-					if(labda>-ISECT_EPSILON && labda<is->labda) {
-						ok= 2;
-					}
-				}
-			}
-		}
-	}
+	labda= is->labda;
+	ok= isec_tri_quad(is->start, is->vec, face, uv, &labda);
 
 	if(ok) {
 	
@@ -312,7 +293,7 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 				|| a->v1==b->v2 || a->v2==b->v2 || a->v3==b->v2 || a->v4==b->v2
 				|| a->v1==b->v3 || a->v2==b->v3 || a->v3==b->v3 || a->v4==b->v3
 				|| (b->v4 && (a->v1==b->v4 || a->v2==b->v4 || a->v3==b->v4 || a->v4==b->v4)))
-				if(!intersection2((VlakRen*)a, -r0, -r1, -r2, is->start[0], is->start[1], is->start[2]))
+				if(!isec_tri_quad_2(is->start, is->vec, (RayFace*)a))
 				{
 					return 0;
 				}
@@ -323,7 +304,7 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 
 		is->isect= ok;	// wich half of the quad
 		is->labda= labda;
-		is->u= u; is->v= v;
+		is->u= uv[0]; is->v= uv[1];
 
 		is->hit.ob   = face->ob;
 		is->hit.face = face->face;

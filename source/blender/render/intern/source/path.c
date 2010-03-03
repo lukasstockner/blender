@@ -56,6 +56,7 @@ typedef struct Hit {
 	float n[3];
 	float u, v;
 	float maxdist, dist;
+	int quad;
 } Hit;
 
 static void shadeinput_from_hit(Render *re, RenderLayer *rl, ShadeInput *shi, Hit *hit, float view[3])
@@ -67,7 +68,10 @@ static void shadeinput_from_hit(Render *re, RenderLayer *rl, ShadeInput *shi, Hi
 
 	shi->material.mat_override= (rl)? rl->mat_override: NULL;
 	shi->material.mat= hit->vlr->mat;
-	shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 1, 2);
+	if(hit->quad)
+		shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 2, 3);
+	else
+		shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 1, 2);
 	shade_input_init_material(re, shi);
 
 	shi->geometry.u= hit->u;
@@ -109,6 +113,7 @@ static int isec_trace_ray(Render *re, Hit *from, Hit *to, int depth)
 	to->v= isec.v;
 	to->maxdist= 1e5f;
 	to->dist= from->maxdist*isec.labda;
+	to->quad= (isec.isect == 2);
 
 	madd_v3_v3v3fl(to->co, isec.start, isec.vec, isec.labda);
 	copy_v3_v3(to->n, to->vlr->n);

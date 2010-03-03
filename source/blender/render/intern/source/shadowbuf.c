@@ -2132,12 +2132,12 @@ static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
 }
 
 /* returns 1 when the viewpixel is visible in lampbuffer */
-static int viewpixel_to_lampbuf(Render *re, ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *vlr, float x, float y, float *co)
+static int viewpixel_to_lampbuf(Render *re, ShadBuf *shb, ObjectInstanceRen *obi, VlakRen *vlr, int quad, float x, float y, float *co)
 {
 	float hoco[4], v1[3], nor[3];
 	float dface, fac, siz;
 	
-	render_vlak_get_normal(obi, vlr, nor);
+	render_vlak_get_normal(obi, vlr, nor, quad);
 	copy_v3_v3(v1, vlr->v1->co);
 	if(obi->flag & R_TRANSFORMED)
 		mul_m4_v3(obi->mat, v1);
@@ -2325,10 +2325,11 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 							ObjectInstanceRen *obi= &re->db.objectinstance[ps->obi];
 							ObjectRen *obr= obi->obr;
 							VlakRen *vlr= render_object_vlak_get(obr, (ps->facenr-1) & RE_QUAD_MASK);
+							int quad= (ps->facenr) & RE_QUAD_OFFS;
 							
 							samp= samplebuf[sample] + sindex;
 							/* convert image plane pixel location to lamp buffer space */
-							if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs + re->sample.jit[sample][0], ys + re->sample.jit[sample][1], samp->zco)) {
+							if(viewpixel_to_lampbuf(re, shb, obi, vlr, quad, xs + re->sample.jit[sample][0], ys + re->sample.jit[sample][1], samp->zco)) {
 								samp->obi= ps->obi;
 								samp->facenr= ps->facenr & ~RE_QUAD_OFFS;
 								ps->shadfac= 0;
@@ -2346,12 +2347,13 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 					ObjectInstanceRen *obi= &re->db.objectinstance[*recto];
 					ObjectRen *obr= obi->obr;
 					VlakRen *vlr= render_object_vlak_get(obr, (*rectp-1) & RE_QUAD_MASK);
+					int quad= (*rectp) & RE_QUAD_OFFS;
 					float xs= (float)(x + pa->disprect.xmin);
 					float ys= (float)(y + pa->disprect.ymin);
 					
 					samp= samplebuf[0] + sindex;
 					/* convert image plane pixel location to lamp buffer space */
-					if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs, ys, samp->zco)) {
+					if(viewpixel_to_lampbuf(re, shb, obi, vlr, quad, xs, ys, samp->zco)) {
 						samp->obi= *recto;
 						samp->facenr= *rectp & ~RE_QUAD_OFFS;
 						samp->shadfac= isbdata->shadfacs + sindex;
@@ -2520,6 +2522,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 							ObjectInstanceRen *obi= &re->db.objectinstance[apn->obi[a]];
 							ObjectRen *obr= obi->obr;
 							VlakRen *vlr= render_object_vlak_get(obr, (apn->p[a]-1) & RE_QUAD_MASK);
+							int quad= apn->p[a] & RE_QUAD_OFFS;
 							float zco[3];
 							
 							/* here we store shadfac, easier to create the end storage buffer. needs zero'ed, multiple shadowbufs use it */
@@ -2532,7 +2535,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 									if(apn->mask[a] & mask) {
 										
 										/* convert image plane pixel location to lamp buffer space */
-										if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs + re->sample.jit[sample][0], ys + re->sample.jit[sample][1], zco)) {
+										if(viewpixel_to_lampbuf(re, shb, obi, vlr, quad, xs + re->sample.jit[sample][0], ys + re->sample.jit[sample][1], zco)) {
 											samp= isb_alloc_sample_transp(samplebuf[sample] + sindex, memarena);
 											samp->obi= apn->obi[a];
 											samp->facenr= apn->p[a] & ~RE_QUAD_OFFS;
@@ -2547,7 +2550,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 							else {
 								
 								/* convert image plane pixel location to lamp buffer space */
-								if(viewpixel_to_lampbuf(re, shb, obi, vlr, xs, ys, zco)) {
+								if(viewpixel_to_lampbuf(re, shb, obi, vlr, quad, xs, ys, zco)) {
 									
 									samp= isb_alloc_sample_transp(samplebuf[0] + sindex, memarena);
 									samp->obi= apn->obi[a];
