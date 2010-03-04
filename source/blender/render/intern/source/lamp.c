@@ -66,7 +66,7 @@ static void area_lamp_location(float co[3], LampRen *lar, float rx, float ry)
 
 static float area_lamp_form_factor(LampRen *lar, float co[3], float n[3], float lv[3])
 {
-	float v1[3], v2[3], v3[3], v4[3], fn[3], ff, inp;
+	float v1[3], v2[3], v3[3], v4[3], fn[3], ff;
 
 	area_lamp_location(v1, lar, 0.0f, 0.0f);
 	area_lamp_location(v2, lar, 1.0f, 0.0f);
@@ -76,11 +76,7 @@ static float area_lamp_form_factor(LampRen *lar, float co[3], float n[3], float 
 	negate_v3_v3(fn, n);
 	ff= form_factor_hemi_poly(co, fn, v4, v3, v2, v1)*(M_PI/area_quad_v3(v1, v2, v3, v4));
 
-	/* TODO ugly compensation for cosine term being included here and again in
-	   material, doesn't work with shaders that don't include this.. */
-	inp= maxf(dot_v3v3(n, lv), 1e-8f);
-
-	return ff/inp;
+	return ff;
 }
 
 /******************************* Visibility ********************************/
@@ -193,24 +189,25 @@ int lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], float 
 			sub_v3_v3v3(vec, co, lco);
 			dist= normalize_v3(vec);
 
-			if(dot_v3v3(lar->vec, vec) > 0.0f) {
-
-				if(lar->mode & LA_MULTI_SHADE) {
+			if(lar->mode & LA_MULTI_SHADE) {
+				if(dot_v3v3(lar->vec, vec) > 0.0f) {
 					fac= lamp_falloff(lar, dist);
 					fac *= dot_v3v3(lar->vec, vec);
 
 					if(lar->mode & LA_SPHERE)
 						fac= lamp_sphere_factor(lar, dist, fac);
 				}
-				else if(r_fac) /* optimization, skip for only shadow */
+				else
+					fac= 0.0f;
+			}
+			else {
+				if(r_fac) /* optimization, skip for only shadow */
 					fac= area_lamp_form_factor(lar, co, vn, vec);
 				else
 					fac= 1.0f;
-
-				if(fac <= 1e-6f) fac = 0.0f;
 			}
-			else
-				fac= 0.0f;
+
+			if(fac <= 1e-6f) fac = 0.0f;
 
 			break;
 

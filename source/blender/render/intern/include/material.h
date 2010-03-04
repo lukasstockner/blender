@@ -51,6 +51,7 @@ void mat_shading_end(struct Render *re, struct ShadeMaterial *smat);
 #define BSDF_SPECULAR		2
 #define BSDF_REFLECTION		(BSDF_DIFFUSE|BSDF_SPECULAR)
 #define BSDF_TRANSMISSION	4
+#define BSDF_AREA_FF_HACK	8
 
 void mat_bsdf_f(float bsdf[3],
 	struct ShadeMaterial *mat, struct ShadeGeometry *geom, int thread, float lv[3], int flag);

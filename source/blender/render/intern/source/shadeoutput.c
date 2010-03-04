@@ -411,7 +411,9 @@ static void shade_lamp_accumulate(Render *re, LampRen *lar, ShadeInput *shi, Sha
 
 	/* diffuse */
 	if(!(lar->mode & LA_NO_DIFF) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE|SCE_PASS_SHADOW))) {
-		mat_bsdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_DIFFUSE);
+		int area_ff_hack= (lar->type == LA_AREA && !(lar->mode & LA_MULTI_SHADE))? BSDF_AREA_FF_HACK: 0;
+
+		mat_bsdf_f(diff, &shi->material, &shi->geometry, shi->shading.thread, lv, BSDF_DIFFUSE|area_ff_hack);
 
 		if(lar->mode & LA_ONLYSHADOW) {
 			shr->onlyshadow[0] += diff[0]*lainf[0]*(1.0f - lashdw[0]);

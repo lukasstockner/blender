@@ -480,7 +480,7 @@ static void specular_color_ramp(float out[3], Material *ma, float rgb[3], float 
 	}
 }
 
-static void diffuse_shader(float diff[3], ShadeMaterial *mat, ShadeGeometry *geom, float *lv)
+static void diffuse_shader(float diff[3], ShadeMaterial *mat, ShadeGeometry *geom, float *lv, int area_ff_hack)
 {
 	Material *ma= mat->mat;
 	float *view= geom->view;
@@ -492,8 +492,16 @@ static void diffuse_shader(float diff[3], ShadeMaterial *mat, ShadeGeometry *geo
 	}
 
 	vn= diffuse_tangent(mat, geom, vnor, lv);
-	inp= dot_v3v3(vn, lv);
-	inp= MAX2(inp, 0.0f);
+
+	if(area_ff_hack) {
+		/* area lamps already includes cosine term by computing the form factor,
+		   this hack is not sustainable in more complex shading systems.. */
+		inp= 1.0f;
+	}
+	else {
+		inp= dot_v3v3(vn, lv);
+		inp= MAX2(inp, 0.0f);
+	}
 
 	/* diffuse shaders (oren nayer gets inp from area light) */
 	if(ma->diff_shader==MA_DIFF_ORENNAYAR)
@@ -608,7 +616,7 @@ void mat_bsdf_f(float bsdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int thre
 	zero_v3(bsdf);
 
 	if(flag & BSDF_DIFFUSE) {
-		diffuse_shader(tmp, mat, geom, lv);
+		diffuse_shader(tmp, mat, geom, lv, flag & BSDF_AREA_FF_HACK);
 		add_v3_v3(bsdf, tmp);
 	}
 
