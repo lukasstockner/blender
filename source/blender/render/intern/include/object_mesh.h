@@ -106,7 +106,7 @@ typedef struct VlakRen {
 
 /* vlakren->flag (vlak = face in dutch) char!!! */
 #define R_SMOOTH		1
-#define R_UNUSED_FLAG	2
+#define R_TRACEBLE		2
 #define R_STRAND		4 /* strand flag, means special handling */
 #define R_NOPUNOFLIP	8
 #define R_FULL_OSA		16

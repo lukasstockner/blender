@@ -386,6 +386,8 @@ typedef struct RenderData {
 	/* path tracing */
 	int integrator;
 	int path_samples;
+	int raytrace_all;
+	int pad;
 
 	/* render engine */
 	char engine[32];

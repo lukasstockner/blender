@@ -67,7 +67,7 @@ static inline int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen
 {
 	/* for baking selected to active non-traceable materials might still
 	 * be in the raytree */
-	if(!(vlr->mat->mode & MA_TRACEBLE))
+	if(!(vlr->flag & R_TRACEBLE))
 		return 0;
 
 	/* I know... cpu cycle waste, might do smarter once */

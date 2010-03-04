@@ -3477,30 +3477,35 @@ static void set_phong_threshold(ObjectRen *obr)
 
 /* per face check if all samples should be taken.
    if raytrace or multisample, do always for raytraced material, or when material full_osa set */
-static void set_fullsample_flag(Render *re, ObjectRen *obr)
+static void set_fullsample_trace_flag(Render *re, ObjectRen *obr)
 {
 	VlakRen *vlr;
-	int a, trace, mode;
+	int a, trace, mode, osa;
 
-	if(re->params.osa==0)
-		return;
-	
+	osa= re->params.osa;
 	trace= re->params.r.mode & R_RAYTRACE;
 	
 	for(a=obr->totvlak-1; a>=0; a--) {
 		vlr= render_object_vlak_get(obr, a);
 		mode= vlr->mat->mode;
-		
-		if(mode & MA_FULL_OSA) 
+
+		if(osa && (mode & MA_FULL_OSA)) {
 			vlr->flag |= R_FULL_OSA;
+		}
 		else if(trace) {
-			if(mode & MA_SHLESS);
-			else if(vlr->mat->material_type == MA_TYPE_VOLUME);
-			else if((mode & MA_RAYMIRROR) || ((mode & MA_TRANSP) && (mode & MA_RAYTRANSP)))
-				/* for blurry reflect/refract, better to take more samples 
-				 * inside the raytrace than as OSA samples */
-				if ((vlr->mat->gloss_mir == 1.0) && (vlr->mat->gloss_tra == 1.0)) 
-					vlr->flag |= R_FULL_OSA;
+			/* TODO: remove temporary raytrace_all hack */
+			if(mode & MA_TRACEBLE || re->params.r.raytrace_all) {
+				vlr->flag |= R_TRACEBLE;
+			}
+			else if(osa) {
+				if(mode & MA_SHLESS);
+				else if(vlr->mat->material_type == MA_TYPE_VOLUME);
+				else if((mode & MA_RAYMIRROR) || ((mode & MA_TRANSP) && (mode & MA_RAYTRANSP)))
+					/* for blurry reflect/refract, better to take more samples 
+					 * inside the raytrace than as OSA samples */
+					if ((vlr->mat->gloss_mir == 1.0) && (vlr->mat->gloss_tra == 1.0)) 
+						vlr->flag |= R_FULL_OSA;
+			}
 		}
 	}
 }
@@ -3695,7 +3700,7 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 					check_non_flat_quads(obr);
 			}
 			
-			set_fullsample_flag(re, obr);
+			set_fullsample_trace_flag(re, obr);
 
 			/* compute bounding boxes for clipping */
 			INIT_MINMAX(min, max);

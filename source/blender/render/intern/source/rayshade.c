@@ -249,7 +249,7 @@ void raytree_free(RenderDB *rdb)
 static int is_raytraceable_vlr(Render *re, VlakRen *vlr)
 {
 	/* note: volumetric must be tracable, wire must not */
-	if((re->params.flag & R_BAKE_TRACE) || (vlr->mat->mode & MA_TRACEBLE) || (vlr->mat->material_type == MA_TYPE_VOLUME))
+	if((re->params.flag & R_BAKE_TRACE) || (vlr->flag & R_TRACEBLE) || (vlr->mat->material_type == MA_TYPE_VOLUME))
 		if(vlr->mat->material_type != MA_TYPE_WIRE)
 			return 1;
 	return 0;
