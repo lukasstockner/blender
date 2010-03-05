@@ -7,10 +7,10 @@ Group: 'Import'
 Tooltip: 'Import for DWG/DXF geometry data.'
 """
 __author__ = 'Kitsu(Ed Blake) & migius(Remigiusz Fiedler)'
-__version__ = '1.12 - 2009.06.16 by migius'
+__version__ = '1.12 - 2010.03.04 by migius'
 __url__ = ["http://blenderartists.org/forum/showthread.php?t=84319",
 	 "http://wiki.blender.org/index.php/Scripts/Manual/Import/DXF-3D"]
-__email__ = ["migius(at)4d-vectors.de","Kitsune_e(at)yahoo.com"]
+__email__ = ["migius(at)gmx.net","Kitsune_e(at)yahoo.com"]
 __bpydoc__ = """\
 This script imports objects from DWG/DXF (2d/3d) into Blender.
 
@@ -19,7 +19,7 @@ It supports DWG format too, with help of an external converter.
 Supported DXF format versions: from (r2.5) r12 up to r2008.
 Enhanced features are:
 - configurable object filtering and geometry manipulation,
-- configurable material pre-processing,
+- configurable material pre-processing (WIP),
 - DXF-code analyze and reporting.
 
 Supported DXF r12 objects:
@@ -111,10 +111,18 @@ History:
  -- support DXF-definitions of autoshade: scene, lights and cameras
  -- support ortho mode for VIEWs and VPORTs as cameras 
 
+ v1.12 - 2010.03.04 by migius
+ f1 fix POLYFACE non-standard ordered double-vertices
+ v1.12 - 2009.11.28 by migius
+ e1 fix (unused)-BLOCKs-detection for non-DXFr12-conform SECTION:BLOCKS
+ v1.12 - 2009.07.02 by migius
+ d9 wip-fix global relocation: culprit is blenders 1mio-Limit
+ v1.12 - 2009.06.21 by migius
+ d8 fix normals for TRACE (in opposite to SOLID)
  v1.12 - 2009.06.16 by migius
  d7 fix for ignored BLOCKs (e.g. *X) which are members of other BLOCKs
  v1.12 - 2009.05.27 by migius
- d6 bugfix negative scaled INSERTs - isLeftHand(Matrix) check
+ d6 bugfix wrong normals for negative scaled INSERTs - isLeftHand(Matrix) check
  v1.12 - 2009.05.26 by migius
  d5 changed to the new 2.49 method Vector.cross()
  d5 bugfix WORLDY(1,1,0) to (0,1,0)
@@ -692,7 +700,9 @@ class Solid:  #-----------------------------------------------------------------
 	def __init__(self, obj):
 		"""Expects an entity object of type solid or trace as input.
 		"""
+		self.trace = False
 		if obj.type == 'trace':
+			self.trace = True
 			obj.type = 'solid'
 		if not obj.type == 'solid':
 			raise TypeError, "Wrong type \'%s\' for solid/trace object!" %obj.type
@@ -730,7 +740,10 @@ class Solid:  #-----------------------------------------------------------------
 		c[0] = getit(data, 12, None)
 		c[1] = getit(data, 22, None)
 		c[2] = getit(data, 32,  0)
-		out = [a,b,c]
+		if self.trace:
+			out = [a,c,b]
+		else:
+			out = [a,b,c]
 
 		d[0] =  getit(data, 13, None)
 		if d[0] != None:
@@ -1217,8 +1230,8 @@ class Polyline:  #--------------------------------------------------------------
 
 		#print 'deb:drawPlFace: len of points_list:\n', len(points)  #-----------------------
 		#print 'deb:drawPlFace: len of faces_list:\n', len(faces)  #-----------------------
-		#print 'deb:drawPlFace: points_list:\n', points  #-----------------------
-		#print 'deb:drawPlFace: faces_list:\n', faces  #-----------------------
+		print 'deb:drawPlFace: points_list:\n', points  #-----------------------
+		print 'deb:drawPlFace: faces_list:\n', faces  #-----------------------
 		obname = 'pf_%s' %self.layer  # create object name from layer name
 		obname = obname[:MAX_NAMELENGTH]
 		me = Mesh.New(obname)		  # create a new mesh
@@ -1985,7 +1998,7 @@ class Vertex(object):  #--------------------------------------------------------
 			v4 = getit(data, 74, None) # polyface:Face.vertex 4.
 			self.face = [abs(v1)-1,abs(v2)-1,abs(v3)-1]
 			if v4 != None:
-				if abs(v4) != abs(v1):
+				if not (abs(v4)-1) in self.face:
 					self.face.append(abs(v4)-1)
 		else:   #--parameter for polyline2d
 			self.swidth = getit(data, 40, None) # start width
@@ -4147,7 +4160,7 @@ def	analyzeDXF(dxfFile): #---------------------------------------
 					#print dir(item)
 					layersmap[item.name] = [item.color, item.frozen]
 			#print 'deb:analyzeDXF: layersmap=' , layersmap #-------------
-			layersmap_str = '#list of LAYERs: name, color, frozen_status  ---------------------------\n'
+			layersmap_str = '#list of LAYERs: name: color, frozen_status  ---------------------------\n'
 			key_list = layersmap.keys()
 			key_list.sort()
 			for key in key_list:
@@ -4166,7 +4179,7 @@ def	analyzeDXF(dxfFile): #---------------------------------------
 					#print dir(item)
 					viewsmap[item.name] = [item.length]
 			#print 'deb:analyzeDXF: viewsmap=' , viewsmap #-------------
-			viewsmap_str = '#list of VIEWs: name, focus_length  ------------------------------------\n'
+			viewsmap_str = '#list of VIEWs: name: focus_length  ------------------------------------\n'
 			key_list = viewsmap.keys()
 			key_list.sort()
 			for key in key_list:
@@ -4185,7 +4198,7 @@ def	analyzeDXF(dxfFile): #---------------------------------------
 					#print dir(item)
 					vportsmap[item.name] = [item.length]
 			#print 'deb:analyzeDXF: vportsmap=' , vportsmap #-------------
-			vportsmap_str = '#list of VPORTs: name, focus_length  -----------------------------------\n'
+			vportsmap_str = '#list of VPORTs: name: focus_length  -----------------------------------\n'
 			key_list = vportsmap.keys()
 			key_list.sort()
 			for key in key_list:
@@ -4206,8 +4219,9 @@ def	analyzeDXF(dxfFile): #---------------------------------------
 	if 'blocks' in sections.keys():
 		print "found section:blocks"
 		blocksmap = {}
-		for item in drawing.blocks.data:
+		for item in drawing.blocks.data: #read all BLOCK_definitions
 			#print 'deb:getBlocksmap item=' ,item #--------
+			#print 'deb:getBlocksmap item.name=', item.name #--------
 			#print 'deb:getBlocksmap item.entities=' ,item.entities #--------
 			#print 'deb:getBlocksmap item.entities.data=' ,item.entities.data #--------
 			if type(item) != list and item.type == 'block':
@@ -4215,7 +4229,7 @@ def	analyzeDXF(dxfFile): #---------------------------------------
 				if item.xref: xref = True
 				childList = []
 				used = False
-				for item2 in item.entities.data:
+				for item2 in item.entities.data: #looking for subBLOCKs
 					if type(item2) != list and item2.type == 'insert':
 						#print 'deb:getBlocksmap dir(item2)=', dir(item2) #----------
 						item2str = [item2.name, item2.layer, item2.color_index, item2.scale, item2.space]
@@ -4224,30 +4238,31 @@ def	analyzeDXF(dxfFile): #---------------------------------------
 				except KeyError: print 'Cannot map "%s" - "%s" as Block!' %(item.name, item)
 		#print 'deb:analyzeDXF: blocksmap=' , blocksmap #-------------
 
-		for item2 in drawing.entities.data:
-			if type(item2) != list and item2.type == 'insert':
-				if item2.name in blocksmap.keys():
-					if not layersmap or (layersmap and not layersmap[item2.layer][1]): #if insert_layer is not frozen
-						blocksmap[item2.name][0] = True # marked as world used BLOCK
-
 		key_list = blocksmap.keys()
-		key_list.reverse()
-		for key in key_list:
-			if blocksmap[key][0]: #if used
-				for child in blocksmap[key][1]:
-					if not layersmap or (layersmap and not layersmap[child[1]][1]): #if insert_layer is not frozen
-						blocksmap[child[0]][0] = True # marked as used BLOCK
+		def r_block_used(blname,bllayer):
+			#checks recursive if INSERT on frozen-layer
+			if blname in key_list:
+				if (not layersmap) or (layersmap and not layersmap[bllayer][1]): #if insert_layer is not frozen
+					blocksmap[blname][0] = True # marked as world-level used BLOCK
+					for child in blocksmap[blname][1]:
+						sub_blname,sub_bllayer=child[0],child[1]
+						r_block_used(sub_blname,sub_bllayer)
 
+		for item in drawing.entities.data:
+			if type(item) != list and item.type == 'insert':
+				blname,bllayer=item.name,item.layer
+				r_block_used(blname,bllayer)
+
+				
+		#print 'deb:analyzeDXF: blocksmap=' , blocksmap #-------------
 		blocksmap_str = '#list of BLOCKs: name:(unused)(xref) -[child_name, layer, color, scale, space]-------\n'
-		key_list = blocksmap.keys()
-		key_list.sort()
+		#key_list.sort()
 		for key in key_list:
 		#for block_name, block_data in blocksmap.iteritems():
 			block_name, block_data = key, blocksmap[key]
 			block_str = '\'%s\': ' %(block_name) #-------------
 			used = '(unused)'
 			if block_data[0]: used = ''
-#			else: used = '(unused)'
 			xref = ''
 			if block_data[2]: xref = '(xref)'
  			blocksmap_str += block_str + used + xref +'\n'
@@ -4336,14 +4351,8 @@ def main(dxfFile):  #---------------#############################-----------
 			else:
 				Window.WaitCursor(True)   # Let the user know we are thinking
 				#todo: issue: in DConvertCon.exe the output filename is fixed to dwg_name.dxf
-				
-				if 0: # works only for Windows
-					dwgTemp = 'temp_01.dwg'
-					dxfTemp = 'temp_01.dxf'
-					os.system('copy %s %s' %(dxfFile,dwgTemp))
-				else:
-					dwgTemp = dxfFile
-					dxfTemp = dxfFile[:-3]+'dxf'
+				dwgTemp = dxfFile
+				dxfTemp = dxfFile[:-3]+'dxf'
 				#print 'temp. converting: %s\n              to: %s' %(dxfFile, dxfTemp)
 				#os.system('%s %s  -acad11 -dxf' %(extCONV_PATH, dxfFile))
 				os.system('%s %s  -dxf' %(extCONV_PATH, dwgTemp))
@@ -4511,36 +4520,35 @@ def getBlocksmap(drawing, layersmap, layFrozen_on=False):  #--------------------
 	"""Build a dictionary of blockname:block_data pairs
 	"""
 	usedblocks = {}
-	for item in drawing.blocks.data:
-		#print 'deb:getBlocksmap item=%s\n i.entities=%s\n i.data=%s' %(item,item.entities,item.entities.data)
-		if type(item) != list and item.type == 'block':
+	for block in drawing.blocks.data:
+		#print 'deb:getBlocksmap block=%s\n i.entities=%s\n i.data=%s' %(block,block.entities,block.entities.data)
+		if type(block) != list and block.type == 'block':
 			childList = []
 			used = False
-			for item2 in item.entities.data:
-				if type(item2) != list and item2.type == 'insert':
-					#print 'deb:getBlocksmap dir(item2)=', dir(item2) #----------
-					item2str = [item2.name, item2.layer]
-					childList.append(item2str)
-			try: usedblocks[item.name] = [used, childList]
-			except KeyError: print 'Cannot find "%s" Block!' %(item.name)
+			for item in block.entities.data:
+				if type(item) != list and item.type == 'insert':
+					#print 'deb:getBlocksmap dir(item)=', dir(item) #----------
+					itemstr = [item.name, item.layer]
+					childList.append(itemstr)
+			try: usedblocks[block.name] = [used, childList]
+			except KeyError: print 'Cannot find "%s" Block!' %(block.name)
 	#print 'deb:getBlocksmap: usedblocks=' , usedblocks #-------------
 	#print 'deb:getBlocksmap:  layersmap=' , layersmap #-------------
 
+	key_list = usedblocks.keys()
+	def r_block_used(blname,bllayer):
+		#checks recursive if INSERT on frozen-layer
+		if blname in key_list:
+			if (not layersmap) or (layersmap and not layersmap[bllayer].frozen or layFrozen_on): #if insert_layer is not frozen
+				usedblocks[blname][0] = True # marked as used BLOCK
+				for child in usedblocks[blname][1]:
+					sub_blname,sub_bllayer=child[0],child[1]
+					r_block_used(sub_blname,sub_bllayer)
+
 	for item in drawing.entities.data:
 		if type(item) != list and item.type == 'insert':
-			if not layersmap or (not layersmap[item.layer].frozen or layFrozen_on): #if insert_layer is not frozen
-				try: usedblocks[item.name][0] = True 
-				except KeyError: print 'Cannot find "%s" Block!' %(item.name)
-				
-	key_list = usedblocks.keys()
-	key_list.reverse()
-	for key in key_list:
-		if usedblocks[key][0]: #if parent used, then set used also all child blocks
-			for child in usedblocks[key][1]:
-				if not layersmap or (layersmap and not layersmap[child[1]].frozen): #if insert_layer is not frozen
-					try: usedblocks[child[0]][0] = True # marked as used BLOCK
-					except KeyError: print 'Cannot find "%s" Block!' %(child[0])
-
+			r_block_used(item.name,item.layer)
+	
 	usedblocks = [i for i in usedblocks.keys() if usedblocks[i][0]]
 	#print 'deb:getBlocksmap: usedblocks=' , usedblocks #-------------
 	obj_number = 0
