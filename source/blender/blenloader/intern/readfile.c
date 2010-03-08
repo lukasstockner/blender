@@ -6420,8 +6420,8 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 			tex->type= TEX_NODES;
 
 	for(wo= main->world.first; wo; wo= wo->id.next)
-		if(wo->ao_samp_method == WO_AOSAMP_CONSTANT)
-			wo->ao_samp_method= WO_AOSAMP_HAMMERSLEY;
+		if(wo->ao_samp_method == WO_LIGHT_SAMP_CONSTANT)
+			wo->ao_samp_method= WO_LIGHT_SAMP_HAMMERSLEY;
 
 	for(la= main->lamp.first; la; la= la->id.next) {
 		if(la->ray_samp_method == LA_SAMP_CONSTANT)
@@ -8082,8 +8082,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			/* People can still explicitely choose for Sumo (after 2.42 is out) */
 			if(main->versionfile > 225)
 				wo->physicsEngine = WOPHY_BULLET;
-			if(WO_AODIST == wo->aomode)
-				wo->aocolor= WO_AOPLAIN;
+			if(WO_LIGHT_DIST == wo->aomode)
+				wo->aocolor= WO_ENV_LIGHT_WHITE;
 		}
 		
 		/* updating layers still */
@@ -8560,9 +8560,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			
 			for(wrld=main->world.first; wrld; wrld= wrld->id.next) {
 				if (wrld->mode & WO_AMB_OCC)
-					wrld->ao_samp_method = WO_AOSAMP_CONSTANT;
+					wrld->ao_samp_method = WO_LIGHT_SAMP_CONSTANT;
 				else
-					wrld->ao_samp_method = WO_AOSAMP_HAMMERSLEY;
+					wrld->ao_samp_method = WO_LIGHT_SAMP_HAMMERSLEY;
 				
 				wrld->ao_adapt_thresh = 0.005f;
 			}
@@ -10609,12 +10609,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			else
 				wo->mode |= WO_INDIRECT_LIGHT;
 
-			if(wo->aomix == WO_AOSUB)
+			if(wo->aomix == WO_AO_SUB)
 				wo->ao_env_energy= -wo->ao_env_energy;
-			else if(wo->aomix == WO_AOADDSUB)
+			else if(wo->aomix == WO_AO_ADDSUB)
 				wo->mode |= WO_AMB_OCC;
 
-			wo->aomix= WO_AOMUL;
+			wo->aomix= WO_AO_MUL;
 
 			/* ambient default from 0.5f to 1.0f */
 			mul_v3_fl(&wo->ambr, 0.5f);

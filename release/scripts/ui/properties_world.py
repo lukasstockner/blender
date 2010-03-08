@@ -261,6 +261,7 @@ class WORLD_PT_gather(WorldButtonsPanel):
         col = split.column()
 
         col.prop(light, "use_cache")
+        col.prop(light, "bump_method")
 
         if light.gather_method == 'RAYTRACE':
             col.label(text="Attenuation:")

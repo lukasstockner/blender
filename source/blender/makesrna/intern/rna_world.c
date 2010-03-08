@@ -188,24 +188,30 @@ static void rna_def_lighting(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem blend_mode_items[] = {
-		{WO_AOMUL, "MULTIPLY", 0, "Multiply", "Multiply direct lighting with ambient occlusion, darkening the result"},
-		{WO_AOADD, "ADD", 0, "Add", "Add light and shadow"},
+		{WO_AO_MUL, "MULTIPLY", 0, "Multiply", "Multiply direct lighting with ambient occlusion, darkening the result"},
+		{WO_AO_ADD, "ADD", 0, "Add", "Add light and shadow"},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem prop_color_items[] = {
-		{WO_AOPLAIN, "PLAIN", 0, "White", "Plain diffuse energy (white.)"},
-		{WO_AOSKYCOL, "SKY_COLOR", 0, "Sky Color", "Use horizon and zenith color for diffuse energy"},
-		{WO_AOSKYTEX, "SKY_TEXTURE", 0, "Sky Texture", "Does full Sky texture render for diffuse energy"},
+		{WO_ENV_LIGHT_WHITE, "WHITE", 0, "White", "Plain diffuse energy (white.)"},
+		{WO_ENV_LIGHT_SKY_COLOR, "SKY_COLOR", 0, "Sky Color", "Use horizon and zenith color for diffuse energy"},
+		{WO_ENV_LIGHT_SKY_TEX, "SKY_TEXTURE", 0, "Sky Texture", "Does full Sky texture render for diffuse energy"},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem prop_sample_method_items[] = {
-		{WO_AOSAMP_HALTON, "ADAPTIVE_QMC", 0, "Adaptive QMC", "Fast in high-contrast areas"},
-		{WO_AOSAMP_HAMMERSLEY, "CONSTANT_QMC", 0, "Constant QMC", "Best quality"},
+		{WO_LIGHT_SAMP_HALTON, "ADAPTIVE_QMC", 0, "Adaptive QMC", "Fast in high-contrast areas"},
+		{WO_LIGHT_SAMP_HAMMERSLEY, "CONSTANT_QMC", 0, "Constant QMC", "Best quality"},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem prop_gather_method_items[] = {
-		{WO_AOGATHER_RAYTRACE, "RAYTRACE", 0, "Raytrace", "Accurate, but slow when noise-free results are required"},
-		{WO_AOGATHER_APPROX, "APPROXIMATE", 0, "Approximate", "Inaccurate, but faster and without noise"},
+		{WO_LIGHT_GATHER_RAYTRACE, "RAYTRACE", 0, "Raytrace", "Accurate, but slow when noise-free results are required"},
+		{WO_LIGHT_GATHER_APPROX, "APPROXIMATE", 0, "Approximate", "Inaccurate, but faster and without noise"},
+		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem prop_bump_method_items[] = {
+		{WO_LIGHT_BUMP_NONE, "NONE", 0, "None", "Do not use bump mapping for world lighting."},
+		//{WO_LIGHT_BUMP_APPROX, "APPROXIMATE", 0, "Approximate", "Approximate bump mapping to keep cache samples low"},
+		{WO_LIGHT_BUMP_FULL, "FULL", 0, "Full", "Use full bump mapping, can lead to many more cache samples"},
 		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "WorldLighting", NULL);
@@ -276,6 +282,12 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Gather Method", "");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
+	prop= RNA_def_property(srna, "bump_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "ao_bump_method");
+	RNA_def_property_enum_items(prop, prop_bump_method_items);
+	RNA_def_property_ui_text(prop, "Bump Method", "Method to use for bump mapping");
+	RNA_def_property_update(prop, 0, "rna_World_update");
+
 	prop= RNA_def_property(srna, "passes", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "ao_approx_passes");
 	RNA_def_property_range(prop, 0, 10);
@@ -318,17 +330,17 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
 	prop= RNA_def_property(srna, "ao_falloff", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_AODIST);
+	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_LIGHT_DIST);
 	RNA_def_property_ui_text(prop, "Falloff", "");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
 	prop= RNA_def_property(srna, "use_cache", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_AOCACHE);
+	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_LIGHT_CACHE);
 	RNA_def_property_ui_text(prop, "Cache", "Cache AO results and interpolate over neighbouring pixels for speedup.");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
 	prop= RNA_def_property(srna, "use_cache_file", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_AOCACHE_FILE);
+	RNA_def_property_boolean_sdna(prop, NULL, "aomode", WO_LIGHT_CACHE_FILE);
 	RNA_def_property_ui_text(prop, "Cache File", "Dump cache to file and read back to reuse samples for faster re-rendering.");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 

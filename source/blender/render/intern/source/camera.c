@@ -388,15 +388,17 @@ void panorama_set_camera_params(Render *re, rcti *disprect, rctf *viewplane)
 void RE_SetCamera(Render *re, Object *camera)
 {
 	RenderCamera *cam= &re->cam;
+	RenderData *rd= &re->params.r;
 	Camera *bcam=NULL;
 	rctf viewplane;
-	float pixsize, clipsta, clipend;
+	float pixsize, clipsta, clipend, ycor, viewfac;
 	float lens, shiftx=0.0, shifty=0.0, winside;
+	int second_field= (re->params.flag & R_SEC_FIELD);
 	
 	/* question mark */
-	cam->ycor= ( (float)re->params.r.yasp)/( (float)re->params.r.xasp);
-	if(re->params.r.mode & R_FIELDS)
-		cam->ycor *= 2.0f;
+	ycor= ( (float)rd->yasp)/( (float)rd->xasp);
+	if(rd->mode & R_FIELDS)
+		ycor *= 2.0f;
 	
 	cam->type= R_CAM_PERSP;
 	
@@ -412,7 +414,7 @@ void RE_SetCamera(Render *re, Object *camera)
 		 * */
 #if 0 // XXX old animation system
 		if(bcam->ipo) {
-			calc_ipo(bcam->ipo, frame_to_float(re->scene, re->params.r.cfra));
+			calc_ipo(bcam->ipo, frame_to_float(re->scene, rd->cfra));
 			execute_ipo(&bcam->id, bcam->ipo);
 		}
 #endif // XXX old animation system
@@ -449,41 +451,41 @@ void RE_SetCamera(Render *re, Object *camera)
 
 	/* ortho only with camera available */
 	if(cam && (cam->type == R_CAM_ORTHO)) {
-		if( (re->params.r.xasp*cam->winx) >= (re->params.r.yasp*cam->winy) ) {
-			cam->viewfac= cam->winx;
+		if( (rd->xasp*cam->winx) >= (rd->yasp*cam->winy) ) {
+			viewfac= cam->winx;
 		}
 		else {
-			cam->viewfac= cam->ycor*cam->winy;
+			viewfac= ycor*cam->winy;
 		}
 		/* ortho_scale == 1.0 means exact 1 to 1 mapping */
-		pixsize= bcam->ortho_scale/cam->viewfac;
+		pixsize= bcam->ortho_scale/viewfac;
 	}
 	else {
-		if( (re->params.r.xasp*cam->winx) >= (re->params.r.yasp*cam->winy) ) {
-			cam->viewfac= (cam->winx*lens)/32.0;
+		if( (rd->xasp*cam->winx) >= (rd->yasp*cam->winy) ) {
+			viewfac= (cam->winx*lens)/32.0;
 		}
 		else {
-			cam->viewfac= cam->ycor*(cam->winy*lens)/32.0;
+			viewfac= ycor*(cam->winy*lens)/32.0;
 		}
 		
-		pixsize= clipsta/cam->viewfac;
+		pixsize= clipsta/viewfac;
 	}
 	
 	/* viewplane fully centered, zbuffer fills in jittered between -.5 and +.5 */
 	winside= MAX2(cam->winx, cam->winy);
 	viewplane.xmin= -0.5f*(float)cam->winx + shiftx*winside; 
-	viewplane.ymin= -0.5f*cam->ycor*(float)cam->winy + shifty*winside;
+	viewplane.ymin= -0.5f*ycor*(float)cam->winy + shifty*winside;
 	viewplane.xmax=  0.5f*(float)cam->winx + shiftx*winside; 
-	viewplane.ymax=  0.5f*cam->ycor*(float)cam->winy + shifty*winside; 
+	viewplane.ymax=  0.5f*ycor*(float)cam->winy + shifty*winside; 
 
-	if(re->params.flag & R_SEC_FIELD) {
-		if(re->params.r.mode & R_ODDFIELD) {
-			viewplane.ymin-= .5*cam->ycor;
-			viewplane.ymax-= .5*cam->ycor;
+	if(second_field) {
+		if(rd->mode & R_ODDFIELD) {
+			viewplane.ymin-= .5*ycor;
+			viewplane.ymax-= .5*ycor;
 		}
 		else {
-			viewplane.ymin+= .5*cam->ycor;
-			viewplane.ymax+= .5*cam->ycor;
+			viewplane.ymin+= .5*ycor;
+			viewplane.ymax+= .5*ycor;
 		}
 	}
 	/* the window matrix is used for clipping, and not changed during OSA steps */
@@ -493,14 +495,14 @@ void RE_SetCamera(Render *re, Object *camera)
 	viewplane.ymin= pixsize*(viewplane.ymin);
 	viewplane.ymax= pixsize*(viewplane.ymax);
 	
-	cam->viewdx= pixsize;
-	cam->viewdy= cam->ycor*pixsize;
-
 	if(cam->type == R_CAM_ORTHO)
 		RE_SetOrtho(re, &viewplane, clipsta, clipend);
 	else 
 		RE_SetWindow(re, &viewplane, clipsta, clipend, cam->type == R_CAM_PANO);
-
+	
+	cam->viewdx= (viewplane.xmax - viewplane.xmin)/cam->winx;
+	cam->viewdy= (viewplane.ymax - viewplane.ymin)/cam->winy;
+	cam->ycor= cam->viewdy/cam->viewdx;
 }
 
 void RE_SetPixelSize(Render *re, float pixsize)
@@ -527,7 +529,7 @@ void RE_SetWindow(Render *re, rctf *viewplane, float clipsta, float clipend, int
 	cam->clipend= clipend;
 	cam->type= (pano)? R_CAM_PANO: R_CAM_PERSP;
 
-	perspective_m4( cam->winmat,cam->viewplane.xmin, cam->viewplane.xmax, cam->viewplane.ymin, cam->viewplane.ymax, cam->clipsta, cam->clipend);
+	perspective_m4(cam->winmat, cam->viewplane.xmin, cam->viewplane.xmax, cam->viewplane.ymin, cam->viewplane.ymax, cam->clipsta, cam->clipend);
 	
 }
 
@@ -540,7 +542,7 @@ void RE_SetOrtho(Render *re, rctf *viewplane, float clipsta, float clipend)
 	cam->clipend= clipend;
 	cam->type= R_CAM_ORTHO;
 
-	orthographic_m4( cam->winmat,cam->viewplane.xmin, cam->viewplane.xmax, cam->viewplane.ymin, cam->viewplane.ymax, cam->clipsta, cam->clipend);
+	orthographic_m4(cam->winmat, cam->viewplane.xmin, cam->viewplane.xmax, cam->viewplane.ymin, cam->viewplane.ymax, cam->clipsta, cam->clipend);
 }
 
 void RE_SetView(Render *re, float mat[][4])

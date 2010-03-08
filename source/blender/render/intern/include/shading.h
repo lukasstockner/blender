@@ -89,7 +89,6 @@ void shade_input_do_shade(struct Render *re, struct ShadeInput *shi,
 	struct ShadeResult *shr);
 
 void shade_sample_initialize(struct Render *re, struct ShadeSample *ssamp, struct RenderPart *pa, struct RenderLayer *rl);
-void shade_samples_do_AO(struct Render *re, struct ShadeSample *ssamp);
 void shade_samples_from_pixel(struct Render *re, struct ShadeSample *ssamp, struct PixelRow *row, int x, int y);
 void shade_samples(struct Render *re, struct ShadeSample *ssamp);
 

@@ -71,15 +71,12 @@
 			- shade_input_set_uv()        <- not for ray or bake
 			- shade_input_set_normals()
 - shade_samples()
-	- if AO
-		- shade_samples_do_AO()
-	- if shading happens
-		- for each sample
-			- shade_input_set_shade_texco()
-			- shade_samples_do_shade()
+	- for each sample
+		- shade_input_set_shade_texco()
+		- shade_input_do_shade()
 - OSA: distribute sample result with filter masking
 
-	*/
+*/
 
 /* initialise material variables in shadeinput, 
  * doing inverse gamma correction where applicable */
@@ -1301,28 +1298,6 @@ void shade_samples_from_pixel(Render *re, ShadeSample *ssamp, PixelRow *row, int
 
 /********************************** Shading **********************************/
 
-/* Do AO or (future) GI */
-void shade_samples_do_AO(Render *re, ShadeSample *ssamp)
-{
-	ShadeInput *shi;
-	int sample;
-	
-	if(!(re->params.r.mode & R_SHADOW))
-		return;
-	if(!(re->params.r.mode & R_RAYTRACE) && !(re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX))
-		return;
-	
-	if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
-		shi= &ssamp->shi[0];
-
-		if(((shi->shading.passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
-			|| (shi->shading.passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
-			for(sample=0, shi= ssamp->shi; sample<ssamp->tot; shi++, sample++)
-				if(!(shi->material.mode & MA_SHLESS))
-					ambient_occlusion(re, shi);		/* stores in shi->shading.ao[] */
-	}
-}
-
 /* shades samples, returns true if anything happened */
 void shade_samples(Render *re, ShadeSample *ssamp)
 {
@@ -1332,9 +1307,6 @@ void shade_samples(Render *re, ShadeSample *ssamp)
 
 	if(!ssamp->tot)
 		return;
-	
-	/* if AO? */
-	shade_samples_do_AO(re, ssamp);
 	
 	/* if shade (all shadepinputs have same passflag) */
 	if(shi->shading.passflag & ~(SCE_PASS_Z|SCE_PASS_INDEXOB)) {

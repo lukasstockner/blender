@@ -91,13 +91,11 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 				copy_v3_v3(ao, sample->ao);
 				copy_v3_v3(env, sample->env);
 				copy_v3_v3(indirect, sample->indirect);
-				//printf("success A\n");
 				return 1;
 			}
 		}
 	}
 	else {
-		//printf("fail A\n");
 		return 0;
 	}
 
@@ -109,7 +107,6 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 
 	for(i=0; i<4; i++)
 		if(!samples[i] || !samples[i]->filled) {
-			//printf("fail B\n");
 			return 0;
 		}
 
@@ -118,7 +115,6 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 	maxo= MAX4(samples[0]->intensity, samples[1]->intensity, samples[2]->intensity, samples[3]->intensity);
 
 	if(maxo - mino > 0.05f) {
-		//printf("fail B\n");
 		return 0;
 	}
 
@@ -161,11 +157,9 @@ int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 		mul_v3_fl(ao, totw);
 		mul_v3_fl(env, totw);
 		mul_v3_fl(indirect, totw);
-		//printf("success B\n");
 		return 1;
 	}
 
-	//printf("fail C\n");
 	return 0;
 }
 
@@ -403,11 +397,11 @@ void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
        and Neighbor Clamping. Křivánek, Bouatouch, Pattanaik, Žára. 2006. */
 
 #define EPSILON					1e-6f
-#define CACHE_DIMENSION			(1+3+3)
 #define MAX_PIXEL_DIST			10.0f
 #define MAX_ERROR_K				1.0f
 #define WEIGHT_NORMAL_DENOM		65.823047821929777f		/* 1/(1 - cos(10°)) */
 #define SINGULAR_VALUE_EPSILON	1e-4f
+#define MAX_CACHE_DIMENSION		((3+3+1)*9)
 
 /* Data Structures */
 
@@ -418,7 +412,6 @@ typedef struct IrrCacheSample {
 	float P[3];						/* position */
 	float N[3];						/* normal */
 	float dP;						/* radius */
-	float C[CACHE_DIMENSION];		/* irradiance */
 	int read;						/* read from file */
 } IrrCacheSample;
 
@@ -450,16 +443,18 @@ struct IrrCache {
 	int neighbour_clamp;
 	int lsq_reconstruction;
 	int locked;
+	int dimension;
+	int use_SH;
 
 	/* test: a stable global coordinate system may help */
 };
 
 typedef struct Lsq4DFit {
 	float AtA[4][4];
-	float AtB[CACHE_DIMENSION][4];
+	float AtB[MAX_CACHE_DIMENSION][4];
 } Lsq4DFit;
 
-void lsq_4D_add(Lsq4DFit *lsq, float a[4], float b[CACHE_DIMENSION], float weight)
+void lsq_4D_add(Lsq4DFit *lsq, float a[4], float *b, int dimension, float weight)
 {
 	float (*AtA)[4]= lsq->AtA;
 	float (*AtB)[4]= lsq->AtB;
@@ -471,7 +466,7 @@ void lsq_4D_add(Lsq4DFit *lsq, float a[4], float b[CACHE_DIMENSION], float weigh
 		for(j=0; j<4; j++)
 			AtA[i][j] += weight*a[i]*a[j];
 	
-	for(i=0; i<CACHE_DIMENSION; i++)
+	for(i=0; i<dimension; i++)
 		for(j=0; j<4; j++)
 			AtB[i][j] += weight*a[j]*b[i];
 }
@@ -496,14 +491,14 @@ void svd_invert_m4_m4(float R[4][4], float M[4][4])
 	mul_serie_m4(R, U, Wm, V, 0, 0, 0, 0, 0);
 }
 
-void lsq_4D_solve(Lsq4DFit *lsq, float solution[CACHE_DIMENSION])
+void lsq_4D_solve(Lsq4DFit *lsq, float *solution, int dimension)
 {
 	float AtAinv[4][4], x[4];
 	int i;
 
 	svd_invert_m4_m4(AtAinv, lsq->AtA);
 
-	for(i=0; i<CACHE_DIMENSION; i++) {
+	for(i=0; i<dimension; i++) {
 		mul_v4_m4v4(x, AtAinv, lsq->AtB[i]);
 		solution[i]= x[3];
 	}
@@ -537,6 +532,18 @@ static IrrCache *irr_cache_new(Render *re, int thread)
 	/* options */
 	cache->lsq_reconstruction= 1;
 	cache->neighbour_clamp= 1;
+
+	if(re->db.wrld.mode & WO_AMB_OCC)
+		cache->dimension++;
+	if(re->db.wrld.mode & WO_ENV_LIGHT)
+		cache->dimension += 3;
+	if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+		cache->dimension += 3;
+
+	if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_APPROX) {
+		cache->use_SH= 1;
+		cache->dimension *= 9;
+	}
 
 	return cache;
 }
@@ -574,18 +581,82 @@ static int irr_cache_node_point_inside(IrrCacheNode *node, float scale, float ad
 	        ((node->center[2] - side) < P[2]));
 }
 
-static void irr_sample_set(float C[CACHE_DIMENSION], float *ao, float env[3], float indirect[3])
+static float *irr_sample_C(IrrCacheSample *sample)
 {
-	if(ao) C[0]= *ao;
-	if(env) copy_v3_v3(C+1, env);
-	if(indirect) copy_v3_v3(C+4, indirect);
+	return (float*)((char*)sample + sizeof(IrrCacheSample));
 }
 
-static void irr_sample_get(float C[CACHE_DIMENSION], float *ao, float env[3], float indirect[3])
+static void irr_sample_set(IrrCacheSample *sample, int use_SH, float *ao, float *env, float *indirect)
 {
-	if(ao) *ao= C[0];
-	if(env) copy_v3_v3(env, C+1);
-	if(indirect) copy_v3_v3(indirect, C+4);
+	float *C= irr_sample_C(sample);
+	int offset= 0;
+
+	if(!use_SH) {
+		/* copy regular values */
+		if(ao)
+			C[offset++]= *ao;
+		if(env) {
+			C[offset++]= env[0];
+			C[offset++]= env[1];
+			C[offset++]= env[2];
+		}
+		if(indirect) {
+			C[offset++]= indirect[0];
+			C[offset++]= indirect[1];
+			C[offset++]= indirect[2];
+		}
+	}
+	else {
+		/* copy spherical harmonics */
+		if(ao)
+			copy_sh_sh(&C[9*offset++], ao);
+		if(env) {
+			copy_sh_sh(&C[9*offset++], env);
+			copy_sh_sh(&C[9*offset++], env+9);
+			copy_sh_sh(&C[9*offset++], env+18);
+		}
+		if(indirect) {
+			copy_sh_sh(&C[9*offset++], indirect);
+			copy_sh_sh(&C[9*offset++], indirect+9);
+			copy_sh_sh(&C[9*offset++], indirect+18);
+		}
+	}
+}
+
+static void irr_sample_get(float *C, int use_SH, float N[3], float *ao, float env[3], float indirect[3])
+{
+	int offset= 0;
+
+	if(!use_SH) {
+		/* simple copy from C array to ao/env/indirect */
+		if(ao)
+			*ao= C[offset++];
+		if(env) {
+			env[0]= C[offset++];
+			env[1]= C[offset++];
+			env[2]= C[offset++];
+		}
+		if(indirect) {
+			indirect[0]= C[offset++];
+			indirect[1]= C[offset++];
+			indirect[2]= C[offset++];
+		}
+	}
+	else {
+		/* evaluate spherical harmonics using normal */
+		if(ao)
+			*ao= eval_shv3(&C[9*offset++], N);
+		if(env) {
+			env[0]= eval_shv3(&C[9*offset++], N);
+			env[1]= eval_shv3(&C[9*offset++], N);
+			env[2]= eval_shv3(&C[9*offset++], N);
+		}
+		if(indirect) {
+			indirect[0]= eval_shv3(&C[9*offset++], N);
+			indirect[1]= eval_shv3(&C[9*offset++], N);
+			indirect[2]= eval_shv3(&C[9*offset++], N);
+		}
+	}
 }
 
 /* Neighbour Clamping [Křivánek 2006] */
@@ -680,22 +751,27 @@ static void irr_cache_insert(IrrCache *cache, IrrCacheSample *sample)
 
 /* Add a Sample */
 
-static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float P[3], float dPdu[3], float dPdv[3], float N[3])
+static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float P[3], float dPdu[3], float dPdv[3], float N[3], float bumpN[3])
 {
 	IrrCacheSample *sample;
-	float Rmean;
+	float Rmean, sh_ao[9], sh_env[27], sh_indirect[27];
+	int use_SH= cache->use_SH;
 	
-	ray_ao_env_indirect(re, shi, ao, env, indirect, &Rmean);
+	/* do raytracing */
+	if(!use_SH)
+		ray_ao_env_indirect(re, shi, ao, env, indirect, &Rmean, use_SH);
+	else
+		ray_ao_env_indirect(re, shi, (ao)? sh_ao: NULL, (env)? sh_env: NULL, (indirect)? sh_indirect: NULL, &Rmean, use_SH);
 
 	/* save sample to cache? */
 	if(!1) ///*(MAX_ERROR != 0) &&*/ (*ao > EPSILON)) { // XXX?
 		return;
 
-	sample= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheSample));
+	sample= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheSample) + sizeof(float)*cache->dimension);
 
 	// XXX too large? try setting pixel dist to 0!
 	/* compute the radius of validity [Tabellion 2004] */
-	if(re->db.wrld.aomode & WO_AOCACHE_FILE)
+	if(re->db.wrld.aomode & WO_LIGHT_CACHE_FILE)
 		Rmean= Rmean*0.5f; /* XXX pixel dist is not reusable .. */
 	else
 		Rmean= minf(Rmean*0.5f, MAX_PIXEL_DIST*(len_v3(dPdu) + len_v3(dPdv))*0.5f);
@@ -704,26 +780,35 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 	copy_v3_v3(sample->P, P);
 	copy_v3_v3(sample->N, N);
 	sample->dP= Rmean;
-	irr_sample_set(sample->C, ao, env, indirect);
 
+	/* copy color values */
+	if(!use_SH) {
+		irr_sample_set(sample, use_SH, ao, env, indirect);
+	}
+	else {
+		irr_sample_set(sample, use_SH, (ao)? sh_ao: NULL, (env)? sh_env: NULL, (indirect)? sh_indirect: NULL);
+		irr_sample_get(irr_sample_C(sample), use_SH, bumpN, ao, env, indirect);
+	}
+
+	/* neighbour clamping trick */
 	if(cache->neighbour_clamp) {
-		/* neighbour clamping trick */
 		irr_cache_clamp_sample(cache, sample);
 		Rmean= sample->dP; /* copy dP back so we get the right place in the octree */
 	}
 
+	/* insert into tree */
 	irr_cache_insert(cache, sample);
 }
 
 /* Lookup */
 
-int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float cP[3], float cdPdu[3], float cdPdv[3], float cN[3], int preprocess)
+int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float cP[3], float cdPdu[3], float cdPdv[3], float cN[3], float cbumpN[3], int preprocess)
 {
 	IrrCacheSample *sample;
 	IrrCacheNode *node, **stack, **stacknode;
-	float accum[CACHE_DIMENSION], P[3], N[3], dPdu[3], dPdv[3], totw;
+	float accum[MAX_CACHE_DIMENSION], P[3], dPdu[3], dPdv[3], N[3], bumpN[3], totw;
 	float discard_weight, maxdist, distfac;
-	int i, added= 0, totfound= 0, use_lsq;
+	int i, added= 0, totfound= 0, use_lsq, dimension;
 	Lsq4DFit lsq;
 
 	/* XXX check how often this is called! */
@@ -734,15 +819,32 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 	/* transform the lookup point to the correct coordinate system */
 	copy_v3_v3(P, cP);
-	copy_v3_v3(N, cN);
-	negate_v3(N); /* blender normal is negated */
 	copy_v3_v3(dPdu, cdPdu);
 	copy_v3_v3(dPdv, cdPdv);
 
+	/* normals depend on how we do bump mapping */
+	if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_NONE) {
+		copy_v3_v3(N, cN);
+		cbumpN= NULL;
+	}
+	else if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_APPROX) {
+		copy_v3_v3(N, cN);
+		copy_v3_v3(bumpN, cbumpN);
+	}
+	else {
+		copy_v3_v3(N, cbumpN);
+		cbumpN= NULL;
+	}
+
+	negate_v3(N);
+	if(cbumpN) negate_v3(bumpN); /* blender normal is negated */
+
 	mul_m4_v3(re->cam.viewinv, P);
-	mul_m3_v3(re->cam.viewninv, N);
 	mul_m3_v3(re->cam.viewninv, dPdu);
 	mul_m3_v3(re->cam.viewninv, dPdv);
+	mul_m3_v3(re->cam.viewninv, N);
+	if(cbumpN)
+		mul_m3_v3(re->cam.viewninv, bumpN);
 
 	//print_m3("nm", re->cam.viewnmat);
 	
@@ -754,6 +856,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	*stacknode++= &cache->root;
 
 	use_lsq= cache->lsq_reconstruction;
+	dimension= cache->dimension;
 
 	if(use_lsq)
 		memset(&lsq, 0, sizeof(lsq));
@@ -812,13 +915,15 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 			if(w > BLI_thread_frand(cache->thread)*discard_weight) {
 				if(!preprocess) {
+					float *C= irr_sample_C(sample);
+
 					if(use_lsq) {
 						float a[4]= {D[0], D[1], D[2], 1.0f};
-						lsq_4D_add(&lsq, a, sample->C, w);
+						lsq_4D_add(&lsq, a, C, dimension, w);
 					}
 					else {
-						for(i=0; i<CACHE_DIMENSION; i++)
-							accum[i] += w*sample->C[i];
+						for(i=0; i<dimension; i++)
+							accum[i] += w*C[i];
 					}
 				}
 
@@ -840,21 +945,21 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	if(totw > EPSILON && totfound >= 1) {
 		if(!preprocess) {
 			if(use_lsq) {
-				lsq_4D_solve(&lsq, accum);
+				lsq_4D_solve(&lsq, accum, dimension);
 			}
 			else {
 				float invw= 1.0/totw;
 
-				for(i=0; i<CACHE_DIMENSION; i++)
+				for(i=0; i<dimension; i++)
 					accum[i] *= invw;
 			}
 
-			irr_sample_get(accum, ao, env, indirect);
+			irr_sample_get(accum, cache->use_SH, bumpN, ao, env, indirect);
 		}
 	}
 	else if(!cache->locked) {
 		/* create a new sample */
-		irr_cache_add(re, shi, cache, ao, env, indirect, P, dPdu, dPdv, N);
+		irr_cache_add(re, shi, cache, ao, env, indirect, P, dPdu, dPdv, N, bumpN);
 		added= 1;
 
 		if(!preprocess)
@@ -876,7 +981,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 	IrrCache *cache;
 	int crop, x, y, seed, step;
 	
-	if(!((re->db.wrld.aomode & WO_AOCACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
+	if(!((re->db.wrld.aomode & WO_LIGHT_CACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
 		return;
 	if((re->params.r.mode & R_RAYTRACE) == 0)
 		return;
@@ -884,7 +989,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 	//radio_cache_create(re, pa->thread);
 
 	BLI_lock_thread(LOCK_RCACHE);
-	if((re->db.wrld.aomode & WO_AOCACHE_FILE) && (cache=irr_cache_read(re, pa->thread))) {
+	if((re->db.wrld.aomode & WO_LIGHT_CACHE_FILE) && (cache=irr_cache_read(re, pa->thread))) {
 		re->db.irrcache[pa->thread]= cache;
 	}
 	else {
@@ -936,7 +1041,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 
 						added= irr_cache_lookup(re, shi, cache,
 							ao, env, indirect,
-							geom->co, geom->dxco, geom->dyco, geom->vn, 1);
+							geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 1);
 						
 						if(added) {
 							if(indirect)
@@ -964,7 +1069,7 @@ void irr_cache_free(Render *re, RenderPart *pa)
 	IrrCache *cache= re->db.irrcache[pa->thread];
 
 	if(cache) {
-		if((re->db.wrld.aomode & WO_AOCACHE_FILE) && !re->cb.test_break(re->cb.tbh))
+		if((re->db.wrld.aomode & WO_LIGHT_CACHE_FILE) && !re->cb.test_break(re->cb.tbh))
 			if(!cache->locked)
 				irr_cache_merge(re, cache);
 
@@ -1002,7 +1107,7 @@ void irr_cache_write(Render *re, IrrCache *cache)
 
 		/* write samples */
 		for(sample=node->samples; sample; sample=sample->next)
-			fwrite(sample, sizeof(IrrCacheSample), 1, f);
+			fwrite(sample, sizeof(IrrCacheSample) + sizeof(float)*cache->dimension, 1, f);
 
 		/* push children on stack */
 		for(i=0; i<8; i++) {
@@ -1061,8 +1166,9 @@ IrrCache *irr_cache_read(Render *re, int thread)
 		/* read samples */
 		sample_p= &node->samples;
 		for(sample=node->samples; sample; sample=sample->next) {
-			*sample_p= sample= BLI_memarena_alloc(cache->arena, sizeof(IrrCacheSample));
-			if(fread(sample, sizeof(IrrCacheSample), 1, f) != 1) {
+			int samplesize= sizeof(IrrCacheSample) + sizeof(float)*cache->dimension;
+			*sample_p= sample= BLI_memarena_alloc(cache->arena, samplesize);
+			if(fread(sample, samplesize, 1, f) != 1) {
 				fclose(f);
 				irr_cache_delete(cache);
 				return NULL;
@@ -1120,8 +1226,9 @@ void irr_cache_merge(Render *re, IrrCache *from)
 		/* insert samples */
 		for(sample=node->samples; sample; sample=sample->next) {
 			if(!sample->read) {
-				newsample= BLI_memarena_alloc(to->arena, sizeof(IrrCacheSample));
-				memcpy(newsample, sample, sizeof(IrrCacheSample));
+				int samplesize= sizeof(IrrCacheSample) + sizeof(float)*from->dimension;
+				newsample= BLI_memarena_alloc(to->arena, samplesize);
+				memcpy(newsample, sample, samplesize);
 				irr_cache_insert(to, newsample);
 			}
 		}
@@ -1396,6 +1503,7 @@ void radio_cache_free(RenderDB *rdb, int thread)
 	}
 }
 
+#if 0
 static float face_projected_area(RenderCamera *cam, VlakRen *vlr)
 {
 	float area, hoco[4][4], zco[4][3];
@@ -1411,6 +1519,7 @@ static float face_projected_area(RenderCamera *cam, VlakRen *vlr)
 
 	return area;
 }
+#endif
 
 int radio_cache_lookup(Render *re, ShadeInput *shi, float color[3], float raylength)
 {

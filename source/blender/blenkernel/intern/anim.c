@@ -86,7 +86,7 @@
 /* --------------------- */
 /* forward declarations */
 
-static void object_duplilist_recursive(ID *id, Scene *scene, Object *ob, ListBase *duplilist, float par_space_mat[][4], int level, int animated);
+static void object_duplilist_recursive(ID *id, Scene *scene, Object *ob, ListBase *duplilist, float obmat[4][4], float par_space_mat[4][4], int level, int animated);
 
 /* ******************************************************************** */
 /* Animation Visualisation */
@@ -659,9 +659,9 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, i
 			dob->no_draw= (dob->origlay & group->layer)==0;
 			
 			if(go->ob->transflag & OB_DUPLI) {
-				copy_m4_m4(dob->ob->obmat, dob->mat);
-				object_duplilist_recursive((ID *)group, scene, go->ob, lb, ob->obmat, level+1, animated);
-				copy_m4_m4(dob->ob->obmat, dob->omat);
+				//copy_m4_m4(dob->ob->obmat, dob->mat);
+				object_duplilist_recursive((ID *)group, scene, go->ob, lb, dob->mat, ob->obmat, level+1, animated);
+				//copy_m4_m4(dob->ob->obmat, dob->omat);
 			}
 		}
 	}
@@ -754,11 +754,11 @@ static void vertex_dupli__mapFunc(void *userData, int index, float *co, float *n
 		VECCOPY(dob->orco, vdd->orco[index]);
 	
 	if(vdd->ob->transflag & OB_DUPLI) {
-		float tmpmat[4][4];
-		copy_m4_m4(tmpmat, vdd->ob->obmat);
-		copy_m4_m4(vdd->ob->obmat, obmat); /* pretend we are really this mat */
-		object_duplilist_recursive((ID *)vdd->id, vdd->scene, vdd->ob, vdd->lb, obmat, vdd->level+1, vdd->animated);
-		copy_m4_m4(vdd->ob->obmat, tmpmat);
+		//float tmpmat[4][4];
+		//copy_m4_m4(tmpmat, vdd->ob->obmat);
+		//copy_m4_m4(vdd->ob->obmat, obmat); /* pretend we are really this mat */
+		object_duplilist_recursive((ID *)vdd->id, vdd->scene, vdd->ob, vdd->lb, obmat, obmat, vdd->level+1, vdd->animated);
+		//copy_m4_m4(vdd->ob->obmat, tmpmat);
 	}
 }
 
@@ -1042,10 +1042,10 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 						
 						if(ob->transflag & OB_DUPLI) {
 							float tmpmat[4][4];
-							copy_m4_m4(tmpmat, ob->obmat);
-							copy_m4_m4(ob->obmat, obmat); /* pretend we are really this mat */
-							object_duplilist_recursive((ID *)id, scene, ob, lb, ob->obmat, level+1, animated);
-							copy_m4_m4(ob->obmat, tmpmat);
+							//copy_m4_m4(tmpmat, ob->obmat);
+							//copy_m4_m4(ob->obmat, obmat); /* pretend we are really this mat */
+							object_duplilist_recursive((ID *)id, scene, ob, lb, obmat, ob->obmat, level+1, animated);
+							//copy_m4_m4(ob->obmat, tmpmat);
 						}
 					}
 					
@@ -1378,7 +1378,7 @@ static void font_duplilist(ListBase *lb, Scene *scene, Object *par, int level, i
 
 /* ------------- */
 
-static void object_duplilist_recursive(ID *id, Scene *scene, Object *ob, ListBase *duplilist, float par_space_mat[][4], int level, int animated)
+static void object_duplilist_recursive(ID *id, Scene *scene, Object *ob, ListBase *duplilist, float obmat[4][4], float par_space_mat[4][4], int level, int animated)
 {	
 	if((ob->transflag & OB_DUPLI)==0)
 		return;
@@ -1436,7 +1436,7 @@ ListBase *object_duplilist(Scene *sce, Object *ob)
 {
 	ListBase *duplilist= MEM_mallocN(sizeof(ListBase), "duplilist");
 	duplilist->first= duplilist->last= NULL;
-	object_duplilist_recursive((ID *)sce, sce, ob, duplilist, NULL, 0, 0);
+	object_duplilist_recursive((ID *)sce, sce, ob, duplilist, NULL, NULL, 0, 0); /* XXX */
 	return duplilist;
 }
 

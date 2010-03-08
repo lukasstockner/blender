@@ -190,7 +190,6 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 {
 	BakeShade *bs= handle;
 	Render *re= bs->re;
-	ShadeSample *ssamp= &bs->ssamp;
 	ShadeResult shr;
 	VlakRen *vlr= shi->primitive.vlr;
 	
@@ -211,8 +210,8 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	
 		shade_input_set_shade_texco(re, shi);
 		
-		if(!ELEM3(bs->type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_SHADOW))
-			shade_samples_do_AO(re, ssamp);
+		if(ELEM3(bs->type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_SHADOW))
+			shi->shading.combinedflag &= ~(SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT);
 		
 		if(shi->material.mat->nodetree && shi->material.mat->use_nodes) {
 			ntreeShaderExecTree(shi->material.mat->nodetree, re, shi, &shr);

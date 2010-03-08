@@ -168,7 +168,7 @@ void environment_init(Render *re, World *world)
 			while(re->db.wrld.aosamp*re->db.wrld.aosamp < re->params.osa) 
 				re->db.wrld.aosamp++;
 
-		if(!(re->params.r.mode & R_RAYTRACE) && (re->db.wrld.ao_gather_method == WO_AOGATHER_RAYTRACE))
+		if(!(re->params.r.mode & R_RAYTRACE) && (re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_RAYTRACE))
 			re->db.wrld.mode &= ~(WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT);
 	}
 	else {

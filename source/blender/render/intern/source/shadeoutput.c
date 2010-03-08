@@ -109,7 +109,7 @@ static void shade_surface_result_ramps(Render *re, ShadeInput *shi, ShadeResult 
 /* preprocess, textures were not done, don't use shi->material.amb for that reason */
 void ambient_occlusion(Render *re, ShadeInput *shi)
 {
-	if((re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) && shi->material.mat->amb!=0.0f)
+	if((re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) && shi->material.mat->amb!=0.0f)
 		disk_occlusion_sample(re, shi);
 	else if((re->params.r.mode & R_RAYTRACE) && shi->material.mat->amb!=0.0f) {
 		int thread= shi->shading.thread;
@@ -122,10 +122,10 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 
 			irr_cache_lookup(re, shi, re->db.irrcache[thread],
 				ao, env, indirect,
-				geom->co, geom->dxco, geom->dyco, geom->vn, 0);
+				geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 0);
 		}
 		else
-			ray_ao_env_indirect(re, shi, ao, env, indirect, NULL);
+			ray_ao_env_indirect(re, shi, ao, env, indirect, NULL, 0);
 
 		if(ao)
 			ao[1]= ao[2]= ao[0];
@@ -148,14 +148,14 @@ static void ambient_occlusion_apply(Render *re, ShadeInput *shi, ShadeResult *sh
 	if(f == 0.0f)
 		return;
 
-	if(re->db.wrld.aomix==WO_AOADD) {
+	if(re->db.wrld.aomix==WO_AO_ADD) {
 		mat_color(color, &shi->material);
 
 		shr->diff[0] += shi->shading.ao[0]*color[0]*f;
 		shr->diff[1] += shi->shading.ao[1]*color[1]*f;
 		shr->diff[2] += shi->shading.ao[2]*color[2]*f;
 	}
-	else if(re->db.wrld.aomix==WO_AOMUL) {
+	else if(re->db.wrld.aomix==WO_AO_MUL) {
 		mul_v3_v3v3(tmp, shr->diff, shi->shading.ao);
 		mul_v3_v3v3(tmpspec, shr->spec, shi->shading.ao);
 
@@ -211,9 +211,8 @@ static void shade_compute_ao(Render *re, ShadeInput *shi, ShadeResult *shr)
 	if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
 		if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
 			|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))) {
-			/* AO was calculated for scanline already */
-			if(shi->shading.depth)
-				ambient_occlusion(re, shi);
+
+			ambient_occlusion(re, shi);
 		}
 	}
 }
@@ -294,11 +293,11 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 		if(re->db.wrld.mode & WO_AMB_OCC) {
 			f= re->db.wrld.aoenergy*shi->material.amb;
 
-			if(re->db.wrld.aomix==WO_AOADD) {
+			if(re->db.wrld.aomix==WO_AO_ADD) {
 				f= f*(1.0f - rgb_to_grayscale(shi->shading.ao));
 				shr->alpha= (shr->alpha + f)*f;
 			}
-			else
+			else if(re->db.wrld.aomix==WO_AO_MUL)
 				shr->alpha= (1.0f - f)*shr->alpha + f*(1.0f - (1.0f - shr->alpha)*rgb_to_grayscale(shi->shading.ao));
 		}
 
@@ -674,15 +673,21 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 	shade_compute_ao(re, shi, shr); /* .ao */
 
 	/* add AO in combined? */
-	if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_AOGATHER_APPROX) {
-		if(re->db.wrld.mode & WO_AMB_OCC)
-			ambient_occlusion_apply(re, shi, shr);
+	if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) {
+		if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
+			if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+				|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+				ambient_occlusion(re, shi);
 
-		if(re->db.wrld.mode & WO_ENV_LIGHT)
-			environment_lighting_apply(re, shi, shr);
+			if(re->db.wrld.mode & WO_AMB_OCC)
+				ambient_occlusion_apply(re, shi, shr);
 
-		if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
-			indirect_lighting_apply(re, shi, shr);
+			if(re->db.wrld.mode & WO_ENV_LIGHT)
+				environment_lighting_apply(re, shi, shr);
+
+			if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+				indirect_lighting_apply(re, shi, shr);
+		}
 	}
 		
 	/* ambient light */

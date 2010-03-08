@@ -186,12 +186,15 @@ void vcloud_estimate_transform(int list_size, float (*pos)[3], float *weight,
    1 = (1,-1), 2 = (1,0), 3 = (1,1),
    4 = (2,-2), 5 = (2,-1), 6 = (2,0), 7 = (2,1), 8 = (2,2) */
 
+MINLINE void zero_sh(float r[9]);
 MINLINE void copy_sh_sh(float r[9], float a[9]);
 MINLINE void mul_sh_fl(float r[9], float f);
 MINLINE void add_sh_shsh(float r[9], float a[9], float b[9]);
 
 MINLINE float eval_shv3(float r[9], float v[3]);
-MINLINE void vec_fac_to_sh(float r[9], float v[3], float fac);
+MINLINE float diffuse_shv3(float r[9], float v[3]);
+MINLINE void vec_fac_to_sh(float r[9], float v[3], float f);
+MINLINE void madd_sh_shfl(float r[9], float sh[3], float f);
 
 /********************************* Form Factor *******************************/
 

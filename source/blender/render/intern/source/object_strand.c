@@ -402,7 +402,6 @@ void strand_shade_point(Render *re, ShadeSample *ssamp, StrandSegment *sseg, Str
 	shade_input_init_material(re, shi);
 	
 	/* shade */
-	shade_samples_do_AO(re, ssamp);
 	shade_input_do_shade(re, shi, shr);
 
 	/* apply simplification */

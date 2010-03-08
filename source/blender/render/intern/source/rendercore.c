@@ -1017,7 +1017,6 @@ static void shade_sample_sss(Render *re, ShadeSample *ssamp, Material *mat, Obje
 	/* render */
 	shade_input_set_shade_texco(re, shi);
 	
-	shade_samples_do_AO(re, ssamp);
 	shade_material_loop(re, shi, &shr);
 	
 	copy_v3_v3(co, shi->geometry.co);

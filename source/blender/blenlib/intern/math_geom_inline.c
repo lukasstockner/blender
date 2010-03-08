@@ -32,6 +32,11 @@
 
 /****************************** Spherical Harmonics **************************/
 
+MINLINE void zero_sh(float r[9])
+{
+	memset(r, 0, sizeof(float)*9);
+}
+
 MINLINE void copy_sh_sh(float r[9], float a[9])
 {
 	memcpy(r, a, sizeof(float)*9);
@@ -53,8 +58,18 @@ MINLINE void add_sh_shsh(float r[9], float a[9], float b[9])
 		r[i]= a[i] + b[i];
 }
 
+MINLINE float dot_shsh(float a[9], float b[9])
+{
+	float r= 0.0f;
+	int i;
 
-MINLINE float eval_shv3(float sh[9], float v[3])
+	for(i=0; i<9; i++)
+		r += a[i]*b[i];
+	
+	return r;
+}
+
+MINLINE float diffuse_shv3(float sh[9], float v[3])
 {
 	/* See formula (13) in:
 	   "An Efficient Representation for Irradiance Environment Maps" */
@@ -76,7 +91,7 @@ MINLINE float eval_shv3(float sh[9], float v[3])
 	return sum;
 }
 
-MINLINE void vec_fac_to_sh(float r[9], float v[3], float fac)
+MINLINE void vec_fac_to_sh(float r[9], float v[3], float f)
 {
 	/* See formula (3) in:
 	   "An Efficient Representation for Irradiance Environment Maps" */
@@ -98,8 +113,25 @@ MINLINE void vec_fac_to_sh(float r[9], float v[3], float fac)
 	sh[7]= 1.092548f*x*z;
 	sh[8]= 0.546274f*(x*x - y*y);
 
-	mul_sh_fl(sh, fac);
+	mul_sh_fl(sh, f);
 	copy_sh_sh(r, sh);
+}
+
+MINLINE float eval_shv3(float sh[9], float v[3])
+{
+	float tmp[9];
+
+	vec_fac_to_sh(tmp, v, 1.0f);
+	return dot_shsh(tmp, sh);
+}
+
+MINLINE void madd_sh_shfl(float r[9], float sh[3], float f)
+{
+	float tmp[9];
+
+	copy_sh_sh(tmp, sh);
+	mul_sh_fl(tmp, f);
+	add_sh_shsh(r, r, tmp);
 }
 
 #endif /* BLI_MATH_GEOM_INLINE */

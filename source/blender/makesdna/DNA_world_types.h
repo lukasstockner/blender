@@ -103,7 +103,7 @@ typedef struct World {
 	float ao_adapt_thresh, ao_adapt_speed_fac;
 	float ao_approx_error, ao_approx_correction;
 	float ao_indirect_energy, ao_env_energy, ao_pad2;
-	short ao_indirect_bounces, ao_pad;
+	short ao_indirect_bounces, ao_bump_method;
 	short ao_samp_method, ao_gather_method, ao_approx_passes;
 	
 	/* assorted settings (in the middle of ambient occlusion settings for padding reasons) */
@@ -143,30 +143,35 @@ typedef struct World {
 #define WO_INDIRECT_LIGHT	  128
 
 /* aomix */
-#define WO_AOADD	0
-#define WO_AOSUB	1 /* deprecated */
-#define WO_AOADDSUB	2 /* deprecated */
-#define WO_AOMUL	3
+#define WO_AO_ADD		0
+#define WO_AO_SUB		1 /* deprecated */
+#define WO_AO_ADDSUB	2 /* deprecated */
+#define WO_AO_MUL		3
 
 /* ao_samp_method - methods for sampling the AO hemi */
-#define WO_AOSAMP_CONSTANT			0		/* Deprecated */
-#define WO_AOSAMP_HALTON			1
-#define WO_AOSAMP_HAMMERSLEY		2
+#define WO_LIGHT_SAMP_CONSTANT		0		/* Deprecated */
+#define WO_LIGHT_SAMP_HALTON		1
+#define WO_LIGHT_SAMP_HAMMERSLEY	2
 
 /* aomode (use distances & random sampling modes) */
-#define WO_AODIST			1
-#define WO_AORNDSMP			2
-#define WO_AOCACHE			4
-#define WO_AOCACHE_FILE		8
+#define WO_LIGHT_DIST		1
+#define WO_LIGHT_DEPRECATED	2
+#define WO_LIGHT_CACHE		4
+#define WO_LIGHT_CACHE_FILE	8
 
 /* aocolor */
-#define WO_AOPLAIN	0
-#define WO_AOSKYCOL	1
-#define WO_AOSKYTEX	2
+#define WO_ENV_LIGHT_WHITE		0
+#define WO_ENV_LIGHT_SKY_COLOR	1
+#define WO_ENV_LIGHT_SKY_TEX	2
 
 /* ao_gather_method */
-#define WO_AOGATHER_RAYTRACE	0
-#define WO_AOGATHER_APPROX		1
+#define WO_LIGHT_GATHER_RAYTRACE	0
+#define WO_LIGHT_GATHER_APPROX		1
+
+/* ao_bump_method */
+#define WO_LIGHT_BUMP_NONE		0
+#define WO_LIGHT_BUMP_APPROX	1
+#define WO_LIGHT_BUMP_FULL		2
 
 /* texco (also in DNA_material_types.h) */
 #define TEXCO_ANGMAP	64

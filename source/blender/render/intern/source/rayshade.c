@@ -1398,7 +1398,7 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 
 	isec.last_hit = NULL;
 	
-	isec.mode= (re->db.wrld.aomode & WO_AODIST)?RE_RAY_SHADOW_TRA:RE_RAY_SHADOW;
+	isec.mode= (re->db.wrld.aomode & WO_LIGHT_DIST)?RE_RAY_SHADOW_TRA:RE_RAY_SHADOW;
 	isec.lay= -1;
 	
 	copy_v3_v3(isec.start, shi->geometry.co);		
@@ -1411,9 +1411,9 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 	/* prevent sky colors to be added for only shadow (shadow becomes alpha) */
 	envcolor= re->db.wrld.aocolor;
 	if(shi->material.mat->mode & MA_ONLYSHADOW)
-		envcolor= WO_AOPLAIN;
+		envcolor= WO_ENV_LIGHT_WHITE;
 	
-	if(envcolor == WO_AOSKYTEX) {
+	if(envcolor == WO_ENV_LIGHT_SKY_TEX) {
 		dxyview[0]= 1.0f/(float)re->db.wrld.aosamp;
 		dxyview[1]= 1.0f/(float)re->db.wrld.aosamp;
 		dxyview[2]= 0.0f;
@@ -1429,7 +1429,7 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 	ortho_basis_v3v3_v3( up, side,nrm);
 	
 	/* sampling init */
-	if (re->db.wrld.ao_samp_method==WO_AOSAMP_HALTON) {
+	if (re->db.wrld.ao_samp_method==WO_LIGHT_SAMP_HALTON) {
 		float speedfac;
 		
 		speedfac = get_avg_speed(shi) * adapt_speed_fac;
@@ -1438,7 +1438,7 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 		if (max_samples < 5) max_samples = 5;
 		
 		qsa = sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HALTON, max_samples);
-	} else if (re->db.wrld.ao_samp_method==WO_AOSAMP_HAMMERSLEY)
+	} else if (re->db.wrld.ao_samp_method==WO_LIGHT_SAMP_HAMMERSLEY)
 		qsa = sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HAMMERSLEY, max_samples);
 
 	while (samples < max_samples) {
@@ -1462,19 +1462,19 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 		prev = fac;
 		
 		if(re_object_raycast(re->db.raytree, &isec, shi)) {
-			if (re->db.wrld.aomode & WO_AODIST) fac+= exp(-isec.labda*re->db.wrld.aodistfac); 
+			if (re->db.wrld.aomode & WO_LIGHT_DIST) fac+= exp(-isec.labda*re->db.wrld.aodistfac); 
 			else fac+= 1.0f;
 		}
-		else if(envcolor!=WO_AOPLAIN) {
+		else if(envcolor!=WO_ENV_LIGHT_WHITE) {
 			float skycol[4], view[3];
 			
 			view[0]= -dir[0];
 			view[1]= -dir[1];
 			view[2]= -dir[2];
 			
-			if(envcolor==WO_AOSKYCOL)
+			if(envcolor==WO_ENV_LIGHT_SKY_COLOR)
 				environment_no_tex_shade(re, skycol, view);
-			else /* WO_AOSKYTEX */
+			else /* WO_ENV_LIGHT_SKY_TEX */
 				environment_shade(re, skycol, isec.start, view, dxyview, shi->shading.thread);
 
 			env[0]+= skycol[0];
@@ -1486,7 +1486,7 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 		
 		samples++;
 		
-		if (re->db.wrld.ao_samp_method==WO_AOSAMP_HALTON) {
+		if (re->db.wrld.ao_samp_method==WO_LIGHT_SAMP_HALTON) {
 			/* adaptive sampling - consider samples below threshold as in shadow (or vice versa) and exit early */		
 			if (adapt_thresh > 0.0 && (samples > max_samples/2) ) {
 				
@@ -1500,7 +1500,7 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 	/* average color times distances/hits formula */
 	ao[0]= ao[1]= ao[2]= 1.0f - fac/(float)samples;
 
-	if(envcolor!=WO_AOPLAIN && skyadded)
+	if(envcolor!=WO_ENV_LIGHT_WHITE && skyadded)
 		mul_v3_fl(env, (1.0f - fac/(float)samples)/((float)skyadded));
 	else
 		copy_v3_v3(env, ao);
@@ -1836,12 +1836,12 @@ static void ray_env_shade(Render *re, ShadeInput *shi, float start[3], float vec
 	/* environment color depending on user choice */
 	envcolor= re->db.wrld.aocolor;
 	if(shi->material.mat->mode & MA_ONLYSHADOW)
-		envcolor= WO_AOPLAIN;
+		envcolor= WO_ENV_LIGHT_WHITE;
 
-	if(envcolor == WO_AOPLAIN) {
+	if(envcolor == WO_ENV_LIGHT_WHITE) {
 		color[0]= color[1]= color[2]= 1.0f;
 	}
-	else if(envcolor == WO_AOSKYCOL) {
+	else if(envcolor == WO_ENV_LIGHT_SKY_COLOR) {
 		environment_no_tex_shade(re, color, vec);
 	}
 	else {
@@ -1944,11 +1944,12 @@ static void indirect_shade(Render *re, ShadeInput *oldshi, Isect *isec, float ve
 #define HORIZON_CUTOFF	0.17364817766693041f	/* cos(80°) */
 //#define HARMONIC_MEAN
 
-void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], float indirect[3], float *Rmean)
+void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float *env, float *indirect, float *Rmean, int use_SH)
 {
 	QMCSampler *qsa;
 	Isect isec;
 	float accum_ao, accum_env[3], accum_indirect[3], accum_R;
+	float sh_ao[9], sh_env[3][9], sh_indirect[3][9], sh_vec[9], tmp_ao;
 	float basis[3][3], r[2], vec[3], normalize, dist, maxdist;
 	float jitco[RE_MAX_OSA][3], start[3], color[3];
 	int a, totsample, totjitco, thread, hit, nearest;
@@ -1956,10 +1957,14 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], f
 	thread= shi->shading.thread;
 	totsample= re->db.wrld.aosamp*re->db.wrld.aosamp;
 	maxdist= re->db.wrld.aodist;
-	nearest= (indirect || (ao && (re->db.wrld.aomode & WO_AODIST)) || Rmean);
+	nearest= (indirect || (ao && (re->db.wrld.aomode & WO_LIGHT_DIST)) || Rmean);
 
 	/* local orthonormal basis */
-	negate_v3_v3(basis[2], shi->geometry.vn);
+	if((re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_FULL) || !(re->db.wrld.aomode & WO_LIGHT_CACHE))
+		negate_v3_v3(basis[2], shi->geometry.vn);
+	else
+		negate_v3_v3(basis[2], shi->geometry.vno);
+
 	ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
 
 	/* jittered starting coordinates */
@@ -1969,6 +1974,16 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], f
 	accum_ao= 0.0f;
 	zero_v3(accum_env);
 	zero_v3(accum_indirect);
+
+	if(use_SH) {
+		zero_sh(sh_ao);
+		zero_sh(sh_env[0]);
+		zero_sh(sh_env[1]);
+		zero_sh(sh_env[2]);
+		zero_sh(sh_indirect[0]);
+		zero_sh(sh_indirect[1]);
+		zero_sh(sh_indirect[2]);
+	}
 
 #ifdef HARMONIC_MEAN
 	accum_R= 0.0f;
@@ -1989,31 +2004,51 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], f
 
 		/* trace ray */
 		hit= ray_indirect_trace_do(re, shi, &isec, start, vec, maxdist, nearest);
+		dist= isec.labda*maxdist;
+
+		/* vector to spherical harmonics */
+		if(use_SH)
+			vec_fac_to_sh(sh_vec, vec, 1.0f); //dot_v3v3(basis[2], vec));
 
 		/* accumulate AO */
-		if(ao && hit) {
-			if(re->db.wrld.aomode & WO_AODIST)
-				accum_ao += expf(-isec.labda*maxdist);
+		if(ao) {
+			if(hit)
+				tmp_ao= (re->db.wrld.aomode & WO_LIGHT_DIST)? 1.0f - expf(-dist): 0.0f;
 			else
-				accum_ao += 1.0f;
+				tmp_ao= 1.0f;
+
+			accum_ao += tmp_ao;
+
+			if(use_SH)
+				madd_sh_shfl(sh_ao, sh_vec, tmp_ao);
 		}
 
 		/* accumulate environment light */
 		if(env && !hit) {
 			ray_env_shade(re, shi, start, vec, color);
 			add_v3_v3(accum_env, color);
+
+			if(use_SH) {
+				madd_sh_shfl(sh_env[0], sh_vec, color[0]);
+				madd_sh_shfl(sh_env[1], sh_vec, color[1]);
+				madd_sh_shfl(sh_env[2], sh_vec, color[2]);
+			}
 		}
 
 		/* accumulate indirect light */
 		if(indirect && hit) {
 			indirect_shade(re, shi, &isec, vec, color, 1);
 			add_v3_v3(accum_indirect, color);
+
+			if(use_SH) {
+				madd_sh_shfl(sh_indirect[0], sh_vec, color[0]);
+				madd_sh_shfl(sh_indirect[1], sh_vec, color[1]);
+				madd_sh_shfl(sh_indirect[2], sh_vec, color[2]);
+			}
 		}
 
 		/* harmonic mean for irradiance caching */
 		if(Rmean && hit) {
-			dist= isec.labda*maxdist;
-
 #ifdef HARMONIC_MEAN
 			accum_R += 1.0f/dist;
 #else
@@ -2030,9 +2065,38 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float env[3], f
 	/* return normalized values */
 	normalize= 1.0f/totsample;
 
-	if(ao) *ao= 1.0f - accum_ao*normalize;
-	if(env) mul_v3_v3fl(env, accum_env, normalize);
-	if(indirect) mul_v3_v3fl(indirect, accum_indirect, M_PI*normalize);
+	if(!use_SH) {
+		if(ao) *ao= accum_ao*normalize;
+		if(env) mul_v3_v3fl(env, accum_env, normalize);
+		if(indirect) mul_v3_v3fl(indirect, accum_indirect, M_PI*normalize);
+	}
+	else {
+		if(ao) {
+			for(a=0; a<9; a++)
+				ao[a]= sh_ao[a]*normalize;
+
+#if 0
+			printf("vec: ");
+			for(b=0; b<9; b++)
+				printf(" %f", ao[b]);
+			printf("\n");
+
+			printf("eval %f\n", eval_shv3(ao, basis[2]));
+#endif
+		}
+		if(env) {
+			for(a=0; a<3; a++) {
+				mul_sh_fl(sh_env[a], normalize);
+				copy_sh_sh(env + 9*a, sh_env[a]);
+			}
+		}
+		if(indirect) {
+			for(a=0; a<3; a++) {
+				mul_sh_fl(sh_indirect[a], M_PI*normalize);
+				copy_sh_sh(indirect + 9*a, sh_indirect[a]);
+			}
+		}
+	}
 
 #ifdef HARMONIC_MEAN
 	if(Rmean) *Rmean= totsample/accum_R;

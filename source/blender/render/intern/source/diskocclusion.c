@@ -571,14 +571,14 @@ static OcclusionTree *occ_tree_build(Render *re)
 
 	/* parameters */
 	tree->error= get_render_aosss_error(&re->params.r, re->db.wrld.ao_approx_error);
-	tree->distfac= (re->db.wrld.aomode & WO_AODIST)? re->db.wrld.aodistfac: 0.0f;
+	tree->distfac= (re->db.wrld.aomode & WO_LIGHT_DIST)? re->db.wrld.aodistfac: 0.0f;
 	tree->doindirect= (re->db.wrld.ao_indirect_energy > 0.0f && re->db.wrld.ao_indirect_bounces > 0);
 
 	/* allocation */
 	tree->arena= BLI_memarena_new(0x8000 * sizeof(OccNode));
 	BLI_memarena_use_calloc(tree->arena);
 
-	if(re->db.wrld.aomode & WO_AOCACHE)
+	if(re->db.wrld.aomode & WO_LIGHT_CACHE)
 		tree->cache= MEM_callocN(sizeof(PixelCache*)*BLENDER_MAX_THREADS, "PixelCache*");
 
 	tree->face= MEM_callocN(sizeof(OccFace)*totface, "OcclusionFace");
@@ -659,7 +659,7 @@ static float occ_solid_angle(OccNode *node, float *v, float d2, float invd2, flo
 	ev[0]= -v[0]*invd2;
 	ev[1]= -v[1]*invd2;
 	ev[2]= -v[2]*invd2;
-	dotemit= eval_shv3(node->sh, ev);
+	dotemit= diffuse_shv3(node->sh, ev);
 	dotreceive= dot_v3v3(receivenormal, v)*invd2;
 
 	CLAMP(dotemit, 0.0f, 1.0f);
@@ -897,7 +897,7 @@ static void sample_occ_tree(Render *re, OcclusionTree *tree, OccFace *exclude, f
 
 	envcolor= re->db.wrld.aocolor;
 	if(onlyshadow)
-		envcolor= WO_AOPLAIN;
+		envcolor= WO_ENV_LIGHT_WHITE;
 
 	copy_v3_v3(nn, n);
 	negate_v3(nn);
@@ -913,7 +913,7 @@ static void sample_occ_tree(Render *re, OcclusionTree *tree, OccFace *exclude, f
 
 	if(env) {
 		/* sky shading using bent normal */
-		if(ELEM(envcolor, WO_AOSKYCOL, WO_AOSKYTEX)) {
+		if(ELEM(envcolor, WO_ENV_LIGHT_SKY_COLOR, WO_ENV_LIGHT_SKY_TEX)) {
 			environment_no_tex_shade(re, env, bn);
 			mul_v3_fl(env, occlusion);
 		}
