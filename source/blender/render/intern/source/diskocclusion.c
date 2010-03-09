@@ -1081,12 +1081,19 @@ void disk_occlusion_sample_direct(Render *re, ShadeInput *shi)
 {
 	OcclusionTree *tree= re->db.occlusiontree;
 	OccFace exclude;
+	float *vn;
 	int onlyshadow;
 
 	onlyshadow= (shi->material.mat->mode & MA_ONLYSHADOW);
 	exclude.obi= shi->primitive.obi - re->db.objectinstance;
 	exclude.facenr= shi->primitive.vlr->index;
-	sample_occ_tree(re, tree, &exclude, shi->geometry.co, shi->geometry.vno, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
+
+	if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_NONE)
+		vn= shi->geometry.vno;
+	else
+		vn= shi->geometry.vn;
+
+	sample_occ_tree(re, tree, &exclude, shi->geometry.co, vn, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
 }
 
 void disk_occlusion_sample(Render *re, ShadeInput *shi)
