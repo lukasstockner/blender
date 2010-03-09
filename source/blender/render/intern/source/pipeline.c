@@ -1355,11 +1355,7 @@ static void do_render_seq(Render * re)
 /* main loop: doing sequence + fields + blur + 3d render + compositing */
 static void do_render_all_options(Render *re)
 {
-#ifdef DURIAN_CAMERA_SWITCH
-	Object *camera= scene_find_camera_switch(re->db.scene);
-	if(camera)
-		re->db.scene->camera= camera;
-#endif
+	scene_camera_switch_update(re->db.scene);
 
 	re->cb.i.starttime= PIL_check_seconds_timer();
 

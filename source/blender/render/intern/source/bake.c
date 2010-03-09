@@ -692,7 +692,7 @@ static void *do_bake_thread(void *bs_v)
 /* returns 0 if nothing was handled */
 int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_update)
 {
-	BakeShade handles[BLENDER_MAX_THREADS];
+	BakeShade *handles;
 	ListBase threads;
 	Image *ima;
 	int a, vdone=0, usemask=0;
@@ -716,11 +716,11 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	
 	BLI_init_threads(&threads, do_bake_thread, re->params.r.threads);
 
+	handles= MEM_callocN(sizeof(BakeShade)*re->params.r.threads, "BakeShade");
+
 	/* get the threads running */
 	for(a=0; a<re->params.r.threads; a++) {
 		/* set defaults in handles */
-		memset(&handles[a], 0, sizeof(BakeShade));
-		
 		handles[a].re= re;
 		handles[a].ssamp.shi[0].shading.lay= re->db.scene->lay;
 		
@@ -801,8 +801,11 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 		zbuf_free_span(handles[a].zspan);
 		MEM_freeN(handles[a].zspan);
  	}
+
+	MEM_freeN(handles);
 	
 	BLI_end_threads(&threads);
+
 	return vdone;
 }
 

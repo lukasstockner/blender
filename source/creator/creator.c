@@ -230,6 +230,9 @@ static int print_help(int argc, char **argv, void *data)
 
 	printf ("\nMisc options:\n");
 	printf ("  -d\t\tTurn debugging on\n");
+	printf ("    \t\t * prints every operator call and their arguments\n");
+	printf ("    \t\t * disables mouse grab (to interact with a debugger in some cases)\n");
+	printf ("    \t\t * keeps python sys.stdin rather then setting it to None\n");
 	printf ("  -nojoystick\tDisable joystick support\n");
 	printf ("  -noglsl\tDisable GLSL shading\n");
 	printf ("  -noaudio\tForce sound system to None\n");
@@ -1037,8 +1040,13 @@ int main(int argc, char **argv)
 		WM_exit(C);
 	}
 
-	if(!G.background && !G.file_loaded)
-		WM_init_splash(C);
+	else {
+		if((G.fileflags & G_FILE_AUTOPLAY) && (G.fileflags & G_SCRIPT_AUTOEXEC))
+			WM_init_game(C);
+
+		else if(!G.file_loaded)
+			WM_init_splash(C);
+	}
 
 	WM_main(C);
 

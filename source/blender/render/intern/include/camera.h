@@ -64,8 +64,7 @@ int camera_hoco_test_clip(float hoco[4]);
 typedef struct RenderCamera {
 	rctf viewplane;			/* mapped on winx winy */
 	float viewdx, viewdy;	/* size of 1 pixel */
-	float viewfac;
-	float ycor;
+	float ycor;				/* viewdy/viewdx */
 	float clipcrop;			/* 2 pixel boundary to prevent clip when filter used */
 
 	/* camera */

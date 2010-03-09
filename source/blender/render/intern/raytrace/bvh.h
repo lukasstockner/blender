@@ -31,6 +31,7 @@
 #include "MEM_guardedalloc.h"
 #include "rayobject_rtbuild.h"
 #include "rayobject_hint.h"
+#include "BLI_math.h"
 
 #include <assert.h>
 
@@ -44,16 +45,19 @@
 #ifdef __SSE__
 inline int test_bb_group4(__m128 *bb_group, const Isect *isec)
 {
-	
 	const __m128 tmin0 = _mm_setzero_ps();
-	const __m128 tmax0 = _mm_load1_ps(&isec->labda);
+	const __m128 tmax0 = _mm_set_ps1(isec->labda);
 
-	const __m128 tmin1 = _mm_max_ps(tmin0, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[0]], _mm_load1_ps(&isec->start[0]) ), _mm_load1_ps(&isec->idot_axis[0])) );
-	const __m128 tmax1 = _mm_min_ps(tmax0, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[1]], _mm_load1_ps(&isec->start[0]) ), _mm_load1_ps(&isec->idot_axis[0])) );
-	const __m128 tmin2 = _mm_max_ps(tmin1, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[2]], _mm_load1_ps(&isec->start[1]) ), _mm_load1_ps(&isec->idot_axis[1])) );
-	const __m128 tmax2 = _mm_min_ps(tmax1, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[3]], _mm_load1_ps(&isec->start[1]) ), _mm_load1_ps(&isec->idot_axis[1])) );
-	const __m128 tmin3 = _mm_max_ps(tmin2, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[4]], _mm_load1_ps(&isec->start[2]) ), _mm_load1_ps(&isec->idot_axis[2])) );
-	const __m128 tmax3 = _mm_min_ps(tmax2, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[5]], _mm_load1_ps(&isec->start[2]) ), _mm_load1_ps(&isec->idot_axis[2])) );
+	float start[3], idot_axis[3];
+	copy_v3_v3(start, isec->start);
+	copy_v3_v3(idot_axis, isec->idot_axis);
+
+	const __m128 tmin1 = _mm_max_ps(tmin0, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[0]], _mm_set_ps1(start[0]) ), _mm_set_ps1(idot_axis[0])) );
+	const __m128 tmax1 = _mm_min_ps(tmax0, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[1]], _mm_set_ps1(start[0]) ), _mm_set_ps1(idot_axis[0])) );
+	const __m128 tmin2 = _mm_max_ps(tmin1, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[2]], _mm_set_ps1(start[1]) ), _mm_set_ps1(idot_axis[1])) );
+	const __m128 tmax2 = _mm_min_ps(tmax1, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[3]], _mm_set_ps1(start[1]) ), _mm_set_ps1(idot_axis[1])) );
+	const __m128 tmin3 = _mm_max_ps(tmin2, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[4]], _mm_set_ps1(start[2]) ), _mm_set_ps1(idot_axis[2])) );
+	const __m128 tmax3 = _mm_min_ps(tmax2, _mm_mul_ps( _mm_sub_ps( bb_group[isec->bv_index[5]], _mm_set_ps1(start[2]) ), _mm_set_ps1(idot_axis[2])) );
 	
 	return _mm_movemask_ps(_mm_cmpge_ps(tmax3, tmin3));
 }

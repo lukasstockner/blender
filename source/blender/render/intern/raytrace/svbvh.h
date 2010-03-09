@@ -55,23 +55,26 @@ inline int bvh_node_hit_test<SVBVHNode>(SVBVHNode *node, Isect *isec)
 template<>
 inline void bvh_node_push_childs<SVBVHNode>(SVBVHNode *node, Isect *isec, SVBVHNode **stack, int &stack_pos)
 {
-	int i=0;
-	while(i+4 <= node->nchilds)
+	SVBVHNode **child= node->child;
+	float *child_bb= node->child_bb;
+	int i=0, nchilds= node->nchilds;
+
+	while(i+4 <= nchilds)
 	{
-		int res = test_bb_group4( (__m128*) (node->child_bb+6*i), isec );
+		int res = test_bb_group4( (__m128*) (child_bb+6*i), isec );
 		RE_RC_COUNT(isec->raycounter->simd_bb.test);
 		
-		if(res & 1) { stack[stack_pos++] = node->child[i+0]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-		if(res & 2) { stack[stack_pos++] = node->child[i+1]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-		if(res & 4) { stack[stack_pos++] = node->child[i+2]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-		if(res & 8) { stack[stack_pos++] = node->child[i+3]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+		if(res & 1) { stack[stack_pos++] = child[i+0]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+		if(res & 2) { stack[stack_pos++] = child[i+1]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+		if(res & 4) { stack[stack_pos++] = child[i+2]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+		if(res & 8) { stack[stack_pos++] = child[i+3]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
 		
 		i += 4;
 	}
-	while(i < node->nchilds)
+	while(i < nchilds)
 	{
-		if(RE_rayobject_bb_intersect_test(isec, (const float*)node->child_bb+6*i))
-			stack[stack_pos++] = node->child[i];
+		if(RE_rayobject_bb_intersect_test(isec, (const float*)child_bb+6*i))
+			stack[stack_pos++] = child[i];
 		i++;
 	}
 }
