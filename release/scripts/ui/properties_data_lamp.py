@@ -94,32 +94,53 @@ class DATA_PT_lamp(DataButtonsPanel):
         split = layout.split()
 
         col = split.column()
-        sub = col.column()
-        sub.prop(lamp, "color", text="")
+        col.prop(lamp, "color", text="")
 
         if lamp.type in ('POINT', 'SPOT', 'AREA'):
-            sub.prop(lamp, "power")
-
-            if lamp.type != 'AREA' or lamp.multi_shade:
-                sub.label(text="Falloff:")
-                sub.prop(lamp, "falloff_type", text="")
-                if lamp.falloff_type == 'CUSTOM_CURVE':
-                    sub.prop(lamp, "falloff_distance", text="Distance")
-                else:
-                    sub.prop(lamp, "falloff_smooth", text="Smooth")
-
-                col.prop(lamp, "sphere")
+            col.prop(lamp, "power")
         else:
-            sub.prop(lamp, "energy")
+            col.prop(lamp, "energy")
+        col.prop(lamp, "negative")
+
+        if lamp.type in ('POINT', 'SPOT', 'AREA'):
+            col.prop(lamp, "multi_shade")
 
         if wide_ui:
             col = split.column()
-        col.prop(lamp, "negative")
-        col.prop(lamp, "layer", text="This Layer Only")
+
+        if lamp.type in ('POINT', 'SPOT', 'AREA'):
+            if lamp.type != 'AREA' or lamp.multi_shade:
+                col.label(text="Falloff:")
+                col.prop(lamp, "falloff_type", text="")
+                if lamp.falloff_type == 'CUSTOM_CURVE':
+                    col.prop(lamp, "falloff_distance", text="Distance")
+                else:
+                    col.prop(lamp, "falloff_smooth", text="Smooth")
+
+                col.prop(lamp, "sphere")
+
+class DATA_PT_lamp_options(DataButtonsPanel):
+    bl_label = "Options"
+    bl_default_closed = True
+
+    def draw(self, context):
+        layout = self.layout
+
+        lamp = context.lamp
+        wide_ui = context.region.width > narrowui
+
+        split = layout.split()
+
+        col = split.column()
+
         col.prop(lamp, "specular")
         col.prop(lamp, "diffuse")
-        if lamp.type in ('POINT', 'SPOT', 'AREA'):
-            col.prop(lamp, "multi_shade")
+
+        if wide_ui:
+            col = split.column()
+
+        col.prop(lamp, "indirect")
+        col.prop(lamp, "layer", text="This Layer Only")
 
 class DATA_PT_sunsky(DataButtonsPanel):
     bl_label = "Sky & Atmosphere"
@@ -220,6 +241,9 @@ class DATA_PT_shadow(DataButtonsPanel):
                 col = split.column()
             col.prop(lamp, "shadow_layer", text="This Layer Only")
             col.prop(lamp, "only_shadow")
+
+            if lamp.shadow_method == 'BUFFER_SHADOW':
+                col.prop(lamp, "shadow_strands")
 
         if lamp.shadow_method == 'RAY_SHADOW':
             col = layout.column()
@@ -385,6 +409,7 @@ classes = [
     DATA_PT_context_lamp,
     DATA_PT_preview,
     DATA_PT_lamp,
+    DATA_PT_lamp_options,
     DATA_PT_falloff_curve,
     DATA_PT_area,
     DATA_PT_spot,

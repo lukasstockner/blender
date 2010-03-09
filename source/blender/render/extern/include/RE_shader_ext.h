@@ -202,6 +202,7 @@ typedef struct ShadeInput
 		int samplenr;			/* sample counter, to detect if we should do shadow again */
 		int depth;				/* 1 or larger on raytrace shading */
 		int volume_depth;		/* number of intersections through volumes */
+		int isindirect;			/* part of indirect lighting */
 
 		unsigned int lay;
 		int layflag, passflag, combinedflag;

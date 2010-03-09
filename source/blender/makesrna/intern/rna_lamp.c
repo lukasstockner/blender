@@ -369,6 +369,11 @@ static void rna_def_lamp(BlenderRNA *brna)
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "mode", LA_NO_DIFF);
 	RNA_def_property_ui_text(prop, "Diffuse", "Lamp does diffuse shading");
 	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+
+	prop= RNA_def_property(srna, "indirect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "mode", LA_NO_INDIRECT);
+	RNA_def_property_ui_text(prop, "Indirect", "Lamp contributes to indirect lighting");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 	
 	prop= RNA_def_property(srna, "multi_shade", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_MULTI_SHADE);
@@ -699,6 +704,11 @@ static void rna_def_spot_lamp(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "bufflag", LA_SHADBUF_AUTO_END);
 	RNA_def_property_ui_text(prop, "Autoclip End", "Automatic calculation of clipping-end, based on visible vertices");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
+
+	prop= RNA_def_property(srna, "shadow_strands", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "bufflag", LA_SHADBUF_NO_STRANDS);
+	RNA_def_property_ui_text(prop, "Shadow Strands", "Lamp shadow buffer includes strands");
+	RNA_def_property_update(prop, 0, "rna_Lamp_update");
 
 	prop= RNA_def_property(srna, "compression_threshold", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "compressthresh");

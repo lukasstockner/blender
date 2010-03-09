@@ -1923,6 +1923,7 @@ static void indirect_shade(Render *re, ShadeInput *oldshi, Isect *isec, float ve
 	float dist= isec->labda*re->db.wrld.aodistfac;
 
 	shadeinput_from_isec(re, oldshi, isec, vec, depth, &shi);
+	shi.shading.isindirect= 1;
 
 	if(!radio_cache_lookup(re, &shi, color, dist)) {
 		mat_shading_begin(re, &shi, &shi.material, 0);

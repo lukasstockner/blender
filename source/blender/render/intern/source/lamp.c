@@ -288,6 +288,7 @@ int lamp_skip(Render *re, LampRen *lar, ShadeInput *shi)
 	if(lar->type==LA_YF_PHOTON) return 1;
 	if(lar->mode & LA_LAYER) if(shi->primitive.obi && (lar->lay & shi->primitive.obi->lay)==0) return 1;
 	if((lar->lay & shi->shading.lay)==0) return 1;
+	if((lar->mode & LA_NO_INDIRECT) && shi->shading.isindirect) return 1;
 
 	if(lar->power == 0.0)
 		return 1;

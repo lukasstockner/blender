@@ -2274,7 +2274,7 @@ void zbuffer_shadow(Render *re, float winmat[][4], LampRen *lar, int *rectz, int
 		}
 
 		/* strands */
-		if(obr->strandbuf) {
+		if(obr->strandbuf && !(lar->bufflag & LA_SHADBUF_NO_STRANDS)) {
 			/* for each bounding box containing a number of strands */
 			sbound= obr->strandbuf->bound;
 			for(c=0; c<obr->strandbuf->totbound; c++, sbound++) {
@@ -2803,7 +2803,7 @@ void zbuffer_abuf_shadow(Render *re, LampRen *lar, float winmat[][4], APixstr *a
 	pa.disprect.ymax= size;
 
 	zbuffer_abuf(re, &pa, apixbuf, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1);
-	if(apixbufstrand)
+	if(apixbufstrand && !(lar->bufflag & LA_SHADBUF_NO_STRANDS))
 		zbuffer_strands_abuf(re, &pa, apixbufstrand, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1, NULL);
 }
 
