@@ -188,6 +188,12 @@ MINLINE void mul_v3_v3(float r[3], float a[3])
 	r[2] *= a[2];
 }
 
+MINLINE void madd_v2_v2fl(float r[2], float a[2], float f)
+{
+	r[0] += a[0]*f;
+	r[1] += a[1]*f;
+}
+
 MINLINE void madd_v3_v3fl(float r[3], float a[3], float f)
 {
 	r[0] += a[0]*f;
