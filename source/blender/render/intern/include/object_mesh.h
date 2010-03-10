@@ -40,8 +40,10 @@ struct VlakRen;
 struct VertRen *render_object_vert_get(struct ObjectRen *obr, int nr);
 struct VlakRen *render_object_vlak_get(struct ObjectRen *obr, int nr);
 
-struct VertRen *render_object_vert_copy(struct ObjectRen *obr, struct VertRen *ver);
-struct VlakRen *render_object_vlak_copy(struct ObjectRen *obr, struct VlakRen *vlr);
+struct VertRen *render_object_vert_copy(struct ObjectRen *obrn, struct ObjectRen *obr, struct VertRen *ver);
+struct VlakRen *render_object_vlak_copy(struct ObjectRen *obrn, struct ObjectRen *obr, struct VlakRen *vlr);
+
+struct VertRen *render_object_vert_interp(struct ObjectRen *obrn, struct ObjectRen *obr, struct VertRen **v, float *w, int totv);
 
 /* Vertex Texture Coordinates */
 
@@ -49,7 +51,6 @@ float *render_vert_get_orco(struct ObjectRen *obr, struct VertRen *ver, int veri
 float *render_vert_get_sticky(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_stress(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_rad(struct ObjectRen *obr, struct VertRen *ver, int verify);
-float *render_vert_get_strand(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_tangent(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_strandco(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_winspeed(struct ObjectInstanceRen *obi, struct VertRen *ver, int verify);

@@ -196,8 +196,6 @@ static void free_object_vertnodes(VertTableNode *vertnodes)
 			MEM_freeN(vertnodes[a].orco);
 		if(vertnodes[a].sticky)
 			MEM_freeN(vertnodes[a].sticky);
-		if(vertnodes[a].strand)
-			MEM_freeN(vertnodes[a].strand);
 		if(vertnodes[a].tangent)
 			MEM_freeN(vertnodes[a].tangent);
 		if(vertnodes[a].stress)

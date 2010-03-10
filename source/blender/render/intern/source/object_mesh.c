@@ -132,7 +132,7 @@ float *render_vert_get_orco(ObjectRen *obr, VertRen *ver, int verify)
 	orco= obr->vertnodes[nr].orco;
 	if(orco==NULL) {
 		if(verify) 
-			orco= obr->vertnodes[nr].orco= MEM_mallocN(256*RE_ORCO_ELEMS*sizeof(float), "orco table");
+			orco= obr->vertnodes[nr].orco= MEM_callocN(256*RE_ORCO_ELEMS*sizeof(float), "orco table");
 		else
 			return NULL;
 	}
@@ -147,7 +147,7 @@ float *render_vert_get_sticky(ObjectRen *obr, VertRen *ver, int verify)
 	sticky= obr->vertnodes[nr].sticky;
 	if(sticky==NULL) {
 		if(verify) 
-			sticky= obr->vertnodes[nr].sticky= MEM_mallocN(256*RE_STICKY_ELEMS*sizeof(float), "sticky table");
+			sticky= obr->vertnodes[nr].sticky= MEM_callocN(256*RE_STICKY_ELEMS*sizeof(float), "sticky table");
 		else
 			return NULL;
 	}
@@ -162,26 +162,11 @@ float *render_vert_get_stress(ObjectRen *obr, VertRen *ver, int verify)
 	stress= obr->vertnodes[nr].stress;
 	if(stress==NULL) {
 		if(verify) 
-			stress= obr->vertnodes[nr].stress= MEM_mallocN(256*RE_STRESS_ELEMS*sizeof(float), "stress table");
+			stress= obr->vertnodes[nr].stress= MEM_callocN(256*RE_STRESS_ELEMS*sizeof(float), "stress table");
 		else
 			return NULL;
 	}
 	return stress + (ver->index & 255)*RE_STRESS_ELEMS;
-}
-
-float *render_vert_get_strand(ObjectRen *obr, VertRen *ver, int verify)
-{
-	float *strand;
-	int nr= ver->index>>8;
-	
-	strand= obr->vertnodes[nr].strand;
-	if(strand==NULL) {
-		if(verify) 
-			strand= obr->vertnodes[nr].strand= MEM_mallocN(256*RE_STRAND_ELEMS*sizeof(float), "strand table");
-		else
-			return NULL;
-	}
-	return strand + (ver->index & 255)*RE_STRAND_ELEMS;
 }
 
 /* needs calloc */
@@ -234,46 +219,90 @@ float *render_vert_get_winspeed(ObjectInstanceRen *obi, VertRen *ver, int verify
 	return winspeed + ver->index*RE_WINSPEED_ELEMS;
 }
 
-VertRen *render_object_vert_copy(ObjectRen *obr, VertRen *ver)
+VertRen *render_object_vert_copy(ObjectRen *obrn, ObjectRen *obr, VertRen *ver)
 {
-	VertRen *v1= render_object_vert_get(obr, obr->totvert++);
+	VertRen *vern= render_object_vert_get(obrn, obrn->totvert++);
 	float *fp1, *fp2;
-	int index= v1->index;
+	int index= vern->index;
 	
-	*v1= *ver;
-	v1->index= index;
+	*vern= *ver;
+	vern->index= index;
 	
 	fp1= render_vert_get_orco(obr, ver, 0);
 	if(fp1) {
-		fp2= render_vert_get_orco(obr, v1, 1);
+		fp2= render_vert_get_orco(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_ORCO_ELEMS*sizeof(float));
 	}
 	fp1= render_vert_get_sticky(obr, ver, 0);
 	if(fp1) {
-		fp2= render_vert_get_sticky(obr, v1, 1);
+		fp2= render_vert_get_sticky(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_STICKY_ELEMS*sizeof(float));
 	}
 	fp1= render_vert_get_stress(obr, ver, 0);
 	if(fp1) {
-		fp2= render_vert_get_stress(obr, v1, 1);
+		fp2= render_vert_get_stress(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_STRESS_ELEMS*sizeof(float));
-	}
-	fp1= render_vert_get_strand(obr, ver, 0);
-	if(fp1) {
-		fp2= render_vert_get_strand(obr, v1, 1);
-		memcpy(fp2, fp1, RE_STRAND_ELEMS*sizeof(float));
 	}
 	fp1= render_vert_get_tangent(obr, ver, 0);
 	if(fp1) {
-		fp2= render_vert_get_tangent(obr, v1, 1);
+		fp2= render_vert_get_tangent(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_TANGENT_ELEMS*sizeof(float));
 	}
 	fp1= render_vert_get_strandco(obr, ver, 0);
 	if(fp1) {
-		fp2= render_vert_get_strandco(obr, v1, 1);
+		fp2= render_vert_get_strandco(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_STRANDCO_ELEMS*sizeof(float));
 	}
-	return v1;
+	return vern;
+}
+
+VertRen *render_object_vert_interp(ObjectRen *obrn, ObjectRen *obr, VertRen **varray, float *warray, int totv)
+{
+	VertRen *ver= render_object_vert_get(obrn, obrn->totvert++);
+	int a;
+
+	for(a=0; a<totv; a++) {
+		VertRen *v= varray[a];
+		float w= warray[a];
+		float *from, *to;
+
+		if((from=render_vert_get_orco(obr, v, 0))) {
+			to= render_vert_get_orco(obrn, ver, 1);
+			madd_v3_v3fl(to, from, w);
+			/*print_v3("to", to);
+			print_v3("from", from);
+			printf("w: %f\n", w);*/
+		}
+
+		if((from=render_vert_get_sticky(obr, v, 0))) {
+			to= render_vert_get_sticky(obrn, ver, 1);
+			madd_v2_v2fl(to, from, w);
+		}
+
+		if((from=render_vert_get_stress(obr, v, 0))) {
+			to= render_vert_get_stress(obrn, ver, 1);
+			*to= *from*w;
+		}
+
+		if((from=render_vert_get_tangent(obr, v, 0))) {
+			to= render_vert_get_tangent(obrn, ver, 1);
+			madd_v3_v3fl(to, from, w);
+		}
+
+		if((from=render_vert_get_strandco(obr, v, 0))) {
+			to= render_vert_get_strandco(obrn, ver, 1);
+			*to= *from*w;
+		}
+
+		madd_v3_v3fl(ver->co, v->co, w);
+		madd_v3_v3fl(ver->n, v->n, w);
+	}
+
+	//print_v3("orco", render_vert_get_orco(obrn, ver, 0));
+
+	normalize_v3(ver->n);
+
+	return ver;
 }
 
 VertRen *render_object_vert_get(ObjectRen *obr, int nr)
@@ -397,41 +426,41 @@ float *render_vlak_get_nmap_tangent(ObjectRen *obr, VlakRen *vlak, int verify)
 	return tangent + (vlak->index & 255)*RE_NMAP_TANGENT_ELEMS;
 }
 
-VlakRen *render_object_vlak_copy(ObjectRen *obr, VlakRen *vlr)
+VlakRen *render_object_vlak_copy(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr)
 {
-	VlakRen *vlr1 = render_object_vlak_get(obr, obr->totvlak++);
+	VlakRen *vlrn = render_object_vlak_get(obrn, obrn->totvlak++);
 	MTFace *mtface, *mtface1;
 	MCol *mcol, *mcol1;
 	float *surfnor, *surfnor1, *tangent, *tangent1;
-	int i, index = vlr1->index;
+	int i, index = vlrn->index;
 	char *name;
 
-	*vlr1= *vlr;
-	vlr1->index= index;
+	*vlrn= *vlr;
+	vlrn->index= index;
 
 	for (i=0; (mtface=render_vlak_get_tface(obr, vlr, i, &name, 0)) != NULL; i++) {
-		mtface1= render_vlak_get_tface(obr, vlr1, i, &name, 1);
+		mtface1= render_vlak_get_tface(obrn, vlrn, i, &name, 1);
 		memcpy(mtface1, mtface, sizeof(MTFace)*RE_MTFACE_ELEMS);
 	}
 
 	for (i=0; (mcol=render_vlak_get_mcol(obr, vlr, i, &name, 0)) != NULL; i++) {
-		mcol1= render_vlak_get_mcol(obr, vlr1, i, &name, 1);
+		mcol1= render_vlak_get_mcol(obrn, vlrn, i, &name, 1);
 		memcpy(mcol1, mcol, sizeof(MCol)*RE_MCOL_ELEMS);
 	}
 
 	surfnor= render_vlak_get_surfnor(obr, vlr, 0);
 	if(surfnor) {
-		surfnor1= render_vlak_get_surfnor(obr, vlr1, 1);
+		surfnor1= render_vlak_get_surfnor(obrn, vlrn, 1);
 		copy_v3_v3(surfnor1, surfnor);
 	}
 
 	tangent= render_vlak_get_nmap_tangent(obr, vlr, 0);
 	if(tangent) {
-		tangent1= render_vlak_get_nmap_tangent(obr, vlr1, 1);
+		tangent1= render_vlak_get_nmap_tangent(obrn, vlrn, 1);
 		memcpy(tangent1, tangent, sizeof(float)*RE_NMAP_TANGENT_ELEMS);
 	}
 
-	return vlr1;
+	return vlrn;
 }
 
 int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int quad)
@@ -526,7 +555,7 @@ static void split_v_renderfaces(ObjectRen *obr, int startvlak, int startvert, in
 
 	for (v=0; v<vLen; v++) {
 		VlakRen *vlr = render_object_vlak_get(obr, startvlak + vLen*uIndex + v);
-		VertRen *vert = render_object_vert_copy(obr, vlr->v2);
+		VertRen *vert = render_object_vert_copy(obr, obr, vlr->v2);
 
 		if (cyclv) {
 			vlr->v2 = vert;
@@ -547,7 +576,7 @@ static void split_v_renderfaces(ObjectRen *obr, int startvlak, int startvert, in
 			}
 
 			if (v==0) {
-				vlr->v1 = render_object_vert_copy(obr, vlr->v1);
+				vlr->v1 = render_object_vert_copy(obr, obr, vlr->v1);
 			} 
 		}
 	}
@@ -1016,7 +1045,7 @@ static void autosmooth(Render *re, ObjectRen *obr, float mat[][4], int degr)
 						v1= as_findvertex(vlr, ver, asv, thresh);
 						if(v1==NULL) {
 							/* make a new vertex */
-							v1= render_object_vert_copy(obr, ver);
+							v1= render_object_vert_copy(obr, obr, ver);
 						}
 						asf->nver[b]= v1;
 						if(vlr->v1==ver) vlr->v1= v1;
@@ -2546,7 +2575,7 @@ static void split_quads(ObjectRen *obr, int dir)
 			
 			if(vlr->v4) {
 
-				vlr1= render_object_vlak_copy(obr, vlr);
+				vlr1= render_object_vlak_copy(obr, obr, vlr);
 				vlr1->flag |= R_FACE_SPLIT;
 				
 				if( dir==2 ) vlr->flag |= R_DIVIDE_24;
@@ -2646,7 +2675,7 @@ static void check_non_flat_quads(ObjectRen *obr)
 					
 					float d1, d2;
 
-					vlr1= render_object_vlak_copy(obr, vlr);
+					vlr1= render_object_vlak_copy(obr, obr, vlr);
 					vlr1->flag |= R_FACE_SPLIT;
 					
 					/* split direction based on vnorms */
