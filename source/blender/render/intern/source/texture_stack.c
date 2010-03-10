@@ -137,7 +137,7 @@ static int cubemap_glob(Render *re, float *n, float x, float y, float z, float *
 /* ------------------------------------------------------------------------- */
 
 /* mtex argument only for projection switches */
-static int cubemap(Render *re, MTex *mtex, VlakRen *vlr, float *n, float x, float y, float z, float *adr1, float *adr2)
+static int cubemap(Render *re, MTex *mtex, ObjectRen *obr, VlakRen *vlr, float *n, float x, float y, float z, float *adr1, float *adr2)
 {
 	int proj[4]={0, ME_PROJXY, ME_PROJXZ, ME_PROJYZ}, ret= 0;
 	
@@ -147,8 +147,6 @@ static int cubemap(Render *re, MTex *mtex, VlakRen *vlr, float *n, float x, floa
 		/* Mesh vertices have such flags, for others we calculate it once based on orco */
 		if((vlr->puno & (ME_PROJXY|ME_PROJXZ|ME_PROJYZ))==0) {
 			/* test for v1, vlr can be faked for baking */
-			ObjectRen *obr= NULL; // XXX!
-
 			if(vlr->v1 && render_vert_get_orco(obr, vlr->v1, 0)) {
 				float *orco1= render_vert_get_orco(obr, vlr->v1, 0);
 				float *orco2= render_vert_get_orco(obr, vlr->v2, 0);
@@ -235,7 +233,7 @@ static int cubemap_ob(Object *ob, float *n, float x, float y, float z, float *ad
 
 /* ------------------------------------------------------------------------- */
 
-static void do_2d_mapping(Render *re, MTex *mtex, float *t, VlakRen *vlr, float *n, float *dxt, float *dyt)
+static void do_2d_mapping(Render *re, MTex *mtex, float *t, ObjectRen *obr, VlakRen *vlr, float *n, float *dxt, float *dyt)
 {
 	Tex *tex;
 	Object *ob= NULL;
@@ -259,7 +257,7 @@ static void do_2d_mapping(Render *re, MTex *mtex, float *t, VlakRen *vlr, float 
 		else {
 			if(texco==TEXCO_OBJECT) cubemap_ob(ob, n, t[0], t[1], t[2], &fx, &fy);
 			else if(texco==TEXCO_GLOB) cubemap_glob(re, n, t[0], t[1], t[2], &fx, &fy);
-			else cubemap(re, mtex, vlr, n, t[0], t[1], t[2], &fx, &fy);
+			else cubemap(re, mtex, obr, vlr, n, t[0], t[1], t[2], &fx, &fy);
 		}
 		
 		/* repeat */
@@ -350,7 +348,7 @@ static void do_2d_mapping(Render *re, MTex *mtex, float *t, VlakRen *vlr, float 
 
 			if(texco==TEXCO_OBJECT) proj = cubemap_ob(ob, n, t[0], t[1], t[2], &fx, &fy);
 			else if (texco==TEXCO_GLOB) proj = cubemap_glob(re, n, t[0], t[1], t[2], &fx, &fy);
-			else proj = cubemap(re, mtex, vlr, n, t[0], t[1], t[2], &fx, &fy);
+			else proj = cubemap(re, mtex, obr, vlr, n, t[0], t[1], t[2], &fx, &fy);
 
 			if(proj==1) {
 				SWAP(float, dxt[1], dxt[2]);
@@ -697,7 +695,7 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 			}
 			else dxt[2] = dyt[2] = 0.f;
 		}
-		do_2d_mapping(re, mtex, texvec, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt);
+		do_2d_mapping(re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt);
 
 		// translate and scale
 		texvec[0] = mtex->size[0]*(texvec[0] - 0.5f) + mtex->ofs[0] + 0.5f;
@@ -1478,7 +1476,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 			
 			if(tex->type==TEX_IMAGE) {
 				continue;	/* not supported yet */				
-				//do_2d_mapping(re, mtex, texvec, NULL, NULL, dxt, dyt);
+				//do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt);
 			}
 			else {
 				/* placement */
@@ -1654,7 +1652,7 @@ void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf)
 
 	}
 
-	if(mtex->tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, dxt, dyt);
+	if(mtex->tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt);
 	
 	rgb= tex_sample_old(&re->params, mtex->tex, texvec, dxt, dyt, osatex, &texres, 0, mtex->which_output);
 
@@ -1837,7 +1835,7 @@ void do_sky_tex(Render *re, float *rco, float *lo, float *dxyview, float *hor, f
 			else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			
 			/* texture */
-			if(tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, dxt, dyt);
+			if(tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt);
 		
 			rgb= tex_sample_old(&re->params, mtex->tex, texvec, dxt, dyt, re->params.osa, &texres, thread, mtex->which_output);
 			
@@ -2039,7 +2037,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 			
 			/* texture */
 			if(tex->type==TEX_IMAGE) {
-				do_2d_mapping(re, mtex, texvec, NULL, NULL, dxt, dyt);
+				do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt);
 			}
 			
 			rgb= tex_sample_old(&re->params, tex, texvec, dxt, dyt, shi->geometry.osatex, &texres, shi->shading.thread, mtex->which_output);
@@ -2184,7 +2182,7 @@ int multitex_nodes(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, 
 
 		if(mtex) {
 			/* we have mtex, use it for 2d mapping images only */
-			do_2d_mapping(&re, mtex, texvec, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt);
+			do_2d_mapping(&re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt);
 			rgbnor= tex_sample_old(&re.params, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
 
 			if(mtex->mapto & (MAP_COL+MAP_COLSPEC+MAP_COLMIR)) {
@@ -2215,7 +2213,7 @@ int multitex_nodes(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, 
 				zero_v3(dyt_l);
 			}
 			
-			do_2d_mapping(&re, &localmtex, texvec_l, NULL, NULL, dxt_l, dyt_l);
+			do_2d_mapping(&re, &localmtex, texvec_l, NULL, NULL, NULL, dxt_l, dyt_l);
 			rgbnor= tex_sample_old(&re.params, tex, texvec_l, dxt_l, dyt_l, osatex, texres, thread, which_output);
 		}
 
@@ -2258,7 +2256,7 @@ int externtex(MTex *mtex, float *vec, float *tin, float *tr, float *tg, float *t
 	
 	/* texture */
 	if(tex->type==TEX_IMAGE) {
-		do_2d_mapping(&re, mtex, texvec, NULL, NULL, dxt, dyt);
+		do_2d_mapping(&re, mtex, texvec, NULL, NULL, NULL, dxt, dyt);
 	}
 	
 	rgb= tex_sample_old(&re.params, tex, texvec, dxt, dyt, 0, &texr, 0, mtex->which_output);
