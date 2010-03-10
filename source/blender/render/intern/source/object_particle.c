@@ -134,25 +134,25 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 		add_v3_v3v3(vlr->v1->co, vlr->v1->co, cross);
 		copy_v3_v3(vlr->v1->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, vlr->v1, 1), sd->orco);
-		vlr->v1->accum= -1.0f;	// accum abuse for strand texco
+		*render_vert_get_strandco(obr, vlr->v1, 1)= -1.0f;
 		
 		copy_v3_v3(vlr->v2->co, vec);
 		sub_v3_v3v3(vlr->v2->co, vlr->v2->co, cross);
 		copy_v3_v3(vlr->v2->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, vlr->v2, 1), sd->orco);
-		vlr->v2->accum= vlr->v1->accum;
+		*render_vert_get_strandco(obr, vlr->v2, 1)= -1.0f;
 
 		copy_v3_v3(vlr->v4->co, vec1);
 		add_v3_v3v3(vlr->v4->co, vlr->v4->co, cross);
 		copy_v3_v3(vlr->v4->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, vlr->v4, 1), sd->orco);
-		vlr->v4->accum= 1.0f;	// accum abuse for strand texco
+		*render_vert_get_strandco(obr, vlr->v4, 1)= 1.0f;
 		
 		copy_v3_v3(vlr->v3->co, vec1);
 		sub_v3_v3v3(vlr->v3->co, vlr->v3->co, cross);
 		copy_v3_v3(vlr->v3->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, vlr->v3, 1), sd->orco);
-		vlr->v3->accum= vlr->v4->accum;
+		*render_vert_get_strandco(obr, vlr->v3, 1)= 1.0f;
 
 		normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
 		
@@ -208,13 +208,13 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 		add_v3_v3v3(v1->co, v1->co, cross);
 		copy_v3_v3(v1->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, v1, 1), sd->orco);
-		v1->accum= -1.0f;	// accum abuse for strand texco
+		*render_vert_get_strandco(obr, v1, 1)= -1.0f;
 		
 		copy_v3_v3(v2->co, vec);
 		sub_v3_v3v3(v2->co, v2->co, cross);
 		copy_v3_v3(v2->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, v2, 1), sd->orco);
-		v2->accum= v1->accum;
+		*render_vert_get_strandco(obr, v2, 1)= -1.0f;
 	}
 	/* more vertices & faces to strand */
 	else {
@@ -270,13 +270,13 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 		add_v3_v3v3(vlr->v4->co, vlr->v4->co, cross);
 		copy_v3_v3(vlr->v4->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, vlr->v4, 1), sd->orco);
-		vlr->v4->accum= -1.0f + 2.0f*sd->time;	// accum abuse for strand texco
+		*render_vert_get_strandco(obr, vlr->v4, 1)= -1.0f + 2.0f*sd->time;
 		
 		copy_v3_v3(vlr->v3->co, vec);
 		sub_v3_v3v3(vlr->v3->co, vlr->v3->co, cross);
 		copy_v3_v3(vlr->v3->n, nor);
 		copy_v3_v3(render_vert_get_orco(obr, vlr->v3, 1), sd->orco);
-		vlr->v3->accum= vlr->v4->accum;
+		*render_vert_get_strandco(obr, vlr->v3, 1)= -1.0f + 2.0f*sd->time;
 		
 		normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
 		
@@ -298,14 +298,15 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 				mtf->uv[2][1]=mtf->uv[3][1]=(sd->uvco+2*i)[1];
 			}
 			if(sd->override_uv>=0){
-				MTFace *mtf;
-				mtf=render_vlak_get_tface(obr,vlr,sd->override_uv,NULL,0);
+				MTFace *mtf= render_vlak_get_tface(obr,vlr,sd->override_uv,NULL,0);
+				float sco1= *render_vert_get_strandco(obr, vlr->v1, 0);
+				float sco3= *render_vert_get_strandco(obr, vlr->v3, 0);
 				
 				mtf->uv[0][0]=mtf->uv[3][0]=0.0f;
 				mtf->uv[1][0]=mtf->uv[2][0]=1.0f;
 
-				mtf->uv[0][1]=mtf->uv[1][1]=(vlr->v1->accum+1.0f)/2.0f;
-				mtf->uv[2][1]=mtf->uv[3][1]=(vlr->v3->accum+1.0f)/2.0f;
+				mtf->uv[0][1]=mtf->uv[1][1]=(sco1+1.0f)/2.0f;
+				mtf->uv[2][1]=mtf->uv[3][1]=(sco3+1.0f)/2.0f;
 			}
 		}
 		if(sd->mcol){

@@ -200,6 +200,21 @@ float *render_vert_get_tangent(ObjectRen *obr, VertRen *ver, int verify)
 	return tangent + (ver->index & 255)*RE_TANGENT_ELEMS;
 }
 
+float *render_vert_get_strandco(ObjectRen *obr, VertRen *ver, int verify)
+{
+	float *strandco;
+	int nr= ver->index>>8;
+	
+	strandco= obr->vertnodes[nr].strandco;
+	if(strandco==NULL) {
+		if(verify) 
+			strandco= obr->vertnodes[nr].strandco= MEM_callocN(256*RE_STRANDCO_ELEMS*sizeof(float), "strandco table");
+		else
+			return NULL;
+	}
+	return strandco + (ver->index & 255)*RE_STRANDCO_ELEMS;
+}
+
 /* needs calloc! not all renderverts have them */
 /* also winspeed is exception, it is stored per instance */
 float *render_vert_get_winspeed(ObjectInstanceRen *obi, VertRen *ver, int verify)
@@ -228,6 +243,11 @@ VertRen *render_object_vert_copy(ObjectRen *obr, VertRen *ver)
 	*v1= *ver;
 	v1->index= index;
 	
+	fp1= render_vert_get_orco(obr, ver, 0);
+	if(fp1) {
+		fp2= render_vert_get_orco(obr, v1, 1);
+		memcpy(fp2, fp1, RE_ORCO_ELEMS*sizeof(float));
+	}
 	fp1= render_vert_get_sticky(obr, ver, 0);
 	if(fp1) {
 		fp2= render_vert_get_sticky(obr, v1, 1);
@@ -247,6 +267,11 @@ VertRen *render_object_vert_copy(ObjectRen *obr, VertRen *ver)
 	if(fp1) {
 		fp2= render_vert_get_tangent(obr, v1, 1);
 		memcpy(fp2, fp1, RE_TANGENT_ELEMS*sizeof(float));
+	}
+	fp1= render_vert_get_strandco(obr, ver, 0);
+	if(fp1) {
+		fp2= render_vert_get_strandco(obr, v1, 1);
+		memcpy(fp2, fp1, RE_STRANDCO_ELEMS*sizeof(float));
 	}
 	return v1;
 }
@@ -1102,11 +1127,11 @@ static short test_for_displace(Render *re, Object *ob)
 	return 0;
 }
 
-static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, VertRen *vr, int vindex, float *scale, float mat[][4], float imat[][3])
+static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, VertRen *vr, int vindex, float *scale, float mat[][4], float imat[][3], float *sample)
 {
 	MTFace *tface;
 	short texco= shi->material.mat->texco;
-	float sample=0, displace[3], *orco;
+	float displace[3], *orco;
 	char *name;
 	int i;
 
@@ -1187,18 +1212,17 @@ static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, Ve
 	vr->flag |= 1;
 	
 	/* Pass sample back so displace_face can decide which way to split the quad */
-	sample  = shi->texture.displace[0]*shi->texture.displace[0];
-	sample += shi->texture.displace[1]*shi->texture.displace[1];
-	sample += shi->texture.displace[2]*shi->texture.displace[2];
-	
-	vr->accum=sample; 
 	/* Should be sqrt(sample), but I'm only looking for "bigger".  Save the cycles. */
-	return;
+	sample[vr->index]= dot_v3v3(shi->texture.displace, shi->texture.displace);
 }
 
-static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float *scale, float mat[][4], float imat[][3])
+static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float *scale, float mat[][4], float imat[][3], float *sample)
 {
 	ShadeInput shi;
+	VertRen *v1= vlr->v1;
+	VertRen *v2= vlr->v2;
+	VertRen *v3= vlr->v3;
+	VertRen *v4= vlr->v4;
 
 	/* Warning, This is not that nice, and possibly a bit slow,
 	however some variables were not initialized properly in, unless using shade_input_initialize(...), we need to do a memset */
@@ -1218,48 +1242,47 @@ static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float
 	/* TODO, assign these, displacement with new bumpmap is skipped without - campbell */
 #if 0
 	/* order is not known ? */
-	shi.primitive.v1= vlr->v1;
-	shi.primitive.v2= vlr->v2;
-	shi.primitive.v3= vlr->v3;
+	shi.primitive.v1= v1;
+	shi.primitive.v2= v2;
+	shi.primitive.v3= v3;
 #endif
 	
 	/* Displace the verts, flag is set when done */
-	if (!vlr->v1->flag)
-		displace_render_vert(re, obr, &shi, vlr->v1,0,  scale, mat, imat);
+	if(!v1->flag)
+		displace_render_vert(re, obr, &shi, v1,0,  scale, mat, imat, sample);
 	
-	if (!vlr->v2->flag)
-		displace_render_vert(re, obr, &shi, vlr->v2, 1, scale, mat, imat);
+	if(!v2->flag)
+		displace_render_vert(re, obr, &shi, v2, 1, scale, mat, imat, sample);
 
-	if (!vlr->v3->flag)
-		displace_render_vert(re, obr, &shi, vlr->v3, 2, scale, mat, imat);
+	if(!v3->flag)
+		displace_render_vert(re, obr, &shi, v3, 2, scale, mat, imat, sample);
 
-	if (vlr->v4) {
-		if (!vlr->v4->flag)
-			displace_render_vert(re, obr, &shi, vlr->v4, 3, scale, mat, imat);
+	if(v4) {
+		if(!v4->flag)
+			displace_render_vert(re, obr, &shi, v4, 3, scale, mat, imat, sample);
 
 		/*	closest in displace value.  This will help smooth edges.   */ 
-		if ( fabs(vlr->v1->accum - vlr->v3->accum) > fabs(vlr->v2->accum - vlr->v4->accum)) 
+		if(fabs(sample[v1->index] - sample[v3->index]) > fabs(sample[v2->index] - sample[v4->index]))
 			vlr->flag |= R_DIVIDE_24;
 		else vlr->flag &= ~R_DIVIDE_24;
 	}
 	
 	/* Recalculate the face normal  - if flipped before, flip now */
-	if(vlr->v4) {
-		normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
-	}	
-	else {
-		normal_tri_v3( vlr->n,vlr->v3->co, vlr->v2->co, vlr->v1->co);
-	}
+	if(v4)
+		normal_quad_v3(vlr->n, v4->co, v3->co, v2->co, v1->co);
+	else
+		normal_tri_v3(vlr->n, v3->co, v2->co, v1->co);
 }
 
 static void do_displacement(Render *re, ObjectRen *obr, float mat[][4], float imat[][3])
 {
-	VertRen *vr;
-	VlakRen *vlr;
-//	float min[3]={1e30, 1e30, 1e30}, max[3]={-1e30, -1e30, -1e30};
-	float scale[3]={1.0f, 1.0f, 1.0f}, temp[3];//, xn
-	int i; //, texflag=0;
 	Object *obt;
+	VlakRen *vlr;
+	VertRen *vr;
+	float scale[3]={1.0f, 1.0f, 1.0f}, temp[3], *sample;
+	int i;
+
+	sample= MEM_callocN(sizeof(float)*obr->totvert, "do_displacement sample");
 		
 	/* Object Size with parenting */
 	obt=obr->ob;
@@ -1277,8 +1300,10 @@ static void do_displacement(Render *re, ObjectRen *obr, float mat[][4], float im
 
 	for(i=0; i<obr->totvlak; i++){
 		vlr=render_object_vlak_get(obr, i);
-		displace_render_face(re, obr, vlr, scale, mat, imat);
+		displace_render_face(re, obr, vlr, scale, mat, imat, sample);
 	}
+
+	MEM_freeN(sample);
 	
 	/* Recalc vertex normals */
 	render_object_calc_vnormals(re, obr, 0, 0);

@@ -51,6 +51,7 @@ float *render_vert_get_stress(struct ObjectRen *obr, struct VertRen *ver, int ve
 float *render_vert_get_rad(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_strand(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_tangent(struct ObjectRen *obr, struct VertRen *ver, int verify);
+float *render_vert_get_strandco(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_winspeed(struct ObjectInstanceRen *obi, struct VertRen *ver, int verify);
 
 /* Face Texture Coordinates */
@@ -78,6 +79,7 @@ typedef struct VertTableNode {
 	float *tangent;
 	float *stress;
 	float *winspeed;
+	float *strandco;
 } VertTableNode;
 
 typedef struct VlakTableNode {
@@ -93,7 +95,6 @@ typedef struct VertRen {
 	float co[3];
 	float n[3];
 	unsigned short flag;	/* in use for temp setting stuff in object_mesh.c */
-	float accum;			/* for strand texco static particles */
 	int index;				/* index allows extending vertren with any property */
 } VertRen;
 

@@ -924,17 +924,29 @@ static void shade_input_vlr_texco_global(RenderCamera *cam, ShadeTexco *tex, Sha
 
 static void shade_input_vlr_texco_strand(ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
 {
+	ObjectRen *obr= prim->obr;
 	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
+	float sco1, sco2, sco3;
 	float u= geom->u, v= geom->v, l= 1.0f+u+v, dl;
 
-	tex->strandco= (l*v3->accum - u*v1->accum - v*v2->accum);
+	if(!render_vert_get_strandco(obr, v1, 0)) {
+		tex->strandco= 0.0f;
+		tex->dxstrand= 0.0f;
+		tex->dystrand= 0.0f;
+		return;
+	}
+
+	sco1= *render_vert_get_strandco(obr, v1, 0);
+	sco2= *render_vert_get_strandco(obr, v2, 0);
+	sco3= *render_vert_get_strandco(obr, v3, 0);
+	tex->strandco= (l*sco3 - u*sco1 - v*sco2);
 
 	if(geom->osatex) {
 		dl= geom->dx_u+geom->dx_v;
-		tex->dxstrand= dl*v3->accum-geom->dx_u*v1->accum-geom->dx_v*v2->accum;
+		tex->dxstrand= dl*sco3 - geom->dx_u*sco1 - geom->dx_v*sco2;
 
 		dl= geom->dy_u+geom->dy_v;
-		tex->dystrand= dl*v3->accum-geom->dy_u*v1->accum-geom->dy_v*v2->accum;
+		tex->dystrand= dl*sco3 - geom->dy_u*sco1 - geom->dy_v*sco2;
 	}
 }
 

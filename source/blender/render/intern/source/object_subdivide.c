@@ -132,7 +132,6 @@ static VertRen *render_vert_subdivide(ObjectRen *obr, VertRen *v1, VertRen *v2, 
 	interp_v3_v3v3v3(subver->n, v1->n, v2->n, v3->n, w);
 	normalize_v3(subver->n);
 
-	subver->accum= w[0]*v1->accum + w[1]*v2->accum + w[2]*v3->accum;
 	subver->flag= 0; // flag
 
 	return subver;
