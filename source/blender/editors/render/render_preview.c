@@ -302,8 +302,9 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		if(id_type==ID_MA) {
 			Material *mat= (Material *)id;
 			
-			if(sp) {
+			if(id) {
 				init_render_material(mat, 0);		/* call that retrieves mode_l */
+				end_render_material(mat);
 				
 				/* turn on raytracing if needed */
 				if(mat->mode_l & MA_RAYMIRROR)
@@ -358,7 +359,6 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 			else {
-				end_render_material(mat);
 				sce->r.mode &= ~(R_OSA|R_RAYTRACE|R_SSS);
 			}
 			
@@ -392,7 +392,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 							mat->mtex[0]->which_output = sp->slot->which_output;
 						
 						/* show alpha in this case */
-						if(sp==NULL || (tex->flag & TEX_PRV_ALPHA)) {
+						if(tex==NULL || (tex->flag & TEX_PRV_ALPHA)) {
 							mat->mtex[0]->mapto |= MAP_ALPHA;
 							mat->alpha= 0.0f;
 						}
@@ -404,13 +404,13 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 
-			if(sp && sp->pr_method==PR_NODE_RENDER && tex->nodetree)
+			if(tex && tex->nodetree && sp->pr_method==PR_NODE_RENDER)
 				ntreeInitPreview(tex->nodetree, sp->sizex, sp->sizey);
 		}
 		else if(id_type==ID_LA) {
 			Lamp *la= (Lamp *)id;
 			
-			if(sp && la->type==LA_SUN && (la->sun_effect_type & LA_SUN_EFFECT_SKY)) {
+			if(la && la->type==LA_SUN && (la->sun_effect_type & LA_SUN_EFFECT_SKY)) {
 				sce->lay= 1<<MA_ATMOS;
 				sce->world= scene->world;
 				sce->camera= (Object *)find_object(&pr_main->object, "CameraAtmo");
@@ -948,7 +948,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	}
 
 	/* unassign the pointers, reset vars */
-	preview_prepare_scene(sp->scene, id, GS(id->name), NULL);
+	preview_prepare_scene(sp->scene, NULL, GS(id->name), NULL);
 }
 
 /* runs inside thread for material and icons */
