@@ -68,6 +68,21 @@ void zbufsinglewire(ZSpan *zspan, int obi, int zvlnr, float *ho1, float *ho2);
 
 /******************************* Strands *************************************/
 
+float *render_strand_get_orco(ObjectRen *obr, StrandRen *strand, int verify)
+{
+	float *orco;
+	int nr= strand->index>>8;
+	
+	orco= obr->strandnodes[nr].orco;
+	if(orco==NULL) {
+		if(verify) 
+			orco= obr->strandnodes[nr].orco= MEM_callocN(256*RE_ORCO_ELEMS*sizeof(float), "orco strand table");
+		else
+			return NULL;
+	}
+	return orco + (strand->index & 255)*RE_ORCO_ELEMS;
+}
+
 float *render_strand_get_surfnor(ObjectRen *obr, StrandRen *strand, int verify)
 {
 	float *surfnor;

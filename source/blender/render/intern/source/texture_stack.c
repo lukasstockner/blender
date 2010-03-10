@@ -147,9 +147,15 @@ static int cubemap(Render *re, MTex *mtex, VlakRen *vlr, float *n, float x, floa
 		/* Mesh vertices have such flags, for others we calculate it once based on orco */
 		if((vlr->puno & (ME_PROJXY|ME_PROJXZ|ME_PROJYZ))==0) {
 			/* test for v1, vlr can be faked for baking */
-			if(vlr->v1 && vlr->v1->orco) {
+			ObjectRen *obr= NULL; // XXX!
+
+			if(vlr->v1 && render_vert_get_orco(obr, vlr->v1, 0)) {
+				float *orco1= render_vert_get_orco(obr, vlr->v1, 0);
+				float *orco2= render_vert_get_orco(obr, vlr->v2, 0);
+				float *orco3= render_vert_get_orco(obr, vlr->v3, 0);
 				float nor[3];
-				normal_tri_v3( nor,vlr->v1->orco, vlr->v2->orco, vlr->v3->orco);
+
+				normal_tri_v3(nor, orco1, orco2, orco3);
 				
 				if( fabs(nor[0])<fabs(nor[2]) && fabs(nor[1])<fabs(nor[2]) ) vlr->puno |= ME_PROJXY;
 				else if( fabs(nor[0])<fabs(nor[1]) && fabs(nor[2])<fabs(nor[1]) ) vlr->puno |= ME_PROJXZ;

@@ -73,7 +73,6 @@ typedef struct RenderDB {
 	/* extra object data */
 	ListBase customdata_names;
 	struct Object *excludeob;
-	struct GHash *orco_hash;
 
 	/* statistics */
 	int totvlak, totvert, totstrand, totlamp;

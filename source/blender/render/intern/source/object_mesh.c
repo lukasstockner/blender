@@ -124,6 +124,21 @@
 
 /******************************** Verts **************************************/
 
+float *render_vert_get_orco(ObjectRen *obr, VertRen *ver, int verify)
+{
+	float *orco;
+	int nr= ver->index>>8;
+	
+	orco= obr->vertnodes[nr].orco;
+	if(orco==NULL) {
+		if(verify) 
+			orco= obr->vertnodes[nr].orco= MEM_mallocN(256*RE_ORCO_ELEMS*sizeof(float), "orco table");
+		else
+			return NULL;
+	}
+	return orco + (ver->index & 255)*RE_ORCO_ELEMS;
+}
+
 float *render_vert_get_sticky(ObjectRen *obr, VertRen *ver, int verify)
 {
 	float *sticky;
@@ -152,22 +167,6 @@ float *render_vert_get_stress(ObjectRen *obr, VertRen *ver, int verify)
 			return NULL;
 	}
 	return stress + (ver->index & 255)*RE_STRESS_ELEMS;
-}
-
-/* this one callocs! */
-float *render_vert_get_rad(ObjectRen *obr, VertRen *ver, int verify)
-{
-	float *rad;
-	int nr= ver->index>>8;
-	
-	rad= obr->vertnodes[nr].rad;
-	if(rad==NULL) {
-		if(verify) 
-			rad= obr->vertnodes[nr].rad= MEM_callocN(256*RE_RAD_ELEMS*sizeof(float), "rad table");
-		else
-			return NULL;
-	}
-	return rad + (ver->index & 255)*RE_RAD_ELEMS;
 }
 
 float *render_vert_get_strand(ObjectRen *obr, VertRen *ver, int verify)
@@ -238,11 +237,6 @@ VertRen *render_object_vert_copy(ObjectRen *obr, VertRen *ver)
 	if(fp1) {
 		fp2= render_vert_get_stress(obr, v1, 1);
 		memcpy(fp2, fp1, RE_STRESS_ELEMS*sizeof(float));
-	}
-	fp1= render_vert_get_rad(obr, ver, 0);
-	if(fp1) {
-		fp2= render_vert_get_rad(obr, v1, 1);
-		memcpy(fp2, fp1, RE_RAD_ELEMS*sizeof(float));
 	}
 	fp1= render_vert_get_strand(obr, ver, 0);
 	if(fp1) {
@@ -481,45 +475,6 @@ VlakRen *render_object_vlak_get(ObjectRen *obr, int nr)
 
 
 /* ------------------------------------------------------------------------- */
-
-/* ------------------------------------------------------------------------- */
-/* Orco hash and Materials                                                   */
-/* ------------------------------------------------------------------------- */
-
-static float *get_object_orco(Render *re, Object *ob)
-{
-	float *orco;
-	
-	if (!re->db.orco_hash)
-		re->db.orco_hash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
-	
-	orco = BLI_ghash_lookup(re->db.orco_hash, ob);
-	
-	if (!orco) {
-		if (ELEM(ob->type, OB_CURVE, OB_FONT)) {
-			orco = make_orco_curve(re->db.scene, ob);
-		} else if (ob->type==OB_SURF) {
-			orco = make_orco_surf(ob);
-		} else if (ob->type==OB_MBALL) {
-			orco = make_orco_mball(ob);
-		}
-		
-		if (orco)
-			BLI_ghash_insert(re->db.orco_hash, ob, orco);
-	}
-	
-	return orco;
-}
-
-void set_object_orco(Render *re, void *ob, float *orco)
-{
-	if (!re->db.orco_hash)
-		re->db.orco_hash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
-	
-	BLI_ghash_insert(re->db.orco_hash, ob, orco);
-}
-
-/* ------------------------------------------------------------------------- */
 /* tool functions/defines for ad hoc simplification and possible future 
    cleanup      */
 /* ------------------------------------------------------------------------- */
@@ -588,9 +543,11 @@ static int check_vnormal(float *n, float *veno)
 /* Stress, tangents and normals                                              */
 /* ------------------------------------------------------------------------- */
 
-static void calc_edge_stress_add(float *accum, VertRen *v1, VertRen *v2)
+static void calc_edge_stress_add(float *accum, ObjectRen *obr, VertRen *v1, VertRen *v2)
 {
-	float len= len_v3v3(v1->co, v2->co)/len_v3v3(v1->orco, v2->orco);
+	float *orco1= render_vert_get_orco(obr, v1, 0);
+	float *orco2= render_vert_get_orco(obr, v2, 0);
+	float len= len_v3v3(v1->co, v2->co)/len_v3v3(orco1, orco2);
 	float *acc;
 	
 	acc= accum + 2*v1->index;
@@ -616,10 +573,12 @@ static void calc_edge_stress(Render *re, ObjectRen *obr, Mesh *me)
 	/* de-normalize orco */
 	for(a=0; a<obr->totvert; a++) {
 		VertRen *ver= render_object_vert_get(obr, a);
-		if(ver->orco) {
-			ver->orco[0]= ver->orco[0]*size[0] +loc[0];
-			ver->orco[1]= ver->orco[1]*size[1] +loc[1];
-			ver->orco[2]= ver->orco[2]*size[2] +loc[2];
+		float *vorco= render_vert_get_orco(obr, ver, 0);
+
+		if(vorco) {
+			vorco[0]= vorco[0]*size[0] +loc[0];
+			vorco[1]= vorco[1]*size[1] +loc[1];
+			vorco[2]= vorco[2]*size[2] +loc[2];
 		}
 	}
 	
@@ -628,21 +587,23 @@ static void calc_edge_stress(Render *re, ObjectRen *obr, Mesh *me)
 	for(a=0; a<obr->totvlak; a++) {
 		VlakRen *vlr= render_object_vlak_get(obr, a);
 
-		if(vlr->v1->orco && vlr->v4) {
-			calc_edge_stress_add(accumoffs, vlr->v1, vlr->v2);
-			calc_edge_stress_add(accumoffs, vlr->v2, vlr->v3);
-			calc_edge_stress_add(accumoffs, vlr->v3, vlr->v1);
+		if(render_vert_get_orco(obr, vlr->v1, 0) && vlr->v4) {
+			calc_edge_stress_add(accumoffs, obr, vlr->v1, vlr->v2);
+			calc_edge_stress_add(accumoffs, obr, vlr->v2, vlr->v3);
+			calc_edge_stress_add(accumoffs, obr, vlr->v3, vlr->v1);
 			if(vlr->v4) {
-				calc_edge_stress_add(accumoffs, vlr->v3, vlr->v4);
-				calc_edge_stress_add(accumoffs, vlr->v4, vlr->v1);
-				calc_edge_stress_add(accumoffs, vlr->v2, vlr->v4);
+				calc_edge_stress_add(accumoffs, obr, vlr->v3, vlr->v4);
+				calc_edge_stress_add(accumoffs, obr, vlr->v4, vlr->v1);
+				calc_edge_stress_add(accumoffs, obr, vlr->v2, vlr->v4);
 			}
 		}
 	}
 	
 	for(a=0; a<obr->totvert; a++) {
 		VertRen *ver= render_object_vert_get(obr, a);
-		if(ver->orco) {
+		float *vorco= render_vert_get_orco(obr, ver, 0);
+
+		if(vorco) {
 			/* find stress value */
 			acc= accumoffs + 2*ver->index;
 			if(acc[1]!=0.0f)
@@ -651,9 +612,9 @@ static void calc_edge_stress(Render *re, ObjectRen *obr, Mesh *me)
 			*stress= *acc;
 			
 			/* restore orcos */
-			ver->orco[0] = (ver->orco[0]-loc[0])/size[0];
-			ver->orco[1] = (ver->orco[1]-loc[1])/size[1];
-			ver->orco[2] = (ver->orco[2]-loc[2])/size[2];
+			vorco[0] = (vorco[0]-loc[0])/size[0];
+			vorco[1] = (vorco[1]-loc[1])/size[1];
+			vorco[2] = (vorco[2]-loc[2])/size[2];
 		}
 	}
 	
@@ -675,13 +636,19 @@ static void calc_tangent_vector(ObjectRen *obr, VertexTangent **vtangents, MemAr
 		uv3= tface->uv[2];
 		uv4= tface->uv[3];
 	}
-	else if(v1->orco) {
+	else if(render_vert_get_orco(obr, v1, 0)) {
+		float *orco1= render_vert_get_orco(obr, v1, 0);
+		float *orco2= render_vert_get_orco(obr, v2, 0);
+		float *orco3= render_vert_get_orco(obr, v3, 0);
+
 		uv1= uv[0]; uv2= uv[1]; uv3= uv[2]; uv4= uv[3];
-		map_to_sphere( &uv[0][0], &uv[0][1],v1->orco[0], v1->orco[1], v1->orco[2]);
-		map_to_sphere( &uv[1][0], &uv[1][1],v2->orco[0], v2->orco[1], v2->orco[2]);
-		map_to_sphere( &uv[2][0], &uv[2][1],v3->orco[0], v3->orco[1], v3->orco[2]);
-		if(v4)
-			map_to_sphere( &uv[3][0], &uv[3][1],v4->orco[0], v4->orco[1], v4->orco[2]);
+		map_to_sphere( &uv[0][0], &uv[0][1],orco1[0], orco1[1], orco1[2]);
+		map_to_sphere( &uv[1][0], &uv[1][1],orco2[0], orco2[1], orco2[2]);
+		map_to_sphere( &uv[2][0], &uv[2][1],orco3[0], orco3[1], orco3[2]);
+		if(v4) {
+			float *orco4= render_vert_get_orco(obr, v4, 0);
+			map_to_sphere( &uv[3][0], &uv[3][1],orco4[0], orco4[1], orco4[2]);
+		}
 	}
 	else return;
 
@@ -1139,7 +1106,7 @@ static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, Ve
 {
 	MTFace *tface;
 	short texco= shi->material.mat->texco;
-	float sample=0, displace[3];
+	float sample=0, displace[3], *orco;
 	char *name;
 	int i;
 
@@ -1174,8 +1141,10 @@ static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, Ve
 	}
 
 	/* set all rendercoords, 'texco' is an ORed value for all textures needed */
-	if ((texco & TEXCO_ORCO) && (vr->orco)) {
-		copy_v3_v3(shi->texture.lo, vr->orco);
+	if (texco & TEXCO_ORCO) {
+		orco= render_vert_get_orco(obr, vr, 0);
+		if(orco)
+			copy_v3_v3(shi->texture.lo, orco);
 	}
 	if (texco & TEXCO_STICKY) {
 		float *sticky= render_vert_get_sticky(obr, vr, 0);
@@ -1349,7 +1318,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 
 	data= dl->verts;
 	nors= dl->nors;
-	orco= get_object_orco(re, ob);
+	orco= make_orco_mball(ob);
 
 	for(a=0; a<dl->nr; a++, data+=3, nors+=3, orco+=3) {
 
@@ -1369,7 +1338,8 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		normalize_v3(ver->n);
 		//if(ob->transflag & OB_NEG_SCALE) negate_v3(ver->n);
 		
-		if(need_orco) ver->orco= orco;
+		if(need_orco)
+			copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
 	}
 
 	index= dl->index;
@@ -1437,7 +1407,8 @@ static int dl_surf_to_renderdata(ObjectRen *obr, DispList *dl, Material **matar,
 		v1 = render_object_vert_get(obr, obr->totvert++); /* save this for possible V wrapping */
 		copy_v3_v3(v1->co, data); data += 3;
 		if(orco) {
-			v1->orco= orco; orco+= 3; orcoret++;
+			copy_v3_v3(render_vert_get_orco(obr, v1, 1), orco);
+			orco+= 3; orcoret++;
 		}	
 		mul_m4_v3(mat, v1->co);
 		
@@ -1445,7 +1416,8 @@ static int dl_surf_to_renderdata(ObjectRen *obr, DispList *dl, Material **matar,
 			ver= render_object_vert_get(obr, obr->totvert++);
 			copy_v3_v3(ver->co, data); data += 3;
 			if(orco) {
-				ver->orco= orco; orco+= 3; orcoret++;
+				copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
+				orco+= 3; orcoret++;
 			}	
 			mul_m4_v3(mat, ver->co);
 		}
@@ -1454,7 +1426,8 @@ static int dl_surf_to_renderdata(ObjectRen *obr, DispList *dl, Material **matar,
 			ver= render_object_vert_get(obr, obr->totvert++);
 			copy_v3_v3(ver->co, v1->co);
 			if(orco) {
-				ver->orco= orco; orco+=3; orcoret++; //orcobase + 3*(u*sizev + 0);
+				copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
+				orco+=3; orcoret++; //orcobase + 3*(u*sizev + 0);
 			}
 		}	
 	}	
@@ -1470,7 +1443,8 @@ static int dl_surf_to_renderdata(ObjectRen *obr, DispList *dl, Material **matar,
 			ver= render_object_vert_get(obr, obr->totvert++);
 			copy_v3_v3(ver->co, v1->co);
 			if(orco) {
-				ver->orco= orco; orco+=3; orcoret++; //ver->orco= orcobase + 3*(0*sizev + v);
+				copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
+				orco+=3; orcoret++; //orcobase + 3*(0*sizev + v);
 			}
 		}
 	}
@@ -1607,7 +1581,7 @@ static void init_render_dm(DerivedMesh *dm, Render *re, ObjectRen *obr,
 		mul_m4_v3(mat, ver->co);
 
 		if(orco) {
-			ver->orco= orco;
+			copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
 			orco+=3;
 		}
 	}
@@ -1727,19 +1701,17 @@ static void init_render_surf(Render *re, ObjectRen *obr, int timeoffset)
 	makeDispListSurf(re->db.scene, ob, &displist, &dm, 1, 0);
 
 	if (dm) {
-		if(need_orco) {
+		if(need_orco)
 			orco= makeOrcoDispList(re->db.scene, ob, dm, 1);
-			if(orco) {
-				set_object_orco(re, ob, orco);
-			}
-		}
 
 		init_render_dm(dm, re, obr, timeoffset, orco, mat);
 		dm->release(dm);
+
+		if(orco)
+			MEM_freeN(orco);
 	} else {
-		if(need_orco) {
-			orcobase= orco= get_object_orco(re, ob);
-		}
+		if(need_orco)
+			orcobase= orco= make_orco_surf(ob);
 
 		/* walk along displaylist and create rendervertices/-faces */
 		for(dl=displist.first; dl; dl=dl->next) {
@@ -1747,6 +1719,9 @@ static void init_render_surf(Render *re, ObjectRen *obr, int timeoffset)
 			if(dl->type==DL_SURF)
 				orco+= 3*dl_surf_to_renderdata(obr, dl, matar, orco, mat);
 		}
+
+		if(orcobase)
+			MEM_freeN(orcobase);
 	}
  
 	freedisplist(&displist);
@@ -1791,19 +1766,17 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 	}
 
 	if (dm) {
-		if(need_orco) {
+		if(need_orco)
 			orco= makeOrcoDispList(re->db.scene, ob, dm, 1);
-			if(orco) {
-				set_object_orco(re, ob, orco);
-			}
-		}
 
 		init_render_dm(dm, re, obr, timeoffset, orco, mat);
 		dm->release(dm);
+
+		if(orco)
+			MEM_freeN(orco);
 	} else {
-		if(need_orco) {
-		  orcobase=orco= get_object_orco(re, ob);
-		}
+		if(need_orco)
+			orcobase=orco= make_orco_curve(re->db.scene, ob);
 
 		while(dl) {
 			if(dl->type==DL_INDEX3) {
@@ -1834,7 +1807,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 					mul_m4_v3(mat, ver->co);
 
 					if (orco) {
-						ver->orco = orco;
+						copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
 						orco += 3;
 					}
 				}
@@ -1887,7 +1860,7 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 						fp+= 3;
 
 						if (orco) {
-							ver->orco = orco;
+							copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
 							orco += 3;
 						}
 					}
@@ -1971,6 +1944,9 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 
 			dl= dl->next;
 		}
+
+		if(orcobase)
+			MEM_freeN(orcobase);
 	}
 
 	freedisplist(&disp);
@@ -2190,13 +2166,8 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 
 	if(dm==NULL) return;	/* in case duplicated object fails? */
 
-	if(mask & CD_MASK_ORCO) {
+	if(mask & CD_MASK_ORCO)
 		orco= dm->getVertDataArray(dm, CD_ORCO);
-		if(orco) {
-			orco= MEM_dupallocN(orco);
-			set_object_orco(re, ob, orco);
-		}
-	}
 
 	mvert= dm->getVertArray(dm);
 	totvert= dm->getNumVerts(dm);
@@ -2221,7 +2192,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 				mul_m4_v3(mat, ver->co);
   
 			if(orco) {
-				ver->orco= orco;
+				copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
 				orco+=3;
 			}
 			if(ms) {

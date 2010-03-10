@@ -192,8 +192,8 @@ static void free_object_vertnodes(VertTableNode *vertnodes)
 	for(a=0; vertnodes[a].vert; a++) {
 		MEM_freeN(vertnodes[a].vert);
 		
-		if(vertnodes[a].rad)
-			MEM_freeN(vertnodes[a].rad);
+		if(vertnodes[a].orco)
+			MEM_freeN(vertnodes[a].orco);
 		if(vertnodes[a].sticky)
 			MEM_freeN(vertnodes[a].sticky);
 		if(vertnodes[a].strand)
@@ -246,6 +246,8 @@ static void free_object_strandnodes(StrandTableNode *strandnodes)
 			MEM_freeN(strandnodes[a].mcol);
 		if(strandnodes[a].winspeed)
 			MEM_freeN(strandnodes[a].winspeed);
+		if(strandnodes[a].orco)
+			MEM_freeN(strandnodes[a].orco);
 		if(strandnodes[a].surfnor)
 			MEM_freeN(strandnodes[a].surfnor);
 		if(strandnodes[a].simplify)

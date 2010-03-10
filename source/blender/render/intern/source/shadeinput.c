@@ -267,7 +267,7 @@ void shade_input_set_strand_texco(Render *re, ShadeInput *shi, StrandRen *strand
 	/* shade_input_set_shade_texco equivalent */
 	if(texco & NEED_UV) {
 		if(texco & TEXCO_ORCO) {
-			copy_v3_v3(tex->lo, strand->orco);
+			copy_v3_v3(tex->lo, render_strand_get_orco(obr, strand, 0));
 			/* no geom->osatex, orco derivatives are zero */
 		}
 
@@ -770,16 +770,17 @@ static void shade_input_vlr_texco_stress(ShadeTexco *tex, ShadeGeometry *geom, S
 static void shade_input_vlr_texco_orco(ShadeTexco *tex, ShadeGeometry *geom, ShadePrimitive *prim)
 {
 	ObjectInstanceRen *obi= prim->obi;
+	ObjectRen *obr= prim->obr;
 	VertRen *v1= prim->v1, *v2= prim->v2, *v3= prim->v3;
 	float u= geom->u, v= geom->v;
 	float l= 1.0f+u+v, dl;
 
-	if(v1->orco) {
+	if(render_vert_get_orco(obr, v1, 0)) {
 		float *o1, *o2, *o3;
 		
-		o1= v1->orco;
-		o2= v2->orco;
-		o3= v3->orco;
+		o1= render_vert_get_orco(obr, v1, 0);
+		o2= render_vert_get_orco(obr, v2, 0);
+		o3= render_vert_get_orco(obr, v3, 0);
 		
 		tex->lo[0]= l*o3[0]-u*o1[0]-v*o2[0];
 		tex->lo[1]= l*o3[1]-u*o1[1]-v*o2[1];

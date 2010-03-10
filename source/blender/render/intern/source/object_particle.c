@@ -56,7 +56,7 @@
 typedef struct ParticleStrandData
 {
 	struct MCol *mcol;
-	float *orco, *uvco, *surfnor;
+	float orco[3], *uvco, *surfnor;
 	float time, adapt_angle, adapt_pix, size;
 	int totuv, totcol;
 	int first, line, adapt, override_uv;
@@ -133,25 +133,25 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 		copy_v3_v3(vlr->v1->co, vec);
 		add_v3_v3v3(vlr->v1->co, vlr->v1->co, cross);
 		copy_v3_v3(vlr->v1->n, nor);
-		vlr->v1->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, vlr->v1, 1), sd->orco);
 		vlr->v1->accum= -1.0f;	// accum abuse for strand texco
 		
 		copy_v3_v3(vlr->v2->co, vec);
 		sub_v3_v3v3(vlr->v2->co, vlr->v2->co, cross);
 		copy_v3_v3(vlr->v2->n, nor);
-		vlr->v2->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, vlr->v2, 1), sd->orco);
 		vlr->v2->accum= vlr->v1->accum;
 
 		copy_v3_v3(vlr->v4->co, vec1);
 		add_v3_v3v3(vlr->v4->co, vlr->v4->co, cross);
 		copy_v3_v3(vlr->v4->n, nor);
-		vlr->v4->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, vlr->v4, 1), sd->orco);
 		vlr->v4->accum= 1.0f;	// accum abuse for strand texco
 		
 		copy_v3_v3(vlr->v3->co, vec1);
 		sub_v3_v3v3(vlr->v3->co, vlr->v3->co, cross);
 		copy_v3_v3(vlr->v3->n, nor);
-		vlr->v3->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, vlr->v3, 1), sd->orco);
 		vlr->v3->accum= vlr->v4->accum;
 
 		normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
@@ -207,13 +207,13 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 		copy_v3_v3(v1->co, vec);
 		add_v3_v3v3(v1->co, v1->co, cross);
 		copy_v3_v3(v1->n, nor);
-		v1->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, v1, 1), sd->orco);
 		v1->accum= -1.0f;	// accum abuse for strand texco
 		
 		copy_v3_v3(v2->co, vec);
 		sub_v3_v3v3(v2->co, v2->co, cross);
 		copy_v3_v3(v2->n, nor);
-		v2->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, v2, 1), sd->orco);
 		v2->accum= v1->accum;
 	}
 	/* more vertices & faces to strand */
@@ -269,13 +269,13 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 		copy_v3_v3(vlr->v4->co, vec);
 		add_v3_v3v3(vlr->v4->co, vlr->v4->co, cross);
 		copy_v3_v3(vlr->v4->n, nor);
-		vlr->v4->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, vlr->v4, 1), sd->orco);
 		vlr->v4->accum= -1.0f + 2.0f*sd->time;	// accum abuse for strand texco
 		
 		copy_v3_v3(vlr->v3->co, vec);
 		sub_v3_v3v3(vlr->v3->co, vlr->v3->co, cross);
 		copy_v3_v3(vlr->v3->n, nor);
-		vlr->v3->orco= sd->orco;
+		copy_v3_v3(render_vert_get_orco(obr, vlr->v3, 1), sd->orco);
 		vlr->v3->accum= vlr->v4->accum;
 		
 		normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
@@ -616,7 +616,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	float random, simplify[2];
 	int i, a, k, max_k=0, totpart, dosimplify = 0, dosurfacecache = 0;
 	int totchild=0;
-	int seed, path_nbr=0, orco1=0, num;
+	int seed, path_nbr=0, num;
 	int totface, *origindex = 0;
 	char **uv_name=0;
 
@@ -751,13 +751,6 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	if(part->ren_as == PART_DRAW_PATH && psys->pathcache){
 		path_nbr=(int)pow(2.0,(double) part->ren_step);
 
-		if(path_nbr) {
-			if(!ELEM(ma->material_type, MA_TYPE_HALO, MA_TYPE_WIRE)) {
-				sd.orco = MEM_mallocN(3*sizeof(float)*(totpart+totchild), "particle orcos");
-				set_object_orco(re, psys, sd.orco);
-			}
-		}
-
 		if(part->draw & PART_DRAW_REN_ADAPT) {
 			sd.adapt = 1;
 			sd.adapt_pix = (float)part->adapt_pix;
@@ -805,11 +798,6 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			sbound= strandbuf->bound;
 			sbound->start= sbound->end= 0;
 		}
-	}
-
-	if(sd.orco == 0) {
-		sd.orco = MEM_mallocN(3 * sizeof(float), "particle orco");
-		orco1 = 1;
 	}
 
 	if(path_nbr == 0)
@@ -962,7 +950,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			strand= render_object_strand_get(obr, obr->totstrand++);
 			strand->buffer= strandbuf;
 			strand->vert= svert;
-			copy_v3_v3(strand->orco, sd.orco);
+			copy_v3_v3(render_strand_get_orco(obr, strand, 1), sd.orco);
 
 			if(dosimplify) {
 				float *ssimplify= render_strand_get_simplify(obr, strand, 1);
@@ -1109,9 +1097,6 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			}
 		}
 
-		if(orco1==0)
-			sd.orco+=3;
-
 		if(re->cb.test_break(re->cb.tbh))
 			break;
 	}
@@ -1124,9 +1109,6 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	if(ma) do_mat_ipo(re->db.scene, ma);
 #endif // XXX old animation system
 	
-	if(orco1)
-		MEM_freeN(sd.orco);
-
 	if(sd.uvco)
 		MEM_freeN(sd.uvco);
 	

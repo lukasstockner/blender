@@ -103,6 +103,9 @@ void strand_shade_unref(struct StrandShadeCache *cache, struct StrandVert *svert
 struct StrandRen *render_object_strand_get(struct ObjectRen *obr, int nr);
 struct StrandBuffer *render_object_strand_buffer_add(struct ObjectRen *obr, int totvert);
 
+/* Strand Texture Coordinates */
+
+float *render_strand_get_orco(struct ObjectRen *obr, struct StrandRen *strand, int verify);
 float *render_strand_get_surfnor(struct ObjectRen *obr, struct StrandRen *strand, int verify);
 float *render_strand_get_uv(struct ObjectRen *obr, struct StrandRen *strand, int n, char **name, int verify);
 struct MCol *render_strand_get_mcol(struct ObjectRen *obr, struct StrandRen *strand, int n, char **name, int verify);
@@ -114,8 +117,9 @@ int zbuffer_strands_abuf(struct Render *re, struct RenderPart *pa, struct APixst
 
 typedef struct StrandTableNode {
 	struct StrandRen *strand;
-	float *winspeed;
+	float *orco;
 	float *surfnor;
+	float *winspeed;
 	float *simplify;
 	int *face;
 	struct MCol *mcol;
@@ -156,7 +160,6 @@ typedef struct StrandRen {
 	StrandBuffer *buffer;
 	int totvert, flag;
 	int clip, index;
-	float orco[3];
 } StrandRen;
 
 /* strandbuffer->flag */

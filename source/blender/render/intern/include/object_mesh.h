@@ -45,6 +45,7 @@ struct VlakRen *render_object_vlak_copy(struct ObjectRen *obr, struct VlakRen *v
 
 /* Vertex Texture Coordinates */
 
+float *render_vert_get_orco(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_sticky(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_stress(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_rad(struct ObjectRen *obr, struct VertRen *ver, int verify);
@@ -66,13 +67,12 @@ void init_render_object_data(struct Render *re, struct ObjectRen *obr, int timeo
 void init_render_particle_system(struct Render *re, struct ObjectRen *obr, struct ParticleSystem *psys, int timeoffset);
 void finalize_render_object(struct Render *re, struct ObjectRen *obr, int timeoffset);
 void render_object_calc_vnormals(struct Render *re, struct ObjectRen *obr, int do_tangent, int do_nmap_tangent);
-void set_object_orco(struct Render *re, void *ob, float *orco);
 
 /* Structs */
 
 typedef struct VertTableNode {
 	struct VertRen *vert;
-	float *rad;
+	float *orco;
 	float *sticky;
 	float *strand;
 	float *tangent;
@@ -89,13 +89,11 @@ typedef struct VlakTableNode {
 	float *tangent;
 } VlakTableNode;
 
-typedef struct VertRen
-{
+typedef struct VertRen {
 	float co[3];
 	float n[3];
-	float *orco;
 	unsigned short flag;	/* in use for temp setting stuff in object_mesh.c */
-	float accum;			/* accum for radio weighting, and for strand texco static particles */
+	float accum;			/* for strand texco static particles */
 	int index;				/* index allows extending vertren with any property */
 } VertRen;
 

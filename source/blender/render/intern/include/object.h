@@ -150,6 +150,7 @@ typedef struct ObjectInstanceRen {
 #define R_HIDDEN			8
 
 /* data layer size */
+#define RE_ORCO_ELEMS		3
 #define RE_STICKY_ELEMS		2
 #define RE_STRESS_ELEMS		1
 #define RE_RAD_ELEMS		4

@@ -98,11 +98,6 @@ void render_db_free(RenderDB *rdb)
 	BLI_freelistN(&rdb->objecttable);
 	BLI_freelistN(&rdb->instancetable);
 
-	if(rdb->orco_hash) {
-		BLI_ghash_free(rdb->orco_hash, NULL, (GHashValFreeFP)MEM_freeN);
-		rdb->orco_hash = NULL;
-	}
-
 	/* lamps */
 	for(lar= rdb->lampren.first; lar; lar= lar->next)
 		lamp_free(lar);
