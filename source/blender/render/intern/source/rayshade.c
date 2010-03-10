@@ -57,6 +57,7 @@
 #include "material.h"
 #include "object.h"
 #include "object_mesh.h"
+#include "object_strand.h"
 #include "pixelfilter.h"
 #include "raycounter.h"
 #include "rayobject.h"
@@ -1960,16 +1961,35 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi, float *ao, float *env, flo
 	maxdist= re->db.wrld.aodist;
 	nearest= (indirect || (ao && (re->db.wrld.aomode & WO_LIGHT_DIST)) || Rmean);
 
-	/* local orthonormal basis */
-	if((re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_FULL) || !(re->db.wrld.aomode & WO_LIGHT_CACHE))
-		negate_v3_v3(basis[2], shi->geometry.vn);
-	else
-		negate_v3_v3(basis[2], shi->geometry.vno);
+	if(!shi->primitive.strand) {
+		/* jittered starting coordinates */
+		shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
 
-	ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
+		/* local orthonormal basis */
+		if((re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_FULL) || !(re->db.wrld.aomode & WO_LIGHT_CACHE))
+			negate_v3_v3(basis[2], shi->geometry.vn);
+		else
+			negate_v3_v3(basis[2], shi->geometry.vno);
 
-	/* jittered starting coordinates */
-	shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
+		ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
+	}
+	else {
+		/* for strands we sample at the root of the strand */
+		StrandRen *strand= shi->primitive.strand;
+		float *surfnor= render_strand_get_surfnor(shi->primitive.obr, strand, 0);
+		float offset[3];
+
+		copy_v3_v3(jitco[0], strand->vert[1].co);
+		totjitco= 1;
+
+		/* offset to avoid self intersection */
+		sub_v3_v3v3(offset, strand->vert[2].co, jitco[0]);
+		normalize_v3(offset);
+		madd_v3_v3fl(jitco[0], offset, 1e-8f);
+
+		copy_v3_v3(basis[2], surfnor);
+		ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
+	}
 
 	/* clear accumulation variables */
 	accum_ao= 0.0f;

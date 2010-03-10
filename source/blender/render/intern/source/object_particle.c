@@ -616,7 +616,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	float pa_time, pa_birthtime, pa_dietime;
 	float random, simplify[2];
 	int i, a, k, max_k=0, totpart, dosimplify = 0, dosurfacecache = 0;
-	int totchild=0;
+	int totchild=0, dosurfacenor=0;
 	int seed, path_nbr=0, num;
 	int totface, *origindex = 0;
 	char **uv_name=0;
@@ -786,9 +786,15 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 
 			if(re->params.r.mode & R_SPEED)
 				dosurfacecache= 1;
-			else if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && (re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX))
-				if(ma->amb != 0.0f)
+			else if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && ma->amb!=0.0f) {
+				if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX)
 					dosurfacecache= 1;
+				else
+					dosurfacenor= 1;
+			}
+			
+			if(ma->mode_l & MA_STR_SURFDIFF)
+				dosurfacenor= 1;
 
 			totface= psmd->dm->getNumFaces(psmd->dm);
 			origindex= psmd->dm->getFaceDataArray(psmd->dm, CD_ORIGINDEX);
@@ -939,7 +945,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 		}
 
 		/* surface normal shading setup */
-		if(ma->mode_l & MA_STR_SURFDIFF) {
+		if(dosurfacenor) {
 			mul_m3_v3(nmat, nor);
 			sd.surfnor= nor;
 		}
