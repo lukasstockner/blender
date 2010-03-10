@@ -729,7 +729,7 @@ static void shade_surface_sss(Render *re, ShadeInput *shi, ShadeResult *shr)
 	int passflag= shi->shading.passflag;
 
 	if((ma->sss_flag & MA_DIFF_SSS) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE))) {
-		float sss[3], col[3], invalpha, texfac= ma->sss_texfac;
+		float sss[3], col[3], div, texfac= ma->sss_texfac;
 
 		if(!sss_sample(re, ma, shi->geometry.co, sss)) {
 			/* preprocess stage */
@@ -738,19 +738,20 @@ static void shade_surface_sss(Render *re, ShadeInput *shi, ShadeResult *shr)
 		}
 		else {
 			/* rendering stage */
-			invalpha= (shr->col[3] > FLT_EPSILON)? 1.0f/shr->col[3]: 1.0f;
+			div= shr->col[3]*shi->material.refl;
+			div= (fabs(div) > FLT_EPSILON)? 1.0f/div: 0.0f;
 
 			if(texfac==0.0f) {
 				copy_v3_v3(col, shr->col);
-				mul_v3_fl(col, invalpha);
+				mul_v3_fl(col, div);
 			}
 			else if(texfac==1.0f) {
 				col[0]= col[1]= col[2]= 1.0f;
-				mul_v3_fl(col, invalpha);
+				mul_v3_fl(col, div);
 			}
 			else {
 				copy_v3_v3(col, shr->col);
-				mul_v3_fl(col, invalpha);
+				mul_v3_fl(col, div);
 				col[0]= pow(col[0], 1.0f-texfac);
 				col[1]= pow(col[1], 1.0f-texfac);
 				col[2]= pow(col[2], 1.0f-texfac);
