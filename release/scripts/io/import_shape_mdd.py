@@ -25,7 +25,7 @@
 # origonal model the mdd was Baked out from their will be Strange
 # behavior
 #
-# vertex animation to ShapeKeys with ipo  and gives the frame a value of 1.0 
+# vertex animation to ShapeKeys with ipo  and gives the frame a value of 1.0
 # A modifier to read mdd files would be Ideal but thats for another day :)
 #
 # Please send any fixes,updates,bugs to Slow67_at_Gmail.com
@@ -36,15 +36,15 @@ from struct import unpack
 
 
 def mdd_import(filepath, ob, scene, PREF_START_FRAME=0, PREF_JUMP=1):
-    
+
     print('\n\nimporting mdd "%s"' % filepath)
-    
+
     bpy.ops.object.mode_set(mode='OBJECT')
 
     file = open(filepath, 'rb')
     frames, points = unpack(">2i", file.read(8))
     time = unpack((">%df" % frames), file.read(frames * 4))
-    
+
     print('\tpoints:%d frames:%d' % (points,frames))
 
     # If target object doesn't have Basis shape key, create it.

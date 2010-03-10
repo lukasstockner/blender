@@ -20,6 +20,25 @@
 
 import bpy
 
+
+def image_editor_guess(context):
+    image_editor = context.user_preferences.filepaths.image_editor
+
+    # use image editor in the preferences when available.
+    if not image_editor:
+        import platform
+        system = platform.system()
+
+        if system == 'Windows':
+            image_editor = "start" # not tested!
+        elif system == 'Darwin':
+            image_editor = "open"
+        else:
+            image_editor = "gimp"
+
+    return image_editor
+
+
 class SaveDirty(bpy.types.Operator):
     '''Select object matching a naming pattern'''
     bl_idname = "image.save_dirty"
