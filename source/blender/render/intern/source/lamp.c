@@ -274,6 +274,11 @@ static void lamp_sample_location(float lco[3], LampRen *lar, float co[3], float 
 				copy_v3_v3(lco, lar->co);
 			break;
 		}
+		case LA_HEMI:
+		case LA_SUN: {
+			madd_v3_v3v3fl(lco, co, lar->vec, -RE_RAYTRACE_MAXDIST);
+			break;
+		}
 		default: {
 			copy_v3_v3(lco, lar->co);
 			break;

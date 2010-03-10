@@ -586,7 +586,7 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 	if (seq->type != SEQ_SCENE && seq->type != SEQ_META &&
 	    seq->type != SEQ_IMAGE) {
 		BLI_join_dirfile(str, seq->strip->dir, seq->strip->stripdata->name);
-		BLI_convertstringcode(str, G.sce);
+		BLI_path_abs(str, G.sce);
 	}
 
 	if (seq->type == SEQ_IMAGE) {
@@ -1247,7 +1247,7 @@ static int seq_proxy_get_fname(Scene *scene, Sequence * seq, int cfra, char * na
 
 	if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) {
 		BLI_join_dirfile(name, dir, seq->strip->proxy->file);
-		BLI_convertstringcode(name, G.sce);
+		BLI_path_abs(name, G.sce);
 
 		return TRUE;
 	}
@@ -1276,8 +1276,8 @@ static int seq_proxy_get_fname(Scene *scene, Sequence * seq, int cfra, char * na
 			 render_size);
 	}
 
-	BLI_convertstringcode(name, G.sce);
-	BLI_convertstringframe(name, frameno, 0);
+	BLI_path_abs(name, G.sce);
+	BLI_path_frame(name, frameno, 0);
 
 
 	strcat(name, ".jpg");
@@ -2044,7 +2044,7 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 		if(se->ok == STRIPELEM_OK && se->ibuf == 0) {
 			StripElem * s_elem = give_stripelem(seq, cfra);
 			BLI_join_dirfile(name, seq->strip->dir, s_elem->name);
-			BLI_convertstringcode(name, G.sce);
+			BLI_path_abs(name, G.sce);
 			if (!build_proxy_run) {
 				se->ibuf = seq_proxy_fetch(scene, seq, cfra, render_size);
 			}
@@ -2078,7 +2078,7 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 			if (se->ibuf == 0) {
 				if(seq->anim==0) {
 					BLI_join_dirfile(name, seq->strip->dir, seq->strip->stripdata->name);
-					BLI_convertstringcode(name, G.sce);
+					BLI_path_abs(name, G.sce);
 					
 					seq->anim = openanim(
 						name, IB_rect | 
@@ -2107,7 +2107,6 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 		}
 	} else if(seq->type == SEQ_SCENE) {	// scene can be NULL after deletions
 		Scene *sce= seq->scene;// *oldsce= scene;
-		Render *re;
 		int have_seq= FALSE;
 		int sce_valid= FALSE;
 
@@ -2137,6 +2136,7 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 			int frame= seq->sfra + se->nr + seq->anim_startofs;
 			int oldcfra = seq->scene->r.cfra;
 			Object *oldcamera= seq->scene->camera;
+			ListBase oldmarkers;
 
 			/* Hack! This function can be called from do_render_seq(), in that case
 			   the seq->scene can already have a Render initialized with same name,
@@ -2158,22 +2158,23 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 			scene->r.scemode &= ~R_DOSEQ;
 
 			seq->scene->r.cfra= frame;
+			if(seq->scene_camera)	seq->scene->camera= seq->scene_camera;
+			else					scene_camera_switch_update(seq->scene);
+
+#ifdef DURIAN_CAMERA_SWITCH
+			/* stooping to new low's in hackyness :( */
+			oldmarkers= seq->scene->markers;
+			seq->scene->markers.first= seq->scene->markers.last= NULL;
+#endif
 
 			if(sequencer_view3d_cb && (seq->flag & SEQ_USE_SCENE_OPENGL) && (seq->scene == scene || have_seq==0)) {
 				/* opengl offscreen render */
-				if(seq->scene_camera)	seq->scene->camera= seq->scene_camera;
-				else					scene_camera_switch_update(seq->scene);
-
 				scene_update_for_newframe(seq->scene, seq->scene->lay);
 				se->ibuf= sequencer_view3d_cb(seq->scene, seqrectx, seqrecty);
 			}
 			else {
+				Render *re;
 				RenderResult rres;
-
-#ifdef DURIAN_CAMERA_SWITCH
-				/* stooping to new low's in hackyness :( */
-				scene_marker_tfm_translate(seq->scene, MAXFRAME*2, 0);
-#endif
 
 				if(rendering)
 					re= RE_NewRender(" do_build_seq_ibuf", RE_SLOT_DEFAULT);
@@ -2199,11 +2200,6 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 				RE_ReleaseResultImage(re);
 
 				// BIF_end_render_callbacks();
-
-#ifdef DURIAN_CAMERA_SWITCH
-				/* stooping to new low's in hackyness :( */
-				scene_marker_tfm_translate(seq->scene, MAXFRAME*-2, 0);
-#endif
 			}
 			
 			/* restore */
@@ -2211,6 +2207,11 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 
 			seq->scene->r.cfra = oldcfra;
 			seq->scene->camera= oldcamera;
+
+#ifdef DURIAN_CAMERA_SWITCH
+			/* stooping to new low's in hackyness :( */
+			seq->scene->markers= oldmarkers;
+#endif
 
 			copy_to_ibuf_still(seq, se);
 

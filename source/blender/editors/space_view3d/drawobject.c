@@ -855,12 +855,40 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_BACK);
 }
 
+static float lamp_half_energy_distance(Lamp *la)
+{
+	switch(la->type) {
+		case LA_SUN:
+		case LA_HEMI:
+			return la->dist;
+
+		case LA_AREA:
+			if(!la->mode & LA_MULTI_SHADE)
+				return sqrtf(100.0f);
+			
+			/* fall through */
+		case LA_SPOT:
+		case LA_LOCAL:
+		default:
+			if(la->falloff_type == LA_FALLOFF_CONSTANT)
+				return 1.0f;
+			else if(la->falloff_type == LA_FALLOFF_INVLINEAR)
+				return maxf(100.0f - la->falloff_smooth*la->power, 0.1f);
+			else if(la->falloff_type == LA_FALLOFF_INVSQUARE)
+				return sqrtf(maxf(100.0f - la->falloff_smooth*la->power, 0.1f));
+			else if(la->falloff_type == LA_FALLOFF_CURVE)
+				return la->dist;
+	}
+
+	return 1.0f;
+}
+
 static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, int dt, int flag)
 {
 	Object *ob= base->object;
 	Lamp *la= ob->data;
 	float vec[3], lvec[3], vvec[3], circrad, x,y,z;
-	float pixsize, lampsize;
+	float pixsize, lampsize, lampdist;
 	float imat[4][4], curcol[4];
 	char col[4];
 	int drawcone= (dt>OB_WIRE && !(G.f & G_PICKSEL) && la->type == LA_SPOT && (la->mode & LA_SHOW_CONE));
@@ -873,6 +901,9 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 		add_view3d_after(v3d, base, V3D_TRANSP, flag);
 		return;
 	}
+
+	/* compute lamp distance */
+	lampdist= lamp_half_energy_distance(la);
 	
 	/* we first draw only the screen aligned & fixed scale stuff */
 	glPushMatrix();
@@ -963,7 +994,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	
 	if (la->type==LA_LOCAL) {
 		if(la->mode & LA_SPHERE) {
-			drawcircball(GL_LINE_LOOP, vec, la->dist, imat);
+			drawcircball(GL_LINE_LOOP, vec, lampdist, imat);
 		}
 		/* yafray: for photonlight also draw lightcone as for spot */
 	}
@@ -983,7 +1014,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 		y = cos( M_PI*la->spotsize/360.0 );
 		spotvolume(lvec, vvec, y);
-		x = -la->dist;
+		x = -lampdist;
 		mul_v3_fl(lvec, x);
 		mul_v3_fl(vvec, x);
 
@@ -1034,7 +1065,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 		glBegin(GL_LINE_STRIP);
 			vec[2] = -circrad;
 			glVertex3fv(vec); 
-			vec[2]= -la->dist; 
+			vec[2]= -lampdist; 
 			glVertex3fv(vec);
 		glEnd();
 		
@@ -1085,7 +1116,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 
 		glBegin(GL_LINE_STRIP); 
 		glVertex3f(0.0,0.0,-circrad);
-		glVertex3f(0.0,0.0,-la->dist);
+		glVertex3f(0.0,0.0,-lampdist);
 		glEnd();
 	}
 	
