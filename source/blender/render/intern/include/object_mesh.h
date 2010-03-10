@@ -31,6 +31,7 @@ struct MTFace;
 struct Material;
 struct ObjectInstanceRen;
 struct ObjectRen;
+struct ParticleSystem;
 struct VertRen;
 struct VlakRen;
 
@@ -62,7 +63,10 @@ int render_vlak_get_normal(struct ObjectInstanceRen *obi, struct VlakRen *vlr, f
 /* Conversion */
 
 void init_render_object_data(struct Render *re, struct ObjectRen *obr, int timeoffset);
+void init_render_particle_system(struct Render *re, struct ObjectRen *obr, struct ParticleSystem *psys, int timeoffset);
 void finalize_render_object(struct Render *re, struct ObjectRen *obr, int timeoffset);
+void render_object_calc_vnormals(struct Render *re, struct ObjectRen *obr, int do_tangent, int do_nmap_tangent);
+void set_object_orco(struct Render *re, void *ob, float *orco);
 
 /* Structs */
 
