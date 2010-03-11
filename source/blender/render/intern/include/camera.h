@@ -57,10 +57,6 @@ int camera_hoco_test_clip(float hoco[4]);
 
 #include "DNA_vec_types.h"
 
-#define R_CAM_ORTHO	1
-#define R_CAM_PERSP	2
-#define R_CAM_PANO	3
-
 typedef struct RenderCamera {
 	rctf viewplane;			/* mapped on winx winy */
 	float viewdx, viewdy;	/* size of 1 pixel */

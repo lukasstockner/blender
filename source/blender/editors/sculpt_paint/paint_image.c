@@ -51,6 +51,7 @@
 #include "IMB_imbuf_types.h"
 
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -2946,9 +2947,9 @@ static void project_paint_begin(ProjPaintState *ps)
 			}
 			else if (ps->source==PROJ_SRC_IMAGE_CAM) {
 				Object *camera= ps->scene->camera;
+				int type;
 
 				/* dont actually use these */
-				float _viewdx, _viewdy, _ycor, _lens=0.0f;
 				rctf _viewplane;
 
 				/* viewmat & viewinv */
@@ -2958,10 +2959,9 @@ static void project_paint_begin(ProjPaintState *ps)
 
 				/* camera winmat */
 				object_camera_matrix(&ps->scene->r, camera, ps->winx, ps->winy, 0,
-						winmat, &_viewplane, &ps->clipsta, &ps->clipend,
-						&_lens, &_ycor, &_viewdx, &_viewdy);
+						0.0f, winmat, &_viewplane, &ps->clipsta, &ps->clipend, &type);
 
-				ps->is_ortho= (ps->scene->r.mode & R_ORTHO) ? 1 : 0;
+				ps->is_ortho= (type == CAM_ORTHO);
 			}
 
 			/* same as view3d_get_object_project_mat */

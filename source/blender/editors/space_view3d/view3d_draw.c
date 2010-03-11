@@ -2052,10 +2052,11 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 	/* render 3d view */
 	if(rv3d->persp==RV3D_CAMOB && v3d->camera) {
 		float winmat[4][4];
-		float _clipsta, _clipend, _lens, _yco, _dx, _dy;
+		float _clipsta, _clipend;
+		int _type;
 		rctf _viewplane;
 
-		object_camera_matrix(&scene->r, v3d->camera, sizex, sizey, 0, winmat, &_viewplane, &_clipsta, &_clipend, &_lens, &_yco, &_dx, &_dy);
+		object_camera_matrix(&scene->r, v3d->camera, sizex, sizey, 0, 0.0f, winmat, &_viewplane, &_clipsta, &_clipend, &_type);
 
 		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat);
 	}
@@ -2104,9 +2105,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, int width, int height
 	invert_m4_m4(rv3d.viewmat, rv3d.viewinv);
 
 	{
-		float _yco, _dx, _dy;
 		rctf _viewplane;
-		object_camera_matrix(&scene->r, v3d.camera, width, height, 0, rv3d.winmat, &_viewplane, &v3d.near, &v3d.far, &v3d.lens, &_yco, &_dx, &_dy);
+		int _type;
+		object_camera_matrix(&scene->r, v3d.camera, width, height, 0, 0.0f, rv3d.winmat, &_viewplane, &v3d.near, &v3d.far, &_type);
 	}
 
 	mul_m4_m4m4(rv3d.persmat, rv3d.viewmat, rv3d.winmat);

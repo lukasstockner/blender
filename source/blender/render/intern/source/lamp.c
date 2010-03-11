@@ -32,6 +32,7 @@
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 
+#include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
@@ -371,7 +372,7 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 	*intens= 0.0f;
 	haint= lar->haint;
 	
-	if(re->cam.type == R_CAM_ORTHO) {
+	if(re->cam.type == CAM_ORTHO) {
 		/* camera pos (view vector) cannot be used... */
 		/* camera position (cox,coy,0) rotate around lamp */
 		p1[0]= shi->geometry.co[0]-lar->co[0];

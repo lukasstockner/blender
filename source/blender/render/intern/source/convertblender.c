@@ -1052,7 +1052,7 @@ static void speedvector_project(Render *re, float *zco, float *co, float *ho)
 	
 	/* initialize */
 	if(re) {
-		pano= re->cam.type == R_CAM_PANO;
+		pano= re->cam.type == CAM_PANORAMA;
 		
 		/* precalculate amount of radians 1 pixel rotates */
 		if(pano) {

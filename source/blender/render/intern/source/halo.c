@@ -28,6 +28,7 @@
 #include <math.h>
 #include <string.h>
 
+#include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
@@ -110,7 +111,7 @@ static float haloZtoDist(Render *re, int z)
 		return 10e10;
 	else {
 		zco = (float)z/(float)0x7FFFFF;
-		if(re->cam.type == R_CAM_ORTHO)
+		if(re->cam.type == CAM_ORTHO)
 			return (re->cam.winmat[3][2] - zco*re->cam.winmat[3][3])/(re->cam.winmat[2][2]);
 		else
 			return (re->cam.winmat[3][2])/(re->cam.winmat[2][2] - re->cam.winmat[2][3]*zco);

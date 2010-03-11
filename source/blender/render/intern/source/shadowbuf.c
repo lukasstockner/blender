@@ -30,6 +30,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
@@ -2147,7 +2148,7 @@ static int viewpixel_to_lampbuf(Render *re, ShadBuf *shb, ObjectInstanceRen *obi
 	hoco[3]= 1.0f;
 	
 	/* ortho viewplane cannot intersect using view vector originating in (0,0,0) */
-	if(re->cam.type == R_CAM_ORTHO) {
+	if(re->cam.type == CAM_ORTHO) {
 		/* x and y 3d coordinate can be derived from pixel coord and winmat */
 		float fx= 2.0/(re->cam.winx*re->cam.winmat[0][0]);
 		float fy= 2.0/(re->cam.winy*re->cam.winmat[1][1]);

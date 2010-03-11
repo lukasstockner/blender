@@ -31,6 +31,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+#include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_image_types.h"
 #include "DNA_node_types.h"
@@ -1395,12 +1396,12 @@ static int is_rendering_allowed(Render *re)
 	SceneRenderLayer *srl;
 	
 	/* forbidden combinations */
-	if(re->cam.type == R_CAM_PANO) {
+	if(re->cam.type == CAM_PANORAMA) {
 		if(re->params.r.mode & R_BORDER) {
 			re->cb.error(re->cb.erh, "No border supported for Panorama");
 			return 0;
 		}
-		if(re->cam.type == R_CAM_ORTHO) {
+		if(re->cam.type == CAM_ORTHO) {
 			re->cb.error(re->cb.erh, "No Ortho render possible for Panorama");
 			return 0;
 		}

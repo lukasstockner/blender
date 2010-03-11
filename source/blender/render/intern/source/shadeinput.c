@@ -32,6 +32,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
+#include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
@@ -1386,7 +1387,7 @@ static void shade_mist(Render *re, ShadeInput *shi, ShadeResult *shr)
 	float mist= 1.0f;
 
 	if((shi->shading.passflag & SCE_PASS_MIST) || ((re->db.wrld.mode & WO_MIST) && (shi->material.mat->mode & MA_NOMIST)==0))  {
-		if(re->cam.type == R_CAM_ORTHO)
+		if(re->cam.type == CAM_ORTHO)
 			shr->mist= environment_mist_factor(re, -shi->geometry.co[2], shi->geometry.co);
 		else
 			shr->mist= environment_mist_factor(re, len_v3(shi->geometry.co), shi->geometry.co);

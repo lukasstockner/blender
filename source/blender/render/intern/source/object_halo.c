@@ -404,7 +404,7 @@ void halos_project(RenderDB *rdb, RenderCamera *cam, float xoffs, int xparts)
 	float zn, vec[3], hoco[4];
 	int a;
 
-	if(cam->type == R_CAM_PANO) {
+	if(cam->type == CAM_PANORAMA) {
 		float panophi= xoffs;
 		
 		cam->panosi= sin(panophi);
@@ -417,7 +417,7 @@ void halos_project(RenderDB *rdb, RenderCamera *cam, float xoffs, int xparts)
 			if((a & 255)==0) har= obr->bloha[a>>8];
 			else har++;
 
-			if(cam->type == R_CAM_PANO) {
+			if(cam->type == CAM_PANORAMA) {
 				vec[0]= cam->panoco*har->co[0] - cam->panosi*har->co[2];
 				vec[1]= har->co[1];
 				vec[2]= cam->panosi*har->co[0] + cam->panoco*har->co[2];
@@ -432,7 +432,7 @@ void halos_project(RenderDB *rdb, RenderCamera *cam, float xoffs, int xparts)
 			hoco[0]*= 0.5;
 			hoco[1]*= 0.5;
 			
-			if( panotestclip(cam->type == R_CAM_PANO, xparts, hoco) ) {
+			if( panotestclip(cam->type == CAM_PANORAMA, xparts, hoco) ) {
 				har->miny= har->maxy= -10000;	/* that way render clips it */
 			}
 			else if(hoco[3]<0.0) {
@@ -813,8 +813,8 @@ void halos_render_flare(Render *re)
 		return;
 	
 	cam= re->cam;
-	if(re->cam.type == R_CAM_PANO)
-		re->cam.type= R_CAM_PERSP;
+	if(re->cam.type == CAM_PANORAMA)
+		re->cam.type= CAM_PERSP;
 	
 	halos_project(&re->db, &re->cam, 0, re->xparts);
 	

@@ -30,6 +30,8 @@
 
 #include "BLI_math.h"
 
+#include "BKE_object.h"
+
 #include "camera.h"
 #include "database.h"
 #include "object_halo.h"
@@ -57,13 +59,13 @@
 void camera_raster_to_view(RenderCamera *cam, float *view, float x, float y)
 {
 	switch(cam->type) {
-		case R_CAM_ORTHO: {
+		case CAM_ORTHO: {
 			view[0]= 0.0f;
 			view[1]= 0.0f;
 			view[2]= -ABS(cam->clipsta);
 			break;
 		}
-		case R_CAM_PERSP: {
+		case CAM_PERSP: {
 			/* move x and y to real viewplane coords */
 			x= (x/(float)cam->winx);
 			y= (y/(float)cam->winy);
@@ -73,7 +75,7 @@ void camera_raster_to_view(RenderCamera *cam, float *view, float x, float y)
 			view[2]= -ABS(cam->clipsta);
 			break;
 		}
-		case R_CAM_PANO: {
+		case CAM_PANORAMA: {
 			float u, v;
 
 			x-= cam->panodxp;
@@ -102,7 +104,7 @@ void camera_raster_to_ray(RenderCamera *cam, float start[3], float vec[3], float
 	normalize_v3(vec);
 
 	switch(cam->type) {
-		case R_CAM_ORTHO: {
+		case CAM_ORTHO: {
 			/* copy from shade_input_calc_viewco */
 			float fx= 2.0f/(cam->winx*cam->winmat[0][0]);
 			float fy= 2.0f/(cam->winy*cam->winmat[1][1]);
@@ -112,8 +114,8 @@ void camera_raster_to_ray(RenderCamera *cam, float start[3], float vec[3], float
 			start[2]= 0.0f;
 			break;
 		}
-		case R_CAM_PERSP:
-		case R_CAM_PANO: {
+		case CAM_PERSP:
+		case CAM_PANORAMA: {
 			start[0]= start[1]= start[2]= 0.0f;
 			break;
 		}
@@ -123,7 +125,7 @@ void camera_raster_to_ray(RenderCamera *cam, float start[3], float vec[3], float
 void camera_raster_to_co(RenderCamera *cam, float co[3], float x, float y, int z)
 {
 	switch(cam->type) {
-		case R_CAM_ORTHO: {
+		case CAM_ORTHO: {
 			/* x and y 3d coordinate can be derived from pixel coord and winmat */
 			float fx= 2.0f/(cam->winx*cam->winmat[0][0]);
 			float fy= 2.0f/(cam->winy*cam->winmat[1][1]);
@@ -136,8 +138,8 @@ void camera_raster_to_co(RenderCamera *cam, float co[3], float x, float y, int z
 			co[2]= cam->winmat[3][2]/(cam->winmat[2][3]*zco - cam->winmat[2][2]);
 			break;
 		}
-		case R_CAM_PERSP:
-		case R_CAM_PANO: {
+		case CAM_PERSP:
+		case CAM_PANORAMA: {
 			float view[3], fac, zco;
 
 			camera_raster_to_view(cam, view, x, y);
@@ -163,7 +165,7 @@ void camera_raster_plane_to_co(RenderCamera *cam, float co[3], float dxco[3], fl
 	
 	/* ortho viewplane cannot intersect using view vector originating in (0,0,0) */
 	switch(cam->type) {
-		case R_CAM_ORTHO: {
+		case CAM_ORTHO: {
 			/* x and y 3d coordinate can be derived from pixel coord and winmat */
 			float fx= 2.0f/(cam->winx*cam->winmat[0][0]);
 			float fy= 2.0f/(cam->winy*cam->winmat[1][1]);
@@ -200,8 +202,8 @@ void camera_raster_plane_to_co(RenderCamera *cam, float co[3], float dxco[3], fl
 			}
 			break;
 		}
-		case R_CAM_PERSP:
-		case R_CAM_PANO: {
+		case CAM_PERSP:
+		case CAM_PANORAMA: {
 			float div;
 			
 			div= plane[0]*view[0] + plane[1]*view[1] + plane[2]*view[2];
@@ -274,7 +276,7 @@ void camera_window_matrix(RenderCamera *cam, float winmat[][4])
 {
 	float panomat[4][4];
 
-	if(cam->type == R_CAM_PANO) {
+	if(cam->type == CAM_PANORAMA) {
 		unit_m4(panomat);
 		panomat[0][0]= cam->panoco;
 		panomat[0][2]= cam->panosi;
@@ -388,120 +390,15 @@ void panorama_set_camera_params(Render *re, rcti *disprect, rctf *viewplane)
 void RE_SetCamera(Render *re, Object *camera)
 {
 	RenderCamera *cam= &re->cam;
-	RenderData *rd= &re->params.r;
-	Camera *bcam=NULL;
-	rctf viewplane;
-	float pixsize, clipsta, clipend, ycor, viewfac;
-	float lens, shiftx=0.0, shifty=0.0, winside;
-	int second_field= (re->params.flag & R_SEC_FIELD);
-	
-	/* question mark */
-	ycor= ( (float)rd->yasp)/( (float)rd->xasp);
-	if(rd->mode & R_FIELDS)
-		ycor *= 2.0f;
-	
-	cam->type= R_CAM_PERSP;
-	
-	if(camera->type==OB_CAMERA) {
-		bcam= camera->data;
-		
-		if(bcam->type == CAM_ORTHO) cam->type= R_CAM_ORTHO;
-		else if(bcam->flag & CAM_PANORAMA) cam->type= R_CAM_PANO;
-		
-		/* solve this too... all time depending stuff is in convertblender.c?
-		 * Need to update the camera early because it's used for projection matrices
-		 * and other stuff BEFORE the animation update loop is done 
-		 * */
-#if 0 // XXX old animation system
-		if(bcam->ipo) {
-			calc_ipo(bcam->ipo, frame_to_float(re->scene, rd->cfra));
-			execute_ipo(&bcam->id, bcam->ipo);
-		}
-#endif // XXX old animation system
-		lens= bcam->lens;
-		shiftx=bcam->shiftx;
-		shifty=bcam->shifty;
 
-		clipsta= bcam->clipsta;
-		clipend= bcam->clipend;
-	}
-	else if(camera->type==OB_LAMP) {
-		Lamp *la= camera->data;
-		float fac= cos( M_PI*la->spotsize/360.0 );
-		float phi= acos(fac);
-		
-		lens= 16.0*fac/sin(phi);
-		if(lens==0.0f)
-			lens= 35.0;
-		clipsta= la->clipsta;
-		clipend= la->clipend;
-	}
-	else {	/* envmap exception... */
-		lens= cam->lens;
-		if(lens==0.0f)
-			lens= 16.0;
-		
-		clipsta= cam->clipsta;
-		clipend= cam->clipend;
-		if(clipsta==0.0f || clipend==0.0f) {
-			clipsta= 0.1f;
-			clipend= 1000.0f;
-		}
-	}
+	object_camera_matrix(&re->params.r, camera, cam->winx, cam->winy, 
+		(re->params.flag & R_SEC_FIELD), cam->lens, cam->winmat, &cam->viewplane,
+		&cam->clipsta, &cam->clipend, &cam->type);
 
-	/* ortho only with camera available */
-	if(cam && (cam->type == R_CAM_ORTHO)) {
-		if( (rd->xasp*cam->winx) >= (rd->yasp*cam->winy) ) {
-			viewfac= cam->winx;
-		}
-		else {
-			viewfac= ycor*cam->winy;
-		}
-		/* ortho_scale == 1.0 means exact 1 to 1 mapping */
-		pixsize= bcam->ortho_scale/viewfac;
-	}
-	else {
-		if( (rd->xasp*cam->winx) >= (rd->yasp*cam->winy) ) {
-			viewfac= (cam->winx*lens)/32.0;
-		}
-		else {
-			viewfac= ycor*(cam->winy*lens)/32.0;
-		}
-		
-		pixsize= clipsta/viewfac;
-	}
+	printf("type %d\n", cam->type);
 	
-	/* viewplane fully centered, zbuffer fills in jittered between -.5 and +.5 */
-	winside= MAX2(cam->winx, cam->winy);
-	viewplane.xmin= -0.5f*(float)cam->winx + shiftx*winside; 
-	viewplane.ymin= -0.5f*ycor*(float)cam->winy + shifty*winside;
-	viewplane.xmax=  0.5f*(float)cam->winx + shiftx*winside; 
-	viewplane.ymax=  0.5f*ycor*(float)cam->winy + shifty*winside; 
-
-	if(second_field) {
-		if(rd->mode & R_ODDFIELD) {
-			viewplane.ymin-= .5*ycor;
-			viewplane.ymax-= .5*ycor;
-		}
-		else {
-			viewplane.ymin+= .5*ycor;
-			viewplane.ymax+= .5*ycor;
-		}
-	}
-	/* the window matrix is used for clipping, and not changed during OSA steps */
-	/* using an offset of +0.5 here would give clip errors on edges */
-	viewplane.xmin= pixsize*(viewplane.xmin);
-	viewplane.xmax= pixsize*(viewplane.xmax);
-	viewplane.ymin= pixsize*(viewplane.ymin);
-	viewplane.ymax= pixsize*(viewplane.ymax);
-	
-	if(cam->type == R_CAM_ORTHO)
-		RE_SetOrtho(re, &viewplane, clipsta, clipend);
-	else 
-		RE_SetWindow(re, &viewplane, clipsta, clipend, cam->type == R_CAM_PANO);
-	
-	cam->viewdx= (viewplane.xmax - viewplane.xmin)/cam->winx;
-	cam->viewdy= (viewplane.ymax - viewplane.ymin)/cam->winy;
+	cam->viewdx= (cam->viewplane.xmax - cam->viewplane.xmin)/cam->winx;
+	cam->viewdy= (cam->viewplane.ymax - cam->viewplane.ymin)/cam->winy;
 	cam->ycor= cam->viewdy/cam->viewdx;
 }
 
@@ -527,7 +424,7 @@ void RE_SetWindow(Render *re, rctf *viewplane, float clipsta, float clipend, int
 	cam->viewplane= *viewplane;
 	cam->clipsta= clipsta;
 	cam->clipend= clipend;
-	cam->type= (pano)? R_CAM_PANO: R_CAM_PERSP;
+	cam->type= (pano)? CAM_PANORAMA: CAM_PERSP;
 
 	perspective_m4(cam->winmat, cam->viewplane.xmin, cam->viewplane.xmax, cam->viewplane.ymin, cam->viewplane.ymax, cam->clipsta, cam->clipend);
 	
@@ -540,7 +437,7 @@ void RE_SetOrtho(Render *re, rctf *viewplane, float clipsta, float clipend)
 	cam->viewplane= *viewplane;
 	cam->clipsta= clipsta;
 	cam->clipend= clipend;
-	cam->type= R_CAM_ORTHO;
+	cam->type= CAM_ORTHO;
 
 	orthographic_m4(cam->winmat, cam->viewplane.xmin, cam->viewplane.xmax, cam->viewplane.ymin, cam->viewplane.ymax, cam->clipsta, cam->clipend);
 }

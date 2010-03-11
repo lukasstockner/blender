@@ -27,6 +27,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_camera_types.h"
+
 #include "BLI_listbase.h"
 
 #include "camera.h"
@@ -58,7 +60,7 @@ void parts_create(Render *re)
 	
 	/* mininum part size, but for exr tile saving it was checked already */
 	if(!(re->params.r.scemode & (R_EXR_TILE_FILE|R_FULL_SAMPLE))) {
-		if(re->cam.type == R_CAM_PANO) {
+		if(re->cam.type == CAM_PANORAMA) {
 			if(ceil(re->rectx/(float)xparts) < 8) 
 				xparts= 1 + re->rectx/8;
 		}
@@ -80,7 +82,7 @@ void parts_create(Render *re)
 	re->party= party;
 	
 	/* calculate rotation factor of 1 pixel */
-	if(re->cam.type == R_CAM_PANO)
+	if(re->cam.type == CAM_PANORAMA)
 		re->cam.panophi= panorama_pixel_rot(re);
 	
 	for(nr=0; nr<xparts*yparts; nr++) {
@@ -160,7 +162,7 @@ int parts_find_next_slice(Render *re, int *slice, int *minx, rctf *viewplane)
 
 	*minx= re->cam.winx;
 
-	if(re->cam.type == R_CAM_PANO) {
+	if(re->cam.type == CAM_PANORAMA) {
 		/* most left part of the non-rendering parts */
 		for(pa= re->parts.first; pa; pa= pa->next) {
 			if(pa->ready==0 && pa->nr==0) {
@@ -211,7 +213,7 @@ RenderPart *parts_find_next(Render *re, int minx)
 			disty= centy - (pa->disprect.ymin+pa->disprect.ymax)/2;
 			distx= (int)sqrt(distx*distx + disty*disty);
 			if(distx<mindist) {
-				if(re->cam.type == R_CAM_PANO) {
+				if(re->cam.type == CAM_PANORAMA) {
 					if(pa->disprect.xmin==minx) {
 						best= pa;
 						mindist= distx;
