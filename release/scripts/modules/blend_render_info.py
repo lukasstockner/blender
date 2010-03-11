@@ -79,7 +79,12 @@ def read_blend_rend_chunk(path):
 
         scene_name = scene_name[:scene_name.index(b'\0')]
 
-        scenes.append((start_frame, end_frame, str(scene_name, 'utf8')))
+        try:
+            scene_name = str(scene_name, 'utf8')
+        except TypeError:
+            pass
+
+        scenes.append((start_frame, end_frame, scene_name))
 
     return scenes
 
@@ -88,7 +93,8 @@ def main():
     import sys
     for arg in sys.argv[1:]:
         if arg.lower().endswith('.blend'):
-            print(read_blend_rend_chunk(arg))
+            for value in read_blend_rend_chunk(arg):
+                print("%d %d %s" % value)
 
 if __name__ == '__main__':
     main()
