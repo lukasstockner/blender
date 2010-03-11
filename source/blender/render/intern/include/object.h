@@ -150,23 +150,23 @@ typedef struct ObjectInstanceRen {
 #define R_HIDDEN			8
 
 /* data layer size */
-#define RE_ORCO_ELEMS		3
-#define RE_STICKY_ELEMS		2
-#define RE_STRESS_ELEMS		1
-#define RE_RAD_ELEMS		4
-#define RE_STRAND_ELEMS		1
-#define RE_TANGENT_ELEMS	3
-#define RE_STRESS_ELEMS		1
-#define RE_WINSPEED_ELEMS	4
-#define RE_MTFACE_ELEMS		1
-#define RE_MCOL_ELEMS		4
-#define RE_UV_ELEMS			2
-#define RE_SURFNOR_ELEMS	3
-#define RE_RADFACE_ELEMS	1
-#define RE_SIMPLIFY_ELEMS	2
-#define RE_FACE_ELEMS		1
+#define RE_ORCO_ELEMS			3
+#define RE_STICKY_ELEMS			2
+#define RE_STRESS_ELEMS			1
+#define RE_RAD_ELEMS			4
+#define RE_STRAND_ELEMS			1
+#define RE_TANGENT_ELEMS		3
+#define RE_STRESS_ELEMS			1
+#define RE_WINSPEED_ELEMS		4
+#define RE_MTFACE_ELEMS			1
+#define RE_MCOL_ELEMS			4
+#define RE_UV_ELEMS				2
+#define RE_SURFNOR_ELEMS		3
+#define RE_RADFACE_ELEMS		1
+#define RE_SIMPLIFY_ELEMS		2
+#define RE_FACE_ELEMS			1
 #define RE_NMAP_TANGENT_ELEMS	12
-#define RE_STRANDCO_ELEMS	1
+#define RE_STRANDCO_ELEMS		1
 
 #endif /* __RENDER_OBJECT_H__ */
 

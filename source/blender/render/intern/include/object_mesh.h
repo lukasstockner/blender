@@ -44,6 +44,7 @@ struct VertRen *render_object_vert_copy(struct ObjectRen *obrn, struct ObjectRen
 struct VlakRen *render_object_vlak_copy(struct ObjectRen *obrn, struct ObjectRen *obr, struct VlakRen *vlr);
 
 struct VertRen *render_object_vert_interp(struct ObjectRen *obrn, struct ObjectRen *obr, struct VertRen **v, float *w, int totv);
+struct VlakRen *render_object_vlak_interp(struct ObjectRen *obrn, struct ObjectRen *obr, struct VlakRen *vlr, float w[4][4]);
 
 /* Vertex Texture Coordinates */
 

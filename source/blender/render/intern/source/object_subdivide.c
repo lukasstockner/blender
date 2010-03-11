@@ -85,7 +85,7 @@ static void extend_bb_disp(float result[2][3], float bb[2][3], float dispbound)
 	result[1][2]= bb[1][2] + dispbound;
 }
 
-static int render_vlak_clip(VlakRen *vlr, float M[3][3], float winmat[4][4], float bounds[4], float dispbound, int quad)
+static int render_vlak_clip(VlakRen *vlr, float M[4][4], float winmat[4][4], float bounds[4], float dispbound, int quad)
 {
 	float *co1, *co2, *co3, co[3];
 	float bb[2][3], dispbb[2][3];
@@ -122,25 +122,22 @@ static int render_vlak_clip(VlakRen *vlr, float M[3][3], float winmat[4][4], flo
 	return box_clip_bounds_m4(dispbb, bounds, winmat);
 }
 
-static VlakRen *render_vlak_sub_copy(ObjectRen *obr, VlakRen *vlr, VertRen *v1, VertRen *v2, VertRen *v3)
+static VlakRen *render_vlak_sub_copy(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, VertRen *v1, VertRen *v2, VertRen *v3, float w[4][4])
 {
 	VlakRen *vlrn;
 
-	vlrn= render_object_vlak_get(obr, obr->totvlak++);
-	copy_v3_v3(vlrn->n, vlr->n);
-	vlrn->puno= vlr->puno;
+	vlrn= render_object_vlak_interp(obrn, obr, vlr, w);
 	vlrn->ec= ME_V1V2|ME_V2V3|ME_V3V4;
-	vlrn->flag= vlr->flag;
-	vlrn->mat= vlr->mat;
 
 	vlrn->v1= v1;
 	vlrn->v2= v2;
 	vlrn->v3= v3;
+	vlrn->v4= NULL;
 
 	return vlrn;
 }
 
-static int render_face_view_resolution(RenderCamera *cam, float winmat[4][4], VlakRen *vlr, float M[3][3], int quad, float shadingrate)
+static int render_face_view_resolution(RenderCamera *cam, float winmat[4][4], VlakRen *vlr, float M[4][4], int quad, float shadingrate)
 {
 	float maxlen, hoco[3][4], zco[3][3];
 	float *co1, *co2, *co3, co[3];
@@ -184,20 +181,36 @@ static int render_face_view_resolution(RenderCamera *cam, float winmat[4][4], Vl
 	return res;
 }
 
-static void vertex_weight(float w[3], float M[3][3], float u, float v)
+static void vertex_weight(float w[4], float M[4][4], float u, float v, int vi[4])
 {
-	w[0]= (1-u)*(1-v) + u*(1-v);
-	w[1]= (1-u)*v;
-	w[2]= u*v;
+	float tmp[4];
 
-	mul_m3_v3(M, w);
+	tmp[0]= (1-u)*(1-v) + u*(1-v);
+	tmp[1]= (1-u)*v;
+	tmp[2]= u*v;
+	tmp[3]= 0.0f;
+
+	mul_m4_v4(M, tmp);
+
+	w[vi[0]]= tmp[0];
+	w[vi[1]]= tmp[1];
+	w[vi[2]]= tmp[2];
+	w[vi[3]]= tmp[3];
 }
 
-static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float bounds[4], ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, int quad, int depth, float M[3][3], float displacebound, float shadingrate)
+static void face_vertex_weight(float w[4], float M[4][4], int i, int j, int res, int vi[4])
 {
-	VertRen *s1, *s2, *s3, *ver[3];
-	float w[3], u, v, pM[3][3];
-	int i, j, offset, res, split;
+	float u= ((j > 0)? i/(float)j: 0.0f);
+	float v= (j/(float)(res-1));
+
+	vertex_weight(w, M, u, v, vi);
+}
+
+static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float bounds[4], ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, int quad, int depth, float M[4][4], float displacebound, float shadingrate)
+{
+	VertRen *s1, *s2, *s3;
+	float w[4], pM[4][4], fw[4][4];
+	int i, j, vi[4], offset, res, split;
 
 	res= render_face_view_resolution(cam, winmat, vlr, M, quad, shadingrate);
 
@@ -212,32 +225,30 @@ static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float b
 	}
 
 	if(quad) {
-		ver[0]= render_object_vert_copy(obrn, obr, vlr->v1);
-		ver[1]= render_object_vert_copy(obrn, obr, vlr->v3);
-		ver[2]= render_object_vert_copy(obrn, obr, vlr->v4);
+		vi[0]= 0; vi[1]= 2; vi[2]= 3; vi[3]= 1;
 	}
 	else {
-		ver[0]= render_object_vert_copy(obrn, obr, vlr->v1);
-		ver[1]= render_object_vert_copy(obrn, obr, vlr->v2);
-		ver[2]= render_object_vert_copy(obrn, obr, vlr->v3);
+		vi[0]= 0; vi[1]= 1; vi[2]= 2; vi[3]= 3;
 	}
 
-	if(M) copy_m3_m3(pM, M);
-	else unit_m3(pM);
+	if(M) copy_m4_m4(pM, M);
+	else unit_m4(pM);
 
 	offset= obrn->totvert;
 
 	if(split) {
-		float pattern[4][3][2] = {
-			{{0.0f, 0.0f}, {0.0f, 0.5f}, {1.0f, 0.5f}},
-			{{0.0f, 0.5f}, {0.0f, 1.0f}, {0.5f, 1.0f}},
-			{{0.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 0.5f}},
-			{{1.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 1.0f}}};
-		float sM[3][3];
+		float pattern[4][4][2] = {
+			{{0.0f, 0.0f}, {0.0f, 0.5f}, {1.0f, 0.5f}, {0.0f, 0.0f}},
+			{{0.0f, 0.5f}, {0.0f, 1.0f}, {0.5f, 1.0f}, {0.0f, 0.0f}},
+			{{0.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 0.5f}, {0.0f, 0.0f}},
+			{{1.0f, 0.5f}, {0.5f, 1.0f}, {1.0f, 1.0f}, {0.0f, 0.0f}}};
+		float sM[4][4];
 
 		for(i=0; i<4; i++) {
-			for(j=0; j<3; j++)
-				vertex_weight(sM[j], pM, pattern[i][j][0], pattern[i][j][1]);
+			for(j=0; j<4; j++) {
+				int tmp[4] = {0, 1, 2, 3};
+				vertex_weight(sM[j], pM, pattern[i][j][0], pattern[i][j][1], tmp);
+			}
 
 			if(!render_vlak_clip(vlr, sM, winmat, bounds, displacebound, quad))
 				render_face_subdivide(cam, winmat, bounds, obrn, obr, vlr, quad, depth+1, sM, displacebound, shadingrate);
@@ -246,23 +257,31 @@ static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float b
 	else {
 		for(j=0; j<res; j++) {
 			for(i=0; i<=j; i++) {
-				u= ((j > 0)? i/(float)j: 0.0f);
-				v= (j/(float)(res-1));
+				face_vertex_weight(w, pM, i, j, res, vi);
 
-				vertex_weight(w, pM, u, v);
-
-				render_object_vert_interp(obrn, obrn, ver, w, 3);
+				render_object_vert_interp(obrn, obr, &vlr->v1, w, (vlr->v4)? 4: 3);
 
 				if(i > 0 && j > 0) {
 					s1= render_object_vert_get(obrn, offset-j-1);
 					s2= render_object_vert_get(obrn, offset-1);
 					s3= render_object_vert_get(obrn, offset);
 
-					render_vlak_sub_copy(obrn, vlr, s1, s2, s3);
+					face_vertex_weight(fw[0], pM, i-1, j-1, res, vi);
+					face_vertex_weight(fw[1], pM, i-1, j, res, vi);
+					face_vertex_weight(fw[2], pM, i, j, res, vi);
+					zero_v4(fw[3]);
+
+					render_vlak_sub_copy(obrn, obr, vlr, s1, s2, s3, fw);
 
 					if(i < j) {
 						s2= render_object_vert_get(obrn, offset-j);
-						render_vlak_sub_copy(obrn, vlr, s1, s3, s2);
+
+						face_vertex_weight(fw[0], pM, i-1, j-1, res, vi);
+						face_vertex_weight(fw[1], pM, i, j-1, res, vi);
+						face_vertex_weight(fw[2], pM, i-1, j, res, vi);
+						zero_v4(fw[3]);
+
+						render_vlak_sub_copy(obrn, obr, vlr, s1, s3, s2, fw);
 					}
 				}
 

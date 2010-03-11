@@ -269,9 +269,6 @@ VertRen *render_object_vert_interp(ObjectRen *obrn, ObjectRen *obr, VertRen **va
 		if((from=render_vert_get_orco(obr, v, 0))) {
 			to= render_vert_get_orco(obrn, ver, 1);
 			madd_v3_v3fl(to, from, w);
-			/*print_v3("to", to);
-			print_v3("from", from);
-			printf("w: %f\n", w);*/
 		}
 
 		if((from=render_vert_get_sticky(obr, v, 0))) {
@@ -297,8 +294,6 @@ VertRen *render_object_vert_interp(ObjectRen *obrn, ObjectRen *obr, VertRen **va
 		madd_v3_v3fl(ver->co, v->co, w);
 		madd_v3_v3fl(ver->n, v->n, w);
 	}
-
-	//print_v3("orco", render_vert_get_orco(obrn, ver, 0));
 
 	normalize_v3(ver->n);
 
@@ -437,13 +432,14 @@ VlakRen *render_object_vlak_copy(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr)
 
 	*vlrn= *vlr;
 	vlrn->index= index;
+	vlrn->puno= 0;
 
-	for (i=0; (mtface=render_vlak_get_tface(obr, vlr, i, &name, 0)) != NULL; i++) {
+	for(i=0; (mtface=render_vlak_get_tface(obr, vlr, i, &name, 0)) != NULL; i++) {
 		mtface1= render_vlak_get_tface(obrn, vlrn, i, &name, 1);
 		memcpy(mtface1, mtface, sizeof(MTFace)*RE_MTFACE_ELEMS);
 	}
 
-	for (i=0; (mcol=render_vlak_get_mcol(obr, vlr, i, &name, 0)) != NULL; i++) {
+	for(i=0; (mcol=render_vlak_get_mcol(obr, vlr, i, &name, 0)) != NULL; i++) {
 		mcol1= render_vlak_get_mcol(obrn, vlrn, i, &name, 1);
 		memcpy(mcol1, mcol, sizeof(MCol)*RE_MCOL_ELEMS);
 	}
@@ -458,6 +454,63 @@ VlakRen *render_object_vlak_copy(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr)
 	if(tangent) {
 		tangent1= render_vlak_get_nmap_tangent(obrn, vlrn, 1);
 		memcpy(tangent1, tangent, sizeof(float)*RE_NMAP_TANGENT_ELEMS);
+	}
+
+	return vlrn;
+}
+
+VlakRen *render_object_vlak_interp(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, float warray[4][4])
+{
+	VlakRen *vlrn= render_object_vlak_copy(obrn, obr, vlr);
+	MTFace *mtface;
+	MCol *mcol;
+	float *tangent;
+	int i, j, k;
+
+	for(i=0; (mtface=render_vlak_get_tface(obrn, vlrn, i, NULL, 0)) != NULL; i++) {
+		float uv[4][2];
+
+		memset(uv, 0, sizeof(uv));
+
+		for(k=0; k<4; k++)
+			for(j=0; j<4; j++)
+				madd_v2_v2fl(uv[j], mtface->uv[k], warray[j][k]);
+
+		memcpy(mtface->uv, uv, sizeof(mtface->uv));
+	}
+
+	for(i=0; (mcol=render_vlak_get_mcol(obrn, vlrn, i, NULL, 0)) != NULL; i++) {
+		float col[4][4];
+
+		memset(col, 0, sizeof(col));
+
+		for(k=0; k<4; k++) {
+			char *cp= (char*)(mcol + k);
+			float from[4]= {cp[0], cp[1], cp[2], cp[3]};
+
+			for(j=0; j<4; j++)
+				madd_v4_v4fl(col[j], from, warray[j][k]);
+		}
+
+		for(k=0; k<4; k++) {
+			char *cp= (char*)(mcol + k);
+
+			for(j=0; j<4; j++)
+				cp[j]= col[k][j];
+		}
+	}
+
+	tangent= render_vlak_get_nmap_tangent(obrn, vlrn, 0);
+	if(tangent) {
+		float tang[4][3];
+
+		memset(tang, 0, sizeof(tang));
+
+		for(k=0; k<4; k++)
+			for(j=0; j<4; j++)
+				madd_v3_v3fl(tang[j], tangent + k*3, warray[j][k]);
+
+		memcpy(tangent, tang, sizeof(float)*4*3);
 	}
 
 	return vlrn;
