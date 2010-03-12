@@ -126,6 +126,7 @@ class DATA_PT_lamp(DataButtonsPanel):
 class DATA_PT_lamp_options(DataButtonsPanel):
     bl_label = "Options"
     bl_default_closed = True
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def draw(self, context):
         layout = self.layout
