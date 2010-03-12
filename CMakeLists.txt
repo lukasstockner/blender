@@ -1,4 +1,4 @@
- # $Id$
+# $Id$
 # ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
@@ -84,9 +84,9 @@ OPTION(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org
 # Unix defaults to OpenMP On
 IF(UNIX AND NOT APPLE)
 	OPTION(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" ON)
-ELSE()
+ELSE(UNIX AND NOT APPLE)
 	OPTION(WITH_OPENMP        "Enable OpenMP (has to be supported by the compiler)" OFF)
-ENDIF()
+ENDIF(UNIX AND NOT APPLE)
 
 OPTION(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" OFF) 
 
