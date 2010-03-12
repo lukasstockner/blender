@@ -606,8 +606,7 @@ static int allow_render_dupli_instance(Render *re, DupliObject *dob, Object *obd
 
 	/* don't allow lamp, animated duplis, or radio render */
 	return (render_object_type(obd->type) &&
-	        (!(dob->type == OB_DUPLIGROUP) || !dob->animated) &&
-	        !(re->params.r.mode & R_RADIO));
+	        (!(dob->type == OB_DUPLIGROUP) || !dob->animated));
 }
 
 static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, int level, int enable)
