@@ -84,7 +84,7 @@ static void shade_surface_result_ramps(Render *re, ShadeInput *shi, ShadeResult 
 	float *diff= shr->diff;
 	float *spec= shr->spec;
 
-	if(ma->ramp_col && ma->rampin_col==MA_RAMP_IN_RESULT) {
+	if((ma->mode & MA_RAMP_COL) && ma->ramp_col && ma->rampin_col==MA_RAMP_IN_RESULT) {
 		fac= rgb_to_grayscale(diff);
 		do_colorband(ma->ramp_col, fac, col);
 		
@@ -93,7 +93,7 @@ static void shade_surface_result_ramps(Render *re, ShadeInput *shi, ShadeResult 
 		ramp_blend(ma->rampblend_col, diff, diff+1, diff+2, fac, col);
 	}
 
-	if(ma->ramp_spec && ma->rampin_spec==MA_RAMP_IN_RESULT) {
+	if((ma->mode & MA_RAMP_SPEC) && ma->ramp_spec && ma->rampin_spec==MA_RAMP_IN_RESULT) {
 		fac= rgb_to_grayscale(spec);
 		do_colorband(ma->ramp_spec, fac, col);
 		
@@ -815,11 +815,11 @@ void shade_surface(Render *re, ShadeInput *shi, ShadeResult *shr, int backside)
 	/* indirect light from environment and other surfaces */
 	shade_surface_indirect(re, shi, shr, backside); /* .diff, .spec, .refl, .refr */
 
-	/* subsurface scattering */
-	shade_surface_sss(re, shi, shr);
-
 	/* result ramps */
 	shade_surface_result_ramps(re, shi, shr);
+
+	/* subsurface scattering */
+	shade_surface_sss(re, shi, shr);
 
 	/* add diffuse + specular into combined */
 	add_v3_v3v3(shr->combined, shr->emit, shr->diff);
