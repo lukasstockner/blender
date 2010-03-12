@@ -1008,7 +1008,7 @@ int main(int argc, char **argv)
 	 * Update: now this function also inits the bpymenus, which also depend
 	 * on U.pythondir.
 	 */
-	
+
 	// TODO - U.pythondir
 
 #endif
