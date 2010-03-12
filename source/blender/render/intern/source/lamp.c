@@ -190,7 +190,7 @@ int lamp_visibility(LampRen *lar, float co[3], float vn[3], float lco[3], float 
 			sub_v3_v3v3(vec, co, lco);
 			dist= normalize_v3(vec);
 
-			if(lar->mode & LA_MULTI_SHADE) {
+			if(!vn || (lar->mode & LA_MULTI_SHADE)) {
 				if(dot_v3v3(lar->vec, vec) > 0.0f) {
 					fac= lamp_falloff(lar, dist);
 					fac *= dot_v3v3(lar->vec, vec);
