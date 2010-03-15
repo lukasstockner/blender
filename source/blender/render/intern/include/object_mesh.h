@@ -70,6 +70,8 @@ void init_render_object_data(struct Render *re, struct ObjectRen *obr, int timeo
 void init_render_particle_system(struct Render *re, struct ObjectRen *obr, struct ParticleSystem *psys, int timeoffset);
 void finalize_render_object(struct Render *re, struct ObjectRen *obr, int timeoffset);
 void render_object_calc_vnormals(struct Render *re, struct ObjectRen *obr, int do_tangent, int do_nmap_tangent);
+int render_object_has_displacement(struct Render *re, struct ObjectRen *obr);
+void render_object_displace(struct Render *re, struct ObjectRen *obr, float mat[][4], float nmat[][3]);
 
 /* Structs */
 

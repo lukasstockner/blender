@@ -1145,12 +1145,13 @@ static void make_render_halos(Render *re, ObjectRen *obr, Mesh *me, int totvert,
 {
 	Object *ob= obr->ob;
 	HaloRen *har;
-	float xn, yn, zn, nor[3], view[3];
-	float vec[3], hasize, mat[4][4], imat[3][3];
+	float dt, nor[3], view[3];
+	float vec[3], hasize, mat[4][4], nmat[3][3];
 	int a, ok, seed= ma->seed1;
 
 	mul_m4_m4m4(mat, ob->obmat, re->cam.viewmat);
-	copy_m3_m4(imat, ob->imat);
+	copy_m3_m4(nmat, ob->imat);
+	transpose_m3(nmat);
 
 	re->params.flag |= R_HALO;
 
@@ -1164,22 +1165,16 @@ static void make_render_halos(Render *re, ObjectRen *obr, Mesh *me, int totvert,
 			mul_m4_v3(mat, vec);
 
 			if(ma->mode & MA_HALOPUNO) {
-				xn= mvert->no[0];
-				yn= mvert->no[1];
-				zn= mvert->no[2];
-
-				/* transpose ! */
-				nor[0]= imat[0][0]*xn+imat[0][1]*yn+imat[0][2]*zn;
-				nor[1]= imat[1][0]*xn+imat[1][1]*yn+imat[1][2]*zn;
-				nor[2]= imat[2][0]*xn+imat[2][1]*yn+imat[2][2]*zn;
+				normal_short_to_float_v3(nor, mvert->no);
+				mul_m3_v3(nmat, nor);
 				normalize_v3(nor);
 
 				copy_v3_v3(view, vec);
 				normalize_v3(view);
 
-				zn= nor[0]*view[0]+nor[1]*view[1]+nor[2]*view[2];
-				if(zn>=0.0) hasize= 0.0;
-				else hasize*= zn*zn*zn*zn;
+				dt= dot_v3v3(nor, view);
+				if(dt>=0.0) hasize= 0.0;
+				else hasize*= dt*dt*dt*dt;
 			}
 
 			if(orco) har= halo_init(re, obr, ma, vec, NULL, orco, hasize, 0.0, seed);
@@ -1189,210 +1184,6 @@ static void make_render_halos(Render *re, ObjectRen *obr, Mesh *me, int totvert,
 		if(orco) orco+= 3;
 		seed++;
 	}
-}
-
-/* ------------------------------------------------------------------------- */
-/* Displacement Mapping														 */
-/* ------------------------------------------------------------------------- */
-
-static short test_for_displace(Render *re, Object *ob)
-{
-	/* return 1 when this object uses displacement textures. */
-	Material *ma;
-	int i;
-	
-	for (i=1; i<=ob->totcol; i++) {
-		ma=give_render_material(re, ob, i);
-		/* ma->mapto is ORed total of all mapto channels */
-		if(ma && (ma->mapto & MAP_DISPLACE)) return 1;
-	}
-	return 0;
-}
-
-static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, VertRen *vr, int vindex, float *scale, float mat[][4], float nmat[][3], float *sample)
-{
-	MTFace *tface;
-	VlakRen *vlr= shi->primitive.vlr;
-	short texco= shi->material.mat->texco;
-	float displace[3], *orco;
-	char *name;
-	int i;
-
-	/* shi->geometry.co is current render coord, just make sure at least some vector is here */
-	copy_v3_v3(shi->geometry.co, vr->co);
-	/* vertex normal is used for textures type 'col' and 'var' */
-	copy_v3_v3(shi->geometry.vn, (vlr->flag & R_SMOOTH)? vr->n: vlr->n);
-
-	if(mat)
-		mul_m4_v3(mat, shi->geometry.co);
-	if(nmat)
-		mul_m3_v3(nmat, shi->geometry.vn);
-
-	if (texco & TEXCO_UV) {
-		shi->texture.totuv= 0;
-		shi->texture.actuv= obr->actmtface;
-
-		for (i=0; (tface=render_vlak_get_tface(obr, vlr, i, &name, 0)); i++) {
-			ShadeInputUV *suv= &shi->texture.uv[i];
-
-			/* shi.uv needs scale correction from tface uv */
-			suv->uv[0]= 2*tface->uv[vindex][0]-1.0f;
-			suv->uv[1]= 2*tface->uv[vindex][1]-1.0f;
-			suv->uv[2]= 0.0f;
-			suv->name= name;
-			shi->texture.totuv++;
-		}
-	}
-
-	/* set all rendercoords, 'texco' is an ORed value for all textures needed */
-	if (texco & TEXCO_ORCO) {
-		orco= render_vert_get_orco(obr, vr, 0);
-		if(orco)
-			copy_v3_v3(shi->texture.lo, orco);
-	}
-	if (texco & TEXCO_STICKY) {
-		float *sticky= render_vert_get_sticky(obr, vr, 0);
-		if(sticky) {
-			shi->texture.sticky[0]= sticky[0];
-			shi->texture.sticky[1]= sticky[1];
-			shi->texture.sticky[2]= 0.0f;
-		}
-	}
-	if (texco & TEXCO_GLOB) {
-		copy_v3_v3(shi->texture.gl, shi->geometry.co);
-		mul_m4_v3(re->cam.viewinv, shi->texture.gl);
-	}
-	if (texco & TEXCO_NORM) {
-		copy_v3_v3(shi->texture.orn, shi->geometry.vn);
-	}
-	if(texco & TEXCO_REFL) {
-		/* not (yet?) */
-	}
-	
-	mat_displacement(re, shi, displace);
-	
-	//printf("no=%f, %f, %f\nbefore co=%f, %f, %f\n", vr->n[0], vr->n[1], vr->n[2], 
-	//vr->co[0], vr->co[1], vr->co[2]);
-
-	mul_v3_v3(displace, scale);
-	
-	if(mat)
-		mul_m3_v3(nmat, displace);
-
-	/* 0.5 could become button once?  */
-	vr->co[0] += displace[0]; 
-	vr->co[1] += displace[1];
-	vr->co[2] += displace[2];
-	
-	//printf("after co=%f, %f, %f\n", vr->co[0], vr->co[1], vr->co[2]); 
-	
-	/* we just don't do this vertex again, bad luck for other face using same vertex with
-		different material... */
-	vr->flag |= 1;
-	
-	/* Pass sample back so displace_face can decide which way to split the quad */
-	/* Should be sqrt(sample), but I'm only looking for "bigger".  Save the cycles. */
-	sample[vr->index]= dot_v3v3(shi->texture.displace, shi->texture.displace);
-}
-
-static void displace_render_face(Render *re, ObjectRen *obr, VlakRen *vlr, float *scale, float mat[][4], float nmat[][3], float *sample)
-{
-	ShadeInput shi;
-	VertRen *v1= vlr->v1;
-	VertRen *v2= vlr->v2;
-	VertRen *v3= vlr->v3;
-	VertRen *v4= vlr->v4;
-
-	/* Warning, This is not that nice, and possibly a bit slow,
-	however some variables were not initialized properly in, unless using shade_input_initialize(...), we need to do a memset */
-	memset(&shi, 0, sizeof(ShadeInput)); 
-	/* end warning! - Campbell */
-	
-	/* set up shadeinput struct for multitex() */
-	
-	/* memset above means we dont need this */
-	/*shi.osatex= 0;*/		/* signal not to use dx[] and dy[] texture AA vectors */
-
-	shi.primitive.obr= obr;
-	shi.primitive.vlr= vlr;		/* current render face */
-	shi.material.mat= vlr->mat;		/* current input material */
-	shi.shading.thread= 0;
-
-	/* TODO, assign these, displacement with new bumpmap is skipped without - campbell */
-#if 0
-	/* order is not known ? */
-	shi.primitive.v1= v1;
-	shi.primitive.v2= v2;
-	shi.primitive.v3= v3;
-#endif
-	
-	/* Displace the verts, flag is set when done */
-	if(!v1->flag)
-		displace_render_vert(re, obr, &shi, v1,0,  scale, mat, nmat, sample);
-	
-	if(!v2->flag)
-		displace_render_vert(re, obr, &shi, v2, 1, scale, mat, nmat, sample);
-
-	if(!v3->flag)
-		displace_render_vert(re, obr, &shi, v3, 2, scale, mat, nmat, sample);
-
-	if(v4) {
-		if(!v4->flag)
-			displace_render_vert(re, obr, &shi, v4, 3, scale, mat, nmat, sample);
-
-		/*	closest in displace value.  This will help smooth edges.   */ 
-		if(fabs(sample[v1->index] - sample[v3->index]) > fabs(sample[v2->index] - sample[v4->index]))
-			vlr->flag |= R_DIVIDE_24;
-		else vlr->flag &= ~R_DIVIDE_24;
-	}
-	
-	/* Recalculate the face normal  - if flipped before, flip now */
-	if(v4)
-		normal_quad_v3(vlr->n, v4->co, v3->co, v2->co, v1->co);
-	else
-		normal_tri_v3(vlr->n, v3->co, v2->co, v1->co);
-}
-
-static void do_displacement(Render *re, ObjectRen *obr, float mat[][4], float imat[][3])
-{
-	Object *obt;
-	VlakRen *vlr;
-	VertRen *vr;
-	float scale[3]={1.0f, 1.0f, 1.0f}, temp[3], *sample, nmat[3][3];
-	int i;
-
-	sample= MEM_callocN(sizeof(float)*obr->totvert, "do_displacement sample");
-
-	if(imat) {
-		copy_m3_m3(nmat, imat);
-		transpose_m3(nmat);
-	}
-	else
-		unit_m3(nmat);
-		
-	/* Object Size with parenting */
-	obt=obr->ob;
-	while(obt){
-		add_v3_v3v3(temp, obt->size, obt->dsize);
-		scale[0]*=temp[0]; scale[1]*=temp[1]; scale[2]*=temp[2];
-		obt=obt->parent;
-	}
-	
-	/* Clear all flags */
-	for(i=0; i<obr->totvert; i++){ 
-		vr= render_object_vert_get(obr, i);
-		vr->flag= 0;
-	}
-
-	for(i=0; i<obr->totvlak; i++){
-		vlr=render_object_vlak_get(obr, i);
-		displace_render_face(re, obr, vlr, scale, mat, nmat, sample);
-	}
-
-	MEM_freeN(sample);
-	
-	/* Recalc vertex normals */
-	render_object_calc_vnormals(re, obr, 0, 0);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1406,7 +1197,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 	VertRen *ver;
 	VlakRen *vlr, *vlr1;
 	Material *ma;
-	float *data, *nors, *orco, mat[4][4], imat[3][3], xn, yn, zn;
+	float *data, *nors, *orco, mat[4][4], nmat[3][3];
 	int a, need_orco, vlakindex, *index;
 
 	if (ob!=find_basis_mball(re->db.scene, ob))
@@ -1414,7 +1205,8 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 
 	mul_m4_m4m4(mat, ob->obmat, re->cam.viewmat);
 	invert_m4_m4(ob->imat, mat);
-	copy_m3_m4(imat, ob->imat);
+	copy_m3_m4(nmat, ob->imat);
+	transpose_m3(nmat);
 
 	ma= give_render_material(re, ob, 1);
 
@@ -1438,14 +1230,8 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		mul_m4_v3(mat, ver->co);
 
 		/* render normals are inverted */
-		xn= -nors[0];
-		yn= -nors[1];
-		zn= -nors[2];
-
-		/* transpose ! */
-		ver->n[0]= imat[0][0]*xn+imat[0][1]*yn+imat[0][2]*zn;
-		ver->n[1]= imat[1][0]*xn+imat[1][1]*yn+imat[1][2]*zn;
-		ver->n[2]= imat[2][0]*xn+imat[2][1]*yn+imat[2][2]*zn;
+		negate_v3_v3(ver->n, nors);
+		mul_m3_v3(nmat, ver->n);
 		normalize_v3(ver->n);
 		//if(ob->transflag & OB_NEG_SCALE) negate_v3(ver->n);
 		
@@ -2209,7 +1995,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	MSticky *ms = NULL;
 	DerivedMesh *dm;
 	CustomDataMask mask;
-	float xn, yn, zn,  imat[3][3], mat[4][4];  //nor[3],
+	float nmat[3][3], mat[4][4];
 	float *orco=0;
 	int need_orco=0, need_stress=0, need_nmap_tangent=0, need_tangent=0;
 	int a, a1, ok, vertofs;
@@ -2220,7 +2006,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 
 	mul_m4_m4m4(mat, ob->obmat, re->cam.viewmat);
 	invert_m4_m4(ob->imat, mat);
-	copy_m3_m4(imat, ob->imat);
+	copy_m3_m4(nmat, ob->imat);
 
 	if(me->totvert==0)
 		return;
@@ -2262,7 +2048,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	do_autosmooth |= (me->flag & ME_AUTOSMOOTH);
 	if(do_autosmooth)
 		timeoffset= 0;
-	if(test_for_displace(re, ob ) )
+	if(render_object_has_displacement(re, obr ) )
 		timeoffset= 0;
 	
 	mask= CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL;
@@ -2448,13 +2234,10 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 						if(edgetable)
 							use_mesh_edge_lookup(obr, dm, medge, vlr, edgetable, totedge);
 						
-						xn= -(v0->no[0]+v1->no[0]);
-						yn= -(v0->no[1]+v1->no[1]);
-						zn= -(v0->no[2]+v1->no[2]);
-						/* transpose ! */
-						vlr->n[0]= imat[0][0]*xn+imat[0][1]*yn+imat[0][2]*zn;
-						vlr->n[1]= imat[1][0]*xn+imat[1][1]*yn+imat[1][2]*zn;
-						vlr->n[2]= imat[2][0]*xn+imat[2][1]*yn+imat[2][2]*zn;
+						vlr->n[0]= -(v0->no[0]+v1->no[0]);
+						vlr->n[1]= -(v0->no[1]+v1->no[1]);
+						vlr->n[2]= -(v0->no[2]+v1->no[2]);
+						mul_m3_v3(nmat, vlr->n);
 						normalize_v3(vlr->n);
 						
 						vlr->mat= ma;
@@ -2469,12 +2252,12 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	}
 	
 	if(!timeoffset) {
-		if (!(ob->flag & OB_RENDER_SUBDIVIDE) && test_for_displace(re, ob ) ) {
+		if (!(ob->flag & OB_RENDER_SUBDIVIDE) && render_object_has_displacement(re, obr) ) {
 			render_object_calc_vnormals(re, obr, 0, 0);
 			if(do_autosmooth)
-				do_displacement(re, obr, mat, imat);
+				render_object_displace(re, obr, mat, nmat);
 			else
-				do_displacement(re, obr, NULL, NULL);
+				render_object_displace(re, obr, NULL, NULL);
 		}
 
 		if(do_autosmooth) {
@@ -2788,8 +2571,8 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 		/* the exception below is because displace code now is in init_render_mesh call, 
 		I will look at means to have autosmooth enabled for all object types 
 		and have it as general postprocess, like displace */
-		if((ob->type!=OB_MESH || obr->flag & R_TEMP_COPY) && test_for_displace(re, ob)) 
-			do_displacement(re, obr, NULL, NULL);
+		if((ob->type!=OB_MESH || obr->flag & R_TEMP_COPY) && render_object_has_displacement(re, obr)) 
+			render_object_displace(re, obr, NULL, NULL);
 	
 		if(!timeoffset) {
 			/* phong normal interpolation can cause error in tracing
