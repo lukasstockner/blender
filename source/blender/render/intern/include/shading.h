@@ -97,6 +97,7 @@ void shade_surface(struct Render *re, struct ShadeInput *shi, struct ShadeResult
 
 void shade_color(struct Render *re, struct ShadeInput *shi, ShadeResult *shr);
 void shade_jittered_coords(struct Render *re, struct ShadeInput *shi, int max, float jitco[RE_MAX_OSA][3], int *totjitco);
+void shade_strand_surface_co(struct ShadeInput *shi, float co[3], float n[3]);
 void shade_surface_direct(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
 
 /* Utilities */

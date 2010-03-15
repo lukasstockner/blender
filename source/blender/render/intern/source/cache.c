@@ -762,7 +762,7 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 	
 	/* do raytracing */
 
-	if(method == WO_LIGHT_SHADE_FULL && preprocess) {
+	if(method == WO_LIGHT_SHADE_FULL && preprocess && !shi->primitive.strand) {
 		/* for full shading, we need material & textures */
 		shade_input_init_material(re, shi);
 		shade_input_set_shade_texco(re, shi);
@@ -1065,9 +1065,23 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
 						int added;
 
-						added= irr_cache_lookup(re, shi, cache,
-							ao, env, indirect,
-							geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 1);
+						if(shi->primitive.strand) {
+							added= 0;
+#if 0
+							float co[3], n[3];
+
+							/* TODO: dxco/dyco? */
+							shade_strand_surface_co(shi, co, n);
+							added= irr_cache_lookup(re, shi, cache,
+								ao, env, indirect,
+								co, geom->dxco, geom->dyco, n, n, 1);
+#endif
+						}
+						else {
+							added= irr_cache_lookup(re, shi, cache,
+								ao, env, indirect,
+								geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 1);
+						}
 						
 						if(added) {
 							if(indirect)

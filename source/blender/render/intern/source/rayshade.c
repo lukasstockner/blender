@@ -1941,7 +1941,6 @@ static void wo_apply_color(float result[3], ShadeInput *shi, int method, float a
 		for(a=0; a<3; a++) {
 			normalize_v3_v3(nvec, ldir[a]);
 			negate_v3(nvec); // XXX negated
-
 			mat_bsdf_f(bsdf, &shi->material, &shi->geometry, shi->shading.thread, nvec, BSDF_DIFFUSE);
 			
 			dt= dot_v3v3(nvec, shi->geometry.vno);
@@ -2001,6 +2000,9 @@ void ray_cache_post_apply(struct Render *re, struct ShadeInput *shi,
 {
 	int method= re->db.wrld.ao_shading_method;
 
+	if(shi->primitive.strand)
+		method= WO_LIGHT_SHADE_NONE; /* exception for now */
+
 	if(ao)
 		wo_apply_ao(ao, shi, method, *ao, dir_ao, 1.0f);
 	if(env)
@@ -2045,20 +2047,11 @@ void ray_ao_env_indirect(Render *re, ShadeInput *shi,
 	}
 	else {
 		/* for strands we sample at the root of the strand */
-		StrandRen *strand= shi->primitive.strand;
-		float *surfnor= render_strand_get_surfnor(shi->primitive.obr, strand, 0);
-		float offset[3];
-
-		copy_v3_v3(jitco[0], strand->vert[1].co);
+		shade_strand_surface_co(shi, jitco[0], basis[2]);
 		totjitco= 1;
-
-		/* offset to avoid self intersection */
-		sub_v3_v3v3(offset, strand->vert[2].co, jitco[0]);
-		normalize_v3(offset);
-		madd_v3_v3fl(jitco[0], offset, 1e-8f);
-
-		copy_v3_v3(basis[2], surfnor);
 		ortho_basis_v3v3_v3(basis[0], basis[1], basis[2]);
+
+		method= WO_LIGHT_SHADE_NONE; /* exception for now */
 	}
 
 	/* clear accumulation variables */

@@ -50,6 +50,7 @@
 #include "lamp.h"
 #include "material.h"
 #include "object_mesh.h"
+#include "object_strand.h"
 #include "pixelfilter.h"
 #include "raytrace.h"
 #include "render_types.h"
@@ -120,9 +121,24 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 		if(re->db.irrcache[thread]) {
 			ShadeGeometry *geom= &shi->geometry;
 
-			irr_cache_lookup(re, shi, re->db.irrcache[thread],
-				ao, env, indirect,
-				geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 0);
+#if 0
+			if(shi->primitive.strand) {
+				float co[3], n[3];
+
+				/* TODO: dxco/dyco? */
+				shade_strand_surface_co(shi, co, n);
+
+				irr_cache_lookup(re, shi, re->db.irrcache[thread],
+					ao, env, indirect,
+					co, geom->dxco, geom->dyco, n, n, 0);
+			}
+			else
+#endif
+			{
+				irr_cache_lookup(re, shi, re->db.irrcache[thread],
+					ao, env, indirect,
+					geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 0);
+			}
 		}
 		else
 			ray_ao_env_indirect(re, shi, ao, env, indirect, NULL, NULL, NULL, NULL, 0);
@@ -378,6 +394,23 @@ void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_
 		copy_v3_v3(jitco[0], shi->geometry.co);
 		*totjitco= 1;
 	}
+}
+
+void shade_strand_surface_co(ShadeInput *shi, float co[3], float n[3])
+{
+	/* for strands we sample at the root of the strand */
+	StrandRen *strand= shi->primitive.strand;
+	float *surfnor= render_strand_get_surfnor(shi->primitive.obr, strand, 0);
+	float offset[3];
+
+	copy_v3_v3(co, strand->vert[1].co);
+
+	/* offset to avoid self intersection */
+	sub_v3_v3v3(offset, strand->vert[2].co, co);
+	normalize_v3(offset);
+	madd_v3_v3fl(co, offset, 1e-8f);
+
+	copy_v3_v3(n, surfnor);
 }
 
 static void shade_lamp_accumulate(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, float lv[3], float lainf[3], float lashdw[3], int passflag)
