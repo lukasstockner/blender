@@ -58,6 +58,26 @@ int render_object_has_displacement(Render *re, ObjectRen *obr)
 	return 0;
 }
 
+static void displace_derivatives(ShadeInput *shi)
+{
+	ShadeGeometry *geom= &shi->geometry;
+	ShadePrimitive*prim= &shi->primitive;
+	float dcodu[3], dcodv[3];
+
+	/* compute dudx/dvdx */
+	sub_v3_v3v3(dcodu, prim->v3->co, prim->v2->co);
+	sub_v3_v3v3(dcodv, prim->v3->co, prim->v1->co);
+	
+	mul_v3_fl(dcodu, 1.0f/dot_v3v3(dcodu, dcodu));
+	mul_v3_fl(dcodv, 1.0f/dot_v3v3(dcodv, dcodv));
+	
+	geom->dx_u= dot_v3v3(geom->dxco, dcodu);
+	geom->dx_v= dot_v3v3(geom->dxco, dcodv);
+	
+	geom->dy_u= dot_v3v3(geom->dyco, dcodu);
+	geom->dy_v= dot_v3v3(geom->dyco, dcodv);
+}
+
 static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, VertRen *vr, int vindex, float *scale, float mat[][4], float nmat[][3], float *sample)
 {
 	MTFace *tface;
