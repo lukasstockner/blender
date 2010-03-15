@@ -40,6 +40,7 @@
 
 #include "cache.h"
 #include "diskocclusion.h"
+#include "material.h"
 #include "object_strand.h"
 #include "part.h"
 #include "raytrace.h"
@@ -401,7 +402,7 @@ void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
 #define MAX_ERROR_K				1.0f
 #define WEIGHT_NORMAL_DENOM		65.823047821929777f		/* 1/(1 - cos(10°)) */
 #define SINGULAR_VALUE_EPSILON	1e-4f
-#define MAX_CACHE_DIMENSION		((3+3+1)*9)
+#define MAX_CACHE_DIMENSION		((3+3+1)*4)
 
 /* Data Structures */
 
@@ -444,7 +445,7 @@ struct IrrCache {
 	int lsq_reconstruction;
 	int locked;
 	int dimension;
-	int use_SH;
+	int use_light_dir;
 
 	/* test: a stable global coordinate system may help */
 };
@@ -540,10 +541,8 @@ static IrrCache *irr_cache_new(Render *re, int thread)
 	if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
 		cache->dimension += 3;
 
-	if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_APPROX) {
-		cache->use_SH= 1;
-		cache->dimension *= 9;
-	}
+	if(re->db.wrld.ao_shading_method == WO_LIGHT_SHADE_ONCE)
+		cache->dimension *= 4;
 
 	return cache;
 }
@@ -586,77 +585,81 @@ static float *irr_sample_C(IrrCacheSample *sample)
 	return (float*)((char*)sample + sizeof(IrrCacheSample));
 }
 
-static void irr_sample_set(IrrCacheSample *sample, int use_SH, float *ao, float *env, float *indirect)
+static void irr_sample_set(Render *re, IrrCacheSample *sample, float *ao, float env[3], float indirect[3], float ldir_ao[3], float ldir_env[3][3], float ldir_indirect[3][3])
 {
 	float *C= irr_sample_C(sample);
-	int offset= 0;
+	int method= re->db.wrld.ao_shading_method;
 
-	if(!use_SH) {
-		/* copy regular values */
-		if(ao)
-			C[offset++]= *ao;
-		if(env) {
-			C[offset++]= env[0];
-			C[offset++]= env[1];
-			C[offset++]= env[2];
-		}
-		if(indirect) {
-			C[offset++]= indirect[0];
-			C[offset++]= indirect[1];
-			C[offset++]= indirect[2];
+	/* pack colors and light directions into a single array */
+
+	if(ao) {
+		*C= *ao;
+		C++;
+
+		if(method == WO_LIGHT_SHADE_ONCE) {
+			copy_v3_v3(C, ldir_ao);
+			C += 3;
 		}
 	}
-	else {
-		/* copy spherical harmonics */
-		if(ao)
-			copy_sh_sh(&C[9*offset++], ao);
-		if(env) {
-			copy_sh_sh(&C[9*offset++], env);
-			copy_sh_sh(&C[9*offset++], env+9);
-			copy_sh_sh(&C[9*offset++], env+18);
+
+	if(env) {
+		copy_v3_v3(C, env);
+		C += 3;
+
+		if(method == WO_LIGHT_SHADE_ONCE) {
+			memcpy(C, ldir_env, sizeof(float)*3*3);
+			C += 3*3;
 		}
-		if(indirect) {
-			copy_sh_sh(&C[9*offset++], indirect);
-			copy_sh_sh(&C[9*offset++], indirect+9);
-			copy_sh_sh(&C[9*offset++], indirect+18);
+	}
+
+	if(indirect) {
+		copy_v3_v3(C, indirect);
+		C += 3;
+
+		if(method == WO_LIGHT_SHADE_ONCE) {
+			memcpy(C, ldir_indirect, sizeof(float)*3*3);
+			C += 3*3;
 		}
 	}
 }
 
-static void irr_sample_get(float *C, int use_SH, float N[3], float *ao, float env[3], float indirect[3])
+static void irr_sample_eval(Render *re, ShadeInput *shi, float *C, float *ao, float env[3], float indirect[3])
 {
-	int offset= 0;
+	float *dir_ao= NULL, (*dir_env)[3]= NULL, (*dir_indirect)[3]= NULL;
+	int method= re->db.wrld.ao_shading_method;
 
-	if(!use_SH) {
-		/* simple copy from C array to ao/env/indirect */
-		if(ao)
-			*ao= C[offset++];
-		if(env) {
-			env[0]= C[offset++];
-			env[1]= C[offset++];
-			env[2]= C[offset++];
-		}
-		if(indirect) {
-			indirect[0]= C[offset++];
-			indirect[1]= C[offset++];
-			indirect[2]= C[offset++];
+	if(ao) {
+		*ao= *C;
+		C++;
+
+		if(method == WO_LIGHT_SHADE_ONCE) {
+			dir_ao= C;
+			C += 3;
 		}
 	}
-	else {
-		/* evaluate spherical harmonics using normal */
-		if(ao)
-			*ao= eval_shv3(&C[9*offset++], N);
-		if(env) {
-			env[0]= eval_shv3(&C[9*offset++], N);
-			env[1]= eval_shv3(&C[9*offset++], N);
-			env[2]= eval_shv3(&C[9*offset++], N);
-		}
-		if(indirect) {
-			indirect[0]= eval_shv3(&C[9*offset++], N);
-			indirect[1]= eval_shv3(&C[9*offset++], N);
-			indirect[2]= eval_shv3(&C[9*offset++], N);
+
+	if(env) {
+		copy_v3_v3(env, C);
+		C += 3;
+
+		if(method == WO_LIGHT_SHADE_ONCE) {
+			dir_env = (float(*)[3])C;
+			C += 3*3;
 		}
 	}
+
+	if(indirect) {
+		copy_v3_v3(indirect, C);
+		C += 3;
+
+		if(method == WO_LIGHT_SHADE_ONCE) {
+			dir_indirect = (float(*)[3])C;
+			C += 3*3;
+		}
+	}
+
+	ray_cache_post_apply(re, shi, 
+		ao, env, indirect, dir_ao, dir_env, dir_indirect);
 }
 
 /* Neighbour Clamping [Křivánek 2006] */
@@ -751,17 +754,25 @@ static void irr_cache_insert(IrrCache *cache, IrrCacheSample *sample)
 
 /* Add a Sample */
 
-static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float P[3], float dPdu[3], float dPdv[3], float N[3], float bumpN[3])
+static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, float env[3], float indirect[3], float P[3], float dPdu[3], float dPdv[3], float N[3], float bumpN[3], int preprocess)
 {
 	IrrCacheSample *sample;
-	float Rmean, sh_ao[9], sh_env[27], sh_indirect[27];
-	int use_SH= cache->use_SH;
+	float Rmean, ldir_ao[3], ldir_env[3][3], ldir_indirect[3][3];
+	int method= re->db.wrld.ao_shading_method;
 	
 	/* do raytracing */
-	if(!use_SH)
-		ray_ao_env_indirect(re, shi, ao, env, indirect, &Rmean, use_SH);
-	else
-		ray_ao_env_indirect(re, shi, (ao)? sh_ao: NULL, (env)? sh_env: NULL, (indirect)? sh_indirect: NULL, &Rmean, use_SH);
+
+	if(method == WO_LIGHT_SHADE_FULL && preprocess) {
+		/* for full shading, we need material & textures */
+		shade_input_init_material(re, shi);
+		shade_input_set_shade_texco(re, shi);
+		mat_shading_begin(re, shi, &shi->material, 1);
+	}
+
+	ray_ao_env_indirect(re, shi, ao, env, indirect, ldir_ao, ldir_env, ldir_indirect, &Rmean, 1);
+
+	if(method == WO_LIGHT_SHADE_FULL)
+		mat_shading_end(re, &shi->material);
 
 	/* save sample to cache? */
 	if(!1) ///*(MAX_ERROR != 0) &&*/ (*ao > EPSILON)) { // XXX?
@@ -782,13 +793,28 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 	sample->dP= Rmean;
 
 	/* copy color values */
-	if(!use_SH) {
-		irr_sample_set(sample, use_SH, ao, env, indirect);
+	if(method != WO_LIGHT_SHADE_ONCE) {
+		irr_sample_set(re, sample, ao, env, indirect, NULL, NULL, NULL);
 	}
 	else {
-		irr_sample_set(sample, use_SH, (ao)? sh_ao: NULL, (env)? sh_env: NULL, (indirect)? sh_indirect: NULL);
-		irr_sample_get(irr_sample_C(sample), use_SH, bumpN, ao, env, indirect);
+#if 0
+		if(ao) mul_m3_v3(re->cam.viewninv, ldir_ao);
+		if(env) {
+			mul_m3_v3(re->cam.viewninv, ldir_env[0]);
+			mul_m3_v3(re->cam.viewninv, ldir_env[1]);
+			mul_m3_v3(re->cam.viewninv, ldir_env[2]);
+		}
+		if(indirect) {
+			mul_m3_v3(re->cam.viewninv, ldir_indirect[0]);
+			mul_m3_v3(re->cam.viewninv, ldir_indirect[1]);
+			mul_m3_v3(re->cam.viewninv, ldir_indirect[2]);
+		}
+#endif
+
+		irr_sample_set(re, sample, ao, env, indirect, ldir_ao, ldir_env, ldir_indirect);
 	}
+
+	irr_sample_eval(re, shi, irr_sample_C(sample), ao, env, indirect);
 
 	/* neighbour clamping trick */
 	if(cache->neighbour_clamp) {
@@ -823,11 +849,11 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	copy_v3_v3(dPdv, cdPdv);
 
 	/* normals depend on how we do bump mapping */
-	if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_NONE) {
+	if(re->db.wrld.ao_shading_method == WO_LIGHT_SHADE_NONE) {
 		copy_v3_v3(N, cN);
 		cbumpN= NULL;
 	}
-	else if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_APPROX) {
+	else if(re->db.wrld.ao_shading_method == WO_LIGHT_SHADE_ONCE) {
 		copy_v3_v3(N, cN);
 		copy_v3_v3(bumpN, cbumpN);
 	}
@@ -954,12 +980,12 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 					accum[i] *= invw;
 			}
 
-			irr_sample_get(accum, cache->use_SH, bumpN, ao, env, indirect);
+			irr_sample_eval(re, shi, accum, ao, env, indirect);
 		}
 	}
 	else if(!cache->locked) {
 		/* create a new sample */
-		irr_cache_add(re, shi, cache, ao, env, indirect, P, dPdu, dPdv, N, bumpN);
+		irr_cache_add(re, shi, cache, ao, env, indirect, P, dPdu, dPdv, N, bumpN, preprocess);
 		added= 1;
 
 		if(!preprocess)

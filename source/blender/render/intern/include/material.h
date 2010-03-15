@@ -75,7 +75,8 @@ float mat_alpha(struct ShadeMaterial *mat);
 
 void mat_emit(float emit[3], struct ShadeMaterial *mat, struct ShadeGeometry *geom, int thread);
 
-/* Displacement in camere space coordinates at current location */
+/* Displacement in camere space coordinates at current location,
+   this can be called outside of mat_shading_begin/end */
 
 void mat_displacement(struct Render *re, struct ShadeInput *shi, float displacement[3]);
 

@@ -103,7 +103,7 @@ typedef struct World {
 	float ao_adapt_thresh, ao_adapt_speed_fac;
 	float ao_approx_error, ao_approx_correction;
 	float ao_indirect_energy, ao_env_energy, ao_pad2;
-	short ao_indirect_bounces, ao_bump_method;
+	short ao_indirect_bounces, ao_shading_method;
 	short ao_samp_method, ao_gather_method, ao_approx_passes;
 	
 	/* assorted settings (in the middle of ambient occlusion settings for padding reasons) */
@@ -168,10 +168,10 @@ typedef struct World {
 #define WO_LIGHT_GATHER_RAYTRACE	0
 #define WO_LIGHT_GATHER_APPROX		1
 
-/* ao_bump_method */
-#define WO_LIGHT_BUMP_NONE		0
-#define WO_LIGHT_BUMP_APPROX	1
-#define WO_LIGHT_BUMP_FULL		2
+/* ao_shading_method */
+#define WO_LIGHT_SHADE_NONE		0
+#define WO_LIGHT_SHADE_ONCE		1
+#define WO_LIGHT_SHADE_FULL		2
 
 /* texco (also in DNA_material_types.h) */
 #define TEXCO_ANGMAP	64

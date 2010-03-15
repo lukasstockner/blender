@@ -1088,7 +1088,7 @@ void disk_occlusion_sample_direct(Render *re, ShadeInput *shi)
 	exclude.obi= shi->primitive.obi - re->db.objectinstance;
 	exclude.facenr= shi->primitive.vlr->index;
 
-	if(re->db.wrld.ao_bump_method == WO_LIGHT_BUMP_NONE)
+	if(re->db.wrld.ao_shading_method == WO_LIGHT_SHADE_NONE)
 		vn= shi->geometry.vno;
 	else
 		vn= shi->geometry.vn;

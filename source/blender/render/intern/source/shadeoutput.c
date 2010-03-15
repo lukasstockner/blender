@@ -125,7 +125,7 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 				geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 0);
 		}
 		else
-			ray_ao_env_indirect(re, shi, ao, env, indirect, NULL, 0);
+			ray_ao_env_indirect(re, shi, ao, env, indirect, NULL, NULL, NULL, NULL, 0);
 
 		if(ao)
 			ao[1]= ao[2]= ao[0];
@@ -172,16 +172,9 @@ static void ambient_occlusion_apply(Render *re, ShadeInput *shi, ShadeResult *sh
 
 void environment_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
-	float color[3], f= re->db.wrld.ao_env_energy*shi->material.amb;
+	float f= re->db.wrld.ao_env_energy*shi->material.amb;
 
-	if(f == 0.0f)
-		return;
-	
-	mat_color(color, &shi->material);
-
-	shr->env[0]= shi->shading.env[0]*color[0]*f;
-	shr->env[1]= shi->shading.env[1]*color[1]*f;
-	shr->env[2]= shi->shading.env[2]*color[2]*f;
+	mul_v3_v3fl(shr->env, shi->shading.env, f);
 
 	if(shi->shading.combinedflag & SCE_PASS_ENVIRONMENT)
 		add_v3_v3(shr->diff, shr->env);
@@ -189,16 +182,9 @@ void environment_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 static void indirect_lighting_apply(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
-	float color[3], f= re->db.wrld.ao_indirect_energy;
+	float f= re->db.wrld.ao_indirect_energy;
 
-	if(f == 0.0f)
-		return;
-
-	mat_color(color, &shi->material);
-
-	shr->indirect[0]= shi->shading.indirect[0]*color[0]*f;
-	shr->indirect[1]= shi->shading.indirect[1]*color[1]*f;
-	shr->indirect[2]= shi->shading.indirect[2]*color[2]*f;
+	mul_v3_v3fl(shr->indirect, shi->shading.indirect, f);
 
 	if(shi->shading.combinedflag & SCE_PASS_INDIRECT)
 		add_v3_v3(shr->diff, shr->indirect);

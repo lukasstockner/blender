@@ -108,6 +108,7 @@ World *add_world(char *name)
 	wrld->aobias= 0.05f;
 	wrld->ao_samp_method = WO_LIGHT_SAMP_HAMMERSLEY;	
 	wrld->ao_approx_error= 0.25f;
+	wrld->ao_shading_method = WO_LIGHT_SHADE_ONCE;	
 	
 	wrld->preview = NULL;
 

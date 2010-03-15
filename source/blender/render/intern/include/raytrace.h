@@ -30,7 +30,15 @@ void ray_trace_specular(struct Render *re, struct ShadeInput *shi,
 	struct ShadeResult *shr);
 
 void ray_ao_env_indirect(struct Render *re, struct ShadeInput *shi,
-	float *ao, float *env, float *indirect, float *Rmean, int use_bent_normal);
+	float *ao, float env[3], float indirect[3],
+	float dir_ao[3], float dir_env[3][3], float dir_indirect[3][3],
+	float *Rmean, int for_cache);
+
+/* Irradiance Cache Helper */
+
+void ray_cache_post_apply(struct Render *re, struct ShadeInput *shi,
+	float *ao, float env[3], float indirect[3],
+	float dir_ao[3], float dir_env[3][3], float dir_indirect[3][3]);
 
 #endif /* __RENDER_RAYTRACE_H__ */
 
