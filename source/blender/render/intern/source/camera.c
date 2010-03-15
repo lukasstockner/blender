@@ -394,8 +394,6 @@ void RE_SetCamera(Render *re, Object *camera)
 	object_camera_matrix(&re->params.r, camera, cam->winx, cam->winy, 
 		(re->params.flag & R_SEC_FIELD), cam->lens, cam->winmat, &cam->viewplane,
 		&cam->clipsta, &cam->clipend, &cam->type);
-
-	printf("type %d\n", cam->type);
 	
 	cam->viewdx= (cam->viewplane.xmax - cam->viewplane.xmin)/cam->winx;
 	cam->viewdy= (cam->viewplane.ymax - cam->viewplane.ymin)/cam->winy;

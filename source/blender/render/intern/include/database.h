@@ -35,7 +35,7 @@ struct RenderDB;
 struct Scene;
 
 /* convertblender.c */
-void RE_Database_FromScene_Vectors(struct Render *re, struct Scene *sce);
+void RE_Database_FromScene_Vectors(struct Render *re, struct Scene *sce, unsigned int lay);
 
 /* Init/Free */
 

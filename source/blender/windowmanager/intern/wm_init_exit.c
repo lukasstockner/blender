@@ -151,6 +151,7 @@ void WM_init(bContext *C, int argc, char **argv)
 
 	if (!G.background) {
 		GPU_extensions_init();
+		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 	
 		UI_init();
 	}
@@ -159,9 +160,7 @@ void WM_init(bContext *C, int argc, char **argv)
 	clear_mat_mtex_copybuf();
 
 	//	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-	
-//	init_node_butfuncs();
-	
+		
 	ED_preview_init_dbase();
 	
 	G.ndofdevice = -1;	/* XXX bad initializer, needs set otherwise buttons show! */
@@ -173,13 +172,15 @@ void WM_init(bContext *C, int argc, char **argv)
 
 void WM_init_splash(bContext *C)
 {
-	wmWindowManager *wm= CTX_wm_manager(C);
-	wmWindow *prevwin= CTX_wm_window(C);
+	if((U.uiflag & USER_SPLASH_DISABLE) == 0) {
+		wmWindowManager *wm= CTX_wm_manager(C);
+		wmWindow *prevwin= CTX_wm_window(C);
 	
-	if(wm->windows.first) {
-		CTX_wm_window_set(C, wm->windows.first);
-		WM_operator_name_call(C, "WM_OT_splash", WM_OP_INVOKE_DEFAULT, NULL);
-		CTX_wm_window_set(C, prevwin);
+		if(wm->windows.first) {
+			CTX_wm_window_set(C, wm->windows.first);
+			WM_operator_name_call(C, "WM_OT_splash", WM_OP_INVOKE_DEFAULT, NULL);
+			CTX_wm_window_set(C, prevwin);
+		}
 	}
 }
 

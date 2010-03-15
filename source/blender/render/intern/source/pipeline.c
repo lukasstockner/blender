@@ -783,9 +783,9 @@ static void do_render_3d(Render *re)
 	
 	/* make render verts/faces/halos/lamps */
 	if(render_scene_needs_vector(re))
-		RE_Database_FromScene_Vectors(re, re->db.scene);
+		RE_Database_FromScene_Vectors(re, re->db.scene, re->db.lay);
 	else
-	   RE_Database_FromScene(re, re->db.scene, 1);
+	   RE_Database_FromScene(re, re->db.scene, re->db.lay, 1);
 	
 	threaded_tile_processor(re);
 	
@@ -1252,7 +1252,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 					ntree->tbh= re->cb.tbh;
 					
 					if(update_newframe)
-						scene_update_for_newframe(re->db.scene, re->db.scene->lay);
+						scene_update_for_newframe(re->db.scene, re->db.lay);
 					
 					if(re->params.r.scemode & R_FULL_SAMPLE) 
 						do_merge_fullsample(re, ntree, &RenderGlobal.renderlist);
@@ -1512,7 +1512,7 @@ static void update_physics_cache(Render *re, Scene *scene, int anim_init)
 	BKE_ptcache_make_cache(&baker);
 }
 /* evaluating scene options for general Blender render */
-static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLayer *srl, int anim, int anim_init)
+static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int anim, int anim_init)
 {
 	int winx, winy;
 	rcti disprect;
@@ -1539,6 +1539,7 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 	}
 	
 	re->db.scene= scene;
+	re->db.lay= lay;
 	
 	/* not too nice, but it survives anim-border render */
 	if(anim) {
@@ -1579,7 +1580,7 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 }
 
 /* general Blender frame render call */
-void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, int frame)
+void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
 	RenderGlobal.renderingslot= re->slot;
@@ -1588,7 +1589,7 @@ void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, int frame)
 	
 	scene->r.cfra= frame;
 	
-	if(render_initialize_from_scene(re, scene, srl, 0, 0)) {
+	if(render_initialize_from_scene(re, scene, srl, lay, 0, 0)) {
 		do_render_all_options(re);
 	}
 	
@@ -1685,15 +1686,14 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 }
 
 /* saves images to disk */
-void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, ReportList *reports)
+void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int efra, int tfra, ReportList *reports)
 {
 	bMovieHandle *mh= BKE_get_movie_handle(scene->r.imtype);
-	unsigned int lay;
 	int cfrao= scene->r.cfra;
 	int nfra;
 	
 	/* do not fully call for each frame, it initializes & pops output window */
-	if(!render_initialize_from_scene(re, scene, NULL, 0, 1))
+	if(!render_initialize_from_scene(re, scene, NULL, lay, 0, 1))
 		return;
 	
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
@@ -1728,7 +1728,7 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 			char name[FILE_MAX];
 			
 			/* only border now, todo: camera lens. (ton) */
-			render_initialize_from_scene(re, scene, NULL, 1, 0);
+			render_initialize_from_scene(re, scene, NULL, lay, 1, 0);
 
 			if(nfra!=scene->r.cfra) {
 				/*
@@ -1736,12 +1736,14 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 				 * From convertblender.c:
 				 * in localview, lamps are using normal layers, objects only local bits.
 				 */
-				if(scene->lay & 0xFF000000)
-					lay= scene->lay & 0xFF000000;
-				else
-					lay= scene->lay;
+				unsigned int updatelay;
 
-				scene_update_for_newframe(scene, lay);
+				if(re->db.lay & 0xFF000000)
+					updatelay= re->db.lay & 0xFF000000;
+				else
+					updatelay= re->db.lay;
+
+				scene_update_for_newframe(scene, updatelay);
 				continue;
 			}
 			else

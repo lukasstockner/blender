@@ -30,7 +30,7 @@ void ray_trace_specular(struct Render *re, struct ShadeInput *shi,
 	struct ShadeResult *shr);
 
 void ray_ao_env_indirect(struct Render *re, struct ShadeInput *shi,
-	float *ao, float *env, float *indirect, float *Rmean, int use_SH);
+	float *ao, float *env, float *indirect, float *Rmean, int use_bent_normal);
 
 #endif /* __RENDER_RAYTRACE_H__ */
 

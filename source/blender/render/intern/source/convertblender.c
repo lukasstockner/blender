@@ -653,7 +653,7 @@ static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, in
 static int get_vector_renderlayers(Scene *sce)
 {
 	SceneRenderLayer *srl;
-	int lay= 0;
+	unsigned int lay= 0;
 
     for(srl= sce->r.layers.first; srl; srl= srl->next)
 		if(srl->passflag & SCE_PASS_VECTOR)
@@ -737,7 +737,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 				}
 			}
 		}
-		else if((base->lay & lay) || (ob->type==OB_LAMP && (base->lay & re->db.scene->lay)) ) {
+		else if((base->lay & lay) || (ob->type==OB_LAMP && (base->lay & re->db.lay)) ) {
 			if((ob->transflag & OB_DUPLI) && (ob->type!=OB_MBALL)) {
 				DupliObject *dob;
 				ListBase *lb;
@@ -919,14 +919,14 @@ static void render_db_preprocess(Render *re)
 }
 
 /* used to be 'rotate scene' */
-void RE_Database_FromScene(Render *re, Scene *scene, int use_camera_view)
+void RE_Database_FromScene(Render *re, Scene *scene, unsigned int lay, int use_camera_view)
 {
 	extern int slurph_opt;	/* key.c */
 	Scene *sce;
 	float mat[4][4];
-	unsigned int lay;
 
 	re->db.scene= scene;
+	re->db.lay= lay;
 	
 	/* per second, per object, stats print this */
 	re->cb.i.infostr= "Preparing Scene data";
@@ -939,8 +939,8 @@ void RE_Database_FromScene(Render *re, Scene *scene, int use_camera_view)
 	re->cb.i.partsdone= 0;	/* signal now in use for previewrender */
 	
 	/* in localview, lamps are using normal layers, objects only local bits */
-	if(re->db.scene->lay & 0xFF000000) lay= re->db.scene->lay & 0xFF000000;
-	else lay= re->db.scene->lay;
+	if(lay & 0xFF000000)
+		lay &= 0xFF000000;
 	
 	/* applies changes fully */
 	if((re->params.r.scemode & R_PREVIEWBUTS)==0)
@@ -1006,13 +1006,13 @@ void RE_DataBase_GetView(Render *re, float mat[][4])
 /* Speed Vectors															 */
 /* ------------------------------------------------------------------------- */
 
-static void database_fromscene_vectors(Render *re, Scene *scene, int timeoffset)
+static void database_fromscene_vectors(Render *re, Scene *scene, unsigned int lay, int timeoffset)
 {
 	extern int slurph_opt;	/* key.c */
 	float mat[4][4];
-	unsigned int lay;
 	
 	re->db.scene= scene;
+	re->db.lay= lay;
 	
 	render_db_init(&re->db);
 
@@ -1021,8 +1021,8 @@ static void database_fromscene_vectors(Render *re, Scene *scene, int timeoffset)
 	slurph_opt= 0;
 	
 	/* in localview, lamps are using normal layers, objects only local bits */
-	if(re->db.scene->lay & 0xFF000000) lay= re->db.scene->lay & 0xFF000000;
-	else lay= re->db.scene->lay;
+	if(lay & 0xFF000000)
+		lay &= 0xFF000000;
 	
 	/* applies changes fully */
 	scene->r.cfra += timeoffset;
@@ -1382,7 +1382,7 @@ static void free_dbase_object_vectors(ListBase *lb)
 	BLI_freelistN(lb);
 }
 
-void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
+void RE_Database_FromScene_Vectors(Render *re, Scene *sce, unsigned int lay)
 {
 	ObjectInstanceRen *obi, *oldobi;
 	SurfaceCache *mesh;
@@ -1397,7 +1397,7 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 	speedvector_project(re, NULL, NULL, NULL);	/* initializes projection code */
 	
 	/* creates entire dbase */
-	database_fromscene_vectors(re, sce, -1);
+	database_fromscene_vectors(re, sce, lay, -1);
 	
 	/* copy away vertex info */
 	copy_dbase_object_vectors(re, &oldtable);
@@ -1412,7 +1412,7 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 		/* creates entire dbase */
 		re->cb.i.infostr= "Calculating next frame vectors";
 		
-		database_fromscene_vectors(re, sce, +1);
+		database_fromscene_vectors(re, sce, lay, +1);
 	}	
 	/* copy away vertex info */
 	copy_dbase_object_vectors(re, &newtable);
@@ -1424,7 +1424,7 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
 	re->db.surfacecache= surfacecache;
 	
 	if(!re->cb.test_break(re->cb.tbh))
-		RE_Database_FromScene(re, sce, 1);
+		RE_Database_FromScene(re, sce, lay, 1);
 	
 	if(!re->cb.test_break(re->cb.tbh)) {
 		for(step= 0; step<2; step++) {
@@ -1513,13 +1513,13 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce)
    RE_BAKE_DISPLACEMENT:for baking, no lamps, only selected objects
    RE_BAKE_SHADOW: for baking, only shadows, but all objects
 */
-void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
+void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Object *actob)
 {
 	float mat[4][4];
-	unsigned int lay;
 	int onlyselected, nolamps;
 	
 	re->db.scene= scene;
+	re->db.lay= lay;
 
 	/* renderdata setup and exceptions */
 	re->params.r= scene->r;
@@ -1573,8 +1573,8 @@ void RE_Database_Baking(Render *re, Scene *scene, int type, Object *actob)
 	onlyselected= ELEM3(type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_DISPLACEMENT);
 
 	/* in localview, lamps are using normal layers, objects only local bits */
-	if(re->db.scene->lay & 0xFF000000) lay= re->db.scene->lay & 0xFF000000;
-	else lay= re->db.scene->lay;
+	if(lay & 0xFF000000)
+		lay &= 0xFF000000;
 	
 	database_init_objects(re, lay, nolamps, onlyselected, actob, 0);
 

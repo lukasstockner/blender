@@ -61,6 +61,7 @@ typedef struct RenderDB {
 	/* scene and world */
 	struct Scene *scene;
 	struct World wrld;
+	unsigned int lay;
 
 	/* objects */
 	ListBase objecttable;

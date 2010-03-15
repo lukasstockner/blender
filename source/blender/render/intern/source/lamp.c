@@ -907,7 +907,7 @@ void lightgroup_create(Render *re, Group *group, int exclusive)
 	for(go= group->gobject.first; go; go= go->next) {
 		go->lampren= NULL;
 		
-		if(go->ob->lay & re->db.scene->lay) {
+		if(go->ob->lay & re->db.lay) {
 			if(go->ob && go->ob->type==OB_LAMP) {
 				for(gol= re->db.lights.first; gol; gol= gol->next) {
 					if(gol->ob==go->ob) {

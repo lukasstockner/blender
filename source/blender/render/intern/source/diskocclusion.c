@@ -204,7 +204,7 @@ static void occ_build_shade(Render *re, OcclusionTree *tree)
 
 	/* setup shade sample with correct passes */
 	memset(&ssamp, 0, sizeof(ShadeSample));
-	ssamp.shi[0].shading.lay= re->db.scene->lay;
+	ssamp.shi[0].shading.lay= re->db.lay;
 	ssamp.shi[0].shading.passflag= SCE_PASS_DIFFUSE|SCE_PASS_RGBA;
 	ssamp.shi[0].shading.combinedflag= ~(SCE_PASS_SPEC);
 	ssamp.tot= 1;
