@@ -679,14 +679,14 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 				|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
 				ambient_occlusion(re, shi);
 
-			if(re->db.wrld.mode & WO_AMB_OCC)
-				ambient_occlusion_apply(re, shi, shr);
-
 			if(re->db.wrld.mode & WO_ENV_LIGHT)
 				environment_lighting_apply(re, shi, shr);
 
 			if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
 				indirect_lighting_apply(re, shi, shr);
+
+			if(re->db.wrld.mode & WO_AMB_OCC)
+				ambient_occlusion_apply(re, shi, shr);
 		}
 	}
 		
