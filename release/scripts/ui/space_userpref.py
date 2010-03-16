@@ -1537,21 +1537,8 @@ class WM_OT_addon_enable(bpy.types.Operator):
         # check if add-on is written for current blender version, or raise a warning
         info = addon_info_get(mod)
 
-        if info["blender"]:
-            version = info["blender"].split(".", 2)
-            for i in range(len(version)):
-                try:
-                    version[i] = int(version[i])
-                except:
-                    break
-
-                if version[i] > bpy.app.version[i]:
-                    self.report("WARNING','This script was written for a newer version of Blender \
-and might not function (correctly).\nThe script is enabled though.")
-                elif version[i] == bpy.app.version[i]:
-                    continue
-                else:
-                    break
+        if info.get("blender", (0, 0, 0)) > bpy.app.version:
+            self.report("WARNING','This script was written for a newer version of Blender and might not function (correctly).\nThe script is enabled though.")
 
         return {'FINISHED'}
 
@@ -1668,7 +1655,6 @@ class WM_OT_addon_expand(bpy.types.Operator):
 
         info = addon_info_get(mod)
         info["expanded"] = not info["expanded"]
-        print(info["expanded"])
         return {'FINISHED'}
 
 
