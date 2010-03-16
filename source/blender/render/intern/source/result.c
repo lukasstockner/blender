@@ -1546,6 +1546,8 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr)
 				if(rr->rectz==NULL)
 					rr->rectz= RE_RenderLayerGetPass(rl, SCE_PASS_Z);	
 			}
+
+			rr->layers= re->result->layers;
 		}
 	}
 }
