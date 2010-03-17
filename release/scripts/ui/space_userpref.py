@@ -1413,8 +1413,7 @@ class USERPREF_PT_addons(bpy.types.Panel):
         addons = [(mod, addon_info_get(mod)) for mod in self._addon_list()]
 
         cats = {info["category"] for mod, info in addons}
-        cats.add("")
-        cats.remove("")
+        cats.discard("")
 
         cats = ['All', 'Disabled', 'Enabled'] + sorted(cats)
 
@@ -1489,6 +1488,25 @@ class USERPREF_PT_addons(bpy.types.Panel):
                     split.separator()
                     split.separator()
 
+        # Append missing scripts
+        # First collect scripts that are used but have no script file.
+        module_names = {mod.__name__ for mod, info in addons}
+        missing_modules = {ext for ext in used_ext if ext not in module_names}
+
+        if missing_modules:
+            layout.column().separator()
+            layout.column().label(text="Missing script files")
+
+            module_names = {mod.__name__ for mod, info in addons}
+            for ext in sorted(missing_modules):
+                if filter == "All" or filter == "Enabled":
+                    # Addon UI Code
+                    box = layout.column().box()
+                    column = box.column()
+                    row = column.row()
+
+                    row.label(text=ext, icon="ERROR")
+                    row.operator("wm.addon_disable").module = ext
 
 from bpy.props import *
 
