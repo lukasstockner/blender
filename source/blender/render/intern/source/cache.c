@@ -1096,6 +1096,8 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 
 				if(re->cb.test_break(re->cb.tbh)) break;
 			}
+
+			if(re->cb.test_break(re->cb.tbh)) break;
 		}
 
 		step /= 2;
