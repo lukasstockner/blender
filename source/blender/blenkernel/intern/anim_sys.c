@@ -995,6 +995,9 @@ static void nlastrip_evaluate_controls (NlaStrip *strip, float ctime)
 		/* execute these settings as per normal */
 		animsys_evaluate_fcurves(&strip_ptr, &strip->fcurves, NULL, ctime);
 	}
+
+	if (strip->flag & NLASTRIP_FLAG_USR_TIME && strip->flag & NLASTRIP_FLAG_USR_TIME_CYCLIC)
+		strip->strip_time= fmod(strip->strip_time - strip->actstart, strip->actend - strip->actstart);
 }
 
 /* gets the strip active at the current time for a list of strips for evaluation purposes */
