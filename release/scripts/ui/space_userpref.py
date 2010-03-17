@@ -1493,20 +1493,19 @@ class USERPREF_PT_addons(bpy.types.Panel):
         module_names = {mod.__name__ for mod, info in addons}
         missing_modules = {ext for ext in used_ext if ext not in module_names}
 
-        if missing_modules:
+        if missing_modules and filter in ("All", "Enabled"):
             layout.column().separator()
             layout.column().label(text="Missing script files")
 
             module_names = {mod.__name__ for mod, info in addons}
             for ext in sorted(missing_modules):
-                if filter == "All" or filter == "Enabled":
-                    # Addon UI Code
-                    box = layout.column().box()
-                    column = box.column()
-                    row = column.row()
+                # Addon UI Code
+                box = layout.column().box()
+                column = box.column()
+                row = column.row()
 
-                    row.label(text=ext, icon="ERROR")
-                    row.operator("wm.addon_disable").module = ext
+                row.label(text=ext, icon="ERROR")
+                row.operator("wm.addon_disable").module = ext
 
 from bpy.props import *
 
