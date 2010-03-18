@@ -94,10 +94,10 @@ static float lamp_falloff(LampRen *lar, float dist)
 			factor = 1.0f;
 			break;
 		case LA_FALLOFF_INVLINEAR:
-			factor = 1.0f/(dist + lar->falloff_smooth*lar->power + LAMP_FALLOFF_MIN_DIST);
+			factor = 1.0f/(dist + lar->falloff_smooth*fabsf(lar->power) + LAMP_FALLOFF_MIN_DIST);
 			break;
 		case LA_FALLOFF_INVSQUARE:
-			factor = 1.0f/(dist*dist + lar->falloff_smooth*lar->power + LAMP_FALLOFF_MIN_DIST);
+			factor = 1.0f/(dist*dist + lar->falloff_smooth*fabsf(lar->power) + LAMP_FALLOFF_MIN_DIST);
 			break;
 		case LA_FALLOFF_CURVE:
 			factor = curvemapping_evaluateF(lar->curfalloff, 0, dist/lar->dist);

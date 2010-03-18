@@ -666,15 +666,6 @@ void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 		}
 	}
 
-	/* prevent only shadow lamps from producing negative colors.*/
-	if(shr->spec[0] < 0) shr->spec[0] = 0;
-	if(shr->spec[1] < 0) shr->spec[1] = 0;
-	if(shr->spec[2] < 0) shr->spec[2] = 0;
-
-	if(shr->diff[0] < 0) shr->diff[0] = 0;
-	if(shr->diff[1] < 0) shr->diff[1] = 0;
-	if(shr->diff[2] < 0) shr->diff[2] = 0;
-
 	/* we now have unshadowed result in shr->shad, turn it into shadow by
 	   dividing shadowed diffuse and specular by unshadowed. it's not possible
 	   to clearly do the separation for compositing ... */
@@ -740,6 +731,15 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 			}
 		}
 	}
+
+	/* clamp diff/spec to be positive after direct and indirect */
+	if(shr->spec[0] < 0) shr->spec[0] = 0;
+	if(shr->spec[1] < 0) shr->spec[1] = 0;
+	if(shr->spec[2] < 0) shr->spec[2] = 0;
+
+	if(shr->diff[0] < 0) shr->diff[0] = 0;
+	if(shr->diff[1] < 0) shr->diff[1] = 0;
+	if(shr->diff[2] < 0) shr->diff[2] = 0;
 }
 
 static void shade_surface_sss(Render *re, ShadeInput *shi, ShadeResult *shr)
