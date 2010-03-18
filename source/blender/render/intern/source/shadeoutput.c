@@ -67,12 +67,21 @@ void shade_color(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
 	ShadeMaterial *smat= &shi->material;
 
-	mat_shading_begin(re, shi, smat, 1);
+	/* only used for transparent shadows so we can do this
+	   optimization, code will be moved later to make this
+	   more clear */
+	if(smat->mat->mode & MA_TRANSP) {
+		mat_shading_begin(re, shi, smat, 1);
 
-	mat_color(shr->diff, smat);
-	shr->alpha= mat_alpha(smat);
+		mat_color(shr->diff, smat);
+		shr->alpha= mat_alpha(smat);
 
-	mat_shading_end(re, smat);
+		mat_shading_end(re, smat);
+	}
+	else {
+		zero_v3(shr->diff);
+		shr->alpha= 1.0f;
+	}
 }
 
 /*********************************** Ramps ***********************************/

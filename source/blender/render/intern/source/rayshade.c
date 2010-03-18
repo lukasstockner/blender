@@ -586,13 +586,17 @@ void shade_ray(Render *re, Isect *is, ShadeInput *shi, ShadeResult *shr)
 		}
 	}
 	else if(is->mode==RE_RAY_SHADOW_TRA) {
+		/* don't run nodes for now, it will do slow full shading .. */
+#if 0
 		/* temp hack to prevent recursion */
 		if(shi->shading.nodes==0 && shi->material.mat->nodetree && shi->material.mat->use_nodes) {
 			ntreeShaderExecTree(shi->material.mat->nodetree, re, shi, shr);
 			shi->material.mat= vlr->mat;		/* shi->material.mat is being set in nodetree */
 		}
 		else
-			shade_color(re, shi, shr);
+#endif
+
+		shade_color(re, shi, shr);
 	}
 	else {
 		if(shi->material.mat->nodetree && shi->material.mat->use_nodes) {
