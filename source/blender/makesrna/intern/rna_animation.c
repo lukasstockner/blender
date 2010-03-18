@@ -124,14 +124,14 @@ static void RKS_GEN_rna_internal(KeyingSetInfo *ksi, bContext *C, KeyingSet *ks,
 	FunctionRNA *func;
 
 	RNA_pointer_create(NULL, ksi->ext.srna, ksi, &ptr);
-	func= RNA_struct_find_function(&ptr, "iterator");
+	func= RNA_struct_find_function(&ptr, "generate");
 
 	RNA_parameter_list_create(&list, &ptr, func);
 		/* hook up arguments */
 		RNA_parameter_set_lookup(&list, "ksi", &ksi);
 		RNA_parameter_set_lookup(&list, "context", &C);
 		RNA_parameter_set_lookup(&list, "ks", &ks);
-		RNA_parameter_set_lookup(&list, "data", &data);
+		RNA_parameter_set_lookup(&list, "data", data);
 		
 		/* execute the function */
 		ksi->ext.call(&ptr, func, &list);
@@ -404,7 +404,7 @@ static void rna_def_keyingset_info(BlenderRNA *brna)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm= RNA_def_pointer(func, "ks", "KeyingSet", "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "data", NULL, "", ""); // "AnyType"...
+	parm= RNA_def_pointer(func, "data", "AnyType", "", ""); 
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 }
 

@@ -526,10 +526,10 @@ void ANIM_keyingset_info_register (const bContext *C, KeyingSetInfo *ksi)
 	KeyingSet *ks;
 	
 	/* determine the KeyingSet list to include the new KeyingSet in */
-	if (ksi->builtin)
-		list = &builtin_keyingsets;
-	else
+	if (ksi->builtin==0 && scene)
 		list = &scene->keyingsets;
+	else
+		list = &builtin_keyingsets;
 	
 	/* create a new KeyingSet 
 	 *	- inherit name and keyframing settings from the typeinfo
@@ -662,11 +662,14 @@ void ANIM_relative_keyingset_add_source (ListBase *dsources, ID *id, StructRNA *
 	tRKS_DSource *ds;
 	
 	/* sanity checks 
-	 *	we must have at least one valid data pointer to use 
+	 *	- we must have somewhere to output the data
+	 *	- we must have both srna+data (and with id too optionally), or id by itself only
 	 */
-	if (ELEM(NULL, dsources, srna) || ((id == data) && (id == NULL)))
+	if (dsources == NULL)
 		return;
-
+	if (ELEM(NULL, srna, data) && (id == NULL))
+		return;
+	
 	/* allocate new elem, and add to the list */
 	ds = MEM_callocN(sizeof(tRKS_DSource), "tRKS_DSource");
 	BLI_addtail(dsources, ds);
