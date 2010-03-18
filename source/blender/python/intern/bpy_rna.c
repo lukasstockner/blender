@@ -1664,7 +1664,7 @@ int pyrna_struct_keyframe_parse(PointerRNA *ptr, PyObject *args, char *error_pre
 	char *path;
 	PropertyRNA *prop;
 
-	if (!PyArg_ParseTuple(args, "s|if", &path, &index, &cfra)) {
+	if (!PyArg_ParseTuple(args, "s|if", &path, index, cfra)) {
 		PyErr_Format(PyExc_TypeError, "%.200s expected a string and optionally an int and float arguments", error_prefix);
 		return -1;
 	}
