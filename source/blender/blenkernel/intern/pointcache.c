@@ -1134,8 +1134,8 @@ static PTCacheFile *ptcache_file_open(PTCacheID *pid, int mode, int cfra)
 	char filename[(FILE_MAXDIR+FILE_MAXFILE)*2];
 
 	/* don't allow writing for linked objects */
-//	if(pid->ob->id.lib && mode == PTCACHE_FILE_WRITE)
-//		return NULL;
+	if(pid->ob->id.lib && mode == PTCACHE_FILE_WRITE)
+		return NULL;
 
 	if (!G.relbase_valid && (pid->cache->flag & PTCACHE_EXTERNAL)==0) return NULL; /* save blend file before using disk pointcache */
 	
@@ -1875,8 +1875,8 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, int cfra)
 		return;
 
 	/* don't allow clearing for linked objects */
-//	if(pid->ob->id.lib)
-//		return;
+	if(pid->ob->id.lib)
+		return;
 
 	/*if (!G.relbase_valid) return; *//* save blend file before using pointcache */
 	

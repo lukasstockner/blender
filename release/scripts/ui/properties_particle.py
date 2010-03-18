@@ -27,7 +27,7 @@ from properties_physics_common import basic_force_field_falloff_ui
 
 
 def particle_panel_enabled(context, psys):
-    return True # return (psys.point_cache.baked is False) and (not psys.edited) and (not context.particle_system_editable)
+    return (psys.point_cache.baked is False) and (not psys.edited) and (not context.particle_system_editable)
 
 
 def particle_panel_poll(context):
