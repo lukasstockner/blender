@@ -202,8 +202,8 @@ struct Isect
 #define RE_SKIP_VLR_RENDER_CHECK		(1 << 2)
 #define RE_SKIP_VLR_NON_SOLID_MATERIAL	(1 << 3)
 
-/* TODO use: FLT_MAX? */
-#define RE_RAYTRACE_MAXDIST	1e33
+/* arbitrary, but can't use e.g. FLT_MAX because of precision issues */
+#define RE_RAYTRACE_MAXDIST	1e15f
 
 #ifdef __cplusplus
 }

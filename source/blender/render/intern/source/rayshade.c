@@ -1477,7 +1477,6 @@ void ray_shadow_single(float lashdw[3], Render *re, ShadeInput *shi, LampRen *la
 
 	// TODO isec.hint = &bb_hint;
 	isec.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
-	isec.mode = RE_RAY_SHADOW; // XXX
 	
 	/* setup intersection */
 	isec.orig.ob = shi->primitive.obi;
