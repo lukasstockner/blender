@@ -107,9 +107,9 @@ static int render_vlak_clip(VlakRen *vlr, float M[4][4], float winmat[4][4], flo
 		interp_v3_v3v3v3(co, co1, co2, co3, M[0]);
 		DO_MINMAX(co, bb[0], bb[1]);
 		interp_v3_v3v3v3(co, co1, co2, co3, M[1]);
-		DO_MINMAX(co2, bb[0], bb[1]);
+		DO_MINMAX(co, bb[0], bb[1]);
 		interp_v3_v3v3v3(co, co1, co2, co3, M[2]);
-		DO_MINMAX(co3, bb[0], bb[1]);
+		DO_MINMAX(co, bb[0], bb[1]);
 	}
 	else {
 		DO_MINMAX(co1, bb[0], bb[1]);
