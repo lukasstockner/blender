@@ -1315,7 +1315,7 @@ Object **get_collisionobjects(Scene *scene, Object *self, int *numcollobj)
 	for ( base = scene->base.first; base; base = base->next )
 	{
 		/*Only proceed for mesh object in same layer */
-		if(!(base->object->type==OB_MESH && (base->lay & self->lay))) 
+		if(!(base->lay & self->lay))
 			continue;
 		
 		coll_ob = base->object;
@@ -1323,7 +1323,7 @@ Object **get_collisionobjects(Scene *scene, Object *self, int *numcollobj)
 		if(coll_ob == self)
 				continue;
 		
-		if(coll_ob->pd && coll_ob->pd->deflect)
+		if(coll_ob->type == OB_MESH && coll_ob->pd && coll_ob->pd->deflect)
 		{
 			collmd = ( CollisionModifierData * ) modifiers_findByType ( coll_ob, eModifierType_Collision );
 		}
@@ -1363,7 +1363,7 @@ Object **get_collisionobjects(Scene *scene, Object *self, int *numcollobj)
 					if(coll_ob == self)
 						continue;
 					
-					if(coll_ob->pd && coll_ob->pd->deflect)
+					if(coll_ob->type == OB_MESH && coll_ob->pd && coll_ob->pd->deflect)
 					{
 						collmd = ( CollisionModifierData * ) modifiers_findByType ( coll_ob, eModifierType_Collision );
 					}

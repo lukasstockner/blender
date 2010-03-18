@@ -383,6 +383,11 @@ int imb_get_anim_type(char * name) {
 
 	if(UTIL_DEBUG) printf("in getanimtype: %s\n", name);
 
+	if (ib_stat(name,&st) == -1) return(0);
+	if (((st.st_mode) & S_IFMT) != S_IFREG) return(0);
+
+	if (isavi(name)) return (ANIM_AVI);
+
 #ifndef _WIN32
 #	ifdef WITH_QUICKTIME
 	if (isqtime(name)) return (ANIM_QTIME);
@@ -391,13 +396,9 @@ int imb_get_anim_type(char * name) {
 	/* stat test below fails on large files > 4GB */
 	if (isffmpeg(name)) return (ANIM_FFMPEG);
 #	endif
-	if (ib_stat(name,&st) == -1) return(0);
-	if (((st.st_mode) & S_IFMT) != S_IFREG) return(0);
-
-	if (isavi(name)) return (ANIM_AVI);
-
 	if (ismovie(name)) return (ANIM_MOVIE);
 #else
+
 	if (ib_stat(name,&st) == -1) return(0);
 	if (((st.st_mode) & S_IFMT) != S_IFREG) return(0);
 
