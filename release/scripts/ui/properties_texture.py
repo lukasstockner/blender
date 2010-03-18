@@ -43,6 +43,15 @@ class TEXTURE_MT_envmap_specials(bpy.types.Menu):
         layout.operator("texture.envmap_clear", icon='FILE_REFRESH')
         layout.operator("texture.envmap_clear_all", icon='FILE_REFRESH')
 
+def node_texture_slots_idblock(idblock):
+    # need this exception still for texture slots, active_texture
+    # already takes into acount node materials automatically
+    if type(idblock) == bpy.types.Material:
+        mat_node = idblock.active_node_material
+        if mat_node:
+            return mat_node
+
+    return idblock
 
 def context_tex_datablock(context):
     idblock = context.material
@@ -108,6 +117,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
         if tex_collection:
             row = layout.row()
 
+            idblock = node_texture_slots_idblock(idblock)
             row.template_list(idblock, "texture_slots", idblock, "active_texture_index", rows=2)
 
             col = row.column(align=True)
