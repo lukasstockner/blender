@@ -1727,6 +1727,7 @@ static void shadeinput_from_isec(Render *re, ShadeInput *oldshi, Isect *isec, fl
 	shi->shading.lay= oldshi->shading.lay;
 	shi->material.mat_override= oldshi->material.mat_override;
 	shi->shading.depth= depth;
+	shi->shading.nodes= oldshi->shading.nodes;
 
 	copy_v3_v3(shi->geometry.view, vec);
 	madd_v3_v3v3fl(shi->geometry.co, isec->start, isec->vec, isec->labda);
