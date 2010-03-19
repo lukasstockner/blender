@@ -359,7 +359,7 @@ static PyObject *pyrna_struct_repr( BPy_StructRNA *self )
 		return pyob;
 	}
 
-	return PyUnicode_FromFormat( "<bpy_struct, %.200s>", RNA_struct_identifier(self->ptr.type));
+	return PyUnicode_FromFormat( "<bpy_struct, %.200s at %p>", RNA_struct_identifier(self->ptr.type), self->ptr.data);
 }
 
 static PyObject *pyrna_prop_repr( BPy_PropertyRNA *self )

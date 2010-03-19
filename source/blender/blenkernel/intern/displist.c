@@ -847,17 +847,17 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
 				/* count */
 				len= 0;
 				a= nu->pntsu-1;
-				if(nu->flagu & CU_CYCLIC) a++;
+				if(nu->flagu & CU_NURB_CYCLIC) a++;
 
 				prevbezt= nu->bezt;
 				bezt= prevbezt+1;
 				while(a--) {
-					if(a==0 && (nu->flagu & CU_CYCLIC)) bezt= nu->bezt;
+					if(a==0 && (nu->flagu & CU_NURB_CYCLIC)) bezt= nu->bezt;
 					
 					if(prevbezt->h2==HD_VECT && bezt->h1==HD_VECT) len++;
 					else len+= resolu;
 					
-					if(a==0 && (nu->flagu & CU_CYCLIC)==0) len++;
+					if(a==0 && (nu->flagu & CU_NURB_CYCLIC)==0) len++;
 					
 					prevbezt= bezt;
 					bezt++;
@@ -874,7 +874,7 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
 
 				data= dl->verts;
 
-				if(nu->flagu & CU_CYCLIC) {
+				if(nu->flagu & CU_NURB_CYCLIC) {
 					dl->type= DL_POLY;
 					a= nu->pntsu;
 				}
@@ -927,7 +927,7 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
 				dl->charidx = nu->charidx;
 
 				data= dl->verts;
-				if(nu->flagu & CU_CYCLIC) dl->type= DL_POLY;
+				if(nu->flagu & CU_NURB_CYCLIC) dl->type= DL_POLY;
 				else dl->type= DL_SEGM;
 				makeNurbcurve(nu, data, NULL, NULL, resolu, 3*sizeof(float));
 			}
@@ -942,7 +942,7 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
 				dl->charidx = nu->charidx;
 
 				data= dl->verts;
-				if(nu->flagu & CU_CYCLIC) dl->type= DL_POLY;
+				if(nu->flagu & CU_NURB_CYCLIC) dl->type= DL_POLY;
 				else dl->type= DL_SEGM;
 				
 				a= len;
@@ -1617,7 +1617,7 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 				dl->rt= nu->flag;
 				
 				data= dl->verts;
-				if(nu->flagu & CU_CYCLIC) dl->type= DL_POLY;
+				if(nu->flagu & CU_NURB_CYCLIC) dl->type= DL_POLY;
 				else dl->type= DL_SEGM;
 				
 				makeNurbcurve(nu, data, NULL, NULL, nu->resolu, 3*sizeof(float));
@@ -1638,8 +1638,8 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 				
 				dl->parts= (nu->pntsu*nu->resolu);	/* in reverse, because makeNurbfaces works that way */
 				dl->nr= (nu->pntsv*nu->resolv);
-				if(nu->flagv & CU_CYCLIC) dl->flag|= DL_CYCL_U;	/* reverse too! */
-				if(nu->flagu & CU_CYCLIC) dl->flag|= DL_CYCL_V;
+				if(nu->flagv & CU_NURB_CYCLIC) dl->flag|= DL_CYCL_U;	/* reverse too! */
+				if(nu->flagu & CU_NURB_CYCLIC) dl->flag|= DL_CYCL_V;
 
 				makeNurbfaces(nu, data, 0);
 				
