@@ -89,6 +89,9 @@ void sethandlesNurb(ListBase *editnurb, short code);
 
 void switchdirectionNurb( struct Nurb *nu);
 
+void addNurbPoints(struct Nurb *nu, int number);
+void addNurbPointsBezier(struct Nurb *nu, int number);
+
 float (*curve_getVertexCos(struct Curve *cu, struct ListBase *lb, int *numVerts_r))[3];
 void curve_applyVertexCos(struct Curve *cu, struct ListBase *lb, float (*vertexCos)[3]);
 

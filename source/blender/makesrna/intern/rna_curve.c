@@ -200,12 +200,15 @@ static void rna_BPoint_array_begin(CollectionPropertyIterator *iter, PointerRNA 
 	rna_iterator_array_begin(iter, (void*)nu->bp, sizeof(BPoint), nu->pntsv>0 ? nu->pntsu*nu->pntsv : nu->pntsu, 0, NULL);
 }
 
-static void rna_Curve_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+static void rna_Curve_update_data_id(Main *bmain, Scene *scene, ID *id)
 {
-	ID *id= ptr->id.data;
-	
 	DAG_id_flush_update(id, OB_RECALC_DATA);
 	WM_main_add_notifier(NC_GEOM|ND_DATA, id);
+}
+
+static void rna_Curve_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	rna_Curve_update_data_id(bmain, scene, ptr->id.data);
 }
 
 static void rna_Curve_update_deps(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -306,6 +309,41 @@ static void rna_Nurb_update_knot_v(Main *bmain, Scene *scene, PointerRNA *ptr)
 	makeknots(nu, 2);
 
 	rna_Curve_update_data(bmain, scene, ptr);
+}
+
+static void rna_Curve_spline_points_add(ID *id, Nurb *nu, bContext *C, ReportList *reports, int number)
+{
+	if(nu->type == CU_BEZIER) {
+		BKE_report(reports, RPT_ERROR, "Bezier spline can't have points added");
+	}
+	else if(number==0) {
+		// do nothing
+	} else {
+
+		addNurbPoints(nu, number);
+
+		/* update */
+		makeknots(nu, 1);
+
+		rna_Curve_update_data_id(CTX_data_main(C), CTX_data_scene(C), id);
+	}
+}
+
+static void rna_Curve_spline_bezpoints_add(ID *id, Nurb *nu, bContext *C, ReportList *reports, int number)
+{
+	if(nu->type != CU_BEZIER) {
+		BKE_report(reports, RPT_ERROR, "Only bezier splines can be added");
+	}
+	else if(number==0) {
+		// do nothing
+	} else {
+		addNurbPointsBezier(nu, number);
+
+		/* update */
+		makeknots(nu, 1);
+
+		rna_Curve_update_data_id(CTX_data_main(C), CTX_data_scene(C), id);
+	}
 }
 
 static Nurb *rna_Curve_spline_new(Curve *cu, int type)
@@ -796,7 +834,62 @@ static void rna_def_text(BlenderRNA *brna)
 }
 
 
-/* scene.objects */
+/* curve.splines[0].points */
+static void rna_def_curve_spline_points(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	//PropertyRNA *prop;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "SplinePoints");
+	srna= RNA_def_struct(brna, "SplinePoints", NULL);
+	RNA_def_struct_sdna(srna, "Nurb");
+	RNA_def_struct_ui_text(srna, "Spline Points", "Collection of spline points");
+
+	func= RNA_def_function(srna, "add", "rna_Curve_spline_points_add");
+	RNA_def_function_ui_description(func, "Add a number of points to this spline.");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_SELF_ID|FUNC_USE_REPORTS);
+	parm= RNA_def_int(func, "number", 1, INT_MIN, INT_MAX, "Number", "Number of points to add to the spline", 0, INT_MAX);
+
+	/*
+	func= RNA_def_function(srna, "remove", "rna_Curve_spline_remove");
+	RNA_def_function_ui_description(func, "Remove a spline from a curve.");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm= RNA_def_pointer(func, "spline", "Spline", "", "The spline to remove.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	*/
+}
+
+static void rna_def_curve_spline_bezpoints(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	//PropertyRNA *prop;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "SplineBezierPoints");
+	srna= RNA_def_struct(brna, "SplineBezierPoints", NULL);
+	RNA_def_struct_sdna(srna, "Nurb");
+	RNA_def_struct_ui_text(srna, "Spline Bezier Points", "Collection of spline bezirt points");
+
+	func= RNA_def_function(srna, "add", "rna_Curve_spline_bezpoints_add");
+	RNA_def_function_ui_description(func, "Add a number of points to this spline.");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_SELF_ID|FUNC_USE_REPORTS);
+	parm= RNA_def_int(func, "number", 1, INT_MIN, INT_MAX, "Number", "Number of points to add to the spline", 0, INT_MAX);
+
+	/*
+	func= RNA_def_function(srna, "remove", "rna_Curve_spline_remove");
+	RNA_def_function_ui_description(func, "Remove a spline from a curve.");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm= RNA_def_pointer(func, "spline", "Spline", "", "The spline to remove.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	*/
+}
+
+/* curve.splines */
 static void rna_def_curve_splines(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
@@ -1011,11 +1104,13 @@ static void rna_def_curve_nurb(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "SplinePoint");
 	RNA_def_property_collection_funcs(prop, "rna_BPoint_array_begin", "rna_iterator_array_next", "rna_iterator_array_end", "rna_iterator_array_get", "rna_Nurb_length", 0, 0);
 	RNA_def_property_ui_text(prop, "Points", "Collection of points that make up this poly or nurbs spline");
+	rna_def_curve_spline_points(brna, prop);
 
 	prop= RNA_def_property(srna, "bezier_points", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "BezierSplinePoint");
 	RNA_def_property_collection_sdna(prop, NULL, "bezt", "pntsu");
 	RNA_def_property_ui_text(prop, "Bezier Points", "Collection of points for bezier curves only");
+	rna_def_curve_spline_bezpoints(brna, prop);
 
 	
 	prop= RNA_def_property(srna, "tilt_interpolation", PROP_ENUM, PROP_NONE);

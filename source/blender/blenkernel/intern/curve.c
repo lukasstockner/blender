@@ -519,7 +519,47 @@ void minmaxNurb(Nurb *nu, float *min, float *max)
 			bp++;
 		}
 	}
+}
 
+/* be sure to call makeknots after this */
+void addNurbPoints(Nurb *nu, int number)
+{
+	BPoint *tmp= nu->bp;
+	int i;
+	nu->bp= (BPoint *)MEM_mallocN((nu->pntsu + number) * sizeof(BPoint), "rna_Curve_spline_points_add");
+
+	if(tmp) {
+		memmove(nu->bp, tmp, nu->pntsu * sizeof(BPoint));
+		MEM_freeN(tmp);
+	}
+
+	memset(nu->bp + nu->pntsu, 0, number * sizeof(BPoint));
+
+	for(i=0, tmp= nu->bp + nu->pntsu; i < number; i++, tmp++) {
+		tmp->radius= 1.0f;
+	}
+
+	nu->pntsu += number;
+}
+
+void addNurbPointsBezier(Nurb *nu, int number)
+{
+	BezTriple *tmp= nu->bezt;
+	int i;
+	nu->bezt= (BezTriple *)MEM_mallocN((nu->pntsu + number) * sizeof(BezTriple), "rna_Curve_spline_points_add");
+
+	if(tmp) {
+		memmove(nu->bezt, tmp, nu->pntsu * sizeof(BezTriple));
+		MEM_freeN(tmp);
+	}
+
+	memset(nu->bezt + nu->pntsu, 0, number * sizeof(BezTriple));
+
+	for(i=0, tmp= nu->bezt + nu->pntsu; i < number; i++, tmp++) {
+		tmp->radius= 1.0f;
+	}
+
+	nu->pntsu += number;
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~Non Uniform Rational B Spline calculations ~~~~~~~~~~~ */
