@@ -606,7 +606,7 @@ static int allow_render_dupli_instance(Render *re, DupliObject *dob, Object *obd
 
 	/* don't allow lamp, animated duplis, or radio render */
 	return (render_object_type(obd->type) &&
-	        (!(dob->type == OB_DUPLIGROUP) || !dob->animated));
+			(!(dob->type == OB_DUPLIGROUP) || !dob->animated));
 }
 
 static void dupli_render_particle_set(Render *re, Object *ob, int timeoffset, int level, int enable)
@@ -655,7 +655,7 @@ static int get_vector_renderlayers(Scene *sce)
 	SceneRenderLayer *srl;
 	unsigned int lay= 0;
 
-    for(srl= sce->r.layers.first; srl; srl= srl->next)
+	for(srl= sce->r.layers.first; srl; srl= srl->next)
 		if(srl->passflag & SCE_PASS_VECTOR)
 			lay |= srl->lay;
 

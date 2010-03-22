@@ -580,16 +580,16 @@ void texture_rgb_blend(float *in, float *tex, float *out, float fact, float facg
 		copy_v3_v3(in, out);
 		ramp_blend(MA_RAMP_COLOR, in, in+1, in+2, fact, tex);
 		break;
-    case MTEX_SOFT_LIGHT: 
-        fact*= facg; 
-        copy_v3_v3(in, out); 
-        ramp_blend(MA_RAMP_SOFT, in, in+1, in+2, fact, tex); 
-        break; 
-    case MTEX_LIN_LIGHT: 
-        fact*= facg; 
-        copy_v3_v3(in, out); 
-        ramp_blend(MA_RAMP_LINEAR, in, in+1, in+2, fact, tex); 
-        break; 
+	case MTEX_SOFT_LIGHT: 
+		fact*= facg; 
+		copy_v3_v3(in, out); 
+		ramp_blend(MA_RAMP_SOFT, in, in+1, in+2, fact, tex); 
+		break; 
+	case MTEX_LIN_LIGHT: 
+		fact*= facg; 
+		copy_v3_v3(in, out); 
+		ramp_blend(MA_RAMP_LINEAR, in, in+1, in+2, fact, tex); 
+		break; 
 	}
 }
 
@@ -652,18 +652,18 @@ float texture_value_blend(float tex, float out, float fact, float facg, int blen
 		if(col > out) in= col; else in= out;
 		break;
 
-    case MTEX_SOFT_LIGHT: 
-        col= fact*tex; 
-        scf=1.0 - (1.0 - tex) * (1.0 - out); 
-        in= facm*out + fact * ((1.0 - out) * tex * out) + (out * scf); 
-        break;       
+	case MTEX_SOFT_LIGHT: 
+		col= fact*tex; 
+		scf=1.0 - (1.0 - tex) * (1.0 - out); 
+		in= facm*out + fact * ((1.0 - out) * tex * out) + (out * scf); 
+		break;	   
 
-    case MTEX_LIN_LIGHT: 
-        if (tex > 0.5) 
-            in = out + fact*(2*(tex - 0.5)); 
-        else 
-            in = out + fact*(2*tex - 1); 
-        break;
+	case MTEX_LIN_LIGHT: 
+		if (tex > 0.5) 
+			in = out + fact*(2*(tex - 0.5)); 
+		else 
+			in = out + fact*(2*tex - 1); 
+		break;
 	}
 	
 	return in;
@@ -1194,7 +1194,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					/* don't linearize float buffers, assumed to be linear */
 					if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
 						srgb_to_linearrgb_v3_v3(tcol, tcol);
-                }
+				}
 				
 				if(mtex->mapto & MAP_COL) {
 					float colfac= mtex->colfac*stencilTin;
@@ -1890,7 +1890,7 @@ void do_sky_tex(Render *re, float *rco, float *lo, float *dxyview, float *hor, f
 					/* don't linearize float buffers, assumed to be linear */
 					if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
 						srgb_to_linearrgb_v3_v3(tcol, tcol);
-                }
+				}
 
 				if(mtex->mapto & WOMAP_HORIZ) {
 					texture_rgb_blend(hor, tcol, hor, texres.tin, mtex->colfac, mtex->blendtype);
@@ -2094,7 +2094,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 					/* don't linearize float buffers, assumed to be linear */
 					if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
 						srgb_to_linearrgb_v3_v3(&texres.tr, &texres.tr);
-                }
+				}
 
 				/* lamp colors were premultiplied with this */
 				col[0]= texres.tr*la->power;

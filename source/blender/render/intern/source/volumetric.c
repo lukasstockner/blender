@@ -293,7 +293,7 @@ float vol_get_density(Render *re, ShadeInput *shi, float *co)
 	if (shi->primitive.obi->obr->ob->type == OB_MBALL) {
 		const float md = metadensity(re, shi->primitive.obi->obr->ob, co);
 		if (md < 1.f) density *= md;
- 	}
+	 }
 	
 	return density * density_scale;
 }

@@ -67,12 +67,12 @@
  * */
 void ClipColor(float c[3])
 {
-    if (c[0] > 1.0f) c[0] = 1.0f;
-    if (c[0] < 0.0f) c[0] = 0.0f;
-    if (c[1] > 1.0f) c[1] = 1.0f;
-    if (c[1] < 0.0f) c[1] = 0.0f;
-    if (c[2] > 1.0f) c[2] = 1.0f;
-    if (c[2] < 0.0f) c[2] = 0.0f;
+	if (c[0] > 1.0) c[0] = 1.0;
+	if (c[0] < 0.0) c[0] = 0.0;
+	if (c[1] > 1.0) c[1] = 1.0;
+	if (c[1] < 0.0) c[1] = 0.0;
+	if (c[2] > 1.0) c[2] = 1.0;
+	if (c[2] < 0.0) c[2] = 0.0;
 }
 
 /**
@@ -101,11 +101,11 @@ static float AngleBetween(float thetav, float phiv, float theta, float phi)
  * */
 static void DirectionToThetaPhi(float *toSun, float *theta, float *phi)
 {
-    *theta = acosf(toSun[2]);
-    if (fabsf(*theta) < 1e-5)
-    	*phi = 0;
-    else
-    	*phi = atan2(toSun[1], toSun[0]);
+	*theta = acos(toSun[2]);
+	if (fabs(*theta) < 1e-5)
+		*phi = 0;
+	else
+		*phi = atan2(toSun[1], toSun[0]);
 }
 
 /**
@@ -114,15 +114,15 @@ static void DirectionToThetaPhi(float *toSun, float *theta, float *phi)
  * */
 float PerezFunction(struct SunSky *sunsky, const float *lam, float theta, float gamma, float lvz)
 {
-    float den, num;
+	float den, num;
 	
-    den = ((1.0f + lam[0] * expf(lam[1])) *
-		   (1.0f + lam[2] * expf(lam[3] * sunsky->theta) + lam[4] * cosf(sunsky->theta) * cosf(sunsky->theta)));
+	den = ((1 + lam[0] * exp(lam[1])) *
+		   (1 + lam[2] * exp(lam[3] * sunsky->theta) + lam[4] * cos(sunsky->theta) * cos(sunsky->theta)));
 	
-    num = ((1.0f + lam[0] * expf(lam[1] / cosf(theta))) *
+	num = ((1.0f + lam[0] * expf(lam[1] / cosf(theta))) *
 		   (1.0f + lam[2] * expf(lam[3] * gamma) + lam[4] * cosf(gamma) * cosf(gamma)));
 	
-    return(lvz * num / den);}
+	return(lvz * num / den);}
 
 /**
  * InitSunSky:
@@ -141,13 +141,13 @@ void InitSunSky(struct SunSky *sunsky, float turb, float *toSun, float horizon_b
 				float spread,float sun_brightness, float sun_size, float back_scatter,
 				float skyblendfac, short skyblendtype, float sky_exposure, float sky_colorspace)
 {
-    
-   	float theta2;
+	
+	   float theta2;
 	float theta3;
 	float T;
 	float T2;
 	float chi;
-        
+	    
 	sunsky->turbidity = turb;
 
 	sunsky->horizon_brightness = horizon_brightness;
@@ -161,10 +161,10 @@ void InitSunSky(struct SunSky *sunsky, float turb, float *toSun, float horizon_b
 	sunsky->sky_colorspace= sky_colorspace;
 	
 	sunsky->toSun[0] = toSun[0];
-    sunsky->toSun[1] = toSun[1];
-    sunsky->toSun[2] = toSun[2];
+	sunsky->toSun[1] = toSun[1];
+	sunsky->toSun[2] = toSun[2];
 
-    DirectionToThetaPhi(sunsky->toSun, &sunsky->theta, &sunsky->phi);
+	DirectionToThetaPhi(sunsky->toSun, &sunsky->theta, &sunsky->phi);
 
 	sunsky->sunSolidAngle = 0.25f * (float)M_PI * 1.39f * 1.39f / (150.0f * 150.0f);   // = 6.7443e-05
 
@@ -181,14 +181,14 @@ void InitSunSky(struct SunSky *sunsky, float turb, float *toSun, float horizon_b
 		sunsky->zenith_Y = 1e-6f;
 	
 	sunsky->zenith_x =
-	    ( + 0.00165f * theta3 - 0.00374f * theta2 + 0.00208f * sunsky->theta + 0.0f) * T2 +
-	    ( -0.02902f * theta3 + 0.06377f * theta2 - 0.03202f * sunsky->theta + 0.00394f) * T +
-	    ( + 0.11693f * theta3 - 0.21196f * theta2 + 0.06052f * sunsky->theta + 0.25885f);
+		( + 0.00165 * theta3 - 0.00374 * theta2 + 0.00208 * sunsky->theta + 0) * T2 +
+		( -0.02902 * theta3 + 0.06377 * theta2 - 0.03202 * sunsky->theta + 0.00394) * T +
+		( + 0.11693 * theta3 - 0.21196 * theta2 + 0.06052 * sunsky->theta + 0.25885);
 
 	sunsky->zenith_y =
-	    ( + 0.00275f * theta3 - 0.00610f * theta2 + 0.00316f * sunsky->theta + 0.0f) * T2 +
-	    ( -0.04214f * theta3 + 0.08970f * theta2 - 0.04153f * sunsky->theta + 0.00515f) * T +
-	    ( + 0.15346f * theta3 - 0.26756f * theta2 + 0.06669f * sunsky->theta + 0.26688f);
+		( + 0.00275 * theta3 - 0.00610 * theta2 + 0.00316 * sunsky->theta + 0) * T2 +
+		( -0.04214 * theta3 + 0.08970 * theta2 - 0.04153 * sunsky->theta + 0.00515) * T +
+		( + 0.15346 * theta3 - 0.26756 * theta2 + 0.06669 * sunsky->theta + 0.26688);
 
 	
 	sunsky->perez_Y[0] = 0.17872f * T - 1.46303f;
@@ -209,8 +209,8 @@ void InitSunSky(struct SunSky *sunsky, float turb, float *toSun, float horizon_b
 	sunsky->perez_y[3] = -0.04405f * T - 1.65369f;
 	sunsky->perez_y[4] = -0.01092f * T + 0.05291f;
 	
-    /* suggested by glome in 
-     * http://projects.blender.org/tracker/?func=detail&atid=127&aid=8063&group_id=9*/
+	/* suggested by glome in 
+	 * http://projects.blender.org/tracker/?func=detail&atid=127&aid=8063&group_id=9*/
 	sunsky->perez_Y[0] *= sunsky->horizon_brightness;
 	sunsky->perez_x[0] *= sunsky->horizon_brightness;
 	sunsky->perez_y[0] *= sunsky->horizon_brightness;
@@ -243,15 +243,15 @@ void InitSunSky(struct SunSky *sunsky, float turb, float *toSun, float horizon_b
  * */
 void GetSkyXYZRadiance(struct SunSky* sunsky, float theta, float phi, float color_out[3])
 {
-    float gamma;
-    float x,y,Y,X,Z;
-    float hfade=1, nfade=1;
-    
-    
-    if (theta>(0.5f*(float)M_PI)) {
-		hfade = 1.0f-(theta*(float)M_1_PI-0.5f)*2.0f;
-		hfade = hfade*hfade*(3.0f-2.0f*hfade);
-		theta = 0.5f*(float)M_PI;
+	float gamma;
+	float x,y,Y,X,Z;
+	float hfade=1, nfade=1;
+	
+	
+	if (theta>(0.5*M_PI)) {
+		hfade = 1.0-(theta*M_1_PI-0.5)*2.0;
+		hfade = hfade*hfade*(3.0-2.0*hfade);
+		theta = 0.5*M_PI;
 	}
 
 	if (sunsky->theta>(0.5f*(float)M_PI)) {
@@ -264,20 +264,20 @@ void GetSkyXYZRadiance(struct SunSky* sunsky, float theta, float phi, float colo
 
 	gamma = AngleBetween(theta, phi, sunsky->theta, sunsky->phi);
 	
-    // Compute xyY values
-    x = PerezFunction(sunsky, sunsky->perez_x, theta, gamma, sunsky->zenith_x);
-    y = PerezFunction(sunsky, sunsky->perez_y, theta, gamma, sunsky->zenith_y);
-    Y = 6.666666667e-5f * nfade * hfade * PerezFunction(sunsky, sunsky->perez_Y, theta, gamma, sunsky->zenith_Y);
+	// Compute xyY values
+	x = PerezFunction(sunsky, sunsky->perez_x, theta, gamma, sunsky->zenith_x);
+	y = PerezFunction(sunsky, sunsky->perez_y, theta, gamma, sunsky->zenith_y);
+	Y = 6.666666667e-5 * nfade * hfade * PerezFunction(sunsky, sunsky->perez_Y, theta, gamma, sunsky->zenith_Y);
 
 	if(sunsky->sky_exposure!=0.0f)
 		Y = 1.0f - expf(Y*sunsky->sky_exposure);
 	
-    X = (x / y) * Y;
-    Z = ((1.0f - x - y) / y) * Y;
+	X = (x / y) * Y;
+	Z = ((1 - x - y) / y) * Y;
 
-    color_out[0] = X;
-    color_out[1] = Y;
-    color_out[2] = Z;
+	color_out[0] = X;
+	color_out[1] = Y;
+	color_out[2] = Z;
 }
 
 /**
@@ -290,19 +290,19 @@ void GetSkyXYZRadiance(struct SunSky* sunsky, float theta, float phi, float colo
  * */
 void GetSkyXYZRadiancef(struct SunSky* sunsky, const float varg[3], float color_out[3])
 {
-    float	theta, phi;
-    float	v[3];
+	float	theta, phi;
+	float	v[3];
 
 	copy_v3_v3(v, (float*)varg);
 	normalize_v3(v);
 
-    if (v[2] < 0.001f){
-        v[2] = 0.001f;
-        normalize_v3(v);
-    }
+	if (v[2] < 0.001){
+		v[2] = 0.001;
+		normalize_v3(v);
+	}
 
-    DirectionToThetaPhi(v, &theta, &phi);
-    GetSkyXYZRadiance(sunsky, theta, phi, color_out);
+	DirectionToThetaPhi(v, &theta, &phi);
+	GetSkyXYZRadiance(sunsky, theta, phi, color_out);
 }
 
 /**
@@ -315,13 +315,13 @@ void GetSkyXYZRadiancef(struct SunSky* sunsky, const float varg[3], float color_
  * */
 void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
 {
-    float fBeta ;
-    float fTauR, fTauA;
-    float m ;
-    float fAlpha;
-    
-    int i;
-    float fLambda[3]; 
+	float fBeta ;
+	float fTauR, fTauA;
+	float m ;
+	float fAlpha;
+	
+	int i;
+	float fLambda[3]; 
 	fLambda[0] = 0.65f;	
 	fLambda[1] = 0.57f;	
 	fLambda[2] = 0.475f;
@@ -331,7 +331,7 @@ void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
 	
 	m =  1.0f/(cosf(theta) + 0.15f*powf(93.885f-theta/(float)M_PI*180.0f,-1.253f));  
 
-    for(i = 0; i < 3; i++)
+	for(i = 0; i < 3; i++)
 	{
 		// Rayleigh Scattering
 		fTauR = expf( -m * 0.008735f * powf(fLambda[i], (float)(-4.08f)));
@@ -340,7 +340,7 @@ void ComputeAttenuatedSunlight(float theta, int turbidity, float fTau[3])
 		fTauA = expf(-m * fBeta * powf(fLambda[i], -fAlpha));  
 
 		fTau[i] = fTauR * fTauA; 
-    }
+	}
 }
 
 /**

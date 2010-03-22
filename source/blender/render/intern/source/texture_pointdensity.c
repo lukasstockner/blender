@@ -280,10 +280,10 @@ static void pointdensity_tex_make(Render *re, Tex *tex)
 
 void pointdensity_make(Render *re, ListBase *lb)
 {
-    Tex *tex;
-    
-    for(tex= lb->first; tex; tex= tex->id.next)
-        if(tex->id.us && tex->type==TEX_POINTDENSITY)
+	Tex *tex;
+
+	for(tex= lb->first; tex; tex= tex->id.next)
+		if(tex->id.us && tex->type==TEX_POINTDENSITY)
 			pointdensity_tex_make(re, tex);
 }
 
@@ -302,12 +302,12 @@ void tex_pointdensity_free(Render *re, Tex *tex)
 
 typedef struct PointDensityRangeData
 {
-    float *density;
-    float squared_radius;
-    float *point_data;
+	float *density;
+	float squared_radius;
+	float *point_data;
 	float *vec;
 	float softness;
-    short falloff_type;
+	short falloff_type;
 	short noise_influence;
 	float *age;
 	int point_data_used;

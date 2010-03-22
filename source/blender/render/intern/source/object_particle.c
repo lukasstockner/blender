@@ -96,8 +96,8 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 
 		/* use actual Blender units for strand width and fall back to minimum width */
 		if(ma->mode & MA_STR_B_UNITS){
-            crosslen= len_v3(cross);
-            w= 2.0f*crosslen*ma->strand_min/w;
+			crosslen= len_v3(cross);
+			w= 2.0f*crosslen*ma->strand_min/w;
 
 			if(width < w)
 				width= w;

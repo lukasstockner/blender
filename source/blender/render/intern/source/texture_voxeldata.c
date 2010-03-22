@@ -306,7 +306,7 @@ void tex_voxeldata_free(Render *re, Tex *tex)
 
 int tex_voxeldata_sample(Tex *tex, float *texvec, TexResult *texres)
 {	 
-    int retval = TEX_INT;
+	int retval = TEX_INT;
 	VoxelData *vd = tex->vd;	
 	float co[3], offset[3] = {0.5, 0.5, 0.5};
 

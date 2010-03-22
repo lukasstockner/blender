@@ -2268,7 +2268,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 	else {
 		if (cageDM!=finalDM) {
 			UI_ThemeColorBlend(TH_WIRE, TH_BACK, 0.7);
-			finalDM->drawEdges(finalDM, 1);
+			finalDM->drawEdges(finalDM, 1, 0);
 		}
 	}
 	
@@ -2390,7 +2390,7 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 			GPU_disable_material();
 		}
 		else {
-			dm->drawEdges(dm, 0);
+			dm->drawEdges(dm, 0, 1);
 		}
 					
 		glLineWidth(1.0);
@@ -2490,7 +2490,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glEnable(GL_LINE_STIPPLE);
 			glLineStipple(1, 0x8888);
 
-			dm->drawEdges(dm, 1);
+			dm->drawEdges(dm, 1, 0);
 
 			bglPolygonOffset(rv3d->dist, 0.0);
 			glDepthMask(1);
@@ -2517,9 +2517,11 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				int fast= (p->flags & PAINT_FAST_NAVIGATE) && (rv3d->rflag & RV3D_NAVIGATING);
 
 				if(ob->sculpt->partial_redraw) {
-					sculpt_get_redraw_planes(planes, ar, rv3d, ob);
-					fpl = planes;
-					ob->sculpt->partial_redraw = 0;
+					if(ar->do_draw & RGN_DRAW_PARTIAL) {
+						sculpt_get_redraw_planes(planes, ar, rv3d, ob);
+						fpl = planes;
+						ob->sculpt->partial_redraw = 0;
+					}
 				}
 
 				dm->drawFacesSolid(dm, fpl, fast, GPU_enable_material);
@@ -2658,7 +2660,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glDepthMask(0);	// disable write in zbuffer, selected edge wires show better
 		}
 		
-		dm->drawEdges(dm, (dt==OB_WIRE || totface==0));
+		dm->drawEdges(dm, (dt==OB_WIRE || totface==0), 0);
 		
 		if (dt!=OB_WIRE && draw_wire==2) {
 			glDepthMask(1);
@@ -3001,7 +3003,7 @@ static void drawDispListshaded(ListBase *lb, Object *ob)
 static void drawCurveDMWired(Object *ob)
 {
 	DerivedMesh *dm = ob->derivedFinal;
-	dm->drawEdges (dm, 1);
+	dm->drawEdges (dm, 1, 0);
 }
 
 /* return 1 when nothing was drawn */
@@ -5843,10 +5845,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			}
 		}
 
-        if(ob->pd && ob->pd->forcefield) {
-            draw_forcefield(scene, ob, rv3d);
-        }
-    }
+		if(ob->pd && ob->pd->forcefield) {
+			draw_forcefield(scene, ob, rv3d);
+		}
+	}
 
 	/* code for new particle system */
 	if(		(warning_recursive==0) &&
@@ -6003,7 +6005,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 		}
 	}
 
-    if((v3d->flag2 & V3D_RENDER_OVERRIDE)==0) {
+	if((v3d->flag2 & V3D_RENDER_OVERRIDE)==0) {
 
 		bConstraint *con;
 		for(con=ob->constraints.first; con; con= con->next) 
@@ -6016,24 +6018,24 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			}
 		}
 
-        /* draw extra: after normal draw because of makeDispList */
-        if(dtx && (G.f & G_RENDER_OGL)==0) {
+		/* draw extra: after normal draw because of makeDispList */
+		if(dtx && (G.f & G_RENDER_OGL)==0) {
         
-            if(dtx & OB_AXIS) {
-                drawaxes(1.0f, flag, OB_ARROWS);
-            }
-            if(dtx & OB_BOUNDBOX) draw_bounding_volume(scene, ob);
-            if(dtx & OB_TEXSPACE) drawtexspace(ob);
-            if(dtx & OB_DRAWNAME) {
-                /* patch for several 3d cards (IBM mostly) that crash on glSelect with text drawing */
-                /* but, we also dont draw names for sets or duplicators */
-                if(flag == 0) {
-                    view3d_cached_text_draw_add(0.0f, 0.0f, 0.0f, ob->id.name+2, 10, 0);
-                }
-            }
-            /*if(dtx & OB_DRAWIMAGE) drawDispListwire(&ob->disp);*/
-            if((dtx & OB_DRAWWIRE) && dt>=OB_SOLID) drawWireExtra(scene, rv3d, ob);
-        }
+			if(dtx & OB_AXIS) {
+				drawaxes(1.0f, flag, OB_ARROWS);
+			}
+			if(dtx & OB_BOUNDBOX) draw_bounding_volume(scene, ob);
+			if(dtx & OB_TEXSPACE) drawtexspace(ob);
+			if(dtx & OB_DRAWNAME) {
+				/* patch for several 3d cards (IBM mostly) that crash on glSelect with text drawing */
+				/* but, we also dont draw names for sets or duplicators */
+				if(flag == 0) {
+					view3d_cached_text_draw_add(0.0f, 0.0f, 0.0f, ob->id.name+2, 10, 0);
+				}
+			}
+			/*if(dtx & OB_DRAWIMAGE) drawDispListwire(&ob->disp);*/
+			if((dtx & OB_DRAWWIRE) && dt>=OB_SOLID) drawWireExtra(scene, rv3d, ob);
+		}
 	}
 
 	if(dt<OB_SHADED) {
@@ -6084,8 +6086,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, int flag)
 			else if((flag & DRAW_CONSTCOLOR)==0) {
 				/* we don't draw centers for duplicators and sets */
 				if(U.obcenter_dia > 0) {
-                    /* check > 0 otherwise grease pencil can draw into the circle select which is annoying. */
-                    drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ob->id.lib || ob->id.us>1);
+					/* check > 0 otherwise grease pencil can draw into the circle select which is annoying. */
+					drawcentercircle(v3d, rv3d, ob->obmat[3], do_draw_center, ob->id.lib || ob->id.us>1);
 				}
 			}
 		}
@@ -6345,9 +6347,9 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 
 	if(dt<=OB_WIRE) {
 		if(dm)
-			dm->drawEdges(dm, 1);
+			dm->drawEdges(dm, 1, 0);
 		else if(edm)
-			edm->drawEdges(edm, 1);	
+			edm->drawEdges(edm, 1, 0);	
 	}
 	else {
 		if(outline)

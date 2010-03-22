@@ -1028,43 +1028,43 @@ void disk_occlusion_create(Render *re)
 			for(a=0; a<mesh->totface; a++) {
 				face= mesh->face[a];
 
-                copy_v3_v3(ao, faceao[a]);
-                copy_v3_v3(env, faceenv[a]);
-                copy_v3_v3(indirect, faceindirect[a]);
+				copy_v3_v3(ao, faceao[a]);
+				copy_v3_v3(env, faceenv[a]);
+				copy_v3_v3(indirect, faceindirect[a]);
   
-                add_v3_v3(mesh->ao[face[0]], ao);
-                add_v3_v3(mesh->env[face[0]], env);
-                add_v3_v3(mesh->indirect[face[0]], indirect);
-                count[face[0]]++;
-                add_v3_v3(mesh->ao[face[1]], ao);
-                add_v3_v3(mesh->env[face[1]], env);
-                add_v3_v3(mesh->indirect[face[1]], indirect);
-                count[face[1]]++;
-                add_v3_v3(mesh->ao[face[2]], ao);
-                add_v3_v3(mesh->env[face[2]], env);
-                add_v3_v3(mesh->indirect[face[2]], indirect);
-                count[face[2]]++;
+				add_v3_v3(mesh->ao[face[0]], ao);
+				add_v3_v3(mesh->env[face[0]], env);
+				add_v3_v3(mesh->indirect[face[0]], indirect);
+				count[face[0]]++;
+				add_v3_v3(mesh->ao[face[1]], ao);
+				add_v3_v3(mesh->env[face[1]], env);
+				add_v3_v3(mesh->indirect[face[1]], indirect);
+				count[face[1]]++;
+				add_v3_v3(mesh->ao[face[2]], ao);
+				add_v3_v3(mesh->env[face[2]], env);
+				add_v3_v3(mesh->indirect[face[2]], indirect);
+				count[face[2]]++;
 
-                if(face[3]) {
-                    add_v3_v3(mesh->ao[face[3]], ao);
-                    add_v3_v3(mesh->env[face[3]], env);
-                    add_v3_v3(mesh->indirect[face[3]], indirect);
-                    count[face[3]]++;
-                }
-            }
+				if(face[3]) {
+					add_v3_v3(mesh->ao[face[3]], ao);
+					add_v3_v3(mesh->env[face[3]], env);
+					add_v3_v3(mesh->indirect[face[3]], indirect);
+					count[face[3]]++;
+				}
+			}
 
-            for(a=0; a<mesh->totvert; a++) {
-                if(count[a]) {
-                    mul_v3_fl(mesh->ao[a], 1.0f/count[a]);
-                    mul_v3_fl(mesh->env[a], 1.0f/count[a]);
-                    mul_v3_fl(mesh->indirect[a], 1.0f/count[a]);
-                }
-            }
+			for(a=0; a<mesh->totvert; a++) {
+				if(count[a]) {
+					mul_v3_fl(mesh->ao[a], 1.0f/count[a]);
+					mul_v3_fl(mesh->env[a], 1.0f/count[a]);
+					mul_v3_fl(mesh->indirect[a], 1.0f/count[a]);
+				}
+			}
 
-            MEM_freeN(count);
-            MEM_freeN(faceao);
-            MEM_freeN(faceenv);
-            MEM_freeN(faceindirect);
+			MEM_freeN(count);
+			MEM_freeN(faceao);
+			MEM_freeN(faceenv);
+			MEM_freeN(faceindirect);
 		}
 	}
 }
@@ -1108,8 +1108,8 @@ void disk_occlusion_sample(Render *re, ShadeInput *shi)
 		}
 		/* try to get result from the cache if possible */
 		else if((shi->shading.depth > 0) ||
-			    ((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP)) ||
-                !(tree->cache && tree->cache[shi->shading.thread] && pixel_cache_sample(tree->cache[shi->shading.thread], shi))) {
+			((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP)) ||
+			!(tree->cache && tree->cache[shi->shading.thread] && pixel_cache_sample(tree->cache[shi->shading.thread], shi))) {
 
 			/* no luck, let's sample the occlusion */
 			disk_occlusion_sample_direct(re, shi);

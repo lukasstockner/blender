@@ -1456,7 +1456,7 @@ static int is_rendering_allowed(Render *re)
 		}
 	}
 	
- 	/* check valid camera, without camera render is OK (compo, seq) */
+	 /* check valid camera, without camera render is OK (compo, seq) */
 	if(re->db.scene->camera==NULL)
 		re->db.scene->camera= scene_find_camera(re->db.scene);
 	

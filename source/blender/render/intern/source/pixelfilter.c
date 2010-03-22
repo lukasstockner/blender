@@ -60,10 +60,10 @@ typedef struct SampleTables
 
 static float filt_quadratic(float x)
 {
-    if (x <  0.0f) x = -x;
-    if (x < 0.5f) return 0.75f-(x*x);
-    if (x < 1.5f) return 0.50f*(x-1.5f)*(x-1.5f);
-    return 0.0f;
+	if (x <  0.0f) x = -x;
+	if (x < 0.5f) return 0.75f-(x*x);
+	if (x < 1.5f) return 0.50f*(x-1.5f)*(x-1.5f);
+	return 0.0f;
 }
 
 
@@ -71,11 +71,11 @@ static float filt_cubic(float x)
 {
 	float x2= x*x;
 	
-    if (x <  0.0f) x = -x;
+	if (x <  0.0f) x = -x;
 	
-    if (x < 1.0f) return 0.5*x*x2 - x2 + 2.0f/3.0f;
-    if (x < 2.0f) return (2.0-x)*(2.0-x)*(2.0-x)/6.0f;
-    return 0.0f;
+	if (x < 1.0f) return 0.5*x*x2 - x2 + 2.0f/3.0f;
+	if (x < 2.0f) return (2.0-x)*(2.0-x)*(2.0-x)/6.0f;
+	return 0.0f;
 }
 
 
@@ -83,10 +83,10 @@ static float filt_catrom(float x)
 {
 	float x2= x*x;
 	
-    if (x <  0.0f) x = -x;
-    if (x < 1.0f) return  1.5f*x2*x - 2.5f*x2  + 1.0f;
-    if (x < 2.0f) return -0.5f*x2*x + 2.5*x2 - 4.0f*x + 2.0f;
-    return 0.0f;
+	if (x <  0.0f) x = -x;
+	if (x < 1.0f) return  1.5f*x2*x - 2.5f*x2  + 1.0f;
+	if (x < 2.0f) return -0.5f*x2*x + 2.5*x2 - 4.0f*x + 2.0f;
+	return 0.0f;
 }
 
 static float filt_mitchell(float x)	/* Mitchell & Netravali's two-param cubic */
@@ -405,9 +405,9 @@ void pxf_free(Render *re)
 
 void pxf_add_alpha_over(float dest[4], float source[4])
 {
-    /* d = s + (1-alpha_s)d*/
-    float mul;
-    
+	/* d = s + (1-alpha_s)d*/
+	float mul;
+
 	mul= 1.0 - source[3];
 
 	dest[0]= (mul*dest[0]) + source[0];
@@ -419,7 +419,7 @@ void pxf_add_alpha_over(float dest[4], float source[4])
 
 void pxf_add_alpha_under(float dest[4], float source[4])
 {
-    float mul;
+	float mul;
 
 	mul= 1.0 - dest[3];
 
@@ -431,41 +431,41 @@ void pxf_add_alpha_under(float dest[4], float source[4])
 
 void pxf_add_alpha_fac(float dest[4], float source[4], char addfac)
 {
-    float m; /* weiging factor of destination */
-    float c; /* intermediate color           */
+	float m; /* weiging factor of destination */
+	float c; /* intermediate color */
 
-    /* Addfac is a number between 0 and 1: rescale */
-    /* final target is to diminish the influence of dest when addfac rises */
-    m = 1.0 - ( source[3] * ((255.0 - addfac) / 255.0));
+	/* Addfac is a number between 0 and 1: rescale */
+	/* final target is to diminish the influence of dest when addfac rises */
+	m = 1.0 - ( source[3] * ((255.0 - addfac) / 255.0));
 
-    /* blend colors*/
-    c= (m * dest[0]) + source[0];
+	/* blend colors*/
+	c= (m * dest[0]) + source[0];
 #ifdef RE_FLOAT_COLOR_CLIPPING
-    if(c >= RE_FULL_COLOR_FLOAT) dest[0] = RE_FULL_COLOR_FLOAT; 
-    else 
+	if(c >= RE_FULL_COLOR_FLOAT) dest[0] = RE_FULL_COLOR_FLOAT; 
+	else 
 #endif
-        dest[0]= c;
+		dest[0]= c;
    
-    c= (m * dest[1]) + source[1];
+	c= (m * dest[1]) + source[1];
 #ifdef RE_FLOAT_COLOR_CLIPPING
-    if(c >= RE_FULL_COLOR_FLOAT) dest[1] = RE_FULL_COLOR_FLOAT; 
-    else 
+	if(c >= RE_FULL_COLOR_FLOAT) dest[1] = RE_FULL_COLOR_FLOAT; 
+	else 
 #endif
-        dest[1]= c;
-    
-    c= (m * dest[2]) + source[2];
+		dest[1]= c;
+	
+	c= (m * dest[2]) + source[2];
 #ifdef RE_FLOAT_COLOR_CLIPPING
-    if(c >= RE_FULL_COLOR_FLOAT) dest[2] = RE_FULL_COLOR_FLOAT; 
-    else 
+	if(c >= RE_FULL_COLOR_FLOAT) dest[2] = RE_FULL_COLOR_FLOAT; 
+	else 
 #endif
-        dest[2]= c;
+		dest[2]= c;
 
 	c= (m * dest[3]) + source[3];
 #ifdef RE_ALPHA_CLIPPING
 	if(c >= RE_FULL_COLOR_FLOAT) dest[3] = RE_FULL_COLOR_FLOAT; 
 	else 
 #endif
-       dest[3]= c;
+	   dest[3]= c;
 
 }
 

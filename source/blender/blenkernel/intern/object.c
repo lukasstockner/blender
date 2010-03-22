@@ -58,8 +58,9 @@
 #include "DNA_world_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_editVert.h"
+#include "BLI_math.h"
+#include "BLI_pbvh.h"
 
 #include "BKE_utildefines.h"
 
@@ -231,23 +232,26 @@ void object_free_display(Object *ob)
 	freedisplist(&ob->disp);
 }
 
-void free_sculptsession(SculptSession **ssp)
+void free_sculptsession(Object *ob)
 {
-	if(ssp && *ssp) {
-		SculptSession *ss = *ssp;
+	if(ob && ob->sculpt) {
+		SculptSession *ss = ob->sculpt;
+		DerivedMesh *dm= ob->derivedFinal;
+
+		if(ss->pbvh)
+			BLI_pbvh_free(ss->pbvh);
+		if(dm && dm->getPBVH)
+			dm->getPBVH(NULL, dm); /* signal to clear */
 
 		if(ss->texcache)
 			MEM_freeN(ss->texcache);
-
-		if(ss->layer_disps)
-			MEM_freeN(ss->layer_disps);
 
 		if(ss->layer_co)
 			MEM_freeN(ss->layer_co);
 
 		MEM_freeN(ss);
 
-		*ssp = NULL;
+		ob->sculpt = NULL;
 	}
 }
 
@@ -306,7 +310,7 @@ void free_object(Object *ob)
 	if(ob->bsoft) bsbFree(ob->bsoft);
 	if(ob->gpulamp.first) GPU_lamp_free(ob);
 
-	free_sculptsession(&ob->sculpt);
+	free_sculptsession(ob);
 
 	if(ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
 }
@@ -710,9 +714,9 @@ void make_local_camera(Camera *cam)
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(cam->id.lib==0) return;
 	if(cam->id.us==1) {
@@ -860,9 +864,9 @@ void make_local_lamp(Lamp *la)
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(la->id.lib==0) return;
 	if(la->id.us==1) {
@@ -1363,9 +1367,9 @@ void make_local_object(Object *ob)
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(ob->id.lib==NULL) return;
 	
@@ -1773,7 +1777,7 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 	
 	
 	/* vec: 4 items! */
- 	if( where_on_path(par, ctime, vec, dir, NULL, &radius) ) {
+	 if( where_on_path(par, ctime, vec, dir, NULL, &radius) ) {
 
 		if(cu->flag & CU_FOLLOW) {
 			vec_to_quat( quat,dir, ob->trackflag, ob->upflag);

@@ -1813,10 +1813,10 @@ void zbufclip(ZSpan *zspan, int obi, int zvlnr, float *f1, float *f2, float *f3,
 				}
 			}
 
-            /* warning, this should never happen! */
+			/* warning, this should never happen! */
 			if(clve>38 || clvl>31) printf("clip overflow: clve clvl %d %d\n",clve,clvl);
 
-            /* perspective division */
+			/* perspective division */
 			f1=vez;
 			for(c1=0;c1<clve;c1++) {
 				hoco_to_zco(zspan, f1, f1);
