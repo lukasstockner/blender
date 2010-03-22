@@ -25,10 +25,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "BLI_math.h"
 
@@ -953,20 +949,15 @@ void translate_m4(float mat[][4],float Tx, float Ty, float Tz)
     mat[3][2] += (Tx*mat[0][2] + Ty*mat[1][2] + Tz*mat[2][2]);
 }
 
-void rotate_m4(float mat[][4], char axis,float angle)
+void rotate_m4(float mat[][4], const char axis, const float angle)
 {
 	int col;
-    float temp[4];
+    float temp[4]= {0.0f, 0.0f, 0.0f, 0.0f};
     float cosine, sine;
 
-    for(col=0; col<4 ; col++)	/* init temp to zero matrix */
-        temp[col] = 0;
-
-    angle = (float)(angle*(3.1415926535/180.0));
     cosine = (float)cos(angle);
     sine = (float)sin(angle);
     switch(axis){
-    case 'x':    
     case 'X':    
         for(col=0 ; col<4 ; col++)
             temp[col] = cosine*mat[1][col] + sine*mat[2][col];
@@ -976,7 +967,6 @@ void rotate_m4(float mat[][4], char axis,float angle)
 	}
         break;
 
-    case 'y':
     case 'Y':
         for(col=0 ; col<4 ; col++)
             temp[col] = cosine*mat[0][col] - sine*mat[2][col];
@@ -986,7 +976,6 @@ void rotate_m4(float mat[][4], char axis,float angle)
         }
 	break;
 
-    case 'z':
     case 'Z':
         for(col=0 ; col<4 ; col++)
             temp[col] = cosine*mat[0][col] + sine*mat[1][col];

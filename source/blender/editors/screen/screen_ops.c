@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -2401,16 +2401,15 @@ static int screen_animation_step(bContext *C, wmOperator *op, wmEvent *event)
 		ScreenAnimData *sad= wt->customdata;
 		ScrArea *sa;
 		int sync;
-		
+		float time;
+
 		/* sync, don't sync, or follow scene setting */
 		if(sad->flag & ANIMPLAY_FLAG_SYNC) sync= 1;
 		else if(sad->flag & ANIMPLAY_FLAG_NO_SYNC) sync= 0;
 		else sync= (scene->flag & SCE_FRAME_DROP);
 		
-		if((scene->audio.flag & AUDIO_SYNC) && !(sad->flag & ANIMPLAY_FLAG_REVERSE))
-		{
-			scene->r.cfra = floor(sound_sync_scene(scene) * FPS);
-		}
+		if((scene->audio.flag & AUDIO_SYNC) && !(sad->flag & ANIMPLAY_FLAG_REVERSE) && finite(time = sound_sync_scene(scene)))
+			scene->r.cfra = floor(time * FPS);
 		else
 		{
 			if(sync) {

@@ -56,16 +56,11 @@ variables on the UI for now
 
 /* types */
 #include "DNA_curve_types.h"
-#include "DNA_object_types.h"
-#include "DNA_object_force.h"	/* here is the softbody struct */
-#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_ghash.h"
 #include "BLI_threads.h"
@@ -73,13 +68,9 @@ variables on the UI for now
 #include "BKE_curve.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
-#include "BKE_key.h"
-#include "BKE_object.h"
 #include "BKE_softbody.h"
-#include "BKE_utildefines.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_pointcache.h"
-#include "BKE_modifier.h"
 #include "BKE_deform.h"
 //XXX #include  "BIF_editdeform.h"
 //XXX #include  "BIF_graphics.h"
@@ -4067,17 +4058,13 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	/* check for changes in mesh, should only happen in case the mesh
 	 * structure changes during an animation */
 	if(sb->bpoint && numVerts != sb->totpoint) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 		return;
 	}
 
 	/* clamp frame ranges */
 	if(framenr < startframe) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		//cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 		return;
 	}
 	else if(framenr > endframe) {
@@ -4110,8 +4097,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 
 	/* continue physics special case */
 	if(BKE_ptcache_get_continue_physics()) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
+		BKE_ptcache_invalidate(cache);
 		/* do simulation */
 		dtime = timescale;
 		softbody_update_positions(ob, sb, vertexCos, numVerts);
@@ -4130,8 +4116,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		/* first frame, no simulation to do, just set the positions */
 		softbody_update_positions(ob, sb, vertexCos, numVerts);
 
-		cache->simframe= framenr;
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		BKE_ptcache_validate(cache, framenr);
 		cache->flag &= ~PTCACHE_REDO_NEEDED;
 		return;
 	}
@@ -4142,8 +4127,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	if(cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
 		softbody_to_object(ob, vertexCos, numVerts, sb->local);
 
-		cache->simframe= framenr;
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		BKE_ptcache_validate(cache, framenr);
 
 		if(cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
 			BKE_ptcache_write_cache(&pid, framenr);
@@ -4151,13 +4135,11 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		return;
 	}
 	else if(cache_result==PTCACHE_READ_OLD) {
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		; /* do nothing */
 	}
 	else if(ob->id.lib || (cache->flag & PTCACHE_BAKED)) {
 		/* if baked and nothing in cache, do nothing */
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 		return;
 	}
 
@@ -4175,8 +4157,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 
 	softbody_to_object(ob, vertexCos, numVerts, 0);
 
-	cache->simframe= framenr;
-	cache->flag |= PTCACHE_SIMULATION_VALID;
+	BKE_ptcache_validate(cache, framenr);
 	BKE_ptcache_write_cache(&pid, framenr);
 }
 

@@ -3009,13 +3009,12 @@ static int drawCurveDerivedMesh(Scene *scene, View3D *v3d, RegionView3D *rv3d, B
 {
 	Object *ob= base->object;
 	DerivedMesh *dm = ob->derivedFinal;
-	Curve *cu= ob->data;
 
 	if (!dm) {
 		return 1;
 	}
 
-	if(dt>OB_WIRE && displist_has_faces(&cu->disp)!=0) {
+	if(dt>OB_WIRE && dm->getNumFaces(dm)) {
 		int glsl = draw_glsl_material(scene, ob, v3d, dt);
 		GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
 

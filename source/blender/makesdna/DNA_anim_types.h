@@ -73,6 +73,7 @@ typedef enum eFModifier_Types {
 	FMODIFIER_TYPE_FILTER,		/* unimplemented - for applying: fft, high/low pass filters, etc. */
 	FMODIFIER_TYPE_PYTHON,	
 	FMODIFIER_TYPE_LIMITS,
+	FMODIFIER_TYPE_STEPPED,
 	
 	/* NOTE: all new modifiers must be added above this line */
 	FMODIFIER_NUM_TYPES
@@ -211,6 +212,7 @@ typedef enum eFMod_Limit_Flags {
 	FCM_LIMIT_YMAX		= (1<<3),
 } eFMod_Limit_Flags;
 
+
 /* noise modifier data */
 typedef struct FMod_Noise {
 	float size;
@@ -229,6 +231,24 @@ typedef enum eFMod_Noise_Modifications {
 	FCM_NOISE_MODIF_SUBTRACT,		/* Subtract noise from the curve */
 	FCM_NOISE_MODIF_MULTIPLY,		/* Multiply the curve by noise */
 } eFMod_Noise_Modifications;
+
+
+/* stepped modifier data */
+typedef struct FMod_Stepped {
+	float step_size;				/* Number of frames each interpolated value should be held */
+	float offset;					/* Reference frame number that stepping starts from */
+	
+	float start_frame;				/* start frame of the frame range that modifier works in */				
+	float end_frame;				/* end frame of the frame range that modifier works in */
+	
+	int flag;						/* various settings */	
+} FMod_Stepped;
+
+/* stepped modifier range flags */
+typedef enum eFMod_Stepped_Flags {
+	FCM_STEPPED_NO_BEFORE 	= (1<<0),	/* don't affect frames before the start frame */
+	FCM_STEPPED_NO_AFTER 	= (1<<1),	/* don't affect frames after the end frame */
+} eFMod_Stepped_Flags;
 
 /* Drivers -------------------------------------- */
 

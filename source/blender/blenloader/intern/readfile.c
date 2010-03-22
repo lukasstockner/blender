@@ -104,28 +104,21 @@
 #include "MEM_guardedalloc.h"
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_storage_types.h" // for relname flags
 
-#include "BKE_animsys.h"
 #include "BKE_anim.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_brush.h"
-#include "BKE_cdderivedmesh.h"
-#include "BKE_cloth.h"
 #include "BKE_colortools.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
-#include "BKE_customdata.h"
 #include "BKE_deform.h"
-#include "BKE_depsgraph.h"
 #include "BKE_effect.h" /* give_parteff */
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
 #include "BKE_image.h"
-#include "BKE_ipo.h" 
 #include "BKE_lattice.h"
 #include "BKE_library.h" // for wich_libbase
 #include "BKE_main.h" // for Main
@@ -142,12 +135,9 @@
 #include "BKE_sca.h" // for init_actuator
 #include "BKE_scene.h"
 #include "BKE_screen.h"
-#include "BKE_softbody.h"	// sbNew()
-#include "BKE_bullet.h"		// bsbNew()
 #include "BKE_sequencer.h"
 #include "BKE_texture.h" // for open_plugin_tex
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
-#include "BKE_idprop.h"
 
 #include "BKE_sound.h"
 
@@ -1070,7 +1060,7 @@ int BLO_has_bfile_extension(char *str)
 	return (BLI_testextensie(str, ".ble") || BLI_testextensie(str, ".blend")||BLI_testextensie(str, ".blend.gz"));
 }
 
-int BLO_is_a_library(char *path, char *dir, char *group)
+int BLO_is_a_library(const char *path, char *dir, char *group)
 {
 	/* return ok when a blenderfile, in dir is the filename,
 	 * in group the type of libdata
@@ -1087,7 +1077,7 @@ int BLO_is_a_library(char *path, char *dir, char *group)
 	dir[len-1]= 0;
 
 	/* Find the last slash */
-	fd= (strrchr(dir, '/')>strrchr(dir, '\\'))?strrchr(dir, '/'):strrchr(dir, '\\');
+	fd= BLI_last_slash(dir);
 
 	if(fd==0) return 0;
 	*fd= 0;
@@ -1099,7 +1089,7 @@ int BLO_is_a_library(char *path, char *dir, char *group)
 		char *gp = fd+1; // in case we have a .blend file, gp points to the group
 
 		/* Find the last slash */
-		fd= (strrchr(dir, '/')>strrchr(dir, '\\'))?strrchr(dir, '/'):strrchr(dir, '\\');
+		fd= BLI_last_slash(dir);
 		if (!fd || !BLO_has_bfile_extension(fd+1)) return 0;
 
 		/* now we know that we are in a blend file and it is safe to 
@@ -4143,7 +4133,10 @@ static void lib_link_scene(FileData *fd, Main *main)
 
 			SEQ_BEGIN(sce->ed, seq) {
 				if(seq->ipo) seq->ipo= newlibadr_us(fd, sce->id.lib, seq->ipo);
-				if(seq->scene) seq->scene= newlibadr(fd, sce->id.lib, seq->scene);
+				if(seq->scene) {
+					seq->scene= newlibadr(fd, sce->id.lib, seq->scene);
+					seq->scene_sound = sound_scene_add_scene_sound(sce, seq, seq->startdisp, seq->enddisp, seq->startofs);
+				}
 				if(seq->scene_camera) seq->scene_camera= newlibadr(fd, sce->id.lib, seq->scene_camera);
 				if(seq->sound) {
 					seq->scene_sound = NULL;
