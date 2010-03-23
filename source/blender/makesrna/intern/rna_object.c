@@ -99,7 +99,8 @@ EnumPropertyItem object_type_items[] = {
 EnumPropertyItem object_type_curve_items[] = {
 	OBTYPE_CU_CURVE,
 	OBTYPE_CU_SURF,
-	OBTYPE_CU_TEXT};
+	OBTYPE_CU_TEXT,
+	{0, NULL, 0, NULL, NULL}};
     
 #ifdef RNA_RUNTIME
 
