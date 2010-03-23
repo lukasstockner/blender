@@ -852,8 +852,13 @@ static void draw_transp_spot_volume(Lamp *la, float x, float z)
 	glCullFace(GL_BACK);
 }
 
-static float lamp_half_energy_distance(Lamp *la)
+static float lamp_half_energy_distance(Scene *scene, Lamp *la)
 {
+	float cutoff= 0.01f; /* cutoff intensity */
+
+	if(scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+		cutoff= srgb_to_linearrgb(cutoff);
+
 	switch(la->type) {
 		case LA_SUN:
 		case LA_HEMI:
@@ -861,7 +866,7 @@ static float lamp_half_energy_distance(Lamp *la)
 
 		case LA_AREA:
 			if(!la->mode & LA_MULTI_SHADE)
-				return sqrtf(100.0f);
+				return sqrtf(1.0f/cutoff);
 			
 			/* fall through */
 		case LA_SPOT:
@@ -870,9 +875,9 @@ static float lamp_half_energy_distance(Lamp *la)
 			if(la->falloff_type == LA_FALLOFF_CONSTANT)
 				return 1.0f;
 			else if(la->falloff_type == LA_FALLOFF_INVLINEAR)
-				return maxf(100.0f - la->falloff_smooth*la->power, 0.1f);
+				return maxf(1.0f/cutoff - la->falloff_smooth*la->power, 0.1f);
 			else if(la->falloff_type == LA_FALLOFF_INVSQUARE)
-				return sqrtf(maxf(100.0f - la->falloff_smooth*la->power, 0.1f));
+				return sqrtf(maxf(1.0f/cutoff - la->falloff_smooth*la->power, 0.1f));
 			else if(la->falloff_type == LA_FALLOFF_CURVE)
 				return la->dist;
 	}
@@ -897,7 +902,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	}
 
 	/* compute lamp distance */
-	lampdist= lamp_half_energy_distance(la);
+	lampdist= lamp_half_energy_distance(scene, la);
 	
 	/* we first draw only the screen aligned & fixed scale stuff */
 	glPushMatrix();
