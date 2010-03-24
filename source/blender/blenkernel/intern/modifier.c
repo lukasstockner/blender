@@ -3692,6 +3692,8 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 	char uvname[32];
 	float aspx= umd->aspectx ? umd->aspectx : 1.0f;
 	float aspy= umd->aspecty ? umd->aspecty : 1.0f;
+	float scax= umd->scalex ? umd->scalex : 1.0f;
+	float scay= umd->scaley ? umd->scaley : 1.0f;
 	int free_uci= 0;
 	
 	aspect = aspx / aspy;
@@ -3828,6 +3830,22 @@ static DerivedMesh *uvprojectModifier_do(UVProjectModifierData *umd,
 						project_from_camera(tface->uv[2], coords[mf->v3], projectors[0].uci);
 						if(mf->v3)
 							project_from_camera(tface->uv[3], coords[mf->v4], projectors[0].uci);
+						
+						if(scax != 1.0f) {
+							tface->uv[0][0] = ((tface->uv[0][0] - 0.5f) * scax) + 0.5f;
+							tface->uv[1][0] = ((tface->uv[1][0] - 0.5f) * scax) + 0.5f;
+							tface->uv[2][0] = ((tface->uv[2][0] - 0.5f) * scax) + 0.5f;
+							if(mf->v3)
+								tface->uv[3][0] = ((tface->uv[3][0] - 0.5f) * scax) + 0.5f;
+						}
+						
+						if(scay != 1.0f) {
+							tface->uv[0][1] = ((tface->uv[0][1] - 0.5f) * scay) + 0.5f;
+							tface->uv[1][1] = ((tface->uv[1][1] - 0.5f) * scay) + 0.5f;
+							tface->uv[2][1] = ((tface->uv[2][1] - 0.5f) * scay) + 0.5f;
+							if(mf->v3)
+								tface->uv[3][1] = ((tface->uv[3][1] - 0.5f) * scay) + 0.5f;
+						}
 					}
 					else {
 						/* apply transformed coords as UVs */
