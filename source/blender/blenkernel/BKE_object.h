@@ -121,7 +121,7 @@ int ray_hit_boundbox(struct BoundBox *bb, float ray_start[3], float ray_normal[3
 void *object_tfm_backup(struct Object *ob);
 void object_tfm_restore(struct Object *ob, void *obtfm_pt);
 
-void object_handle_update(struct Scene *scene, struct Object *ob, float groupmat[][4]);
+void object_handle_update(struct Scene *scene, struct Object *ob);
 
 float give_timeoffset(struct Object *ob);
 int give_obdata_texspace(struct Object *ob, short **texflag, float **loc, float **size, float **rot);

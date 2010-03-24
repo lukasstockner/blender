@@ -354,6 +354,10 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 			if(go->ob) {
 				mul_m4_m4m4(go->ob->obmat, go->ob->obmat, parmat);
 				mul_m4_m4m4(go->ob->parentinv, go->ob->parentinv, iparmat);
+
+				/* this is applied in where_is_object_time in case the 
+				   matrix is recalculated */
+				go->ob->groupmat= (float*)parmat;
 			}
 		}
 	}
@@ -372,7 +376,7 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 				go->ob->recalc= go->recalc;
 				
 				group_replaces_nla(parent, go->ob, 's');
-				object_handle_update(scene, go->ob, parmat);
+				object_handle_update(scene, go->ob);
 				group_replaces_nla(parent, go->ob, 'e');
 				
 				/* leave recalc tags in case group members are in normal scene */
@@ -387,7 +391,7 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 		/* only do existing tags, as set by regular depsgraph */
 		for(go= group->gobject.first; go; go= go->next)
 			if(go->ob && go->ob->recalc)
-				object_handle_update(scene, go->ob, parmat);
+				object_handle_update(scene, go->ob);
 	}
 
 	if(group->id.lib) {
@@ -395,6 +399,8 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 			if(go->ob) {
 				mul_m4_m4m4(go->ob->obmat, go->ob->obmat, iparmat);
 				mul_m4_m4m4(go->ob->parentinv, go->ob->parentinv, parmat);
+
+				go->ob->groupmat= NULL;
 			}
 		}
 	}

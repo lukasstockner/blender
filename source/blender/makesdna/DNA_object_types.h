@@ -250,12 +250,12 @@ typedef struct Object {
 	int lastDataMask;			/* the custom data layer mask that was last used to calculate derivedDeform and derivedFinal */
 	unsigned int state;			/* bit masks of game controllers that are active */
 	unsigned int init_state;	/* bit masks of initial state as recorded by the users */
-
-	int pad2;
+	unsigned int pad2;
 
 	ListBase gpulamp;		/* runtime, for lamps only */
 	ListBase pc_ids;
 	ListBase *duplilist;	/* for temporary dupli list storage, only for use by RNA API */
+	float *groupmat;		/* runtime, temporarily set during group evaluation */
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

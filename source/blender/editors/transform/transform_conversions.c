@@ -4292,7 +4292,7 @@ static void set_trans_object_base_flags(bContext *C, TransInfo *t)
 	/* handle pending update events, otherwise they got copied below */
 	for (base= scene->base.first; base; base= base->next) {
 		if(base->object->recalc)
-			object_handle_update(t->scene, base->object, NULL);
+			object_handle_update(t->scene, base->object);
 	}
 
 	for (base= scene->base.first; base; base= base->next) {

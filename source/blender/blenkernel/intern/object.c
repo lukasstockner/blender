@@ -2065,6 +2065,14 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 	/* set negative scale flag in object */
 	if(is_negative_m4(ob->obmat))	ob->transflag |= OB_NEG_SCALE;
 	else							ob->transflag &= ~OB_NEG_SCALE;
+
+	if(ob->groupmat) {
+		/* if this is being called as part of dupligroup evaluation, we
+		   want the object matrices to be transformed by the duplicator
+		   so that e.g. physics systems are executed in the correct
+		   space. this is enabled in group_handle_recalc_and_update */
+		mul_m4_m4m4(ob->obmat, ob->obmat, (float(*)[4])ob->groupmat);
+	}
 }
 
 static void solve_parenting (Scene *scene, Object *ob, Object *par, float obmat[][4], float slowmat[][4], int simul)
@@ -2477,10 +2485,9 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 
 /* the main object update call, for object matrix, constraints, keys and displist (modifiers) */
 /* requires flags to be set! */
-void object_handle_update(Scene *scene, Object *ob, float groupmat[][4])
+void object_handle_update(Scene *scene, Object *ob)
 {
 	if(ob->recalc & OB_RECALC) {
-		
 		/* XXX new animsys warning: depsgraph tag OB_RECALC_DATA should not skip drivers, 
 		   which is only in where_is_object now */
 		if(ob->recalc & OB_RECALC) {
@@ -2493,17 +2500,8 @@ void object_handle_update(Scene *scene, Object *ob, float groupmat[][4])
 				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
 				copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
-			else {
+			else
 				where_is_object(scene, ob);
-
-				if(groupmat) {
-					/* if this is being called as part of dupligroup evaluation, we
-					   want the object matrices to be transformed by the duplicator
-					   so that e.g. physics systems are executed in the correct
-					   space. this is here because it must run before recalc data. */
-					mul_m4_m4m4(ob->obmat, ob->obmat, groupmat);
-				}
-			}
 		}
 		
 		if(ob->recalc & OB_RECALC_DATA) {
@@ -2605,9 +2603,9 @@ void object_handle_update(Scene *scene, Object *ob, float groupmat[][4])
 			/* set pointer in library proxy target, for copying, but restore it */
 			ob->proxy->proxy_from= ob;
 			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-			object_handle_update(scene, ob->proxy, NULL);
+			object_handle_update(scene, ob->proxy);
 		}
-	
+
 		ob->recalc &= ~OB_RECALC;
 	}
 

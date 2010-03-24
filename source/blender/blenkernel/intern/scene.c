@@ -898,7 +898,7 @@ static void scene_update_newframe(Scene *sce, unsigned int lay)
 	for(base= sce->base.first; base; base= base->next) {
 		ob= base->object;
 		
-		object_handle_update(sce, ob, NULL);   // bke_object.h
+		object_handle_update(sce, ob);   // bke_object.h
 		
 		/* only update layer when an ipo */
 			// XXX old animation system
@@ -922,11 +922,11 @@ void scene_update_tagged(Scene *scene)
 	   dependencies on sets, but not the other way around. */
 	if(scene->set) {
 		for(SETLOOPER(scene->set, base))
-			object_handle_update(scene, base->object, NULL);
+			object_handle_update(scene, base->object);
 	}
 	
 	for(base= scene->base.first; base; base= base->next) {
-		object_handle_update(scene, base->object, NULL);
+		object_handle_update(scene, base->object);
 	}
 
 	/* recalc scene animation data here (for sequencer) */
