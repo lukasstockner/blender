@@ -38,7 +38,6 @@
 
 #include "BLI_blenlib.h"
 
-#include "ED_armature.h"
 
 void rna_EditBone_align_roll(EditBone *ebo, float *no)
 {
