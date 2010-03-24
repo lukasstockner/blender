@@ -985,8 +985,10 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 			sub_v3_v3(backupnor[a], ver->n);
 			copy_v3_v3(ver->n, tmp);
 		}
-		else if(diffnor)
+		else if(diffnor) {
 			add_v3_v3(ver->n, diffnor[a]);
+			normalize_v3(ver->n);
+		}
 	}
 
 	if(diffnor)
