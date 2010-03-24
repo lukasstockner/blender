@@ -2477,7 +2477,7 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 
 /* the main object update call, for object matrix, constraints, keys and displist (modifiers) */
 /* requires flags to be set! */
-void object_handle_update(Scene *scene, Object *ob)
+void object_handle_update(Scene *scene, Object *ob, float groupmat[][4])
 {
 	if(ob->recalc & OB_RECALC) {
 		
@@ -2491,16 +2491,19 @@ void object_handle_update(Scene *scene, Object *ob)
 			/* handle proxy copy for target */
 			if(ob->id.lib && ob->proxy_from) {
 				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
-				if(ob->proxy_from->proxy_group) {/* transform proxy into group space */
-					Object *obg= ob->proxy_from->proxy_group;
-					invert_m4_m4(obg->imat, obg->obmat);
-					mul_m4_m4m4(ob->obmat, ob->proxy_from->obmat, obg->imat);
-				}
-				else
-					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
+				copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
-			else
+			else {
 				where_is_object(scene, ob);
+
+				if(groupmat) {
+					/* if this is being called as part of dupligroup evaluation, we
+					   want the object matrices to be transformed by the duplicator
+					   so that e.g. physics systems are executed in the correct
+					   space. this is here because it must run before recalc data. */
+					mul_m4_m4m4(ob->obmat, ob->obmat, groupmat);
+				}
+			}
 		}
 		
 		if(ob->recalc & OB_RECALC_DATA) {
@@ -2602,7 +2605,7 @@ void object_handle_update(Scene *scene, Object *ob)
 			/* set pointer in library proxy target, for copying, but restore it */
 			ob->proxy->proxy_from= ob;
 			// printf("call update, lib ob %s proxy %s\n", ob->proxy->id.name, ob->id.name);
-			object_handle_update(scene, ob->proxy);
+			object_handle_update(scene, ob->proxy, NULL);
 		}
 	
 		ob->recalc &= ~OB_RECALC;

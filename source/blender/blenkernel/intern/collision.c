@@ -1314,8 +1314,8 @@ Object **get_collisionobjects(Scene *scene, Object *self, int *numcollobj)
 	// check all collision objects
 	for ( base = scene->base.first; base; base = base->next )
 	{
-		/*Only proceed for mesh object in same layer */
-		if(!(base->object->type==OB_MESH && (base->lay & self->lay))) 
+		/* object in same layer */
+		if(!(base->lay & self->lay)) 
 			continue;
 		
 		coll_ob = base->object;

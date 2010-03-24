@@ -40,6 +40,7 @@
 #include "DNA_particle_types.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_math.h"
 
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -330,7 +331,33 @@ you can draw everything, leaves tags in objects to signal it needs further updat
 void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 {
 	GroupObject *go;
+	float parmat[4][4], iparmat[4][4];
+	int need_recalc= 0;
+
+	/* test if we need a recalculation */
+	for(go= group->gobject.first; go; go= go->next)
+		if(go->ob && (go->recalc || go->ob->recalc))
+			need_recalc= 1;
 	
+	if(!need_recalc)
+		return;
+
+	if(group->id.lib) {
+		/* in case of linked groups, we ensure all object matrices are
+		   transformed into the group space. this is to make e.g. physics
+		   systems apply gravity in the right direction, but it clearly
+		   does not work for multiple instances */
+		copy_m4_m4(parmat, parent->obmat);
+		invert_m4_m4(iparmat, parmat);
+
+		for(go= group->gobject.first; go; go= go->next) {
+			if(go->ob) {
+				mul_m4_m4m4(go->ob->obmat, go->ob->obmat, parmat);
+				mul_m4_m4m4(go->ob->parentinv, go->ob->parentinv, iparmat);
+			}
+		}
+	}
+
 	/* if animated group... */
 	if(give_timeoffset(parent) != 0.0f || parent->nlastrips.first) {
 		int cfrao;
@@ -338,14 +365,14 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 		/* switch to local time */
 		cfrao= scene->r.cfra;
 		scene->r.cfra -= (int)give_timeoffset(parent);
-		
+
 		/* we need a DAG per group... */
 		for(go= group->gobject.first; go; go= go->next) {
 			if(go->ob && go->recalc) {
 				go->ob->recalc= go->recalc;
 				
 				group_replaces_nla(parent, go->ob, 's');
-				object_handle_update(scene, go->ob);
+				object_handle_update(scene, go->ob, parmat);
 				group_replaces_nla(parent, go->ob, 'e');
 				
 				/* leave recalc tags in case group members are in normal scene */
@@ -358,11 +385,16 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 	}
 	else {
 		/* only do existing tags, as set by regular depsgraph */
+		for(go= group->gobject.first; go; go= go->next)
+			if(go->ob && go->ob->recalc)
+				object_handle_update(scene, go->ob, parmat);
+	}
+
+	if(group->id.lib) {
 		for(go= group->gobject.first; go; go= go->next) {
 			if(go->ob) {
-				if(go->ob->recalc) {
-					object_handle_update(scene, go->ob);
-				}
+				mul_m4_m4m4(go->ob->obmat, go->ob->obmat, iparmat);
+				mul_m4_m4m4(go->ob->parentinv, go->ob->parentinv, parmat);
 			}
 		}
 	}
