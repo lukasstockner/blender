@@ -1138,6 +1138,6 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	}
 
 	if(path_nbr && (ma->mode_l & MA_TANGENT_STR)==0)
-		render_object_calc_vnormals(re, obr, 0, 0);
+		render_object_calc_vnormals(re, obr, 0, 0, NULL);
 }
 

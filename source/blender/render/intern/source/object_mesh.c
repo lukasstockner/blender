@@ -219,6 +219,21 @@ float *render_vert_get_winspeed(ObjectInstanceRen *obi, VertRen *ver, int verify
 	return winspeed + ver->index*RE_WINSPEED_ELEMS;
 }
 
+float *render_vert_get_basenor(ObjectRen *obr, VertRen *ver, int verify)
+{
+	float *basenor;
+	int nr= ver->index>>8;
+	
+	basenor= obr->vertnodes[nr].basenor;
+	if(basenor==NULL) {
+		if(verify) 
+			basenor= obr->vertnodes[nr].basenor= MEM_callocN(256*RE_BASENOR_ELEMS*sizeof(float), "basenor table");
+		else
+			return NULL;
+	}
+	return basenor + (ver->index & 255)*RE_BASENOR_ELEMS;
+}
+
 VertRen *render_object_vert_copy(ObjectRen *obrn, ObjectRen *obr, VertRen *ver)
 {
 	VertRen *vern= render_object_vert_get(obrn, obrn->totvert++);
@@ -253,6 +268,12 @@ VertRen *render_object_vert_copy(ObjectRen *obrn, ObjectRen *obr, VertRen *ver)
 		fp2= render_vert_get_strandco(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_STRANDCO_ELEMS*sizeof(float));
 	}
+	fp1= render_vert_get_basenor(obr, ver, 0);
+	if(fp1) {
+		fp2= render_vert_get_basenor(obrn, vern, 1);
+		memcpy(fp2, fp1, RE_BASENOR_ELEMS*sizeof(float));
+	}
+
 	return vern;
 }
 
@@ -797,10 +818,11 @@ static void calc_tangent_vector(ObjectRen *obr, VertexTangent **vtangents, MemAr
 }
 
 
-void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int do_nmap_tangent)
+void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int do_nmap_tangent, float (**dispnor)[3])
 {
 	MemArena *arena= NULL;
 	VertexTangent **vtangents= NULL;
+	float (*backupnor)[3]= NULL, (*diffnor)[3]= NULL;
 	int a;
 
 	if(do_nmap_tangent) {
@@ -810,9 +832,19 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 		vtangents= MEM_callocN(sizeof(VertexTangent*)*obr->totvert, "VertexTangent");
 	}
 
+	/* for displacement, we compute difference between smooth base & subdivded nor,
+	   and then add that difference to the displaced normal to keep it smooth */
+	if(dispnor) {
+		if(*dispnor)
+			diffnor= *dispnor;
+		else
+			*dispnor= backupnor= MEM_callocN(sizeof(float)*3*obr->totvert, "backupnor");
+	}
+
 		/* clear all vertex normals */
 	for(a=0; a<obr->totvert; a++) {
 		VertRen *ver= render_object_vert_get(obr, a);
+		if(backupnor) copy_v3_v3(backupnor[a], ver->n);
 		ver->n[0]=ver->n[1]=ver->n[2]= 0.0f;
 	}
 
@@ -945,9 +977,20 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 				normalize_v3(tav);
 			}
 		}
+
+		if(backupnor) {
+			float tmp[3];
+			
+			copy_v3_v3(tmp, backupnor[a]);
+			sub_v3_v3(backupnor[a], ver->n);
+			copy_v3_v3(ver->n, tmp);
+		}
+		else if(diffnor)
+			add_v3_v3(ver->n, diffnor[a]);
 	}
 
-
+	if(diffnor)
+		MEM_freeN(diffnor);
 	if(arena)
 		BLI_memarena_free(arena);
 	if(vtangents)
@@ -1558,7 +1601,7 @@ static void init_render_dm(DerivedMesh *dm, Render *re, ObjectRen *obr,
 		}
 
 		/* Normals */
-		render_object_calc_vnormals(re, obr, 0, 0);
+		render_object_calc_vnormals(re, obr, 0, 0, NULL);
 	}
 
 }
@@ -2253,7 +2296,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	
 	if(!timeoffset) {
 		if (!(ob->flag & OB_RENDER_SUBDIVIDE) && render_object_has_displacement(re, obr) ) {
-			render_object_calc_vnormals(re, obr, 0, 0);
+			render_object_calc_vnormals(re, obr, 0, 0, NULL);
 			if(do_autosmooth)
 				render_object_displace(re, obr, mat, nmat);
 			else
@@ -2264,7 +2307,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 			autosmooth(re, obr, mat, me->smoothresh);
 		}
 
-		render_object_calc_vnormals(re, obr, need_tangent, need_nmap_tangent);
+		render_object_calc_vnormals(re, obr, need_tangent, need_nmap_tangent, NULL);
 
 		if(need_stress)
 			calc_edge_stress(re, obr, me);

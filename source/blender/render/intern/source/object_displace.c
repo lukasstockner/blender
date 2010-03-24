@@ -227,10 +227,13 @@ void render_object_displace(Render *re, ObjectRen *obr, float mat[][4], float nm
 	Object *obt;
 	VlakRen *vlr;
 	VertRen *vr;
-	float scale[3]={1.0f, 1.0f, 1.0f}, temp[3], *sample;
+	float scale[3]={1.0f, 1.0f, 1.0f}, temp[3], *sample, (*diffnor)[3]= NULL;
 	int i;
 
 	sample= MEM_callocN(sizeof(float)*obr->totvert, "render_object_displace sample");
+
+	/* calculate difference between base smooth and new smooth normals */
+	render_object_calc_vnormals(re, obr, 0, 0, &diffnor);
 
 	/* Object Size with parenting */
 	obt=obr->ob;
@@ -253,7 +256,7 @@ void render_object_displace(Render *re, ObjectRen *obr, float mat[][4], float nm
 
 	MEM_freeN(sample);
 	
-	/* Recalc vertex normals */
-	render_object_calc_vnormals(re, obr, 0, 0);
+	/* recalculate displaced smooth normals, and apply difference */
+	render_object_calc_vnormals(re, obr, 0, 0, &diffnor);
 }
 
