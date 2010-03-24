@@ -913,6 +913,7 @@ void scene_update_tagged(Scene *scene)
 {
 	Scene *sce;
 	Base *base;
+	Object *ob;
 	float ctime = frame_to_float(scene, scene->r.cfra); 
 
 	/* update all objects: drivers, matrices, displists, etc. flags set
@@ -921,12 +922,23 @@ void scene_update_tagged(Scene *scene)
 	/* sets first, we allow per definition current scene to have
 	   dependencies on sets, but not the other way around. */
 	if(scene->set) {
-		for(SETLOOPER(scene->set, base))
-			object_handle_update(scene, base->object);
+		for(SETLOOPER(scene->set, base)) {
+			ob= base->object;
+
+			object_handle_update(scene, ob);
+
+			if(ob->dup_group)
+				group_handle_recalc_and_update(scene, ob, ob->dup_group);
+		}
 	}
 	
 	for(base= scene->base.first; base; base= base->next) {
-		object_handle_update(scene, base->object);
+		ob= base->object;
+
+		object_handle_update(scene, ob);
+
+		if(ob->dup_group)
+			group_handle_recalc_and_update(scene, ob, ob->dup_group);
 	}
 
 	/* recalc scene animation data here (for sequencer) */
