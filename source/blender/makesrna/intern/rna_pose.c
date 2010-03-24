@@ -38,6 +38,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_math.h"
+#include "BLI_ghash.h"
 
 #include "WM_types.h"
 
@@ -526,7 +527,7 @@ PointerRNA rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key)
 {
 	PointerRNA rptr;
 	bPose *pose= (bPose*)ptr->data;
-	bPoseChannel *pchan= BLI_findstring(&pose->chanbase, key, offsetof(bPoseChannel, name));
+	bPoseChannel *pchan= get_pose_channel(pose, key);
 	RNA_pointer_create(ptr->id.data, &RNA_PoseBone, pchan, &rptr);
 	return rptr;
 }
