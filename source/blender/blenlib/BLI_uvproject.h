@@ -23,6 +23,7 @@
 #ifndef BKE_UVPROJECT_H
 #define BKE_UVPROJECT_H
 
+struct Object;
 struct UvCameraInfo;
 
 /* create uv info from the camera, needs to be freed */
