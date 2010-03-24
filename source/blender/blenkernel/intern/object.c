@@ -107,7 +107,7 @@
 #include "GPU_material.h"
 
 /* Local function protos */
-static void solve_parenting (Scene *scene, Object *ob, Object *par, float obmat[][4], float slowmat[][4], int simul);
+static void solve_parenting (Scene *scene, Object *ob, Object *par, int simul);
 
 float originmat[3][3];	/* after where_is_object(), can be used in other functions (bad!) */
 
@@ -2001,9 +2001,20 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 	/* is faster, but should keep track of timeoffs */
 	
 	if(ob==NULL) return;
+
+	copy_m4_m4(slowmat, ob->obmat);
 	
 	/* execute drivers only, as animation has already been done */
 	BKE_animsys_evaluate_animdata(&ob->id, ob->adt, ctime, ADT_RECALC_DRIVERS);
+	object_to_mat4(ob, ob->obmat);
+
+	if(ob->groupmat) {
+		/* if this is being called as part of dupligroup evaluation, we
+		   want the object matrices to be transformed by the duplicator
+		   so that e.g. physics systems are executed in the correct
+		   space. this is enabled in group_handle_recalc_and_update */
+		mul_m4_m4m4(ob->obmat, ob->obmat, (float(*)[4])ob->groupmat);
+	}
 	
 	if(ob->parent) {
 		Object *par= ob->parent;
@@ -2020,12 +2031,12 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 			if(par->proxy_from);	// was a copied matrix, no where_is! bad...
 			else where_is_object_time(scene, par, ctime);
 
-			solve_parenting(scene, ob, par, ob->obmat, slowmat, 0);
+			solve_parenting(scene, ob, par, 0);
 
 			*par= tmp;
 		}
 		else
-			solve_parenting(scene, ob, par, ob->obmat, slowmat, 0);
+			solve_parenting(scene, ob, par, 0);
 		
 		if(ob->partype & PARSLOW) {
 			// include framerate
@@ -2039,9 +2050,6 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 				fp1[0]= fac1*fp1[0] + fac2*fp2[0];
 			}
 		}
-	}
-	else {
-		object_to_mat4(ob, ob->obmat);
 	}
 
 	/* Handle tracking */
@@ -2065,28 +2073,15 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 	/* set negative scale flag in object */
 	if(is_negative_m4(ob->obmat))	ob->transflag |= OB_NEG_SCALE;
 	else							ob->transflag &= ~OB_NEG_SCALE;
-
-	if(ob->groupmat) {
-		/* if this is being called as part of dupligroup evaluation, we
-		   want the object matrices to be transformed by the duplicator
-		   so that e.g. physics systems are executed in the correct
-		   space. this is enabled in group_handle_recalc_and_update */
-		mul_m4_m4m4(ob->obmat, ob->obmat, (float(*)[4])ob->groupmat);
-	}
 }
 
-static void solve_parenting (Scene *scene, Object *ob, Object *par, float obmat[][4], float slowmat[][4], int simul)
+static void solve_parenting (Scene *scene, Object *ob, Object *par, int simul)
 {
 	float totmat[4][4];
 	float tmat[4][4];
-	float locmat[4][4];
 	float vec[3];
 	int ok;
 	
-	object_to_mat4(ob, locmat);
-	
-	if(ob->partype & PARSLOW) copy_m4_m4(slowmat, obmat);
-
 	switch(ob->partype & PARTYPE) {
 	case PAROBJECT:
 		ok= 0;
@@ -2133,7 +2128,7 @@ static void solve_parenting (Scene *scene, Object *ob, Object *par, float obmat[
 	// total 
 	mul_serie_m4(tmat, totmat, ob->parentinv,         
 		NULL, NULL, NULL, NULL, NULL, NULL);
-	mul_serie_m4(obmat, tmat, locmat,         
+	mul_serie_m4(ob->obmat, tmat, ob->obmat,         
 		NULL, NULL, NULL, NULL, NULL, NULL);
 	
 	if (simul) {
@@ -2209,7 +2204,9 @@ for a lamp that is the child of another object */
 	if(ob->parent) {
 		par= ob->parent;
 		
-		solve_parenting(scene, ob, par, ob->obmat, slowmat, 1);
+		copy_m4_m4(slowmat, ob->obmat);
+		object_to_mat4(ob, ob->obmat);
+		solve_parenting(scene, ob, par, 1);
 
 		if(ob->partype & PARSLOW) {
 
