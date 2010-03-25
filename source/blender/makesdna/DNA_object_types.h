@@ -255,7 +255,10 @@ typedef struct Object {
 	ListBase gpulamp;		/* runtime, for lamps only */
 	ListBase pc_ids;
 	ListBase *duplilist;	/* for temporary dupli list storage, only for use by RNA API */
+
 	float *groupmat;		/* runtime, temporarily set during group evaluation */
+	int groupmodified;		/* runtime, to indicate if we modified object matrix */
+	int pad3;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

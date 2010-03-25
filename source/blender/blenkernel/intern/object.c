@@ -2014,8 +2014,9 @@ void where_is_object_time(Scene *scene, Object *ob, float ctime)
 		   so that e.g. physics systems are executed in the correct
 		   space. this is enabled in group_handle_recalc_and_update */
 		mul_m4_m4m4(ob->obmat, ob->obmat, (float(*)[4])ob->groupmat);
+		ob->groupmodified= 1;
 	}
-	
+
 	if(ob->parent) {
 		Object *par= ob->parent;
 		

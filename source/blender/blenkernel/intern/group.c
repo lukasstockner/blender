@@ -331,16 +331,23 @@ you can draw everything, leaves tags in objects to signal it needs further updat
 void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 {
 	GroupObject *go;
+	float (*parentinv)[4][4], (*obmat)[4][4];
 	float parmat[4][4], iparmat[4][4];
-	int need_recalc= 0;
+	int need_recalc= 0, tot= 0, a;
 
 	/* test if we need a recalculation */
-	for(go= group->gobject.first; go; go= go->next)
+	for(go= group->gobject.first; go; go= go->next) {
+		tot++;
+
 		if(go->ob && (go->recalc || go->ob->recalc))
 			need_recalc= 1;
+	}
 	
 	if(!need_recalc)
 		return;
+	
+	parentinv= MEM_callocN(sizeof(float)*4*4*tot, "group parentinv");
+	obmat= MEM_callocN(sizeof(float)*4*4*tot, "group obmat");
 
 	if(group->id.lib) {
 		/* in case of linked groups, we ensure all object matrices are
@@ -350,14 +357,18 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 		copy_m4_m4(parmat, parent->obmat);
 		invert_m4_m4(iparmat, parmat);
 
-		for(go= group->gobject.first; go; go= go->next) {
+		for(a=0, go= group->gobject.first; go; go= go->next, a++) {
 			if(go->ob) {
+				copy_m4_m4(parentinv[a], go->ob->parentinv);
+				copy_m4_m4(obmat[a], go->ob->obmat);
+
 				mul_m4_m4m4(go->ob->obmat, go->ob->obmat, parmat);
 				mul_m4_m4m4(go->ob->parentinv, go->ob->parentinv, iparmat);
 
 				/* this is applied in where_is_object_time in case the 
 				   matrix is recalculated */
 				go->ob->groupmat= (float*)parmat;
+				go->ob->groupmodified= 0;
 			}
 		}
 	}
@@ -395,15 +406,25 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 	}
 
 	if(group->id.lib) {
-		for(go= group->gobject.first; go; go= go->next) {
+		for(a=0, go= group->gobject.first; go; go= go->next, a++) {
 			if(go->ob) {
-				mul_m4_m4m4(go->ob->obmat, go->ob->obmat, iparmat);
-				mul_m4_m4m4(go->ob->parentinv, go->ob->parentinv, parmat);
+				/* we restore object matrices by copy to avoid numerical
+				   drift, also matrices may not be exactly invertible */
+				if(go->ob->groupmodified)
+					mul_m4_m4m4(go->ob->obmat, go->ob->obmat, iparmat);
+				else
+					copy_m4_m4(go->ob->obmat, obmat[a]);
+
+				copy_m4_m4(go->ob->parentinv, parentinv[a]);
 
 				go->ob->groupmat= NULL;
+				go->ob->groupmodified= 0;
 			}
 		}
 	}
+
+	MEM_freeN(parentinv);
+	MEM_freeN(obmat);
 }
 
 Object *group_get_member_with_action(Group *group, bAction *act)
