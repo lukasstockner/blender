@@ -733,6 +733,7 @@ static void threaded_tile_processor(Render *re)
 	
 	parts_free(re);
 	re->cam.viewplane= viewplane; /* restore viewplane, modified by pano render */
+	re->cb.test_break= test_break;
 }
 
 /* currently threaded=0 only used by envmap */

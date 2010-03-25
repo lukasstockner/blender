@@ -58,6 +58,7 @@ int render_object_has_displacement(Render *re, ObjectRen *obr)
 	return 0;
 }
 
+#if 0
 static void displace_derivatives(ShadeInput *shi)
 {
 	ShadeGeometry *geom= &shi->geometry;
@@ -77,6 +78,7 @@ static void displace_derivatives(ShadeInput *shi)
 	geom->dy_u= dot_v3v3(geom->dyco, dcodu);
 	geom->dy_v= dot_v3v3(geom->dyco, dcodv);
 }
+#endif
 
 static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, VertRen *vr, int vindex, float *scale, float mat[][4], float nmat[][3], float *sample)
 {
@@ -252,11 +254,18 @@ void render_object_displace(Render *re, ObjectRen *obr, float mat[][4], float nm
 	for(i=0; i<obr->totvlak; i++){
 		vlr=render_object_vlak_get(obr, i);
 		displace_render_face(re, obr, vlr, scale, mat, nmat, sample);
+
+		if(re->cb.test_break(re->cb.tbh))
+			break;
 	}
 
 	MEM_freeN(sample);
 	
 	/* recalculate displaced smooth normals, and apply difference */
-	render_object_calc_vnormals(re, obr, 0, 0, &diffnor);
+	if(!re->cb.test_break(re->cb.tbh))
+		render_object_calc_vnormals(re, obr, 0, 0, &diffnor);
+
+	if(diffnor)
+		MEM_freeN(diffnor);
 }
 

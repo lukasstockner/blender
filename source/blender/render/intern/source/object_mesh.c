@@ -991,8 +991,6 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 		}
 	}
 
-	if(diffnor)
-		MEM_freeN(diffnor);
 	if(arena)
 		BLI_memarena_free(arena);
 	if(vtangents)
@@ -2619,6 +2617,9 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
 		if((ob->type!=OB_MESH || obr->flag & R_TEMP_COPY) && render_object_has_displacement(re, obr)) 
 			render_object_displace(re, obr, NULL, NULL);
 	
+		if(re->cb.test_break(re->cb.tbh))
+			return;
+
 		if(!timeoffset) {
 			/* phong normal interpolation can cause error in tracing
 			 * (terminator problem) */

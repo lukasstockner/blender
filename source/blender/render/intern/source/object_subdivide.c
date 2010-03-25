@@ -206,11 +206,14 @@ static void face_vertex_weight(float w[4], float M[4][4], int i, int j, int res,
 	vertex_weight(w, M, u, v, vi);
 }
 
-static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float bounds[4], ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, int quad, int depth, float M[4][4], float displacebound, float shadingrate)
+static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4][4], float bounds[4], ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, int quad, int depth, float M[4][4], float displacebound, float shadingrate)
 {
 	VertRen *s1, *s2, *s3;
 	float w[4], pM[4][4], fw[4][4];
 	int i, j, vi[4], offset, res, split;
+
+	if(re->cb.test_break(re->cb.tbh))
+		return;
 
 	res= render_face_view_resolution(cam, winmat, vlr, M, quad, shadingrate);
 
@@ -251,7 +254,7 @@ static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float b
 			}
 
 			if(!render_vlak_clip(vlr, sM, winmat, bounds, displacebound, quad))
-				render_face_subdivide(cam, winmat, bounds, obrn, obr, vlr, quad, depth+1, sM, displacebound, shadingrate);
+				render_face_subdivide(re, cam, winmat, bounds, obrn, obr, vlr, quad, depth+1, sM, displacebound, shadingrate);
 		}
 	}
 	else {
@@ -291,7 +294,7 @@ static void render_face_subdivide(RenderCamera *cam, float winmat[4][4], float b
 	}
 }
 
-ObjectRen *render_object_tile_subdivide(ObjectRen *obr, RenderCamera *cam, float winmat[4][4], float bounds[4])
+static ObjectRen *render_object_tile_subdivide(Render *re, ObjectRen *obr, RenderCamera *cam, float winmat[4][4], float bounds[4])
 {
 	ObjectRen *obrn;
 	VlakRen *vlr;
@@ -306,10 +309,13 @@ ObjectRen *render_object_tile_subdivide(ObjectRen *obr, RenderCamera *cam, float
 		vlr= render_object_vlak_get(obr, a);
 
 		if(!render_vlak_clip(vlr, NULL, winmat, bounds, displacebound, 0))
-			render_face_subdivide(cam, winmat, bounds, obrn, obr, vlr, 0, 0, NULL, displacebound, shadingrate);
+			render_face_subdivide(re, cam, winmat, bounds, obrn, obr, vlr, 0, 0, NULL, displacebound, shadingrate);
 
 		if(vlr->v4 && !render_vlak_clip(vlr, NULL, winmat, bounds, displacebound, 1))
-			render_face_subdivide(cam, winmat, bounds, obrn, obr, vlr, 1, 0, NULL, displacebound, shadingrate);
+			render_face_subdivide(re, cam, winmat, bounds, obrn, obr, vlr, 1, 0, NULL, displacebound, shadingrate);
+
+		if(re->cb.test_break(re->cb.tbh))
+			break;
 	}
 
 	return obrn;
@@ -319,8 +325,9 @@ static ObjectRen *render_instance_tile_subdivide(Render *re, ObjectInstanceRen *
 {
 	ObjectRen *obrn;
 
-	obrn= render_object_tile_subdivide(obi->obr, &re->cam, winmat, bounds);
-	finalize_render_object(re, obrn, 0);
+	obrn= render_object_tile_subdivide(re, obi->obr, &re->cam, winmat, bounds);
+	if(!re->cb.test_break(re->cb.tbh))
+		finalize_render_object(re, obrn, 0);
 
 	return obrn;
 }
