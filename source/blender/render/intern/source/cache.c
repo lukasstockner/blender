@@ -48,6 +48,18 @@
 #include "render_types.h"
 #include "shading.h"
 
+/******************************** Utilities **********************************/
+
+static int mat_need_cache(Material *ma)
+{
+	if(ma->mode & (MA_SHLESS|MA_ONLYSHADOW))
+		return 0;
+	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
+		return 0;
+	
+	return 1;
+}
+
 /******************************* Pixel Cache *********************************/
 
 #define CACHE_STEP 3
@@ -213,7 +225,7 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 			shade_samples_from_pixel(re, ssamp, &row[0], x, y);
 
 			shi= ssamp->shi;
-			if(shi->primitive.vlr) {
+			if(shi->primitive.vlr && mat_need_cache(shi->material.mat)) {
 				disk_occlusion_sample_direct(re, shi);
 
 				copy_v3_v3(sample->co, shi->geometry.co);
@@ -1064,6 +1076,9 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 						float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->shading.env: NULL;
 						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
 						int added;
+
+						if(!mat_need_cache(shi->material.mat))
+							continue;
 
 						if(shi->primitive.strand) {
 							added= 0;
