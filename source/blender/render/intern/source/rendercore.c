@@ -42,6 +42,7 @@
 #include "BLI_rand.h"
 #include "BLI_threads.h"
 
+#include "BKE_material.h"
 #include "BKE_utildefines.h"
 
 #include "DNA_lamp_types.h"
@@ -1041,6 +1042,40 @@ static void zbufshade_sss_free(RenderPart *pa)
 #endif
 }
 
+static void render_sss_layer(Render *re, RenderResult *rr, Material *ma, ShadeInput *shi)
+{
+	ObjectInstanceRen *obi;
+	ObjectRen *obr;
+	VlakRen *vlr;
+	RenderLayer *rl;
+	int v;
+
+	/* we use as layer the combined layer flags of all render layers that
+	   have this material. actually we should be doing SSS per layer .. */
+	for(obi=re->db.instancetable.first; obi; obi=obi->next) {
+		obr= obi->obr;
+
+		for(v=0; v<obr->totvlak; v++) {
+			if((v & 255)==0) vlr= obr->vlaknodes[v>>8].vlak;
+			else vlr++;
+			
+			if(material_in_material(vlr->mat, ma))
+				break;
+		}
+
+		if(v != obr->totvlak) {
+			for(rl=rr->layers.first; rl; rl=rl->next) {
+				if(obi->lay & rl->lay) {
+					shi->shading.lay |= rl->lay;
+					shi->shading.layflag |= rl->layflag;
+					shi->shading.passflag |= rl->passflag;
+					shi->shading.combinedflag |= ~rl->pass_xor;
+				}
+			}
+		}
+	}
+}
+
 void render_sss_bake_part(Render *re, RenderPart *pa)
 {
 	ShadeSample ssamp;
@@ -1080,20 +1115,15 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	memset(&ssamp, 0, sizeof(ssamp));
 	shade_sample_initialize(re, &ssamp, pa, rr->layers.first);
 	ssamp.tot= 1;
-	
-	for(rl=rr->layers.first; rl; rl=rl->next) {
-		ssamp.shi[0].shading.lay |= rl->lay;
-		ssamp.shi[0].shading.layflag |= rl->layflag;
-		ssamp.shi[0].shading.passflag |= rl->passflag;
-		ssamp.shi[0].shading.combinedflag |= ~rl->pass_xor;
-	}
+
+	render_sss_layer(re, rr, mat, &ssamp.shi[0]);
+	lay= ssamp.shi[0].shading.lay;
 
 	rl= rr->layers.first;
 	ssamp.shi[0].shading.passflag |= SCE_PASS_RGBA|SCE_PASS_COMBINED;
 	ssamp.shi[0].shading.combinedflag &= ~(SCE_PASS_SPEC);
 	ssamp.shi[0].material.mat_override= NULL;
 	ssamp.shi[0].material.light_override= NULL;
-	lay= ssamp.shi[0].shading.lay;
 
 	/* create the pixelstrs to be used later */
 	zbuffer_sss(re, pa, lay, &handle, addps_sss);
