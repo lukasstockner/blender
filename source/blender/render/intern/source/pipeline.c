@@ -358,7 +358,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 		int index = BLI_findindex(&re->params.r.layers, srl);
 		if (index != -1) {
 			re->params.r.actlay = index;
-			re->params.r.scemode |= (R_SINGLE_LAYER|R_COMP_RERENDER);
+			re->params.r.scemode |= R_SINGLE_LAYER;
 		}
 	}
 		
@@ -1080,6 +1080,7 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 	
 	/* still unsure entity this... */
 	resc->db.scene= sce;
+	resc->db.lay= sce->lay;
 	
 	/* ensure scene has depsgraph, base flags etc OK */
 	set_scene_bg(sce);
@@ -1235,34 +1236,32 @@ static void do_render_composite_fields_blur_3d(Render *re)
 			ntreeCompositTagAnimated(ntree);
 		}
 		
-		if(1 || !(re->params.r.scemode & R_COMP_RERENDER)) {
-			if(ntree && re->params.r.scemode & R_DOCOMP) {
-				/* checks if there are render-result nodes that need scene */
-				if((re->params.r.scemode & R_SINGLE_LAYER)==0)
-					ntree_render_scenes(re);
+		if(ntree && re->params.r.scemode & R_DOCOMP) {
+			/* checks if there are render-result nodes that need scene */
+			if((re->params.r.scemode & R_SINGLE_LAYER)==0)
+				ntree_render_scenes(re);
+			
+			if(!re->cb.test_break(re->cb.tbh)) {
+				ntree->stats_draw= render_composit_stats;
+				ntree->sdh= re;
+				ntree->test_break= re->cb.test_break;
+				ntree->tbh= re->cb.tbh;
 				
-				if(!re->cb.test_break(re->cb.tbh)) {
-					ntree->stats_draw= render_composit_stats;
-					ntree->sdh= re;
-					ntree->test_break= re->cb.test_break;
-					ntree->tbh= re->cb.tbh;
-					
-					if(update_newframe)
-						scene_update_for_newframe(re->db.scene, re->db.lay);
-					
-					if(re->params.r.scemode & R_FULL_SAMPLE) 
-						do_merge_fullsample(re, ntree, &RenderGlobal.renderlist);
-					else
-						ntreeCompositExecTree(ntree, &re->params.r, G.background==0);
-					
-					ntree->stats_draw= NULL;
-					ntree->test_break= NULL;
-					ntree->tbh= ntree->sdh= NULL;
-				}
+				if(update_newframe)
+					scene_update_for_newframe(re->db.scene, re->db.lay);
+				
+				if(re->params.r.scemode & R_FULL_SAMPLE) 
+					do_merge_fullsample(re, ntree, &RenderGlobal.renderlist);
+				else
+					ntreeCompositExecTree(ntree, &re->params.r, G.background==0);
+				
+				ntree->stats_draw= NULL;
+				ntree->test_break= NULL;
+				ntree->tbh= ntree->sdh= NULL;
 			}
-			else if(re->params.r.scemode & R_FULL_SAMPLE)
-				do_merge_fullsample(re, NULL, &RenderGlobal.renderlist);
 		}
+		else if(re->params.r.scemode & R_FULL_SAMPLE)
+			do_merge_fullsample(re, NULL, &RenderGlobal.renderlist);
 	}
 
 	/* weak... the display callback wants an active renderlayer pointer... */
