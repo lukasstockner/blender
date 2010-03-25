@@ -2538,7 +2538,13 @@ void object_handle_update(Scene *scene, Object *ob)
 			/* handle proxy copy for target */
 			if(ob->id.lib && ob->proxy_from) {
 				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
-				copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
+				if(ob->proxy_from->proxy_group) {/* transform proxy into group space */
+					Object *obg= ob->proxy_from->proxy_group;
+					invert_m4_m4(obg->imat, obg->obmat);
+					mul_m4_m4m4(ob->obmat, ob->proxy_from->obmat, obg->imat);
+				}
+				else
+					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
 			else
 				where_is_object(scene, ob);

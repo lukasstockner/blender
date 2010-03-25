@@ -349,7 +349,7 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 	parentinv= MEM_callocN(sizeof(float)*4*4*tot, "group parentinv");
 	obmat= MEM_callocN(sizeof(float)*4*4*tot, "group obmat");
 
-	if(group->id.lib) {
+	if(0) { //group->id.lib) {
 		/* in case of linked groups, we ensure all object matrices are
 		   transformed into the group space. this is to make e.g. physics
 		   systems apply gravity in the right direction, but it clearly
@@ -405,7 +405,7 @@ void group_handle_recalc_and_update(Scene *scene, Object *parent, Group *group)
 				object_handle_update(scene, go->ob);
 	}
 
-	if(group->id.lib) {
+	if(0) { //group->id.lib) {
 		for(a=0, go= group->gobject.first; go; go= go->next, a++) {
 			if(go->ob) {
 				/* we restore object matrices by copy to avoid numerical
