@@ -1809,9 +1809,10 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				nextmask= (CustomDataMask)GET_INT_FROM_POINTER(curr->next->link);
 			else
 				nextmask= dataMask;
-
+			
 			/* set the DerivedMesh to only copy needed data */
-			DM_set_only_copy(dm, nextmask & ~(CD_MASK_CLOTH_ORCO|CD_MASK_ORCO));
+			mask= (CustomDataMask)GET_INT_FROM_POINTER(curr->link);
+			DM_set_only_copy(dm, mask);
 			
 			/* add cloth rest shape key if need */
 			if(mask & CD_MASK_CLOTH_ORCO)
