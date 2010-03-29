@@ -622,7 +622,7 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 		case NC_OBJECT:
 			switch(wmn->data) {
 				case ND_TRANSFORM:
-					if(sima->lock) {
+					if(sima->lock && (sima->flag & SI_DRAWSHADOW)) {
 						ED_area_tag_refresh(sa);
 						ED_area_tag_redraw(sa);
 					}
