@@ -54,6 +54,7 @@
 
 #include "RNA_define.h"
 #include "RNA_access.h"
+#include "RNA_enum_types.h"
 
 #include "ED_curve.h"
 #include "ED_mesh.h"
@@ -600,7 +601,7 @@ void OBJECT_OT_hook_remove(wmOperatorType *ot)
 	
 	/* properties */
 	prop= RNA_def_enum(ot->srna, "modifier", DummyRNA_NULL_items, 0, "Modifier", "Modifier number to remove.");
-	RNA_def_enum_funcs(prop, DummyRNA_NULL_items);
+	RNA_def_enum_funcs(prop, hook_mod_itemf);
 	ot->prop= prop;
 }
 
