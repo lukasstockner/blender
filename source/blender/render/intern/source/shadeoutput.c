@@ -155,8 +155,11 @@ void ambient_occlusion(Render *re, ShadeInput *shi)
 		if(ao)
 			ao[1]= ao[2]= ao[0];
 	}
-	else
+	else {
 		shi->shading.ao[0]= shi->shading.ao[1]= shi->shading.ao[2]= 1.0f;
+		shi->shading.env[0]= shi->shading.env[1]= shi->shading.env[2]= 0.0f;
+		shi->shading.indirect[0]= shi->shading.indirect[1]= shi->shading.indirect[2]= 0.0f;
+	}
 }
 
 /* wrld mode was checked for */
