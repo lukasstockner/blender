@@ -3606,6 +3606,7 @@ static void uvprojectModifier_initData(ModifierData *md)
 	umd->flags = 0;
 	umd->num_projectors = 1;
 	umd->aspectx = umd->aspecty = 1.0f;
+	umd->scalex = umd->scaley = 1.0f;
 }
 
 static void uvprojectModifier_copyData(ModifierData *md, ModifierData *target)
@@ -3621,6 +3622,8 @@ static void uvprojectModifier_copyData(ModifierData *md, ModifierData *target)
 	tumd->num_projectors = umd->num_projectors;
 	tumd->aspectx = umd->aspectx;
 	tumd->aspecty = umd->aspecty;
+	tumd->scalex = umd->scalex;
+	tumd->scaley = umd->scaley;
 }
 
 static CustomDataMask uvprojectModifier_requiredDataMask(Object *ob, ModifierData *md)
