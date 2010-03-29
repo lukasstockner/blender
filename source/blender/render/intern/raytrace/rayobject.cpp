@@ -86,6 +86,11 @@ static inline int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, V
 		return 0;
 }
 
+static inline int vlr_check_bake(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
+{
+	return (obi->obr->ob != is->userdata);
+}
+
 static inline int rayface_check_cullface(RayFace *face, Isect *is)
 {
 	float nor[3];
@@ -258,11 +263,18 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
 			return 0;
 	}
-	if(is->skip & RE_SKIP_VLR_NON_SOLID_MATERIAL)
+	else if(is->skip & RE_SKIP_VLR_NON_SOLID_MATERIAL)
 	{
+		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
+			return 0;
 		if(vlr_check_intersect_solid(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face) == 0)
 			return 0;
 	}
+	else if(is->skip & RE_SKIP_VLR_BAKE_CHECK) {
+		if(vlr_check_bake(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
+			return 0;
+	}
+
 	if(is->skip & RE_SKIP_CULLFACE)
 	{
 		if(rayface_check_cullface(face, is) == 0)

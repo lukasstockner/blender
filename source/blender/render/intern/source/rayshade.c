@@ -1322,7 +1322,7 @@ void ray_ao(Render *re, ShadeInput *shi, float *ao, float *env)
 	RE_RC_INIT(isec, *shi);
 	isec.orig.ob   = shi->primitive.obi;
 	isec.orig.face = shi->primitive.vlr;
-	isec.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK | RE_SKIP_VLR_NON_SOLID_MATERIAL;
+	isec.skip = RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_NON_SOLID_MATERIAL;
 	isec.hint = 0;
 
 	isec.hit.ob   = 0;
@@ -1707,7 +1707,7 @@ static int ray_indirect_trace_do(Render *re, ShadeInput *shi, Isect *isec, float
 	isec->labda= 1.0f;
 
 	isec->mode= (nearest)? RE_RAY_SHADOW_TRA: RE_RAY_SHADOW;
-	isec->skip= RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_RENDER_CHECK|RE_SKIP_VLR_NON_SOLID_MATERIAL;
+	isec->skip= RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_NON_SOLID_MATERIAL;
 
 	isec->orig.ob = shi->primitive.obi;
 	isec->orig.face = shi->primitive.vlr;

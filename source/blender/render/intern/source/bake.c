@@ -323,22 +323,8 @@ static void bake_displacement(void *handle, ShadeInput *shi, float dist, int x, 
 	}
 }
 
-#if 0
-static int bake_check_intersect(Isect *is, int ob, RayFace *face)
-{
-	BakeShade *bs = (BakeShade*)is->userdata;
-	Render *re= bs->re;
-	
-	/* no direction checking for now, doesn't always improve the result
-	 * (dot_v3v3(shi->geometry.facenor, bs->dir) > 0.0f); */
-
-	return (re->objectinstance[ob & ~RE_RAY_TRANSFORM_OFFS].obr->ob != bs->actob);
-}
-#endif
-
 static int bake_intersect_tree(Render *re, RayObject* raytree, Isect* isect, float *start, float *dir, float sign, float *hitco, float *dist)
 {
-	//TODO, validate against blender 2.4x, results may have changed.
 	float maxdist;
 	int hit;
 
@@ -346,7 +332,7 @@ static int bake_intersect_tree(Render *re, RayObject* raytree, Isect* isect, flo
 	if(re->params.r.bake_maxdist > 0.0f)
 		maxdist= re->params.r.bake_maxdist;
 	else
-		maxdist= FLT_MAX + re->params.r.bake_biasdist;
+		maxdist= RE_RAYTRACE_MAXDIST + re->params.r.bake_biasdist;
 	
 	/* 'dir' is always normalized */
 	madd_v3_v3v3fl(isect->start, start, dir, -re->params.r.bake_biasdist);
@@ -356,11 +342,6 @@ static int bake_intersect_tree(Render *re, RayObject* raytree, Isect* isect, flo
 	isect->vec[2] = dir[2]*maxdist*sign;
 
 	isect->labda = maxdist;
-
-	/* TODO, 2.4x had this...
-	hit = RE_ray_tree_intersect_check(R.raytree, isect, bake_check_intersect);
-	...the active object may NOT be ignored in some cases.
-	*/
 
 	hit = RE_rayobject_raycast(raytree, isect);
 	if(hit) {
@@ -490,8 +471,9 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 
 			isec.orig.ob   = obi;
 			isec.orig.face = vlr;
-			isec.userdata= bs;
-			
+			isec.userdata= bs->actob;
+			isec.skip = RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_BAKE_CHECK;
+
 			if(bake_intersect_tree(re, re->db.raytree, &isec, shi->geometry.co, shi->geometry.vn, sign, co, &dist)) {
 				if(!hit || len_v3v3(shi->geometry.co, co) < len_v3v3(shi->geometry.co, minco)) {
 					minisec= isec;
