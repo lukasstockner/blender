@@ -1148,6 +1148,10 @@ static void rna_def_space_buttons(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, NULL, NULL, "rna_SpaceProperties_pin_id_typef");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_PROPERTIES, NULL);
+
+	prop= RNA_def_property(srna, "use_pin_id", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SB_PIN_CONTEXT);
+	RNA_def_property_ui_text(prop, "Pin ID", "Use the pinned context");
 }
 
 static void rna_def_space_image(BlenderRNA *brna)
