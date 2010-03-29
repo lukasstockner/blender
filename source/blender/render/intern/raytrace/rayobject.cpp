@@ -302,7 +302,7 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 
 		RE_RC_COUNT(is->raycounter->faces.hit);
 
-		is->isect= ok;	// wich half of the quad
+		is->isect= ok;	// which half of the quad
 		is->labda= labda;
 		is->u= uv[0]; is->v= uv[1];
 

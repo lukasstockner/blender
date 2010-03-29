@@ -6506,7 +6506,7 @@ static DerivedMesh *screwModifier_applyModifier(ModifierData *md, Object *ob,
 								ed_loop_flip= 1;
 							}
 							else {
-								/* not so simple to work out wich edge is higher */
+								/* not so simple to work out which edge is higher */
 								sub_v3_v3v3(tmp_vec1, tmpf1, vc_tmp->co);
 								sub_v3_v3v3(tmp_vec1, tmpf2, vc_tmp->co);
 								normalize_v3(tmp_vec1);
