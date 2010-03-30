@@ -109,7 +109,7 @@ static void rna_Cache_change(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 	cache->flag |= PTCACHE_OUTDATED;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 
@@ -134,7 +134,7 @@ static void rna_Cache_toggle_disk_cache(Main *bmain, Scene *scene, PointerRNA *p
 	if(!ob)
 		return;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache==cache)
@@ -161,7 +161,7 @@ static void rna_Cache_idname_change(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 	/* TODO: check for proper characters */
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	if(cache->flag & PTCACHE_EXTERNAL) {
 		for(pid=pidlist.first; pid; pid=pid->next) {
@@ -220,7 +220,7 @@ static void rna_Cache_list_begin(CollectionPropertyIterator *iter, PointerRNA *p
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache == cache) {
@@ -238,7 +238,7 @@ static void rna_Cache_active_point_cache_index_range(PointerRNA *ptr, int *min, 
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 	
 	*min= 0;
 	*max= 0;
@@ -262,7 +262,7 @@ static int rna_Cache_active_point_cache_index_get(PointerRNA *ptr)
 	ListBase pidlist;
 	int num = 0;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 	
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache == cache) {
@@ -283,7 +283,7 @@ static void rna_Cache_active_point_cache_index_set(struct PointerRNA *ptr, int v
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, NULL, 0);
 	
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache == cache) {

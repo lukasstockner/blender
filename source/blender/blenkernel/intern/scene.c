@@ -891,15 +891,18 @@ float frame_to_float (Scene *scene, int cfra)		/* see also bsystem_time in objec
 	return ctime;
 }
 
-static void scene_update_newframe(Scene *sce, unsigned int lay)
+static void scene_update_newframe(Scene *scene, unsigned int lay)
 {
 	Base *base;
 	Object *ob;
 	
-	for(base= sce->base.first; base; base= base->next) {
+	for(base= scene->base.first; base; base= base->next) {
 		ob= base->object;
 		
-		object_handle_update(sce, ob);   // bke_object.h
+		object_handle_update(scene, ob);   // bke_object.h
+
+		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
+			group_handle_recalc_and_update(scene, ob, ob->dup_group);
 		
 		/* only update layer when an ipo */
 			// XXX old animation system
@@ -928,7 +931,7 @@ void scene_update_tagged(Scene *scene)
 
 			object_handle_update(scene, ob);
 
-			if(ob->dup_group)
+			if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
 				group_handle_recalc_and_update(scene, ob, ob->dup_group);
 		}
 	}
@@ -938,7 +941,7 @@ void scene_update_tagged(Scene *scene)
 
 		object_handle_update(scene, ob);
 
-		if(ob->dup_group)
+		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
 			group_handle_recalc_and_update(scene, ob, ob->dup_group);
 	}
 
