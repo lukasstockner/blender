@@ -513,6 +513,8 @@ void RE_FreeRenderResult(RenderResult *res)
 		MEM_freeN(res->rectz);
 	if(res->rectf)
 		MEM_freeN(res->rectf);
+	if(res->text)
+		MEM_freeN(res->text);
 
 	BLI_rw_mutex_unlock(&res->mutex);
 	BLI_rw_mutex_end(&res->mutex);
@@ -1511,6 +1513,14 @@ RenderResult *RE_AcquireResultWrite(Render *re)
 	}
 
 	return NULL;
+}
+
+void RE_SwapResult(Render *re, RenderResult **rr)
+{
+	/* for keeping render buffers */
+	if(re) {
+		SWAP(RenderResult*, re->result, *rr);
+	}
 }
 
 void RE_ReleaseResult(Render *re)

@@ -679,7 +679,7 @@ static int render_frame(int argc, char **argv, void *data)
 
 		if (argc > 1) {
 			int frame = atoi(argv[1]);
-			Render *re = RE_NewRender(scene->id.name, RE_SLOT_DEFAULT);
+			Render *re = RE_NewRender(scene->id.name);
 			ReportList reports;
 
 			BKE_reports_init(&reports, RPT_PRINT);
@@ -703,7 +703,7 @@ static int render_animation(int argc, char **argv, void *data)
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
 		Scene *scene= CTX_data_scene(C);
-		Render *re= RE_NewRender(scene->id.name, RE_SLOT_DEFAULT);
+		Render *re= RE_NewRender(scene->id.name);
 		ReportList reports;
 		BKE_reports_init(&reports, RPT_PRINT);
 		RE_BlenderAnim(re, scene, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
@@ -796,6 +796,7 @@ static int run_python(int argc, char **argv, void *data)
 		/* XXX, temp setting the WM is ugly, splash also does this :S */
 		wmWindowManager *wm= CTX_wm_manager(C);
 		wmWindow *prevwin= CTX_wm_window(C);
+		Scene *prevscene= CTX_data_scene(C);
 
 		if(wm->windows.first) {
 			CTX_wm_window_set(C, wm->windows.first);
@@ -808,6 +809,9 @@ static int run_python(int argc, char **argv, void *data)
 			fprintf(stderr, "Python script \"%s\" running with missing context data.\n", argv[1]);
 			BPY_run_python_script(C, filename, NULL, NULL); // use reports?
 		}
+
+		CTX_data_scene_set(C, prevscene);
+
 		return 1;
 	} else {
 		printf("\nError: you must specify a Python script after '-P '.\n");
@@ -1062,7 +1066,7 @@ int main(int argc, char **argv)
 	}
 
 	else {
-		if((G.fileflags & G_FILE_AUTOPLAY) && (G.fileflags & G_SCRIPT_AUTOEXEC))
+		if((G.fileflags & G_FILE_AUTOPLAY) && (G.f & G_SCRIPT_AUTOEXEC))
 			WM_init_game(C);
 
 		else if(!G.file_loaded)

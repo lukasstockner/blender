@@ -297,9 +297,9 @@ static Render *fastshade_get_render(Scene *scene)
 	/* XXX ugly global still, but we can't do preview while rendering */
 	if(G.rendering==0) {
 		
-		Render *re= RE_GetRender("_Shade View_", RE_SLOT_DEFAULT);
+		Render *re= RE_GetRender("_Shade View_");
 		if(re==NULL) {
-			re= RE_NewRender("_Shade View_", RE_SLOT_DEFAULT);
+			re= RE_NewRender("_Shade View_");
 		
 			RE_Database_Baking(re, scene, 0, 0);	/* 0= no faces */
 		}
@@ -313,7 +313,7 @@ static Render *fastshade_get_render(Scene *scene)
 /* called on file reading */
 void fastshade_free_render(void)
 {
-	Render *re= RE_GetRender("_Shade View_", RE_SLOT_DEFAULT);
+	Render *re= RE_GetRender("_Shade View_");
 	
 	if(re) {
 		RE_Database_Free(re);
@@ -1306,7 +1306,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 		md = preTesselatePoint->next;
 	}
 
-	if (*derivedFinal) {
+	if (derivedFinal && *derivedFinal) {
 		(*derivedFinal)->release (*derivedFinal);
 	}
 
@@ -1361,6 +1361,13 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 				}
 			}
 		} else {
+			if (!derivedFinal) {
+				/* makeDisplistCurveTypes could be used for beveling, where derived mesh */
+				/* is totally unnecessary, so we could stop modifiers applying */
+				/* when we found constructive modifier but derived mesh is unwanted result */
+				break;
+			}
+
 			if (dm) {
 				if (dmDeformedVerts) {
 					DerivedMesh *tdm = CDDM_copy(dm);
@@ -1372,7 +1379,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 				}
 			} else {
 				if (ELEM(ob->type, OB_CURVE, OB_FONT) && (cu->flag & CU_DEFORM_FILL)) {
-					curve_to_filledpoly(cu, nurb, &cu->disp);
+					curve_to_filledpoly(cu, nurb, dispbase);
 				}
 
 				dm= CDDM_from_curve_customDB(ob, dispbase);
@@ -1412,7 +1419,9 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 		MEM_freeN(dmDeformedVerts);
 	}
 
-	(*derivedFinal) = dm;
+	if (derivedFinal) {
+		(*derivedFinal) = dm;
+	}
 
 	if (deformedVerts) {
 		curve_applyVertexCos(ob->data, nurb, originalVerts);
@@ -1578,21 +1587,24 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 		if(forRender || nu->hide==0) {
 			if(nu->pntsv==1) {
 				len= SEGMENTSU(nu)*nu->resolu;
-				
+
 				dl= MEM_callocN(sizeof(DispList), "makeDispListsurf");
 				dl->verts= MEM_callocN(len*3*sizeof(float), "dlverts");
-				
+
 				BLI_addtail(dispbase, dl);
 				dl->parts= 1;
 				dl->nr= len;
 				dl->col= nu->mat_nr;
 				dl->charidx= nu->charidx;
-				dl->rt= nu->flag;
-				
+
+				/* dl->rt will be used as flag for render face and */
+				/* CU_2D conflicts with R_NOPUNOFLIP */
+				dl->rt= nu->flag & ~CU_2D;
+
 				data= dl->verts;
 				if(nu->flagu & CU_NURB_CYCLIC) dl->type= DL_POLY;
 				else dl->type= DL_SEGM;
-				
+
 				makeNurbcurve(nu, data, NULL, NULL, nu->resolu, 3*sizeof(float));
 			}
 			else {
@@ -1604,11 +1616,14 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 
 				dl->col= nu->mat_nr;
 				dl->charidx= nu->charidx;
-				dl->rt= nu->flag;
-				
+
+				/* dl->rt will be used as flag for render face and */
+				/* CU_2D conflicts with R_NOPUNOFLIP */
+				dl->rt= nu->flag & ~CU_2D;
+
 				data= dl->verts;
 				dl->type= DL_SURF;
-				
+
 				dl->parts= (nu->pntsu*nu->resolu);	/* in reverse, because makeNurbfaces works that way */
 				dl->nr= (nu->pntsv*nu->resolv);
 				if(nu->flagv & CU_NURB_CYCLIC) dl->flag|= DL_CYCL_U;	/* reverse too! */
@@ -1666,7 +1681,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 		makeBevelList(ob);
 
 		/* If curve has no bevel will return nothing */
-		makebevelcurve(scene, ob, &dlbev);
+		makebevelcurve(scene, ob, &dlbev, forRender);
 
 		/* no bevel or extrude, and no width correction? */
 		if (!dlbev.first && cu->width==1.0f) {
@@ -1681,26 +1696,29 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 				float *fp1, *data;
 				BevPoint *bevp;
 				int a,b;
-				
+
 				if (bl->nr) { /* blank bevel lists can happen */
-					
+
 					/* exception handling; curve without bevel or extrude, with width correction */
 					if(dlbev.first==NULL) {
 						dl= MEM_callocN(sizeof(DispList), "makeDispListbev");
 						dl->verts= MEM_callocN(3*sizeof(float)*bl->nr, "dlverts");
 						BLI_addtail(dispbase, dl);
-						
+
 						if(bl->poly!= -1) dl->type= DL_POLY;
 						else dl->type= DL_SEGM;
-						
+
 						if(dl->type==DL_SEGM) dl->flag = (DL_FRONT_CURVE|DL_BACK_CURVE);
-						
+
 						dl->parts= 1;
 						dl->nr= bl->nr;
 						dl->col= nu->mat_nr;
 						dl->charidx= nu->charidx;
-						dl->rt= nu->flag;
-						
+
+						/* dl->rt will be used as flag for render face and */
+						/* CU_2D conflicts with R_NOPUNOFLIP */
+						dl->rt= nu->flag & ~CU_2D;
+
 						a= dl->nr;
 						bevp= (BevPoint *)(bl+1);
 						data= dl->verts;
@@ -1714,10 +1732,10 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 					}
 					else {
 						DispList *dlb;
-						
+
 						for (dlb=dlbev.first; dlb; dlb=dlb->next) {
 	
-								/* for each part of the bevel use a separate displblock */
+							/* for each part of the bevel use a separate displblock */
 							dl= MEM_callocN(sizeof(DispList), "makeDispListbev1");
 							dl->verts= data= MEM_callocN(3*sizeof(float)*dlb->nr*bl->nr, "dlverts");
 							BLI_addtail(dispbase, dl);
@@ -1732,11 +1750,15 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 							dl->nr= dlb->nr;
 							dl->col= nu->mat_nr;
 							dl->charidx= nu->charidx;
-							dl->rt= nu->flag;
+
+							/* dl->rt will be used as flag for render face and */
+							/* CU_2D conflicts with R_NOPUNOFLIP */
+							dl->rt= nu->flag & ~CU_2D;
+
 							dl->bevelSplitFlag= MEM_callocN(sizeof(*dl->col2)*((bl->nr+0x1F)>>5), "col2");
 							bevp= (BevPoint *)(bl+1);
 	
-								/* for each point of poly make a bevel piece */
+							/* for each point of poly make a bevel piece */
 							bevp= (BevPoint *)(bl+1);
 							for(a=0; a<bl->nr; a++,bevp++) {
 								float fac=1.0;
@@ -1746,7 +1768,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 								} else {
 									fac = calc_taper(scene, cu->taperobj, a, bl->nr);
 								}
-								
+
 								if (bevp->split_tag) {
 									dl->bevelSplitFlag[a>>5] |= 1<<(a&0x1F);
 								}
@@ -1760,9 +1782,9 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 										vec[0]= fp1[1]+widfac;
 										vec[1]= fp1[2];
 										vec[2]= 0.0;
-										
+
 										mul_qt_v3(bevp->quat, vec);
-										
+
 										data[0]= bevp->vec[0] + fac*vec[0];
 										data[1]= bevp->vec[1] + fac*vec[1];
 										data[2]= bevp->vec[2] + fac*vec[2];

@@ -81,7 +81,6 @@
 #define B_REDR				1
 #define B_IMAGECHANGED		2
 #define B_TRANS_IMAGE		3
-#define B_CURSOR_IMAGE		4
 #define B_NOP				0
 #define B_TWINANIM			5
 #define B_SIMAGETILE		6
@@ -109,7 +108,6 @@ static int simaUVSel_Check() {return 0;}
 
 /* proto */
 static void image_editvertex_buts(const bContext *C, uiBlock *block);
-static void image_editcursor_buts(const bContext *C, View2D *v2d, uiBlock *block);
 
 
 static void do_image_panel_events(bContext *C, void *arg, int event)
@@ -122,9 +120,6 @@ static void do_image_panel_events(bContext *C, void *arg, int event)
 			break;
 		case B_TRANS_IMAGE:
 			image_editvertex_buts(C, NULL);
-			break;
-		case B_CURSOR_IMAGE:
-			image_editcursor_buts(C, &ar->v2d, NULL);
 			break;
 	}
 
@@ -316,41 +311,6 @@ static void image_editvertex_buts(const bContext *C, uiBlock *block)
 
 
 /* is used for both read and write... */
-static void image_editcursor_buts(const bContext *C, View2D *v2d, uiBlock *block)
-{
-	SpaceImage *sima= CTX_wm_space_image(C);
-	static float ocent[2];
-	int imx= 256, imy= 256;
-	int step, digits;
-	
-	image_transform_but_attr(sima, &imx, &imy, &step, &digits);
-		
-	if(block) {	// do the buttons
-		ocent[0]= v2d->cursor[0];
-		ocent[1]= v2d->cursor[1];
-		if (sima->flag & SI_COORDFLOATS) {
-		} else {
-			ocent[0] *= imx;
-			ocent[1] *= imy;
-		}
-		
-		uiBlockBeginAlign(block);
-		uiDefButF(block, NUM, B_CURSOR_IMAGE, "Cursor X:",	165, 120, 145, 19, &ocent[0], -10*imx, 10.0*imx, step, digits, "");
-		uiDefButF(block, NUM, B_CURSOR_IMAGE, "Cursor Y:",	165, 100, 145, 19, &ocent[1], -10*imy, 10.0*imy, step, digits, "");
-		uiBlockEndAlign(block);
-	}
-	else {	// apply event
-		if (sima->flag & SI_COORDFLOATS) {
-			v2d->cursor[0]= ocent[0];
-			v2d->cursor[1]= ocent[1];
-		}
-		else {
-			v2d->cursor[0]= ocent[0]/imx;
-			v2d->cursor[1]= ocent[1]/imy;
-		}
-		WM_event_add_notifier(C, NC_IMAGE, sima->image);
-	}
-}
 
 static int image_panel_poll(const bContext *C, PanelType *pt)
 {
@@ -527,12 +487,12 @@ static char *slot_menu()
 	char *str;
 	int a, slot;
 	
-	str= MEM_callocN(RE_SLOT_MAX*32, "menu slots");
+	str= MEM_callocN(IMA_MAX_RENDER_SLOT*32, "menu slots");
 	
 	strcpy(str, "Slot %t");
 	a= strlen(str);
 
-	for(slot=0; slot<RE_SLOT_MAX; slot++)
+	for(slot=0; slot<IMA_MAX_RENDER_SLOT; slot++)
 		a += sprintf(str+a, "|Slot %d %%x%d", slot+1, slot);
 	
 	return str;
@@ -606,7 +566,6 @@ static void image_multi_cb(bContext *C, void *rr_v, void *iuser_v)
 {
 	ImageUser *iuser= iuser_v;
 
-	RE_SetViewSlot(iuser->menunr);
 	BKE_image_multilayer_index(rr_v, iuser); 
 	WM_event_add_notifier(C, NC_IMAGE|ND_DRAW, NULL);
 }
@@ -707,7 +666,7 @@ static void image_user_change(bContext *C, void *iuser_v, void *unused)
 }
 #endif
 
-static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, ImageUser *iuser, int w, int render)
+static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, ImageUser *iuser, int w, short *render_slot)
 {
 	uiBlock *block= uiLayoutGetBlock(layout);
 	uiBut *but;
@@ -723,10 +682,9 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, Image
 	wmenu3= (3*w)/6;
 	
 	/* menu buts */
-	if(render) {
+	if(render_slot) {
 		strp= slot_menu();
-		iuser->menunr= RE_GetViewSlot();
-		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu1, 20, &iuser->menunr, 0,0,0,0, "Select Slot");
+		but= uiDefButS(block, MENU, 0, strp,					0, 0, wmenu1, 20, render_slot, 0,0,0,0, "Select Slot");
 		uiButSetFunc(but, image_multi_cb, rr, iuser);
 		MEM_freeN(strp);
 	}
@@ -745,7 +703,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, Image
 	}
 }
 
-static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr, ImageUser *iuser, int render)
+static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr, ImageUser *iuser, short *render_slot)
 {
 	uiBlock *block= uiLayoutGetBlock(layout);
 	uiLayout *row;
@@ -766,7 +724,7 @@ static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr,
 	but= uiDefIconBut(block, BUT, 0, ICON_TRIA_RIGHT,	0,0,18,20, NULL, 0, 0, 0, 0, "Next Layer");
 	uiButSetFunc(but, image_multi_inclay_cb, rr, iuser);
 
-	uiblock_layer_pass_buttons(row, rr, iuser, 230, render);
+	uiblock_layer_pass_buttons(row, rr, iuser, 230, render_slot);
 
 	/* decrease, increase arrows */
 	but= uiDefIconBut(block, BUT, 0, ICON_TRIA_LEFT,	0,0,17,20, NULL, 0, 0, 0, 0, "Previous Pass");
@@ -875,15 +833,15 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 			}
 			else if(ima->type==IMA_TYPE_R_RESULT) {
 				/* browse layer/passes */
-				Render *re= RE_GetRender(scene->id.name, RE_SLOT_VIEW);
+				Render *re= RE_GetRender(scene->id.name);
 				RenderResult *rr= RE_AcquireResultRead(re);
-				uiblock_layer_pass_arrow_buttons(layout, rr, iuser, 1);
+				uiblock_layer_pass_arrow_buttons(layout, rr, iuser, &ima->render_slot);
 				RE_ReleaseResult(re);
 			}
 		}
 		else {
 			row= uiLayoutRow(layout, 0);
-			uiItemR(row, &imaptr, "source", (compact)? 0: UI_ITEM_R_EXPAND, NULL, 0);
+			uiItemR(row, &imaptr, "source", 0, NULL, 0);
 
 			if(ima->source != IMA_SRC_GENERATED) {
 				row= uiLayoutRow(layout, 1);
@@ -904,7 +862,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 
 			/* multilayer? */
 			if(ima->type==IMA_TYPE_MULTILAYER && ima->rr) {
-				uiblock_layer_pass_arrow_buttons(layout, ima->rr, iuser, 0);
+				uiblock_layer_pass_arrow_buttons(layout, ima->rr, iuser, NULL);
 			}
 			else if(ima->source != IMA_SRC_GENERATED) {
 				if(compact == 0) {
@@ -984,7 +942,7 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
 	/* render layers and passes */
 	if(ima && iuser) {
 		rr= BKE_image_acquire_renderresult(scene, ima);
-		uiblock_layer_pass_buttons(layout, rr, iuser, 160, ima->type==IMA_TYPE_R_RESULT);
+		uiblock_layer_pass_buttons(layout, rr, iuser, 160, (ima->type==IMA_TYPE_R_RESULT)? &ima->render_slot: NULL);
 		BKE_image_release_renderresult(scene, ima);
 	}
 }
@@ -1004,19 +962,20 @@ static void image_panel_uv(const bContext *C, Panel *pa)
 	uiBlockSetHandleFunc(block, do_image_panel_events, NULL);
 
 	image_editvertex_buts(C, block);
-	image_editcursor_buts(C, &ar->v2d, block);
 }	
 
 void image_buttons_register(ARegionType *art)
 {
 	PanelType *pt;
 
+	/* editvertex_buts not working atm
 	pt= MEM_callocN(sizeof(PanelType), "spacetype image panel uv");
 	strcpy(pt->idname, "IMAGE_PT_uv");
 	strcpy(pt->label, "UV");
 	pt->draw= image_panel_uv;
 	pt->poll= image_panel_uv_poll;
 	BLI_addtail(&art->paneltypes, pt);
+	 */
 
 	pt= MEM_callocN(sizeof(PanelType), "spacetype image panel curves");
 	strcpy(pt->idname, "IMAGE_PT_curves");

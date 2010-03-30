@@ -125,7 +125,7 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	Render *envre;
 	int cuberes;
 	
-	envre= RE_NewRender("Envmap", RE_SLOT_DEFAULT);
+	envre= RE_NewRender("Envmap");
 	
 	env->lastsize= re->params.r.size;
 	cuberes = (env->cuberes * re->params.r.size) / 100;
@@ -419,7 +419,7 @@ static void render_envmap(Render *re, EnvMap *env)
 		env_set_imats(envre);
 				
 		if(re->cb.test_break(re->cb.tbh)==0) {
-			RE_TileProcessor(envre, 0, 0);
+			RE_TileProcessor(envre);
 		}
 		
 		/* rotate back */

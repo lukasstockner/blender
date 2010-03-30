@@ -110,12 +110,9 @@
 static struct {
 	ListBase renderlist;
 
-	/* render slots */
-	int viewslot, renderingslot;
-
 	/* commandline thread override */
 	int threads;
-} RenderGlobal = {{NULL, NULL}, 0, 0, -1}; 
+} RenderGlobal = {{NULL, NULL}, -1}; 
 
 /* ********* alloc and free ******** */
 
@@ -171,38 +168,15 @@ static int render_scene_needs_vector(Render *re)
 	return 0;
 }
 
-void RE_SetViewSlot(int slot)
-{
-	RenderGlobal.viewslot = slot;
-}
-
-int RE_GetViewSlot(void)
-{
-	return RenderGlobal.viewslot;
-}
-
-static int re_get_slot(int slot)
-{
-	if(slot == RE_SLOT_VIEW)
-		return RenderGlobal.viewslot;
-	else if(slot == RE_SLOT_RENDERING)
-		return (G.rendering)? RenderGlobal.renderingslot: RenderGlobal.viewslot;
-
-	return slot;
-}
-
-Render *RE_GetRender(const char *name, int slot)
+Render *RE_GetRender(const char *name)
 {
 	Render *re;
 
-	slot= re_get_slot(slot);
-	
 	/* search for existing renders */
-	for(re= RenderGlobal.renderlist.first; re; re= re->next) {
-		if(strncmp(re->name, name, RE_MAXNAME)==0 && re->slot==slot) {
+	for(re= RenderGlobal.renderlist.first; re; re= re->next)
+		if(strncmp(re->name, name, RE_MAXNAME)==0)
 			break;
-		}
-	}
+
 	return re;
 }
 
@@ -229,21 +203,18 @@ RenderStats *RE_GetStats(Render *re)
 	return &re->cb.i;
 }
 
-Render *RE_NewRender(const char *name, int slot)
+Render *RE_NewRender(const char *name)
 {
 	Render *re;
 
-	slot= re_get_slot(slot);
-	
 	/* only one render per name exists */
-	re= RE_GetRender(name, slot);
+	re= RE_GetRender(name);
 	if(re==NULL) {
 		
 		/* new render data struct */
 		re= MEM_callocN(sizeof(Render), "new render");
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		strncpy(re->name, name, RE_MAXNAME);
-		re->slot= slot;
 		BLI_rw_mutex_init(&re->resultmutex);
 	}
 	
@@ -511,58 +482,6 @@ static void *do_part_thread(void *pa_v)
 	return NULL;
 }
 
-/* returns with render result filled, not threaded, used for preview now only */
-static void render_tile_processor(Render *re, int firsttile)
-{
-	RenderPart *pa;
-	
-	if(re->cb.test_break(re->cb.tbh))
-		return;
-
-	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-
-	/* hrmf... exception, this is used for preview render, re-entrant, so render result has to be re-used */
-	if(re->result==NULL || re->result->layers.first==NULL) {
-		if(re->result) RE_FreeRenderResult(re->result);
-		re->result= render_result_create(re, &re->disprect, 0, RR_USEMEM);
-	}
-
-	BLI_rw_mutex_unlock(&re->resultmutex);
-	
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
- 
-	if(re->result==NULL)
-		return;
-	
-	parts_create(re);
-
-	for(pa= re->parts.first; pa; pa= pa->next) {
-		if(firsttile) {
-			re->cb.i.partsdone++;	/* was reset in parts_create */
-			firsttile--;
-		}
-		else {
-			do_part_thread(pa);
-			
-			if(pa->result) {
-				if(!re->cb.test_break(re->cb.tbh)) {
-					if(render_display_draw_enabled(re))
-						re->cb.display_draw(re->cb.ddh, pa->result, NULL);
-					
-					re->cb.i.partsdone++;
-					re->cb.stats_draw(re->cb.sdh, &re->cb.i);
-				}
-				RE_FreeRenderResult(pa->result);
-				pa->result= NULL;
-			}		
-			if(re->cb.test_break(re->cb.tbh))
-				break;
-		}
-	}
-
-	parts_free(re);
-}
-
 static void print_part_stats(Render *re, RenderPart *pa)
 {
 	char str[64];
@@ -737,43 +656,20 @@ static void threaded_tile_processor(Render *re)
 }
 
 /* currently threaded=0 only used by envmap */
-void RE_TileProcessor(Render *re, int firsttile, int threaded)
+void RE_TileProcessor(Render *re)
 {
-	/* the partsdone variable has to be reset to firsttile, to survive esc before it was set to zero */
-	
-	re->cb.i.partsdone= firsttile;
-
-	if(!re->db.sss_points)
-		re->cb.i.starttime= PIL_check_seconds_timer();
-
-	if(threaded)
-		threaded_tile_processor(re);
-	else
-		render_tile_processor(re, firsttile);
-		
-	if(!re->db.sss_points)
-		re->cb.i.lastframetime= PIL_check_seconds_timer()- re->cb.i.starttime;
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	threaded_tile_processor(re);
 }
-
 
 /* ************  This part uses API, for rendering Blender scenes ********** */
 
-static void external_render_3d(Render *re, RenderEngineType *type);
+static int external_render_3d(Render *re, int do_all);
 
 static void do_render_3d(Render *re)
 {
-	RenderEngineType *type;
-
 	/* try external */
-	for(type=R_engines.first; type; type=type->next)
-		if(strcmp(type->idname, re->params.r.engine) == 0)
-			break;
-
-	if(type && type->render) {
-		external_render_3d(re, type);
+	if(external_render_3d(re, 0))
 		return;
-	}
 
 	/* internal */
 	
@@ -1064,7 +960,7 @@ static void do_render_fields_blur_3d(Render *re)
 */
 static void render_scene(Render *re, Scene *sce, int cfra)
 {
-	Render *resc= RE_NewRender(sce->id.name, RE_SLOT_RENDERING);
+	Render *resc= RE_NewRender(sce->id.name);
 	int winx= re->cam.winx, winy= re->cam.winy;
 	
 	sce->r.cfra= cfra;
@@ -1272,7 +1168,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 static void renderresult_stampinfo(Scene *scene)
 {
 	RenderResult rres;
-	Render *re= RE_GetRender(scene->id.name, RE_SLOT_RENDERING);
+	Render *re= RE_GetRender(scene->id.name);
 
 	/* this is the basic trick to get the displayed float or char rect from render result */
 	RE_AcquireResultImage(re, &rres);
@@ -1357,8 +1253,11 @@ static void do_render_all_options(Render *re)
 
 	/* ensure no images are in memory from previous animated sequences */
 	BKE_image_all_free_anim_ibufs(re->params.r.cfra);
-	
-	if((re->params.r.scemode & R_DOSEQ) && re->db.scene->ed && re->db.scene->ed->seqbase.first) {
+
+	if(external_render_3d(re, 1)) {
+		/* in this case external render overrides all */
+	}
+	else if((re->params.r.scemode & R_DOSEQ) && re->db.scene->ed && re->db.scene->ed->seqbase.first) {
 		/* note: do_render_seq() frees rect32 when sequencer returns float images */
 		if(!re->cb.test_break(re->cb.tbh)) 
 			do_render_seq(re);
@@ -1578,7 +1477,6 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
-	RenderGlobal.renderingslot= re->slot;
 	G.rendering= 1;
 	
 	scene->r.cfra= frame;
@@ -1589,7 +1487,6 @@ void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned i
 	
 	/* UGLY WARNING */
 	G.rendering= 0;
-	RenderGlobal.renderingslot= RenderGlobal.viewslot;
 }
 
 static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, ReportList *reports)
@@ -1692,7 +1589,6 @@ void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int ef
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
 	/* is also set by caller renderwin.c */
 	G.rendering= 1;
-	RenderGlobal.renderingslot= re->slot;
 	
 	if(BKE_imtype_is_movie(scene->r.imtype))
 		if(!mh->start_movie(scene, &re->params.r, re->rectx, re->recty, reports))
@@ -1789,7 +1685,23 @@ void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int ef
 	
 	/* UGLY WARNING */
 	G.rendering= 0;
-	RenderGlobal.renderingslot= RenderGlobal.viewslot;
+}
+
+void RE_PreviewRender(Render *re, Scene *sce)
+{
+	int winx, winy;
+
+	winx= (sce->r.size*sce->r.xsch)/100;
+	winy= (sce->r.size*sce->r.ysch)/100;
+
+	RE_InitState(re, NULL, &sce->r, NULL, winx, winy, NULL);
+
+	re->db.scene = sce;
+	re->db.lay = sce->lay;
+
+	RE_SetCamera(re, sce->camera);
+
+	do_render_3d(re);
 }
 
 /* note; repeated win/disprect calc... solve that nicer, also in compo */
@@ -1823,9 +1735,9 @@ void RE_ReadRenderResult(Scene *scene, Scene *scenode)
 		scene= scenode;
 	
 	/* get render: it can be called from UI with draw callbacks */
-	re= RE_GetRender(scene->id.name, RE_SLOT_VIEW);
+	re= RE_GetRender(scene->id.name);
 	if(re==NULL)
-		re= RE_NewRender(scene->id.name, RE_SLOT_VIEW);
+		re= RE_NewRender(scene->id.name);
 	RE_InitState(re, NULL, &scene->r, NULL, winx, winy, &disprect);
 	re->db.scene= scene;
 	
@@ -1984,9 +1896,23 @@ void RE_result_load_from_file(RenderResult *result, ReportList *reports, char *f
 	}
 }
 
-static void external_render_3d(Render *re, RenderEngineType *type)
+static int external_render_3d(Render *re, int do_all)
 {
+	RenderEngineType *type;
 	RenderEngine engine;
+
+	for(type=R_engines.first; type; type=type->next)
+		if(strcmp(type->idname, re->params.r.engine) == 0)
+			break;
+
+	if(!(type && type->render))
+		return 0;
+	if((re->params.r.scemode & R_PREVIEWBUTS) && !(type->flag & RE_DO_PREVIEW))
+		return 0;
+	if(do_all && !(type->flag & RE_DO_ALL))
+		return 0;
+	if(!do_all && (type->flag & RE_DO_ALL))
+		return 0;
 
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 	if(re->result==NULL || !(re->params.r.scemode & R_PREVIEWBUTS)) {
@@ -2000,7 +1926,7 @@ static void external_render_3d(Render *re, RenderEngineType *type)
 	BLI_rw_mutex_unlock(&re->resultmutex);
 	
 	if(re->result==NULL)
-		return;
+		return 1;
 
 	/* external */
 	memset(&engine, 0, sizeof(engine));
@@ -2018,5 +1944,7 @@ static void external_render_3d(Render *re, RenderEngineType *type)
 		extern void stupid();
 		stupid();
 	}
+
+	return 1;
 }
 
