@@ -1545,7 +1545,7 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 	}
 	
 	/* setup render stuff */
-	re->db.memArena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	re->db.memArena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "bake db arena");
 	
 	re->db.totvlak=re->db.totvert=re->db.totstrand=re->db.totlamp=re->db.tothalo= 0;
 	re->db.lights.first= re->db.lights.last= NULL;

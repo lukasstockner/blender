@@ -528,7 +528,7 @@ static IrrCache *irr_cache_new(Render *re, int thread)
 	cache->thread= thread;
 	cache->maxdepth= 1;
 
-	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "irr cache arena");
 	BLI_memarena_use_calloc(cache->arena);
 
 	/* initialize root node with bounds */
@@ -1203,7 +1203,7 @@ IrrCache *irr_cache_read(Render *re, int thread)
 
 	cache->thread= thread;
 
-	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "irr cache read arena");
 	BLI_memarena_use_calloc(cache->arena);
 
 	cache->stack= NULL;
@@ -1357,7 +1357,7 @@ void radio_cache_create(Render *re, int thread)
 	cache->thread= thread;
 	cache->maxdepth= 1;
 
-	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "radio cace arena");
 	BLI_memarena_use_calloc(cache->arena);
 
 	/* initialize root node with bounds */
@@ -1547,7 +1547,7 @@ void radio_cache_create(Render *re, int thread)
 	re->db.radiocache[thread]= cache;
 
 	cache->hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
-	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "radio cache arena");
 }
 
 void radio_cache_free(RenderDB *rdb, int thread)

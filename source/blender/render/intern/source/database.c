@@ -49,7 +49,7 @@
 
 void render_db_init(RenderDB *rdb)
 {
-	rdb->memArena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+	rdb->memArena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "render db arena");
 
 	rdb->totvlak= 0;
 	rdb->totvert= 0;

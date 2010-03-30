@@ -826,7 +826,7 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 	int a;
 
 	if(do_nmap_tangent) {
-		arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE);
+		arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "nmap tangent arena");
 		BLI_memarena_use_calloc(arena);
 
 		vtangents= MEM_callocN(sizeof(VertexTangent*)*obr->totvert, "VertexTangent");
@@ -2079,12 +2079,14 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	}
 
 	if(re->params.flag & R_NEED_TANGENT) {
-		/* exception for tangent space baking */
-		if(me->mtface==NULL) {
-			need_orco= 1;
-			need_tangent= 1;
+		if(!re->db.excludeob || re->db.excludeob == obr->ob) {
+			/* exception for tangent space baking */
+			if(me->mtface==NULL) {
+				need_orco= 1;
+				need_tangent= 1;
+			}
+			need_nmap_tangent= 1;
 		}
-		need_nmap_tangent= 1;
 	}
 	
 	/* check autosmooth and displacement, we then have to skip only-verts optimize */

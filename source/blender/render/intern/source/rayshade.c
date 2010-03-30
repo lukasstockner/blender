@@ -301,7 +301,7 @@ RayObject* raytree_create_object(Render *re, ObjectInstanceRen *obi)
 
 		//Create Ray cast accelaration structure		
 		raytree = RE_rayobject_create( re,  re->params.r.raytrace_structure, faces );
-		if(  (re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS) )
+		if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 			vlakprimitive = obr->rayprimitives = (VlakPrimitive*)MEM_callocN(faces*sizeof(VlakPrimitive), "ObjectRen primitives");
 		else
 			face = obr->rayfaces = (RayFace*)MEM_callocN(faces*sizeof(RayFace), "ObjectRen faces");
@@ -313,7 +313,7 @@ RayObject* raytree_create_object(Render *re, ObjectInstanceRen *obi)
 			VlakRen *vlr = obr->vlaknodes[v>>8].vlak + (v&255);
 			if(is_raytraceable_vlr(re, vlr))
 			{
-				if(  (re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS) )
+				if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 				{
 					RE_rayobject_add( raytree, RE_vlakprimitive_from_vlak( vlakprimitive, obi, vlr ) );
 					vlakprimitive++;
@@ -409,7 +409,7 @@ static void raytree_create_single(Render *re)
 	//Create raytree
 	raytree = re->db.raytree = RE_rayobject_create( re, re->params.r.raytrace_structure, faces+special );
 
-	if( (re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS) )
+	if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 	{
 		vlakprimitive = re->db.rayprimitives = (VlakPrimitive*)MEM_callocN(faces*sizeof(VlakPrimitive), "Raytrace vlak-primitives");
 	}
@@ -444,7 +444,7 @@ static void raytree_create_single(Render *re)
 				VlakRen *vlr = obr->vlaknodes[v>>8].vlak + (v&255);
 				if(is_raytraceable_vlr(re, vlr))
 				{
-					if( (re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS) )
+					if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 					{
 						RayObject *obj = RE_vlakprimitive_from_vlak( vlakprimitive, obi, vlr );
 						RE_rayobject_add( raytree, obj );
