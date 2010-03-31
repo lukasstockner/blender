@@ -381,7 +381,7 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 				TimeMarker *marker;
 
 				for (marker= scene->markers.first; marker; marker= marker->next) {
-					if(	(x < CFRA) && (marker->frame < CFRA) ||
+					if(	((x < CFRA) && marker->frame < CFRA) ||
 						((x >= CFRA) && marker->frame >= CFRA)
 					) {
 						marker->flag |= SELECT;

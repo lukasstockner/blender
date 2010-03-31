@@ -1112,7 +1112,7 @@ static int set_wpaint(bContext *C, wmOperator *op)		/* toggle */
 	}
 	else {
 		mesh_octree_table(NULL, NULL, NULL, 'e');
-		mesh_mirrtopo_table(NULL, NULL, NULL, 'e');
+		mesh_mirrtopo_table(NULL, 'e');
 	}
 	
 	WM_event_add_notifier(C, NC_SCENE|ND_MODE, scene);

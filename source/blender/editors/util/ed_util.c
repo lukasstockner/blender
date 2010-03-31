@@ -65,7 +65,7 @@ void ED_editors_exit(bContext *C)
 		
 			/* global in meshtools... */
 			mesh_octree_table(NULL, NULL, NULL, 'e');
-			mesh_mirrtopo_table(NULL, NULL, NULL, 'e');
+			mesh_mirrtopo_table(NULL, 'e');
 			
 			if(ob) {
 				if(ob->type==OB_MESH) {
@@ -94,7 +94,7 @@ void ED_editors_exit(bContext *C)
 			/* if weight-painting is on, free mesh octree data */
 			if(ob->mode & OB_MODE_WEIGHT_PAINT) {
 				mesh_octree_table(NULL, NULL, NULL, 'e');
-				mesh_mirrtopo_table(NULL, NULL, NULL, 'e');
+				mesh_mirrtopo_table(NULL, 'e');
 			}
 		}
 	}

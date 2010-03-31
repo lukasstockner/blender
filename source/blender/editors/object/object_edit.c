@@ -263,7 +263,7 @@ void ED_object_exit_editmode(bContext *C, int flag)
 		
 		if(obedit->restore_mode & OB_MODE_WEIGHT_PAINT) {
 			mesh_octree_table(NULL, NULL, NULL, 'e');
-			mesh_mirrtopo_table(NULL, NULL, NULL, 'e');
+			mesh_mirrtopo_table(NULL, 'e');
 		}
 	}
 	else if (obedit->type==OB_ARMATURE) {	
