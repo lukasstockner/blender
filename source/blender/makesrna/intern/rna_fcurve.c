@@ -489,6 +489,28 @@ static void rna_FKeyframe_points_remove(FCurve *fcu, ReportList *reports, BezTri
 	delete_fcurve_key(fcu, index, !do_fast);
 }
 
+static void rna_FCurve_group_set(PointerRNA *ptr, PointerRNA value)
+{
+	FCurve *fcu= ptr->data;
+
+	if(value.data && (ptr->id.data != value.id.data)) {
+		return; /* id's differ, cant do this, should raise an error */
+	}
+	if(fcu->grp == value.data) {
+		return; /* nothing to do */
+	}
+
+	if(fcu->grp) {
+		BLI_remlink(&fcu->grp->channels, fcu);
+	}
+
+	fcu->grp= value.data;
+
+	if(fcu->grp) {
+		BLI_addtail(&fcu->grp->channels, fcu);
+	}
+}
+
 #else
 
 static void rna_def_fmodifier_generator(BlenderRNA *brna)
@@ -1216,7 +1238,7 @@ static void rna_def_fcurve_modifiers(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
-/* scene.objects */
+/* fcurve.keyframe_points */
 static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
@@ -1230,7 +1252,6 @@ static void rna_def_fcurve_keyframe_points(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_ui_text(srna, "Keyframe Points", "Collection of keyframe points");
 
 	func= RNA_def_function(srna, "add", "rna_FKeyframe_points_add");
-	RNA_def_function_ui_description(func, "Add a keyframe to the curve.");
 	RNA_def_function_ui_description(func, "Add a keyframe point to a F-Curve.");
 	parm= RNA_def_float(func, "frame", 0.0f, -FLT_MAX, FLT_MAX, "", "X Value of this keyframe point", -FLT_MAX, FLT_MAX);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
@@ -1287,10 +1308,11 @@ static void rna_def_fcurve(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "grp");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE); // XXX this is not editable for now, since editing this will easily break the visible hierarchy
+	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Group", "Action Group that this F-Curve belongs to");
-	RNA_def_property_update(prop, NC_ANIMATION|ND_FCURVES_ORDER, NULL);
-	
+	RNA_def_property_pointer_funcs(prop, NULL, "rna_FCurve_group_set", NULL);
+	RNA_def_property_update(prop, NC_ANIMATION, NULL);
+
 	/* Path + Array Index */
 	prop= RNA_def_property(srna, "data_path", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_funcs(prop, "rna_FCurve_RnaPath_get", "rna_FCurve_RnaPath_length", "rna_FCurve_RnaPath_set");

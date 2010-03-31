@@ -121,7 +121,22 @@ def bake(start_frame, end_frame, step=1, only_selected=False):
                 pbone.keyframe_insert("rotation_euler", -1, f)
 
             pbone.keyframe_insert("scale", -1, f)
-    
+
+    # assign groups, could become a more generic function
+    agrp_loc = action.groups.add("Location")
+    agrp_rot = action.groups.add("Rotation")
+    agrp_sca = action.groups.add("Scale")
+
+    for fcu in action.fcurves:
+        path = fcu.data_path.rsplit(".", 1)[-1]
+
+        if path.startswith("loc"):
+            fcu.group = agrp_loc
+        if path.startswith("rot"):
+            fcu.group = agrp_rot
+        if path.startswith("sca"):
+            fcu.group = agrp_sca
+
     return action
 
 
