@@ -448,7 +448,7 @@ class MATERIAL_PT_specular(MaterialButtonsPanel):
             if wide_ui:
                 col = split.column()
             col.prop(mat, "specular_ior", text="IOR")
-        elif mat.specular_shader == 'WARDISO':
+        elif mat.specular_shader == 'WARD_ISOTROPIC':
             col.prop(mat, "specular_slope", text="Slope")
         elif mat.specular_shader == 'TOON':
             split = layout.split()

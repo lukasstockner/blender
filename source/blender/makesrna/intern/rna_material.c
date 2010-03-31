@@ -1310,7 +1310,7 @@ static void rna_def_material_specularity(StructRNA *srna)
 		{MA_SPEC_PHONG, "PHONG", 0, "Phong", ""},
 		{MA_SPEC_BLINN, "BLINN", 0, "Blinn", ""},
 		{MA_SPEC_TOON, "TOON", 0, "Toon", ""},
-		{MA_SPEC_WARDISO, "WARD_ISO", 0, "Ward Isotropic", ""},
+		{MA_SPEC_WARDISO, "WARD_ISOTROPIC", 0, "Ward Isotropic", ""},
 		{0, NULL, 0, NULL, NULL}};
 	
 	prop= RNA_def_property(srna, "specular_shader", PROP_ENUM, PROP_NONE);
