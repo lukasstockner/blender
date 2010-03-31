@@ -113,7 +113,6 @@ static void image_editvertex_buts(const bContext *C, uiBlock *block);
 static void do_image_panel_events(bContext *C, void *arg, int event)
 {
 	SpaceImage *sima= CTX_wm_space_image(C);
-	ARegion *ar= CTX_wm_region(C);
 	
 	switch(event) {
 		case B_REDR:
@@ -955,7 +954,6 @@ static int image_panel_uv_poll(const bContext *C, PanelType *pt)
 
 static void image_panel_uv(const bContext *C, Panel *pa)
 {
-	ARegion *ar= CTX_wm_region(C);
 	uiBlock *block;
 	
 	block= uiLayoutAbsoluteBlock(pa->layout);
@@ -968,14 +966,15 @@ void image_buttons_register(ARegionType *art)
 {
 	PanelType *pt;
 
-	/* editvertex_buts not working atm
-	pt= MEM_callocN(sizeof(PanelType), "spacetype image panel uv");
-	strcpy(pt->idname, "IMAGE_PT_uv");
-	strcpy(pt->label, "UV");
-	pt->draw= image_panel_uv;
-	pt->poll= image_panel_uv_poll;
-	BLI_addtail(&art->paneltypes, pt);
-	 */
+	/* editvertex_buts not working atm */
+	if(0) {
+		pt= MEM_callocN(sizeof(PanelType), "spacetype image panel uv");
+		strcpy(pt->idname, "IMAGE_PT_uv");
+		strcpy(pt->label, "UV");
+		pt->draw= image_panel_uv;
+		pt->poll= image_panel_uv_poll;
+		BLI_addtail(&art->paneltypes, pt);
+	}
 
 	pt= MEM_callocN(sizeof(PanelType), "spacetype image panel curves");
 	strcpy(pt->idname, "IMAGE_PT_curves");
