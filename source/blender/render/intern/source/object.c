@@ -206,6 +206,8 @@ static void free_object_vertnodes(VertTableNode *vertnodes)
 			MEM_freeN(vertnodes[a].strandco);
 		if(vertnodes[a].basenor)
 			MEM_freeN(vertnodes[a].basenor);
+		if(vertnodes[a].baseco)
+			MEM_freeN(vertnodes[a].baseco);
 	}
 	
 	MEM_freeN(vertnodes);

@@ -190,9 +190,9 @@ typedef struct Object {
 	float dupfacesca;	/* dupliface scale */
 
 	float displacebound;		/* displacement bound */
-	float shadingrate;
-	float rayresolution;
-	char renderflag, pad[3];
+	float shadingrate;			/* will remove this */
+	float subdivision_rate;		/* subdivision rate */
+	float pad;
 	
 	ListBase prop;
 	ListBase sensors;

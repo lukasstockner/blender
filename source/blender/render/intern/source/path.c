@@ -74,9 +74,11 @@ static void shadeinput_from_hit(Render *re, RenderLayer *rl, ShadeInput *shi, Hi
 		shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 1, 2);
 	shade_input_init_material(re, shi);
 
-	shi->geometry.u= hit->u;
-	shi->geometry.v= hit->v;
-	shi->geometry.dx_u= shi->geometry.dx_v= shi->geometry.dy_u= shi->geometry.dy_v= 0.0f;
+	shi->geometry.uvw[0]= -hit->u;
+	shi->geometry.uvw[1]= -hit->v;
+	shi->geometry.uvw[2]= 1.0f + hit->u + hit->v;
+	zero_v3(shi->geometry.duvw_dx);
+	zero_v3(shi->geometry.duvw_dy);
 
 	/*shade_input_set_normals(shi);*/
 	shade_input_set_shade_texco(re, shi);

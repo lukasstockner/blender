@@ -417,29 +417,7 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 		}
 
 		/* create low resolution version */
-		if(ob->rayresolution < 1.0f && modifiers_findByType(ob, eModifierType_Subsurf)) {
-			ObjectRen *lowobr;
-			int a, offset;
-
-			obr->flag |= R_HIGHRES;
-			obr->lowres= render_object_create(&re->db, ob, par, index, 0, ob->lay);
-			lowobr= obr->lowres;
-			lowobr->flag |= R_LOWRES;
-
-			init_render_object_data(re, lowobr, timeoffset);
-
-			/* XXX subsurf test */
-			offset= obr->totvert - lowobr->totvert;
-
-			for(a=0; a<lowobr->totvert; a++) {
-				VertRen *v= render_object_vert_get(obr, offset+a);
-				VertRen *lowv= render_object_vert_get(lowobr, a);
-
-				copy_v3_v3(lowv->co, v->co);
-				copy_v3_v3(lowv->n, v->n);
-			}
-		}
-		else if(ob->renderflag & OB_RENDER_SUBDIVIDE)
+		if(re->params.r.mode & R_SUBDIVISION)
 			obr->flag |= R_HIGHRES;
 	}
 

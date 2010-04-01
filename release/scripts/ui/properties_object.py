@@ -228,22 +228,10 @@ class OBJECT_PT_render(ObjectButtonsPanel):
         layout = self.layout
 
         ob = context.object
-        wide_ui = context.region.width > narrowui
 
-        split = layout.split()
-        col = split.column()
-
-        col.prop(ob, "pass_index")
-        col.separator()
-
-        col.prop(ob, "render_subdivide")
-        col.prop(ob, "shading_rate")
-
-        if wide_ui:
-            col = split.column()
-
-        col.prop(ob, "displacement_bound")
-        col.prop(ob, "ray_resolution")
+        layout.prop(ob, "pass_index")
+        layout.prop(ob, "displacement_bound")
+        layout.prop(ob, "relative_subdivision_rate")
 
 class OBJECT_PT_duplication(ObjectButtonsPanel):
     bl_label = "Duplication"
@@ -318,7 +306,7 @@ class OBJECT_PT_animation(ObjectButtonsPanel):
         row.prop(ob, "slow_parent")
         row.active = (ob.parent is not None)
         col.prop(ob, "time_offset", text="Offset")
-		
+
         # XXX: these are still used for a few curve-related tracking features
         if wide_ui:
             col = split.column()

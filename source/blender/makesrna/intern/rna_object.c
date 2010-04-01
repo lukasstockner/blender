@@ -1930,22 +1930,12 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Displacement Bound", "Maximum displacement offset for rendering.");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
 
-	prop= RNA_def_property(srna, "shading_rate", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "shadingrate");
+	prop= RNA_def_property(srna, "relative_subdivision_rate", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "subdivision_rate");
 	RNA_def_property_range(prop, 0.01f, 100.0f);
-	RNA_def_property_ui_text(prop, "Shading Rate", "Minimum polygon size for render subdivision, low renders more detail, 1.0 corresponds to approximately 1 polygon per pixel.");
+	RNA_def_property_ui_text(prop, "Relative Subdivision Rate", "Multiplicator for scene subdivision rate to give individual objects more or less detail.");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
 
-	prop= RNA_def_property(srna, "ray_resolution", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "rayresolution");
-	RNA_def_property_ui_text(prop, "Ray Resolution", "Percentage of full resolution to raytracing, 0.0 corresponds to the lowest possible resolution, and 1.0 to full resolution.");
-	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
-
-	prop= RNA_def_property(srna, "render_subdivide", PROP_BOOLEAN, PROP_BOOLEAN);
-	RNA_def_property_boolean_sdna(prop, NULL, "renderflag", OB_RENDER_SUBDIVIDE);
-	RNA_def_property_ui_text(prop, "Render Subdivide", "Subdivide the object for rendering displacements, depending on the image resolution and specified shading rate.");
-	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
-	
 	/* Grease Pencil */
 	prop= RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");

@@ -188,15 +188,19 @@ class RENDER_PT_shading(RenderButtonsPanel):
         split = layout.split()
 
         col = split.column()
-        col.prop(rd, "render_textures", text="Textures")
-        col.prop(rd, "render_shadows", text="Shadows")
-        col.prop(rd, "render_sss", text="Subsurface Scattering")
-        col.prop(rd, "render_envmaps", text="Environment Map")
+        col.prop(rd, "use_textures")
+        col.prop(rd, "use_shadows")
+        col.prop(rd, "use_sss")
+        col.prop(rd, "use_envmaps")
+        col.prop(rd, "use_subdivision")
+        row = col.row()
+        row.active = rd.use_subdivision
+        row.prop(rd, "subdivision_rate", text="Rate")
 
         if wide_ui:
             col = split.column()
-        col.prop(rd, "render_raytracing", text="Ray Tracing")
-        col.prop(rd, "render_raytrace_all")
+        col.prop(rd, "use_raytracing")
+        col.prop(rd, "use_raytrace_all")
         col.prop(rd, "color_management")
         col.prop(rd, "alpha_mode", text="Alpha")
 
@@ -235,7 +239,7 @@ class RENDER_PT_performance(RenderButtonsPanel):
         sub.active = rd.use_compositing
         sub.prop(rd, "free_image_textures")
         sub = col.column()
-        sub.active = rd.render_raytracing
+        sub.active = rd.use_raytracing
         sub.label(text="Acceleration structure:")
         sub.prop(rd, "raytrace_structure", text="")
         if rd.raytrace_structure == 'OCTREE':

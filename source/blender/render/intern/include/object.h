@@ -168,6 +168,7 @@ typedef struct ObjectInstanceRen {
 #define RE_NMAP_TANGENT_ELEMS	12
 #define RE_STRANDCO_ELEMS		1
 #define RE_BASENOR_ELEMS		3
+#define RE_BASECO_ELEMS			3
 
 #endif /* __RENDER_OBJECT_H__ */
 

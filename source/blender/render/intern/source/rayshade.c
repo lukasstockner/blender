@@ -567,9 +567,11 @@ void shade_ray(Render *re, Isect *is, ShadeInput *shi, ShadeResult *shr)
 	else
 		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
 
-	shi->geometry.u= is->u;
-	shi->geometry.v= is->v;
-	shi->geometry.dx_u= shi->geometry.dx_v= shi->geometry.dy_u= shi->geometry.dy_v=  0.0f;
+	shi->geometry.uvw[0]= -is->u;
+	shi->geometry.uvw[1]= -is->v;
+	shi->geometry.uvw[2]= 1.0f + is->u + is->v;
+	zero_v3(shi->geometry.duvw_dx);
+	zero_v3(shi->geometry.duvw_dy);
 
 	shade_input_set_normals(shi);
 
@@ -1747,8 +1749,9 @@ static void shadeinput_from_isec(Render *re, ShadeInput *oldshi, Isect *isec, fl
 	else
 		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
 
-	shi->geometry.u= isec->u;
-	shi->geometry.v= isec->v;
+	shi->geometry.uvw[0]= -isec->u;
+	shi->geometry.uvw[1]= -isec->v;
+	shi->geometry.uvw[2]= 1.0f + isec->u + isec->v;
 	shi->geometry.osatex= 0;
 
 	shade_input_set_normals(shi);

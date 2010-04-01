@@ -110,8 +110,7 @@ typedef struct ShadeGeometry {
 	float surfnor[3], surfdist;
 	
 	/* interpolation weights */
-	float u, v;
-	float dx_u, dx_v, dy_u, dy_v;
+	float uvw[3], duvw_dx[3], duvw_dy[3];
 	
 	/* view derivatives */
 	float dxview, dyview;

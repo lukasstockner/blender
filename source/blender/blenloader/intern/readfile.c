@@ -6453,10 +6453,21 @@ static void do_version_shading_sys_250(FileData *fd, Library *lib, Main *main)
 	}
 
 	for(ob= main->object.first; ob; ob= ob->id.next) {
-		ob->rayresolution= 1.0f;
 		ob->displacebound= 0.1f;
 		ob->shadingrate= 1.0f;
 	}
+}
+
+static void do_version_subdivision_250(FileData *fd, Library *lib, Main *main)
+{
+	Scene *sce;
+	Object *ob;
+
+	for(ob= main->object.first; ob; ob= ob->id.next)
+		ob->subdivision_rate= ob->shadingrate;
+
+	for(sce= main->scene.first; sce; sce= sce->id.next)
+		sce->r.subdivision_rate= 1.0f;
 }
 
 static void do_version_constraints_radians_degrees_250(ListBase *lb)
@@ -10752,6 +10763,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10))
 		do_version_shading_sys_250(fd, lib, main);
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 11))
+		do_version_subdivision_250(fd, lib, main);
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */

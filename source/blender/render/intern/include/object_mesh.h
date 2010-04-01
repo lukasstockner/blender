@@ -56,6 +56,7 @@ float *render_vert_get_tangent(struct ObjectRen *obr, struct VertRen *ver, int v
 float *render_vert_get_strandco(struct ObjectRen *obr, struct VertRen *ver, int verify);
 float *render_vert_get_winspeed(struct ObjectInstanceRen *obi, struct VertRen *ver, int verify);
 float *render_vert_get_basenor(struct ObjectRen *obr, struct VertRen *ren, int verify);
+float *render_vert_get_baseco(struct ObjectRen *obr, struct VertRen *ren, int verify);
 
 /* Face Texture Coordinates */
 
@@ -69,10 +70,11 @@ int render_vlak_get_normal(struct ObjectInstanceRen *obi, struct VlakRen *vlr, f
 
 void init_render_object_data(struct Render *re, struct ObjectRen *obr, int timeoffset);
 void init_render_particle_system(struct Render *re, struct ObjectRen *obr, struct ParticleSystem *psys, int timeoffset);
-void finalize_render_object(struct Render *re, struct ObjectRen *obr, int timeoffset);
-void render_object_calc_vnormals(struct Render *re, struct ObjectRen *obr, int do_tangent, int do_nmap_tangent, float (**diffnor)[3]);
-int render_object_has_displacement(struct Render *re, struct ObjectRen *obr);
-void render_object_displace(struct Render *re, struct ObjectRen *obr, float mat[][4], float nmat[][3]);
+void finalize_render_object(struct Render *re, struct ObjectRen *obr, int timeoffset, int thread);
+void render_object_calc_vnormals(struct Render *re, struct ObjectRen *obr, float (**diffnor)[3]);
+void render_object_calc_tangents(struct Render *re, struct ObjectRen *obr);
+int render_object_need_displacement(struct Render *re, struct ObjectRen *obr);
+void render_object_displace(struct Render *re, struct ObjectRen *obr, int thread);
 
 /* Structs */
 
@@ -86,6 +88,7 @@ typedef struct VertTableNode {
 	float *winspeed;
 	float *strandco;
 	float *basenor;
+	float *baseco;
 } VertTableNode;
 
 typedef struct VlakTableNode {

@@ -133,16 +133,18 @@ static void occ_shade(Render *re, ShadeSample *ssamp, ObjectInstanceRen *obi, Vl
 {
 	ShadeInput *shi= ssamp->shi;
 	ShadeResult *shr= ssamp->shr;
-	float l, u, v, *v1, *v2, *v3;
+	float *v1, *v2, *v3;
 	
 	/* init */
 	if(vlr->v4) {
-		shi->geometry.u= u= 0.5f;
-		shi->geometry.v= v= 0.5f;
+		shi->geometry.uvw[0]= 0.5f;
+		shi->geometry.uvw[1]= 0.0f;
+		shi->geometry.uvw[2]= 0.5f;
 	}
 	else {
-		shi->geometry.u= u= 1.0f/3.0f;
-		shi->geometry.v= v= 1.0f/3.0f;
+		shi->geometry.uvw[0]= 1.0f/3.0f;
+		shi->geometry.uvw[1]= 1.0f/3.0f;
+		shi->geometry.uvw[2]= 1.0f/3.0f;
 	}
 
 	/* setup render coordinates */
@@ -151,11 +153,7 @@ static void occ_shade(Render *re, ShadeSample *ssamp, ObjectInstanceRen *obi, Vl
 	v3= vlr->v3->co;
 	
 	/* renderco */
-	l= 1.0f-u-v;
-	
-	shi->geometry.co[0]= l*v3[0]+u*v1[0]+v*v2[0];
-	shi->geometry.co[1]= l*v3[1]+u*v1[1]+v*v2[1];
-	shi->geometry.co[2]= l*v3[2]+u*v1[2]+v*v2[2];
+	interp_v3_v3v3v3(shi->geometry.co, v1, v2, v3, shi->geometry.uvw);
 	
 	shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
 

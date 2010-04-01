@@ -165,8 +165,9 @@ static void bake_set_shade_input(Render *re, ObjectInstanceRen *obi, VlakRen *vl
 
 	shi->shading.mask= 0xFFFF; /* all samples */
 	
-	shi->geometry.u= -u;
-	shi->geometry.v= -v;
+	shi->geometry.uvw[0]= u;
+	shi->geometry.uvw[1]= v;
+	shi->geometry.uvw[2]= 1.0f - u - v;
 	shi->geometry.xs= x;
 	shi->geometry.ys= y;
 	

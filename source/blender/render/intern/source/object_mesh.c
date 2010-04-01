@@ -234,6 +234,21 @@ float *render_vert_get_basenor(ObjectRen *obr, VertRen *ver, int verify)
 	return basenor + (ver->index & 255)*RE_BASENOR_ELEMS;
 }
 
+float *render_vert_get_baseco(ObjectRen *obr, VertRen *ver, int verify)
+{
+	float *baseco;
+	int nr= ver->index>>8;
+	
+	baseco= obr->vertnodes[nr].baseco;
+	if(baseco==NULL) {
+		if(verify) 
+			baseco= obr->vertnodes[nr].baseco= MEM_callocN(256*RE_BASECO_ELEMS*sizeof(float), "baseco table");
+		else
+			return NULL;
+	}
+	return baseco + (ver->index & 255)*RE_BASECO_ELEMS;
+}
+
 VertRen *render_object_vert_copy(ObjectRen *obrn, ObjectRen *obr, VertRen *ver)
 {
 	VertRen *vern= render_object_vert_get(obrn, obrn->totvert++);
@@ -267,6 +282,11 @@ VertRen *render_object_vert_copy(ObjectRen *obrn, ObjectRen *obr, VertRen *ver)
 	if(fp1) {
 		fp2= render_vert_get_strandco(obrn, vern, 1);
 		memcpy(fp2, fp1, RE_STRANDCO_ELEMS*sizeof(float));
+	}
+	fp1= render_vert_get_baseco(obr, ver, 0);
+	if(fp1) {
+		fp2= render_vert_get_baseco(obrn, vern, 1);
+		memcpy(fp2, fp1, RE_BASECO_ELEMS*sizeof(float));
 	}
 	fp1= render_vert_get_basenor(obr, ver, 0);
 	if(fp1) {
@@ -312,8 +332,15 @@ VertRen *render_object_vert_interp(ObjectRen *obrn, ObjectRen *obr, VertRen **va
 			*to= *from*w;
 		}
 
-		madd_v3_v3fl(ver->co, v->co, w);
-		madd_v3_v3fl(ver->n, v->n, w);
+		if((from=render_vert_get_baseco(obr, v, 0)))
+			madd_v3_v3fl(ver->co, from, w);
+		else
+			madd_v3_v3fl(ver->co, v->co, w);
+
+		if((from=render_vert_get_basenor(obr, v, 0)))
+			madd_v3_v3fl(ver->n, from, w);
+		else
+			madd_v3_v3fl(ver->n, v->n, w);
 	}
 
 	normalize_v3(ver->n);
@@ -671,12 +698,39 @@ static int check_vnormal(float *n, float *veno)
 /* Stress, tangents and normals                                              */
 /* ------------------------------------------------------------------------- */
 
-static void calc_edge_stress_add(float *accum, ObjectRen *obr, VertRen *v1, VertRen *v2)
+static void vert_get_denormalized_orco(ObjectRen *obr, VertRen *ver, float loc[3], float size[3], float orco[3])
 {
-	float *orco1= render_vert_get_orco(obr, v1, 0);
-	float *orco2= render_vert_get_orco(obr, v2, 0);
-	float len= len_v3v3(v1->co, v2->co)/len_v3v3(orco1, orco2);
-	float *acc;
+	float *vorco= render_vert_get_orco(obr, ver, 0);
+
+	if(vorco)
+		madd_v3_v3v3v3(orco, loc, vorco, size);
+	else
+		zero_v3(orco);
+}
+
+static int render_object_need_stress(Render *re, ObjectRen *obr)
+{
+	Object *ob= obr->ob;
+	Material *ma;
+	int a;
+
+	for(a=0; a<ob->totcol; a++) {
+		ma= give_render_material(re, ob, a+1);
+		if(ma && (ma->texco & TEXCO_STRESS))
+			return 1;
+	}
+
+	return 0;
+}
+
+static void calc_edge_stress_add(float *accum, ObjectRen *obr, VertRen *v1, VertRen *v2, float loc[3], float size[3])
+{
+	float orco1[3], orco2[3], len, div, *acc;
+
+	vert_get_denormalized_orco(obr, v1, loc, size, orco1);
+	vert_get_denormalized_orco(obr, v2, loc, size, orco2);
+	div= len_v3v3(orco1, orco2);
+	len= (div != 0.0f)? len_v3v3(v1->co, v2->co)/div: 0.0f;
 	
 	acc= accum + 2*v1->index;
 	acc[0]+= len;
@@ -687,28 +741,16 @@ static void calc_edge_stress_add(float *accum, ObjectRen *obr, VertRen *v1, Vert
 	acc[1]+= 1.0f;
 }
 
-static void calc_edge_stress(Render *re, ObjectRen *obr, Mesh *me)
+static void calc_edge_stress(Render *re, ObjectRen *obr)
 {
-	float loc[3], size[3], *accum, *acc, *accumoffs, *stress;
+	float *loc, *size, *accum, *acc, *accumoffs, *stress;
 	int a;
 	
 	if(obr->totvert==0) return;
 	
-	mesh_get_texspace(me, loc, NULL, size);
+	give_obdata_texspace(obr->ob, NULL, &loc, &size, NULL);
 	
 	accum= MEM_callocN(2*sizeof(float)*obr->totvert, "temp accum for stress");
-	
-	/* de-normalize orco */
-	for(a=0; a<obr->totvert; a++) {
-		VertRen *ver= render_object_vert_get(obr, a);
-		float *vorco= render_vert_get_orco(obr, ver, 0);
-
-		if(vorco) {
-			vorco[0]= vorco[0]*size[0] +loc[0];
-			vorco[1]= vorco[1]*size[1] +loc[1];
-			vorco[2]= vorco[2]*size[2] +loc[2];
-		}
-	}
 	
 	/* add stress values */
 	accumoffs= accum;	/* so we can use vertex index */
@@ -716,34 +758,26 @@ static void calc_edge_stress(Render *re, ObjectRen *obr, Mesh *me)
 		VlakRen *vlr= render_object_vlak_get(obr, a);
 
 		if(render_vert_get_orco(obr, vlr->v1, 0) && vlr->v4) {
-			calc_edge_stress_add(accumoffs, obr, vlr->v1, vlr->v2);
-			calc_edge_stress_add(accumoffs, obr, vlr->v2, vlr->v3);
-			calc_edge_stress_add(accumoffs, obr, vlr->v3, vlr->v1);
+			calc_edge_stress_add(accumoffs, obr, vlr->v1, vlr->v2, loc, size);
+			calc_edge_stress_add(accumoffs, obr, vlr->v2, vlr->v3, loc, size);
+			calc_edge_stress_add(accumoffs, obr, vlr->v3, vlr->v1, loc, size);
 			if(vlr->v4) {
-				calc_edge_stress_add(accumoffs, obr, vlr->v3, vlr->v4);
-				calc_edge_stress_add(accumoffs, obr, vlr->v4, vlr->v1);
-				calc_edge_stress_add(accumoffs, obr, vlr->v2, vlr->v4);
+				calc_edge_stress_add(accumoffs, obr, vlr->v3, vlr->v4, loc, size);
+				calc_edge_stress_add(accumoffs, obr, vlr->v4, vlr->v1, loc, size);
+				calc_edge_stress_add(accumoffs, obr, vlr->v2, vlr->v4, loc, size);
 			}
 		}
 	}
 	
 	for(a=0; a<obr->totvert; a++) {
 		VertRen *ver= render_object_vert_get(obr, a);
-		float *vorco= render_vert_get_orco(obr, ver, 0);
 
-		if(vorco) {
-			/* find stress value */
-			acc= accumoffs + 2*ver->index;
-			if(acc[1]!=0.0f)
-				acc[0]/= acc[1];
-			stress= render_vert_get_stress(obr, ver, 1);
-			*stress= *acc;
-			
-			/* restore orcos */
-			vorco[0] = (vorco[0]-loc[0])/size[0];
-			vorco[1] = (vorco[1]-loc[1])/size[1];
-			vorco[2] = (vorco[2]-loc[2])/size[2];
-		}
+		/* find stress value */
+		acc= accumoffs + 2*ver->index;
+		if(acc[1]!=0.0f)
+			acc[0]/= acc[1];
+		stress= render_vert_get_stress(obr, ver, 1);
+		*stress= *acc;
 	}
 	
 	MEM_freeN(accum);
@@ -817,20 +851,118 @@ static void calc_tangent_vector(ObjectRen *obr, VertexTangent **vtangents, MemAr
 	}
 }
 
+static int render_object_need_tangents(Render *re, ObjectRen *obr, int *do_tangent, int *do_nmap_tangent)
+{
+	Object *ob= obr->ob;
+	Material *ma;
+	int a;
 
-void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int do_nmap_tangent, float (**dispnor)[3])
+	*do_tangent= 0;
+	*do_nmap_tangent= 0;
+
+	/* test if we need tangents */
+	for(a=0; a<ob->totcol; a++) {
+		ma= give_render_material(re, ob, a+1);
+
+		/* we separate shading tangents from normal map tangents, the
+		   former need to be continuous across faces, the latter should
+		   actually be discontinuous where uv coordinates do not match */
+		if(ma->mode_l & MA_TANGENT_V)
+			*do_tangent= 1;
+
+		if(ma->mode_l & MA_NORMAP_TANG)
+			if(ob->type == OB_MESH)
+				*do_nmap_tangent= 1;
+	}
+
+	/* exception for tangent space baking */
+	if(re->params.flag & R_NEED_TANGENT)
+		if(!re->db.excludeob || re->db.excludeob == obr->ob)
+			if(ob->type == OB_MESH)
+				*do_nmap_tangent= 1;
+	
+	return (*do_tangent || *do_nmap_tangent);
+}
+
+void render_object_calc_tangents(Render *re, ObjectRen *obr)
 {
 	MemArena *arena= NULL;
 	VertexTangent **vtangents= NULL;
-	float (*backupnor)[3]= NULL, (*diffnor)[3]= NULL;
-	int a;
+	int a, do_tangent, do_nmap_tangent;
 
+	/* do we even need them? */
+	if(!render_object_need_tangents(re, obr, &do_tangent, &do_nmap_tangent))
+		return;
+
+	/* allocate memory for normal map tangents */
 	if(do_nmap_tangent) {
 		arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "nmap tangent arena");
 		BLI_memarena_use_calloc(arena);
 
 		vtangents= MEM_callocN(sizeof(VertexTangent*)*obr->totvert, "VertexTangent");
 	}
+
+	/* compute tangents from faces at vertices */
+	for(a=0; a<obr->totvlak; a++) {
+		VlakRen *vlr= render_object_vlak_get(obr, a);
+		calc_tangent_vector(obr, vtangents, arena, vlr, do_nmap_tangent, do_tangent);
+	}
+
+	/* get normal map tangents from vertices */
+	if(do_nmap_tangent) {
+		for(a=0; a<obr->totvlak; a++) {
+			VlakRen *vlr= render_object_vlak_get(obr, a);
+			VertRen *v1=vlr->v1, *v2=vlr->v2, *v3=vlr->v3, *v4=vlr->v4;
+			MTFace *tface= render_vlak_get_tface(obr, vlr, obr->actmtface, NULL, 0);
+
+			if(tface) {
+				float *vtang, *ftang= render_vlak_get_nmap_tangent(obr, vlr, 1);
+
+				vtang= find_vertex_tangent(vtangents[v1->index], tface->uv[0]);
+				copy_v3_v3(ftang, vtang);
+				normalize_v3(ftang);
+				vtang= find_vertex_tangent(vtangents[v2->index], tface->uv[1]);
+				copy_v3_v3(ftang+3, vtang);
+				normalize_v3(ftang+3);
+				vtang= find_vertex_tangent(vtangents[v3->index], tface->uv[2]);
+				copy_v3_v3(ftang+6, vtang);
+				normalize_v3(ftang+6);
+				if(v4) {
+					vtang= find_vertex_tangent(vtangents[v4->index], tface->uv[3]);
+					copy_v3_v3(ftang+9, vtang);
+					normalize_v3(ftang+9);
+				}
+			}
+		}
+	}
+	
+	/* normalize tangents */
+	if(do_tangent) {
+		for(a=0; a<obr->totvert; a++) {
+			VertRen *ver= render_object_vert_get(obr, a);
+			float *tav= render_vert_get_tangent(obr, ver, 0);
+
+			if(tav) {
+				/* orthonorm. */
+				float tdn = tav[0]*ver->n[0] + tav[1]*ver->n[1] + tav[2]*ver->n[2];
+				tav[0] -= ver->n[0]*tdn;
+				tav[1] -= ver->n[1]*tdn;
+				tav[2] -= ver->n[2]*tdn;
+				normalize_v3(tav);
+			}
+		}
+	}
+
+	if(arena)
+		BLI_memarena_free(arena);
+	if(vtangents)
+		MEM_freeN(vtangents);
+}
+
+void render_object_calc_vnormals(Render *re, ObjectRen *obr, float (**dispnor)[3])
+{
+	float (*backupnor)[3]= NULL, (*diffnor)[3]= NULL;
+	int a;
 
 	/* for displacement, we compute difference between smooth base & subdivded nor,
 	   and then add that difference to the displaced normal to keep it smooth */
@@ -914,11 +1046,6 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 			v3->n[2] +=fac3*vlr->n[2];
 			
 		}
-		if(do_nmap_tangent || do_tangent) {
-			/* tangents still need to be calculated for flat faces too */
-			/* weighting removed, they are not vertexnormals */
-			calc_tangent_vector(obr, vtangents, arena, vlr, do_nmap_tangent, do_tangent);
-		}
 	}
 
 		/* do solid faces */
@@ -936,47 +1063,12 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 				if(f1[0]==0.0 && f1[1]==0.0 && f1[2]==0.0) copy_v3_v3(f1, vlr->n);
 			}
 		}
-
-		if(do_nmap_tangent) {
-			VertRen *v1=vlr->v1, *v2=vlr->v2, *v3=vlr->v3, *v4=vlr->v4;
-			MTFace *tface= render_vlak_get_tface(obr, vlr, obr->actmtface, NULL, 0);
-
-			if(tface) {
-				float *vtang, *ftang= render_vlak_get_nmap_tangent(obr, vlr, 1);
-
-				vtang= find_vertex_tangent(vtangents[v1->index], tface->uv[0]);
-				copy_v3_v3(ftang, vtang);
-				normalize_v3(ftang);
-				vtang= find_vertex_tangent(vtangents[v2->index], tface->uv[1]);
-				copy_v3_v3(ftang+3, vtang);
-				normalize_v3(ftang+3);
-				vtang= find_vertex_tangent(vtangents[v3->index], tface->uv[2]);
-				copy_v3_v3(ftang+6, vtang);
-				normalize_v3(ftang+6);
-				if(v4) {
-					vtang= find_vertex_tangent(vtangents[v4->index], tface->uv[3]);
-					copy_v3_v3(ftang+9, vtang);
-					normalize_v3(ftang+9);
-				}
-			}
-		}
 	}
 	
 		/* normalize vertex normals */
 	for(a=0; a<obr->totvert; a++) {
 		VertRen *ver= render_object_vert_get(obr, a);
 		normalize_v3(ver->n);
-		if(do_tangent) {
-			float *tav= render_vert_get_tangent(obr, ver, 0);
-			if (tav) {
-				/* orthonorm. */
-				float tdn = tav[0]*ver->n[0] + tav[1]*ver->n[1] + tav[2]*ver->n[2];
-				tav[0] -= ver->n[0]*tdn;
-				tav[1] -= ver->n[1]*tdn;
-				tav[2] -= ver->n[2]*tdn;
-				normalize_v3(tav);
-			}
-		}
 
 		if(backupnor) {
 			float tmp[3];
@@ -990,11 +1082,6 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, int do_tangent, int
 			normalize_v3(ver->n);
 		}
 	}
-
-	if(arena)
-		BLI_memarena_free(arena);
-	if(vtangents)
-		MEM_freeN(vtangents);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1091,24 +1178,61 @@ static VertRen *as_findvertex(VlakRen *vlr, VertRen *ver, ASvert *asv, float thr
 	return NULL;
 }
 
+static int render_object_need_autosmooth(ObjectRen *obr, int *threshold)
+{
+	Object *ob= obr->ob;
+
+	if(ob->type == OB_MESH) {
+		Mesh *me= ob->data;
+
+		if(me->flag & ME_AUTOSMOOTH) {
+			if(threshold) *threshold= me->smoothresh;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /* note; autosmooth happens in object space still, after applying autosmooth we rotate */
 /* note2; actually, when original mesh and displist are equal sized, face normals are from original mesh */
-static void autosmooth(Render *re, ObjectRen *obr, float mat[][4], int degr)
+static void render_object_autosmooth(Render *re, ObjectRen *obr)
 {
 	ASvert *asv, *asverts;
 	ASface *asf;
 	VertRen *ver, *v1;
 	VlakRen *vlr;
-	float thresh;
-	int a, b, totvert;
-	
+	float thresh, *loc, *size;
+	int a, b, totvert, degr;
+
 	if(obr->totvert==0) return;
+	if(!render_object_need_autosmooth(obr, &degr)) return;
+	
 	asverts= MEM_callocN(sizeof(ASvert)*obr->totvert, "all smooth verts");
 	
 	thresh= cos( M_PI*(0.5f+(float)degr)/180.0 );
+	give_obdata_texspace(obr->ob, NULL, &loc, &size, NULL);
 	
-	/* step zero: give faces normals of original mesh, if this is provided */
-	
+	/* step zero: use orco's to compute temporary face normals (stable under deformation) */
+	for(a=0; a<obr->totvlak; a++) {
+		vlr= render_object_vlak_get(obr, a);
+		
+		/* skip wire faces */
+		if(vlr->v2 != vlr->v3) {
+			float o1[3], o2[3], o3[3], o4[3];
+
+			vert_get_denormalized_orco(obr, vlr->v1, loc, size, o1);
+			vert_get_denormalized_orco(obr, vlr->v2, loc, size, o2);
+			vert_get_denormalized_orco(obr, vlr->v3, loc, size, o3);
+
+			if(vlr->v4) {
+				vert_get_denormalized_orco(obr, vlr->v4, loc, size, o4);
+				normal_quad_v3(vlr->n, o4, o3, o2, o1);
+			}
+			else
+				normal_tri_v3(vlr->n, o3, o2, o1);
+		}
+	}		
 	
 	/* step one: construct listbase of all vertices and pointers to faces */
 	for(a=0; a<obr->totvlak; a++) {
@@ -1161,11 +1285,7 @@ static void autosmooth(Render *re, ObjectRen *obr, float mat[][4], int degr)
 	}
 	MEM_freeN(asverts);
 	
-	/* rotate vertices and calculate normal of faces */
-	for(a=0; a<obr->totvert; a++) {
-		ver= render_object_vert_get(obr, a);
-		mul_m4_v3(mat, ver->co);
-	}
+	/* compute actual face normals */
 	for(a=0; a<obr->totvlak; a++) {
 		vlr= render_object_vlak_get(obr, a);
 		
@@ -1601,7 +1721,7 @@ static void init_render_dm(DerivedMesh *dm, Render *re, ObjectRen *obr,
 		}
 
 		/* Normals */
-		render_object_calc_vnormals(re, obr, 0, 0, NULL);
+		render_object_calc_vnormals(re, obr, NULL);
 	}
 
 }
@@ -2032,7 +2152,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	Mesh *me;
 	MVert *mvert = NULL;
 	MFace *mface;
-	VlakRen *vlr; //, *vlr1;
+	VlakRen *vlr;
 	VertRen *ver;
 	Material *ma;
 	MSticky *ms = NULL;
@@ -2040,62 +2160,40 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	CustomDataMask mask;
 	float nmat[3][3], mat[4][4];
 	float *orco=0;
-	int need_orco=0, need_stress=0, need_nmap_tangent=0, need_tangent=0;
-	int a, a1, ok, vertofs;
-	int end, do_autosmooth=0, totvert = 0;
-	int use_original_normals= 0;
+	int need_orco=0;
+	int a, a1, ok, vertofs, totvert= 0, end;
+	int do_tangent, do_nmap_tangent, do_displacement, do_autosmooth;
 
 	me= ob->data;
 
+	/* setup matrices */
 	mul_m4_m4m4(mat, ob->obmat, re->cam.viewmat);
 	invert_m4_m4(ob->imat, mat);
 	copy_m3_m4(nmat, ob->imat);
 
-	if(me->totvert==0)
-		return;
-	
+	do_autosmooth= render_object_need_autosmooth(obr, NULL);
+	do_displacement= render_object_need_displacement(re, obr);
+
+	/* vector pass optimization to not make faces, with some exceptions */
+	if(!(do_autosmooth || do_displacement))
+		timeoffset= 0;
+
+	/* check if we need orcos */
 	need_orco= 0;
 	for(a=1; a<=ob->totcol; a++) {
 		ma= give_render_material(re, ob, a);
-		if(ma) {
-			if(ma->texco & (TEXCO_ORCO|TEXCO_STRESS))
-				need_orco= 1;
-			if(ma->texco & TEXCO_STRESS)
-				need_stress= 1;
-			/* normalmaps, test if tangents needed, separated from shading */
-			if(ma->mode_l & MA_TANGENT_V) {
-				need_tangent= 1;
-				if(me->mtface==NULL)
-					need_orco= 1;
-			}
-			if(ma->mode_l & MA_NORMAP_TANG) {
-				if(me->mtface==NULL) {
-					need_orco= 1;
-					need_tangent= 1;
-				}
-				need_nmap_tangent= 1;
-			}
-		}
+		if(ma && ma->texco & (TEXCO_ORCO|TEXCO_STRESS))
+			need_orco= 1;
 	}
 
-	if(re->params.flag & R_NEED_TANGENT) {
-		if(!re->db.excludeob || re->db.excludeob == obr->ob) {
-			/* exception for tangent space baking */
-			if(me->mtface==NULL) {
-				need_orco= 1;
-				need_tangent= 1;
-			}
-			need_nmap_tangent= 1;
-		}
-	}
+	render_object_need_tangents(re, obr, &do_tangent, &do_nmap_tangent);
+	if(do_tangent || (do_nmap_tangent && !me->mtface))
+		need_orco= 1;
 	
-	/* check autosmooth and displacement, we then have to skip only-verts optimize */
-	do_autosmooth |= (me->flag & ME_AUTOSMOOTH);
 	if(do_autosmooth)
-		timeoffset= 0;
-	if(render_object_has_displacement(re, obr ) )
-		timeoffset= 0;
-	
+		need_orco= 1;
+
+	/* make customdata mask */
 	mask= CD_MASK_BAREMESH|CD_MASK_MTFACE|CD_MASK_MCOL;
 	if(!timeoffset)
 		if(need_orco)
@@ -2114,10 +2212,6 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 	mvert= dm->getVertArray(dm);
 	totvert= dm->getNumVerts(dm);
 
-	/* attempt to autsmooth on original mesh, only without subsurf */
-	if(do_autosmooth && me->totvert==totvert && me->totface==dm->getNumFaces(dm))
-		use_original_normals= 1;
-	
 	ms = (totvert==me->totvert)?me->msticky:NULL;
 	
 	ma= give_render_material(re, ob, 1);
@@ -2130,8 +2224,7 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 		for(a=0; a<totvert; a++, mvert++) {
 			ver= render_object_vert_get(obr, obr->totvert++);
 			copy_v3_v3(ver->co, mvert->co);
-			if(do_autosmooth==0)	/* autosmooth on original unrotated data to prevent differences between frames */
-				mul_m4_v3(mat, ver->co);
+			mul_m4_v3(mat, ver->co);
   
 			if(orco) {
 				copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
@@ -2198,22 +2291,10 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 							if(v4) vlr->v4= render_object_vert_get(obr, vertofs+v4);
 							else vlr->v4= 0;
 
-							/* render normals are inverted in render */
-							if(use_original_normals) {
-								MFace *mf= me->mface+a;
-								MVert *mv= me->mvert;
-								
-								if(vlr->v4) 
-									len= normal_quad_v3( vlr->n, mv[mf->v4].co, mv[mf->v3].co, mv[mf->v2].co, mv[mf->v1].co);
-								else 
-									len= normal_tri_v3( vlr->n,mv[mf->v3].co, mv[mf->v2].co, mv[mf->v1].co);
-							}
-							else {
-								if(vlr->v4) 
-									len= normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
-								else 
-									len= normal_tri_v3( vlr->n,vlr->v3->co, vlr->v2->co, vlr->v1->co);
-							}
+							if(vlr->v4) 
+								len= normal_quad_v3( vlr->n,vlr->v4->co, vlr->v3->co, vlr->v2->co, vlr->v1->co);
+							else 
+								len= normal_tri_v3( vlr->n,vlr->v3->co, vlr->v2->co, vlr->v1->co);
 
 							vlr->mat= ma;
 							vlr->flag= flag;
@@ -2296,25 +2377,6 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 		}
 	}
 	
-	if(!timeoffset) {
-		if (!(ob->flag & OB_RENDER_SUBDIVIDE) && render_object_has_displacement(re, obr) ) {
-			render_object_calc_vnormals(re, obr, 0, 0, NULL);
-			if(do_autosmooth)
-				render_object_displace(re, obr, mat, nmat);
-			else
-				render_object_displace(re, obr, NULL, NULL);
-		}
-
-		if(do_autosmooth) {
-			autosmooth(re, obr, mat, me->smoothresh);
-		}
-
-		render_object_calc_vnormals(re, obr, need_tangent, need_nmap_tangent, NULL);
-
-		if(need_stress)
-			calc_edge_stress(re, obr, me);
-	}
-
 	dm->release(dm);
 }
 
@@ -2349,7 +2411,7 @@ void init_render_object_data(Render *re, ObjectRen *obr, int timeoffset)
 			init_render_mball(re, obr);
 	}
 
-	finalize_render_object(re, obr, timeoffset);
+	finalize_render_object(re, obr, timeoffset, 0);
 	
 	re->db.totvert += obr->totvert;
 	re->db.totvlak += obr->totvlak;
@@ -2603,72 +2665,104 @@ static void check_non_flat_quads(ObjectRen *obr)
 	}
 }
 
-void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset)
+static void render_object_calc_boundbox(ObjectRen *obr)
 {
-	Object *ob= obr->ob;
 	VertRen *ver= NULL;
 	StrandRen *strand= NULL;
 	StrandBound *sbound= NULL;
 	float min[3], max[3], smin[3], smax[3];
 	int a, b;
 
+	INIT_MINMAX(min, max);
+	for(a=0; a<obr->totvert; a++) {
+		if((a & 255)==0) ver= obr->vertnodes[a>>8].vert;
+		else ver++;
+
+		DO_MINMAX(ver->co, min, max);
+	}
+
+	if(obr->strandbuf) {
+		sbound= obr->strandbuf->bound;
+		for(b=0; b<obr->strandbuf->totbound; b++, sbound++) {
+			INIT_MINMAX(smin, smax);
+
+			for(a=sbound->start; a<sbound->end; a++) {
+				strand= render_object_strand_get(obr, a);
+				strand_minmax(strand, smin, smax);
+			}
+
+			copy_v3_v3(sbound->boundbox[0], smin);
+			copy_v3_v3(sbound->boundbox[1], smax);
+
+			DO_MINMAX(smin, min, max);
+			DO_MINMAX(smax, min, max);
+		}
+	}
+
+	copy_v3_v3(obr->boundbox[0], min);
+	copy_v3_v3(obr->boundbox[1], max);
+}
+
+void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset, int thread)
+{
+	Object *ob= obr->ob;
+	int do_autosmooth, do_displacement;
+
+	if(re->cb.test_break(re->cb.tbh))
+		return;
+
+	/* verify if we need to do autosmooth or displacement */
+	do_autosmooth= render_object_need_autosmooth(obr, NULL);
+	do_displacement= render_object_need_displacement(re, obr);
+
 	if(obr->totvert || obr->totvlak || obr->tothalo || obr->totstrand) {
-		/* the exception below is because displace code now is in init_render_mesh call, 
-		I will look at means to have autosmooth enabled for all object types 
-		and have it as general postprocess, like displace */
-		if((ob->type!=OB_MESH || obr->flag & R_TEMP_COPY) && render_object_has_displacement(re, obr)) 
-			render_object_displace(re, obr, NULL, NULL);
-	
+		/* autosmooth */
+		if(do_autosmooth)
+			render_object_autosmooth(re, obr);
+
 		if(re->cb.test_break(re->cb.tbh))
 			return;
 
-		if(!timeoffset) {
-			/* phong normal interpolation can cause error in tracing
-			 * (terminator problem) */
-			ob->smoothresh= 0.0;
-			if((re->params.r.mode & R_RAYTRACE) && (re->params.r.mode & R_SHADOW)) 
-				set_phong_threshold(obr);
-			
-			if (re->params.flag & R_BAKING && re->params.r.bake_quad_split != 0) {
-				/* Baking lets us define a quad split order */
-				split_quads(obr, re->params.r.bake_quad_split);
-			} else {
-				if((re->params.r.mode & R_SIMPLIFY && re->params.r.simplify_flag & R_SIMPLE_NO_TRIANGULATE) == 0)
-					check_non_flat_quads(obr);
-			}
-			
-			set_fullsample_trace_flag(re, obr);
+		/* displace */
+		if(do_displacement)
+			render_object_displace(re, obr, thread);
 
-			/* compute bounding boxes for clipping */
-			INIT_MINMAX(min, max);
-			for(a=0; a<obr->totvert; a++) {
-				if((a & 255)==0) ver= obr->vertnodes[a>>8].vert;
-				else ver++;
+		if(re->cb.test_break(re->cb.tbh))
+			return;
 
-				DO_MINMAX(ver->co, min, max);
-			}
+		/* following computations don't add/remove vertices, so we can
+		   skip them if we are only making database for speed vectors */
+		if(timeoffset)
+			return;
 
-			if(obr->strandbuf) {
-				sbound= obr->strandbuf->bound;
-				for(b=0; b<obr->strandbuf->totbound; b++, sbound++) {
-					INIT_MINMAX(smin, smax);
+		/* compute normals (displacement already did them) */
+		if(!do_displacement)
+			render_object_calc_vnormals(re, obr, NULL);
 
-					for(a=sbound->start; a<sbound->end; a++) {
-						strand= render_object_strand_get(obr, a);
-						strand_minmax(strand, smin, smax);
-					}
+		/* compute tangents if necessary */
+		render_object_calc_tangents(re, obr);
 
-					copy_v3_v3(sbound->boundbox[0], smin);
-					copy_v3_v3(sbound->boundbox[1], smax);
+		/* stress texture coordinates */
+		if(render_object_need_stress(re, obr))
+			calc_edge_stress(re, obr);
 
-					DO_MINMAX(smin, min, max);
-					DO_MINMAX(smax, min, max);
-				}
-			}
+		/* phong normal interpolation can cause error in tracing
+		 * (terminator problem) */
+		ob->smoothresh= 0.0;
+		if((re->params.r.mode & R_RAYTRACE) && (re->params.r.mode & R_SHADOW)) 
+			set_phong_threshold(obr);
+		
+		/* split quads, either automatic or user defined for bake */
+		if(re->params.flag & R_BAKING && re->params.r.bake_quad_split != 0)
+			split_quads(obr, re->params.r.bake_quad_split);
+		else if((re->params.r.mode & R_SIMPLIFY && re->params.r.simplify_flag & R_SIMPLE_NO_TRIANGULATE) == 0)
+			check_non_flat_quads(obr);
+		
+		/* set raytracing flag in faces */
+		set_fullsample_trace_flag(re, obr);
 
-			copy_v3_v3(obr->boundbox[0], min);
-			copy_v3_v3(obr->boundbox[1], max);
-		}
+		/* compute bounding boxes for clipping */
+		render_object_calc_boundbox(obr);
 	}
 }
 

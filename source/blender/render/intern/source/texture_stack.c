@@ -1320,10 +1320,8 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					shi->texture.displace[2]+= 0.2f*Tnor*norfac*texres.nor[2];
 				}
 				
-				if(rgbnor & TEX_RGB) {
-					if(texres.talpha) texres.tin= texres.ta;
-					else texres.tin= (0.35f*texres.tr+0.45f*texres.tg+0.2f*texres.tb);
-				}
+				if(rgbnor & TEX_RGB)
+					texres.tin= (0.35f*texres.tr+0.45f*texres.tg+0.2f*texres.tb);
 
 				factt= (0.5f-texres.tin)*mtex->dispfac*stencilTin; facmm= 1.0f-factt;
 

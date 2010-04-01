@@ -392,7 +392,9 @@ typedef struct RenderData {
 	int integrator;
 	int path_samples;
 	int raytrace_all;
-	int pad;
+
+	/* subdivision */
+	float subdivision_rate;
 
 	/* render engine */
 	char engine[32];
@@ -850,6 +852,7 @@ typedef struct Scene {
 #define R_NO_OVERWRITE	0x400000 /* skip existing files */
 #define R_TOUCH			0x800000 /* touch files before rendering */
 #define R_SIMPLIFY		0x1000000
+#define R_SUBDIVISION	0x2000000
 
 /* seq_flag */
 #define R_SEQ_GL_PREV 1

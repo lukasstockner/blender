@@ -2216,41 +2216,68 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Fields Still", "Disable the time difference between fields");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
-	prop= RNA_def_property(srna, "render_shadows", PROP_BOOLEAN, PROP_NONE);
+	/* rendering features */
+	prop= RNA_def_property(srna, "use_shadows", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_SHADOW);
-	RNA_def_property_ui_text(prop, "Render Shadows", "Calculate shadows while rendering");
+	RNA_def_property_ui_text(prop, "Shadows", "Calculate shadows while rendering");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
-	prop= RNA_def_property(srna, "render_envmaps", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_envmaps", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_ENVMAP);
-	RNA_def_property_ui_text(prop, "Render Environment Maps", "Calculate environment maps while rendering");
+	RNA_def_property_ui_text(prop, "Environment Maps", "Calculate environment maps while rendering");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
-	prop= RNA_def_property(srna, "render_radiosity", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_radiosity", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_RADIO);
-	RNA_def_property_ui_text(prop, "Render Radiosity", "Calculate radiosity in a pre-process before rendering");
+	RNA_def_property_ui_text(prop, "Radiosity", "Calculate radiosity in a pre-process before rendering");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
-	prop= RNA_def_property(srna, "render_sss", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_sss", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_SSS);
-	RNA_def_property_ui_text(prop, "Render SSS", "Calculate sub-surface scattering in materials rendering");
+	RNA_def_property_ui_text(prop, "Subsurface Scattering", "Calculate sub-surface scattering in materials rendering");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
-	prop= RNA_def_property(srna, "render_raytracing", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_raytracing", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_RAYTRACE);
-	RNA_def_property_ui_text(prop, "Render Raytracing", "Pre-calculate the raytrace accelerator and render raytracing effects");
+	RNA_def_property_ui_text(prop, "Raytracing", "Pre-calculate the raytrace accelerator and render raytracing effects");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 
-	prop= RNA_def_property(srna, "render_raytrace_all", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_raytrace_all", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "raytrace_all", 0);
 	RNA_def_property_ui_text(prop, "Raytrace All", "Raytrace everything ignoring the traceble material option.");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
-	prop= RNA_def_property(srna, "render_textures", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "use_textures", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "scemode", R_NO_TEX);
-	RNA_def_property_ui_text(prop, "Render Textures", "Use textures to affect material properties");
+	RNA_def_property_ui_text(prop, "Textures", "Use textures to affect material properties");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
-	
+
+	/* subdivision */
+	prop= RNA_def_property(srna, "use_subdivision", PROP_BOOLEAN, PROP_BOOLEAN);
+	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_SUBDIVISION);
+	RNA_def_property_ui_text(prop, "Subdivision", "Automatically subdivide object with displacement materials.");
+	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
+
+	prop= RNA_def_property(srna, "subdivision_rate", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "subdivision_rate");
+	RNA_def_property_range(prop, 0.01f, 100.0f);
+	RNA_def_property_ui_text(prop, "Subdivision Rate", "Minimum polygon size for render subdivision, lower renders more detail, 1.0 corresponds to approximately 1 polygon per pixel.");
+	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
+
+#if 0
+	prop= RNA_def_property(srna, "subdivision_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "subdivision_rate");
+	RNA_def_property_enum_items(prop, subdivision_mode_items);
+	RNA_def_property_ui_text(prop, "Subdivision Mode", "How subdivision affects secondary effects like raytracing and shadows.");
+	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
+
+	prop= RNA_def_property(srna, "ray_resolution", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "rayresolution");
+	RNA_def_property_ui_text(prop, "Ray Resolution", "Percentage of full resolution to raytracing, 0.0 corresponds to the lowest possible resolution, and 1.0 to full resolution.");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
+#endif
+
+	/* edge rendering */
 	prop= RNA_def_property(srna, "edge", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_EDGE);
 	RNA_def_property_ui_text(prop, "Edge", "Create a toon outline around the edges of geometry");
@@ -2268,6 +2295,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Edge Color", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
+	/* threads */
 	prop= RNA_def_property(srna, "threads", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "threads");
 	RNA_def_property_range(prop, 1, BLENDER_MAX_THREADS);
@@ -2281,6 +2309,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Threads Mode", "Determine the amount of render threads used");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
+	/* motion blur */
 	prop= RNA_def_property(srna, "motion_blur", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_MBLUR);
 	RNA_def_property_ui_text(prop, "Motion Blur", "Use multi-sampled 3D scene motion blur");
@@ -2292,6 +2321,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Motion Samples", "Number of scene samples to take with motion blur");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
+	/* border */
 	prop= RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_BORDER);
 	RNA_def_property_ui_text(prop, "Border", "Render a user-defined border region, within the frame size. Note, this disables save_buffers and full_sample");

@@ -312,6 +312,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 					sce->r.mode |= R_RAYTRACE;
 				if(mat->sss_flag & MA_DIFF_SSS)
 					sce->r.mode |= R_SSS;
+				if(scene->r.mode & R_SUBDIVISION)
+					sce->r.mode |= R_SUBDIVISION;
 				
 				/* turn off fake shadows if needed */
 				/* this only works in a specific case where the preview.blend contains
@@ -356,7 +358,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 			else {
-				sce->r.mode &= ~(R_OSA|R_RAYTRACE|R_SSS);
+				sce->r.mode &= ~(R_OSA|R_RAYTRACE|R_SSS|R_SUBDIVISION);
 			}
 			
 			for(base= sce->base.first; base; base= base->next) {

@@ -1043,8 +1043,7 @@ Object *add_only_object(int type, char *name)
 	ob->pc_ids.first = ob->pc_ids.last = NULL;
 
 	/* render */
-	ob->shadingrate= 1.0f;
-	ob->rayresolution= 1.0f;
+	ob->subdivision_rate= 1.0f;
 	ob->displacebound= 0.1f;
 	
 	/* Animation Visualisation defaults */
