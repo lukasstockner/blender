@@ -69,8 +69,7 @@ static void rna_userdef_mipmap_update(Main *bmain, Scene *scene, PointerRNA *ptr
 	rna_userdef_update(bmain, scene, ptr);
 }
 
-#if 0
-static void rna_userdef_lmb_select_set(PointerRNA *ptr,int value)
+static void rna_userdef_select_mouse_set(PointerRNA *ptr,int value)
 {
 	UserDef *userdef = (UserDef*)ptr->data;
 
@@ -80,22 +79,6 @@ static void rna_userdef_lmb_select_set(PointerRNA *ptr,int value)
 	}
 	else
 		userdef->flag &= ~USER_LMOUSESELECT;
-}
-
-static void rna_userdef_rmb_select_set(PointerRNA *ptr,int value)
-{
-	rna_userdef_lmb_select_set(ptr, !value);
-}
-#endif
-
-static void rna_userdef_emulate_set(PointerRNA *ptr,int value)
-{
-	UserDef *userdef = (UserDef*)ptr->data;
-
-	if(userdef->flag & USER_LMOUSESELECT) 
-		userdef->flag &= ~USER_TWOBUTTONMOUSE;
-	else
-		userdef->flag ^= USER_TWOBUTTONMOUSE;
 }
 
 static int rna_userdef_autokeymode_get(PointerRNA *ptr)
@@ -2593,12 +2576,13 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "select_mouse", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, select_mouse_items);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_userdef_select_mouse_set", NULL);
 	RNA_def_property_ui_text(prop, "Select Mouse", "The mouse button used for selection");
 	
-	prop= RNA_def_property(srna, "viewport_zoom_style", PROP_ENUM, PROP_NONE);
+	prop= RNA_def_property(srna, "zoom_style", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "viewzoom");
 	RNA_def_property_enum_items(prop, view_zoom_styles);
-	RNA_def_property_ui_text(prop, "Viewport Zoom Style", "Which style to use for viewport scaling");
+	RNA_def_property_ui_text(prop, "Zoom Style", "Which style to use for viewport scaling");
 	
 	prop= RNA_def_property(srna, "zoom_axis", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "uiflag");
@@ -2635,7 +2619,6 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "emulate_3_button_mouse", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_TWOBUTTONMOUSE);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_userdef_emulate_set");
 	RNA_def_property_ui_text(prop, "Emulate 3 Button Mouse", "Emulates Middle Mouse with Alt+LeftMouse (doesnt work with Left Mouse Select option)");
 
 	prop= RNA_def_property(srna, "emulate_numpad", PROP_BOOLEAN, PROP_NONE);
