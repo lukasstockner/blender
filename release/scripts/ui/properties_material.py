@@ -286,6 +286,7 @@ class MATERIAL_PT_options(MaterialButtonsPanel):
         row = sub.row()
         row.active = bool(mat.light_group)
         row.prop(mat, "light_group_exclusive", text="Exclusive")
+        row.prop(mat, "light_group_local", text="Local")
 
         if wide_ui:
             col = split.column()

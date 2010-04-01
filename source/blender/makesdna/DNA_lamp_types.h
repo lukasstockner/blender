@@ -49,22 +49,28 @@ typedef struct Lamp {
 	short type, flag;
 	int mode;
 	
+	/* color and power */
 	short colormodel, totex;
 	float r, g, b, k;
 	float shdwr, shdwg, shdwb;
+	float energy, power;
 	
-	float energy, power, spotsize, spotblend;
-	float haint, pad6;
+	/* spots */
+	float spotsize, spotblend, haint;
+	short shadhalostep, pad6;
 	
+	/* falloff */
 	struct CurveMapping *curfalloff;
 	short falloff_type, pad2;
 	float falloff_smooth, dist;
 	
+	/* shadow buffer */
 	float clipsta, clipend, shadspotsize;
 	float bias, soft, compressthresh, pad5;
 	short bufsize, samp, buffers, filtertype;
 	char bufflag, buftype;
 	
+	/* ray traced shadows */
 	short ray_samp;
 	short ray_samp_type;
 	short area_shape;
@@ -72,9 +78,6 @@ typedef struct Lamp {
 	float adapt_thresh;
 	short ray_samp_method;
 	short pad1;
-	
-	/* texact is for buttons */
-	short texact, shadhalostep;
 	
 	/* sun/sky */
 	short sun_effect_type;
@@ -92,18 +95,12 @@ typedef struct Lamp {
 	float skyblendfac;
 	float sky_exposure;
 	short sky_colorspace, pad4;
-	
-	/* yafray: photonlight params */
-	int YF_numphotons, YF_numsearch;
-	short YF_phdepth, YF_useqmc, YF_bufsize, YF_pad;
-	float YF_causticblur, YF_ltradius;
-	/* yafray: glow params */
-	float YF_glowint, YF_glowofs;
-	short YF_glowtype, YF_pad2;
-	
+
 	struct Ipo *ipo;				// XXX depreceated... old animation system
+
+	/* textures */
 	struct MTex *mtex[18];			/* MAX_MTEX */
-	short pr_texture, pad[3];
+	short pr_texture, texact, pad[2];
 	
 	/* preview */
 	struct PreviewImage *preview;
@@ -124,8 +121,7 @@ typedef struct Lamp {
 #define LA_SPOT			2
 #define LA_HEMI			3
 #define LA_AREA			4
-/* yafray: extra lamp type used for caustic photonmap */
-#define LA_YF_PHOTON	5
+#define LA_DEPRECATED	5
 
 /* mode */
 #define LA_SHAD_BUF		1

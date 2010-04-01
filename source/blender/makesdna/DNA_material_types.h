@@ -224,7 +224,7 @@ typedef struct Material {
 #define MA_TANGENT_V	0x4000000
 /* qdn: a bit clumsy this, tangents needed for normal maps separated from shading */
 #define MA_NORMAP_TANG	0x8000000
-#define MA_GROUP_NOLAY	0x10000000
+#define MA_GROUP_EXCLUSIVE		0x10000000
 #define MA_FACETEXTURE_ALPHA	0x20000000
 #define MA_STR_B_UNITS	0x40000000
 #define MA_STR_SURFDIFF 0x80000000
@@ -239,6 +239,7 @@ typedef struct Material {
 #define MA_CUBIC			1
 #define MA_OBCOLOR			2
 #define MA_APPROX_OCCLUSION	4
+#define MA_GROUP_LOCAL		8
 
 /* diff_shader */
 #define MA_DIFF_LAMBERT		0

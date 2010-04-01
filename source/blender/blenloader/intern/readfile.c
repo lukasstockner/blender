@@ -11270,6 +11270,8 @@ static void expand_material(FileData *fd, Main *mainvar, Material *ma)
 	
 	if(ma->nodetree)
 		expand_nodetree(fd, mainvar, ma->nodetree);
+
+	expand_doit(fd, mainvar, ma->group);
 }
 
 static void expand_lamp(FileData *fd, Main *mainvar, Lamp *la)

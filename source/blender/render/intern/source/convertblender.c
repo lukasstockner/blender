@@ -224,7 +224,7 @@ static void set_material_lightgroups(Render *re)
 	/* hola! materials not in use...? */
 	for(ma= G.main->mat.first; ma; ma=ma->id.next) {
 		if(ma->group && (ma->group->id.flag & LIB_DOIT))
-			lightgroup_create(re, ma->group, ma->mode & MA_GROUP_NOLAY);
+			lightgroup_create(re, ma->group, ma->mode & MA_GROUP_EXCLUSIVE);
 	}
 }
 

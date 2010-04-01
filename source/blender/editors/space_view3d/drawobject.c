@@ -984,7 +984,7 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	glPopMatrix();	/* back in object space */
 	vec[0]= vec[1]= vec[2]= 0.0f;
 	
-	if ((la->type==LA_SPOT) || (la->type==LA_YF_PHOTON)) {	
+	if (la->type==LA_SPOT) {
 		lvec[0]=lvec[1]= 0.0; 
 		lvec[2] = 1.0;
 		x = rv3d->persmat[0][2];

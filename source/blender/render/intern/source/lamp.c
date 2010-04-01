@@ -40,6 +40,7 @@
 
 #include "BKE_colortools.h"
 #include "BKE_global.h"
+#include "BKE_group.h"
 
 #include "environment.h"
 #include "lamp.h"
@@ -296,7 +297,6 @@ int lamp_skip(Render *re, LampRen *lar, ShadeInput *shi)
 {
 	Material *ma= shi->material.mat;
 
-	if(lar->type==LA_YF_PHOTON) return 1;
 	if(lar->mode & LA_LAYER) if(shi->primitive.obi && (lar->lay & shi->primitive.obi->lay)==0) return 1;
 	if((lar->lay & shi->shading.lay)==0) return 1;
 	if((lar->mode & LA_NO_INDIRECT) && shi->shading.isindirect) return 1;
