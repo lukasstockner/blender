@@ -371,7 +371,8 @@ class USERPREF_PT_edit(bpy.types.Panel):
         col.separator()
 
         col.label(text="New F-Curve Defaults:")
-        col.prop(edit, "new_interpolation_type", text="Interpolation")
+        col.prop(edit, "keyframe_new_interpolation_type", text="Interpolation")
+        col.prop(edit, "keyframe_new_handle_type", text="Handles")
         col.prop(edit, "insertkey_xyz_to_rgb", text="XYZ to RGB")
 
         col.separator()
@@ -707,14 +708,24 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(graph, "active_channels_group")
             col.prop(graph, "dopesheet_channel")
             col.prop(graph, "dopesheet_subchannel")
-            col.prop(graph, "vertex")
+            col.prop(graph, "frame_current")
 
             col = split.column()
-            col.prop(graph, "current_frame")
+            col.prop(graph, "vertex")
             col.prop(graph, "handle_vertex")
             col.prop(graph, "handle_vertex_select")
             col.separator()
             col.prop(graph, "handle_vertex_size")
+            col.separator()
+            col.separator()
+            col.prop(graph, "handle_free")
+            col.prop(graph, "handle_auto")
+            col.prop(graph, "handle_vect")
+            col.prop(graph, "handle_align")
+            col.prop(graph, "handle_sel_free")
+            col.prop(graph, "handle_sel_auto")
+            col.prop(graph, "handle_sel_vect")
+            col.prop(graph, "handle_sel_align")
 
         elif theme.theme_area == 'FILE_BROWSER':
             file_browse = theme.file_browser
@@ -757,7 +768,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col = split.column()
             col.prop(nla, "strips")
             col.prop(nla, "strips_selected")
-            col.prop(nla, "current_frame")
+            col.prop(nla, "frame_current")
 
         elif theme.theme_area == 'DOPESHEET_EDITOR':
             dope = theme.dopesheet_editor
@@ -780,7 +791,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(dope, "long_key_selected")
 
             col = split.column()
-            col.prop(dope, "current_frame")
+            col.prop(dope, "frame_current")
             col.prop(dope, "dopesheet_channel")
             col.prop(dope, "dopesheet_subchannel")
 
@@ -827,7 +838,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
 
             col = split.column()
             col.prop(seq, "meta_strip")
-            col.prop(seq, "current_frame")
+            col.prop(seq, "frame_current")
             col.prop(seq, "keyframe")
             col.prop(seq, "draw_action")
 
@@ -886,7 +897,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(time, "grid")
 
             col = split.column()
-            col.prop(time, "current_frame")
+            col.prop(time, "frame_current")
 
         elif theme.theme_area == 'NODE_EDITOR':
             node = theme.node_editor
@@ -1484,6 +1495,10 @@ class USERPREF_PT_addons(bpy.types.Panel):
                     split = column.row().split(percentage=0.15)
                     split.label(text='Location:')
                     split.label(text=info["location"])
+                if info["description"]:
+                    split = column.row().split(percentage=0.15)
+                    split.label(text='Description:')
+                    split.label(text=info["description"])
                 if info["url"]:
                     split = column.row().split(percentage=0.15)
                     split.label(text="Internet:")
@@ -1513,7 +1528,7 @@ class USERPREF_PT_addons(bpy.types.Panel):
 from bpy.props import *
 
 
-def addon_info_get(mod, info_basis={"name": "", "author": "", "version": "", "blender": "", "location": "", "url": "", "category": "", "expanded": False}):
+def addon_info_get(mod, info_basis={"name": "", "author": "", "version": "", "blender": "", "location": "", "description": "", "url": "", "category": "", "expanded": False}):
     addon_info = getattr(mod, "bl_addon_info", {})
 
     # avoid re-initializing
