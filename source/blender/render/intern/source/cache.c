@@ -52,7 +52,7 @@
 
 static int mat_need_cache(Material *ma)
 {
-	if(ma->mode & (MA_SHLESS|MA_ONLYSHADOW))
+	if(ma->mode & MA_SHLESS)
 		return 0;
 	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
 		return 0;
