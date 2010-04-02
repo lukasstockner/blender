@@ -303,6 +303,8 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 	/* quite disputable this...  also note it doesn't mirror-raytrace */	
 	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT)) && shi->material.amb!=0.0f) {
 		float f;
+
+		ambient_occlusion(re, shi);
 		
 		if(re->db.wrld.mode & WO_AMB_OCC) {
 			f= re->db.wrld.aoenergy*shi->material.amb;
