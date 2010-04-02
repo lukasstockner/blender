@@ -891,10 +891,12 @@ float frame_to_float (Scene *scene, int cfra)		/* see also bsystem_time in objec
 	return ctime;
 }
 
-static void scene_update_newframe(Scene *scene, unsigned int lay)
+static void scene_update_newframe(Scene *scene, int cfra, unsigned int lay)
 {
 	Base *base;
 	Object *ob;
+	int cfra_back= scene->r.cfra;
+	scene->r.cfra= cfra;
 	
 	for(base= scene->base.first; base; base= base->next) {
 		ob= base->object;
@@ -910,6 +912,8 @@ static void scene_update_newframe(Scene *scene, unsigned int lay)
 		//	base->lay= ob->lay;
 		//}
 	}
+
+	scene->r.cfra= cfra_back;
 }
 
 /* this is called in main loop, doing tagged updates before redraw */
@@ -953,6 +957,7 @@ void scene_update_tagged(Scene *scene)
 			BKE_animsys_evaluate_animdata(&scene->id, adt, ctime, 0);
 	}
 
+	/* XXX - this is called far to often, should be made apart of the depgraph */
 	BKE_ptcache_quick_cache_all(scene);
 
 	/* in the future this should handle updates for all datablocks, not
@@ -989,10 +994,11 @@ void scene_update_for_newframe(Scene *sce, unsigned int lay)
 
 
 	/* sets first, we allow per definition current scene to have dependencies on sets */
-	for(sce_iter= sce->set; sce_iter; sce_iter= sce_iter->set)
-		scene_update_newframe(sce_iter, lay);
+	for(sce_iter= sce->set; sce_iter; sce_iter= sce_iter->set) {
+		scene_update_newframe(sce_iter, sce->r.cfra, lay);
+    }
 
-	scene_update_newframe(sce, lay);
+	scene_update_newframe(sce, sce->r.cfra, lay);
 }
 
 /* return default layer, also used to patch old files */
@@ -1046,3 +1052,26 @@ float get_render_aosss_error(RenderData *r, float error)
 		return error;
 }
 
+/* helper function for the SETLOOPER macro */
+Base *_setlooper_base_step(Scene **sce, Base *base)
+{
+    if(base && base->next) {
+        /* common case, step to the next */
+        return base->next;
+    }
+    else if(base==NULL && (*sce)->base.first) {
+        /* first time looping, return the scenes first base */
+        return (Base *)(*sce)->base.first;
+    }
+    else {
+        /* reached the end, get the next base in the set */
+        while((*sce= (*sce)->set)) {
+            base= (Base *)(*sce)->base.first;
+            if(base) {
+                return base;
+            }
+        }
+    }
+
+    return NULL;
+}
