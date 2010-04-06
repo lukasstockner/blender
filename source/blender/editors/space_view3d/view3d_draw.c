@@ -292,7 +292,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, char **grid_u
 			while(i--) {
 				scalar= bUnit_GetScaler(usys, i);
 
-				dx_scalar = dx * scalar * unit->scale_length;
+				dx_scalar = dx * scalar / unit->scale_length;
 				if (dx_scalar < (GRID_MIN_PX*2))
 					continue;
 
@@ -1797,6 +1797,8 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 	Scene *sce;
 	Base *base;
 	Object *ob;
+	ARegion ar;
+	RegionView3D rv3d;
 	
 	shadows.first= shadows.last= NULL;
 	
@@ -1835,7 +1837,20 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		v3d->flag2 &= ~V3D_SOLID_TEX;
 		
 		GPU_lamp_shadow_buffer_bind(shadow->lamp, viewmat, &winsize, winmat);
-// XXX		drawview3d_render(v3d, viewmat, winsize, winsize, winmat, 1);
+
+		memset(&ar, 0, sizeof(ar));
+		memset(&rv3d, 0, sizeof(rv3d));
+
+		ar.regiondata= &rv3d;
+		ar.regiontype= RGN_TYPE_WINDOW;
+		rv3d.persp= RV3D_CAMOB;
+		copy_m4_m4(rv3d.winmat, winmat);
+		copy_m4_m4(rv3d.viewmat, viewmat);
+		invert_m4_m4(rv3d.viewinv, rv3d.viewmat);
+		mul_m4_m4m4(rv3d.persmat, rv3d.viewmat, rv3d.winmat);
+		invert_m4_m4(rv3d.persinv, rv3d.viewinv);
+
+		ED_view3d_draw_offscreen(scene, v3d, &ar, winsize, winsize, viewmat, winmat);
 		GPU_lamp_shadow_buffer_unbind(shadow->lamp);
 		
 		v3d->drawtype= drawtype;
@@ -1953,9 +1968,7 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 		glClearColor(scene->world->horr, scene->world->horg, scene->world->horb, 0.0);
 	}
 	else {
-		float col[3];
-		UI_GetThemeColor3fv(TH_BACK, col);
-		glClearColor(col[0], col[1], col[2], 0.0); 	
+		UI_ThemeClearColor(TH_BACK);	
 	}
 
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
@@ -2168,7 +2181,6 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	Scene *sce;
 	Base *base;
 	Object *ob;
-	float col[3];
 	int retopo= 0, sculptparticle= 0;
 	Object *obact = OBACT;
 	char *grid_unit= NULL;
@@ -2187,8 +2199,7 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	}
 
 	/* clear background */
-	UI_GetThemeColor3fv(TH_BACK, col);
-	glClearColor(col[0], col[1], col[2], 0.0); 
+	UI_ThemeClearColor(TH_BACK);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 	
 	/* setup view matrices */
@@ -2367,7 +2378,7 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	}
 	if (grid_unit) { /* draw below the viewport name */
 		UI_ThemeColor(TH_TEXT_HI);
-		BLF_draw_default(10,  ar->winy-(USER_SHOW_VIEWPORTNAME?40:20), 0.0f, grid_unit);
+		BLF_draw_default(22,  ar->winy-(USER_SHOW_VIEWPORTNAME?40:20), 0.0f, grid_unit);
 	}
 
 	ob= OBACT;

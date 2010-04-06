@@ -281,6 +281,8 @@ class OBJECT_PT_duplication(ObjectButtonsPanel):
                 layout.prop(ob, "dupli_group", text="")
 
 # XXX: the following options are all quite buggy, ancient hacks that should be dropped
+
+
 class OBJECT_PT_animation(ObjectButtonsPanel):
     bl_label = "Animation Hacks"
     bl_default_closed = True

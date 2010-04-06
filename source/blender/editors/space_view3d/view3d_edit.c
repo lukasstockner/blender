@@ -1493,6 +1493,9 @@ static int render_border_exec(bContext *C, wmOperator *op)
 	rect.xmax= RNA_int_get(op->ptr, "xmax");
 	rect.ymax= RNA_int_get(op->ptr, "ymax");
 
+	if (!ar || ar->regiontype != RGN_TYPE_WINDOW)
+		return OPERATOR_CANCELLED;
+	
 	/* calculate range */
 	calc_viewborder(scene, ar, v3d, &vb);
 
@@ -2376,8 +2379,8 @@ void VIEW3D_OT_manipulator(wmOperatorType *ot)
 
 	ot->poll= ED_operator_view3d_active;
 
-	/* rna later */
-	RNA_def_boolean_vector(ot->srna, "constraint_axis", 3, NULL, "Constraint Axis", "");
+	/* properties to pass to transform */
+	Transform_Properties(ot, P_CONSTRAINT);
 }
 
 static int enable_manipulator_invoke(bContext *C, wmOperator *op, wmEvent *event)

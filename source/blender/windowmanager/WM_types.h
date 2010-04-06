@@ -157,6 +157,7 @@ typedef struct wmNotifier {
 #define ND_FILEREAD			(1<<16)
 #define ND_FILESAVE			(2<<16)
 #define ND_DATACHANGED		(3<<16)
+#define ND_HISTORY			(4<<16)
 
 	/* NC_SCREEN screen */
 #define ND_SCREENBROWSE		(1<<16)
@@ -287,6 +288,7 @@ typedef struct wmNotifier {
 #define WM_GESTURE_CROSS_RECT	3
 #define WM_GESTURE_LASSO		4
 #define WM_GESTURE_CIRCLE		5
+#define WM_GESTURE_STRAIGHTLINE	6
 
 /* wmGesture is registered to window listbase, handled by operator callbacks */
 /* tweak gesture is builtin feature */
@@ -303,6 +305,7 @@ typedef struct wmGesture {
 	/* customdata for border is a recti */
 	/* customdata for circle is recti, (xmin, ymin) is center, xmax radius */
 	/* customdata for lasso is short array */
+	/* customdata for straight line is a recti: (xmin,ymin) is start, (xmax, ymax) is end */
 } wmGesture;
 
 /* ************** wmEvent ************************ */

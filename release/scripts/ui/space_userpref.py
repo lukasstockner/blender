@@ -164,9 +164,9 @@ class USERPREF_HT_header(bpy.types.Header):
 
         layout.operator_context = 'EXEC_AREA'
         layout.operator("wm.save_homefile", text="Save As Default")
-        
+
         layout.operator_context = 'INVOKE_DEFAULT'
-        
+
         if userpref.active_section == 'INPUT':
             op = layout.operator("wm.keyconfig_export")
             op.path = "keymap.py"
@@ -175,7 +175,7 @@ class USERPREF_HT_header(bpy.types.Header):
         elif userpref.active_section == 'ADDONS':
             op = layout.operator("wm.addon_install")
             op.path = "*.py"
-        elif userpref.active_section == 'THEMES':           
+        elif userpref.active_section == 'THEMES':
             op = layout.operator("ui.reset_default_theme")
 
 
@@ -687,6 +687,8 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(v3d, "bone_solid")
             col.prop(v3d, "bone_pose")
             col.prop(v3d, "edge_seam")
+            col.prop(v3d, "edge_sharp")
+            col.prop(v3d, "edge_crease")
             #col.prop(v3d, "edge") Doesn't seem to work
 
         elif theme.theme_area == 'GRAPH_EDITOR':
@@ -1716,9 +1718,9 @@ class WM_OT_keyconfig_test(bpy.types.Operator):
 
         def kmistr(kmi):
             if km.modal:
-                s = ["kmi = km.add_modal_item(\'%s\', \'%s\', \'%s\'" % (kmi.propvalue, kmi.type, kmi.value)]
+                s = ["kmi = km.items.add_modal(\'%s\', \'%s\', \'%s\'" % (kmi.propvalue, kmi.type, kmi.value)]
             else:
-                s = ["kmi = km.add_item(\'%s\', \'%s\', \'%s\'" % (kmi.idname, kmi.type, kmi.value)]
+                s = ["kmi = km.items.add(\'%s\', \'%s\', \'%s\'" % (kmi.idname, kmi.type, kmi.value)]
 
             if kmi.any:
                 s.append(", any=True")
@@ -1924,9 +1926,9 @@ class WM_OT_keyconfig_export(bpy.types.Operator):
             f.write("km = kc.add_keymap('%s', space_type='%s', region_type='%s', modal=%s)\n\n" % (km.name, km.space_type, km.region_type, km.modal))
             for kmi in km.items:
                 if km.modal:
-                    f.write("kmi = km.add_modal_item('%s', '%s', '%s'" % (kmi.propvalue, kmi.type, kmi.value))
+                    f.write("kmi = km.items.add_modal('%s', '%s', '%s'" % (kmi.propvalue, kmi.type, kmi.value))
                 else:
-                    f.write("kmi = km.add_item('%s', '%s', '%s'" % (kmi.idname, kmi.type, kmi.value))
+                    f.write("kmi = km.items.add('%s', '%s', '%s'" % (kmi.idname, kmi.type, kmi.value))
                 if kmi.any:
                     f.write(", any=True")
                 else:
@@ -2030,9 +2032,9 @@ class WM_OT_keyitem_add(bpy.types.Operator):
         kc = wm.default_keyconfig
 
         if km.modal:
-            km.add_modal_item("", 'A', 'PRESS') # kmi
+            km.items.add_modal("", 'A', 'PRESS') # kmi
         else:
-            km.add_item("none", 'A', 'PRESS') # kmi
+            km.items.add("none", 'A', 'PRESS') # kmi
 
         # clear filter and expand keymap so we can see the newly added item
         if kc.filter != '':

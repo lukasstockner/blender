@@ -3038,6 +3038,7 @@ static void direct_link_particlesettings(FileData *fd, ParticleSettings *part)
 	link_list(fd, &part->dupliweights);
 
 	part->boids= newdataadr(fd, part->boids);
+	part->fluid= newdataadr(fd, part->fluid);
 
 	if(part->boids) {
 		BoidState *state;
@@ -3438,7 +3439,11 @@ static void lib_link_object(FileData *fd, Main *main)
 				if(ob->proxy->id.lib==NULL) {
 					ob->proxy->proxy_from= NULL;
 					ob->proxy= NULL;
-					printf("Proxy lost from  object %s lib %s\n", ob->id.name+2, ob->id.lib->name);
+					
+					if (ob->id.lib)
+						printf("Proxy lost from  object %s lib %s\n", ob->id.name+2, ob->id.lib->name);
+					else
+						printf("Proxy lost from  object %s lib <NONE>\n", ob->id.name+2);
 				}
 				else {
 					/* this triggers object_update to always use a copy */
@@ -4609,6 +4614,11 @@ static void lib_link_screen(FileData *fd, Main *main)
 						SpaceImage *sima= (SpaceImage *)sl;
 
 						sima->image= newlibadr_us(fd, sc->id.lib, sima->image);
+						
+						/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
+						 * so fingers crossed this works fine!
+						 */
+						sima->gpd= newlibadr_us(fd, sc->id.lib, sima->gpd);
 					}
 					else if(sl->spacetype==SPACE_NLA){
 						SpaceNla *snla= (SpaceNla *)sl;
@@ -4747,7 +4757,10 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					View3D *v3d= (View3D*) sl;
 					BGpic *bgpic;
 					
-					v3d->camera= restore_pointer_by_name(newmain, (ID *)v3d->camera, 1);
+					if(v3d->scenelock)
+						v3d->camera= NULL; /* always get from scene */
+					else
+						v3d->camera= restore_pointer_by_name(newmain, (ID *)v3d->camera, 1);
 					if(v3d->camera==NULL)
 						v3d->camera= sc->scene->camera;
 					v3d->ob_centre= restore_pointer_by_name(newmain, (ID *)v3d->ob_centre, 1);
@@ -4823,6 +4836,14 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 					SpaceImage *sima= (SpaceImage *)sl;
 
 					sima->image= restore_pointer_by_name(newmain, (ID *)sima->image, 1);
+
+					sima->scopes.samples_ibuf = NULL;
+					sima->scopes.ok = 0;
+					
+					/* NOTE: pre-2.5, this was local data not lib data, but now we need this as lib data
+					 * so assume that here we're doing for undo only...
+					 */
+					sima->gpd= restore_pointer_by_name(newmain, (ID *)sima->gpd, 1);
 				}
 				else if(sl->spacetype==SPACE_NLA){
 					SpaceNla *snla= (SpaceNla *)sl;
@@ -5085,13 +5106,20 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				SpaceImage *sima= (SpaceImage *)sl;
 				
 				sima->cumap= newdataadr(fd, sima->cumap);
-				sima->gpd= newdataadr(fd, sima->gpd);
-				if (sima->gpd)
-					direct_link_gpencil(fd, sima->gpd);
 				if(sima->cumap)
 					direct_link_curvemapping(fd, sima->cumap);
+				
 				sima->iuser.scene= NULL;
 				sima->iuser.ok= 1;
+				sima->scopes.samples_ibuf = NULL;
+				sima->scopes.ok = 0;
+				
+				/* WARNING: gpencil data is no longer stored directly in sima after 2.5 
+				 * so sacrifice a few old files for now to avoid crashes with new files!
+				 */
+				//sima->gpd= newdataadr(fd, sima->gpd);
+				//if (sima->gpd)
+				//	direct_link_gpencil(fd, sima->gpd);
 			}
 			else if(sl->spacetype==SPACE_NODE) {
 				SpaceNode *snode= (SpaceNode *)sl;
@@ -10758,7 +10786,26 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
+		bScreen *sc;
 		
+		/* Image editor scopes */
+		for(sc= main->screen.first; sc; sc= sc->id.next) {
+			ScrArea *sa;
+			for(sa= sc->areabase.first; sa; sa= sa->next) {
+				SpaceLink *sl;
+				for (sl= sa->spacedata.first; sl; sl= sl->next) {
+					if(sl->spacetype==SPACE_IMAGE) {
+						SpaceImage *sima = (SpaceImage *)sl;
+						sima->scopes.accuracy = 30.0;
+						sima->scopes.hist.mode=HISTO_MODE_RGB;
+						sima->scopes.wavefrm_alpha=0.3;
+						sima->scopes.vecscope_alpha=0.3;
+						sima->scopes.wavefrm_height= 100;
+						sima->scopes.hist.height= 100;
+					}
+				}
+			}
+		}
 	}
 
 	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10))

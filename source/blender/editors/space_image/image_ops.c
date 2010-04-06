@@ -177,7 +177,7 @@ static void view_pan_exit(bContext *C, wmOperator *op, int cancel)
 	if(cancel) {
 		sima->xof= vpd->xof;
 		sima->yof= vpd->yof;
-		ED_area_tag_redraw(CTX_wm_area(C));
+		ED_region_tag_redraw(CTX_wm_region(C));
 	}
 
 	WM_cursor_restore(CTX_wm_window(C));
@@ -193,7 +193,7 @@ static int view_pan_exec(bContext *C, wmOperator *op)
 	sima->xof += offset[0];
 	sima->yof += offset[1];
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 
 	/* XXX notifier? */
 #if 0
@@ -309,7 +309,7 @@ static void view_zoom_exit(bContext *C, wmOperator *op, int cancel)
 
 	if(cancel) {
 		sima->zoom= vpd->zoom;
-		ED_area_tag_redraw(CTX_wm_area(C));
+		ED_region_tag_redraw(CTX_wm_region(C));
 	}
 
 	WM_cursor_restore(CTX_wm_window(C));
@@ -323,7 +323,7 @@ static int view_zoom_exec(bContext *C, wmOperator *op)
 
 	sima_zoom_set_factor(sima, ar, RNA_float_get(op->ptr, "factor"));
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 
 	/* XXX notifier? */
 #if 0
@@ -347,7 +347,7 @@ static int view_zoom_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		factor= 1.0 + (event->x-event->prevx+event->y-event->prevy)/300.0f;
 		RNA_float_set(op->ptr, "factor", factor);
 		sima_zoom_set(sima, ar, sima->zoom*factor);
-		ED_area_tag_redraw(CTX_wm_area(C));
+		ED_region_tag_redraw(CTX_wm_region(C));
 		
 		return OPERATOR_FINISHED;
 	}
@@ -369,7 +369,7 @@ static int view_zoom_modal(bContext *C, wmOperator *op, wmEvent *event)
 			factor= 1.0 + (vpd->x-event->x+vpd->y-event->y)/300.0f;
 			RNA_float_set(op->ptr, "factor", factor);
 			sima_zoom_set(sima, ar, vpd->zoom*factor);
-			ED_area_tag_redraw(CTX_wm_area(C));
+			ED_region_tag_redraw(CTX_wm_region(C));
 			break;
 		case MIDDLEMOUSE:
 		case LEFTMOUSE:
@@ -452,7 +452,7 @@ static int view_all_exec(bContext *C, wmOperator *op)
 
 	sima->xof= sima->yof= 0.0f;
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 	
 	return OPERATOR_FINISHED;
 }
@@ -504,7 +504,7 @@ static int view_selected_exec(bContext *C, wmOperator *op)
 	if(size<=0.01) size= 0.01;
 	sima_zoom_set(sima, ar, 0.7/size);
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 	
 	return OPERATOR_FINISHED;
 }
@@ -529,7 +529,7 @@ static int view_zoom_in_exec(bContext *C, wmOperator *op)
 
 	sima_zoom_set_factor(sima, ar, 1.25f);
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 	
 	return OPERATOR_FINISHED;
 }
@@ -552,7 +552,7 @@ static int view_zoom_out_exec(bContext *C, wmOperator *op)
 
 	sima_zoom_set_factor(sima, ar, 0.8f);
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 	
 	return OPERATOR_FINISHED;
 }
@@ -590,7 +590,7 @@ static int view_zoom_ratio_exec(bContext *C, wmOperator *op)
 	}
 #endif
 
-	ED_area_tag_redraw(CTX_wm_area(C));
+	ED_region_tag_redraw(CTX_wm_region(C));
 	
 	return OPERATOR_FINISHED;
 }
@@ -1634,27 +1634,20 @@ void IMAGE_OT_sample(wmOperatorType *ot)
 }
 
 /******************** sample line operator ********************/
-typedef struct ImageSampleLineInfo {
-	ARegionType *art;
-	void *draw_handle;
-	int started;
-	int x_start, y_start, x_stop, y_stop;
-} ImageSampleLineInfo;
-
-static void sample_line_draw(const bContext *C, ARegion *ar, void *arg_info)
-{
-	ImageSampleLineInfo *info= arg_info;
-	draw_image_line(ar, info->x_start, info->y_start, info->x_stop, info->y_stop);
-}
-
-static void sample_line_apply(bContext *C, wmOperator *op)
+static int sample_line_exec(bContext *C, wmOperator *op)
 {
 	SpaceImage *sima= CTX_wm_space_image(C);
-	ImageSampleLineInfo *info= op->customdata;
 	ARegion *ar= CTX_wm_region(C);
+	
+	int x_start= RNA_int_get(op->ptr, "xstart");
+	int y_start= RNA_int_get(op->ptr, "ystart");
+	int x_end= RNA_int_get(op->ptr, "xend");
+	int y_end= RNA_int_get(op->ptr, "yend");
+	
 	void *lock;
 	ImBuf *ibuf= ED_space_image_acquire_buffer(sima, &lock);
 	Histogram *hist= &sima->sample_line_hist;
+	
 	float x1f, y1f, x2f, y2f;
 	int x1, y1, x2, y2;
 	int i, x, y;
@@ -1663,16 +1656,16 @@ static void sample_line_apply(bContext *C, wmOperator *op)
 	
 	if (ibuf == NULL) {
 		ED_space_image_release_buffer(sima, lock);
-		return;
+		return OPERATOR_CANCELLED;
 	}
 	/* hmmmm */
 	if (ibuf->channels < 3) {
 		ED_space_image_release_buffer(sima, lock);
-		return;
+		return OPERATOR_CANCELLED;
 	}
 	
-	UI_view2d_region_to_view(&ar->v2d, info->x_start, info->y_start, &x1f, &y1f);
-	UI_view2d_region_to_view(&ar->v2d, info->x_stop, info->y_stop, &x2f, &y2f);
+	UI_view2d_region_to_view(&ar->v2d, x_start, y_start, &x1f, &y1f);
+	UI_view2d_region_to_view(&ar->v2d, x_end, y_end, &x2f, &y2f);
 	x1= 0.5f+ x1f*ibuf->x;
 	x2= 0.5f+ x2f*ibuf->x;
 	y1= 0.5f+ y1f*ibuf->y;
@@ -1695,86 +1688,33 @@ static void sample_line_apply(bContext *C, wmOperator *op)
 				hist->data_r[i] = fp[0];
 				hist->data_g[i] = fp[1];
 				hist->data_b[i] = fp[2];
+				hist->data_luma[i] = (0.299f*fp[0] + 0.587f*fp[1] + 0.114f*fp[2]);
 			}
 			else if (ibuf->rect) {
 				cp= (unsigned char *)(ibuf->rect + y*ibuf->x + x);
 				hist->data_r[i] = (float)cp[0]/255.0f;
 				hist->data_g[i] = (float)cp[1]/255.0f;
 				hist->data_b[i] = (float)cp[2]/255.0f;
+				hist->data_luma[i] = (0.299f*cp[0] + 0.587f*cp[1] + 0.114f*cp[2])/255;
 			}
 		}
 	}
-	hist->ok=1;
 	
 	ED_space_image_release_buffer(sima, lock);
-}
-
-static void sample_line_exit(bContext *C, wmOperator *op)
-{
-	ImageSampleLineInfo *info= op->customdata;
 	
-	ED_region_draw_cb_exit(info->art, info->draw_handle);
 	ED_area_tag_redraw(CTX_wm_area(C));
-	MEM_freeN(info);
+	
+	return OPERATOR_FINISHED;
 }
 
 static int sample_line_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	SpaceImage *sima= CTX_wm_space_image(C);
-	ImageSampleLineInfo *info;
-
+	
 	if(!ED_space_image_has_buffer(sima))
 		return OPERATOR_CANCELLED;
 	
-	info= MEM_callocN(sizeof(ImageSampleLineInfo), "ImageSampleLineInfo");
-	info->started= 0;
-	op->customdata= info;
-
-	WM_event_add_modal_handler(C, op);
-
-	return OPERATOR_RUNNING_MODAL;
-}
-
-static int sample_line_modal(bContext *C, wmOperator *op, wmEvent *event)
-{
-	ImageSampleLineInfo *info= op->customdata;
-	ARegion *ar= CTX_wm_region(C);
-	
-	switch(event->type) {
-		case LEFTMOUSE:
-			if (info->started == 0) {
-				info->x_start = event->mval[0];
-				info->y_start = event->mval[1];
-				info->art= ar->type;
-				info->draw_handle = ED_region_draw_cb_activate(ar->type, sample_line_draw, info, REGION_DRAW_POST_PIXEL);
-				info->started = 1;
-			} else {
-				sample_line_apply(C, op);
-				sample_line_exit(C, op);
-				return OPERATOR_FINISHED;
-			}
-			break;
-		case RIGHTMOUSE: // XXX hardcoded
-		case ESCKEY:
-			sample_line_exit(C, op);
-			return OPERATOR_CANCELLED;
-		case MOUSEMOVE:
-			if (info->started == 1) {
-				info->x_stop = event->mval[0];
-				info->y_stop = event->mval[1];
-				ED_area_tag_redraw(CTX_wm_area(C));
-            sample_line_apply(C, op);
-			}
-			break;
-	}
-
-	return OPERATOR_RUNNING_MODAL;
-}
-
-static int sample_line_cancel(bContext *C, wmOperator *op)
-{
-	sample_line_exit(C, op);
-	return OPERATOR_CANCELLED;
+	return WM_gesture_straightline_invoke(C, op, event);
 }
 
 void IMAGE_OT_sample_line(wmOperatorType *ot)
@@ -1785,12 +1725,14 @@ void IMAGE_OT_sample_line(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke= sample_line_invoke;
-	ot->modal= sample_line_modal;
-	ot->cancel= sample_line_cancel;
+	ot->modal= WM_gesture_straightline_modal;
+	ot->exec= sample_line_exec;
 	ot->poll= space_image_main_area_poll;
-
+	
 	/* flags */
-	ot->flag= OPTYPE_BLOCKING;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	
+	WM_operator_properties_gesture_straightline(ot, CURSOR_EDIT);
 }
 
 /******************** set curve point operator ********************/

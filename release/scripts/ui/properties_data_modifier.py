@@ -291,6 +291,7 @@ class DATA_PT_modifiers(DataButtonsPanel):
         col.prop(md, "unborn")
         col.prop(md, "alive")
         col.prop(md, "dead")
+        col.prop(md, "size")
 
         layout.operator("object.explode_refresh", text="Refresh")
 
@@ -385,15 +386,14 @@ class DATA_PT_modifiers(DataButtonsPanel):
         else:
             layout.operator("object.meshdeform_bind", text="Bind")
 
-            if md.mode == 'VOLUME':
-                split = layout.split()
+            split = layout.split()
 
+            col = split.column()
+            col.prop(md, "precision")
+
+            if wide_ui:
                 col = split.column()
-                col.prop(md, "precision")
-
-                if wide_ui:
-                    col = split.column()
-                col.prop(md, "dynamic")
+            col.prop(md, "dynamic")
 
     def MIRROR(self, layout, ob, md, wide_ui):
         layout.prop(md, "merge_limit")
@@ -498,14 +498,14 @@ class DATA_PT_modifiers(DataButtonsPanel):
 
     def SCREW(self, layout, ob, md, wide_ui):
         split = layout.split()
-        
+
         col = split.column()
         col.prop(md, "axis")
         col.prop(md, "object", text="AxisOb")
         col.prop(md, "angle")
         col.prop(md, "steps")
         col.prop(md, "render_steps")
-        
+
         if wide_ui:
             col = split.column()
         row = col.row()
@@ -517,7 +517,6 @@ class DATA_PT_modifiers(DataButtonsPanel):
         col.prop(md, "use_normal_calculate")
         col.prop(md, "use_normal_flip")
         col.prop(md, "iterations")
-        
 
     def SHRINKWRAP(self, layout, ob, md, wide_ui):
         split = layout.split()
@@ -670,6 +669,7 @@ class DATA_PT_modifiers(DataButtonsPanel):
         if wide_ui:
             col = split.column()
         col.label(text="Options:")
+        col.prop(md, "subsurf_uv")
         col.prop(md, "optimal_display")
 
     def SURFACE(self, layout, ob, md, wide_ui):

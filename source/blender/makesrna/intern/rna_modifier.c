@@ -177,10 +177,10 @@ static StructRNA* rna_Modifier_refine(struct PointerRNA *ptr)
 void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
 {
 	ModifierData *md= ptr->data;
-	char oldname[32];
+	char oldname[sizeof(md->name)];
 	
 	/* make a copy of the old name first */
-	BLI_strncpy(oldname, md->name, sizeof(oldname));
+	BLI_strncpy(oldname, md->name, sizeof(md->name));
 	
 	/* copy the new name into the name slot */
 	BLI_strncpy(md->name, value, sizeof(md->name));
@@ -1676,6 +1676,11 @@ static void rna_def_modifier_explode(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "dead", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", eExplodeFlag_Dead);
 	RNA_def_property_ui_text(prop, "Dead", "Show mesh when particles are dead");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop= RNA_def_property(srna, "size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eExplodeFlag_PaSize);
+	RNA_def_property_ui_text(prop, "Size", "Use particle size for the shrapnel");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 

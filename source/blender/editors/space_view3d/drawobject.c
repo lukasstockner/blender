@@ -1921,7 +1921,7 @@ static int draw_dm_creases__setDrawOptions(void *userData, int index)
 	EditEdge *eed = EM_get_edge_for_index(index);
 
 	if (eed->h==0 && eed->crease!=0.0) {
-		UI_ThemeColorBlend(TH_WIRE, TH_EDGE_SELECT, eed->crease);
+		UI_ThemeColorBlend(TH_WIRE, TH_EDGE_CREASE, eed->crease);
 		return 1;
 	} else {
 		return 0;
@@ -5365,8 +5365,15 @@ static void drawSolidSelect(Scene *scene, View3D *v3d, ARegion *ar, Base *base)
 	if(ELEM3(ob->type, OB_FONT,OB_CURVE, OB_SURF)) {
 		Curve *cu = ob->data;
 		DerivedMesh *dm = ob->derivedFinal;
+		int hasfaces= 0;
 
-		if (displist_has_faces(&cu->disp) && boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
+		if (dm) {
+			hasfaces= dm->getNumFaces(dm);
+		} else {
+			hasfaces= displist_has_faces(&cu->disp);
+		}
+
+		if (hasfaces && boundbox_clip(rv3d, ob->obmat, ob->bb ? ob->bb : cu->bb)) {
 			draw_index_wire= 0;
 			if (dm) {
 				draw_mesh_object_outline(v3d, ob, dm);

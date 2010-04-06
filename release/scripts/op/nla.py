@@ -20,6 +20,7 @@
 
 import bpy
 
+
 def pose_info():
     from Mathutils import Matrix
 
@@ -42,14 +43,14 @@ def pose_info():
             binfo["matrix_local_inv"] = binfo["matrix_local"].copy().invert()
         except:
             binfo["matrix_local_inv"] = Matrix()
-        
+
         binfo["matrix"] = bone.matrix.copy()
         binfo["matrix_pose"] = pbone.matrix.copy()
         try:
             binfo["matrix_pose_inv"] = binfo["matrix_pose"].copy().invert()
         except:
             binfo["matrix_pose_inv"] = Matrix()
-        
+
         print(binfo["matrix_pose"])
         info[name] = binfo
 
@@ -58,13 +59,13 @@ def pose_info():
         binfo_parent = binfo.get("parent", None)
         if binfo_parent:
             binfo_parent = info[binfo_parent]
-        
+
         matrix = binfo["matrix_pose"]
         rest_matrix = binfo["matrix_local"]
 
         if binfo_parent:
-            matrix= binfo_parent["matrix_pose_inv"] * matrix
-            rest_matrix= binfo_parent["matrix_local_inv"] * rest_matrix
+            matrix = binfo_parent["matrix_pose_inv"] * matrix
+            rest_matrix = binfo_parent["matrix_local_inv"] * rest_matrix
 
         matrix = rest_matrix.copy().invert() * matrix
 
@@ -81,13 +82,13 @@ def bake(frame_start, frame_end, step=1, only_selected=False):
     pose = obj.pose
 
     info_ls = []
-    
+
     frame_range = range(frame_start, frame_end + 1, step)
 
     # could spped this up by applying steps here too...
     for f in frame_range:
         scene.set_frame(f)
-        
+
         info = pose_info()
         info_ls.append(info)
         f += 1
@@ -103,39 +104,24 @@ def bake(frame_start, frame_end, step=1, only_selected=False):
             continue
 
         for f in frame_range:
-            matrix = info_ls[int((f-frame_start) / step)][name]["matrix_key"]
+            matrix = info_ls[int((f - frame_start) / step)][name]["matrix_key"]
 
             #pbone.location = matrix.translation_part()
             #pbone.rotation_quaternion = matrix.to_quat()
             pbone.matrix_local = [f for v in matrix for f in v]
             
-            pbone.keyframe_insert("location", -1, f)
-            
+            pbone.keyframe_insert("location", -1, f, "Location")
+
             rotation_mode = pbone.rotation_mode
-            
+
             if rotation_mode == 'QUATERNION':
-                pbone.keyframe_insert("rotation_quaternion", -1, f)
+                pbone.keyframe_insert("rotation_quaternion", -1, f, "Rotation")
             elif rotation_mode == 'AXIS_ANGLE':
-                pbone.keyframe_insert("rotation_axis_angle", -1, f)
+                pbone.keyframe_insert("rotation_axis_angle", -1, f, "Rotation")
             else: # euler, XYZ, ZXY etc
-                pbone.keyframe_insert("rotation_euler", -1, f)
+                pbone.keyframe_insert("rotation_euler", -1, f, "Rotation")
 
-            pbone.keyframe_insert("scale", -1, f)
-
-    # assign groups, could become a more generic function
-    agrp_loc = action.groups.add("Location")
-    agrp_rot = action.groups.add("Rotation")
-    agrp_sca = action.groups.add("Scale")
-
-    for fcu in action.fcurves:
-        path = fcu.data_path.rsplit(".", 1)[-1]
-
-        if path.startswith("loc"):
-            fcu.group = agrp_loc
-        if path.startswith("rot"):
-            fcu.group = agrp_rot
-        if path.startswith("sca"):
-            fcu.group = agrp_sca
+            pbone.keyframe_insert("scale", -1, f, "Scale")
 
     return action
 
@@ -165,7 +151,7 @@ class BakeAction(bpy.types.Operator):
         props = self.properties
 
         action = bake(props.frame_start, props.frame_end, props.step, props.only_selected)
-        
+
         # basic cleanup, could move elsewhere
         for fcu in action.fcurves:
             keyframe_points = fcu.keyframe_points

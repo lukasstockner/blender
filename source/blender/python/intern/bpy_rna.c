@@ -1077,6 +1077,9 @@ static int pyrna_py_to_prop_index(BPy_PropertyRNA *self, int index, PyObject *va
 			break;
 		}
 	}
+
+	/* Run rna property functions */
+	RNA_property_update(BPy_GetContext(), ptr, prop);
 	
 	return ret;
 }
@@ -1663,18 +1666,18 @@ static PyObject *pyrna_struct_values(BPy_PropertyRNA *self)
 }
 
 /* internal use for insert and delete */
-int pyrna_struct_keyframe_parse(PointerRNA *ptr, PyObject *args, char *error_prefix,
-	char **path_full, int *index, float *cfra) /* return values */
+static int pyrna_struct_keyframe_parse(PointerRNA *ptr, PyObject *args, char *error_prefix,
+	char **path_full, int *index, float *cfra, char **group_name) /* return values */
 {
 	char *path;
 	PropertyRNA *prop;
 	int array_len;
 
-	if (!PyArg_ParseTuple(args, "s|if", &path, index, cfra)) {
-		PyErr_Format(PyExc_TypeError, "%.200s expected a string and optionally an int and float arguments", error_prefix);
+	if (!PyArg_ParseTuple(args, "s|ifs", &path, index, cfra, group_name)) {
+		PyErr_Format(PyExc_TypeError, "%.200s expected a string and optionally an int, float, and string arguments", error_prefix);
 		return -1;
 	}
-
+	
 	if (ptr->data==NULL) {
 		PyErr_Format(PyExc_TypeError, "%.200s this struct has no data, can't be animated", error_prefix);
 		return -1;
@@ -1711,6 +1714,20 @@ int pyrna_struct_keyframe_parse(PointerRNA *ptr, PyObject *args, char *error_pre
 	return 0; /* success */
 }
 
+static char pyrna_struct_keyframe_insert_doc[] =
+".. function:: keyframe_insert(path, index=-1, frame=bpy.context.scene.frame_current)\n"
+"\n"
+"   Returns a boolean, True if the keyframe is set.\n"
+"\n"
+"   :arg path: path to the property to key, analogous to the fcurve's data path.\n"
+"   :type path: string\n"
+"   :arg index: array index of the property to key. Defaults to -1 which will key all indicies or a single channel if the property is not an array.\n"
+"   :type index: int\n"
+"   :arg frame: The frame on which the keyframe is inserted, defaulting to the current frame.\n"
+"   :type frame: float\n"
+"	:arg group: The name of the group the F-Curve should be added to if it doesn't exist yet.\n"
+"	:type group: str";
+
 static PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args)
 {
 	PyObject *result;
@@ -1718,15 +1735,30 @@ static PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *arg
 	char *path_full= NULL;
 	int index= -1;
 	float cfra= FLT_MAX;
+    char *group_name= NULL;
 
-	if(pyrna_struct_keyframe_parse(&self->ptr, args, "bpy_struct.keyframe_insert():", &path_full, &index, &cfra) == -1)
+	if(pyrna_struct_keyframe_parse(&self->ptr, args, "bpy_struct.keyframe_insert():", &path_full, &index, &cfra, &group_name) == -1)
 		return NULL;
 
-	result= PyBool_FromLong(insert_keyframe((ID *)self->ptr.id.data, NULL, NULL, path_full, index, cfra, 0));
+	result= PyBool_FromLong(insert_keyframe((ID *)self->ptr.id.data, NULL, group_name, path_full, index, cfra, 0));
 	MEM_freeN(path_full);
 
 	return result;
 }
+
+static char pyrna_struct_keyframe_delete_doc[] =
+".. function:: keyframe_delete(path, index=-1, frame=bpy.context.scene.frame_current)\n"
+"\n"
+"   Returns a boolean, True if the keyframe is removed.\n"
+"\n"
+"   :arg path: path to the property to remove a key, analogous to the fcurve's data path.\n"
+"   :type path: string\n"
+"   :arg index: array index of the property to remove a key. Defaults to -1 removing all indicies or a single channel if the property is not an array.\n"
+"   :type index: int\n"
+"   :arg frame: The frame on which the keyframe is deleted, defaulting to the current frame.\n"
+"   :type frame: float\n"
+"	:arg group: The name of the group the F-Curve should be added to if it doesn't exist yet.\n"
+"	:type group: str";
 
 static PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args)
 {
@@ -1735,15 +1767,26 @@ static PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *arg
 	char *path_full= NULL;
 	int index= -1;
 	float cfra= FLT_MAX;
+    char *group_name= NULL;
 
-	if(pyrna_struct_keyframe_parse(&self->ptr, args, "bpy_struct.keyframe_delete():", &path_full, &index, &cfra) == -1)
+	if(pyrna_struct_keyframe_parse(&self->ptr, args, "bpy_struct.keyframe_delete():", &path_full, &index, &cfra, &group_name) == -1)
 		return NULL;
 
-	result= PyBool_FromLong(delete_keyframe((ID *)self->ptr.id.data, NULL, NULL, path_full, index, cfra, 0));
+	result= PyBool_FromLong(delete_keyframe((ID *)self->ptr.id.data, NULL, group_name, path_full, index, cfra, 0));
 	MEM_freeN(path_full);
 
 	return result;
 }
+
+static char pyrna_struct_driver_add_doc[] =
+".. function:: driver_add(path, index=-1)\n"
+"\n"
+"   Returns the newly created driver or a list of drivers in the case of an array\n"
+"\n"
+"   :arg path: path to the property to drive, analogous to the fcurve's data path.\n"
+"   :type path: string\n"
+"   :arg index: array index of the property drive. Defaults to -1 for all indicies or a single channel if the property is not an array.\n"
+"   :type index: int";
 
 static PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
 {
@@ -1838,6 +1881,14 @@ static PyObject *pyrna_struct_is_property_hidden(BPy_StructRNA *self, PyObject *
 	return PyBool_FromLong(hidden);
 }
 
+static char pyrna_struct_path_resolve_doc[] =
+".. function:: path_resolve(path)\n"
+"\n"
+"   Returns the property from the path given or None if the property is not found.\n"
+"\n"
+"   :arg path: path to the property.\n"
+"   :type path: string";
+
 static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *value)
 {
 	char *path= _PyUnicode_AsString(value);
@@ -1845,7 +1896,7 @@ static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *value)
 	PropertyRNA *r_prop;
 
 	if(path==NULL) {
-		PyErr_SetString( PyExc_TypeError, "bpy_struct.items(): is only valid for collection types" );
+		PyErr_SetString(PyExc_TypeError, "bpy_struct.path_resolve(): accepts only a single string argument");
 		return NULL;
 	}
 
@@ -1855,20 +1906,28 @@ static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *value)
 	Py_RETURN_NONE;
 }
 
-static PyObject *pyrna_struct_path_to_id(BPy_StructRNA *self, PyObject *args)
+static char pyrna_struct_path_from_id_doc[] =
+".. function:: path_from_id(property=\"\")\n"
+"\n"
+"   Returns the data path from the ID to this object (string).\n"
+"\n"
+"   :arg property: Optional property name which can be used if the path is to a property of this object.\n"
+"   :type property: string";
+
+static PyObject *pyrna_struct_path_from_id(BPy_StructRNA *self, PyObject *args)
 {
 	char *name= NULL;
 	char *path;
 	PropertyRNA *prop;
 	PyObject *ret;
 
-	if (!PyArg_ParseTuple(args, "|s:path_to_id", &name))
+	if (!PyArg_ParseTuple(args, "|s:path_from_id", &name))
 		return NULL;
 
 	if(name) {
 		prop= RNA_struct_find_property(&self->ptr, name);
 		if(prop==NULL) {
-			PyErr_Format(PyExc_TypeError, "%.200s.path_to_id(\"%.200s\") not found", RNA_struct_identifier(self->ptr.type), name);
+			PyErr_Format(PyExc_TypeError, "%.200s.path_from_id(\"%.200s\") not found", RNA_struct_identifier(self->ptr.type), name);
 			return NULL;
 		}
 
@@ -1879,8 +1938,8 @@ static PyObject *pyrna_struct_path_to_id(BPy_StructRNA *self, PyObject *args)
 	}
 
 	if(path==NULL) {
-		if(name)	PyErr_Format(PyExc_TypeError, "%.200s.path_to_id(\"%s\") found but does not support path creation", RNA_struct_identifier(self->ptr.type), name);
-		else		PyErr_Format(PyExc_TypeError, "%.200s.path_to_id() does not support path creation for this type", RNA_struct_identifier(self->ptr.type));
+		if(name)	PyErr_Format(PyExc_TypeError, "%.200s.path_from_id(\"%s\") found but does not support path creation", RNA_struct_identifier(self->ptr.type), name);
+		else		PyErr_Format(PyExc_TypeError, "%.200s.path_from_id() does not support path creation for this type", RNA_struct_identifier(self->ptr.type));
 		return NULL;
 	}
 
@@ -1897,7 +1956,12 @@ static PyObject *pyrna_struct_recast_type(BPy_StructRNA *self, PyObject *args)
 	return pyrna_struct_CreatePyObject(&r_ptr);
 }
 
-static PyObject *pyrna_prop_path_to_id(BPy_PropertyRNA *self)
+static char pyrna_prop_path_from_id_doc[] =
+".. function:: path_from_id()\n"
+"\n"
+"   Returns the data path from the ID to this property (string).";
+
+static PyObject *pyrna_prop_path_from_id(BPy_PropertyRNA *self)
 {
 	char *path;
 	PropertyRNA *prop = self->prop;
@@ -1906,7 +1970,7 @@ static PyObject *pyrna_prop_path_to_id(BPy_PropertyRNA *self)
 	path= RNA_path_from_ID_to_property(&self->ptr, self->prop);
 
 	if(path==NULL) {
-		PyErr_Format(PyExc_TypeError, "%.200s.%.200s.path_to_id() does not support path creation for this type", RNA_struct_identifier(self->ptr.type), RNA_property_identifier(prop));
+		PyErr_Format(PyExc_TypeError, "%.200s.%.200s.path_from_id() does not support path creation for this type", RNA_struct_identifier(self->ptr.type), RNA_property_identifier(prop));
 		return NULL;
 	}
 
@@ -2714,13 +2778,13 @@ static struct PyMethodDef pyrna_struct_methods[] = {
 	{"as_pointer", (PyCFunction)pyrna_struct_as_pointer, METH_NOARGS, NULL},
 
 	/* maybe this become and ID function */
-	{"keyframe_insert", (PyCFunction)pyrna_struct_keyframe_insert, METH_VARARGS, NULL},
-	{"keyframe_delete", (PyCFunction)pyrna_struct_keyframe_delete, METH_VARARGS, NULL},
-	{"driver_add", (PyCFunction)pyrna_struct_driver_add, METH_VARARGS, NULL},
+	{"keyframe_insert", (PyCFunction)pyrna_struct_keyframe_insert, METH_VARARGS, pyrna_struct_keyframe_insert_doc},
+	{"keyframe_delete", (PyCFunction)pyrna_struct_keyframe_delete, METH_VARARGS, pyrna_struct_keyframe_delete_doc},
+	{"driver_add", (PyCFunction)pyrna_struct_driver_add, METH_VARARGS, pyrna_struct_driver_add_doc},
 	{"is_property_set", (PyCFunction)pyrna_struct_is_property_set, METH_VARARGS, NULL},
 	{"is_property_hidden", (PyCFunction)pyrna_struct_is_property_hidden, METH_VARARGS, NULL},
-	{"path_resolve", (PyCFunction)pyrna_struct_path_resolve, METH_O, NULL},
-	{"path_to_id", (PyCFunction)pyrna_struct_path_to_id, METH_VARARGS, NULL},
+	{"path_resolve", (PyCFunction)pyrna_struct_path_resolve, METH_O, pyrna_struct_path_resolve_doc},
+	{"path_from_id", (PyCFunction)pyrna_struct_path_from_id, METH_VARARGS, pyrna_struct_path_from_id_doc},
 	{"recast_type", (PyCFunction)pyrna_struct_recast_type, METH_NOARGS, NULL},
 	{"__dir__", (PyCFunction)pyrna_struct_dir, METH_NOARGS, NULL},
 
@@ -2732,7 +2796,7 @@ static struct PyMethodDef pyrna_struct_methods[] = {
 };
 
 static struct PyMethodDef pyrna_prop_methods[] = {
-	{"path_to_id", (PyCFunction)pyrna_prop_path_to_id, METH_NOARGS, NULL},
+	{"path_from_id", (PyCFunction)pyrna_prop_path_from_id, METH_NOARGS, pyrna_prop_path_from_id_doc},
 	{"__dir__", (PyCFunction)pyrna_prop_dir, METH_NOARGS, NULL},
 	{NULL, NULL, 0, NULL}
 };

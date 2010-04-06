@@ -88,7 +88,7 @@ def write_mtl(scene, filename, copy_images, mtl_dict):
 
     file = open(filename, "w")
     # XXX
-#	file.write('# Blender3D MTL File: %s\n' % Blender.Get('filename').split('\\')[-1].split('/')[-1])
+#	file.write('# Blender MTL File: %s\n' % Blender.Get('filename').split('\\')[-1].split('/')[-1])
     file.write('# Material Count: %i\n' % len(mtl_dict))
     # Write material/image combinations we have used.
     for key, (mtl_mat_name, mat, img) in mtl_dict.items():
@@ -361,8 +361,8 @@ def write(filename, objects, scene,
     file = open(filename, "w")
 
     # Write Header
-    file.write('# Blender3D v%s OBJ File: %s\n' % (bpy.app.version_string, bpy.data.filename.split('/')[-1].split('\\')[-1] ))
-    file.write('# www.blender3d.org\n')
+    file.write('# Blender v%s OBJ File: %s\n' % (bpy.app.version_string, bpy.data.filename.split('/')[-1].split('\\')[-1] ))
+    file.write('# www.blender.org\n')
 
     # Tell the obj file what material file to use.
     if EXPORT_MTL:
@@ -396,7 +396,7 @@ def write(filename, objects, scene,
         if ob_main.dupli_type != 'NONE':
             # XXX
             print('creating dupli_list on', ob_main.name)
-            ob_main.create_dupli_list()
+            ob_main.create_dupli_list(scene)
 
             obs = [(dob.object, dob.matrix) for dob in ob_main.dupli_list]
 
@@ -421,7 +421,7 @@ def write(filename, objects, scene,
             if ob.type != 'MESH':
                 continue
 
-            me = ob.create_mesh(EXPORT_APPLY_MODIFIERS, 'PREVIEW')
+            me = ob.create_mesh(scene, EXPORT_APPLY_MODIFIERS, 'PREVIEW')
 
             if EXPORT_ROTX90:
                 me.transform(mat_xrot90 * ob_mat)
@@ -816,13 +816,14 @@ def do_export(filename, context,
               EXPORT_KEEP_VERT_ORDER = False,
               EXPORT_POLYGROUPS = False,
               EXPORT_CURVE_AS_NURBS = True):
-    #	Window.EditMode(0)
-    #	Window.WaitCursor(1)
-
+    
     base_name, ext = splitExt(filename)
     context_name = [base_name, '', '', ext] # Base name, scene name, frame number, extension
 
     orig_scene = context.scene
+
+    # Exit edit mode before exporting, so current object states are exported properly.
+    bpy.ops.object.mode_set(mode='OBJECT')
 
 #	if EXPORT_ALL_SCENES:
 #		export_scenes = bpy.data.scenes
