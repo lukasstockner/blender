@@ -57,8 +57,6 @@
 
 #include "PIL_time.h"
 
-#include "ED_fileselect.h"
-#include "ED_screen.h"
 #include "ED_screen_types.h"
 
 #include "screen_intern.h"
@@ -80,7 +78,7 @@ static int screenshot_exec(bContext *C, wmOperator *op)
 		RNA_string_get(op->ptr, "path", path);
 	
 		strcpy(G.ima, path);
-		BLI_convertstringcode(path, G.sce);
+		BLI_path_abs(path, G.sce);
 		
 		/* BKE_add_image_extension() checks for if extension was already set */
 		if(scene->r.scemode & R_EXTENSION) 
@@ -126,7 +124,7 @@ static unsigned int *screenshot(bContext *C, int *dumpsx, int *dumpsy, int fscre
 
 	if (*dumpsx && *dumpsy) {
 		
-		dumprect= MEM_mallocN(sizeof(int) * dumpsx[0] * dumpsy[0], "dumprect");
+		dumprect= MEM_mallocN(sizeof(int) * (*dumpsx) * (*dumpsy), "dumprect");
 		glReadBuffer(GL_FRONT);
 		glReadPixels(x, y, *dumpsx, *dumpsy, GL_RGBA, GL_UNSIGNED_BYTE, dumprect);
 		glFinish();
@@ -275,7 +273,7 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update)
 					BKE_reportf(&sj->reports, RPT_INFO, "Saved file: %s", name);
 				}
 				
-                /* imbuf knows which rects are not part of ibuf */
+				/* imbuf knows which rects are not part of ibuf */
 				IMB_freeImBuf(ibuf);	
 			}
 			

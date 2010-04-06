@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -759,7 +759,7 @@ int WM_operator_confirm_message(bContext *C, wmOperator *op, char *message)
 
 	pup= uiPupMenuBegin(C, "OK?", ICON_QUESTION);
 	layout= uiPupMenuLayout(pup);
-	uiItemFullO(layout, message, 0, op->type->idname, properties, WM_OP_EXEC_REGION_WIN, 0);
+	uiItemFullO(layout, op->type->idname, message, 0, properties, WM_OP_EXEC_REGION_WIN, 0);
 	uiPupMenuEnd(C, pup);
 	
 	return OPERATOR_CANCELLED;
@@ -813,6 +813,8 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 	prop= RNA_def_boolean(ot->srna, "filter_btx", (filter & BTXFILE), "Filter btx files", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
+	prop= RNA_def_boolean(ot->srna, "filter_collada", (filter & COLLADAFILE), "Filter COLLADA files", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 	prop= RNA_def_boolean(ot->srna, "filter_folder", (filter & FOLDERFILE), "Filter folders", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 
@@ -844,6 +846,17 @@ void WM_operator_properties_gesture_border(wmOperatorType *ot, int extend)
 
 	if(extend)
 		RNA_def_boolean(ot->srna, "extend", 1, "Extend", "Extend selection instead of deselecting everything first");
+}
+
+void WM_operator_properties_gesture_straightline(wmOperatorType *ot, int cursor)
+{
+	RNA_def_int(ot->srna, "xstart", 0, INT_MIN, INT_MAX, "X Start", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "xend", 0, INT_MIN, INT_MAX, "X End", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "ystart", 0, INT_MIN, INT_MAX, "Y Start", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "yend", 0, INT_MIN, INT_MAX, "Y End", "", INT_MIN, INT_MAX);
+	
+	if(cursor)
+		RNA_def_int(ot->srna, "cursor", cursor, 0, INT_MAX, "Cursor", "Mouse cursor style to use during the modal operator", 0, INT_MAX);
 }
 
 
@@ -910,6 +923,60 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 	return block;
 }
 
+/* Only invoked by OK button in popups created with wm_block_create_dialog() */
+static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
+{
+	wmOperator *op= arg1;
+	uiBlock *block= arg2;
+
+	WM_operator_call(C, op);
+
+	uiPupBlockClose(C, block);
+}
+
+/* Dialogs are popups that require user verification (click OK) before exec */
+static uiBlock *wm_block_create_dialog(bContext *C, ARegion *ar, void *userData)
+{
+	struct { wmOperator *op; int width; int height; } * data = userData;
+	wmWindowManager *wm= CTX_wm_manager(C);
+	wmOperator *op= data->op;
+	PointerRNA ptr;
+	uiBlock *block;
+	uiLayout *layout;
+	uiBut *btn;
+	uiStyle *style= U.uistyles.first;
+	int columns= 2;
+
+	block = uiBeginBlock(C, ar, "operator dialog", UI_EMBOSS);
+	uiBlockClearFlag(block, UI_BLOCK_LOOP);
+	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN|UI_BLOCK_RET_1|UI_BLOCK_MOVEMOUSE_QUIT);
+
+	if (!op->properties) {
+		IDPropertyTemplate val = {0};
+		op->properties= IDP_New(IDP_GROUP, val, "wmOperatorProperties");
+	}
+
+	RNA_pointer_create(&wm->id, op->type->srna, op->properties, &ptr);
+	layout= uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, data->height, style);
+	uiItemL(layout, op->type->name, 0);
+
+	if (op->type->ui) {
+		op->layout= layout;
+		op->type->ui((bContext*)C, op);
+		op->layout= NULL;
+	}
+	else
+		uiDefAutoButsRNA(C, layout, &ptr, columns);
+
+	/* Create OK button, the callback of which will execute op */
+	btn= uiDefBut(block, BUT, 0, "OK", 0, 0, 0, 20, NULL, 0, 0, 0, 0, "");
+	uiButSetFunc(btn, dialog_exec_cb, op, block);
+
+	uiPopupBoundsBlock(block, 4.0f, 0, 0);
+	uiEndBlock(C, block);
+
+	return block;
+}
 
 static uiBlock *wm_operator_create_ui(bContext *C, ARegion *ar, void *userData)
 {
@@ -958,13 +1025,28 @@ int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
 	return retval;
 }
 
-void WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
+int WM_operator_props_dialog_popup(bContext *C, wmOperator *op, int width, int height)
+{
+	struct { wmOperator *op; int width; int height; } data;
+	
+	data.op= op;
+	data.width= width;
+	data.height= height;
+
+	/* op is not executed until popup OK but is clicked */
+	uiPupBlock(C, wm_block_create_dialog, &data);
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+int WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
 {
 	struct { wmOperator *op; int width; int height; } data;
 	data.op = op;
 	data.width = width;
 	data.height = height;
 	uiPupBlock(C, wm_operator_create_ui, &data);
+	return OPERATOR_RUNNING_MODAL;
 }
 
 int WM_operator_redo_popup(bContext *C, wmOperator *op)
@@ -1061,24 +1143,13 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
 	char *revision_str = NULL;
 	char version_buf[128];
 	char revision_buf[128];
-	extern char * build_rev;
-	char *cp;
+	extern char build_rev[];
 	
 	version_str = &version_buf[0];
 	revision_str = &revision_buf[0];
 	
 	sprintf(version_str, "%d.%02d.%d", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION);
 	sprintf(revision_str, "r%s", build_rev);
-	
-	/* here on my system I get ugly double quotes around the revision number.
-	 * if so, clip it off: */
-	cp = strchr(revision_str, '"');
-	if (cp) {
-		memmove(cp, cp+1, strlen(cp+1));
-		cp = strchr(revision_str, '"');
-		if (cp)
-			*cp = 0;
-	}
 	
 	BLF_size(style->widgetlabel.points, U.dpi);
 	ver_width = BLF_width(version_str)+5;
@@ -1121,7 +1192,8 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
 		else				display_name= recent->filename;
 		uiItemStringO(col, display_name, ICON_FILE_BLEND, "WM_OT_open_mainfile", "path", recent->filename);
 	}
-
+	uiItemS(col);
+	uiItemO(col, NULL, ICON_HELP, "WM_OT_recover_last_session");
 	uiItemL(col, "", 0);
 
 	uiCenteredBoundsBlock(block, 0.0f);
@@ -1234,7 +1306,7 @@ static int wm_search_menu_poll(bContext *C)
 	if(CTX_wm_window(C)==NULL) return 0;
 	if(CTX_wm_area(C) && CTX_wm_area(C)->spacetype==SPACE_CONSOLE) return 0;  // XXX - so we can use the shortcut in the console
 	if(CTX_wm_area(C) && CTX_wm_area(C)->spacetype==SPACE_TEXT) return 0;  // XXX - so we can use the spacebar in the text editor
-	if(CTX_data_edit_object(C) && CTX_data_edit_object(C)->type==OB_CURVE) return 0; // XXX - so we can use the spacebar for entering text
+	if(CTX_data_edit_object(C) && CTX_data_edit_object(C)->type==OB_FONT) return 0; // XXX - so we can use the spacebar for entering text
 	return 1;
 }
 
@@ -1276,8 +1348,8 @@ static int wm_operator_winactive_normal(bContext *C)
 {
 	wmWindow *win= CTX_wm_window(C);
 
-    if(win==NULL || win->screen==NULL || win->screen->full != SCREENNORMAL)
-    	return 0;
+	if(win==NULL || win->screen==NULL || win->screen->full != SCREENNORMAL)
+		return 0;
 
 	return 1;
 }
@@ -1324,10 +1396,17 @@ static void open_set_load_ui(wmOperator *op)
 		RNA_boolean_set(op->ptr, "load_ui", !(U.flag & USER_FILENOUI));
 }
 
+static void open_set_use_scripts(wmOperator *op)
+{
+	if(!RNA_property_is_set(op->ptr, "use_scripts"))
+		RNA_boolean_set(op->ptr, "use_scripts", !(U.flag & USER_SCRIPT_AUTOEXEC_DISABLE));
+}
+
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	RNA_string_set(op->ptr, "path", G.sce);
 	open_set_load_ui(op);
+	open_set_use_scripts(op);
 
 	WM_event_add_fileselect(C, op);
 
@@ -1340,11 +1419,17 @@ static int wm_open_mainfile_exec(bContext *C, wmOperator *op)
 
 	RNA_string_get(op->ptr, "path", path);
 	open_set_load_ui(op);
+	open_set_use_scripts(op);
 
 	if(RNA_boolean_get(op->ptr, "load_ui"))
 		G.fileflags &= ~G_FILE_NO_UI;
 	else
 		G.fileflags |= G_FILE_NO_UI;
+		
+	if(RNA_boolean_get(op->ptr, "use_scripts"))
+		G.f |= G_SCRIPT_AUTOEXEC;
+	else
+		G.f &= ~G_SCRIPT_AUTOEXEC;
 	
 	// XXX wm in context is not set correctly after WM_read_file -> crash
 	// do it before for now, but is this correct with multiple windows?
@@ -1368,12 +1453,16 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 	WM_operator_properties_filesel(ot, FOLDERFILE|BLENDERFILE, FILE_BLENDER, FILE_OPENFILE);
 
 	RNA_def_boolean(ot->srna, "load_ui", 1, "Load UI", "Load user interface setup in the .blend file");
+	RNA_def_boolean(ot->srna, "use_scripts", 1, "Trusted Source", "Allow blend file execute scripts automatically, default available from system preferences");
 }
 
 /* **************** link/append *************** */
 
 static int wm_link_append_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	if(!RNA_property_is_set(op->ptr, "relative_path"))
+		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
+
 	if(RNA_property_is_set(op->ptr, "path")) {
 		return WM_operator_call(C, op);
 	} 
@@ -1391,7 +1480,7 @@ static short wm_link_append_flag(wmOperator *op)
 
 	if(RNA_boolean_get(op->ptr, "autoselect")) flag |= FILE_AUTOSELECT;
 	if(RNA_boolean_get(op->ptr, "active_layer")) flag |= FILE_ACTIVELAY;
-	if(RNA_boolean_get(op->ptr, "relative_paths")) flag |= FILE_STRINGCODE;
+	if(RNA_boolean_get(op->ptr, "relative_path")) flag |= FILE_RELPATH;
 	if(RNA_boolean_get(op->ptr, "link")) flag |= FILE_LINK;
 	if(RNA_boolean_get(op->ptr, "instance_groups")) flag |= FILE_GROUP_INSTANCE;
 	return flag;
@@ -1529,7 +1618,7 @@ static void WM_OT_link_append(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "autoselect", 1, "Select", "Select the linked objects");
 	RNA_def_boolean(ot->srna, "active_layer", 1, "Active Layer", "Put the linked objects on the active layer");
 	RNA_def_boolean(ot->srna, "instance_groups", 1, "Instance Groups", "Create instances for each group as a DupliGroup");
-	RNA_def_boolean(ot->srna, "relative_paths", 1, "Relative Paths", "Store the library path as a relative path to current .blend file");
+	RNA_def_boolean(ot->srna, "relative_path", 1, "Relative Paths", "Store the library path as a relative path to current .blend file");
 
 	RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
 }	
@@ -1752,14 +1841,18 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 
 static int wm_collada_export_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	//char name[FILE_MAX];
-	//BLI_strncpy(name, G.sce, FILE_MAX);
-	//untitled(name);
-
+	char *path;
 	/* RNA_string_set(op->ptr, "path", "/tmp/test.dae"); */
 	
+	if(!RNA_property_is_set(op->ptr, "path")) {
+		path = BLI_replacestr(G.sce, ".blend", ".dae");
+		RNA_string_set(op->ptr, "path", path);
+	}
+	
 	WM_event_add_fileselect(C, op);
-
+	
+	if (path) MEM_freeN(path);
+	
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1768,18 +1861,14 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
 {
 	char filename[FILE_MAX];
 	
-	if(RNA_property_is_set(op->ptr, "path"))
-		RNA_string_get(op->ptr, "path", filename);
-	else {
-		BLI_strncpy(filename, G.sce, FILE_MAX);
-		untitled(filename);
+	if(!RNA_property_is_set(op->ptr, "path")) {
+		BKE_report(op->reports, RPT_ERROR, "No filename given");
+		return OPERATOR_CANCELLED;
 	}
 	
-	//WM_write_file(C, filename, op->reports);
+	RNA_string_get(op->ptr, "path", filename);
 	collada_export(CTX_data_scene(C), filename);
 	
-	/* WM_event_add_notifier(C, NC_WM|ND_FILESAVE, NULL); */
-
 	return OPERATOR_FINISHED;
 }
 
@@ -1792,18 +1881,7 @@ static void WM_OT_collada_export(wmOperatorType *ot)
 	ot->exec= wm_collada_export_exec;
 	ot->poll= WM_operator_winactive;
 	
-	ot->flag= 0;
-	
-	RNA_def_property(ot->srna, "path", PROP_STRING, PROP_FILEPATH);
-}
-
-static int wm_collada_import_invoke(bContext *C, wmOperator *op, wmEvent *event)
-{
-	/* RNA_string_set(op->ptr, "path", "/tmp/test.dae"); */
-	
-	WM_event_add_fileselect(C, op);
-
-	return OPERATOR_RUNNING_MODAL;
+	WM_operator_properties_filesel(ot, FOLDERFILE|COLLADAFILE, FILE_BLENDER, FILE_SAVE);
 }
 
 /* function used for WM_OT_save_mainfile too */
@@ -1811,18 +1889,14 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 {
 	char filename[FILE_MAX];
 	
-	if(RNA_property_is_set(op->ptr, "path"))
-		RNA_string_get(op->ptr, "path", filename);
-	else {
-		BLI_strncpy(filename, G.sce, FILE_MAX);
-		untitled(filename);
+	if(!RNA_property_is_set(op->ptr, "path")) {
+		BKE_report(op->reports, RPT_ERROR, "No filename given");
+		return OPERATOR_CANCELLED;
 	}
-	
-	//WM_write_file(C, filename, op->reports);
+
+	RNA_string_get(op->ptr, "path", filename);
 	collada_import(C, filename);
 	
-	/* WM_event_add_notifier(C, NC_WM|ND_FILESAVE, NULL); */
-
 	return OPERATOR_FINISHED;
 }
 
@@ -1831,13 +1905,11 @@ static void WM_OT_collada_import(wmOperatorType *ot)
 	ot->name= "Import COLLADA";
 	ot->idname= "WM_OT_collada_import";
 	
-	ot->invoke= wm_collada_import_invoke;
+	ot->invoke= WM_operator_filesel;
 	ot->exec= wm_collada_import_exec;
 	ot->poll= WM_operator_winactive;
 	
-	ot->flag= 0;
-	
-	RNA_def_property(ot->srna, "path", PROP_STRING, PROP_FILEPATH);
+	WM_operator_properties_filesel(ot, FOLDERFILE|COLLADAFILE, FILE_BLENDER, FILE_OPENFILE);
 }
 
 #endif
@@ -1884,7 +1956,7 @@ static void WM_OT_exit_blender(wmOperatorType *ot)
 */
 
 void *WM_paint_cursor_activate(wmWindowManager *wm, int (*poll)(bContext *C),
-			       wmPaintCursorDraw draw, void *customdata)
+				   wmPaintCursorDraw draw, void *customdata)
 {
 	wmPaintCursor *pc= MEM_callocN(sizeof(wmPaintCursor), "paint cursor");
 	
@@ -2002,7 +2074,7 @@ int WM_border_select_modal(bContext *C, wmOperator *op, wmEvent *event)
 	}
 	else if (event->type==EVT_MODAL_MAP) {
 		switch (event->val) {
-		case GESTURE_MODAL_BORDER_BEGIN:
+		case GESTURE_MODAL_BEGIN:
 			if(gesture->type==WM_GESTURE_CROSS_RECT && gesture->mode==0) {
 				gesture->mode= 1;
 				wm_gesture_tag_redraw(C);
@@ -2010,6 +2082,8 @@ int WM_border_select_modal(bContext *C, wmOperator *op, wmEvent *event)
 			break;
 		case GESTURE_MODAL_SELECT:
 		case GESTURE_MODAL_DESELECT:
+		case GESTURE_MODAL_IN:
+		case GESTURE_MODAL_OUT:
 			if(border_apply(C, op, event->val)) {
 				wm_gesture_end(C, op);
 				return OPERATOR_FINISHED;
@@ -2056,8 +2130,8 @@ static void gesture_circle_apply(bContext *C, wmOperator *op)
 	wmGesture *gesture= op->customdata;
 	rcti *rect= gesture->customdata;
 	
-    if(RNA_int_get(op->ptr, "gesture_mode")==GESTURE_MODAL_NOP)
-        return;
+	if(RNA_int_get(op->ptr, "gesture_mode")==GESTURE_MODAL_NOP)
+		return;
 
 	/* operator arguments and storage. */
 	RNA_int_set(op->ptr, "x", rect->xmin);
@@ -2367,6 +2441,112 @@ void WM_OT_lasso_gesture(wmOperatorType *ot)
 }
 #endif
 
+/* *********************** straight line gesture ****************** */
+
+static int straightline_apply(bContext *C, wmOperator *op)
+{
+	wmGesture *gesture= op->customdata;
+	rcti *rect= gesture->customdata;
+	
+	if(rect->xmin==rect->xmax && rect->ymin==rect->ymax)
+		return 0;
+	
+	/* operator arguments and storage. */
+	RNA_int_set(op->ptr, "xstart", rect->xmin);
+	RNA_int_set(op->ptr, "ystart", rect->ymin);
+	RNA_int_set(op->ptr, "xend", rect->xmax);
+	RNA_int_set(op->ptr, "yend", rect->ymax);
+
+	if(op->type->exec)
+		op->type->exec(C, op);
+	
+	return 1;
+}
+
+
+int WM_gesture_straightline_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	op->customdata= WM_gesture_new(C, event, WM_GESTURE_STRAIGHTLINE);
+	
+	/* add modal handler */
+	WM_event_add_modal_handler(C, op);
+	
+	wm_gesture_tag_redraw(C);
+	
+	if( RNA_struct_find_property(op->ptr, "cursor") )
+		WM_cursor_modal(CTX_wm_window(C), RNA_int_get(op->ptr, "cursor"));
+		
+	return OPERATOR_RUNNING_MODAL;
+}
+
+int WM_gesture_straightline_modal(bContext *C, wmOperator *op, wmEvent *event)
+{
+	wmGesture *gesture= op->customdata;
+	rcti *rect= gesture->customdata;
+	int sx, sy;
+	
+	if(event->type== MOUSEMOVE) {
+		wm_subwindow_getorigin(CTX_wm_window(C), gesture->swinid, &sx, &sy);
+		
+		if(gesture->mode==0) {
+			rect->xmin= rect->xmax= event->x - sx;
+			rect->ymin= rect->ymax= event->y - sy;
+		}
+		else {
+			rect->xmax= event->x - sx;
+			rect->ymax= event->y - sy;
+			straightline_apply(C, op);
+		}
+		
+		wm_gesture_tag_redraw(C);
+	}
+	else if (event->type==EVT_MODAL_MAP) {
+		switch (event->val) {
+			case GESTURE_MODAL_BEGIN:
+				if(gesture->mode==0) {
+					gesture->mode= 1;
+					wm_gesture_tag_redraw(C);
+				}
+				break;
+			case GESTURE_MODAL_SELECT:
+				if(straightline_apply(C, op)) {
+					wm_gesture_end(C, op);
+					return OPERATOR_FINISHED;
+				}
+				wm_gesture_end(C, op);
+				return OPERATOR_CANCELLED;
+				break;
+				
+			case GESTURE_MODAL_CANCEL:
+				wm_gesture_end(C, op);
+				return OPERATOR_CANCELLED;
+		}
+		
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+#if 0
+/* template to copy from */
+void WM_OT_straightline_gesture(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	
+	ot->name= "Straight Line Gesture";
+	ot->idname= "WM_OT_straightline_gesture";
+	ot->description="Draw a straight line as you move the pointer";
+	
+	ot->invoke= WM_gesture_straightline_invoke;
+	ot->modal= WM_gesture_straightline_modal;
+	ot->exec= gesture_straightline_exec;
+	
+	ot->poll= WM_operator_winactive;
+	
+	WM_operator_properties_gesture_straightline(ot, 0);
+}
+#endif
+
 /* *********************** radial control ****************** */
 
 const int WM_RADIAL_CONTROL_DISPLAY_SIZE = 200;
@@ -2557,7 +2737,7 @@ int WM_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	rc->initial_mouse[0] = mouse[0];
 	rc->initial_mouse[1] = mouse[1];
 	rc->cursor = WM_paint_cursor_activate(CTX_wm_manager(C), op->type->poll,
-					      wm_radial_control_paint, op->customdata);
+						  wm_radial_control_paint, op->customdata);
 
 	/* add modal handler */
 	WM_event_add_modal_handler(C, op);
@@ -2582,7 +2762,7 @@ void WM_radial_control_string(wmOperator *op, char str[], int maxlen)
 }
 
 /** Important: this doesn't define an actual operator, it
-    just sets up the common parts of the radial control op. **/
+	just sets up the common parts of the radial control op. **/
 void WM_OT_radial_control_partial(wmOperatorType *ot)
 {
 	static EnumPropertyItem radial_mode_items[] = {
@@ -2784,7 +2964,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_call_menu);
 }
 
-/* called in transform_ops.c, on each regeneration of keymaps  */
+/* circleselect-like modal operators */
 static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 {
 	static EnumPropertyItem modal_items[] = {
@@ -2837,14 +3017,42 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 
 }
 
-/* called in transform_ops.c, on each regeneration of keymaps  */
+/* straight line modal operators */
+static void gesture_straightline_modal_keymap(wmKeyConfig *keyconf)
+{
+	static EnumPropertyItem modal_items[] = {
+		{GESTURE_MODAL_CANCEL,	"CANCEL", 0, "Cancel", ""},
+		{GESTURE_MODAL_SELECT,	"SELECT", 0, "Select", ""},
+		{GESTURE_MODAL_BEGIN,	"BEGIN", 0, "Begin", ""},
+		{0, NULL, 0, NULL, NULL}};
+	
+	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "Gesture Straight Line");
+	
+	/* this function is called for each spacetype, only needs to add map once */
+	if(keymap) return;
+	
+	keymap= WM_modalkeymap_add(keyconf, "Gesture Straight Line", modal_items);
+	
+	/* items for modal map */
+	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_PRESS, KM_ANY, 0, GESTURE_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_ANY, KM_ANY, 0, GESTURE_MODAL_CANCEL);
+	
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BEGIN);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, 0, 0, GESTURE_MODAL_SELECT);
+	
+	/* assign map to operators */
+	WM_modalkeymap_assign(keymap, "IMAGE_OT_sample_line");
+}
+
+
+/* borderselect-like modal operators */
 static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 {
 	static EnumPropertyItem modal_items[] = {
 	{GESTURE_MODAL_CANCEL,	"CANCEL", 0, "Cancel", ""},
 	{GESTURE_MODAL_SELECT,	"SELECT", 0, "Select", ""},
 	{GESTURE_MODAL_DESELECT,"DESELECT", 0, "DeSelect", ""},
-	{GESTURE_MODAL_BORDER_BEGIN,	"BEGIN", 0, "Begin", ""},
+	{GESTURE_MODAL_BEGIN,	"BEGIN", 0, "Begin", ""},
 	{0, NULL, 0, NULL, NULL}};
 
 	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "Gesture Border");
@@ -2858,14 +3066,14 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_PRESS, KM_ANY, 0, GESTURE_MODAL_CANCEL);
 	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_ANY, KM_ANY, 0, GESTURE_MODAL_CANCEL);
 
-	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BORDER_BEGIN);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BEGIN);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, 0, 0, GESTURE_MODAL_SELECT);
 
 #if 0 // Durian guys like this
-	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_SHIFT, 0, GESTURE_MODAL_BORDER_BEGIN);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_SHIFT, 0, GESTURE_MODAL_BEGIN);
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_SHIFT, 0, GESTURE_MODAL_DESELECT);
 #else
-	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BORDER_BEGIN);
+	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BEGIN);
 	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_RELEASE, 0, 0, GESTURE_MODAL_DESELECT);
 #endif
 
@@ -2887,6 +3095,38 @@ static void gesture_border_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_render_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_border");
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom_border"); // XXX TODO: zoom border should perhaps map rightmouse to zoom out instead of in+cancel
+}
+
+/* zoom to border modal operators */
+static void gesture_zoom_border_modal_keymap(wmKeyConfig *keyconf)
+{
+	static EnumPropertyItem modal_items[] = {
+	{GESTURE_MODAL_CANCEL, "CANCEL", 0, "Cancel", ""},
+	{GESTURE_MODAL_IN,	"IN", 0, "In", ""},
+	{GESTURE_MODAL_OUT, "OUT", 0, "Out", ""},
+	{GESTURE_MODAL_BEGIN, "BEGIN", 0, "Begin", ""},
+	{0, NULL, 0, NULL, NULL}};
+
+	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "Gesture Zoom Border");
+
+	/* this function is called for each spacetype, only needs to add map once */
+	if(keymap) return;
+
+	keymap= WM_modalkeymap_add(keyconf, "Gesture Zoom Border", modal_items);
+
+	/* items for modal map */
+	WM_modalkeymap_add_item(keymap, ESCKEY,    KM_PRESS, KM_ANY, 0, GESTURE_MODAL_CANCEL);
+	WM_modalkeymap_add_item(keymap, RIGHTMOUSE, KM_ANY, KM_ANY, 0, GESTURE_MODAL_CANCEL);
+
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BEGIN);
+	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, 0, 0, GESTURE_MODAL_IN); 
+
+	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_PRESS, 0, 0, GESTURE_MODAL_BEGIN);
+	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_RELEASE, 0, 0, GESTURE_MODAL_OUT);
+
+	/* assign map to operators */
+	WM_modalkeymap_assign(keymap, "VIEW2D_OT_zoom_border");
+	WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom_border");
 }
 
 /* default keymap for windows and screens, only call once per WM */
@@ -2976,6 +3216,8 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 
 	gesture_circle_modal_keymap(keyconf);
 	gesture_border_modal_keymap(keyconf);
+	gesture_zoom_border_modal_keymap(keyconf);
+	gesture_straightline_modal_keymap(keyconf);
 }
 
 /* Generic itemf's for operators that take library args */
@@ -2999,10 +3241,18 @@ static EnumPropertyItem *rna_id_itemf(bContext *C, PointerRNA *ptr, int *free, I
 	return item;
 }
 
-/* can add more */
+/* can add more as needed */
+EnumPropertyItem *RNA_action_itemf(bContext *C, PointerRNA *ptr, int *free)
+{
+	return rna_id_itemf(C, ptr, free, C ? (ID *)CTX_data_main(C)->action.first : NULL);
+}
 EnumPropertyItem *RNA_group_itemf(bContext *C, PointerRNA *ptr, int *free)
 {
 	return rna_id_itemf(C, ptr, free, C ? (ID *)CTX_data_main(C)->group.first : NULL);
+}
+EnumPropertyItem *RNA_image_itemf(bContext *C, PointerRNA *ptr, int *free)
+{
+	return rna_id_itemf(C, ptr, free, C ? (ID *)CTX_data_main(C)->image.first : NULL);
 }
 EnumPropertyItem *RNA_scene_itemf(bContext *C, PointerRNA *ptr, int *free)
 {

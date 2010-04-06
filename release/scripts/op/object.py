@@ -26,8 +26,7 @@ class SelectPattern(bpy.types.Operator):
     '''Select object matching a naming pattern'''
     bl_idname = "object.select_pattern"
     bl_label = "Select Pattern"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     pattern = StringProperty(name="Pattern", description="Name filter using '*' and '?' wildcard chars", maxlen=32, default="*")
     case_sensitive = BoolProperty(name="Case Sensitive", description="Do a case sensitive compare", default=False)
@@ -79,8 +78,7 @@ class SelectCamera(bpy.types.Operator):
     '''Select object matching a naming pattern'''
     bl_idname = "object.select_camera"
     bl_label = "Select Camera"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     def poll(self, context):
         return context.scene.camera is not None
@@ -96,13 +94,53 @@ class SelectCamera(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class SelectHierarchy(bpy.types.Operator):
+    '''Select object relative to the active objects position in the hierarchy'''
+    bl_idname = "object.select_hierarchy"
+    bl_label = "Select Hierarchy"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    direction = EnumProperty(items=(
+                        ('PARENT', "Parent", ""),
+                        ('CHILD', "Child", "")),
+                name="Direction",
+                description="Direction to select in the hierarchy",
+                default='PARENT')
+
+    extend = BoolProperty(name="Extend", description="Extend the existing selection", default=False)
+
+    def poll(self, context):
+        return context.object
+
+    def execute(self, context):
+        obj = context.object
+        if self.properties.direction == 'PARENT':
+            parent = obj.parent
+            if not parent:
+                return {'CANCELLED'}
+            obj_act = parent
+        else:
+            children = obj.children
+            if len(children) != 1:
+                return {'CANCELLED'}
+            obj_act = children[0]
+
+        if not self.properties.extend:
+            # obj.selected = False
+            bpy.ops.object.select_all(action='DESELECT')
+
+        obj_act.selected = True
+        context.scene.objects.active = obj_act
+
+        return {'FINISHED'}
+
+
 class SubdivisionSet(bpy.types.Operator):
     '''Sets a Subdivision Surface Level (1-5)'''
 
     bl_idname = "object.subdivision_set"
     bl_label = "Subdivision Set"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     level = IntProperty(name="Level",
             default=1, min=-100, max=100, soft_min=-6, soft_max=6)
@@ -165,8 +203,7 @@ class ShapeTransfer(bpy.types.Operator):
 
     bl_idname = "object.shape_key_transfer"
     bl_label = "Transfer Shape Key"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     mode = EnumProperty(items=(
                         ('OFFSET', "Offset", "Apply the relative positional offset"),
@@ -336,7 +373,7 @@ class ShapeTransfer(bpy.types.Operator):
                 self.report({'ERROR'}, "Expected one other selected mesh object to copy from")
                 return {'CANCELLED'}
             ob_act, objects = objects[0], [ob_act]
-            
+
         if ob_act.type != 'MESH':
             self.report({'ERROR'}, "Other object is not a mesh.")
             return {'CANCELLED'}
@@ -344,7 +381,8 @@ class ShapeTransfer(bpy.types.Operator):
         if ob_act.active_shape_key is None:
             self.report({'ERROR'}, "Other object has no shape key")
             return {'CANCELLED'}
-        return self._main(ob_act, objects, self.properties.mode, self.properties.use_clamp)        
+        return self._main(ob_act, objects, self.properties.mode, self.properties.use_clamp)
+
 
 class JoinUVs(bpy.types.Operator):
     '''Copy UV Layout to objects with matching geometry'''
@@ -364,34 +402,37 @@ class JoinUVs(bpy.types.Operator):
         if is_editmode:
             bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
-        len_faces = len(mesh.faces)
+        if not mesh.active_uv_texture:
+            self.report({'WARNING'}, "Object: %s, Mesh: '%s' has no UVs\n" % (obj.name, mesh.name))
+        else:
+            len_faces = len(mesh.faces)
 
-        uv_array = array.array('f', [0.0] * 8) * len_faces # seems to be the fastest way to create an array
-        mesh.active_uv_texture.data.foreach_get("uv_raw", uv_array)
+            uv_array = array.array('f', [0.0] * 8) * len_faces # seems to be the fastest way to create an array
+            mesh.active_uv_texture.data.foreach_get("uv_raw", uv_array)
 
-        objects = context.selected_editable_objects[:]
+            objects = context.selected_editable_objects[:]
 
-        for obj_other in objects:
-            if obj_other.type == 'MESH':
-                obj_other.data.tag = False
+            for obj_other in objects:
+                if obj_other.type == 'MESH':
+                    obj_other.data.tag = False
 
-        for obj_other in objects:
-            if obj_other != obj and obj_other.type == 'MESH':
-                mesh_other = obj_other.data
-                if mesh_other != mesh:
-                    if mesh_other.tag == False:
-                        mesh_other.tag = True
+            for obj_other in objects:
+                if obj_other != obj and obj_other.type == 'MESH':
+                    mesh_other = obj_other.data
+                    if mesh_other != mesh:
+                        if mesh_other.tag == False:
+                            mesh_other.tag = True
 
-                        if len(mesh_other.faces) != len_faces:
-                            self.report({'WARNING'}, "Object: %s, Mesh: '%s' has %d faces, expected %d\n" % (obj_other.name, mesh_other.name, len(mesh_other.faces), len_faces))
-                        else:
-                            uv_other = mesh_other.active_uv_texture
-                            if not uv_other:
-                                mesh_other.uv_texture_add() # should return the texture it adds
+                            if len(mesh_other.faces) != len_faces:
+                                self.report({'WARNING'}, "Object: %s, Mesh: '%s' has %d faces, expected %d\n" % (obj_other.name, mesh_other.name, len(mesh_other.faces), len_faces))
+                            else:
                                 uv_other = mesh_other.active_uv_texture
+                                if not uv_other:
+                                    mesh_other.add_uv_texture() # should return the texture it adds
+                                    uv_other = mesh_other.active_uv_texture
 
-                            # finally do the copy
-                            uv_other.data.foreach_set("uv_raw", uv_array)
+                                # finally do the copy
+                                uv_other.data.foreach_set("uv_raw", uv_array)
 
         if is_editmode:
             bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -399,6 +440,7 @@ class JoinUVs(bpy.types.Operator):
     def execute(self, context):
         self._main(context)
         return {'FINISHED'}
+
 
 class MakeDupliFace(bpy.types.Operator):
     '''Make linked objects into dupli-faces'''
@@ -421,7 +463,7 @@ class MakeDupliFace(bpy.types.Operator):
             # scale = matrix.median_scale
             trans = matrix.translation_part()
             rot = matrix.rotation_part() # also contains scale
-            
+
             return [(rot * b) + trans for b in base_tri]
         scene = bpy.context.scene
         linked = {}
@@ -441,22 +483,20 @@ class MakeDupliFace(bpy.types.Operator):
             mesh.faces.foreach_set("verts_raw", faces)
             mesh.update() # generates edge data
 
-            # pick an object to use 
+            # pick an object to use
             obj = objects[0]
 
-            ob_new = bpy.data.objects.new(mesh.name, 'MESH')
-            ob_new.data = mesh
+            ob_new = bpy.data.objects.new(mesh.name, mesh)
             base = scene.objects.link(ob_new)
             base.layers[:] = obj.layers
-            
-            ob_inst = bpy.data.objects.new(data.name, obj.type)
-            ob_inst.data = data
+
+            ob_inst = bpy.data.objects.new(data.name, data)
             base = scene.objects.link(ob_inst)
             base.layers[:] = obj.layers
-            
+
             for obj in objects:
                 scene.objects.unlink(obj)
-            
+
             ob_new.dupli_type = 'FACES'
             ob_inst.parent = ob_new
             ob_new.use_dupli_faces_scale = True
@@ -466,13 +506,27 @@ class MakeDupliFace(bpy.types.Operator):
         self._main(context)
         return {'FINISHED'}
 
-# if __name__ == "__main__":
-#     bpy.ops.uv.simple_operator()
+
+classes = [
+    SelectPattern,
+    SelectCamera,
+    SelectHierarchy,
+    SubdivisionSet,
+    ShapeTransfer,
+    JoinUVs,
+    MakeDupliFace]
 
 
-bpy.types.register(SelectPattern)
-bpy.types.register(SelectCamera)
-bpy.types.register(SubdivisionSet)
-bpy.types.register(ShapeTransfer)
-bpy.types.register(JoinUVs)
-bpy.types.register(MakeDupliFace)
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

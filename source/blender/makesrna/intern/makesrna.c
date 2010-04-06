@@ -30,9 +30,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -846,6 +844,98 @@ static char *rna_def_property_begin_func(FILE *f, StructRNA *srna, PropertyRNA *
 	return func;
 }
 
+static char *rna_def_property_lookup_int_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc, char *nextfunc)
+{
+	char *func;
+
+	if(prop->flag & PROP_IDPROPERTY)
+		return NULL;
+
+	if(!manualfunc) {
+		if(!dp->dnastructname || !dp->dnaname)
+			return NULL;
+
+		/* only supported in case of standard next functions */
+		if(strcmp(nextfunc, "rna_iterator_array_next") == 0);
+		else if(strcmp(nextfunc, "rna_iterator_listbase_next") == 0);
+		else return NULL;
+	}
+
+	func= rna_alloc_function_name(srna->identifier, prop->identifier, "lookup_int");
+
+	fprintf(f, "PointerRNA %s(PointerRNA *ptr, int index)\n", func);
+	fprintf(f, "{\n");
+
+	if(manualfunc) {
+		fprintf(f, "\n	return %s(ptr, index);\n", manualfunc);
+		fprintf(f, "}\n\n");
+		return func;
+	}
+
+	fprintf(f, "	PointerRNA r_ptr;\n");
+	fprintf(f, "	CollectionPropertyIterator iter;\n\n");
+
+	fprintf(f, "	%s_%s_begin(&iter, ptr);\n\n", srna->identifier, prop->identifier);
+	fprintf(f, "	{\n");
+
+	if(strcmp(nextfunc, "rna_iterator_array_next") == 0) {
+		fprintf(f, "		ArrayIterator *internal= iter.internal;\n");
+		fprintf(f, "		if(internal->skip) {\n");
+		fprintf(f, "			while(index-- > 0) {\n");
+		fprintf(f, "				do {\n");
+		fprintf(f, "					internal->ptr += internal->itemsize;\n");
+		fprintf(f, "				} while(internal->skip(&iter, internal->ptr));\n");
+		fprintf(f, "			}\n");
+		fprintf(f, "		}\n");
+		fprintf(f, "		else {\n");
+		fprintf(f, "			internal->ptr += internal->itemsize*index;\n");
+		fprintf(f, "		}\n");
+	}
+	else if(strcmp(nextfunc, "rna_iterator_listbase_next") == 0) {
+		fprintf(f, "		ListBaseIterator *internal= iter.internal;\n");
+		fprintf(f, "		if(internal->skip) {\n");
+		fprintf(f, "			while(index-- > 0) {\n");
+		fprintf(f, "				do {\n");
+		fprintf(f, "					internal->link= internal->link->next;\n");
+		fprintf(f, "				} while(internal->skip(&iter, internal->link));\n");
+		fprintf(f, "			}\n");
+		fprintf(f, "		}\n");
+		fprintf(f, "		else {\n");
+		fprintf(f, "			while(index-- > 0)\n");
+		fprintf(f, "				internal->link= internal->link->next;\n");
+		fprintf(f, "		}\n");
+	}
+
+	fprintf(f, "	}\n\n");
+
+	fprintf(f, "	r_ptr = %s_%s_get(&iter);\n", srna->identifier, prop->identifier);
+	fprintf(f, "	%s_%s_end(&iter);\n\n", srna->identifier, prop->identifier);
+
+	fprintf(f, "	return r_ptr;\n");
+
+#if 0
+	rna_print_data_get(f, dp);
+	item_type= (cprop->item_type)? (char*)cprop->item_type: "UnknownType";
+
+	if(dp->dnalengthname || dp->dnalengthfixed) {
+		if(dp->dnalengthname)
+			fprintf(f, "\n	rna_array_lookup_int(ptr, &RNA_%s, data->%s, sizeof(data->%s[0]), data->%s, index);\n", item_type, dp->dnaname, dp->dnaname, dp->dnalengthname);
+		else
+			fprintf(f, "\n	rna_array_lookup_int(ptr, &RNA_%s, data->%s, sizeof(data->%s[0]), %d, index);\n", item_type, dp->dnaname, dp->dnaname, dp->dnalengthfixed);
+	}
+	else {
+		if(dp->dnapointerlevel == 0)
+			fprintf(f, "\n	return rna_listbase_lookup_int(ptr, &RNA_%s, &data->%s, index);\n", item_type, dp->dnaname);
+		else
+			fprintf(f, "\n	return rna_listbase_lookup_int(ptr, &RNA_%s, data->%s, index);\n", item_type, dp->dnaname);
+	}
+#endif
+
+	fprintf(f, "}\n\n");
+
+	return func;
+}
+
 static char *rna_def_property_next_func(FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, char *manualfunc)
 {
 	char *func, *getfunc;
@@ -1015,6 +1105,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 		}
 		case PROP_COLLECTION: {
 			CollectionPropertyRNA *cprop= (CollectionPropertyRNA*)prop;
+			char *nextfunc= (char*)cprop->next;
 
 			if(dp->dnatype && strcmp(dp->dnatype, "ListBase")==0);
 			else if(dp->dnalengthname || dp->dnalengthfixed)
@@ -1031,6 +1122,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 			cprop->begin= (void*)rna_def_property_begin_func(f, srna, prop, dp, (char*)cprop->begin);
 			cprop->next= (void*)rna_def_property_next_func(f, srna, prop, dp, (char*)cprop->next);
 			cprop->end= (void*)rna_def_property_end_func(f, srna, prop, dp, (char*)cprop->end);
+			cprop->lookupint= (void*)rna_def_property_lookup_int_func(f, srna, prop, dp, (char*)cprop->lookupint, nextfunc);
 
 			if(!(prop->flag & PROP_IDPROPERTY)) {
 				if(!cprop->begin) {
@@ -1547,6 +1639,7 @@ static const char *rna_property_subtypename(PropertyType type)
 	switch(type) {
 		case PROP_NONE: return "PROP_NONE";
 		case PROP_FILEPATH: return "PROP_FILEPATH";
+		case PROP_FILENAME: return "PROP_FILENAME";
 		case PROP_DIRPATH: return "PROP_DIRPATH";
 		case PROP_UNSIGNED: return "PROP_UNSIGNED";
 		case PROP_PERCENTAGE: return "PROP_PERCENTAGE";
@@ -2199,8 +2292,8 @@ static void rna_generate(BlenderRNA *brna, FILE *f, char *filename, char *api_fi
 	FunctionDefRNA *dfunc;
 	
 	fprintf(f, "\n/* Automatically generated struct definitions for the Data API.\n"
-	             "   Do not edit manually, changes will be overwritten.           */\n\n"
-	              "#define RNA_RUNTIME\n\n");
+				 "   Do not edit manually, changes will be overwritten.           */\n\n"
+				  "#define RNA_RUNTIME\n\n");
 
 	fprintf(f, "#include <float.h>\n");
 	fprintf(f, "#include <limits.h>\n");
@@ -2275,7 +2368,7 @@ static void rna_generate_header(BlenderRNA *brna, FILE *f)
 	fprintf(f, "#define __RNA_BLENDER_H__\n\n");
 
 	fprintf(f, "/* Automatically generated function declarations for the Data API.\n"
-	             "   Do not edit manually, changes will be overwritten.              */\n\n");
+				 "   Do not edit manually, changes will be overwritten.              */\n\n");
 
 	fprintf(f, "#include \"RNA_types.h\"\n\n");
 
@@ -2430,7 +2523,7 @@ static void rna_generate_header_cpp(BlenderRNA *brna, FILE *f)
 	fprintf(f, "#define __RNA_BLENDER_CPP_H__\n\n");
 
 	fprintf(f, "/* Automatically generated classes for the Data API.\n"
-	             "   Do not edit manually, changes will be overwritten. */\n\n");
+				 "   Do not edit manually, changes will be overwritten. */\n\n");
 
 	fprintf(f, "#include \"RNA_blender.h\"\n");
 	fprintf(f, "#include \"RNA_types.h\"\n");
@@ -2590,7 +2683,7 @@ static int rna_preprocess(char *outfile)
 	return status;
 }
 
-static void mem_error_cb(char *errorStr)
+static void mem_error_cb(const char *errorStr)
 {
 	fprintf(stderr, "%s", errorStr);
 	fflush(stderr);

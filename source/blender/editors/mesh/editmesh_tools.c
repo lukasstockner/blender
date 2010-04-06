@@ -1,4 +1,4 @@
- /* $Id:
+ /* $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -38,22 +38,15 @@ editmesh_tool.c: UI called tools for editmesh, geometry changes here, otherwise 
 #include <float.h>
 
 #include "MEM_guardedalloc.h"
-#include "PIL_time.h"
 
 #include "BLO_sys_types.h" // for intptr_t support
 
-#include "DNA_mesh_types.h"
-#include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_key_types.h"
-#include "DNA_windowmanager_types.h"
 
-#include "RNA_types.h"
 #include "RNA_define.h"
 #include "RNA_access.h"
 
@@ -86,19 +79,25 @@ editmesh_tool.c: UI called tools for editmesh, geometry changes here, otherwise 
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
-#include "ED_util.h"
 #include "ED_view3d.h"
 
-#include "UI_interface.h"
 
 #include "mesh_intern.h"
 
 /* XXX */
 static void waitcursor(int val) {}
-static int pupmenu() {return 0;}
 #define add_numbut(a, b, c, d, e, f, g) {}
 
 /* XXX */
+
+/* RNA corner cut enum property - used in multiple files for tools
+ * that need this property for esubdivideflag() */
+EnumPropertyItem corner_type_items[] = {
+	{SUBDIV_CORNER_PATH,  "PATH", 0, "Path", ""},
+	{SUBDIV_CORNER_INNERVERT,  "INNER_VERTEX", 0, "Inner Vertex", ""},
+	{SUBDIV_CORNER_FAN,  "FAN",  0, "Fan", ""},
+	{0, NULL, 0, NULL, NULL}};
+
 
 /* local prototypes ---------------*/
 static void free_tagged_edges_faces(EditMesh *em, EditEdge *eed, EditFace *efa);
@@ -634,6 +633,8 @@ void extrude_mesh(Scene *scene, Object *obedit, EditMesh *em, wmOperator *op, sh
 	else if(type==4) transmode= extrudeflag_verts_indiv(em, SELECT, nor);
 	else if(type==3) transmode= extrudeflag_edges_indiv(em, SELECT, nor);
 	else transmode= extrudeflag_face_indiv(em, SELECT, nor);
+
+	EM_stats_update(em);
 
 	if(transmode==0) {
 		BKE_report(op->reports, RPT_ERROR, "Not a valid selection for extrude");
@@ -1597,16 +1598,16 @@ static void fill_quad_single(EditMesh *em, EditFace *efa, struct GHash *gh, int 
 		hold = addfacelist(em, verts[i],verts[i+1],v[right],NULL,NULL,NULL);
 		facecopy(em, efa,hold);
 		if(i+1 != (vertsize-1)/2) {
-            if(seltype == SUBDIV_SELECT_INNER) {
-	 		   hold->e2->f2 |= EDGEINNER;
-            }
+			if(seltype == SUBDIV_SELECT_INNER) {
+				hold->e2->f2 |= EDGEINNER;
+			}
 		}
 		hold = addfacelist(em, verts[vertsize-2-i],verts[vertsize-1-i],v[left],NULL,NULL,NULL);
 		facecopy(em, efa,hold);
 		if(i+1 != (vertsize-1)/2) {
-            if(seltype == SUBDIV_SELECT_INNER) {
-		 		hold->e3->f2 |= EDGEINNER;
-            }
+			if(seltype == SUBDIV_SELECT_INNER) {
+				 hold->e3->f2 |= EDGEINNER;
+			}
 		}
 	}
 }
@@ -1673,9 +1674,9 @@ static void fill_tri_single(EditMesh *em, EditFace *efa, struct GHash *gh, int n
 	for(i=0;i<(vertsize-1);i++) {
 		hold = addfacelist(em, verts[i],verts[i+1],v[op],NULL,NULL,NULL);
 		if(i+1 != vertsize-1) {
-            if(seltype == SUBDIV_SELECT_INNER) {
-		 		hold->e2->f2 |= EDGEINNER;
-            }
+			if(seltype == SUBDIV_SELECT_INNER) {
+				 hold->e2->f2 |= EDGEINNER;
+			}
 		}
 		facecopy(em, efa,hold);
 	}
@@ -2263,7 +2264,7 @@ static void fill_quad_quadruple(EditMesh *em, EditFace *efa, struct GHash *gh, i
 			   0|---*---*---|0
 				|           |
 			   1*           *1
-		     2  |           |   4
+			 2  |           |   4
 			   2*           *2
 				|           |
 			   3|---*---*---|3
@@ -2594,7 +2595,7 @@ static EditVert *subdivideedgenum(EditMesh *em, EditEdge *edge, int curpoint, in
 	return ev;
 }
 
-void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float fractal, int beauty, int numcuts, int seltype)
+void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float fractal, int beauty, int numcuts, int corner_pattern, int seltype)
 {
 	EditFace *ef;
 	EditEdge *eed, *cedge, *sort[4];
@@ -2838,7 +2839,7 @@ void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float 
 					   (ef->e2->f & flag && ef->e4->f & flag)) {
 						fill_quad_double_op(em, ef, gh, numcuts);
 					}else{
-						switch(0) { // XXX scene->toolsettings->cornertype) {
+						switch(corner_pattern) {
 							case 0:	fill_quad_double_adj_path(em, ef, gh, numcuts); break;
 							case 1:	fill_quad_double_adj_inner(em, ef, gh, numcuts); break;
 							case 2:	fill_quad_double_adj_fan(em, ef, gh, numcuts); break;
@@ -3585,7 +3586,7 @@ static void edge_rotate(EditMesh *em, wmOperator *op, EditEdge *eed, int dir)
 		return;
 
 	/* how many edges does each face have */
- 	if(face[0]->e4) fac1= 4;
+	 if(face[0]->e4) fac1= 4;
 	else fac1= 3;
 
 	if(face[1]->e4) fac2= 4;
@@ -3639,11 +3640,11 @@ static void edge_rotate(EditMesh *em, wmOperator *op, EditEdge *eed, int dir)
 
 	hiddenedges = MEM_mallocN(sizeof(EditVert*)*numhidden+1, "RotateEdgeHiddenVerts");
 	if(!hiddenedges) {
-        BKE_report(op->reports, RPT_ERROR, "Memory allocation failed");
-        return;
-    }
+		BKE_report(op->reports, RPT_ERROR, "Memory allocation failed");
+		return;
+	}
 
-    numhidden = 0;
+	numhidden = 0;
 	for(srchedge=em->edges.first; srchedge; srchedge=srchedge->next)
 		if(srchedge->h && (srchedge->v1->f & SELECT || srchedge->v2->f & SELECT))
 			hiddenedges[numhidden++] = srchedge;
@@ -3732,7 +3733,6 @@ static void edge_rotate(EditMesh *em, wmOperator *op, EditEdge *eed, int dir)
 	free_editface(em, face[1]);
 }
 
-// XXX ton please check
 /* only accepts 1 selected edge, or 2 selected faces */
 static int edge_rotate_selected(bContext *C, wmOperator *op)
 {
@@ -3740,7 +3740,7 @@ static int edge_rotate_selected(bContext *C, wmOperator *op)
 	EditMesh *em= BKE_mesh_get_editmesh((Mesh *)obedit->data);
 	EditEdge *eed;
 	EditFace *efa;
-	int dir = RNA_int_get(op->ptr, "direction"); // dir == 2 when clockwise and ==1 for counter CW.
+	int dir = RNA_enum_get(op->ptr, "direction"); // dir == 2 when clockwise and ==1 for counter CW.
 	short edgeCount = 0;
 
 	/*clear new flag for new edges, count selected edges */
@@ -3820,7 +3820,7 @@ void MESH_OT_edge_rotate(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* props */
-	RNA_def_enum(ot->srna, "direction", direction_items, DIRECTION_CW, "direction", "direction to rotate edge around.");
+	RNA_def_enum(ot->srna, "direction", direction_items, DIRECTION_CW, "Direction", "Direction to rotate the edge around.");
 }
 
 
@@ -4608,7 +4608,7 @@ useless:
 							mvalo[0] = -1;
 					} else if(ELEM(event, RIGHTARROWKEY, WHEELUPMOUSE)) { // Scroll through Control Edges
 						look = vertlist;
-				 		while(look) {
+						 while(look) {
 							if(nearest == (EditVert*)look->link) {
 								if(look->next == NULL) {
 									nearest =  (EditVert*)vertlist->link;
@@ -4622,7 +4622,7 @@ useless:
 						}
 					} else if(ELEM(event, LEFTARROWKEY, WHEELDOWNMOUSE)) { // Scroll through Control Edges
 						look = vertlist;
-				 		while(look) {
+						 while(look) {
 							if(look->next) {
 								if(look->next->link == nearest) {
 									nearest = (EditVert*)look->link;
@@ -4760,7 +4760,7 @@ void mesh_set_face_flags(EditMesh *em, short mode)
 	add_numbut(12, TOG|SHO, "Sort", 0, 0, &m_sort, NULL);
 
 	if (!do_clever_numbuts((mode ? "Set Flags" : "Clear Flags"), 13, REDRAW))
- 		return;
+		 return;
 
 	/* these 2 cant both be on */
 	if (mode) /* are we seeting*/
@@ -5057,8 +5057,8 @@ void MESH_OT_rip(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	/* to give to transform */
-	Properties_Proportional(ot);
-	RNA_def_boolean(ot->srna, "mirror", 0, "Mirror Editing", "");
+	/* XXX Transform this in a macro */
+	Transform_Properties(ot, P_CONSTRAINT|P_MIRROR);
 }
 
 
@@ -5863,7 +5863,8 @@ static int merge_exec(bContext *C, wmOperator *op)
 	if(!count)
 		return OPERATOR_CANCELLED;
 
-	BKE_reportf(op->reports, RPT_INFO, "Removed %d vertices.", count);
+	
+	BKE_reportf(op->reports, RPT_INFO, "Removed %d vert%s.", count, (count==1)?"ex":"ices");
 
 	BKE_mesh_end_editmesh(obedit->data, em);
 
@@ -5969,17 +5970,15 @@ static int select_vertex_path_exec(bContext *C, wmOperator *op)
 	PathNode *currpn;
 	PathNode *Q;
 	int v, *previous, pathvert, pnindex; /*pnindex redundant?*/
- 	int unbalanced, totnodes;
-	short physical;
+	int unbalanced, totnodes;
 	float *cost;
+	int type= RNA_enum_get(op->ptr, "type");
 	Heap *heap; /*binary heap for sorting pointers to PathNodes based upon a 'cost'*/
 
 	s = t = NULL;
 
 	ese = ((EditSelection*)em->selected.last);
-	if(ese && ese->type == EDITVERT && ese->prev && ese->prev->type == EDITVERT){
-		physical= pupmenu("Distance Method? %t|Edge Length%x1|Topological%x0");
-
+	if(ese && ese->type == EDITVERT && ese->prev && ese->prev->type == EDITVERT) {
 		t = (EditVert*)ese->data;
 		s = (EditVert*)ese->prev->data;
 
@@ -6032,7 +6031,7 @@ static int select_vertex_path_exec(bContext *C, wmOperator *op)
 
 						newpe = MEM_mallocN(sizeof(PathEdge), "Path Edge");
 						newpe->v = ((PathNode*)eed->v2->tmp.p)->u;
-						if(physical){
+						if (type == PATH_SELECT_EDGE_LENGTH) {
 								newpe->w = len_v3v3(eed->v1->co, eed->v2->co);
 						}
 						else newpe->w = 1;
@@ -6044,7 +6043,7 @@ static int select_vertex_path_exec(bContext *C, wmOperator *op)
 						currpn = ((PathNode*)eed->v2->tmp.p);
 						newpe = MEM_mallocN(sizeof(PathEdge), "Path Edge");
 						newpe->v = ((PathNode*)eed->v1->tmp.p)->u;
-						if(physical){
+						if (type == PATH_SELECT_EDGE_LENGTH) {
 								newpe->w = len_v3v3(eed->v1->co, eed->v2->co);
 						}
 						else newpe->w = 1;
@@ -6132,7 +6131,6 @@ void MESH_OT_select_vertex_path(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec= select_vertex_path_exec;
-	ot->invoke= WM_menu_invoke;
 	ot->poll= ED_operator_editmesh;
 
 	/* flags */
@@ -6738,6 +6736,7 @@ static int subdivide_exec(bContext *C, wmOperator *op)
 	int cuts= RNA_int_get(op->ptr,"number_cuts");
 	float smooth= 0.292f*RNA_float_get(op->ptr, "smoothness");
 	float fractal= RNA_float_get(op->ptr, "fractal")/100;
+	int corner_cut_pattern= RNA_enum_get(op->ptr,"corner_cut_pattern");
 	int flag= 0;
 
 	if(smooth != 0.0f)
@@ -6745,7 +6744,7 @@ static int subdivide_exec(bContext *C, wmOperator *op)
 	if(fractal != 0.0f)
 		flag |= B_FRACTAL;
 
-	esubdivideflag(obedit, em, 1, smooth, fractal, ts->editbutflag|flag, cuts, 0);
+	esubdivideflag(obedit, em, 1, smooth, fractal, ts->editbutflag|flag, cuts, corner_cut_pattern, 0);
 
 	DAG_id_flush_update(obedit->data, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, obedit->data);
@@ -6754,7 +6753,7 @@ static int subdivide_exec(bContext *C, wmOperator *op)
 }
 
 void MESH_OT_subdivide(wmOperatorType *ot)
-{
+{	
 	/* identifiers */
 	ot->name= "Subdivide";
 	ot->description= "Subdivide selected edges";
@@ -6769,8 +6768,9 @@ void MESH_OT_subdivide(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_int(ot->srna, "number_cuts", 1, 1, INT_MAX, "Number of Cuts", "", 1, 10);
-	RNA_def_float(ot->srna, "fractal", 0.0, 0.0f, FLT_MAX, "Fractal", "Fractal randomness factor.", 0.0f, 1000.0f);
 	RNA_def_float(ot->srna, "smoothness", 0.0f, 0.0f, FLT_MAX, "Smoothness", "Smoothness factor.", 0.0f, 1000.0f);
+	RNA_def_float(ot->srna, "fractal", 0.0, 0.0f, FLT_MAX, "Fractal", "Fractal randomness factor.", 0.0f, 1000.0f);
+	RNA_def_enum(ot->srna, "corner_cut_pattern", corner_type_items, SUBDIV_CORNER_INNERVERT, "Corner Cut Pattern", "Topology pattern to use to fill a face after cutting across its corner");
 }
 
 /********************** Fill Operators *************************/

@@ -32,7 +32,7 @@ class PhysicButtonsPanel(bpy.types.Panel):
     bl_context = "physics"
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (context.object) and (not rd.use_game_engine)
 
 
@@ -174,7 +174,7 @@ class PHYSICS_PT_collision(PhysicButtonsPanel):
 
     def poll(self, context):
         ob = context.object
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
 
     def draw(self, context):
@@ -242,5 +242,22 @@ class PHYSICS_PT_collision(PhysicButtonsPanel):
             col.label(text="Force Fields:")
             col.prop(settings, "absorption", text="Absorption")
 
-bpy.types.register(PHYSICS_PT_field)
-bpy.types.register(PHYSICS_PT_collision)
+
+classes = [
+    PHYSICS_PT_field,
+    PHYSICS_PT_collision]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

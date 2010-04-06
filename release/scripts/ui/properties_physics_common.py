@@ -53,8 +53,8 @@ def point_cache_ui(self, context, cache, enabled, particles, smoke):
         if not particles:
             row = layout.row()
             row.enabled = enabled
-            row.prop(cache, "start_frame")
-            row.prop(cache, "end_frame")
+            row.prop(cache, "frame_start")
+            row.prop(cache, "frame_end")
 
         row = layout.row()
 
@@ -65,7 +65,7 @@ def point_cache_ui(self, context, cache, enabled, particles, smoke):
 
         sub = row.row()
         sub.enabled = (cache.frames_skipped or cache.outdated) and enabled
-        sub.operator("ptcache.bake", "bake", False, text="Calculate to Current Frame")
+        sub.operator("ptcache.bake", text="Calculate to Current Frame").bake = False
 
         row = layout.row()
         row.enabled = enabled
@@ -87,7 +87,7 @@ def point_cache_ui(self, context, cache, enabled, particles, smoke):
         row = layout.row()
         row.operator("ptcache.bake_all", text="Bake All Dynamics").bake = True
         row.operator("ptcache.free_bake_all", text="Free All Bakes")
-        layout.operator("ptcache.bake_all", "bake", False, text="Update All Dynamics to current frame")
+        layout.operator("ptcache.bake_all", text="Update All Dynamics to current frame").bake = False
 
 
 def effector_weights_ui(self, context, weights):
@@ -210,3 +210,14 @@ def basic_force_field_falloff_ui(self, context, field):
     sub = col.column()
     sub.active = field.use_max_distance
     sub.prop(field, "maximum_distance", text="Distance")
+
+
+def register():
+    pass
+
+
+def unregister():
+    pass
+
+if __name__ == "__main__":
+    register()

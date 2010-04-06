@@ -25,7 +25,6 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -107,7 +106,10 @@ static void rna_Lamp_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Lamp *la= ptr->id.data;
 
 	DAG_id_flush_update(&la->id, 0);
-	WM_main_add_notifier(NC_LAMP|ND_LIGHTING, la);
+	if(scene->gm.matmode == GAME_MAT_GLSL)
+		WM_main_add_notifier(NC_LAMP|ND_LIGHTING_DRAW, la);
+	else
+		WM_main_add_notifier(NC_LAMP|ND_LIGHTING, la);
 }
 
 static void rna_Lamp_draw_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -260,7 +262,7 @@ static void rna_def_lamp_sky_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Sun Size", "Sun size");
 	RNA_def_property_update(prop, 0, "rna_Lamp_sky_update");
 
-  	prop= RNA_def_property(srna, "backscattered_light", PROP_FLOAT, PROP_NONE);
+	  prop= RNA_def_property(srna, "backscattered_light", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, -1.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Backscattered Light", "Backscattered light");
 	RNA_def_property_update(prop, 0, "rna_Lamp_sky_update");
@@ -343,20 +345,21 @@ static void rna_def_lamp(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "dist");
-	RNA_def_property_ui_range(prop, 0, 1000, 1.0, 2);
+	RNA_def_property_range(prop, 0, INT_MAX);
+	RNA_def_property_ui_range(prop, 0, 1000, 1, 3);
 	RNA_def_property_ui_text(prop, "Distance", "Falloff distance - the light is at half the original intensity at this point");
 	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "energy", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_range(prop, 0, 10.0, 10, 2);
+	RNA_def_property_ui_range(prop, 0, 10, 1, 3);
 	RNA_def_property_ui_text(prop, "Energy", "Amount of light that the lamp emits");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "r");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Color", "Light color");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "layer", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", LA_LAYER);
@@ -417,13 +420,13 @@ static void rna_def_lamp_falloff(StructRNA *srna)
 	RNA_def_property_float_sdna(prop, NULL, "att1");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Linear Attenuation", "Linear distance attentuation");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 
 	prop= RNA_def_property(srna, "quadratic_attenuation", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "att2");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Quadratic Attenuation", "Quadratic distance attentuation");
-	RNA_def_property_update(prop, 0, "rna_Lamp_update");
+	RNA_def_property_update(prop, 0, "rna_Lamp_draw_update");
 }
 
 static void rna_def_lamp_shadow(StructRNA *srna, int spot, int area)

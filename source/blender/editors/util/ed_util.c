@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,11 +31,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_curve_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
@@ -67,7 +64,8 @@ void ED_editors_exit(bContext *C)
 			Object *ob= sce->obedit;
 		
 			/* global in meshtools... */
-			mesh_octree_table(ob, NULL, NULL, 'e');
+			mesh_octree_table(NULL, NULL, NULL, 'e');
+			mesh_mirrtopo_table(NULL, 'e');
 			
 			if(ob) {
 				if(ob->type==OB_MESH) {
@@ -94,8 +92,10 @@ void ED_editors_exit(bContext *C)
 			Object *ob= sce->basact->object;
 			
 			/* if weight-painting is on, free mesh octree data */
-			if(ob->mode & OB_MODE_WEIGHT_PAINT)
-				mesh_octree_table(ob, NULL, NULL, 'e');
+			if(ob->mode & OB_MODE_WEIGHT_PAINT) {
+				mesh_octree_table(NULL, NULL, NULL, 'e');
+				mesh_mirrtopo_table(NULL, 'e');
+			}
 		}
 	}
 	

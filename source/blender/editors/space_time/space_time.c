@@ -30,10 +30,7 @@
 #include <stdio.h>
 
 #include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -47,9 +44,7 @@
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_draw.h"
-#include "ED_space_api.h"
 #include "ED_screen.h"
-#include "ED_util.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -57,7 +52,6 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -318,6 +312,7 @@ static void time_header_area_listener(ARegion *ar, wmNotifier *wmn)
 			switch (wmn->data) {
 				case ND_FRAME:
 				case ND_KEYINGSET:
+				case ND_RENDER_OPTIONS:
 					ED_region_tag_redraw(ar);
 				break;
 			}

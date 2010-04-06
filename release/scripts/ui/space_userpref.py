@@ -165,12 +165,18 @@ class USERPREF_HT_header(bpy.types.Header):
         layout.operator_context = 'EXEC_AREA'
         layout.operator("wm.save_homefile", text="Save As Default")
 
+        layout.operator_context = 'INVOKE_DEFAULT'
+
         if userpref.active_section == 'INPUT':
-            layout.operator_context = 'INVOKE_DEFAULT'
-            op = layout.operator("wm.keyconfig_export", "Export Key Configuration...")
+            op = layout.operator("wm.keyconfig_export")
             op.path = "keymap.py"
-            op = layout.operator("wm.keyconfig_import", "Import Key Configuration...")
+            op = layout.operator("wm.keyconfig_import")
             op.path = "keymap.py"
+        elif userpref.active_section == 'ADDONS':
+            op = layout.operator("wm.addon_install")
+            op.path = "*.py"
+        elif userpref.active_section == 'THEMES':
+            op = layout.operator("ui.reset_default_theme")
 
 
 class USERPREF_PT_tabs(bpy.types.Panel):
@@ -276,6 +282,10 @@ class USERPREF_PT_interface(bpy.types.Panel):
         col.prop(view, "open_toplevel_delay", text="Top Level")
         col.prop(view, "open_sublevel_delay", text="Sub Level")
 
+        col.separator()
+
+        col.prop(view, "show_splash")
+
 
 class USERPREF_PT_edit(bpy.types.Panel):
     bl_space_type = 'USER_PREFERENCES'
@@ -334,6 +344,11 @@ class USERPREF_PT_edit(bpy.types.Panel):
         #col.prop(edit, "grease_pencil_simplify_stroke", text="Simplify Stroke")
         col.prop(edit, "grease_pencil_eraser_radius", text="Eraser Radius")
         col.prop(edit, "grease_pencil_smooth_stroke", text="Smooth Stroke")
+        col.separator()
+        col.separator()
+        col.separator()
+        col.label(text="Playback:")
+        col.prop(edit, "use_negative_frames")
 
         row.separator()
         row.separator()
@@ -345,19 +360,20 @@ class USERPREF_PT_edit(bpy.types.Panel):
 
         col.separator()
 
-        col.label(text="New F-Curve Defaults:")
-        col.prop(edit, "new_interpolation_type", text="Interpolation")
-        col.prop(edit, "insertkey_xyz_to_rgb", text="XYZ to RGB")
-
-        col.separator()
-
-        col.prop(edit, "auto_keying_enable", text="Auto Keyframing:")
+        col.prop(edit, "use_auto_keying", text="Auto Keyframing:")
 
         sub = col.column()
 
-        sub.active = edit.auto_keying_enable
+        # sub.active = edit.use_auto_keying # incorrect, timeline can enable
         sub.prop(edit, "auto_keyframe_insert_keyingset", text="Only Insert for Keying Set")
         sub.prop(edit, "auto_keyframe_insert_available", text="Only Insert Available")
+
+        col.separator()
+
+        col.label(text="New F-Curve Defaults:")
+        col.prop(edit, "keyframe_new_interpolation_type", text="Interpolation")
+        col.prop(edit, "keyframe_new_handle_type", text="Handles")
+        col.prop(edit, "insertkey_xyz_to_rgb", text="XYZ to RGB")
 
         col.separator()
         col.separator()
@@ -413,7 +429,8 @@ class USERPREF_PT_system(bpy.types.Panel):
         col.prop(system, "dpi")
         col.prop(system, "frame_server_port")
         col.prop(system, "scrollback", text="Console Scrollback")
-        col.prop(system, "auto_run_python_scripts")
+        col.prop(system, "auto_execute_scripts")
+        col.prop(system, "tabs_as_spaces")
 
         col.separator()
         col.separator()
@@ -648,6 +665,19 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(v3d, "object_grouped")
             col.prop(v3d, "object_grouped_active")
             col.prop(v3d, "transform")
+            col.prop(v3d, "nurb_uline")
+            col.prop(v3d, "nurb_vline")
+            col.prop(v3d, "nurb_sel_uline")
+            col.prop(v3d, "nurb_sel_vline")
+            col.prop(v3d, "handle_free")
+            col.prop(v3d, "handle_auto")
+            col.prop(v3d, "handle_vect")
+            col.prop(v3d, "handle_align")
+            col.prop(v3d, "handle_sel_free")
+            col.prop(v3d, "handle_sel_auto")
+            col.prop(v3d, "handle_sel_vect")
+            col.prop(v3d, "handle_sel_align")
+            col.prop(v3d, "act_spline")
 
             col = split.column()
             col.prop(v3d, "vertex")
@@ -656,6 +686,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(v3d, "vertex_normal")
             col.prop(v3d, "bone_solid")
             col.prop(v3d, "bone_pose")
+            col.prop(v3d, "edge_seam")
             #col.prop(v3d, "edge") Doesn't seem to work
 
         elif theme.theme_area == 'GRAPH_EDITOR':
@@ -677,14 +708,24 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(graph, "active_channels_group")
             col.prop(graph, "dopesheet_channel")
             col.prop(graph, "dopesheet_subchannel")
-            col.prop(graph, "vertex")
+            col.prop(graph, "frame_current")
 
             col = split.column()
-            col.prop(graph, "current_frame")
+            col.prop(graph, "vertex")
             col.prop(graph, "handle_vertex")
             col.prop(graph, "handle_vertex_select")
             col.separator()
             col.prop(graph, "handle_vertex_size")
+            col.separator()
+            col.separator()
+            col.prop(graph, "handle_free")
+            col.prop(graph, "handle_auto")
+            col.prop(graph, "handle_vect")
+            col.prop(graph, "handle_align")
+            col.prop(graph, "handle_sel_free")
+            col.prop(graph, "handle_sel_auto")
+            col.prop(graph, "handle_sel_vect")
+            col.prop(graph, "handle_sel_align")
 
         elif theme.theme_area == 'FILE_BROWSER':
             file_browse = theme.file_browser
@@ -727,7 +768,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col = split.column()
             col.prop(nla, "strips")
             col.prop(nla, "strips_selected")
-            col.prop(nla, "current_frame")
+            col.prop(nla, "frame_current")
 
         elif theme.theme_area == 'DOPESHEET_EDITOR':
             dope = theme.dopesheet_editor
@@ -750,7 +791,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(dope, "long_key_selected")
 
             col = split.column()
-            col.prop(dope, "current_frame")
+            col.prop(dope, "frame_current")
             col.prop(dope, "dopesheet_channel")
             col.prop(dope, "dopesheet_subchannel")
 
@@ -797,7 +838,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
 
             col = split.column()
             col.prop(seq, "meta_strip")
-            col.prop(seq, "current_frame")
+            col.prop(seq, "frame_current")
             col.prop(seq, "keyframe")
             col.prop(seq, "draw_action")
 
@@ -856,7 +897,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(time, "grid")
 
             col = split.column()
-            col.prop(time, "current_frame")
+            col.prop(time, "frame_current")
 
         elif theme.theme_area == 'NODE_EDITOR':
             node = theme.node_editor
@@ -958,6 +999,7 @@ class USERPREF_PT_theme(bpy.types.Panel):
             col.prop(prefs, "line_input")
             col.prop(prefs, "line_info")
             col.prop(prefs, "line_error")
+            col.prop(prefs, "cursor")
 
 
 class USERPREF_PT_file(bpy.types.Panel):
@@ -993,6 +1035,7 @@ class USERPREF_PT_file(bpy.types.Panel):
         sub.label(text="Scripts:")
         sub.label(text="Sounds:")
         sub.label(text="Temp:")
+        sub.label(text="Image Editor:")
         sub.label(text="Animation Player:")
 
         sub = col1.column()
@@ -1004,6 +1047,7 @@ class USERPREF_PT_file(bpy.types.Panel):
         sub.prop(paths, "python_scripts_directory", text="")
         sub.prop(paths, "sounds_directory", text="")
         sub.prop(paths, "temporary_directory", text="")
+        sub.prop(paths, "image_editor", text="")
         subsplit = sub.split(percentage=0.3)
         subsplit.prop(paths, "animation_player_preset", text="")
         subsplit.prop(paths, "animation_player", text="")
@@ -1098,7 +1142,7 @@ class USERPREF_PT_input(bpy.types.Panel):
                 # "Add New" at end of keymap item list
                 col = self.indented_layout(col, level + 1)
                 subcol = col.split(percentage=0.2).column()
-                subcol.active = km.user_defined
+                subcol.enabled = km.user_defined
                 op = subcol.operator("wm.keyitem_add", text="Add New", icon='ZOOMIN')
 
             col.separator()
@@ -1247,8 +1291,8 @@ class USERPREF_PT_input(bpy.types.Panel):
         sub.row().prop(inputs, "view_rotation", expand=True)
 
         sub.label(text="Zoom Style:")
-        sub.row().prop(inputs, "viewport_zoom_style", expand=True)
-        if inputs.viewport_zoom_style == 'DOLLY':
+        sub.row().prop(inputs, "zoom_style", text="")
+        if inputs.zoom_style == 'DOLLY':
             sub.row().prop(inputs, "zoom_axis", expand=True)
             sub.prop(inputs, "invert_zoom_direction")
 
@@ -1261,11 +1305,12 @@ class USERPREF_PT_input(bpy.types.Panel):
         #sub.prop(view, "wheel_scroll_lines", text="Scroll Lines")
 
         col.separator()
-
+        ''' not implemented yet
         sub = col.column()
         sub.label(text="NDOF Device:")
         sub.prop(inputs, "ndof_pan_speed", text="Pan Speed")
         sub.prop(inputs, "ndof_rotate_speed", text="Orbit Speed")
+        '''
 
         row.separator()
 
@@ -1298,7 +1343,7 @@ class USERPREF_PT_input(bpy.types.Panel):
                 # "Add New" at end of keymap item list
                 col = self.indented_layout(layout, 1)
                 subcol = col.split(percentage=0.2).column()
-                subcol.active = km.user_defined
+                subcol.enabled = km.user_defined
                 op = subcol.operator("wm.keyitem_add", text="Add New", icon='ZOOMIN')
 
     def draw_hierarchy(self, defkc, layout):
@@ -1348,16 +1393,317 @@ class USERPREF_PT_input(bpy.types.Panel):
 
         #print("runtime", time.time() - start)
 
-bpy.types.register(USERPREF_HT_header)
-bpy.types.register(USERPREF_PT_tabs)
-bpy.types.register(USERPREF_PT_interface)
-bpy.types.register(USERPREF_PT_theme)
-bpy.types.register(USERPREF_PT_edit)
-bpy.types.register(USERPREF_PT_system)
-bpy.types.register(USERPREF_PT_file)
-bpy.types.register(USERPREF_PT_input)
+
+class USERPREF_PT_addons(bpy.types.Panel):
+    bl_space_type = 'USER_PREFERENCES'
+    bl_label = "Addons"
+    bl_region_type = 'WINDOW'
+    bl_show_header = False
+
+    def poll(self, context):
+        userpref = context.user_preferences
+        return (userpref.active_section == 'ADDONS')
+
+    def _addon_list(self):
+        import sys
+        modules = []
+        loaded_modules = set()
+        paths = bpy.utils.script_paths("addons")
+        # sys.path.insert(0, None)
+        for path in paths:
+            # sys.path[0] = path
+            modules.extend(bpy.utils.modules_from_path(path, loaded_modules))
+
+        # del sys.path[0]
+        return modules
+
+    def draw(self, context):
+        layout = self.layout
+
+        userpref = context.user_preferences
+        used_ext = {ext.module for ext in userpref.addons}
+
+        # collect the categories that can be filtered on
+        addons = [(mod, addon_info_get(mod)) for mod in self._addon_list()]
+
+        cats = {info["category"] for mod, info in addons}
+        cats.discard("")
+
+        cats = ['All', 'Disabled', 'Enabled'] + sorted(cats)
+
+        bpy.types.Scene.EnumProperty(items=[(cats[i], cats[i], str(i)) for i in range(len(cats))],
+            name="Category", attr="addon_filter", description="Filter add-ons by category")
+        bpy.types.Scene.StringProperty(name="Search", attr="addon_search",
+            description="Search within the selected filter")
+
+        row = layout.row()
+        row.prop(context.scene, "addon_filter", text="Filter")
+        row.prop(context.scene, "addon_search", text="Search", icon='VIEWZOOM')
+        layout.separator()
+
+        filter = context.scene.addon_filter
+        search = context.scene.addon_search.lower()
+
+        for mod, info in addons:
+            module_name = mod.__name__
+
+            # check if add-on should be visible with current filters
+            if filter != "All" and \
+                    filter != info["category"] and \
+                    not (module_name not in used_ext and filter == "Disabled"):
+
+                continue
+
+            if search and search not in info["name"].lower():
+                if info["author"]:
+                    if search not in info["author"].lower():
+                        continue
+                else:
+                    continue
+
+            # Addon UI Code
+            box = layout.column().box()
+            column = box.column()
+            row = column.row()
+
+            # Arrow #
+            # If there are Infos or UI is expanded
+            if info["expanded"]:
+                row.operator("wm.addon_expand", icon="TRIA_DOWN").module = module_name
+            elif info["author"] or info["version"] or info["url"] or info["location"]:
+                row.operator("wm.addon_expand", icon="TRIA_RIGHT").module = module_name
+            else:
+                # Else, block UI
+                arrow = row.column()
+                arrow.enabled = False
+                arrow.operator("wm.addon_expand", icon="TRIA_RIGHT").module = module_name
+
+            row.label(text=info["name"])
+            row.operator("wm.addon_disable" if module_name in used_ext else "wm.addon_enable").module = module_name
+
+            # Expanded UI (only if additional infos are available)
+            if info["expanded"]:
+                if info["author"]:
+                    split = column.row().split(percentage=0.15)
+                    split.label(text='Author:')
+                    split.label(text=info["author"])
+                if info["version"]:
+                    split = column.row().split(percentage=0.15)
+                    split.label(text='Version:')
+                    split.label(text=info["version"])
+                if info["location"]:
+                    split = column.row().split(percentage=0.15)
+                    split.label(text='Location:')
+                    split.label(text=info["location"])
+                if info["description"]:
+                    split = column.row().split(percentage=0.15)
+                    split.label(text='Description:')
+                    split.label(text=info["description"])
+                if info["url"]:
+                    split = column.row().split(percentage=0.15)
+                    split.label(text="Internet:")
+                    split.operator("wm.addon_links", text="Link to the Wiki").link = info["url"]
+                    split.separator()
+                    split.separator()
+
+        # Append missing scripts
+        # First collect scripts that are used but have no script file.
+        module_names = {mod.__name__ for mod, info in addons}
+        missing_modules = {ext for ext in used_ext if ext not in module_names}
+
+        if missing_modules and filter in ("All", "Enabled"):
+            layout.column().separator()
+            layout.column().label(text="Missing script files")
+
+            module_names = {mod.__name__ for mod, info in addons}
+            for ext in sorted(missing_modules):
+                # Addon UI Code
+                box = layout.column().box()
+                column = box.column()
+                row = column.row()
+
+                row.label(text=ext, icon="ERROR")
+                row.operator("wm.addon_disable").module = ext
 
 from bpy.props import *
+
+
+def addon_info_get(mod, info_basis={"name": "", "author": "", "version": "", "blender": "", "location": "", "description": "", "url": "", "category": "", "expanded": False}):
+    addon_info = getattr(mod, "bl_addon_info", {})
+
+    # avoid re-initializing
+    if "_init" in addon_info:
+        return addon_info
+
+    if not addon_info:
+        mod.bl_addon_info = addon_info
+
+    for key, value in info_basis.items():
+        addon_info.setdefault(key, value)
+
+    if not addon_info["name"]:
+        addon_info["name"] = mod.__name__
+
+    addon_info["_init"] = None
+    return addon_info
+
+
+class WM_OT_addon_enable(bpy.types.Operator):
+    "Enable an addon"
+    bl_idname = "wm.addon_enable"
+    bl_label = "Enable Add-On"
+
+    module = StringProperty(name="Module", description="Module name of the addon to enable")
+
+    def execute(self, context):
+        module_name = self.properties.module
+
+        try:
+            mod = __import__(module_name)
+            mod.register()
+        except:
+            import traceback
+            traceback.print_exc()
+            return {'CANCELLED'}
+
+        ext = context.user_preferences.addons.new()
+        ext.module = module_name
+
+        # check if add-on is written for current blender version, or raise a warning
+        info = addon_info_get(mod)
+
+        if info.get("blender", (0, 0, 0)) > bpy.app.version:
+            self.report("WARNING','This script was written for a newer version of Blender and might not function (correctly).\nThe script is enabled though.")
+
+        return {'FINISHED'}
+
+
+class WM_OT_addon_disable(bpy.types.Operator):
+    "Disable an addon"
+    bl_idname = "wm.addon_disable"
+    bl_label = "Disable Add-On"
+
+    module = StringProperty(name="Module", description="Module name of the addon to disable")
+
+    def execute(self, context):
+        import traceback
+        module_name = self.properties.module
+
+        try:
+            mod = __import__(module_name)
+            mod.unregister()
+        except:
+            traceback.print_exc()
+
+        addons = context.user_preferences.addons
+        ok = True
+        while ok: # incase its in more then once.
+            ok = False
+            for ext in addons:
+                if ext.module == module_name:
+                    addons.remove(ext)
+                    ok = True
+                    break
+
+        return {'FINISHED'}
+
+
+class WM_OT_addon_install(bpy.types.Operator):
+    "Install an addon"
+    bl_idname = "wm.addon_install"
+    bl_label = "Install Add-On..."
+
+    module = StringProperty(name="Module", description="Module name of the addon to disable")
+
+    path = StringProperty(name="File Path", description="File path to write file to")
+    filename = StringProperty(name="File Name", description="Name of the file")
+    directory = StringProperty(name="Directory", description="Directory of the file")
+    filter_folder = BoolProperty(name="Filter folders", description="", default=True, options={'HIDDEN'})
+    filter_python = BoolProperty(name="Filter python", description="", default=True, options={'HIDDEN'})
+
+    def execute(self, context):
+        import traceback
+        import zipfile
+        pyfile = self.properties.path
+
+        path_addons = bpy.utils.script_paths("addons")[-1]
+
+        #check to see if the file is in compressed format (.zip)
+        if zipfile.is_zipfile(pyfile):
+            try:
+                file_to_extract = zipfile.ZipFile(pyfile, 'r')
+
+                #extract the file to "addons"
+                file_to_extract.extractall(path_addons)
+
+            except:
+                traceback.print_exc()
+                return {'CANCELLED'}
+
+        else:
+            path_dest = os.path.join(path_addons, os.path.basename(pyfile))
+
+            if os.path.exists(path_dest):
+                self.report({'WARNING'}, "File already installed to '%s'\n" % path_dest)
+                return {'CANCELLED'}
+
+            #if not compressed file just copy into the addon path
+            try:
+                shutil.copyfile(pyfile, path_dest)
+
+            except:
+                traceback.print_exc()
+                return {'CANCELLED'}
+
+        # TODO, should not be a warning.
+        # self.report({'WARNING'}, "File installed to '%s'\n" % path_dest)
+        return {'FINISHED'}
+
+    def invoke(self, context, event):
+        paths = bpy.utils.script_paths("addons")
+        if not paths:
+            self.report({'ERROR'}, "No 'addons' path could be found in " + str(bpy.utils.script_paths()))
+            return {'CANCELLED'}
+
+        wm = context.manager
+        wm.add_fileselect(self)
+        return {'RUNNING_MODAL'}
+
+
+class WM_OT_addon_expand(bpy.types.Operator):
+    "Display more information on this add-on"
+    bl_idname = "wm.addon_expand"
+    bl_label = ""
+
+    module = StringProperty(name="Module", description="Module name of the addon to expand")
+
+    def execute(self, context):
+        module_name = self.properties.module
+
+        # unlikely to fail, module should have alredy been imported
+        try:
+            mod = __import__(module_name)
+        except:
+            import traceback
+            traceback.print_exc()
+            return {'CANCELLED'}
+
+        info = addon_info_get(mod)
+        info["expanded"] = not info["expanded"]
+        return {'FINISHED'}
+
+
+class WM_OT_addon_links(bpy.types.Operator):
+    "Open the Blender Wiki in the Webbrowser"
+    bl_idname = "wm.addon_links"
+    bl_label = ""
+
+    link = StringProperty(name="Link", description="Link to open")
+
+    def execute(self, context):
+        import webbrowser
+        webbrowser.open(self.properties.link)
+        return {'FINISHED'}
 
 
 class WM_OT_keyconfig_test(bpy.types.Operator):
@@ -1370,9 +1716,9 @@ class WM_OT_keyconfig_test(bpy.types.Operator):
 
         def kmistr(kmi):
             if km.modal:
-                s = ["kmi = km.add_modal_item(\'%s\', \'%s\', \'%s\'" % (kmi.propvalue, kmi.type, kmi.value)]
+                s = ["kmi = km.items.add_modal(\'%s\', \'%s\', \'%s\'" % (kmi.propvalue, kmi.type, kmi.value)]
             else:
-                s = ["kmi = km.add_item(\'%s\', \'%s\', \'%s\'" % (kmi.idname, kmi.type, kmi.value)]
+                s = ["kmi = km.items.add(\'%s\', \'%s\', \'%s\'" % (kmi.idname, kmi.type, kmi.value)]
 
             if kmi.any:
                 s.append(", any=True")
@@ -1469,27 +1815,10 @@ class WM_OT_keyconfig_test(bpy.types.Operator):
 
 
 def _string_value(value):
-    result = ""
-    if isinstance(value, str):
-        if value != "":
-            result = "\'%s\'" % value
-    elif isinstance(value, bool):
-        if value:
-            result = "True"
-        else:
-            result = "False"
-    elif isinstance(value, float):
-        result = "%.10f" % value
-    elif isinstance(value, int):
-        result = "%d" % value
+    if isinstance(value, str) or isinstance(value, bool) or isinstance(value, float) or isinstance(value, int):
+        result = repr(value)
     elif getattr(value, '__len__', False):
-        if len(value):
-            result = "["
-            for i in range(0, len(value)):
-                result += _string_value(value[i])
-                if i != len(value)-1:
-                    result += ", "
-            result += "]"
+        repr(list(value))
     else:
         print("Export key configuration: can't write ", value)
 
@@ -1501,14 +1830,14 @@ class WM_OT_keyconfig_import(bpy.types.Operator):
     bl_idname = "wm.keyconfig_import"
     bl_label = "Import Key Configuration..."
 
-    path = bpy.props.StringProperty(name="File Path", description="File path to write file to")
-    filename = bpy.props.StringProperty(name="File Name", description="Name of the file")
-    directory = bpy.props.StringProperty(name="Directory", description="Directory of the file")
-    filter_folder = bpy.props.BoolProperty(name="Filter folders", description="", default=True, options={'HIDDEN'})
-    filter_text = bpy.props.BoolProperty(name="Filter text", description="", default=True, options={'HIDDEN'})
-    filter_python = bpy.props.BoolProperty(name="Filter python", description="", default=True, options={'HIDDEN'})
+    path = StringProperty(name="File Path", description="File path to write file to")
+    filename = StringProperty(name="File Name", description="Name of the file")
+    directory = StringProperty(name="Directory", description="Directory of the file")
+    filter_folder = BoolProperty(name="Filter folders", description="", default=True, options={'HIDDEN'})
+    filter_text = BoolProperty(name="Filter text", description="", default=True, options={'HIDDEN'})
+    filter_python = BoolProperty(name="Filter python", description="", default=True, options={'HIDDEN'})
 
-    keep_original = bpy.props.BoolProperty(name="Keep original", description="Keep original file after copying to configuration folder", default=True)
+    keep_original = BoolProperty(name="Keep original", description="Keep original file after copying to configuration folder", default=True)
 
     def execute(self, context):
         if not self.properties.path:
@@ -1542,9 +1871,9 @@ class WM_OT_keyconfig_import(bpy.types.Operator):
         else:
             shutil.move(self.properties.path, path)
 
-        __import__(config_name)
+        exec("import " + config_name)
 
-        wm = bpy.data.window_managers[0]
+        wm = bpy.context.manager
         wm.active_keyconfig = wm.keyconfigs[config_name]
 
         return {'FINISHED'}
@@ -1560,12 +1889,12 @@ class WM_OT_keyconfig_export(bpy.types.Operator):
     bl_idname = "wm.keyconfig_export"
     bl_label = "Export Key Configuration..."
 
-    path = bpy.props.StringProperty(name="File Path", description="File path to write file to")
-    filename = bpy.props.StringProperty(name="File Name", description="Name of the file")
-    directory = bpy.props.StringProperty(name="Directory", description="Directory of the file")
-    filter_folder = bpy.props.BoolProperty(name="Filter folders", description="", default=True, options={'HIDDEN'})
-    filter_text = bpy.props.BoolProperty(name="Filter text", description="", default=True, options={'HIDDEN'})
-    filter_python = bpy.props.BoolProperty(name="Filter python", description="", default=True, options={'HIDDEN'})
+    path = StringProperty(name="File Path", description="File path to write file to")
+    filename = StringProperty(name="File Name", description="Name of the file")
+    directory = StringProperty(name="Directory", description="Directory of the file")
+    filter_folder = BoolProperty(name="Filter folders", description="", default=True, options={'HIDDEN'})
+    filter_text = BoolProperty(name="Filter text", description="", default=True, options={'HIDDEN'})
+    filter_python = BoolProperty(name="Filter python", description="", default=True, options={'HIDDEN'})
 
     def execute(self, context):
         if not self.properties.path:
@@ -1586,7 +1915,7 @@ class WM_OT_keyconfig_export(bpy.types.Operator):
         f.write("# Configuration %s\n" % name)
 
         f.write("import bpy\n\n")
-        f.write("wm = bpy.data.window_managers[0]\n")
+        f.write("wm = bpy.context.manager\n")
         f.write("kc = wm.add_keyconfig('%s')\n\n" % name)
 
         for km in kc.keymaps:
@@ -1595,9 +1924,9 @@ class WM_OT_keyconfig_export(bpy.types.Operator):
             f.write("km = kc.add_keymap('%s', space_type='%s', region_type='%s', modal=%s)\n\n" % (km.name, km.space_type, km.region_type, km.modal))
             for kmi in km.items:
                 if km.modal:
-                    f.write("kmi = km.add_modal_item('%s', '%s', '%s'" % (kmi.propvalue, kmi.type, kmi.value))
+                    f.write("kmi = km.items.add_modal('%s', '%s', '%s'" % (kmi.propvalue, kmi.type, kmi.value))
                 else:
-                    f.write("kmi = km.add_item('%s', '%s', '%s'" % (kmi.idname, kmi.type, kmi.value))
+                    f.write("kmi = km.items.add('%s', '%s', '%s'" % (kmi.idname, kmi.type, kmi.value))
                 if kmi.any:
                     f.write(", any=True")
                 else:
@@ -1701,9 +2030,9 @@ class WM_OT_keyitem_add(bpy.types.Operator):
         kc = wm.default_keyconfig
 
         if km.modal:
-            km.add_modal_item("", 'A', 'PRESS') # kmi
+            km.items.add_modal("", 'A', 'PRESS') # kmi
         else:
-            km.add_item("none", 'A', 'PRESS') # kmi
+            km.items.add("none", 'A', 'PRESS') # kmi
 
         # clear filter and expand keymap so we can see the newly added item
         if kc.filter != '':
@@ -1755,12 +2084,45 @@ class WM_OT_keyconfig_remove(bpy.types.Operator):
         wm.remove_keyconfig(keyconfig)
         return {'FINISHED'}
 
-bpy.types.register(WM_OT_keyconfig_export)
-bpy.types.register(WM_OT_keyconfig_import)
-bpy.types.register(WM_OT_keyconfig_test)
-bpy.types.register(WM_OT_keyconfig_remove)
-bpy.types.register(WM_OT_keymap_edit)
-bpy.types.register(WM_OT_keymap_restore)
-bpy.types.register(WM_OT_keyitem_add)
-bpy.types.register(WM_OT_keyitem_remove)
-bpy.types.register(WM_OT_keyitem_restore)
+
+classes = [
+    USERPREF_HT_header,
+    USERPREF_PT_tabs,
+    USERPREF_PT_interface,
+    USERPREF_PT_theme,
+    USERPREF_PT_edit,
+    USERPREF_PT_system,
+    USERPREF_PT_file,
+    USERPREF_PT_input,
+    USERPREF_PT_addons,
+
+    WM_OT_addon_enable,
+    WM_OT_addon_disable,
+    WM_OT_addon_install,
+    WM_OT_addon_expand,
+    WM_OT_addon_links,
+
+    WM_OT_keyconfig_export,
+    WM_OT_keyconfig_import,
+    WM_OT_keyconfig_test,
+    WM_OT_keyconfig_remove,
+    WM_OT_keymap_edit,
+    WM_OT_keymap_restore,
+    WM_OT_keyitem_add,
+    WM_OT_keyitem_remove,
+    WM_OT_keyitem_restore]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

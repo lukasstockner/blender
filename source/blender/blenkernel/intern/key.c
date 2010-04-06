@@ -40,24 +40,19 @@
 #include "BLI_editVert.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_animsys.h"
-#include "BKE_action.h"
-#include "BKE_blender.h"
 #include "BKE_curve.h"
 #include "BKE_customdata.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
 #include "BKE_library.h"
-#include "BKE_mesh.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_utildefines.h"
@@ -183,11 +178,11 @@ Key *copy_key(Key *key)
 void make_local_key(Key *key)
 {
 
-    /* - only lib users: do nothing
-    * - only local users: set flag
-    * - mixed: make copy
-    */
-    if(key==0) return;
+	/* - only lib users: do nothing
+	* - only local users: set flag
+	* - mixed: make copy
+	*/
+	if(key==0) return;
 	
 	key->id.lib= 0;
 	new_id(0, (ID *)key, 0);

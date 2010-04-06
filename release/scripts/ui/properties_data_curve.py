@@ -44,7 +44,7 @@ class DataButtonsPanelActive(DataButtonsPanel):
 
     def poll(self, context):
         curve = context.curve
-        return (curve and curve.active_spline)
+        return (curve and curve.splines.active)
 
 
 class DATA_PT_context_curve(DataButtonsPanel):
@@ -120,10 +120,10 @@ class DATA_PT_shape_curve(DataButtonsPanel):
 
         if is_curve or is_text:
             sub = col.column()
-            sub.active = (curve.dimensions == '2D')
             sub.label(text="Caps:")
             sub.prop(curve, "front")
             sub.prop(curve, "back")
+            sub.prop(curve, "use_deform_fill")
 
         col.label(text="Textures:")
 #       col.prop(curve, "uv_orco")
@@ -204,7 +204,7 @@ class DATA_PT_active_spline(DataButtonsPanelActive):
 
         ob = context.object
         curve = context.curve
-        act_spline = curve.active_spline
+        act_spline = curve.splines.active
         is_surf = (ob.type == 'SURFACE')
         is_poly = (act_spline.type == 'POLY')
 
@@ -383,13 +383,29 @@ class DATA_PT_textboxes(DataButtonsPanel):
             col.prop(box, "y", text="Y")
 
 
-bpy.types.register(DATA_PT_context_curve)
-bpy.types.register(DATA_PT_shape_curve)
-bpy.types.register(DATA_PT_geometry_curve)
-bpy.types.register(DATA_PT_pathanim)
-bpy.types.register(DATA_PT_active_spline)
-bpy.types.register(DATA_PT_font)
-bpy.types.register(DATA_PT_paragraph)
-bpy.types.register(DATA_PT_textboxes)
+classes = [
+    DATA_PT_context_curve,
+    DATA_PT_shape_curve,
+    DATA_PT_geometry_curve,
+    DATA_PT_pathanim,
+    DATA_PT_active_spline,
+    DATA_PT_font,
+    DATA_PT_paragraph,
+    DATA_PT_textboxes,
 
-bpy.types.register(DATA_PT_custom_props_curve)
+    DATA_PT_custom_props_curve]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

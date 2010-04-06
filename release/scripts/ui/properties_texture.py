@@ -23,19 +23,29 @@ from rna_prop_ui import PropertyPanel
 narrowui = 180
 
 
-def active_node_mat(mat):
-    if mat:
-        mat_node = mat.active_node_material
-        if mat_node:
-            return mat_node
-        else:
-            return mat
+class TEXTURE_MT_specials(bpy.types.Menu):
+    bl_label = "Texture Specials"
 
-    return None
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("texture.slot_copy", icon='COPYDOWN')
+        layout.operator("texture.slot_paste", icon='PASTEDOWN')
+
+
+class TEXTURE_MT_envmap_specials(bpy.types.Menu):
+    bl_label = "Environment Map Specials"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("texture.envmap_save", icon='IMAGEFILE')
+        layout.operator("texture.envmap_clear", icon='FILE_REFRESH')
+        layout.operator("texture.envmap_clear_all", icon='FILE_REFRESH')
 
 
 def context_tex_datablock(context):
-    idblock = active_node_mat(context.material)
+    idblock = context.material
     if idblock:
         return idblock
 
@@ -103,6 +113,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
             col = row.column(align=True)
             col.operator("texture.slot_move", text="", icon='TRIA_UP').type = 'UP'
             col.operator("texture.slot_move", text="", icon='TRIA_DOWN').type = 'DOWN'
+            col.menu("TEXTURE_MT_specials", icon='DOWNARROW_HLT', text="")
 
         if wide_ui:
             split = layout.split(percentage=0.65)
@@ -345,7 +356,7 @@ class TEXTURE_PT_influence(TextureSlotPanel):
                 if wide_ui:
                     col = split.column()
                     col.label(text=" ")
-                factor_but(col, tex.map_alpha, "map_coloremission", "coloremission_factor", "Emission Color")
+                factor_but(col, tex.map_coloremission, "map_coloremission", "coloremission_factor", "Emission Color")
                 factor_but(col, tex.map_colortransmission, "map_colortransmission", "colortransmission_factor", "Transmission Color")
                 factor_but(col, tex.map_colorreflection, "map_colorreflection", "colorreflection_factor", "Reflection Color")
 
@@ -577,6 +588,19 @@ class TEXTURE_PT_image(TextureTypePanel):
         layout.template_image(tex, "image", tex.image_user)
 
 
+def texture_filter_common(tex, layout):
+    layout.label(text="Filter:")
+    layout.prop(tex, "filter", text="")
+    if tex.mipmap and tex.filter in ('AREA', 'EWA', 'FELINE'):
+        if tex.filter == 'FELINE':
+            layout.prop(tex, "filter_probes", text="Probes")
+        else:
+            layout.prop(tex, "filter_eccentricity", text="Eccentricity")
+
+    layout.prop(tex, "filter_size")
+    layout.prop(tex, "filter_size_minimum")
+
+
 class TEXTURE_PT_image_sampling(TextureTypePanel):
     bl_label = "Image Sampling"
     bl_default_closed = True
@@ -608,22 +632,13 @@ class TEXTURE_PT_image_sampling(TextureTypePanel):
         row.active = tex.normal_map
         row.prop(tex, "normal_space", text="")
 
-        col.label(text="Filter:")
-        col.prop(tex, "filter", text="")
-        col.prop(tex, "filter_size")
-        col.prop(tex, "filter_size_minimum")
         col.prop(tex, "mipmap")
-
         row = col.row()
         row.active = tex.mipmap
         row.prop(tex, "mipmap_gauss")
-
         col.prop(tex, "interpolation")
-        if tex.mipmap and tex.filter != 'DEFAULT':
-            if tex.filter == 'FELINE':
-                col.prop(tex, "filter_probes", text="Probes")
-            else:
-                col.prop(tex, "filter_eccentricity", text="Eccentricity")
+
+        texture_filter_common(tex, col)
 
 
 class TEXTURE_PT_image_mapping(TextureTypePanel):
@@ -703,9 +718,50 @@ class TEXTURE_PT_envmap(TextureTypePanel):
     def draw(self, context):
         layout = self.layout
 
-        # tex = context.texture
+        tex = context.texture
+        env = tex.environment_map
 
-        layout.label(text="Nothing yet")
+        wide_ui = context.region.width > narrowui
+
+        row = layout.row()
+        row.prop(env, "source", expand=True)
+        row.menu("TEXTURE_MT_envmap_specials", icon='DOWNARROW_HLT', text="")
+
+        if env.source == 'IMAGE_FILE':
+            layout.template_ID(tex, "image", open="image.open")
+            layout.template_image(tex, "image", tex.image_user, compact=True)
+        else:
+            layout.prop(env, "mapping")
+            if env.mapping == 'PLANE':
+                layout.prop(env, "zoom")
+            layout.prop(env, "viewpoint_object")
+
+            split = layout.split()
+
+            col = split.column()
+            col.prop(env, "ignore_layers")
+            col.prop(env, "resolution")
+            col.prop(env, "depth")
+
+            if wide_ui:
+                col = split.column(align=True)
+
+            col.label(text="Clipping:")
+            col.prop(env, "clip_start", text="Start")
+            col.prop(env, "clip_end", text="End")
+
+
+class TEXTURE_PT_envmap_sampling(TextureTypePanel):
+    bl_label = "Environment Map Sampling"
+    bl_default_closed = True
+    tex_type = 'ENVIRONMENT_MAP'
+
+    def draw(self, context):
+        layout = self.layout
+
+        tex = context.texture
+
+        texture_filter_common(tex, layout)
 
 
 class TEXTURE_PT_musgrave(TextureTypePanel):
@@ -956,29 +1012,50 @@ class TEXTURE_PT_pointdensity_turbulence(TextureButtonsPanel):
         col.prop(pd, "turbulence_depth")
         col.prop(pd, "turbulence_strength")
 
-bpy.types.register(TEXTURE_PT_context_texture)
-bpy.types.register(TEXTURE_PT_preview)
 
-bpy.types.register(TEXTURE_PT_clouds) # Texture Type Panels
-bpy.types.register(TEXTURE_PT_wood)
-bpy.types.register(TEXTURE_PT_marble)
-bpy.types.register(TEXTURE_PT_magic)
-bpy.types.register(TEXTURE_PT_blend)
-bpy.types.register(TEXTURE_PT_stucci)
-bpy.types.register(TEXTURE_PT_image)
-bpy.types.register(TEXTURE_PT_image_sampling)
-bpy.types.register(TEXTURE_PT_image_mapping)
-bpy.types.register(TEXTURE_PT_plugin)
-bpy.types.register(TEXTURE_PT_envmap)
-bpy.types.register(TEXTURE_PT_musgrave)
-bpy.types.register(TEXTURE_PT_voronoi)
-bpy.types.register(TEXTURE_PT_distortednoise)
-bpy.types.register(TEXTURE_PT_voxeldata)
-bpy.types.register(TEXTURE_PT_pointdensity)
-bpy.types.register(TEXTURE_PT_pointdensity_turbulence)
+classes = [
+    TEXTURE_MT_specials,
+    TEXTURE_MT_envmap_specials,
 
-bpy.types.register(TEXTURE_PT_colors)
-bpy.types.register(TEXTURE_PT_mapping)
-bpy.types.register(TEXTURE_PT_influence)
+    TEXTURE_PT_context_texture,
+    TEXTURE_PT_preview,
 
-bpy.types.register(TEXTURE_PT_custom_props)
+    TEXTURE_PT_clouds, # Texture Type Panels
+    TEXTURE_PT_wood,
+    TEXTURE_PT_marble,
+    TEXTURE_PT_magic,
+    TEXTURE_PT_blend,
+    TEXTURE_PT_stucci,
+    TEXTURE_PT_image,
+    TEXTURE_PT_image_sampling,
+    TEXTURE_PT_image_mapping,
+    TEXTURE_PT_plugin,
+    TEXTURE_PT_envmap,
+    TEXTURE_PT_envmap_sampling,
+    TEXTURE_PT_musgrave,
+    TEXTURE_PT_voronoi,
+    TEXTURE_PT_distortednoise,
+    TEXTURE_PT_voxeldata,
+    TEXTURE_PT_pointdensity,
+    TEXTURE_PT_pointdensity_turbulence,
+
+    TEXTURE_PT_colors,
+    TEXTURE_PT_mapping,
+    TEXTURE_PT_influence,
+
+    TEXTURE_PT_custom_props]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

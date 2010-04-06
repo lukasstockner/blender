@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,13 +29,8 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_view3d_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -50,19 +45,15 @@
 #include "BKE_utildefines.h"
 #include "BKE_image.h"
 
-#include "ED_armature.h"
-#include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_object.h"
 
 #include "BIF_gl.h"
 
+
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
 
 #include "RNA_access.h"
 
@@ -230,7 +221,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar= MEM_callocN(sizeof(ARegion), "toolshelf for view3d");
 	
 	BLI_addtail(&v3d->regionbase, ar);
-	ar->regiontype= RGN_TYPE_UI;
+	ar->regiontype= RGN_TYPE_TOOLS;
 	ar->alignment= RGN_ALIGN_LEFT;
 	ar->flag = RGN_FLAG_HIDDEN;
 	
@@ -238,7 +229,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	ar= MEM_callocN(sizeof(ARegion), "tool properties for view3d");
 	
 	BLI_addtail(&v3d->regionbase, ar);
-	ar->regiontype= RGN_TYPE_UI;
+	ar->regiontype= RGN_TYPE_TOOL_PROPS;
 	ar->alignment= RGN_ALIGN_BOTTOM|RGN_SPLIT_PREV;
 	ar->flag = RGN_FLAG_HIDDEN;
 	
@@ -602,8 +593,13 @@ static void view3d_main_area_listener(ARegion *ar, wmNotifier *wmn)
 			ED_region_tag_redraw(ar);
 			break;
 		case NC_SPACE:
-			if(wmn->data == ND_SPACE_VIEW3D)
+			if(wmn->data == ND_SPACE_VIEW3D) {
+				if (wmn->subtype == NS_VIEW3D_GPU) {
+					RegionView3D *rv3d= ar->regiondata;
+					rv3d->rflag |= RV3D_GPULIGHT_UPDATE;
+				}
 				ED_region_tag_redraw(ar);
+			}
 			break;
 		case NC_ID:
 			if(wmn->action == NA_RENAME)
@@ -751,6 +747,10 @@ static void view3d_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 			if(wmn->action == NA_RENAME)
 				ED_region_tag_redraw(ar);
 			break;
+		case NC_SCREEN: 
+			if(wmn->data == ND_GPENCIL)
+				ED_region_tag_redraw(ar);
+			break;
 	}
 }
 
@@ -883,7 +883,7 @@ void space_view3d_listener(struct ScrArea *area, struct wmNotifier *wmn)
 		for (; bgpic; bgpic = bgpic->next) {
 			if (bgpic->ima) {
 				Scene *scene = wmn->reference;
-				BKE_image_user_calc_imanr(&bgpic->iuser, scene->r.cfra, 0);
+				BKE_image_user_calc_frame(&bgpic->iuser, scene->r.cfra, 0);
 			}
 		}
 	}

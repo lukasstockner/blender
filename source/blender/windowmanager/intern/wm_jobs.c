@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -48,9 +48,7 @@
 #include "wm_event_types.h"
 #include "wm.h"
 
-#include "ED_screen.h"
 
-#include "RNA_types.h"
 
 /* ********************** Threaded Jobs Manager ****************************** */
 
@@ -69,11 +67,11 @@ Start or re-run job
 
 Stop job
   - signal job to end
-    on end, job will tag itself as sleeping
+	on end, job will tag itself as sleeping
 
 Remove job
 - signal job to end
-    on end, job will remove itself
+	on end, job will remove itself
 
 When job is done:
 - it puts timer to sleep (or removes?)
@@ -302,6 +300,20 @@ void WM_jobs_stop(wmWindowManager *wm, void *owner)
 			if(steve->running)
 				steve->stop= 1;
 }
+
+/* actually terminate thread and job timer */
+void WM_jobs_kill(wmWindowManager *wm, void *owner)
+{
+	wmJob *steve;
+	
+	for(steve= wm->jobs.first; steve; steve= steve->next)
+		if(steve->owner==owner)
+			break;
+	
+	if (steve) 
+		wm_jobs_kill_job(wm, steve);
+}
+
 
 /* kill job entirely, also removes timer itself */
 void wm_jobs_timer_ended(wmWindowManager *wm, wmTimer *wt)

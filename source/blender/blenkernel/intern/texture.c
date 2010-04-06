@@ -42,28 +42,21 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_rand.h"
 #include "BLI_kdopbvh.h"
 
-#include "DNA_texture_types.h"
 #include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
-#include "DNA_image_types.h"
 #include "DNA_world_types.h"
 #include "DNA_brush_types.h"
 #include "DNA_node_types.h"
 #include "DNA_color_types.h"
-#include "DNA_scene_types.h"
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
 #include "BKE_plugin_types.h"
-
 #include "BKE_utildefines.h"
-
 #include "BKE_global.h"
 #include "BKE_main.h"
 
@@ -73,7 +66,6 @@
 #include "BKE_texture.h"
 #include "BKE_key.h"
 #include "BKE_icons.h"
-#include "BKE_brush.h"
 #include "BKE_node.h"
 #include "BKE_animsys.h"
 
@@ -420,6 +412,7 @@ void free_texture(Tex *tex)
 	if(tex->env) BKE_free_envmap(tex->env);
 	if(tex->pd) BKE_free_pointdensity(tex->pd);
 	if(tex->vd) BKE_free_voxeldata(tex->vd);
+	BKE_free_animdata((struct ID *)tex);
 	BKE_previewimg_free(&tex->preview);
 	BKE_icon_delete((struct ID*)tex);
 	tex->id.icon_id = 0;
@@ -482,10 +475,10 @@ void default_tex(Tex *tex)
 	tex->vn_coltype = 0;
 
 	if (tex->env) {
-		tex->env->stype=ENV_STATIC;
+		tex->env->stype=ENV_ANIM;
 		tex->env->clipsta=0.1;
 		tex->env->clipend=100;
-		tex->env->cuberes=100;
+		tex->env->cuberes=600;
 		tex->env->depth=0;
 	}
 
@@ -650,9 +643,9 @@ void make_local_texture(Tex *tex)
 	int a, local=0, lib=0;
 
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(tex->id.lib==0) return;
 
@@ -1039,10 +1032,11 @@ EnvMap *BKE_add_envmap(void)
 	
 	env= MEM_callocN(sizeof(EnvMap), "envmap");
 	env->type= ENV_CUBE;
-	env->stype= ENV_STATIC;
+	env->stype= ENV_ANIM;
 	env->clipsta= 0.1;
 	env->clipend= 100.0;
-	env->cuberes= 100;
+	env->cuberes= 600;
+	env->viewscale = 0.5;
 	
 	return env;
 } 
@@ -1107,7 +1101,6 @@ PointDensity *BKE_add_pointdensity(void)
 	pd->coba = add_colorband(1);
 	pd->speed_scale = 1.0f;
 	pd->totpoints = 0;
-	pd->coba = add_colorband(1);
 	pd->object = NULL;
 	pd->psys = 0;
 	return pd;

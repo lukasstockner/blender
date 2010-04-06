@@ -1,5 +1,5 @@
 /**
- * $Id: BKE_idprop.h
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -82,6 +82,9 @@ void IDP_UnlinkID(struct IDProperty *prop);
 
 /*-------- Group Functions -------*/
 
+/* Sync values from one group to another, only where they match */
+void IDP_SyncGroupValues(struct IDProperty *dest, struct IDProperty *src);
+
 /*
  replaces all properties with the same name in a destination group from a source group.
 */
@@ -111,7 +114,7 @@ int IDP_AddToGroup(struct IDProperty *group, struct IDProperty *prop);
 /*this is the same as IDP_AddToGroup, only you pass an item
   in the group list to be inserted after.*/
 int IDP_InsertToGroup(struct IDProperty *group, struct IDProperty *previous, 
-                      struct IDProperty *pnew);
+					  struct IDProperty *pnew);
 
 /*NOTE: this does not free the property!!
 

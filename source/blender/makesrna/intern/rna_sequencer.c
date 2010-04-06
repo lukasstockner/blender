@@ -27,7 +27,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -35,6 +34,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_sequencer.h"
 
 #include "MEM_guardedalloc.h"
@@ -235,22 +235,20 @@ static int rna_Sequence_name_length(PointerRNA *ptr)
 static void rna_Sequence_name_set(PointerRNA *ptr, const char *value)
 {
 	Scene *scene= (Scene*)ptr->id.data;
-//	Editing *ed= seq_give_editing(scene, FALSE);
 	Sequence *seq= (Sequence*)ptr->data;
-//	Sequence *iseq;
+	char oldname[sizeof(seq->name)];
+	
+	/* make a copy of the old name first */
+	BLI_strncpy(oldname, seq->name+2, sizeof(seq->name)-2);
+	
+	/* copy the new name into the name slot */
 	BLI_strncpy(seq->name+2, value, sizeof(seq->name)-2);
-
-	seqUniqueName(&scene->ed->seqbase, seq);
-
-	// TODO, unique name for all meta's
-	/*
-	SEQ_BEGIN(ed, iseq) {
-		if(iseq->seqbase.first)
-			seqUniqueName(&iseq->seqbase, seq);
-
-	}
-	SEQ_END
-	*/
+	
+	/* make sure the name is unique */
+	seqbase_unique_name_recursive(&scene->ed->seqbase, seq);
+	
+	/* fix all the animation data which may link to this */
+	BKE_all_animdata_fix_paths_rename("sequence_editor.sequences_all", oldname, seq->name+2);
 }
 
 static StructRNA* rna_Sequence_refine(struct PointerRNA *ptr)
@@ -315,22 +313,40 @@ static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *
 	return rna_pointer_inherit_refine(&iter->parent, &RNA_Sequence, ms->parseq);
 }
 
-static void rna_MovieSequence_filename_set(PointerRNA *ptr, const char *value)
+static void rna_Sequence_filepath_set(PointerRNA *ptr, const char *value)
 {
 	Sequence *seq= (Sequence*)(ptr->data);
 	char dir[FILE_MAX], name[FILE_MAX];
 
-	BLI_split_dirfile_basic(value, dir, name);
+	BLI_split_dirfile(value, dir, name);
 	BLI_strncpy(seq->strip->dir, dir, sizeof(seq->strip->dir));
 	BLI_strncpy(seq->strip->stripdata->name, name, sizeof(seq->strip->stripdata->name));
 }
 
-static void rna_SoundSequence_filename_set(PointerRNA *ptr, const char *value)
+static void rna_Sequence_filepath_get(PointerRNA *ptr, char *value)
+{
+	Sequence *seq= (Sequence*)(ptr->data);
+	char path[FILE_MAX];
+
+	BLI_join_dirfile(path, seq->strip->dir, seq->strip->stripdata->name);
+	BLI_strncpy(value, path, strlen(path)+1);
+}
+
+static int rna_Sequence_filepath_length(PointerRNA *ptr)
+{
+	Sequence *seq= (Sequence*)(ptr->data);
+	char path[FILE_MAX];
+
+	BLI_join_dirfile(path, seq->strip->dir, seq->strip->stripdata->name);
+	return strlen(path)+1;
+}
+
+/*static void rna_SoundSequence_filename_set(PointerRNA *ptr, const char *value)
 {
 	Sequence *seq= (Sequence*)(ptr->data);
 	char dir[FILE_MAX], name[FILE_MAX];
 
-	BLI_split_dirfile_basic(value, dir, name);
+	BLI_split_dirfile(value, dir, name);
 	BLI_strncpy(seq->strip->dir, dir, sizeof(seq->strip->dir));
 	BLI_strncpy(seq->strip->stripdata->name, name, sizeof(seq->strip->stripdata->name));
 }
@@ -340,9 +356,9 @@ static void rna_SequenceElement_filename_set(PointerRNA *ptr, const char *value)
 	StripElem *elem= (StripElem*)(ptr->data);
 	char name[FILE_MAX];
 
-	BLI_split_dirfile_basic(value, NULL, name);
+	BLI_split_dirfile(value, NULL, name);
 	BLI_strncpy(elem->name, name, sizeof(elem->name));
-}
+}*/
 
 static void rna_Sequence_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -381,8 +397,9 @@ static void rna_def_strip_element(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Sequence Element", "Sequence strip data for a single frame");
 	RNA_def_struct_sdna(srna, "StripElem");
 	
-	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
+	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILENAME);
 	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Filename", "");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SequenceElement_filename_set");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
@@ -429,7 +446,7 @@ static void rna_def_strip_transform(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "offset_x", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "xofs");
-	RNA_def_property_ui_text(prop, "Offset Y", "");
+	RNA_def_property_ui_text(prop, "Offset X", "");
 	RNA_def_property_ui_range(prop, -4096, 4096, 1, 0);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
@@ -611,47 +628,47 @@ static void rna_def_sequence(BlenderRNA *brna)
 	RNA_def_property_int_funcs(prop, "rna_Sequence_length_get", "rna_Sequence_length_set",NULL);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "start_frame", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "start");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Start Frame", "");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Sequence_start_frame_set",NULL); // overlap tests and calc_seq_disp
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "start_frame_final", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_final_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "startdisp");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Start Frame", "Start frame displayed in the sequence editor after offsets are applied, setting this is equivilent to moving the handle, not the actual start frame");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Sequence_start_frame_final_set", NULL); // overlap tests and calc_seq_disp
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
-	prop= RNA_def_property(srna, "end_frame_final", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_final_end", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "enddisp");
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "End Frame", "End frame displayed in the sequence editor after offsets are applied");
 	RNA_def_property_int_funcs(prop, NULL, "rna_Sequence_end_frame_final_set", NULL); // overlap tests and calc_seq_disp
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
-	prop= RNA_def_property(srna, "start_offset", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_offset_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "startofs");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); // overlap tests
 	RNA_def_property_ui_text(prop, "Start Offset", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "end_offset", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_offset_end", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "endofs");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); // overlap tests
 	RNA_def_property_ui_text(prop, "End offset", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "start_still", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_still_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "startstill");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); // overlap tests
 	RNA_def_property_range(prop, 0, MAXFRAME);
 	RNA_def_property_ui_text(prop, "Start Still", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "end_still", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_still_end", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "endstill");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); // overlap tests
 	RNA_def_property_range(prop, 0, MAXFRAME);
@@ -903,6 +920,11 @@ static void rna_def_scene(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Scene", "Scene that this sequence uses");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
+	prop= RNA_def_property(srna, "scene_camera", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Camera Override", "Override the scenes active camera");
+	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
+
 	rna_def_filter_video(srna);
 	rna_def_proxy(srna);
 	rna_def_input(srna);
@@ -923,15 +945,10 @@ static void rna_def_movie(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "MPEG Preseek", "For MPEG movies, preseek this many frames");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
-	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
-	RNA_def_property_string_sdna(prop, NULL, "strip->stripdata->name");
-	RNA_def_property_ui_text(prop, "Filename", "");
-	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_MovieSequence_filename_set");
-	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
-
-	prop= RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
-	RNA_def_property_string_sdna(prop, NULL, "strip->dir");
-	RNA_def_property_ui_text(prop, "Directory", "");
+	prop= RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_ui_text(prop, "File", "");
+	RNA_def_property_string_funcs(prop, "rna_Sequence_filepath_get", "rna_Sequence_filepath_length",
+										"rna_Sequence_filepath_set");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
 	rna_def_filter_video(srna);
@@ -959,15 +976,10 @@ static void rna_def_sound(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Volume", "Playback volume of the sound");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
-	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
-	RNA_def_property_string_sdna(prop, NULL, "strip->stripdata->name");
-	RNA_def_property_ui_text(prop, "Filename", "");
-	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_SoundSequence_filename_set");
-	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
-
-	prop= RNA_def_property(srna, "directory", PROP_STRING, PROP_DIRPATH);
-	RNA_def_property_string_sdna(prop, NULL, "strip->dir");
-	RNA_def_property_ui_text(prop, "Directory", "");
+	prop= RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_ui_text(prop, "File", "");
+	RNA_def_property_string_funcs(prop, "rna_Sequence_filepath_get", "rna_Sequence_filepath_length", 
+										"rna_Sequence_filepath_set");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
 	rna_def_input(srna);

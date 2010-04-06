@@ -35,13 +35,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_constraint_types.h"
-#include "DNA_object_types.h"
-#include "DNA_action_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_text_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
 #include "PIL_time.h"
@@ -221,6 +215,7 @@ static int open_exec(bContext *C, wmOperator *op)
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
 	char str[FILE_MAX];
+	short internal = RNA_int_get(op->ptr, "internal");
 
 	RNA_string_get(op->ptr, "path", str);
 
@@ -249,6 +244,13 @@ static int open_exec(bContext *C, wmOperator *op)
 	else if(st) {
 		st->text= text;
 		st->top= 0;
+	}
+	
+	if (internal) {
+		if(text->name)
+			MEM_freeN(text->name);
+		
+		text->name = NULL;
 	}
 
 	WM_event_add_notifier(C, NC_TEXT|NA_ADDED, text);
@@ -288,6 +290,7 @@ void TEXT_OT_open(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FOLDERFILE|TEXTFILE|PYSCRIPTFILE, FILE_SPECIAL, FILE_OPENFILE);
+	RNA_def_boolean(ot->srna, "internal", 0, "Make internal", "Make text file internal after loading");
 }
 
 /******************* reload operator *********************/
@@ -420,7 +423,7 @@ static void txt_write_file(Text *text, ReportList *reports)
 	char file[FILE_MAXDIR+FILE_MAXFILE];
 	
 	BLI_strncpy(file, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_convertstringcode(file, G.sce);
+	BLI_path_abs(file, G.sce);
 	
 	fp= fopen(file, "w");
 	if(fp==NULL) {
@@ -1592,15 +1595,23 @@ static int jump_exec(bContext *C, wmOperator *op)
 	int line= RNA_int_get(op->ptr, "line");
 	short nlines= txt_get_span(text->lines.first, text->lines.last)+1;
 
-	if(line < 1 || line > nlines)
-		return OPERATOR_CANCELLED;
-
-	txt_move_toline(text, line-1, 0);
+	if(line < 1)
+		txt_move_toline(text, 1, 0);
+	else if(line > nlines)
+		txt_move_toline(text, nlines-1, 0);
+	else
+		txt_move_toline(text, line-1, 0);
 
 	text_update_cursor_moved(C);
 	WM_event_add_notifier(C, NC_TEXT|ND_CURSOR, text);
 
 	return OPERATOR_FINISHED;
+}
+
+static int jump_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	return WM_operator_props_dialog_popup(C,op,200,100);
+
 }
 
 void TEXT_OT_jump(wmOperatorType *ot)
@@ -1611,7 +1622,7 @@ void TEXT_OT_jump(wmOperatorType *ot)
 	ot->description= "Jump cursor to line";
 	
 	/* api callbacks */
-	ot->invoke=  WM_operator_props_popup;
+	ot->invoke= jump_invoke;
 	ot->exec= jump_exec;
 	ot->poll= text_edit_poll;
 
@@ -1699,7 +1710,7 @@ static void screen_skip(SpaceText *st, int lines)
 {
 	int last;
 
- 	st->top += lines;
+	 st->top += lines;
 
 	last= txt_get_span(st->text->lines.first, st->text->lines.last);
 	last= last - (st->viewlines/2);
@@ -1849,9 +1860,9 @@ void TEXT_OT_scroll(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Scroll";
-    /*don't really see the difference between this and
-      scroll_bar. Both do basically the same thing (aside 
-      from keymaps).*/
+	/*don't really see the difference between this and
+	  scroll_bar. Both do basically the same thing (aside 
+	  from keymaps).*/
 	ot->idname= "TEXT_OT_scroll";
 	ot->description= "Scroll text screen";
 	
@@ -1902,9 +1913,9 @@ void TEXT_OT_scroll_bar(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Scrollbar";
-    /*don't really see the difference between this and
-      scroll. Both do basically the same thing (aside 
-      from keymaps).*/
+	/*don't really see the difference between this and
+	  scroll. Both do basically the same thing (aside 
+	  from keymaps).*/
 	ot->idname= "TEXT_OT_scroll_bar";
 	ot->description= "Scroll text screen";
 	
@@ -2542,7 +2553,7 @@ int text_file_modified(Text *text)
 		return 0;
 
 	BLI_strncpy(file, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_convertstringcode(file, G.sce);
+	BLI_path_abs(file, G.sce);
 
 	if(!BLI_exists(file))
 		return 2;
@@ -2570,7 +2581,7 @@ static void text_ignore_modified(Text *text)
 	if(!text || !text->name) return;
 
 	BLI_strncpy(file, text->name, FILE_MAXDIR+FILE_MAXFILE);
-	BLI_convertstringcode(file, G.sce);
+	BLI_path_abs(file, G.sce);
 
 	if(!BLI_exists(file)) return;
 
@@ -2614,25 +2625,25 @@ static int resolve_conflict_invoke(bContext *C, wmOperator *op, wmEvent *event)
 				/* modified locally and externally, ahhh. offer more possibilites. */
 				pup= uiPupMenuBegin(C, "File Modified Outside and Inside Blender", 0);
 				layout= uiPupMenuLayout(pup);
-				uiItemEnumO(layout, "Reload from disk (ignore local changes)", 0, op->type->idname, "resolution", RESOLVE_RELOAD);
-				uiItemEnumO(layout, "Save to disk (ignore outside changes)", 0, op->type->idname, "resolution", RESOLVE_SAVE);
-				uiItemEnumO(layout, "Make text internal (separate copy)", 0, op->type->idname, "resolution", RESOLVE_MAKE_INTERNAL);
+				uiItemEnumO(layout, op->type->idname, "Reload from disk (ignore local changes)", 0, "resolution", RESOLVE_RELOAD);
+				uiItemEnumO(layout, op->type->idname, "Save to disk (ignore outside changes)", 0, "resolution", RESOLVE_SAVE);
+				uiItemEnumO(layout, op->type->idname, "Make text internal (separate copy)", 0, "resolution", RESOLVE_MAKE_INTERNAL);
 				uiPupMenuEnd(C, pup);
 			}
 			else {
 				pup= uiPupMenuBegin(C, "File Modified Outside Blender", 0);
 				layout= uiPupMenuLayout(pup);
-				uiItemEnumO(layout, "Reload from disk", 0, op->type->idname, "resolution", RESOLVE_RELOAD);
-				uiItemEnumO(layout, "Make text internal (separate copy)", 0, op->type->idname, "resolution", RESOLVE_MAKE_INTERNAL);
-				uiItemEnumO(layout, "Ignore", 0, op->type->idname, "resolution", RESOLVE_IGNORE);
+				uiItemEnumO(layout, op->type->idname, "Reload from disk", 0, "resolution", RESOLVE_RELOAD);
+				uiItemEnumO(layout, op->type->idname, "Make text internal (separate copy)", 0, "resolution", RESOLVE_MAKE_INTERNAL);
+				uiItemEnumO(layout, op->type->idname, "Ignore", 0, "resolution", RESOLVE_IGNORE);
 				uiPupMenuEnd(C, pup);
 			}
 			break;
 		case 2:
 			pup= uiPupMenuBegin(C, "File Deleted Outside Blender", 0);
 			layout= uiPupMenuLayout(pup);
-			uiItemEnumO(layout, "Make text internal", 0, op->type->idname, "resolution", RESOLVE_MAKE_INTERNAL);
-			uiItemEnumO(layout, "Recreate file", 0, op->type->idname, "resolution", RESOLVE_SAVE);
+			uiItemEnumO(layout, op->type->idname, "Make text internal", 0, "resolution", RESOLVE_MAKE_INTERNAL);
+			uiItemEnumO(layout, op->type->idname, "Recreate file", 0, "resolution", RESOLVE_SAVE);
 			uiPupMenuEnd(C, pup);
 			break;
 	}

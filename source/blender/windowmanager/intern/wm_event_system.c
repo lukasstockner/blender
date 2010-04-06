@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -28,6 +28,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "DNA_listBase.h"
 #include "DNA_screen_types.h"
@@ -50,11 +51,11 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
+#include "BKE_sound.h"
 
 #include "ED_fileselect.h"
 #include "ED_info.h"
 #include "ED_screen.h"
-#include "ED_space_api.h"
 #include "ED_util.h"
 
 #include "RNA_access.h"
@@ -69,6 +70,7 @@
 #include "wm_window.h"
 #include "wm_event_system.h"
 #include "wm_event_types.h"
+#include "wm_draw.h"
 
 /* ************ event management ************** */
 
@@ -106,6 +108,17 @@ void wm_event_free_all(wmWindow *win)
 
 /* ********************* notifiers, listeners *************** */
 
+static int wm_test_duplicate_notifier(wmWindowManager *wm, unsigned int type, void *reference)
+{
+	wmNotifier *note;
+
+	for(note=wm->queue.first; note; note=note->next)
+		if((note->category|note->data|note->subtype|note->action) == type && note->reference == reference)
+			return 1;
+	
+	return 0;
+}
+
 /* XXX: in future, which notifiers to send to other windows? */
 void WM_event_add_notifier(const bContext *C, unsigned int type, void *reference)
 {
@@ -132,7 +145,7 @@ void WM_main_add_notifier(unsigned int type, void *reference)
 	Main *bmain= G.main;
 	wmWindowManager *wm= bmain->wm.first;
 
-	if(wm) {
+	if(wm && !wm_test_duplicate_notifier(wm, type, reference)) {
 		wmNotifier *note= MEM_callocN(sizeof(wmNotifier), "notifier");
 		
 		note->wm= wm;
@@ -215,7 +228,7 @@ void wm_event_do_notifiers(bContext *C)
 						
 				}
 			}
-			if(ELEM4(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE)) {
+			if(ELEM5(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
 				ED_info_stats_clear(CTX_data_scene(C));
 				WM_event_add_notifier(C, NC_SPACE|ND_SPACE_INFO, NULL);
 			}
@@ -364,6 +377,9 @@ static void wm_operator_finished(bContext *C, wmOperator *op, int repeat)
 	wmWindowManager *wm= CTX_wm_manager(C);
 
 	op->customdata= NULL;
+
+	/* add reports to the global list, otherwise they are not seen */
+	addlisttolist(&CTX_wm_reports(C)->list, &op->reports->list);
 
 	/* we don't want to do undo pushes for operators that are being
 	   called from operators that already do an undo push. usually
@@ -535,7 +551,7 @@ static void wm_region_mouse_co(bContext *C, wmEvent *event)
 	}
 }
 
-static int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerRNA *properties, ReportList *reports)
+int wm_operator_invoke(bContext *C, wmOperatorType *ot, wmEvent *event, PointerRNA *properties, ReportList *reports)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
 	int retval= OPERATOR_PASS_THROUGH;
@@ -1208,6 +1224,10 @@ static int wm_handler_fileselect_call(bContext *C, ListBase *handlers, wmEventHa
 							if(G.f & G_DEBUG)
 								wm_operator_print(handler->op);
 						
+						if(wm->op_undo_depth == 0)
+							if(handler->op->type->flag & OPTYPE_UNDO)
+								ED_undo_push_op(C, handler->op);
+
 						if(handler->op->reports->list.first) {
 
 							/* FIXME, temp setting window, this is really bad!
@@ -1443,9 +1463,7 @@ static void wm_paintcursor_tag(bContext *C, wmPaintCursor *pc, ARegion *ar)
 			if(pc->poll == NULL || pc->poll(C)) {
 				wmWindow *win= CTX_wm_window(C);
 				win->screen->do_draw_paintcursor= 1;
-
-				if(win->drawmethod != USER_DRAW_TRIPLE)
-					ED_region_tag_redraw(ar);
+				wm_tag_redraw_overlay(win, ar);
 			}
 		}
 	}
@@ -1526,6 +1544,37 @@ void wm_event_do_handlers(bContext *C)
 		
 		if( win->screen==NULL )
 			wm_event_free_all(win);
+		else
+		{
+			Scene* scene = win->screen->scene;
+			if(scene)
+			{
+				int playing = sound_scene_playing(win->screen->scene);
+				if(playing != -1)
+				{
+					CTX_wm_window_set(C, win);
+					CTX_wm_screen_set(C, win->screen);
+					CTX_data_scene_set(C, scene);
+					if(((playing == 1) && (!win->screen->animtimer)) || ((playing == 0) && (win->screen->animtimer)))
+					{
+						ED_screen_animation_play(C, -1, 1);
+					}
+					if(playing == 0)
+					{
+						int ncfra = floor(sound_sync_scene(scene) * FPS);
+						if(ncfra != scene->r.cfra)
+						{
+							scene->r.cfra = ncfra;
+							ED_update_for_newframe(C, 1);
+							WM_event_add_notifier(C, NC_WINDOW, NULL);
+						}
+					}
+					CTX_data_scene_set(C, NULL);
+					CTX_wm_screen_set(C, NULL);
+					CTX_wm_window_set(C, NULL);
+				}
+			}
+		}
 		
 		while( (event= win->queue.first) ) {
 			int action = WM_HANDLER_CONTINUE;
@@ -1881,7 +1930,8 @@ void WM_event_add_mousemove(bContext *C)
 int WM_modal_tweak_exit(wmEvent *evt, int tweak_event)
 {
 	/* user preset or keymap? dunno... */
-	int tweak_modal= (U.flag & USER_DRAGIMMEDIATE)==0;
+	// XXX WTH is this?
+	int tweak_modal= (U.flag & USER_RELEASECONFIRM)==0;
 	
 	switch(tweak_event) {
 		case EVT_TWEAK_L:

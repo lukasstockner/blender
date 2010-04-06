@@ -1,5 +1,5 @@
 /**
- * $Id: 
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -41,16 +41,11 @@ editmesh_mods.c, UI level access, no geometry changes
 
 
 
-#include "DNA_mesh_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -78,11 +73,9 @@ editmesh_mods.c, UI level access, no geometry changes
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_resources.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_enum_types.h"
 
 #include "ED_mesh.h"
 #include "ED_screen.h"
@@ -104,14 +97,15 @@ static int pupmenu() {return 0;}
 void EM_cache_x_mirror_vert(struct Object *ob, struct EditMesh *em)
 {
 	EditVert *eve, *eve_mirror;
+	int index= 0;
 
 	for(eve= em->verts.first; eve; eve= eve->next) {
 		eve->tmp.v= NULL;
 	}
 
-	for(eve= em->verts.first; eve; eve= eve->next) {
+	for(eve= em->verts.first; eve; eve= eve->next, index++) {
 		if(eve->tmp.v==NULL) {
-			eve_mirror = editmesh_get_x_mirror_vert(ob, em, eve->co);
+			eve_mirror = editmesh_get_x_mirror_vert(ob, em, eve, eve->co, index);
 			if(eve_mirror) {
 				eve->tmp.v= eve_mirror;
 				eve_mirror->tmp.v = eve;
@@ -128,14 +122,15 @@ static void EM_select_mirrored(Object *obedit, EditMesh *em, int extend)
 	EM_cache_x_mirror_vert(obedit, em);
 
 	for(eve= em->verts.first; eve; eve= eve->next) {
-		if(eve->f & SELECT && eve->tmp.v) {
+		if(eve->f & SELECT && eve->tmp.v && (eve->tmp.v != eve->tmp.v->tmp.v)) {
 			eve->tmp.v->f |= SELECT;
 
 			if(extend==FALSE)
 				eve->f &= ~SELECT;
 
 			/* remove the interference */
-			eve->tmp.v->tmp.v= eve->tmp.v= NULL;
+			eve->tmp.v->tmp.v= NULL;
+			eve->tmp.v= NULL;
 		}
 	}
 }
@@ -290,7 +285,7 @@ int EM_mask_init_backbuf_border(ViewContext *vc, short mcords[][2], short tot, s
 	
 	/* yah, opengl doesn't do concave... tsk! */
 	ED_region_pixelspace(vc->ar);
- 	draw_triangulated(mcords, tot);	
+	 draw_triangulated(mcords, tot);	
 	
 	glBegin(GL_LINE_LOOP);	/* for zero sized masks, lines */
 	for(a=0; a<tot; a++) glVertex2s(mcords[a][0], mcords[a][1]);
@@ -792,7 +787,7 @@ static int similar_face_select__internal(Scene *scene, EditMesh *em, int mode)
 				MTFace *tf, *base_tf;
 
 				base_tf = (MTFace*)CustomData_em_get(&em->fdata, base_efa->data,
-				                                     CD_MTFACE);
+													 CD_MTFACE);
 
 				if(!base_tf)
 					return selcount;
@@ -800,7 +795,7 @@ static int similar_face_select__internal(Scene *scene, EditMesh *em, int mode)
 				for(efa= em->faces.first; efa; efa= efa->next) {
 					if (!(efa->f & SELECT) && !efa->h) {
 						tf = (MTFace*)CustomData_em_get(&em->fdata, efa->data,
-						                                CD_MTFACE);
+														CD_MTFACE);
 
 						if(base_tf->tpage == tf->tpage) {
 							EM_select_face(efa, 1);
@@ -1316,7 +1311,7 @@ void MESH_OT_select_similar(wmOperatorType *ot)
 
 int mesh_layers_menu_charlen(CustomData *data, int type)
 {
- 	int i, len = 0;
+	 int i, len = 0;
 	/* see if there is a duplicate */
 	for(i=0; i<data->totlayer; i++) {
 		if((&data->layers[i])->type == type) {
@@ -1970,7 +1965,7 @@ static void edgering_select(EditMesh *em, EditEdge *startedge, int select)
 	
 	/* (de)select the edges */
 	for(eed= em->edges.first; eed; eed= eed->next) {
-    		if(eed->f2) EM_select_edge(eed, select);
+			if(eed->f2) EM_select_edge(eed, select);
 	}
 }
 
@@ -2858,6 +2853,8 @@ int select_by_number_vertices_exec(bContext *C, wmOperator *op)
 			EM_select_face(efa, (numverts==3) );
 		}
 	}
+	
+	EM_selectmode_flush(em);
 
 	WM_event_add_notifier(C, NC_GEOM|ND_SELECT, obedit->data);
 	
@@ -2898,7 +2895,7 @@ int select_mirror_exec(bContext *C, wmOperator *op)
 	int extend= RNA_boolean_get(op->ptr, "extend");
 
 	EM_select_mirrored(obedit, em, extend);
-
+	EM_selectmode_flush(em);
 	WM_event_add_notifier(C, NC_GEOM|ND_SELECT, obedit->data);
 
 	return OPERATOR_FINISHED;
@@ -3380,12 +3377,12 @@ void EM_toggle_select_all(EditMesh *em) /* exported for UV */
 	if(EM_nvertices_selected(em))
 		EM_clear_flag_all(em, SELECT);
 	else 
-		EM_set_flag_all(em, SELECT);
+		EM_set_flag_all_selectmode(em, SELECT);
 }
 
 void EM_select_all(EditMesh *em)
 {
-	EM_set_flag_all(em, SELECT);
+	EM_set_flag_all_selectmode(em, SELECT);
 }
 
 void EM_deselect_all(EditMesh *em)
@@ -4239,6 +4236,7 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 	float fvec[3];
 	int teller=0;
 	ModifierData *md;
+	int index;
 
 	/* count */
 	eve= em->verts.first;
@@ -4313,13 +4311,14 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 		eed= eed->next;
 	}
 
+	index= 0;
 	eve= em->verts.first;
 	while(eve) {
 		if(eve->f & SELECT) {
 			if(eve->f1) {
 				
 				if (((Mesh *)obedit->data)->editflag & ME_EDIT_MIRROR_X) {
-					eve_mir= editmesh_get_x_mirror_vert(obedit, em, eve->co);
+					eve_mir= editmesh_get_x_mirror_vert(obedit, em, eve, eve->co, index);
 				}
 				
 				adr = eve->tmp.p;
@@ -4352,6 +4351,7 @@ static int smooth_vertex(bContext *C, wmOperator *op)
 			}
 			eve->tmp.p= NULL;
 		}
+		index++;
 		eve= eve->next;
 	}
 	MEM_freeN(adror);
@@ -4543,7 +4543,7 @@ void MESH_OT_solidify(wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
-	prop= RNA_def_float(ot->srna, "thickness", 0.01f, -FLT_MAX, FLT_MAX, "thickness", "", -10.0f, 10.0f);
+	prop= RNA_def_float(ot->srna, "thickness", 0.01f, -FLT_MAX, FLT_MAX, "Thickness", "", -10.0f, 10.0f);
 	RNA_def_property_ui_range(prop, -10, 10, 0.1, 4);
 }
 

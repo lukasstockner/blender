@@ -1479,15 +1479,15 @@ public:
 				char src[FILE_MAX];
 				char dir[FILE_MAX];
 				
-				BLI_split_dirfile_basic(mfilename, dir, NULL);
+				BLI_split_dirfile(mfilename, dir, NULL);
 
-				BKE_get_image_export_path(image, dir, abs, sizeof(abs), rel, sizeof(rel));
+				BKE_rebase_path(abs, sizeof(abs), rel, sizeof(rel), G.sce, image->name, dir);
 
-				if (strlen(abs)) {
+				if (abs[0] != '\0') {
 
 					// make absolute source path
 					BLI_strncpy(src, image->name, sizeof(src));
-					BLI_convertstringcode(src, G.sce);
+					BLI_path_abs(src, G.sce);
 
 					// make dest directory if it doesn't exist
 					BLI_make_existing_file(abs);
@@ -2049,7 +2049,7 @@ protected:
 			float ctime = bsystem_time(scene, ob_arm, *it, 0.0f);
 
 			BKE_animsys_evaluate_animdata(&ob_arm->id, ob_arm->adt, *it, ADT_RECALC_ANIM);
-			where_is_pose_bone(scene, ob_arm, pchan, ctime);
+			where_is_pose_bone(scene, ob_arm, pchan, ctime, 1);
 
 			// compute bone local mat
 			if (bone->parent) {

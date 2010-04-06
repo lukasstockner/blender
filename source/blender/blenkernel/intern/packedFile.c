@@ -49,17 +49,14 @@
 #include "DNA_sound_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_packedFile_types.h"
-#include "DNA_scene_types.h"
 
 #include "BLI_blenlib.h"
 
 #include "BKE_utildefines.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BKE_screen.h"
 #include "BKE_sound.h"
 #include "BKE_image.h"
-#include "BKE_font.h"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
 
@@ -186,7 +183,7 @@ PackedFile *newPackedFile(ReportList *reports, char *filename)
 	// convert relative filenames to absolute filenames
 	
 	strcpy(name, filename);
-	BLI_convertstringcode(name, G.sce);
+	BLI_path_abs(name, G.sce);
 	
 	// open the file
 	// and create a PackedFile structure
@@ -274,7 +271,7 @@ int writePackedFile(ReportList *reports, char *filename, PackedFile *pf, int gui
 	if (guimode); //XXX  waitcursor(1);
 	
 	strcpy(name, filename);
-	BLI_convertstringcode(name, G.sce);
+	BLI_path_abs(name, G.sce);
 	
 	if (BLI_exists(name)) {
 		for (number = 1; number <= 999; number++) {
@@ -339,7 +336,7 @@ int checkPackedFile(char *filename, PackedFile *pf)
 	char name[FILE_MAXDIR + FILE_MAXFILE];
 	
 	strcpy(name, filename);
-	BLI_convertstringcode(name, G.sce);
+	BLI_path_abs(name, G.sce);
 	
 	if (stat(name, &st)) {
 		ret_val = PF_NOFILE;

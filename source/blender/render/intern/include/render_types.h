@@ -146,7 +146,9 @@ struct Render
 	int partx, party;
 	
 	/* values for viewing */
-	float lens, ycor, viewfac;
+	float lens;
+	float ycor; /* (scene->xasp / scene->yasp), multiplied with 'winy' */
+	
 	float panophi, panosi, panoco, panodxp, panodxv;
 	
 	/* Matrices */
@@ -172,6 +174,7 @@ struct Render
 	Scene *scene;
 	RenderData r;
 	World wrld;
+	unsigned int lay;
 	
 	ListBase parts;
 	
@@ -373,18 +376,18 @@ typedef struct VlakRen {
 
 typedef struct HaloRen
 {	
-    short miny, maxy;
-    float alfa, xs, ys, rad, radsq, sin, cos, co[3], no[3];
+	short miny, maxy;
+	float alfa, xs, ys, rad, radsq, sin, cos, co[3], no[3];
 	float hard, b, g, r;
-    int zs, zd;
-    int zBufDist;	/* depth in the z-buffer coordinate system */
-    char starpoints, type, add, tex;
-    char linec, ringc, seed;
+	int zs, zd;
+	int zBufDist;	/* depth in the z-buffer coordinate system */
+	char starpoints, type, add, tex;
+	char linec, ringc, seed;
 	short flarec; /* used to be a char. why ?*/
-    float hasize;
-    int pixels;
-    unsigned int lay;
-    struct Material *mat;
+	float hasize;
+	int pixels;
+	unsigned int lay;
+	struct Material *mat;
 } HaloRen;
 
 /* ------------------------------------------------------------------------- */

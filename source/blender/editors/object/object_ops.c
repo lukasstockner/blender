@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -33,11 +33,6 @@
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -279,7 +274,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	keymap->poll= object_mode_poll;
 	
 	/* object mode supports PET now */
-	ED_object_generic_keymap(keyconf, keymap, TRUE);
+	ED_object_generic_keymap(keyconf, keymap, 1);
 
 	WM_keymap_add_item(keymap, "VIEW3D_OT_game_start", PKEY, KM_PRESS, 0, 0);
 
@@ -289,6 +284,18 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_grouped", GKEY, KM_PRESS, KM_SHIFT, 0);
 	WM_keymap_add_item(keymap, "OBJECT_OT_select_mirror", MKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
 	
+	kmi= WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", LEFTBRACKETKEY, KM_PRESS, 0, 0);
+		RNA_enum_set_identifier(kmi->ptr, "direction", "PARENT");
+	kmi= WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", LEFTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
+		RNA_enum_set_identifier(kmi->ptr, "direction", "PARENT");
+		RNA_boolean_set(kmi->ptr, "extend", 1);
+
+	kmi= WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
+		RNA_enum_set_identifier(kmi->ptr, "direction", "CHILD");
+	kmi= WM_keymap_add_item(keymap, "OBJECT_OT_select_hierarchy", RIGHTBRACKETKEY, KM_PRESS, KM_SHIFT, 0);
+		RNA_enum_set_identifier(kmi->ptr, "direction", "CHILD");
+		RNA_boolean_set(kmi->ptr, "extend", 1);
+
 	WM_keymap_verify_item(keymap, "OBJECT_OT_parent_set", PKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_verify_item(keymap, "OBJECT_OT_parent_no_inverse_set", PKEY, KM_PRESS, KM_CTRL|KM_SHIFT, 0);
 	WM_keymap_verify_item(keymap, "OBJECT_OT_parent_clear", PKEY, KM_PRESS, KM_ALT, 0);
@@ -330,11 +337,14 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	// XXX this should probably be in screen instead... here for testing purposes in the meantime... - Aligorith
 	WM_keymap_verify_item(keymap, "ANIM_OT_keyframe_insert_menu", IKEY, KM_PRESS, 0, 0);
 	WM_keymap_verify_item(keymap, "ANIM_OT_keyframe_delete_v3d", IKEY, KM_PRESS, KM_ALT, 0);
+	WM_keymap_verify_item(keymap, "ANIM_OT_keying_set_active_set", IKEY, KM_PRESS, KM_CTRL|KM_SHIFT|KM_ALT, 0);
 	
 	WM_keymap_verify_item(keymap, "GROUP_OT_create", GKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_verify_item(keymap, "GROUP_OT_objects_remove", GKEY, KM_PRESS, KM_CTRL|KM_ALT, 0);
 	WM_keymap_verify_item(keymap, "GROUP_OT_objects_add_active", GKEY, KM_PRESS, KM_SHIFT|KM_CTRL, 0);
 	WM_keymap_verify_item(keymap, "GROUP_OT_objects_remove_active", GKEY, KM_PRESS, KM_SHIFT|KM_ALT, 0);
+
+	WM_keymap_add_menu(keymap, "VIEW3D_MT_object_specials", WKEY, KM_PRESS, 0, 0);
 
 	for(i=0; i<=5; i++) {
 		kmi = WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", ZEROKEY+i, KM_PRESS, KM_CTRL, 0);
@@ -352,7 +362,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 		/* menus */
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_hook", HKEY, KM_PRESS, KM_CTRL, 0);
 
-	ED_object_generic_keymap(keyconf, keymap, TRUE);
+	ED_object_generic_keymap(keyconf, keymap, 1);
 }
 
 void ED_object_generic_keymap(struct wmKeyConfig *keyconf, struct wmKeyMap *keymap, int do_pet)
@@ -360,7 +370,7 @@ void ED_object_generic_keymap(struct wmKeyConfig *keyconf, struct wmKeyMap *keym
 	wmKeyMapItem *kmi;
 
 	/* used by mesh, curve & lattice only */
-	if(do_pet) {
+	if(do_pet > 0) {
 		/* context ops */
 		kmi = WM_keymap_add_item(keymap, "WM_OT_context_cycle_enum", OKEY, KM_PRESS, KM_SHIFT, 0);
 		RNA_string_set(kmi->ptr, "path", "tool_settings.proportional_editing_falloff");
@@ -370,10 +380,13 @@ void ED_object_generic_keymap(struct wmKeyConfig *keyconf, struct wmKeyMap *keym
 		RNA_string_set(kmi->ptr, "value_1", "DISABLED");
 		RNA_string_set(kmi->ptr, "value_2", "ENABLED");
 
-		kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", OKEY, KM_PRESS, KM_ALT, 0);
-		RNA_string_set(kmi->ptr, "path", "tool_settings.proportional_editing");
-		RNA_string_set(kmi->ptr, "value_1", "DISABLED");
-		RNA_string_set(kmi->ptr, "value_2", "CONNECTED");
+		/* for modes/object types that allow 'conencted' mode, add the Alt O key */
+		if (do_pet > 1) {
+			kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle_enum", OKEY, KM_PRESS, KM_ALT, 0);
+			RNA_string_set(kmi->ptr, "path", "tool_settings.proportional_editing");
+			RNA_string_set(kmi->ptr, "value_1", "DISABLED");
+			RNA_string_set(kmi->ptr, "value_2", "CONNECTED");
+		}
 	}
 }
 

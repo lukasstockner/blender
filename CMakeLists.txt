@@ -181,11 +181,12 @@ IF(UNIX AND NOT APPLE)
 		ENDIF(NOT SDL_FOUND)
 	ENDIF(WITH_SDL)
 
+    SET(OPENEXR /usr CACHE FILEPATH "OPENEXR Directory")
 	FIND_PATH(OPENEXR_INC
 		ImfXdr.h
 		PATHS
+        ${OPENEXR}/include/OpenEXR
 		/usr/local/include/OpenEXR
-		/usr/include/OpenEXR
 		/sw/include/OpenEXR
 		/opt/local/include/OpenEXR
 		/opt/csw/include/OpenEXR
@@ -193,9 +194,9 @@ IF(UNIX AND NOT APPLE)
 	)
 	SET(OPENEXR_LIB Half IlmImf Iex Imath)
 
-	SET(FFMPEG /usr)
+	SET(FFMPEG /usr CACHE FILEPATH "FFMPEG Directory")
 	SET(FFMPEG_INC ${FFMPEG}/include)
-	SET(FFMPEG_LIB avformat avcodec avutil avdevice swscale)
+	SET(FFMPEG_LIB avformat avcodec avutil avdevice swscale CACHE STRING "FFMPEG Libraries")
 	SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
   
 	IF(WITH_FFTW3)
@@ -276,15 +277,10 @@ IF(WIN32)
 	SET(PYTHON_LIB python31)
 	SET(PYTHON_LIBPATH ${PYTHON}/lib)
 
-	IF(CMAKE_CL_64)
-		SET(WITH_OPENAL OFF)
-	ELSE(CMAKE_CL_64)
-		#SET(WITH_OPENAL ON)
-		SET(OPENAL ${LIBDIR}/openal)
-		SET(OPENAL_INCLUDE_DIR ${OPENAL}/include)
-		SET(OPENAL_LIBRARY wrap_oal)
-		SET(OPENAL_LIBPATH ${OPENAL}/lib)
-	ENDIF(CMAKE_CL_64)
+	SET(OPENAL ${LIBDIR}/openal)
+	SET(OPENAL_INCLUDE_DIR ${OPENAL}/include)
+	SET(OPENAL_LIBRARY wrap_oal)
+	SET(OPENAL_LIBPATH ${OPENAL}/lib)
 
 	IF(WITH_JACK)
 		SET(JACK ${LIBDIR}/jack)
@@ -464,8 +460,8 @@ IF(APPLE)
 	IF(WITH_SNDFILE)
 		SET(SNDFILE ${LIBDIR}/sndfile)
 		SET(SNDFILE_INC ${SNDFILE}/include)
-		SET(SNDFILE_LIB sndfile)
-		SET(SNDFILE_LIBPATH ${SNDFILE}/lib)
+		SET(SNDFILE_LIB sndfile FLAC ogg vorbis vorbisenc)
+		SET(SNDFILE_LIBPATH ${SNDFILE}/lib ${FFMPEG}/lib)
 	ENDIF(WITH_SNDFILE)
 
 	SET(PYTHON_VERSION 3.1)
@@ -508,7 +504,7 @@ IF(APPLE)
 
 	SET(ZLIB /usr)
 	SET(ZLIB_INC "${ZLIB}/include")
-	SET(ZLIB_LIBRARIES z)
+	SET(ZLIB_LIBRARIES z bz2)
 
 	SET(FREETYPE ${LIBDIR}/freetype)
 	SET(FREETYPE_INCLUDE_DIRS ${FREETYPE}/include ${FREETYPE}/include/freetype2)
@@ -521,8 +517,8 @@ IF(APPLE)
 	SET(OPENEXR_LIBPATH ${OPENEXR}/lib)
 
 	SET(FFMPEG ${LIBDIR}/ffmpeg)
-	SET(FFMPEG_INC ${CMAKE_SOURCE_DIR}/extern/ffmpeg)
-	SET(FFMPEG_LIB avcodec avdevice avformat avutil mp3lame swscale x264 xvidcore)
+	SET(FFMPEG_INC ${FFMPEG}/include)
+	SET(FFMPEG_LIB avcodec avdevice avformat avutil mp3lame swscale x264 xvidcore theora theoradec theoraenc vorbis vorbisenc vorbisfile ogg)
 	SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
 
 	SET(LIBSAMPLERATE ${LIBDIR}/samplerate)
@@ -689,4 +685,3 @@ ADD_SUBDIRECTORY(source/creator)
 IF(WITH_PLAYER)
 	ADD_SUBDIRECTORY(source/blenderplayer)
 ENDIF(WITH_PLAYER)
-

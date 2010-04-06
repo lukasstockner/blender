@@ -35,31 +35,20 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_boid_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_group_types.h"
-#include "DNA_ipo_types.h" 	// XXX old animation system stuff to remove!
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_force.h"
-#include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
-#include "DNA_texture_types.h"
 
-#include "BLI_math.h"
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_kdtree.h"
-#include "BLI_listbase.h"
 #include "BLI_rand.h"
 #include "BLI_threads.h"
 
 #include "BKE_anim.h"
+#include "BKE_animsys.h"
 
 #include "BKE_boids.h"
 #include "BKE_cloth.h"
@@ -71,9 +60,7 @@
 #include "BKE_utildefines.h"
 #include "BKE_displist.h"
 #include "BKE_particle.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_object.h"
-#include "BKE_cloth.h"
 #include "BKE_material.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
@@ -254,7 +241,7 @@ void psys_enable_all(Object *ob)
 }
 int psys_in_edit_mode(Scene *scene, ParticleSystem *psys)
 {
-	return (scene->basact && (scene->basact->object->mode & OB_MODE_PARTICLE_EDIT) && psys==psys_get_current((scene->basact)->object) && (psys->edit || psys->pointcache->edit));
+	return (scene->basact && (scene->basact->object->mode & OB_MODE_PARTICLE_EDIT) && psys==psys_get_current((scene->basact)->object) && (psys->edit || psys->pointcache->edit) && !psys->renderdata);
 }
 static void psys_create_frand(ParticleSystem *psys)
 {
@@ -368,8 +355,15 @@ int psys_uses_gravity(ParticleSimulationData *sim)
 /************************************************/
 /*			Freeing stuff						*/
 /************************************************/
+void fluid_free_settings(SPHFluidSettings *fluid)
+{
+	if(fluid)
+		MEM_freeN(fluid); 
+}
+
 void psys_free_settings(ParticleSettings *part)
 {
+	BKE_free_animdata(&part->id);
 	free_partdeflect(part->pd);
 	free_partdeflect(part->pd2);
 
@@ -379,6 +373,7 @@ void psys_free_settings(ParticleSettings *part)
 	BLI_freelistN(&part->dupliweights);
 
 	boid_free_settings(part->boids);
+	fluid_free_settings(part->fluid);
 }
 
 void free_hair(Object *ob, ParticleSystem *psys, int dynamics)
@@ -1065,12 +1060,12 @@ static void get_pointcache_keys_for_time(Object *ob, PointCache *cache, int inde
 			while(pm && pm->next && (float)pm->frame < t)
 				pm = pm->next;
 
-			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] : index, pm->data, (float)pm->frame);
-			BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] : index, pm->prev->data, (float)pm->prev->frame);
+			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame);
+			BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame);
 		}
 		else if(cache->mem_cache.first) {
 			PTCacheMem *pm2 = cache->mem_cache.first;
-			BKE_ptcache_make_particle_key(key2, pm2->index_array ? pm2->index_array[index] : index, pm2->data, (float)pm2->frame);
+			BKE_ptcache_make_particle_key(key2, pm2->index_array ? pm2->index_array[index] - 1 : index, pm2->data, (float)pm2->frame);
 			copy_particle_key(key1, key2, 1);
 		}
 	}
@@ -2938,7 +2933,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	ParticleCacheKey *ca, **cache= edit->pathcache;
 	ParticleEditSettings *pset = &scene->toolsettings->particle;
 	
-	PTCacheEditPoint *point = edit->points;
+	PTCacheEditPoint *point = NULL;
 	PTCacheEditKey *ekey = NULL;
 
 	ParticleSystem *psys = edit->psys;
@@ -2953,7 +2948,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	float hairmat[4][4], rotmat[3][3], prev_tangent[3];
 	int k,i;
 	int steps = (int)pow(2.0, (double)pset->draw_step);
-	int totpart = edit->totpoint;
+	int totpart = edit->totpoint, recalc_set=0;
 	float sel_col[3];
 	float nosel_col[3];
 
@@ -2963,6 +2958,11 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 		/* clear out old and create new empty path cache */
 		psys_free_path_cache(edit->psys, edit);
 		cache= edit->pathcache= psys_alloc_path_cache_buffers(&edit->pathcachebufs, totpart, steps+1);
+
+		/* set flag for update (child particles check this too) */
+		for(i=0, point=edit->points; i<totpart; i++, point++)
+			point->flag |= PEP_EDIT_RECALC;
+		recalc_set = 1;
 	}
 
 	frs_sec = (psys || edit->pid.flag & PTCACHE_VEL_PER_SEC) ? 25.0f : 1.0f;
@@ -2984,7 +2984,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	}
 
 	/*---first main loop: create all actual particles' paths---*/
-	for(i=0; i<totpart; i++, pa+=pa?1:0, point++){
+	for(i=0, point=edit->points; i<totpart; i++, pa+=pa?1:0, point++){
 		if(edit->totcached && !(point->flag & PEP_EDIT_RECALC))
 			continue;
 
@@ -3135,6 +3135,12 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	if(psys && psys->part->type == PART_HAIR) {
 		ParticleSimulationData sim = {scene, ob, psys, psys_get_modifier(ob, psys), NULL};
 		psys_cache_child_paths(&sim, cfra, 1);
+	}
+
+	/* clear recalc flag if set here */
+	if(recalc_set) {
+		for(i=0, point=edit->points; i<totpart; i++, point++)
+			point->flag &= ~PEP_EDIT_RECALC;
 	}
 }
 /************************************************/
@@ -3478,9 +3484,9 @@ void make_local_particlesettings(ParticleSettings *part)
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(part->id.lib==0) return;
 	if(part->id.us==1) {
@@ -4250,7 +4256,7 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim, ParticleData *pa
 		normalize_v3(side);
 		cross_v3_v3v3(nor, vec, side);
 
- 		unit_m4(mat);
+		 unit_m4(mat);
 		VECCOPY(mat[0], vec);
 		VECCOPY(mat[1], side);
 		VECCOPY(mat[2], nor);

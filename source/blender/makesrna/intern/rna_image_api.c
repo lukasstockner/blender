@@ -32,38 +32,26 @@
 #include <time.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #ifdef RNA_RUNTIME
 
 #include "BKE_image.h"
+#include "BKE_packedFile.h"
 #include "BKE_main.h"
 #include "BKE_utildefines.h"
+#include "BKE_global.h" /* grr: G.sce */
+
+#include "IMB_imbuf.h"
+
+#include "BIF_gl.h"
+#include "GPU_draw.h"
 
 #include "DNA_image_types.h"
 #include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
-/*
-  User should check if returned path exists before copying a file there.
-
-  TODO: it would be better to return a (abs, rel) tuple.
-*/
-static char *rna_Image_get_export_path(Image *image, char *dest_dir, int rel)
-{
-	int length = FILE_MAX;
-	char *path= MEM_callocN(length, "image file path");
-
-	if (!BKE_get_image_export_path(image, dest_dir, rel ? NULL : path, length, rel ? path : NULL, length )) {
-		MEM_freeN(path);
-		return NULL;
-	}
-
-	return path;
-}
-
-static void rna_Image_save(Image *image, bContext *C, ReportList *reports, char *path, Scene *scene)
+static void rna_Image_save_render(Image *image, bContext *C, ReportList *reports, char *path, Scene *scene)
 {
 	ImBuf *ibuf;
 
@@ -92,15 +80,85 @@ static void rna_Image_save(Image *image, bContext *C, ReportList *reports, char 
 	}
 }
 
-char *rna_Image_get_abs_filename(Image *image, bContext *C)
+static void rna_Image_save(Image *image, ReportList *reports)
 {
-	char *filename= MEM_callocN(FILE_MAX, "Image.get_abs_filename()");
+	ImBuf *ibuf= BKE_image_get_ibuf(image, NULL);
+	if(ibuf) {
+		char filename[FILE_MAXDIR + FILE_MAXFILE];
+		BLI_strncpy(filename, image->name, sizeof(filename));
+		BLI_path_abs(filename, G.sce);
 
-	BLI_strncpy(filename, image->name, FILE_MAXDIR + FILE_MAXFILE);
-	BLI_convertstringcode(filename, CTX_data_main(C)->name);
-	BLI_convertstringframe(filename, CTX_data_scene(C)->r.cfra, 0);
+		if(image->packedfile) {
+			if (writePackedFile(reports, image->name, image->packedfile, 0) != RET_OK) {
+				BKE_reportf(reports, RPT_ERROR, "Image \"%s\" could saved packed file to \"%s\"", image->id.name+2, image->name);
+			}
+		}
+		else if (IMB_saveiff(ibuf, filename, ibuf->flags)) {
+			image->type= IMA_TYPE_IMAGE;
 
-	return filename;
+			if(image->source==IMA_SRC_GENERATED)
+				image->source= IMA_SRC_FILE;
+
+			ibuf->userflags &= ~IB_BITMAPDIRTY;
+		}
+		else {
+			BKE_reportf(reports, RPT_ERROR, "Image \"%s\" could not be saved to \"%s\"", image->id.name+2, image->name);
+		}
+	}
+	else {
+		BKE_reportf(reports, RPT_ERROR, "Image \"%s\" does not have any image data", image->id.name+2);
+	}
+}
+
+static void rna_Image_reload(Image *image)
+{
+	BKE_image_signal(image, NULL, IMA_SIGNAL_RELOAD);
+}
+
+static void rna_Image_update(Image *image, ReportList *reports)
+{
+	ImBuf *ibuf= BKE_image_get_ibuf(image, NULL);
+
+	if(ibuf == NULL) {
+		BKE_reportf(reports, RPT_ERROR, "Image \"%s\" does not have any image data", image->id.name+2);
+		return;
+	}
+
+	IMB_rect_from_float(ibuf);
+}
+
+static void rna_Image_gl_load(Image *image, ReportList *reports)
+{
+	ImBuf *ibuf;
+	unsigned int *bind = &image->bindcode;
+
+	if(*bind)
+		return;
+
+	ibuf= BKE_image_get_ibuf(image, NULL);
+
+	if(ibuf == NULL || ibuf->rect == NULL) {
+		BKE_reportf(reports, RPT_ERROR, "Image \"%s\" does not have any image data", image->id.name+2);
+		return;
+	}
+
+	/* could be made into a function? */
+	glGenTextures( 1, ( GLuint * ) bind );
+	glBindTexture( GL_TEXTURE_2D, *bind );
+
+	gluBuild2DMipmaps(GL_TEXTURE_2D, GL_RGBA, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
+}
+
+static void rna_Image_gl_free(Image *image)
+{
+	GPU_free_image(image);
+
+	/* remove the nocollect flag, image is available for garbage collection again */
+	image->flag &= ~IMA_NOCOLLECT;
 }
 
 #else
@@ -110,27 +168,32 @@ void RNA_api_image(StructRNA *srna)
 	FunctionRNA *func;
 	PropertyRNA *parm;
 
-	func= RNA_def_function(srna, "get_export_path", "rna_Image_get_export_path");
-	RNA_def_function_ui_description(func, "Produce image export path.");
-	parm= RNA_def_string(func, "dest_dir", "", 0, "", "Destination directory.");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_boolean(func, "get_rel_path", 1, "", "Return relative path if True.");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_string(func, "path", "", 0, "", "Absolute export path.");
-	RNA_def_function_return(func, parm);
-
-	func= RNA_def_function(srna, "get_abs_filename", "rna_Image_get_abs_filename");
-	RNA_def_function_ui_description(func, "Get absolute filename.");
-	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
-	parm= RNA_def_string_file_path(func, "abs_filename", NULL, 0, "", "Image/movie absolute filename.");
-	RNA_def_function_return(func, parm);
-
-	func= RNA_def_function(srna, "save", "rna_Image_save");
-	RNA_def_function_ui_description(func, "Save image to a specific path.");
+	func= RNA_def_function(srna, "save_render", "rna_Image_save_render");
+	RNA_def_function_ui_description(func, "Save image to a specific path using a scenes render settings");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT|FUNC_USE_REPORTS);
 	parm= RNA_def_string(func, "path", "", 0, "", "Save path.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_pointer(func, "scene", "Scene", "", "Scene to take image parameters from.");
+	parm= RNA_def_pointer(func, "scene", "Scene", "", "Scene to take image parameters from");
+
+	func= RNA_def_function(srna, "save", "rna_Image_save");
+	RNA_def_function_ui_description(func, "Save image to its source path");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+
+	func= RNA_def_function(srna, "reload", "rna_Image_reload");
+	RNA_def_function_ui_description(func, "Reload the image from its source path");
+
+	func= RNA_def_function(srna, "update", "rna_Image_update");
+	RNA_def_function_ui_description(func, "Update the display image from the floating point buffer");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+
+	func= RNA_def_function(srna, "gl_load", "rna_Image_gl_load");
+	RNA_def_function_ui_description(func, "Load the image into OpenGL graphics memory");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+
+	func= RNA_def_function(srna, "gl_free", "rna_Image_gl_free");
+	RNA_def_function_ui_description(func, "Free the image from OpenGL graphics memory");
+
+	/* TODO, pack/unpack, maybe should be generic functions? */
 }
 
 #endif

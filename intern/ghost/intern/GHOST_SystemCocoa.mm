@@ -29,6 +29,9 @@
 
 #import <Cocoa/Cocoa.h>
 
+/*For the currently not ported to Cocoa keyboard layout functions (64bit & 10.6 compatible)*/
+#include <Carbon/Carbon.h>
+
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
@@ -53,9 +56,8 @@
 #include "AssertMacros.h"
 
 #pragma mark KeyMap, mouse converters
-
-
-/* Keycodes from Carbon include file */
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4
+/* Keycodes not defined in Tiger */
 /*  
  *  Summary:
  *    Virtual keycodes
@@ -203,7 +205,7 @@ enum {
 	kVK_JIS_Eisu                  = 0x66,
 	kVK_JIS_Kana                  = 0x68
 };
-
+#endif
 
 static GHOST_TButtonMask convertButton(int button)
 {
@@ -230,7 +232,7 @@ static GHOST_TButtonMask convertButton(int button)
  * @param recvChar the character ignoring modifiers (except for shift)
  * @return Ghost key code
  */
-static GHOST_TKey convertKey(int rawCode, unichar recvChar) 
+static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction) 
 {	
 	
 	//printf("\nrecvchar %c 0x%x",recvChar,recvChar);
@@ -350,26 +352,68 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar)
 			return GHOST_kKeyUnknown;
 			
 		default:
-			/*Then detect on character value for "remappable" keys in int'l keyboards*/
+			/* alphanumerical or punctuation key that is remappable in int'l keyboards */
 			if ((recvChar >= 'A') && (recvChar <= 'Z')) {
 				return (GHOST_TKey) (recvChar - 'A' + GHOST_kKeyA);
 			} else if ((recvChar >= 'a') && (recvChar <= 'z')) {
 				return (GHOST_TKey) (recvChar - 'a' + GHOST_kKeyA);
-			} else
-			switch (recvChar) {
-				case '-': 	return GHOST_kKeyMinus;
-				case '=': 	return GHOST_kKeyEqual;
-				case ',': 	return GHOST_kKeyComma;
-				case '.': 	return GHOST_kKeyPeriod;
-				case '/': 	return GHOST_kKeySlash;
-				case ';': 	return GHOST_kKeySemicolon;
-				case '\'': 	return GHOST_kKeyQuote;
-				case '\\': 	return GHOST_kKeyBackslash;
-				case '[': 	return GHOST_kKeyLeftBracket;
-				case ']': 	return GHOST_kKeyRightBracket;
-				case '`': 	return GHOST_kKeyAccentGrave;
-				default:
-					return GHOST_kKeyUnknown;
+			} else {
+#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4
+				KeyboardLayoutRef keyLayout;
+				UCKeyboardLayout *uchrData;
+				
+				KLGetCurrentKeyboardLayout(&keyLayout);
+				KLGetKeyboardLayoutProperty(keyLayout, kKLuchrData, (const void **)
+											&uchrData);
+				/*get actual character value of the "remappable" keys in int'l keyboards,
+				 if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
+				 then fallback on using the received charactersIgnoringModifiers */
+				if (uchrData)
+				{
+					UInt32 deadKeyState=0;
+					UniCharCount actualStrLength=0;
+					
+					UCKeyTranslate(uchrData, rawCode, keyAction, 0,
+								   LMGetKbdType(), kUCKeyTranslateNoDeadKeysBit, &deadKeyState, 1, &actualStrLength, &recvChar);
+					
+				}				
+#else
+				/* Leopard and Snow Leopard 64bit compatible API*/
+				CFDataRef uchrHandle; /*the keyboard layout*/
+				TISInputSourceRef kbdTISHandle;
+				
+				kbdTISHandle = TISCopyCurrentKeyboardLayoutInputSource();
+				uchrHandle = (CFDataRef)TISGetInputSourceProperty(kbdTISHandle,kTISPropertyUnicodeKeyLayoutData);
+				CFRelease(kbdTISHandle);
+				
+				/*get actual character value of the "remappable" keys in int'l keyboards,
+				 if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
+				 then fallback on using the received charactersIgnoringModifiers */
+				if (uchrHandle)
+				{
+					UInt32 deadKeyState=0;
+					UniCharCount actualStrLength=0;
+					
+					UCKeyTranslate((UCKeyboardLayout*)CFDataGetBytePtr(uchrHandle), rawCode, keyAction, 0,
+								   LMGetKbdType(), kUCKeyTranslateNoDeadKeysBit, &deadKeyState, 1, &actualStrLength, &recvChar);
+					
+				}
+#endif
+				switch (recvChar) {
+					case '-': 	return GHOST_kKeyMinus;
+					case '=': 	return GHOST_kKeyEqual;
+					case ',': 	return GHOST_kKeyComma;
+					case '.': 	return GHOST_kKeyPeriod;
+					case '/': 	return GHOST_kKeySlash;
+					case ';': 	return GHOST_kKeySemicolon;
+					case '\'': 	return GHOST_kKeyQuote;
+					case '\\': 	return GHOST_kKeyBackslash;
+					case '[': 	return GHOST_kKeyLeftBracket;
+					case ']': 	return GHOST_kKeyRightBracket;
+					case '`': 	return GHOST_kKeyAccentGrave;
+					default:
+						return GHOST_kKeyUnknown;
+				}
 			}
 	}
 	return GHOST_kKeyUnknown;
@@ -396,17 +440,6 @@ enum {
 - (CGFloat)magnification;       // change in magnification.
 #endif
 @end 
-
-@interface NSEvent(SnowLeopardEvents)
-/* modifier keys currently down.  This returns the state of devices combined
- with synthesized events at the moment, independent of which events
- have been delivered via the event stream. */
-#if MAC_OS_X_VERSION_MIN_REQUIRED <= MAC_OS_X_VERSION_10_4
-+ (unsigned int)modifierFlags; //NSUInteger is defined only from 10.5
-#else
-+ (NSUInteger)modifierFlags;
-#endif
-@end
 
 #endif
 
@@ -741,8 +774,9 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 GHOST_TSuccess GHOST_SystemCocoa::beginFullScreen(const GHOST_DisplaySetting& setting, GHOST_IWindow** window, const bool stereoVisual)
 {	
 	GHOST_IWindow* currentWindow = m_windowManager->getActiveWindow();
-
 	*window = currentWindow;
+	
+	if(!currentWindow) return GHOST_kFailure;
 	
 	return currentWindow->setState(GHOST_kWindowStateFullScreen);
 }
@@ -750,6 +784,7 @@ GHOST_TSuccess GHOST_SystemCocoa::beginFullScreen(const GHOST_DisplaySetting& se
 GHOST_TSuccess GHOST_SystemCocoa::endFullScreen(void)
 {	
 	GHOST_IWindow* currentWindow = m_windowManager->getActiveWindow();
+	if(!currentWindow) return GHOST_kFailure;
 	
 	return currentWindow->setState(GHOST_kWindowStateNormal);
 }
@@ -776,6 +811,9 @@ GHOST_TSuccess GHOST_SystemCocoa::setCursorPosition(GHOST_TInt32 x, GHOST_TInt32
 {
 	float xf=(float)x, yf=(float)y;
 	GHOST_WindowCocoa* window = (GHOST_WindowCocoa*)m_windowManager->getActiveWindow();
+	if (!window) return GHOST_kFailure;
+
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	NSScreen *windowScreen = window->getScreen();
 	NSRect screenRect = [windowScreen frame];
 	
@@ -788,6 +826,7 @@ GHOST_TSuccess GHOST_SystemCocoa::setCursorPosition(GHOST_TInt32 x, GHOST_TInt32
 
 	CGDisplayMoveCursorToPoint((CGDirectDisplayID)[[[windowScreen deviceDescription] objectForKey:@"NSScreenNumber"] unsignedIntValue], CGPointMake(xf, yf));
 
+	[pool drain];
     return GHOST_kSuccess;
 }
 
@@ -945,21 +984,7 @@ GHOST_TSuccess GHOST_SystemCocoa::handleApplicationBecomeActiveEvent()
 	}
 	else m_needDelayedApplicationBecomeActiveEventProcessing = false;
 
-#ifdef MAC_OS_X_VERSION_10_6
-	modifiers = [NSEvent modifierFlags];
-#else
-	//If build against an older SDK, check if running on 10.6 to use the correct function
-	if ([NSEvent respondsToSelector:@selector(modifierFlags)]) {
-		modifiers = [NSEvent modifierFlags];
-	}
-	else {
-		//TODO: need to find a better workaround for the missing cocoa "getModifierFlag" function in 10.4/10.5
-		modifiers = 0;
-	}
-#endif
-	
-	/* Discard erroneous 10.6 modifiers values reported when switching back from spaces */
-	if ((modifiers & NSDeviceIndependentModifierFlagsMask) == 0xb00000) modifiers = 0;
+	modifiers = [[[NSApplication sharedApplication] currentEvent] modifierFlags];
 	
 	if ((modifiers & NSShiftKeyMask) != (m_modifierMask & NSShiftKeyMask)) {
 		pushEvent( new GHOST_EventKey(getMilliSeconds(), (modifiers & NSShiftKeyMask)?GHOST_kEventKeyDown:GHOST_kEventKeyUp, window, GHOST_kKeyLeftShift) );
@@ -1598,9 +1623,11 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 			charsIgnoringModifiers = [event charactersIgnoringModifiers];
 			if ([charsIgnoringModifiers length]>0)
 				keyCode = convertKey([event keyCode],
-									 [charsIgnoringModifiers characterAtIndex:0]);
+									 [charsIgnoringModifiers characterAtIndex:0],
+									 [event type] == NSKeyDown?kUCKeyActionDown:kUCKeyActionUp);
 			else
-				keyCode = convertKey([event keyCode],0);
+				keyCode = convertKey([event keyCode],0,
+									 [event type] == NSKeyDown?kUCKeyActionDown:kUCKeyActionUp);
 
 				
 			characters = [event characters];
@@ -1620,9 +1647,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 
 			if ([event type] == NSKeyDown) {
 				pushEvent( new GHOST_EventKey([event timestamp]*1000, GHOST_kEventKeyDown, window, keyCode, ascii) );
-				//printf("\nKey pressed keyCode=%u ascii=%i %c",keyCode,ascii,ascii);
+				//printf("\nKey down rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u ascii=%i %c",[event keyCode],[charsIgnoringModifiers length]>0?[charsIgnoringModifiers characterAtIndex:0]:' ',keyCode,ascii,ascii);
 			} else {
 				pushEvent( new GHOST_EventKey([event timestamp]*1000, GHOST_kEventKeyUp, window, keyCode, ascii) );
+				//printf("\nKey up rawCode=0x%x charsIgnoringModifiers=%c keyCode=%u ascii=%i %c",[event keyCode],[charsIgnoringModifiers length]>0?[charsIgnoringModifiers characterAtIndex:0]:' ',keyCode,ascii,ascii);
 			}
 			break;
 	
@@ -1735,4 +1763,62 @@ void GHOST_SystemCocoa::putClipboard(GHOST_TInt8 *buffer, bool selection) const
 	[pasteBoard setString:textToCopy forType:NSStringPboardType];
 	
 	[pool drain];
+}
+
+#pragma mark Base directories retrieval
+
+const GHOST_TUns8* GHOST_SystemCocoa::getSystemDir() const
+{
+	static GHOST_TUns8 tempPath[512] = "";
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	NSFileManager *fileManager;
+	NSString *basePath;
+	NSArray *paths;
+	
+	paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSLocalDomainMask, YES);
+	
+	if ([paths count] > 0)
+		basePath = [[paths objectAtIndex:0] stringByAppendingPathComponent:@"Blender"];
+	else { //Fall back to standard unix path in case of issue
+		basePath = @"/usr/share/blender";
+	}
+	
+	/* Ensure path exists, creates it if needed */
+	fileManager = [NSFileManager defaultManager];
+	if (![fileManager fileExistsAtPath:basePath isDirectory:NULL]) {
+		[fileManager createDirectoryAtPath:basePath attributes:nil];
+	}
+	
+	strcpy((char*)tempPath, [basePath cStringUsingEncoding:NSASCIIStringEncoding]);
+	
+	[pool drain];
+	return tempPath;
+}
+
+const GHOST_TUns8* GHOST_SystemCocoa::getUserDir() const
+{
+	static GHOST_TUns8 tempPath[512] = "";
+	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
+	NSFileManager *fileManager;
+	NSString *basePath;
+	NSArray *paths;
+
+	paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, NSUserDomainMask, YES);
+
+	if ([paths count] > 0)
+		basePath = [[paths objectAtIndex:0] stringByAppendingPathComponent:@"Blender"];
+	else { //Fall back to HOME in case of issue
+		basePath = [NSHomeDirectory() stringByAppendingPathComponent:@".blender"];
+	}
+	
+	/* Ensure path exists, creates it if needed */
+	fileManager = [NSFileManager defaultManager];
+	if (![fileManager fileExistsAtPath:basePath isDirectory:NULL]) {
+		[fileManager createDirectoryAtPath:basePath attributes:nil];
+	}
+	
+	strcpy((char*)tempPath, [basePath cStringUsingEncoding:NSASCIIStringEncoding]);
+	
+	[pool drain];
+	return tempPath;
 }

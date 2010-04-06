@@ -38,13 +38,24 @@ import sys as _sys
 
 def _main():
 
-    # security issue, dont allow the $CWD in the path.
-    _sys.path[:] = filter(None, _sys.path)
+    ## security issue, dont allow the $CWD in the path.
+    ## note: this removes "" but not "." which are the same, security
+    ## people need to explain how this is even a fix.
+    # _sys.path[:] = filter(None, _sys.path)
 
     # a bit nasty but this prevents help() and input() from locking blender
     # Ideally we could have some way for the console to replace sys.stdin but
     # python would lock blender while waiting for a return value, not easy :|
-    _sys.stdin = None
+
+    if not app.debug:
+        _sys.stdin = None
+
+    # because of how the console works. we need our own help() pager func.
+    # replace the bold function because it adds crazy chars
+    import pydoc
+    pydoc.getpager = lambda: pydoc.plainpager
+    pydoc.TextDoc.bold = lambda self, text: text
+
 
     # if "-d" in sys.argv: # Enable this to measure startup speed
     if 0:

@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,11 +29,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_object_types.h"
-#include "DNA_space_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -45,7 +40,6 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "ED_space_api.h"
 #include "ED_screen.h"
 
 #include "BIF_gl.h"
@@ -53,7 +47,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -181,7 +174,7 @@ static void buttons_main_area_draw(const bContext *C, ARegion *ar)
 	else if(sbuts->mainb == BCONTEXT_BONE_CONSTRAINT)
 		ED_region_panels(C, ar, vertical, "bone_constraint", sbuts->mainb);
 
-    sbuts->re_align= 0;
+	sbuts->re_align= 0;
 	sbuts->mainbo= sbuts->mainb;
 }
 
@@ -265,6 +258,7 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 					buttons_area_redraw(sa, BCONTEXT_TEXTURE);
 					buttons_area_redraw(sa, BCONTEXT_WORLD);
 					buttons_area_redraw(sa, BCONTEXT_DATA);
+					buttons_area_redraw(sa, BCONTEXT_PHYSICS);
 					sbuts->preview= 1;
 					break;
 				case ND_OB_ACTIVE:
@@ -297,6 +291,7 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 						ED_area_tag_redraw(sa);
 					else
 						buttons_area_redraw(sa, BCONTEXT_MODIFIER);
+						buttons_area_redraw(sa, BCONTEXT_PHYSICS);
 					break;
 				case ND_CONSTRAINT:
 					buttons_area_redraw(sa, BCONTEXT_CONSTRAINT);
@@ -306,6 +301,9 @@ static void buttons_area_listener(ScrArea *sa, wmNotifier *wmn)
 					buttons_area_redraw(sa, BCONTEXT_PARTICLE);
 					break;
 				case ND_DRAW:
+					buttons_area_redraw(sa, BCONTEXT_OBJECT);
+					buttons_area_redraw(sa, BCONTEXT_DATA);
+					buttons_area_redraw(sa, BCONTEXT_PHYSICS);
 				case ND_SHADING:
 				case ND_SHADING_DRAW:
 					/* currently works by redraws... if preview is set, it (re)starts job */

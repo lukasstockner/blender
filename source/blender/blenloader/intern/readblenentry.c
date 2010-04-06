@@ -41,18 +41,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_ID.h"
-#include "DNA_material_types.h"
 
-#include "BKE_utildefines.h" // for ENDB
 
 #include "BKE_main.h"
 #include "BKE_library.h" // for free_main
@@ -377,7 +371,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain, const char *filename, MemFil
 		/* makes lookup of existing images in old main */
 		blo_make_image_pointer_map(fd, oldmain);
 		
-		bfd= blo_read_file_internal(fd, "");
+		bfd= blo_read_file_internal(fd, filename);
 		
 		/* ensures relinked images are not freed */
 		blo_end_image_pointer_map(fd, oldmain);

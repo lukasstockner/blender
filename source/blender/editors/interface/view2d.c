@@ -33,10 +33,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_view2d_types.h"
 
 #include "BLI_blenlib.h"
 
@@ -55,7 +52,6 @@
 #include "ED_screen.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "interface_intern.h"
@@ -289,8 +285,7 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 				v2d->cur.xmax= (winx - V2D_SCROLL_WIDTH)*panelzoom;
 				
 				v2d->cur.ymax= 0.0f;
-				/* bad workaround for keeping zoom level with scrollers */
-				v2d->cur.ymin= (-winy + V2D_SCROLL_HEIGHT)*panelzoom;
+				v2d->cur.ymin= (-winy)*panelzoom;
 			}
 				break;
 				

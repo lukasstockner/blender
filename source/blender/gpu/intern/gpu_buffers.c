@@ -97,17 +97,18 @@ void GPU_buffer_pool_free(GPUBufferPool *pool)
 	if( pool == 0 )
 		return;
 
-	while( pool->start < 0 )
-		pool->start += MAX_FREE_GPU_BUFFERS;
-
 	for( i = 0; i < pool->size; i++ ) {
-		if( useVBOs ) {
-			glDeleteBuffersARB( 1, &pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]->id );
+		if( pool->buffers[i] != 0 ) {
+			if( useVBOs ) {
+				glDeleteBuffersARB( 1, &pool->buffers[i]->id );
+			}
+			else {
+				MEM_freeN( pool->buffers[i]->pointer );
+			}
+			MEM_freeN(pool->buffers[i]);
+		} else {
+			ERROR_VBO("Why are we accessing a null buffer in GPU_buffer_pool_free?\n");
 		}
-		else {
-			MEM_freeN( pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]->pointer );
-		}
-		MEM_freeN(pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS]);
 	}
 	MEM_freeN(pool);
 }
@@ -116,13 +117,18 @@ void GPU_buffer_pool_remove( int index, GPUBufferPool *pool )
 {
 	int i;
 
+	if( index >= pool->size || index < 0 ) {
+		ERROR_VBO("Wrong index, out of bounds in call to GPU_buffer_pool_remove");
+		return;
+	}
 	DEBUG_VBO("GPU_buffer_pool_remove\n");
 
-	while( pool->start < 0 )
-		pool->start += MAX_FREE_GPU_BUFFERS;
 	for( i = index; i < pool->size-1; i++ ) {
-		pool->buffers[(pool->start+i)%MAX_FREE_GPU_BUFFERS] = pool->buffers[(pool->start+i+1)%MAX_FREE_GPU_BUFFERS];
+		pool->buffers[i] = pool->buffers[i+1];
 	}
+	if( pool->size > 0 )
+		pool->buffers[pool->size-1] = 0;
+
 	pool->size--;
 }
 
@@ -132,21 +138,23 @@ void GPU_buffer_pool_delete_last( GPUBufferPool *pool )
 
 	DEBUG_VBO("GPU_buffer_pool_delete_last\n");
 
-	if( pool->size == 0 )
+	if( pool->size <= 0 )
 		return;
 
-	last = pool->start+pool->size-1;
-	while( last < 0 )
-		last += MAX_FREE_GPU_BUFFERS;
-	last = (last+MAX_FREE_GPU_BUFFERS)%MAX_FREE_GPU_BUFFERS;
+	last = pool->size-1;
 
-	if( useVBOs ) {
-		glDeleteBuffersARB(1,&pool->buffers[last]->id);
-		MEM_freeN( pool->buffers[last] );
-	}
-	else {
-		MEM_freeN( pool->buffers[last]->pointer );
-		MEM_freeN( pool->buffers[last] );
+	if( pool->buffers[last] != 0 ) {
+		if( useVBOs ) {
+			glDeleteBuffersARB(1,&pool->buffers[last]->id);
+			MEM_freeN( pool->buffers[last] );
+		}
+		else {
+			MEM_freeN( pool->buffers[last]->pointer );
+			MEM_freeN( pool->buffers[last] );
+		}
+		pool->buffers[last] = 0;
+	} else {
+		DEBUG_VBO("Why are we accessing a null buffer?\n");
 	}
 	pool->size--;
 }
@@ -167,14 +175,10 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		pool = globalPool;
 	}
 
-	while( pool->start < 0 )
-		pool->start += MAX_FREE_GPU_BUFFERS;
-
 	for( i = 0; i < pool->size; i++ ) {
-		int actuali = (pool->start+i)%MAX_FREE_GPU_BUFFERS;
-		cursize = pool->buffers[actuali]->size;
+		cursize = pool->buffers[i]->size;
 		if( cursize == size ) {
-			allocated = pool->buffers[actuali];
+			allocated = pool->buffers[i];
 			GPU_buffer_pool_remove(i,pool);
 			DEBUG_VBO("free buffer of exact size found\n");
 			return allocated;
@@ -182,7 +186,7 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		/* smaller buffers won't fit data and buffers at least twice as big are a waste of memory */
 		else if( cursize > size && size > cursize/2 ) {
 			/* is it closer to the required size than the last appropriate buffer found. try to save memory */
-			if( bestfit == -1 || pool->buffers[(pool->start+bestfit)%MAX_FREE_GPU_BUFFERS]->size > cursize ) {
+			if( bestfit == -1 || pool->buffers[bestfit]->size > cursize ) {
 				bestfit = i;
 			}
 		}
@@ -210,10 +214,10 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 		}
 	}
 	else {
-		sprintf(buffer,"free buffer found. Wasted %d bytes\n", pool->buffers[(pool->start+bestfit)%MAX_FREE_GPU_BUFFERS]->size-size);
+		sprintf(buffer,"free buffer found. Wasted %d bytes\n", pool->buffers[bestfit]->size-size);
 		DEBUG_VBO(buffer);
 
-		allocated = pool->buffers[(pool->start+bestfit)%MAX_FREE_GPU_BUFFERS];
+		allocated = pool->buffers[bestfit];
 		GPU_buffer_pool_remove(bestfit,pool);
 	}
 	return allocated;
@@ -221,8 +225,7 @@ GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool )
 
 void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool )
 {
-	int place;
-
+	int i;
 	DEBUG_VBO("GPU_buffer_free\n");
 
 	if( buffer == 0 )
@@ -232,18 +235,16 @@ void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool )
 	if( pool == 0 )
 		globalPool = GPU_buffer_pool_new();
 
-	while( pool->start < 0 )
-		pool->start += MAX_FREE_GPU_BUFFERS;
-	place = (pool->start-1 + MAX_FREE_GPU_BUFFERS)%MAX_FREE_GPU_BUFFERS;
-
 	/* free the last used buffer in the queue if no more space */
 	if( pool->size == MAX_FREE_GPU_BUFFERS ) {
 		GPU_buffer_pool_delete_last( pool );
 	}
 
+	for( i =pool->size; i > 0; i-- ) {
+		pool->buffers[i] = pool->buffers[i-1];
+	}
+	pool->buffers[0] = buffer;
 	pool->size++;
-	pool->start = place;
-	pool->buffers[place] = buffer;
 }
 
 GPUDrawObject *GPU_drawobject_new( DerivedMesh *dm )
@@ -519,11 +520,11 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 }
 
 void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
-	int *grid_indices, int totgrid, int gridsize)
+	int *grid_indices, int totgrid, int gridsize, int smooth)
 {
 	GPU_Buffers *buffers = buffers_v;
 	DMGridData *vert_data;
-	int i, totvert;
+	int i, j, k, totvert;
 
 	totvert= gridsize*gridsize*totgrid;
 
@@ -538,6 +539,22 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 			for(i = 0; i < totgrid; ++i) {
 				DMGridData *grid= grids[grid_indices[i]];
 				memcpy(vert_data, grid, sizeof(DMGridData)*gridsize*gridsize);
+
+				if(!smooth) {
+					/* for flat shading, recalc normals and set the last vertex of
+					   each quad in the index buffer to have the flat normal as
+					   that is what opengl will use */
+					for(j = 0; j < gridsize-1; ++j) {
+						for(k = 0; k < gridsize-1; ++k) {
+							normal_quad_v3(vert_data[(j+1)*gridsize + (k+1)].no,
+								vert_data[(j+1)*gridsize + k].co,
+								vert_data[(j+1)*gridsize + k+1].co,
+								vert_data[j*gridsize + k+1].co,
+								vert_data[j*gridsize + k].co);
+						}
+					}
+				}
+
 				vert_data += gridsize*gridsize;
 			}
 			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
@@ -588,10 +605,10 @@ void *GPU_build_grid_buffers(DMGridData **grids,
 				for(i = 0; i < totgrid; ++i) {
 					for(j = 0; j < gridsize-1; ++j) {
 						for(k = 0; k < gridsize-1; ++k) {
+							*(quad_data++)= offset + j*gridsize + k+1;
 							*(quad_data++)= offset + j*gridsize + k;
 							*(quad_data++)= offset + (j+1)*gridsize + k;
 							*(quad_data++)= offset + (j+1)*gridsize + k+1;
-							*(quad_data++)= offset + j*gridsize + k+1;
 						}
 					}
 
@@ -618,10 +635,10 @@ void *GPU_build_grid_buffers(DMGridData **grids,
 				for(i = 0; i < totgrid; ++i) {
 					for(j = 0; j < gridsize-1; ++j) {
 						for(k = 0; k < gridsize-1; ++k) {
+							*(quad_data++)= offset + j*gridsize + k+1;
 							*(quad_data++)= offset + j*gridsize + k;
 							*(quad_data++)= offset + (j+1)*gridsize + k;
 							*(quad_data++)= offset + (j+1)*gridsize + k+1;
-							*(quad_data++)= offset + j*gridsize + k+1;
 						}
 					}
 
@@ -641,7 +658,6 @@ void *GPU_build_grid_buffers(DMGridData **grids,
 	/* Build VBO */
 	if(buffers->index_buf)
 		glGenBuffersARB(1, &buffers->vert_buf);
-	GPU_update_grid_buffers(buffers, grids, grid_indices, totgrid, gridsize);
 
 	buffers->tot_quad = totquad;
 

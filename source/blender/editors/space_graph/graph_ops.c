@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,12 +31,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
-#include "DNA_action_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
 
@@ -44,7 +39,6 @@
 #include "BKE_sound.h"
 #include "BKE_utildefines.h"
 
-#include "UI_interface.h"
 #include "UI_view2d.h"
 
 #include "ED_screen.h"
@@ -237,6 +231,7 @@ void graphedit_operatortypes(void)
 	WM_operatortype_append(GRAPH_OT_select_all_toggle);
 	WM_operatortype_append(GRAPH_OT_select_border);
 	WM_operatortype_append(GRAPH_OT_select_column);
+	WM_operatortype_append(GRAPH_OT_select_linked);
 	WM_operatortype_append(GRAPH_OT_select_more);
 	WM_operatortype_append(GRAPH_OT_select_less);
 	
@@ -262,8 +257,9 @@ void graphedit_operatortypes(void)
 	WM_operatortype_append(GRAPH_OT_click_insert);
 	
 	/* F-Curve Modifiers */
-	// XXX temporary?
 	WM_operatortype_append(GRAPH_OT_fmodifier_add);
+	WM_operatortype_append(GRAPH_OT_fmodifier_copy);
+	WM_operatortype_append(GRAPH_OT_fmodifier_paste);
 }
 
 /* ************************** registration - keymaps **********************************/
@@ -303,9 +299,16 @@ static void graphedit_keymap_keyframes (wmKeyConfig *keyconf, wmKeyMap *keymap)
 	RNA_boolean_set(WM_keymap_add_item(keymap, "GRAPH_OT_select_all_toggle", IKEY, KM_PRESS, KM_CTRL, 0)->ptr, "invert", 1);
 	
 		/* borderselect */
-	WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_ALT, 0)->ptr, "axis_range", 1);
-	
+	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_ALT, 0);
+		RNA_boolean_set(kmi->ptr, "axis_range", 1);
+		
+	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_CTRL, 0);
+		RNA_boolean_set(kmi->ptr, "include_handles", 1);
+	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_select_border", BKEY, KM_PRESS, KM_CTRL|KM_ALT, 0);
+		RNA_boolean_set(kmi->ptr, "axis_range", 1);
+		RNA_boolean_set(kmi->ptr, "include_handles", 1);
+		
 		/* column select */
 	RNA_enum_set(WM_keymap_add_item(keymap, "GRAPH_OT_select_column", KKEY, KM_PRESS, 0, 0)->ptr, "mode", GRAPHKEYS_COLUMNSEL_KEYS);
 	RNA_enum_set(WM_keymap_add_item(keymap, "GRAPH_OT_select_column", KKEY, KM_PRESS, KM_CTRL, 0)->ptr, "mode", GRAPHKEYS_COLUMNSEL_CFRA);
@@ -315,6 +318,9 @@ static void graphedit_keymap_keyframes (wmKeyConfig *keyconf, wmKeyMap *keymap)
 		/* select more/less */
 	WM_keymap_add_item(keymap, "GRAPH_OT_select_more", PADPLUSKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "GRAPH_OT_select_less", PADMINUS, KM_PRESS, KM_CTRL, 0);
+	
+		/* select linked */
+	WM_keymap_add_item(keymap, "GRAPH_OT_select_linked", LKEY, KM_PRESS, 0, 0);
 	
 	
 	/* graph_edit.c */

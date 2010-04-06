@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -23,10 +23,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
  
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
 
 
 /* grr, python redefines */
@@ -34,34 +30,22 @@
 #undef _POSIX_C_SOURCE
 #endif
 
-#include <Python.h>
-#include "compile.h"		/* for the PyCodeObject */
-#include "eval.h"		/* for PyEval_EvalCode */
 
 #include "bpy.h"
 #include "bpy_rna.h"
 #include "bpy_util.h"
 
-#ifndef WIN32
-#include <dirent.h>
-#else
-#include "BLI_winstuff.h"
-#endif
-
 #include "DNA_space_types.h"
 #include "DNA_text_types.h"
 
 #include "MEM_guardedalloc.h"
-
-#include "BLI_storage.h"
-#include "BLI_fileops.h"
-#include "BLI_string.h"
 #include "BLI_path_util.h"
+#include "BLI_math_base.h"
 
 #include "BKE_context.h"
 #include "BKE_text.h"
-#include "BKE_context.h"
 #include "BKE_main.h"
+#include "BKE_global.h" /* only for script checking */
 
 #include "BPY_extern.h"
 
@@ -543,12 +527,6 @@ int BPY_run_python_script_space(const char *modulename, const char *func)
 }
 #endif
 
-// #define TIME_REGISTRATION
-
-#ifdef TIME_REGISTRATION
-#include "PIL_time.h"
-#endif
-
 
 int BPY_button_eval(bContext *C, char *expr, double *value)
 {
@@ -556,24 +534,26 @@ int BPY_button_eval(bContext *C, char *expr, double *value)
 	PyObject *dict, *mod, *retval;
 	int error_ret = 0;
 	
-	if (!value || !expr || expr[0]=='\0') return -1;
-	
+	if (!value || !expr) return -1;
+
+	if(expr[0]=='\0') {
+		*value= 0.0;
+		return error_ret;
+	}
+
 	bpy_context_set(C, &gilstate);
 	
 	dict= CreateGlobalDictionary(C, NULL);
-	
-	/* import some modules: builtins,math*/
-	PyDict_SetItemString(dict, "__builtins__", PyEval_GetBuiltins());
 
 	mod = PyImport_ImportModule("math");
 	if (mod) {
 		PyDict_Merge(dict, PyModule_GetDict(mod), 0); /* 0 - dont overwrite existing values */
-		
-		/* Only keep for backwards compat! - just import all math into root, they are standard */
-		PyDict_SetItemString(dict, "math", mod);
-		PyDict_SetItemString(dict, "m", mod);
 		Py_DECREF(mod);
-	} 
+	}
+	else { /* highly unlikely but possibly */
+		PyErr_Print();
+		PyErr_Clear();
+	}
 	
 	retval = PyRun_String(expr, Py_eval_input, dict, dict);
 	
@@ -600,6 +580,9 @@ int BPY_button_eval(bContext *C, char *expr, double *value)
 		
 		if(val==-1 && PyErr_Occurred()) {
 			error_ret= -1;
+		}
+		else if (!finite(val)) {
+			*value= 0.0;
 		}
 		else {
 			*value= val;
@@ -630,14 +613,19 @@ void BPY_load_user_modules(bContext *C)
 
 	for(text=CTX_data_main(C)->text.first; text; text= text->id.next) {
 		if(text->flags & TXT_ISSCRIPT && BLI_testextensie(text->id.name+2, ".py")) {
-			PyObject *module= bpy_text_import(text);
-
-			if (module==NULL) {
-				PyErr_Print();
-				PyErr_Clear();
+			if(!(G.f & G_SCRIPT_AUTOEXEC)) {
+				printf("scripts disabled for \"%s\", skipping '%s'\n", bmain->name, text->id.name+2);
 			}
 			else {
-				Py_DECREF(module);
+				PyObject *module= bpy_text_import(text);
+
+				if (module==NULL) {
+					PyErr_Print();
+					PyErr_Clear();
+				}
+				else {
+					Py_DECREF(module);
+				}
 			}
 		}
 	}

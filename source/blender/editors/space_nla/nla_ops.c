@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,14 +29,7 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_anim_types.h"
-#include "DNA_action_types.h"
-#include "DNA_nla_types.h"
-#include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -51,7 +44,6 @@
 #include "BKE_screen.h"
 
 #include "ED_anim_api.h"
-#include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
 
@@ -60,9 +52,6 @@
 
 #include "RNA_access.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
 
 #include "nla_intern.h"	// own include
 
@@ -165,6 +154,8 @@ void nla_operatortypes(void)
 	WM_operatortype_append(NLA_OT_snap);
 	
 	WM_operatortype_append(NLA_OT_fmodifier_add);
+	WM_operatortype_append(NLA_OT_fmodifier_copy);
+	WM_operatortype_append(NLA_OT_fmodifier_paste);
 }
 
 /* ************************** registration - keymaps **********************************/

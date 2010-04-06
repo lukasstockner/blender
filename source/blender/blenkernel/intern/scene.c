@@ -45,34 +45,16 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_armature_types.h"	
-#include "DNA_color_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_group_types.h"
-#include "DNA_lamp_types.h"
-#include "DNA_material_types.h"
-#include "DNA_meta_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_userdef_types.h"
 
-#include "BKE_action.h"			
 #include "BKE_anim.h"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"		
-#include "BKE_colortools.h"
-#include "BKE_colortools.h"
-#include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
-#include "BKE_ipo.h"
 #include "BKE_idprop.h"
-#include "BKE_image.h"
-#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
@@ -222,17 +204,17 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 	/* NOTE: part of SCE_COPY_LINK_DATA and SCE_COPY_FULL operations
 	 * are done outside of blenkernel with ED_objects_single_users! */
 
-    /*  camera */
+	/*  camera */
 	if(type == SCE_COPY_LINK_DATA || type == SCE_COPY_FULL) {
-	    ID_NEW(scen->camera);
+		ID_NEW(scen->camera);
 	}
 
 	/* world */
 	if(type == SCE_COPY_FULL) {
-        if(scen->world) {
-            id_us_plus((ID *)scen->world);
-            scen->world= copy_world(scen->world);
-        }
+		if(scen->world) {
+			id_us_plus((ID *)scen->world);
+			scen->world= copy_world(scen->world);
+		}
 	}
 
 	sound_create_scene(scen);
@@ -254,9 +236,9 @@ void free_scene(Scene *sce)
 	
 	if(sce->gpd) {
 #if 0   // removed since this can be invalid memory when freeing everything
-        // since the grease pencil data is free'd before the scene.
-        // since grease pencil data is not (yet?), shared between objects
-        // its probably safe not to do this, some save and reload will free this.
+		// since the grease pencil data is free'd before the scene.
+		// since grease pencil data is not (yet?), shared between objects
+		// its probably safe not to do this, some save and reload will free this.
 		sce->gpd->id.us--;
 #endif
 		sce->gpd= NULL;
@@ -364,7 +346,12 @@ Scene *add_scene(char *name)
 
 	sce->r.scemode= R_DOCOMP|R_DOSEQ|R_EXTENSION;
 	sce->r.stamp= R_STAMP_TIME|R_STAMP_FRAME|R_STAMP_DATE|R_STAMP_SCENE|R_STAMP_CAMERA|R_STAMP_RENDERTIME;
-	
+	sce->r.stamp_font_id= 12;
+
+	sce->r.seq_prev_type= OB_SOLID;
+	sce->r.seq_rend_type= OB_SOLID;
+	sce->r.seq_flag= R_SEQ_GL_PREV;
+
 	sce->r.threads= 1;
 
 	sce->r.simplify_subsurf= 6;
@@ -438,9 +425,10 @@ Scene *add_scene(char *name)
 	pset->fade_frames= 2;
 	pset->selectmode= SCE_SELECT_PATH;
 	for(a=0; a<PE_TOT_BRUSH; a++) {
-		pset->brush[a].strength= 50;
+		pset->brush[a].strength= 0.5;
 		pset->brush[a].size= 50;
 		pset->brush[a].step= 10;
+		pset->brush[a].count= 10;
 	}
 	pset->brush[PE_BRUSH_CUT].strength= 100;
 	
@@ -634,7 +622,7 @@ int next_object(Scene *scene, int val, Base **base, Object **ob)
 					fase= F_SCENE;
 				}
 				else {
-				    /* exception: empty scene */
+					/* exception: empty scene */
 					if(scene->set && scene->set->base.first) {
 						*base= scene->set->base.first;
 						*ob= (*base)->object;
@@ -721,7 +709,7 @@ Object *scene_find_camera(Scene *sc)
 }
 
 #ifdef DURIAN_CAMERA_SWITCH
-Object *scene_find_camera_switch(Scene *scene)
+Object *scene_camera_switch_find(Scene *scene)
 {
 	TimeMarker *m;
 	int cfra = scene->r.cfra;
@@ -741,6 +729,18 @@ Object *scene_find_camera_switch(Scene *scene)
 	return camera;
 }
 #endif
+
+int scene_camera_switch_update(Scene *scene)
+{
+#ifdef DURIAN_CAMERA_SWITCH
+	Object *camera= scene_camera_switch_find(scene);
+	if(camera) {
+		scene->camera= camera;
+		return 1;
+	}
+#endif
+	return 0;
+}
 
 char *scene_find_marker_name(Scene *scene, int frame)
 {
@@ -782,6 +782,39 @@ char *scene_find_last_marker_name(Scene *scene, int frame)
 	return best_marker ? best_marker->name : NULL;
 }
 
+/* markers need transforming from different parts of the code so have
+ * a generic function to do this */
+int scene_marker_tfm_translate(Scene *scene, int delta, int flag)
+{
+	TimeMarker *marker;
+	int tot= 0;
+
+	for (marker= scene->markers.first; marker; marker= marker->next) {
+		if ((marker->flag & flag) == flag) {
+			marker->frame += delta;
+			tot++;
+		}
+	}
+
+	return tot;
+}
+
+int scene_marker_tfm_extend(Scene *scene, int delta, int flag, int frame, char side)
+{
+	TimeMarker *marker;
+	int tot= 0;
+
+	for (marker= scene->markers.first; marker; marker= marker->next) {
+		if ((marker->flag & flag) == flag) {
+			if((side=='L' && marker->frame < frame) || (side=='R' && marker->frame >= frame)) {
+				marker->frame += delta;
+				tot++;
+			}
+		}
+	}
+
+	return tot;
+}
 
 Base *scene_add_base(Scene *sce, Object *ob)
 {
@@ -858,29 +891,20 @@ float frame_to_float (Scene *scene, int cfra)		/* see also bsystem_time in objec
 	return ctime;
 }
 
-static void scene_update_newframe(Scene *sce, unsigned int lay)
+static void scene_update_newframe(Scene *scene, int cfra, unsigned int lay)
 {
 	Base *base;
 	Object *ob;
-	float ctime = frame_to_float(sce, sce->r.cfra); 
+	int cfra_back= scene->r.cfra;
+	scene->r.cfra= cfra;
 	
-	if(sce->theDag==NULL)
-		DAG_scene_sort(sce);
-	
-	DAG_scene_update_flags(sce, lay);   // only stuff that moves or needs display still
-	
-	/* All 'standard' (i.e. without any dependencies) animation is handled here,
-	 * with an 'local' to 'macro' order of evaluation. This should ensure that
-	 * settings stored nestled within a hierarchy (i.e. settings in a Texture block
-	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy 
-	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
-	 */
-	BKE_animsys_evaluate_all_animation(G.main, ctime);
-	
-	for(base= sce->base.first; base; base= base->next) {
+	for(base= scene->base.first; base; base= base->next) {
 		ob= base->object;
 		
-		object_handle_update(sce, ob);   // bke_object.h
+		object_handle_update(scene, ob);   // bke_object.h
+
+		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
+			group_handle_recalc_and_update(scene, ob, ob->dup_group);
 		
 		/* only update layer when an ipo */
 			// XXX old animation system
@@ -888,6 +912,8 @@ static void scene_update_newframe(Scene *sce, unsigned int lay)
 		//	base->lay= ob->lay;
 		//}
 	}
+
+	scene->r.cfra= cfra_back;
 }
 
 /* this is called in main loop, doing tagged updates before redraw */
@@ -895,6 +921,7 @@ void scene_update_tagged(Scene *scene)
 {
 	Scene *sce;
 	Base *base;
+	Object *ob;
 	float ctime = frame_to_float(scene, scene->r.cfra); 
 
 	/* update all objects: drivers, matrices, displists, etc. flags set
@@ -903,12 +930,23 @@ void scene_update_tagged(Scene *scene)
 	/* sets first, we allow per definition current scene to have
 	   dependencies on sets, but not the other way around. */
 	if(scene->set) {
-		for(SETLOOPER(scene->set, base))
-			object_handle_update(scene, base->object);
+		for(SETLOOPER(scene->set, base)) {
+			ob= base->object;
+
+			object_handle_update(scene, ob);
+
+			if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
+				group_handle_recalc_and_update(scene, ob, ob->dup_group);
+		}
 	}
 	
 	for(base= scene->base.first; base; base= base->next) {
-		object_handle_update(scene, base->object);
+		ob= base->object;
+
+		object_handle_update(scene, ob);
+
+		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
+			group_handle_recalc_and_update(scene, ob, ob->dup_group);
 	}
 
 	/* recalc scene animation data here (for sequencer) */
@@ -919,6 +957,7 @@ void scene_update_tagged(Scene *scene)
 			BKE_animsys_evaluate_animdata(&scene->id, adt, ctime, 0);
 	}
 
+	/* XXX - this is called far to often, should be made apart of the depgraph */
 	BKE_ptcache_quick_cache_all(scene);
 
 	/* in the future this should handle updates for all datablocks, not
@@ -928,16 +967,38 @@ void scene_update_tagged(Scene *scene)
 /* applies changes right away, does all sets too */
 void scene_update_for_newframe(Scene *sce, unsigned int lay)
 {
-	Scene *scene= sce;
+	float ctime = frame_to_float(sce, sce->r.cfra);
+	Scene *sce_iter;
 	
 	/* clear animation overrides */
 	// XXX TODO...
-	
-	/* sets first, we allow per definition current scene to have dependencies on sets */
-	for(sce= sce->set; sce; sce= sce->set)
-		scene_update_newframe(sce, lay);
 
-	scene_update_newframe(scene, lay);
+	for(sce_iter= sce; sce_iter; sce_iter= sce_iter->set) {
+		if(sce_iter->theDag==NULL)
+			DAG_scene_sort(sce_iter);
+	}
+
+
+	/* Following 2 functions are recursive
+	 * so dont call within 'scene_update_newframe' */
+	DAG_scene_update_flags(sce, lay);   // only stuff that moves or needs display still
+
+	/* All 'standard' (i.e. without any dependencies) animation is handled here,
+	 * with an 'local' to 'macro' order of evaluation. This should ensure that
+	 * settings stored nestled within a hierarchy (i.e. settings in a Texture block
+	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy
+	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
+	 */
+	BKE_animsys_evaluate_all_animation(G.main, ctime);
+	/*...done with recusrive funcs */
+
+
+	/* sets first, we allow per definition current scene to have dependencies on sets */
+	for(sce_iter= sce->set; sce_iter; sce_iter= sce_iter->set) {
+		scene_update_newframe(sce_iter, sce->r.cfra, lay);
+    }
+
+	scene_update_newframe(sce, sce->r.cfra, lay);
 }
 
 /* return default layer, also used to patch old files */
@@ -947,8 +1008,8 @@ void scene_add_render_layer(Scene *sce)
 //	int tot= 1 + BLI_countlist(&sce->r.layers);
 	
 	srl= MEM_callocN(sizeof(SceneRenderLayer), "new render layer");
-	sprintf(srl->name, "RenderLayer");
-	BLI_uniquename(&sce->r.layers, srl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), 32);
+	strcpy(srl->name, "RenderLayer");
+	BLI_uniquename(&sce->r.layers, srl, "RenderLayer", '.', offsetof(SceneRenderLayer, name), sizeof(srl->name));
 	BLI_addtail(&sce->r.layers, srl);
 
 	/* note, this is also in render, pipeline.c, to make layer when scenedata doesnt have it */
@@ -991,3 +1052,26 @@ float get_render_aosss_error(RenderData *r, float error)
 		return error;
 }
 
+/* helper function for the SETLOOPER macro */
+Base *_setlooper_base_step(Scene **sce, Base *base)
+{
+    if(base && base->next) {
+        /* common case, step to the next */
+        return base->next;
+    }
+    else if(base==NULL && (*sce)->base.first) {
+        /* first time looping, return the scenes first base */
+        return (Base *)(*sce)->base.first;
+    }
+    else {
+        /* reached the end, get the next base in the set */
+        while((*sce= (*sce)->set)) {
+            base= (Base *)(*sce)->base.first;
+            if(base) {
+                return base;
+            }
+        }
+    }
+
+    return NULL;
+}

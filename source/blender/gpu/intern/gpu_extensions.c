@@ -71,6 +71,7 @@ static struct GPUGlobal {
 	GLuint currentfb;
 	int glslsupport;
 	int extdisabled;
+	int color24bit;
 	GPUDeviceType device;
 	GPUOSType os;
 	GPUDriverType driver;
@@ -92,6 +93,7 @@ void GPU_extensions_disable()
 
 void GPU_extensions_init()
 {
+	GLint bits;
 	const char *vendor, *renderer;
 
 	glewInit();
@@ -105,6 +107,9 @@ void GPU_extensions_init()
 	if (!GLEW_ARB_multitexture) GG.glslsupport = 0;
 	if (!GLEW_ARB_vertex_shader) GG.glslsupport = 0;
 	if (!GLEW_ARB_fragment_shader) GG.glslsupport = 0;
+
+	glGetIntegerv(GL_RED_BITS, &bits);
+	GG.color24bit = (bits >= 8);
 
 	vendor = (const char*)glGetString(GL_VENDOR);
 	renderer = (const char*)glGetString(GL_RENDERER);
@@ -170,13 +175,18 @@ int GPU_non_power_of_two_support()
 	return GLEW_ARB_texture_non_power_of_two;
 }
 
+int GPU_24bit_color_support()
+{
+	return GG.color24bit;
+}
+
 int GPU_print_error(char *str)
 {
 	GLenum errCode;
 
 	if (G.f & G_DEBUG) {
 		if ((errCode = glGetError()) != GL_NO_ERROR) {
-    	    fprintf(stderr, "%s opengl error: %s\n", str, gluErrorString(errCode));
+			fprintf(stderr, "%s opengl error: %s\n", str, gluErrorString(errCode));
 			return 1;
 		}
 	}
@@ -392,6 +402,9 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, float *fpixels)
 	void *pixels = NULL;
 	float vfBorderColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 
+	if(!GLEW_VERSION_1_2)
+		return NULL;
+
 	tex = MEM_callocN(sizeof(GPUTexture), "GPUTexture");
 	tex->w = w;
 	tex->h = h;
@@ -471,7 +484,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, double time, 
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &lastbindcode);
 
 	GPU_update_image_time(ima, time);
-	bindcode = GPU_verify_image(ima, 0, 0, 0, mipmap);
+	bindcode = GPU_verify_image(ima, iuser, 0, 0, 0, mipmap);
 
 	if(ima->gputexture) {
 		ima->gputexture->bindcode = bindcode;
@@ -1138,7 +1151,7 @@ GPUPixelBuffer *gpu_pixelbuffer_create(int x, int y, int halffloat, int numbuffe
 	pb->numbuffers = numbuffers;
 	pb->halffloat = halffloat;
 
-   	glGenBuffersARB(pb->numbuffers, pb->bindcode);
+	   glGenBuffersARB(pb->numbuffers, pb->bindcode);
 
 	if (!pb->bindcode[0]) {
 		fprintf(stderr, "GPUPixelBuffer allocation failed\n");
@@ -1154,9 +1167,9 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 	void *pixels;
 	int i;
 
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
+	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
  
- 	for (i = 0; i < pb->numbuffers; i++) {
+	 for (i = 0; i < pb->numbuffers; i++) {
 		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->bindcode[pb->current]);
 		glBufferDataARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->datasize, NULL,
 			GL_STREAM_DRAW_ARB);
@@ -1170,22 +1183,22 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 		}
 	}
 
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
+	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
 }
 
 static int pixelbuffer_map_into_gpu(GLuint bindcode)
 {
 	void *pixels;
 
-    glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
+	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
 	pixels = glMapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, GL_WRITE_ONLY);
 
 	/* do stuff in pixels */
 
-    if (!glUnmapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT)) {
+	if (!glUnmapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT)) {
 		fprintf(stderr, "Could not unmap opengl PBO\n");
 		return 0;
-    }
+	}
 	
 	return 1;
 }
@@ -1193,14 +1206,14 @@ static int pixelbuffer_map_into_gpu(GLuint bindcode)
 static void pixelbuffer_copy_to_texture(GPUTexture *tex, GPUPixelBuffer *pb, GLuint bindcode)
 {
 	GLenum type = (pb->halffloat)? GL_HALF_FLOAT_NV: GL_UNSIGNED_BYTE;
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
-    glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
+	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
+	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
 
-    glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, tex->w, tex->h,
-                    GL_RGBA, type, NULL);
+	glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, tex->w, tex->h,
+					GL_RGBA, type, NULL);
 
 	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, 0);
-    glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
+	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
 }
 
 void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
@@ -1217,7 +1230,7 @@ void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
 
 		pixelbuffer_map_into_gpu(pb->bindcode[newbuffer]);
 		pixelbuffer_copy_to_texture(tex, pb, pb->bindcode[pb->current]);
-    }
+	}
 }
 #endif
 

@@ -47,9 +47,8 @@ struct Main;
 #define SCE_COPY_LINK_DATA	2
 #define SCE_COPY_FULL		3
 
-/* note; doesn't work when scene is empty */
-#define SETLOOPER(s, b) sce= s, b= (Base*)sce->base.first; b; b= (Base*)(b->next?b->next:sce->set?(sce=sce->set)->base.first:NULL)
-
+#define SETLOOPER(s, b) sce= s, b= _setlooper_base_step(&sce, NULL); b; b= _setlooper_base_step(&sce, b)
+struct Base *_setlooper_base_step(struct Scene **sce, struct Base *base);
 
 void free_avicodecdata(struct AviCodecData *acd);
 void free_qtcodecdata(struct QuicktimeCodecData *acd);
@@ -66,10 +65,13 @@ void unlink_scene(struct Main *bmain, struct Scene *sce, struct Scene *newsce);
 
 int next_object(struct Scene *scene, int val, struct Base **base, struct Object **ob);
 struct Object *scene_find_camera(struct Scene *sc);
-struct Object *scene_find_camera_switch(struct Scene *scene); // DURIAN_CAMERA_SWITCH
+struct Object *scene_camera_switch_find(struct Scene *scene); // DURIAN_CAMERA_SWITCH
+int scene_camera_switch_update(struct Scene *scene);
 
 char *scene_find_marker_name(struct Scene *scene, int frame);
 char *scene_find_last_marker_name(struct Scene *scene, int frame);
+int scene_marker_tfm_translate(struct Scene *scene, int delta, int flag);
+int scene_marker_tfm_extend(struct Scene *scene, int delta, int flag, int frame, char side);
 
 struct Base *scene_add_base(struct Scene *sce, struct Object *ob);
 void scene_deselect_all(struct Scene *sce);

@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -35,7 +35,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_image_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -141,7 +140,7 @@ static void init_bake_internal(BakeRender *bkr, bContext *C)
 	bkr->sa= biggest_image_area(CTX_wm_screen(C)); /* can be NULL */
 	bkr->scene= scene;
 	bkr->actob= (scene->r.bake_flag & R_BAKE_TO_ACTIVE) ? OBACT : NULL;
-	bkr->re= RE_NewRender("_Bake View_", RE_SLOT_DEFAULT);
+	bkr->re= RE_NewRender("_Bake View_");
 
 	if(scene->r.bake_mode==RE_BAKE_AO) {
 		/* If raytracing or AO is disabled, switch it on temporarily for baking. */
@@ -203,7 +202,7 @@ static void bake_startjob(void *bkv, short *stop, short *do_update)
 	RE_test_break_cb(bkr->re, NULL, thread_break);
 	G.afbreek= 0;	/* blender_test_break uses this global */
 
-	RE_Database_Baking(bkr->re, scene, scene->r.bake_mode, bkr->actob);
+	RE_Database_Baking(bkr->re, scene, scene->lay, scene->r.bake_mode, bkr->actob);
 
 	/* baking itself is threaded, cannot use test_break in threads. we also update optional imagewindow */
 	bkr->tot= RE_bake_shade_all_selected(bkr->re, scene->r.bake_mode, bkr->actob, bkr->do_update);
@@ -301,7 +300,7 @@ static int bake_image_exec(bContext *C, wmOperator *op)
 		RE_test_break_cb(bkr.re, NULL, thread_break);
 		G.afbreek= 0;	/* blender_test_break uses this global */
 
-		RE_Database_Baking(bkr.re, scene, scene->r.bake_mode, (scene->r.bake_flag & R_BAKE_TO_ACTIVE)? OBACT: NULL);
+		RE_Database_Baking(bkr.re, scene, scene->lay, scene->r.bake_mode, (scene->r.bake_flag & R_BAKE_TO_ACTIVE)? OBACT: NULL);
 
 		/* baking itself is threaded, cannot use test_break in threads  */
 		BLI_init_threads(&threads, do_bake_render, 1);

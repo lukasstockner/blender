@@ -34,19 +34,13 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_particle_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_force.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_boid_types.h"
-#include "DNA_listBase.h"
 
 #include "BLI_rand.h"
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_kdtree.h"
-#include "BLI_kdopbvh.h"
 #include "BKE_collision.h"
 #include "BKE_effect.h"
 #include "BKE_boids.h"
@@ -162,8 +156,7 @@ static int rule_goal_avoid(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, 
 		else if(rule->type == eBoidRuleType_Avoid && bpa->data.mode == eBoidMode_Climbing &&
 			priority > 2.0f * gabr->fear_factor) {
 			/* detach from surface and try to fly away from danger */
-			VECCOPY(efd.vec_to_point, bpa->gravity);
-			mul_v3_fl(efd.vec_to_point, -1.0f);
+			negate_v3_v3(efd.vec_to_point, bpa->gravity);
 		}
 
 		VECCOPY(bbd->wanted_co, efd.vec_to_point);
@@ -689,7 +682,7 @@ static int rule_fight(BoidRule *rule, BoidBrainData *bbd, BoidValues *val, Parti
 		if(bpa->data.health/bbd->part->boids->health * bbd->part->boids->aggression < e_strength / f_strength) {
 			/* decide to flee */
 			if(closest_dist < fbr->flee_distance * fbr->distance) {
-				mul_v3_fl(bbd->wanted_co, -1.0f);
+				negate_v3(bbd->wanted_co);
 				bbd->wanted_speed = val->max_speed;
 			}
 			else { /* wait for better odds */
@@ -1342,9 +1335,8 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 				float grav[3];
 				/* Don't take gravity's strength in to account, */
 				/* otherwise amount of banking is hard to control. */
-				VECCOPY(grav, ground_nor);
-				mul_v3_fl(grav, -1.0f);
-				
+				negate_v3_v3(grav, ground_nor);
+
 				project_v3_v3v3(dvec, bpa->data.acc, pa->state.vel);
 				sub_v3_v3v3(dvec, bpa->data.acc, dvec);
 
@@ -1387,7 +1379,7 @@ void boid_body(BoidBrainData *bbd, ParticleData *pa)
 
 		VECCOPY(mat[2], bpa->gravity);
 	}
-	mul_v3_fl(mat[2], -1.0f);
+	negate_v3(mat[2]);
 	cross_v3_v3v3(mat[1], mat[2], mat[0]);
 	
 	/* apply rotation */

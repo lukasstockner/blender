@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,10 +29,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_object_types.h"
-#include "DNA_space_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 
 #include "RNA_access.h"
 
@@ -51,7 +47,6 @@
 #include "BKE_context.h"
 #include "BKE_screen.h"
 
-#include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_fileselect.h"
 
@@ -61,13 +56,10 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
 
-#include "ED_markers.h"
-#include "ED_fileselect.h"
 
 #include "file_intern.h"	// own include
 #include "fsmenu.h"
@@ -120,6 +112,7 @@ static void file_free(SpaceLink *sl)
 	SpaceFile *sfile= (SpaceFile *) sl;
 	
 	if(sfile->files) {
+		// XXXXX would need to do thumbnails_stop here, but no context available
 		filelist_freelib(sfile->files);
 		filelist_free(sfile->files);
 		MEM_freeN(sfile->files);
@@ -139,8 +132,6 @@ static void file_free(SpaceLink *sl)
 	}
 
 	if (sfile->params) {
-		if(sfile->params->pupmenu)
-			MEM_freeN(sfile->params->pupmenu);
 		MEM_freeN(sfile->params);
 		sfile->params= NULL;
 	}
@@ -170,18 +161,18 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 	/* clear or remove stuff from old */
 	sfilen->op = NULL; /* file window doesn't own operators */
 
-	if (sfileo->params)
+	if (sfileo->params) {
 		sfilen->files = filelist_new(sfileo->params->type);
+		sfilen->params= MEM_dupallocN(sfileo->params);
+		filelist_setdir(sfilen->files, sfilen->params->dir);
+	}
+
 	if(sfileo->folders_prev)
 		sfilen->folders_prev = folderlist_duplicate(sfileo->folders_prev);
 
 	if(sfileo->folders_next)
 		sfilen->folders_next = folderlist_duplicate(sfileo->folders_next);
-
-	if(sfileo->params) {
-		sfilen->params= MEM_dupallocN(sfileo->params);
-		file_change_dir(sfilen, 0);
-	}
+	
 	if (sfileo->layout) {
 		sfilen->layout= MEM_dupallocN(sfileo->layout);
 	}
@@ -197,7 +188,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		sfile->folders_prev = folderlist_new();
 	if (!sfile->files) {
 		sfile->files = filelist_new(params->type);
-		file_change_dir(sfile, 0);
+		filelist_setdir(sfile->files, params->dir);
 		params->active_file = -1; // added this so it opens nicer (ton)
 	}
 	filelist_hidedot(sfile->files, params->flag & FILE_HIDE_DOT);
@@ -205,7 +196,10 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	if (filelist_empty(sfile->files))
 	{
 		filelist_readdir(sfile->files);
+		thumbnails_start(sfile->files, C);
 		BLI_strncpy(params->dir, filelist_dir(sfile->files), FILE_MAX);
+	} else {
+		filelist_filter(sfile->files);
 	}
 	if(params->sort!=FILE_SORT_NONE) filelist_sort(sfile->files, params->sort);		
 	
@@ -225,14 +219,13 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 
 static void file_listener(ScrArea *sa, wmNotifier *wmn)
 {
-	SpaceFile* sfile = (SpaceFile*)sa->spacedata.first;
+	/* SpaceFile* sfile = (SpaceFile*)sa->spacedata.first; */
 
 	/* context changes */
 	switch(wmn->category) {
 		case NC_SPACE:
 			switch (wmn->data) {
 				case ND_SPACE_FILE_LIST:
-					if (sfile->files) filelist_free(sfile->files);
 					ED_area_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
 					break;
@@ -345,7 +338,6 @@ void file_operatortypes(void)
 	WM_operatortype_append(FILE_OT_select_all_toggle);
 	WM_operatortype_append(FILE_OT_select_border);
 	WM_operatortype_append(FILE_OT_select_bookmark);
-	WM_operatortype_append(FILE_OT_loadimages);
 	WM_operatortype_append(FILE_OT_highlight);
 	WM_operatortype_append(FILE_OT_execute);
 	WM_operatortype_append(FILE_OT_cancel);
@@ -390,7 +382,6 @@ void file_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "FILE_OT_select_border", EVT_TWEAK_L, KM_ANY, 0, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_rename", LEFTMOUSE, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FILE_OT_highlight", MOUSEMOVE, KM_ANY, KM_ANY, 0);
-	WM_keymap_add_item(keymap, "FILE_OT_loadimages", TIMER1, KM_ANY, KM_ANY, 0);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_filenum", PADPLUSKEY, KM_PRESS, 0, 0);
 	RNA_int_set(kmi->ptr, "increment", 1);
 	kmi = WM_keymap_add_item(keymap, "FILE_OT_filenum", PADPLUSKEY, KM_PRESS, KM_SHIFT, 0);

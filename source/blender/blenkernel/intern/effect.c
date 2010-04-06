@@ -429,7 +429,7 @@ static float eff_calc_visibility(ListBase *colliders, EffectorCache *eff, Effect
 		return visibility;
 
 	if(!colls)
-		colls = get_collider_cache(eff->scene, NULL);
+		colls = get_collider_cache(eff->scene, NULL, NULL);
 
 	if(!colls)
 		return visibility;
@@ -955,15 +955,15 @@ void do_physical_effector(EffectorCache *eff, EffectorData *efd, EffectedPoint *
 }
 
 /*  -------- pdDoEffectors() --------
-    generic force/speed system, now used for particles and softbodies
-    scene       = scene where it runs in, for time and stuff
+	generic force/speed system, now used for particles and softbodies
+	scene       = scene where it runs in, for time and stuff
 	lb			= listbase with objects that take part in effecting
 	opco		= global coord, as input
-    force		= force accumulator
-    speed		= actual current speed which can be altered
+	force		= force accumulator
+	speed		= actual current speed which can be altered
 	cur_time	= "external" time in frames, is constant for static particles
 	loc_time	= "local" time in frames, range <0-1> for the lifetime of particle
-    par_layer	= layer the caller is in
+	par_layer	= layer the caller is in
 	flags		= only used for softbody wind now
 	guide		= old speed of particle
 

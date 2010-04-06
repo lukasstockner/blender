@@ -115,6 +115,8 @@ class IMAGE_MT_image(bpy.types.Menu):
             if ima.source == 'SEQUENCE':
                 layout.operator("image.save_sequence")
 
+            layout.operator("image.external_edit", "Edit Externally")
+
             if not show_render:
                 layout.separator()
 
@@ -250,7 +252,7 @@ class IMAGE_HT_header(bpy.types.Header):
         iuser = sima.image_user
         toolsettings = context.tool_settings
 
-        # show_render = sima.show_render
+        show_render = sima.show_render
         # show_paint = sima.show_paint
         show_uvedit = sima.show_uvedit
 
@@ -274,6 +276,8 @@ class IMAGE_HT_header(bpy.types.Header):
                 sub.menu("IMAGE_MT_uvs")
 
         layout.template_ID(sima, "image", new="image.new")
+        if not show_render:
+            layout.prop(sima, "image_pin", text="")
 
         # uv editing
         if show_uvedit:
@@ -340,7 +344,7 @@ class IMAGE_PT_image_properties(bpy.types.Panel):
         # ima = sima.image
         iuser = sima.image_user
 
-        layout.template_image(sima, "image", iuser, compact=True)
+        layout.template_image(sima, "image", iuser)
 
 
 class IMAGE_PT_game_properties(bpy.types.Panel):
@@ -349,7 +353,7 @@ class IMAGE_PT_game_properties(bpy.types.Panel):
     bl_label = "Game Properties"
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         sima = context.space_data
         return (sima and sima.image) and (rd.engine == 'BLENDER_GAME')
 
@@ -405,6 +409,22 @@ class IMAGE_PT_view_histogram(bpy.types.Panel):
         layout.template_histogram(sima, "histogram")
 
 
+class IMAGE_PT_sample_line(bpy.types.Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'PREVIEW'
+    bl_label = "Sample Line"
+
+    def poll(self, context):
+        sima = context.space_data
+        return (sima and sima.image)
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("image.sample_line")
+        sima = context.space_data
+        layout.template_histogram(sima, "sample_histogram")
+
+
 class IMAGE_PT_view_properties(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
@@ -441,6 +461,9 @@ class IMAGE_PT_view_properties(bpy.types.Panel):
             col.prop(uvedit, "normalized_coordinates", text="Normalized")
 
         if show_uvedit:
+
+            col = layout.column()
+            col.prop(uvedit, "cursor_location")
 
             col = layout.column()
             col.label(text="UVs:")
@@ -520,6 +543,7 @@ class IMAGE_PT_paint(bpy.types.Panel):
                 col.prop(brush, "clone_image", text="Image")
                 col.prop(brush, "clone_alpha", text="Alpha")
 
+
 class IMAGE_PT_paint_stroke(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
@@ -550,6 +574,7 @@ class IMAGE_PT_paint_stroke(bpy.types.Panel):
 
         layout.prop(brush, "use_wrap")
 
+
 class IMAGE_PT_paint_curve(bpy.types.Panel):
     bl_space_type = 'IMAGE_EDITOR'
     bl_region_type = 'UI'
@@ -568,22 +593,40 @@ class IMAGE_PT_paint_curve(bpy.types.Panel):
         brush = toolsettings.brush
 
         layout.template_curve_mapping(brush, "curve")
-        layout.operator_menu_enum("brush.curve_preset", property="shape")
+        layout.operator_menu_enum("brush.curve_preset", "shape")
 
-bpy.types.register(IMAGE_MT_view)
-bpy.types.register(IMAGE_MT_select)
-bpy.types.register(IMAGE_MT_image)
-bpy.types.register(IMAGE_MT_uvs_showhide)
-bpy.types.register(IMAGE_MT_uvs_transform)
-bpy.types.register(IMAGE_MT_uvs_snap)
-bpy.types.register(IMAGE_MT_uvs_mirror)
-bpy.types.register(IMAGE_MT_uvs_weldalign)
-bpy.types.register(IMAGE_MT_uvs)
-bpy.types.register(IMAGE_HT_header)
-bpy.types.register(IMAGE_PT_image_properties)
-bpy.types.register(IMAGE_PT_paint)
-bpy.types.register(IMAGE_PT_paint_stroke)
-bpy.types.register(IMAGE_PT_paint_curve)
-bpy.types.register(IMAGE_PT_game_properties)
-bpy.types.register(IMAGE_PT_view_properties)
-bpy.types.register(IMAGE_PT_view_histogram)
+
+classes = [
+    IMAGE_MT_view,
+    IMAGE_MT_select,
+    IMAGE_MT_image,
+    IMAGE_MT_uvs_showhide,
+    IMAGE_MT_uvs_transform,
+    IMAGE_MT_uvs_snap,
+    IMAGE_MT_uvs_mirror,
+    IMAGE_MT_uvs_weldalign,
+    IMAGE_MT_uvs,
+    IMAGE_HT_header,
+    IMAGE_PT_image_properties,
+    IMAGE_PT_paint,
+    IMAGE_PT_paint_stroke,
+    IMAGE_PT_paint_curve,
+    IMAGE_PT_game_properties,
+    IMAGE_PT_view_properties,
+    IMAGE_PT_view_histogram,
+    IMAGE_PT_sample_line]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

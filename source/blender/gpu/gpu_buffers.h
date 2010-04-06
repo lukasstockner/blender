@@ -42,6 +42,12 @@
 #define DEBUG_VBO(X)
 #endif
 
+#ifdef _DEBUG
+#define ERROR_VBO(X) printf(X)
+#else
+#define ERROR_VBO(X)
+#endif
+
 struct DerivedMesh;
 struct GHash;
 
@@ -64,10 +70,6 @@ typedef struct GPUBuffer
 typedef struct GPUBufferPool
 {
 	int size;	/* number of allocated buffers stored */
-	int start;	/* for a queue like structure */
-				/* when running out of space for storing buffers,
-				the last one used will be thrown away */
-
 	GPUBuffer* buffers[MAX_FREE_GPU_BUFFERS];
 } GPUBufferPool;
 
@@ -135,7 +137,7 @@ void GPU_update_mesh_buffers(void *buffers, struct MVert *mvert,
 void *GPU_build_grid_buffers(struct DMGridData **grids,
 	int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_buffers(void *buffers_v, struct DMGridData **grids,
-	int *grid_indices, int totgrid, int gridsize);
+	int *grid_indices, int totgrid, int gridsize, int smooth);
 void GPU_draw_buffers(void *buffers);
 void GPU_free_buffers(void *buffers);
 

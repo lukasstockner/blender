@@ -2297,10 +2297,8 @@ public:
 	{
 		float mat[4][4];
 		TransformReader::get_node_mat(mat, node, &uid_animated_map, ob);
-		if (ob) {
-			copy_m4_m4(ob->obmat, mat);
-			ED_object_apply_obmat(ob);
-		}
+		if (ob)
+			object_apply_mat4(ob, mat);
 	}
 	
 #if 0
@@ -3570,7 +3568,7 @@ public:
 		char dir[FILE_MAX];
 		char full_path[FILE_MAX];
 		
-		BLI_split_dirfile_basic(filename, dir, NULL);
+		BLI_split_dirfile(filename, dir, NULL);
 		BLI_join_dirfile(full_path, dir, filepath.c_str());
 		Image *ima = BKE_add_image_file(full_path, 0);
 		if (!ima) {

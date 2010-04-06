@@ -29,6 +29,7 @@ class MotionPathButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_label = "Motion Paths"
+    bl_default_closed = True
 
     def draw_settings(self, context, avs, wide_ui, bones=False):
         layout = self.layout
@@ -48,8 +49,8 @@ class MotionPathButtonsPanel(bpy.types.Panel):
             sub.prop(mps, "before_current", text="Before")
             sub.prop(mps, "after_current", text="After")
         elif (mps.type == 'RANGE'):
-            sub.prop(mps, "start_frame", text="Start")
-            sub.prop(mps, "end_frame", text="End")
+            sub.prop(mps, "frame_start", text="Start")
+            sub.prop(mps, "frame_end", text="End")
 
         sub.prop(mps, "frame_step", text="Step")
         if bones:
@@ -68,6 +69,7 @@ class OnionSkinButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_label = "Onion Skinning"
+    bl_default_closed = True
 
     def draw(self, context):
         layout = self.layout
@@ -86,8 +88,8 @@ class OnionSkinButtonsPanel(bpy.types.Panel):
 
         sub = col.column(align=True)
         if arm.ghost_type == 'RANGE':
-            sub.prop(arm, "ghost_start_frame", text="Start")
-            sub.prop(arm, "ghost_end_frame", text="End")
+            sub.prop(arm, "ghost_frame_start", text="Start")
+            sub.prop(arm, "ghost_frame_end", text="End")
             sub.prop(arm, "ghost_size", text="Step")
         elif arm.ghost_type == 'CURRENT_FRAME':
             sub.prop(arm, "ghost_step", text="Range")
@@ -129,8 +131,24 @@ class OBJECT_PT_motion_paths(MotionPathButtonsPanel):
         col.operator("object.paths_clear", text="Clear Paths")
 
 
+class OBJECT_PT_onion_skinning(OnionSkinButtonsPanel):
+    #bl_label = "Object Onion Skinning"
+    bl_context = "object"
+
+    def poll(self, context):
+        return (context.object)
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        wide_ui = context.region.width > narrowui
+
+        self.draw_settings(context, ob.animation_visualisation, wide_ui)
+
+
 class DATA_PT_motion_paths(MotionPathButtonsPanel):
-    #bl_label = "Bone Motion Paths"
+    #bl_label = "Bones Motion Paths"
     bl_context = "data"
 
     def poll(self, context):
@@ -157,8 +175,44 @@ class DATA_PT_motion_paths(MotionPathButtonsPanel):
         col.operator("pose.paths_clear", text="Clear Paths")
 
 
+class DATA_PT_onion_skinning(OnionSkinButtonsPanel):
+    #bl_label = "Bones Onion Skinning"
+    bl_context = "data"
 
-#bpy.types.register(OBJECT_PT_onion_skinning)
-#bpy.types.register(DATA_PT_onion_skinning)
-bpy.types.register(OBJECT_PT_motion_paths)
-bpy.types.register(DATA_PT_motion_paths)
+    def poll(self, context):
+        # XXX: include posemode check?
+        return (context.object) and (context.armature)
+
+    def draw(self, context):
+        layout = self.layout
+
+        ob = context.object
+        wide_ui = context.region.width > narrowui
+
+        self.draw_settings(context, ob.pose.animation_visualisation, wide_ui, bones=True)
+
+# NOTE:
+# The specialised panel types defined here (i.e. OBJECT_PT_*, etc.)
+# aren't registered here, but are rather imported to (and registered)
+# in the files defining the contexts where they reside. Otherwise,
+# these panels appear at the top of the lists by default.
+#
+# However, we keep these empty register funcs here just in case
+# something will need them again one day, and also to make
+# it easier to maintain these scripts.
+classes = []
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

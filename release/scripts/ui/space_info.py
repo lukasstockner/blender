@@ -26,9 +26,14 @@ class INFO_HT_header(bpy.types.Header):
     def draw(self, context):
         layout = self.layout
 
+        wm = context.manager
+        if wm and len(wm.operators):
+            last_op = wm.operators[-1]
+        else:
+            last_op = None
         window = context.window
         scene = context.scene
-        rd = scene.render_data
+        rd = scene.render
 
         row = layout.row(align=True)
         row.template_header()
@@ -58,11 +63,14 @@ class INFO_HT_header(bpy.types.Header):
 
         layout.separator()
 
-        layout.template_operator_search()
         layout.template_running_jobs()
 
-        layout.label(text=scene.statistics())
+        if last_op and last_op.has_reports:
+            layout.template_reports_banner(last_op)
+        else:
+            layout.label(text=scene.statistics())
 
+        # XXX: this should be right-aligned to the RHS of the region
         layout.operator("wm.window_fullscreen_toggle", icon='FULLSCREEN_ENTER', text="")
 
 
@@ -123,11 +131,17 @@ class INFO_MT_file_open_recent(bpy.types.Menu):
         import os
         layout = self.layout
         layout.operator_context = 'EXEC_AREA'
-        file = open(os.path.join(bpy.app.home, ".Blog"), "rU")
-        for line in file:
-            line = line.rstrip()
-            layout.operator("wm.open_mainfile", text=line, icon='FILE_BLEND').path = line
-        file.close()
+
+        path = os.path.join(bpy.app.home, ".Blog")
+
+        if os.path.isfile(path):
+            file = open(path, "rU")
+            for line in file:
+                line = line.rstrip()
+                layout.operator("wm.open_mainfile", text=line, icon='FILE_BLEND').path = line
+            file.close()
+        else:
+            layout.label(text='No recent files')
 
 
 class INFO_MT_file_import(bpy.types.Menu):
@@ -136,7 +150,7 @@ class INFO_MT_file_import(bpy.types.Menu):
 
     def draw(self, context):
         if "collada_import" in dir(bpy.ops.wm):
-            self.layout.operator("wm.collada_import", text="COLLADA (.dae)...")
+            self.layout.operator("wm.collada_import", text="COLLADA (.dae)")
 
 
 class INFO_MT_file_export(bpy.types.Menu):
@@ -145,7 +159,7 @@ class INFO_MT_file_export(bpy.types.Menu):
 
     def draw(self, context):
         if "collada_export" in dir(bpy.ops.wm):
-            self.layout.operator("wm.collada_export", text="COLLADA (.dae)...")
+            self.layout.operator("wm.collada_export", text="COLLADA (.dae)")
 
 
 class INFO_MT_file_external_data(bpy.types.Menu):
@@ -155,7 +169,7 @@ class INFO_MT_file_external_data(bpy.types.Menu):
         layout = self.layout
 
         layout.operator("file.pack_all", text="Pack into .blend file")
-        layout.operator("file.unpack_all", text="Unpack into Files...")
+        layout.operator("file.unpack_all", text="Unpack into Files")
 
         layout.separator()
 
@@ -167,7 +181,7 @@ class INFO_MT_file_external_data(bpy.types.Menu):
 
 class INFO_MT_mesh_add(bpy.types.Menu):
     bl_idname = "INFO_MT_mesh_add"
-    bl_label = "Add Mesh"
+    bl_label = "Mesh"
 
     def draw(self, context):
         layout = self.layout
@@ -207,7 +221,7 @@ class INFO_MT_add(bpy.types.Menu):
 
         layout.operator_menu_enum("object.curve_add", "type", text="Curve", icon='OUTLINER_OB_CURVE')
         layout.operator_menu_enum("object.surface_add", "type", text="Surface", icon='OUTLINER_OB_SURFACE')
-        layout.operator_menu_enum("object.metaball_add", "type", 'META', text="Metaball", icon='OUTLINER_OB_META')
+        layout.operator_menu_enum("object.metaball_add", "type", text="Metaball", icon='OUTLINER_OB_META')
         layout.operator("object.text_add", text="Text", icon='OUTLINER_OB_FONT')
         layout.separator()
 
@@ -219,15 +233,15 @@ class INFO_MT_add(bpy.types.Menu):
 
         layout.operator("object.camera_add", text="Camera", icon='OUTLINER_OB_CAMERA')
         layout.operator_context = 'EXEC_SCREEN'
-        layout.operator_menu_enum("object.lamp_add", "type", 'LAMP', text="Lamp", icon='OUTLINER_OB_LAMP')
+        layout.operator_menu_enum("object.lamp_add", "type", text="Lamp", icon='OUTLINER_OB_LAMP')
         layout.separator()
 
-        layout.operator_menu_enum("object.effector_add", "type", 'EMPTY', text="Force Field", icon='OUTLINER_OB_EMPTY')
+        layout.operator_menu_enum("object.effector_add", "type", text="Force Field", icon='OUTLINER_OB_EMPTY')
         layout.separator()
 
         if(len(bpy.data.groups) > 10):
             layout.operator_context = 'INVOKE_DEFAULT'
-            layout.operator("object.group_instance_add", "type", text="Group Instance...", icon='OUTLINER_OB_EMPTY')
+            layout.operator("object.group_instance_add", text="Group Instance...", icon='OUTLINER_OB_EMPTY')
         else:
             layout.operator_menu_enum("object.group_instance_add", "type", text="Group Instance", icon='OUTLINER_OB_EMPTY')
 
@@ -247,7 +261,10 @@ class INFO_MT_game(bpy.types.Menu):
         layout.prop(gs, "show_debug_properties")
         layout.prop(gs, "show_framerate_profile")
         layout.prop(gs, "show_physics_visualization")
-        layout.prop(gs, "deprecation_warnings")
+        layout.prop(gs, "use_deprecation_warnings")
+        layout.prop(gs, "use_animation_record")
+        layout.separator()
+        layout.prop(gs, "auto_start")
 
 
 class INFO_MT_render(bpy.types.Menu):
@@ -256,20 +273,20 @@ class INFO_MT_render(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        # rd = context.scene.render_data
+        # rd = context.scene.render
 
-        layout.operator("screen.render", text="Render Image", icon='RENDER_STILL')
-        layout.operator("screen.render", text="Render Animation", icon='RENDER_ANIMATION').animation = True
-
-        layout.separator()
-
-        layout.operator("screen.opengl_render", text="OpenGL Render Image")
-        layout.operator("screen.opengl_render", text="OpenGL Render Animation").animation = True
+        layout.operator("render.render", text="Render Image", icon='RENDER_STILL')
+        layout.operator("render.render", text="Render Animation", icon='RENDER_ANIMATION').animation = True
 
         layout.separator()
 
-        layout.operator("screen.render_view_show")
-        layout.operator("screen.play_rendered_anim")
+        layout.operator("render.opengl", text="OpenGL Render Image")
+        layout.operator("render.opengl", text="OpenGL Render Animation").animation = True
+
+        layout.separator()
+
+        layout.operator("render.view_show")
+        layout.operator("render.play_rendered_anim")
 
 
 class INFO_MT_help(bpy.types.Menu):
@@ -292,19 +309,9 @@ class INFO_MT_help(bpy.types.Menu):
         layout.separator()
         layout.operator("help.python_api", icon='URL')
         layout.operator("help.operator_cheat_sheet")
+        layout.separator()
+        layout.operator("wm.splash")
 
-bpy.types.register(INFO_HT_header)
-bpy.types.register(INFO_MT_file)
-bpy.types.register(INFO_MT_file_open_recent)
-bpy.types.register(INFO_MT_file_import)
-bpy.types.register(INFO_MT_file_export)
-bpy.types.register(INFO_MT_file_external_data)
-bpy.types.register(INFO_MT_add)
-bpy.types.register(INFO_MT_mesh_add)
-bpy.types.register(INFO_MT_armature_add)
-bpy.types.register(INFO_MT_game)
-bpy.types.register(INFO_MT_render)
-bpy.types.register(INFO_MT_help)
 
 # Help operators
 
@@ -342,7 +349,7 @@ class HELP_OT_blender_eshop(HelpOperator):
     '''Buy official Blender resources and merchandise online'''
     bl_idname = "help.blender_eshop"
     bl_label = "Blender e-Shop"
-    _url = 'http://www.blender3d.org/e-shop'
+    _url = 'http://www.blender.org/e-shop'
 
 
 class HELP_OT_developer_community(HelpOperator):
@@ -397,12 +404,42 @@ class HELP_OT_operator_cheat_sheet(bpy.types.Operator):
         self.report({'INFO'}, "See OperatorList.txt textblock")
         return {'FINISHED'}
 
-bpy.types.register(HELP_OT_manual)
-bpy.types.register(HELP_OT_release_logs)
-bpy.types.register(HELP_OT_blender_website)
-bpy.types.register(HELP_OT_blender_eshop)
-bpy.types.register(HELP_OT_developer_community)
-bpy.types.register(HELP_OT_user_community)
-bpy.types.register(HELP_OT_report_bug)
-bpy.types.register(HELP_OT_python_api)
-bpy.types.register(HELP_OT_operator_cheat_sheet)
+
+classes = [
+    INFO_HT_header,
+    INFO_MT_file,
+    INFO_MT_file_open_recent,
+    INFO_MT_file_import,
+    INFO_MT_file_export,
+    INFO_MT_file_external_data,
+    INFO_MT_add,
+    INFO_MT_mesh_add,
+    INFO_MT_armature_add,
+    INFO_MT_game,
+    INFO_MT_render,
+    INFO_MT_help,
+
+    HELP_OT_manual,
+    HELP_OT_release_logs,
+    HELP_OT_blender_website,
+    HELP_OT_blender_eshop,
+    HELP_OT_developer_community,
+    HELP_OT_user_community,
+    HELP_OT_report_bug,
+    HELP_OT_python_api,
+    HELP_OT_operator_cheat_sheet]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

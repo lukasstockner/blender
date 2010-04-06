@@ -81,7 +81,6 @@
 
 //XXX #include "playanim_ext.h"
 #include "ED_datafiles.h"
-#include "UI_interface.h"
 
 #include "WM_api.h"
 
@@ -107,11 +106,11 @@
 
 // from buildinfo.c
 #ifdef BUILD_DATE
-extern char * build_date;
-extern char * build_time;
-extern char * build_rev;
-extern char * build_platform;
-extern char * build_type;
+extern char build_date[];
+extern char build_time[];
+extern char build_rev[];
+extern char build_platform[];
+extern char build_type[];
 #endif
 
 /*	Local Function prototypes */
@@ -161,6 +160,20 @@ static void blender_esc(int sig)
 	}
 }
 
+/* buildinfo can have quotes */
+#ifdef BUILD_DATE
+static void strip_quotes(char *str)
+{
+    if(str[0] == '"') {
+        int len= strlen(str) - 1;
+        memmove(str, str+1, len);
+        if(str[len-1] == '"') {
+            str[len-1]= '\0';
+        }
+    }
+}
+#endif
+
 static int print_version(int argc, char **argv, void *data)
 {
 #ifdef BUILD_DATE
@@ -184,7 +197,7 @@ static int print_help(int argc, char **argv, void *data)
 	printf ("Blender %d.%02d (sub %d) Build\n", BLENDER_VERSION/100, BLENDER_VERSION%100, BLENDER_SUBVERSION);
 	printf ("Usage: blender [args ...] [file] [args ...]\n");
 	printf ("\nRender options:\n");
-	printf ("  -b <file>\tRender <file> in background (doesn't load the user defaults .B.blend file)\n");
+	printf ("  -b <file>\tLoad <file> in background (often used for background rendering)\n");
 	printf ("    -a render frames from start to end (inclusive), only works when used after -b\n");
 	printf ("    -S <name>\tSet scene <name>\n");
 	printf ("    -f <frame>\tRender frame <frame> and save it\n");				
@@ -230,6 +243,9 @@ static int print_help(int argc, char **argv, void *data)
 
 	printf ("\nMisc options:\n");
 	printf ("  -d\t\tTurn debugging on\n");
+	printf ("    \t\t * prints every operator call and their arguments\n");
+	printf ("    \t\t * disables mouse grab (to interact with a debugger in some cases)\n");
+	printf ("    \t\t * keeps python sys.stdin rather then setting it to None\n");
 	printf ("  -nojoystick\tDisable joystick support\n");
 	printf ("  -noglsl\tDisable GLSL shading\n");
 	printf ("  -noaudio\tForce sound system to None\n");
@@ -301,7 +317,7 @@ static int end_arguments(int argc, char **argv, void *data)
 
 static int disable_python(int argc, char **argv, void *data)
 {
-	G.f &= ~G_DOSCRIPTLINKS;
+	G.f &= ~G_SCRIPT_AUTOEXEC;
 	return 0;
 }
 
@@ -663,14 +679,14 @@ static int render_frame(int argc, char **argv, void *data)
 
 		if (argc > 1) {
 			int frame = atoi(argv[1]);
-			Render *re = RE_NewRender(scene->id.name, RE_SLOT_DEFAULT);
+			Render *re = RE_NewRender(scene->id.name);
 			ReportList reports;
 
 			BKE_reports_init(&reports, RPT_PRINT);
 
 			frame = MIN2(MAXFRAME, MAX2(MINAFRAME, frame));
 
-			RE_BlenderAnim(re, scene, frame, frame, scene->r.frame_step, &reports);
+			RE_BlenderAnim(re, scene, scene->lay, frame, frame, scene->r.frame_step, &reports);
 			return 1;
 		} else {
 			printf("\nError: frame number must follow '-f'.\n");
@@ -687,10 +703,10 @@ static int render_animation(int argc, char **argv, void *data)
 	bContext *C = data;
 	if (CTX_data_scene(C)) {
 		Scene *scene= CTX_data_scene(C);
-		Render *re= RE_NewRender(scene->id.name, RE_SLOT_DEFAULT);
+		Render *re= RE_NewRender(scene->id.name);
 		ReportList reports;
 		BKE_reports_init(&reports, RPT_PRINT);
-		RE_BlenderAnim(re, scene, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
+		RE_BlenderAnim(re, scene, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step, &reports);
 	} else {
 		printf("\nError: no blend loaded. cannot use '-a'.\n");
 	}
@@ -715,7 +731,7 @@ static int set_start_frame(int argc, char **argv, void *data)
 		Scene *scene= CTX_data_scene(C);
 		if (argc > 1) {
 			int frame = atoi(argv[1]);
-			(scene->r.sfra) = MIN2(MAXFRAME, MAX2(1, frame));
+			(scene->r.sfra) = CLAMPIS(frame, MINFRAME, MAXFRAME);
 			return 1;
 		} else {
 			printf("\nError: frame number must follow '-s'.\n");
@@ -734,7 +750,7 @@ static int set_end_frame(int argc, char **argv, void *data)
 		Scene *scene= CTX_data_scene(C);
 		if (argc > 1) {
 			int frame = atoi(argv[1]);
-			(scene->r.efra) = MIN2(MAXFRAME, MAX2(1, frame));
+			(scene->r.efra) = CLAMPIS(frame, MINFRAME, MAXFRAME);
 			return 1;
 		} else {
 			printf("\nError: frame number must follow '-e'.\n");
@@ -753,10 +769,10 @@ static int set_skip_frame(int argc, char **argv, void *data)
 		Scene *scene= CTX_data_scene(C);
 		if (argc > 1) {
 			int frame = atoi(argv[1]);
-			(scene->r.frame_step) = MIN2(MAXFRAME, MAX2(1, frame));
+			(scene->r.frame_step) = CLAMPIS(frame, 1, MAXFRAME);
 			return 1;
 		} else {
-			printf("\nError: number of frames must follow '-j'.\n");
+			printf("\nError: number of frames to step must follow '-j'.\n");
 			return 0;
 		}
 	} else {
@@ -767,25 +783,35 @@ static int set_skip_frame(int argc, char **argv, void *data)
 
 static int run_python(int argc, char **argv, void *data)
 {
-	bContext *C = data;
 #ifndef DISABLE_PYTHON
+	bContext *C = data;
+
+	/* Make the path absolute because its needed for relative linked blends to be found */
+	char filename[FILE_MAXDIR + FILE_MAXFILE];
+	BLI_strncpy(filename, argv[1], sizeof(filename));
+	BLI_path_cwd(filename);
+
 	/* workaround for scripts not getting a bpy.context.scene, causes internal errors elsewhere */
 	if (argc > 1) {
 		/* XXX, temp setting the WM is ugly, splash also does this :S */
 		wmWindowManager *wm= CTX_wm_manager(C);
 		wmWindow *prevwin= CTX_wm_window(C);
+		Scene *prevscene= CTX_data_scene(C);
 
 		if(wm->windows.first) {
 			CTX_wm_window_set(C, wm->windows.first);
 
-			BPY_run_python_script(C, argv[1], NULL, NULL); // use reports?
+			BPY_run_python_script(C, filename, NULL, NULL); // use reports?
 
 			CTX_wm_window_set(C, prevwin);
 		}
 		else {
 			fprintf(stderr, "Python script \"%s\" running with missing context data.\n", argv[1]);
-			BPY_run_python_script(C, argv[1], NULL, NULL); // use reports?
+			BPY_run_python_script(C, filename, NULL, NULL); // use reports?
 		}
+
+		CTX_data_scene_set(C, prevscene);
+
 		return 1;
 	} else {
 		printf("\nError: you must specify a Python script after '-P '.\n");
@@ -803,12 +829,11 @@ static int load_file(int argc, char **argv, void *data)
 
 	/* Make the path absolute because its needed for relative linked blends to be found */
 	char filename[FILE_MAXDIR + FILE_MAXFILE];
-
 	BLI_strncpy(filename, argv[0], sizeof(filename));
-	BLI_convertstringcwd(filename);
+	BLI_path_cwd(filename);
 
 	if (G.background) {
-		int retval = BKE_read_file(C, argv[0], NULL, NULL);
+		int retval = BKE_read_file(C, filename, NULL, NULL);
 
 		/*we successfully loaded a blend file, get sure that
 		pointcache works */
@@ -928,7 +953,15 @@ int main(int argc, char **argv)
 		if(blender_path_env)
 			BLI_strncpy(blender_path, blender_path_env, sizeof(blender_path));
 	}
-	
+
+#ifdef BUILD_DATE	
+    strip_quotes(build_date);
+    strip_quotes(build_time);
+    strip_quotes(build_rev);
+    strip_quotes(build_platform);
+    strip_quotes(build_type);
+#endif
+
 	RNA_init();
 	RE_engines_init();
 
@@ -946,7 +979,7 @@ int main(int argc, char **argv)
 
 	/* first test for background */
 
-	G.f |= G_DOSCRIPTLINKS; /* script links enabled by default */
+	G.f |= G_SCRIPT_AUTOEXEC; /* script links enabled by default */
 
 	ba = BLI_argsInit(argc, argv); /* skip binary path */
 	setupArguments(C, ba, &syshandle);
@@ -972,7 +1005,7 @@ int main(int argc, char **argv)
 
 		WM_init(C, argc, argv);
 		
-		// XXX BRECHT SOLVE
+		/* this is properly initialized with user defs, but this is default */
 		BLI_where_is_temp( btempdir, 1 ); /* call after loading the .B.blend so we can read U.tempdir */
 
 #ifndef DISABLE_SDL
@@ -1000,7 +1033,7 @@ int main(int argc, char **argv)
 	 * Update: now this function also inits the bpymenus, which also depend
 	 * on U.pythondir.
 	 */
-	
+
 	// TODO - U.pythondir
 
 #endif
@@ -1032,8 +1065,13 @@ int main(int argc, char **argv)
 		WM_exit(C);
 	}
 
-	if(!G.background && !G.file_loaded)
-		WM_init_splash(C);
+	else {
+		if((G.fileflags & G_FILE_AUTOPLAY) && (G.f & G_SCRIPT_AUTOEXEC))
+			WM_init_game(C);
+
+		else if(!G.file_loaded)
+			WM_init_splash(C);
+	}
 
 	WM_main(C);
 
@@ -1053,7 +1091,7 @@ static void error_cb(char *err)
 	printf("%s\n", err);	/* XXX do this in WM too */
 }
 
-static void mem_error_cb(char *errorStr)
+static void mem_error_cb(const char *errorStr)
 {
 	fputs(errorStr, stderr);
 	fflush(stderr);

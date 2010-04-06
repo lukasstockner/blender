@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,8 +25,8 @@
 /* This file defines the '_bpy' module which is used by python's 'bpy' package.
  * a script writer should never directly access this module */
  
-#include <Python.h>
- 
+
+#include "bpy_util.h" 
 #include "bpy_rna.h"
 #include "bpy_app.h"
 #include "bpy_props.h"
@@ -35,33 +35,40 @@
 #include "BLI_path_util.h"
  
  /* external util modules */
-#include "../generic/Mathutils.h"
 #include "../generic/Geometry.h"
-#include "../generic/BGL.h"
+#include "../generic/bgl.h"
+#include "../generic/blf.h"
 #include "../generic/IDProp.h"
- 
-/* todo, make nice syntax for sphinx */
-static char bpy_home_paths_doc[] = "home_paths(subfolder), return 3 paths to blender home directories (system, local, user), strings will be empty when not found.";
+
+static char bpy_home_paths_doc[] =
+".. function:: home_paths(subfolder)\n"
+"\n"
+"   return 3 paths to blender home directories.\n"
+"\n"
+"   :arg subfolder: The name of a subfolder to find within the blenders home directory.\n"
+"   :type subfolder: string\n"
+"   :return: (system, local, user) strings will be empty when not found.\n"
+"   :rtype: tuple of strigs\n";
 
 PyObject *bpy_home_paths(PyObject *self, PyObject *args)
 {
-    PyObject *ret= PyTuple_New(3);
-    char *path;
-    char *subfolder= "";
+	PyObject *ret= PyTuple_New(3);
+	char *path;
+	char *subfolder= "";
     
 	if (!PyArg_ParseTuple(args, "|s:blender_homes", &subfolder))
 		return NULL;
 
-    path= BLI_gethome_folder(subfolder, BLI_GETHOME_SYSTEM);
-    PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(path?path:""));
+	path= BLI_gethome_folder(subfolder, BLI_GETHOME_SYSTEM);
+	PyTuple_SET_ITEM(ret, 0, PyUnicode_FromString(path?path:""));
 
-    path= BLI_gethome_folder(subfolder, BLI_GETHOME_LOCAL);
-    PyTuple_SET_ITEM(ret, 1, PyUnicode_FromString(path?path:""));
+	path= BLI_gethome_folder(subfolder, BLI_GETHOME_LOCAL);
+	PyTuple_SET_ITEM(ret, 1, PyUnicode_FromString(path?path:""));
 
-    path= BLI_gethome_folder(subfolder, BLI_GETHOME_USER);
-    PyTuple_SET_ITEM(ret, 2, PyUnicode_FromString(path?path:""));
+	path= BLI_gethome_folder(subfolder, BLI_GETHOME_USER);
+	PyTuple_SET_ITEM(ret, 2, PyUnicode_FromString(path?path:""));
     
-    return ret;
+	return ret;
 }
 
 static PyMethodDef meth_bpy_home_paths[] = {{ "home_paths", (PyCFunction)bpy_home_paths, METH_VARARGS, bpy_home_paths_doc}};
@@ -83,7 +90,7 @@ static void bpy_import_test(char *modname)
 *****************************************************************************/
 void BPy_init_modules( void )
 {
-    extern BPy_StructRNA *bpy_context_module;
+	extern BPy_StructRNA *bpy_context_module;
 	PyObject *mod;
 
 	/* Needs to be first since this dir is needed for future modules */
@@ -99,6 +106,7 @@ void BPy_init_modules( void )
 	Geometry_Init();
 	Mathutils_Init();
 	BGL_Init();
+	BLF_Init();
 	IDProp_Init_Types();
 
 
@@ -120,11 +128,11 @@ void BPy_init_modules( void )
 	PyModule_AddObject( mod, "app", BPY_app_struct() );
 
 	/* bpy context */
-    bpy_context_module= ( BPy_StructRNA * ) PyObject_NEW( BPy_StructRNA, &pyrna_struct_Type );
-    RNA_pointer_create(NULL, &RNA_Context, NULL, &bpy_context_module->ptr);
-    bpy_context_module->freeptr= 0;
-    PyModule_AddObject(mod, "context", (PyObject *)bpy_context_module);
-    
+	bpy_context_module= ( BPy_StructRNA * ) PyObject_NEW( BPy_StructRNA, &pyrna_struct_Type );
+	RNA_pointer_create(NULL, &RNA_Context, BPy_GetContext(), &bpy_context_module->ptr);
+	bpy_context_module->freeptr= 0;
+	PyModule_AddObject(mod, "context", (PyObject *)bpy_context_module);
+
 	/* utility func's that have nowhere else to go */
 	PyModule_AddObject(mod, meth_bpy_home_paths->ml_name, (PyObject *)PyCFunction_New(meth_bpy_home_paths, NULL));
 

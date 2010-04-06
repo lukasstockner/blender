@@ -32,9 +32,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_scene_types.h"
-#include "DNA_object_force.h"
-#include "DNA_modifier_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_context.h"
 #include "BKE_particle.h"
 #include "BKE_report.h"
@@ -46,12 +45,8 @@
 
 #include "BLI_blenlib.h"
 
-#include "ED_screen.h"
-#include "ED_physics.h"
 #include "ED_particle.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -131,7 +126,7 @@ static int ptcache_free_bake_all_exec(bContext *C, wmOperator *op)
 	ListBase pidlist;
 
 	for(base=scene->base.first; base; base= base->next) {
-		BKE_ptcache_ids_from_object(&pidlist, base->object);
+		BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
 
 		for(pid=pidlist.first; pid; pid=pid->next) {
 			pid->cache->flag &= ~PTCACHE_BAKED;
@@ -184,7 +179,7 @@ static int ptcache_bake_exec(bContext *C, wmOperator *op)
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
 	
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache == cache)
@@ -296,7 +291,7 @@ static int ptcache_add_new_exec(bContext *C, wmOperator *op)
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
 	
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache == cache) {
@@ -314,12 +309,13 @@ static int ptcache_add_new_exec(bContext *C, wmOperator *op)
 static int ptcache_remove_exec(bContext *C, wmOperator *op)
 {
 	PointerRNA ptr= CTX_data_pointer_get_type(C, "PointCache", &RNA_PointCache);
+	Scene *scene= CTX_data_scene(C);
 	Object *ob= ptr.id.data;
 	PointCache *cache= ptr.data;
 	PTCacheID *pid;
 	ListBase pidlist;
 
-	BKE_ptcache_ids_from_object(&pidlist, ob);
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
 	
 	for(pid=pidlist.first; pid; pid=pid->next) {
 		if(pid->cache == cache) {

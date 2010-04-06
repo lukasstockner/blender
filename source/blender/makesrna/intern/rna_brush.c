@@ -25,7 +25,6 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -192,8 +191,9 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "rate", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "rate");
-	RNA_def_property_range(prop, 0.010f, 1.0f);
-	RNA_def_property_ui_text(prop, "Rate", "Number of paints per second for Airbrush");
+	RNA_def_property_range(prop, 0.0001f , 10000.0f);
+	RNA_def_property_ui_range(prop, 0.01f, 1.0f, 1, 3);
+	RNA_def_property_ui_text(prop, "Rate", "Interval between paints for Airbrush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	prop= RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -278,6 +278,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_FIXED_TEX);
 	RNA_def_property_ui_text(prop, "Fixed Texture", "Keep texture origin in fixed position");
 	RNA_def_property_update(prop, 0, "rna_Brush_update"); */
+	
+	/* only for projection paint, TODO, other paint modes */
+	prop= RNA_def_property(srna, "use_alpha", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", BRUSH_LOCK_ALPHA);
+	RNA_def_property_ui_text(prop, "Alpha", "When this is disabled, lock alpha while painting");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "curve", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -360,7 +366,7 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Flip", "");
 
 	/* XXX: Tool (this will be for pressing a modifier key for a different brush,
-	        e.g. switching to a Smooth brush in the middle of the stroke */
+			e.g. switching to a Smooth brush in the middle of the stroke */
 }
 
 void RNA_def_brush(BlenderRNA *brna)

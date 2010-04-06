@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -23,7 +23,6 @@
  */
 
 #include "bpy_app.h"
-#include "bpy_util.h"
 
 #include "BLI_path_util.h"
 
@@ -32,17 +31,11 @@
 #include "structseq.h"
 
 #ifdef BUILD_DATE
-extern char * build_date;
-extern char * build_time;
-extern char * build_rev;
-extern char * build_platform;
-extern char * build_type;
-#else
-static char * build_date = "Unknown";
-static char * build_time = "Unknown";
-static char * build_rev = "Unknown";
-static char * build_platform = "Unknown";
-static char * build_type = "Unknown";
+extern char build_date[];
+extern char build_time[];
+extern char build_rev[];
+extern char build_platform[];
+extern char build_type[];
 #endif
 
 static PyTypeObject BlenderAppType;
@@ -84,8 +77,8 @@ static PyObject *make_app_info(void)
 
 #define SetIntItem(flag) \
 	PyStructSequence_SET_ITEM(app_info, pos++, PyLong_FromLong(flag))
-#define SetStrItem(flag) \
-	PyStructSequence_SET_ITEM(app_info, pos++, PyUnicode_FromString(flag))
+#define SetStrItem(str) \
+	PyStructSequence_SET_ITEM(app_info, pos++, PyUnicode_FromString(str))
 #define SetObjItem(obj) \
 	PyStructSequence_SET_ITEM(app_info, pos++, obj)
 
@@ -96,11 +89,19 @@ static PyObject *make_app_info(void)
 	SetObjItem(PyBool_FromLong(G.f & G_DEBUG));
 
 	/* build info */
+#ifdef BUILD_DATE
 	SetStrItem(build_date);
 	SetStrItem(build_time);
 	SetStrItem(build_rev);
 	SetStrItem(build_platform);
 	SetStrItem(build_type);
+#else
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
+	SetStrItem("Unknown");
+#endif
 
 #undef SetIntItem
 #undef SetStrItem

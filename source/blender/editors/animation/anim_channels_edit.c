@@ -25,11 +25,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-#include <float.h>
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -37,51 +32,25 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 
-#include "DNA_listBase.h"
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_key_types.h"
-#include "DNA_lamp_types.h"
-#include "DNA_material_types.h"
-#include "DNA_meta_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_windowmanager_types.h"
-#include "DNA_world_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BKE_animsys.h"
 #include "BKE_action.h"
-#include "BKE_depsgraph.h"
 #include "BKE_fcurve.h"
-#include "BKE_key.h"
-#include "BKE_material.h"
-#include "BKE_object.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_utildefines.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_edit.h" // XXX move the select modes out of there!
 #include "ED_screen.h"
-#include "ED_space_api.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -261,6 +230,8 @@ void ANIM_deselect_anim_channels (bAnimContext *ac, void *data, short datatype, 
 				case ANIMTYPE_DSMBALL:
 				case ANIMTYPE_DSARM:
 				case ANIMTYPE_DSMESH:
+				case ANIMTYPE_DSNTREE:
+				case ANIMTYPE_DSTEX:
 				{
 					if ((ale->adt) && (ale->adt->flag & ADT_UI_SELECTED))
 						sel= ACHANNEL_SETFLAG_CLEAR;
@@ -342,6 +313,8 @@ void ANIM_deselect_anim_channels (bAnimContext *ac, void *data, short datatype, 
 			case ANIMTYPE_DSMBALL:
 			case ANIMTYPE_DSARM:
 			case ANIMTYPE_DSMESH:
+			case ANIMTYPE_DSNTREE:
+			case ANIMTYPE_DSTEX:
 			{
 				/* need to verify that this data is valid for now */
 				if (ale->adt) {
@@ -1742,8 +1715,6 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 				if (adt) adt->flag |= ADT_UI_SELECTED;
 			}
 			
-			/* xxx should be ED_base_object_activate(), but we need context pointer for that... */
-			//set_active_base(base);
 			if ((adt) && (adt->flag & ADT_UI_SELECTED))
 				adt->flag |= ADT_UI_ACTIVE;
 			
@@ -1762,6 +1733,8 @@ static int mouse_anim_channels (bAnimContext *ac, float x, int channel_index, sh
 		case ANIMTYPE_DSMBALL:
 		case ANIMTYPE_DSARM:
 		case ANIMTYPE_DSMESH:
+		case ANIMTYPE_DSNTREE:
+		case ANIMTYPE_DSTEX:
 		{
 			/* sanity checking... */
 			if (ale->adt) {

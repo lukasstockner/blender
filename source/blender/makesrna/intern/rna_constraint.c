@@ -25,7 +25,6 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -50,6 +49,7 @@ EnumPropertyItem constraint_type_items[] ={
 	{CONSTRAINT_TYPE_LOCLIMIT, "LIMIT_LOCATION", ICON_CONSTRAINT_DATA, "Limit Location", ""},
 	{CONSTRAINT_TYPE_ROTLIMIT, "LIMIT_ROTATION", ICON_CONSTRAINT_DATA, "Limit Rotation", ""},
 	{CONSTRAINT_TYPE_SIZELIMIT, "LIMIT_SCALE", ICON_CONSTRAINT_DATA, "Limit Scale", ""},
+	{CONSTRAINT_TYPE_SAMEVOL, "MAINTAIN_VOLUME", ICON_CONSTRAINT_DATA, "Maintain Volume", ""},
 	{CONSTRAINT_TYPE_TRANSFORM, "TRANSFORM", ICON_CONSTRAINT_DATA, "Transformation", ""},
 	{0, "", 0, "Tracking", ""},
 	{CONSTRAINT_TYPE_CLAMPTO, "CLAMP_TO", ICON_CONSTRAINT_DATA, "Clamp To", ""},
@@ -103,7 +103,6 @@ EnumPropertyItem constraint_ik_axisref_items[] ={
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 
-#include "ED_object.h"
 
 static StructRNA *rna_ConstraintType_refine(struct PointerRNA *ptr)
 {
@@ -124,6 +123,8 @@ static StructRNA *rna_ConstraintType_refine(struct PointerRNA *ptr)
 			return &RNA_CopyLocationConstraint;
 		case CONSTRAINT_TYPE_SIZELIKE:
 			return &RNA_CopyScaleConstraint;
+		case CONSTRAINT_TYPE_SAMEVOL:
+			return &RNA_MaintainVolumeConstraint;
 		case CONSTRAINT_TYPE_PYTHON:
 			return &RNA_PythonConstraint;
 		case CONSTRAINT_TYPE_ACTION:
@@ -164,10 +165,10 @@ static StructRNA *rna_ConstraintType_refine(struct PointerRNA *ptr)
 static void rna_Constraint_name_set(PointerRNA *ptr, const char *value)
 {
 	bConstraint *con= ptr->data;
-	char oldname[32];
+	char oldname[sizeof(con->name)];
 	
 	/* make a copy of the old name first */
-	BLI_strncpy(oldname, con->name, sizeof(oldname));
+	BLI_strncpy(oldname, con->name, sizeof(con->name));
 	
 	/* copy the new name into the name slot */
 	BLI_strncpy(con->name, value, sizeof(con->name));
@@ -813,6 +814,34 @@ static void rna_def_constraint_size_like(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 }
 
+static void rna_def_constraint_same_volume(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem volume_items[] = {
+	{SAMEVOL_X, "SAMEVOL_X", 0, "X", ""},
+	{SAMEVOL_Y, "SAMEVOL_Y", 0, "Y", ""},
+	{SAMEVOL_Z, "SAMEVOL_Z", 0, "Z", ""},
+	{0, NULL, 0, NULL, NULL}};
+
+	srna= RNA_def_struct(brna, "MaintainVolumeConstraint", "Constraint");
+	RNA_def_struct_ui_text(srna, "Maintain Volume Constraint", "Maintains a constant volume along a single scaling axis");
+	RNA_def_struct_sdna_from(srna, "bSameVolumeConstraint", "data");
+
+	prop= RNA_def_property(srna, "axis", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, volume_items);
+	RNA_def_property_ui_text(prop, "Free Axis", "The free scaling axis of the object");
+	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
+
+	prop= RNA_def_property(srna, "volume", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_range(prop, 0.001, 100.f);
+	RNA_def_property_ui_text(prop, "Volume", "Volume of the bone at rest");
+	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
+
+}
+
 static void rna_def_constraint_transform_like(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -934,13 +963,13 @@ static void rna_def_constraint_action(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 
-	prop= RNA_def_property(srna, "start_frame", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "start");
 	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
 	RNA_def_property_ui_text(prop, "Start Frame", "First frame of the Action to use");
 	RNA_def_property_update(prop, NC_OBJECT|ND_CONSTRAINT, "rna_Constraint_update");
 
-	prop= RNA_def_property(srna, "end_frame", PROP_INT, PROP_TIME);
+	prop= RNA_def_property(srna, "frame_end", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "end");
 	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
 	RNA_def_property_ui_text(prop, "End Frame", "Last frame of the Action to use");
@@ -1897,6 +1926,7 @@ void RNA_def_constraint(BlenderRNA *brna)
 	rna_def_constraint_locked_track(brna);
 	rna_def_constraint_action(brna);
 	rna_def_constraint_size_like(brna);
+	rna_def_constraint_same_volume(brna);
 	rna_def_constraint_locate_like(brna);
 	rna_def_constraint_rotate_like(brna);
 	rna_def_constraint_transform_like(brna);

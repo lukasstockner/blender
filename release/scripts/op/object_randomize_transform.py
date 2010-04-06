@@ -83,8 +83,7 @@ class RandomizeLocRotSize(bpy.types.Operator):
     '''Randomize objects loc/rot/scale'''
     bl_idname = "object.randomize_transform"
     bl_label = "Randomize Transform"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     random_seed = IntProperty(name="Random Seed",
         description="Seed value for the random generator",
@@ -134,13 +133,20 @@ class RandomizeLocRotSize(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Register the operator
-bpy.types.register(RandomizeLocRotSize)
-
-
 def menu_func(self, context):
     if context.mode == 'OBJECT':
         self.layout.operator(RandomizeLocRotSize.bl_idname,
         text="Randomize Transform")
 
-bpy.types.VIEW3D_MT_transform.append(menu_func)
+
+def register():
+    bpy.types.register(RandomizeLocRotSize)
+    bpy.types.VIEW3D_MT_transform.append(menu_func)
+
+
+def unregister():
+    bpy.types.unregister(RandomizeLocRotSize)
+    bpy.types.VIEW3D_MT_transform.remove(menu_func)
+
+if __name__ == "__main__":
+    register()

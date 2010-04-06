@@ -40,15 +40,11 @@
 #include "BLI_dynstr.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_key_types.h"
-#include "DNA_object_types.h"
 #include "DNA_material_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
@@ -67,7 +63,6 @@
 #include "ED_keyframing.h"
 #include "ED_keyframes_edit.h"
 #include "ED_screen.h"
-#include "ED_util.h"
 
 #include "UI_interface.h"
 
@@ -76,7 +71,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "anim_intern.h"
 
@@ -182,16 +176,8 @@ FCurve *verify_fcurve (bAction *act, const char group[], const char rna_path[], 
 			grp= action_groups_find_named(act, group);
 			
 			/* no matching groups, so add one */
-			if (grp == NULL) {
-				/* Add a new group, and make it active */
-				grp= MEM_callocN(sizeof(bActionGroup), "bActionGroup");
-				
-				grp->flag = AGRP_SELECTED;
-				BLI_snprintf(grp->name, 64, group);
-				
-				BLI_addtail(&act->groups, grp);
-				BLI_uniquename(&act->groups, grp, "Group", '.', offsetof(bActionGroup, name), 64);
-			}
+			if (grp == NULL)
+				grp= action_groups_add_new(act, group);
 			
 			/* add F-Curve to group */
 			action_groups_add_channel(act, grp, fcu);
@@ -231,27 +217,16 @@ int insert_bezt_fcurve (FCurve *fcu, BezTriple *bezt, short flag)
 		if (replace) {			
 			/* sanity check: 'i' may in rare cases exceed arraylen */
 			if ((i >= 0) && (i < fcu->totvert)) {
-				/* take care with the handletypes and other info if the replacement flags are set */
-				if (flag & INSERTKEY_REPLACE) {
-					BezTriple *dst= (fcu->bezt + i);
-					float dy= bezt->vec[1][1] - dst->vec[1][1];
-					
-					/* just apply delta value change to the handle values */
-					dst->vec[0][1] += dy;
-					dst->vec[1][1] += dy;
-					dst->vec[2][1] += dy;
-					
-					// TODO: perform some other operations?
-				}
-				else {
-					char oldKeyType= BEZKEYTYPE(fcu->bezt + i);
-					
-					/* just brutally replace the values */
-					*(fcu->bezt + i) = *bezt;
-					
-					/* special exception for keyframe type - copy value back so that this info isn't lost */
-					BEZKEYTYPE(fcu->bezt + i)= oldKeyType;
-				}
+				/* just change the values when replacing, so as to not overwrite handles */
+				BezTriple *dst= (fcu->bezt + i);
+				float dy= bezt->vec[1][1] - dst->vec[1][1];
+				
+				/* just apply delta value change to the handle values */
+				dst->vec[0][1] += dy;
+				dst->vec[1][1] += dy;
+				dst->vec[2][1] += dy;
+				
+				// TODO: perform some other operations?
 			}
 		}
 		/* keyframing modes allow to not replace keyframe */
@@ -259,14 +234,14 @@ int insert_bezt_fcurve (FCurve *fcu, BezTriple *bezt, short flag)
 			/* insert new - if we're not restricted to replacing keyframes only */
 			BezTriple *newb= MEM_callocN((fcu->totvert+1)*sizeof(BezTriple), "beztriple");
 			
-			/* add the beztriples that should occur before the beztriple to be pasted (originally in ei->icu) */
+			/* add the beztriples that should occur before the beztriple to be pasted (originally in fcu) */
 			if (i > 0)
 				memcpy(newb, fcu->bezt, i*sizeof(BezTriple));
 			
 			/* add beztriple to paste at index i */
 			*(newb + i)= *bezt;
 			
-			/* add the beztriples that occur after the beztriple to be pasted (originally in icu) */
+			/* add the beztriples that occur after the beztriple to be pasted (originally in fcu) */
 			if (i < fcu->totvert) 
 				memcpy(newb+i+1, fcu->bezt+i, (fcu->totvert-i)*sizeof(BezTriple));
 			
@@ -311,17 +286,19 @@ int insert_vert_fcurve (FCurve *fcu, float x, float y, short flag)
 	BezTriple beztr;
 	int a;
 	
-	/* set all three points, for nicer start position */
+	/* set all three points, for nicer start position 
+	 * NOTE: +/- 1 on vec.x for left and right handles is so that 'free' handles work ok...
+	 */
 	memset(&beztr, 0, sizeof(BezTriple));
-	beztr.vec[0][0]= x; 
+	beztr.vec[0][0]= x-1.0f; 
 	beztr.vec[0][1]= y;
 	beztr.vec[1][0]= x;
 	beztr.vec[1][1]= y;
-	beztr.vec[2][0]= x;
+	beztr.vec[2][0]= x+1.0f;
 	beztr.vec[2][1]= y;
 	beztr.ipo= U.ipo_new; /* use default interpolation mode here... */
 	beztr.f1= beztr.f2= beztr.f3= SELECT;
-	beztr.h1= beztr.h2= HD_AUTO; // XXX what about when we replace an old one?
+	beztr.h1= beztr.h2= U.keyhandles_new; /* use default handle type here */
 	//BEZKEYTYPE(&beztr)= scene->keytype; /* default keyframe type */
 	
 	/* add temp beztriple to keyframes */
@@ -342,18 +319,9 @@ int insert_vert_fcurve (FCurve *fcu, float x, float y, short flag)
 	/* set handletype and interpolation */
 	if ((fcu->totvert > 2) && (flag & INSERTKEY_REPLACE)==0) {
 		BezTriple *bezt= (fcu->bezt + a);
-		char h1, h2;
-		
-		/* set handles (autohandles by default) */
-		h1= h2= HD_AUTO;
-		
-		if (a > 0) h1= (bezt-1)->h2;
-		if (a < fcu->totvert-1) h2= (bezt+1)->h1;
-		
-		bezt->h1= h1;
-		bezt->h2= h2;
 		
 		/* set interpolation from previous (if available) */
+		// FIXME: this doesn't work if user tweaked the interpolation specifically, and they were just overwriting some existing key in the process...
 		if (a > 0) bezt->ipo= (bezt-1)->ipo;
 		else if (a < fcu->totvert-1) bezt->ipo= (bezt+1)->ipo;
 			
@@ -865,7 +833,7 @@ short insert_keyframe (ID *id, bAction *act, const char group[], const char rna_
 		/* get action to add F-Curve+keyframe to */
 		act= verify_adt_action(id, 1);
 		
-		if(act==NULL) {
+		if (act == NULL) {
 			printf("Insert Key: Could not insert keyframe, as this type does not support animation data (ID = %s, Path = %s)\n", id->name, rna_path);
 			return 0;
 		}
@@ -903,21 +871,27 @@ short insert_keyframe (ID *id, bAction *act, const char group[], const char rna_
 	
 	/* will only loop once unless the array index was -1 */
 	for (; array_index < array_index_max; array_index++) {
-		/* make sure the F-Curve exists */
-		fcu= verify_fcurve(act, group, rna_path, array_index, 1);
+		/* make sure the F-Curve exists 
+		 *	- if we're replacing keyframes only, DO NOT create new F-Curves if they do not exist yet
+		 *	  but still try to get the F-Curve if it exists...
+		 */
+		fcu= verify_fcurve(act, group, rna_path, array_index, (flag & INSERTKEY_REPLACE)==0);
 		
-		/* set color mode if the F-Curve is new (i.e. without any keyframes) */
-		if ((fcu->totvert == 0) && (flag & INSERTKEY_XYZ2RGB)) {
-			/* for Loc/Rot/Scale and also Color F-Curves, the color of the F-Curve in the Graph Editor,
-			 * is determined by the array index for the F-Curve
-			 */
-			if (ELEM4(RNA_property_subtype(prop), PROP_TRANSLATION, PROP_XYZ, PROP_EULER, PROP_COLOR)) {
-				fcu->color_mode= FCURVE_COLOR_AUTO_RGB;
+		/* we may not have a F-Curve when we're replacing only... */
+		if (fcu) {
+			/* set color mode if the F-Curve is new (i.e. without any keyframes) */
+			if ((fcu->totvert == 0) && (flag & INSERTKEY_XYZ2RGB)) {
+				/* for Loc/Rot/Scale and also Color F-Curves, the color of the F-Curve in the Graph Editor,
+				 * is determined by the array index for the F-Curve
+				 */
+				if (ELEM4(RNA_property_subtype(prop), PROP_TRANSLATION, PROP_XYZ, PROP_EULER, PROP_COLOR)) {
+					fcu->color_mode= FCURVE_COLOR_AUTO_RGB;
+				}
 			}
+			
+			/* insert keyframe */
+			ret += insert_keyframe_direct(ptr, prop, fcu, cfra, flag);
 		}
-		
-		/* insert keyframe */
-		ret += insert_keyframe_direct(ptr, prop, fcu, cfra, flag);
 	}
 	
 	return ret;
@@ -936,7 +910,10 @@ short insert_keyframe (ID *id, bAction *act, const char group[], const char rna_
 short delete_keyframe (ID *id, bAction *act, const char group[], const char rna_path[], int array_index, float cfra, short flag)
 {
 	AnimData *adt= BKE_animdata_from_id(id);
-	FCurve *fcu = NULL;
+	PointerRNA id_ptr, ptr;
+	PropertyRNA *prop;
+	int array_index_max= array_index+1;
+	int ret= 0;
 	
 	/* sanity checks */
 	if ELEM(NULL, id, adt) {
@@ -944,45 +921,74 @@ short delete_keyframe (ID *id, bAction *act, const char group[], const char rna_
 		return 0;
 	}	
 	
+	/* validate pointer first - exit if failure */
+	RNA_id_pointer_create(id, &id_ptr);
+	if ((RNA_path_resolve(&id_ptr, rna_path, &ptr, &prop) == 0) || (prop == NULL)) {
+		printf("Delete Key: Could not delete keyframe, as RNA Path is invalid for the given ID (ID = %s, Path = %s)\n", id->name, rna_path);
+		return 0;
+	}
+	
 	/* get F-Curve
 	 * Note: here is one of the places where we don't want new Action + F-Curve added!
 	 * 		so 'add' var must be 0
 	 */
 	if (act == NULL) {
-		/* if no action is provided, use the default one attached to this ID-block */
-		act= adt->action;
+		/* if no action is provided, use the default one attached to this ID-block 
+		 * 	- if it doesn't exist, then we're out of options...
+		 */
+		if (adt->action) {
+			act= adt->action;
+			
+			/* apply NLA-mapping to frame to use (if applicable) */
+			cfra= BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP); 
+		}
+		else {
+			printf("ERROR: no Action to delete keyframes from for ID = %s \n", id->name);
+			return 0;
+		}
+	}
+	
+#if 0
+	/* apply special time tweaking */
+		// XXX check on this stuff...
+	if (GS(id->name) == ID_OB) {
+		//Object *ob= (Object *)id;
 		
-		/* apply NLA-mapping to frame to use (if applicable) */
-		cfra= BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP); 
+		/* ancient time-offset cruft */
+		//if ( (ob->ipoflag & OB_OFFS_OB) && (give_timeoffset(ob)) ) {
+		//	/* actually frametofloat calc again! */
+		//	cfra-= give_timeoffset(ob)*scene->r.framelen;
+		//}
 	}
-	/* we don't check the validity of the path here yet, but it should be ok... */
-	fcu= verify_fcurve(act, group, rna_path, array_index, 0);
+#endif
 	
-	/* check if F-Curve exists and/or whether it can be edited */
-	if ELEM(NULL, act, fcu) {
-		printf("ERROR: no F-Curve and/or Action to delete keyframe from \n");
-		return 0;
-	}
-	if ( (fcu->flag & FCURVE_PROTECTED) || ((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) ) {
-		if (G.f & G_DEBUG)
-			printf("WARNING: not inserting keyframe for locked F-Curve \n");
-		return 0;
+	/* key entire array convenience method */
+	if (array_index == -1) { 
+		array_index= 0;
+		array_index_max= RNA_property_array_length(&ptr, prop);
+		
+		/* for single properties, increase max_index so that the property itself gets included,
+		 * but don't do this for standard arrays since that can cause corruption issues 
+		 * (extra unused curves)
+		 */
+		if (array_index_max == array_index)
+			array_index_max++;
 	}
 	
-	/* it should be fine to continue now... */
-	{
+	/* will only loop once unless the array index was -1 */
+	for (; array_index < array_index_max; array_index++) {
+		FCurve *fcu= verify_fcurve(act, group, rna_path, array_index, 0);
 		short found = -1;
 		int i;
 		
-		/* apply special time tweaking */
-		if (GS(id->name) == ID_OB) {
-			//Object *ob= (Object *)id;
+		/* check if F-Curve exists and/or whether it can be edited */
+		if (fcu == NULL)
+			continue;
 			
-			/* ancient time-offset cruft */
-			//if ( (ob->ipoflag & OB_OFFS_OB) && (give_timeoffset(ob)) ) {
-			//	/* actually frametofloat calc again! */
-			//	cfra-= give_timeoffset(ob)*scene->r.framelen;
-			//}
+		if ( (fcu->flag & FCURVE_PROTECTED) || ((fcu->grp) && (fcu->grp->flag & AGRP_PROTECTED)) ) {
+			if (G.f & G_DEBUG)
+				printf("WARNING: not inserting keyframe for locked F-Curve \n");
+			continue;
 		}
 		
 		/* try to find index of beztriple to get rid of */
@@ -996,12 +1002,12 @@ short delete_keyframe (ID *id, bAction *act, const char group[], const char rna_
 				ANIM_fcurve_delete_from_animdata(NULL, adt, fcu);
 			
 			/* return success */
-			return 1;
+			ret++;
 		}
 	}
 	
-	/* return failure */
-	return 0;
+	/* return success/failure */
+	return ret;
 }
 
 /* ******************************************* */
@@ -1041,7 +1047,6 @@ static int modify_key_op_poll(bContext *C)
 
 static int insert_key_exec (bContext *C, wmOperator *op)
 {
-	ListBase dsources = {NULL, NULL};
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks= NULL;
 	int type= RNA_int_get(op->ptr, "type");
@@ -1066,22 +1071,17 @@ static int insert_key_exec (bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	/* get context info for relative Keying Sets */
-	if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
-		/* exit if no suitable data obtained */
-		if (modifykey_get_context_data(C, &dsources, ks) == 0) {
-			BKE_report(op->reports, RPT_ERROR, "No suitable context info for active Keying Set");
-			return OPERATOR_CANCELLED;
-		}
-	}
-	
 	/* try to insert keyframes for the channels specified by KeyingSet */
-	success= modify_keyframes(scene, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
+	success= ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 	if (G.f & G_DEBUG)
 		BKE_reportf(op->reports, RPT_INFO, "KeyingSet '%s' - Successfully added %d Keyframes \n", ks->name, success);
 	
 	/* report failure or do updates? */
-	if (success) {
+	if (success == MODIFYKEY_INVALID_CONTEXT) {
+		BKE_report(op->reports, RPT_ERROR, "No suitable context info for active Keying Set");
+		return OPERATOR_CANCELLED;
+	}
+	else if (success) {
 		/* if the appropriate properties have been set, make a note that we've inserted something */
 		if (RNA_boolean_get(op->ptr, "confirm_success"))
 			BKE_reportf(op->reports, RPT_INFO, "Successfully added %d Keyframes for KeyingSet '%s'", success, ks->name);
@@ -1091,13 +1091,6 @@ static int insert_key_exec (bContext *C, wmOperator *op)
 	}
 	else
 		BKE_report(op->reports, RPT_WARNING, "Keying Set failed to insert any keyframes");
-		
-	
-	/* free temp context-data if available */
-	if (dsources.first) {
-		/* we assume that there is no extra data that needs to be freed from here... */
-		BLI_freelistN(&dsources);
-	}
 	
 	/* send updates */
 	DAG_ids_flush_update(0);
@@ -1131,50 +1124,8 @@ void ANIM_OT_keyframe_insert (wmOperatorType *ot)
 
 /* Insert Key Operator (With Menu) ------------------------ */
 /* This operator checks if a menu should be shown for choosing the KeyingSet to use, 
- * then calls the  
+ * then calls the menu if necessary before 
  */
-
-static void insert_key_menu_prompt (bContext *C)
-{
-	Scene *scene= CTX_data_scene(C);
-	KeyingSet *ks;
-	uiPopupMenu *pup;
-	uiLayout *layout;
-	int i = 0;
-	
-	pup= uiPupMenuBegin(C, "Insert Keyframe", 0);
-	layout= uiPupMenuLayout(pup);
-	
-	/* active Keying Set 
-	 *	- only include entry if it exists
-	 */
-	if (scene->active_keyingset) {
-		uiItemIntO(layout, "Active Keying Set", 0, "ANIM_OT_keyframe_insert_menu", "type", i++);
-		uiItemS(layout);
-	}
-	else
-		i++;
-	
-	/* user-defined Keying Sets 
-	 *	- these are listed in the order in which they were defined for the active scene
-	 */
-	if (scene->keyingsets.first) {
-		for (ks= scene->keyingsets.first; ks; ks= ks->next)
-			uiItemIntO(layout, ks->name, 0, "ANIM_OT_keyframe_insert_menu", "type", i++);
-		uiItemS(layout);
-	}
-	
-	/* builtin Keying Sets */
-	i= -1;
-	for (ks= builtin_keyingsets.first; ks; ks= ks->next) {
-		/* only show KeyingSet if context is suitable */
-		if (keyingset_context_ok_poll(C, ks)) {
-			uiItemIntO(layout, ks->name, 0, "ANIM_OT_keyframe_insert_menu", "type", i--);
-		}
-	}
-	
-	uiPupMenuEnd(C, pup);
-} 
 
 static int insert_key_menu_invoke (bContext *C, wmOperator *op, wmEvent *event)
 {
@@ -1183,7 +1134,7 @@ static int insert_key_menu_invoke (bContext *C, wmOperator *op, wmEvent *event)
 	/* if prompting or no active Keying Set, show the menu */
 	if ((scene->active_keyingset == 0) || RNA_boolean_get(op->ptr, "always_prompt")) {
 		/* call the menu, which will call this operator again, hence the cancelled */
-		insert_key_menu_prompt(C);
+		ANIM_keying_sets_menu_setup(C, op->type->name, "ANIM_OT_keyframe_insert_menu");
 		return OPERATOR_CANCELLED;
 	}
 	else {
@@ -1229,7 +1180,6 @@ void ANIM_OT_keyframe_insert_menu (wmOperatorType *ot)
 
 static int delete_key_exec (bContext *C, wmOperator *op)
 {
-	ListBase dsources = {NULL, NULL};
 	Scene *scene= CTX_data_scene(C);
 	KeyingSet *ks= NULL;	
 	int type= RNA_int_get(op->ptr, "type");
@@ -1254,22 +1204,17 @@ static int delete_key_exec (bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	/* get context info for relative Keying Sets */
-	if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
-		/* exit if no suitable data obtained */
-		if (modifykey_get_context_data(C, &dsources, ks) == 0) {
-			BKE_report(op->reports, RPT_ERROR, "No suitable context info for active Keying Set");
-			return OPERATOR_CANCELLED;
-		}
-	}
-	
 	/* try to insert keyframes for the channels specified by KeyingSet */
-	success= modify_keyframes(scene, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+	success= ANIM_apply_keyingset(C, NULL, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
 	if (G.f & G_DEBUG)
 		printf("KeyingSet '%s' - Successfully removed %d Keyframes \n", ks->name, success);
 	
 	/* report failure or do updates? */
-	if (success) {
+	if (success == MODIFYKEY_INVALID_CONTEXT) {
+		BKE_report(op->reports, RPT_ERROR, "No suitable context info for active Keying Set");
+		return OPERATOR_CANCELLED;
+	}
+	else if (success) {
 		/* if the appropriate properties have been set, make a note that we've inserted something */
 		if (RNA_boolean_get(op->ptr, "confirm_success"))
 			BKE_reportf(op->reports, RPT_INFO, "Successfully removed %d Keyframes for KeyingSet '%s'", success, ks->name);
@@ -1279,12 +1224,6 @@ static int delete_key_exec (bContext *C, wmOperator *op)
 	}
 	else
 		BKE_report(op->reports, RPT_WARNING, "Keying Set failed to remove any keyframes");
-	
-	/* free temp context-data if available */
-	if (dsources.first) {
-		/* we assume that there is no extra data that needs to be freed from here... */
-		BLI_freelistN(&dsources);
-	}
 	
 	/* send updates */
 	DAG_ids_flush_update(0);

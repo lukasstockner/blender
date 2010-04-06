@@ -40,7 +40,7 @@ extern "C" {
 	#include "bpy_internal_import.h"  /* from the blender python api, but we want to import text too! */
 	#include "Mathutils.h" // Blender.Mathutils module copied here so the blenderlayer can use.
 	#include "Geometry.h" // Blender.Geometry module copied here so the blenderlayer can use.
-	#include "BGL.h"
+	#include "bgl.h"
 
 	#include "marshal.h" /* python header for loading/saving dicts */
 }
@@ -209,7 +209,7 @@ static PyObject* gPyExpandPath(PyObject*, PyObject* args)
 		return NULL;
 
 	BLI_strncpy(expanded, filename, FILE_MAXDIR + FILE_MAXFILE);
-	BLI_convertstringcode(expanded, gp_GamePythonPath);
+	BLI_path_abs(expanded, gp_GamePythonPath);
 	return PyUnicode_FromString(expanded);
 }
 
@@ -471,10 +471,10 @@ static PyObject* gPyGetBlendFileList(PyObject*, PyObject* args)
 	
 	if (searchpath) {
 		BLI_strncpy(cpath, searchpath, FILE_MAXDIR + FILE_MAXFILE);
-		BLI_convertstringcode(cpath, gp_GamePythonPath);
+		BLI_path_abs(cpath, gp_GamePythonPath);
 	} else {
 		/* Get the dir only */
-		BLI_split_dirfile_basic(gp_GamePythonPath, cpath, NULL);
+		BLI_split_dirfile(gp_GamePythonPath, cpath, NULL);
 	}
 	
     if((dp  = opendir(cpath)) == NULL) {
@@ -504,7 +504,6 @@ static PyObject* gPyAddScene(PyObject*, PyObject* args)
 {
 	char* name;
 	int overlay = 1;
-	KX_Scene* scene = NULL;
 	
 	if (!PyArg_ParseTuple(args, "s|i:addScene", &name , &overlay))
 		return NULL;
@@ -1623,7 +1622,7 @@ PyObject *KXpy_import(PyObject *self, PyObject *args)
 	/* quick hack for GamePython modules 
 		TODO: register builtin modules properly by ExtendInittab */
 	if (!strcmp(name, "GameLogic") || !strcmp(name, "GameKeys") || !strcmp(name, "PhysicsConstraints") ||
-		!strcmp(name, "Rasterizer") || !strcmp(name, "Mathutils") || !strcmp(name, "BGL") || !strcmp(name, "Geometry")) {
+		!strcmp(name, "Rasterizer") || !strcmp(name, "Mathutils") || !strcmp(name, "bgl") || !strcmp(name, "Geometry")) {
 		return PyImport_ImportModuleEx(name, globals, locals, fromlist);
 	}
 	
@@ -1787,8 +1786,8 @@ static void initPySysObjects__append(PyObject *sys_path, char *filename)
 	PyObject *item;
 	char expanded[FILE_MAXDIR + FILE_MAXFILE];
 	
-	BLI_split_dirfile_basic(filename, expanded, NULL); /* get the dir part of filename only */
-	BLI_convertstringcode(expanded, gp_GamePythonPath); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
+	BLI_split_dirfile(filename, expanded, NULL); /* get the dir part of filename only */
+	BLI_path_abs(expanded, gp_GamePythonPath); /* filename from lib->filename is (always?) absolute, so this may not be needed but it wont hurt */
 	BLI_cleanup_file(gp_GamePythonPath, expanded); /* Dont use BLI_cleanup_dir because it adds a slash - BREAKS WIN32 ONLY */
 	item= PyUnicode_FromString(expanded);
 	

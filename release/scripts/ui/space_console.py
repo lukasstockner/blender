@@ -119,7 +119,6 @@ class ConsoleExec(bpy.types.Operator):
     '''Execute the current console line as a python expression'''
     bl_idname = "console.execute"
     bl_label = "Console Execute"
-    bl_register = False
 
     def execute(self, context):
         sc = context.space_data
@@ -138,7 +137,6 @@ class ConsoleAutocomplete(bpy.types.Operator):
     '''Evaluate the namespace up until the cursor and give a list of options or complete the name if there is only one'''
     bl_idname = "console.autocomplete"
     bl_label = "Console Autocomplete"
-    bl_register = False
 
     def poll(self, context):
         return context.space_data.console_type != 'REPORT'
@@ -198,15 +196,31 @@ class ConsoleLanguage(bpy.types.Operator):
         return {'FINISHED'}
 
 
-bpy.types.register(CONSOLE_HT_header)
-bpy.types.register(CONSOLE_MT_console)
-bpy.types.register(CONSOLE_MT_report)
-bpy.types.register(CONSOLE_MT_language)
+classes = [
+    CONSOLE_HT_header,
+    CONSOLE_MT_console,
+    CONSOLE_MT_report,
+    CONSOLE_MT_language,
 
-# Stubs that call the language operators
-bpy.types.register(ConsoleExec)
-bpy.types.register(ConsoleAutocomplete)
-bpy.types.register(ConsoleBanner)
+    # Stubs that call the language operators
+    ConsoleExec,
+    ConsoleAutocomplete,
+    ConsoleBanner,
 
-# Set the language and call the banner
-bpy.types.register(ConsoleLanguage)
+    # Set the language and call the banner
+    ConsoleLanguage]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

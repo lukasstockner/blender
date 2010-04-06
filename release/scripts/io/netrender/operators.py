@@ -104,7 +104,7 @@ class RENDER_OT_netclientanim(bpy.types.Operator):
             scene.network_render.job_id = client.clientSendJob(conn, scene, True)
             conn.close()
 
-        bpy.ops.screen.render('INVOKE_AREA', animation=True)
+        bpy.ops.render.render('INVOKE_AREA', animation=True)
 
         return {'FINISHED'}
 
@@ -121,7 +121,7 @@ class RENDER_OT_netclientrun(bpy.types.Operator):
         return True
 
     def execute(self, context):
-        bpy.ops.screen.render('INVOKE_AREA', animation=True)
+        bpy.ops.render.render('INVOKE_AREA', animation=True)
 
         return {'FINISHED'}
 
@@ -372,7 +372,7 @@ class netclientdownload(bpy.types.Operator):
 
     def execute(self, context):
         netsettings = context.scene.network_render
-        rd = context.scene.render_data
+        rd = context.scene.render
 
         conn = clientConnection(netsettings.server_address, netsettings.server_port, self.report)
 

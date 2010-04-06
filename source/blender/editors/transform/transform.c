@@ -47,20 +47,9 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_action_types.h"  /* for some special action-editor settings */
 #include "DNA_constraint_types.h"
-#include "DNA_ipo_types.h"		/* some silly ipo flag	*/
-#include "DNA_listBase.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"		/* PET modes			*/
-#include "DNA_screen_types.h"	/* area dimensions		*/
-#include "DNA_texture_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_space_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "RNA_access.h"
 
@@ -98,7 +87,6 @@
 #include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_markers.h"
-#include "ED_util.h"
 #include "ED_view3d.h"
 #include "ED_mesh.h"
 
@@ -112,7 +100,6 @@
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 
-#include "PIL_time.h"			/* sleep				*/
 
 #include "UI_resources.h"
 
@@ -307,8 +294,10 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 		WM_event_add_notifier(C, NC_OBJECT|ND_TRANSFORM, NULL);
 		
 		/* for realtime animation record - send notifiers recognised by animation editors */
+		// XXX: is this notifier a lame duck?
 		if ((t->animtimer) && IS_AUTOKEY_ON(t->scene))
 			WM_event_add_notifier(C, NC_OBJECT|ND_KEYS, NULL);
+		
 	}
 	else if (t->spacetype == SPACE_ACTION) {
 		//SpaceAction *saction= (SpaceAction *)t->sa->spacedata.first;
@@ -341,7 +330,13 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
 static void viewRedrawPost(TransInfo *t)
 {
 	ED_area_headerprint(t->sa, NULL);
-
+	
+	if(t->spacetype == SPACE_VIEW3D) {
+		/* if autokeying is enabled, send notifiers that keyframes were added */
+		if (IS_AUTOKEY_ON(t->scene))
+			WM_main_add_notifier(NC_ANIMATION|ND_KEYFRAME_EDIT, NULL);
+	}
+	
 #if 0 // TRANSFORM_FIX_ME
 	if(t->spacetype==SPACE_VIEW3D) {
 		allqueue(REDRAWBUTSOBJECT, 0);
@@ -496,8 +491,8 @@ wmKeyMap* transform_modal_keymap(wmKeyConfig *keyconf)
 	{TFM_MODAL_CONS_OFF, "CONS_OFF", 0, "Remove Constraints", ""},
 	{TFM_MODAL_ADD_SNAP, "ADD_SNAP", 0, "Add Snap Point", ""},
 	{TFM_MODAL_REMOVE_SNAP, "REMOVE_SNAP", 0, "Remove Last Snap Point", ""},
-	{TFM_MODAL_INCREMENT_UP, "INCREMENT_UP", 0, "Numinput Increment Up", ""},
-	{TFM_MODAL_INCREMENT_DOWN, "INCREMENT_DOWN", 0, "Numinput Increment Down", ""},
+	{NUM_MODAL_INCREMENT_UP, "INCREMENT_UP", 0, "Numinput Increment Up", ""},
+	{NUM_MODAL_INCREMENT_DOWN, "INCREMENT_DOWN", 0, "Numinput Increment Down", ""},
 	{0, NULL, 0, NULL, NULL}};
 	
 	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "Transform Modal Map");
@@ -525,8 +520,8 @@ wmKeyMap* transform_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, 0, 0, TFM_MODAL_ADD_SNAP);
 	WM_modalkeymap_add_item(keymap, AKEY, KM_PRESS, KM_ALT, 0, TFM_MODAL_REMOVE_SNAP);
 
-	WM_modalkeymap_add_item(keymap, UPARROWKEY, KM_PRESS, 0, 0, TFM_MODAL_INCREMENT_UP);
-	WM_modalkeymap_add_item(keymap, DOWNARROWKEY, KM_PRESS, 0, 0, TFM_MODAL_INCREMENT_DOWN);
+	WM_modalkeymap_add_item(keymap, UPARROWKEY, KM_PRESS, 0, 0, NUM_MODAL_INCREMENT_UP);
+	WM_modalkeymap_add_item(keymap, DOWNARROWKEY, KM_PRESS, 0, 0, NUM_MODAL_INCREMENT_DOWN);
 
 	return keymap;
 }
@@ -551,7 +546,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		t->redraw |= TREDRAW_SOFT;
 
 		if (t->state == TRANS_STARTING) {
-		    t->state = TRANS_RUNNING;
+			t->state = TRANS_RUNNING;
 		}
 
 		applyMouseInput(t, &t->mouse, t->mval, t->values);
@@ -713,7 +708,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		}
 
 		// Modal numinput events
-		t->redraw |= handleNumInput(&(t->num), event, t->snap[1]);
+		t->redraw |= handleNumInput(&(t->num), event);
 	}
 	/* else do non-mapped events */
 	else if (event->val==KM_PRESS) {
@@ -966,7 +961,7 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		}
 
 		// Numerical input events
-		t->redraw |= handleNumInput(&(t->num), event, t->snap[1]);
+		t->redraw |= handleNumInput(&(t->num), event);
 
 		// NDof input events
 		switch(handleNDofInput(&(t->ndof), event))
@@ -1037,10 +1032,13 @@ int transformEvent(TransInfo *t, wmEvent *event)
 		}
 
 		/* confirm transform if launch key is released after mouse move */
-		/* XXX Keyrepeat bug in Xorg fucks this up, will test when fixed */
-		if (event->type == LEFTMOUSE /*t->launch_event*/ && t->state != TRANS_STARTING)
+		if (t->flag & T_RELEASE_CONFIRM)
 		{
-			t->state = TRANS_CONFIRM;
+			/* XXX Keyrepeat bug in Xorg fucks this up, will test when fixed */
+			if (event->type == t->launch_event && (t->launch_event == LEFTMOUSE || t->launch_event == RIGHTMOUSE))
+			{
+				t->state = TRANS_CONFIRM;
+			}
 		}
 	}
 
@@ -1448,6 +1446,22 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 
 	t->launch_event = event ? event->type : -1;
 
+	if (t->launch_event == EVT_TWEAK_R)
+	{
+		t->launch_event = RIGHTMOUSE;
+	}
+	else if (t->launch_event == EVT_TWEAK_L)
+	{
+		t->launch_event = LEFTMOUSE;
+	}
+
+	// XXX Remove this when wm_operator_call_internal doesn't use window->eventstate (which can have type = 0)
+	// For manipulator only, so assume LEFTMOUSE
+	if (t->launch_event == 0)
+	{
+		t->launch_event = LEFTMOUSE;
+	}
+
 	if (!initTransInfo(C, t, op, event))					// internal data, mouse, vectors
 	{
 		return 0;
@@ -1476,6 +1490,28 @@ int initTransform(bContext *C, TransInfo *t, wmOperator *op, wmEvent *event, int
 	if (t->total == 0) {
 		postTrans(C, t);
 		return 0;
+	}
+
+	/* Stupid code to have Ctrl-Click on manipulator work ok */
+	if(event)
+	{
+		wmKeyMap *keymap = WM_keymap_active(CTX_wm_manager(C), op->type->modalkeymap);
+		wmKeyMapItem *kmi;
+
+		for (kmi = keymap->items.first; kmi; kmi = kmi->next)
+		{
+			if (kmi->propvalue == TFM_MODAL_SNAP_INV_ON && kmi->val == KM_PRESS)
+			{
+				if ((ELEM(kmi->type, LEFTCTRLKEY, RIGHTCTRLKEY) && event->ctrl) ||
+					(ELEM(kmi->type, LEFTSHIFTKEY, RIGHTSHIFTKEY) && event->shift) ||
+					(ELEM(kmi->type, LEFTALTKEY, RIGHTALTKEY) && event->alt) ||
+					(kmi->type == COMMANDKEY && event->oskey)) {
+					t->modifiers |= MOD_SNAP_INVERT;
+				}
+				break;
+			}
+		}
+
 	}
 
 	initSnapping(t, op); // Initialize snapping data AFTER mode flags
@@ -2056,6 +2092,16 @@ static void constraintSizeLim(TransInfo *t, TransData *td)
 
 /* ************************** WARP *************************** */
 
+void postInputWarp(TransInfo *t, float values[3])
+{
+	mul_v3_fl(values, (float)(M_PI * 2));
+
+	if (t->customData) /* non-null value indicates reversed input */
+	{
+		negate_v3(values);
+	}
+}
+
 void initWarp(TransInfo *t)
 {
 	float max[3], min[3];
@@ -2065,14 +2111,17 @@ void initWarp(TransInfo *t)
 	t->transform = Warp;
 	t->handleEvent = handleEventWarp;
 	
+	setInputPostFct(&t->mouse, postInputWarp);
 	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_RATIO);
 	
 	t->idx_max = 0;
 	t->num.idx_max = 0;
 	t->snap[0] = 0.0f;
-	t->snap[1] = 5.0f;
-	t->snap[2] = 1.0f;
+	t->snap[1] = 5.0f / 180 * M_PI;
+	t->snap[2] = 1.0f / 180 * M_PI;
 	
+	t->num.increment = 1.0f;
+
 	t->flag |= T_NO_CONSTRAINT;
 	
 	/* we need min/max in view space */
@@ -2144,13 +2193,8 @@ int Warp(TransInfo *t, short mval[2])
 	mul_m4_v3(t->viewmat, cursor);
 	sub_v3_v3v3(cursor, cursor, t->viewmat[3]);
 	
-	/* amount of degrees for warp */
-	circumfac = 360.0f * t->values[0];
-	
-	if (t->customData) /* non-null value indicates reversed input */
-	{
-		circumfac *= -1;
-	}
+	/* amount of radians for warp */
+	circumfac = t->values[0];
 	
 	snapGrid(t, &circumfac);
 	applyNumInput(&t->num, &circumfac);
@@ -2162,13 +2206,17 @@ int Warp(TransInfo *t, short mval[2])
 		outputNumInput(&(t->num), c);
 		
 		sprintf(str, "Warp: %s", c);
+
+		circumfac = circumfac / 180 * M_PI;
 	}
 	else {
 		/* default header print */
-		sprintf(str, "Warp: %.3f", circumfac);
+		sprintf(str, "Warp: %.3f", circumfac * 180 / M_PI);
 	}
 	
-	circumfac*= (float)(-M_PI/360.0);
+	t->values[0] = circumfac;
+
+	circumfac /= 2; /* only need 180 on each side to make 360 */
 	
 	for(i = 0; i < t->total; i++, td++) {
 		float loc[3];
@@ -2215,12 +2263,18 @@ int Warp(TransInfo *t, short mval[2])
 
 /* ************************** SHEAR *************************** */
 
+void postInputShear(TransInfo *t, float values[3])
+{
+	mul_v3_fl(values, 0.05f);
+}
+
 void initShear(TransInfo *t)
 {
 	t->mode = TFM_SHEAR;
 	t->transform = Shear;
 	t->handleEvent = handleEventShear;
 	
+	setInputPostFct(&t->mouse, postInputShear);
 	initMouseInputMode(t, &t->mouse, INPUT_HORIZONTAL_ABSOLUTE);
 	
 	t->idx_max = 0;
@@ -2229,6 +2283,8 @@ void initShear(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 	
+	t->num.increment = 0.1f;
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -2269,7 +2325,7 @@ int Shear(TransInfo *t, short mval[2])
 	copy_m3_m4(persmat, t->viewmat);
 	invert_m3_m3(persinv, persmat);
 	
-	value = 0.05f * t->values[0];
+	value = t->values[0];
 	
 	snapGrid(t, &value);
 	
@@ -2355,6 +2411,8 @@ void initResize(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerResize(TransInfo *t, float vec[3], char *str) {
@@ -2468,16 +2526,16 @@ static void ElementResize(TransInfo *t, TransData *td, float mat[3][3]) {
 		if ((t->flag & T_V3D_ALIGN)==0) {	// align mode doesn't resize objects itself
 			if((td->flag & TD_SINGLESIZE) && !(t->con.mode & CON_APPLY)){
 				/* scale val and reset size */
- 				*td->val = td->ival * (1 + (fsize[0] - 1) * td->factor);
+				 *td->val = td->ival * (1 + (fsize[0] - 1) * td->factor);
 				
 				td->ext->size[0] = td->ext->isize[0];
 				td->ext->size[1] = td->ext->isize[1];
 				td->ext->size[2] = td->ext->isize[2];
- 			}
+			 }
 			else {
 				/* Reset val if SINGLESIZE but using a constraint */
 				if (td->flag & TD_SINGLESIZE)
-	 				*td->val = td->ival;
+					 *td->val = td->ival;
 				
 				td->ext->size[0] = td->ext->isize[0] * (1 + (fsize[0] - 1) * td->factor);
 				td->ext->size[1] = td->ext->isize[1] * (1 + (fsize[1] - 1) * td->factor);
@@ -2606,6 +2664,8 @@ void initToSphere(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 	
+	t->num.increment = t->snap[1];
+
 	t->num.flag |= NUM_NULL_ONE | NUM_NO_NEGATIVE;
 	t->flag |= T_NO_CONSTRAINT;
 	
@@ -2636,6 +2696,8 @@ int ToSphere(TransInfo *t, short mval[2])
 	else if (ratio > 1)
 		ratio = 1.0f;
 	
+	t->values[0] = ratio;
+
 	/* header print for NumInput */
 	if (hasNumInput(&t->num)) {
 		char c[20];
@@ -2680,11 +2742,19 @@ int ToSphere(TransInfo *t, short mval[2])
 /* ************************** ROTATION *************************** */
 
 
+void postInputRotation(TransInfo *t, float values[3])
+{
+	if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
+		t->con.applyRot(t, NULL, t->axis, values);
+	}
+}
+
 void initRotation(TransInfo *t)
 {
 	t->mode = TFM_ROTATION;
 	t->transform = Rotation;
 	
+	setInputPostFct(&t->mouse, postInputRotation);
 	initMouseInputMode(t, &t->mouse, INPUT_ANGLE);
 	
 	t->ndof.axis = 16;
@@ -2697,11 +2767,12 @@ void initRotation(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 	
+	t->num.increment = 1.0f;
+
 	if (t->flag & T_2D_EDIT)
 		t->flag |= T_NO_CONSTRAINT;
 
-	VECCOPY(t->axis, t->viewinv[2]);
-	mul_v3_fl(t->axis, -1.0f);
+	negate_v3_v3(t->axis, t->viewinv[2]);
 	normalize_v3(t->axis);
 }
 
@@ -2863,7 +2934,7 @@ static void ElementRotation(TransInfo *t, TransData *td, float mat[3][3], short 
 		/* rotation */
 		if ((t->flag & T_V3D_ALIGN)==0) { // align mode doesn't rotate objects itself
 			/* euler or quaternion? */
- 	  	    if ((td->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
+			   if ((td->rotOrder == ROT_MODE_QUAT) || (td->flag & TD_USEQUAT)) {
 				mul_serie_m3(fmat, td->mtx, mat, td->smtx, 0, 0, 0, 0, 0);
 				mat3_to_quat( quat,fmat);	// Actual transform
 				
@@ -2955,8 +3026,12 @@ int Rotation(TransInfo *t, short mval[2])
 	
 	snapGrid(t, &final);
 	
-	if (t->con.applyRot) {
-		t->con.applyRot(t, NULL, t->axis, &final);
+	if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
+		t->con.applyRot(t, NULL, t->axis, NULL);
+	} else {
+		/* reset axis if constraint is not set */
+		negate_v3_v3(t->axis, t->viewinv[2]);
+		normalize_v3(t->axis);
 	}
 	
 	applySnapping(t, &final);
@@ -2983,11 +3058,9 @@ int Rotation(TransInfo *t, short mval[2])
 		sprintf(str, "Rot: %.2f%s %s", 180.0*final/M_PI, t->con.text, t->proptext);
 	}
 	
+	t->values[0] = final;
+
 	vec_rot_to_mat3( mat, t->axis, final);
-	
-	// TRANSFORM_FIX_ME
-//	t->values[0] = final;		// used in manipulator
-//	copy_m3_m3(t->mat, mat);	// used in manipulator
 	
 	applyRotation(t, final, t->axis);
 	
@@ -3018,6 +3091,8 @@ void initTrackball(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
+
+	t->num.increment = 1.0f;
 
 	t->flag |= T_NO_CONSTRAINT;
 }
@@ -3136,6 +3211,8 @@ void initTranslation(TransInfo *t)
 		t->snap[0] = 0.0f;
 		t->snap[1] = t->snap[2] = 1.0f;
 	}
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTranslation(TransInfo *t, float vec[3], char *str) {
@@ -3326,6 +3403,8 @@ void initShrinkFatten(TransInfo *t)
 		t->snap[1] = 1.0f;
 		t->snap[2] = t->snap[1] * 0.1f;
 
+		t->num.increment = t->snap[1];
+
 		t->flag |= T_NO_CONSTRAINT;
 	}
 }
@@ -3400,6 +3479,8 @@ void initTilt(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -3469,6 +3550,11 @@ void initCurveShrinkFatten(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 
+	t->num.increment = t->snap[1];
+
+	t->flag |= T_NO_ZERO;
+	t->num.flag |= NUM_NO_ZERO;
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -3506,7 +3592,7 @@ int CurveShrinkFatten(TransInfo *t, short mval[2])
 		if(td->val) {
 			//*td->val= ratio;
 			*td->val= td->ival*ratio;
-			if (*td->val <= 0.0f) *td->val = 0.0001f;
+			if (*td->val <= 0.0f) *td->val = 0.001f;
 		}
 	}
 
@@ -3535,6 +3621,8 @@ void initPushPull(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 1.0f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 
@@ -3622,6 +3710,8 @@ void initBevel(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 
 	/* DON'T KNOW WHY THIS IS NEEDED */
 	if (G.editBMesh->imval[0] == 0 && G.editBMesh->imval[1] == 0) {
@@ -3732,7 +3822,9 @@ void initBevelWeight(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 
-	t->flag |= T_NO_CONSTRAINT;
+	t->num.increment = t->snap[1];
+
+	t->flag |= T_NO_CONSTRAINT|T_NO_PROJECT;
 }
 
 int BevelWeight(TransInfo *t, short mval[2])
@@ -3803,7 +3895,9 @@ void initCrease(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 
-	t->flag |= T_NO_CONSTRAINT;
+	t->num.increment = t->snap[1];
+
+	t->flag |= T_NO_CONSTRAINT|T_NO_PROJECT;
 }
 
 int Crease(TransInfo *t, short mval[2])
@@ -3877,6 +3971,8 @@ void initBoneSize(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerBoneSize(TransInfo *t, float vec[3], char *str) {
@@ -3993,6 +4089,8 @@ void initBoneEnvelope(TransInfo *t)
 	t->snap[1] = 0.1f;
 	t->snap[2] = t->snap[1] * 0.1f;
 	
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -4570,6 +4668,8 @@ void initEdgeSlide(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 
+	t->num.increment = t->snap[1];
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -4738,6 +4838,8 @@ void initBoneRoll(TransInfo *t)
 	t->snap[1] = (float)((5.0/180)*M_PI);
 	t->snap[2] = t->snap[1] * 0.2f;
 
+	t->num.increment = 1.0f;
+
 	t->flag |= T_NO_CONSTRAINT;
 }
 
@@ -4798,6 +4900,8 @@ void initBakeTime(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = 1.0f;
 	t->snap[2] = t->snap[1] * 0.1f;
+
+	t->num.increment = t->snap[1];
 }
 
 int BakeTime(TransInfo *t, short mval[2])
@@ -5015,6 +5119,8 @@ void initSeqSlide(TransInfo *t)
 	t->snap[0] = 0.0f;
 	t->snap[1] = floor(t->scene->r.frs_sec / t->scene->r.frs_sec_base);
 	t->snap[2] = 10.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerSeqSlide(TransInfo *t, float val[2], char *str)
@@ -5230,6 +5336,8 @@ void initTimeTranslate(TransInfo *t)
 	/* initialise snap like for everything else */
 	t->snap[0] = 0.0f;
 	t->snap[1] = t->snap[2] = 1.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTimeTranslate(TransInfo *t, char *str)
@@ -5376,6 +5484,8 @@ void initTimeSlide(TransInfo *t)
 	/* initialise snap like for everything else */
 	t->snap[0] = 0.0f;
 	t->snap[1] = t->snap[2] = 1.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTimeSlide(TransInfo *t, float sval, char *str)
@@ -5460,6 +5570,7 @@ int TimeSlide(TransInfo *t, short mval[2])
 	UI_view2d_region_to_view(v2d, t->imval[0], t->imval[0], &sval[0], &sval[1]);
 
 	/* t->values[0] stores cval[0], which is the current mouse-pointer location (in frames) */
+	// XXX Need to be able to repeat this
 	t->values[0] = cval[0];
 
 	/* handle numeric-input stuff */
@@ -5508,6 +5619,8 @@ void initTimeScale(TransInfo *t)
 	/* initialise snap like for everything else */
 	t->snap[0] = 0.0f;
 	t->snap[1] = t->snap[2] = 1.0f;
+
+	t->num.increment = t->snap[1];
 }
 
 static void headerTimeScale(TransInfo *t, char *str) {
@@ -5592,11 +5705,11 @@ void BIF_TransformSetUndo(char *str)
 void NDofTransform()
 {
 #if 0 // TRANSFORM_FIX_ME
-    float fval[7];
-    float maxval = 50.0f; // also serves as threshold
-    int axis = -1;
-    int mode = 0;
-    int i;
+	float fval[7];
+	float maxval = 50.0f; // also serves as threshold
+	int axis = -1;
+	int mode = 0;
+	int i;
 
 	getndof(fval);
 

@@ -99,6 +99,7 @@ def write(filename, scene, ob, \
 
     Window.WaitCursor(1)
     """
+    bpy.ops.object.mode_set(mode='OBJECT')
 
     #mesh = BPyMesh.getMeshFromObject(ob, None, EXPORT_APPLY_MODIFIERS, False, scn) # XXX
     if EXPORT_APPLY_MODIFIERS:
@@ -202,7 +203,7 @@ def write(filename, scene, ob, \
 
     file.write('ply\n')
     file.write('format ascii 1.0\n')
-    file.write('comment Created by Blender3D %s - www.blender.org, source file: %s\n' % (bpy.app.version_string, bpy.data.filename.split('/')[-1].split('\\')[-1]))
+    file.write('comment Created by Blender %s - www.blender.org, source file: %s\n' % (bpy.app.version_string, bpy.data.filename.split('/')[-1].split('\\')[-1]))
 
     file.write('element vertex %d\n' % len(ply_verts))
 
@@ -210,13 +211,10 @@ def write(filename, scene, ob, \
     file.write('property float y\n')
     file.write('property float z\n')
 
-    # XXX
-    """
     if EXPORT_NORMALS:
         file.write('property float nx\n')
         file.write('property float ny\n')
         file.write('property float nz\n')
-    """
     if EXPORT_UV:
         file.write('property float s\n')
         file.write('property float t\n')
@@ -231,10 +229,8 @@ def write(filename, scene, ob, \
 
     for i, v in enumerate(ply_verts):
         file.write('%.6f %.6f %.6f ' % tuple(mesh_verts[v[0]].co)) # co
-        """
         if EXPORT_NORMALS:
             file.write('%.6f %.6f %.6f ' % v[1]) # no
-        """
         if EXPORT_UV:
             file.write('%.6f %.6f ' % v[2]) # uv
         if EXPORT_COLORS:
@@ -313,14 +309,19 @@ class ExportPLY(bpy.types.Operator):
         row.prop(props, "use_colors")
 
 
-bpy.types.register(ExportPLY)
-
-
 def menu_func(self, context):
     default_path = bpy.data.filename.replace(".blend", ".ply")
-    self.layout.operator(ExportPLY.bl_idname, text="Stanford (.ply)...").path = default_path
+    self.layout.operator(ExportPLY.bl_idname, text="Stanford (.ply)").path = default_path
 
-bpy.types.INFO_MT_file_export.append(menu_func)
+
+def register():
+    bpy.types.register(ExportPLY)
+    bpy.types.INFO_MT_file_export.append(menu_func)
+
+
+def unregister():
+    bpy.types.unregister(ExportPLY)
+    bpy.types.INFO_MT_file_export.remove(menu_func)
 
 if __name__ == "__main__":
-    bpy.ops.export.ply(path="/tmp/test.ply")
+    register()

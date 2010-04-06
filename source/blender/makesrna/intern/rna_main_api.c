@@ -30,7 +30,7 @@
 #include <stdio.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
+#include "RNA_access.h"
 #include "RNA_enum_types.h"
 
 #include "BKE_utildefines.h"
@@ -38,6 +38,7 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_main.h"
+#include "BKE_curve.h"
 #include "BKE_mesh.h"
 #include "BKE_armature.h"
 #include "BKE_library.h"
@@ -52,6 +53,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
+#include "DNA_curve_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
@@ -67,18 +69,13 @@ Tex *rna_Main_add_texture(Main *bmain, char *name)
 	return add_texture(name);
 }
 
-Image *rna_Main_add_image(Main *bmain, char *filename)
-{
-	return BKE_add_image_file(filename, 0);
-}
-
 Camera *rna_Main_cameras_new(Main *bmain, char* name)
 {
 	return add_camera(name);
 }
 void rna_Main_cameras_remove(Main *bmain, ReportList *reports, struct Camera *camera)
 {
-	if(ID_REAL_USERS(camera) == 0)
+	if(ID_REAL_USERS(camera) <= 0)
 		free_libblock(&bmain->camera, camera);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Camera \"%s\" must have zero users to be removed, found %d.", camera->id.name+2, ID_REAL_USERS(camera));
@@ -109,12 +106,56 @@ void rna_Main_scenes_remove(Main *bmain, bContext *C, ReportList *reports, struc
 	unlink_scene(bmain, scene, newscene);
 }
 
-Object *rna_Main_objects_new(Main *bmain, char* name, int type)
+Object *rna_Main_objects_new(Main *bmain, ReportList *reports, char* name, ID *data)
 {
-	Object *ob= add_only_object(type, name);
+	Object *ob;
+	int type= OB_EMPTY;
+	if(data) {
+		switch(GS(data->name)) {
+			case ID_ME:
+				type= OB_MESH;
+				break;
+			case ID_CU:
+				type= curve_type((struct Curve *)data);
+				break;
+			case ID_MB:
+				type= OB_MBALL;
+				break;
+			case ID_LA:
+				type= OB_LAMP;
+				break;
+			case ID_CA:
+				type= OB_CAMERA;
+				break;
+			case ID_LT:
+				type= OB_LATTICE;
+				break;
+			case ID_AR:
+				type= OB_ARMATURE;
+				break;
+			default:
+			{
+				const char *idname;
+				if(RNA_enum_id_from_value(id_type_items, GS(data->name), &idname) == 0)
+					idname= "UNKNOWN";
+
+				BKE_reportf(reports, RPT_ERROR, "ID type '%s' is not valid for a object.", idname);
+				return NULL;
+			}
+		}
+
+		data->us++;
+	}
+
+	ob= add_only_object(type, name);
 	ob->id.us--;
+
+	ob->data= data;
+	test_object_materials(ob->data);
+	
 	return ob;
 }
+
 void rna_Main_objects_remove(Main *bmain, ReportList *reports, struct Object *object)
 {
 	/*
@@ -129,7 +170,7 @@ void rna_Main_objects_remove(Main *bmain, ReportList *reports, struct Object *ob
 	  # don't do this since ob is already freed!
 	  bpy.data.remove_object(ob)
 	*/
-	if(ID_REAL_USERS(object) == 0)
+	if(ID_REAL_USERS(object) <= 0)
 		free_libblock(&bmain->object, object);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Object \"%s\" must have zero users to be removed, found %d.", object->id.name+2, ID_REAL_USERS(object));
@@ -141,7 +182,7 @@ struct Material *rna_Main_materials_new(Main *bmain, char* name)
 }
 void rna_Main_materials_remove(Main *bmain, ReportList *reports, struct Material *material)
 {
-	if(ID_REAL_USERS(material) == 0)
+	if(ID_REAL_USERS(material) <= 0)
 		free_libblock(&bmain->mat, material);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Material \"%s\" must have zero users to be removed, found %d.", material->id.name+2, ID_REAL_USERS(material));
@@ -157,7 +198,7 @@ Mesh *rna_Main_meshes_new(Main *bmain, char* name)
 }
 void rna_Main_meshes_remove(Main *bmain, ReportList *reports, Mesh *mesh)
 {
-	if(ID_REAL_USERS(mesh) == 0)
+	if(ID_REAL_USERS(mesh) <= 0)
 		free_libblock(&bmain->mesh, mesh);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Mesh \"%s\" must have zero users to be removed, found %d.", mesh->id.name+2, ID_REAL_USERS(mesh));
@@ -173,12 +214,47 @@ Lamp *rna_Main_lamps_new(Main *bmain, char* name)
 }
 void rna_Main_lamps_remove(Main *bmain, ReportList *reports, Lamp *lamp)
 {
-	if(ID_REAL_USERS(lamp) == 0)
+	if(ID_REAL_USERS(lamp) <= 0)
 		free_libblock(&bmain->lamp, lamp);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Lamp \"%s\" must have zero users to be removed, found %d.", lamp->id.name+2, ID_REAL_USERS(lamp));
 
 	/* XXX python now has invalid pointer? */
+}
+
+Image *rna_Main_images_new(Main *bmain, char* name, int width, int height, int float_buffer)
+{
+	float color[4]= {0.0, 0.0, 0.0, 1.0};
+	Image *image= BKE_add_image_size(width, height, name, float_buffer, 0, color);
+	image->id.us--;
+	return image;
+}
+Image *rna_Main_images_load(Main *bmain, char *filename)
+{
+	return BKE_add_image_file(filename, 0);
+}
+void rna_Main_images_remove(Main *bmain, ReportList *reports, Image *image)
+{
+	if(ID_REAL_USERS(image) <= 0)
+		free_libblock(&bmain->image, image);
+	else
+		BKE_reportf(reports, RPT_ERROR, "Image \"%s\" must have zero users to be removed, found %d.", image->id.name+2, ID_REAL_USERS(image));
+
+	/* XXX python now has invalid pointer? */
+}
+
+Curve *rna_Main_curves_new(Main *bmain, char* name, int type)
+{
+	Curve *cu= add_curve(name, type);
+	cu->id.us--;
+	return cu;
+}
+void rna_Main_curves_remove(Main *bmain, ReportList *reports, struct Curve *cu)
+{
+	if(ID_REAL_USERS(cu) <= 0)
+		free_libblock(&bmain->curve, cu);
+	else
+		BKE_reportf(reports, RPT_ERROR, "Curve \"%s\" must have zero users to be removed, found %d.", cu->id.name+2, ID_REAL_USERS(cu));
 }
 
 Tex *rna_Main_textures_new(Main *bmain, char* name)
@@ -189,7 +265,7 @@ Tex *rna_Main_textures_new(Main *bmain, char* name)
 }
 void rna_Main_textures_remove(Main *bmain, ReportList *reports, struct Tex *tex)
 {
-	if(ID_REAL_USERS(tex) == 0)
+	if(ID_REAL_USERS(tex) <= 0)
 		free_libblock(&bmain->tex, tex);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Texture \"%s\" must have zero users to be removed, found %d.", tex->id.name+2, ID_REAL_USERS(tex));
@@ -234,7 +310,7 @@ bArmature *rna_Main_armatures_new(Main *bmain, char* name)
 }
 void rna_Main_armatures_remove(Main *bmain, ReportList *reports, bArmature *arm)
 {
-	if(ID_REAL_USERS(arm) == 0)
+	if(ID_REAL_USERS(arm) <= 0)
 		free_libblock(&bmain->armature, arm);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Armature \"%s\" must have zero users to be removed, found %d.", arm->id.name+2, ID_REAL_USERS(arm));
@@ -251,7 +327,7 @@ bAction *rna_Main_actions_new(Main *bmain, char* name)
 }
 void rna_Main_actions_remove(Main *bmain, ReportList *reports, bAction *act)
 {
-	if(ID_REAL_USERS(act) == 0)
+	if(ID_REAL_USERS(act) <= 0)
 		free_libblock(&bmain->action, act);
 	else
 		BKE_reportf(reports, RPT_ERROR, "Action \"%s\" must have zero users to be removed, found %d.", act->id.name+2, ID_REAL_USERS(act));
@@ -263,15 +339,20 @@ void rna_Main_actions_remove(Main *bmain, ReportList *reports, bAction *act)
 
 void RNA_api_main(StructRNA *srna)
 {
+	/*
 	FunctionRNA *func;
 	PropertyRNA *parm;
-
+	*/
+	/* maybe we want to add functions in 'bpy.data' still?
+	 * for now they are all in collections bpy.data.images.new(...) */
+	/*
 	func= RNA_def_function(srna, "add_image", "rna_Main_add_image");
 	RNA_def_function_ui_description(func, "Add a new image.");
 	parm= RNA_def_string(func, "filename", "", 0, "", "Filename to load image from.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm= RNA_def_pointer(func, "image", "Image", "", "New image.");
 	RNA_def_function_return(func, parm);
+	*/
 
 }
 
@@ -337,10 +418,11 @@ void RNA_def_main_objects(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_ui_text(srna, "Main Objects", "Collection of objects");
 
 	func= RNA_def_function(srna, "new", "rna_Main_objects_new");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Add a new object to the main database");
 	parm= RNA_def_string(func, "name", "Object", 0, "", "New name for the datablock.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
-	parm= RNA_def_enum(func, "type", object_type_items, 0, "", "Type of Object.");
+	parm= RNA_def_pointer(func, "object_data", "ID", "", "Object data or None for an empty object.");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	/* return type */
@@ -440,19 +522,73 @@ void RNA_def_main_screens(BlenderRNA *brna, PropertyRNA *cprop)
 }
 void RNA_def_main_window_managers(BlenderRNA *brna, PropertyRNA *cprop)
 {
-
+    
 }
 void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
 {
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
+	RNA_def_property_srna(cprop, "MainImages");
+	srna= RNA_def_struct(brna, "MainImages", NULL);
+	RNA_def_struct_ui_text(srna, "Main Images", "Collection of images");
+
+	func= RNA_def_function(srna, "new", "rna_Main_images_new");
+	RNA_def_function_ui_description(func, "Add a new image to the main database");
+	parm= RNA_def_string(func, "name", "Image", 0, "", "New name for the datablock.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_int(func, "width", 1024, 1, INT_MAX, "", "Width of the image.", 0, INT_MAX);
+	parm= RNA_def_int(func, "height", 1024, 1, INT_MAX, "", "Height of the image.", 0, INT_MAX);
+	parm= RNA_def_boolean(func, "float_buffer", 0, "Float Buffer", "Create an image with floating point color");
+	/* return type */
+	parm= RNA_def_pointer(func, "image", "Image", "", "New image datablock.");
+	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "load", "rna_Main_images_load");
+	RNA_def_function_ui_description(func, "Load a new image into the main database");
+	parm= RNA_def_string(func, "filename", "File Name", 0, "", "path of the file to load.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm= RNA_def_pointer(func, "image", "Image", "", "New image datablock.");
+	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "remove", "rna_Main_images_remove");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove an image from the current blendfile.");
+	parm= RNA_def_pointer(func, "image", "Image", "", "Image to remove.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
+
 void RNA_def_main_lattices(BlenderRNA *brna, PropertyRNA *cprop)
 {
 
 }
 void RNA_def_main_curves(BlenderRNA *brna, PropertyRNA *cprop)
 {
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
+	RNA_def_property_srna(cprop, "MainCurves");
+	srna= RNA_def_struct(brna, "MainCurves", NULL);
+	RNA_def_struct_ui_text(srna, "Main Curves", "Collection of curves");
+
+	func= RNA_def_function(srna, "new", "rna_Main_curves_new");
+	RNA_def_function_ui_description(func, "Add a new curve to the main database");
+	parm= RNA_def_string(func, "name", "Curve", 0, "", "New name for the datablock.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_enum(func, "type", object_type_curve_items, 0, "Type", "The type of curve object to add");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm= RNA_def_pointer(func, "curve", "Curve", "", "New curve datablock.");
+	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "remove", "rna_Main_curves_remove");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove a curve from the current blendfile.");
+	parm= RNA_def_pointer(func, "curve", "Curve", "", "Curve to remove.");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 void RNA_def_main_metaballs(BlenderRNA *brna, PropertyRNA *cprop)
 {

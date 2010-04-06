@@ -40,6 +40,7 @@
 struct SpaceLink;
 struct Object;
 struct Group;
+struct GHash;
 
 /* ************************************************ */
 /* Visualisation */
@@ -161,6 +162,8 @@ typedef enum eMotionPaths_BakeFlag {
 	MOTIONPATH_BAKE_NEEDS_RECALC	= (1<<0),
 		/* for bones - calculate head-points for curves instead of tips */
 	MOTIONPATH_BAKE_HEADS			= (1<<1),
+		/* motion paths exist for AnimVizSettings instance - set when calc for first time, and unset when clearing */
+	MOTIONPATH_BAKE_HAS_PATHS		= (1<<2),
 } eMotionPath_BakeFlag;
 
 /* ************************************************ */
@@ -324,6 +327,7 @@ typedef enum eRotationModes {
  */
 typedef struct bPose {
 	ListBase chanbase; 			/* list of pose channels, PoseBones in RNA */
+	struct GHash *chanhash;		/* ghash for quicker string lookups */
 	
 	short flag, proxy_layer;	/* proxy layer: copy from armature, gets synced */
 	
@@ -355,9 +359,9 @@ typedef enum ePose_Flags {
 	POSE_CONSTRAINTS_TIMEDEPEND = (1<<3),
 		/* recalculate bone paths */
 	POSE_RECALCPATHS = (1<<4),
-	    /* set by armature_rebuild_pose to give a chance to the IK solver to rebuild IK tree */
+		/* set by armature_rebuild_pose to give a chance to the IK solver to rebuild IK tree */
 	POSE_WAS_REBUILT = (1<<5),
-	    /* set by game_copy_pose to indicate that this pose is used in the game engine */
+		/* set by game_copy_pose to indicate that this pose is used in the game engine */
 	POSE_GAME_ENGINE = (1<<6),
 } ePose_Flags;
 
@@ -526,6 +530,7 @@ typedef enum eDopeSheet_FilterFlag {
 		/* datatype-based filtering */
 	ADS_FILTER_NOSHAPEKEYS 		= (1<<6),
 	ADS_FILTER_NOMESH			= (1<<7),
+	ADS_FILTER_NOOBJ			= (1<<8),	/* for animdata on object level, if we only want to concentrate on materials/etc. */
 	// NOTE: there are a few more spaces for datablock filtering here...
 	ADS_FILTER_NOCAM			= (1<<10),
 	ADS_FILTER_NOMAT			= (1<<11),
@@ -537,6 +542,7 @@ typedef enum eDopeSheet_FilterFlag {
 	ADS_FILTER_NOMBA			= (1<<17),
 	ADS_FILTER_NOARM			= (1<<18),
 	ADS_FILTER_NONTREE			= (1<<19),
+	ADS_FILTER_NOTEX			= (1<<20),
 	
 		/* NLA-specific filters */
 	ADS_FILTER_NLA_NOACT		= (1<<25),	/* if the AnimData block has no NLA data, don't include to just show Action-line */
@@ -595,6 +601,8 @@ typedef enum eSAction_Flag {
 	SACTION_TEMP_NEEDCHANSYNC = (1<<9),
 		/* don't perform realtime updates */
 	SACTION_NOREALTIMEUPDATES =	(1<<10),
+		/* move markers as well as keyframes */
+	SACTION_MARKERS_MOVE = (1<<11),
 } eSAction_Flag;	
 
 /* SpaceAction Mode Settings */

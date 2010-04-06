@@ -43,7 +43,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu"
+				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu;..\..\..\..\build\msvc_9\intern\ghost\include"
 				PreprocessorDefinitions="NDEBUG,WIN32,_LIB"
 				StringPooling="true"
 				RuntimeLibrary="2"
@@ -119,7 +119,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu"
+				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu;..\..\..\..\build\msvc_9\intern\ghost\include"
 				PreprocessorDefinitions="_DEBUG;WIN32;_LIB;_CRT_SECURE_NO_WARNINGS"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -196,7 +196,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu"
+				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu;..\..\..\..\build\msvc_9\intern\ghost\include"
 				PreprocessorDefinitions="NDEBUG;WIN32;_LIB"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -272,7 +272,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu"
+				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu;..\..\..\..\build\msvc_9\intern\ghost\include"
 				PreprocessorDefinitions="_DEBUG,WIN32,_LIB"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -347,7 +347,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu"
+				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu;..\..\..\..\build\msvc_9\intern\ghost\include"
 				PreprocessorDefinitions="_DEBUG,WIN32,_LIB"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -423,7 +423,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				InlineFunctionExpansion="1"
-				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu"
+				AdditionalIncludeDirectories="..\..\..\..\lib\windows\zlib\include;..\..\..\..\lib\windows\pthreads\include;..\..\..\..\lib\windows\freetype\include;..\..\..\..\build\msvc_9\intern\guardedalloc\include;..\..\..\source\blender\include;..\..\..\source\blender\blenlib;..\..\..\source\blender\python;..\..\..\source\blender\makesdna;..\..\..\source\blender\blenkernel;..\..\..\source\blender\gpu;..\..\..\..\build\msvc_9\intern\ghost\include"
 				PreprocessorDefinitions="NDEBUG,WIN32,_LIB"
 				StringPooling="true"
 				RuntimeLibrary="0"
@@ -529,10 +529,6 @@
 			</File>
 			<File
 				RelativePath="..\..\..\source\blender\blenlib\intern\DLRB_tree.c"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\source\blender\blenlib\intern\dynamiclist.c"
 				>
 			</File>
 			<File
@@ -644,6 +640,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\source\blender\blenlib\intern\uvproject.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\source\blender\blenlib\intern\voxel.c"
 				>
 			</File>
@@ -682,10 +682,6 @@
 			</File>
 			<File
 				RelativePath="..\..\..\source\blender\blenlib\BLI_dlrbTree.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\..\source\blender\blenlib\BLI_dynamiclist.h"
 				>
 			</File>
 			<File
@@ -773,6 +769,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\source\blender\blenlib\BLI_path_util.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\source\blender\blenlib\BLI_pbvh.h"
 				>
 			</File>
@@ -794,6 +794,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\source\blender\blenlib\BLI_threads.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\source\blender\blenlib\BLI_uvproject.h"
 				>
 			</File>
 			<File

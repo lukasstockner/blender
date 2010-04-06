@@ -26,7 +26,6 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -69,7 +68,10 @@ static void rna_Material_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	Material *ma= ptr->id.data;
 
 	DAG_id_flush_update(&ma->id, 0);
-	WM_main_add_notifier(NC_MATERIAL|ND_SHADING, ma);
+	if(scene->gm.matmode == GAME_MAT_GLSL)
+		WM_main_add_notifier(NC_MATERIAL|ND_SHADING_DRAW, ma);
+	else
+		WM_main_add_notifier(NC_MATERIAL|ND_SHADING, ma);
 }
 
 static void rna_Material_draw_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -645,8 +647,8 @@ static void rna_def_material_colors(StructRNA *srna)
 		{MA_RAMP_SAT, "SATURATION", 0, "Saturation", ""},
 		{MA_RAMP_VAL, "VALUE", 0, "Value", ""},
 		{MA_RAMP_COLOR, "COLOR", 0, "Color", ""},
-        {MA_RAMP_SOFT, "SOFT LIGHT", 0, "Soft Light", ""}, 
-        {MA_RAMP_LINEAR, "LINEAR LIGHT", 0, "Linear Light", ""}, 
+		{MA_RAMP_SOFT, "SOFT LIGHT", 0, "Soft Light", ""}, 
+		{MA_RAMP_LINEAR, "LINEAR LIGHT", 0, "Linear Light", ""}, 
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem prop_ramp_input_items[] = {
@@ -1484,6 +1486,16 @@ void RNA_def_material(BlenderRNA *brna)
 		{MA_ZTRANSP, "Z_TRANSPARENCY", 0, "Z Transparency", "Use alpha buffer for transparent faces"},
 		{MA_RAYTRANSP, "RAYTRACE", 0, "Raytrace", "Use raytracing for transparent refraction rendering"},
 		{0, NULL, 0, NULL, NULL}};
+	
+	/* Render Preview Types */
+	static EnumPropertyItem preview_type_items[] = {
+		{MA_FLAT, "FLAT", ICON_MATPLANE, "Flat", "Preview type: Flat XY plane"},
+		{MA_SPHERE, "SPHERE", ICON_MATSPHERE, "Sphere", "Preview type: Sphere"},
+		{MA_CUBE, "CUBE", ICON_MATCUBE, "Flat", "Preview type: Cube"},
+		{MA_MONKEY, "MONKEY", ICON_MONKEY, "Flat", "Preview type: Monkey"},
+		{MA_HAIR, "HAIR", ICON_HAIR, "Flat", "Preview type: Hair strands"},
+		{MA_SPHERE_A, "SPHERE_A", ICON_MAT_SPHERE_SKY, "Flat", "Preview type: Large sphere with sky"},
+		{0, NULL, 0, NULL, NULL}};
 
 	srna= RNA_def_struct(brna, "Material", "ID");
 	RNA_def_struct_ui_text(srna, "Material", "Material datablock to defined the appearance of geometric objects for rendering");
@@ -1507,6 +1519,13 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Transparency Method", "Method to use for rendering transparency");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
+	/* For Preview Render */
+	prop= RNA_def_property(srna, "preview_render_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "pr_type");
+	RNA_def_property_enum_items(prop, preview_type_items);
+	RNA_def_property_ui_text(prop, "Preview render type", "Type of preview render");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+	
 	prop= RNA_def_property(srna, "ambient", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "amb");
 	RNA_def_property_range(prop, 0, 1);
@@ -1515,7 +1534,7 @@ void RNA_def_material(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "emit", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0, 2.0f, 10, 2);
+	RNA_def_property_ui_range(prop, 0, 2.0f, 1, 2);
 	RNA_def_property_ui_text(prop, "Emit", "Amount of light to emit");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 

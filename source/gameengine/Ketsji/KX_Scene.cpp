@@ -407,34 +407,6 @@ bool KX_Scene::IsClearingZBuffer()
 	return m_isclearingZbuffer;
 }
 
-void KX_Scene::RunDrawingCallbacks(PyObject* cb_list)
-{
-	int len;
-
-	if (cb_list && (len=PyList_GET_SIZE(cb_list)))
-	{
-		PyObject* args= PyTuple_New(0); // save python creating each call
-		PyObject* func;
-		PyObject* ret;
-
-		// Iterate the list and run the callbacks
-		for (int pos=0; pos < len; pos++)
-		{
-			func= PyList_GET_ITEM(cb_list, pos);
-			ret= PyObject_Call(func, args, NULL);
-			if (ret==NULL) {
-				PyErr_Print();
-				PyErr_Clear();
-			}
-			else {
-				Py_DECREF(ret);
-			}
-		}
-
-		Py_DECREF(args);
-	}
-}
-
 void KX_Scene::EnableZBufferClearing(bool isclearingZbuffer)
 {
 	m_isclearingZbuffer = isclearingZbuffer;
@@ -1657,9 +1629,6 @@ double KX_Scene::getSuspendedDelta()
 	return m_suspendeddelta;
 }
 
-#ifndef DISABLE_PYTHON
-
-
 #include "KX_BulletPhysicsController.h"
 
 static void MergeScene_LogicBrick(SCA_ILogicBrick* brick, KX_Scene *to)
@@ -1754,6 +1723,16 @@ static void MergeScene_GameObject(KX_GameObject* gameobj, KX_Scene *to, KX_Scene
 				phys_ctrl->SetPhysicsEnvironment(to->GetPhysicsEnvironment());
 		}
 	}
+	/* If the object is a light, update it's scene */
+	if (gameobj->GetGameObjectType() == SCA_IObject::OBJ_LIGHT)
+		((KX_LightObject*)gameobj)->UpdateScene(to);
+
+	/* Add the object to the scene's logic manager */
+	to->GetLogicManager()->RegisterGameObjectName(gameobj->GetName(), gameobj);
+	to->GetLogicManager()->RegisterGameObj(gameobj->GetBlenderObject(), gameobj);
+
+	for (int i=0; i<gameobj->GetMeshCount(); ++i)
+		to->GetLogicManager()->RegisterGameMeshName(gameobj->GetMesh(i)->GetName(), gameobj->GetBlenderObject());
 }
 
 bool KX_Scene::MergeScene(KX_Scene *other)
@@ -1823,7 +1802,7 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		//SCA_EventManager *evtmgr;
 		SCA_EventManager *evtmgr_other;
 
-		for(int i= 0; i < evtmgrs.size(); i++) {
+		for(unsigned int i= 0; i < evtmgrs.size(); i++) {
 			evtmgr_other= logicmgr_other->FindEventManager(evtmgrs[i]->GetType());
 
 			if(evtmgr_other) /* unlikely but possible one scene has a joystick and not the other */
@@ -1833,6 +1812,46 @@ bool KX_Scene::MergeScene(KX_Scene *other)
 		}
 	}
 	return true;
+}
+
+void KX_Scene::Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text)
+{
+	m_filtermanager.EnableFilter(propNames, gameObj, filtermode, pass, text);
+}
+
+void KX_Scene::Render2DFilters(RAS_ICanvas* canvas)
+{
+	m_filtermanager.RenderFilters(canvas);
+}
+
+#ifndef DISABLE_PYTHON
+
+void KX_Scene::RunDrawingCallbacks(PyObject* cb_list)
+{
+	int len;
+
+	if (cb_list && (len=PyList_GET_SIZE(cb_list)))
+	{
+		PyObject* args= PyTuple_New(0); // save python creating each call
+		PyObject* func;
+		PyObject* ret;
+
+		// Iterate the list and run the callbacks
+		for (int pos=0; pos < len; pos++)
+		{
+			func= PyList_GET_ITEM(cb_list, pos);
+			ret= PyObject_Call(func, args, NULL);
+			if (ret==NULL) {
+				PyErr_Print();
+				PyErr_Clear();
+			}
+			else {
+				Py_DECREF(ret);
+			}
+		}
+
+		Py_DECREF(args);
+	}
 }
 
 //----------------------------------------------------------------------------
@@ -1868,6 +1887,8 @@ PyMethodDef KX_Scene::Methods[] = {
 	KX_PYMETHODTABLE(KX_Scene, end),
 	KX_PYMETHODTABLE(KX_Scene, restart),
 	KX_PYMETHODTABLE(KX_Scene, replace),
+	KX_PYMETHODTABLE(KX_Scene, suspend),
+	KX_PYMETHODTABLE(KX_Scene, resume),
 	
 	/* dict style access */
 	KX_PYMETHODTABLE(KX_Scene, get),
@@ -2170,6 +2191,24 @@ KX_PYMETHODDEF_DOC(KX_Scene, replace,
 		return NULL;
 	
 	KX_GetActiveEngine()->ReplaceScene(m_sceneName, name);
+	
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, suspend,
+					"suspend()\n"
+					"Suspends this scene.\n")
+{
+	Suspend();
+	
+	Py_RETURN_NONE;
+}
+
+KX_PYMETHODDEF_DOC(KX_Scene, resume,
+					"resume()\n"
+					"Resumes this scene.\n")
+{
+	Resume();
 	
 	Py_RETURN_NONE;
 }

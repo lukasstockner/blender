@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,17 +31,9 @@
 #include <math.h>
 #include <float.h>
 
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_lamp_types.h"
 #include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_world_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -60,7 +52,6 @@
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
 
-#include "RE_pipeline.h"	// make_stars
 
 #include "BIF_gl.h"
 
@@ -72,14 +63,10 @@
 
 #include "ED_particle.h"
 #include "ED_retopo.h"
-#include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
-#include "ED_types.h"
+#include "ED_mesh.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
 
 #include "PIL_time.h" /* smoothview */
 
@@ -109,9 +96,7 @@ static void view3d_boxview_clip(ScrArea *sa)
 
 					if(ar->winx>ar->winy) y1= ar->winy*rv3d->dist/ar->winx;
 					else y1= rv3d->dist;
-
-					ofs[0]= rv3d->ofs[0];
-					ofs[1]= rv3d->ofs[1];
+					copy_v2_v2(ofs, rv3d->ofs);
 				}
 				else if(ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
 					ofs[2]= rv3d->ofs[2];
@@ -335,8 +320,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 		VECCOPY(vod->ofs, rv3d->ofs);
 		/* If there's no selection, lastofs is unmodified and last value since static */
 		calculateTransformCenter(C, V3D_CENTROID, lastofs);
-		VECCOPY(vod->dyn_ofs, lastofs);
-		mul_v3_fl(vod->dyn_ofs, -1.0f);
+		negate_v3_v3(vod->dyn_ofs, lastofs);
 	}
 	else if (U.uiflag & USER_ORBIT_ZBUF) {
 
@@ -371,8 +355,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 				closest_to_line_v3(dvec, vod->dyn_ofs, my_pivot, my_origin);
 				vod->dist0 = rv3d->dist = len_v3v3(my_pivot, dvec);
 
-				negate_v3(dvec);
-				VECCOPY(rv3d->ofs, dvec);
+				negate_v3_v3(rv3d->ofs, dvec);
 			}
 			negate_v3(vod->dyn_ofs);
 			VECCOPY(vod->ofs, rv3d->ofs);
@@ -547,11 +530,8 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 			* dragged. */
 		phi = si * M_PI / 2.0;
 
-		si= sin(phi);
 		q1[0]= cos(phi);
-		q1[1]*= si;
-		q1[2]*= si;
-		q1[3]*= si;
+		mul_v3_fl(q1+1, sin(phi));
 		mul_qt_qtqt(rv3d->viewquat, q1, vod->oldquat);
 
 		if (vod->use_dyn_ofs) {
@@ -569,7 +549,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 	}
 	else {
 		/* New turntable view code by John Aughey */
-		float si, phi, q1[4];
+		float phi, q1[4];
 		float m[3][3];
 		float m_inv[3][3];
 		float xvec[3] = {1,0,0};
@@ -589,11 +569,8 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 
 		/* Perform the up/down rotation */
 		phi = sensitivity * -(y - vod->oldy);
-		si = sin(phi);
 		q1[0] = cos(phi);
-		q1[1] = si * xvec[0];
-		q1[2] = si * xvec[1];
-		q1[3] = si * xvec[2];
+		mul_v3_v3fl(q1+1, xvec, sin(phi));
 		mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
 
 		if (vod->use_dyn_ofs) {
@@ -634,12 +611,10 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 
 			if ((dot_v3v3(snapmat[0], viewmat[0]) > thres) &&
 				(dot_v3v3(snapmat[1], viewmat[1]) > thres) &&
-				(dot_v3v3(snapmat[2], viewmat[2]) > thres)){
-
-				QUATCOPY(rv3d->viewquat, snapquats[i]);
-
-				rv3d->view = view;
-
+				(dot_v3v3(snapmat[2], viewmat[2]) > thres)
+			) {
+				copy_qt_qt(rv3d->viewquat, snapquats[i]);
+				rv3d->view= view;
 				break;
 			}
 		}
@@ -968,18 +943,15 @@ static void view_zoom_mouseloc(ARegion *ar, float dfac, int mx, int my)
 		vb[0] = ar->winx;
 		vb[1] = ar->winy;
 
-		tpos[0] = -rv3d->ofs[0];
-		tpos[1] = -rv3d->ofs[1];
-		tpos[2] = -rv3d->ofs[2];
+		negate_v3_v3(tpos, rv3d->ofs);
 
 		/* Project cursor position into 3D space */
 		initgrabz(rv3d, tpos[0], tpos[1], tpos[2]);
 		window_to_3d_delta(ar, dvec, mouseloc[0]-vb[0]/2, mouseloc[1]-vb[1]/2);
 
 		/* Calculate view target position for dolly */
-		tvec[0] = -(tpos[0] + dvec[0]);
-		tvec[1] = -(tpos[1] + dvec[1]);
-		tvec[2] = -(tpos[2] + dvec[2]);
+		add_v3_v3v3(tvec, tpos, dvec);
+		negate_v3(tvec);
 
 		/* Offset to target position and dolly */
 		new_dist = rv3d->dist * dfac;
@@ -988,11 +960,7 @@ static void view_zoom_mouseloc(ARegion *ar, float dfac, int mx, int my)
 		rv3d->dist = new_dist;
 
 		/* Calculate final offset */
-		dvec[0] = tvec[0] + dvec[0] * dfac;
-		dvec[1] = tvec[1] + dvec[1] * dfac;
-		dvec[2] = tvec[2] + dvec[2] * dfac;
-
-		VECCOPY(rv3d->ofs, dvec);
+		madd_v3_v3v3fl(rv3d->ofs, tvec, dvec, dfac);
 	} else {
 		rv3d->dist *= dfac;
 	}
@@ -1295,9 +1263,9 @@ static int viewhome_exec(bContext *C, wmOperator *op) /* was view3d_home() in 2.
 			rv3d->persp= RV3D_PERSP;
 			smooth_view(C, NULL, v3d->camera, new_ofs, NULL, &new_dist, NULL);
 		}
-        else {
-            smooth_view(C, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
-        }
+		else {
+			smooth_view(C, NULL, NULL, new_ofs, NULL, &new_dist, NULL);
+		}
 	}
 // XXX	BIF_view3d_previewrender_signal(curarea, PR_DBASE|PR_DISPRECT);
 
@@ -1371,11 +1339,12 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 			for(pchan= ob->pose->chanbase.first; pchan; pchan= pchan->next) {
 				if(pchan->bone->flag & BONE_SELECTED) {
 					if(pchan->bone->layer & arm->layer) {
+						bPoseChannel *pchan_tx= pchan->custom_tx ? pchan->custom_tx : pchan;
 						ok= 1;
-						VECCOPY(vec, pchan->pose_head);
+						VECCOPY(vec, pchan_tx->pose_head);
 						mul_m4_v3(ob->obmat, vec);
 						DO_MINMAX(vec, min, max);
-						VECCOPY(vec, pchan->pose_tail);
+						VECCOPY(vec, pchan_tx->pose_tail);
 						mul_m4_v3(ob->obmat, vec);
 						DO_MINMAX(vec, min, max);
 					}
@@ -1384,7 +1353,7 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 		}
 	}
 	else if (paint_facesel_test(ob)) {
-// XXX		ok= minmax_tface(min, max);
+		ok= minmax_tface(ob, min, max);
 	}
 	else if (ob && (ob->mode & OB_MODE_PARTICLE_EDIT)) {
 		ok= PE_minmax(scene, min, max);
@@ -1393,9 +1362,10 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 		Base *base= FIRSTBASE;
 		while(base) {
 			if(TESTBASE(v3d, base))  {
-				minmax_object(base->object, min, max);
+
 				/* account for duplis */
-				minmax_object_duplis(scene, base->object, min, max);
+				if (minmax_object_duplis(scene, base->object, min, max)==0)
+					minmax_object(base->object, min, max); /* use if duplis not found */
 
 				ok= 1;
 			}
@@ -1405,9 +1375,7 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 
 	if(ok==0) return OPERATOR_FINISHED;
 
-	afm[0]= (max[0]-min[0]);
-	afm[1]= (max[1]-min[1]);
-	afm[2]= (max[2]-min[2]);
+	sub_v3_v3v3(afm, max, min);
 	size= MAX3(afm[0], afm[1], afm[2]);
 
 	if(rv3d->persp==RV3D_ORTHO) {
@@ -1425,9 +1393,8 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 		}
 	}
 
-	new_ofs[0]= -(min[0]+max[0])/2.0f;
-	new_ofs[1]= -(min[1]+max[1])/2.0f;
-	new_ofs[2]= -(min[2]+max[2])/2.0f;
+	add_v3_v3v3(new_ofs, min, max);
+	mul_v3_fl(new_ofs, -0.5f);
 
 	new_dist = size;
 
@@ -1482,13 +1449,8 @@ static int viewcenter_cursor_exec(bContext *C, wmOperator *op)
 		}
 		else {
 			/* non camera center */
-			float *curs= give_cursor(scene, v3d);
 			float new_ofs[3];
-			
-			new_ofs[0]= -curs[0];
-			new_ofs[1]= -curs[1];
-			new_ofs[2]= -curs[2];
-			
+			negate_v3_v3(new_ofs, give_cursor(scene, v3d));
 			smooth_view(C, NULL, NULL, new_ofs, NULL, NULL, NULL);
 		}
 		
@@ -1531,6 +1493,9 @@ static int render_border_exec(bContext *C, wmOperator *op)
 	rect.xmax= RNA_int_get(op->ptr, "xmax");
 	rect.ymax= RNA_int_get(op->ptr, "ymax");
 
+	if (!ar || ar->regiontype != RGN_TYPE_WINDOW)
+		return OPERATOR_CANCELLED;
+	
 	/* calculate range */
 	calc_viewborder(scene, ar, v3d, &vb);
 
@@ -1706,9 +1671,7 @@ static int view3d_zoom_border_exec(bContext *C, wmOperator *op)
 			new_ofs[2] = -p[2];
 		} else {
 			/* We cant use the depth, fallback to the old way that dosnt set the center depth */
-			new_ofs[0] = rv3d->ofs[0];
-			new_ofs[1] = rv3d->ofs[1];
-			new_ofs[2] = rv3d->ofs[2];
+			copy_v3_v3(new_ofs, rv3d->ofs);
 
 			initgrabz(rv3d, -new_ofs[0], -new_ofs[1], -new_ofs[2]);
 
@@ -1982,7 +1945,7 @@ static EnumPropertyItem prop_view_orbit_items[] = {
 static int vieworbit_exec(bContext *C, wmOperator *op)
 {
 	RegionView3D *rv3d= CTX_wm_region_view3d(C);
-	float phi, si, q1[4], new_quat[4];
+	float phi, q1[4], new_quat[4];
 	int orbitdir;
 
 	orbitdir = RNA_enum_get(op->ptr, "type");
@@ -1991,6 +1954,7 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 
 		if(rv3d->persp != RV3D_CAMOB) {
 			if(orbitdir == V3D_VIEW_STEPLEFT || orbitdir == V3D_VIEW_STEPRIGHT) {
+				float si;
 				/* z-axis */
 				phi= (float)(M_PI/360.0)*U.pad_rot_angle;
 				if(orbitdir == V3D_VIEW_STEPRIGHT) phi= -phi;
@@ -2008,11 +1972,8 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 				normalize_v3(q1+1);
 				phi= (float)(M_PI/360.0)*U.pad_rot_angle;
 				if(orbitdir == V3D_VIEW_STEPDOWN) phi= -phi;
-				si= (float)sin(phi);
 				q1[0]= (float)cos(phi);
-				q1[1]*= si;
-				q1[2]*= si;
-				q1[3]*= si;
+				mul_v3_fl(q1+1, sin(phi));
 				mul_qt_qtqt(new_quat, rv3d->viewquat, q1);
 				rv3d->view= 0;
 			}
@@ -2418,8 +2379,8 @@ void VIEW3D_OT_manipulator(wmOperatorType *ot)
 
 	ot->poll= ED_operator_view3d_active;
 
-	/* rna later */
-	RNA_def_boolean_vector(ot->srna, "constraint_axis", 3, NULL, "Constraint Axis", "");
+	/* properties to pass to transform */
+	Transform_Properties(ot, P_CONSTRAINT);
 }
 
 static int enable_manipulator_invoke(bContext *C, wmOperator *op, wmEvent *event)
@@ -2675,21 +2636,21 @@ float m_dist;
 void viewmoveNDOFfly(ARegion *ar, View3D *v3d, int mode)
 {
 	RegionView3D *rv3d= ar->regiondata;
-    int i;
-    float phi;
-    float dval[7];
+	int i;
+	float phi;
+	float dval[7];
 	// static fval[6] for low pass filter; device input vector is dval[6]
 	static float fval[6];
-    float tvec[3],rvec[3];
-    float q1[4];
+	float tvec[3],rvec[3];
+	float q1[4];
 	float mat[3][3];
 	float upvec[3];
 
 
-    /*----------------------------------------------------
+	/*----------------------------------------------------
 	 * sometimes this routine is called from headerbuttons
-     * viewmove needs to refresh the screen
-     */
+	 * viewmove needs to refresh the screen
+	 */
 // XXX	areawinset(ar->win);
 
 
@@ -2793,8 +2754,8 @@ void viewmoveNDOFfly(ARegion *ar, View3D *v3d, int mode)
 
 
 	/*----------------------------------------------------
-     * refresh the screen XXX
-      */
+	 * refresh the screen XXX
+	  */
 
 	// update render preview window
 
@@ -2815,7 +2776,7 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 	float xvec[3] = {1,0,0};
 	float yvec[3] = {0,-1,0};
 	float zvec[3] = {0,0,1};
-	float phi, si;
+	float phi;
 	float q1[4];
 	float obofs[3];
 	float reverse;
@@ -2824,10 +2785,10 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 	float mat[3][3];
 	float upvec[3];
 
-    /* Sensitivity will control how fast the view rotates.  The value was
-     * obtained experimentally by tweaking until the author didn't get dizzy watching.
-     * Perhaps this should be a configurable user parameter.
-     */
+	/* Sensitivity will control how fast the view rotates.  The value was
+	 * obtained experimentally by tweaking until the author didn't get dizzy watching.
+	 * Perhaps this should be a configurable user parameter.
+	 */
 	float psens = 0.005f * (float) U.ndof_pan;   /* pan sensitivity */
 	float rsens = 0.005f * (float) U.ndof_rotate;  /* rotate sensitivity */
 	float zsens = 0.3f;   /* zoom sensitivity */
@@ -2853,16 +2814,16 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 		add_v3_v3v3(rv3d->ofs, rv3d->ofs, upvec);
 	}
 
-    /*----------------------------------------------------
+	/*----------------------------------------------------
 	 * sometimes this routine is called from headerbuttons
-     * viewmove needs to refresh the screen
-     */
+	 * viewmove needs to refresh the screen
+	 */
 // XXX	areawinset(curarea->win);
 
-    /*----------------------------------------------------
-     * record how much time has passed. clamp at 10 Hz
-     * pretend the previous frame occured at the clamped time
-     */
+	/*----------------------------------------------------
+	 * record how much time has passed. clamp at 10 Hz
+	 * pretend the previous frame occured at the clamped time
+	 */
 //    now = PIL_check_seconds_timer();
  //   frametime = (now - prevTime);
  //   if (frametime > 0.1f){        /* if more than 1/10s */
@@ -2871,13 +2832,13 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 //    prevTime = now;
  //   sbadjust *= 60 * frametime;             /* normalize ndof device adjustments to 100Hz for framerate independence */
 
-    /* fetch the current state of the ndof device & enforce dominant mode if selected */
+	/* fetch the current state of the ndof device & enforce dominant mode if selected */
 // XXX    getndof(fval);
 	if (v3d->ndoffilter)
 		filterNDOFvalues(fval);
 
 
-    // put scaling back here, was previously in ghostwinlay
+	// put scaling back here, was previously in ghostwinlay
 	fval[0] = fval[0] * (1.0f/600.0f);
 	fval[1] = fval[1] * (1.0f/600.0f);
 	fval[2] = fval[2] * (1.0f/1100.0f);
@@ -2886,7 +2847,7 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 	fval[5] = fval[5] * 0.00005f;
 	fval[6] = fval[6] / 1000000.0f;
 
-    // scale more if not in perspective mode
+	// scale more if not in perspective mode
 	if (rv3d->persp == RV3D_ORTHO) {
 		fval[0] = fval[0] * 0.05f;
 		fval[1] = fval[1] * 0.05f;
@@ -2897,7 +2858,7 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 		zsens *= 8;
 	}
 
-    /* set object offset */
+	/* set object offset */
 	if (ob) {
 		obofs[0] = -ob->obmat[3][0];
 		obofs[1] = -ob->obmat[3][1];
@@ -2907,105 +2868,102 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 		VECCOPY(obofs, rv3d->ofs);
 	}
 
-    /* calc an adjustment based on distance from camera
-       disabled per patch 14402 */
-     d = 1.0f;
+	/* calc an adjustment based on distance from camera
+	   disabled per patch 14402 */
+	 d = 1.0f;
 
 /*    if (ob) {
-        sub_v3_v3v3(diff, obofs, rv3d->ofs);
-        d = len_v3(diff);
-    }
+		sub_v3_v3v3(diff, obofs, rv3d->ofs);
+		d = len_v3(diff);
+	}
 */
 
-    reverse = (rv3d->persmat[2][1] < 0.0f) ? -1.0f : 1.0f;
+	reverse = (rv3d->persmat[2][1] < 0.0f) ? -1.0f : 1.0f;
 
-    /*----------------------------------------------------
-     * ndof device pan
-     */
-    psens *= 1.0f + d;
-    curareaX = sbadjust * psens * fval[0];
-    curareaY = sbadjust * psens * fval[1];
-    dvec[0] = curareaX * rv3d->persinv[0][0] + curareaY * rv3d->persinv[1][0];
-    dvec[1] = curareaX * rv3d->persinv[0][1] + curareaY * rv3d->persinv[1][1];
-    dvec[2] = curareaX * rv3d->persinv[0][2] + curareaY * rv3d->persinv[1][2];
-    add_v3_v3v3(rv3d->ofs, rv3d->ofs, dvec);
+	/*----------------------------------------------------
+	 * ndof device pan
+	 */
+	psens *= 1.0f + d;
+	curareaX = sbadjust * psens * fval[0];
+	curareaY = sbadjust * psens * fval[1];
+	dvec[0] = curareaX * rv3d->persinv[0][0] + curareaY * rv3d->persinv[1][0];
+	dvec[1] = curareaX * rv3d->persinv[0][1] + curareaY * rv3d->persinv[1][1];
+	dvec[2] = curareaX * rv3d->persinv[0][2] + curareaY * rv3d->persinv[1][2];
+	add_v3_v3v3(rv3d->ofs, rv3d->ofs, dvec);
 
-    /*----------------------------------------------------
-     * ndof device dolly
-     */
-    len = zsens * sbadjust * fval[2];
+	/*----------------------------------------------------
+	 * ndof device dolly
+	 */
+	len = zsens * sbadjust * fval[2];
 
-    if (rv3d->persp==RV3D_CAMOB) {
-        if(rv3d->persp==RV3D_CAMOB) { /* This is stupid, please fix - TODO */
-            rv3d->camzoom+= 10.0f * -len;
-        }
-        if (rv3d->camzoom < minZoom) rv3d->camzoom = minZoom;
-        else if (rv3d->camzoom > maxZoom) rv3d->camzoom = maxZoom;
-    }
-    else if ((rv3d->dist> 0.001*v3d->grid) && (rv3d->dist<10.0*v3d->far)) {
-        rv3d->dist*=(1.0 + len);
-    }
+	if (rv3d->persp==RV3D_CAMOB) {
+		if(rv3d->persp==RV3D_CAMOB) { /* This is stupid, please fix - TODO */
+			rv3d->camzoom+= 10.0f * -len;
+		}
+		if (rv3d->camzoom < minZoom) rv3d->camzoom = minZoom;
+		else if (rv3d->camzoom > maxZoom) rv3d->camzoom = maxZoom;
+	}
+	else if ((rv3d->dist> 0.001*v3d->grid) && (rv3d->dist<10.0*v3d->far)) {
+		rv3d->dist*=(1.0 + len);
+	}
 
 
-    /*----------------------------------------------------
-     * ndof device turntable
-     * derived from the turntable code in viewmove
-     */
+	/*----------------------------------------------------
+	 * ndof device turntable
+	 * derived from the turntable code in viewmove
+	 */
 
-    /* Get the 3x3 matrix and its inverse from the quaternion */
-    quat_to_mat3( m,rv3d->viewquat);
-    invert_m3_m3(m_inv,m);
+	/* Get the 3x3 matrix and its inverse from the quaternion */
+	quat_to_mat3( m,rv3d->viewquat);
+	invert_m3_m3(m_inv,m);
 
-    /* Determine the direction of the x vector (for rotating up and down) */
-    /* This can likely be compuated directly from the quaternion. */
-    mul_m3_v3(m_inv,xvec);
-    mul_m3_v3(m_inv,yvec);
-    mul_m3_v3(m_inv,zvec);
+	/* Determine the direction of the x vector (for rotating up and down) */
+	/* This can likely be compuated directly from the quaternion. */
+	mul_m3_v3(m_inv,xvec);
+	mul_m3_v3(m_inv,yvec);
+	mul_m3_v3(m_inv,zvec);
 
-    /* Perform the up/down rotation */
-    phi = sbadjust * rsens * /*0.5f * */ fval[3]; /* spin vertically half as fast as horizontally */
-    si = sin(phi);
-    q1[0] = cos(phi);
-    q1[1] = si * xvec[0];
-    q1[2] = si * xvec[1];
-    q1[3] = si * xvec[2];
-    mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
+	/* Perform the up/down rotation */
+	phi = sbadjust * rsens * /*0.5f * */ fval[3]; /* spin vertically half as fast as horizontally */
+	q1[0] = cos(phi);
+	mul_v3_v3fl(q1+1, xvec, sin(phi));
+	mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
 
-    if (use_sel) {
-        conjugate_qt(q1); /* conj == inv for unit quat */
-        sub_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
-        mul_qt_v3(q1, rv3d->ofs);
-        add_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
-    }
+	if (use_sel) {
+		conjugate_qt(q1); /* conj == inv for unit quat */
+		sub_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
+		mul_qt_v3(q1, rv3d->ofs);
+		add_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
+	}
 
-    /* Perform the orbital rotation */
-    /* Perform the orbital rotation
-       If the seen Up axis is parallel to the zoom axis, rotation should be
-       achieved with a pure Roll motion (no Spin) on the device. When you start
-       to tilt, moving from Top to Side view, Spinning will increasingly become
-       more relevant while the Roll component will decrease. When a full
-       Side view is reached, rotations around the world's Up axis are achieved
-       with a pure Spin-only motion.  In other words the control of the spinning
-       around the world's Up axis should move from the device's Spin axis to the
-       device's Roll axis depending on the orientation of the world's Up axis
-       relative to the screen. */
-    //phi = sbadjust * rsens * reverse * fval[4];  /* spin the knob, y axis */
-    phi = sbadjust * rsens * (yvec[2] * fval[4] + zvec[2] * fval[5]);
-    q1[0] = cos(phi);
-    q1[1] = q1[2] = 0.0;
-    q1[3] = sin(phi);
-    mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
+	/* Perform the orbital rotation */
+	/* Perform the orbital rotation
+	   If the seen Up axis is parallel to the zoom axis, rotation should be
+	   achieved with a pure Roll motion (no Spin) on the device. When you start
+	   to tilt, moving from Top to Side view, Spinning will increasingly become
+	   more relevant while the Roll component will decrease. When a full
+	   Side view is reached, rotations around the world's Up axis are achieved
+	   with a pure Spin-only motion.  In other words the control of the spinning
+	   around the world's Up axis should move from the device's Spin axis to the
+	   device's Roll axis depending on the orientation of the world's Up axis
+	   relative to the screen. */
+	//phi = sbadjust * rsens * reverse * fval[4];  /* spin the knob, y axis */
+	phi = sbadjust * rsens * (yvec[2] * fval[4] + zvec[2] * fval[5]);
+	q1[0] = cos(phi);
+	q1[1] = q1[2] = 0.0;
+	q1[3] = sin(phi);
+	mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, q1);
 
-    if (use_sel) {
-        conjugate_qt(q1);
-        sub_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
-        mul_qt_v3(q1, rv3d->ofs);
-        add_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
-    }
+	if (use_sel) {
+		conjugate_qt(q1);
+		sub_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
+		mul_qt_v3(q1, rv3d->ofs);
+		add_v3_v3v3(rv3d->ofs, rv3d->ofs, obofs);
+	}
 
-    /*----------------------------------------------------
-     * refresh the screen
-     */
+	/*----------------------------------------------------
+	 * refresh the screen
+	 */
 // XXX    scrarea_do_windraw(curarea);
 }
 

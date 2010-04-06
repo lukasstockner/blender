@@ -34,29 +34,17 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_image_types.h"
-#include "DNA_ipo_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_nla_types.h"
-#include "DNA_object_types.h"
-#include "DNA_outliner_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_text_types.h"
 #include "DNA_world_types.h"
 #include "DNA_sequence_types.h"
 
@@ -87,7 +75,6 @@
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_util.h"
-#include "ED_types.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -103,16 +90,10 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "ED_armature.h"
 #include "ED_keyframing.h"
-#include "ED_object.h"
-#include "ED_particle.h"
-#include "ED_screen.h"
-#include "ED_view3d.h"
 
 #include "outliner_intern.h"
 
-#include "PIL_time.h" 
 
 
 #define OL_H	19
@@ -511,10 +492,19 @@ static void outliner_add_passes(SpaceOops *soops, TreeElement *tenla, ID *id, Sc
 	te->name= "Refraction";
 	te->directdata= &srl->passflag;
 	
-	te= outliner_add_element(soops, &tenla->subtree, id, tenla, TSE_R_PASS, SCE_PASS_RADIO);
-	te->name= "Radiosity";
+	te= outliner_add_element(soops, &tenla->subtree, id, tenla, TSE_R_PASS, SCE_PASS_INDIRECT);
+	te->name= "Indirect";
 	te->directdata= &srl->passflag;
-	
+
+	/* TODO SCE_PASS_ENVIRONMENT/EMIT overflow short..
+
+	te= outliner_add_element(soops, &tenla->subtree, id, tenla, TSE_R_PASS, SCE_PASS_ENVIRONMENT);
+	te->name= "Environment";
+	te->directdata= &srl->passflag;
+
+	te= outliner_add_element(soops, &tenla->subtree, id, tenla, TSE_R_PASS, SCE_PASS_EMIT);
+	te->name= "Emit";
+	te->directdata= &srl->passflag;*/
 }
 
 
@@ -3977,14 +3967,14 @@ static void do_outliner_keyingset_editop(SpaceOops *soops, KeyingSet *ks, ListBa
 					{
 						/* add a new path with the information obtained (only if valid) */
 						// TODO: what do we do with group name? for now, we don't supply one, and just let this use the KeyingSet name
-						BKE_keyingset_add_destination(ks, id, NULL, path, array_index, flag, groupmode);
+						BKE_keyingset_add_path(ks, id, NULL, path, array_index, flag, groupmode);
 						ks->active_path= BLI_countlist(&ks->paths);
 					}
 						break;
 					case KEYINGSET_EDITMODE_REMOVE:
 					{
 						/* find the relevant path, then remove it from the KeyingSet */
-						KS_Path *ksp= BKE_keyingset_find_destination(ks, id, NULL, path, array_index, groupmode);
+						KS_Path *ksp= BKE_keyingset_find_path(ks, id, NULL, path, array_index, groupmode);
 						
 						if (ksp) {
 							/* free path's data */
@@ -4210,6 +4200,8 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 						UI_icon_draw(x, y, ICON_MOD_SMOKE); break;
 					case eModifierType_Solidify:
 						UI_icon_draw(x, y, ICON_MOD_SOLIDIFY); break;
+					case eModifierType_Screw:
+						UI_icon_draw(x, y, ICON_MOD_SCREW); break;
 					default:
 						UI_icon_draw(x, y, ICON_DOT); break;
 				}
@@ -4816,7 +4808,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 			if (te->idcode == ID_LI) {
 				char expanded[FILE_MAXDIR + FILE_MAXFILE];
 				BLI_strncpy(expanded, ((Library *)tselem->id)->name, FILE_MAXDIR + FILE_MAXFILE);
-				BLI_convertstringcode(expanded, G.sce);
+				BLI_path_abs(expanded, G.sce);
 				if (!BLI_exists(expanded)) {
 					error("This path does not exist, correct this before saving");
 				}
@@ -4885,7 +4877,7 @@ static void namebutton_cb(bContext *C, void *tsep, char *oldname)
 					Object *ob= (Object *)tselem->id; // id = object
 					bActionGroup *grp= te->directdata;
 					
-					BLI_uniquename(&ob->pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), 32);
+					BLI_uniquename(&ob->pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), sizeof(grp->name));
 					WM_event_add_notifier(C, NC_OBJECT|ND_POSE, ob);
 				}
 				break;
@@ -4946,7 +4938,7 @@ static void outliner_draw_restrictbuts(uiBlock *block, Scene *scene, ARegion *ar
 				uiButSetFunc(bt, restrictbutton_r_lay_cb, tselem->id, NULL);
 				
 				layflag++;	/* is lay_xor */
-				if(ELEM6(tselem->nr, SCE_PASS_SPEC, SCE_PASS_SHADOW, SCE_PASS_AO, SCE_PASS_REFLECT, SCE_PASS_REFRACT, SCE_PASS_RADIO))
+				if(ELEM8(tselem->nr, SCE_PASS_SPEC, SCE_PASS_SHADOW, SCE_PASS_AO, SCE_PASS_REFLECT, SCE_PASS_REFRACT, SCE_PASS_INDIRECT, SCE_PASS_EMIT, SCE_PASS_ENVIRONMENT))
 					bt= uiDefIconButBitI(block, TOG, tselem->nr, 0, (*layflag & tselem->nr)?ICON_DOT:ICON_BLANK1, 
 									 (int)ar->v2d.cur.xmax-OL_TOG_RESTRICT_SELECTX, (short)te->ys, 17, OL_H-1, layflag, 0, 0, 0, 0, "Exclude this Pass from Combined");
 				uiButSetFunc(bt, restrictbutton_r_lay_cb, tselem->id, NULL);

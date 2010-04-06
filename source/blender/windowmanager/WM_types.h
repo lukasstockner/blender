@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -267,6 +267,8 @@ typedef struct wmNotifier {
 #define NS_MODE_POSE			(9<<8)
 #define NS_MODE_PARTICLE		(10<<8)
 
+/* subtype 3d view editing */
+#define NS_VIEW3D_GPU			(16<<8)
 
 /* action classification */
 #define NOTE_ACTION			(0x000000FF)
@@ -285,6 +287,7 @@ typedef struct wmNotifier {
 #define WM_GESTURE_CROSS_RECT	3
 #define WM_GESTURE_LASSO		4
 #define WM_GESTURE_CIRCLE		5
+#define WM_GESTURE_STRAIGHTLINE	6
 
 /* wmGesture is registered to window listbase, handled by operator callbacks */
 /* tweak gesture is builtin feature */
@@ -301,6 +304,7 @@ typedef struct wmGesture {
 	/* customdata for border is a recti */
 	/* customdata for circle is recti, (xmin, ymin) is center, xmax radius */
 	/* customdata for lasso is short array */
+	/* customdata for straight line is a recti: (xmin,ymin) is start, (xmax, ymax) is end */
 } wmGesture;
 
 /* ************** wmEvent ************************ */

@@ -64,6 +64,7 @@ typedef struct CurveMap {
 
 typedef struct CurveMapping {
 	int flag, cur;					/* cur; for buttons, to show active curve */
+	int preset, pad;
 	
 	rctf curr, clipr;				/* current rect, clip rect (is default rect too) */
 	
@@ -80,6 +81,15 @@ typedef struct CurveMapping {
 #define CUMA_DRAW_CFRA			4
 #define CUMA_DRAW_SAMPLE		8
 
+/* cumapping->preset */
+typedef enum CurveMappingPreset {
+	CURVE_PRESET_LINE,
+	CURVE_PRESET_SHARP,
+	CURVE_PRESET_SMOOTH,
+	CURVE_PRESET_MAX,
+	CURVE_PRESET_MID9
+} CurveMappingPreset;
+
 typedef struct Histogram {
 	int channels;
 	int x_resolution;
@@ -87,8 +97,10 @@ typedef struct Histogram {
 	float data_g[256];
 	float data_b[256];
 	float xmax, ymax;
+	int height;
 	int ok;
 	int flag;
+	int pad;
 } Histogram;
 
 #endif

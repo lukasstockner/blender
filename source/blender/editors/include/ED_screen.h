@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -102,12 +102,14 @@ void	ED_screen_animation_timer_update(struct bScreen *screen, int redraws);
 int		ED_screen_full_newspace(struct bContext *C, ScrArea *sa, int type);
 void	ED_screen_full_prevspace(struct bContext *C, ScrArea *sa);
 void	ED_screen_full_restore(struct bContext *C, ScrArea *sa);
+struct ScrArea *ED_screen_full_toggle(struct bContext *C, struct wmWindow *win, struct ScrArea *sa);
 
 void	ED_screen_new_window(struct bContext *C, struct rcti *position, int type);
 
 /* anim */
 void	ED_update_for_newframe(const struct bContext *C, int mute);
 void 	ED_refresh_viewport_fps(struct bContext *C);
+int ED_screen_animation_play(struct bContext *C, int sync, int mode);
 
 /* screen keymaps */
 void	ED_operatortypes_screen(void);

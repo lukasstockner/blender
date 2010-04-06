@@ -35,12 +35,9 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "DNA_gpencil_types.h"
-#include "DNA_sequence_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
-#include "DNA_view2d_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
@@ -51,7 +48,6 @@
 #include "BKE_utildefines.h"
 #include "BKE_sound.h"
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
 #include "BIF_gl.h"
@@ -59,8 +55,6 @@
 
 #include "ED_anim_api.h"
 #include "ED_markers.h"
-#include "ED_space_api.h"
-#include "ED_sequencer.h"
 #include "ED_types.h"
 
 #include "UI_interface.h"
@@ -438,39 +432,46 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 {
 	rctf rect;
 	char str[32 + FILE_MAXDIR+FILE_MAXFILE];
+	const char *name= seq->name+2;
 	
-	if(seq->name[2]) {
-		sprintf(str, "%d | %s: %s", seq->len, give_seqname(seq), seq->name+2);
-	}
-	else{
-		if(seq->type == SEQ_META) {
-			sprintf(str, "%d | %s", seq->len, give_seqname(seq));
-		}
-		else if(seq->type == SEQ_SCENE) {
-			if(seq->scene) sprintf(str, "%d | %s: %s", seq->len, give_seqname(seq), seq->scene->id.name+2);
-			else sprintf(str, "%d | %s", seq->len, give_seqname(seq));
-			
-		}
-		else if(seq->type == SEQ_IMAGE) {
-			sprintf(str, "%d | %s%s", seq->len, seq->strip->dir, seq->strip->stripdata->name);
-		}
-		else if(seq->type & SEQ_EFFECT) {
-			int can_float = (seq->type != SEQ_PLUGIN)
-				|| (seq->plugin && seq->plugin->version >= 4);
+	if(name[0]=='\0')
+		name= give_seqname(seq);
 
-			if(seq->seq3!=seq->seq2 && seq->seq1!=seq->seq3)
-				sprintf(str, "%d | %s: %d>%d (use %d)%s", seq->len, give_seqname(seq), seq->seq1->machine, seq->seq2->machine, seq->seq3->machine, can_float ? "" : " No float, upgrade plugin!");
-			else if (seq->seq1 && seq->seq2)
-				sprintf(str, "%d | %s: %d>%d%s", seq->len, give_seqname(seq), seq->seq1->machine, seq->seq2->machine, can_float ? "" : " No float, upgrade plugin!");
-			else 
-				sprintf(str, "%d | %s", seq->len, give_seqname(seq));
+	if(seq->type == SEQ_META) {
+		sprintf(str, "%d | %s", seq->len, name);
+	}
+	else if(seq->type == SEQ_SCENE) {
+		if(seq->scene) {
+			if(seq->scene_camera) {
+				sprintf(str, "%d | %s: %s (%s)", seq->len, name, seq->scene->id.name+2, ((ID *)seq->scene_camera)->name+2);
+			} else {
+				sprintf(str, "%d | %s: %s", seq->len, name, seq->scene->id.name+2);
+			}
 		}
-		else if (seq->type == SEQ_SOUND) {
-			sprintf(str, "%d | %s", seq->len, seq->sound->name);
+		else {
+			sprintf(str, "%d | %s", seq->len, name);
 		}
-		else if (seq->type == SEQ_MOVIE) {
-			sprintf(str, "%d | %s%s", seq->len, seq->strip->dir, seq->strip->stripdata->name);
-		}
+
+	}
+	else if(seq->type == SEQ_IMAGE) {
+		sprintf(str, "%d | %s%s", seq->len, seq->strip->dir, seq->strip->stripdata->name);
+	}
+	else if(seq->type & SEQ_EFFECT) {
+		int can_float = (seq->type != SEQ_PLUGIN)
+			|| (seq->plugin && seq->plugin->version >= 4);
+
+		if(seq->seq3!=seq->seq2 && seq->seq1!=seq->seq3)
+			sprintf(str, "%d | %s: %d>%d (use %d)%s", seq->len, name, seq->seq1->machine, seq->seq2->machine, seq->seq3->machine, can_float ? "" : " No float, upgrade plugin!");
+		else if (seq->seq1 && seq->seq2)
+			sprintf(str, "%d | %s: %d>%d%s", seq->len, name, seq->seq1->machine, seq->seq2->machine, can_float ? "" : " No float, upgrade plugin!");
+		else
+			sprintf(str, "%d | %s", seq->len, name);
+	}
+	else if (seq->type == SEQ_SOUND) {
+		sprintf(str, "%d | %s", seq->len, seq->sound->name);
+	}
+	else if (seq->type == SEQ_MOVIE) {
+		sprintf(str, "%d | %s%s", seq->len, seq->strip->dir, seq->strip->stripdata->name);
 	}
 	
 	if(seq->flag & SELECT){
@@ -653,6 +654,7 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	struct ImBuf *ibuf;
 	struct View2D *v2d = &ar->v2d;
 	int rectx, recty;
+	float viewrectx, viewrecty;
 	int free_ibuf = 0;
 	static int recursive= 0;
 	float render_size = 0.0;
@@ -670,14 +672,26 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		return;
 	}
 
-	rectx= (render_size*(float)scene->r.xsch)/100.0f+0.5f;
-	recty= (render_size*(float)scene->r.ysch)/100.0f+0.5f;
+	viewrectx = (render_size*(float)scene->r.xsch)/100.0f;
+	viewrecty = (render_size*(float)scene->r.ysch)/100.0f;
+
+	rectx = viewrectx + 0.5f;
+	recty = viewrecty + 0.5f;
+
+	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+		viewrectx *= scene->r.xasp / scene->r.yasp;
+		viewrectx /= proxy_size / 100.0;
+		viewrecty /= proxy_size / 100.0;
+	}
 
 	/* XXX TODO: take color from theme */
 	glClearColor(0.0, 0.0, 0.0, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	UI_view2d_totRect_set(v2d, rectx, recty);
+	/* without this colors can flicker from previous opengl state */
+	glColor4ub(255, 255, 255, 255);
+
+	UI_view2d_totRect_set(v2d, viewrectx + 0.5f, viewrecty + 0.5f);
 	UI_view2d_curRect_validate(v2d);
 
 	/* BIG PROBLEM: the give_ibuf_seq() can call a rendering, which in turn calls redraws...
@@ -740,11 +754,6 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 
 	if(ibuf->rect_float && ibuf->rect==NULL) {
-		if (scene->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
-			ibuf->profile = IB_PROFILE_LINEAR_RGB;
-		} else {
-			ibuf->profile = IB_PROFILE_NONE;
-		}
 		IMB_rect_from_float(ibuf);	
 	}
 	
@@ -773,7 +782,7 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	/* safety border */
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && 
-	    (sseq->flag & SEQ_DRAW_SAFE_MARGINS) != 0) {
+		(sseq->flag & SEQ_DRAW_SAFE_MARGINS) != 0) {
 		float fac= 0.1;
 		float x1 = v2d->tot.xmin;
 		float y1 = v2d->tot.ymin;

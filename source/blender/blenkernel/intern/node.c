@@ -36,41 +36,16 @@
 #include <string.h>
 
 #include "DNA_anim_types.h"
-#include "DNA_ID.h"
-#include "DNA_image_types.h"
-#include "DNA_node_types.h"
-#include "DNA_material_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_text_types.h"
-#include "DNA_scene_types.h"
 
 #include "RNA_access.h"
 
-#include "BKE_blender.h"
-#include "BKE_colortools.h"
 #include "BKE_fcurve.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
-#include "BKE_node.h"
-#include "BKE_texture.h"
-#include "BKE_text.h"
-#include "BKE_utildefines.h"
+#include "BKE_animsys.h" /* BKE_free_animdata only */
 
-#include "BLI_math.h"
-#include "BLI_blenlib.h"
-#include "BLI_rand.h"
-#include "BLI_threads.h"
 
 #include "PIL_time.h"
 
 #include "MEM_guardedalloc.h"
-#include "IMB_imbuf.h"
-
-#include "RE_pipeline.h"
-#include "RE_shader_ext.h"		/* <- TexResult */
-#include "RE_render_ext.h"		/* <- ibuf_sample() */
 
 #include "CMP_node.h"
 #include "intern/CMP_util.h"	/* stupid include path... */
@@ -79,7 +54,6 @@
 #include "TEX_node.h"
 #include "intern/TEX_util.h"
 
-#include "GPU_extensions.h"
 #include "GPU_material.h"
 
 static ListBase empty_list = {NULL, NULL};
@@ -908,7 +882,7 @@ void nodeAddSockets(bNode *node, bNodeType *ntype)
 /* Find the first available, non-duplicate name for a given node */
 void nodeUniqueName(bNodeTree *ntree, bNode *node)
 {
-	BLI_uniquename(&ntree->nodes, node, "Node", '.', offsetof(bNode, name), 32);
+	BLI_uniquename(&ntree->nodes, node, "Node", '.', offsetof(bNode, name), sizeof(node->name));
 }
 
 bNode *nodeAddNodeType(bNodeTree *ntree, int type, bNodeTree *ngroup, ID *id)
@@ -1074,11 +1048,11 @@ bNodeTree *ntreeAddTree(int type)
 	ntree->alltypes.last = NULL;
 
 	/* this helps RNA identify ID pointers as nodetree */
-    if(ntree->type==NTREE_SHADER)
+	if(ntree->type==NTREE_SHADER)
 		BLI_strncpy(ntree->id.name, "NTShader Nodetree", sizeof(ntree->id.name));
-    else if(ntree->type==NTREE_COMPOSIT)
+	else if(ntree->type==NTREE_COMPOSIT)
 		BLI_strncpy(ntree->id.name, "NTCompositing Nodetree", sizeof(ntree->id.name));
-    else if(ntree->type==NTREE_TEXTURE)
+	else if(ntree->type==NTREE_TEXTURE)
 		BLI_strncpy(ntree->id.name, "NTTexture Nodetree", sizeof(ntree->id.name));
 	
 	ntreeInitTypes(ntree);
@@ -1104,10 +1078,12 @@ bNodeTree *ntreeCopyTree(bNodeTree *ntree, int internal_select)
 		/* is ntree part of library? */
 		for(newtree=G.main->nodetree.first; newtree; newtree= newtree->id.next)
 			if(newtree==ntree) break;
-		if(newtree)
+		if(newtree) {
 			newtree= copy_libblock(ntree);
-		else
+		} else {
 			newtree= MEM_dupallocN(ntree);
+			copy_libblock_data(&newtree->id, &ntree->id); /* copy animdata and ID props */
+		}
 		newtree->nodes.first= newtree->nodes.last= NULL;
 		newtree->links.first= newtree->links.last= NULL;
 	}
@@ -1343,6 +1319,8 @@ void ntreeFreeTree(bNodeTree *ntree)
 	
 	ntreeEndExecTree(ntree);	/* checks for if it is still initialized */
 	
+	BKE_free_animdata((ID *)ntree);
+
 	BLI_freelistN(&ntree->links);	/* do first, then unlink_node goes fast */
 	
 	for(node= ntree->nodes.first; node; node= next) {
@@ -1376,9 +1354,9 @@ void ntreeMakeLocal(bNodeTree *ntree)
 	int local=0, lib=0;
 	
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(ntree->id.lib==NULL) return;
 	if(ntree->id.us==1) {
@@ -1569,7 +1547,7 @@ bNode *nodeGetActiveID(bNodeTree *ntree, short idtype)
 	if(ntree==NULL) return NULL;
 
 	/* check for group edit */
-    for(node= ntree->nodes.first; node; node= node->next)
+	for(node= ntree->nodes.first; node; node= node->next)
 		if(node->flag & NODE_GROUP_EDIT)
 			break;
 
@@ -1593,7 +1571,7 @@ int nodeSetActiveID(bNodeTree *ntree, short idtype, ID *id)
 	if(ntree==NULL) return ok;
 
 	/* check for group edit */
-    for(node= ntree->nodes.first; node; node= node->next)
+	for(node= ntree->nodes.first; node; node= node->next)
 		if(node->flag & NODE_GROUP_EDIT)
 			break;
 
@@ -2541,9 +2519,38 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 /* local tree then owns all compbufs */
 bNodeTree *ntreeLocalize(bNodeTree *ntree)
 {
-	bNodeTree *ltree= ntreeCopyTree(ntree, 0);
+	bNodeTree *ltree;
 	bNode *node;
 	bNodeSocket *sock;
+	
+	bAction *action_backup= NULL, *tmpact_backup= NULL;
+	
+	/* Workaround for copying an action on each render!
+	 * set action to NULL so animdata actions dont get copied */
+	AnimData *adt= BKE_animdata_from_id(&ntree->id);
+
+	if(adt) {
+		action_backup= adt->action;
+		tmpact_backup= adt->tmpact;
+
+		adt->action= NULL;
+		adt->tmpact= NULL;
+	}
+
+	/* node copy func */
+	ltree= ntreeCopyTree(ntree, 0);
+
+	if(adt) {
+		AnimData *ladt= BKE_animdata_from_id(&ltree->id);
+
+		adt->action= ladt->action= action_backup;
+		adt->tmpact= ladt->tmpact= tmpact_backup;
+
+		if(action_backup) action_backup->id.us++;
+		if(tmpact_backup) tmpact_backup->id.us++;
+		
+	}
+	/* end animdata uglyness */
 	
 	/* move over the compbufs */
 	/* right after ntreeCopyTree() oldsock pointers are valid */
@@ -2566,6 +2573,8 @@ bNodeTree *ntreeLocalize(bNodeTree *ntree)
 		for(sock= node->outputs.first; sock; sock= sock->next) {
 			
 			sock->new_sock->ns.data= sock->ns.data;
+			compbuf_set_node(sock->new_sock->ns.data, node->new_node);
+			
 			sock->ns.data= NULL;
 			sock->new_sock->new_sock= sock;
 		}
@@ -2663,7 +2672,7 @@ static void gpu_from_node_stack(ListBase *sockets, bNodeStack **ns, GPUNodeStack
 	for (sock=sockets->first, i=0; sock; sock=sock->next, i++) {
 		memset(&gs[i], 0, sizeof(gs[i]));
 
-    	QUATCOPY(gs[i].vec, ns[i]->vec);
+		QUATCOPY(gs[i].vec, ns[i]->vec);
 		gs[i].link= ns[i]->data;
 
 		if (sock->type == SOCK_VALUE)
@@ -2756,7 +2765,7 @@ void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
 			if(node->typeinfo->gpufunc(mat, node, gpuin, gpuout))
 				data_from_gpu_stack(&node->outputs, nsout, gpuout);
 		}
-        else if(node->type==NODE_GROUP && node->id) {
+		else if(node->type==NODE_GROUP && node->id) {
 			node_get_stack(node, stack, nsin, nsout);
 			gpu_node_group_execute(stack, mat, node, nsin, nsout);
 		}
@@ -2804,12 +2813,16 @@ static void force_hidden_passes(bNode *node, int passflag)
 	if(!(passflag & SCE_PASS_REFLECT)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_REFRACT);
 	if(!(passflag & SCE_PASS_REFRACT)) sock->flag |= SOCK_UNAVAIL;
-	sock= BLI_findlink(&node->outputs, RRES_OUT_RADIO);
-	if(!(passflag & SCE_PASS_RADIO)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_INDIRECT);
+	if(!(passflag & SCE_PASS_INDIRECT)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_INDEXOB);
 	if(!(passflag & SCE_PASS_INDEXOB)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_MIST);
 	if(!(passflag & SCE_PASS_MIST)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_EMIT);
+	if(!(passflag & SCE_PASS_EMIT)) sock->flag |= SOCK_UNAVAIL;
+	sock= BLI_findlink(&node->outputs, RRES_OUT_ENV);
+	if(!(passflag & SCE_PASS_ENVIRONMENT)) sock->flag |= SOCK_UNAVAIL;
 	
 }
 
@@ -3012,7 +3025,7 @@ void nodeRegisterType(ListBase *typelist, const bNodeType *ntype)
 		bNodeType *ntypen= MEM_callocN(sizeof(bNodeType), "node type");
 		*ntypen= *ntype;
 		BLI_addtail(typelist, ntypen);
- 	}
+	 }
 }
 
 static void registerCompositNodes(ListBase *ntypelist)

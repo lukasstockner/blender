@@ -36,15 +36,10 @@
 #include "BLI_math.h"
 #include "BLI_dynstr.h"
 
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_text_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
@@ -68,7 +63,6 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
-#include "RNA_types.h"
 
 #include "ED_object.h"
 #include "ED_screen.h"
@@ -250,9 +244,9 @@ static void set_constraint_nth_target (bConstraint *con, Object *target, char su
 /* ------------- Constraint Sanity Testing ------------------- */
 
 /* checks validity of object pointers, and NULLs,
- * if Bone doesnt exist it sets the CONSTRAINT_DISABLE flag 
+ * if Bone doesnt exist it sets the CONSTRAINT_DISABLE flag.
  */
-static void test_constraints (Object *owner, const char substring[])
+static void test_constraints (Object *owner, bPoseChannel *pchan)
 {
 	bConstraint *curcon;
 	ListBase *conlist= NULL;
@@ -261,7 +255,7 @@ static void test_constraints (Object *owner, const char substring[])
 	if (owner==NULL) return;
 	
 	/* Check parents */
-	if (strlen(substring)) {
+	if (pchan) {
 		switch (owner->type) {
 			case OB_ARMATURE:
 				type = CONSTRAINT_OBTYPE_BONE;
@@ -280,16 +274,7 @@ static void test_constraints (Object *owner, const char substring[])
 			conlist = &owner->constraints;
 			break;
 		case CONSTRAINT_OBTYPE_BONE:
-			{
-				Bone *bone;
-				bPoseChannel *chan;
-				
-				bone = get_named_bone( ((bArmature *)owner->data), substring );
-				chan = get_pose_channel(owner->pose, substring);
-				if (bone && chan) {
-					conlist = &chan->constraints;
-				}
-			}
+			conlist = &pchan->constraints;
 			break;
 	}
 	
@@ -431,25 +416,17 @@ static void test_constraints (Object *owner, const char substring[])
 	}
 }
 
-static void test_bonelist_constraints (Object *owner, ListBase *list)
-{
-	Bone *bone;
-
-	for (bone = list->first; bone; bone = bone->next) {
-		test_constraints(owner, bone->name);
-		test_bonelist_constraints(owner, &bone->childbase);
-	}
-}
-
 void object_test_constraints (Object *owner)
 {
-	test_constraints(owner, "");
+	if(owner->constraints.first)
+		test_constraints(owner, NULL);
 
-	if (owner->type==OB_ARMATURE) {
-		bArmature *arm= get_armature(owner);
-		
-		if (arm)
-			test_bonelist_constraints(owner, &arm->bonebase);
+	if (owner->type==OB_ARMATURE && owner->pose) {
+		bPoseChannel *pchan;
+
+		for (pchan= owner->pose->chanbase.first; pchan; pchan= pchan->next)
+			if(pchan->constraints.first)
+				test_constraints(owner, pchan);
 	}
 }
 
@@ -661,7 +638,7 @@ void ED_object_constraint_dependency_update(Scene *scene, Object *ob)
 	ED_object_constraint_update(ob);
 
 	if(ob->pose) ob->pose->flag |= POSE_RECALC;	// checks & sorts pose channels
-    DAG_scene_sort(scene);
+	DAG_scene_sort(scene);
 }
 
 static int constraint_poll(bContext *C)
@@ -825,7 +802,7 @@ void POSE_OT_constraints_clear(wmOperatorType *ot)
 
 static int object_constraints_clear_exec(bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
+	Object *ob= ED_object_active_context(C);
 	Scene *scene= CTX_data_scene(C);
 	
 	/* do freeing */
@@ -859,7 +836,7 @@ void OBJECT_OT_constraints_clear(wmOperatorType *ot)
 /* get the Object and/or PoseChannel to use as target */
 static short get_new_constraint_target(bContext *C, int con_type, Object **tar_ob, bPoseChannel **tar_pchan, short add)
 {
-	Object *obact= CTX_data_active_object(C);
+	Object *obact= ED_object_active_context(C);
 	bPoseChannel *pchanact= get_active_posechannel(obact);
 	short only_curve= 0, only_mesh= 0, only_ob= 0;
 	short found= 0;
@@ -881,6 +858,7 @@ static short get_new_constraint_target(bContext *C, int con_type, Object **tar_o
 		case CONSTRAINT_TYPE_LOCLIMIT:
 		case CONSTRAINT_TYPE_ROTLIMIT:
 		case CONSTRAINT_TYPE_SIZELIMIT:
+		case CONSTRAINT_TYPE_SAMEVOL:
 			return 0;
 			
 		/* restricted target-type constraints -------------- */
@@ -1113,16 +1091,9 @@ static int constraint_add_exec(bContext *C, wmOperator *op, Object *ob, ListBase
 /* dummy operator callback */
 static int object_constraint_add_exec(bContext *C, wmOperator *op)
 {
-	ScrArea *sa= CTX_wm_area(C);
-	Object *ob;
+	Object *ob=ED_object_active_context(C);
 	int type= RNA_enum_get(op->ptr, "type");
 	short with_targets= 0;
-	
-	/* get active object from context */
-	if (sa->spacetype == SPACE_BUTS)
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
-	else
-		ob= CTX_data_active_object(C);
 	
 	if (!ob) {
 		BKE_report(op->reports, RPT_ERROR, "No active object to add constraint to.");
@@ -1141,16 +1112,9 @@ static int object_constraint_add_exec(bContext *C, wmOperator *op)
 /* dummy operator callback */
 static int pose_constraint_add_exec(bContext *C, wmOperator *op)
 {
-	ScrArea *sa= CTX_wm_area(C);
-	Object *ob;
+	Object *ob= ED_object_active_context(C);
 	int type= RNA_enum_get(op->ptr, "type");
 	short with_targets= 0;
-	
-	/* get active object from context */
-	if (sa->spacetype == SPACE_BUTS)
-		ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
-	else
-		ob= CTX_data_active_object(C);
 	
 	if (!ob) {
 		BKE_report(op->reports, RPT_ERROR, "No active object to add constraint to.");

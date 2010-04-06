@@ -99,7 +99,8 @@ class VIEW3D_PT_tools_meshedit(View3DPanel):
 
         col = layout.column(align=True)
         col.label(text="Add:")
-        col.operator("wm.call_menu", text="Extrude").name = "VIEW3D_MT_edit_mesh_extrude"
+        col.operator("view3d.edit_mesh_extrude_move_normal", text="Extrude Region")
+        col.operator("view3d.edit_mesh_extrude_individual_move", text="Extrude Individual")
         col.operator("mesh.subdivide")
         col.operator("mesh.loopcut_slide")
         col.operator("mesh.duplicate_move", text="Duplicate")
@@ -155,6 +156,7 @@ class VIEW3D_PT_tools_meshedit_options(View3DPanel):
             mesh = context.active_object.data
             col = layout.column(align=True)
             col.prop(mesh, "use_mirror_x")
+            col.prop(mesh, "use_mirror_topology")
             col.prop(context.tool_settings, "edge_path_mode")
 
 # ********** default tools for editmode_curve ****************
@@ -521,9 +523,11 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             if settings.tool != 'NONE':
                 col = layout.column()
                 col.prop(brush, "size", slider=True)
-                col.prop(brush, "strength", slider=True)
+                if settings.tool != 'ADD':
+                    col.prop(brush, "strength", slider=True)
 
             if settings.tool == 'ADD':
+                col.prop(brush, "count")
                 col = layout.column()
                 col.prop(settings, "add_interpolate")
                 sub = col.column(align=True)
@@ -566,8 +570,17 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     col.prop(brush, "use_accumulate")
 
                 if brush.sculpt_tool == 'LAYER':
-                    col.prop(brush, "use_persistent")
-                    col.operator("sculpt.set_persistent_base")
+                    ob = context.sculpt_object
+                    do_persistent = True
+
+                    # not supported yet for this case
+                    for md in ob.modifiers:
+                        if md.type == 'MULTIRES':
+                            do_persistent = False
+
+                    if do_persistent:
+                        col.prop(brush, "use_persistent")
+                        col.operator("sculpt.set_persistent_base")
 
         # Texture Paint Mode #
 
@@ -589,6 +602,11 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             row.prop(brush, "use_jitter_pressure", toggle=True, text="")
 
             col.prop(brush, "blend", text="Blend")
+
+            col = layout.column()
+            col.active = (brush.blend not in ('ERASE_ALPHA', 'ADD_ALPHA'))
+            col.prop(brush, "use_alpha")
+
 
         # Weight Paint Mode #
 
@@ -743,7 +761,11 @@ class VIEW3D_PT_tools_brush_curve(PaintPanel):
         brush = settings.brush
 
         layout.template_curve_mapping(brush, "curve", brush=True)
-        layout.operator_menu_enum("brush.curve_preset", property="shape")
+
+        row = layout.row(align=True)
+        row.operator("brush.curve_preset", text="Sharp").shape = 'SHARP'
+        row.operator("brush.curve_preset", text="Smooth").shape = 'SMOOTH'
+        row.operator("brush.curve_preset", text="Max").shape = 'MAX'
 
 
 class VIEW3D_PT_sculpt_options(PaintPanel):
@@ -809,7 +831,9 @@ class VIEW3D_PT_tools_weightpaint_options(View3DPanel):
 
         obj = context.weight_paint_object
         if obj.type == 'MESH':
-            col.prop(obj.data, "use_mirror_x")
+            mesh = obj.data
+            col.prop(mesh, "use_mirror_x")
+            col.prop(mesh, "use_mirror_topology")
 
 # Commented out because the Apply button isn't an operator yet, making these settings useless
 #		col.label(text="Gamma:")
@@ -903,28 +927,39 @@ class VIEW3D_PT_tools_projectpaint(View3DPanel):
         sub = col.column()
         sub.prop(ipaint, "seam_bleed")
 
-    class VIEW3D_MT_tools_projectpaint_clone(bpy.types.Menu):
-        bl_label = "Clone Layer"
+        col.label(text="External Editing")
+        row = col.split(align=True, percentage=0.55)
+        row.operator("image.project_edit", text="Quick Edit")
+        row.operator("image.project_apply", text="Apply")
+        row = col.row(align=True)
+        row.prop(ipaint, "screen_grab_size", text="")
 
-        def draw(self, context):
-            layout = self.layout
-            for i, tex in enumerate(context.active_object.data.uv_textures):
-                prop = layout.operator("wm.context_set_int", text=tex.name)
-                prop.path = "active_object.data.uv_texture_clone_index"
-                prop.value = i
+        sub = col.column()
+        sub.operator("paint.project_image", text="Apply Camera Image")
 
-    class VIEW3D_MT_tools_projectpaint_stencil(bpy.types.Menu):
-        bl_label = "Mask Layer"
+        sub.operator("image.save_dirty", text="Save All Edited")
 
-        def draw(self, context):
-            layout = self.layout
-            for i, tex in enumerate(context.active_object.data.uv_textures):
-                prop = layout.operator("wm.context_set_int", text=tex.name)
-                prop.path = "active_object.data.uv_texture_stencil_index"
-                prop.value = i
 
-    bpy.types.register(VIEW3D_MT_tools_projectpaint_clone)
-    bpy.types.register(VIEW3D_MT_tools_projectpaint_stencil)
+class VIEW3D_MT_tools_projectpaint_clone(bpy.types.Menu):
+    bl_label = "Clone Layer"
+
+    def draw(self, context):
+        layout = self.layout
+        for i, tex in enumerate(context.active_object.data.uv_textures):
+            prop = layout.operator("wm.context_set_int", text=tex.name)
+            prop.path = "active_object.data.uv_texture_clone_index"
+            prop.value = i
+
+
+class VIEW3D_MT_tools_projectpaint_stencil(bpy.types.Menu):
+    bl_label = "Mask Layer"
+
+    def draw(self, context):
+        layout = self.layout
+        for i, tex in enumerate(context.active_object.data.uv_textures):
+            prop = layout.operator("wm.context_set_int", text=tex.name)
+            prop.path = "active_object.data.uv_texture_stencil_index"
+            prop.value = i
 
 
 class VIEW3D_PT_tools_particlemode(View3DPanel):
@@ -983,33 +1018,57 @@ class VIEW3D_PT_tools_particlemode(View3DPanel):
         col.active = pe.editable
         col.label(text="Draw:")
         col.prop(pe, "draw_step", text="Path Steps")
-        if pe.type == 'PARTICLES':
-            col.prop(pe, "draw_particles", text="Particles")
-        col.prop(pe, "fade_time")
-        sub = col.row()
-        sub.active = pe.fade_time
-        sub.prop(pe, "fade_frames", slider=True)
+        if pe.hair:
+            col.prop(pe, "draw_particles", text="Children")
+        else:
+            if pe.type == 'PARTICLES':
+                col.prop(pe, "draw_particles", text="Particles")
+            col.prop(pe, "fade_time")
+            sub = col.row()
+            sub.active = pe.fade_time
+            sub.prop(pe, "fade_frames", slider=True)
 
-bpy.types.register(VIEW3D_PT_tools_weightpaint)
-bpy.types.register(VIEW3D_PT_tools_objectmode)
-bpy.types.register(VIEW3D_PT_tools_meshedit)
-bpy.types.register(VIEW3D_PT_tools_meshedit_options)
-bpy.types.register(VIEW3D_PT_tools_curveedit)
-bpy.types.register(VIEW3D_PT_tools_surfaceedit)
-bpy.types.register(VIEW3D_PT_tools_textedit)
-bpy.types.register(VIEW3D_PT_tools_armatureedit)
-bpy.types.register(VIEW3D_PT_tools_armatureedit_options)
-bpy.types.register(VIEW3D_PT_tools_mballedit)
-bpy.types.register(VIEW3D_PT_tools_latticeedit)
-bpy.types.register(VIEW3D_PT_tools_posemode)
-bpy.types.register(VIEW3D_PT_tools_posemode_options)
-bpy.types.register(VIEW3D_PT_tools_brush)
-bpy.types.register(VIEW3D_PT_tools_brush_texture)
-bpy.types.register(VIEW3D_PT_tools_brush_tool)
-bpy.types.register(VIEW3D_PT_tools_brush_stroke)
-bpy.types.register(VIEW3D_PT_tools_brush_curve)
-bpy.types.register(VIEW3D_PT_sculpt_options)
-bpy.types.register(VIEW3D_PT_tools_vertexpaint)
-bpy.types.register(VIEW3D_PT_tools_weightpaint_options)
-bpy.types.register(VIEW3D_PT_tools_projectpaint)
-bpy.types.register(VIEW3D_PT_tools_particlemode)
+
+classes = [
+    VIEW3D_PT_tools_weightpaint,
+    VIEW3D_PT_tools_objectmode,
+    VIEW3D_PT_tools_meshedit,
+    VIEW3D_PT_tools_meshedit_options,
+    VIEW3D_PT_tools_curveedit,
+    VIEW3D_PT_tools_surfaceedit,
+    VIEW3D_PT_tools_textedit,
+    VIEW3D_PT_tools_armatureedit,
+    VIEW3D_PT_tools_armatureedit_options,
+    VIEW3D_PT_tools_mballedit,
+    VIEW3D_PT_tools_latticeedit,
+    VIEW3D_PT_tools_posemode,
+    VIEW3D_PT_tools_posemode_options,
+    VIEW3D_PT_tools_brush,
+    VIEW3D_PT_tools_brush_texture,
+    VIEW3D_PT_tools_brush_tool,
+    VIEW3D_PT_tools_brush_stroke,
+    VIEW3D_PT_tools_brush_curve,
+    VIEW3D_PT_sculpt_options,
+    VIEW3D_PT_tools_vertexpaint,
+    VIEW3D_PT_tools_weightpaint_options,
+
+    VIEW3D_PT_tools_projectpaint,
+    VIEW3D_MT_tools_projectpaint_clone,
+    VIEW3D_MT_tools_projectpaint_stencil,
+
+    VIEW3D_PT_tools_particlemode]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

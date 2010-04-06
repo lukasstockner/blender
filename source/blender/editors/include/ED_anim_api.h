@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -134,6 +134,7 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_FILLDRIVERS,
 	ANIMTYPE_FILLMATD,
 	ANIMTYPE_FILLPARTD,
+	ANIMTYPE_FILLTEXD,
 	
 	ANIMTYPE_DSMAT,
 	ANIMTYPE_DSLAM,
@@ -146,6 +147,7 @@ typedef enum eAnim_ChannelType {
 	ANIMTYPE_DSMBALL,
 	ANIMTYPE_DSARM,
 	ANIMTYPE_DSMESH,
+	ANIMTYPE_DSTEX,
 	
 	ANIMTYPE_SHAPEKEY,
 	
@@ -225,8 +227,13 @@ typedef enum eAnimFilter_Flags {
 	/* 'Sub-object/Action' channels (flags stored in Action) */
 #define SEL_ACTC(actc) ((actc->flag & ACT_SELECTED))
 #define EXPANDED_ACTC(actc) ((actc->flag & ACT_COLLAPSED)==0)
-	/* 'Sub-AnimData' chanenls */
+	/* 'Sub-AnimData' channels */
 #define EXPANDED_DRVD(adt) ((adt->flag & ADT_DRIVERS_COLLAPSED)==0)
+	/* Texture expanders */
+#define FILTER_TEX_MATC(ma) ((ma->flag & MA_DS_SHOW_TEXS))
+#define FILTER_TEX_LAMC(la) ((la->flag & LA_DS_SHOW_TEXS))
+#define FILTER_TEX_WORC(wa) ((wo->flag & WO_DS_SHOW_TEXS))
+#define FILTER_TEX_DATA(tex) ((tex->flag & TEX_DS_EXPAND))
 
 /* Actions (also used for Dopesheet) */
 	/* Action Channel Group */
@@ -319,7 +326,7 @@ typedef enum eAnimChannels_SetFlag {
 
 /* types of settings for AnimChannels */
 typedef enum eAnimChannel_Settings {
- 	ACHANNEL_SETTING_SELECT = 0,
+	 ACHANNEL_SETTING_SELECT = 0,
 	ACHANNEL_SETTING_PROTECT,			// warning: for drawing UI's, need to check if this is off (maybe inverse this later)
 	ACHANNEL_SETTING_MUTE,
 	ACHANNEL_SETTING_EXPAND,
@@ -445,8 +452,27 @@ void ANIM_draw_previewrange(const struct bContext *C, struct View2D *v2d);
 /* ************************************************* */
 /* F-MODIFIER TOOLS */
 
+/* ------------- UI Panel Drawing -------------- */
+
 /* draw a given F-Modifier for some layout/UI-Block */
 void ANIM_uiTemplate_fmodifier_draw(struct uiLayout *layout, struct ID *id, ListBase *modifiers, struct FModifier *fcm);
+
+/* ------------- Copy/Paste Buffer -------------- */
+
+
+/* free the copy/paste buffer */
+void free_fmodifiers_copybuf(void);
+
+/* copy the given F-Modifiers to the buffer, returning whether anything was copied or not
+ * assuming that the buffer has been cleared already with free_fmodifiers_copybuf()
+ *	- active: only copy the active modifier
+ */
+short ANIM_fmodifiers_copy_to_buf(ListBase *modifiers, short active);
+
+/* 'Paste' the F-Modifier(s) from the buffer to the specified list 
+ *	- replace: free all the existing modifiers to leave only the pasted ones 
+ */
+short ANIM_fmodifiers_paste_from_buf(ListBase *modifiers, short replace);
 
 /* ************************************************* */
 /* ASSORTED TOOLS */

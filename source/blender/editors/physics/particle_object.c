@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -32,10 +32,7 @@
 
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
@@ -526,6 +523,7 @@ void PARTICLE_OT_dupliob_move_down(wmOperatorType *ot)
 static void disconnect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 {
 	ParticleSystemModifierData *psmd = psys_get_modifier(ob,psys);
+	ParticleEditSettings *pset= PE_settings(scene);
 	ParticleData *pa;
 	PTCacheEdit *edit;
 	PTCacheEditPoint *point;
@@ -564,6 +562,9 @@ static void disconnect_hair(Scene *scene, Object *ob, ParticleSystem *psys)
 	psys_free_path_cache(psys, psys->edit);
 
 	psys->flag |= PSYS_GLOBAL_HAIR;
+
+	if(ELEM(pset->brushtype, PE_BRUSH_ADD, PE_BRUSH_PUFF))
+		pset->brushtype = PE_BRUSH_NONE;
 
 	PE_update_object(scene, ob, 0);
 }

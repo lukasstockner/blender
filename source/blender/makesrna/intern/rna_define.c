@@ -34,9 +34,7 @@
 #include "DNA_genfile.h"
 #include "DNA_sdna_types.h"
 
-#include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "BLI_ghash.h"
 #include "BLI_string.h"
@@ -887,7 +885,7 @@ PropertyRNA *RNA_def_property(StructOrFunctionRNA *cont_, const char *identifier
 			fprop->hardmin= (subtype == PROP_UNSIGNED)? 0.0f: -FLT_MAX;
 			fprop->hardmax= FLT_MAX;
 
-			if(subtype == PROP_COLOR) {
+			if(ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA)) {
 				fprop->softmin= 0.0f;
 				fprop->softmax= 1.0f;
 			}

@@ -1,5 +1,5 @@
 /**
- * $Id: 
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -40,13 +40,9 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 #include "MEM_guardedalloc.h"
 
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -74,7 +70,6 @@ editmesh_loop: tools with own drawing subloops, select, knife, subdiv
 #include "WM_types.h"
 
 #include "ED_mesh.h"
-#include "ED_screen.h"
 #include "ED_view3d.h"
 
 #include "mesh_intern.h"
@@ -231,7 +226,7 @@ void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcuts)
 //			scrarea_do_windraw(curarea);	// after findnearestedge, backbuf!
 			
 			sprintf(msg,"Number of Cuts: %d (S)mooth: ",numcuts);
-            strcat(msg, smooth ? "on":"off");
+			strcat(msg, smooth ? "on":"off");
 			
 //			headerprint(msg);
 			/* Need to figure preview */
@@ -367,9 +362,9 @@ void CutEdgeloop(Object *obedit, wmOperator *op, EditMesh *em, int numcuts)
 		fac= 1.0f;
 // XXX		if(fbutton(&fac, 0.0f, 5.0f, 10, 10, "Smooth:")==0) return;
 		fac= 0.292f*fac;			
-		esubdivideflag(obedit, em, SELECT,fac,0,B_SMOOTH,numcuts,SUBDIV_SELECT_LOOPCUT);
+		esubdivideflag(obedit, em, SELECT,fac,0,B_SMOOTH,numcuts, SUBDIV_CORNER_PATH, SUBDIV_SELECT_LOOPCUT);
 	} else {
-		esubdivideflag(obedit, em, SELECT,0,0,0,numcuts,SUBDIV_SELECT_LOOPCUT);
+		esubdivideflag(obedit, em, SELECT,0,0,0,numcuts,SUBDIV_CORNER_PATH, SUBDIV_SELECT_LOOPCUT);
 	}
 	/* if this was a single cut, enter edgeslide mode */
 	if(numcuts == 1 && hasHidden == 0){
@@ -444,10 +439,10 @@ typedef struct CutCurve {
    
 	Contributed by Robert Wenzlaff (Det. Thorn).
 
-    2.5 revamp:
-    - non modal (no menu before cutting)
-    - exit on mouse release
-    - polygon/segment drawing can become handled by WM cb later
+	2.5 revamp:
+	- non modal (no menu before cutting)
+	- exit on mouse release
+	- polygon/segment drawing can become handled by WM cb later
 
 */
 
@@ -634,6 +629,7 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 	int len=0;
 	short numcuts= RNA_int_get(op->ptr, "num_cuts"); 
 	short mode= RNA_int_get(op->ptr, "type");
+	int corner_cut_pattern= RNA_enum_get(op->ptr,"corner_cut_pattern");
 	
 	/* edit-object needed for matrix, and ar->regiondata for projections to work */
 	if (ELEM3(NULL, obedit, ar, ar->regiondata))
@@ -691,9 +687,9 @@ static int knife_cut_exec(bContext *C, wmOperator *op)
 		eed= eed->next;
 	}
 	
-	if (mode==KNIFE_MIDPOINT) esubdivideflag(obedit, em, SELECT, 0, 0, B_KNIFE, 1, SUBDIV_SELECT_ORIG);
-	else if (mode==KNIFE_MULTICUT) esubdivideflag(obedit, em, SELECT, 0, 0, B_KNIFE, numcuts, SUBDIV_SELECT_ORIG);
-	else esubdivideflag(obedit, em, SELECT, 0, 0, B_KNIFE|B_PERCENTSUBD, 1, SUBDIV_SELECT_ORIG);
+	if (mode==KNIFE_MIDPOINT) esubdivideflag(obedit, em, SELECT, 0, 0, B_KNIFE, 1, SUBDIV_CORNER_INNERVERT, SUBDIV_SELECT_INNER);
+	else if (mode==KNIFE_MULTICUT) esubdivideflag(obedit, em, SELECT, 0, 0, B_KNIFE, numcuts, SUBDIV_CORNER_INNERVERT, SUBDIV_SELECT_INNER);
+	else esubdivideflag(obedit, em, SELECT, 0, 0, B_KNIFE|B_PERCENTSUBD, 1, SUBDIV_CORNER_INNERVERT, SUBDIV_SELECT_INNER);
 
 	eed=em->edges.first;
 	while(eed){
@@ -734,6 +730,7 @@ void MESH_OT_knife_cut(wmOperatorType *ot)
 	prop= RNA_def_property(ot->srna, "path", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_runtime(prop, &RNA_OperatorMousePath);
 	RNA_def_int(ot->srna, "num_cuts", 1, 1, MAX_CUTS, "Number of Cuts", "Only for Multi-Cut", 1, MAX_CUTS);
+	// doesn't work atm.. RNA_def_enum(ot->srna, "corner_cut_pattern", corner_type_items, SUBDIV_CORNER_INNERVERT, "Corner Cut Pattern", "Topology pattern to use to fill a face after cutting across its corner");
 	
 	/* internal */
 	RNA_def_int(ot->srna, "cursor", BC_KNIFECURSOR, 0, INT_MAX, "Cursor", "", 0, INT_MAX);

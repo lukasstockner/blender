@@ -78,8 +78,7 @@ class AddTorus(bpy.types.Operator):
     '''Add a torus mesh'''
     bl_idname = "mesh.primitive_torus_add"
     bl_label = "Add Torus"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     major_radius = FloatProperty(name="Major Radius",
             description="Radius from the origin to the center of the cross sections",
@@ -121,7 +120,6 @@ class AddTorus(bpy.types.Operator):
         mesh.add_geometry(int(len(verts_loc) / 3), 0, int(len(faces) / 4))
         mesh.verts.foreach_set("co", verts_loc)
         mesh.faces.foreach_set("verts_raw", faces)
-        mesh.faces.foreach_set("smooth", [False] * len(mesh.faces))
 
         scene = context.scene
 
@@ -130,8 +128,7 @@ class AddTorus(bpy.types.Operator):
             ob.selected = False
 
         mesh.update()
-        ob_new = bpy.data.objects.new("Torus", 'MESH')
-        ob_new.data = mesh
+        ob_new = bpy.data.objects.new("Torus", mesh)
         scene.objects.link(ob_new)
         ob_new.selected = True
 
@@ -157,14 +154,18 @@ class AddTorus(bpy.types.Operator):
         return {'FINISHED'}
 
 
-# Register the operator
-bpy.types.register(AddTorus)
+def menu_func(self, context):
+    self.layout.operator(AddTorus.bl_idname, text="Torus", icon='MESH_DONUT')
 
-# Add to the menu
-menu_func = (lambda self, context: self.layout.operator(AddTorus.bl_idname,
-                                        text="Torus", icon='MESH_DONUT'))
 
-bpy.types.INFO_MT_mesh_add.append(menu_func)
+def register():
+    bpy.types.register(AddTorus)
+    bpy.types.INFO_MT_mesh_add.append(menu_func)
+
+
+def unregister():
+    bpy.types.unregister(AddTorus)
+    bpy.types.INFO_MT_mesh_add.remove(menu_func)
 
 if __name__ == "__main__":
-    bpy.ops.mesh.primitive_torus_add()
+    register()

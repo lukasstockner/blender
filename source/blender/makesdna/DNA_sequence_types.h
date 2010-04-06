@@ -149,6 +149,8 @@ typedef struct Sequence {
 
 	struct Ipo *ipo;	// xxx depreceated... old animation system
 	struct Scene *scene;
+	struct Object *scene_camera; /* override scene camera */
+
 	struct anim *anim;
 	float effect_fader;
 	float speed_fader;
@@ -205,7 +207,7 @@ typedef struct GlowVars {
 	float fMini;	/*	Minimum intensity to trigger a glow */
 	float fClamp;
 	float fBoost;	/*	Amount to multiply glow intensity */
-    float dDist;	/*	Radius of glow blurring */
+	float dDist;	/*	Radius of glow blurring */
 	int	dQuality;
 	int	bNoComp;	/*	SHOW/HIDE glow buffer */
 } GlowVars;

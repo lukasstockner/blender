@@ -29,25 +29,14 @@
 
 #include "BKE_cloth.h"
 
-#include "DNA_cloth_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_object_force.h"
-#include "DNA_scene_types.h"
-#include "DNA_particle_types.h"
-
-#include "BKE_deform.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
-#include "BKE_object.h"
 #include "BKE_modifier.h"
 #include "BKE_utildefines.h"
-#include "BKE_particle.h"
 
 #include "BKE_pointcache.h"
 
-#include "BLI_kdopbvh.h"
 
 #ifdef _WIN32
 void tstart ( void )
@@ -86,7 +75,7 @@ double tval()
 static CM_SOLVER_DEF	solvers [] =
 {
 	{ "Implicit", CM_IMPLICIT, implicit_init, implicit_solver, implicit_free },
-        // { "Implicit C++", CM_IMPLICITCPP, implicitcpp_init, implicitcpp_solver, implicitcpp_free },
+		// { "Implicit C++", CM_IMPLICITCPP, implicitcpp_init, implicitcpp_solver, implicitcpp_free },
 };
 
 /* ********** cloth engine ******* */
@@ -367,14 +356,12 @@ static int do_init_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 	/* initialize simulation data if it didn't exist already */
 	if(clmd->clothObject == NULL) {	
 		if(!cloth_from_object(ob, clmd, result, framenr, 1)) {
-			cache->flag &= ~PTCACHE_SIMULATION_VALID;
-			cache->simframe= 0;
+			BKE_ptcache_invalidate(cache);
 			return 0;
 		}
 	
 		if(clmd->clothObject == NULL) {
-			cache->flag &= ~PTCACHE_SIMULATION_VALID;
-			cache->simframe= 0;
+			BKE_ptcache_invalidate(cache);
 			return 0;
 		}
 	
@@ -447,20 +434,17 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 	clmd->sim_parms->timescale= timescale;
 
 	if(!result) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 		return dm;
 	}
 
 	if(clmd->sim_parms->reset || (framenr == (startframe - clmd->sim_parms->preroll)))
 	{
 		clmd->sim_parms->reset = 0;
-		cache->flag |= PTCACHE_REDO_NEEDED;
+		cache->flag |= PTCACHE_OUTDATED;
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		cache->simframe= 0;
+		BKE_ptcache_validate(cache, 0);
 		cache->last_exact= 0;
-		cache->flag |= PTCACHE_SIMULATION_VALID;
 		cache->flag &= ~PTCACHE_REDO_NEEDED;
 		return result;
 	}
@@ -471,9 +455,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 	 * happen because of object changes! */
 	if(clmd->clothObject) {
 		if(result->getNumVerts(result) != clmd->clothObject->numverts) {
-			cache->flag &= ~PTCACHE_SIMULATION_VALID;
-			cache->simframe= 0;
-			cache->last_exact= 0;
+			BKE_ptcache_invalidate(cache);
 			return result;
 		}
 	}
@@ -483,9 +465,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 
 	/* handle continuous simulation with the play button */
 	if(BKE_ptcache_get_continue_physics() || ((clmd->sim_parms->preroll > 0) && (framenr > startframe - clmd->sim_parms->preroll) && (framenr < startframe))) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 
 		/* do simulation */
 		if(!do_init_cloth(ob, clmd, result, framenr))
@@ -499,9 +479,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 
 	/* simulation is only active during a specific period */
 	if(framenr < startframe) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 		return result;
 	}
 	else if(framenr > endframe) {
@@ -520,8 +498,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 	if((framenr == startframe) && (clmd->sim_parms->preroll == 0)) {
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 		do_init_cloth(ob, clmd, result, framenr);
-		cache->simframe= framenr;
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		BKE_ptcache_validate(cache, framenr);
 		cache->flag &= ~PTCACHE_REDO_NEEDED;
 		return result;
 	}
@@ -533,8 +510,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 		implicit_set_positions(clmd);
 		cloth_to_object (ob, clmd, result);
 
-		cache->simframe= framenr;
-		cache->flag |= PTCACHE_SIMULATION_VALID;
+		BKE_ptcache_validate(cache, framenr);
 
 		if(cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
 			BKE_ptcache_write_cache(&pid, framenr);
@@ -543,13 +519,10 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 	}
 	else if(cache_result==PTCACHE_READ_OLD) {
 		implicit_set_positions(clmd);
-		cache->flag |= PTCACHE_SIMULATION_VALID;
 	}
-	else if(ob->id.lib || (cache->flag & PTCACHE_BAKED)) {
+	else if( /*ob->id.lib ||*/ (cache->flag & PTCACHE_BAKED)) { /* 2.4x disabled lib, but this can be used in some cases, testing further - campbell */
 		/* if baked and nothing in cache, do nothing */
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 		return result;
 	}
 
@@ -560,13 +533,10 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 	clmd->sim_parms->timescale *= framenr - cache->simframe;
 
 	/* do simulation */
-	cache->flag |= PTCACHE_SIMULATION_VALID;
-	cache->simframe= framenr;
+	BKE_ptcache_validate(cache, framenr);
 
 	if(!do_step_cloth(ob, clmd, result, framenr)) {
-		cache->flag &= ~PTCACHE_SIMULATION_VALID;
-		cache->simframe= 0;
-		cache->last_exact= 0;
+		BKE_ptcache_invalidate(cache);
 	}
 	else
 		BKE_ptcache_write_cache(&pid, framenr);
@@ -751,6 +721,15 @@ static void cloth_to_object (Object *ob,  ClothModifierData *clmd, DerivedMesh *
 }
 
 
+int cloth_uses_vgroup(ClothModifierData *clmd)
+{
+	return (((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SCALING ) || 
+		(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL )) && 
+		((clmd->sim_parms->vgroup_mass>0) || 
+		(clmd->sim_parms->vgroup_struct>0)||
+		(clmd->sim_parms->vgroup_bend>0)));
+}
+
 /**
  * cloth_apply_vgroup - applies a vertex group as specified by type
  *
@@ -774,11 +753,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 
 	verts = clothObj->verts;
 	
-	if (((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_SCALING ) || 
-		     (clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL )) && 
-		     ((clmd->sim_parms->vgroup_mass>0) || 
-		     (clmd->sim_parms->vgroup_struct>0)||
-		     (clmd->sim_parms->vgroup_bend>0)))
+	if (cloth_uses_vgroup(clmd))
 	{
 		for ( i = 0; i < numverts; i++, verts++ )
 		{	
@@ -800,7 +775,7 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 						verts->goal  = ( float ) pow ( verts->goal , 4.0f );
 						if ( verts->goal >=SOFTGOALSNAP )
 						{
- 							verts->flags |= CLOTH_VERT_FLAG_PINNED;
+							 verts->flags |= CLOTH_VERT_FLAG_PINNED;
 						}
 					}
 					
@@ -835,6 +810,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	int i = 0;
 	MVert *mvert = NULL;
 	ClothVertex *verts = NULL;
+	float (*shapekey_rest)[3]= NULL;
 	float tnull[3] = {0,0,0};
 	Cloth *cloth = NULL;
 	float maxdist = 0;
@@ -872,7 +848,11 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	clmd->clothObject->springs = NULL;
 	clmd->clothObject->numsprings = -1;
 	
+	if( clmd->sim_parms->shapekey_rest )
+		shapekey_rest = dm->getVertDataArray ( dm, CD_CLOTH_ORCO );
+
 	mvert = dm->getVertArray ( dm );
+
 	verts = clmd->clothObject->verts;
 
 	// set initial values
@@ -880,8 +860,16 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 	{
 		if(first)
 		{
-			VECCOPY ( verts->x, mvert[i].co );
+			copy_v3_v3( verts->x, mvert[i].co );
+
 			mul_m4_v3( ob->obmat, verts->x );
+
+			if( shapekey_rest ) {
+				verts->xrest= shapekey_rest[i];
+				mul_m4_v3( ob->obmat, verts->xrest );
+			}
+			else
+				verts->xrest = verts->x;
 		}
 		
 		/* no GUI interface yet */
@@ -1100,7 +1088,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 		{
 			spring->ij = MIN2(medge[i].v1, medge[i].v2);
 			spring->kl = MAX2(medge[i].v2, medge[i].v1);
-			VECSUB ( temp, cloth->verts[spring->kl].x, cloth->verts[spring->ij].x );
+			VECSUB ( temp, cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest );
 			spring->restlen =  sqrt ( INPR ( temp, temp ) );
 			clmd->sim_parms->avg_spring_len += spring->restlen;
 			cloth->verts[spring->ij].avg_spring_len += spring->restlen;
@@ -1146,7 +1134,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 
 		spring->ij = MIN2(mface[i].v1, mface[i].v3);
 		spring->kl = MAX2(mface[i].v3, mface[i].v1);
-		VECSUB ( temp, cloth->verts[spring->kl].x, cloth->verts[spring->ij].x );
+		VECSUB ( temp, cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest );
 		spring->restlen =  sqrt ( INPR ( temp, temp ) );
 		spring->type = CLOTH_SPRING_TYPE_SHEAR;
 		spring->stiffness = (cloth->verts[spring->kl].shear_stiff + cloth->verts[spring->ij].shear_stiff) / 2.0;
@@ -1169,7 +1157,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 
 		spring->ij = MIN2(mface[i].v2, mface[i].v4);
 		spring->kl = MAX2(mface[i].v4, mface[i].v2);
-		VECSUB ( temp, cloth->verts[spring->kl].x, cloth->verts[spring->ij].x );
+		VECSUB ( temp, cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest );
 		spring->restlen =  sqrt ( INPR ( temp, temp ) );
 		spring->type = CLOTH_SPRING_TYPE_SHEAR;
 		spring->stiffness = (cloth->verts[spring->kl].shear_stiff + cloth->verts[spring->ij].shear_stiff) / 2.0;
@@ -1211,7 +1199,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 
 					spring->ij = MIN2(tspring2->ij, index2);
 					spring->kl = MAX2(tspring2->ij, index2);
-					VECSUB ( temp, cloth->verts[spring->kl].x, cloth->verts[spring->ij].x );
+					VECSUB ( temp, cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest );
 					spring->restlen =  sqrt ( INPR ( temp, temp ) );
 					spring->type = CLOTH_SPRING_TYPE_BENDING;
 					spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0;
@@ -1251,7 +1239,7 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 
 				spring->ij = tspring2->ij;
 				spring->kl = tspring->kl;
-				VECSUB ( temp, cloth->verts[spring->kl].x, cloth->verts[spring->ij].x );
+				VECSUB ( temp, cloth->verts[spring->kl].xrest, cloth->verts[spring->ij].xrest );
 				spring->restlen =  sqrt ( INPR ( temp, temp ) );
 				spring->type = CLOTH_SPRING_TYPE_BENDING;
 				spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0;

@@ -34,9 +34,6 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_color_types.h"
-#include "DNA_image_types.h"
-#include "DNA_object_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -56,7 +53,6 @@
 #include "BKE_main.h"
 #include "BKE_paint.h"
 #include "BKE_texture.h"
-#include "BKE_utildefines.h"
 
 
 
@@ -237,7 +233,8 @@ void brush_curve_preset(Brush *b, /*CurveMappingPreset*/int preset)
 	cm = b->curve->cm;
 	cm->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
 
-	curvemap_reset(cm, &b->curve->clipr, preset);
+	b->curve->preset = preset;
+	curvemap_reset(cm, &b->curve->clipr, b->curve->preset);
 	curvemapping_changed(b->curve, 0);
 }
 
@@ -681,7 +678,7 @@ static void brush_painter_refresh_cache(BrushPainter *painter, float *pos)
 	short flt;
 
 	if ((brush->size != cache->lastsize) || (brush->alpha != cache->lastalpha)
-	    || (brush->jitter != cache->lastjitter)) {
+		|| (brush->jitter != cache->lastjitter)) {
 		if (cache->ibuf) {
 			IMB_freeImBuf(cache->ibuf);
 			cache->ibuf= NULL;
@@ -941,7 +938,7 @@ unsigned int *brush_gen_texture_cache(Brush *br, int half_side)
 				 */
 				if(hasrgb & TEX_RGB)
 					texres.tin = (0.35 * texres.tr + 0.45 *
-					              texres.tg + 0.2 * texres.tb);
+								  texres.tg + 0.2 * texres.tb);
 
 				texres.tin = texres.tin * 255.0;
 				((char*)texcache)[(iy*side+ix)*4] = (char)texres.tin;

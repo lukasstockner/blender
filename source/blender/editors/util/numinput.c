@@ -34,9 +34,8 @@
 #include "BKE_utildefines.h"	/* ABS */
 
 #include "WM_types.h"
-#include "DNA_windowmanager_types.h"
 
-#include "transform.h"
+#include "ED_numinput.h"
 
 /* ************************** Functions *************************** */
 
@@ -159,24 +158,24 @@ void applyNumInput(NumInput *n, float *vec)
 	}
 }
 
-char handleNumInput(NumInput *n, wmEvent *event, float increment)
+char handleNumInput(NumInput *n, wmEvent *event)
 {
 	float Val = 0;
 	short idx = n->idx, idx_max = n->idx_max;
 
 	if (event->type == EVT_MODAL_MAP) {
 		switch (event->val) {
-		case TFM_MODAL_INCREMENT_UP:
+		case NUM_MODAL_INCREMENT_UP:
 			if (!n->ctrl[idx])
 				n->ctrl[idx] = 1;
 
-	        n->val[idx] += increment;
+			n->val[idx] += n->increment;
 			break;
-		case TFM_MODAL_INCREMENT_DOWN:
+		case NUM_MODAL_INCREMENT_DOWN:
 			if (!n->ctrl[idx])
 				n->ctrl[idx] = 1;
 
-	        n->val[idx] -= increment;
+			n->val[idx] -= n->increment;
 			break;
 		default:
 			return 0;
@@ -204,7 +203,7 @@ char handleNumInput(NumInput *n, wmEvent *event, float increment)
 		case PERIODKEY:
 		case PADPERIOD:
 			if (n->flag & NUM_NO_FRACTION)
-				break;
+				return 0;
 
 			switch (n->ctrl[idx])
 			{
@@ -232,9 +231,15 @@ char handleNumInput(NumInput *n, wmEvent *event, float increment)
 			break;
 		case PADSLASHKEY:
 		case SLASHKEY:
+			if (n->flag & NUM_NO_FRACTION)
+				return 0;
+
 			n->inv[idx] = !n->inv[idx];
 			break;
 		case TABKEY:
+			if (idx_max == 0)
+				return 0;
+
 			idx++;
 			if (idx > idx_max)
 				idx = 0;
@@ -294,6 +299,8 @@ char handleNumInput(NumInput *n, wmEvent *event, float increment)
 		}
 	}
 	
+	printf("%f\n", n->val[idx]);
+
 	/* REDRAW SINCE NUMBERS HAVE CHANGED */
 	return 1;
 }

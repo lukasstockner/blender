@@ -1,5 +1,5 @@
 /**
- * $Id: 
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -28,16 +28,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_action_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_listBase.h"
 #include "DNA_object_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meta_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 
 #include "BKE_global.h"
@@ -57,9 +51,7 @@
 
 #include "ED_armature.h"
 #include "ED_mesh.h"
-#include "ED_util.h"
 
-#include "UI_interface.h"
 
 #include "RNA_define.h"
 
@@ -483,7 +475,7 @@ void applyTransformOrientation(const bContext *C, float mat[3][3], char *name) {
 				break;
 			}
 		}
-  	}
+	  }
 }
 
 static int count_bone_select(bArmature *arm, ListBase *lb, int do_it) 
@@ -815,12 +807,11 @@ int getTransformOrientation(const bContext *C, float normal[3], float plane[3], 
 				float mat[4][4];
 
 				/* Rotation of MetaElem is stored in quat */
- 				quat_to_mat4( mat,ml_sel->quat);
+				 quat_to_mat4( mat,ml_sel->quat);
 
 				VECCOPY(normal, mat[2]);
-				VECCOPY(plane, mat[1]);
 
-				mul_v3_fl(plane, -1.0);
+				negate_v3_v3(plane, mat[1]);
 				
 				result = ORIENTATION_NORMAL;
 			}
@@ -888,7 +879,7 @@ int getTransformOrientation(const bContext *C, float normal[3], float plane[3], 
 					add_v3_v3v3(plane, plane, pchan->pose_mat[1]);
 				}
 			}
-			mul_v3_fl(plane, -1.0);
+			negate_v3(plane);
 			
 			/* we need the transpose of the inverse for a normal... */
 			copy_m3_m4(imat, ob->obmat);

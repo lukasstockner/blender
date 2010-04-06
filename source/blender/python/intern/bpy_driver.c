@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -27,9 +27,10 @@
 #include "DNA_anim_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 
-#include "BPY_extern.h"
 #include "BKE_fcurve.h"
+#include "BKE_global.h"
 
 #include <Python.h>
 
@@ -86,7 +87,7 @@ static int bpy_pydriver_create_dict(void)
 	/* If there's a Blender text called pydrivers.py, import it.
 	 * Users can add their own functions to this module.
 	 */
-	if (G.f & G_DOSCRIPTLINKS) {
+	if (G.f & G_SCRIPT_AUTOEXEC) {
 		mod = importText("pydrivers"); /* can also use PyImport_Import() */
 		if (mod) {
 			PyDict_SetItemString(d, "pydrivers", mod);
@@ -152,19 +153,20 @@ float BPY_pydriver_eval (ChannelDriver *driver)
 	PyGILState_STATE gilstate;
 
 	DriverVar *dvar;
-	float result = 0.0f; /* default return */
+	double result = 0.0; /* default return */
 	char *expr = NULL;
 	short targets_ok= 1;
 	int i;
 
-	/* sanity checks - should driver be executed? */
-	if ((driver == NULL) /*|| (G.f & G_DOSCRIPTLINKS)==0*/)
-		return result;
-
 	/* get the py expression to be evaluated */
 	expr = driver->expression;
 	if ((expr == NULL) || (expr[0]=='\0'))
-		return result;
+		return 0.0f;
+
+	if(!(G.f & G_SCRIPT_AUTOEXEC)) {
+		printf("skipping driver '%s', automatic scripts are disabled\n", driver->expression);
+		return 0.0f;
+	}
 
 	gilstate = PyGILState_Ensure();
 
@@ -173,7 +175,7 @@ float BPY_pydriver_eval (ChannelDriver *driver)
 		if (bpy_pydriver_create_dict() != 0) {
 			fprintf(stderr, "Pydriver error: couldn't create Python dictionary");
 			PyGILState_Release(gilstate);
-			return result;
+			return 0.0f;
 		}
 	}
 
@@ -207,6 +209,8 @@ float BPY_pydriver_eval (ChannelDriver *driver)
 		for (dvar= driver->variables.first, i=0; dvar; dvar= dvar->next) {
 			PyTuple_SET_ITEM(expr_vars, i++, PyUnicode_InternFromString(dvar->name));
 		}
+		
+		driver->flag &= ~DRIVER_FLAG_RENAMEVAR;
 	}
 	else {
 		expr_vars= PyTuple_GET_ITEM(((PyObject *)driver->expr_comp), 1);
@@ -232,7 +236,7 @@ float BPY_pydriver_eval (ChannelDriver *driver)
 				targets_ok= 0;
 			}
 			
-			fprintf(stderr, "\tBPY_pydriver_eval() - couldn't add variable '%s' to namespace \n", dvar->name);
+			fprintf(stderr, "\tBPY_pydriver_eval() - couldn't add variable '%s' to namespace\n", dvar->name);
 			// BPy_errors_to_report(NULL); // TODO - reports
 			PyErr_Print();
 			PyErr_Clear();
@@ -253,24 +257,25 @@ float BPY_pydriver_eval (ChannelDriver *driver)
 
 	/* process the result */
 	if (retval == NULL) {
-		result = pydriver_error(driver);
-		PyGILState_Release(gilstate);
-		return result;
+		pydriver_error(driver);
+	} else if((result= PyFloat_AsDouble(retval)) == -1.0 && PyErr_Occurred()) {
+		pydriver_error(driver);
+		Py_DECREF(retval);
+		result = 0.0;
 	}
-
-	result = (float)PyFloat_AsDouble(retval);
-	Py_DECREF(retval);
-
-	if ((result == -1) && PyErr_Occurred()) {
-		result = pydriver_error(driver);
-		PyGILState_Release(gilstate);
-		return result;
+	else {
+		/* all fine, make sure the "invalid expression" flag is cleared */
+		driver->flag &= ~DRIVER_FLAG_INVALID;
+		Py_DECREF(retval);
 	}
-
-	/* all fine, make sure the "invalid expression" flag is cleared */
-	driver->flag &= ~DRIVER_FLAG_INVALID;
 
 	PyGILState_Release(gilstate);
-
-	return result;
+    
+	if(finite(result)) {
+		return (float)result;
+	}
+	else {
+		fprintf(stderr, "\tBPY_pydriver_eval() - driver '%s' evaluates to '%f'\n", dvar->name, result);
+		return 0.0f;
+	}
 }

@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,17 +31,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
@@ -823,21 +816,9 @@ int buttons_context(const bContext *C, const char *member, bContextDataResult *r
 static void pin_cb(bContext *C, void *arg1, void *arg2)
 {
 	SpaceButs *sbuts= CTX_wm_space_buts(C);
-	ButsContextPath *path= sbuts->path;
-	PointerRNA *ptr;
-	int a;
 
 	if(sbuts->flag & SB_PIN_CONTEXT) {
-		if(path->len) {
-			for(a=path->len-1; a>=0; a--) {
-				ptr= &path->ptr[a];
-
-				if(ptr->id.data) {
-					sbuts->pinid= ptr->id.data;
-					break;
-				}
-			}
-		}
+		sbuts->pinid= buttons_context_id_path(C);
 	}
 	else
 		sbuts->pinid= NULL;
@@ -864,7 +845,7 @@ void buttons_context_draw(const bContext *C, uiLayout *layout)
 
 	block= uiLayoutGetBlock(row);
 	uiBlockSetEmboss(block, UI_EMBOSSN);
-	but= uiDefIconButBitC(block, ICONTOG, SB_PIN_CONTEXT, 0, ICON_UNPINNED, 0, 0, UI_UNIT_X, UI_UNIT_Y, &sbuts->flag, 0, 0, 0, 0, "Follow context or keep fixed datablock displayed.");
+	but= uiDefIconButBitC(block, ICONTOG, SB_PIN_CONTEXT, 0, ICON_UNPINNED, 0, 0, UI_UNIT_X, UI_UNIT_Y, &sbuts->flag, 0, 0, 0, 0, "Follow context or keep fixed datablock displayed");
 	uiButSetFunc(but, pin_cb, NULL, NULL);
 
 	for(a=0; a<path->len; a++) {
@@ -907,4 +888,25 @@ void buttons_context_register(ARegionType *art)
 	pt->draw= buttons_panel_context;
 	pt->flag= PNL_NO_HEADER;
 	BLI_addtail(&art->paneltypes, pt);
+}
+
+ID *buttons_context_id_path(const bContext *C)
+{
+	SpaceButs *sbuts= CTX_wm_space_buts(C);
+	ButsContextPath *path= sbuts->path;
+	PointerRNA *ptr;
+	int a;
+
+	if(path->len) {
+		for(a=path->len-1; a>=0; a--) {
+			ptr= &path->ptr[a];
+
+			if(ptr->id.data) {
+				return ptr->id.data;
+				break;
+			}
+		}
+	}
+
+	return NULL;
 }

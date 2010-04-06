@@ -29,11 +29,6 @@
 
 #include "Geometry.h"
 
-/*  - Not needed for now though other geometry functions will probably need them
-#include "BLI_math.h"
-#include "BKE_utildefines.h"
-*/
-
 /* Used for PolyFill */
 #include "BKE_displist.h"
 #include "MEM_guardedalloc.h"
@@ -300,7 +295,7 @@ static PyObject *M_Geometry_TriangleArea( PyObject * self, PyObject * args )
 	float v1[3], v2[3], v3[3];
 
 	if( !PyArg_ParseTuple
-	    ( args, "O!O!O!", &vector_Type, &vec1, &vector_Type, &vec2
+		( args, "O!O!O!", &vector_Type, &vec1, &vector_Type, &vec2
 		, &vector_Type, &vec3 ) ) {
 		PyErr_SetString( PyExc_TypeError, "expected 3 vector types\n");
 		return NULL;

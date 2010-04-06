@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -37,15 +37,9 @@
 
 #include "PIL_time.h"
 
-#include "DNA_ID.h"
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -68,7 +62,6 @@
 
 #include "BIF_retarget.h"
 
-#include "PIL_time.h"
 
 //#include "mydevice.h"
 #include "reeb.h" // FIX ME
@@ -186,12 +179,12 @@ float rollBoneByQuatAligned(EditBone *bone, float old_up_axis[3], float qrot[4],
 	
 	if (dot_v3v3(new_up_axis, x_axis) < 0)
 	{
-		mul_v3_fl(x_axis, -1);
+		negate_v3(x_axis);
 	}
 	
 	if (dot_v3v3(new_up_axis, z_axis) < 0)
 	{
-		mul_v3_fl(z_axis, -1);
+		negate_v3(z_axis);
 	}
 	
 	if (angle_normalized_v3v3(x_axis, new_up_axis) < angle_normalized_v3v3(z_axis, new_up_axis))

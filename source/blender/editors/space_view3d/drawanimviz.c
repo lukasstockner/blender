@@ -38,16 +38,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_constraint_types.h"
-#include "DNA_ID.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -72,11 +66,8 @@
 #include "BIF_glutil.h"
 
 #include "ED_armature.h"
-#include "ED_anim_api.h"
 #include "ED_keyframes_draw.h"
 
-#include "WM_api.h"
-#include "WM_types.h"
 #include "BLF_api.h"
 
 #include "UI_resources.h"
@@ -220,7 +211,7 @@ void draw_motion_path_instance(Scene *scene, View3D *v3d, ARegion *ar,
 			/* only draw framenum if several consecutive highlighted points don't occur on same point */
 			if (i == 0) {
 				sprintf(str, "%d", (i+sfra));
-				view3d_cached_text_draw_add(mpv->co[0], mpv->co[1], mpv->co[2], str, 0);
+				view3d_cached_text_draw_add(mpv->co[0], mpv->co[1], mpv->co[2], str, 0, 0);
 			}
 			else if ((i > stepsize) && (i < len-stepsize)) { 
 				bMotionPathVert *mpvP = (mpv - stepsize);
@@ -228,7 +219,7 @@ void draw_motion_path_instance(Scene *scene, View3D *v3d, ARegion *ar,
 				
 				if ((equals_v3v3(mpv->co, mpvP->co)==0) || (equals_v3v3(mpv->co, mpvN->co)==0)) {
 					sprintf(str, "%d", (sfra+i));
-					view3d_cached_text_draw_add(mpv->co[0], mpv->co[1], mpv->co[2], str, 0);
+					view3d_cached_text_draw_add(mpv->co[0], mpv->co[1], mpv->co[2], str, 0, 0);
 				}
 			}
 		}
@@ -282,7 +273,7 @@ void draw_motion_path_instance(Scene *scene, View3D *v3d, ARegion *ar,
 					char str[32];
 					
 					sprintf(str, "%d", (sfra+i));
-					view3d_cached_text_draw_add(mpv->co[0], mpv->co[1], mpv->co[2], str, 0);
+					view3d_cached_text_draw_add(mpv->co[0], mpv->co[1], mpv->co[2], str, 0, 0);
 				}
 			}
 		}

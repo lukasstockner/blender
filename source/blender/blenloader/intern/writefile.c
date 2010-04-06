@@ -542,6 +542,7 @@ static void write_userdef(WriteData *wd)
 	bTheme *btheme;
 	wmKeyMap *keymap;
 	wmKeyMapItem *kmi;
+	bAddon *bext;
 
 	writestruct(wd, USER, "UserDef", 1, &U);
 
@@ -558,6 +559,9 @@ static void write_userdef(WriteData *wd)
 				IDP_WriteProperty(kmi->properties, wd);
 		}
 	}
+
+	for(bext= U.addons.first; bext; bext=bext->next)
+		writestruct(wd, DATA, "bAddon", 1, bext);
 }
 
 static void write_boid_state(WriteData *wd, BoidState *state)
@@ -610,11 +614,11 @@ static void write_pointcaches(WriteData *wd, ListBase *ptcaches)
 			for(; pm; pm=pm->next) {
 				writestruct(wd, DATA, "PTCacheMem", 1, pm);
 				if(pm->index_array)
-					writedata(wd, DATA, sizeof(int) * pm->totpoint, pm->index_array);
+					writedata(wd, DATA, MEM_allocN_len(pm->index_array), pm->index_array);
 				
 				for(i=0; i<BPHYS_TOT_DATA; i++) {
 					if(pm->data[i] && pm->data_types & (1<<i))
-						writedata(wd, DATA, BKE_ptcache_data_size(i) * pm->totpoint, pm->data[i]);
+						writedata(wd, DATA, MEM_allocN_len(pm->data[i]), pm->data[i]);
 				}
 			}
 		}
@@ -647,6 +651,9 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 
 				for(; state; state=state->next)
 					write_boid_state(wd, state);
+			}
+			if(part->fluid && part->phystype == PART_PHYS_FLUID){
+				writestruct(wd, DATA, "SPHFluidSettings", 1, part->fluid); 
 			}
 		}
 		part= part->id.next;
@@ -1621,10 +1628,6 @@ static void write_images(WriteData *wd, ListBase *idbase)
 			}
 
 			write_previews(wd, ima->preview);
-
-			/* exception: render text only saved in undo files (wd->current) */
-			if (ima->render_text && wd->current)
-				writedata(wd, DATA, IMA_RW_MAXTEXT, ima->render_text);
 		}
 		ima= ima->id.next;
 	}
@@ -2076,6 +2079,7 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 						write_curvemapping(wd, sima->cumap);
 				}
 				else if(sl->spacetype==SPACE_IMASEL) {
+					// XXX: depreceated... do we still want to keep this?
 					writestruct(wd, DATA, "SpaceImaSel", 1, sl);
 				}
 				else if(sl->spacetype==SPACE_TEXT) {
@@ -2461,8 +2465,8 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 	if(write_flags & G_FILE_RELATIVE_REMAP) {
 		char dir1[FILE_MAXDIR+FILE_MAXFILE];
 		char dir2[FILE_MAXDIR+FILE_MAXFILE];
-		BLI_split_dirfile_basic(dir, dir1, NULL);
-		BLI_split_dirfile_basic(mainvar->name, dir2, NULL);
+		BLI_split_dirfile(dir, dir1, NULL);
+		BLI_split_dirfile(mainvar->name, dir2, NULL);
 
 		/* just incase there is some subtle difference */
 		BLI_cleanup_dir(mainvar->name, dir1);

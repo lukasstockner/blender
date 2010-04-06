@@ -41,18 +41,8 @@
 #include "BLI_math.h"
 #include "BLI_storage_types.h"
 
-#include "IMB_imbuf_types.h"
-#include "IMB_imbuf.h"
 
-#include "DNA_ipo_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_sequence_types.h"
-#include "DNA_view2d_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_sound_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -71,23 +61,13 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 /* for menu/popup icons etc etc*/
-#include "UI_interface.h"
-#include "UI_resources.h"
 
-#include "ED_anim_api.h"
-#include "ED_space_api.h"
-#include "ED_types.h"
 #include "ED_screen.h"
-#include "ED_util.h"
-#include "ED_fileselect.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "BKE_sound.h"
@@ -108,10 +88,10 @@ static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
 	RNA_def_string(ot->srna, "name", "", MAX_ID_NAME-2, "Name", "Name of the new sequence strip");
 
 	if(flag & SEQPROP_STARTFRAME)
-		RNA_def_int(ot->srna, "start_frame", 0, INT_MIN, INT_MAX, "Start Frame", "Start frame of the sequence strip", INT_MIN, INT_MAX);
+		RNA_def_int(ot->srna, "frame_start", 0, INT_MIN, INT_MAX, "Start Frame", "Start frame of the sequence strip", INT_MIN, INT_MAX);
 	
 	if(flag & SEQPROP_ENDFRAME)
-		RNA_def_int(ot->srna, "end_frame", 0, INT_MIN, INT_MAX, "End Frame", "End frame for the color strip", INT_MIN, INT_MAX); /* not useual since most strips have a fixed length */
+		RNA_def_int(ot->srna, "frame_end", 0, INT_MIN, INT_MAX, "End Frame", "End frame for the color strip", INT_MIN, INT_MAX); /* not useual since most strips have a fixed length */
 	
 	RNA_def_int(ot->srna, "channel", 1, 1, MAXSEQ, "Channel", "Channel to place this strip into", 1, MAXSEQ);
 	
@@ -136,10 +116,10 @@ static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, w
 	UI_view2d_region_to_view(v2d, mval[0], mval[1], &mval_v2d[0], &mval_v2d[1]);
 	
 	RNA_int_set(op->ptr, "channel", (int)mval_v2d[1]+0.5f);
-	RNA_int_set(op->ptr, "start_frame", (int)mval_v2d[0]);
+	RNA_int_set(op->ptr, "frame_start", (int)mval_v2d[0]);
 	
-	if ((flag & SEQPROP_ENDFRAME) && RNA_property_is_set(op->ptr, "end_frame")==0)
-		RNA_int_set(op->ptr, "end_frame", (int)mval_v2d[0] + 25); // XXX arbitary but ok for now.
+	if ((flag & SEQPROP_ENDFRAME) && RNA_property_is_set(op->ptr, "frame_end")==0)
+		RNA_int_set(op->ptr, "frame_end", (int)mval_v2d[0] + 25); // XXX arbitary but ok for now.
 	
 }
 
@@ -147,7 +127,7 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 {
 	memset(seq_load, 0, sizeof(SeqLoadInfo));
 
-	seq_load->start_frame=	RNA_int_get(op->ptr, "start_frame");
+	seq_load->start_frame=	RNA_int_get(op->ptr, "frame_start");
 	seq_load->end_frame=	seq_load->start_frame; /* un-set */
 
 	seq_load->channel=		RNA_int_get(op->ptr, "channel");
@@ -157,8 +137,8 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 
 	RNA_string_get(op->ptr, "path", seq_load->path); /* full path, file is set by the caller */
 
-	if (RNA_struct_find_property(op->ptr, "end_frame")) {
-		seq_load->end_frame = RNA_int_get(op->ptr, "end_frame");
+	if (RNA_struct_find_property(op->ptr, "frame_end")) {
+		seq_load->end_frame = RNA_int_get(op->ptr, "frame_end");
 	}
 
 	if (RNA_struct_find_property(op->ptr, "replace_sel") && RNA_boolean_get(op->ptr, "replace_sel"))
@@ -188,10 +168,10 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 	
 	int start_frame, channel; /* operator props */
 	
-	start_frame= RNA_int_get(op->ptr, "start_frame");
+	start_frame= RNA_int_get(op->ptr, "frame_start");
 	channel= RNA_int_get(op->ptr, "channel");
 	
-	sce_seq= BLI_findlink(&CTX_data_main(C)->scene, RNA_enum_get(op->ptr, "type"));
+	sce_seq= BLI_findlink(&CTX_data_main(C)->scene, RNA_enum_get(op->ptr, "scene"));
 	
 	if (sce_seq==NULL) {
 		BKE_report(op->reports, RPT_ERROR, "Scene not found");
@@ -215,6 +195,8 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 	else
 		strcpy(seq->name+2, sce_seq->id.name+2);
 	
+	seq->scene_sound = sound_scene_add_scene_sound(scene, seq, start_frame, start_frame + strip->len, 0);
+
 	calc_sequence_disp(scene, seq);
 	sort_seq(scene);
 	
@@ -232,6 +214,11 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_scene_strip_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	if(!ED_operator_sequencer_active(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
+		return OPERATOR_CANCELLED;
+	}
+
 	sequencer_generic_invoke_xy__internal(C, op, event, 0);
 	return sequencer_add_scene_strip_exec(C, op);
 	// needs a menu
@@ -252,14 +239,15 @@ void SEQUENCER_OT_scene_strip_add(struct wmOperatorType *ot)
 	ot->invoke= sequencer_add_scene_strip_invoke;
 	ot->exec= sequencer_add_scene_strip_exec;
 
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
-	prop= RNA_def_enum(ot->srna, "type", DummyRNA_NULL_items, 0, "Type", "");
+	prop= RNA_def_enum(ot->srna, "scene", DummyRNA_NULL_items, 0, "Scene", "");
 	RNA_def_enum_funcs(prop, RNA_scene_itemf);
+	ot->prop= prop;
 }
 
 static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoadFunc seq_load_func)
@@ -282,7 +270,7 @@ static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoad
 		char dir_only[FILE_MAX];
 		char file_only[FILE_MAX];
 
-		BLI_split_dirfile_basic(seq_load.path, dir_only, NULL);
+		BLI_split_dirfile(seq_load.path, dir_only, NULL);
 
 		RNA_BEGIN(op->ptr, itemptr, "files") {
 			RNA_string_get(&itemptr, "name", file_only);
@@ -318,7 +306,12 @@ static int sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
 
 
 static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, wmEvent *event)
-{	
+{
+	if(!ED_operator_sequencer_active(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
+		return OPERATOR_CANCELLED;
+	}
+
 	sequencer_generic_invoke_xy__internal(C, op, event, 0);
 	return WM_operator_filesel(C, op, event);
 	//return sequencer_add_movie_strip_exec(C, op);
@@ -337,7 +330,7 @@ void SEQUENCER_OT_movie_strip_add(struct wmOperatorType *ot)
 	ot->invoke= sequencer_add_movie_strip_invoke;
 	ot->exec= sequencer_add_movie_strip_exec;
 
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -355,7 +348,12 @@ static int sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 }
 
 static int sequencer_add_sound_strip_invoke(bContext *C, wmOperator *op, wmEvent *event)
-{	
+{
+	if(!ED_operator_sequencer_active(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
+		return OPERATOR_CANCELLED;
+	}
+
 	sequencer_generic_invoke_xy__internal(C, op, event, 0);
 	return WM_operator_filesel(C, op, event);
 	//return sequencer_add_sound_strip_exec(C, op);
@@ -374,7 +372,7 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot)
 	ot->invoke= sequencer_add_sound_strip_invoke;
 	ot->exec= sequencer_add_sound_strip_exec;
 
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -422,7 +420,7 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 		RNA_END;
 	}
 	else {
-		BLI_split_dirfile_basic(seq_load.path, NULL, se->name);
+		BLI_split_dirfile(seq_load.path, NULL, se->name);
 		if(seq_load.start_frame < seq_load.end_frame) {
 			seq->endstill= seq_load.end_frame - seq_load.start_frame;
 		}
@@ -442,6 +440,11 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_image_strip_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	if(!ED_operator_sequencer_active(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
+		return OPERATOR_CANCELLED;
+	}
+
 	sequencer_generic_invoke_xy__internal(C, op, event, SEQPROP_ENDFRAME);
 	return WM_operator_filesel(C, op, event);	
 	//return sequencer_add_image_strip_exec(C, op);
@@ -460,7 +463,7 @@ void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot)
 	ot->invoke= sequencer_add_image_strip_invoke;
 	ot->exec= sequencer_add_image_strip_exec;
 
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -486,8 +489,8 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 	Sequence *seq1, *seq2, *seq3;
 	char *error_msg;
 
-	start_frame= RNA_int_get(op->ptr, "start_frame");
-	end_frame= RNA_int_get(op->ptr, "end_frame");
+	start_frame= RNA_int_get(op->ptr, "frame_start");
+	end_frame= RNA_int_get(op->ptr, "frame_end");
 	channel= RNA_int_get(op->ptr, "channel");
 
 	type= RNA_enum_get(op->ptr, "type");
@@ -513,7 +516,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 	else
 		strcpy(seq->name+2, give_seqname(seq));
 
-	seqUniqueName(ed->seqbasep, seq);
+	seqbase_unique_name_recursive(&ed->seqbase, seq);
 
 	sh = get_sequence_effect(seq);
 
@@ -581,6 +584,11 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 /* add color */
 static int sequencer_add_effect_strip_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	if(!ED_operator_sequencer_active(C)) {
+		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
+		return OPERATOR_CANCELLED;
+	}
+
 	sequencer_generic_invoke_xy__internal(C, op, event, SEQPROP_ENDFRAME);
 
 	if (RNA_property_is_set(op->ptr, "type") && RNA_enum_get(op->ptr, "type")==SEQ_PLUGIN) {
@@ -603,7 +611,7 @@ void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot)
 	ot->invoke= sequencer_add_effect_strip_invoke;
 	ot->exec= sequencer_add_effect_strip_exec;
 
-	ot->poll= ED_operator_sequencer_active;
+	ot->poll= ED_operator_scene_editable;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;

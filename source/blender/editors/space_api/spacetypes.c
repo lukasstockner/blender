@@ -1,5 +1,5 @@
 /**
- * $Id: spacetypes.c
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -28,7 +28,6 @@
 #include "BLI_blenlib.h"
 
 #include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BKE_context.h"
@@ -202,6 +201,11 @@ void ED_region_draw_cb_exit(ARegionType *art, void *handle)
 			return;
 		}
 	}
+}
+
+void *ED_region_draw_cb_customdata(void *handle)
+{
+	return ((RegionDrawCB *)handle)->customdata;
 }
 
 void ED_region_draw_cb_draw(const bContext *C, ARegion *ar, int type)

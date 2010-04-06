@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -57,6 +57,7 @@ void		WM_init				(struct bContext *C, int argc, char **argv);
 void		WM_exit				(struct bContext *C);
 void		WM_main				(struct bContext *C);
 
+void		WM_init_game		(struct bContext *C);
 void		WM_init_splash		(struct bContext *C);
 
 
@@ -189,8 +190,9 @@ int			WM_operator_filesel		(struct bContext *C, struct wmOperator *op, struct wm
 int			WM_operator_winactive	(struct bContext *C);
 			/* invoke callback, exec + redo popup */
 int			WM_operator_props_popup	(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int 		WM_operator_props_dialog_popup (struct bContext *C, struct wmOperator *op, int width, int height);
 int			WM_operator_redo_popup	(struct bContext *C, struct wmOperator *op);
-void		WM_operator_ui_popup	(struct bContext *C, struct wmOperator *op, int width, int height);
+int			WM_operator_ui_popup	(struct bContext *C, struct wmOperator *op, int width, int height);
 
 int			WM_operator_confirm_message(struct bContext *C, struct wmOperator *op, char *message);
 
@@ -223,6 +225,7 @@ void		WM_operator_properties_create_ptr(struct PointerRNA *ptr, struct wmOperato
 void		WM_operator_properties_free(struct PointerRNA *ptr);
 void		WM_operator_properties_filesel(struct wmOperatorType *ot, int filter, short type, short action);
 void		WM_operator_properties_gesture_border(struct wmOperatorType *ot, int extend);
+void		WM_operator_properties_gesture_straightline(struct wmOperatorType *ot, int cursor);
 void		WM_operator_properties_select_all(struct wmOperatorType *ot);
 
 /* MOVE THIS SOMEWHERE ELSE */
@@ -251,6 +254,8 @@ int			WM_gesture_lines_invoke(struct bContext *C, struct wmOperator *op, struct 
 int			WM_gesture_lines_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_lasso_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int			WM_gesture_lasso_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_gesture_straightline_invoke(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+int			WM_gesture_straightline_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 
 			/* default operator for arearegions, generates event */
 void		WM_OT_tweak_gesture(struct wmOperatorType *ot);
@@ -308,6 +313,7 @@ void		WM_jobs_callbacks(struct wmJob *,
 
 void		WM_jobs_start(struct wmWindowManager *wm, struct wmJob *);
 void		WM_jobs_stop(struct wmWindowManager *wm, void *owner);
+void		WM_jobs_kill(struct wmWindowManager *wm, void *owner);
 void		WM_jobs_stop_all(struct wmWindowManager *wm);
 
 			/* clipboard */

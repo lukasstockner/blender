@@ -26,13 +26,10 @@
 #include "bpy_rna.h"
 #include "bpy_util.h"
 
-#include "RNA_access.h"
 #include "RNA_define.h" /* for defining our own rna */
 #include "RNA_enum_types.h"
 
 #include "MEM_guardedalloc.h"
-
-#include "float.h" /* FLT_MIN/MAX */
 
 EnumPropertyItem property_flag_items[] = {
 	{PROP_HIDDEN, "HIDDEN", 0, "Hidden", ""},
@@ -71,6 +68,7 @@ EnumPropertyItem property_subtype_array_items[] = {
 	{PROP_AXISANGLE, "AXISANGLE", 0, "Axis Angle", ""},
 	{PROP_XYZ, "XYZ", 0, "XYZ", ""},
 	{PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "Color Gamma", ""},
+	{PROP_LAYER, "LAYER", 0, "Layer", ""},
 
 	{PROP_NONE, "NONE", 0, "None", ""},
 	{0, NULL, 0, NULL, NULL}};
@@ -81,11 +79,20 @@ EnumPropertyItem property_subtype_array_items[] = {
 static PyObject *bpy_prop_deferred_return(void *func, PyObject *kw)
 {
 	PyObject *ret = PyTuple_New(2);
-	PyTuple_SET_ITEM(ret, 0, PyCObject_FromVoidPtr(func, NULL));
+	PyTuple_SET_ITEM(ret, 0, PyCapsule_New(func, NULL, NULL));
+	if(kw==NULL)	kw= PyDict_New();
+	else			Py_INCREF(kw);
 	PyTuple_SET_ITEM(ret, 1, kw);
-	Py_INCREF(kw);
 	return ret;
 }
+
+static int bpy_struct_id_used(StructRNA *srna, char *identifier)
+{
+	PointerRNA ptr;
+	RNA_pointer_create(NULL, srna, NULL, &ptr);
+	return (RNA_struct_find_property(&ptr, identifier) != NULL);
+}
+
 
 /* Function that sets RNA, NOTE - self is NULL when called from python, but being abused from C so we can pass the srna allong
  * This isnt incorrect since its a python object - but be careful */
@@ -104,11 +111,11 @@ PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "BoolProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
@@ -122,14 +129,20 @@ PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pysubtype= NULL;
 		int subtype= PROP_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssiO!s:BoolProperty", kwlist, &id, &name, &description, &def, &PySet_Type, &pyopts, &pysubtype))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssiO!s:BoolProperty", (char **)kwlist, &id, &name, &description, &def, &PySet_Type, &pyopts, &pysubtype))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "BoolProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "BoolProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_number_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "BoolProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "BoolProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -157,23 +170,23 @@ static char BPy_BoolVectorProperty_doc[] =
 "\n"
 "   :arg options: Enumerator in ['HIDDEN', 'ANIMATABLE'].\n"
 "   :type options: set\n"
-"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'NONE'].\n"
+"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n"
 "   :type subtype: string";
 PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "BoolVectorProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "name", "description", "default", "options", "subtype", "size", NULL};
+		static const char *kwlist[] = {"attr", "name", "description", "default", "options", "subtype", "size", NULL};
 		char *id=NULL, *name="", *description="";
 		int def[PYRNA_STACK_ARRAY]={0};
 		int size=3;
@@ -184,14 +197,20 @@ PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pysubtype= NULL;
 		int subtype= PROP_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssOO!si:BoolVectorProperty", kwlist, &id, &name, &description, &pydef, &PySet_Type, &pyopts, &pysubtype, &size))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssOO!si:BoolVectorProperty", (char **)kwlist, &id, &name, &description, &pydef, &PySet_Type, &pyopts, &pysubtype, &size))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "BoolVectorProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "BoolVectorProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_array_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "BoolVectorProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "BoolVectorProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -235,16 +254,16 @@ PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "IntProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "options", "subtype", NULL};
+		static const char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "options", "subtype", NULL};
 		char *id=NULL, *name="", *description="";
 		int min=INT_MIN, max=INT_MAX, soft_min=INT_MIN, soft_max=INT_MAX, step=1, def=0;
 		PropertyRNA *prop;
@@ -253,14 +272,20 @@ PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pysubtype= NULL;
 		int subtype= PROP_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssiiiiiiO!s:IntProperty", kwlist, &id, &name, &description, &def, &min, &max, &soft_min, &soft_max, &step, &PySet_Type, &pyopts, &pysubtype))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssiiiiiiO!s:IntProperty", (char **)kwlist, &id, &name, &description, &def, &min, &max, &soft_min, &soft_max, &step, &PySet_Type, &pyopts, &pysubtype))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "IntProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "IntProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_number_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "IntProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "IntProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -289,23 +314,23 @@ static char BPy_IntVectorProperty_doc[] =
 "\n"
 "   :arg options: Enumerator in ['HIDDEN', 'ANIMATABLE'].\n"
 "   :type options: set\n"
-"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'NONE'].\n"
+"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n"
 "   :type subtype: string";
 PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "IntVectorProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "options", "subtype", "size", NULL};
+		static const char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "options", "subtype", "size", NULL};
 		char *id=NULL, *name="", *description="";
 		int min=INT_MIN, max=INT_MAX, soft_min=INT_MIN, soft_max=INT_MAX, step=1, def[PYRNA_STACK_ARRAY]={0};
 		int size=3;
@@ -316,14 +341,20 @@ PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pysubtype= NULL;
 		int subtype= PROP_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssOiiiiO!si:IntVectorProperty", kwlist, &id, &name, &description, &pydef, &min, &max, &soft_min, &soft_max, &PySet_Type, &pyopts, &pysubtype, &size))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssOiiiiO!si:IntVectorProperty", (char **)kwlist, &id, &name, &description, &pydef, &min, &max, &soft_min, &soft_max, &PySet_Type, &pyopts, &pysubtype, &size))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "IntVectorProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "IntVectorProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_array_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "IntVectorProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "IntVectorProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -371,16 +402,16 @@ PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "FloatProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "precision", "options", "subtype", "unit", NULL};
+		static const char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "precision", "options", "subtype", "unit", NULL};
 		char *id=NULL, *name="", *description="";
 		float min=-FLT_MAX, max=FLT_MAX, soft_min=-FLT_MAX, soft_max=FLT_MAX, step=3, def=0.0f;
 		int precision= 2;
@@ -392,14 +423,20 @@ PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pyunit= NULL;
 		int unit= PROP_UNIT_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssffffffiO!ss:FloatProperty", kwlist, &id, &name, &description, &def, &min, &max, &soft_min, &soft_max, &step, &precision, &PySet_Type, &pyopts, &pysubtype, &pyunit))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssffffffiO!ss:FloatProperty", (char **)kwlist, &id, &name, &description, &def, &min, &max, &soft_min, &soft_max, &step, &precision, &PySet_Type, &pyopts, &pysubtype, &pyunit))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "FloatProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "FloatProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_number_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "FloatProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "FloatProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -433,23 +470,23 @@ static char BPy_FloatVectorProperty_doc[] =
 "\n"
 "   :arg options: Enumerator in ['HIDDEN', 'ANIMATABLE'].\n"
 "   :type options: set\n"
-"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'NONE'].\n"
+"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', 'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n"
 "   :type subtype: string";
 PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "FloatVectorProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "precision", "options", "subtype", "size", NULL};
+		static const char *kwlist[] = {"attr", "name", "description", "default", "min", "max", "soft_min", "soft_max", "step", "precision", "options", "subtype", "size", NULL};
 		char *id=NULL, *name="", *description="";
 		float min=-FLT_MAX, max=FLT_MAX, soft_min=-FLT_MAX, soft_max=FLT_MAX, step=3, def[PYRNA_STACK_ARRAY]={0.0f};
 		int precision= 2, size=3;
@@ -460,14 +497,20 @@ PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pysubtype= NULL;
 		int subtype= PROP_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssOfffffiO!si:FloatVectorProperty", kwlist, &id, &name, &description, &pydef, &min, &max, &soft_min, &soft_max, &step, &precision, &PySet_Type, &pyopts, &pysubtype, &size))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|ssOfffffiO!si:FloatVectorProperty", (char **)kwlist, &id, &name, &description, &pydef, &min, &max, &soft_min, &soft_max, &step, &precision, &PySet_Type, &pyopts, &pysubtype, &size))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "FloatVectorProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "FloatVectorProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_array_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "FloatVectorProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "FloatVectorProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -512,16 +555,16 @@ PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "StringProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "name", "description", "default", "maxlen", "options", "subtype", NULL};
+		static const char *kwlist[] = {"attr", "name", "description", "default", "maxlen", "options", "subtype", NULL};
 		char *id=NULL, *name="", *description="", *def="";
 		int maxlen=0;
 		PropertyRNA *prop;
@@ -530,14 +573,20 @@ PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw)
 		char *pysubtype= NULL;
 		int subtype= PROP_NONE;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|sssiO!s:StringProperty", kwlist, &id, &name, &description, &def, &maxlen, &PySet_Type, &pyopts, &pysubtype))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "s|sssiO!s:StringProperty", (char **)kwlist, &id, &name, &description, &def, &maxlen, &PySet_Type, &pyopts, &pysubtype))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "StringProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "StringProperty(options={...}):"))
 			return NULL;
 
 		if(pysubtype && RNA_enum_value_from_id(property_subtype_string_items, pysubtype, &subtype)==0) {
-			PyErr_Format(PyExc_TypeError, "StringProperty(subtype='%s'): invalid subtype.");
+			PyErr_Format(PyExc_TypeError, "StringProperty(subtype='%s'): invalid subtype.", pysubtype);
 			return NULL;
 		}
 
@@ -618,16 +667,16 @@ PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "EnumProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "items", "name", "description", "default", "options", NULL};
+		static const char *kwlist[] = {"attr", "items", "name", "description", "default", "options", NULL};
 		char *id=NULL, *name="", *description="", *def="";
 		int defvalue=0;
 		PyObject *items= Py_None;
@@ -636,8 +685,14 @@ PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PyObject *pyopts= NULL;
 		int opts=0;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|sssO!:EnumProperty", kwlist, &id, &items, &name, &description, &def, &PySet_Type, &pyopts))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|sssO!:EnumProperty", (char **)kwlist, &id, &items, &name, &description, &def, &PySet_Type, &pyopts))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "EnumProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "EnumProperty(options={...}):"))
 			return NULL;
@@ -661,18 +716,22 @@ PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
 	}
 }
 
-static StructRNA *pointer_type_from_py(PyObject *value)
+static StructRNA *pointer_type_from_py(PyObject *value, const char *error_prefix)
 {
 	StructRNA *srna;
 
-	srna= srna_from_self(value);
+	srna= srna_from_self(value, "BoolProperty(...):");
 	if(!srna) {
-	 	PyErr_SetString(PyExc_SystemError, "expected an RNA type derived from IDPropertyGroup");
+
+		PyObject *msg= BPY_exception_buffer();
+		char *msg_char= _PyUnicode_AsString(msg);
+		PyErr_Format(PyExc_TypeError, "%.200s expected an RNA type derived from IDPropertyGroup, failed with: %s", error_prefix, msg_char);
+		Py_DECREF(msg);
 		return NULL;
 	}
 
 	if(!RNA_struct_is_a(srna, &RNA_IDPropertyGroup)) {
-	 	PyErr_SetString(PyExc_SystemError, "expected an RNA type derived from IDPropertyGroup");
+		 PyErr_Format(PyExc_SystemError, "%.200s expected an RNA type derived from IDPropertyGroup", error_prefix);
 		return NULL;
 	}
 
@@ -693,16 +752,16 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "PointerProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "type", "name", "description", "options", NULL};
+		static const char *kwlist[] = {"attr", "type", "name", "description", "options", NULL};
 		char *id=NULL, *name="", *description="";
 		PropertyRNA *prop;
 		StructRNA *ptype;
@@ -710,13 +769,19 @@ PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PyObject *pyopts= NULL;
 		int opts=0;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|ssO!:PointerProperty", kwlist, &id, &type, &name, &description, &PySet_Type, &pyopts))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|ssO!:PointerProperty", (char **)kwlist, &id, &type, &name, &description, &PySet_Type, &pyopts))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "PointerProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "PointerProperty(options={...}):"))
 			return NULL;
 
-		ptype= pointer_type_from_py(type);
+		ptype= pointer_type_from_py(type, "PointerProperty(...):");
 		if(!ptype)
 			return NULL;
 
@@ -748,16 +813,16 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
 	StructRNA *srna;
 
 	if (PyTuple_GET_SIZE(args) > 0) {
-	 	PyErr_SetString(PyExc_ValueError, "all args must be keywors"); // TODO - py3 can enforce this.
+		 PyErr_SetString(PyExc_ValueError, "all args must be keywords");
 		return NULL;
 	}
 
-	srna= srna_from_self(self);
+	srna= srna_from_self(self, "CollectionProperty(...):");
 	if(srna==NULL && PyErr_Occurred()) {
 		return NULL; /* self's type was compatible but error getting the srna */
 	}
 	else if(srna) {
-		static char *kwlist[] = {"attr", "type", "name", "description", "options", NULL};
+		static const char *kwlist[] = {"attr", "type", "name", "description", "options", NULL};
 		char *id=NULL, *name="", *description="";
 		PropertyRNA *prop;
 		StructRNA *ptype;
@@ -765,13 +830,19 @@ PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PyObject *pyopts= NULL;
 		int opts=0;
 
-		if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|ssO!:CollectionProperty", kwlist, &id, &type, &name, &description, &PySet_Type, &pyopts))
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|ssO!:CollectionProperty", (char **)kwlist, &id, &type, &name, &description, &PySet_Type, &pyopts))
 			return NULL;
+
+		if(bpy_struct_id_used(srna, id)) {
+			// PyErr_Format(PyExc_TypeError, "CollectionProperty(): '%s' already defined.", id);
+			// return NULL;
+			Py_RETURN_NONE;
+		}
 
 		if(pyopts && pyrna_set_to_enum_bitfield(property_flag_items, pyopts, &opts, "CollectionProperty(options={...}):"))
 			return NULL;
 
-		ptype= pointer_type_from_py(type);
+		ptype= pointer_type_from_py(type, "CollectionProperty(...):");
 		if(!ptype)
 			return NULL;
 

@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -34,19 +34,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_action_types.h"
-#include "DNA_brush_types.h"
-#include "DNA_color_types.h"
-#include "DNA_image_types.h"
-#include "DNA_ipo_types.h"
 #include "DNA_object_types.h"
 #include "DNA_material_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_node_types.h"
-#include "DNA_space_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_colortools.h"
@@ -70,14 +61,9 @@
 
 #include "RE_pipeline.h"
 
-#include "IMB_imbuf_types.h"
 
 #include "ED_node.h"
-#include "ED_render.h"
 #include "ED_screen.h"
-#include "ED_space_api.h"
-#include "ED_transform.h"
-#include "ED_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -401,11 +387,13 @@ void snode_set_context(SpaceNode *snode, Scene *scene)
 					snode->from= (ID*)give_current_material(ob, ob->actcol);
 
 				/* from is not set fully for material nodes, should be ID + Node then */
+				snode->id= &tx->id;
 			}
 		}
 		else if(snode->texfrom==SNODE_TEX_WORLD) {
 			tx= give_current_world_texture(scene->world);
 			snode->from= (ID *)scene->world;
+			snode->id= &tx->id;
 		}
 		else {
 			Brush *brush= NULL;
@@ -415,11 +403,12 @@ void snode_set_context(SpaceNode *snode, Scene *scene)
 			else
 				brush= paint_brush(&scene->toolsettings->imapaint.paint);
 
-			snode->from= (ID *)brush;
-			tx= give_current_brush_texture(brush);
+			if (brush) {
+				snode->from= (ID *)brush;
+				tx= give_current_brush_texture(brush);
+				snode->id= &tx->id;
+			}
 		}
-		
-		snode->id= &tx->id;
 	}
 
 	if(snode->id)
@@ -1661,7 +1650,7 @@ void node_read_renderlayers(SpaceNode *snode)
 void node_read_fullsamplelayers(SpaceNode *snode)
 {
 	Scene *curscene= NULL; // XXX
-	Render *re= RE_NewRender(curscene->id.name, RE_SLOT_VIEW);
+	Render *re= RE_NewRender(curscene->id.name);
 
 	WM_cursor_wait(1);
 

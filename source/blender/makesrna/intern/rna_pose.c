@@ -26,7 +26,6 @@
 #include <string.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 #include "RNA_enum_types.h"
 
 #include "rna_internal.h"
@@ -38,6 +37,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_math.h"
+#include "BLI_ghash.h"
 
 #include "WM_types.h"
 
@@ -197,12 +197,12 @@ static void rna_PoseChannel_name_set(PointerRNA *ptr, const char *value)
 {
 	Object *ob= (Object*)ptr->id.data;
 	bPoseChannel *pchan= (bPoseChannel*)ptr->data;
-	char oldname[32], newname[32];
-	
+	char oldname[sizeof(pchan->name)], newname[sizeof(pchan->name)];
+
 	/* need to be on the stack */
-	BLI_strncpy(newname, value, 32);
-	BLI_strncpy(oldname, pchan->name, 32);
-	
+	BLI_strncpy(newname, value, sizeof(pchan->name));
+	BLI_strncpy(oldname, pchan->name, sizeof(pchan->name));
+
 	ED_armature_bone_rename(ob->data, oldname, newname);
 }
 
@@ -526,9 +526,21 @@ PointerRNA rna_PoseBones_lookup_string(PointerRNA *ptr, const char *key)
 {
 	PointerRNA rptr;
 	bPose *pose= (bPose*)ptr->data;
-	bPoseChannel *pchan= BLI_findstring(&pose->chanbase, key, offsetof(bPoseChannel, name));
+	bPoseChannel *pchan= get_pose_channel(pose, key);
 	RNA_pointer_create(ptr->id.data, &RNA_PoseBone, pchan, &rptr);
 	return rptr;
+}
+
+static void rna_PoseChannel_matrix_local_get(PointerRNA *ptr, float *values)
+{
+	bPoseChannel *pchan= (bPoseChannel*)ptr->data;
+	pchan_to_mat4(pchan, (float (*)[4])values);
+}
+
+static void rna_PoseChannel_matrix_local_set(PointerRNA *ptr, const float *values)
+{
+	bPoseChannel *pchan= (bPoseChannel*)ptr->data;
+	pchan_apply_mat4(pchan, (float (*)[4])values);
 }
 
 #else
@@ -663,6 +675,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 		
 	static float default_quat[4] = {1,0,0,0};	/* default quaternion values */
 	static float default_axisAngle[4] = {0,0,1,0};	/* default axis-angle rotation values */
+	static float default_scale[3] = {1,1,1}; /* default scale values */
 	
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -692,20 +705,6 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Selected", "");
 
 	/* Baked Bone Path cache data */
-	prop= RNA_def_property(srna, "path_start_frame", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "pathsf");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Bone Paths Calculation Start Frame", "Starting frame of range of frames to use for Bone Path calculations");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
-	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
-
-	prop= RNA_def_property(srna, "path_end_frame", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "pathef");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Bone Paths Calculation End Frame", "End frame of range of frames to use for Bone Path calculations");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
-	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
-	
 	rna_def_motionpath_common(srna);
 	
 	/* Relationships to other bones */
@@ -730,14 +729,15 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "loc");
 	RNA_def_property_editable_array_func(prop, "rna_PoseChannel_location_editable");
 	RNA_def_property_ui_text(prop, "Location", "");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 
 	prop= RNA_def_property(srna, "scale", PROP_FLOAT, PROP_XYZ);
 	RNA_def_property_float_sdna(prop, NULL, "size");
 	RNA_def_property_editable_array_func(prop, "rna_PoseChannel_scale_editable");
+	RNA_def_property_float_array_default(prop, default_scale);
 	RNA_def_property_ui_text(prop, "Scale", "");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 
 	prop= RNA_def_property(srna, "rotation_quaternion", PROP_FLOAT, PROP_QUATERNION);
@@ -745,7 +745,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_editable_array_func(prop, "rna_PoseChannel_rotation_4d_editable");
 	RNA_def_property_float_array_default(prop, default_quat);
 	RNA_def_property_ui_text(prop, "Quaternion Rotation", "Rotation in Quaternions");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 	
 		/* XXX: for axis-angle, it would have been nice to have 2 separate fields for UI purposes, but
@@ -757,13 +757,13 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_editable_array_func(prop, "rna_PoseChannel_rotation_4d_editable");
 	RNA_def_property_float_array_default(prop, default_axisAngle);
 	RNA_def_property_ui_text(prop, "Axis-Angle Rotation", "Angle of Rotation for Axis-Angle rotation representation");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 	
 	prop= RNA_def_property(srna, "rotation_euler", PROP_FLOAT, PROP_EULER);
 	RNA_def_property_float_sdna(prop, NULL, "eul");
 	RNA_def_property_editable_array_func(prop, "rna_PoseChannel_rotation_euler_editable");
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_ui_text(prop, "Euler Rotation", "Rotation in Eulers");
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 	
@@ -771,30 +771,28 @@ static void rna_def_pose_channel(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "rotmode");
 	RNA_def_property_enum_items(prop, prop_rotmode_items); // XXX move to using a single define of this someday
 	RNA_def_property_enum_funcs(prop, NULL, "rna_PoseChannel_rotation_mode_set", NULL);
-	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+	RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable"); // XXX... disabled, since proxy-locked layers are currently used for ensuring proxy-syncing too
 	RNA_def_property_ui_text(prop, "Rotation Mode", "");
 	RNA_def_property_update(prop, NC_OBJECT|ND_POSE, "rna_Pose_update");
 	
 	/* transform matrices - should be read-only since these are set directly by AnimSys evaluation */
-	prop= RNA_def_property(srna, "channel_matrix", PROP_FLOAT, PROP_MATRIX);
+	prop= RNA_def_property(srna, "matrix_channel", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "chan_mat");
 	RNA_def_property_array(prop, 16);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Channel Matrix", "4x4 matrix, before constraints");
-	
+
+	prop= RNA_def_property(srna, "matrix_local", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_array(prop, 16);
+	RNA_def_property_ui_text(prop, "Local Matrix", "Matrix representing the parent relative location, scale and rotation. Provides an alternative access to these properties.");
+	RNA_def_property_float_funcs(prop, "rna_PoseChannel_matrix_local_get", "rna_PoseChannel_matrix_local_set", NULL);
+
 	prop= RNA_def_property(srna, "matrix", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_float_sdna(prop, NULL, "pose_mat");
 	RNA_def_property_array(prop, 16);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); 
 	RNA_def_property_ui_text(prop, "Pose Matrix", "Final 4x4 matrix for this channel");
 
-	/*
-	prop= RNA_def_property(srna, "constraint_inverse_matrix", PROP_FLOAT, PROP_MATRIX);
-	RNA_def_property_struct_type(prop, "constinv");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_ui_text(prop, "Constraint Inverse Matrix", "4x4 matrix, defines transform from final position to unconstrained position");
-	*/
-	
 	/* Head/Tail Coordinates (in Pose Space) - Automatically calculated... */
 	prop= RNA_def_property(srna, "head", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "pose_head");

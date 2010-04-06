@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -78,7 +78,9 @@ struct rcti;
 /* meshtools.c */
 
 intptr_t	mesh_octree_table(struct Object *ob, struct EditMesh *em, float *co, char mode);
-struct EditVert   *editmesh_get_x_mirror_vert(struct Object *ob, struct EditMesh *em, float *co);
+long		mesh_mirrtopo_table(struct Object *ob, char mode);
+
+struct EditVert   *editmesh_get_x_mirror_vert(struct Object *ob, struct EditMesh *em, struct EditVert *eve, float *co, int index);
 int			mesh_get_x_mirror_vert(struct Object *ob, int index);
 int			*mesh_get_x_mirror_faces(struct Object *ob, struct EditMesh *em);
 
@@ -178,6 +180,7 @@ int face_select(struct bContext *C, struct Object *ob, short mval[2], int extend
 void face_borderselect(struct bContext *C, struct Object *ob, struct rcti *rect, int select, int extend);
 void selectall_tface(struct Object *ob, int action);
 void select_linked_tfaces(struct bContext *C, struct Object *ob, short mval[2], int mode);
+int minmax_tface(struct Object *ob, float *min, float *max);
 
 /* object_vgroup.c */
 

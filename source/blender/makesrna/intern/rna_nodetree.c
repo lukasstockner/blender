@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s): Blender Foundation (2008), Nathan Letwory, Robin Allen
+ * Contributor(s): Blender Foundation (2008), Nathan Letwory, Robin Allen, Bob Holcomb
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -25,9 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -118,21 +116,6 @@ static char *rna_NodeSocket_path(PointerRNA *ptr)
 	return NULL;
 }
 
-static int has_nodetree(bNodeTree *ntree, bNodeTree *lookup)
-{
-	bNode *node;
-
-	if(ntree == lookup)
-		return 1;
-	
-	for(node=ntree->nodes.first; node; node=node->next)
-		if(node->type == NODE_GROUP && node->id)
-			if(has_nodetree((bNodeTree*)node->id, lookup))
-				return 1;
-	
-	return 0;
-}
-
 /* Button Set Funcs for Matte Nodes */
 static void rna_Matte_t1_set(PointerRNA *ptr, float value)
 {
@@ -158,22 +141,7 @@ static void rna_Matte_t2_set(PointerRNA *ptr, float value)
 
 static void node_update(Main *bmain, Scene *scene, bNodeTree *ntree, bNode *node)
 {
-	Material *ma;
-	Tex *tex;
-	Scene *sce;
-	
-	/* look through all datablocks, to support groups */
-	for(ma=bmain->mat.first; ma; ma=ma->id.next)
-		if(ma->nodetree && ma->use_nodes && has_nodetree(ma->nodetree, ntree))
-			ED_node_changed_update(&ma->id, node);
-	
-	for(tex=bmain->tex.first; tex; tex=tex->id.next)
-		if(tex->nodetree && tex->use_nodes && has_nodetree(tex->nodetree, ntree))
-			ED_node_changed_update(&tex->id, node);
-	
-	for(sce=bmain->scene.first; sce; sce=sce->id.next)
-		if(sce->nodetree && sce->use_nodes && has_nodetree(sce->nodetree, ntree))
-			ED_node_changed_update(&sce->id, node);
+	ED_node_generic_update(bmain, scene, ntree, node);
 }
 
 static void rna_Node_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -198,10 +166,10 @@ static void rna_Node_update_name(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bNodeTree *ntree= (bNodeTree*)ptr->id.data;
 	bNode *node= (bNode*)ptr->data;
-	char oldname[32];
+	char oldname[sizeof(node->name)];
 	
 	/* make a copy of the old name first */
-	BLI_strncpy(oldname, node->name, sizeof(oldname));
+	BLI_strncpy(oldname, node->name, sizeof(node->name));
 	
 	nodeUniqueName(ntree, node);
 	node->flag |= NODE_CUSTOM_NAME;
@@ -1175,13 +1143,14 @@ static void def_cmp_output_file(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Quality", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "start_frame", PROP_INT, PROP_NONE);
+		// TODO: should these be limited to the extents of the each other so that no cross-over occurs?
+	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "sfra");
 	RNA_def_property_range(prop, MINFRAMEF, MAXFRAMEF);
 	RNA_def_property_ui_text(prop, "Start Frame", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	prop = RNA_def_property(srna, "end_frame", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "frame_end", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "efra");
 	RNA_def_property_range(prop, MINFRAMEF, MAXFRAMEF);
 	RNA_def_property_ui_text(prop, "End Frame", "");
@@ -1213,6 +1182,23 @@ static void def_cmp_scale(StructRNA *srna)
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
 	RNA_def_property_enum_items(prop, space_items);
 	RNA_def_property_ui_text(prop, "Space", "Coordinate space to scale relative to");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_rotate(StructRNA *srna)
+{
+	PropertyRNA *prop;
+	
+	static EnumPropertyItem rotate_items[] = {
+		{0, "NEAREST",   0, "Nearest",   ""},
+		{1, "BILINEAR",   0, "Bilinear",   ""},
+		{2, "BICUBIC", 0, "Bicubic", ""},
+		{0, NULL, 0, NULL, NULL}};
+	
+	prop = RNA_def_property(srna, "filter", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom1");
+	RNA_def_property_enum_items(prop, rotate_items);
+	RNA_def_property_ui_text(prop, "Filter", "Method to use to filter rotation");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
@@ -1286,11 +1272,22 @@ static void def_cmp_distance_matte(StructRNA *srna)
 static void def_cmp_color_spill(StructRNA *srna)
 {
 	PropertyRNA *prop;
-	
+
 	static EnumPropertyItem channel_items[] = {
 		{1, "R", 0, "R", "Red Spill Suppression"},
 		{2, "G", 0, "G", "Green Spill Suppression"},
 		{3, "B", 0, "B", "Blue Spill Suppression"},
+		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem limit_channel_items[] = {
+		{1, "R", 0, "R", "Limit by Red"},
+		{2, "G", 0, "G", "Limit by Green"},
+		{3, "B", 0, "B", "Limit by Blue"},
+		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem algorithm_items[] = {
+		{0, "SIMPLE", 0, "Simple", "Simple Limit Algorithm"},
+		{1, "AVERAGE", 0, "Average", "Average Limit Algorithm"},
 		{0, NULL, 0, NULL, NULL}};
 	
 	prop = RNA_def_property(srna, "channel", PROP_ENUM, PROP_NONE);
@@ -1299,12 +1296,47 @@ static void def_cmp_color_spill(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Channel", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	RNA_def_struct_sdna_from(srna, "NodeChroma", "storage");
-	
-	prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "t1");
-	RNA_def_property_range(prop, 0.0f, 0.5f);
-	RNA_def_property_ui_text(prop, "Amount", "How much the selected channel is affected by");
+	prop = RNA_def_property(srna, "algorithm", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "custom2");
+	RNA_def_property_enum_items(prop, algorithm_items);
+	RNA_def_property_ui_text(prop, "Algorithm", "");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	RNA_def_struct_sdna_from(srna, "NodeColorspill", "storage");
+
+	prop = RNA_def_property(srna, "limit_channel", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "limchan");
+	RNA_def_property_enum_items(prop, limit_channel_items);
+	RNA_def_property_ui_text(prop, "Limit Channel", "");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "ratio", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "limscale");
+	RNA_def_property_range(prop, 0.5f, 1.5f);
+	RNA_def_property_ui_text(prop, "Ratio", "Scale limit by value");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "unspill", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "unspill", 0);
+	RNA_def_property_ui_text(prop, "Unspill", "Compensate all channels (diffenrently) by hand");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "unspill_red", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "uspillr");
+	RNA_def_property_range(prop, 0.0f, 1.5f);
+	RNA_def_property_ui_text(prop, "R", "Red spillmap scale");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "unspill_green", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "uspillg");
+	RNA_def_property_range(prop, 0.0f, 1.5f);
+	RNA_def_property_ui_text(prop, "G", "Green spillmap scale");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "unspill_blue", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "uspillb");
+	RNA_def_property_range(prop, 0.0f, 1.5f);
+	RNA_def_property_ui_text(prop, "B", "Blue spillmap scale");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 }
 
@@ -1378,6 +1410,11 @@ static void def_cmp_channel_matte(StructRNA *srna)
 		{CMP_NODE_CHANNEL_MATTE_CS_YUV, "YUV", 0, "YUV",   "YUV Color Space"},
 		{CMP_NODE_CHANNEL_MATTE_CS_YCC, "YCC", 0, "YCbCr", "YCbCr Color Space"},
 		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem algorithm_items[] = {
+		{0, "SINGLE", 0, "Single", "Limit by single channel"},
+		{1, "MAX", 0, "Max", "Limit by max of other channels "},
+		{0, NULL, 0, NULL, NULL}};
 	
 	prop = RNA_def_property(srna, "color_space", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "custom1");
@@ -1385,15 +1422,27 @@ static void def_cmp_channel_matte(StructRNA *srna)
 	RNA_def_property_ui_text(prop, "Color Space", "");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
-	
 	prop= RNA_def_property(srna, "channel", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "custom2");
 	RNA_def_property_enum_items(prop, prop_tri_channel_items);
 	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Node_channel_itemf");
 	RNA_def_property_ui_text(prop, "Channel", "Channel used to determine matte");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
-	
+
 	RNA_def_struct_sdna_from(srna, "NodeChroma", "storage");
+
+	prop = RNA_def_property(srna, "algorithm", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "algorithm");
+	RNA_def_property_enum_items(prop, algorithm_items);
+	RNA_def_property_ui_text(prop, "Algorithm", "Algorithm to use to limit channel");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "limit_channel", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "channel");
+   RNA_def_property_enum_items(prop, prop_tri_channel_items);
+   RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Node_channel_itemf");
+	RNA_def_property_ui_text(prop, "Limit Channel", "Limit by this channels value");
+	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	
 	prop = RNA_def_property(srna, "high", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "t1");
@@ -1878,7 +1927,8 @@ static void def_cmp_colorbalance(StructRNA *srna)
 	prop = RNA_def_property(srna, "lift", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_float_sdna(prop, NULL, "lift");
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_range(prop, 0, 1, 0.1, 3);
+	RNA_def_property_float_array_default(prop, default_1);
+	RNA_def_property_ui_range(prop, 0, 2, 0.1, 3);
 	RNA_def_property_ui_text(prop, "Lift", "Correction for Shadows");
 	RNA_def_property_update(prop, NC_NODE|NA_EDITED, "rna_Node_update");
 	

@@ -28,20 +28,12 @@
  * (uit traces) maart 95
  */
 
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
-
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
-#include "DNA_mesh_types.h"
 
 #include "BLI_editVert.h"
 #include "BLI_listbase.h"
 #include "BLI_math.h"
-#include "BLI_scanfill.h"
-#include "BLI_callbacks.h"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -174,7 +166,7 @@ static void *new_mem_element(int size)
 	if(cur) {
 		if(size+offs < blocksize) {
 			adr= (void *) (cur->data+offs);
-		 	offs+= size;
+			 offs+= size;
 			return adr;
 		}
 	}
@@ -293,7 +285,7 @@ static short testedgeside(float *v1, float *v2, float *v3)
 	float inp;
 
 	inp= (v2[cox]-v1[cox])*(v1[coy]-v3[coy])
-	    +(v1[coy]-v2[coy])*(v1[cox]-v3[cox]);
+		+(v1[coy]-v2[coy])*(v1[cox]-v3[cox]);
 
 	if(inp<0.0) return 0;
 	else if(inp==0) {
@@ -370,7 +362,7 @@ static ScFillVert *addedgetoscanlist(EditEdge *eed, int len)
 	/* find location in list */
 	scsearch.v1= eed->v1;
 	sc= (ScFillVert *)bsearch(&scsearch,scdata,len,
-	    sizeof(ScFillVert), vergscdata);
+		sizeof(ScFillVert), vergscdata);
 
 	if(sc==0) printf("Error in search edge: %p\n",eed);
 	else if(addedgetoscanvert(sc,eed)==0) return sc;

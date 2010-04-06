@@ -183,12 +183,11 @@ typedef struct SceneRenderLayer {
 #define SCE_PASS_REFRACT		1024
 #define SCE_PASS_INDEXOB		2048
 #define SCE_PASS_UV				4096
-#define SCE_PASS_RADIO			8192 /* Radio removed, can use for new GI? */
+#define SCE_PASS_INDIRECT		8192
 #define SCE_PASS_MIST			16384
 #define SCE_PASS_RAYHITS		32768
 #define SCE_PASS_EMIT			65536
 #define SCE_PASS_ENVIRONMENT	131072
-#define SCE_PASS_INDIRECT		262144
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
 
@@ -220,7 +219,7 @@ typedef struct RenderData {
 	
 	short dimensionspreset;		/* for the dimensions presets menu */
  	
- 	short filtertype;	/* filter is box, tent, gauss, mitch, etc */
+	 short filtertype;	/* filter is box, tent, gauss, mitch, etc */
 
 	short size, maximsize;	/* size in %, max in Kb */
 	/* from buttons: */
@@ -246,7 +245,7 @@ typedef struct RenderData {
 	/** Mode bits:                                                           */
 	/* 0: Enable backbuffering for images                                    */
 	short bufflag;
- 	short quality;
+	 short quality;
 	
 	/**
 	 * Render to image editor, fullscreen or to new window.
@@ -329,7 +328,7 @@ typedef struct RenderData {
 	/** post-production settings. Depricated, but here for upwards compat (initialized to 1) */	 
 	float postgamma, posthue, postsat;	 
 	
- 	/* Dither noise intensity */
+	 /* Dither noise intensity */
 	float dither_intensity;
 	
 	/* Bake Render options */
@@ -360,6 +359,12 @@ typedef struct RenderData {
 	/* foreground/background color. */
 	float fg_stamp[4];
 	float bg_stamp[4];
+
+	/* sequencer options */
+	char seq_prev_type;
+	char seq_rend_type;
+	char seq_flag; /* flag use for sequence render/draw */
+	char pad5[5];
 
 	/* render simplify */
 	int simplify_flag;
@@ -487,6 +492,7 @@ typedef struct GameData {
 #define GAME_GLSL_NO_NODES					(1 << 10)
 #define GAME_GLSL_NO_EXTRA_TEX				(1 << 11)
 #define GAME_IGNORE_DEPRECATION_WARNINGS	(1 << 12)
+#define GAME_ENABLE_ANIMATION_RECORD		(1 << 13)
 
 /* GameData.matmode */
 #define GAME_MAT_TEXFACE	0
@@ -520,14 +526,18 @@ typedef struct ImagePaintSettings {
 	
 	/* for projection painting only */
 	short seam_bleed, normal_angle;
+	short screen_grab_size[2]; /* capture size for re-projection */
+
+	int pad1;
 
 	void *paintcursor;			/* wm handle */
 } ImagePaintSettings;
 
 typedef struct ParticleBrushData {
-	short size, strength;	/* common settings */
-	short step, invert;		/* for specific brushes only */
-	int flag, pad;
+	short size;						/* common setting */
+	short step, invert, count;		/* for specific brushes only */
+	int flag;
+	float strength;
 } ParticleBrushData;
 
 typedef struct ParticleEditSettings {
@@ -835,6 +845,10 @@ typedef struct Scene {
 #define R_TOUCH			0x800000 /* touch files before rendering */
 #define R_SIMPLIFY		0x1000000
 
+/* seq_flag */
+#define R_SEQ_GL_PREV 1
+#define R_SEQ_GL_REND 2
+
 /* displaymode */
 
 #define R_OUTPUT_SCREEN	0
@@ -886,7 +900,7 @@ typedef struct Scene {
 #define R_NO_TEX			0x2000
 #define R_STAMP_INFO		0x4000	/* deprecated */
 #define R_FULL_SAMPLE		0x8000
-#define R_COMP_RERENDER		0x10000
+#define R_DEPRECATED		0x10000
 #define R_RECURS_PROTECTION	0x20000
 #define R_TEXNODE_PREVIEW	0x40000
 
@@ -976,14 +990,17 @@ typedef struct Scene {
 /* simplify_flag */
 #define R_SIMPLE_NO_TRIANGULATE		1
 
+/* sequencer seq_prev_type seq_rend_type */
+
+
 /* **************** SCENE ********************* */
 
 /* for general use */
 #define MAXFRAME	300000
 #define MAXFRAMEF	300000.0f
 
-#define MINFRAME	1
-#define MINFRAMEF	1.0f
+#define MINFRAME	0
+#define MINFRAMEF	0.0f
 
 /* (minimum frame number for current-frame) */
 #define MINAFRAME	-300000
@@ -1067,6 +1084,7 @@ typedef struct Scene {
 #define SCE_DS_SELECTED			(1<<0)
 #define SCE_DS_COLLAPSED		(1<<1)
 #define SCE_NLA_EDIT_ON			(1<<2)
+#define SCE_FRAME_DROP			(1<<3)
 
 
 	/* return flag next_object function */

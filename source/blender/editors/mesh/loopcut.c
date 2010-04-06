@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -69,7 +69,6 @@
 #include "RNA_define.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -271,7 +270,7 @@ static void ringsel_finish(bContext *C, wmOperator *op)
 		edgering_sel(lcd, cuts, 1);
 		if (lcd->do_cut) {
 			EditMesh *em = BKE_mesh_get_editmesh(lcd->ob->data);
-			esubdivideflag(lcd->ob, em, SELECT, 0.0f, 0.0f, 0, cuts, SUBDIV_SELECT_LOOPCUT);
+			esubdivideflag(lcd->ob, em, SELECT, 0.0f, 0.0f, 0, cuts, 0, SUBDIV_SELECT_LOOPCUT);
 			
 			DAG_id_flush_update(lcd->ob->data, OB_RECALC_DATA);
 			WM_event_add_notifier(C, NC_GEOM|ND_DATA, lcd->ob->data);

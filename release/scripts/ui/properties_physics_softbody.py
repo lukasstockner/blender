@@ -37,8 +37,10 @@ class PhysicButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         ob = context.object
-        rd = context.scene.render_data
-        return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
+        rd = context.scene.render
+#        return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
+# i really hate touching things i do not understand completely .. but i think this should read (bjornmose)
+        return (ob and (ob.type == 'MESH' or ob.type == 'LATTICE'or ob.type == 'CURVE')) and (not rd.use_game_engine)
 
 
 class PHYSICS_PT_softbody(PhysicButtonsPanel):
@@ -280,10 +282,27 @@ class PHYSICS_PT_softbody_field_weights(PhysicButtonsPanel):
 
         effector_weights_ui(self, context, softbody.effector_weights)
 
-bpy.types.register(PHYSICS_PT_softbody)
-bpy.types.register(PHYSICS_PT_softbody_cache)
-bpy.types.register(PHYSICS_PT_softbody_goal)
-bpy.types.register(PHYSICS_PT_softbody_edge)
-bpy.types.register(PHYSICS_PT_softbody_collision)
-bpy.types.register(PHYSICS_PT_softbody_solver)
-bpy.types.register(PHYSICS_PT_softbody_field_weights)
+
+classes = [
+    PHYSICS_PT_softbody,
+    PHYSICS_PT_softbody_cache,
+    PHYSICS_PT_softbody_goal,
+    PHYSICS_PT_softbody_edge,
+    PHYSICS_PT_softbody_collision,
+    PHYSICS_PT_softbody_solver,
+    PHYSICS_PT_softbody_field_weights]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

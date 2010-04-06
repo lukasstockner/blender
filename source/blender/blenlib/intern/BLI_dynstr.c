@@ -29,8 +29,6 @@
  */
 
 #include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
@@ -75,6 +73,23 @@ void BLI_dynstr_append(DynStr *ds, const char *cstr) {
 	memcpy(dse->str, cstr, cstrlen+1);
 	dse->next= NULL;
 	
+	if (!ds->last)
+		ds->last= ds->elems= dse;
+	else
+		ds->last= ds->last->next= dse;
+
+	ds->curlen+= cstrlen;
+}
+
+void BLI_dynstr_nappend(DynStr *ds, const char *cstr, int len) {
+	DynStrElem *dse= malloc(sizeof(*dse));
+	int cstrlen= BLI_strnlen(cstr, len);
+
+	dse->str= malloc(cstrlen+1);
+	memcpy(dse->str, cstr, cstrlen);
+	dse->str[cstrlen] = '\0';
+	dse->next= NULL;
+
 	if (!ds->last)
 		ds->last= ds->elems= dse;
 	else

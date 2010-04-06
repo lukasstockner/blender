@@ -96,10 +96,10 @@ def clientSendJob(conn, scene, anim = False):
     job = netrender.model.RenderJob()
 
     if anim:
-        for f in range(scene.start_frame, scene.end_frame + 1):
+        for f in range(scene.frame_start, scene.frame_end + 1):
             job.addFrame(f)
     else:
-        job.addFrame(scene.current_frame)
+        job.addFrame(scene.frame_current)
 
     filename = bpy.data.filename
     job.addFile(filename)
@@ -113,14 +113,18 @@ def clientSendJob(conn, scene, anim = False):
     # LIBRARIES
     ###########################
     for lib in bpy.data.libraries:
-        job.addFile(bpy.utils.expandpath(lib.filename))
+        file_path = bpy.utils.expandpath(lib.filename)
+        if os.path.exists(file_path):
+            job.addFile(file_path)
 
     ###########################
     # IMAGES
     ###########################
     for image in bpy.data.images:
         if image.source == "FILE" and not image.packed_file:
-            job.addFile(bpy.utils.expandpath(image.filename))
+            file_path = bpy.utils.expandpath(image.filename)
+            if os.path.exists(file_path):
+                job.addFile(file_path)
 
     ###########################
     # FLUID + POINT CACHE
@@ -182,6 +186,7 @@ def requestResult(conn, job_id, frame):
 class NetworkRenderEngine(bpy.types.RenderEngine):
     bl_idname = 'NET_RENDER'
     bl_label = "Network Render"
+    bl_postprocess = False
     def render(self, scene):
         if scene.network_render.mode == "RENDER_CLIENT":
             self.render_client(scene)
@@ -201,7 +206,7 @@ class NetworkRenderEngine(bpy.types.RenderEngine):
 
 
     def render_slave(self, scene):
-        slave.render_slave(self, scene.network_render, scene.render_data.threads)
+        slave.render_slave(self, scene.network_render, scene.render.threads)
 
     def render_client(self, scene):
         netsettings = scene.network_render
@@ -223,7 +228,7 @@ class NetworkRenderEngine(bpy.types.RenderEngine):
 
             self.update_stats("", "Network render waiting for results")
 
-            requestResult(conn, job_id, scene.current_frame)
+            requestResult(conn, job_id, scene.frame_current)
             response = conn.getresponse()
 
             if response.status == http.client.NO_CONTENT:
@@ -231,12 +236,12 @@ class NetworkRenderEngine(bpy.types.RenderEngine):
                 netsettings.job_id = clientSendJob(conn, scene)
                 job_id = netsettings.job_id
 
-                requestResult(conn, job_id, scene.current_frame)
+                requestResult(conn, job_id, scene.frame_current)
                 response = conn.getresponse()
 
             while response.status == http.client.ACCEPTED and not self.test_break():
                 time.sleep(1)
-                requestResult(conn, job_id, scene.current_frame)
+                requestResult(conn, job_id, scene.frame_current)
                 response = conn.getresponse()
 
             # cancel new jobs (animate on network) on break
@@ -250,7 +255,7 @@ class NetworkRenderEngine(bpy.types.RenderEngine):
                 conn.close()
                 return
 
-            r = scene.render_data
+            r = scene.render
             x= int(r.resolution_x*r.resolution_percentage*0.01)
             y= int(r.resolution_y*r.resolution_percentage*0.01)
 
@@ -264,7 +269,7 @@ class NetworkRenderEngine(bpy.types.RenderEngine):
             f.close()
 
             result = self.begin_result(0, 0, x, y)
-            result.load_from_file(netsettings.path + "output.exr", 0, 0)
+            result.load_from_file(netsettings.path + "output.exr")
             self.end_result(result)
 
             conn.close()

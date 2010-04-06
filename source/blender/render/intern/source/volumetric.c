@@ -296,7 +296,7 @@ float vol_get_density(struct ShadeInput *shi, float *co)
 	if (shi->obi->obr->ob->type == OB_MBALL) {
 		const float md = metadensity(shi->obi->obr->ob, co);
 		if (md < 1.f) density *= md;
- 	}
+	 }
 	
 	return density * density_scale;
 }
@@ -488,7 +488,7 @@ void vol_shade_one_lamp(struct ShadeInput *shi, float *co, LampRen *lar, float *
 
 	if (ELEM(lar->type, LA_SUN, LA_HEMI))
 		VECCOPY(lv, lar->vec);
-	mul_v3_fl(lv, -1.0f);
+	negate_v3(lv);
 	
 	if (shi->mat->vol.shade_type == MA_VOL_SHADE_SHADOWED) {
 		mul_v3_fl(lacol, vol_get_shadow(shi, lar, co));

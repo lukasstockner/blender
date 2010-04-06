@@ -25,10 +25,6 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "BLI_math.h"
 
@@ -57,6 +53,16 @@ void interp_v3_v3v3(float target[3], const float a[3], const float b[3], const f
 	target[0]= s*a[0] + t*b[0];
 	target[1]= s*a[1] + t*b[1];
 	target[2]= s*a[2] + t*b[2];
+}
+
+void interp_v4_v4v4(float target[4], const float a[4], const float b[4], const float t)
+{
+	float s = 1.0f-t;
+
+	target[0]= s*a[0] + t*b[0];
+	target[1]= s*a[1] + t*b[1];
+	target[2]= s*a[2] + t*b[2];
+	target[3]= s*a[3] + t*b[3];
 }
 
 /* weight 3 vectors,

@@ -33,7 +33,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -58,7 +57,6 @@
 
 #include "BLO_sys_types.h" // for intptr_t support
 
-#include "ED_armature.h"
 #include "ED_mesh.h"
 
 #include "meshlaplacian.h"
@@ -390,7 +388,7 @@ float laplacian_system_get_solution(int v)
 
 /************************* Heat Bone Weighting ******************************/
 /* From "Automatic Rigging and Animation of 3D Characters"
-         Ilya Baran and Jovan Popovic, SIGGRAPH 2007 */
+		 Ilya Baran and Jovan Popovic, SIGGRAPH 2007 */
 
 #define C_WEIGHT			1.0f
 #define WEIGHT_LIMIT_START	0.05f
@@ -620,13 +618,24 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 	LaplacianSystem *sys;
 	MFace *mface;
 	float solution, weight;
-	int *vertsflipped = NULL;
+	int *vertsflipped = NULL, *mask= NULL;
 	int a, totface, j, bbone, firstsegment, lastsegment, thrownerror = 0;
 
-	/* count triangles */
+	/* count triangles and create mask */
+	if(me->editflag & ME_EDIT_PAINT_MASK)
+		mask= MEM_callocN(sizeof(int)*me->totvert, "heat_bone_weighting mask");
+
 	for(totface=0, a=0, mface=me->mface; a<me->totface; a++, mface++) {
 		totface++;
 		if(mface->v4) totface++;
+
+		if(mask && (mface->flag & ME_FACE_SEL)) {
+			mask[mface->v1]= 1;
+			mask[mface->v2]= 1;
+			mask[mface->v3]= 1;
+			if(mface->v4)
+				mask[mface->v4]= 1;
+		}
 	}
 
 	/* create laplacian */
@@ -663,6 +672,9 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 		/* clear weights */
 		if(bbone && firstsegment) {
 			for(a=0; a<me->totvert; a++) {
+				if(mask && !mask[a])
+					continue;
+
 				ED_vgroup_vert_remove(ob, dgrouplist[j], a);
 				if(vertsflipped && dgroupflip[j] && vertsflipped[a] >= 0)
 					ED_vgroup_vert_remove(ob, dgroupflip[j], vertsflipped[a]);
@@ -681,6 +693,9 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 		if(laplacian_system_solve(sys)) {
 			/* load solution into vertex groups */
 			for(a=0; a<me->totvert; a++) {
+				if(mask && !mask[a])
+					continue;
+
 				solution= laplacian_system_get_solution(a);
 				
 				if(bbone) {
@@ -725,6 +740,9 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 		/* remove too small vertex weights */
 		if(bbone && lastsegment) {
 			for(a=0; a<me->totvert; a++) {
+				if(mask && !mask[a])
+					continue;
+
 				weight= ED_vgroup_vert_weight(ob, dgrouplist[j], a);
 				weight= heat_limit_weight(weight);
 				if(weight <= 0.0f)
@@ -742,6 +760,7 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 
 	/* free */
 	if(vertsflipped) MEM_freeN(vertsflipped);
+	if(mask) MEM_freeN(mask);
 
 	heat_system_free(sys);
 
@@ -751,7 +770,7 @@ void heat_bone_weighting(Object *ob, Mesh *me, float (*verts)[3], int numsource,
 #ifdef RIGID_DEFORM
 /********************** As-Rigid-As-Possible Deformation ******************/
 /* From "As-Rigid-As-Possible Surface Modeling",
-        Olga Sorkine and Marc Alexa, ESGP 2007. */
+		Olga Sorkine and Marc Alexa, ESGP 2007. */
 
 /* investigate:
    - transpose R in orthogonal
@@ -1042,7 +1061,7 @@ typedef struct MeshDeformBind {
 /* our own triangle intersection, so we can fully control the epsilons and
  * prevent corner case from going wrong*/
 static int meshdeform_tri_intersect(float orig[3], float end[3], float vert0[3],
-    float vert1[3], float vert2[3], float *isectco, float *uvw)
+	float vert1[3], float vert2[3], float *isectco, float *uvw)
 {
 	float edge1[3], edge2[3], tvec[3], pvec[3], qvec[3];
 	float det,inv_det, u, v, dir[3], isectdir[3];
@@ -1867,6 +1886,7 @@ static void harmonic_coordinates_bind(Scene *scene, MeshDeformModifierData *mmd,
 	BLI_memarena_free(mdb->memarena);
 }
 
+#if 0
 static void heat_weighting_bind(Scene *scene, DerivedMesh *dm, MeshDeformModifierData *mmd, MeshDeformBind *mdb)
 {
 	LaplacianSystem *sys;
@@ -1934,6 +1954,7 @@ static void heat_weighting_bind(Scene *scene, DerivedMesh *dm, MeshDeformModifie
 
 	mmd->bindweights= mdb->weights;
 }
+#endif
 
 void mesh_deform_bind(Scene *scene, DerivedMesh *dm, MeshDeformModifierData *mmd, float *vertexcos, int totvert, float cagemat[][4])
 {
@@ -1962,10 +1983,14 @@ void mesh_deform_bind(Scene *scene, DerivedMesh *dm, MeshDeformModifierData *mmd
 		mul_v3_m4v3(mdb.vertexcos[a], mdb.cagemat, vertexcos + a*3);
 
 	/* solve */
+#if 0
 	if(mmd->mode == MOD_MDEF_VOLUME)
 		harmonic_coordinates_bind(scene, mmd, &mdb);
 	else
 		heat_weighting_bind(scene, dm, mmd, &mdb);
+#else
+	harmonic_coordinates_bind(scene, mmd, &mdb);
+#endif
 
 	/* assign bind variables */
 	mmd->bindcos= (float*)mdb.cagecos;

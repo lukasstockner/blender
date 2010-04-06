@@ -208,6 +208,12 @@ typedef struct bSizeLikeConstraint {
 	char		subtarget[32];
 } bSizeLikeConstraint;
 
+/* Maintain Volume Constraint */
+typedef struct bSameVolumeConstraint {
+	int		flag;
+	float 		volume;
+} bSameVolumeConstraint;
+
 /* Copy Transform Constraint */
 typedef struct bTransLikeConstraint {
 	Object 		*tar;
@@ -412,6 +418,7 @@ typedef enum eBConstraint_Types {
 	CONSTRAINT_TYPE_DAMPTRACK,			/* New Tracking constraint that minimises twisting */
 	CONSTRAINT_TYPE_SPLINEIK,			/* Spline-IK - Align 'n' bones to a curve */
 	CONSTRAINT_TYPE_TRANSLIKE,			/* Copy transform matrix */
+	CONSTRAINT_TYPE_SAMEVOL,			/* Maintain volume during scaling */
 	
 	/* NOTE: no constraints are allowed to be added after this */
 	NUM_CONSTRAINT_TYPES
@@ -447,7 +454,7 @@ typedef enum eBConstraint_SpaceTypes {
 	CONSTRAINT_SPACE_LOCAL, /* = 1 */
 		/* for posechannels - pose space  */
 	CONSTRAINT_SPACE_POSE, /* = 2 */
- 		/* for posechannels - local with parent  */
+		 /* for posechannels - local with parent  */
 	CONSTRAINT_SPACE_PARLOCAL, /* = 3 */
 		/* for files from between 2.43-2.46 (should have been parlocal) */
 	CONSTRAINT_SPACE_INVALID, /* = 4. do not exchange for anything! */
@@ -498,6 +505,13 @@ typedef enum eCopyScale_Flags {
 	SIZELIKE_Z		= (1<<2), 
 	SIZELIKE_OFFSET = (1<<3),
 } eCopyScale_Flags;
+
+/* bSameVolumeConstraint.flag */
+typedef enum eSameVolume_Modes {
+	SAMEVOL_X		= 0,
+	SAMEVOL_Y,
+	SAMEVOL_Z, 
+} eSameVolume_Modes;
 
 /* Locked-Axis Values (Locked Track) */
 typedef enum eLockAxis_Modes {

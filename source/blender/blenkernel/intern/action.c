@@ -38,26 +38,16 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_curve_types.h"
-#include "DNA_key_types.h"
-#include "DNA_nla_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_anim.h"
-#include "BKE_armature.h"
-#include "BKE_blender.h"
 #include "BKE_constraint.h"
-#include "BKE_displist.h"
 #include "BKE_global.h"
 #include "BKE_fcurve.h"
-#include "BKE_key.h"
-#include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
@@ -66,23 +56,22 @@
 
 #include "BIK_api.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_math.h"
 
 #include "RNA_access.h"
-#include "RNA_types.h"
 
 /* *********************** NOTE ON POSE AND ACTION **********************
 
   - Pose is the local (object level) component of armature. The current
-    object pose is saved in files, and (will be) is presorted for dependency
+	object pose is saved in files, and (will be) is presorted for dependency
   - Actions have fewer (or other) channels, and write data to a Pose
   - Currently ob->pose data is controlled in where_is_pose only. The (recalc)
-    event system takes care of calling that
+	event system takes care of calling that
   - The NLA system (here too) uses Poses as interpolation format for Actions
   - Therefore we assume poses to be static, and duplicates of poses have channels in
-    same order, for quick interpolation reasons
+	same order, for quick interpolation reasons
 
   ****************************** (ton) ************************************ */
 
@@ -249,6 +238,30 @@ void set_active_action_group (bAction *act, bActionGroup *agrp, short select)
 	}
 }
 
+/* Add a new action group with the given name to the action */
+bActionGroup *action_groups_add_new (bAction *act, const char name[])
+{
+	bActionGroup *agrp;
+	
+	/* sanity check: must have action and name */
+	if (ELEM(NULL, act, name))
+		return NULL;
+	
+	/* allocate a new one */
+	agrp = MEM_callocN(sizeof(bActionGroup), "bActionGroup");
+	
+	/* make it selected, with default name */
+	agrp->flag = AGRP_SELECTED;
+	strncpy(agrp->name, name[0] ? name : "Group", sizeof(agrp->name));
+	
+	/* add to action, and validate */
+	BLI_addtail(&act->groups, agrp);
+	BLI_uniquename(&act->groups, agrp, "Group", '.', offsetof(bActionGroup, name), sizeof(agrp->name));	
+	
+	/* return the new group */
+	return agrp;
+}
+
 /* Add given channel into (active) group 
  *	- assumes that channel is not linked to anything anymore
  *	- always adds at the end of the group 
@@ -382,6 +395,9 @@ bPoseChannel *get_pose_channel(const bPose *pose, const char *name)
 	if (ELEM(NULL, pose, name) || (name[0] == 0))
 		return NULL;
 	
+	if(pose->chanhash)
+		return BLI_ghash_lookup(pose->chanhash, name);
+	
 	return BLI_findstring(&((bPose *)pose)->chanbase, name, offsetof(bPoseChannel, name));
 }
 
@@ -417,6 +433,7 @@ bPoseChannel *verify_pose_channel(bPose *pose, const char *name)
 	chan->protectflag = OB_LOCK_ROT4D;	/* lock by components by default */
 	
 	BLI_addtail(&pose->chanbase, chan);
+	free_pose_channels_hash(pose);
 	
 	return chan;
 }
@@ -531,6 +548,26 @@ void init_pose_ikparam(bPose *pose)
 	}
 }
 
+void make_pose_channels_hash(bPose *pose) 
+{
+	if(!pose->chanhash) {
+		bPoseChannel *pchan;
+
+		pose->chanhash= BLI_ghash_new(BLI_ghashutil_strhash, BLI_ghashutil_strcmp);
+		for(pchan=pose->chanbase.first; pchan; pchan=pchan->next)
+			BLI_ghash_insert(pose->chanhash, pchan->name, pchan);
+	}
+}
+
+void free_pose_channels_hash(bPose *pose) 
+{
+	if(pose->chanhash) {
+		BLI_ghash_free(pose->chanhash, NULL, NULL);
+		pose->chanhash= NULL;
+	}
+}
+
+
 void free_pose_channel(bPoseChannel *pchan)
 {
 	// XXX this case here will need to be removed when the new motionpaths are ready
@@ -562,6 +599,8 @@ void free_pose_channels(bPose *pose)
 		
 		BLI_freelistN(&pose->chanbase);
 	}
+
+	free_pose_channels_hash(pose);
 }
 
 void free_pose(bPose *pose)
@@ -748,7 +787,7 @@ void pose_add_group (Object *ob)
 	grp= MEM_callocN(sizeof(bActionGroup), "PoseGroup");
 	strcpy(grp->name, "Group");
 	BLI_addtail(&pose->agroups, grp);
-	BLI_uniquename(&pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), 32);
+	BLI_uniquename(&pose->agroups, grp, "Group", '.', offsetof(bActionGroup, name), sizeof(grp->name));
 	
 	pose->active_group= BLI_countlist(&pose->agroups);
 }
@@ -1075,7 +1114,6 @@ void what_does_obaction (Scene *scene, Object *ob, Object *workob, bPose *pose, 
 	copy_m4_m4(workob->parentinv, ob->parentinv);
 	copy_m4_m4(workob->constinv, ob->constinv);
 	workob->parent= ob->parent;
-	workob->track= ob->track;
 	
 	workob->rotmode= ob->rotmode;
 	
@@ -1150,17 +1188,17 @@ static void blend_pose_strides(bPose *dst, bPose *src, float srcweight, short mo
 
 bone matching diagram, strips A and B
 
-                 .------------------------.
-                 |         A              |
-                 '------------------------'
+				 .------------------------.
+				 |         A              |
+				 '------------------------'
 				 .          .             b2
-                 .          .-------------v----------.
-                 .      	|         B   .          |
-                 .          '------------------------'
-                 .          .             .
-                 .          .             .
+				 .          .-------------v----------.
+				 .      	|         B   .          |
+				 .          '------------------------'
+				 .          .             .
+				 .          .             .
 offset:          .    0     .    A-B      .  A-b2+B     
-                 .          .             .
+				 .          .             .
 
 */
 

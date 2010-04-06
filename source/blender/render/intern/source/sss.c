@@ -31,11 +31,11 @@
    - add fresnel terms
    - adapt Rd table to scale, now with small scale there are a lot of misses?
    - possible interesting method: perform sss on all samples in the tree,
-     and then use those values interpolated somehow later. can also do this
+	 and then use those values interpolated somehow later. can also do this
 	 filtering on demand for speed. since we are doing things in screen
 	 space now there is an exact correspondence
    - avoid duplicate shading (filtering points in advance, irradiance cache
-     like lookup?)
+	 like lookup?)
    - lower resolution samples
 */
 
@@ -196,13 +196,13 @@ static float compute_reduced_albedo(ScatterSettings *ss)
 		if(xn_1 > 1.0f) xn_1= 1.0f;
 		
 		fxn= f_Rd(xn, ss->A, ss->ro);
-    }
+	}
 
 	/* avoid division by zero later */
 	if(xn <= 0.0f)
 		xn= 0.00001f;
 
-    return xn;
+	return xn;
 }
 
 /* Exponential falloff functions */
@@ -878,7 +878,7 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 		re->result= NULL;
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
-	RE_TileProcessor(re, 0, 1);
+	RE_TileProcessor(re);
 	
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 	if(!(re->r.scemode & R_PREVIEWBUTS)) {

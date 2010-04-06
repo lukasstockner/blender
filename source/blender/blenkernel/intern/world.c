@@ -35,20 +35,10 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_world_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_object_types.h"
-#include "DNA_camera_types.h"
-
-
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-
-#include "BKE_utildefines.h"
 
 #include "BKE_library.h"
 #include "BKE_animsys.h"
-#include "BKE_world.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_icons.h"
@@ -145,9 +135,9 @@ void make_local_world(World *wrld)
 	int local=0, lib=0;
 
 	/* - only lib users: do nothing
-	    * - only local users: set flag
-	    * - mixed: make copy
-	    */
+		* - only local users: set flag
+		* - mixed: make copy
+		*/
 	
 	if(wrld->id.lib==0) return;
 	if(wrld->id.us==1) {

@@ -27,12 +27,7 @@
  */
 
 #include <sys/stat.h>
-#include <sys/types.h>
 
-#include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <string.h>
 
 /* path/file handeling stuff */
@@ -46,13 +41,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_ID.h" /* Library */
-#include "DNA_customdata_types.h"
-#include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h" /* to get the current frame */
 #include "DNA_sequence_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_vfont_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -86,7 +77,7 @@ enum BPathTypes {
 	BPATH_SEQ,
 	BPATH_CDATA,
 
- 	BPATH_DONE
+	 BPATH_DONE
 };
 
 void BLI_bpathIterator_init( struct BPathIterator *bpi, char *base_path ) {
@@ -137,9 +128,9 @@ void BLI_bpathIterator_getPathExpanded( struct BPathIterator *bpi, char *path_ex
 	libpath = BLI_bpathIterator_getLib(bpi);
 	
 	if (libpath) { /* check the files location relative to its library path */
-		BLI_convertstringcode(path_expanded, libpath);
+		BLI_path_abs(path_expanded, libpath);
 	} else { /* local data, use the blend files path */
-		BLI_convertstringcode(path_expanded, bpi->base_path);
+		BLI_path_abs(path_expanded, bpi->base_path);
 	}
 }
 char* BLI_bpathIterator_getLib( struct BPathIterator *bpi) {
@@ -290,7 +281,7 @@ static void seq_setpath(struct BPathIterator *bpi, char *path) {
 	
 	if (SEQ_HAS_PATH(seq)) {
 		if (seq->type == SEQ_IMAGE || seq->type == SEQ_MOVIE) {
-			BLI_split_dirfile_basic(path, seq->strip->dir, seq->strip->stripdata->name);
+			BLI_split_dirfile(path, seq->strip->dir, seq->strip->stripdata->name);
 		} else {
 			/* simple case */
 			BLI_strncpy(seq->strip->dir, path, sizeof(seq->strip->dir));
@@ -533,7 +524,7 @@ void makeFilesRelative(char *basepath, ReportList *reports) {
 				/* Important BLI_cleanup_dir runs before the path is made relative
 				 * because it wont work for paths that start with "//../" */ 
 				BLI_cleanup_file(bpi.base_path, filepath_relative); /* fix any /foo/../foo/ */
-				BLI_makestringcode(bpi.base_path, filepath_relative);
+				BLI_path_rel(filepath_relative, bpi.base_path);
 				/* be safe and check the length */
 				if (BLI_bpathIterator_getPathMaxLen(&bpi) <= strlen(filepath_relative)) {
 					bpath_as_report(&bpi, "couldn't make path relative (too long)", reports);
@@ -673,7 +664,7 @@ void findMissingFiles(char *basepath, char *str) {
 	
 	//XXX waitcursor( 1 );
 	
-	BLI_split_dirfile_basic(str, dirname, NULL);
+	BLI_split_dirfile(str, dirname, NULL);
 	
 	BLI_bpathIterator_init(&bpi, basepath);
 	
@@ -694,7 +685,7 @@ void findMissingFiles(char *basepath, char *str) {
 				/* can the dir be opened? */
 				filesize = -1;
 				recur_depth = 0;
-				BLI_split_dirfile_basic(filepath, NULL, filename); /* the file to find */
+				BLI_split_dirfile(filepath, NULL, filename); /* the file to find */
 				
 				findFileRecursive(filename_new, dirname, filename, &filesize, &recur_depth);
 				if (filesize == -1) { /* could not open dir */
@@ -709,7 +700,7 @@ void findMissingFiles(char *basepath, char *str) {
 					} else {
 						/* copy the found path into the old one */
 						if (G.relbase_valid)
-							BLI_makestringcode(bpi.base_path, filename_new);
+							BLI_path_rel(filename_new, bpi.base_path);
 						
 						BLI_bpathIterator_setPath( &bpi, filename_new );
 					}

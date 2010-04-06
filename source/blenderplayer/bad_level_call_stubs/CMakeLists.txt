@@ -26,12 +26,21 @@
 
 FILE(GLOB SRC stubs.c)
 
+IF(WITH_BUILDINFO)
+	ADD_DEFINITIONS(-DBUILD_DATE)
+	FILE(GLOB SRC ${SRC} ../../creator/buildinfo.c)
+ENDIF(WITH_BUILDINFO)
+
 SET(INC 
 	.
 	.. 
 	../../../source/blender/makesdna
 	../../../source/blender/makesrna  
 )
+
+IF(WITH_GAMEENGINE)
+	ADD_DEFINITIONS(-DGAMEBLENDER)
+ENDIF(WITH_GAMEENGINE)
 
 IF(WITH_INTERNATIONAL)
 	ADD_DEFINITIONS(-DWITH_FREETYPE2)

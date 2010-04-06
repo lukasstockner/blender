@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,13 +29,9 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_image_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -51,11 +47,8 @@
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
 
-#include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "ED_gpencil.h"
-#include "ED_image.h"
 #include "ED_mesh.h"
 #include "ED_space_api.h"
 #include "ED_screen.h"
@@ -69,7 +62,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -475,6 +467,7 @@ void image_operatortypes(void)
 	WM_operatortype_append(IMAGE_OT_cycle_render_slot);
 
 	WM_operatortype_append(IMAGE_OT_sample);
+	WM_operatortype_append(IMAGE_OT_sample_line);
 	WM_operatortype_append(IMAGE_OT_curves_point_set);
 
 	WM_operatortype_append(IMAGE_OT_record_composite);
@@ -560,6 +553,9 @@ static void image_refresh(const bContext *C, ScrArea *sa)
 
 	ima= ED_space_image(sima);
 
+	if(sima->iuser.flag & IMA_ANIM_ALWAYS)
+		BKE_image_user_calc_frame(&sima->iuser, CTX_data_scene(C)->r.cfra, 0);
+	
 	/* check if we have to set the image from the editmesh */
 	if(ima && (ima->source==IMA_SRC_VIEWER || sima->pin));
 	else if(obedit && obedit->type == OB_MESH) {
@@ -593,13 +589,18 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 	switch(wmn->category) {
 		case NC_SCENE:
 			switch(wmn->data) {
+				case ND_FRAME:
+					image_histogram_tag_refresh(sa);
+					ED_area_tag_refresh(sa);
+					ED_area_tag_redraw(sa);					
+					break;
 				case ND_MODE:
 				case ND_RENDER_RESULT:
 				case ND_COMPO_RESULT:
 					if (ED_space_image_show_render(sima))
 						image_histogram_tag_refresh(sa);
 					ED_area_tag_refresh(sa);
-					ED_area_tag_redraw(sa);
+					ED_area_tag_redraw(sa);					
 					break;
 			}
 			break;
@@ -611,8 +612,10 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 			}
 			break;
 		case NC_SPACE:	
-			if(wmn->data == ND_SPACE_IMAGE)
+			if(wmn->data == ND_SPACE_IMAGE) {
+				image_histogram_tag_refresh(sa);
 				ED_area_tag_redraw(sa);
+			}
 			break;
 		case NC_GEOM:
 			switch(wmn->data) {
@@ -620,6 +623,15 @@ static void image_listener(ScrArea *sa, wmNotifier *wmn)
 				case ND_SELECT:
 					ED_area_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
+					break;
+			}
+		case NC_OBJECT:
+			switch(wmn->data) {
+				case ND_TRANSFORM:
+					if(sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+						ED_area_tag_refresh(sa);
+						ED_area_tag_redraw(sa);
+					}
 					break;
 			}
 	}
@@ -769,7 +781,10 @@ static void image_main_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch(wmn->category) {
-		/* nothing yet */
+		case NC_SCREEN:
+			if (wmn->data==ND_GPENCIL)
+				ED_region_tag_redraw(ar);
+		break;
 	}
 }
 
@@ -795,6 +810,10 @@ static void image_buttons_area_listener(ARegion *ar, wmNotifier *wmn)
 {
 	/* context changes */
 	switch(wmn->category) {
+		case NC_SCREEN:
+			if (wmn->data==ND_GPENCIL)
+				ED_region_tag_redraw(ar);
+			break;
 		case NC_BRUSH:
 			if(wmn->action==NA_EDITED)
 				ED_region_tag_redraw(ar);
@@ -821,7 +840,7 @@ static void image_scope_area_draw(const bContext *C, ARegion *ar)
 	void *lock;
 	ImBuf *ibuf= ED_space_image_acquire_buffer(sima, &lock);
 	if(ibuf)
-        histogram_update(&sima->hist, ibuf);
+		histogram_update(&sima->hist, ibuf);
 	ED_space_image_release_buffer(sima, lock);
 	
 	ED_region_panels(C, ar, 1, NULL, -1);
@@ -861,6 +880,29 @@ static void image_header_area_init(wmWindowManager *wm, ARegion *ar)
 static void image_header_area_draw(const bContext *C, ARegion *ar)
 {
 	ED_region_header(C, ar);
+}
+
+static void image_header_area_listener(ARegion *ar, wmNotifier *wmn)
+{
+	/* context changes */
+	switch(wmn->category) {
+		case NC_SCENE:
+			switch(wmn->data) {
+				case ND_MODE:
+				case ND_TOOLSETTINGS:
+					ED_region_tag_redraw(ar);
+					break;
+			}
+			break;
+		case NC_GEOM:
+			switch(wmn->data) {
+				case ND_DATA:
+				case ND_SELECT:
+					ED_region_tag_redraw(ar);
+					break;
+			}
+			
+	}
 }
 
 /**************************** spacetype *****************************/
@@ -922,6 +964,7 @@ void ED_spacetype_image(void)
 	art->regionid = RGN_TYPE_HEADER;
 	art->prefsizey= HEADERY;
 	art->keymapflag= ED_KEYMAP_UI|ED_KEYMAP_VIEW2D|ED_KEYMAP_FRAMES|ED_KEYMAP_HEADER;
+	art->listener= image_header_area_listener;
 	art->init= image_header_area_init;
 	art->draw= image_header_area_draw;
 	

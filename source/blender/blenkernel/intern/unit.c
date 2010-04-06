@@ -24,8 +24,11 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#ifdef WIN32
+#define _USE_MATH_DEFINES
+#endif
+#include <math.h>
 
-#include "BLI_math.h"
 #include "BLI_winstuff.h"
 
 #define TEMP_STR_SIZE 256
@@ -33,7 +36,7 @@
 #define SEP_CHR		'#'
 #define SEP_STR		"#"
 
-#define EUL 0.000001
+#define EPS 0.000001
 
 
 /* define a single unit */
@@ -78,7 +81,7 @@ static struct bUnitDef buMetricLenDef[] = {
 	{"decimetre", "decimetres",		"dm", NULL,	"10 Centimeters", 0.1, 0.0,			B_UNIT_DEF_SUPPRESS},
 	{"centimeter", "centimeters",	"cm", NULL,	"Centimeters", 0.01, 0.0,			B_UNIT_DEF_NONE},
 	{"millimeter", "millimeters",	"mm", NULL,	"Millimeters", 0.001, 0.0,			B_UNIT_DEF_NONE},
-	{"micrometer", "micrometers",	"um", "µm",	"Micrometers", 0.000001, 0.0,		B_UNIT_DEF_NONE}, // micron too?
+	{"micrometer", "micrometers",	"µm", "um",	"Micrometers", 0.000001, 0.0,		B_UNIT_DEF_NONE}, // micron too?
 
 	/* These get displayed because of float precision problems in the transform header,
 	 * could work around, but for now probably people wont use these */
@@ -118,7 +121,7 @@ static struct bUnitCollection buNaturalTimeCollecton = {buNaturalTimeDef, 3, 0, 
 
 
 static struct bUnitDef buNaturalRotDef[] = {
-	{"degree", "degrees",			"°", NULL, "Degrees",		M_PI/180.f, 0.0,	B_UNIT_DEF_NONE},
+	{"degree", "degrees",			"°", NULL, "Degrees",		M_PI/180.0, 0.0,	B_UNIT_DEF_NONE},
 	{NULL, NULL, NULL, NULL, NULL, 0.0, 0.0}
 };
 static struct bUnitCollection buNaturalRotCollection = {buNaturalRotDef, 0, 0, sizeof(buNaturalRotDef)/sizeof(bUnitDef)};
@@ -152,7 +155,7 @@ static bUnitDef *unit_best_fit(double value, bUnitCollection *usys, bUnitDef *un
 		if(suppress && (unit->flag & B_UNIT_DEF_SUPPRESS))
 			continue;
 
-		if (value_abs >= unit->scalar*(1.0-EUL)) /* scale down scalar so 1cm doesnt convert to 10mm because of float error */
+		if (value_abs >= unit->scalar*(1.0-EPS)) /* scale down scalar so 1cm doesnt convert to 10mm because of float error */
 			return unit;
 	}
 
@@ -167,7 +170,7 @@ static void unit_dual_convert(double value, bUnitCollection *usys,
 {
 	bUnitDef *unit= unit_best_fit(value, usys, NULL, 1);
 
-	*value_a= floor(value/unit->scalar) * unit->scalar;
+	*value_a=  (value < 0.0 ? ceil:floor)(value/unit->scalar) * unit->scalar;
 	*value_b= value - (*value_a);
 
 	*unit_a=	unit;

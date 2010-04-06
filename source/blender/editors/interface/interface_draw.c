@@ -29,11 +29,8 @@
 #include <string.h>
 
 #include "DNA_color_types.h"
-#include "DNA_listBase.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BLI_math.h"
 
@@ -48,7 +45,6 @@
 #include "BIF_glutil.h"
 
 #include "UI_interface.h"
-#include "UI_interface_icons.h"
 
 #include "interface_intern.h"
 
@@ -81,7 +77,7 @@ int uiGetRoundBox(void)
 void gl_round_box(int mode, float minx, float miny, float maxx, float maxy, float rad)
 {
 	float vec[7][2]= {{0.195, 0.02}, {0.383, 0.067}, {0.55, 0.169}, {0.707, 0.293},
-	                  {0.831, 0.45}, {0.924, 0.617}, {0.98, 0.805}};
+					  {0.831, 0.45}, {0.924, 0.617}, {0.98, 0.805}};
 	int a;
 	
 	/* mult */
@@ -151,7 +147,7 @@ static void round_box_shade_col(float *col1, float *col2, float fac)
 void gl_round_box_shade(int mode, float minx, float miny, float maxx, float maxy, float rad, float shadetop, float shadedown)
 {
 	float vec[7][2]= {{0.195, 0.02}, {0.383, 0.067}, {0.55, 0.169}, {0.707, 0.293},
-	                  {0.831, 0.45}, {0.924, 0.617}, {0.98, 0.805}};
+					  {0.831, 0.45}, {0.924, 0.617}, {0.98, 0.805}};
 	float div= maxy-miny;
 	float coltop[3], coldown[3], color[4];
 	int a;
@@ -258,7 +254,7 @@ void gl_round_box_shade(int mode, float minx, float miny, float maxx, float maxy
 void gl_round_box_vertical_shade(int mode, float minx, float miny, float maxx, float maxy, float rad, float shadeLeft, float shadeRight)
 {
 	float vec[7][2]= {{0.195, 0.02}, {0.383, 0.067}, {0.55, 0.169}, {0.707, 0.293},
-	                  {0.831, 0.45}, {0.924, 0.617}, {0.98, 0.805}};
+					  {0.831, 0.45}, {0.924, 0.617}, {0.98, 0.805}};
 	float div= maxx-minx;
 	float colLeft[3], colRight[3], color[4];
 	int a;
@@ -565,7 +561,7 @@ static void ui_draw_but_CHARTAB(uiBut *but)
 			int err;
 
 			strcpy(tmpStr, G.selfont->name);
-			BLI_convertstringcode(tmpStr, G.sce);
+			BLI_path_abs(tmpStr, G.sce);
 			err = FTF_SetFont((unsigned char *)tmpStr, 0, 14.0);
 		}
 	}
@@ -698,15 +694,16 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *
 	int i;
 	int rgb;
 	float w, h;
+	float scaler_x1, scaler_x2;
 	float alpha;
 	GLint scissor[4];
 	
 	if (hist==NULL) { printf("hist is null \n"); return; }
 	
-	rect.xmin = (float)recti->xmin;
-	rect.xmax = (float)recti->xmax;
-	rect.ymin = (float)recti->ymin;
-	rect.ymax = (float)recti->ymax;
+	rect.xmin = (float)recti->xmin+1;
+	rect.xmax = (float)recti->xmax-1;
+	rect.ymin = (float)recti->ymin+SCOPE_RESIZE_PAD+2;
+	rect.ymax = (float)recti->ymax-1;
 	
 	w = rect.xmax - rect.xmin;
 	h = rect.ymax - rect.ymin;
@@ -767,14 +764,28 @@ void ui_draw_but_HISTOGRAM(ARegion *ar, uiBut *but, uiWidgetColors *wcol, rcti *
 		glDisable(GL_LINE_SMOOTH);
 	}
 	
+
 	/* restore scissortest */
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 	
 	glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+	
+	/* height scaling widget */
+	scaler_x1 = rect.xmin + w/2 - SCOPE_RESIZE_PAD;
+	scaler_x2 = rect.xmin + w/2 + SCOPE_RESIZE_PAD;
+	
+	glColor4f(0.f, 0.f, 0.f, 0.25f);
+	fdrawline(scaler_x1, rect.ymin-4, scaler_x2, rect.ymin-4);
+	fdrawline(scaler_x1, rect.ymin-7, scaler_x2, rect.ymin-7);
+	glColor4f(1.f, 1.f, 1.f, 0.25f);
+	fdrawline(scaler_x1, rect.ymin-5, scaler_x2, rect.ymin-5);
+	fdrawline(scaler_x1, rect.ymin-8, scaler_x2, rect.ymin-8);
+
+	
 	glColor4f(0.f, 0.f, 0.f, 0.5f);
 	uiSetRoundBox(15);
-	gl_round_box(GL_LINE_LOOP, rect.xmin-1, rect.ymin-1, rect.xmax+1, rect.ymax+1, 3.0f);
-	
+	gl_round_box(GL_LINE_LOOP, rect.xmin-1, rect.ymin, rect.xmax+1, rect.ymax+1, 3.0f);
+		
 	glDisable(GL_BLEND);
 }
 

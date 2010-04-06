@@ -1,5 +1,5 @@
 /**
- * $Id: 
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -34,17 +34,10 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_view3d_types.h"
-#include "DNA_windowmanager_types.h"
 
-#include "RNA_types.h"
 #include "RNA_define.h"
 #include "RNA_access.h"
 
@@ -65,10 +58,8 @@
 #include "WM_types.h"
 
 #include "ED_mesh.h"
-#include "ED_retopo.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
-#include "ED_util.h"
 #include "ED_view3d.h"
 #include "ED_object.h"
 
@@ -1005,25 +996,23 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 			eve->f= 0;
 			eve= eve->next;
 		}
-		/* one segment first: the X axis */
-		phi= 1.0; 
-		phid= 2.0/((float)tot-1);
+		
+		/* one segment first: the X axis */		
+		phi = (2*dia)/(float)(tot-1);
+		phid = (2*dia)/(float)(seg-1);
 		for(a=0;a<tot;a++) {
-			vec[0]= dia*phi;
+			vec[0] = (phi*a) - dia;
 			vec[1]= - dia;
 			vec[2]= 0.0f;
-			mul_m4_v3(mat,vec);
 			eve= addvertlist(em, vec, NULL);
 			eve->f= 1+2+4;
 			if (a) {
 				addedgelist(em, eve->prev, eve, NULL);
 			}
-			phi-=phid;
 		}
 		/* extrude and translate */
 		vec[0]= vec[2]= 0.0;
-		vec[1]= dia*phid;
-		mul_mat3_m4_v3(mat, vec);
+		vec[1]= phid;
 		
 		for(a=0;a<seg-1;a++) {
 			extrudeflag_vert(obedit, em, 2, nor, 0);	// nor unused
@@ -1107,7 +1096,7 @@ static void make_prim(Object *obedit, int type, float mat[4][4], int tot, int se
 			}
 
 			dia*=200;
-			for(a=1; a<subdiv; a++) esubdivideflag(obedit, em, 2, dia, 0, B_SPHERE,1,0);
+			for(a=1; a<subdiv; a++) esubdivideflag(obedit, em, 2, dia, 0, B_SPHERE,1, SUBDIV_CORNER_PATH, 0);
 			/* and now do imat */
 			eve= em->verts.first;
 			while(eve) {
@@ -1291,6 +1280,7 @@ static void make_prim_ext(bContext *C, float *loc, float *rot, int enter_editmod
 	else DAG_id_flush_update(&obedit->id, OB_RECALC_DATA);
 
 	dia *= ED_object_new_primitive_matrix(C, loc, rot, mat);
+	depth *= ED_object_new_primitive_matrix(C, loc, rot, mat);
 
 	make_prim(obedit, type, mat, tot, seg, subdiv, dia, depth, ext, fill);
 

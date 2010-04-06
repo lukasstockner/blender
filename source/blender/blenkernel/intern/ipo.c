@@ -48,46 +48,29 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_ipo_types.h"
 #include "DNA_key_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_nla_types.h"
-#include "DNA_object_types.h"
-#include "DNA_object_force.h"
-#include "DNA_particle_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_sound_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_math.h" /* windows needs for M_PI */
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_dynstr.h"
 
 #include "BKE_utildefines.h"
 
 #include "BKE_animsys.h"
 #include "BKE_action.h"
-#include "BKE_blender.h"
-#include "BKE_curve.h"
-#include "BKE_constraint.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
-#include "BKE_ipo.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_nla.h"
-#include "BKE_object.h"
 
 
 
@@ -1051,6 +1034,7 @@ static ChannelDriver *idriver_to_cdriver (IpoDriver *idriver)
 				if (idriver->name[0])
 					BLI_strncpy(dtar->pchan_name, idriver->name, 32);
 				dtar->transChan= adrcode_to_dtar_transchan(idriver->adrcode);
+				dtar->flag |= DTAR_FLAG_LOCALSPACE; /* old drivers took local space */
 			}
 		}
 		else { /* Object */
@@ -1101,10 +1085,10 @@ static void fcurve_add_to_list (ListBase *groups, ListBase *list, FCurve *fcu, c
 				agrp->flag = AGRP_SELECTED;
 				if(muteipo) agrp->flag |= AGRP_MUTED;
 
-				BLI_snprintf(agrp->name, 64, grpname);
+				strncpy(agrp->name, grpname, sizeof(agrp->name));
 				
 				BLI_addtail(&tmp_act.groups, agrp);
-				BLI_uniquename(&tmp_act.groups, agrp, "Group", '.', offsetof(bActionGroup, name), 64);
+				BLI_uniquename(&tmp_act.groups, agrp, "Group", '.', offsetof(bActionGroup, name), sizeof(agrp->name));
 			}
 		}
 		
@@ -1827,7 +1811,7 @@ void do_versions_ipos_to_animato(Main *main)
 			Sequence * seq;
 			
 			for(seq = scene->ed->seqbasep->first; 
-			    seq; seq = seq->next) {
+				seq; seq = seq->next) {
 				short adrcode = SEQ_FAC1;
 				
 				if (G.f & G_DEBUG) 

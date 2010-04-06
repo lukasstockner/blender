@@ -32,6 +32,8 @@
 
 extern PyTypeObject pyrna_struct_Type;
 extern PyTypeObject pyrna_prop_Type;
+extern PyTypeObject pyrna_prop_array_Type;
+extern PyTypeObject pyrna_prop_collection_Type;
 
 #define BPy_StructRNA_Check(v)			(PyObject_TypeCheck(v, &pyrna_struct_Type))
 #define BPy_StructRNA_CheckExact(v)		(Py_TYPE(v) == &pyrna_struct_Type)
@@ -62,8 +64,8 @@ typedef struct {
 /* cheap trick */
 #define BPy_BaseTypeRNA BPy_PropertyRNA
 
-StructRNA *srna_from_self(PyObject *self);
-StructRNA *pyrna_struct_as_srna(PyObject *self);
+StructRNA *srna_from_self(PyObject *self, const char *error_prefix);
+StructRNA *pyrna_struct_as_srna(PyObject *self, int parent, const char *error_prefix);
 
 void      BPY_rna_init( void );
 PyObject *BPY_rna_module( void );
@@ -81,6 +83,8 @@ PyObject * pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop);
 
 PyObject *pyrna_enum_bitfield_to_py(struct EnumPropertyItem *items, int value);
 int pyrna_set_to_enum_bitfield(EnumPropertyItem *items, PyObject *value, int *r_value, const char *error_prefix);
+
+int pyrna_enum_value_from_id(EnumPropertyItem *item, const char *identifier, int *value, const char *error_prefix);
 
 /* function for registering types */
 PyObject *pyrna_basetype_register(PyObject *self, PyObject *args);

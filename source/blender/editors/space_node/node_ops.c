@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -27,20 +27,15 @@
  */
 
 #include "DNA_node_types.h"
-#include "DNA_material_types.h"
-#include "DNA_texture_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
 
 #include "BKE_context.h"
 #include "BKE_node.h"
 
-#include "ED_space_api.h"
 #include "ED_screen.h"
 #include "ED_transform.h"
 
 #include "RNA_access.h"
-#include "RNA_define.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -79,12 +74,10 @@ void node_operatortypes(void)
 void ED_operatormacros_node(void)
 {
 	wmOperatorType *ot;
-	wmOperatorTypeMacro *otmacro;
 	
 	ot= WM_operatortype_append_macro("NODE_OT_duplicate_move", "Duplicate", OPTYPE_UNDO|OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "NODE_OT_duplicate");
-	otmacro= WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
-	RNA_enum_set(otmacro->ptr, "proportional", 0);
+	WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 }
 
 void node_keymap(struct wmKeyConfig *keyconf)

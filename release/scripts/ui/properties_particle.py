@@ -231,6 +231,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
         sub.prop(cloth, "mass")
         sub.prop(cloth, "bending_stiffness", text="Bending")
         sub.prop(cloth, "internal_friction", slider=True)
+        sub.prop(cloth, "collider_friction", slider=True)
 
         col = split.column()
 
@@ -394,6 +395,43 @@ class PARTICLE_PT_physics(ParticleButtonsPanel):
             sub.prop(part, "integrator")
             sub.prop(part, "time_tweak")
 
+        elif part.physics_type == 'FLUID':
+            fluid = part.fluid
+            split = layout.split()
+            sub = split.column()
+
+            sub.label(text="Forces:")
+            sub.prop(part, "brownian_factor")
+            sub.prop(part, "drag_factor", slider=True)
+            sub.prop(part, "damp_factor", slider=True)
+            sub = split.column()
+            sub.prop(part, "size_deflect")
+            sub.prop(part, "die_on_collision")
+            sub.prop(part, "integrator")
+            sub.prop(part, "time_tweak")
+
+            split = layout.split()
+            sub = split.column()
+            sub.label(text="Fluid Interaction:")
+            sub.prop(fluid, "fluid_radius", slider=True)
+            sub.prop(fluid, "stiffness_k")
+            sub.prop(fluid, "stiffness_knear")
+            sub.prop(fluid, "rest_density")
+
+            sub.label(text="Viscosity:")
+            sub.prop(fluid, "viscosity_omega", text="Linear")
+            sub.prop(fluid, "viscosity_beta", text="Square")
+
+            sub = split.column()
+
+            sub.label(text="Springs:")
+            sub.prop(fluid, "spring_k", text="Force", slider=True)
+            sub.prop(fluid, "rest_length", slider=True)
+            layout.label(text="Multiple fluids interactions:")
+
+            sub.label(text="Buoyancy:")
+            sub.prop(fluid, "buoyancy", slider=True)
+
         elif part.physics_type == 'KEYED':
             split = layout.split()
             sub = split.column()
@@ -453,7 +491,7 @@ class PARTICLE_PT_physics(ParticleButtonsPanel):
             col.prop(boids, "banking", slider=True)
             col.prop(boids, "height", slider=True)
 
-        if part.physics_type == 'KEYED' or part.physics_type == 'BOIDS':
+        if part.physics_type == 'KEYED' or part.physics_type == 'BOIDS' or part.physics_type == 'FLUID':
             if part.physics_type == 'BOIDS':
                 layout.label(text="Relations:")
 
@@ -483,7 +521,7 @@ class PARTICLE_PT_physics(ParticleButtonsPanel):
                     col.active = psys.keyed_timing
                     col.prop(key, "time")
                     col.prop(key, "duration")
-                else:
+                elif part.physics_type == 'BOIDS':
                     sub = row.row()
                     #doesn't work yet
                     #sub.red_alert = key.valid
@@ -491,6 +529,12 @@ class PARTICLE_PT_physics(ParticleButtonsPanel):
                     sub.prop(key, "system", text="System")
 
                     layout.prop(key, "mode", expand=True)
+                elif part.physics_type == 'FLUID':
+                    sub = row.row()
+                    #doesn't work yet
+                    #sub.red_alert = key.valid
+                    sub.prop(key, "object", text="")
+                    sub.prop(key, "system", text="System")
 
 
 class PARTICLE_PT_boidbrain(ParticleButtonsPanel):
@@ -998,19 +1042,36 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel):
         row.prop_object(psys, "vertex_group_field", ob, "vertex_groups", text="Field")
         row.prop(psys, "vertex_group_field_negate", text="")
 
-bpy.types.register(PARTICLE_PT_context_particles)
-bpy.types.register(PARTICLE_PT_hair_dynamics)
-bpy.types.register(PARTICLE_PT_cache)
-bpy.types.register(PARTICLE_PT_emission)
-bpy.types.register(PARTICLE_PT_velocity)
-bpy.types.register(PARTICLE_PT_rotation)
-bpy.types.register(PARTICLE_PT_physics)
-bpy.types.register(PARTICLE_PT_boidbrain)
-bpy.types.register(PARTICLE_PT_render)
-bpy.types.register(PARTICLE_PT_draw)
-bpy.types.register(PARTICLE_PT_children)
-bpy.types.register(PARTICLE_PT_field_weights)
-bpy.types.register(PARTICLE_PT_force_fields)
-bpy.types.register(PARTICLE_PT_vertexgroups)
 
-bpy.types.register(PARTICLE_PT_custom_props)
+classes = [
+    PARTICLE_PT_context_particles,
+    PARTICLE_PT_hair_dynamics,
+    PARTICLE_PT_cache,
+    PARTICLE_PT_emission,
+    PARTICLE_PT_velocity,
+    PARTICLE_PT_rotation,
+    PARTICLE_PT_physics,
+    PARTICLE_PT_boidbrain,
+    PARTICLE_PT_render,
+    PARTICLE_PT_draw,
+    PARTICLE_PT_children,
+    PARTICLE_PT_field_weights,
+    PARTICLE_PT_force_fields,
+    PARTICLE_PT_vertexgroups,
+
+    PARTICLE_PT_custom_props]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

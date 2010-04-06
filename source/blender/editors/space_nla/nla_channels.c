@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,24 +31,9 @@
 #include <stdlib.h>
 #include <math.h>
 
-#include "DNA_listBase.h"
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_object_types.h"
-#include "DNA_particle_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_key_types.h"
-#include "DNA_lamp_types.h"
-#include "DNA_material_types.h"
-#include "DNA_meta_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
-#include "DNA_world_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -65,8 +50,6 @@
 
 #include "ED_anim_api.h"
 #include "ED_keyframes_edit.h"
-#include "ED_markers.h"
-#include "ED_space_api.h"
 #include "ED_screen.h"
 
 #include "RNA_access.h"
@@ -75,9 +58,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
-#include "UI_interface_icons.h"
-#include "UI_resources.h"
 #include "UI_view2d.h"
 
 #include "nla_intern.h"	// own include
@@ -173,8 +153,6 @@ static int mouse_nla_channels (bAnimContext *ac, float x, int channel_index, sho
 					if (adt) adt->flag |= ADT_UI_SELECTED;
 				}
 				
-				/* xxx should be ED_base_object_activate(), but we need context pointer for that... */
-				//set_active_base(base);
 				if ((adt) && (adt->flag & ADT_UI_SELECTED))
 					adt->flag |= ADT_UI_ACTIVE;
 				
@@ -195,6 +173,8 @@ static int mouse_nla_channels (bAnimContext *ac, float x, int channel_index, sho
 		case ANIMTYPE_DSPART:
 		case ANIMTYPE_DSMBALL:
 		case ANIMTYPE_DSARM:
+		case ANIMTYPE_DSMESH:
+		case ANIMTYPE_DSTEX:
 		{
 			/* sanity checking... */
 			if (ale->adt) {

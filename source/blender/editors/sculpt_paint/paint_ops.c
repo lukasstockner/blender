@@ -19,7 +19,6 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include "DNA_brush_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -27,7 +26,6 @@
 #include "BKE_context.h"
 #include "BKE_paint.h"
 
-#include "ED_sculpt.h"
 #include "ED_screen.h"
 #include "UI_resources.h"
 
@@ -36,7 +34,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_enum_types.h"
 
 #include "paint_intern.h"
 #include "sculpt_intern.h"
@@ -68,7 +65,7 @@ void BRUSH_OT_add(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name= "Add Brush";
-    ot->description= "Add brush by mode type";
+	ot->description= "Add brush by mode type";
 	ot->idname= "BRUSH_OT_add";
 	
 	/* api callbacks */
@@ -121,6 +118,9 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_sample_color);
 	WM_operatortype_append(PAINT_OT_grab_clone);
 	WM_operatortype_append(PAINT_OT_clone_cursor_set);
+	WM_operatortype_append(PAINT_OT_project_image);
+	WM_operatortype_append(PAINT_OT_image_from_view);
+
 
 	/* weight */
 	WM_operatortype_append(PAINT_OT_weight_paint_toggle);
@@ -181,15 +181,13 @@ static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *path)
 {
 	wmKeyMapItem *kmi;
 	
-	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", LEFTBRACKETKEY, KM_PRESS, 0, 0);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_scale_int", LEFTBRACKETKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "path", path);
-	RNA_int_set(kmi->ptr, "value", -20);
-	RNA_boolean_set(kmi->ptr, "relative", 1);
+	RNA_float_set(kmi->ptr, "value", 0.9);
 	
-	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_scale_int", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "path", path);
-	RNA_int_set(kmi->ptr, "value", 20);
-	RNA_boolean_set(kmi->ptr, "relative", 1);
+	RNA_float_set(kmi->ptr, "value", 10.0/9.0); // 1.1111....
 }	
 
 void ED_keymap_paint(wmKeyConfig *keyconf)

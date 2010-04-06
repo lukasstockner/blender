@@ -29,7 +29,7 @@ class PhysicButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         ob = context.object
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
 
 
@@ -42,7 +42,7 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel):
         md = context.fluid
         wide_ui = context.region.width > narrowui
 
-        split = layout.split()
+        split = layout.split(percentage=0.5)
         split.operator_context = 'EXEC_DEFAULT'
 
         if md:
@@ -67,9 +67,18 @@ class PHYSICS_PT_fluid(PhysicButtonsPanel):
 
         if fluid:
             if wide_ui:
-                layout.prop(fluid, "type")
+                row = layout.row()
+                row.prop(fluid, "type")
+                if fluid.type not in ('NONE', 'DOMAIN', 'PARTICLE'):
+                    row.prop(fluid, "active", text="")
             else:
                 layout.prop(fluid, "type", text="")
+                if fluid.type not in ('NONE', 'DOMAIN', 'PARTICLE'):
+                    layout.prop(fluid, "active", text="")
+
+            layout = layout.column()
+            if fluid.type not in ('NONE', 'DOMAIN', 'PARTICLE'):
+                layout.active = fluid.active
 
             if fluid.type == 'DOMAIN':
                 layout.operator("fluid.bake", text="Bake Fluid Simulation", icon='MOD_FLUIDSIM')
@@ -220,15 +229,29 @@ class PHYSICS_PT_domain_gravity(PhysicButtonsPanel):
         layout = self.layout
 
         fluid = context.fluid.settings
+        scene = context.scene
         wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
         col = split.column()
-        col.label(text="Gravity:")
-        col.prop(fluid, "gravity", text="")
-        col.label(text="Real World Size:")
-        col.prop(fluid, "real_world_size", text="Metres")
+        if scene.use_gravity:
+            col.label(text="Using Scene Gravity", icon="SCENE_DATA")
+            sub = col.column()
+            sub.enabled = False
+            sub.prop(fluid, "gravity", text="")
+        else:
+            col.label(text="Gravity:")
+            col.prop(fluid, "gravity", text="")
+
+        if scene.unit_settings.system != 'NONE':
+            col.label(text="Using Scene Size Units", icon="SCENE_DATA")
+            sub = col.column()
+            sub.enabled = False
+            sub.prop(fluid, "real_world_size", text="Metres")
+        else:
+            col.label(text="Real World Size:")
+            col.prop(fluid, "real_world_size", text="Metres")
 
         if wide_ui:
             col = split.column()
@@ -291,7 +314,24 @@ class PHYSICS_PT_domain_particles(PhysicButtonsPanel):
         col.prop(fluid, "tracer_particles")
         col.prop(fluid, "generate_particles")
 
-bpy.types.register(PHYSICS_PT_fluid)
-bpy.types.register(PHYSICS_PT_domain_gravity)
-bpy.types.register(PHYSICS_PT_domain_boundary)
-bpy.types.register(PHYSICS_PT_domain_particles)
+
+classes = [
+    PHYSICS_PT_fluid,
+    PHYSICS_PT_domain_gravity,
+    PHYSICS_PT_domain_boundary,
+    PHYSICS_PT_domain_particles]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

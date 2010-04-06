@@ -154,7 +154,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_showBackground(false),
 	m_show_debug_properties(false),
 
-	m_game2ipo(false),
+	m_animation_record(false),
 
 	// Default behavior is to hide the cursor every frame.
 	m_hideCursor(false),
@@ -285,6 +285,7 @@ void KX_KetsjiEngine::RenderDome()
 		return;
 
 	KX_SceneList::iterator sceneit;
+	KX_Scene* scene;
 
 	int n_renders=m_dome->GetNumberRenders();// usually 4 or 6
 	for (int i=0;i<n_renders;i++){
@@ -292,7 +293,7 @@ void KX_KetsjiEngine::RenderDome()
 		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); sceneit++)
 		// for each scene, call the proceed functions
 		{
-			KX_Scene* scene = *sceneit;
+			scene = *sceneit;
 			KX_Camera* cam = scene->GetActiveCamera();
 
 			m_rendertools->BeginFrame(m_rasterizer);
@@ -334,6 +335,11 @@ void KX_KetsjiEngine::RenderDome()
 				
 				it++;
 			}
+			// Part of PostRenderScene()
+			m_rendertools->MotionBlur(m_rasterizer);
+			scene->Render2DFilters(m_canvas);
+			// no RunDrawingCallBacks
+			// no FlushDebugLines
 		}
 		m_dome->BindImages(i);
 	}	
@@ -362,11 +368,11 @@ void KX_KetsjiEngine::RenderDome()
 			1.0
 			);
 	}
-
 	m_dome->Draw();
-
-	// run the 2dfilters and motion blur once for all the scenes
-	PostRenderFrame();
+	// Draw Callback for the last scene
+#ifndef DISABLE_PYTHON
+	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
+#endif	
 	EndFrame();
 }
 
@@ -398,7 +404,7 @@ void KX_KetsjiEngine::StartEngine(bool clearIpo)
 		m_maxPhysicsFrame = 5;
 	}
 	
-	if (m_game2ipo)
+	if (m_animation_record)
 	{
 		m_sceneconverter->ResetPhysicsObjectsAnimationIpo(clearIpo);
 		m_sceneconverter->WritePhysicsObjectToAnimationIpo(m_currentFrame);
@@ -657,7 +663,7 @@ else
 				scene->UpdateParents(m_frameTime);
 			
 			
-				if (m_game2ipo)
+				if (m_animation_record)
 				{					
 					m_sceneconverter->WritePhysicsObjectToAnimationIpo(++m_currentFrame);
 				}
@@ -859,6 +865,7 @@ void KX_KetsjiEngine::Render()
 			
 			it++;
 		}
+		PostRenderScene(scene);
 	}
 
 	// only one place that checks for stereo
@@ -908,6 +915,7 @@ void KX_KetsjiEngine::Render()
 				
 				it++;
 			}
+			PostRenderScene(scene);
 		}
 	} // if(m_rasterizer->Stereo())
 
@@ -1306,27 +1314,27 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
+#ifndef DISABLE_PYTHON
 	// Run any pre-drawing python callbacks
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
+#endif
 
 	scene->RenderBuckets(camtrans, m_rasterizer, m_rendertools);
 	
 	if (scene->GetPhysicsEnvironment())
 		scene->GetPhysicsEnvironment()->debugDrawWorld();
-	
-	m_rasterizer->FlushDebugLines();
-
-	//it's running once for every scene (i.e. overlay scenes have  it running twice). That's not the ideal.
-	PostRenderFrame();
-
-	// Run any post-drawing python callbacks
-	scene->RunDrawingCallbacks(scene->GetPostDrawCB());	
 }
-
-void KX_KetsjiEngine::PostRenderFrame()
+/*
+To run once per scene
+*/
+void KX_KetsjiEngine::PostRenderScene(KX_Scene* scene)
 {
-	m_rendertools->Render2DFilters(m_canvas);
 	m_rendertools->MotionBlur(m_rasterizer);
+	scene->Render2DFilters(m_canvas);
+#ifndef DISABLE_PYTHON
+	scene->RunDrawingCallbacks(scene->GetPostDrawCB());	
+#endif
+	m_rasterizer->FlushDebugLines();
 }
 
 void KX_KetsjiEngine::StopEngine()
@@ -1334,7 +1342,7 @@ void KX_KetsjiEngine::StopEngine()
 	if (m_bInitialized)
 	{
 
-		if (m_game2ipo)
+		if (m_animation_record)
 		{
 //			printf("TestHandlesPhysicsObjectToAnimationIpo\n");
 			m_sceneconverter->TestHandlesPhysicsObjectToAnimationIpo();
@@ -1734,10 +1742,10 @@ void KX_KetsjiEngine::SetUseFixedTime(bool bUseFixedTime)
 }
 
 
-void	KX_KetsjiEngine::SetGame2IpoMode(bool game2ipo,int startFrame)
+void	KX_KetsjiEngine::SetAnimRecordMode(bool animation_record, int startFrame)
 {
-	m_game2ipo = game2ipo;
-	if (game2ipo)
+	m_animation_record = animation_record;
+	if (animation_record)
 	{
 		//when recording physics keyframes, always run at a fixed framerate
 		m_bFixedTime = true;

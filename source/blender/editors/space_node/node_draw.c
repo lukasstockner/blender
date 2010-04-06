@@ -30,23 +30,12 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "DNA_ID.h"
 #include "DNA_node_types.h"
-#include "DNA_image_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_action_types.h"
-#include "DNA_color_types.h"
-#include "DNA_customdata_types.h"
-#include "DNA_gpencil_types.h"
-#include "DNA_ipo_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_text_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -73,9 +62,6 @@
 #include "WM_types.h"
 
 #include "ED_gpencil.h"
-#include "ED_screen.h"
-#include "ED_util.h"
-#include "ED_types.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -119,6 +105,41 @@ void ED_node_changed_update(ID *id, bNode *node)
 		DAG_id_flush_update(id, 0);
 		WM_main_add_notifier(NC_TEXTURE|ND_NODES, id);
 	}
+}
+
+static int has_nodetree(bNodeTree *ntree, bNodeTree *lookup)
+{
+	bNode *node;
+	
+	if(ntree == lookup)
+		return 1;
+	
+	for(node=ntree->nodes.first; node; node=node->next)
+		if(node->type == NODE_GROUP && node->id)
+			if(has_nodetree((bNodeTree*)node->id, lookup))
+				return 1;
+	
+	return 0;
+}
+
+void ED_node_generic_update(Main *bmain, Scene *scene, bNodeTree *ntree, bNode *node)
+{
+	Material *ma;
+	Tex *tex;
+	Scene *sce;
+	
+	/* look through all datablocks, to support groups */
+	for(ma=bmain->mat.first; ma; ma=ma->id.next)
+		if(ma->nodetree && ma->use_nodes && has_nodetree(ma->nodetree, ntree))
+			ED_node_changed_update(&ma->id, node);
+	
+	for(tex=bmain->tex.first; tex; tex=tex->id.next)
+		if(tex->nodetree && tex->use_nodes && has_nodetree(tex->nodetree, ntree))
+			ED_node_changed_update(&tex->id, node);
+	
+	for(sce=bmain->scene.first; sce; sce=sce->id.next)
+		if(sce->nodetree && sce->use_nodes && has_nodetree(sce->nodetree, ntree))
+			ED_node_changed_update(&sce->id, node);
 }
 
 static void do_node_internal_buttons(bContext *C, void *node_v, int event)
@@ -205,7 +226,7 @@ static void node_update(const bContext *C, bNodeTree *ntree, bNode *node)
 
 	node->prvr.xmin= node->locx + NODE_DYS;
 	node->prvr.xmax= node->locx + node->width- NODE_DYS;
-	
+
 	/* preview rect? */
 	if(node->flag & NODE_PREVIEW) {
 		/* only recalculate size when there's a preview actually, otherwise we use stored result */
@@ -372,9 +393,6 @@ static void node_update_group(const bContext *C, bNodeTree *ntree, bNode *gnode)
 	bNodeSocket *nsock;
 	rctf *rect= &gnode->totr;
 	int counter;
-	
-	/* init ui blocks for sub-nodetrees */
-	node_uiblocks_init(C, ngroup);
 	
 	/* center them, is a bit of abuse of locx and locy though */
 	for(node= ngroup->nodes.first; node; node= node->next) {
@@ -562,7 +580,7 @@ static uiBlock *socket_vector_menu(bContext *C, ARegion *ar, void *socket_v)
 	
 	layout= uiLayoutColumn(uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, sock->locx, sock->locy-8, 140, 20, U.uistyles.first), 0);
 	
-	uiItemR(layout, "", 0, &ptr, "default_value", UI_ITEM_R_EXPAND);
+	uiItemR(layout, &ptr, "default_value", UI_ITEM_R_EXPAND, "", 0);
 	
 	return block;
 }
@@ -820,7 +838,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 	/* preview */
 	if(node->flag & NODE_PREVIEW) {
 		BLI_lock_thread(LOCK_PREVIEW);
-		if(node->preview && node->preview->rect)
+		if(node->preview && node->preview->rect && !BLI_rctf_is_empty(&node->prvr))
 			node_draw_preview(node->preview, &node->prvr);
 		BLI_unlock_thread(LOCK_PREVIEW);
 	}
@@ -1078,7 +1096,15 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	if(snode->nodetree) {
 		bNode *node;
 		
+		/* init ui blocks for opened node group trees first 
+		 * so they're in the correct depth stack order */
+		for(node= snode->nodetree->nodes.first; node; node= node->next) {
+			if(node->flag & NODE_GROUP_EDIT)
+				node_uiblocks_init(C, (bNodeTree *)node->id);
+		}
+
 		node_uiblocks_init(C, snode->nodetree);
+		
 		
 		/* for now, we set drawing coordinates on each redraw */
 		for(node= snode->nodetree->nodes.first; node; node= node->next) {

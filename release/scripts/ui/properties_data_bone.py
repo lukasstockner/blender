@@ -257,6 +257,9 @@ class BONE_PT_inverse_kinematics(BoneButtonsPanel):
         pchan = ob.pose.bones[bone.name]
         wide_ui = context.region.width > narrowui
 
+        row = layout.row()
+        row.prop(ob.pose, "ik_solver")
+
         split = layout.split(percentage=0.25)
         split.prop(pchan, "ik_dof_x", text="X")
         split.active = pchan.has_ik
@@ -387,13 +390,28 @@ class BONE_PT_deform(BoneButtonsPanel):
         col.label(text="Offset:")
         col.prop(bone, "cyclic_offset")
 
+classes = [
+    BONE_PT_context_bone,
+    BONE_PT_transform,
+    BONE_PT_transform_locks,
+    BONE_PT_relations,
+    BONE_PT_display,
+    BONE_PT_inverse_kinematics,
+    BONE_PT_deform,
 
-bpy.types.register(BONE_PT_context_bone)
-bpy.types.register(BONE_PT_transform)
-bpy.types.register(BONE_PT_transform_locks)
-bpy.types.register(BONE_PT_relations)
-bpy.types.register(BONE_PT_display)
-bpy.types.register(BONE_PT_inverse_kinematics)
-bpy.types.register(BONE_PT_deform)
+    BONE_PT_custom_props]
 
-bpy.types.register(BONE_PT_custom_props)
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

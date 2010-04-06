@@ -25,10 +25,6 @@
  * ***** END GPL LICENSE BLOCK *****
  * */
 
-#include <float.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 #include "BLI_math.h"
 
@@ -904,12 +900,12 @@ void quat_to_eul(float *eul,float *quat)
 /* XYZ order */
 void eul_to_quat(float *quat,float *eul)
 {
-    float ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
+	float ti, tj, th, ci, cj, ch, si, sj, sh, cc, cs, sc, ss;
  
-    ti = eul[0]*0.5f; tj = eul[1]*0.5f; th = eul[2]*0.5f;
-    ci = (float)cos(ti);  cj = (float)cos(tj);  ch = (float)cos(th);
-    si = (float)sin(ti);  sj = (float)sin(tj);  sh = (float)sin(th);
-    cc = ci*ch; cs = ci*sh; sc = si*ch; ss = si*sh;
+	ti = eul[0]*0.5f; tj = eul[1]*0.5f; th = eul[2]*0.5f;
+	ci = (float)cos(ti);  cj = (float)cos(tj);  ch = (float)cos(th);
+	si = (float)sin(ti);  sj = (float)sin(tj);  sh = (float)sin(th);
+	cc = ci*ch; cs = ci*sh; sc = si*ch; ss = si*sh;
 	
 	quat[0] = cj*cc + sj*ss;
 	quat[1] = cj*sc - sj*cs;
@@ -1029,7 +1025,7 @@ void mat3_to_compatible_eul(float *eul, float *oldrot,float mat[][3])
 
 /* Euler Rotation Order Code:
  * was adapted from  
-  		ANSI C code from the article
+		  ANSI C code from the article
 		"Euler Angle Conversion"
 		by Ken Shoemake, shoemake@graphics.cis.upenn.edu
 		in "Graphics Gems IV", Academic Press, 1994
@@ -1052,7 +1048,7 @@ static RotOrderInfo rotOrders[]= {
 	{{1, 0, 2}, 1}, // YXZ
 	{{1, 2, 0}, 0}, // YZX
 	{{2, 0, 1}, 0}, // ZXY
-	{{2, 1, 0}, 1}  // ZYZ
+	{{2, 1, 0}, 1}  // ZYX
 };
 
 /* Get relevant pointer to rotation order set from the array 
@@ -1303,11 +1299,11 @@ void eulO_to_gimbal_axis(float gmat[][3], float *eul, short order)
    freely, subject to the following restrictions:
 
    1. The origin of this software must not be misrepresented; you must not
-      claim that you wrote the original software. If you use this software
-      in a product, an acknowledgment in the product documentation would be
-      appreciated but is not required.
+	  claim that you wrote the original software. If you use this software
+	  in a product, an acknowledgment in the product documentation would be
+	  appreciated but is not required.
    2. Altered source versions must be plainly marked as such, and must not be
-      misrepresented as being the original software.
+	  misrepresented as being the original software.
    3. This notice may not be removed or altered from any source distribution.
 
    Author: Ladislav Kavan, kavanl@cs.tcd.ie
@@ -1333,8 +1329,14 @@ void mat4_to_dquat(DualQuat *dq,float basemat[][4], float mat[][4])
 
 	if((determinant_m4(mat) < 0.0f) || len_v3(dscale) > 1e-4) {
 		/* extract R and S  */
-		mat4_to_quat(basequat,baseRS);
-		quat_to_mat4(baseR,basequat);
+		float tmp[4][4];
+
+		 /* extra orthogonalize, to avoid flipping with stretched bones */
+		copy_m4_m4(tmp, baseRS);
+		orthogonalize_m4(tmp, 1);
+		mat4_to_quat(basequat, tmp);
+
+		quat_to_mat4(baseR, basequat);
 		copy_v3_v3(baseR[3], baseRS[3]);
 
 		invert_m4_m4(baseinv, basemat);

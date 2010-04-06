@@ -20,13 +20,13 @@
 
 import bpy
 
+
 class SequencerCrossfadeSounds(bpy.types.Operator):
     '''Do crossfading volume animation of two selected sound strips.'''
 
     bl_idname = "sequencer.crossfade_sounds"
     bl_label = "Crossfade sounds"
-    bl_register = True
-    bl_undo = True
+    bl_options = {'REGISTER', 'UNDO'}
 
     def poll(self, context):
         if context.scene and context.scene.sequence_editor and context.scene.sequence_editor.active_strip:
@@ -49,28 +49,34 @@ class SequencerCrossfadeSounds(bpy.types.Operator):
         if seq2 == None:
             self.report({'ERROR'}, "Select 2 sound strips.")
             return {'CANCELLED'}
-        if seq1.start_frame_final > seq2.start_frame_final:
+        if seq1.frame_final_start > seq2.frame_final_start:
             s = seq1
             seq1 = seq2
             seq2 = s
-        if seq1.end_frame_final > seq2.start_frame_final:
-            tempcfra = context.scene.current_frame
-            context.scene.current_frame = seq2.start_frame_final
+        if seq1.frame_final_end > seq2.frame_final_start:
+            tempcfra = context.scene.frame_current
+            context.scene.frame_current = seq2.frame_final_start
             seq1.keyframe_insert('volume')
-            context.scene.current_frame = seq1.end_frame_final
+            context.scene.frame_current = seq1.frame_final_end
             seq1.volume = 0
             seq1.keyframe_insert('volume')
             seq2.keyframe_insert('volume')
-            context.scene.current_frame = seq2.start_frame_final
+            context.scene.frame_current = seq2.frame_final_start
             seq2.volume = 0
             seq2.keyframe_insert('volume')
-            context.scene.current_frame = tempcfra
+            context.scene.frame_current = tempcfra
             return {'FINISHED'}
         else:
             self.report({'ERROR'}, "The selected strips don't overlap.")
             return {'CANCELLED'}
 
-bpy.types.register(SequencerCrossfadeSounds)
+
+def register():
+    bpy.types.register(SequencerCrossfadeSounds)
+
+
+def unregister():
+    bpy.types.unregister(SequencerCrossfadeSounds)
 
 if __name__ == "__main__":
-    bpy.ops.sequencer.crossfade_sounds()
+    register()

@@ -62,7 +62,8 @@ static void do_proc(float *result, TexParams *p, float *col1, float *col2, char 
 	else
 		texres.nor = NULL;
 	
-	textype = multitex_thread(tex, p->coord, p->dxt, p->dyt, 0, &texres, thread, 0);
+	textype = multitex_nodes(tex, p->co, p->dxt, p->dyt, p->osatex,
+		&texres, thread, 0, p->shi, p->mtex);
 	
 	if(is_normal)
 		return;
@@ -110,24 +111,24 @@ static int count_outputs(bNode *node)
 /* Boilerplate generators */
 
 #define ProcNoInputs(name) \
-        static void name##_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread) \
-        {}
+		static void name##_map_inputs(Tex *tex, bNodeStack **in, TexParams *p, short thread) \
+		{}
 
 #define ProcDef(name) \
-        static void name##_colorfn(float *result, TexParams *p, bNode *node, bNodeStack **in, short thread)  \
-        {                                                                                                    \
-                texfn(result, p, node, in, 0, &name##_map_inputs, thread);                               \
-        }                                                                                                    \
-        static void name##_normalfn(float *result, TexParams *p, bNode *node, bNodeStack **in, short thread) \
-        {                                                                                                    \
-                texfn(result, p, node, in, 1, &name##_map_inputs, thread);                               \
-        }                                                                                                    \
-        static void name##_exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)                  \
-        {                                                                                                    \
-                int outs = count_outputs(node);                                                              \
-                if(outs >= 1) tex_output(node, in, out[0], &name##_colorfn, data);                                 \
-                if(outs >= 2) tex_output(node, in, out[1], &name##_normalfn, data);                                \
-        }
+		static void name##_colorfn(float *result, TexParams *p, bNode *node, bNodeStack **in, short thread)  \
+		{                                                                                                    \
+				texfn(result, p, node, in, 0, &name##_map_inputs, thread);                               \
+		}                                                                                                    \
+		static void name##_normalfn(float *result, TexParams *p, bNode *node, bNodeStack **in, short thread) \
+		{                                                                                                    \
+				texfn(result, p, node, in, 1, &name##_map_inputs, thread);                               \
+		}                                                                                                    \
+		static void name##_exec(void *data, bNode *node, bNodeStack **in, bNodeStack **out)                  \
+		{                                                                                                    \
+				int outs = count_outputs(node);                                                              \
+				if(outs >= 1) tex_output(node, in, out[0], &name##_colorfn, data);                                 \
+				if(outs >= 2) tex_output(node, in, out[1], &name##_normalfn, data);                                \
+		}
 
 
 /* --- VORONOI -- */

@@ -1,5 +1,5 @@
 /**
- * $Id: idprop.c
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -29,13 +29,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "DNA_listBase.h"
-#include "DNA_ID.h"
-
 #include "BKE_idprop.h"
-#include "BKE_global.h"
 #include "BKE_library.h"
-#include "BKE_utildefines.h"
 
 #include "BLI_blenlib.h"
 
@@ -294,12 +289,12 @@ IDProperty *IDP_CopyArray(IDProperty *prop)
 
 /*taken from readfile.c*/
 #define SWITCH_LONGINT(a) { \
-    char s_i, *p_i; \
-    p_i= (char *)&(a);  \
-    s_i=p_i[0]; p_i[0]=p_i[7]; p_i[7]=s_i; \
-    s_i=p_i[1]; p_i[1]=p_i[6]; p_i[6]=s_i; \
-    s_i=p_i[2]; p_i[2]=p_i[5]; p_i[5]=s_i; \
-    s_i=p_i[3]; p_i[3]=p_i[4]; p_i[4]=s_i; }
+	char s_i, *p_i; \
+	p_i= (char *)&(a);  \
+	s_i=p_i[0]; p_i[0]=p_i[7]; p_i[7]=s_i; \
+	s_i=p_i[1]; p_i[1]=p_i[6]; p_i[6]=s_i; \
+	s_i=p_i[2]; p_i[2]=p_i[5]; p_i[5]=s_i; \
+	s_i=p_i[3]; p_i[3]=p_i[4]; p_i[4]=s_i; }
 
 
 
@@ -383,6 +378,49 @@ IDProperty *IDP_CopyGroup(IDProperty *prop)
 	}
 
 	return newp;
+}
+
+/* use for syncing proxies.
+ * When values name and types match, copy the values, else ignore */
+void IDP_SyncGroupValues(IDProperty *dest, IDProperty *src)
+{
+	IDProperty *loop, *prop;
+	for (prop=src->data.group.first; prop; prop=prop->next) {
+		for (loop=dest->data.group.first; loop; loop=loop->next) {
+			if (BSTR_EQ(loop->name, prop->name)) {
+				int copy_done= 0;
+
+				if(prop->type==loop->type) {
+
+					switch (prop->type) {
+						case IDP_INT:
+						case IDP_FLOAT:
+						case IDP_DOUBLE:
+							loop->data= prop->data;
+							copy_done= 1;
+							break;
+						case IDP_GROUP:
+							IDP_SyncGroupValues(loop, prop);
+							copy_done= 1;
+							break;
+						default:
+						{
+							IDProperty *tmp= loop;
+							IDProperty *copy= IDP_CopyProperty(prop);
+
+							BLI_insertlinkafter(&dest->data.group, loop, copy);
+							BLI_remlink(&dest->data.group, tmp);
+							loop = copy;
+
+							IDP_FreeProperty(tmp);
+							MEM_freeN(tmp);
+						}
+					}
+				}
+				break;
+			}
+		}
+	}
 }
 
 /*

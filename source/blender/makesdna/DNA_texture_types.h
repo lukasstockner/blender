@@ -170,7 +170,7 @@ typedef struct PointDensity {
 	short noise_depth;
 	short noise_influence;
 	short noise_basis;
-    short pdpad3[3];
+	short pdpad3[3];
 	float noise_fac;
 	
 	float speed_scale;
@@ -236,7 +236,7 @@ typedef struct Tex {
 	int frames, offset, sfra;
 	
 	float checkerdist, nabla;
-	float norfac;
+	float pad1;
 	
 	struct ImageUser iuser;
 	
@@ -335,8 +335,6 @@ typedef struct TexMapping {
 #define TXF_EWA			1
 #define TXF_FELINE		2
 #define TXF_AREA		3
-// TXF_SAT only available when mipmaps disabled
-#define TXF_SAT			4
 
 /* imaflag unused, only for version check */
 #define TEX_FIELDS_		8
@@ -357,6 +355,7 @@ typedef struct TexMapping {
 #define TEX_REPEAT_XMIR		128
 #define TEX_REPEAT_YMIR		256
 #define TEX_FLAG_MASK		( TEX_COLORBAND | TEX_FLIPBLEND | TEX_NEGALPHA | TEX_CHECKER_ODD | TEX_CHECKER_EVEN | TEX_PRV_ALPHA | TEX_PRV_NOR | TEX_REPEAT_XMIR | TEX_REPEAT_YMIR ) 
+#define TEX_DS_EXPAND		512
 
 /* extend (starts with 1 because of backward comp.) */
 #define TEX_EXTEND		1

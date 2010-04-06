@@ -111,12 +111,9 @@
 static struct {
 	ListBase renderlist;
 
-	/* render slots */
-	int viewslot, renderingslot;
-
 	/* commandline thread override */
 	int threads;
-} RenderGlobal = {{NULL, NULL}, 0, 0, -1}; 
+} RenderGlobal = {{NULL, NULL}, -1}; 
 
 /* hardcopy of current render, used while rendering for speed */
 Render R;
@@ -137,11 +134,6 @@ static void stats_nothing(void *unused, RenderStats *rs) {}
 static void int_nothing(void *unused, int val) {}
 static void print_error(void *unused, char *str) {printf("ERROR: %s\n", str);}
 static int default_break(void *unused) {return G.afbreek == 1;}
-
-int RE_RenderInProgress(Render *re)
-{
-	return re->result_ok==0;
-}
 
 static void stats_background(void *unused, RenderStats *rs)
 {
@@ -196,6 +188,8 @@ void RE_FreeRenderResult(RenderResult *res)
 		MEM_freeN(res->rectz);
 	if(res->rectf)
 		MEM_freeN(res->rectf);
+	if(res->text)
+		MEM_freeN(res->text);
 	
 	MEM_freeN(res);
 }
@@ -345,10 +339,10 @@ static char *get_pass_name(int passtype, int channel)
 		return "AO.B";
 	}
 	if(passtype == SCE_PASS_ENVIRONMENT) {
-		if(channel==-1) return "Environment";
-		if(channel==0) return "Environment.R";
-		if(channel==1) return "Environment.G";
-		return "Environment.B";
+		if(channel==-1) return "Env";
+		if(channel==0) return "Env.R";
+		if(channel==1) return "Env.G";
+		return "Env.B";
 	}
 	if(passtype == SCE_PASS_INDIRECT) {
 		if(channel==-1) return "Indirect";
@@ -367,12 +361,6 @@ static char *get_pass_name(int passtype, int channel)
 		if(channel==0) return "Refract.R";
 		if(channel==1) return "Refract.G";
 		return "Refract.B";
-	}
-	if(passtype == SCE_PASS_RADIO) {
-		if(channel==-1) return "Radio";
-		if(channel==0) return "Radio.R";
-		if(channel==1) return "Radio.G";
-		return "Radio.B";
 	}
 	if(passtype == SCE_PASS_INDEXOB) {
 		if(channel==-1) return "IndexOB";
@@ -428,7 +416,7 @@ static int passtype_from_name(char *str)
 	if(strcmp(str, "AO")==0)
 		return SCE_PASS_AO;
 
-	if(strcmp(str, "Environment")==0)
+	if(strcmp(str, "Env")==0)
 		return SCE_PASS_ENVIRONMENT;
 
 	if(strcmp(str, "Indirect")==0)
@@ -439,9 +427,6 @@ static int passtype_from_name(char *str)
 
 	if(strcmp(str, "Refract")==0)
 		return SCE_PASS_REFRACT;
-
-	if(strcmp(str, "Radio")==0)
-		return SCE_PASS_RADIO;
 
 	if(strcmp(str, "IndexOB")==0)
 		return SCE_PASS_INDEXOB;
@@ -622,8 +607,6 @@ static RenderResult *new_render_result(Render *re, rcti *partrct, int crop, int 
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_REFLECT);
 		if(srl->passflag  & SCE_PASS_REFRACT)
 			render_layer_add_pass(rr, rl, 3, SCE_PASS_REFRACT);
-		if(srl->passflag  & SCE_PASS_RADIO)
-			render_layer_add_pass(rr, rl, 3, SCE_PASS_RADIO);
 		if(srl->passflag  & SCE_PASS_INDEXOB)
 			render_layer_add_pass(rr, rl, 1, SCE_PASS_INDEXOB);
 		if(srl->passflag  & SCE_PASS_MIST)
@@ -994,38 +977,15 @@ static void read_render_result(Render *re, int sample)
 
 /* *************************************************** */
 
-void RE_SetViewSlot(int slot)
-{
-	RenderGlobal.viewslot = slot;
-}
-
-int RE_GetViewSlot(void)
-{
-	return RenderGlobal.viewslot;
-}
-
-static int re_get_slot(int slot)
-{
-	if(slot == RE_SLOT_VIEW)
-		return RenderGlobal.viewslot;
-	else if(slot == RE_SLOT_RENDERING)
-		return (G.rendering)? RenderGlobal.renderingslot: RenderGlobal.viewslot;
-
-	return slot;
-}
-
-Render *RE_GetRender(const char *name, int slot)
+Render *RE_GetRender(const char *name)
 {
 	Render *re;
 
-	slot= re_get_slot(slot);
-	
 	/* search for existing renders */
-	for(re= RenderGlobal.renderlist.first; re; re= re->next) {
-		if(strncmp(re->name, name, RE_MAXNAME)==0 && re->slot==slot) {
+	for(re= RenderGlobal.renderlist.first; re; re= re->next)
+		if(strncmp(re->name, name, RE_MAXNAME)==0)
 			break;
-		}
-	}
+
 	return re;
 }
 
@@ -1049,6 +1009,15 @@ RenderResult *RE_AcquireResultWrite(Render *re)
 
 	return NULL;
 }
+
+void RE_SwapResult(Render *re, RenderResult **rr)
+{
+	/* for keeping render buffers */
+	if(re) {
+		SWAP(RenderResult*, re->result, *rr);
+	}
+}
+
 
 void RE_ReleaseResult(Render *re)
 {
@@ -1092,6 +1061,7 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr)
 			rr->rectf= re->result->rectf;
 			rr->rectz= re->result->rectz;
 			rr->rect32= re->result->rect32;
+			rr->compo_seq= (rr->rectf != NULL);
 			
 			/* active layer */
 			rl= render_get_active_layer(re, re->result);
@@ -1102,6 +1072,8 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr)
 				if(rr->rectz==NULL)
 					rr->rectz= RE_RenderLayerGetPass(rl, SCE_PASS_Z);	
 			}
+
+			rr->layers= re->result->layers;
 		}
 	}
 }
@@ -1158,21 +1130,18 @@ RenderStats *RE_GetStats(Render *re)
 	return &re->i;
 }
 
-Render *RE_NewRender(const char *name, int slot)
+Render *RE_NewRender(const char *name)
 {
 	Render *re;
 
-	slot= re_get_slot(slot);
-	
 	/* only one render per name exists */
-	re= RE_GetRender(name, slot);
+	re= RE_GetRender(name);
 	if(re==NULL) {
 		
 		/* new render data struct */
 		re= MEM_callocN(sizeof(Render), "new render");
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		strncpy(re->name, name, RE_MAXNAME);
-		re->slot= slot;
 		BLI_rw_mutex_init(&re->resultmutex);
 	}
 	
@@ -1289,7 +1258,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 		int index = BLI_findindex(&re->r.layers, srl);
 		if (index != -1) {
 			re->r.actlay = index;
-			re->r.scemode |= (R_SINGLE_LAYER|R_COMP_RERENDER);
+			re->r.scemode |= R_SINGLE_LAYER;
 		}
 	}
 		
@@ -1486,61 +1455,6 @@ static void *do_part_thread(void *pa_v)
 	pa->ready= 1;
 	
 	return NULL;
-}
-
-/* returns with render result filled, not threaded, used for preview now only */
-static void render_tile_processor(Render *re, int firsttile)
-{
-	RenderPart *pa;
-	
-	if(re->test_break(re->tbh))
-		return;
-
-	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-
-	/* hrmf... exception, this is used for preview render, re-entrant, so render result has to be re-used */
-	if(re->result==NULL || re->result->layers.first==NULL) {
-		if(re->result) RE_FreeRenderResult(re->result);
-		re->result= new_render_result(re, &re->disprect, 0, RR_USEMEM);
-	}
-
-	BLI_rw_mutex_unlock(&re->resultmutex);
-	
-	re->stats_draw(re->sdh, &re->i);
- 
-	if(re->result==NULL)
-		return;
-	
-	initparts(re);
-
-	/* assuming no new data gets added to dbase... */
-	R= *re;
-	
-	for(pa= re->parts.first; pa; pa= pa->next) {
-		if(firsttile) {
-			re->i.partsdone++;	/* was reset in initparts */
-			firsttile--;
-		}
-		else {
-			do_part_thread(pa);
-			
-			if(pa->result) {
-				if(!re->test_break(re->tbh)) {
-					if(render_display_draw_enabled(re))
-						re->display_draw(re->ddh, pa->result, NULL);
-					
-					re->i.partsdone++;
-					re->stats_draw(re->sdh, &re->i);
-				}
-				RE_FreeRenderResult(pa->result);
-				pa->result= NULL;
-			}		
-			if(re->test_break(re->tbh))
-				break;
-		}
-	}
-
-	freeparts(re);
 }
 
 /* calculus for how much 1 pixel rendered should rotate the 3d geometry */
@@ -1816,43 +1730,20 @@ static void threaded_tile_processor(Render *re)
 }
 
 /* currently only called by preview renders and envmap */
-void RE_TileProcessor(Render *re, int firsttile, int threaded)
+void RE_TileProcessor(Render *re)
 {
-	/* the partsdone variable has to be reset to firsttile, to survive esc before it was set to zero */
-	
-	re->i.partsdone= firsttile;
-
-	if(!re->sss_points)
-		re->i.starttime= PIL_check_seconds_timer();
-
-	if(threaded)
-		threaded_tile_processor(re);
-	else
-		render_tile_processor(re, firsttile);
-		
-	if(!re->sss_points)
-		re->i.lastframetime= PIL_check_seconds_timer()- re->i.starttime;
-	re->stats_draw(re->sdh, &re->i);
+	threaded_tile_processor(re);
 }
-
 
 /* ************  This part uses API, for rendering Blender scenes ********** */
 
-static void external_render_3d(Render *re, RenderEngineType *type);
+static int external_render_3d(Render *re, int do_all);
 
 static void do_render_3d(Render *re)
 {
-	RenderEngineType *type;
-
 	/* try external */
-	for(type=R_engines.first; type; type=type->next)
-		if(strcmp(type->idname, re->r.engine) == 0)
-			break;
-
-	if(type && type->render) {
-		external_render_3d(re, type);
+	if(external_render_3d(re, 0))
 		return;
-	}
 
 	/* internal */
 	
@@ -1860,9 +1751,9 @@ static void do_render_3d(Render *re)
 	
 	/* make render verts/faces/halos/lamps */
 	if(render_scene_needs_vector(re))
-		RE_Database_FromScene_Vectors(re, re->scene);
+		RE_Database_FromScene_Vectors(re, re->scene, re->lay);
 	else
-	   RE_Database_FromScene(re, re->scene, 1);
+	   RE_Database_FromScene(re, re->scene, re->lay, 1);
 	
 	threaded_tile_processor(re);
 	
@@ -2120,8 +2011,8 @@ static void load_backbuffer(Render *re)
 		char name[256];
 		
 		strcpy(name, re->r.backbuf);
-		BLI_convertstringcode(name, G.sce);
-		BLI_convertstringframe(name, re->r.cfra, 0);
+		BLI_path_abs(name, G.sce);
+		BLI_path_frame(name, re->r.cfra, 0);
 		
 		if(re->backbuf) {
 			re->backbuf->id.us--;
@@ -2215,7 +2106,7 @@ static void do_render_fields_blur_3d(Render *re)
 */
 static void render_scene(Render *re, Scene *sce, int cfra)
 {
-	Render *resc= RE_NewRender(sce->id.name, RE_SLOT_RENDERING);
+	Render *resc= RE_NewRender(sce->id.name);
 	int winx= re->winx, winy= re->winy;
 	
 	sce->r.cfra= cfra;
@@ -2231,6 +2122,7 @@ static void render_scene(Render *re, Scene *sce, int cfra)
 	
 	/* still unsure entity this... */
 	resc->scene= sce;
+	resc->lay= sce->lay;
 	
 	/* ensure scene has depsgraph, base flags etc OK */
 	set_scene_bg(sce);
@@ -2463,38 +2355,36 @@ static void do_render_composite_fields_blur_3d(Render *re)
 			ntreeCompositTagAnimated(ntree);
 		}
 		
-		if(1 || !(re->r.scemode & R_COMP_RERENDER)) {
-			if(ntree && re->r.scemode & R_DOCOMP) {
-				/* checks if there are render-result nodes that need scene */
-				if((re->r.scemode & R_SINGLE_LAYER)==0)
-					ntree_render_scenes(re);
+		if(ntree && re->r.scemode & R_DOCOMP) {
+			/* checks if there are render-result nodes that need scene */
+			if((re->r.scemode & R_SINGLE_LAYER)==0)
+				ntree_render_scenes(re);
+			
+			if(!re->test_break(re->tbh)) {
+				ntree->stats_draw= render_composit_stats;
+				ntree->test_break= re->test_break;
+				ntree->sdh= re->sdh;
+				ntree->tbh= re->tbh;
+				/* in case it was never initialized */
+				R.sdh= re->sdh;
+				R.stats_draw= re->stats_draw;
 				
-				if(!re->test_break(re->tbh)) {
-					ntree->stats_draw= render_composit_stats;
-					ntree->test_break= re->test_break;
-					ntree->sdh= re->sdh;
-					ntree->tbh= re->tbh;
-					/* in case it was never initialized */
-					R.sdh= re->sdh;
-					R.stats_draw= re->stats_draw;
-					
-					if (update_newframe)
-						scene_update_for_newframe(re->scene, re->scene->lay);
-					
-					if(re->r.scemode & R_FULL_SAMPLE) 
-						do_merge_fullsample(re, ntree);
-					else {
-						ntreeCompositExecTree(ntree, &re->r, G.background==0);
-					}
-					
-					ntree->stats_draw= NULL;
-					ntree->test_break= NULL;
-					ntree->tbh= ntree->sdh= NULL;
+				if (update_newframe)
+					scene_update_for_newframe(re->scene, re->lay);
+				
+				if(re->r.scemode & R_FULL_SAMPLE) 
+					do_merge_fullsample(re, ntree);
+				else {
+					ntreeCompositExecTree(ntree, &re->r, G.background==0);
 				}
+				
+				ntree->stats_draw= NULL;
+				ntree->test_break= NULL;
+				ntree->tbh= ntree->sdh= NULL;
 			}
-			else if(re->r.scemode & R_FULL_SAMPLE)
-				do_merge_fullsample(re, NULL);
 		}
+		else if(re->r.scemode & R_FULL_SAMPLE)
+			do_merge_fullsample(re, NULL);
 	}
 
 	/* weak... the display callback wants an active renderlayer pointer... */
@@ -2505,7 +2395,7 @@ static void do_render_composite_fields_blur_3d(Render *re)
 static void renderresult_stampinfo(Scene *scene)
 {
 	RenderResult rres;
-	Render *re= RE_GetRender(scene->id.name, RE_SLOT_RENDERING);
+	Render *re= RE_GetRender(scene->id.name);
 
 	/* this is the basic trick to get the displayed float or char rect from render result */
 	RE_AcquireResultImage(re, &rres);
@@ -2584,18 +2474,17 @@ static void do_render_seq(Render * re)
 /* main loop: doing sequence + fields + blur + 3d render + compositing */
 static void do_render_all_options(Render *re)
 {
-#ifdef DURIAN_CAMERA_SWITCH
-	Object *camera= scene_find_camera_switch(re->scene);
-	if(camera)
-		re->scene->camera= camera;
-#endif
+	scene_camera_switch_update(re->scene);
 
 	re->i.starttime= PIL_check_seconds_timer();
 
 	/* ensure no images are in memory from previous animated sequences */
 	BKE_image_all_free_anim_ibufs(re->r.cfra);
-	
-	if((re->r.scemode & R_DOSEQ) && re->scene->ed && re->scene->ed->seqbase.first) {
+
+	if(external_render_3d(re, 1)) {
+		/* in this case external render overrides all */
+	}
+	else if((re->r.scemode & R_DOSEQ) && re->scene->ed && re->scene->ed->seqbase.first) {
 		/* note: do_render_seq() frees rect32 when sequencer returns float images */
 		if(!re->test_break(re->tbh)) 
 			do_render_seq(re);
@@ -2693,7 +2582,7 @@ static int is_rendering_allowed(Render *re)
 		}
 	}
 	
- 	/* check valid camera, without camera render is OK (compo, seq) */
+	 /* check valid camera, without camera render is OK (compo, seq) */
 	if(re->scene->camera==NULL)
 		re->scene->camera= scene_find_camera(re->scene);
 	
@@ -2744,7 +2633,7 @@ static void update_physics_cache(Render *re, Scene *scene, int anim_init)
 	BKE_ptcache_make_cache(&baker);
 }
 /* evaluating scene options for general Blender render */
-static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLayer *srl, int anim, int anim_init)
+static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int anim, int anim_init)
 {
 	int winx, winy;
 	rcti disprect;
@@ -2771,6 +2660,7 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 	}
 	
 	re->scene= scene;
+	re->lay= lay;
 	
 	/* not too nice, but it survives anim-border render */
 	if(anim) {
@@ -2811,23 +2701,19 @@ static int render_initialize_from_scene(Render *re, Scene *scene, SceneRenderLay
 }
 
 /* general Blender frame render call */
-void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, int frame)
+void RE_BlenderFrame(Render *re, Scene *scene, SceneRenderLayer *srl, unsigned int lay, int frame)
 {
 	/* ugly global still... is to prevent preview events and signal subsurfs etc to make full resol */
-	RenderGlobal.renderingslot= re->slot;
-	re->result_ok= 0;
 	G.rendering= 1;
 	
 	scene->r.cfra= frame;
 	
-	if(render_initialize_from_scene(re, scene, srl, 0, 0)) {
+	if(render_initialize_from_scene(re, scene, srl, lay, 0, 0)) {
 		do_render_all_options(re);
 	}
 	
 	/* UGLY WARNING */
-	re->result_ok= 1;
 	G.rendering= 0;
-	RenderGlobal.renderingslot= RenderGlobal.viewslot;
 }
 
 static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, ReportList *reports)
@@ -2917,22 +2803,19 @@ static int do_write_image_or_movie(Render *re, Scene *scene, bMovieHandle *mh, R
 }
 
 /* saves images to disk */
-void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, ReportList *reports)
+void RE_BlenderAnim(Render *re, Scene *scene, unsigned int lay, int sfra, int efra, int tfra, ReportList *reports)
 {
 	bMovieHandle *mh= BKE_get_movie_handle(scene->r.imtype);
-	unsigned int lay;
 	int cfrao= scene->r.cfra;
 	int nfra;
 	
 	/* do not fully call for each frame, it initializes & pops output window */
-	if(!render_initialize_from_scene(re, scene, NULL, 0, 1))
+	if(!render_initialize_from_scene(re, scene, NULL, lay, 0, 1))
 		return;
 	
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
 	/* is also set by caller renderwin.c */
 	G.rendering= 1;
-	RenderGlobal.renderingslot= re->slot;
-	re->result_ok= 0;
 	
 	if(BKE_imtype_is_movie(scene->r.imtype))
 		if(!mh->start_movie(scene, &re->r, re->rectx, re->recty, reports))
@@ -2960,7 +2843,7 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 			char name[FILE_MAX];
 			
 			/* only border now, todo: camera lens. (ton) */
-			render_initialize_from_scene(re, scene, NULL, 1, 0);
+			render_initialize_from_scene(re, scene, NULL, lay, 1, 0);
 
 			if(nfra!=scene->r.cfra) {
 				/*
@@ -2968,12 +2851,14 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 				 * From convertblender.c:
 				 * in localview, lamps are using normal layers, objects only local bits.
 				 */
-				if(scene->lay & 0xFF000000)
-					lay= scene->lay & 0xFF000000;
-				else
-					lay= scene->lay;
+				unsigned int updatelay;
 
-				scene_update_for_newframe(scene, lay);
+				if(re->lay & 0xFF000000)
+					updatelay= re->lay & 0xFF000000;
+				else
+					updatelay= re->lay;
+
+				scene_update_for_newframe(scene, updatelay);
 				continue;
 			}
 			else
@@ -3027,8 +2912,23 @@ void RE_BlenderAnim(Render *re, Scene *scene, int sfra, int efra, int tfra, Repo
 	
 	/* UGLY WARNING */
 	G.rendering= 0;
-	re->result_ok= 1;
-	RenderGlobal.renderingslot= RenderGlobal.viewslot;
+}
+
+void RE_PreviewRender(Render *re, Scene *sce)
+{
+	int winx, winy;
+
+	winx= (sce->r.size*sce->r.xsch)/100;
+	winy= (sce->r.size*sce->r.ysch)/100;
+
+	RE_InitState(re, NULL, &sce->r, NULL, winx, winy, NULL);
+
+	re->scene = sce;
+	re->lay = sce->lay;
+
+	RE_SetCamera(re, sce->camera);
+
+	do_render_3d(re);
 }
 
 /* note; repeated win/disprect calc... solve that nicer, also in compo */
@@ -3062,9 +2962,9 @@ void RE_ReadRenderResult(Scene *scene, Scene *scenode)
 		scene= scenode;
 	
 	/* get render: it can be called from UI with draw callbacks */
-	re= RE_GetRender(scene->id.name, RE_SLOT_VIEW);
+	re= RE_GetRender(scene->id.name);
 	if(re==NULL)
-		re= RE_NewRender(scene->id.name, RE_SLOT_VIEW);
+		re= RE_NewRender(scene->id.name);
 	RE_InitState(re, NULL, &scene->r, NULL, winx, winy, &disprect);
 	re->scene= scene;
 	
@@ -3236,9 +3136,23 @@ void RE_result_load_from_file(RenderResult *result, ReportList *reports, char *f
 	}
 }
 
-static void external_render_3d(Render *re, RenderEngineType *type)
+static int external_render_3d(Render *re, int do_all)
 {
+	RenderEngineType *type;
 	RenderEngine engine;
+
+	for(type=R_engines.first; type; type=type->next)
+		if(strcmp(type->idname, re->r.engine) == 0)
+			break;
+
+	if(!(type && type->render))
+		return 0;
+	if((re->r.scemode & R_PREVIEWBUTS) && !(type->flag & RE_DO_PREVIEW))
+		return 0;
+	if(do_all && !(type->flag & RE_DO_ALL))
+		return 0;
+	if(!do_all && (type->flag & RE_DO_ALL))
+		return 0;
 
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 	if(re->result==NULL || !(re->r.scemode & R_PREVIEWBUTS)) {
@@ -3252,7 +3166,7 @@ static void external_render_3d(Render *re, RenderEngineType *type)
 	BLI_rw_mutex_unlock(&re->resultmutex);
 	
 	if(re->result==NULL)
-		return;
+		return 1;
 
 	/* external */
 	memset(&engine, 0, sizeof(engine));
@@ -3280,5 +3194,7 @@ static void external_render_3d(Render *re, RenderEngineType *type)
 		read_render_result(re, 0);
 	}
 	BLI_rw_mutex_unlock(&re->resultmutex);
+
+	return 1;
 }
 

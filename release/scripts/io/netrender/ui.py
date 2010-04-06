@@ -83,7 +83,7 @@ class RenderButtonsPanel(bpy.types.Panel):
     # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
 
     def poll(self, context):
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (rd.use_game_engine==False) and (rd.engine in self.COMPAT_ENGINES)
 
 # Setting panel, use in the scene for now.
@@ -136,7 +136,7 @@ class RENDER_PT_network_slave_settings(RenderButtonsPanel):
         layout = self.layout
 
         scene = context.scene
-        rd = scene.render_data
+        rd = scene.render
         netsettings = scene.network_render
 
         layout.prop(netsettings, "slave_clear")
@@ -144,7 +144,7 @@ class RENDER_PT_network_slave_settings(RenderButtonsPanel):
         layout.label(text="Threads:")
         layout.prop(rd, "threads_mode", expand=True)
         sub = layout.column()
-        sub.enabled = rd.threads_mode == 'THREADS_FIXED'
+        sub.enabled = rd.threads_mode == 'FIXED'
         sub.prop(rd, "threads")
 @rnaType
 class RENDER_PT_network_master_settings(RenderButtonsPanel):
@@ -188,8 +188,8 @@ class RENDER_PT_network_job(RenderButtonsPanel):
             layout.operator("render.netclientsend", icon='FILE_BLEND')
             if netsettings.job_id:
                 row = layout.row()
-                row.operator("screen.render", text="Get Image", icon='RENDER_STILL')
-                row.operator("screen.render", text="Get Animation", icon='RENDER_ANIMATION').animation = True
+                row.operator("render.render", text="Get Image", icon='RENDER_STILL')
+                row.operator("render.render", text="Get Animation", icon='RENDER_ANIMATION').animation = True
 
         split = layout.split(percentage=0.3)
 
@@ -381,7 +381,8 @@ NetRenderSettings.StringProperty( attr="path",
                 name="Path",
                 description="Path for temporary files",
                 maxlen = 128,
-                default = default_path)
+                default = default_path,
+                subtype='FILE_PATH')
 
 NetRenderSettings.StringProperty( attr="job_name",
                 name="Job name",

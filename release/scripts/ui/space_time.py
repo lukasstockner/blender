@@ -43,13 +43,13 @@ class TIME_HT_header(bpy.types.Header):
 
         row = layout.row(align=True)
         if not scene.use_preview_range:
-            row.prop(scene, "start_frame", text="Start")
-            row.prop(scene, "end_frame", text="End")
+            row.prop(scene, "frame_start", text="Start")
+            row.prop(scene, "frame_end", text="End")
         else:
-            row.prop(scene, "preview_range_start_frame", text="Start")
-            row.prop(scene, "preview_range_end_frame", text="End")
+            row.prop(scene, "preview_range_frame_start", text="Start")
+            row.prop(scene, "preview_range_frame_end", text="End")
 
-        layout.prop(scene, "current_frame", text="")
+        layout.prop(scene, "frame_current", text="")
 
         layout.separator()
 
@@ -67,17 +67,17 @@ class TIME_HT_header(bpy.types.Header):
         row.operator("screen.frame_jump", text="", icon='FF').end = True
 
         row = layout.row(align=True)
-        row.prop(tools, "enable_auto_key", text="", toggle=True, icon='REC')
-        if screen.animation_playing and tools.enable_auto_key:
+        row.prop(tools, "use_auto_keying", text="", toggle=True, icon='REC')
+        if screen.animation_playing and tools.use_auto_keying:
             subsub = row.row()
             subsub.prop(tools, "record_with_nla", toggle=True)
 
-        layout.prop(scene, "sync_audio", text="Realtime", toggle=True, icon='SPEAKER')
+        layout.prop(scene, "sync_mode", text="")
 
         layout.separator()
 
         row = layout.row(align=True)
-        row.prop_object(scene, "active_keying_set", scene, "keying_sets", text="")
+        row.prop_object(scene, "active_keying_set", scene, "all_keying_sets", text="")
         row.operator("anim.keyframe_insert", text="", icon='KEY_HLT')
         row.operator("anim.keyframe_delete", text="", icon='KEY_DEHLT')
 
@@ -152,7 +152,8 @@ class TIME_MT_playback(bpy.types.Menu):
 
         layout.separator()
 
-        layout.prop(scene, "sync_audio", text="Realtime Playback", icon='SPEAKER')
+        layout.prop(scene, "frame_drop", text="Frame Dropping")
+        layout.prop(scene, "sync_audio", text="AV-sync", icon='SPEAKER')
         layout.prop(scene, "mute_audio")
         layout.prop(scene, "scrub_audio")
 
@@ -167,8 +168,24 @@ class TIME_MT_autokey(bpy.types.Menu):
         layout.prop_enum(tools, "autokey_mode", 'ADD_REPLACE_KEYS')
         layout.prop_enum(tools, "autokey_mode", 'REPLACE_KEYS')
 
-bpy.types.register(TIME_HT_header)
-bpy.types.register(TIME_MT_view)
-bpy.types.register(TIME_MT_frame)
-bpy.types.register(TIME_MT_autokey)
-bpy.types.register(TIME_MT_playback)
+classes = [
+    TIME_HT_header,
+    TIME_MT_view,
+    TIME_MT_frame,
+    TIME_MT_autokey,
+    TIME_MT_playback]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

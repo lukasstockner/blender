@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -48,6 +48,9 @@ struct wmOperator;
 struct wmEvent;
 
 /* object_edit.c */
+struct Object *ED_object_active_context(struct bContext *C);
+
+/* object_ops.c */
 void ED_operatortypes_object(void);
 void ED_operatormacros_object(void);
 void ED_keymap_object(struct wmKeyConfig *keyconf);
@@ -62,7 +65,6 @@ void ED_base_object_activate(struct bContext *C, struct Base *base);
 
 void ED_base_object_free_and_unlink(struct Scene *scene, struct Base *base);
 
-void ED_object_apply_obmat(struct Object *ob);
 	/* single object duplicate, if dupflag==0, fully linked, else it uses the flags given */
 struct Base *ED_object_add_duplicate(struct Scene *scene, struct Base *base, int dupflag);
 

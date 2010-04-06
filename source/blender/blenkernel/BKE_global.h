@@ -106,14 +106,14 @@ typedef struct Global {
 #define G_RENDER_OGL	(1 <<  0)
 #define G_SWAP_EXCHANGE	(1 <<  1)
 /* also uses G_FILE_AUTOPLAY */
-#define G_RENDER_SHADOW	(1 <<  3)
+/* #define G_RENDER_SHADOW	(1 <<  3) */ /* temp flag, removed */
 #define G_BACKBUFSEL	(1 <<  4)
 #define G_PICKSEL		(1 <<  5)
 
 /* #define G_FACESELECT	(1 <<  8) use (mesh->editflag & ME_EDIT_PAINT_MASK) */
 
 #define G_DEBUG			(1 << 12)
-#define G_DOSCRIPTLINKS (1 << 13)
+#define G_SCRIPT_AUTOEXEC (1 << 13)
 
 /* #define G_NOFROZEN	(1 << 17) also removed */
 #define G_GREASEPENCIL 	(1 << 17)

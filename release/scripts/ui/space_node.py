@@ -55,15 +55,18 @@ class NODE_HT_header(bpy.types.Header):
             snode_id = snode.id
             id_from = snode.id_from
             if id_from:
-                layout.template_ID(id_from, "active_texture", new="texture.new")
+                if snode.texture_type == 'BRUSH':
+                    layout.template_ID(id_from, "texture", new="texture.new")
+                else:
+                    layout.template_ID(id_from, "active_texture", new="texture.new")
             if snode_id:
                 layout.prop(snode_id, "use_nodes")
 
         elif snode.tree_type == 'COMPOSITING':
-            snode_id = snode.id
+            scene = snode.id
 
-            layout.prop(snode_id, "use_nodes")
-            layout.prop(snode_id.render_data, "free_unused_nodes", text="Free Unused")
+            layout.prop(scene, "use_nodes")
+            layout.prop(scene.render, "free_unused_nodes", text="Free Unused")
             layout.prop(snode, "backdrop")
 
 
@@ -139,7 +142,24 @@ class NODE_MT_node(bpy.types.Menu):
 
         layout.operator("node.show_cyclic_dependencies")
 
-bpy.types.register(NODE_HT_header)
-bpy.types.register(NODE_MT_view)
-bpy.types.register(NODE_MT_select)
-bpy.types.register(NODE_MT_node)
+
+classes = [
+    NODE_HT_header,
+    NODE_MT_view,
+    NODE_MT_select,
+    NODE_MT_node]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

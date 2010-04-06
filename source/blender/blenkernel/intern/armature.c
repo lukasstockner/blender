@@ -39,25 +39,19 @@
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_action_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_nla_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_view3d_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_action.h"
 #include "BKE_anim.h"
-#include "BKE_blender.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
-#include "BKE_deform.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_displist.h"
@@ -66,7 +60,6 @@
 #include "BKE_library.h"
 #include "BKE_lattice.h"
 #include "BKE_main.h"
-#include "BKE_object.h"
 #include "BKE_object.h"
 #include "BKE_utildefines.h"
 #include "BIK_api.h"
@@ -715,7 +708,7 @@ static void pchan_b_bone_defmats(bPoseChannel *pchan, int use_quaternion, int re
 	invert_m4_m4(b_bone_mats[0].mat, bone->arm_mat);
 
 	/* then we make the b_bone_mats:
-	    - first transform to local bone space
+		- first transform to local bone space
 		- translate over the curve to the bbone mat space
 		- transform with b_bone matrix
 		- transform back into global space */
@@ -912,7 +905,7 @@ static void pchan_bone_deform(bPoseChannel *pchan, float weight, float *vec, Dua
 }
 
 void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
-                           float (*vertexCos)[3], float (*defMats)[3][3],
+						   float (*vertexCos)[3], float (*defMats)[3][3],
 						   int numVerts, int deformflag, 
 						   float (*prevCos)[3], const char *defgrp_name)
 {
@@ -990,9 +983,9 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
 
 			if(use_dverts) {
 				defnrToPC = MEM_callocN(sizeof(*defnrToPC) * numGroups,
-				                        "defnrToBone");
+										"defnrToBone");
 				for(i = 0, dg = target->defbase.first; dg;
-				    i++, dg = dg->next) {
+					i++, dg = dg->next) {
 					defnrToPC[i] = get_pose_channel(armOb->pose, dg->name);
 					/* exclude non-deforming bones */
 					if(defnrToPC[i]) {
@@ -1077,10 +1070,10 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
 					
 					if(bone && bone->flag & BONE_MULT_VG_ENV) {
 						weight *= distfactor_to_bone(co, bone->arm_head,
-						                             bone->arm_tail,
-						                             bone->rad_head,
-						                             bone->rad_tail,
-						                             bone->dist);
+													 bone->arm_tail,
+													 bone->rad_head,
+													 bone->rad_tail,
+													 bone->dist);
 					}
 					pchan_bone_deform(pchan, weight, vec, dq, smat, co, &contrib);
 				}
@@ -1090,7 +1083,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
 			 */
 			if(deformed == 0 && use_envelope) {
 				for(pchan = armOb->pose->chanbase.first; pchan;
-				    pchan = pchan->next) {
+					pchan = pchan->next) {
 					if(!(pchan->bone->flag & BONE_NO_DEFORM))
 						contrib += dist_bone_deform(pchan, vec, dq, smat, co);
 				}
@@ -1098,7 +1091,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
 		}
 		else if(use_envelope) {
 			for(pchan = armOb->pose->chanbase.first; pchan;
-			    pchan = pchan->next) {
+				pchan = pchan->next) {
 				if(!(pchan->bone->flag & BONE_NO_DEFORM))
 					contrib += dist_bone_deform(pchan, vec, dq, smat, co);
 			}
@@ -1266,16 +1259,44 @@ void armature_loc_pose_to_bone(bPoseChannel *pchan, float *inloc, float *outloc)
 	VECCOPY(outloc, nLocMat[3]);
 }
 
+
+/* Apply a 4x4 matrix to the pose bone,
+ * similar to object_apply_mat4()
+ */
+void pchan_apply_mat4(bPoseChannel *pchan, float mat[][4])
+{
+	/* location */
+	copy_v3_v3(pchan->loc, mat[3]);
+
+	/* scale */
+	mat4_to_size(pchan->size, mat);
+
+	/* rotation */
+	if (pchan->rotmode == ROT_MODE_AXISANGLE) {
+		float tmp_quat[4];
+
+		/* need to convert to quat first (in temp var)... */
+		mat4_to_quat(tmp_quat, mat);
+		quat_to_axis_angle(pchan->rotAxis, &pchan->rotAngle, tmp_quat);
+	}
+	else if (pchan->rotmode == ROT_MODE_QUAT) {
+		mat4_to_quat(pchan->quat, mat);
+	}
+	else {
+		mat4_to_eulO(pchan->eul, pchan->rotmode, mat);
+	}
+}
+
 /* Remove rest-position effects from pose-transform for obtaining
- * 'visual' transformation of pose-channel. 
+ * 'visual' transformation of pose-channel.
  * (used by the Visual-Keyframing stuff)
  */
 void armature_mat_pose_to_delta(float delta_mat[][4], float pose_mat[][4], float arm_mat[][4])
 {
- 	float imat[4][4];
+	 float imat[4][4];
  
- 	invert_m4_m4(imat, arm_mat);
- 	mul_m4_m4m4(delta_mat, pose_mat, imat);
+	 invert_m4_m4(imat, arm_mat);
+	 mul_m4_m4m4(delta_mat, pose_mat, imat);
 }
 
 /* **************** Rotation Mode Conversions ****************************** */
@@ -1348,21 +1369,21 @@ void BKE_rotMode_change_values (float quat[4], float eul[3], float axis[3], floa
   
   *************************************************************************** */
 /*  Computes vector and roll based on a rotation. "mat" must
-     contain only a rotation, and no scaling. */ 
+	 contain only a rotation, and no scaling. */ 
 void mat3_to_vec_roll(float mat[][3], float *vec, float *roll) 
 {
-    if (vec)
-        copy_v3_v3(vec, mat[1]);
+	if (vec)
+		copy_v3_v3(vec, mat[1]);
 
-    if (roll) {
-        float vecmat[3][3], vecmatinv[3][3], rollmat[3][3];
+	if (roll) {
+		float vecmat[3][3], vecmatinv[3][3], rollmat[3][3];
 
-        vec_roll_to_mat3(mat[1], 0.0f, vecmat);
-        invert_m3_m3(vecmatinv, vecmat);
-        mul_m3_m3m3(rollmat, vecmatinv, mat);
+		vec_roll_to_mat3(mat[1], 0.0f, vecmat);
+		invert_m3_m3(vecmatinv, vecmat);
+		mul_m3_m3m3(rollmat, vecmatinv, mat);
 
-        *roll= (float)atan2(rollmat[2][0], rollmat[2][2]);
-    }
+		*roll= (float)atan2(rollmat[2][0], rollmat[2][2]);
+	}
 }
 
 /*	Calculates the rest matrix of a bone based
@@ -1474,7 +1495,8 @@ void where_is_armature (bArmature *arm)
 	}
 }
 
-/* if bone layer is protected, copy the data from from->pose */
+/* if bone layer is protected, copy the data from from->pose
+ * when used with linked libraries this copies from the linked pose into the local pose */
 static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected)
 {
 	bPose *pose= ob->pose, *frompose= from->pose;
@@ -1529,8 +1551,14 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			pchanw.path= NULL;
 			
 			/* this is freed so copy a copy, else undo crashes */
-			if(pchanw.prop)
+			if(pchanw.prop) {
 				pchanw.prop= IDP_CopyProperty(pchanw.prop);
+
+				/* use the values from the the existing props */
+				if(pchan->prop) {
+					IDP_SyncGroupValues(pchanw.prop, pchan->prop);
+				}
+			}
 
 			/* constraints - proxy constraints are flushed... local ones are added after 
 			 *	1. extract constraints not from proxy (CONSTRAINT_PROXY_LOCAL) from pchan's constraints
@@ -1570,6 +1598,25 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			/* always copy custom shape */
 			pchan->custom= pchanp->custom;
 			pchan->custom_tx= pchanp->custom_tx;
+
+			/* ID-Property Syncing */
+			{
+				IDProperty *prop_orig= pchan->prop;
+				if(pchanp->prop) {
+					pchan->prop= IDP_CopyProperty(pchanp->prop);
+					if(prop_orig) {
+						/* copy existing values across when types match */
+						IDP_SyncGroupValues(pchan->prop, prop_orig);
+					}
+				}
+				else {
+					pchan->prop= NULL;
+				}
+				if (prop_orig) {
+					IDP_FreeProperty(prop_orig);
+					MEM_freeN(prop_orig);
+				}
+			}
 		}
 	}
 }
@@ -1628,6 +1675,7 @@ void armature_rebuild_pose(Object *ob, bArmature *arm)
 		next= pchan->next;
 		if(pchan->bone==NULL) {
 			free_pose_channel(pchan);
+			free_pose_channels_hash(pose);
 			BLI_freelinkN(&pose->chanbase, pchan);
 		}
 	}
@@ -1870,7 +1918,7 @@ static void splineik_evaluate_bone(tSplineIK_Tree *tree, Scene *scene, Object *o
 	float splineVec[3], scaleFac, radius=1.0f;
 	
 	/* firstly, calculate the bone matrix the standard way, since this is needed for roll control */
-	where_is_pose_bone(scene, ob, pchan, ctime);
+	where_is_pose_bone(scene, ob, pchan, ctime, 1);
 	
 	VECCOPY(poseHead, pchan->pose_head);
 	VECCOPY(poseTail, pchan->pose_tail);
@@ -2076,42 +2124,57 @@ static void splineik_execute_tree(Scene *scene, Object *ob, bPoseChannel *pchan_
 
 /* ********************** THE POSE SOLVER ******************* */
 
-
-/* loc/rot/size to mat4 */
-/* used in constraint.c too */
-void chan_calc_mat(bPoseChannel *chan)
+/* loc/rot/size to given mat4 */
+void pchan_to_mat4(bPoseChannel *pchan, float chan_mat[4][4])
 {
 	float smat[3][3];
 	float rmat[3][3];
 	float tmat[3][3];
 	
 	/* get scaling matrix */
-	size_to_mat3( smat,chan->size);
+	size_to_mat3(smat, pchan->size);
 	
 	/* rotations may either be quats, eulers (with various rotation orders), or axis-angle */
-	if (chan->rotmode > 0) {
+	if (pchan->rotmode > 0) {
 		/* euler rotations (will cause gimble lock, but this can be alleviated a bit with rotation orders) */
-		eulO_to_mat3( rmat,chan->eul, chan->rotmode);
+		eulO_to_mat3(rmat, pchan->eul, pchan->rotmode);
 	}
-	else if (chan->rotmode == ROT_MODE_AXISANGLE) {
+	else if (pchan->rotmode == ROT_MODE_AXISANGLE) {
 		/* axis-angle - not really that great for 3D-changing orientations */
-		axis_angle_to_mat3( rmat,chan->rotAxis, chan->rotAngle);
+		axis_angle_to_mat3(rmat, pchan->rotAxis, pchan->rotAngle);
 	}
 	else {
 		/* quats are normalised before use to eliminate scaling issues */
-		normalize_qt(chan->quat); // TODO: do this with local vars only!
-		quat_to_mat3( rmat,chan->quat);
+		float quat[4];
+		
+		/* NOTE: we now don't normalise the stored values anymore, since this was kindof evil in some cases
+		 * but if this proves to be too problematic, switch back to the old system of operating directly on 
+		 * the stored copy
+		 */
+		QUATCOPY(quat, pchan->quat);
+		normalize_qt(quat);
+		quat_to_mat3(rmat, quat);
 	}
 	
 	/* calculate matrix of bone (as 3x3 matrix, but then copy the 4x4) */
 	mul_m3_m3m3(tmat, rmat, smat);
-	copy_m4_m3(chan->chan_mat, tmat);
+	copy_m4_m3(chan_mat, tmat);
 	
 	/* prevent action channels breaking chains */
 	/* need to check for bone here, CONSTRAINT_TYPE_ACTION uses this call */
-	if ((chan->bone==NULL) || !(chan->bone->flag & BONE_CONNECTED)) {
-		VECCOPY(chan->chan_mat[3], chan->loc);
+	if ((pchan->bone==NULL) || !(pchan->bone->flag & BONE_CONNECTED)) {
+		VECCOPY(chan_mat[3], pchan->loc);
 	}
+}
+
+/* loc/rot/size to mat4 */
+/* used in constraint.c too */
+void chan_calc_mat(bPoseChannel *pchan)
+{
+	/* this is just a wrapper around the copy of this function which calculates the matrix 
+	 * and stores the result in any given channel
+	 */
+	pchan_to_mat4(pchan, pchan->chan_mat);
 }
 
 /* NLA strip modifiers */
@@ -2238,8 +2301,10 @@ static void do_strip_modifiers(Scene *scene, Object *armob, Bone *bone, bPoseCha
 
 
 /* The main armature solver, does all constraints excluding IK */
-/* pchan is validated, as having bone and parent pointer */
-void where_is_pose_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float ctime)
+/* pchan is validated, as having bone and parent pointer
+ * 'do_extra': when zero skips loc/size/rot, constraints and strip modifiers.
+ */
+void where_is_pose_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float ctime, int do_extra)
 {
 	Bone *bone, *parbone;
 	bPoseChannel *parchan;
@@ -2251,8 +2316,9 @@ void where_is_pose_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float cti
 	parchan= pchan->parent;
 	
 	/* this gives a chan_mat with actions (ipos) results */
-	chan_calc_mat(pchan);
-	
+	if(do_extra)	chan_calc_mat(pchan);
+	else			unit_m4(pchan->chan_mat);
+
 	/* construct the posemat based on PoseChannels, that we do before applying constraints */
 	/* pose_mat(b)= pose_mat(b-1) * yoffs(b-1) * d_root(b) * bone_mat(b) * chan_mat(b) */
 	
@@ -2317,32 +2383,34 @@ void where_is_pose_bone(Scene *scene, Object *ob, bPoseChannel *pchan, float cti
 			add_v3_v3v3(pchan->pose_mat[3], pchan->pose_mat[3], ob->pose->cyclic_offset);
 	}
 	
-	/* do NLA strip modifiers - i.e. curve follow */
-	do_strip_modifiers(scene, ob, bone, pchan);
-	
-	/* Do constraints */
-	if (pchan->constraints.first) {
-		bConstraintOb *cob;
+	if(do_extra) {
+		/* do NLA strip modifiers - i.e. curve follow */
+		do_strip_modifiers(scene, ob, bone, pchan);
 		
-		/* make a copy of location of PoseChannel for later */
-		VECCOPY(vec, pchan->pose_mat[3]);
-		
-		/* prepare PoseChannel for Constraint solving 
-		 * - makes a copy of matrix, and creates temporary struct to use 
-		 */
-		cob= constraints_make_evalob(scene, ob, pchan, CONSTRAINT_OBTYPE_BONE);
-		
-		/* Solve PoseChannel's Constraints */
-		solve_constraints(&pchan->constraints, cob, ctime);	// ctime doesnt alter objects
-		
-		/* cleanup after Constraint Solving 
-		 * - applies matrix back to pchan, and frees temporary struct used
-		 */
-		constraints_clear_evalob(cob);
-		
-		/* prevent constraints breaking a chain */
-		if(pchan->bone->flag & BONE_CONNECTED) {
-			VECCOPY(pchan->pose_mat[3], vec);
+		/* Do constraints */
+		if (pchan->constraints.first) {
+			bConstraintOb *cob;
+
+			/* make a copy of location of PoseChannel for later */
+			VECCOPY(vec, pchan->pose_mat[3]);
+
+			/* prepare PoseChannel for Constraint solving
+			 * - makes a copy of matrix, and creates temporary struct to use
+			 */
+			cob= constraints_make_evalob(scene, ob, pchan, CONSTRAINT_OBTYPE_BONE);
+
+			/* Solve PoseChannel's Constraints */
+			solve_constraints(&pchan->constraints, cob, ctime);	// ctime doesnt alter objects
+
+			/* cleanup after Constraint Solving
+			 * - applies matrix back to pchan, and frees temporary struct used
+			 */
+			constraints_clear_evalob(cob);
+
+			/* prevent constraints breaking a chain */
+			if(pchan->bone->flag & BONE_CONNECTED) {
+				VECCOPY(pchan->pose_mat[3], vec);
+			}
 		}
 	}
 	
@@ -2414,7 +2482,7 @@ void where_is_pose (Scene *scene, Object *ob)
 			}
 			/* 5. otherwise just call the normal solver */
 			else if(!(pchan->flag & POSE_DONE)) {
-				where_is_pose_bone(scene, ob, pchan, ctime);
+				where_is_pose_bone(scene, ob, pchan, ctime, 1);
 			}
 		}
 		/* 6. release the IK tree */

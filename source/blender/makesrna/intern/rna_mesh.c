@@ -25,7 +25,6 @@
 #include <stdlib.h>
 
 #include "RNA_define.h"
-#include "RNA_types.h"
 
 #include "rna_internal.h"
 
@@ -525,28 +524,28 @@ static void rna_MeshTextureFace_uv4_set(PointerRNA *ptr, const float *values)
 
 static int rna_CustomDataData_numverts(PointerRNA *ptr, int type)
 {
-    Mesh *me= (Mesh*)ptr->id.data;
-    CustomData *fdata= rna_mesh_fdata(me);
-    CustomDataLayer *cdl;
-    int a;
-    size_t b;
+	Mesh *me= (Mesh*)ptr->id.data;
+	CustomData *fdata= rna_mesh_fdata(me);
+	CustomDataLayer *cdl;
+	int a;
+	size_t b;
 
-    for(cdl=fdata->layers, a=0; a<fdata->totlayer; cdl++, a++) {
-        if(cdl->type == type) {
-            b= ((char*)ptr->data - ((char*)cdl->data))/CustomData_sizeof(type);
-            if(b >= 0 && b < me->totface)
-                return (me->mface[b].v4? 4: 3);
-        }
-    }
+	for(cdl=fdata->layers, a=0; a<fdata->totlayer; cdl++, a++) {
+		if(cdl->type == type) {
+			b= ((char*)ptr->data - ((char*)cdl->data))/CustomData_sizeof(type);
+			if(b >= 0 && b < me->totface)
+				return (me->mface[b].v4? 4: 3);
+		}
+	}
 
-    return 0;
+	return 0;
 }
 
 static int rna_MeshTextureFace_uv_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
 {
 	length[0]= rna_CustomDataData_numverts(ptr, CD_MTFACE);
 	length[1]= 2;
-    return length[0]*length[1];
+	return length[0]*length[1];
 }
 
 static void rna_MeshTextureFace_uv_get(PointerRNA *ptr, float *values)
@@ -569,13 +568,13 @@ static void rna_MeshTextureFaceLayer_data_begin(CollectionPropertyIterator *iter
 {
 	Mesh *me= (Mesh*)ptr->id.data;
 	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
-	rna_iterator_array_begin(iter, layer->data, sizeof(MTFace), me->totface, 0, NULL);
+	rna_iterator_array_begin(iter, layer->data, sizeof(MTFace), (me->edit_mesh)? 0: me->totface, 0, NULL);
 }
 
 static int rna_MeshTextureFaceLayer_data_length(PointerRNA *ptr)
 {
 	Mesh *me= (Mesh*)ptr->id.data;
-	return me->totface;
+	return (me->edit_mesh)? 0: me->totface;
 }
 
 static int rna_MeshTextureFaceLayer_active_render_get(PointerRNA *ptr)
@@ -691,13 +690,13 @@ static void rna_MeshColorLayer_data_begin(CollectionPropertyIterator *iter, Poin
 {
 	Mesh *me= (Mesh*)ptr->id.data;
 	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
-	rna_iterator_array_begin(iter, layer->data, sizeof(MCol)*4, me->totface, 0, NULL);
+	rna_iterator_array_begin(iter, layer->data, sizeof(MCol)*4, (me->edit_mesh)? 0: me->totface, 0, NULL);
 }
 
 static int rna_MeshColorLayer_data_length(PointerRNA *ptr)
 {
 	Mesh *me= (Mesh*)ptr->id.data;
-	return me->totface;
+	return (me->edit_mesh)? 0: me->totface;
 }
 
 static int rna_MeshColorLayer_active_render_get(PointerRNA *ptr)
@@ -733,13 +732,13 @@ static void rna_MeshFloatPropertyLayer_data_begin(CollectionPropertyIterator *it
 {
 	Mesh *me= (Mesh*)ptr->id.data;
 	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
-	rna_iterator_array_begin(iter, layer->data, sizeof(MFloatProperty), me->totface, 0, NULL);
+	rna_iterator_array_begin(iter, layer->data, sizeof(MFloatProperty), (me->edit_mesh)? 0: me->totface, 0, NULL);
 }
 
 static int rna_MeshFloatPropertyLayer_data_length(PointerRNA *ptr)
 {
 	Mesh *me= (Mesh*)ptr->id.data;
-	return me->totface;
+	return (me->edit_mesh)? 0: me->totface;
 }
 
 static int rna_float_layer_check(CollectionPropertyIterator *iter, void *data)
@@ -770,13 +769,13 @@ static void rna_MeshIntPropertyLayer_data_begin(CollectionPropertyIterator *iter
 {
 	Mesh *me= (Mesh*)ptr->id.data;
 	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
-	rna_iterator_array_begin(iter, layer->data, sizeof(MIntProperty), me->totface, 0, NULL);
+	rna_iterator_array_begin(iter, layer->data, sizeof(MIntProperty), (me->edit_mesh)? 0: me->totface, 0, NULL);
 }
 
 static int rna_MeshIntPropertyLayer_data_length(PointerRNA *ptr)
 {
 	Mesh *me= (Mesh*)ptr->id.data;
-	return me->totface;
+	return (me->edit_mesh)? 0: me->totface;
 }
 
 static void rna_Mesh_int_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -801,13 +800,13 @@ static void rna_MeshStringPropertyLayer_data_begin(CollectionPropertyIterator *i
 {
 	Mesh *me= (Mesh*)ptr->id.data;
 	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
-	rna_iterator_array_begin(iter, layer->data, sizeof(MStringProperty), me->totface, 0, NULL);
+	rna_iterator_array_begin(iter, layer->data, sizeof(MStringProperty), (me->edit_mesh)? 0: me->totface, 0, NULL);
 }
 
 static int rna_MeshStringPropertyLayer_data_length(PointerRNA *ptr)
 {
 	Mesh *me= (Mesh*)ptr->id.data;
-	return me->totface;
+	return (me->edit_mesh)? 0: me->totface;
 }
 
 static void rna_Mesh_string_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -988,6 +987,22 @@ static char *rna_MeshStringPropertyLayer_path(PointerRNA *ptr)
 static char *rna_MeshStringProperty_path(PointerRNA *ptr)
 {
 	return rna_CustomDataData_path(ptr, "string_layers", CD_MCOL);
+}
+
+static int rna_Mesh_tot_vert_get(PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	return me->edit_mesh ? me->edit_mesh->totvertsel : 0;
+}
+static int rna_Mesh_tot_edge_get(PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	return me->edit_mesh ? me->edit_mesh->totedgesel: 0;
+}
+static int rna_Mesh_tot_face_get(PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	return me->edit_mesh ? me->edit_mesh->totfacesel : 0;
 }
 
 #else
@@ -1593,7 +1608,7 @@ static void rna_def_mesh(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	srna= RNA_def_struct(brna, "Mesh", "ID");
-	RNA_def_struct_ui_text(srna, "Mesh", "Mesh datablock to define geometric surfaces");
+	RNA_def_struct_ui_text(srna, "Mesh", "Mesh datablock defining geometric surfaces");
 	RNA_def_struct_ui_icon(srna, ICON_MESH_DATA);
 
 	prop= RNA_def_property(srna, "verts", PROP_COLLECTION, PROP_NONE);
@@ -1803,11 +1818,32 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Z Mirror", "Z Axis mirror editing");
 	 */
 
+	prop= RNA_def_property(srna, "use_mirror_topology", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "editflag", ME_EDIT_MIRROR_TOPO);
+	RNA_def_property_ui_text(prop, "Topology Mirror", "Use topology based mirroring");
+
 	prop= RNA_def_property(srna, "use_paint_mask", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "editflag", ME_EDIT_PAINT_MASK);
 	RNA_def_property_ui_text(prop, "Paint Mask", "Face selection masking for painting");
 	RNA_def_property_ui_icon(prop, ICON_FACESEL_HLT, 0);
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+
+
+	/* readonly editmesh info - use for extrude menu */
+	prop= RNA_def_property(srna, "total_vert_sel", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_Mesh_tot_vert_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Selected Vert Total", "Selected vertex count in editmode");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "total_edge_sel", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_Mesh_tot_edge_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Selected Edge Total", "Selected edge count in editmode");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "total_face_sel", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_Mesh_tot_face_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Selected Face Total", "Selected face count in editmode");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
 	/* pointers */
 	rna_def_animdata_common(srna);

@@ -40,13 +40,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 
-#include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_sequence_types.h"
-#include "DNA_view2d_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -59,21 +53,13 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "RNA_access.h"
 #include "RNA_define.h"
 
 /* for menu/popup icons etc etc*/
-#include "UI_interface.h"
-#include "UI_resources.h"
 
-#include "ED_anim_api.h"
-#include "ED_space_api.h"
 #include "ED_types.h"
 #include "ED_screen.h"
-#include "ED_util.h"
 
-#include "UI_interface.h"
-#include "UI_resources.h"
 #include "UI_view2d.h"
 
 /* own include */
@@ -388,6 +374,24 @@ static int sequencer_select_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			}
 		}
 		SEQ_END
+		
+		{
+			SpaceSeq *sseq= CTX_wm_space_seq(C);
+			if (sseq && sseq->flag & SEQ_MARKER_TRANS) {
+				TimeMarker *marker;
+
+				for (marker= scene->markers.first; marker; marker= marker->next) {
+					if(	((x < CFRA) && marker->frame < CFRA) ||
+						((x >= CFRA) && marker->frame >= CFRA)
+					) {
+						marker->flag |= SELECT;
+					}
+					else {
+						marker->flag &= ~SELECT;
+					}
+				}
+			}
+		}
 	} else {
 		// seq= find_nearest_seq(scene, v2d, &hand, mval);
 

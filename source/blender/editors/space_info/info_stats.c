@@ -27,15 +27,11 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_anim.h"
@@ -408,7 +404,7 @@ static void stats_string(Scene *scene)
 	}
 	else {
 		s += sprintf(s, "Ve:%d | Fa:%d | Ob:%d-%d | La:%d%s",
-			stats->totvert, stats->totface, stats->totobj, stats->totobjsel, stats->totlamp, memstr);
+			stats->totvert, stats->totface, stats->totobjsel, stats->totobj, stats->totlamp, memstr);
 	}
 
 	if(ob)

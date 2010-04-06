@@ -36,14 +36,12 @@
 #include "DNA_cloth_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_scene_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_editVert.h"
@@ -59,6 +57,7 @@
 #include "BKE_mesh.h"
 #include "BKE_paint.h"
 #include "BKE_utildefines.h"
+#include "BKE_report.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -67,9 +66,7 @@
 #include "WM_types.h"
 
 #include "ED_mesh.h"
-#include "ED_view3d.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 
 #include "object_intern.h"
@@ -287,7 +284,11 @@ void ED_vgroup_nr_vert_add(Object *ob, int def_nr, int vertnum, float weight, in
 	if(dv==NULL)
 		return;
 	
-	dv+= vertnum;
+	/* check that vertnum is valid before trying to get the relevant dvert */
+	if ((vertnum < 0) || (vertnum >= tot))
+		return;
+	else
+		dv += vertnum;
 
 	/* Lets first check to see if this vert is
 	 * already in the weight group -- if so
@@ -1284,7 +1285,7 @@ static void vgroup_assign_verts(Object *ob, float weight)
 						done=1;
 						break;
 					}
-			 	}
+				 }
 				/*		If not: Add the group and set its weight */
 				if(!done){
 					newdw = MEM_callocN(sizeof(MDeformWeight)*(dvert->totweight+1), "deformWeight");
@@ -1457,7 +1458,11 @@ static int vertex_group_remove_from_exec(bContext *C, wmOperator *op)
 {
 	Object *ob= CTX_data_edit_object(C);
 
-	vgroup_remove_verts(ob, 0);
+	if(RNA_boolean_get(op->ptr, "all"))
+		vgroup_remove_verts(ob, 0);
+	else
+		vgroup_active_remove_verts(ob, 0);
+
 	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, ob->data);
 
@@ -1952,10 +1957,30 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 		name += DEF_GROUP_SIZE;
 	}
 
-	ED_vgroup_give_array(ob->data, &dvert, &dvert_tot);
-	while(dvert && dvert_tot--) {
-		defvert_remap(dvert, sort_map);
-		dvert++;
+	if(ob->mode == OB_MODE_EDIT) {
+		if(ob->type==OB_MESH) {
+			EditMesh *em = BKE_mesh_get_editmesh(ob->data);
+			EditVert *eve;
+
+			for(eve=em->verts.first; eve; eve=eve->next){
+				dvert= CustomData_em_get(&em->vdata, eve->data, CD_MDEFORMVERT);
+				if(dvert && dvert->totweight){
+					defvert_remap(dvert, sort_map);
+				}
+			}
+		}
+		else {
+			BKE_report(op->reports, RPT_ERROR, "Editmode lattice isnt supported yet.");
+			return OPERATOR_CANCELLED;
+		}
+	}
+	else {
+		ED_vgroup_give_array(ob->data, &dvert, &dvert_tot);
+		while(dvert && dvert_tot--) {
+			if(dvert->totweight)
+				defvert_remap(dvert, sort_map);
+			dvert++;
+		}
 	}
 
 	/* update users */
@@ -1965,6 +1990,8 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 	sort_map_update[0]= 0;
 
 	vgroup_remap_update_users(ob, sort_map_update);
+
+	ob->actdef= sort_map_update[ob->actdef];
 
 	MEM_freeN(name_array);
 	MEM_freeN(sort_map_update);

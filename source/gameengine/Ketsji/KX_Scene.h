@@ -46,6 +46,7 @@
 #include "RAS_Rect.h"
 
 #include "PyObjectPlus.h"
+#include "RAS_2DFilterManager.h"
 
 /**
  * @section Forward declarations
@@ -273,6 +274,7 @@ protected:
 
 	struct Scene* m_blenderScene;
 
+	RAS_2DFilterManager m_filtermanager;
 public:	
 	KX_Scene(class SCA_IInputDevice* keyboarddevice,
 		class SCA_IInputDevice* mousedevice,
@@ -288,11 +290,6 @@ public:
 	void RenderBuckets(const MT_Transform& cameratransform,
 						RAS_IRasterizer* rasty,
 						RAS_IRenderTools* rendertools);
-
-	/**
-	 * Run the registered python drawing functions.
-	 */
-	void RunDrawingCallbacks(PyObject* cb_list);
 
 	/**
 	 * Update all transforms according to the scenegraph.
@@ -535,6 +532,12 @@ public:
 	 */
 	void SetNodeTree(SG_Tree* root);
 
+	/**
+	* 2D Filters
+	*/
+	void Update2DFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFilterManager::RAS_2DFILTER_MODE filtermode, int pass, STR_String& text);
+	void Render2DFilters(RAS_ICanvas* canvas);
+
 #ifndef DISABLE_PYTHON
 	/* --------------------------------------------------------------------- */
 	/* Python interface ---------------------------------------------------- */
@@ -544,6 +547,8 @@ public:
 	KX_PYMETHOD_DOC(KX_Scene, end);
 	KX_PYMETHOD_DOC(KX_Scene, restart);
 	KX_PYMETHOD_DOC(KX_Scene, replace);
+	KX_PYMETHOD_DOC(KX_Scene, suspend);
+	KX_PYMETHOD_DOC(KX_Scene, resume);
 	KX_PYMETHOD_DOC(KX_Scene, get);
 
 	/* attributes */
@@ -565,6 +570,11 @@ public:
 	static PyMappingMethods	Mapping;
 	static PySequenceMethods	Sequence;
 
+	/**
+	 * Run the registered python drawing functions.
+	 */
+	void RunDrawingCallbacks(PyObject* cb_list);
+	
 	PyObject* GetPreDrawCB() { return m_draw_call_pre; };
 	PyObject* GetPostDrawCB() { return m_draw_call_post; };
 #endif

@@ -40,20 +40,14 @@
 
 #include "DNA_color_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_image_types.h"
-#include "DNA_texture_types.h"
 
 #include "BKE_colortools.h"
 #include "BKE_curve.h"
-#include "BKE_global.h"
 #include "BKE_ipo.h"
-#include "BKE_image.h"
-#include "BKE_main.h"
 #include "BKE_utildefines.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
-#include "BLI_threads.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
@@ -143,6 +137,7 @@ void curvemapping_free(CurveMapping *cumap)
 		for(a=0; a<CM_TOT; a++) {
 			if(cumap->cm[a].curve) MEM_freeN(cumap->cm[a].curve);
 			if(cumap->cm[a].table) MEM_freeN(cumap->cm[a].table);
+			if(cumap->cm[a].premultable) MEM_freeN(cumap->cm[a].premultable);
 		}
 		MEM_freeN(cumap);
 	}
@@ -159,6 +154,8 @@ CurveMapping *curvemapping_copy(CurveMapping *cumap)
 				cumapn->cm[a].curve= MEM_dupallocN(cumap->cm[a].curve);
 			if(cumap->cm[a].table) 
 				cumapn->cm[a].table= MEM_dupallocN(cumap->cm[a].table);
+			if(cumap->cm[a].premultable) 
+				cumapn->cm[a].premultable= MEM_dupallocN(cumap->cm[a].premultable);
 		}
 		return cumapn;
 	}
@@ -236,7 +233,7 @@ void curvemap_insert(CurveMap *cuma, float x, float y)
 	cuma->curve= cmp;
 }
 
-void curvemap_reset(CurveMap *cuma, rctf *clipr, CurveMappingPreset preset)
+void curvemap_reset(CurveMap *cuma, rctf *clipr, int preset)
 {
 	if(cuma->curve)
 		MEM_freeN(cuma->curve);
@@ -246,6 +243,7 @@ void curvemap_reset(CurveMap *cuma, rctf *clipr, CurveMappingPreset preset)
 		case CURVE_PRESET_SHARP: cuma->totpoint= 3; break;
 		case CURVE_PRESET_SMOOTH: cuma->totpoint= 4; break;
 		case CURVE_PRESET_MAX: cuma->totpoint= 2; break;
+		case CURVE_PRESET_MID9: cuma->totpoint= 9;
 	}
 
 	cuma->curve= MEM_callocN(cuma->totpoint*sizeof(CurveMapPoint), "curve points");
@@ -283,6 +281,15 @@ void curvemap_reset(CurveMap *cuma, rctf *clipr, CurveMappingPreset preset)
 			cuma->curve[1].x= 1;
 			cuma->curve[1].y= 1;
 			break;
+		case CURVE_PRESET_MID9:
+			{
+				int i;
+				for (i=0; i < cuma->totpoint; i++)
+				{
+					cuma->curve[i].x= i / ((float)cuma->totpoint-1);
+					cuma->curve[i].y= 0.5;
+				}
+			}
 	}
 	
 	if(cuma->table) {
@@ -747,10 +754,10 @@ void colorcorrection_do_ibuf(ImBuf *ibuf, const char *profile)
 		cmsErrorAction(LCMS_ERROR_SHOW);
 	
 		hTransform = cmsCreateProofingTransform(imageProfile, TYPE_RGBA_8, imageProfile, TYPE_RGBA_8, 
-	                                          proofingProfile,
-	                                          INTENT_ABSOLUTE_COLORIMETRIC,
-	                                          INTENT_ABSOLUTE_COLORIMETRIC,
-	                                          cmsFLAGS_SOFTPROOFING);
+											  proofingProfile,
+											  INTENT_ABSOLUTE_COLORIMETRIC,
+											  INTENT_ABSOLUTE_COLORIMETRIC,
+											  cmsFLAGS_SOFTPROOFING);
 	
 		cmsDoTransform(hTransform, ibuf->rect, ibuf->crect, ibuf->x * ibuf->y);
 	

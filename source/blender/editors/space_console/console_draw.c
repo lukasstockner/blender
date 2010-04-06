@@ -41,7 +41,6 @@
 
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BKE_global.h"
 #include "BKE_main.h"
@@ -56,7 +55,6 @@
 #include "ED_datafiles.h"
 #include "ED_types.h"
 
-#include "UI_interface.h"
 #include "UI_resources.h"
 
 #include "console_intern.h"
@@ -140,9 +138,23 @@ typedef struct ConsoleDrawContext {
 
 static void console_draw_sel(int sel[2], int xy[2], int str_len, int cwidth, int console_width, int lheight)
 {
-	if(sel[0] < str_len && sel[1] > 0) {
+	if(sel[0] <= str_len && sel[1] >= 0) {
 		int sta = MAX2(sel[0], 0);
 		int end = MIN2(sel[1], str_len);
+
+		/* highly confusing but draws correctly */
+		if(sel[0] < 0 || sel[1] > str_len) {
+			if(sel[0] > 0) {
+				end= sta;
+				sta= 0;
+			}
+			if (sel[1] <= str_len) {
+				sta= end;
+				end= str_len;
+			}
+		}
+		/* end confusement */
+
 		{
 			glEnable(GL_POLYGON_STIPPLE);
 			glPolygonStipple(stipple_halftone);
@@ -157,8 +169,8 @@ static void console_draw_sel(int sel[2], int xy[2], int str_len, int cwidth, int
 		}
 	}
 
-	sel[0] -= str_len;
-	sel[1] -= str_len;
+	sel[0] -= str_len + 1;
+	sel[1] -= str_len + 1;
 }
 
 
@@ -179,7 +191,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, char *str, int str_len, 
 					int ofs = (int)floor(((float)cdc->mval[0] / (float)cdc->cwidth));
 					*cdc->pos_pick += MIN2(ofs, str_len);
 				} else
-					*cdc->pos_pick += str_len;
+					*cdc->pos_pick += str_len + 1;
 			}
 
 		}
@@ -190,6 +202,13 @@ static int console_draw_string(ConsoleDrawContext *cdc, char *str, int str_len, 
 	else if (y_next-cdc->lheight < cdc->ymin) {
 		/* have not reached the drawable area so don't break */
 		cdc->xy[1]= y_next;
+
+		/* adjust selection even if not drawing */
+		if(cdc->sel[0] != cdc->sel[1]) {
+			cdc->sel[0] -= str_len + 1;
+			cdc->sel[1] -= str_len + 1;
+		}
+
 		return 1;
 	}
 
@@ -314,6 +333,7 @@ static int console_text_main__internal(struct SpaceConsole *sc, struct ARegion *
 		if(sc->sel_start != sc->sel_end) {
 			sel[0]= sc->sel_start;
 			sel[1]= sc->sel_end;
+			// printf("%d %d\n", sel[0], sel[1]);
 		}
 		
 		/* text */
@@ -331,7 +351,7 @@ static int console_text_main__internal(struct SpaceConsole *sc, struct ARegion *
 			BLF_draw(cl->line);
 
 			/* cursor */
-			console_line_color(fg, CONSOLE_LINE_ERROR); /* lazy */
+			UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, (char *)fg);
 			glColor3ub(fg[0], fg[1], fg[2]);
 			glRecti(xy[0]+(cwidth*cl->cursor) -1, xy[1]-2, xy[0]+(cwidth*cl->cursor) +1, xy[1]+sc->lheight-2);
 

@@ -20,7 +20,7 @@
  * The Original Code is Copyright (C) 2001-2002 by NaN Holding BV.
  * All rights reserved.
  *
- * Contributor(s): Blender Foundation, 2002-2009
+ * Contributor(s): Blender Foundation, 2002-2009, Xavier Thomas
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -30,21 +30,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_image_types.h"
-#include "DNA_node_types.h"
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
-#include "DNA_space_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_image.h"
 #include "BKE_global.h"
+#include "BKE_image.h"
 #include "BKE_library.h"
+#include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_packedFile.h"
 #include "BKE_report.h"
@@ -60,7 +56,6 @@
 
 #include "RNA_access.h"
 #include "RNA_define.h"
-#include "RNA_types.h"
 #include "RNA_enum_types.h"
 
 #include "ED_image.h"
@@ -716,6 +711,9 @@ static int open_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	SpaceImage *sima= CTX_wm_space_image(C);
 	char *path= (sima && sima->image)? sima->image->name: U.textudir;
 
+	if(!RNA_property_is_set(op->ptr, "relative_path"))
+		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
+
 	if(RNA_property_is_set(op->ptr, "path"))
 		return open_exec(C, op);
 	
@@ -742,6 +740,8 @@ void IMAGE_OT_open(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE);
+
+	RNA_def_boolean(ot->srna, "relative_path", 0, "Relative Path", "Load image with relative path to current .blend file");
 }
 
 /******************** replace image operator ********************/
@@ -801,19 +801,18 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 
 /* assumes name is FILE_MAX */
 /* ima->name and ibuf->name should end up the same */
-static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOperator *op, char *name)
+static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOperator *op, char *path)
 {
 	Image *ima= ED_space_image(sima);
 	void *lock;
 	ImBuf *ibuf= ED_space_image_acquire_buffer(sima, &lock);
-	int len;
 
-	if (ibuf) {	
-		BLI_convertstringcode(name, G.sce);
-		BLI_convertstringframe(name, scene->r.cfra, 0);
+	if (ibuf) {
+		int relative= RNA_boolean_get(op->ptr, "relative_path");
+		BLI_path_abs(path, G.sce);
 		
 		if(scene->r.scemode & R_EXTENSION)  {
-			BKE_add_image_extension(name, sima->imtypenr);
+			BKE_add_image_extension(path, sima->imtypenr);
 		}
 		
 		/* enforce user setting for RGB or RGBA, but skip BW */
@@ -827,10 +826,13 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 		if(sima->imtypenr==R_MULTILAYER) {
 			RenderResult *rr= BKE_image_acquire_renderresult(scene, ima);
 			if(rr) {
-				RE_WriteRenderResult(rr, name, scene->r.quality);
-				
-				BLI_strncpy(ima->name, name, sizeof(ima->name));
-				BLI_strncpy(ibuf->name, name, sizeof(ibuf->name));
+				RE_WriteRenderResult(rr, path, scene->r.quality);
+
+				if(relative)
+					BLI_path_rel(path, G.sce); /* only after saving */
+
+				BLI_strncpy(ima->name, path, sizeof(ima->name));
+				BLI_strncpy(ibuf->name, path, sizeof(ibuf->name));
 				
 				/* should be function? nevertheless, saving only happens here */
 				for(ibuf= ima->ibufs.first; ibuf; ibuf= ibuf->next)
@@ -841,9 +843,14 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 				BKE_report(op->reports, RPT_ERROR, "Did not write, no Multilayer Image");
 			BKE_image_release_renderresult(scene, ima);
 		}
-		else if (BKE_write_ibuf(scene, ibuf, name, sima->imtypenr, scene->r.subimtype, scene->r.quality)) {
-			BLI_strncpy(ima->name, name, sizeof(ima->name));
-			BLI_strncpy(ibuf->name, name, sizeof(ibuf->name));
+		else if (BKE_write_ibuf(scene, ibuf, path, sima->imtypenr, scene->r.subimtype, scene->r.quality)) {
+			char *name;
+
+			if(relative)
+				BLI_path_rel(path, G.sce); /* only after saving */
+
+			BLI_strncpy(ima->name, path, sizeof(ima->name));
+			BLI_strncpy(ibuf->name, path, sizeof(ibuf->name));
 			
 			ibuf->userflags &= ~IB_BITMAPDIRTY;
 			
@@ -868,13 +875,13 @@ static void save_image_doit(bContext *C, SpaceImage *sima, Scene *scene, wmOpera
 				ima->type= IMA_TYPE_IMAGE;
 			}
 			
+			name = BLI_last_slash(path);
+
 			/* name image as how we saved it */
-			len= strlen(name);
-			while (len > 0 && name[len - 1] != '/' && name[len - 1] != '\\') len--;
-			rename_id(&ima->id, name+len);
+			rename_id(&ima->id, name ? name + 1 : path);
 		} 
 		else
-			BKE_reportf(op->reports, RPT_ERROR, "Couldn't write image: %s", name);
+			BKE_reportf(op->reports, RPT_ERROR, "Couldn't write image: %s", path);
 
 		WM_event_add_notifier(C, NC_IMAGE|NA_EDITED, sima->image);
 
@@ -910,6 +917,9 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	ImBuf *ibuf;
 	void *lock;
 
+	if(!RNA_property_is_set(op->ptr, "relative_path"))
+		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
+
 	if(RNA_property_is_set(op->ptr, "path"))
 		return save_as_exec(C, op);
 	
@@ -925,6 +935,8 @@ static int save_as_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			sima->imtypenr= R_MULTILAYER;
 		else if(ima->type==IMA_TYPE_R_RESULT)
 			sima->imtypenr= scene->r.imtype;
+		else if (ima->source == IMA_SRC_GENERATED)
+			sima->imtypenr= R_PNG;
 		else
 			sima->imtypenr= BKE_ftype_to_imtype(ibuf->ftype);
 
@@ -963,6 +975,8 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	/* properties */
 	RNA_def_enum(ot->srna, "file_type", image_file_type_items, R_PNG, "File Type", "File type to save image as.");
 	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE|MOVIEFILE, FILE_SPECIAL, FILE_SAVE);
+
+	RNA_def_boolean(ot->srna, "relative_path", 0, "Relative Path", "Save image with relative path to current .blend file");
 }
 
 /******************** save image operator ********************/
@@ -1072,7 +1086,7 @@ static int save_sequence_exec(bContext *C, wmOperator *op)
 			char name[FILE_MAX];
 			BLI_strncpy(name, ibuf->name, sizeof(name));
 			
-			BLI_convertstringcode(name, G.sce);
+			BLI_path_abs(name, G.sce);
 
 			if(0 == IMB_saveiff(ibuf, name, IB_rect | IB_zbuf | IB_zbuffloat)) {
 				BKE_reportf(op->reports, RPT_ERROR, "Could not write image %s.", name);
@@ -1160,6 +1174,9 @@ static int new_exec(bContext *C, wmOperator *op)
 	uvtestgrid= RNA_boolean_get(op->ptr, "uv_test_grid");
 	RNA_float_get_array(op->ptr, "color", color);
 	color[3]= RNA_float_get(op->ptr, "alpha");
+	
+	if (!floatbuf && scene->r.color_mgt_flag & R_COLOR_MANAGEMENT)
+		linearrgb_to_srgb_v3_v3(color, color);
 
 	ima = BKE_add_image_size(width, height, name, floatbuf, uvtestgrid, color);
 
@@ -1309,23 +1326,23 @@ void unpack_menu(bContext *C, char *opname, char *abs_name, char *folder, Packed
 	pup= uiPupMenuBegin(C, "Unpack file", 0);
 	layout= uiPupMenuLayout(pup);
 
-	uiItemEnumO(layout, "Remove Pack", 0, opname, "method", PF_REMOVE);
+	uiItemEnumO(layout, opname, "Remove Pack", 0, "method", PF_REMOVE);
 
 	if(strcmp(abs_name, local_name)) {
 		switch(checkPackedFile(local_name, pf)) {
 			case PF_NOFILE:
 				sprintf(line, "Create %s", local_name);
-				uiItemEnumO(layout, line, 0, opname, "method", PF_WRITE_LOCAL);
+				uiItemEnumO(layout, opname, line, 0, "method", PF_WRITE_LOCAL);
 				break;
 			case PF_EQUAL:
 				sprintf(line, "Use %s (identical)", local_name);
-				uiItemEnumO(layout, line, 0, opname, "method", PF_USE_LOCAL);
+				uiItemEnumO(layout, opname, line, 0, "method", PF_USE_LOCAL);
 				break;
 			case PF_DIFFERS:
 				sprintf(line, "Use %s (differs)", local_name);
-				uiItemEnumO(layout, line, 0, opname, "method", PF_USE_LOCAL);
+				uiItemEnumO(layout, opname, line, 0, "method", PF_USE_LOCAL);
 				sprintf(line, "Overwrite %s", local_name);
-				uiItemEnumO(layout, line, 0, opname, "method", PF_WRITE_LOCAL);
+				uiItemEnumO(layout, opname, line, 0, "method", PF_WRITE_LOCAL);
 				break;
 		}
 	}
@@ -1333,17 +1350,17 @@ void unpack_menu(bContext *C, char *opname, char *abs_name, char *folder, Packed
 	switch(checkPackedFile(abs_name, pf)) {
 		case PF_NOFILE:
 			sprintf(line, "Create %s", abs_name);
-			uiItemEnumO(layout, line, 0, opname, "method", PF_WRITE_ORIGINAL);
+			uiItemEnumO(layout, opname, line, 0, "method", PF_WRITE_ORIGINAL);
 			break;
 		case PF_EQUAL:
 			sprintf(line, "Use %s (identical)", abs_name);
-			uiItemEnumO(layout, line, 0, opname, "method", PF_USE_ORIGINAL);
+			uiItemEnumO(layout, opname, line, 0, "method", PF_USE_ORIGINAL);
 			break;
 		case PF_DIFFERS:
 			sprintf(line, "Use %s (differs)", local_name);
-			uiItemEnumO(layout, line, 0, opname, "method", PF_USE_ORIGINAL);
+			uiItemEnumO(layout, opname, line, 0, "method", PF_USE_ORIGINAL);
 			sprintf(line, "Overwrite %s", local_name);
-			uiItemEnumO(layout, line, 0, opname, "method", PF_WRITE_ORIGINAL);
+			uiItemEnumO(layout, opname, line, 0, "method", PF_WRITE_ORIGINAL);
 			break;
 	}
 
@@ -1496,7 +1513,7 @@ static void sample_apply(bContext *C, wmOperator *op, wmEvent *event)
 			info->colf[0]= fp[0];
 			info->colf[1]= fp[1];
 			info->colf[2]= fp[2];
-			info->colf[3]= fp[4];
+			info->colf[3]= fp[3];
 			info->colfp= info->colf;
 		}
 
@@ -1614,6 +1631,107 @@ void IMAGE_OT_sample(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_BLOCKING;
+}
+
+/******************** sample line operator ********************/
+static int sample_line_exec(bContext *C, wmOperator *op)
+{
+	SpaceImage *sima= CTX_wm_space_image(C);
+	ARegion *ar= CTX_wm_region(C);
+	
+	int x_start= RNA_int_get(op->ptr, "xstart");
+	int y_start= RNA_int_get(op->ptr, "ystart");
+	int x_end= RNA_int_get(op->ptr, "xend");
+	int y_end= RNA_int_get(op->ptr, "yend");
+	
+	void *lock;
+	ImBuf *ibuf= ED_space_image_acquire_buffer(sima, &lock);
+	Histogram *hist= &sima->sample_line_hist;
+	
+	float x1f, y1f, x2f, y2f;
+	int x1, y1, x2, y2;
+	int i, x, y;
+	float *fp;
+	unsigned char *cp;
+	
+	if (ibuf == NULL) {
+		ED_space_image_release_buffer(sima, lock);
+		return OPERATOR_CANCELLED;
+	}
+	/* hmmmm */
+	if (ibuf->channels < 3) {
+		ED_space_image_release_buffer(sima, lock);
+		return OPERATOR_CANCELLED;
+	}
+	
+	UI_view2d_region_to_view(&ar->v2d, x_start, y_start, &x1f, &y1f);
+	UI_view2d_region_to_view(&ar->v2d, x_end, y_end, &x2f, &y2f);
+	x1= 0.5f+ x1f*ibuf->x;
+	x2= 0.5f+ x2f*ibuf->x;
+	y1= 0.5f+ y1f*ibuf->y;
+	y2= 0.5f+ y2f*ibuf->y;
+	
+	hist->channels = 3;
+	hist->x_resolution = 256;
+	hist->xmax = 1.0f;
+	hist->ymax = 1.0f;
+	
+	for (i=0; i<256; i++) {
+		x= (int)(0.5f + x1 + (float)i*(x2-x1)/255.0f);
+		y= (int)(0.5f + y1 + (float)i*(y2-y1)/255.0f);
+		
+		if (x<0 || y<0 || x>=ibuf->x || y>=ibuf->y) {
+			hist->data_r[i] = hist->data_g[i]= hist->data_b[i] = 0.0f;
+		} else {
+			if (ibuf->rect_float) {
+				fp= (ibuf->rect_float + (ibuf->channels)*(y*ibuf->x + x));
+				hist->data_r[i] = fp[0];
+				hist->data_g[i] = fp[1];
+				hist->data_b[i] = fp[2];
+			}
+			else if (ibuf->rect) {
+				cp= (unsigned char *)(ibuf->rect + y*ibuf->x + x);
+				hist->data_r[i] = (float)cp[0]/255.0f;
+				hist->data_g[i] = (float)cp[1]/255.0f;
+				hist->data_b[i] = (float)cp[2]/255.0f;
+			}
+		}
+	}
+	hist->ok=1;
+	
+	ED_space_image_release_buffer(sima, lock);
+	
+	ED_area_tag_redraw(CTX_wm_area(C));
+	
+	return OPERATOR_FINISHED;
+}
+
+static int sample_line_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	SpaceImage *sima= CTX_wm_space_image(C);
+	
+	if(!ED_space_image_has_buffer(sima))
+		return OPERATOR_CANCELLED;
+	
+	return WM_gesture_straightline_invoke(C, op, event);
+}
+
+void IMAGE_OT_sample_line(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Sample Line";
+	ot->idname= "IMAGE_OT_sample_line";
+	
+	/* api callbacks */
+	ot->invoke= sample_line_invoke;
+	ot->modal= WM_gesture_straightline_modal;
+	ot->exec= sample_line_exec;
+	ot->poll= space_image_main_area_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	
+	WM_operator_properties_gesture_straightline(ot, CURSOR_EDIT);
 }
 
 /******************** set curve point operator ********************/
@@ -1802,21 +1920,21 @@ static int cycle_render_slot_poll(bContext *C)
 
 static int cycle_render_slot_exec(bContext *C, wmOperator *op)
 {
-	Scene *scene= CTX_data_scene(C);
-	int a, slot, cur= RE_GetViewSlot();
+	Image *ima= CTX_data_edit_image(C);
+	int a, slot, cur= ima->render_slot;
 
-	for(a=1; a<RE_SLOT_MAX; a++) {
-		slot= (cur+a)%RE_SLOT_MAX;
+	for(a=1; a<IMA_MAX_RENDER_SLOT; a++) {
+		slot= (cur+a)%IMA_MAX_RENDER_SLOT;
 
-		if(RE_GetRender(scene->id.name, slot)) {
-			RE_SetViewSlot(slot);
+		if(ima->renders[slot] || slot == ima->last_render_slot) {
+			ima->render_slot= slot;
 			break;
 		}
 	}
 
-	if(a == RE_SLOT_MAX)
-		RE_SetViewSlot((cur == 1)? 0: 1);
-
+	if(a == IMA_MAX_RENDER_SLOT)
+		ima->render_slot= ((cur == 1)? 0: 1);
+	
 	WM_event_add_notifier(C, NC_IMAGE|ND_DRAW, NULL);
 
 	return OPERATOR_FINISHED;
@@ -1839,20 +1957,26 @@ void IMAGE_OT_cycle_render_slot(wmOperatorType *ot)
 /******************** TODO ********************/
 
 /* XXX notifier? */
-#if 0
+
 /* goes over all ImageUsers, and sets frame numbers if auto-refresh is set */
-void BIF_image_update_frame(void)
+
+void ED_image_update_frame(const bContext *C)
 {
+	Main *mainp = CTX_data_main(C);
+	Scene *scene= CTX_data_scene(C);
 	Tex *tex;
 	
 	/* texture users */
-	for(tex= G.main->tex.first; tex; tex= tex->id.next) {
-		if(tex->type==TEX_IMAGE && tex->ima)
-			if(ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
+	for(tex= mainp->tex.first; tex; tex= tex->id.next) {
+		if(tex->type==TEX_IMAGE && tex->ima) {
+			if(ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
 				if(tex->iuser.flag & IMA_ANIM_ALWAYS)
-					BKE_image_user_calc_imanr(&tex->iuser, scene->r.cfra, 0);
-		
+					BKE_image_user_calc_frame(&tex->iuser, scene->r.cfra, 0);
+			}
+		}
 	}
+	
+#if 0
 	/* image window, compo node users */
 	if(G.curscreen) {
 		ScrArea *sa;
@@ -1861,12 +1985,12 @@ void BIF_image_update_frame(void)
 				View3D *v3d= sa->spacedata.first;
 				if(v3d->bgpic)
 					if(v3d->bgpic->iuser.flag & IMA_ANIM_ALWAYS)
-						BKE_image_user_calc_imanr(&v3d->bgpic->iuser, scene->r.cfra, 0);
+						BKE_image_user_calc_frame(&v3d->bgpic->iuser, scene->r.cfra, 0);
 			}
 			else if(sa->spacetype==SPACE_IMAGE) {
 				SpaceImage *sima= sa->spacedata.first;
 				if(sima->iuser.flag & IMA_ANIM_ALWAYS)
-					BKE_image_user_calc_imanr(&sima->iuser, scene->r.cfra, 0);
+					BKE_image_user_calc_frame(&sima->iuser, scene->r.cfra, 0);
 			}
 			else if(sa->spacetype==SPACE_NODE) {
 				SpaceNode *snode= sa->spacedata.first;
@@ -1878,14 +2002,15 @@ void BIF_image_update_frame(void)
 							ImageUser *iuser= node->storage;
 							if(ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
 								if(iuser->flag & IMA_ANIM_ALWAYS)
-									BKE_image_user_calc_imanr(iuser, scene->r.cfra, 0);
+									BKE_image_user_calc_frame(iuser, scene->r.cfra, 0);
 						}
 					}
 				}
 			}
 		}
 	}
-}
 #endif
+}
+
 
 

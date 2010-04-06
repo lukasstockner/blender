@@ -54,6 +54,13 @@ struct DerivedMesh *CDDM_from_mesh(struct Mesh *mesh, struct Object *ob);
 /* creates a CDDerivedMesh from the given EditMesh */
 struct DerivedMesh *CDDM_from_editmesh(struct EditMesh *em, struct Mesh *me);
 
+/* creates a CDDerivedMesh from the given curve object */
+struct DerivedMesh *CDDM_from_curve(struct Object *ob);
+
+/* creates a CDDerivedMesh from the given curve object and specified dispbase */
+/* useful for OrcoDM creation for curves with constructive modifiers */
+DerivedMesh *CDDM_from_curve_customDB(struct Object *ob, struct ListBase *dispbase);
+
 /* Copies the given DerivedMesh with verts, faces & edges stored as
  * custom element data.
  */
@@ -64,7 +71,7 @@ struct DerivedMesh *CDDM_copy(struct DerivedMesh *dm);
  * elements are initialised to all zeros
  */
 struct DerivedMesh *CDDM_from_template(struct DerivedMesh *source,
-                                  int numVerts, int numEdges, int numFaces);
+								  int numVerts, int numEdges, int numFaces);
 
 /* applies vertex coordinates or normals to a CDDerivedMesh. if the MVert
  * layer is a referenced layer, it will be duplicate to not overwrite the

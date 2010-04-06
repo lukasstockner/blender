@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -31,7 +31,6 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
@@ -50,6 +49,7 @@
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_types.h"
+#include "ED_fileselect.h" 
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -373,7 +373,7 @@ void ED_region_tag_redraw(ARegion *ar)
 {
 	if(ar) {
 		/* zero region means full region redraw */
-		ar->do_draw= 1;
+		ar->do_draw= RGN_DRAW;
 		memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 	}
 }
@@ -383,7 +383,7 @@ void ED_region_tag_redraw_partial(ARegion *ar, rcti *rct)
 	if(ar) {
 		if(!ar->do_draw) {
 			/* no redraw set yet, set partial region */
-			ar->do_draw= 1;
+			ar->do_draw= RGN_DRAW_PARTIAL;
 			ar->drawrct= *rct;
 		}
 		else if(ar->drawrct.xmin != ar->drawrct.xmax) {
@@ -1097,6 +1097,13 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 void ED_area_prevspace(bContext *C, ScrArea *sa)
 {
 	SpaceLink *sl = (sa) ? sa->spacedata.first : CTX_wm_space_data(C);
+
+	/* Special handling of filebrowser to stop background thread for
+	   thumbnail creation - don't want to waste cpu resources if not showing
+	   the filebrowser */
+	if (sl->spacetype == SPACE_FILE) {
+		ED_fileselect_exit(C, (SpaceFile*)sl);
+	}
 
 	if(sl->next) {
 		/* workaround for case of double prevspace, render window

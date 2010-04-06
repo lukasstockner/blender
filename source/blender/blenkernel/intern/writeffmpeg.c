@@ -94,7 +94,7 @@ static uint8_t* video_buffer = 0;
 static int video_buffersize = 0;
 
 static uint8_t* audio_input_buffer = 0;
-static int audio_input_frame_size = 0;
+static int audio_input_samples = 0;
 static uint8_t* audio_output_buffer = 0;
 static int audio_outbuf_size = 0;
 static double audio_time = 0.0f;
@@ -135,14 +135,14 @@ static int write_audio_frame(void)
 	av_init_packet(&pkt);
 	pkt.size = 0;
 
-	AUD_readDevice(audio_mixdown_device, audio_input_buffer, audio_input_frame_size);
-	audio_time += (double) audio_input_frame_size / (double) c->sample_rate;
+	AUD_readDevice(audio_mixdown_device, audio_input_buffer, audio_input_samples);
+	audio_time += (double) audio_input_samples / (double) c->sample_rate;
 
 	pkt.size = avcodec_encode_audio(c, audio_output_buffer,
 					audio_outbuf_size,
 					(short*) audio_input_buffer);
 
-	if(pkt.size <= 0)
+	if(pkt.size < 0)
 	{
 		// XXX error("Error writing audio packet");
 		return -1;
@@ -206,7 +206,7 @@ static const char** get_file_extensions(int format)
 	}
 	case FFMPEG_MPEG2: {
 		static const char * rv[] = { ".dvd", ".vob", ".mpg", ".mpeg",
-					     NULL };
+						 NULL };
 		return rv;
 	}
 	case FFMPEG_MPEG4: {
@@ -271,7 +271,7 @@ static int write_video_frame(RenderData *rd, AVFrame* frame, ReportList *reports
 	}
 
 	outsize = avcodec_encode_video(c, video_buffer, video_buffersize, 
-				       frame);
+					   frame);
 	if (outsize != 0) {
 		AVPacket packet;
 		av_init_packet(&packet);
@@ -446,7 +446,7 @@ static void set_ffmpeg_properties(RenderData *rd, AVCodecContext *c, const char 
 /* prepare a video stream for the output file */
 
 static AVStream* alloc_video_stream(RenderData *rd, int codec_id, AVFormatContext* of,
-				    int rectx, int recty) 
+					int rectx, int recty) 
 {
 	AVStream* st;
 	AVCodecContext* c;
@@ -552,7 +552,7 @@ static AVStream* alloc_video_stream(RenderData *rd, int codec_id, AVFormatContex
 
 	video_buffersize = 2000000;
 	video_buffer = (uint8_t*)MEM_mallocN(video_buffersize, 
-					     "FFMPEG video buffer");
+						 "FFMPEG video buffer");
 	
 	current_frame = alloc_picture(c->pix_fmt, c->width, c->height);
 
@@ -599,16 +599,20 @@ static AVStream* alloc_audio_stream(RenderData *rd, int codec_id, AVFormatContex
 
 	audio_outbuf_size = FF_MIN_BUFFER_SIZE;
 
+	if((c->codec_id >= CODEC_ID_PCM_S16LE) && (c->codec_id <= CODEC_ID_PCM_DVD))
+		audio_input_samples = audio_outbuf_size * 8 / c->bits_per_coded_sample / c->channels;
+	else
+	{
+		audio_input_samples = c->frame_size;
+		if(c->frame_size * c->channels * sizeof(int16_t) * 4 > audio_outbuf_size)
+			audio_outbuf_size = c->frame_size * c->channels * sizeof(int16_t) * 4;
+	}
+
 	audio_output_buffer = (uint8_t*)MEM_mallocN(
 		audio_outbuf_size, "FFMPEG audio encoder input buffer");
 
-	if((c->codec_id >= CODEC_ID_PCM_S16LE) && (c->codec_id <= CODEC_ID_PCM_DVD))
-		audio_input_frame_size = audio_outbuf_size * 8 / c->bits_per_coded_sample / c->channels;
-	else
-		audio_input_frame_size = c->frame_size;
-
 	audio_input_buffer = (uint8_t*)MEM_mallocN(
-		audio_input_frame_size * c->channels * sizeof(int16_t),
+		audio_input_samples * c->channels * sizeof(int16_t),
 		"FFMPEG audio encoder output buffer");
 
 	audio_time = 0.0f;
@@ -785,7 +789,7 @@ void filepath_ffmpeg(char* string, RenderData* rd) {
 	if (!string || !exts) return;
 
 	strcpy(string, rd->pic);
-	BLI_convertstringcode(string, G.sce);
+	BLI_path_abs(string, G.sce);
 
 	BLI_make_existing_file(string);
 
@@ -806,7 +810,7 @@ void filepath_ffmpeg(char* string, RenderData* rd) {
 	if (!*fe) {
 		strcat(string, autosplit);
 
-		BLI_convertstringframe_range(string, rd->sfra, rd->efra, 4);
+		BLI_path_frame_range(string, rd->sfra, rd->efra, 4);
 		strcat(string, *exts);
 	} else {
 		*(string + strlen(string) - strlen(*fe)) = 0;
@@ -876,7 +880,7 @@ int append_ffmpeg(RenderData *rd, int frame, int *pixels, int rectx, int recty, 
 		}
 	}
 
-	write_audio_frames(frame / (((double)rd->frs_sec) / rd->frs_sec_base));
+	write_audio_frames((frame - rd->sfra) / (((double)rd->frs_sec) / rd->frs_sec_base));
 
 	return success;
 }
@@ -1049,7 +1053,7 @@ IDProperty *ffmpeg_property_add(RenderData *rd, char * type, int opt_index, int 
 /* not all versions of ffmpeg include that, so here we go ... */
 
 static const AVOption *my_av_find_opt(void *v, const char *name, 
-				      const char *unit, int mask, int flags){
+					  const char *unit, int mask, int flags){
 	AVClass *c= *(AVClass**)v; 
 	const AVOption *o= c->option;
 
@@ -1238,7 +1242,8 @@ void ffmpeg_verify_image_type(RenderData *rd)
 		   rd->ffcodecdata.video_bitrate <= 1) {
 
 			rd->ffcodecdata.codec = CODEC_ID_MPEG2VIDEO;
-			ffmpeg_set_preset(rd, FFMPEG_PRESET_DVD);
+			/* Don't set preset, disturbs render resolution.
+			 * ffmpeg_set_preset(rd, FFMPEG_PRESET_DVD); */
 		}
 
 		audio= 1;

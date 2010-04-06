@@ -48,6 +48,8 @@ extern EnumPropertyItem modifier_type_items[];
 extern EnumPropertyItem constraint_type_items[];
 extern EnumPropertyItem boidrule_type_items[];
 
+extern EnumPropertyItem image_type_items[];
+
 extern EnumPropertyItem beztriple_keyframe_type_items[];
 extern EnumPropertyItem beztriple_handle_type_items[];
 extern EnumPropertyItem beztriple_interpolation_mode_items[];
@@ -71,6 +73,8 @@ extern EnumPropertyItem unpack_method_items[];
 
 extern EnumPropertyItem object_type_items[];
 
+extern EnumPropertyItem object_type_curve_items[];
+
 extern EnumPropertyItem space_type_items[];
 
 extern EnumPropertyItem keymap_propvalue_items[];
@@ -79,7 +83,10 @@ extern EnumPropertyItem operator_context_items[];
 
 extern EnumPropertyItem wm_report_items[];
 
+extern EnumPropertyItem property_type_items[];
 extern EnumPropertyItem property_unit_items[];
+
+extern EnumPropertyItem viewport_shading_items[];
 
 struct bContext;
 struct PointerRNA;
@@ -87,7 +94,9 @@ EnumPropertyItem *rna_TransformOrientation_itemf(struct bContext *C, struct Poin
 
 /* Generic functions, return an enum from library data, index is the position
  * in the linked list can add more for different types as needed */
+EnumPropertyItem *RNA_action_itemf(struct bContext *C, struct PointerRNA *ptr, int *free);
 EnumPropertyItem *RNA_group_itemf(struct bContext *C, struct PointerRNA *ptr, int *free);
+EnumPropertyItem *RNA_image_itemf(struct bContext *C, struct PointerRNA *ptr, int *free);
 EnumPropertyItem *RNA_scene_itemf(struct bContext *C, struct PointerRNA *ptr, int *free);
 
 #endif /* RNA_ENUM_TYPES */

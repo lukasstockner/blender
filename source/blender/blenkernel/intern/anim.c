@@ -40,30 +40,18 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "DNA_listBase.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_curve_types.h"
-#include "DNA_effect_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_vfont_types.h"
 
 #include "BKE_anim.h"
-#include "BKE_animsys.h"
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_displist.h"
-#include "BKE_effect.h"
 #include "BKE_font.h"
 #include "BKE_group.h"
 #include "BKE_global.h"
@@ -81,7 +69,6 @@
 #endif
 
 // XXX bad level call...
-#include "ED_mesh.h"
 
 /* --------------------- */
 /* forward declarations */
@@ -207,6 +194,9 @@ bMotionPath *animviz_verify_motionpaths(Scene *scene, Object *ob, bPoseChannel *
 	
 	/* allocate a cache */
 	mpath->points= MEM_callocN(sizeof(bMotionPathVert)*mpath->length, "bMotionPathVerts");
+	
+	/* tag viz settings as currently having some path(s) which use it */
+	avs->path_bakeflag |= MOTIONPATH_BAKE_HAS_PATHS;
 	
 	/* return it */
 	return mpath;
@@ -449,7 +439,7 @@ void calc_curvepath(Object *ob)
 	fp= dist+1;
 	maxdist= dist+tot;
 	fac= 1.0f/((float)path->len-1.0f);
-        fac = fac * path->totdist;
+		fac = fac * path->totdist;
 	
 	for(a=0; a<path->len; a++) {
 		
@@ -678,7 +668,7 @@ static void frames_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, 
 	if(level>MAX_DUPLI_RECUR) return;
 	
 	cfrao= scene->r.cfra;
-	if(ob->parent==NULL && ob->track==NULL && ob->ipo==NULL && ob->constraints.first==NULL) return;
+	if(ob->parent==NULL && ob->constraints.first==NULL) return;
 
 	if(ob->transflag & OB_DUPLINOSPEED) enable_cu_speed= 0;
 	copyob= *ob;	/* store transform info */
@@ -847,7 +837,7 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 					/* mballs have a different dupli handling */
 					if(ob->type!=OB_MBALL) ob->flag |= OB_DONE;	/* doesnt render */
 
-					if(par->mode & OB_MODE_EDIT) {
+					if(me->edit_mesh) {
 						dm->foreachMappedVert(dm, vertex_dupli__mapFunc, (void*) &vdd);
 					}
 					else {
@@ -1058,7 +1048,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 		else		go= go->next;		/* group loop */
 	}
 	
-	if(par->mode & OB_MODE_EDIT) {
+	if(em) {
 		MEM_freeN(mface);
 		MEM_freeN(mvert);
 	}
@@ -1083,7 +1073,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	ParticleCacheKey *cache;
 	float ctime, pa_time, scale = 1.0f;
 	float tmat[4][4], mat[4][4], pamat[4][4], vec[3], size=0.0;
-	float (*obmat)[4], (*oldobmat)[4], recurs_mat[4][4];
+	float (*obmat)[4], (*oldobmat)[4];
 	int lay, a, b, counter, hair = 0;
 	int totpart, totchild, totgroup=0, pa_num;
 
@@ -1100,10 +1090,6 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	if(!psys_check_enabled(par, psys))
 		return;
 	
-	/* particles are already in world space, don't want the object mat twice */
-	if(par_space_mat)
-		mul_m4_m4m4(recurs_mat, psys->imat, par_space_mat);
-
 	ctime = bsystem_time(scene, par, (float)scene->r.cfra, 0.0);
 
 	totpart = psys->totpart;
@@ -1247,7 +1233,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 					mul_m4_m4m4(tmat, oblist[b]->obmat, pamat);
 					mul_mat3_m4_fl(tmat, size*scale);
 					if(par_space_mat)
-						mul_m4_m4m4(mat, tmat, recurs_mat);
+						mul_m4_m4m4(mat, tmat, par_space_mat);
 					else
 						copy_m4_m4(mat, tmat);
 
@@ -1273,7 +1259,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 					VECADD(tmat[3], tmat[3], vec);
 
 				if(par_space_mat)
-					mul_m4_m4m4(mat, tmat, recurs_mat);
+					mul_m4_m4m4(mat, tmat, par_space_mat);
 				else
 					copy_m4_m4(mat, tmat);
 

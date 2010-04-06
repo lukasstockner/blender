@@ -35,12 +35,15 @@ class OBJECT_PT_context_object(ObjectButtonsPanel):
 
     def draw(self, context):
         layout = self.layout
-
+        space = context.space_data
         ob = context.object
 
         row = layout.row()
         row.label(text="", icon='OBJECT_DATA')
-        row.prop(ob, "name", text="")
+        if space.use_pin_id:
+            row.template_ID(space, "pin_id")
+        else:
+            row.prop(ob, "name", text="")
 
 
 class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel):
@@ -268,9 +271,12 @@ class OBJECT_PT_duplication(ObjectButtonsPanel):
             else:
                 layout.prop(ob, "dupli_group", text="")
 
+# XXX: the following options are all quite buggy, ancient hacks that should be dropped
+
 
 class OBJECT_PT_animation(ObjectButtonsPanel):
-    bl_label = "Animation"
+    bl_label = "Animation Hacks"
+    bl_default_closed = True
 
     def draw(self, context):
         layout = self.layout
@@ -294,24 +300,43 @@ class OBJECT_PT_animation(ObjectButtonsPanel):
         row.active = (ob.parent is not None)
         col.prop(ob, "time_offset", text="Offset")
 
+        # XXX: these are still used for a few curve-related tracking features
         if wide_ui:
             col = split.column()
-        col.label(text="Track:")
-        col.prop(ob, "track", text="")
+        col.label(text="Tracking Axes:")
         col.prop(ob, "track_axis", text="Axis")
         col.prop(ob, "up_axis", text="Up Axis")
-        row = col.row()
-        row.prop(ob, "track_override_parent", text="Override Parent")
-        row.active = (ob.parent is not None)
 
 
-bpy.types.register(OBJECT_PT_context_object)
-bpy.types.register(OBJECT_PT_transform)
-bpy.types.register(OBJECT_PT_transform_locks)
-bpy.types.register(OBJECT_PT_relations)
-bpy.types.register(OBJECT_PT_groups)
-bpy.types.register(OBJECT_PT_display)
-bpy.types.register(OBJECT_PT_duplication)
-bpy.types.register(OBJECT_PT_animation)
+# import generic panels from other files
+from properties_animviz import OBJECT_PT_motion_paths, OBJECT_PT_onion_skinning
 
-bpy.types.register(OBJECT_PT_custom_props)
+classes = [
+    OBJECT_PT_context_object,
+    OBJECT_PT_transform,
+    OBJECT_PT_transform_locks,
+    OBJECT_PT_relations,
+    OBJECT_PT_groups,
+    OBJECT_PT_display,
+    OBJECT_PT_duplication,
+    OBJECT_PT_animation, # XXX: panel of old hacks pending to be removed...
+
+    OBJECT_PT_motion_paths,
+    #OBJECT_PT_onion_skinning,
+
+    OBJECT_PT_custom_props]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

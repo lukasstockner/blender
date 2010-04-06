@@ -73,8 +73,6 @@
 #include "BPY_extern.h"
 #endif
 
-#include "ED_mesh.h"
-
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
@@ -96,7 +94,7 @@
 /* Find the first available, non-duplicate name for a given constraint */
 void unique_constraint_name (bConstraint *con, ListBase *list)
 {
-	BLI_uniquename(list, con, "Const", '.', offsetof(bConstraint, name), 32);
+	BLI_uniquename(list, con, "Const", '.', offsetof(bConstraint, name), sizeof(con->name));
 }
 
 /* ----------------- Evaluation Loop Preparation --------------- */
@@ -402,7 +400,7 @@ void constraint_mat_convertspace (Object *ob, bPoseChannel *pchan, float mat[][4
 /* function that sets the given matrix based on given vertex group in mesh */
 static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, float mat[][4])
 {
-	DerivedMesh *dm;
+	DerivedMesh *dm = NULL;
 	Mesh *me= ob->data;
 	EditMesh *em = BKE_mesh_get_editmesh(me);
 	float vec[3] = {0.0f, 0.0f, 0.0f}, tvec[3];
@@ -429,8 +427,8 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 		 *	- check if the custom data masks for derivedFinal mean that we can just use that
 		 *	  (this is more effficient + sufficient for most cases)
 		 */
-		if (ob->lastDataMask != CD_MASK_DERIVEDMESH) {
-			dm = mesh_get_derived_final(scene, ob, CD_MASK_DERIVEDMESH);
+		if (!(ob->lastDataMask & CD_MASK_MDEFORMVERT)) {
+			dm = mesh_get_derived_final(scene, ob, CD_MASK_MDEFORMVERT);
 			freeDM= 1;
 		}
 		else 
@@ -1859,6 +1857,63 @@ static bConstraintTypeInfo CTI_TRANSLIKE = {
 	translike_evaluate /* evaluate */
 };
 
+/* ---------- Maintain Volume ---------- */
+
+static void samevolume_new_data (void *cdata)
+{
+	bSameVolumeConstraint *data= (bSameVolumeConstraint *)cdata;
+
+	data->flag = SAMEVOL_Y;
+	data->volume = 1.0f;
+}
+
+static void samevolume_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targets)
+{
+	bSameVolumeConstraint *data= con->data;
+
+	float obsize[3];
+	float volume=data->volume;
+
+	mat4_to_size(obsize, cob->matrix);
+
+	switch (data->flag) {
+		case SAMEVOL_X:
+			if (obsize[0]!=0) {
+				mul_v3_fl(cob->matrix[1], sqrt(volume/obsize[0])/obsize[0]);
+				mul_v3_fl(cob->matrix[2], sqrt(volume/obsize[0])/obsize[0]);
+			}
+			break;
+		case SAMEVOL_Y:
+			if (obsize[1]!=0) {
+				mul_v3_fl(cob->matrix[0], sqrt(volume/obsize[1])/obsize[1]);
+				mul_v3_fl(cob->matrix[2], sqrt(volume/obsize[1])/obsize[1]);
+			}
+			break;
+		case SAMEVOL_Z:
+			if (obsize[2]!=0) {
+				mul_v3_fl(cob->matrix[0], sqrt(volume/obsize[2])/obsize[2]);
+				mul_v3_fl(cob->matrix[1], sqrt(volume/obsize[2])/obsize[2]);
+			}
+			break;
+	}
+}
+
+static bConstraintTypeInfo CTI_SAMEVOL = {
+	CONSTRAINT_TYPE_SAMEVOL, /* type */
+	sizeof(bSameVolumeConstraint), /* size */
+	"Maintain Volume", /* name */
+	"bSameVolumeConstraint", /* struct name */
+	NULL, /* free data */
+	NULL, /* relink data */
+	NULL, /* id looper */
+	NULL, /* copy data */
+	samevolume_new_data, /* new data */
+	NULL, /* get constraint targets */
+	NULL, /* flush constraint targets */
+	NULL, /* get target matrix */
+	samevolume_evaluate /* evaluate */
+};
+
 /* ----------- Python Constraint -------------- */
 
 static void pycon_free (bConstraint *con)
@@ -1947,7 +2002,7 @@ static void pycon_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstraintT
 		
 		/* only execute target calculation if allowed */
 #ifndef DISABLE_PYTHON
-		if (G.f & G_DOSCRIPTLINKS)
+		if (G.f & G_SCRIPT_AUTOEXEC)
 			BPY_pyconstraint_target(data, ct);
 #endif
 	}
@@ -1963,7 +2018,7 @@ static void pycon_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *targ
 	bPythonConstraint *data= con->data;
 	
 	/* only evaluate in python if we're allowed to do so */
-	if ((G.f & G_DOSCRIPTLINKS)==0)  return;
+	if ((G.f & G_SCRIPT_AUTOEXEC)==0)  return;
 	
 /* currently removed, until I this can be re-implemented for multiple targets */
 #if 0
@@ -2998,7 +3053,7 @@ static void rbj_new_data (void *cdata)
 	bRigidBodyJointConstraint *data= (bRigidBodyJointConstraint *)cdata;
 	
 	// removed code which set target of this constraint  
-    data->type=1;
+	data->type=1;
 }
 
 static void rbj_id_looper (bConstraint *con, ConstraintIDFunc func, void *userdata)
@@ -3805,6 +3860,7 @@ static void constraints_init_typeinfo () {
 	constraintsTypeInfo[21]= &CTI_DAMPTRACK;		/* Damped TrackTo Constraint */
 	constraintsTypeInfo[22]= &CTI_SPLINEIK;			/* Spline IK Constraint */
 	constraintsTypeInfo[23]= &CTI_TRANSLIKE;		/* Copy Transforms Constraint */
+	constraintsTypeInfo[24]= &CTI_SAMEVOL;			/* Maintain Volume Constraint */
 }
 
 /* This function should be used for getting the appropriate type-info when only
@@ -3901,6 +3957,26 @@ int remove_constraint_index (ListBase *list, int index)
 		return remove_constraint(list, con);
 	else 
 		return 0;
+}
+
+/* Remove all the constraints of the specified type from the given constraint stack */
+void remove_constraints_type (ListBase *list, short type, short last_only)
+{
+	bConstraint *con, *conp;
+	
+	if (list == NULL)
+		return;
+	
+	/* remove from the end of the list to make it faster to find the last instance */
+	for (con= list->last; con; con= conp) {
+		conp= con->prev;
+		
+		if (con->type == type) {
+			remove_constraint(list, con);
+			if (last_only) 
+				return;
+		}
+	}
 }
 
 /* ......... */
@@ -4061,9 +4137,6 @@ void copy_constraints (ListBase *dst, const ListBase *src)
 		
 		/* make a new copy of the constraint's data */
 		con->data = MEM_dupallocN(con->data);
-		
-		// NOTE: depreceated... old animation system
-		id_us_plus((ID *)con->ipo);
 		
 		/* only do specific constraints if required */
 		if (cti) {

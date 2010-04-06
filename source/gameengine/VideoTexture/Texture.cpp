@@ -186,11 +186,12 @@ int Texture_init (Texture *self, PyObject *args, PyObject *kwds)
 	// texture object with shared texture ID
 	Texture * texObj = NULL;
 
-	static char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", NULL};
+	static const char *kwlist[] = {"gameObj", "materialID", "textureID", "textureObj", NULL};
 
 	// get parameters
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|hhO!", kwlist, &obj, &matID,
-		&texID, &TextureType, &texObj))
+	if (!PyArg_ParseTupleAndKeywords(args, kwds, "O|hhO!",
+		const_cast<char**>(kwlist), &obj, &matID, &texID, &TextureType,
+		&texObj))
 		return -1; 
 
 	// if parameters are available
@@ -356,6 +357,12 @@ PyObject * Texture_refresh (Texture * self, PyObject * args)
 	Py_RETURN_NONE;
 }
 
+// get OpenGL Bind Id
+PyObject * Texture_getBindId (Texture * self, void * closure)
+{
+	unsigned int id = self->m_actTex;
+	return Py_BuildValue("h", id);
+}
 
 // get mipmap value
 PyObject * Texture_getMipmap (Texture * self, void * closure)
@@ -429,6 +436,7 @@ static PyGetSetDef textureGetSets[] =
 { 
 	{(char*)"source", (getter)Texture_getSource, (setter)Texture_setSource, (char*)"source of texture", NULL},
 	{(char*)"mipmap", (getter)Texture_getMipmap, (setter)Texture_setMipmap, (char*)"mipmap texture", NULL},
+	{(char*)"bindId", (getter)Texture_getBindId, NULL, (char*)"OpenGL Bind Name", NULL},
 	{NULL}
 };
 
@@ -454,7 +462,7 @@ PyTypeObject TextureType =
 	0,                         /*tp_str*/
 	0,                         /*tp_getattro*/
 	0,                         /*tp_setattro*/
-	0,                         /*tp_as_buffer*/
+	&imageBufferProcs,         /*tp_as_buffer*/
 	Py_TPFLAGS_DEFAULT,        /*tp_flags*/
 	"Texture objects",       /* tp_doc */
 	0,		               /* tp_traverse */

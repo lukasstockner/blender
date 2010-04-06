@@ -43,10 +43,8 @@
 #endif   
 
 #include "DNA_space_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -55,16 +53,15 @@
 #include "BLI_storage_types.h"
 #include "BLI_dynstr.h"
 
+#include "BLO_readfile.h"
+
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
 
 #include "BLF_api.h"
 
-#include "DNA_userdef_types.h"
 
-#include "ED_screen.h"
-#include "ED_util.h"
 #include "ED_fileselect.h"
 
 #include "WM_api.h"
@@ -76,8 +73,6 @@
 #include "RNA_access.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
 
 #include "file_intern.h"
 #include "filelist.h"
@@ -136,7 +131,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 				BLI_cleanup_dir(G.sce, params->dir);	
 			} else { 
 				/* if operator has path set, use it, otherwise keep the last */
-				BLI_convertstringcode(name, G.sce);
+				BLI_path_abs(name, G.sce);
 				BLI_split_dirfile(name, dir, file);
 				BLI_strncpy(params->file, file, sizeof(params->file));
 				BLI_make_file_string(G.sce, params->dir, dir, ""); /* XXX needed ? - also solve G.sce */
@@ -163,6 +158,8 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			params->filter |= RNA_boolean_get(op->ptr, "filter_folder") ? FOLDERFILE : 0;
 		if(RNA_struct_find_property(op->ptr, "filter_btx"))
 			params->filter |= RNA_boolean_get(op->ptr, "filter_btx") ? BTXFILE : 0;
+		if(RNA_struct_find_property(op->ptr, "filter_collada"))
+			params->filter |= RNA_boolean_get(op->ptr, "filter_collada") ? COLLADAFILE : 0;
 		if (params->filter != 0)
 			params->flag |= FILE_FILTER;
 
@@ -192,7 +189,6 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		params->filter = 0;
 		params->sort = FILE_SORT_ALPHA;
 	}
-
 	return 1;
 }
 
@@ -218,7 +214,7 @@ int ED_fileselect_layout_numfiles(FileLayout* layout, struct ARegion *ar)
 	}
 }
 
-int ED_fileselect_layout_offset(FileLayout* layout, int x, int y)
+int ED_fileselect_layout_offset(FileLayout* layout, int clamp_bounds, int x, int y)
 {
 	int offsetx, offsety;
 	int active_file;
@@ -229,9 +225,14 @@ int ED_fileselect_layout_offset(FileLayout* layout, int x, int y)
 	offsetx = (x)/(layout->tile_w + 2*layout->tile_border_x);
 	offsety = (y)/(layout->tile_h + 2*layout->tile_border_y);
 	
-	if (offsetx > layout->columns-1) return -1 ;
-	if (offsety > layout->rows-1) return -1 ;
-
+	if (clamp_bounds) {
+		CLAMP(offsetx, 0, layout->columns-1);
+		CLAMP(offsety, 0, layout->rows-1);
+	} else {
+		if (offsetx > layout->columns-1) return -1 ;
+		if (offsety > layout->rows-1) return -1 ;
+	}
+	
 	if (layout->flag & FILE_LAYOUT_HOR) 
 		active_file = layout->rows*offsetx + offsety;
 	else
@@ -391,24 +392,25 @@ FileLayout* ED_fileselect_get_layout(struct SpaceFile *sfile, struct ARegion *ar
 	return sfile->layout;
 }
 
-void file_change_dir(struct SpaceFile *sfile, int checkdir)
+void file_change_dir(bContext *C, int checkdir)
 {
+	SpaceFile *sfile= CTX_wm_space_file(C);
+
 	if (sfile->params) {
+
+		ED_fileselect_clear(C, sfile);
 
 		if(checkdir && BLI_is_dir(sfile->params->dir)==0) {
 			BLI_strncpy(sfile->params->dir, filelist_dir(sfile->files), sizeof(sfile->params->dir));
 			/* could return but just refresh the current dir */
 		}
-
 		filelist_setdir(sfile->files, sfile->params->dir);
-
+		
 		if(folderlist_clear_next(sfile))
 			folderlist_free(sfile->folders_next);
 
 		folderlist_pushdir(sfile->folders_prev, sfile->params->dir);
 
-		filelist_free(sfile->files);
-		sfile->params->active_file = -1;
 	}
 }
 
@@ -423,7 +425,7 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern)
 		for (i = 0; i < n; i++) {
 			file = filelist_file(sfile->files, i);
 			if (fnmatch(pattern, file->relname, 0) == 0) {
-				file->flags |= ACTIVE;
+				file->flags |= ACTIVEFILE;
 				match = 1;
 			}
 		}
@@ -459,4 +461,18 @@ void autocomplete_directory(struct bContext *C, char *str, void *arg_v)
 			BLI_make_exist(str);
 		}
 	}
+}
+
+void ED_fileselect_clear(struct bContext *C, struct SpaceFile *sfile)
+{
+	thumbnails_stop(sfile->files, C);
+	filelist_freelib(sfile->files);
+	filelist_free(sfile->files);
+	sfile->params->active_file = -1;
+	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_FILE_LIST, NULL);
+}
+
+void ED_fileselect_exit(struct bContext *C, struct SpaceFile *sfile)
+{
+	thumbnails_stop(sfile->files, C);
 }

@@ -28,7 +28,7 @@ class MESH_MT_vertex_group_specials(bpy.types.Menu):
 
     def draw(self, context):
         layout = self.layout
-        
+
         layout.operator("object.vertex_group_sort", icon='SORTALPHA')
         layout.operator("object.vertex_group_copy", icon='COPY_ID')
         layout.operator("object.vertex_group_copy_to_linked", icon='LINK_AREA')
@@ -227,7 +227,7 @@ class DATA_PT_shape_keys(DataButtonsPanel):
             subsub.prop(ob, "shape_key_lock", text="")
             subsub.prop(kb, "mute", text="")
             sub.prop(ob, "shape_key_edit_mode", text="")
-            
+
             sub = row.row()
             sub.operator("object.shape_key_clear", icon='X', text="")
 
@@ -304,15 +304,32 @@ class DATA_PT_vertex_colors(DataButtonsPanel):
         if lay:
             layout.prop(lay, "name")
 
-bpy.types.register(MESH_MT_vertex_group_specials)
-bpy.types.register(MESH_MT_shape_key_specials)
 
-bpy.types.register(DATA_PT_context_mesh)
-bpy.types.register(DATA_PT_normals)
-bpy.types.register(DATA_PT_settings)
-bpy.types.register(DATA_PT_vertex_groups)
-bpy.types.register(DATA_PT_shape_keys)
-bpy.types.register(DATA_PT_uv_texture)
-bpy.types.register(DATA_PT_vertex_colors)
+classes = [
+    MESH_MT_vertex_group_specials,
+    MESH_MT_shape_key_specials,
 
-bpy.types.register(DATA_PT_custom_props_mesh)
+    DATA_PT_context_mesh,
+    DATA_PT_normals,
+    DATA_PT_settings,
+    DATA_PT_vertex_groups,
+    DATA_PT_shape_keys,
+    DATA_PT_uv_texture,
+    DATA_PT_vertex_colors,
+
+    DATA_PT_custom_props_mesh]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

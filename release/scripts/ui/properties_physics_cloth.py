@@ -47,7 +47,7 @@ class PhysicButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         ob = context.object
-        rd = context.scene.render_data
+        rd = context.scene.render
         return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
 
 
@@ -129,6 +129,12 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel):
                 col.prop(cloth, "goal_friction", text="Friction")
             """
 
+            key = ob.data.shape_keys
+
+            if key:
+                col.label(text="Rest Shape Key:")
+                col.prop_object(cloth, "rest_shape_key", key, "keys", text="")
+
 
 class PHYSICS_PT_cloth_cache(PhysicButtonsPanel):
     bl_label = "Cloth Cache"
@@ -179,6 +185,8 @@ class PHYSICS_PT_cloth_collision(PhysicButtonsPanel):
         sub.prop(cloth, "self_collision_quality", slider=True, text="Quality")
         sub.prop(cloth, "self_min_distance", slider=True, text="Distance")
 
+        layout.prop(cloth, "group")
+
 
 class PHYSICS_PT_cloth_stiffness(PhysicButtonsPanel):
     bl_label = "Cloth Stiffness Scaling"
@@ -228,10 +236,27 @@ class PHYSICS_PT_cloth_field_weights(PhysicButtonsPanel):
         cloth = context.cloth.settings
         effector_weights_ui(self, context, cloth.effector_weights)
 
-bpy.types.register(CLOTH_MT_presets)
 
-bpy.types.register(PHYSICS_PT_cloth)
-bpy.types.register(PHYSICS_PT_cloth_cache)
-bpy.types.register(PHYSICS_PT_cloth_collision)
-bpy.types.register(PHYSICS_PT_cloth_stiffness)
-bpy.types.register(PHYSICS_PT_cloth_field_weights)
+classes = [
+    CLOTH_MT_presets,
+
+    PHYSICS_PT_cloth,
+    PHYSICS_PT_cloth_cache,
+    PHYSICS_PT_cloth_collision,
+    PHYSICS_PT_cloth_stiffness,
+    PHYSICS_PT_cloth_field_weights]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

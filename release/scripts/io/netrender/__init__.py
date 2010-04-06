@@ -35,3 +35,13 @@ blacklist = []
 init_file = ""
 init_data = True
 init_address = True
+
+def register():
+    pass # TODO
+
+def unregister():
+    import bpy
+    bpy.types.unregister(ui.NetRenderJob)
+    bpy.types.unregister(ui.NetRenderSettings)
+    bpy.types.unregister(ui.NetRenderSlave)
+

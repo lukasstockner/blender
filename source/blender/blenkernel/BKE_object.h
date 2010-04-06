@@ -45,6 +45,7 @@ struct SoftBody;
 struct BulletSoftBody;
 struct Group;
 struct bAction;
+struct RenderData;
 
 void clear_workob(struct Object *workob);
 void what_does_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
@@ -110,11 +111,16 @@ void where_is_object_simul(struct Scene *scene, struct Object *ob);
 struct BoundBox *unit_boundbox(void);
 void boundbox_set_from_min_max(struct BoundBox *bb, float min[3], float max[3]);
 struct BoundBox *object_get_boundbox(struct Object *ob);
+void object_get_dimensions(struct Object *ob, float *value);
+void object_set_dimensions(struct Object *ob, const float *value);
 void object_boundbox_flag(struct Object *ob, int flag, int set);
 void minmax_object(struct Object *ob, float *min, float *max);
-void minmax_object_duplis(struct Scene *scene, struct Object *ob, float *min, float *max);
+int minmax_object_duplis(struct Scene *scene, struct Object *ob, float *min, float *max);
 void solve_tracking (struct Object *ob, float targetmat[][4]);
 int ray_hit_boundbox(struct BoundBox *bb, float ray_start[3], float ray_normal[3]);
+
+void *object_tfm_backup(struct Object *ob);
+void object_tfm_restore(struct Object *ob, void *obtfm_pt);
 
 void object_handle_update(struct Scene *scene, struct Object *ob);
 
@@ -125,6 +131,10 @@ int object_insert_ptcache(struct Object *ob);
 // void object_delete_ptcache(struct Object *ob, int index);
 struct KeyBlock *object_insert_shape_key(struct Scene *scene, struct Object *ob, char *name, int from_mix);
 
+void object_camera_matrix(
+		struct RenderData *rd, struct Object *camera, int winx, int winy, short field_second,
+		float winmat[][4], struct rctf *viewplane, float *clipsta, float *clipend, float *lens, float *ycor,
+		float *viewdx, float *viewdy);
 
 #ifdef __cplusplus
 }

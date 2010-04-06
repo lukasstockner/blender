@@ -31,9 +31,6 @@
 
 #include "DNA_packedFile_types.h"
 #include "DNA_space_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -49,9 +46,6 @@
 #include "BKE_report.h"
 #include "BKE_screen.h"
 
-#include "ED_screen.h"
-#include "ED_types.h"
-#include "ED_util.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -60,14 +54,12 @@
 #include "BIF_glutil.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "IMB_imbuf_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "WM_types.h"
 
 #include "info_intern.h"
 
@@ -262,7 +254,7 @@ static int report_missing_files_exec(bContext *C, wmOperator *op)
 void FILE_OT_report_missing_files(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Report Missing Files...";
+	ot->name= "Report Missing Files";
 	ot->idname= "FILE_OT_report_missing_files";
 	
 	/* api callbacks */
@@ -295,7 +287,7 @@ static int find_missing_files_invoke(bContext *C, wmOperator *op, wmEvent *event
 void FILE_OT_find_missing_files(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Find Missing Files...";
+	ot->name= "Find Missing Files";
 	ot->idname= "FILE_OT_find_missing_files";
 	
 	/* api callbacks */

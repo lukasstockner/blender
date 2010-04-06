@@ -197,23 +197,23 @@ def deform(obj, definitions, base_names, options):
     con = pb[lip4].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[5]
-    
+
     con = pb[lip5].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[6]
-    
+
     con = pb[lip6].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[7]
-    
+
     con = pb[lip7].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[8]
-    
+
     con = pb[lip8].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = definitions[9]
-    
+
     # Constraint mouth corner spread bones
     con = pb[spread_l_1].constraints.new('DAMPED_TRACK')
     con.target = obj
@@ -234,12 +234,12 @@ def deform(obj, definitions, base_names, options):
     con = pb[spread_r_2].constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = spread_r_1
-    
+
     con = pb[spread_r_2].constraints.new('DAMPED_TRACK')
     con.target = obj
     con.subtarget = lip8
 
-    
+
     # Corrective shape keys for the corners of the mouth.
     bpy.ops.object.mode_set(mode='EDIT')
 
@@ -543,8 +543,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -561,8 +561,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -579,8 +579,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -597,8 +597,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -615,8 +615,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -633,8 +633,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -651,8 +651,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'
@@ -669,8 +669,8 @@ def control(obj, definitions, base_names, options):
     con.subtarget = jopent
     con.action = open_action
     con.transform_channel = 'SCALE_Y'
-    con.start_frame = 0
-    con.end_frame = 60
+    con.frame_start = 0
+    con.frame_end = 60
     con.minimum = 0.0
     con.maximum = 1.0
     con.target_space = 'LOCAL'

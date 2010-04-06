@@ -35,36 +35,14 @@
 
 #include "IMB_imbuf_types.h"
 
-#include "DNA_action_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_camera_types.h"
-#include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
-#include "DNA_effect_types.h"
 #include "DNA_group_types.h"
-#include "DNA_image_types.h"
-#include "DNA_key_types.h"
-#include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_nla_types.h"
-#include "DNA_object_types.h"
-#include "DNA_object_fluidsim.h"
-#include "DNA_object_force.h"
-#include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_texture_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_property_types.h"
-#include "DNA_userdef_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_vfont_types.h"
-#include "DNA_world_types.h"
-#include "DNA_modifier_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
@@ -113,28 +91,20 @@
 #include "BKE_utildefines.h"
 #include "BKE_modifier.h"
 
-#include "ED_anim_api.h"
 #include "ED_armature.h"
 #include "ED_curve.h"
-#include "ED_particle.h"
 #include "ED_mesh.h"
 #include "ED_mball.h"
 #include "ED_object.h"
 #include "ED_screen.h"
-#include "ED_transform.h"
-#include "ED_types.h"
 #include "ED_util.h"
-#include "ED_view3d.h"
 
-#include "UI_interface.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
 /* for menu/popup icons etc etc*/
-#include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -150,33 +120,15 @@ static int pupmenu(const char *msg) {return 0;}
 static bContext *C;
 static void error_libdata() {}
 
-/* ********************************** */
 
-/* --------------------------------- */
-
-void ED_object_apply_obmat(Object *ob)
+/* find the correct active object per context */
+Object *ED_object_active_context(bContext *C)
 {
-	float mat[3][3], imat[3][3], tmat[3][3];
-	
-	/* from obmat to loc rot size */
-	
-	if(ob==NULL) return;
-	copy_m3_m4(mat, ob->obmat);
-	
-	VECCOPY(ob->loc, ob->obmat[3]);
-
-	mat3_to_eul( ob->rot,mat);
-	eul_to_mat3( tmat,ob->rot);
-
-	invert_m3_m3(imat, tmat);
-	
-	mul_m3_m3m3(tmat, imat, mat);
-	
-	ob->size[0]= tmat[0][0];
-	ob->size[1]= tmat[1][1];
-	ob->size[2]= tmat[2][2];
-	
+	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	if (!ob) ob= CTX_data_active_object(C);
+	return ob;
 }
+
 
 /* ********* clear/set restrict view *********/
 static int object_restrictview_clear_exec(bContext *C, wmOperator *op)
@@ -309,8 +261,10 @@ void ED_object_exit_editmode(bContext *C, int flag)
 			me->edit_mesh= NULL;
 		}
 		
-		if(obedit->restore_mode & OB_MODE_WEIGHT_PAINT)
-			mesh_octree_table(obedit, NULL, NULL, 'e');
+		if(obedit->restore_mode & OB_MODE_WEIGHT_PAINT) {
+			mesh_octree_table(NULL, NULL, NULL, 'e');
+			mesh_mirrtopo_table(NULL, 'e');
+		}
 	}
 	else if (obedit->type==OB_ARMATURE) {	
 		ED_armature_from_edit(obedit);
@@ -343,7 +297,7 @@ void ED_object_exit_editmode(bContext *C, int flag)
 		scene->obedit= NULL; // XXX for context
 
 		/* flag object caches as outdated */
-		BKE_ptcache_ids_from_object(&pidlist, obedit);
+		BKE_ptcache_ids_from_object(&pidlist, obedit, NULL, 0);
 		for(pid=pidlist.first; pid; pid=pid->next) {
 			if(pid->type != PTCACHE_TYPE_PARTICLES) /* particles don't need reset on geometry change */
 				pid->cache->flag |= PTCACHE_OUTDATED;
@@ -363,7 +317,6 @@ void ED_object_exit_editmode(bContext *C, int flag)
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_OBJECT, scene);
 
 		obedit->mode &= ~OB_MODE_EDIT;
-		ED_object_toggle_modes(C, obedit->restore_mode);
 	}
 }
 
@@ -406,8 +359,7 @@ void ED_object_enter_editmode(bContext *C, int flag)
 
 	ob->restore_mode = ob->mode;
 	ED_object_toggle_modes(C, ob->mode);
-
-	ob->mode |= OB_MODE_EDIT;
+	ob->mode= OB_MODE_EDIT;
 	
 	if(ob->type==OB_MESH) {
 		Mesh *me= ob->data;
@@ -446,7 +398,7 @@ void ED_object_enter_editmode(bContext *C, int flag)
 	else if(ob->type==OB_FONT) {
 		scene->obedit= ob; // XXX for context
 		ok= 1;
- 		make_editText(ob);
+		 make_editText(ob);
 
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_EDITMODE_TEXT, scene);
 	}
@@ -504,9 +456,9 @@ static int editmode_toggle_poll(bContext *C)
 		return 0;
 
 	return ob && (ob->type == OB_MESH || ob->type == OB_ARMATURE ||
-		      ob->type == OB_FONT || ob->type == OB_MBALL ||
-		      ob->type == OB_LATTICE || ob->type == OB_SURF ||
-		      ob->type == OB_CURVE);
+			  ob->type == OB_FONT || ob->type == OB_MBALL ||
+			  ob->type == OB_LATTICE || ob->type == OB_SURF ||
+			  ob->type == OB_CURVE);
 }
 
 void OBJECT_OT_editmode_toggle(wmOperatorType *ot)
@@ -1687,6 +1639,7 @@ void ED_objects_clear_paths(bContext *C, Scene *scene)
 		if (ob->mpath) {
 			animviz_free_motionpath(ob->mpath);
 			ob->mpath= NULL;
+			ob->avs.path_bakeflag &= ~MOTIONPATH_BAKE_HAS_PATHS;
 		}
 	}
 	CTX_DATA_END;
@@ -1959,12 +1912,12 @@ static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *ptr, in
 	ob = CTX_data_active_object(C);
 	while(ob && input->identifier) {
 		if((input->value == OB_MODE_EDIT && ((ob->type == OB_MESH) || (ob->type == OB_ARMATURE) ||
-						    (ob->type == OB_CURVE) || (ob->type == OB_SURF) ||
-						     (ob->type == OB_FONT) || (ob->type == OB_MBALL) || (ob->type == OB_LATTICE))) ||
+							(ob->type == OB_CURVE) || (ob->type == OB_SURF) ||
+							 (ob->type == OB_FONT) || (ob->type == OB_MBALL) || (ob->type == OB_LATTICE))) ||
 		   (input->value == OB_MODE_POSE && (ob->type == OB_ARMATURE)) ||
 		   (input->value == OB_MODE_PARTICLE_EDIT && ob->particlesystem.first) ||
 		   ((input->value == OB_MODE_SCULPT || input->value == OB_MODE_VERTEX_PAINT ||
-		     input->value == OB_MODE_WEIGHT_PAINT || input->value == OB_MODE_TEXTURE_PAINT) && (ob->type == OB_MESH)) ||
+			 input->value == OB_MODE_WEIGHT_PAINT || input->value == OB_MODE_TEXTURE_PAINT) && (ob->type == OB_MESH)) ||
 		   (input->value == OB_MODE_OBJECT))
 			RNA_enum_item_add(&item, &totitem, input);
 		++input;
@@ -2034,7 +1987,7 @@ static int object_mode_set_exec(bContext *C, wmOperator *op)
 {
 	Object *ob= CTX_data_active_object(C);
 	ObjectMode mode = RNA_enum_get(op->ptr, "mode");
-	ObjectMode restore_mode = ob->mode;
+	ObjectMode restore_mode = (ob) ? ob->mode : OB_MODE_OBJECT;
 	int toggle = RNA_boolean_get(op->ptr, "toggle");
 
 	if(!ob || !object_mode_set_compat(C, op, ob))
@@ -2146,16 +2099,16 @@ static int game_property_remove(bContext *C, wmOperator *op)
 
 	index = RNA_int_get(op->ptr, "index");
 
-    prop= BLI_findlink(&ob->prop, index);
+	prop= BLI_findlink(&ob->prop, index);
 
-    if(prop) {
+	if(prop) {
 		BLI_remlink(&ob->prop, prop);
 		free_property(prop);
 		return OPERATOR_FINISHED;
-    }
-    else {
-    	return OPERATOR_CANCELLED;
-    }
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 void OBJECT_OT_game_property_remove(wmOperatorType *ot)

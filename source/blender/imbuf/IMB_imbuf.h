@@ -243,8 +243,6 @@ void IMB_rectcpy(struct ImBuf *drect, struct ImBuf *srect, int destx,
 	int desty, int srcx, int srcy, int width, int height);
 void IMB_rectblend(struct ImBuf *dbuf, struct ImBuf *sbuf, int destx, 
 	int desty, int srcx, int srcy, int width, int height, IMB_BlendMode mode);
-void IMB_rectblend_torus(struct ImBuf *dbuf, struct ImBuf *sbuf, int destx, 
-	int desty, int srcx, int srcy, int width, int height, IMB_BlendMode mode);
 
 /**
  * Return the length (in frames) of the given @a anim.
@@ -319,7 +317,7 @@ void IMB_antialias(struct ImBuf * ibuf);
 void IMB_filter(struct ImBuf *ibuf);
 void IMB_filterN(struct ImBuf *out, struct ImBuf *in);
 void IMB_filter_extend(struct ImBuf *ibuf, char *mask);
-void IMB_makemipmap(struct ImBuf *ibuf, int use_filter, int SAT);
+void IMB_makemipmap(struct ImBuf *ibuf, int use_filter);
 
 /**
  *

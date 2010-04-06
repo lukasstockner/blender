@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -27,7 +27,6 @@
 
 #include <stdlib.h>
 
-#include "DNA_windowmanager_types.h"
 
 #include "RNA_access.h"
 

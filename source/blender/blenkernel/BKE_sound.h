@@ -38,7 +38,7 @@ struct ListBase;
 struct Main;
 struct Sequence;
 
-void sound_init();
+void sound_init(struct Main *main);
 
 void sound_exit();
 
@@ -72,6 +72,8 @@ void sound_create_scene(struct Scene *scene);
 
 void sound_destroy_scene(struct Scene *scene);
 
+void* sound_scene_add_scene_sound(struct Scene *scene, struct Sequence* sequence, int startframe, int endframe, int frameskip);
+
 void* sound_add_scene_sound(struct Scene *scene, struct Sequence* sequence, int startframe, int endframe, int frameskip);
 
 void sound_remove_scene_sound(struct Scene *scene, void* handle);
@@ -85,6 +87,10 @@ void sound_play_scene(struct Scene *scene);
 void sound_stop_scene(struct Scene *scene);
 
 void sound_seek_scene(struct bContext *C);
+
+float sound_sync_scene(struct Scene *scene);
+
+int sound_scene_playing(struct Scene *scene);
 
 int sound_read_sound_buffer(struct bSound* sound, float* buffer, int length);
 

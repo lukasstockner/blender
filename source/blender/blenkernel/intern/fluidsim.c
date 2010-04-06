@@ -148,7 +148,7 @@ void fluidsim_init(FluidsimModifierData *fluidmd)
 		
 		fss->lastgoodframe = -1;
 		
-		fss->flag = 0;
+		fss->flag |= OB_FLUIDSIM_ACTIVE;
 
 	}
 #endif
@@ -431,8 +431,8 @@ DerivedMesh *fluidsim_read_cache(Object *ob, DerivedMesh *orgdm, FluidsimModifie
 		strcat(targetDir,"fluidsurface_final_####");
 	}
 	
-	BLI_convertstringcode(targetDir, G.sce);
-	BLI_convertstringframe(targetDir, curFrame, 0); // fixed #frame-no 
+	BLI_path_abs(targetDir, G.sce);
+	BLI_path_frame(targetDir, curFrame, 0); // fixed #frame-no 
 	
 	strcpy(targetFile,targetDir);
 	strcat(targetFile, ".bobj.gz");
@@ -609,9 +609,9 @@ void fluid_get_bb(MVert *mvert, int totvert, float obmat[][4],
 //-------------------------------------------------------------------------------
 
 void initElbeemMesh(struct Scene *scene, struct Object *ob, 
-		    int *numVertices, float **vertices, 
-      int *numTriangles, int **triangles,
-      int useGlobalCoords, int modifierIndex) 
+			int *numVertices, float **vertices, 
+	  int *numTriangles, int **triangles,
+	  int useGlobalCoords, int modifierIndex) 
 {
 	DerivedMesh *dm = NULL;
 	MVert *mvert;

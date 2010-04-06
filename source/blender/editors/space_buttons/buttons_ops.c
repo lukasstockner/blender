@@ -1,5 +1,5 @@
 /**
- * $Id:
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -30,19 +30,17 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "BKE_context.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_screen.h"
+
 #include "RNA_access.h"
-#include "RNA_define.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "buttons_intern.h"	// own include
 
@@ -75,6 +73,7 @@ void BUTTONS_OT_toolbox(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke= toolbox_invoke;
+	ot->poll= ED_operator_buttons_active;
 }
 
 /********************** filebrowse operator *********************/
@@ -138,7 +137,7 @@ static int file_browse_invoke(bContext *C, wmOperator *op, wmEvent *event)
 void BUTTONS_OT_file_browse(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "File Browse";
+	ot->name= "Accept";
 	ot->description="Open a file browser";
 	ot->idname= "BUTTONS_OT_file_browse";
 	

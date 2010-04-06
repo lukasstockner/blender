@@ -193,9 +193,10 @@ if not env['BF_FANCY']:
 # NOTE: only do the scripts directory for now, otherwise is too disruptive for developers
 # TODO: perhaps we need an option (off by default) to not do this altogether...
 if not env['WITHOUT_BF_INSTALL'] and not env['WITHOUT_BF_OVERWRITE_INSTALL']:
-	if os.path.isdir(env['BF_INSTALLDIR']):
-		print B.bc.OKGREEN + "Clearing installation directory%s: %s" % (B.bc.ENDC, os.path.abspath(env['BF_INSTALLDIR']))
-		shutil.rmtree(env['BF_INSTALLDIR'])
+	scriptsDir = env['BF_INSTALLDIR'] + os.sep + '.blender' + os.sep + 'scripts'
+	if os.path.isdir(scriptsDir):
+		print B.bc.OKGREEN + "Clearing installation directory%s: %s" % (B.bc.ENDC, os.path.abspath(scriptsDir))
+		shutil.rmtree(scriptsDir)
 
 
 SetOption('num_jobs', int(env['BF_NUMJOBS']))
@@ -242,40 +243,6 @@ if env.has_key('BF_DEBUG_LIBS'):
 	B.quickdebug += env['BF_DEBUG_LIBS']
 
 printdebug = B.arguments.get('BF_LISTDEBUG', 0)
-
-# see if this linux distro has libalut
-
-if env['OURPLATFORM'] == 'linux2' :
-	if env['WITH_BF_OPENAL']:
-		mylib_test_source_file = """
-		#include "AL/alut.h"
-		int main(int argc, char **argv)
-		{
-			alutGetMajorVersion();
-			return 0;
-		}
-		"""
-
-		def CheckFreeAlut(context,env):
-			context.Message( B.bc.OKGREEN + "Linux platform detected:\n  checking for FreeAlut... " + B.bc.ENDC )
-			env['LIBS'] = 'alut'
-			result = context.TryLink(mylib_test_source_file, '.c')
-			context.Result(result)
-			return result
-
-		env2 = env.Clone( LIBPATH = env['BF_OPENAL'] ) 
-		sconf_temp = mkdtemp()
-		conf = Configure( env2, {'CheckFreeAlut' : CheckFreeAlut}, sconf_temp, '/dev/null' )
-		if conf.CheckFreeAlut( env2 ):
-			env['BF_OPENAL_LIB'] += ' alut'
-		del env2
-		root = ''
-		for root, dirs, files in os.walk(sconf_temp, topdown=False):
-			for name in files:
-				os.remove(os.path.join(root, name))
-			for name in dirs:
-				os.rmdir(os.path.join(root, name))
-		if root: os.rmdir(root)
 
 if len(B.quickdebug) > 0 and printdebug != 0:
 	print B.bc.OKGREEN + "Buildings these libs with debug symbols:" + B.bc.ENDC
@@ -435,7 +402,7 @@ thestatlibs, thelibincs = B.setup_staticlibs(env)
 thesyslibs = B.setup_syslibs(env)
 
 if 'blender' in B.targets or not env['WITH_BF_NOBLENDER']:
-	env.BlenderProg(B.root_build_dir, "blender", dobj + mainlist, [], thestatlibs + thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
+	env.BlenderProg(B.root_build_dir, "blender", dobj + mainlist + thestatlibs, [], thesyslibs, [B.root_build_dir+'/lib'] + thelibincs, 'blender')
 if env['WITH_BF_PLAYER']:
 	playerlist = B.create_blender_liblist(env, 'player')
 	playerlist += B.create_blender_liblist(env, 'intern')
@@ -643,18 +610,6 @@ if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'win64-vc', 'linuxcross'):
 					'${BF_FFMPEG_LIBPATH}/avdevice-52.dll',
 					'${BF_FFMPEG_LIBPATH}/avutil-50.dll',
 					'${BF_FFMPEG_LIBPATH}/swscale-0.dll']
-
-		if env['OURPLATFORM'] != 'linuxcross':
-			#
-			# TODO: Does it mean we haven't got support of this codecs if
-			#       we're using cross-compilation?
-			#       Or in case of native compilation this libraries are
-			#       unneccessary to?
-			#
-			dllsources += ['${LCGDIR}/ffmpeg/lib/libfaac-0.dll',
-							'${LCGDIR}/ffmpeg/lib/libfaad-2.dll',
-							'${LCGDIR}/ffmpeg/lib/libmp3lame-0.dll',
-							'${LCGDIR}/ffmpeg/lib/libx264-67.dll']
 
 	if env['WITH_BF_JACK']:
 		dllsources += ['${LCGDIR}/jack/lib/libjack.dll']

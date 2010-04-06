@@ -47,10 +47,7 @@ typedef struct ClothSimSettings
 	float 	mingoal; 	/* see SB */
 	float	Cdis;		/* Mechanical damping of springs.		*/
 	float	Cvi;		/* Viscous/fluid damping.			*/
-	/* XXX the extra space here results in wrong DNA parsing,
-	 * and reconstruct fails and gives corrupt settings when
-	 * removing it because the old dna is wrong ... */
-	float	gravity [3];	/* Gravity/external force vector.		*/
+	float	gravity[3];	/* Gravity/external force vector.		*/
 	float	dt;		/* This is the duration of our time step, computed.	*/
 	float	mass;		/* The mass of the entire cloth.		*/
 	float	structural;	/* Structural spring stiffness.			*/
@@ -69,6 +66,8 @@ typedef struct ClothSimSettings
 	float	goalspring;
 	float	goalfrict;
 	float	velocity_smooth; /* smoothing of velocities for hair */
+	float	collider_friction; /* friction with colliders */
+
 	int 	stepsPerFrame;	/* Number of time steps per frame.		*/
 	int	flags;		/* flags, see CSIMSETT_FLAGS enum above.	*/
 	int	preroll;	/* How many frames of simulation to do before we start.	*/
@@ -77,8 +76,10 @@ typedef struct ClothSimSettings
 	short	vgroup_bend;	/* vertex group for scaling bending stiffness */
 	short	vgroup_mass;	/* optional vertexgroup name for assigning weight.*/
 	short	vgroup_struct;  /* vertex group for scaling structural stiffness */
+	short	shapekey_rest;  /* vertex group for scaling structural stiffness */
 	short	presets; /* used for presets on GUI */
- 	short 	reset;
+	short 	reset;
+	short	pad[3];
 
 	struct EffectorWeights *effector_weights;
 } ClothSimSettings;
@@ -94,6 +95,7 @@ typedef struct ClothCollSettings
 	int	flags;			/* collision flags defined in BKE_cloth.h */
 	short	self_loop_count;	/* How many iterations for the selfcollision loop	*/
 	short	loop_count;		/* How many iterations for the collision loop.		*/
+	struct Group *group;	/* Only use colliders from this group of objects */
 } ClothCollSettings;
 
 

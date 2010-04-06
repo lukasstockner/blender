@@ -30,10 +30,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_ID.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_windowmanager_types.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
@@ -53,26 +51,22 @@
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
-#include "UI_resources.h"
-#include "UI_view2d.h"
 
-#include "ED_util.h"
-#include "ED_types.h"
 
 #include "interface_intern.h"
 
 /* ************** widget base functions ************** */
 /*
-     - in: roundbox codes for corner types and radius
-     - return: array of [size][2][x,y] points, the edges of the roundbox, + UV coords
+	 - in: roundbox codes for corner types and radius
+	 - return: array of [size][2][x,y] points, the edges of the roundbox, + UV coords
  
-     - draw black box with alpha 0 on exact button boundbox
-     - for ever AA step:
-        - draw the inner part for a round filled box, with color blend codes or texture coords
-        - draw outline in outline color
-        - draw outer part, bottom half, extruded 1 pixel to bottom, for emboss shadow
-        - draw extra decorations
-     - draw background color box with alpha 1 on exact button boundbox
+	 - draw black box with alpha 0 on exact button boundbox
+	 - for ever AA step:
+		- draw the inner part for a round filled box, with color blend codes or texture coords
+		- draw outline in outline color
+		- draw outer part, bottom half, extruded 1 pixel to bottom, for emboss shadow
+		- draw extra decorations
+	 - draw background color box with alpha 1 on exact button boundbox
  
  */
 
@@ -817,6 +811,9 @@ static void ui_text_leftclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
 	
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
+	
+	if (fstyle->kerning==1)	/* for BLF_width */
+		BLF_enable(BLF_KERNING_DEFAULT);
 
 	but->strwidth= BLF_width(but->drawstr);
 	but->ofs= 0;
@@ -843,6 +840,9 @@ static void ui_text_leftclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
 		
 		if(but->strwidth < 10) break;
 	}
+	
+	if (fstyle->kerning==1)
+		BLF_disable(BLF_KERNING_DEFAULT);
 }
 
 static void ui_text_label_rightclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
@@ -854,6 +854,9 @@ static void ui_text_label_rightclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
 	
 	/* need to set this first */
 	uiStyleFontSet(fstyle);
+	
+	if (fstyle->kerning==1)	/* for BLF_width */
+		BLF_enable(BLF_KERNING_DEFAULT);
 	
 	but->strwidth= BLF_width(but->drawstr);
 	but->ofs= 0;
@@ -896,6 +899,8 @@ static void ui_text_label_rightclip(uiFontStyle *fstyle, uiBut *but, rcti *rect)
 		if(but->strwidth < 10) break;
 	}
 	
+	if (fstyle->kerning==1)
+		BLF_disable(BLF_KERNING_DEFAULT);
 }
 
 
@@ -910,7 +915,10 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		fstyle->align= UI_STYLE_TEXT_LEFT;
 	else
 		fstyle->align= UI_STYLE_TEXT_CENTER;			
-		
+	
+	if (fstyle->kerning==1)	/* for BLF_width */
+		BLF_enable(BLF_KERNING_DEFAULT);
+	
 	/* text button selection and cursor */
 	if(but->editstr && but->pos != -1) {
 		short t=0, pos=0, ch;
@@ -951,16 +959,20 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 					ch= but->drawstr[pos];
 					but->drawstr[pos]= 0;
 					
-					t= BLF_width(but->drawstr+but->ofs);
+					t= BLF_width(but->drawstr+but->ofs) / but->aspect;
 					
 					but->drawstr[pos]= ch;
 				}
 
-				glColor3ub(255,0,0);
+				glColor3f(0.20, 0.6, 0.9);
 				glRects(rect->xmin+t, rect->ymin+2, rect->xmin+t+2, rect->ymax-2);
 			}
 		}
 	}
+	
+	if (fstyle->kerning == 1)
+		BLF_disable(BLF_KERNING_DEFAULT);
+	
 	//	ui_rasterpos_safe(x, y, but->aspect);
 //	if(but->type==IDPOIN) transopts= 0;	// no translation, of course!
 //	else transopts= ui_translate_buttons();

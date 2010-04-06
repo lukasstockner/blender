@@ -48,45 +48,31 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_curve_types.h"
-#include "DNA_listBase.h"
-#include "DNA_sdna_types.h"
 #include "DNA_userdef_types.h"
-#include "DNA_object_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_sequence_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_dynstr.h"
 
-#include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "BKE_animsys.h"
-#include "BKE_action.h"
 #include "BKE_blender.h"
 #include "BKE_context.h"
-#include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_displist.h"
-#include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_library.h"
 #include "BKE_ipo.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
-#include "BKE_object.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_sequencer.h"
-#include "BKE_sound.h"
 
-#include "BLI_editVert.h"
 
 #include "BLO_undofile.h"
 #include "BLO_readfile.h" 
@@ -291,8 +277,6 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 	if (G.f & G_SWAP_EXCHANGE) bfd->globalf |= G_SWAP_EXCHANGE;
 	else bfd->globalf &= ~G_SWAP_EXCHANGE;
 
-	if ((U.flag & USER_DONT_DOSCRIPTLINKS)) bfd->globalf &= ~G_DOSCRIPTLINKS;
-
 	G.f= bfd->globalf;
 
 	if (!G.background) {
@@ -358,7 +342,7 @@ void BKE_userdef_free(void)
 	BLI_freelistN(&U.uifonts);
 	BLI_freelistN(&U.themes);
 	BLI_freelistN(&U.keymaps);
-	
+	BLI_freelistN(&U.addons);
 }
 
 /* returns:
@@ -371,6 +355,9 @@ int BKE_read_file(bContext *C, char *dir, void *unused, ReportList *reports)
 {
 	BlendFileData *bfd;
 	int retval= 1;
+
+	if(strstr(dir, ".B25.blend")==0) /* dont print user-pref loading */
+		printf("read blend: %s\n", dir);
 
 	bfd= BLO_read_from_file(dir, reports);
 	if (bfd) {
@@ -417,6 +404,7 @@ int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *report
 
 	return (bfd?1:0);
 }
+
 
 /* *****************  testing for break ************* */
 
@@ -705,5 +693,22 @@ void BKE_undo_save_quit(void)
 	
 	if(chunk) ; //XXX error("Unable to save %s, internal error", str);
 	else printf("Saved session recovery to %s\n", str);
+}
+
+/* sets curscene */
+Main *BKE_undo_get_main(Scene **scene)
+{
+	Main *mainp= NULL;
+	BlendFileData *bfd= BLO_read_from_memfile(G.main, G.sce, &curundo->memfile, NULL);
+	
+	if(bfd) {
+		mainp= bfd->main;
+		if(scene)
+			*scene= bfd->curscene;
+		
+		MEM_freeN(bfd);
+	}
+	
+	return mainp;
 }
 

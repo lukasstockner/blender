@@ -70,14 +70,17 @@ void BKE_animdata_make_local(struct AnimData *adt);
 /* Used to create a new 'custom' KeyingSet for the user, that will be automatically added to the stack */
 struct KeyingSet *BKE_keyingset_add(struct ListBase *list, const char name[], short flag, short keyingflag);
 
-/* Add a destination to a KeyingSet */
-void BKE_keyingset_add_destination(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, short flag, short groupmode);
+/* Add a path to a KeyingSet */
+struct KS_Path *BKE_keyingset_add_path(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, short flag, short groupmode);
 
 /* Find the destination matching the criteria given */
-struct KS_Path *BKE_keyingset_find_destination(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode);
+struct KS_Path *BKE_keyingset_find_path(struct KeyingSet *ks, struct ID *id, const char group_name[], const char rna_path[], int array_index, int group_mode);
 
 /* Copy all KeyingSets in the given list */
 void BKE_keyingsets_copy(struct ListBase *newlist, struct ListBase *list);
+
+/* Free the given Keying Set path */
+void BKE_keyingset_free_path(struct KeyingSet *ks, struct KS_Path *ksp);
 
 /* Free data for KeyingSet but not set itself */
 void BKE_keyingset_free(struct KeyingSet *ks);
@@ -89,7 +92,7 @@ void BKE_keyingsets_free(struct ListBase *list);
 /* Path Fixing API */
 
 /* Fix all the paths for the given ID+AnimData */
-void BKE_animdata_fix_paths_rename(struct ID *owner_id, struct AnimData *adt, char *prefix, char *oldName, char *newName);
+void BKE_animdata_fix_paths_rename(struct ID *owner_id, struct AnimData *adt, char *prefix, char *oldName, char *newName, int oldSubscript, int newSubscript, int verify_paths);
 
 /* Fix all the paths for the entire database... */
 void BKE_all_animdata_fix_paths_rename(char *prefix, char *oldName, char *newName);

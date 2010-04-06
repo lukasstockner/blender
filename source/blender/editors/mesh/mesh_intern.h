@@ -1,5 +1,5 @@
 /**
- * $Id: 
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -97,6 +97,7 @@ extern int faceselectedAND(EditFace *efa, int flag);
 void EM_remove_selection(EditMesh *em, void *data, int type);
 void EM_clear_flag_all(EditMesh *em, int flag);
 void EM_set_flag_all(EditMesh *em, int flag);
+void EM_set_flag_all_selectmode(EditMesh *em, int flag);
 
 void EM_data_interp_from_verts(EditMesh *em, EditVert *v1, EditVert *v2, EditVert *eve, float fac);
 void EM_data_interp_from_faces(EditMesh *em, EditFace *efa1, EditFace *efa2, EditFace *efan, int i1, int i2, int i3, int i4);
@@ -196,9 +197,16 @@ extern EditVert *findnearestvert(ViewContext *vc, int *dist, short sel, short st
 #define SUBDIV_SELECT_INNER_SEL 2
 #define SUBDIV_SELECT_LOOPCUT 3
 
+/* edge subdivide corner cut types */
+#define SUBDIV_CORNER_PATH		0
+#define SUBDIV_CORNER_INNERVERT	1
+#define SUBDIV_CORNER_FAN		2
+
+extern EnumPropertyItem corner_type_items[];
+
 void join_triangles(EditMesh *em);
 int removedoublesflag(EditMesh *em, short flag, short automerge, float limit);		/* return amount */
-void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float fractal, int beautify, int numcuts, int seltype);
+void esubdivideflag(Object *obedit, EditMesh *em, int flag, float smooth, float fractal, int beautify, int numcuts, int corner_pattern, int seltype);
 int EdgeSlide(EditMesh *em, struct wmOperator *op, short immediate, float imperc);
 
 void MESH_OT_merge(struct wmOperatorType *ot);

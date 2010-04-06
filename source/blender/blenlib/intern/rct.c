@@ -36,13 +36,18 @@
  */
 
 #include "DNA_vec_types.h"
-#include "BLI_blenlib.h"
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
 int BLI_rcti_is_empty(rcti * rect)
+{
+	return ((rect->xmax<=rect->xmin) ||
+			(rect->ymax<=rect->ymin));
+}
+
+int BLI_rctf_is_empty(rctf * rect)
 {
 	return ((rect->xmax<=rect->xmin) ||
 			(rect->ymax<=rect->ymin));

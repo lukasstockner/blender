@@ -29,35 +29,16 @@
 #include <string.h>
 #include <math.h>
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_winstuff.h"
 
 #include "DNA_anim_types.h"
-#include "DNA_action_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_boid_types.h"
-#include "DNA_curve_types.h"
 #include "DNA_camera_types.h"
-#include "DNA_ID.h"
-#include "DNA_effect_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lattice_types.h"
-#include "DNA_lamp_types.h"
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_nla_types.h"
-#include "DNA_object_types.h"
-#include "DNA_object_force.h"
-#include "DNA_object_fluidsim.h"
-#include "DNA_outliner_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_space_types.h"
-#include "DNA_view2d_types.h"
-#include "DNA_view3d_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_ghash.h"
@@ -75,7 +56,6 @@
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_utildefines.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
@@ -486,11 +466,6 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA|DAG_RL_OB_OB, "Duplivert");
 		}
 		
-		addtoroot = 0;
-	}
-	if (ob->track) {
-		node2 = dag_get_node(dag,ob->track);
-		dag_add_relation(dag,node2,node,DAG_RL_OB_OB, "Track To");
 		addtoroot = 0;
 	}
 	if (ob->proxy) {
@@ -971,7 +946,7 @@ static void dag_node_print_dependency_cycle(DagForest *dag, DagNode *startnode, 
 {
 	DagNode *node;
 
-    for(node = dag->DagNode.first; node; node= node->next)
+	for(node = dag->DagNode.first; node; node= node->next)
 		node->color= DAG_WHITE;
 
 	printf("  %s depends on %s through %s.\n", dag_node_name(endnode), dag_node_name(startnode), name);
@@ -1553,7 +1528,7 @@ int	is_acyclic( DagForest	*dag) {
 
 void set_node_xy(DagNode *node, float x, float y)
 {
- 	node->x = x;
+	 node->x = x;
 	node->y = y;
 }
 
@@ -1780,7 +1755,7 @@ static void flush_update_node(DagNode *node, unsigned int layer, int curtime)
 	
 	ob= node->ob;
 	if(ob && (ob->recalc & OB_RECALC)) {
-		all_layer= ob->lay;
+		all_layer= node->scelay;
 
 		/* got an object node that changes, now check relations */
 		for(itA = node->child; itA; itA= itA->next) {
@@ -1925,15 +1900,33 @@ void DAG_scene_flush_update(Scene *sce, unsigned int lay, int time)
 	sce->theDag->time++;	// so we know which nodes were accessed
 	lasttime= sce->theDag->time;
 
-
+	/* update layer flags in nodes */
 	for(base= sce->base.first; base; base= base->next) {
 		node= dag_get_node(sce->theDag, base->object);
-		if(node)
-			node->scelay= base->object->lay;
-		else
-			node->scelay= 0;
+		node->scelay= base->object->lay;
 	}
 
+	/* ensure cameras are set as if they are on a visible layer, because
+	   they ared still used for rendering or setting the camera view */
+	if(sce->camera) {
+		node= dag_get_node(sce->theDag, sce->camera);
+		node->scelay |= lay;
+	}
+
+#ifdef DURIAN_CAMERA_SWITCH
+	{
+		TimeMarker *m;
+
+		for(m= sce->markers.first; m; m= m->next) {
+			if(m->camera) {
+				node= dag_get_node(sce->theDag, m->camera);
+				node->scelay |= lay;
+			}
+		}
+	}
+#endif
+
+	/* flush layer nodes to dependencies */
 	for(itA = firstnode->child; itA; itA= itA->next)
 		if(itA->node->lasttime!=lasttime && itA->node->type==ID_OB) 
 			flush_layer_node(sce, itA->node, lasttime);

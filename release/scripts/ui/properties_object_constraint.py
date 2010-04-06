@@ -97,12 +97,12 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 
         split = layout.split(percentage=0.33)
         col = split.column()
-        col.prop(con, "tail")
-        col.prop(con, "stretch")
+        col.prop(con, "use_tail")
+        col.prop(con, "use_stretch")
 
         col = split.column()
         col.prop(con, "chain_length")
-        col.prop(con, "targetless")
+        col.prop(con, "use_target")
 
     def CHILD_OF(self, context, layout, con, wide_ui):
         self.target_template(layout, con, wide_ui)
@@ -205,10 +205,10 @@ class ConstraintButtonsPanel(bpy.types.Panel):
         row.label(text="Axis Ref:")
         row.prop(con, "axis_reference", expand=True)
         split = layout.split(percentage=0.33)
-        split.row().prop(con, "position")
+        split.row().prop(con, "use_position")
         row = split.row()
         row.prop(con, "weight", text="Weight", slider=True)
-        row.active = con.position
+        row.active = con.use_position
         split = layout.split(percentage=0.33)
         row = split.row()
         row.label(text="Lock:")
@@ -219,7 +219,7 @@ class ConstraintButtonsPanel(bpy.types.Panel):
         split.active = con.use_position
 
         split = layout.split(percentage=0.33)
-        split.row().prop(con, "rotation")
+        split.row().prop(con, "use_rotation")
         row = split.row()
         row.prop(con, "orient_weight", text="Weight", slider=True)
         row.active = con.use_rotation
@@ -461,11 +461,21 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 
         self.space_template(layout, con, wide_ui)
 
+    def MAINTAIN_VOLUME(self, context, layout, con, wide_ui):
+
+        row = layout.row()
+        if wide_ui:
+            row.label(text="Free:")
+        row.prop(con, "axis", expand=True)
+
+        layout.prop(con, "volume")
+
+        self.space_template(layout, con, wide_ui)
+
     def COPY_TRANSFORMS(self, context, layout, con, wide_ui):
         self.target_template(layout, con, wide_ui)
 
         self.space_template(layout, con, wide_ui)
-
 
     #def SCRIPT(self, context, layout, con):
 
@@ -486,8 +496,8 @@ class ConstraintButtonsPanel(bpy.types.Panel):
 
         col = split.column(align=True)
         col.label(text="Action Length:")
-        col.prop(con, "start_frame", text="Start")
-        col.prop(con, "end_frame", text="End")
+        col.prop(con, "frame_start", text="Start")
+        col.prop(con, "frame_end", text="End")
 
         if wide_ui:
             col = split.column(align=True)
@@ -754,5 +764,22 @@ class BONE_PT_constraints(ConstraintButtonsPanel):
         for con in context.pose_bone.constraints:
             self.draw_constraint(context, con)
 
-bpy.types.register(OBJECT_PT_constraints)
-bpy.types.register(BONE_PT_constraints)
+
+classes = [
+    OBJECT_PT_constraints,
+    BONE_PT_constraints]
+
+
+def register():
+    register = bpy.types.register
+    for cls in classes:
+        register(cls)
+
+
+def unregister():
+    unregister = bpy.types.unregister
+    for cls in classes:
+        unregister(cls)
+
+if __name__ == "__main__":
+    register()

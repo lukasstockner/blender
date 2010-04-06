@@ -28,15 +28,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-#include <pthread.h>
 #include <errno.h>
 
 #include "MEM_guardedalloc.h"
 
-#include "DNA_listBase.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_gsqueue.h"
@@ -54,6 +49,12 @@
 #else
 #include <unistd.h> 
 #include <sys/time.h>
+#endif
+
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+/* ************** libgomp (Apple gcc 4.2.1) TLS bug workaround *************** */
+extern pthread_key_t gomp_tls_key;
+static void *thread_tls_data;
 #endif
 
 /* ********** basic thread control API ************ 
@@ -103,6 +104,7 @@ A sample loop can look like this (pseudo c);
 static pthread_mutex_t _malloc_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _image_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _preview_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t _viewer_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t _custom1_lock = PTHREAD_MUTEX_INITIALIZER;
 static int thread_levels= 0;	/* threads can be invoked inside threads */
 
@@ -148,8 +150,16 @@ void BLI_init_threads(ListBase *threadbase, void *(*do_thread)(void *), int tot)
 			tslot->avail= 1;
 		}
 		
-		if(thread_levels == 0)
+		if(thread_levels == 0) {
 			MEM_set_lock_callback(BLI_lock_malloc_thread, BLI_unlock_malloc_thread);
+
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+			/* workaround for Apple gcc 4.2.1 omp vs background thread bug,
+			   we copy gomp thread local storage pointer to setting it again
+			   inside the thread that we start */
+			thread_tls_data = pthread_getspecific(gomp_tls_key);
+#endif
+		}
 
 		thread_levels++;
 	}
@@ -181,6 +191,18 @@ int BLI_available_thread_index(ListBase *threadbase)
 	return 0;
 }
 
+static void *tslot_thread_start(void *tslot_p)
+{
+	ThreadSlot *tslot= (ThreadSlot*)tslot_p;
+
+#if defined(__APPLE__) && (PARALLEL == 1) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 2)
+	/* workaround for Apple gcc 4.2.1 omp vs background thread bug,
+	   set gomp thread local storage pointer which was copied beforehand */
+	pthread_setspecific (gomp_tls_key, thread_tls_data);
+#endif
+
+	return tslot->do_thread(tslot->callerdata);
+}
 
 void BLI_insert_thread(ListBase *threadbase, void *callerdata)
 {
@@ -190,7 +212,7 @@ void BLI_insert_thread(ListBase *threadbase, void *callerdata)
 		if(tslot->avail) {
 			tslot->avail= 0;
 			tslot->callerdata= callerdata;
-			pthread_create(&tslot->pthread, NULL, tslot->do_thread, tslot->callerdata);
+			pthread_create(&tslot->pthread, NULL, tslot_thread_start, tslot);
 			return;
 		}
 	}
@@ -203,8 +225,8 @@ void BLI_remove_thread(ListBase *threadbase, void *callerdata)
 	
 	for(tslot= threadbase->first; tslot; tslot= tslot->next) {
 		if(tslot->callerdata==callerdata) {
-			tslot->callerdata= NULL;
 			pthread_join(tslot->pthread, NULL);
+			tslot->callerdata= NULL;
 			tslot->avail= 1;
 		}
 	}
@@ -217,8 +239,8 @@ void BLI_remove_thread_index(ListBase *threadbase, int index)
 	
 	for(tslot = threadbase->first; tslot; tslot = tslot->next, counter++) {
 		if (counter == index && tslot->avail == 0) {
-			tslot->callerdata = NULL;
 			pthread_join(tslot->pthread, NULL);
+			tslot->callerdata = NULL;
 			tslot->avail = 1;
 			break;
 		}
@@ -231,8 +253,8 @@ void BLI_remove_threads(ListBase *threadbase)
 	
 	for(tslot = threadbase->first; tslot; tslot = tslot->next) {
 		if (tslot->avail == 0) {
-			tslot->callerdata = NULL;
 			pthread_join(tslot->pthread, NULL);
+			tslot->callerdata = NULL;
 			tslot->avail = 1;
 		}
 	}
@@ -301,6 +323,8 @@ void BLI_lock_thread(int type)
 		pthread_mutex_lock(&_image_lock);
 	else if (type==LOCK_PREVIEW)
 		pthread_mutex_lock(&_preview_lock);
+	else if (type==LOCK_VIEWER)
+		pthread_mutex_lock(&_viewer_lock);
 	else if (type==LOCK_CUSTOM1)
 		pthread_mutex_lock(&_custom1_lock);
 }
@@ -311,6 +335,8 @@ void BLI_unlock_thread(int type)
 		pthread_mutex_unlock(&_image_lock);
 	else if (type==LOCK_PREVIEW)
 		pthread_mutex_unlock(&_preview_lock);
+	else if (type==LOCK_VIEWER)
+		pthread_mutex_unlock(&_viewer_lock);
 	else if(type==LOCK_CUSTOM1)
 		pthread_mutex_unlock(&_custom1_lock);
 }

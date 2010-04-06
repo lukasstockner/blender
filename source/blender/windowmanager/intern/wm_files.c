@@ -1,5 +1,5 @@
 /**
- * $Id: wm_files.c
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -76,7 +76,6 @@
 #include "BLO_writefile.h"
 
 #include "RNA_access.h"
-#include "RNA_define.h"
 
 #include "ED_datafiles.h"
 #include "ED_object.h"
@@ -236,11 +235,19 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 }
 
 /* in case UserDef was read, we re-initialize all, and do versioning */
-static void wm_init_userdef()
+static void wm_init_userdef(bContext *C)
 {
+	extern char btempdir[];
+
 	UI_init_userdef();
 	MEM_CacheLimiter_set_maximum(U.memcachelimit * 1024 * 1024);
-	sound_init();
+	sound_init(CTX_data_main(C));
+
+	/* set the python auto-execute setting from user prefs */
+	if (U.flag & USER_SCRIPT_AUTOEXEC_DISABLE)	G.f &= ~G_SCRIPT_AUTOEXEC;
+	else										G.f |=  G_SCRIPT_AUTOEXEC;
+
+	if(U.tempdir[0]) strncpy(btempdir, U.tempdir, FILE_MAXDIR+FILE_MAXFILE);
 }
 
 void WM_read_file(bContext *C, char *name, ReportList *reports)
@@ -254,6 +261,7 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 	
 	/* we didn't succeed, now try to read Blender file */
 	if (retval== 0) {
+		int G_f= G.f;
 		ListBase wmbase;
 
 		/* put aside screens to match with persistant windows later */
@@ -263,13 +271,18 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 		retval= BKE_read_file(C, name, NULL, reports);
 		G.save_over = 1;
 
+		/* this flag is initialized by the operator but overwritten on read.
+		 * need to re-enable it here else drivers + registered scripts wont work. */
+		if(G_f & G_SCRIPT_AUTOEXEC) G.f |= G_SCRIPT_AUTOEXEC;
+		else						G.f &= ~G_SCRIPT_AUTOEXEC;
+
 		/* match the read WM with current WM */
 		wm_window_match_do(C, &wmbase);
 		WM_check(C); /* opens window(s), checks keymaps */
 		
 // XXX		mainwindow_set_filename_to_title(G.main->name);
 
-		if(retval==2) wm_init_userdef();	// in case a userdef is read from regular .blend
+		if(retval==2) wm_init_userdef(C);	// in case a userdef is read from regular .blend
 		
 		if (retval!=0) {
 			G.relbase_valid = 1;
@@ -338,7 +351,7 @@ int WM_read_homefile(bContext *C, wmOperator *op)
 
 	strcpy(G.sce, scestr); /* restore */
 	
-	wm_init_userdef();
+	wm_init_userdef(C);
 	
 	/* When loading factory settings, the reset solid OpenGL lights need to be applied. */
 	if (!G.background) GPU_default_lights();
@@ -519,6 +532,9 @@ void WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports
 		if(fileflags & G_FILE_COMPRESS) G.fileflags |= G_FILE_COMPRESS;
 		else G.fileflags &= ~G_FILE_COMPRESS;
 		
+		if(fileflags & G_FILE_AUTOPLAY) G.fileflags |= G_FILE_AUTOPLAY;
+		else G.fileflags &= ~G_FILE_AUTOPLAY;
+
 		writeBlog();
 	}
 
@@ -540,7 +556,7 @@ int WM_write_homefile(bContext *C, wmOperator *op)
 	BLI_make_file_string("/", tstr, BLI_gethome(), ".B25.blend");
 	
 	/*  force save as regular blend file */
-	fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_LOCK | G_FILE_SIGN);
+	fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN);
 
 	BLO_write_file(CTX_data_main(C), tstr, fileflags, op->reports);
 	
@@ -608,7 +624,7 @@ void wm_autosave_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt)
 	wm_autosave_location(filename);
 
 	/*  force save as regular blend file */
-	fileflags = G.fileflags & ~(G_FILE_COMPRESS|G_FILE_LOCK|G_FILE_SIGN);
+	fileflags = G.fileflags & ~(G_FILE_COMPRESS|G_FILE_AUTOPLAY |G_FILE_LOCK|G_FILE_SIGN);
 
 	/* no error reporting to console */
 	BLO_write_file(CTX_data_main(C), filename, fileflags, NULL);
