@@ -56,7 +56,6 @@ static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **in, bNod
 		ShadeTexco *tex= &shi->texture;
 		ShadeInputUV *suv= &tex->uv[shi->texture.actuv];
 		static float defaultvcol[4] = {1.0f, 1.0f, 1.0f, 1.0f};
-		static float front= 0.0;
 		int i;
 
 		if(ngeo->uvname[0]) {
@@ -111,14 +110,8 @@ static void node_shader_exec_geom(void *data, bNode *node, bNodeStack **in, bNod
 			out[GEOM_OUT_NORMAL]->datatype= NS_OSA_VECTORS;
 		}
 		
-		/* front/back
-		* check the original un-flipped normals to determine front or back side */
-		if (geom->orignor[2] < FLT_EPSILON) {
-			front= 1.0f;
-		} else {
-			front = 0.0f;
-		}
-		out[GEOM_OUT_FRONTBACK]->vec[0]= front;
+		/* front/back, normal flipping was stored */
+		out[GEOM_OUT_FRONTBACK]->vec[0]= (geom->flippednor)? 0.0f: 1.0f;
 	}
 }
 

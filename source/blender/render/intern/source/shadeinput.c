@@ -144,11 +144,6 @@ void shade_input_set_triangle_i(Render *re, ShadeInput *shi, ObjectInstanceRen *
 
 	/* facenormal copy, can get flipped */
 	geom->flippednor= render_vlak_get_normal(obi, vlr, geom->facenor, (i3 == 3));
-
-	/* copy of original pre-flipped normal, for geometry->front/back node output */
-	copy_v3_v3(geom->orignor, geom->facenor);
-	if(geom->flippednor)
-		mul_v3_fl(geom->orignor, -1.0f);
 }
 
 /* note, facenr declared volatile due to over-eager -O2 optimizations
@@ -193,7 +188,6 @@ void shade_input_set_strand(Render *re, ShadeInput *shi, StrandRen *strand, Stra
 
 	/* facenormal, simply viewco flipped */
 	copy_v3_v3(geom->facenor, spoint->nor);
-	copy_v3_v3(geom->orignor, geom->facenor);
 
 	/* shade_input_set_normals equivalent */
 	if(mat->mat->mode & MA_TANGENT_STR) {

@@ -102,10 +102,6 @@ typedef struct ShadeGeometry {
 
 	float dxno[3], dyno[3];	/* derivatives of vn */
 
-	/* stored copy of original face normal (facenor) 
-	 * before flipping. Used in Front/back output on geometry node */
-	float orignor[3];
-
 	/* strand normal */
 	float surfnor[3], surfdist;
 	
