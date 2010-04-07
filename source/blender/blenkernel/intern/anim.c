@@ -1003,7 +1003,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 						copy_m4_m4(tmat, obmat);
 						mul_m4_m4m3(obmat, tmat, mat);
 						
-						dob= new_dupli_object(lb, ob, obmat, lay, a, OB_DUPLIFACES, animated);
+						dob= new_dupli_object(lb, ob, obmat, par->lay, a, OB_DUPLIFACES, animated);
 						if(G.rendering) {
 							w= (mv4)? 0.25f: 1.0f/3.0f;
 
