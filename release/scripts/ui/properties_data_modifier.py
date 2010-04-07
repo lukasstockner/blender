@@ -369,6 +369,7 @@ class DATA_PT_modifiers(DataButtonsPanel):
         sub = col.column()
         sub.label(text="Object:")
         sub.prop(md, "object", text="")
+        sub.prop(md, "mode", text="")
         sub.active = not md.is_bound
         if wide_ui:
             col = split.column()
@@ -386,14 +387,15 @@ class DATA_PT_modifiers(DataButtonsPanel):
         else:
             layout.operator("object.meshdeform_bind", text="Bind")
 
-            split = layout.split()
+            if md.mode == 'VOLUME':
+                split = layout.split()
 
-            col = split.column()
-            col.prop(md, "precision")
-
-            if wide_ui:
                 col = split.column()
-            col.prop(md, "dynamic")
+                col.prop(md, "precision")
+
+                if wide_ui:
+                    col = split.column()
+                col.prop(md, "dynamic")
 
     def MIRROR(self, layout, ob, md, wide_ui):
         layout.prop(md, "merge_limit")
