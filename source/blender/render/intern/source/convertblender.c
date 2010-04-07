@@ -698,7 +698,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 		/* in the prev/next pass for making speed vectors, avoid creating
 		 * objects that are not on a renderlayer with a vector pass, can
 		 * save a lot of time in complex scenes */
-		vectorlay= get_vector_renderlayers(sce);
+		vectorlay= get_vector_renderlayers(re->db.scene);
 		lay= (timeoffset)? renderlay & vectorlay: renderlay;
 
 		/* if the object has been restricted from rendering in the outliner, ignore it */
