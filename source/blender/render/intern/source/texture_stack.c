@@ -766,7 +766,7 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 	}
 }
 
-void do_material_tex(Render *re, ShadeInput *shi)
+void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 {
 	MTex *mtex;
 	Tex *tex;
@@ -776,7 +776,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 	float texvec[3], dxt[3], dyt[3], tempvec[3], norvec[3], warpvec[3]={0.0f, 0.0f, 0.0f}, Tnor=1.0;
 	int tex_nr, rgbnor= 0, warpdone=0;
 	float nu[3] = {0,0,0}, nv[3] = {0,0,0}, nn[3] = {0,0,0}, dudnu = 1.f, dudnv = 0.f, dvdnu = 0.f, dvdnv = 1.f; // bump mapping
-	int nunvdone= 0;
+	int nunvdone= 0, mapto;
 
 	if (re->params.r.scemode & R_NO_TEX) return;
 	/* here: test flag if there's a tex (todo) */
@@ -791,6 +791,11 @@ void do_material_tex(Render *re, ShadeInput *shi)
 			
 			tex= mtex->tex;
 			if(tex==0) continue;
+
+			/* only process if this texture is mapped 
+			 * to one that we're interested in */
+			mapto= (mapto_flag == 0)? mtex->mapto: mtex->mapto & mapto_flag;
+			if (!mapto) continue;
 
 			/* which coords */
 			if(mtex->texco==TEXCO_ORCO) {
@@ -871,7 +876,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					// NOTE: test for shi->primitive.obr->ob here, since vlr/obr/obi can be 'fake' when called from fastshade(), another reason to move it..
 					// NOTE: shi->v1 is NULL when called from displace_render_vert, assigning verts in this case is not trivial because the shi quad face side is not known.
 					if ((mtex->texflag & MTEX_NEW_BUMP) && shi->primitive.obr && shi->primitive.obr->ob && shi->primitive.v1) {
-						if(mtex->mapto & (MAP_NORM|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
+						if(mapto & (MAP_NORM|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
 							MTFace* tf = render_vlak_get_tface(shi->primitive.obr, shi->primitive.vlr, i, NULL, 0);
 							int j1 = shi->primitive.i1, j2 = shi->primitive.i2, j3 = shi->primitive.i3;
 
@@ -942,7 +947,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 			else continue;	// can happen when texco defines disappear and it renders old files
 
 			/* the pointer defines if bumping happens */
-			if(mtex->mapto & (MAP_NORM|MAP_WARP)) {
+			if(mapto & (MAP_NORM|MAP_WARP)) {
 				texres.nor= norvec;
 				norvec[0]= norvec[1]= norvec[2]= 0.0;
 			}
@@ -1150,7 +1155,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					}
 				}
 				// warping, local space
-				if(mtex->mapto & MAP_WARP) {
+				if(mapto & MAP_WARP) {
 					warpvec[0]= mtex->warpfac*texres.nor[0];
 					warpvec[1]= mtex->warpfac*texres.nor[1];
 					warpvec[2]= mtex->warpfac*texres.nor[2];
@@ -1174,7 +1179,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 			}
 
 			/* mapping */
-			if(mtex->mapto & (MAP_COL+MAP_COLSPEC+MAP_COLMIR)) {
+			if(mapto & (MAP_COL+MAP_COLSPEC+MAP_COLMIR)) {
 				float tcol[3];
 				
 				/* stencil maps on the texture control slider, not texture intensity value */
@@ -1186,7 +1191,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					tcol[1]= mtex->g;
 					tcol[2]= mtex->b;
 				}
-				else if(mtex->mapto & MAP_ALPHA) {
+				else if(mapto & MAP_ALPHA) {
 					texres.tin= stencilTin;
 				}
 				else texres.tin= texres.ta;
@@ -1201,15 +1206,15 @@ void do_material_tex(Render *re, ShadeInput *shi)
 						srgb_to_linearrgb_v3_v3(tcol, tcol);
 				}
 				
-				if(mtex->mapto & MAP_COL) {
+				if(mapto & MAP_COL) {
 					float colfac= mtex->colfac*stencilTin;
 					texture_rgb_blend(&shi->material.r, tcol, &shi->material.r, texres.tin, colfac, mtex->blendtype);
 				}
-				if(mtex->mapto & MAP_COLSPEC) {
+				if(mapto & MAP_COLSPEC) {
 					float colspecfac= mtex->colspecfac*stencilTin;
 					texture_rgb_blend(&shi->material.specr, tcol, &shi->material.specr, texres.tin, colspecfac, mtex->blendtype);
 				}
-				if(mtex->mapto & MAP_COLMIR) {
+				if(mapto & MAP_COLMIR) {
 					float mirrfac= mtex->mirrfac*stencilTin;
 
 					// exception for envmap only
@@ -1226,7 +1231,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					}
 				}
 			}
-			if( (mtex->mapto & MAP_NORM) ) {
+			if( (mapto & MAP_NORM) ) {
 				if(texres.nor) {
 					float norfac= mtex->norfac;
 					
@@ -1314,7 +1319,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 				}
 			}
 
-			if( mtex->mapto & MAP_DISPLACE ) {
+			if( mapto & MAP_DISPLACE ) {
 				/* Now that most textures offer both Nor and Intensity, allow  */
 				/* both to work, and let user select with slider.   */
 				if(texres.nor) {
@@ -1349,7 +1354,7 @@ void do_material_tex(Render *re, ShadeInput *shi)
 				}
 			}
 
-			if(mtex->mapto & MAP_VARS) {
+			if(mapto & MAP_VARS) {
 				/* stencil maps on the texture control slider, not texture intensity value */
 				
 				if(rgbnor & TEX_RGB) {
@@ -1357,32 +1362,32 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					else texres.tin= (0.35*texres.tr+0.45*texres.tg+0.2*texres.tb);
 				}
 
-				if(mtex->mapto & MAP_REF) {
+				if(mapto & MAP_REF) {
 					float difffac= mtex->difffac*stencilTin;
 
 					shi->material.refl= texture_value_blend(mtex->def_var, shi->material.refl, texres.tin, difffac, mtex->blendtype);
 					if(shi->material.refl<0.0) shi->material.refl= 0.0;
 				}
-				if(mtex->mapto & MAP_SPEC) {
+				if(mapto & MAP_SPEC) {
 					float specfac= mtex->specfac*stencilTin;
 					
 					shi->material.spec= texture_value_blend(mtex->def_var, shi->material.spec, texres.tin, specfac, mtex->blendtype);
 					if(shi->material.spec<0.0) shi->material.spec= 0.0;
 				}
-				if(mtex->mapto & MAP_EMIT) {
+				if(mapto & MAP_EMIT) {
 					float emitfac= mtex->emitfac*stencilTin;
 
 					shi->material.emit= texture_value_blend(mtex->def_var, shi->material.emit, texres.tin, emitfac, mtex->blendtype);
 					if(shi->material.emit<0.0) shi->material.emit= 0.0;
 				}
-				if(mtex->mapto & MAP_ALPHA) {
+				if(mapto & MAP_ALPHA) {
 					float alphafac= mtex->alphafac*stencilTin;
 
 					shi->material.alpha= texture_value_blend(mtex->def_var, shi->material.alpha, texres.tin, alphafac, mtex->blendtype);
 					if(shi->material.alpha<0.0) shi->material.alpha= 0.0;
 					else if(shi->material.alpha>1.0) shi->material.alpha= 1.0;
 				}
-				if(mtex->mapto & MAP_HAR) {
+				if(mapto & MAP_HAR) {
 					float har;  // have to map to 0-1
 					float hardfac= mtex->hardfac*stencilTin;
 					
@@ -1393,21 +1398,21 @@ void do_material_tex(Render *re, ShadeInput *shi)
 					else if(har>511.0) shi->material.har= 511;
 					else shi->material.har= (int)har;
 				}
-				if(mtex->mapto & MAP_RAYMIRR) {
+				if(mapto & MAP_RAYMIRR) {
 					float raymirrfac= mtex->raymirrfac*stencilTin;
 
 					shi->material.ray_mirror= texture_value_blend(mtex->def_var, shi->material.ray_mirror, texres.tin, raymirrfac, mtex->blendtype);
 					if(shi->material.ray_mirror<0.0) shi->material.ray_mirror= 0.0;
 					else if(shi->material.ray_mirror>1.0) shi->material.ray_mirror= 1.0;
 				}
-				if(mtex->mapto & MAP_TRANSLU) {
+				if(mapto & MAP_TRANSLU) {
 					float translfac= mtex->translfac*stencilTin;
 
 					shi->material.translucency= texture_value_blend(mtex->def_var, shi->material.translucency, texres.tin, translfac, mtex->blendtype);
 					if(shi->material.translucency<0.0) shi->material.translucency= 0.0;
 					else if(shi->material.translucency>1.0) shi->material.translucency= 1.0;
 				}
-				if(mtex->mapto & MAP_AMB) {
+				if(mapto & MAP_AMB) {
 					float ambfac= mtex->ambfac*stencilTin;
 
 					shi->material.amb= texture_value_blend(mtex->def_var, shi->material.amb, texres.tin, ambfac, mtex->blendtype);
@@ -1424,7 +1429,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 	MTex *mtex;
 	Tex *tex;
 	TexResult texres= {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
-	int tex_nr, rgbnor= 0;
+	int tex_nr, rgbnor= 0, mapto;
 	float co[3], texvec[3];
 	float fact, stencilTin=1.0;
 	
@@ -1442,7 +1447,8 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 			
 			/* only process if this texture is mapped 
 			 * to one that we're interested in */
-			if (!(mtex->mapto & mapto_flag)) continue;
+			mapto= mtex->mapto & mapto_flag;
+			if (!mapto) continue;
 			
 			/* which coords */
 			if(mtex->texco==TEXCO_OBJECT) { 
@@ -1523,7 +1529,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 			}
 			
 			
-			if((mapto_flag & (MAP_EMISSION_COL+MAP_TRANSMISSION_COL+MAP_REFLECTION_COL)) && (mtex->mapto & (MAP_EMISSION_COL+MAP_TRANSMISSION_COL+MAP_REFLECTION_COL))) {
+			if(mapto & (MAP_EMISSION_COL+MAP_TRANSMISSION_COL+MAP_REFLECTION_COL)) {
 				float tcol[3];
 				
 				/* stencil maps on the texture control slider, not texture intensity value */
@@ -1541,23 +1547,23 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 				}
 				
 				/* used for emit */
-				if((mapto_flag & MAP_EMISSION_COL) && (mtex->mapto & MAP_EMISSION_COL)) {
+				if(mapto & MAP_EMISSION_COL) {
 					float colemitfac= mtex->colemitfac*stencilTin;
 					texture_rgb_blend(col, tcol, col, texres.tin, colemitfac, mtex->blendtype);
 				}
 				
-				if((mapto_flag & MAP_REFLECTION_COL) && (mtex->mapto & MAP_REFLECTION_COL)) {
+				if(mapto & MAP_REFLECTION_COL) {
 					float colreflfac= mtex->colreflfac*stencilTin;
 					texture_rgb_blend(col, tcol, col, texres.tin, colreflfac, mtex->blendtype);
 				}
 				
-				if((mapto_flag & MAP_TRANSMISSION_COL) && (mtex->mapto & MAP_TRANSMISSION_COL)) {
+				if(mapto & MAP_TRANSMISSION_COL) {
 					float coltransfac= mtex->coltransfac*stencilTin;
 					texture_rgb_blend(col, tcol, col, texres.tin, coltransfac, mtex->blendtype);
 				}
 			}
 			
-			if((mapto_flag & MAP_VARS) && (mtex->mapto & MAP_VARS)) {
+			if(mapto & MAP_VARS) {
 				/* stencil maps on the texture control slider, not texture intensity value */
 				
 				/* convert RGB to intensity if intensity info isn't provided */
@@ -1568,25 +1574,25 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 					}
 				}
 				
-				if((mapto_flag & MAP_EMISSION) && (mtex->mapto & MAP_EMISSION)) {
+				if(mapto & MAP_EMISSION) {
 					float emitfac= mtex->emitfac*stencilTin;
 
 					*val = texture_value_blend(mtex->def_var, *val, texres.tin, emitfac, mtex->blendtype);
 					if(*val<0.0) *val= 0.0;
 				}
-				if((mapto_flag & MAP_DENSITY) && (mtex->mapto & MAP_DENSITY)) {
+				if(mapto & MAP_DENSITY) {
 					float densfac= mtex->densfac*stencilTin;
 
 					*val = texture_value_blend(mtex->def_var, *val, texres.tin, densfac, mtex->blendtype);
 					CLAMP(*val, 0.0, 1.0);
 				}
-				if((mapto_flag & MAP_SCATTERING) && (mtex->mapto & MAP_SCATTERING)) {
+				if(mapto & MAP_SCATTERING) {
 					float scatterfac= mtex->scatterfac*stencilTin;
 					
 					*val = texture_value_blend(mtex->def_var, *val, texres.tin, scatterfac, mtex->blendtype);
 					CLAMP(*val, 0.0, 1.0);
 				}
-				if((mapto_flag & MAP_REFLECTION) && (mtex->mapto & MAP_REFLECTION)) {
+				if(mapto & MAP_REFLECTION) {
 					float reflfac= mtex->reflfac*stencilTin;
 					
 					*val = texture_value_blend(mtex->def_var, *val, texres.tin, reflfac, mtex->blendtype);

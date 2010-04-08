@@ -204,19 +204,36 @@ float *render_vert_get_strandco(ObjectRen *obr, VertRen *ver, int verify)
 /* also winspeed is exception, it is stored per instance */
 float *render_vert_get_winspeed(ObjectInstanceRen *obi, VertRen *ver, int verify)
 {
+	ObjectRen *obr= obi->obr;
 	float *winspeed;
-	int totvector;
-	
-	winspeed= obi->vectors;
-	if(winspeed==NULL) {
-		if(verify) {
-			totvector= obi->obr->totvert + obi->obr->totstrand;
-			winspeed= obi->vectors= MEM_callocN(totvector*RE_WINSPEED_ELEMS*sizeof(float), "winspeed table");
+
+	if(obr->flag & R_TEMP_COPY) {
+		int nr= ver->index>>8;
+		
+		winspeed= obr->vertnodes[nr].winspeed;
+		if(winspeed==NULL) {
+			if(verify) 
+				winspeed= obr->vertnodes[nr].winspeed= MEM_callocN(256*RE_WINSPEED_ELEMS*sizeof(float), "winspeed table");
+			else
+				return NULL;
 		}
-		else
-			return NULL;
+		return winspeed + (ver->index & 255)*RE_WINSPEED_ELEMS;
 	}
-	return winspeed + ver->index*RE_WINSPEED_ELEMS;
+	else {
+		int totvector;
+
+		winspeed= obi->vectors;
+		if(winspeed==NULL) {
+			if(verify) {
+				totvector= obi->obr->totvert + obi->obr->totstrand;
+				winspeed= obi->vectors= MEM_callocN(totvector*RE_WINSPEED_ELEMS*sizeof(float), "winspeed table");
+			}
+			else
+				return NULL;
+		}
+
+		return winspeed + ver->index*RE_WINSPEED_ELEMS;
+	}
 }
 
 float *render_vert_get_basenor(ObjectRen *obr, VertRen *ver, int verify)
@@ -297,8 +314,10 @@ VertRen *render_object_vert_copy(ObjectRen *obrn, ObjectRen *obr, VertRen *ver)
 	return vern;
 }
 
-VertRen *render_object_vert_interp(ObjectRen *obrn, ObjectRen *obr, VertRen **varray, float *warray, int totv)
+VertRen *render_object_vert_interp(ObjectInstanceRen *obin, ObjectInstanceRen *obi, VertRen **varray, float *warray, int totv)
 {
+	ObjectRen *obrn= obin->obr;
+	ObjectRen *obr= obi->obr;
 	VertRen *ver= render_object_vert_get(obrn, obrn->totvert++);
 	int a;
 
@@ -341,6 +360,11 @@ VertRen *render_object_vert_interp(ObjectRen *obrn, ObjectRen *obr, VertRen **va
 			madd_v3_v3fl(ver->n, from, w);
 		else
 			madd_v3_v3fl(ver->n, v->n, w);
+
+		if((from=render_vert_get_winspeed(obi, v, 0))) {
+			to= render_vert_get_winspeed(obin, ver, 1);
+			madd_v4_v4fl(to, from, w);
+		}
 	}
 
 	normalize_v3(ver->n);

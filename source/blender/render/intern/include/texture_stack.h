@@ -39,7 +39,8 @@ struct TexResult;
 
 /* Texture Stacks */
 
-void do_material_tex(struct Render *re, struct ShadeInput *shi);
+void do_material_tex(struct Render *re, struct ShadeInput *shi,
+	int mapto_flag);
 void do_lamp_tex(struct Render *re, struct LampRen *la, float *lavec,
 	struct ShadeInput *shi, float *colf, int effect);
 void do_sky_tex(struct Render *re, float *rco, float *lo, float *dxyview,

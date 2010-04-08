@@ -68,8 +68,8 @@ static ObjectInstanceRen *render_instance_temp_copy(ObjectInstanceRen *obi)
 	obin= MEM_callocN(sizeof(ObjectInstanceRen), "ObjectInstanceRen");
 	memcpy(obin, obi, sizeof(ObjectInstanceRen));
 	obin->next= obin->prev= NULL;
-	obin->vectors= NULL; // ...
-	obin->raytree= NULL; // ...
+	obin->vectors= NULL;
+	obin->raytree= NULL;
 
 	return obin;
 }
@@ -211,8 +211,10 @@ static void face_vertex_weight(float w[4], float M[4][4], int i, int j, int res,
 	vertex_weight(w, M, u, v, vi);
 }
 
-static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4][4], float bounds[4], ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr, int quad, int depth, float M[4][4], float displacebound, float subdivision_rate)
+static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4][4], float bounds[4], ObjectInstanceRen *obin, ObjectInstanceRen *obi, VlakRen *vlr, int quad, int depth, float M[4][4], float displacebound, float subdivision_rate)
 {
+	ObjectRen *obrn= obin->obr;
+	ObjectRen *obr= obi->obr;
 	VertRen *s1, *s2, *s3;
 	float w[4], pM[4][4], fw[4][4];
 	int i, j, vi[4], offset, res, split;
@@ -259,7 +261,7 @@ static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4]
 			}
 
 			if(!render_vlak_clip(obr, vlr, sM, winmat, bounds, displacebound, quad))
-				render_face_subdivide(re, cam, winmat, bounds, obrn, obr, vlr, quad, depth+1, sM, displacebound, subdivision_rate);
+				render_face_subdivide(re, cam, winmat, bounds, obin, obi, vlr, quad, depth+1, sM, displacebound, subdivision_rate);
 		}
 	}
 	else {
@@ -267,7 +269,7 @@ static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4]
 			for(i=0; i<=j; i++) {
 				face_vertex_weight(w, pM, i, j, res, vi);
 
-				render_object_vert_interp(obrn, obr, &vlr->v1, w, (vlr->v4)? 4: 3);
+				render_object_vert_interp(obin, obi, &vlr->v1, w, (vlr->v4)? 4: 3);
 
 				if(i > 0 && j > 0) {
 					s1= render_object_vert_get(obrn, offset-j-1);
@@ -299,25 +301,25 @@ static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4]
 	}
 }
 
-static ObjectRen *render_object_tile_subdivide(Render *re, ObjectRen *obr, RenderCamera *cam, float winmat[4][4], float bounds[4])
+static ObjectRen *render_object_tile_subdivide(Render *re, ObjectInstanceRen *obin, ObjectInstanceRen *obi, RenderCamera *cam, float winmat[4][4], float bounds[4])
 {
-	ObjectRen *obrn;
+	ObjectRen *obrn, *obr= obi->obr;
 	VlakRen *vlr;
 	int a;
 	float displacebound= obr->ob->displacebound;
 	float subdivision_rate= re->params.r.subdivision_rate*obr->ob->subdivision_rate;
 
-	obrn= render_object_temp_copy(obr);
+	obin->obr= obrn= render_object_temp_copy(obr);
 
 	/* copy subdivided faces */
 	for(a=0; a<obr->totvlak; a++) {
 		vlr= render_object_vlak_get(obr, a);
 
 		if(!render_vlak_clip(obr, vlr, NULL, winmat, bounds, displacebound, 0))
-			render_face_subdivide(re, cam, winmat, bounds, obrn, obr, vlr, 0, 0, NULL, displacebound, subdivision_rate);
+			render_face_subdivide(re, cam, winmat, bounds, obin, obi, vlr, 0, 0, NULL, displacebound, subdivision_rate);
 
 		if(vlr->v4 && !render_vlak_clip(obr, vlr, NULL, winmat, bounds, displacebound, 1))
-			render_face_subdivide(re, cam, winmat, bounds, obrn, obr, vlr, 1, 0, NULL, displacebound, subdivision_rate);
+			render_face_subdivide(re, cam, winmat, bounds, obin, obi, vlr, 1, 0, NULL, displacebound, subdivision_rate);
 
 		if(re->cb.test_break(re->cb.tbh))
 			break;
@@ -326,11 +328,11 @@ static ObjectRen *render_object_tile_subdivide(Render *re, ObjectRen *obr, Rende
 	return obrn;
 }
 
-static ObjectRen *render_instance_tile_subdivide(Render *re, ObjectInstanceRen *obi, float winmat[4][4], float bounds[4], int thread)
+static ObjectRen *render_instance_tile_subdivide(Render *re, ObjectInstanceRen *obin, ObjectInstanceRen *obi, float winmat[4][4], float bounds[4], int thread)
 {
 	ObjectRen *obrn;
 
-	obrn= render_object_tile_subdivide(re, obi->obr, &re->cam, winmat, bounds);
+	obrn= render_object_tile_subdivide(re, obin, obi, &re->cam, winmat, bounds);
 	if(!re->cb.test_break(re->cb.tbh))
 		finalize_render_object(re, obrn, 0, thread);
 
@@ -371,8 +373,7 @@ void part_subdivide_objects(Render *re, RenderPart *pa)
 
 		obin= render_instance_temp_copy(obi);
 
-		obrn= render_instance_tile_subdivide(re, obi, winmat, bounds, pa->thread);
-		obin->obr= obrn;
+		obrn= render_instance_tile_subdivide(re, obin, obi, winmat, bounds, pa->thread);
 
 		BLI_ghash_insert(pa->subdivhash, obi, obin);
 	}
