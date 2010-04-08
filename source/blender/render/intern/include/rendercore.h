@@ -41,7 +41,7 @@ void render_path_trace_part(struct Render *re, struct RenderPart *pa);
 
 /* Rasterization Per Pixel Structs */
 
-#define MAX_PIXEL_ROW	2000
+#define MAX_PIXEL_ROW	20000
 
 typedef struct PixStr {
 	struct PixStr *next;
