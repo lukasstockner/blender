@@ -131,7 +131,7 @@ static void displace_shadeinput_init_vertex(Render *re, ShadeInput *shi, VertRen
 
 static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, VertRen *vr, int vindex, float scale[3])
 {
-	float displacement[3];
+	float displacement[3], bound= obr->ob->displacebound;
 
 	/* setup shadeinput for vertex */
 	displace_shadeinput_init_vertex(re, shi, vr);
@@ -139,8 +139,14 @@ static void displace_render_vert(Render *re, ObjectRen *obr, ShadeInput *shi, Ve
 	/* compute displacement from materials */
 	mat_displacement(re, shi, displacement);
 
+	mul_v3_v3(displacement, scale);
+
+	/* clamp by displacement bound */
+	if(fabs(dot_v3v3(displacement, displacement)) > bound*bound)
+		mul_v3_fl(displacement, bound/len_v3(displacement));
+
 	/* add displacement to vertex */
-	madd_v3_v3v3(vr->co, displacement, scale);
+	add_v3_v3(vr->co, displacement);
 
 	/* tag vertex as done */
 	vr->flag |= 1;
