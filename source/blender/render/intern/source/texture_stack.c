@@ -795,7 +795,7 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 			/* only process if this texture is mapped 
 			 * to one that we're interested in */
 			mapto= (mapto_flag == 0)? mtex->mapto: mtex->mapto & mapto_flag;
-			if (!mapto) continue;
+			if (!mapto && !(mtex->texflag & MTEX_STENCIL)) continue;
 
 			/* which coords */
 			if(mtex->texco==TEXCO_ORCO) {
