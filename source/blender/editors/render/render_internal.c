@@ -558,8 +558,10 @@ static int render_breakjob(void *rjv)
 static int screen_render_modal(bContext *C, wmOperator *op, wmEvent *event)
 {
 	/* no running blender, remove handler and pass through */
-	if(0==WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C)))
+	if(0==WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C))) {
+		G.rendering = 0;
 		return OPERATOR_FINISHED|OPERATOR_PASS_THROUGH;
+	}
 
 	/* running render */
 	switch (event->type) {
@@ -666,6 +668,11 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 
 	WM_cursor_wait(0);
 	WM_event_add_notifier(C, NC_SCENE|ND_RENDER_RESULT, scene);
+
+	/* we set G.rendering here already instead of only in the job, this ensure
+	   main loop or other scene updates are disabled in time, since they may
+	   have started before the job thread */
+	G.rendering = 1;
 
 	/* add modal handler for ESC */
 	WM_event_add_modal_handler(C, op);
