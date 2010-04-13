@@ -941,7 +941,7 @@ static float lamp_half_energy_distance(Scene *scene, Lamp *la)
 			return la->dist;
 
 		case LA_AREA:
-			if(!la->mode & LA_MULTI_SHADE)
+			if((la->mode & LA_MULTI_SHADE) == 0)
 				return sqrtf(1.0f/cutoff);
 			
 			/* fall through */

@@ -646,8 +646,18 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, i
 			}
 			
 			dob= new_dupli_object(lb, go->ob, mat, ob->lay, 0, OB_DUPLIGROUP, animated);
-			dob->no_draw= (dob->origlay & group->layer)==0;
-			
+
+			/* check the group instance and object layers match, also that the object visible flags are ok. */
+			if(	(dob->origlay & group->layer)==0 ||
+				(G.rendering==0 && dob->ob->restrictflag & OB_RESTRICT_VIEW) ||
+				(G.rendering && dob->ob->restrictflag & OB_RESTRICT_RENDER)
+			) {
+				dob->no_draw= 1;
+			}
+			else {
+				dob->no_draw= 0;
+			}
+
 			if(go->ob->transflag & OB_DUPLI) {
 				copy_m4_m4(dob->ob->obmat, dob->mat);
 				object_duplilist_recursive((ID *)group, scene, go->ob, lb, ob->obmat, level+1, animated);
