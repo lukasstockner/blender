@@ -96,6 +96,8 @@ struct wmJob {
 	void (*update)(void *);
 	/* free entire customdata, doesn't run in thread */
 	void (*free)(void *);
+	/* gets called when job is stopped, not in thread */
+	void (*endjob)(void *);
 	
 	/* running jobs each have own timer */
 	double timestep;
@@ -180,11 +182,13 @@ void WM_jobs_timer(wmJob *steve, double timestep, unsigned int note, unsigned in
 void WM_jobs_callbacks(wmJob *steve, 
 					   void (*startjob)(void *, short *, short *),
 					   void (*initjob)(void *),
-					   void (*update)(void  *))
+					   void (*update)(void  *),
+					   void (*endjob)(void  *))
 {
 	steve->startjob= startjob;
 	steve->initjob= initjob;
 	steve->update= update;
+	steve->endjob= endjob;
 }
 
 static void *do_job_thread(void *job_v)
@@ -267,6 +271,9 @@ static void wm_jobs_kill_job(wmWindowManager *wm, wmJob *steve)
 		/* signal job to end */
 		steve->stop= 1;
 		BLI_end_threads(&steve->threads);
+
+		if(steve->endjob)
+			steve->endjob(steve->run_customdata);
 	}
 	
 	if(steve->wt)
@@ -352,6 +359,9 @@ void wm_jobs_timer(const bContext *C, wmWindowManager *wm, wmTimer *wt)
 				}	
 				
 				if(steve->ready) {
+					if(steve->endjob)
+						steve->endjob(steve->run_customdata);
+
 					/* free own data */
 					steve->run_free(steve->run_customdata);
 					steve->run_customdata= NULL;

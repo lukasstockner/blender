@@ -1623,7 +1623,9 @@ void wm_event_do_handlers(bContext *C)
 				}
 
 				for(sa= win->screen->areabase.first; sa; sa= sa->next) {
-					if(wm_event_inside_i(event, &sa->totrct)) {
+					/* XXX render stability hack */
+					if(G.rendering && !ELEM(sa->spacetype, SPACE_IMAGE, SPACE_INFO));
+					else if(wm_event_inside_i(event, &sa->totrct)) {
 						CTX_wm_area_set(C, sa);
 
 						if((action & WM_HANDLER_BREAK) == 0) {

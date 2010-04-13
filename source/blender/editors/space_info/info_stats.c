@@ -38,6 +38,7 @@
 #include "BKE_context.h"
 #include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_mesh.h"
 #include "BKE_particle.h"
@@ -421,10 +422,13 @@ void ED_info_stats_clear(Scene *scene)
 
 char *ED_info_stats_string(Scene *scene)
 {
-	if(!scene->stats)
-		stats_update(scene);
-	stats_string(scene);
+	/* XXX render stability hack */
+	if(!G.rendering) {
+		if(!scene->stats)
+			stats_update(scene);
+		stats_string(scene);
+	}
 
-	return scene->stats->infostr;
+	return (scene->stats && scene->stats->infostr)? scene->stats->infostr: "";
 }
 

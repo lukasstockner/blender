@@ -544,6 +544,13 @@ static void render_startjob(void *rjv, short *stop, short *do_update)
 //		free_main(mainp);
 }
 
+static void render_endjob(void *rjv)
+{
+	/* XXX render stability hack */
+	G.rendering = 0;
+	WM_main_add_notifier(NC_WINDOW, NULL);
+}
+
 /* called by render, check job 'stop' value or the global */
 static int render_breakjob(void *rjv)
 {
@@ -561,7 +568,6 @@ static int screen_render_modal(bContext *C, wmOperator *op, wmEvent *event)
 {
 	/* no running blender, remove handler and pass through */
 	if(0==WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C))) {
-		G.rendering = 0;
 		return OPERATOR_FINISHED|OPERATOR_PASS_THROUGH;
 	}
 
@@ -647,7 +653,7 @@ static int screen_render_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	steve= WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, WM_JOB_EXCL_RENDER|WM_JOB_PRIORITY);
 	WM_jobs_customdata(steve, rj, render_freejob);
 	WM_jobs_timer(steve, 0.2, NC_SCENE|ND_RENDER_RESULT, 0);
-	WM_jobs_callbacks(steve, render_startjob, NULL, NULL);
+	WM_jobs_callbacks(steve, render_startjob, NULL, NULL, render_endjob);
 
 	/* get a render result image, and make sure it is empty */
 	ima= BKE_image_verify_viewer(IMA_TYPE_R_RESULT, "Render Result");

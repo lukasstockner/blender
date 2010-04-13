@@ -337,9 +337,17 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	wmSubWindowScissorSet(win, ar->swinid, &ar->drawrct);
 	
 	UI_SetTheme(sa?sa->spacetype:0, ar->type?ar->type->regionid:0);
-	
-	/* optional header info instead? */
-	if(ar->headerstr) {
+
+	if(G.rendering && !ELEM(sa->spacetype, SPACE_IMAGE, SPACE_INFO)) {
+		/* XXX render stability hack */
+		UI_ThemeClearColor(TH_HEADER);
+		glClear(GL_COLOR_BUFFER_BIT);
+		
+		UI_ThemeColor(TH_TEXT);
+		BLF_draw_default(20, 8, 0.0f, "blocked while rendering");
+	}
+	else if(ar->headerstr) {
+		/* optional header info instead */
 		UI_ThemeClearColor(TH_HEADER);
 		glClear(GL_COLOR_BUFFER_BIT);
 		
