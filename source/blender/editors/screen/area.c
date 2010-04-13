@@ -338,7 +338,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	
 	UI_SetTheme(sa?sa->spacetype:0, ar->type?ar->type->regionid:0);
 
-	if(G.rendering && !(sa && ELEM(sa->spacetype, SPACE_IMAGE, SPACE_INFO))) {
+	if(G.rendering && (sa && !ELEM(sa->spacetype, SPACE_IMAGE, SPACE_INFO))) {
 		/* XXX render stability hack */
 		UI_ThemeClearColor(TH_HEADER);
 		glClear(GL_COLOR_BUFFER_BIT);
