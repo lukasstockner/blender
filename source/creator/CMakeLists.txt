@@ -361,7 +361,6 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	SET(BLENDER_SORTED_LIBS
 		bf_windowmanager
 		bf_editors
-		bf_decimation 
 		blender_BSP 
 		bf_ghost 
 		bf_string 
@@ -370,10 +369,11 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_python 
 		bf_gen_python 
 		bf_ikplugin
-		bf_blenkernel 
+		bf_blenkernel
+		bf_modifiers
 		bf_nodes
 		bf_gpu
-		bf_blenloader 
+		bf_blenloader
 		bf_blenpluginapi 
 		bf_imbuf 
 		bf_blenlib 
@@ -429,6 +429,7 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_dna
 		bf_blenfont
 		bf_audaspace
+		bf_decimation
 	)
 
 	IF(WITH_CXX_GUARDEDALLOC)

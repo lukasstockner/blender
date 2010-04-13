@@ -105,7 +105,8 @@ void NODE_OT_show_cyclic_dependencies(struct wmOperatorType *ot);
 void NODE_OT_link_viewer(struct wmOperatorType *ot);
 void NODE_OT_read_fullsamplelayers(struct wmOperatorType *ot);
 void NODE_OT_read_renderlayers(struct wmOperatorType *ot);
-
+void NODE_OT_backimage_move(struct wmOperatorType *ot);
+void NODE_OT_backimage_zoom(struct wmOperatorType *ot);
 
 // XXXXXX
 

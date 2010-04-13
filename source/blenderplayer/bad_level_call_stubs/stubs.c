@@ -197,6 +197,7 @@ struct ListBase builtin_keyingsets;
 void ANIM_keyingset_info_register (const struct bContext *C, struct KeyingSetInfo *ksi){}
 void ANIM_keyingset_info_unregister (const struct bContext *C, struct KeyingSetInfo *ksi){}
 short ANIM_add_driver(struct ID *id, const char rna_path[], int array_index, short flag, int type){return 0;}
+short ANIM_remove_driver (struct ID *id, const char rna_path[], int array_index, short flag){return 0;}
 void ED_space_image_release_buffer(struct SpaceImage *sima, void *lock){}
 struct ImBuf *ED_space_image_acquire_buffer(struct SpaceImage *sima, void **lock_r){return (struct ImBuf *) NULL;}
 char *ED_info_stats_string(struct Scene *scene){return (char *) NULL;}
@@ -248,6 +249,8 @@ float ED_rollBoneToVector(struct EditBone *bone, float new_up_axis[3]){return 0.
 void ED_space_image_size(struct SpaceImage *sima, int *width, int *height){}
 
 void EM_selectmode_set(struct EditMesh *em){}
+int EM_texFaceCheck(struct EditMesh *em){return 0;}
+struct MTFace *EM_get_active_mtface(struct EditMesh *em, struct EditFace **act_efa, struct MCol **mcol, int sloopy){return (struct MTFace *)NULL;}
 void make_editMesh(struct Scene *scene, struct Object *ob){}
 void load_editMesh(struct Scene *scene, struct Object *ob){}
 

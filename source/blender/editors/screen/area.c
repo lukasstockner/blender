@@ -906,7 +906,7 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 		if(ar->swinid) {
 			/* default region handlers */
 			ed_default_handlers(wm, &ar->handlers, ar->type->keymapflag);
-
+			/* own handlers */
 			if(ar->type->init)
 				ar->type->init(wm, ar);
 		}

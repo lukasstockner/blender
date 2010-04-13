@@ -389,7 +389,7 @@ static void render_error_reports(void *reports, char *str)
 static int screen_render_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
-	Render *re= RE_GetRender(scene->id.name);
+	Render *re= RE_NewRender(scene->id.name);
 	Image *ima;
 	View3D *v3d= CTX_wm_view3d(C);
 	int lay= (v3d)? v3d->lay|scene->lay: scene->lay;
@@ -397,6 +397,8 @@ static int screen_render_exec(bContext *C, wmOperator *op)
 	if(re==NULL) {
 		re= RE_NewRender(scene->id.name);
 	}
+	
+	G.afbreek= 0;
 	RE_test_break_cb(re, NULL, (int (*)(void *)) blender_test_break);
 	RE_error_cb(re, op->reports, render_error_reports);
 
