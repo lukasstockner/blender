@@ -153,6 +153,10 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
             if tex.type == 'NODES':
 
                 if slot:
+                    split.label(text="Type:")
+                    split.prop(tex, "type", text="")
+
+                    split = layout.split(percentage=0.2)
                     split.label(text="Output:")
                     split.prop(slot, "output_node", text="")
 
