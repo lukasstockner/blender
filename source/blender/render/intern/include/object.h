@@ -134,6 +134,8 @@ typedef struct ObjectInstanceRen {
 	struct RayObject *raytree;
 	int transform_primitives;
 
+	struct ObjectInstanceRen *lowres;
+
 } ObjectInstanceRen;
 
 /* objectren->flag */

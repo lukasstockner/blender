@@ -322,6 +322,7 @@ ObjectInstanceRen *render_instance_create(RenderDB *rdb,
 	obi->index= index;
 	obi->psysindex= psysindex;
 	obi->lay= lay;
+	obi->lowres= obi;
 
 	if(mat) {
 		copy_m4_m4(obi->mat, mat);
@@ -359,6 +360,7 @@ void render_instances_init(RenderDB *rdb)
 	obi= rdb->objectinstance;
 	for(oldobi=rdb->instancetable.first; oldobi; oldobi=oldobi->next) {
 		*obi= *oldobi;
+		obi->lowres= obi;
 
 		if(obi->obr) {
 			obi->prev= obi->next= NULL;

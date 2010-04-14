@@ -2018,7 +2018,7 @@ static int testclip_minmax(float *ho, float *minmax)
 }
 
 /* main loop going over all faces and check in bsp overlaps, fill in shadfac values */
-static void isb_bsp_fillfaces(Render *re, LampRen *lar, ISBBranch *root)
+static void isb_bsp_fillfaces(Render *re, RenderPart *pa, LampRen *lar, ISBBranch *root)
 {
 	ObjectInstanceRen *obi;
 	ObjectRen *obr;
@@ -2323,7 +2323,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 							ps= ps->next;
 						}
 						if(ps && ps->facenr>0) {
-							ObjectInstanceRen *obi= &re->db.objectinstance[ps->obi];
+							ObjectInstanceRen *obi= part_get_instance(pa, &re->db.objectinstance[ps->obi]);
 							ObjectRen *obr= obi->obr;
 							VlakRen *vlr= render_object_vlak_get(obr, (ps->facenr-1) & RE_QUAD_MASK);
 							int quad= (ps->facenr) & RE_QUAD_OFFS;
@@ -2345,7 +2345,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 				rectp= pa->rectp + sindex;
 				recto= pa->recto + sindex;
 				if(*rectp>0) {
-					ObjectInstanceRen *obi= &re->db.objectinstance[*recto];
+					ObjectInstanceRen *obi= part_get_instance(pa, &re->db.objectinstance[*recto]);
 					ObjectRen *obr= obi->obr;
 					VlakRen *vlr= render_object_vlak_get(obr, (*rectp-1) & RE_QUAD_MASK);
 					int quad= (*rectp) & RE_QUAD_OFFS;
@@ -2377,7 +2377,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 		if(bsp_err==0) {
 			/* go over all faces and fill in shadow values */
 			
-			isb_bsp_fillfaces(re, lar, &root);	/* shb->persmat should have been calculated */
+			isb_bsp_fillfaces(re, pa, lar, &root);	/* shb->persmat should have been calculated */
 			
 			/* copy shadow samples to persistant buffer, reduce memory overhead */
 			if(re->params.osa) {
@@ -2520,7 +2520,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 					int a;
 					for(a=0; a<4; a++) {
 						if(apn->p[a]) {
-							ObjectInstanceRen *obi= &re->db.objectinstance[apn->obi[a]];
+							ObjectInstanceRen *obi= part_get_instance(pa, &re->db.objectinstance[apn->obi[a]]);
 							ObjectRen *obr= obi->obr;
 							VlakRen *vlr= render_object_vlak_get(obr, (apn->p[a]-1) & RE_QUAD_MASK);
 							int quad= apn->p[a] & RE_QUAD_OFFS;
@@ -2582,7 +2582,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 			ISBShadfacA **isbsa;
 			
 			/* go over all faces and fill in shadow values */
-			isb_bsp_fillfaces(re, lar, &root);	/* shb->persmat should have been calculated */
+			isb_bsp_fillfaces(re, pa, lar, &root);	/* shb->persmat should have been calculated */
 			
 			/* copy shadow samples to persistant buffer, reduce memory overhead */
 			isbsa= isbdata->shadfaca= MEM_callocN(pa->rectx*pa->recty*sizeof(void *), "isb shadfacs");
@@ -2650,9 +2650,9 @@ float irregular_shadowbuf_test(Render *re, ShadBuf *shb, ShadeInput *shi)
 						}
 						else {
 							int sindex= y*isbdata->rectx + x;
-							int obi= shi->primitive.obi - re->db.objectinstance;
+							int obi= shi->primitive.obi->lowres - re->db.objectinstance;
 							ISBShadfacA *isbsa= *(isbdata->shadfaca + sindex);
-							
+
 							while(isbsa) {
 								if(isbsa->facenr==shi->primitive.facenr+1 && isbsa->obi==obi)
 									return isbsa->shadfac>=1.0f?0.0f:1.0f - isbsa->shadfac;
