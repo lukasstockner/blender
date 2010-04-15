@@ -1742,7 +1742,8 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 	return ibuf;
 }
 
-/* cfra used for # code, Image can only have this # for all its users */
+/* cfra used for # code, Image can only have this # for all its users
+ * warning, 'iuser' can be NULL */
 static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 {
 	struct ImBuf *ibuf;
@@ -1758,7 +1759,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 	} 
 	else {
 		flag= IB_rect|IB_multilayer|IB_metadata;
-		if(iuser->flag & IMA_USECACHE)
+		if(iuser && iuser->flag & IMA_USECACHE)
 			flag |= IB_usecache;
 			
 		/* get the right string */
