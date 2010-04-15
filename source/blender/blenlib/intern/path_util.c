@@ -1113,6 +1113,24 @@ int BLI_testextensie(const char *str, const char *ext)
 	return (retval);
 }
 
+int BLI_replace_extension(char *path, int maxlen, const char *ext)
+{
+	int a;
+
+	for(a=strlen(path)-1; a>=0; a--)
+		if(path[a] == '.' || path[a] == '/' || path[a] == '\\')
+			break;
+	
+	if(path[a] != '.')
+		a= strlen(path);
+
+	if(a + strlen(ext) >= maxlen)
+		return 0;
+
+	strcpy(path+a, ext);
+	return 1;
+}
+
 /*
  * This is a simple version of BLI_split_dirfile that has the following advantages...
  * 
