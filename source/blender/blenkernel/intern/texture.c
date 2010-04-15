@@ -620,6 +620,8 @@ Tex *copy_texture(Tex *tex)
 	
 	if(texn->coba) texn->coba= MEM_dupallocN(texn->coba);
 	if(texn->env) texn->env= BKE_copy_envmap(texn->env);
+	if(texn->pd) texn->pd= MEM_dupallocN(texn->pd);
+	if(texn->vd) texn->vd= MEM_dupallocN(texn->vd);
 	
 	if(tex->preview) texn->preview = BKE_previewimg_copy(tex->preview);
 
@@ -1179,8 +1181,8 @@ struct VoxelData *BKE_copy_voxeldata(struct VoxelData *vd)
 	return vdn;
 }
 
-/* ------------------------------------------------------------------------- */
 
+/* ------------------------------------------------------------------------- */
 int BKE_texture_dependsOnTime(const struct Tex *texture)
 {
 	if(texture->plugin) {

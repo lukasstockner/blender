@@ -1898,15 +1898,6 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	}
 
 	/* this gives active layer, composite or seqence result */
-
-	if(!(rres.rectx > 0 && rres.recty > 0)) {
-		RE_ReleaseResultImage(re);
-		return NULL;
-	}
-
-	/* release is done in BKE_image_release_ibuf using lock_r */
-	*lock_r= re;
-
 	rect= (unsigned int *)rres.rect32;
 	rectf= rres.rectf;
 	rectz= rres.rectz;

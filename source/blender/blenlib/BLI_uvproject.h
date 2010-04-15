@@ -1,6 +1,5 @@
 /**
- *	
- * $Id:
+ * $Id: BLI_uvproject.h 27698 2010-03-23 20:04:05Z campbellbarton $
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -23,8 +22,8 @@
 #ifndef BKE_UVPROJECT_H
 #define BKE_UVPROJECT_H
 
-struct Object;
 struct UvCameraInfo;
+struct Object;
 
 /* create uv info from the camera, needs to be freed */
 struct UvCameraInfo *project_camera_info(struct Object *ob, float rotmat[4][4], float winx, float winy);

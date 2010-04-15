@@ -546,9 +546,7 @@ static void render_startjob(void *rjv, short *stop, short *do_update)
 
 static void render_endjob(void *rjv)
 {
-	/* XXX render stability hack */
 	G.rendering = 0;
-	WM_main_add_notifier(NC_WINDOW, NULL);
 }
 
 /* called by render, check job 'stop' value or the global */
