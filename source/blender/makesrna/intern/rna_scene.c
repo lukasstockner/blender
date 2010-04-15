@@ -102,7 +102,6 @@ EnumPropertyItem image_type_items[] = {
 	{R_TARGA, "TARGA", ICON_FILE_IMAGE, "Targa", ""},
 	{R_RAWTGA, "TARGA_RAW", ICON_FILE_IMAGE, "Targa Raw", ""},
 	//{R_DDS, "DDS", ICON_FILE_IMAGE, "DDS", ""}, // XXX not yet implemented
-	//{R_HAMX, "HAMX", ICON_FILE_IMAGE, "HamX", ""}, // should remove this format, 8bits are so 80's
 	{R_IRIS, "IRIS", ICON_FILE_IMAGE, "Iris", ""},
 	{0, "", 0, " ", NULL},
 #ifdef WITH_OPENEXR
@@ -125,9 +124,6 @@ EnumPropertyItem image_type_items[] = {
 #	else
 	{R_QUICKTIME, "QUICKTIME_CARBON", ICON_FILE_MOVIE, "QuickTime", ""},
 #	endif
-#endif
-#ifdef __sgi
-	{R_MOVIE, "MOVIE", ICON_FILE_MOVIE, "Movie", ""},
 #endif
 #ifdef WITH_FFMPEG
 	{R_H264, "H264", ICON_FILE_MOVIE, "H.264", ""},
@@ -2781,6 +2777,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "simplify_triangulate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "simplify_flag", R_SIMPLE_NO_TRIANGULATE);
 	RNA_def_property_ui_text(prop, "Skip Quad to Triangles", "Disables non-planer quads being triangulated");
+
+	prop= RNA_def_property(srna, "simplify_mipmap_levels", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "simplify_miplevels");
+	RNA_def_property_ui_range(prop, 0, 10, 1, 0);
+	RNA_def_property_ui_text(prop, "Simplify Mipmap Levels", "Number of times to halve image resolution for images read from mipmapped texture files");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
 
 	/* Scene API */
 	RNA_api_scene_render(srna);

@@ -220,6 +220,7 @@ class SCENE_PT_simplify(SceneButtonsPanel):
             col = split.column()
         col.prop(rd, "simplify_shadow_samples", text="Shadow Samples")
         col.prop(rd, "simplify_ao_sss", text="AO and SSS")
+        col.prop(rd, "simplify_mipmap_levels", text="Mipmap Levels")
 
 
 from bpy.props import *

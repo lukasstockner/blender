@@ -6501,6 +6501,14 @@ static void do_version_subdivision_250(FileData *fd, Library *lib, Main *main)
 		sce->r.subdivision_rate= 1.0f;
 }
 
+static void do_version_image_cache_250(FileData *fd, Library *lib, Main *main)
+{
+	Tex *tex;
+
+	for(tex= main->tex.first; tex; tex=tex->id.next)
+		tex->iuser.flag |= IMA_USECACHE;
+}
+
 static void do_version_constraints_radians_degrees_250(ListBase *lb)
 {
 	bConstraint *con;
@@ -8429,8 +8437,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						ima->flag |= IMA_FIELDS;
 					if(tex->imaflag & TEX_STD_FIELD_)
 						ima->flag |= IMA_STD_FIELD;
-					if(tex->imaflag & TEX_ANTIALI_)
-						ima->flag |= IMA_ANTIALI;
 				}
 				tex->iuser.frames= tex->frames;
 				tex->iuser.fie_ima= tex->fie_ima;
@@ -10827,6 +10833,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		do_version_shading_sys_250(fd, lib, main);
 	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 11))
 		do_version_subdivision_250(fd, lib, main);
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 12))
+		do_version_image_cache_250(fd, lib, main);
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */

@@ -376,9 +376,10 @@ typedef struct RenderData {
 	char pad5[5];
 
 	/* render simplify */
-	int simplify_flag;
+	short simplify_flag;
 	short simplify_subsurf;
 	short simplify_shadowsamples;
+	short simplify_miplevels;
 	float simplify_particles;
 	float simplify_aosss;
 
@@ -950,23 +951,23 @@ typedef struct Scene {
 #define R_COLOR_MANAGEMENT	1
 
 /* imtype */
-#define R_TARGA		0
-#define R_IRIS		1
-#define R_HAMX		2
-#define R_FTYPE		3 /* ftype is nomore */
-#define R_JPEG90	4
-#define R_MOVIE		5
-#define R_IRIZ		7
-#define R_RAWTGA	14
-#define R_AVIRAW	15
-#define R_AVIJPEG	16
-#define R_PNG		17
-#define R_AVICODEC	18
-#define R_QUICKTIME 19
-#define R_BMP		20
-#define R_RADHDR	21
-#define R_TIFF		22
-#define R_OPENEXR	23
+#define R_TARGA			0
+#define R_IRIS			1
+#define R_HAMX			2 /* deprecated */
+#define R_FTYPE			3 /* deprecated */
+#define R_JPEG90		4
+#define R_MOVIE			5 /* deprecated */
+#define R_IRIZ			7
+#define R_RAWTGA		14
+#define R_AVIRAW		15
+#define R_AVIJPEG		16
+#define R_PNG			17
+#define R_AVICODEC		18
+#define R_QUICKTIME		 19
+#define R_BMP			20
+#define R_RADHDR		21
+#define R_TIFF			22
+#define R_OPENEXR		23
 #define R_FFMPEG        24
 #define R_FRAMESERVER   25
 #define R_CINEON		26

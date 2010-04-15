@@ -95,7 +95,7 @@ static void ibuf_get_color(float *col, struct ImBuf *ibuf, int x, int y)
 int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres)
 {
 	float fx, fy, val1, val2, val3;
-	int x, y, retval;
+	int x, y, retval, mipoffset;
 
 	texres->tin= texres->ta= texres->tr= texres->tg= texres->tb= 0.0f;
 	
@@ -113,7 +113,10 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 		
 		ibuf= BKE_image_get_ibuf(ima, &tex->iuser);
 	}
-	if(ibuf==NULL || (ibuf->rect==NULL && ibuf->rect_float==NULL))
+
+	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
+
+	if((ibuf=IMB_getmipmaplevel(ibuf, 0 + mipoffset)) == NULL)
 		return retval;
 	
 	/* setup mapping */
@@ -179,17 +182,8 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 		}
 	}
 	
-	/* warning, no return before setting back! */
-	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
-		ibuf->rect+= (ibuf->x*ibuf->y);
-	}
-
 	ibuf_get_color(&texres->tr, ibuf, x, y);
 	
-	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
-		ibuf->rect-= (ibuf->x*ibuf->y);
-	}
-
 	if(tex->imaflag & TEX_USEALPHA) {
 		if(tex->imaflag & TEX_CALCALPHA);
 		else texres->talpha= 1;
@@ -586,17 +580,11 @@ void image_sample(RenderParams *rpm, Image *ima, float fx, float fy, float dx, f
 		return;
 	}
 	
-	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
-		ibuf->rect+= (ibuf->x*ibuf->y);
-	
 	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0);
 	result[0]= texres.tr;
 	result[1]= texres.tg;
 	result[2]= texres.tb;
 	result[3]= texres.ta;
-
-	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) )
-		ibuf->rect-= (ibuf->x*ibuf->y);
 }
 
 void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float *result)
@@ -627,6 +615,10 @@ enum {TXC_XMIR=1, TXC_YMIR, TXC_REPT, TXC_EXTD};
 static int ibuf_get_color_clip(float *col, ImBuf *ibuf, int x, int y, int extflag)
 {
 	int clip = 0;
+
+	if(ibuf == NULL || ibuf->rect == NULL)
+		abort();
+
 	switch (extflag) {
 		case TXC_XMIR:	// y rep
 			x %= 2*ibuf->x;
@@ -995,7 +987,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy;
 	float maxd, val1, val2, val3;
-	int curmap, retval, intpol, extflag = 0;
+	int curmap, retval, intpol, extflag = 0, mipoffset;
 	afdata_t AFD;
 
 	void (*filterfunc)(TexResult*, ImBuf*, float, float, afdata_t*);
@@ -1023,17 +1015,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		if ((ima->ibufs.first == NULL) && (rpm->r.scemode & R_NO_IMAGE_LOAD)) return retval;
 		ibuf = BKE_image_get_ibuf(ima, &tex->iuser); 
 	}
-
-	if ((ibuf == NULL) || ((ibuf->rect == NULL) && (ibuf->rect_float == NULL))) return retval;
-
-	// mipmap test
-	if (tex->imaflag & TEX_MIPMAP) {
-		if (((ibuf->flags & IB_fields) == 0) && (ibuf->mipmap[0] == NULL)) {
-			BLI_lock_thread(LOCK_IMAGE);
-			if (ibuf->mipmap[0] == NULL) IMB_makemipmap(ibuf, tex->imaflag & TEX_GAUSS_MIP);
-			BLI_unlock_thread(LOCK_IMAGE);
-		}
-	}
+	if(ibuf == NULL) return retval;
 
 	if ((tex->imaflag & TEX_USEALPHA) && ((tex->imaflag & TEX_CALCALPHA) == 0)) texres->talpha = 1;
 	texr.talpha = texres->talpha;
@@ -1045,17 +1027,6 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 	else {
 		fx = texvec[0];
 		fy = texvec[1];
-	}
-
-	if (ibuf->flags & IB_fields) {
-		if (rpm->r.mode & R_FIELDS) {			/* field render */
-			if (rpm->flag & R_SEC_FIELD) {		/* correction for 2nd field */
-				/* fac1= 0.5/( (float)ibuf->y ); */
-				/* fy-= fac1; */
-			}
-			else 	/* first field */
-				fy += 0.5f/( (float)ibuf->y );
-		}
 	}
 
 	// pixel coordinates
@@ -1174,10 +1145,6 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 
 	intpol = tex->imaflag & TEX_INTERPOL;
 
-	// warning no return!
-	if ((rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields))
-		ibuf->rect += ibuf->x*ibuf->y;
-
 	// struct common data
 	copy_v2_v2(AFD.dxt, dxt);
 	copy_v2_v2(AFD.dyt, dyt);
@@ -1194,12 +1161,13 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 	if(AFD.dyt[0]*AFD.dyt[0] + AFD.dyt[1]*AFD.dyt[1] > 2.0f*2.0f)
 		mul_v2_fl(AFD.dyt, 2.0f/len_v2(AFD.dyt));
 
+	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
+
 	// choice:
 	if (tex->imaflag & TEX_MIPMAP) {
 		ImBuf *previbuf, *curibuf;
 		float levf;
 		int maxlev;
-		ImBuf* mipmaps[IB_MIPMAP_LEVELS + 1];
 
 		// modify ellipse minor axis if too eccentric, use for area sampling as well
 		// scaling dxt/dyt as done in pbrt is not the same
@@ -1237,30 +1205,27 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		levf = ((float)M_LOG2E)*logf(maxd);
 
 		curmap = 0;
-		maxlev = 1;
-		mipmaps[0] = ibuf;
-		while (curmap < IB_MIPMAP_LEVELS) {
-			mipmaps[curmap + 1] = ibuf->mipmap[curmap];
-			if (ibuf->mipmap[curmap]) maxlev++;
-			curmap++;
-		}
-
+		maxlev = ibuf->miplevels;
+ 
 		// mipmap level
 		if (levf < 0.f) {	// original image only
-			previbuf = curibuf = mipmaps[0];
+			previbuf = curibuf = IMB_getmipmaplevel(ibuf, 0 + mipoffset);
 			levf = 0.f;
 		}
 		else if (levf >= maxlev - 1) {
-			previbuf = curibuf = mipmaps[maxlev - 1];
+			previbuf = curibuf = IMB_getmipmaplevel(ibuf, maxlev - 1 + mipoffset);
 			levf = 0.f;
 			if (tex->texfilter == TXF_FELINE) AFD.iProbes = 1;
 		}
 		else {
 			const int lev = ISNAN(levf) ? 0 : (int)levf;
-			curibuf = mipmaps[lev];
-			previbuf = mipmaps[lev + 1];
+			curibuf = IMB_getmipmaplevel(ibuf, lev + mipoffset);
+			previbuf = IMB_getmipmaplevel(ibuf, lev + 1 + mipoffset);
 			levf -= floorf(levf);
 		}
+
+		if(previbuf == NULL || curibuf == NULL)
+			return retval;
 
 		// filter functions take care of interpolation themselves, no need to modify dxt/dyt here
 
@@ -1306,6 +1271,9 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		}
 	}
 	else {	// no mipmap
+		if((ibuf=IMB_getmipmaplevel(ibuf, 0 + mipoffset)) == NULL)
+			return retval;
+
 		// filter functions take care of interpolation themselves, no need to modify dxt/dyt here
 		if (tex->texfilter == TXF_FELINE) {
 			const float ff = sqrtf(ibuf->x), q = ibuf->y/ff;
@@ -1356,9 +1324,6 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		texres->tin = texres->ta;
 	if (tex->flag & TEX_NEGALPHA) texres->ta = 1.f - texres->ta;
 	
-	if ((rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields))
-		ibuf->rect -= ibuf->x*ibuf->y;
-
 	if (texres->nor && (tex->imaflag & TEX_NORMALMAP)) {	// normal from color
 		texres->nor[0] = 2.f*(texres->tr - 0.5f);
 		texres->nor[1] = 2.f*(0.5f - texres->tg);
@@ -1387,7 +1352,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[3], dyt[3];
 	float maxd, pixsize, val1, val2, val3;
-	int curmap, retval, imaprepeat, imapextend;
+	int curmap, retval, imaprepeat, imapextend, mipoffset;
 
 	// TXF: since dxt/dyt might be modified here and since they might be needed after imagewraposa() call,
 	// make a local copy here so that original vecs remain untouched
@@ -1414,21 +1379,8 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 		
 		ibuf= BKE_image_get_ibuf(ima, &tex->iuser); 
 	}
-	if(ibuf==NULL || (ibuf->rect==NULL && ibuf->rect_float==NULL))
-	   return retval;
-	
-	/* mipmap test */
-	if (tex->imaflag & TEX_MIPMAP) {
-		if(ibuf->flags & IB_fields);
-		else if(ibuf->mipmap[0]==NULL) {
-			BLI_lock_thread(LOCK_IMAGE);
-			
-			if(ibuf->mipmap[0]==NULL)
-				IMB_makemipmap(ibuf, tex->imaflag & TEX_GAUSS_MIP);
 
-			BLI_unlock_thread(LOCK_IMAGE);
-		}
-	}
+	if(ibuf == NULL) return retval;
 
 	if(tex->imaflag & TEX_USEALPHA) {
 		if(tex->imaflag & TEX_CALCALPHA);
@@ -1444,18 +1396,6 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 	else {
 		fx= texvec[0];
 		fy= texvec[1];
-	}
-	
-	if(ibuf->flags & IB_fields) {
-		if(rpm->r.mode & R_FIELDS) {			/* field render */
-			if(rpm->flag & R_SEC_FIELD) {		/* correction for 2nd field */
-				/* fac1= 0.5/( (float)ibuf->y ); */
-				/* fy-= fac1; */
-			}
-			else {				/* first field */
-				fy+= 0.5f/( (float)ibuf->y );
-			}
-		}
 	}
 	
 	/* pixel coordinates */
@@ -1594,36 +1534,43 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 		}
 	}
 
-	/* warning no return! */
-	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
-		ibuf->rect+= (ibuf->x*ibuf->y);
-	}
+	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
 
 	/* choice:  */
 	if(tex->imaflag & TEX_MIPMAP) {
 		ImBuf *previbuf, *curibuf;
 		float bumpscale;
+		int prevmap, mindim;
 		
 		dx= minx;
 		dy= miny;
 		maxd= MAX2(dx, dy);
 		if(maxd>0.5) maxd= 0.5;
 
-		pixsize = 1.0f/ (float) MIN2(ibuf->x, ibuf->y);
+		mindim= MIN2(ibuf->x, ibuf->y);
+		pixsize= 1.0f/(float)mindim;
 		
 		bumpscale= pixsize/maxd;
 		if(bumpscale>1.0f) bumpscale= 1.0f;
 		else bumpscale*=bumpscale;
 		
 		curmap= 0;
-		previbuf= curibuf= ibuf;
-		while(curmap<IB_MIPMAP_LEVELS && ibuf->mipmap[curmap]) {
+		prevmap= 0;
+
+		while(curmap < ibuf->miplevels) {
 			if(maxd < pixsize) break;
-			previbuf= curibuf;
-			curibuf= ibuf->mipmap[curmap];
-			pixsize= 1.0f / (float)MIN2(curibuf->x, curibuf->y);
-			curmap++;
-		}
+
+			mindim= MAX2(mindim/2, 1);
+			pixsize= 1.0f/(float)mindim;
+			prevmap= curmap;
+ 			curmap++;
+ 		}
+ 
+		previbuf= IMB_getmipmaplevel(ibuf, prevmap + mipoffset);
+		curibuf= IMB_getmipmaplevel(ibuf, curmap + mipoffset);
+
+		if(previbuf == NULL || curibuf == NULL)
+			return retval;
 
 		if(previbuf!=curibuf || (tex->imaflag & TEX_INTERPOL)) {
 			/* sample at least 1 pixel */
@@ -1713,6 +1660,10 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 	}
 	else {
 		const int intpol = tex->imaflag & TEX_INTERPOL;
+
+		if((ibuf=IMB_getmipmaplevel(ibuf, 0 + mipoffset)) == NULL)
+			return retval;
+
 		if (intpol) {
 			/* sample 1 pixel minimum */
 			if (minx < 0.5f / ibuf->x) minx = 0.5f / ibuf->x;
@@ -1744,10 +1695,6 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 
 	if(tex->flag & TEX_NEGALPHA) texres->ta= 1.0f-texres->ta;
 	
-	if( (rpm->flag & R_SEC_FIELD) && (ibuf->flags & IB_fields) ) {
-		ibuf->rect-= (ibuf->x*ibuf->y);
-	}
-
 	if(texres->nor && (tex->imaflag & TEX_NORMALMAP)) {
 		// qdn: normal from color
 		texres->nor[0] = 2.f*(texres->tr - 0.5f);

@@ -30,13 +30,13 @@
  */
 
 #include "BLI_blenlib.h"
+#include "BLI_threads.h"
 
 #include "imbuf.h"
-#include "imbuf_patch.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
+#include "IMB_filetype.h"
 #include "IMB_filter.h"
-
 
 /************************************************************************/
 /*				FILTERS					*/
@@ -383,9 +383,66 @@ void IMB_makemipmap(ImBuf *ibuf, int use_filter)
 			IMB_freeImBuf(nbuf);
 		}
 		else ibuf->mipmap[curmap] = IMB_onehalf(hbuf);
+		ibuf->miplevels= curmap+2;
 		hbuf = ibuf->mipmap[curmap];
-		if (hbuf->x == 1 && hbuf->y == 1) break;
+		if (!hbuf || (hbuf->x == 1 && hbuf->y == 1)) break;
 		curmap++;
 	}
+}
+
+ImBuf *IMB_getmipmaplevel(ImBuf *ibuf, int level)
+{
+	if(level >= ibuf->miplevels)
+		level= ibuf->miplevels-1;
+
+	if(level == 0) {
+		if(!ibuf->rect && (ibuf->flags & IB_usecache)) {
+			BLI_lock_thread(LOCK_IMAGE);
+			if(!ibuf->rect && (ibuf->flags & IB_usecache))
+				IMB_loadmip(ibuf, level);
+			BLI_unlock_thread(LOCK_IMAGE);
+		}
+
+		return (ibuf->rect || ibuf->rect_float)? ibuf: NULL;
+	}
+
+	if(!ibuf->mipmap[level-1]) {
+		BLI_lock_thread(LOCK_IMAGE);
+
+		if(!ibuf->mipmap[level-1]) {
+			if(ibuf->flags & IB_usecache)
+				IMB_loadmip(ibuf, level);
+			else
+				IMB_makemipmap(ibuf, 0); /* TODO use_filter */
+		}
+
+		BLI_unlock_thread(LOCK_IMAGE);
+	}
+	
+	ibuf= ibuf->mipmap[level-1];
+	return (ibuf && (ibuf->rect || ibuf->rect_float))? ibuf: NULL;
+}
+
+void IMB_getmipmaplevel_size(ImBuf *ibuf, int level, int *x, int *y)
+{
+	*x= ibuf->x;
+	*y= ibuf->y;
+
+	for(; level>0; level--) {
+		*x= (*x == 1)? 1: *x/2;
+		*y= (*y == 1)? 1: *y/2;
+	}
+}
+
+int IMB_getmipmaplevel_num(ImBuf *ibuf)
+{
+	int levels= 0, x = (ibuf->x > ibuf->y)? ibuf->x: ibuf->y;
+
+	while(x > 0) {
+		levels++;
+		x /= 2;
+	}
+
+	return levels;
 }
 

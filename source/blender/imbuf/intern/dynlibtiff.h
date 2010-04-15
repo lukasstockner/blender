@@ -51,5 +51,7 @@ extern int (*libtiff_TIFFSetField)(TIFF*, ttag_t, ...);
 extern tsize_t (*libtiff_TIFFWriteEncodedStrip)(TIFF*, tstrip_t, tdata_t, tsize_t);
 extern void (*libtiff__TIFFfree)(tdata_t);
 extern tdata_t (*libtiff__TIFFmalloc)(tsize_t);
+int (*libtiff_TIFFSetDirectory)(TIFF*, tdir_t);
+tdir_t (*libtiff_TIFFNumberOfDirectories)(TIFF*);
 #endif /* DYN_LIBTIFF_H */
 

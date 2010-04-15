@@ -177,7 +177,7 @@ static void openexr_header_compression(Header *header, int compression)
 	}
 }
 
-static short imb_save_openexr_half(struct ImBuf *ibuf, char *name, int flags)
+static int imb_save_openexr_half(struct ImBuf *ibuf, char *name, int flags)
 {
 	int channels = ibuf->channels;
 	int width = ibuf->x;
@@ -269,7 +269,7 @@ static short imb_save_openexr_half(struct ImBuf *ibuf, char *name, int flags)
 	return (1);
 }
 
-static short imb_save_openexr_float(struct ImBuf *ibuf, char *name, int flags)
+static int imb_save_openexr_float(struct ImBuf *ibuf, char *name, int flags)
 {
 	int channels = ibuf->channels;
 	int width = ibuf->x;
@@ -326,7 +326,7 @@ static short imb_save_openexr_float(struct ImBuf *ibuf, char *name, int flags)
 }
 
 
-short imb_save_openexr(struct ImBuf *ibuf, char *name, int flags)
+int imb_save_openexr(struct ImBuf *ibuf, char *name, int flags)
 {
 	if (flags & IB_mem) 
 	{
