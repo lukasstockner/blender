@@ -988,6 +988,7 @@ static void shade_input_vlr_texco_uvcol(Render *re, ShadeInput *shi, ShadeTexco 
 			interp_v2_v2v2v2(suv->dyuv, uv1, uv2, uv3, duvw_dy);
 
 			mul_v2_fl(suv->dxuv, 2.0f);
+			mul_v2_fl(suv->dyuv, 2.0f);
 		}
 
 		if((mode & MA_FACETEXTURE) && i==obr->actmtface) {

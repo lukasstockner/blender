@@ -375,6 +375,9 @@ void IMB_makemipmap(ImBuf *ibuf, int use_filter)
 {
 	ImBuf *hbuf = ibuf;
 	int curmap = 0;
+
+	ibuf->miplevels= 1;
+
 	while (curmap < IB_MIPMAP_LEVELS) {
 		if (use_filter) {
 			ImBuf *nbuf= IMB_allocImBuf(hbuf->x, hbuf->y, 32, IB_rect, 0);
@@ -393,7 +396,9 @@ void IMB_makemipmap(ImBuf *ibuf, int use_filter)
 ImBuf *IMB_getmipmaplevel(ImBuf *ibuf, int level)
 {
 	if(level >= ibuf->miplevels)
-		level= ibuf->miplevels-1;
+		level= (ibuf->miplevels)? ibuf->miplevels-1: 0;
+	else if(level < 0)
+		level= 0;
 
 	if(level == 0) {
 		if(!ibuf->rect && (ibuf->flags & IB_usecache)) {
