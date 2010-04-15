@@ -212,7 +212,7 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 
 	for(y=pa->disprect.ymin; y<pa->disprect.ymax; y++) {
 		for(x=pa->disprect.xmin; x<pa->disprect.xmax; x++, sample++, rd++, ro++, rp++, rz++, offs++) {
-			PixelRow row[MAX_PIXEL_ROW];
+			PixelRow *row= pa->pixelrow;
 			int totrow;
 
 			if(!(((x - pa->disprect.xmin + step) % step) == 0 || x == pa->disprect.xmax-1))
@@ -1058,7 +1058,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 				int lx = (x - pa->disprect.xmin);
 				int ly = (y - pa->disprect.ymin);
 				int od = lx + ly*(pa->disprect.xmax - pa->disprect.xmin);
-				PixelRow row[MAX_PIXEL_ROW];
+				PixelRow *row= pa->pixelrow;
 				int a, b, totrow;
 
 				BLI_thread_srandom(pa->thread, seed++);

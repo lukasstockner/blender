@@ -27,6 +27,7 @@
 
 #include "DNA_listBase.h"
 
+#include "rendercore.h"
 #include "result.h"
 
 struct APixstr;
@@ -89,6 +90,8 @@ typedef struct RenderPart {
 
 	/* adaptive subdivision */
 	struct GHash *subdivhash;
+	
+	PixelRow pixelrow[MAX_PIXEL_ROW];
 } RenderPart;
 
 #endif /* __RENDER_PART_H__ */

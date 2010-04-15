@@ -749,7 +749,7 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 	/* render the tile */
 	for(y=pa->disprect.ymin+crop; y<pa->disprect.ymax-crop; y++, rr->renrect.ymax++) {
 		for(x=pa->disprect.xmin+crop; x<pa->disprect.xmax-crop; x++) {
-			PixelRow row[MAX_PIXEL_ROW];
+			PixelRow *row= pa->pixelrow;
 			int totrow;
 
 			/* create shade pixel row, sorted front to back */
