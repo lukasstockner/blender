@@ -60,7 +60,7 @@ void zbuffer_abuf_shadow(struct Render *re, struct LampRen *lar, float winmat[][
 /* SSS Rasterization */
 
 void zbuffer_sss(struct Render *re, struct RenderPart *pa, unsigned int lay,
-	void *handle, void (*func)(void*, int, int, int, int, int));
+	void *handle, void (*func)(void*, int, int, int, int, int), struct ListBase *psmlist);
 
 /* Pixel Struct Utilities */
 

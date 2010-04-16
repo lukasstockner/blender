@@ -2412,7 +2412,26 @@ static void zbuffill_sss(ZSpan *zspan, int obi, int zvlnr, float *v1, float *v2,
 	}
 }
 
-void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, void (*func)(void*, int, int, int, int, int))
+static PixStrMain *addpsmain(ListBase *lb);
+static void addps(ListBase *lb, PixStr **rd, int obi, int facenr, int z, int maskz, unsigned short mask);
+
+static void make_sss_pixelstructs(Render *re, RenderPart *pa, ListBase *lb)
+{
+	PixStr **rd= pa->rectdaps;
+	int *ro= pa->recto, *rbo= pa->rectbacko;
+	int *rp= pa->rectp, *rbp= pa->rectbackp;
+	int *rz= pa->rectz, *rbz= pa->rectbackz;
+	int x, y;
+
+	for(y=0; y<pa->recty; y++) {
+		for(x=0; x<pa->rectx; x++, rd++, rp++, ro++, rz++, rbo++, rbp++, rbz++) {
+			if(*rp) addps(lb, rd, *ro, *rp, *rz, 0, 0xFFFF);
+			if(*rbp) addps(lb, rd, *rbo, *rbp, *rbz, 0, 0xFFFF);
+		}
+	}
+}
+
+void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, void (*func)(void*, int, int, int, int, int), ListBase *psmlist)
 {
 	ZbufProjectCache cache[ZBUF_PROJECT_CACHE_SIZE];
 	ZSpan zspan;
@@ -2426,6 +2445,8 @@ void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, voi
 	int i, v, zvlnr, c1, c2, c3, c4=0;
 	short nofill=0, env=0, wire=0;
 	
+	addpsmain(psmlist);
+
 	camera_window_matrix(&re->cam, winmat);
 	camera_window_rect_bounds(re->cam.winx, re->cam.winy, &pa->disprect, bounds);
 
@@ -2529,6 +2550,8 @@ void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, voi
 	}
 		
 	zbuf_free_span(&zspan);
+
+	make_sss_pixelstructs(re, pa, psmlist);
 }
 
 /* ******************** ABUF ************************* */

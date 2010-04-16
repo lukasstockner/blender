@@ -47,14 +47,17 @@
 #include "rendercore.h"
 #include "render_types.h"
 #include "shading.h"
+#include "sss.h"
 
 /******************************** Utilities **********************************/
 
-static int mat_need_cache(Material *ma)
+static int mat_need_cache(Render *re, Material *ma)
 {
 	if(ma->mode & MA_SHLESS)
 		return 0;
 	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
+		return 0;
+	else if((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma))
 		return 0;
 	
 	return 1;
@@ -220,12 +223,11 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 			if(!(((y - pa->disprect.ymin + step) % step) == 0 || y == pa->disprect.ymax-1))
 				continue;
 
-			/* XXX test */
 			totrow= pixel_row_fill(row, re, pa, offs);
 			shade_samples_from_pixel(re, ssamp, &row[0], x, y);
 
 			shi= ssamp->shi;
-			if(shi->primitive.vlr && mat_need_cache(shi->material.mat)) {
+			if(shi->primitive.vlr && mat_need_cache(re, shi->material.mat)) {
 				disk_occlusion_sample_direct(re, shi);
 
 				copy_v3_v3(sample->co, shi->geometry.co);
@@ -1077,7 +1079,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
 						int added;
 
-						if(!mat_need_cache(shi->material.mat))
+						if(!mat_need_cache(re, shi->material.mat))
 							continue;
 
 						if(shi->primitive.strand) {

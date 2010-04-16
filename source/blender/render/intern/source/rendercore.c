@@ -1027,19 +1027,17 @@ static void shade_sample_sss(Render *re, ShadeSample *ssamp, Material *mat, Obje
 	*area *= alpha;
 }
 
-static void zbufshade_sss_free(RenderPart *pa)
+static void zbufshade_sss_free(RenderPart *pa, ListBase *psmlist)
 {
-#if 0
-	MEM_freeN(pa->rectall); pa->rectall= NULL;
-	free_pixel_structs(&handle.psmlist);
-#else
 	MEM_freeN(pa->rectz); pa->rectz= NULL;
 	MEM_freeN(pa->rectp); pa->rectp= NULL;
 	MEM_freeN(pa->recto); pa->recto= NULL;
 	MEM_freeN(pa->rectbackz); pa->rectbackz= NULL;
 	MEM_freeN(pa->rectbackp); pa->rectbackp= NULL;
 	MEM_freeN(pa->rectbacko); pa->rectbacko= NULL;
-#endif
+	MEM_freeN(pa->rectdaps); pa->rectdaps= NULL;
+
+	free_pixel_structs(psmlist);
 }
 
 static void render_sss_layer(Render *re, RenderResult *rr, Material *ma, ShadeInput *shi)
@@ -1086,30 +1084,20 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	Material *mat= re->db.sss_mat;
 	float (*co)[3], (*color)[3], *area, *fcol;
 	int x, y, seed, quad, totpoint, display = !(re->params.r.scemode & R_PREVIEWBUTS);
-	int *ro, *rz, *rp, *rbo, *rbz, *rbp, lay;
-#if 0
-	PixStr *ps;
-	void **rs;
-	int z;
-#endif
+	int lay, offs, a;
+	ListBase psmlist= {NULL, NULL};
 
 	/* setup pixelstr list and buffer for zbuffering */
 	handle.pa= pa;
 	handle.totps= 0;
 
-#if 0
-	handle.psmlist.first= handle.psmlist.last= NULL;
-	addpsmain(&handle.psmlist);
-
-	pa->rectall= MEM_callocN(sizeof(void*)*pa->rectx*pa->recty+4, "rectall");
-#else
 	pa->recto= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "recto");
 	pa->rectp= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectp");
 	pa->rectz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectz");
 	pa->rectbacko= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbacko");
 	pa->rectbackp= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbackp");
 	pa->rectbackz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbackz");
-#endif
+	pa->rectdaps= MEM_callocN(sizeof(void*)*pa->rectx*pa->recty+4, "zbufDArectd");
 
 	/* setup shade sample with correct passes */
 	memset(&ssamp, 0, sizeof(ssamp));
@@ -1126,13 +1114,13 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	ssamp.shi[0].material.light_override= NULL;
 
 	/* create the pixelstrs to be used later */
-	zbuffer_sss(re, pa, lay, &handle, addps_sss);
+	zbuffer_sss(re, pa, lay, &handle, addps_sss, &psmlist);
 
 	if(handle.totps==0) {
-		zbufshade_sss_free(pa);
+		zbufshade_sss_free(pa, &psmlist);
 		return;
 	}
-	
+
 	fcol= rl->rectf;
 
 	co= MEM_mallocN(sizeof(float)*3*handle.totps, "SSSCo");
@@ -1145,6 +1133,11 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 		irregular_shadowbuf_create(re, pa, NULL);
 #endif
 
+	if(re->db.occlusiontree)
+		disk_occlusion_cache_create(re, pa, &ssamp);
+	else
+		irr_cache_create(re, pa, rl, &ssamp);
+	
 	if(display) {
 		/* initialize scanline updates for main thread */
 		rr->renrect.ymin= 0;
@@ -1152,93 +1145,48 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	}
 	
 	seed= pa->rectx*pa->disprect.ymin;
-#if 0
-	rs= pa->rectall;
-#else
-	rz= pa->rectz;
-	rp= pa->rectp;
-	ro= pa->recto;
-	rbz= pa->rectbackz;
-	rbp= pa->rectbackp;
-	rbo= pa->rectbacko;
-#endif
 	totpoint= 0;
+	offs= 0;
 
 	for(y=pa->disprect.ymin; y<pa->disprect.ymax; y++, rr->renrect.ymax++) {
-		for(x=pa->disprect.xmin; x<pa->disprect.xmax; x++, fcol+=4) {
+		for(x=pa->disprect.xmin; x<pa->disprect.xmax; x++, fcol+=4, offs++) {
+			PixelRow *row= pa->pixelrow;
+			int totrow;
+
 			/* per pixel fixed seed */
 			BLI_thread_srandom(pa->thread, seed++);
 			
-#if 0
-			if(rs) {
-				/* for each sample in this pixel, shade it */
-				for(ps=(PixStr*)*rs; ps; ps=ps->next) {
-					ObjectInstanceRen *obi= &re->db.objectinstance[ps->obi];
-					ObjectRen *obr= obi->obr;
-					vlr= render_object_vlak_get(obr, (ps->facenr-1) & RE_QUAD_MASK);
-					quad= (ps->facenr & RE_QUAD_OFFS);
-					z= ps->z;
+			totrow= pixel_row_fill(row, re, pa, offs);
 
-					shade_sample_sss(re, &ssamp, mat, obi, vlr, quad, x, y, z,
-						co[totpoint], color[totpoint], &area[totpoint]);
+			for(a=0; a<totrow; a++) {
+				ObjectInstanceRen *obi= &re->db.objectinstance[row[a].obi];
 
-					totpoint++;
+				/* shade front */
+				vlr= render_object_vlak_get(obi->obr, (row[a].p-1) & RE_QUAD_MASK);
+				quad= ((row[a].p) & RE_QUAD_OFFS);
 
-					add_v3_v3v3(fcol, fcol, color);
-					fcol[3]= 1.0f;
-				}
-
-				rs++;
-			}
-#else
-			if(rp) {
-				if(*rp != 0) {
-					ObjectInstanceRen *obi= &re->db.objectinstance[*ro];
-					ObjectRen *obr= obi->obr;
-
-					/* shade front */
-					vlr= render_object_vlak_get(obr, (*rp-1) & RE_QUAD_MASK);
-					quad= ((*rp) & RE_QUAD_OFFS);
-
-					shade_sample_sss(re, &ssamp, mat, obi, vlr, quad, x, y, *rz,
-						co[totpoint], color[totpoint], &area[totpoint]);
-					
-					add_v3_v3v3(fcol, fcol, color[totpoint]);
-					fcol[3]= 1.0f;
-					totpoint++;
-				}
-
-				rp++; rz++; ro++;
-			}
-
-			if(rbp) {
-				if(*rbp != 0 && !(*rbp == *(rp-1) && *rbo == *(ro-1))) {
-					ObjectInstanceRen *obi= &re->db.objectinstance[*rbo];
-					ObjectRen *obr= obi->obr;
-
-					/* shade back */
-					vlr= render_object_vlak_get(obr, (*rbp-1) & RE_QUAD_MASK);
-					quad= ((*rbp) & RE_QUAD_OFFS);
-
-					shade_sample_sss(re, &ssamp, mat, obi, vlr, quad, x, y, *rbz,
-						co[totpoint], color[totpoint], &area[totpoint]);
-					
-					/* to indicate this is a back sample */
+				shade_sample_sss(re, &ssamp, mat, obi, vlr, quad, x, y, row[a].z,
+					co[totpoint], color[totpoint], &area[totpoint]);
+				
+				/* to indicate this is a back sample */
+				if(a > 0)
 					area[totpoint]= -area[totpoint];
 
-					add_v3_v3v3(fcol, fcol, color[totpoint]);
-					fcol[3]= 1.0f;
-					totpoint++;
-				}
-
-				rbz++; rbp++; rbo++;
+				add_v3_v3v3(fcol, fcol, color[totpoint]);
+				fcol[3]= 1.0f;
+				totpoint++;
 			}
-#endif
 		}
 
 		if(y&1)
 			if(re->cb.test_break(re->cb.tbh)) break; 
 	}
+
+	/* free tile precomputed data */
+	if(re->db.occlusiontree)
+		disk_occlusion_cache_free(re, pa);
+	else
+		irr_cache_free(re, pa);
 
 	/* note: after adding we do not free these arrays, sss keeps them */
 	if(totpoint > 0) {
@@ -1261,6 +1209,6 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 		rr->renlay= render_get_active_layer(re, rr);
 	}
 	
-	zbufshade_sss_free(pa);
+	zbufshade_sss_free(pa, &psmlist);
 }
 

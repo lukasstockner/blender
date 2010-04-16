@@ -381,11 +381,12 @@ void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_
 	if(!shi->primitive.strand && shi->shading.depth == 0 && count > 1 && count <= max) {
 		float xs, ys, zs, view[3];
 		int samp, ordsamp, tot= 0;
+		int osa= (re->params.osa)? re->params.osa: 1;
 
-		for(samp=0; samp<re->params.osa; samp++) {
-			if(re->params.osa == 8) ordsamp = order8[samp];
-			else if(re->params.osa == 11) ordsamp = order11[samp];
-			else if(re->params.osa == 16) ordsamp = order16[samp];
+		for(samp=0; samp<osa; samp++) {
+			if(osa == 8) ordsamp = order8[samp];
+			else if(osa == 11) ordsamp = order11[samp];
+			else if(osa == 16) ordsamp = order16[samp];
 			else ordsamp = samp;
 
 			if(shi->shading.mask & (1<<ordsamp)) {
@@ -692,30 +693,34 @@ void shade_surface_direct(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr, int backside)
 {
+	Material *ma= shi->material.mat;
 	int passflag= shi->shading.passflag;
+	int post_sss= ((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma));
 
-	shade_compute_ao(re, shi, shr); /* .ao */
+	if(!post_sss) {
+		shade_compute_ao(re, shi, shr); /* .ao */
 
-	/* add AO in combined? */
-	if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) {
-		if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
-			if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
-				|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
-				ambient_occlusion(re, shi);
+		/* add AO in combined? */
+		if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) {
+			if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
+				if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+					|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+					ambient_occlusion(re, shi);
 
-			if(re->db.wrld.mode & WO_ENV_LIGHT)
-				environment_lighting_apply(re, shi, shr);
+				if(re->db.wrld.mode & WO_ENV_LIGHT)
+					environment_lighting_apply(re, shi, shr);
 
-			if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
-				indirect_lighting_apply(re, shi, shr);
+				if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+					indirect_lighting_apply(re, shi, shr);
 
-			if(re->db.wrld.mode & WO_AMB_OCC)
-				ambient_occlusion_apply(re, shi, shr);
+				if(re->db.wrld.mode & WO_AMB_OCC)
+					ambient_occlusion_apply(re, shi, shr);
+			}
 		}
+			
+		/* ambient light */
+		madd_v3_v3fl(shr->diff, &re->db.wrld.ambr, shi->material.amb);
 	}
-		
-	/* ambient light */
-	madd_v3_v3fl(shr->diff, &re->db.wrld.ambr, shi->material.amb);
 
 	/* refcol is for envmap only */
 	if(shi->material.refcol[0]!=0.0f) {
