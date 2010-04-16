@@ -1769,6 +1769,7 @@ static int node_read_fullsamplelayers_exec(bContext *C, wmOperator *op)
 
 //	WM_cursor_wait(1);
 
+	G.afbreek= 0;
 	RE_MergeFullSample(re, curscene, snode->nodetree);
 	snode_notify(C, snode);
 	
