@@ -105,13 +105,14 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 	/* quick tests */
 	if(ibuf==NULL && ima==NULL)
 		return retval;
+
 	if(ima) {
-		
 		/* hack for icon render */
 		if(ima->ibufs.first==NULL && (rpm->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 		
-		ibuf= BKE_image_get_ibuf(ima, &tex->iuser);
+		if((ibuf=BKE_image_get_ibuf(ima, &tex->iuser)) == NULL)
+			return retval;
 	}
 
 	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
@@ -1009,13 +1010,17 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 	retval = texres->nor ? 3 : 1;
 
 	// quick tests
-	if (ibuf==NULL && ima==NULL) return retval;
+	if(ibuf==NULL && ima==NULL)
+		return retval;
 
-	if (ima) {	// hack for icon render
-		if ((ima->ibufs.first == NULL) && (rpm->r.scemode & R_NO_IMAGE_LOAD)) return retval;
-		ibuf = BKE_image_get_ibuf(ima, &tex->iuser); 
+	if(ima) {
+		// hack for icon render
+		if((ima->ibufs.first == NULL) && (rpm->r.scemode & R_NO_IMAGE_LOAD))
+			return retval;
+
+		if((ibuf=BKE_image_get_ibuf(ima, &tex->iuser)) == NULL)
+			return retval;
 	}
-	if(ibuf == NULL) return retval;
 
 	if ((tex->imaflag & TEX_USEALPHA) && ((tex->imaflag & TEX_CALCALPHA) == 0)) texres->talpha = 1;
 	texr.talpha = texres->talpha;
@@ -1371,16 +1376,15 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 	/* quick tests */
 	if(ibuf==NULL && ima==NULL)
 		return retval;
-	if(ima) {
 
+	if(ima) {
 		/* hack for icon render */
 		if(ima->ibufs.first==NULL && (rpm->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 		
-		ibuf= BKE_image_get_ibuf(ima, &tex->iuser); 
+		if((ibuf=BKE_image_get_ibuf(ima, &tex->iuser)) == NULL)
+			return retval;
 	}
-
-	if(ibuf == NULL) return retval;
 
 	if(tex->imaflag & TEX_USEALPHA) {
 		if(tex->imaflag & TEX_CALCALPHA);

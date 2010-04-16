@@ -514,6 +514,9 @@ static void compress_deepshadowbuf(Render *re, ShadBuf *shb, APixstr *apixbuf, A
 		}
 
 		MEM_freeN(sampleds[0]);
+
+		if(re->cb.test_break(re->cb.tbh))
+			break;
 	}
 
 	//printf("%d -> %d, ratio %f\n", totsample, totsamplec, (float)totsamplec/(float)totsample);
