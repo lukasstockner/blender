@@ -331,7 +331,7 @@ void IMB_free_anim(struct anim * anim) {
 	free_anim_redcode(anim);
 #endif
 
-	free(anim);
+	MEM_freeN(anim);
 }
 
 void IMB_close_anim(struct anim * anim) {
