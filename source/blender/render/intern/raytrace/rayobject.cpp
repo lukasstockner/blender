@@ -104,7 +104,7 @@ static inline int rayface_check_cullface(RayFace *face, Isect *is)
 
 static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2], float *lambda)
 {
-	float co1[3], co2[3], co3[3], co4[4];
+	float co1[3], co2[3], co3[3], co4[3];
 	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1, l;
 	int quad;
 
@@ -185,7 +185,7 @@ static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2
 
 static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
 {
-	float co1[3], co2[3], co3[3], co4[4];
+	float co1[3], co2[3], co3[3], co4[3];
 	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1;
 	int quad;
 
@@ -224,6 +224,7 @@ static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
 
 	/* intersect second triangle in quad */
 	if(quad) {
+		copy_v3_v3(co4, face->v4);
 		sub_v3_v3v3(t0, co3, co4);
 		divdet= dot_v3v3(t0, x);
 
@@ -304,10 +305,25 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 				if(a->v1==b->v1 || a->v2==b->v1 || a->v3==b->v1 || a->v4==b->v1
 				|| a->v1==b->v2 || a->v2==b->v2 || a->v3==b->v2 || a->v4==b->v2
 				|| a->v1==b->v3 || a->v2==b->v3 || a->v3==b->v3 || a->v4==b->v3
-				|| (b->v4 && (a->v1==b->v4 || a->v2==b->v4 || a->v3==b->v4 || a->v4==b->v4)))
-				if(!isec_tri_quad_2(is->start, is->vec, (RayFace*)a))
-				{
-					return 0;
+				|| (b->v4 && (a->v1==b->v4 || a->v2==b->v4 || a->v3==b->v4 || a->v4==b->v4))) {
+					/* create RayFace from original face, transformed if necessary */
+					RayFace origface;
+					ObjectInstanceRen *ob= (ObjectInstanceRen*)is->orig.ob;
+					RE_rayface_from_vlak(&origface, ob, (VlakRen*)is->orig.face);
+
+					if(ob->transform_primitives)
+					{
+						mul_m4_v3(ob->mat, origface.v1);
+						mul_m4_v3(ob->mat, origface.v2);
+						mul_m4_v3(ob->mat, origface.v3);
+						if(RE_rayface_isQuad(&origface))
+							mul_m4_v3(ob->mat, origface.v4);
+					}
+
+					if(!isec_tri_quad_2(is->start, is->vec, &origface))
+					{
+						return 0;
+					}
 				}
 			}
 		}
