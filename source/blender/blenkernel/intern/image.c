@@ -92,58 +92,6 @@
 
 /* ******** IMAGE PROCESSING ************* */
 
-/* used by sequencer and image premul option - IMA_DO_PREMUL */
-void converttopremul(struct ImBuf *ibuf)
-{
-	int x, y;
-	
-	if(ibuf==0) return;
-	if (ibuf->rect) {
-		int val;
-		char *cp;
-		if(ibuf->depth==24) {	/* put alpha at 255 */
-			cp= (char *)(ibuf->rect);
-			for(y=0; y<ibuf->y; y++) {
-				for(x=0; x<ibuf->x; x++, cp+=4) {
-					cp[3]= 255;
-				}
-			}
-		} else {
-			cp= (char *)(ibuf->rect);
-			for(y=0; y<ibuf->y; y++) {
-				for(x=0; x<ibuf->x; x++, cp+=4) {
-					val= cp[3];
-					cp[0]= (cp[0]*val)>>8;
-					cp[1]= (cp[1]*val)>>8;
-					cp[2]= (cp[2]*val)>>8;
-				}
-			}
-		}
-	}
-	if (ibuf->rect_float) {
-		float val;
-		float *cp;
-		if(ibuf->depth==24) {	/* put alpha at 1.0 */
-			cp= ibuf->rect_float;;
-			for(y=0; y<ibuf->y; y++) {
-				for(x=0; x<ibuf->x; x++, cp+=4) {
-					cp[3]= 1.0;
-				}
-			}
-		} else {
-			cp= ibuf->rect_float;
-			for(y=0; y<ibuf->y; y++) {
-				for(x=0; x<ibuf->x; x++, cp+=4) {
-					val= cp[3];
-					cp[0]= cp[0]*val;
-					cp[1]= cp[1]*val;
-					cp[2]= cp[2]*val;
-				}
-			}
-		}
-	}
-}
-
 static void de_interlace_ng(struct ImBuf *ibuf)	/* neogeo fields */
 {
 	struct ImBuf * tbuf1, * tbuf2;
@@ -1588,6 +1536,7 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 	struct ImBuf *ibuf;
 	unsigned short numlen;
 	char name[FILE_MAX], head[FILE_MAX], tail[FILE_MAX];
+	int flag;
 	
 	/* XXX temp stuff? */
 	if(ima->lastframe != frame)
@@ -1604,8 +1553,14 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 	else
 		BLI_path_abs(name, G.sce);
 	
+	flag= IB_rect|IB_multilayer;
+	if(iuser && iuser->flag & IMA_USECACHE)
+		flag |= IB_usecache;
+	if(ima->flag & IMA_DO_PREMUL)
+		flag |= IB_premul;
+
 	/* read ibuf */
-	ibuf = IMB_loadiffname(name, IB_rect|IB_multilayer);
+	ibuf = IMB_loadiffname(name, flag);
 	if(G.f & G_DEBUG) printf("loaded %s\n", name);
 	
 	if (ibuf) {
@@ -1625,10 +1580,6 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 		image_initialize_after_load(ima, ibuf);
 		image_assign_ibuf(ima, ibuf, 0, frame);
 #endif
-		
-		if(ima->flag & IMA_DO_PREMUL)
-			converttopremul(ibuf);
-		
 	}
 	else
 		ima->ok= 0;
@@ -1761,6 +1712,8 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 		flag= IB_rect|IB_multilayer|IB_metadata;
 		if(iuser && iuser->flag & IMA_USECACHE)
 			flag |= IB_usecache;
+		if(ima->flag & IMA_DO_PREMUL)
+			flag |= IB_premul;
 			
 		/* get the right string */
 		BLI_strncpy(str, ima->name, sizeof(str));
@@ -1794,9 +1747,6 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 			if ((ima->packedfile == NULL) && (G.fileflags & G_AUTOPACK))
 				ima->packedfile = newPackedFile(NULL, str);
 		}
-		
-		if(ima->flag & IMA_DO_PREMUL)
-			converttopremul(ibuf);
 	}
 	else
 		ima->ok= 0;

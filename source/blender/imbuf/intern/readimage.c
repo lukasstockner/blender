@@ -62,6 +62,12 @@ ImBuf *IMB_ibImageFromMemory(int *mem, int size, int flags)
 			if(ibuf) {
 				if(!(ibuf->flags & IB_usecache))
 					ibuf->miplevels= IMB_getmipmaplevel_num(ibuf);
+
+				if(flags & IB_premul) {
+					IMB_premultiply_alpha(ibuf);
+					ibuf->flags |= IB_premul;
+				}
+
 				return ibuf;
 			}
 		}

@@ -402,6 +402,10 @@ struct ImBuf *IMB_double_y(struct ImBuf *ibuf1);
 void IMB_flipx(struct ImBuf *ibuf);
 void IMB_flipy(struct ImBuf * ibuf);
 
+/* Premultiply alpha */
+
+void IMB_premultiply_alpha(struct ImBuf *ibuf);
+
 /**
  *
  * @attention Defined in allocimbuf.c

@@ -451,3 +451,59 @@ int IMB_getmipmaplevel_num(ImBuf *ibuf)
 	return levels;
 }
 
+void IMB_premultiply_alpha(ImBuf *ibuf)
+{
+	int x, y;
+	
+	if(ibuf==NULL)
+		return;
+
+	if(ibuf->rect) {
+		int val;
+		char *cp;
+
+		if(ibuf->depth==24) {	/* put alpha at 255 */
+			cp= (char *)(ibuf->rect);
+
+			for(y=0; y<ibuf->y; y++)
+				for(x=0; x<ibuf->x; x++, cp+=4)
+					cp[3]= 255;
+		}
+		else {
+			cp= (char *)(ibuf->rect);
+			for(y=0; y<ibuf->y; y++) {
+				for(x=0; x<ibuf->x; x++, cp+=4) {
+					val= cp[3];
+					cp[0]= (cp[0]*val)>>8;
+					cp[1]= (cp[1]*val)>>8;
+					cp[2]= (cp[2]*val)>>8;
+				}
+			}
+		}
+	}
+
+	if(ibuf->rect_float) {
+		float val;
+		float *cp;
+
+		if(ibuf->depth==24) {	/* put alpha at 1.0 */
+			cp= ibuf->rect_float;
+
+			for(y=0; y<ibuf->y; y++)
+				for(x=0; x<ibuf->x; x++, cp+=4)
+					cp[3]= 1.0;
+		}
+		else {
+			cp= ibuf->rect_float;
+			for(y=0; y<ibuf->y; y++) {
+				for(x=0; x<ibuf->x; x++, cp+=4) {
+					val= cp[3];
+					cp[0]= cp[0]*val;
+					cp[1]= cp[1]*val;
+					cp[2]= cp[2]*val;
+				}
+			}
+		}
+	}
+}
+

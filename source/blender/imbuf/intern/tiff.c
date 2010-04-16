@@ -282,7 +282,7 @@ int imb_is_a_tiff(unsigned char *mem)
 		 (memcmp(lil_endian, mem, IMB_TIFF_NCB) == 0) );
 }
 
-static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
+static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image, int premul)
 {
 	ImBuf *tmpibuf;
 	int success;
@@ -290,7 +290,12 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 	tmpibuf= IMB_allocImBuf(ibuf->x, ibuf->y, 32, IB_rect, 0);
 	success = libtiff_TIFFReadRGBAImage(image, ibuf->x, ibuf->y, tmpibuf->rect, 0);
 
-	if (ENDIAN_ORDER == B_ENDIAN) IMB_convert_rgba_to_abgr(tmpibuf);
+	if(ENDIAN_ORDER == B_ENDIAN)
+		IMB_convert_rgba_to_abgr(tmpibuf);
+	if(premul) {
+		IMB_premultiply_alpha(tmpibuf);
+		ibuf->flags |= IB_premul;
+	}
 
 	/* assign rect last */
 	ibuf->rect= tmpibuf->rect;
@@ -386,7 +391,7 @@ struct ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 	}
 
 	/* read pixels */
-	if(!(ibuf->flags & IB_usecache) && !imb_read_tiff_pixels(ibuf, image)) {
+	if(!(ibuf->flags & IB_usecache) && !imb_read_tiff_pixels(ibuf, image, 0)) {
 		fprintf(stderr, "imb_loadtiff: Failed to read tiff image.\n");
 		libtiff_TIFFClose(image);
 		return NULL;
@@ -431,11 +436,11 @@ void imb_loadmiptiff(struct ImBuf *ibuf, unsigned char *mem, int size, int level
 
 		if(width == mipx && height == mipy) {
 			if(level == 0) {
-				imb_read_tiff_pixels(ibuf, image);
+				imb_read_tiff_pixels(ibuf, image, (ibuf->flags & IB_premul));
 			}
 			else {
 				ibuf->mipmap[level-1] = IMB_allocImBuf(width, height, 32, 0, 0);
-				imb_read_tiff_pixels(ibuf->mipmap[level-1], image);
+				imb_read_tiff_pixels(ibuf->mipmap[level-1], image, (ibuf->flags & IB_premul));
 			}
 		}
 		else

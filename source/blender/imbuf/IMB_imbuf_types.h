@@ -141,6 +141,7 @@ typedef struct ImBuf {
 #define IB_metadata			(1 << 8)
 #define IB_animdeinterlace	(1 << 9)
 #define IB_usecache			(1 << 10)
+#define IB_premul			(1 << 11)
 
 /*
  * The bit flag is stored in the ImBuf.ftype variable.
