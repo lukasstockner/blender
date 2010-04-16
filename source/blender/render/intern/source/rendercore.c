@@ -729,7 +729,7 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_create(re, pa, &ssamp);
 	else
-		irr_cache_create(re, pa, rl, &ssamp);
+		irr_cache_create(re, pa, rl, &ssamp, pa->crop);
 
 	/* filtered render, for now we assume only 1 filter size */
 	offs= 0;
@@ -1136,7 +1136,7 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	if(re->db.occlusiontree)
 		disk_occlusion_cache_create(re, pa, &ssamp);
 	else
-		irr_cache_create(re, pa, rl, &ssamp);
+		irr_cache_create(re, pa, rl, &ssamp, 0);
 	
 	if(display) {
 		/* initialize scanline updates for main thread */

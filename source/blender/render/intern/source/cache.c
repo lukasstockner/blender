@@ -1015,7 +1015,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	return added;
 }
 
-void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ssamp)
+void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ssamp, int docrop)
 {
 	RenderResult *rr= pa->result;
 	IrrCache *cache;
@@ -1044,7 +1044,7 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 	seed= pa->rectx*pa->disprect.ymin;
 
 	crop= 0;
-	if(pa->crop)
+	if(docrop)
 		crop= 1;
 
 	//step= MAX2(pa->disprect.ymax - pa->disprect.ymin + 2*crop, pa->disprect.xmax - pa->disprect.xmin + 2*crop);

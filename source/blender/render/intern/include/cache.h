@@ -85,7 +85,7 @@ struct IrrCache;
 typedef struct IrrCache IrrCache;
 
 void irr_cache_create(struct Render *re, struct RenderPart *pa,
-	struct RenderLayer *rl, struct ShadeSample *ssamp);
+	struct RenderLayer *rl, struct ShadeSample *ssamp, int docrop);
 void irr_cache_free(struct Render *re, struct RenderPart *pa);
 
 int irr_cache_lookup(struct Render *re, struct ShadeInput *shi,
