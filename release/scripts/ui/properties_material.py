@@ -912,7 +912,8 @@ class MATERIAL_PT_volume_integration(VolumeButtonsPanel):
             col = split.column()
         col.label()
         col.prop(vol, "depth_cutoff")
-        
+
+
 class MATERIAL_PT_volume_options(VolumeButtonsPanel):
     bl_label = "Options"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
@@ -930,14 +931,13 @@ class MATERIAL_PT_volume_options(VolumeButtonsPanel):
         col.prop(mat, "traceable")
         col.prop(mat, "full_oversampling")
         col.prop(mat, "exclude_mist")
-        
+
         col = split.column()
         col.label(text="Light Group:")
         col.prop(mat, "light_group", text="")
         row = col.row()
         row.active = bool(mat.light_group)
         row.prop(mat, "light_group_exclusive", text="Exclusive")
-
 
 
 classes = [
