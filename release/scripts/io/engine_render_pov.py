@@ -880,6 +880,22 @@ for member in dir(properties_material):
     except:
         pass
 del properties_material
+import properties_data_mesh
+for member in dir(properties_data_mesh):
+    subclass = getattr(properties_data_mesh, member)
+    try:
+        subclass.COMPAT_ENGINES.add('POVRAY_RENDER')
+    except:
+        pass
+del properties_data_mesh
+import properties_texture
+for member in dir(properties_texture):
+    subclass = getattr(properties_texture, member)
+    try:
+        subclass.COMPAT_ENGINES.add('POVRAY_RENDER')
+    except:
+        pass
+del properties_texture
 
 
 class RenderButtonsPanel(bpy.types.Panel):

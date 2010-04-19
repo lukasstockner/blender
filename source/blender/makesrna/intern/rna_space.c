@@ -1302,7 +1302,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	static EnumPropertyItem view_type_items[] = {
 		{SEQ_VIEW_SEQUENCE, "SEQUENCER", ICON_SEQ_SEQUENCER, "Sequencer", ""},
 		{SEQ_VIEW_PREVIEW,  "PREVIEW", ICON_SEQ_PREVIEW, "Image Preview", ""},
-		{SEQ_VIEW_SEQUENCE_PREVIEW,  "SEQUENCER_PREVIEW", ICON_SEQ_SEQUENCER, "Sequencer and Image Preview", ""},
+		{SEQ_VIEW_SEQUENCE_PREVIEW,  "SEQUENCER_PREVIEW", ICON_SEQ_SPLITVIEW, "Sequencer and Image Preview", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem display_mode_items[] = {
@@ -1313,12 +1313,12 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem proxy_render_size_items[] = {
-		{SEQ_PROXY_RENDER_SIZE_NONE, "NONE", ICON_SEQ_PREVIEW, "No display", ""},
-		{SEQ_PROXY_RENDER_SIZE_SCENE, "SCENE", ICON_SEQ_PREVIEW, "Scene render size", ""},
-		{SEQ_PROXY_RENDER_SIZE_25, "PROXY_25", ICON_SEQ_PREVIEW, "Proxy size 25%", ""},
-		{SEQ_PROXY_RENDER_SIZE_50, "PROXY_50", ICON_SEQ_PREVIEW, "Proxy size 50%", ""},
-		{SEQ_PROXY_RENDER_SIZE_75, "PROXY_75", ICON_SEQ_PREVIEW, "Proxy size 75%", ""},
-		{SEQ_PROXY_RENDER_SIZE_FULL, "FULL", ICON_SEQ_PREVIEW, "No proxy, full render", ""},
+		{SEQ_PROXY_RENDER_SIZE_NONE, "NONE", 0, "No display", ""},
+		{SEQ_PROXY_RENDER_SIZE_SCENE, "SCENE", 0, "Scene render size", ""},
+		{SEQ_PROXY_RENDER_SIZE_25, "PROXY_25", 0, "Proxy size 25%", ""},
+		{SEQ_PROXY_RENDER_SIZE_50, "PROXY_50", 0, "Proxy size 50%", ""},
+		{SEQ_PROXY_RENDER_SIZE_75, "PROXY_75", 0, "Proxy size 75%", ""},
+		{SEQ_PROXY_RENDER_SIZE_FULL, "FULL", 0, "No proxy, full render", ""},
 		{0, NULL, 0, NULL, NULL}};
 	
 	srna= RNA_def_struct(brna, "SpaceSequenceEditor", "Space");
@@ -1381,7 +1381,7 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "display_channel", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "chanshown");
 	RNA_def_property_ui_text(prop, "Display Channel", "The channel number shown in the image preview. 0 is the result of all strips combined");
-	RNA_def_property_range(prop, 0, 32); // MAXSEQ --- todo, move from BKE_sequencer.h
+	RNA_def_property_range(prop, -5, 32); // MAXSEQ --- todo, move from BKE_sequencer.h, allow up to 5 layers up the metastack. Should be dynamic...
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_SEQUENCER, NULL);
 	
 	prop= RNA_def_property(srna, "draw_overexposed", PROP_INT, PROP_NONE);
