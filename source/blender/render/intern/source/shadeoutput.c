@@ -697,7 +697,7 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 	int passflag= shi->shading.passflag;
 	int post_sss= ((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma));
 
-	if(!post_sss) {
+	if(!post_sss || (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))) {
 		shade_compute_ao(re, shi, shr); /* .ao */
 
 		/* add AO in combined? */
