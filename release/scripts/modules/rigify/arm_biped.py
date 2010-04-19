@@ -240,7 +240,7 @@ def fk(obj, definitions, base_names, options):
         con.name = "hinge"
         con.target = obj
         con.subtarget = mt.shoulder
-        driver_fcurve = con.driver_add("influence", 0)
+        driver_fcurve = con.driver_add("influence")
         driver = driver_fcurve.driver
 
 

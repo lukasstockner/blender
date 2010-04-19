@@ -294,7 +294,7 @@ def main(obj, bone_definition, base_names, options):
     con.subtarget = ex.pelvis_copy
 
     # add driver
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'
@@ -350,7 +350,7 @@ def main(obj, bone_definition, base_names, options):
     rib_driver_path = ex.ribcage_copy_p.path_from_id()
 
     ex.ribcage_copy_p["bend_tot"] = 0.0
-    fcurve = ex.ribcage_copy_p.driver_add('["bend_tot"]', 0)
+    fcurve = ex.ribcage_copy_p.driver_add('["bend_tot"]')
     driver = fcurve.driver
     driver.type = 'SUM'
     fcurve.modifiers.remove(0) # grr dont need a modifier
@@ -385,7 +385,7 @@ def main(obj, bone_definition, base_names, options):
         del spine_p
 
         # add driver
-        fcurve = con.driver_add("influence", 0)
+        fcurve = con.driver_add("influence")
         driver = fcurve.driver
         driver.type = 'SCRIPTED'
         driver.expression = "bend/bend_tot"
@@ -440,7 +440,7 @@ def main(obj, bone_definition, base_names, options):
         if i == spine_chain_len:
             con.head_tail = 1.0
 
-        fcurve = con.driver_add("influence", 0)
+        fcurve = con.driver_add("influence")
         driver = fcurve.driver
         var = driver.variables.new()
         driver.type = 'AVERAGE'

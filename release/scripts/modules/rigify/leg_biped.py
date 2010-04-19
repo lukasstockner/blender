@@ -351,7 +351,7 @@ def fk(obj, bone_definition, base_names, options):
     # add driver
     hinge_driver_path = fk_chain.thigh_p.path_from_id() + '["hinge"]'
 
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'

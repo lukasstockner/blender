@@ -154,7 +154,7 @@ def blend_bone_list(obj, apply_bones, from_bones, to_bones, target_bone=None, ta
         con.target = obj
         con.subtarget = to_bone_name
 
-        fcurve = con.driver_add("influence", 0)
+        fcurve = con.driver_add("influence")
         driver = fcurve.driver
         driver.type = 'AVERAGE'
         fcurve.modifiers.remove(0) # grr dont need a modifier

@@ -213,7 +213,7 @@ def ik(obj, bone_definition, base_names, options):
     con = mt_chain.thigh_p.constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = ik_chain.thigh
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'
@@ -225,7 +225,7 @@ def ik(obj, bone_definition, base_names, options):
     con = mt_chain.shin_p.constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = ik_chain.shin
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'
@@ -237,7 +237,7 @@ def ik(obj, bone_definition, base_names, options):
     con = mt_chain.foot_p.constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = ik.foot_roll_02
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'
@@ -249,7 +249,7 @@ def ik(obj, bone_definition, base_names, options):
     con = mt_chain.toe_p.constraints.new('COPY_TRANSFORMS')
     con.target = obj
     con.subtarget = ik_chain.toe
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'
@@ -371,7 +371,7 @@ def fk(obj, bone_definition, base_names, options):
 
     hinge_driver_path = pb[fk_chain.thigh].path_from_id() + '["hinge"]'
 
-    fcurve = con.driver_add("influence", 0)
+    fcurve = con.driver_add("influence")
     driver = fcurve.driver
     var = driver.variables.new()
     driver.type = 'AVERAGE'
