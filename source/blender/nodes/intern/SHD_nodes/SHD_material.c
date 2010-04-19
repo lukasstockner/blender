@@ -86,8 +86,9 @@ static void node_shader_exec_material(void *data, bNode *node, bNodeStack **in, 
 		shi->material.mat= (Material *)node->id;
 		
 		/* copy all relevant material vars, note, keep this synced with render_types.h */
-		memcpy(&shi->material.r, &shi->material.mat->r, 23*sizeof(float));
+		memcpy(&shi->material.r, &shi->material.mat->r, 21*sizeof(float));
 		shi->material.har= shi->material.mat->har;
+		shi->material.sss_scale= shi->material.mat->sss_scale;
 		
 		/* write values */
 		if(in[MAT_IN_COLOR]->hasinput)
