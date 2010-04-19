@@ -150,6 +150,8 @@ struct ScatterTree {
 };
 
 typedef struct ScatterResult {
+	float scalefac;
+
 	float rad[3];
 	float backrad[3];
 	float rdsum[3];
@@ -345,6 +347,11 @@ void scatter_settings_free(ScatterSettings *ss)
 static void add_radiance(ScatterTree *tree, float *frontrad, float *backrad, float area, float backarea, float rr, ScatterResult *result)
 {
 	float rd[3], frontrd[3], backrd[3];
+	float scalefac= result->scalefac;
+
+	rr *= scalefac;
+	area *= scalefac;
+	backarea *= scalefac;
 
 	approximate_Rd_rgb(tree->ss, rr, rd);
 
@@ -378,7 +385,7 @@ static void add_radiance(ScatterTree *tree, float *frontrad, float *backrad, flo
 
 static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int self, ScatterResult *result)
 {
-	float sub[3], dist;
+	float dist;
 	int i, index = 0;
 
 	if(node->totpoint > 0) {
@@ -386,8 +393,7 @@ static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int
 		for(i=0; i<node->totpoint; i++) {
 			ScatterPoint *p= &node->points[i];
 
-			sub_v3_v3v3(sub, co, p->co);
-			dist= dot_v3v3(sub, sub);
+			dist= len_squared_v3v3(co, p->co);
 
 			if(p->back)
 				add_radiance(tree, NULL, p->rad, 0.0f, p->area, dist, result);
@@ -410,8 +416,7 @@ static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int
 				}
 				else {
 					/* decide subnode traversal based on maximum solid angle */
-					sub_v3_v3v3(sub, co, subnode->co);
-					dist= dot_v3v3(sub, sub);
+					dist= len_squared_v3v3(co, subnode->co);
 
 					/* actually area/dist > error, but this avoids division */
 					if(subnode->area+subnode->backarea>tree->error*dist) {
@@ -427,12 +432,15 @@ static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int
 	}
 }
 
-static void compute_radiance(ScatterTree *tree, float *co, float *rad)
+static void compute_radiance(ScatterTree *tree, float *co, float *rad, float scale)
 {
 	ScatterResult result;
 	float rdsum[3], backrad[3], backrdsum[3];
 
 	memset(&result, 0, sizeof(result));
+
+	/* this is used to multiply areas and squared distance */
+	result.scalefac= 1.0f/(scale*scale);
 
 	traverse_octree(tree, tree->root, co, 1, &result);
 
@@ -756,10 +764,9 @@ ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
 	for(i=0; i<totpoint; i++) {
 		copy_v3_v3(points[i].co, co[i]);
 		copy_v3_v3(points[i].rad, color[i]);
-		points[i].area= fabs(area[i])/(tree->scale*tree->scale);
+		points[i].area= fabs(area[i]);
 		points[i].back= (area[i] < 0.0f);
 
-		mul_v3_fl(points[i].co, 1.0f/tree->scale);
 		DO_MINMAX(points[i].co, tree->min, tree->max);
 
 		refpoints[i]= points + i;
@@ -807,14 +814,13 @@ void scatter_tree_build(ScatterTree *tree)
 	sum_radiance(tree, tree->root);
 }
 
-void scatter_tree_sample(ScatterTree *tree, float *co, float *color)
+void scatter_tree_sample(ScatterTree *tree, float *co, float *color, float scale)
 {
 	float sco[3];
 
 	copy_v3_v3(sco, co);
-	mul_v3_fl(sco, 1.0f/tree->scale);
 
-	compute_radiance(tree, sco, color);
+	compute_radiance(tree, sco, color, scale);
 }
 
 void scatter_tree_free(ScatterTree *tree)
@@ -1013,13 +1019,13 @@ void sss_free(RenderDB *rdb)
 	}
 }
 
-int sss_sample(Render *re, Material *mat, float *co, float *color)
+int sss_sample(Render *re, Material *mat, float *co, float *color, float scale)
 {
 	if(re->db.sss_hash) {
 		SSSData *sss= BLI_ghash_lookup(re->db.sss_hash, mat);
 
 		if(sss) {
-			scatter_tree_sample(sss->tree, co, color);
+			scatter_tree_sample(sss->tree, co, color, scale);
 			return 1;
 		}
 		else {

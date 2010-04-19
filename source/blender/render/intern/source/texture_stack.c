@@ -1356,7 +1356,7 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 
 			if(mapto & MAP_VARS) {
 				/* stencil maps on the texture control slider, not texture intensity value */
-				
+
 				if(rgbnor & TEX_RGB) {
 					if(texres.talpha) texres.tin= texres.ta;
 					else texres.tin= (0.35*texres.tr+0.45*texres.tg+0.2*texres.tb);
@@ -1418,6 +1418,12 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 					shi->material.amb= texture_value_blend(mtex->def_var, shi->material.amb, texres.tin, ambfac, mtex->blendtype);
 					if(shi->material.amb<0.0) shi->material.amb= 0.0;
 					else if(shi->material.amb>1.0) shi->material.amb= 1.0;
+				}
+				if(mapto & MAP_SSS_SCALE) {
+					float sssscalefac= mtex->sssscalefac*stencilTin;
+
+					shi->material.sss_scale= texture_value_blend(mtex->def_var, shi->material.sss_scale, texres.tin, sssscalefac, mtex->blendtype);
+					if(shi->material.sss_scale<0.0) shi->material.sss_scale= 0.0;
 				}
 			}
 		}

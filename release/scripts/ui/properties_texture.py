@@ -370,6 +370,7 @@ class TEXTURE_PT_influence(TextureSlotPanel):
                 factor_but(col, tex.map_emit, "map_emit", "emit_factor", "Emit")
                 factor_but(col, tex.map_mirror, "map_mirror", "mirror_factor", "Mirror")
                 factor_but(col, tex.map_raymir, "map_raymir", "raymir_factor", "Ray Mirror")
+                factor_but(col, tex.map_sss_scale, "map_sss_scale", "sss_scale_factor", "SSS Scale")
 
                 col.label(text="Geometry:")
                 factor_but(col, tex.map_normal, "map_normal", "normal_factor", "Normal")

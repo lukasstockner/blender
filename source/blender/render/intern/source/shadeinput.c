@@ -86,6 +86,7 @@ void shade_input_init_material(Render *re, ShadeInput *shi)
 	/* note, keep this synced with render_types.h */
 	memcpy(&shi->material.r, &shi->material.mat->r, 21*sizeof(float));
 	shi->material.har= shi->material.mat->har;
+	shi->material.sss_scale= shi->material.mat->sss_scale;
 }
 
 /* **************************************************************************** */

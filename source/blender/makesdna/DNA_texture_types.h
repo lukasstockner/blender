@@ -57,7 +57,7 @@ typedef struct MTex {
 	
 	short texflag, colormodel, pmapto, pmaptoneg;
 	short normapspace, which_output;
-	char brush_map_mode, pad[7];
+	char brush_map_mode, pad[3];
 	float r, g, b, k;
 	float def_var, rt;
 	
@@ -70,7 +70,7 @@ typedef struct MTex {
 	float difffac, specfac, emitfac, hardfac;
 	float raymirrfac, translfac, ambfac;
 	float colemitfac, colreflfac, coltransfac;
-	float densfac, scatterfac, reflfac;
+	float densfac, scatterfac, reflfac, sssscalefac;
 
 	/* particles */
 	float timefac, lengthfac, clumpfac;

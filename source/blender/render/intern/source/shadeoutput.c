@@ -768,8 +768,9 @@ static void shade_surface_sss(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 	if((ma->sss_flag & MA_DIFF_SSS) && (passflag & (SCE_PASS_COMBINED|SCE_PASS_DIFFUSE))) {
 		float sss[3], col[3], div, texfac= ma->sss_texfac;
+		float scale= shi->material.sss_scale;
 
-		if(!sss_sample(re, ma, shi->geometry.co, sss)) {
+		if(!sss_sample(re, ma, shi->geometry.co, sss, scale)) {
 			/* preprocess stage */
 			copy_v3_v3(shr->sss, shr->diff);
 			shr->sss[3]= shr->alpha; // TODO NSHAD solve SSS + alpha

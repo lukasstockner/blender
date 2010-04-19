@@ -6513,6 +6513,17 @@ static void do_version_image_cache_250(FileData *fd, Library *lib, Main *main)
 		tex->iuser.flag |= IMA_USECACHE;
 }
 
+static void do_version_sss_scale_250(FileData *fd, Library *lib, Main *main)
+{
+	Material *ma;
+	int a;
+
+	for(ma= main->mat.first; ma; ma=ma->id.next)
+		for(a=0; a<MAX_MTEX; a++)
+			if(ma->mtex && ma->mtex[a])
+				ma->mtex[a]->sssscalefac= 1.0f;
+}
+
 static void do_version_constraints_radians_degrees_250(ListBase *lb)
 {
 	bConstraint *con;
@@ -10838,6 +10849,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		do_version_subdivision_250(fd, lib, main);
 	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 12))
 		do_version_image_cache_250(fd, lib, main);
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 13))
+		do_version_sss_scale_250(fd, lib, main);
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */

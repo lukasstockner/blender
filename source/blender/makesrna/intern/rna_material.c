@@ -421,6 +421,11 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Warp", "Let the texture warp texture coordinates of next channels");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
+	prop= RNA_def_property(srna, "map_sss_scale", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "mapto", MAP_SSS_SCALE);
+	RNA_def_property_ui_text(prop, "SSS Scale", "Causes the texture to affect the value subsurface scattering scale");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
 	prop= RNA_def_property(srna, "x_mapping", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "projx");
 	RNA_def_property_enum_items(prop, prop_x_mapping_items);
@@ -610,6 +615,12 @@ static void rna_def_material_mtex(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "reflfac");
 	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
 	RNA_def_property_ui_text(prop, "Reflection Factor", "Amount texture affects brightness of out-scattered light");
+	RNA_def_property_update(prop, 0, "rna_Material_update");
+
+	prop= RNA_def_property(srna, "sss_scale_factor", PROP_FLOAT, PROP_UNSIGNED);
+	RNA_def_property_float_sdna(prop, NULL, "sssscalefac");
+	RNA_def_property_ui_range(prop, 0, 1, 10, 3);
+	RNA_def_property_ui_text(prop, "SSS Scale Factor", "Multiplier for subsurface scattering scale");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 	
 	/* end volume material */

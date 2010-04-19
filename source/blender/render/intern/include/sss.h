@@ -47,7 +47,7 @@ void sss_add_points(struct Render *re, float (*co)[3], float (*color)[3],
 
 /* Sample SSS at a give point */
 
-int sss_sample(struct Render *re, struct Material *mat, float *co, float *col);
+int sss_sample(struct Render *re, struct Material *mat, float *co, float *col, float scale);
 
 /* Generic multiple scattering API */
 
@@ -64,7 +64,7 @@ void scatter_settings_free(ScatterSettings *ss);
 ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
 	float (*co)[3], float (*color)[3], float *area, int totpoint);
 void scatter_tree_build(ScatterTree *tree);
-void scatter_tree_sample(ScatterTree *tree, float *co, float *color);
+void scatter_tree_sample(ScatterTree *tree, float *co, float *color, float scale);
 void scatter_tree_free(ScatterTree *tree);
 
 #endif /*SSS_H*/

@@ -131,6 +131,7 @@ typedef struct ShadeMaterial {
 	
 	/* individual copies: */
 	int har; /* hardness */
+	float sss_scale;
 
 	float vcol[4];
 	float refcol[4];

@@ -563,6 +563,7 @@ void default_mtex(MTex *mtex)
 	mtex->raymirrfac= 1.0f;
 	mtex->translfac= 1.0f;
 	mtex->ambfac= 1.0f;
+	mtex->sssscalefac= 1.0f;
 	mtex->colemitfac= 1.0f;
 	mtex->colreflfac= 1.0f;
 	mtex->coltransfac= 1.0f;
