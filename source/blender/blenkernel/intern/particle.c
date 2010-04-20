@@ -4239,7 +4239,7 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim, ParticleData *pa
 				(psys->part->childtype == PART_CHILD_FACES)? PART_FROM_FACE: PART_FROM_PARTICLE,
 				cpa->num,DMCACHE_ISCHILD,cpa->fuv,cpa->foffset,loc,nor,0,0,0,0);
 		
-		copy_m3_m4(nmat, ob->imat);
+		copy_m3_m4(nmat, psys->imat);
 		transpose_m3(nmat);
 		mul_m3_v3(nmat, nor);
 
