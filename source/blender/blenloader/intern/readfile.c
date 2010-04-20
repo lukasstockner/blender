@@ -231,6 +231,7 @@ READ
 typedef struct OldNew {
 	void *old, *newp;
 	int nr;
+	int refself;
 } OldNew;
 
 typedef struct OldNewMap {
@@ -339,7 +340,7 @@ static void *oldnewmap_liblookup(OldNewMap *onm, void *addr, void *lib)
 		if(entry) {
 			ID *id= entry->newp;
 			
-			if (id && (!lib || id->lib)) {
+			if (id && (!lib || id->lib || entry->refself)) {
 				return entry->newp;
 			}
 		}
@@ -1135,6 +1136,20 @@ static void *newlibadr_us(FileData *fd, void *lib, void *adr)	/* increases user 
 	return id;
 }
 
+static void id_allow_self_ref(FileData *fd, void *oldp)
+{
+	int i;
+
+	for (i=0; i<fd->libmap->nentries; i++) {
+		OldNew *entry= &fd->libmap->entries[i];
+
+		if (entry->old == oldp) {
+			entry->refself = 1;
+			break;
+		}
+	}
+}
+
 static void change_idid_adr_fd(FileData *fd, void *old, void *new)
 {
 	int i;
@@ -1145,7 +1160,6 @@ static void change_idid_adr_fd(FileData *fd, void *old, void *new)
 		if (old==entry->newp && entry->nr==ID_ID) {
 			entry->newp= new;
 			if(new) entry->nr= GS( ((ID *)new)->name );
-			break;
 		}
 	}
 }
@@ -2826,6 +2840,7 @@ static void direct_link_texture(FileData *fd, Tex *tex)
 	tex->pd= newdataadr(fd, tex->pd);
 	if(tex->pd) {
 		tex->pd->point_tree = NULL;
+		tex->pd->point_data = NULL;
 		tex->pd->coba= newdataadr(fd, tex->pd->coba);
 	}
 	
@@ -3423,7 +3438,7 @@ static void lib_link_object(FileData *fd, Main *main)
 			if (ob->id.properties) IDP_LibLinkProperty(ob->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
 			if (ob->adt) lib_link_animdata(fd, &ob->id, ob->adt);
 			
-// XXX depreceated - old animation system <<<			
+// XXX depreceated - old animat7ion system <<<
 			ob->ipo= newlibadr_us(fd, ob->id.lib, ob->ipo);
 			ob->action = newlibadr_us(fd, ob->id.lib, ob->action);
 // >>> XXX depreceated - old animation system
@@ -11111,7 +11126,7 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 
 	bhead= find_bhead(fd, old);
 	if(bhead) {
-			/* from another library? */
+		/* from another library? */
 		if(bhead->code==ID_ID) {
 			BHead *bheadlib= find_previous_lib(fd, bhead);
 
@@ -11135,10 +11150,33 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 					 * user.blend, lib.blend and lib_indirect.blend - if user.blend alredy references a "tree" from
 					 * lib_indirect.blend but lib.blend does too, linking in a Scene or Group from lib.blend can result in an
 					 * empty without the dupli group referenced. Once you save and reload the group would appier. - Campbell */
+
 					/* This crashes files, must look further into it */
-					/*oldnewmap_insert(fd->libmap, bhead->old, id, 1);*/
-					
+
+					//oldnewmap_insert(fd->libmap, bhead->old, id, 1);
+
+					/*if linked file references something in the host .blend, insert it into the map.
+					  this exception should be safe to the "don't tun oldnewmap_insert here" problem. */
+					if (ptr == fd->mainlist.first) {
+						int i = 0;
+						OldNew *entry = NULL;
+
+						for (i=0; i<fd->libmap->nentries; i++) {
+							if (fd->libmap->entries[i].old == bhead->old) {
+								entry = fd->libmap->entries + i;
+								break;
+							}
+						}
+
+						if (!entry) {
+							oldnewmap_insert(fd->libmap, bhead->old, id, 1);
+						}
+
+						id_allow_self_ref(fd, bhead->old);
+					}
+
 					change_idid_adr_fd(fd, bhead->old, id);
+
 					// commented because this can print way too much
 					// if(G.f & G_DEBUG) printf("expand_doit: already linked: %s lib: %s\n", id->name, lib->name);
 				}
@@ -12277,28 +12315,6 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					BKE_reportf(basefd->reports, RPT_INFO, "read library:  '%s', '%s'\n", mainptr->curlib->filename, mainptr->curlib->name);
 
 					fd= blo_openblenderfile(mainptr->curlib->filename, basefd->reports);
-					
-					/* allow typing in a new lib path */
-					if(G.rt==-666) {
-						while(fd==NULL) {
-							char newlib_path[240] = { 0 };
-							printf("Missing library: '%s', '%s'\n", mainptr->name, G.sce);
-							printf("	abs: %s\n", mainptr->curlib->filename);
-							printf("	rel: %s\n", mainptr->curlib->name);
-							printf("  enter a new path:\n");
-							scanf("%s", newlib_path);
-
-							strcpy(mainptr->curlib->name, newlib_path);
-							strcpy(mainptr->curlib->filename, newlib_path);
-							cleanup_path(G.sce, mainptr->curlib->filename);
-							
-							fd= blo_openblenderfile(mainptr->curlib->filename, basefd->reports);
-
-							if(fd) {
-								printf("found: '%s', party on macuno!\n");
-							}
-						}
-					}
 
 					if (fd) {
 						fd->reports= basefd->reports;
