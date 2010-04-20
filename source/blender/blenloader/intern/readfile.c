@@ -11157,6 +11157,7 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 
 					/*if linked file references something in the host .blend, insert it into the map.
 					  this exception should be safe to the "don't tun oldnewmap_insert here" problem. */
+					/*oookkkkay this code needs the root fd to work, will have to work on it later.
 					if (ptr == fd->mainlist.first) {
 						int i = 0;
 						OldNew *entry = NULL;
@@ -11174,6 +11175,7 @@ static void expand_doit(FileData *fd, Main *mainvar, void *old)
 
 						id_allow_self_ref(fd, bhead->old);
 					}
+					*/
 
 					change_idid_adr_fd(fd, bhead->old, id);
 
