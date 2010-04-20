@@ -15,11 +15,11 @@ The Blender Game Engine Python API Reference
 			- L{GameKeys} keyboard input and event conversion.
 			- L{Rasterizer} display and rendering.
 			- L{GameTypes} contains all the python types spesific to the GameEngine.
+			- L{PhysicsConstraints} constraints and physical dynamics
 	
-	Undocumented modules:
-	---------------------
+	Undocumented module:
+	--------------------
 		- VideoTexture
-		- PhysicsConstraints
 	
 	Additional Modules:
 	-------------------
