@@ -1766,7 +1766,7 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[][4])
 	
 	
 	/* vec: 4 items! */
-	 if( where_on_path(par, ctime, vec, dir, NULL, &radius) ) {
+	 if( where_on_path(par, ctime, vec, dir, NULL, &radius, NULL) ) {
 
 		if(cu->flag & CU_FOLLOW) {
 			vec_to_quat( quat,dir, ob->trackflag, ob->upflag);
@@ -1819,7 +1819,7 @@ static void ob_parbone(Object *ob, Object *par, float mat[][4])
 	/* but for backwards compatibility, the child has to move to the tail */
 	VECCOPY(vec, mat[1]);
 	mul_v3_fl(vec, pchan->bone->length);
-	add_v3_v3v3(mat[3], mat[3], vec);
+	add_v3_v3(mat[3], vec);
 }
 
 static void give_parvert(Object *par, int nr, float *vec)
@@ -1857,7 +1857,7 @@ static void give_parvert(Object *par, int nr, float *vec)
 					vindex= (index)? index[i]: i;
 
 					if(vindex == nr) {
-						add_v3_v3v3(vec, vec, mvert[i].co);
+						add_v3_v3(vec, mvert[i].co);
 						count++;
 					}
 				}
@@ -1966,7 +1966,7 @@ static void ob_parvert3(Object *ob, Object *par, float mat[][4])
 		}
 		else {
 			add_v3_v3v3(mat[3], v1, v2);
-			add_v3_v3v3(mat[3], mat[3], v3);
+			add_v3_v3(mat[3], v3);
 			mul_v3_fl(mat[3], 0.3333333f);
 		}
 	}
@@ -2354,7 +2354,7 @@ void minmax_object(Object *ob, float *min, float *max)
 		DO_MINMAX(ob->obmat[3], min, max);
 
 		VECCOPY(vec, ob->obmat[3]);
-		add_v3_v3v3(vec, vec, ob->size);
+		add_v3_v3(vec, ob->size);
 		DO_MINMAX(vec, min, max);
 
 		VECCOPY(vec, ob->obmat[3]);

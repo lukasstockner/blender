@@ -447,8 +447,8 @@ static void contarget_get_mesh_mat (Scene *scene, Object *ob, char *substring, f
 					if (dvert[i].dw[j].def_nr == dgroup) {
 						dm->getVertCo(dm, i, co);
 						dm->getVertNo(dm, i, nor);
-						add_v3_v3v3(vec, vec, co);
-						add_v3_v3v3(normal, normal, nor);
+						add_v3_v3(vec, co);
+						add_v3_v3(normal, nor);
 						count++;
 						break;
 					}
@@ -535,7 +535,7 @@ static void contarget_get_lattice_mat (Object *ob, char *substring, float mat[][
 				else
 					memcpy(tvec, bp->vec, 3*sizeof(float));
 					
-				add_v3_v3v3(vec, vec, tvec);
+				add_v3_v3(vec, tvec);
 				grouped++;
 				
 				break;
@@ -1242,7 +1242,7 @@ static void followpath_get_tarmat (bConstraint *con, bConstraintOb *cob, bConstr
 				curvetime= data->offset_fac;
 			}
 			
-			if ( where_on_path(ct->tar, curvetime, vec, dir, NULL, &radius) ) {
+			if ( where_on_path(ct->tar, curvetime, vec, dir, NULL, &radius, NULL) ) {
 				if (data->followflag & FOLLOWPATH_FOLLOW) {
 					vec_to_quat(quat, dir, (short)data->trackflag, (short)data->upflag);
 					
@@ -3261,7 +3261,7 @@ static void clampto_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			}
 			
 			/* 3. position on curve */
-			if (where_on_path(ct->tar, curvetime, vec, dir, NULL, NULL) ) {
+			if (where_on_path(ct->tar, curvetime, vec, dir, NULL, NULL, NULL) ) {
 				unit_m4(totmat);
 				VECCOPY(totmat[3], vec);
 				
