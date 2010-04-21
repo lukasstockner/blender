@@ -786,7 +786,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 
 			if(re->params.r.mode & R_SPEED)
 				dosurfacecache= 1;
-			else if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && ma->amb!=0.0f) {
+			if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && ma->amb!=0.0f) {
 				if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX)
 					dosurfacecache= 1;
 				else
