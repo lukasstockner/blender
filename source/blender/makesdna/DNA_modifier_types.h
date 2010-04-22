@@ -455,8 +455,8 @@ typedef struct CollisionModifierData {
 	struct MVert *x; /* position at the beginning of the frame */
 	struct MVert *xnew; /* position at the end of the frame */
 	struct MVert *xold; /* unsued atm, but was discussed during sprint */
-	struct MVert *current_xnew; /* new position at the actual inter-frame step */
 	struct MVert *current_x; /* position at the actual inter-frame step */
+	struct MVert *current_xnew; /* new position at the actual inter-frame step */
 	struct MVert *current_v; /* (xnew - x) at the actual inter-frame step */
 	
 	struct MFace *mfaces; /* object face data */

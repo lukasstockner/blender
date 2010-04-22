@@ -1465,6 +1465,10 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Selected", "Object selection state");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_select_update");
 
+	prop= RNA_def_property(srna, "use_all_layers", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "restrictflag", OB_EFFECTS_ALL_LAYERS);
+	RNA_def_property_ui_text(prop, "Use All Layers", "Accept effector forces from objects in all visible layers");
+
 	/* for data access */
 	prop= RNA_def_property(srna, "bound_box", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_multi_array(prop, 2, boundbox_dimsize);

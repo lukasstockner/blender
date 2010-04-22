@@ -298,6 +298,9 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 	unsigned int layer= ob_src->lay;
 	ListBase *effectors = NULL;
 	
+	if (ob_src->restrictflag & OB_EFFECTS_ALL_LAYERS)
+		layer |= scene->lay;
+
 	if(weights->group) {
 		GroupObject *go;
 		

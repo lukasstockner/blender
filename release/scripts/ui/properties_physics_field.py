@@ -62,6 +62,9 @@ class PHYSICS_PT_field(PhysicButtonsPanel):
                 split = layout.split()
             split.prop(field, "shape", text="")
 
+        split = split.row()
+        split.prop(context.active_object, "use_all_layers")
+
         split = layout.split()
 
         if field.type == 'NONE':

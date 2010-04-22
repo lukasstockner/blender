@@ -136,8 +136,13 @@ typedef struct EffectorWeights {
 #define BPHYS_DATA_SIZE			5
 #define BPHYS_DATA_TIMES		6
 #define BPHYS_DATA_BOIDS		7
+#define BPHYS_DATA_LOCATION_D	8
+#define BPHYS_DATA_VELOCITY_D	9
+#define BPHYS_DATA_ROTATION_D	10
+#define BPHYS_DATA_AVELOCITY_D	11	/* used for particles */
+#define BPHYS_DATA_XCONST_D		11	/* used for cloth */
 
-#define BPHYS_TOT_DATA			8
+#define BPHYS_TOT_DATA			12
 
 typedef struct PTCacheMem {
 	struct PTCacheMem *next, *prev;
@@ -145,8 +150,8 @@ typedef struct PTCacheMem {
 	unsigned int data_types, flag;
 	int *index_array; /* quick access to stored points with index */
 
-	void *data[8]; /* BPHYS_TOT_DATA */
-	void *cur[8]; /* BPHYS_TOT_DATA */
+	void *data[16]; /* BPHYS_TOT_DATA */
+	void *cur[16]; /* BPHYS_TOT_DATA */
 } PTCacheMem;
 
 typedef struct PointCache {

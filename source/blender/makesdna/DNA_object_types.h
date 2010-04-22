@@ -508,9 +508,10 @@ extern Object workob;
 #define OB_DEBUGSTATE	16384
 
 /* ob->restrictflag */
-#define OB_RESTRICT_VIEW	1
-#define OB_RESTRICT_SELECT	2
-#define OB_RESTRICT_RENDER	4
+#define OB_RESTRICT_VIEW		1
+#define OB_RESTRICT_SELECT		2
+#define OB_RESTRICT_RENDER		4
+#define OB_EFFECTS_ALL_LAYERS	8
 
 /* ob->shapeflag */
 #define OB_SHAPE_LOCK		1
