@@ -176,6 +176,11 @@ ModifierData *modifiers_findByType(Object *ob, ModifierType type)
 	return md;
 }
 
+ModifierData *modifiers_findByName(Object *ob, const char *name)
+{
+	return BLI_findstring(&(ob->modifiers), name, offsetof(ModifierData, name));
+}
+
 void modifiers_clearErrors(Object *ob)
 {
 	ModifierData *md = ob->modifiers.first;
