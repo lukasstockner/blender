@@ -30,12 +30,6 @@
 /* Possible Improvements:
    - add fresnel terms
    - adapt Rd table to scale, now with small scale there are a lot of misses?
-   - possible interesting method: perform sss on all samples in the tree,
-	 and then use those values interpolated somehow later. can also do this
-	 filtering on demand for speed. since we are doing things in screen
-	 space now there is an exact correspondence
-   - avoid duplicate shading (filtering points in advance, irradiance cache
-	 like lookup?)
    - lower resolution samples
 */
 
@@ -440,7 +434,7 @@ static void compute_radiance(ScatterTree *tree, float *co, float *rad, float sca
 	memset(&result, 0, sizeof(result));
 
 	/* this is used to multiply areas and squared distance */
-	result.scalefac= 1.0f/(scale*scale);
+	result.scalefac= 1.0f/maxf(scale*scale, 1e-20f);
 
 	traverse_octree(tree, tree->root, co, 1, &result);
 
