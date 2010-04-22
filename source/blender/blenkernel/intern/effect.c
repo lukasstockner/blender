@@ -305,7 +305,7 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 		GroupObject *go;
 		
 		for(go= weights->group->gobject.first; go; go= go->next) {
-			if( (go->ob->lay & layer) ) {
+			if( (go->ob->lay & layer) || (go->ob->restrictflag & OB_EFFECTS_ALL_LAYERS) ) {
 				if( go->ob->pd && go->ob->pd->forcefield )
 					add_object_to_effectors(&effectors, scene, weights, go->ob, ob_src);
 
@@ -320,7 +320,7 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 	}
 	else {
 		for(base = scene->base.first; base; base= base->next) {
-			if( (base->lay & layer) ) {
+			if( (base->lay & layer) || (base->object->restrictflag & OB_EFFECTS_ALL_LAYERS)) {
 				if( base->object->pd && base->object->pd->forcefield )
 				add_object_to_effectors(&effectors, scene, weights, base->object, ob_src);
 
