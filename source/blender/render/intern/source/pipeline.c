@@ -1306,15 +1306,18 @@ static void do_render_all_options(Render *re)
 static int is_rendering_allowed(Render *re)
 {
 	SceneRenderLayer *srl;
+    char error_str[512];
 	
 	/* forbidden combinations */
 	if(re->cam.type == CAM_PANORAMA) {
 		if(re->params.r.mode & R_BORDER) {
-			re->cb.error(re->cb.erh, "No border supported for Panorama");
+			snprintf(error_str, sizeof(error_str), "Border not supported for panorama, Scene:'%s'", re->db.scene->id.name+2);
+			re->cb.error(re->cb.erh, error_str);
 			return 0;
 		}
 		if(re->cam.type == CAM_ORTHO) {
-			re->cb.error(re->cb.erh, "No Ortho render possible for Panorama");
+			snprintf(error_str, sizeof(error_str), "Ortho not supported for panorama, Scene:'%s'", re->db.scene->id.name+2);
+			re->cb.error(re->cb.erh, error_str);
 			return 0;
 		}
 	}
@@ -1322,7 +1325,8 @@ static int is_rendering_allowed(Render *re)
 	if(re->params.r.mode & R_BORDER) {
 		if(re->params.r.border.xmax <= re->params.r.border.xmin || 
 		   re->params.r.border.ymax <= re->params.r.border.ymin) {
-			re->cb.error(re->cb.erh, "No border area selected.");
+            snprintf(error_str, sizeof(error_str), "Border defines zero area, Scene:'%s'", re->db.scene->id.name+2);
+			re->cb.error(re->cb.erh, error_str);
 			return 0;
 		}
 	}
@@ -1333,7 +1337,8 @@ static int is_rendering_allowed(Render *re)
 		render_unique_exr_name(re, str, 0);
 		
 		if (BLI_is_writable(str)==0) {
-			re->cb.error(re->cb.erh, "Can not save render buffers, check the temp default path");
+			snprintf(error_str, sizeof(error_str), "Can't save render Full-Sample buffers to '%s', check the temp default path, Scene:'%s'", str, re->db.scene->id.name+2);
+			re->cb.error(re->cb.erh, error_str);
 			return 0;
 		}
 		
@@ -1343,7 +1348,8 @@ static int is_rendering_allowed(Render *re)
 		
 		/* no fullsample and edge */
 		if((re->params.r.scemode & R_FULL_SAMPLE) && (re->params.r.mode & R_EDGE)) {
-			re->cb.error(re->cb.erh, "Full Sample doesn't support Edge Enhance");
+			snprintf(error_str, sizeof(error_str), "Full-Sample doesn't support Edge-Enhance, Scene:'%s'", re->db.scene->id.name+2);
+			re->cb.error(re->cb.erh, error_str);
 			return 0;
 		}
 		
@@ -1357,7 +1363,8 @@ static int is_rendering_allowed(Render *re)
 			bNode *node;
 		
 			if(ntree==NULL) {
-				re->cb.error(re->cb.erh, "No Nodetree in Scene");
+				snprintf(error_str, sizeof(error_str), "Nodetree missing from Scene:'%s'", re->db.scene->id.name+2);
+				re->cb.error(re->cb.erh, error_str);
 				return 0;
 			}
 			
@@ -1367,7 +1374,8 @@ static int is_rendering_allowed(Render *re)
 			
 			
 			if(node==NULL) {
-				re->cb.error(re->cb.erh, "No Render Output Node in Scene");
+				snprintf(error_str, sizeof(error_str), "No render output node in Scene:'%s'", re->db.scene->id.name+2);
+                re->cb.error(re->cb.erh, error_str);
 				return 0;
 			}
 		}
@@ -1379,7 +1387,8 @@ static int is_rendering_allowed(Render *re)
 	
 	if(!(re->params.r.scemode & (R_DOSEQ|R_DOCOMP))) {
 		if(re->db.scene->camera==NULL) {
-			re->cb.error(re->cb.erh, "No camera");
+			snprintf(error_str, sizeof(error_str), "No camera in Scene:'%s'", re->db.scene->id.name+2);
+			re->cb.error(re->cb.erh, error_str);
 			return 0;
 		}
 	}
@@ -1395,13 +1404,15 @@ static int is_rendering_allowed(Render *re)
 		if(!(srl->layflag & SCE_LAY_DISABLE))
 			break;
 	if(srl==NULL) {
-		re->cb.error(re->cb.erh, "All RenderLayers are disabled");
+        snprintf(error_str, sizeof(error_str), "All RenderLayers are disabled in Scene:'%s'", re->db.scene->id.name+2);
+		re->cb.error(re->cb.erh, error_str);
 		return 0;
 	}
 	
 	/* renderer */
 	if(!ELEM(re->params.r.renderer, R_INTERN, R_YAFRAY)) {
-		re->cb.error(re->cb.erh, "Unknown render engine set");
+		snprintf(error_str, sizeof(error_str), "Unknown render engine set in Scene:'%s'", re->db.scene->id.name+2);
+		re->cb.error(re->cb.erh, error_str);
 		return 0;
 	}
 	return 1;
