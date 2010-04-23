@@ -61,13 +61,36 @@
 
 /* *********** IMAGEWRAPPING ****************** */
 
+static void ibuf_get_color_tiled(float col[4], ImBuf *ibuf, int x, int y, int thread)
+{
+	int tx = x/ibuf->tilex;
+	int ty = y/ibuf->tiley;
+	unsigned int *rect = IMB_gettile(ibuf, tx, ty, thread);
+	int ofs;
+	char *cp;
+
+	if(rect) {
+		ofs = (x % ibuf->tilex) + ibuf->tilex*(y % ibuf->tiley);
+		cp = (char*)(rect + ofs);
+
+		col[0] = ((float)cp[0])*(1.0f/255.0f);
+		col[1] = ((float)cp[1])*(1.0f/255.0f);
+		col[2] = ((float)cp[2])*(1.0f/255.0f);
+		col[3] = ((float)cp[3])*(1.0f/255.0f);
+	}
+	else
+		zero_v4(col);
+}
 
 /* x and y have to be checked for image size */
-static void ibuf_get_color(float *col, struct ImBuf *ibuf, int x, int y)
+static void ibuf_get_color(float col[4], ImBuf *ibuf, int x, int y, int thread)
 {
 	int ofs = y * ibuf->x + x;
-	
-	if(ibuf->rect_float) {
+
+	if(ibuf->flags & IB_tilecache) {
+		ibuf_get_color_tiled(col, ibuf, x, y, thread);
+	}
+	else if(ibuf->rect_float) {
 		if(ibuf->channels==4) {
 			float *fp= ibuf->rect_float + 4*ofs;
 			copy_v4_v4(col, fp);
@@ -83,16 +106,16 @@ static void ibuf_get_color(float *col, struct ImBuf *ibuf, int x, int y)
 		}
 	}
 	else {
-		char *rect = (char *)( ibuf->rect+ ofs);
+		char *rect = (char*)(ibuf->rect + ofs);
 
 		col[0] = ((float)rect[0])*(1.0f/255.0f);
 		col[1] = ((float)rect[1])*(1.0f/255.0f);
 		col[2] = ((float)rect[2])*(1.0f/255.0f);
 		col[3] = ((float)rect[3])*(1.0f/255.0f);
-	}	
+	}
 }
 
-int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres)
+int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres, int thread)
 {
 	float fx, fy, val1, val2, val3;
 	int x, y, retval, mipoffset;
@@ -117,7 +140,7 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 
 	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
 
-	if((ibuf=IMB_getmipmaplevel(ibuf, 0 + mipoffset)) == NULL)
+	if((ibuf=IMB_getmipmap(ibuf, 0 + mipoffset)) == NULL)
 		return retval;
 	
 	/* setup mapping */
@@ -183,7 +206,7 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 		}
 	}
 	
-	ibuf_get_color(&texres->tr, ibuf, x, y);
+	ibuf_get_color(&texres->tr, ibuf, x, y, thread);
 	
 	if(tex->imaflag & TEX_USEALPHA) {
 		if(tex->imaflag & TEX_CALCALPHA);
@@ -203,14 +226,14 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 
 			if(x<ibuf->x-1) {
 				float col[4];
-				ibuf_get_color(col, ibuf, x+1, y);
+				ibuf_get_color(col, ibuf, x+1, y, thread);
 				val2= (col[0]+col[1]+col[2]);
 			}
 			else val2= val1;
 
 			if(y<ibuf->y-1) {
 				float col[4];
-				ibuf_get_color(col, ibuf, x, y+1);
+				ibuf_get_color(col, ibuf, x, y+1, thread);
 				val3= (col[0]+col[1]+col[2]);
 			}
 			else val3= val1;
@@ -402,7 +425,7 @@ static float clipy_rctf(rctf *rf, float y1, float y2)
 
 }
 
-static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
+static void boxsampleclip(ImBuf *ibuf, rctf *rf, TexResult *texres, int thread)
 {
 	/* sample box, is clipped already, and minx etc. have been set at ibuf size.
 	   enlarge with antialiased edges of the pixels */
@@ -421,7 +444,7 @@ static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
 	if(endy>=ibuf->y) endy= ibuf->y-1;
 
 	if(starty==endy && startx==endx) {
-		ibuf_get_color(&texres->tr, ibuf, startx, starty);
+		ibuf_get_color(&texres->tr, ibuf, startx, starty, thread);
 	}
 	else {
 		div= texres->tr= texres->tg= texres->tb= texres->ta= 0.0;
@@ -438,7 +461,7 @@ static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
 			if(startx==endx) {
 				mulx= muly;
 				
-				ibuf_get_color(col, ibuf, startx, y);
+				ibuf_get_color(col, ibuf, startx, y, thread);
 
 				texres->ta+= mulx*col[3];
 				texres->tr+= mulx*col[0];
@@ -452,7 +475,7 @@ static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
 					if(x==startx) mulx*= 1.0f-(rf->xmin - x);
 					if(x==endx) mulx*= (rf->xmax - x);
 
-					ibuf_get_color(col, ibuf, x, y);
+					ibuf_get_color(col, ibuf, x, y, thread);
 					
 					if(mulx==1.0) {
 						texres->ta+= col[3];
@@ -485,7 +508,7 @@ static void boxsampleclip(struct ImBuf *ibuf, rctf *rf, TexResult *texres)
 	}
 }
 
-static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float maxy, TexResult *texres, int imaprepeat, int imapextend, int intpol)
+static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float maxy, TexResult *texres, int imaprepeat, int imapextend, int intpol, int thread)
 {
 	/* Sample box, performs clip. minx etc are in range 0.0 - 1.0 .
    * Enlarge with antialiased edges of pixels.
@@ -539,7 +562,7 @@ static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float max
 	if(count>1) {
 		tot= texres->tr= texres->tb= texres->tg= texres->ta= 0.0;
 		while(count--) {
-			boxsampleclip(ibuf, rf, &texr);
+			boxsampleclip(ibuf, rf, &texr, thread);
 			
 			opp= square_rctf(rf);
 			tot+= opp;
@@ -558,7 +581,7 @@ static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float max
 		}
 	}
 	else
-		boxsampleclip(ibuf, rf, texres);
+		boxsampleclip(ibuf, rf, texres, thread);
 
 	if(texres->talpha==0) texres->ta= 1.0;
 	
@@ -571,23 +594,6 @@ static void boxsample(ImBuf *ibuf, float minx, float miny, float maxx, float max
 	}
 }	
 
-void image_sample(RenderParams *rpm, Image *ima, float fx, float fy, float dx, float dy, float *result)
-{
-	TexResult texres;
-	ImBuf *ibuf= BKE_image_get_ibuf(ima, NULL);
-	
-	if(ibuf==NULL) {
-		result[0]= result[1]= result[2]= result[3]= 0.0f;
-		return;
-	}
-	
-	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0);
-	result[0]= texres.tr;
-	result[1]= texres.tg;
-	result[2]= texres.tb;
-	result[3]= texres.ta;
-}
-
 void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float *result)
 {
 	TexResult texres;
@@ -597,7 +603,7 @@ void ibuf_sample(ImBuf *ibuf, float fx, float fy, float dx, float dy, float *res
 	}
 	
 	memset(&texres, 0, sizeof(texres));
-	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0);
+	boxsample(ibuf, fx, fy, fx+dx, fy+dy, &texres, 0, 1, 0, 0);
 	result[0]= texres.tr;
 	result[1]= texres.tg;
 	result[2]= texres.tb;
@@ -613,12 +619,9 @@ enum {TXC_XMIR=1, TXC_YMIR, TXC_REPT, TXC_EXTD};
 
 // similar to ibuf_get_color() but clips/wraps coords according to repeat/extend flags
 // returns true if out of range in clipmode
-static int ibuf_get_color_clip(float *col, ImBuf *ibuf, int x, int y, int extflag)
+static int ibuf_get_color_clip(float *col, ImBuf *ibuf, int x, int y, int extflag, int thread)
 {
 	int clip = 0;
-
-	if(ibuf == NULL || ibuf->rect == NULL)
-		abort();
 
 	switch (extflag) {
 		case TXC_XMIR:	// y rep
@@ -653,29 +656,13 @@ static int ibuf_get_color_clip(float *col, ImBuf *ibuf, int x, int y, int extfla
 		}
 	}
 
-	if (ibuf->rect_float) {
-		const float* fp = ibuf->rect_float + (x + y*ibuf->x)*ibuf->channels;
-		if (ibuf->channels == 1)
-			col[0] = col[1] = col[2] = col[3] = *fp;
-		else {
-			col[0] = fp[0];
-			col[1] = fp[1];
-			col[2] = fp[2];
-			col[3] = clip ? 0.f : (ibuf->channels == 4 ? fp[3] : 1.f);
-		}
-	}
-	else {
-		char* rect = (char*)(ibuf->rect + x + y*ibuf->x);
-		col[0] = rect[0]*(1.f/255.f);
-		col[1] = rect[1]*(1.f/255.f);
-		col[2] = rect[2]*(1.f/255.f);
-		col[3] = clip ? 0.f : rect[3]*(1.f/255.f);
-	}
+	ibuf_get_color(col, ibuf, x, y, thread);
+
 	return clip;
 }
 
 // as above + bilerp
-static int ibuf_get_color_clip_bilerp(float *col, ImBuf *ibuf, float u, float v, int intpol, int extflag)
+static int ibuf_get_color_clip_bilerp(float *col, ImBuf *ibuf, float u, float v, int intpol, int extflag, int thread)
 {
 	if (intpol) {
 		float c00[4], c01[4], c10[4], c11[4];
@@ -683,17 +670,17 @@ static int ibuf_get_color_clip_bilerp(float *col, ImBuf *ibuf, float u, float v,
 		const float uf = u - ufl, vf = v - vfl;
 		const float w00=(1.f-uf)*(1.f-vf), w10=uf*(1.f-vf), w01=(1.f-uf)*vf, w11=uf*vf;
 		const int x1 = (int)ufl, y1 = (int)vfl, x2 = x1 + 1, y2 = y1 + 1;
-		int clip = ibuf_get_color_clip(c00, ibuf, x1, y1, extflag);
-		clip |= ibuf_get_color_clip(c10, ibuf, x2, y1, extflag);
-		clip |= ibuf_get_color_clip(c01, ibuf, x1, y2, extflag);
-		clip |= ibuf_get_color_clip(c11, ibuf, x2, y2, extflag);
+		int clip = ibuf_get_color_clip(c00, ibuf, x1, y1, extflag, thread);
+		clip |= ibuf_get_color_clip(c10, ibuf, x2, y1, extflag, thread);
+		clip |= ibuf_get_color_clip(c01, ibuf, x1, y2, extflag, thread);
+		clip |= ibuf_get_color_clip(c11, ibuf, x2, y2, extflag, thread);
 		col[0] = w00*c00[0] + w10*c10[0] + w01*c01[0] + w11*c11[0];
 		col[1] = w00*c00[1] + w10*c10[1] + w01*c01[1] + w11*c11[1];
 		col[2] = w00*c00[2] + w10*c10[2] + w01*c01[2] + w11*c11[2];
 		col[3] = clip ? 0.f : w00*c00[3] + w10*c10[3] + w01*c01[3] + w11*c11[3];
 		return clip;
 	}
-	return ibuf_get_color_clip(col, ibuf, (int)u, (int)v, extflag);
+	return ibuf_get_color_clip(col, ibuf, (int)u, (int)v, extflag, thread);
 }
 
 // anisotropic filters, data struct used instead of long line of (possibly unused) func args
@@ -706,7 +693,7 @@ typedef struct afdata_t {
 	float dusc, dvsc;
 } afdata_t;
 
-static void area_sample(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
+static void area_sample(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD, int thread)
 {
 	int xs, ys, clip = 0;
 	float tc[4], xsd, ysd, cw = 0.f;
@@ -726,7 +713,7 @@ static void area_sample(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata
 			const float sv = (ys + ((xs & 1) + 0.5f)*0.5f)*ysd - 0.5f;
 			const float pu = fx + su*AFD->dxt[0] + sv*AFD->dyt[0];
 			const float pv = fy + su*AFD->dxt[1] + sv*AFD->dyt[1];
-			const int out = ibuf_get_color_clip_bilerp(tc, ibuf, pu*ibuf->x, pv*ibuf->y, AFD->intpol, AFD->extflag);
+			const int out = ibuf_get_color_clip_bilerp(tc, ibuf, pu*ibuf->x, pv*ibuf->y, AFD->intpol, AFD->extflag, thread);
 			clip |= out;
 			cw += out ? 0.f : 1.f;
 			texr->tr += tc[0];
@@ -828,7 +815,7 @@ static void imp2radangle(float A, float B, float C, float F, float* a, float* b,
 	}
 }
 
-static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
+static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD, int thread)
 {
 	// scaling dxt/dyt by full resolution can cause overflow because of huge A/B/C and esp. F values,
 	// scaling by aspect ratio alone does the opposite, so try something inbetween instead...
@@ -892,7 +879,7 @@ static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t*
 			if (Q < (float)(EWA_MAXIDX + 1)) {
 				float tc[4];
 				const float wt = EWA_WTS[(Q < 0.f) ? 0 : (unsigned int)Q];
-				/*const int out =*/ ibuf_get_color_clip(tc, ibuf, u, v, AFD->extflag);
+				/*const int out =*/ ibuf_get_color_clip(tc, ibuf, u, v, AFD->extflag, thread);
 				// TXF alpha: clip |= out;
 				// TXF alpha: cw += out ? 0.f : wt;
 				texr->tr += tc[0]*wt;
@@ -915,7 +902,7 @@ static void ewa_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t*
 	texr->ta = texr->talpha ? texr->ta*d : 1.f; // TXF alpha (clip ? cw*d : 1.f);
 }
 
-static void feline_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD)
+static void feline_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata_t* AFD, int thread)
 {
 	const int maxn = AFD->iProbes - 1;
 	const float ll = ((AFD->majrad == AFD->minrad) ? 2.f*AFD->majrad : 2.f*(AFD->majrad - AFD->minrad)) / (maxn ? (float)maxn : 1.f);
@@ -936,7 +923,7 @@ static void feline_eval(TexResult* texr, ImBuf* ibuf, float fx, float fy, afdata
 		//const float wt = expf(n*n*D);
 		// can use ewa table here too
 		const float wt = EWA_WTS[(int)(n*n*D)];
-		/*const int out =*/ ibuf_get_color_clip_bilerp(tc, ibuf, ibuf->x*u, ibuf->y*v, AFD->intpol, AFD->extflag);
+		/*const int out =*/ ibuf_get_color_clip_bilerp(tc, ibuf, ibuf->x*u, ibuf->y*v, AFD->intpol, AFD->extflag, thread);
 		// TXF alpha: clip |= out;
 		// TXF alpha: cw += out ? 0.f : wt;
 		texr->tr += tc[0]*wt;
@@ -983,7 +970,7 @@ static void alpha_clip_aniso(ImBuf *ibuf, float minx, float miny, float maxx, fl
 	}
 }
 
-static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *dxt, float *dyt, TexResult *texres)
+static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *dxt, float *dyt, TexResult *texres, int thread)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy;
@@ -991,7 +978,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 	int curmap, retval, intpol, extflag = 0, mipoffset;
 	afdata_t AFD;
 
-	void (*filterfunc)(TexResult*, ImBuf*, float, float, afdata_t*);
+	void (*filterfunc)(TexResult*, ImBuf*, float, float, afdata_t*, int thread);
 	switch (tex->texfilter) {
 		case TXF_EWA:
 			filterfunc = ewa_eval;
@@ -1210,22 +1197,22 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		levf = ((float)M_LOG2E)*logf(maxd);
 
 		curmap = 0;
-		maxlev = ibuf->miplevels;
+		maxlev = ibuf->miptot;
  
 		// mipmap level
 		if (levf < 0.f) {	// original image only
-			previbuf = curibuf = IMB_getmipmaplevel(ibuf, 0 + mipoffset);
+			previbuf = curibuf = IMB_getmipmap(ibuf, 0 + mipoffset);
 			levf = 0.f;
 		}
 		else if (levf >= maxlev - 1) {
-			previbuf = curibuf = IMB_getmipmaplevel(ibuf, maxlev - 1 + mipoffset);
+			previbuf = curibuf = IMB_getmipmap(ibuf, maxlev - 1 + mipoffset);
 			levf = 0.f;
 			if (tex->texfilter == TXF_FELINE) AFD.iProbes = 1;
 		}
 		else {
 			const int lev = ISNAN(levf) ? 0 : (int)levf;
-			curibuf = IMB_getmipmaplevel(ibuf, lev + mipoffset);
-			previbuf = IMB_getmipmaplevel(ibuf, lev + 1 + mipoffset);
+			curibuf = IMB_getmipmap(ibuf, lev + mipoffset);
+			previbuf = IMB_getmipmap(ibuf, lev + 1 + mipoffset);
 			levf -= floorf(levf);
 		}
 
@@ -1236,17 +1223,17 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 
 		if (texres->nor && ((tex->imaflag & TEX_NORMALMAP) == 0)) {
 			// color & normal
-			filterfunc(texres, curibuf, fx, fy, &AFD);
+			filterfunc(texres, curibuf, fx, fy, &AFD, thread);
 			val1 = texres->tr + texres->tg + texres->tb;
-			filterfunc(&texr, curibuf, fx + dxt[0], fy + dxt[1], &AFD);
+			filterfunc(&texr, curibuf, fx + dxt[0], fy + dxt[1], &AFD, thread);
 			val2 = texr.tr + texr.tg + texr.tb;
-			filterfunc(&texr, curibuf, fx + dyt[0], fy + dyt[1], &AFD);
+			filterfunc(&texr, curibuf, fx + dyt[0], fy + dyt[1], &AFD, thread);
 			val3 = texr.tr + texr.tg + texr.tb;
 			// don't switch x or y!
 			texres->nor[0] = val1 - val2;
 			texres->nor[1] = val1 - val3;
 			if (previbuf != curibuf) {  // interpolate
-				filterfunc(&texr, previbuf, fx, fy, &AFD);
+				filterfunc(&texr, previbuf, fx, fy, &AFD, thread);
 				// rgb
 				texres->tr += levf*(texr.tr - texres->tr);
 				texres->tg += levf*(texr.tg - texres->tg);
@@ -1254,18 +1241,18 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 				texres->ta += levf*(texr.ta - texres->ta);
 				// normal
 				val1 += levf*((texr.tr + texr.tg + texr.tb) - val1);
-				filterfunc(&texr, previbuf, fx + dxt[0], fy + dxt[1], &AFD);
+				filterfunc(&texr, previbuf, fx + dxt[0], fy + dxt[1], &AFD, thread);
 				val2 += levf*((texr.tr + texr.tg + texr.tb) - val2);
-				filterfunc(&texr, previbuf, fx + dyt[0], fy + dyt[1], &AFD);
+				filterfunc(&texr, previbuf, fx + dyt[0], fy + dyt[1], &AFD, thread);
 				val3 += levf*((texr.tr + texr.tg + texr.tb) - val3);
 				texres->nor[0] = val1 - val2;	// vals have been interpolated above!
 				texres->nor[1] = val1 - val3;
 			}
 		}
 		else {	// color
-			filterfunc(texres, curibuf, fx, fy, &AFD);
+			filterfunc(texres, curibuf, fx, fy, &AFD, thread);
 			if (previbuf != curibuf) {  // interpolate
-				filterfunc(&texr, previbuf, fx, fy, &AFD);
+				filterfunc(&texr, previbuf, fx, fy, &AFD, thread);
 				texres->tr += levf*(texr.tr - texres->tr);
 				texres->tg += levf*(texr.tg - texres->tg);
 				texres->tb += levf*(texr.tb - texres->tb);
@@ -1276,7 +1263,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		}
 	}
 	else {	// no mipmap
-		if((ibuf=IMB_getmipmaplevel(ibuf, 0 + mipoffset)) == NULL)
+		if((ibuf=IMB_getmipmap(ibuf, 0 + mipoffset)) == NULL)
 			return retval;
 
 		// filter functions take care of interpolation themselves, no need to modify dxt/dyt here
@@ -1305,18 +1292,18 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		}
 		if (texres->nor && ((tex->imaflag & TEX_NORMALMAP) == 0)) {
 			// color & normal
-			filterfunc(texres, ibuf, fx, fy, &AFD);
+			filterfunc(texres, ibuf, fx, fy, &AFD, thread);
 			val1 = texres->tr + texres->tg + texres->tb;
-			filterfunc(&texr, ibuf, fx + dxt[0], fy + dxt[1], &AFD);
+			filterfunc(&texr, ibuf, fx + dxt[0], fy + dxt[1], &AFD, thread);
 			val2 = texr.tr + texr.tg + texr.tb;
-			filterfunc(&texr, ibuf, fx + dyt[0], fy + dyt[1], &AFD);
+			filterfunc(&texr, ibuf, fx + dyt[0], fy + dyt[1], &AFD, thread);
 			val3 = texr.tr + texr.tg + texr.tb;
 			// don't switch x or y!
 			texres->nor[0] = val1 - val2;
 			texres->nor[1] = val1 - val3;
 		}
 		else {
-			filterfunc(texres, ibuf, fx, fy, &AFD);
+			filterfunc(texres, ibuf, fx, fy, &AFD, thread);
 			alpha_clip_aniso(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, extflag, texres);
 		}
 	}
@@ -1352,7 +1339,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 }
 
 
-int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, float *DYT, TexResult *texres)
+int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, float *DYT, TexResult *texres, int thread)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[3], dyt[3];
@@ -1366,7 +1353,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 
 	// anisotropic filtering
 	if (tex->texfilter != TXF_BOX)
-		return imagewraposa_aniso(rpm, tex, ima, ibuf, texvec, dxt, dyt, texres);
+		return imagewraposa_aniso(rpm, tex, ima, ibuf, texvec, dxt, dyt, texres, thread);
 
 	texres->tin= texres->ta= texres->tr= texres->tg= texres->tb= 0.0f;
 	
@@ -1561,7 +1548,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 		curmap= 0;
 		prevmap= 0;
 
-		while(curmap < ibuf->miplevels) {
+		while(curmap < ibuf->miptot) {
 			if(maxd < pixsize) break;
 
 			mindim= MAX2(mindim/2, 1);
@@ -1570,8 +1557,8 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
  			curmap++;
  		}
  
-		previbuf= IMB_getmipmaplevel(ibuf, prevmap + mipoffset);
-		curibuf= IMB_getmipmaplevel(ibuf, curmap + mipoffset);
+		previbuf= IMB_getmipmap(ibuf, prevmap + mipoffset);
+		curibuf= IMB_getmipmap(ibuf, curmap + mipoffset);
 
 		if(previbuf == NULL || curibuf == NULL)
 			return retval;
@@ -1587,11 +1574,11 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 			//minx*= 1.35f;
 			//miny*= 1.35f;
 			
-			boxsample(curibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0);
+			boxsample(curibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0, thread);
 			val1= texres->tr+texres->tg+texres->tb;
-			boxsample(curibuf, fx-minx+dxt[0], fy-miny+dxt[1], fx+minx+dxt[0], fy+miny+dxt[1], &texr, imaprepeat, imapextend, 0);
+			boxsample(curibuf, fx-minx+dxt[0], fy-miny+dxt[1], fx+minx+dxt[0], fy+miny+dxt[1], &texr, imaprepeat, imapextend, 0, thread);
 			val2= texr.tr + texr.tg + texr.tb;
-			boxsample(curibuf, fx-minx+dyt[0], fy-miny+dyt[1], fx+minx+dyt[0], fy+miny+dyt[1], &texr, imaprepeat, imapextend, 0);
+			boxsample(curibuf, fx-minx+dyt[0], fy-miny+dyt[1], fx+minx+dyt[0], fy+miny+dyt[1], &texr, imaprepeat, imapextend, 0, thread);
 			val3= texr.tr + texr.tg + texr.tb;
 
 			/* don't switch x or y! */
@@ -1600,7 +1587,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 			
 			if(previbuf!=curibuf) {  /* interpolate */
 				
-				boxsample(previbuf, fx-minx, fy-miny, fx+minx, fy+miny, &texr, imaprepeat, imapextend, 0);
+				boxsample(previbuf, fx-minx, fy-miny, fx+minx, fy+miny, &texr, imaprepeat, imapextend, 0, thread);
 				
 				/* calc rgb */
 				dx= 2.0f*(pixsize-maxd)/pixsize;
@@ -1617,9 +1604,9 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 				}
 				
 				val1= dy*val1+ dx*(texr.tr + texr.tg + texr.tb);
-				boxsample(previbuf, fx-minx+dxt[0], fy-miny+dxt[1], fx+minx+dxt[0], fy+miny+dxt[1], &texr, imaprepeat, imapextend, 0);
+				boxsample(previbuf, fx-minx+dxt[0], fy-miny+dxt[1], fx+minx+dxt[0], fy+miny+dxt[1], &texr, imaprepeat, imapextend, 0, thread);
 				val2= dy*val2+ dx*(texr.tr + texr.tg + texr.tb);
-				boxsample(previbuf, fx-minx+dyt[0], fy-miny+dyt[1], fx+minx+dyt[0], fy+miny+dyt[1], &texr, imaprepeat, imapextend, 0);
+				boxsample(previbuf, fx-minx+dyt[0], fy-miny+dyt[1], fx+minx+dyt[0], fy+miny+dyt[1], &texr, imaprepeat, imapextend, 0, thread);
 				val3= dy*val3+ dx*(texr.tr + texr.tg + texr.tb);
 				
 				texres->nor[0]= (val1-val2);	/* vals have been interpolated above! */
@@ -1642,10 +1629,10 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 			maxy= fy+miny;
 			miny= fy-miny;
 
-			boxsample(curibuf, minx, miny, maxx, maxy, texres, imaprepeat, imapextend, 0);
+			boxsample(curibuf, minx, miny, maxx, maxy, texres, imaprepeat, imapextend, 0, thread);
 
 			if(previbuf!=curibuf) {  /* interpolate */
-				boxsample(previbuf, minx, miny, maxx, maxy, &texr, imaprepeat, imapextend, 0);
+				boxsample(previbuf, minx, miny, maxx, maxy, &texr, imaprepeat, imapextend, 0, thread);
 				
 				fx= 2.0f*(pixsize-maxd)/pixsize;
 				
@@ -1665,7 +1652,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 	else {
 		const int intpol = tex->imaflag & TEX_INTERPOL;
 
-		if((ibuf=IMB_getmipmaplevel(ibuf, 0 + mipoffset)) == NULL)
+		if((ibuf=IMB_getmipmap(ibuf, 0 + mipoffset)) == NULL)
 			return retval;
 
 		if (intpol) {
@@ -1675,11 +1662,11 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 		}
 
 		if(texres->nor && (tex->imaflag & TEX_NORMALMAP)==0) {
-			boxsample(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0);
+			boxsample(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0, thread);
 			val1= texres->tr+texres->tg+texres->tb;
-			boxsample(ibuf, fx-minx+dxt[0], fy-miny+dxt[1], fx+minx+dxt[0], fy+miny+dxt[1], &texr, imaprepeat, imapextend, 0);
+			boxsample(ibuf, fx-minx+dxt[0], fy-miny+dxt[1], fx+minx+dxt[0], fy+miny+dxt[1], &texr, imaprepeat, imapextend, 0, thread);
 			val2= texr.tr + texr.tg + texr.tb;
-			boxsample(ibuf, fx-minx+dyt[0], fy-miny+dyt[1], fx+minx+dyt[0], fy+miny+dyt[1], &texr, imaprepeat, imapextend, 0);
+			boxsample(ibuf, fx-minx+dyt[0], fy-miny+dyt[1], fx+minx+dyt[0], fy+miny+dyt[1], &texr, imaprepeat, imapextend, 0, thread);
 			val3= texr.tr + texr.tg + texr.tb;
 
 			/* don't switch x or y! */
@@ -1687,7 +1674,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 			texres->nor[1]= (val1-val3);
 		}
 		else
-			boxsample(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0);
+			boxsample(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0, thread);
 	}
 	
 	tex_brightness_contrast_rgb(tex, texres);

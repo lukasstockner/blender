@@ -114,7 +114,9 @@ typedef struct Image {
 #define IMA_NOCOLLECT   32
 #define IMA_DEPRECATED	64
 #define IMA_OLD_PREMUL	128
-#define IMA_USECACHE	256
+#define IMA_TILECACHE	256
+#define IMA_MIPMAP		512
+#define IMA_GAUSS_MIP	1024
 
 /* tpageflag */
 #define IMA_TILES			1

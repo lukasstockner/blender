@@ -47,7 +47,7 @@ void envmap_map(struct Render *re, struct Tex *tex, float *texvec,
 
 void tex_envmap_init(struct Render *re, struct Tex *tex);
 int tex_envmap_sample(struct RenderParams *rpm, struct Tex *tex, float *texvec,
-	float *dxt, float *dyt, int osatex, struct TexResult *texres);
+	float *dxt, float *dyt, int osatex, struct TexResult *texres, int thread);
 
 #endif /* __RENDER_ENVMAP_H__ */
 

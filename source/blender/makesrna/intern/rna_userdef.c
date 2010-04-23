@@ -2537,15 +2537,10 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_range(prop, 50, 1000);
 	RNA_def_property_ui_text(prop, "Wait Timer (ms)", "Time in milliseconds between each frame recorded for screencast");
 
-#if 0
-	prop= RNA_def_property(srna, "verse_master", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "versemaster");
-	RNA_def_property_ui_text(prop, "Verse Master", "The Verse Master-server IP");
-
-	prop= RNA_def_property(srna, "verse_username", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "verseuser");
-	RNA_def_property_ui_text(prop, "Verse Username", "The Verse user name");
-#endif
+	prop= RNA_def_property(srna, "image_tile_memory_limit", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "imagetilememory");
+	RNA_def_property_range(prop, 0, 32767);
+	RNA_def_property_ui_text(prop, "Image Tile Memory Limit", "Maximum memory usage in megabytes (0 means unlimited) for image tiles during render");
 }
 
 static void rna_def_userdef_input(BlenderRNA *brna)

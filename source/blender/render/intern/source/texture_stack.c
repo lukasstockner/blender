@@ -2165,8 +2165,8 @@ void do_realtime_texture(RenderParams *rpm, ShadeInput *shi, Image *ima)
 	
 	texr.nor= NULL;
 	
-	if(shi->geometry.osatex) imagewraposa(rpm, tex, ima, NULL, texvec, dx, dy, &texr);
-	else imagewrap(rpm, tex, ima, NULL, texvec, &texr); 
+	if(shi->geometry.osatex) imagewraposa(rpm, tex, ima, NULL, texvec, dx, dy, &texr, shi->shading.thread);
+	else imagewrap(rpm, tex, ima, NULL, texvec, &texr, shi->shading.thread); 
 
 	shi->material.vcol[0]*= texr.tr;
 	shi->material.vcol[1]*= texr.tg;

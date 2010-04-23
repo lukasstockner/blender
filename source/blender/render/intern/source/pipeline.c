@@ -360,6 +360,7 @@ void RE_InitState(Render *re, Render *source, RenderData *rd, SceneRenderLayer *
 	re->cam.clipcrop= 1.0f + 2.0f/(float)(re->cam.winx>re->cam.winy?re->cam.winy:re->cam.winx);
 	
 	RE_init_threadcount(re);
+	IMB_tile_cache_params(re->params.r.threads, U.imagetilememory);
 }
 
 /* part of external api, not called for regular render pipeline */
@@ -454,6 +455,8 @@ static void *do_part_thread(void *pa_v)
 	
 	/* need to return nicely all parts on esc */
 	if(re->cb.test_break(re->cb.tbh)==0) {
+		pa->pixelrow= MEM_callocN(sizeof(PixelRow)*MAX_PIXEL_ROW, "PixelRow");
+
 		if(re->db.sss_points) {
 			pa->result= render_result_create(re, &pa->disprect, pa->crop, RR_USEMEM);
 
@@ -475,6 +478,9 @@ static void *do_part_thread(void *pa_v)
 
 			render_result_merge_part(re, pa->result);
 		}
+
+		MEM_freeN(pa->pixelrow);
+		pa->pixelrow= NULL;
 	}
 	
 	pa->ready= 1;

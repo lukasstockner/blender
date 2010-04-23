@@ -29,14 +29,13 @@
  * $Id$
  */
 
-#include "BLI_blenlib.h"
-#include "BLI_threads.h"
+#include "BKE_utildefines.h"
 
-#include "imbuf.h"
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
-#include "IMB_filetype.h"
 #include "IMB_filter.h"
+
+#include "imbuf.h"
 
 /************************************************************************/
 /*				FILTERS					*/
@@ -376,134 +375,96 @@ void IMB_makemipmap(ImBuf *ibuf, int use_filter)
 	ImBuf *hbuf = ibuf;
 	int curmap = 0;
 
-	ibuf->miplevels= 1;
+	ibuf->miptot= 1;
 
-	while (curmap < IB_MIPMAP_LEVELS) {
-		if (use_filter) {
+	while(curmap < IB_MIPMAP_LEVELS) {
+		if(use_filter) {
 			ImBuf *nbuf= IMB_allocImBuf(hbuf->x, hbuf->y, 32, IB_rect, 0);
 			IMB_filterN(nbuf, hbuf);
 			ibuf->mipmap[curmap] = IMB_onehalf(nbuf);
 			IMB_freeImBuf(nbuf);
 		}
-		else ibuf->mipmap[curmap] = IMB_onehalf(hbuf);
-		ibuf->miplevels= curmap+2;
-		hbuf = ibuf->mipmap[curmap];
-		if (!hbuf || (hbuf->x == 1 && hbuf->y == 1)) break;
+		else
+			ibuf->mipmap[curmap] = IMB_onehalf(hbuf);
+
+		ibuf->miptot= curmap+2;
+		hbuf= ibuf->mipmap[curmap];
+		hbuf->miplevel= curmap+1;
+
+		if(!hbuf || (hbuf->x == 1 && hbuf->y == 1))
+			break;
+
 		curmap++;
 	}
 }
 
-ImBuf *IMB_getmipmaplevel(ImBuf *ibuf, int level)
+ImBuf *IMB_getmipmap(ImBuf *ibuf, int level)
 {
-	if(level >= ibuf->miplevels)
-		level= (ibuf->miplevels)? ibuf->miplevels-1: 0;
-	else if(level < 0)
-		level= 0;
-
-	if(level == 0) {
-		if(!ibuf->rect && (ibuf->flags & IB_usecache)) {
-			BLI_lock_thread(LOCK_IMAGE);
-			if(!ibuf->rect && (ibuf->flags & IB_usecache))
-				IMB_loadmip(ibuf, level);
-			BLI_unlock_thread(LOCK_IMAGE);
-		}
-
-		return (ibuf->rect || ibuf->rect_float)? ibuf: NULL;
-	}
-
-	if(!ibuf->mipmap[level-1]) {
-		BLI_lock_thread(LOCK_IMAGE);
-
-		if(!ibuf->mipmap[level-1]) {
-			if(ibuf->flags & IB_usecache)
-				IMB_loadmip(ibuf, level);
-			else
-				IMB_makemipmap(ibuf, 0); /* TODO use_filter */
-		}
-
-		BLI_unlock_thread(LOCK_IMAGE);
-	}
-	
-	ibuf= ibuf->mipmap[level-1];
-	return (ibuf && (ibuf->rect || ibuf->rect_float))? ibuf: NULL;
+	CLAMP(level, 0, ibuf->miptot-1);
+	return (level == 0)? ibuf: ibuf->mipmap[level-1];
 }
 
-void IMB_getmipmaplevel_size(ImBuf *ibuf, int level, int *x, int *y)
+void IMB_premultiply_rect(unsigned int *rect, int depth, int w, int h)
 {
-	*x= ibuf->x;
-	*y= ibuf->y;
+	char *cp;
+	int x, y, val;
 
-	for(; level>0; level--) {
-		*x= (*x == 1)? 1: *x/2;
-		*y= (*y == 1)? 1: *y/2;
+	if(depth == 24) {	/* put alpha at 255 */
+		cp= (char *)(rect);
+
+		for(y=0; y<h; y++)
+			for(x=0; x<w; x++, cp+=4)
+				cp[3]= 255;
+	}
+	else {
+		cp= (char *)(rect);
+
+		for(y=0; y<h; y++) {
+			for(x=0; x<w; x++, cp+=4) {
+				val= cp[3];
+				cp[0]= (cp[0]*val)>>8;
+				cp[1]= (cp[1]*val)>>8;
+				cp[2]= (cp[2]*val)>>8;
+			}
+		}
 	}
 }
 
-int IMB_getmipmaplevel_num(ImBuf *ibuf)
+void IMB_premultiply_rect_float(float *rect_float, int depth, int w, int h)
 {
-	int levels= 0, x = (ibuf->x > ibuf->y)? ibuf->x: ibuf->y;
+	float val, *cp;
+	int x, y;
 
-	while(x > 0) {
-		levels++;
-		x /= 2;
+	if(depth==24) {	/* put alpha at 1.0 */
+		cp= rect_float;
+
+		for(y=0; y<h; y++)
+			for(x=0; x<w; x++, cp+=4)
+				cp[3]= 1.0;
+	}
+	else {
+		cp= rect_float;
+		for(y=0; y<h; y++) {
+			for(x=0; x<w; x++, cp+=4) {
+				val= cp[3];
+				cp[0]= cp[0]*val;
+				cp[1]= cp[1]*val;
+				cp[2]= cp[2]*val;
+			}
+		}
 	}
 
-	return levels;
 }
 
 void IMB_premultiply_alpha(ImBuf *ibuf)
 {
-	int x, y;
-	
 	if(ibuf==NULL)
 		return;
 
-	if(ibuf->rect) {
-		int val;
-		char *cp;
+	if(ibuf->rect)
+		IMB_premultiply_rect(ibuf->rect, ibuf->depth, ibuf->x, ibuf->y);
 
-		if(ibuf->depth==24) {	/* put alpha at 255 */
-			cp= (char *)(ibuf->rect);
-
-			for(y=0; y<ibuf->y; y++)
-				for(x=0; x<ibuf->x; x++, cp+=4)
-					cp[3]= 255;
-		}
-		else {
-			cp= (char *)(ibuf->rect);
-			for(y=0; y<ibuf->y; y++) {
-				for(x=0; x<ibuf->x; x++, cp+=4) {
-					val= cp[3];
-					cp[0]= (cp[0]*val)>>8;
-					cp[1]= (cp[1]*val)>>8;
-					cp[2]= (cp[2]*val)>>8;
-				}
-			}
-		}
-	}
-
-	if(ibuf->rect_float) {
-		float val;
-		float *cp;
-
-		if(ibuf->depth==24) {	/* put alpha at 1.0 */
-			cp= ibuf->rect_float;
-
-			for(y=0; y<ibuf->y; y++)
-				for(x=0; x<ibuf->x; x++, cp+=4)
-					cp[3]= 1.0;
-		}
-		else {
-			cp= ibuf->rect_float;
-			for(y=0; y<ibuf->y; y++) {
-				for(x=0; x<ibuf->x; x++, cp+=4) {
-					val= cp[3];
-					cp[0]= cp[0]*val;
-					cp[1]= cp[1]*val;
-					cp[2]= cp[2]*val;
-				}
-			}
-		}
-	}
+	if(ibuf->rect_float)
+		IMB_premultiply_rect_float(ibuf->rect_float, ibuf->depth, ibuf->x, ibuf->y);
 }
 

@@ -432,6 +432,8 @@ class USERPREF_PT_system(bpy.types.Panel):
         col.prop(system, "prefetch_frames")
         col.prop(system, "memory_cache_limit")
 
+        col.label(text="Image Tiles:")
+        col.prop(system, "image_tile_memory_limit", text="Memory Limit")
 
         # 3. Column
         column = split.column()

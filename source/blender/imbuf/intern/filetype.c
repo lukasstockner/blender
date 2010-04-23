@@ -68,7 +68,7 @@ ImFileType IMB_FILE_TYPES[]= {
 #if defined(__APPLE__) && defined(IMBUF_COCOA)
 	{NULL, NULL, imb_is_a_cocoa, imb_ftype_cocoa, imb_imb_cocoaLoadImage, imb_savecocoa, NULL, 0, TIF},
 #else
-	{libtiff_init, libtiff_exit, imb_is_a_tiff, imb_ftype_default, imb_loadtiff, imb_savetiff, imb_loadmiptiff, 0, TIF},
+	{libtiff_init, libtiff_exit, imb_is_a_tiff, imb_ftype_default, imb_loadtiff, imb_savetiff, imb_loadtiletiff, 0, TIF},
 #endif
 	{NULL, NULL, imb_is_a_hdr, imb_ftype_default, imb_loadhdr, imb_savehdr, NULL, IM_FTYPE_FLOAT, RADHDR},
 #ifdef WITH_OPENEXR
@@ -85,7 +85,7 @@ ImFileType IMB_FILE_TYPES[]= {
 #endif	
 	{NULL, NULL, NULL, NULL, NULL, NULL, 0}};
 	
-void IMB_filetypes_init(void)
+void imb_filetypes_init(void)
 {
 	ImFileType *type;
 
@@ -94,7 +94,7 @@ void IMB_filetypes_init(void)
 			type->init();
 }
 
-void IMB_filetypes_exit(void)
+void imb_filetypes_exit(void)
 {
 	ImFileType *type;
 

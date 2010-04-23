@@ -245,6 +245,16 @@ int libtiff_load_symbols(void)
 	if (libtiff_TIFFNumberOfDirectories == NULL) {
 		return (0);
 	}
+	/* Attempt to load TIFFIsTiled */
+	libtiff_TIFFIsTiled = libtiff_findsymbol("TIFFIsTiled");
+	if (libtiff_TIFFIsTiled == NULL) {
+		return (0);
+	}
+	/* Attempt to load TIFFReadRGBATile */
+	libtiff_TIFFReadRGBATile = libtiff_findsymbol("TIFFReadRGBATile");
+	if (libtiff_TIFFReadRGBATile == NULL) {
+		return (0);
+	}
 	return (1);
 }
 
@@ -264,4 +274,7 @@ void (*libtiff__TIFFfree)(tdata_t) = NULL;
 tdata_t (*libtiff__TIFFmalloc)(tsize_t) = NULL;
 int (*libtiff_TIFFSetDirectory)(TIFF*, tdir_t) = NULL;
 tdir_t (*libtiff_TIFFNumberOfDirectories)(TIFF*) = NULL;
+int (*libtiff_TIFFIsTiled)(TIFF*) = NULL;
+int (*libtiff_TIFFReadRGBATile)(TIFF*, uint32, uint32, uint32 * ) = NULL;
+
 

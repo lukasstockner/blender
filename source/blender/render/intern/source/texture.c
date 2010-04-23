@@ -789,14 +789,14 @@ static int tex_plugin_sample(Tex *tex, float *texvec, float *dxt, float *dyt, in
 
 /*************************** Image ***************************/
 
-static int tex_image_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres)
+static int tex_image_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, int thread)
 {
 	int retval;
 
 	if(osatex)
-		retval= imagewraposa(rpm, tex, tex->ima, NULL, texvec, dxt, dyt, texres);
+		retval= imagewraposa(rpm, tex, tex->ima, NULL, texvec, dxt, dyt, texres, thread);
 	else
-		retval= imagewrap(rpm, tex, tex->ima, NULL, texvec, texres); 
+		retval= imagewrap(rpm, tex, tex->ima, NULL, texvec, texres, thread);
 
 	tag_image_time(tex->ima); /* tag image as having being used */
 
@@ -887,13 +887,13 @@ int tex_sample(RenderParams *rpm, Tex *tex, TexCoord *texco, TexResult *texres, 
 			retval= tex_noise_sample(tex, texres); 
 			break;
 		case TEX_IMAGE:
-			retval= tex_image_sample(rpm, tex, texvec, dxt, dyt, osatex, texres); 
+			retval= tex_image_sample(rpm, tex, texvec, dxt, dyt, osatex, texres, thread); 
 			break;
 		case TEX_PLUGIN:
 			retval= tex_plugin_sample(tex, texvec, dxt, dyt, osatex, texres);
 			break;
 		case TEX_ENVMAP:
-			retval= tex_envmap_sample(rpm, tex, texvec, dxt, dyt, osatex, texres);
+			retval= tex_envmap_sample(rpm, tex, texvec, dxt, dyt, osatex, texres, thread);
 			break;
 		case TEX_MUSGRAVE:
 			retval= tex_musgrave_sample(tex, texvec, texres);
@@ -963,6 +963,15 @@ void tex_init(Render *re, Tex *tex)
 	/* imap test */
 	if(tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
 		BKE_image_user_calc_frame(&tex->iuser, cfra, (re)? re->params.flag & R_SEC_FIELD: 0);
+
+	/* sync image user flag with imaflag */
+	if(tex->ima) {
+		if(tex->imaflag & TEX_MIPMAP) tex->iuser.flag |= IMA_MIPMAP;
+		else tex->iuser.flag &= ~IMA_MIPMAP;
+
+		if(tex->imaflag & TEX_GAUSS_MIP) tex->iuser.flag |= IMA_GAUSS_MIP;
+		else tex->iuser.flag &= ~IMA_GAUSS_MIP;
+	}
 }
 
 void tex_free(Render *re, Tex *tex)

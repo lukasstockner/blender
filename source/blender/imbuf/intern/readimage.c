@@ -46,7 +46,7 @@
 #include "IMB_imbuf.h"
 #include "IMB_filetype.h"
 
-ImBuf *IMB_ibImageFromMemory(int *mem, int size, int flags)
+ImBuf *IMB_ibImageFromMemory(unsigned char *mem, int size, int flags)
 {
 	ImBuf *ibuf;
 	ImFileType *type;
@@ -58,11 +58,8 @@ ImBuf *IMB_ibImageFromMemory(int *mem, int size, int flags)
 
 	for(type=IMB_FILE_TYPES; type->is_a; type++) {
 		if(type->load) {
-			ibuf= type->load((uchar*)mem, size, flags);
+			ibuf= type->load(mem, size, flags);
 			if(ibuf) {
-				if(!(ibuf->flags & IB_usecache))
-					ibuf->miplevels= IMB_getmipmaplevel_num(ibuf);
-
 				if(flags & IB_premul) {
 					IMB_premultiply_alpha(ibuf);
 					ibuf->flags |= IB_premul;
@@ -81,21 +78,22 @@ ImBuf *IMB_ibImageFromMemory(int *mem, int size, int flags)
 ImBuf *IMB_loadifffile(int file, int flags)
 {
 	ImBuf *ibuf;
-	int size, *mem;
+	unsigned char *mem;
+	int size;
 
 	if(file == -1) return 0;
 
 	size= BLI_filesize(file);
 
-	mem= (int*)mmap(0, size, PROT_READ, MAP_SHARED, file, 0);
-	if(mem==(int*)-1) {
+	mem= mmap(0, size, PROT_READ, MAP_SHARED, file, 0);
+	if(mem==(unsigned char*)-1) {
 		fprintf(stderr, "Couldn't get mapping\n");
 		return 0;
 	}
 
 	ibuf= IMB_ibImageFromMemory(mem, size, flags);
 
-	if(munmap((void*)mem, size))
+	if(munmap(mem, size))
 		fprintf(stderr, "Couldn't unmap file.\n");
 
 	return ibuf;
@@ -103,13 +101,13 @@ ImBuf *IMB_loadifffile(int file, int flags)
 
 static void imb_cache_filename(char *filename, const char *name, int flags)
 {
-	/* read .tx instead if it exists */
-	if(flags & IB_usecache) {
+	/* read .tx instead if it exists and is not older */
+	if(flags & IB_tilecache) {
 		BLI_strncpy(filename, name, IB_FILENAME_SIZE);
 		if(!BLI_replace_extension(filename, IB_FILENAME_SIZE, ".tx"))
 			return;
 
-		if(BLI_file_newer(filename, name))
+		if(BLI_file_older(name, filename))
 			return;
 	}
 
@@ -119,7 +117,7 @@ static void imb_cache_filename(char *filename, const char *name, int flags)
 ImBuf *IMB_loadiffname(const char *name, int flags)
 {
 	ImBuf *ibuf;
-	int file;
+	int file, a;
 	char filename[IB_FILENAME_SIZE];
 
 	imb_cache_filename(filename, name, flags);
@@ -131,7 +129,9 @@ ImBuf *IMB_loadiffname(const char *name, int flags)
 
 	if(ibuf) {
 		BLI_strncpy(ibuf->name, name, sizeof(ibuf->name));
-		BLI_strncpy(ibuf->cachename, name, sizeof(ibuf->cachename));
+		BLI_strncpy(ibuf->cachename, filename, sizeof(ibuf->cachename));
+		for(a=1; a<ibuf->miptot; a++)
+			BLI_strncpy(ibuf->mipmap[a-1]->cachename, filename, sizeof(ibuf->cachename));
 		if(flags & IB_fields) IMB_de_interlace(ibuf);
 	}
 
@@ -144,14 +144,17 @@ ImBuf *IMB_testiffname(char *name, int flags)
 {
 	ImBuf *ibuf;
 	int file;
+	char filename[IB_FILENAME_SIZE];
 
-	file = open(name,O_BINARY|O_RDONLY);
+	imb_cache_filename(filename, name, flags);
+
+	file = open(filename,O_BINARY|O_RDONLY);
 	if(file < 0) return 0;
 
 	ibuf=IMB_loadifffile(file, flags|IB_test);
 	if(ibuf) {
 		BLI_strncpy(ibuf->name, name, sizeof(ibuf->name));
-		BLI_strncpy(ibuf->cachename, name, sizeof(ibuf->cachename));
+		BLI_strncpy(ibuf->cachename, filename, sizeof(ibuf->cachename));
 	}
 
 	close(file);
@@ -159,40 +162,38 @@ ImBuf *IMB_testiffname(char *name, int flags)
 	return ibuf;
 }
 
-static void imb_loadmipfile(ImBuf *ibuf, int file, int level)
+static void imb_loadtilefile(ImBuf *ibuf, int file, int tx, int ty, unsigned int *rect)
 {
-	int size, *mem;
+	ImFileType *type;
+	unsigned char *mem;
+	int size;
 
 	if(file == -1) return;
 
 	size= BLI_filesize(file);
 
-	mem= (int*)mmap(0, size, PROT_READ, MAP_SHARED, file, 0);
-	if(mem==(int*)-1) {
-		fprintf(stderr, "Couldn't get mapping\n");
+	mem= mmap(0, size, PROT_READ, MAP_SHARED, file, 0);
+	if(mem==(unsigned char*)-1) {
+		fprintf(stderr, "Couldn't get memory mapping for %s\n", ibuf->cachename);
 		return;
 	}
 
-	if(ibuf->ftype == TIF)
-		imb_loadmiptiff(ibuf, (unsigned char*)mem, size, level);
+	for(type=IMB_FILE_TYPES; type->is_a; type++)
+		if(type->load_tile && type->ftype(type, ibuf))
+			type->load_tile(ibuf, mem, size, tx, ty, rect);
 
-	if(munmap((void*)mem, size))
-		fprintf(stderr, "Couldn't unmap file.\n");
+	if(munmap(mem, size))
+		fprintf(stderr, "Couldn't unmap memory for %s.\n", ibuf->cachename);
 }
 
-void IMB_loadmip(ImBuf *ibuf, int level)
+void imb_loadtile(ImBuf *ibuf, int tx, int ty, unsigned int *rect)
 {
-	char filename[IB_FILENAME_SIZE];
 	int file;
 
-	if(!(ibuf->flags & IB_usecache)) return;
-
-	imb_cache_filename(filename, ibuf->cachename, ibuf->flags);
-
-	file = open(filename, O_BINARY|O_RDONLY);
+	file = open(ibuf->cachename, O_BINARY|O_RDONLY);
 	if(file < 0) return;
 
-	imb_loadmipfile(ibuf, file, level);
+	imb_loadtilefile(ibuf, file, tx, ty, rect);
 
 	close(file);
 }

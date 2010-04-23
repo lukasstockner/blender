@@ -93,7 +93,7 @@ void IMB_exit(void);
  *
  * @attention Defined in readimage.c
  */
-struct ImBuf *IMB_ibImageFromMemory(int *mem, int size, int flags);
+struct ImBuf *IMB_ibImageFromMemory(unsigned char *mem, int size, int flags);
 
 /**
  *
@@ -111,7 +111,7 @@ struct ImBuf *IMB_loadiffname(const char *naam, int flags);
  *
  * @attention Defined in allocimbuf.c
  */
-void IMB_freeImBuf(struct ImBuf * ibuf);
+void IMB_freeImBuf(struct ImBuf *ibuf);
 
 /**
  *
@@ -130,18 +130,18 @@ struct ImBuf *IMB_allocImBuf(short x, short y,
  * @attention Defined in allocimbuf.c
  */
 
-void IMB_refImBuf(struct ImBuf * ibuf);
+void IMB_refImBuf(struct ImBuf *ibuf);
 
 /**
  *
  * @attention Defined in allocimbuf.c
  */
-void IMB_cache_limiter_insert(struct ImBuf * i);
-void IMB_cache_limiter_unmanage(struct ImBuf * i);
-void IMB_cache_limiter_touch(struct ImBuf * i);
-void IMB_cache_limiter_ref(struct ImBuf * i);
-void IMB_cache_limiter_unref(struct ImBuf * i);
-int IMB_cache_limiter_get_refcount(struct ImBuf * i);
+void IMB_cache_limiter_insert(struct ImBuf *i);
+void IMB_cache_limiter_unmanage(struct ImBuf *i);
+void IMB_cache_limiter_touch(struct ImBuf *i);
+void IMB_cache_limiter_ref(struct ImBuf *i);
+void IMB_cache_limiter_unref(struct ImBuf *i);
+int IMB_cache_limiter_get_refcount(struct ImBuf *i);
 
 void IMB_free_cache_limiter(void);
 
@@ -155,8 +155,8 @@ struct ImBuf *IMB_dupImBuf(struct ImBuf *ibuf1);
  *
  * @attention Defined in allocimbuf.c
  */
-short addzbufImBuf(struct ImBuf * ibuf);
-short addzbuffloatImBuf(struct ImBuf * ibuf);
+short addzbufImBuf(struct ImBuf *ibuf);
+short addzbuffloatImBuf(struct ImBuf *ibuf);
 
 /**
  *
@@ -199,8 +199,8 @@ int IMB_anim_get_duration(struct anim *anim);
  *
  * @attention Defined in anim.c
  */
-struct anim * IMB_open_anim(const char * name, int ib_flags);
-void IMB_close_anim(struct anim * anim);
+struct anim *IMB_open_anim(const char *name, int ib_flags);
+void IMB_close_anim(struct anim *anim);
 
 /**
  *
@@ -208,34 +208,34 @@ void IMB_close_anim(struct anim * anim);
  */
 
 int ismovie(char *name);
-void IMB_anim_set_preseek(struct anim * anim, int preseek);
-int IMB_anim_get_preseek(struct anim * anim);
+void IMB_anim_set_preseek(struct anim *anim, int preseek);
+int IMB_anim_get_preseek(struct anim *anim);
 
 /**
  *
  * @attention Defined in anim.c
  */
 
-struct ImBuf * IMB_anim_absolute(struct anim * anim, int position);
+struct ImBuf *IMB_anim_absolute(struct anim *anim, int position);
 
 /**
  *
  * @attention Defined in anim.c
  * fetches a define previewframe, usually half way into the movie
  */
-struct ImBuf * IMB_anim_previewframe(struct anim * anim);
+struct ImBuf *IMB_anim_previewframe(struct anim *anim);
 
 /**
  *
  * @attention Defined in anim.c
  */
-void IMB_free_anim_ibuf(struct anim * anim);
+void IMB_free_anim_ibuf(struct anim *anim);
 
 /**
  *
  * @attention Defined in anim.c
  */
-void IMB_free_anim(struct anim * anim);
+void IMB_free_anim(struct anim *anim);
 
 /**
  *
@@ -245,10 +245,16 @@ void IMB_filter(struct ImBuf *ibuf);
 void IMB_filterN(struct ImBuf *out, struct ImBuf *in);
 void IMB_filter_extend(struct ImBuf *ibuf, char *mask);
 void IMB_makemipmap(struct ImBuf *ibuf, int use_filter);
-struct ImBuf *IMB_getmipmaplevel(struct ImBuf *ibuf, int level);
-void IMB_getmipmaplevel_size(struct ImBuf *ibuf, int level, int *x, int *y);
-int IMB_getmipmaplevel_num(struct ImBuf *ibuf);
-void IMB_loadmip(struct ImBuf *ibuf, int level);
+struct ImBuf *IMB_getmipmap(struct ImBuf *ibuf, int level);
+
+/**
+ *
+ * @attention Defined in cache.c
+ */
+
+void IMB_tile_cache_params(int totthread, int maxmem);
+unsigned int *IMB_gettile(struct ImBuf *ibuf, int tx, int ty, int thread);
+void IMB_tiles_to_rect(struct ImBuf *ibuf);
 
 /**
  *
@@ -266,7 +272,7 @@ struct ImBuf *IMB_onehalf(struct ImBuf *ibuf1);
  *
  * @attention Defined in scaling.c
  */
-struct ImBuf *IMB_scaleImBuf(struct ImBuf * ibuf, short newx, short newy);
+struct ImBuf *IMB_scaleImBuf(struct ImBuf *ibuf, short newx, short newy);
 
 /**
  *
@@ -297,13 +303,13 @@ int IMB_ispic(char *name);
  *
  * @attention Defined in util.c
  */
-int IMB_isanim(char * name);
+int IMB_isanim(char *name);
 
 /**
  *
  * @attention Defined in util.c
  */
-int imb_get_anim_type(char * name);
+int imb_get_anim_type(char *name);
 
 /**
  *
@@ -400,7 +406,7 @@ struct ImBuf *IMB_double_y(struct ImBuf *ibuf1);
  * @attention Defined in rotate.c
  */
 void IMB_flipx(struct ImBuf *ibuf);
-void IMB_flipy(struct ImBuf * ibuf);
+void IMB_flipy(struct ImBuf *ibuf);
 
 /* Premultiply alpha */
 
@@ -410,8 +416,8 @@ void IMB_premultiply_alpha(struct ImBuf *ibuf);
  *
  * @attention Defined in allocimbuf.c
  */
-void IMB_freezbufImBuf(struct ImBuf * ibuf);
-void IMB_freezbuffloatImBuf(struct ImBuf * ibuf);
+void IMB_freezbufImBuf(struct ImBuf *ibuf);
+void IMB_freezbuffloatImBuf(struct ImBuf *ibuf);
 
 /**
  *
@@ -427,12 +433,15 @@ void buf_rectfill_area(unsigned char *rect, float *rectf, int width, int height,
 int IMB_metadata_change_field(struct ImBuf *img, const char *key, const char *field);
 
 /* exported for image tools in blender, to quickly allocate 32 bits rect */
-short imb_addrectImBuf(struct ImBuf * ibuf);
-void imb_freerectImBuf(struct ImBuf * ibuf);
+short imb_addrectImBuf(struct ImBuf *ibuf);
+void imb_freerectImBuf(struct ImBuf *ibuf);
 
-short imb_addrectfloatImBuf(struct ImBuf * ibuf);
-void imb_freerectfloatImBuf(struct ImBuf * ibuf);
-void imb_freemipmapImBuf(struct ImBuf * ibuf);
+short imb_addrectfloatImBuf(struct ImBuf *ibuf);
+void imb_freerectfloatImBuf(struct ImBuf *ibuf);
+void imb_freemipmapImBuf(struct ImBuf *ibuf);
+
+short imb_addtilesImBuf(struct ImBuf *ibuf);
+void imb_freetilesImBuf(struct ImBuf *ibuf);
 
 #endif
 

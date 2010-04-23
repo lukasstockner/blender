@@ -39,7 +39,7 @@ typedef struct ImFileType {
 	int (*ftype)(struct ImFileType *type, struct ImBuf *ibuf);
 	struct ImBuf *(*load)(unsigned char *mem, int size, int flags);
 	int (*save)(struct ImBuf *ibuf, char *name, int flags);
-	void (*loadmip)(struct ImBuf *ibuf, unsigned char *mem, int size, int level);
+	void (*load_tile)(struct ImBuf *ibuf, unsigned char *mem, int size, int tx, int ty, unsigned int *rect);
 
 	int flag;
 	int filetype;
@@ -47,8 +47,14 @@ typedef struct ImFileType {
 
 extern ImFileType IMB_FILE_TYPES[];
 
-void IMB_filetypes_init(void);
-void IMB_filetypes_exit(void);
+void imb_filetypes_init(void);
+void imb_filetypes_exit(void);
+
+void imb_tile_cache_init(void);
+void imb_tile_cache_exit(void);
+
+void imb_loadtile(struct ImBuf *ibuf, int tx, int ty, unsigned int *rect);
+void imb_tile_cache_tile_free(struct ImBuf *ibuf, int tx, int ty);
 
 /* Type Specific Functions */
 
@@ -105,7 +111,8 @@ int imb_savehdr(struct ImBuf * ibuf, char *name, int flags);
 /* tiff */
 int imb_is_a_tiff(unsigned char *buf);
 struct ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags);
-void imb_loadmiptiff(struct ImBuf *ibuf, unsigned char *mem, int size, int level);
+void imb_loadtiletiff(struct ImBuf *ibuf, unsigned char *mem, int size,
+	int tx, int ty, unsigned int *rect);
 int imb_savetiff(struct ImBuf *ibuf, char *name, int flags);
 void *libtiff_findsymbol(char *name);
 

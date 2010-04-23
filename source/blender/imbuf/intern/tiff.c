@@ -46,11 +46,14 @@
 
 #include "BKE_global.h"
 
+#include "BLI_string.h"
+
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
 #include "IMB_allocimbuf.h"
 #include "IMB_filetype.h"
+#include "IMB_filter.h"
 
 #include "dynlibtiff.h"
 
@@ -70,12 +73,12 @@ static void    imb_tiff_DummyUnmapProc(thandle_t fd, tdata_t base, toff_t size);
 
 
 /* Structure for in-memory TIFF file. */
-struct ImbTIFFMemFile {
+typedef struct ImbTIFFMemFile {
 	unsigned char *mem;	/* Location of first byte of TIFF file. */
 	toff_t offset;		/* Current offset within the file.      */
 	tsize_t size;		/* Size of the TIFF file.               */
-};
-#define IMB_TIFF_GET_MEMFILE(x) ((struct ImbTIFFMemFile*)(x));
+} ImbTIFFMemFile;
+#define IMB_TIFF_GET_MEMFILE(x) ((ImbTIFFMemFile*)(x));
 
 
 
@@ -106,7 +109,7 @@ static int imb_tiff_DummyMapProc(thandle_t fd, tdata_t* pbase, toff_t* psize)
 static tsize_t imb_tiff_ReadProc(thandle_t handle, tdata_t data, tsize_t n)
 {
 	tsize_t nRemaining, nCopy;
-	struct ImbTIFFMemFile* mfile;
+	ImbTIFFMemFile* mfile;
 	void *srcAddr;
 
 	/* get the pointer to the in-memory file */
@@ -169,7 +172,7 @@ static tsize_t imb_tiff_WriteProc(thandle_t handle, tdata_t data, tsize_t n)
  */
 static toff_t imb_tiff_SeekProc(thandle_t handle, toff_t ofs, int whence)
 {
-	struct ImbTIFFMemFile *mfile;
+	ImbTIFFMemFile *mfile;
 	toff_t new_offset;
 
 	/* get the pointer to the in-memory file */
@@ -216,7 +219,7 @@ static toff_t imb_tiff_SeekProc(thandle_t handle, toff_t ofs, int whence)
  */
 static int imb_tiff_CloseProc(thandle_t handle)
 {
-	struct ImbTIFFMemFile *mfile;
+	ImbTIFFMemFile *mfile;
 
 	/* get the pointer to the in-memory file */
 	mfile = IMB_TIFF_GET_MEMFILE(handle);
@@ -242,7 +245,7 @@ static int imb_tiff_CloseProc(thandle_t handle)
  */
 static toff_t imb_tiff_SizeProc(thandle_t handle)
 {
-	struct ImbTIFFMemFile* mfile;
+	ImbTIFFMemFile* mfile;
 
 	/* get the pointer to the in-memory file */
 	mfile = IMB_TIFF_GET_MEMFILE(handle);
@@ -255,7 +258,19 @@ static toff_t imb_tiff_SizeProc(thandle_t handle)
 	return (toff_t)(mfile->size);
 }
 
+static TIFF *imb_tiff_client_open(ImbTIFFMemFile *memFile, unsigned char *mem, int size)
+{
+	/* open the TIFF client layer interface to the in-memory file */
+	memFile->mem = mem;
+	memFile->offset = 0;
+	memFile->size = size;
 
+	return libtiff_TIFFClientOpen("(Blender TIFF Interface Layer)", 
+		"r", (thandle_t)(memFile),
+		imb_tiff_ReadProc, imb_tiff_WriteProc,
+		imb_tiff_SeekProc, imb_tiff_CloseProc,
+		imb_tiff_SizeProc, imb_tiff_DummyMapProc, imb_tiff_DummyUnmapProc);
+}
 
 /**
  * Checks whether a given memory buffer contains a TIFF file.
@@ -288,7 +303,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image, int premul)
 	int success;
 
 	tmpibuf= IMB_allocImBuf(ibuf->x, ibuf->y, 32, IB_rect, 0);
-	success = libtiff_TIFFReadRGBAImage(image, ibuf->x, ibuf->y, tmpibuf->rect, 0);
+	success= libtiff_TIFFReadRGBAImage(image, ibuf->x, ibuf->y, tmpibuf->rect, 0);
 
 	if(ENDIAN_ORDER == B_ENDIAN)
 		IMB_convert_rgba_to_abgr(tmpibuf);
@@ -322,20 +337,17 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image, int premul)
  *
  * @return: A newly allocated ImBuf structure if successful, otherwise NULL.
  */
-struct ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
+ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 {
 	TIFF *image = NULL;
-	struct ImBuf *ibuf = NULL;
-	struct ImbTIFFMemFile memFile;
+	ImBuf *ibuf = NULL, *hbuf;
+	ImbTIFFMemFile memFile;
 	uint32 width, height;
 	char *format = NULL;
+	int level;
 
 	if(!G.have_libtiff)
 		return NULL;
-
-	memFile.mem = mem;
-	memFile.offset = 0;
-	memFile.size = size;
 
 	/* check whether or not we have a TIFF file */
 	if(size < IMB_TIFF_NCB) {
@@ -345,12 +357,8 @@ struct ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 	if(imb_is_a_tiff(mem) == 0)
 		return NULL;
 
-	/* open the TIFF client layer interface to the in-memory file */
-	image = libtiff_TIFFClientOpen("(Blender TIFF Interface Layer)", 
-		"r", (thandle_t)(&memFile),
-		imb_tiff_ReadProc, imb_tiff_WriteProc,
-		imb_tiff_SeekProc, imb_tiff_CloseProc,
-		imb_tiff_SizeProc, imb_tiff_DummyMapProc, imb_tiff_DummyUnmapProc);
+	image = imb_tiff_client_open(&memFile, mem, size);
+
 	if(image == NULL) {
 		printf("imb_loadtiff: could not open TIFF IO layer.\n");
 		return NULL;
@@ -375,23 +383,55 @@ struct ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 	/* if testing, we're done */
 	if(flags & IB_test) {
 		libtiff_TIFFClose(image);
-		return (ibuf);
+		return ibuf;
 	}
 
 	/* detect if we are reading a tiled/mipmapped texture, in that case
 	   we don't read pixels but leave it to the cache to load tiles */
-	if(flags & IB_usecache) {
+	if(flags & IB_tilecache) {
 		format= NULL;
 		libtiff_TIFFGetField(image, TIFFTAG_PIXAR_TEXTUREFORMAT, &format);
 
-		if(format && strcmp(format, "Plain Texture")==0) {
-			ibuf->flags |= IB_usecache;
-			ibuf->miplevels = libtiff_TIFFNumberOfDirectories(image) + 1;
+		if(format && strcmp(format, "Plain Texture")==0 && libtiff_TIFFIsTiled(image)) {
+			int numlevel = libtiff_TIFFNumberOfDirectories(image);
+			ibuf->flags |= IB_tilecache;
+
+			/* create empty mipmap levels in advance */
+			for(level=0; level<numlevel; level++) {
+				if(!libtiff_TIFFSetDirectory(image, level))
+					break;
+
+				if(level > 0) {
+					width= (width > 1)? width/2: 1;
+					height= (height > 1)? height/2: 1;
+
+					hbuf= IMB_allocImBuf(width, height, 32, 0, 0);
+					hbuf->miplevel= level;
+					hbuf->flags |= IB_tilecache;
+					hbuf->ftype= ibuf->ftype;
+					ibuf->mipmap[level-1] = hbuf;
+
+					if(flags & IB_premul)
+						hbuf->flags |= IB_premul;
+				}
+				else
+					hbuf= ibuf;
+
+				libtiff_TIFFGetField(image, TIFFTAG_TILEWIDTH, &hbuf->tilex);
+				libtiff_TIFFGetField(image, TIFFTAG_TILELENGTH, &hbuf->tiley);
+
+				hbuf->xtiles= ceil(hbuf->x/(float)hbuf->tilex);
+				hbuf->ytiles= ceil(hbuf->y/(float)hbuf->tiley);
+
+				imb_addtilesImBuf(hbuf);
+
+				ibuf->miptot++;
+			}
 		}
 	}
 
 	/* read pixels */
-	if(!(ibuf->flags & IB_usecache) && !imb_read_tiff_pixels(ibuf, image, 0)) {
+	if(!(ibuf->flags & IB_tilecache) && !imb_read_tiff_pixels(ibuf, image, 0)) {
 		fprintf(stderr, "imb_loadtiff: Failed to read tiff image.\n");
 		libtiff_TIFFClose(image);
 		return NULL;
@@ -401,53 +441,41 @@ struct ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 	libtiff_TIFFClose(image);
 
 	/* return successfully */
-	return (ibuf);
+	return ibuf;
 }
 
-void imb_loadmiptiff(struct ImBuf *ibuf, unsigned char *mem, int size, int level)
+void imb_loadtiletiff(ImBuf *ibuf, unsigned char *mem, int size, int tx, int ty, unsigned int *rect)
 {
 	TIFF *image = NULL;
 	uint32 width, height;
-	int mipx, mipy;
-	struct ImbTIFFMemFile memFile;
+	ImbTIFFMemFile memFile;
 
-	memFile.mem = mem;
-	memFile.offset = 0;
-	memFile.size = size;
-
-	/* open the TIFF client layer interface to the in-memory file */
-	image = libtiff_TIFFClientOpen("(Blender TIFF Interface Layer)", 
-		"r", (thandle_t)(&memFile),
-		imb_tiff_ReadProc, imb_tiff_WriteProc,
-		imb_tiff_SeekProc, imb_tiff_CloseProc,
-		imb_tiff_SizeProc, imb_tiff_DummyMapProc, imb_tiff_DummyUnmapProc);
+	image = imb_tiff_client_open(&memFile, mem, size);
 
 	if(image == NULL) {
 		printf("imb_loadtiff: could not open TIFF IO layer for loading mipmap level.\n");
 		return;
 	}
 
-   	if(libtiff_TIFFSetDirectory(image, level)) {
-		IMB_getmipmaplevel_size(ibuf, level, &mipx, &mipy);
-
+   	if(libtiff_TIFFSetDirectory(image, ibuf->miplevel)) {
 		/* allocate the image buffer */
 		libtiff_TIFFGetField(image, TIFFTAG_IMAGEWIDTH,  &width);
 		libtiff_TIFFGetField(image, TIFFTAG_IMAGELENGTH, &height);
 
-		if(width == mipx && height == mipy) {
-			if(level == 0) {
-				imb_read_tiff_pixels(ibuf, image, (ibuf->flags & IB_premul));
-			}
-			else {
-				ibuf->mipmap[level-1] = IMB_allocImBuf(width, height, 32, 0, 0);
-				imb_read_tiff_pixels(ibuf->mipmap[level-1], image, (ibuf->flags & IB_premul));
+		if(width == ibuf->x && height == ibuf->y) {
+			if(rect) {
+				/* why flip y tile location, seems to contradict TIFFReadRGBATile man page? */
+				libtiff_TIFFReadRGBATile(image, tx*ibuf->tilex, (ibuf->ytiles - 1 - ty)*ibuf->tiley, rect);
+
+				if(ibuf->flags & IB_premul)
+					IMB_premultiply_rect(rect, 32, ibuf->tilex, ibuf->tiley);
 			}
 		}
 		else
-			printf("imb_loadtiff: mipmap level %d has unexpected size\n", level);
+			printf("imb_loadtiff: mipmap level %d has unexpected size %dx%d instead of %dx%d\n", ibuf->miplevel, width, height, ibuf->x, ibuf->y);
 	}
 	else
-		printf("imb_loadtiff: could not find mipmap level %d\n", level);
+		printf("imb_loadtiff: could not find mipmap level %d\n", ibuf->miplevel);
 
 	/* close the client layer interface to the in-memory file */
 	libtiff_TIFFClose(image);
@@ -471,7 +499,7 @@ void imb_loadmiptiff(struct ImBuf *ibuf, unsigned char *mem, int size, int level
 
 #define FTOUSHORT(val) ((val >= 1.0f-0.5f/65535)? 65535: (val <= 0.0f)? 0: (unsigned short)(val*65535.0f + 0.5f))
 
-int imb_savetiff(struct ImBuf *ibuf, char *name, int flags)
+int imb_savetiff(ImBuf *ibuf, char *name, int flags)
 {
 	TIFF *image = NULL;
 	uint16 samplesperpixel, bitspersample;

@@ -64,11 +64,9 @@ int tex_sample(struct RenderParams *rpm, struct Tex *tex, TexCoord *texco,
 /* Image Texture */
 
 int imagewraposa(struct RenderParams *rpm, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
-	float *texvec, float *dxt, float *dyt, struct TexResult *texres);
+	float *texvec, float *dxt, float *dyt, struct TexResult *texres, int thread);
 int imagewrap(struct RenderParams *rpm, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
-	float *texvec, struct TexResult *texres);
-void image_sample(struct RenderParams *rpm, struct Image *ima, float fx, float fy,
-	float dx, float dy, float *result);
+	float *texvec, struct TexResult *texres, int thread);
 
 /* Utilities */
 

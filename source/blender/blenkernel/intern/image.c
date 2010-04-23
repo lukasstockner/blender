@@ -1553,8 +1553,8 @@ static ImBuf *image_load_sequence_file(Image *ima, ImageUser *iuser, int frame)
 		BLI_path_abs(name, G.sce);
 	
 	flag= IB_rect|IB_multilayer;
-	if(iuser && iuser->flag & IMA_USECACHE)
-		flag |= IB_usecache;
+	if(iuser && iuser->flag & IMA_TILECACHE)
+		flag |= IB_tilecache;
 	if(ima->flag & IMA_DO_PREMUL)
 		flag |= IB_premul;
 
@@ -1705,12 +1705,12 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 	
 	/* is there a PackedFile with this image ? */
 	if (ima->packedfile) {
-		ibuf = IMB_ibImageFromMemory((int *) ima->packedfile->data, ima->packedfile->size, IB_rect|IB_multilayer);
+		ibuf = IMB_ibImageFromMemory((unsigned char*)ima->packedfile->data, ima->packedfile->size, IB_rect|IB_multilayer);
 	} 
 	else {
 		flag= IB_rect|IB_multilayer|IB_metadata;
-		if(iuser && iuser->flag & IMA_USECACHE)
-			flag |= IB_usecache;
+		if(iuser && iuser->flag & IMA_TILECACHE)
+			flag |= IB_tilecache;
 		if(ima->flag & IMA_DO_PREMUL)
 			flag |= IB_premul;
 			
@@ -2084,12 +2084,24 @@ ImBuf *BKE_image_acquire_ibuf(Image *ima, ImageUser *iuser, void **lock_r)
 
 		BLI_unlock_thread(LOCK_IMAGE);
 	}
+	else {
+		/* fallback from tiles to rect if no tiles requested, we keep
+		   tiles in memory because they may be in use by render thread */
+		if(ibuf->tiles && !(iuser && (iuser->flag & IMA_TILECACHE))) {
+			BLI_lock_thread(LOCK_IMAGE);
+			IMB_tiles_to_rect(ibuf);
+			BLI_unlock_thread(LOCK_IMAGE);
+		}
+	}
 
-	/* XXX temp code until tiles are used for cache, forces
-	   full image rect to be loaded into memory */
-	if((!iuser || !(iuser->flag & IMA_USECACHE)) && ibuf && (ibuf->flags & IB_usecache)) {
-		IMB_getmipmaplevel(ibuf, 0);
-		ibuf->flags &= ~IB_usecache;
+	/* create mipmap levels if requested */
+	if(ibuf) {
+		if(!ibuf->mipmap[0] && (iuser && (iuser->flag & IMA_MIPMAP))) {
+			BLI_lock_thread(LOCK_IMAGE);
+			if(ibuf->mipmap[0] == NULL)
+				IMB_makemipmap(ibuf, iuser->flag & IMA_GAUSS_MIP);
+			BLI_unlock_thread(LOCK_IMAGE);
+		}
 	}
 
 	/* we assuming that if it is not rendering, it's also not multithreaded

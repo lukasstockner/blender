@@ -375,7 +375,7 @@ void filelist_init_icons()
 	short x, y, k;
 	ImBuf *bbuf;
 	ImBuf *ibuf;
-	bbuf = IMB_ibImageFromMemory((int *)datatoc_prvicons, datatoc_prvicons_size, IB_rect);
+	bbuf = IMB_ibImageFromMemory((unsigned char*)datatoc_prvicons, datatoc_prvicons_size, IB_rect);
 	if (bbuf) {
 		for (y=0; y<SPECIAL_IMG_ROWS; y++) {
 			for (x=0; x<SPECIAL_IMG_COLS; x++) {

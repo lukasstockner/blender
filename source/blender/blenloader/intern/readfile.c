@@ -6529,7 +6529,7 @@ static void do_version_image_cache_250(FileData *fd, Library *lib, Main *main)
 	Tex *tex;
 
 	for(tex= main->tex.first; tex; tex=tex->id.next)
-		tex->iuser.flag |= IMA_USECACHE;
+		tex->iuser.flag |= IMA_TILECACHE;
 }
 
 static void do_version_sss_scale_250(FileData *fd, Library *lib, Main *main)

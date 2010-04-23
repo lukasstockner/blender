@@ -27,12 +27,14 @@
 
 void IMB_init(void)
 {
-	IMB_filetypes_init();
+	imb_filetypes_init();
+	imb_tile_cache_init();
 }
 
 void IMB_exit(void)
 {
 	IMB_free_cache_limiter();
-	IMB_filetypes_exit();
+	imb_tile_cache_exit();
+	imb_filetypes_exit();
 }
 

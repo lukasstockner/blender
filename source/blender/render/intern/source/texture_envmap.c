@@ -649,7 +649,7 @@ void tex_envmap_init(Render *re, Tex *tex)
 	}
 }
 
-int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres)
+int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, int thread)
 {
 	/* texvec should be the already reflected normal */
 	EnvMap *env;
@@ -689,7 +689,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 	
 	if(osatex) {
 		set_dxtdyt(dxts, dyts, dxt, dyt, face);
-		imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, texres);
+		imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, texres, thread);
 		
 		/* edges? */
 		
@@ -705,7 +705,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 			if(face!=face1) {
 				ibuf= env->cube[face1];
 				set_dxtdyt(dxts, dyts, dxt, dyt, face1);
-				imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, &texr1);
+				imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, &texr1, thread);
 			}
 			else texr1.tr= texr1.tg= texr1.tb= texr1.ta= 0.0;
 			
@@ -718,7 +718,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 			if(face!=face1) {
 				ibuf= env->cube[face1];
 				set_dxtdyt(dxts, dyts, dxt, dyt, face1);
-				imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, &texr2);
+				imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, &texr2, thread);
 			}
 			else texr2.tr= texr2.tg= texr2.tb= texr2.ta= 0.0;
 			
@@ -734,7 +734,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 		}
 	}
 	else {
-		imagewrap(rpm, tex, NULL, ibuf, sco, texres);
+		imagewrap(rpm, tex, NULL, ibuf, sco, texres, thread);
 	}
 	
 	return 1;

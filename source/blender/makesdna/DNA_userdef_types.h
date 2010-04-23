@@ -343,7 +343,8 @@ typedef struct UserDef {
 	struct SolidLight light[3];
 	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
 	short textimeout,texcollectrate;
-	short wmdrawmethod, wmpad;
+	short wmdrawmethod, wmpad[3];
+	int imagetilememory;
 	int memcachelimit;
 	int prefetchframes;
 	short frameserverport;

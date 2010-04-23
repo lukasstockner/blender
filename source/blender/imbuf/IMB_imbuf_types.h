@@ -69,35 +69,46 @@ struct ImMetaData;
  */
 typedef struct ImBuf {
 	struct ImBuf *next, *prev;	/**< allow lists of ImBufs, for caches or flipbooks */
-	short	x, y;				/**< width and Height of our image buffer */
-	unsigned char	depth;		/**< Active amount of bits/bitplanes */
-	unsigned int	*rect;		/**< pixel values stored here */
-	unsigned int	*crect;		/**< color corrected pixel values stored here */
-	int	flags;				/**< Controls which components should exist. */
-	int	mall;				/**< what is malloced internal, and can be freed */
-	int	*zbuf;				/**< z buffer data, original zbuffer */
-	float *zbuf_float;		/**< z buffer data, camera coordinates */
-	void *userdata;			/**< temporary storage, only used by baking at the moment */
-	unsigned char *encodedbuffer;     /**< Compressed image only used with png currently */
-	unsigned int   encodedsize;       /**< Size of data written to encodedbuffer */
-	unsigned int   encodedbuffersize; /**< Size of encodedbuffer */
 
-	float *rect_float;		/**< floating point Rect equivalent
-								Linear RGB color space - may need gamma correction to 
-								sRGB when generating 8bit representations */
-	int channels;			/**< amount of channels in rect_float (0 = 4 channel default) */
-	float dither;			/**< random dither value, for conversion from float -> byte rect */
-	short profile;			/** color space/profile preset that the byte rect buffer represents */
-	char profile_filename[256];		/** to be implemented properly, specific filename for custom profiles */
+	/* dimensions */
+	short x, y;				/* width and Height of our image buffer */
+	unsigned char depth;	/* Active amount of bits/bitplanes */
+	int channels;			/* amount of channels in rect_float (0 = 4 channel default) */
+
+	/* flags */
+	int	flags;				/* Controls which components should exist. */
+	int	mall;				/* what is malloced internal, and can be freed */
+
+	/* pixels */
+	unsigned int *rect;		/* pixel values stored here */
+	unsigned int *crect;	/* color corrected pixel values stored here */
+	float *rect_float;		/* floating point Rect equivalent
+							Linear RGB color space - may need gamma correction to 
+							sRGB when generating 8bit representations */
+	
+	/* tiled pixel storage */
+	int tilex, tiley;
+	int xtiles, ytiles;
+	unsigned int **tiles;	
+
+	/* zbuffer */
+	int	*zbuf;				/* z buffer data, original zbuffer */
+	float *zbuf_float;		/* z buffer data, camera coordinates */
+
+	/* parameters used by conversion between byte and float */
+	float dither;				/* random dither value, for conversion from float -> byte rect */
+	short profile;				/* color space/profile preset that the byte rect buffer represents */
+	char profile_filename[256];	/* to be implemented properly, specific filename for custom profiles */
 
 	/* mipmapping */
-	struct ImBuf *mipmap[IB_MIPMAP_LEVELS]; /**< MipMap levels, a series of halved images */
-	int miplevels;
+	struct ImBuf *mipmap[IB_MIPMAP_LEVELS]; /* MipMap levels, a series of halved images */
+	int miptot, miplevel;
 
-	/* externally used flags */
-	int index;				/* reference index for ImBuf lists */
-	int	userflags;			/* used to set imbuf to dirty and other stuff */
-	struct ImMetaData *metadata;
+	/* externally used data */
+	int index;						/* reference index for ImBuf lists */
+	int	userflags;					/* used to set imbuf to dirty and other stuff */
+	struct ImMetaData *metadata;	/* image metadata */
+	void *userdata;					/* temporary storage, only used by baking at the moment */
 
 	/* file information */
 	int	ftype;							/* file type we are going to save as */
@@ -107,6 +118,11 @@ typedef struct ImBuf {
 	/* memory cache limiter */
 	struct MEM_CacheLimiterHandle_s *c_handle; /* handle for cache limiter */
 	int refcounter; /* reference counter for multiple users */
+
+	/* some parameters to pass along for packing images */
+	unsigned char *encodedbuffer;     /* Compressed image only used with png currently */
+	unsigned int   encodedsize;       /* Size of data written to encodedbuffer */
+	unsigned int   encodedbuffersize; /* Size of encodedbuffer */
 } ImBuf;
 
 /* Moved from BKE_bmfont_types.h because it is a userflag bit mask. */
@@ -140,8 +156,9 @@ typedef struct ImBuf {
 #define IB_multilayer		(1 << 7)
 #define IB_metadata			(1 << 8)
 #define IB_animdeinterlace	(1 << 9)
-#define IB_usecache			(1 << 10)
-#define IB_premul			(1 << 11)
+#define IB_tiles			(1 << 10)
+#define IB_tilecache		(1 << 11)
+#define IB_premul			(1 << 12)
 
 /*
  * The bit flag is stored in the ImBuf.ftype variable.

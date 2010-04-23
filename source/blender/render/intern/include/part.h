@@ -91,7 +91,7 @@ typedef struct RenderPart {
 	/* adaptive subdivision */
 	struct GHash *subdivhash;
 	
-	PixelRow pixelrow[MAX_PIXEL_ROW];
+	PixelRow *pixelrow;
 } RenderPart;
 
 #endif /* __RENDER_PART_H__ */
