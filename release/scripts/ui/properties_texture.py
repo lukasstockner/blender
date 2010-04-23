@@ -45,20 +45,12 @@ class TEXTURE_MT_envmap_specials(bpy.types.Menu):
         layout.operator("texture.envmap_clear", icon='FILE_REFRESH')
         layout.operator("texture.envmap_clear_all", icon='FILE_REFRESH')
 
-def node_texture_slots_idblock(idblock):
-    # need this exception still for texture slots, active_texture
-    # already takes into acount node materials automatically
-    if type(idblock) == bpy.types.Material:
-        mat_node = idblock.active_node_material
-        if mat_node:
-            return mat_node
-
-    return idblock
+from properties_material import active_node_mat
 
 def context_tex_datablock(context):
     idblock = context.material
     if idblock:
-        return idblock
+        return active_node_mat(idblock)
 
     idblock = context.lamp
     if idblock:
@@ -79,6 +71,7 @@ class TextureButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         tex = context.texture
+        if not tex or tex == None: return False
         engine = context.scene.render.engine
         return (tex and tex.type != 'NONE') and (engine in self.COMPAT_ENGINES)
 
@@ -90,8 +83,7 @@ class TEXTURE_PT_preview(TextureButtonsPanel):
         layout = self.layout
 
         tex = context.texture
-        slot = context.texture_slot
-
+        slot = getattr(context, "texture_slot", None)
         idblock = context_tex_datablock(context)
 
         if idblock:
@@ -107,7 +99,10 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
 
     def poll(self, context):
         engine = context.scene.render.engine
-        return ((context.material or context.world or context.lamp or context.brush or context.texture) and (engine in self.COMPAT_ENGINES))
+        if not hasattr(context, "texture_slot"):
+            return False
+        return ((context.material or context.world or context.lamp or context.brush or context.texture) 
+            and (engine in self.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -122,7 +117,6 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
         if tex_collection:
             row = layout.row()
 
-            idblock = node_texture_slots_idblock(idblock)
             row.template_list(idblock, "texture_slots", idblock, "active_texture_index", rows=2)
 
             col = row.column(align=True)
@@ -219,9 +213,11 @@ class TextureSlotPanel(TextureButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
     def poll(self, context):
+        if not hasattr(context, "texture_slot"):
+            return False
+        
         engine = context.scene.render.engine
-        return (context.texture_slot and
-                TextureButtonsPanel.poll(self, context) and (engine in self.COMPAT_ENGINES))
+        return TextureButtonsPanel.poll(self, context) and (engine in self.COMPAT_ENGINES)
 
 
 class TEXTURE_PT_mapping(TextureSlotPanel):
@@ -232,8 +228,12 @@ class TEXTURE_PT_mapping(TextureSlotPanel):
         idblock = context_tex_datablock(context)
         if type(idblock) == bpy.types.Brush and not context.sculpt_object:
             return False
+
+        if not getattr(context, "texture_slot", None):
+            return False
+        
         engine = context.scene.render.engine
-        return context.texture_slot and (engine in self.COMPAT_ENGINES)
+        return (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -327,8 +327,11 @@ class TEXTURE_PT_influence(TextureSlotPanel):
         if type(idblock) == bpy.types.Brush:
             return False
 
+        if not getattr(context, "texture_slot", None):
+            return False
+
         engine = context.scene.render.engine
-        return context.texture_slot and (engine in self.COMPAT_ENGINES)
+        return (engine in self.COMPAT_ENGINES)
 
     def draw(self, context):
 
