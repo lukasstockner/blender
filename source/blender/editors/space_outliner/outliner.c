@@ -1240,38 +1240,61 @@ static int outliner_filter_has_name(TreeElement *te, char *name, int flags)
 	int found= 0;
 	
 	/* determine if match */
-	if(flags==OL_FIND)
-		found= BLI_strcasestr(te->name, name)!=NULL;
-	else if(flags==OL_FIND_CASE)
-		found= strstr(te->name, name)!=NULL;
-	else if(flags==OL_FIND_COMPLETE)
-		found= BLI_strcasecmp(te->name, name)==0;
-	else
-		found= strcmp(te->name, name)==0;
+	if (flags & SO_FIND_CASE_SENSITIVE) {
+		if (flags & SO_FIND_COMPLETE)
+			found= strcmp(te->name, name) == 0;
+		else
+			found= strstr(te->name, name) != NULL;
+	}
+	else {
+		if (flags & SO_FIND_COMPLETE)
+			found= BLI_strcasecmp(te->name, name) == 0;
+		else
+			found= BLI_strcasestr(te->name, name) != NULL;
+	}
 	
 	return found;
 }
 
-static void outliner_filter_tree(SpaceOops *soops, ListBase *lb)
+static int outliner_filter_tree(SpaceOops *soops, ListBase *lb)
 {
 	TreeElement *te, *ten;
+	TreeStoreElem *tselem;
 	
-	if(soops->search_string[0]==0) return;
+	/* although we don't have any search string, we return TRUE 
+	 * since the entire tree is ok then...
+	 */
+	if (soops->search_string[0]==0) 
+		return 1;
 
 	for (te= lb->first; te; te= ten) {
 		ten= te->next;
 		
-		if(0==outliner_filter_has_name(te, soops->search_string, OL_FIND)) {
+		if (0==outliner_filter_has_name(te, soops->search_string, soops->search_flags)) {
+			/* item isn't something we're looking for, but...
+			 * 	- if the subtree is expanded, check if there are any matches that can be easily found
+			 *		so that searching for "cu" in the default scene will still match the Cube
+			 *	- otherwise, we can't see within the subtree and the item doesn't match,
+			 *		so these can be safely ignored (i.e. the subtree can get freed)
+			 */
+			tselem= TREESTORE(te);
 			
-			outliner_free_tree(&te->subtree);
-			BLI_remlink(lb, te);
-			
-			if(te->flag & TE_FREE_NAME) MEM_freeN(te->name);
-			MEM_freeN(te);
+			if ((tselem->flag & TSE_CLOSED) || outliner_filter_tree(soops, &te->subtree)==0) { 
+				outliner_free_tree(&te->subtree);
+				BLI_remlink(lb, te);
+				
+				if(te->flag & TE_FREE_NAME) MEM_freeN(te->name);
+				MEM_freeN(te);
+			}
 		}
-		else
+		else {
+			/* filter subtree too */
 			outliner_filter_tree(soops, &te->subtree);
+		}
 	}
+	
+	/* if there are still items in the list, that means that there were still some matches */
+	return (lb->first != NULL);
 }
 
 
@@ -2686,17 +2709,7 @@ static TreeElement *outliner_find_named(SpaceOops *soops, ListBase *lb, char *na
 	TreeElement *te, *tes;
 	
 	for (te= lb->first; te; te= te->next) {
-		int found;
-		
-		/* determine if match */
-		if(flags==OL_FIND)
-			found= BLI_strcasestr(te->name, name)!=NULL;
-		else if(flags==OL_FIND_CASE)
-			found= strstr(te->name, name)!=NULL;
-		else if(flags==OL_FIND_COMPLETE)
-			found= BLI_strcasecmp(te->name, name)==0;
-		else
-			found= strcmp(te->name, name)==0;
+		int found = outliner_filter_has_name(te, name, flags);
 		
 		if(found) {
 			/* name is right, but is element the previous one? */
@@ -2752,7 +2765,7 @@ void outliner_find_panel(Scene *scene, ARegion *ar, SpaceOops *soops, int again,
 	TreeElement *last_find;
 	TreeStoreElem *tselem;
 	int ytop, xdelta, prevFound=0;
-	char name[33];
+	char name[32];
 	
 	/* get last found tree-element based on stored search_tse */
 	last_find= outliner_find_tse(soops, &soops->search_tse);
@@ -2760,7 +2773,7 @@ void outliner_find_panel(Scene *scene, ARegion *ar, SpaceOops *soops, int again,
 	/* determine which type of search to do */
 	if (again && last_find) {
 		/* no popup panel - previous + user wanted to search for next after previous */		
-		BLI_strncpy(name, soops->search_string, 33);
+		BLI_strncpy(name, soops->search_string, sizeof(name));
 		flags= soops->search_flags;
 		
 		/* try to find matching element */
