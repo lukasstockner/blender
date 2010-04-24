@@ -292,6 +292,8 @@ void ED_object_exit_editmode(bContext *C, int flag)
 
 	/* freedata only 0 now on file saves and render */
 	if(freedata) {
+		obedit->mode &= ~OB_MODE_EDIT;
+
 		ListBase pidlist;
 		PTCacheID *pid;
 
@@ -317,8 +319,6 @@ void ED_object_exit_editmode(bContext *C, int flag)
 		if(flag & EM_WAITCURSOR) waitcursor(0);
 	
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_OBJECT, scene);
-
-		obedit->mode &= ~OB_MODE_EDIT;
 	}
 }
 
