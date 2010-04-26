@@ -192,7 +192,7 @@ def fk(obj, definitions, base_names, options):
 
     # shoulder is used as a hinge
     fk_chain.rename("shoulder", "MCH-%s_hinge" % base_names[mt.arm])
-    fk_chain.shoulder_e.translate(Vector(0.0, fk_chain.shoulder_e.length / 2, 0.0))
+    fk_chain.shoulder_e.translate(Vector((0.0, fk_chain.shoulder_e.length / 2, 0.0)))
 
     # upper arm constrains to this.
     ex.socket_e = copy_bone_simple(arm, mt.arm, "MCH-%s_socket" % base_names[mt.arm])

@@ -176,7 +176,7 @@ def main(obj, bone_definition, base_names, options):
     ex.neck_socket_e.connected = False
     ex.neck_socket_e.parent = mt.body_e
     ex.neck_socket_e.head = mt.head_e.head
-    ex.neck_socket_e.tail = mt.head_e.head - Vector(0.0, neck_chain_segment_length / 2.0, 0.0)
+    ex.neck_socket_e.tail = mt.head_e.head - Vector((0.0, neck_chain_segment_length / 2.0, 0.0))
     ex.neck_socket_e.roll = 0.0
 
 

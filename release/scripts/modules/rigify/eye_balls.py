@@ -217,7 +217,7 @@ def control(obj, definitions, base_names, options):
         eyes += ["ORG-"+name]
 
     # Get the average position of the eyes
-    center = Vector(0,0,0)
+    center = Vector((0, 0, 0))
     for eye in eyes:
         center += eb[eye].head
     if len(eyes) != 0:
