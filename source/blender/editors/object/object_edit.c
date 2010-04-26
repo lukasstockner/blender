@@ -292,10 +292,10 @@ void ED_object_exit_editmode(bContext *C, int flag)
 
 	/* freedata only 0 now on file saves and render */
 	if(freedata) {
-		obedit->mode &= ~OB_MODE_EDIT;
-
 		ListBase pidlist;
 		PTCacheID *pid;
+
+		obedit->mode &= ~OB_MODE_EDIT;
 
 		/* for example; displist make is different in editmode */
 		scene->obedit= NULL; // XXX for context
