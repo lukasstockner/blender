@@ -67,6 +67,10 @@
 
 #include "RE_pipeline.h"
 
+#ifdef WIN32
+#include "BLI_winstuff.h"
+#endif
+
 /* internal */
 #include "camera.h"
 #include "database.h"
