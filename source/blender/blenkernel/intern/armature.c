@@ -850,9 +850,8 @@ static float dist_bone_deform(bPoseChannel *pchan, float *vec, DualQuat *dq, flo
 					mul_m4_v3(pchan->chan_mat, cop);
 
 				//	Make this a delta from the base position
-				sub_v3_v3v3(cop, cop, co);
-				cop[0]*=fac; cop[1]*=fac; cop[2]*=fac;
-				add_v3_v3(vec, cop);
+				sub_v3_v3(cop, co);
+				madd_v3_v3fl(vec, cop, fac);
 
 				if(mat)
 					pchan_deform_mat_add(pchan, fac, bbonemat, mat);
@@ -1110,7 +1109,7 @@ void armature_deform_verts(Object *armOb, Object *target, DerivedMesh *dm,
 				if(armature_weight != 1.0f) {
 					VECCOPY(dco, co);
 					mul_v3m3_dq( dco, (defMats)? summat: NULL,dq);
-					sub_v3_v3v3(dco, dco, co);
+					sub_v3_v3(dco, co);
 					mul_v3_fl(dco, armature_weight);
 					add_v3_v3(co, dco);
 				}
@@ -1774,20 +1773,13 @@ static void splineik_init_tree_from_pchan(Scene *scene, Object *ob, bPoseChannel
 	/* find the root bone and the chain of bones from the root to the tip 
 	 * NOTE: this assumes that the bones are connected, but that may not be true...
 	 */
-	for (pchan= pchan_tip; pchan; pchan= pchan->parent) {
+	for (pchan= pchan_tip; pchan && (segcount < ikData->chainlen); pchan= pchan->parent, segcount++) {
 		/* store this segment in the chain */
 		pchanChain[segcount]= pchan;
 		
 		/* if performing rebinding, calculate the length of the bone */
 		boneLengths[segcount]= pchan->bone->length;
 		totLength += boneLengths[segcount];
-		
-		/* check if we've gotten the number of bones required yet (after incrementing the count first)
-		 * NOTE: the 255 limit here is rather ugly, but the standard IK does this too!
-		 */
-		segcount++;
-		if ((segcount == ikData->chainlen) || (segcount > 255))
-			break;
 	}
 	
 	if (segcount == 0)

@@ -241,12 +241,22 @@ PyObject *pyrna_math_object_from_array(PointerRNA *ptr, PropertyRNA *prop)
 		case PROP_EULER:
 		case PROP_QUATERNION:
 			if(len==3) { /* euler */
+				/* attempt to get order */
+				/* TODO, keep order in sync */
+				short order= ROT_MODE_XYZ;
+				PropertyRNA *prop_eul_order= RNA_struct_find_property(ptr, "rotation_mode");
+				if(prop_eul_order) {
+					order = RNA_property_enum_get(ptr, prop_eul_order);
+					if (order < ROT_MODE_XYZ || order > ROT_MODE_ZYX) /* could be quat or axisangle */
+						order= ROT_MODE_XYZ;
+				}
+
 				if(is_thick) {
-					ret= newEulerObject(NULL, 0, Py_NEW, NULL); // TODO, get order from RNA
+					ret= newEulerObject(NULL, order, Py_NEW, NULL); // TODO, get order from RNA
 					RNA_property_float_get_array(ptr, prop, ((EulerObject *)ret)->eul);
 				}
 				else {
-					PyObject *eul_cb= newEulerObject_cb(ret, 0, mathutils_rna_array_cb_index, MATHUTILS_CB_SUBTYPE_EUL); // TODO, get order from RNA
+					PyObject *eul_cb= newEulerObject_cb(ret, order, mathutils_rna_array_cb_index, MATHUTILS_CB_SUBTYPE_EUL); // TODO, get order from RNA
 					Py_DECREF(ret); /* the euler owns now */
 					ret= eul_cb; /* return the euler instead */
 				}
@@ -431,7 +441,27 @@ static PyObject *pyrna_prop_repr( BPy_PropertyRNA *self )
 
 static long pyrna_struct_hash( BPy_StructRNA *self )
 {
-	return (long)self->ptr.data;
+	return _Py_HashPointer(self->ptr.data);
+}
+
+/* from python's meth_hash v3.1.2 */
+static long pyrna_prop_hash(BPy_PropertyRNA *self)
+{	
+	long x,y;
+	if (self->ptr.data == NULL)
+		x = 0;
+	else {
+		x = _Py_HashPointer(self->ptr.data);
+		if (x == -1)
+			return -1;
+	}
+	y = _Py_HashPointer((void*)(self->prop));
+	if (y == -1)
+		return -1;
+	x ^= y;
+	if (x == -1)
+		x = -2;
+	return x;
 }
 
 /* use our own dealloc so we can free a property if we use one */
@@ -2236,28 +2266,35 @@ static PyObject *pyrna_struct_getattro( BPy_StructRNA *self, PyObject *pyname )
 		else {
 			PointerRNA newptr;
 			ListBase newlb;
+			short newtype;
 
-			int done= CTX_data_get(C, name, &newptr, &newlb);
+			int done= CTX_data_get(C, name, &newptr, &newlb, &newtype);
 
 			if(done==1) { /* found */
-				if (newptr.data) {
-					ret = pyrna_struct_CreatePyObject(&newptr);
-				}
-				else if (newlb.first) {
-					CollectionPointerLink *link;
-					PyObject *linkptr;
-
-					ret = PyList_New(0);
-
-					for(link=newlb.first; link; link=link->next) {
-						linkptr= pyrna_struct_CreatePyObject(&link->ptr);
-						PyList_Append(ret, linkptr);
-						Py_DECREF(linkptr);
+				switch(newtype) {
+				case CTX_DATA_TYPE_POINTER:
+					if(newptr.data == NULL) {
+						ret= Py_None;
+						Py_INCREF(ret);
 					}
-				}
-				else {
-					ret = Py_None;
-					Py_INCREF(ret);
+					else {
+						ret= pyrna_struct_CreatePyObject(&newptr);
+					}
+					break;
+				case CTX_DATA_TYPE_COLLECTION:
+					{
+						CollectionPointerLink *link;
+						PyObject *linkptr;
+	
+						ret = PyList_New(0);
+	
+						for(link=newlb.first; link; link=link->next) {
+							linkptr= pyrna_struct_CreatePyObject(&link->ptr);
+							PyList_Append(ret, linkptr);
+							Py_DECREF(linkptr);
+						}
+					}
+					break;
 				}
 			}
 			else if (done==-1) { /* found but not set */
@@ -3483,7 +3520,7 @@ PyTypeObject pyrna_prop_Type = {
 
 	/* More standard operations (here for binary compatibility) */
 
-	NULL,						/* hashfunc tp_hash; */
+	( hashfunc ) pyrna_prop_hash,	/* hashfunc tp_hash; */
 	NULL,                       /* ternaryfunc tp_call; */
 	NULL,                       /* reprfunc tp_str; */
 
@@ -3905,7 +3942,8 @@ static PyObject* pyrna_struct_Subtype(PointerRNA *ptr)
 PyObject *pyrna_struct_CreatePyObject( PointerRNA *ptr )
 {
 	BPy_StructRNA *pyrna= NULL;
-	
+
+	/* note: don't rely on this to return None since NULL data with a valid type can often crash */
 	if (ptr->data==NULL && ptr->type==NULL) { /* Operator RNA has NULL data */
 		Py_RETURN_NONE;
 	}

@@ -1475,10 +1475,16 @@ void object_copy_proxy_drivers(Object *ob, Object *target)
 				/* all drivers */
 				DRIVER_TARGETS_LOOPER(dvar) 
 				{
-					if ((Object *)dtar->id == target)
-						dtar->id= (ID *)ob;
-					else
-						id_lib_extern((ID *)dtar->id);
+					if(dtar->id) {
+						if ((Object *)dtar->id == target)
+							dtar->id= (ID *)ob;
+						else {
+							/* only on local objects because this causes indirect links a -> b -> c,blend to point directly to a.blend
+							 * when a.blend has a proxy thats linked into c.blend  */
+							if(ob->id.lib==NULL)
+								id_lib_extern((ID *)dtar->id);
+						}
+					}
 				}
 				DRIVER_TARGETS_LOOPER_END
 			}
@@ -2353,12 +2359,12 @@ void minmax_object(Object *ob, float *min, float *max)
 	default:
 		DO_MINMAX(ob->obmat[3], min, max);
 
-		VECCOPY(vec, ob->obmat[3]);
+		copy_v3_v3(vec, ob->obmat[3]);
 		add_v3_v3(vec, ob->size);
 		DO_MINMAX(vec, min, max);
 
-		VECCOPY(vec, ob->obmat[3]);
-		sub_v3_v3v3(vec, vec, ob->size);
+		copy_v3_v3(vec, ob->obmat[3]);
+		sub_v3_v3(vec, ob->size);
 		DO_MINMAX(vec, min, max);
 		break;
 	}

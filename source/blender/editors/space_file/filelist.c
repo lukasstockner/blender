@@ -161,7 +161,7 @@ static int compare_name(const void *a1, const void *a2)
 {
 	const struct direntry *entry1=a1, *entry2=a2;
 
-	/* type is is equal to stat.st_mode */
+	/* type is equal to stat.st_mode */
 
 	if (S_ISDIR(entry1->type)){
 		if (S_ISDIR(entry2->type)==0) return (-1);
@@ -258,7 +258,7 @@ static int compare_extension(const void *a1, const void *a2) {
 	if (!sufix1) sufix1= nil;
 	if (!sufix2) sufix2= nil;
 
-	/* type is is equal to stat.st_mode */
+	/* type is equal to stat.st_mode */
 
 	if (S_ISDIR(entry1->type)){
 		if (S_ISDIR(entry2->type)==0) return (-1);
@@ -739,7 +739,7 @@ static void filelist_read_dir(struct FileList* filelist)
 	BLI_cleanup_dir(G.sce, filelist->dir);
 	filelist->numfiles = BLI_getdir(filelist->dir, &(filelist->filelist));
 
-	if(!chdir(wdir)) /* fix warning about not checking return value */;
+	if(!chdir(wdir)) {} /* fix warning about not checking return value */
 	filelist_setfiletypes(filelist, G.have_quicktime);
 	filelist_filter(filelist);
 }

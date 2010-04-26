@@ -36,6 +36,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_editVert.h"
 
@@ -1647,7 +1648,7 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			eul[0] = obeul[0];
 		else {
 			if (data->flag & ROTLIKE_OFFSET)
-				rotate_eulO(eul, cob->rotOrder, 'x', obeul[0]);
+				rotate_eulO(eul, cob->rotOrder, 'X', obeul[0]);
 			
 			if (data->flag & ROTLIKE_X_INVERT)
 				eul[0] *= -1;
@@ -1657,7 +1658,7 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			eul[1] = obeul[1];
 		else {
 			if (data->flag & ROTLIKE_OFFSET)
-				rotate_eulO(eul, cob->rotOrder, 'y', obeul[1]);
+				rotate_eulO(eul, cob->rotOrder, 'Y', obeul[1]);
 			
 			if (data->flag & ROTLIKE_Y_INVERT)
 				eul[1] *= -1;
@@ -1667,7 +1668,7 @@ static void rotlike_evaluate (bConstraint *con, bConstraintOb *cob, ListBase *ta
 			eul[2] = obeul[2];
 		else {
 			if (data->flag & ROTLIKE_OFFSET)
-				rotate_eulO(eul, cob->rotOrder, 'z', obeul[2]);
+				rotate_eulO(eul, cob->rotOrder, 'Z', obeul[2]);
 			
 			if (data->flag & ROTLIKE_Z_INVERT)
 				eul[2] *= -1;
@@ -3752,6 +3753,13 @@ static void splineik_copy (bConstraint *con, bConstraint *srccon)
 	dst->points= MEM_dupallocN(src->points);
 }
 
+static void splineik_new_data (void *cdata)
+{
+	bSplineIKConstraint *data= (bSplineIKConstraint *)cdata;
+
+	data->chainlen= 1;
+}
+
 static void splineik_id_looper (bConstraint *con, ConstraintIDFunc func, void *userdata)
 {
 	bSplineIKConstraint *data= con->data;
@@ -3816,7 +3824,7 @@ static bConstraintTypeInfo CTI_SPLINEIK = {
 	NULL, /* relink data */
 	splineik_id_looper, /* id looper */
 	splineik_copy, /* copy data */
-	NULL, /* new data */
+	splineik_new_data, /* new data */
 	splineik_get_tars, /* get constraint targets */
 	splineik_flush_tars, /* flush constraint targets */
 	splineik_get_tarmat, /* get target matrix */
@@ -4150,6 +4158,11 @@ void copy_constraints (ListBase *dst, const ListBase *src)
 }
 
 /* ......... */
+
+bConstraint *constraints_findByName(ListBase *list, const char *name)
+{
+	return BLI_findstring(list, name, offsetof(bConstraint, name));
+}
 
 /* finds the 'active' constraint in a constraint stack */
 bConstraint *constraints_get_active (ListBase *list)
