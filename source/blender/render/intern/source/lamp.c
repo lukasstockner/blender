@@ -29,6 +29,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_ghash.h"
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 
@@ -594,8 +595,11 @@ ListBase *lamps_get(Render *re, ShadeInput *shi)
 		return &re->db.lights;
 	if(shi->material.light_override)
 		return &shi->material.light_override->gobject;
-	if(shi->material.mat && shi->material.mat->group)
-		return &shi->material.mat->group->gobject;
+	if(shi->material.mat && shi->material.mat->group) {
+		Group *group= BLI_ghash_lookup(re->db.lightgrouphash, shi->material.mat->group);
+		if(group)
+			return &group->gobject;
+	}
 	
 	return &re->db.lights;
 }
@@ -904,7 +908,7 @@ void lamp_free(LampRen *lar)
 void lightgroup_create(Render *re, Group *group, int exclusive)
 {
 	GroupObject *go, *gol;
-	
+
 	group->id.flag &= ~LIB_DOIT;
 
 	/* it's a bit too many loops in loops... but will survive */

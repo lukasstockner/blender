@@ -85,6 +85,7 @@ typedef struct RenderDB {
 	/* lamps */
 	ListBase lights;	/* GroupObject pointers */
 	ListBase lampren;	/* storage, for free */
+	struct GHash *lightgrouphash;
 
 	/* subsurface scattering */
 	struct GHash *sss_hash;

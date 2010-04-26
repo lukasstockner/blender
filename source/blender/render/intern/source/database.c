@@ -59,6 +59,7 @@ void render_db_init(RenderDB *rdb)
 
 	rdb->lights.first= rdb->lights.last= NULL;
 	rdb->lampren.first= rdb->lampren.last= NULL;
+	rdb->lightgrouphash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
 }
 
 void render_db_free(RenderDB *rdb)
@@ -104,6 +105,11 @@ void render_db_free(RenderDB *rdb)
 	
 	BLI_freelistN(&rdb->lampren);
 	BLI_freelistN(&rdb->lights);
+
+	if(rdb->lightgrouphash) {
+		BLI_ghash_free(rdb->lightgrouphash, NULL, NULL);
+		rdb->lightgrouphash= NULL;
+	}
 
 	/* memarea */
 	if(rdb->memArena) {

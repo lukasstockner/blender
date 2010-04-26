@@ -210,7 +210,7 @@ static void add_volume(Render *re, ObjectRen *obr, Material *ma)
 
 static void set_material_lightgroups(Render *re)
 {
-	Group *group;
+	Group *group, *lightgroup;
 	Material *ma;
 	
 	/* not for preview render */
@@ -223,8 +223,22 @@ static void set_material_lightgroups(Render *re)
 	/* it's a bit too many loops in loops... but will survive */
 	/* hola! materials not in use...? */
 	for(ma= G.main->mat.first; ma; ma=ma->id.next) {
-		if(ma->group && (ma->group->id.flag & LIB_DOIT))
-			lightgroup_create(re, ma->group, ma->mode & MA_GROUP_EXCLUSIVE);
+		if(ma->group && (ma->group->id.flag & LIB_DOIT)) {
+			lightgroup= ma->group;
+
+			/* local group override */
+			if((ma->shade_flag & MA_GROUP_LOCAL) && ma->id.lib && ma->group->id.lib) {
+				for(group= G.main->group.first; group; group= group->id.next) {
+					if(!group->id.lib && strcmp(group->id.name, ma->group->id.name) == 0) {
+						lightgroup= group;
+						break;
+					}
+				}
+			}
+
+			BLI_ghash_insert(re->db.lightgrouphash, ma->group, lightgroup);
+			lightgroup_create(re, lightgroup, ma->mode & MA_GROUP_EXCLUSIVE);
+		}
 	}
 }
 
