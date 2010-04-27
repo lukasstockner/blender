@@ -223,7 +223,7 @@ static void set_material_lightgroups(Render *re)
 	/* it's a bit too many loops in loops... but will survive */
 	/* hola! materials not in use...? */
 	for(ma= G.main->mat.first; ma; ma=ma->id.next) {
-		if(ma->group && (ma->group->id.flag & LIB_DOIT)) {
+		if(ma->group) {
 			lightgroup= ma->group;
 
 			/* local group override */
@@ -235,6 +235,9 @@ static void set_material_lightgroups(Render *re)
 					}
 				}
 			}
+			
+			if(!(lightgroup->id.flag & LIB_DOIT))
+				break;
 
 			BLI_ghash_insert(re->db.lightgrouphash, ma->group, lightgroup);
 			lightgroup_create(re, lightgroup, ma->mode & MA_GROUP_EXCLUSIVE);
