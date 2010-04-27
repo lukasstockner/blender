@@ -236,11 +236,10 @@ static void set_material_lightgroups(Render *re)
 				}
 			}
 			
-			if(!(lightgroup->id.flag & LIB_DOIT))
-				break;
-
-			BLI_ghash_insert(re->db.lightgrouphash, ma->group, lightgroup);
-			lightgroup_create(re, lightgroup, ma->mode & MA_GROUP_EXCLUSIVE);
+			if(lightgroup->id.flag & LIB_DOIT) {
+				BLI_ghash_insert(re->db.lightgrouphash, ma->group, lightgroup);
+				lightgroup_create(re, lightgroup, ma->mode & MA_GROUP_EXCLUSIVE);
+			}
 		}
 	}
 }
