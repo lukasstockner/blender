@@ -1437,12 +1437,12 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 	}
 }
 
-static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, CollisionModifierData *collmd, int result, BVHTreeOverlap *overlap)
+static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, CollisionModifierData *collmd, int result, BVHTreeOverlap *overlap, float dt)
 {
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *cv;
 	float *dis = MEM_callocN(sizeof(float)*cloth->numverts, "coll point distancers");
-	float lambda, lambda2, uv[2], uv2[2], epsilon;
+	float lambda, dot, lambda2, uv[2], uv2[2], epsilon;
 	MFace **frefs = MEM_callocN(sizeof(void*)*clmd->clothObject->numverts, "coll indices");
 	int i, j, ret = 0;
 
@@ -1524,6 +1524,8 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		mul_v3_fl(vec, -1.0f);
 
 		normalize_v3(vec);
+		dot = dot_v3v3(no, vec);
+
 		/*handle friction.  probably really stupid math here, no time for doing better though*/
 		if (isect_ray_tri_v3(cv->tx, vec, v1, v2, v3, &lambda2, uv2) ||
 			(mf->v4 && isect_ray_tri_v3(cv->tx, vec, v1, v3, v4, &lambda2, uv2)))
@@ -1540,11 +1542,10 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		if (lambda < 0.0)
 			lambda = 0.0;
 
-		mul_v3_fl(no, lambda);
-		add_v3_v3(cv->txold, no);
+		mul_v3_fl(no, lambda*dt);
+		add_v3_v3(cv->tx, no);
 
-		mul_v3_fl(cv->tv, lambda);
-		//add_v3_v3(cv->tv, no);
+		sub_v3_v3v3(cv->tv, cv->tx, cv->txold);
 	}
 
 	MEM_freeN(frefs);
@@ -1685,7 +1686,7 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				continue;
 			}
 
-			ret += cloth_bvh_edge_objcollisions_nearcheck ( clmd, collmd, result, overlap);
+			ret += cloth_bvh_edge_objcollisions_nearcheck ( clmd, collmd, result, overlap, dt);
 		}
 		rounds++;
 		

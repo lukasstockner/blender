@@ -1910,7 +1910,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 
 				VECCOPY(id->Xnew[i], verts[i].tx);
 				VECCOPY(id->Vnew[i], verts[i].tv);
-				mul_v3_fl(id->Vnew[i], clmd->sim_parms->stepsPerFrame);
+				mul_v3_fl(id->Vnew[i], ((float)clmd->sim_parms->stepsPerFrame)); // /clmd->sim_parms->timescale);
 			}
 			
 			/* restore original stepsPerFrame */
@@ -1927,7 +1927,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			// calculate
 			cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M);
 
-			simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt / 2.0f, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
+			simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt/2, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
 		} else {
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);
