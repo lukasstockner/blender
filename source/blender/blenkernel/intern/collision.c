@@ -1450,7 +1450,7 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 
 	for (i=0; i<result; i++, overlap++) {
 		MFace *mf = collmd->mfaces + overlap->indexB;
-		float v1[3], v2[3], v3[3], v4[3], no[3], vec[3];
+		float v1[3], v2[3], v3[3], v4[3], no[3], vec[3], ov1[3], ov2[3], ov3[3];
 
 		if (overlap->indexA < 0 || overlap->indexA >= cloth->numverts)
 			continue;
@@ -1482,7 +1482,27 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		if (isect_ray_tri_v3(cv->tx, no, v1, v2, v3, &lambda, uv) ||
 			(mf->v4 && isect_ray_tri_v3(cv->tx, vec, v1, v3, v4, &lambda, uv)))
 		{
-			if (!frefs[j] || lambda < dis[j]) {
+			/*we need to compute distance to the plane of the previous time step's face, not the current one*/
+			VECCOPY(ov1, collmd->current_x[mf->v1].co);
+			VECCOPY(ov2, collmd->current_x[mf->v2].co);
+			VECCOPY(ov3, collmd->current_x[mf->v3].co);
+
+			normal_tri_v3(no, ov1, ov2, ov3);
+			mul_v3_fl(no, epsilon);
+
+			add_v3_v3(ov1, no);
+			add_v3_v3(ov2, no);
+			add_v3_v3(ov3, no);
+
+			normalize_v3(no);
+			mul_v3_fl(no, -1.0);
+
+			isect_ray_tri_plane_v3(cv->txold, no, ov1, ov2, ov3, &lambda, uv);
+
+			if (lambda < 0.0)
+				continue;
+
+			if (!frefs[j] || fabs(lambda) < dis[j]) {
 				frefs[j] = mf;
 				dis[j] = lambda;
 			}
@@ -1687,6 +1707,9 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 			}
 
 			ret += cloth_bvh_edge_objcollisions_nearcheck ( clmd, collmd, result, overlap, dt);
+
+			if (overlap)
+				MEM_freeN(overlap);
 		}
 		rounds++;
 		

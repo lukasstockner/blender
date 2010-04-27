@@ -527,7 +527,7 @@ static void draw_fcurve_curve (bAnimContext *ac, ID *id, FCurve *fcu, SpaceIpo *
 		 */
 		// TODO: perhaps we should have 1.0 frames as upper limit so that curves don't get too distorted?
 	samplefreq= *((float *)grid) / U.v2d_min_gridsize;
-	if (samplefreq < 0.00001f) samplefreq= 0.00001f;
+	if (samplefreq < 0.001f) samplefreq= 0.001f;
 	
 	
 	/* the start/end times are simply the horizontal extents of the 'cur' rect */

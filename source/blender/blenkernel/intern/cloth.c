@@ -195,7 +195,7 @@ static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon
 {
 	unsigned int i;
 	BVHTree *bvhtree, *bvhspringtree = NULL;
-	GHash *gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	GHash *gh;
 	Cloth *cloth;
 	ClothVertex *verts, *v;
 	MFace *mfaces;
@@ -220,6 +220,7 @@ static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon
 	bvhtree = BLI_bvhtree_new(cloth->numfaces, epsilon, 4, 26);
 	
 	// fill tree
+	gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
 	for(i = 0; i < cloth->numfaces; i++, mfaces++)
 	{
 		BLI_ghash_insert(gh, &verts[mfaces->v1], NULL);
@@ -646,6 +647,9 @@ void cloth_free_modifier ( Object *ob, ClothModifierData *clmd )
 		
 		if ( cloth->bvhselftree )
 			BLI_bvhtree_free ( cloth->bvhselftree );
+
+		if ( cloth->bvhspringtree )
+			BLI_bvhtree_free ( cloth->bvhspringtree );
 
 		// we save our faces for collision objects
 		if ( cloth->mfaces )
