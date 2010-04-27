@@ -1292,7 +1292,7 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 	}
 	else if(s->type & CLOTH_SPRING_TYPE_GOAL)
 	{
-		float tvect[3];
+		/*float tvect[3];
 		
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 		
@@ -1319,7 +1319,7 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 		
 		// HERE IS THE PROBLEM!!!!
 		// dfdx_spring(s->dfdx, dir, length, 0.0, k);
-		// dfdv_damp(s->dfdv, dir, MIN2(1.0, (clmd->sim_parms->goalfrict/100.0)));
+		// dfdv_damp(s->dfdv, dir, MIN2(1.0, (clmd->sim_parms->goalfrict/100.0)));*/
 	}
 	else // calculate force of bending springs
 	{
@@ -1353,7 +1353,7 @@ DO_INLINE void cloth_apply_spring_force(ClothModifierData *clmd, ClothSpring *s,
 
 		VECADD(lF[s->ij], lF[s->ij], s->f);
 		
-		if(!(s->type & CLOTH_SPRING_TYPE_GOAL))
+		//if(!(s->type & CLOTH_SPRING_TYPE_GOAL))
 			VECSUB(lF[s->kl], lF[s->kl], s->f);
 		
 		sub_fmatrix_fmatrix(dFdX[s->kl].m, dFdX[s->kl].m, s->dfdx);
@@ -1871,12 +1871,27 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			// update verts to current positions
 			for(i = 0; i < numverts; i++)
 			{	
+				VECCOPY(verts[i].txold, verts[i].tx);
 				VECCOPY(verts[i].tx, id->Xnew[i]);
 				
+				/*apply goal forces*/
+				if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) &&
+				   !(verts [i].flags & CLOTH_VERT_FLAG_PINNED))
+				{
+					float vec[3], fac;
+
+					fac = 1.0 - pow(1.0 - verts[i].goal*clmd->sim_parms->goalspring, 1.0 / (float)(clmd->sim_parms->stepsPerFrame));
+
+					sub_v3_v3v3(vec, verts[i].xconst, verts[i].tx);
+					mul_v3_fl(vec, fac);
+
+					add_v3_v3(verts[i].tx, vec);
+				}
+
 				VECSUB(verts[i].tv, verts[i].tx, verts[i].txold);
 				VECCOPY(verts[i].v, verts[i].tv);
 			}
-			
+
 			// call collision function
 			// TODO: check if "step" or "step+dt" is correct - dg
 			if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED && clmd->clothObject->bvhtree) {

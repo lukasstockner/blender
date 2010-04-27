@@ -437,7 +437,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 	for(i = 0; i < clmd->clothObject->numverts; i++, verts++) {
 		/* save the previous position. */
 		VECCOPY(verts->xold, verts->xconst);
-		VECCOPY(verts->txold, verts->x);
+		//VECCOPY(verts->txold, verts->x);
 
 		/* Get the current position. */
 		VECCOPY(verts->xconst, mvert[i].co);
@@ -953,6 +953,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 		return 0;
 	}
 	
+#if 0
 	for ( i = 0; i < dm->getNumVerts(dm); i++)
 	{
 		if((!(cloth->verts[i].flags & CLOTH_VERT_FLAG_PINNED)) && (cloth->verts[i].goal > ALMOST_ZERO))
@@ -960,7 +961,8 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 			cloth_add_spring (clmd, i, i, 0.0, CLOTH_SPRING_TYPE_GOAL);
 		}
 	}
-	
+#endif
+
 	// init our solver
 	if ( solvers [clmd->sim_parms->solver_type].init ) {
 		solvers [clmd->sim_parms->solver_type].init ( ob, clmd );

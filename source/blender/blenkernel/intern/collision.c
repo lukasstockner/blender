@@ -1539,8 +1539,12 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		
 		if (lambda < 0.0)
 			lambda = 0.0;
+
 		mul_v3_fl(no, lambda);
 		add_v3_v3(cv->txold, no);
+
+		mul_v3_fl(cv->tv, lambda);
+		//add_v3_v3(cv->tv, no);
 	}
 
 	MEM_freeN(frefs);
