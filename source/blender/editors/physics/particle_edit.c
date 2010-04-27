@@ -2376,8 +2376,7 @@ static int weight_set_exec(bContext *C, wmOperator *op)
 	HairKey *hkey;
 	float weight;
 	ParticleBrushData *brush= &pset->brush[pset->brushtype];
-    float factor= RNA_float_get(op->ptr, "factor");
-    
+
     float factor= RNA_float_get(op->ptr, "factor");
 
 	weight= brush->strength;
