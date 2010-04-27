@@ -102,6 +102,7 @@ typedef struct Cloth
 	unsigned char 		old_solver_type;	/* unused, only 1 solver here */
 	unsigned char 		pad2;
 	short 			pad3;
+	struct BVHTree		*bvhspringtree;			/* collision tree for wire edges, e.g. hair */
 	struct BVHTree		*bvhtree;			/* collision tree for this cloth object */
 	struct BVHTree 		*bvhselftree;			/* collision tree for this cloth object */
 	struct MFace 		*mfaces;
@@ -133,6 +134,7 @@ typedef struct ClothVertex
 	float	bend_stiff;
 	float 	shear_stiff;
 	int 	spring_count; /* how many springs attached? */
+	int isolated; /*does not belon to any *face*, but *may* belong to an edge*/
 }
 ClothVertex;
 

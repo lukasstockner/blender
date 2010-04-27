@@ -105,6 +105,7 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel):
             col.label(text="Damping:")
             col.prop(cloth, "spring_damping", text="Spring")
             col.prop(cloth, "air_damping", text="Air")
+            col.prop(cloth, "flexibility_damping", text="Flexibility")
 
             col.prop(cloth, "pin_cloth", text="Pinning")
             sub = col.column()
@@ -150,19 +151,26 @@ class PHYSICS_PT_cloth_collision(PhysicButtonsPanel):
     bl_default_closed = True
 
     def poll(self, context):
+        return self.get_cloth(context)
+    
+    def get_cloth(self, context):
         return context.cloth
 
     def draw_header(self, context):
-        cloth = context.cloth.collision_settings
+        cloth = self.get_cloth(context).collision_settings
 
-        self.layout.active = cloth_panel_enabled(context.cloth)
+        self.layout.active = cloth_panel_enabled(self.get_cloth(context))
         self.layout.prop(cloth, "enable_collision", text="")
 
     def draw(self, context):
         layout = self.layout
-
-        cloth = context.cloth.collision_settings
-        md = context.cloth
+        
+        cloth = self.get_cloth(context)
+        if not cloth: return
+        
+        cloth = cloth.collision_settings
+        md = self.get_cloth(context)
+        
         wide_ui = context.region.width > narrowui
 
         layout.active = cloth.enable_collision and cloth_panel_enabled(md)

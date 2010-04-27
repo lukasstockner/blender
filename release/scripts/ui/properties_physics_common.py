@@ -134,12 +134,12 @@ def basic_force_field_settings_ui(self, context, field):
     wide_ui = context.region.width > narrowui
 
     split = layout.split()
-
+    
     if not field or field.type == 'NONE':
         return
 
     col = split.column()
-
+    
     if field.type == 'DRAG':
         col.prop(field, "linear_drag", text="Linear")
     else:

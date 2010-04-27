@@ -81,6 +81,8 @@ typedef struct ClothSimSettings
 	short 	reset;
 	short	pad[3];
 
+	float rigid_damp, padf;
+
 	struct EffectorWeights *effector_weights;
 } ClothSimSettings;
 

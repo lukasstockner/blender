@@ -37,6 +37,7 @@
 
 #include "BKE_pointcache.h"
 
+#include "BLI_ghash.h"
 
 #ifdef _WIN32
 void tstart ( void )
@@ -193,9 +194,10 @@ static BVHTree *bvhselftree_build_from_cloth (ClothModifierData *clmd, float eps
 static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon)
 {
 	unsigned int i;
-	BVHTree *bvhtree;
+	BVHTree *bvhtree, *bvhspringtree = NULL;
+	GHash *gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
 	Cloth *cloth;
-	ClothVertex *verts;
+	ClothVertex *verts, *v;
 	MFace *mfaces;
 	float co[12];
 
@@ -210,8 +212,8 @@ static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon
 	verts = cloth->verts;
 	mfaces = cloth->mfaces;
 	
-	// in the moment, return zero if no faces there
-	if(!cloth->numfaces)
+	// in the moment, return zero if nothing there
+	if(!cloth->numfaces && !cloth->numverts)
 		return NULL;
 	
 	// create quadtree with k=26
@@ -220,19 +222,48 @@ static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon
 	// fill tree
 	for(i = 0; i < cloth->numfaces; i++, mfaces++)
 	{
+		BLI_ghash_insert(gh, &verts[mfaces->v1], NULL);
+		BLI_ghash_insert(gh, &verts[mfaces->v2], NULL);
+		BLI_ghash_insert(gh, &verts[mfaces->v3], NULL);
+
 		VECCOPY(&co[0*3], verts[mfaces->v1].xold);
 		VECCOPY(&co[1*3], verts[mfaces->v2].xold);
 		VECCOPY(&co[2*3], verts[mfaces->v3].xold);
 		
-		if(mfaces->v4)
+		if(mfaces->v4) {
 			VECCOPY(&co[3*3], verts[mfaces->v4].xold);
-		
+			BLI_ghash_insert(gh, &verts[mfaces->v4], NULL);
+		}
+
 		BLI_bvhtree_insert(bvhtree, i, co, (mfaces->v4 ? 4 : 3));
 	}
 	
+	v = cloth->verts;
+	for (i=0; i<cloth->numverts; i++, v++) {
+		if (!BLI_ghash_haskey(gh, v)) {
+			float co[3];
+
+			if (!bvhspringtree)
+				bvhspringtree = BLI_bvhtree_new(cloth->numverts*2, MAX2(epsilon, 0.001), 4, 26);
+
+			VECCOPY(co, v->txold);
+
+			BLI_bvhtree_insert(bvhspringtree, i, (float*)co, 1);
+
+			v->isolated = 1;
+		} else v->isolated = 0;
+	}
+
+	BLI_ghash_free(gh, NULL, NULL);
+
 	// balance tree
 	BLI_bvhtree_balance(bvhtree);
-	
+
+	if (bvhspringtree)
+		BLI_bvhtree_balance(bvhspringtree);
+
+	cloth->bvhspringtree = bvhspringtree;
+
 	return bvhtree;
 }
 
@@ -241,7 +272,7 @@ void bvhtree_update_from_cloth(ClothModifierData *clmd, int moving)
 	unsigned int i = 0;
 	Cloth *cloth = clmd->clothObject;
 	BVHTree *bvhtree = cloth->bvhtree;
-	ClothVertex *verts = cloth->verts;
+	ClothVertex *verts = cloth->verts, *v;
 	MFace *mfaces;
 	float co[12], co_moving[12];
 	int ret = 0;
@@ -250,7 +281,22 @@ void bvhtree_update_from_cloth(ClothModifierData *clmd, int moving)
 		return;
 	
 	mfaces = cloth->mfaces;
-	
+
+	// update edge vertex positions in spring bvh tree
+	if (verts && cloth->numverts) {
+		for (i=0, v=cloth->verts; i<cloth->numverts; i++, v++) {
+			if (!v->isolated)
+				continue;
+
+			VECCOPY(co, v->txold);
+			VECCOPY(co+3, v->tx);
+
+			ret = BLI_bvhtree_update_node(cloth->bvhspringtree, i, co, co+3, 1);
+			if (!ret)
+				break;
+		}
+	}
+
 	// update vertex position in bvh tree
 	if(verts && mfaces)
 	{
@@ -288,6 +334,9 @@ void bvhtree_update_from_cloth(ClothModifierData *clmd, int moving)
 		
 		BLI_bvhtree_update_tree(bvhtree);
 	}
+
+	if (cloth->bvhspringtree)
+		BLI_bvhtree_update_tree(cloth->bvhspringtree);
 }
 
 void bvhselftree_update_from_cloth(ClothModifierData *clmd, int moving)

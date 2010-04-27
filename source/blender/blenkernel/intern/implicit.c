@@ -1727,6 +1727,85 @@ static void simulate_implicit_euler(lfVector *Vnew, lfVector *lX, lfVector *lV, 
 	del_lfvector(dFdXmV);
 }
 
+/*dampens towards global rigid body motion, see "point based dynamics" by mueller et all.
+  this was not really written for general use in this solver, but it works and it's here for
+  durian at least.*/
+void rigidbody_damping(ClothModifierData * clmd, float dt) {
+	Cloth *cloth = clmd->clothObject;
+	ClothVertex *v, *verts = clmd->clothObject->verts;
+	float lin[3] = {0, 0, 0}, ang[3] = {0, 0, 0}, totmass = 0, cent[3] = {0, 0, 0};
+	float damp;
+	int i, totverts=cloth->numverts;
+
+	v = verts;
+	for (i=0; i < totverts; i++, v++) {
+		float vec[3];
+
+		sub_v3_v3v3(v->tv, v->tx, v->txold);
+		copy_v3_v3(vec, v->tx);
+		mul_v3_fl(vec, v->mass);
+
+		add_v3_v3v3(cent, cent, vec);
+		totmass += v->mass;
+	}
+
+	if (totmass == 0.0)
+		return;
+
+	mul_v3_fl(cent, 1.0 / totmass);
+
+	v = verts;
+	for (i=0; i < totverts; i++, v++) {
+		float vel[3], vec[3], lang[3] = {0, 0, 0}, l, dot;
+
+		sub_v3_v3v3(v->tv, v->tx, v->txold);
+
+		copy_v3_v3(vel, v->tv);
+		add_v3_v3v3(lin, lin, vel);
+
+		sub_v3_v3v3(vec, v->tx, cent);
+
+		dot = dot_v3v3(vec, vel);
+		if (fabs(dot) > 0.000001) {
+			cross_v3_v3v3(lang, vec, vel);
+		}
+
+		add_v3_v3v3(ang, ang, lang);
+	}
+
+	mul_v3_fl(lin, 1.0 / totmass);
+	mul_v3_fl(ang, 1.0 / totmass);
+
+	damp = clmd->sim_parms->rigid_damp;
+	damp = 1.0 - pow(1.0 - damp, dt);
+
+	v = verts;
+	for (i=0; i<totverts; i++, v++) {
+		float vec[3], vel2[3]={0, 0, 0}, l, vel3[3]={0, 0, 0};
+
+		sub_v3_v3v3(vec, v->tx, cent);
+		if (dot_v3v3(ang, ang) > FLT_EPSILON) {
+			cross_v3_v3v3(vel2, ang, vec);
+		}
+
+		copy_v3_v3(vec, lin);
+
+		add_v3_v3v3(vec, lin, vel2);
+		mul_v3_fl(vec, v->mass);
+
+		l = len_v3(v->tv);
+		normalize_v3(vec);
+		mul_v3_fl(vec, l);
+
+		sub_v3_v3(vec, v->tv);
+		mul_v3_fl(vec, damp);
+
+		add_v3_v3(v->tv, vec);
+
+		sub_v3_v3v3(v->txold, v->tx, v->tv);
+	}
+}
+
 int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase *effectors)
 { 	 	
 	unsigned int i=0;
@@ -1780,7 +1859,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			VECCOPY(verts[i].txold, id->X[i]);
 		}
 
-		if(clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED && clmd->clothObject->bvhtree)
+		if(1)
 		{
 			float temp = clmd->sim_parms->stepsPerFrame;
 			/* not too nice hack, but collisions need this correction -jahka */
@@ -1800,27 +1879,23 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			
 			// call collision function
 			// TODO: check if "step" or "step+dt" is correct - dg
-			result = cloth_bvh_objcollision(ob, clmd, step/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
-			
-			// correct velocity again, just to be sure we had to change it due to adaptive collisions
-			for(i = 0; i < numverts; i++)
-			{
-				VECSUB(verts[i].tv, verts[i].tx, id->X[i]);
+			if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED && clmd->clothObject->bvhtree) {
+				result = cloth_bvh_objcollision(ob, clmd, step/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
 			}
+
+			//velocity rigid body damping
+			rigidbody_damping(clmd, dt/clmd->sim_parms->timescale);
 			
 			// copy corrected positions back to simulation
 			for(i = 0; i < numverts; i++)
 			{		
-				if(result)
-				{
 					
-					if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
-						continue;
-					
-					VECCOPY(id->Xnew[i], verts[i].tx);
-					VECCOPY(id->Vnew[i], verts[i].tv);
-					mul_v3_fl(id->Vnew[i], clmd->sim_parms->stepsPerFrame);
-				}
+				if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
+					continue;
+
+				VECCOPY(id->Xnew[i], verts[i].tx);
+				VECCOPY(id->Vnew[i], verts[i].tv);
+				mul_v3_fl(id->Vnew[i], clmd->sim_parms->stepsPerFrame);
 			}
 			
 			/* restore original stepsPerFrame */
@@ -1831,19 +1906,14 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			
 			// if there were collisions, advance the velocity from v_n+1/2 to v_n+1
 			
-			if(result)
-			{
-				// V = Vnew;
-				cp_lfvector(id->V, id->Vnew, numverts);
-				
-				// calculate 
-				cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M);	
-				
-				simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt / 2.0f, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
-			}
-		}
-		else
-		{
+			// V = Vnew;
+			cp_lfvector(id->V, id->Vnew, numverts);
+
+			// calculate
+			cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M);
+
+			simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt / 2.0f, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
+		} else {
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);
 		}

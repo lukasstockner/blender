@@ -94,7 +94,11 @@ int isect_ray_tri_threshold_v3(float p1[3], float d[3],
 	float v0[3], float v1[3], float v2[3], float *lambda, float *uv, float threshold);
 int isect_ray_tri_epsilon_v3(float p1[3], float d[3],
 	float v0[3], float v1[3], float v2[3], float *lambda, float *uv, float epsilon);
-
+/*easy way to intersect ray with a plane defined by a triangle, without needing
+  to compute a plane equation (the tri's normal plus the distance of (0, 0) from the plane
+  defined by that tri) first.*/
+int isect_ray_tri_plane_v3(float p1[3], float d[3], float v0[3],
+							 float v1[3], float v2[3], float *lambda, float *uv);
 /* point in polygon */
 int isect_point_tri_v2(float p[2], float a[2], float b[2], float c[2]);
 int isect_point_quad_v2(float p[2], float a[2], float b[2], float c[2], float d[2]);

@@ -2471,3 +2471,196 @@ float form_factor_hemi_poly(float p[3], float n[3], float v1[3], float v2[3], fl
 	return contrib;
 }
 
+/*u is a four-component vector*/
+void barycentric_tetrahedron(float *v1, float *v2, float *v3, float *v4, float *p, float *u)
+{
+	float mat[3][3];
+	float p1[3];
+	int i;
+
+	for (i=0; i<3; i++) {
+		mat[i][0] = v1[i] - v4[i];
+		mat[i][1] = v2[i] - v4[i];
+		mat[i][2] = v3[i] - v4[i];
+	}
+
+	transpose_m3(mat);
+	invert_m3(mat);
+
+	sub_v3_v3v3(p1, p, v4);
+	mul_m3_v3(mat, p1);
+
+	VECCOPY(u, p1);
+	u[3] = 1.0 - u[2] - u[1] - u[0];
+}
+
+int point_in_tetra(float *v1, float *v2, float *v3, float *v4, float *p, float epsilon) {
+	float u[4];
+	int i;
+
+	barycentric_tetrahedron(v1, v2, v3, v4, p, u);
+	for (i=0; i<4; i++) {
+		if (u[i] < -FLT_EPSILON*2 || u[i] > 1.0 + FLT_EPSILON*2 )
+			return 0;
+	}
+
+	return 1;
+}
+
+static void barycentric_tetrahedron_mat(float mat[3][3], float *v1, float *v2, float *v3, float *v4)
+{
+	int i;
+
+	for (i=0; i<3; i++) {
+		mat[i][0] = v1[i] - v4[i];
+		mat[i][1] = v2[i] - v4[i];
+		mat[i][2] = v3[i] - v4[i];
+	}
+
+	transpose_m3(mat);
+	invert_m3(mat);
+}
+
+static int point_in_tetra_d_mat(float mat[3][3], float *v4, float *p, float epsilon) {
+	float u[4];
+	int i;
+
+	sub_v3_v3v3(u, p, v4);
+	mul_m3_v3(mat, u);
+
+	u[3] = 1.0 - u[2] - u[1] - u[0];
+
+	for (i=0; i<4; i++) {
+		if (u[i] < FLT_EPSILON*2 || u[i] > 1.0 - FLT_EPSILON*2 )
+			return 0;
+	}
+
+	return 1;
+}
+
+int line_intersects_tri(float *v1, float *v2, float *v3, float *p1, float *p2, float *pout)
+{
+	float lambda, vec[3], dis;
+
+	sub_v3_v3v3(vec, p2, p1);
+	dis = dot_v3v3(vec, vec);
+	normalize_v3(vec);
+
+	if (isect_ray_tri_v3(p1, vec, v1, v2, v3, &lambda, NULL)) {
+		if (pout) {
+			VECCOPY(pout, vec);
+			mul_v3_fl(pout, lambda);
+			add_v3_v3(pout, p1);
+		}
+
+		return lambda*lambda < dis - FLT_EPSILON*2 && lambda*lambda > FLT_EPSILON*2;
+	}
+
+	return 0;
+}
+
+
+int line_in_tetra(float t1[4][3], float v1[3], float v2[3])
+{
+	int ftable[4][3] = {{0, 1, 2}, {0, 3, 2}, {0, 1, 3}, {1, 3, 2}};
+	float tv1[3][3], mat1[3][3];
+	int i;
+
+	#define MAKE_TRI(t, v, i)\
+		  VECCOPY(v[0], t[ftable[i][0]]);\
+		  VECCOPY(v[1], t[ftable[i][1]]);\
+		  VECCOPY(v[2], t[ftable[i][2]]);\
+
+	barycentric_tetrahedron_mat(mat1, t1[0], t1[1], t1[2], t1[3]);
+
+	if (point_in_tetra_d_mat(mat1, t1[3], v1, FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat1, t1[3], v2, FLT_EPSILON)) return 1;
+
+	for (i=0; i<4; i++) {
+		MAKE_TRI(t1, tv1, i);
+
+		if (line_intersects_tri(tv1[0], tv1[1], tv1[2], v1, v2, NULL)) return 1;
+	}
+
+	return 0;
+}
+
+float tetra_isect(float t1[4][3], float t2[4][3])
+{
+	int ftable[4][3] = {{0, 1, 2}, {0, 3, 2}, {0, 1, 3}, {1, 3, 2}};
+	float tv1[3][3], tv2[3][3], mat1[3][3], mat2[3][3];
+	int i, j, no[3], no2[3];
+
+	#define MAKE_TRI(t, v, i)\
+		  VECCOPY(v[0], t[ftable[i][0]]);\
+		  VECCOPY(v[1], t[ftable[i][1]]);\
+		  VECCOPY(v[2], t[ftable[i][2]]);\
+
+	barycentric_tetrahedron_mat(mat1, t1[0], t1[1], t1[2], t1[3]);
+	barycentric_tetrahedron_mat(mat2, t2[0], t2[1], t2[2], t2[3]);
+
+	if (point_in_tetra_d_mat(mat1, t1[3], t2[0], FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat1, t1[3], t2[1], FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat1, t1[3], t2[2], FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat1, t1[3], t2[3], FLT_EPSILON)) return 1;
+
+	if (point_in_tetra_d_mat(mat2, t2[3], t1[0], FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat2, t2[3], t1[1], FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat2, t2[3], t1[2], FLT_EPSILON)) return 1;
+	if (point_in_tetra_d_mat(mat2, t2[3], t1[3], FLT_EPSILON)) return 1;
+
+	for (i=0; i<4; i++) {
+		for (j=0; j<4; j++) {
+			float eps = -FLT_EPSILON;
+
+			MAKE_TRI(t1, tv1, i);
+			MAKE_TRI(t2, tv2, j);
+
+			if (line_intersects_tri(tv1[0], tv1[1], tv1[2], tv2[0], tv2[1], NULL)) return 1;
+			if (line_intersects_tri(tv1[0], tv1[1], tv1[2], tv2[1], tv2[2], NULL)) return 1;
+			if (line_intersects_tri(tv1[0], tv1[1], tv1[2], tv2[2], tv2[0], NULL)) return 1;
+
+			if (line_intersects_tri(tv2[0], tv2[1], tv2[2], tv1[0], tv1[1], NULL)) return 1;
+			if (line_intersects_tri(tv2[0], tv2[1], tv2[2], tv1[1], tv1[2], NULL)) return 1;
+			if (line_intersects_tri(tv2[0], tv2[1], tv2[2], tv1[2], tv1[0], NULL)) return 1;
+		}
+	}
+
+	return 0;
+}
+
+/*easy way to intersect ray with a plane defined by a triangle, without needing
+  to compute a plane equation (the tri's normal plus the distance of (0, 0) from the plane
+  defined by that tri) first.*/
+int isect_ray_tri_plane_v3(float p1[3], float d[3], float v0[3],
+							 float v1[3], float v2[3], float *lambda, float *uv)
+{
+	float p[3], s[3], e1[3], e2[3], q[3];
+	float a, f, u, v, eps = FLT_EPSILON*2;
+
+	sub_v3_v3v3(e1, v1, v0);
+	sub_v3_v3v3(e2, v2, v0);
+
+	cross_v3_v3v3(p, d, e2);
+	a = dot_v3v3(e1, p);
+
+	/*check if we are parallel to the plane*/
+	if ((a > -eps) && (a < eps)) return 0;
+	f = 1.0f/a;
+
+	sub_v3_v3v3(s, p1, v0);
+
+	cross_v3_v3v3(q, s, e1);
+	*lambda = f * dot_v3v3(e2, q);
+	if ((*lambda < eps)) return 0;
+
+	u = f * dot_v3v3(s, p);
+	v = f * dot_v3v3(d, q);
+
+	if(uv) {
+		uv[0]= u;
+		uv[1]= v;
+	}
+
+	return 1;
+}
