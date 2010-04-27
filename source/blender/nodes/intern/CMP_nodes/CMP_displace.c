@@ -44,14 +44,14 @@ static bNodeSocketType cmp_node_displace_out[]= {
 	{	-1, 0, ""	}
 };
 
-static float *vecbuf_get_pixel(CompBuf *vecbuf, float *veccol, int x, int y)
+static float *vecbuf_get_pixel(CompBuf *vecbuf, float *veccol, int x, int y, int thread)
 {
 	/* the x-xrad stuff is a bit weird, but i seem to need it otherwise 
 	 * my returned pixels are offset weirdly */
-	return compbuf_get_pixel(vecbuf, veccol, x-vecbuf->xrad, y-vecbuf->yrad, vecbuf->xrad, vecbuf->yrad);
+	return compbuf_get_pixel(vecbuf, veccol, x-vecbuf->xrad, y-vecbuf->yrad, vecbuf->xrad, vecbuf->yrad, thread);
 }
 
-static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float *veccol, float *xscale, float *yscale)
+static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float *veccol, float *xscale, float *yscale, int thread)
 {
 	ImBuf *ibuf;
 	float dx=0.0, dy=0.0;
@@ -77,7 +77,7 @@ static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float
 	for(y=0; y<sy; y++) {
 		for(x= 0; x< sx; x++, out+=4, in+=4, vec+=3) {
 			
-			vp = vecbuf_get_pixel(vecbuf, col, x, y);
+			vp = vecbuf_get_pixel(vecbuf, col, x, y, thread);
 
 			/* this happens in compbuf_get_pixel, need to make sure the following
 			 * check takes them into account */
@@ -96,21 +96,21 @@ static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float
 				/* adaptive sampling, X and Y channel.
 				 * we call vecbuf_get_pixel for every pixel since the input
 				 * might be a procedural, and then we can't use offsets */
-				vpprev = vecbuf_get_pixel(vecbuf, colprev, x-1, y);
-				vpnext = vecbuf_get_pixel(vecbuf, colnext, x+1, y);
+				vpprev = vecbuf_get_pixel(vecbuf, colprev, x-1, y, thread);
+				vpnext = vecbuf_get_pixel(vecbuf, colnext, x+1, y, thread);
 				dx= 0.5f*(fabs(vp[0]-vpprev[0]) + fabs(vp[0]-vpnext[0]));
 
-				vpprev = vecbuf_get_pixel(vecbuf, colprev, x, y-1);
-				vpnext = vecbuf_get_pixel(vecbuf, colnext, x, y+1);
+				vpprev = vecbuf_get_pixel(vecbuf, colprev, x, y-1, thread);
+				vpnext = vecbuf_get_pixel(vecbuf, colnext, x, y+1, thread);
 				dy= 0.5f*(fabs(vp[1]-vpnext[1]) + fabs(vp[1]-vpprev[1]));
 
-				vpprev = vecbuf_get_pixel(vecbuf, colprev, x-1, y-1);
-				vpnext = vecbuf_get_pixel(vecbuf, colnext, x-1, y+1);
+				vpprev = vecbuf_get_pixel(vecbuf, colprev, x-1, y-1, thread);
+				vpnext = vecbuf_get_pixel(vecbuf, colnext, x-1, y+1, thread);
 				dx+= 0.25f*(fabs(vp[0]-vpprev[0]) + fabs(vp[0]-vpnext[0]));
 				dy+= 0.25f*(fabs(vp[1]-vpprev[1]) + fabs(vp[1]-vpnext[1]));
 
-				vpprev = vecbuf_get_pixel(vecbuf, colprev, x+1, y-1);
-				vpnext = vecbuf_get_pixel(vecbuf, colnext, x+1, y+1);
+				vpprev = vecbuf_get_pixel(vecbuf, colprev, x+1, y-1, thread);
+				vpnext = vecbuf_get_pixel(vecbuf, colnext, x+1, y+1, thread);
 				dx+= 0.25f*(fabs(vp[0]-vpprev[0]) + fabs(vp[0]-vpnext[0]));
 				dy+= 0.25f*(fabs(vp[1]-vpprev[1]) + fabs(vp[1]-vpnext[1]));
 				
@@ -149,7 +149,7 @@ static void node_composit_exec_displace(void *data, bNode *node, bNodeStack **in
 		vecbuf= typecheck_compbuf(vecbuf, CB_VEC3);
 		stackbuf= alloc_compbuf(cbuf->x, cbuf->y, CB_RGBA, 1); /* allocs */
 
-		do_displace(stackbuf, cbuf, vecbuf, in[1]->vec, in[2]->vec, in[3]->vec);
+		do_displace(stackbuf, cbuf, vecbuf, in[1]->vec, in[2]->vec, in[3]->vec, node->thread);
 		
 		out[0]->data= stackbuf;
 		

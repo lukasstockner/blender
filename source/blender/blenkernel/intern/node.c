@@ -2241,6 +2241,7 @@ static int node_only_value(bNode *node)
 typedef struct ThreadData {
 	bNodeStack *stack;
 	RenderData *rd;
+	int thread;
 } ThreadData;
 
 static void *exec_composite_node(void *node_v)
@@ -2453,6 +2454,9 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 	/* fixed seed, for example noise texture */
 	BLI_srandom(rd->cfra);
 
+	/* image tile cache init */
+	IMB_tile_cache_params(rd->threads, U.imagetilememory);
+
 	/* sets need_exec tags in nodes */
 	totnode= setExecutableNodes(ntree, &thdata);
 
@@ -2473,7 +2477,8 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 				}
 				totnode--;
 				
-				node->threaddata = &thdata;
+				node->threaddata= &thdata;
+				node->thread= BLI_available_thread_index(&threads);
 				node->exec= NODE_PROCESSING;
 				BLI_insert_thread(&threads, node);
 			}

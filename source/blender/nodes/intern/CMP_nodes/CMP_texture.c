@@ -42,7 +42,7 @@ static bNodeSocketType cmp_node_texture_out[]= {
 };
 
 /* called without rect allocated */
-static void texture_procedural(CompBuf *cbuf, float *out, float xco, float yco)
+static void texture_procedural(CompBuf *cbuf, float *out, float xco, float yco, int thread)
 {
 	bNode *node= cbuf->node;
 	TexResult texres= {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
@@ -55,7 +55,7 @@ static void texture_procedural(CompBuf *cbuf, float *out, float xco, float yco)
 	vec[1]= size[1]*(yco + cbuf->procedural_offset[1]);
 	vec[2]= size[2]*cbuf->procedural_offset[2];
 	
-	retval= multitex_ext((Tex *)node->id, vec, NULL, NULL, 0, &texres);
+	retval= multitex_ext((Tex *)node->id, vec, NULL, NULL, 0, &texres, thread);
 	
 	if(type==CB_VAL) {
 		if(texres.talpha)

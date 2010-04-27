@@ -414,11 +414,11 @@ CompBuf *typecheck_compbuf(CompBuf *inbuf, int type)
 	return inbuf;
 }
 
-float *compbuf_get_pixel(CompBuf *cbuf, float *rectf, int x, int y, int xrad, int yrad)
+float *compbuf_get_pixel(CompBuf *cbuf, float *rectf, int x, int y, int xrad, int yrad, int thread)
 {
 	if(cbuf) {
 		if(cbuf->rect_procedural) {
-			cbuf->rect_procedural(cbuf, rectf, (float)x/(float)xrad, (float)y/(float)yrad);
+			cbuf->rect_procedural(cbuf, rectf, (float)x/(float)xrad, (float)y/(float)yrad, thread);
 			return rectf;
 		}
 		else {
@@ -446,7 +446,7 @@ void composit1_pixel_processor(bNode *node, CompBuf *out, CompBuf *src_buf, floa
 {
 	CompBuf *src_use;
 	float *outfp=out->rect, *srcfp;
-	int xrad, yrad, x, y;
+	int xrad, yrad, x, y, thread= node->thread;
 	
 	src_use= typecheck_compbuf(src_buf, src_type);
 	
@@ -455,7 +455,7 @@ void composit1_pixel_processor(bNode *node, CompBuf *out, CompBuf *src_buf, floa
 	
 	for(y= -yrad; y<-yrad+out->y; y++) {
 		for(x= -xrad; x<-xrad+out->x; x++, outfp+=out->type) {
-			srcfp= compbuf_get_pixel(src_use, src_col, x, y, xrad, yrad);
+			srcfp= compbuf_get_pixel(src_use, src_col, x, y, xrad, yrad, thread);
 			func(node, outfp, srcfp);
 		}
 	}
@@ -471,7 +471,7 @@ void composit2_pixel_processor(bNode *node, CompBuf *out, CompBuf *src_buf, floa
 {
 	CompBuf *src_use, *fac_use;
 	float *outfp=out->rect, *srcfp, *facfp;
-	int xrad, yrad, x, y;
+	int xrad, yrad, x, y, thread= node->thread;
 	
 	src_use= typecheck_compbuf(src_buf, src_type);
 	fac_use= typecheck_compbuf(fac_buf, fac_type);
@@ -481,8 +481,8 @@ void composit2_pixel_processor(bNode *node, CompBuf *out, CompBuf *src_buf, floa
 	
 	for(y= -yrad; y<-yrad+out->y; y++) {
 		for(x= -xrad; x<-xrad+out->x; x++, outfp+=out->type) {
-			srcfp= compbuf_get_pixel(src_use, src_col, x, y, xrad, yrad);
-			facfp= compbuf_get_pixel(fac_use, fac, x, y, xrad, yrad);
+			srcfp= compbuf_get_pixel(src_use, src_col, x, y, xrad, yrad, thread);
+			facfp= compbuf_get_pixel(fac_use, fac, x, y, xrad, yrad, thread);
 			
 			func(node, outfp, srcfp, facfp);
 		}
@@ -500,7 +500,7 @@ void composit3_pixel_processor(bNode *node, CompBuf *out, CompBuf *src1_buf, flo
 {
 	CompBuf *src1_use, *src2_use, *fac_use;
 	float *outfp=out->rect, *src1fp, *src2fp, *facfp;
-	int xrad, yrad, x, y;
+	int xrad, yrad, x, y, thread= node->thread;
 	
 	src1_use= typecheck_compbuf(src1_buf, src1_type);
 	src2_use= typecheck_compbuf(src2_buf, src2_type);
@@ -511,9 +511,9 @@ void composit3_pixel_processor(bNode *node, CompBuf *out, CompBuf *src1_buf, flo
 	
 	for(y= -yrad; y<-yrad+out->y; y++) {
 		for(x= -xrad; x<-xrad+out->x; x++, outfp+=out->type) {
-			src1fp= compbuf_get_pixel(src1_use, src1_col, x, y, xrad, yrad);
-			src2fp= compbuf_get_pixel(src2_use, src2_col, x, y, xrad, yrad);
-			facfp= compbuf_get_pixel(fac_use, fac, x, y, xrad, yrad);
+			src1fp= compbuf_get_pixel(src1_use, src1_col, x, y, xrad, yrad, thread);
+			src2fp= compbuf_get_pixel(src2_use, src2_col, x, y, xrad, yrad, thread);
+			facfp= compbuf_get_pixel(fac_use, fac, x, y, xrad, yrad, thread);
 			
 			func(node, outfp, src1fp, src2fp, facfp);
 		}
@@ -535,7 +535,7 @@ void composit4_pixel_processor(bNode *node, CompBuf *out, CompBuf *src1_buf, flo
 {
 	CompBuf *src1_use, *src2_use, *fac1_use, *fac2_use;
 	float *outfp=out->rect, *src1fp, *src2fp, *fac1fp, *fac2fp;
-	int xrad, yrad, x, y;
+	int xrad, yrad, x, y, thread= node->thread;
 	
 	src1_use= typecheck_compbuf(src1_buf, src1_type);
 	src2_use= typecheck_compbuf(src2_buf, src2_type);
@@ -547,10 +547,10 @@ void composit4_pixel_processor(bNode *node, CompBuf *out, CompBuf *src1_buf, flo
 	
 	for(y= -yrad; y<-yrad+out->y; y++) {
 		for(x= -xrad; x<-xrad+out->x; x++, outfp+=out->type) {
-			src1fp= compbuf_get_pixel(src1_use, src1_col, x, y, xrad, yrad);
-			src2fp= compbuf_get_pixel(src2_use, src2_col, x, y, xrad, yrad);
-			fac1fp= compbuf_get_pixel(fac1_use, fac1, x, y, xrad, yrad);
-			fac2fp= compbuf_get_pixel(fac2_use, fac2, x, y, xrad, yrad);
+			src1fp= compbuf_get_pixel(src1_use, src1_col, x, y, xrad, yrad, thread);
+			src2fp= compbuf_get_pixel(src2_use, src2_col, x, y, xrad, yrad, thread);
+			fac1fp= compbuf_get_pixel(fac1_use, fac1, x, y, xrad, yrad, thread);
+			fac2fp= compbuf_get_pixel(fac2_use, fac2, x, y, xrad, yrad, thread);
 			
 			func(node, outfp, src1fp, fac1fp, src2fp, fac2fp);
 		}
@@ -590,7 +590,7 @@ CompBuf *valbuf_from_rgbabuf(CompBuf *cbuf, int channel)
 	return valbuf;
 }
 
-static CompBuf *generate_procedural_preview(CompBuf *cbuf, int newx, int newy)
+static CompBuf *generate_procedural_preview(CompBuf *cbuf, int newx, int newy, int thread)
 {
 	CompBuf *outbuf;
 	float *outfp;
@@ -604,7 +604,7 @@ static CompBuf *generate_procedural_preview(CompBuf *cbuf, int newx, int newy)
 	
 	for(y= -yrad; y<-yrad+outbuf->y; y++)
 		for(x= -xrad; x<-xrad+outbuf->x; x++, outfp+=outbuf->type)
-			cbuf->rect_procedural(cbuf, outfp, (float)x/(float)xrad, (float)y/(float)yrad);
+			cbuf->rect_procedural(cbuf, outfp, (float)x/(float)xrad, (float)y/(float)yrad, thread);
 
 	return outbuf;
 }
@@ -634,7 +634,7 @@ void generate_preview(void *data, bNode *node, CompBuf *stackbuf)
 		}
 		
 		if(stackbuf_use->rect_procedural)
-			cbuf= generate_procedural_preview(stackbuf_use, xsize, ysize);
+			cbuf= generate_procedural_preview(stackbuf_use, xsize, ysize, node->thread);
 		else
 			cbuf= scalefast_compbuf(stackbuf_use, xsize, ysize);
 

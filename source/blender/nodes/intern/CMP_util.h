@@ -82,7 +82,7 @@ typedef struct CompBuf {
 	rcti disprect;		/* cropped part of image */
 	int xof, yof;		/* relative to center of target image */
 	
-	void (*rect_procedural)(struct CompBuf *, float *, float, float);
+	void (*rect_procedural)(struct CompBuf *, float *, float, float, int thread);
 	float procedural_size[3], procedural_offset[3];
 	int procedural_type;
 	bNode *node;		/* only in use for procedural bufs */
@@ -117,7 +117,7 @@ CompBuf *get_cropped_compbuf(rcti *drect, float *rectf, int rectx, int recty, in
 CompBuf *scalefast_compbuf(CompBuf *inbuf, int newx, int newy);
 CompBuf *typecheck_compbuf(CompBuf *inbuf, int type);
 void typecheck_compbuf_color(float *out, float *in, int outtype, int intype);
-float *compbuf_get_pixel(CompBuf *cbuf, float *rectf, int x, int y, int xrad, int yrad);
+float *compbuf_get_pixel(CompBuf *cbuf, float *rectf, int x, int y, int xrad, int yrad, int thread);
 
 /* **************************************************** */
 

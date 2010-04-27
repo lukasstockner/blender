@@ -370,15 +370,15 @@ static unsigned int *imb_thread_cache_get_tile(ImThreadTileCache *cache, ImBuf *
 		BLI_remlink(&cache->unused, ttile);
 	}
 
+	BLI_addhead(&cache->tiles, ttile);
+	BLI_ghash_insert(cache->tilehash, ttile, ttile);
+
 	gtile= imb_global_cache_get_tile(ibuf, tx, ty, replacetile);
 
 	ttile->ibuf= gtile->ibuf;
 	ttile->tx= gtile->tx;
 	ttile->ty= gtile->ty;
 	ttile->global= gtile;
-
-	BLI_addhead(&cache->tiles, ttile);
-	BLI_ghash_insert(cache->tilehash, ttile, ttile);
 
 	return ibuf->tiles[toffs];
 }
