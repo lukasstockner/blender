@@ -3403,8 +3403,22 @@ static void lib_link_modifiers__linkModifiers(void *userData, Object *ob,
 	if(*idpoin && GS((*idpoin)->name)!=ID_OB)
 		(*idpoin)->us++;
 }
+
 static void lib_link_modifiers(FileData *fd, Object *ob)
 {
+	/*ensure unique modifier names*/
+	ModifierData *md, *md2;
+
+	for (md=ob->modifiers.first; md; md=md->next) {
+		for (md2=ob->modifiers.first; md2; md2=md2->next) {
+			if (md == md2) continue;
+
+			if (!strcmp(md->name, md2->name)) {
+				modifier_unique_name(&ob->modifiers, md2);
+			}
+		}
+	}
+
 	modifiers_foreachIDLink(ob, lib_link_modifiers__linkModifiers, fd);
 }
 
