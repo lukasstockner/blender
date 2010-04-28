@@ -2021,7 +2021,7 @@ typedef struct bNodeThreadStack {
 
 static bNodeThreadStack *ntreeGetThreadStack(bNodeTree *ntree, int thread)
 {
-	ListBase *lb= &ntree->threadstack[thread];
+	ListBase *lb= &ntree->threadstack[MAX2(thread, 0)];
 	bNodeThreadStack *nts;
 	
 	for(nts=lb->first; nts; nts=nts->next) {
