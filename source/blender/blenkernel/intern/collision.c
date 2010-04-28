@@ -1584,8 +1584,15 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		} else VECCOPY(vec, no);
 
 		mul_v3_fl(no, lambda*2);
+		mul_v3_fl(vec, lambda*2.0);
 
 		add_v3_v3(cv->tx, no);
+		sub_v3_v3(cv->txold, vec);
+
+		//add_v3_v3(cv->txold, cv->tx);
+		//mul_v3_fl(cv->txold, 0.5f);
+		//add_v3_v3(cv->txold, cv->tx);
+		//mul_v3_fl(cv->txold, 0.5f);
 		VECCOPY(cv->txold, cv->tx);
 	}
 
