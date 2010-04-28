@@ -783,7 +783,7 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 		mul_mat3_m4_v3(eff->ob->obmat, tex_co);
 	}
 
-	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL,NULL, 0, result, 0);
+	hasrgb = multitex_ext(eff->pd->tex, tex_co, NULL,NULL, 0, result, -1);
 
 	if(hasrgb && mode==PFIELD_TEX_RGB) {
 		force[0] = (0.5f - result->tr) * strength;
@@ -794,15 +794,15 @@ static void do_texture_effector(EffectorCache *eff, EffectorData *efd, EffectedP
 		strength/=nabla;
 
 		tex_co[0] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+1, 0);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+1, -1);
 
 		tex_co[0] -= nabla;
 		tex_co[1] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+2, 0);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+2, -1);
 
 		tex_co[1] -= nabla;
 		tex_co[2] += nabla;
-		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+3, 0);
+		multitex_ext(eff->pd->tex, tex_co, NULL, NULL, 0, result+3, -1);
 
 		if(mode == PFIELD_TEX_GRAD || !hasrgb) { /* if we dont have rgb fall back to grad */
 			force[0] = (result[0].tin - result[1].tin) * strength;

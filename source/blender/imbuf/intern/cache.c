@@ -200,7 +200,7 @@ void imb_tile_cache_init(void)
 
 	/* initialize for one thread, for places that access textures
 	   outside of rendering (displace modifier, painting, ..) */
-	IMB_tile_cache_params(1, 0);
+	IMB_tile_cache_params(0, 0);
 }
 
 void imb_tile_cache_exit(void)
@@ -227,6 +227,9 @@ void imb_tile_cache_exit(void)
 void IMB_tile_cache_params(int totthread, int maxmem)
 {
 	int a;
+
+	/* always one cache for non-threaded access */
+	totthread++;
 
 	/* lazy initialize cache */
 	if(GLOBAL_CACHE.totthread == totthread && GLOBAL_CACHE.maxmem == maxmem)
@@ -385,7 +388,7 @@ static unsigned int *imb_thread_cache_get_tile(ImThreadTileCache *cache, ImBuf *
 
 unsigned int *IMB_gettile(ImBuf *ibuf, int tx, int ty, int thread)
 {
-	return imb_thread_cache_get_tile(&GLOBAL_CACHE.thread_cache[thread], ibuf, tx, ty);
+	return imb_thread_cache_get_tile(&GLOBAL_CACHE.thread_cache[thread+1], ibuf, tx, ty);
 }
 
 void IMB_tiles_to_rect(ImBuf *ibuf)
