@@ -56,21 +56,38 @@
 Collision modifier code start
 ***********************************/
 
+/* step is limited from -[time step] (frame start position) to 1 (frame end position) */
+
 /* step is limited from 0 (frame start position) to 1 (frame end position) */
-void collision_move_object ( CollisionModifierData *collmd, float step, float prevstep )
+void collision_move_object (CollisionModifierData *collmd, float step, float prevstep, float dt)
 {
-	float tv[3] = {0,0,0};
+	float tv[3] = {0, 0, 0};
 	unsigned int i = 0;
 
-	for ( i = 0; i < collmd->numverts; i++ )
-	{
-		VECSUB ( tv, collmd->xnew[i].co, collmd->x[i].co );
-		VECADDS ( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
-		VECADDS ( collmd->current_xnew[i].co, collmd->x[i].co, tv, step );
-		VECSUB ( collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co );
+	if (prevstep < 0.0) {
+		for ( i = 0; i < collmd->numverts; i++ )
+		{
+			VECSUB ( tv, collmd->xold[i].co, collmd->x[i].co );
+			VECADDS( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
+
+			VECSUB ( tv, collmd->xnew[i].co, collmd->x[i].co );
+			VECADDS( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
+
+			VECSUB ( collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co );
+		}
+	} else {
+		for ( i = 0; i < collmd->numverts; i++ )
+		{
+			VECSUB ( tv, collmd->xnew[i].co, collmd->x[i].co );
+			VECADDS( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
+			VECADDS( collmd->current_xnew[i].co, collmd->x[i].co, tv, step );
+			VECSUB ( collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co );
+		}
 	}
-	bvhtree_update_from_mvert ( collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1 );
+
+	bvhtree_update_from_mvert(collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1);
 }
+
 
 BVHTree *bvhtree_build_from_mvert ( MFace *mfaces, unsigned int numfaces, MVert *x, unsigned int numverts, float epsilon )
 {
@@ -1380,7 +1397,7 @@ static void add_collider_cache_object(ListBase **objs, Object *ob, Object *self,
 		col->ob = ob;
 		col->collmd = cmd;
 		/* make sure collider is properly set up */
-		collision_move_object(cmd, 1.0, 0.0);
+		collision_move_object(cmd, 1.0, 0.0, 1.0);
 		BLI_addtail(*objs, col);
 	}
 
@@ -1437,11 +1454,13 @@ static void cloth_bvh_objcollisions_nearcheck ( ClothModifierData * clmd, Collis
 	}
 }
 
+#define SIGN(n) ((n) < 0.0f ? -1 : 1)
+
 static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, CollisionModifierData *collmd, int result, BVHTreeOverlap *overlap, float dt)
 {
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *cv;
-	float *dis = MEM_callocN(sizeof(float)*cloth->numverts, "coll point distancers");
+	float (*dis)[2] = MEM_callocN(sizeof(float)*2*cloth->numverts, "coll point distancers");
 	float lambda, dot, lambda2, uv[2], uv2[2], epsilon;
 	MFace **frefs = MEM_callocN(sizeof(void*)*clmd->clothObject->numverts, "coll indices");
 	int i, j, ret = 0;
@@ -1479,8 +1498,8 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 
 		normalize_v3(no);
 
-		if (isect_ray_tri_v3(cv->tx, no, v1, v2, v3, &lambda, uv) ||
-			(mf->v4 && isect_ray_tri_v3(cv->tx, vec, v1, v3, v4, &lambda, uv)))
+		if (isect_ray_tri_plane_v3(cv->tx, no, v1, v2, v3, &lambda, uv) ||
+			(mf->v4 && isect_ray_tri_plane_v3(cv->tx, no, v1, v3, v4, &lambda, uv)))
 		{
 			/*we need to compute distance to the plane of the previous time step's face, not the current one*/
 			VECCOPY(ov1, collmd->current_x[mf->v1].co);
@@ -1488,23 +1507,23 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 			VECCOPY(ov3, collmd->current_x[mf->v3].co);
 
 			normal_tri_v3(no, ov1, ov2, ov3);
-			mul_v3_fl(no, epsilon);
 
-			add_v3_v3(ov1, no);
-			add_v3_v3(ov2, no);
-			add_v3_v3(ov3, no);
+			sub_v3_v3v3(vec, cv->txold, ov1);
+			normalize_v3(vec);
+			if (dot_v3v3(vec, no) < FLT_EPSILON) {
+				continue;
+			}
 
-			normalize_v3(no);
 			mul_v3_fl(no, -1.0);
+			isect_ray_tri_plane_v3(cv->txold, no, ov1, ov2, ov3, &lambda2, uv);
 
-			isect_ray_tri_plane_v3(cv->txold, no, ov1, ov2, ov3, &lambda, uv);
-
-			if (lambda < 0.0)
+			if (lambda2 < 0.0)
 				continue;
 
-			if (!frefs[j] || fabs(lambda) < dis[j]) {
+			if (!frefs[j] || fabs(lambda2) < dis[j][0]) {
 				frefs[j] = mf;
-				dis[j] = lambda;
+				dis[j][0] = fabs(lambda2);
+				dis[j][1] = fabs(lambda);
 			}
 		}
 	}
@@ -1517,7 +1536,7 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		if (!frefs[i])
 			continue;
 
-		lambda = dis[i];
+		lambda = dis[i][1];
 		mf = frefs[i];
 		ret += 1;
 
@@ -1550,22 +1569,24 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		if (isect_ray_tri_v3(cv->tx, vec, v1, v2, v3, &lambda2, uv2) ||
 			(mf->v4 && isect_ray_tri_v3(cv->tx, vec, v1, v3, v4, &lambda2, uv2)))
 		{
-			float frictionfac = clmd->coll_parms->friction*0.01;
+			float frictionfac = clmd->coll_parms->friction*0.01, oldno[3];
 
 			/*absurdly simplistic linear interpolation formula, heh*/
+			VECCOPY(oldno, no);
 			sub_v3_v3(vec, no);
 			mul_v3_fl(vec, frictionfac);
 			add_v3_v3(no, vec);
 			lambda += (lambda2 - lambda) * frictionfac;
-		}
-		
-		if (lambda < 0.0)
-			lambda = 0.0;
 
-		mul_v3_fl(no, lambda*dt);
+			normalize_v3(no);
+			reflect_v3_v3v3(vec, no, oldno);
+			normalize_v3(vec);
+		} else VECCOPY(vec, no);
+
+		mul_v3_fl(no, lambda*2);
+
 		add_v3_v3(cv->tx, no);
-
-		sub_v3_v3v3(cv->tv, cv->tx, cv->txold);
+		VECCOPY(cv->txold, cv->tx);
 	}
 
 	MEM_freeN(frefs);
@@ -1674,7 +1695,7 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				continue;
 			
 			/* move object to position (step) in time */
-			collision_move_object ( collmd, step + dt, step );
+			collision_move_object ( collmd, step+dt, step, dt );
 			
 			/* search for overlapping collision pairs */
 			overlap = BLI_bvhtree_overlap ( cloth_bvh, collmd->bvhtree, &result );
@@ -1737,7 +1758,9 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				}
 			}
 
-			VECADD ( verts[i].tx, verts[i].txold, verts[i].tv );
+			if (!verts[i].isolated) {
+				VECADD ( verts[i].tx, verts[i].txold, verts[i].tv );
+			}
 		}
 		////////////////////////////////////////////////////////////
 		
@@ -1845,7 +1868,9 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				{
 					if ( ! ( verts [i].flags & CLOTH_VERT_FLAG_PINNED ) )
 					{
-						VECSUB ( verts[i].tv, verts[i].tx, verts[i].txold );
+						if (!verts[i].isolated) {
+							VECSUB ( verts[i].tv, verts[i].tx, verts[i].txold );
+						}
 					}
 				}
 			}
