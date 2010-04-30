@@ -1357,7 +1357,8 @@ static void test_pointer_array(FileData *fd, void **mat)
 #else
 	long long *lpoin, *lmat;
 #endif
-	int len, *ipoin, *imat;
+	int *ipoin, *imat;
+	size_t len;
 
 		/* manually convert the pointer array in
 		 * the old dna format to a pointer array in
@@ -2753,7 +2754,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 	cu->bev.first=cu->bev.last= NULL;
 	cu->disp.first=cu->disp.last= NULL;
 	cu->editnurb= NULL;
-	cu->lastselbp= NULL;
+	cu->lastsel= NULL;
 	cu->path= NULL;
 	cu->editfont= NULL;
 	
