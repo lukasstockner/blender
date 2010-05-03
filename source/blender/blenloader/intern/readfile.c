@@ -3826,6 +3826,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			
 			collmd->x = NULL;
 			collmd->xnew = NULL;
+			collmd->xold = NULL;
 			collmd->current_x = NULL;
 			collmd->current_xnew = NULL;
 			collmd->current_v = NULL;
