@@ -46,6 +46,7 @@ static void initData(ModifierData *md)
 {
 	CollisionModifierData *collmd = (CollisionModifierData*) md;
 	
+	collmd->xold = NULL;
 	collmd->x = NULL;
 	collmd->xnew = NULL;
 	collmd->current_x = NULL;
@@ -64,6 +65,8 @@ static void freeData(ModifierData *md)
 	{
 		if(collmd->bvhtree)
 			BLI_bvhtree_free(collmd->bvhtree);
+		if(collmd->xold)
+			MEM_freeN(collmd->xold);
 		if(collmd->x)
 			MEM_freeN(collmd->x);
 		if(collmd->xnew)
@@ -143,6 +146,8 @@ static void deformVerts(
 				}
 				
 				collmd->xnew = MEM_dupallocN(collmd->x); // frame end position
+
+				collmd->xold = MEM_dupallocN(collmd->x);
 				collmd->current_x = MEM_dupallocN(collmd->x); // inter-frame
 				collmd->current_xnew = MEM_dupallocN(collmd->x); // inter-frame
 				collmd->current_v = MEM_dupallocN(collmd->x); // inter-frame
@@ -153,19 +158,21 @@ static void deformVerts(
 				collmd->numfaces = dm->getNumFaces(dm);
 				
 				// create bounding box hierarchy
-				collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->x, numverts, ob->pd->pdef_sboft);
+				collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->x, collmd->numverts, ob->pd->pdef_sboft);
 				
 				collmd->time = current_time;
 			}
 			else if(numverts == collmd->numverts)
 			{
+				MVert *mv = dm->getVertArray(dm);
+
 				// put positions to old positions
-				tempVert = collmd->x;
+				tempVert = collmd->xold;
+				collmd->xold = collmd->x;
 				collmd->x = collmd->xnew;
 				collmd->xnew = tempVert;
-				
-				memcpy(collmd->xnew, dm->getVertArray(dm), numverts*sizeof(MVert));
-				
+
+				memcpy(collmd->xnew, mv, sizeof(MVert)*numverts); // frame start position
 				for ( i = 0; i < numverts; i++ )
 				{
 					// we save global positions
@@ -181,7 +188,7 @@ static void deformVerts(
 					if(ob->pd->pdef_sboft != BLI_bvhtree_getepsilon(collmd->bvhtree))
 					{
 						BLI_bvhtree_free(collmd->bvhtree);
-						collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->current_x, numverts, ob->pd->pdef_sboft);
+						collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->x, collmd->numverts, ob->pd->pdef_sboft);
 					}
 			
 				}
@@ -189,12 +196,12 @@ static void deformVerts(
 				/* happens on file load (ONLY when i decomment changes in readfile.c) */
 				if(!collmd->bvhtree)
 				{
-					collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->current_x, numverts, ob->pd->pdef_sboft);
+					collmd->bvhtree = bvhtree_build_from_mvert(collmd->mfaces, collmd->numfaces, collmd->x, collmd->numverts, ob->pd->pdef_sboft);
 				}
 				else
 				{
 					// recalc static bounding boxes
-					bvhtree_update_from_mvert ( collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1 );
+					bvhtree_update_from_mvert(collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->x, collmd->xnew, collmd->numverts, 1);
 				}
 				
 				collmd->time = current_time;
