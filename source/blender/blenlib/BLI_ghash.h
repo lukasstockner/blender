@@ -63,6 +63,9 @@ typedef struct GHash {
 	
 	Entry **buckets;
 	struct BLI_mempool *entrypool;
+#ifdef GHASH_DEBUG_LEAKS
+	const char *tag;
+#endif
 	int nbuckets, nentries, cursize;
 } GHash;
 
@@ -72,7 +75,12 @@ typedef struct GHashIterator {
 	struct Entry *curEntry;
 } GHashIterator;
 
-GHash*	BLI_ghash_new		(GHashHashFP hashfp, GHashCmpFP cmpfp);
+#ifndef GHASH_DEBUG_LEAKS
+	GHash*	BLI_ghash_new		(GHashHashFP hashfp, GHashCmpFP cmpfp);
+#else
+	GHash *_BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, char *file, int line);
+	#define BLI_ghash_new(hashfp, cmpfp) _BLI_ghash_new(hashfp, cmpfp, __FILE__, __LINE__)
+#endif
 void	BLI_ghash_free		(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 
 //BM_INLINE void	BLI_ghash_insert	(GHash *gh, void *key, void *val);

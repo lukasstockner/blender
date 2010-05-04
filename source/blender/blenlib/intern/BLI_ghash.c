@@ -45,8 +45,20 @@ unsigned int hashsizes[]= {
 
 /***/
 
+#ifdef GHASH_DEBUG_LEAKS
+GHash *_BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, char *file, int line) {
+	const char *str = calloc(1, strlen(file) + 32);
+	GHash *gh;
+
+	sprintf(str, "GHash@%s:%d", file, line);
+
+	gh = MEM_mallocN(sizeof(*gh), str);
+	gh->tag = str;
+
+#else
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp) {
 	GHash *gh= MEM_mallocN(sizeof(*gh), "GHash");
+#endif
 	gh->hashfp= hashfp;
 	gh->cmpfp= cmpfp;
 	gh->entrypool = BLI_mempool_create(sizeof(Entry), 64, 64, 0);
@@ -93,6 +105,10 @@ void BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreef
 	gh->nentries = 0;
 	gh->nbuckets = 0;
 	MEM_freeN(gh);
+
+#ifdef GHASH_DEBUG_LEAKS
+	free(gh->tag);
+#endif
 }
 
 /***/
