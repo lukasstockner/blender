@@ -182,6 +182,7 @@ typedef struct ParticleDrawData {
 	float *ma_r, *ma_g, *ma_b;
 	int tot_vec_size, flag;
 	int totpoint, totve;
+	int draw_depth; /*used to detect and abort recursions*/
 } ParticleDrawData;
 
 #define PARTICLE_DRAW_DATA_UPDATED  1

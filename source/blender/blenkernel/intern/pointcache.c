@@ -996,6 +996,14 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 
 	lb->first= lb->last= NULL;
 
+	/*we could actually allow a user-definable number of dupli recursions, but for now
+	  simply don't allow it at all*/
+
+	if (ob->dupli_depth)
+		return;
+
+	ob->dupli_depth++;
+
 	if(ob->soft) {
 		pid= MEM_callocN(sizeof(PTCacheID), "PTCacheID");
 		BKE_ptcache_id_from_softbody(pid, ob, ob->soft);
@@ -1047,6 +1055,8 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 			free_object_duplilist(lb_dupli_ob);	/* does restore */
 		}
 	}
+
+	ob->dupli_depth--;
 }
 
 

@@ -3433,7 +3433,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	ParticleKey state, *states=0;
 	ParticleBillboardData bb;
 	ParticleSimulationData sim = {scene, ob, psys, NULL};
-	ParticleDrawData *pdd = psys->pdd;
+	ParticleDrawData *pdd = psys;
 	Material *ma;
 	float vel[3], imat[4][4];
 	float timestep, pixsize=1.0, pa_size, r_tilt, r_length;
@@ -3447,6 +3447,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 /* 1. */
 	if(psys==0)
+		return;
+
+	pdd = psys->pdd;
+	if (pdd && pdd->draw_depth)
 		return;
 
 	part=psys->part;
@@ -3666,6 +3670,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		pdd->nd= pdd->ndata;
 		pdd->tot_vec_size= tot_vec_size;
 	}
+
+	/*increment draw_depth, used to deal with recursions*/
+	if (pdd)
+		pdd->draw_depth++;
 
 	psys->lattice= psys_get_lattice(&sim);
 
@@ -4009,6 +4017,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		MEM_freeN(states);
 
 	psys->flag &= ~PSYS_DRAWING;
+
+	/*decrement the recursion tracker variable*/
+	if (pdd)
+		pdd->draw_depth--;
 
 	/* draw data can't be saved for billboards as they must update to target changes */
 	if(draw_as == PART_DRAW_BB) {

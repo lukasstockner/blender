@@ -259,7 +259,7 @@ typedef struct Object {
 
 	float *groupmat;		/* runtime, temporarily set during group evaluation */
 	int groupmodified;		/* runtime, to indicate if we modified object matrix */
-	int pad3;
+	int dupli_depth;        /* used to detect if an object references itself through its duplis */
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */
