@@ -24,7 +24,9 @@ from properties_physics_common import point_cache_ui
 from properties_physics_common import effector_weights_ui
 from properties_physics_common import basic_force_field_settings_ui
 from properties_physics_common import basic_force_field_falloff_ui
-from properties_physics_cloth import PHYSICS_PT_cloth_collision
+
+narrowui = 180
+
 
 def particle_panel_enabled(context, psys):
     return (psys.point_cache.baked is False) and (not psys.edited) and (not context.particle_system_editable)
@@ -36,29 +38,8 @@ def particle_panel_poll(context):
         return False
     if psys.settings is None:
         return False
-    
     return psys.settings.type in ('EMITTER', 'REACTOR', 'HAIR')
 
-class PARTICLE_PT_cloth_collision (PHYSICS_PT_cloth_collision):
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "particle"
-
-    def poll(self, context):
-        print(particle_panel_poll(context))
-        if not particle_panel_poll(context):
-            return False
-        
-        return True
-
-    def get_cloth(self, context):
-        if context.particle_system is None:
-            return False
-        
-        if context.particle_system.cloth is None:
-            return False
-            
-        return context.particle_system.cloth
 
 class ParticleButtonsPanel(bpy.types.Panel):
     bl_space_type = 'PROPERTIES'
@@ -67,6 +48,7 @@ class ParticleButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         return particle_panel_poll(context)
+
 
 class PARTICLE_PT_context_particles(ParticleButtonsPanel):
     bl_label = ""
@@ -95,7 +77,7 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel):
 
             col = split.column()
             col.label(text="Name:")
-            col.label(text="Settindgs:")
+            col.label(text="Settings:")
 
             col = split.column()
             col.prop(psys, "name", text="")
@@ -169,6 +151,7 @@ class PARTICLE_PT_emission(ParticleButtonsPanel):
 
         psys = context.particle_system
         part = psys.settings
+        wide_ui = context.region.width > narrowui
 
         layout.enabled = particle_panel_enabled(context, psys) and not psys.multiple_caches
 
@@ -190,7 +173,10 @@ class PARTICLE_PT_emission(ParticleButtonsPanel):
         layout.row().label(text="Emit From:")
 
         row = layout.row()
-        row.prop(part, "emit_from", expand=True)
+        if wide_ui:
+            row.prop(part, "emit_from", expand=True)
+        else:
+            row.prop(part, "emit_from", text="")
         row = layout.row()
         row.prop(part, "trand")
         if part.distribution != 'GRID':
@@ -198,7 +184,10 @@ class PARTICLE_PT_emission(ParticleButtonsPanel):
 
         if part.emit_from == 'FACE' or part.emit_from == 'VOLUME':
             row = layout.row()
-            row.prop(part, "distribution", expand=True)
+            if wide_ui:
+                row.prop(part, "distribution", expand=True)
+            else:
+                row.prop(part, "distribution", text="")
 
             row = layout.row()
 
@@ -252,8 +241,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
         sub.prop(cloth, "bending_stiffness", text="Bending")
         sub.prop(cloth, "internal_friction", slider=True)
         sub.prop(cloth, "collider_friction", slider=True)
-        sub.prop(cloth, "flexibility_damping", slider=True)
-        
+
         col = split.column()
 
         col.label(text="Damping:")
@@ -348,6 +336,7 @@ class PARTICLE_PT_rotation(ParticleButtonsPanel):
 
         psys = context.particle_system
         part = psys.settings
+        wide_ui = context.region.width > narrowui
 
         layout.enabled = particle_panel_enabled(context, psys)
 
@@ -365,7 +354,10 @@ class PARTICLE_PT_rotation(ParticleButtonsPanel):
         sub.prop(part, "random_phase_factor", text="Random", slider=True)
 
         layout.row().label(text="Angular Velocity:")
-        layout.row().prop(part, "angular_velocity_mode", expand=True)
+        if wide_ui:
+            layout.row().prop(part, "angular_velocity_mode", expand=True)
+        else:
+            layout.row().prop(part, "angular_velocity_mode", text="")
         split = layout.split()
 
         sub = split.column()
@@ -388,11 +380,16 @@ class PARTICLE_PT_physics(ParticleButtonsPanel):
 
         psys = context.particle_system
         part = psys.settings
+        wide_ui = context.region.width > narrowui
 
         layout.enabled = particle_panel_enabled(context, psys)
 
         row = layout.row()
-        row.prop(part, "physics_type", expand=True)
+        if wide_ui:
+            row.prop(part, "physics_type", expand=True)
+        else:
+            row.prop(part, "physics_type", text="")
+
         if part.physics_type != 'NO':
             row = layout.row()
             col = row.column(align=True)
@@ -678,6 +675,7 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
 
         psys = context.particle_system
         part = psys.settings
+        wide_ui = context.region.width > narrowui
 
         row = layout.row()
         row.prop(part, "material")
@@ -693,7 +691,10 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
         sub.prop(part, "died")
 
         row = layout.row()
-        row.prop(part, "ren_as", expand=True)
+        if wide_ui:
+            row.prop(part, "ren_as", expand=True)
+        else:
+            row.prop(part, "ren_as", text="")
 
         split = layout.split()
 
@@ -786,7 +787,10 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
             sub.label(text="Align:")
 
             row = layout.row()
-            row.prop(part, "billboard_align", expand=True)
+            if wide_ui:
+                row.prop(part, "billboard_align", expand=True)
+            else:
+                row.prop(part, "billboard_align", text="")
             row.prop(part, "billboard_lock", text="Lock")
             row = layout.row()
             row.prop(part, "billboard_object")
@@ -811,9 +815,9 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
             row.prop(psys, "billboard_split_uv")
             row = layout.row()
             row.label(text="Animate:")
-            row.prop(part, "billboard_animation", expand=True)
+            row.prop(part, "billboard_animation", text="")
             row.label(text="Offset:")
-            row.prop(part, "billboard_split_offset", expand=True)
+            row.prop(part, "billboard_split_offset", text="")
 
         if part.ren_as == 'HALO' or part.ren_as == 'LINE' or part.ren_as == 'BILLBOARD':
             row = layout.row()
@@ -846,9 +850,13 @@ class PARTICLE_PT_draw(ParticleButtonsPanel):
 
         psys = context.particle_system
         part = psys.settings
+        wide_ui = context.region.width > narrowui
 
         row = layout.row()
-        row.prop(part, "draw_as", expand=True)
+        if wide_ui:
+            row.prop(part, "draw_as", expand=True)
+        else:
+            row.prop(part, "draw_as", text="")
 
         if part.draw_as == 'NONE' or (part.ren_as == 'NONE' and part.draw_as == 'RENDER'):
             return
@@ -896,8 +904,12 @@ class PARTICLE_PT_children(ParticleButtonsPanel):
 
         psys = context.particle_system
         part = psys.settings
+        wide_ui = context.region.width > narrowui
 
-        layout.row().prop(part, "child_type", expand=True)
+        if wide_ui:
+            layout.row().prop(part, "child_type", expand=True)
+        else:
+            layout.row().prop(part, "child_type", text="")
 
         if part.child_type == 'NONE':
             return
@@ -953,7 +965,10 @@ class PARTICLE_PT_children(ParticleButtonsPanel):
         col.label(text="hair parting controls")
 
         layout.row().label(text="Kink:")
-        layout.row().prop(part, "kink", expand=True)
+        if wide_ui:
+            layout.row().prop(part, "kink", expand=True)
+        else:
+            layout.row().prop(part, "kink", text="")
 
         split = layout.split()
 
@@ -1073,7 +1088,6 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel):
 classes = [
     PARTICLE_PT_context_particles,
     PARTICLE_PT_hair_dynamics,
-	PARTICLE_PT_cloth_collision,
     PARTICLE_PT_cache,
     PARTICLE_PT_emission,
     PARTICLE_PT_velocity,
@@ -1088,6 +1102,7 @@ classes = [
     PARTICLE_PT_vertexgroups,
 
     PARTICLE_PT_custom_props]
+
 
 def register():
     register = bpy.types.register

@@ -47,6 +47,7 @@ class TEXTURE_MT_envmap_specials(bpy.types.Menu):
 
 from properties_material import active_node_mat
 
+
 def context_tex_datablock(context):
     idblock = context.material
     if idblock:
@@ -71,7 +72,8 @@ class TextureButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         tex = context.texture
-        if not tex or tex == None: return False
+        if not tex:
+            return False
         engine = context.scene.render.engine
         return (tex and tex.type != 'NONE') and (engine in self.COMPAT_ENGINES)
 
@@ -101,7 +103,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel):
         engine = context.scene.render.engine
         if not hasattr(context, "texture_slot"):
             return False
-        return ((context.material or context.world or context.lamp or context.brush or context.texture) 
+        return ((context.material or context.world or context.lamp or context.brush or context.texture)
             and (engine in self.COMPAT_ENGINES))
 
     def draw(self, context):
@@ -215,7 +217,7 @@ class TextureSlotPanel(TextureButtonsPanel):
     def poll(self, context):
         if not hasattr(context, "texture_slot"):
             return False
-        
+
         engine = context.scene.render.engine
         return TextureButtonsPanel.poll(self, context) and (engine in self.COMPAT_ENGINES)
 
@@ -231,7 +233,7 @@ class TEXTURE_PT_mapping(TextureSlotPanel):
 
         if not getattr(context, "texture_slot", None):
             return False
-        
+
         engine = context.scene.render.engine
         return (engine in self.COMPAT_ENGINES)
 
@@ -280,7 +282,7 @@ class TEXTURE_PT_mapping(TextureSlotPanel):
                 row = layout.row()
                 row.active = tex.map_mode in ('FIXED', 'TILED')
                 row.prop(tex, "angle")
-    
+
                 row = layout.row()
                 row.active = tex.map_mode in ('TILED', '3D')
                 row.column().prop(tex, "size")

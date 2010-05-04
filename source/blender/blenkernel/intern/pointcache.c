@@ -2662,7 +2662,8 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 			ptcache_file_init_pointers(pf);
 
 			if(!ptcache_file_write_header_begin(pf) || !pid->write_header(pf)) {
-				printf("Error writing to disk cache\n");
+				if (G.f & G_DEBUG) 
+					printf("Error writing to disk cache\n");
 				cache->flag &= ~PTCACHE_DISK_CACHE;
 
 				ptcache_file_close(pf);
@@ -2672,7 +2673,8 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 			for(i=0; i<pm->totpoint; i++) {
 				ptcache_copy_data(pm->cur, pf->cur);
 				if(!ptcache_file_write_data(pf)) {
-					printf("Error writing to disk cache\n");
+					if (G.f & G_DEBUG) 
+						printf("Error writing to disk cache\n");
 					cache->flag &= ~PTCACHE_DISK_CACHE;
 
 					ptcache_file_close(pf);
@@ -2688,7 +2690,8 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 				BKE_ptcache_write_cache(pid, 0);
 		}
 		else
-			printf("Error creating disk cache file\n");
+			if (G.f & G_DEBUG) 
+				printf("Error creating disk cache file\n");
 	}
 }
 void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
@@ -2698,7 +2701,8 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 
 	if (!G.relbase_valid){
 		cache->flag &= ~PTCACHE_DISK_CACHE;
-		printf("File must be saved before using disk cache!\n");
+		if (G.f & G_DEBUG) 
+			printf("File must be saved before using disk cache!\n");
 		return;
 	}
 
