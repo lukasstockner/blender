@@ -220,7 +220,7 @@ static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon
 	bvhtree = BLI_bvhtree_new(cloth->numfaces, epsilon, 4, 26);
 	
 	// fill tree
-	gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	gh = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "build_from_cloth gh");
 	for(i = 0; i < cloth->numfaces; i++, mfaces++)
 	{
 		BLI_ghash_insert(gh, &verts[mfaces->v1], NULL);

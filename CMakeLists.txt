@@ -80,7 +80,6 @@ OPTION(WITH_CXX_GUARDEDALLOC "Enable GuardedAlloc for C++ memory allocation" OFF
 OPTION(WITH_BUILDINFO     "Include extra build details" ON)
 OPTION(WITH_INSTALL       "Install accompanying scripts and language files needed to run blender" ON)
 OPTION(WITH_OPENCOLLADA		"Enable OpenCollada Support (http://www.opencollada.org/)"	ON)
-OPTION(WITH_DEBUG_GHASH   "Append extra info to ghash memory blocks, to help track down memory leaks" OFF)
 
 # Unix defaults to OpenMP On
 IF(UNIX AND NOT APPLE)
@@ -667,12 +666,6 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PLATFORM_CFLAGS} ${CXX_WARNINGS}")
 IF(WITH_CXX_GUARDEDALLOC)
 	SET(CMAKE_CXX_FLAGS " -DWITH_CXX_GUARDEDALLOC -I${CMAKE_SOURCE_DIR}/intern/guardedalloc ${CMAKE_CXX_FLAGS}")
 ENDIF(WITH_CXX_GUARDEDALLOC)
-
-#ghash debug mode
-IF(WITH_DEBUG_GHASH)
-    SET(CMAKE_CXX_FLAGS " -DGHASH_DEBUG_LEAKS ${CMAKE_CXX_FLAGS}")
-    SET(CMAKE_C_FLAGS " -DGHASH_DEBUG_LEAKS ${CMAKE_C_FLAGS}")
-ENDIF(WITH_DEBUG_GHASH)
 
 #-----------------------------------------------------------------------------
 # Libraries

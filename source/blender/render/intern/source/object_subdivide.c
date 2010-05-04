@@ -353,7 +353,7 @@ void part_subdivide_objects(Render *re, RenderPart *pa)
 	camera_window_matrix(&re->cam, winmat);
 	camera_window_rect_bounds(re->cam.winx, re->cam.winy, &pa->disprect, bounds);
 
-	pa->subdivhash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	pa->subdivhash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "part_subdivide_objects gh");
 
 	for(a=0; a<tot; a++, obi++) {
 		obr= obi->obr;

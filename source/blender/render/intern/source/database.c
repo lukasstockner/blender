@@ -59,7 +59,7 @@ void render_db_init(RenderDB *rdb)
 
 	rdb->lights.first= rdb->lights.last= NULL;
 	rdb->lampren.first= rdb->lampren.last= NULL;
-	rdb->lightgrouphash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	rdb->lightgrouphash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "render_db_init lgroup gh");
 }
 
 void render_db_free(RenderDB *rdb)

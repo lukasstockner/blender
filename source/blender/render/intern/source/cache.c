@@ -1548,7 +1548,7 @@ void radio_cache_create(Render *re, int thread)
 	cache= MEM_callocN(sizeof(RadioCache), "RadioCache");
 	re->db.radiocache[thread]= cache;
 
-	cache->hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	cache->hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "radio cache gh");
 	cache->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "radio cache arena");
 }
 

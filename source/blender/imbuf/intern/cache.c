@@ -178,7 +178,7 @@ static void imb_thread_cache_init(ImThreadTileCache *cache)
 
 	memset(cache, 0, sizeof(ImThreadTileCache));
 
-	cache->tilehash= BLI_ghash_new(imb_thread_tile_hash, imb_thread_tile_cmp);
+	cache->tilehash= BLI_ghash_new(imb_thread_tile_hash, imb_thread_tile_cmp, "imb_thread_cache_init gh");
 
 	/* pre-allocate all thread local tiles in unused list */
 	for(a=0; a<IB_THREAD_CACHE_SIZE; a++) {
@@ -239,7 +239,7 @@ void IMB_tile_cache_params(int totthread, int maxmem)
 
 	memset(&GLOBAL_CACHE, 0, sizeof(ImGlobalTileCache));
 
-	GLOBAL_CACHE.tilehash= BLI_ghash_new(imb_global_tile_hash, imb_global_tile_cmp);
+	GLOBAL_CACHE.tilehash= BLI_ghash_new(imb_global_tile_hash, imb_global_tile_cmp, "tile_cache_params gh");
 
 	GLOBAL_CACHE.memarena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "ImTileCache arena");
 	BLI_memarena_use_calloc(GLOBAL_CACHE.memarena);

@@ -987,7 +987,7 @@ void sss_create(Render *re)
 {
 	Material *mat;
 	
-	re->db.sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp);
+	re->db.sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "sss_create gh");
 
 	re->cb.i.infostr= "SSS preprocessing";
 	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
