@@ -1920,41 +1920,38 @@ void OBJECT_OT_vertex_group_set_active(wmOperatorType *ot)
 	ot->prop= prop;
 }
 
-static int vgroup_sort(void *def_a_ptr, void *def_b_ptr)
+/*creates the name_array parameter for vgroup_do_remap, call this before fiddling
+  with the order of vgroups then call vgroup_do_remap after*/
+static char *vgroup_init_remap(Object *ob)
 {
-	bDeformGroup *def_a= (bDeformGroup *)def_a_ptr;
-	bDeformGroup *def_b= (bDeformGroup *)def_b_ptr;
-
-	return strcmp(def_a->name, def_b->name);
-}
-
-#define DEF_GROUP_SIZE (sizeof(((bDeformGroup *)NULL)->name))
-static int vertex_group_sort_exec(bContext *C, wmOperator *op)
-{
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	bDeformGroup *def;
 	int def_tot = BLI_countlist(&ob->defbase);
+	char *name_array= MEM_mallocN(MAX_VGROUP_NAME * sizeof(char) * def_tot, "sort vgroups");
 	char *name;
-	char *name_array= MEM_mallocN(DEF_GROUP_SIZE * sizeof(char) * def_tot, "sort vgroups");
-	int *sort_map_update= MEM_mallocN(DEF_GROUP_SIZE * sizeof(int) * def_tot + 1, "sort vgroups"); /* needs a dummy index at the start*/
-	int *sort_map= sort_map_update + 1;
-	int i;
-
-	MDeformVert *dvert= NULL;
-	int dvert_tot;
 
 	name= name_array;
-	for(def = ob->defbase.first; def; def=def->next){
-		BLI_strncpy(name, def->name, DEF_GROUP_SIZE);
-		name += DEF_GROUP_SIZE;
+	for(def = ob->defbase.first; def; def=def->next) {
+		BLI_strncpy(name, def->name, MAX_VGROUP_NAME);
+		name += MAX_VGROUP_NAME;
 	}
 
-	BLI_sortlist(&ob->defbase, vgroup_sort);
+	return name_array;
+}
+
+static int vgroup_do_remap(Object *ob, char *name_array, wmOperator *op)
+{
+	MDeformVert *dvert= NULL;
+	bDeformGroup *def;
+	int def_tot = BLI_countlist(&ob->defbase);
+	int *sort_map_update= MEM_mallocN(MAX_VGROUP_NAME * sizeof(int) * def_tot + 1, "sort vgroups"); /* needs a dummy index at the start*/
+	int *sort_map= sort_map_update + 1;
+	char *name;
+	int i;
 
 	name= name_array;
 	for(def= ob->defbase.first, i=0; def; def=def->next, i++){
 		sort_map[i]= BLI_findstringindex(&ob->defbase, name, offsetof(bDeformGroup, name));
-		name += DEF_GROUP_SIZE;
+		name += MAX_VGROUP_NAME;
 	}
 
 	if(ob->mode == OB_MODE_EDIT) {
@@ -1975,8 +1972,12 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 		}
 	}
 	else {
+		int dvert_tot=0;
+
 		ED_vgroup_give_array(ob->data, &dvert, &dvert_tot);
-		while(dvert_tot--) {
+
+		/*create as necassary*/
+		while(dvert && dvert_tot--) {
 			if(dvert->totweight)
 				defvert_remap(dvert, sort_map);
 			dvert++;
@@ -1988,21 +1989,45 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 		sort_map[i]++;
 
 	sort_map_update[0]= 0;
-
 	vgroup_remap_update_users(ob, sort_map_update);
 
 	ob->actdef= sort_map_update[ob->actdef];
 
-	MEM_freeN(name_array);
-	MEM_freeN(sort_map_update);
-
-	DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
-	WM_event_add_notifier(C, NC_GEOM|ND_DATA, ob);
-
 	return OPERATOR_FINISHED;
 }
-#undef DEF_GROUP_SIZE
 
+static int vgroup_sort(void *def_a_ptr, void *def_b_ptr)
+{
+	bDeformGroup *def_a= (bDeformGroup *)def_a_ptr;
+	bDeformGroup *def_b= (bDeformGroup *)def_b_ptr;
+
+	return strcmp(def_a->name, def_b->name);
+}
+
+static int vertex_group_sort_exec(bContext *C, wmOperator *op)
+{
+	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	char *name_array;
+	int ret;
+
+	/*init remapping*/
+	name_array = vgroup_init_remap(ob);
+
+	/*sort vgroup names*/
+	BLI_sortlist(&ob->defbase, vgroup_sort);
+
+	/*remap vgroup data to map to correct names*/
+	ret = vgroup_do_remap(ob, name_array, op);
+
+	if (ret != OPERATOR_CANCELLED) {
+		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+		WM_event_add_notifier(C, NC_GEOM|ND_DATA, ob);
+	}
+
+	if (name_array) MEM_freeN(name_array);
+
+	return ret;
+}
 
 void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 {
@@ -2016,4 +2041,64 @@ void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int vgroup_move_exec(bContext *C, wmOperator *op)
+{
+	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	bDeformGroup *def;
+	char *name_array;
+	int dir= RNA_enum_get(op->ptr, "direction"), ret;
+
+	def = BLI_findlink(&ob->defbase, ob->actdef - 1);
+	if (!def) {
+		return OPERATOR_CANCELLED;
+	}
+
+	name_array = vgroup_init_remap(ob);
+
+	if (dir == 1) { /*up*/
+		void *prev = def->prev;
+
+		BLI_remlink(&ob->defbase, def);
+		BLI_insertlinkbefore(&ob->defbase, prev, def);
+	} else { /*down*/
+		void *next = def->next;
+
+		BLI_remlink(&ob->defbase, def);
+		BLI_insertlinkafter(&ob->defbase, next, def);
+	}
+
+	ret = vgroup_do_remap(ob, name_array, op);
+
+	if (name_array) MEM_freeN(name_array);
+
+	if (ret != OPERATOR_CANCELLED) {
+		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+		WM_event_add_notifier(C, NC_GEOM|ND_DATA, ob);
+	}
+
+	return ret;
+}
+
+void OBJECT_OT_vertex_group_move(wmOperatorType *ot)
+{
+	static EnumPropertyItem vgroup_slot_move[] = {
+		{1, "UP", 0, "Up", ""},
+		{-1, "DOWN", 0, "Down", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	/* identifiers */
+	ot->name= "Move Vertex Group";
+	ot->idname= "OBJECT_OT_vertex_group_move";
+
+	/* api callbacks */
+	ot->poll= vertex_group_poll;
+	ot->exec= vgroup_move_exec;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "direction", vgroup_slot_move, 0, "Direction", "Direction to move, UP or DOWN");
 }
