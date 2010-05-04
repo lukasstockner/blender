@@ -1137,6 +1137,9 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 	int point_vel = (point && point->keys->vel);
 	float real_t, dfra, keytime;
 
+	/* billboards wont fill in all of these, so start cleared */
+	memset(keys, 0, sizeof(keys));
+
 	/* interpret timing and find keys */
 	if(point) {
 		if(result->time < 0.0f)
@@ -4288,6 +4291,23 @@ void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3]
 
 	xvec[0] = 1.0f; xvec[1] = 0.0f; xvec[2] = 0.0f;
 	yvec[0] = 0.0f; yvec[1] = 1.0f; yvec[2] = 0.0f;
+
+    /* can happen with bad pointcache or physics calculation
+     * since this becomes geometry, nan's and inf's crash raytrace code.
+     * better not allow this. */
+    if( !finite(bb->vec[0]) || !finite(bb->vec[1]) || !finite(bb->vec[2]) ||
+        !finite(bb->vel[0]) || !finite(bb->vel[1]) || !finite(bb->vel[2]) )
+    {
+        zero_v3(bb->vec);
+        zero_v3(bb->vel);
+        
+        zero_v3(xvec);
+        zero_v3(yvec);
+        zero_v3(zvec);
+        zero_v3(center);
+
+        return;
+    }
 
 	if(bb->align < PART_BB_VIEW)
 		onevec[bb->align]=1.0f;
