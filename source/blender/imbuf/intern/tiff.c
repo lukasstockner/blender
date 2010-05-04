@@ -464,11 +464,16 @@ void imb_loadtiletiff(ImBuf *ibuf, unsigned char *mem, int size, int tx, int ty,
 
 		if(width == ibuf->x && height == ibuf->y) {
 			if(rect) {
-				/* why flip y tile location, seems to contradict TIFFReadRGBATile man page? */
-				libtiff_TIFFReadRGBATile(image, tx*ibuf->tilex, (ibuf->ytiles - 1 - ty)*ibuf->tiley, rect);
+				/* tiff pixels are bottom to top, tiles are top to bottom */
+				if(libtiff_TIFFReadRGBATile(image, tx*ibuf->tilex, (ibuf->ytiles - 1 - ty)*ibuf->tiley, rect) == 1) {
+					if(ibuf->tiley > ibuf->y)
+						memmove(rect, rect+ibuf->tilex*(ibuf->tiley - ibuf->y), sizeof(int)*ibuf->tilex*ibuf->y);
 
-				if(ibuf->flags & IB_premul)
-					IMB_premultiply_rect(rect, 32, ibuf->tilex, ibuf->tiley);
+					if(ibuf->flags & IB_premul)
+						IMB_premultiply_rect(rect, 32, ibuf->tilex, ibuf->tiley);
+				}
+				else
+					printf("imb_loadtiff: failed to read tiff tile at mipmap level %d\n", ibuf->miplevel);
 			}
 		}
 		else
