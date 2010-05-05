@@ -2421,12 +2421,21 @@ static void make_sss_pixelstructs(Render *re, RenderPart *pa, ListBase *lb)
 	int *ro= pa->recto, *rbo= pa->rectbacko;
 	int *rp= pa->rectp, *rbp= pa->rectbackp;
 	int *rz= pa->rectz, *rbz= pa->rectbackz;
-	int x, y;
+	int x, y, a, mask;
+
+	if(re->params.osa) {
+		/* for osa case mask must be exactly all osa samples,
+		   not more, since it is used for table lookups */
+		for(mask=0, a=0; a<re->params.osa; a++)
+			mask |= (1<<a);
+	}
+	else
+		mask= 0xFFFF;
 
 	for(y=0; y<pa->recty; y++) {
 		for(x=0; x<pa->rectx; x++, rd++, rp++, ro++, rz++, rbo++, rbp++, rbz++) {
-			if(*rp) addps(lb, rd, *ro, *rp, *rz, 0, 0xFFFF);
-			if(*rbp) addps(lb, rd, *rbo, *rbp, *rbz, 0, 0xFFFF);
+			if(*rp) addps(lb, rd, *ro, *rp, *rz, 0, mask);
+			if(*rbp) addps(lb, rd, *rbo, *rbp, *rbz, 0, mask);
 		}
 	}
 }
