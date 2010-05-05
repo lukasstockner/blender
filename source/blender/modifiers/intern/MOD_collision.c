@@ -82,6 +82,7 @@ static void freeData(ModifierData *md)
 		
 		collmd->x = NULL;
 		collmd->xnew = NULL;
+		collmd->xold = NULL;
 		collmd->current_x = NULL;
 		collmd->current_xnew = NULL;
 		collmd->current_v = NULL;
