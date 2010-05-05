@@ -1816,7 +1816,9 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 	float dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame, spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
 	Implicit_Data *id = cloth->implicit;
 	int result = 0;
-	
+if(spf == 0.0f) {
+    printf("WHEE\n");
+}
 	if(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) /* do goal stuff */
 	{
 		for(i = 0; i < numverts; i++)
@@ -1869,7 +1871,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			{	
 				VECCOPY(verts[i].txold, verts[i].tx);
 				VECCOPY(verts[i].tx, id->Xnew[i]);
-				
+
 				/*apply goal forces*/
 				if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) &&
 				   !(verts [i].flags & CLOTH_VERT_FLAG_PINNED))
