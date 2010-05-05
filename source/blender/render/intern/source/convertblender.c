@@ -1389,6 +1389,10 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce, unsigned int lay)
 	re->params.r.mode |= R_SPEED;
 	
 	speedvector_project(re, NULL, NULL, NULL);	/* initializes projection code */
+
+	/* this should not be necessary, but works around some cases where the
+	   state is not correct yet after one update, giving wrong speed vectors */
+	scene_update_for_newframe(re->db.scene, lay);
 	
 	/* creates entire dbase */
 	database_fromscene_vectors(re, sce, lay, -1);
