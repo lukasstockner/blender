@@ -544,7 +544,7 @@ int cloth_collision_response_static ( ClothModifierData *clmd, CollisionModifier
 			float magtangent = 0, repulse = 0, d = 0;
 			double impulse = 0.0;
 			float vrel_t_pre[3];
-			float temp[3];
+			float temp[3], spf;
 
 			// calculate tangential velocity
 			VECCOPY ( temp, collpair->normal );
@@ -582,10 +582,12 @@ int cloth_collision_response_static ( ClothModifierData *clmd, CollisionModifier
 
 			// Apply repulse impulse if distance too short
 			// I_r = -min(dt*kd, m(0,1d/dt - v_n))
+			spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
+
 			d = clmd->coll_parms->epsilon*8.0/9.0 + epsilon2*8.0/9.0 - collpair->distance;
-			if ( ( magrelVel < 0.1*d*clmd->sim_parms->stepsPerFrame ) && ( d > ALMOST_ZERO ) )
+			if ( ( magrelVel < 0.1*d*spf ) && ( d > ALMOST_ZERO ) )
 			{
-				repulse = MIN2 ( d*1.0/clmd->sim_parms->stepsPerFrame, 0.1*d*clmd->sim_parms->stepsPerFrame - magrelVel );
+				repulse = MIN2 ( d*1.0/spf, 0.1*d*spf - magrelVel );
 
 				// stay on the safe side and clamp repulse
 				if ( impulse > ALMOST_ZERO )

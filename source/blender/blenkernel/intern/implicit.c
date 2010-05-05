@@ -1813,7 +1813,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *verts = cloth->verts;
 	unsigned int numverts = cloth->numverts;
-	float dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame;
+	float dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame, spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
 	Implicit_Data *id = cloth->implicit;
 	int result = 0;
 	
@@ -1861,10 +1861,6 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 
 		if(1)
 		{
-			float temp = clmd->sim_parms->stepsPerFrame;
-			/* not too nice hack, but collisions need this correction -jahka */
-			clmd->sim_parms->stepsPerFrame /= clmd->sim_parms->timescale;
-
 			// collisions 
 			// itstart();
 			
@@ -1880,7 +1876,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 				{
 					float vec[3], fac;
 
-					fac = 1.0 - pow(1.0 - verts[i].goal*clmd->sim_parms->goalspring, 1.0 / (float)(clmd->sim_parms->stepsPerFrame));
+					fac = 1.0 - pow(1.0 - verts[i].goal*clmd->sim_parms->goalspring, 1.0 / spf);
 
 					sub_v3_v3v3(vec, verts[i].xconst, verts[i].tx);
 					mul_v3_fl(vec, fac);
@@ -1911,11 +1907,8 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 				VECSUB(verts[i].tv, verts[i].tx, verts[i].txold);
 				VECCOPY(id->Xnew[i], verts[i].tx);
 				VECCOPY(id->Vnew[i], verts[i].tv);
-				mul_v3_fl(id->Vnew[i], ((float)clmd->sim_parms->stepsPerFrame)); // /clmd->sim_parms->timescale);
+				mul_v3_fl(id->Vnew[i], spf);
 			}
-			
-			/* restore original stepsPerFrame */
-			clmd->sim_parms->stepsPerFrame = temp;
 			
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);
