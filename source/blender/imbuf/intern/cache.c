@@ -76,7 +76,7 @@ typedef struct ImGlobalTileCache {
 	MemArena *memarena;
 	uintptr_t totmem, maxmem;
 
-	ImThreadTileCache thread_cache[BLENDER_MAX_THREADS];
+	ImThreadTileCache thread_cache[BLENDER_MAX_THREADS+1];
 	int totthread;
 
 	ThreadMutex mutex;
