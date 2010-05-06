@@ -110,6 +110,16 @@ static void rna_Actuator_type_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	init_actuator(act);
 }
 
+static void rna_ObjectActuator_integralcoefficient_set(struct PointerRNA *ptr, float value)
+{
+	bActuator *act = (bActuator*)ptr->data;
+	bObjectActuator *oa = act->data;
+	
+	oa->forcerot[1] = value;
+	oa->forcerot[0] = 60.0f*oa->forcerot[1];
+}
+
+
 #else
 
 void rna_def_actuator(BlenderRNA *brna)
@@ -145,7 +155,7 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 	PropertyRNA* prop;
 
 	static EnumPropertyItem prop_type_items[] ={
-		{ACT_OBJECT_NORMAL, "OBJECT_NORMAL", 0, "Simple motion", ""},
+		{ACT_OBJECT_NORMAL, "OBJECT_NORMAL", 0, "Simple Motion", ""},
 		{ACT_OBJECT_SERVO, "OBJECT_SERVO", 0, "Servo Control", ""},
 		{0, NULL, 0, NULL, NULL}};
 
@@ -182,6 +192,7 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "integral_coefficient", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "forcerot[1]");
 	RNA_def_property_ui_range(prop, 0.0, 3.0, 0.1, 0.01);
+	RNA_def_property_float_funcs(prop, NULL, "rna_ObjectActuator_integralcoefficient_set", NULL);
 	RNA_def_property_ui_text(prop, "Integral Coefficient", "Low value (0.01) for slow response, high value (0.5) for fast response");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
@@ -191,28 +202,43 @@ static void rna_def_object_actuator(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Derivate Coefficient", "Not required, high values can cause instability");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	/* XXX We need one of those special get/set functions here:
-	int offset
-	if (flag & ACT_SERVO_LIMIT_X):
-		offset = 0
-	elif (flag & ACT_SERVO_LIMIT_Y):
-		offset = 1
-	elif (flag & ACT_SERVO_LIMIT_Z):
-		offset = 2
-	
-	prop= RNA_def_property(srna, "force_max", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "dloc[offset]");
+	/* Servo Limit */
+	prop= RNA_def_property(srna, "force_max_x", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "dloc[0]");
 	RNA_def_property_ui_range(prop, -100.0, 100.0, 1.0, 0.1);
 	RNA_def_property_ui_text(prop, "Max", "Set the upper limit for force");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
-	prop= RNA_def_property(srna, "force_max", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "drot[offset]");
+	prop= RNA_def_property(srna, "force_min_x", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "drot[0]");
+	RNA_def_property_ui_range(prop, -100.0, 100.0, 1.0, 0.1);
+	RNA_def_property_ui_text(prop, "Max", "Set the lower limit for force");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "force_max_y", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "dloc[0]");
 	RNA_def_property_ui_range(prop, -100.0, 100.0, 1.0, 0.1);
 	RNA_def_property_ui_text(prop, "Max", "Set the upper limit for force");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
-	*/
-	
+
+	prop= RNA_def_property(srna, "force_min_y", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "drot[1]");
+	RNA_def_property_ui_range(prop, -100.0, 100.0, 1.0, 0.1);
+	RNA_def_property_ui_text(prop, "Max", "Set the lower limit for force");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "force_max_z", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "dloc[2]");
+	RNA_def_property_ui_range(prop, -100.0, 100.0, 1.0, 0.1);
+	RNA_def_property_ui_text(prop, "Max", "Set the upper limit for force");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
+	prop= RNA_def_property(srna, "force_min_z", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "drot[2]");
+	RNA_def_property_ui_range(prop, -100.0, 100.0, 1.0, 0.1);
+	RNA_def_property_ui_text(prop, "Max", "Set the lower limit for force");
+	RNA_def_property_update(prop, NC_LOGIC, NULL);
+
 	/* floats 3 Arrays*/
 	prop= RNA_def_property(srna, "loc", PROP_FLOAT, PROP_TRANSLATION);
 	RNA_def_property_float_sdna(prop, NULL, "dloc");
@@ -1040,11 +1066,8 @@ static void rna_def_twodfilter_actuator(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 	
 	/* booleans */
-	// it must be renamed to enable_motion_blur.
-	// it'll require code change and do_version()
-	// or RNA_def_property_boolean_funcs() to flip the boolean value
-	prop= RNA_def_property(srna, "disable_motion_blur", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", 1);
+	prop= RNA_def_property(srna, "enable_motion_blur", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", 1);
 	RNA_def_property_ui_text(prop, "D", "Enable/Disable Motion Blur");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 }
@@ -1216,7 +1239,7 @@ static void rna_def_armature_actuator(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Armature Actuator", "Actuator to ..");
 	RNA_def_struct_sdna_from(srna, "bArmatureActuator", "data");
 
-	prop= RNA_def_property(srna, "contraint_type", PROP_ENUM, PROP_NONE);
+	prop= RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "type");
 	RNA_def_property_enum_items(prop, prop_type_items);
 	RNA_def_property_ui_text(prop, "Constraint Type", "");
@@ -1230,7 +1253,7 @@ static void rna_def_armature_actuator(BlenderRNA *brna)
 	/* XXX eventually move to a datablock pointer. However datablocking this may be a problem
 	we would need to update the value whenever the armature changes. */
 
-	prop= RNA_def_property(srna, "contraint", PROP_STRING, PROP_NONE);
+	prop= RNA_def_property(srna, "constraint", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "constraint");
 	RNA_def_property_ui_text(prop, "Constraint", "Name of the constraint you want to control");
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
