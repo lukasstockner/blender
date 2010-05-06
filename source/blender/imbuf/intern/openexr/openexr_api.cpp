@@ -50,6 +50,7 @@ _CRTIMP void __cdecl _invalid_parameter_noinfo(void)
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_allocimbuf.h"
+#include "IMB_metadata.h"
 
 #include "openexr_multi.h"
 }
@@ -177,6 +178,14 @@ static void openexr_header_compression(Header *header, int compression)
 	}
 }
 
+static void openexr_header_metadata(Header *header, struct ImBuf *ibuf)
+{
+	ImMetaData* info;
+
+	for(info= ibuf->metadata; info; info= info->next)
+		header->insert(info->key, StringAttribute(info->value));
+}
+
 static int imb_save_openexr_half(struct ImBuf *ibuf, char *name, int flags)
 {
 	int channels = ibuf->channels;
@@ -189,6 +198,7 @@ static int imb_save_openexr_half(struct ImBuf *ibuf, char *name, int flags)
 		Header header (width, height);
 		
 		openexr_header_compression(&header, ibuf->ftype & OPENEXR_COMPRESS);
+		openexr_header_metadata(&header, ibuf);
 		
 		header.channels().insert ("R", Channel (HALF));
 		header.channels().insert ("G", Channel (HALF));
@@ -281,6 +291,7 @@ static int imb_save_openexr_float(struct ImBuf *ibuf, char *name, int flags)
 		Header header (width, height);
 		
 		openexr_header_compression(&header, ibuf->ftype & OPENEXR_COMPRESS);
+		openexr_header_metadata(&header, ibuf);
 		
 		header.channels().insert ("R", Channel (FLOAT));
 		header.channels().insert ("G", Channel (FLOAT));
@@ -435,6 +446,7 @@ void IMB_exr_add_channel(void *handle, const char *layname, const char *passname
 	BLI_addtail(&data->channels, echan);
 }
 
+/* only used for writing temp. render results (not image files) */
 void IMB_exr_begin_write(void *handle, char *filename, int width, int height, int compress)
 {
 	ExrHandle *data= (ExrHandle *)handle;
@@ -448,6 +460,7 @@ void IMB_exr_begin_write(void *handle, char *filename, int width, int height, in
 		header.channels().insert (echan->name, Channel (FLOAT));
 	
 	openexr_header_compression(&header, compress);
+	// openexr_header_metadata(&header, ibuf); // no imbuf. cant write
 	/* header.lineOrder() = DECREASING_Y; this crashes in windows for file read! */
 	
 	header.insert ("BlenderMultiChannel", StringAttribute ("Blender V2.43 and newer"));

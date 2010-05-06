@@ -30,10 +30,6 @@
 #ifndef _IMB_IMGINFO_H
 #define _IMB_IMGINFO_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct ImBuf;
 
 typedef struct ImMetaData {
@@ -82,4 +78,3 @@ int IMB_metadata_add_field(struct ImBuf* img, const char* key, const char* field
 int IMB_metadata_del_field(struct ImBuf *img, const char *key);
 
 #endif /* _IMB_IMGINFO_H */
-
