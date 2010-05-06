@@ -401,8 +401,15 @@ void IMB_tiles_to_rect(ImBuf *ibuf)
 	for(a=0; a<ibuf->miptot; a++) {
 		mipbuf= IMB_getmipmap(ibuf, a);
 
-		if(!imb_addrectImBuf(mipbuf))
-			break;
+		/* don't call imb_addrectImBuf, it frees all mipmaps */
+		if(!mipbuf->rect) {
+			if((mipbuf->rect = MEM_mapallocN(ibuf->x*ibuf->y*sizeof(unsigned int), "imb_addrectImBuf"))) {
+				mipbuf->mall |= IB_rect;
+				mipbuf->flags |= IB_rect;
+			}
+			else
+				break;
+		}
 
 		for(ty=0; ty<mipbuf->ytiles; ty++) {
 			for(tx=0; tx<mipbuf->xtiles; tx++) {
