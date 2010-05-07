@@ -49,7 +49,6 @@
 #include "wm.h"
 
 
-#include "RNA_types.h"
 
 /* ********************** Threaded Jobs Manager ****************************** */
 

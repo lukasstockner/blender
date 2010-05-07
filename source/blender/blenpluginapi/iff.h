@@ -87,7 +87,6 @@ LIBIMPORT void freeImBuf(struct ImBuf*);
 
 LIBIMPORT short saveiff(struct ImBuf *,char *,int);
 
-LIBIMPORT struct ImBuf *loadiffmem(int *,int);
 LIBIMPORT struct ImBuf *loadifffile(int,int);
 LIBIMPORT struct ImBuf *loadiffname(char *,int);
 LIBIMPORT struct ImBuf *testiffname(char *,int);
