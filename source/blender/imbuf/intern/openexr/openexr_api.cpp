@@ -588,7 +588,12 @@ void IMB_exr_write_channels(void *handle)
 													echan->xstride*sizeof(float), echan->ystride*sizeof(float)));
 		
 		data->ofile->setFrameBuffer (frameBuffer);
-		data->ofile->writePixels (data->height);	
+		try {
+			data->ofile->writePixels (data->height);	
+		}
+		catch (const std::exception &exc) {
+			std::cerr << "OpenEXR-writePixels: ERROR: " << exc.what() << std::endl;
+		}
 	}
 	else {
 		printf("Error: attempt to save MultiLayer without layers.\n");
@@ -611,7 +616,13 @@ void IMB_exr_read_channels(void *handle)
 	}
 	
 	data->ifile->setFrameBuffer (frameBuffer);
-	data->ifile->readPixels (0, data->height-1);	
+
+	try {
+		data->ifile->readPixels (0, data->height-1);	
+	}
+	catch (const std::exception &exc) {
+		std::cerr << "OpenEXR-readPixels: ERROR: " << exc.what() << std::endl;
+	}
 }
 
 void IMB_exr_multilayer_convert(void *handle, void *base,  
