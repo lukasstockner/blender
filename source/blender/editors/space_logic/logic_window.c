@@ -3213,10 +3213,14 @@ static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
 {
-	uiItemR(layout, ptr, "armature_type", 0, NULL, 0);
-	uiItemR(layout, ptr, "channel_name", 0, NULL, 0);
-	uiItemR(layout, ptr, "constraint_name", 0, NULL, 0);
-	uiItemR(layout, ptr, "value", 0, NULL, 0);
+	uiLayout *row;
+	row = uiLayoutRow(layout, 1);
+	uiItemR(row, ptr, "channel_name", 0, NULL, 0);
+	uiItemR(row, ptr, "constraint_name", 0, NULL, 0);
+
+	row = uiLayoutRow(layout, 1);
+	uiItemR(row, ptr, "test_type", 0, NULL, 0);
+	uiItemR(row, ptr, "value", 0, NULL, 0);
 }
 
 static void draw_sensor_collision(uiLayout *layout, PointerRNA *ptr)
@@ -3688,27 +3692,94 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr)
 					break;
 			}
 			uiItemR(layout, ptr, "damping", UI_ITEM_R_SLIDER , NULL, 0);
+
 			split = uiLayoutSplit(layout, 0.15, 0);
 			uiItemR(split, ptr, "detect_material", UI_ITEM_R_TOGGLE, NULL, 0);
-
 			if (RNA_boolean_get(ptr, "detect_material"))
 				uiItemR(split, ptr, "material", 0, NULL, 0);
 			else
 				uiItemR(split, ptr, "property", 0, NULL, 0);
 
-			uiItemR(layout, ptr, "damping_rotation", UI_ITEM_R_SLIDER, NULL, 0);
+			split = uiLayoutSplit(layout, 0.15, 0);
+			uiItemR(split, ptr, "persistent", UI_ITEM_R_TOGGLE, NULL, 0);
+
+			row = uiLayoutRow(split, 1);
+			uiItemR(row, ptr, "time", 0, NULL, 0);
+			uiItemR(row, ptr, "damping_rotation", UI_ITEM_R_SLIDER, NULL, 0);
 			break;
 
 		case ACT_CONST_TYPE_ORI:
-			uiItemL(layout, "to be done", 0);
+			uiItemR(layout, ptr, "direction_axis", 0, NULL, 0);
+
+			row=uiLayoutRow(layout, 1);
+			uiItemR(row, ptr, "damping", UI_ITEM_R_SLIDER , NULL, 0);
+			uiItemR(row, ptr, "time", 0, NULL, 0);
+
+			row=uiLayoutRow(layout, 0);
+			uiItemR(row, ptr, "max_rotation", 0, NULL, 0);
+
+			row=uiLayoutRow(layout, 1);
+			uiItemR(row, ptr, "min_angle", 0, NULL, 0);
+			uiItemR(row, ptr, "max_angle", 0, NULL, 0);
 			break;
 
 		case ACT_CONST_TYPE_FH:
-			uiItemL(layout, "to be done", 0);
+			split=uiLayoutSplit(layout, 0.75, 0);
+			row= uiLayoutRow(split, 0);
+			uiItemR(row, ptr, "fh_damping", UI_ITEM_R_SLIDER , NULL, 0);
+			switch(RNA_enum_get(ptr, "direction_axis")){
+				case ACT_CONST_DIRPX:
+				case ACT_CONST_DIRNX:
+					uiItemR(row, ptr, "fh_height_x", 0, NULL, 0);
+					uiItemR(split, ptr, "fh_paralel_axis", UI_ITEM_R_TOGGLE , NULL, 0);
+
+					row = uiLayoutRow(layout, 0);
+					uiItemR(row, ptr, "direction_axis", 0, NULL, 0);
+					split = uiLayoutSplit(row, 0.9, 0);
+					uiItemR(split, ptr, "spring_x", 0, NULL, 0);
+					uiItemR(split, ptr, "fh_normal", UI_ITEM_R_TOGGLE , NULL, 0);
+					break;
+
+				case ACT_CONST_DIRPY:
+				case ACT_CONST_DIRNY:
+					uiItemR(row, ptr, "fh_height_y", 0, NULL, 0);
+					uiItemR(split, ptr, "fh_paralel_axis", UI_ITEM_R_TOGGLE , NULL, 0);
+
+					row = uiLayoutRow(layout, 0);
+					uiItemR(row, ptr, "direction_axis", 0, NULL, 0);
+					split = uiLayoutSplit(row, 0.9, 0);
+					uiItemR(split, ptr, "spring_y", 0, NULL, 0);
+					uiItemR(split, ptr, "fh_normal", UI_ITEM_R_TOGGLE , NULL, 0);
+
+				default: //ACT_CONST_DIRPZ|ACT_CONST_DIRPZ|ACT_CONST_NONE
+					uiItemR(row, ptr, "fh_height_z", 0, NULL, 0);
+					uiItemR(split, ptr, "fh_paralel_axis", UI_ITEM_R_TOGGLE , NULL, 0);
+
+					row = uiLayoutRow(layout, 0);
+					uiItemR(row, ptr, "direction_axis", 0, NULL, 0);
+					split = uiLayoutSplit(row, 0.9, 0);
+					uiItemR(split, ptr, "spring_z", 0, NULL, 0);
+					uiItemR(split, ptr, "fh_normal", UI_ITEM_R_TOGGLE , NULL, 0);
+					break;
+			}
+
+			split = uiLayoutSplit(layout, 0.15, 0);
+			uiItemR(split, ptr, "detect_material", UI_ITEM_R_TOGGLE, NULL, 0);
+			if (RNA_boolean_get(ptr, "detect_material"))
+				uiItemR(split, ptr, "material", 0, NULL, 0);
+			else
+				uiItemR(split, ptr, "property", 0, NULL, 0);
+
+			split = uiLayoutSplit(layout, 0.15, 0);
+			uiItemR(split, ptr, "persistent", UI_ITEM_R_TOGGLE, NULL, 0);
+
+			row = uiLayoutRow(split, 0);
+			uiItemR(row, ptr, "time", 0, NULL, 0);
+			uiItemR(row, ptr, "damping_rotation", UI_ITEM_R_SLIDER, NULL, 0);
 			break;
 	}
-
-	//XXXACTUATOR STILL HAVE TO DO THE RNA
+	//XXXACTUATOR to do: to replace all maxloc and minloc by a single one with get/set funcs
+	//i.e. remove the switch direction, mode and axis_direction
 }
 
 static void draw_actuator_edit_object(uiLayout *layout, PointerRNA *ptr)
@@ -4099,7 +4170,15 @@ static void draw_actuator_sound(uiLayout *layout, PointerRNA *ptr, bContext *C)
 
 static void draw_actuator_state(uiLayout *layout, PointerRNA *ptr)
 {
-	//XXXACTUATOR
+	uiLayout *split;
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
+	split = uiLayoutSplit(layout, 0.35, 0);
+	uiItemR(split, ptr, "operation", 0, NULL, 0);
+
+	uiTemplateLayers(split, ptr, "state", &settings_ptr, "used_state", 0);
 }
 
 static void draw_actuator_visibility(uiLayout *layout, PointerRNA *ptr)
@@ -4238,7 +4317,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	{
 		PointerRNA settings_ptr;
 		row = uiLayoutRow(layout, 0);
-		RNA_pointer_create(NULL, &RNA_GameObjectSettings, ob, &settings_ptr);
+		RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 		uiItemR(row, &logic_ptr, "controllers_show_initial_state", UI_ITEM_R_NO_BG, "", 0);
 		uiTemplateLayers(row, &settings_ptr, "state", &settings_ptr, "used_state", 0);
 		
@@ -4271,7 +4350,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		uiItemS(layout);
 		
 		for(cont= ob->controllers.first; cont; cont=cont->next) {
-			RNA_pointer_create(&ob->id, &RNA_Controller, cont, &ptr);
+			RNA_pointer_create((ID *)ob, &RNA_Controller, cont, &ptr);
 			
 			if (!(ob->state & cont->state_mask))
 				continue;
@@ -4346,7 +4425,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		uiItemS(layout);
 		
 		for(sens= ob->sensors.first; sens; sens=sens->next) {
-			RNA_pointer_create(&ob->id, &RNA_Sensor, sens, &ptr);
+			RNA_pointer_create((ID *)ob, &RNA_Sensor, sens, &ptr);
 			
 			if ((slogic->scaflag & BUTS_SENS_STATE) ||
 				(sens->totlinks == 0) ||											/* always display sensor without links so that is can be edited */
@@ -4405,7 +4484,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		
 		for(act= ob->actuators.first; act; act=act->next) {
 			
-			RNA_pointer_create(&ob->id, &RNA_Actuator, act, &ptr);
+			RNA_pointer_create((ID *)ob, &RNA_Actuator, act, &ptr);
 			
 			if ((slogic->scaflag & BUTS_ACT_STATE) ||
 				!(act->flag & ACT_LINKED) ||		/* always display actuators without links so that is can be edited */
