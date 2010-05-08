@@ -586,7 +586,7 @@ void reload_sequence_new_file(Scene *scene, Sequence * seq)
 
 	if (seq->type == SEQ_IMAGE) {
 		/* Hack? */
-		int olen = MEM_allocN_len(seq->strip->stripdata)/sizeof(struct StripElem);
+		size_t olen = MEM_allocN_len(seq->strip->stripdata)/sizeof(struct StripElem);
 		seq->len = olen;
 		seq->len -= seq->anim_startofs;
 		seq->len -= seq->anim_endofs;
@@ -1777,7 +1777,7 @@ static void input_preprocess(Scene *scene, Sequence *seq, TStripElem *se, int cf
 
 	if(seq->flag & SEQ_MAKE_PREMUL) {
 		if(se->ibuf->depth == 32 && se->ibuf->zbuf == 0) {
-			converttopremul(se->ibuf);
+			IMB_premultiply_alpha(se->ibuf);
 		}
 	}
 
@@ -2160,7 +2160,7 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 			   and since G.rendering is uhm, gone... (Peter)
 			*/
 
-			int rendering = 1;
+			int rendering = G.rendering;
 			int doseq;
 			int doseq_gl= G.rendering ? (scene->r.seq_flag & R_SEQ_GL_REND) : (scene->r.seq_flag & R_SEQ_GL_PREV);
 
@@ -2832,7 +2832,7 @@ static pthread_cond_t  wakeup_cond         = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t frame_done_lock     = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  frame_done_cond     = PTHREAD_COND_INITIALIZER;
 
-static volatile int seq_thread_shutdown = FALSE;
+static volatile int seq_thread_shutdown = TRUE; 
 static volatile int seq_last_given_monoton_cfra = 0;
 static int monoton_cfra = 0;
 

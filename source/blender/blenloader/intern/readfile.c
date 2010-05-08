@@ -1357,7 +1357,8 @@ static void test_pointer_array(FileData *fd, void **mat)
 #else
 	long long *lpoin, *lmat;
 #endif
-	int len, *ipoin, *imat;
+	int *ipoin, *imat;
+	size_t len;
 
 		/* manually convert the pointer array in
 		 * the old dna format to a pointer array in
@@ -2220,6 +2221,12 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 	/* always rebuild to match proxy or lib changes */
 	rebuild= ob->proxy || (ob->id.lib==NULL && arm->id.lib);
 
+	if (ob->proxy && pose->proxy_act_bone[0]) {
+		Bone *bone = get_named_bone(arm, pose->proxy_act_bone);
+		if (bone)
+			arm->act_bone = bone;
+	}
+
 	for (pchan = pose->chanbase.first; pchan; pchan=pchan->next) {
 		lib_link_constraints(fd, (ID *)ob, &pchan->constraints);
 		
@@ -2753,7 +2760,7 @@ static void direct_link_curve(FileData *fd, Curve *cu)
 	cu->bev.first=cu->bev.last= NULL;
 	cu->disp.first=cu->disp.last= NULL;
 	cu->editnurb= NULL;
-	cu->lastselbp= NULL;
+	cu->lastsel= NULL;
 	cu->path= NULL;
 	cu->editfont= NULL;
 	
@@ -6539,6 +6546,21 @@ static void do_version_old_trackto_to_constraints(Object *ob)
 	ob->track = NULL;
 }
 
+static void do_versions_seq_unique_name_all_strips(
+	Scene * sce, ListBase *seqbasep)
+{
+	Sequence * seq = seqbasep->first;
+
+	while(seq) {
+		seqbase_unique_name_recursive(&sce->ed->seqbase, seq);
+		if (seq->seqbase.first) {
+			do_versions_seq_unique_name_all_strips(
+				sce, &seq->seqbase);
+		}
+		seq=seq->next;
+	}
+}
+
 static void do_versions(FileData *fd, Library *lib, Main *main)
 {
 	/* WATCH IT!!!: pointers from libdata have not been converted */
@@ -8431,8 +8453,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 						ima->flag |= IMA_FIELDS;
 					if(tex->imaflag & TEX_STD_FIELD_)
 						ima->flag |= IMA_STD_FIELD;
-					if(tex->imaflag & TEX_ANTIALI_)
-						ima->flag |= IMA_ANTIALI;
 				}
 				tex->iuser.frames= tex->frames;
 				tex->iuser.fie_ima= tex->fie_ima;
@@ -10208,22 +10228,16 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		{
 			Scene *sce= main->scene.first;
 			while(sce) {
-				Sequence *seq;
-				
 				if(sce->r.frame_step==0)
 					sce->r.frame_step= 1;
 				if (sce->r.mblur_samples==0)
 					sce->r.mblur_samples = sce->r.osa;
 				
-				if(sce->ed && sce->ed->seqbasep)
-				{
-					seq=sce->ed->seqbasep->first;
-					while(seq) {
-						seqbase_unique_name_recursive(&sce->ed->seqbase, seq);
-						seq=seq->next;
-					}
+				if (sce->ed && sce->ed->seqbase.first) {
+					do_versions_seq_unique_name_all_strips(
+						sce, &sce->ed->seqbase);
 				}
-				
+			
 				sce= sce->id.next;
 			}
 		}
@@ -10731,6 +10745,27 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		} /* sequencer changes */
+	}
+	
+	if (main->versionfile <= 251) {	/* 2.5.1 had no subversions */
+		bScreen *sc;
+		
+		/* Blender 2.5.2 - subversion 0 introduced a new setting: V3D_RENDER_OVERRIDE.
+		 * This bit was used in the past for V3D_TRANSFORM_SNAP, which is now deprecated. 
+		 * Here we clear it for old files so they don't come in with V3D_RENDER_OVERRIDE set,
+		 * which would cause cameras, lamps, etc to become invisible */
+		for(sc= main->screen.first; sc; sc= sc->id.next) {
+			ScrArea *sa;
+			for(sa= sc->areabase.first; sa; sa= sa->next) {
+				SpaceLink *sl;
+				for (sl= sa->spacedata.first; sl; sl= sl->next) {
+					if(sl->spacetype==SPACE_VIEW3D) {
+						View3D* v3d = (View3D *)sl;
+						v3d->flag2 &= ~V3D_RENDER_OVERRIDE;
+					}
+				}
+			}
+		}
 	}
 
 	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 1)) {
@@ -11569,7 +11604,6 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	PartEff *paf;
 	int a;
 
-
 	expand_doit(fd, mainvar, ob->data);
 	
 	for (md=ob->modifiers.first; md; md=md->next) {
@@ -12053,7 +12087,9 @@ static Main* library_append_begin(const bContext *C, FileData **fd, char *dir)
 	/* which one do we need? */
 	mainl = blo_find_main(*fd, &(*fd)->mainlist, dir, G.sce);
 	
-	mainl->versionfile= (*fd)->fileversion;	/* needed for do_version */
+	/* needed for do_version */
+	mainl->versionfile= (*fd)->fileversion;
+	read_file_version(*fd, mainl);
 	
 	return mainl;
 }

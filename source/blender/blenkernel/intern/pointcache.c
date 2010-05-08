@@ -1076,7 +1076,7 @@ static int ptcache_path(PTCacheID *pid, char *filename)
 		char file[MAX_PTCACHE_PATH]; /* we dont want the dir, only the file */
 		char *blendfilename;
 
-		blendfilename= (lib)? lib->filename: G.sce;
+		blendfilename= (lib && (pid->cache->flag & PTCACHE_IGNORE_LIBPATH)==0) ? lib->filename: G.sce;
 
 		BLI_split_dirfile(blendfilename, NULL, file);
 		i = strlen(file);
@@ -1379,7 +1379,9 @@ static void ptcache_copy_data(void *from[], void *to[])
 {
 	int i;
 	for(i=0; i<BPHYS_TOT_DATA; i++) {
-		if(from[i])
+        /* note, durian file 03.4b_comp crashes if to[i] is not tested
+         * its NULL, not sure if this should be fixed elsewhere but for now its needed */
+		if(from[i] && to[i])
 			memcpy(to[i], from[i], ptcache_data_size[i]);
 	}
 }
@@ -2650,7 +2652,8 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 			ptcache_file_init_pointers(pf);
 
 			if(!ptcache_file_write_header_begin(pf) || !pid->write_header(pf)) {
-				printf("Error writing to disk cache\n");
+				if (G.f & G_DEBUG) 
+					printf("Error writing to disk cache\n");
 				cache->flag &= ~PTCACHE_DISK_CACHE;
 
 				ptcache_file_close(pf);
@@ -2660,7 +2663,8 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 			for(i=0; i<pm->totpoint; i++) {
 				ptcache_copy_data(pm->cur, pf->cur);
 				if(!ptcache_file_write_data(pf)) {
-					printf("Error writing to disk cache\n");
+					if (G.f & G_DEBUG) 
+						printf("Error writing to disk cache\n");
 					cache->flag &= ~PTCACHE_DISK_CACHE;
 
 					ptcache_file_close(pf);
@@ -2676,7 +2680,8 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 				BKE_ptcache_write_cache(pid, 0);
 		}
 		else
-			printf("Error creating disk cache file\n");
+			if (G.f & G_DEBUG) 
+				printf("Error creating disk cache file\n");
 	}
 }
 void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
@@ -2686,7 +2691,8 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 
 	if (!G.relbase_valid){
 		cache->flag &= ~PTCACHE_DISK_CACHE;
-		printf("File must be saved before using disk cache!\n");
+		if (G.f & G_DEBUG) 
+			printf("File must be saved before using disk cache!\n");
 		return;
 	}
 
