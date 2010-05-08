@@ -45,7 +45,8 @@ class PHYSICS_PT_field(PhysicButtonsPanel):
         ob = context.object
         field = ob.field
         wide_ui = context.region.width > narrowui
-
+        
+        # Type Menu
         if wide_ui:
             split = layout.split(percentage=0.2)
             split.label(text="Type:")
@@ -53,18 +54,22 @@ class PHYSICS_PT_field(PhysicButtonsPanel):
             split = layout.split()
 
         split.prop(field, "type", text="")
-
+        
+        # Use All Layers
+        col = layout.column()
+        col.prop(context.active_object, "use_all_layers")
+        
+        # Shape Menu
         if field.type not in ('NONE', 'GUIDE', 'TEXTURE'):
             if wide_ui:
                 split = layout.split(percentage=0.2)
                 split.label(text="Shape:")
             else:
                 split = layout.split()
+
             split.prop(field, "shape", text="")
 
-        split = split.row()
-        split.prop(context.active_object, "use_all_layers")
-
+        # Settings for the fields
         split = layout.split()
 
         if field.type == 'NONE':
