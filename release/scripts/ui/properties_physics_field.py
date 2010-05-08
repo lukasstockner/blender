@@ -56,8 +56,7 @@ class PHYSICS_PT_field(PhysicButtonsPanel):
         split.prop(field, "type", text="")
         
         # Use All Layers
-        col = layout.column()
-        col.prop(context.active_object, "use_all_layers")
+        layout.prop(context.active_object, "use_all_layers")
         
         # Shape Menu
         if field.type not in ('NONE', 'GUIDE', 'TEXTURE'):
@@ -70,11 +69,12 @@ class PHYSICS_PT_field(PhysicButtonsPanel):
             split.prop(field, "shape", text="")
 
         # Settings for the fields
-        split = layout.split()
-
         if field.type == 'NONE':
             return # nothing to draw
-        elif field.type == 'GUIDE':
+        else:
+            split = layout.split()
+            
+        if field.type == 'GUIDE':
             col = split.column()
             col.prop(field, "guide_minimum")
             col.prop(field, "guide_free")
