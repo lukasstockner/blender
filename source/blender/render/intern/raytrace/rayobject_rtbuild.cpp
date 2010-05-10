@@ -91,13 +91,22 @@ void rtbuild_free(RTBuilder *b)
 
 void rtbuild_add(RTBuilder *b, RayObject *o)
 {
+	float bb[6];
+
 	assert( b->primitives.begin + b->primitives.maxsize != b->primitives.end );
+
+	INIT_MINMAX(bb, bb+3);
+	RE_rayobject_merge_bb(o, bb, bb+3);
+
+	/* skip objects with zero bounding box, they are of no use, and
+	   will give problems in rtbuild_heuristic_object_split later */
+	if(len_squared_v3v3(bb, bb+3) == 0.0f)
+		return;
 	
+	copy_v3_v3(b->primitives.end->bb, bb);
+	copy_v3_v3(b->primitives.end->bb+3, bb+3);
 	b->primitives.end->obj = o;
 	b->primitives.end->cost = RE_rayobject_cost(o);
-
-	INIT_MINMAX(b->primitives.end->bb, b->primitives.end->bb+3);
-	RE_rayobject_merge_bb(o, b->primitives.end->bb, b->primitives.end->bb+3);
 	
 	for(int i=0; i<3; i++)
 	{
