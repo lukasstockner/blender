@@ -394,7 +394,6 @@ ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 
 		if(format && strcmp(format, "Plain Texture")==0 && libtiff_TIFFIsTiled(image)) {
 			int numlevel = libtiff_TIFFNumberOfDirectories(image);
-			ibuf->flags |= IB_tilecache;
 
 			/* create empty mipmap levels in advance */
 			for(level=0; level<numlevel; level++) {
