@@ -406,7 +406,6 @@ ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 
 					hbuf= IMB_allocImBuf(width, height, 32, 0, 0);
 					hbuf->miplevel= level;
-					hbuf->flags |= IB_tilecache;
 					hbuf->ftype= ibuf->ftype;
 					ibuf->mipmap[level-1] = hbuf;
 
@@ -415,6 +414,8 @@ ImBuf *imb_loadtiff(unsigned char *mem, int size, int flags)
 				}
 				else
 					hbuf= ibuf;
+
+				hbuf->flags |= IB_tilecache;
 
 				libtiff_TIFFGetField(image, TIFFTAG_TILEWIDTH, &hbuf->tilex);
 				libtiff_TIFFGetField(image, TIFFTAG_TILELENGTH, &hbuf->tiley);
