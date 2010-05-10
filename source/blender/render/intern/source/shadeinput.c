@@ -475,14 +475,12 @@ void shade_input_set_viewco(Render *re, ShadeInput *shi, float x, float y, float
 	geom->scanco[1]= y;
 	geom->scanco[2]= z;
 
-	/* check if we need derivatives */
-	if(geom->osatex || (re->params.r.mode & R_SHADOW)) {
-		dxco= geom->dxco;
-		dyco= geom->dyco;
+	/* always compute derivatives */
+	dxco= geom->dxco;
+	dyco= geom->dyco;
 
-		if((shi->material.mat->texco & TEXCO_REFL))
-			dxyview= &geom->dxview;
-	}
+	if((shi->material.mat->texco & TEXCO_REFL))
+		dxyview= &geom->dxview;
 
 	shade_input_calc_viewco(re, shi, xs, ys, z, geom->view, dxyview, geom->co, dxco, dyco);
 }
