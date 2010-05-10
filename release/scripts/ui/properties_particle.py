@@ -25,6 +25,8 @@ from properties_physics_common import effector_weights_ui
 from properties_physics_common import basic_force_field_settings_ui
 from properties_physics_common import basic_force_field_falloff_ui
 
+from properties_physics_cloth import PHYSICS_PT_cloth_collision
+
 narrowui = 180
 
 
@@ -48,7 +50,6 @@ class ParticleButtonsPanel(bpy.types.Panel):
 
     def poll(self, context):
         return particle_panel_poll(context)
-
 
 class PARTICLE_PT_context_particles(ParticleButtonsPanel):
     bl_label = ""
@@ -136,7 +137,6 @@ class PARTICLE_PT_context_particles(ParticleButtonsPanel):
 class PARTICLE_PT_custom_props(ParticleButtonsPanel, PropertyPanel):
     _context_path = "particle_system.settings"
 
-
 class PARTICLE_PT_emission(ParticleButtonsPanel):
     bl_label = "Emission"
 
@@ -197,6 +197,22 @@ class PARTICLE_PT_emission(ParticleButtonsPanel):
             elif part.distribution == 'GRID':
                 row.prop(part, "grid_resolution")
 
+class PARTICLE_PT_collisions(PHYSICS_PT_cloth_collision):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "particle"
+    
+    def poll(self, context):
+        psys = context.particle_system
+        if psys is None:
+            return False
+        if psys.settings is None:
+            return False
+        return psys.cloth != None and psys.settings.type == 'HAIR'
+    
+    def get_cloth(self, context):
+        return context.particle_system.cloth
+    
 
 class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
     bl_label = "Hair dynamics"
@@ -241,6 +257,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
         sub.prop(cloth, "bending_stiffness", text="Bending")
         sub.prop(cloth, "internal_friction", slider=True)
         sub.prop(cloth, "collider_friction", slider=True)
+        sub.prop(cloth, "flexibility_damping", text="Flexibility", slider=True)
 
         col = split.column()
 
@@ -1088,6 +1105,7 @@ class PARTICLE_PT_vertexgroups(ParticleButtonsPanel):
 classes = [
     PARTICLE_PT_context_particles,
     PARTICLE_PT_hair_dynamics,
+    PARTICLE_PT_collisions,
     PARTICLE_PT_cache,
     PARTICLE_PT_emission,
     PARTICLE_PT_velocity,
