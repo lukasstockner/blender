@@ -33,17 +33,22 @@
 struct APixstr;
 struct APixstrand;
 struct GHash;
+struct ListBase;
 struct PixStr;
 struct Render;
 struct RenderPart;
 struct RenderResult;
 struct StrandShadeCache;
+struct rcti;
 struct rctf;
 
 /* Create/Free */
 
 void parts_create(struct Render *re);
 void parts_free(struct Render *re);
+
+void parts_list_create(struct ListBase *list, int *partx, int *party,
+	struct rcti *rect, int xparts, int yparts, int padding);
 
 /* Find/Next */
 

@@ -37,10 +37,77 @@
 
 /******************************* Create/Free *********************************/
 
+void parts_list_create(ListBase *list, int *partx, int *party, rcti *rect, int xparts, int yparts, int padding)
+{
+	int xminb, xmaxb, yminb, ymaxb, nr, xd, yd;
+
+	list->first= list->last= NULL;
+
+	/* part size */
+	xminb= rect->xmin;
+	yminb= rect->ymin;
+	xmaxb= rect->xmax;
+	ymaxb= rect->ymax;
+
+	*partx= ceil((xmaxb-xminb)/(float)xparts);
+	*party= ceil((ymaxb-yminb)/(float)yparts);
+
+	for(nr=0; nr<xparts*yparts; nr++) {
+		rcti disprect;
+		int rectx, recty;
+		
+		xd= (nr % xparts);
+		yd= (nr-xd)/xparts;
+		
+		disprect.xmin= xminb+ xd*(*partx);
+		disprect.ymin= yminb+ yd*(*party);
+		
+		/* ensure we cover the entire picture, so last parts go to end */
+		if(xd<xparts-1) {
+			disprect.xmax= disprect.xmin + *partx;
+			if(disprect.xmax > xmaxb)
+				disprect.xmax = xmaxb;
+		}
+		else disprect.xmax= xmaxb;
+		
+		if(yd<yparts-1) {
+			disprect.ymax= disprect.ymin + *party;
+			if(disprect.ymax > ymaxb)
+				disprect.ymax = ymaxb;
+		}
+		else disprect.ymax= ymaxb;
+		
+		rectx= disprect.xmax - disprect.xmin;
+		recty= disprect.ymax - disprect.ymin;
+		
+		/* so, now can we add this part? */
+		if(rectx>0 && recty>0) {
+			RenderPart *pa= MEM_callocN(sizeof(RenderPart), "new part");
+			
+			/* Non-box filters need 2 pixels extra to work */
+			if(padding) {
+				pa->crop= 2;
+				disprect.xmin -= pa->crop;
+				disprect.ymin -= pa->crop;
+				disprect.xmax += pa->crop;
+				disprect.ymax += pa->crop;
+				rectx+= 2*pa->crop;
+				recty+= 2*pa->crop;
+			}
+			pa->disprect= disprect;
+			pa->rectx= rectx;
+			pa->recty= recty;
+
+			BLI_addtail(list, pa);
+		}
+	}
+
+}
+
 void parts_create(Render *re)
 {
-	int nr, xd, yd, partx, party, xparts, yparts;
-	int xminb, xmaxb, yminb, ymaxb;
+	RenderPart *pa;
+	int padding, partx, party, xparts, yparts;
 	
 	parts_free(re);
 	
@@ -48,12 +115,6 @@ void parts_create(Render *re)
 	re->cb.i.totpart= 0;
 	re->cb.i.curpart= 0;
 	re->cb.i.partsdone= 0;
-	
-	/* just for readable code.. */
-	xminb= re->disprect.xmin;
-	yminb= re->disprect.ymin;
-	xmaxb= re->disprect.xmax;
-	ymaxb= re->disprect.ymax;
 	
 	xparts= re->params.r.xparts;
 	yparts= re->params.r.yparts;
@@ -73,69 +134,23 @@ void parts_create(Render *re)
 	}
 	
 	/* part size */
-	partx= ceil(re->rectx/(float)xparts);
-	party= ceil(re->recty/(float)yparts);
-	
-	re->xparts= xparts;
-	re->yparts= yparts;
-	re->partx= partx;
-	re->party= party;
 	
 	/* calculate rotation factor of 1 pixel */
 	if(re->cam.type == CAM_PANORAMA)
 		re->cam.panophi= panorama_pixel_rot(re);
 	
-	for(nr=0; nr<xparts*yparts; nr++) {
-		rcti disprect;
-		int rectx, recty;
-		
-		xd= (nr % xparts);
-		yd= (nr-xd)/xparts;
-		
-		disprect.xmin= xminb+ xd*partx;
-		disprect.ymin= yminb+ yd*party;
-		
-		/* ensure we cover the entire picture, so last parts go to end */
-		if(xd<xparts-1) {
-			disprect.xmax= disprect.xmin + partx;
-			if(disprect.xmax > xmaxb)
-				disprect.xmax = xmaxb;
-		}
-		else disprect.xmax= xmaxb;
-		
-		if(yd<yparts-1) {
-			disprect.ymax= disprect.ymin + party;
-			if(disprect.ymax > ymaxb)
-				disprect.ymax = ymaxb;
-		}
-		else disprect.ymax= ymaxb;
-		
-		rectx= disprect.xmax - disprect.xmin;
-		recty= disprect.ymax - disprect.ymin;
-		
-		/* so, now can we add this part? */
-		if(rectx>0 && recty>0) {
-			RenderPart *pa= MEM_callocN(sizeof(RenderPart), "new part");
+	padding= (re->params.r.filtertype || (re->params.r.mode & R_EDGE))? 2: 0;
 
-			pa->re= re;
-			
-			/* Non-box filters need 2 pixels extra to work */
-			if((re->params.r.filtertype || (re->params.r.mode & R_EDGE))) {
-				pa->crop= 2;
-				disprect.xmin -= pa->crop;
-				disprect.ymin -= pa->crop;
-				disprect.xmax += pa->crop;
-				disprect.ymax += pa->crop;
-				rectx+= 2*pa->crop;
-				recty+= 2*pa->crop;
-			}
-			pa->disprect= disprect;
-			pa->rectx= rectx;
-			pa->recty= recty;
+	parts_list_create(&re->parts, &partx, &party, &re->disprect, xparts, yparts, padding);
 
-			BLI_addtail(&re->parts, pa);
-			re->cb.i.totpart++;
-		}
+	re->xparts= xparts;
+	re->yparts= yparts;
+	re->partx= partx;
+	re->party= party;
+
+	for(pa=re->parts.first; pa; pa=pa->next) {
+		pa->re= re;
+		re->cb.i.totpart++;
 	}
 }
 

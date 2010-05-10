@@ -2822,24 +2822,13 @@ static int zbuffer_abuf_render(Render *re, RenderPart *pa, APixstr *apixbuf, APi
 	return doztra;
 }
 
-void zbuffer_abuf_shadow(Render *re, LampRen *lar, float winmat[][4], APixstr *apixbuf, APixstrand *apixbufstrand, ListBase *apsmbase, int size, int samples, float (*jit)[2])
+void zbuffer_abuf_shadow(Render *re, RenderPart *pa, LampRen *lar, float winmat[][4], APixstr *apixbuf, APixstrand *apixbufstrand, ListBase *apsmbase, int size, int samples, float (*jit)[2])
 {
-	RenderPart pa;
-	int lay= -1;
+	int lay= (lar->mode & LA_LAYER)? lay= lar->lay: -1;
 
-	if(lar->mode & LA_LAYER) lay= lar->lay;
-
-	memset(&pa, 0, sizeof(RenderPart));
-	pa.rectx= size;
-	pa.recty= size;
-	pa.disprect.xmin= 0;
-	pa.disprect.ymin= 0;
-	pa.disprect.xmax= size;
-	pa.disprect.ymax= size;
-
-	zbuffer_abuf(re, &pa, apixbuf, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1);
+	zbuffer_abuf(re, pa, apixbuf, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1);
 	if(apixbufstrand && !(lar->bufflag & LA_SHADBUF_NO_STRANDS))
-		zbuffer_strands_abuf(re, &pa, apixbufstrand, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1, NULL);
+		zbuffer_strands_abuf(re, pa, apixbufstrand, apsmbase, lay, 0, winmat, size, size, samples, jit, 1.0f, 1, NULL);
 }
 
 int zbuffer_alpha(Render *re, RenderPart *pa, RenderLayer *rl)

@@ -80,13 +80,21 @@ typedef struct DeepSample {
 	int z;
 	float v;
 } DeepSample;
+
+typedef struct DeepTile {
+	DeepSample **deepbuf;
+	int *totbuf;
+	MemArena *arena;
+} DeepTile;
  
 typedef struct ShadSampleBuf {
 	struct ShadSampleBuf *next, *prev;
+
 	intptr_t *zbuf;
 	char *cbuf;
-	DeepSample **deepbuf;
-	int *totbuf;
+
+	DeepTile *deeptile;
+	int tilex, tiley, xtiles, ytiles;
 } ShadSampleBuf;
 
 typedef struct ShadBuf {
@@ -236,7 +244,6 @@ static int compress_deepsamples(DeepSample *dsample, int tot, float epsilon)
 		first= 1;
 
 		for(; a<tot; a++, ds++) {
-			//dz= ds->z - newds->z;
 			if(ds->z == newds->z) {
 				/* still in same z position, simply check
 				   visibility difference against epsilon */
@@ -327,199 +334,216 @@ static float deep_alpha(Render *re, int obinr, int facenr, int strand)
 	return ma->shad_alpha;
 }
 
-static void compress_deepshadowbuf(Render *re, ShadBuf *shb, APixstr *apixbuf, APixstrand *apixbufstrand)
+static int compress_deepshadowbuf(Render *re, LampRen *lar, DeepTile *tile, RenderPart *pa, APixstr *apixbuf, APixstrand *apixbufstrand)
 {
-	ShadSampleBuf *shsample;
+	ShadBuf *shb= lar->shb;
+	ShadSampleBuf *shsample= shb->buffers.first;
 	DeepSample *ds[RE_MAX_OSA], *sampleds[RE_MAX_OSA], *dsb, *newbuf;
+	DeepSample *dsbuf1= NULL, *dsbuf2= NULL;
 	APixstr *ap, *apn;
 	APixstrand *aps, *apns;
-	float visibility, totbuf= shb->totbuf;
-	int a, b, c, tot, minz, found, size= shb->size, prevtot, newtot;
-	int sampletot[RE_MAX_OSA], totsample = 0, totsamplec = 0;
+	float visibility, totbuf= lar->buffers;
+	int x, y, offset, b, c, tot, minz, found, prevtot, newtot;
+	int sampletot[RE_MAX_OSA], totsample = 0, totsamplec = 0, dsbufsize= 0;
 	
-	shsample= MEM_callocN( sizeof(ShadSampleBuf), "shad sample buf");
-	BLI_addtail(&shb->buffers, shsample);
-
-	shsample->totbuf= MEM_callocN(sizeof(int)*size*size, "deeptotbuf");
-	shsample->deepbuf= MEM_callocN(sizeof(DeepSample*)*size*size, "deepbuf");
-
 	ap= apixbuf;
 	aps= apixbufstrand;
-	for(a=0; a<size*size; a++, ap++, aps++) {
-		/* count number of samples */
-		for(c=0; c<totbuf; c++)
-			sampletot[c]= 0;
+	for(y=0; y<pa->recty; y++) {
+		offset= y*shsample->tilex;
 
-		tot= 0;
-		for(apn=ap; apn; apn=apn->next)
-			for(b=0; b<4; b++)
-				if(apn->p[b])
-					for(c=0; c<totbuf; c++)
-						if(apn->mask[b] & (1<<c))
-							sampletot[c]++;
+		for(x=0; x<pa->rectx; x++, ap++, aps++, offset++) {
+			/* count number of samples */
+			for(c=0; c<totbuf; c++)
+				sampletot[c]= 0;
 
-		if(apixbufstrand) {
-			for(apns=aps; apns; apns=apns->next)
+			tot= 0;
+			for(apn=ap; apn; apn=apn->next)
 				for(b=0; b<4; b++)
-					if(apns->p[b])
+					if(apn->p[b])
 						for(c=0; c<totbuf; c++)
-							if(apns->mask[b] & (1<<c))
+							if(apn->mask[b] & (1<<c))
 								sampletot[c]++;
-		}
 
-		for(c=0; c<totbuf; c++)
-			tot += sampletot[c];
-
-		if(tot == 0) {
-			shsample->deepbuf[a]= NULL;
-			shsample->totbuf[a]= 0;
-			continue;
-		}
-
-		/* fill samples */
-		ds[0]= sampleds[0]= MEM_callocN(sizeof(DeepSample)*tot*2, "deepsample");
-		for(c=1; c<totbuf; c++)
-			ds[c]= sampleds[c]= sampleds[c-1] + sampletot[c-1]*2;
-
-		for(apn=ap; apn; apn=apn->next) {
-			for(b=0; b<4; b++) {
-				if(apn->p[b]) {
-					for(c=0; c<totbuf; c++) {
-						if(apn->mask[b] & (1<<c)) {
-							/* two entries to create step profile */
-							ds[c]->z= apn->z[b];
-							ds[c]->v= 1.0f; /* not used */
-							ds[c]++;
-							ds[c]->z= apn->z[b];
-							ds[c]->v= deep_alpha(re, apn->obi[b], apn->p[b], 0);
-							ds[c]++;
-						}
-					}
-				}
+			if(apixbufstrand) {
+				for(apns=aps; apns; apns=apns->next)
+					for(b=0; b<4; b++)
+						if(apns->p[b])
+							for(c=0; c<totbuf; c++)
+								if(apns->mask[b] & (1<<c))
+									sampletot[c]++;
 			}
-		}
 
-		if(apixbufstrand) {
-			for(apns=aps; apns; apns=apns->next) {
+			for(c=0; c<totbuf; c++)
+				tot += sampletot[c];
+
+			if(tot == 0) {
+				tile->deepbuf[offset]= NULL;
+				tile->totbuf[offset]= 0;
+				continue;
+			}
+
+			/* enlarge temporary buffers if necessary */
+			if(tot*2 > dsbufsize) {
+				if(dsbuf1) MEM_freeN(dsbuf1);
+				if(dsbuf2) MEM_freeN(dsbuf2);
+
+				while(dsbufsize < tot*2)
+					dsbufsize += 1024;
+
+				dsbuf1= MEM_mallocN(sizeof(DeepSample)*dsbufsize, "compress_deepbuf1");
+				dsbuf2= MEM_mallocN(sizeof(DeepSample)*dsbufsize, "compress_deepbuf2");
+			}
+
+			/* fill samples */
+			ds[0]= sampleds[0]= dsbuf1;
+			for(c=1; c<totbuf; c++)
+				ds[c]= sampleds[c]= sampleds[c-1] + sampletot[c-1]*2;
+
+			for(apn=ap; apn; apn=apn->next) {
 				for(b=0; b<4; b++) {
-					if(apns->p[b]) {
+					if(apn->p[b]) {
 						for(c=0; c<totbuf; c++) {
-							if(apns->mask[b] & (1<<c)) {
+							if(apn->mask[b] & (1<<c)) {
 								/* two entries to create step profile */
-								ds[c]->z= apns->z[b];
+								ds[c]->z= apn->z[b];
 								ds[c]->v= 1.0f; /* not used */
 								ds[c]++;
-								ds[c]->z= apns->z[b];
-								ds[c]->v= deep_alpha(re, apns->obi[b], apns->p[b], 1);
+								ds[c]->z= apn->z[b];
+								ds[c]->v= deep_alpha(re, apn->obi[b], apn->p[b], 0);
 								ds[c]++;
 							}
 						}
 					}
 				}
 			}
-		}
 
-		for(c=0; c<totbuf; c++) {
-			/* sort by increasing z */
-			qsort(sampleds[c], sampletot[c], sizeof(DeepSample)*2, verg_deepsample);
-
-			/* sum visibility, replacing alpha values */
-			visibility= 1.0f;
-			ds[c]= sampleds[c];
-
-			for(b=0; b<sampletot[c]; b++) {
-				/* two entries creating step profile */
-				ds[c]->v= visibility;
-				ds[c]++;
-
-				visibility *= 1.0f-ds[c]->v;
-				ds[c]->v= visibility;
-				ds[c]++;
-			}
-
-			/* halfway trick, probably won't work well for volumes? */
-			ds[c]= sampleds[c];
-			for(b=0; b<sampletot[c]; b++) {
-				if(b+1 < sampletot[c]) {
-					ds[c]->z= (ds[c]->z>>1) + ((ds[c]+2)->z>>1);
-					ds[c]++;
-					ds[c]->z= (ds[c]->z>>1) + ((ds[c]+2)->z>>1);
-					ds[c]++;
-				}
-				else {
-					ds[c]->z= (ds[c]->z>>1) + (0x7FFFFFFF>>1);
-					ds[c]++;
-					ds[c]->z= (ds[c]->z>>1) + (0x7FFFFFFF>>1);
-					ds[c]++;
+			if(apixbufstrand) {
+				for(apns=aps; apns; apns=apns->next) {
+					for(b=0; b<4; b++) {
+						if(apns->p[b]) {
+							for(c=0; c<totbuf; c++) {
+								if(apns->mask[b] & (1<<c)) {
+									/* two entries to create step profile */
+									ds[c]->z= apns->z[b];
+									ds[c]->v= 1.0f; /* not used */
+									ds[c]++;
+									ds[c]->z= apns->z[b];
+									ds[c]->v= deep_alpha(re, apns->obi[b], apns->p[b], 1);
+									ds[c]++;
+								}
+							}
+						}
+					}
 				}
 			}
-
-			/* init for merge loop */
-			ds[c]= sampleds[c];
-			sampletot[c] *= 2;
-		}
-
-		shsample->deepbuf[a]= MEM_callocN(sizeof(DeepSample)*tot*2, "deepsample");
-		shsample->totbuf[a]= 0;
-
-		/* merge buffers */
-		dsb= shsample->deepbuf[a];
-		while(1) {
-			minz= 0;
-			found= 0;
 
 			for(c=0; c<totbuf; c++) {
-				if(sampletot[c] && (!found || ds[c]->z < minz)) {
-					minz= ds[c]->z;
-					found= 1;
+				/* sort by increasing z */
+				qsort(sampleds[c], sampletot[c], sizeof(DeepSample)*2, verg_deepsample);
+
+				/* sum visibility, replacing alpha values */
+				visibility= 1.0f;
+				ds[c]= sampleds[c];
+
+				for(b=0; b<sampletot[c]; b++) {
+					/* two entries creating step profile */
+					ds[c]->v= visibility;
+					ds[c]++;
+
+					visibility *= 1.0f-ds[c]->v;
+					ds[c]->v= visibility;
+					ds[c]++;
 				}
+
+				/* halfway trick, probably won't work well for volumes? */
+				ds[c]= sampleds[c];
+				for(b=0; b<sampletot[c]; b++) {
+					if(b+1 < sampletot[c]) {
+						ds[c]->z= (ds[c]->z>>1) + ((ds[c]+2)->z>>1);
+						ds[c]++;
+						ds[c]->z= (ds[c]->z>>1) + ((ds[c]+2)->z>>1);
+						ds[c]++;
+					}
+					else {
+						ds[c]->z= (ds[c]->z>>1) + (0x7FFFFFFF>>1);
+						ds[c]++;
+						ds[c]->z= (ds[c]->z>>1) + (0x7FFFFFFF>>1);
+						ds[c]++;
+					}
+				}
+
+				/* init for merge loop */
+				ds[c]= sampleds[c];
+				sampletot[c] *= 2;
 			}
 
-			if(!found)
+			tile->deepbuf[offset]= dsbuf2;
+			tile->totbuf[offset]= 0;
+
+			/* merge buffers */
+			dsb= tile->deepbuf[offset];
+			while(1) {
+				minz= 0;
+				found= 0;
+
+				for(c=0; c<totbuf; c++) {
+					if(sampletot[c] && (!found || ds[c]->z < minz)) {
+						minz= ds[c]->z;
+						found= 1;
+					}
+				}
+
+				if(!found)
+					break;
+
+				dsb->z= minz;
+				dsb->v= 0.0f;
+
+				visibility= 0.0f;
+				for(c=0; c<totbuf; c++) {
+					if(sampletot[c] && ds[c]->z == minz) {
+						ds[c]++;
+						sampletot[c]--;
+					}
+
+					if(sampleds[c] == ds[c])
+						visibility += 1.0f/totbuf;
+					else
+						visibility += (ds[c]-1)->v/totbuf;
+				}
+
+				dsb->v= visibility;
+				dsb++;
+				tile->totbuf[offset]++;
+			}
+
+			prevtot= tile->totbuf[offset];
+			totsample += prevtot;
+
+			/* do compression using slopes */
+			newtot= compress_deepsamples(tile->deepbuf[offset], prevtot, shb->compressthresh);
+			tile->totbuf[offset]= newtot;
+			totsamplec += newtot;
+
+			/* allocate final memory in arena */
+			newbuf= BLI_memarena_alloc(tile->arena, sizeof(DeepSample)*newtot);
+			memcpy(newbuf, tile->deepbuf[offset], sizeof(DeepSample)*newtot);
+			tile->deepbuf[offset]= newbuf;
+
+			if(re->cb.test_break(re->cb.tbh))
 				break;
-
-			dsb->z= minz;
-			dsb->v= 0.0f;
-
-			visibility= 0.0f;
-			for(c=0; c<totbuf; c++) {
-				if(sampletot[c] && ds[c]->z == minz) {
-					ds[c]++;
-					sampletot[c]--;
-				}
-
-				if(sampleds[c] == ds[c])
-					visibility += 1.0f/totbuf;
-				else
-					visibility += (ds[c]-1)->v/totbuf;
-			}
-
-			dsb->v= visibility;
-			dsb++;
-			shsample->totbuf[a]++;
 		}
-
-		prevtot= shsample->totbuf[a];
-		totsample += prevtot;
-
-		newtot= compress_deepsamples(shsample->deepbuf[a], prevtot, shb->compressthresh);
-		shsample->totbuf[a]= newtot;
-		totsamplec += newtot;
-
-		if(newtot < prevtot) {
-			newbuf= MEM_mallocN(sizeof(DeepSample)*newtot, "cdeepsample");
-			memcpy(newbuf, shsample->deepbuf[a], sizeof(DeepSample)*newtot);
-			MEM_freeN(shsample->deepbuf[a]);
-			shsample->deepbuf[a]= newbuf;
-		}
-
-		MEM_freeN(sampleds[0]);
 
 		if(re->cb.test_break(re->cb.tbh))
 			break;
 	}
 
+	if(dsbuf1) MEM_freeN(dsbuf1);
+	if(dsbuf2) MEM_freeN(dsbuf2);
+
 	//printf("%d -> %d, ratio %f\n", totsample, totsamplec, (float)totsamplec/(float)totsample);
+
+	return totsamplec;
 }
 
 /* create Z tiles (for compression): this system is 24 bits!!! */
@@ -635,6 +659,8 @@ static void compress_shadowbuf(ShadBuf *shb, int *rectz, int square)
 	MEM_freeN(rcline);
 }
 
+/****************************** Auto Clipping *******************************/
+
 /* sets start/end clipping. lar->shb should be initialized */
 static void shadowbuf_autoclip(Render *re, LampRen *lar)
 {
@@ -736,7 +762,27 @@ static void shadowbuf_autoclip(Render *re, LampRen *lar)
 	}
 }
 
-static void makeflatshadowbuf(Render *re, LampRen *lar, float *jitbuf)
+/************************* Shadow Buffer Rasterization ***********************/
+
+typedef struct ShadBufTask {
+	Render *re;
+	LampRen *lar;
+	RenderPart pa;
+} ShadBufTask;
+
+static void shadowbuf_task_add(ThreadQueue *queue, Render *re, LampRen *lar, RenderPart *pa)
+{
+	ShadBufTask *task= MEM_callocN(sizeof(ShadBufTask), "ShadBufTask");
+
+	task->re= re;
+	task->lar= lar;
+	if(pa)
+		task->pa= *pa;
+
+	BLI_thread_queue_push(queue, task);
+}
+
+static void flat_shadowbuf_rasterize(Render *re, LampRen *lar)
 {
 	ShadBuf *shb= lar->shb;
 	int *rectz, samples;
@@ -745,7 +791,7 @@ static void makeflatshadowbuf(Render *re, LampRen *lar, float *jitbuf)
 	rectz= MEM_mapallocN(sizeof(int)*shb->size*shb->size, "makeshadbuf");
 	
 	for(samples=0; samples<shb->totbuf; samples++) {
-		zbuffer_shadow(re, shb->persmat, lar, rectz, shb->size, jitbuf[2*samples], jitbuf[2*samples+1]);
+		zbuffer_shadow(re, shb->persmat, lar, rectz, shb->size, lar->jitbuf[samples][0], lar->jitbuf[samples][1]);
 		/* create Z tiles (for compression): this system is 24 bits!!! */
 		compress_shadowbuf(shb, rectz, lar->mode & LA_SQUARE);
 
@@ -756,23 +802,42 @@ static void makeflatshadowbuf(Render *re, LampRen *lar, float *jitbuf)
 	MEM_freeN(rectz);
 }
 
-static void makedeepshadowbuf(Render *re, LampRen *lar, float *jitbuf)
+static void deep_shadowbuf_rasterize(Render *re, LampRen *lar, RenderPart *pa)
 {
-	ShadBuf *shb= lar->shb;
 	APixstr *apixbuf;
 	APixstrand *apixbufstrand= NULL;
 	ListBase apsmbase= {NULL, NULL};
+	ShadBuf *shb= lar->shb;
+	ShadSampleBuf *shsample= shb->buffers.first;
+	DeepTile *tile;
+	int tx, ty;
+
+	tx= pa->disprect.xmin/shsample->tilex;
+	ty= pa->disprect.ymin/shsample->tiley;
+	tile= &shsample->deeptile[ty*shsample->xtiles + tx];
+
+	tile->totbuf= MEM_callocN(sizeof(int)*shsample->tilex*shsample->tiley, "deeptotbuf");
+	tile->deepbuf= MEM_callocN(sizeof(DeepSample*)*shsample->tilex*shsample->tiley, "deepbuf");
+	tile->arena= BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "deeparena");
 
 	/* zbuffering */
-	apixbuf= MEM_callocN(sizeof(APixstr)*shb->size*shb->size, "APixbuf");
+	apixbuf= MEM_callocN(sizeof(APixstr)*pa->rectx*pa->recty, "APixbuf");
 	if(re->db.totstrand)
-		apixbufstrand= MEM_callocN(sizeof(APixstrand)*shb->size*shb->size, "APixbufstrand");
+		apixbufstrand= MEM_callocN(sizeof(APixstrand)*pa->rectx*pa->recty, "APixbufstrand");
+	
+	zbuffer_abuf_shadow(re, pa, lar, shb->persmat, apixbuf, apixbufstrand,
+		&apsmbase, shb->size, lar->buffers, (float(*)[2])lar->jitbuf);
 
-	zbuffer_abuf_shadow(re, lar, shb->persmat, apixbuf, apixbufstrand, &apsmbase, shb->size,
-		shb->totbuf, (float(*)[2])jitbuf);
-
-	/* create Z tiles (for compression): this system is 24 bits!!! */
-	compress_deepshadowbuf(re, shb, apixbuf, apixbufstrand);
+	/* compress deep shadow buffer samples */
+	if(compress_deepshadowbuf(re, lar, tile, pa, apixbuf, apixbufstrand) == 0) {
+		/* free buffers if no samples in this tile */
+		MEM_freeN(tile->totbuf);
+		MEM_freeN(tile->deepbuf);
+		BLI_memarena_free(tile->arena);
+		tile->totbuf= NULL;
+		tile->deepbuf= NULL;
+		tile->arena= NULL;
+	}
 	
 	MEM_freeN(apixbuf);
 	if(apixbufstrand)
@@ -780,10 +845,52 @@ static void makedeepshadowbuf(Render *re, LampRen *lar, float *jitbuf)
 	free_alpha_pixel_structs(&apsmbase);
 }
 
-static void shadowbuf_make(Render *re, LampRen *lar)
+/************************ Shadow Buffer Initialization ***********************/
+
+static void deep_shadowbuf_init(Render *re, LampRen *lar, ThreadQueue *queue)
+{
+	RenderPart *pa;
+	ListBase parts;
+	rcti rect;
+	ShadBuf *shb= lar->shb;
+	ShadSampleBuf *shsample;
+	int partx, party, xparts, yparts;
+
+	/* create shadow buffer memory */
+	shsample= MEM_callocN(sizeof(ShadSampleBuf), "shad sample buf");
+	BLI_addtail(&shb->buffers, shsample);
+
+	/* create parts */
+	rect.xmin= 0;
+	rect.ymin= 0;
+	rect.xmax= shb->size;
+	rect.ymax= shb->size;
+
+	/* silly fixed value */
+	xparts= shb->size/256;
+	yparts= shb->size/256;
+
+	parts_list_create(&parts, &partx, &party, &rect, xparts, yparts, 0);
+	for(pa=parts.first; pa; pa=pa->next)
+		shadowbuf_task_add(queue, re, lar, pa);
+
+	BLI_freelistN(&parts);
+
+	/* create tiles */
+	shsample->xtiles= xparts;
+	shsample->ytiles= yparts;
+	shsample->tilex= partx;
+	shsample->tiley= party;
+	shsample->deeptile= MEM_callocN(sizeof(DeepTile)*shsample->xtiles*shsample->ytiles, "deep tile");
+
+	/* we compress multiple samples into one visibility function */
+	shb->totbuf= 1;
+}
+
+static void shadowbuf_init(Render *re, LampRen *lar, ThreadQueue *queue)
 {
 	ShadBuf *shb= lar->shb;
-	float wsize, *jitbuf, twozero[2]= {0.0f, 0.0f}, angle, temp;
+	float wsize, twozero[2]= {0.0f, 0.0f}, angle, temp;
 	
 	if(lar->bufflag & (LA_SHADBUF_AUTO_START|LA_SHADBUF_AUTO_END))
 		shadowbuf_autoclip(re, lar);
@@ -810,50 +917,21 @@ static void shadowbuf_make(Render *re, LampRen *lar)
 		BLI_lock_thread(LOCK_CUSTOM1);
 		shb->jit= give_jitter_tab(get_render_shadow_samples(&re->params.r, shb->samp));
 		make_jitter_weight_tab(re, shb, lar->filtertype);
+		
+		if(shb->totbuf==4) lar->jitbuf= (float(*)[2])give_jitter_tab(2);
+		else if(shb->totbuf==9) lar->jitbuf= (float(*)[2])give_jitter_tab(3);
+		else lar->jitbuf= (float(*)[2])twozero;
 		BLI_unlock_thread(LOCK_CUSTOM1);
-		
-		if(shb->totbuf==4) jitbuf= give_jitter_tab(2);
-		else if(shb->totbuf==9) jitbuf= give_jitter_tab(3);
-		else jitbuf= twozero;
-		
-		/* zbuffering */
-		if(lar->buftype == LA_SHADBUF_DEEP) {
-			makedeepshadowbuf(re, lar, jitbuf);
-			shb->totbuf= 1;
-		}
-		else
-			makeflatshadowbuf(re, lar, jitbuf);
 
-		/* printf("lampbuf %d\n", sizeoflampbuf(shb)); */
+		/* zbuffering */
+		if(lar->buftype == LA_SHADBUF_DEEP)
+			deep_shadowbuf_init(re, lar, queue);
+		else
+			shadowbuf_task_add(queue, re, lar, NULL);
 	}
 }
 
-static void *do_shadow_thread(void *re_v)
-{
-	Render *re= (Render*)re_v;
-	LampRen *lar;
-
-	do {
-		BLI_lock_thread(LOCK_CUSTOM1);
-		for(lar=re->db.lampren.first; lar; lar=lar->next) {
-			if(lar->shb && !lar->thread_assigned) {
-				lar->thread_assigned= 1;
-				break;
-			}
-		}
-		BLI_unlock_thread(LOCK_CUSTOM1);
-
-		/* if type is irregular, this only sets the perspective matrix and autoclips */
-		if(lar) {
-			shadowbuf_make(re, lar);
-			BLI_lock_thread(LOCK_CUSTOM1);
-			lar->thread_ready= 1;
-			BLI_unlock_thread(LOCK_CUSTOM1);
-		}
-	} while(lar && !re->cb.test_break(re->cb.tbh));
-
-	return NULL;
-}
+/********************* Threaded Shadow Buffer Creation ***********************/
 
 static volatile int g_break= 0;
 static int thread_break(void *unused)
@@ -861,8 +939,27 @@ static int thread_break(void *unused)
 	return g_break;
 }
 
+static void *do_shadowbuf_task_thread(void *queue)
+{
+	ShadBufTask *task;
+	
+	while((task=BLI_thread_queue_pop(queue))) {
+		if(!task->re->cb.test_break(task->re->cb.tbh)) {
+			if(task->lar->buftype == LA_SHADBUF_DEEP)
+				deep_shadowbuf_rasterize(task->re, task->lar, &task->pa);
+			else
+				flat_shadowbuf_rasterize(task->re, task->lar);
+		}
+
+		MEM_freeN(task);
+	}
+
+	return NULL;
+}
+
 void shadowbufs_make_threaded(Render *re)
 {
+	ThreadQueue *queue;
 	ListBase threads;
 	LampRen *lar;
 	int a, totthread= 0, totshb= 0;
@@ -879,35 +976,30 @@ void shadowbufs_make_threaded(Render *re)
 	re->cb.i.infostr= "Creating Shadowbuffers";
 	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
 
+	/* initialize shadow buffer and gather rasterization tasks */
+	queue= BLI_thread_queue_init();
+	BLI_thread_queue_nowait(queue);
+
+	for(lar=re->db.lampren.first; lar; lar= lar->next)
+		if(lar->shb)
+			shadowbuf_init(re, lar, queue);
+
 	/* count number of threads to use */
-	if(G.rendering)
-		totthread= MIN2(totshb, re->params.r.threads);
-	else
-		totthread= 1; /* preview render */
+	totthread= MIN2(BLI_thread_queue_size(queue), re->params.r.threads);
 
 	if(totthread <= 1) {
-		for(lar=re->db.lampren.first; lar; lar= lar->next) {
-			if(re->cb.test_break(re->cb.tbh)) break;
-			if(lar->shb) {
-				/* if type is irregular, this only sets the perspective matrix and autoclips */
-				shadowbuf_make(re, lar);
-			}
-		}
+		/* no threads for one shadow buffer */
+		do_shadowbuf_task_thread(queue);
 	}
 	else {
 		/* swap test break function */
 		test_break= re->cb.test_break;
 		re->cb.test_break= thread_break;
 
-		for(lar=re->db.lampren.first; lar; lar= lar->next) {
-			lar->thread_assigned= 0;
-			lar->thread_ready= 0;
-		}
-
-		BLI_init_threads(&threads, do_shadow_thread, totthread);
+		BLI_init_threads(&threads, do_shadowbuf_task_thread, totthread);
 		
 		for(a=0; a<totthread; a++)
-			BLI_insert_thread(&threads, re);
+			BLI_insert_thread(&threads, queue);
 
 		/* keep rendering as long as there are shadow buffers not ready */
 		do {
@@ -915,13 +1007,7 @@ void shadowbufs_make_threaded(Render *re)
 				break;
 
 			PIL_sleep_ms(50);
-
-			BLI_lock_thread(LOCK_CUSTOM1);
-			for(lar=re->db.lampren.first; lar; lar= lar->next)
-				if(lar->shb && !lar->thread_ready)
-					break;
-			BLI_unlock_thread(LOCK_CUSTOM1);
-		} while(lar);
+		} while(BLI_thread_queue_size(queue));
 	
 		BLI_end_threads(&threads);
 
@@ -929,6 +1015,8 @@ void shadowbufs_make_threaded(Render *re)
 		re->cb.test_break= test_break;
 		g_break= 0;
 	}
+
+	BLI_thread_queue_free(queue);
 }
 
 void shadowbuf_free(LampRen *lar)
@@ -936,17 +1024,24 @@ void shadowbuf_free(LampRen *lar)
 	if(lar->shb) {
 		ShadBuf *shb= lar->shb;
 		ShadSampleBuf *shsample;
-		int b, v;
+		DeepTile *tile;
+		int a, b, v;
 		
 		for(shsample= shb->buffers.first; shsample; shsample= shsample->next) {
-			if(shsample->deepbuf) {
-				v= shb->size*shb->size;
-				for(b=0; b<v; b++)
-					if(shsample->deepbuf[b])
-						MEM_freeN(shsample->deepbuf[b]);
-					
-				MEM_freeN(shsample->deepbuf);
-				MEM_freeN(shsample->totbuf);
+			if(shsample->deeptile) {
+				for(a=0; a<shsample->xtiles*shsample->ytiles; a++) {
+					tile= &shsample->deeptile[a];
+
+					if(tile->deepbuf) {
+						v= shsample->tilex*shsample->tiley;
+
+						MEM_freeN(tile->deepbuf);
+						MEM_freeN(tile->totbuf);
+						BLI_memarena_free(tile->arena);
+					}
+				}
+
+				MEM_freeN(shsample->deeptile);
 			}
 			else {
 				intptr_t *ztile= shsample->zbuf;
@@ -969,6 +1064,7 @@ void shadowbuf_free(LampRen *lar)
 	}
 }
 
+/*************************** Shadow Buffer Lookups ***************************/
 
 static int firstreadshadbuf(ShadBuf *shb, ShadSampleBuf *shsample, int **rz, int xs, int ys, int nr)
 {
@@ -976,7 +1072,7 @@ static int firstreadshadbuf(ShadBuf *shb, ShadSampleBuf *shsample, int **rz, int
 	int ofs;
 	char *ct;
 
-	if(shsample->deepbuf)
+	if(shsample->deeptile)
 		return 0;
 
 	/* always test borders of shadowbuffer */
@@ -1037,22 +1133,31 @@ static float readdeepvisibility(DeepSample *dsample, int tot, int z, int bias, f
 static float readdeepshadowbuf(ShadBuf *shb, ShadSampleBuf *shsample, int bias, int xs, int ys, int zs)
 {
 	float v, biasv, biast;
-	int ofs, tot;
+	int ofs, tot, tx, ty;
+	DeepTile *tile;
 
 	if(zs < - 0x7FFFFE00 + bias)
 		return 1.0;	/* extreme close to clipstart */
 
+	/* get tile */
+	tx= xs/shsample->tilex;
+	ty= ys/shsample->tiley;
+	tile= &shsample->deeptile[ty*shsample->xtiles + tx];
+
 	/* calc z */
-	ofs= ys*shb->size + xs;
-	tot= shsample->totbuf[ofs];
+	xs= xs%shsample->tilex;
+	ys= ys%shsample->tiley;
+
+	ofs= ys*shsample->tilex + xs;
+	tot= (tile->totbuf)? tile->totbuf[ofs]: 0;
 	if(tot == 0)
 		return 1.0f;
 
-	v= readdeepvisibility(shsample->deepbuf[ofs], tot, zs, bias, &biast);
+	v= readdeepvisibility(tile->deepbuf[ofs], tot, zs, bias, &biast);
 
 	if(biast != 0.0f) {
 		/* in soft bias area */
-		biasv= readdeepvisibility(shsample->deepbuf[ofs], tot, zs, 0, 0);
+		biasv= readdeepvisibility(tile->deepbuf[ofs], tot, zs, 0, 0);
 
 		biast= biast*biast;
 		return (1.0f-biast)*v + biast*biasv;
@@ -1077,7 +1182,7 @@ static float readshadowbuf(ShadBuf *shb, ShadSampleBuf *shsample, int bias, int 
 	if(xs<0) xs= 0; else if(xs>=shb->size) xs= shb->size-1;
 	if(ys<0) ys= 0; else if(ys>=shb->size) ys= shb->size-1;
 
-	if(shsample->deepbuf)
+	if(shsample->deeptile)
 		return readdeepshadowbuf(shb, shsample, bias, xs, ys, zs);
 
 	/* calc z */
@@ -1246,6 +1351,8 @@ float shadowbuf_test(Render *re, ShadBuf *shb, float *co, float *dxco, float *dy
 	/* Renormalizes for the sample number: */
 	return shadfac/(float)shb->totbuf;
 }
+
+/******************************** Halo Lookups *******************************/
 
 /* different function... sampling behind clipend can be LIGHT, bias is negative! */
 /* return: light */
@@ -1444,7 +1551,6 @@ float shadow_halo(LampRen *lar, float *p1, float *p2)
 	return 0.0;
 	
 }
-
 
 /* ********************* Irregular Shadow Buffer (ISB) ************* */
 /* ********** storage of all view samples in a raster of lists ***** */

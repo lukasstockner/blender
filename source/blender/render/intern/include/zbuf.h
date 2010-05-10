@@ -53,9 +53,9 @@ int zbuffer_alpha(struct Render *re, struct RenderPart *pa, struct RenderLayer *
 
 void zbuffer_shadow(struct Render *re, float winmat[][4], struct LampRen *lar,
 	int *rectz, int size, float jitx, float jity);
-void zbuffer_abuf_shadow(struct Render *re, struct LampRen *lar, float winmat[][4],
-	struct APixstr *APixbuf, struct APixstrand *apixbuf, struct ListBase *apsmbase,
-	int size, int samples, float (*jit)[2]);
+void zbuffer_abuf_shadow(struct Render *re, struct RenderPart *pa, struct LampRen *lar,
+	float winmat[][4], struct APixstr *APixbuf, struct APixstrand *apixbuf,
+	struct ListBase *apsmbase, int size, int samples, float (*jit)[2]);
 
 /* SSS Rasterization */
 

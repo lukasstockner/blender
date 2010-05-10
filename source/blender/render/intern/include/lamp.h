@@ -163,9 +163,7 @@ typedef struct LampRen {
 	
 	struct MTex *mtex[MAX_MTEX];
 
-	/* threading */
-	int thread_assigned;
-	int thread_ready;
+	float (*jitbuf)[2];
 } LampRen;
 
 #endif /* __RENDER_LAMP_H__ */
