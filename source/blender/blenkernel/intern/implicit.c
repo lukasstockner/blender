@@ -1292,7 +1292,8 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 	}
 	else if(s->type & CLOTH_SPRING_TYPE_GOAL)
 	{
-		/*float tvect[3];
+#ifdef CLOTH_GOAL_ORIGINAL
+		float tvect[3];
 		
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
 		
@@ -1319,7 +1320,8 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 		
 		// HERE IS THE PROBLEM!!!!
 		// dfdx_spring(s->dfdx, dir, length, 0.0, k);
-		// dfdv_damp(s->dfdv, dir, MIN2(1.0, (clmd->sim_parms->goalfrict/100.0)));*/
+		// dfdv_damp(s->dfdv, dir, MIN2(1.0, (clmd->sim_parms->goalfrict/100.0)));
+#endif
 	}
 	else // calculate force of bending springs
 	{
@@ -1353,7 +1355,9 @@ DO_INLINE void cloth_apply_spring_force(ClothModifierData *clmd, ClothSpring *s,
 
 		VECADD(lF[s->ij], lF[s->ij], s->f);
 		
-		//if(!(s->type & CLOTH_SPRING_TYPE_GOAL))
+#ifdef CLOTH_GOAL_ORIGINAL
+		if(!(s->type & CLOTH_SPRING_TYPE_GOAL))
+#endif
 			VECSUB(lF[s->kl], lF[s->kl], s->f);
 		
 		sub_fmatrix_fmatrix(dFdX[s->kl].m, dFdX[s->kl].m, s->dfdx);
@@ -1737,6 +1741,9 @@ void rigidbody_damping(ClothModifierData * clmd, float dt) {
 	float damp;
 	int i, totverts=cloth->numverts;
 
+	damp = clmd->sim_parms->rigid_damp;
+	damp = 1.0 - pow(1.0 - damp, dt);
+
 	v = verts;
 	for (i=0; i < totverts; i++, v++) {
 		float vec[3];
@@ -1776,9 +1783,6 @@ void rigidbody_damping(ClothModifierData * clmd, float dt) {
 	mul_v3_fl(lin, 1.0 / totmass);
 	mul_v3_fl(ang, 1.0 / totmass);
 
-	damp = clmd->sim_parms->rigid_damp;
-	damp = 1.0 - pow(1.0 - damp, dt);
-
 	v = verts;
 	for (i=0; i<totverts; i++, v++) {
 		float vec[3], vel2[3]={0, 0, 0}, l, vel3[3]={0, 0, 0};
@@ -1806,6 +1810,99 @@ void rigidbody_damping(ClothModifierData * clmd, float dt) {
 	}
 }
 
+/*uses rigid body damping on each hair strand.
+  step 1: global rigid body damping
+  step 2: if necassary, could try implementing shape matching,
+		  assuming each hair segment is a cylinder (eek!).*/
+void hair_rigid_damping(ClothModifierData * clmd, float dt) {
+	Cloth *cloth = clmd->clothObject;
+	ClothVertex *v, *verts = clmd->clothObject->verts;
+	float gravity[3], lin[3] = {0, 0, 0}, ang[3] = {0, 0, 0}, totmass = 0, ocent[3], cent[3];
+	float damp;
+	int i, totverts=cloth->numverts, starti=0, totv;
+
+	VECCOPY(gravity, clmd->scene->physics_settings.gravity);
+	mul_v3_fl(gravity, dt*clmd->sim_parms->Cvi*0.01); /*only use 1/2 of gravity force, this is a hack, heh*/
+
+	damp = clmd->sim_parms->rigid_damp;
+	damp = 1.0 - pow(1.0 - damp, dt);
+
+	while (starti < totverts) {
+		v = verts + starti;
+		for (i=starti; i < totverts; i++, v++) {
+			float vec[3];
+
+			if (i != starti && v->goal > (v-1)->goal)
+				break;
+
+			if (i == starti) {
+				copy_v3_v3(cent, v->tx);
+				copy_v3_v3(ocent, v->txold);
+			}
+
+			sub_v3_v3v3(v->tv, v->tx, v->txold);
+
+			totmass += v->mass;
+		}
+
+		starti += 1;
+
+		totv = i - starti;
+		if (totmass == 0.0 || starti >= totverts)
+			return;
+
+		/*we artificially add on gravity, since the hair root isn't effected by it*/
+		sub_v3_v3v3(lin, cent, ocent);
+		add_v3_v3(lin, gravity);
+
+		v = verts + starti;
+		for (i=starti; i < starti+totv; i++, v++) {
+			float vel[3], vec[3], lang[3] = {0, 0, 0}, l, dot;
+
+			copy_v3_v3(vel, v->tv);
+			sub_v3_v3v3(vec, v->tx, ocent);
+
+			dot = dot_v3v3(vec, vel);
+			if (fabs(dot) > 0.000001) {
+				cross_v3_v3v3(lang, vec, vel);
+			}
+
+			add_v3_v3v3(ang, ang, lang);
+		}
+
+		mul_v3_fl(lin, 1.0 / totmass);
+		mul_v3_fl(ang, 1.0 / totmass);
+
+		v = verts + starti + 1;
+		for (i=starti + 1; i<starti+totv; i++, v++) {
+			float vec[3], vel2[3]={0, 0, 0}, l, vel3[3]={0, 0, 0};
+
+			sub_v3_v3v3(vec, v->tx, cent);
+			if (dot_v3v3(ang, ang) > FLT_EPSILON) {
+				cross_v3_v3v3(vel2, ang, vec);
+			}
+
+			copy_v3_v3(vec, lin);
+
+			add_v3_v3v3(vec, lin, vel2);
+			mul_v3_fl(vec, v->mass);
+
+			l = len_v3(v->tv);
+			normalize_v3(vec);
+			mul_v3_fl(vec, l);
+
+			sub_v3_v3(vec, v->tv);
+			mul_v3_fl(vec, damp);
+
+			add_v3_v3(v->tv, vec);
+
+			add_v3_v3v3(v->tx, v->txold, v->tv);
+		}
+
+		starti = i;
+	}
+}
+
 int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase *effectors)
 { 	 	
 	unsigned int i=0;
@@ -1825,7 +1922,9 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			if(verts [i].flags & CLOTH_VERT_FLAG_PINNED)
 			{			
 				VECSUB(id->V[i], verts[i].xconst, verts[i].xold);
-				// mul_v3_fl(id->V[i], clmd->sim_parms->stepsPerFrame);
+#ifdef CLOTH_GOAL_ORIGINAL
+				mul_v3_fl(id->V[i], clmd->sim_parms->stepsPerFrame);
+#endif
 			}
 		}	
 	}
@@ -1871,6 +1970,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 				VECCOPY(verts[i].tx, id->Xnew[i]);
 
 				/*apply goal forces*/
+#ifndef CLOTH_GOAL_ORIGINAL
 				if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) &&
 				   !(verts [i].flags & CLOTH_VERT_FLAG_PINNED))
 				{
@@ -1883,13 +1983,16 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 
 					add_v3_v3(verts[i].tx, vec);
 				}
-
+#endif
 				VECSUB(verts[i].tv, verts[i].tx, verts[i].txold);
 				VECCOPY(verts[i].v, verts[i].tv);
 			}
 
 			//velocity rigid body damping
-			rigidbody_damping(clmd, dt/clmd->sim_parms->timescale);
+			if (clmd->clothObject->numfaces)
+				rigidbody_damping(clmd, dt/clmd->sim_parms->timescale);
+			else
+				hair_rigid_damping(clmd, dt/clmd->sim_parms->timescale);
 
 			// call collision function
 			// TODO: check if "step" or "step+dt" is correct - dg
@@ -1918,10 +2021,12 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			// V = Vnew;
 			cp_lfvector(id->V, id->Vnew, numverts);
 
+#if 1 //CLOTH_GOAL_ORIGINAL
 			// calculate
-			//cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M);
+			cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M);
 
-			//simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt/2, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
+			simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt/2, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
+#endif
 		} else {
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);

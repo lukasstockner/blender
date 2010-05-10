@@ -957,7 +957,7 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 		return 0;
 	}
 	
-#if 0
+#ifdef CLOTH_GOAL_ORIGINAL
 	for ( i = 0; i < dm->getNumVerts(dm); i++)
 	{
 		if((!(cloth->verts[i].flags & CLOTH_VERT_FLAG_PINNED)) && (cloth->verts[i].goal > ALMOST_ZERO))
