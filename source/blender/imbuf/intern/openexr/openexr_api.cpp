@@ -1015,9 +1015,7 @@ struct ImBuf *imb_load_openexr(unsigned char *mem, int size, int flags)
 			
 		}
 		delete file;
-		
 		return(ibuf);
-				
 	}
 	catch (const std::exception &exc)
 	{

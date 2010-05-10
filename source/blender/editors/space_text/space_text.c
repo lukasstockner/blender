@@ -334,12 +334,18 @@ static int text_context(const bContext *C, const char *member, bContextDataResul
 static void text_main_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
+	ListBase *lb;
 	
 	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_STANDARD, ar->winx, ar->winy);
 	
 	/* own keymap */
 	keymap= WM_keymap_find(wm->defaultconf, "Text", SPACE_TEXT, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+	
+	/* add drop boxes */
+	lb = WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
+	
+	WM_event_add_dropbox_handler(&ar->handlers, lb);
 }
 
 static void text_main_area_draw(const bContext *C, ARegion *ar)
@@ -367,6 +373,36 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 {
 	WM_cursor_set(win, BC_TEXTEDITCURSOR);
 }
+
+
+
+/* ************* dropboxes ************* */
+
+static int text_drop_poll(bContext *C, wmDrag *drag, wmEvent *event)
+{
+	if(drag->type==WM_DRAG_PATH)
+		if(ELEM(drag->icon, 0, ICON_FILE_BLANK))	/* rule might not work? */
+			return 1;
+	return 0;
+}
+
+static void text_drop_copy(wmDrag *drag, wmDropBox *drop)
+{
+	/* copy drag path to properties */
+	RNA_string_set(drop->ptr, "path", drag->path);
+}
+
+/* this region dropbox definition */
+static void text_dropboxes(void)
+{
+	ListBase *lb= WM_dropboxmap_find("Text", SPACE_TEXT, RGN_TYPE_WINDOW);
+	
+	WM_dropbox_add(lb, "TEXT_OT_open", text_drop_poll, text_drop_copy);
+
+}
+
+/* ************* end drop *********** */
+
 
 /****************** header region ******************/
 
@@ -413,6 +449,7 @@ void ED_spacetype_text(void)
 	st->keymap= text_keymap;
 	st->listener= text_listener;
 	st->context= text_context;
+	st->dropboxes = text_dropboxes;
 	
 	/* regions: main window */
 	art= MEM_callocN(sizeof(ARegionType), "spacetype text region");

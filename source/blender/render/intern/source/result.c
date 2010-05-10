@@ -1228,12 +1228,16 @@ int render_result_read_from_file(char *filename, RenderResult *rr)
 	int rectx, recty;
 
 	if(IMB_exr_begin_read(exrhandle, filename, &rectx, &recty)==0) {
+		printf("failed being read %s\n", filename);
 		IMB_exr_close(exrhandle);
 		return 0;
 	}
 	
 	if(rr == NULL || rectx!=rr->rectx || recty!=rr->recty) {
-		printf("error in reading render result\n");
+		if(rr)
+			printf("error in reading render result: dimensions don't match\n");
+		else
+			printf("error in reading render result: null result pointer\n");
 		IMB_exr_close(exrhandle);
 		return 0;
 	}

@@ -3208,7 +3208,11 @@ static void draw_sensor_internal_header(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_actuator(uiLayout *layout, PointerRNA *ptr)
 {
-	uiItemR(layout, ptr, "actuator", 0, NULL, 0);
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
+
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+	uiItemPointerR(layout, ptr, "actuator", &settings_ptr, "actuators", NULL, ICON_LOGIC);
 }
 
 static void draw_sensor_armature(uiLayout *layout, PointerRNA *ptr)
@@ -3284,7 +3288,7 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 
 			col = uiLayoutColumn(layout, 0);
 			uiLayoutSetActive(col, RNA_boolean_get(ptr, "all_events")==0);
-			uiItemR(col, ptr, "hat_direction", 0, NULL, 0); //XXXSENSOR - needs a default value (somewhere else in the code)
+			uiItemR(col, ptr, "hat_direction", 0, NULL, 0);
 			break;
 		case SENS_JOY_AXIS_SINGLE:
 			row = uiLayoutRow(layout, 0);
@@ -3296,6 +3300,8 @@ static void draw_sensor_joystick(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
 	uiLayout *row, *col;
 
 	row = uiLayoutRow(layout, 0);
@@ -3315,9 +3321,13 @@ static void draw_sensor_keyboard(uiLayout *layout, PointerRNA *ptr)
 	row = uiLayoutRow(col, 0);
 	uiItemL(row, "Second Modifier:", 0);
 	uiItemR(row, ptr, "second_modifier_key", UI_ITEM_R_EVENT, "", 0);
-	
-	uiItemR(layout, ptr, "target", 0, NULL, 0);
-	uiItemR(layout, ptr, "log", 0, NULL, 0);
+
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+	uiItemPointerR(layout, ptr, "target", &settings_ptr, "properties", NULL, 0);
+	uiItemPointerR(layout, ptr, "log", &settings_ptr, "properties", NULL, 0);
+
+//	uiItemR(layout, ptr, "target", 0, NULL, 0);
+//	uiItemR(layout, ptr, "log", 0, NULL, 0);
 }
 
 static void draw_sensor_message(uiLayout *layout, PointerRNA *ptr)
@@ -3343,9 +3353,14 @@ static void draw_sensor_near(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_sensor_property(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
+
 	uiLayout *row;
 	uiItemR(layout, ptr, "evaluation_type", 0, NULL, 0);
-	uiItemR(layout, ptr, "property", 0, NULL, 0);
+
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+	uiItemPointerR(layout, ptr, "property", &settings_ptr, "properties", NULL, 0);
 
 	switch (RNA_enum_get(ptr, "evaluation_type")) {
 		case SENS_PROP_INTERVAL:
@@ -3386,19 +3401,19 @@ static void draw_sensor_ray(uiLayout *layout, PointerRNA *ptr)
 	uiLayout *split, *row;
 
 	split= uiLayoutSplit(layout, 0.3, 0);
-	uiItemR(split, ptr, "ray_type", UI_ITEM_R_TOGGLE, NULL, 0);
+	uiItemR(split, ptr, "ray_type", 0, "", 0);
 	switch (RNA_enum_get(ptr, "ray_type")) {
 		case SENS_RAY_PROPERTY:
-			uiItemR(split, ptr, "property", 0, NULL, 0); break;
+			uiItemR(split, ptr, "property", 0, "", 0); break;
 		case SENS_RAY_MATERIAL:
-			uiItemR(split, ptr, "material", 0, NULL, 0); break;
+			uiItemR(split, ptr, "material", 0, "", 0); break;
 	}
 
 	split= uiLayoutSplit(layout, 0.3, 0);
-	uiItemR(split, ptr, "x_ray_mode", UI_ITEM_R_TOGGLE, NULL, 0);
-	row= uiLayoutRow(split, 0);
+	uiItemR(split, ptr, "axis", 0, "", 0);
+	row= uiLayoutRow(split, 0);	
 	uiItemR(row, ptr, "range", 0, NULL, 0);
-	uiItemR(row, ptr, "axis", 0, NULL, 0);
+	uiItemR(row, ptr, "x_ray_mode", UI_ITEM_R_TOGGLE, NULL, 0);
 }
 
 static void draw_sensor_touch(uiLayout *layout, PointerRNA *ptr)
@@ -3483,21 +3498,22 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_controller_expression(uiLayout *layout, PointerRNA *ptr)
 {
-	uiItemR(layout, ptr, "expression", 0, NULL, 0);
+	uiItemR(layout, ptr, "expression", 0, "", 0);
 }
 
 static void draw_controller_python(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *row;
+	uiLayout *row, *split, *subsplit;
 
-	uiItemR(layout, ptr, "mode", 0, NULL, 0);
+	split = uiLayoutSplit(layout, 0.3, 1);
+	uiItemR(split, ptr, "mode", 0, "", 0);
 	if (RNA_enum_get(ptr, "mode") == CONT_PY_SCRIPT) {
-		uiItemR(layout, ptr, "text", 0, NULL, 0);
+		uiItemR(split, ptr, "text", 0, "", 0);
 	}
 	else {
-		row= uiLayoutRow(layout, 0);
-		uiItemR(row, ptr, "module", 0, NULL, 0);
-		uiItemR(row, ptr, "debug", 0, NULL, 0);
+		subsplit = uiLayoutSplit(split, 0.8, 0);
+		uiItemR(subsplit, ptr, "module", 0, "", 0);
+		uiItemR(subsplit, ptr, "debug", UI_ITEM_R_TOGGLE, NULL, 0);
 	}
 }
 
@@ -3555,16 +3571,20 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
 	uiLayout *row;
 
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
 	row= uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "mode", 0, NULL, 0);
+	uiItemR(row, ptr, "mode", 0, "", 0);
 	uiItemR(row, ptr, "action", 0, NULL, 0);
 	uiItemR(row, ptr, "continue_last_frame", 0, NULL, 0);
 
 	row= uiLayoutRow(layout, 0);
 	if((RNA_enum_get(ptr, "mode") == ACT_ACTION_FROM_PROP))
-		uiItemR(row, ptr, "property", 0, NULL, 0);
+		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, 0);
 
 	else {
 		uiItemR(row, ptr, "frame_start", 0, NULL, 0);
@@ -3576,7 +3596,7 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(row, ptr, "priority", 0, NULL, 0);
 
 	row= uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "frame_property", 0, NULL, 0);
+	uiItemPointerR(layout, ptr, "frame_property", &settings_ptr, "properties", NULL, 0);
 
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
 	uiItemR(row, "stride_length", 0, NULL, 0);
@@ -3585,34 +3605,50 @@ static void draw_actuator_action(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_armature(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *row;
+	bActuator *act = (bActuator*)ptr->data;
+	bArmatureActuator *aa = (bArmatureActuator *) act->data;
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA pose_ptr, pchan_ptr;
+	PropertyRNA *bones_prop;
+	
+	if (ob->pose) {
+		RNA_pointer_create((ID *)ob, &RNA_Pose, ob->pose, &pose_ptr);
+		bones_prop = RNA_struct_find_property(&pose_ptr, "bones");
+	}
+	
 	uiItemR(layout, ptr, "mode", 0, NULL, 0);
+	
 	switch (RNA_enum_get(ptr, "mode"))
 	{
 		case ACT_ARM_RUN:
 			break;
 		case ACT_ARM_ENABLE:
-			row = uiLayoutRow(layout, 1);
-			uiItemR(row, ptr, "bone", 0, NULL, 0);
-			uiItemR(row, ptr, "constraint", 0, NULL, 0);
-			break;
 		case ACT_ARM_DISABLE:
-			row = uiLayoutRow(layout, 1);
-			uiItemR(row, ptr, "bone", 0, NULL, 0);
-			uiItemR(row, ptr, "constraint", 0, NULL, 0);
+			if (&pose_ptr.data) {
+				uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", NULL, ICON_BONE_DATA);
+
+				if (RNA_property_collection_lookup_string(&pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
+					uiItemPointerR(layout, ptr, "constraint", &pchan_ptr, "constraints", NULL, ICON_CONSTRAINT_BONE);
+			}
 			break;
 		case ACT_ARM_SETTARGET:
-			row = uiLayoutRow(layout, 1);
-			uiItemR(row, ptr, "bone", 0, NULL, 0);
-			uiItemR(row, ptr, "constraint", 0, NULL, 0);
+			if (&pose_ptr.data) {
+				uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", NULL, ICON_BONE_DATA);
+				
+				if (RNA_property_collection_lookup_string(&pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
+					uiItemPointerR(layout, ptr, "constraint", &pchan_ptr, "constraints", NULL, ICON_CONSTRAINT_BONE);
+			}
 
 			uiItemR(layout, ptr, "target", 0, NULL, 0);
 			uiItemR(layout, ptr, "secondary_target", 0, NULL, 0);
 			break;
 		case ACT_ARM_SETWEIGHT:
-			row = uiLayoutRow(layout, 1);
-			uiItemR(row, ptr, "bone", 0, NULL, 0);
-			uiItemR(row, ptr, "constraint", 0, NULL, 0);
+			if (&pose_ptr.data) {
+				uiItemPointerR(layout, ptr, "bone", &pose_ptr, "bones", NULL, ICON_BONE_DATA);
+				
+				if (RNA_property_collection_lookup_string(&pose_ptr, bones_prop, aa->posechannel, &pchan_ptr))
+					uiItemPointerR(layout, ptr, "constraint", &pchan_ptr, "constraints", NULL, ICON_CONSTRAINT_BONE);
+			}
 
 			uiItemR(layout, ptr, "weight", 0, NULL, 0);
 			break;
@@ -3635,7 +3671,7 @@ static void draw_actuator_camera(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *row, *subrow, *split;
+	uiLayout *row, *subrow, *col, *subcol, *split;
 
 	uiItemR(layout, ptr, "mode", 0, NULL, 0);
 	switch (RNA_enum_get(ptr, "mode"))
@@ -3651,15 +3687,22 @@ static void draw_actuator_constraint(uiLayout *layout, PointerRNA *ptr)
 			break;
 
 		case ACT_CONST_TYPE_DIST:
-			uiItemR(layout, ptr, "direction", 0, NULL, 0);//move to the right
-			if(RNA_enum_get(ptr, "direction")!=0)
-				uiItemR(layout, ptr, "force_distance", 0, NULL, 0);
+			split = uiLayoutSplit(layout, 0.8, 0);
+			uiItemR(split, ptr, "direction", 0, NULL, 0);
+			row = uiLayoutRow(split, 1);
+			uiItemR(row, ptr, "local", UI_ITEM_R_TOGGLE, NULL, 0);
+			uiItemR(row, ptr, "normal", UI_ITEM_R_TOGGLE, NULL, 0);
 
 			row = uiLayoutRow(layout, 0);
-			uiItemR(row, ptr, "range", 0, NULL, 0);
-			subrow = uiLayoutRow(row, 0);
-			uiLayoutSetActive(subrow, RNA_boolean_get(ptr, "force_distance")==1);
-			uiItemR(subrow, ptr, "distance", 0, NULL, 0);
+			col = uiLayoutColumn(row, 0);
+			uiItemL(col, "Range:", 0);
+			uiItemR(col, ptr, "range", 0, "", 0);
+
+			col = uiLayoutColumn(row, 1);
+			uiItemR(col, ptr, "force_distance", UI_ITEM_R_TOGGLE, NULL, 0);
+			subcol = uiLayoutColumn(col, 0);
+			uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "force_distance")==1);
+			uiItemR(subcol, ptr, "distance", 0, "", 0);
 
 			uiItemR(layout, ptr, "damping", UI_ITEM_R_SLIDER , NULL, 0);
 
@@ -3801,10 +3844,15 @@ static void draw_actuator_game(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_ipo(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob;
+	PointerRNA settings_ptr;
 	uiLayout *row, *subrow, *col;
 
+	ob = (Object *)ptr->id.data;
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
 	row= uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "play_type", 0, NULL, 0);
+	uiItemR(row, ptr, "play_type", 0, "", 0);
 	subrow= uiLayoutRow(row, 1);
 	uiItemR(subrow, ptr, "force", UI_ITEM_R_TOGGLE, NULL, 0);
 	uiItemR(subrow, ptr, "add", UI_ITEM_R_TOGGLE, NULL, 0);
@@ -3815,7 +3863,7 @@ static void draw_actuator_ipo(uiLayout *layout, PointerRNA *ptr)
 
 	row= uiLayoutRow(layout, 0);
 	if((RNA_enum_get(ptr, "play_type") == ACT_IPO_FROM_PROP))
-		uiItemR(row, ptr, "property", 0, NULL, 0);
+		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, 0);
 
 	else {
 		uiItemR(row, ptr, "frame_start", 0, NULL, 0);
@@ -3824,31 +3872,37 @@ static void draw_actuator_ipo(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(row, ptr, "child", 0, NULL, 0);
 
 	row= uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "frame_property", 0, NULL, 0);
+	uiItemPointerR(row, ptr, "frame_property", &settings_ptr, "properties", NULL, 0);
 }
 
 static void draw_actuator_message(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob;
+	PointerRNA settings_ptr;
 	uiLayout *row;
+
+	ob = (Object *)ptr->id.data;
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 
 	uiItemR(layout, ptr, "to_property", 0, NULL, 0);
 	uiItemR(layout, ptr, "subject", 0, NULL, 0);
 
-	row= uiLayoutRow(layout, 0);
+	row= uiLayoutRow(layout, 1);
 	uiItemR(row, ptr, "body_type", 0, NULL, 0);
 
 	if(RNA_enum_get(ptr, "body_type") == ACT_MESG_MESG)
-		uiItemR(row, ptr, "body_message", 0, NULL, 0);
+		uiItemR(row, ptr, "body_message", 0, "", 0);
 	else // mode == ACT_MESG_PROP
-		uiItemR(row, ptr, "body_property", 0, NULL, 0);
+		uiItemPointerR(row, ptr, "body_property", &settings_ptr, "properties", "", 0);
 }
 
 static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 {
-	uiLayout *split, *row, *col, *subcol;
-	Object *ob = (Object *)ptr->id.data;
+	Object *ob;
 	PointerRNA settings_ptr;
-	
+	uiLayout *split, *row, *col, *subcol;
+
+	ob = (Object *)ptr->id.data;	
 	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
 	
 	uiItemR(layout, ptr, "mode", 0, NULL, 0);
@@ -3904,26 +3958,28 @@ static void draw_actuator_motion(uiLayout *layout, PointerRNA *ptr)
 			row = uiLayoutRow(layout, 0);
 			col = uiLayoutColumn(row, 0);
 			uiItemR(col, ptr, "servo_limit_x", UI_ITEM_R_TOGGLE, NULL, 0);
-			subcol = uiLayoutColumn(col, 0);
+			subcol = uiLayoutColumn(col, 1);
 			uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "servo_limit_x")==1);
 			uiItemR(subcol, ptr, "force_max_x", 0, NULL, 0);
 			uiItemR(subcol, ptr, "force_min_x", 0, NULL, 0);
 
 			col = uiLayoutColumn(row, 0);
 			uiItemR(col, ptr, "servo_limit_y", UI_ITEM_R_TOGGLE, NULL, 0);
-			subcol = uiLayoutColumn(col, 0);
+			subcol = uiLayoutColumn(col, 1);
 			uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "servo_limit_y")==1);
 			uiItemR(subcol, ptr, "force_max_y", 0, NULL, 0);
 			uiItemR(subcol, ptr, "force_min_y", 0, NULL, 0);
 
 			col = uiLayoutColumn(row, 0);
 			uiItemR(col, ptr, "servo_limit_z", UI_ITEM_R_TOGGLE, NULL, 0);
-			subcol = uiLayoutColumn(col, 0);
+			subcol = uiLayoutColumn(col, 1);
 			uiLayoutSetActive(subcol, RNA_boolean_get(ptr, "servo_limit_z")==1);
 			uiItemR(subcol, ptr, "force_max_z", 0, NULL, 0);
 			uiItemR(subcol, ptr, "force_min_z", 0, NULL, 0);
 
 			//XXXACTUATOR missing labels from original 2.49 ui (e.g. Servo, Min, Max, Fast)
+			//Layout designers willing to help on that, please compare with 2.49 ui
+			// (since the old code is going to be deleted ... soon)
 
 			col = uiLayoutColumn(layout, 1);
 			uiItemR(col, ptr, "proportional_coefficient", UI_ITEM_R_SLIDER, NULL, 0);
@@ -3947,10 +4003,14 @@ static void draw_actuator_parent(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
 	uiLayout *row;
 
 	uiItemR(layout, ptr, "mode", 0, NULL, 0);
-	uiItemR(layout, ptr, "prop_name", 0, NULL, 0);
+
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+	uiItemPointerR(layout, ptr, "property", &settings_ptr, "properties", NULL, 0);
 
 	switch(RNA_enum_get(ptr, "mode"))
 	{
@@ -3965,26 +4025,32 @@ static void draw_actuator_property(uiLayout *layout, PointerRNA *ptr)
 		case ACT_PROP_COPY:
 			row = uiLayoutRow(layout, 0);
 			uiItemR(row, ptr, "object", 0, NULL, 0);
-			uiItemR(row, ptr, "object_prop_name", 0, NULL, 0);
+			uiItemR(row, ptr, "object_property", 0, NULL, 0);
 	}
 }
 
 static void draw_actuator_random(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob;
+	PointerRNA settings_ptr;
 	uiLayout *row;
+
+	ob = (Object *)ptr->id.data;
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
 	row = uiLayoutRow(layout, 0);
 
 	uiItemR(row, ptr, "seed", 0, NULL, 0);
 	uiItemR(row, ptr, "distribution", 0, NULL, 0);
 
 	row = uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "property", 0, NULL, 0);
+	uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, 0);
 
 	row = uiLayoutRow(layout, 0);
 
 	switch (RNA_enum_get(ptr, "distribution")){
 		case ACT_RANDOM_BOOL_CONST:
-			uiItemR(row, ptr, "always_true", 0, NULL, 0);
+			uiItemR(row, ptr, "always_true", UI_ITEM_R_TOGGLE, NULL, 0);
 			break;
 
 		case ACT_RANDOM_BOOL_UNIFORM:
@@ -4046,16 +4112,20 @@ static void draw_actuator_scene(uiLayout *layout, PointerRNA *ptr)
 
 static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
 {
+	Object *ob = (Object *)ptr->id.data;
+	PointerRNA settings_ptr;
 	uiLayout *row;
 
+	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
 	row= uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "mode", 0, NULL, 0);
+	uiItemR(row, ptr, "mode", 0, "", 0);
 	uiItemR(row, ptr, "action", 0, NULL, 0);
 	uiItemR(row, ptr, "continue_last_frame", 0, NULL, 0);
 
 	row= uiLayoutRow(layout, 0);
 	if((RNA_enum_get(ptr, "mode") == ACT_ACTION_FROM_PROP))
-		uiItemR(row, ptr, "property", 0, NULL, 0);
+		uiItemPointerR(row, ptr, "property", &settings_ptr, "properties", NULL, 0);
 
 	else {
 		uiItemR(row, ptr, "frame_start", 0, NULL, 0);
@@ -4067,7 +4137,7 @@ static void draw_actuator_shape_action(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(row, ptr, "priority", 0, NULL, 0);
 
 	row= uiLayoutRow(layout, 0);
-	uiItemR(row, ptr, "frame_property", 0, NULL, 0);
+	uiItemPointerR(row, ptr, "frame_property", &settings_ptr, "properties", NULL, 0);
 
 #ifdef __NLA_ACTION_BY_MOTION_ACTUATOR
 	uiItemR(row, "stride_length", 0, NULL, 0);
