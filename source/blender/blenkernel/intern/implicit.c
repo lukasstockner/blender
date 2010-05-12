@@ -1597,6 +1597,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 			printf("winvec: out of memory in implicit.c\n");
 		
 		// precalculate wind forces
+		#pragma omp parallel for private(i)
 		for(i = 0; i < cloth->numverts; i++)
 		{	
 			pd_point_from_loc(clmd->scene, (float*)lX[i], (float*)lV[i], i, &epoint);

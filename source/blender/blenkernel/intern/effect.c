@@ -659,11 +659,6 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 	else {
 		/* use center of object for distance calculus */
 		Object *ob = eff->ob;
-		Object obcopy = *ob;
-
-		/* XXX this is not thread-safe, but used from multiple threads by
-		   particle system */
-		where_is_object_time(eff->scene, ob, cfra);
 
 		/* use z-axis as normal*/
 		VECCOPY(efd->nor, ob->obmat[2]);
@@ -682,14 +677,18 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		}
 
 		if(real_velocity) {
+			Object obcopy = *ob;
+
 			VECCOPY(efd->vel, ob->obmat[3]);
 
+			/* XXX this is not thread-safe, but used from multiple threads by
+			   particle system */
 			where_is_object_time(eff->scene, ob, cfra - 1.0);
 
 			sub_v3_v3v3(efd->vel, efd->vel, ob->obmat[3]);
-		}
 
-		*eff->ob = obcopy;
+			*ob = obcopy;
+		}
 
 		efd->size = 0.0f;
 
