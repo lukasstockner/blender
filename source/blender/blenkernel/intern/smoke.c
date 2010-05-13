@@ -1177,8 +1177,10 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		if(framenr > endframe)
 			return;
 
-		if(!smd->domain->fluid && (framenr != startframe))
+#if 0   // DURIAN HACK, Needs looking by someone who knows tyhis code better, but this stops baked pointcache from being read unless the first frame is loaded first - campbell
+		if(!smd->domain->fluid && (framenr != startframe)
 			return;
+#endif
 
 		// printf("startframe: %d, framenr: %d\n", startframe, framenr);
 
