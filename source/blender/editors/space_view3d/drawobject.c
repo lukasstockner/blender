@@ -3446,7 +3446,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	ParticleKey state, *states=0;
 	ParticleBillboardData bb;
 	ParticleSimulationData sim = {scene, ob, psys, NULL};
-	ParticleDrawData *pdd = psys;
+	ParticleDrawData *pdd = psys->pdd;
 	Material *ma;
 	float vel[3], imat[4][4];
 	float timestep, pixsize=1.0, pa_size, r_tilt, r_length;
