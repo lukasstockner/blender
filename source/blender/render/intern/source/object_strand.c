@@ -600,7 +600,7 @@ static APixstrand *addpsmainAstrand(ListBase *lb)
 
 	psm= MEM_mallocN(sizeof(APixstrMain), "addpsmainA");
 	BLI_addtail(lb, psm);
-	psm->ps= MEM_callocN(4096*sizeof(APixstrand),"pixstr");
+	psm->ps= MEM_callocN(4096*sizeof(APixstrand),"pixstr strand");
 
 	return psm->ps;
 }

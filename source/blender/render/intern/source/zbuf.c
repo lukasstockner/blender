@@ -237,7 +237,7 @@ static APixstr *addpsmainA(ListBase *lb)
 
 	psm= MEM_mallocN(sizeof(APixstrMain), "addpsmainA");
 	BLI_addtail(lb, psm);
-	psm->ps= MEM_callocN(4096*sizeof(APixstr),"pixstr");
+	psm->ps= MEM_callocN(4096*sizeof(APixstr),"pixstr alpha");
 
 	return psm->ps;
 }
@@ -2881,7 +2881,7 @@ static PixStrMain *addpsmain(ListBase *lb)
 	psm= (PixStrMain *)MEM_mallocN(sizeof(PixStrMain),"pixstrMain");
 	BLI_addtail(lb, psm);
 	
-	psm->ps= (PixStr *)MEM_mallocN(4096*sizeof(PixStr),"pixstr");
+	psm->ps= (PixStr *)MEM_mallocN(4096*sizeof(PixStr),"pixstr solid");
 	psm->counter= 0;
 	
 	return psm;
