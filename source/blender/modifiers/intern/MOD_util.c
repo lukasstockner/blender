@@ -156,8 +156,11 @@ DerivedMesh *get_dm(struct Scene *scene, Object *ob, struct EditMesh *em, Derive
 			//CDDM_calc_normals(dm);
 		}
 		
-		if(orco)
-			DM_add_vert_layer(dm, CD_ORCO, CD_ASSIGN, get_mesh_orco_verts(ob));
+		if(orco) {
+			float (*orco)[3]= (float(*)[3])get_mesh_orco_verts(ob);
+			transform_mesh_orco_verts(ob->data, orco, dm->getNumVerts(dm), 0);
+			DM_add_vert_layer(dm, CD_ORCO, CD_ASSIGN, orco);
+		}
 	}
 	else if(ELEM3(ob->type,OB_FONT,OB_CURVE,OB_SURF)) {
 		if(is_last_displist(ob)) {
