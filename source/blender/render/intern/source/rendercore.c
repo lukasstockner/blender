@@ -648,7 +648,7 @@ static void pixel_row_shade_lamphalo(Render *re, ShadeResult *samp_shr, ShadeSam
 	int a, mask= 0;
 
 	for(a=0; a<tot; a++)
-		if(samp_shr[a].z == PASS_Z_MAX)
+		if(samp_shr[a].combined[3] < 1.0f)
 			mask |= (1<<a);
 	
 	/* do lamp halo for pixel samples that were not filled in yet, others were
@@ -662,13 +662,14 @@ static void pixel_row_shade_lamphalo(Render *re, ShadeResult *samp_shr, ShadeSam
 		memset(&shi->primitive, 0, sizeof(shi->primitive));
 		camera_raster_to_view(&re->cam, shi->geometry.view, x, y);
 		camera_raster_to_co(&re->cam, shi->geometry.co, x, y, 0x7FFFFFFF);
+		shi->material.mat= NULL;
 		
 		zero_v4(col);
 		lamp_spothalo_render(re, shi, col, 1.0f);
 
 		for(a=0; a<tot; a++)
-			if(samp_shr[a].z == PASS_Z_MAX)
-				copy_v4_v4(samp_shr[a].combined, col);
+			if(samp_shr[a].combined[3] < 1.0f)
+				pxf_add_alpha_under(samp_shr[a].combined, col);
 	}
 }
 
