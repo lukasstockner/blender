@@ -230,8 +230,11 @@ DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3],
 {
 	long i = 0;
 	float temp = 0.0;
+// XXX brecht, disabled this for now (first schedule line was already disabled),
+// due to non-commutative nature of floating point ops this makes the sim give
+// different results each time you run it!
 // schedule(guided, 2)
-#pragma omp parallel for reduction(+: temp)
+//#pragma omp parallel for reduction(+: temp)
 	for(i = 0; i < (long)verts; i++)
 	{
 		temp += INPR(fLongVectorA[i], fLongVectorB[i]);
