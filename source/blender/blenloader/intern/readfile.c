@@ -138,6 +138,7 @@
 #include "BKE_sequencer.h"
 #include "BKE_texture.h" // for open_plugin_tex
 #include "BKE_utildefines.h" // SWITCH_INT DATA ENDB DNA1 O_BINARY GLOB USER TEST REND
+#include "BKE_boids.h"
 
 #include "BKE_sound.h"
 
@@ -3056,6 +3057,41 @@ static void direct_link_particlesettings(FileData *fd, ParticleSettings *part)
 			link_list(fd, &state->rules);
 			link_list(fd, &state->conditions);
 			link_list(fd, &state->actions);
+		}
+	} else if (part->phystype == PART_PHYS_BOIDS) {
+		/*not: this may not be a very good map.  in fact, this whole bit of conversion code
+		  is likely not very correct, but oh well at least it's better than nothing - joeedh*/
+		int typemap[] = {
+			eBoidRuleType_AvoidCollision,	/* manoeuver to avoid collisions with other boids and deflector object in near future */
+			eBoidRuleType_Avoid,			/* get away from assigned object or loudest assigned signal source */
+			eBoidRuleType_Separate,			/* keep from going through other boids */
+			eBoidRuleType_Flock,			/* move to center of neighbors and match their velocity */
+			eBoidRuleType_AverageSpeed,		/* maintain speed, flight level or wander*/
+			eBoidRuleType_FollowLeader,		/* follow a boid or assigned object */
+			eBoidRuleType_Goal,				/* go to goal assigned object or loudest assigned signal source */
+		};
+		BoidState *state;
+		int tot = sizeof(typemap) / sizeof(*typemap);
+		int i, j;
+
+		/*missing boid data, probably from an older file; do version patch*/
+		part->boids = MEM_callocN(sizeof(BoidSettings), "BoidSettings in readfile.c");
+		boid_default_settings(part->boids);
+		state = boid_new_state(part->boids);
+		state->flag |= BOIDSTATE_CURRENT;
+
+		BLI_addtail(&part->boids->states, state);
+
+		for (i=0; i<tot; i++) {
+			for (j=0; j<tot; j++) {
+				if (part->boidrule[i] & (1<<j)) {
+					BoidRule *rule = boid_new_rule(typemap[i]);
+
+					BLI_addtail(&state->rules, rule);
+					//state->rule_fuzziness = part->boidfac[j];
+					break;
+				}
+			}
 		}
 	}
 }

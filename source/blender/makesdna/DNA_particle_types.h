@@ -202,6 +202,10 @@ typedef struct ParticleSettings {
 	struct Ipo *ipo;				// xxx depreceated... old animation system
 	struct PartDeflect *pd;
 	struct PartDeflect *pd2;
+
+	/*used for file patching*/
+   char boidrule[8];
+   float boidfac[8];
 } ParticleSettings;
 
 typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in copy_particlesystem */
