@@ -1280,6 +1280,9 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 		search2 = search->next;
 		while(search && search2)
 		{
+			LinkNode *nextsearch = search->next;
+			LinkNode *nextsearch2 = search2->next;
+
 			tspring = search->link;
 			tspring2 = search2->link;
 
@@ -1300,12 +1303,18 @@ static int cloth_build_springs ( ClothModifierData *clmd, DerivedMesh *dm )
 				spring->stiffness = (cloth->verts[spring->kl].bend_stiff + cloth->verts[spring->ij].bend_stiff) / 2.0;
 				bend_springs++;
 
-				BLI_linklist_prepend ( &cloth->springs, spring );
+				/* XXX hack to ensure springs for the same hair are together,
+				   so we can easily split them up per hair later */
+				BLI_linklist_insert_after ( &search, spring );
 			}
 			
-			search = search->next;
-			search2 = search2->next;
+			search = nextsearch;
+			search2 = nextsearch2;
 		}
+
+		/* XXX hack to ensure cloth springs are ordered
+		   correctly to be split up later per hair */
+		BLI_linklist_reverse( &cloth->springs );
 	}
 	
 	/* insert other near springs in edgehash AFTER bending springs are calculated (for selfcolls) */

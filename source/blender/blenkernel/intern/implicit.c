@@ -720,17 +720,121 @@ typedef struct Implicit_Data
 {
 	lfVector *X, *V, *Xnew, *Vnew, *olddV, *F, *B, *dV, *z;
 	fmatrix3x3 *A, *dFdV, *dFdX, *S, *P, *Pinv, *bigI, *M; 
+
+	ClothVertex *verts;
+	LinkNode *springs;
+	int numverts, numsprings;
+
+	int totsubset;
+	int *vertoffset;
+	int *springoffset;
+	LinkNode **subspring;
 } Implicit_Data;
+
+static void implicit_data_subset(Implicit_Data *idsub, Implicit_Data *id, int sub)
+{
+	int voffset = id->vertoffset[sub];
+	int soffset = id->springoffset[sub];
+
+	idsub->verts = id->verts + voffset;
+	idsub->springs = id->subspring[sub];
+	idsub->numverts = id->vertoffset[sub+1] - voffset;
+	idsub->numsprings = id->springoffset[sub+1] - soffset;
+
+	idsub->X = id->X + voffset;
+	idsub->V = id->V + voffset;
+	idsub->Xnew = id->Xnew + voffset;
+	idsub->Vnew = id->Vnew + voffset;
+	idsub->olddV = id->olddV + voffset;
+	idsub->F = id->F + voffset;
+	idsub->B = id->B + voffset;
+	idsub->dV = id->dV + voffset;
+	idsub->z = id->z + voffset;
+
+	idsub->A = id->A + voffset + soffset;
+	idsub->dFdV = id->dFdV + voffset + soffset;
+	idsub->dFdX = id->dFdX + voffset + soffset;
+	idsub->S = id->S + voffset;
+	idsub->P = id->P + voffset + soffset;
+	idsub->Pinv = id->Pinv + voffset + soffset;
+	idsub->bigI = id->bigI + voffset + soffset;
+	idsub->M = id->M + voffset + soffset;
+}
+
+static void implicit_init_mats(Implicit_Data *id, ClothVertex *verts, LinkNode *springs, int numverts, int numsprings, int voffset)
+{
+	ClothSpring *spring;
+	LinkNode *search = NULL;
+	unsigned int i = 0;
+	unsigned int pinned = 0;
+
+	id->A[0].vcount = numverts;
+	id->A[0].scount = numsprings;
+	id->dFdV[0].vcount = numverts;
+	id->dFdV[0].scount = numsprings;
+	id->dFdX[0].vcount = numverts;
+	id->dFdX[0].scount = numsprings;
+	id->Pinv[0].vcount = numverts;
+	id->Pinv[0].scount = numsprings;
+	id->P[0].vcount = numverts;
+	id->P[0].scount = numsprings;
+	id->bigI[0].vcount = numverts;
+	id->bigI[0].scount = numsprings;
+	id->M[0].vcount = numverts;
+	id->M[0].scount = numsprings;
+
+	for(i=0;i<numverts;i++) 
+	{
+		id->A[i].r = id->A[i].c = id->dFdV[i].r = id->dFdV[i].c = id->dFdX[i].r = id->dFdX[i].c = id->P[i].c = id->P[i].r = id->Pinv[i].c = id->Pinv[i].r = id->bigI[i].c = id->bigI[i].r = id->M[i].r = id->M[i].c = i;
+
+		if(verts [i].flags & CLOTH_VERT_FLAG_PINNED)
+		{
+			id->S[pinned].pinned = 1;
+			id->S[pinned].c = id->S[pinned].r = i;
+			pinned++;
+		}
+		
+		initdiag_fmatrixS(id->M[i].m, verts[i].mass);
+	}
+
+	// S is special and needs specific vcount and scount
+	id->S[0].vcount = pinned; id->S[0].scount = 0;
+
+	// init springs 
+	search = springs;
+	for(i=0;i<numsprings;i++) 
+	{
+		spring = search->link;
+
+		spring->ij -= voffset;
+		spring->kl -= voffset;
+
+		// dFdV_start[i].r = big_I[i].r = big_zero[i].r = 
+		id->A[i+numverts].r = id->dFdV[i+numverts].r = id->dFdX[i+numverts].r = 
+				id->P[i+numverts].r = id->Pinv[i+numverts].r = id->bigI[i+numverts].r = id->M[i+numverts].r = spring->ij;
+
+		// dFdV_start[i].c = big_I[i].c = big_zero[i].c = 
+		id->A[i+numverts].c = id->dFdV[i+numverts].c = id->dFdX[i+numverts].c = 
+				id->P[i+numverts].c = id->Pinv[i+numverts].c = id->bigI[i+numverts].c = id->M[i+numverts].c = spring->kl;
+
+		spring->matrix_index = i + numverts;
+		
+		search = search->next;
+	}
+	
+	initdiag_bfmatrix(id->bigI, I);
+
+	for(i = 0; i < numverts; i++)
+	{		
+		VECCOPY(id->X[i], verts[i].x);
+	}
+}
 
 int implicit_init (Object *ob, ClothModifierData *clmd)
 {
-	unsigned int i = 0;
-	unsigned int pinned = 0;
 	Cloth *cloth = NULL;
-	ClothVertex *verts = NULL;
-	ClothSpring *spring = NULL;
 	Implicit_Data *id = NULL;
-	LinkNode *search = NULL;
+	int sub;
 	
 	if(G.rt > 0)
 		printf("implicit_init\n");
@@ -739,7 +843,6 @@ int implicit_init (Object *ob, ClothModifierData *clmd)
 	// MEMORY_BASE.first = MEMORY_BASE.last = NULL;
 
 	cloth = (Cloth *)clmd->clothObject;
-	verts = cloth->verts;
 
 	// create implicit base
 	id = (Implicit_Data *)MEM_callocN (sizeof(Implicit_Data), "implicit vecmat");
@@ -764,52 +867,46 @@ int implicit_init (Object *ob, ClothModifierData *clmd)
 	id->B = create_lfvector(cloth->numverts);
 	id->dV = create_lfvector(cloth->numverts);
 	id->z = create_lfvector(cloth->numverts);
+
+	/* set data */
+	id->verts = cloth->verts;
+	id->springs = cloth->springs;
+	id->numverts = cloth->numverts;
+	id->numsprings = cloth->numsprings;
+
+	/* create subsets for hair, to do individual solve for each hair strand,
+	   this should help increase stability and performance by fewer CG steps
+	   on average and better multithreading */
+	if(clmd->sim_parms->tothair) {
+		id->totsubset = clmd->sim_parms->tothair;
+		id->vertoffset = MEM_dupallocN(clmd->sim_parms->hair_vert_offset);
+		id->springoffset = MEM_dupallocN(clmd->sim_parms->hair_spring_offset);
+	}
+	else {
+		id->totsubset = 1;
+		id->vertoffset = MEM_callocN(sizeof(int)*(id->totsubset+1), "implicit vertoffset");
+		id->springoffset = MEM_callocN(sizeof(int)*(id->totsubset+1), "implicit springoffset");
+		id->vertoffset[1]= cloth->numverts;
+		id->springoffset[1]= cloth->numsprings;
+	}
+
+	id->subspring = MEM_callocN(sizeof(LinkNode*)*id->totsubset, "implicit subspring");
+
+	/* init matrices for each subset */
+	for(sub=0; sub<id->totsubset; sub++) {
+		Implicit_Data idsub;
+		
+		/* XXX this is slow, and the way we ensure springs are
+		   in the right order is also a major hack in cloth.c */
+		id->subspring[sub]= BLI_linklist_find(id->springs, id->springoffset[sub]);
+
+		implicit_data_subset(&idsub, id, sub);
+		implicit_init_mats(&idsub, idsub.verts, idsub.springs, idsub.numverts, idsub.numsprings, idsub.verts - id->verts);
+	}
 	
-	for(i=0;i<cloth->numverts;i++) 
-	{
-		id->A[i].r = id->A[i].c = id->dFdV[i].r = id->dFdV[i].c = id->dFdX[i].r = id->dFdX[i].c = id->P[i].c = id->P[i].r = id->Pinv[i].c = id->Pinv[i].r = id->bigI[i].c = id->bigI[i].r = id->M[i].r = id->M[i].c = i;
-
-		if(verts [i].flags & CLOTH_VERT_FLAG_PINNED)
-		{
-			id->S[pinned].pinned = 1;
-			id->S[pinned].c = id->S[pinned].r = i;
-			pinned++;
-		}
-		
-		initdiag_fmatrixS(id->M[i].m, verts[i].mass);
-	}
-
-	// S is special and needs specific vcount and scount
-	id->S[0].vcount = pinned; id->S[0].scount = 0;
-
-	// init springs 
-	search = cloth->springs;
-	for(i=0;i<cloth->numsprings;i++) 
-	{
-		spring = search->link;
-		
-		// dFdV_start[i].r = big_I[i].r = big_zero[i].r = 
-		id->A[i+cloth->numverts].r = id->dFdV[i+cloth->numverts].r = id->dFdX[i+cloth->numverts].r = 
-				id->P[i+cloth->numverts].r = id->Pinv[i+cloth->numverts].r = id->bigI[i+cloth->numverts].r = id->M[i+cloth->numverts].r = spring->ij;
-
-		// dFdV_start[i].c = big_I[i].c = big_zero[i].c = 
-		id->A[i+cloth->numverts].c = id->dFdV[i+cloth->numverts].c = id->dFdX[i+cloth->numverts].c = 
-				id->P[i+cloth->numverts].c = id->Pinv[i+cloth->numverts].c = id->bigI[i+cloth->numverts].c = id->M[i+cloth->numverts].c = spring->kl;
-
-		spring->matrix_index = i + cloth->numverts;
-		
-		search = search->next;
-	}
-	
-	initdiag_bfmatrix(id->bigI, I);
-
-	for(i = 0; i < cloth->numverts; i++)
-	{		
-		VECCOPY(id->X[i], verts[i].x);
-	}
-
 	return 1;
 }
+
 int	implicit_free (ClothModifierData *clmd)
 {
 	Implicit_Data *id;
@@ -840,6 +937,10 @@ int	implicit_free (ClothModifierData *clmd)
 			del_lfvector(id->B);
 			del_lfvector(id->dV);
 			del_lfvector(id->z);
+
+			MEM_freeN(id->vertoffset);
+			MEM_freeN(id->springoffset);
+			MEM_freeN(id->subspring);
 
 			MEM_freeN(id);
 		}
@@ -1909,19 +2010,36 @@ void hair_rigid_damping(ClothModifierData * clmd, float dt) {
 static void implicit_solve_forces(ClothModifierData *clmd, Implicit_Data *id, ListBase *effectors, float frame, float step, float dt)
 {
 	Cloth *cloth = clmd->clothObject;
-	ClothVertex *verts = cloth->verts;
-	LinkNode *springs = cloth->springs;
 	unsigned int numverts = cloth->numverts;
-	unsigned int numsprings = cloth->numsprings;
+	int sub;
 
-	cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step, id->M, verts, springs, numverts, numsprings);
+	// call this so memory alloc/free is thread safe
+	BLI_init_threads(NULL, 0, 0);
 
-	// velocity smoothing
+	// calculate forces
+	#pragma omp parallel for private(sub) if(id->totsubset > 1)
+	for(sub=0; sub<id->totsubset; sub++) {
+		Implicit_Data idsub;
+		implicit_data_subset(&idsub, id, sub);
+
+		cloth_calc_force(clmd, frame, idsub.F, idsub.X, idsub.V, idsub.dFdV, idsub.dFdX, effectors, step, idsub.M, idsub.verts, idsub.springs, idsub.numverts, idsub.numsprings);
+	}
+
+	// velocity smoothing non-threaded
 	if(clmd->sim_parms->velocity_smooth > 0.0f || clmd->sim_parms->collider_friction > 0.0f)
 		hair_velocity_smoothing(clmd, id->F, id->X, id->V, numverts);
 
-	// calculate new velocity
-	simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
+	// calculate integration
+	#pragma omp parallel for private(sub) if(id->totsubset > 1)
+	for(sub=0; sub<id->totsubset; sub++) {
+		Implicit_Data idsub;
+		implicit_data_subset(&idsub, id, sub);
+		
+		// calculate new velocity
+		simulate_implicit_euler(idsub.Vnew, idsub.X, idsub.V, idsub.F, idsub.dFdV, idsub.dFdX, dt, idsub.A, idsub.B, idsub.dV, idsub.S, idsub.z, idsub.olddV, idsub.P, idsub.Pinv, idsub.M, idsub.bigI);
+	}
+
+	BLI_end_threads(NULL);
 }
 
 static int implicit_goal_new_code(ClothModifierData *clmd, ClothVertex *verts, int numverts, float spf, lfVector *X)
@@ -1933,7 +2051,8 @@ static int implicit_goal_new_code(ClothModifierData *clmd, ClothVertex *verts, i
 
 	for(i = 0; i < numverts; i++)
 	{	
-		/*apply goal forces*/
+		// move vertex locations closer to goal, second filtering solve
+		// will correct velocity for it
 		if(!(verts [i].flags & CLOTH_VERT_FLAG_PINNED) && verts[i].goal != 0.0f)
 		{
 			float vec[3], fac;

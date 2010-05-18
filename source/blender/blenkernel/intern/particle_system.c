@@ -3147,6 +3147,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	MVert *mvert = NULL;
 	MEdge *medge = NULL;
 	MDeformVert *dvert = NULL;
+	ClothSimSettings *sim_parms;
 	HairKey *key;
 	PARTICLE_P;
 	int totpoint = 0;
@@ -3159,6 +3160,11 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 		psys->clmd->sim_parms->goalspring = 0.0f;
 		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 	}
+
+	sim_parms = psys->clmd->sim_parms;
+	sim_parms->tothair = psys->totpart;
+	sim_parms->hair_vert_offset= MEM_mallocN(sizeof(int)*(sim_parms->tothair+1), "hair_vert_offset");
+	sim_parms->hair_spring_offset= MEM_mallocN(sizeof(int)*(sim_parms->tothair+1), "hair_spring_offset");
 
 	/* create a dm from hair vertices */
 	LOOP_PARTICLES
@@ -3181,7 +3187,9 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	medge = CDDM_get_edges(dm);
 	dvert = DM_get_vert_data_layer(dm, CD_MDEFORMVERT);
 
-	psys->clmd->sim_parms->vgroup_mass = 1;
+	sim_parms->vgroup_mass = 1;
+	sim_parms->hair_vert_offset[0] = 0;
+	sim_parms->hair_spring_offset[0] = 0;
 
 	/* make vgroup for pin roots etc.. */
 	psys->particles->hair_index = 1;
@@ -3237,17 +3245,26 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 				dvert++;
 			}
 		}
+
+		/* offsets */
+		sim_parms->hair_vert_offset[p+1]= sim_parms->hair_vert_offset[p] + pa->totkey + 1;
+		sim_parms->hair_spring_offset[p+1]= sim_parms->hair_spring_offset[p] + 2*pa->totkey - 1;
 	}
 
 	if(psys->hair_out_dm)
 		psys->hair_out_dm->release(psys->hair_out_dm);
 
 	psys->clmd->point_cache = psys->pointcache;
-	psys->clmd->sim_parms->effector_weights = psys->part->effector_weights;
+	sim_parms->effector_weights = psys->part->effector_weights;
 
 	psys->hair_out_dm = clothModifier_do(psys->clmd, sim->scene, sim->ob, dm, 0, 0);
 
-	psys->clmd->sim_parms->effector_weights = NULL;
+	MEM_freeN(sim_parms->hair_vert_offset);
+	MEM_freeN(sim_parms->hair_spring_offset);
+
+	sim_parms->effector_weights = NULL;
+	sim_parms->hair_vert_offset = NULL;
+	sim_parms->hair_spring_offset = NULL;
 }
 static void hair_step(ParticleSimulationData *sim, float cfra)
 {
