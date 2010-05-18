@@ -37,6 +37,11 @@
 #include "BKE_global.h"
 #include "BKE_utildefines.h"
 
+#include "BLI_threads.h"
+
+//#define CLOTH_GOAL_ORIGINAL
+#define CLOTH_OPENMP_LIMIT 25
+
 #ifdef _WIN32
 #include <windows.h>
 static LARGE_INTEGER _itstart, _itend;
@@ -234,7 +239,7 @@ DO_INLINE float dot_lfvector(float (*fLongVectorA)[3], float (*fLongVectorB)[3],
 // due to non-commutative nature of floating point ops this makes the sim give
 // different results each time you run it!
 // schedule(guided, 2)
-//#pragma omp parallel for reduction(+: temp)
+//#pragma omp parallel for reduction(+: temp) if(verts > CLOTH_OPENMP_LIMIT)
 	for(i = 0; i < (long)verts; i++)
 	{
 		temp += INPR(fLongVectorA[i], fLongVectorB[i]);
@@ -580,11 +585,12 @@ DO_INLINE void mul_bfmatrix_S(fmatrix3x3 *matrix, float scalar)
 DO_INLINE void mul_bfmatrix_lfvector( float (*to)[3], fmatrix3x3 *from, lfVector *fLongVector)
 {
 	unsigned int i = 0;
-	lfVector *temp = create_lfvector(from[0].vcount);
+	unsigned int vcount = from[0].vcount;
+	lfVector *temp = create_lfvector(vcount);
 	
-	zero_lfvector(to, from[0].vcount);
+	zero_lfvector(to, vcount);
 
-#pragma omp parallel sections private(i)
+#pragma omp parallel sections private(i) if(vcount > CLOTH_OPENMP_LIMIT)
 	{
 #pragma omp section
 		{
@@ -965,7 +971,7 @@ DO_INLINE void BuildPPinv(fmatrix3x3 *lA, fmatrix3x3 *P, fmatrix3x3 *Pinv)
 	unsigned int i = 0;
 	
 	// Take only the diagonal blocks of A
-// #pragma omp parallel for private(i)
+// #pragma omp parallel for private(i) if(lA[0].vcount > CLOTH_OPENMP_LIMIT)
 	for(i = 0; i<lA[0].vcount; i++)
 	{
 		// block diagonalizer
@@ -1592,14 +1598,14 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 	if(effectors)
 	{	
 		// 0 = force, 1 = normalized force
-		winvec = create_lfvector(cloth->numverts);
+		winvec = create_lfvector(numverts);
 		
 		if(!winvec)
 			printf("winvec: out of memory in implicit.c\n");
 		
 		// precalculate wind forces
-		#pragma omp parallel for private(i)
-		for(i = 0; i < cloth->numverts; i++)
+		#pragma omp parallel for private(i) if(numverts > CLOTH_OPENMP_LIMIT)
+		for(i = 0; i < numverts; i++)
 		{	
 			pd_point_from_loc(clmd->scene, (float*)lX[i], (float*)lV[i], i, &epoint);
 			pdDoEffectors(effectors, NULL, clmd->sim_parms->effector_weights, &epoint, winvec[i], NULL);
