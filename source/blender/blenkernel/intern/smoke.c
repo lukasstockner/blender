@@ -1226,7 +1226,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 		}
 
 		/* try to read from cache */
-		cache_result =  BKE_ptcache_read_cache(&pid, (float)framenr, scene->r.frs_sec);
+		cache_result =  BKE_ptcache_read_cache(&pid, PTCACHE_MODE_READ_FRAME, (float)framenr, scene->r.frs_sec);
 		// printf("cache_result: %d\n", cache_result);
 
 		if(cache_result == PTCACHE_READ_EXACT) 
@@ -1235,7 +1235,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 
 			if(sds->wt)
 			{
-				cache_result_wt = BKE_ptcache_read_cache(&pid_wt, (float)framenr, scene->r.frs_sec);
+				cache_result_wt = BKE_ptcache_read_cache(&pid_wt, PTCACHE_MODE_READ_FRAME, (float)framenr, scene->r.frs_sec);
 				
 				if(cache_result_wt == PTCACHE_READ_EXACT) 
 				{
@@ -1282,7 +1282,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			smoke_calc_transparency(sds->shadow, smoke_get_density(sds->fluid), sds->p0, sds->p1, sds->res, sds->dx, light, calc_voxel_transp, -7.0*sds->dx);
 	
 		BKE_ptcache_validate(cache, framenr);
-		BKE_ptcache_write_cache(&pid, framenr);
+		BKE_ptcache_write_cache(&pid, PTCACHE_MODE_WRITE_FRAME, framenr);
 
 		if(sds->wt)
 		{
@@ -1294,7 +1294,7 @@ void smokeModifier_do(SmokeModifierData *smd, Scene *scene, Object *ob, DerivedM
 			}
 
 			BKE_ptcache_validate(cache_wt, framenr);
-			BKE_ptcache_write_cache(&pid_wt, framenr);
+			BKE_ptcache_write_cache(&pid_wt, PTCACHE_MODE_WRITE_FRAME, framenr);
 		}
 
 		tend();

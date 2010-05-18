@@ -1423,7 +1423,7 @@ static int ptcache_pid_old_elemsize(PTCacheID *pid)
 
 /* reads cache from disk or memory */
 /* possible to get old or interpolated result */
-int BKE_ptcache_read_cache(PTCacheID *pid, float cfra, float frs_sec)
+int BKE_ptcache_read_cache(PTCacheID *pid, int mode, float cfra, float frs_sec)
 {
 	PTCacheFile *pf=NULL, *pf2=NULL;
 	PTCacheMem *pm=NULL, *pm2=NULL;
@@ -1445,7 +1445,7 @@ int BKE_ptcache_read_cache(PTCacheID *pid, float cfra, float frs_sec)
 
 	if(pid->cache->flag & PTCACHE_READ_INFO) {
 		pid->cache->flag &= ~PTCACHE_READ_INFO;
-		BKE_ptcache_read_cache(pid, 0, frs_sec);
+		BKE_ptcache_read_cache(pid, PTCACHE_MODE_READ_INFO, 0, frs_sec);
 	}
 
 
@@ -1721,7 +1721,7 @@ static void ptcache_make_index_array(PTCacheMem *pm, int totpoint)
 		pm->index_array[*index] = i + 1;
 }
 /* writes cache to disk or memory */
-int BKE_ptcache_write_cache(PTCacheID *pid, int cfra)
+int BKE_ptcache_write_cache(PTCacheID *pid, int mode, int cfra)
 {
 	PointCache *cache = pid->cache;
 	PTCacheFile *pf= NULL, *pf2= NULL;
@@ -1729,13 +1729,13 @@ int BKE_ptcache_write_cache(PTCacheID *pid, int cfra)
 	int totpoint = pid->totpoint(pid->calldata, cfra);
 	int add = 0, overwrite = 0;
 
-	if(totpoint == 0 || (cfra ? pid->data_types == 0 : pid->info_types == 0))
+	if(totpoint == 0 || (mode == PTCACHE_MODE_WRITE_INFO ? pid->info_types == 0 : pid->data_types == 0))
 		return 0;
 
 	if(cache->flag & PTCACHE_DISK_CACHE) {
 		int ofra=0, efra = cache->endframe;
 
-		if(cfra==0 && cache->startframe > 0)
+		if(mode == PTCACHE_MODE_WRITE_INFO && cache->startframe > 0)
 			add = 1;
 		/* allways start from scratch on the first frame */
 		else if(cfra == cache->startframe) {
@@ -1770,8 +1770,8 @@ int BKE_ptcache_write_cache(PTCacheID *pid, int cfra)
 				return 0;
 
 			pf->type = pid->type;
-			pf->totpoint = cfra ? pid->totwrite(pid->calldata, cfra) : totpoint;
-			pf->data_types = cfra ? pid->data_types : pid->info_types;
+			pf->totpoint = mode == PTCACHE_MODE_WRITE_FRAME ? pid->totwrite(pid->calldata, cfra) : totpoint;
+			pf->data_types = mode == PTCACHE_MODE_WRITE_FRAME ? pid->data_types : pid->info_types;
 
 			if(!ptcache_file_write_header_begin(pf) || !pid->write_header(pf)) {
 				ptcache_file_close(pf);
@@ -1826,7 +1826,7 @@ int BKE_ptcache_write_cache(PTCacheID *pid, int cfra)
 		pm2 = cache->mem_cache.first;
 		
 		/* don't write info file in memory */
-		if(cfra==0)
+		if(cfra==PTCACHE_MODE_WRITE_INFO)
 			return 1;
 		/* allways start from scratch on the first frame */
 		if(cfra == cache->startframe) {
@@ -1854,7 +1854,7 @@ int BKE_ptcache_write_cache(PTCacheID *pid, int cfra)
 			pm = MEM_callocN(sizeof(PTCacheMem), "Pointcache mem");
 
 			pm->totpoint = pid->totwrite(pid->calldata, cfra);
-			pm->data_types = cfra ? pid->data_types : pid->info_types;
+			pm->data_types = mode == PTCACHE_MODE_WRITE_FRAME ? pid->data_types : pid->info_types;
 
 			ptcache_alloc_data(pm);
 			BKE_ptcache_mem_init_pointers(pm);
@@ -1881,7 +1881,7 @@ int BKE_ptcache_write_cache(PTCacheID *pid, int cfra)
 		}
 	}
 
-	if(add || overwrite) {
+	if(mode == PTCACHE_MODE_WRITE_FRAME && (add || overwrite)) {
 		if(cfra - cache->last_exact == 1
 			|| cfra == cache->startframe) {
 			cache->last_exact = cfra;
@@ -2544,7 +2544,7 @@ void BKE_ptcache_make_cache(PTCacheBaker* baker)
 			cache->flag |= PTCACHE_BAKED;
 			/* write info file */
 			if(cache->flag & PTCACHE_DISK_CACHE)
-				BKE_ptcache_write_cache(pid, 0);
+				BKE_ptcache_write_cache(pid, PTCACHE_MODE_WRITE_INFO, 0);
 		}
 	}
 	else for(SETLOOPER(scene, base)) {
@@ -2567,7 +2567,7 @@ void BKE_ptcache_make_cache(PTCacheBaker* baker)
 			if(bake) {
 				cache->flag |= PTCACHE_BAKED;
 				if(cache->flag & PTCACHE_DISK_CACHE)
-					BKE_ptcache_write_cache(pid, 0);
+					BKE_ptcache_write_cache(pid, PTCACHE_MODE_WRITE_INFO, 0);
 			}
 		}
 		BLI_freelistN(&pidlist);
@@ -2698,7 +2698,7 @@ void BKE_ptcache_mem_to_disk(PTCacheID *pid)
 
 			/* write info file */
 			if(cache->flag & PTCACHE_BAKED)
-				BKE_ptcache_write_cache(pid, 0);
+				BKE_ptcache_write_cache(pid, PTCACHE_MODE_WRITE_INFO, 0);
 		}
 		else
 			if (G.f & G_DEBUG) 

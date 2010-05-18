@@ -4122,7 +4122,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	}
 
 	/* try to read from cache */
-	cache_result = BKE_ptcache_read_cache(&pid, framenr, scene->r.frs_sec);
+	cache_result = BKE_ptcache_read_cache(&pid, PTCACHE_MODE_READ_FRAME, framenr, scene->r.frs_sec);
 
 	if(cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
 		softbody_to_object(ob, vertexCos, numVerts, sb->local);
@@ -4130,7 +4130,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		BKE_ptcache_validate(cache, framenr);
 
 		if(cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
-			BKE_ptcache_write_cache(&pid, framenr);
+			BKE_ptcache_write_cache(&pid, PTCACHE_MODE_WRITE_FRAME, framenr);
 
 		return;
 	}
@@ -4145,7 +4145,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 
 	/* if on second frame, write cache for first frame */
 	if(cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
-		BKE_ptcache_write_cache(&pid, startframe);
+		BKE_ptcache_write_cache(&pid, PTCACHE_MODE_WRITE_FRAME, startframe);
 
 	softbody_update_positions(ob, sb, vertexCos, numVerts);
 
@@ -4158,6 +4158,6 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	softbody_to_object(ob, vertexCos, numVerts, 0);
 
 	BKE_ptcache_validate(cache, framenr);
-	BKE_ptcache_write_cache(&pid, framenr);
+	BKE_ptcache_write_cache(&pid, PTCACHE_MODE_WRITE_FRAME, framenr);
 }
 

@@ -267,10 +267,14 @@ void	BKE_ptcache_data_get(void **data, int type, int index, void *to);
 void	BKE_ptcache_data_set(void **data, int type, void *from);
 
 /* Main cache reading call. */
-int		BKE_ptcache_read_cache(PTCacheID *pid, float cfra, float frs_sec);
+#define PTCACHE_MODE_READ_INFO	0
+#define PTCACHE_MODE_READ_FRAME	1
+int		BKE_ptcache_read_cache(PTCacheID *pid, int mode, float cfra, float frs_sec);
 
 /* Main cache writing call. */
-int		BKE_ptcache_write_cache(PTCacheID *pid, int cfra);
+#define PTCACHE_MODE_WRITE_INFO		0
+#define PTCACHE_MODE_WRITE_FRAME	1
+int		BKE_ptcache_write_cache(PTCacheID *pid, int mode, int cfra);
 
 /****************** Continue physics ***************/
 void BKE_ptcache_set_continue_physics(struct Scene *scene, int enable);
