@@ -1208,10 +1208,8 @@ DO_INLINE void dfdx_damp(float to[3][3],  float dir[3],float length,const float 
 
 }
 
-DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, lfVector *lF, lfVector *X, lfVector *V, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float time)
+DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, lfVector *X, lfVector *V, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float time)
 {
-	Cloth *cloth = clmd->clothObject;
-	ClothVertex *verts = cloth->verts;
 	float extent[3];
 	float length = 0, dot = 0;
 	float dir[3] = {0,0,0};
@@ -1548,7 +1546,8 @@ static void hair_velocity_smoothing(ClothModifierData *clmd, lfVector *lF, lfVec
 
 	free_collider_cache(&colliders);
 }
-static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF, lfVector *lX, lfVector *lV, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, ListBase *effectors, float time, fmatrix3x3 *M)
+
+static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF, lfVector *lX, lfVector *lV, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, ListBase *effectors, float time, fmatrix3x3 *M, ClothVertex *verts, LinkNode *springs, int numverts, int numsprings)
 {
 	/* Collect forces and derivatives:  F,dFdX,dFdV */
 	Cloth 		*cloth 		= clmd->clothObject;
@@ -1557,8 +1556,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 	float 		gravity[3] = {0.0f, 0.0f, 0.0f};
 	float 		tm2[3][3] 	= {{-spring_air,0,0}, {0,-spring_air,0},{0,0,-spring_air}};
 	MFace 		*mfaces 	= cloth->mfaces;
-	unsigned int numverts = cloth->numverts;
-	LinkNode *search = cloth->springs;
+	LinkNode *search = springs;
 	lfVector *winvec;
 	EffectedPoint epoint;
 
@@ -1656,8 +1654,8 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 			float tmp[3]={0,0,0};
 			float factor = 0.01;
 
-			search = cloth->springs;
-			while(search) {
+			search = springs;
+			for(i=0;i<numsprings;i++) {
 				spring = search->link;
 				
 				if(spring->type == CLOTH_SPRING_TYPE_STRUCTURAL) {
@@ -1681,19 +1679,19 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 	}
 		
 	// calculate spring forces
-	search = cloth->springs;
-	while(search)
+	search = springs;
+	for(i=0;i<numsprings;i++)
 	{
 		// only handle active springs
 		// if(((clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED) && !(springs[i].flags & CSPRING_FLAG_DEACTIVATE))|| !(clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED)){}
-		cloth_calc_spring_force(clmd, search->link, lF, lX, lV, dFdV, dFdX, time);
+		cloth_calc_spring_force(clmd, search->link, lX, lV, dFdV, dFdX, time);
 
 		search = search->next;
 	}
 	
 	// apply spring forces
-	search = cloth->springs;
-	while(search)
+	search = springs;
+	for(i=0;i<numsprings;i++)
 	{
 		// only handle active springs
 		// if(((clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED) && !(springs[i].flags & CSPRING_FLAG_DEACTIVATE))|| !(clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED))	
@@ -1767,7 +1765,7 @@ void rigidbody_damping(ClothModifierData * clmd, float dt) {
 
 	v = verts;
 	for (i=0; i < totverts; i++, v++) {
-		float vel[3], vec[3], lang[3] = {0, 0, 0}, l, dot;
+		float vel[3], vec[3], lang[3] = {0, 0, 0}, dot;
 
 		sub_v3_v3v3(v->tv, v->tx, v->txold);
 
@@ -1789,7 +1787,7 @@ void rigidbody_damping(ClothModifierData * clmd, float dt) {
 
 	v = verts;
 	for (i=0; i<totverts; i++, v++) {
-		float vec[3], vel2[3]={0, 0, 0}, l, vel3[3]={0, 0, 0};
+		float vec[3], vel2[3]={0, 0, 0}, l;
 
 		sub_v3_v3v3(vec, v->tx, cent);
 		if (dot_v3v3(ang, ang) > FLT_EPSILON) {
@@ -1821,7 +1819,7 @@ void rigidbody_damping(ClothModifierData * clmd, float dt) {
 void hair_rigid_damping(ClothModifierData * clmd, float dt) {
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *v, *verts = clmd->clothObject->verts;
-	float gravity[3], lin[3] = {0, 0, 0}, ang[3] = {0, 0, 0}, totmass = 0, ocent[3], cent[3];
+	float gravity[3], lin[3] = {0, 0, 0}, ang[3] = {0, 0, 0}, totmass = 0, ocent[3]={0}, cent[3]={0};
 	float damp;
 	int i, totverts=cloth->numverts, starti=0, totv;
 
@@ -1834,8 +1832,6 @@ void hair_rigid_damping(ClothModifierData * clmd, float dt) {
 	while (starti < totverts) {
 		v = verts + starti;
 		for (i=starti; i < totverts; i++, v++) {
-			float vec[3];
-
 			if (i != starti && v->goal > (v-1)->goal)
 				break;
 
@@ -1861,7 +1857,7 @@ void hair_rigid_damping(ClothModifierData * clmd, float dt) {
 
 		v = verts + starti;
 		for (i=starti; i < starti+totv; i++, v++) {
-			float vel[3], vec[3], lang[3] = {0, 0, 0}, l, dot;
+			float vel[3], vec[3], lang[3] = {0, 0, 0}, dot;
 
 			copy_v3_v3(vel, v->tv);
 			sub_v3_v3v3(vec, v->tx, ocent);
@@ -1879,7 +1875,7 @@ void hair_rigid_damping(ClothModifierData * clmd, float dt) {
 
 		v = verts + starti + 1;
 		for (i=starti + 1; i<starti+totv; i++, v++) {
-			float vec[3], vel2[3]={0, 0, 0}, l, vel3[3]={0, 0, 0};
+			float vec[3], vel2[3]={0, 0, 0}, l;
 
 			sub_v3_v3v3(vec, v->tx, cent);
 			if (dot_v3v3(ang, ang) > FLT_EPSILON) {
@@ -1913,7 +1909,9 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 	float step=0.0f, tf=clmd->sim_parms->timescale;
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *verts = cloth->verts;
+	LinkNode *springs = cloth->springs;
 	unsigned int numverts = cloth->numverts;
+	unsigned int numsprings = cloth->numsprings;
 	float dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame, spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
 	Implicit_Data *id = cloth->implicit;
 	int result = 0;
@@ -1927,7 +1925,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			{			
 				VECSUB(id->V[i], verts[i].xconst, verts[i].xold);
 #ifdef CLOTH_GOAL_ORIGINAL
-				mul_v3_fl(id->V[i], clmd->sim_parms->stepsPerFrame);
+				//mul_v3_fl(id->V[i], clmd->sim_parms->stepsPerFrame);
 #endif
 			}
 		}	
@@ -1936,7 +1934,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 	while(step < tf)
 	{	
 		// calculate forces
-		cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step, id->M);
+		cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step, id->M, verts, springs, numverts, numsprings);
 		
 		// calculate new velocity
 		simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
@@ -2027,7 +2025,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 
 #if 1 //CLOTH_GOAL_ORIGINAL
 			// calculate
-			cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M);
+			cloth_calc_force(clmd, frame, id->F, id->X, id->V, id->dFdV, id->dFdX, effectors, step+dt, id->M, verts, springs, numverts, numsprings);
 
 			simulate_implicit_euler(id->Vnew, id->X, id->V, id->F, id->dFdV, id->dFdX, dt/2, id->A, id->B, id->dV, id->S, id->z, id->olddV, id->P, id->Pinv, id->M, id->bigI);
 #endif
@@ -2043,7 +2041,6 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 		cp_lfvector(id->V, id->Vnew, numverts);
 		
 		step += dt;
-		
 	}
 
 	for(i = 0; i < numverts; i++)
