@@ -244,7 +244,7 @@ float psys_get_timestep(struct ParticleSimulationData *sim);
 float psys_get_child_time(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *birthtime, float *dietime);
 float psys_get_child_size(struct ParticleSystem *psys, struct ChildParticle *cpa, float cfra, float *pa_time);
 void psys_get_particle_on_path(struct ParticleSimulationData *sim, int pa_num, struct ParticleKey *state, int vel);
-int psys_get_particle_state(struct ParticleSimulationData *sim, int p, struct ParticleKey *state, int always);
+int psys_get_particle_state(struct ParticleSimulationData *sim, int p, struct ParticleKey *state, int always, int use_current_frame);
 
 /* for anim.c */
 void psys_get_dupli_texture(struct Object *ob, struct ParticleSettings *part, struct ParticleSystemModifierData *psmd, struct ParticleData *pa, struct ChildParticle *cpa, float *uv, float *orco);

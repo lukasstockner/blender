@@ -1201,6 +1201,9 @@ static int make_links_data_exec(bContext *C, wmOperator *op)
 		if(ob != obt) {
 			switch(event) {
 			case MAKE_LINKS_OBDATA: /* obdata */
+				if (ob->type != obt->type)
+					continue;
+
 				id= obt->data;
 				id->us--;
 

@@ -219,6 +219,7 @@ static DerivedMesh * applyModifier(
 				mv->co[axis] = 0.0;
 			}
 
+			state.use_frames = 0;
 			psys_get_particle_on_path(&sim, first_particle + i/totvert, &state,1);
 
 			normalize_v3(state.vel);
@@ -241,7 +242,8 @@ static DerivedMesh * applyModifier(
 		}
 		else{
 			state.time=-1.0;
-			psys_get_particle_state(&sim, first_particle + i/totvert, &state,1);
+			state.use_frames = 0;
+			psys_get_particle_state(&sim, first_particle + i/totvert, &state,1,0);
 		}
 
 		mul_qt_v3(state.rot,mv->co);

@@ -2547,6 +2547,7 @@ void object_handle_update(Scene *scene, Object *ob)
 				BKE_animsys_evaluate_animdata(data_id, adt, ctime, ADT_RECALC_DRIVERS);
 				
 				if(ob->id.lib && ob->proxy_from) {
+					where_is_pose(scene, ob->proxy_from);
 					copy_pose_result(ob->pose, ob->proxy_from->pose);
 					// printf("pose proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
 				}

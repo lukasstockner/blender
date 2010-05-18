@@ -1724,7 +1724,7 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 		if(pa->num == -1)
 			memset(&state, 0, sizeof(state));
 		else
-			psys_get_particle_state(&tsim, pa->num, &state, 1);
+			psys_get_particle_state(&tsim, pa->num, &state, 1, 0);
 		psys_get_from_key(&state, loc, nor, rot, 0);
 
 		mul_qt_v3(rot, vtan);
@@ -2089,9 +2089,9 @@ static void set_keyed_keys(ParticleSimulationData *sim)
 
 		LOOP_PARTICLES {
 			key = pa->keys + k;
-			key->time = -1.0; /* use current time */
 
-			psys_get_particle_state(&ksim, p%ksim.psys->totpart, key, 1);
+			/*the last 1 means to use current time */
+			psys_get_particle_state(&ksim, p%ksim.psys->totpart, key, 1, 1);
 
 			if(psys->flag & PSYS_KEYED_TIMING){
 				key->time = pa->time + pt->time;
@@ -2242,7 +2242,7 @@ void psys_get_pointcache_start_end(Scene *scene, ParticleSystem *psys, int *sfra
 {
 	ParticleSettings *part = psys->part;
 
-	*sfra = MAX2(1, (int)part->sta);
+	*sfra = (int)part->sta;
 	*efra = MIN2((int)(part->end + part->lifetime + 1.0), scene->r.efra);
 }
 
@@ -3781,7 +3781,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		}
 
 		/* if on second frame, write cache for first frame */
-		if(psys->cfra == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
+		if(psys->cfra == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact<=cache->startframe))
 			BKE_ptcache_write_cache(use_cache, startframe);
 	}
 	else

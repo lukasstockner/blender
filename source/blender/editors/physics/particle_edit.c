@@ -1914,6 +1914,7 @@ static void rekey_particle(PEData *data, int pa_index)
 	/* interpolate new keys from old ones */
 	for(k=1,key++; k<data->totrekey-1; k++,key++) {
 		state.time= (float)k / (float)(data->totrekey-1);
+		state.use_frames = 0;
 		psys_get_particle_on_path(&sim, pa_index, &state, 0);
 		VECCOPY(key->co, state.co);
 		key->time= sta + k * dval;
@@ -2002,6 +2003,7 @@ static void rekey_particle_to_time(Scene *scene, Object *ob, int pa_index, float
 	/* interpolate new keys from old ones (roots stay the same) */
 	for(k=1, key++; k < pa->totkey; k++, key++) {
 		state.time= path_time * (float)k / (float)(pa->totkey-1);
+		state.use_frames = 0;
 		psys_get_particle_on_path(&sim, pa_index, &state, 0);
 		VECCOPY(key->co, state.co);
 	}
@@ -2218,6 +2220,7 @@ static void subdivide_particle(PEData *data, int pa_index)
 		if(ekey->flag & PEK_SELECT && (ekey+1)->flag & PEK_SELECT) {
 			nkey->time= (key->time + (key+1)->time)*0.5f;
 			state.time= (endtime != 0.0f)? nkey->time/endtime: 0.0f;
+			state.use_frames = 0;
 			psys_get_particle_on_path(&sim, pa_index, &state, 0);
 			VECCOPY(nkey->co, state.co);
 
@@ -3198,6 +3201,7 @@ static int brush_add(PEData *data, short number)
 				int w, maxw;
 				float maxd, mind, dd, totw=0.0, weight[3];
 
+				key[0].use_frames = key[1].use_frames = key[2].use_frames = 0;
 				psys_particle_on_dm(psmd->dm,psys->part->from,pa->num,pa->num_dmcache,pa->fuv,pa->foffset,co1,0,0,0,0,0);
 				maxw= BLI_kdtree_find_n_nearest(tree,3,co1,NULL,ptn);
 

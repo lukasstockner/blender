@@ -3446,7 +3446,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	ParticleKey state, *states=0;
 	ParticleBillboardData bb;
 	ParticleSimulationData sim = {scene, ob, psys, NULL};
-	ParticleDrawData *pdd = psys->pdd;
+	ParticleDrawData *pdd;
 	Material *ma;
 	float vel[3], imat[4][4];
 	float timestep, pixsize=1.0, pa_size, r_tilt, r_length;
@@ -3795,7 +3795,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					else if(ct < 0.0f || ct > 1.0f)
 						continue;
 
-					state.time = (part->draw & PART_ABS_PATH_TIME) ? -ct : -(pa_birthtime + ct * (pa_dietime - pa_birthtime));
+					state.time = (part->draw & PART_ABS_PATH_TIME) ? ct : (pa_birthtime + ct * (pa_dietime - pa_birthtime));
+					state.use_frames = 1;
+
 					psys_get_particle_on_path(&sim,a,&state,need_v);
 					
 					if(psys->parent)
@@ -3817,7 +3819,9 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 			else
 			{
 				state.time=cfra;
-				if(psys_get_particle_state(&sim,a,&state,0)){
+				state.use_frames = 0;
+
+				if(psys_get_particle_state(&sim,a,&state,0,0)){
 					if(psys->parent)
 						mul_m4_v3(psys->parent->obmat, state.co);
 

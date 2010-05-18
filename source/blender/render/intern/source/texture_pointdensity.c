@@ -128,7 +128,8 @@ static void pointdensity_cache_psys(Render *re, PointDensity *pd, Object *ob, Pa
 	for (i=0, pa=psys->particles; i < total_particles; i++, pa++) {
 
 		state.time = cfra;
-		if(psys_get_particle_state(&sim, i, &state, 0)) {
+		state.use_frames = 1;
+		if(psys_get_particle_state(&sim, i, &state, 0,0)) {
 			
 			copy_v3_v3(partco, state.co);
 			

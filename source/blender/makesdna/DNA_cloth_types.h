@@ -78,14 +78,16 @@ typedef struct ClothSimSettings
 	short	vgroup_struct;  /* vertex group for scaling structural stiffness */
 	short	shapekey_rest;  /* vertex group for scaling structural stiffness */
 	short	presets; /* used for presets on GUI */
-	short 	reset;
-	short	pad[3];
+	short 	reset, hackmode;
 
-	float rigid_damp, padf;
+	float rigid_damp;
 
 	struct EffectorWeights *effector_weights;
 } ClothSimSettings;
 
+/*clothsimsettings->hackmode*/
+#define CLMD_MODE_INTERNAL	0 /*hacks are entirely within the solver*/
+#define CLMD_MODE_EXTERNAL	1 /*hacks are external, like collsions*/
 
 typedef struct ClothCollSettings
 {

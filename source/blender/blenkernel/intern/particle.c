@@ -1060,12 +1060,12 @@ static void get_pointcache_keys_for_time(Object *ob, PointCache *cache, int inde
 			while(pm && pm->next && (float)pm->frame < t)
 				pm = pm->next;
 
-			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame);
-			BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame);
+			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame, 1);
+			BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame, 1);
 		}
 		else if(cache->mem_cache.first) {
 			PTCacheMem *pm2 = cache->mem_cache.first;
-			BKE_ptcache_make_particle_key(key2, pm2->index_array ? pm2->index_array[index] - 1 : index, pm2->data, (float)pm2->frame);
+			BKE_ptcache_make_particle_key(key2, pm2->index_array ? pm2->index_array[index] - 1 : index, pm2->data, (float)pm2->frame, 1);
 			copy_particle_key(key1, key2, 1);
 		}
 	}
@@ -1142,8 +1142,8 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 
 	/* interpret timing and find keys */
 	if(point) {
-		if(result->time < 0.0f)
-			real_t = -result->time;
+		if(result->use_frames)
+			real_t = result->time;
 		else
 			real_t = *(pind->ekey[0]->time) + t * (*(pind->ekey[0][point->totkey-1].time) - *(pind->ekey[0]->time));
 
@@ -1159,8 +1159,8 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 			return;
 		}
 
-		if(result->time < 0.0f)
-			real_t = -result->time;
+		if(result->use_frames)
+			real_t = result->time;
 		else
 			real_t = pind->kkey[0]->time + t * (pind->kkey[0][pa->totkey-1].time - pind->kkey[0]->time);
 
@@ -1190,14 +1190,14 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 		pind->kkey[0] = pind->kkey[1] - 1;
 	}
 	else if(pind->cache) {
-		if(result->time < 0.0f) /* flag for time in frames */
-			real_t = -result->time;
+		if(result->use_frames) /* flag for time in frames */
+			real_t = result->time;
 		else
 			real_t = pa->time + t * (pa->dietime - pa->time);
 	}
 	else {
-		if(result->time < 0.0f)
-			real_t = -result->time;
+		if(result->use_frames)
+			real_t = result->time;
 		else
 			real_t = pind->hkey[0]->time + t * (pind->hkey[0][pa->totkey-1].time - pind->hkey[0]->time);
 
@@ -1945,7 +1945,7 @@ static void do_clump(ParticleKey *state, ParticleKey *par, float time, float clu
 void precalc_guides(ParticleSimulationData *sim, ListBase *effectors)
 {
 	EffectedPoint point;
-	ParticleKey state;
+	ParticleKey state = {0,};
 	EffectorData efd;
 	EffectorCache *eff;
 	ParticleSystem *psys = sim->psys;
@@ -1983,7 +1983,7 @@ int do_guides(ListBase *effectors, ParticleKey *state, int index, float time)
 	EffectorCache *eff;
 	PartDeflect *pd;
 	Curve *cu;
-	ParticleKey key, par;
+	ParticleKey key={0,}, par={0,};
 	GuideEffectorData *data;
 
 	float effect[3] = {0.0f, 0.0f, 0.0f}, veffect[3] = {0.0f, 0.0f, 0.0f};
@@ -2113,7 +2113,7 @@ static void do_rough_end(float *loc, float mat[4][4], float t, float fac, float 
 static void do_path_effectors(ParticleSimulationData *sim, int i, ParticleCacheKey *ca, int k, int steps, float *rootco, float effector, float dfra, float cfra, float *length, float *vec)
 {
 	float force[3] = {0.0f,0.0f,0.0f};
-	ParticleKey eff_key;
+	ParticleKey eff_key={0,};
 	EffectedPoint epoint;
 
 	/* Don't apply effectors for dynamic hair, otherwise the effectors don't get applied twice. */
@@ -2722,7 +2722,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 	DerivedMesh *hair_dm = psys->hair_out_dm;
 	
-	ParticleKey result;
+	ParticleKey result={0,};
 	
 	Material *ma;
 	ParticleInterpolationData pind;
@@ -2823,7 +2823,8 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 			t = birthtime + time * (dietime - birthtime);
 
-			result.time = -t;
+			result.time = t;
+			result.use_frames = 1;
 
 			do_particle_interpolation(psys, p, pa, t, frs_sec, &pind, &result);
 
@@ -2855,7 +2856,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 				/* apply guide curves to path data */
 				if(sim->psys->effectors && (psys->part->flag & PART_CHILD_EFFECT)==0)
-					/* ca is safe to cast, since only co and vel are used */
+					/* XXX - ca is safe to cast, since only co and vel are used */
 					do_guides(sim->psys->effectors, (ParticleKey*)ca, p, (float)k/(float)steps);
 
 				/* apply lattice */
@@ -2948,7 +2949,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 	ParticleData *pa = psys ? psys->particles : NULL;
 
 	ParticleInterpolationData pind;
-	ParticleKey result;
+	ParticleKey result={0,};
 	
 	float birthtime = 0.0, dietime = 0.0;
 	float t, time = 0.0, keytime = 0.0, frs_sec;
@@ -3039,7 +3040,8 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 
 			t = birthtime + time * (dietime - birthtime);
 
-			result.time = -t;
+			result.time = t;
+			result.use_frames = 1;
 
 			do_particle_interpolation(psys, i, pa, t, frs_sec, &pind, &result);
 
@@ -3889,6 +3891,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 		pind.cache = cached ? psys->pointcache : NULL;
 		pind.epoint = NULL;
 		pind.bspline = (psys->part->flag & PART_HAIR_BSPLINE);
+
 		/* pind.dm disabled in editmode means we dont get effectors taken into
 		 * account when subdividing for instance */
 		pind.dm = psys_in_edit_mode(sim->scene, psys) ? NULL : psys->hair_out_dm;
@@ -3916,8 +3919,8 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 
 		cpa=psys->child+p-totpart;
 
-		if(state->time < 0.0f)
-			t = psys_get_child_time(psys, cpa, -state->time, NULL, NULL);
+		if(state->use_frames)
+			t = psys_get_child_time(psys, cpa, state->time, NULL, NULL);
 		
 		if(totchild && part->from!=PART_FROM_PARTICLE && part->childtype==PART_CHILD_FACES){
 			totparent=(int)(totchild*part->parents*0.3);
@@ -3935,6 +3938,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 			/* get parent states */
 			while(w<4 && cpa->pa[w]>=0){
 				keys[w].time = state->time;
+				keys[w].use_frames = 0;
 				psys_get_particle_on_path(sim, cpa->pa[w], keys+w, 1);
 				w++;
 			}
@@ -3962,6 +3966,7 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 		else{
 			/* get the parent state */
 			keys->time = state->time;
+			keys->use_frames = 0;
 			psys_get_particle_on_path(sim, cpa->parent, keys,1);
 
 			/* get the original coordinates (orco) for texture usage */
@@ -4030,6 +4035,8 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 			ParticleKey tstate;
 			float length = len_v3(state->vel);
 
+			tstate.use_frames = 0;
+
 			if(t>=0.001f){
 				tstate.time=t-0.001f;
 				psys_get_particle_on_path(sim,p,&tstate,0);
@@ -4048,7 +4055,8 @@ void psys_get_particle_on_path(ParticleSimulationData *sim, int p, ParticleKey *
 	}
 }
 /* gets particle's state at a time, returns 1 if particle exists and can be seen and 0 if not */
-int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *state, int always){
+int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *state,
+							int always, int use_current_frame) {
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	ParticleData *pa = NULL;
@@ -4057,8 +4065,7 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 	int totpart = psys->totpart;
 	float timestep = psys_get_timestep(sim);
 
-	/* negative time means "use current time" */
-	cfra = state->time > 0 ? state->time : bsystem_time(sim->scene, 0, (float)sim->scene->r.cfra, 0.0);
+	cfra = use_current_frame ? bsystem_time(sim->scene, 0, (float)sim->scene->r.cfra, 0.0) : state->time;
 
 	if(p>=totpart){
 		if(!psys->totchild)
@@ -4071,6 +4078,7 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 			cpa = psys->child + p - totpart;
 
 			state->time = psys_get_child_time(psys, cpa, cfra, NULL, NULL);
+			state->use_frames = 0;
 
 			if(!always)
 				if((state->time < 0.0 && !(part->flag & PART_UNBORN))
@@ -4134,6 +4142,9 @@ int psys_get_particle_state(ParticleSimulationData *sim, int p, ParticleKey *sta
 				if(pa->state.time + 2.0f > state->time && pa->prev_state.time - 2.0f < state->time) {
 					ParticleKey keys[4];
 					float dfra, keytime, frs_sec = sim->scene->r.frs_sec;
+
+					memset(keys, 0, sizeof(keys));
+					keys[0].use_frames = keys[1].use_frames = keys[2].use_frames = keys[3].use_frames = 1;
 
 					if(pa->prev_state.time >= pa->state.time) {
 						/* prev_state is wrong so let's not use it, this can happen at frame 1 or particle birth */

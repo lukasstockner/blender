@@ -750,7 +750,8 @@ static DerivedMesh * explodeMesh(ExplodeModifierData *emd,
 			mul_m4_v3(ob->obmat,loc0);
 
 			state.time=cfra;
-			psys_get_particle_state(&sim, i, &state, 1);
+			state.use_frames = 1;
+			psys_get_particle_state(&sim, i, &state, 1, 0);
 
 			vertco=CDDM_get_vert(explode,v)->co;
 			

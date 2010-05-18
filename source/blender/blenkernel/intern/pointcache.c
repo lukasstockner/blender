@@ -165,6 +165,8 @@ static void ptcache_interpolate_softbody(int index, void *soft_v, void **data, f
 	if(cfra1 == cfra2)
 		return;
 
+	memset(keys, 0, sizeof(keys));
+
 	VECCOPY(keys[1].co, bp->pos);
 	VECCOPY(keys[1].vel, bp->vec);
 
@@ -173,7 +175,7 @@ static void ptcache_interpolate_softbody(int index, void *soft_v, void **data, f
 		memcpy(keys[2].vel, old_data + 3, 3 * sizeof(float));
 	}
 	else
-		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2);
+		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2, 1);
 
 	dfra = cfra2 - cfra1;
 
@@ -219,13 +221,14 @@ static int ptcache_write_particle(int index, void *psys_v, void **data, int cfra
 	/* return flag 1+1=2 for newly born particles to copy exact birth location to previously cached frame */
 	return 1 + (pa->state.time >= pa->time && pa->prev_state.time <= pa->time);
 }
-void BKE_ptcache_make_particle_key(ParticleKey *key, int index, void **data, float time)
+void BKE_ptcache_make_particle_key(ParticleKey *key, int index, void **data, float time, int use_frames)
 {
 	PTCACHE_DATA_TO(data, BPHYS_DATA_LOCATION, index, key->co);
 	PTCACHE_DATA_TO(data, BPHYS_DATA_VELOCITY, index, key->vel);
 	PTCACHE_DATA_TO(data, BPHYS_DATA_ROTATION, index, key->rot);
 	PTCACHE_DATA_TO(data, BPHYS_DATA_AVELOCITY, index, key->ave);
 	key->time = time;
+	key->use_frames = use_frames;
 }
 static void ptcache_read_particle(int index, void *psys_v, void **data, float frs_sec, float cfra, float *old_data)
 {
@@ -248,7 +251,7 @@ static void ptcache_read_particle(int index, void *psys_v, void **data, float fr
 		return;
 	}
 
-	BKE_ptcache_make_particle_key(&pa->state, 0, data, cfra);
+	BKE_ptcache_make_particle_key(&pa->state, 0, data, cfra, 1);
 
 	/* set frames cached before birth to birth time */
 	if(cfra < pa->time)
@@ -292,6 +295,8 @@ static void ptcache_interpolate_particle(int index, void *psys_v, void **data, f
 	ParticleKey keys[4];
 	float dfra;
 
+	memset(keys, 0, sizeof(keys));
+
 	if(index >= psys->totpart)
 		return;
 
@@ -312,7 +317,7 @@ static void ptcache_interpolate_particle(int index, void *psys_v, void **data, f
 	if(old_data)
 		memcpy(keys+2, old_data, sizeof(ParticleKey));
 	else
-		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2);
+		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2, 1);
 
 	/* determine velocity from previous location */
 	if(data[BPHYS_DATA_LOCATION] && !data[BPHYS_DATA_VELOCITY]) {
@@ -425,7 +430,7 @@ static int ptcache_totwrite_particle(void *psys_v, int cfra)
 //		return;
 //	}
 //
-//	BKE_ptcache_make_particle_key(&pa->state, 0, data, cfra);
+//	BKE_ptcache_make_particle_key(&pa->state, 0, data, cfra, 1);
 //
 //	if(data[BPHYS_DATA_SIZE])
 //		PTCACHE_DATA_TO(data, BPHYS_DATA_SIZE, 0, &pa->size);
@@ -476,7 +481,7 @@ static int ptcache_totwrite_particle(void *psys_v, int cfra)
 //	if(old_data)
 //		memcpy(keys+2, old_data, sizeof(ParticleKey));
 //	else
-//		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2);
+//		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2, 1);
 //
 //	dfra = cfra2 - cfra1;
 //
@@ -540,7 +545,7 @@ static void ptcache_interpolate_cloth(int index, void *cloth_v, void **data, flo
 		memcpy(keys[2].vel, old_data + 6, 3 * sizeof(float));
 	}
 	else
-		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2);
+		BKE_ptcache_make_particle_key(keys+2, 0, data, cfra2, 1);
 
 	dfra = cfra2 - cfra1;
 

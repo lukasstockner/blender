@@ -2225,7 +2225,7 @@ void DAG_on_load_update(void)
 			ob= base->object;
 
 			if(base->lay & lay) {
-				if(ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL))
+				//if(ELEM5(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL))
 					ob->recalc |= OB_RECALC_DATA;
 				if(ob->dup_group) 
 					ob->dup_group->id.flag |= LIB_DOIT;
@@ -2235,7 +2235,7 @@ void DAG_on_load_update(void)
 		for(group= G.main->group.first; group; group= group->id.next) {
 			if(group->id.flag & LIB_DOIT) {
 				for(go= group->gobject.first; go; go= go->next) {
-					if(ELEM5(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL))
+					//if(ELEM5(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL))
 						go->ob->recalc |= OB_RECALC_DATA;
 					if(go->ob->proxy_from)
 						go->ob->recalc |= OB_RECALC_OB;
@@ -2247,6 +2247,9 @@ void DAG_on_load_update(void)
 
 		/* now tag update flags, to ensure deformers get calculated on redraw */
 		DAG_scene_update_flags(scene, lay);
+
+		scene_update_for_newframe(scene, lay);
+		//scene_update_for_newframe(scene, lay);
 	}
 }
 

@@ -52,7 +52,7 @@ static void initData(ModifierData *md)
 	collmd->current_x = NULL;
 	collmd->current_xnew = NULL;
 	collmd->current_v = NULL;
-	collmd->time = -1000;
+	collmd->time = -100000;
 	collmd->numverts = 0;
 	collmd->bvhtree = NULL;
 }
@@ -86,7 +86,7 @@ static void freeData(ModifierData *md)
 		collmd->current_x = NULL;
 		collmd->current_xnew = NULL;
 		collmd->current_v = NULL;
-		collmd->time = -1000;
+		collmd->time = -100000;
 		collmd->numverts = 0;
 		collmd->bvhtree = NULL;
 		collmd->mfaces = NULL;
@@ -136,7 +136,7 @@ static void deformVerts(
 			if(collmd->x && (numverts != collmd->numverts))
 				freeData((ModifierData *)collmd);
 			
-			if(collmd->time == -1000) // first time
+			if(collmd->time == -100000) // first time
 			{
 				collmd->x = dm->dupVertArray(dm); // frame start position
 				

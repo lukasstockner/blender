@@ -1066,7 +1066,8 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 					else if(ct < 0.0f || ct > 1.0f)
 						continue;
 
-					state.time = (part->draw & PART_ABS_PATH_TIME) ? -ct : ct;
+					state.time = ct;
+					state.use_frames = 1;
 					psys_get_particle_on_path(&sim,a,&state,1);
 
 					if(psys->parent)
@@ -1086,7 +1087,8 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			else {
 				time=0.0f;
 				state.time=cfra;
-				if(psys_get_particle_state(&sim,a,&state,0)==0)
+				state.use_frames = 1;
+				if(psys_get_particle_state(&sim,a,&state,0,0)==0)
 					continue;
 
 				if(psys->parent)

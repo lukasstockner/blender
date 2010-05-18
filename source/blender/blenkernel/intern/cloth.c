@@ -494,7 +494,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 		cache->flag |= PTCACHE_OUTDATED;
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
 		BKE_ptcache_validate(cache, 0);
-		cache->last_exact= 0;
+		cache->last_exact= MIN2(cache->startframe, 0);
 		cache->flag &= ~PTCACHE_REDO_NEEDED;
 		return result;
 	}
@@ -577,7 +577,7 @@ DerivedMesh *clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob,
 	}
 
 	/* if on second frame, write cache for first frame */
-	if(cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
+	if(cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact<=cache->startframe))
 		BKE_ptcache_write_cache(&pid, startframe);
 
 	clmd->sim_parms->timescale *= framenr - cache->simframe;

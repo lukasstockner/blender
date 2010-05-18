@@ -51,6 +51,7 @@ typedef struct ParticleKey {	/* when changed update size of struct to copy_parti
 	float rot[4];	/* rotation quaternion */
 	float ave[3];	/* angular velocity */
 	float time;		/* when this key happens */
+	int use_frames, pad1;
 } ParticleKey;
 
 typedef struct BoidParticle {

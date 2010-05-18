@@ -1078,7 +1078,7 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 	ParticleSettings *part;
 	ParticleData *pa;
 	ChildParticle *cpa=0;
-	ParticleKey state;
+	ParticleKey state={0,};
 	ParticleCacheKey *cache;
 	float ctime, pa_time, scale = 1.0f;
 	float tmat[4][4], mat[4][4], pamat[4][4], vec[3], size=0.0;
@@ -1229,7 +1229,9 @@ static void new_particle_duplilist(ListBase *lb, ID *id, Scene *scene, Object *p
 			else {
 				/* first key */
 				state.time = ctime;
-				if(psys_get_particle_state(&sim, a, &state, 0) == 0)
+				state.use_frames = 1;
+
+				if(psys_get_particle_state(&sim, a, &state, 0, 0) == 0)
 					continue;
 
 				quat_to_mat4( pamat,state.rot);

@@ -631,7 +631,7 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 	else if(eff->psys) {
 		ParticleSimulationData sim = {eff->scene, eff->ob, eff->psys, NULL, NULL};
 		ParticleData *pa = eff->psys->particles + *efd->index;
-		ParticleKey state;
+		ParticleKey state={0,};
 
 		/* exclude the particle itself for self effecting particles */
 		if(eff->psys == point->psys && *efd->index == point->index)
@@ -639,7 +639,9 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 		else {
 			/* TODO: time from actual previous calculated frame (step might not be 1) */
 			state.time = cfra - 1.0;
-			ret = psys_get_particle_state(&sim, *efd->index, &state, 0);
+			state.use_frames = 1;
+
+			ret = psys_get_particle_state(&sim, *efd->index, &state, 0, 0);
 
 			/* TODO */
 			//if(eff->pd->forcefiled == PFIELD_HARMONIC && ret==0) {
