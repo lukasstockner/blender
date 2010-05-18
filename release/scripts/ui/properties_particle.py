@@ -835,24 +835,47 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
             row.label(text="Offset:")
             row.prop(part, "billboard_split_offset", text="")
 
+class PARTICLE_PT_trail(ParticleButtonsPanel):
+    bl_label = "Trail Settings"
+    bl_default_closed = True
+    
+    def poll(self, context):
+        psys = context.particle_system
+        if psys is None:
+            return False
+        if psys.settings is None:
+            return False
+        return True 
+    
+    def draw(self, context):
+        layout = self.layout
+
+        psys = context.particle_system
+        part = psys.settings
+        wide_ui = context.region.width > narrowui
+        
         if part.ren_as == 'HALO' or part.ren_as == 'LINE' or part.ren_as == 'BILLBOARD':
             row = layout.row()
             col = row.column()
-            col.prop(part, "trail_count")
-            if part.trail_count > 1:
-                col.prop(part, "abs_path_time", text="Length in frames")
-                col = row.column()
-                col.prop(part, "path_end", text="Length", slider=not part.abs_path_time)
-                col.prop(part, "random_length", text="Random", slider=True)
+            
+            col.prop(part, "trail_count", text="Count")
+            col.prop(part, "random_length", text="Random", slider=True)
+
+            if wide_ui:
+                col = row.column(align=True)
             else:
-                col = row.column()
-                col.label(text="")
-
-
+                col = layout.column(align=True)
+            
+            col.prop(part, "path_start", text="Start", slider=not part.abs_path_time)
+            col.prop(part, "path_end", text="End", slider=not part.abs_path_time)
+            col.prop(part, "abs_path_time", text="Length in frames")
+        else:
+            layout.label("Trail settings only work on halo, line or billboard draw modes!")
+        
 class PARTICLE_PT_draw(ParticleButtonsPanel):
     bl_label = "Display"
     bl_default_closed = True
-
+    
     def poll(self, context):
         psys = context.particle_system
         if psys is None:
@@ -860,7 +883,7 @@ class PARTICLE_PT_draw(ParticleButtonsPanel):
         if psys.settings is None:
             return False
         return True
-
+    
     def draw(self, context):
         layout = self.layout
 
@@ -1112,6 +1135,7 @@ classes = [
     PARTICLE_PT_physics,
     PARTICLE_PT_boidbrain,
     PARTICLE_PT_render,
+    PARTICLE_PT_trail,
     PARTICLE_PT_draw,
     PARTICLE_PT_children,
     PARTICLE_PT_field_weights,
