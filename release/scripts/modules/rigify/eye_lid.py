@@ -299,7 +299,7 @@ def control(obj, definitions, base_names, options):
     lid8 = copy_bone_simple(obj.data, definitions[9], base_names[definitions[9]]).name
 
     size = eb[lid1].length
-    size_y = Vector(0.0, size, 0.0)
+    size_y = Vector((0.0, size, 0.0))
     eb[lid1].tail = eb[lid1].head + size_y
     eb[lid2].tail = eb[lid2].head + size_y
     eb[lid3].tail = eb[lid3].head + size_y
