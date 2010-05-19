@@ -1070,7 +1070,10 @@ void drawnodespace(const bContext *C, ARegion *ar, View2D *v2d)
 	UI_view2d_view_ortho(C, v2d);
 
 	/*this is set here to avoid writing a version patch*/
-	v2d->keepzoom |= V2D_INVERTZOOM;
+	if (U.viewzoom != USER_ZOOM_CONT)
+		v2d->keepzoom |= V2D_INVERTZOOM;
+	else
+		v2d->keepzoom &= ~V2D_INVERTZOOM;
 
 	//uiFreeBlocksWin(&sa->uiblocks, sa->win);
 
