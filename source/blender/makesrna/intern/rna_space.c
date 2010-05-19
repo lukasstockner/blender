@@ -509,6 +509,28 @@ static StructRNA *rna_SpaceProperties_pin_id_typef(PointerRNA *ptr)
 	return &RNA_ID;
 }
 
+static void rna_SpaceProperties_pin_id_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	SpaceButs *sbuts= (SpaceButs*)(ptr->data);
+	ID *id = sbuts->pinid;
+	
+	switch (GS(id->name)) {
+		case ID_MA:
+			WM_main_add_notifier(NC_MATERIAL|ND_SHADING, NULL);
+			break;
+		case ID_TE:
+			WM_main_add_notifier(NC_TEXTURE, NULL);
+			break;
+		case ID_WO:
+			WM_main_add_notifier(NC_WORLD, NULL);
+			break;
+		case ID_LA:
+			WM_main_add_notifier(NC_LAMP, NULL);
+			break;
+	}
+}
+
+
 static void rna_SpaceProperties_align_set(PointerRNA *ptr, int value)
 {
 	SpaceButs *sbuts= (SpaceButs*)(ptr->data);
@@ -899,7 +921,13 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 		{V3D_CENTROID, "MEDIAN_POINT", ICON_ROTATECENTER, "Median Point", ""},
 		{V3D_ACTIVE, "ACTIVE_ELEMENT", ICON_ROTACTIVE, "Active Element", ""},
 		{0, NULL, 0, NULL, NULL}};
-		
+
+	static EnumPropertyItem rv3d_persp_items[] = {
+		{RV3D_PERSP, "PERSP", 0, "Perspective", ""},
+		{RV3D_ORTHO, "ORTHO", 0, "Orthographic", ""},
+		{RV3D_CAMOB, "CAMERA", 0, "Camera", ""},
+		{0, NULL, 0, NULL, NULL}};
+	
 	srna= RNA_def_struct(brna, "SpaceView3D", "Space");
 	RNA_def_struct_sdna(srna, "View3D");
 	RNA_def_struct_ui_text(srna, "3D View Space", "3D View space data");
@@ -1146,6 +1174,12 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE); // XXX: for now, it's too risky for users to do this
 	RNA_def_property_multi_array(prop, 2, matrix_dimsize);
 	RNA_def_property_ui_text(prop, "View Matrix", "Current view matrix of the 3D region");
+
+	prop= RNA_def_property(srna, "perspective", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "persp");
+	RNA_def_property_enum_items(prop, rv3d_persp_items);
+	RNA_def_property_ui_text(prop, "Perspective", "View Perspective");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_def_space_buttons(BlenderRNA *brna)
@@ -1203,7 +1237,7 @@ static void rna_def_space_buttons(BlenderRNA *brna)
     /* note: custom set function is ONLY to avoid rna setting a user for this. */
 	RNA_def_property_pointer_funcs(prop, NULL, "rna_SpaceProperties_pin_id_set", "rna_SpaceProperties_pin_id_typef");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_PROPERTIES, NULL);
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_PROPERTIES, "rna_SpaceProperties_pin_id_update");
 
 	prop= RNA_def_property(srna, "use_pin_id", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SB_PIN_CONTEXT);

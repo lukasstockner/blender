@@ -462,8 +462,8 @@ void IMB_exr_begin_write(void *handle, char *filename, int width, int height, in
 	openexr_header_compression(&header, compress);
 	// openexr_header_metadata(&header, ibuf); // no imbuf. cant write
 	/* header.lineOrder() = DECREASING_Y; this crashes in windows for file read! */
-	
-	header.insert ("BlenderMultiChannel", StringAttribute ("Blender V2.43 and newer"));
+
+	header.insert ("BlenderMultiChannel", StringAttribute ("Blender V2.52.5"));
 	
 	data->ofile = new OutputFile(filename, header);
 }
@@ -471,9 +471,22 @@ void IMB_exr_begin_write(void *handle, char *filename, int width, int height, in
 void IMB_exrtile_begin_write(void *handle, char *filename, int mipmap, int width, int height, int tilex, int tiley)
 {
 	ExrHandle *data= (ExrHandle *)handle;
-	Header header (width, height);
+	Header *header;
 	ExrChannel *echan;
 	
+	/* open exr specify tiles must allign with top left frame coord but blender
+	render with tiles alligned to the bottom left. We work around this by saving
+	the whole area covered by the tyles (the data window) and defining a display
+	window that cover only the rendered area */
+
+	int ntx = ceil((float)width/tilex);
+	int nty = ceil((float)height/tiley);
+	Box2i dispw(V2i(0,0), V2i(width-1, height-1));
+	Box2i dataw(V2i( width -(ntx*tilex) , height -(nty*tiley) ), V2i(ntx*tilex-1, height-1));
+	V2f swc(0.0f, 0.0f);
+	header = new Header(dispw, dataw, 1.0, swc, 1, RANDOM_Y, RLE_COMPRESSION);
+
+
 	data->tilex= tilex;
 	data->tiley= tiley;
 	data->width= width;
@@ -481,15 +494,17 @@ void IMB_exrtile_begin_write(void *handle, char *filename, int mipmap, int width
 	data->mipmap= mipmap;
 	
 	for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next)
-		header.channels().insert (echan->name, Channel (FLOAT));
+		header->channels().insert (echan->name, Channel (FLOAT));
 	
-	header.setTileDescription (TileDescription (tilex, tiley, (mipmap)? MIPMAP_LEVELS: ONE_LEVEL));
-	header.lineOrder() = RANDOM_Y;
-	header.compression() = RLE_COMPRESSION;
+	header->setTileDescription (TileDescription (tilex, tiley, (mipmap)? MIPMAP_LEVELS: ONE_LEVEL));
+	header->lineOrder() = RANDOM_Y;
+	header->compression() = RLE_COMPRESSION;
 	
-	header.insert ("BlenderMultiChannel", StringAttribute ("Blender V2.43"));
-	
-	data->tofile = new TiledOutputFile(filename, header);
+	header->insert ("BlenderMultiChannel", StringAttribute ("Blender V2.52.5"));
+
+	data->tofile = new TiledOutputFile(filename, *header);
+
+	delete header;
 }
 
 /* read from file */
@@ -500,7 +515,7 @@ int IMB_exr_begin_read(void *handle, char *filename, int *width, int *height)
 	if(BLI_exists(filename) && BLI_filepathsize(filename)>32) {	/* 32 is arbitrary, but zero length files crashes exr */
 		data->ifile = new InputFile(filename);
 		if(data->ifile) {
-			Box2i dw = data->ifile->header().dataWindow();
+			Box2i dw = data->ifile->header().displayWindow();
 			data->width= *width  = dw.max.x - dw.min.x + 1;
 			data->height= *height = dw.max.y - dw.min.y + 1;
 			
@@ -531,12 +546,9 @@ void IMB_exr_set_channel(void *handle, char *layname, char *passname, int xstrid
 	}
 	else
 		BLI_strncpy(name, passname, EXR_TOT_MAXNAME-1);
-	
-	
-	for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next)
-		if(strcmp(echan->name, name)==0)
-			break;
-	
+
+	echan= (ExrChannel *)BLI_findstring(&data->channels, name, offsetof(ExrChannel, name));
+
 	if(echan) {
 		echan->xstride= xstride;
 		echan->ystride= ystride;
@@ -557,19 +569,32 @@ void IMB_exrtile_write_channels(void *handle, int partx, int party, int level)
 	ExrHandle *data= (ExrHandle *)handle;
 	FrameBuffer frameBuffer;
 	ExrChannel *echan;
+	float *rect;
+	int xs, ys;
+	int x, y;
 	
 	for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next) {
-		float *rect= echan->rect - echan->xstride*partx - echan->ystride*party;
 
+		/* coordinates for relative tile coordinates, starting from top of tile,
+		   striding left->right, top->bottom */
+		rect= echan->rect + (data->tiley-1)*echan->ystride;
+		xs = echan->xstride*sizeof(float);
+		ys = -echan->ystride*sizeof(float);
+		
 		frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)rect, 
-							echan->xstride*sizeof(float), echan->ystride*sizeof(float)));
+							xs, ys,			//xStride, yStride
+							1, 1, 0.0,		// xSampling, ySampling, fillValue
+							true, true) );	// xTileCoords, yTileCoords  (use relative tile coords)
 	}
 	
 	data->tofile->setFrameBuffer (frameBuffer);
 
+	x = partx/data->tilex;
+	/* flip tile grid vertically to conform to EXR coordinate system */
+	y = ceil((float)data->height/data->tiley) - (party/data->tiley) - 1;
+
 	try {
-		// printf("write tile %d %d\n", partx/data->tilex, party/data->tiley);
-		data->tofile->writeTile (partx/data->tilex, party/data->tiley, level);
+		data->tofile->writeTile (x, y, level);
 	}
 	catch (const std::exception &exc) {
 		std::cerr << "OpenEXR-writeTile: ERROR: " << exc.what() << std::endl;
@@ -583,9 +608,12 @@ void IMB_exr_write_channels(void *handle)
 	ExrChannel *echan;
 	
 	if(data->channels.first) {
-		for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next)
-			frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)echan->rect, 
-													echan->xstride*sizeof(float), echan->ystride*sizeof(float)));
+		for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next) {
+			float *rect = echan->rect + echan->xstride*(data->height-1)*data->width;
+			
+			frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)rect, 
+									echan->xstride*sizeof(float), -echan->ystride*sizeof(float)));
+		}
 		
 		data->ofile->setFrameBuffer (frameBuffer);
 		try {
@@ -605,12 +633,21 @@ void IMB_exr_read_channels(void *handle)
 	ExrHandle *data= (ExrHandle *)handle;
 	FrameBuffer frameBuffer;
 	ExrChannel *echan;
-	
+
+	/* check if exr was save with previous version of blender which flipped images */
+	const StringAttribute *ta = data->ifile->header().findTypedAttribute <StringAttribute> ("BlenderMultiChannel");
+	short flip = (ta && strncmp(ta->value().c_str(), "Blender V2.43", 13)==0); /* 'Blender V2.43 and newer' is covered too */
+
 	for(echan= (ExrChannel *)data->channels.first; echan; echan= echan->next) {
 		/* no datawindow correction needed */
-		if(echan->rect)
-			frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)echan->rect, 
+		if(echan->rect) {
+			if(flip)
+				frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)echan->rect,
 												echan->xstride*sizeof(float), echan->ystride*sizeof(float)));
+			else
+				frameBuffer.insert (echan->name, Slice (FLOAT,  (char *)(echan->rect + echan->xstride*(data->height-1)*data->width),
+												echan->xstride*sizeof(float), -echan->ystride*sizeof(float)));
+		}
 		else 
 			printf("warning, channel with no rect set %s\n", echan->name);
 	}
@@ -724,35 +761,30 @@ static int imb_exr_split_channel_name(ExrChannel *echan, char *layname, char *pa
 
 static ExrLayer *imb_exr_get_layer(ListBase *lb, char *layname)
 {
-	ExrLayer *lay;
-	
-	for(lay= (ExrLayer *)lb->first; lay; lay= lay->next) {
-		if( strcmp(lay->name, layname)==0 )
-			return lay;
+	ExrLayer *lay= (ExrLayer *)BLI_findstring(lb, layname, offsetof(ExrLayer, name));
+
+	if(lay==NULL) {
+		lay= (ExrLayer *)MEM_callocN(sizeof(ExrLayer), "exr layer");
+		BLI_addtail(lb, lay);
+		BLI_strncpy(lay->name, layname, EXR_LAY_MAXNAME);
 	}
-	lay= (ExrLayer *)MEM_callocN(sizeof(ExrLayer), "exr layer");
-	BLI_addtail(lb, lay);
-	BLI_strncpy(lay->name, layname, EXR_LAY_MAXNAME);
-	
+
 	return lay;
 }
 
 static ExrPass *imb_exr_get_pass(ListBase *lb, char *passname)
 {
-	ExrPass *pass;
+	ExrPass *pass= (ExrPass *)BLI_findstring(lb, passname, offsetof(ExrPass, name));
 	
-	for(pass= (ExrPass *)lb->first; pass; pass= pass->next) {
-		if( strcmp(pass->name, passname)==0 )
-			return pass;
-	}
-	
-	pass= (ExrPass *)MEM_callocN(sizeof(ExrPass), "exr pass");
+	if(pass==NULL) {
+		pass= (ExrPass *)MEM_callocN(sizeof(ExrPass), "exr pass");
 
-	if(strcmp(passname, "Combined")==0)
-		BLI_addhead(lb, pass);
-	else
-		BLI_addtail(lb, pass);
-	
+		if(strcmp(passname, "Combined")==0)
+			BLI_addhead(lb, pass);
+		else
+			BLI_addtail(lb, pass);
+	}
+
 	BLI_strncpy(pass->name, passname, EXR_LAY_MAXNAME);
 	
 	return pass;
@@ -904,14 +936,7 @@ static const char *exr_rgba_channelname(InputFile *file, const char *chan)
 
 static int exr_has_zbuffer(InputFile *file)
 {
-	const ChannelList &channels = file->header().channels();
-	
-	for (ChannelList::ConstIterator i = channels.begin(); i != channels.end(); ++i)
-	{
-		if(strcmp("Z", i.name())==0)
-			return 1;
-	}
-	return 0;
+	return !(file->header().channels().findChannel("Z") == NULL);
 }
 
 static int exr_is_renderresult(InputFile *file)
