@@ -815,7 +815,7 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 			oblay = base->lay;
 		} else {
 			ob_iter= go->ob;
-			oblay = ob_iter->lay;
+			oblay = go->lay;
 		}
 		
 		if (lay & oblay && scene->obedit!=ob_iter) {
@@ -947,7 +947,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 			oblay = base->lay;
 		} else {
 			ob_iter= go->ob;
-			oblay = ob_iter->lay;
+			oblay = go->lay;
 		}
 		
 		if (lay & oblay && scene->obedit!=ob_iter) {
