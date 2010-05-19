@@ -1067,7 +1067,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 						continue;
 
 					state.time = ct;
-					state.use_frames = 1;
+					state.use_frames = (part->draw & PART_ABS_PATH_TIME);
 					psys_get_particle_on_path(&sim,a,&state,1);
 
 					if(psys->parent)
