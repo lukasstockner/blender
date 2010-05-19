@@ -254,6 +254,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
         sub = col.column(align=True)
         sub.prop(cloth, "pin_stiffness", text="Stiffness")
         sub.prop(cloth, "mass")
+        sub.prop(cloth, "structural_stiffness", text="Structural")
         sub.prop(cloth, "bending_stiffness", text="Bending")
         sub.prop(cloth, "internal_friction", slider=True)
         sub.prop(cloth, "collider_friction", slider=True)
