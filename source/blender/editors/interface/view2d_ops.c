@@ -783,6 +783,10 @@ static void view_zoomdrag_apply(bContext *C, wmOperator *op)
 	dx= RNA_float_get(op->ptr, "deltax");
 	dy= RNA_float_get(op->ptr, "deltay");
 	
+	if (v2d->keepzoom & V2D_INVERTZOOM) {
+		dx  = -dx; dy = -dy;
+	}
+
 	/* only move view on an axis if change is allowed */
 	if ((v2d->keepzoom & V2D_LOCKZOOM_X)==0) {
 		if (v2d->keepofs & V2D_LOCKOFS_X) {

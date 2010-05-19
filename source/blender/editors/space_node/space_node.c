@@ -140,7 +140,7 @@ static SpaceLink *node_new(const bContext *C)
 	ar->v2d.maxzoom= 2.31f;
 	
 	ar->v2d.scroll= (V2D_SCROLL_RIGHT|V2D_SCROLL_BOTTOM);
-	ar->v2d.keepzoom= V2D_LIMITZOOM|V2D_KEEPASPECT;
+	ar->v2d.keepzoom= V2D_LIMITZOOM|V2D_KEEPASPECT|V2D_INVERTZOOM;
 	ar->v2d.keeptot= 0;
 	
 	return (SpaceLink *)snode;

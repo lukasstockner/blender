@@ -77,6 +77,8 @@ typedef struct View2D {
 #define V2D_LOCKZOOM_X		0x0100
 	/* zooming on y-axis is not allowed */
 #define V2D_LOCKZOOM_Y		0x0200
+	/* invert zoom handling */
+#define V2D_INVERTZOOM		0x0400
 
 /* view panning restrictions, per axis (v2d->keepofs) */
 	/* panning on x-axis is not allowed */
