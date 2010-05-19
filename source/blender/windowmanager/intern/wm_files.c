@@ -504,7 +504,7 @@ int WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports)
 		return -1;
 	}
  
-	/* XX: implement the OnSave event */
+	/* send the OnSave event */
 	for (li= G.main->library.first; li; li= li->id.next) {
 		if (BLI_streq(li->name, target)) {
 			BKE_report(reports, RPT_ERROR, "Cannot overwrite used library");

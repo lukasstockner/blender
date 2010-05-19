@@ -2121,7 +2121,6 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 	for(node= ntree->nodes.first; node; node= node->next) {
 		node->preview= newimaadr(fd, node->preview);
 		node->lasty= 0;
-		node->new_node = NULL;
 		for(sock= node->inputs.first; sock; sock= sock->next)
 			sock->link= newdataadr(fd, sock->link);
 		for(sock= node->outputs.first; sock; sock= sock->next)
