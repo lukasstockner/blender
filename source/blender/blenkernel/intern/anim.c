@@ -645,7 +645,7 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, i
 				mul_m4_m4m4(mat, go->ob->obmat, ob->obmat);
 			}
 			
-			dob= new_dupli_object(lb, go->ob, mat, ob->lay, 0, OB_DUPLIGROUP, animated);
+			dob= new_dupli_object(lb, go->ob, mat, go->ob->lay, 0, OB_DUPLIGROUP, animated);
 
 			/* check the group instance and object layers match, also that the object visible flags are ok. */
 			if(	(dob->origlay & group->layer)==0 ||
@@ -664,6 +664,10 @@ static void group_duplilist(ListBase *lb, Scene *scene, Object *ob, int level, i
 				copy_m4_m4(dob->ob->obmat, dob->omat);
 			}
 		}
+	}
+
+	for (go=group->gobject.first; go; go=go->next) {
+		go->ob->lay = ob->lay;
 	}
 }
 
@@ -815,7 +819,7 @@ static void vertex_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, fl
 			oblay = base->lay;
 		} else {
 			ob_iter= go->ob;
-			oblay = go->lay;
+			oblay = group->layer;
 		}
 		
 		if (lay & oblay && scene->obedit!=ob_iter) {
@@ -947,7 +951,7 @@ static void face_duplilist(ListBase *lb, ID *id, Scene *scene, Object *par, floa
 			oblay = base->lay;
 		} else {
 			ob_iter= go->ob;
-			oblay = go->lay;
+			oblay = group->layer;
 		}
 		
 		if (lay & oblay && scene->obedit!=ob_iter) {

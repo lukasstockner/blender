@@ -5399,7 +5399,6 @@ static void lib_link_group(FileData *fd, Main *main)
 					add_us= 1;
 					if(go->ob->id.us==0) 
 						go->ob->id.us= 1;
-					go->lay = go->ob->lay;
 				}
 				go= go->next;
 			}

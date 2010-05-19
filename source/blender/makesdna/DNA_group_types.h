@@ -41,7 +41,7 @@ typedef struct GroupObject {
 	struct Object *ob;
 	void *lampren;		/* used while render */
 	int recalc;			/* copy of ob->recalc, used to set animated groups OK */
-	int lay;			/* original scene layer */
+	int pad1;
 } GroupObject;
 
 
