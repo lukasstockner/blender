@@ -77,13 +77,15 @@ typedef struct Material {
 	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
 	
 	short material_type, flag;	
-	/* note, keep this below synced with render_types.h */
+	
+	/* note, keep this below synced with RE_shader_ext.h */
 	float r, g, b;
 	float specr, specg, specb;
-	float mirr, mirg, mirb, pad;
+	float mirr, mirg, mirb;
 	float amb, emit, ang, spectra, ray_mirror;
 	float alpha, ref, spec, zoffs, add;
 	float translucency;
+	int index; /*for material index pass*/
 	/* end synced with render_types.h */
 	
 	struct VolumeSettings vol;

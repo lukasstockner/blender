@@ -65,6 +65,7 @@ typedef struct ShadeResult
 	float rayhits[4];
 	float uv[3];
 	float indexob;
+	float indexma;
 
 	/* not real passes */
 	float sss[4];
@@ -120,13 +121,15 @@ typedef struct ShadeMaterial {
 
 	/* copy from material, keep synced so we can do memcopy */
 	/* current size: 21*sizeof(float) */
+
+	/* note, keep this below synced with render_types.h */
 	float r, g, b;
 	float specr, specg, specb;
-	float mirr, mirg, mirb, pad;
-	
+	float mirr, mirg, mirb;
 	float amb, emit, ang, spectra, ray_mirror;
 	float alpha, refl, spec, zoffs, add;
 	float translucency;
+	int index; /*for material index pass*/
 	/* end direct copy from material */
 	
 	/* individual copies: */

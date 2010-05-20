@@ -134,6 +134,9 @@ int shade_result_accumulate(ShadeResult *samp_shr, ShadeSample *ssamp, int tot, 
 						if(passflag & SCE_PASS_INDEXOB)
 							samp_shr->indexob= shr->indexob;
 
+						if(passflag & SCE_PASS_INDEXMA)
+							samp_shr->indexma= shr->indexma;
+
 						if(passflag & SCE_PASS_UV)
 							copy_v3_v3(samp_shr->uv, shr->uv);
 					}
@@ -280,7 +283,8 @@ static void shade_result_merge(ShadeResult *shr, RenderLayer *rl, int tot)
 				col= shr->uv;
 				break;
 			case SCE_PASS_INDEXOB:
-				/* indexob provided by first sample in pixel,
+			case SCE_PASS_INDEXMA:
+				/* indexob/ma provided by first sample in pixel,
 				   automatically set to this so nothing to do */
 				break;
 			case SCE_PASS_VECTOR: {
@@ -390,6 +394,12 @@ static void shade_result_to_layer(Render *re, RenderLayer *rl, int offset, int m
 				/* obindex provided by first sample in pixel */
 				if(*fp == 0.0f)
 					*fp= shr->indexob;
+				break;
+			case SCE_PASS_INDEXMA:
+				fp= rpass->rect + offset;
+				/* obindex provided by first sample in pixel */
+				if(*fp == 0.0f)
+					*fp= shr->indexma;
 				break;
 			case SCE_PASS_VECTOR:
 				if(mask) {
@@ -694,6 +704,10 @@ static char *get_pass_name(int passtype, int channel)
 		if(channel==-1) return "IndexOB";
 		return "IndexOB.X";
 	}
+	if(passtype == SCE_PASS_INDEXMA) {
+		if(channel==-1) return "IndexMA";
+		return "IndexMA.X";
+	}
 	if(passtype == SCE_PASS_MIST) {
 		if(channel==-1) return "Mist";
 		return "Mist.Z";
@@ -758,6 +772,9 @@ static int passtype_from_name(char *str)
 
 	if(strcmp(str, "IndexOB")==0)
 		return SCE_PASS_INDEXOB;
+
+	if(strcmp(str, "IndexOB")==0)
+		return SCE_PASS_INDEXMA;
 
 	if(strcmp(str, "Mist")==0)
 		return SCE_PASS_MIST;
@@ -934,7 +951,9 @@ RenderResult *render_result_create(Render *re, rcti *partrct, int crop, int save
 			render_layer_add_pass(rr, rl, 1, SCE_PASS_MIST);
 		if(rl->passflag & SCE_PASS_RAYHITS)
 			render_layer_add_pass(rr, rl, 4, SCE_PASS_RAYHITS);
-		
+		if(srl->passflag  & SCE_PASS_INDEXMA)
+			render_layer_add_pass(rr, rl, 1, SCE_PASS_INDEXMA);
+
 	}
 	/* sss, previewrender and envmap don't do layers, so we make a default one */
 	if(rr->layers.first==NULL) {

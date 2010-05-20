@@ -1385,10 +1385,11 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 	}
 	
 	/* vector, normal, indexob pass */
-	if(shi->shading.passflag & (SCE_PASS_VECTOR|SCE_PASS_NORMAL|SCE_PASS_INDEXOB)) {
+	if(shi->shading.passflag & (SCE_PASS_VECTOR|SCE_PASS_NORMAL|SCE_PASS_INDEXOB|SCE_PASS_INDEXMA)) {
 		copy_v4_v4(shr->winspeed, shi->texture.winspeed);
 		copy_v3_v3(shr->nor, shi->geometry.vn);
-		shr->indexob= shi->primitive.obr->ob->index;
+		shr->indexob= shi->primitive.obi->index;
+		shr->indexma= shi->material.index;
 	}
 
 	/* uv pass */

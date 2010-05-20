@@ -141,6 +141,7 @@ class RENDER_PT_layers(RenderButtonsPanel):
         col.prop(rl, "pass_uv")
         col.prop(rl, "pass_mist")
         col.prop(rl, "pass_object_index")
+        col.prop(rl, "pass_material_index")
         col.prop(rl, "pass_color")
 
         if wide_ui:

@@ -51,6 +51,7 @@ static bNodeSocketType cmp_node_rlayers_out[]= {
 	{	SOCK_VALUE, 0, "Mist",		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, "Emit",		0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, "Environment",0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_VALUE, 0, "IndexMA",	0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	-1, 0, ""	}
 };
 
@@ -187,7 +188,9 @@ void outputs_multilayer_get(RenderData *rd, RenderLayer *rl, bNodeStack **out, I
 	if(out[RRES_OUT_EMIT]->hasoutput)
 		out[RRES_OUT_EMIT]->data= compbuf_multilayer_get(rd, rl, ima, iuser, SCE_PASS_EMIT);
 	if(out[RRES_OUT_ENV]->hasoutput)
-		out[RRES_OUT_ENV]->data= compbuf_multilayer_get(rd, rl, ima, iuser, SCE_PASS_ENVIRONMENT);
+		out[RRES_OUT_ENV]->data= compbuf_multilayer_get(rd, rl, ima, iuser, SCE_PASS_INDEXMA);
+	if(out[RRES_OUT_INDEXMA]->hasoutput)
+		out[RRES_OUT_INDEXMA]->data= compbuf_multilayer_get(rd, rl, ima, iuser, SCE_PASS_INDEXMA);
 };
 
 
@@ -299,7 +302,7 @@ static CompBuf *compbuf_from_pass(RenderData *rd, RenderLayer *rl, int rectx, in
 	  CompBuf *buf;
 	  int buftype= CB_VEC3;
 
-	  if(ELEM3(passcode, SCE_PASS_Z, SCE_PASS_INDEXOB, SCE_PASS_MIST))
+	  if(ELEM4(passcode, SCE_PASS_Z, SCE_PASS_INDEXOB, SCE_PASS_INDEXMA, SCE_PASS_MIST))
 		 buftype= CB_VAL;
 	  else if(passcode==SCE_PASS_VECTOR)
 		 buftype= CB_VEC4;
@@ -352,6 +355,8 @@ void node_composit_rlayers_out(RenderData *rd, RenderLayer *rl, bNodeStack **out
 	   out[RRES_OUT_EMIT]->data= compbuf_from_pass(rd, rl, rectx, recty, SCE_PASS_EMIT);
    if(out[RRES_OUT_ENV]->hasoutput)
 	   out[RRES_OUT_ENV]->data= compbuf_from_pass(rd, rl, rectx, recty, SCE_PASS_ENVIRONMENT);
+   if(out[RRES_OUT_INDEXMA]->hasoutput)
+	   out[RRES_OUT_INDEXMA]->data= compbuf_from_pass(rd, rl, rectx, recty, SCE_PASS_INDEXMA);
 };
 
 static void node_composit_exec_rlayers(void *data, bNode *node, bNodeStack **in, bNodeStack **out)

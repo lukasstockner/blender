@@ -1765,6 +1765,11 @@ void RNA_def_material(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Textures", "Enable/Disable each texture");
 	RNA_def_property_update(prop, 0, "rna_Material_update");
 
+	prop= RNA_def_property(srna, "pass_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "index");
+	RNA_def_property_ui_text(prop, "Pass Index", "Index # for the IndexMA render pass");
+	RNA_def_property_update(prop, NC_MATERIAL, NULL);
+
 	rna_def_material_colors(srna);
 	rna_def_material_diffuse(srna);
 	rna_def_material_specularity(srna);

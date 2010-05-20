@@ -277,19 +277,10 @@ class MATERIAL_PT_options(MaterialButtonsPanel):
         col.prop(mat, "use_sky")
         col.prop(mat, "exclude_mist")
         col.prop(mat, "invert_z")
-        sub = col.row()
-        sub.prop(mat, "z_offset")
-        sub.active = mat.transparency and mat.transparency_method == 'Z_TRANSPARENCY'
-        sub = col.column(align=True)
-        sub.label(text="Light Group:")
-        sub.prop(mat, "light_group", text="")
-        row = sub.row()
-        row.active = bool(mat.light_group)
-        row.prop(mat, "light_group_exclusive", text="Exclusive")
-        row.prop(mat, "light_group_local", text="Local")
 
         if wide_ui:
             col = split.column()
+            
         col.prop(mat, "face_texture")
         sub = col.column()
         sub.active = mat.face_texture
@@ -298,6 +289,29 @@ class MATERIAL_PT_options(MaterialButtonsPanel):
         col.prop(mat, "vertex_color_paint")
         col.prop(mat, "vertex_color_light")
         col.prop(mat, "object_color")
+
+        if wide_ui:
+            sub = layout.row()
+        else:
+            sub = layout
+        
+        col = sub.column()
+        
+        subcol = col.column()
+        subcol.prop(mat, "z_offset")
+        subcol.active = mat.transparency and mat.transparency_method == 'Z_TRANSPARENCY'
+        
+        col.prop(mat, "pass_index")
+
+        col = sub.column(align=True)
+        col.label(text="Light Group:")
+        col.prop(mat, "light_group", text="")
+        
+        col = col.column(align=True)
+        col.active = bool(mat.light_group)
+        col.prop(mat, "light_group_exclusive", text="Exclusive")
+        col.prop(mat, "light_group_local", text="Local")
+        
 
 
 class MATERIAL_PT_shadow(MaterialButtonsPanel):

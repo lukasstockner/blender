@@ -2829,7 +2829,9 @@ static void force_hidden_passes(bNode *node, int passflag)
 	if(!(passflag & SCE_PASS_EMIT)) sock->flag |= SOCK_UNAVAIL;
 	sock= BLI_findlink(&node->outputs, RRES_OUT_ENV);
 	if(!(passflag & SCE_PASS_ENVIRONMENT)) sock->flag |= SOCK_UNAVAIL;
-	
+	sock= BLI_findlink(&node->outputs, RRES_OUT_INDEXMA);
+	if(!(passflag & SCE_PASS_INDEXMA)) sock->flag |= SOCK_UNAVAIL;
+
 }
 
 /* based on rules, force sockets hidden always */

@@ -391,7 +391,9 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 	ParticleSystem *psys;
 	int show_emitter, allow_render= 1, index, psysindex, i;
 
-	index= (dob)? dob->index: 0;
+	if (dob)
+		index = par->index ? par->index : dob->index;
+	else index = ob->index;
 
 	/* the emitter has to be processed first (render levels of modifiers) */
 	/* so here we only check if the emitter should be rendered */
