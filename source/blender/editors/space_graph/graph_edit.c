@@ -79,12 +79,16 @@
 
 /* Get the min/max keyframes*/
 /* note: it should return total boundbox, filter for selection only can be argument... */
-void get_graph_keyframe_extents (bAnimContext *ac, float *xmin, float *xmax, float *ymin, float *ymax)
+void get_graph_keyframe_extents (bAnimContext *ac, float *xmin, float *xmax, float *ymin, float *ymax, int frame_clip)
 {
+	Scene *scene = ac->scene;
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
-	int filter;
-	
+	int filter, efra, sfra;
+
+	sfra = PSFRA;
+	efra = PEFRA;
+
 	/* get data to filter, from Dopesheet */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_CURVEVISIBLE | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
@@ -113,11 +117,18 @@ void get_graph_keyframe_extents (bAnimContext *ac, float *xmin, float *xmax, flo
 				txmax= BKE_nla_tweakedit_remap(adt, txmax, NLATIME_CONVERT_MAP);
 			}
 			
+			if (frame_clip) {
+				if (txmin < sfra)
+					txmin = sfra;
+				if (txmax > efra)
+					txmax = efra;
+			}
+
 			/* apply unit corrections */
 			unitFac= ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, 0);
 			tymin *= unitFac;
 			tymax *= unitFac;
-			
+
 			/* try to set cur using these values, if they're more extreme than previously set values */
 			if ((xmin) && (txmin < *xmin)) 		*xmin= txmin;
 			if ((xmax) && (txmax > *xmax)) 		*xmax= txmax;
@@ -161,7 +172,7 @@ static int graphkeys_previewrange_exec(bContext *C, wmOperator *op)
 		scene= ac.scene;
 	
 	/* set the range directly */
-	get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL);
+	get_graph_keyframe_extents(&ac, &min, &max, NULL, NULL, 0);
 	scene->r.flag |= SCER_PRV_RANGE;
 	scene->r.psfra= (int)floor(min + 0.5f);
 	scene->r.pefra= (int)floor(max + 0.5f);
@@ -201,7 +212,7 @@ static int graphkeys_viewall_exec(bContext *C, wmOperator *op)
 	v2d= &ac.ar->v2d;
 	
 	/* set the horizontal range, with an extra offset so that the extreme keys will be in view */
-	get_graph_keyframe_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, &v2d->cur.ymin, &v2d->cur.ymax);
+	get_graph_keyframe_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, &v2d->cur.ymin, &v2d->cur.ymax, 1);
 	
 	extra= 0.1f * (v2d->cur.xmax - v2d->cur.xmin);
 	v2d->cur.xmin -= extra;

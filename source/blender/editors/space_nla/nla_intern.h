@@ -113,7 +113,7 @@ void NLA_OT_snap(wmOperatorType *ot);
 void NLA_OT_fmodifier_add(wmOperatorType *ot);
 void NLA_OT_fmodifier_copy(wmOperatorType *ot);
 void NLA_OT_fmodifier_paste(wmOperatorType *ot);
-
+void NLA_OT_view_all(wmOperatorType *ot);
 
 /* **************************************** */
 /* nla_channels.c */

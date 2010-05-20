@@ -719,7 +719,7 @@ void UI_view2d_sync(bScreen *screen, ScrArea *area, View2D *v2dcur, int flag)
 	ARegion *ar;
 	
 	/* don't continue if no view syncing to be done */
-	if ((v2dcur->flag & (V2D_VIEWSYNC_SCREEN_TIME|V2D_VIEWSYNC_AREA_VERTICAL)) == 0)
+	if (0==(v2dcur->flag & (V2D_VIEWSYNC_SCREEN_TIME|V2D_VIEWSYNC_AREA_VERTICAL)))
 		return;
 		
 	/* check if doing within area syncing (i.e. channels/vertical) */

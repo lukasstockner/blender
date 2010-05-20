@@ -135,7 +135,7 @@ static int time_view_all_exec (bContext *C, wmOperator *op)
 	ARegion *ar= CTX_wm_region(C);
 	View2D *v2d= (ar) ? &ar->v2d : NULL;
 	float extra;
-	
+
 	if ELEM(NULL, scene, ar)
 		return OPERATOR_CANCELLED;
 		

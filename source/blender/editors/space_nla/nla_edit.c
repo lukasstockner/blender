@@ -63,6 +63,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_view2d.h"
 #include "UI_interface.h"
 
 #include "nla_intern.h"	// own include
@@ -1773,6 +1774,162 @@ void NLA_OT_fmodifier_paste (wmOperatorType *ot)
 	ot->exec= nla_fmodifier_paste_exec;
 	ot->poll= nlaop_poll_tweakmode_off;
 	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+/* ************************ View All Operator *******************************/
+
+
+/* Get the min/max keyframes*/
+/* note: it should return total boundbox, filter for selection only can be argument... */
+void get_nla_keyframe_extents (bAnimContext *ac, float *xmin, float *xmax, float *ymin, float *ymax, int frame_clip)
+{
+	Scene *scene = ac->scene;
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale;
+	int filter, notfound=1, efra, sfra, items;
+	float y;
+
+	sfra = PSFRA;
+	efra = PEFRA;
+
+	/* get data to filter, from Dopesheet */
+	filter= (ANIMFILTER_VISIBLE|ANIMFILTER_CHANNELS);
+	items = ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+
+	/* set large values to try to override */
+	if (xmin) *xmin= 999999999.0f;
+	if (xmax) *xmax= -999999999.0f;
+	if (ymin) *ymin= 999999999.0f;
+	if (ymax) *ymax= -999999999.0f;
+
+	y= -NLACHANNEL_HEIGHT;
+
+	/* check if any channels to set range with */
+	if (anim_data.first) {
+		/* go through channels, finding max extents */
+		for (ale= anim_data.first; ale; ale= ale->next, y-=NLACHANNEL_STEP) {
+			AnimData *adt= ANIM_nla_mapping_get(ac, ale);
+			FCurve *fcu= (FCurve *)ale->key_data;
+			float txmin=9999999, txmax=-9999999, tymin=9999999, tymax=-9999999;
+
+			/*get range*/
+			switch (ale->type) {
+				case ANIMTYPE_NLATRACK: {
+					NlaTrack *nlt= (NlaTrack*)ale->data;
+					NlaStrip *strip;
+
+					for (strip=nlt->strips.first; strip; strip=strip->next) {
+						if (!(strip->flag & NLASTRIP_FLAG_SELECT))
+							continue;
+
+						txmin = MIN2(strip->start, txmin);
+						txmax = MAX2(strip->end, txmax);
+						notfound = 0;
+					}
+
+					break;
+				}
+
+				case ANIMTYPE_NLAACTION:
+					if (ale->data && (ale->flag & ANIMFILTER_SEL)) {
+						bAction *act= ale->data;
+						float start, end;
+
+						if (act) {
+							calc_action_range(act, &start, &end, 0);
+							txmin = MIN2(start, txmin);
+							txmax = MAX2(end, txmax);
+							notfound = 0;
+						}
+					}
+			}
+
+			if (notfound)
+				continue;
+
+			tymin= MIN2(tymin, y - NLACHANNEL_HEIGHT_HALF);
+			tymax= MAX2(tymax, y + NLACHANNEL_HEIGHT_HALF);
+
+			if (frame_clip) {
+				txmin = MAX2(txmin, sfra);
+				txmax = MIN2(txmax, efra);
+			}
+
+			/* try to set cur using these values, if they're more extreme than previously set values */
+			if ((xmin) && (txmin < *xmin)) 		*xmin= txmin;
+			if ((xmax) && (txmax > *xmax)) 		*xmax= txmax;
+			if ((ymin) && (tymin < *ymin)) 		*ymin= tymin;
+			if ((ymax) && (tymax > *ymax)) 		*ymax= tymax;
+		}
+
+		if (notfound) {
+			/* set default range */
+			if (xmin) *xmin= (float)(PSFRA-10);
+			if (ymin) *ymin= (float)(-ac->sa->winy)/3.0f;
+			if (xmax) *xmax= (float)(PEFRA+10);
+			if (ymax) *ymax= 0.0f;
+		}
+
+		/* free memory */
+		BLI_freelistN(&anim_data);
+	}
+	else {
+		/* set default range */
+		if (xmin) *xmin= (float)(PSFRA-10);
+		if (ymin) *ymin= (float)(-ac->sa->winy)/3.0f;
+		if (xmax) *xmax= (float)(PEFRA+10);
+		if (ymax) *ymax= 0.0f;
+	}
+}
+
+static int nla_view_all_exec(bContext *C, wmOperator *op)
+{
+	bAnimContext ac;
+	View2D *v2d;
+	float extra, height;
+
+	/* get editor data */
+	if (ANIM_animdata_get_context(C, &ac) == 0)
+		return OPERATOR_CANCELLED;
+
+	v2d= &ac.ar->v2d;
+
+	height = v2d->cur.ymax - v2d->cur.ymin;
+
+	/* set the horizontal range, with an extra offset so that the extreme keys will be in view */
+	get_nla_keyframe_extents(&ac, &v2d->cur.xmin, &v2d->cur.xmax, &v2d->cur.ymin, &v2d->cur.ymax, 1);
+
+	extra= 0.02f * (v2d->cur.xmax - v2d->cur.xmin);
+	v2d->cur.xmin -= extra;
+	v2d->cur.xmax += extra;
+
+	v2d->cur.ymin = v2d->cur.ymax - height;
+
+	v2d->cur.ymax += NLACHANNEL_HEIGHT;
+	v2d->cur.ymin += NLACHANNEL_HEIGHT;
+
+	/* do View2D syncing */
+	UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+
+	/* set notifier that things have changed */
+	ED_area_tag_redraw(CTX_wm_area(C));
+
+	return OPERATOR_FINISHED;
+}
+
+void NLA_OT_view_all (wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "View All";
+	ot->idname= "NLA_OT_view_all";
+	ot->description= "Show all NLA strips";
+
+	/* api callbacks */
+	ot->exec= nla_view_all_exec;
+	ot->poll= ED_operator_nla_active;
+
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }

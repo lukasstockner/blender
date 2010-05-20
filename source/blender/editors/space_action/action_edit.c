@@ -128,10 +128,14 @@ void ACTION_OT_new (wmOperatorType *ot)
 /* Get the min/max keyframes*/
 static void get_keyframe_extents (bAnimContext *ac, float *min, float *max)
 {
+	Scene *scene = ac->scene;
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
-	int filter;
-	
+	int filter, sfra, efra;
+
+	sfra = PSFRA;
+	efra = PEFRA;
+
 	/* get data to filter, from Action or Dopesheet */
 	filter= (ANIMFILTER_VISIBLE | ANIMFILTER_SEL | ANIMFILTER_CURVESONLY | ANIMFILTER_NODUPLIS);
 	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
@@ -157,8 +161,8 @@ static void get_keyframe_extents (bAnimContext *ac, float *min, float *max)
 			}
 			
 			/* try to set cur using these values, if they're more extreme than previously set values */
-			*min= MIN2(*min, tmin);
-			*max= MAX2(*max, tmax);
+			*min= MAX2(MIN2(*min, tmin), sfra);
+			*max= MIN2(MAX2(*max, tmax), efra);
 		}
 		
 		/* free memory */

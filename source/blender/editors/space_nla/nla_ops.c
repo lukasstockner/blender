@@ -156,6 +156,8 @@ void nla_operatortypes(void)
 	WM_operatortype_append(NLA_OT_fmodifier_add);
 	WM_operatortype_append(NLA_OT_fmodifier_copy);
 	WM_operatortype_append(NLA_OT_fmodifier_paste);
+
+	WM_operatortype_append(NLA_OT_view_all);
 }
 
 /* ************************** registration - keymaps **********************************/
@@ -273,6 +275,9 @@ static void nla_keymap_main (wmKeyConfig *keyconf, wmKeyMap *keymap)
 	
 	/* transform system */
 	transform_keymap_for_space(keyconf, keymap, SPACE_NLA);
+
+	/* homekey/view all */
+	WM_keymap_add_item(keymap, "NLA_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
 }
 
 /* --------------- */
