@@ -108,8 +108,10 @@ EnumPropertyItem image_type_items[] = {
 	{R_OPENEXR, "OPEN_EXR", ICON_FILE_IMAGE, "OpenEXR", ""},
 	{R_MULTILAYER, "MULTILAYER", ICON_FILE_IMAGE, "MultiLayer", ""},
 #endif
-	{R_TIFF, "TIFF", ICON_FILE_IMAGE, "TIFF", ""},	// XXX only with G.have_libtiff
 	{R_RADHDR, "HDR", ICON_FILE_IMAGE, "Radiance HDR", ""},
+#ifdef WITH_TIFF
+	{R_TIFF, "TIFF", ICON_FILE_IMAGE, "TIFF", ""},
+#endif
 	{R_CINEON, "CINEON", ICON_FILE_IMAGE, "Cineon", ""},
 	{R_DPX, "DPX", ICON_FILE_IMAGE, "DPX", ""},
 	{0, "", 0, "Movie", NULL},
