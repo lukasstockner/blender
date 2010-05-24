@@ -1024,20 +1024,22 @@ static void drawlamp(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 			
 		/* Outer circle */
 		circrad = 3.0f*lampsize;
-		drawcircball(GL_LINE_LOOP, vec, circrad, imat);
-	}
-	else
-		circrad = 0.0f;
-	
-	setlinestyle(3);
+		setlinestyle(3);
 
-	/* draw dashed outer circle if shadow is on. remember some lamps can't have certain shadows! */
-	if (la->type!=LA_HEMI) {
-		if ((la->mode & LA_SHAD_RAY) ||
-			((la->mode & LA_SHAD_BUF) && (la->type==LA_SPOT)) )
-		{
-			drawcircball(GL_LINE_LOOP, vec, circrad + 3.0f*pixsize, imat);
+		drawcircball(GL_LINE_LOOP, vec, circrad, imat);
+
+		/* draw dashed outer circle if shadow is on. remember some lamps can't have certain shadows! */
+		if(la->type!=LA_HEMI) {
+			if(	(la->mode & LA_SHAD_RAY) ||
+				((la->mode & LA_SHAD_BUF) && (la->type==LA_SPOT))
+			) {
+				drawcircball(GL_LINE_LOOP, vec, circrad + 3.0f*pixsize, imat);
+			}
 		}
+	}
+	else {
+		setlinestyle(3);
+		circrad = 0.0f;
 	}
 	
 	/* draw the pretty sun rays */
@@ -2559,7 +2561,8 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else
 				UI_ThemeColor(TH_WIRE);
 
-			dm->drawLooseEdges(dm);
+			if((v3d->flag2 & V3D_RENDER_OVERRIDE)==0)
+				dm->drawLooseEdges(dm);
 		}
 	}
 	else if(dt==OB_SOLID) {
@@ -2626,7 +2629,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			} else {
 				UI_ThemeColor(TH_WIRE);
 			}
-			if(!ob->sculpt)
+			if(!ob->sculpt && (v3d->flag2 & V3D_RENDER_OVERRIDE)==0)
 				dm->drawLooseEdges(dm);
 		}
 	}
@@ -2693,7 +2696,8 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			} else {
 				UI_ThemeColor(TH_WIRE);
 			}
-			dm->drawLooseEdges(dm);
+			if((v3d->flag2 & V3D_RENDER_OVERRIDE)==0)
+				dm->drawLooseEdges(dm);
 		}
 	}
 	
