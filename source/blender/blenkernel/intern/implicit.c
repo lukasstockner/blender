@@ -39,7 +39,6 @@
 
 #include "BLI_threads.h"
 
-//#define CLOTH_GOAL_ORIGINAL
 #define CLOTH_OPENMP_LIMIT 25
 
 #ifdef _WIN32
@@ -2140,7 +2139,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			
 			// update verts to current positions
 			for(i = 0; i < numverts; i++)
-			{	
+			{
 				VECCOPY(verts[i].txold, verts[i].tx);
 				VECCOPY(verts[i].tx, id->Xnew[i]);
 
@@ -2175,7 +2174,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);
-			
+
 			// if there were collisions, advance the velocity from v_n+1/2 to v_n+1
 			// also used now for filtering goal and rigid body damping changes now
 			

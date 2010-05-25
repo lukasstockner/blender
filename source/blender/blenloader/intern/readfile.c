@@ -10969,8 +10969,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
+		Object *ob;
 		bScreen *sc;
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
@@ -10992,6 +10994,38 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 
 		do_version_mdef_250(fd, lib, main);
+
+		/* parent type to modifier */
+		for(ob = main->object.first; ob; ob = ob->id.next) {
+			if(ob->parent) {
+				Object *parent= newlibadr(fd, lib, ob->parent);
+				if(parent->type==OB_ARMATURE && ob->partype==PARSKEL) {
+					ArmatureModifierData *amd;
+
+					amd = (ArmatureModifierData*) modifier_new(eModifierType_Armature);
+					amd->object = ob->parent;
+					BLI_addtail((ListBase*)&ob->modifiers, amd);
+					amd->deformflag= ((bArmature *)(parent->data))->deformflag;
+					ob->partype = PAROBJECT;
+				}
+				else if(parent->type==OB_LATTICE && ob->partype==PARSKEL) {
+					LatticeModifierData *lmd;
+
+					lmd = (LatticeModifierData*) modifier_new(eModifierType_Lattice);
+					lmd->object = ob->parent;
+					BLI_addtail((ListBase*)&ob->modifiers, lmd);
+					ob->partype = PAROBJECT;
+				}
+				else if(parent->type==OB_CURVE && ob->partype==PARCURVE) {
+					CurveModifierData *cmd;
+
+					cmd = (CurveModifierData*) modifier_new(eModifierType_Curve);
+					cmd->object = ob->parent;
+					BLI_addtail((ListBase*)&ob->modifiers, cmd);
+					ob->partype = PAROBJECT;
+				}
+			}
+		}
 	}
 
 	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10))
