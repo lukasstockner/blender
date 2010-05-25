@@ -739,17 +739,17 @@ static int sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
 static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float val[3])
 {
-	int i;
+    int i;
 
-	for(i=0; i<3; ++i) {
-		if(sd->flags & (SCULPT_LOCK_X << i))
-			continue;
+    for(i=0; i<3; ++i) {
+        if(sd->flags & (SCULPT_LOCK_X << i))
+            continue;
 
-		if((ss->cache->flag & (CLIP_X << i)) && (fabs(co[i]) <= ss->cache->clip_tolerance[i]))
-			co[i]= 0.0f;
-		else
-			co[i]= val[i];
-	}		
+        if((ss->cache->flag & (CLIP_X << i)) && (fabs(co[i]) <= ss->cache->clip_tolerance[i]))
+            co[i]= 0.0f;
+        else
+            co[i]= val[i];
+    }		
 }
 
 static void add_norm_if(float view_vec[3], float out[3], float out_flip[3], float fno[3])
@@ -1366,7 +1366,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
     calc_flatten_center(sd, ss, nodes, totnode, center);
 
     mul_v3_v3v3(temp, area_normal, ss->cache->scale);
-    mul_v3_v3fl(temp, ss->cache->scale, ss->cache->radius * bstrength);
+    mul_v3_fl(temp, ss->cache->radius * bstrength);
     add_v3_v3(center, temp);
 
     flip = bstrength < 0;
