@@ -119,5 +119,14 @@ struct ListBase *undo_paint_push_get_list(int type);
 void undo_paint_push_count_alloc(int type, int size);
 void undo_paint_push_end(int type);
 
+/* paint_mask.c */
+/* For now this is just temporary stuff to test masking */
+typedef enum {
+	MASKING_CLEAR,
+	MASKING_FULL,
+	MASKING_RANDOM,
+} MaskSetMode;
+void PAINT_OT_mask_set(struct wmOperatorType *ot);
+
 #endif /* ED_PAINT_INTERN_H */
 

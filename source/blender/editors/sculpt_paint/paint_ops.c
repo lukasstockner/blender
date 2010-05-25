@@ -139,6 +139,9 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_face_select_linked);
 	WM_operatortype_append(PAINT_OT_face_select_linked_pick);
 	WM_operatortype_append(PAINT_OT_face_select_all);
+
+	/* mask */
+	WM_operatortype_append(PAINT_OT_mask_set);
 }
 
 static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)

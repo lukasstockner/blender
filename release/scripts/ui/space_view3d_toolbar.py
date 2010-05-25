@@ -486,6 +486,25 @@ class PaintPanel(bpy.types.Panel):
         return False
 
 
+class VIEW3D_PT_tools_masking(PaintPanel):
+    bl_label = "Masking"
+    bl_default_closed = False
+
+    def poll(self, context):
+        settings = self.paint_settings(context)
+        return (settings)
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = self.paint_settings(context)
+
+        row = layout.row(align=True)
+        row.operator("paint.mask_set", text="Clear").mode = 'CLEAR'
+        row.operator("paint.mask_set", text="Full").mode = 'FULL'
+        row.operator("paint.mask_set", text="Random").mode = 'RANDOM'
+
+
 class VIEW3D_PT_tools_brush(PaintPanel):
     bl_label = "Brush"
 
@@ -1044,6 +1063,7 @@ classes = [
     VIEW3D_PT_tools_latticeedit,
     VIEW3D_PT_tools_posemode,
     VIEW3D_PT_tools_posemode_options,
+    VIEW3D_PT_tools_masking,
     VIEW3D_PT_tools_brush,
     VIEW3D_PT_tools_brush_texture,
     VIEW3D_PT_tools_brush_tool,
