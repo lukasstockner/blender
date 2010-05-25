@@ -89,14 +89,17 @@ typedef struct Brush {
 #define BRUSH_LOCK_ALPHA		16384
 
 /* Brush.sculpt_tool */
-#define SCULPT_TOOL_DRAW    1
-#define SCULPT_TOOL_SMOOTH  2
-#define SCULPT_TOOL_PINCH   3
-#define SCULPT_TOOL_INFLATE 4
-#define SCULPT_TOOL_GRAB    5
-#define SCULPT_TOOL_LAYER   6
-#define SCULPT_TOOL_FLATTEN 7
-#define SCULPT_TOOL_CLAY    8
+#define SCULPT_TOOL_DRAW      1
+#define SCULPT_TOOL_SMOOTH    2
+#define SCULPT_TOOL_PINCH     3
+#define SCULPT_TOOL_INFLATE   4
+#define SCULPT_TOOL_GRAB      5
+#define SCULPT_TOOL_LAYER     6
+#define SCULPT_TOOL_FLATTEN   7
+#define SCULPT_TOOL_CLAY      8
+#define SCULPT_TOOL_FILL      9
+#define SCULPT_TOOL_SCRAPE   10
+#define SCULPT_TOOL_CONTRAST 11
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0
