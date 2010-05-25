@@ -559,6 +559,9 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	case SCULPT_TOOL_CLAY:
 	case SCULPT_TOOL_FLATTEN:
 	case SCULPT_TOOL_LAYER:
+        case SCULPT_TOOL_FILL:
+        case SCULPT_TOOL_SCRAPE:
+        case SCULPT_TOOL_CONTRAST:
 		return alpha * dir * pressure * flip; /*XXX: not sure why? was multiplied by G.vd->grid */;
 	case SCULPT_TOOL_SMOOTH:
 		return alpha * 4 * pressure;
@@ -1380,7 +1383,149 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
         BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
             if (sculpt_brush_test(&test, vd.co)) {
-                if (plane_point_side(vd.co, area_normal, limit, flip)) {
+                if (plane_point_side(vd.co, area_normal, center, flip)) {
+                    float intr[3];
+                    float val[3];
+
+                    const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
+
+                    point_plane_project(intr, vd.co, area_normal, center);
+                    sub_v3_v3v3(val, intr, vd.co);
+                    mul_v3_fl(val, fade);
+                    add_v3_v3(val, vd.co);
+
+                    sculpt_clip(sd, ss, vd.co, val);
+
+                    if (vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+                }
+            }
+        }
+        BLI_pbvh_vertex_iter_end;
+
+        BLI_pbvh_node_mark_update(nodes[n]);
+    }
+}
+
+static void do_contrast_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+    Brush *brush = paint_brush(&sd->paint);
+
+    float bstrength = ss->cache->bstrength;
+
+    float area_normal[3];
+    float center[3];
+
+    int n;
+
+    calc_area_normal(sd, ss, area_normal, nodes, totnode);
+
+    calc_flatten_center(sd, ss, nodes, totnode, center);
+
+    for(n = 0; n < totnode; n++) {
+        PBVHVertexIter  vd;
+        SculptBrushTest test;
+
+        sculpt_undo_push_node(ss, nodes[n]);
+
+        sculpt_brush_test_init(ss, &test);
+
+        BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+            if(sculpt_brush_test(&test, vd.co)) {
+                float intr[3];
+                float val[3];
+
+                const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
+
+                point_plane_project(intr, vd.co, area_normal, center);
+                sub_v3_v3v3(val, intr, vd.co);
+                mul_v3_fl(val, -fade);
+                add_v3_v3(val, vd.co);
+
+                sculpt_clip(sd, ss, vd.co, val);
+
+                if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+            }
+        }
+        BLI_pbvh_vertex_iter_end;
+
+        BLI_pbvh_node_mark_update(nodes[n]);
+    }
+}
+
+static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+    Brush *brush = paint_brush(&sd->paint);
+
+    float bstrength = ss->cache->bstrength;
+
+    float area_normal[3];
+    float center[3];
+
+    int n;
+    
+    calc_area_normal(sd, ss, area_normal, nodes, totnode);
+
+    calc_flatten_center(sd, ss, nodes, totnode, center);
+
+    for (n = 0; n < totnode; n++) {
+        PBVHVertexIter vd;
+        SculptBrushTest test;
+
+        sculpt_undo_push_node(ss, nodes[n]);
+
+        sculpt_brush_test_init(ss, &test);
+
+        BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+            if (sculpt_brush_test(&test, vd.co)) {
+                if (plane_point_side(vd.co, area_normal, center, 0)) {
+                    float intr[3];
+                    float val[3];
+
+                    const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
+
+                    point_plane_project(intr, vd.co, area_normal, center);
+                    sub_v3_v3v3(val, intr, vd.co);
+                    mul_v3_fl(val, fade);
+                    add_v3_v3(val, vd.co);
+
+                    sculpt_clip(sd, ss, vd.co, val);
+
+                    if (vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+                }
+            }
+        }
+        BLI_pbvh_vertex_iter_end;
+
+        BLI_pbvh_node_mark_update(nodes[n]);
+    }
+}
+
+static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+    Brush *brush = paint_brush(&sd->paint);
+
+    float bstrength = ss->cache->bstrength;
+
+    float area_normal[3];
+    float center[3];
+
+    int n;
+    
+    calc_area_normal(sd, ss, area_normal, nodes, totnode);
+
+    calc_flatten_center(sd, ss, nodes, totnode, center);
+
+    for (n = 0; n < totnode; n++) {
+        PBVHVertexIter vd;
+        SculptBrushTest test;
+
+        sculpt_undo_push_node(ss, nodes[n]);
+
+        sculpt_brush_test_init(ss, &test);
+
+        BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+            if (sculpt_brush_test(&test, vd.co)) {
+                if (plane_point_side(vd.co, area_normal, center, 1)) {
                     float intr[3];
                     float val[3];
 
@@ -1459,6 +1604,15 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 		case SCULPT_TOOL_CLAY:
 			do_clay_brush(sd, ss, nodes, totnode);
 			break;
+                case SCULPT_TOOL_FILL:
+                        do_fill_brush(sd, ss, nodes, totnode);
+                        break;
+                case SCULPT_TOOL_SCRAPE:
+                        do_scrape_brush(sd, ss, nodes, totnode);
+                        break;
+                case SCULPT_TOOL_CONTRAST:
+                        do_contrast_brush(sd, ss, nodes, totnode);
+                        break;
 		}
 	
 		/* copy the modified vertices from mesh to the active key */
@@ -1625,7 +1779,15 @@ static char *sculpt_tool_name(Sculpt *sd)
 	case SCULPT_TOOL_LAYER:
 		return "Layer Brush"; break;
 	case SCULPT_TOOL_FLATTEN:
-		 return "Flatten Brush"; break;
+                return "Flatten Brush"; break;
+        case SCULPT_TOOL_CLAY:
+                return "Clay Brush"; break;
+        case SCULPT_TOOL_FILL:
+                return "Fill Brush"; break;
+        case SCULPT_TOOL_SCRAPE:
+                return "Scrape Brush"; break;
+        case SCULPT_TOOL_CONTRAST:
+                return "Constrast Brush"; break;
 	default:
 		return "Sculpting"; break;
 	}
