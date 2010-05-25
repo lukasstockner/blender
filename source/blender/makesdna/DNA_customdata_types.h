@@ -84,7 +84,10 @@ typedef struct CustomData {
 #define CD_ID_MCOL		21
 #define CD_TEXTURE_MCOL	22
 #define CD_CLOTH_ORCO	23
-#define CD_NUMTYPES		24
+#define CD_FACEGRID		24
+#define CD_DISP			25
+#define CD_PAINTMASK		26
+#define CD_NUMTYPES		27
 
 /* Bits for CustomDataMask */
 #define CD_MASK_MVERT		(1 << CD_MVERT)
@@ -109,6 +112,9 @@ typedef struct CustomData {
 #define CD_MASK_MDISPS		(1 << CD_MDISPS)
 #define CD_MASK_WEIGHT_MCOL	(1 << CD_WEIGHT_MCOL)
 #define CD_MASK_CLOTH_ORCO	(1 << CD_CLOTH_ORCO)
+#define CD_MASK_FACEGRID	(1 << CD_FACEGRID)
+#define CD_MASK_PAINTMASK	(1 << CD_PAINTMASK)
+#define CD_MASK_DISP		(1 << CD_DISP)
 
 /* CustomData.flag */
 
