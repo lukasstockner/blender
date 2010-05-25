@@ -3161,6 +3161,10 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 	}
 
+	/* goal springs not supported currently, still need to fix order of springs
+	   in list so that hairs can be simulated indepently */
+	psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_NO_GOAL_SPRING;
+
 	sim_parms = psys->clmd->sim_parms;
 	sim_parms->tothair = psys->totpart;
 	sim_parms->hair_vert_offset= MEM_mallocN(sizeof(int)*(sim_parms->tothair+1), "hair_vert_offset");

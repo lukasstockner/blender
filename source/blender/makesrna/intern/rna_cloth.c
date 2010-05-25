@@ -284,6 +284,11 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Pin Cloth", "Enable pinning of cloth vertices to other objects/positions");
 	RNA_def_property_update(prop, 0, "rna_cloth_update");
 
+	prop= RNA_def_property(srna, "pin_use_springs", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", CLOTH_SIMSETTINGS_FLAG_NO_GOAL_SPRING);
+	RNA_def_property_ui_text(prop, "Pin Use Springs", "Use springs for pinning");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
 	prop= RNA_def_property(srna, "pin_stiffness", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "goalspring");
 	RNA_def_property_range(prop, 0.0f, 50.0);

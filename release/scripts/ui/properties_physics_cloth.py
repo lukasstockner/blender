@@ -112,6 +112,7 @@ class PHYSICS_PT_cloth(PhysicButtonsPanel):
             sub.active = cloth.pin_cloth
             sub.prop_object(cloth, "mass_vertex_group", ob, "vertex_groups", text="")
             sub.prop(cloth, "pin_stiffness", text="Stiffness")
+            sub.prop(cloth, "pin_use_springs", text="Use Springs")
 
             col.label(text="Pre roll:")
             col.prop(cloth, "pre_roll", text="Frame")

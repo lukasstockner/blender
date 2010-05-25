@@ -56,38 +56,22 @@
 Collision modifier code start
 ***********************************/
 
-/* step is limited from -[time step] (frame start position) to 1 (frame end position) */
-
 /* step is limited from 0 (frame start position) to 1 (frame end position) */
-void collision_move_object (CollisionModifierData *collmd, float step, float prevstep, float dt)
+void collision_move_object ( CollisionModifierData *collmd, float step, float prevstep )
 {
 	float tv[3] = {0, 0, 0};
 	unsigned int i = 0;
 
-	if (prevstep < 0.0) {
-		for ( i = 0; i < collmd->numverts; i++ )
-		{
-			VECSUB ( tv, collmd->xold[i].co, collmd->x[i].co );
-			VECADDS( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
-
-			VECSUB ( tv, collmd->xnew[i].co, collmd->x[i].co );
-			VECADDS( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
-
-			VECSUB ( collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co );
-		}
-	} else {
-		for ( i = 0; i < collmd->numverts; i++ )
-		{
-			VECSUB ( tv, collmd->xnew[i].co, collmd->x[i].co );
-			VECADDS( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
-			VECADDS( collmd->current_xnew[i].co, collmd->x[i].co, tv, step );
-			VECSUB ( collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co );
-		}
+	for ( i = 0; i < collmd->numverts; i++ )
+	{
+		VECSUB ( tv, collmd->xnew[i].co, collmd->x[i].co );
+		VECADDS ( collmd->current_x[i].co, collmd->x[i].co, tv, prevstep );
+		VECADDS ( collmd->current_xnew[i].co, collmd->x[i].co, tv, step );
+		VECSUB ( collmd->current_v[i].co, collmd->current_xnew[i].co, collmd->current_x[i].co );
 	}
 
-	bvhtree_update_from_mvert(collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1);
+	bvhtree_update_from_mvert ( collmd->bvhtree, collmd->mfaces, collmd->numfaces, collmd->current_x, collmd->current_xnew, collmd->numverts, 1 );
 }
-
 
 BVHTree *bvhtree_build_from_mvert ( MFace *mfaces, unsigned int numfaces, MVert *x, unsigned int numverts, float epsilon )
 {
@@ -1399,7 +1383,7 @@ static void add_collider_cache_object(ListBase **objs, Object *ob, Object *self,
 		col->ob = ob;
 		col->collmd = cmd;
 		/* make sure collider is properly set up */
-		collision_move_object(cmd, 1.0, 0.0, 1.0);
+		collision_move_object(cmd, 1.0, 0.0);
 		BLI_addtail(*objs, col);
 	}
 
@@ -1589,7 +1573,7 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		mul_v3_fl(vec, lambda);
 
 		//add_v3_v3(cv->txold, vec);
-		add_v3_v3(cv->tx, no);
+		add_v3_v3(cv->tv, no);
 	}
 
 	MEM_freeN(frefs);
@@ -1642,8 +1626,6 @@ static int cloth_bvh_objcollisions_resolve ( ClothModifierData * clmd, Collision
 	}
 	return ret;
 }
-
-
 
 // cloth - object collisions
 int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, float dt )
@@ -1698,42 +1680,32 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				continue;
 			
 			/* move object to position (step) in time */
-			collision_move_object ( collmd, step+dt, step, dt );
+			collision_move_object ( collmd, step + dt, step );
 			
 			/* search for overlapping collision pairs */
 			overlap = BLI_bvhtree_overlap ( cloth_bvh, collmd->bvhtree, &result );
 				
 			// go to next object if no overlap is there
-			if(!result || !overlap)
-			{
-				if ( overlap )
-					MEM_freeN ( overlap );
-			} else {
-			
+			if( result && overlap ) {
 				/* check if collisions really happen (costly near check) */
 				cloth_bvh_objcollisions_nearcheck ( clmd, collmd, &collisions[i], &collisions_index[i], result, overlap);
 			
 				// resolve nearby collisions
 				ret += cloth_bvh_objcollisions_resolve ( clmd, collmd, collisions[i],  collisions_index[i]);
 				ret2 += ret;
-			
-				if ( overlap )
-					MEM_freeN ( overlap );
 			}
 
-			if (!cloth->bvhspringtree) continue;
+			// collision detection for isolated edges (hairs)
+			if(cloth->bvhspringtree) {
+				/* search for overlapping collision pairs */
+				overlap = BLI_bvhtree_overlap ( cloth->bvhspringtree, collmd->bvhtree, &result );
 
-			/* search for overlapping collision pairs */
-			overlap = BLI_bvhtree_overlap ( cloth->bvhspringtree, collmd->bvhtree, &result );
-			if (!overlap || !result) {
-				if (overlap) MEM_freeN(overlap);
-				continue;
+				if(result && overlap)
+					ret += cloth_bvh_edge_objcollisions_nearcheck ( clmd, collmd, result, overlap, dt);
 			}
 
-			ret += cloth_bvh_edge_objcollisions_nearcheck ( clmd, collmd, result, overlap, dt);
-
-			if (overlap)
-				MEM_freeN(overlap);
+			if ( overlap )
+				MEM_freeN ( overlap );
 		}
 		rounds++;
 		
@@ -1761,9 +1733,7 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				}
 			}
 
-			if (!verts[i].isolated) {
-				VECADD ( verts[i].tx, verts[i].txold, verts[i].tv );
-			}
+			VECADD ( verts[i].tx, verts[i].txold, verts[i].tv );
 		}
 		////////////////////////////////////////////////////////////
 		
@@ -1871,9 +1841,7 @@ int cloth_bvh_objcollision (Object *ob, ClothModifierData * clmd, float step, fl
 				{
 					if ( ! ( verts [i].flags & CLOTH_VERT_FLAG_PINNED ) )
 					{
-						if (!verts[i].isolated) {
-							VECSUB ( verts[i].tv, verts[i].tx, verts[i].txold );
-						}
+						VECSUB ( verts[i].tv, verts[i].tx, verts[i].txold );
 					}
 				}
 			}

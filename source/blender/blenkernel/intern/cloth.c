@@ -249,8 +249,8 @@ static BVHTree *bvhtree_build_from_cloth (ClothModifierData *clmd, float epsilon
 
 			BLI_bvhtree_insert(bvhspringtree, i, (float*)co, 1);
 
-			v->isolated = 1;
-		} else v->isolated = 0;
+			v->no_faces = 1;
+		} else v->no_faces = 0;
 	}
 
 	BLI_ghash_free(gh, NULL, NULL);
@@ -284,7 +284,7 @@ void bvhtree_update_from_cloth(ClothModifierData *clmd, int moving)
 	// update edge vertex positions in spring bvh tree
 	if (verts && cloth->numverts) {
 		for (i=0, v=cloth->verts; i<cloth->numverts; i++, v++) {
-			if (!v->isolated)
+			if (!v->no_faces)
 				continue;
 
 			VECCOPY(co, v->txold);
@@ -436,7 +436,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 	for(i = 0; i < clmd->clothObject->numverts; i++, verts++) {
 		/* save the previous position. */
 		VECCOPY(verts->xold, verts->xconst);
-		//VECCOPY(verts->txold, verts->x);
+		VECCOPY(verts->txold, verts->x);
 
 		/* Get the current position. */
 		VECCOPY(verts->xconst, mvert[i].co);
@@ -955,16 +955,17 @@ static int cloth_from_object(Object *ob, ClothModifierData *clmd, DerivedMesh *d
 		return 0;
 	}
 	
-#ifdef CLOTH_GOAL_ORIGINAL
-	for ( i = 0; i < dm->getNumVerts(dm); i++)
+	if (!(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_NO_GOAL_SPRING))
 	{
-		if((!(cloth->verts[i].flags & CLOTH_VERT_FLAG_PINNED)) && (cloth->verts[i].goal > ALMOST_ZERO))
+		for ( i = 0; i < dm->getNumVerts(dm); i++)
 		{
-			cloth_add_spring (clmd, i, i, 0.0, CLOTH_SPRING_TYPE_GOAL);
+			if((!(cloth->verts[i].flags & CLOTH_VERT_FLAG_PINNED)) && (cloth->verts[i].goal > ALMOST_ZERO))
+			{
+				cloth_add_spring (clmd, i, i, 0.0, CLOTH_SPRING_TYPE_GOAL);
+			}
 		}
 	}
-#endif
-
+	
 	// init our solver
 	if ( solvers [clmd->sim_parms->solver_type].init ) {
 		solvers [clmd->sim_parms->solver_type].init ( ob, clmd );

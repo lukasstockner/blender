@@ -134,7 +134,7 @@ typedef struct ClothVertex
 	float	bend_stiff;
 	float 	shear_stiff;
 	int 	spring_count; /* how many springs attached? */
-	int isolated; /*does not belon to any *face*, but *may* belong to an edge*/
+	int		no_faces; /*does not belon to any *face*, but *may* belong to an edge*/
 }
 ClothVertex;
 
@@ -180,7 +180,8 @@ typedef enum
 	CLOTH_SIMSETTINGS_FLAG_TEARING = ( 1 << 4 ),// true if tearing is enabled
 	CLOTH_SIMSETTINGS_FLAG_SCALING = ( 1 << 8 ), /* is advanced scaling active? */
 	CLOTH_SIMSETTINGS_FLAG_CCACHE_EDIT = (1 << 12),	/* edit cache in editmode */
-	CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS = (1 << 13) /* don't allow spring compression */
+	CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS = (1 << 13), /* don't allow spring compression */
+	CLOTH_SIMSETTINGS_FLAG_NO_GOAL_SPRING = (1 << 14) /* don't use spring for goal */
 } CLOTH_SIMSETTINGS_FLAGS;
 
 /* COLLISION FLAGS */

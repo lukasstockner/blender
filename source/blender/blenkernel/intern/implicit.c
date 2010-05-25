@@ -1314,7 +1314,7 @@ DO_INLINE void dfdx_damp(float to[3][3],  float dir[3],float length,const float 
 
 }
 
-DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, lfVector *X, lfVector *V, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float time)
+DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothVertex *verts, ClothSpring *s, lfVector *X, lfVector *V, fmatrix3x3 *dFdV, fmatrix3x3 *dFdX, float time)
 {
 	float extent[3];
 	float length = 0, dot = 0;
@@ -1399,7 +1399,6 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 	}
 	else if(s->type & CLOTH_SPRING_TYPE_GOAL)
 	{
-#ifdef CLOTH_GOAL_ORIGINAL
 		float tvect[3];
 		
 		s->flags |= CLOTH_SPRING_FLAG_NEEDED;
@@ -1428,7 +1427,6 @@ DO_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s, 
 		// HERE IS THE PROBLEM!!!!
 		// dfdx_spring(s->dfdx, dir, length, 0.0, k);
 		// dfdv_damp(s->dfdv, dir, MIN2(1.0, (clmd->sim_parms->goalfrict/100.0)));
-#endif
 	}
 	else // calculate force of bending springs
 	{
@@ -1462,9 +1460,7 @@ DO_INLINE void cloth_apply_spring_force(ClothModifierData *clmd, ClothSpring *s,
 
 		VECADD(lF[s->ij], lF[s->ij], s->f);
 		
-#ifdef CLOTH_GOAL_ORIGINAL
 		if(!(s->type & CLOTH_SPRING_TYPE_GOAL))
-#endif
 			VECSUB(lF[s->kl], lF[s->kl], s->f);
 		
 		sub_fmatrix_fmatrix(dFdX[s->kl].m, dFdX[s->kl].m, s->dfdx);
@@ -1787,7 +1783,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float frame, lfVector *lF,
 	{
 		// only handle active springs
 		// if(((clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED) && !(springs[i].flags & CSPRING_FLAG_DEACTIVATE))|| !(clmd->sim_parms->flags & CSIMSETT_FLAG_TEARING_ENABLED)){}
-		cloth_calc_spring_force(clmd, search->link, lX, lV, dFdV, dFdX, time);
+		cloth_calc_spring_force(clmd, verts, search->link, lX, lV, dFdV, dFdX, time);
 
 		search = search->next;
 	}
@@ -2078,7 +2074,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 	float dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame;
 	float spf = (float)clmd->sim_parms->stepsPerFrame / clmd->sim_parms->timescale;
 	Implicit_Data *id = cloth->implicit;
-	int result = 0, new_goal;
+	int do_extra_solve;
 
 	if(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) /* do goal stuff */
 	{
@@ -2088,9 +2084,7 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			if(verts [i].flags & CLOTH_VERT_FLAG_PINNED)
 			{			
 				VECSUB(id->V[i], verts[i].xconst, verts[i].xold);
-#ifdef CLOTH_GOAL_ORIGINAL
-				//mul_v3_fl(id->V[i], clmd->sim_parms->stepsPerFrame);
-#endif
+				// mul_v3_fl(id->V[i], clmd->sim_parms->stepsPerFrame);
 			}
 		}	
 	}
@@ -2121,18 +2115,17 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 			VECCOPY(verts[i].txold, id->X[i]);
 		}
 
-#ifndef CLOTH_GOAL_ORIGINAL
-		// new goal code, based on simply moving locations and assuming
-		// those changes get nice filtered by doing an extra implicit solve
-		// already use for collisions
-		new_goal = implicit_goal_new_code(clmd, verts, numverts, spf, id->Xnew);
-#else
-		new_goal = 0;
-#endif
+		do_extra_solve = 0;
+
+		// new goal code for hair only, based on simply moving locations and
+		// assuming those changes get nice filtered by doing an extra implicit
+		// solve already used for collisions
+		if(clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_NO_GOAL_SPRING)
+			do_extra_solve |= implicit_goal_new_code(clmd, verts, numverts, spf, id->Xnew);
 
 		// collision and velocity rigid body damping
 		if(((clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) && clmd->clothObject->bvhtree) ||
-		   (clmd->sim_parms->rigid_damp > 0.0f) || new_goal)
+		   (clmd->sim_parms->rigid_damp > 0.0f) || do_extra_solve)
 		{
 			// collisions 
 			// itstart();
@@ -2153,38 +2146,49 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 					rigidbody_damping(clmd, dt/clmd->sim_parms->timescale);
 				else
 					hair_rigid_damping(clmd, dt/clmd->sim_parms->timescale);
+				
+				do_extra_solve |= 1;
 			}
 
 			// call collision function
 			// TODO: check if "step" or "step+dt" is correct - dg
 			if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED && clmd->clothObject->bvhtree)
-				result = cloth_bvh_objcollision(ob, clmd, (step)/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
+				do_extra_solve |= cloth_bvh_objcollision(ob, clmd, (step)/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
 
 			// copy corrected positions back to simulation
 			for(i = 0; i < numverts; i++)
 			{		
-				if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
-					continue;
+				// correct velocity again, just to be sure we had to change it due to adaptive collisions
+				VECSUB(verts[i].tv, verts[i].tx, id->X[i]);
 
-				VECSUB(verts[i].tv, verts[i].tx, verts[i].txold);
-				VECCOPY(id->Xnew[i], verts[i].tx);
-				VECCOPY(id->Vnew[i], verts[i].tv);
-				mul_v3_fl(id->Vnew[i], spf);
+				if(do_extra_solve)
+				{
+					
+					if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
+						continue;
+
+					VECCOPY(id->Xnew[i], verts[i].tx);
+					VECCOPY(id->Vnew[i], verts[i].tv);
+					mul_v3_fl(id->Vnew[i], spf);
+				}
 			}
 			
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);
 
 			// if there were collisions, advance the velocity from v_n+1/2 to v_n+1
-			// also used now for filtering goal and rigid body damping changes now
-			
-			// V = Vnew;
-			cp_lfvector(id->V, id->Vnew, numverts);
+			// also used now for filtering goal and rigid body damping changes
+			if(do_extra_solve)
+			{
+				// V = Vnew;
+				cp_lfvector(id->V, id->Vnew, numverts);
 
-			// calculate forces + do implicit solve
-			implicit_solve_forces(clmd, id, effectors, frame, step+dt, dt/2);
+				// calculate forces + do implicit solve
+				implicit_solve_forces(clmd, id, effectors, frame, step+dt, dt/2);
+			}
 		}
-		else {
+		else
+		{
 			// X = Xnew;
 			cp_lfvector(id->X, id->Xnew, numverts);
 		}
@@ -2202,13 +2206,13 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 	{				
 		if((clmd->sim_parms->flags & CLOTH_SIMSETTINGS_FLAG_GOAL) && (verts [i].flags & CLOTH_VERT_FLAG_PINNED))
 		{
-			//VECCOPY(verts[i].txold, verts[i].xconst); // TODO: test --> should be .x
+			VECCOPY(verts[i].txold, verts[i].xconst); // TODO: test --> should be .x 
 			VECCOPY(verts[i].x, verts[i].xconst);
 			VECCOPY(verts[i].v, id->V[i]);
 		}
 		else
 		{
-			//VECCOPY(verts[i].txold, id->X[i]);
+			VECCOPY(verts[i].txold, id->X[i]);
 			VECCOPY(verts[i].x, id->X[i]);
 			VECCOPY(verts[i].v, id->V[i]);
 		}

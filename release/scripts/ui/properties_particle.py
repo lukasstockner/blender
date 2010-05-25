@@ -252,7 +252,6 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
         col = split.column()
         col.label(text="Material:")
         sub = col.column(align=True)
-        sub.prop(cloth, "pin_stiffness", text="Stiffness")
         sub.prop(cloth, "mass")
         sub.prop(cloth, "structural_stiffness", text="Structural")
         sub.prop(cloth, "bending_stiffness", text="Bending")
@@ -270,6 +269,9 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel):
         col.label(text="Quality:")
         col.prop(cloth, "quality", text="Steps", slider=True)
 
+        col.label(text="Pinning:")
+        col.prop(cloth, "pin_stiffness", text="Stiffness")
+        # col.prop(cloth, "pin_use_springs", text="Use Springs")
 
 class PARTICLE_PT_cache(ParticleButtonsPanel):
     bl_label = "Cache"
