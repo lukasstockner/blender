@@ -106,6 +106,9 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_LAYER, "LAYER", 0, "Layer", ""},
 		{SCULPT_TOOL_FLATTEN, "FLATTEN", 0, "Flatten", ""},
 		{SCULPT_TOOL_CLAY, "CLAY", 0, "Clay", ""},
+		{SCULPT_TOOL_FILL, "FILL", 0, "Fill", ""},
+		{SCULPT_TOOL_SCRAPE, "SCRAPE", 0, "Scrape", ""},
+		{SCULPT_TOOL_CONTRAST, "CONTRAST", 0, "Contrast", ""},
 		{0, NULL, 0, NULL, NULL}};
 	
 	static EnumPropertyItem brush_vertexpaint_tool_items[] = {
