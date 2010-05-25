@@ -30,6 +30,7 @@
 #include <time.h>
 #include <float.h>
 #include <ctype.h>
+#include <stddef.h> //for offsetof
 
 #include "MEM_guardedalloc.h"
 
@@ -104,6 +105,7 @@
 
 /* for menu/popup icons etc etc*/
 
+#include "UI_interface.h"
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -229,6 +231,79 @@ void OBJECT_OT_restrictview_set(wmOperatorType *ot)
 	
 }
 
+/* 99% same as above except no need for scene refreshing (TODO, update render preview) */
+static int object_restrictrender_clear_exec(bContext *C, wmOperator *op)
+{
+	short changed= 0;
+
+	/* XXX need a context loop to handle such cases */
+	CTX_DATA_BEGIN(C, Object*, ob, selected_editable_objects) {
+		if(ob->restrictflag & OB_RESTRICT_RENDER) {
+			ob->restrictflag &= ~OB_RESTRICT_RENDER;
+			changed= 1;
+		}
+	}
+	CTX_DATA_END;
+
+	if(changed)
+		WM_event_add_notifier(C, NC_SPACE|ND_SPACE_OUTLINER, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_restrictrender_clear(wmOperatorType *ot)
+{
+
+	/* identifiers */
+	ot->name= "Clear Restrict Render";
+	ot->description = "Reveal the render object by setting the restrictrender flag";
+	ot->idname= "OBJECT_OT_restrictrender_clear";
+
+	/* api callbacks */
+	ot->exec= object_restrictrender_clear_exec;
+	ot->poll= ED_operator_view3d_active;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int object_restrictrender_set_exec(bContext *C, wmOperator *op)
+{
+	int unselected= RNA_boolean_get(op->ptr, "unselected");
+
+	CTX_DATA_BEGIN(C, Base*, base, visible_bases) {
+		if(!unselected) {
+			if (base->flag & SELECT){
+				base->object->restrictflag |= OB_RESTRICT_RENDER;
+			}
+		}
+		else {
+			if (!(base->flag & SELECT)){
+				base->object->restrictflag |= OB_RESTRICT_RENDER;
+			}
+		}
+	}
+	CTX_DATA_END;
+	WM_event_add_notifier(C, NC_SPACE|ND_SPACE_OUTLINER, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_restrictrender_set(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Set Restrict Render";
+	ot->description = "Hide the render object by setting the restrictrender flag";
+	ot->idname= "OBJECT_OT_restrictrender_set";
+
+	/* api callbacks */
+	ot->exec= object_restrictrender_set_exec;
+	ot->poll= ED_operator_view3d_active;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Hide unselected rather than selected objects.");
+}
 
 /* ******************* toggle editmode operator  ***************** */
 
@@ -1025,6 +1100,7 @@ void flip_subdivison(Scene *scene, View3D *v3d, int level)
  
 static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 {	
+//XXX no longer used - to be removed - replaced by game_properties_copy_exec
 	bProperty *prop;
 	Base *base;
 	int nr, tot=0;
@@ -1083,6 +1159,7 @@ static void copymenu_properties(Scene *scene, View3D *v3d, Object *ob)
 
 static void copymenu_logicbricks(Scene *scene, View3D *v3d, Object *ob)
 {
+//XXX no longer used - to be removed - replaced by logicbricks_copy_exec
 	Base *base;
 	
 	for(base= FIRSTBASE; base; base= base->next) {
@@ -1450,7 +1527,7 @@ void copy_attr(Scene *scene, View3D *v3d, short event)
 				}
 				else if(event==22) {
 					/* Copy the constraint channels over */
-					copy_constraints(&base->object->constraints, &ob->constraints);
+					copy_constraints(&base->object->constraints, &ob->constraints, TRUE);
 					
 					do_scene_sort= 1;
 				}
@@ -2129,4 +2206,198 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to remove ", 0, INT_MAX);
+}
+static EnumPropertyItem game_properties_copy_types[] ={
+	{1, "REPLACE", 0, "Replace Properties", ""},
+	{2, "MERGE", 0, "Merge Properties", ""},
+	{3, "CLEAR", 0, "Clear All", ""},
+	{4, "COPY", 0, "Copy a Property", ""},
+	{0, NULL, 0, NULL, NULL}};
+
+static int game_property_copy_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	Object *ob= CTX_data_active_object(C);
+	bProperty *prop;	
+	int tot=0;
+	uiPopupMenu *pup;
+	uiLayout *menu;
+
+	/* count number of available properties */	
+	prop= ob->prop.first;
+	while(prop) {
+		tot++;
+		prop= prop->next;
+	}
+
+	/* start building */
+	pup= uiPupMenuBegin(C, op->type->name, 0);
+	menu= uiPupMenuLayout(pup);
+	uiLayoutSetOperatorContext(menu, WM_OP_EXEC_DEFAULT);
+
+	if(!tot)
+		uiItemEnumO(menu, "OBJECT_OT_game_property_copy", NULL, 0, "type", 3);//CLEAR);
+	else {
+		uiItemEnumO(menu, "OBJECT_OT_game_property_copy", NULL, 0, "type", 1);//REPLACE);
+		uiItemEnumO(menu, "OBJECT_OT_game_property_copy", NULL, 0, "type", 2);//MERGE);
+		uiItemMenuEnumO(menu, "OBJECT_OT_game_property_copy", "property", "Copy Property", 0);//COPY
+	}
+	uiPupMenuEnd(C, pup);
+
+	/* this operator is only for a menu, not used further */
+	return OPERATOR_CANCELLED;
+}
+
+static EnumPropertyItem gameprops_items[]= {
+	{0, NULL, 0, NULL, NULL}};
+
+static EnumPropertyItem *gameprops_itemf(bContext *C, PointerRNA *ptr, int *free)
+{	
+	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	EnumPropertyItem tmp = {0, "", 0, "", ""};
+	EnumPropertyItem *item= NULL;
+	bProperty *prop;
+	int a, totitem= 0;
+	
+	if(!ob)
+		return gameprops_items;
+
+	for(a=1, prop= ob->prop.first; prop; prop=prop->next, a++) {
+		tmp.value= a;
+		tmp.identifier= prop->name;
+		tmp.name= prop->name;
+		RNA_enum_item_add(&item, &totitem, &tmp);
+	}
+
+	RNA_enum_item_end(&item, &totitem);
+	*free= 1;
+
+	return item;
+}
+
+static int game_property_copy_exec(bContext *C, wmOperator *op)
+{
+	Object *ob=ED_object_active_context(C);
+	bProperty *prop;
+
+	int tmp_int; //need an int pointer to pass for the RNA_enum_name
+	EnumPropertyItem *dyn_props= NULL;
+	const char *prop_name= NULL;
+
+	int type = RNA_enum_get(op->ptr, "type");
+	int propid= RNA_enum_get(op->ptr, "property");
+
+	// recreate the dynamic enum with the properties	
+	dyn_props = gameprops_itemf(C, NULL, &tmp_int);
+
+	if (propid > 0)
+		RNA_enum_name(dyn_props, propid, &prop_name);
+
+	if ( type == 1 || type == 2 || type == 3) {
+		CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+			if (ob != ob_iter) {
+				if (ob->data != ob_iter->data){
+					if (type == 2) {/* merge */
+						for(prop = ob->prop.first; prop; prop= prop->next ) {
+							set_ob_property(ob_iter, prop);
+						}
+					} else /* replace or clear */
+						copy_properties( &ob_iter->prop, &ob->prop );
+				}
+			}
+		}
+		CTX_DATA_END;
+	}
+	else if(prop_name) { /* copy */
+		prop = (bProperty *) BLI_findstring(&ob->prop, prop_name, offsetof(bProperty, name));
+		
+		if(prop) {
+			CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+				if (ob != ob_iter) {
+					if (ob->data != ob_iter->data)
+						set_ob_property(ob_iter, prop);
+				}
+			} CTX_DATA_END;
+		}
+	}
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_game_property_copy(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	/* identifiers */
+	ot->name= "Copy Game Property";
+	ot->idname= "OBJECT_OT_game_property_copy";
+
+	/* api callbacks */
+	ot->invoke= game_property_copy_invoke;
+	ot->exec= game_property_copy_exec;
+	ot->poll= ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "type", game_properties_copy_types, 4, "Operation", "");
+	prop=RNA_def_enum(ot->srna, "property", gameprops_items, 0, "Property", "Properties to copy");
+	RNA_def_enum_funcs(prop, gameprops_itemf);
+	ot->prop=prop;
+}
+
+/************************ Copy Logic Bricks ***********************/
+
+static int logicbricks_copy_exec(bContext *C, wmOperator *op)
+{
+	Object *ob=ED_object_active_context(C);
+
+	CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+		if(ob != ob_iter) {
+			if (ob->data != ob_iter->data){
+				/* first: free all logic */
+				free_sensors(&ob_iter->sensors);				
+				unlink_controllers(&ob_iter->controllers);
+				free_controllers(&ob_iter->controllers);
+				unlink_actuators(&ob_iter->actuators);
+				free_actuators(&ob_iter->actuators);
+			
+				/* now copy it, this also works without logicbricks! */
+				clear_sca_new_poins_ob(ob);
+				copy_sensors(&ob_iter->sensors, &ob->sensors);
+				copy_controllers(&ob_iter->controllers, &ob->controllers);
+				copy_actuators(&ob_iter->actuators, &ob->actuators);
+				set_sca_new_poins_ob(ob_iter);
+			
+				/* some menu settings */
+				ob_iter->scavisflag= ob->scavisflag;
+				ob_iter->scaflag= ob->scaflag;
+			
+				/* set the initial state */
+				ob_iter->state= ob->state;
+				ob_iter->init_state= ob->init_state;
+			}			
+			if(ob_iter->totcol==ob->totcol) {
+				ob_iter->actcol= ob->actcol;
+				WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob_iter);
+			}
+		}
+	}
+	CTX_DATA_END;
+
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_logic_bricks_copy(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Copy Logic Bricks to Selected";
+	ot->description = "Copy logic bricks to other selected objects.";
+	ot->idname= "OBJECT_OT_logic_bricks_copy";
+
+	/* api callbacks */
+	ot->exec= logicbricks_copy_exec;
+	ot->poll= ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
