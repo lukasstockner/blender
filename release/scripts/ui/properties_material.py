@@ -452,7 +452,7 @@ class MATERIAL_PT_specular(MaterialButtonsPanel):
         col.prop(mat, "use_specular_ramp", text="Ramp")
 
         col = layout.column()
-        if mat.specular_shader in ('COOKTORR', 'PHONG'):
+        if mat.specular_shader in ('COOK_TORRANCE', 'PHONG'):
             col.prop(mat, "specular_hardness", text="Hardness")
         elif mat.specular_shader == 'BLINN':
             split = layout.split()

@@ -1316,7 +1316,7 @@ static void rna_def_material_specularity(StructRNA *srna)
 	PropertyRNA *prop;
 	
 	static EnumPropertyItem prop_specular_shader_items[] = {
-		{MA_SPEC_COOKTORR, "COOK_TORR", 0, "Cook Torrance", ""},
+		{MA_SPEC_COOKTORR, "COOK_TORRANCE", 0, "Cook Torrance", ""},
 		{MA_SPEC_PHONG, "PHONG", 0, "Phong", ""},
 		{MA_SPEC_BLINN, "BLINN", 0, "Blinn", ""},
 		{MA_SPEC_TOON, "TOON", 0, "Toon", ""},
