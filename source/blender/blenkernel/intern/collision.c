@@ -1447,15 +1447,17 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 	Cloth *cloth = clmd->clothObject;
 	ClothVertex *cv;
 	float (*dis)[2] = MEM_callocN(sizeof(float)*2*cloth->numverts, "coll point distancers");
-	float lambda, dot, lambda2, uv[2], uv2[2], epsilon;
+	float lambda, lambda2, uv[2], uv2[2], epsilon;
 	MFace **frefs = MEM_callocN(sizeof(void*)*clmd->clothObject->numverts, "coll indices");
+	int *fsides = MEM_callocN(sizeof(int)*clmd->clothObject->numverts, "coll sides");
 	int i, j, ret = 0;
 
 	epsilon = MAX2(clmd->coll_parms->epsilon, collmd->bvhtree ? BLI_bvhtree_getepsilon(collmd->bvhtree) : 0);
 
 	for (i=0; i<result; i++, overlap++) {
 		MFace *mf = collmd->mfaces + overlap->indexB;
-		float v1[3], v2[3], v3[3], v4[3], no[3], vec[3], ov1[3], ov2[3], ov3[3];
+		float v1[3], v2[3], v3[3], no[3], vec[3], ov1[3], ov2[3], ov3[3];
+		int side;
 
 		if (overlap->indexA < 0 || overlap->indexA >= cloth->numverts)
 			continue;
@@ -1465,51 +1467,59 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 		j = overlap->indexA;
 		cv = cloth->verts + overlap->indexA;
 
-		VECCOPY(v1, collmd->current_xnew[mf->v1].co);
-		VECCOPY(v2, collmd->current_xnew[mf->v2].co);
-		VECCOPY(v3, collmd->current_xnew[mf->v3].co);
-		if (mf->v4) {
-			VECCOPY(v4, collmd->current_xnew[mf->v4].co);
-			normal_quad_v3(no, v1, v2, v3, v4);
-		} else {
-			normal_tri_v3(no, v1, v2, v3);
-		}
-
-		mul_v3_fl(no, epsilon);
-		add_v3_v3(v1, no);
-		add_v3_v3(v2, no);
-		add_v3_v3(v3, no);
-		if (mf->v4)
-			add_v3_v3(v4, no);
-
-		normalize_v3(no);
-
-		if (isect_ray_tri_plane_v3(cv->tx, no, v1, v2, v3, &lambda, uv) ||
-			(mf->v4 && isect_ray_tri_plane_v3(cv->tx, no, v1, v3, v4, &lambda, uv)))
-		{
-			/*we need to compute distance to the plane of the previous time step's face, not the current one*/
-			VECCOPY(ov1, collmd->current_x[mf->v1].co);
-			VECCOPY(ov2, collmd->current_x[mf->v2].co);
-			VECCOPY(ov3, collmd->current_x[mf->v3].co);
-
-			normal_tri_v3(no, ov1, ov2, ov3);
-
-			sub_v3_v3v3(vec, cv->txold, ov1);
-			normalize_v3(vec);
-			if (dot_v3v3(vec, no) < FLT_EPSILON) {
-				continue;
+		for(side=0; side < (mf->v4? 2: 1); side++) {
+			if(side == 0) {
+				copy_v3_v3(v1, collmd->current_xnew[mf->v1].co);
+				copy_v3_v3(v2, collmd->current_xnew[mf->v2].co);
+				copy_v3_v3(v3, collmd->current_xnew[mf->v3].co);
+			}
+			else {
+				copy_v3_v3(v1, collmd->current_xnew[mf->v1].co);
+				copy_v3_v3(v2, collmd->current_xnew[mf->v3].co);
+				copy_v3_v3(v3, collmd->current_xnew[mf->v4].co);
 			}
 
-			mul_v3_fl(no, -1.0);
-			isect_ray_tri_plane_v3(cv->txold, no, ov1, ov2, ov3, &lambda2, uv);
+			normal_tri_v3(no, v1, v2, v3);
+			mul_v3_fl(no, epsilon);
+			add_v3_v3(v1, no);
+			add_v3_v3(v2, no);
+			add_v3_v3(v3, no);
 
-			if (lambda2 < 0.0)
-				continue;
+			normalize_v3(no);
 
-			if (!frefs[j] || fabs(lambda2) < dis[j][0]) {
-				frefs[j] = mf;
-				dis[j][0] = fabs(lambda2);
-				dis[j][1] = fabs(lambda);
+			if(isect_ray_tri_plane_v3(cv->tx, no, v1, v2, v3, &lambda, uv)) {
+				/*we need to compute distance to the plane of the previous time step's face, not the current one*/
+				if(side == 0) {
+					copy_v3_v3(ov1, collmd->current_x[mf->v1].co);
+					copy_v3_v3(ov2, collmd->current_x[mf->v2].co);
+					copy_v3_v3(ov3, collmd->current_x[mf->v3].co);
+				}
+				else {
+					copy_v3_v3(ov1, collmd->current_x[mf->v1].co);
+					copy_v3_v3(ov2, collmd->current_x[mf->v3].co);
+					copy_v3_v3(ov3, collmd->current_x[mf->v4].co);
+				}
+
+				normal_tri_v3(no, ov1, ov2, ov3);
+
+				sub_v3_v3v3(vec, cv->txold, ov1);
+				normalize_v3(vec);
+				if (dot_v3v3(vec, no) < FLT_EPSILON) {
+					continue;
+				}
+
+				mul_v3_fl(no, -1.0);
+				isect_ray_tri_plane_v3(cv->txold, no, ov1, ov2, ov3, &lambda2, uv);
+
+				if (lambda2 < 0.0)
+					continue;
+
+				if (!frefs[j] || fabs(lambda2) < dis[j][0]) {
+					frefs[j] = mf;
+					fsides[j] = side;
+					dis[j][0] = fabs(lambda2);
+					dis[j][1] = fabs(lambda);
+				}
 			}
 		}
 	}
@@ -1517,48 +1527,49 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 	cv = cloth->verts;
 	for (i=0; i<cloth->numverts; i++, cv++) {
 		MFace *mf;
-		float v1[3], v2[3], v3[3], v4[3], no[3], vec[3];
+		float v1[3], v2[3], v3[3], no[3], vec[3];
+		int side;
 
 		if (!frefs[i])
 			continue;
 
 		lambda = dis[i][1];
 		mf = frefs[i];
+		side = fsides[i];
 		ret += 1;
 
-		VECCOPY(v1, collmd->current_xnew[mf->v1].co);
-		VECCOPY(v2, collmd->current_xnew[mf->v2].co);
-		VECCOPY(v3, collmd->current_xnew[mf->v3].co);
-		if (mf->v4) {
-			VECCOPY(v4, collmd->current_xnew[mf->v4].co);
-			normal_quad_v3(no, v1, v2, v3, v4);
-		} else {
-			normal_tri_v3(no, v1, v2, v3);
+		if(side == 0) {
+			copy_v3_v3(v1, collmd->current_xnew[mf->v1].co);
+			copy_v3_v3(v2, collmd->current_xnew[mf->v2].co);
+			copy_v3_v3(v3, collmd->current_xnew[mf->v3].co);
+		}
+		else {
+			copy_v3_v3(v1, collmd->current_xnew[mf->v1].co);
+			copy_v3_v3(v2, collmd->current_xnew[mf->v3].co);
+			copy_v3_v3(v3, collmd->current_xnew[mf->v4].co);
 		}
 
+		normal_tri_v3(no, v1, v2, v3);
 		mul_v3_fl(no, epsilon);
 		add_v3_v3(v1, no);
 		add_v3_v3(v2, no);
 		add_v3_v3(v3, no);
-		if (mf->v4)
-			add_v3_v3(v4, no);
 
 		normalize_v3(no);
 
-		VECCOPY(vec, cv->tv);
+		copy_v3_v3(vec, cv->tv);
 		mul_v3_fl(vec, -1.0f);
 
 		normalize_v3(vec);
-		dot = dot_v3v3(no, vec);
 
 		/*handle friction.  probably really stupid math here, no time for doing better though*/
-		if (isect_ray_tri_v3(cv->tx, vec, v1, v2, v3, &lambda2, uv2) ||
-			(mf->v4 && isect_ray_tri_v3(cv->tx, vec, v1, v3, v4, &lambda2, uv2)))
+		if((clmd->coll_parms->friction > 0.0f) &&
+		   isect_ray_tri_v3(cv->tx, vec, v1, v2, v3, &lambda2, uv2))
 		{
 			float frictionfac = clmd->coll_parms->friction*0.01, oldno[3];
 
 			/*absurdly simplistic linear interpolation formula, heh*/
-			VECCOPY(oldno, no);
+			copy_v3_v3(oldno, no);
 			sub_v3_v3(vec, no);
 			mul_v3_fl(vec, frictionfac);
 			add_v3_v3(no, vec);
@@ -1567,16 +1578,19 @@ static int cloth_bvh_edge_objcollisions_nearcheck(ClothModifierData *clmd, Colli
 			normalize_v3(no);
 			reflect_v3_v3v3(vec, no, oldno);
 			normalize_v3(vec);
-		} else VECCOPY(vec, no);
+		}
+		/*else
+			copy_v3_v3(vec, no);*/
+
+		//mul_v3_fl(vec, lambda);
+		//add_v3_v3(cv->txold, vec);
 
 		mul_v3_fl(no, lambda);
-		mul_v3_fl(vec, lambda);
-
-		//add_v3_v3(cv->txold, vec);
 		add_v3_v3(cv->tv, no);
 	}
 
 	MEM_freeN(frefs);
+	MEM_freeN(fsides);
 	MEM_freeN(dis);
 
 	return ret;
