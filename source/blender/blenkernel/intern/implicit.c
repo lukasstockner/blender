@@ -2127,6 +2127,9 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 		if(((clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) && clmd->clothObject->bvhtree) ||
 		   (clmd->sim_parms->rigid_damp > 0.0f) || do_extra_solve)
 		{
+			// time stepping based on section Time Discretization in the paper:
+			// "Robust Treatment of Collisions, Contact and Friction for Cloth Animation"
+
 			// collisions 
 			// itstart();
 			
@@ -2170,6 +2173,14 @@ int implicit_solver (Object *ob, float frame, ClothModifierData *clmd, ListBase 
 					VECCOPY(id->Xnew[i], verts[i].tx);
 					VECCOPY(id->Vnew[i], verts[i].tv);
 					mul_v3_fl(id->Vnew[i], spf);
+
+					/* test to see if this helps make collisions a bit more stable,
+					   the algorithm used in the paper is based on velocities being
+					   defined at the midpoint, but we have velocity defined at the
+					   endpoint, so we interpolate here so we take 1 step in total
+					   instead of 1.5 (brecht) */
+					if(clmd->sim_parms->tothair)
+						interp_v3_v3v3(id->Vnew[i], id->Vnew[i], id->V[i], 0.5f);
 				}
 			}
 			
