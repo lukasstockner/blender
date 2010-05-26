@@ -166,7 +166,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	/* number values */
 	prop= RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, 200);
+	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS);
 	RNA_def_property_ui_text(prop, "Size", "Diameter of the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	

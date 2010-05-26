@@ -542,36 +542,42 @@ static int sculpt_brush_test(SculptBrushTest *test, float co[3])
    special multiplier found experimentally to scale the strength factor. */
 static float brush_strength(Sculpt *sd, StrokeCache *cache)
 {
-	Brush *brush = paint_brush(&sd->paint);
-	/* Primary strength input; square it to make lower values more sensitive */
-	float alpha = brush->alpha * brush->alpha;
+    Brush *brush = paint_brush(&sd->paint);
 
-	float dir= brush->flag & BRUSH_DIR_IN ? -1 : 1;
-	float pressure= 1;
-	float flip= cache->flip ? -1:1;
+    /* Primary strength input; square it to make lower values more sensitive */
+    float alpha = brush->alpha * brush->alpha;
 
-	if(brush->flag & BRUSH_ALPHA_PRESSURE)
-		pressure *= cache->pressure;
-	
-	switch(brush->sculpt_tool){
-	case SCULPT_TOOL_DRAW:
-	case SCULPT_TOOL_INFLATE:
-	case SCULPT_TOOL_CLAY:
-	case SCULPT_TOOL_FLATTEN:
-	case SCULPT_TOOL_LAYER:
+    float dir      = brush->flag & BRUSH_DIR_IN ? -1 : 1;
+    float pressure = 1;
+    float flip     = cache->flip ? -1:1;
+
+    if(brush->flag & BRUSH_ALPHA_PRESSURE) pressure *= cache->pressure;
+
+    switch(brush->sculpt_tool){
+        case SCULPT_TOOL_DRAW:
+        case SCULPT_TOOL_INFLATE:
+        case SCULPT_TOOL_CLAY:
+            return alpha * dir * pressure * flip;
+
+        case SCULPT_TOOL_FLATTEN:
+        case SCULPT_TOOL_LAYER:
         case SCULPT_TOOL_FILL:
         case SCULPT_TOOL_SCRAPE:
         case SCULPT_TOOL_CONTRAST:
-		return alpha * dir * pressure * flip; /*XXX: not sure why? was multiplied by G.vd->grid */;
-	case SCULPT_TOOL_SMOOTH:
-		return alpha * 4 * pressure;
-	case SCULPT_TOOL_PINCH:
-		return alpha / 2 * dir * pressure * flip;
-	case SCULPT_TOOL_GRAB:
-		return 1;
-	default:
-		return 0;
-	}
+            return alpha * pressure * flip;
+
+        case SCULPT_TOOL_SMOOTH:
+            return alpha * 4 * pressure;
+
+        case SCULPT_TOOL_PINCH:
+            return alpha / 2 * dir * pressure * flip;
+
+        case SCULPT_TOOL_GRAB:
+            return 1;
+
+        default:
+            return 0;
+    }
 }
 
 /* Uses symm to selectively flip any axis of a coordinate. */
@@ -1351,6 +1357,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
     Brush *brush = paint_brush(&sd->paint);
 
     float bstrength = ss->cache->bstrength;
+    float displace;
 
     float area_normal[3];
     float center[3];
@@ -1365,8 +1372,12 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
     calc_flatten_center(sd, ss, nodes, totnode, center);
 
+    displace = MAX_BRUSH_PIXEL_RADIUS/2.0f;
+
+    if (displace > ss->cache->radius/2.0f) displace = ss->cache->radius/2.0f;
+
     mul_v3_v3v3(temp, area_normal, ss->cache->scale);
-    mul_v3_fl(temp, ss->cache->radius * bstrength);
+    mul_v3_fl(temp, displace * bstrength);
     add_v3_v3(center, temp);
 
     flip = bstrength < 0;
@@ -1387,7 +1398,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
                     float intr[3];
                     float val[3];
 
-                    const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
+                    const float fade = tex_strength(ss, brush, vd.co, test.dist);
 
                     point_plane_project(intr, vd.co, area_normal, center);
                     sub_v3_v3v3(val, intr, vd.co);

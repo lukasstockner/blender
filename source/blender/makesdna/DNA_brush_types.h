@@ -107,5 +107,7 @@ typedef struct Brush {
 #define PAINT_TOOL_SMEAR	2
 #define PAINT_TOOL_CLONE	3
 
+#define MAX_BRUSH_PIXEL_RADIUS 200
+
 #endif
 
