@@ -165,6 +165,13 @@ class USERPREF_PT_interface(bpy.types.Panel):
         sub.enabled = view.show_mini_axis
         sub.prop(view, "mini_axis_size", text="Size")
         sub.prop(view, "mini_axis_brightness", text="Brightness")
+        
+        col.separator()
+        col.separator()
+        col.separator()
+        
+        col.label(text="Properties Window:")
+        col.prop(view, "properties_width_check")
 
         row.separator()
         row.separator()
@@ -546,6 +553,10 @@ class USERPREF_PT_theme(bpy.types.Panel):
 
             ui = theme.user_interface.wcol_scroll
             col.label(text="Scroll Bar:")
+            ui_items_general(col, ui)
+            
+            ui = theme.user_interface.wcol_progress
+            col.label(text="Progress Bar:")
             ui_items_general(col, ui)
 
             ui = theme.user_interface.wcol_list_item

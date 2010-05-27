@@ -859,6 +859,17 @@ static void rna_Base_layer_set(PointerRNA *ptr, const int *values)
 	/* rna_Base_layer_update updates the objects layer */
 }
 
+static void rna_GameObjectSettings_state_get(PointerRNA *ptr, int *values)
+{
+	Object *ob= (Object*)ptr->data;
+	int i;
+	int all_states = (ob->scaflag & OB_ALLSTATE?1:0);
+
+	memset(values, 0, sizeof(int)*OB_MAX_STATES);
+	for(i=0; i<OB_MAX_STATES; i++)
+		values[i] = (ob->state & (1<<i)) | all_states;
+}
+
 static void rna_GameObjectSettings_state_set(PointerRNA *ptr, const int *values)
 {
 	Object *ob= (Object*)ptr->data;
@@ -1257,7 +1268,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "state", 1);
 	RNA_def_property_array(prop, OB_MAX_STATES);
 	RNA_def_property_ui_text(prop, "State", "State determining which controllers are displayed");
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_GameObjectSettings_state_set");
+	RNA_def_property_boolean_funcs(prop, "rna_GameObjectSettings_state_get", "rna_GameObjectSettings_state_set");
 
 	prop= RNA_def_property(srna, "used_state", PROP_BOOLEAN, PROP_LAYER_MEMBER);
 	RNA_def_property_array(prop, OB_MAX_STATES);
@@ -2039,7 +2050,7 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 	/* TODO: DupliObject has more properties that can be wrapped */
 }
 
-static void rna_def_base(BlenderRNA *brna)
+static void rna_def_object_base(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
@@ -2070,13 +2081,15 @@ static void rna_def_base(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BA_WAS_SEL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "User Selected", "Object base user selection state, used to restore user selection after transformations");
+	
+	RNA_api_object_base(srna);
 }
 
 void RNA_def_object(BlenderRNA *brna)
 {
 	rna_def_object(brna);
 	rna_def_object_game_settings(brna);
-	rna_def_base(brna);
+	rna_def_object_base(brna);
 	rna_def_vertex_group(brna);
 	rna_def_material_slot(brna);
 	rna_def_dupli_object(brna);

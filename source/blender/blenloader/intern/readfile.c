@@ -2082,7 +2082,7 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 	
 	ntree->init= 0;		/* to set callbacks and force setting types */
 	ntree->owntype= NULL;
-	ntree->timecursor= NULL;
+	ntree->progress= NULL;
 	
 	ntree->adt= newdataadr(fd, ntree->adt);
 	direct_link_animdata(fd, ntree->adt);
@@ -4162,8 +4162,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 				base->object= newlibadr_us(fd, sce->id.lib, base->object);
 				
 				if(base->object==NULL) {
-					printf("LIB ERROR: base removed\n");
 					BKE_reportf(fd->reports, RPT_ERROR, "LIB ERROR: Object lost from scene:'%s\'\n", sce->id.name+2);
+					if(G.background==0) printf("LIB ERROR: base removed from scene:'%s\'\n", sce->id.name+2);
 					BLI_remlink(&sce->base, base);
 					if(base==sce->basact) sce->basact= 0;
 					MEM_freeN(base);
@@ -4213,8 +4213,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 				srl->light_override= newlibadr_us(fd, sce->id.lib, srl->light_override);
 			}
 			/*Game Settings: Dome Warp Text*/
-//			sce->r.dometext= newlibadr_us(fd, sce->id.lib, sce->r.dometext); // XXX deprecated since 2.5
-			sce->gm.dome.warptext= newlibadr_us(fd, sce->id.lib, sce->gm.dome.warptext);
+			sce->gm.dome.warptext= newlibadr(fd, sce->id.lib, sce->gm.dome.warptext);
 
 			sce->id.flag -= LIB_NEEDLINK;
 		}
@@ -10848,8 +10847,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
+		Object *ob;
 		bScreen *sc;
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
@@ -10871,6 +10872,41 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 
 		do_version_mdef_250(fd, lib, main);
+
+		/* parent type to modifier */
+		for(ob = main->object.first; ob; ob = ob->id.next) {
+			if(ob->parent) {
+				Object *parent= (Object *)newlibadr(fd, lib, ob->parent);
+				if(parent) { /* parent may not be in group */
+					if(parent->type==OB_ARMATURE && ob->partype==PARSKEL) {
+						ArmatureModifierData *amd;
+						bArmature *arm= (bArmature *)newlibadr(fd, lib, parent->data);
+
+						amd = (ArmatureModifierData*) modifier_new(eModifierType_Armature);
+						amd->object = ob->parent;
+						BLI_addtail((ListBase*)&ob->modifiers, amd);
+						amd->deformflag= arm->deformflag;
+						ob->partype = PAROBJECT;
+					}
+					else if(parent->type==OB_LATTICE && ob->partype==PARSKEL) {
+						LatticeModifierData *lmd;
+
+						lmd = (LatticeModifierData*) modifier_new(eModifierType_Lattice);
+						lmd->object = ob->parent;
+						BLI_addtail((ListBase*)&ob->modifiers, lmd);
+						ob->partype = PAROBJECT;
+					}
+					else if(parent->type==OB_CURVE && ob->partype==PARCURVE) {
+						CurveModifierData *cmd;
+
+						cmd = (CurveModifierData*) modifier_new(eModifierType_Curve);
+						cmd->object = ob->parent;
+						BLI_addtail((ListBase*)&ob->modifiers, cmd);
+						ob->partype = PAROBJECT;
+					}
+				}
+			}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -10971,7 +11007,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filename)
 		switch(bhead->code) {
 		case DATA:
 		case DNA1:
-		case TEST:
+		case TEST: /* used as preview since 2.5x */
 		case REND:
 			bhead = blo_nextbhead(fd, bhead);
 			break;
@@ -12296,8 +12332,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				if(fd==NULL) {
 
 					/* printf and reports for now... its important users know this */
-					printf("read library: '%s', '%s'\n", mainptr->curlib->filename, mainptr->curlib->name);
 					BKE_reportf(basefd->reports, RPT_INFO, "read library:  '%s', '%s'\n", mainptr->curlib->filename, mainptr->curlib->name);
+					if(!G.background && basefd->reports) printf("read library: '%s', '%s'\n", mainptr->curlib->filename, mainptr->curlib->name);
 
 					fd= blo_openblenderfile(mainptr->curlib->filename, basefd->reports);
 					
@@ -12342,8 +12378,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 					else mainptr->curlib->filedata= NULL;
 
 					if (fd==NULL) {
-						printf("ERROR: can't find lib %s \n", mainptr->curlib->filename);
 						BKE_reportf(basefd->reports, RPT_ERROR, "Can't find lib '%s'\n", mainptr->curlib->filename);
+						if(!G.background && basefd->reports) printf("ERROR: can't find lib %s \n", mainptr->curlib->filename);
 					}
 				}
 				if(fd) {
@@ -12360,8 +12396,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 
 								append_id_part(fd, mainptr, id, &realid);
 								if (!realid) {
-									printf("LIB ERROR: %s:'%s' missing from '%s'\n", BLO_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filename);
 									BKE_reportf(fd->reports, RPT_ERROR, "LIB ERROR: %s:'%s' missing from '%s'\n", BLO_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filename);
+									if(!G.background && basefd->reports) printf("LIB ERROR: %s:'%s' missing from '%s'\n", BLO_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filename);
 								}
 								
 								change_idid_adr(mainlist, basefd, id, realid);
@@ -12396,8 +12432,8 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 				ID *idn= id->next;
 				if(id->flag & LIB_READ) {
 					BLI_remlink(lbarray[a], id);
-					printf("LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BLO_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filename);
 					BKE_reportf(basefd->reports, RPT_ERROR, "LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BLO_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filename);
+					if(!G.background && basefd->reports)printf("LIB ERROR: %s:'%s' unread libblock missing from '%s'\n", BLO_idcode_to_name(GS(id->name)), id->name+2, mainptr->curlib->filename);
 					change_idid_adr(mainlist, basefd, id, NULL);
 
 					MEM_freeN(id);

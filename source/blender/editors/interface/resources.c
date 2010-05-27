@@ -1463,6 +1463,28 @@ void init_userdef_do_versions(void)
 				SETCOL(btheme->tv3d.lastsel_point, 0xff, 0xff, 0xff, 255);
 		}
 	}
+	if (G.main->versionfile <= 252 || (G.main->versionfile == 252 && G.main->subversionfile < 5)) {
+		bTheme *btheme;
+		
+		/* interface_widgets.c */
+		struct uiWidgetColors wcol_progress= {
+			{0, 0, 0, 255},
+			{190, 190, 190, 255},
+			{100, 100, 100, 180},
+			{68, 68, 68, 255},
+			
+			{0, 0, 0, 255},
+			{255, 255, 255, 255},
+			
+			0,
+			5, -5
+		};
+		
+		for(btheme= U.themes.first; btheme; btheme= btheme->next) {
+			/* init progress bar theme */
+			btheme->tui.wcol_progress= wcol_progress;
+		}
+	}
 	
 	/* GL Texture Garbage Collection (variable abused above!) */
 	if (U.textimeout == 0) {
@@ -1487,6 +1509,11 @@ void init_userdef_do_versions(void)
 	}
 	if (U.v2d_min_gridsize == 0) {
 		U.v2d_min_gridsize= 35;
+	}
+	
+	/* Single Column UI Value */
+	if (U.propwidth == 0) {
+		U.propwidth = 200;
 	}
 
 	/* funny name, but it is GE stuff, moves userdef stuff to engine */

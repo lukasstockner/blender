@@ -20,7 +20,7 @@
 import bpy
 from rna_prop_ui import PropertyPanel
 
-narrowui = 180
+narrowui = bpy.context.user_preferences.view.properties_width_check
 
 
 class ObjectButtonsPanel(bpy.types.Panel):
@@ -182,7 +182,7 @@ class OBJECT_PT_groups(ObjectButtonsPanel):
                 col.prop(group, "dupli_offset", text="")
 
                 prop = col.operator("wm.context_set_value", text="From Cursor")
-                prop.path = "object.group_users[%d].dupli_offset" % index
+                prop.path = "object.users_group[%d].dupli_offset" % index
                 prop.value = value
                 index += 1
 

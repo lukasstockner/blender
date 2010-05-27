@@ -184,11 +184,16 @@ static void button_timers_tooltip_remove(bContext *C, uiBut *but);
 
 /* ******************** menu navigation helpers ************** */
 
+static int ui_but_editable(uiBut *but)
+{
+	return ELEM5(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX, PROGRESSBAR);
+}
+
 static uiBut *ui_but_prev(uiBut *but)
 {
 	while(but->prev) {
 		but= but->prev;
-		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
+		if(!ui_but_editable(but)) return but;
 	}
 	return NULL;
 }
@@ -197,7 +202,7 @@ static uiBut *ui_but_next(uiBut *but)
 {
 	while(but->next) {
 		but= but->next;
-		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
+		if(!ui_but_editable(but)) return but;
 	}
 	return NULL;
 }
@@ -208,7 +213,7 @@ static uiBut *ui_but_first(uiBlock *block)
 	
 	but= block->buttons.first;
 	while(but) {
-		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
+		if(!ui_but_editable(but)) return but;
 		but= but->next;
 	}
 	return NULL;
@@ -220,7 +225,7 @@ static uiBut *ui_but_last(uiBlock *block)
 	
 	but= block->buttons.last;
 	while(but) {
-		if(!ELEM4(but->type, LABEL, SEPR, ROUNDBOX, LISTBOX)) return but;
+		if(!ui_but_editable(but)) return but;
 		but= but->prev;
 	}
 	return NULL;
@@ -2119,8 +2124,13 @@ static int ui_do_but_EXIT(bContext *C, uiBut *but, uiHandleButtonData *data, wmE
 		}
 		
 		if(ELEM3(event->type, LEFTMOUSE, PADENTER, RETKEY) && event->val==KM_PRESS) {
+			int ret = WM_UI_HANDLER_BREAK;
+			/* XXX (a bit ugly) Special case handling for filebrowser drag button */
+			if(but->dragpoin && but->imb && ui_but_mouse_inside_icon(but, data->region, event)) {
+				ret = WM_UI_HANDLER_CONTINUE;
+			}
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
-			return WM_UI_HANDLER_BREAK;
+			return ret;
 		}
 	}
 	else if(data->state == BUTTON_STATE_WAIT_DRAG) {
@@ -4308,6 +4318,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, wmEvent *event)
 	case ROW:
 	case LISTROW:
 	case BUT_IMAGE:
+	case PROGRESSBAR:
 		retval= ui_do_but_EXIT(C, but, data, event);
 		break;
 	case HISTOGRAM:
