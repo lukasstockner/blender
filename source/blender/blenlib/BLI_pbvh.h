@@ -158,6 +158,8 @@ typedef struct PBVHVertexIter {
 		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert; \
 		\
 		vi.grid= 0; \
+                vi.no= 0; \
+                vi.mvert= 0; \
 		\
 		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL); \
 		BLI_pbvh_node_num_verts(bvh, node, &uniq_verts, &totvert); \
@@ -199,18 +201,14 @@ typedef struct PBVHVertexIter {
 			\
 			for(vi.gx=0; vi.gx<vi.width; vi.gx++, vi.i++) { \
 				if(vi.grid) { \
-                                        vi.mvert= 0; \
-					vi.co=    vi.grid->co; \
-                                        vi.no=    0; \
-					vi.fno=   vi.grid->no; \
-                                        \
+					vi.co= vi.grid->co; \
+					vi.fno= vi.grid->no; \
 					vi.grid++; \
 				} \
 				else { \
 					vi.mvert= &vi.mverts[vi.vert_indices[vi.gx]]; \
-					vi.co=    vi.mvert->co; \
-					vi.no=    vi.mvert->no; \
-                                        vi.fno=   0; \
+					vi.co= vi.mvert->co; \
+					vi.no= vi.mvert->no; \
 				} \
 
 #define BLI_pbvh_vertex_iter_end \
