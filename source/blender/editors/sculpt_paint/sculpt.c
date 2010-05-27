@@ -825,35 +825,21 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float area_normal[3]
 		float nout[3] = {0.0f, 0.0f, 0.0f};
 		float nout_flip[3] = {0.0f, 0.0f, 0.0f};
 		
-		// XXX push instead of get for thread safety in draw
-		// brush .. lame, but also not harmful really
-		//unode= sculpt_undo_push_node(ss, nodes[n]);
 		sculpt_brush_test_init(ss, &test);
 
-		if(ss->cache->original) {
-			BLI_pbvh_vertex_iter_begin(bvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(sculpt_brush_test_fast(&test, vd.co)) {
+		BLI_pbvh_vertex_iter_begin(bvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if(sculpt_brush_test_fast(&test, vd.co)) {
+				if(vd.no) {
 					normal_short_to_float_v3(fno, vd.no);
 					add_norm_if(out_dir, nout, nout_flip, fno);
 				}
+				else
+					add_norm_if(out_dir, nout, nout_flip, vd.fno);
 			}
-			BLI_pbvh_vertex_iter_end;
 		}
-		else {
-			BLI_pbvh_vertex_iter_begin(bvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(sculpt_brush_test_fast(&test, vd.co)) {
-					if(vd.no) {
-						normal_short_to_float_v3(fno, vd.no);
-						add_norm_if(out_dir, nout, nout_flip, fno);
-					}
-					else
-						add_norm_if(out_dir, nout, nout_flip, vd.fno);
-				}
-			}
-			BLI_pbvh_vertex_iter_end;
-		}
+		BLI_pbvh_vertex_iter_end;
 
-		#pragma omp critical
+		//#pragma omp critical
 		{
 			/* we sum per node and add together later for threads */
 			add_v3_v3(out, nout);
