@@ -406,66 +406,75 @@ static SculptUndoNode *sculpt_undo_get_node(SculptSession *ss, PBVHNode *node)
 
 static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 {
-	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
-	Object *ob= ss->ob;
-	SculptUndoNode *unode;
-	int totvert, allvert, totgrid, maxgrid, gridsize, *grids;
+    ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
+    Object *ob= ss->ob;
+    SculptUndoNode *unode;
+    int totvert, allvert, totgrid, maxgrid, gridsize, *grids;
 
-	/* list is manipulated by multiple threads, so we lock */
-	BLI_lock_thread(LOCK_CUSTOM1);
+    /* list is manipulated by multiple threads, so we lock */
+    BLI_lock_thread(LOCK_CUSTOM1);
 
-	if((unode= sculpt_undo_get_node(ss, node))) {
-		BLI_unlock_thread(LOCK_CUSTOM1);
-		return unode;
-	}
+    if((unode= sculpt_undo_get_node(ss, node))) {
+        BLI_unlock_thread(LOCK_CUSTOM1);
+        return unode;
+    }
 
-	unode= MEM_callocN(sizeof(SculptUndoNode), "SculptUndoNode");
-	strcpy(unode->idname, ob->id.name);
-	unode->node= node;
+    unode= MEM_mallocN(sizeof(SculptUndoNode), "SculptUndoNode");
+    strcpy(unode->idname, ob->id.name);
+    unode->node= node;
 
-	BLI_pbvh_node_num_verts(ss->pbvh, node, &totvert, &allvert);
-	BLI_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
-		&maxgrid, &gridsize, NULL, NULL);
+    BLI_pbvh_node_num_verts(ss->pbvh, node, &totvert, &allvert);
+    BLI_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
+        &maxgrid, &gridsize, NULL, NULL);
 
-	unode->totvert= totvert;
-	/* we will use this while sculpting, is mapalloc slow to access then? */
-	unode->co= MEM_mapallocN(sizeof(float)*3*allvert, "SculptUndoNode.co");
-	unode->no= MEM_mapallocN(sizeof(short)*3*allvert, "SculptUndoNode.no");
-	undo_paint_push_count_alloc(UNDO_PAINT_MESH, (sizeof(float)*3 + sizeof(short)*3 + sizeof(int))*allvert);
-	BLI_addtail(lb, unode);
+    unode->totvert= totvert;
+    /* we will use this while sculpting, is mapalloc slow to access then? */
+    unode->co= MEM_mapallocN(sizeof(float)*3*allvert, "SculptUndoNode.co");
+    unode->no= MEM_mapallocN(sizeof(short)*3*allvert, "SculptUndoNode.no");
+    undo_paint_push_count_alloc(UNDO_PAINT_MESH, (sizeof(float)*3 + sizeof(short)*3 + sizeof(int))*allvert);
+    BLI_addtail(lb, unode);
 
-	if(maxgrid) {
-		/* multires */
-		unode->maxgrid= maxgrid;
-		unode->totgrid= totgrid;
-		unode->gridsize= gridsize;
-		unode->grids= MEM_mapallocN(sizeof(int)*totgrid, "SculptUndoNode.grids");
-	}
-	else {
-		/* regular mesh */
-		unode->maxvert= ss->totvert;
-		unode->index= MEM_mapallocN(sizeof(int)*allvert, "SculptUndoNode.index");
-	}
+    if(maxgrid) {
+        /* multires */
+        unode->maxgrid= maxgrid;
+        unode->totgrid= totgrid;
+        unode->gridsize= gridsize;
+        unode->grids= MEM_mapallocN(sizeof(int)*totgrid, "SculptUndoNode.grids");
 
-	BLI_unlock_thread(LOCK_CUSTOM1);
+        unode->maxvert = 0;
+        unode->index   = 0;
+    }
+    else {
+        /* regular mesh */
+        unode->maxvert= ss->totvert;
+        unode->index= MEM_mapallocN(sizeof(int)*allvert, "SculptUndoNode.index");
 
-	/* copy threaded, hopefully this is the performance critical part */
-	{
-		PBVHVertexIter vd;
+        unode->maxgrid=  0;
+        unode->totgrid=  0;
+        unode->gridsize= 0;
+        unode->grids=    0;
+    }
 
-		BLI_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
-			copy_v3_v3(unode->co[vd.i], vd.co);
-			if(vd.no) VECCOPY(unode->no[vd.i], vd.no)
-			else normal_float_to_short_v3(unode->no[vd.i], vd.fno);
-			if(vd.vert_indices) unode->index[vd.i]= vd.vert_indices[vd.i];
-		}
-		BLI_pbvh_vertex_iter_end;
-	}
+    BLI_unlock_thread(LOCK_CUSTOM1);
 
-	if(unode->grids)
-		memcpy(unode->grids, grids, sizeof(int)*totgrid);
-	
-	return unode;
+    /* copy threaded, hopefully this is the performance critical part */
+    {
+        PBVHVertexIter vd;
+
+        BLI_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
+            copy_v3_v3(unode->co[vd.i], vd.co);
+            if(vd.no) VECCOPY(unode->no[vd.i], vd.no)
+            else normal_float_to_short_v3(unode->no[vd.i], vd.fno);
+            if(vd.vert_indices) unode->index[vd.i]= vd.vert_indices[vd.i];
+        }
+        BLI_pbvh_vertex_iter_end;
+    }
+
+    if(unode->grids) memcpy(unode->grids, grids, sizeof(int)*totgrid);
+
+    unode->layer_disp= 0;
+
+    return unode;
 }
 
 static void sculpt_undo_push_begin(SculptSession *ss, char *name)
@@ -531,6 +540,32 @@ static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 	}
 
 	return 0;
+}
+
+static int sculpt_brush_test_sq(SculptBrushTest *test, float co[3])
+{
+	float distsq, delta[3];
+
+	sub_v3_v3v3(delta, co, test->location);
+	distsq = INPR(delta, delta);
+
+	if(distsq < test->radius_squared) {
+		test->dist = distsq;
+		return 1;
+	}
+        else {
+        	return 0;
+        }
+}
+
+static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
+{
+	float distsq, delta[3];
+
+	sub_v3_v3v3(delta, co, test->location);
+	distsq = INPR(delta, delta);
+
+	return distsq < test->radius_squared;
 }
 
 /* ===== Sculpting =====
@@ -781,24 +816,24 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float area_normal[3]
 	copy_v3_v3(out_dir, cache->view_normal_symmetry);
 
 	/* threaded loop over nodes */
-	#pragma omp parallel for private(n) schedule(static)
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
-		SculptUndoNode *unode;
+		//SculptUndoNode *unode;
 		float fno[3];
 		float nout[3] = {0.0f, 0.0f, 0.0f};
 		float nout_flip[3] = {0.0f, 0.0f, 0.0f};
 		
 		// XXX push instead of get for thread safety in draw
 		// brush .. lame, but also not harmful really
-		unode= sculpt_undo_push_node(ss, nodes[n]);
+		//unode= sculpt_undo_push_node(ss, nodes[n]);
 		sculpt_brush_test_init(ss, &test);
 
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(bvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(sculpt_brush_test(&test, unode->co[vd.i])) {
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
+				if(sculpt_brush_test_fast(&test, vd.co)) {
+					normal_short_to_float_v3(fno, vd.no);
 					add_norm_if(out_dir, nout, nout_flip, fno);
 				}
 			}
@@ -806,7 +841,7 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float area_normal[3]
 		}
 		else {
 			BLI_pbvh_vertex_iter_begin(bvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(sculpt_brush_test(&test, vd.co)) {
+				if(sculpt_brush_test_fast(&test, vd.co)) {
 					if(vd.no) {
 						normal_short_to_float_v3(fno, vd.no);
 						add_norm_if(out_dir, nout, nout_flip, fno);
@@ -1227,73 +1262,107 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	}
 }
 
+//static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float co[3])
+//{
+//    float outer_dist[FLATTEN_SAMPLE_SIZE];
+//    float outer_co[FLATTEN_SAMPLE_SIZE][3];
+//
+//    int n;
+//
+//    float count;
+//
+//    for (n = 0; n < FLATTEN_SAMPLE_SIZE; n++) {
+//        zero_v3(outer_co[n]);
+//        outer_dist[n]= -1.0f;
+//    }
+//
+//    for (n = 0; n < totnode; n++) {
+//        PBVHVertexIter vd;
+//        SculptBrushTest test;
+//
+//        int j;
+//
+//        //sculpt_undo_push_node(ss, nodes[n]);
+//
+//        sculpt_brush_test_init(ss, &test);
+//
+//        BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+//            if (sculpt_brush_test(&test, vd.co)) {
+//                for (j = 0; j < FLATTEN_SAMPLE_SIZE; ++j) {
+//                    if (test.dist > outer_dist[j]) {
+//                        copy_v3_v3(outer_co[j], vd.co);
+//                        outer_dist[j] = test.dist;
+//                        break;
+//                    }
+//                }
+//            }
+//        }
+//        BLI_pbvh_vertex_iter_end;
+//
+//        //BLI_pbvh_node_mark_update(nodes[n]);
+//    }
+//
+//    count = co[0] = co[1] = co[2] = 0.0f;
+//
+//    for (n = 0; n < FLATTEN_SAMPLE_SIZE; n++) {
+//        if (outer_dist[n] >= 0.0f) {
+//            add_v3_v3(co, outer_co[n]);
+//            count++;
+//        }
+//    }
+//
+//    mul_v3_fl(co, 1.0f / count);
+//}
+
 static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float co[3])
 {
-    float outer_dist[FLATTEN_SAMPLE_SIZE];
-    float outer_co[FLATTEN_SAMPLE_SIZE][3];
-
     int n;
 
-    float count;
+    float count = 0;
 
-    for (n = 0; n < FLATTEN_SAMPLE_SIZE; n++) {
-        zero_v3(outer_co[n]);
-        outer_dist[n]= -1.0f;
-    }
+    co[0] = co[1] = co[2] = 0;
 
     for (n = 0; n < totnode; n++) {
         PBVHVertexIter vd;
         SculptBrushTest test;
 
-        int j;
-
-        sculpt_undo_push_node(ss, nodes[n]);
-
         sculpt_brush_test_init(ss, &test);
 
         BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-            if (sculpt_brush_test(&test, vd.co)) {
-                for (j = 0; j < FLATTEN_SAMPLE_SIZE; ++j) {
-                    if (test.dist > outer_dist[j]) {
-                        copy_v3_v3(outer_co[j], vd.co);
-                        outer_dist[j] = test.dist;
-                        break;
-                    }
-                }
+            if (sculpt_brush_test_fast(&test, vd.co)) {
+                add_v3_v3(co, vd.co);
+                count++;
             }
         }
         BLI_pbvh_vertex_iter_end;
-
-        BLI_pbvh_node_mark_update(nodes[n]);
-    }
-
-    count = co[0] = co[1] = co[2] = 0.0f;
-
-    for (n = 0; n < FLATTEN_SAMPLE_SIZE; n++) {
-        if (outer_dist[n] >= 0.0f) {
-            add_v3_v3(co, outer_co[n]);
-            count++;
-        }
     }
 
     mul_v3_fl(co, 1.0f / count);
 }
 
+///* Projects a point onto a plane along the plane's normal */
+//static void point_plane_project(float intr[3], float co[3], float plane_normal[3], float plane_center[3])
+//{
+//    float p1[3], sub1[3], sub2[3];
+//
+//    /* Find the intersection between squash-plane and vertex (along the area normal) */
+//    sub_v3_v3v3(p1, co, plane_normal);
+//    sub_v3_v3v3(sub1, plane_center, p1);
+//    sub_v3_v3v3(sub2, co, p1);
+//    sub_v3_v3v3(intr, co, p1);
+//    mul_v3_fl(intr, dot_v3v3(plane_normal, sub1) / dot_v3v3(plane_normal, sub2));
+//    add_v3_v3(intr, p1);
+//}
+
 /* Projects a point onto a plane along the plane's normal */
 static void point_plane_project(float intr[3], float co[3], float plane_normal[3], float plane_center[3])
 {
-    float p1[3], sub1[3], sub2[3];
-
-    /* Find the intersection between squash-plane and vertex (along the area normal) */
-    sub_v3_v3v3(p1, co, plane_normal);
-    sub_v3_v3v3(sub1, plane_center, p1);
-    sub_v3_v3v3(sub2, co, p1);
-    sub_v3_v3v3(intr, co, p1);
-    mul_v3_fl(intr, dot_v3v3(plane_normal, sub1) / dot_v3v3(plane_normal, sub2));
-    add_v3_v3(intr, p1);
+    sub_v3_v3v3(intr, co, plane_center);
+    mul_v3_v3fl(intr, plane_normal, dot_v3v3(plane_normal, intr));
+    sub_v3_v3v3(intr, co, intr); 
 }
 
-static int plane_point_side(float co[3], float plane_normal[3], float plane_center[3], int flip)
+static int plane_point_side_flip(float co[3], float plane_normal[3], float plane_center[3], int flip)
 {
     float delta[3];
     float d;
@@ -1304,6 +1373,14 @@ static int plane_point_side(float co[3], float plane_normal[3], float plane_cent
     if (flip) d = -d;
 
     return d <= 0.0f;
+}
+
+static int plane_point_side(float co[3], float plane_normal[3], float plane_center[3])
+{
+    float delta[3];
+
+    sub_v3_v3v3(delta, co, plane_center);
+    return  dot_v3v3(plane_normal, delta) <= 0.0f;
 }
 
 static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
@@ -1372,12 +1449,12 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
     calc_flatten_center(sd, ss, nodes, totnode, center);
 
-    displace = MAX_BRUSH_PIXEL_RADIUS/2.0f;
+    displace = bstrength * MAX_BRUSH_PIXEL_RADIUS/2.0f;
 
-    if (displace > ss->cache->radius/2.0f) displace = ss->cache->radius/2.0f;
+    if (displace > ss->cache->radius/2.0f) displace = bstrength * ss->cache->radius/2.0f;
 
     mul_v3_v3v3(temp, area_normal, ss->cache->scale);
-    mul_v3_fl(temp, displace * bstrength);
+    mul_v3_fl(temp, displace);
     add_v3_v3(center, temp);
 
     flip = bstrength < 0;
@@ -1393,12 +1470,12 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
         sculpt_brush_test_init(ss, &test);
 
         BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-            if (sculpt_brush_test(&test, vd.co)) {
-                if (plane_point_side(vd.co, area_normal, center, flip)) {
+            if (sculpt_brush_test_sq(&test, vd.co)) {
+                if (plane_point_side_flip(vd.co, area_normal, center, flip)) {
                     float intr[3];
                     float val[3];
 
-                    const float fade = tex_strength(ss, brush, vd.co, test.dist);
+                    const float fade = tex_strength(ss, brush, vd.co, sqrt(test.dist));
 
                     point_plane_project(intr, vd.co, area_normal, center);
                     sub_v3_v3v3(val, intr, vd.co);
@@ -1488,7 +1565,7 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
         BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
             if (sculpt_brush_test(&test, vd.co)) {
-                if (plane_point_side(vd.co, area_normal, center, 0)) {
+                if (plane_point_side(vd.co, area_normal, center)) {
                     float intr[3];
                     float val[3];
 
@@ -1536,7 +1613,7 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
         BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
             if (sculpt_brush_test(&test, vd.co)) {
-                if (plane_point_side(vd.co, area_normal, center, 1)) {
+                if (!plane_point_side(vd.co, area_normal, center)) {
                     float intr[3];
                     float val[3];
 
