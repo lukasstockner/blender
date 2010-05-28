@@ -183,33 +183,36 @@ static int paint_space_stroke_enabled(Brush *br)
    towards the final mouse location. */
 static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const float final_mouse[2])
 {
-	PaintStroke *stroke = op->customdata;
-	int cnt = 0;
+    PaintStroke *stroke = op->customdata;
+    int cnt = 0;
 
-	if(paint_space_stroke_enabled(stroke->brush)) {
-		float mouse[2] = {stroke->last_mouse_position[0], stroke->last_mouse_position[1]};
-		float vec[2] = {final_mouse[0] - mouse[0], final_mouse[1] - mouse[1]};
-		float length, scale;
-		int steps = 0, i;
+    if(paint_space_stroke_enabled(stroke->brush)) {
+        float mouse[2];
+        float vec[2];
+        float length, scale;
 
-		/* Normalize the vector between the last stroke dot and the goal */
-		length = sqrt(vec[0]*vec[0] + vec[1]*vec[1]);
+        copy_v2_v2(mouse, stroke->last_mouse_position);
+        sub_v2_v2v2(vec, final_mouse, mouse);
 
-		if(length > FLT_EPSILON) {
-			scale = stroke->brush->spacing / length;
-			vec[0] *= scale;
-			vec[1] *= scale;
+        length = len_v2(vec);
 
-			steps = (int)(length / stroke->brush->spacing);
-			for(i = 0; i < steps; ++i, ++cnt) {
-				mouse[0] += vec[0];
-				mouse[1] += vec[1];
-				paint_brush_stroke_add_step(C, op, event, mouse);
-			}
-		}
-	}
+        if(length > FLT_EPSILON) {
+            int steps;
+            int i;
 
-	return cnt;
+            scale = (stroke->brush->size*stroke->brush->spacing/100.0f) / length;
+            mul_v2_fl(vec, scale);
+
+            steps = (int)(1.0f / scale);
+
+            for(i = 0; i < steps; ++i, ++cnt) {
+                add_v2_v2(mouse, vec);
+                paint_brush_stroke_add_step(C, op, event, mouse);
+            }
+        }
+    }
+
+    return cnt;
 }
 
 /**** Public API ****/

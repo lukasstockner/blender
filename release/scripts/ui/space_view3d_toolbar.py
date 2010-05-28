@@ -566,7 +566,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'):
                     col.row().prop(brush, "direction", expand=True)
 
-                if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER'):
+                if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
                     col.prop(brush, "use_accumulate")
 
                 if brush.sculpt_tool == 'LAYER':

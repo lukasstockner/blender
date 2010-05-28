@@ -568,6 +568,19 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 	return distsq < test->radius_squared;
 }
 
+/* area of overlap of two circles of radius 1 seperated by d units from their centers */
+static float circle_overlap(float d)
+{
+    return (2*acos(d/2)-(1/2)*d*sqrt(4-d*d));
+}
+
+/* percentage of overlap of two circles of radius 1 seperated by d units from their centers */
+/* TODO: cache one minus this value*/
+static float circle_overlap_percent(float d)
+{
+    return circle_overlap(d) / M_PI;
+}
+
 /* ===== Sculpting =====
  *
  */
@@ -583,16 +596,17 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
     float alpha = brush->alpha * brush->alpha;
 
     float dir      = brush->flag & BRUSH_DIR_IN ? -1 : 1;
-    float pressure = 1;
-    float flip     = cache->flip ? -1:1;
-
-    if(brush->flag & BRUSH_ALPHA_PRESSURE) pressure *= cache->pressure;
+    float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
+    float flip     = cache->flip ? -1 : 1;
+    float overlap  = brush->spacing < 100.0f ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 
     switch(brush->sculpt_tool){
         case SCULPT_TOOL_DRAW:
         case SCULPT_TOOL_INFLATE:
+            return alpha * dir * pressure * flip * overlap;
+
         case SCULPT_TOOL_CLAY:
-            return alpha * dir * pressure * flip;
+            return  alpha / 2 * dir * pressure * flip * overlap;
 
         case SCULPT_TOOL_FLATTEN:
         case SCULPT_TOOL_LAYER:
@@ -820,8 +834,8 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float area_normal[3]
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
-		//SculptUndoNode *unode;
-		float fno[3];
+
+                float fno[3];
 		float nout[3] = {0.0f, 0.0f, 0.0f};
 		float nout_flip[3] = {0.0f, 0.0f, 0.0f};
 		
@@ -877,7 +891,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	offset[2]= area_normal[2]*ss->cache->radius*ss->cache->scale[2]*bstrength;
 
 	/* threaded loop over nodes */
-	#pragma omp parallel for private(n) schedule(static)
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -991,7 +1005,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	BLI_pbvh_node_get_grids(ss->pbvh, node, &grid_indices, &totgrid,
 		NULL, &gridsize, &griddata, &gridadj);
 
-	#pragma omp critical
+	//#pragma omp critical
 	tmpgrid= MEM_mallocN(sizeof(float)*3*gridsize*gridsize, "tmpgrid");
 
 	for(i = 0; i < totgrid; ++i) {
@@ -1050,7 +1064,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 		}
 	}
 
-	#pragma omp critical
+	//#pragma omp critical
 	MEM_freeN(tmpgrid);
 }
 
@@ -1059,7 +1073,7 @@ static void do_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	int iteration, n;
 
 	for(iteration = 0; iteration < 2; ++iteration) {
-		#pragma omp parallel for private(n) schedule(static)
+		//#pragma omp parallel for private(n) schedule(static)
 		for(n=0; n<totnode; n++) {
 			sculpt_undo_push_node(ss, nodes[n]);
 
@@ -1082,7 +1096,7 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	#pragma omp parallel for private(n) schedule(static)
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1116,7 +1130,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
-	#pragma omp parallel for private(n) schedule(static)
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1159,7 +1173,7 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	offset[1]= ss->cache->scale[1]*area_normal[1];
 	offset[2]= ss->cache->scale[2]*area_normal[2];
 
-	#pragma omp parallel for private(n) schedule(static)
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1216,7 +1230,7 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	#pragma omp parallel for private(n) schedule(static)
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1248,97 +1262,60 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	}
 }
 
-//static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float co[3])
-//{
-//    float outer_dist[FLATTEN_SAMPLE_SIZE];
-//    float outer_co[FLATTEN_SAMPLE_SIZE][3];
-//
-//    int n;
-//
-//    float count;
-//
-//    for (n = 0; n < FLATTEN_SAMPLE_SIZE; n++) {
-//        zero_v3(outer_co[n]);
-//        outer_dist[n]= -1.0f;
-//    }
-//
-//    for (n = 0; n < totnode; n++) {
-//        PBVHVertexIter vd;
-//        SculptBrushTest test;
-//
-//        int j;
-//
-//        //sculpt_undo_push_node(ss, nodes[n]);
-//
-//        sculpt_brush_test_init(ss, &test);
-//
-//        BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-//            if (sculpt_brush_test(&test, vd.co)) {
-//                for (j = 0; j < FLATTEN_SAMPLE_SIZE; ++j) {
-//                    if (test.dist > outer_dist[j]) {
-//                        copy_v3_v3(outer_co[j], vd.co);
-//                        outer_dist[j] = test.dist;
-//                        break;
-//                    }
-//                }
-//            }
-//        }
-//        BLI_pbvh_vertex_iter_end;
-//
-//        //BLI_pbvh_node_mark_update(nodes[n]);
-//    }
-//
-//    count = co[0] = co[1] = co[2] = 0.0f;
-//
-//    for (n = 0; n < FLATTEN_SAMPLE_SIZE; n++) {
-//        if (outer_dist[n] >= 0.0f) {
-//            add_v3_v3(co, outer_co[n]);
-//            count++;
-//        }
-//    }
-//
-//    mul_v3_fl(co, 1.0f / count);
-//}
-
-static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float co[3])
+static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float area_normal[3], float center[3])
 {
+    // an
+    PBVH *bvh= ss->pbvh;
+    StrokeCache *cache = ss->cache;
+    float out_flip[3] = {0.0f, 0.0f, 0.0f};
     int n;
 
+    // fc
     float count = 0;
 
-    co[0] = co[1] = co[2] = 0;
+    // an
+    area_normal[0] = area_normal[1] = area_normal[2] = 0;
 
-    for (n = 0; n < totnode; n++) {
+    // fc
+    center[0] = center[1] = center[2] = 0;
+
+    for(n=0; n<totnode; n++) {
         PBVHVertexIter vd;
         SculptBrushTest test;
 
         sculpt_brush_test_init(ss, &test);
 
-        BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-            if (sculpt_brush_test_fast(&test, vd.co)) {
-                add_v3_v3(co, vd.co);
+        BLI_pbvh_vertex_iter_begin(bvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+            if(sculpt_brush_test_fast(&test, vd.co)) {
+                // an
+                if(vd.no) {
+                    float fno[3];
+
+                    normal_short_to_float_v3(fno, vd.no);
+                    add_norm_if(cache->view_normal_symmetry, area_normal, out_flip, fno);
+                }
+                else {
+                    add_norm_if(cache->view_normal_symmetry, area_normal, out_flip, vd.fno);
+                }
+
+                // fc
+                add_v3_v3(center, vd.co);
                 count++;
             }
         }
         BLI_pbvh_vertex_iter_end;
     }
 
-    mul_v3_fl(co, 1.0f / count);
-}
+    // an
+    if (area_normal[0]==0.0 && area_normal[1]==0.0 && area_normal[2]==0.0) {
+        copy_v3_v3(area_normal, out_flip);
+    }
 
-///* Projects a point onto a plane along the plane's normal */
-//static void point_plane_project(float intr[3], float co[3], float plane_normal[3], float plane_center[3])
-//{
-//    float p1[3], sub1[3], sub2[3];
-//
-//    /* Find the intersection between squash-plane and vertex (along the area normal) */
-//    sub_v3_v3v3(p1, co, plane_normal);
-//    sub_v3_v3v3(sub1, plane_center, p1);
-//    sub_v3_v3v3(sub2, co, p1);
-//    sub_v3_v3v3(intr, co, p1);
-//    mul_v3_fl(intr, dot_v3v3(plane_normal, sub1) / dot_v3v3(plane_normal, sub2));
-//    add_v3_v3(intr, p1);
-//}
+    normalize_v3(area_normal);
+
+    // fc
+    mul_v3_fl(center, 1.0f / count);
+}
 
 /* Projects a point onto a plane along the plane's normal */
 static void point_plane_project(float intr[3], float co[3], float plane_normal[3], float plane_center[3])
@@ -1380,9 +1357,7 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 
     int n;
 
-    calc_area_normal(sd, ss, area_normal, nodes, totnode);
-
-    calc_flatten_center(sd, ss, nodes, totnode, center);
+    calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, area_normal, center);
 
     for(n = 0; n < totnode; n++) {
         PBVHVertexIter  vd;
@@ -1420,7 +1395,6 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
     Brush *brush = paint_brush(&sd->paint);
 
     float bstrength = ss->cache->bstrength;
-    static const float atten = 1.0f/8.0f;
     const float radius = ss->cache->radius;
 
     float displace;
@@ -1434,11 +1408,9 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
     int flip;
 
-    calc_area_normal(sd, ss, area_normal, nodes, totnode);
+    calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, area_normal, center);
 
-    calc_flatten_center(sd, ss, nodes, totnode, center);
-
-    displace = bstrength*atten*radius;
+    displace = bstrength*radius;
 
     mul_v3_v3v3(temp, area_normal, ss->cache->scale);
     mul_v3_fl(temp, displace);
@@ -1490,9 +1462,7 @@ static void do_contrast_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, i
 
     int n;
 
-    calc_area_normal(sd, ss, area_normal, nodes, totnode);
-
-    calc_flatten_center(sd, ss, nodes, totnode, center);
+    calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, area_normal, center);
 
     for(n = 0; n < totnode; n++) {
         PBVHVertexIter  vd;
@@ -1536,9 +1506,7 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
     int n;
     
-    calc_area_normal(sd, ss, area_normal, nodes, totnode);
-
-    calc_flatten_center(sd, ss, nodes, totnode, center);
+    calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, area_normal, center);
 
     for (n = 0; n < totnode; n++) {
         PBVHVertexIter vd;
@@ -1584,9 +1552,7 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
     int n;
     
-    calc_area_normal(sd, ss, area_normal, nodes, totnode);
-
-    calc_flatten_center(sd, ss, nodes, totnode, center);
+    calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, area_normal, center);
 
     for (n = 0; n < totnode; n++) {
         PBVHVertexIter vd;
@@ -1989,7 +1955,7 @@ static void sculpt_update_cache_invariants(Sculpt *sd, SculptSession *ss, bConte
 		cache->original = 1;
 	}
 
-	if(ELEM3(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE))
+	if(ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
@@ -2233,7 +2199,7 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 
 		BLI_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
 
-		#pragma omp parallel for private(n) schedule(static)
+		//#pragma omp parallel for private(n) schedule(static)
 		for(n=0; n<totnode; n++) {
 			SculptUndoNode *unode;
 			
