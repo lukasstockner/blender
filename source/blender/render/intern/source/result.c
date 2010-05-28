@@ -773,7 +773,7 @@ static int passtype_from_name(char *str)
 	if(strcmp(str, "IndexOB")==0)
 		return SCE_PASS_INDEXOB;
 
-	if(strcmp(str, "IndexOB")==0)
+	if(strcmp(str, "IndexMA")==0)
 		return SCE_PASS_INDEXMA;
 
 	if(strcmp(str, "Mist")==0)
