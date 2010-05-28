@@ -392,7 +392,7 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 	int show_emitter, allow_render= 1, index, psysindex, i;
 
 	if (dob)
-		index = par->index ? par->index : dob->index;
+		index = par->index ? par->index : dob->ob->index;
 	else index = ob->index;
 
 	/* the emitter has to be processed first (render levels of modifiers) */
@@ -775,7 +775,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 						 * a dupligroup that has already been created before */
 						if(dob->type != OB_DUPLIGROUP || (obr=find_dupligroup_dupli(re, obd, 0))) {
 							mul_m4_m4m4(mat, dob->mat, re->cam.viewmat);
-							obi= render_instance_create(&re->db, NULL, obd, ob, dob->index, 0, mat, obd->lay);
+							obi= render_instance_create(&re->db, NULL, obd, ob, dob->ob->index, 0, mat, obd->lay);
 
 							/* fill in instance variables for texturing */
 							set_dupli_tex_mat(re, obi, dob);
@@ -803,7 +803,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 						psysindex= 1;
 						for(psys=obd->particlesystem.first; psys; psys=psys->next) {
 							if(dob->type != OB_DUPLIGROUP || (obr=find_dupligroup_dupli(re, ob, psysindex))) {
-								obi= render_instance_create(&re->db, NULL, obd, ob, dob->index, psysindex++, mat, obd->lay);
+								obi= render_instance_create(&re->db, NULL, obd, ob, dob->ob->index, psysindex++, mat, obd->lay);
 
 								set_dupli_tex_mat(re, obi, dob);
 								if(dob->type != OB_DUPLIGROUP) {

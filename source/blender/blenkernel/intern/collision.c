@@ -895,7 +895,6 @@ static void findClosestPointsEE(float *x1, float *x2, float *x3, float *x4, floa
 
 	*w1 = (e * c - b * f) / (a * c - b * b);
 	*w2 = (f - b * *w1) / c;
-
 }
 
 // calculates the distance of 2 edges
