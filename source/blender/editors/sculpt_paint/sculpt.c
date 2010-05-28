@@ -1420,6 +1420,9 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
     Brush *brush = paint_brush(&sd->paint);
 
     float bstrength = ss->cache->bstrength;
+    static const float atten = 1.0f/8.0f;
+    const float radius = ss->cache->radius;
+
     float displace;
 
     float area_normal[3];
@@ -1435,17 +1438,13 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
     calc_flatten_center(sd, ss, nodes, totnode, center);
 
-    displace = bstrength * MAX_BRUSH_PIXEL_RADIUS/2.0f;
-
-    if (displace > ss->cache->radius/2.0f) displace = bstrength * ss->cache->radius/2.0f;
+    displace = bstrength*atten*radius;
 
     mul_v3_v3v3(temp, area_normal, ss->cache->scale);
     mul_v3_fl(temp, displace);
     add_v3_v3(center, temp);
 
     flip = bstrength < 0;
-
-    if (flip) bstrength = -bstrength;
 
     for (n = 0; n < totnode; n++) {
         PBVHVertexIter vd;
