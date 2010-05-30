@@ -661,8 +661,8 @@ public:
 			source.setAccessorCount(totuv);
 			source.setAccessorStride(2);
 			COLLADASW::SourceBase::ParameterNameList &param = source.getParameterNameList();
-			param.push_back("X");
-			param.push_back("Y");
+			param.push_back("S");
+			param.push_back("T");
 			
 			source.prepareToAppendValues();
 			
