@@ -113,8 +113,8 @@ typedef struct CustomData {
 #define CD_MASK_WEIGHT_MCOL	(1 << CD_WEIGHT_MCOL)
 #define CD_MASK_CLOTH_ORCO	(1 << CD_CLOTH_ORCO)
 #define CD_MASK_FACEGRID	(1 << CD_FACEGRID)
-#define CD_MASK_PAINTMASK	(1 << CD_PAINTMASK)
 #define CD_MASK_DISP		(1 << CD_DISP)
+#define CD_MASK_PAINTMASK	(1 << CD_PAINTMASK)
 
 /* CustomData.flag */
 

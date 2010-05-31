@@ -760,6 +760,7 @@ static void layerDefault_mcol(void *data, int count)
 
 
 const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
+	/* 0 */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
 	{sizeof(MSticky), "MSticky", 1, NULL, NULL, NULL, layerInterp_msticky, NULL,
 	 NULL},
@@ -776,6 +777,8 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 3 floats per normal vector */
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	{sizeof(int), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+
+	/* 10 */
 	{sizeof(MFloatProperty), "MFloatProperty",1,"Float",NULL,NULL,NULL,NULL},
 	{sizeof(MIntProperty), "MIntProperty",1,"Int",NULL,NULL,NULL,NULL},
 	{sizeof(MStringProperty), "MStringProperty",1,"String",NULL,NULL,NULL,NULL},
@@ -788,13 +791,18 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(float)*3*4, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	{sizeof(MDisps), "MDisps", 1, NULL, layerCopy_mdisps,
 	 layerFree_mdisps, layerInterp_mdisps, layerSwap_mdisps, NULL, layerRead_mdisps, layerWrite_mdisps, layerFilesize_mdisps},
+
+	/* 20 */
 	{sizeof(MCol)*4, "MCol", 4, "WeightCol", NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
-	 {sizeof(MCol)*4, "MCol", 4, "IDCol", NULL, NULL, layerInterp_mcol,
+	{sizeof(MCol)*4, "MCol", 4, "IDCol", NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
-	 {sizeof(MCol)*4, "MCol", 4, "TexturedCol", NULL, NULL, layerInterp_mcol,
+	{sizeof(MCol)*4, "MCol", 4, "TexturedCol", NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
-	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL}
+	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(CustomData), "CustomData", 1, "Face Grid", NULL, NULL, NULL, NULL, NULL},
+	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(float), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 };
 
 const char *LAYERTYPENAMES[CD_NUMTYPES] = {
@@ -802,7 +810,8 @@ const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/*   5-9 */ "CDMTFace", "CDMCol", "CDOrigIndex", "CDNormal", "CDFlags",
 	/* 10-14 */ "CDMFloatProperty", "CDMIntProperty","CDMStringProperty", "CDOrigSpace", "CDOrco",
 	/* 15-19 */ "CDMTexPoly", "CDMLoopUV", "CDMloopCol", "CDTangent", "CDMDisps",
-	/* 20-23 */"CDWeightMCol", "CDIDMCol", "CDTextureMCol", "CDClothOrco"
+	/* 20-24 */ "CDWeightMCol", "CDIDMCol", "CDTextureMCol", "CDClothOrco", "CDFaceGrid",
+	/* 25-26 */ "CDDisp", "CDPaintMask"
 };
 
 const CustomDataMask CD_MASK_BAREMESH =
