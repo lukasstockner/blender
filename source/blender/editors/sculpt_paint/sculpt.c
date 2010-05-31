@@ -603,10 +603,8 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
     switch(brush->sculpt_tool){
         case SCULPT_TOOL_DRAW:
         case SCULPT_TOOL_INFLATE:
-            return alpha * dir * pressure * flip * overlap;
-
         case SCULPT_TOOL_CLAY:
-            return  alpha / 2 * dir * pressure * flip * overlap;
+            return  alpha * dir * pressure * flip * overlap;
 
         case SCULPT_TOOL_FLATTEN:
         case SCULPT_TOOL_LAYER:
@@ -2067,7 +2065,7 @@ typedef struct {
 	int original;
 } SculptRaycastData;
 
-void sculpt_raycast_cb(PBVHNode *node, void *data_v)
+void sculpt_raycast_cb(PBVHNode *node, void *data_v, float* tmin)
 {
 	SculptRaycastData *srd = data_v;
 	float (*origco)[3]= NULL;
@@ -2078,8 +2076,13 @@ void sculpt_raycast_cb(PBVHNode *node, void *data_v)
 		origco= (unode)? unode->co: NULL;
 	}
 
-	srd->hit |= BLI_pbvh_node_raycast(srd->ss->pbvh, node, origco,
-		srd->ray_start, srd->ray_normal, &srd->dist);
+        if (BLI_pbvh_node_get_tmin(node) < *tmin) {
+            if (BLI_pbvh_node_raycast(srd->ss->pbvh, node, origco, srd->ray_start, srd->ray_normal, &srd->dist)) {
+                srd->hit = 1;
+                *tmin = srd->dist;
+            }
+            //printf("tmin = %f\n", *tmin);
+        }
 }
 
 /* Do a raycast in the tree to find the 3d brush location

@@ -42,6 +42,7 @@ typedef struct PBVHNode PBVHNode;
 typedef int (*BLI_pbvh_SearchCallback)(PBVHNode *node, void *data);
 
 typedef void (*BLI_pbvh_HitCallback)(PBVHNode *node, void *data);
+typedef void (*BLI_pbvh_HitOccludedCallback)(PBVHNode *node, void *data, float* tmin);
 
 /* Building */
 
@@ -70,7 +71,7 @@ void BLI_pbvh_search_gather(PBVH *bvh,
    it's up to the callback to find the primitive within the leaves that is
    hit first */
 
-void BLI_pbvh_raycast(PBVH *bvh, BLI_pbvh_HitCallback cb, void *data,
+void BLI_pbvh_raycast(PBVH *bvh, BLI_pbvh_HitOccludedCallback cb, void *data,
 			  float ray_start[3], float ray_normal[3], int original);
 int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 	float ray_start[3], float ray_normal[3], float *dist);
@@ -105,6 +106,8 @@ void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
 
 void BLI_pbvh_node_get_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
 void BLI_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
+
+float BLI_pbvh_node_get_tmin(PBVHNode* node);
 
 /* Update Normals/Bounding Box/Draw Buffers/Redraw and clear flags */
 
