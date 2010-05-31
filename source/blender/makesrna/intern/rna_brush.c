@@ -132,7 +132,15 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, "ADD", 0, "Add", "Add effect of brush"},
 		{BRUSH_DIR_IN, "SUBTRACT", 0, "Subtract", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
-		
+
+	static EnumPropertyItem brush_sculpt_direction_items[] = {
+		{SCULPT_DISP_DIR_AREA, "AREA", 0, "Area", ""},
+		{SCULPT_DISP_DIR_VIEW, "VIEW", 0, "View", ""},
+		{SCULPT_DISP_DIR_X, "X", 0, "X", ""},
+		{SCULPT_DISP_DIR_Y, "Y", 0, "Y", ""},
+		{SCULPT_DISP_DIR_Z, "Z", 0, "Z", ""},
+		{0, NULL, 0, NULL, NULL}};
+	
 	srna= RNA_def_struct(brna, "Brush", "ID");
 	RNA_def_struct_ui_text(srna, "Brush", "Brush datablock for storing brush settings for painting and sculpting");
 	RNA_def_struct_ui_icon(srna, ICON_BRUSH_DATA);
@@ -162,6 +170,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, prop_flip_direction_items);
 	RNA_def_property_ui_text(prop, "Direction", "Mapping type to use for this image in the game engine");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	
+	prop= RNA_def_property(srna, "sculpt_direction", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, brush_sculpt_direction_items);
+	RNA_def_property_ui_text(prop, "Sculpt Direction", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* number values */
@@ -215,6 +228,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_airbrush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_AIRBRUSH);
 	RNA_def_property_ui_text(prop, "Airbrush", "Keep applying paint effect while holding mouse (spray)");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	
+	prop= RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ORIGINAL_NORMAL);
+	RNA_def_property_ui_text(prop, "Original Normal", "Keeps using the starting normal of the stroke when sculpting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	prop= RNA_def_property(srna, "use_wrap", PROP_BOOLEAN, PROP_NONE);

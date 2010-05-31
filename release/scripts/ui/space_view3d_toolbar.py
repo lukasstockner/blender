@@ -726,7 +726,11 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
             if brush.sculpt_tool != 'LAYER':
                 layout.prop(brush, "use_anchor")
             layout.prop(brush, "use_rake")
-
+            if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'FILL', 'SCRAPE', 'CONTRAST'):
+                layout.prop(brush, "use_original_normal")
+                col = layout.column()
+                col.label(text="Direction:")
+                col.prop(brush, "sculpt_direction", text="")
         layout.prop(brush, "use_airbrush")
         col = layout.column()
         col.active = brush.use_airbrush

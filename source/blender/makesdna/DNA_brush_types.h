@@ -64,11 +64,13 @@ typedef struct Brush {
 
 	float rgb[3];				/* color */
 	float alpha;				/* opacity */
+	
+	int sculpt_direction;		/* the direction of movement for sculpt vertices */
 
 	char sculpt_tool;			/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
 	char imagepaint_tool;		/* active image paint tool */
-	char pad2;
+	char pad[5];
 } Brush;
 
 /* Brush.flag */
@@ -87,6 +89,7 @@ typedef struct Brush {
 #define BRUSH_PERSISTENT		4096
 #define BRUSH_ACCUMULATE		8192
 #define BRUSH_LOCK_ALPHA		16384
+#define BRUSH_ORIGINAL_NORMAL	32768
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW      1
@@ -106,6 +109,15 @@ typedef struct Brush {
 #define PAINT_TOOL_SOFTEN	1
 #define PAINT_TOOL_SMEAR	2
 #define PAINT_TOOL_CLONE	3
+
+/* direction that the brush displaces along */
+enum {
+	SCULPT_DISP_DIR_AREA,
+	SCULPT_DISP_DIR_VIEW,	
+	SCULPT_DISP_DIR_X,
+	SCULPT_DISP_DIR_Y,
+	SCULPT_DISP_DIR_Z,
+};
 
 #define MAX_BRUSH_PIXEL_RADIUS 200
 
