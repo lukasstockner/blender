@@ -684,7 +684,7 @@ static void *do_bake_thread(void *bs_v)
 /* using object selection tags, the faces with UV maps get baked */
 /* render should have been setup */
 /* returns 0 if nothing was handled */
-int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_update)
+int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_update, float *progress)
 {
 	BakeShade *handles;
 	ListBase threads;
@@ -744,8 +744,13 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	/* wait for everything to be done */
 	a= 0;
 	while(a!=re->params.r.threads) {
-		
 		PIL_sleep_ms(50);
+
+		/* calculate progress */
+		for(vdone=0, a=0; a<re->params.r.threads; a++)
+			vdone+= handles[a].vdone;
+		if (progress)
+			*progress = (float)(vdone / (float)re->db.totvlak);
 
 		for(a=0; a<re->params.r.threads; a++)
 			if(handles[a].ready==0)
@@ -798,8 +803,6 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	
 	/* calculate return value */
  	for(a=0; a<re->params.r.threads; a++) {
-		vdone+= handles[a].vdone;
-		
 		zbuf_free_span(handles[a].zspan);
 		MEM_freeN(handles[a].zspan);
  	}

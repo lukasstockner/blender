@@ -2435,7 +2435,7 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 	bNode *node;
 	ListBase threads;
 	ThreadData thdata;
-	int totnode, rendering= 1;
+	int totnode, curnode, rendering= 1;
 	
 	if(ntree==NULL) return;
 	
@@ -2459,7 +2459,7 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 	IMB_tile_cache_params(rd->threads, U.imagetilememory);
 
 	/* sets need_exec tags in nodes */
-	totnode= setExecutableNodes(ntree, &thdata);
+	curnode = totnode= setExecutableNodes(ntree, &thdata);
 
 	BLI_init_threads(&threads, exec_composite_node, rd->threads);
 	
@@ -2469,14 +2469,14 @@ void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int do_preview)
 			node= getExecutableNode(ntree);
 			if(node) {
 				
-				if(ntree->timecursor)
-					ntree->timecursor(ntree->tch, totnode);
+				if(ntree->progress)
+					ntree->progress(ntree->prh, (1.0 - curnode/(float)totnode));
 				if(ntree->stats_draw) {
 					char str[64];
-					sprintf(str, "Compositing %d %s", totnode, node->name);
+					sprintf(str, "Compositing %d %s", curnode, node->name);
 					ntree->stats_draw(ntree->sdh, str);
 				}
-				totnode--;
+				curnode--;
 				
 				node->threaddata= &thdata;
 				node->thread= BLI_available_thread_index(&threads);

@@ -233,7 +233,7 @@ struct Render;
 struct Image;
 struct Object;
 
-int RE_bake_shade_all_selected(struct Render *re, int type, struct Object *actob, short *do_update);
+int RE_bake_shade_all_selected(struct Render *re, int type, struct Object *actob, short *do_update, float *progress);
 struct Image *RE_bake_shade_get_image(struct Render *re);
 
 #endif /* RE_SHADER_EXT_H */

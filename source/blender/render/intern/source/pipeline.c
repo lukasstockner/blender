@@ -131,7 +131,7 @@ static int thread_break(void *unused)
 static void result_nothing(void *unused, RenderResult *rr) {}
 static void result_rcti_nothing(void *unused, RenderResult *rr, volatile struct rcti *rect) {}
 static void stats_nothing(void *unused, RenderStats *rs) {}
-static void int_nothing(void *unused, int val) {}
+static void float_nothing(void *unused, float val) {}
 static void print_error(void *unused, char *str) {printf("ERROR: %s\n", str);}
 static int default_break(void *unused) {return G.afbreek == 1;}
 
@@ -235,7 +235,7 @@ Render *RE_NewRender(const char *name)
 	re->cb.display_init= result_nothing;
 	re->cb.display_clear= result_nothing;
 	re->cb.display_draw= result_rcti_nothing;
-	re->cb.timecursor= int_nothing;
+	re->cb.progress= float_nothing;
 	re->cb.test_break= default_break;
 	re->cb.error= print_error;
 	if(G.background)
@@ -243,7 +243,7 @@ Render *RE_NewRender(const char *name)
 	else
 		re->cb.stats_draw= stats_nothing;
 	/* clear callback handles */
-	re->cb.dih= re->cb.dch= re->cb.ddh= re->cb.sdh= re->cb.tch= re->cb.tbh= re->cb.erh= NULL;
+	re->cb.dih= re->cb.dch= re->cb.ddh= re->cb.sdh= re->cb.prh= re->cb.tbh= re->cb.erh= NULL;
 	
 	/* init some variables */
 	re->cam.ycor= 1.0f;
@@ -413,10 +413,10 @@ void RE_stats_draw_cb(Render *re, void *handle, void (*f)(void *handle, RenderSt
 	re->cb.stats_draw= f;
 	re->cb.sdh= handle;
 }
-void RE_timecursor_cb(Render *re, void *handle, void (*f)(void *handle, int))
+void RE_progress_cb(Render *re, void *handle, void (*f)(void *handle, float))
 {
-	re->cb.timecursor= f;
-	re->cb.tch= handle;
+	re->cb.progress= f;
+	re->cb.prh= handle;
 }
 
 void RE_test_break_cb(Render *re, void *handle, int (*f)(void *handle))
@@ -622,6 +622,7 @@ static void threaded_tile_processor(Render *re)
 					render_result_free(&pa->fullresult, pa->result);
 					pa->result= NULL;
 					re->cb.i.partsdone++;
+					re->cb.progress(re->cb.prh, re->cb.i.partsdone / (float)re->cb.i.totpart);
 				}
 
 				totpart--;
@@ -1158,9 +1159,11 @@ static void do_render_composite_fields_blur_3d(Render *re)
 			
 			if(!re->cb.test_break(re->cb.tbh)) {
 				ntree->stats_draw= render_composit_stats;
-				ntree->sdh= re;
 				ntree->test_break= re->cb.test_break;
+				ntree->progress= re->cb.progress;
+				ntree->sdh= re;
 				ntree->tbh= re->cb.tbh;
+				ntree->prh= re->cb.prh;
 				
 				if(update_newframe)
 					scene_update_for_newframe(re->db.scene, re->db.lay);
@@ -1172,7 +1175,8 @@ static void do_render_composite_fields_blur_3d(Render *re)
 				
 				ntree->stats_draw= NULL;
 				ntree->test_break= NULL;
-				ntree->tbh= ntree->sdh= NULL;
+				ntree->progress= NULL;
+				ntree->tbh= ntree->sdh= ntree->prh= NULL;
 			}
 		}
 		else if(re->params.r.scemode & R_FULL_SAMPLE)

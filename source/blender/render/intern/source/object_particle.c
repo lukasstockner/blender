@@ -625,8 +625,6 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	if(psys==NULL)
 		return;
 	
-	totchild=psys->totchild;
-
 	part=psys->part;
 	pars=psys->particles;
 
@@ -646,6 +644,8 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	if(part->phystype==PART_PHYS_KEYED)
 		psys_count_keyed_targets(&sim);
 
+	psys_update_children(&sim);
+	totchild=psys->totchild;
 
 	if(G.rendering == 0) { /* preview render */
 		totchild = (int)((float)totchild * (float)part->disp / 100.0f);
@@ -749,6 +749,9 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	transpose_m3(nmat);
 
 /* 2.6 setup strand rendering */
+	if(part->ren_as == PART_DRAW_PATH && psys->pathcache==NULL)
+		psys_update_path_cache(&sim, cfra);
+
 	if(part->ren_as == PART_DRAW_PATH && psys->pathcache){
 		path_nbr=(int)pow(2.0,(double) part->ren_step);
 
