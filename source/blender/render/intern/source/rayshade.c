@@ -427,6 +427,10 @@ static void raytree_create_single(Render *re)
 		if(has_special_rayobject(re, obi))
 		{
 			RayObject *obj = raytree_create_object(re, obi);
+
+			if(test_break(re))
+				break;
+
 			RE_rayobject_add( re->db.raytree, obj );
 		}
 		else
