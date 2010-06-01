@@ -52,11 +52,13 @@ void shadowbufs_make_threaded(struct Render *re);
      to hide bias issues at grazing angles */
 
 float shadowbuf_test(struct Render *re, struct ShadBuf *shb,
-	float *co, float *dxco, float *dyco, float inp, float mat_bias);	
+	float co[3], float dxco[3], float dyco[3], float inp, float mat_bias);	
 
-/* Determine shadow facetor between two points */
+/* Test shadow factor for a receiving point, coordinate must already
+   be projected in lamp space using shadowbuffer window matrix. */
 
-float shadow_halo(struct LampRen *lar, float *p1, float *p2);
+float shadowbuf_test_halo(struct ShadBuf *shb, float co[3]);
+void shadowbuf_project_halo(struct LampRen *lar, float co[3], float sco[3]);
 
 /* Utility for Envmap */
 

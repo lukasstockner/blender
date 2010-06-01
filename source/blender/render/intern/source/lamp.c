@@ -316,6 +316,28 @@ int lamp_skip(Render *re, LampRen *lar, ShadeInput *shi)
 	return 0;
 }
 
+static void lamp_texture_color(Render *re, LampRen *lar, ShadeInput *shi, float vec[3], float dist, float latex[3])
+{
+	/* compute influence */
+	copy_v3_v3(latex, &lar->r);
+
+	if(lar->mode & LA_TEXTURE) {
+		if(lar->type==LA_SPOT && (lar->mode & LA_OSATEX)) {
+			shi->geometry.osatex= 1;	/* signal for multitex() */
+			
+			shi->texture.dxlv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/dist;
+			shi->texture.dxlv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/dist;
+			shi->texture.dxlv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/dist;
+			
+			shi->texture.dylv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/dist;
+			shi->texture.dylv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/dist;
+			shi->texture.dylv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/dist;
+		}
+
+		do_lamp_tex(re, lar, vec, shi, latex, LA_TEXTURE);
+	}
+}
+
 int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 	Render *re, LampRen *lar, ShadeInput *shi,
 	float co[3], float r[2])
@@ -328,25 +350,7 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 		return 0;
 
 	if(lainf) {
-		/* compute influence */
-		copy_v3_v3(lainf, &lar->r);
-
-		if(lar->mode & LA_TEXTURE) {
-			if(lar->type==LA_SPOT && (lar->mode & LA_OSATEX)) {
-				shi->geometry.osatex= 1;	/* signal for multitex() */
-				
-				shi->texture.dxlv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/dist;
-				shi->texture.dxlv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/dist;
-				shi->texture.dxlv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/dist;
-				
-				shi->texture.dylv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/dist;
-				shi->texture.dylv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/dist;
-				shi->texture.dylv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/dist;
-			}
-
-			do_lamp_tex(re, lar, vec, shi, lainf, LA_TEXTURE);
-		}
-
+		lamp_texture_color(re, lar, shi, vec, dist, lainf);
 		mul_v3_fl(lainf, fac);
 	}
 
@@ -367,17 +371,71 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 
 /***************************** spot halo ***********************************/
 
-static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *intens)
+static void lamp_unproject_halo(LampRen *lar, float co[3])
 {
-	double a, b, c, disc, nray[3], npos[3];
-	float t0, t1 = 0.0f, t2= 0.0f, t3, haint;
-	float p1[3], p2[3], ladist, maxz = 0.0f, maxy = 0.0f;
+	co[2] /= lar->sh_zfac;
+
+	mul_m3_v3(lar->mat, co);
+	add_v3_v3(co, lar->co);
+}
+
+static void lamp_halo_integrate(Render *re, LampRen *lar, ShadeInput *shi, float p1[3], float p2[3], float result[3])
+{
+	struct ShadBuf *shb= lar->shb;
+	ShadeInput shi_local = *shi;
+	float vec[3], dist, totsample, fac;
+	float lp1[3], lp2[3], lp[3], t, sample[3], step;
+
+	if(!shb || !lar->shadhalostep) {
+		copy_v3_v3(result, &lar->r);
+		return;
+	}
+
+	shadowbuf_project_halo(lar, p1, lp1);
+	shadowbuf_project_halo(lar, p2, lp2);
+
+	lamp_unproject_halo(lar, p1);
+	lamp_unproject_halo(lar, p2);
+
+	step= lar->shadhalostep/(0.5f*lar->bufsize);
+	t= step;
+	zero_v3(result);
+	totsample= 0.0f;
+
+	while(t < 1.0f) {
+		/* compute location, vector to lamp and distance */
+		interp_v3_v3v3(shi_local.geometry.co, p1, p2, t);
+		sub_v3_v3v3(vec, shi_local.geometry.co, lar->co);
+		dist= normalize_v3(vec);
+
+		interp_v3_v3v3(lp, lp1, lp2, t);
+
+		/* intensity, blend, shadow, texture */
+		fac = lar->haint;
+		fac = lamp_spot_falloff(lar, vec, fac);
+		fac *= shadowbuf_test_halo(shb, lp);
+		
+		lamp_texture_color(re, lar, &shi_local, vec, dist, sample);
+
+		/* accumulate */
+		madd_v3_v3fl(result, sample, fac);
+		totsample += 1.0f;
+
+		t += step;
+	}
+
+	if(totsample != 0.0f)
+		mul_v3_fl(result, 1.0f/totsample);
+}
+
+static int lamp_halo_intersect_cone(Render *re, LampRen *lar, ShadeInput *shi, float p1[3], float p2[3], float *dist)
+{
+	double disc, nray[3], npos[3], a, b, c;
+	float t0, t1 = 0.0f, t2= 0.0f, t3;
+	float ladist, maxz = 0.0f, maxy = 0.0f;
 	int snijp, doclip=1, use_yco=0;
 	int ok1=0, ok2=0;
-	
-	*intens= 0.0f;
-	haint= lar->haint;
-	
+
 	if(re->cam.type == CAM_ORTHO) {
 		/* camera pos (view vector) cannot be used... */
 		/* camera position (cox,coy,0) rotate around lamp */
@@ -397,15 +455,6 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 	/* rotate view */
 	VECCOPY(nray, shi->geometry.view);
 	mul_m3_v3_double(lar->imat, nray);
-	
-	if(re->db.wrld.mode & WO_MIST) {
-		/* patchy... */
-		haint *= environment_mist_factor(re, -lar->co[2], lar->co);
-		if(haint==0.0f) {
-			return;
-		}
-	}
-
 
 	/* rotate maxz */
 	if(shi->geometry.co[2]==0.0f) doclip= 0;	/* for when halo at sky */
@@ -437,7 +486,7 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 		/*
 		 * Only one intersection point...
 		 */
-		return;
+		return 0;
 	}
 	else {
 		disc = b*b - a*c;
@@ -453,6 +502,7 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 			snijp= 2;
 		}
 	}
+
 	if(snijp==2) {
 		/* sort */
 		if(t1>t2) {
@@ -468,7 +518,7 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 		if(p2[2]<=0.0f && t1!=t2) ok2= 1;
 		
 		/* at least 1 point with negative z */
-		if(ok1==0 && ok2==0) return;
+		if(ok1==0 && ok2==0) return 0;
 		
 		/* intersction point with -ladist, the bottom of the cone */
 		if(use_yco==0) {
@@ -490,15 +540,15 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 				t2= t3;
 			}
 		}
-		else if(ok1==0 || ok2==0) return;
+		else if(ok1==0 || ok2==0) return 0;
 		
 		/* at least 1 visible interesction point */
-		if(t1<0.0f && t2<0.0f) return;
+		if(t1<0.0f && t2<0.0f) return 0;
 		
 		if(t1<0.0f) t1= 0.0f;
 		if(t2<0.0f) t2= 0.0f;
 		
-		if(t1==t2) return;
+		if(t1==t2) return 0;
 		
 		/* sort again to be sure */
 		if(t1>t2) {
@@ -510,7 +560,7 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 			if(use_yco==0) t0= (maxz-npos[2])/nray[2];
 			else t0= (maxy-npos[1])/nray[1];
 
-			if(t0<t1) return;
+			if(t0<t1) return 0;
 			if(t0<t2) t2= t0;
 		}
 
@@ -518,38 +568,56 @@ static void spothalo(Render *re, struct LampRen *lar, ShadeInput *shi, float *in
 		p1[0]= npos[0] + t1*nray[0];
 		p1[1]= npos[1] + t1*nray[1];
 		p1[2]= npos[2] + t1*nray[2];
+
 		p2[0]= npos[0] + t2*nray[0];
 		p2[1]= npos[1] + t2*nray[1];
 		p2[2]= npos[2] + t2*nray[2];
-		
-			
-		/* now we have 2 points, make three lengths with it */
-		
-		a= sqrt(p1[0]*p1[0]+p1[1]*p1[1]+p1[2]*p1[2]);
-		b= sqrt(p2[0]*p2[0]+p2[1]*p2[1]+p2[2]*p2[2]);
-		c= len_v3v3(p1, p2);
-		
-		a/= ladist;
-		a= sqrt(a);
-		b/= ladist; 
-		b= sqrt(b);
-		c/= ladist;
-		
-		*intens= c*( (1.0-a)+(1.0-b) );
 
-		/* WATCH IT: do not clip a,b en c at 1.0, this gives nasty little overflows
-			at the edges (especially with narrow halos) */
-		if(*intens<=0.0f) return;
+		*dist= ladist;
 
-		/* soft area */
-		/* not needed because t0 has been used for p1/p2 as well */
-		/* if(doclip && t0<t2) { */
-		/* 	*intens *= (t0-t1)/(t2-t1); */
-		/* } */
-		
-		*intens *= haint;
-		*intens *= shadow_halo(lar, p1, p2);
+		return 1;
 	}
+
+	return 0;
+}
+
+static void spothalo(Render *re, LampRen *lar, ShadeInput *shi, float result[3])
+{
+	float a, b, c, p1[3], p2[3], fac= 1.0f, ladist;
+	
+	result[0]= result[1]= result[2]= 0.0f;
+	
+	/* compute influence of mist, patchy .. */
+	if(re->db.wrld.mode & WO_MIST) {
+		fac= environment_mist_factor(re, -lar->co[2], lar->co);
+		if(fac == 0.0f)
+			return;
+	}
+
+	/* intersect with lamp cone */
+	if(!lamp_halo_intersect_cone(re, lar, shi, p1, p2, &ladist))
+		return;
+	
+	/* now we have 2 points, make three lengths with it */
+	a= sqrtf(len_v3(p1)/ladist);
+	b= sqrtf(len_v3(p2)/ladist);
+	c= len_v3v3(p1, p2)/ladist;
+	
+	fac *= c*((1.0-a) + (1.0-b));
+
+	/* WATCH IT: do not clip a,b en c at 1.0, this gives nasty little overflows
+		at the edges (especially with narrow halos) */
+	if(fac <= 0.0f)
+		return;
+
+	/* soft area */
+	/* not needed because t0 has been used for p1/p2 as well */
+	/* if(doclip && t0<t2) { */
+	/* 	result *= (t0-t1)/(t2-t1); */
+	/* } */
+	
+	lamp_halo_integrate(re, lar, shi, p1, p2, result);
+	mul_v3_fl(result, fac);
 }
 
 void lamp_spothalo_render(Render *re, ShadeInput *shi, float *col, float alpha)
@@ -557,10 +625,10 @@ void lamp_spothalo_render(Render *re, ShadeInput *shi, float *col, float alpha)
 	ListBase *lights;
 	GroupObject *go;
 	LampRen *lar;
-	float i;
+	float color[3];
 	
 	if(alpha==0.0f) return;
-	
+
 	lights= lamps_get(re, shi);
 	for(go=lights->first; go; go= go->next) {
 		lar= go->lampren;
@@ -573,13 +641,14 @@ void lamp_spothalo_render(Render *re, ShadeInput *shi, float *col, float alpha)
 					continue;
 			if((lar->lay & shi->shading.lay)==0) 
 				continue;
-			
-			spothalo(re, lar, shi, &i);
-			if(i>0.0f) {
-				col[3]+= i*alpha;			// all premul
-				col[0]+= i*lar->r*alpha;
-				col[1]+= i*lar->g*alpha;
-				col[2]+= i*lar->b*alpha;	
+
+			spothalo(re, lar, shi, color);
+
+			if(!is_zero_v3(color)) {
+				col[0]+= color[0]*alpha;
+				col[1]+= color[1]*alpha;
+				col[2]+= color[2]*alpha;	
+				col[3]+= rgb_to_grayscale(color)*alpha;	// all premul
 			}
 		}
 	}

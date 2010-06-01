@@ -99,7 +99,7 @@ typedef struct ShadSampleBuf {
 
 typedef struct ShadBuf {
 	/* regular shadowbuffer */
-	short samp, shadhalostep, totbuf;
+	short samp, totbuf;
 	float persmat[4][4];
 	float viewmat[4][4];
 	float winmat[4][4];
@@ -1427,130 +1427,51 @@ static float readshadowbuf_halo(ShadBuf *shb, ShadSampleBuf *shsample, int xs, i
 	return 1.0 - temp*temp;
 }
 
-
-float shadow_halo(LampRen *lar, float *p1, float *p2)
+float shadowbuf_test_halo(ShadBuf *shb, float co[3])
 {
-	/* p1 p2 already are rotated in spot-space */
-	ShadBuf *shb= lar->shb;
 	ShadSampleBuf *shsample;
-	float co[4], siz;
-	float labda, labdao, labdax, labday, ldx, ldy;
-	float zf, xf1, yf1, zf1, xf2, yf2, zf2;
-	float count, lightcount;
-	int x, y, z, xs1, ys1;
-	int dx = 0, dy = 0;
-	
-	if(!shb || !shb->shadhalostep)
-		return 1.0f;
+	float zf, result;
+	int x, y, z, size= shb->size*0.5f;
 
-	siz= 0.5*(float)shb->size;
-	
-	co[0]= p1[0];
-	co[1]= p1[1];
-	co[2]= p1[2]/lar->sh_zfac;
-	co[3]= 1.0;
-	mul_m4_v4(shb->winmat, co);	/* rational hom co */
-	xf1= siz*(1.0+co[0]/co[3]);
-	yf1= siz*(1.0+co[1]/co[3]);
-	zf1= (co[2]/co[3]);
+	x= (int)(co[0]*size);
+	y= (int)(co[1]*size);
+	zf= co[2];
 
-
-	co[0]= p2[0];
-	co[1]= p2[1];
-	co[2]= p2[2]/lar->sh_zfac;
-	co[3]= 1.0;
-	mul_m4_v4(shb->winmat, co);	/* rational hom co */
-	xf2= siz*(1.0+co[0]/co[3]);
-	yf2= siz*(1.0+co[1]/co[3]);
-	zf2= (co[2]/co[3]);
-
-	/* the 2dda (a pixel line formula) */
-
-	xs1= (int)xf1;
-	ys1= (int)yf1;
-
-	if(xf1 != xf2) {
-		if(xf2-xf1 > 0.0) {
-			labdax= (xf1-xs1-1.0)/(xf1-xf2);
-			ldx= -shb->shadhalostep/(xf1-xf2);
-			dx= shb->shadhalostep;
-		}
-		else {
-			labdax= (xf1-xs1)/(xf1-xf2);
-			ldx= shb->shadhalostep/(xf1-xf2);
-			dx= -shb->shadhalostep;
-		}
+	if(zf<= -1.0) {
+		result= 1.0;	/* close to the spot */
 	}
 	else {
-		labdax= 1.0;
-		ldx= 0.0;
+		/* make sure, behind the clipend we extend halolines. */
+		if(zf>=1.0) z= 0x7FFFF000;
+		else z= (int)(0x7FFFF000*zf);
+		
+		result= 0.0f;
+		for(shsample=shb->buffers.first; shsample; shsample=shsample->next)
+			result += readshadowbuf_halo(shb, shsample, x, y, z);
+
+		result /= (float)shb->totbuf;
 	}
 
-	if(yf1 != yf2) {
-		if(yf2-yf1 > 0.0) {
-			labday= (yf1-ys1-1.0)/(yf1-yf2);
-			ldy= -shb->shadhalostep/(yf1-yf2);
-			dy= shb->shadhalostep;
-		}
-		else {
-			labday= (yf1-ys1)/(yf1-yf2);
-			ldy= shb->shadhalostep/(yf1-yf2);
-			dy= -shb->shadhalostep;
-		}
-	}
-	else {
-		labday= 1.0;
-		ldy= 0.0;
-	}
-	
-	x= xs1;
-	y= ys1;
-	labda= count= lightcount= 0.0;
-
-/* printf("start %x %x	\n", (int)(0x7FFFFFFF*zf1), (int)(0x7FFFFFFF*zf2)); */
-
-	while(1) {
-		labdao= labda;
-		
-		if(labdax==labday) {
-			labdax+= ldx;
-			x+= dx;
-			labday+= ldy;
-			y+= dy;
-		}
-		else {
-			if(labdax<labday) {
-				labdax+= ldx;
-				x+= dx;
-			} else {
-				labday+= ldy;
-				y+= dy;
-			}
-		}
-		
-		labda= MIN2(labdax, labday);
-		if(labda==labdao || labda>=1.0) break;
-		
-		zf= zf1 + labda*(zf2-zf1);
-		count+= (float)shb->totbuf;
-
-		if(zf<= -1.0) lightcount += 1.0;	/* close to the spot */
-		else {
-		
-			/* make sure, behind the clipend we extend halolines. */
-			if(zf>=1.0) z= 0x7FFFF000;
-			else z= (int)(0x7FFFF000*zf);
-			
-			for(shsample= shb->buffers.first; shsample; shsample= shsample->next)
-				lightcount+= readshadowbuf_halo(shb, shsample, x, y, z);
-			
-		}
-	}
-	
-	if(count!=0.0) return (lightcount/count);
-	return 0.0;
-	
+	return result;
 }
+
+void shadowbuf_project_halo(LampRen *lar, float co[3], float sco[3])
+{
+	ShadBuf *shb= lar->shb;
+	float hco[4];
+
+	hco[0]= co[0];
+	hco[1]= co[1];
+	hco[2]= co[2]/lar->sh_zfac;
+	hco[3]= 1.0;
+
+	mul_m4_v4(shb->winmat, hco);	/* rational hom hco */
+
+	sco[0]= (1.0+hco[0]/hco[3]);
+	sco[1]= (1.0+hco[1]/hco[3]);
+	sco[2]= (hco[2]/hco[3]);
+}
+
 
 /* ********************* Irregular Shadow Buffer (ISB) ************* */
 /* ********** storage of all view samples in a raster of lists ***** */
@@ -2862,7 +2783,6 @@ void shadowbuf_create(Render *re, LampRen *lar, float mat[][4])
 	
 	shb->samp= lar->samp;
 	shb->soft= lar->soft;
-	shb->shadhalostep= lar->shadhalostep;
 	
 	copy_m4_m4(omat, mat);
 	normalize_m4(omat);
