@@ -96,7 +96,7 @@ typedef struct Brush {
 #define BRUSH_OFFSET_PRESSURE	65536
 //#define BRUSH_SPACE_ATTEN	
 //#define BRUSH_ADAPTIVE_SPACE
-#define BRUSH_SUBDIV			32768			
+#define BRUSH_SUBDIV		131072				
 
 /* Brush stroke_tool */
 //#define STROKE_TOOL_DOTS	1
