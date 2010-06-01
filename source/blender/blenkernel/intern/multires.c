@@ -139,6 +139,14 @@ void multires_force_update(Object *ob)
 	}
 }
 
+void multires_force_external_reload(Object *ob)
+{
+	Mesh *me = get_mesh(ob);
+
+	CustomData_external_reload(&me->fdata, &me->id, CD_MASK_MDISPS, me->totface);
+	multires_force_update(ob);
+}
+
 void multires_force_render_update(Object *ob)
 {
 	if(ob && (ob->mode & OB_MODE_SCULPT) && modifiers_findByType(ob, eModifierType_Multires))
@@ -552,7 +560,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, int invert, int
 	dGridSize = multires_side_tot[totlvl];
 	dSkip = (dGridSize-1)/(gridSize-1);
 
-	#pragma omp parallel for private(i) schedule(static)
+	//#pragma omp parallel for private(i) schedule(static)
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
 		MDisps *mdisp = &mdisps[i];
@@ -560,7 +568,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, int invert, int
 
 		/* when adding new faces in edit mode, need to allocate disps */
 		if(!mdisp->disps)
-		#pragma omp critical
+		//#pragma omp critical
 		{
 			multires_reallocate_mdisps(me, mdisps, totlvl);
 		}

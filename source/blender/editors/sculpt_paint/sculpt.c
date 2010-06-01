@@ -897,6 +897,8 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 
 	zero_v3(an);
 
+	/* threaded loop over nodes */
+	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -934,6 +936,15 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 			BLI_pbvh_vertex_iter_end;
 		}
 	}
+
+	// openmp has a feature for doing final gathering, when
+	// this is added back, use that instead of this below
+	//#pragma omp critical
+	//{
+	//	/* we sum per node and add together later for threads */
+	//	add_v3_v3(out, nout);
+	//	add_v3_v3(out_flip, nout_flip);
+	//}
 
 	if (is_zero_v3(an)) copy_v3_v3(an, out_flip);
 
