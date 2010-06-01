@@ -221,5 +221,134 @@ int ED_mesh_uv_texture_remove(struct bContext *C, struct Object *ob, struct Mesh
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me);
 int ED_mesh_color_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
 
+//---ibli
+
+/* Internal for editmesh_xxxx.c functions */
+struct bContext;
+struct wmOperatorType;
+struct wmOperator;
+
+
+#define UVCOPY(t, s) memcpy(t, s, 2 * sizeof(float));
+
+/* ******************** editface.c */
+
+int edgetag_context_check(struct Scene *scene,struct EditEdge *eed);
+void edgetag_context_set(struct Scene *scene, struct EditEdge *eed, int val);
+int edgetag_shortest_path(struct Scene *scene,struct EditMesh *em,struct EditEdge *source,struct EditEdge *target);
+
+/* ******************* editmesh.c */
+
+extern void free_editvert(struct  EditMesh *em, struct EditVert *eve);
+extern void free_editedge(struct EditMesh *em, struct EditEdge *eed);
+extern void free_editface(struct EditMesh *em, struct EditFace *efa);
+void free_editMesh(struct EditMesh *em);
+
+extern void free_vertlist(struct EditMesh *em, struct ListBase *edve);
+extern void free_edgelist(struct EditMesh *em,struct  ListBase *lb);
+extern void free_facelist(struct EditMesh *em,struct  ListBase *lb);
+
+extern void remedge(struct EditMesh *em,struct EditEdge *eed);
+
+extern struct EditVert *addvertlist(struct EditMesh *em, float *vec, struct EditVert *example);
+extern struct EditEdge *addedgelist(struct EditMesh *em, struct EditVert *v1, struct EditVert *v2, struct EditEdge *example);
+extern struct EditFace *addfacelist(struct EditMesh *em, struct EditVert *v1, struct EditVert *v2, struct EditVert *v3, struct EditVert *v4, struct EditFace *example, struct EditFace *exampleEdges);
+extern struct EditEdge *findedgelist(struct EditMesh *em, struct EditVert *v1, struct EditVert *v2);
+
+void em_setup_viewcontext(struct bContext *C, struct ViewContext *vc);
+
+/* ******************* editmesh_lib.c */
+void EM_stats_update(struct EditMesh *em);
+
+extern void EM_fgon_flags(struct EditMesh *em);
+extern void EM_hide_reset(struct EditMesh *em);
+
+extern int faceselectedOR(struct EditFace *efa, int flag);
+extern int faceselectedAND(struct EditFace *efa, int flag);
+
+void EM_remove_selection(struct EditMesh *em, void *data, int type);
+void EM_clear_flag_all(struct EditMesh *em, int flag);
+void EM_set_flag_all(struct EditMesh *em, int flag);
+void EM_set_flag_all_selectmode(struct EditMesh *em, int flag);
+
+void EM_data_interp_from_verts(struct EditMesh *em,struct  EditVert *v1, struct EditVert *v2, struct EditVert *eve, float fac);
+void EM_data_interp_from_faces(struct EditMesh *em,struct  EditFace *efa1,struct  EditFace *efa2,struct  EditFace *efan, int i1, int i2, int i3, int i4);
+
+int EM_nvertices_selected(struct EditMesh *em);
+int EM_nedges_selected(struct EditMesh *em);
+int EM_nfaces_selected(struct EditMesh *em);
+
+float EM_face_perimeter(struct EditFace *efa);
+
+void EM_store_selection(struct EditMesh *em, void *data, int type);
+
+extern struct EditFace *exist_face(struct EditMesh *em, struct  EditVert *v1,struct  EditVert *v2,struct  EditVert *v3, struct EditVert *v4);
+extern void flipface(struct EditMesh *em, struct  EditFace *efa); // flips for normal direction
+extern int compareface(struct EditFace *vl1,struct EditFace *vl2);
+
+/* flag for selection bits, *nor will be filled with normal for extrusion constraint */
+/* return value defines if such normal was set */
+extern short extrudeflag_face_indiv(struct EditMesh *em, short flag, float *nor);
+extern short extrudeflag_verts_indiv(struct EditMesh *em, short flag, float *nor);
+extern short extrudeflag_edges_indiv(struct EditMesh *em, short flag, float *nor);
+extern short extrudeflag_vert(struct Object *obedit,struct  EditMesh *em, short flag, float *nor, int all);
+extern short extrudeflag(struct Object *obedit,struct  EditMesh *em, short flag, float *nor, int all);
+
+extern void adduplicateflag(struct EditMesh *em, int flag);
+extern void delfaceflag(struct EditMesh *em, int flag);
+
+extern void rotateflag(struct EditMesh *em, short flag, float *cent, float rotmat[][3]);
+extern void translateflag(struct EditMesh *em, short flag, float *vec);
+
+extern int convex(float *v1, float *v2, float *v3, float *v4);
+
+extern struct EditFace *EM_face_from_faces(struct EditMesh *em, struct EditFace *efa1,struct EditFace *efa2, int i1, int i2, int i3, int i4);
+
+extern int EM_view3d_poll(struct bContext *C);
+
+/* ******************* editmesh_loop.c */
+
+#define LOOP_SELECT	1
+#define LOOP_CUT	2
+
+
+extern struct EditEdge *findnearestedge(struct ViewContext *vc, int *dist);
+extern void EM_automerge(struct Scene *scene,struct Object *obedit, int update);
+void editmesh_select_by_material(struct EditMesh *em, int index);
+void EM_recalc_normal_direction(struct EditMesh *em, int inside, int select);	/* makes faces righthand turning */
+void EM_select_more(struct EditMesh *em);
+void selectconnected_mesh_all(struct EditMesh *em);
+void faceloop_select(struct EditMesh *em, struct EditEdge *startedge, int select);
+
+/**
+ * findnearestvert
+ * 
+ * dist (in/out): minimal distance to the nearest and at the end, actual distance
+ * sel: selection bias
+ * 		if SELECT, selected vertice are given a 5 pixel bias to make them farter than unselect verts
+ * 		if 0, unselected vertice are given the bias
+ * strict: if 1, the vertice corresponding to the sel parameter are ignored and not just biased 
+ */
+extern struct EditVert *findnearestvert(struct ViewContext *vc, int *dist, short sel, short strict);
+
+
+/* ******************* editmesh_tools.c */
+
+#define SUBDIV_SELECT_ORIG      0
+#define SUBDIV_SELECT_INNER     1
+#define SUBDIV_SELECT_INNER_SEL 2
+#define SUBDIV_SELECT_LOOPCUT 3
+
+/* edge subdivide corner cut types */
+#define SUBDIV_CORNER_PATH		0
+#define SUBDIV_CORNER_INNERVERT	1
+#define SUBDIV_CORNER_FAN		2
+
+
+
+void join_triangles(struct EditMesh *em);
+int removedoublesflag(struct EditMesh *em, short flag, short automerge, float limit);		/* return amount */
+void esubdivideflag(struct Object *obedit,struct  EditMesh *em, int flag, float smooth, float fractal, int beautify, int numcuts, int corner_pattern, int seltype); 
+
 #endif /* ED_MESH_H */
 

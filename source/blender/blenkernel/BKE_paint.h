@@ -72,6 +72,9 @@ typedef struct SculptSession {
 	struct Object *ob;
 	struct KeyBlock *kb, *refkb;
 	
+	struct Scene *scene; //Mio
+	struct EditMesh *em; //Mio  
+			
 	/* Mesh connectivity */
 	struct ListBase *fmap;
 

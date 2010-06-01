@@ -547,7 +547,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
-            row.prop(brush, "size", slider=True)
+            row.prop(brush, "size", slider=True)           	    
 
             if brush.sculpt_tool != 'GRAB':
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
@@ -559,8 +559,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 # XXX - TODO
                 #row = col.row(align=True)
                 #row.prop(brush, "jitter", slider=True)
-                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
-
+                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")                
                 col = layout.column()
 
                 if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE', 'CONTRAST'):
@@ -572,8 +571,8 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     col.row().prop(brush, "direction", expand=True)
 
                 if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
-                    col.prop(brush, "use_accumulate")
-
+                    col.prop(brush, "use_accumulate")                	    
+	
                 if brush.sculpt_tool == 'LAYER':
                     ob = context.sculpt_object
                     do_persistent = True
@@ -586,6 +585,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     if do_persistent:
                         col.prop(brush, "use_persistent")
                         col.operator("sculpt.set_persistent_base")
+                        
+            col.prop(brush,"use_dynamic_subdiv")
+            if brush.use_dynamic_subdiv ==True:
+                col.prop(brush,"detail",slider=True)
 
         # Texture Paint Mode #
 

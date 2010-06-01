@@ -584,7 +584,7 @@ typedef struct Sculpt {
 
 	/* Control tablet input */
 	char tablet_size, tablet_strength;
-	char pad[6];
+	char pad[6];	
 } Sculpt;
 
 typedef struct VPaint {

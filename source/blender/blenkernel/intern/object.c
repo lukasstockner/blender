@@ -243,8 +243,8 @@ void free_sculptsession(Object *ob)
 			MEM_freeN(ss->texcache);
 
 		if(ss->layer_co)
-			MEM_freeN(ss->layer_co);
-
+			MEM_freeN(ss->layer_co);	
+				
 		MEM_freeN(ss);
 
 		ob->sculpt = NULL;

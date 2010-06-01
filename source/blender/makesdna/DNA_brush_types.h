@@ -56,6 +56,7 @@ typedef struct Brush {
 	
 	short flag, blend;			/* general purpose flag, blend mode */
 	int size;					/* brush diameter */
+	float detail,pad;			/* dynamic subdivission detail */
 	float jitter;				/* jitter the position of the brush */
 	float spacing;				/* spacing of paint operations */
 	int smooth_stroke_radius;		/* turning radius (in pixels) for smooth stroke */
@@ -95,6 +96,7 @@ typedef struct Brush {
 #define BRUSH_OFFSET_PRESSURE	65536
 //#define BRUSH_SPACE_ATTEN	
 //#define BRUSH_ADAPTIVE_SPACE
+#define BRUSH_SUBDIV			32768			
 
 /* Brush stroke_tool */
 //#define STROKE_TOOL_DOTS	1

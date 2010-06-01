@@ -197,6 +197,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Size", "Diameter of the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop= RNA_def_property(srna, "detail", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.05f, 1.0f);
+	RNA_def_property_ui_text(prop, "Detail", "Dynamic subdivission detail");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	
 	prop= RNA_def_property(srna, "jitter", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "jitter");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
@@ -318,6 +323,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_accumulate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ACCUMULATE);
 	RNA_def_property_ui_text(prop, "Accumulate", "Accumulate stroke dabs on top of each other");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	
+	prop= RNA_def_property(srna, "use_dynamic_subdiv", PROP_BOOLEAN, PROP_NONE); //Mio
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SUBDIV);
+	RNA_def_property_ui_text(prop, "Unlimited clay", "Dynamic subdivission on the fly while sculpting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* not exposed in the interface yet
