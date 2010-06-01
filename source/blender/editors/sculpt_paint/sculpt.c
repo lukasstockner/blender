@@ -588,12 +588,13 @@ static void create_EditMesh_sculpt(SculptSession *ss) //Mio
 	EditEdge *eed;	
 	Object *obedit= ss->ob;
 	Mesh *me= obedit->data;
-	
+	EditMesh *em;
+
 	int tempselectmode = ss->scene->toolsettings->selectmode; /* store temporal scene select mode*/
 	ss->scene->toolsettings->selectmode = SCE_SELECT_VERTEX;	
 	
 	make_editMesh(ss->scene, obedit);						
-	EditMesh *em = me->edit_mesh;	
+	em = me->edit_mesh;	
 	
 	ss->scene->toolsettings->selectmode = tempselectmode; /* restore scene select mode*/	
 		
@@ -612,22 +613,27 @@ static void create_EditMesh_sculpt(SculptSession *ss) //Mio
 static void unlimited_clay(SculptSession *ss, Object *ob)
 {
 	/*---- adaptive dynamic subdivission -- */
-		float v1co[3],v2co[3],diff[3], edgeLength; 	
+		float diff[3], edgeLength; 	
 			
 		if (ss->scene != NULL && ob != NULL) 
 		{
-			create_EditMesh_sculpt(ss);
-	 		Object *obedit= ob;
-			Mesh *me= obedit->data;			
+			Object *obedit;
+			Mesh *me;
 			EditEdge *eed;
+
+			create_EditMesh_sculpt(ss);
+	 		obedit= ob;
+			me= obedit->data;			
 			 
 			for(eed = me->edit_mesh->edges.first; eed; eed = eed->next){
 				if (eed->f & SELECT)
 				{
+					float detail;
+
 					sub_v3_v3v3(diff, eed->v1->co, eed->v2->co);
 					edgeLength = len_v3(diff);
 					
-					float detail = ss->cache->detail * ss->cache->radius;  
+					detail = ss->cache->detail * ss->cache->radius;  
 															
 					if (edgeLength < detail)
 						EM_select_edge(eed, 0);	

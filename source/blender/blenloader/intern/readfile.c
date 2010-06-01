@@ -10908,10 +10908,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 	}
-	Brush *brush;
-	for (brush= main->brush.first; brush; brush= brush->id.next)
-		if(brush->detail == 0.0f)
-			brush->detail = 0.25f;
+	{
+		Brush *brush;
+		for (brush= main->brush.first; brush; brush= brush->id.next)
+			if(brush->detail == 0.0f)
+				brush->detail = 0.25f;
+	}
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 
