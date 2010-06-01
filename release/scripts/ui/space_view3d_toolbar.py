@@ -563,6 +563,11 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 col = layout.column()
 
+                if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE', 'CONTRAST'):
+                    row = col.row(align=True)
+                    row.prop(brush, "offset", slider=True)
+                    row.prop(brush, "use_offset_pressure", text="")
+
                 if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'):
                     col.row().prop(brush, "direction", expand=True)
 

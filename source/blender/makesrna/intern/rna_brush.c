@@ -111,6 +111,15 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_CONTRAST, "CONTRAST", 0, "Contrast", ""},
 		{0, NULL, 0, NULL, NULL}};
 	
+	//static EnumPropertyItem brush_stroke_tool_items[] = {
+	//	{STROKE_TOOL_DOTS, "DOTS", 0, "Dots", ""},
+	//	{STROKE_TOOL_SPACE, "SPACE", 0, "Space", ""},
+	//	{STROKE_TOOL_FREEHAND, "FREEHAND", 0, "Freehand", ""},
+	//	{STROKE_TOOL_SMOOTH, "SMOOTH", 0, "Smooth", ""},
+	//	{STROKE_TOOL_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", ""},
+	//	{STROKE_TOOL_ANCHORED, "ANCHORED", 0, "Anchored", ""},
+	//	{0, NULL, 0, NULL, NULL}};
+
 	static EnumPropertyItem brush_vertexpaint_tool_items[] = {
 		{0, "MIX", 0, "Mix", "Use mix blending mode while painting"},
 		{1, "ADD", 0, "Add", "Use add blending mode while painting"},
@@ -156,6 +165,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Sculpt Tool", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	//prop= RNA_def_property(srna, "stroke_tool", PROP_ENUM, PROP_NONE);
+	//RNA_def_property_enum_items(prop, brush_stroke_tool_items);
+	//RNA_def_property_ui_text(prop, "Stroke Tool", "");
+	//RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "vertexpaint_tool", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, brush_vertexpaint_tool_items);
 	RNA_def_property_ui_text(prop, "Vertex/Weight Paint Tool", "");
@@ -224,6 +238,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Strength", "The amount of pressure on the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "offset");
+	RNA_def_property_range(prop, -1.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Offset", "Adjusts the plane on which the brush acts");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	/* flag */
 	prop= RNA_def_property(srna, "use_airbrush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_AIRBRUSH);
@@ -246,6 +266,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Strength Pressure", "Enable tablet pressure sensitivity for strength");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop= RNA_def_property(srna, "use_offset_pressure", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_OFFSET_PRESSURE);
+	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
+	RNA_def_property_ui_text(prop, "Offset Pressure", "Enable tablet pressure sensitivity for offset");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "use_size_pressure", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SIZE_PRESSURE);
 	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);

@@ -67,29 +67,42 @@ typedef struct Brush {
 	
 	int sculpt_direction;		/* the direction of movement for sculpt vertices */
 
+	float offset; /* offset for plane brushes (clay, flatten, fill, scrape, contrast) */
+
 	char sculpt_tool;			/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
 	char imagepaint_tool;		/* active image paint tool */
-	char pad[5];
+	char stroke_tool;
 } Brush;
 
 /* Brush.flag */
-#define BRUSH_AIRBRUSH			1
-#define BRUSH_TORUS				2
-#define BRUSH_ALPHA_PRESSURE	4
-#define BRUSH_SIZE_PRESSURE		8
-#define BRUSH_JITTER_PRESSURE	16 /* was BRUSH_RAD_PRESSURE */
-#define BRUSH_SPACING_PRESSURE	32
-#define BRUSH_FIXED_TEX			64
-#define BRUSH_RAKE				128
-#define BRUSH_ANCHORED			256
-#define BRUSH_DIR_IN			512
-#define BRUSH_SPACE				1024
-#define BRUSH_SMOOTH_STROKE		2048
-#define BRUSH_PERSISTENT		4096
-#define BRUSH_ACCUMULATE		8192
-#define BRUSH_LOCK_ALPHA		16384
+#define BRUSH_AIRBRUSH		   1
+#define BRUSH_TORUS		   2
+#define BRUSH_ALPHA_PRESSURE	   4
+#define BRUSH_SIZE_PRESSURE	   8
+#define BRUSH_JITTER_PRESSURE	  16 /* was BRUSH_RAD_PRESSURE */
+#define BRUSH_SPACING_PRESSURE	  32
+#define BRUSH_FIXED_TEX		  64
+#define BRUSH_RAKE		 128
+#define BRUSH_ANCHORED		 256
+#define BRUSH_DIR_IN		 512
+#define BRUSH_SPACE		1024
+#define BRUSH_SMOOTH_STROKE	2048
+#define BRUSH_PERSISTENT	4096
+#define BRUSH_ACCUMULATE	8192
+#define BRUSH_LOCK_ALPHA	16384
 #define BRUSH_ORIGINAL_NORMAL	32768
+#define BRUSH_OFFSET_PRESSURE	65536
+//#define BRUSH_SPACE_ATTEN	
+//#define BRUSH_ADAPTIVE_SPACE
+
+/* Brush stroke_tool */
+//#define STROKE_TOOL_DOTS	1
+//#define STROKE_TOOL_SPACE	2
+//#define STROKE_TOOL_FREEHAND	3
+//#define STROKE_TOOL_SMOOTH	4
+//#define STROKE_TOOL_AIRBRUSH	5
+//#define STROKE_TOOL_ANCHORED	6
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW      1

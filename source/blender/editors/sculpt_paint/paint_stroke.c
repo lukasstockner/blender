@@ -294,7 +294,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 		}
 	}
 	/* we want the stroke to have the first daub at the start location instead of waiting till we have moved the space distance */
-	if(first && paint_space_stroke_enabled(stroke->brush) && !(stroke->brush->flag & BRUSH_ANCHORED))
+	if(first && stroke->stroke_started && paint_space_stroke_enabled(stroke->brush) && !(stroke->brush->flag & BRUSH_ANCHORED))
 		paint_brush_stroke_add_step(C, op, event, mouse);
 	
 	return OPERATOR_RUNNING_MODAL;
