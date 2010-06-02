@@ -54,9 +54,10 @@ typedef struct Brush {
 	struct CurveMapping *curve;	/* falloff curve */
 	struct MTex mtex;
 	
-	short flag, blend;			/* general purpose flag, blend mode */
+	short blend, pad;			/* blend mode */
 	int size;					/* brush diameter */
-	float detail,pad;			/* dynamic subdivission detail */
+	int flag;					/* general purpose flag */
+	float detail;			/* dynamic subdivission detail */
 	float jitter;				/* jitter the position of the brush */
 	float spacing;				/* spacing of paint operations */
 	int smooth_stroke_radius;		/* turning radius (in pixels) for smooth stroke */
