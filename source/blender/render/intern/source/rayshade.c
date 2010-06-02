@@ -493,8 +493,10 @@ void raytree_create(Render *re)
 
 	/* disable options not yet suported by octree,
 	   they might actually never be supported (unless people really need it) */
-	if(re->params.r.raytrace_structure == R_RAYSTRUCTURE_OCTREE)
-		re->params.r.raytrace_options &= ~( R_RAYTRACE_USE_INSTANCES | R_RAYTRACE_USE_LOCAL_COORDS);
+	if(re->params.r.raytrace_structure == R_RAYSTRUCTURE_OCTREE) {
+		re->params.r.raytrace_options &= ~R_RAYTRACE_USE_INSTANCES;
+		re->params.r.raytrace_options |= R_RAYTRACE_USE_LOCAL_COORDS;
+	}
 
 	if(G.f & G_DEBUG) {
 		BENCH(raytree_create_single(re), tree_build);
