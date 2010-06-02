@@ -208,10 +208,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Jitter", "Jitter the position of the brush while painting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "spacing", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "spacing");
-	RNA_def_property_range(prop, 1.0f, 500.0f);
-	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush stamps as a percentage of brush diameter");
+	prop= RNA_def_property(srna, "spacing", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "spacing");
+	RNA_def_property_range(prop, 1, 1000);
+	RNA_def_property_ui_range(prop, 1, 500, 5, 0);
+	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush daubs as a percentage of brush diameter");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_NONE);
@@ -237,13 +238,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Color", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
-	prop= RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "strength", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "alpha");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Strength", "The amount of pressure on the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "plane_offset");
 	RNA_def_property_range(prop, -1.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts the plane on which the brush acts");
@@ -252,7 +253,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "texture_offset");
 	RNA_def_property_range(prop, -1.0f, 0.0f);
-	RNA_def_property_ui_text(prop, "Texture Offset", "Allows base level of texture to be biased so that samples can have negative values");
+	RNA_def_property_ui_text(prop, "Tex Offset", "Allows base level of texture to be biased so that samples can have negative values");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */

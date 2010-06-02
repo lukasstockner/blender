@@ -670,7 +670,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
 	float flip     = cache->flip ? -1 : 1;
 	//float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
-	float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_DRAW:

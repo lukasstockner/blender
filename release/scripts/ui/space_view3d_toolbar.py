@@ -758,7 +758,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
         layout.prop(brush, "use_space")
         row = layout.row(align=True)
         row.active = brush.use_space
-        row.prop(brush, "spacing", text="Distance", slider=True)
+        row.prop(brush, "spacing", text="Spacing", slider=True)
         if texture_paint:
             row.prop(brush, "use_spacing_pressure", toggle=True, text="")
 
