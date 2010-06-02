@@ -75,7 +75,8 @@ Brush *add_brush(const char *name)
 	brush->rgb[2]= 1.0f;
 	brush->alpha= 0.2f;
 	brush->size= 25;
-	brush->offset= 0.0f;
+	brush->plane_offset= 0.0f;
+	brush->texture_offset = 0.0f;
 	brush->spacing= 15.0f;
 	brush->smooth_stroke_radius= 75;
 	brush->smooth_stroke_factor= 0.9;

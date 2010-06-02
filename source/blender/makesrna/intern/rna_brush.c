@@ -194,7 +194,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	/* number values */
 	prop= RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS);
-	RNA_def_property_ui_text(prop, "Size", "Diameter of the brush");
+	RNA_def_property_ui_text(prop, "Size", "Radius of the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	prop= RNA_def_property(srna, "detail", PROP_FLOAT, PROP_NONE);
@@ -210,8 +210,8 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "spacing", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "spacing");
-	RNA_def_property_range(prop, 1.0f, 300.0f);
-	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush stamps as a percentage of brush size");
+	RNA_def_property_range(prop, 1.0f, 500.0f);
+	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush stamps as a percentage of brush diameter");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_NONE);
@@ -243,10 +243,16 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Strength", "The amount of pressure on the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "offset");
+	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "plane_offset");
 	RNA_def_property_range(prop, -1.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Offset", "Adjusts the plane on which the brush acts");
+	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts the plane on which the brush acts");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "texture_offset");
+	RNA_def_property_range(prop, -1.0f, 0.0f);
+	RNA_def_property_ui_text(prop, "Texture Offset", "Allows base level of texture to be biased so that samples can have negative values");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */
@@ -274,7 +280,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_offset_pressure", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_OFFSET_PRESSURE);
 	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
-	RNA_def_property_ui_text(prop, "Offset Pressure", "Enable tablet pressure sensitivity for offset");
+	RNA_def_property_ui_text(prop, "Plane Offset Pressure", "Enable tablet pressure sensitivity for offset");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "use_size_pressure", PROP_BOOLEAN, PROP_NONE);

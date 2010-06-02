@@ -547,7 +547,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
-            row.prop(brush, "size", slider=True)           	    
+            row.prop(brush, "size", slider=True)
 
             if brush.sculpt_tool != 'GRAB':
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
@@ -559,20 +559,19 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 # XXX - TODO
                 #row = col.row(align=True)
                 #row.prop(brush, "jitter", slider=True)
-                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")                
-                col = layout.column()
+                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
 
                 if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE', 'CONTRAST'):
                     row = col.row(align=True)
-                    row.prop(brush, "offset", slider=True)
+                    row.prop(brush, "plane_offset", slider=True)
                     row.prop(brush, "use_offset_pressure", text="")
 
                 if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'):
                     col.row().prop(brush, "direction", expand=True)
 
                 if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
-                    col.prop(brush, "use_accumulate")                	    
-	
+                    col.prop(brush, "use_accumulate")
+
                 if brush.sculpt_tool == 'LAYER':
                     ob = context.sculpt_object
                     do_persistent = True
@@ -677,8 +676,13 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
         col.template_ID_preview(brush, "texture", new="texture.new", rows=2, cols=4)
 
         if context.sculpt_object:
-            col.row().prop(tex_slot, "map_mode", expand=True)
+            row = col.row(align=True)
+            row.prop(tex_slot, "map_mode", expand=True)
+            row = col.row(align=True)
+            row.prop(brush, "texture_offset", slider=True)
 
+        row = col.row(align=True)
+        row.prop(tex_slot, "angle", slider=True)
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):
     bl_label = "Tool"

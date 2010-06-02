@@ -200,7 +200,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
             int steps;
             int i;
 
-            scale = (stroke->brush->size*stroke->brush->spacing/100.0f) / length;
+            scale = (stroke->brush->size*stroke->brush->spacing/50.0f) / length;
             mul_v2_fl(vec, scale);
 
             steps = (int)(1.0f / scale);

@@ -83,6 +83,7 @@
 
 
 #include "RE_render_ext.h"
+#include "RE_shader_ext.h"
 
 #include "gpu_buffers.h"
 
@@ -715,6 +716,20 @@ static void flip_coord(float out[3], float in[3], const char symm)
 		out[2]= in[2];
 }
 
+static float get_tex_pixel(Brush* br, float u, float v)
+{
+	TexResult texres;
+	float co[3] = { u, v, 0 };
+	int hasrgb;
+	
+	memset(&texres, 0, sizeof(TexResult));
+	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 0, &texres);
+
+	if (hasrgb & TEX_RGB) texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb);
+
+	return texres.tin;
+}
+
 /* Get a pixel from the texcache at (px, py) */
 static unsigned char get_texcache_pixel(const SculptSession *ss, int px, int py)
 {
@@ -772,7 +787,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 	else if(ss->texcache) {
 		const float bsize= ss->cache->pixel_radius * 2;
 		const float rot= tex->rot + ss->cache->rotation;
-		int px, py;
+		float px, py;
 		float flip[3], point_2d[2];
 
 		/* If the active area is being applied for symmetry, flip it
@@ -788,24 +803,25 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 			const int sx= (const int)tex->size[0];
 			const int sy= (const int)tex->size[1];
 			
-			float fx= point_2d[0];
-			float fy= point_2d[1];
-			
-			float angle= atan2(fy, fx) - rot;
-			float flen= sqrtf(fx*fx + fy*fy);
-			
 			if(rot<0.001 && rot>-0.001) {
 				px= point_2d[0];
 				py= point_2d[1];
 			} else {
+				float fx= point_2d[0];
+				float fy= point_2d[1];
+				float angle= atan2(fy, fx) - rot;
+				float flen= sqrtf(fx*fx + fy*fy);
+				
 				px= flen * cos(angle) + 2000;
 				py= flen * sin(angle) + 2000;
 			}
-			if(sx != 1)
+			/*if(sx != 1)
 				px %= sx-1;
 			if(sy != 1)
 				py %= sy-1;
-			avg= get_texcache_pixel_bilinear(ss, ss->texcache_side*px/sx, ss->texcache_side*py/sy);
+			*///get_texcache_pixel_bilinear(ss, ss->texcache_side*px/sx, ss->texcache_side*py/sy);
+			//avg= get_tex_pixel(br, ss->texcache_side*px/10000.0f/sx, ss->texcache_side*py/10000.0f/sy);
+			avg= get_tex_pixel(br, px/100.0f/sx, py/100.0f/sx);
 		}
 		else if(tex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
 			float fx= (point_2d[0] - ss->cache->tex_mouse[0]) / bsize;
@@ -817,11 +833,14 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 			fx = flen * cos(angle) + 0.5;
 			fy = flen * sin(angle) + 0.5;
 
-			avg= get_texcache_pixel_bilinear(ss, fx * ss->texcache_side, fy * ss->texcache_side);
+			//avg= get_texcache_pixel_bilinear(ss, fx * ss->texcache_side, fy * ss->texcache_side);
+			avg= get_tex_pixel(br, fx * ss->texcache_side/100.0f, fy * ss->texcache_side/100.0f);
 		}
 	}
 
 	avg*= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
+
+	avg += br->texture_offset;
 
 	return avg;
 }
@@ -903,12 +922,10 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 
+		SculptUndoNode *unode = sculpt_undo_push_node(ss, nodes[n]);
 		sculpt_brush_test_init(ss, &test);
-		if(ss->cache->original) {
-			// XXX push instead of get for thread safety in draw
-			// brush .. lame, but also not harmful really
-			SculptUndoNode *unode = sculpt_undo_push_node(ss, nodes[n]);
 
+		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
 					float fno[3];
@@ -1418,15 +1435,13 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
+		SculptUndoNode *unode;
 
+		// an
+		unode = sculpt_undo_push_node(ss, nodes[n]);
 		sculpt_brush_test_init(ss, &test);
 
 		if(ss->cache->original) {
-			// an
-
-			// XXX push instead of get for thread safety in draw
-			// brush .. lame, but also not harmful really
-			SculptUndoNode *unode = sculpt_undo_push_node(ss, nodes[n]);
 
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
@@ -1561,7 +1576,7 @@ static float get_offset(Sculpt *sd, SculptSession *ss)
 {
 	Brush* brush = paint_brush(&sd->paint);
 
-	float rv = brush->offset;
+	float rv = brush->plane_offset;
 
 	if (brush->flag & BRUSH_OFFSET_PRESSURE) {
 		rv *= ss->cache->pressure;
@@ -2516,8 +2531,12 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 					copy_v3_v3(vd.co, unode->co[vd.i]);
 					if(vd.no) VECCOPY(vd.no, unode->no[vd.i])
 					else normal_short_to_float_v3(vd.fno, unode->no[vd.i]);
+
+					if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
 				}
 				BLI_pbvh_vertex_iter_end;
+
+				BLI_pbvh_node_mark_update(nodes[n]);
 			}
 		}
 
