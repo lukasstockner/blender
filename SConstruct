@@ -268,6 +268,7 @@ if 'blenderlite' in B.targets:
 	target_env_defs['WITH_BF_GAMEENGINE'] = False
 	target_env_defs['WITH_BF_OPENAL'] = False
 	target_env_defs['WITH_BF_OPENEXR'] = False
+	target_env_defs['WITH_BF_OPENMP'] = False
 	target_env_defs['WITH_BF_ICONV'] = False
 	target_env_defs['WITH_BF_INTERNATIONAL'] = False
 	target_env_defs['WITH_BF_OPENJPEG'] = False
@@ -457,8 +458,6 @@ if  env['OURPLATFORM']!='darwin':
 				if env['WITH_BF_FHS']:	dir= os.path.join(*([BLENDERPATH] + dp.split(os.sep)[2:]))	# skip bin/.blender
 				else:					dir= os.path.join(*([BLENDERPATH] + dp.split(os.sep)[1:]))	# skip bin
 				
-				# print dir+ os.sep + f
-				print dir
 				dottargetlist.append(dir + os.sep + f)
 					
 

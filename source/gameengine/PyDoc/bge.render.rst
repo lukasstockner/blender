@@ -1,6 +1,10 @@
 
-Game Engine bge.render Module.
-==============================
+Game Engine bge.render Module
+=============================
+
+*****
+Intro
+*****
 
 .. module:: bge.render
 
@@ -41,6 +45,9 @@ Game Engine bge.render Module.
    # Centre the mouse
    bge.render.setMousePosition(bge.render.getWindowWidth()/2, bge.render.getWindowHeight()/2)
 
+*********
+Constants
+*********
 
 .. data:: KX_TEXFACE_MATERIAL
 
@@ -53,6 +60,10 @@ Game Engine bge.render Module.
 .. data:: KX_BLENDER_GLSL_MATERIAL
 
    Materials approximating blender materials with GLSL.
+
+*********
+Functions
+*********
 
 .. function:: getWindowWidth()
 

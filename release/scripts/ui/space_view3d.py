@@ -675,7 +675,11 @@ class VIEW3D_MT_object(bpy.types.Menu):
         layout.menu("VIEW3D_MT_object_track")
         layout.menu("VIEW3D_MT_object_group")
         layout.menu("VIEW3D_MT_object_constraints")
+
+        layout.separator()
+
         layout.menu("VIEW3D_MT_object_game_properties")
+        layout.menu("VIEW3D_MT_object_game_logicbricks")
 
         layout.separator()
 
@@ -797,6 +801,7 @@ class VIEW3D_MT_object_constraints(bpy.types.Menu):
         layout = self.layout
 
         layout.operator("object.constraint_add_with_targets")
+        layout.operator("object.constraints_copy")
         layout.operator("object.constraints_clear")
 
 
@@ -852,8 +857,18 @@ class VIEW3D_MT_object_game_properties(bpy.types.Menu):
 
         layout.operator("object.game_property_copy", text="Replace").operation="REPLACE"
         layout.operator("object.game_property_copy", text="Merge").operation="MERGE"
-        # layout.operator("object.game_property_copy").operation="CLEAR" doesn't really belong as part of copy...
         layout.operator_menu_enum("object.game_property_copy", "property", text="Copy...")
+        layout.separator()
+        layout.operator("object.game_property_clear")
+
+
+class VIEW3D_MT_object_game_logicbricks(bpy.types.Menu):
+    bl_label = "Logic Bricks"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("object.logic_bricks_copy", text="Copy")
 
 # ********** Vertex paint menu **********
 
@@ -1160,6 +1175,7 @@ class VIEW3D_MT_pose_constraints(bpy.types.Menu):
         layout = self.layout
 
         layout.operator("pose.constraint_add_with_targets", text="Add (With Targets)...")
+        layout.operator("pose.constraints_copy")
         layout.operator("pose.constraints_clear")
 
 
@@ -2220,10 +2236,11 @@ classes = [
     VIEW3D_MT_object_track,
     VIEW3D_MT_object_group,
     VIEW3D_MT_object_constraints,
-    VIEW3D_MT_object_game_properties,
     VIEW3D_MT_object_showhide,
     VIEW3D_MT_make_single_user,
     VIEW3D_MT_make_links,
+    VIEW3D_MT_object_game_properties,
+    VIEW3D_MT_object_game_logicbricks,
 
     VIEW3D_MT_hook,
     VIEW3D_MT_vertex_group,
