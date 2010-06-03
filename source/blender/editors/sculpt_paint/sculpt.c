@@ -537,6 +537,36 @@ static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 	copy_v3_v3(test->location, ss->cache->location);
 }
 
+//static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
+//{
+//	if (test->symmetry) {
+//		int i;
+//
+//		for (i = 0; i < 3; i++) {
+//			if (test->symmetry & (1<<i)) {
+//				if (test->symmetry_pass & (1<<i)) {
+//					if (test->true_location[i] > 0) {
+//						if (co[i] > 0) return 0;
+//					}
+//					else if (test->true_location[i] < 0) {
+//						if (co[i] < 0) return 0;
+//					}
+//				}
+//				else {
+//					if (test->true_location[i] > 0) {
+//						if (co[i] < 0) return 0;
+//					}
+//					else if (test->true_location[i] < 0) {
+//						if (co[i] > 0) return 0;
+//					}
+//				}
+//			}
+//		}
+//	}
+//
+//	return 1;
+//}
+
 static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 {
 	float distsq = len_squared_v3v3(co, test->location);
@@ -670,7 +700,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
 	float flip     = cache->flip ? -1 : 1;
 	//float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
-	float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	float overlap  = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_DRAW:
@@ -794,7 +824,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		   across the symmetry axis in order to project it. This insures
 		   that the brush texture will be oriented correctly. */
 		copy_v3_v3(flip, point);
-		flip_coord(flip, flip, ss->cache->symmetry);
+		flip_coord(flip, flip, ss->cache->symmetry_pass);
 		projectf(ss->cache->mats, flip, point_2d);
 
 		/* For Tile and Drag modes, get the 2D screen coordinates of the
@@ -838,7 +868,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		}
 	}
 
-	avg*= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
+	avg *= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
 
 	avg += br->texture_offset;
 
@@ -879,6 +909,28 @@ static int sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
 	return t[0] * t[0] + t[1] * t[1] + t[2] * t[2] < data->radius_squared;
 }
 
+static void symmetry_feather(Sculpt *sd, SculptSession* ss, float co[3], float val[3])
+{
+	if (ss->cache->symmetry && (sd->flags & SCULPT_SYMMETRY_FEATHER)) {
+		float distsq;
+		float mirror[3];
+		float overlap = 1.0f;
+		int symm = ss->cache->symmetry;
+		int i;
+
+		for (i = 1; i < symm; i++) {
+			if(symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5))) {
+				flip_coord(mirror, ss->cache->location, i);
+				distsq = len_squared_v3v3(mirror, co);
+
+				if (distsq < ss->cache->radius*ss->cache->radius) overlap += 1 - sqrt(distsq)/ss->cache->radius;
+			}
+		}
+
+		mul_v3_fl(val, 1.0f / overlap);
+	}
+}
+
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
 static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float val[3])
 {
@@ -892,7 +944,7 @@ static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float va
 			co[i]= 0.0f;
 		else
 			co[i]= val[i];
-	}		
+	}
 }
 
 static void add_norm_if(float view_vec[3], float out[3], float out_flip[3], float fno[3])
@@ -993,14 +1045,14 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 
 	if (!brush->sculpt_direction == SCULPT_DISP_DIR_AREA) {
 		normalize_v3(an);
-		flip_coord(an, an, ss->cache->symmetry);
+		flip_coord(an, an, ss->cache->symmetry_pass);
 	}
 
 	if ((!ss->cache->first_time)&&(brush->flag & BRUSH_ORIGINAL_NORMAL)) {
 		copy_v3_v3(an, ss->cache->last_area_normal);
-		flip_coord(an, an, ss->cache->symmetry);
+		flip_coord(an, an, ss->cache->symmetry_pass);
 		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
-		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry);
+		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
 	}
 	else {
 		if (ss->cache->symmetry_pass==0) {
@@ -1037,9 +1089,11 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 			if(sculpt_brush_test(&test, vd.co)) {
 				/* offset vertex */
 				float fade = tex_strength(ss, brush, vd.co, test.dist);
-				float val[3]= {vd.co[0] + offset[0]*fade,
-							   vd.co[1] + offset[1]*fade,
-							   vd.co[2] + offset[2]*fade};
+				float val[3];
+
+				mul_v3_v3fl(val, offset, fade);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
 
 				sculpt_clip(sd, ss, vd.co, val);
 				if(vd.mvert) {
@@ -1115,10 +1169,11 @@ static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node)
 			CLAMP(fade, 0.0f, 1.0f);
 			
 			neighbor_average(ss, avg, vd.vert_indices[vd.i]);
-			val[0] = vd.co[0]+(avg[0]-vd.co[0])*fade;
-			val[1] = vd.co[1]+(avg[1]-vd.co[1])*fade;
-			val[2] = vd.co[2]+(avg[2]-vd.co[2])*fade;
-			
+			sub_v3_v3v3(val, avg, vd.co);
+			mul_v3_fl(val, fade);
+			symmetry_feather(sd, ss, vd.co, val);
+			add_v3_v3(val, vd.co);
+
 			sculpt_clip(sd, ss, vd.co, val);			
 			if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
@@ -1194,10 +1249,11 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 
 					CLAMP(fade, 0.0f, 1.0f);
 
-					val[0] = co[0]+(avg[0]-co[0])*fade;
-					val[1] = co[1]+(avg[1]-co[1])*fade;
-					val[2] = co[2]+(avg[2]-co[2])*fade;
-					
+					sub_v3_v3v3(val, avg, co);
+					mul_v3_fl(val, fade);
+					symmetry_feather(sd, ss, co, val);
+					add_v3_v3(val, co);
+
 					sculpt_clip(sd, ss, data[x + y*gridsize].co, val);
 				}
 			}
@@ -1247,9 +1303,12 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
 				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
-				float val[3]= {vd.co[0]+(test.location[0]-vd.co[0])*fade,
-							   vd.co[1]+(test.location[1]-vd.co[1])*fade,
-							   vd.co[2]+(test.location[2]-vd.co[2])*fade};
+				float val[3];
+
+				sub_v3_v3v3(val, test.location, vd.co);
+				mul_v3_fl(val, fade);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
 
 				sculpt_clip(sd, ss, vd.co, val);			
 				if(vd.mvert) {
@@ -1285,11 +1344,13 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
 				float fade = tex_strength(ss, brush, origco[vd.i], test.dist)*bstrength;
-				float add[3]= {vd.co[0]+fade*grab_delta[0],
-							   vd.co[1]+fade*grab_delta[1],
-							   vd.co[2]+fade*grab_delta[2]};
+				float val[3];
 
-				sculpt_clip(sd, ss, vd.co, add);			
+				mul_v3_v3fl(val, grab_delta, fade);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
+
+				sculpt_clip(sd, ss, vd.co, val);			
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
 					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
@@ -1346,18 +1407,18 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 				if((lim < 0 && *disp < lim) || (lim > 0 && *disp > lim))
 					*disp = lim;
 				
+				mul_v3_v3fl(val, offset, *disp);
+
 				if(ss->layer_co && (brush->flag & BRUSH_PERSISTENT)) {
 					int index= vd.vert_indices[vd.i];
 
 					/* persistent base */
-					val[0] = ss->layer_co[index][0] + (*disp)*offset[0];
-					val[1] = ss->layer_co[index][1] + (*disp)*offset[1];
-					val[2] = ss->layer_co[index][2] + (*disp)*offset[2];
+					symmetry_feather(sd, ss, ss->layer_co[index], val);
+					add_v3_v3(val, ss->layer_co[index]);
 				}
 				else {
-					val[0] = origco[vd.i][0] + (*disp)*offset[0];
-					val[1] = origco[vd.i][1] + (*disp)*offset[1];
-					val[2] = origco[vd.i][2] + (*disp)*offset[2];
+					symmetry_feather(sd, ss, origco[vd.i], val);
+					add_v3_v3(val, origco[vd.i]);
 				}
 
 				sculpt_clip(sd, ss, vd.co, val);
@@ -1390,18 +1451,17 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
 				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
-				float add[3];
+				float val[3];
 
-				if(vd.fno) copy_v3_v3(add, vd.fno);
-				else normal_short_to_float_v3(add, vd.no);
+				if(vd.fno) copy_v3_v3(val, vd.fno);
+				else normal_short_to_float_v3(val, vd.no);
 				
-				mul_v3_fl(add, fade * ss->cache->radius);
-				add[0]*= ss->cache->scale[0];
-				add[1]*= ss->cache->scale[1];
-				add[2]*= ss->cache->scale[2];
-				add_v3_v3(add, vd.co);
-				
-				sculpt_clip(sd, ss, vd.co, add);
+				mul_v3_fl(val, fade * ss->cache->radius);
+				mul_v3_v3(val, ss->cache->scale);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
+
+				sculpt_clip(sd, ss, vd.co, val);
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
 					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
@@ -1512,14 +1572,14 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 
 	if (!brush->sculpt_direction == SCULPT_DISP_DIR_AREA) {
 		normalize_v3(an);
-		flip_coord(an, an, ss->cache->symmetry);
+		flip_coord(an, an, ss->cache->symmetry_pass);
 	}
 
 	if ((!ss->cache->first_time)&&(brush->flag & BRUSH_ORIGINAL_NORMAL)) {
 		copy_v3_v3(an, ss->cache->last_area_normal);
-		flip_coord(an, an, ss->cache->symmetry);
+		flip_coord(an, an, ss->cache->symmetry_pass);
 		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
-		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry);
+		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
 	}
 	else {
 		if (ss->cache->symmetry_pass==0) {
@@ -1534,7 +1594,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 	/* reuse the center when keeping the starting normal */
 	if((!ss->cache->first_time)&&(brush->flag & BRUSH_ORIGINAL_NORMAL)) {
 		copy_v3_v3(fc, ss->cache->last_center);
-		flip_coord(fc, fc, ss->cache->symmetry);
+		flip_coord(fc, fc, ss->cache->symmetry_pass);
 	}
 	else {
 		if(!ss->cache->symmetry_pass) {
@@ -1629,6 +1689,7 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 				point_plane_project(intr, vd.co, an, fc);
 				sub_v3_v3v3(val, intr, vd.co);
 				mul_v3_fl(val, fade);
+				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
 
 				sculpt_clip(sd, ss, vd.co, val);
@@ -1698,6 +1759,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 					point_plane_project(intr, vd.co, an, fc);
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_fl(val, fade);
+					symmetry_feather(sd, ss, vd.co, val);
 					add_v3_v3(val, vd.co);
 
 					sculpt_clip(sd, ss, vd.co, val);
@@ -1758,6 +1820,7 @@ static void do_contrast_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, i
 				point_plane_project(intr, vd.co, an, fc);
 				sub_v3_v3v3(val, intr, vd.co);
 				mul_v3_fl(val, -fade);
+				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
 
 				sculpt_clip(sd, ss, vd.co, val);
@@ -1818,6 +1881,7 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 					point_plane_project(intr, vd.co, an, fc);
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_fl(val, fade);
+					symmetry_feather(sd, ss, vd.co, val);
 					add_v3_v3(val, vd.co);
 
 					sculpt_clip(sd, ss, vd.co, val);
@@ -1879,6 +1943,7 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 					point_plane_project(intr, vd.co, an, fc);
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_fl(val, fade);
+					symmetry_feather(sd, ss, vd.co, val);
 					add_v3_v3(val, vd.co);
 
 					sculpt_clip(sd, ss, vd.co, val);
@@ -1915,9 +1980,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 				&nodes, &totnode);
 
 		if(cache->first_time)
-			copy_v3_v3(ss->cache->grab_active_location[ss->cache->symmetry], ss->cache->location);
+			copy_v3_v3(ss->cache->grab_active_location[ss->cache->symmetry_pass], ss->cache->location);
 		else
-			copy_v3_v3(ss->cache->location, ss->cache->grab_active_location[ss->cache->symmetry]);
+			copy_v3_v3(ss->cache->location, ss->cache->grab_active_location[ss->cache->symmetry_pass]);
 	}
 	else {
 		BLI_pbvh_search_gather(ss->pbvh, sculpt_search_sphere_cb, &data,
@@ -1978,7 +2043,6 @@ static void calc_brushdata_symm(StrokeCache *cache, const char symm)
 	flip_coord(cache->location, cache->true_location, symm);
 	flip_coord(cache->view_normal_symmetry, cache->view_normal, symm);
 	flip_coord(cache->grab_delta_symmetry, cache->grab_delta, symm);
-	cache->symmetry= symm;
 }
 
 static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
@@ -1989,7 +2053,7 @@ static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 
 	copy_v3_v3(cache->location, cache->true_location);
 	copy_v3_v3(cache->grab_delta_symmetry, cache->grab_delta);
-	cache->symmetry = 0;
+	cache->symmetry = symm;
 	cache->symmetry_pass = 0;
 	cache->bstrength = brush_strength(sd, cache);
 	do_brush_action(sd, ss, cache);

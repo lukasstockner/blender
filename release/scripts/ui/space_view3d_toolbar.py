@@ -759,6 +759,13 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
         row = layout.row(align=True)
         row.active = brush.use_space
         row.prop(brush, "spacing", text="Spacing", slider=True)
+        row = layout.row(align=True)
+        row.active = brush.use_space
+        row.prop(brush, "use_space_atten", text="Adaptive Strength")
+        #row = layout.row(align=True)
+        #row.active = brush.use_space
+        #row.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
+
         if texture_paint:
             row.prop(brush, "use_spacing_pressure", toggle=True, text="")
 
@@ -807,6 +814,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "symmetry_x", text="X")
         col.prop(sculpt, "symmetry_y", text="Y")
         col.prop(sculpt, "symmetry_z", text="Z")
+        col.prop(sculpt, "use_symmetry_feather", text="Feather")
 
         col = split.column()
         col.label(text="Lock:")

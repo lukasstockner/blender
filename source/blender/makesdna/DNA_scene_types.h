@@ -1125,7 +1125,8 @@ typedef enum SculptFlags {
 	SCULPT_SYMM_Z = 4,
 	SCULPT_LOCK_X = 64,
 	SCULPT_LOCK_Y = 128,
-	SCULPT_LOCK_Z = 256
+	SCULPT_LOCK_Z = 256,
+	SCULPT_SYMMETRY_FEATHER = 512,
 } SculptFlags;
 
 /* ImagePaintSettings.flag */
