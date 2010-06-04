@@ -10915,6 +10915,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(brush->detail == 0.0f)
 				brush->detail = 0.25f;
 	}
+		if (brush->smoothness == 0.0f)
+			brush->smoothness = 0.25f;
+	
+	}
+		
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 

@@ -87,6 +87,7 @@ Brush *add_brush(const char *name)
 	//brush->stroke_tool = STROKE_TOOL_FREEHAND;
 	brush->flag |= BRUSH_SPACE;
 	brush->detail = 0.25f;
+	brush->smoothness = 0.25f;
 
 	brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 	

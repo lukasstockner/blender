@@ -202,6 +202,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Detail", "Dynamic subdivission detail");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop= RNA_def_property(srna, "smoothness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Smoothness", "Dynamic subdivission smoothness");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	
 	prop= RNA_def_property(srna, "jitter", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "jitter");
 	RNA_def_property_range(prop, 0.0f, 1.0f);

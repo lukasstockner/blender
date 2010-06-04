@@ -117,6 +117,7 @@ typedef struct StrokeCache {
 	float clip_tolerance[3];
 	float initial_mouse[2];
 	float detail;
+	float smoothness;
 
 	/* Variants */
 	float radius;
@@ -662,10 +663,14 @@ static void unlimited_clay(SculptSession *ss, Object *ob)
 			Object *obedit;
 			Mesh *me;
 			EditEdge *eed;
+			float detail;
+			float smoothness;
 
 			create_EditMesh_sculpt(ss);
-	 		obedit= ob;
+			obedit= ob;
 			me= obedit->data;			
+			detail = ss->cache->detail * ss->cache->radius;
+			smoothness = ss->cache->smoothness;
 			 
 			for(eed = me->edit_mesh->edges.first; eed; eed = eed->next){
 				if (eed->f & SELECT)
@@ -680,18 +685,20 @@ static void unlimited_clay(SculptSession *ss, Object *ob)
 					if (edgeLength < detail)
 						EM_select_edge(eed, 0);	
 					else	
-						EM_select_edge(eed, 1);						
+						EM_select_edge(eed, 1);			
 				
 				}									
 					
 			}									
-			esubdivideflag(obedit, me->edit_mesh, SELECT,0.4,0,B_SMOOTH,1, SUBDIV_CORNER_PATH, SUBDIV_SELECT_INNER);			
+			esubdivideflag(obedit, me->edit_mesh, SELECT,smoothness,0,B_SMOOTH,1, SUBDIV_CORNER_PATH, SUBDIV_SELECT_INNER);			
 			
 			/* Clear selection */
 			for(eed = me->edit_mesh->edges.first; eed; eed = eed->next)
-				EM_select_edge(eed, 0);	
+				EM_select_edge(eed, 0);	 
 				
 			load_editMesh(ss->scene, ob);
+			
+			free_editMesh(me->edit_mesh);
 			DAG_id_flush_update(ob->data, OB_RECALC_DATA); //?					
 		} 	
 
@@ -2316,7 +2323,10 @@ static void sculpt_update_cache_invariants(Sculpt *sd, SculptSession *ss, bConte
 
 	cache->vc = vc;
 	cache->brush = brush;
-	if (brush->flag & BRUSH_SUBDIV) cache->detail = brush->detail;
+	if (brush->flag & BRUSH_SUBDIV){
+		cache->detail = brush->detail;
+		cache->smoothness = brush->smoothness;
+	} 
 
 	cache->mats = MEM_callocN(sizeof(bglMats), "sculpt bglMats");
 	view3d_get_transformation(vc->ar, vc->rv3d, vc->obact, cache->mats);

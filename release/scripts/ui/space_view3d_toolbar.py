@@ -588,6 +588,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.prop(brush,"use_dynamic_subdiv")
             if brush.use_dynamic_subdiv ==True:
                 col.prop(brush,"detail",slider=True)
+                col.prop(brush,"smoothness",slider=True)
 
         # Texture Paint Mode #
 
