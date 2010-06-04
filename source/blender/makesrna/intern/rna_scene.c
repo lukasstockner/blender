@@ -159,13 +159,13 @@ EnumPropertyItem image_type_items[] = {
 
 #include "BLI_threads.h"
 #include "BLI_editVert.h"
+#include "BLI_blenlib.h"
 
 #include "WM_api.h"
 
 #include "ED_info.h"
 #include "ED_node.h"
 #include "ED_view3d.h"
-#include "ED_object.h"
 #include "ED_mesh.h"
 #include "ED_keyframing.h"
 
@@ -218,8 +218,8 @@ static void rna_Scene_object_unlink(Scene *scene, ReportList *reports, Object *o
 		return;
 	}
 
-	/* as long as ED_base_object_free_and_unlink calls free_libblock_us, we don't have to decrement ob->id.us */
-	ED_base_object_free_and_unlink(scene, base);
+	BLI_remlink(&scene->base, base);
+	ob->id.us--;
 
 	/* needed otherwise the depgraph will contain free'd objects which can crash, see [#20958] */
 	DAG_scene_sort(scene);
@@ -270,7 +270,7 @@ static void rna_Scene_layer_set(PointerRNA *ptr, const int *values)
 {
 	Scene *scene= (Scene*)ptr->data;
 
-	scene->lay= ED_view3d_scene_layer_set(scene->lay, values);
+	scene->lay= ED_view3d_scene_layer_set(scene->lay, values, &scene->layact);
 }
 
 static void rna_Scene_view3d_update(Main *bmain, Scene *unused, PointerRNA *ptr)
@@ -732,7 +732,7 @@ static int rna_RenderSettings_use_game_engine_get(PointerRNA *ptr)
 static void rna_SceneRenderLayer_layer_set(PointerRNA *ptr, const int *values)
 {
 	SceneRenderLayer *rl= (SceneRenderLayer*)ptr->data;
-	rl->lay= ED_view3d_scene_layer_set(rl->lay, values);
+	rl->lay= ED_view3d_scene_layer_set(rl->lay, values, NULL);
 }
 
 static void rna_SceneRenderLayer_pass_update(Main *bmain, Scene *unused, PointerRNA *ptr)

@@ -1,13 +1,10 @@
 # $Id: CMakeLists.txt 12931 2007-12-17 18:20:48Z theeth $
-# ***** BEGIN GPL/BL DUAL LICENSE BLOCK *****
+# ***** BEGIN GPL LICENSE BLOCK *****
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
 # as published by the Free Software Foundation; either version 2
-# of the License, or (at your option) any later version. The Blender
-# Foundation also sells licenses for use in proprietary software under
-# the Blender License.  See http://www.blender.org/BL/ for information
-# about this.
+# of the License, or (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,22 +22,43 @@
 #
 # Contributor(s): Jacques Beaurain.
 #
-# ***** END GPL/BL DUAL LICENSE BLOCK *****
+# ***** END GPL LICENSE BLOCK *****
 
-FILE(GLOB SRC */*.c)
+FILE(GLOB SRC *.c)
 
-SET(INC ../../windowmanager
+SET(INC
+	../../windowmanager
 	../../editors/include
-	../../../../intern/guardedalloc ../../../../intern/memutil
-	../../blenlib ../../makesdna ../../makesrna ../../blenkernel
-	../../include ../../imbuf 
-	../../render/extern/include ../../../../intern/bsp/extern 
-	../../../intern/decimation/extern ../../blenloader
-	../../../kernel/gen_system ../../readstreamglue
+	../../editors/interface
+	../../../../intern/guardedalloc
+	../../../../intern/memutil
+	../../blenlib ../../makesdna
+	../../makesrna ../../blenkernel
+	../../include ../../imbuf
+	../../render/extern/include
+	../../../../intern/bsp/extern
+	../../../../intern/decimation/extern
+	../../blenloader
+	../../python
+	../../../kernel/gen_system
+	../../readstreamglue
 	../../../../intern/elbeem/extern
-	../../../../intern/ghost ../../../../intern/opennl/extern
+	../../../../intern/ghost
+	../../../../intern/opennl/extern
+	../../../../extern/glew/include
+	../../../../intern/smoke/extern
+	../../../../intern/audaspace/intern
 	../../nodes
+	../../gpu
+	../../blenfont
+	../../ikplugin
 )
+
+ADD_DEFINITIONS(-DGLEW_STATIC)
+
+IF(WITH_GAMEENGINE)
+	ADD_DEFINITIONS(-DGAMEBLENDER)
+ENDIF(WITH_GAMEENGINE)
 
 IF(WITH_INTERNATIONAL)
 	ADD_DEFINITIONS(-DINTERNATIONAL)
@@ -50,8 +68,16 @@ IF(WITH_OPENEXR)
 	ADD_DEFINITIONS(-DWITH_OPENEXR)
 ENDIF(WITH_OPENEXR)
 
+IF(WITH_TIFF)
+	ADD_DEFINITIONS(-DWITH_TIFF)
+ENDIF(WITH_TIFF)
+
+IF(WITH_OPENJPEG)
+	ADD_DEFINITIONS(-DWITH_OPENJPEG)
+ENDIF(WITH_OPENJPEG)
+
 IF(WITH_QUICKTIME)
-	SET(INC ${INC} ../../quicktime ${QUICKTIME_INC})
+	SET(INC ${INC} ../quicktime ${QUICKTIME_INC})
 	ADD_DEFINITIONS(-DWITH_QUICKTIME)
 ENDIF(WITH_QUICKTIME)
 
@@ -60,8 +86,16 @@ IF(WITH_FFMPEG)
 	ADD_DEFINITIONS(-DWITH_FFMPEG)
 ENDIF(WITH_FFMPEG)
 
+IF(WITH_OPENMP)
+		ADD_DEFINITIONS(-DPARALLEL=1)
+ENDIF(WITH_OPENMP)
+
+IF(NOT WITH_ELBEEM)
+	ADD_DEFINITIONS(-DDISABLE_ELBEEM)
+ENDIF(NOT WITH_ELBEEM)
+
 IF(WITH_PYTHON)
-	SET(INC ${INC} ../../python ${PYTHON_INC})
+	SET(INC ${INC} ${PYTHON_INC})
 ELSE(WITH_PYTHON)
 	ADD_DEFINITIONS(-DDISABLE_PYTHON)
 ENDIF(WITH_PYTHON)
@@ -74,5 +108,4 @@ IF(WITH_BUILDINFO)
 	ADD_DEFINITIONS(-DNAN_BUILDINFO)
 ENDIF(WITH_BUILDINFO)
 
-BLENDERLIB_NOLIST(bf_editors "${SRC}" "${INC}")
-
+BLENDERLIB(bf_editor_screen "${SRC}" "${INC}")
