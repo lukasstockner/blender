@@ -2151,6 +2151,7 @@ static int game_property_new(bContext *C, wmOperator *op)
 	BLI_addtail(&ob->prop, prop);
 	unique_property(NULL, prop, 0); // make_unique_prop_names(prop->name);
 
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
 	return OPERATOR_FINISHED;
 }
 
@@ -2173,18 +2174,18 @@ static int game_property_remove(bContext *C, wmOperator *op)
 {
 	Object *ob= CTX_data_active_object(C);
 	bProperty *prop;
-	int index;
+	int index= RNA_int_get(op->ptr, "index");
 
 	if(!ob)
 		return OPERATOR_CANCELLED;
-
-	index = RNA_int_get(op->ptr, "index");
 
 	prop= BLI_findlink(&ob->prop, index);
 
 	if(prop) {
 		BLI_remlink(&ob->prop, prop);
 		free_property(prop);
+
+		WM_event_add_notifier(C, NC_LOGIC, NULL);
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -2207,52 +2208,23 @@ void OBJECT_OT_game_property_remove(wmOperatorType *ot)
 
 	RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Property index to remove ", 0, INT_MAX);
 }
-static EnumPropertyItem game_properties_copy_types[] ={
-	{1, "REPLACE", 0, "Replace Properties", ""},
-	{2, "MERGE", 0, "Merge Properties", ""},
-	{3, "CLEAR", 0, "Clear All", ""},
-	{4, "COPY", 0, "Copy a Property", ""},
+
+#define COPY_PROPERTIES_REPLACE	1
+#define COPY_PROPERTIES_MERGE	2
+#define COPY_PROPERTIES_COPY	3
+
+static EnumPropertyItem game_properties_copy_operations[] ={
+	{COPY_PROPERTIES_REPLACE, "REPLACE", 0, "Replace Properties", ""},
+	{COPY_PROPERTIES_MERGE, "MERGE", 0, "Merge Properties", ""},
+	{COPY_PROPERTIES_COPY, "COPY", 0, "Copy a Property", ""},
 	{0, NULL, 0, NULL, NULL}};
-
-static int game_property_copy_invoke(bContext *C, wmOperator *op, wmEvent *event)
-{
-	Object *ob= CTX_data_active_object(C);
-	bProperty *prop;	
-	int tot=0;
-	uiPopupMenu *pup;
-	uiLayout *menu;
-
-	/* count number of available properties */	
-	prop= ob->prop.first;
-	while(prop) {
-		tot++;
-		prop= prop->next;
-	}
-
-	/* start building */
-	pup= uiPupMenuBegin(C, op->type->name, 0);
-	menu= uiPupMenuLayout(pup);
-	uiLayoutSetOperatorContext(menu, WM_OP_EXEC_DEFAULT);
-
-	if(!tot)
-		uiItemEnumO(menu, "OBJECT_OT_game_property_copy", NULL, 0, "type", 3);//CLEAR);
-	else {
-		uiItemEnumO(menu, "OBJECT_OT_game_property_copy", NULL, 0, "type", 1);//REPLACE);
-		uiItemEnumO(menu, "OBJECT_OT_game_property_copy", NULL, 0, "type", 2);//MERGE);
-		uiItemMenuEnumO(menu, "OBJECT_OT_game_property_copy", "property", "Copy Property", 0);//COPY
-	}
-	uiPupMenuEnd(C, pup);
-
-	/* this operator is only for a menu, not used further */
-	return OPERATOR_CANCELLED;
-}
 
 static EnumPropertyItem gameprops_items[]= {
 	{0, NULL, 0, NULL, NULL}};
 
 static EnumPropertyItem *gameprops_itemf(bContext *C, PointerRNA *ptr, int *free)
 {	
-	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
+	Object *ob= ED_object_active_context(C);
 	EnumPropertyItem tmp = {0, "", 0, "", ""};
 	EnumPropertyItem *item= NULL;
 	bProperty *prop;
@@ -2278,37 +2250,11 @@ static int game_property_copy_exec(bContext *C, wmOperator *op)
 {
 	Object *ob=ED_object_active_context(C);
 	bProperty *prop;
-
-	int tmp_int; //need an int pointer to pass for the RNA_enum_name
-	EnumPropertyItem *dyn_props= NULL;
-	const char *prop_name= NULL;
-
-	int type = RNA_enum_get(op->ptr, "type");
+	int type = RNA_enum_get(op->ptr, "operation");
 	int propid= RNA_enum_get(op->ptr, "property");
 
-	// recreate the dynamic enum with the properties	
-	dyn_props = gameprops_itemf(C, NULL, &tmp_int);
-
-	if (propid > 0)
-		RNA_enum_name(dyn_props, propid, &prop_name);
-
-	if ( type == 1 || type == 2 || type == 3) {
-		CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
-			if (ob != ob_iter) {
-				if (ob->data != ob_iter->data){
-					if (type == 2) {/* merge */
-						for(prop = ob->prop.first; prop; prop= prop->next ) {
-							set_ob_property(ob_iter, prop);
-						}
-					} else /* replace or clear */
-						copy_properties( &ob_iter->prop, &ob->prop );
-				}
-			}
-		}
-		CTX_DATA_END;
-	}
-	else if(prop_name) { /* copy */
-		prop = (bProperty *) BLI_findstring(&ob->prop, prop_name, offsetof(bProperty, name));
+	if(propid > 0) { /* copy */
+		prop = BLI_findlink(&ob->prop, propid-1);
 		
 		if(prop) {
 			CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
@@ -2319,6 +2265,22 @@ static int game_property_copy_exec(bContext *C, wmOperator *op)
 			} CTX_DATA_END;
 		}
 	}
+	else if (ELEM(type, COPY_PROPERTIES_REPLACE, COPY_PROPERTIES_MERGE)) {
+		CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+			if (ob != ob_iter) {
+				if (ob->data != ob_iter->data){
+					if (type == 2) {/* merge */
+						for(prop = ob->prop.first; prop; prop= prop->next ) {
+							set_ob_property(ob_iter, prop);
+						}
+					} else /* replace */
+						copy_properties( &ob_iter->prop, &ob->prop );
+				}
+			}
+		}
+		CTX_DATA_END;
+	}
+
 	return OPERATOR_FINISHED;
 }
 
@@ -2330,17 +2292,43 @@ void OBJECT_OT_game_property_copy(wmOperatorType *ot)
 	ot->idname= "OBJECT_OT_game_property_copy";
 
 	/* api callbacks */
-	ot->invoke= game_property_copy_invoke;
 	ot->exec= game_property_copy_exec;
 	ot->poll= ED_operator_object_active_editable;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
-	RNA_def_enum(ot->srna, "type", game_properties_copy_types, 4, "Operation", "");
+	RNA_def_enum(ot->srna, "operation", game_properties_copy_operations, 3, "Operation", "");
 	prop=RNA_def_enum(ot->srna, "property", gameprops_items, 0, "Property", "Properties to copy");
 	RNA_def_enum_funcs(prop, gameprops_itemf);
 	ot->prop=prop;
+}
+
+static int game_property_clear_exec(bContext *C, wmOperator *op)
+{
+	Object *ob=ED_object_active_context(C);
+	bProperty *prop;
+
+	CTX_DATA_BEGIN(C, Object*, ob_iter, selected_editable_objects) {
+		free_properties(&ob_iter->prop);
+	}
+	CTX_DATA_END;
+
+	WM_event_add_notifier(C, NC_LOGIC, NULL);
+	return OPERATOR_FINISHED;
+}
+void OBJECT_OT_game_property_clear(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Clear Game Property";
+	ot->idname= "OBJECT_OT_game_property_clear";
+
+	/* api callbacks */
+	ot->exec= game_property_clear_exec;
+	ot->poll= ED_operator_object_active_editable;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
 /************************ Copy Logic Bricks ***********************/

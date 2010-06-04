@@ -678,6 +678,11 @@ class VIEW3D_MT_object(bpy.types.Menu):
 
         layout.separator()
 
+        layout.menu("VIEW3D_MT_object_game_properties")
+        layout.menu("VIEW3D_MT_object_game_logicbricks")
+
+        layout.separator()
+
         layout.operator("object.join_uvs")
         layout.operator("object.join")
 
@@ -843,6 +848,27 @@ class VIEW3D_MT_make_links(bpy.types.Menu):
         layout.operator_menu_enum("marker.make_links_scene", "scene", text="Markers to Scene...")
         layout.operator_enums("object.make_links_data", "type") # inline
 
+
+class VIEW3D_MT_object_game_properties(bpy.types.Menu):
+    bl_label = "Game Properties"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("object.game_property_copy", text="Replace").operation="REPLACE"
+        layout.operator("object.game_property_copy", text="Merge").operation="MERGE"
+        layout.operator_menu_enum("object.game_property_copy", "property", text="Copy...")
+        layout.separator()
+        layout.operator("object.game_property_clear")
+
+
+class VIEW3D_MT_object_game_logicbricks(bpy.types.Menu):
+    bl_label = "Logic Bricks"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("object.logic_bricks_copy", text="Copy")
 
 # ********** Vertex paint menu **********
 
@@ -2213,6 +2239,8 @@ classes = [
     VIEW3D_MT_object_showhide,
     VIEW3D_MT_make_single_user,
     VIEW3D_MT_make_links,
+    VIEW3D_MT_object_game_properties,
+    VIEW3D_MT_object_game_logicbricks,
 
     VIEW3D_MT_hook,
     VIEW3D_MT_vertex_group,
