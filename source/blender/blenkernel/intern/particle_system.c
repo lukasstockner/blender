@@ -3092,6 +3092,101 @@ void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
 		psys_free_path_cache(psys, NULL);
 }
 
+/* Crappy hair sim bendiness correction */
+
+static void hair_key_tangent(ParticleData *pa, MVert *keys, int k, float T[3])
+{
+	/* tangent at hair key k */
+	MVert *key = keys + k;
+
+	if(k == -1) {
+		T[0]= 0.0f;
+		T[1]= 0.0f;
+		T[2]= 1.0f;
+	}
+	else if(k == 0)
+		sub_v3_v3v3(T, (key+1)->co, key->co);
+	/*else if(k < pa->totkey-1)
+		sub_v3_v3v3(T, (key+1)->co, (key-1)->co);*/
+	else
+		sub_v3_v3v3(T, key->co, (key-1)->co);
+	
+	normalize_v3(T);
+}
+
+static void hair_key_rotation(ParticleData *pa, MVert *keys, int k, float axis[3], float *angle)
+{
+	/* minimal rotation from hair key k-1 to k */
+	float T0[3], T1[3];
+
+	hair_key_tangent(pa, keys, k-1, T0);
+	hair_key_tangent(pa, keys, k, T1);
+	
+	cross_v3_v3v3(axis, T0, T1);
+	*angle = angle_normalized_v3v3(T0, T1);
+}
+
+static void hair_key_apply_rotation(ParticleData *pa, MVert *keys, int k, float axis[3], float angle)
+{
+	float M[3][3], co[3];
+	int j;
+
+	axis_angle_to_mat3(M, axis, angle);
+
+	for(j=k; j<pa->totkey; j++) {
+		sub_v3_v3v3(co, keys[j].co, keys[k-1].co);
+		mul_m3_v3(M, co);
+		add_v3_v3v3(keys[j].co, keys[k-1].co, co);
+	}
+}
+
+static void hair_correct_bendiness(ParticleData *pa, MVert *in, MVert *out, float fac, float falloff, int offset)
+{
+	float (*aa_in)[4], (*aa_out)[4];
+	int k;
+
+	aa_in = MEM_callocN(sizeof(float)*4*pa->totkey, "hair restore frames");
+	aa_out = MEM_callocN(sizeof(float)*4*pa->totkey, "hair restore frames");
+
+	for(k=offset; k<pa->totkey; k++) {
+		hair_key_rotation(pa, in, k, aa_in[k], &aa_in[k][3]);
+		hair_key_rotation(pa, out, k, aa_out[k], &aa_out[k][3]);
+	}
+
+	for(k=pa->totkey-1; k>=offset; k--) {
+		float w = CLAMPIS(1.0f - pow(pa->hair[k].weight, falloff), 0.0f, 1.0f);
+		hair_key_apply_rotation(pa, out, k, aa_in[k], aa_in[k][3]*fac*w);
+	}
+
+	for(k=offset; k<pa->totkey; k++)
+		hair_key_rotation(pa, out, k, aa_out[k], &aa_out[k][3]);
+
+	MEM_freeN(aa_in);
+	MEM_freeN(aa_out);
+}
+
+static void hair_dynamics_correct_bendiness(ParticleSystem *psys)
+{
+	ParticleData *pa;
+	MVert *in, *out;
+	float fac, falloff;
+	int a, offset;
+
+	fac = psys->clmd->sim_parms->fix_bending_factor;
+	falloff = psys->clmd->sim_parms->fix_bending_falloff;
+	offset = psys->clmd->sim_parms->fix_bending_offset;
+
+	if(fac == 0.0f)
+		return;
+
+	for(a=0, pa=psys->particles; a<psys->totpart; a++, pa++) {
+		in = CDDM_get_vert(psys->hair_in_dm, pa->hair_index);
+		out = CDDM_get_vert(psys->hair_out_dm, pa->hair_index);
+
+		hair_correct_bendiness(pa, in, out, fac, falloff, offset);
+	}
+}
+
 static void do_hair_dynamics(ParticleSimulationData *sim)
 {
 	ParticleSystem *psys = sim->psys;
@@ -3223,6 +3318,8 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	sim_parms->hair_spring_offset = NULL;
 
 	psys_free_path_cache(psys, NULL);
+
+	hair_dynamics_correct_bendiness(psys);
 }
 static void hair_step(ParticleSimulationData *sim, float cfra)
 {

@@ -87,7 +87,10 @@ typedef struct ClothSimSettings
 	/* passing some data from particles to cloth solver */
 	int *hair_vert_offset;
 	int *hair_spring_offset;
-	int tothair, pad2;
+	int tothair;
+	int fix_bending_offset;
+	float fix_bending_factor;
+	float fix_bending_falloff;
 } ClothSimSettings;
 
 /*clothsimsettings->hackmode*/

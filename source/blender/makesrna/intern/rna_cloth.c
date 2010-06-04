@@ -404,6 +404,20 @@ static void rna_def_cloth_sim_settings(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "maxspringlen");
 	RNA_def_property_range(prop, 1.0, 1000.0);
 	RNA_def_property_ui_text(prop, "Maximum Spring Extension", "Maximum extension before spring gets cut"); */
+
+	prop= RNA_def_property(srna, "fix_bending_factor", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 10, 3);
+	RNA_def_property_ui_text(prop, "Fix Bending Factor", "");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
+	prop= RNA_def_property(srna, "fix_bending_falloff", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Fix Bending Falloff", "");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
+
+	prop= RNA_def_property(srna, "fix_bending_offset", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_ui_text(prop, "Fix Bending Offset", "Number of keys to skip for applying correction.");
+	RNA_def_property_update(prop, 0, "rna_cloth_update");
 }
 
 static void rna_def_cloth_collision_settings(BlenderRNA *brna)
