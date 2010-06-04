@@ -10914,7 +10914,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		for (brush= main->brush.first; brush; brush= brush->id.next)
 			if(brush->detail == 0.0f)
 				brush->detail = 0.25f;
-	}
 		if (brush->smoothness == 0.0f)
 			brush->smoothness = 0.25f;
 	
