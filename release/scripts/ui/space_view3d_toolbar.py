@@ -810,6 +810,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col = layout.column()
         col.prop(sculpt, "show_brush")
+        col.prop(sculpt, "show_brush_on_surface")
         col.prop(sculpt, "fast_navigate")
 
         split = self.layout.split()

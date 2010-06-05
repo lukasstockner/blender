@@ -93,7 +93,7 @@ static PIXELFORMATDESCRIPTOR sPreferredFormat = {
 	0,                              /* no accumulation buffer */
 	0, 0, 0, 0,                     /* accum bits (ignored) */
 	32,                             /* depth buffer */
-	0,                              /* no stencil buffer */
+	1,                              /* no stencil buffer */
 	0,                              /* no auxiliary buffers */
 	PFD_MAIN_PLANE,                 /* main layer */
 	0,                              /* reserved */
@@ -1093,7 +1093,8 @@ static int WeightPixelFormat(PIXELFORMATDESCRIPTOR& pfd) {
 		!(pfd.dwFlags & PFD_DRAW_TO_WINDOW) ||
 		!(pfd.dwFlags & PFD_DOUBLEBUFFER) || /* Blender _needs_ this */
 		( pfd.cDepthBits <= 8 ) ||
-		!(pfd.iPixelType == PFD_TYPE_RGBA) )
+		!(pfd.iPixelType == PFD_TYPE_RGBA) ||
+		( pfd.cStencilBits == 0) )
 		return 0;
 
 	weight = 1;  /* it's usable */

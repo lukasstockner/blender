@@ -162,11 +162,11 @@ static void sculpt_set_brush_radius(Brush *brush, int value)
 	RNA_property_int_set(&brushptr, size, value);
 }
 
-static int sculpt_get_brush_radius(bContext* C, int mouse[2])
+static int sculpt_get_brush_geometry(bContext* C, int mouse[2], int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
 {
-	int radius;
 	struct PaintStroke *stroke;
-	float location[3], window[2];
+	float window[2];
+	int hit;
 
 	stroke = paint_stroke_new(C, NULL, NULL, NULL, NULL);
 
@@ -174,18 +174,42 @@ static int sculpt_get_brush_radius(bContext* C, int mouse[2])
 	window[1] = mouse[1] + stroke->vc.ar->winrct.ymin;
 
 	if (stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
-		radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
+		*pixel_radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
+
+		mul_m4_v3(stroke->vc.obact->sculpt->ob->obmat, location);
+
+		memcpy(modelview, stroke->vc.rv3d->viewmat, sizeof(float[16]));
+		memcpy(projection, stroke->vc.rv3d->winmat, sizeof(float[16]));
+		memcpy(viewport, stroke->mats.viewport, sizeof(int[4]));
+		hit = 1;
 	}
 	else {
 		Sculpt* sd    = CTX_data_tool_settings(C)->sculpt;
 		Brush*  brush = paint_brush(&sd->paint);
 
-		radius = brush->size;
+		*pixel_radius = brush->size;
+		hit = 0;
 	}
 
 	paint_stroke_free(stroke);
 
-	return radius;
+	return hit;
+}
+
+// XXX duplicated from sculpt.c
+static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset)
+{
+	float delta[3], scale, loc[3];
+
+	mul_v3_m4v3(loc, ob->obmat, center);
+
+	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
+	window_to_3d_delta(vc->ar, delta, offset, 0);
+
+	scale= fabsf(mat4_to_scale(ob->obmat));
+	scale= (scale == 0.0f)? 1.0f: scale;
+
+	return len_v3(delta)/scale;
 }
 
 static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
@@ -193,21 +217,91 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 	int mouse[3] = { x, y };
 	Paint *paint = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(paint);
+	GLUquadric* sphere;
+	int pixel_radius;
+	float location[3];
+	float modelview[16], projection[16];
+	int viewport[4];
+	int hit;
 
 	if(!(paint->flags & PAINT_SHOW_BRUSH)) return;
 
-	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(brush, sculpt_get_brush_radius(C, mouse));
-
 	glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
-	glEnable(GL_LINE_SMOOTH);
 	glEnable(GL_BLEND);
 
-	glTranslatef((float)x, (float)y, 0.0f);
-	glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
-	glTranslatef((float)-x, (float)-y, 0.0f);
+	hit = sculpt_get_brush_geometry(C, mouse, &pixel_radius, location, modelview, projection, viewport);
+
+	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(brush, pixel_radius);
+
+	if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE && hit) {
+		float size;
+		ViewContext vc;
+		view3d_set_viewcontext(C, &vc);
+
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadMatrixf(modelview);
+		glTranslatef(location[0], location[1], location[2]);
+
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadMatrixf(projection);
+
+		glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glDepthMask(GL_FALSE);
+
+		glDisable(GL_CULL_FACE);
+
+		glEnable(GL_DEPTH_TEST);
+
+		glClearStencil(0);
+		glClear(GL_STENCIL_BUFFER_BIT);
+		glEnable(GL_STENCIL_TEST);
+
+		glStencilFunc(GL_ALWAYS, 1, 1);
+		glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+
+		size = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+
+		sphere = gluNewQuadric();
+		gluSphere(sphere, size, 40, 40);
+
+		glStencilFunc(GL_ALWAYS, 0, 1);
+		glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+
+		gluSphere(sphere, size * 0.8f, 40, 40);
+
+		glStencilFunc(GL_EQUAL, 1, 1);
+
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+		gluSphere(sphere, size, 40, 40);
+		gluDeleteQuadric(sphere);
+
+		glDisable(GL_DEPTH_TEST);
+
+		glEnable(GL_CULL_FACE);
+
+		glDisable(GL_STENCIL_TEST);
+
+		glDepthMask(GL_TRUE);
+
+		glPopMatrix();
+
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+	}
+	else {
+		glEnable(GL_LINE_SMOOTH);
+		glTranslatef((float)x, (float)y, 0.0f);
+		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+		glTranslatef((float)-x, (float)-y, 0.0f);
+		glDisable(GL_LINE_SMOOTH);
+	}
 
 	glDisable(GL_BLEND);
-	glDisable(GL_LINE_SMOOTH);
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
