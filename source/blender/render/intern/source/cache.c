@@ -438,6 +438,13 @@ typedef struct IrrCacheNode {
 	struct IrrCacheNode *children[8];	/* child nodes */
 } IrrCacheNode;
 
+typedef struct Lsq4DFit {
+	float (*A)[4];
+	float (*B)[MAX_CACHE_DIMENSION];
+	float (*w);
+	int tot, alloc;
+} Lsq4DFit;
+
 struct IrrCache {
 	/* irradiance cache */
 	IrrCacheNode root;			/* root node of the tree */
@@ -460,30 +467,53 @@ struct IrrCache {
 	int locked;
 	int dimension;
 	int use_light_dir;
+	
+	/* least squares reconstruction */
+	Lsq4DFit lsq;
 
 	/* test: a stable global coordinate system may help */
 };
 
-typedef struct Lsq4DFit {
-	float AtA[4][4];
-	float AtB[MAX_CACHE_DIMENSION][4];
-} Lsq4DFit;
+/* Least Squares fit to hyperplane for better interpolation of samples, this
+   helps especially at tile borders or visibility boundaries, as it allows us
+   to extrapolate rather than just interpolate. */
+
+void lsq_4D_alloc(Lsq4DFit *lsq)
+{
+	lsq->alloc = 25;
+	lsq->A = MEM_callocN(sizeof(*lsq->A)*lsq->alloc, "lsq->A");
+	lsq->B = MEM_callocN(sizeof(*lsq->B)*lsq->alloc, "lsq->B");
+	lsq->w = MEM_callocN(sizeof(*lsq->w)*lsq->alloc, "lsq->w");
+}
+
+void lsq_4D_free(Lsq4DFit *lsq)
+{
+	MEM_freeN(lsq->A);
+	MEM_freeN(lsq->B);
+	MEM_freeN(lsq->w);
+}
+
+void lsq_4D_init(Lsq4DFit *lsq)
+{
+	lsq->tot = 0;
+}
 
 void lsq_4D_add(Lsq4DFit *lsq, float a[4], float *b, int dimension, float weight)
 {
-	float (*AtA)[4]= lsq->AtA;
-	float (*AtB)[4]= lsq->AtB;
-	int i, j;
+	int i;
 
-	/* build AtA and AtB directly from rows of A and
-	   corresponding right hand side b */
-	for(i=0; i<4; i++)
-		for(j=0; j<4; j++)
-			AtA[i][j] += weight*a[i]*a[j];
-	
+	if(lsq->tot >= lsq->alloc) {
+		lsq->alloc *= 2;
+		lsq->A = MEM_reallocN(lsq->A, sizeof(*lsq->A)*lsq->alloc);
+		lsq->B = MEM_reallocN(lsq->B, sizeof(*lsq->B)*lsq->alloc);
+		lsq->w = MEM_reallocN(lsq->w, sizeof(*lsq->w)*lsq->alloc);
+	}
+
+	copy_v4_v4(lsq->A[lsq->tot], a);
 	for(i=0; i<dimension; i++)
-		for(j=0; j<4; j++)
-			AtB[i][j] += weight*a[j]*b[i];
+		lsq->B[lsq->tot][i] = b[i];
+	lsq->w[lsq->tot] = weight;
+	lsq->tot++;
 }
 
 void TNT_svd(float m[][4], float *w, float u[][4]);
@@ -508,14 +538,46 @@ void svd_invert_m4_m4(float R[4][4], float M[4][4])
 
 void lsq_4D_solve(Lsq4DFit *lsq, float *solution, int dimension)
 {
-	float AtAinv[4][4], x[4];
-	int i;
+	float AtA[4][4], AtAinv[4][4], AtB[MAX_CACHE_DIMENSION][4];
+	float x[4], meanB[MAX_CACHE_DIMENSION], totw;
+	float (*A)[4]= lsq->A, (*B)[MAX_CACHE_DIMENSION] = lsq->B, *w = lsq->w;
+	int i, j, k;
 
-	svd_invert_m4_m4(AtAinv, lsq->AtA);
+	memset(AtA, 0, sizeof(AtA));
+	memset(AtB, 0, sizeof(AtB));
+	memset(meanB, 0, sizeof(meanB));
+	totw = 0.0f;
+
+	/* computed weighted mean B, to do least squares on (B-meanB),
+	   this works better on underdetermined systems where lsq will
+	   minimize ||x||, which is not what we want */
+	for(k=0; k<lsq->tot; k++) {
+		for(i=0; i<dimension; i++)
+			meanB[i] += B[k][i]*w[k];
+		totw += w[k];
+	}
+
+	for(i=0; i<dimension; i++)
+		meanB[i] /= totw;
+
+	/* build AtA and AtB from A and B */
+	for(k=0; k<lsq->tot; k++) {
+		for(i=0; i<4; i++)
+			for(j=0; j<4; j++)
+				AtA[i][j] += w[k]*A[k][i]*A[k][j];
+		
+		for(i=0; i<dimension; i++)
+			for(j=0; j<4; j++)
+				AtB[i][j] += w[k]*A[k][j]*(B[k][i] - meanB[i]);
+
+	}
+
+	/* use SVD for stable inverting of AtA */
+	svd_invert_m4_m4(AtAinv, AtA);
 
 	for(i=0; i<dimension; i++) {
-		mul_v4_m4v4(x, AtAinv, lsq->AtB[i]);
-		solution[i]= x[3];
+		mul_v4_m4v4(x, AtAinv, AtB[i]);
+		solution[i]= meanB[i] + x[3];
 	}
 }
 
@@ -547,6 +609,9 @@ static IrrCache *irr_cache_new(Render *re, int thread)
 	/* options */
 	cache->lsq_reconstruction= 1;
 	cache->neighbour_clamp= 1;
+	
+	if(cache->lsq_reconstruction)
+		lsq_4D_alloc(&cache->lsq);
 
 	if(re->db.wrld.mode & WO_AMB_OCC)
 		cache->dimension++;
@@ -565,6 +630,9 @@ static void irr_cache_delete(IrrCache *cache)
 {
 	if(G.f & G_DEBUG)
 		printf("irr cache stats: %d samples, %d lookups, post %d, %.4f.\n", cache->totsample, cache->totlookup, cache->totpost, (float)cache->totsample/(float)cache->totlookup);
+
+	if(cache->lsq_reconstruction)
+		lsq_4D_free(&cache->lsq);
 
 	BLI_memarena_free(cache->arena);
 	MEM_freeN(cache->stack);
@@ -849,7 +917,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	float accum[MAX_CACHE_DIMENSION], P[3], dPdu[3], dPdv[3], N[3], bumpN[3], totw;
 	float discard_weight, maxdist, distfac;
 	int i, added= 0, totfound= 0, use_lsq, dimension;
-	Lsq4DFit lsq;
+	Lsq4DFit *lsq= &cache->lsq;
 
 	/* XXX check how often this is called! */
 	/* XXX can identical samples end up in the cache now? */
@@ -899,7 +967,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	dimension= cache->dimension;
 
 	if(use_lsq)
-		memset(&lsq, 0, sizeof(lsq));
+		lsq_4D_init(lsq);
 	else
 		memset(accum, 0, sizeof(accum));
 
@@ -959,7 +1027,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 
 					if(use_lsq) {
 						float a[4]= {D[0], D[1], D[2], 1.0f};
-						lsq_4D_add(&lsq, a, C, dimension, w);
+						lsq_4D_add(lsq, a, C, dimension, w);
 					}
 					else {
 						for(i=0; i<dimension; i++)
@@ -985,7 +1053,7 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	if(totw > EPSILON && totfound >= 1) {
 		if(!preprocess) {
 			if(use_lsq) {
-				lsq_4D_solve(&lsq, accum, dimension);
+				lsq_4D_solve(lsq, accum, dimension);
 			}
 			else {
 				float invw= 1.0/totw;
