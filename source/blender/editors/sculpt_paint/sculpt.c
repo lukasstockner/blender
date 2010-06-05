@@ -541,51 +541,62 @@ typedef struct SculptBrushTest {
 	float location[3];
 
 	float dist;
+
+	//float true_location[3];
+	//int symmetry;
+	//int symmetry_pass;
 } SculptBrushTest;
 
 static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 {
 	test->radius_squared= ss->cache->radius*ss->cache->radius;
 	copy_v3_v3(test->location, ss->cache->location);
+
+	//copy_v3_v3(test->true_location, ss->cache->true_location);
+	//test->symmetry = ss->cache->symmetry;
+	//test->symmetry_pass = ss->cache->symmetry_pass;
 }
 
-//static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
-//{
-//	if (test->symmetry) {
-//		int i;
-//
-//		for (i = 0; i < 3; i++) {
-//			if (test->symmetry & (1<<i)) {
-//				if (test->symmetry_pass & (1<<i)) {
-//					if (test->true_location[i] > 0) {
-//						if (co[i] > 0) return 0;
-//					}
-//					else if (test->true_location[i] < 0) {
-//						if (co[i] < 0) return 0;
-//					}
-//				}
-//				else {
-//					if (test->true_location[i] > 0) {
-//						if (co[i] < 0) return 0;
-//					}
-//					else if (test->true_location[i] < 0) {
-//						if (co[i] > 0) return 0;
-//					}
-//				}
-//			}
-//		}
-//	}
-//
-//	return 1;
-//}
+static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
+{
+	//if (test->symmetry) {
+	//	int i;
+
+	//	for (i = 0; i < 3; i++) {
+	//		if (test->symmetry_pass & (1<<i)) {
+	//			if (test->true_location[i] >= 0) {
+	//				if (co[i] >= 0) return 0;
+	//			}
+	//			else if (test->true_location[i] < 0) {
+	//				if (co[i] < 0) return 0;
+	//			}
+	//		}
+	//		else {
+	//			if (test->true_location[i] >= 0) {
+	//				if (co[i] < 0) return 0;
+	//			}
+	//			else if (test->true_location[i] < 0) {
+	//				if (co[i] >= 0) return 0;
+	//			}
+	//		}
+	//	}
+	//}
+
+	return 1;
+}
 
 static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 {
-	float distsq = len_squared_v3v3(co, test->location);
+	if (sculpt_brush_test_clip(test, co)) {
+		float distsq = len_squared_v3v3(co, test->location);
 
-	if(distsq < test->radius_squared) {
-		test->dist = sqrt(distsq);
-		return 1;
+		if(distsq < test->radius_squared) {
+			test->dist = sqrt(distsq);
+			return 1;
+		}
+		else {
+			return 0;
+		}
 	}
 	else {
 		return 0;
@@ -594,11 +605,16 @@ static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 
 static int sculpt_brush_test_sq(SculptBrushTest *test, float co[3])
 {
-	float distsq = len_squared_v3v3(co, test->location);
+	if (sculpt_brush_test_clip(test, co)) {
+		float distsq = len_squared_v3v3(co, test->location);
 
-	if(distsq < test->radius_squared) {
-		test->dist = distsq;
-		return 1;
+		if(distsq < test->radius_squared) {
+			test->dist = distsq;
+			return 1;
+		}
+		else {
+			return 0;
+		}
 	}
 	else {
 		return 0;
@@ -607,7 +623,12 @@ static int sculpt_brush_test_sq(SculptBrushTest *test, float co[3])
 
 static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 {
-	return len_squared_v3v3(co, test->location) < test->radius_squared;
+	if (sculpt_brush_test_clip(test, co)) {
+		return len_squared_v3v3(co, test->location) < test->radius_squared;
+	}
+	else {
+		return 0;
+	}
 }
 
 /* area of overlap of two circles of radius 1 seperated by d units from their centers */
@@ -1090,16 +1111,16 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
 	
 	/* offset with as much as possible factored in already */
-	offset[0]= area_normal[0]*ss->cache->radius*ss->cache->scale[0]*bstrength;
-	offset[1]= area_normal[1]*ss->cache->radius*ss->cache->scale[1]*bstrength;
-	offset[2]= area_normal[2]*ss->cache->radius*ss->cache->scale[2]*bstrength;
+	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
+	mul_v3_v3(offset, ss->cache->scale);
+	mul_v3_fl(offset, bstrength);
 
 	/* threaded loop over nodes */
 	//#pragma omp parallel for private(n) schedule(static)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
-		
+
 		sculpt_undo_push_node(ss, nodes[n]);
 		sculpt_brush_test_init(ss, &test);
 
@@ -2035,15 +2056,15 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 		case SCULPT_TOOL_CLAY:
 			do_clay_brush(sd, ss, nodes, totnode);
 			break;
-                case SCULPT_TOOL_FILL:
-                        do_fill_brush(sd, ss, nodes, totnode);
-                        break;
-                case SCULPT_TOOL_SCRAPE:
-                        do_scrape_brush(sd, ss, nodes, totnode);
-                        break;
-                case SCULPT_TOOL_CONTRAST:
-                        do_contrast_brush(sd, ss, nodes, totnode);
-                        break;
+		case SCULPT_TOOL_FILL:
+			do_fill_brush(sd, ss, nodes, totnode);
+			break;
+		case SCULPT_TOOL_SCRAPE:
+			do_scrape_brush(sd, ss, nodes, totnode);
+			break;
+		case SCULPT_TOOL_CONTRAST:
+			do_contrast_brush(sd, ss, nodes, totnode);
+			break;
 		}
 	
 		/* copy the modified vertices from mesh to the active key */
@@ -2387,7 +2408,12 @@ static void sculpt_update_cache_variants(Sculpt *sd, SculptSession *ss, struct P
 	cache->pixel_radius = brush->size;
 
 	if(cache->first_time)
-		cache->initial_radius = unproject_brush_radius(ss->ob, cache->vc, cache->true_location, brush->size);
+		if (!(brush->flag & BRUSH_LOCK_SIZE)) {
+			cache->initial_radius = brush->unprojected_radius = unproject_brush_radius(ss->ob, cache->vc, cache->true_location, brush->size);
+		}
+		else {
+			cache->initial_radius = brush->unprojected_radius;
+		}
 
 	if(brush->flag & BRUSH_SIZE_PRESSURE && brush->sculpt_tool != SCULPT_TOOL_GRAB) {
 		cache->pixel_radius *= cache->pressure;
@@ -2678,7 +2704,7 @@ static void sculpt_flush_update(bContext *C)
 static int over_mesh(bContext *C, struct wmOperator *op, float x, float y)
 {
 	float mouse[2] = {x, y}, co[3];
-	
+
 	return (int)sculpt_stroke_get_location(C, op->customdata, co, mouse);
 }
 
@@ -2816,7 +2842,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 	ot->modal= paint_stroke_modal;
 	ot->exec= sculpt_brush_stroke_exec;
 	ot->poll= sculpt_poll;
-	
+
 	/* flags (sculpt does own undo? (ton) */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
 

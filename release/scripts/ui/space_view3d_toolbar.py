@@ -547,7 +547,11 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
+            row.prop(brush, "lock_brush_size")
+
+            row = col.row(align=True)
             row.prop(brush, "size", slider=True)
+            row.active = not brush.lock_brush_size
 
             if brush.sculpt_tool != 'GRAB':
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
@@ -815,7 +819,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "symmetry_x", text="X")
         col.prop(sculpt, "symmetry_y", text="Y")
         col.prop(sculpt, "symmetry_z", text="Z")
-        col.prop(sculpt, "use_symmetry_feather", text="Feather")
+        #col.prop(sculpt, "use_symmetry_feather", text="Feather")
 
         col = split.column()
         col.label(text="Lock:")

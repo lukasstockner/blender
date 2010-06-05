@@ -579,12 +579,12 @@ typedef struct Sculpt {
 	Paint paint;
 
 	/* For rotating around a pivot point */
-	float pivot[3];
+	//float pivot[3]; XXX not used?
 	int flags;
 
 	/* Control tablet input */
-	char tablet_size, tablet_strength;
-	char pad[6];	
+	//char tablet_size, tablet_strength; // XXX not used?
+	char pad[4];
 } Sculpt;
 
 typedef struct VPaint {

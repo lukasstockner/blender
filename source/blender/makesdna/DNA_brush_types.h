@@ -56,7 +56,7 @@ typedef struct Brush {
 	
 	short blend, pad;				/* blend mode */
 	int size;				/* brush diameter */
-	int flag, pad3;				/* general purpose flag */	
+	int flag;				/* general purpose flag */	
 	float detail;				/* dynamic subdivission detail */
 	float smoothness;			/* dynamic subdivission smoothness*/
 	float jitter;				/* jitter the position of the brush */
@@ -78,7 +78,7 @@ typedef struct Brush {
 	char imagepaint_tool;		/* active image paint tool */
 	char stroke_tool;
 
-	int pad2;
+	float unprojected_radius;
 } Brush;
 
 /* Brush.flag */
@@ -102,6 +102,7 @@ typedef struct Brush {
 #define BRUSH_SUBDIV		(1<<17)
 #define BRUSH_SPACE_ATTEN	(1<<18)
 #define BRUSH_ADAPTIVE_SPACE	(1<<19)
+#define BRUSH_LOCK_SIZE		(1<<20)
 
 
 /* Brush stroke_tool */

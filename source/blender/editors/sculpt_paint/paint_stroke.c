@@ -49,6 +49,7 @@
 #include "ED_view3d.h"
 
 #include "paint_intern.h"
+#include "sculpt_intern.h" // XXX, for expedience in getting this working, refactor later (or this just shows that this needs unification)
 
 #include <float.h>
 #include <math.h>
@@ -96,13 +97,106 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 	glDisable(GL_LINE_SMOOTH);
 }
 
+/* Convert a point in model coordinates to 2D screen coordinates. */
+// XXX duplicated from sculpt.c, deal with this later.
+static void projectf(bglMats *mats, const float v[3], float p[2])
+{
+	double ux, uy, uz;
+
+	gluProject(v[0],v[1],v[2], mats->modelview, mats->projection,
+		   (GLint *)mats->viewport, &ux, &uy, &uz);
+	p[0]= ux;
+	p[1]= uy;
+}
+
+static int project_brush_radius(RegionView3D* rv3d, float radius, float location[3], bglMats* mats)
+{
+	float view[3], nonortho[3], ortho[3], offset[3], p1[2], p2[2];
+
+	viewvector(rv3d, location, view);
+
+	// create a vector that is not orthogonal to view
+
+	if (fabsf(view[0]) < 0.1) {
+		nonortho[0] = view[0] + 1;
+		nonortho[1] = view[1];
+		nonortho[2] = view[2];
+	}
+	else if (fabsf(view[1]) < 0.1) {
+		nonortho[0] = view[0];
+		nonortho[1] = view[1] + 1;
+		nonortho[2] = view[2];
+	}
+	else {
+		nonortho[0] = view[0];
+		nonortho[1] = view[1];
+		nonortho[2] = view[2] + 1;
+	}
+
+	// get a vector in the plane of the view
+	cross_v3_v3v3(ortho, nonortho, view);
+	normalize_v3(ortho);
+
+	// make a point on the surface of the brush tagent to the view
+	mul_v3_fl(ortho, radius);
+	add_v3_v3v3(offset, location, ortho);
+
+	// project the center of the brush, and the tagent point to the view onto the screen
+	projectf(mats, location, p1);
+	projectf(mats, offset, p2);
+
+	// the distance between these points is the size of the projected brush in pixels
+	return len_v2v2(p1, p2);
+}
+
+static void sculpt_set_brush_radius(Brush *brush, int value)
+{
+	PointerRNA brushptr;
+	PropertyRNA *size;
+
+	/* brush.size = value */
+
+	RNA_id_pointer_create(&brush->id, &brushptr);
+
+	size= RNA_struct_find_property(&brushptr, "size");
+	RNA_property_int_set(&brushptr, size, value);
+}
+
+static int sculpt_get_brush_radius(bContext* C, int mouse[2])
+{
+	int radius;
+	struct PaintStroke *stroke;
+	float location[3], window[2];
+
+	stroke = paint_stroke_new(C, NULL, NULL, NULL, NULL);
+
+	window[0] = mouse[0] + stroke->vc.ar->winrct.xmin;
+	window[1] = mouse[1] + stroke->vc.ar->winrct.ymin;
+
+	if (stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
+		radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
+	}
+	else {
+		Sculpt* sd    = CTX_data_tool_settings(C)->sculpt;
+		Brush*  brush = paint_brush(&sd->paint);
+
+		radius = brush->size;
+	}
+
+	paint_stroke_free(stroke);
+
+	return radius;
+}
+
 static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 {
+	int mouse[3] = { x, y };
 	Paint *paint = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(paint);
 
-	if(!(paint->flags & PAINT_SHOW_BRUSH))
-		return;
+	if(!(paint->flags & PAINT_SHOW_BRUSH)) return;
+
+	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(brush, sculpt_get_brush_radius(C, mouse));
 
 	glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
 	glEnable(GL_LINE_SMOOTH);

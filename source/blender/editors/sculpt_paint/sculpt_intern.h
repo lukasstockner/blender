@@ -67,6 +67,7 @@ void sculpt_stroke_free(struct SculptStroke *);
 void sculpt_stroke_add_point(struct SculptStroke *, const short x, const short y);
 void sculpt_stroke_apply(struct Sculpt *sd, struct SculptStroke *);
 void sculpt_stroke_apply_all(struct Sculpt *sd, struct SculptStroke *);
+int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2]);
 
 /* Partial Mesh Visibility */
 void sculptmode_pmv(int mode);

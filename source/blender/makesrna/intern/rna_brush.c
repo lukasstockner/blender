@@ -193,10 +193,16 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	/* number values */
 	prop= RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS);
+	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS*10);
+	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, 0);
 	RNA_def_property_ui_text(prop, "Size", "Radius of the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop= RNA_def_property(srna, "unprojected_radius", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 0, FLT_MAX);
+	RNA_def_property_ui_text(prop, "Unprojected Radius", "Radius of brush in Blender units");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "detail", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.05f, 1.0f);
 	RNA_def_property_ui_text(prop, "Detail", "Dynamic subdivission detail");
@@ -350,6 +356,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_adaptive_space", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ADAPTIVE_SPACE);
 	RNA_def_property_ui_text(prop, "Adaptive Spacing", "Space daubs according to surface orientation instead of screen space");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "lock_brush_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_LOCK_SIZE);
+	RNA_def_property_ui_text(prop, "Lock Brush Size", "Use the last brush size relative to the model");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* not exposed in the interface yet

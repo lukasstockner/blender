@@ -74,7 +74,7 @@ typedef struct SculptSession {
 	
 	struct Scene *scene; //Mio
 	struct EditMesh *em; //Mio  
-			
+
 	/* Mesh connectivity */
 	struct ListBase *fmap;
 
