@@ -433,7 +433,7 @@ void free_keyed_keys(ParticleSystem *psys)
 		}
 	}
 }
-void psys_free_child_path_cache(ParticleSystem *psys)
+static void free_child_path_cache(ParticleSystem *psys)
 {
 	psys_free_path_cache_buffers(psys->childcache, &psys->childcachebufs);
 	psys->childcache = NULL;
@@ -451,7 +451,7 @@ void psys_free_path_cache(ParticleSystem *psys, PTCacheEdit *edit)
 		psys->pathcache= NULL;
 		psys->totcached= 0;
 
-		psys_free_child_path_cache(psys);
+		free_child_path_cache(psys);
 	}
 }
 void psys_free_children(ParticleSystem *psys)
@@ -462,7 +462,7 @@ void psys_free_children(ParticleSystem *psys)
 		psys->totchild=0;
 	}
 
-	psys_free_child_path_cache(psys);
+	free_child_path_cache(psys);
 }
 void psys_free_particles(ParticleSystem *psys)
 {
@@ -1037,7 +1037,6 @@ typedef struct ParticleInterpolationData {
 	ParticleKey *kkey[2];
 
 	PointCache *cache;
-	PTCacheMem *pm;
 
 	PTCacheEditPoint *epoint;
 	PTCacheEditKey *ekey[2];
@@ -1046,73 +1045,30 @@ typedef struct ParticleInterpolationData {
 	int bspline;
 } ParticleInterpolationData;
 /* Assumes pointcache->mem_cache exists, so for disk cached particles call psys_make_temp_pointcache() before use */
-/* It uses ParticleInterpolationData->pm to store the current memory cache frame so it's thread safe. */
-static void get_pointcache_keys_for_time(Object *ob, PointCache *cache, PTCacheMem **cur, int index, float t, ParticleKey *key1, ParticleKey *key2)
+static void get_pointcache_keys_for_time(Object *ob, PointCache *cache, int index, float t, ParticleKey *key1, ParticleKey *key2)
 {
-	static PTCacheMem *pm = NULL;
+	static PTCacheMem *pm = NULL; /* not thread safe */
 
 	if(index < 0) { /* initialize */
-		*cur = cache->mem_cache.first;
+		pm = cache->mem_cache.first;
 
-		if(*cur)
-			*cur = (*cur)->next;
+		if(pm)
+			pm = pm->next;
 	}
 	else {
-		if(*cur) {
-			while(*cur && (*cur)->next && (float)(*cur)->frame < t)
-				*cur = (*cur)->next;
-
-			pm = *cur;
+		if(pm) {
+			while(pm && pm->next && (float)pm->frame < t)
+				pm = pm->next;
 
 			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame, 1);
-			if(pm->prev->index_array && pm->prev->index_array[index] == 0)
-				copy_particle_key(key1, key2, 1);
-			else
-				BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame, 1);
+			BKE_ptcache_make_particle_key(key1, pm->prev->index_array ? pm->prev->index_array[index] - 1 : index, pm->prev->data, (float)pm->prev->frame, 1);
 		}
 		else if(cache->mem_cache.first) {
-			pm = cache->mem_cache.first;
-			BKE_ptcache_make_particle_key(key2, pm->index_array ? pm->index_array[index] - 1 : index, pm->data, (float)pm->frame, 1);
+			PTCacheMem *pm2 = cache->mem_cache.first;
+			BKE_ptcache_make_particle_key(key2, pm2->index_array ? pm2->index_array[index] - 1 : index, pm2->data, (float)pm2->frame, 1);
 			copy_particle_key(key1, key2, 1);
 		}
 	}
-}
-static int get_pointcache_times_for_particle(PointCache *cache, int index, float *start, float *end)
-{
-	PTCacheMem *pm;
-	int ret = 0;
-
-	for(pm=cache->mem_cache.first; pm; pm=pm->next) {
-		if(pm->index_array) {
-			if(pm->index_array[index]) {
-				*start = pm->frame;
-				ret++;
-				break;
-			}
-		}
-		else {
-			*start = pm->frame;
-			ret++;
-			break;
-		}
-	}
-
-	for(pm=cache->mem_cache.last; pm; pm=pm->prev) {
-		if(pm->index_array) {
-			if(pm->index_array[index]) {
-				*end = pm->frame;
-				ret++;
-				break;
-			}
-		}
-		else {
-			*end = pm->frame;
-			ret++;
-			break;
-		}
-	}
-
-	return ret == 2;
 }
 static void init_particle_interpolation(Object *ob, ParticleSystem *psys, ParticleData *pa, ParticleInterpolationData *pind)
 {
@@ -1135,15 +1091,10 @@ static void init_particle_interpolation(Object *ob, ParticleSystem *psys, Partic
 		pind->dietime = (key + pa->totkey - 1)->time;
 	}
 	else if(pind->cache) {
-		float start, end;
-		get_pointcache_keys_for_time(ob, pind->cache, &pind->pm, -1, 0.0f, NULL, NULL);
+		get_pointcache_keys_for_time(ob, pind->cache, -1, 0.0f, NULL, NULL);
+
 		pind->birthtime = pa ? pa->time : pind->cache->startframe;
 		pind->dietime = pa ? pa->dietime : pind->cache->endframe;
-
-		if(get_pointcache_times_for_particle(pind->cache, pa - psys->particles, &start, &end)) {
-			pind->birthtime = MAX2(pind->birthtime, start);
-			pind->dietime = MIN2(pind->dietime, end);
-		}
 	}
 	else {
 		HairKey *key = pa->hair;
@@ -1273,7 +1224,7 @@ static void do_particle_interpolation(ParticleSystem *psys, int p, ParticleData 
 		memcpy(keys + 2, pind->kkey[1], sizeof(ParticleKey));
 	}
 	else if(pind->cache) {
-		get_pointcache_keys_for_time(NULL, pind->cache, &pind->pm, p, real_t, keys+1, keys+2);
+		get_pointcache_keys_for_time(NULL, pind->cache, p, real_t, keys+1, keys+2);
 	}
 	else {
 		hair_to_particle(keys + 1, pind->hkey[0]);
@@ -2721,7 +2672,7 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 	}
 	else {
 		/* clear out old and create new empty path cache */
-		psys_free_child_path_cache(sim->psys);
+		free_child_path_cache(sim->psys);
 		sim->psys->childcache= psys_alloc_path_cache_buffers(&sim->psys->childcachebufs, totchild, ctx->steps+1);
 		sim->psys->totchildcache = totchild;
 	}
@@ -2792,7 +2743,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	int keyed, baked;
 
 	/* we don't have anything valid to create paths from so let's quit here */
-	if((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache)==0)
+	if((psys->flag & PSYS_HAIR_DONE || psys->flag & PSYS_KEYED || psys->pointcache->flag & PTCACHE_BAKED)==0)
 		return;
 
 	if(psys_in_edit_mode(sim->scene, psys))
@@ -2802,7 +2753,7 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	BLI_srandom(psys->seed);
 
 	keyed = psys->flag & PSYS_KEYED;
-	baked = !hair_dm && psys->pointcache->mem_cache.first;
+	baked = !hair_dm && psys->pointcache->flag & PTCACHE_BAKED;
 
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
@@ -3199,7 +3150,7 @@ void psys_cache_edit_paths(Scene *scene, Object *ob, PTCacheEdit *edit, float cf
 
 	edit->totcached = totpart;
 
-	if(psys) {
+	if(psys && psys->part->type == PART_HAIR) {
 		ParticleSimulationData sim = {scene, ob, psys, psys_get_modifier(ob, psys), NULL};
 		psys_cache_child_paths(&sim, cfra, 1);
 	}
