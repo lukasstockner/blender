@@ -42,20 +42,22 @@ AGLContext GHOST_WindowCarbon::s_firstaglCtx = NULL;
 const GHOST_TInt32 GHOST_WindowCarbon::s_sizeRectSize = 16;
 #endif //GHOST_DRAW_CARBON_GUTTER
 
-static const GLint sPreferredFormatWindow[8] = {
+static const GLint sPreferredFormatWindow[10] = {
 AGL_RGBA,
 AGL_DOUBLEBUFFER,	
 AGL_ACCELERATED,
 AGL_DEPTH_SIZE,		32,
+AGL_STENCIL_SIZE,    1,
 AGL_NONE,
 };
 
-static const GLint sPreferredFormatFullScreen[9] = {
+static const GLint sPreferredFormatFullScreen[11] = {
 AGL_RGBA,
 AGL_DOUBLEBUFFER,
 AGL_ACCELERATED,
 AGL_FULLSCREEN,
 AGL_DEPTH_SIZE,		32,
+AGL_STENCIL_SIZE,    1,
 AGL_NONE,
 };
 
