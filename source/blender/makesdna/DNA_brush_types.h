@@ -79,6 +79,8 @@ typedef struct Brush {
 	char stroke_tool;
 
 	float unprojected_radius;
+
+	int pad2;
 } Brush;
 
 /* Brush.flag */
