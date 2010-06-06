@@ -213,6 +213,7 @@ typedef struct PBVHVertexIter {
 				if(vi.grid) { \
 					vi.co= vi.grid->co; \
 					vi.fno= vi.grid->no; \
+					vi.mask= &vi.grid->mask; \
 					vi.grid++; \
 				} \
 				else { \

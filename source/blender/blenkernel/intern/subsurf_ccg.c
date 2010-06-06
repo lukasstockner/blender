@@ -115,7 +115,7 @@ static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int subdivLevels, int useAgin
 		ifc.vertUserSize = ifc.edgeUserSize = ifc.faceUserSize = 8;
 	}
 	ifc.vertDataSize = sizeof(DMGridData);
-	ifc.finterpCount = 3;
+	ifc.finterpCount = 4;
 
 	if (useArena) {
 		CCGAllocatorIFC allocatorIFC;
@@ -420,7 +420,7 @@ static void calc_ss_weights(int gridFaces,
 }
 
 static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
-									 float (*vertexCos)[3], int useFlatSubdiv)
+				     float (*vertexCos)[3], int useFlatSubdiv)
 {
 	float creaseFactor = (float) ccgSubSurf_getSubdivisionLevels(ss);
 	CCGVertHDL fVerts[4];
@@ -432,6 +432,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 	MVert *mvert = dm->getVertArray(dm);
 	MEdge *medge = dm->getEdgeArray(dm);
 	MFace *mface = dm->getFaceArray(dm);
+	float *pmask;
 	MVert *mv;
 	MEdge *me;
 	MFace *mf;
@@ -440,14 +441,17 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 
 	mv = mvert;
 	index = (int *)dm->getVertDataArray(dm, CD_ORIGINDEX);
+	pmask = CustomData_get_layer(&dm->vertData, CD_PAINTMASK);
 	for(i = 0; i < totvert; i++, mv++) {
 		CCGVert *v;
 
-		if(vertexCos) {
-			ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), vertexCos[i], 0, &v);
-		} else {
-			ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), mv->co, 0, &v);
-		}
+		/* TODO: this will become more flexible; for now four floats is the right size */
+		float vertData[4];
+
+		copy_v3_v3(vertData, vertexCos ? vertexCos[i] : mv->co);
+		vertData[3] = pmask ? pmask[i] : 0;
+
+		ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), vertData, 0, &v);
 
 		((int*)ccgSubSurf_getVertUserData(ss, v))[1] = (index)? *index++: i;
 	}
@@ -477,7 +481,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 		fVerts[2] = SET_INT_IN_POINTER(mf->v3);
 		fVerts[3] = SET_INT_IN_POINTER(mf->v4);
 
-		// this is very bad, means mesh is internally consistent.
+		// this is very bad, means mesh is internally inconsistent.
 		// it is not really possible to continue without modifying
 		// other parts of code significantly to handle missing faces.
 		// since this really shouldn't even be possible we just bail.

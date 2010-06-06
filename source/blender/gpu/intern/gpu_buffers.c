@@ -422,35 +422,47 @@ static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
 	out[2] = v;
 }
 
+/* Create or destroy the color buffer as needed, return a pointer to the color buffer data.
+   If the return value is not null, it must be freed with glUnmapBuffer */
+static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, int totelem)
+{
+	unsigned char *color_data = NULL;
+
+	if(have_colors && !buffers->color_buf)
+		glGenBuffersARB(1, &buffers->color_buf);
+	else if(!have_colors && buffers->color_buf)
+		delete_buffer(&buffers->color_buf);
+
+	if(have_colors && buffers->color_buf) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
+		glBufferDataARB(GL_ARRAY_BUFFER_ARB,
+				sizeof(char) * 3 * totelem,
+				NULL, GL_STATIC_DRAW_ARB);
+		color_data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
+		if(!color_data)
+			delete_buffer(&buffers->color_buf);
+	}
+
+	return color_data;
+}
+
 /* For now this looks for just a single mask layer, eventually might include
    other color layers like vertex colors or weights */
 static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int totvert)
 {
-	unsigned char *color_data = NULL;
+	unsigned char *color_data;
 	int i;
 	float *pmask;
 
 	/* Make a color buffer if there's a mask layer and
 	   get rid of any color buffer if there's no mask layer */
 	pmask = CustomData_get_layer(vdata, CD_PAINTMASK);
-	if(pmask && !buffers->color_buf)
-		glGenBuffersARB(1, &buffers->color_buf);
-	else if(!pmask && buffers->color_buf)
-		delete_buffer(&buffers->color_buf);
+	color_data = map_color_buffer(buffers, !!pmask, totvert);
 
-	if(pmask && buffers->color_buf) {
-		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
-		glBufferDataARB(GL_ARRAY_BUFFER_ARB,
-				sizeof(char) * 3 * totvert,
-				NULL, GL_STATIC_DRAW_ARB);
-		color_data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
-		if(color_data) {
-			for(i = 0; i < totvert; ++i)
-				mask_to_gpu_colors(color_data + i*3, pmask[i]);
-			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
-		}
-		else
-			delete_buffer(&buffers->color_buf);
+	if(color_data) {
+		for(i = 0; i < totvert; ++i)
+			mask_to_gpu_colors(color_data + i*3, pmask[i]);
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 	}
 }
 
@@ -566,6 +578,28 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 	return buffers;
 }
 
+static void update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
+				      int totgrid, int gridsize, int totvert)
+{
+	unsigned char *color_data;
+
+	/* TODO: for now we pretend there's always mask data */
+	color_data = map_color_buffer(buffers, 1, totvert);
+
+	if(color_data) {
+		int i, j;
+
+		for(i = 0; i < totgrid; ++i) {
+			DMGridData *grid= grids[grid_indices[i]];
+
+			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3)
+				mask_to_gpu_colors(color_data, grid[j].mask);
+		}
+
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
+	}
+}
+
 void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 	int *grid_indices, int totgrid, int gridsize, int smooth)
 {
@@ -585,6 +619,7 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 		if(vert_data) {
 			for(i = 0; i < totgrid; ++i) {
 				DMGridData *grid= grids[grid_indices[i]];
+				/* TODO: don't want to copy color data into this buffer */
 				memcpy(vert_data, grid, sizeof(DMGridData)*gridsize*gridsize);
 
 				if(!smooth) {
@@ -610,6 +645,8 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 		}
 		else
 			delete_buffer(&buffers->vert_buf);
+
+		update_grid_color_buffers(buffers, grids, grid_indices, totgrid, gridsize, totvert);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}

@@ -297,6 +297,26 @@ static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, int lvl)
 {
 	int i;
 
+	CustomData *cd_facegrids;
+
+	cd_facegrids = CustomData_get_layer(&me->fdata, CD_FACEGRID);
+	if(!cd_facegrids)
+		cd_facegrids = CustomData_add_layer(&me->fdata, CD_FACEGRID, CD_CALLOC, NULL, me->totface);
+
+	for(i = 0; i < me->totface; ++i) {
+		int nvert = (me->mface[i].v4)? 4: 3;
+		int totelem = multires_grid_tot[lvl]*nvert;
+		CustomData old, *cd = cd_facegrids + i;
+
+		/* Resize all existing layers */
+		old = *cd;
+		memset(cd, 0, sizeof(*cd));
+		CustomData_copy(&old, cd, ~0, CD_CALLOC, totelem);
+		CustomData_free(&old, 0);
+	}
+
+	/* This will be replaced when we do CD_DISPS */
+
 	/* reallocate displacements to be filled in */
 	for(i = 0; i < me->totface; ++i) {
 		int nvert = (me->mface[i].v4)? 4: 3;
@@ -338,7 +358,7 @@ static void multires_copy_grid(float (*gridA)[3], float (*gridB)[3], int sizeA, 
 	}
 }
 
-static void multires_copy_dm_grid(DMGridData *gridA, DMGridData *gridB, int sizeA, int sizeB)
+static void multires_copy_dm_grid(DMGridData *gridA, DMGridData *gridB, int finterpCount, int sizeA, int sizeB)
 {
 	int x, y, j, skip;
 
@@ -347,14 +367,14 @@ static void multires_copy_dm_grid(DMGridData *gridA, DMGridData *gridB, int size
 
 		for(j = 0, y = 0; y < sizeB; y++)
 			for(x = 0; x < sizeB; x++, j++)
-				copy_v3_v3(gridA[y*skip*sizeA + x*skip].co, gridB[j].co);
+				memcpy(&gridA[y*skip*sizeA + x*skip], &gridB[j], sizeof(float) * finterpCount);
 	}
 	else {
 		skip = (sizeB-1)/(sizeA-1);
 
 		for(j = 0, y = 0; y < sizeA; y++)
 			for(x = 0; x < sizeA; x++, j++)
-				copy_v3_v3(gridA[j].co, gridB[y*skip*sizeB + x*skip].co);
+				memcpy(&gridA[j], &gridB[y*skip*sizeB + x*skip], sizeof(float) * finterpCount);
 	}
 }
 
@@ -486,7 +506,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 			memcpy(subGridData[i], highGridData[i], sizeof(DMGridData)*highGridSize*highGridSize);
 
 			/* overwrite with current displaced grids */
-			multires_copy_dm_grid(highGridData[i], lowGridData[i], highGridSize, lowGridSize);
+			multires_copy_dm_grid(highGridData[i], lowGridData[i], 4 /* TODO */, highGridSize, lowGridSize);
 		}
 
 		/* low lower level dm no longer needed at this point */
@@ -541,12 +561,32 @@ static void grid_tangent(int gridSize, int index, int x, int y, int axis, DMGrid
 	}
 }
 
+#if 0
+static void debug_print_paintmask_grids(CustomData *grids, int gridsize)
+{
+	float *pmask;
+	int x, y;
+
+	printf("debug_print_paintmask_grids:\n");
+	pmask = CustomData_get_layer(grids, CD_PAINTMASK);
+	
+	for(y = 0; y < gridsize; ++y) {
+		for(x = 0; x < gridsize; ++x, ++pmask)
+			printf("%.2f ", *pmask);
+		printf("\n");
+	}
+
+	printf("\n");
+}
+#endif
+
 static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGridData **oldGridData, int totlvl)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*)dm;
 	DMGridData **gridData, **subGridData;
 	MFace *mface = me->mface;
 	MDisps *mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
+	CustomData *stored_grids;
 	int *gridOffset;
 	int i, numGrids, gridSize, dGridSize, dSkip;
 
@@ -566,11 +606,14 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 	dGridSize = multires_side_tot[totlvl];
 	dSkip = (dGridSize-1)/(gridSize-1);
 
+	stored_grids = CustomData_get_layer(&me->fdata, CD_FACEGRID);
+
 	//#pragma omp parallel for private(i) schedule(static)
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
 		MDisps *mdisp = &mdisps[i];
 		int S, x, y, gIndex = gridOffset[i];
+		float *stored_mask_layer;
 
 		/* when adding new faces in edit mode, need to allocate disps */
 		if(!mdisp->disps)
@@ -579,17 +622,36 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 			multires_reallocate_mdisps(me, mdisps, totlvl);
 		}
 
+		if(stored_grids) {
+			stored_mask_layer = CustomData_get_layer(&stored_grids[i], CD_PAINTMASK);
+
+			/* TODO: for now we just always have a paintmask layer */
+			if(!stored_mask_layer) {
+				stored_mask_layer = CustomData_add_layer(&stored_grids[i], CD_PAINTMASK, CD_CALLOC, NULL, dGridSize*dGridSize*numVerts);
+				for(x = 0; x < dGridSize*dGridSize*numVerts; ++x)
+					stored_mask_layer[x] = 1;
+			}
+		}
+
 		for(S = 0; S < numVerts; ++S, ++gIndex) {
 			DMGridData *grid = gridData[gIndex];
 			DMGridData *subgrid = subGridData[gIndex];
 			float (*dispgrid)[3] = &mdisp->disps[S*dGridSize*dGridSize];
+			float *stored_mask = &stored_mask_layer[S*dGridSize*dGridSize];
 
 			for(y = 0; y < gridSize; y++) {
 				for(x = 0; x < gridSize; x++) {
-					float *co = grid[x + y*gridSize].co;
-					float *sco = subgrid[x + y*gridSize].co;
-					float *no = subgrid[x + y*gridSize].no;
-					float *data = dispgrid[dGridSize*y*dSkip + x*dSkip];
+					int ccgdm_offset = x + y*gridSize;
+					int stored_offset = dGridSize*y*dSkip + x*dSkip;
+
+					float *co = grid[ccgdm_offset].co;
+					float *sco = subgrid[ccgdm_offset].co;
+					float *no = subgrid[ccgdm_offset].no;
+					float *data = dispgrid[stored_offset];
+
+					float *mask = &grid[ccgdm_offset].mask;
+					float *smask = &subgrid[ccgdm_offset].mask;
+
 					float tan_to_ob_mat[3][3], tx[3], ty[3], disp[3], d[3];
 
 					/* construct tangent space matrix */
@@ -626,6 +688,24 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 						mul_v3_m3v3(d, tan_to_ob_mat, co);
 						add_v3_v3(data, d);
 						break;
+					}
+
+					
+					/* Paint Masks */
+					if(mask && smask && stored_mask) {
+						switch(op) {
+						case APPLY_DISPS:
+							*mask = stored_mask[stored_offset];
+							break;
+						case CALC_DISPS:
+							stored_mask[stored_offset] = *mask;
+							CLAMP(stored_mask[stored_offset], 0, 1);
+							break;
+						case ADD_DISPS:
+							stored_mask[stored_offset] = *mask;
+							CLAMP(stored_mask[stored_offset], 0, 1);
+							break;
+						}
 					}
 				}
 			}
@@ -691,10 +771,13 @@ static void multiresModifier_update(DerivedMesh *dm)
 				memcpy(subGridData[i], highGridData[i], sizeof(DMGridData)*highGridSize*highGridSize);
 
 				/* write difference of subsurf and displaced low level into high subsurf */
-				for(j = 0; j < lowGridSize*lowGridSize; ++j)
-					sub_v3_v3v3(diffGrid[j].co, gridData[i][j].co, lowGridData[i][j].co);
+				for(j = 0; j < lowGridSize*lowGridSize; ++j) {
+					int k;
+					for(k = 0; k < 4 /* TODO */; ++k)
+						((float*)&diffGrid[j])[k] = ((float*)&gridData[i][j])[k] - ((float*)&lowGridData[i][j])[k];
+				}
 
-				multires_copy_dm_grid(highGridData[i], diffGrid, highGridSize, lowGridSize);
+				multires_copy_dm_grid(highGridData[i], diffGrid, 4 /* TODO */, highGridSize, lowGridSize);
 			}
 
 			/* lower level dm no longer needed at this point */

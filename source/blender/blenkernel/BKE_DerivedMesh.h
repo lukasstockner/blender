@@ -70,6 +70,7 @@ struct PBVH;
 
 typedef struct DMGridData {
 	float co[3];
+	float mask;
 	float no[3];
 } DMGridData;
 
