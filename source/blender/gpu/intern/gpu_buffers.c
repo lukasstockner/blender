@@ -388,7 +388,7 @@ typedef struct {
 
 typedef struct {
 	/* opengl buffer handles */
-	GLuint vert_buf, index_buf;
+	GLuint vert_buf, index_buf, color_buf;
 	GLenum index_type;
 
 	/* mesh pointers in case buffer allocation fails */
@@ -405,6 +405,54 @@ typedef struct {
 
 	unsigned int tot_tri, tot_quad;
 } GPU_Buffers;
+
+static void delete_buffer(GLuint *buf)
+{
+	glDeleteBuffersARB(1, buf);
+	*buf = 0;
+}
+
+/* For purposes of displaying the mask on the mesh,
+   convert the mask strength to RGB-bytes */
+static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
+{
+	unsigned char v = (unsigned char)(mask_strength * 128.0f) + 64;
+	out[0] = v;
+	out[1] = v;
+	out[2] = v;
+}
+
+/* For now this looks for just a single mask layer, eventually might include
+   other color layers like vertex colors or weights */
+static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vert_customdata, int totvert)
+{
+	unsigned char *color_data = NULL;
+	int i;
+	float *pmask;
+
+	/* Make a color buffer if there's a mask layer and
+	   get rid of any color buffer if there's no mask layer */
+	pmask = CustomData_get_layer(vert_customdata, CD_PAINTMASK);
+	if(pmask && !buffers->color_buf)
+		glGenBuffersARB(1, &buffers->color_buf);
+	else if(!pmask && buffers->color_buf)
+		delete_buffer(&buffers->color_buf);
+
+	if(pmask && buffers->color_buf) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
+		glBufferDataARB(GL_ARRAY_BUFFER_ARB,
+				sizeof(char) * 3 * totvert,
+				NULL, GL_STATIC_DRAW_ARB);
+		color_data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
+		if(color_data) {
+			for(i = 0; i < totvert; ++i)
+				mask_to_gpu_colors(color_data + i*3, pmask[i]);
+			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
+		}
+		else
+			delete_buffer(&buffers->color_buf);
+	}
+}
 
 void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 			int *vert_indices, int totvert)
@@ -432,10 +480,8 @@ void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 
 			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 		}
-		else {
-			glDeleteBuffersARB(1, &buffers->vert_buf);
-			buffers->vert_buf = 0;
-		}
+		else
+			delete_buffer(&buffers->vert_buf);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
@@ -498,10 +544,8 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 			}
 			glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);
 		}
-		else {
-			glDeleteBuffersARB(1, &buffers->index_buf);
-			buffers->index_buf = 0;
-		}
+		else
+			delete_buffer(&buffers->index_buf);
 
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 	}
@@ -561,10 +605,9 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 			}
 			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 		}
-		else {
-			glDeleteBuffersARB(1, &buffers->vert_buf);
-			buffers->vert_buf = 0;
-		}
+		else
+			delete_buffer(&buffers->vert_buf);
+
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 
@@ -618,10 +661,8 @@ void *GPU_build_grid_buffers(DMGridData **grids,
 				}
 				glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);
 			}
-			else {
-				glDeleteBuffersARB(1, &buffers->index_buf);
-				buffers->index_buf = 0;
-			}
+			else
+				delete_buffer(&buffers->index_buf);
 		}
 		else {
 			unsigned int *quad_data;
@@ -648,10 +689,8 @@ void *GPU_build_grid_buffers(DMGridData **grids,
 				}
 				glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);
 			}
-			else {
-				glDeleteBuffersARB(1, &buffers->index_buf);
-				buffers->index_buf = 0;
-			}
+			else
+				delete_buffer(&buffers->index_buf);
 		}
 
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
@@ -671,30 +710,51 @@ void GPU_draw_buffers(void *buffers_v)
 	GPU_Buffers *buffers = buffers_v;
 
 	if(buffers->vert_buf && buffers->index_buf) {
+		GLboolean colmat;
+
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_NORMAL_ARRAY);
+		if(buffers->color_buf)
+			glEnableClientState(GL_COLOR_ARRAY);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
 
+		if(buffers->color_buf) {
+			glGetBooleanv(GL_COLOR_MATERIAL, &colmat);
+			glEnable(GL_COLOR_MATERIAL);
+		}
+
 		if(buffers->tot_quad) {
 			glVertexPointer(3, GL_FLOAT, sizeof(DMGridData), (void*)offsetof(DMGridData, co));
 			glNormalPointer(GL_FLOAT, sizeof(DMGridData), (void*)offsetof(DMGridData, no));
+			if(buffers->color_buf) {
+				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
+				glVertexPointer(3, GL_UNSIGNED_BYTE, sizeof(char)*3, (void*)0);
+			}
 
 			glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
 		}
 		else {
 			glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, co));
 			glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, no));
+			if(buffers->color_buf) {
+				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
+				glVertexPointer(3, GL_UNSIGNED_BYTE, sizeof(char)*3, (void*)0);
+			}
 
 			glDrawElements(GL_TRIANGLES, buffers->tot_tri * 3, buffers->index_type, 0);
 		}
+
+		if(buffers->color_buf && !colmat)
+			glDisable(GL_COLOR_MATERIAL);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_NORMAL_ARRAY);
+		glDisableClientState(GL_COLOR_ARRAY);
 	}
 	else if(buffers->totface) {
 		/* fallback if we are out of memory */
