@@ -115,6 +115,7 @@ static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int subdivLevels, int useAgin
 		ifc.vertUserSize = ifc.edgeUserSize = ifc.faceUserSize = 8;
 	}
 	ifc.vertDataSize = sizeof(DMGridData);
+	ifc.finterpCount = 3;
 
 	if (useArena) {
 		CCGAllocatorIFC allocatorIFC;

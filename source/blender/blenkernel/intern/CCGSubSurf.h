@@ -12,8 +12,12 @@ typedef struct _CCGFace CCGFace;
 typedef struct _CCGMeshIFC CCGMeshIFC;
 struct _CCGMeshIFC {
 	int			vertUserSize, edgeUserSize, faceUserSize;
-
 	int			vertDataSize;
+
+	/* How many floats to interpolate per-vertex.
+	   example: if interpolating coordinates and paint masks,
+	   that would be (3+1) floats, so finterpCount would be 4. */
+	int			finterpCount;
 };
 
 /***/
