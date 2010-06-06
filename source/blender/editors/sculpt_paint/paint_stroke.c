@@ -160,9 +160,28 @@ static void sculpt_set_brush_radius(Brush *brush, int value)
 
 	size= RNA_struct_find_property(&brushptr, "size");
 	RNA_property_int_set(&brushptr, size, value);
+
+	// XXX This is a hack to redraw the control until I find out how to just redraw one control
+	WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
 }
 
-static int sculpt_get_brush_geometry(bContext* C, int mouse[2], int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
+static void sculpt_set_brush_unprojected_radius(Brush *brush, float value)
+{
+	PointerRNA brushptr;
+	PropertyRNA *unprojected_radius;
+
+	/* brush.unprojected_radius = value */
+
+	RNA_id_pointer_create(&brush->id, &brushptr);
+
+	unprojected_radius= RNA_struct_find_property(&brushptr, "unprojected_radius");
+	RNA_property_float_set(&brushptr, unprojected_radius, value);
+
+	// XXX This is a hack to redraw the control until I find out how to just redraw one control
+	WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
+}
+
+static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
 {
 	struct PaintStroke *stroke;
 	float window[2];
@@ -170,11 +189,15 @@ static int sculpt_get_brush_geometry(bContext* C, int mouse[2], int* pixel_radiu
 
 	stroke = paint_stroke_new(C, NULL, NULL, NULL, NULL);
 
-	window[0] = mouse[0] + stroke->vc.ar->winrct.xmin;
-	window[1] = mouse[1] + stroke->vc.ar->winrct.ymin;
+	window[0] = x + stroke->vc.ar->winrct.xmin;
+	window[1] = y + stroke->vc.ar->winrct.ymin;
 
 	if (stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
 		*pixel_radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
+
+		if (*pixel_radius == 0) {
+			*pixel_radius = stroke->brush->size;
+		}
 
 		mul_m4_v3(stroke->vc.obact->sculpt->ob->obmat, location);
 
@@ -214,94 +237,114 @@ static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3]
 
 static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 {
-	int mouse[3] = { x, y };
 	Paint *paint = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(paint);
-	GLUquadric* sphere;
-	int pixel_radius;
-	float location[3];
-	float modelview[16], projection[16];
-	int viewport[4];
+
+	int pixel_radius, viewport[4];
+	float location[3], modelview[16], projection[16];
+
 	int hit;
 
-	if(!(paint->flags & PAINT_SHOW_BRUSH)) return;
+	if(!(brush->flag & BRUSH_LOCK_SIZE) && !(paint->flags & PAINT_SHOW_BRUSH)) 
+		return;
 
-	glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
-	glEnable(GL_BLEND);
-
-	hit = sculpt_get_brush_geometry(C, mouse, &pixel_radius, location, modelview, projection, viewport);
+	hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
 
 	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(brush, pixel_radius);
 
-	if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE && hit) {
-		float size;
+	if (hit) {
 		ViewContext vc;
+		float unprojected_radius;
+
 		view3d_set_viewcontext(C, &vc);
 
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadMatrixf(modelview);
-		glTranslatef(location[0], location[1], location[2]);
+		unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
 
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glLoadMatrixf(projection);
+		if (!(brush->flag & BRUSH_LOCK_SIZE)) 
+			sculpt_set_brush_unprojected_radius(brush, unprojected_radius);
 
-		glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+		if(!(paint->flags & PAINT_SHOW_BRUSH)) return;
 
-		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-		glDepthMask(GL_FALSE);
+		glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
+		glEnable(GL_BLEND);
 
-		glDisable(GL_CULL_FACE);
+		if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
+			GLUquadric* sphere;
 
-		glEnable(GL_DEPTH_TEST);
+			glMatrixMode(GL_MODELVIEW);
+			glPushMatrix();
+			glLoadMatrixf(modelview);
+			glTranslatef(location[0], location[1], location[2]);
 
-		glClearStencil(0);
-		glClear(GL_STENCIL_BUFFER_BIT);
-		glEnable(GL_STENCIL_TEST);
+			glMatrixMode(GL_PROJECTION);
+			glPushMatrix();
+			glLoadMatrixf(projection);
 
-		glStencilFunc(GL_ALWAYS, 1, 1);
-		glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+			glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
 
-		size = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+			glDepthMask(GL_FALSE);
 
-		sphere = gluNewQuadric();
-		gluSphere(sphere, size, 40, 40);
+			glDisable(GL_CULL_FACE);
 
-		glStencilFunc(GL_ALWAYS, 0, 1);
-		glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+			glEnable(GL_DEPTH_TEST);
 
-		gluSphere(sphere, size * 0.8f, 40, 40);
+			glClearStencil(0);
+			glClear(GL_STENCIL_BUFFER_BIT);
+			glEnable(GL_STENCIL_TEST);
 
-		glStencilFunc(GL_EQUAL, 1, 1);
+			glStencilFunc(GL_ALWAYS, 3, 0xFF);
+			glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
 
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+			sphere = gluNewQuadric();
 
-		gluSphere(sphere, size, 40, 40);
-		gluDeleteQuadric(sphere);
+			gluSphere(sphere, unprojected_radius, 40, 40);
 
-		glDisable(GL_DEPTH_TEST);
+			glStencilFunc(GL_ALWAYS, 1, 0xFF);
+			glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
 
-		glEnable(GL_CULL_FACE);
+			gluSphere(sphere, unprojected_radius * 0.8f, 40, 40);
 
-		glDisable(GL_STENCIL_TEST);
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
-		glDepthMask(GL_TRUE);
+			glStencilFunc(GL_EQUAL, 1, 0xFF);
+			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-		glPopMatrix();
+			gluSphere(sphere, unprojected_radius, 40, 40);
 
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
+			glStencilFunc(GL_EQUAL, 3, 0xFF);
+			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+			gluSphere(sphere, unprojected_radius, 40, 40);
+
+			gluDeleteQuadric(sphere);
+
+			glDisable(GL_DEPTH_TEST);
+
+			glEnable(GL_CULL_FACE);
+
+			glDisable(GL_STENCIL_TEST);
+
+			glDepthMask(GL_TRUE);
+
+			glPopMatrix();
+
+			glMatrixMode(GL_MODELVIEW);
+			glPopMatrix();
+
+			// XXX This is a hack to redraw the screen so that the zbuffer is recreated
+			WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
+		}
+		else {
+			glEnable(GL_LINE_SMOOTH);
+			glTranslatef((float)x, (float)y, 0.0f);
+			glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+			glTranslatef((float)-x, (float)-y, 0.0f);
+			glDisable(GL_LINE_SMOOTH);
+		}
+
+		glDisable(GL_BLEND);
 	}
-	else {
-		glEnable(GL_LINE_SMOOTH);
-		glTranslatef((float)x, (float)y, 0.0f);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
-		glTranslatef((float)-x, (float)-y, 0.0f);
-		glDisable(GL_LINE_SMOOTH);
-	}
-
-	glDisable(GL_BLEND);
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */

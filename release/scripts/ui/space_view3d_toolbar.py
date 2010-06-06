@@ -547,15 +547,23 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
-            row.prop(brush, "lock_brush_size")
+            row.prop(brush, "lock_brush_size", text="Use Surface Size")
 
             row = col.row(align=True)
-            row.prop(brush, "size", slider=True)
-            row.active = not brush.lock_brush_size
+            row.prop(brush, "unprojected_radius", text="Surface Size", slider=True)
+            row.active = brush.lock_brush_size
 
-            if brush.sculpt_tool != 'GRAB':
+            if brush.sculpt_tool != 'GRAB' and brush.lock_brush_size:
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
+            row = col.row(align=True)
+            row.prop(brush, "size", slider=True, text="Pixel Size")
+            row.active = not brush.lock_brush_size
+
+            if brush.sculpt_tool != 'GRAB' and not brush.lock_brush_size:
+                row.prop(brush, "use_size_pressure", toggle=True, text="")
+
+            if brush.sculpt_tool != 'GRAB':
                 row = col.row(align=True)
                 row.prop(brush, "strength", slider=True)
                 row.prop(brush, "use_strength_pressure", text="")
