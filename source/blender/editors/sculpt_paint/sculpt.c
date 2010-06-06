@@ -637,7 +637,7 @@ static float get_texcache_pixel_bilinear(const SculptSession *ss, float u, float
 }
 
 /* Return a multiplier for brush strength on a particular vertex. */
-static float tex_strength(SculptSession *ss, Brush *br, float *point, const float len)
+static float tex_strength(SculptSession *ss, Brush *br, float *point, float *mask, const float len)
 {
 	MTex *tex = &br->mtex;
 	float avg= 1;
@@ -706,6 +706,8 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 	}
 
 	avg*= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
+	if(mask)
+		avg*= *mask;
 
 	return avg;
 }
@@ -869,7 +871,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
 				/* offset vertex */
-				float fade = tex_strength(ss, brush, vd.co, test.dist);
+				float fade = tex_strength(ss, brush, vd.co, vd.mask, test.dist);
 				float val[3]= {vd.co[0] + offset[0]*fade,
 							   vd.co[1] + offset[1]*fade,
 							   vd.co[2] + offset[2]*fade};
@@ -939,7 +941,7 @@ static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node)
 
 	BLI_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_UNIQUE) {
 		if(sculpt_brush_test(&test, vd.co)) {
-			float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+			float fade = tex_strength(ss, brush, vd.co, vd.mask, test.dist)*bstrength;
 			float avg[3], val[3];
 
 			CLAMP(fade, 0.0f, 1.0f);
@@ -1010,7 +1012,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 				copy_v3_v3(co, data[x + y*gridsize].co);
 
 				if(sculpt_brush_test(&test, co)) {
-					float fade = tex_strength(ss, brush, co, test.dist)*bstrength;
+					float fade = tex_strength(ss, brush, co, &data[x + y*gridsize].mask, test.dist)*bstrength;
 					float avg[3], val[3];
 
 					copy_v3_v3(avg, tmpgrid[x + y*gridsize]);
@@ -1073,7 +1075,7 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+				float fade = tex_strength(ss, brush, vd.co, vd.mask, test.dist)*bstrength;
 				float val[3]= {vd.co[0]+(test.location[0]-vd.co[0])*fade,
 							   vd.co[1]+(test.location[1]-vd.co[1])*fade,
 							   vd.co[2]+(test.location[2]-vd.co[2])*fade};
@@ -1108,7 +1110,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
-				float fade = tex_strength(ss, brush, origco[vd.i], test.dist)*bstrength;
+				float fade = tex_strength(ss, brush, origco[vd.i], vd.mask, test.dist)*bstrength;
 				float add[3]= {vd.co[0]+fade*grab_delta[0],
 							   vd.co[1]+fade*grab_delta[1],
 							   vd.co[2]+fade*grab_delta[2]};
@@ -1157,7 +1159,7 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+				float fade = tex_strength(ss, brush, vd.co, vd.mask, test.dist)*bstrength;
 				float *disp= &layer_disp[vd.i];
 				float val[3];
 				
@@ -1207,7 +1209,7 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+				float fade = tex_strength(ss, brush, vd.co, vd.mask, test.dist)*bstrength;
 				float add[3];
 
 				if(vd.fno) copy_v3_v3(add, vd.fno);
@@ -1334,7 +1336,7 @@ static void do_flatten_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **node
 				float intr[3], val[3];
 				
 				if(!clay || plane_point_side(vd.co, area_normal, cntr2, flip)) {
-					const float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+					const float fade = tex_strength(ss, brush, vd.co, vd.mask, test.dist)*bstrength;
 
 					/* Find the intersection between squash-plane and vertex (along the area normal) */		
 					point_plane_project(intr, vd.co, area_normal, cntr);
