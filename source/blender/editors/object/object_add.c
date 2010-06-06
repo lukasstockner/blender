@@ -212,12 +212,13 @@ static void object_add_generic_invoke_options(bContext *C, wmOperator *op)
 				for(a=0; a<32; a++)
 					values[a]= (layer & (1<<a));
 			} else {
-				layer = v3d->layact;
+				layer = (v3d->scenelock)?scene->layact:v3d->layact;
+
 				for(a=0; a<32; a++)
 					values[a]= (layer & (1<<a));
 			}
 		} else {
-			layer = scene->lay;
+			layer = scene->layact;
 			for(a=0; a<32; a++)
 				values[a]= (layer & (1<<a));
 		}
@@ -1054,7 +1055,7 @@ void OBJECT_OT_duplicates_make_real(wmOperatorType *ot)
 
 static EnumPropertyItem convert_target_items[]= {
 	{OB_CURVE, "CURVE", ICON_OUTLINER_OB_CURVE, "Curve from Mesh/Text", ""},
-	{OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh from Curve/Meta/Surf/Mesh", ""},
+	{OB_MESH, "MESH", ICON_OUTLINER_OB_MESH, "Mesh from Curve/Meta/Surf/Text", ""},
 	{0, NULL, 0, NULL, NULL}};
 
 static void curvetomesh(Scene *scene, Object *ob) 
