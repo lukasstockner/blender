@@ -424,7 +424,7 @@ static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
 
 /* For now this looks for just a single mask layer, eventually might include
    other color layers like vertex colors or weights */
-static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vert_customdata, int totvert)
+static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int totvert)
 {
 	unsigned char *color_data = NULL;
 	int i;
@@ -432,7 +432,7 @@ static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vert_cus
 
 	/* Make a color buffer if there's a mask layer and
 	   get rid of any color buffer if there's no mask layer */
-	pmask = CustomData_get_layer(vert_customdata, CD_PAINTMASK);
+	pmask = CustomData_get_layer(vdata, CD_PAINTMASK);
 	if(pmask && !buffers->color_buf)
 		glGenBuffersARB(1, &buffers->color_buf);
 	else if(!pmask && buffers->color_buf)
@@ -455,7 +455,7 @@ static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vert_cus
 }
 
 void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
-			int *vert_indices, int totvert)
+			     CustomData *vdata, int *vert_indices, int totvert)
 {
 	GPU_Buffers *buffers = buffers_v;
 	VertexBufferFormat *vert_data;
@@ -483,6 +483,8 @@ void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 		else
 			delete_buffer(&buffers->vert_buf);
 
+		update_mesh_color_buffers(buffers, vdata, totvert);
+
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 
@@ -490,9 +492,10 @@ void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 }
 
 void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
-			int *face_indices, int totface,
-			int *vert_indices, int tot_uniq_verts,
-			int totvert)
+			     CustomData *vdata,
+			     int *face_indices, int totface,
+			     int *vert_indices, int tot_uniq_verts,
+			     int totvert)
 {
 	GPU_Buffers *buffers;
 	unsigned short *tri_data;
@@ -552,7 +555,7 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 
 	if(buffers->index_buf)
 		glGenBuffersARB(1, &buffers->vert_buf);
-	GPU_update_mesh_buffers(buffers, mvert, vert_indices, totvert);
+	GPU_update_mesh_buffers(buffers, mvert, vdata, vert_indices, totvert);
 
 	buffers->tot_tri = tottri;
 
@@ -730,7 +733,7 @@ void GPU_draw_buffers(void *buffers_v)
 			glNormalPointer(GL_FLOAT, sizeof(DMGridData), (void*)offsetof(DMGridData, no));
 			if(buffers->color_buf) {
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
-				glVertexPointer(3, GL_UNSIGNED_BYTE, sizeof(char)*3, (void*)0);
+				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
 			}
 
 			glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
@@ -740,7 +743,7 @@ void GPU_draw_buffers(void *buffers_v)
 			glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, no));
 			if(buffers->color_buf) {
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
-				glVertexPointer(3, GL_UNSIGNED_BYTE, sizeof(char)*3, (void*)0);
+				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
 			}
 
 			glDrawElements(GL_TRIANGLES, buffers->tot_tri * 3, buffers->index_type, 0);

@@ -105,6 +105,7 @@ struct PBVH {
 	/* Mesh data */
 	MVert *verts;
 	MFace *faces;
+	CustomData *vdata;
 
 	/* Grid Data */
 	DMGridData **grids;
@@ -348,6 +349,7 @@ static void build_mesh_leaf_node(PBVH *bvh, PBVHNode *node)
 
 	node->draw_buffers =
 		GPU_build_mesh_buffers(map, bvh->verts, bvh->faces,
+				  bvh->vdata,
 				  node->prim_indices,
 				  node->totprim, node->vert_indices,
 				  node->uniq_verts,
@@ -472,7 +474,7 @@ static void pbvh_build(PBVH *bvh, BB *cb, BBC *prim_bbc, int totprim)
 }
 
 /* Do a full rebuild with on Mesh data structure */
-void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, int totface, int totvert)
+void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, CustomData *vdata, int totface, int totvert)
 {
 	BBC *prim_bbc = NULL;
 	BB cb;
@@ -480,6 +482,7 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, int totface, int
 
 	bvh->faces = faces;
 	bvh->verts = verts;
+	bvh->vdata = vdata;
 	bvh->vert_bitmap = BLI_bitmap_new(totvert);
 	bvh->totvert = totvert;
 	bvh->leaf_limit = LEAF_LIMIT;
@@ -880,6 +883,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, i
 			else {
 				GPU_update_mesh_buffers(node->draw_buffers,
 						   bvh->verts,
+						   bvh->vdata,
 						   node->vert_indices,
 						   node->uniq_verts +
 						   node->face_verts);
@@ -1019,10 +1023,11 @@ void BLI_pbvh_node_mark_update(PBVHNode *node)
 	node->flag |= PBVH_UpdateNormals|PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateDrawBuffers|PBVH_UpdateRedraw;
 }
 
-void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVert **verts)
+void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVert **verts, CustomData **vdata)
 {
 	if(vert_indices) *vert_indices= node->vert_indices;
 	if(verts) *verts= bvh->verts;
+	if(vdata) *vdata= bvh->vdata;
 }
 
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *totvert)

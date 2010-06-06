@@ -129,11 +129,11 @@ void GPU_drawobject_free( struct DerivedMesh *dm );
 
 /* Buffers for non-DerivedMesh drawing */
 void *GPU_build_mesh_buffers(struct GHash *map, struct MVert *mvert,
-			struct MFace *mface, int *face_indices,
-			int totface, int *vert_indices, int uniq_verts,
-			int totvert);
+			     struct MFace *mface, CustomData *vdata, int *face_indices,
+			     int totface, int *vert_indices, int uniq_verts,
+			     int totvert);
 void GPU_update_mesh_buffers(void *buffers, struct MVert *mvert,
-			int *vert_indices, int totvert);
+			     struct CustomData *vdata, int *vert_indices, int totvert);
 void *GPU_build_grid_buffers(struct DMGridData **grids,
 	int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_buffers(void *buffers_v, struct DMGridData **grids,

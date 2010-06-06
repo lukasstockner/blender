@@ -25,6 +25,7 @@
 #ifndef BLI_PBVH_H
 #define BLI_PBVH_H
 
+struct CustomData;
 struct MFace;
 struct MVert;
 struct DMGridAdjacency;
@@ -47,7 +48,7 @@ typedef void (*BLI_pbvh_HitCallback)(PBVHNode *node, void *data);
 
 PBVH *BLI_pbvh_new(void);
 void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
-			int totface, int totvert);
+			 struct CustomData *vdata, int totface, int totvert);
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 	struct DMGridAdjacency *gridadj, int totgrid,
 	int gridsize, void **gridfaces);
@@ -101,7 +102,7 @@ void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
 	int *uniquevert, int *totvert);
 void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
-	int **vert_indices, struct MVert **verts);
+			     int **vert_indices, struct MVert **verts, struct CustomData **vdata);
 
 void BLI_pbvh_node_get_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
 void BLI_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
@@ -142,8 +143,12 @@ typedef struct PBVHVertexIter {
 
 	/* mesh */
 	struct MVert *mverts;
+	struct CustomData *vdata;
 	int totvert;
 	int *vert_indices;
+
+	/* mask */
+	float *vdata_mask;
 
 	/* result: these are all computed in the macro, but we assume
 	   that compiler optimizations will skip the ones we don't use */
@@ -151,19 +156,21 @@ typedef struct PBVHVertexIter {
 	float *co;
 	short *no;
 	float *fno;
+	float *mask;
 } PBVHVertexIter;
 
 #define BLI_pbvh_vertex_iter_begin(bvh, node, vi, mode) \
 	{ \
 		struct DMGridData **grids; \
 		struct MVert *verts; \
+		struct CustomData *vdata; \
 		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert; \
 		\
 		memset(&vi, 0, sizeof(PBVHVertexIter)); \
 		\
 		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL); \
 		BLI_pbvh_node_num_verts(bvh, node, &uniq_verts, &totvert); \
-		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts); \
+		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts, &vdata); \
 		\
 		vi.grids= grids; \
 		vi.grid_indices= grid_indices; \
@@ -176,6 +183,9 @@ typedef struct PBVHVertexIter {
 			vi.totvert= uniq_verts; \
 		vi.vert_indices= vert_indices; \
 		vi.mverts= verts; \
+		vi.vdata= vdata; \
+		if(vi.vdata) \
+			vi.vdata_mask= CustomData_get_layer(vi.vdata, CD_PAINTMASK); \
 	}\
 	\
 	for(vi.i=0, vi.g=0; vi.g<vi.totgrid; vi.g++) { \
@@ -209,6 +219,8 @@ typedef struct PBVHVertexIter {
 					vi.mvert= &vi.mverts[vi.vert_indices[vi.gx]]; \
 					vi.co= vi.mvert->co; \
 					vi.no= vi.mvert->no; \
+					if(vi.vdata_mask) \
+						vi.mask= &vi.vdata_mask[vi.vert_indices[vi.gx]]; \
 				} \
 
 #define BLI_pbvh_vertex_iter_end \

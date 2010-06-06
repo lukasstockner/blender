@@ -2300,7 +2300,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 		ob->sculpt->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
-				   me->totface, me->totvert);
+				    &me->vdata, me->totface, me->totvert);
 		ccgdm->pbvh_draw = 0;
 	}
 

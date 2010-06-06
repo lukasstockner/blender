@@ -60,7 +60,8 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 			PBVHVertexIter vd;
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				/* *vd.mask = get_mask_value(mode) */
+				if(vd.mask)
+					*vd.mask = get_mask_value(mode);
 			}
 			BLI_pbvh_vertex_iter_end;
 
@@ -68,8 +69,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		}
 
 		BLI_pbvh_update(pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
-		//WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
-		//ED_region_tag_redraw(CTX_wm_region(C));
+		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}
 	
 	return OPERATOR_FINISHED;
