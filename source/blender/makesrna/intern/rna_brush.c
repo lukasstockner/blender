@@ -256,6 +256,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Strength", "The amount of pressure on the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "strength_multiplier", PROP_INT, PROP_FACTOR);
+	RNA_def_property_int_sdna(prop, NULL, "strength_multiplier");
+	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_ui_text(prop, "Strength Multiplier", "A multiplier factor for the strength setting");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "plane_offset");
 	RNA_def_property_range(prop, -1.0f, 1.0f);

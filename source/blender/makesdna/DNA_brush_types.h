@@ -61,6 +61,7 @@ typedef struct Brush {
 	float smoothness;			/* dynamic subdivission smoothness*/
 	float jitter;				/* jitter the position of the brush */
 	int spacing;				/* spacing of paint operations */
+	int strength_multiplier;		/* increases the strength by a multiplier */
 	int smooth_stroke_radius;		/* turning radius (in pixels) for smooth stroke */
 	float smooth_stroke_factor;		/* higher values limit fast changes in the stroke direction */
 	float rate;					/* paint operations / second (airbrush) */
@@ -79,8 +80,6 @@ typedef struct Brush {
 	char stroke_tool;
 
 	float unprojected_radius;
-
-	int pad2;
 } Brush;
 
 /* Brush.flag */

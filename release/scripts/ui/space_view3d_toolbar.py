@@ -567,6 +567,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row(align=True)
                 row.prop(brush, "strength", slider=True)
                 row.prop(brush, "use_strength_pressure", text="")
+                col.prop(brush, "strength_multiplier", slider=True)
 
                 # XXX - TODO
                 #row = col.row(align=True)

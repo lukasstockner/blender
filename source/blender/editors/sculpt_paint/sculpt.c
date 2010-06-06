@@ -734,10 +734,12 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 
 	/* Primary strength input; square it to make lower values more sensitive */
 	float alpha = brush->alpha * brush->alpha;
-
+	int strength_multiplier = brush->strength_multiplier;
 	float dir      = brush->flag & BRUSH_DIR_IN ? -1 : 1;
 	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
 	float flip     = cache->flip ? -1 : 1;
+
+	alpha *= (float)strength_multiplier;
 	//float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 	float overlap  = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 
