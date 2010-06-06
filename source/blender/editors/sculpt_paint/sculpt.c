@@ -286,7 +286,7 @@ static void update_cb(PBVHNode *node, void *data)
 static int sculpt_modifiers_active(Scene *scene, Object *ob)
 {
 	ModifierData *md;
-	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
+	MultiresModifierData *mmd = paint_multires_active(scene, ob);
 
 	/* check if there are any modifiers after what we are sculpting,
 	   for a multires modifier with a deform modifier in front, we
@@ -374,7 +374,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 		BLI_pbvh_search_callback(ss->pbvh, NULL, NULL, update_cb, NULL);
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
 
-		if((mmd=sculpt_multires_active(scene, ob)))
+		if((mmd=paint_multires_active(scene, ob)))
 			multires_mark_as_modified(ob);
 
 		if(sculpt_modifiers_active(scene, ob))
@@ -436,7 +436,7 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 
 	BLI_pbvh_node_num_verts(ss->pbvh, node, &totvert, &allvert);
 	BLI_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
-		&maxgrid, &gridsize, NULL, NULL);
+				&maxgrid, &gridsize, NULL, NULL);
 
 	unode->totvert= totvert;
 	/* we will use this while sculpting, is mapalloc slow to access then? */
@@ -970,7 +970,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	sculpt_brush_test_init(ss, &test);
 
 	BLI_pbvh_node_get_grids(ss->pbvh, node, &grid_indices, &totgrid,
-		NULL, &gridsize, &griddata, &gridadj);
+				NULL, &gridsize, &griddata, &gridadj);
 
 	//#pragma omp critical
 	tmpgrid= MEM_mallocN(sizeof(float)*3*gridsize*gridsize, "tmpgrid");
@@ -1482,30 +1482,6 @@ static void sculpt_update_tex(Sculpt *sd, SculptSession *ss)
 	}
 }
 
-/* Sculpt mode handles multires differently from regular meshes, but only if
-   it's the last modifier on the stack and it is not on the first level */
-struct MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
-{
-	ModifierData *md, *nmd;
-	
-	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
-		if(md->type == eModifierType_Multires) {
-			MultiresModifierData *mmd= (MultiresModifierData*)md;
-
-			/* Check if any of the modifiers after multires are active
-			 * if not it can use the multires struct */
-			for(nmd= md->next; nmd; nmd= nmd->next)
-				if(modifier_isEnabled(scene, nmd, eModifierMode_Realtime))
-					break;
-
-			if(!nmd && mmd->sculptlvl > 0)
-				return mmd;
-		}
-	}
-
-	return NULL;
-}
-
 void sculpt_key_to_mesh(KeyBlock *kb, Object *ob)
 {
 	Mesh *me= ob->data;
@@ -1525,7 +1501,7 @@ void sculpt_update_mesh_elements(Scene *scene, Object *ob, int need_fmap)
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, 0);
 	SculptSession *ss = ob->sculpt;
-	MultiresModifierData *mmd= sculpt_multires_active(scene, ob);
+	MultiresModifierData *mmd= paint_multires_active(scene, ob);
 
 	ss->ob= ob;
 
@@ -2235,7 +2211,7 @@ static int sculpt_toggle_mode(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	Object *ob = CTX_data_active_object(C);
-	MultiresModifierData *mmd = sculpt_multires_active(scene, ob);
+	MultiresModifierData *mmd = paint_multires_active(scene, ob);
 	int flush_recalc= 0;
 
 	/* multires in sculpt mode could have different from object mode subdivision level */

@@ -1,4 +1,5 @@
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
 #include "RNA_access.h"
@@ -10,33 +11,75 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_mesh.h"
+#include "BKE_multires.h"
+#include "BKE_paint.h"
+
+#include "BLI_pbvh.h"
 
 #include "paint_intern.h"
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+
+static float get_mask_value(MaskSetMode mode)
+{
+	return (mode == MASKING_CLEAR ? 1 :
+		mode == MASKING_FULL ? 0 :
+		mode == MASKING_RANDOM ? (float)rand() / RAND_MAX : 0);
+}
 
 static int paint_mask_set_exec(bContext *C, wmOperator *op)
 {
 	MaskSetMode mode = RNA_enum_get(op->ptr, "mode");
+	struct Scene *scene;
 	Object *ob;
+	DerivedMesh *dm;
 	Mesh *me;
+	PBVH *pbvh;
 
+	scene = CTX_data_scene(C);
 	ob = CTX_data_active_object(C);
+	me = get_mesh(ob);
 
-	if((me = get_mesh(ob))) {
-		printf("paint mask set %d\n", mode);
+	/* Make sure a mask layer has been allocated for the mesh */
+	if(!CustomData_get_layer(&me->vdata, CD_PAINTMASK))
+		CustomData_add_layer(&me->vdata, CD_PAINTMASK, CD_CALLOC, NULL, me->totvert);
 
-		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
+	dm = mesh_get_derived_final(scene, ob, 0);
+	pbvh = dm->getPBVH(ob, dm);
+
+	if(pbvh) {
+		PBVHNode **nodes;
+		int n, totnode;
+
+		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
+		for(n=0; n<totnode; n++) {
+			PBVHVertexIter vd;
+
+			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+				/* *vd.mask = get_mask_value(mode) */
+			}
+			BLI_pbvh_vertex_iter_end;
+
+			BLI_pbvh_node_mark_update(nodes[n]);
+		}
+
+		BLI_pbvh_update(pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
+		//WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+		//ED_region_tag_redraw(CTX_wm_region(C));
 	}
-
+	
 	return OPERATOR_FINISHED;
 }
 
 static int mask_poll(bContext *C)
 {
-	return 1; // TODO
+	Object *ob = CTX_data_active_object(C);
+
+	return ob && get_mesh(ob) && ob->sculpt;
 }
 
 /* Temporary operator to test masking; simply fills up a mask for the

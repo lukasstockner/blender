@@ -4,6 +4,7 @@
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 
 #include "DNA_scene_types.h"
@@ -18,6 +19,7 @@
 #include "BKE_context.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
+#include "BKE_modifier.h"
 #include "BKE_paint.h"
 
 #include "BKE_utildefines.h"
@@ -294,4 +296,29 @@ void PAINT_OT_face_select_all(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	WM_operator_properties_select_all(ot);
+}
+
+/* Currently just used for sculpt mode.
+   Sculpt mode handles multires differently from regular meshes, but only if
+   it's the last modifier on the stack and it is not on the first level */
+struct MultiresModifierData *paint_multires_active(Scene *scene, Object *ob)
+{
+	ModifierData *md, *nmd;
+	
+	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
+		if(md->type == eModifierType_Multires) {
+			MultiresModifierData *mmd= (MultiresModifierData*)md;
+
+			/* Check if any of the modifiers after multires are active
+			 * if not it can use the multires struct */
+			for(nmd= md->next; nmd; nmd= nmd->next)
+				if(modifier_isEnabled(scene, nmd, eModifierMode_Realtime))
+					break;
+
+			if(!nmd && mmd->sculptlvl > 0)
+				return mmd;
+		}
+	}
+
+	return NULL;
 }

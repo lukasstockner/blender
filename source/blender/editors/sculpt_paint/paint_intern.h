@@ -33,6 +33,7 @@ struct bContext;
 struct Scene;
 struct Object;
 struct Mesh;
+struct Multires;
 struct PaintStroke;
 struct PointerRNA;
 struct ViewContext;
@@ -109,6 +110,8 @@ void PAINT_OT_face_select_linked_pick(struct wmOperatorType *ot);
 void PAINT_OT_face_select_all(struct wmOperatorType *ot);
 
 int facemask_paint_poll(struct bContext *C);
+
+struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
 
 /* paint_undo.c */
 typedef void (*UndoRestoreCb)(struct bContext *C, struct ListBase *lb);
