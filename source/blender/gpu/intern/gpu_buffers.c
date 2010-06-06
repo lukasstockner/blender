@@ -448,7 +448,7 @@ static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, in
 
 /* For now this looks for just a single mask layer, eventually might include
    other color layers like vertex colors or weights */
-static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int totvert)
+static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int *vert_indices, int totvert)
 {
 	unsigned char *color_data;
 	int i;
@@ -461,7 +461,7 @@ static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, i
 
 	if(color_data) {
 		for(i = 0; i < totvert; ++i)
-			mask_to_gpu_colors(color_data + i*3, pmask[i]);
+			mask_to_gpu_colors(color_data + i*3, pmask[vert_indices[i]]);
 		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 	}
 }
@@ -495,7 +495,7 @@ void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 		else
 			delete_buffer(&buffers->vert_buf);
 
-		update_mesh_color_buffers(buffers, vdata, totvert);
+		update_mesh_color_buffers(buffers, vdata, vert_indices, totvert);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}

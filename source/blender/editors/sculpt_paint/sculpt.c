@@ -570,6 +570,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	case SCULPT_TOOL_CLAY:
 	case SCULPT_TOOL_FLATTEN:
 	case SCULPT_TOOL_LAYER:
+	case SCULPT_TOOL_MASK:
 		return alpha * dir * pressure * flip; /*XXX: not sure why? was multiplied by G.vd->grid */;
 	case SCULPT_TOOL_SMOOTH:
 		return alpha * 4 * pressure;
@@ -1368,6 +1369,37 @@ static void do_flatten_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **node
 		BLI_pbvh_node_mark_update(nodes[n]);
 	}
 }
+static void do_mask_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	Brush *brush = paint_brush(&sd->paint);
+	float bstrength= ss->cache->bstrength;
+	int n;
+
+	for(n=0; n<totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+		
+		sculpt_undo_push_node(ss, nodes[n]);
+		sculpt_brush_test_init(ss, &test);
+
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			/* TODO: should add a mask layer if needed */
+			if(vd.mask) {
+				if(sculpt_brush_test(&test, vd.co)) {
+					float fade = tex_strength(ss, brush, vd.co, NULL, test.dist)*bstrength;
+
+					*vd.mask -= fade;
+					CLAMP(*vd.mask, 0, 1);
+				
+					if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+
+		BLI_pbvh_node_mark_update(nodes[n]);
+	}
+}
 
 static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 {
@@ -1376,6 +1408,7 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 	PBVHNode **nodes= NULL;
 	int totnode;
 
+	memset(&data, 0, sizeof(data));
 	data.ss = ss;
 	data.sd = sd;
 	data.radius_squared = ss->cache->radius * ss->cache->radius;
@@ -1424,6 +1457,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 			break;
 		case SCULPT_TOOL_CLAY:
 			do_flatten_clay_brush(sd, ss, nodes, totnode, 1);
+			break;
+		case SCULPT_TOOL_MASK:
+			do_mask_brush(sd, ss, nodes, totnode);
 			break;
 		}
 	
