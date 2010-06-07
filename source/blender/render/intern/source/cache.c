@@ -28,6 +28,7 @@
 
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_node_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
@@ -37,6 +38,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
+#include "BKE_node.h"
 
 #include "cache.h"
 #include "diskocclusion.h"
@@ -51,13 +53,43 @@
 
 /******************************** Utilities **********************************/
 
+static int mat_sss_need_cache(Render *re, Material *ma);
+
+static int mat_sss_nodes_need_cache(Render *re, bNodeTree *ntree)
+{
+	bNode *node;
+
+	for(node=ntree->nodes.first; node; node= node->next) {
+		if(node->id && GS(node->id->name)==ID_MA) {
+			Material *ma= (Material*)node->id;
+			if(ma && mat_sss_need_cache(re, ma))
+				return 1;
+		}
+		else if(node->type==NODE_GROUP)
+			if(mat_sss_nodes_need_cache(re, (bNodeTree*)node->id))
+				return 1;
+	}
+
+	return 0;
+}
+
+static int mat_sss_need_cache(Render *re, Material *ma)
+{
+	/* if this material only has sss materials that are already done,
+	   we can skip the cache, and only do it in preprocess */
+	if(ma->nodetree && ma->use_nodes)
+		return mat_sss_nodes_need_cache(re, ma->nodetree);
+
+	return !((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma));
+}
+
 static int mat_need_cache(Render *re, Material *ma)
 {
 	if(ma->mode & MA_SHLESS)
 		return 0;
 	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
 		return 0;
-	else if((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma))
+	else if(!mat_sss_need_cache(re, ma))
 		return 0;
 	
 	return 1;
