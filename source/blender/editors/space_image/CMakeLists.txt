@@ -15,11 +15,6 @@
 # along with this program; if not, write to the Free Software Foundation,
 # Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 #
-# The Original Code is Copyright (C) 2006, Blender Foundation
-# All rights reserved.
-#
-# The Original Code is: all of this file.
-#
 # Contributor(s): Jacques Beaurain.
 #
 # ***** END GPL LICENSE BLOCK *****
@@ -45,6 +40,11 @@ ENDIF(WITH_OPENEXR)
 IF(WITH_TIFF)
 	ADD_DEFINITIONS(-DWITH_TIFF)
 ENDIF(WITH_TIFF)
+
+IF(WITH_LCMS)
+	SET(INC ${INC} ${LCMS_INCLUDE_DIR})
+	ADD_DEFINITIONS(-DWITH_LCMS)
+ENDIF(WITH_LCMS)
 
 IF(WIN32)
 	SET(INC ${INC} ${PTHREADS_INC})

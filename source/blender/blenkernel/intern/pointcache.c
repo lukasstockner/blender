@@ -1185,10 +1185,10 @@ static PTCacheFile *ptcache_file_open(PTCacheID *pid, int mode, int cfra)
 
 	if (mode==PTCACHE_FILE_READ) {
 		if (!BLI_exists(filename)) {
-//            printf("pointcache missing: %s\n", filename);
+            printf("pointcache missing: %s\n", filename);
 			return NULL;
 		}
-//        printf("found!: %s\n", filename);
+        printf("found!: %s\n", filename);
 		 fp = fopen(filename, "rb");
 	} else if (mode==PTCACHE_FILE_WRITE) {
 		BLI_make_existing_file(filename); /* will create the dir if needs be, same as //textures is created */
