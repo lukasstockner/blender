@@ -227,42 +227,42 @@ static int VertDataEqual(float *a, float *b) {
 	}
 #else
 
-static inline void VertDataZero(void *a, const int n)
+CCG_INLINE void VertDataZero(void *a, const int n)
 {
 	int i;
 	for(i = 0; i < n; ++i)
 		((float*)a)[i] = 0;
 }
 
-static inline void VertDataCopy(void *a, void *b, int n)
+CCG_INLINE void VertDataCopy(void *a, void *b, int n)
 {
 	int i;
 	for(i = 0; i < n; ++i)
 		((float*)a)[i] = ((float*)b)[i];
 }
 
-static inline void VertDataAdd(void *a, void *b, int n)
+CCG_INLINE void VertDataAdd(void *a, void *b, int n)
 {
 	int i;
 	for(i = 0; i < n; ++i)
 		((float*)a)[i] += ((float*)b)[i];
 }
 
-static inline void VertDataSub(void *a, void *b, int n)
+CCG_INLINE void VertDataSub(void *a, void *b, int n)
 {
 	int i;
 	for(i = 0; i < n; ++i)
 		((float*)a)[i] -= ((float*)b)[i];
 }
 
-static inline void VertDataMulN(void *a, float b, int n)
+CCG_INLINE void VertDataMulN(void *a, float b, int n)
 {
 	int i;
 	for(i = 0; i < n; ++i)
 		((float*)a)[i] *= b;
 }
 
-static inline void VertDataAvg4(void *t, void *a, void *b, void *c, void *d, int n)
+CCG_INLINE void VertDataAvg4(void *t, void *a, void *b, void *c, void *d, int n)
 {
 	int i;
 	for(i = 0; i < n; ++i)
