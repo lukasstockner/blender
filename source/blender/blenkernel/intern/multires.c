@@ -695,14 +695,14 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 					if(mask && smask && stored_mask) {
 						switch(op) {
 						case APPLY_DISPS:
-							*mask = stored_mask[stored_offset];
+							*mask = *smask + stored_mask[stored_offset];
 							break;
 						case CALC_DISPS:
-							stored_mask[stored_offset] = *mask;
+							stored_mask[stored_offset] = *mask - *smask;
 							CLAMP(stored_mask[stored_offset], 0, 1);
 							break;
 						case ADD_DISPS:
-							stored_mask[stored_offset] = *mask;
+							stored_mask[stored_offset] += *mask;
 							CLAMP(stored_mask[stored_offset], 0, 1);
 							break;
 						}
