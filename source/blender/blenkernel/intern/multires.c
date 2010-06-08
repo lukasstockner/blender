@@ -460,6 +460,19 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	return subsurf_make_derived_from_derived(dm, &smd, 0, NULL, 0, 0);
 }
 
+static DMGridData **copy_grids(DMGridData **grids, int totgrid, int gridsize)
+{
+	DMGridData **grids_copy = MEM_callocN(sizeof(DMGridData*) * totgrid, "subgrids");
+	int i;
+
+	for(i = 0; i < totgrid; ++i) {
+		grids_copy[i] = MEM_callocN(sizeof(DMGridData)*gridsize*gridsize, "subgrid");
+		memcpy(grids_copy[i], grids[i], sizeof(DMGridData)*gridsize*gridsize);
+	}
+
+	return grids_copy;
+}
+
 void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updateblock, int simple)
 {
 	Mesh *me = ob->data;
@@ -498,16 +511,12 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		lowGridSize = lowdm->getGridSize(lowdm);
 		lowGridData = lowdm->getGridData(lowdm);
 
-		subGridData = MEM_callocN(sizeof(float*)*numGrids, "subGridData*");
+		/* backup subsurf grids */
+		subGridData = copy_grids(highGridData, numGrids, highGridSize);
 
-		for(i = 0; i < numGrids; ++i) {
-			/* backup subsurf grids */
-			subGridData[i] = MEM_callocN(sizeof(DMGridData)*highGridSize*highGridSize, "subGridData");
-			memcpy(subGridData[i], highGridData[i], sizeof(DMGridData)*highGridSize*highGridSize);
-
-			/* overwrite with current displaced grids */
+		/* overwrite with current displaced grids */
+		for(i = 0; i < numGrids; ++i)
 			multires_copy_dm_grid(highGridData[i], lowGridData[i], 4 /* TODO */, highGridSize, lowGridSize);
-		}
 
 		/* low lower level dm no longer needed at this point */
 		lowdm->release(lowdm);
@@ -762,15 +771,13 @@ static void multiresModifier_update(DerivedMesh *dm)
 			lowGridData = lowdm->getGridData(lowdm);
 			gridData = dm->getGridData(dm);
 
-			subGridData = MEM_callocN(sizeof(DMGridData*)*numGrids, "subGridData*");
+			/* backup subsurf grids */
+			subGridData = copy_grids(highGridData, numGrids, highGridSize);
+
 			diffGrid = MEM_callocN(sizeof(DMGridData)*lowGridSize*lowGridSize, "diff");
 
+			/* write difference of subsurf and displaced low level into high subsurf */
 			for(i = 0; i < numGrids; ++i) {
-				/* backup subsurf grids */
-				subGridData[i] = MEM_callocN(sizeof(DMGridData)*highGridSize*highGridSize, "subGridData");
-				memcpy(subGridData[i], highGridData[i], sizeof(DMGridData)*highGridSize*highGridSize);
-
-				/* write difference of subsurf and displaced low level into high subsurf */
 				for(j = 0; j < lowGridSize*lowGridSize; ++j) {
 					int k;
 					for(k = 0; k < 4 /* TODO */; ++k)
