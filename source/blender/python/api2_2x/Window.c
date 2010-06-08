@@ -725,6 +725,7 @@ static PyObject *M_Window_SetBgImage	( PyObject * self , PyObject * args)
 	blimg = Image_FromPyObject( value );
 
 	G.vd->bgpic->ima = blimg;
+	G.vd->flag = V3D_DISPBGPIC|G.vd->flag;
 	BKE_image_signal(blimg, &G.vd->bgpic->iuser, IMA_SIGNAL_RELOAD );
 	id_us_plus( &blimg->id );
 

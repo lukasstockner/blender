@@ -226,16 +226,16 @@ def SetPivot (pivot):
 
 def GetBgImage():
 	"""
-	Get the Background Image from current 3D-View (or None).
+	Get Background Image from current 3D-View (or None).
 	@return: Blender Image or None
 	"""
 
 def SetBgImage(image):
 	"""
-	Set the Image as Background Image of current 3D-View.
-	@param image: The new Image.
+	Set the Image as Background Image in current 3D-View and turn it on.
+	@param image: the new Image.
 	@type image: Blender Image or None.
-	@None resets/turn off Background Image.
+	@None removes current Background Image.
 	"""
 
 def WaitCursor (bool):
