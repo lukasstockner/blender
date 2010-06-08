@@ -788,7 +788,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
 
         layout.prop(brush, "use_space")
         if brush.use_space:
-            col = layout.col(align=True)
+            col = layout.column(align=True)
             col.prop(brush, "use_space_atten", text="Adaptive Strength")
             col.prop(brush, "spacing", text="Spacing", slider=True)
             #col.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
