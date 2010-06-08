@@ -32,7 +32,9 @@
 
 #include "BDR_editobject.h"	/* enter / leave editmode */
 #include "BKE_global.h"
+#include "BKE_image.h"		/* for SetBgImage()  */
 #include "BKE_main.h"
+#include "BKE_library.h"		/* for SetBgImage()  */
 #include "BKE_object.h"		/* for during_script() and during_scriptlink() */
 #include "BKE_scene.h"		/* scene_find_camera() */
 #include "BIF_mywindow.h"
@@ -52,6 +54,7 @@
 #include "DNA_object_types.h"
 #include "mydevice.h"
 #include "blendef.h"		/* OBACT */
+#include "Image.h"		/* for GetBgImage()  */
 #include "windowTheme.h"
 #include "Mathutils.h"
 #include "constant.h"
@@ -82,6 +85,8 @@ PyObject *M_Window_Redraw( PyObject * self, PyObject * args );
 static PyObject *M_Window_RedrawAll( PyObject * self, PyObject * args );
 static PyObject *M_Window_QRedrawAll( PyObject * self, PyObject * args );
 static PyObject *M_Window_DrawProgressBar( PyObject * self, PyObject * args );
+static PyObject *M_Window_GetBgImage( PyObject * self ); 
+static PyObject *M_Window_SetBgImage( PyObject * self, PyObject * args ); 
 static PyObject *M_Window_GetCursorPos( PyObject * self );
 static PyObject *M_Window_SetCursorPos( PyObject * self, PyObject * args );
 static PyObject *M_Window_WaitCursor( PyObject * self, PyObject * args );
@@ -164,6 +169,12 @@ static char M_Window_DrawProgressBar_doc[] =
 	"(done, text) - Draw a progress bar.\n\
 'done' is a float value <= 1.0, 'text' contains info about what is\n\
 currently being done.";
+
+static char M_Window_GetBgImage_doc[] =
+	"() - Get the current Background Image.";
+
+static char M_Window_SetBgImage_doc[] =
+	"(Blender Image) - Set Background Image.";
 
 static char M_Window_GetCursorPos_doc[] =
 	"() - Get the current 3d cursor position as a list of three floats.";
@@ -332,6 +343,10 @@ struct PyMethodDef M_Window_methods[] = {
 	 M_Window_DrawProgressBar_doc},
 	{"drawProgressBar", M_Window_DrawProgressBar, METH_VARARGS,
 	 M_Window_DrawProgressBar_doc},
+	{"GetBgImage", ( PyCFunction ) M_Window_GetBgImage, METH_NOARGS,
+	 M_Window_GetBgImage_doc},
+	{"SetBgImage", ( PyCFunction ) M_Window_SetBgImage, METH_VARARGS,
+	 M_Window_SetBgImage_doc},
 	{"GetCursorPos", ( PyCFunction ) M_Window_GetCursorPos, METH_NOARGS,
 	 M_Window_GetCursorPos_doc},
 	{"SetCursorPos", M_Window_SetCursorPos, METH_VARARGS,
@@ -668,6 +683,52 @@ static PyObject *M_Window_DrawProgressBar( PyObject * self, PyObject * args )
 	areawinset(sa->win);
 
 	return Py_BuildValue( "i", retval );
+}
+
+/*****************************************************************************/
+/* Function:   M_Window_GetBgImage					*/
+/* Python equivalent:	Blender.Window.GetBgImage			*/
+/* code borrowed from Texture.py -Texture_getImage( )	*/
+/*****************************************************************************/
+static PyObject *M_Window_GetBgImage	( PyObject * self )
+{
+	if( G.vd && G.vd->bgpic  && G.vd->bgpic->ima)
+		return Image_CreatePyObject( G.vd->bgpic->ima );
+
+	Py_RETURN_NONE;
+}
+
+/*****************************************************************************/
+/* Function:   M_Window_SetBgImage					*/
+/* Python equivalent:	Blender.Window.SetBgImage			*/
+/* code borrowed from Texture.py -Texture_setImage( )	*/
+/*****************************************************************************/
+static PyObject *M_Window_SetBgImage	( PyObject * self , PyObject * args)
+{
+	PyObject *value;
+	Image *blimg = NULL;
+	
+	PyArg_ParseTuple(args, "O", &value);
+	
+	if ( value && value != Py_None && !BPy_Image_Check(value) )
+		return EXPP_ReturnPyObjError( PyExc_TypeError,
+					      "expected an Image or None" );
+
+	if( G.vd &&  G.vd->bgpic->ima ) {
+		G.vd->bgpic->ima->id.us--;
+		G.vd->bgpic->ima = NULL;
+	}
+
+	if ( value == NULL || value == Py_None )
+		Py_RETURN_NONE;
+
+	blimg = Image_FromPyObject( value );
+
+	G.vd->bgpic->ima = blimg;
+	BKE_image_signal(blimg, &G.vd->bgpic->iuser, IMA_SIGNAL_RELOAD );
+	id_us_plus( &blimg->id );
+
+	Py_RETURN_NONE;
 }
 
 /*****************************************************************************/
