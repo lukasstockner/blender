@@ -826,6 +826,8 @@ void ED_base_object_free_and_unlink(Scene *scene, Base *base)
 static int object_delete_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	RegionView3D *rv3d= CTX_wm_region_view3d(C);
 	int islamp= 0;
 	
 	if(CTX_data_edit_object(C)) 
@@ -834,14 +836,24 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 	CTX_DATA_BEGIN(C, Base*, base, selected_bases) {
 
 		if(base->object->type==OB_LAMP) islamp= 1;
-		
+		else if (base->object->type == OB_CAMERA) {
+			/* If we don't reset this, Blender crash
+			 * in fly mode because still have the
+			 * old object here!.
+			 * See Bug #22317
+			 */
+			if (v3d && rv3d && rv3d->persp == RV3D_CAMOB && base->object == v3d->camera) {
+				rv3d->persp= RV3D_PERSP;
+				v3d->camera= NULL;
+			}
+		}
 		/* remove from current scene only */
 		ED_base_object_free_and_unlink(scene, base);
 	}
 	CTX_DATA_END;
 
 	if(islamp) reshadeall_displist(scene);	/* only frees displist */
-	
+
 	DAG_scene_sort(scene);
 	DAG_ids_flush_update(0);
 	
@@ -1675,6 +1687,8 @@ static int duplicate_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_duplicate(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	/* identifiers */
 	ot->name= "Duplicate";
 	ot->description = "Duplicate selected objects";
@@ -1689,7 +1703,8 @@ void OBJECT_OT_duplicate(wmOperatorType *ot)
 	
 	/* to give to transform */
 	RNA_def_boolean(ot->srna, "linked", 0, "Linked", "Duplicate object but not object data, linking to the original data.");
-	RNA_def_int(ot->srna, "mode", TFM_TRANSLATION, 0, INT_MAX, "Mode", "", 0, INT_MAX);
+	prop= RNA_def_int(ot->srna, "mode", TFM_TRANSLATION, 0, INT_MAX, "Mode", "", 0, INT_MAX);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* **************** add named object, for dragdrop ************* */

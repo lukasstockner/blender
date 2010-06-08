@@ -438,7 +438,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 	int hit;
 
-	ViewContext vc;
 
 	/* keep track of mouse movement angle so rack can start at a sensible angle */
 
@@ -459,11 +458,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(C, brush, pixel_radius);
 
-	glEnable(GL_BLEND);
-
-	view3d_set_viewcontext(C, &vc);
-
 	if (hit) {
+		ViewContext vc;
 		float unprojected_radius;
 
 		{ // duplicated from brush_strength, refactor later
@@ -475,6 +471,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			brush->visual_strength = alpha * pressure;
 		}
 
+		view3d_set_viewcontext(C, &vc);
 
 		if (brush->draw_anchored) {
 			unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->anchored_size);
@@ -492,10 +489,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		if(!(paint->flags & PAINT_SHOW_BRUSH))
 			return;
 
-		if ((brush->flag & BRUSH_DIR_IN) && !ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
+		if ((brush->flag & BRUSH_DIR_IN) && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
 			glColor4f(brush->sub_col[0], brush->sub_col[1], brush->sub_col[2], 0.20f + (brush->visual_strength*.7));
 		else
 			glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], 0.20f + (brush->visual_strength*.7));
+
+		glEnable(GL_BLEND);
 
 		if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
 			GLUquadric* sphere;
@@ -586,78 +585,72 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 				glTranslatef(-(float)x, -(float)y, 0.0f);
 			}
 
-
-			if (brush->draw_anchored) {
-			}
-			else {
-			}
-
 			glDisable(GL_LINE_SMOOTH);
 		}
-	}
 
-	if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
-		const float diameter = 2*brush->size;
-		float inv_scale_x , inv_scale_y;
-		int procedural;
+		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+			const float diameter = 2*brush->size;
+			float inv_scale_x , inv_scale_y;
+			int procedural;
 
-		//load_grid(brush);
-		procedural = load_tex(brush, &vc);
+			//load_grid(brush);
+			procedural = load_tex(brush, &vc);
 
-		glEnable(GL_TEXTURE_2D);
-		glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+			glEnable(GL_TEXTURE_2D);
+			glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
 
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
-		glDepthMask(GL_FALSE);
-		glDepthFunc(GL_ALWAYS);
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+			glDepthMask(GL_FALSE);
+			glDepthFunc(GL_ALWAYS);
 
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
+			glMatrixMode(GL_TEXTURE);
+			glLoadIdentity();
 
-		if (!procedural) {
-			glTranslatef(0.5f, 0.5f, 0);
-			glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
+			if (!procedural) {
+				glTranslatef(0.5f, 0.5f, 0);
+				glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
 
-			inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
-			inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
+				inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
+				inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
 
-			glScalef(inv_scale_x, inv_scale_y, 0);
+				glScalef(inv_scale_x, inv_scale_y, 0);
 
-			glRotatef(brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
+				glRotatef(brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
 
-			glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
+				glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
 
-			glTranslatef(-0.5f, -0.5f, 0);
+				glTranslatef(-0.5f, -0.5f, 0);
+			}
+
+			glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
+			glBegin(GL_QUADS);
+				glTexCoord2f(0, 0);
+				glVertex2f(0, 0);
+
+				glTexCoord2f(1, 0);
+				glVertex2f(viewport[2], 0);
+
+				glTexCoord2f(1, 1);
+				glVertex2f(viewport[2], viewport[3]);
+
+				glTexCoord2f(0, 1);
+				glVertex2f(0, viewport[3]);
+			glEnd();
+
+			glLoadIdentity();
+
+			glMatrixMode(GL_MODELVIEW);
+
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+			glDisable(GL_TEXTURE_2D);
+
+			glDepthMask(GL_TRUE);
+			glDepthFunc(GL_LEQUAL);
 		}
 
-		glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
-		glBegin(GL_QUADS);
-			glTexCoord2f(0, 0);
-			glVertex2f(0, 0);
-
-			glTexCoord2f(1, 0);
-			glVertex2f(viewport[2], 0);
-
-			glTexCoord2f(1, 1);
-			glVertex2f(viewport[2], viewport[3]);
-
-			glTexCoord2f(0, 1);
-			glVertex2f(0, viewport[3]);
-		glEnd();
-
-		glLoadIdentity();
-
-		glMatrixMode(GL_MODELVIEW);
-
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-		glDisable(GL_TEXTURE_2D);
-
-		glDepthMask(GL_TRUE);
-		glDepthFunc(GL_LEQUAL);
+		glDisable(GL_BLEND);
 	}
-
-	glDisable(GL_BLEND);
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
