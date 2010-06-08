@@ -118,6 +118,10 @@ typedef struct StrokeCache {
 	float initial_mouse[2];
 	float detail;
 	float smoothness;
+	float inv_tex_scale_x;
+	float inv_tex_scale_y;
+	float inv_tex_center_x;
+	float inv_tex_center_y;
 
 	/* Variants */
 	float radius;
@@ -142,7 +146,7 @@ typedef struct StrokeCache {
 	Brush *brush;
 
 	float (*face_norms)[3]; /* Copy of the mesh faces' normals */
-	float rotation; /* Texture rotation (radians) for anchored and rake modes */
+	float special_rotation; /* Texture rotation (radians) for anchored and rake modes */
 	int pixel_radius, previous_pixel_radius;
 	float grab_active_location[8][3];
 	float grab_delta[3], grab_delta_symmetry[3];
@@ -733,15 +737,15 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	Brush *brush = paint_brush(&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
-	float alpha = brush->alpha * brush->alpha;
-	int strength_multiplier = brush->strength_multiplier;
+	float alpha = brush->alpha * brush->alpha * brush->strength_multiplier;
 	float dir      = brush->flag & BRUSH_DIR_IN ? -1 : 1;
 	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
 	float flip     = cache->flip ? -1 : 1;
 
-	alpha *= (float)strength_multiplier;
 	//float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 	float overlap  = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+
+	brush->visual_strength = alpha * pressure;
 
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_DRAW:
@@ -787,7 +791,7 @@ static void flip_coord(float out[3], float in[3], const char symm)
 		out[2]= in[2];
 }
 
-static float get_tex_pixel(Brush* br, float u, float v)
+float get_tex_pixel(Brush* br, float u, float v)
 {
 	TexResult texres;
 	float co[3] = { u, v, 0 };
@@ -856,57 +860,67 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 			  &jnk, &jnk, &jnk, &jnk);
 	}
 	else if(ss->texcache) {
-		const float bsize= ss->cache->pixel_radius * 2;
-		const float rot= tex->rot + ss->cache->rotation;
-		float px, py;
-		float flip[3], point_2d[2];
+		float rotation = tex->rot;
+		float x, y, point_2d[3];
+		float diameter;
 
-		/* If the active area is being applied for symmetry, flip it
+		/* if the active area is being applied for symmetry, flip it
 		   across the symmetry axis in order to project it. This insures
 		   that the brush texture will be oriented correctly. */
-		copy_v3_v3(flip, point);
-		flip_coord(flip, flip, ss->cache->symmetry_pass);
-		projectf(ss->cache->mats, flip, point_2d);
+		flip_coord(point_2d, point, ss->cache->symmetry_pass);
+		projectf(ss->cache->mats, point_2d, point_2d);
 
-		/* For Tile and Drag modes, get the 2D screen coordinates of the
-		   and scale them up or down to the texture size. */
-		if(tex->brush_map_mode == MTEX_MAP_MODE_TILED) {
-			const int sx= (const int)tex->size[0];
-			const int sy= (const int)tex->size[1];
-			
-			if(rot<0.001 && rot>-0.001) {
-				px= point_2d[0];
-				py= point_2d[1];
-			} else {
-				float fx= point_2d[0];
-				float fy= point_2d[1];
-				float angle= atan2(fy, fx) - rot;
-				float flen= sqrtf(fx*fx + fy*fy);
-				
-				px= flen * cos(angle) + 2000;
-				py= flen * sin(angle) + 2000;
-			}
-			/*if(sx != 1)
-				px %= sx-1;
-			if(sy != 1)
-				py %= sy-1;
-			*///get_texcache_pixel_bilinear(ss, ss->texcache_side*px/sx, ss->texcache_side*py/sy);
-			//avg= get_tex_pixel(br, ss->texcache_side*px/10000.0f/sx, ss->texcache_side*py/10000.0f/sy);
-			avg= get_tex_pixel(br, px/100.0f/sx, py/100.0f/sx);
+		/* if fixed mode, keep coordinates relative to mouse */
+		if(tex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
+			rotation += ss->cache->special_rotation;
+
+			point_2d[0] -= ss->cache->tex_mouse[0];
+			point_2d[1] -= ss->cache->tex_mouse[1];
+
+			diameter = ss->cache->pixel_radius; // use pressure adjusted size for fixed mode
+
+			x = point_2d[0];
+			y = point_2d[1];
 		}
-		else if(tex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
-			float fx= (point_2d[0] - ss->cache->tex_mouse[0]) / bsize;
-			float fy= (point_2d[1] - ss->cache->tex_mouse[1]) / bsize;
-
-			float angle= atan2(fy, fx) - rot;
-			float flen= sqrtf(fx*fx + fy*fy);
-			
-			fx = flen * cos(angle) + 0.5;
-			fy = flen * sin(angle) + 0.5;
-
-			//avg= get_texcache_pixel_bilinear(ss, fx * ss->texcache_side, fy * ss->texcache_side);
-			avg= get_tex_pixel(br, fx * ss->texcache_side/100.0f, fy * ss->texcache_side/100.0f);
+		else /* else (tex->brush_map_mode == MTEX_MAP_MODE_TILED),
+		        leave the coordinates relative to the screen */
+		{
+			diameter = br->size; // use unadjusted size for tiled mode
+		
+			x = point_2d[0] - ss->cache->vc->ar->winrct.xmin;
+			y = point_2d[1] - ss->cache->vc->ar->winrct.ymin;
 		}
+
+		x /= ss->cache->vc->ar->winx;
+		y /= ss->cache->vc->ar->winy;
+
+		if (tex->brush_map_mode == MTEX_MAP_MODE_TILED) {
+			x -= 0.5f;
+			y -= 0.5f;
+		}
+		
+		x *= ss->cache->vc->ar->winx / diameter;
+		y *= ss->cache->vc->ar->winy / diameter;
+
+		/* it is probably worth optimizing for those cases where 
+		   the texture is not rotated by skipping the calls to
+		   atan2, sqrtf, sin, and cos. */
+		/* epsilon good as long as precision of angle control is 0.001 */
+		if (rotation > 0.001 || rotation < -0.001) {
+			const float angle    = M_PI_2 + atan2(x, y) - rotation;
+			const float flen     = sqrtf(x*x + y*y);
+
+			x = flen * cos(angle);
+			y = flen * sin(angle);
+		}
+
+		x *= ss->cache->inv_tex_scale_x;
+		y *= ss->cache->inv_tex_scale_y;
+
+		x += ss->cache->inv_tex_center_x;
+		y += ss->cache->inv_tex_center_y;
+
+		avg = get_tex_pixel(br, x, y);
 	}
 
 	avg *= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
@@ -2383,12 +2397,20 @@ static void sculpt_update_cache_invariants(Sculpt *sd, SculptSession *ss, bConte
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
-	cache->rotation = 0;
+	cache->special_rotation = (brush->flag & BRUSH_RAKE) ? brush->last_angle : 0;
+
 	cache->first_time = 1;
+
+	/* Texture */
+	cache->inv_tex_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
+	cache->inv_tex_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
+
+	cache->inv_tex_center_x = -2*brush->texture_center_x;
+	cache->inv_tex_center_y = -2*brush->texture_center_y;
 }
 
 /* Initialize the stroke cache variants from operator properties */
-static void sculpt_update_cache_variants(Sculpt *sd, SculptSession *ss, struct PaintStroke *stroke, PointerRNA *ptr)
+static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession *ss, struct PaintStroke *stroke, PointerRNA *ptr)
 {
 	StrokeCache *cache = ss->cache;
 	Brush *brush = paint_brush(&sd->paint);
@@ -2424,16 +2446,47 @@ static void sculpt_update_cache_variants(Sculpt *sd, SculptSession *ss, struct P
 	else
 		cache->radius = cache->initial_radius;
 
-	if(!(brush->flag & BRUSH_ANCHORED))
+	if(!(brush->flag & BRUSH_ANCHORED)) {
 		copy_v2_v2(cache->tex_mouse, cache->mouse);
+	}
 
 	if(brush->flag & BRUSH_ANCHORED) {
+		int hit = 0;
+
 		dx = cache->mouse[0] - cache->initial_mouse[0];
 		dy = cache->mouse[1] - cache->initial_mouse[1];
-		cache->pixel_radius = sqrt(dx*dx + dy*dy);
-		cache->radius = unproject_brush_radius(ss->ob, paint_stroke_view_context(stroke),
-							   cache->true_location, cache->pixel_radius);
-		cache->rotation = atan2(dy, dx);
+
+		brush->anchored_size = cache->pixel_radius = sqrt(dx*dx + dy*dy);
+
+		cache->special_rotation = atan2(dx, dy);
+
+		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
+			float d[3] = { dx, dy, 0 };
+			float halfway[3];
+			float out[3];
+
+			mul_v3_v3fl(halfway, d, 0.5f);
+			add_v3_v3(halfway, cache->initial_mouse);
+
+			if (sculpt_stroke_get_location(C, stroke, out, halfway)) {
+				copy_v3_v3(brush->anchored_location, out);
+				copy_v3_v3(brush->anchored_initial_mouse, halfway);
+				copy_v2_v2(cache->tex_mouse, halfway);
+				copy_v3_v3(cache->true_location, brush->anchored_location);
+				brush->anchored_size /= 2.0f;
+				cache->pixel_radius  /= 2.0f;
+				hit = 1;
+			}
+		}
+
+		if (!hit)
+			copy_v2_v2(brush->anchored_initial_mouse, cache->initial_mouse);
+
+		cache->radius = unproject_brush_radius(ss->ob, paint_stroke_view_context(stroke), cache->true_location, cache->pixel_radius);
+
+		copy_v3_v3(brush->anchored_location, cache->true_location);
+
+		brush->draw_anchored = 1;
 	}
 	else if(brush->flag & BRUSH_RAKE) {
 		int update;
@@ -2441,11 +2494,13 @@ static void sculpt_update_cache_variants(Sculpt *sd, SculptSession *ss, struct P
 		dx = cache->last_rake[0] - cache->mouse[0];
 		dy = cache->last_rake[1] - cache->mouse[1];
 
+		/* To prevent jitter, only update the angle if the mouse has moved over 10 pixels */
 		update = dx*dx + dy*dy > 100;
 
-		/* To prevent jitter, only update the angle if the mouse has moved over 10 pixels */
-		if(update && !cache->first_time)
-			cache->rotation = M_PI_2 + atan2(dy, dx);
+		if(update && !cache->first_time) {
+			cache->special_rotation = atan2(dx, dy);
+			//printf("special rotation: %f\n", cache->special_rotation);
+		}
 
 		if(update || cache->first_time) {
 			cache->last_rake[0] = cache->mouse[0];
@@ -2629,7 +2684,7 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 	int i;
 
 	/* Restore the mesh before continuing with anchored stroke */
-	if(brush->flag & BRUSH_ANCHORED) {
+	if(brush->flag & BRUSH_ANCHORED || brush->flag & BRUSH_RESTORE_MESH) {
 		PBVHNode **nodes;
 		int n, totnode;
 
@@ -2739,7 +2794,7 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	SculptSession *ss = CTX_data_active_object(C)->sculpt;
 
 	sculpt_stroke_modifiers_check(C, ss);
-	sculpt_update_cache_variants(sd, ss, stroke, itemptr);
+	sculpt_update_cache_variants(C, sd, ss, stroke, itemptr);
 	sculpt_restore_mesh(sd, ss);
 	do_symmetrical_brush_actions(sd, ss);
 
@@ -2753,6 +2808,8 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *stroke)
 	SculptSession *ss = ob->sculpt;
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	Brush *brush = paint_brush(&sd->paint);
+
+	brush->draw_anchored = 0;
 
 	/* Finished */
 	if(ss->cache) {

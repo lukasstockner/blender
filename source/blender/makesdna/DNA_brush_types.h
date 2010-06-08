@@ -33,9 +33,9 @@
 #include "DNA_ID.h"
 #include "DNA_texture_types.h"
 
-#ifndef MAX_MTEX
-#define MAX_MTEX	18
-#endif
+//#ifndef MAX_MTEX // XXX Not used?
+//#define MAX_MTEX	18
+//#endif
 
 struct CurveMapping;
 struct MTex;
@@ -43,8 +43,8 @@ struct Image;
 
 typedef struct BrushClone {
 	struct Image *image;		/* image for clone tool */
-	float offset[2];			/* offset of clone image from canvas */
-	float alpha, pad;			/* transparency for drawing of clone image */
+	float offset[2];		/* offset of clone image from canvas */
+	float alpha, pad;		/* transparency for drawing of clone image */
 } BrushClone;
 
 typedef struct Brush {
@@ -53,33 +53,57 @@ typedef struct Brush {
 	struct BrushClone clone;
 	struct CurveMapping *curve;	/* falloff curve */
 	struct MTex mtex;
-	
-	short blend, pad;				/* blend mode */
-	int size;				/* brush diameter */
-	int flag;				/* general purpose flag */	
-	float detail;				/* dynamic subdivission detail */
-	float smoothness;			/* dynamic subdivission smoothness*/
-	float jitter;				/* jitter the position of the brush */
-	int spacing;				/* spacing of paint operations */
 	int strength_multiplier;		/* increases the strength by a multiplier */
-	int smooth_stroke_radius;		/* turning radius (in pixels) for smooth stroke */
-	float smooth_stroke_factor;		/* higher values limit fast changes in the stroke direction */
-	float rate;					/* paint operations / second (airbrush) */
 
-	float rgb[3];				/* color */
-	float alpha;				/* opacity */
+	short blend, pad;		/* blend mode */
+	int size;			/* brush diameter */
+	int flag;			/* general purpose flag */	
+	float detail;			/* dynamic subdivission detail */
+	float smoothness;		/* dynamic subdivission smoothness*/
+	float jitter;			/* jitter the position of the brush */
+	int spacing;			/* spacing of paint operations */
+	int smooth_stroke_radius;	/* turning radius (in pixels) for smooth stroke */
+	float smooth_stroke_factor;	/* higher values limit fast changes in the stroke direction */
+	float rate;			/* paint operations / second (airbrush) */
+
+	float rgb[3];			/* color */
+	float alpha;			/* opacity */
 	
 	int sculpt_direction;		/* the direction of movement for sculpt vertices */
 
-	float plane_offset; /* offset for plane brushes (clay, flatten, fill, scrape, contrast) */
-	float texture_offset;
+	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape, contrast) */
 
-	char sculpt_tool;			/* active sculpt tool */
+	char sculpt_tool;		/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
 	char imagepaint_tool;		/* active image paint tool */
 	char stroke_tool;
 
+	float texture_offset;
+	int texture_scale_x;
+	int texture_scale_y;
+	int texture_scale_percentage;
+	float texture_center_x;
+	float texture_center_y;
+	int   texture_overlay_alpha;
+
 	float unprojected_radius;
+
+	/* record movement of mouse so that rake can start at an intuitive angle */
+	int last_x, last_y;
+	float last_angle;
+
+	int overlay_texture;
+
+	float add_col[3];
+	float sub_col[3];
+
+	float visual_strength;
+
+	int draw_anchored;
+	int   anchored_size;
+	float anchored_location[3];
+	float anchored_initial_mouse[2];
+
 } Brush;
 
 /* Brush.flag */
@@ -104,7 +128,9 @@ typedef struct Brush {
 #define BRUSH_SPACE_ATTEN	(1<<18)
 #define BRUSH_ADAPTIVE_SPACE	(1<<19)
 #define BRUSH_LOCK_SIZE		(1<<20)
-
+#define BRUSH_TEXTURE_OVERLAY	(1<<21)
+#define BRUSH_EDGE_TO_EDGE	(1<<22)
+#define BRUSH_RESTORE_MESH	(1<<23)
 
 /* Brush stroke_tool */
 //#define STROKE_TOOL_DOTS	1

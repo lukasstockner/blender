@@ -321,6 +321,9 @@ typedef struct wmDrawTriple {
 	int x[MAX_N_TEX], y[MAX_N_TEX];
 	int nx, ny;
 	GLenum target;
+
+	char* depth;
+	GLenum depth_type;
 } wmDrawTriple;
 
 static int is_pow2(int n)
@@ -389,6 +392,7 @@ static void wm_draw_triple_free(wmWindow *win)
 		wmDrawTriple *triple= win->drawdata;
 
 		glDeleteTextures(triple->nx*triple->ny, triple->bind);
+		MEM_freeN(triple->depth);
 		MEM_freeN(triple);
 
 		win->drawdata= NULL;
@@ -538,6 +542,67 @@ static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 	glBindTexture(triple->target, 0);
 }
 
+static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
+{
+	const int count = win->sizex * win->sizey;
+	const int size = count*sizeof(GLfloat);
+
+	triple->depth_type = GL_FLOAT;
+	triple->depth = MEM_mallocN(size, "wm_triple_gen_depth_buffer");
+
+	return 1;
+}
+
+static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
+{
+	if (triple->depth) {
+		glPixelStorei(GL_PACK_SWAP_BYTES,  GL_FALSE);
+		glPixelStorei(GL_PACK_ROW_LENGTH,  0);
+		glPixelStorei(GL_PACK_SKIP_ROWS,   0);
+		glPixelStorei(GL_PACK_SKIP_PIXELS, 0);
+		glPixelStorei(GL_PACK_ALIGNMENT,   4);
+
+		glPixelTransferi(GL_DEPTH_SCALE, 1);
+		glPixelTransferi(GL_DEPTH_BIAS, 0);
+
+		glReadPixels(0, 0, win->sizex, win->sizey, GL_DEPTH_COMPONENT, triple->depth_type, triple->depth);
+	}
+}
+
+static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
+{
+	// This state changing is probably overkill, but I had a lot of trouble figuring out exactly what state was keeping this from working.
+
+	if (triple->depth) {
+		glPixelStorei(GL_UNPACK_SWAP_BYTES,  GL_FALSE);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
+		glPixelStorei(GL_UNPACK_SKIP_ROWS,   0);
+		glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+		glPixelStorei(GL_UNPACK_ALIGNMENT,   4);
+
+		glPixelTransferi(GL_DEPTH_SCALE, 1);
+		glPixelTransferi(GL_DEPTH_BIAS, 0);
+
+		glPixelZoom(1.0, 1.0);
+
+		glEnable(GL_DEPTH_TEST);
+
+		glDepthMask(GL_TRUE);
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+		glDepthFunc(GL_ALWAYS);
+
+		glRasterPos2i(0, 0);
+		glDrawPixels(win->sizex, win->sizey, GL_DEPTH_COMPONENT, triple->depth_type, triple->depth);
+
+		glDepthFunc(GL_LEQUAL);
+
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+		glDisable(GL_DEPTH_TEST);
+	}
+}
+
 static void wm_method_draw_triple(bContext *C, wmWindow *win)
 {
 	wmWindowManager *wm= CTX_wm_manager(C);
@@ -554,13 +619,16 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 		wmSubWindowSet(win, screen->mainwin);
 
 		wm_triple_draw_textures(win, win->drawdata);
+		wm_triple_draw_depth_buffer(win, win->drawdata);
 
 		triple= win->drawdata;
 	}
 	else {
 		win->drawdata= MEM_callocN(sizeof(wmDrawTriple), "wmDrawTriple");
 
-		if(!wm_triple_gen_textures(win, win->drawdata)) {
+		if(!wm_triple_gen_textures(win, win->drawdata) ||
+		   !wm_triple_gen_depth_buffer(win, win->drawdata))
+		{
 			wm_draw_triple_fail(C, win);
 			return;
 		}
@@ -591,6 +659,7 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 		ED_area_overdraw(C);
 
 		wm_triple_copy_textures(win, triple);
+		wm_triple_copy_depth_buffer(win, triple);
 	}
 
 	/* after area regions so we can do area 'overlay' drawing */

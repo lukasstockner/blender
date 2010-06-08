@@ -547,18 +547,13 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
-            row.prop(brush, "lock_brush_size", text="Use Surface Size")
+            row.prop(brush, "lock_brush_size", text="Use Blender Units")
 
             row = col.row(align=True)
-            row.prop(brush, "unprojected_radius", text="Surface Size", slider=True)
-            row.active = brush.lock_brush_size
-
-            if brush.sculpt_tool != 'GRAB' and brush.lock_brush_size:
-                row.prop(brush, "use_size_pressure", toggle=True, text="")
-
-            row = col.row(align=True)
-            row.prop(brush, "size", slider=True, text="Pixel Size")
-            row.active = not brush.lock_brush_size
+            if brush.lock_brush_size:
+                row.prop(brush, "unprojected_radius", text="Units", slider=True)
+            else:
+                row.prop(brush, "size", slider=True, text="Pixels")
 
             if brush.sculpt_tool != 'GRAB' and not brush.lock_brush_size:
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
@@ -579,7 +574,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     row.prop(brush, "plane_offset", slider=True)
                     row.prop(brush, "use_offset_pressure", text="")
 
-                if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'CLAY'):
+                if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'CLAY'):
                     col.row().prop(brush, "direction", expand=True)
 
                 if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
@@ -693,10 +688,28 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             row = col.row(align=True)
             row.prop(tex_slot, "map_mode", expand=True)
             row = col.row(align=True)
-            row.prop(brush, "texture_offset", slider=True)
+            row.prop(brush, "texture_offset", slider=True, text="Depth Offset")
 
-        row = col.row(align=True)
-        row.prop(tex_slot, "angle", slider=True)
+            if tex_slot.map_mode in ('FIXED', 'TILED'):
+                sub = col.column(align=True)
+                sub.label(text="Scale:")
+                sub.prop(brush, "texture_scale_x", slider=True, text="Width")
+                sub.prop(brush, "texture_scale_y", slider=True, text="Height")
+                sub.prop(brush, "texture_scale_percentage", slider=True, text="")
+                sub.label(text="Center:")
+                sub.prop(brush, "texture_center_x", slider=True, text="Center X")
+                sub.prop(brush, "texture_center_y", slider=True, text="Center Y")
+
+                row = col.row(align=True)
+                row.prop(tex_slot, "angle", slider=True)
+
+                if tex_slot.map_mode in ('TILED'):
+                    row = col.row(align=True)
+                    row.prop(brush, "use_texture_overlay", text="Show Overlay")
+                    
+                    if brush.use_texture_overlay:
+                        row = col.row(align=True)
+                        row.prop(brush, "texture_overlay_alpha", slider=True, text="Overlay Alpha")
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):
     bl_label = "Tool"
@@ -750,35 +763,35 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
 
         if context.sculpt_object:
             if brush.sculpt_tool != 'LAYER':
+                layout.prop(brush, "restore_mesh")
                 layout.prop(brush, "use_anchor")
+                if brush.use_anchor:
+                    layout.prop(brush, "edge_to_edge")
             layout.prop(brush, "use_rake")
             if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'FILL', 'SCRAPE', 'CONTRAST'):
                 layout.prop(brush, "use_original_normal")
-                col = layout.column()
-                col.label(text="Direction:")
-                col.prop(brush, "sculpt_direction", text="")
+                if brush.use_original_normal:
+                    col = layout.column()
+                    col.label(text="Direction:")
+                    col.prop(brush, "sculpt_direction", text="")
         layout.prop(brush, "use_airbrush")
-        col = layout.column()
-        col.active = brush.use_airbrush
-        col.prop(brush, "rate", slider=True)
+        if brush.use_airbrush:
+            col = layout.column()
+            col.prop(brush, "rate", slider=True)
 
         if not texture_paint:
             layout.prop(brush, "use_smooth_stroke")
-            col = layout.column()
-            col.active = brush.use_smooth_stroke
-            col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-            col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+            if brush.use_smooth_stroke:
+                col = layout.column()
+                col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+                col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
 
         layout.prop(brush, "use_space")
-        row = layout.row(align=True)
-        row.active = brush.use_space
-        row.prop(brush, "spacing", text="Spacing", slider=True)
-        row = layout.row(align=True)
-        row.active = brush.use_space
-        row.prop(brush, "use_space_atten", text="Adaptive Strength")
-        #row = layout.row(align=True)
-        #row.active = brush.use_space
-        #row.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
+        if brush.use_space:
+            col = layout.col(align=True)
+            col.prop(brush, "use_space_atten", text="Adaptive Strength")
+            col.prop(brush, "spacing", text="Spacing", slider=True)
+            #col.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
 
         if texture_paint:
             row.prop(brush, "use_spacing_pressure", toggle=True, text="")
@@ -816,11 +829,24 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         layout = self.layout
 
         sculpt = context.tool_settings.sculpt
+        settings = self.paint_settings(context)
+        brush = settings.brush
 
         col = layout.column()
         col.prop(sculpt, "show_brush")
-        col.prop(sculpt, "show_brush_on_surface")
+        if sculpt.show_brush:
+            col.prop(sculpt, "show_brush_on_surface")
         col.prop(sculpt, "fast_navigate")
+
+        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'PINCH'):
+            sub = col.column()
+            sub.label(text="Color:")
+            sub.prop(brush, "add_col", text="Add")
+            sub.prop(brush, "sub_col", text="Substract")
+        else:
+            sub = col.column()
+            sub.prop(brush, "add_col", text="Color")
+
 
         split = self.layout.split()
 

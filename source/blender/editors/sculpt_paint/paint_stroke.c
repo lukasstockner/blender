@@ -51,6 +51,8 @@
 #include "paint_intern.h"
 #include "sculpt_intern.h" // XXX, for expedience in getting this working, refactor later (or this just shows that this needs unification)
 
+#include "BKE_image.h"
+
 #include <float.h>
 #include <math.h>
 
@@ -95,6 +97,197 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
+}
+
+
+
+#define GRID_WIDTH   8
+#define GRID_LENGTH  8
+
+#define W (0xFFFFFFFF)
+#define G (0x00888888)
+#define E (0xE1E1E1E1)
+#define C (0xC3C3C3C3)
+#define O (0xB4B4B4B4)
+#define Q (0xA9A9A9A9)
+
+static unsigned grid_texture0[256] =
+{
+   W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,G,G,G,G,G,G,G,G,G,G,G,G,G,G,W,
+   W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,W,
+};
+
+static unsigned grid_texture1[64] =
+{
+   C,C,C,C,C,C,C,C,
+   C,G,G,G,G,G,G,C,
+   C,G,G,G,G,G,G,C,
+   C,G,G,G,G,G,G,C,
+   C,G,G,G,G,G,G,C,
+   C,G,G,G,G,G,G,C,
+   C,G,G,G,G,G,G,C,
+   C,C,C,C,C,C,C,C,
+};
+
+static unsigned grid_texture2[16] =
+{
+   O,O,O,O,
+   O,G,G,O,
+   O,G,G,O,
+   O,O,O,O,
+};
+
+static unsigned grid_texture3[4] =
+{
+   Q,Q,
+   Q,Q,
+};
+
+static unsigned grid_texture4[1] =
+{
+   Q,
+};
+
+#undef W
+#undef G
+#undef E
+#undef C
+#undef O
+#undef Q
+
+static void load_grid(Brush* brush)
+{
+	static int loaded = 0;
+
+	if (!loaded) {
+		//GLfloat largest_supported_anisotropy;
+
+		glGenTextures(1, &(brush->overlay_texture));
+		glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture0);
+		glTexImage2D(GL_TEXTURE_2D, 1, GL_RGB,  8,  8, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture1);
+		glTexImage2D(GL_TEXTURE_2D, 2, GL_RGB,  4,  4, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture2);
+		glTexImage2D(GL_TEXTURE_2D, 3, GL_RGB,  2,  2, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture3);
+		glTexImage2D(GL_TEXTURE_2D, 4, GL_RGB,  1,  1, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture4);
+		glEnable(GL_TEXTURE_2D);
+		glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+		//glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &largest_supported_anisotropy);
+		//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, largest_supported_anisotropy);
+
+		loaded = 1;
+	}
+}
+
+extern float get_tex_pixel(Brush* br, float u, float v);
+
+static int load_tex(Brush* brush, ViewContext* vc)
+{
+	float* buffer;
+	float* p;
+
+	int width, height;
+	float x, y;
+	int i, j;
+	float xlim, ylim;
+
+	int procedural = !brush->mtex.tex->ima;
+
+	if (brush->overlay_texture) glDeleteTextures(1, &brush->overlay_texture);
+
+	width = height = 256;
+
+	p = buffer = MEM_mallocN(sizeof(float)*width*height, "load_tex");
+
+	if (procedural) {
+		xlim = brush->size / (float)vc->ar->winx  *  width;
+		ylim = brush->size / (float)vc->ar->winy  *  height;
+	}
+	else {
+		xlim = width  / 2.0f;
+		ylim = height / 2.0f;
+	}
+
+	for (j = 0, y = 0; j < height; j++, y = j/ylim) {
+		for (i = 0, x = 0; i < width; i++, x = i/xlim) {
+
+			if (procedural) {
+				// largely duplicated from tex_strength
+
+				const float rotation = brush->mtex.rot;
+				float diameter = brush->size;
+
+				x = (float)i/width;
+				y = (float)j/height;
+
+				x -= 0.5f;
+				y -= 0.5f;
+				
+				x *= vc->ar->winx / diameter;
+				y *= vc->ar->winy / diameter;
+
+				/* it is probably worth optimizing for those cases where 
+				   the texture is not rotated by skipping the calls to
+				   atan2, sqrtf, sin, and cos. */
+				/* epsilon good as long as precision of angle control is 0.001 */
+				if (rotation > 0.001 || rotation < -0.001) {
+					const float angle    = M_PI_2 + atan2(x, y) - rotation;
+					const float flen     = sqrtf(x*x + y*y);
+
+					x = flen * cos(angle);
+					y = flen * sin(angle);
+				}
+
+				x *= 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
+				y *= 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
+
+				x += -2*brush->texture_center_x;
+				y += -2*brush->texture_center_y;
+
+				*p = get_tex_pixel(brush, x, y);
+			}
+			else {
+				*p = get_tex_pixel(brush, x - 1.0f, y - 1.0f);
+			}
+
+			p++;
+		}
+	}
+
+	glGenTextures(1, &(brush->overlay_texture));
+
+	glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE, GL_FLOAT, buffer);
+
+	glEnable(GL_TEXTURE_2D);
+
+	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	MEM_freeN(buffer);
+
+	return procedural;
 }
 
 /* Convert a point in model coordinates to 2D screen coordinates. */
@@ -149,36 +342,36 @@ static int project_brush_radius(RegionView3D* rv3d, float radius, float location
 	return len_v2v2(p1, p2);
 }
 
-static void sculpt_set_brush_radius(Brush *brush, int value)
+static void sculpt_set_brush_radius(bContext* C, Brush *brush, int value)
 {
-	PointerRNA brushptr;
-	PropertyRNA *size;
+	brush->size = value;
+	//PointerRNA brushptr;
+	//PropertyRNA *size;
 
-	/* brush.size = value */
+	///* brush.size = value */
 
-	RNA_id_pointer_create(&brush->id, &brushptr);
+	//RNA_id_pointer_create(&brush->id, &brushptr);
 
-	size= RNA_struct_find_property(&brushptr, "size");
-	RNA_property_int_set(&brushptr, size, value);
+	//size= RNA_struct_find_property(&brushptr, "size");
+	//RNA_property_int_set(&brushptr, size, value);
 
-	// XXX This is a hack to redraw the control until I find out how to just redraw one control
-	WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
+	//WM_event_add_notifier(C, NC_BRUSH|NA_EDITED, brush);
 }
 
-static void sculpt_set_brush_unprojected_radius(Brush *brush, float value)
+static void sculpt_set_brush_unprojected_radius(bContext* C, Brush *brush, float value)
 {
-	PointerRNA brushptr;
-	PropertyRNA *unprojected_radius;
+	brush->unprojected_radius = value;
+	//PointerRNA brushptr;
+	//PropertyRNA *unprojected_radius;
 
-	/* brush.unprojected_radius = value */
+	///* brush.unprojected_radius = value */
 
-	RNA_id_pointer_create(&brush->id, &brushptr);
+	//RNA_id_pointer_create(&brush->id, &brushptr);
 
-	unprojected_radius= RNA_struct_find_property(&brushptr, "unprojected_radius");
-	RNA_property_float_set(&brushptr, unprojected_radius, value);
+	//unprojected_radius= RNA_struct_find_property(&brushptr, "unprojected_radius");
+	//RNA_property_float_set(&brushptr, unprojected_radius, value);
 
-	// XXX This is a hack to redraw the control until I find out how to just redraw one control
-	WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
+	//WM_event_add_notifier(C, NC_BRUSH|NA_EDITED, brush);
 }
 
 static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
@@ -245,36 +438,81 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 	int hit;
 
+	ViewContext vc;
+
+	/* keep track of mouse movement angle so rack can start at a sensible angle */
+
+	int dx = brush->last_x - x;
+	int dy = brush->last_y - y;
+
+	if (dx*dx + dy*dy > 100) {
+		/* only update if distance traveled is more than 10 pixels */
+		brush->last_angle = atan2(dx, dy);
+		brush->last_x = x;
+		brush->last_y = y;
+	} /* else, do not update last_x and last_y so that the distance can accumulate */
+
 	if(!(brush->flag & BRUSH_LOCK_SIZE) && !(paint->flags & PAINT_SHOW_BRUSH)) 
 		return;
 
 	hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
 
-	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(brush, pixel_radius);
+	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(C, brush, pixel_radius);
+
+	glEnable(GL_BLEND);
+
+	view3d_set_viewcontext(C, &vc);
 
 	if (hit) {
-		ViewContext vc;
 		float unprojected_radius;
 
-		view3d_set_viewcontext(C, &vc);
+		{ // duplicated from brush_strength, refactor later
+			float alpha = brush->alpha * brush->alpha;
+			float pressure;
+			PointerRNA ptr;
+			RNA_id_pointer_create(&brush->id, &ptr);
+			pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? RNA_float_get(&ptr, "pressure") : 1;
+			brush->visual_strength = alpha * pressure;
+		}
 
-		unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+
+		if (brush->draw_anchored) {
+			unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->anchored_size);
+		}
+		else {
+			if (brush->flag & BRUSH_ANCHORED)
+				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, 8);
+			else
+				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+		}
 
 		if (!(brush->flag & BRUSH_LOCK_SIZE)) 
-			sculpt_set_brush_unprojected_radius(brush, unprojected_radius);
+			sculpt_set_brush_unprojected_radius(C, brush, unprojected_radius);
 
-		if(!(paint->flags & PAINT_SHOW_BRUSH)) return;
+		if(!(paint->flags & PAINT_SHOW_BRUSH))
+			return;
 
-		glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
-		glEnable(GL_BLEND);
+		if ((brush->flag & BRUSH_DIR_IN) && !ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
+			glColor4f(brush->sub_col[0], brush->sub_col[1], brush->sub_col[2], 0.20f + (brush->visual_strength*.7));
+		else
+			glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], 0.20f + (brush->visual_strength*.7));
 
 		if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
 			GLUquadric* sphere;
+			float anchored_offset;
 
 			glMatrixMode(GL_MODELVIEW);
 			glPushMatrix();
 			glLoadMatrixf(modelview);
-			glTranslatef(location[0], location[1], location[2]);
+
+			if (brush->draw_anchored) {
+				glTranslatef(brush->anchored_location[0], brush->anchored_location[1], brush->anchored_location[2]);
+				anchored_offset = 0;//0.96f - brush->visual_strength*0.20;
+			}
+			else {
+				anchored_offset = 0;
+				glTranslatef(location[0], location[1], location[2]);
+			}
 
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
@@ -303,21 +541,24 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			glStencilFunc(GL_ALWAYS, 1, 0xFF);
 			glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
 
-			gluSphere(sphere, unprojected_radius * 0.8f, 40, 40);
+			if (brush->draw_anchored || !(brush->flag & BRUSH_ANCHORED))
+				gluSphere(sphere, unprojected_radius * (0.96f - brush->visual_strength*0.20) + anchored_offset, 40, 40);
 
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
 			glStencilFunc(GL_EQUAL, 1, 0xFF);
 			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-			gluSphere(sphere, unprojected_radius, 40, 40);
+			gluSphere(sphere, unprojected_radius + anchored_offset, 40, 40);
 
 			glStencilFunc(GL_EQUAL, 3, 0xFF);
 			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-			gluSphere(sphere, unprojected_radius, 40, 40);
+			gluSphere(sphere, unprojected_radius + anchored_offset, 40, 40);
 
 			gluDeleteQuadric(sphere);
+
+			glDepthMask(GL_TRUE);
 
 			glDisable(GL_DEPTH_TEST);
 
@@ -325,26 +566,98 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			glDisable(GL_STENCIL_TEST);
 
-			glDepthMask(GL_TRUE);
-
 			glPopMatrix();
 
 			glMatrixMode(GL_MODELVIEW);
 			glPopMatrix();
 
-			// XXX This is a hack to redraw the screen so that the zbuffer is recreated
-			WM_main_add_notifier(NC_OBJECT|ND_DRAW, NULL);
 		}
 		else {
 			glEnable(GL_LINE_SMOOTH);
-			glTranslatef((float)x, (float)y, 0.0f);
-			glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
-			glTranslatef((float)-x, (float)-y, 0.0f);
+
+			if (brush->draw_anchored) {
+				glTranslatef(brush->anchored_initial_mouse[0] - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->anchored_size, 40);
+				glTranslatef(-brush->anchored_initial_mouse[0], -brush->anchored_initial_mouse[1], 0.0f);
+			}
+			else {
+				glTranslatef((float)x, (float)y, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+				glTranslatef(-(float)x, -(float)y, 0.0f);
+			}
+
+
+			if (brush->draw_anchored) {
+			}
+			else {
+			}
+
 			glDisable(GL_LINE_SMOOTH);
 		}
-
-		glDisable(GL_BLEND);
 	}
+
+	if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+		const float diameter = 2*brush->size;
+		float inv_scale_x , inv_scale_y;
+		int procedural;
+
+		//load_grid(brush);
+		procedural = load_tex(brush, &vc);
+
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+		glDepthMask(GL_FALSE);
+		glDepthFunc(GL_ALWAYS);
+
+		glMatrixMode(GL_TEXTURE);
+		glLoadIdentity();
+
+		if (!procedural) {
+			glTranslatef(0.5f, 0.5f, 0);
+			glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
+
+			inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
+			inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
+
+			glScalef(inv_scale_x, inv_scale_y, 0);
+
+			glRotatef(brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
+
+			glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
+
+			glTranslatef(-0.5f, -0.5f, 0);
+		}
+
+		glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
+		glBegin(GL_QUADS);
+			glTexCoord2f(0, 0);
+			glVertex2f(0, 0);
+
+			glTexCoord2f(1, 0);
+			glVertex2f(viewport[2], 0);
+
+			glTexCoord2f(1, 1);
+			glVertex2f(viewport[2], viewport[3]);
+
+			glTexCoord2f(0, 1);
+			glVertex2f(0, viewport[3]);
+		glEnd();
+
+		glLoadIdentity();
+
+		glMatrixMode(GL_MODELVIEW);
+
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+		glDisable(GL_TEXTURE_2D);
+
+		glDepthMask(GL_TRUE);
+		glDepthFunc(GL_LEQUAL);
+	}
+
+	glDisable(GL_BLEND);
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */

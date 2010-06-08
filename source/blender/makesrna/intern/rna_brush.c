@@ -271,7 +271,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "texture_offset");
 	RNA_def_property_range(prop, -1.0f, 0.0f);
-	RNA_def_property_ui_text(prop, "Tex Offset", "Allows base level of texture to be biased so that samples can have negative values");
+	RNA_def_property_ui_text(prop, "Tex Offset", "Allows base level of texture to be biased so that samples can have both positive and negative values");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */
@@ -370,6 +370,21 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Lock Brush Size", "Use the last brush size relative to the model");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "use_texture_overlay", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_TEXTURE_OVERLAY);
+	RNA_def_property_ui_text(prop, "Texture Overlay", "Show texture in viewport");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "edge_to_edge", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_EDGE_TO_EDGE);
+	RNA_def_property_ui_text(prop, "Edge-to-edge", "Drag anchor brush from edge-to-edge");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "restore_mesh", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RESTORE_MESH);
+	RNA_def_property_ui_text(prop, "Restore Mesh", "Allows a single daub to be carefully positioned");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	/* not exposed in the interface yet
 	prop= RNA_def_property(srna, "fixed_tex", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_FIXED_TEX);
@@ -399,6 +414,57 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Texture", "");
 	RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_scale_x", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "texture_scale_x");
+	RNA_def_property_range(prop, -1000, 1000);
+	RNA_def_property_ui_range(prop, -200, 200, 1, 0);
+	RNA_def_property_ui_text(prop, "Texture Scale X", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_scale_y", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "texture_scale_y");
+	RNA_def_property_range(prop, -1000, 1000);
+	RNA_def_property_ui_range(prop, -200, 200, 1, 0);
+	RNA_def_property_ui_text(prop, "Texture Scale Y", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_scale_percentage", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "texture_scale_percentage");
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_range(prop, 0, 200, 1, 0);
+	RNA_def_property_ui_text(prop, "Texture Scale Percentage", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_center_x", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "texture_center_x");
+	RNA_def_property_range(prop, -0.5, 0.5);
+	RNA_def_property_ui_text(prop, "Texture Center X", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_center_y", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "texture_center_y");
+	RNA_def_property_range(prop, -0.5, 0.5);
+	RNA_def_property_ui_text(prop, "Texture Center Y", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_overlay_alpha", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "texture_overlay_alpha");
+	RNA_def_property_range(prop, 1, 100);
+	RNA_def_property_ui_text(prop, "Texture Overlay Alpha", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "add_col", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_float_sdna(prop, NULL, "add_col");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Add Color", "Color of cursor when adding");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "sub_col", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_float_sdna(prop, NULL, "sub_col");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Subract Color", "Color of cursor when subtracting");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* clone tool */
 	prop= RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);

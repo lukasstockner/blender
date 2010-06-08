@@ -88,6 +88,21 @@ Brush *add_brush(const char *name)
 	brush->flag |= BRUSH_SPACE;
 	brush->detail = 0.25f;
 	brush->smoothness = 0.25f;
+	brush->plane_offset = 0;
+	brush->texture_center_x = 0;
+	brush->texture_center_y = 0;
+	brush->texture_scale_x = 1;
+	brush->texture_scale_y = 1;
+	brush->texture_offset = 0;
+	brush->overlay_texture = 0;
+
+	brush->add_col[0] = 1.00;
+	brush->add_col[1] = 0.39;
+	brush->add_col[2] = 0.39;
+
+	brush->sub_col[0] = 0.39;
+	brush->sub_col[1] = 0.39;
+	brush->sub_col[2] = 1.00;
 
 	brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 	
@@ -1021,7 +1036,12 @@ int brush_radial_control_exec(wmOperator *op, Brush *br, float size_weight)
 	const float conv = 0.017453293;
 
 	if(mode == WM_RADIALCONTROL_SIZE)
-		br->size = new_value * size_weight;
+		if (br->flag & BRUSH_LOCK_SIZE) {
+			float initial_value = RNA_float_get(op->ptr, "initial_value");
+			br->unprojected_radius *= new_value/initial_value * size_weight;
+		}
+		else
+			br->size = new_value * size_weight;
 	else if(mode == WM_RADIALCONTROL_STRENGTH)
 		br->alpha = new_value;
 	else if(mode == WM_RADIALCONTROL_ANGLE) {
