@@ -489,12 +489,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		if(!(paint->flags & PAINT_SHOW_BRUSH))
 			return;
 
+		glEnable(GL_BLEND);
+
 		if ((brush->flag & BRUSH_DIR_IN) && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
 			glColor4f(brush->sub_col[0], brush->sub_col[1], brush->sub_col[2], 0.20f + (brush->visual_strength*.7));
 		else
 			glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], 0.20f + (brush->visual_strength*.7));
-
-		glEnable(GL_BLEND);
 
 		if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
 			GLUquadric* sphere;
