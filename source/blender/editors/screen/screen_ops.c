@@ -1326,6 +1326,9 @@ static int area_max_regionsize(ScrArea *sa, ARegion *scalear, char edge)
 	 * prevents dragging regions into other opposite regions */
 	for (ar=sa->regionbase.first; ar; ar=ar->next)
 	{
+		if (ar == scalear)
+			continue;
+		
 		if (scalear->alignment == RGN_ALIGN_TOP && ar->alignment == RGN_ALIGN_BOTTOM)
 			dist -= ar->winy;
 		else if (scalear->alignment == RGN_ALIGN_BOTTOM && ar->alignment == RGN_ALIGN_TOP)
@@ -1334,8 +1337,15 @@ static int area_max_regionsize(ScrArea *sa, ARegion *scalear, char edge)
 			dist -= ar->winx;
 		else if (scalear->alignment == RGN_ALIGN_RIGHT && ar->alignment == RGN_ALIGN_LEFT)
 			dist -= ar->winx;
+		
+		/* case of regions in regions, like operator properties panel */
+		/* these can sit on top of other regions such as headers, so account for this */
+		else if (edge == 'b' && scalear->alignment & RGN_ALIGN_TOP && ar->alignment == RGN_ALIGN_TOP && ar->regiontype == RGN_TYPE_HEADER)
+			dist -= ar->winy;
+		else if (edge == 't' && scalear->alignment & RGN_ALIGN_BOTTOM && ar->alignment == RGN_ALIGN_BOTTOM && ar->regiontype == RGN_TYPE_HEADER)
+			dist -= ar->winy;
 	}
-	
+
 	return dist;
 }
 
@@ -1561,6 +1571,7 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	ActKeyColumn *ak;
 	float cfra= (scene)? (float)(CFRA) : 0.0f;
 	short next= RNA_boolean_get(op->ptr, "next");
+	short done = 0;
 	
 	/* sanity checks */
 	if (scene == NULL)
@@ -1579,15 +1590,27 @@ static int keyframe_jump_exec(bContext *C, wmOperator *op)
 	BLI_dlrbTree_linkedlist_sync(&keys);
 	
 	/* find matching keyframe in the right direction */
-	if (next)
-		ak= (ActKeyColumn *)BLI_dlrbTree_search_next(&keys, compare_ak_cfraPtr, &cfra);
-	else
-		ak= (ActKeyColumn *)BLI_dlrbTree_search_prev(&keys, compare_ak_cfraPtr, &cfra);
+	do {
+		if (next)
+			ak= (ActKeyColumn *)BLI_dlrbTree_search_next(&keys, compare_ak_cfraPtr, &cfra);
+		else
+			ak= (ActKeyColumn *)BLI_dlrbTree_search_prev(&keys, compare_ak_cfraPtr, &cfra);
+		
+		if (ak) {
+			if (CFRA != (int)ak->cfra) {
+				/* this changes the frame, so set the frame and we're done */
+				CFRA= (int)ak->cfra;
+				done = 1;
+			}
+			else {
+				/* make this the new starting point for the search */
+				cfra = ak->cfra;
+			}
+		}
+	} while ((ak != NULL) && (done == 0));
 	
-	/* set the new frame (if keyframe found) */
-	if (ak) 
-		CFRA= (int)ak->cfra;
-	else
+	/* any success? */
+	if (done == 0)
 		BKE_report(op->reports, RPT_INFO, "No more keyframes to jump to in this direction");
 	
 	/* free temp stuff */
