@@ -126,7 +126,8 @@ void undo_paint_push_end(int type);
 /* For now this is just temporary stuff to test masking */
 typedef enum {
 	MASKING_CLEAR,
-	MASKING_FULL,
+	MASKING_FILL,
+	MASKING_INVERT,
 	MASKING_RANDOM,
 } MaskSetMode;
 void PAINT_OT_mask_set(struct wmOperatorType *ot);

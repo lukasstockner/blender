@@ -24,11 +24,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-static float get_mask_value(MaskSetMode mode)
+static void set_mask_value(MaskSetMode mode, float *m)
 {
-	return (mode == MASKING_CLEAR ? 1 :
-		mode == MASKING_FULL ? 0 :
-		mode == MASKING_RANDOM ? (float)rand() / RAND_MAX : 0);
+	*m = (mode == MASKING_CLEAR ? 1 :
+	      mode == MASKING_FILL ? 0 :
+	      mode == MASKING_INVERT ? (1 - *m) :
+	      mode == MASKING_RANDOM ? (float)rand() / RAND_MAX : 0);
 }
 
 static int paint_mask_set_exec(bContext *C, wmOperator *op)
@@ -63,7 +64,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(vd.mask)
-					*vd.mask = get_mask_value(mode);
+					set_mask_value(mode, vd.mask);
 			}
 			BLI_pbvh_vertex_iter_end;
 
@@ -93,7 +94,8 @@ void PAINT_OT_mask_set(wmOperatorType *ot)
 {
 	static EnumPropertyItem mask_items[] = {
 		{MASKING_CLEAR, "CLEAR", 0, "Clear", ""},
-		{MASKING_FULL, "FULL", 0, "Full", ""},
+		{MASKING_FILL, "FILL", 0, "Fill", ""},
+		{MASKING_INVERT, "INVERT", 0, "Invert", ""},
 		{MASKING_RANDOM, "RANDOM", 0, "Random", ""},
 		{0, NULL, 0, NULL, NULL}};
 
