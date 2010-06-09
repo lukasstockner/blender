@@ -574,7 +574,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     row.prop(brush, "plane_offset", slider=True)
                     row.prop(brush, "use_offset_pressure", text="")
 
-                if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'CLAY'):
+                if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY'):
                     col.row().prop(brush, "direction", expand=True)
 
                 if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
