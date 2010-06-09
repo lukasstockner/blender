@@ -71,7 +71,7 @@ typedef struct Brush {
 	
 	int sculpt_direction;		/* the direction of movement for sculpt vertices */
 
-	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape, contrast) */
+	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape) */
 
 	char sculpt_tool;		/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
@@ -150,8 +150,7 @@ typedef struct Brush {
 #define SCULPT_TOOL_CLAY      8
 #define SCULPT_TOOL_FILL      9
 #define SCULPT_TOOL_SCRAPE   10
-#define SCULPT_TOOL_CONTRAST 11
-#define SCULPT_TOOL_YANK     12
+#define SCULPT_TOOL_YANK     11
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

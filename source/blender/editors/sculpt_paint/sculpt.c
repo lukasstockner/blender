@@ -752,11 +752,8 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_LAYER:
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
-			return alpha * dir * flip * pressure * overlap;
-
 		case SCULPT_TOOL_FLATTEN:
-		case SCULPT_TOOL_CONTRAST:
-			return alpha * pressure * overlap;
+			return alpha * dir * flip * pressure * overlap;
 
 		case SCULPT_TOOL_SMOOTH:
 			return alpha * 4 * pressure * overlap;
@@ -794,10 +791,11 @@ float get_tex_pixel(Brush* br, float u, float v)
 {
 	TexResult texres;
 	float co[3] = { u, v, 0 };
+
 	int hasrgb;
 	
 	memset(&texres, 0, sizeof(TexResult));
-	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 0, &texres);
+	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 1, &texres);
 
 	if (hasrgb & TEX_RGB) texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb);
 
@@ -859,7 +857,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 			  &jnk, &jnk, &jnk, &jnk);
 	}
 	else if(ss->texcache) {
-		float rotation = tex->rot;
+		float rotation = -tex->rot;
 		float x, y, point_2d[3];
 		float diameter;
 
@@ -1869,66 +1867,6 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	}
 }
 
-static void do_contrast_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
-{
-	Brush *brush = paint_brush(&sd->paint);
-
-	float bstrength = ss->cache->bstrength;
-	const float radius = ss->cache->radius;
-
-	float an[3];
-	float fc[3];
-	float offset = get_offset(sd, ss);
-
-	float displace;
-
-	int n;
-
-	float temp[3];
-
-	calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, an, fc);
-
-	displace = radius*offset;
-
-	mul_v3_v3v3(temp, an, ss->cache->scale);
-	mul_v3_fl(temp, displace);
-	add_v3_v3(fc, temp);
-
-	for(n = 0; n < totnode; n++) {
-		PBVHVertexIter  vd;
-		SculptBrushTest test;
-
-		sculpt_undo_push_node(ss, nodes[n]);
-
-		sculpt_brush_test_init(ss, &test);
-
-		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if(sculpt_brush_test(&test, vd.co)) {
-				float intr[3];
-				float val[3];
-
-				const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
-
-				point_plane_project(intr, vd.co, an, fc);
-				sub_v3_v3v3(val, intr, vd.co);
-				mul_v3_fl(val, -fade);
-				symmetry_feather(sd, ss, vd.co, val);
-				add_v3_v3(val, vd.co);
-
-				sculpt_clip(sd, ss, vd.co, val);
-
-				if(vd.mvert) {
-					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
-				}
-			}
-		}
-		BLI_pbvh_vertex_iter_end;
-
-		BLI_pbvh_node_mark_update(nodes[n]);
-	}
-}
-
 static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush = paint_brush(&sd->paint);
@@ -2118,9 +2056,6 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 		case SCULPT_TOOL_SCRAPE:
 			do_scrape_brush(sd, ss, nodes, totnode);
 			break;
-		case SCULPT_TOOL_CONTRAST:
-			do_contrast_brush(sd, ss, nodes, totnode);
-			break;
 		}
 	
 		/* copy the modified vertices from mesh to the active key */
@@ -2294,15 +2229,13 @@ static char *sculpt_tool_name(Sculpt *sd)
 	case SCULPT_TOOL_LAYER:
 		return "Layer Brush"; break;
 	case SCULPT_TOOL_FLATTEN:
-                return "Flatten Brush"; break;
-        case SCULPT_TOOL_CLAY:
-                return "Clay Brush"; break;
-        case SCULPT_TOOL_FILL:
-                return "Fill Brush"; break;
-        case SCULPT_TOOL_SCRAPE:
-                return "Scrape Brush"; break;
-        case SCULPT_TOOL_CONTRAST:
-                return "Constrast Brush"; break;
+		return "Flatten Brush"; break;
+	case SCULPT_TOOL_CLAY:
+		return "Clay Brush"; break;
+	case SCULPT_TOOL_FILL:
+		return "Fill Brush"; break;
+	case SCULPT_TOOL_SCRAPE:
+		return "Scrape Brush"; break;
 	default:
 		return "Sculpting"; break;
 	}
@@ -2480,10 +2413,6 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		else {
 			cache->initial_radius = brush->unprojected_radius;
 		}
-
-	if (brush->sculpt_tool == SCULPT_TOOL_GRAB) {
-		cache->initial_radius *= 3;
-	}
 
 	if(brush->flag & BRUSH_SIZE_PRESSURE && !ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_YANK)) {
 		cache->pixel_radius *= cache->pressure;

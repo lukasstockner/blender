@@ -211,7 +211,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	float xlim, ylim;
 
 	// XXX there has to be a better way to guess if a texture is procedural
-	int procedural = brush->mtex.tex && !brush->mtex.tex->ima;
+	int procedural = brush->mtex.tex && brush->mtex.tex->type != TEX_IMAGE;
 
 	if (brush->overlay_texture) glDeleteTextures(1, &brush->overlay_texture);
 
@@ -234,7 +234,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 			if (procedural) {
 				// largely duplicated from tex_strength
 
-				const float rotation = brush->mtex.rot;
+				const float rotation = -brush->mtex.rot;
 				float diameter = brush->size;
 
 				x = (float)i/width;
@@ -645,7 +645,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				glScalef(inv_scale_x, inv_scale_y, 0);
 
-				glRotatef(brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
+				glRotatef(-brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
 
 				glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
 

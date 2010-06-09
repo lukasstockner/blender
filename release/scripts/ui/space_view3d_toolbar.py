@@ -569,7 +569,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 #row.prop(brush, "jitter", slider=True)
                 #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
 
-                if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE', 'CONTRAST'):
+                if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE'):
                     row = col.row(align=True)
                     row.prop(brush, "plane_offset", slider=True)
                     row.prop(brush, "use_offset_pressure", text="")
@@ -768,7 +768,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 if brush.use_anchor:
                     layout.prop(brush, "edge_to_edge", "Edge To Edge")
             layout.prop(brush, "use_rake")
-            if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'FILL', 'SCRAPE', 'CONTRAST'):
+            if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'FILL', 'SCRAPE'):
                 layout.prop(brush, "use_original_normal")
                 if brush.use_original_normal:
                     col = layout.column()
