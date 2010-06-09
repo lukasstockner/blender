@@ -210,7 +210,8 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	int i, j;
 	float xlim, ylim;
 
-	int procedural = !brush->mtex.tex->ima;
+	// XXX there has to be a better way to guess if a texture is procedural
+	int procedural = brush->mtex.tex && !brush->mtex.tex->ima;
 
 	if (brush->overlay_texture) glDeleteTextures(1, &brush->overlay_texture);
 
@@ -428,6 +429,12 @@ static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3]
 	return len_v3(delta)/scale;
 }
 
+// XXX paint cursor now does a lot of the same work that is needed during a sculpt stroke
+// problem: all this stuff was not intended to be used at this point, so things feel a
+// bit hacked.  I've put lots of stuff in Brush that probably better goes in Paint
+// Functions should be refactored so that they can be used between sculpt.c and
+// paint_stroke.c clearly and optimally and the lines of communication between the
+// two modules should be more clearly defined.
 static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 {
 	Paint *paint = paint_get_active(CTX_data_scene(C));
@@ -437,7 +444,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 	float location[3], modelview[16], projection[16];
 
 	int hit;
-
 
 	/* keep track of mouse movement angle so rack can start at a sensible angle */
 
@@ -461,14 +467,32 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 	if (hit) {
 		ViewContext vc;
 		float unprojected_radius;
+		int flip;
+		int sign;
+		float visual_strength;
 
-		{ // duplicated from brush_strength, refactor later
-			float alpha = brush->alpha * brush->alpha;
-			float pressure;
-			PointerRNA ptr;
-			RNA_id_pointer_create(&brush->id, &ptr);
-			pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? RNA_float_get(&ptr, "pressure") : 1;
-			brush->visual_strength = alpha * pressure;
+		const float min_alpha = 0.30f;
+		const float max_alpha = 0.70f;
+		float* col;
+		float  alpha;
+
+		// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
+		{
+			float strength = brush->alpha * brush->alpha;
+			float pressure = 1.0f;
+			wmEvent* event = CTX_wm_window(C)->eventstate;
+
+			flip = event->shift ? -1 : 1;
+
+			if(event->custom == EVT_DATA_TABLET) {
+				wmTabletData *wmtab= event->customdata;
+				if(wmtab->Active != EVT_TABLET_NONE)
+					pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? wmtab->Pressure : 1;
+				if(wmtab->Active == EVT_TABLET_ERASER)
+					flip = 1;
+			}
+
+			visual_strength = strength * pressure;
 		}
 
 		view3d_set_viewcontext(C, &vc);
@@ -489,29 +513,36 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		if(!(paint->flags & PAINT_SHOW_BRUSH))
 			return;
 
+		sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
+
+		if (sign < 0 && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
+			col = brush->sub_col;
+		else
+			col = brush->add_col;
+
+		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
+
+		glColor4f(col[0], col[1], col[2], alpha);
+
 		glEnable(GL_BLEND);
 
-		if ((brush->flag & BRUSH_DIR_IN) && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
-			glColor4f(brush->sub_col[0], brush->sub_col[1], brush->sub_col[2], 0.20f + (brush->visual_strength*.7));
-		else
-			glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], 0.20f + (brush->visual_strength*.7));
-
 		if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
+			const float max_thickness= 0.16;
+			const float min_thickness= 0.06;
+			const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
+			const float inner_radius=  brush->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
+			const float outer_radius=  brush->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
+
 			GLUquadric* sphere;
-			float anchored_offset;
 
 			glMatrixMode(GL_MODELVIEW);
 			glPushMatrix();
 			glLoadMatrixf(modelview);
 
-			if (brush->draw_anchored) {
+			if (brush->draw_anchored)
 				glTranslatef(brush->anchored_location[0], brush->anchored_location[1], brush->anchored_location[2]);
-				anchored_offset = 0;//0.96f - brush->visual_strength*0.20;
-			}
-			else {
-				anchored_offset = 0;
+			else
 				glTranslatef(location[0], location[1], location[2]);
-			}
 
 			glMatrixMode(GL_PROJECTION);
 			glPushMatrix();
@@ -535,25 +566,25 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			sphere = gluNewQuadric();
 
-			gluSphere(sphere, unprojected_radius, 40, 40);
+			gluSphere(sphere, outer_radius, 40, 40);
 
 			glStencilFunc(GL_ALWAYS, 1, 0xFF);
 			glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
 
-			if (brush->draw_anchored || !(brush->flag & BRUSH_ANCHORED))
-				gluSphere(sphere, unprojected_radius * (0.96f - brush->visual_strength*0.20) + anchored_offset, 40, 40);
+			if (brush->size >= 8)
+				gluSphere(sphere, inner_radius, 40, 40);
 
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 
 			glStencilFunc(GL_EQUAL, 1, 0xFF);
 			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-			gluSphere(sphere, unprojected_radius + anchored_offset, 40, 40);
+			gluSphere(sphere, outer_radius, 40, 40);
 
 			glStencilFunc(GL_EQUAL, 3, 0xFF);
 			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-			gluSphere(sphere, unprojected_radius + anchored_offset, 40, 40);
+			gluSphere(sphere, outer_radius, 40, 40);
 
 			gluDeleteQuadric(sphere);
 
@@ -569,7 +600,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			glMatrixMode(GL_MODELVIEW);
 			glPopMatrix();
-
 		}
 		else {
 			glEnable(GL_LINE_SMOOTH);
@@ -674,7 +704,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 		if(wmtab->Active == EVT_TABLET_ERASER)
 			flip = 1;
 	}
-				
+
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
 	RNA_float_set_array(&itemptr, "location", center);
@@ -830,9 +860,16 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 				;//ED_region_tag_redraw(ar);
 		}
 	}
+
 	/* we want the stroke to have the first daub at the start location instead of waiting till we have moved the space distance */
-	if(first && stroke->stroke_started && paint_space_stroke_enabled(stroke->brush) && !(stroke->brush->flag & BRUSH_ANCHORED))
+	if(first &&
+	   stroke->stroke_started &&
+	   paint_space_stroke_enabled(stroke->brush) &&
+	   !(stroke->brush->flag & BRUSH_ANCHORED) &&
+	   !(stroke->brush->flag & BRUSH_SMOOTH_STROKE))
+	{
 		paint_brush_stroke_add_step(C, op, event, mouse);
+	}
 	
 	return OPERATOR_RUNNING_MODAL;
 }

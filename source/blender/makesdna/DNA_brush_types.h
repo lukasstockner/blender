@@ -97,13 +97,12 @@ typedef struct Brush {
 	float add_col[3];
 	float sub_col[3];
 
-	float visual_strength;
-
 	int draw_anchored;
 	int   anchored_size;
 	float anchored_location[3];
 	float anchored_initial_mouse[2];
 
+	int pad2;
 } Brush;
 
 /* Brush.flag */
@@ -152,6 +151,7 @@ typedef struct Brush {
 #define SCULPT_TOOL_FILL      9
 #define SCULPT_TOOL_SCRAPE   10
 #define SCULPT_TOOL_CONTRAST 11
+#define SCULPT_TOOL_YANK     12
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

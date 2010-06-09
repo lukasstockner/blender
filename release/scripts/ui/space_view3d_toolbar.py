@@ -763,10 +763,10 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
 
         if context.sculpt_object:
             if brush.sculpt_tool != 'LAYER':
-                layout.prop(brush, "restore_mesh")
+                layout.prop(brush, "restore_mesh", "Drag And Drop")
                 layout.prop(brush, "use_anchor")
                 if brush.use_anchor:
-                    layout.prop(brush, "edge_to_edge")
+                    layout.prop(brush, "edge_to_edge", "Edge To Edge")
             layout.prop(brush, "use_rake")
             if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'FILL', 'SCRAPE', 'CONTRAST'):
                 layout.prop(brush, "use_original_normal")

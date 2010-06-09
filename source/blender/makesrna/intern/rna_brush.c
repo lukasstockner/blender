@@ -103,6 +103,7 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_PINCH, "PINCH", 0, "Pinch", ""},
 		{SCULPT_TOOL_INFLATE, "INFLATE", 0, "Inflate", ""},
 		{SCULPT_TOOL_GRAB, "GRAB", 0, "Grab", ""},
+		{SCULPT_TOOL_YANK, "YANK", 0, "Yank", ""},
 		{SCULPT_TOOL_LAYER, "LAYER", 0, "Layer", ""},
 		{SCULPT_TOOL_FLATTEN, "FLATTEN", 0, "Flatten", ""},
 		{SCULPT_TOOL_CLAY, "CLAY", 0, "Clay", ""},
