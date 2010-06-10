@@ -725,9 +725,14 @@ class VIEW3D_MT_object_specials(bpy.types.Menu):
             props.path_item = "data.spot_size"
             props.input_scale = 0.01
 
-            props = layout.operator("wm.context_modal_mouse", text="Distance")
+            props = layout.operator("wm.context_modal_mouse", text="Power")
             props.path_iter = "selected_editable_objects"
-            props.path_item = "data.distance"
+            props.path_item = "data.power"
+            props.input_scale = 0.1
+
+            props = layout.operator("wm.context_modal_mouse", text="Falloff Distance")
+            props.path_iter = "selected_editable_objects"
+            props.path_item = "data.falloff_distance"
             props.input_scale = 0.1
 
             props = layout.operator("wm.context_modal_mouse", text="Clip Start")
