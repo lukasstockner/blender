@@ -1395,7 +1395,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
-				float fade = tex_strength(ss, brush, origco[vd.i], test.dist/3.0f)*bstrength;
+				float fade = tex_strength(ss, brush, origco[vd.i], test.dist)*bstrength;
 				float val[3];
 
 				mul_v3_v3fl(val, grab_delta, fade);
