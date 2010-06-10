@@ -46,6 +46,43 @@ struct _CCGVert;
 
 /**************************** External *****************************/
 
+/* Grids */
+
+/* Format of the data in a grid element */
+typedef enum {
+	GRID_ELEM_KEY_CO_NO = 0,
+	GRID_ELEM_KEY_CO_MASK_NO,
+	GRID_ELEM_KEY_TOTAL
+} DMGridElemKey;
+
+/* Information about the data stored by each type of key */
+typedef struct {
+	int size;
+	int has_mask;
+	int no_offset;
+	int mask_offset;
+	int interp_count;
+} DMGridElemKeyInfo;
+
+extern DMGridElemKeyInfo GridElemKeyInfo[GRID_ELEM_KEY_TOTAL];
+
+#define GRIDELEM_SIZE(_key) GridElemKeyInfo[_key].size
+#define GRIDELEM_HAS_MASK(_key) GridElemKeyInfo[_key].has_mask
+#define GRIDELEM_NO_OFFSET(_key) GridElemKeyInfo[_key].no_offset
+#define GRIDELEM_MASK_OFFSET(_key) GridElemKeyInfo[_key].mask_offset
+#define GRIDELEM_INTERP_COUNT(_key) GridElemKeyInfo[_key].interp_count
+
+#define GRIDELEM_AT(_grid, _elem, _key) (struct DMGridData*)(((char*)(_grid)) + (_elem) * GRIDELEM_SIZE(_key))
+#define GRIDELEM_INC(_grid, _inc, _key) ((_grid) = GRIDELEM_AT(_grid, _inc, _key))
+
+#define GRIDELEM_CO(_grid, _key) (float*)(_grid)
+#define GRIDELEM_NO(_grid, _key) (float*)((char*)(_grid) + GRIDELEM_NO_OFFSET(_key))
+#define GRIDELEM_MASK(_grid, _key) (float*)((char*)(_grid) + GRIDELEM_MASK_OFFSET(_key))
+
+#define GRIDELEM_CO_AT(_grid, _elem, _key) GRIDELEM_CO(GRIDELEM_AT(_grid, _elem, _key), _key)
+#define GRIDELEM_NO_AT(_grid, _elem, _key) GRIDELEM_NO(GRIDELEM_AT(_grid, _elem, _key), _key)
+#define GRIDELEM_MASK_AT(_grid, _elem, _key) GRIDELEM_MASK(GRIDELEM_AT(_grid, _elem, _key), _key)
+
 struct DerivedMesh *subsurf_make_derived_from_derived(
 						struct DerivedMesh *dm,
 						struct SubsurfModifierData *smd,

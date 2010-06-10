@@ -2555,6 +2555,10 @@ int ccgSubSurf_getGridLevelSize(CCGSubSurf *ss, int level) {
 	}
 }
 
+int ccgSubSurf_getGridKey(CCGSubSurf *ss) {
+	return ss->meshIFC.gridkey;
+}
+
 /* Vert accessors */
 
 CCGVertHDL ccgSubSurf_getVertVertHandle(CCGVert *v) {

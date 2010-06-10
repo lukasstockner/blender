@@ -50,8 +50,8 @@ PBVH *BLI_pbvh_new(void);
 void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
 			 struct CustomData *vdata, int totface, int totvert);
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
-	struct DMGridAdjacency *gridadj, int totgrid,
-	int gridsize, void **gridfaces);
+			  struct DMGridAdjacency *gridadj, int totgrid,
+			  int gridsize, int gridkey, void **gridfaces);
 void BLI_pbvh_free(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:
@@ -98,7 +98,7 @@ void BLI_pbvh_node_mark_update(PBVHNode *node);
 
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 	int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
-	struct DMGridData ***griddata, struct DMGridAdjacency **gridadj);
+	struct DMGridData ***griddata, struct DMGridAdjacency **gridadj, int *gridkey);
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
 	int *uniquevert, int *totvert);
 void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
@@ -140,6 +140,7 @@ typedef struct PBVHVertexIter {
 	int *grid_indices;
 	int totgrid;
 	int gridsize;
+	int gridkey;
 
 	/* mesh */
 	struct MVert *mverts;
@@ -164,11 +165,11 @@ typedef struct PBVHVertexIter {
 		struct DMGridData **grids; \
 		struct MVert *verts; \
 		struct CustomData *vdata; \
-		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert; \
+		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert, gridkey; \
 		\
 		memset(&vi, 0, sizeof(PBVHVertexIter)); \
 		\
-		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL); \
+		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL, &gridkey); \
 		BLI_pbvh_node_num_verts(bvh, node, &uniq_verts, &totvert); \
 		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts, &vdata); \
 		\
@@ -176,6 +177,7 @@ typedef struct PBVHVertexIter {
 		vi.grid_indices= grid_indices; \
 		vi.totgrid= (grids)? totgrid: 1; \
 		vi.gridsize= gridsize; \
+		vi.gridkey= gridkey; \
 		\
 		if(mode == PBVH_ITER_ALL) \
 			vi.totvert = totvert; \
@@ -207,14 +209,14 @@ typedef struct PBVHVertexIter {
 		} \
 		 \
 		for(vi.gy=0; vi.gy<vi.height; vi.gy++) { \
-			if(vi.grid) vi.grid += vi.skip; \
+			if(vi.grid) GRIDELEM_INC(vi.grid, vi.skip, vi.gridkey); \
 			\
 			for(vi.gx=0; vi.gx<vi.width; vi.gx++, vi.i++) { \
 				if(vi.grid) { \
-					vi.co= vi.grid->co; \
-					vi.fno= vi.grid->no; \
-					vi.mask= &vi.grid->mask; \
-					vi.grid++; \
+					vi.co= GRIDELEM_CO(vi.grid, vi.gridkey); \
+					vi.fno= GRIDELEM_NO(vi.grid, vi.gridkey); \
+					vi.mask= GRIDELEM_MASK(vi.grid, vi.gridkey); \
+					GRIDELEM_INC(vi.grid, 1, vi.gridkey); \
 				} \
 				else { \
 					vi.mvert= &vi.mverts[vi.vert_indices[vi.gx]]; \

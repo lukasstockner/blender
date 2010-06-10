@@ -15,6 +15,7 @@
 #include "BKE_mesh.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
+#include "BKE_subsurf.h"
 
 #include "BLI_pbvh.h"
 

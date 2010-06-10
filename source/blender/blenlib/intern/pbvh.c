@@ -29,6 +29,7 @@
 #include "BLI_pbvh.h"
 
 #include "BKE_DerivedMesh.h"
+#include "BKE_subsurf.h"
 
 #include "gpu_buffers.h"
 
@@ -113,6 +114,7 @@ struct PBVH {
 	void **gridfaces;
 	int totgrid;
 	int gridsize;
+	int gridkey;
 
 	/* Only used during BVH build and update,
 	   don't need to remain valid after */
@@ -516,7 +518,7 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, CustomData *vdat
 
 /* Do a full rebuild with on Grids data structure */
 void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridadj,
-	int totgrid, int gridsize, void **gridfaces)
+			  int totgrid, int gridsize, int gridkey, void **gridfaces)
 {
 	BBC *prim_bbc = NULL;
 	BB cb;
@@ -527,6 +529,7 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridad
 	bvh->gridfaces= gridfaces;
 	bvh->totgrid= totgrid;
 	bvh->gridsize= gridsize;
+	bvh->gridkey= gridkey;
 	bvh->leaf_limit = MAX2(LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
 
 	BB_reset(&cb);
@@ -541,7 +544,7 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridad
 		BB_reset((BB*)bbc);
 
 		for(j = 0; j < gridsize*gridsize; ++j)
-			BB_expand((BB*)bbc, grid[j].co);
+			BB_expand((BB*)bbc, GRIDELEM_CO_AT(grid, j, gridkey));
 
 		BBC_update_centroid(bbc);
 
@@ -878,6 +881,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, i
 						   node->prim_indices,
 						   node->totprim,
 						   bvh->gridsize,
+						   bvh->gridkey,
 						   smooth);
 			}
 			else {
@@ -1042,7 +1046,7 @@ void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *to
 	}
 }
 
-void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int *totgrid, int *maxgrid, int *gridsize, DMGridData ***griddata, DMGridAdjacency **gridadj)
+void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int *totgrid, int *maxgrid, int *gridsize, DMGridData ***griddata, DMGridAdjacency **gridadj, int *gridkey)
 {
 	if(bvh->grids) {
 		if(grid_indices) *grid_indices= node->prim_indices;
@@ -1051,6 +1055,7 @@ void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int 
 		if(gridsize) *gridsize= bvh->gridsize;
 		if(griddata) *griddata= bvh->grids;
 		if(gridadj) *gridadj= bvh->gridadj;
+		if(gridkey) *gridkey= bvh->gridkey;
 	}
 	else {
 		if(grid_indices) *grid_indices= NULL;
@@ -1059,6 +1064,7 @@ void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int 
 		if(gridsize) *gridsize= 0;
 		if(griddata) *griddata= NULL;
 		if(gridadj) *gridadj= NULL;
+		if(gridkey) gridkey= 0;
 	}
 }
 
@@ -1234,10 +1240,10 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 					}
 					else {
 						hit |= ray_face_intersection(ray_start, ray_normal,
-									 grid[y*gridsize + x].co,
-									 grid[y*gridsize + x+1].co,
-									 grid[(y+1)*gridsize + x+1].co,
-									 grid[(y+1)*gridsize + x].co,
+									 GRIDELEM_CO_AT(grid, y*gridsize + x, bvh->gridkey),
+									 GRIDELEM_CO_AT(grid, y*gridsize + x+1, bvh->gridkey),
+									 GRIDELEM_CO_AT(grid, (y+1)*gridsize + x+1, bvh->gridkey),
+									 GRIDELEM_CO_AT(grid, (y+1)*gridsize + x, bvh->gridkey),
 									 dist);
 					}
 				}

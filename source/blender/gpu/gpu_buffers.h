@@ -135,9 +135,9 @@ void *GPU_build_mesh_buffers(struct GHash *map, struct MVert *mvert,
 void GPU_update_mesh_buffers(void *buffers, struct MVert *mvert,
 			     struct CustomData *vdata, int *vert_indices, int totvert);
 void *GPU_build_grid_buffers(struct DMGridData **grids,
-	int *grid_indices, int totgrid, int gridsize);
+			     int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_buffers(void *buffers_v, struct DMGridData **grids,
-	int *grid_indices, int totgrid, int gridsize, int smooth);
+			     int *grid_indices, int totgrid, int gridsize, int gridkey, int smooth);
 void GPU_draw_buffers(void *buffers);
 void GPU_free_buffers(void *buffers);
 

@@ -61,6 +61,7 @@
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
+#include "BKE_subsurf.h"
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
 #include "BKE_colortools.h"
@@ -343,6 +344,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			DMGridData **grids, *grid;
 			float (*co)[3];
 			int gridsize;
+			int gridkey;
 
 			if(dm->getNumGrids(dm) != unode->maxgrid)
 				continue;
@@ -351,13 +353,14 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 
 			grids= dm->getGridData(dm);
 			gridsize= dm->getGridSize(dm);
+			gridkey= dm->getGridKey(dm);
 
 			co = unode->co;
 			for(j=0; j<unode->totgrid; j++) {
 				grid= grids[unode->grids[j]];
 
 				for(i=0; i<gridsize*gridsize; i++, co++)
-					swap_v3_v3(grid[i].co, co[0]);
+					swap_v3_v3(GRIDELEM_CO_AT(grid, i, gridkey), co[0]);
 			}
 		}
 
@@ -436,7 +439,7 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 
 	BLI_pbvh_node_num_verts(ss->pbvh, node, &totvert, &allvert);
 	BLI_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
-				&maxgrid, &gridsize, NULL, NULL);
+				&maxgrid, &gridsize, NULL, NULL, NULL);
 
 	unode->totvert= totvert;
 	/* we will use this while sculpting, is mapalloc slow to access then? */
@@ -968,12 +971,12 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	float bstrength= ss->cache->bstrength;
 	float co[3], (*tmpgrid)[3];
 	int v1, v2, v3, v4;
-	int *grid_indices, totgrid, gridsize, i, x, y;
+	int *grid_indices, totgrid, gridsize, gridkey, i, x, y;
 			
 	sculpt_brush_test_init(ss, &test);
 
 	BLI_pbvh_node_get_grids(ss->pbvh, node, &grid_indices, &totgrid,
-				NULL, &gridsize, &griddata, &gridadj);
+				NULL, &gridsize, &griddata, &gridadj, &gridkey);
 
 	//#pragma omp critical
 	tmpgrid= MEM_mallocN(sizeof(float)*3*gridsize*gridsize, "tmpgrid");
@@ -992,7 +995,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 				v3 = (x + 1) + (y + 1)*gridsize;
 				v4 = x + (y + 1)*gridsize;
 
-				cent_quad_v3(co, data[v1].co, data[v2].co, data[v3].co, data[v4].co);
+				cent_quad_v3(co, GRIDELEM_CO_AT(data, v1, gridkey), GRIDELEM_CO_AT(data, v2, gridkey), GRIDELEM_CO_AT(data, v3, gridkey), GRIDELEM_CO_AT(data, v4, gridkey));
 				mul_v3_fl(co, 0.25f);
 
 				add_v3_v3(tmpgrid[v1], co);
@@ -1010,10 +1013,10 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 				if(y == 0 && adj->index[3] == -1) continue;
 				if(y == gridsize - 1 && adj->index[1] == -1) continue;
 
-				copy_v3_v3(co, data[x + y*gridsize].co);
+				copy_v3_v3(co, GRIDELEM_CO_AT(data, x + y*gridsize, gridkey));
 
 				if(sculpt_brush_test(&test, co)) {
-					float fade = tex_strength(ss, brush, co, &data[x + y*gridsize].mask, test.dist)*bstrength;
+					float fade = tex_strength(ss, brush, co, GRIDELEM_MASK_AT(data, x + y*gridsize, gridkey), test.dist)*bstrength;
 					float avg[3], val[3];
 
 					copy_v3_v3(avg, tmpgrid[x + y*gridsize]);
@@ -1028,7 +1031,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 					val[1] = co[1]+(avg[1]-co[1])*fade;
 					val[2] = co[2]+(avg[2]-co[2])*fade;
 					
-					sculpt_clip(sd, ss, data[x + y*gridsize].co, val);
+					sculpt_clip(sd, ss, GRIDELEM_CO_AT(data, x + y*gridsize, gridkey), val);
 				}
 			}
 		}

@@ -68,11 +68,7 @@ struct PBVH;
 #define SUB_ELEMS_EDGE 2
 #define SUB_ELEMS_FACE 4
 
-typedef struct DMGridData {
-	float co[3];
-	float mask;
-	float no[3];
-} DMGridData;
+typedef struct DMGridData DMGridData;
 
 typedef struct DMGridAdjacency {
 	int index[4];
@@ -159,6 +155,7 @@ struct DerivedMesh {
 	DMGridData **(*getGridData)(DerivedMesh *dm);
 	DMGridAdjacency *(*getGridAdjacency)(DerivedMesh *dm);
 	int *(*getGridOffset)(DerivedMesh *dm);
+	int (*getGridKey)(DerivedMesh *dm);
 
 	/* Iterate over each mapped vertex in the derived mesh, calling the
 	 * given function with the original vert and the mapped vert's new

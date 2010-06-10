@@ -44,6 +44,7 @@
 #include "DNA_meshdata_types.h"
 
 #include "BKE_DerivedMesh.h"
+#include "BKE_subsurf.h"
 #include "BKE_utildefines.h"
 
 #include "DNA_userdef_types.h"
@@ -402,6 +403,7 @@ typedef struct {
 	int *grid_indices;
 	int totgrid;
 	int gridsize;
+	int gridkey;
 
 	unsigned int tot_tri, tot_quad;
 } GPU_Buffers;
@@ -579,12 +581,11 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 }
 
 static void update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-				      int totgrid, int gridsize, int totvert)
+				      int totgrid, int gridsize, int gridkey, int totvert)
 {
 	unsigned char *color_data;
 
-	/* TODO: for now we pretend there's always mask data */
-	color_data = map_color_buffer(buffers, 1, totvert);
+	color_data = map_color_buffer(buffers, GRIDELEM_HAS_MASK(gridkey), totvert);
 
 	if(color_data) {
 		int i, j;
@@ -593,18 +594,23 @@ static void update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, 
 			DMGridData *grid= grids[grid_indices[i]];
 
 			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3)
-				mask_to_gpu_colors(color_data, grid[j].mask);
+				mask_to_gpu_colors(color_data, *GRIDELEM_MASK_AT(grid, j, gridkey));
 		}
 
 		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 	}
 }
 
+typedef struct {
+	float co[3];
+	float no[3];
+} GridVBO;
+
 void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
-	int *grid_indices, int totgrid, int gridsize, int smooth)
+			     int *grid_indices, int totgrid, int gridsize, int gridkey, int smooth)
 {
 	GPU_Buffers *buffers = buffers_v;
-	DMGridData *vert_data;
+	GridVBO *vert_data;
 	int i, j, k, totvert;
 
 	totvert= gridsize*gridsize*totgrid;
@@ -613,14 +619,19 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 	if(buffers->vert_buf) {
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 		glBufferDataARB(GL_ARRAY_BUFFER_ARB,
-				 sizeof(DMGridData) * totvert,
+				 sizeof(GridVBO) * totvert,
 				 NULL, GL_STATIC_DRAW_ARB);
 		vert_data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
 		if(vert_data) {
 			for(i = 0; i < totgrid; ++i) {
 				DMGridData *grid= grids[grid_indices[i]];
-				/* TODO: don't want to copy color data into this buffer */
-				memcpy(vert_data, grid, sizeof(DMGridData)*gridsize*gridsize);
+				
+				for(j = 0; j < gridsize; ++j) {
+					for(k = 0; k < gridsize; ++k) {
+						copy_v3_v3(vert_data[k + j*gridsize].co, GRIDELEM_CO_AT(grid, k + j*gridsize, gridkey));
+						copy_v3_v3(vert_data[k + j*gridsize].no, GRIDELEM_NO_AT(grid, k + j*gridsize, gridkey));
+					}
+				}
 
 				if(!smooth) {
 					/* for flat shading, recalc normals and set the last vertex of
@@ -630,10 +641,10 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 						for(k = 0; k < gridsize-1; ++k) {
 							float norm[3];
 							normal_quad_v3(norm,
-								grid[(j+1)*gridsize + k].co,
-								grid[(j+1)*gridsize + k+1].co,
-								grid[j*gridsize + k+1].co,
-								grid[j*gridsize + k].co);
+								GRIDELEM_CO_AT(grid, (j+1)*gridsize + k, gridkey),
+								GRIDELEM_CO_AT(grid, (j+1)*gridsize + k+1, gridkey),
+								GRIDELEM_CO_AT(grid, j*gridsize + k+1, gridkey),
+								GRIDELEM_CO_AT(grid, j*gridsize + k, gridkey));
 							copy_v3_v3(vert_data[(j+1)*gridsize + (k+1)].no, norm);
 						}
 					}
@@ -646,7 +657,7 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 		else
 			delete_buffer(&buffers->vert_buf);
 
-		update_grid_color_buffers(buffers, grids, grid_indices, totgrid, gridsize, totvert);
+		update_grid_color_buffers(buffers, grids, grid_indices, totgrid, gridsize, gridkey, totvert);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
@@ -655,6 +666,7 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 	buffers->grid_indices = grid_indices;
 	buffers->totgrid = totgrid;
 	buffers->gridsize = gridsize;
+	buffers->gridkey = gridkey;
 
 	//printf("node updated %p\n", buffers_v);
 }
@@ -766,8 +778,8 @@ void GPU_draw_buffers(void *buffers_v)
 		}
 
 		if(buffers->tot_quad) {
-			glVertexPointer(3, GL_FLOAT, sizeof(DMGridData), (void*)offsetof(DMGridData, co));
-			glNormalPointer(GL_FLOAT, sizeof(DMGridData), (void*)offsetof(DMGridData, no));
+			glVertexPointer(3, GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, co));
+			glNormalPointer(GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, no));
 			if(buffers->color_buf) {
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
 				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
@@ -826,13 +838,13 @@ void GPU_draw_buffers(void *buffers_v)
 			for(y = 0; y < gridsize-1; y++) {
 				glBegin(GL_QUAD_STRIP);
 				for(x = 0; x < gridsize; x++) {
-					DMGridData *a = &grid[y*gridsize + x];
-					DMGridData *b = &grid[(y+1)*gridsize + x];
+					DMGridData *a = GRIDELEM_AT(grid, y*gridsize + x, buffers->gridkey);
+					DMGridData *b = GRIDELEM_AT(grid, (y+1)*gridsize + x, buffers->gridkey);
 
-					glNormal3fv(a->no);
-					glVertex3fv(a->co);
-					glNormal3fv(b->no);
-					glVertex3fv(b->co);
+					glNormal3fv(GRIDELEM_NO(a, buffers->gridkey));
+					glVertex3fv(GRIDELEM_CO(a, buffers->gridkey));
+					glNormal3fv(GRIDELEM_NO(b, buffers->gridkey));
+					glVertex3fv(GRIDELEM_CO(b, buffers->gridkey));
 				}
 				glEnd();
 			}
