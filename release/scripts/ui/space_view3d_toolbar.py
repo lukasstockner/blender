@@ -558,40 +558,39 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             if brush.sculpt_tool != 'GRAB' and not brush.lock_brush_size:
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
-            if brush.sculpt_tool != 'GRAB':
+            row = col.row(align=True)
+            row.prop(brush, "strength", slider=True)
+            row.prop(brush, "use_strength_pressure", text="")
+            col.prop(brush, "strength_multiplier", slider=True)
+
+            # XXX - TODO
+            #row = col.row(align=True)
+            #row.prop(brush, "jitter", slider=True)
+            #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+
+            if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
-                row.prop(brush, "strength", slider=True)
-                row.prop(brush, "use_strength_pressure", text="")
-                col.prop(brush, "strength_multiplier", slider=True)
+                row.prop(brush, "plane_offset", slider=True)
+                row.prop(brush, "use_offset_pressure", text="")
 
-                # XXX - TODO
-                #row = col.row(align=True)
-                #row.prop(brush, "jitter", slider=True)
-                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+            if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY', 'GRAB'):
+                col.row().prop(brush, "direction", expand=True)
 
-                if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE'):
-                    row = col.row(align=True)
-                    row.prop(brush, "plane_offset", slider=True)
-                    row.prop(brush, "use_offset_pressure", text="")
+            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
+                col.prop(brush, "use_accumulate")
 
-                if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY'):
-                    col.row().prop(brush, "direction", expand=True)
+            if brush.sculpt_tool == 'LAYER':
+                ob = context.sculpt_object
+                do_persistent = True
 
-                if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
-                    col.prop(brush, "use_accumulate")
+                # not supported yet for this case
+                for md in ob.modifiers:
+                    if md.type == 'MULTIRES':
+                        do_persistent = False
 
-                if brush.sculpt_tool == 'LAYER':
-                    ob = context.sculpt_object
-                    do_persistent = True
-
-                    # not supported yet for this case
-                    for md in ob.modifiers:
-                        if md.type == 'MULTIRES':
-                            do_persistent = False
-
-                    if do_persistent:
-                        col.prop(brush, "use_persistent")
-                        col.operator("sculpt.set_persistent_base")
+                if do_persistent:
+                    col.prop(brush, "use_persistent")
+                    col.operator("sculpt.set_persistent_base")
                         
             col.prop(brush,"use_dynamic_subdiv")
             if brush.use_dynamic_subdiv ==True:

@@ -151,6 +151,7 @@ typedef struct StrokeCache {
 	float grab_active_location[8][3];
 	float grab_delta[3], grab_delta_symmetry[3];
 	float old_grab_location[3], orig_grab_location[3];
+
 	int symmetry; /* Symmetry index between 0 and 7 bit combo 0 is Brush only;
 		1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
 	int symmetry_pass; /* the symmetry pass we are currently on between 0 and 7*/
@@ -753,6 +754,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
+		case SCULPT_TOOL_GRAB:
 			return alpha * dir * flip * pressure * overlap;
 
 		case SCULPT_TOOL_SMOOTH:
@@ -762,7 +764,6 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 			return alpha / 2 * dir * pressure * flip * overlap;
 
 		case SCULPT_TOOL_YANK:
-		case SCULPT_TOOL_GRAB:
 			return 1;
 
 		default:
@@ -1377,32 +1378,41 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
-	Brush *brush = paint_brush(&sd->paint);
+	Brush *brush= paint_brush(&sd->paint);
 	float bstrength= ss->cache->bstrength;
-	float grab_delta[3];
+	float grab_delta[3], an[3];
 	int n;
-	
+	float len;
+
+	calc_area_normal(sd, ss, an, nodes, totnode);
+
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
-	//#pragma omp parallel for private(n) schedule(static)
+	len = len_v3(grab_delta);
+
+	mul_v3_fl(an, len/2.0f);
+	mul_v3_fl(grab_delta, 0.5f);
+	add_v3_v3(grab_delta, an);
+
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		float (*origco)[3];
-		
+	
 		origco= sculpt_undo_push_node(ss, nodes[n])->co;
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
-				float fade = tex_strength(ss, brush, origco[vd.i], test.dist)*bstrength;
+				float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist);
 				float val[3];
 
 				mul_v3_v3fl(val, grab_delta, fade);
-				symmetry_feather(sd, ss, vd.co, val);
-				add_v3_v3(val, vd.co);
+				symmetry_feather(sd, ss, origco[vd.i], val);
+				add_v3_v3(val, origco[vd.i]);
 
-				sculpt_clip(sd, ss, vd.co, val);			
+				sculpt_clip(sd, ss, vd.co, val);
+
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
 					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
@@ -2009,10 +2019,12 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 		BLI_pbvh_search_gather(ss->pbvh, sculpt_search_sphere_cb, &data,
 				&nodes, &totnode);
 
-		if(cache->first_time)
+		if(cache->first_time) {
 			copy_v3_v3(ss->cache->grab_active_location[ss->cache->symmetry_pass], ss->cache->location);
-		else
+		}
+		else {
 			copy_v3_v3(ss->cache->location, ss->cache->grab_active_location[ss->cache->symmetry_pass]);
+		}
 	}
 	else {
 		BLI_pbvh_search_gather(ss->pbvh, sculpt_search_sphere_cb, &data,
@@ -2421,7 +2433,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	else
 		cache->radius = cache->initial_radius;
 
-	if(!(brush->flag & BRUSH_ANCHORED)) {
+	if(!(brush->flag & BRUSH_ANCHORED || ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_YANK))) {
 		copy_v2_v2(cache->tex_mouse, cache->mouse);
 	}
 
@@ -2484,7 +2496,41 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	}
 
 	/* Find the grab delta */
-	if(ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_YANK)) {
+	if(brush->sculpt_tool == SCULPT_TOOL_GRAB) {
+		float grab_location[3], imat[4][4];
+
+		if(cache->first_time)
+			copy_v3_v3(cache->orig_grab_location, cache->true_location);
+
+		/* compute 3d coordinate at same z from original location + mouse */
+		initgrabz(cache->vc->rv3d, cache->orig_grab_location[0],
+			cache->orig_grab_location[1], cache->orig_grab_location[2]);
+		window_to_3d_delta(cache->vc->ar, grab_location, cache->mouse[0], cache->mouse[1]);
+
+		/* compute delta to move verts by */
+		if(!cache->first_time) {
+			float delta[3];
+			sub_v3_v3v3(delta, grab_location, cache->old_grab_location);
+			invert_m4_m4(imat, ss->ob->obmat);
+			mul_mat3_m4_v3(imat, delta);
+			add_v3_v3(cache->grab_delta, delta);
+		}
+		else {
+			zero_v3(cache->grab_delta);
+		}
+
+		copy_v3_v3(cache->old_grab_location, grab_location);
+
+		/* location stays the same for finding vertices in brush radius */
+		copy_v3_v3(cache->true_location, cache->orig_grab_location);
+
+		brush->draw_anchored = 1;
+		copy_v3_v3(brush->anchored_location, cache->true_location);
+		copy_v3_v3(brush->anchored_initial_mouse, cache->initial_mouse);
+		brush->anchored_size = brush->size;
+	}
+	/* Find the yank delta */
+	else if(brush->sculpt_tool == SCULPT_TOOL_YANK) {
 		float grab_location[3], imat[4][4];
 
 		if(cache->first_time)
@@ -2506,6 +2552,11 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 
 		/* location stays the same for finding vertices in brush radius */
 		copy_v3_v3(cache->true_location, cache->orig_grab_location);
+
+		brush->draw_anchored = 1;
+		copy_v3_v3(brush->anchored_location, cache->true_location);
+		brush->anchored_size = brush->size;
+		copy_v3_v3(brush->anchored_initial_mouse, cache->initial_mouse);
 	}
 }
 
