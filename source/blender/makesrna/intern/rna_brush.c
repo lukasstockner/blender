@@ -103,7 +103,8 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_PINCH, "PINCH", 0, "Pinch", ""},
 		{SCULPT_TOOL_INFLATE, "INFLATE", 0, "Inflate", ""},
 		{SCULPT_TOOL_GRAB, "GRAB", 0, "Grab", ""},
-		{SCULPT_TOOL_YANK, "YANK", 0, "Yank", ""},
+		{SCULPT_TOOL_NUDGE, "NUDGE", 0, "Nudge", ""},
+		{SCULPT_TOOL_THUMB, "THUMB", 0, "Thumb", ""},
 		{SCULPT_TOOL_LAYER, "LAYER", 0, "Layer", ""},
 		{SCULPT_TOOL_FLATTEN, "FLATTEN", 0, "Flatten", ""},
 		{SCULPT_TOOL_CLAY, "CLAY", 0, "Clay", ""},
@@ -252,7 +253,8 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "strength", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "alpha");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 10.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
 	RNA_def_property_ui_text(prop, "Strength", "The amount of pressure on the brush");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
@@ -272,6 +274,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "texture_offset");
 	RNA_def_property_range(prop, -1.0f, 0.0f);
 	RNA_def_property_ui_text(prop, "Tex Offset", "Allows base level of texture to be biased so that samples can have both positive and negative values");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "normal_weight", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "normal_weight");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Normal Weight", "Controls how much grab will pull vertexes out of the surface during a grab");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */

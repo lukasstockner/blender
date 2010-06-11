@@ -55,6 +55,8 @@ typedef struct Brush {
 	struct MTex mtex;
 	int strength_multiplier;		/* increases the strength by a multiplier */
 
+	float normal_weight;
+
 	short blend, pad;		/* blend mode */
 	int size;			/* brush diameter */
 	int flag;			/* general purpose flag */	
@@ -77,6 +79,8 @@ typedef struct Brush {
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
 	char imagepaint_tool;		/* active image paint tool */
 	char stroke_tool;
+
+	// all this below is used to communicate with the cursor drawing routine
 
 	float texture_offset;
 	int texture_scale_x;
@@ -102,7 +106,8 @@ typedef struct Brush {
 	float anchored_location[3];
 	float anchored_initial_mouse[2];
 
-	int pad2;
+	int draw_pressure;
+	float pressure_value;
 } Brush;
 
 /* Brush.flag */
@@ -150,7 +155,8 @@ typedef struct Brush {
 #define SCULPT_TOOL_CLAY      8
 #define SCULPT_TOOL_FILL      9
 #define SCULPT_TOOL_SCRAPE   10
-#define SCULPT_TOOL_YANK     11
+#define SCULPT_TOOL_NUDGE    11
+#define SCULPT_TOOL_THUMB    12
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

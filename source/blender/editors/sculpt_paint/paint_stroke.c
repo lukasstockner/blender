@@ -469,31 +469,26 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		float unprojected_radius;
 		int flip;
 		int sign;
-		float visual_strength;
+		float visual_strength = brush->alpha * brush->alpha;
 
-		const float min_alpha = 0.30f;
-		const float max_alpha = 0.70f;
+		const float min_alpha = 0.20f;
+		const float max_alpha = 0.80f;
 		float* col;
 		float  alpha;
 
 		// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
-		{
-			float strength = brush->alpha * brush->alpha;
-			float pressure = 1.0f;
-			wmEvent* event = CTX_wm_window(C)->eventstate;
+		wmEvent* event = CTX_wm_window(C)->eventstate;
 
-			flip = event->shift ? -1 : 1;
+		flip = event->shift ? -1 : 1;
 
-			if(event->custom == EVT_DATA_TABLET) {
-				wmTabletData *wmtab= event->customdata;
-				if(wmtab->Active != EVT_TABLET_NONE)
-					pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? wmtab->Pressure : 1;
-				if(wmtab->Active == EVT_TABLET_ERASER)
-					flip = 1;
-			}
+		if ( brush->draw_pressure && brush->flag & BRUSH_ALPHA_PRESSURE)
+			visual_strength *= brush->pressure_value;
 
-			visual_strength = strength * pressure;
-		}
+		// remove effect of strength multiplier
+		visual_strength /= brush->strength_multiplier;
+
+		// don't show effect of strength past the soft limit
+		if (visual_strength > 1) visual_strength = 1;
 
 		view3d_set_viewcontext(C, &vc);
 
@@ -506,6 +501,9 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			else
 				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
 		}
+
+		if (brush->draw_pressure && brush->flag & BRUSH_SIZE_PRESSURE)
+			unprojected_radius *= brush->pressure_value;
 
 		if (!(brush->flag & BRUSH_LOCK_SIZE)) 
 			sculpt_set_brush_unprojected_radius(C, brush, unprojected_radius);
@@ -750,36 +748,44 @@ static int paint_space_stroke_enabled(Brush *br)
    towards the final mouse location. */
 static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const float final_mouse[2])
 {
-    PaintStroke *stroke = op->customdata;
-    int cnt = 0;
+	PaintStroke *stroke = op->customdata;
+	int cnt = 0;
 
-    if(paint_space_stroke_enabled(stroke->brush)) {
-        float mouse[2];
-        float vec[2];
-        float length, scale;
+	if(paint_space_stroke_enabled(stroke->brush)) {
+		float mouse[2];
+		float vec[2];
+		float length, scale;
 
-        copy_v2_v2(mouse, stroke->last_mouse_position);
-        sub_v2_v2v2(vec, final_mouse, mouse);
+		copy_v2_v2(mouse, stroke->last_mouse_position);
+		sub_v2_v2v2(vec, final_mouse, mouse);
 
-        length = len_v2(vec);
+		length = len_v2(vec);
 
-        if(length > FLT_EPSILON) {
-            int steps;
-            int i;
+		if(length > FLT_EPSILON) {
+			int steps;
+			int i;
+			float pressure = 1;
 
-            scale = (stroke->brush->size*stroke->brush->spacing/50.0f) / length;
-            mul_v2_fl(vec, scale);
+			// XXX duplicate code
+			if(event->custom == EVT_DATA_TABLET) {
+				wmTabletData *wmtab= event->customdata;
+				if(wmtab->Active != EVT_TABLET_NONE)
+					pressure = stroke->brush->flag & BRUSH_SIZE_PRESSURE ? wmtab->Pressure : 1;
+			}
 
-            steps = (int)(1.0f / scale);
+			scale = (stroke->brush->size*pressure*stroke->brush->spacing/50.0f) / length;
+			mul_v2_fl(vec, scale);
 
-            for(i = 0; i < steps; ++i, ++cnt) {
-                add_v2_v2(mouse, vec);
-                paint_brush_stroke_add_step(C, op, event, mouse);
-            }
-        }
-    }
+			steps = (int)(1.0f / scale);
 
-    return cnt;
+			for(i = 0; i < steps; ++i, ++cnt) {
+				add_v2_v2(mouse, vec);
+				paint_brush_stroke_add_step(C, op, event, mouse);
+			}
+		}
+	}
+
+	return cnt;
 }
 
 /**** Public API ****/

@@ -555,18 +555,22 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             else:
                 row.prop(brush, "size", slider=True, text="Pixels")
 
-            if brush.sculpt_tool != 'GRAB' and not brush.lock_brush_size:
+            if brush.sculpt_tool not in ('GRAB', 'THUMB'):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
-            row = col.row(align=True)
-            row.prop(brush, "strength", slider=True)
-            row.prop(brush, "use_strength_pressure", text="")
-            col.prop(brush, "strength_multiplier", slider=True)
+                row = col.row(align=True)
+                row.prop(brush, "strength", slider=True)
+                row.prop(brush, "use_strength_pressure", text="")
+                col.prop(brush, "strength_multiplier", slider=True)
 
-            # XXX - TODO
-            #row = col.row(align=True)
-            #row.prop(brush, "jitter", slider=True)
-            #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+                # XXX - TODO
+                #row = col.row(align=True)
+                #row.prop(brush, "jitter", slider=True)
+                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+
+            if brush.sculpt_tool == 'GRAB':
+                row = col.row(align=True)
+                row.prop(brush, "normal_weight", slider=True)
 
             if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
