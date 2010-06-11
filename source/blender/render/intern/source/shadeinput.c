@@ -1389,7 +1389,10 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 		copy_v4_v4(shr->winspeed, shi->texture.winspeed);
 		copy_v3_v3(shr->nor, shi->geometry.vn);
 		shr->indexob= shi->primitive.obi->index;
-		shr->indexma= shi->material.index;
+
+		/*nodetree sets indexma itself*/
+		if (!(shi->material.mat->nodetree && shi->material.mat->use_nodes))
+			shr->indexma= shi->material.index;
 	}
 
 	/* uv pass */

@@ -43,6 +43,7 @@ static bNodeSocketType sh_node_material_out[]= {
 	{	SOCK_RGBA, 0, "Color",		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_VALUE, 0, "Alpha",		1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_VECTOR, 0, "Normal",	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f},
+	{	SOCK_VALUE, 0, "ID Mask",	0.0f, 0.0f, 0.0f, 0.0f, 0.0, 999999.0f},
 	{	-1, 0, ""	}
 };
 
@@ -67,6 +68,7 @@ static bNodeSocketType sh_node_material_ext_out[]= {
 	{	SOCK_RGBA, 0, "Color",		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_VALUE, 0, "Alpha",		1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
 	{	SOCK_VECTOR, 0, "Normal",	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f},
+	{	SOCK_VALUE, 0, "ID Mask",	0.0f, 0.0f, 0.0f, 0.0f, 0.0, 999999.0f},
 	{	SOCK_RGBA, 0, "Diffuse",		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, "Spec",		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_RGBA, 0, "AO",		0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f},
@@ -164,6 +166,7 @@ static void node_shader_exec_material(void *data, bNode *node, bNodeStack **in, 
 		}
 		
 		VECCOPY(out[MAT_OUT_NORMAL]->vec, shi->geometry.vn);
+		out[MAT_OUT_INDEXMA]->vec[0] = shrnode.indexma;
 		
 		/* Extended material options */
 		if (node->type == SH_NODE_MATERIAL_EXT) {

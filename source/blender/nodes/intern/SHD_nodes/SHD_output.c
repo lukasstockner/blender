@@ -45,7 +45,7 @@ static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bN
 		/* stack order input sockets: col, alpha, normal */
 		nodestack_get_vec(col, SOCK_VECTOR, in[0]);
 		nodestack_get_vec(col+3, SOCK_VALUE, in[1]);
-		
+				
 		if(shi->shading.do_preview) {
 			nodeAddToPreview(node, col, shi->geometry.xs, shi->geometry.ys);
 			node->lasty= shi->geometry.ys;
@@ -56,7 +56,6 @@ static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bN
 			
 			QUATCOPY(shr->combined, col);
 			shr->alpha= col[3];
-			
 			//	VECCOPY(shr->nor, in[3]->vec);
 		}
 	}	
@@ -94,3 +93,44 @@ bNodeType sh_node_output= {
 	
 };
 
+static bNodeSocketType sh_node_idmask_output_in[]= {
+	{   SOCK_VALUE, 1, "ID Mask",   0.0f, 0.0f, 0.0f, 0.0f, 0.0, 999999.0f},    
+	{	-1, 0, ""	}
+};
+
+
+static void node_shader_exec_idmask_output(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
+{
+	if(data) {
+		ShadeInput *shi= ((ShaderCallData *)data)->shi;
+		float col[1];
+
+		nodestack_get_vec(col, SOCK_VALUE, in[0]);
+		
+		if(node->flag & NODE_DO_OUTPUT) {
+			ShadeResult *shr= ((ShaderCallData *)data)->shr;
+			
+			shr->indexma = col[0];
+		}
+	}	
+}
+
+
+bNodeType sh_node_idmask_output= {
+	/* *next,*prev */	NULL, NULL,
+	/* type code   */	SH_NODE_IDMASK_OUTPUT,
+	/* name        */	"ID Mask Output",
+	/* width+range */	80, 60, 200,
+	/* class+opts  */	NODE_CLASS_OUTPUT, 0,
+	/* input sock  */	sh_node_idmask_output_in,
+	/* output sock */	NULL,
+	/* storage     */	"",
+	/* execfunc    */	node_shader_exec_idmask_output,
+	/* butfunc     */	NULL,
+	/* initfunc    */	NULL,
+	/* freestoragefunc    */	NULL,
+	/* copystoragefunc    */	NULL,
+	/* id          */	NULL, NULL, NULL,
+	/* gpufunc     */	NULL
+	
+};

@@ -106,10 +106,12 @@ typedef struct ShaderCallData {
 /* output socket defines */
 #define MAT_OUT_COLOR		0
 #define MAT_OUT_ALPHA		1
-#define MAT_OUT_NORMAL	2
-#define MAT_OUT_DIFFUSE	3
-#define MAT_OUT_SPEC		4
-#define MAT_OUT_AO		5
+#define MAT_OUT_NORMAL		2
+#define MAT_OUT_INDEXMA		3
+
+#define MAT_OUT_DIFFUSE		4
+#define MAT_OUT_SPEC		5
+#define MAT_OUT_AO			6
 
 extern void node_ID_title_cb(void *node_v, void *unused_v);
 void nodestack_get_vec(float *in, short type_in, bNodeStack *ns);

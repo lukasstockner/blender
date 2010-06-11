@@ -350,6 +350,7 @@ static void shade_color_alpha(Render *re, ShadeInput *shi, ShadeResult *shr)
 
 	/* alpha pass */
 	shr->alpha= mat_alpha(&shi->material);
+	shr->indexma = shi->material.index;
 
 	/* color pass */
 	if((passflag & SCE_PASS_RGBA) || (ma->sss_flag & MA_DIFF_SSS)) {

@@ -245,6 +245,7 @@ struct ShadeResult;
 #define SH_NODE_COMBRGB		121
 #define SH_NODE_HUE_SAT		122
 #define NODE_DYNAMIC		123
+#define SH_NODE_IDMASK_OUTPUT	124
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1

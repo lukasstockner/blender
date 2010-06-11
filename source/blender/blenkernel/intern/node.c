@@ -3115,6 +3115,7 @@ static void registerShaderNodes(ListBase *ntypelist)
 {
 	nodeRegisterType(ntypelist, &node_group_typeinfo);
 	nodeRegisterType(ntypelist, &sh_node_output);
+	nodeRegisterType(ntypelist, &sh_node_idmask_output);
 	nodeRegisterType(ntypelist, &sh_node_mix_rgb);
 	nodeRegisterType(ntypelist, &sh_node_valtorgb);
 	nodeRegisterType(ntypelist, &sh_node_rgbtobw);

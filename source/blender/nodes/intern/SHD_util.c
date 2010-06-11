@@ -83,6 +83,7 @@ void ntreeShaderExecTree(bNodeTree *ntree, Render *re, ShadeInput *shi, ShadeRes
 	scd.re= re;
 	scd.shi= shi;
 	scd.shr= shr;
+	scd.shr->indexma = shi->material.index;
 	
 	/* each material node has own local shaderesult, with optional copying */
 	memset(shr, 0, sizeof(ShadeResult));

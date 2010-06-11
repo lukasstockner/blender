@@ -62,6 +62,7 @@ extern bNodeType sh_node_invert;
 extern bNodeType sh_node_seprgb;
 extern bNodeType sh_node_combrgb;
 extern bNodeType sh_node_hue_sat;
+extern bNodeType sh_node_idmask_output;
 
 #endif
 
