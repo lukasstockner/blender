@@ -771,6 +771,9 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_THUMB:
 			return 0.5f;
 
+		case SCULPT_TOOL_SNAKE_HOOK:
+			return 1.0f;
+
 		default:
 			return 0;
 	}
@@ -1210,10 +1213,9 @@ static void neighbor_average(SculptSession *ss, float avg[3], const int vert)
 		copy_v3_v3(avg, ss->mvert[vert].co);
 }
 
-static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node)
+static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node, float bstrength)
 {
 	Brush *brush = paint_brush(&sd->paint);
-	float bstrength= ss->cache->bstrength;
 	PBVHVertexIter vd;
 	SculptBrushTest test;
 	
@@ -1242,13 +1244,12 @@ static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node)
 	BLI_pbvh_vertex_iter_end;
 }
 
-static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node)
+static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node, float bstrength)
 {
 	Brush *brush = paint_brush(&sd->paint);
 	SculptBrushTest test;
 	DMGridData **griddata, *data;
 	DMGridAdjacency *gridadj, *adj;
-	float bstrength= ss->cache->bstrength;
 	float co[3], (*tmpgrid)[3];
 	int v1, v2, v3, v4;
 	int *grid_indices, totgrid, gridsize, i, x, y;
@@ -1322,7 +1323,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	MEM_freeN(tmpgrid);
 }
 
-static void do_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float bstrength)
 {
 	int iteration, n;
 
@@ -1332,9 +1333,9 @@ static void do_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 			sculpt_undo_push_node(ss, nodes[n]);
 
 			if(ss->multires)
-				do_multires_smooth_brush(sd, ss, nodes[n]);
+				do_multires_smooth_brush(sd, ss, nodes[n], bstrength);
 			else if(ss->fmap)
-				do_mesh_smooth_brush(sd, ss, nodes[n]);
+				do_mesh_smooth_brush(sd, ss, nodes[n], bstrength);
 
 			BLI_pbvh_node_mark_update(nodes[n]);
 		}
@@ -1342,6 +1343,11 @@ static void do_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 		if(ss->multires)
 			multires_stitch_grids(ss->ob);
 	}
+}
+
+static void do_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	smooth(sd, ss, nodes, totnode, ss->cache->bstrength);
 }
 
 static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
@@ -1481,6 +1487,47 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 		BLI_pbvh_node_mark_update(nodes[n]);
 	}
+}
+
+static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	Brush *brush = paint_brush(&sd->paint);
+	float bstrength = ss->cache->bstrength;
+	float grab_delta[3];
+	int n;
+
+	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
+
+	for(n = 0; n < totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+
+		sculpt_undo_push_node(ss, nodes[n]);
+		sculpt_brush_test_init(ss, &test);
+
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if(sculpt_brush_test(&test, vd.co)) {
+				float fade = bstrength*tex_strength(ss, brush, vd.co, test.dist);
+				float val[3];
+
+				mul_v3_v3fl(val, grab_delta, fade);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
+
+				sculpt_clip(sd, ss, vd.co, val);
+
+				if(vd.mvert) {
+					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+
+		BLI_pbvh_node_mark_update(nodes[n]);
+	}
+
+	smooth(sd, ss, nodes, totnode, 4);
 }
 
 static void do_thumb_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
@@ -2077,6 +2124,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 	data.sd = sd;
 	data.radius_squared = ss->cache->radius * ss->cache->radius;
 
+	if (brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK)
+		data.radius_squared *= 4.0f;
+
 	/* Build a list of all nodes that are potentially within the brush's
 	   area of influence */
 	if (ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB)) {
@@ -2112,6 +2162,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, StrokeCache *cache)
 			break;
 		case SCULPT_TOOL_GRAB:
 			do_grab_brush(sd, ss, nodes, totnode);
+			break;
+		case SCULPT_TOOL_SNAKE_HOOK:
+			do_snake_hook_brush(sd, ss, nodes, totnode);
 			break;
 		case SCULPT_TOOL_NUDGE:
 			do_nudge_brush(sd, ss, nodes, totnode);
@@ -2606,6 +2659,29 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	}
 	/* Find the nudge delta */
 	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE) {
+		float grab_location[3], imat[4][4];
+
+		copy_v3_v3(cache->orig_grab_location, cache->true_location);
+
+		/* compute 3d coordinate at same z from original location + mouse */
+		initgrabz(cache->vc->rv3d, cache->orig_grab_location[0],
+			cache->orig_grab_location[1], cache->orig_grab_location[2]);
+		window_to_3d_delta(cache->vc->ar, grab_location, cache->mouse[0], cache->mouse[1]);
+
+		/* compute delta to move verts by */
+		if (!cache->first_time) {
+			sub_v3_v3v3(cache->grab_delta, grab_location, cache->old_grab_location);
+			invert_m4_m4(imat, ss->ob->obmat);
+			mul_mat3_m4_v3(imat, cache->grab_delta);
+		}
+		else {
+			zero_v3(cache->grab_delta);
+		}
+
+		copy_v3_v3(cache->old_grab_location, grab_location);
+	}
+	/* Find the snake hook delta */
+	else if(brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK) {
 		float grab_location[3], imat[4][4];
 
 		copy_v3_v3(cache->orig_grab_location, cache->true_location);

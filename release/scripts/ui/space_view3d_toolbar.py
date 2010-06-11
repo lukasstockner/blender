@@ -555,7 +555,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             else:
                 row.prop(brush, "size", slider=True, text="Pixels")
 
-            if brush.sculpt_tool not in ('GRAB', 'THUMB'):
+            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK'):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
                 row = col.row(align=True)
@@ -568,7 +568,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 #row.prop(brush, "jitter", slider=True)
                 #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
 
-            if brush.sculpt_tool == 'GRAB':
+            if brush.sculpt_tool in ('GRAB'):
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
 
