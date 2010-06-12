@@ -555,7 +555,14 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             else:
                 row.prop(brush, "size", slider=True, text="Pixels")
 
-            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK'):
+            if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK', 'THUMB'):
+                row = col.row(align=True)
+                row.prop(brush, "use_size_pressure", toggle=True, text="Size")
+
+            if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
+                row.prop(brush, "use_strength_pressure", toggle=True, text="Strength")
+
+            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE'):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
                 row = col.row(align=True)
