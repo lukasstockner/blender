@@ -194,13 +194,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	/* number values */
-	prop= RNA_def_property(srna, "size", PROP_INT, PROP_NONE);
+	prop= RNA_def_property(srna, "size", PROP_INT, PROP_DISTANCE);
 	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS*10);
 	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, 0);
-	RNA_def_property_ui_text(prop, "Size", "Radius of the brush");
+	RNA_def_property_ui_text(prop, "Size", "Radius of the brush in pixels");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
-	prop= RNA_def_property(srna, "unprojected_radius", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "unprojected_radius", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_range(prop, 0, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 1, 0, 0);
 	RNA_def_property_ui_text(prop, "Surface Size", "Radius of brush in Blender units");
@@ -229,12 +229,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Spacing", "Spacing between brush daubs as a percentage of brush diameter");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_NONE);
+	prop= RNA_def_property(srna, "smooth_stroke_radius", PROP_INT, PROP_DISTANCE);
 	RNA_def_property_range(prop, 10, 200);
 	RNA_def_property_ui_text(prop, "Smooth Stroke Radius", "Minimum distance from last point before stroke continues");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "smooth_stroke_factor", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "smooth_stroke_factor", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_range(prop, 0.5, 0.99);
 	RNA_def_property_ui_text(prop, "Smooth Stroke Factor", "Higher values give a smoother stroke");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
@@ -271,7 +271,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts the plane on which the brush acts");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_NONE);
+	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "texture_offset");
 	RNA_def_property_range(prop, -1.0f, 0.0f);
 	RNA_def_property_ui_text(prop, "Tex Offset", "Allows base level of texture to be biased so that samples can have both positive and negative values");
@@ -281,6 +281,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "normal_weight");
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Normal Weight", "Controls how much grab will pull vertexes out of the surface during a grab");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "autosmooth_factor", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "autosmooth_factor");
+	RNA_def_property_range(prop, 0.0f, 4.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
+	RNA_def_property_ui_text(prop, "Autosmooth", "The amount of smoothing to automatically apply to each stroke");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */

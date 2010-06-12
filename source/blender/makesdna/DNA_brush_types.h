@@ -80,6 +80,9 @@ typedef struct Brush {
 	char imagepaint_tool;		/* active image paint tool */
 	char stroke_tool;
 
+	float autosmooth_factor;
+	float autosmooth_overlap;
+
 	// all this below is used to communicate with the cursor drawing routine
 
 	float texture_offset;

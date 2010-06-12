@@ -91,7 +91,7 @@ struct PBVHNode {
 
 	char flag;
 
-        float tmin;
+	float tmin; // used for raycasting, is how close bb is to the ray point
 };
 
 struct PBVH {
@@ -812,37 +812,37 @@ void BLI_pbvh_search_callback_occluded(PBVH *bvh,
 	BLI_pbvh_SearchCallback scb, void *search_data,
 	BLI_pbvh_HitOccludedCallback hcb, void *hit_data)
 {
-    PBVHIter iter;
-    PBVHNode *node;
-    node_tree *tree = 0;
-    float tmin = FLT_MAX;
+	PBVHIter iter;
+	PBVHNode *node;
+	node_tree *tree = 0;
 
-    pbvh_iter_begin(&iter, bvh, scb, search_data);
+	pbvh_iter_begin(&iter, bvh, scb, search_data);
 
-    while((node=pbvh_iter_next_occluded(&iter))) {
-        if(node->flag & PBVH_Leaf) {
-            node_tree* new_node = malloc(sizeof(node_tree));
+	while((node=pbvh_iter_next_occluded(&iter))) {
+		if(node->flag & PBVH_Leaf) {
+			node_tree* new_node = malloc(sizeof(node_tree));
 
-            new_node->data = node;
+			new_node->data = node;
 
-            new_node->left  = NULL;
-            new_node->right = NULL;
+			new_node->left  = NULL;
+			new_node->right = NULL;
 
-            if (tree) {
-                node_tree_insert(tree, new_node);
-            }
-            else {
-                tree = new_node;
-            }
-        }
-    }
+			if (tree) {
+				node_tree_insert(tree, new_node);
+			}
+			else {
+				tree = new_node;
+			}
+		}
+	}
 
-    pbvh_iter_end(&iter);
+	pbvh_iter_end(&iter);
 
-    if (tree) {
-        traverse_tree(tree, hcb, hit_data, &tmin);
-        free_tree(tree);
-    }
+	if (tree) {
+		float tmin = FLT_MAX;
+		traverse_tree(tree, hcb, hit_data, &tmin);
+		free_tree(tree);
+	}
 }
 
 static int update_search_cb(PBVHNode *node, void *data_v)
@@ -1203,41 +1203,46 @@ typedef struct {
 /* Adapted from here: http://www.gamedev.net/community/forums/topic.asp?topic_id=459973 */
 static int ray_aabb_intersect(PBVHNode *node, void *data_v)
 {
-    RaycastData *ray = data_v;
-    float bbox[2][3];
-    float tmin, tmax, tymin, tymax, tzmin, tzmax;
+	RaycastData *ray = data_v;
+	float bbox[2][3];
+	float tmin, tmax, tymin, tymax, tzmin, tzmax;
 
-    if(ray->original)
-        BLI_pbvh_node_get_original_BB(node, bbox[0], bbox[1]);
-    else
-        BLI_pbvh_node_get_BB(node, bbox[0], bbox[1]);
+	if(ray->original)
+		BLI_pbvh_node_get_original_BB(node, bbox[0], bbox[1]);
+	else
+		BLI_pbvh_node_get_BB(node, bbox[0], bbox[1]);
 
-    tmin = (bbox[ray->sign[0]][0] - ray->start[0]) * ray->inv_dir[0];
-    tmax = (bbox[1-ray->sign[0]][0] - ray->start[0]) * ray->inv_dir[0];
+	tmin = (bbox[ray->sign[0]][0] - ray->start[0]) * ray->inv_dir[0];
+	tmax = (bbox[1-ray->sign[0]][0] - ray->start[0]) * ray->inv_dir[0];
 
-    tymin = (bbox[ray->sign[1]][1] - ray->start[1]) * ray->inv_dir[1];
-    tymax = (bbox[1-ray->sign[1]][1] - ray->start[1]) * ray->inv_dir[1];
+	tymin = (bbox[ray->sign[1]][1] - ray->start[1]) * ray->inv_dir[1];
+	tymax = (bbox[1-ray->sign[1]][1] - ray->start[1]) * ray->inv_dir[1];
 
-    if((tmin > tymax) || (tymin > tmax)) return 0;
+	if((tmin > tymax) || (tymin > tmax))
+		return 0;
 
-    if(tymin > tmin) tmin = tymin;
+	if(tymin > tmin)
+		tmin = tymin;
 
-    if(tymax < tmax) tmax = tymax;
+	if(tymax < tmax)
+		tmax = tymax;
 
-    tzmin = (bbox[ray->sign[2]][2] - ray->start[2]) * ray->inv_dir[2];
-    tzmax = (bbox[1-ray->sign[2]][2] - ray->start[2]) * ray->inv_dir[2];
+	tzmin = (bbox[ray->sign[2]][2] - ray->start[2]) * ray->inv_dir[2];
+	tzmax = (bbox[1-ray->sign[2]][2] - ray->start[2]) * ray->inv_dir[2];
 
-    if((tmin > tzmax) || (tzmin > tmax)) return 0;
+	if((tmin > tzmax) || (tzmin > tmax))
+		return 0;
 
-    if(tzmin > tmin) tmin = tzmin;
+	if(tzmin > tmin)
+		tmin = tzmin;
 
-	// jwilkins: tmax does not need to be updated since we don't use it
+	// XXX jwilkins: tmax does not need to be updated since we don't use it
 	// keeping this here for future reference
-    //if(tzmax < tmax) tmax = tzmax; 
+	//if(tzmax < tmax) tmax = tzmax; 
 
-    node->tmin = tmin;
+	node->tmin = tmin;
 
-    return 1;
+	return 1;
 }
 
 void BLI_pbvh_raycast(PBVH *bvh, BLI_pbvh_HitOccludedCallback cb, void *data,

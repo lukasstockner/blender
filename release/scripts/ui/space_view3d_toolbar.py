@@ -568,6 +568,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 #row.prop(brush, "jitter", slider=True)
                 #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
 
+            if brush.sculpt_tool not in ('SMOOTH'):
+                row = col.row(align=True)
+                row.prop(brush, "autosmooth_factor", slider=True)
+
             if brush.sculpt_tool in ('GRAB'):
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)

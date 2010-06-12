@@ -95,6 +95,7 @@ Brush *add_brush(const char *name)
 	brush->texture_scale_y = 1;
 	brush->texture_offset = 0;
 	brush->overlay_texture = 0;
+	brush->autosmooth_factor = 0;
 
 	brush->add_col[0] = 1.00;
 	brush->add_col[1] = 0.39;
