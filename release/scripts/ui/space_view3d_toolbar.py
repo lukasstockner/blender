@@ -572,7 +572,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row(align=True)
                 row.prop(brush, "autosmooth_factor", slider=True)
 
-            if brush.sculpt_tool in ('GRAB'):
+            if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK'):
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
 

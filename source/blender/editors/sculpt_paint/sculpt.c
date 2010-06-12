@@ -1504,10 +1504,25 @@ static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 {
 	Brush *brush = paint_brush(&sd->paint);
 	float bstrength = ss->cache->bstrength;
-	float grab_delta[3];
+	float grab_delta[3], an[3];
 	int n;
+	float len;
+
+	if (brush->normal_weight > 0)
+		calc_area_normal(sd, ss, an, nodes, totnode);
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
+
+	len = len_v3(grab_delta);
+
+	if (bstrength < 0)
+		negate_v3(grab_delta);
+
+	if (brush->normal_weight > 0) {
+		mul_v3_fl(an, len*brush->normal_weight);
+		mul_v3_fl(grab_delta, 1.0f - brush->normal_weight);
+		add_v3_v3(grab_delta, an);
+	}
 
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
