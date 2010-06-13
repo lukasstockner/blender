@@ -925,11 +925,12 @@ int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, ParameterList *parms, v
 		case PROP_STRING:
 		{
 			char *param = _PyUnicode_AsString(value);
-			
+
 			if (param==NULL) {
 				PyErr_Format(PyExc_TypeError, "%.200s %.200s.%.200s expected a string type", error_prefix, RNA_struct_identifier(ptr->type), RNA_property_identifier(prop));
 				return -1;
-			} else {
+			}
+			else {
 				if(data)	*((char**)data)= param;
 				else		RNA_property_string_set(ptr, prop, param);
 			}
