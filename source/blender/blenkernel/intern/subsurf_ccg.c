@@ -2365,6 +2365,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	int gridInternalEdges;
 	MEdge *medge = NULL;
 	MFace *mface = NULL;
+	int *orig_indices;
 	FaceVertWeight *qweight, *tweight;
 
 	DM_from_template(&ccgdm->dm, dm, DM_TYPE_CCGDM,
@@ -2475,6 +2476,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 
 	faceFlags = ccgdm->faceFlags = MEM_callocN(sizeof(char)*2*totface, "faceFlags");
 
+	orig_indices = (int*)ccgdm->dm.getFaceDataArray(&ccgdm->dm, CD_ORIGINDEX);
 	for(index = 0; index < totface; ++index) {
 		CCGFace *f = ccgdm->faceMap[index].face;
 		int numVerts = ccgSubSurf_getFaceNumVerts(f);
@@ -2487,6 +2489,9 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 		ccgdm->faceMap[index].startVert = vertNum;
 		ccgdm->faceMap[index].startEdge = edgeNum;
 		ccgdm->faceMap[index].startFace = faceNum;
+
+		if(orig_indices)
+			orig_indices[faceNum] = origIndex;
 
 		/* set the face base vert */
 		*((int*)ccgSubSurf_getFaceUserData(ss, f)) = vertNum;
