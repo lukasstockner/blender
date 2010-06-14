@@ -57,7 +57,7 @@ static int mat_need_cache(Render *re, Material *ma)
 		return 0;
 	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
 		return 0;
-	else if((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma))
+	else if(!re->db.sss_pass && mat_has_only_sss(ma))
 		return 0;
 	
 	return 1;
@@ -1083,11 +1083,9 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	return added;
 }
 
-void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ssamp, int docrop)
+void irr_cache_create(Render *re, RenderPart *pa)
 {
-	RenderResult *rr= pa->result;
 	IrrCache *cache;
-	int crop, x, y, seed, step;
 	
 	if(!((re->db.wrld.aomode & WO_LIGHT_CACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
 		return;
@@ -1105,8 +1103,15 @@ void irr_cache_create(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *
 		re->db.irrcache[pa->thread]= cache;
 	}
 	BLI_unlock_thread(LOCK_RCACHE);
+}
 
-	if(cache->locked)
+void irr_cache_fill(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ssamp, int docrop)
+{
+	RenderResult *rr= pa->result;
+	IrrCache *cache= re->db.irrcache[pa->thread];
+	int crop, x, y, seed, step;
+
+	if(!cache || cache->locked)
 		return;
 
 	seed= pa->rectx*pa->disprect.ymin;

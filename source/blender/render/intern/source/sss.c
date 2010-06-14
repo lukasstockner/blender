@@ -48,6 +48,7 @@
 #include "PIL_time.h"
 
 #include "DNA_material_types.h"
+#include "DNA_node_types.h"
 
 #include "BKE_colortools.h"
 #include "BKE_global.h"
@@ -397,7 +398,7 @@ static void traverse_octree(ScatterTree *tree, ScatterNode *node, float *co, int
 	}
 	else {
 		/* branch */
-		if (self)
+		if(self)
 			index = SUBNODE_INDEX(co, node->split);
 
 		for(i=0; i<8; i++) {
@@ -729,30 +730,38 @@ static void create_octree_node(ScatterTree *tree, ScatterNode *node, float *mid,
 
 /* public functions */
 
-ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
-	float (*co)[3], float (*color)[3], float *area, int totpoint)
+ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error)
 {
 	ScatterTree *tree;
-	ScatterPoint *points, **refpoints;
-	int i;
 
 	/* allocate tree */
 	tree= MEM_callocN(sizeof(ScatterTree), "ScatterTree");
 	tree->scale= scale;
 	tree->error= error;
-	tree->totpoint= totpoint;
 
 	tree->ss[0]= ss[0];
 	tree->ss[1]= ss[1];
 	tree->ss[2]= ss[2];
 
+	return tree;
+}
+
+void scatter_tree_build(ScatterTree *tree,
+	float (*co)[3], float (*color)[3], float *area, int totpoint)
+{
+	ScatterPoint *newpoints, **tmppoints;
+	ScatterPoint *points, **refpoints;
+	float mid[3], size[3];
+	int i;
+
+	/* copy points */
+	tree->totpoint= totpoint;
 	points= MEM_callocN(sizeof(ScatterPoint)*totpoint, "ScatterPoints");
 	refpoints= MEM_callocN(sizeof(ScatterPoint*)*totpoint, "ScatterRefPoints");
 
 	tree->points= points;
 	tree->refpoints= refpoints;
 
-	/* build points */
 	INIT_MINMAX(tree->min, tree->max);
 
 	for(i=0; i<totpoint; i++) {
@@ -760,21 +769,13 @@ ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
 		copy_v3_v3(points[i].rad, color[i]);
 		points[i].area= fabs(area[i]);
 		points[i].back= (area[i] < 0.0f);
-
+		
 		DO_MINMAX(points[i].co, tree->min, tree->max);
 
 		refpoints[i]= points + i;
 	}
 
-	return tree;
-}
-
-void scatter_tree_build(ScatterTree *tree)
-{
-	ScatterPoint *newpoints, **tmppoints;
-	float mid[3], size[3];
-	int totpoint= tree->totpoint;
-
+	/* prepare for building tree */
 	newpoints= MEM_callocN(sizeof(ScatterPoint)*totpoint, "ScatterPoints");
 	tmppoints= MEM_callocN(sizeof(ScatterPoint*)*totpoint, "ScatterTmpPoints");
 	tree->tmppoints= tmppoints;
@@ -819,9 +820,9 @@ void scatter_tree_sample(ScatterTree *tree, float *co, float *color, float scale
 
 void scatter_tree_free(ScatterTree *tree)
 {
-	if (tree->arena) BLI_memarena_free(tree->arena);
-	if (tree->points) MEM_freeN(tree->points);
-	if (tree->refpoints) MEM_freeN(tree->refpoints);
+	if(tree->arena) BLI_memarena_free(tree->arena);
+	if(tree->points) MEM_freeN(tree->points);
+	if(tree->refpoints) MEM_freeN(tree->refpoints);
 		
 	MEM_freeN(tree);
 }
@@ -833,6 +834,10 @@ void scatter_tree_free(ScatterTree *tree)
 typedef struct SSSData {
 	ScatterTree *tree;
 	ScatterSettings *ss[3];
+
+	/* for building */
+	Material *mat;
+	ListBase points;
 } SSSData;
 
 typedef struct SSSPoints {
@@ -844,68 +849,50 @@ typedef struct SSSPoints {
 	int totpoint;
 } SSSPoints;
 
-static void sss_create_tree_mat(Render *re, Material *mat)
+static void sss_add_mat(Render *re, Material *mat)
 {
+	/* allocate initial data structures */
+	SSSData *sss= MEM_callocN(sizeof(*sss), "SSSData");
+
+	sss->mat= mat;
+	BLI_ghash_insert(re->db.sss_hash, mat, sss);
+}
+
+static void sss_build_mat(Render *re, SSSData *sss)
+{
+	/* build tree from points in preprocessing pass */
 	SSSPoints *p;
-	RenderResult *rr;
-	ListBase points;
+	Material *mat= sss->mat;
+	float ior= mat->sss_ior, cfac= mat->sss_colfac;
+	float *radius= mat->sss_radius;
+	float fw= mat->sss_front, bw= mat->sss_back;
+	float error = mat->sss_error;
 	float (*co)[3] = NULL, (*color)[3] = NULL, *area = NULL;
-	int totpoint = 0, osa, osaflag, partsdone;
-
-	if(re->cb.test_break(re->cb.tbh))
-		return;
-	
-	points.first= points.last= NULL;
-
-	/* TODO: this is getting a bit ugly, copying all those variables and
-	   setting them back, maybe we need to create our own Render? */
-
-	/* do SSS preprocessing render */
-	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	rr= re->result;
-	osa= re->params.osa;
-	osaflag= re->params.r.mode & R_OSA;
-	partsdone= re->cb.i.partsdone;
-
-	re->params.osa= 0;
-	re->params.r.mode &= ~R_OSA;
-	re->db.sss_points= &points;
-	re->db.sss_mat= mat;
-	re->cb.i.partsdone= 0;
-
-	if(!(re->params.r.scemode & R_PREVIEWBUTS))
-		re->result= NULL;
-	BLI_rw_mutex_unlock(&re->resultmutex);
-
-	RE_TileProcessor(re);
-	
-	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	if(!(re->params.r.scemode & R_PREVIEWBUTS)) {
-		RE_FreeRenderResult(re->result);
-		re->result= rr;
-	}
-	BLI_rw_mutex_unlock(&re->resultmutex);
-
-	re->cb.i.partsdone= partsdone;
-	re->db.sss_mat= NULL;
-	re->db.sss_points= NULL;
-	re->params.osa= osa;
-	if (osaflag) re->params.r.mode |= R_OSA;
+	int totpoint = 0;
 
 	/* no points? no tree */
-	if(!points.first)
+	if(!sss->points.first)
 		return;
+
+	error= get_render_aosss_error(&re->params.r, error);
+	if((re->params.r.scemode & R_PREVIEWBUTS) && error < 0.5f)
+		error= 0.5f;
+	
+	sss->ss[0]= scatter_settings_new(mat->sss_col[0], radius[0], ior, cfac, fw, bw);
+	sss->ss[1]= scatter_settings_new(mat->sss_col[1], radius[1], ior, cfac, fw, bw);
+	sss->ss[2]= scatter_settings_new(mat->sss_col[2], radius[2], ior, cfac, fw, bw);
+	sss->tree= scatter_tree_new(sss->ss, mat->sss_scale, error);
 
 	/* merge points together into a single buffer */
 	if(!re->cb.test_break(re->cb.tbh)) {
-		for(totpoint=0, p=points.first; p; p=p->next)
+		for(totpoint=0, p=sss->points.first; p; p=p->next)
 			totpoint += p->totpoint;
 		
 		co= MEM_mallocN(sizeof(*co)*totpoint, "SSSCo");
 		color= MEM_mallocN(sizeof(*color)*totpoint, "SSSColor");
 		area= MEM_mallocN(sizeof(*area)*totpoint, "SSSArea");
 
-		for(totpoint=0, p=points.first; p; p=p->next) {
+		for(totpoint=0, p=sss->points.first; p; p=p->next) {
 			memcpy(co+totpoint, p->co, sizeof(*co)*p->totpoint);
 			memcpy(color+totpoint, p->color, sizeof(*color)*p->totpoint);
 			memcpy(area+totpoint, p->area, sizeof(*area)*p->totpoint);
@@ -914,70 +901,104 @@ static void sss_create_tree_mat(Render *re, Material *mat)
 	}
 
 	/* free points */
-	for(p=points.first; p; p=p->next) {
+	for(p=sss->points.first; p; p=p->next) {
 		MEM_freeN(p->co);
 		MEM_freeN(p->color);
 		MEM_freeN(p->area);
 	}
-	BLI_freelistN(&points);
+	BLI_freelistN(&sss->points);
 
 	/* build tree */
-	if(!re->cb.test_break(re->cb.tbh)) {
-		SSSData *sss= MEM_callocN(sizeof(*sss), "SSSData");
-		float ior= mat->sss_ior, cfac= mat->sss_colfac;
-		float *radius= mat->sss_radius;
-		float fw= mat->sss_front, bw= mat->sss_back;
-		float error = mat->sss_error;
+	if(!re->cb.test_break(re->cb.tbh))
+		scatter_tree_build(sss->tree, co, color, area, totpoint);
 
-		error= get_render_aosss_error(&re->params.r, error);
-		if((re->params.r.scemode & R_PREVIEWBUTS) && error < 0.5f)
-			error= 0.5f;
-		
-		sss->ss[0]= scatter_settings_new(mat->sss_col[0], radius[0], ior, cfac, fw, bw);
-		sss->ss[1]= scatter_settings_new(mat->sss_col[1], radius[1], ior, cfac, fw, bw);
-		sss->ss[2]= scatter_settings_new(mat->sss_col[2], radius[2], ior, cfac, fw, bw);
-		sss->tree= scatter_tree_new(sss->ss, mat->sss_scale, error,
-			co, color, area, totpoint);
-
-		MEM_freeN(co);
-		MEM_freeN(color);
-		MEM_freeN(area);
-
-		scatter_tree_build(sss->tree);
-
-		BLI_ghash_insert(re->db.sss_hash, mat, sss);
-	}
-	else {
-		if (co) MEM_freeN(co);
-		if (color) MEM_freeN(color);
-		if (area) MEM_freeN(area);
-	}
+	/* free points */
+	if(co) MEM_freeN(co);
+	if(color) MEM_freeN(color);
+	if(area) MEM_freeN(area);
 }
 
-void sss_add_points(Render *re, float (*co)[3], float (*color)[3], float *area, int totpoint)
+static void sss_preprocess_pass(Render *re, GHash *sss_hash)
 {
+	RenderResult *rr;
+	int osa, osaflag;
+	struct SampleTables *table;
+	
+	/* TODO: this is getting a bit ugly, copying all those variables and
+	   setting them back, maybe we need to create our own Render? */
+
+	/* backup some parameters */
+	osa= re->params.osa;
+	osaflag= re->params.r.mode & R_OSA;
+	table= re->sample.table;
+
+	/* modify render parameters */
+	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+	rr= re->result;
+
+	re->db.sss_pass= 1;
+	re->params.osa= 0;
+	re->params.r.mode &= ~R_OSA;
+	re->sample.table= NULL;
+
+	if(!(re->params.r.scemode & R_PREVIEWBUTS))
+		re->result= NULL;
+	BLI_rw_mutex_unlock(&re->resultmutex);
+
+	/* run the tile processor */
+	RE_TileProcessor(re);
+	
+	/* free temporary render result (for display only) */
+	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+	if(!(re->params.r.scemode & R_PREVIEWBUTS)) {
+		RE_FreeRenderResult(re->result);
+		re->result= rr;
+	}
+	BLI_rw_mutex_unlock(&re->resultmutex);
+
+	/* restore render parameters */
+	re->db.sss_pass= 0;
+	re->params.osa= osa;
+	if(osaflag) re->params.r.mode |= R_OSA;
+	re->sample.table= table;
+}
+
+void sss_add_points(Render *re, Material *mat, float (*co)[3], float (*color)[3], float *area, int totpoint)
+{
+	SSSData *sss= BLI_ghash_lookup(re->db.sss_hash, mat);
 	SSSPoints *p;
 	
-	if(totpoint > 0) {
-		p= MEM_callocN(sizeof(SSSPoints), "SSSPoints");
+	if(totpoint == 0)
+		return;
 
-		p->co= co;
-		p->color= color;
-		p->area= area;
-		p->totpoint= totpoint;
+	p= MEM_callocN(sizeof(SSSPoints), "SSSPoints");
 
-		BLI_lock_thread(LOCK_CUSTOM1);
-		BLI_addtail(re->db.sss_points, p);
-		BLI_unlock_thread(LOCK_CUSTOM1);
-	}
+	p->co= co;
+	p->color= color;
+	p->area= area;
+	p->totpoint= totpoint;
+
+	BLI_lock_thread(LOCK_CUSTOM1);
+	BLI_addtail(&sss->points, p);
+	BLI_unlock_thread(LOCK_CUSTOM1);
 }
 
-static void sss_free_tree(SSSData *sss)
+static void sss_free_mat(SSSData *sss)
 {
-	scatter_tree_free(sss->tree);
-	scatter_settings_free(sss->ss[0]);
-	scatter_settings_free(sss->ss[1]);
-	scatter_settings_free(sss->ss[2]);
+	SSSPoints *p;
+
+	if(sss->tree) scatter_tree_free(sss->tree);
+	if(sss->ss[0]) scatter_settings_free(sss->ss[0]);
+	if(sss->ss[1]) scatter_settings_free(sss->ss[1]);
+	if(sss->ss[2]) scatter_settings_free(sss->ss[2]);
+
+	for(p=sss->points.first; p; p=p->next) {
+		MEM_freeN(p->co);
+		MEM_freeN(p->color);
+		MEM_freeN(p->area);
+	}
+	BLI_freelistN(&sss->points);
+
 	MEM_freeN(sss);
 }
 
@@ -986,15 +1007,33 @@ static void sss_free_tree(SSSData *sss)
 void sss_create(Render *re)
 {
 	Material *mat;
-	
-	re->db.sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "sss_create gh");
+	GHashIterator *it;
 
 	re->cb.i.infostr= "SSS preprocessing";
 	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
-	
+
+	/* init sss for all materials */
+	re->db.sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "sss_create gh");
+
 	for(mat= G.main->mat.first; mat; mat= mat->id.next)
 		if(mat->id.us && (mat->flag & MA_IS_USED) && (mat->sss_flag & MA_DIFF_SSS))
-			sss_create_tree_mat(re, mat);
+			sss_add_mat(re, mat);
+
+	/* run preprocessing pass */
+	sss_preprocess_pass(re, re->db.sss_hash);
+
+	/* build sss tree structures */
+	it= BLI_ghashIterator_new(re->db.sss_hash);
+
+	while(!BLI_ghashIterator_isDone(it)) {
+		if(re->cb.test_break(re->cb.tbh))
+			break;
+
+		sss_build_mat(re, BLI_ghashIterator_getValue(it));
+		BLI_ghashIterator_step(it);
+	}
+
+	BLI_ghashIterator_free(it);
 }
 
 void sss_free(RenderDB *rdb)
@@ -1003,7 +1042,7 @@ void sss_free(RenderDB *rdb)
 		GHashIterator *it= BLI_ghashIterator_new(rdb->sss_hash);
 
 		while(!BLI_ghashIterator_isDone(it)) {
-			sss_free_tree(BLI_ghashIterator_getValue(it));
+			sss_free_mat(BLI_ghashIterator_getValue(it));
 			BLI_ghashIterator_step(it);
 		}
 
@@ -1015,10 +1054,10 @@ void sss_free(RenderDB *rdb)
 
 int sss_sample(Render *re, Material *mat, float *co, float *color, float scale)
 {
-	if(re->db.sss_hash) {
+	if(!re->db.sss_pass) {
 		SSSData *sss= BLI_ghash_lookup(re->db.sss_hash, mat);
 
-		if(sss) {
+		if(sss && sss->tree) {
 			scatter_tree_sample(sss->tree, co, color, scale);
 			return 1;
 		}
@@ -1032,8 +1071,51 @@ int sss_sample(Render *re, Material *mat, float *co, float *color, float scale)
 	return 0;
 }
 
-int sss_pass_done(struct Render *re, struct Material *mat)
+int sss_pass_done(Render *re, Material *mat)
 {
-	return ((re->params.flag & R_BAKING) || !(re->params.r.mode & R_SSS) || (re->db.sss_hash && BLI_ghash_lookup(re->db.sss_hash, mat)));
+	return ((re->params.flag & R_BAKING) || !(re->params.r.mode & R_SSS) || (!re->db.sss_pass && BLI_ghash_lookup(re->db.sss_hash, mat)));
+}
+
+/* Material tests */
+
+#define HAVE_SSS		1
+#define HAVE_NON_SSS	2
+
+static int mat_has_sss_internal(Material *ma);
+
+static int mat_nodes_have_sss_internal(bNodeTree *ntree)
+{
+	bNode *node;
+	int result = 0;
+
+	for(node=ntree->nodes.first; node; node= node->next) {
+		if(node->id && GS(node->id->name)==ID_MA) {
+			Material *ma= (Material*)node->id;
+			if(ma)
+				result |= (ma->sss_flag & MA_DIFF_SSS)? HAVE_SSS: HAVE_NON_SSS;
+		}
+		else if(node->type==NODE_GROUP)
+			result |= mat_nodes_have_sss_internal((bNodeTree*)node->id);
+	}
+
+	return result;
+}
+
+static int mat_has_sss_internal(Material *ma)
+{
+	if(ma->nodetree && ma->use_nodes)
+		return mat_nodes_have_sss_internal(ma->nodetree);
+
+	return (ma->sss_flag & MA_DIFF_SSS)? HAVE_SSS: HAVE_NON_SSS;
+}
+
+int mat_has_sss(Material *ma)
+{
+	return mat_has_sss_internal(ma) & HAVE_SSS;
+}
+
+int mat_has_only_sss(Material *ma)
+{
+	return mat_has_sss_internal(ma) == HAVE_SSS;
 }
 

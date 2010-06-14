@@ -2440,7 +2440,7 @@ static void make_sss_pixelstructs(Render *re, RenderPart *pa, ListBase *lb)
 	}
 }
 
-void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, void (*func)(void*, int, int, int, int, int), ListBase *psmlist)
+void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, void (*func)(void*, int, int, int, int, int), ListBase *psmlist, Material *sss_ma)
 {
 	ZbufProjectCache cache[ZBUF_PROJECT_CACHE_SIZE];
 	ZSpan zspan;
@@ -2448,7 +2448,7 @@ void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, voi
 	ObjectRen *obr;
 	VlakRen *vlr= NULL;
 	VertRen *v1, *v2, *v3, *v4;
-	Material *ma=0, *sss_ma= re->db.sss_mat;
+	Material *ma=0;
 	float obwinmat[4][4], winmat[4][4], bounds[4];
 	float ho1[4], ho2[4], ho3[4], ho4[4]={0};
 	int i, v, zvlnr, c1, c2, c3, c4=0;
@@ -2507,51 +2507,49 @@ void zbuffer_sss(Render *re, RenderPart *pa, unsigned int lay, void *handle, voi
 			if((v & 255)==0) vlr= obr->vlaknodes[v>>8].vlak;
 			else vlr++;
 			
-			if(material_in_material(vlr->mat, sss_ma)) {
-				/* three cases, visible for render, only z values and nothing */
-				if(obi->lay & lay) {
-					if(vlr->mat!=ma) {
-						ma= vlr->mat;
-						nofill= ma->mode & MA_ONLYCAST;
-						env= (ma->mode & MA_ENV);
-						wire= (ma->material_type == MA_TYPE_WIRE);
-					}
+			/* three cases, visible for render, only z values and nothing */
+			if(obi->lay & lay) {
+				if(vlr->mat!=ma) {
+					ma= vlr->mat;
+					nofill= !material_in_material(vlr->mat, sss_ma) || (ma->mode & MA_ONLYCAST);
+					env= (ma->mode & MA_ENV);
+					wire= (ma->material_type == MA_TYPE_WIRE);
 				}
-				else {
-					nofill= 1;
-					ma= NULL;	/* otherwise nofill can hang */
-				}
+			}
+			else {
+				nofill= 1;
+				ma= NULL;	/* otherwise nofill can hang */
+			}
+			
+			if(nofill==0 && wire==0 && env==0) {
+				unsigned short partclip;
 				
-				if(nofill==0 && wire==0 && env==0) {
-					unsigned short partclip;
-					
-					v1= vlr->v1;
-					v2= vlr->v2;
-					v3= vlr->v3;
-					v4= vlr->v4;
+				v1= vlr->v1;
+				v2= vlr->v2;
+				v3= vlr->v3;
+				v4= vlr->v4;
 
-					c1= zbuf_part_project(cache, v1->index, obwinmat, bounds, v1->co, ho1);
-					c2= zbuf_part_project(cache, v2->index, obwinmat, bounds, v2->co, ho2);
-					c3= zbuf_part_project(cache, v3->index, obwinmat, bounds, v3->co, ho3);
+				c1= zbuf_part_project(cache, v1->index, obwinmat, bounds, v1->co, ho1);
+				c2= zbuf_part_project(cache, v2->index, obwinmat, bounds, v2->co, ho2);
+				c3= zbuf_part_project(cache, v3->index, obwinmat, bounds, v3->co, ho3);
 
-					/* partclipping doesn't need viewplane clipping */
-					partclip= c1 & c2 & c3;
+				/* partclipping doesn't need viewplane clipping */
+				partclip= c1 & c2 & c3;
+				if(v4) {
+					c4= zbuf_part_project(cache, v4->index, obwinmat, bounds, v4->co, ho4);
+					partclip &= c4;
+				}
+
+				if(partclip==0) {
+					c1= camera_hoco_test_clip(ho1);
+					c2= camera_hoco_test_clip(ho2);
+					c3= camera_hoco_test_clip(ho3);
+
+					zvlnr= v+1;
+					zbufclip(&zspan, i, zvlnr, ho1, ho2, ho3, c1, c2, c3);
 					if(v4) {
-						c4= zbuf_part_project(cache, v4->index, obwinmat, bounds, v4->co, ho4);
-						partclip &= c4;
-					}
-
-					if(partclip==0) {
-						c1= camera_hoco_test_clip(ho1);
-						c2= camera_hoco_test_clip(ho2);
-						c3= camera_hoco_test_clip(ho3);
-
-						zvlnr= v+1;
-						zbufclip(&zspan, i, zvlnr, ho1, ho2, ho3, c1, c2, c3);
-						if(v4) {
-							c4= camera_hoco_test_clip(ho4);
-							zbufclip(&zspan, i, zvlnr+RE_QUAD_OFFS, ho1, ho3, ho4, c1, c3, c4);
-						}
+						c4= camera_hoco_test_clip(ho4);
+						zbufclip(&zspan, i, zvlnr+RE_QUAD_OFFS, ho1, ho3, ho4, c1, c3, c4);
 					}
 				}
 			}

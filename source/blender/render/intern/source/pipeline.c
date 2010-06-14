@@ -436,7 +436,7 @@ void RE_error_cb(Render *re, void *handle, void (*f)(void *handle, char *str))
 static int render_display_draw_enabled(Render *re)
 {
 	/* don't show preprocess for previewrender sss */
-	if(re->db.sss_points)
+	if(re->db.sss_pass)
 		return !(re->params.r.scemode & R_PREVIEWBUTS);
 	else
 		return 1;
@@ -470,7 +470,7 @@ static void *do_part_thread(void *pa_v)
 	if(re->cb.test_break(re->cb.tbh)==0) {
 		pa->pixelrow= MEM_callocN(sizeof(PixelRow)*MAX_PIXEL_ROW, "PixelRow");
 
-		if(re->db.sss_points) {
+		if(re->db.sss_pass) {
 			pa->result= render_result_create(re, &pa->disprect, pa->crop, RR_USEMEM);
 
 			render_sss_bake_part(re, pa);
@@ -555,7 +555,7 @@ static void threaded_tile_processor(Render *re)
 	if(re->result==NULL || !(re->params.r.scemode & R_PREVIEWBUTS)) {
 		RE_FreeRenderResult(re->result);
 	
-		if(re->db.sss_points && render_display_draw_enabled(re))
+		if(re->db.sss_pass && render_display_draw_enabled(re))
 			re->result= render_result_create(re, &re->disprect, 0, 0);
 		else if(re->params.r.scemode & R_FULL_SAMPLE)
 			re->result= render_result_full_sample_create(re);

@@ -89,8 +89,7 @@ typedef struct RenderDB {
 
 	/* subsurface scattering */
 	struct GHash *sss_hash;
-	ListBase *sss_points;
-	struct Material *sss_mat;
+	int sss_pass;
 
 	/* raytracing */
 	struct RayObject *raytree;

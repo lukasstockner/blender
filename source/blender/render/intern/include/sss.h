@@ -42,12 +42,18 @@ void sss_free(struct RenderDB *rdb);
 /* SSS pass */
 
 int sss_pass_done(struct Render *re, struct Material *mat);
-void sss_add_points(struct Render *re, float (*co)[3], float (*color)[3],
-	float *area, int totpoint);
+void sss_add_points(struct Render *re, struct Material *mat,
+	float (*co)[3], float (*color)[3], float *area, int totpoint);
 
 /* Sample SSS at a give point */
 
-int sss_sample(struct Render *re, struct Material *mat, float *co, float *col, float scale);
+int sss_sample(struct Render *re,
+	struct Material *mat, float *co, float *col, float scale);
+
+/* Tests if material has sss */
+
+int mat_has_sss(struct Material *ma);
+int mat_has_only_sss(struct Material *ma);
 
 /* Generic multiple scattering API */
 
@@ -61,9 +67,9 @@ ScatterSettings *scatter_settings_new(float refl, float radius, float ior,
 	float reflfac, float frontweight, float backweight);
 void scatter_settings_free(ScatterSettings *ss);
 
-ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error,
+ScatterTree *scatter_tree_new(ScatterSettings *ss[3], float scale, float error);
+void scatter_tree_build(ScatterTree *tree,
 	float (*co)[3], float (*color)[3], float *area, int totpoint);
-void scatter_tree_build(ScatterTree *tree);
 void scatter_tree_sample(ScatterTree *tree, float *co, float *color, float scale);
 void scatter_tree_free(ScatterTree *tree);
 

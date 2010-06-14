@@ -84,7 +84,8 @@ void surface_cache_sample(SurfaceCache *cache, struct ShadeInput *shi);
 struct IrrCache;
 typedef struct IrrCache IrrCache;
 
-void irr_cache_create(struct Render *re, struct RenderPart *pa,
+void irr_cache_create(struct Render *re, struct RenderPart *pa);
+void irr_cache_fill(struct Render *re, struct RenderPart *pa,
 	struct RenderLayer *rl, struct ShadeSample *ssamp, int docrop);
 void irr_cache_free(struct Render *re, struct RenderPart *pa);
 

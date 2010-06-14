@@ -34,6 +34,7 @@ struct APixstr;
 struct APixstrand;
 struct LampRen;
 struct ListBase;
+struct Material;
 struct RenderLayer;
 struct RenderPart;
 struct StrandShadeCache;
@@ -60,7 +61,8 @@ void zbuffer_abuf_shadow(struct Render *re, struct RenderPart *pa, struct LampRe
 /* SSS Rasterization */
 
 void zbuffer_sss(struct Render *re, struct RenderPart *pa, unsigned int lay,
-	void *handle, void (*func)(void*, int, int, int, int, int), struct ListBase *psmlist);
+	void *handle, void (*func)(void*, int, int, int, int, int),
+	struct ListBase *psmlist, struct Material *ma);
 
 /* Pixel Struct Utilities */
 

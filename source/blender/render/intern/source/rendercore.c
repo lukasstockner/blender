@@ -36,23 +36,24 @@
 /* External modules: */
 #include "MEM_guardedalloc.h"
 
+#include "DNA_lamp_types.h"
+#include "DNA_material_types.h"
+#include "DNA_group_types.h"
+
 #include "BLI_blenlib.h"
 #include "BLI_jitter.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_threads.h"
 
+#include "PIL_time.h"
+
+#include "BKE_global.h"
+#include "BKE_main.h"
 #include "BKE_material.h"
-#include "BKE_utildefines.h"
-
-#include "DNA_lamp_types.h"
-#include "DNA_material_types.h"
-#include "DNA_group_types.h"
-
 #include "BKE_node.h"
 #include "BKE_texture.h"
-
-#include "PIL_time.h"
+#include "BKE_utildefines.h"
 
 #include "RE_raytrace.h"
 
@@ -727,10 +728,13 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 	if(re->params.r.mode & R_SHADOW)
 		irregular_shadowbuf_create(re, pa, pa->apixbuf);
 
-	if(re->db.occlusiontree)
+	if(re->db.occlusiontree) {
 		disk_occlusion_cache_create(re, pa, &ssamp);
-	else
-		irr_cache_create(re, pa, rl, &ssamp, pa->crop);
+	}
+	else {
+		irr_cache_create(re, pa);
+		irr_cache_fill(re, pa, rl, &ssamp, pa->crop);
+	}
 
 	/* filtered render, for now we assume only 1 filter size */
 	offs= 0;
@@ -1082,134 +1086,147 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	RenderResult *rr= pa->result;
 	RenderLayer *rl;
 	VlakRen *vlr;
-	Material *mat= re->db.sss_mat;
+	Material *mat;
 	float (*co)[3], (*color)[3], *area, *fcol;
 	int x, y, seed, quad, totpoint, display = !(re->params.r.scemode & R_PREVIEWBUTS);
 	int lay, offs, a;
-	ListBase psmlist= {NULL, NULL};
 
-	/* setup pixelstr list and buffer for zbuffering */
-	handle.pa= pa;
-	handle.totps= 0;
+	if(!re->db.occlusiontree)
+		irr_cache_create(re, pa);
 
-	pa->recto= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "recto");
-	pa->rectp= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectp");
-	pa->rectz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectz");
-	pa->rectbacko= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbacko");
-	pa->rectbackp= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbackp");
-	pa->rectbackz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbackz");
-	pa->rectdaps= MEM_callocN(sizeof(void*)*pa->rectx*pa->recty+4, "zbufDArectd");
+	for(mat= G.main->mat.first; mat; mat= mat->id.next) {
+		ListBase psmlist= {NULL, NULL};
 
-	/* setup shade sample with correct passes */
-	memset(&ssamp, 0, sizeof(ssamp));
-	shade_sample_initialize(re, &ssamp, pa, rr->layers.first);
-	ssamp.tot= 1;
+		/* test if we are a material that needs to be preprocessed */
+		if(!(mat->id.us && (mat->flag & MA_IS_USED) && (mat->sss_flag & MA_DIFF_SSS)))
+			continue;
 
-	render_sss_layer(re, rr, mat, &ssamp.shi[0]);
-	lay= ssamp.shi[0].shading.lay;
+		/* allocate buffers for zbuffering */
+		pa->recto= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "recto");
+		pa->rectp= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectp");
+		pa->rectz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectz");
+		pa->rectbacko= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbacko");
+		pa->rectbackp= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbackp");
+		pa->rectbackz= MEM_mallocN(sizeof(int)*pa->rectx*pa->recty, "rectbackz");
+		pa->rectdaps= MEM_callocN(sizeof(void*)*pa->rectx*pa->recty+4, "zbufDArectd");
 
-	rl= rr->layers.first;
-	ssamp.shi[0].shading.passflag |= SCE_PASS_RGBA|SCE_PASS_COMBINED;
-	ssamp.shi[0].shading.combinedflag &= ~(SCE_PASS_SPEC);
-	ssamp.shi[0].material.mat_override= NULL;
-	ssamp.shi[0].material.light_override= NULL;
+		handle.pa= pa;
+		handle.totps= 0;
 
-	/* create the pixelstrs to be used later */
-	zbuffer_sss(re, pa, lay, &handle, addps_sss, &psmlist);
+		/* setup shade sample with correct passes */
+		memset(&ssamp, 0, sizeof(ssamp));
+		shade_sample_initialize(re, &ssamp, pa, rr->layers.first);
+		ssamp.tot= 1;
 
-	if(handle.totps==0) {
-		zbufshade_sss_free(pa, &psmlist);
-		return;
-	}
+		render_sss_layer(re, rr, mat, &ssamp.shi[0]);
+		lay= ssamp.shi[0].shading.lay;
 
-	fcol= rl->rectf;
+		rl= rr->layers.first;
+		ssamp.shi[0].shading.passflag |= SCE_PASS_RGBA|SCE_PASS_COMBINED;
+		ssamp.shi[0].shading.combinedflag &= ~(SCE_PASS_SPEC);
+		ssamp.shi[0].material.mat_override= NULL;
+		ssamp.shi[0].material.light_override= NULL;
 
-	co= MEM_mallocN(sizeof(float)*3*handle.totps, "SSSCo");
-	color= MEM_mallocN(sizeof(float)*3*handle.totps, "SSSColor");
-	area= MEM_mallocN(sizeof(float)*handle.totps, "SSSArea");
+		/* create the pixelstrs to be used later */
+		zbuffer_sss(re, pa, lay, &handle, addps_sss, &psmlist, mat);
 
-#if 0
-	/* create ISB (does not work currently!) */
-	if(re->params.r.mode & R_SHADOW)
-		irregular_shadowbuf_create(re, pa, NULL);
-#endif
-
-	if(re->db.occlusiontree)
-		disk_occlusion_cache_create(re, pa, &ssamp);
-	else
-		irr_cache_create(re, pa, rl, &ssamp, 0);
-	
-	if(display) {
-		/* initialize scanline updates for main thread */
-		rr->renrect.ymin= 0;
-		rr->renlay= rl;
-	}
-	
-	seed= pa->rectx*pa->disprect.ymin;
-	totpoint= 0;
-	offs= 0;
-
-	for(y=pa->disprect.ymin; y<pa->disprect.ymax; y++, rr->renrect.ymax++) {
-		for(x=pa->disprect.xmin; x<pa->disprect.xmax; x++, fcol+=4, offs++) {
-			PixelRow *row= pa->pixelrow;
-			int totrow;
-
-			/* per pixel fixed seed */
-			BLI_thread_srandom(pa->thread, seed++);
-			
-			totrow= pixel_row_fill(row, re, pa, offs);
-
-			for(a=0; a<totrow; a++) {
-				ObjectInstanceRen *obi= &re->db.objectinstance[row[a].obi];
-
-				/* shade front */
-				vlr= render_object_vlak_get(obi->obr, (row[a].p-1) & RE_QUAD_MASK);
-				quad= ((row[a].p) & RE_QUAD_OFFS);
-
-				shade_sample_sss(re, &ssamp, mat, obi, vlr, quad, x, y, row[a].z,
-					co[totpoint], color[totpoint], &area[totpoint]);
-				
-				/* to indicate this is a back sample */
-				if(a > 0)
-					area[totpoint]= -area[totpoint];
-
-				add_v3_v3v3(fcol, fcol, color[totpoint]);
-				fcol[3]= 1.0f;
-				totpoint++;
-			}
+		if(handle.totps==0) {
+			zbufshade_sss_free(pa, &psmlist);
+			continue;
 		}
 
-		if(y&1)
-			if(re->cb.test_break(re->cb.tbh)) break; 
-	}
-
-	/* free tile precomputed data */
-	if(re->db.occlusiontree)
-		disk_occlusion_cache_free(re, pa);
-	else
-		irr_cache_free(re, pa);
-
-	/* note: after adding we do not free these arrays, sss keeps them */
-	if(totpoint > 0) {
-		sss_add_points(re, co, color, area, totpoint);
-	}
-	else {
-		MEM_freeN(co);
-		MEM_freeN(color);
-		MEM_freeN(area);
-	}
-	
+		/* common preprocessing shared between materials */
 #if 0
-	if(re->params.r.mode & R_SHADOW)
-		irregular_shadowbuf_free(re, pa);
+		/* create ISB (does not work currently!) */
+		if(re->params.r.mode & R_SHADOW)
+			irregular_shadowbuf_create(re, pa, NULL);
+#endif
+
+		if(re->db.occlusiontree)
+			disk_occlusion_cache_create(re, pa, &ssamp);
+		else
+			irr_cache_fill(re, pa, rl, &ssamp, 0);
+
+		fcol= rl->rectf;
+
+		if(display) {
+			/* initialize scanline updates for main thread */
+			rr->renrect.ymin= 0;
+			rr->renrect.ymax= 0;
+			rr->renlay= rl;
+		}
+	
+		co= MEM_mallocN(sizeof(float)*3*handle.totps, "SSSCo");
+		color= MEM_mallocN(sizeof(float)*3*handle.totps, "SSSColor");
+		area= MEM_mallocN(sizeof(float)*handle.totps, "SSSArea");
+
+		seed= pa->rectx*pa->disprect.ymin;
+		totpoint= 0;
+		offs= 0;
+
+		for(y=pa->disprect.ymin; y<pa->disprect.ymax; y++, rr->renrect.ymax++) {
+			for(x=pa->disprect.xmin; x<pa->disprect.xmax; x++, fcol+=4, offs++) {
+				PixelRow *row= pa->pixelrow;
+				int totrow;
+
+				/* per pixel fixed seed */
+				BLI_thread_srandom(pa->thread, seed++);
+				
+				totrow= pixel_row_fill(row, re, pa, offs);
+
+				for(a=0; a<totrow; a++) {
+					ObjectInstanceRen *obi= &re->db.objectinstance[row[a].obi];
+
+					/* shade front */
+					vlr= render_object_vlak_get(obi->obr, (row[a].p-1) & RE_QUAD_MASK);
+					quad= ((row[a].p) & RE_QUAD_OFFS);
+
+					shade_sample_sss(re, &ssamp, mat, obi, vlr, quad, x, y, row[a].z,
+						co[totpoint], color[totpoint], &area[totpoint]);
+					
+					/* to indicate this is a back sample */
+					if(a > 0)
+						area[totpoint]= -area[totpoint];
+
+					add_v3_v3v3(fcol, fcol, color[totpoint]);
+					fcol[3]= 1.0f;
+					totpoint++;
+				}
+			}
+
+			if(y&1)
+				if(re->cb.test_break(re->cb.tbh)) break; 
+		}
+
+		/* note: after adding we do not free these arrays, sss keeps them */
+		if(totpoint > 0) {
+			sss_add_points(re, mat, co, color, area, totpoint);
+		}
+		else {
+			MEM_freeN(co);
+			MEM_freeN(color);
+			MEM_freeN(area);
+		}
+
+		if(display) {
+			/* display active layer */
+			rr->renrect.ymin=rr->renrect.ymax= 0;
+			rr->renlay= render_get_active_layer(re, rr);
+		}
+		
+		/* free tile precomputed data */
+		if(re->db.occlusiontree)
+			disk_occlusion_cache_free(re, pa);
+
+#if 0
+		if(re->params.r.mode & R_SHADOW)
+			irregular_shadowbuf_free(re, pa);
 #endif
 		
-	if(display) {
-		/* display active layer */
-		rr->renrect.ymin=rr->renrect.ymax= 0;
-		rr->renlay= render_get_active_layer(re, rr);
+		zbufshade_sss_free(pa, &psmlist);
 	}
-	
-	zbufshade_sss_free(pa, &psmlist);
+
+	if(!re->db.occlusiontree)
+		irr_cache_free(re, pa);
 }
 
