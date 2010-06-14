@@ -381,10 +381,23 @@ void GPU_drawobject_free( DerivedMesh *dm )
 	dm->drawObject = 0;
 }
 
+/* XXX: don't merge this to trunk
+
+   I'm having graphics problems with GL_SHORT normals;
+   this is on experimental drivers that I'm sure not
+   very many other people are using, so not worth really
+   fixing.
+*/
+#define VBO_FLOATS 1
+
 /* Convenience struct for building the VBO. */
 typedef struct {
 	float co[3];
+#ifdef VBO_FLOATS
+	float no[3];
+#else
 	short no[3];
+#endif
 } VertexBufferFormat;
 
 typedef struct {
@@ -489,7 +502,11 @@ void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 				VertexBufferFormat *out = vert_data + i;
 
 				copy_v3_v3(out->co, v->co);
+#ifdef VBO_FLOATS
+				normal_short_to_float_v3(out->no, v->no);
+#else
 				memcpy(out->no, v->no, sizeof(short) * 3);
+#endif
 			}
 
 			glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
@@ -789,7 +806,11 @@ void GPU_draw_buffers(void *buffers_v)
 		}
 		else {
 			glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, co));
+#ifdef VBO_FLOATS			
+			glNormalPointer(GL_FLOAT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, no));
+#else
 			glNormalPointer(GL_SHORT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, no));
+#endif
 			if(buffers->color_buf) {
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
 				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
