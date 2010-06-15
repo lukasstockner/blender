@@ -704,10 +704,6 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 		/* add AO in combined? */
 		if((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) {
 			if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) {
-				if(((passflag & SCE_PASS_COMBINED) && (shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
-					|| (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
-					ambient_occlusion(re, shi);
-
 				if(re->db.wrld.mode & WO_ENV_LIGHT)
 					environment_lighting_apply(re, shi, shr);
 
