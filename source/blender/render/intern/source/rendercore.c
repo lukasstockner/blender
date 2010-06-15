@@ -1051,6 +1051,7 @@ static void render_sss_layer(Render *re, RenderResult *rr, Material *ma, ShadeIn
 	ObjectRen *obr;
 	VlakRen *vlr;
 	RenderLayer *rl;
+	Material *vlr_ma= NULL;
 	int v;
 
 	/* we use as layer the combined layer flags of all render layers that
@@ -1061,9 +1062,12 @@ static void render_sss_layer(Render *re, RenderResult *rr, Material *ma, ShadeIn
 		for(v=0; v<obr->totvlak; v++) {
 			if((v & 255)==0) vlr= obr->vlaknodes[v>>8].vlak;
 			else vlr++;
-			
-			if(material_in_material(vlr->mat, ma))
-				break;
+
+			if(vlr->mat!=vlr_ma) {
+				vlr_ma= vlr->mat;
+				if(material_in_material(vlr_ma, ma))
+					break;
+			}
 		}
 
 		if(v != obr->totvlak) {
