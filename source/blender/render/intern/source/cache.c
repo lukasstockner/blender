@@ -516,26 +516,6 @@ void lsq_4D_add(Lsq4DFit *lsq, float a[4], float *b, int dimension, float weight
 	lsq->tot++;
 }
 
-void TNT_svd(float m[][4], float *w, float u[][4]);
-
-void svd_invert_m4_m4(float R[4][4], float M[4][4])
-{
-	float V[4][4], W[4], Wm[4][4], U[4][4];
-
-	copy_m4_m4(V, M);
-	TNT_svd(V, W, U);
-
-	zero_m4(Wm);
-	Wm[0][0]= (W[0] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[0];
-	Wm[1][1]= (W[1] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[1];
-	Wm[2][2]= (W[2] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[2];
-	Wm[3][3]= (W[3] < SINGULAR_VALUE_EPSILON)? 0.0f: 1.0f/W[3];
-
-	transpose_m4(V);
-
-	mul_serie_m4(R, U, Wm, V, 0, 0, 0, 0, 0);
-}
-
 void lsq_4D_solve(Lsq4DFit *lsq, float *solution, int dimension)
 {
 	float AtA[4][4], AtAinv[4][4], AtB[MAX_CACHE_DIMENSION][4];
@@ -573,7 +553,7 @@ void lsq_4D_solve(Lsq4DFit *lsq, float *solution, int dimension)
 	}
 
 	/* use SVD for stable inverting of AtA */
-	svd_invert_m4_m4(AtAinv, AtA);
+	pseudoinverse_m4_m4(AtAinv, AtA, SINGULAR_VALUE_EPSILON);
 
 	for(i=0; i<dimension; i++) {
 		mul_v4_m4v4(x, AtAinv, AtB[i]);
@@ -650,16 +630,11 @@ void irr_cache_check_stack(IrrCache *cache)
 	}
 }
 
-static int irr_cache_node_point_inside(IrrCacheNode *node, float scale, float add, float P[3])
+static inline int irr_cache_node_point_inside(IrrCacheNode *node, float scale, float add, float P[3])
 {
 	float side= node->side*scale + add;
 
-	return (((node->center[0] + side) > P[0]) &&
-	        ((node->center[1] + side) > P[1]) &&
-	        ((node->center[2] + side) > P[2]) &&
-	        ((node->center[0] - side) < P[0]) &&
-	        ((node->center[1] - side) < P[1]) &&
-	        ((node->center[2] - side) < P[2]));
+	return len_squared_v3v3(node->center, P) <= side*side;
 }
 
 static float *irr_sample_C(IrrCacheSample *sample)
