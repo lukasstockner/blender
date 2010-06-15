@@ -3414,7 +3414,6 @@ static int addvert_Nurb(bContext *C, short mode, float location[3])
 	copy_m3_m4(mat, obedit->obmat);
 	invert_m3_m3(imat,mat);
 
-	view3d_operator_needs_opengl(C);
 	findselectedNurbvert(editnurb, &nu, &bezt, &bp);
 	if(bezt==0 && bp==0) return OPERATOR_CANCELLED;
 
@@ -5269,7 +5268,9 @@ static int curve_prim_add(bContext *C, wmOperator *op, int type){
 	float mat[4][4];
 	
 	//object_add_generic_invoke_options(C, op); // XXX these props don't get set right when only exec() is called
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
+
 	
 	if(obedit==NULL || obedit->type!=OB_CURVE) {
 		Curve *cu;
