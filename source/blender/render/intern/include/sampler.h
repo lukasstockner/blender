@@ -45,7 +45,6 @@ void sampler_release(struct Render *re, struct QMCSampler *qsa);
 /* 2D Sampling */
 
 void sampler_get_float_2d(float s[2], struct QMCSampler *qsa, int num);
-void sampler_get_double_2d(double s[2], struct QMCSampler *qsa, int num);
 
 /* Projection Utities */
 

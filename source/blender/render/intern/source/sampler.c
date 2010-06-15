@@ -41,13 +41,13 @@ struct QMCSampler {
 	int tot;
 	int used;
 	int thread;
-	double *samp2d;
-	double offs[BLENDER_MAX_THREADS][2];
+	float *samp2d;
+	float offs[BLENDER_MAX_THREADS][2];
 };
 
 /********************************* QMC sampling ******************************/
 
-static void halton_sample(double *ht_invprimes, double *ht_nums, double *v)
+static void halton_sample(double *ht_invprimes, double *ht_nums, float *v)
 {
 	// incremental halton sequence generator, from:
 	// "Instant Radiosity", Keller A.
@@ -76,7 +76,7 @@ static void halton_sample(double *ht_invprimes, double *ht_nums, double *v)
 
 /* Generate Hammersley points in [0,1)^2
  * From Lucille renderer */
-static void hammersley_create(double *out, int n)
+static void hammersley_create(float *out, int n)
 {
 	double p, t;
 	int k, kk;
@@ -95,7 +95,7 @@ static void hammersley_create(double *out, int n)
 static QMCSampler *qmc_sampler_init(int type, int tot)
 {	
 	QMCSampler *qsa = MEM_callocN(sizeof(QMCSampler), "qmc sampler");
-	qsa->samp2d = MEM_callocN(2*sizeof(double)*tot, "qmc sample table");
+	qsa->samp2d = MEM_callocN(2*sizeof(float)*tot, "qmc sample table");
 
 	qsa->tot = tot;
 	qsa->type = type;
@@ -120,7 +120,7 @@ static void qmc_sampler_init_pixel(QMCSampler *qsa, int thread)
 		 * to alleviate qmc artifacts and make it reproducable 
 		 * between threads/frames */
 		double ht_invprimes[2], ht_nums[2];
-		double r[2];
+		float r[2];
 		int i;
 	
 		ht_nums[0] = BLI_thread_frand(thread);
@@ -142,27 +142,22 @@ static void qmc_sampler_free(QMCSampler *qsa)
 	MEM_freeN(qsa);
 }
 
-void sampler_get_double_2d(double s[2], QMCSampler *qsa, int num)
+void sampler_get_float_2d(float s[2], QMCSampler *qsa, int num)
 {
 	if(qsa->type == SAMP_TYPE_HAMMERSLEY) {
+		float soffs[2];
 		int thread= qsa->thread;
 
-		s[0] = fmod(qsa->samp2d[2*num+0] + qsa->offs[thread][0], 1.0f);
-		s[1] = fmod(qsa->samp2d[2*num+1] + qsa->offs[thread][1], 1.0f);
+		soffs[0] = qsa->samp2d[2*num+0] + qsa->offs[thread][0];
+		soffs[1] = qsa->samp2d[2*num+1] + qsa->offs[thread][1];
+
+		s[0] = soffs[0] - floorf(soffs[0]);
+		s[1] = soffs[1] - floorf(soffs[1]);
 	}
 	else { /* SAMP_TYPE_HALTON */
 		s[0] = qsa->samp2d[2*num+0];
 		s[1] = qsa->samp2d[2*num+1];
 	}
-}
-
-void sampler_get_float_2d(float s[2], QMCSampler *qsa, int num)
-{
-	double d[2];
-
-	sampler_get_double_2d(d, qsa, num);
-	s[0]= (float)d[0];
-	s[1]= (float)d[1];
 }
 
 /******************************** Global Init/Free **************************/
