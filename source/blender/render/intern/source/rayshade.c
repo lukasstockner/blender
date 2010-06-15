@@ -1710,6 +1710,8 @@ static int ray_indirect_trace_do(Render *re, ShadeInput *shi, Isect *isec, float
 {
 	memset(isec, 0, sizeof(*isec));
 
+	RE_RC_INIT(*isec, *shi);
+
 	copy_v3_v3(isec->start, start);
 	mul_v3_v3fl(isec->vec, vec, maxdist);
 	isec->labda= 1.0f;
