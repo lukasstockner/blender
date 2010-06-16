@@ -232,7 +232,7 @@ void IMB_tile_cache_params(int totthread, int maxmem)
 	totthread++;
 
 	/* lazy initialize cache */
-	if(GLOBAL_CACHE.totthread == totthread && GLOBAL_CACHE.maxmem == maxmem)
+	if(GLOBAL_CACHE.totthread >= totthread && GLOBAL_CACHE.maxmem >= maxmem)
 		return;
 
 	imb_tile_cache_exit();
