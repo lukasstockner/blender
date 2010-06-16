@@ -211,7 +211,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	float xlim, ylim;
 
 	// XXX there has to be a better way to guess if a texture is procedural
-	int procedural = brush->mtex.tex && brush->mtex.tex->type != TEX_IMAGE;
+	int procedural = 1;//brush->mtex.tex && brush->mtex.tex->type != TEX_IMAGE;
 
 	if (brush->overlay_texture) glDeleteTextures(1, &brush->overlay_texture);
 
