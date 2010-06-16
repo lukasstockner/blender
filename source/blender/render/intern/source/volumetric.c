@@ -47,12 +47,13 @@
 #include "BKE_global.h"
 
 #include "RE_shader_ext.h"
-#include "RE_raytrace.h"
 
 #include "database.h"
 #include "environment.h"
 #include "lamp.h"
 #include "object_mesh.h"
+#include "rayintersection.h"
+#include "rayobject.h"
 #include "render_types.h"
 #include "shading.h"
 #include "shadowbuf.h"
@@ -81,13 +82,11 @@ static float vol_get_shadow(Render *re, ShadeInput *shi, LampRen *lar, float *co
 		
 		copy_v3_v3(is.start, co);
 		if(lar->type==LA_SUN || lar->type==LA_HEMI) {
-			is.vec[0] = -lar->vec[0];
-			is.vec[1] = -lar->vec[1];
-			is.vec[2] = -lar->vec[2];
-			is.labda = re->db.maxdist;
+			negate_v3_v3(is.dir, lar->vec);
+			is.dist = re->db.maxdist;
 		} else {
-			sub_v3_v3v3( is.vec, lar->co, is.start );
-			is.labda = len_v3( is.vec );
+			sub_v3_v3v3( is.dir, lar->co, is.start );
+			is.dist = normalize_v3( is.dir );
 		}
 
 		is.mode = RE_RAY_MIRROR;
@@ -111,7 +110,7 @@ static float vol_get_shadow(Render *re, ShadeInput *shi, LampRen *lar, float *co
 	return visibility;
 }
 
-static int vol_get_bounds(Render *re, ShadeInput *shi, float *co, float *vec, float *hitco, Isect *isect, int intersect_type)
+static int vol_get_bounds(Render *re, ShadeInput *shi, float *co, float *dir, float *hitco, Isect *isect, int intersect_type)
 {
 	/* XXX TODO - get raytrace max distance from object instance's bounding box */
 	/* need to account for scaling only, but keep coords in camera space...
@@ -122,8 +121,8 @@ static int vol_get_bounds(Render *re, ShadeInput *shi, float *co, float *vec, fl
 	*/
 	
 	copy_v3_v3(isect->start, co);
-	copy_v3_v3(isect->vec, vec );
-	isect->labda = FLT_MAX;
+	copy_v3_v3(isect->dir, dir );
+	isect->dist = FLT_MAX;
 	isect->mode= RE_RAY_MIRROR;
 	isect->last_hit = NULL;
 	isect->lay= -1;
@@ -140,9 +139,7 @@ static int vol_get_bounds(Render *re, ShadeInput *shi, float *co, float *vec, fl
 	
 	if(RE_rayobject_raycast(re->db.raytree, isect))
 	{
-		hitco[0] = isect->start[0] + isect->labda*isect->vec[0];
-		hitco[1] = isect->start[1] + isect->labda*isect->vec[1];
-		hitco[2] = isect->start[2] + isect->labda*isect->vec[2];
+		madd_v3_v3v3fl(hitco, isect->start, isect->dir, isect->dist);
 		return 1;
 	} else {
 		return 0;
@@ -187,8 +184,8 @@ static void vol_trace_behind(Render *re, ShadeInput *shi, VlakRen *vlr, float *c
 	Isect isect;
 	
 	copy_v3_v3(isect.start, co);
-	copy_v3_v3(isect.vec, shi->geometry.view);
-	isect.labda = FLT_MAX;
+	copy_v3_v3(isect.dir, shi->geometry.view);
+	isect.dist = FLT_MAX;
 	
 	isect.mode= RE_RAY_MIRROR;
 	isect.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;

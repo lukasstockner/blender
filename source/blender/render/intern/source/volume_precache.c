@@ -46,9 +46,10 @@
 #include "BKE_global.h"
 
 #include "RE_shader_ext.h"
-#include "RE_raytrace.h"
 
 #include "database.h"
+#include "rayintersection.h"
+#include "rayobject.h"
 #include "raytrace.h"
 #include "render_types.h"
 #include "rendercore.h"
@@ -89,11 +90,9 @@ int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int l
 	
 	if (RE_rayobject_raycast(tree, isect)) {
 		
-		isect->start[0] = isect->start[0] + isect->labda*isect->vec[0];
-		isect->start[1] = isect->start[1] + isect->labda*isect->vec[1];
-		isect->start[2] = isect->start[2] + isect->labda*isect->vec[2];
+		madd_v3_v3fl(isect->start, isect->dir, isect->dist);
 		
-		isect->labda = FLT_MAX;
+		isect->dist = FLT_MAX;
 		isect->skip = RE_SKIP_VLR_NEIGHBOUR;
 		isect->orig.face= isect->hit.face;
 		isect->orig.ob= isect->hit.ob;
@@ -108,22 +107,22 @@ int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset, int l
 int point_inside_obi(RayObject *tree, ObjectInstanceRen *obi, float *co)
 {
 	Isect isect;
-	float vec[3] = {0.0f,0.0f,1.0f};
+	float dir[3] = {0.0f,0.0f,1.0f};
 	int final_depth=0, depth=0, limit=20;
 	
 	/* set up the isect */
 	memset(&isect, 0, sizeof(isect));
 	copy_v3_v3(isect.start, co);
-	copy_v3_v3(isect.vec, vec);
+	copy_v3_v3(isect.dir, dir);
 	isect.mode= RE_RAY_MIRROR;
 	isect.last_hit= NULL;
 	isect.lay= -1;
 	
-	isect.labda = FLT_MAX;
+	isect.dist = FLT_MAX;
 	isect.orig.face= NULL;
 	isect.orig.ob = NULL;
 
-	final_depth = intersect_outside_volume(tree, &isect, vec, limit, depth);
+	final_depth = intersect_outside_volume(tree, &isect, dir, limit, depth);
 	
 	/* even number of intersections: point is outside
 	 * odd number: point is inside */

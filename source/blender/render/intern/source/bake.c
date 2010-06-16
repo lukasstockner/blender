@@ -46,11 +46,12 @@
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
-#include "RE_raytrace.h"
 #include "RE_shader_ext.h"
 
 #include "database.h"
 #include "object_mesh.h"
+#include "rayintersection.h"
+#include "rayobject.h"
 #include "render_types.h"
 #include "rendercore.h"
 #include "shading.h"
@@ -349,17 +350,15 @@ static int bake_intersect_tree(Render *re, RayObject* raytree, Isect* isect, flo
 	/* 'dir' is always normalized */
 	madd_v3_v3v3fl(isect->start, start, dir, -re->params.r.bake_biasdist);
 
-	isect->vec[0] = dir[0]*maxdist*sign;
-	isect->vec[1] = dir[1]*maxdist*sign;
-	isect->vec[2] = dir[2]*maxdist*sign;
+	isect->dir[0] = dir[0]*sign;
+	isect->dir[1] = dir[1]*sign;
+	isect->dir[2] = dir[2]*sign;
 
-	isect->labda = maxdist;
+	isect->dist = maxdist;
 
 	hit = RE_rayobject_raycast(raytree, isect);
 	if(hit) {
-		hitco[0] = isect->start[0] + isect->labda*isect->vec[0];
-		hitco[1] = isect->start[1] + isect->labda*isect->vec[1];
-		hitco[2] = isect->start[2] + isect->labda*isect->vec[2];
+		madd_v3_v3v3fl(hitco, isect->start, isect->dir, isect->dist);
 
 		*dist= len_v3v3(start, hitco);
 	}

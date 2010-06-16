@@ -42,6 +42,7 @@
 
 #include "BLI_math.h"
 
+#include "rayintersection.h"
 #include "rayobject.h"
 
 /* ********** structs *************** */
@@ -125,8 +126,8 @@ static void calc_ocval_face(float *v1, float *v2, float *v3, float *v4, short x,
 	float min[3], max[3];
 	int ocmin, ocmax;
 	
-	VECCOPY(min, v1);
-	VECCOPY(max, v1);
+	copy_v3_v3(min, v1);
+	copy_v3_v3(max, v1);
 	DO_MINMAX(v2, min, max);
 	DO_MINMAX(v3, min, max);
 	if(v4) {
@@ -504,11 +505,11 @@ static void octree_fill_rayface(Octree *oc, RayFace *face)
 
 	ocres2= oc->ocres*oc->ocres;
 
-	VECCOPY(co1, face->v1);
-	VECCOPY(co2, face->v2);
-	VECCOPY(co3, face->v3);
+	copy_v3_v3(co1, face->v1);
+	copy_v3_v3(co2, face->v2);
+	copy_v3_v3(co3, face->v3);
 	if(face->v4)
-		VECCOPY(co4, face->v4);
+		copy_v3_v3(co4, face->v4);
 
 	for(c=0;c<3;c++) {
 		rtf[0][c]= (co1[c]-oc->min[c])*ocfac[c] ;
@@ -856,20 +857,20 @@ static int RE_rayobject_octree_intersect(RayObject *tree, Isect *is)
 	is->userdata= oc->userdata;
 #endif
 
-	VECCOPY( start, is->start );
-	VECADDFAC( end, is->start, is->vec, is->labda );
-	ldx= is->vec[0]*is->labda;
-	olabda = is->labda;
+	copy_v3_v3( start, is->start );
+	madd_v3_v3v3fl( end, is->start, is->dir, is->dist );
+	ldx= is->dir[0]*is->dist;
+	olabda = is->dist;
 	u1= 0.0f;
 	u2= 1.0f;
 	
 	/* clip with octree cube */
 	if(cliptest(-ldx, start[0]-oc->min[0], &u1,&u2)) {
 		if(cliptest(ldx, oc->max[0]-start[0], &u1,&u2)) {
-			ldy= is->vec[1]*is->labda;
+			ldy= is->dir[1]*is->dist;
 			if(cliptest(-ldy, start[1]-oc->min[1], &u1,&u2)) {
 				if(cliptest(ldy, oc->max[1]-start[1], &u1,&u2)) {
-					ldz = is->vec[2]*is->labda;
+					ldz = is->dir[2]*is->dist;
 					if(cliptest(-ldz, start[2]-oc->min[2], &u1,&u2)) {
 						if(cliptest(ldz, oc->max[2]-start[2], &u1,&u2)) {
 							c1=1;
@@ -990,18 +991,18 @@ static int RE_rayobject_octree_intersect(RayObject *tree, Isect *is)
 			if(no) {
 				
 				/* calculate ray intersection with octree node */
-				VECCOPY(vec1, vec2);
+				copy_v3_v3(vec1, vec2);
 				// dox,y,z is negative
 				vec2[0]= ox1-ddalabda*dox;
 				vec2[1]= oy1-ddalabda*doy;
 				vec2[2]= oz1-ddalabda*doz;
 				calc_ocval_ray(&ocval, (float)xo, (float)yo, (float)zo, vec1, vec2);
 
-				//is->labda = (u1+ddalabda*(u2-u1))*olabda;
+				//is->dist = (u1+ddalabda*(u2-u1))*olabda;
 				if( testnode(oc, is, no, ocval) )
 					found = 1;
 
-				if(is->labda < (u1+ddalabda*(u2-u1))*olabda)
+				if(is->dist < (u1+ddalabda*(u2-u1))*olabda)
 					return found;
 			}
 

@@ -45,6 +45,7 @@
 
 #include "environment.h"
 #include "lamp.h"
+#include "rayintersection.h"
 #include "raytrace.h"
 #include "render_types.h"
 #include "rendercore.h"

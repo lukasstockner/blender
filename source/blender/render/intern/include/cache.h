@@ -97,12 +97,5 @@ void irr_cache_write(struct Render *re, struct IrrCache *cache);
 IrrCache *irr_cache_read(struct Render *re, int thread);
 void irr_cache_merge(struct Render *re, IrrCache *cache);
 
-/* Radiosity Cache */
-
-void radio_cache_create(struct Render *re, int thread);
-void radio_cache_free(struct RenderDB *rdb, int thread);
-int radio_cache_lookup(struct Render *re, struct ShadeInput *shi, float color[3], float raylength);
-void radio_cache_add(struct Render *re, struct ShadeInput *shi, float color[3]);
-
 #endif /* __RENDER_CACHE_H__ */
 

@@ -30,7 +30,8 @@
 #ifndef RE_SHADER_EXT_H
 #define RE_SHADER_EXT_H
 
-#include "RE_raytrace.h" /* For RE_RAYCOUNTER */
+#include "../../intern/include/raycounter.h"
+
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* this include is for shading and texture exports            */
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */

@@ -26,6 +26,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
 #ifdef __SSE__
  
 #ifndef RE_RAYTRACE_SVBVH_H
@@ -41,7 +42,7 @@ struct SVBVHNode
 {
 	int nchilds;
 
-	//Array of bb, array of childs
+	// array of bb, array of childs
 	float *child_bb;
 	SVBVHNode **child;
 };
@@ -73,7 +74,7 @@ inline void bvh_node_push_childs<SVBVHNode>(SVBVHNode *node, Isect *isec, SVBVHN
 	}
 	while(i < nchilds)
 	{
-		if(RE_rayobject_bb_intersect_test(isec, (const float*)child_bb+6*i))
+		if(rayobject_bb_intersect_test(isec, (const float*)child_bb+6*i))
 			stack[stack_pos++] = child[i];
 		i++;
 	}
@@ -253,3 +254,4 @@ struct Reorganize_SVBVH
 #endif
 
 #endif //__SSE__
+

@@ -33,8 +33,6 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
-#include "RE_raytrace.h"
-
 #include "cache.h"
 #include "camera.h"
 #include "database.h"
@@ -42,6 +40,8 @@
 #include "material.h"
 #include "object_mesh.h"
 #include "part.h"
+#include "rayintersection.h"
+#include "rayobject.h"
 #include "raytrace.h"
 #include "render_types.h"
 #include "rendercore.h"
@@ -52,7 +52,7 @@ typedef struct Hit {
 	ObjectInstanceRen *obi;
 	VlakRen *vlr;
 	float co[3];
-	float vec[3];
+	float dir[3];
 	float n[3];
 	float u, v;
 	float maxdist, dist;
@@ -95,8 +95,8 @@ static int isec_trace_ray(Render *re, Hit *from, Hit *to, int depth)
 	memset(&isec, 0, sizeof(isec));
 
 	copy_v3_v3(isec.start, from->co);
-	mul_v3_v3fl(isec.vec, from->vec, from->maxdist);
-	isec.labda= 1.0f;
+	copy_v3_v3(isec.dir, from->dir);
+	isec.dist= from->maxdist;
 
 	isec.mode= RE_RAY_MIRROR;
 	isec.skip = RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_RENDER_CHECK;
@@ -114,10 +114,10 @@ static int isec_trace_ray(Render *re, Hit *from, Hit *to, int depth)
 	to->u= isec.u;
 	to->v= isec.v;
 	to->maxdist= 1e5f;
-	to->dist= from->maxdist*isec.labda;
+	to->dist= isec.dist;
 	to->quad= (isec.isect == 2);
 
-	madd_v3_v3v3fl(to->co, isec.start, isec.vec, isec.labda);
+	madd_v3_v3v3fl(to->co, isec.start, isec.dir, isec.dist);
 	copy_v3_v3(to->n, to->vlr->n);
 	mul_v3_fl(to->n, -1.0f);
 
@@ -131,7 +131,7 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 	float bsdf[3], nsample[3], view[3], probability, basis[3][3], r[2];
 
 	if(isec_trace_ray(re, from, &to, depth)) {
-		copy_v3_v3(view, from->vec);
+		copy_v3_v3(view, from->dir);
 		negate_v3(view);
 
 		shadeinput_from_hit(re, rl, &shi, &to, view);
@@ -146,15 +146,15 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 		else
 			copy_v2_v2(r, hemi);
 
-		sample_project_hemi_cosine_weighted(to.vec, r);
+		sample_project_hemi_cosine_weighted(to.dir, r);
 
 		copy_v3_v3(basis[2], shi.geometry.vn);
 		ortho_basis_v3v3_v3(basis[0], basis[1], shi.geometry.vn);
-		mul_m3_v3(basis, to.vec);
+		mul_m3_v3(basis, to.dir);
 
 		/* sample emit & bsdf */
 		mat_emit(sample, &shi.material, &shi.geometry, shi.shading.thread);
-		mat_bsdf_f(bsdf, &shi.material, &shi.geometry, shi.shading.thread, to.vec, BSDF_DIFFUSE);
+		mat_bsdf_f(bsdf, &shi.material, &shi.geometry, shi.shading.thread, to.dir, BSDF_DIFFUSE);
 
 		mat_shading_end(re, &shi.material);
 
@@ -172,7 +172,7 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 				nsample[0]= bsdf[0]*nsample[0];
 				nsample[1]= bsdf[1]*nsample[1];
 				nsample[2]= bsdf[2]*nsample[2];
-				mul_v3_fl(nsample, (float)M_PI/(probability*dot_v3v3(to.vec, shi.geometry.vn)));
+				mul_v3_fl(nsample, (float)M_PI/(probability*dot_v3v3(to.dir, shi.geometry.vn)));
 
 				/* accumulate */
 				add_v3_v3v3(sample, sample, nsample);
@@ -185,7 +185,7 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 	}
 	else {
 		/* no hit, sample environment */
-		environment_shade(re, sample, NULL, from->vec, NULL, thread);
+		environment_shade(re, sample, NULL, from->dir, NULL, thread);
 		return 1e5f;
 	}
 }
@@ -211,7 +211,7 @@ static void integrate_pixel(Render *re, RenderLayer *rl, int thread, int x, int 
 		/* raster to ray */
 		memset(&from, 0, sizeof(from));
 		from.maxdist= 1e5f;
-		camera_raster_to_ray(&re->cam, from.co, from.vec, raster[0], raster[1]);
+		camera_raster_to_ray(&re->cam, from.co, from.dir, raster[0], raster[1]);
 
 		/* integrate path */
 		sampler_get_float_2d(hemi, qsa2, a);

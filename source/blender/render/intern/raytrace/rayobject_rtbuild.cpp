@@ -339,8 +339,8 @@ int rtbuild_heuristic_object_split(RTBuilder *b, int nchilds)
 			{
 				if(i == size-1)
 				{
-					VECCOPY(sweep[i].bb, obj[i]->bb);
-					VECCOPY(sweep[i].bb+3, obj[i]->bb+3);
+					copy_v3_v3(sweep[i].bb, obj[i]->bb);
+					copy_v3_v3(sweep[i].bb+3, obj[i]->bb+3);
 					sweep[i].cost = obj[i]->cost;
 				}
 				else

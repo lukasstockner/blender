@@ -26,25 +26,29 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
 int tot_pushup   = 0;
 int tot_pushdown = 0;
 int tot_hints    = 0;
 
-
 #include <assert.h>
-#include "rayobject.h"
-#include "rayobject_rtbuild.h"
-#include "RE_raytrace.h"
-#include "BLI_memarena.h"
+
 #include "MEM_guardedalloc.h"
+
 #include "BKE_global.h"
 #include "BKE_utildefines.h"
+
 #include "BLI_math.h"
+#include "BLI_memarena.h"
+
+#include "rayintersection.h"
+#include "rayobject.h"
+#include "rayobject_rtbuild.h"
 
 #include "reorganize.h"
 #include "bvh.h"
 #include "vbvh.h"
-#include "svbvh.h"
+
 #include <queue>
 #include <algorithm>
 

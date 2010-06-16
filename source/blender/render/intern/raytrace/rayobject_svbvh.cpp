@@ -26,6 +26,11 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
+#include "MEM_guardedalloc.h"
+
+#include "BKE_utildefines.h"
+
 #include "vbvh.h"
 #include "svbvh.h"
 #include "reorganize.h"
@@ -73,7 +78,8 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 	//Build and optimize the tree
 	if(0)
 	{
-		VBVHNode *root = BuildBinaryVBVH<VBVHNode>(arena1,&obj->rayobj.control).transform(obj->builder);
+		VBVHNode *root = BuildBinaryVBVH<VBVHNode>(arena1, &obj->rayobj.control).transform(obj->builder);
+
 		if(RE_rayobjectcontrol_test_break(&obj->rayobj.control))
 		{
 			BLI_memarena_free(arena1);
@@ -84,11 +90,11 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 		reorganize(root);
 		remove_useless(root, &root);
 		bvh_refit(root);
-	
+
 		pushup(root);
 		pushdown(root);
 		pushup_simd<VBVHNode,4>(root);
-	
+
 		obj->root = Reorganize_SVBVH<VBVHNode>(arena2).transform(root);
 	}
 	else
@@ -96,6 +102,7 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 		//Finds the optimal packing of this tree using a given cost model
 		//TODO this uses quite a lot of memory, find ways to reduce memory usage during building
 		OVBVHNode *root = BuildBinaryVBVH<OVBVHNode>(arena1,&obj->rayobj.control).transform(obj->builder);			
+
 		if(RE_rayobjectcontrol_test_break(&obj->rayobj.control))
 		{
 			BLI_memarena_free(arena1);
@@ -106,15 +113,13 @@ void bvh_done<SVBVHTree>(SVBVHTree *obj)
 		VBVH_optimalPackSIMD<OVBVHNode,PackCost>(PackCost()).transform(root);
 		obj->root = Reorganize_SVBVH<OVBVHNode>(arena2).transform(root);
 	}
-
 	
 	//Free data
 	BLI_memarena_free(arena1);
 	
 	obj->node_arena = arena2;
 	obj->cost = 1.0;
-	
-	
+
 	rtbuild_free( obj->builder );
 	obj->builder = NULL;
 }
@@ -170,6 +175,7 @@ RayObject *RE_rayobject_svbvh_create(int size)
 {
 	return bvh_create_tree<SVBVHTree,DFS_STACK_SIZE>(size);
 }
+
 #else
 
 RayObject *RE_rayobject_svbvh_create(int size)

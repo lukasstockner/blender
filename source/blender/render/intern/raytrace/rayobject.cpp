@@ -26,44 +26,83 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
+
 #include <assert.h>
 
-#include "BKE_utildefines.h"
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math.h"
+
+#include "BKE_utildefines.h"
 #include "DNA_material_types.h"
 
-#include "RE_raytrace.h"
 #include "object_mesh.h"
+#include "rayintersection.h"
 #include "rayobject.h"
 #include "raycounter.h"
+#include "render_types.h"
 
-/*
- * Determines the distance that the ray must travel to hit the bounding volume of the given node
- * Based on Tactical Optimization of Ray/Box Intersection, by Graham Fyffe
- *  [http://tog.acm.org/resources/RTNews/html/rtnv21n1.html#art9]
- */
-int RE_rayobject_bb_intersect_test(const Isect *isec, const float *_bb)
+/* RayFace
+
+   note we force always inline here, because compiler refuses to otherwise
+   because function is too long. Since this is code that is called billions
+   of times we really do want to inline. */
+
+static RayObject* rayface_from_coords(RayFace *rayface, void *ob, void *face, float *v1, float *v2, float *v3, float *v4)
 {
-	const float *bb = _bb;
-	
-	float t1x = (bb[isec->bv_index[0]] - isec->start[0]) * isec->idot_axis[0];
-	float t2x = (bb[isec->bv_index[1]] - isec->start[0]) * isec->idot_axis[0];
-	float t1y = (bb[isec->bv_index[2]] - isec->start[1]) * isec->idot_axis[1];
-	float t2y = (bb[isec->bv_index[3]] - isec->start[1]) * isec->idot_axis[1];
-	float t1z = (bb[isec->bv_index[4]] - isec->start[2]) * isec->idot_axis[2];
-	float t2z = (bb[isec->bv_index[5]] - isec->start[2]) * isec->idot_axis[2];
+	rayface->ob = ob;
+	rayface->face = face;
 
-	RE_RC_COUNT(isec->raycounter->bb.test);
-	
-	if(t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z) return 0;
-	if(t2x < 0.0 || t2y < 0.0 || t2z < 0.0) return 0;
-	if(t1x > isec->labda || t1y > isec->labda || t1z > isec->labda) return 0;
-	RE_RC_COUNT(isec->raycounter->bb.hit);	
+	copy_v3_v3(rayface->v1, v1);
+	copy_v3_v3(rayface->v2, v2);
+	copy_v3_v3(rayface->v3, v3);
 
-	return 1;
+	if(v4)
+	{
+		copy_v3_v3(rayface->v4, v4);
+		rayface->quad = 1;
+	}
+	else
+	{
+		rayface->quad = 0;
+	}
+
+	return RE_rayobject_unalignRayFace(rayface);
 }
 
-static inline int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen *vlr)
+static void rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
+{
+	if(obi->transform_primitives)
+	{
+		mul_m4_v3(obi->mat, rayface->v1);
+		mul_m4_v3(obi->mat, rayface->v2);
+		mul_m4_v3(obi->mat, rayface->v3);
+
+		if(RE_rayface_isQuad(rayface))
+			mul_m4_v3(obi->mat, rayface->v4);
+	}
+
+	rayface_from_coords(rayface, obi, vlr, vlr->v1->co, vlr->v2->co, vlr->v3->co, vlr->v4 ? vlr->v4->co : 0);
+}
+
+RayObject* RE_rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
+{
+	return rayface_from_coords(rayface, obi, vlr, vlr->v1->co, vlr->v2->co, vlr->v3->co, vlr->v4 ? vlr->v4->co : 0);
+}
+
+/* VlakPrimitive */
+
+RayObject* RE_vlakprimitive_from_vlak(VlakPrimitive *face, struct ObjectInstanceRen *obi, struct VlakRen *vlr)
+{
+	face->ob = obi;
+	face->face = vlr;
+
+	return RE_rayobject_unalignVlakPrimitive(face);
+}
+
+/* Checks for ignoring faces or materials */
+
+static int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen *vlr)
 {
 	/* for baking selected to active non-traceable materials might still
 	 * be in the raytree */
@@ -77,7 +116,7 @@ static inline int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen
 		return (is->lay & obi->lay);
 }
 
-static inline int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
+static int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
 {
 	/* solid material types only */
 	if (vlr->mat->material_type == MA_TYPE_SURFACE)
@@ -86,23 +125,14 @@ static inline int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, V
 		return 0;
 }
 
-static inline int vlr_check_bake(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
+static int vlr_check_bake(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
 {
 	return (obi->obr->ob != is->userdata);
 }
 
-static inline int rayface_check_cullface(RayFace *face, Isect *is)
-{
-	float nor[3];
-	
-	/* don't intersect if the ray faces along the face normal */
-	if(face->quad) normal_quad_v3( nor,face->v1, face->v2, face->v3, face->v4);
-	else normal_tri_v3( nor,face->v1, face->v2, face->v3);
+/* Ray Triangle/Quad Intersection */
 
-	return (INPR(nor, is->vec) < 0);
-}
-
-static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2], float *lambda)
+static int isec_tri_quad(float start[3], float dir[3], RayFace *face, float uv[2], float *lambda)
 {
 	float co1[3], co2[3], co3[3], co4[3];
 	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1, l;
@@ -114,7 +144,7 @@ static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2
 	copy_v3_v3(co2, face->v2);
 	copy_v3_v3(co3, face->v3);
 
-	copy_v3_v3(r, vec);
+	copy_v3_v3(r, dir);
 
 	/* intersect triangle */
 	sub_v3_v3v3(t0, co3, co2);
@@ -130,17 +160,17 @@ static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2
 		divdet= 1.0f/divdet;
 		v= det1*divdet;
 
-		if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+		if(v < RE_RAYTRACE_EPSILON && v > -(1.0f+RE_RAYTRACE_EPSILON)) {
 			float cros[3];
 
 			cross_v3_v3v3(cros, m, t0);
 			u= divdet*dot_v3v3(cros, r);
 
-			if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON)) {
+			if(u < RE_RAYTRACE_EPSILON && (v + u) > -(1.0f+RE_RAYTRACE_EPSILON)) {
 				l= divdet*dot_v3v3(cros, t1);
 
 				/* check if intersection is within ray length */
-				if(l > -ISECT_EPSILON && l < *lambda) {
+				if(l > -RE_RAYTRACE_EPSILON && l < *lambda) {
 					uv[0]= u;
 					uv[1]= v;
 					*lambda= l;
@@ -160,16 +190,16 @@ static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2
 			divdet= 1.0f/divdet;
 			v = det1*divdet;
 			
-			if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+			if(v < RE_RAYTRACE_EPSILON && v > -(1.0f+RE_RAYTRACE_EPSILON)) {
 				float cros[3];
 
 				cross_v3_v3v3(cros, m, t0);
 				u= divdet*dot_v3v3(cros, r);
 	
-				if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON)) {
+				if(u < RE_RAYTRACE_EPSILON && (v + u) > -(1.0f+RE_RAYTRACE_EPSILON)) {
 					l= divdet*dot_v3v3(cros, t1);
 					
-					if(l >- ISECT_EPSILON && l < *lambda) {
+					if(l >- RE_RAYTRACE_EPSILON && l < *lambda) {
 						uv[0]= u;
 						uv[1]= -(1.0f + v + u);
 						*lambda= l;
@@ -183,7 +213,9 @@ static int isec_tri_quad(float start[3], float vec[3], RayFace *face, float uv[2
 	return 0;
 }
 
-static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
+/* Simpler yes/no Ray Triangle/Quad Intersection */
+
+static int isec_tri_quad_neighbour(float start[3], float dir[3], RayFace *face)
 {
 	float co1[3], co2[3], co3[3], co4[3];
 	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1;
@@ -195,7 +227,7 @@ static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
 	copy_v3_v3(co2, face->v2);
 	copy_v3_v3(co3, face->v3);
 
-	negate_v3_v3(r, vec); /* note, different than above function */
+	negate_v3_v3(r, dir); /* note, different than above function */
 
 	/* intersect triangle */
 	sub_v3_v3v3(t0, co3, co2);
@@ -211,13 +243,13 @@ static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
 		divdet= 1.0f/divdet;
 		v= det1*divdet;
 
-		if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+		if(v < RE_RAYTRACE_EPSILON && v > -(1.0f+RE_RAYTRACE_EPSILON)) {
 			float cros[3];
 
 			cross_v3_v3v3(cros, m, t0);
 			u= divdet*dot_v3v3(cros, r);
 
-			if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON))
+			if(u < RE_RAYTRACE_EPSILON && (v + u) > -(1.0f+RE_RAYTRACE_EPSILON))
 				return 1;
 		}
 	}
@@ -232,13 +264,13 @@ static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
 			divdet= 1.0f/divdet;
 			v = det1*divdet;
 			
-			if(v < ISECT_EPSILON && v > -(1.0f+ISECT_EPSILON)) {
+			if(v < RE_RAYTRACE_EPSILON && v > -(1.0f+RE_RAYTRACE_EPSILON)) {
 				float cros[3];
 
 				cross_v3_v3v3(cros, m, t0);
 				u= divdet*dot_v3v3(cros, r);
 	
-				if(u < ISECT_EPSILON && (v + u) > -(1.0f+ISECT_EPSILON))
+				if(u < RE_RAYTRACE_EPSILON && (v + u) > -(1.0f+RE_RAYTRACE_EPSILON))
 					return 2;
 			}
 		}
@@ -247,11 +279,12 @@ static int isec_tri_quad_2(float start[3], float vec[3], RayFace *face)
 	return 0;
 }
 
-/* ray - triangle or quad intersection */
-/* this function shall only modify Isect if it detects an hit */
+/* RayFace intersection with checks and neighbour verifaction included,
+   Isect is modified if the face is hit. */
+
 static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 {
-	float labda, uv[2];
+	float dist, uv[2];
 	int ok= 0;
 	
 	/* avoid self-intersection */
@@ -261,47 +294,41 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 	/* check if we should intersect this face */
 	if(is->skip & RE_SKIP_VLR_RENDER_CHECK)
 	{
-		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
+		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face) == 0)
 			return 0;
 	}
 	else if(is->skip & RE_SKIP_VLR_NON_SOLID_MATERIAL)
 	{
-		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
+		if(vlr_check_intersect(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face) == 0)
 			return 0;
 		if(vlr_check_intersect_solid(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face) == 0)
 			return 0;
 	}
 	else if(is->skip & RE_SKIP_VLR_BAKE_CHECK) {
-		if(vlr_check_bake(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face ) == 0)
-			return 0;
-	}
-
-	if(is->skip & RE_SKIP_CULLFACE)
-	{
-		if(rayface_check_cullface(face, is) == 0)
+		if(vlr_check_bake(is, (ObjectInstanceRen*)face->ob, (VlakRen*)face->face) == 0)
 			return 0;
 	}
 
 	/* ray counter */
 	RE_RC_COUNT(is->raycounter->faces.test);
 
-	labda= is->labda;
-	ok= isec_tri_quad(is->start, is->vec, face, uv, &labda);
+	dist= is->dist;
+	ok= isec_tri_quad(is->start, is->dir, face, uv, &dist);
 
 	if(ok) {
 	
-		/* when a shadow ray leaves a face, it can be little outside the edges of it, causing
-		intersection to be detected in its neighbour face */
+		/* when a shadow ray leaves a face, it can be little outside the edges
+		   of it, causing intersection to be detected in its neighbour face */
 		if(is->skip & RE_SKIP_VLR_NEIGHBOUR)
 		{
-			if(labda < 0.1f && is->orig.ob == face->ob)
+			if(dist < 0.1f && is->orig.ob == face->ob)
 			{
 				VlakRen * a = (VlakRen*)is->orig.face;
 				VlakRen * b = (VlakRen*)face->face;
 
-				/* so there's a shared edge or vertex, let's intersect ray with face
-				itself, if that's true we can safely return 1, otherwise we assume
-				the intersection is invalid, 0 */
+				/* so there's a shared edge or vertex, let's intersect ray with
+				   face itself, if that's true we can safely return 1, otherwise
+				   we assume the intersection is invalid, 0 */
 				if(a->v1==b->v1 || a->v2==b->v1 || a->v3==b->v1 || a->v4==b->v1
 				|| a->v1==b->v2 || a->v2==b->v2 || a->v3==b->v2 || a->v4==b->v2
 				|| a->v1==b->v3 || a->v2==b->v3 || a->v3==b->v3 || a->v4==b->v3
@@ -309,18 +336,9 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 					/* create RayFace from original face, transformed if necessary */
 					RayFace origface;
 					ObjectInstanceRen *ob= (ObjectInstanceRen*)is->orig.ob;
-					RE_rayface_from_vlak(&origface, ob, (VlakRen*)is->orig.face);
+					rayface_from_vlak(&origface, ob, (VlakRen*)is->orig.face);
 
-					if(ob->transform_primitives)
-					{
-						mul_m4_v3(ob->mat, origface.v1);
-						mul_m4_v3(ob->mat, origface.v2);
-						mul_m4_v3(ob->mat, origface.v3);
-						if(RE_rayface_isQuad(&origface))
-							mul_m4_v3(ob->mat, origface.v4);
-					}
-
-					if(!isec_tri_quad_2(is->start, is->vec, &origface))
+					if(!isec_tri_quad_neighbour(is->start, is->dir, &origface))
 					{
 						return 0;
 					}
@@ -331,7 +349,7 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 		RE_RC_COUNT(is->raycounter->faces.hit);
 
 		is->isect= ok;	// which half of the quad
-		is->labda= labda;
+		is->dist= dist;
 		is->u= uv[0]; is->v= uv[1];
 
 		is->hit.ob   = face->ob;
@@ -345,51 +363,18 @@ static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 	return 0;
 }
 
-RayObject* RE_rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
-{
-	return RE_rayface_from_coords(rayface, obi, vlr, vlr->v1->co, vlr->v2->co, vlr->v3->co, vlr->v4 ? vlr->v4->co : 0 );
-}
-
-RayObject* RE_rayface_from_coords(RayFace *rayface, void *ob, void *face, float *v1, float *v2, float *v3, float *v4)
-{
-	rayface->ob = ob;
-	rayface->face = face;
-
-	VECCOPY(rayface->v1, v1);
-	VECCOPY(rayface->v2, v2);
-	VECCOPY(rayface->v3, v3);
-	if(v4)
-	{
-		VECCOPY(rayface->v4, v4);
-		rayface->quad = 1;
-	}
-	else
-	{
-		rayface->quad = 0;
-	}
-
-	return RE_rayobject_unalignRayFace(rayface);
-}
-
-RayObject* RE_vlakprimitive_from_vlak(VlakPrimitive *face, struct ObjectInstanceRen *obi, struct VlakRen *vlr)
-{
-	face->ob = obi;
-	face->face = vlr;
-	return RE_rayobject_unalignVlakPrimitive(face);
-}
-
+/* Intersection */
 
 int RE_rayobject_raycast(RayObject *r, Isect *isec)
 {
 	int i;
+
 	RE_RC_COUNT(isec->raycounter->raycast.test);
 
-	/* Setup vars used on raycast */
-	isec->dist = len_v3(isec->vec);
-	
+	/* setup vars used on raycast */
 	for(i=0; i<3; i++)
 	{
-		isec->idot_axis[i]		= 1.0f / isec->vec[i];
+		isec->idot_axis[i]		= 1.0f / isec->dir[i];
 		
 		isec->bv_index[2*i]		= isec->idot_axis[i] < 0.0 ? 1 : 0;
 		isec->bv_index[2*i+1]	= 1 - isec->bv_index[2*i];
@@ -399,7 +384,7 @@ int RE_rayobject_raycast(RayObject *r, Isect *isec)
 	}
 
 #ifdef RT_USE_LAST_HIT	
-	/* Last hit heuristic */
+	/* last hit heuristic */
 	if(isec->mode==RE_RAY_SHADOW && isec->last_hit)
 	{
 		RE_RC_COUNT(isec->raycounter->rayshadow_last_hit.test);
@@ -426,6 +411,7 @@ int RE_rayobject_raycast(RayObject *r, Isect *isec)
 #endif
 		return 1;
 	}
+
 	return 0;
 }
 
@@ -440,83 +426,39 @@ int RE_rayobject_intersect(RayObject *r, Isect *i)
 		//TODO optimize (useless copy to RayFace to avoid duplicate code)
 		VlakPrimitive *face = (VlakPrimitive*) RE_rayobject_align(r);
 		RayFace nface;
-		RE_rayface_from_vlak(&nface, face->ob, face->face);
-
-		if(face->ob->transform_primitives)
-		{
-			mul_m4_v3(face->ob->mat, nface.v1);
-			mul_m4_v3(face->ob->mat, nface.v2);
-			mul_m4_v3(face->ob->mat, nface.v3);
-			if(RE_rayface_isQuad(&nface))
-				mul_m4_v3(face->ob->mat, nface.v4);
-		}
+		rayface_from_vlak(&nface, face->ob, face->face);
 
 		return intersect_rayface(r, &nface, i);
 	}
 	else if(RE_rayobject_isRayAPI(r))
 	{
-		r = RE_rayobject_align( r );
-		return r->api->raycast( r, i );
+		r = RE_rayobject_align(r);
+		return r->api->raycast(r, i);
 	}
-	else assert(0);
-    return 0; /* wont reach this, quiet compilers */
+	else {
+		assert(0);
+    	return 0;
+	}
 }
+
+/* Building */
 
 void RE_rayobject_add(RayObject *r, RayObject *o)
 {
-	r = RE_rayobject_align( r );
-	return r->api->add( r, o );
+	r = RE_rayobject_align(r);
+	return r->api->add(r, o);
 }
 
 void RE_rayobject_done(RayObject *r)
 {
-	r = RE_rayobject_align( r );
-	r->api->done( r );
+	r = RE_rayobject_align(r);
+	r->api->done(r);
 }
 
 void RE_rayobject_free(RayObject *r)
 {
-	r = RE_rayobject_align( r );
-	r->api->free( r );
-}
-
-void RE_rayobject_merge_bb(RayObject *r, float *min, float *max)
-{
-	if(RE_rayobject_isRayFace(r))
-	{
-		RayFace *face = (RayFace*) RE_rayobject_align(r);
-		
-		DO_MINMAX( face->v1, min, max );
-		DO_MINMAX( face->v2, min, max );
-		DO_MINMAX( face->v3, min, max );
-		if(RE_rayface_isQuad(face)) DO_MINMAX( face->v4, min, max );
-	}
-	else if(RE_rayobject_isVlakPrimitive(r))
-	{
-		VlakPrimitive *face = (VlakPrimitive*) RE_rayobject_align(r);
-		RayFace nface;
-		RE_rayface_from_vlak(&nface, face->ob, face->face);
-
-		if(face->ob->transform_primitives)
-		{
-			mul_m4_v3(face->ob->mat, nface.v1);
-			mul_m4_v3(face->ob->mat, nface.v2);
-			mul_m4_v3(face->ob->mat, nface.v3);
-			if(RE_rayface_isQuad(&nface))
-				mul_m4_v3(face->ob->mat, nface.v4);
-		}
-
-		DO_MINMAX( nface.v1, min, max );
-		DO_MINMAX( nface.v2, min, max );
-		DO_MINMAX( nface.v3, min, max );
-		if(RE_rayface_isQuad(&nface)) DO_MINMAX( nface.v4, min, max );
-	}
-	else if(RE_rayobject_isRayAPI(r))
-	{
-		r = RE_rayobject_align( r );
-		r->api->bb( r, min, max );
-	}
-	else assert(0);
+	r = RE_rayobject_align(r);
+	r->api->free(r);
 }
 
 float RE_rayobject_cost(RayObject *r)
@@ -527,11 +469,47 @@ float RE_rayobject_cost(RayObject *r)
 	}
 	else if(RE_rayobject_isRayAPI(r))
 	{
-		r = RE_rayobject_align( r );
-		return r->api->cost( r );
+		r = RE_rayobject_align(r);
+		return r->api->cost(r);
 	}
-	else assert(0);
+	else
+		assert(0);
 }
+
+/* Bounding Boxes */
+
+void RE_rayobject_merge_bb(RayObject *r, float *min, float *max)
+{
+	if(RE_rayobject_isRayFace(r))
+	{
+		RayFace *face = (RayFace*) RE_rayobject_align(r);
+		
+		DO_MINMAX(face->v1, min, max);
+		DO_MINMAX(face->v2, min, max);
+		DO_MINMAX(face->v3, min, max);
+		if(RE_rayface_isQuad(face)) DO_MINMAX(face->v4, min, max);
+	}
+	else if(RE_rayobject_isVlakPrimitive(r))
+	{
+		VlakPrimitive *face = (VlakPrimitive*) RE_rayobject_align(r);
+		RayFace nface;
+		rayface_from_vlak(&nface, face->ob, face->face);
+
+		DO_MINMAX(nface.v1, min, max);
+		DO_MINMAX(nface.v2, min, max);
+		DO_MINMAX(nface.v3, min, max);
+		if(RE_rayface_isQuad(&nface)) DO_MINMAX(nface.v4, min, max);
+	}
+	else if(RE_rayobject_isRayAPI(r))
+	{
+		r = RE_rayobject_align(r);
+		r->api->bb(r, min, max);
+	}
+	else
+		assert(0);
+}
+
+/* Hints */
 
 void RE_rayobject_hint_bb(RayObject *r, RayHint *hint, float *min, float *max)
 {
@@ -541,60 +519,30 @@ void RE_rayobject_hint_bb(RayObject *r, RayHint *hint, float *min, float *max)
 	}
 	else if(RE_rayobject_isRayAPI(r))
 	{
-		r = RE_rayobject_align( r );
-		return r->api->hint_bb( r, hint, min, max );
+		r = RE_rayobject_align(r);
+		return r->api->hint_bb(r, hint, min, max);
 	}
-	else assert(0);
+	else
+		assert(0);
 }
+
+/* RayObjectControl */
 
 int RE_rayobjectcontrol_test_break(RayObjectControl *control)
 {
 	if(control->test_break)
-		return control->test_break( control->data );
+		return control->test_break(control->data);
 
 	return 0;
 }
 
-
-/*
- * Empty raytree
- */
-static int RE_rayobject_empty_intersect(RayObject *o, Isect *is)
+void RE_rayobject_set_control(RayObject *r, void *data, RE_rayobjectcontrol_test_break_callback test_break)
 {
-	return 0;
+	if(RE_rayobject_isRayAPI(r))
+	{
+		r = RE_rayobject_align(r);
+		r->control.data = data;
+		r->control.test_break = test_break;
+	}
 }
 
-static void RE_rayobject_empty_free(RayObject *o)
-{
-}
-
-static void RE_rayobject_empty_bb(RayObject *o, float *min, float *max)
-{
-	return;
-}
-
-static float RE_rayobject_empty_cost(RayObject *o)
-{
-	return 0.0;
-}
-
-static void RE_rayobject_empty_hint_bb(RayObject *o, RayHint *hint, float *min, float *max)
-{}
-
-static RayObjectAPI empty_api =
-{
-	RE_rayobject_empty_intersect,
-	NULL, //static void RE_rayobject_instance_add(RayObject *o, RayObject *ob);
-	NULL, //static void RE_rayobject_instance_done(RayObject *o);
-	RE_rayobject_empty_free,
-	RE_rayobject_empty_bb,
-	RE_rayobject_empty_cost,
-	RE_rayobject_empty_hint_bb
-};
-
-static RayObject empty_raytree = { &empty_api, {0, 0} };
-
-RayObject *RE_rayobject_empty_create()
-{
-	return RE_rayobject_unalignRayAPI( &empty_raytree );
-}

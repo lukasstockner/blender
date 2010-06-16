@@ -26,12 +26,16 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#include "rayobject.h"
-#include "raycounter.h"
+
 #include "MEM_guardedalloc.h"
-#include "rayobject_rtbuild.h"
-#include "rayobject_hint.h"
+
 #include "BLI_math.h"
+
+#include "raycounter.h"
+#include "rayintersection.h"
+#include "rayobject.h"
+#include "rayobject_hint.h"
+#include "rayobject_rtbuild.h"
 
 #include <assert.h>
 
@@ -46,7 +50,7 @@
 inline int test_bb_group4(__m128 *bb_group, const Isect *isec)
 {
 	const __m128 tmin0 = _mm_setzero_ps();
-	const __m128 tmax0 = _mm_set_ps1(isec->labda);
+	const __m128 tmax0 = _mm_set_ps1(isec->dist);
 
 	float start[3], idot_axis[3];
 	copy_v3_v3(start, isec->start);
@@ -63,6 +67,31 @@ inline int test_bb_group4(__m128 *bb_group, const Isect *isec)
 }
 #endif
 
+/*
+ * Determines the distance that the ray must travel to hit the bounding volume of the given node
+ * Based on Tactical Optimization of Ray/Box Intersection, by Graham Fyffe
+ *  [http://tog.acm.org/resources/RTNews/html/rtnv21n1.html#art9]
+ */
+static int rayobject_bb_intersect_test(const Isect *isec, const float *_bb)
+{
+	const float *bb = _bb;
+	
+	float t1x = (bb[isec->bv_index[0]] - isec->start[0]) * isec->idot_axis[0];
+	float t2x = (bb[isec->bv_index[1]] - isec->start[0]) * isec->idot_axis[0];
+	float t1y = (bb[isec->bv_index[2]] - isec->start[1]) * isec->idot_axis[1];
+	float t2y = (bb[isec->bv_index[3]] - isec->start[1]) * isec->idot_axis[1];
+	float t1z = (bb[isec->bv_index[4]] - isec->start[2]) * isec->idot_axis[2];
+	float t2z = (bb[isec->bv_index[5]] - isec->start[2]) * isec->idot_axis[2];
+
+	RE_RC_COUNT(isec->raycounter->bb.test);
+	
+	if(t1x > t2y || t2x < t1y || t1x > t2z || t2x < t1z || t1y > t2z || t2y < t1z) return 0;
+	if(t2x < 0.0 || t2y < 0.0 || t2z < 0.0) return 0;
+	if(t1x > isec->dist || t1y > isec->dist || t1z > isec->dist) return 0;
+	RE_RC_COUNT(isec->raycounter->bb.hit);	
+
+	return 1;
+}
 
 /* bvh tree generics */
 template<class Tree> static int bvh_intersect(Tree *obj, Isect *isec);
@@ -111,7 +140,7 @@ static float bvh_cost(Tree *obj)
 /* bvh tree nodes generics */
 template<class Node> static inline int bvh_node_hit_test(Node *node, Isect *isec)
 {
-	return RE_rayobject_bb_intersect_test(isec, (const float*)node->bb);
+	return rayobject_bb_intersect_test(isec, (const float*)node->bb);
 }
 
 

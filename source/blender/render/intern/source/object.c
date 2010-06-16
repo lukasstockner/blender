@@ -75,7 +75,6 @@
 #include "BKE_texture.h" 
 
 #include "RE_render_ext.h"	/* externtex */
-#include "RE_raytrace.h"
 
 #include "camera.h"
 #include "database.h"
@@ -83,6 +82,7 @@
 #include "object_halo.h"
 #include "object_mesh.h"
 #include "object_strand.h"
+#include "rayobject.h"
 #include "render_types.h"
 #include "texture.h"
 #include "zbuf.h"

@@ -55,8 +55,6 @@
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
 
-#include "RE_raytrace.h"
-
 /* local includes */
 #include "cache.h"
 #include "camera.h"
@@ -70,6 +68,7 @@
 #include "object_strand.h"
 #include "part.h"
 #include "pixelfilter.h"
+#include "rayintersection.h"
 #include "render_types.h"
 #include "rendercore.h"
 #include "result.h"
