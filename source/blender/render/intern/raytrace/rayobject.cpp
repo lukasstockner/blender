@@ -48,7 +48,7 @@
    because function is too long. Since this is code that is called billions
    of times we really do want to inline. */
 
-static RayObject* rayface_from_coords(RayFace *rayface, void *ob, void *face, float *v1, float *v2, float *v3, float *v4)
+MALWAYS_INLINE RayObject* rayface_from_coords(RayFace *rayface, void *ob, void *face, float *v1, float *v2, float *v3, float *v4)
 {
 	rayface->ob = ob;
 	rayface->face = face;
@@ -70,7 +70,7 @@ static RayObject* rayface_from_coords(RayFace *rayface, void *ob, void *face, fl
 	return RE_rayobject_unalignRayFace(rayface);
 }
 
-static void rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
+MALWAYS_INLINE void rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
 {
 	if(obi->transform_primitives)
 	{
@@ -102,7 +102,7 @@ RayObject* RE_vlakprimitive_from_vlak(VlakPrimitive *face, struct ObjectInstance
 
 /* Checks for ignoring faces or materials */
 
-static int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen *vlr)
+MALWAYS_INLINE int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen *vlr)
 {
 	/* for baking selected to active non-traceable materials might still
 	 * be in the raytree */
@@ -116,7 +116,7 @@ static int vlr_check_intersect(Isect *is, ObjectInstanceRen *obi, VlakRen *vlr)
 		return (is->lay & obi->lay);
 }
 
-static int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
+MALWAYS_INLINE int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
 {
 	/* solid material types only */
 	if (vlr->mat->material_type == MA_TYPE_SURFACE)
@@ -125,14 +125,14 @@ static int vlr_check_intersect_solid(Isect *is, ObjectInstanceRen* obi, VlakRen 
 		return 0;
 }
 
-static int vlr_check_bake(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
+MALWAYS_INLINE int vlr_check_bake(Isect *is, ObjectInstanceRen* obi, VlakRen *vlr)
 {
 	return (obi->obr->ob != is->userdata);
 }
 
 /* Ray Triangle/Quad Intersection */
 
-static int isec_tri_quad(float start[3], float dir[3], RayFace *face, float uv[2], float *lambda)
+MALWAYS_INLINE int isec_tri_quad(float start[3], float dir[3], RayFace *face, float uv[2], float *lambda)
 {
 	float co1[3], co2[3], co3[3], co4[3];
 	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1, l;
@@ -215,7 +215,7 @@ static int isec_tri_quad(float start[3], float dir[3], RayFace *face, float uv[2
 
 /* Simpler yes/no Ray Triangle/Quad Intersection */
 
-static int isec_tri_quad_neighbour(float start[3], float dir[3], RayFace *face)
+MALWAYS_INLINE int isec_tri_quad_neighbour(float start[3], float dir[3], RayFace *face)
 {
 	float co1[3], co2[3], co3[3], co4[3];
 	float t0[3], t1[3], x[3], r[3], m[3], u, v, divdet, det1;
@@ -282,7 +282,7 @@ static int isec_tri_quad_neighbour(float start[3], float dir[3], RayFace *face)
 /* RayFace intersection with checks and neighbour verifaction included,
    Isect is modified if the face is hit. */
 
-static int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
+MALWAYS_INLINE int intersect_rayface(RayObject *hit_obj, RayFace *face, Isect *is)
 {
 	float dist, uv[2];
 	int ok= 0;
