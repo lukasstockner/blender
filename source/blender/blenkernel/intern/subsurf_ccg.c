@@ -2328,7 +2328,8 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 		ob->sculpt->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
-				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces);
+				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
+				     &ob->sculpt->hidden_areas);
 		ccgdm->pbvh_draw = 1;
 	}
 	else if(ob->type == OB_MESH) {
@@ -2336,7 +2337,8 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 		ob->sculpt->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
-				    &me->vdata, me->totface, me->totvert);
+				    &me->vdata, me->totface, me->totvert,
+				    &ob->sculpt->hidden_areas);
 		ccgdm->pbvh_draw = 0;
 	}
 

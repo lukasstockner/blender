@@ -956,6 +956,11 @@ class VIEW3D_MT_sculpt(bpy.types.Menu):
         sculpt = context.tool_settings.sculpt
         brush = context.tool_settings.sculpt.brush
 
+        layout.operator("sculpt.area_hide", text="Show Hidden").show_all = True
+        layout.operator("sculpt.area_hide", text="Hide Exterior Area")
+        layout.operator("sculpt.area_hide", text="Hide Interior Area").hide_inside = True
+        layout.separator()
+
         layout.prop(sculpt, "symmetry_x")
         layout.prop(sculpt, "symmetry_y")
         layout.prop(sculpt, "symmetry_z")

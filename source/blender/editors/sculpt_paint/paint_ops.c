@@ -209,6 +209,12 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	
+	WM_keymap_add_item(keymap, "SCULPT_OT_area_hide", EVT_TWEAK_L, KM_ANY, KM_CTRL|KM_SHIFT, 0);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "SCULPT_OT_area_hide", EVT_TWEAK_L, KM_ANY, KM_CTRL|KM_ALT, 0)->ptr, "hide_inside", 1);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "SCULPT_OT_area_hide", LEFTMOUSE, KM_RELEASE, KM_CTRL|KM_SHIFT, 0)->ptr, "show_all", 1);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "SCULPT_OT_area_hide", LEFTMOUSE, KM_RELEASE, KM_CTRL|KM_ALT, 0)->ptr, "show_all", 1);
+	RNA_boolean_set(WM_keymap_add_item(keymap, "SCULPT_OT_area_hide", HKEY, KM_PRESS, KM_ALT, 0)->ptr, "show_all", 1);
 
 	for(i=0; i<=5; i++)
 		RNA_int_set(WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", ZEROKEY+i, KM_PRESS, KM_CTRL, 0)->ptr, "level", i);

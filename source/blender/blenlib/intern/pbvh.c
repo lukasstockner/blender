@@ -20,9 +20,8 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-
-
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_math.h"
 #include "BLI_ghash.h"
@@ -32,6 +31,8 @@
 #include "BKE_subsurf.h"
 
 #include "gpu_buffers.h"
+
+static void pbvh_free_nodes(PBVH *bvh);
 
 #define LEAF_LIMIT 10000
 
@@ -143,6 +144,37 @@ typedef struct PBVHIter {
 	PBVHStack stackfixed[STACK_FIXED_DEPTH];
 	int stackspace;
 } PBVHIter;
+
+
+
+/* Adapted from:
+   http://www.gamedev.net/community/forums/topic.asp?topic_id=512123
+   Returns true if the AABB is at least partially within the frustum
+   (ok, not a real frustum), false otherwise.
+*/
+static int pbvh_planes_contain_AABB(float bb_min[3], float bb_max[3], float (*planes)[4])
+{
+	int i, axis;
+	float vmin[3], vmax[3];
+
+	for(i = 0; i < 4; ++i) { 
+		for(axis = 0; axis < 3; ++axis) {
+			if(planes[i][axis] > 0) { 
+				vmin[axis] = bb_min[axis];
+				vmax[axis] = bb_max[axis];
+			}
+			else {
+				vmin[axis] = bb_max[axis];
+				vmax[axis] = bb_min[axis];
+			}
+		}
+		
+		if(dot_v3v3(planes[i], vmin) + planes[i][3] > 0)
+			return 0;
+	} 
+
+	return 1;
+}
 
 static void BB_reset(BB *bb)
 {
@@ -450,80 +482,147 @@ void build_sub(PBVH *bvh, int node_index, BB *cb, BBC *prim_bbc,
 		  prim_bbc, end, offset + count - end);
 }
 
-static void pbvh_build(PBVH *bvh, BB *cb, BBC *prim_bbc, int totprim)
+/* Returns 0 if the primitive should be hidden, 1 otherwise */
+static int test_prim_against_hidden_areas(BBC *prim_bbc, ListBase *hidden_areas)
 {
-	int i;
+	HiddenArea *area;
+
+	for(area = hidden_areas->first; area; area = area->next) {
+		int prim_inside_planes = pbvh_planes_contain_AABB(prim_bbc->bmin, prim_bbc->bmax, area->clip_planes);
+		if((prim_inside_planes && area->hide_inside) || (!prim_inside_planes && !area->hide_inside))
+			return 0;
+	}
+
+	return 1;
+}
+
+/* Initially, the root node contains all primitives in
+   their original order.
+
+   If we are clipping, exclude primitives outside the
+   clip planes from the primitive list
+*/
+static int pbvh_initialize_prim_indices(PBVH *bvh, BBC *prim_bbc, int totprim, ListBase *hidden_areas)
+{
+	int prim, index;
+	int *prim_indices;
+
+	prim_indices = MEM_callocN(sizeof(int) * totprim, "bvh prim indices");
+
+	for(prim= 0, index = 0; prim < totprim; ++prim) {
+		if(!hidden_areas || test_prim_against_hidden_areas(&prim_bbc[prim], hidden_areas)) {
+			prim_indices[index] = prim;
+			++index;
+		}
+	}
+	
+	if(index == prim) {
+		bvh->prim_indices = prim_indices;
+		return totprim;
+	}
+	else {
+		bvh->prim_indices = MEM_callocN(sizeof(int) * index, "bvh prim indices");
+		memcpy(bvh->prim_indices, prim_indices, sizeof(int) * index);
+		MEM_freeN(prim_indices);
+		return index;
+	}
+}
+
+static void pbvh_build(PBVH *bvh, BB *cb, BBC *prim_bbc, int totprim, ListBase *hidden_areas)
+{
+	int max_prim_index;
 
 	if(totprim != bvh->totprim) {
+		/* Initialize the nodes */
 		bvh->totprim = totprim;
-		if(bvh->nodes) MEM_freeN(bvh->nodes);
+		if(bvh->nodes)
+			pbvh_free_nodes(bvh);
 		if(bvh->prim_indices) MEM_freeN(bvh->prim_indices);
-		bvh->prim_indices = MEM_callocN(sizeof(int) * totprim,
-						"bvh prim indices");
-		for(i = 0; i < totprim; ++i)
-			bvh->prim_indices[i] = i;
+
+		max_prim_index = pbvh_initialize_prim_indices(bvh, prim_bbc, totprim, hidden_areas);
+
 		bvh->totnode = 0;
-		if(bvh->node_mem_count < 100) {
+		if(bvh->node_mem_count < 100)
 			bvh->node_mem_count = 100;
-			bvh->nodes = MEM_callocN(sizeof(PBVHNode) *
-						 bvh->node_mem_count,
-						 "bvh initial nodes");
-		}
+
+		bvh->nodes = MEM_callocN(sizeof(PBVHNode) *
+					 bvh->node_mem_count,
+					 "bvh initial nodes");
 	}
 
 	bvh->totnode = 1;
-	build_sub(bvh, 0, cb, prim_bbc, 0, totprim);
+	build_sub(bvh, 0, cb, prim_bbc, 0, max_prim_index);
 }
 
-/* Do a full rebuild with on Mesh data structure */
-void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, CustomData *vdata, int totface, int totvert)
+void pbvh_begin_build(PBVH *bvh, int totprim, ListBase *hidden_areas)
 {
-	BBC *prim_bbc = NULL;
-	BB cb;
 	int i, j;
+	int totgridelem;
+	BBC *prim_bbc;
+	BB cb;
 
-	bvh->faces = faces;
-	bvh->verts = verts;
-	bvh->vdata = vdata;
-	bvh->vert_bitmap = BLI_bitmap_new(totvert);
-	bvh->totvert = totvert;
-	bvh->leaf_limit = LEAF_LIMIT;
-
+	/* cb will be the bounding box around all primitives' centroids */
 	BB_reset(&cb);
 
-	/* For each face, store the AABB and the AABB centroid */
-	prim_bbc = MEM_mallocN(sizeof(BBC) * totface, "prim_bbc");
+	if(bvh->faces)
+		bvh->vert_bitmap = BLI_bitmap_new(bvh->totvert);
+	else
+		totgridelem = bvh->gridsize*bvh->gridsize;
 
-	for(i = 0; i < totface; ++i) {
-		MFace *f = faces + i;
-		const int sides = f->v4 ? 4 : 3;
+	/* For each primitive, store the AABB and the AABB centroid */
+	prim_bbc = MEM_mallocN(sizeof(BBC) * totprim, "prim_bbc");
+
+	for(i = 0; i < totprim; ++i) {
 		BBC *bbc = prim_bbc + i;
 
 		BB_reset((BB*)bbc);
 
-		for(j = 0; j < sides; ++j)
-			BB_expand((BB*)bbc, verts[(&f->v1)[j]].co);
+		if(bvh->faces) {
+			/* For regular mesh */
+			MFace *f = bvh->faces + i;
+			const int sides = f->v4 ? 4 : 3;
+			for(j = 0; j < sides; ++j)
+				BB_expand((BB*)bbc, bvh->verts[(&f->v1)[j]].co);
+		}
+		else {
+			/* For multires */
+			DMGridData *grid= bvh->grids[i];
+			for(j = 0; j < totgridelem; ++j)
+				BB_expand((BB*)bbc, GRIDELEM_CO_AT(grid, j, bvh->gridkey));
+		}
 
 		BBC_update_centroid(bbc);
-
 		BB_expand(&cb, bbc->bcentroid);
 	}
 
-	if(totface)
-		pbvh_build(bvh, &cb, prim_bbc, totface);
+	pbvh_build(bvh, &cb, prim_bbc, totprim, hidden_areas);
 
 	MEM_freeN(prim_bbc);
-	MEM_freeN(bvh->vert_bitmap);
+	if(bvh->faces)
+		MEM_freeN(bvh->vert_bitmap);
+}
+
+/* Do a full rebuild with on Mesh data structure */
+void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
+			 CustomData *vdata, int totface, int totvert,
+			 ListBase *hidden_areas)
+{
+	bvh->faces = faces;
+	bvh->verts = verts;
+	bvh->vdata = vdata;
+	bvh->totvert = totvert;
+	bvh->leaf_limit = LEAF_LIMIT;
+
+	if(totface)
+		pbvh_begin_build(bvh, totface, hidden_areas);
 }
 
 /* Do a full rebuild with on Grids data structure */
-void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridadj,
-			  int totgrid, int gridsize, int gridkey, void **gridfaces)
+void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
+			  DMGridAdjacency *gridadj,
+			  int totgrid, int gridsize, int gridkey,
+			  void **gridfaces, ListBase *hidden_areas)
 {
-	BBC *prim_bbc = NULL;
-	BB cb;
-	int i, j;
-
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
 	bvh->gridfaces= gridfaces;
@@ -532,29 +631,8 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridad
 	bvh->gridkey= gridkey;
 	bvh->leaf_limit = MAX2(LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
 
-	BB_reset(&cb);
-
-	/* For each grid, store the AABB and the AABB centroid */
-	prim_bbc = MEM_mallocN(sizeof(BBC) * totgrid, "prim_bbc");
-
-	for(i = 0; i < totgrid; ++i) {
-		DMGridData *grid= grids[i];
-		BBC *bbc = prim_bbc + i;
-
-		BB_reset((BB*)bbc);
-
-		for(j = 0; j < gridsize*gridsize; ++j)
-			BB_expand((BB*)bbc, GRIDELEM_CO_AT(grid, j, gridkey));
-
-		BBC_update_centroid(bbc);
-
-		BB_expand(&cb, bbc->bcentroid);
-	}
-
 	if(totgrid)
-		pbvh_build(bvh, &cb, prim_bbc, totgrid);
-
-	MEM_freeN(prim_bbc);
+		pbvh_begin_build(bvh, totgrid, hidden_areas);
 }
 
 PBVH *BLI_pbvh_new(void)
@@ -564,7 +642,7 @@ PBVH *BLI_pbvh_new(void)
 	return bvh;
 }
 
-void BLI_pbvh_free(PBVH *bvh)
+static void pbvh_free_nodes(PBVH *bvh)
 {
 	PBVHNode *node;
 	int i;
@@ -583,6 +661,12 @@ void BLI_pbvh_free(PBVH *bvh)
 	}
 
 	MEM_freeN(bvh->nodes);
+}
+
+void BLI_pbvh_free(PBVH *bvh)
+{
+	pbvh_free_nodes(bvh);
+
 	MEM_freeN(bvh->prim_indices);
 	MEM_freeN(bvh);
 }
@@ -1280,36 +1364,13 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *data)
 	GPU_draw_buffers(node->draw_buffers);
 }
 
-/* Adapted from:
-   http://www.gamedev.net/community/forums/topic.asp?topic_id=512123
-   Returns true if the AABB is at least partially within the frustum
-   (ok, not a real frustum), false otherwise.
-*/
 int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 {
-	float (*planes)[4] = data;
-	int i, axis;
-	float vmin[3], vmax[3], bb_min[3], bb_max[3];
+	float bb_min[3], bb_max[3];
 
 	BLI_pbvh_node_get_BB(node, bb_min, bb_max);
 
-	for(i = 0; i < 4; ++i) { 
-		for(axis = 0; axis < 3; ++axis) {
-			if(planes[i][axis] > 0) { 
-				vmin[axis] = bb_min[axis];
-				vmax[axis] = bb_max[axis];
-			}
-			else {
-				vmin[axis] = bb_max[axis];
-				vmax[axis] = bb_min[axis];
-			}
-		}
-		
-		if(dot_v3v3(planes[i], vmin) + planes[i][3] > 0)
-			return 0;
-	} 
-
-	return 1;
+	return pbvh_planes_contain_AABB(bb_min, bb_max, data);
 }
 
 void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smooth)

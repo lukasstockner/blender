@@ -210,7 +210,8 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		cddm->pbvh = BLI_pbvh_new();
 		cddm->pbvh_draw = (cddm->mvert == me->mvert) || ob->sculpt->kb;
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
-				    &me->vdata, me->totface, me->totvert);
+				    &me->vdata, me->totface, me->totvert,
+				    &ob->sculpt->hidden_areas);
 	}
 
 	return cddm->pbvh;

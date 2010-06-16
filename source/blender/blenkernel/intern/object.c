@@ -236,6 +236,9 @@ void free_sculptsession(Object *ob)
 
 		if(ss->pbvh)
 			BLI_pbvh_free(ss->pbvh);
+
+		BLI_freelistN(&ss->hidden_areas);
+
 		if(dm && dm->getPBVH)
 			dm->getPBVH(NULL, dm); /* signal to clear */
 

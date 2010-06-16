@@ -25,6 +25,7 @@
 #ifndef BLI_PBVH_H
 #define BLI_PBVH_H
 
+struct BoundBox;
 struct CustomData;
 struct MFace;
 struct MVert;
@@ -37,6 +38,12 @@ struct ListBase;
 typedef struct PBVH PBVH;
 typedef struct PBVHNode PBVHNode;
 
+typedef struct PBVHHiddenArea {
+	struct PBVHHiddenArea *next, *prev;
+	float clip_planes[4][4];
+	int hide_inside;
+} HiddenArea;
+
 /* Callbacks */
 
 /* returns 1 if the search should continue from this node, 0 otherwise */
@@ -48,10 +55,12 @@ typedef void (*BLI_pbvh_HitCallback)(PBVHNode *node, void *data);
 
 PBVH *BLI_pbvh_new(void);
 void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
-			 struct CustomData *vdata, int totface, int totvert);
+			 struct CustomData *vdata, int totface, int totvert,
+			 ListBase *hidden_areas);
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 			  struct DMGridAdjacency *gridadj, int totgrid,
-			  int gridsize, int gridkey, void **gridfaces);
+			  int gridsize, int gridkey, void **gridfaces,
+			  ListBase *hidden_areas);
 void BLI_pbvh_free(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:

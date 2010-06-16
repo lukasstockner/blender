@@ -2209,6 +2209,101 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
 /**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/
 
+static void sculpt_area_hide_update(bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	SculptSession *ss = ob->sculpt;
+	DerivedMesh *dm;
+
+	dm = mesh_get_derived_final(scene, ob, 0);
+	/* Force the removal of the old pbvh */
+	if(ss->pbvh) {
+		BLI_pbvh_free(ss->pbvh);
+		ss->pbvh = NULL;
+	}
+	dm->getPBVH(NULL, dm);
+
+	/* Update */
+	sculpt_update_mesh_elements(scene, ob, 0);
+}
+
+static int sculpt_area_hide_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	int show_all = RNA_boolean_get(op->ptr, "show_all");
+
+	if(show_all) {
+		SculptSession *ss = CTX_data_active_object(C)->sculpt;
+		ARegion *ar= CTX_wm_region(C);
+
+		if(ss->hidden_areas.first) {
+			BLI_freelistN(&ss->hidden_areas);
+			sculpt_area_hide_update(C);
+			ED_region_tag_redraw(ar);
+		}
+		return OPERATOR_FINISHED;
+	}
+	else
+		return WM_border_select_invoke(C, op, event);
+}
+
+static int sculpt_area_hide_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	SculptSession *ss = ob->sculpt;
+	ViewContext vc;
+	bglMats mats;
+	BoundBox bb;
+	rcti rect;
+	HiddenArea *area;
+
+	memset(&mats, 0, sizeof(bglMats));
+	rect.xmin= RNA_int_get(op->ptr, "xmin");
+	rect.ymin= RNA_int_get(op->ptr, "ymin");
+	rect.xmax= RNA_int_get(op->ptr, "xmax");
+	rect.ymax= RNA_int_get(op->ptr, "ymax");
+
+	area = MEM_callocN(sizeof(HiddenArea), "hidden_area");
+	area->hide_inside = RNA_boolean_get(op->ptr, "hide_inside");
+
+	view3d_operator_needs_opengl(C);
+	view3d_set_viewcontext(C, &vc);
+	view3d_get_transformation(vc.ar, vc.rv3d, ob, &mats);
+	view3d_calculate_clipping(&bb, area->clip_planes, &mats, &rect);
+	mul_m4_fl(area->clip_planes, -1.0f);
+
+	BLI_addtail(&ss->hidden_areas, area);
+
+	sculpt_area_hide_update(C);
+
+	return OPERATOR_FINISHED;
+}
+
+static void SCULPT_OT_area_hide(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Hide Area";
+	ot->idname= "SCULPT_OT_area_hide";
+	
+	/* api callbacks */
+	ot->invoke= sculpt_area_hide_invoke;
+	ot->modal= WM_border_select_modal;
+	ot->exec= sculpt_area_hide_exec;
+	ot->poll= sculpt_mode_poll;
+	
+	ot->flag= OPTYPE_REGISTER;
+
+	/* rna */
+	RNA_def_boolean(ot->srna, "show_all", 0, "Show All", "");
+	RNA_def_boolean(ot->srna, "hide_inside", 0, "Hide Inside", "");
+	RNA_def_int(ot->srna, "xmin", 0, INT_MIN, INT_MAX, "X Min", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "xmax", 0, INT_MIN, INT_MAX, "X Max", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "ymin", 0, INT_MIN, INT_MAX, "Y Min", "", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "ymax", 0, INT_MIN, INT_MAX, "Y Max", "", INT_MIN, INT_MAX);
+}
+
+/**** Reset the copy of the mesh that is being sculpted on (currently just for the layer brush) ****/
+
 static int sculpt_set_persistent_base(bContext *C, wmOperator *op)
 {
 	SculptSession *ss = CTX_data_active_object(C)->sculpt;
@@ -2318,5 +2413,6 @@ void ED_operatortypes_sculpt()
 	WM_operatortype_append(SCULPT_OT_brush_stroke);
 	WM_operatortype_append(SCULPT_OT_sculptmode_toggle);
 	WM_operatortype_append(SCULPT_OT_set_persistent_base);
+	WM_operatortype_append(SCULPT_OT_area_hide);
 }
 

@@ -83,6 +83,9 @@ typedef struct SculptSession {
 
 	/* Partial redraw */
 	int partial_redraw;
+
+	/* Area hiding */
+	ListBase hidden_areas;
 	
 	/* Used to cache the render of the active texture */
 	unsigned int texcache_side, *texcache, texcache_actual;
