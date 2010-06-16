@@ -1004,7 +1004,7 @@ typedef struct Scene {
 #define R_INTEGRATOR_PATHTRACER	1
 
 /* simplify_flag */
-#define R_SIMPLE_NO_TRIANGULATE		1
+#define R_SIMPLE_DEPRECATED		1
 
 /* sequencer seq_prev_type seq_rend_type */
 

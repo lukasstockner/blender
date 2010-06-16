@@ -191,7 +191,7 @@ Mesh *add_mesh(char *name)
 	me->size[0]= me->size[1]= me->size[2]= 1.0;
 	me->smoothresh= 30;
 	me->texflag= AUTOSPACE;
-	me->flag= ME_TWOSIDED;
+	me->flag= 0;
 	me->bb= unit_boundbox();
 	me->drawflag= ME_DRAWEDGES|ME_DRAWFACES|ME_DRAWCREASES;
 	
@@ -697,7 +697,6 @@ void mball_to_mesh(ListBase *lb, Mesh *me)
 	if(dl==0) return;
 
 	if(dl->type==DL_INDEX4) {
-		me->flag= ME_NOPUNOFLIP;
 		me->totvert= dl->nr;
 		me->totface= dl->parts;
 		

@@ -590,7 +590,7 @@ VlakRen *render_object_vlak_interp(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr
 
 int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int quad)
 {
-	float v1[3], n[3], (*nmat)[3]= obi->nmat;
+	float  n[3], (*nmat)[3]= obi->nmat;
 	int flipped= 0;
 
 	if(vlr->v4) {
@@ -611,21 +611,6 @@ int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int
 	}
 	else
 		copy_v3_v3(nor, n);
-
-	if((vlr->flag & R_NOPUNOFLIP)==0) {
-		copy_v3_v3(v1, vlr->v1->co);
-		if(obi->flag & R_TRANSFORMED)
-			mul_m4_v3(obi->mat, v1);
-
-		if(dot_v3v3(v1, nor) < 0.0f)
-			flipped= 1;
-
-		if(flipped) {
-			nor[0]= -nor[0];
-			nor[1]= -nor[1];
-			nor[2]= -nor[2];
-		}
-	}
 
 	return flipped;
 }
@@ -705,17 +690,6 @@ static void split_v_renderfaces(ObjectRen *obr, int startvlak, int startvert, in
 			} 
 		}
 	}
-}
-
-/* ------------------------------------------------------------------------- */
-
-static int check_vnormal(float *n, float *veno)
-{
-	float inp;
-
-	inp=n[0]*veno[0]+n[1]*veno[1]+n[2]*veno[2];
-	if(inp < -FLT_EPSILON10) return 1;
-	return 0;
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1016,9 +990,6 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, float (**dispnor)[3
 			float n1[3], n2[3], n3[3], n4[3];
 			float fac1, fac2, fac3, fac4=0.0f;
 			
-			if(re->params.flag & R_GLOB_NOPUNOFLIP)
-				vlr->flag |= R_NOPUNOFLIP;
-			
 			sub_v3_v3v3(n1, v2->co, v1->co);
 			normalize_v3(n1);
 			sub_v3_v3v3(n2, v3->co, v2->co);
@@ -1042,19 +1013,9 @@ void render_object_calc_vnormals(Render *re, ObjectRen *obr, float (**dispnor)[3
 				fac3= saacos(-n2[0]*n3[0]-n2[1]*n3[1]-n2[2]*n3[2]);
 				fac4= saacos(-n3[0]*n4[0]-n3[1]*n4[1]-n3[2]*n4[2]);
 
-				if(!(vlr->flag & R_NOPUNOFLIP)) {
-					if( check_vnormal(vlr->n, v4->n) ) fac4= -fac4;
-				}
-
 				v4->n[0] +=fac4*vlr->n[0];
 				v4->n[1] +=fac4*vlr->n[1];
 				v4->n[2] +=fac4*vlr->n[2];
-			}
-
-			if(!(vlr->flag & R_NOPUNOFLIP)) {
-				if( check_vnormal(vlr->n, v1->n) ) fac1= -fac1;
-				if( check_vnormal(vlr->n, v2->n) ) fac2= -fac2;
-				if( check_vnormal(vlr->n, v3->n) ) fac3= -fac3;
 			}
 
 			v1->n[0] +=fac1*vlr->n[0];
@@ -1441,7 +1402,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 			normal_tri_v3( vlr->n,vlr->v3->co, vlr->v2->co, vlr->v1->co);
 
 		vlr->mat= ma;
-		vlr->flag= ME_SMOOTH+R_NOPUNOFLIP;
+		vlr->flag= ME_SMOOTH;
 		vlr->ec= 0;
 
 		/* mball -too bad- always has triangles, because quads can be non-planar */
@@ -1473,10 +1434,8 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 /* returns amount of vertices added for orco */
 static int dl_surf_to_renderdata(ObjectRen *obr, DispList *dl, Material **matar, float *orco, float mat[4][4])
 {
-	Object *ob= obr->ob;
 	VertRen *v1, *v2, *v3, *v4, *ver;
 	VlakRen *vlr, *vlr1, *vlr2, *vlr3;
-	Curve *cu= ob->data;
 	float *data, n1[3];
 	int u, v, orcoret= 0;
 	int p1, p2, p3, p4, a;
@@ -1560,9 +1519,6 @@ static int dl_surf_to_renderdata(ObjectRen *obr, DispList *dl, Material **matar,
 			vlr->mat= matar[ dl->col];
 			vlr->ec= ME_V1V2+ME_V2V3;
 			vlr->flag= dl->rt;
-			if( (cu->flag & CU_NOPUNOFLIP) ) {
-				vlr->flag |= R_NOPUNOFLIP;
-			}
 			
 			add_v3_v3v3(v1->n, v1->n, n1);
 			add_v3_v3v3(v2->n, v2->n, n1);
@@ -1711,9 +1667,6 @@ static void init_render_dm(DerivedMesh *dm, Render *re, ObjectRen *obr,
 
 					vlr->mat= ma;
 					vlr->flag= flag;
-					if(cu &&(cu->flag & ME_NOPUNOFLIP)) {
-						vlr->flag |= R_NOPUNOFLIP;
-					}
 					vlr->ec= 0; /* mesh edges rendered separately */
 
 					if(len==0) obr->totvlak--;
@@ -1916,9 +1869,6 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 
 						vlr->mat= matar[ dl->col ];
 						vlr->flag= 0;
-						if( (cu->flag & CU_NOPUNOFLIP) ) {
-							vlr->flag |= R_NOPUNOFLIP;
-						}
 						vlr->ec= 0;
 					}
 				}
@@ -2322,9 +2272,6 @@ static void init_render_mesh(Render *re, ObjectRen *obr, int timeoffset)
 
 							vlr->mat= ma;
 							vlr->flag= flag;
-							if((me->flag & ME_NOPUNOFLIP) ) {
-								vlr->flag |= R_NOPUNOFLIP;
-							}
 							vlr->ec= 0; /* mesh edges rendered separately */
 
 							if(len==0) obr->totvlak--;
@@ -2581,114 +2528,6 @@ static void split_quads(ObjectRen *obr, int dir)
 	}
 }
 
-static void check_non_flat_quads(ObjectRen *obr)
-{
-	VlakRen *vlr, *vlr1;
-	VertRen *v1, *v2, *v3, *v4;
-	float nor[3], xn, flen;
-	int a;
-
-	for(a=obr->totvlak-1; a>=0; a--) {
-		vlr= render_object_vlak_get(obr, a);
-		
-		/* test if rendering as a quad or triangle, skip wire */
-		if(vlr->v4 && (vlr->flag & R_STRAND)==0 && (vlr->mat->material_type != MA_TYPE_WIRE)) {
-			
-			/* check if quad is actually triangle */
-			v1= vlr->v1;
-			v2= vlr->v2;
-			v3= vlr->v3;
-			v4= vlr->v4;
-			sub_v3_v3v3(nor, v1->co, v2->co);
-			if( ABS(nor[0])<FLT_EPSILON10 &&  ABS(nor[1])<FLT_EPSILON10 && ABS(nor[2])<FLT_EPSILON10 ) {
-				vlr->v1= v2;
-				vlr->v2= v3;
-				vlr->v3= v4;
-				vlr->v4= NULL;
-			}
-			else {
-				sub_v3_v3v3(nor, v2->co, v3->co);
-				if( ABS(nor[0])<FLT_EPSILON10 &&  ABS(nor[1])<FLT_EPSILON10 && ABS(nor[2])<FLT_EPSILON10 ) {
-					vlr->v2= v3;
-					vlr->v3= v4;
-					vlr->v4= NULL;
-				}
-				else {
-					sub_v3_v3v3(nor, v3->co, v4->co);
-					if( ABS(nor[0])<FLT_EPSILON10 &&  ABS(nor[1])<FLT_EPSILON10 && ABS(nor[2])<FLT_EPSILON10 ) {
-						vlr->v4= NULL;
-					}
-					else {
-						sub_v3_v3v3(nor, v4->co, v1->co);
-						if( ABS(nor[0])<FLT_EPSILON10 &&  ABS(nor[1])<FLT_EPSILON10 && ABS(nor[2])<FLT_EPSILON10 ) {
-							vlr->v4= NULL;
-						}
-					}
-				}
-			}
-			
-			if(vlr->v4) {
-				
-				/* Face is divided along edge with the least gradient 		*/
-				/* Flagged with R_DIVIDE_24 if divide is from vert 2 to 4 	*/
-				/* 		4---3		4---3 */
-				/*		|\ 1|	or  |1 /| */
-				/*		|0\ |		|/ 0| */
-				/*		1---2		1---2 	0 = orig face, 1 = new face */
-				
-				/* render normals are inverted in render! we calculate normal of single tria here */
-				flen= normal_tri_v3( nor,vlr->v4->co, vlr->v3->co, vlr->v1->co);
-				if(flen==0.0) normal_tri_v3( nor,vlr->v4->co, vlr->v2->co, vlr->v1->co);
-				
-				xn= nor[0]*vlr->n[0] + nor[1]*vlr->n[1] + nor[2]*vlr->n[2];
-
-				if(ABS(xn) < 0.999995 ) {	// checked on noisy fractal grid
-					
-					float d1, d2;
-
-					vlr1= render_object_vlak_copy(obr, obr, vlr);
-					vlr1->flag |= R_FACE_SPLIT;
-					
-					/* split direction based on vnorms */
-					normal_tri_v3( nor,vlr->v1->co, vlr->v2->co, vlr->v3->co);
-					d1= nor[0]*vlr->v1->n[0] + nor[1]*vlr->v1->n[1] + nor[2]*vlr->v1->n[2];
-
-					normal_tri_v3( nor,vlr->v2->co, vlr->v3->co, vlr->v4->co);
-					d2= nor[0]*vlr->v2->n[0] + nor[1]*vlr->v2->n[1] + nor[2]*vlr->v2->n[2];
-				
-					if( fabs(d1) < fabs(d2) ) vlr->flag |= R_DIVIDE_24;
-					else vlr->flag &= ~R_DIVIDE_24;
-
-					/* new vertex pointers */
-					if (vlr->flag & R_DIVIDE_24) {
-						vlr1->v1= vlr->v2;
-						vlr1->v2= vlr->v3;
-						vlr1->v3= vlr->v4;
-
-						vlr->v3 = vlr->v4;
-						
-						vlr1->flag |= R_DIVIDE_24;
-					}
-					else {
-						vlr1->v1= vlr->v1;
-						vlr1->v2= vlr->v3;
-						vlr1->v3= vlr->v4;
-						
-						vlr1->flag &= ~R_DIVIDE_24;
-					}
-					vlr->v4 = vlr1->v4 = NULL;
-					
-					/* new normals */
-					normal_tri_v3( vlr->n,vlr->v3->co, vlr->v2->co, vlr->v1->co);
-					normal_tri_v3( vlr1->n,vlr1->v3->co, vlr1->v2->co, vlr1->v1->co);
-				}
-				/* clear the flag when not divided */
-				else vlr->flag &= ~R_DIVIDE_24;
-			}
-		}
-	}
-}
-
 static void render_object_calc_boundbox(ObjectRen *obr)
 {
 	VertRen *ver= NULL;
@@ -2779,8 +2618,6 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset, int thre
 		/* split quads, either automatic or user defined for bake */
 		if(re->params.flag & R_BAKING && re->params.r.bake_quad_split != 0)
 			split_quads(obr, re->params.r.bake_quad_split);
-		else if((re->params.r.mode & R_SIMPLIFY && re->params.r.simplify_flag & R_SIMPLE_NO_TRIANGULATE) == 0)
-			check_non_flat_quads(obr);
 		
 		/* set raytracing flag in faces */
 		set_fullsample_trace_flag(re, obr);

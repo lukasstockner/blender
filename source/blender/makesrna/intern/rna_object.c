@@ -1985,13 +1985,13 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "displacebound");
 	RNA_def_property_range(prop, 0, FLT_MAX);
 	RNA_def_property_ui_text(prop, "Displacement Bound", "Maximum displacement offset for rendering.");
-	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, NULL);
 
 	prop= RNA_def_property(srna, "relative_subdivision_rate", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "subdivision_rate");
 	RNA_def_property_range(prop, 0.01f, 100.0f);
 	RNA_def_property_ui_text(prop, "Relative Subdivision Rate", "Multiplicator for scene subdivision rate to give individual objects more or less detail.");
-	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_Object_update");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, NULL);
 
 	/* Grease Pencil */
 	prop= RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);

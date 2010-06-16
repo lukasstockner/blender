@@ -1526,7 +1526,6 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 	
 	RE_init_threadcount(re);
 	
-	re->params.flag |= R_GLOB_NOPUNOFLIP;
 	re->params.flag |= R_BAKING;
 	re->db.excludeob= actob;
 	if(actob)

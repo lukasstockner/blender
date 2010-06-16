@@ -106,16 +106,14 @@ class DATA_PT_normals(DataButtonsPanel):
 
         col = split.column()
         col.prop(mesh, "autosmooth")
-        sub = col.column()
-        sub.active = mesh.autosmooth
-        sub.prop(mesh, "autosmooth_angle", text="Angle")
 
         if wide_ui:
             col = split.column()
         else:
             col.separator()
-        col.prop(mesh, "vertex_normal_flip")
-        col.prop(mesh, "double_sided")
+        sub = col.column()
+        sub.active = mesh.autosmooth
+        sub.prop(mesh, "autosmooth_angle", text="Angle")
 
 
 class DATA_PT_settings(DataButtonsPanel):

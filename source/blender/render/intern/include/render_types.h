@@ -214,10 +214,9 @@ struct Render {
 #define R_HALO			2
 #define R_SEC_FIELD		4
 #define R_LAMPHALO		8
-#define R_GLOB_NOPUNOFLIP	16
-#define R_NEED_TANGENT	32
-#define R_BAKE_TRACE	128
-#define R_BAKING		256
+#define R_NEED_TANGENT	16
+#define R_BAKE_TRACE	32
+#define R_BAKING		64
 
 #endif /* __RENDER_TYPES_H__ */
 

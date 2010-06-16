@@ -595,15 +595,6 @@ void shade_input_set_normals(ShadeInput *shi)
 			mul_m3_v3(obi->nmat, prim->n2);
 			mul_m3_v3(obi->nmat, prim->n3);
 		}
-
-		if(!(vlr->flag & (R_NOPUNOFLIP|R_TANGENT))) {
-			if(dot_v3v3(geom->facenor, prim->n1) < 0.0f)
-				negate_v3(prim->n1);
-			if(dot_v3v3(geom->facenor, prim->n2) < 0.0f)
-				negate_v3(prim->n2);
-			if(dot_v3v3(geom->facenor, prim->n3) < 0.0f)
-				negate_v3(prim->n3);
-		}
 	}
 	
 	/* calculate vertexnormals */
@@ -1411,15 +1402,14 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 	shr->z= -shi->geometry.co[2];
 	
 	/* RAYHITS */
-/*
+#if 0
 	if(1 || shi->shading.passflag & SCE_PASS_RAYHITS)
 	{
-		shr->rayhits[0] = (float)shi->shading.raycounter.faces.test;
-		shr->rayhits[1] = (float)shi->shading.raycounter.bb.hit;
-		shr->rayhits[2] = 0.0;
-		shr->rayhits[3] = 1.0;
+		shr->nor[0] = (float)shi->shading.raycounter.faces.test/100.0f;
+		shr->nor[1] = (float)shi->shading.raycounter.simd_bb.test/100.0f;
+		shr->nor[2] = (float)shi->shading.raycounter.simd_bb.hit/100.0f;
 	}
- */
+#endif
 	RE_RC_MERGE(&re_rc_counter[shi->shading.thread], &shi->shading.raycounter);
 }
 

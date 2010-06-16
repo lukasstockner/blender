@@ -2344,7 +2344,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 		}
 		else {
 			/* 3 floats for position, 3 for normal and times two because the faces may actually be quads instead of triangles */
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED);
+			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 1);
 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
@@ -2605,7 +2605,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			if((v3d->flag&V3D_SELECT_OUTLINE) && ((v3d->flag2 & V3D_RENDER_OVERRIDE)==0) && (base->flag&SELECT) && !draw_wire && !ob->sculpt)
 				draw_mesh_object_outline(v3d, ob, dm);
 
-			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, me->flag & ME_TWOSIDED );
+			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 1);
 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
@@ -2697,7 +2697,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				unsigned int *obCol1 = dl->col1;
 				unsigned int *obCol2 = dl->col2;
 
-				dm->drawFacesColored(dm, me->flag&ME_TWOSIDED, (unsigned char*) obCol1, (unsigned char*) obCol2);
+				dm->drawFacesColored(dm, 1, (unsigned char*) obCol1, (unsigned char*) obCol2);
 			}
 
 			if(base->flag & SELECT) {

@@ -1748,15 +1748,6 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_range(prop, 1, 80);
 	RNA_def_property_ui_text(prop, "Auto Smooth Angle", "Defines maximum angle between face normals that 'Auto Smooth' will operate on");
 
-	prop= RNA_def_property(srna, "vertex_normal_flip", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", ME_NOPUNOFLIP);
-	RNA_def_property_ui_text(prop, "Vertex Normal Flip", "Flip vertex normals towards the camera during render");
-
-	prop= RNA_def_property(srna, "double_sided", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", ME_TWOSIDED);
-	RNA_def_property_ui_text(prop, "Double Sided", "Render/display the mesh with double or single sided lighting");
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
-
 	prop= RNA_def_property(srna, "texco_mesh", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "texcomesh");
 	RNA_def_property_flag(prop, PROP_EDITABLE);

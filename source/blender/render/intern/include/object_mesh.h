@@ -120,11 +120,10 @@ typedef struct VlakRen {
 #define R_SMOOTH		1
 #define R_TRACEBLE		2
 #define R_STRAND		4 /* strand flag, means special handling */
-#define R_NOPUNOFLIP	8
-#define R_FULL_OSA		16
-#define R_FACE_SPLIT	32 /* tells render to divide face other way. */
-#define R_DIVIDE_24		64	
-#define R_TANGENT		128	/* vertex normals are tangent or view-corrected vector, for hair strands */
+#define R_FULL_OSA		8
+#define R_FACE_SPLIT	16 /* tells render to divide face other way. */
+#define R_DIVIDE_24		32	
+#define R_TANGENT		64	/* vertex normals are tangent or view-corrected vector, for hair strands */
 
 /* Defines for Quad Rasterization */
 

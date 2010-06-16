@@ -489,7 +489,6 @@ static void end_fastshade_for_ob(Object *ob)
 
 static void mesh_create_shadedColors(Render *re, Object *ob, int onlyForMesh, unsigned int **col1_r, unsigned int **col2_r)
 {
-	Mesh *me= ob->data;
 	DerivedMesh *dm;
 	MVert *mvert;
 	MFace *mface;
@@ -523,12 +522,10 @@ static void mesh_create_shadedColors(Render *re, Object *ob, int onlyForMesh, un
 	} else {
 		*col1_r = col1 = MEM_mallocN(sizeof(*col1)*totface*4, "col1");
 
-		if (col2_r && (me->flag & ME_TWOSIDED))
-			col2 = MEM_mallocN(sizeof(*col2)*totface*4, "col2");
+		if (col2_r)
+			*col2_r= col2 = MEM_mallocN(sizeof(*col2)*totface*4, "col2");
 		else
 			col2 = NULL;
-		
-		if (col2_r) *col2_r = col2;
 	}
 
 		/* vertexnormals */
@@ -1611,7 +1608,7 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 				dl->charidx= nu->charidx;
 
 				/* dl->rt will be used as flag for render face and */
-				/* CU_2D conflicts with R_NOPUNOFLIP */
+				/* CU_2D conflicts with other flags */
 				dl->rt= nu->flag & ~CU_2D;
 
 				data= dl->verts;
@@ -1631,7 +1628,7 @@ void makeDispListSurf(Scene *scene, Object *ob, ListBase *dispbase,
 				dl->charidx= nu->charidx;
 
 				/* dl->rt will be used as flag for render face and */
-				/* CU_2D conflicts with R_NOPUNOFLIP */
+				/* CU_2D conflicts with other flags */
 				dl->rt= nu->flag & ~CU_2D;
 
 				data= dl->verts;
@@ -1738,7 +1735,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 						dl->charidx= nu->charidx;
 
 						/* dl->rt will be used as flag for render face and */
-						/* CU_2D conflicts with R_NOPUNOFLIP */
+						/* CU_2D conflicts with other flags */
 						dl->rt= nu->flag & ~CU_2D;
 
 						a= dl->nr;
@@ -1774,7 +1771,7 @@ static void do_makeDispListCurveTypes(Scene *scene, Object *ob, ListBase *dispba
 							dl->charidx= nu->charidx;
 
 							/* dl->rt will be used as flag for render face and */
-							/* CU_2D conflicts with R_NOPUNOFLIP */
+							/* CU_2D conflicts with other flags */
 							dl->rt= nu->flag & ~CU_2D;
 
 							dl->bevelSplitFlag= MEM_callocN(sizeof(*dl->col2)*((bl->nr+0x1F)>>5), "col2");

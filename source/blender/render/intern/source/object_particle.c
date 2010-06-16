@@ -113,7 +113,7 @@ static void static_particle_strand(Render *re, ObjectRen *obr, Material *ma, Par
 	else width= 1.0f;
 	
 	if(ma->mode & MA_TANGENT_STR)
-		flag= R_SMOOTH|R_NOPUNOFLIP|R_TANGENT;
+		flag= R_SMOOTH|R_TANGENT;
 	else
 		flag= R_SMOOTH;
 	

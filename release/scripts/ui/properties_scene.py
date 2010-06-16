@@ -213,8 +213,6 @@ class SCENE_PT_simplify(SceneButtonsPanel):
         col.prop(rd, "simplify_subdivision", text="Subdivision")
         col.prop(rd, "simplify_child_particles", text="Child Particles")
 
-        col.prop(rd, "simplify_triangulate")
-
         if wide_ui:
             col = split.column()
         col.prop(rd, "simplify_shadow_samples", text="Shadow Samples")
