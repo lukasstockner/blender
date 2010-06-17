@@ -588,10 +588,9 @@ VlakRen *render_object_vlak_interp(ObjectRen *obrn, ObjectRen *obr, VlakRen *vlr
 	return vlrn;
 }
 
-int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int quad)
+void render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int quad)
 {
 	float  n[3], (*nmat)[3]= obi->nmat;
-	int flipped= 0;
 
 	if(vlr->v4) {
 		/* in case of non-planar quad the normal is not accurate */
@@ -611,8 +610,6 @@ int render_vlak_get_normal(ObjectInstanceRen *obi, VlakRen *vlr, float *nor, int
 	}
 	else
 		copy_v3_v3(nor, n);
-
-	return flipped;
 }
 
 VlakRen *render_object_vlak_get(ObjectRen *obr, int nr)

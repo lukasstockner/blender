@@ -562,10 +562,6 @@ void shade_ray(Render *re, Isect *is, ShadeInput *shi, ShadeResult *shr)
 
 	shade_input_set_normals(shi);
 
-	/* point normals to viewing direction */
-	if(dot_v3v3(shi->geometry.facenor, shi->geometry.view) < 0.0f)
-		shade_input_flip_normals(shi);
-
 	shade_input_set_shade_texco(re, shi);
 	if (shi->material.mat->material_type == MA_TYPE_VOLUME) {
 		if(ELEM(is->mode, RE_RAY_SHADOW, RE_RAY_SHADOW_TRA)) {
@@ -1557,10 +1553,6 @@ static void shadeinput_from_isec(Render *re, ShadeInput *oldshi, Isect *isec, fl
 	shi->geometry.osatex= 0;
 
 	shade_input_set_normals(shi);
-
-	/* point normals to viewing direction */
-	if(dot_v3v3(shi->geometry.facenor, shi->geometry.view) < 0.0f)
-		shade_input_flip_normals(shi);
 
 	shade_input_set_shade_texco(re, shi);
 }

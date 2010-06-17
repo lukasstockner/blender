@@ -144,7 +144,8 @@ void shade_input_set_triangle_i(Render *re, ShadeInput *shi, ObjectInstanceRen *
 	geom->osatex= (mat->mat->texco & TEXCO_OSA);
 
 	/* facenormal copy, can get flipped */
-	geom->flippednor= render_vlak_get_normal(obi, vlr, geom->facenor, (i3 == 3));
+	geom->flippednor= 0;
+	render_vlak_get_normal(obi, vlr, geom->facenor, (i3 == 3));
 }
 
 /* note, facenr declared volatile due to over-eager -O2 optimizations
@@ -609,6 +610,11 @@ void shade_input_set_normals(ShadeInput *shi)
 	copy_v3_v3(geom->vno, geom->vn);
 
 	geom->tangentvn= (prim->vlr->flag & R_TANGENT);
+
+	/* flip normals to viewing direction */
+	if(!geom->tangentvn)
+		if(dot_v3v3(geom->facenor, geom->view) < 0.0f)
+			shade_input_flip_normals(shi);
 }
 
 /* use by raytrace, sss, bake to flip into the right direction */
