@@ -2237,8 +2237,17 @@ static int sculpt_area_hide_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		ARegion *ar= CTX_wm_region(C);
 
 		if(ss->hidden_areas.first) {
+			/* Free all hidden areas */
 			BLI_freelistN(&ss->hidden_areas);
 			sculpt_area_hide_update(C);
+
+			/* Avoid cracks in multires */
+			if(ss->multires) {
+				BLI_pbvh_search_callback(ss->pbvh, NULL, NULL,
+							 update_cb, NULL);
+				multires_stitch_grids(ss->ob);
+			}
+
 			ED_region_tag_redraw(ar);
 		}
 		return OPERATOR_FINISHED;
