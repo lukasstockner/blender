@@ -33,6 +33,8 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
+#include "BLI_pbvh.h"
+
 struct bContext;
 struct Brush;
 struct KeyBlock;
@@ -49,7 +51,6 @@ void sculptmode_draw_mesh(int);
 void sculpt_paint_brush(char clear);
 void sculpt_stroke_draw(struct SculptStroke *);
 void sculpt_radialcontrol_start(int mode);
-struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
 
 struct Brush *sculptmode_brush(void);
 //void do_symmetrical_brush_actions(struct Sculpt *sd, struct wmOperator *wm, struct BrushAction *a, short *, short *);
@@ -71,5 +72,39 @@ int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 
 /* Partial Mesh Visibility */
 void sculptmode_pmv(int mode);
+
+/* Undo */
+
+typedef struct SculptUndoNode {
+	struct SculptUndoNode *next, *prev;
+
+	char idname[MAX_ID_NAME];	/* name instead of pointer*/
+	void *node;					/* only during push, not valid afterwards! */
+
+	float (*co)[3];
+	short (*no)[3];
+	int totvert;
+
+	/* non-multires */
+	int maxvert;				/* to verify if totvert it still the same */
+	int *index;					/* to restore into right location */
+
+	/* multires */
+	int maxgrid;				/* same for grid */
+	int gridsize;				/* same for grid */
+	int totgrid;				/* to restore into right location */
+	int *grids;					/* to restore into right location */
+
+	/* layer brush */
+	float *layer_disp;
+} SculptUndoNode;
+
+SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node);
+SculptUndoNode *sculpt_undo_get_node(PBVHNode *node);
+void sculpt_undo_push_begin(char *name);
+void sculpt_undo_push_end(void);
+
+struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
+int sculpt_modifiers_active(Scene *scene, Object *ob);
 
 #endif
