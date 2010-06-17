@@ -165,7 +165,7 @@ static inline void bvh_node_merge_bb(Node *node, float *min, float *max)
  */
 template<class Node> static inline void bvh_node_push_childs(Node *node, Isect *isec, Node **stack, int &stack_pos);
 
-template<class Node,int MAX_STACK_SIZE,bool TEST_ROOT>
+template<class Node,int MAX_STACK_SIZE,bool TEST_ROOT,bool SHADOW>
 static int bvh_node_stack_raycast(Node *root, Isect *isec)
 {
 	Node *stack[MAX_STACK_SIZE];
@@ -190,7 +190,7 @@ static int bvh_node_stack_raycast(Node *root, Isect *isec)
 		else
 		{
 			hit |= RE_rayobject_intersect( (RayObject*)node, isec);
-			if(hit && isec->mode == RE_RAY_SHADOW) return hit;
+			if(SHADOW && hit) return hit;
 		}
 	}
 	return hit;
