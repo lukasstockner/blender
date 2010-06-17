@@ -254,6 +254,10 @@ void sculpt_get_redraw_planes(float planes[4][4], ARegion *ar,
 
 /************************** Undo *************************/
 
+/* Sculpt has its own undo, for each undo step there can be multiple
+   SculptUndoNodes, added as they are needed. SculptUndoNodes contain undo data
+   for one PBVHNode. */
+
 typedef struct SculptUndoNode {
 	struct SculptUndoNode *next, *prev;
 
@@ -276,6 +280,9 @@ typedef struct SculptUndoNode {
 
 	/* layer brush */
 	float *layer_disp;
+
+	/* paint mask */
+	float *pmask;
 } SculptUndoNode;
 
 static void update_cb(PBVHNode *node, void *data)
@@ -327,6 +334,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			continue;
 
 		if(unode->maxvert) {
+			float *pmask;
+
 			/* regular mesh restore */
 			if(ss->totvert != unode->maxvert)
 				continue;
@@ -334,15 +343,24 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			index= unode->index;
 			mvert= ss->mvert;
 
+			/* check for restoring paint mask */
+			if(unode->pmask) {
+				Mesh *me = get_mesh(ob);
+				pmask = CustomData_get_layer(&me->vdata,
+							     CD_PAINTMASK);
+			}
+
 			for(i=0; i<unode->totvert; i++) {
 				swap_v3_v3(mvert[index[i]].co, unode->co[i]);
 				mvert[index[i]].flag |= ME_VERT_PBVH_UPDATE;
+				if(unode->pmask)
+					SWAP(float, pmask[index[i]], unode->pmask[i]);
 			}
 		}
 		else if(unode->maxgrid && dm->getGridData) {
 			/* multires restore */
 			DMGridData **grids, *grid;
-			float (*co)[3];
+			float (*co)[3], *pmask;
 			int gridsize;
 			int gridkey;
 
@@ -356,11 +374,19 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			gridkey= dm->getGridKey(dm);
 
 			co = unode->co;
+			if(unode->pmask)
+				pmask = unode->pmask;
+
 			for(j=0; j<unode->totgrid; j++) {
 				grid= grids[unode->grids[j]];
 
-				for(i=0; i<gridsize*gridsize; i++, co++)
+				for(i=0; i<gridsize*gridsize; i++, co++) {
 					swap_v3_v3(GRIDELEM_CO_AT(grid, i, gridkey), co[0]);
+					if(pmask) {
+						SWAP(float, *GRIDELEM_MASK_AT(grid, i, gridkey), *pmask);
+						++pmask;
+					}
+				}
 			}
 		}
 
@@ -400,6 +426,8 @@ static void sculpt_undo_free(ListBase *lb)
 			MEM_freeN(unode->grids);
 		if(unode->layer_disp)
 			MEM_freeN(unode->layer_disp);
+		if(unode->pmask)
+			MEM_freeN(unode->pmask);
 	}
 }
 
@@ -423,7 +451,7 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	Object *ob= ss->ob;
 	SculptUndoNode *unode;
-	int totvert, allvert, totgrid, maxgrid, gridsize, *grids;
+	int totvert, allvert, totgrid, maxgrid, gridsize, *grids, gridkey;
 
 	/* list is manipulated by multiple threads, so we lock */
 	BLI_lock_thread(LOCK_CUSTOM1);
@@ -439,7 +467,7 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 
 	BLI_pbvh_node_num_verts(ss->pbvh, node, &totvert, &allvert);
 	BLI_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
-				&maxgrid, &gridsize, NULL, NULL, NULL);
+				&maxgrid, &gridsize, NULL, NULL, &gridkey);
 
 	unode->totvert= totvert;
 	/* we will use this while sculpting, is mapalloc slow to access then? */
@@ -454,11 +482,15 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 		unode->totgrid= totgrid;
 		unode->gridsize= gridsize;
 		unode->grids= MEM_mapallocN(sizeof(int)*totgrid, "SculptUndoNode.grids");
+		if(GRIDELEM_HAS_MASK(gridkey))
+			unode->pmask= MEM_mapallocN(sizeof(float)*allvert, "SculptUndoNode.pmask");
 	}
 	else {
 		/* regular mesh */
 		unode->maxvert= ss->totvert;
 		unode->index= MEM_mapallocN(sizeof(int)*allvert, "SculptUndoNode.index");
+		if(CustomData_get_layer(&get_mesh(ob)->vdata, CD_PAINTMASK))
+			unode->pmask= MEM_mapallocN(sizeof(float)*allvert, "SculptUndoNode.pmask");
 	}
 
 	BLI_unlock_thread(LOCK_CUSTOM1);
@@ -472,6 +504,7 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 			if(vd.no) VECCOPY(unode->no[vd.i], vd.no)
 			else normal_float_to_short_v3(unode->no[vd.i], vd.fno);
 			if(vd.vert_indices) unode->index[vd.i]= vd.vert_indices[vd.i];
+			if(vd.mask) unode->pmask[vd.i]= *vd.mask;
 		}
 		BLI_pbvh_vertex_iter_end;
 	}

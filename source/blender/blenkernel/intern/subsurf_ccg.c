@@ -68,7 +68,7 @@
 /* Declared extern in BKE_subsurf.h */
 DMGridElemKeyInfo GridElemKeyInfo[GRID_ELEM_KEY_TOTAL] = {
 	/*size,            has_mask,  no_offset,        mask_offset,      interp_count */
-	{sizeof(float)*6,  0,         sizeof(float)*3,  0,                3            },
+	{sizeof(float)*6,  0,         sizeof(float)*3,  -1,               3            },
 	{sizeof(float)*7,  1,         sizeof(float)*4,  sizeof(float)*3,  4            }
 };
 
