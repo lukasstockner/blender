@@ -757,7 +757,26 @@ static void layerDefault_mcol(void *data, int count)
 		mcol[i] = default_mcol;
 }
 
+void layerCopy_grid(const void *source_v, void *dest_v, int count)
+{
+	const CustomData *source = source_v;
+	CustomData *dest = dest_v;
+	int i;
 
+	for(i = 0; i < count; ++i)
+		CustomData_copy(source + i, dest + i, ~0, CD_DUPLICATE,
+				source[i].grid_elems);
+}
+
+void layerFree_grid(void *data, int count, int size)
+{
+	CustomData *cd = data;
+	int i;
+
+	for(i = 0; i < count; ++i) {
+		CustomData_free(cd + i, cd[i].grid_elems);
+	}
+}
 
 const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0 */
@@ -800,7 +819,7 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(MCol)*4, "MCol", 4, "TexturedCol", NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
-	{sizeof(CustomData), "CustomData", 1, "Face Grid", NULL, NULL, NULL, NULL, NULL},
+	{sizeof(CustomData), "CustomData", 1, "Face Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	{sizeof(float), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 };
@@ -819,7 +838,8 @@ const CustomDataMask CD_MASK_BAREMESH =
 const CustomDataMask CD_MASK_MESH =
 	CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
-	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS | CD_MASK_PAINTMASK;
+	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS |
+	CD_MASK_FACEGRID | CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_EDITMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS;
@@ -2319,6 +2339,12 @@ int CustomData_verify_versions(struct CustomData *data, int index)
 	}
 
 	return keeplayer;
+}
+
+/* Subsurf grids */
+void CustomData_set_num_grid_elements(CustomData *data, int grid_elems)
+{
+	data->grid_elems = grid_elems;
 }
 
 /****************************** External Files *******************************/

@@ -1486,7 +1486,7 @@ static void write_mdisps(WriteData *wd, int count, MDisps *mdlist, int external)
 
 static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
 {
-	int i;
+	int i, j;
 
 	/* write external customdata (not for undo) */
 	if(data->external && !wd->current)
@@ -1505,6 +1505,16 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		}
 		else if (layer->type == CD_MDISPS) {
 			write_mdisps(wd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
+		}
+		else if (layer->type == CD_PAINTMASK) {
+			writedata(wd, DATA, sizeof(float)*count, layer->data);
+		}
+		else if (layer->type == CD_FACEGRID) {
+			CustomData *grids = layer->data;
+			writestruct(wd, DATA, "CustomData", count, grids);
+			for(j = 0; j < count; ++j)
+				write_customdata(wd, id, grids[j].grid_elems,
+						 grids + j, -1, 0);
 		}
 		else {
 			CustomData_file_write_info(layer->type, &structname, &structnum);

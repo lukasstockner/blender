@@ -313,6 +313,7 @@ static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, int lvl)
 		memset(cd, 0, sizeof(*cd));
 		CustomData_copy(&old, cd, ~0, CD_CALLOC, totelem);
 		CustomData_free(&old, 0);
+		CustomData_set_num_grid_elements(cd, totelem);
 	}
 
 	/* This will be replaced when we do CD_DISPS */

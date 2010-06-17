@@ -280,6 +280,9 @@ void CustomData_to_bmeshpoly(struct CustomData *fdata, struct CustomData *pdata,
 void CustomData_from_bmeshpoly(struct CustomData *fdata, struct CustomData *pdata, struct CustomData *ldata, int total);
 void CustomData_bmesh_init_pool(struct CustomData *data, int allocsize);
 
+/* Subsurf grids */
+void CustomData_set_num_grid_elements(struct CustomData *data, int grid_elems);
+
 /* External file storage */
 
 void CustomData_external_add(struct CustomData *data,

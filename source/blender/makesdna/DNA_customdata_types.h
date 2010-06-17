@@ -54,7 +54,8 @@ typedef struct CustomDataExternal {
 typedef struct CustomData {
 	CustomDataLayer *layers;      /* CustomDataLayers, ordered by type */
 	int totlayer, maxlayer;       /* number of layers, size of layers array */
-	int totsize, pad;             /* in editmode, total size of all data layers */
+	int totsize;                  /* in editmode, total size of all data layers */
+	int grid_elems;               /* For grids, number of elements */
 	void *pool;                   /* Bmesh: Memory pool for allocation of blocks */
 	CustomDataExternal *external; /* external file storing customdata layers */
 } CustomData;
