@@ -299,7 +299,7 @@ float bvh_refit(Node *node)
  * with the purpose to reduce the expected cost (eg.: number of BB tests).
  */
 #include <vector>
-#define MAX_CUT_SIZE	16
+#define MAX_CUT_SIZE		4				/* svbvh assumes max 4 children! */
 #define MAX_OPTIMIZE_CHILDS	MAX_CUT_SIZE
 
 struct OVBVHNode

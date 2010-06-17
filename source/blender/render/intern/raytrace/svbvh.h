@@ -102,7 +102,7 @@ static int svbvh_bb_intersect_test(const Isect *isec, const float *_bb)
 	return 1;
 }
 
-static bool svbvh_node_is_leaf(SVBVHNode *node)
+static bool svbvh_node_is_leaf(const SVBVHNode *node)
 {
 	return !RE_rayobject_isAligned(node);
 }
@@ -110,7 +110,7 @@ static bool svbvh_node_is_leaf(SVBVHNode *node)
 template<int MAX_STACK_SIZE, bool SHADOW>
 static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 {
-	SVBVHNode *stack[MAX_STACK_SIZE], *node;
+	const SVBVHNode *stack[MAX_STACK_SIZE], *node;
 	int hit = 0, stack_pos = 0;
 
 	stack[stack_pos++] = root;
@@ -121,26 +121,29 @@ static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 
 		if(!svbvh_node_is_leaf(node))
 		{
-			float *child_bb= node->child_bb;
-			SVBVHNode **child= node->child;
-			int i=0, nchilds= node->nchilds;
+			int nchilds= node->nchilds;
 
-			while(i+4 <= nchilds) {
-				int res = svbvh_bb_intersect_test_simd4(isec, ((__m128*) (child_bb + i*6)));
+			if(nchilds == 4) {
+				const float *child_bb= node->child_bb;
+				int res = svbvh_bb_intersect_test_simd4(isec, ((const __m128*) (child_bb)));
+				SVBVHNode **child= node->child;
 
 				RE_RC_COUNT(isec->raycounter->simd_bb.test);
 
-				if(res & 1) { stack[stack_pos++] = child[i+0]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-				if(res & 2) { stack[stack_pos++] = child[i+1]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-				if(res & 4) { stack[stack_pos++] = child[i+2]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-				if(res & 8) { stack[stack_pos++] = child[i+3]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
-
-				i += 4;
+				if(res & 1) { stack[stack_pos++] = child[0]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+				if(res & 2) { stack[stack_pos++] = child[1]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+				if(res & 4) { stack[stack_pos++] = child[2]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
+				if(res & 8) { stack[stack_pos++] = child[3]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
 			}
+			else {
+				const float *child_bb= node->child_bb;
+				SVBVHNode **child= node->child;
+				int i;
 
-			for(; i<nchilds; i++)
-				if(svbvh_bb_intersect_test(isec, (float*)child_bb+6*i))
-					stack[stack_pos++] = child[i];
+				for(i=0; i<nchilds; i++)
+					if(svbvh_bb_intersect_test(isec, (const float*)child_bb+6*i))
+						stack[stack_pos++] = child[i];
+			}
 		}
 		else
 		{
