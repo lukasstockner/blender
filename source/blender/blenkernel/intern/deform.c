@@ -41,7 +41,11 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
+#include "DNA_mesh_types.h"
+#include "DNA_lattice_types.h"
+
 #include "BKE_deform.h"
+#include "BKE_utildefines.h"
 
 #include "BLI_blenlib.h"
 
@@ -530,4 +534,32 @@ MDeformWeight *defvert_verify_index(MDeformVert *dv, int defgroup)
 	dv->totweight++;
 
 	return dv->dw+(dv->totweight-1);
+}
+
+/* returns true if the id type supports weights */
+int defvert_give_array(ID *id, MDeformVert **dvert_arr, int *dvert_tot)
+{
+	if(id) {
+		switch(GS(id->name)) {
+			case ID_ME:
+			{
+				Mesh *me = (Mesh *)id;
+				*dvert_arr= me->dvert;
+				*dvert_tot= me->totvert;
+				return TRUE;
+			}
+			case ID_LT:
+			{
+				Lattice *lt= (Lattice *)id;
+				lt= (lt->editlatt)? lt->editlatt: lt;
+				*dvert_arr= lt->dvert;
+				*dvert_tot= lt->pntsu*lt->pntsv*lt->pntsw;
+				return TRUE;
+			}
+		}
+	}
+
+	*dvert_arr= NULL;
+	*dvert_tot= 0;
+	return FALSE;
 }

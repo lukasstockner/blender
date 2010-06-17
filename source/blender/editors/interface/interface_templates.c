@@ -1863,6 +1863,11 @@ static void curvemap_buttons_layout(uiLayout *layout, PointerRNA *ptr, char labe
 
 	/* curve itself */
 	size= uiLayoutGetWidth(layout);
+
+	// XXX: workaround for modifier panel
+	if(size <= 0)
+		size = 120;
+
 	row= uiLayoutRow(layout, 0);
 	uiDefBut(block, BUT_CURVE, 0, "", 0, 0, size, MIN2(size, 200), cumap, 0.0f, 1.0f, bg, 0, "");
 

@@ -499,6 +499,7 @@ extern StructRNA RNA_TextureNodeValToNor;
 extern StructRNA RNA_TextureNodeValToRGB;
 extern StructRNA RNA_TextureNodeViewer;
 extern StructRNA RNA_TextureSlot;
+extern StructRNA RNA_WarpModifier;
 extern StructRNA RNA_Theme;
 extern StructRNA RNA_ThemeAudioWindow;
 extern StructRNA RNA_ThemeBoneColorSet;
