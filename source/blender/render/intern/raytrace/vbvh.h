@@ -167,12 +167,11 @@ struct BuildBinaryVBVH
 			
 			Node *node = create_node();
 
-			INIT_MINMAX(node->bb, node->bb+3);
-			rtbuild_merge_bb(builder, node->bb, node->bb+3);
-			
 			Node **child = &node->child;
 
 			int nc = rtbuild_split(builder);
+			INIT_MINMAX(node->bb, node->bb+3);
+
 			assert(nc == 2);
 			for(int i=0; i<nc; i++)
 			{
@@ -180,6 +179,8 @@ struct BuildBinaryVBVH
 				rtbuild_get_child(builder, i, &tmp);
 				
 				*child = _transform(&tmp);
+				DO_MIN((*child)->bb, node->bb);
+				DO_MAX((*child)->bb+3, node->bb+3);
 				child = &((*child)->sibling);
 			}
 
