@@ -426,7 +426,10 @@ void shade_strand_surface_co(ShadeInput *shi, float co[3], float n[3])
 	normalize_v3(offset);
 	madd_v3_v3fl(co, offset, 1e-8f);
 
-	copy_v3_v3(n, surfnor);
+	if(surfnor)
+		copy_v3_v3(n, surfnor);
+	else
+		zero_v3(n); /* this shouldn't happen, but with override materials can */
 }
 
 static void shade_lamp_accumulate(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, float lv[3], float lainf[3], float lashdw[3], int passflag)
