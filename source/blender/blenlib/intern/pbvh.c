@@ -115,7 +115,7 @@ struct PBVH {
 	void **gridfaces;
 	int totgrid;
 	int gridsize;
-	int gridkey;
+	struct GridKey *gridkey;
 
 	/* Only used during BVH build and update,
 	   don't need to remain valid after */
@@ -620,7 +620,7 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
 /* Do a full rebuild with on Grids data structure */
 void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 			  DMGridAdjacency *gridadj,
-			  int totgrid, int gridsize, int gridkey,
+			  int totgrid, int gridsize, GridKey *gridkey,
 			  void **gridfaces, ListBase *hidden_areas)
 {
 	bvh->grids= grids;
@@ -1130,7 +1130,7 @@ void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *to
 	}
 }
 
-void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int *totgrid, int *maxgrid, int *gridsize, DMGridData ***griddata, DMGridAdjacency **gridadj, int *gridkey)
+void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int *totgrid, int *maxgrid, int *gridsize, DMGridData ***griddata, DMGridAdjacency **gridadj, GridKey **gridkey)
 {
 	if(bvh->grids) {
 		if(grid_indices) *grid_indices= node->prim_indices;
@@ -1148,7 +1148,7 @@ void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int 
 		if(gridsize) *gridsize= 0;
 		if(griddata) *griddata= NULL;
 		if(gridadj) *gridadj= NULL;
-		if(gridkey) gridkey= 0;
+		if(gridkey) *gridkey= NULL;
 	}
 }
 

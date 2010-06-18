@@ -416,7 +416,7 @@ typedef struct {
 	int *grid_indices;
 	int totgrid;
 	int gridsize;
-	int gridkey;
+	struct GridKey *gridkey;
 
 	unsigned int tot_tri, tot_quad;
 } GPU_Buffers;
@@ -598,11 +598,11 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 }
 
 static void update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-				      int totgrid, int gridsize, int gridkey, int totvert)
+				      int totgrid, int gridsize, GridKey *gridkey, int totvert)
 {
 	unsigned char *color_data;
 
-	color_data = map_color_buffer(buffers, GRIDELEM_HAS_MASK(gridkey), totvert);
+	color_data = map_color_buffer(buffers, gridkey->mask, totvert);
 
 	if(color_data) {
 		int i, j;
@@ -624,7 +624,7 @@ typedef struct {
 } GridVBO;
 
 void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
-			     int *grid_indices, int totgrid, int gridsize, int gridkey, int smooth)
+			     int *grid_indices, int totgrid, int gridsize, GridKey *gridkey, int smooth)
 {
 	GPU_Buffers *buffers = buffers_v;
 	GridVBO *vert_data;

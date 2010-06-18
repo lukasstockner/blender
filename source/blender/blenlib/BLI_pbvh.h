@@ -29,6 +29,7 @@ struct BoundBox;
 struct CustomData;
 struct MFace;
 struct MVert;
+struct GridKey;
 struct DMGridAdjacency;
 struct DMGridData;
 struct PBVH;
@@ -59,7 +60,7 @@ void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
 			 ListBase *hidden_areas);
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 			  struct DMGridAdjacency *gridadj, int totgrid,
-			  int gridsize, int gridkey, void **gridfaces,
+			  int gridsize, struct GridKey *gridkey, void **gridfaces,
 			  ListBase *hidden_areas);
 void BLI_pbvh_free(PBVH *bvh);
 
@@ -107,7 +108,7 @@ void BLI_pbvh_node_mark_update(PBVHNode *node);
 
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 	int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
-	struct DMGridData ***griddata, struct DMGridAdjacency **gridadj, int *gridkey);
+	struct DMGridData ***griddata, struct DMGridAdjacency **gridadj, struct GridKey **gridkey);
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
 	int *uniquevert, int *totvert);
 void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
@@ -149,7 +150,7 @@ typedef struct PBVHVertexIter {
 	int *grid_indices;
 	int totgrid;
 	int gridsize;
-	int gridkey;
+	struct GridKey *gridkey;
 
 	/* mesh */
 	struct MVert *mverts;
@@ -174,7 +175,8 @@ typedef struct PBVHVertexIter {
 		struct DMGridData **grids; \
 		struct MVert *verts; \
 		struct CustomData *vdata; \
-		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert, gridkey; \
+		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert; \
+		struct GridKey *gridkey; \
 		\
 		memset(&vi, 0, sizeof(PBVHVertexIter)); \
 		\

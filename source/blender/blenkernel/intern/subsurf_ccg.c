@@ -65,13 +65,6 @@
 
 #include "CCGSubSurf.h"
 
-/* Declared extern in BKE_subsurf.h */
-DMGridElemKeyInfo GridElemKeyInfo[GRID_ELEM_KEY_TOTAL] = {
-	/*size,            has_mask,  no_offset,        mask_offset,      interp_count */
-	{sizeof(float)*6,  0,         sizeof(float)*3,  -1,               3            },
-	{sizeof(float)*7,  1,         sizeof(float)*4,  sizeof(float)*3,  4            }
-};
-
 static int ccgDM_getVertMapIndex(CCGSubSurf *ss, CCGVert *v);
 static int ccgDM_getEdgeMapIndex(CCGSubSurf *ss, CCGEdge *e);
 static int ccgDM_getFaceMapIndex(CCGSubSurf *ss, CCGFace *f);
@@ -94,7 +87,7 @@ static void arena_release(CCGAllocatorHDL a) {
 	BLI_memarena_free(a);
 }
 
-static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, int gridkey, int subdivLevels, int useAging, int useArena, int useFlatSubdiv) {
+static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, GridKey *gridkey, int subdivLevels, int useAging, int useArena, int useFlatSubdiv) {
 	CCGMeshIFC ifc;
 	CCGSubSurf *ccgSS;
 
@@ -323,10 +316,13 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 	int index, gridSize, gridFaces, edgeSize, totface, x, y, S;
 	MTFace *dmtface = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, n);
 	MTFace *tface = CustomData_get_layer_n(&result->faceData, CD_MTFACE, n);
-	int gridkey = GRID_ELEM_KEY_CO_NO; /* TODO */
+	GridKey *gridkey;
 
 	if(!dmtface || !tface)
 		return;
+
+	gridkey = MEM_callocN(sizeof(GridKey), "Subsurf UV GridKey");
+	GRIDELEM_KEY_INIT(gridkey, 1, 0, 0); /* TODO */
 
 	/* create a CCGSubSurf from uv's */
 	uvss = _getSubSurf(NULL, gridkey, ccgSubSurf_getSubdivisionLevels(ss), 0, 1, 0);
@@ -536,7 +532,7 @@ static void ccgDM_getMinMax(DerivedMesh *dm, float min_r[3], float max_r[3]) {
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
 	int gridSize = ccgSubSurf_getGridSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 
 	if (!ccgSubSurf_getNumVerts(ss))
 		min_r[0] = min_r[1] = min_r[2] = max_r[0] = max_r[1] = max_r[2] = 0.0;
@@ -593,7 +589,7 @@ static void ccgDM_getFinalVert(DerivedMesh *dm, int vertNum, MVert *mv)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	DMGridData *vd;
 	int i;
 
@@ -822,7 +818,7 @@ static void ccgDM_copyFinalVertArray(DerivedMesh *dm, MVert *mvert)
 	int totvert, totedge, totface;
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	int i = 0;
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -1085,7 +1081,7 @@ static void ccgdm_getVertCos(DerivedMesh *dm, float (*cos)[3]) {
 static void ccgDM_foreachMappedVert(DerivedMesh *dm, void (*func)(void *userData, int index, float *co, float *no_f, short *no_s), void *userData) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGVertIterator *vi = ccgSubSurf_getVertIterator(ccgdm->ss);
-	int gridkey = ccgSubSurf_getGridKey(ccgdm->ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ccgdm->ss);
 
 	for (; !ccgVertIterator_isStopped(vi); ccgVertIterator_next(vi)) {
 		CCGVert *v = ccgVertIterator_getCurrent(vi);
@@ -1103,7 +1099,7 @@ static void ccgDM_foreachMappedEdge(DerivedMesh *dm, void (*func)(void *userData
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGEdgeIterator *ei = ccgSubSurf_getEdgeIterator(ss);
 	int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 
 	for (; !ccgEdgeIterator_isStopped(ei); ccgEdgeIterator_next(ei)) {
 		CCGEdge *e = ccgEdgeIterator_getCurrent(ei);
@@ -1170,7 +1166,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, int drawLooseEdges, int drawAllEdge
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
 	int gridSize = ccgSubSurf_getGridSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	int useAging;
 
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
@@ -1235,7 +1231,7 @@ static void ccgDM_drawLooseEdges(DerivedMesh *dm) {
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGEdgeIterator *ei = ccgSubSurf_getEdgeIterator(ss);
 	int i, edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 
 	for (; !ccgEdgeIterator_isStopped(ei); ccgEdgeIterator_next(ei)) {
 		CCGEdge *e = ccgEdgeIterator_getCurrent(ei);
@@ -1289,7 +1285,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi;
 	int gridSize = ccgSubSurf_getGridSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int step = (fast)? gridSize-1: 1;
 
@@ -1382,7 +1378,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm, int (*setMaterial)(int, v
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
 	int edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	int transp, orig_transp, new_transp;
 	char *faceFlags = ccgdm->faceFlags;
 	int a, b, i, doDraw, numVerts, matnr, new_matnr, totface;
@@ -1540,7 +1536,7 @@ static void ccgDM_drawFacesColored(DerivedMesh *dm, int useTwoSided, unsigned ch
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
 	int gridSize = ccgSubSurf_getGridSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	unsigned char *cp1, *cp2;
 	int useTwoSide=1;
 
@@ -1614,7 +1610,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 	MTFace *tf = DM_get_face_data_layer(dm, CD_MTFACE);
 	char *faceFlags = ccgdm->faceFlags;
 	int i, totface, flag, gridSize = ccgSubSurf_getGridSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	int gridFaces = gridSize - 1;
 
 	ccgdm_pbvh_update(ccgdm);
@@ -1789,7 +1785,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 	CCGSubSurf *ss = ccgdm->ss;
 	MCol *mcol= NULL;
 	int i, gridSize = ccgSubSurf_getGridSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int gridFaces = gridSize - 1, totface;
 
@@ -1902,7 +1898,7 @@ static void ccgDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *u
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGEdgeIterator *ei = ccgSubSurf_getEdgeIterator(ss);
 	int i, useAging, edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
 
@@ -1933,7 +1929,7 @@ static void ccgDM_drawMappedEdgesInterp(DerivedMesh *dm, int (*setDrawOptions)(v
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGEdgeIterator *ei = ccgSubSurf_getEdgeIterator(ss);
 	int i, useAging, edgeSize = ccgSubSurf_getEdgeSize(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 
 	ccgSubSurf_getUseAgeCounts(ss, &useAging, NULL, NULL, NULL);
 
@@ -1964,7 +1960,7 @@ static void ccgDM_foreachMappedFaceCenter(DerivedMesh *dm, void (*func)(void *us
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi = ccgSubSurf_getFaceIterator(ss);
-	int gridkey = ccgSubSurf_getGridKey(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 
 	for (; !ccgFaceIterator_isStopped(fi); ccgFaceIterator_next(fi)) {
 		CCGFace *f = ccgFaceIterator_getCurrent(fi);
@@ -2245,7 +2241,7 @@ static int *ccgDM_getGridOffset(DerivedMesh *dm)
 	return ccgdm->gridOffset;
 }
 
-static int ccgDM_getGridKey(DerivedMesh *dm)
+static GridKey *ccgDM_getGridKey(DerivedMesh *dm)
 {
 	CCGDerivedMesh *ccgdm= (CCGDerivedMesh*)dm;
 
@@ -2287,7 +2283,8 @@ static int ccgDM_use_grid_pbvh(CCGDerivedMesh *ccgdm)
 static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
 	CCGDerivedMesh *ccgdm= (CCGDerivedMesh*)dm;
-	int gridSize, numGrids, gridkey, grid_pbvh;
+	int gridSize, numGrids, grid_pbvh;
+	GridKey *gridkey;
 
 	if(!ob) {
 		ccgdm->pbvh= NULL;
@@ -2655,9 +2652,11 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	int useSubsurfUv = smd->flags & eSubsurfModifierFlag_SubsurfUv;
 	int drawInteriorEdges = !(smd->flags & eSubsurfModifierFlag_ControlEdges);
 	CCGDerivedMesh *result;
+	GridKey *gridkey;
 
 	/* TODO */
-	int gridkey = GRID_ELEM_KEY_CO_MASK_NO;
+	gridkey = MEM_callocN(sizeof(GridKey), "subsurf_make_derived_from_derived.GridKey");
+	GRIDELEM_KEY_INIT(gridkey, 1, 1, 1);
 
 	if(editMode) {
 		int levels= (smd->modifier.scene)? get_render_subsurf_level(&smd->modifier.scene->r, smd->levels): smd->levels;
@@ -2741,11 +2740,16 @@ void subsurf_calculate_limit_positions(Mesh *me, float (*positions_r)[3])
 	 * calculated vert positions is incorrect for the verts 
 	 * on the boundary of the mesh.
 	 */
-	CCGSubSurf *ss = _getSubSurf(NULL, GRID_ELEM_KEY_CO_NO /* TODO */, 1, 0, 1, 0);
+	CCGSubSurf *ss;
 	float edge_sum[3], face_sum[3];
 	CCGVertIterator *vi;
 	DerivedMesh *dm = CDDM_from_mesh(me, NULL);
+	GridKey *gridkey;
 
+	gridkey = MEM_callocN(sizeof(GridKey), "limit_positions.gridkey");
+	GRIDELEM_KEY_INIT(gridkey, 1, 0, 1);
+	
+	ss = _getSubSurf(NULL, gridkey, 1, 0, 1, 0);
 	ss_sync_from_derivedmesh(ss, dm, NULL, 0);
 
 	vi = ccgSubSurf_getVertIterator(ss);

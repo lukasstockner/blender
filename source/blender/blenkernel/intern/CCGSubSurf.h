@@ -19,7 +19,7 @@ struct _CCGMeshIFC {
 	   that would be (3+1) floats, so finterpCount would be 4. */
 	int			finterpCount;
 
-	int			gridkey;
+	struct GridKey*		gridkey;
 };
 
 /***/
@@ -92,7 +92,7 @@ int			ccgSubSurf_getEdgeSize				(CCGSubSurf *ss);
 int			ccgSubSurf_getEdgeLevelSize			(CCGSubSurf *ss, int level);
 int			ccgSubSurf_getGridSize				(CCGSubSurf *ss);
 int			ccgSubSurf_getGridLevelSize			(CCGSubSurf *ss, int level);
-int			ccgSubSurf_getGridKey				(CCGSubSurf *ss);
+struct GridKey*		ccgSubSurf_getGridKey				(CCGSubSurf *ss);
 
 CCGVert*	ccgSubSurf_getVert					(CCGSubSurf *ss, CCGVertHDL v);
 CCGVertHDL	ccgSubSurf_getVertVertHandle		(CCGVert *v);

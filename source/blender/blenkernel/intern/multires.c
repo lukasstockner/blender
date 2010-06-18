@@ -359,7 +359,7 @@ static void multires_copy_grid(float (*gridA)[3], float (*gridB)[3], int sizeA, 
 	}
 }
 
-static void multires_copy_dm_grid(DMGridData *gridA, DMGridData *gridB, int gridkey, int sizeA, int sizeB)
+static void multires_copy_dm_grid(DMGridData *gridA, DMGridData *gridB, GridKey *gridkey, int sizeA, int sizeB)
 {
 	int x, y, j, skip;
 	int size = sizeof(float)*GRIDELEM_INTERP_COUNT(gridkey);
@@ -462,7 +462,7 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	return subsurf_make_derived_from_derived(dm, &smd, 0, NULL, 0, 0);
 }
 
-static DMGridData **copy_grids(DMGridData **grids, int totgrid, int gridsize, int gridkey)
+static DMGridData **copy_grids(DMGridData **grids, int totgrid, int gridsize, GridKey *gridkey)
 {
 	DMGridData **grids_copy = MEM_callocN(sizeof(DMGridData*) * totgrid, "subgrids");
 	int i;
@@ -496,7 +496,8 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		DerivedMesh *lowdm, *cddm, *highdm;
 		DMGridData **highGridData, **lowGridData, **subGridData;
 		CCGSubSurf *ss;
-		int i, numGrids, highGridSize, lowGridSize, gridkey;
+		int i, numGrids, highGridSize, lowGridSize;
+		GridKey *gridkey;
 
 		/* create subsurf DM from original mesh at high level */
 		cddm = CDDM_from_mesh(me, NULL);
@@ -549,7 +550,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 	multires_set_tot_level(ob, mmd, totlvl);
 }
 
-static void grid_tangent(int gridSize, int index, int x, int y, int axis, DMGridData **gridData, int gridkey, float t[3])
+static void grid_tangent(int gridSize, int index, int x, int y, int axis, DMGridData **gridData, GridKey *gridkey, float t[3])
 {
 	DMGridData *grid = gridData[index];
 
@@ -601,7 +602,8 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 	MFace *mface = me->mface;
 	MDisps *mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
 	CustomData *stored_grids;
-	int *gridOffset, gridkey;
+	int *gridOffset;
+	GridKey *gridkey;
 	int i, numGrids, gridSize, dGridSize, dSkip;
 
 	if(!mdisps) {
@@ -757,7 +759,8 @@ static void multiresModifier_update(DerivedMesh *dm)
 			DerivedMesh *lowdm, *cddm, *highdm;
 			DMGridData **highGridData, **lowGridData, **subGridData, **gridData, *diffGrid;
 			CCGSubSurf *ss;
-			int i, j, numGrids, highGridSize, lowGridSize, gridkey;
+			int i, j, numGrids, highGridSize, lowGridSize;
+			GridKey *gridkey;
 
 			/* create subsurf DM from original mesh at high level */
 			if (ob->derivedDeform) cddm = CDDM_copy(ob->derivedDeform);
@@ -855,7 +858,8 @@ DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int loca
 	CCGDerivedMesh *ccgdm;
 	DMGridData **gridData, **subGridData;
 	int lvl= multires_get_level(ob, mmd, useRenderParams);
-	int i, gridSize, numGrids, gridkey;
+	int i, gridSize, numGrids;
+	GridKey *gridkey;
 
 	if(lvl == 0)
 		return dm;

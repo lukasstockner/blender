@@ -503,7 +503,6 @@ class VIEW3D_PT_tools_masking(PaintPanel):
         row.operator("paint.mask_set", text="Clear").mode = 'CLEAR'
         row.operator("paint.mask_set", text="Fill").mode = 'FILL'
         row.operator("paint.mask_set", text="Invert").mode = 'INVERT'
-        row.operator("paint.mask_set", text="Random").mode = 'RANDOM'
 
 
 class VIEW3D_PT_tools_brush(PaintPanel):

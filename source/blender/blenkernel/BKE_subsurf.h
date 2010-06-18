@@ -48,29 +48,25 @@ struct _CCGVert;
 
 /* Grids */
 
-/* Format of the data in a grid element */
-typedef enum {
-	GRID_ELEM_KEY_CO_NO = 0,
-	GRID_ELEM_KEY_CO_MASK_NO,
-	GRID_ELEM_KEY_TOTAL
-} DMGridElemKey;
+/* Each grid element can contain zero or more layers of coordinates,
+   paint masks, and normals; these numbers are stored in the GridKey
 
-/* Information about the data stored by each type of key */
-typedef struct {
-	int size;
-	int has_mask;
-	int no_offset;
-	int mask_offset;
-	int interp_count;
-} DMGridElemKeyInfo;
+   For now, co and no can have only zero or one layers, only mask is
+   really variable.
+*/
+struct GridKey {
+	int co;
+	int mask;
+	int no;
+};
 
-extern DMGridElemKeyInfo GridElemKeyInfo[GRID_ELEM_KEY_TOTAL];
+#define GRIDELEM_KEY_INIT(_gridkey, _totco, _totmask, _totno)	\
+	(_gridkey->co = _totco, _gridkey->mask = _totmask, _gridkey->no = _totno)
 
-#define GRIDELEM_SIZE(_key) GridElemKeyInfo[_key].size
-#define GRIDELEM_HAS_MASK(_key) GridElemKeyInfo[_key].has_mask
-#define GRIDELEM_NO_OFFSET(_key) GridElemKeyInfo[_key].no_offset
-#define GRIDELEM_MASK_OFFSET(_key) GridElemKeyInfo[_key].mask_offset
-#define GRIDELEM_INTERP_COUNT(_key) GridElemKeyInfo[_key].interp_count
+#define GRIDELEM_SIZE(_key) ((3*_key->co + _key->mask + 3*_key->no) * sizeof(float))
+#define GRIDELEM_MASK_OFFSET(_key) (_key->mask ? 3*_key->co*sizeof(float) : -1)
+#define GRIDELEM_NO_OFFSET(_key) (_key->no ? (3*_key->co + _key->mask) * sizeof(float) : -1)
+#define GRIDELEM_INTERP_COUNT(_key) (3*_key->co + _key->mask)
 
 #define GRIDELEM_AT(_grid, _elem, _key) (struct DMGridData*)(((char*)(_grid)) + (_elem) * GRIDELEM_SIZE(_key))
 #define GRIDELEM_INC(_grid, _inc, _key) ((_grid) = GRIDELEM_AT(_grid, _inc, _key))

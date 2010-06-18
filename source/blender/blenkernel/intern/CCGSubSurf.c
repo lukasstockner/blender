@@ -749,6 +749,8 @@ void ccgSubSurf_free(CCGSubSurf *ss) {
 	_ehash_free(ss->eMap, (EHEntryFreeFP) _edge_free, ss);
 	_ehash_free(ss->vMap, (EHEntryFreeFP) _vert_free, ss);
 
+	MEM_freeN(ss->meshIFC.gridkey);
+
 	CCGSUBSURF_free(ss, ss);
 
 	if (allocatorIFC.release) {
@@ -2555,7 +2557,7 @@ int ccgSubSurf_getGridLevelSize(CCGSubSurf *ss, int level) {
 	}
 }
 
-int ccgSubSurf_getGridKey(CCGSubSurf *ss) {
+struct GridKey *ccgSubSurf_getGridKey(CCGSubSurf *ss) {
 	return ss->meshIFC.gridkey;
 }
 

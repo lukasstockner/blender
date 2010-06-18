@@ -362,7 +362,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			DMGridData **grids, *grid;
 			float (*co)[3], *pmask;
 			int gridsize;
-			int gridkey;
+			struct GridKey *gridkey;
 
 			if(dm->getNumGrids(dm) != unode->maxgrid)
 				continue;
@@ -451,7 +451,8 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	Object *ob= ss->ob;
 	SculptUndoNode *unode;
-	int totvert, allvert, totgrid, maxgrid, gridsize, *grids, gridkey;
+	int totvert, allvert, totgrid, maxgrid, gridsize, *grids;
+	GridKey *gridkey;
 
 	/* list is manipulated by multiple threads, so we lock */
 	BLI_lock_thread(LOCK_CUSTOM1);
@@ -482,7 +483,7 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 		unode->totgrid= totgrid;
 		unode->gridsize= gridsize;
 		unode->grids= MEM_mapallocN(sizeof(int)*totgrid, "SculptUndoNode.grids");
-		if(GRIDELEM_HAS_MASK(gridkey))
+		if(gridkey->mask)
 			unode->pmask= MEM_mapallocN(sizeof(float)*allvert, "SculptUndoNode.pmask");
 	}
 	else {
@@ -1004,7 +1005,8 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	float bstrength= ss->cache->bstrength;
 	float co[3], (*tmpgrid)[3];
 	int v1, v2, v3, v4;
-	int *grid_indices, totgrid, gridsize, gridkey, i, x, y;
+	int *grid_indices, totgrid, gridsize, i, x, y;
+	GridKey *gridkey;
 			
 	sculpt_brush_test_init(ss, &test);
 
