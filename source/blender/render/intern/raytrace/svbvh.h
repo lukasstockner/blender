@@ -40,11 +40,9 @@
 
 struct SVBVHNode
 {
+	float child_bb[24];
+	SVBVHNode *child[4];
 	int nchilds;
-
-	// array of bb, array of childs
-	float *child_bb;
-	SVBVHNode **child;
 };
 
 static int svbvh_bb_intersect_test_simd4(const Isect *isec, const __m128 *bb_group)
@@ -110,7 +108,7 @@ static bool svbvh_node_is_leaf(const SVBVHNode *node)
 template<int MAX_STACK_SIZE, bool SHADOW>
 static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 {
-	const SVBVHNode *stack[MAX_STACK_SIZE], *node;
+	SVBVHNode *stack[MAX_STACK_SIZE], *node;
 	int hit = 0, stack_pos = 0;
 
 	stack[stack_pos++] = root;
@@ -124,8 +122,8 @@ static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 			int nchilds= node->nchilds;
 
 			if(nchilds == 4) {
-				const float *child_bb= node->child_bb;
-				int res = svbvh_bb_intersect_test_simd4(isec, ((const __m128*) (child_bb)));
+				float *child_bb= node->child_bb;
+				int res = svbvh_bb_intersect_test_simd4(isec, ((__m128*) (child_bb)));
 				SVBVHNode **child= node->child;
 
 				RE_RC_COUNT(isec->raycounter->simd_bb.test);
@@ -136,12 +134,12 @@ static int svbvh_node_stack_raycast(SVBVHNode *root, Isect *isec)
 				if(res & 8) { stack[stack_pos++] = child[3]; RE_RC_COUNT(isec->raycounter->simd_bb.hit); }
 			}
 			else {
-				const float *child_bb= node->child_bb;
+				float *child_bb= node->child_bb;
 				SVBVHNode **child= node->child;
 				int i;
 
 				for(i=0; i<nchilds; i++)
-					if(svbvh_bb_intersect_test(isec, (const float*)child_bb+6*i))
+					if(svbvh_bb_intersect_test(isec, (float*)child_bb+6*i))
 						stack[stack_pos++] = child[i];
 			}
 		}
@@ -235,8 +233,6 @@ struct Reorganize_SVBVH
 	{
 		SVBVHNode *node = (SVBVHNode*)BLI_memarena_alloc(arena, sizeof(SVBVHNode));
 		node->nchilds = nchilds;
-		node->child_bb   = (float*)BLI_memarena_alloc(arena, sizeof(float)*6*nchilds);
-		node->child= (SVBVHNode**)BLI_memarena_alloc(arena, sizeof(SVBVHNode*)*nchilds);
 
 		return node;
 	}
