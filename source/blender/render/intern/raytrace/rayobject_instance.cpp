@@ -144,6 +144,13 @@ static int  RE_rayobject_instance_intersect(RayObject *o, Isect *isec)
 
 		isec->dist = len_v3(vec);
 		isec->hit.ob = obj->ob;
+
+#ifdef RT_USE_LAST_HIT	
+		// TODO support for last hit optimization in instances that can jump
+		// directly to the last hit face.
+		// For now it jumps directly to the last-hit instance root node.
+		isec->last_hit = RE_rayobject_unalignRayAPI((RayObject*) obj);
+#endif
 	}
 
 	// restore values

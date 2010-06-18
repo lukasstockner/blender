@@ -244,8 +244,6 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 		}
 	}
 
-	tex_brightness_contrast_rgb(tex, texres);
-
 	if(texres->talpha) texres->tin= texres->ta;
 	else if(tex->imaflag & TEX_CALCALPHA) {
 		texres->ta= texres->tin= MAX3(texres->tr, texres->tg, texres->tb);
@@ -261,6 +259,8 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 		texres->tg*= fx;
 		texres->tb*= fx;
 	}
+
+	tex_brightness_contrast_rgb(tex, texres);
 	
 	return retval;
 }
@@ -1308,8 +1308,6 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		}
 	}
 
-	tex_brightness_contrast_rgb(tex, texres);
-
 	if (tex->imaflag & TEX_CALCALPHA)
 		texres->ta = texres->tin = texres->ta * MAX3(texres->tr, texres->tg, texres->tb);
 	else
@@ -1334,6 +1332,8 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 		texres->tg *= fx;
 		texres->tb *= fx;
 	}
+
+	tex_brightness_contrast_rgb(tex, texres);
 
 	return retval;
 }
@@ -1677,8 +1677,6 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 			boxsample(ibuf, fx-minx, fy-miny, fx+minx, fy+miny, texres, imaprepeat, imapextend, 0, thread);
 	}
 	
-	tex_brightness_contrast_rgb(tex, texres);
-	
 	if(tex->imaflag & TEX_CALCALPHA) {
 		texres->ta= texres->tin= texres->ta*MAX3(texres->tr, texres->tg, texres->tb);
 	}
@@ -1700,6 +1698,8 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 		texres->tg*= fx;
 		texres->tb*= fx;
 	}
+
+	tex_brightness_contrast_rgb(tex, texres);
 
 	return retval;
 }
