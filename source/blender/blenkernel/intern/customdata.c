@@ -757,6 +757,8 @@ static void layerDefault_mcol(void *data, int count)
 		mcol[i] = default_mcol;
 }
 
+/* Grid */
+
 void layerCopy_grid(const void *source_v, void *dest_v, int count)
 {
 	const CustomData *source = source_v;
@@ -821,7 +823,7 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	{sizeof(CustomData), "CustomData", 1, "Face Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
-	{sizeof(float), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	{sizeof(float), "", 0, "Mask", NULL, NULL, NULL, NULL, NULL},
 };
 
 const char *LAYERTYPENAMES[CD_NUMTYPES] = {
