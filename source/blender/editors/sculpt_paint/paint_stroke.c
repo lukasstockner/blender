@@ -520,6 +520,18 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_CURRENT_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_LINE_BIT|
+				GL_POLYGON_BIT|
+				GL_STENCIL_BUFFER_BIT|
+				GL_TRANSFORM_BIT|
+				GL_VIEWPORT_BIT|
+				GL_TEXTURE_BIT);
+
 			glColor4f(col[0], col[1], col[2], alpha);
 
 			glEnable(GL_BLEND);
@@ -586,18 +598,11 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				gluDeleteQuadric(sphere);
 
-				glDepthMask(GL_TRUE);
-
-				glDisable(GL_DEPTH_TEST);
-
-				glEnable(GL_CULL_FACE);
-
-				glDisable(GL_STENCIL_TEST);
-
 				glPopMatrix();
 
 				glMatrixMode(GL_MODELVIEW);
 				glPopMatrix();
+
 			}
 			else {
 				glEnable(GL_LINE_SMOOTH);
@@ -618,11 +623,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
 				const float diameter = 2*brush->size;
-				//float inv_scale_x , inv_scale_y;
-				//int procedural;
 
-				//load_grid(brush);
-				//procedural = load_tex(brush, &vc);
 				load_tex(brush, &vc);
 
 				glEnable(GL_TEXTURE_2D);
@@ -634,22 +635,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				glMatrixMode(GL_TEXTURE);
 				glLoadIdentity();
-
-				//if (!procedural) {
-				//	glTranslatef(0.5f, 0.5f, 0);
-				//	glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
-
-				//	inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
-				//	inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
-
-				//	glScalef(inv_scale_x, inv_scale_y, 0);
-
-				//	glRotatef(-brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
-
-				//	glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
-
-				//	glTranslatef(-0.5f, -0.5f, 0);
-				//}
 
 				glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
 				glBegin(GL_QUADS);
@@ -679,6 +664,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			}
 
 			glDisable(GL_BLEND);
+
+			glPopAttrib();
 		}
 	}
 	else {
