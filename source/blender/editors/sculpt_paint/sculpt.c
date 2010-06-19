@@ -1218,7 +1218,9 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
+
+					if(brush->flag & BRUSH_SUBDIV)
+						vd.mvert->flag = 1; 
 				}
 			}
 		}
@@ -1233,10 +1235,14 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	float grab_delta[3];
 	int n;
 	float an[3];
+	float tmp[3], cono[3];
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
 	calc_area_normal(sd, ss, an, nodes, totnode);
+
+	cross_v3_v3v3(tmp, an, grab_delta);
+	cross_v3_v3v3(cono, tmp, an);
 
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
@@ -1248,13 +1254,8 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 			if(sculpt_brush_test(&test, vd.co)) {
 				float fade = bstrength*tex_strength(ss, brush, vd.co, test.dist);
 				float val[3];
-				float tmp[3];
 
-				cross_v3_v3v3(tmp, an, grab_delta);
-				cross_v3_v3v3(val, an, tmp);
-
-				mul_v3_v3fl(val, grab_delta, fade);
-				symmetry_feather(sd, ss, vd.co, val);
+				mul_v3_v3fl(val, cono, fade);
 				add_v3_v3(val, vd.co);
 
 				sculpt_clip(sd, ss, vd.co, val);
@@ -1327,37 +1328,38 @@ static void do_thumb_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	float grab_delta[3];
 	int n;
 	float an[3];
+	float tmp[3], cono[3];
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
 	calc_area_normal(sd, ss, an, nodes, totnode);
 
+	cross_v3_v3v3(tmp, an, grab_delta);
+	cross_v3_v3v3(cono, tmp, an);
+
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		float (*origco)[3];
+		float (*proxy)[3];
 
-		origco=sculpt_undo_push_node(ss, nodes[n])->co;
+		origco= sculpt_undo_push_node(ss, nodes[n])->co;
+
+		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
+
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
 				float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist);
-				float val[3];
-				float tmp[3];
 
-				cross_v3_v3v3(tmp, an, grab_delta);
-				cross_v3_v3v3(val, an, tmp);
-
-				mul_v3_v3fl(val, grab_delta, fade);
-				symmetry_feather(sd, ss, origco[vd.i], val);
-				add_v3_v3(val, origco[vd.i]);
-
-				sculpt_clip(sd, ss, vd.co, val);
+				mul_v3_v3fl(proxy[vd.i], cono, fade);
 
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
+
+					if(brush->flag & BRUSH_SUBDIV)
+						vd.mvert->flag = 1; 
 				}
 			}
 		}
@@ -1383,23 +1385,21 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		float (*origco)[3];
+		float (*proxy)[3];
 	
 		origco= sculpt_undo_push_node(ss, nodes[n])->co;
+
+		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
 
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
 				float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist);
-				float val[3];
 
-				mul_v3_m3v3(val, m, origco[vd.i]);
-				sub_v3_v3(val, origco[vd.i]);
-				mul_v3_fl(val, fade);
-				symmetry_feather(sd, ss, origco[vd.i], val);
-				add_v3_v3(val, origco[vd.i]);
-
-				sculpt_clip(sd, ss, vd.co, val);
+				mul_v3_m3v3(proxy[vd.i], m, origco[vd.i]);
+				sub_v3_v3(proxy[vd.i], origco[vd.i]);
+				mul_v3_fl(proxy[vd.i], fade);
 
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
