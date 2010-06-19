@@ -561,8 +561,96 @@ static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 	glBindTexture(triple->target, 0);
 }
 
+/* compile and link the shader program needed to write a depth texture to the depth buffer */
+static void load_depth_shader_program(wmDrawTriple* triple)
+{
+	int success;
+	GLsizei len;
+	GLbyte infoLog[1000];
+
+	/* This vertex program just passes the texture coordinate through and transforms the vertex position */
+	static const GLcharARB* depth_vertex_shader_source[] = { 
+		"void main()\n",
+		"{\n",
+		"    gl_TexCoord[0] = gl_MultiTexCoord0;\n",
+		"    gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n",
+		"}\n",
+	};
+
+	/* This fragment program is used non-rectangle textures */
+	static const GLcharARB* depth_fragment_shader_source[] = {
+		"uniform sampler2D depth_texture;\n",
+		"void main()\n",
+		"{\n",
+		"    gl_FragDepth = texture2D(depth_texture, gl_TexCoord[0].xy).x;\n",
+		"}\n",
+	};
+
+	/* This fragment program is used for rectangular textures */
+	static const GLcharARB* depth_fragment_shader_rect_source[] = {
+		"#extension GL_ARB_texture_rectangle : enable\n",
+		"uniform sampler2DRect depth_texture;\n",
+		"void main()\n",
+		"{\n",
+		"    gl_FragDepth = texture2DRect(depth_texture, gl_TexCoord[0].xy).x;\n",
+		"}\n",
+	};
+
+	/* compile the vertex program */
+
+	triple->depth_vertex_shader = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
+
+	glShaderSourceARB(triple->depth_vertex_shader, sizeof(depth_vertex_shader_source)/sizeof(GLcharARB*), depth_vertex_shader_source, NULL);
+	glCompileShaderARB(triple->depth_vertex_shader);
+
+	/* print any errors/warnings gotten while compiling the vertex program */
+
+	glGetObjectParameterivARB(triple->depth_vertex_shader, GL_OBJECT_COMPILE_STATUS_ARB, &success);
+	glGetInfoLogARB(triple->depth_vertex_shader, 1000, &len, infoLog);
+
+	if (len > 0)
+		fprintf(stderr, "triple depth buffer vertex program compilation messages:\n%s\n", infoLog);
+
+	/* compile the appropriate fragment program depending on support for rectangular textures */
+
+	triple->depth_fragment_shader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+
+	if (GLEW_ARB_texture_rectangle)
+		glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_rect_source)/sizeof(GLcharARB*), depth_fragment_shader_rect_source, NULL);
+	else
+		glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_source)/sizeof(GLcharARB*), depth_fragment_shader_source, NULL);
+
+	glCompileShaderARB(triple->depth_fragment_shader);
+
+	/* print any errors/warnings gotten while compiling the fragment program */
+
+	glGetObjectParameterivARB(triple->depth_fragment_shader, GL_OBJECT_COMPILE_STATUS_ARB, &success);
+	glGetInfoLogARB(triple->depth_fragment_shader, 1000, &len, infoLog);
+
+	if (len > 0)
+		fprintf(stderr, "triple depth buffer fragment program compilation messages:\n%s\n", infoLog);
+
+	/* link the shaders into a complete program */
+
+	triple->depth_program = glCreateProgramObjectARB();
+
+	glAttachObjectARB(triple->depth_program, triple->depth_vertex_shader);
+	glAttachObjectARB(triple->depth_program, triple->depth_fragment_shader);
+
+	glLinkProgramARB(triple->depth_program);
+
+	/* print any errors/warnings gotten whilelinking the final fragment program */
+
+	glGetObjectParameterivARB(triple->depth_program, GL_OBJECT_LINK_STATUS_ARB, &success);
+	glGetInfoLogARB(triple->depth_program, 1000, &len, infoLog);
+
+	if (len > 0)
+		fprintf(stderr, "triple depth buffer program linker messages:\n%s\n", infoLog);
+}
+
 static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 {
+	/* To do this fast we need support for depth textures and GLSL */
 	if (GLEW_ARB_depth_texture &&
 		GLEW_ARB_shader_objects &&
 		GLEW_ARB_vertex_shader &&
@@ -571,6 +659,9 @@ static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 	{
 		GLint maxsize;
 		int x, y;
+
+		/* XXX: this is copied from wm_triple_gen_textures.
+		can probably combine them together once this is accepted into trunk */
 
 		/* compute texture sizes */
 		if(GLEW_ARB_texture_rectangle) {
@@ -618,10 +709,18 @@ static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 
 				/* setup actual texture */
 				glBindTexture(triple->depth_target, triple->depth_bind[x + y*triple->depth_nx]);
+
+				/* important difference from wm_triple_gen_textures!
+				   use GL_DEPTH_COMPONENT as format and internalformat */
 				glTexImage2D(triple->depth_target, 0, GL_DEPTH_COMPONENT, triple->depth_x[x], triple->depth_y[y], 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+
 				glTexParameteri(triple->depth_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 				glTexParameteri(triple->depth_target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+				/* important difference from wm_triple_gen_textures!
+				   turn off depth comparison mode that would be used if this was a shadow map */
 				glTexParameteri(triple->depth_target, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+
 				glBindTexture(triple->depth_target, 0);
 
 				/* not sure if this works everywhere .. */
@@ -632,99 +731,9 @@ static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 			}
 		}
 
-		{
-			int success;
-			GLsizei len;
-
-			static const GLcharARB* depth_vertex_shader_source[] = { 
-//				"varying vec2 texture_coordinate;\n",
-				"void main()\n",
-				"{\n",
-				"gl_TexCoord[0] = gl_MultiTexCoord0;\n",
-				"gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n",
-				"}\n",
-			};
-
-			static const GLcharARB* depth_fragment_shader_source[] = {
-//				"varying vec2 texture_coordinate;\n",
-				"uniform sampler2DRect depth_texture;\n",
-				"void main()\n",
-				"{\n",
-				"gl_FragDepth = texture2D(depth_texture, gl_TexCoord[0].xy).x;\n",
-				"}\n",
-			};
-
-			static const GLcharARB* depth_fragment_shader_rect_source[] = {
-				"#extension GL_ARB_texture_rectangle : enable\n",
-//				"varying vec2 texture_coordinate;\n",
-				"uniform sampler2DRect depth_texture;\n",
-				"void main()\n",
-				"{\n",
-				"gl_FragDepth = texture2DRect(depth_texture, gl_TexCoord[0].xy).x;\n",
-				"}\n",
-			};
-
-			triple->depth_vertex_shader = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
-			glShaderSourceARB(triple->depth_vertex_shader, sizeof(depth_vertex_shader_source)/sizeof(GLcharARB*), depth_vertex_shader_source, NULL);
-			glCompileShaderARB(triple->depth_vertex_shader);
-
-			glGetObjectParameterivARB(triple->depth_vertex_shader, GL_OBJECT_COMPILE_STATUS_ARB, &success);
-			
-			/*if (!success)*/ {
-				GLbyte infoLog[1000];
-				len = 1000;
-
-				glGetInfoLogARB(triple->depth_vertex_shader, 1000, &len, infoLog);
-
-				//fprintf(stderr, "Error in vertex shader compilation!\n");
-
-				if (len > 0)
-					fprintf(stderr, "vertex:\n%s\n", infoLog);
-			}
-
-			triple->depth_fragment_shader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
-
-			if (GLEW_ARB_texture_rectangle)
-				glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_rect_source)/sizeof(GLcharARB*), depth_fragment_shader_rect_source, NULL);
-			else
-				glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_source)/sizeof(GLcharARB*), depth_fragment_shader_source, NULL);
-
-			glCompileShaderARB(triple->depth_fragment_shader);
-
-			glGetObjectParameterivARB(triple->depth_fragment_shader, GL_OBJECT_COMPILE_STATUS_ARB, &success);
-
-			/*if (!success)*/ {
-				GLbyte infoLog[1000];
-
-				glGetInfoLogARB(triple->depth_fragment_shader, 1000, &len, infoLog);
-
-				//fprintf(stderr, "Error in fragment shader compilation!\n");
-
-				if (len > 0)
-					fprintf(stderr, "fragment:\n%s\n", infoLog);
-			}
-
-			triple->depth_program = glCreateProgramObjectARB();
-
-			glAttachObjectARB(triple->depth_program, triple->depth_vertex_shader);
-			glAttachObjectARB(triple->depth_program, triple->depth_fragment_shader);
-
-			glLinkProgramARB(triple->depth_program);
-
-			glGetObjectParameterivARB(triple->depth_program, GL_OBJECT_LINK_STATUS_ARB, &success);
-
-			/*if (!success)*/ {
-				GLbyte infoLog[1000];
-
-				glGetInfoLogARB(triple->depth_program, 1000, &len, infoLog);
-
-				//fprintf(stderr, "Error in linking!\n");
-
-				if (len > 0)
-					fprintf(stderr, "GLSL linking:\n%s\n", infoLog);
-			}
-		}
+		load_depth_shader_program(triple);
 	}
+	/* otherwise, we have to fall back to the more compatible glReadBuffer/glDrawBuffer method */
 	else {
 		const int count = win->sizex * win->sizey;
 		const int size = count*sizeof(GLfloat);
@@ -738,6 +747,7 @@ static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 
 static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 {
+	/* To do this fast we need support for depth textures and GLSL */
 	if (GLEW_ARB_depth_texture &&
 		GLEW_ARB_shader_objects &&
 		GLEW_ARB_vertex_shader &&
@@ -745,6 +755,9 @@ static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 		GLEW_ARB_shading_language_100)
 	{
 		int x, y, sizex, sizey, offx, offy;
+
+		/* XXX this is pretty much identical to wm_triple_copy_textures,
+		   the fact that the textures are GL_DEPTH_COMPONENT format is what makes the difference */
 
 		for(y=0, offy=0; y<triple->depth_ny; offy+=triple->depth_y[y], y++) {
 			for(x=0, offx=0; x<triple->depth_nx; offx+=triple->depth_x[x], x++) {
@@ -759,6 +772,10 @@ static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 		glBindTexture(triple->depth_target, 0);
 	}
 	else if (triple->depth) {
+		/* For the compatibility fallback, we set the pixel store state to the defaults,
+		   anything else is very unlikely to be even remotely fast (and it is already slow
+		   using these defaults) */
+
 		glPushAttrib(GL_PIXEL_MODE_BIT);
 
 		glPixelStorei(GL_PACK_SWAP_BYTES,  GL_FALSE);
@@ -778,6 +795,7 @@ static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 
 static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 {
+	/* To do this fast we need support for depth textures and GLSL */
 	if (GLEW_ARB_depth_texture &&
 		GLEW_ARB_shader_objects &&
 		GLEW_ARB_vertex_shader &&
@@ -792,16 +810,23 @@ static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 			GL_COLOR_BUFFER_BIT|
 			GL_DEPTH_BUFFER_BIT);
 
+		/* depth test has to be enabled to write to depth buffer,
+		   set GL_ALWAYS so that what is in the texture overwrites what
+		   is there, and make sure the buffer is set to be writable */
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_ALWAYS);
 		glDepthMask(GL_TRUE);
 
+		/* since the fragment shader does not write gl_FragColor what it would 
+		   write to the color buffer is actually undefined.  Regardless, do not
+		   write to color buffer. */
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
+		/* load the shader and bind the sampler2D to the 0th texture unit */
 		glUseProgramObjectARB(triple->depth_program);
 		depth_texture = glGetUniformLocationARB(triple->depth_program, "depth_texture");
-
 		glActiveTextureARB(GL_TEXTURE0_ARB);
+		glUniform1iARB(depth_texture, 0);
 
 		glEnable(triple->depth_target);
 
@@ -825,7 +850,6 @@ static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 				}
 
 				glBindTexture(triple->depth_target, triple->depth_bind[x + y*triple->depth_nx]);
-				glUniform1iARB(depth_texture, 0);
 
 				glBegin(GL_QUADS);
 					glTexCoord2f(halfx, halfy);
@@ -846,19 +870,20 @@ static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 		glBindTexture(triple->depth_target, 0);
 		glDisable(triple->depth_target);
 
+		/* go back to using the fixed function pipeline */
 		glUseProgramObjectARB(0);
 
 		glPopAttrib();
 	}
 	else {
-		// This state changing is probably overkill, but I had a lot of trouble figuring out exactly what state was keeping this from working.
-
 		if (triple->depth) {
 			glPushAttrib(
 				GL_COLOR_BUFFER_BIT|
 				GL_DEPTH_BUFFER_BIT|
 				GL_ENABLE_BIT|
 				GL_PIXEL_MODE_BIT);
+
+			/* About the only chance this will be remotely fast is if we use the default values */
 
 			glPixelStorei(GL_UNPACK_SWAP_BYTES,  GL_FALSE);
 			glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
@@ -871,13 +896,15 @@ static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 
 			glPixelZoom(1.0, 1.0);
 
+			/* important, cannot write the depth buffer unless this is enabled */
 			glEnable(GL_DEPTH_TEST);
-
 			glDepthMask(GL_TRUE);
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-
 			glDepthFunc(GL_ALWAYS);
 
+			/* make sure color buffer isn't overwritten */
+			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+			/* send the saved depth buffer to the screen */
 			glRasterPos2i(0, 0);
 			glDrawPixels(win->sizex, win->sizey, GL_DEPTH_COMPONENT, triple->depth_type, triple->depth);
 
