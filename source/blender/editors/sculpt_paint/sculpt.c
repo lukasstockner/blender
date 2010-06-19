@@ -595,7 +595,8 @@ float get_tex_pixel(Brush* br, float u, float v)
 	TexResult texres;
 	float co[3];
 	int hasrgb;
-	
+	int tmp;
+
 	co[0] = u;
 	co[1] = v;
 	co[2] = 0;
@@ -603,7 +604,8 @@ float get_tex_pixel(Brush* br, float u, float v)
 	memset(&texres, 0, sizeof(TexResult));
 	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 1, &texres);
 
-	if (hasrgb & TEX_RGB) texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb);
+	if (hasrgb & TEX_RGB)
+		texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb)*texres.ta;
 
 	return texres.tin;
 }
