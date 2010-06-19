@@ -176,7 +176,7 @@ static void load_grid(Brush* brush)
 	if (!loaded) {
 		//GLfloat largest_supported_anisotropy;
 
-		glGenTextures(1, &(brush->overlay_texture));
+		glGenTextures(1, (GLint*)(&(brush->overlay_texture)));
 		glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture0);
 		glTexImage2D(GL_TEXTURE_2D, 1, GL_RGB,  8,  8, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture1);
@@ -210,10 +210,9 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	int i, j;
 	float xlim, ylim;
 
-	// XXX there has to be a better way to guess if a texture is procedural
 	int procedural = 1;//brush->mtex.tex && brush->mtex.tex->type != TEX_IMAGE;
 
-	if (brush->overlay_texture) glDeleteTextures(1, &brush->overlay_texture);
+	if (brush->overlay_texture) glDeleteTextures(1, (GLint*)(&brush->overlay_texture));
 
 	width = height = 256;
 
@@ -274,7 +273,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 		}
 	}
 
-	glGenTextures(1, &(brush->overlay_texture));
+	glGenTextures(1, (GLint*)(&(brush->overlay_texture)));
 
 	glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
 
@@ -618,11 +617,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
 			const float diameter = 2*brush->size;
-			float inv_scale_x , inv_scale_y;
-			int procedural;
+			//float inv_scale_x , inv_scale_y;
+			//int procedural;
 
 			//load_grid(brush);
-			procedural = load_tex(brush, &vc);
+			//procedural = load_tex(brush, &vc);
+			load_tex(brush, &vc);
 
 			glEnable(GL_TEXTURE_2D);
 			glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
@@ -634,21 +634,21 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			glMatrixMode(GL_TEXTURE);
 			glLoadIdentity();
 
-			if (!procedural) {
-				glTranslatef(0.5f, 0.5f, 0);
-				glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
+			//if (!procedural) {
+			//	glTranslatef(0.5f, 0.5f, 0);
+			//	glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
 
-				inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
-				inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
+			//	inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
+			//	inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
 
-				glScalef(inv_scale_x, inv_scale_y, 0);
+			//	glScalef(inv_scale_x, inv_scale_y, 0);
 
-				glRotatef(-brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
+			//	glRotatef(-brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
 
-				glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
+			//	glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
 
-				glTranslatef(-0.5f, -0.5f, 0);
-			}
+			//	glTranslatef(-0.5f, -0.5f, 0);
+			//}
 
 			glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
 			glBegin(GL_QUADS);

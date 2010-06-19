@@ -92,6 +92,9 @@ struct PBVHNode {
 	char flag;
 
 	float tmin; // used for raycasting, is how close bb is to the ray point
+
+	int proxy_count;
+	PBVHProxyNode* proxies;
 };
 
 struct PBVH {
@@ -1190,6 +1193,18 @@ void BLI_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max
 	copy_v3_v3(bb_max, node->orig_vb.bmax);
 }
 
+void BLI_pbvh_node_get_proxies(PBVHNode* node, PBVHProxyNode** proxies, int* proxy_count)
+{
+	if (node->proxy_count > 0) {
+		if (proxies) *proxies = node->proxies;
+		if (proxy_count) *proxy_count = node->proxy_count;
+	}
+	else {
+		if (proxies) *proxies = 0;
+		if (proxy_count) *proxy_count = 0;
+	}
+}
+
 /********************************* Raycast ***********************************/
 
 typedef struct {
@@ -1467,3 +1482,79 @@ void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids, DMGridAdjacency *grida
 	bvh->gridfaces= gridfaces;
 }
 
+/* Proxies */
+
+PBVHProxyNode* BLI_pbvh_node_add_proxy(PBVH* bvh, PBVHNode* node)
+{
+	int index, totverts;
+
+	index = node->proxy_count;
+
+	node->proxy_count++;
+
+	if (node->proxies)
+		node->proxies= MEM_reallocN(node->proxies, node->proxy_count*sizeof(PBVHProxyNode));
+	else
+		node->proxies= MEM_mallocN(sizeof(PBVHProxyNode), "PBVHNodeProxy");
+
+	if (bvh->grids)
+		totverts = node->totprim*bvh->gridsize*bvh->gridsize;
+	else 
+		totverts = node->uniq_verts;
+
+	node->proxies[index].co= MEM_callocN(sizeof(float[3])*totverts, "PBVHNodeProxy.co");
+
+	return node->proxies + index;
+}
+
+void BLI_pbvh_node_free_proxies(PBVHNode* node)
+{
+	int p;
+
+	for (p= 0; p < node->proxy_count; p++) {
+		MEM_freeN(node->proxies[p].co);
+		node->proxies[p].co= 0;
+	}
+
+	MEM_freeN(node->proxies);
+	node->proxies = 0;
+
+	node->proxy_count= 0;
+}
+
+void BLI_pbvh_gather_proxies(PBVH* pbvh, PBVHNode*** r_array,  int* r_tot)
+{
+	PBVHNode **array= NULL, **newarray, *node;
+	int tot= 0, space= 0;
+	int n;
+
+	for (n= 0; n < pbvh->totnode; n++) {
+		node = pbvh->nodes + n;
+
+		if(node->proxy_count > 0) {
+			if(tot == space) {
+				/* resize array if needed */
+				space= (tot == 0)? 32: space*2;
+				newarray= MEM_callocN(sizeof(PBVHNode)*space, "BLI_pbvh_gather_proxies");
+
+				if (array) {
+					memcpy(newarray, array, sizeof(PBVHNode)*tot);
+					MEM_freeN(array);
+				}
+
+				array= newarray;
+			}
+
+			array[tot]= node;
+			tot++;
+		}
+	}
+
+	if(tot == 0 && array) {
+		MEM_freeN(array);
+		array= NULL;
+	}
+
+	*r_array= array;
+	*r_tot= tot;
+}

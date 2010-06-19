@@ -95,6 +95,63 @@
 //#include <omp.h>
 //#endif
 
+void ED_sculpt_force_update(bContext *C)
+{
+	Object *ob= CTX_data_active_object(C);
+
+	if(ob && (ob->mode & OB_MODE_SCULPT))
+		multires_force_update(ob);
+}
+
+/* Sculpt mode handles multires differently from regular meshes, but only if
+   it's the last modifier on the stack and it is not on the first level */
+struct MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
+{
+	ModifierData *md, *nmd;
+	
+	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
+		if(md->type == eModifierType_Multires) {
+			MultiresModifierData *mmd= (MultiresModifierData*)md;
+
+			/* Check if any of the modifiers after multires are active
+			 * if not it can use the multires struct */
+			for(nmd= md->next; nmd; nmd= nmd->next)
+				if(modifier_isEnabled(scene, nmd, eModifierMode_Realtime))
+					break;
+
+			if(!nmd && mmd->sculptlvl > 0)
+				return mmd;
+		}
+	}
+
+	return NULL;
+}
+
+/* Checks whether full update mode (slower) needs to be used to work with modifiers */
+int sculpt_modifiers_active(Scene *scene, Object *ob)
+{
+	ModifierData *md;
+	MultiresModifierData *mmd= sculpt_multires_active(scene, ob);
+
+	/* check if there are any modifiers after what we are sculpting,
+	   for a multires modifier with a deform modifier in front, we
+	   do no need to recalculate the modifier stack. note that this
+	   needs to be in sync with ccgDM_use_grid_pbvh! */
+	if(mmd)
+		md= mmd->modifier.next;
+	else
+		md= modifiers_getVirtualModifierList(ob);
+	
+	/* exception for shape keys because we can edit those */
+	for(; md; md= md->next) {
+		if(modifier_isEnabled(scene, md, eModifierMode_Realtime))
+			if(md->type != eModifierType_ShapeKey)
+				return 1;
+	}
+
+	return 0;
+}
+
 /* ===== STRUCTS =====
  *
  */
@@ -366,17 +423,6 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 	//}
 }
 
-/* area of overlap of two circles of radius 1 seperated by d units from their centers */
-static float circle_overlap(float d)
-{
-	return (2*acos(d/2)-(1/2)*d*sqrt(4-d*d));
-}
-
-/* percentage of overlap of two circles of radius 1 seperated by d units from their centers */
-static float circle_overlap_percent(float d)
-{
-	return circle_overlap(d) / M_PI;
-}
 
 /* ===== Sculpting =====
  *
@@ -460,6 +506,18 @@ static void unlimited_clay(SculptSession *ss, Object *ob)
 
 }
 
+/* area of overlap of two circles of radius 1 seperated by d units from their centers */
+static float circle_overlap(float d)
+{
+	return (2*acos(d/2)-(1/2)*d*sqrt(4-d*d));
+}
+
+/* percentage of overlap of two circles of radius 1 seperated by d units from their centers */
+static float circle_overlap_percent(float d)
+{
+	return circle_overlap(d) / M_PI;
+}
+
 /* Return modified brush strength. Includes the direction of the brush, positive
    values pull vertices, negative values push. Uses tablet pressure and a
    special multiplier found experimentally to scale the strength factor. */
@@ -468,7 +526,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	Brush *brush = paint_brush(&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
-	float alpha = brush->alpha * brush->alpha * brush->strength_multiplier;
+	float alpha    = brush->alpha * brush->alpha * brush->strength_multiplier;
 	float dir      = brush->flag & BRUSH_DIR_IN ? -1 : 1;
 	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
 	float flip     = cache->flip ? -1 : 1;
@@ -1144,21 +1202,19 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		float (*origco)[3];
+		float (*proxy)[3];
 	
 		origco= sculpt_undo_push_node(ss, nodes[n])->co;
+
+		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
 
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
 				float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist);
-				float val[3];
 
-				mul_v3_v3fl(val, grab_delta, fade);
-				symmetry_feather(sd, ss, origco[vd.i], val);
-				add_v3_v3(val, origco[vd.i]);
-
-				sculpt_clip(sd, ss, vd.co, val);
+				mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
@@ -1948,6 +2004,44 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 	}
 }
 
+static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
+{
+	PBVHNode** nodes;
+	int totnode;
+	int n;
+
+	BLI_pbvh_gather_proxies(ss->pbvh, &nodes, &totnode);
+
+	for (n= 0; n < totnode; n++) {
+		PBVHVertexIter vd;
+		PBVHProxyNode* proxies;
+		int proxy_count;
+		float (*origco)[3];
+
+		origco= sculpt_undo_push_node(ss, nodes[n])->co;
+
+		BLI_pbvh_node_get_proxies(nodes[n], &proxies, &proxy_count);
+
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			float val[3];
+			int p;
+
+			copy_v3_v3(val, origco[vd.i]);
+
+			for (p= 0; p < proxy_count; p++)
+				add_v3_v3(val, proxies[p].co[vd.i]);
+
+			sculpt_clip(sd, ss, vd.co, val);
+		}
+		BLI_pbvh_vertex_iter_end;
+
+		BLI_pbvh_node_free_proxies(nodes[n]);
+	}
+
+	if (nodes)
+		MEM_freeN(nodes);
+}
+
 /* Flip all the editdata across the axis/axes specified by symm. Used to
    calculate multiple modifications to the mesh when symmetry is enabled. */
 static void calc_brushdata_symm(StrokeCache *cache, const char symm)
@@ -1978,6 +2072,8 @@ static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 			do_brush_action(sd, ss);
 		}
 	}
+
+	sculpt_combine_proxies(sd, ss);
 
 	cache->first_time= 0;
 }

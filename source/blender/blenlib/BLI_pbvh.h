@@ -36,6 +36,10 @@ struct ListBase;
 typedef struct PBVH PBVH;
 typedef struct PBVHNode PBVHNode;
 
+typedef struct {
+	float (*co)[3];
+} PBVHProxyNode;
+
 /* Callbacks */
 
 /* returns 1 if the search should continue from this node, 0 otherwise */
@@ -222,6 +226,10 @@ typedef struct PBVHVertexIter {
 		} \
 	}
 
+void BLI_pbvh_node_get_proxies(PBVHNode* node, PBVHProxyNode** proxies, int* proxy_count);
+void BLI_pbvh_node_free_proxies(PBVHNode* node);
+PBVHProxyNode* BLI_pbvh_node_add_proxy(PBVH* bvh, PBVHNode* node);
+void BLI_pbvh_gather_proxies(PBVH* pbvh, PBVHNode*** nodes,  int* totnode);
 
 #endif /* BLI_PBVH_H */
 

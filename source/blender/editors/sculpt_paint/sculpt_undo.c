@@ -30,127 +30,31 @@
  *
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_ghash.h"
-#include "BLI_pbvh.h"
 #include "BLI_threads.h"
-#include "BLI_editVert.h"
 
-#include "DNA_key_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_brush.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
-#include "BKE_global.h"
-#include "BKE_image.h"
-#include "BKE_key.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
-#include "BKE_report.h"
-#include "BKE_texture.h"
-#include "BKE_utildefines.h"
-#include "BKE_colortools.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
-
-#include "WM_api.h"
-#include "WM_types.h"
-#include "ED_screen.h"
 #include "ED_sculpt.h"
-#include "ED_view3d.h"
-#include "ED_mesh.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
 
-#include "RNA_access.h"
-#include "RNA_define.h"
-
-
-#include "RE_render_ext.h"
-#include "RE_shader_ext.h"
-
-#include "gpu_buffers.h"
-
-#include <math.h>
-#include <stdlib.h>
-#include <string.h>
-
-//#ifdef _OPENMP
-//#include <omp.h>
-//#endif
 /************************** Undo *************************/
-
-
-
-/* Sculpt mode handles multires differently from regular meshes, but only if
-   it's the last modifier on the stack and it is not on the first level */
-struct MultiresModifierData *sculpt_multires_active(Scene *scene, Object *ob)
-{
-	ModifierData *md, *nmd;
-	
-	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
-		if(md->type == eModifierType_Multires) {
-			MultiresModifierData *mmd= (MultiresModifierData*)md;
-
-			/* Check if any of the modifiers after multires are active
-			 * if not it can use the multires struct */
-			for(nmd= md->next; nmd; nmd= nmd->next)
-				if(modifier_isEnabled(scene, nmd, eModifierMode_Realtime))
-					break;
-
-			if(!nmd && mmd->sculptlvl > 0)
-				return mmd;
-		}
-	}
-
-	return NULL;
-}
 
 static void update_cb(PBVHNode *node, void *unused)
 {
 	(void)unused;
 	BLI_pbvh_node_mark_update(node);
-}
-
-/* Checks whether full update mode (slower) needs to be used to work with modifiers */
-int sculpt_modifiers_active(Scene *scene, Object *ob)
-{
-	ModifierData *md;
-	MultiresModifierData *mmd= sculpt_multires_active(scene, ob);
-
-	/* check if there are any modifiers after what we are sculpting,
-	   for a multires modifier with a deform modifier in front, we
-	   do no need to recalculate the modifier stack. note that this
-	   needs to be in sync with ccgDM_use_grid_pbvh! */
-	if(mmd)
-		md= mmd->modifier.next;
-	else
-		md= modifiers_getVirtualModifierList(ob);
-	
-	/* exception for shape keys because we can edit those */
-	for(; md; md= md->next) {
-		if(modifier_isEnabled(scene, md, eModifierMode_Realtime))
-			if(md->type != eModifierType_ShapeKey)
-				return 1;
-	}
-
-	return 0;
 }
 
 static void sculpt_undo_restore(bContext *C, ListBase *lb)
@@ -359,12 +263,4 @@ void sculpt_undo_push_end(void)
 	}
 
 	undo_paint_push_end(UNDO_PAINT_MESH);
-}
-
-void ED_sculpt_force_update(bContext *C)
-{
-	Object *ob= CTX_data_active_object(C);
-
-	if(ob && (ob->mode & OB_MODE_SCULPT))
-		multires_force_update(ob);
 }
