@@ -54,6 +54,7 @@ struct CustomData;
 struct Material;
 struct Object;
 struct rcti;
+struct CustomDataLayer;
 
 #define EM_FGON_DRAW	1 // face flag
 #define EM_FGON			2 // edge and face flag both
@@ -210,6 +211,8 @@ short sharesFace(struct EditMesh *em, struct EditEdge *e1, struct EditEdge *e2);
 
 /* mesh_data.c */
 
+void ED_mesh_delete_customdata_layer(struct bContext *C, struct Object *ob, struct CustomDataLayer *layer);
+
 void ED_mesh_geometry_add(struct Mesh *mesh, struct ReportList *reports, int verts, int edges, int faces);
 void ED_mesh_transform(struct Mesh *me, float *mat);
 void ED_mesh_calc_normals(struct Mesh *me);
@@ -220,6 +223,8 @@ int ED_mesh_uv_texture_add(struct bContext *C, struct Scene *scene, struct Objec
 int ED_mesh_uv_texture_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
 int ED_mesh_color_add(struct bContext *C, struct Scene *scene, struct Object *ob, struct Mesh *me);
 int ED_mesh_color_remove(struct bContext *C, struct Object *ob, struct Mesh *me);
+
+int ED_mesh_layers_poll(struct bContext *C);
 
 #endif /* ED_MESH_H */
 

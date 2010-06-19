@@ -68,7 +68,7 @@
 
 #include "mesh_intern.h"
 
-static void delete_customdata_layer(bContext *C, Object *ob, CustomDataLayer *layer)
+void ED_mesh_delete_customdata_layer(bContext *C, Object *ob, CustomDataLayer *layer)
 {
 	Mesh *me = ob->data;
 	CustomData *data= (me->edit_mesh)? &me->edit_mesh->fdata: &me->fdata;
@@ -206,7 +206,7 @@ int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me)
 	if(!cdl)
 		return 0;
 
-	delete_customdata_layer(C, ob, cdl);
+	ED_mesh_delete_customdata_layer(C, ob, cdl);
 	DAG_id_flush_update(&me->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
 
@@ -266,7 +266,7 @@ int ED_mesh_color_remove(bContext *C, Object *ob, Mesh *me)
 	if(!cdl)
 		return 0;
 
-	delete_customdata_layer(C, ob, cdl);
+	ED_mesh_delete_customdata_layer(C, ob, cdl);
 	DAG_id_flush_update(&me->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_GEOM|ND_DATA, me);
 
@@ -275,7 +275,7 @@ int ED_mesh_color_remove(bContext *C, Object *ob, Mesh *me)
 
 /*********************** UV texture operators ************************/
 
-static int layers_poll(bContext *C)
+int ED_mesh_layers_poll(bContext *C)
 {
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	ID *data= (ob)? ob->data: NULL;
@@ -302,7 +302,7 @@ void MESH_OT_uv_texture_add(wmOperatorType *ot)
 	ot->idname= "MESH_OT_uv_texture_add";
 	
 	/* api callbacks */
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 	ot->exec= uv_texture_add_exec;
 
 	/* flags */
@@ -377,7 +377,7 @@ void MESH_OT_drop_named_image(wmOperatorType *ot)
 	ot->idname= "MESH_OT_drop_named_image";
 	
 	/* api callbacks */
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 	ot->invoke= drop_named_image_invoke;
 	
 	/* flags */
@@ -407,7 +407,7 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
 	ot->idname= "MESH_OT_uv_texture_remove";
 	
 	/* api callbacks */
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 	ot->exec= uv_texture_remove_exec;
 
 	/* flags */
@@ -436,7 +436,7 @@ void MESH_OT_vertex_color_add(wmOperatorType *ot)
 	ot->idname= "MESH_OT_vertex_color_add";
 	
 	/* api callbacks */
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 	ot->exec= vertex_color_add_exec;
 
 	/* flags */
@@ -463,7 +463,7 @@ void MESH_OT_vertex_color_remove(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= vertex_color_remove_exec;
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -497,7 +497,7 @@ void MESH_OT_sticky_add(wmOperatorType *ot)
 	ot->idname= "MESH_OT_sticky_add";
 	
 	/* api callbacks */
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 	ot->exec= sticky_add_exec;
 
 	/* flags */
@@ -529,7 +529,7 @@ void MESH_OT_sticky_remove(wmOperatorType *ot)
 	ot->idname= "MESH_OT_sticky_remove";
 	
 	/* api callbacks */
-	ot->poll= layers_poll;
+	ot->poll= ED_mesh_layers_poll;
 	ot->exec= sticky_remove_exec;
 
 	/* flags */
