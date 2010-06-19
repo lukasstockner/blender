@@ -385,7 +385,7 @@ static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radiu
 	window[0] = x + stroke->vc.ar->winrct.xmin;
 	window[1] = y + stroke->vc.ar->winrct.ymin;
 
-	if (stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
+	if (stroke->vc.obact->sculpt && stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
 		*pixel_radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
 
 		if (*pixel_radius == 0) {
@@ -436,248 +436,268 @@ static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3]
 // two modules should be more clearly defined.
 static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 {
-	Paint *paint = paint_get_active(CTX_data_scene(C));
-	Brush *brush = paint_brush(paint);
+	ViewContext vc;
 
-	int pixel_radius, viewport[4];
-	float location[3], modelview[16], projection[16];
+	view3d_set_viewcontext(C, &vc);
 
-	int hit;
+	if (vc.obact->sculpt) {
+		Paint *paint = paint_get_active(CTX_data_scene(C));
+		Brush *brush = paint_brush(paint);
 
-	/* keep track of mouse movement angle so rack can start at a sensible angle */
+		int pixel_radius, viewport[4];
+		float location[3], modelview[16], projection[16];
 
-	int dx = brush->last_x - x;
-	int dy = brush->last_y - y;
+		int hit;
 
-	if (dx*dx + dy*dy > 100) {
-		/* only update if distance traveled is more than 10 pixels */
-		brush->last_angle = atan2(dx, dy);
-		brush->last_x = x;
-		brush->last_y = y;
-	} /* else, do not update last_x and last_y so that the distance can accumulate */
+		/* keep track of mouse movement angle so rack can start at a sensible angle */
+		int dx = brush->last_x - x;
+		int dy = brush->last_y - y;
 
-	if(!(brush->flag & BRUSH_LOCK_SIZE) && !(paint->flags & PAINT_SHOW_BRUSH)) 
-		return;
+		if (dx*dx + dy*dy > 100) {
+			/* only update if distance traveled is more than 10 pixels */
+			brush->last_angle = atan2(dx, dy);
+			brush->last_x = x;
+			brush->last_y = y;
+		} /* else, do not update last_x and last_y so that the distance can accumulate */
 
-	hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
+		if(!(brush->flag & BRUSH_LOCK_SIZE) && !(paint->flags & PAINT_SHOW_BRUSH)) 
+			return;
 
-	if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(C, brush, pixel_radius);
+		hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
 
-	if (hit) {
-		ViewContext vc;
-		float unprojected_radius;
-		int flip;
-		int sign;
-		float visual_strength = brush->alpha * brush->alpha;
+		if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(C, brush, pixel_radius);
 
-		const float min_alpha = 0.20f;
-		const float max_alpha = 0.80f;
-		float* col;
-		float  alpha;
+		if (hit) {
+			float unprojected_radius;
+			int flip;
+			int sign;
+			float visual_strength = brush->alpha * brush->alpha;
 
-		// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
-		wmEvent* event = CTX_wm_window(C)->eventstate;
+			const float min_alpha = 0.20f;
+			const float max_alpha = 0.80f;
+			float* col;
+			float  alpha;
 
-		flip = event->shift ? -1 : 1;
+			// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
+			wmEvent* event = CTX_wm_window(C)->eventstate;
 
-		if ( brush->draw_pressure && brush->flag & BRUSH_ALPHA_PRESSURE)
-			visual_strength *= brush->pressure_value;
+			flip = event->shift ? -1 : 1;
 
-		// remove effect of strength multiplier
-		visual_strength /= brush->strength_multiplier;
+			if ( brush->draw_pressure && brush->flag & BRUSH_ALPHA_PRESSURE)
+				visual_strength *= brush->pressure_value;
 
-		// don't show effect of strength past the soft limit
-		if (visual_strength > 1) visual_strength = 1;
+			// remove effect of strength multiplier
+			visual_strength /= brush->strength_multiplier;
 
-		view3d_set_viewcontext(C, &vc);
+			// don't show effect of strength past the soft limit
+			if (visual_strength > 1) visual_strength = 1;
 
-		if (brush->draw_anchored) {
-			unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->anchored_size);
-		}
-		else {
-			if (brush->flag & BRUSH_ANCHORED)
-				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, 8);
+			if (brush->draw_anchored) {
+				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->anchored_size);
+			}
+			else {
+				if (brush->flag & BRUSH_ANCHORED)
+					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, 8);
+				else
+					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+			}
+
+			if (brush->draw_pressure && brush->flag & BRUSH_SIZE_PRESSURE)
+				unprojected_radius *= brush->pressure_value;
+
+			if (!(brush->flag & BRUSH_LOCK_SIZE)) 
+				sculpt_set_brush_unprojected_radius(C, brush, unprojected_radius);
+
+			if(!(paint->flags & PAINT_SHOW_BRUSH))
+				return;
+
+			sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
+
+			if (sign < 0 && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
+				col = brush->sub_col;
 			else
-				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+				col = brush->add_col;
+
+			alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
+
+			glColor4f(col[0], col[1], col[2], alpha);
+
+			glEnable(GL_BLEND);
+
+			if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
+				const float max_thickness= 0.16;
+				const float min_thickness= 0.06;
+				const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
+				const float inner_radius=  brush->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
+				const float outer_radius=  brush->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
+
+				GLUquadric* sphere;
+
+				glMatrixMode(GL_MODELVIEW);
+				glPushMatrix();
+				glLoadMatrixf(modelview);
+
+				if (brush->draw_anchored)
+					glTranslatef(brush->anchored_location[0], brush->anchored_location[1], brush->anchored_location[2]);
+				else
+					glTranslatef(location[0], location[1], location[2]);
+
+				glMatrixMode(GL_PROJECTION);
+				glPushMatrix();
+				glLoadMatrixf(projection);
+
+				glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+				glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+				glDepthMask(GL_FALSE);
+
+				glDisable(GL_CULL_FACE);
+
+				glEnable(GL_DEPTH_TEST);
+
+				glClearStencil(0);
+				glClear(GL_STENCIL_BUFFER_BIT);
+				glEnable(GL_STENCIL_TEST);
+
+				glStencilFunc(GL_ALWAYS, 3, 0xFF);
+				glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+
+				sphere = gluNewQuadric();
+
+				gluSphere(sphere, outer_radius, 40, 40);
+
+				glStencilFunc(GL_ALWAYS, 1, 0xFF);
+				glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
+
+				if (brush->size >= 8)
+					gluSphere(sphere, inner_radius, 40, 40);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+				glStencilFunc(GL_EQUAL, 1, 0xFF);
+				glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+				gluSphere(sphere, outer_radius, 40, 40);
+
+				glStencilFunc(GL_EQUAL, 3, 0xFF);
+				glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+				gluSphere(sphere, outer_radius, 40, 40);
+
+				gluDeleteQuadric(sphere);
+
+				glDepthMask(GL_TRUE);
+
+				glDisable(GL_DEPTH_TEST);
+
+				glEnable(GL_CULL_FACE);
+
+				glDisable(GL_STENCIL_TEST);
+
+				glPopMatrix();
+
+				glMatrixMode(GL_MODELVIEW);
+				glPopMatrix();
+			}
+			else {
+				glEnable(GL_LINE_SMOOTH);
+
+				if (brush->draw_anchored) {
+					glTranslatef(brush->anchored_initial_mouse[0] - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
+					glutil_draw_lined_arc(0.0, M_PI*2.0, brush->anchored_size, 40);
+					glTranslatef(-brush->anchored_initial_mouse[0], -brush->anchored_initial_mouse[1], 0.0f);
+				}
+				else {
+					glTranslatef((float)x, (float)y, 0.0f);
+					glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+					glTranslatef(-(float)x, -(float)y, 0.0f);
+				}
+
+				glDisable(GL_LINE_SMOOTH);
+			}
+
+			if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+				const float diameter = 2*brush->size;
+				//float inv_scale_x , inv_scale_y;
+				//int procedural;
+
+				//load_grid(brush);
+				//procedural = load_tex(brush, &vc);
+				load_tex(brush, &vc);
+
+				glEnable(GL_TEXTURE_2D);
+				glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+				glDepthMask(GL_FALSE);
+				glDepthFunc(GL_ALWAYS);
+
+				glMatrixMode(GL_TEXTURE);
+				glLoadIdentity();
+
+				//if (!procedural) {
+				//	glTranslatef(0.5f, 0.5f, 0);
+				//	glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
+
+				//	inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
+				//	inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
+
+				//	glScalef(inv_scale_x, inv_scale_y, 0);
+
+				//	glRotatef(-brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
+
+				//	glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
+
+				//	glTranslatef(-0.5f, -0.5f, 0);
+				//}
+
+				glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
+				glBegin(GL_QUADS);
+					glTexCoord2f(0, 0);
+					glVertex2f(0, 0);
+
+					glTexCoord2f(1, 0);
+					glVertex2f(viewport[2], 0);
+
+					glTexCoord2f(1, 1);
+					glVertex2f(viewport[2], viewport[3]);
+
+					glTexCoord2f(0, 1);
+					glVertex2f(0, viewport[3]);
+				glEnd();
+
+				glLoadIdentity();
+
+				glMatrixMode(GL_MODELVIEW);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+				glDisable(GL_TEXTURE_2D);
+
+				glDepthMask(GL_TRUE);
+				glDepthFunc(GL_LEQUAL);
+			}
+
+			glDisable(GL_BLEND);
 		}
-
-		if (brush->draw_pressure && brush->flag & BRUSH_SIZE_PRESSURE)
-			unprojected_radius *= brush->pressure_value;
-
-		if (!(brush->flag & BRUSH_LOCK_SIZE)) 
-			sculpt_set_brush_unprojected_radius(C, brush, unprojected_radius);
+	}
+	else {
+		Paint *paint = paint_get_active(CTX_data_scene(C));
+		Brush *brush = paint_brush(paint);
 
 		if(!(paint->flags & PAINT_SHOW_BRUSH))
 			return;
 
-		sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
-
-		if (sign < 0 && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
-			col = brush->sub_col;
-		else
-			col = brush->add_col;
-
-		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
-
-		glColor4f(col[0], col[1], col[2], alpha);
-
+		glColor4ubv(paint_get_active(CTX_data_scene(C))->paint_cursor_col);
+		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
 
-		if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
-			const float max_thickness= 0.16;
-			const float min_thickness= 0.06;
-			const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
-			const float inner_radius=  brush->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
-			const float outer_radius=  brush->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
-
-			GLUquadric* sphere;
-
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
-			glLoadMatrixf(modelview);
-
-			if (brush->draw_anchored)
-				glTranslatef(brush->anchored_location[0], brush->anchored_location[1], brush->anchored_location[2]);
-			else
-				glTranslatef(location[0], location[1], location[2]);
-
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glLoadMatrixf(projection);
-
-			glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-			glDepthMask(GL_FALSE);
-
-			glDisable(GL_CULL_FACE);
-
-			glEnable(GL_DEPTH_TEST);
-
-			glClearStencil(0);
-			glClear(GL_STENCIL_BUFFER_BIT);
-			glEnable(GL_STENCIL_TEST);
-
-			glStencilFunc(GL_ALWAYS, 3, 0xFF);
-			glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
-
-			sphere = gluNewQuadric();
-
-			gluSphere(sphere, outer_radius, 40, 40);
-
-			glStencilFunc(GL_ALWAYS, 1, 0xFF);
-			glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
-
-			if (brush->size >= 8)
-				gluSphere(sphere, inner_radius, 40, 40);
-
-			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-			glStencilFunc(GL_EQUAL, 1, 0xFF);
-			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-			gluSphere(sphere, outer_radius, 40, 40);
-
-			glStencilFunc(GL_EQUAL, 3, 0xFF);
-			glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-			gluSphere(sphere, outer_radius, 40, 40);
-
-			gluDeleteQuadric(sphere);
-
-			glDepthMask(GL_TRUE);
-
-			glDisable(GL_DEPTH_TEST);
-
-			glEnable(GL_CULL_FACE);
-
-			glDisable(GL_STENCIL_TEST);
-
-			glPopMatrix();
-
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
-		}
-		else {
-			glEnable(GL_LINE_SMOOTH);
-
-			if (brush->draw_anchored) {
-				glTranslatef(brush->anchored_initial_mouse[0] - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->anchored_size, 40);
-				glTranslatef(-brush->anchored_initial_mouse[0], -brush->anchored_initial_mouse[1], 0.0f);
-			}
-			else {
-				glTranslatef((float)x, (float)y, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
-				glTranslatef(-(float)x, -(float)y, 0.0f);
-			}
-
-			glDisable(GL_LINE_SMOOTH);
-		}
-
-		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
-			const float diameter = 2*brush->size;
-			//float inv_scale_x , inv_scale_y;
-			//int procedural;
-
-			//load_grid(brush);
-			//procedural = load_tex(brush, &vc);
-			load_tex(brush, &vc);
-
-			glEnable(GL_TEXTURE_2D);
-			glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
-
-			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
-			glDepthMask(GL_FALSE);
-			glDepthFunc(GL_ALWAYS);
-
-			glMatrixMode(GL_TEXTURE);
-			glLoadIdentity();
-
-			//if (!procedural) {
-			//	glTranslatef(0.5f, 0.5f, 0);
-			//	glTranslatef(-brush->texture_center_x, -brush->texture_center_y, 0);
-
-			//	inv_scale_x = 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
-			//	inv_scale_y = 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
-
-			//	glScalef(inv_scale_x, inv_scale_y, 0);
-
-			//	glRotatef(-brush->mtex.rot * 180.0f/M_PI, 0, 0, 1);
-
-			//	glScalef(viewport[2] / diameter, viewport[3] / diameter, 0);
-
-			//	glTranslatef(-0.5f, -0.5f, 0);
-			//}
-
-			glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
-			glBegin(GL_QUADS);
-				glTexCoord2f(0, 0);
-				glVertex2f(0, 0);
-
-				glTexCoord2f(1, 0);
-				glVertex2f(viewport[2], 0);
-
-				glTexCoord2f(1, 1);
-				glVertex2f(viewport[2], viewport[3]);
-
-				glTexCoord2f(0, 1);
-				glVertex2f(0, viewport[3]);
-			glEnd();
-
-			glLoadIdentity();
-
-			glMatrixMode(GL_MODELVIEW);
-
-			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-			glDisable(GL_TEXTURE_2D);
-
-			glDepthMask(GL_TRUE);
-			glDepthFunc(GL_LEQUAL);
-		}
+		glTranslatef((float)x, (float)y, 0.0f);
+		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+		glTranslatef((float)-x, (float)-y, 0.0f);
 
 		glDisable(GL_BLEND);
+		glDisable(GL_LINE_SMOOTH);
 	}
 }
 
