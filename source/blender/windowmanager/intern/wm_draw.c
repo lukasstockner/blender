@@ -324,6 +324,15 @@ typedef struct wmDrawTriple {
 
 	char* depth;
 	GLenum depth_type;
+
+	GLuint depth_bind[MAX_N_TEX*MAX_N_TEX];
+	int depth_x[MAX_N_TEX], depth_y[MAX_N_TEX];
+	int depth_nx, depth_ny;
+	GLenum depth_target;
+
+	GLenum depth_vertex_shader;
+	GLenum depth_fragment_shader;
+	GLenum depth_program;
 } wmDrawTriple;
 
 static int is_pow2(int n)
@@ -392,7 +401,17 @@ static void wm_draw_triple_free(wmWindow *win)
 		wmDrawTriple *triple= win->drawdata;
 
 		glDeleteTextures(triple->nx*triple->ny, triple->bind);
-		MEM_freeN(triple->depth);
+
+		if (GLEW_ARB_depth_texture && GLEW_ARB_shader_objects) {
+			glDeleteTextures(triple->depth_nx*triple->depth_ny, triple->depth_bind);
+			glDeleteObjectARB(triple->depth_vertex_shader);
+			glDeleteObjectARB(triple->depth_fragment_shader);
+			glDeleteObjectARB(triple->depth_program);
+		}
+
+		if (triple->depth)
+			MEM_freeN(triple->depth);
+
 		MEM_freeN(triple);
 
 		win->drawdata= NULL;
@@ -544,18 +563,204 @@ static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 
 static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 {
-	const int count = win->sizex * win->sizey;
-	const int size = count*sizeof(GLfloat);
+	if (GLEW_ARB_depth_texture &&
+		GLEW_ARB_shader_objects &&
+		GLEW_ARB_vertex_shader &&
+		GLEW_ARB_fragment_shader &&
+		GLEW_ARB_shading_language_100)
+	{
+		GLint maxsize;
+		int x, y;
 
-	triple->depth_type = GL_FLOAT;
-	triple->depth = MEM_mallocN(size, "wm_triple_gen_depth_buffer");
+		/* compute texture sizes */
+		if(GLEW_ARB_texture_rectangle) {
+			triple->depth_target= GL_TEXTURE_RECTANGLE_ARB;
+			triple->depth_nx= 1;
+			triple->depth_ny= 1;
+			triple->depth_x[0]= win->sizex;
+			triple->depth_y[0]= win->sizey;
+		}
+		else if(GPU_non_power_of_two_support()) {
+			triple->depth_target= GL_TEXTURE_2D;
+			triple->depth_nx= 1;
+			triple->depth_ny= 1;
+			triple->depth_x[0]= win->sizex;
+			triple->depth_y[0]= win->sizey;
+		}
+		else {
+			triple->depth_target= GL_TEXTURE_2D;
+			triple->depth_nx= 0;
+			triple->depth_ny= 0;
+			split_width(win->sizex, MAX_N_TEX, triple->depth_x, &triple->depth_nx);
+			split_width(win->sizey, MAX_N_TEX, triple->depth_y, &triple->depth_ny);
+		}
+
+		/* generate texture names */
+		glGenTextures(triple->depth_nx*triple->depth_ny, triple->depth_bind);
+
+		if(!triple->depth_bind[0]) {
+			/* not the typical failure case but we handle it anyway */
+			printf("WM: failed to allocate depth texture for triple buffer drawing (glGenTextures).\n");
+			return 0;
+		}
+
+		for(y=0; y<triple->depth_ny; y++) {
+			for(x=0; x<triple->depth_nx; x++) {
+				/* proxy texture is only guaranteed to test for the cases that
+				 * there is only one texture in use, which may not be the case */
+				glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maxsize);
+
+				if(triple->depth_x[x] > maxsize || triple->depth_y[y] > maxsize) {
+					glBindTexture(triple->depth_target, 0);
+					printf("WM: failed to allocate texture for triple buffer drawing (texture too large for graphics card).\n");
+					return 0;
+				}
+
+				/* setup actual texture */
+				glBindTexture(triple->depth_target, triple->depth_bind[x + y*triple->depth_nx]);
+				glTexImage2D(triple->depth_target, 0, GL_DEPTH_COMPONENT, triple->depth_x[x], triple->depth_y[y], 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, NULL);
+				glTexParameteri(triple->depth_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+				glTexParameteri(triple->depth_target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+				glTexParameteri(triple->depth_target, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+				glBindTexture(triple->depth_target, 0);
+
+				/* not sure if this works everywhere .. */
+				if(glGetError() == GL_OUT_OF_MEMORY) {
+					printf("WM: failed to allocate depth texture for triple buffer drawing (out of memory).\n");
+					return 0;
+				}
+			}
+		}
+
+		{
+			int success;
+			GLsizei len;
+
+			static const GLcharARB* depth_vertex_shader_source[] = { 
+//				"varying vec2 texture_coordinate;\n",
+				"void main()\n",
+				"{\n",
+				"gl_TexCoord[0] = gl_MultiTexCoord0;\n",
+				"gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;\n",
+				"}\n",
+			};
+
+			static const GLcharARB* depth_fragment_shader_source[] = {
+//				"varying vec2 texture_coordinate;\n",
+				"uniform sampler2DRect depth_texture;\n",
+				"void main()\n",
+				"{\n",
+				"gl_FragDepth = texture2D(depth_texture, gl_TexCoord[0].xy).x;\n",
+				"}\n",
+			};
+
+			static const GLcharARB* depth_fragment_shader_rect_source[] = {
+				"#extension GL_ARB_texture_rectangle : enable\n",
+//				"varying vec2 texture_coordinate;\n",
+				"uniform sampler2DRect depth_texture;\n",
+				"void main()\n",
+				"{\n",
+				"gl_FragDepth = texture2DRect(depth_texture, gl_TexCoord[0].xy).x;\n",
+				"}\n",
+			};
+
+			triple->depth_vertex_shader = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
+			glShaderSourceARB(triple->depth_vertex_shader, sizeof(depth_vertex_shader_source)/sizeof(GLcharARB*), depth_vertex_shader_source, NULL);
+			glCompileShaderARB(triple->depth_vertex_shader);
+
+			glGetObjectParameterivARB(triple->depth_vertex_shader, GL_OBJECT_COMPILE_STATUS_ARB, &success);
+			
+			/*if (!success)*/ {
+				GLbyte infoLog[1000];
+				len = 1000;
+
+				glGetInfoLogARB(triple->depth_vertex_shader, 1000, &len, infoLog);
+
+				//fprintf(stderr, "Error in vertex shader compilation!\n");
+
+				if (len > 0)
+					fprintf(stderr, "vertex:\n%s\n", infoLog);
+			}
+
+			triple->depth_fragment_shader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+
+			if (GLEW_ARB_texture_rectangle)
+				glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_rect_source)/sizeof(GLcharARB*), depth_fragment_shader_rect_source, NULL);
+			else
+				glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_source)/sizeof(GLcharARB*), depth_fragment_shader_source, NULL);
+
+			glCompileShaderARB(triple->depth_fragment_shader);
+
+			glGetObjectParameterivARB(triple->depth_fragment_shader, GL_OBJECT_COMPILE_STATUS_ARB, &success);
+
+			/*if (!success)*/ {
+				GLbyte infoLog[1000];
+
+				glGetInfoLogARB(triple->depth_fragment_shader, 1000, &len, infoLog);
+
+				//fprintf(stderr, "Error in fragment shader compilation!\n");
+
+				if (len > 0)
+					fprintf(stderr, "fragment:\n%s\n", infoLog);
+			}
+
+			triple->depth_program = glCreateProgramObjectARB();
+
+			glAttachObjectARB(triple->depth_program, triple->depth_vertex_shader);
+			glAttachObjectARB(triple->depth_program, triple->depth_fragment_shader);
+
+			glLinkProgramARB(triple->depth_program);
+
+			glGetObjectParameterivARB(triple->depth_program, GL_OBJECT_LINK_STATUS_ARB, &success);
+
+			/*if (!success)*/ {
+				GLbyte infoLog[1000];
+
+				glGetInfoLogARB(triple->depth_program, 1000, &len, infoLog);
+
+				//fprintf(stderr, "Error in linking!\n");
+
+				if (len > 0)
+					fprintf(stderr, "GLSL linking:\n%s\n", infoLog);
+			}
+		}
+	}
+	else {
+		const int count = win->sizex * win->sizey;
+		const int size = count*sizeof(GLfloat);
+
+		triple->depth_type = GL_FLOAT;
+		triple->depth = MEM_mallocN(size, "wm_triple_gen_depth_buffer");
+	}
 
 	return 1;
 }
 
 static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 {
-	if (triple->depth) {
+	if (GLEW_ARB_depth_texture &&
+		GLEW_ARB_shader_objects &&
+		GLEW_ARB_vertex_shader &&
+		GLEW_ARB_fragment_shader &&
+		GLEW_ARB_shading_language_100)
+	{
+		int x, y, sizex, sizey, offx, offy;
+
+		for(y=0, offy=0; y<triple->depth_ny; offy+=triple->depth_y[y], y++) {
+			for(x=0, offx=0; x<triple->depth_nx; offx+=triple->depth_x[x], x++) {
+				sizex= (x == triple->depth_nx-1)? win->sizex-offx: triple->depth_x[x];
+				sizey= (y == triple->depth_ny-1)? win->sizey-offy: triple->depth_y[y];
+
+				glBindTexture(triple->depth_target, triple->depth_bind[x + y*triple->depth_nx]);
+				glCopyTexSubImage2D(triple->depth_target, 0, 0, 0, offx, offy, sizex, sizey);
+			}
+		}
+
+		glBindTexture(triple->depth_target, 0);
+	}
+	else if (triple->depth) {
+		glPushAttrib(GL_PIXEL_MODE_BIT);
+
 		glPixelStorei(GL_PACK_SWAP_BYTES,  GL_FALSE);
 		glPixelStorei(GL_PACK_ROW_LENGTH,  0);
 		glPixelStorei(GL_PACK_SKIP_ROWS,   0);
@@ -566,40 +771,118 @@ static void wm_triple_copy_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 		glPixelTransferi(GL_DEPTH_BIAS, 0);
 
 		glReadPixels(0, 0, win->sizex, win->sizey, GL_DEPTH_COMPONENT, triple->depth_type, triple->depth);
+
+		glPopAttrib();
 	}
 }
 
 static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 {
-	// This state changing is probably overkill, but I had a lot of trouble figuring out exactly what state was keeping this from working.
+	if (GLEW_ARB_depth_texture &&
+		GLEW_ARB_shader_objects &&
+		GLEW_ARB_vertex_shader &&
+		GLEW_ARB_fragment_shader &&
+		GLEW_ARB_shading_language_100)
+	{
+		float halfx, halfy, ratiox, ratioy;
+		int x, y, sizex, sizey, offx, offy;
+		GLint depth_texture;
 
-	if (triple->depth) {
-		glPixelStorei(GL_UNPACK_SWAP_BYTES,  GL_FALSE);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
-		glPixelStorei(GL_UNPACK_SKIP_ROWS,   0);
-		glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
-		glPixelStorei(GL_UNPACK_ALIGNMENT,   4);
-
-		glPixelTransferi(GL_DEPTH_SCALE, 1);
-		glPixelTransferi(GL_DEPTH_BIAS, 0);
-
-		glPixelZoom(1.0, 1.0);
+		glPushAttrib(
+			GL_COLOR_BUFFER_BIT|
+			GL_DEPTH_BUFFER_BIT);
 
 		glEnable(GL_DEPTH_TEST);
-
+		glDepthFunc(GL_ALWAYS);
 		glDepthMask(GL_TRUE);
+
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-		glDepthFunc(GL_ALWAYS);
+		glUseProgramObjectARB(triple->depth_program);
+		depth_texture = glGetUniformLocationARB(triple->depth_program, "depth_texture");
 
-		glRasterPos2i(0, 0);
-		glDrawPixels(win->sizex, win->sizey, GL_DEPTH_COMPONENT, triple->depth_type, triple->depth);
+		glActiveTextureARB(GL_TEXTURE0_ARB);
 
-		glDepthFunc(GL_LEQUAL);
+		glEnable(triple->depth_target);
 
-		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		for(y=0, offy=0; y<triple->depth_ny; offy+=triple->depth_y[y], y++) {
+			for(x=0, offx=0; x<triple->depth_nx; offx+=triple->depth_x[x], x++) {
+				sizex= (x == triple->depth_nx-1)? win->sizex-offx: triple->depth_x[x];
+				sizey= (y == triple->depth_ny-1)? win->sizey-offy: triple->depth_y[y];
 
-		glDisable(GL_DEPTH_TEST);
+				/* wmOrtho for the screen has this same offset */
+				ratiox= sizex;
+				ratioy= sizey;
+				halfx= 0.375f;
+				halfy= 0.375f;
+
+				/* texture rectangle has unnormalized coordinates */
+				if(triple->depth_target == GL_TEXTURE_2D) {
+					ratiox /= triple->depth_x[x];
+					ratioy /= triple->depth_y[y];
+					halfx /= triple->depth_x[x];
+					halfy /= triple->depth_y[y];
+				}
+
+				glBindTexture(triple->depth_target, triple->depth_bind[x + y*triple->depth_nx]);
+				glUniform1iARB(depth_texture, 0);
+
+				glBegin(GL_QUADS);
+					glTexCoord2f(halfx, halfy);
+					glVertex2f(offx, offy);
+
+					glTexCoord2f(ratiox+halfx, halfy);
+					glVertex2f(offx+sizex, offy);
+
+					glTexCoord2f(ratiox+halfx, ratioy+halfy);
+					glVertex2f(offx+sizex, offy+sizey);
+
+					glTexCoord2f(halfx, ratioy+halfy);
+					glVertex2f(offx, offy+sizey);
+				glEnd();
+			}
+		}
+
+		glBindTexture(triple->depth_target, 0);
+		glDisable(triple->depth_target);
+
+		glUseProgramObjectARB(0);
+
+		glPopAttrib();
+	}
+	else {
+		// This state changing is probably overkill, but I had a lot of trouble figuring out exactly what state was keeping this from working.
+
+		if (triple->depth) {
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_PIXEL_MODE_BIT);
+
+			glPixelStorei(GL_UNPACK_SWAP_BYTES,  GL_FALSE);
+			glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
+			glPixelStorei(GL_UNPACK_SKIP_ROWS,   0);
+			glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+			glPixelStorei(GL_UNPACK_ALIGNMENT,   4);
+
+			glPixelTransferi(GL_DEPTH_SCALE, 1);
+			glPixelTransferi(GL_DEPTH_BIAS, 0);
+
+			glPixelZoom(1.0, 1.0);
+
+			glEnable(GL_DEPTH_TEST);
+
+			glDepthMask(GL_TRUE);
+			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+
+			glDepthFunc(GL_ALWAYS);
+
+			glRasterPos2i(0, 0);
+			glDrawPixels(win->sizex, win->sizey, GL_DEPTH_COMPONENT, triple->depth_type, triple->depth);
+
+			glPopAttrib();
+		}
 	}
 }
 
