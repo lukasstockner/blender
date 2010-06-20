@@ -185,20 +185,46 @@ void *CustomData_em_get_n(const struct CustomData *data, void *block, int type, 
 void *CustomData_bmesh_get(const struct CustomData *data, void *block, int type);
 void *CustomData_bmesh_get_n(const struct CustomData *data, void *block, int type, int n);
 
-/* gets a pointer to the active or first layer of type
- * returns NULL if there is no layer of type
- */
+/************************** Get layer data ***********************/
+/* return the data from the first layer matching the parameters  */
+/* these all return NULL if no such layer is found               */
+
+/* returns the data from the first layer matching type */
 void *CustomData_get_layer(const struct CustomData *data, int type);
+
+/* returns the data from the nth layer matching type */
 void *CustomData_get_layer_n(const struct CustomData *data, int type, int n);
+
+/* returns the data from the first layer matching type and name */
 void *CustomData_get_layer_named(const struct CustomData *data, int type,
 								 char *name);
 
+/********************************* Get layer index *********************************/
+/* return the index within data.layers of the first layer matching the parameters  */
+/* these all return -1 if no such layer is found                                   */
+
+/* returns the index of the first layer matching type */
 int CustomData_get_layer_index(const struct CustomData *data, int type);
+
+/* returns the index of the first layer matching type and name */
 int CustomData_get_named_layer_index(const struct CustomData *data, int type, char *name);
+
+/* returns the index of the active layer */
 int CustomData_get_active_layer_index(const struct CustomData *data, int type);
+
+/* returns the index of the render layer */
 int CustomData_get_render_layer_index(const struct CustomData *data, int type);
+
+/* returns the index of the clone layer */
 int CustomData_get_clone_layer_index(const struct CustomData *data, int type);
+
+/* returns the index of the stencil/mask layer */
 int CustomData_get_stencil_layer_index(const struct CustomData *data, int type);
+
+/************************************ Get layer offset ***********************************/
+/* return the offset of the layer from the first layer of the specified type             */
+/* to find the index of that layer, add it to the index of the first layer of that type  */
+/* these all return -1 if no layer of the specified type is found                        */
 int CustomData_get_active_layer(const struct CustomData *data, int type);
 int CustomData_get_render_layer(const struct CustomData *data, int type);
 int CustomData_get_clone_layer(const struct CustomData *data, int type);
