@@ -630,7 +630,7 @@ void irr_cache_check_stack(IrrCache *cache)
 	}
 }
 
-static inline int irr_cache_node_point_inside(IrrCacheNode *node, float scale, float add, float P[3])
+static int irr_cache_node_point_inside(IrrCacheNode *node, float scale, float add, float P[3])
 {
 	float side= node->side*scale + add;
 
@@ -893,9 +893,6 @@ int irr_cache_lookup(Render *re, ShadeInput *shi, IrrCache *cache, float *ao, fl
 	float discard_weight, maxdist, distfac;
 	int i, added= 0, totfound= 0, use_lsq, dimension;
 	Lsq4DFit *lsq= &cache->lsq;
-
-	/* XXX check how often this is called! */
-	/* XXX can identical samples end up in the cache now? */
 
 	/* a small value for discard-smoothing of irradiance */
 	discard_weight= (preprocess)? 0.1f: 0.0f;
