@@ -7,7 +7,7 @@
  Tooltip: 'Export geometry to DXF/DWG-r12 (Drawing eXchange Format).'
 """
 
-__version__ = "1.35 - 2009.06.18"
+__version__ = "1.36 - 2010.06.20"
 __author__  = "Remigiusz Fiedler (AKA migius)"
 __license__ = "GPL"
 __url__  = "http://wiki.blender.org/index.php/Scripts/Manual/Export/autodesk_dxf"
@@ -46,6 +46,9 @@ TODO:
 - wip: fix support Include-Duplis, cause not conform with INSERT-method
 
 History
+v1.36 - 2010.06.20 by migius
+- added export Nurbs-Curve (3,4,5th-degree) into POLYLINE-NURBS(quad,cubic)
+  but no support for Bezier-Curves, because DXF doesnt support them
 v1.35 - 2009.06.18 by migius
 - export multiple-instances of Curve-Objects as BLOCK/INSERTs
 - added export Cameras (ortho and persp) to VPORTs, incl. clipping
@@ -626,7 +629,10 @@ def writeMeshEntities(allpoints, edges, faces, **common):
 								i+=1
 						allpoints = newverts
 						faces = [[map[v]+1 for v in f] for f in faces]
-				dxfPOLYFACE = DXF.PolyLine([allpoints, faces], flag=64, **common)
+				flag70 = 64
+				flag75 = 0
+				#dxfPOLYFACE = DXF.PolyLine([allpoints, faces], flag=[64,0,0], **common)
+				dxfPOLYFACE = DXF.PolyLine([allpoints, faces], flag70=flag70, flag75=flag70, width=0.0, **common)
 				#print '\n deb: dxfPOLYFACE=',dxfPOLYFACE #-------------
 				entities.append(dxfPOLYFACE)
 		elif '3DFACEs'==c:
@@ -672,9 +678,9 @@ def curve_drawBlender(vertList, org_point=[0.0,0.0,0.0], closed=0, name="dxfCurv
 	ob = Object.New("Curve",name)
 	cu = Curve.New(name)
 	#print 'deb: vertList=\n', vertList #---------
-	curve = cu.appendNurb(BezTriple.New(vertList[0]))
+	curve = cu.appendNurb(BezTriple.New(vertList[0][0]))
 	for p in vertList[1:]:
-		curve.append(BezTriple.New(p))
+		curve.append(BezTriple.New(p[0]))
 	for point in curve:
 		#point.handleTypes = [VECT, VECT]
 		point.handleTypes = [FREE, FREE]
@@ -1088,27 +1094,81 @@ def writeCurveEntities(curve, mx,
 	"""help routine for exportCurve()
 	"""
 	entities = []
-	
+	width1,width2 = None, None
 	if 1:
 		for cur in curve:
 			#print 'deb: START cur=', cur #--------------
+			#print 'deb:  dir(curve):',dir(cur)  #---------
+			#print 'deb:  curve.type:',cur.type  #---------
 			points = []
-			if cur.isNurb():
+			flags = []
+			pflag70, pflag75 = 0,0
+
+			if cur.type==4: # is NURBS
+				#if cur.isNurb():
+				#print 'deb:isNurb --------------'  #---------
+				pflag70 = 4
+				orderU = cur.orderU
+				# curve type:
+				# 0: curvNoFitted
+				# 5: curvQuadraticBspline
+				# 6: curvCubicBspline
+				# 8: curvBezier
+				if orderU<=4: pflag75 = 5
+				elif orderU>=5: pflag75 = 6
+
+				vflag70 = 16
+				i = -2
 				for point in cur:
 					#print 'deb:isNurb point=', point #---------
+					i+=1
+					if i==orderU-1: i = 0
+					if i:
+						flags.append([16, [width1,width2]])
+					else:
+						flags.append([8, [width1,width2]])
 					vec = point[0:3]
 					#print 'deb: vec=', vec #---------
 					pkt = Mathutils.Vector(vec)
 					#print 'deb: pkt=', pkt #---------
 					points.append(pkt)
-			else:
+				if not cur.isCyclic():
+					points = points[1:-1]
+					flags = flags[1:-1]
+			elif cur.type==1: # is Bezier
+				#print 'deb:isBezier --------------'  #---------
+				pflag75 = 8
+				vflag70 = 1
 				for point in cur:
+					#print 'deb:isBezier point=', point #---------
 					#print 'deb:isBezier point=', point.getTriple() #---------
-					vec = point.getTriple()[1]
+					ptan1,pfit,ptan2 = point.getTriple()
+					#print 'deb: point=', pt #---------
+					ptan1 = Mathutils.Vector(ptan1)
+					pfit = Mathutils.Vector(pfit)
+					ptan2 = Mathutils.Vector(ptan2)
+					#print 'deb: pkt=', pkt #---------
+					points.append(ptan1)
+					flags.append([2, [width1,width2]])
+					points.append(pfit)
+					flags.append([1, [width1,width2]])
+					points.append(ptan2)
+					flags.append([2, [width1,width2]])
+				if not cur.isCyclic():
+					points = points[1:-1]
+					flags = flags[1:-1]
+			elif cur.type==0: # is Polygon
+				#print 'deb:isPolygon --------------'  #---------
+				#pflag70 = 4
+				pflag75 = 0
+				for point in cur:
+					#print 'deb:isPoly point=', point #---------
+					vec = point[0:3]
 					#print 'deb: vec=', vec #---------
 					pkt = Mathutils.Vector(vec)
 					#print 'deb: pkt=', pkt #---------
 					points.append(pkt)
+					flags.append([None, [width1,width2]])
 	
 			#print 'deb: points', points #--------------
 			if len(points)>1:
@@ -1131,7 +1191,12 @@ def writeCurveEntities(curve, mx,
 					if cur.isCyclic(): closed = 1
 					else: closed = 0
 					points = toGlobalOrigin(points)
-	
+					points_temp = []
+					for p,f in zip(points,flags):
+						points_temp.append([p,f[0],f[1]])	
+					points = points_temp
+					#print 'deb: points', points #--------------
+
 					if DEBUG: curve_drawBlender(points,OCS_origin,closed) #deb: draw to scene
 
 					common['extrusion']= Extrusion
@@ -1140,6 +1205,7 @@ def writeCurveEntities(curve, mx,
 					common['thickness']= Thickness
 					#print 'deb: common=', common #------------------
 	
+					flag70, flag75 = pflag70+closed, pflag75
 					if 0: #DEBUG
 						p=AXaxis[:3]
 						entities.append(DXF.Line([[0,0,0], p],**common))
@@ -1149,14 +1215,14 @@ def writeCurveEntities(curve, mx,
 						p=OCS_origin[:3]
 						entities.append(DXF.Line([[0,0,0], p],**common))
 						#OCS_origin=[0,0,0] #only debug----------------
-						dxfPLINE = DXF.PolyLine(points,OCS_origin,closed,**common)
+						dxfPLINE = DXF.PolyLine(points,OCS_origin, flag70=flag70, flag75=flag70, width=0.0,**common)
 						entities.append(dxfPLINE)
 	
-					dxfPLINE = DXF.PolyLine(points,OCS_origin,closed,**common)
+					dxfPLINE = DXF.PolyLine(points,OCS_origin, flag70=flag70, flag75=flag70, width=0.0,**common)
 					entities.append(dxfPLINE)
 					if Thickness:
 						common['thickness']= -Thickness
-						dxfPLINE = DXF.PolyLine(points,OCS_origin,closed,**common)
+						dxfPLINE = DXF.PolyLine(points,OCS_origin, flag70=flag70, flag75=flag70, width=0.0,**common)
 						entities.append(dxfPLINE)
 	
 				elif c=="LINEs": # export Curve as multiple LINEs
@@ -1561,8 +1627,9 @@ def do_export(export_list, filepath):
 					dxfLINE = DXF.Line(linepoints,paperspace=espace,color=LAYERCOLOR_DEF)
 					entities.append(dxfLINE)
 			else:
-				dxfPLINE = DXF.PolyLine(points,points[0],closed,\
-					paperspace=espace, color=LAYERCOLOR_DEF)
+				fag70, flag75 = closed, 0
+				dxfPOLYFACE = DXF.PolyLine([allpoints, faces], flag70=flag70, flag75=flag70, width=0.0, paperspace=espace, color=LAYERCOLOR_DEF)
+				#dxfPLINE = DXF.PolyLine(points,points[0],[closed,0,0], paperspace=espace, color=LAYERCOLOR_DEF)
 				d.append(dxfPLINE)
 
 
