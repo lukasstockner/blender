@@ -1,3 +1,8 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -19,11 +24,8 @@
 
 #include "BLI_pbvh.h"
 
+#include "ED_mesh.h"
 #include "paint_intern.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static void set_mask_value(MaskSetMode mode, float *m)
 {
@@ -113,4 +115,68 @@ void PAINT_OT_mask_set(wmOperatorType *ot)
 
 	/* properties */
 	RNA_def_enum(ot->srna, "mode", mask_items, MASKING_CLEAR, "Mode", "");
+}
+
+static int mask_layer_poll(bContext *C)
+{
+	return mask_poll(C) && ED_mesh_layers_poll(C);
+}
+
+static int mask_layer_add_exec(bContext *C, wmOperator *op)
+{
+	Object *ob= CTX_data_active_object(C);
+	Mesh *me= ob->data;
+	int top;
+
+	top= CustomData_number_of_layers(&me->vdata, CD_PAINTMASK);
+	CustomData_add_layer(&me->vdata, CD_PAINTMASK, CD_DEFAULT, NULL, me->totvert);
+	CustomData_set_layer_active(&me->vdata, CD_PAINTMASK, top);
+
+	return OPERATOR_FINISHED;
+}
+
+void PAINT_OT_mask_layer_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Add Mask Layer";
+	ot->description= "Add a paint mask layer";
+	ot->idname= "PAINT_OT_mask_layer_add";
+	
+	/* api callbacks */
+	ot->poll= mask_layer_poll;
+	ot->exec= mask_layer_add_exec;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int mask_layer_remove_exec(bContext *C, wmOperator *op)
+{
+	Object *ob= CTX_data_active_object(C);
+	Mesh *me= ob->data;
+	int active;
+
+	active = CustomData_get_active_layer_index(&me->vdata, CD_PAINTMASK);
+	
+	if(active >= 0)
+		CustomData_free_layer_active(&me->vdata, CD_PAINTMASK, me->totvert);
+	else
+		return OPERATOR_CANCELLED;
+
+	return OPERATOR_FINISHED;
+}
+
+void PAINT_OT_mask_layer_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Remove Mask Layer";
+	ot->description= "Remove the active paint mask layer";
+	ot->idname= "PAINT_OT_mask_layer_remove";
+	
+	/* api callbacks */
+	ot->poll= mask_layer_poll;
+	ot->exec= mask_layer_remove_exec;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }

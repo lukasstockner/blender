@@ -288,18 +288,21 @@ static CustomData *rna_mesh_fdata(Mesh *me)
 	return (me->edit_mesh)? &me->edit_mesh->fdata: &me->fdata;
 }
 
-static int rna_CustomDataLayer_length(PointerRNA *ptr, int type)
+static CustomData *rna_mesh_vdata(Mesh *me)
 {
-	Mesh *me= (Mesh*)ptr->id.data;
-	CustomData *fdata= rna_mesh_fdata(me);
-	CustomDataLayer *layer;
-	int i, length= 0;
+	return (me->edit_mesh)? &me->edit_mesh->vdata: &me->vdata;
+}
 
-	for(layer=fdata->layers, i=0; i<fdata->totlayer; layer++, i++)
-		if(layer->type == type)
-			length++;
+static int rna_face_CustomDataLayer_count(PointerRNA *ptr, int type)
+{
+	CustomData *fdata= rna_mesh_fdata(ptr->id.data);
+	return CustomData_number_of_layers(fdata, type);
+}
 
-	return length;
+static int rna_vert_CustomDataLayer_count(PointerRNA *ptr, int type)
+{
+	CustomData *vdata= rna_mesh_vdata(ptr->id.data);
+	return CustomData_number_of_layers(vdata, type);
 }
 
 static int rna_CustomDataLayer_active_get(PointerRNA *ptr, int type, int render)
@@ -361,7 +364,7 @@ static void rna_Mesh_uv_textures_begin(CollectionPropertyIterator *iter, Pointer
 
 static int rna_Mesh_uv_textures_length(PointerRNA *ptr)
 {
-	return rna_CustomDataLayer_length(ptr, CD_MTFACE);
+	return rna_face_CustomDataLayer_count(ptr, CD_MTFACE);
 }
 
 static PointerRNA rna_Mesh_active_uv_texture_get(PointerRNA *ptr)
@@ -685,7 +688,7 @@ static void rna_Mesh_vertex_colors_begin(CollectionPropertyIterator *iter, Point
 
 static int rna_Mesh_vertex_colors_length(PointerRNA *ptr)
 {
-	return rna_CustomDataLayer_length(ptr, CD_MCOL);
+	return rna_face_CustomDataLayer_count(ptr, CD_MCOL);
 }
 
 static PointerRNA rna_Mesh_active_vertex_color_get(PointerRNA *ptr)
@@ -782,6 +785,89 @@ static void rna_MeshColorLayer_name_set(PointerRNA *ptr, const char *value)
 	CustomData_set_layer_unique_name(fdata, cdl - fdata->layers);
 }
 
+/* Paint mask layer */
+
+static int rna_MeshPaintMaskLayer_data_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+
+	length[0] = me->totvert;
+
+	return length[0];
+}
+
+static void rna_MeshPaintMaskLayer_data_get(PointerRNA *ptr, float *values)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
+
+	memcpy(values, layer->data, me->totvert * sizeof(float));
+}
+
+static void rna_MeshPaintMaskLayer_data_set(PointerRNA *ptr, const float *values)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
+
+	memcpy(layer->data, values, me->totvert * sizeof(float));
+}
+
+static char *rna_MeshPaintMask_path(PointerRNA *ptr)
+{
+	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
+
+	return BLI_sprintfN("paintmask[%d]", (float*)ptr->data - (float*)layer->data);
+}
+
+static int rna_mask_layer_check(CollectionPropertyIterator *iter, void *data)
+{
+	CustomDataLayer *layer= (CustomDataLayer*)data;
+	return (layer->type != CD_PAINTMASK);
+}
+
+
+static void rna_Mesh_mask_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *vdata= rna_mesh_vdata(me);
+	rna_iterator_array_begin(iter, (void*)vdata->layers,
+				 sizeof(CustomDataLayer),
+				 vdata->totlayer, 0,
+				 rna_mask_layer_check);
+}
+
+static int rna_Mesh_mask_layers_length(PointerRNA *ptr)
+{
+	return rna_vert_CustomDataLayer_count(ptr, CD_PAINTMASK);
+}
+
+static int rna_Mesh_active_paint_mask_index_get(PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *vdata= rna_mesh_vdata(me);
+	return CustomData_get_active_layer(vdata, CD_PAINTMASK);
+}
+
+static void rna_Mesh_active_paint_mask_index_set(PointerRNA *ptr, int value)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *vdata= rna_mesh_vdata(me);
+
+	CustomData_set_layer_active(vdata, CD_PAINTMASK, value);
+}
+
+static void rna_Mesh_active_paint_mask_index_range(PointerRNA *ptr, int *min, int *max)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *vdata= rna_mesh_vdata(me);
+
+	*min= 0;
+	*max= CustomData_number_of_layers(vdata, CD_PAINTMASK)-1;
+	*max= MAX2(0, *max);
+}
+
+/* Custom property layers */
+
 static void rna_MeshFloatPropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	Mesh *me= (Mesh*)ptr->id.data;
@@ -810,7 +896,7 @@ static void rna_Mesh_float_layers_begin(CollectionPropertyIterator *iter, Pointe
 
 static int rna_Mesh_float_layers_length(PointerRNA *ptr)
 {
-	return rna_CustomDataLayer_length(ptr, CD_PROP_FLT);
+	return rna_face_CustomDataLayer_count(ptr, CD_PROP_FLT);
 }
 
 static int rna_int_layer_check(CollectionPropertyIterator *iter, void *data)
@@ -841,7 +927,7 @@ static void rna_Mesh_int_layers_begin(CollectionPropertyIterator *iter, PointerR
 
 static int rna_Mesh_int_layers_length(PointerRNA *ptr)
 {
-	return rna_CustomDataLayer_length(ptr, CD_PROP_INT);
+	return rna_face_CustomDataLayer_count(ptr, CD_PROP_INT);
 }
 
 static int rna_string_layer_check(CollectionPropertyIterator *iter, void *data)
@@ -872,7 +958,7 @@ static void rna_Mesh_string_layers_begin(CollectionPropertyIterator *iter, Point
 
 static int rna_Mesh_string_layers_length(PointerRNA *ptr)
 {
-	return rna_CustomDataLayer_length(ptr, CD_PROP_STR);
+	return rna_face_CustomDataLayer_count(ptr, CD_PROP_STR);
 }
 
 static void rna_TextureFace_image_set(PointerRNA *ptr, PointerRNA value)
@@ -1516,6 +1602,29 @@ static void rna_def_mcol(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 }
 
+static void rna_def_paintmask(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna= RNA_def_struct(brna, "MeshPaintMaskLayer", NULL);
+	RNA_def_struct_sdna(srna, "CustomDataLayer");
+	RNA_def_struct_ui_text(srna, "Mesh Paint Mask Layer", "");
+	RNA_def_struct_path_func(srna, "rna_MeshPaintMaskLayer_path");
+
+	prop= RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_struct_name_property(srna, prop);
+	RNA_def_property_ui_text(prop, "Name", "");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	prop= RNA_def_float_array(srna, "data", 1, NULL, 0.0f, 1.0f, "Vertex Paint Masks", "", 0.0f, 1.0f);
+	RNA_def_property_flag(prop, PROP_DYNAMIC);
+	RNA_def_property_dynamic_array_funcs(prop, "rna_MeshPaintMaskLayer_data_get_length");
+	RNA_def_property_float_funcs(prop, "rna_MeshPaintMaskLayer_data_get",
+				     "rna_MeshPaintMaskLayer_data_set", NULL);
+	RNA_def_struct_path_func(srna, "rna_MeshPaintMask_path");
+}
+
 static void rna_def_mproperties(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1721,6 +1830,19 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Active Vertex Color Index", "Active vertex color index");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
+	prop= RNA_def_property(srna, "paint_mask_layers", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "vdata.layers", "vdata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_mask_layers_begin",
+					  0, 0, 0, "rna_Mesh_mask_layers_length", 0, 0);
+	RNA_def_property_struct_type(prop, "MeshPaintMaskLayer");
+	RNA_def_property_ui_text(prop, "Paint Mask Layers", "Masked areas are not affected by paint brushes.");
+
+	prop= RNA_def_property(srna, "active_paint_mask_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_Mesh_active_paint_mask_index_get",
+				   "rna_Mesh_active_paint_mask_index_set",
+				   "rna_Mesh_active_paint_mask_index_range");
+	RNA_def_property_ui_text(prop, "Active Paint Mask Index", "Active paint mask layer index");
+
 	prop= RNA_def_property(srna, "float_layers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "fdata.layers", "fdata.totlayer");
 	RNA_def_property_collection_funcs(prop, "rna_Mesh_float_layers_begin", 0, 0, 0, "rna_Mesh_float_layers_length", 0, 0);
@@ -1918,6 +2040,7 @@ void RNA_def_mesh(BlenderRNA *brna)
 	rna_def_mtface(brna);
 	rna_def_msticky(brna);
 	rna_def_mcol(brna);
+	rna_def_paintmask(brna);
 	rna_def_mproperties(brna);
 }
 

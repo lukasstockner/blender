@@ -141,6 +141,8 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_face_select_all);
 
 	/* mask */
+	WM_operatortype_append(PAINT_OT_mask_layer_add);
+	WM_operatortype_append(PAINT_OT_mask_layer_remove);
 	WM_operatortype_append(PAINT_OT_mask_set);
 }
 

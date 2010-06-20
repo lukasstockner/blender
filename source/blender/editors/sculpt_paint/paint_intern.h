@@ -123,6 +123,9 @@ void undo_paint_push_count_alloc(int type, int size);
 void undo_paint_push_end(int type);
 
 /* paint_mask.c */
+void PAINT_OT_mask_layer_add(struct wmOperatorType *ot);
+void PAINT_OT_mask_layer_remove(struct wmOperatorType *ot);
+
 /* For now this is just temporary stuff to test masking */
 typedef enum {
 	MASKING_CLEAR,

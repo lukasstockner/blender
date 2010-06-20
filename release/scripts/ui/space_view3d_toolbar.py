@@ -498,8 +498,19 @@ class VIEW3D_PT_tools_masking(PaintPanel):
         layout = self.layout
 
         settings = self.paint_settings(context)
+        mesh = context.object.data
+
+        row = layout.row()
+
+        col = row.column()
+        col.template_list(mesh, "paint_mask_layers", mesh, "active_paint_mask_index", rows=2)
+
+        col = row.column(align=True)
+        col.operator("paint.mask_layer_add", icon='ZOOMIN', text="")
+        col.operator("paint.mask_layer_remove", icon='ZOOMOUT', text="")
 
         row = layout.row(align=True)
+        row.active = mesh.active_paint_mask_index != -1
         row.operator("paint.mask_set", text="Clear").mode = 'CLEAR'
         row.operator("paint.mask_set", text="Fill").mode = 'FILL'
         row.operator("paint.mask_set", text="Invert").mode = 'INVERT'
