@@ -545,6 +545,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
+		case SCULPT_TOOL_WAX:
 			return alpha * dir * flip * pressure * overlap;
 
 		case SCULPT_TOOL_SMOOTH:
@@ -1817,14 +1818,15 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 				point_plane_project(intr, vd.co, an, fc);
 				sub_v3_v3v3(val, intr, vd.co);
 				mul_v3_fl(val, fade);
-				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
 
 				sculpt_clip(sd, ss, vd.co, val);
 
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
+
+					if(brush->flag & BRUSH_SUBDIV)
+						vd.mvert->flag = 1; 
 				}
 			}
 		}
@@ -1860,7 +1862,74 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		radius    = -radius;
 	}
 
-	displace = radius * (1+offset);
+	displace = radius * (0.5f+offset);
+
+	mul_v3_v3v3(temp, an, ss->cache->scale);
+	mul_v3_fl(temp, displace);
+	add_v3_v3(fc, temp);
+
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	for (n = 0; n < totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+
+		sculpt_brush_test_init(ss, &test);
+
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
+				float intr[3];
+				float val[3];
+
+				const float fade = bstrength*tex_strength(ss, brush, vd.co, sqrt(test.dist));
+
+				point_plane_project(intr, vd.co, an, fc);
+				sub_v3_v3v3(val, intr, vd.co);
+				mul_v3_fl(val, fade);
+				add_v3_v3(val, vd.co);
+
+				sculpt_clip(sd, ss, vd.co, val);
+
+				if(vd.mvert) {
+					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+
+					if(brush->flag & BRUSH_SUBDIV)
+						vd.mvert->flag = 1; 
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+	}
+}
+
+static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	Brush *brush = paint_brush(&sd->paint);
+
+	float bstrength = ss->cache->bstrength;
+	float radius    = ss->cache->radius;
+	float offset    = get_offset(sd, ss);
+	
+	float displace;
+
+	float an[3]; // area normal
+	float fc[3]; // flatten center
+
+	int n;
+
+	float temp[3];
+
+	int flip;
+
+	calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, an, fc);
+
+	flip = bstrength < 0;
+
+	if (flip) {
+		bstrength = -bstrength;
+		radius    = -radius;
+	}
+
+	displace = radius * (0.5+offset);
 
 	mul_v3_v3v3(temp, an, ss->cache->scale);
 	mul_v3_fl(temp, displace);
@@ -2083,6 +2152,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 			break;
 		case SCULPT_TOOL_SCRAPE:
 			do_scrape_brush(sd, ss, nodes, totnode);
+			break;
+		case SCULPT_TOOL_WAX:
+			do_wax_brush(sd, ss, nodes, totnode);
 			break;
 		}
 
@@ -2421,7 +2493,7 @@ static void sculpt_update_cache_invariants(Sculpt *sd, SculptSession *ss, wmOper
 		cache->original = 1;
 	}
 
-	if(ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY))
+	if(ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_WAX))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
@@ -2608,7 +2680,6 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	/* Find the snake hook delta */
 	else if(brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK) {
 		float grab_location[3], imat[4][4];
-
 
 		if(cache->first_time)
 			copy_v3_v3(cache->orig_grab_location, cache->true_location);

@@ -110,6 +110,7 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_LAYER, "LAYER", 0, "Layer", ""},
 		{SCULPT_TOOL_FLATTEN, "FLATTEN", 0, "Flatten", ""},
 		{SCULPT_TOOL_CLAY, "CLAY", 0, "Clay", ""},
+		{SCULPT_TOOL_WAX, "WAX", 0, "Wax", ""},
 		{SCULPT_TOOL_FILL, "FILL", 0, "Fill", ""},
 		{SCULPT_TOOL_SCRAPE, "SCRAPE", 0, "Scrape", ""},
 		{0, NULL, 0, NULL, NULL}};
@@ -268,7 +269,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "plane_offset");
-	RNA_def_property_range(prop, -1.0f, 1.0f);
+	RNA_def_property_range(prop, -0.5f, 0.5f);
 	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts the plane on which the brush acts");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 

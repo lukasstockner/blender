@@ -583,7 +583,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
 
-            if brush.sculpt_tool in ('CLAY', 'FLATTEN', 'FILL', 'SCRAPE'):
+            if brush.sculpt_tool in ('CLAY', 'WAX', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
