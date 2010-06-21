@@ -401,9 +401,9 @@ static void wm_draw_triple_free(wmWindow *win)
 		wmDrawTriple *triple= win->drawdata;
 
 		glDeleteTextures(triple->nx*triple->ny, triple->bind);
+		glDeleteTextures(triple->depth_nx*triple->depth_ny, triple->depth_bind);
 
-		if (GLEW_ARB_depth_texture && GLEW_ARB_shader_objects) {
-			glDeleteTextures(triple->depth_nx*triple->depth_ny, triple->depth_bind);
+		if (GLEW_ARB_shader_objects) {
 			glDeleteObjectARB(triple->depth_vertex_shader);
 			glDeleteObjectARB(triple->depth_fragment_shader);
 			glDeleteObjectARB(triple->depth_program);

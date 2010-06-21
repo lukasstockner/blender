@@ -595,7 +595,6 @@ float get_tex_pixel(Brush* br, float u, float v)
 	TexResult texres;
 	float co[3];
 	int hasrgb;
-	int tmp;
 
 	co[0] = u;
 	co[1] = v;
