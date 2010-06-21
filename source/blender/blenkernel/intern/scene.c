@@ -353,6 +353,7 @@ Scene *add_scene(char *name)
 	sce->r.simplify_subsurf= 6;
 	sce->r.simplify_particles= 1.0f;
 	sce->r.simplify_shadowsamples= 16;
+	sce->r.simplify_shadowsize= 10240;
 	sce->r.simplify_aosss= 1.0f;
 
 	sce->r.cineonblack= 95;
@@ -1005,6 +1006,14 @@ int get_render_shadow_samples(RenderData *r, int samples)
 		return MIN2(r->simplify_shadowsamples, samples);
 	else
 		return samples;
+}
+
+int get_render_shadow_size(RenderData *r, int size)
+{
+	if((r->mode & R_SIMPLIFY) && size > 0)
+		return MIN2(r->simplify_shadowsize, size);
+	else
+		return size;
 }
 
 float get_render_aosss_error(RenderData *r, float error)

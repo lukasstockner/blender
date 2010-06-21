@@ -2807,10 +2807,10 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Simplify Child Particles", "Global child particles percentage");
 	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
 
-	prop= RNA_def_property(srna, "simplify_shadow_samples", PROP_INT, PROP_UNSIGNED);
+	prop= RNA_def_property(srna, "simplify_shadow_buffer_samples", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "simplify_shadowsamples");
 	RNA_def_property_ui_range(prop, 1, 16, 1, 0);
-	RNA_def_property_ui_text(prop, "Simplify Shadow Samples", "Global maximum shadow samples");
+	RNA_def_property_ui_text(prop, "Simplify Shadow Buffer Samples", "Global maximum shadow samples");
 	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
 
 	prop= RNA_def_property(srna, "simplify_ao_sss", PROP_FLOAT, PROP_FACTOR);
@@ -2822,6 +2822,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "simplify_miplevels");
 	RNA_def_property_ui_range(prop, 0, 10, 1, 0);
 	RNA_def_property_ui_text(prop, "Simplify Mipmap Levels", "Number of times to halve image resolution for images read from mipmapped texture files");
+	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
+
+	prop= RNA_def_property(srna, "simplify_shadow_buffer_size", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "simplify_shadowsize");
+	RNA_def_property_range(prop, 512, 10240);
+	RNA_def_property_ui_text(prop, "Simplify Shadow Buffer Size", "Global shadow buffer size limit");
 	RNA_def_property_update(prop, 0, "rna_Scene_simplify_update");
 
 	/* Scene API */

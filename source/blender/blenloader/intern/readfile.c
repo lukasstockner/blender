@@ -10977,6 +10977,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10))
+		do_version_shading_sys_250(fd, lib, main);
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 11))
+		do_version_subdivision_250(fd, lib, main);
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 12))
+		do_version_image_cache_250(fd, lib, main);
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 13))
+		do_version_sss_scale_250(fd, lib, main);
 
 	/* put 2.50 compatibility code here until next subversion bump */
 	{
@@ -11048,18 +11056,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					break;
 				}
 			}
+
+			if(scene->r.simplify_shadowsize == 0)
+				scene->r.simplify_shadowsize = 10240;
 		}
-
 	}
-
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10))
-		do_version_shading_sys_250(fd, lib, main);
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 11))
-		do_version_subdivision_250(fd, lib, main);
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 12))
-		do_version_image_cache_250(fd, lib, main);
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 13))
-		do_version_sss_scale_250(fd, lib, main);
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */

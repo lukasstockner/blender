@@ -89,6 +89,7 @@ void scene_add_render_layer(struct Scene *sce);
 int get_render_subsurf_level(struct RenderData *r, int level);
 int get_render_child_particle_number(struct RenderData *r, int num);
 int get_render_shadow_samples(struct RenderData *r, int samples);
+int get_render_shadow_size(struct RenderData *r, int size);
 float get_render_aosss_error(struct RenderData *r, float error);
 
 #endif

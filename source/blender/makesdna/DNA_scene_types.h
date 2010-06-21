@@ -371,8 +371,10 @@ typedef struct RenderData {
 	short simplify_subsurf;
 	short simplify_shadowsamples;
 	short simplify_miplevels;
+	int simplify_shadowsize;
 	float simplify_particles;
 	float simplify_aosss;
+	float simplify_pad;
 
 	/* cineon */
 	short cineonwhite, cineonblack;

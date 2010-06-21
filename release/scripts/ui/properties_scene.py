@@ -212,12 +212,13 @@ class SCENE_PT_simplify(SceneButtonsPanel):
         col = split.column()
         col.prop(rd, "simplify_subdivision", text="Subdivision")
         col.prop(rd, "simplify_child_particles", text="Child Particles")
+        col.prop(rd, "simplify_mipmap_levels", text="Mipmap Levels")
 
         if wide_ui:
             col = split.column()
-        col.prop(rd, "simplify_shadow_samples", text="Shadow Samples")
+        col.prop(rd, "simplify_shadow_buffer_size", text="Shadow Buffer Size")
+        col.prop(rd, "simplify_shadow_buffer_samples", text="Shadow Buffer Samples")
         col.prop(rd, "simplify_ao_sss", text="AO and SSS")
-        col.prop(rd, "simplify_mipmap_levels", text="Mipmap Levels")
 
 
 from bpy.props import *

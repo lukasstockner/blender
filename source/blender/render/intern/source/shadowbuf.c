@@ -2775,6 +2775,7 @@ void shadowbuf_create(Render *re, LampRen *lar, float mat[][4])
 	
 	/* percentage render: keep track of min and max */
 	shb->size= (lar->bufsize*re->params.r.size)/100;
+	shb->size= get_render_shadow_size(&re->params.r, shb->size);
 	
 	if(shb->size<512) shb->size= 512;
 	else if(shb->size > lar->bufsize) shb->size= lar->bufsize;
