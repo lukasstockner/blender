@@ -2644,6 +2644,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 struct DerivedMesh *subsurf_make_derived_from_derived(
 						struct DerivedMesh *dm,
 						struct SubsurfModifierData *smd,
+						struct GridKey *gridkey,
 						int useRenderParams, float (*vertCos)[3],
 						int isFinalCalc, int editMode)
 {
@@ -2652,11 +2653,12 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	int useSubsurfUv = smd->flags & eSubsurfModifierFlag_SubsurfUv;
 	int drawInteriorEdges = !(smd->flags & eSubsurfModifierFlag_ControlEdges);
 	CCGDerivedMesh *result;
-	GridKey *gridkey;
 
-	/* TODO */
-	gridkey = MEM_callocN(sizeof(GridKey), "subsurf_make_derived_from_derived.GridKey");
-	GRIDELEM_KEY_INIT(gridkey, 1, 1, 1);
+	if(!gridkey) {
+		/* create default gridkey */
+		gridkey = MEM_callocN(sizeof(GridKey), "subsurf_make_derived_from_derived.GridKey");
+		GRIDELEM_KEY_INIT(gridkey, 1, 0, 1);
+	}
 
 	if(editMode) {
 		int levels= (smd->modifier.scene)? get_render_subsurf_level(&smd->modifier.scene->r, smd->levels): smd->levels;

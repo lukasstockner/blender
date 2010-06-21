@@ -431,7 +431,7 @@ static void delete_buffer(GLuint *buf)
    convert the mask strength to RGB-bytes */
 static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
 {
-	unsigned char v = (unsigned char)(mask_strength * 128.0f) + 64;
+	unsigned char v = (unsigned char)((1 - mask_strength) * 128.0f) + 64;
 	out[0] = v;
 	out[1] = v;
 	out[2] = v;

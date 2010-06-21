@@ -90,7 +90,7 @@ static DerivedMesh *applyModifier(
 	SubsurfModifierData *smd = (SubsurfModifierData*) md;
 	DerivedMesh *result;
 
-	result = subsurf_make_derived_from_derived(derivedData, smd,
+	result = subsurf_make_derived_from_derived(derivedData, smd, NULL,
 			useRenderParams, NULL, isFinalCalc, 0);
 	
 	if(useRenderParams || !isFinalCalc) {
@@ -109,7 +109,7 @@ static DerivedMesh *applyModifierEM(
 	SubsurfModifierData *smd = (SubsurfModifierData*) md;
 	DerivedMesh *result;
 
-	result = subsurf_make_derived_from_derived(derivedData, smd, 0,
+	result = subsurf_make_derived_from_derived(derivedData, smd, NULL, 0,
 			NULL, 0, 1);
 
 	return result;

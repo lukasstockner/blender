@@ -29,8 +29,8 @@
 
 static void set_mask_value(MaskSetMode mode, float *m)
 {
-	*m = (mode == MASKING_CLEAR ? 1 :
-	      mode == MASKING_FILL ? 0 :
+	*m = (mode == MASKING_CLEAR ? 0 :
+	      mode == MASKING_FILL ? 1 :
 	      mode == MASKING_INVERT ? (1 - *m) :
 	      mode == MASKING_RANDOM ? (float)rand() / RAND_MAX : 0);
 }

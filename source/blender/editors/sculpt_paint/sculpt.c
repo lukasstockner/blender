@@ -745,7 +745,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, float *mas
 
 	avg*= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
 	if(mask)
-		avg*= *mask;
+		avg*= 1 - (*mask);
 
 	return avg;
 }
@@ -1426,7 +1426,7 @@ static void do_mask_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 				if(sculpt_brush_test(&test, vd.co)) {
 					float fade = tex_strength(ss, brush, vd.co, NULL, test.dist)*bstrength;
 
-					*vd.mask -= fade;
+					*vd.mask += fade;
 					CLAMP(*vd.mask, 0, 1);
 				
 					if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;

@@ -447,6 +447,15 @@ static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm, int lv
 	return multires_dm_create_from_derived(&mmd, 1, dm, ob, 0, 0);
 }
 
+static GridKey *create_gridkey(DerivedMesh *dm)
+{
+	GridKey *gridkey = MEM_callocN(sizeof(GridKey), "create_gridkey");
+
+	GRIDELEM_KEY_INIT(gridkey, 1, 1, 1);
+
+	return gridkey;
+}
+
 static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl, int simple, int optimal)
 {
 	SubsurfModifierData smd;
@@ -459,7 +468,7 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	if(optimal)
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
-	return subsurf_make_derived_from_derived(dm, &smd, 0, NULL, 0, 0);
+	return subsurf_make_derived_from_derived(dm, &smd, create_gridkey(dm), 0, NULL, 0, 0);
 }
 
 static DMGridData **copy_grids(DMGridData **grids, int totgrid, int gridsize, GridKey *gridkey)
@@ -645,8 +654,6 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 			/* TODO: for now we just always have a paintmask layer */
 			if(!stored_mask_layer) {
 				stored_mask_layer = CustomData_add_layer(&stored_grids[i], CD_PAINTMASK, CD_CALLOC, NULL, dGridSize*dGridSize*numVerts);
-				for(x = 0; x < dGridSize*dGridSize*numVerts; ++x)
-					stored_mask_layer[x] = 1;
 			}
 		}
 

@@ -559,7 +559,7 @@ void shrinkwrapModifier_deform(ShrinkwrapModifierData *smd, Scene *scene, Object
 			ssmd.subdivType	= ME_CC_SUBSURF;		//catmull clark
 			ssmd.levels		= smd->subsurfLevels;	//levels
 
-			ss_mesh = subsurf_make_derived_from_derived(dm, &ssmd, FALSE, NULL, 0, 0);
+			ss_mesh = subsurf_make_derived_from_derived(dm, &ssmd, NULL, FALSE, NULL, 0, 0);
 
 			if(ss_mesh)
 			{
