@@ -227,6 +227,17 @@ static void update_node_vb(PBVH *bvh, PBVHNode *node)
 	node->vb= vb;
 }
 
+//void BLI_pbvh_node_BB_reset(PBVHNode* node)
+//{
+//	BB_reset(&node->vb);
+//}
+//
+//void BLI_pbvh_node_BB_expand(PBVHNode* node, float co[3])
+//{
+//	BB_expand(&node->vb, co);
+//}
+
+
 /* Adapted from BLI_kdopbvh.c */
 /* Returns the index of the first element on the right of the partition */
 static int partition_indices(int *prim_indices, int lo, int hi, int axis,
