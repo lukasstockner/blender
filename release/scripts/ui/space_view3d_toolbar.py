@@ -588,10 +588,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
 
-            if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY', 'GRAB'):
+            if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY', 'WAX', 'GRAB'):
                 col.row().prop(brush, "direction", expand=True)
 
-            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY'):
+            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY', 'WAX'):
                 col.prop(brush, "use_accumulate")
 
             if brush.sculpt_tool == 'LAYER':
@@ -782,7 +782,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 if brush.use_anchor:
                     layout.prop(brush, "edge_to_edge", "Edge To Edge")
             layout.prop(brush, "use_rake")
-            if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'FILL', 'SCRAPE'):
+            if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'WAX', 'FILL', 'SCRAPE'):
                 layout.prop(brush, "use_original_normal")
                 if brush.use_original_normal:
                     col = layout.column()
@@ -853,7 +853,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "fast_navigate")
         col.prop(sculpt, "use_openmp")
 
-        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'PINCH'):
+        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH'):
             sub = col.column()
             sub.label(text="Color:")
             sub.prop(brush, "add_col", text="Add")
