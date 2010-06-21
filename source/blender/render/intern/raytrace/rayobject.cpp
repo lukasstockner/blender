@@ -72,6 +72,8 @@ MALWAYS_INLINE RayObject* rayface_from_coords(RayFace *rayface, void *ob, void *
 
 MALWAYS_INLINE void rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
 {
+	rayface_from_coords(rayface, obi, vlr, vlr->v1->co, vlr->v2->co, vlr->v3->co, vlr->v4 ? vlr->v4->co : 0);
+
 	if(obi->transform_primitives)
 	{
 		mul_m4_v3(obi->mat, rayface->v1);
@@ -81,8 +83,6 @@ MALWAYS_INLINE void rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, 
 		if(RE_rayface_isQuad(rayface))
 			mul_m4_v3(obi->mat, rayface->v4);
 	}
-
-	rayface_from_coords(rayface, obi, vlr, vlr->v1->co, vlr->v2->co, vlr->v3->co, vlr->v4 ? vlr->v4->co : 0);
 }
 
 RayObject* RE_rayface_from_vlak(RayFace *rayface, ObjectInstanceRen *obi, VlakRen *vlr)
