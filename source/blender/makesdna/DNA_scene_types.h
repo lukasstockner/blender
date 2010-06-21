@@ -1123,13 +1123,14 @@ typedef enum {
 /* Sculpt.flags */
 /* These can eventually be moved to paint flags? */
 typedef enum SculptFlags {
-	SCULPT_SYMM_X = 1,
-	SCULPT_SYMM_Y = 2,
-	SCULPT_SYMM_Z = 4,
-	SCULPT_LOCK_X = 64,
-	SCULPT_LOCK_Y = 128,
-	SCULPT_LOCK_Z = 256,
-	SCULPT_SYMMETRY_FEATHER = 512,
+	SCULPT_SYMM_X = (1<<0),
+	SCULPT_SYMM_Y = (1<<1),
+	SCULPT_SYMM_Z = (1<<2),
+	SCULPT_LOCK_X = (1<<3),
+	SCULPT_LOCK_Y = (1<<4),
+	SCULPT_LOCK_Z = (1<<5),
+	SCULPT_SYMMETRY_FEATHER = (1<<6),
+	SCULPT_USE_OPENMP = (1<<7),
 } SculptFlags;
 
 /* ImagePaintSettings.flag */

@@ -91,9 +91,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#ifdef _OPENMP
-//#include <omp.h>
-//#endif
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 void ED_sculpt_force_update(bContext *C)
 {
@@ -821,103 +821,111 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 {
 	Brush *brush = paint_brush(&sd->paint);
 
-	int n;
+	if (ss->cache->symmetry_pass == 0 &&
+	   (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
+	{
+		int sculpt_direction = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_direction : SCULPT_DISP_DIR_AREA;
 
-	float out_flip[3] = {0.0f, 0.0f, 0.0f};
+		switch (sculpt_direction) {
+			case SCULPT_DISP_DIR_VIEW:
+				viewvector(ss->cache->vc->rv3d, ss->cache->vc->rv3d->twmat[3], an);
+				break;
 
-	zero_v3(an);
+			case SCULPT_DISP_DIR_X:
+				an[1] = 0.0;
+				an[2] = 0.0;
+				an[0] = 1.0;
+				break;
 
-	/* threaded loop over nodes */
-	//#pragma omp parallel for schedule(static)
-	for(n=0; n<totnode; n++) {
-		PBVHVertexIter vd;
-		SculptBrushTest test;
+			case SCULPT_DISP_DIR_Y:
+				an[0] = 0.0;
+				an[2] = 0.0;
+				an[1] = 1.0;
+				break;
 
-		SculptUndoNode *unode = sculpt_undo_push_node(ss, nodes[n]);
-		sculpt_brush_test_init(ss, &test);
+			case SCULPT_DISP_DIR_Z:
+				an[0] = 0.0;
+				an[1] = 0.0;
+				an[2] = 1.0;
+				break;
 
-		if(ss->cache->original) {
-			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
-					float fno[3];
+			case SCULPT_DISP_DIR_AREA:
+				/* this calculates flatten center and area normal together, 
+				amortizing the memory bandwidth and loop overhead to calculate both at the same time */
+				{
+					int n;
 
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
-					add_norm_if(ss->cache->view_normal_symmetry, an, out_flip, fno);
-				}
-			}
-			BLI_pbvh_vertex_iter_end;
-		}
-		else {
-			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(sculpt_brush_test_fast(&test, vd.co)) {
-					if(vd.no) {
-						float fno[3];
+					float out_flip[3] = {0.0f, 0.0f, 0.0f};
 
-						normal_short_to_float_v3(fno, vd.no);
-						add_norm_if(ss->cache->view_normal_symmetry, an, out_flip, fno);
+					zero_v3(an);
+
+					#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+					for(n=0; n<totnode; n++) {
+						PBVHVertexIter vd;
+						SculptBrushTest test;
+						SculptUndoNode *unode;
+						float private_an[3] = {0.0f, 0.0f, 0.0f};
+						float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
+						float private_fc[3] = {0.0f, 0.0f, 0.0f};
+						int private_count = 0;
+
+						unode = sculpt_undo_push_node(ss, nodes[n]);
+						sculpt_brush_test_init(ss, &test);
+
+						if(ss->cache->original) {
+							BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+								if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
+									float fno[3];
+
+									normal_short_to_float_v3(fno, unode->no[vd.i]);
+									add_norm_if(ss->cache->view_normal_symmetry, private_an, private_out_flip, fno);
+								}
+							}
+							BLI_pbvh_vertex_iter_end;
+						}
+						else {
+							BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+								if(sculpt_brush_test_fast(&test, vd.co)) {
+									if(vd.no) {
+										float fno[3];
+
+										normal_short_to_float_v3(fno, vd.no);
+										add_norm_if(ss->cache->view_normal_symmetry, private_an, private_out_flip, fno);
+									}
+									else {
+										add_norm_if(ss->cache->view_normal_symmetry, private_an, private_out_flip, vd.fno);
+									}
+								}
+							}
+							BLI_pbvh_vertex_iter_end;
+						}
+
+						#pragma omp critical
+						{
+							add_v3_v3(an, private_an);
+							add_v3_v3(out_flip, private_out_flip);
+						}
 					}
-					else {
-						add_norm_if(ss->cache->view_normal_symmetry, an, out_flip, vd.fno);
-					}
+
+					if (is_zero_v3(an))
+						copy_v3_v3(an, out_flip);
+
+					normalize_v3(an);
 				}
-			}
-			BLI_pbvh_vertex_iter_end;
+
+			default:
+				break;
 		}
-	}
 
-	// openmp has a feature for doing final gathering, when
-	// this is added back, use that instead of this below
-	//#pragma omp critical
-	//{
-	//	/* we sum per node and add together later for threads */
-	//	add_v3_v3(out, nout);
-	//	add_v3_v3(out_flip, nout_flip);
-	//}
-
-	if (is_zero_v3(an)) copy_v3_v3(an, out_flip);
-
-	normalize_v3(an);
-	
-	switch (brush->sculpt_direction) {
-		case SCULPT_DISP_DIR_VIEW:
-			viewvector(ss->cache->vc->rv3d, ss->cache->vc->rv3d->twmat[3], an);
-			break;
-		case SCULPT_DISP_DIR_X:
-			an[1] = 0.0;
-			an[2] = 0.0;
-			an[0] = 1.0;
-			break;
-		case SCULPT_DISP_DIR_Y:
-			an[0] = 0.0;
-			an[2] = 0.0;
-			an[1] = 1.0;
-			break;
-		case SCULPT_DISP_DIR_Z:
-			an[0] = 0.0;
-			an[1] = 0.0;
-			an[2] = 1.0;
-			break;
-		case SCULPT_DISP_DIR_AREA:
-		default:
-			break;
-	}
-
-	if (brush->sculpt_direction != SCULPT_DISP_DIR_AREA) {
-		normalize_v3(an);
-		flip_coord(an, an, ss->cache->symmetry_pass);
-	}
-
-	if ((!ss->cache->first_time)&&(brush->flag & BRUSH_ORIGINAL_NORMAL)) {
-		copy_v3_v3(an, ss->cache->last_area_normal);
-		flip_coord(an, an, ss->cache->symmetry_pass);
-		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
-		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
+		copy_v3_v3(ss->cache->last_area_normal, an);
+		copy_v3_v3(ss->cache->last_view_normal_symmetry, ss->cache->view_normal_symmetry);
 	}
 	else {
-		if (ss->cache->symmetry_pass==0) {
-			copy_v3_v3(ss->cache->last_area_normal, an);
-			copy_v3_v3(ss->cache->last_view_normal_symmetry, ss->cache->view_normal_symmetry);
-		}
+		copy_v3_v3(an, ss->cache->last_area_normal);
+		flip_coord(an, an, ss->cache->symmetry_pass);
+
+		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
+		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
 	}
 }
 
@@ -1080,7 +1088,7 @@ static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode,
 	int iteration, n;
 
 	for(iteration = 0; iteration < 2; ++iteration) {
-		//#pragma omp parallel for schedule(static)
+		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
 			if(ss->multires)
 				do_multires_smooth_brush(sd, ss, nodes[n], bstrength);
@@ -1113,7 +1121,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_fl(offset, bstrength);
 
 	/* threaded loop over nodes */
-	//#pragma omp parallel for schedule(static)
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1147,7 +1155,7 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	//#pragma omp parallel for schedule(static)
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1199,6 +1207,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		add_v3_v3(grab_delta, an);
 	}
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1245,6 +1254,7 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	cross_v3_v3v3(tmp, an, grab_delta);
 	cross_v3_v3v3(cono, tmp, an);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1295,6 +1305,7 @@ static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 		add_v3_v3(grab_delta, an);
 	}
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1338,6 +1349,7 @@ static void do_thumb_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	cross_v3_v3v3(tmp, an, grab_delta);
 	cross_v3_v3v3(cono, tmp, an);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1382,6 +1394,7 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
 	axis_angle_to_mat3(m, an, angle);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1427,7 +1440,7 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 	mul_v3_v3v3(offset, ss->cache->scale, area_normal);
 
-	//#pragma omp parallel for schedule(static)
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1485,7 +1498,7 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	//#pragma omp parallel for schedule(static)
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1516,46 +1529,32 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	}
 }
 
-static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float an[3], float fc[3])
+static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float fc[3])
 {
-	Brush *brush = paint_brush(&sd->paint);
-
 	int n;
 
-	// an
-	float out_flip[3] = {0.0f, 0.0f, 0.0f};
-
-	// fc
 	float count = 0;
 
-	// an
-	zero_v3(an);
-
-	// fc
 	zero_v3(fc);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		SculptUndoNode *unode;
+		float private_an[3] = {0.0f, 0.0f, 0.0f};
+		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
+		float private_fc[3] = {0.0f, 0.0f, 0.0f};
+		int private_count = 0;
 
-		// an
 		unode = sculpt_undo_push_node(ss, nodes[n]);
 		sculpt_brush_test_init(ss, &test);
 
 		if(ss->cache->original) {
-
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
-					// an
-					float fno[3];
-
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
-					add_norm_if(ss->cache->view_normal_symmetry, an, out_flip, fno);
-
-					// fc
-					add_v3_v3(fc, vd.co);
-					count++;
+					add_v3_v3(private_fc, vd.co);
+					private_count++;
 				}
 			}
 			BLI_pbvh_vertex_iter_end;
@@ -1563,85 +1562,173 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 		else {
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(sculpt_brush_test_fast(&test, vd.co)) {
-					// an
-					if(vd.no) {
-						float fno[3];
-
-						normal_short_to_float_v3(fno, vd.no);
-						add_norm_if(ss->cache->view_normal_symmetry, an, out_flip, fno);
-					}
-					else {
-						add_norm_if(ss->cache->view_normal_symmetry, an, out_flip, vd.fno);
-					}
-
-					// fc
-					add_v3_v3(fc, vd.co);
-					count++;
+					add_v3_v3(private_fc, vd.co);
+					private_count++;
 				}
 			}
 			BLI_pbvh_vertex_iter_end;
 		}
+
+		#pragma omp critical
+		{
+			add_v3_v3(fc, private_fc);
+			count += private_count;
+		}
 	}
 
-	// an
-	if (is_zero_v3(an)) copy_v3_v3(an, out_flip);
+	mul_v3_fl(fc, 1.0f / count);
+}
 
-	normalize_v3(an);
+static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float an[3], float fc[3])
+{
+	Brush *brush = paint_brush(&sd->paint);
 
-	switch (brush->sculpt_direction) {
-		case SCULPT_DISP_DIR_VIEW:
-			viewvector(ss->cache->vc->rv3d, ss->cache->vc->rv3d->twmat[3], an);
-			break;
-		case SCULPT_DISP_DIR_X:
-			an[1] = 0.0;
-			an[2] = 0.0;
-			an[0] = 1.0;
-			break;
-		case SCULPT_DISP_DIR_Y:
-			an[0] = 0.0;
-			an[2] = 0.0;
-			an[1] = 1.0;
-			break;
-		case SCULPT_DISP_DIR_Z:
-			an[0] = 0.0;
-			an[1] = 0.0;
-			an[2] = 1.0;
-			break;
-		case SCULPT_DISP_DIR_AREA:
-		default:
-			break;
+	if (ss->cache->symmetry_pass == 0 &&
+	   (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
+	{
+		int sculpt_direction = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_direction : SCULPT_DISP_DIR_AREA;
+
+		switch (sculpt_direction) {
+			case SCULPT_DISP_DIR_VIEW:
+				viewvector(ss->cache->vc->rv3d, ss->cache->vc->rv3d->twmat[3], an);
+				break;
+
+			case SCULPT_DISP_DIR_X:
+				an[1] = 0.0;
+				an[2] = 0.0;
+				an[0] = 1.0;
+				break;
+
+			case SCULPT_DISP_DIR_Y:
+				an[0] = 0.0;
+				an[2] = 0.0;
+				an[1] = 1.0;
+				break;
+
+			case SCULPT_DISP_DIR_Z:
+				an[0] = 0.0;
+				an[1] = 0.0;
+				an[2] = 1.0;
+				break;
+
+			case SCULPT_DISP_DIR_AREA:
+				/* this calculates flatten center and area normal together, 
+				amortizing the memory bandwidth and loop overhead to calculate both at the same time */
+				{
+					int n;
+
+					// an
+					float out_flip[3] = {0.0f, 0.0f, 0.0f};
+
+					// fc
+					float count = 0;
+
+					// an
+					zero_v3(an);
+
+					// fc
+					zero_v3(fc);
+
+					#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+					for(n=0; n<totnode; n++) {
+						PBVHVertexIter vd;
+						SculptBrushTest test;
+						SculptUndoNode *unode;
+						float private_an[3] = {0.0f, 0.0f, 0.0f};
+						float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
+						float private_fc[3] = {0.0f, 0.0f, 0.0f};
+						int private_count = 0;
+
+						unode = sculpt_undo_push_node(ss, nodes[n]);
+						sculpt_brush_test_init(ss, &test);
+
+						if(ss->cache->original) {
+							BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+								if(sculpt_brush_test_fast(&test, unode->co[vd.i])) {
+									// an
+									float fno[3];
+
+									normal_short_to_float_v3(fno, unode->no[vd.i]);
+									add_norm_if(ss->cache->view_normal_symmetry, private_an, private_out_flip, fno);
+
+									// fc
+									add_v3_v3(private_fc, vd.co);
+									private_count++;
+								}
+							}
+							BLI_pbvh_vertex_iter_end;
+						}
+						else {
+							BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+								if(sculpt_brush_test_fast(&test, vd.co)) {
+									// an
+									if(vd.no) {
+										float fno[3];
+
+										normal_short_to_float_v3(fno, vd.no);
+										add_norm_if(ss->cache->view_normal_symmetry, private_an, private_out_flip, fno);
+									}
+									else {
+										add_norm_if(ss->cache->view_normal_symmetry, private_an, private_out_flip, vd.fno);
+									}
+
+									// fc
+									add_v3_v3(private_fc, vd.co);
+									private_count++;
+								}
+							}
+							BLI_pbvh_vertex_iter_end;
+						}
+
+						#pragma omp critical
+						{
+							// an
+							add_v3_v3(an, private_an);
+							add_v3_v3(out_flip, private_out_flip);
+
+							// fc
+							add_v3_v3(fc, private_fc);
+							count += private_count;
+						}
+					}
+
+					// an
+					if (is_zero_v3(an))
+						copy_v3_v3(an, out_flip);
+
+					normalize_v3(an);
+
+					// fc
+					mul_v3_fl(fc, 1.0f / count);
+				}
+
+			default:
+				break;
+		}
+
+		// fc
+		/* flatten center has not been calculated yet if we are not using the area normal */
+		if (sculpt_direction != SCULPT_DISP_DIR_AREA)
+			calc_flatten_center(sd, ss, nodes, totnode, fc);
+
+		// an
+		copy_v3_v3(ss->cache->last_area_normal, an);
+		copy_v3_v3(ss->cache->last_view_normal_symmetry, ss->cache->view_normal_symmetry);
+
+		// fc
+		copy_v3_v3(ss->cache->last_center, fc);
 	}
-
-	if (brush->sculpt_direction != SCULPT_DISP_DIR_AREA) {
-		normalize_v3(an);
-		flip_coord(an, an, ss->cache->symmetry_pass);
-	}
-
-	if ((!ss->cache->first_time)&&(brush->flag & BRUSH_ORIGINAL_NORMAL)) {
+	else {
+		// an
 		copy_v3_v3(an, ss->cache->last_area_normal);
 		flip_coord(an, an, ss->cache->symmetry_pass);
+
 		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
 		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
-	}
-	else {
-		if (ss->cache->symmetry_pass==0) {
-			copy_v3_v3(ss->cache->last_area_normal, an);
-			copy_v3_v3(ss->cache->last_view_normal_symmetry, ss->cache->view_normal_symmetry);
-		}
-	}
 
-	// fc
-	mul_v3_fl(fc, 1.0f / count);
-	
-	/* reuse the center when keeping the starting normal */
-	if((!ss->cache->first_time)&&(brush->flag & BRUSH_ORIGINAL_NORMAL)) {
+		// fc
 		copy_v3_v3(fc, ss->cache->last_center);
 		flip_coord(fc, fc, ss->cache->symmetry_pass);
-	}
-	else {
-		if(!ss->cache->symmetry_pass) {
-			copy_v3_v3(ss->cache->last_center, fc);
-		}
 	}
 }
 
@@ -1713,6 +1800,7 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter  vd;
 		SculptBrushTest test;
@@ -1778,6 +1866,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1836,6 +1925,7 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1894,6 +1984,7 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1932,7 +2023,7 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 	SculptSearchSphereData data;
 	Brush *brush = paint_brush(&sd->paint);
 	PBVHNode **nodes = NULL;
-	int i, totnode;
+	int n, totnode;
 
 	/* Build a list of all nodes that are potentially within the brush's area of influence */
 	data.ss = ss;
@@ -1943,9 +2034,10 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 
 	/* Only act if some verts are inside the brush area */
 	if (totnode) {
-		for (i = 0; i < totnode; i++) {
-			sculpt_undo_push_node(ss, nodes[i]);
-			BLI_pbvh_node_mark_update(nodes[i]);
+		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+		for (n= 0; n < totnode; n++) {
+			sculpt_undo_push_node(ss, nodes[n]);
+			BLI_pbvh_node_mark_update(nodes[n]);
 		}
 
 		/* Apply one type of brush action */
@@ -2013,6 +2105,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 
 	BLI_pbvh_gather_proxies(ss->pbvh, &nodes, &totnode);
 
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for (n= 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PBVHProxyNode* proxies;
@@ -2748,7 +2841,7 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 
 		BLI_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
 
-		//#pragma omp parallel for schedule(static)
+		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
 			SculptUndoNode *unode;
 			
@@ -2843,9 +2936,10 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 
 		sculpt_undo_push_begin(sculpt_tool_name(sd));
 
-//#ifdef _OPENMP
-//		omp_set_num_threads(10);
-//#endif
+#ifdef _OPENMP
+		if (sd->flags & SCULPT_USE_OPENMP)
+			omp_set_num_threads(10);
+#endif
 
 		return 1;
 	}

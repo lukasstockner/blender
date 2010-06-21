@@ -851,6 +851,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         if sculpt.show_brush:
             col.prop(sculpt, "show_brush_on_surface")
         col.prop(sculpt, "fast_navigate")
+        col.prop(sculpt, "use_openmp")
 
         if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'PINCH'):
             sub = col.column()
