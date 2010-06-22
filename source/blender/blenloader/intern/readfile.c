@@ -5220,6 +5220,10 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				}
 				snode->nodetree= snode->edittree= NULL;
 			}
+			else if(sl->spacetype==SPACE_TIME) {
+				SpaceTime *stime= (SpaceTime *)sl;
+				stime->caches.first= stime->caches.last= NULL;
+			}
 			else if(sl->spacetype==SPACE_LOGIC) {
 				SpaceLogic *slogic= (SpaceLogic *)sl;
 					
