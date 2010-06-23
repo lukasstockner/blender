@@ -1544,11 +1544,7 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 	}
 	
 	/* setup render stuff */
-	re->db.memArena = BLI_memarena_new(BLI_MEMARENA_STD_BUFSIZE, "bake db arena");
-	
-	re->db.totvlak=re->db.totvert=re->db.totstrand=re->db.totlamp=re->db.tothalo= 0;
-	re->db.lights.first= re->db.lights.last= NULL;
-	re->db.lampren.first= re->db.lampren.last= NULL;
+	render_db_init(&re->db);
 
 	/* if no camera, set unit */
 	if(re->db.scene->camera) {
