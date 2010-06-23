@@ -1013,6 +1013,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	DMGridAdjacency *gridadj, *adj;
 	float co[3], (*tmpgrid)[3];
 	int v1, v2, v3, v4;
+	int v5, v6, v7, v8, v9;
 	int *grid_indices, totgrid, gridsize, i, x, y;
 			
 	sculpt_brush_test_init(ss, &test);
@@ -1023,27 +1024,143 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	//#pragma omp critical
 	tmpgrid= MEM_mallocN(sizeof(float)*3*gridsize*gridsize, "tmpgrid");
 
+	//#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(i = 0; i < totgrid; ++i) {
 		data = griddata[grid_indices[i]];
 		adj = &gridadj[grid_indices[i]];
 
-		memset(tmpgrid, 0, sizeof(float)*3*gridsize*gridsize);
+		//memset(tmpgrid, 0, sizeof(float)*3*gridsize*gridsize);
+
+		for(x = 1; x < gridsize-1; ++x)  {
+			v2 = (x-1);
+			v3 = (x-1) + gridsize;
+			v5 = (x  );
+			v6 = (x  ) + gridsize;
+			v8 = (x+1);
+			v9 = (x+1) + gridsize;
+
+			copy_v3_v3(tmpgrid[v5], data[v2].co);
+			add_v3_v3 (tmpgrid[v5], data[v3].co);
+			add_v3_v3 (tmpgrid[v5], data[v5].co);
+			add_v3_v3 (tmpgrid[v5], data[v6].co);
+			add_v3_v3 (tmpgrid[v5], data[v8].co);
+			add_v3_v3 (tmpgrid[v5], data[v9].co);
+			mul_v3_fl (tmpgrid[v5], 1/6.0f);
+		}
+
+		for(x = 1; x < gridsize-1; ++x)  {
+			v1 = (x-1) + (gridsize-2)*gridsize;
+			v2 = (x-1) + (gridsize-1)*gridsize;
+			v4 = (x  ) + (gridsize-2)*gridsize;
+			v5 = (x  ) + (gridsize-1)*gridsize;
+			v7 = (x+1) + (gridsize-2)*gridsize;
+			v8 = (x+1) + (gridsize-1)*gridsize;
+
+			copy_v3_v3(tmpgrid[v5], data[v1].co);
+			add_v3_v3 (tmpgrid[v5], data[v2].co);
+			add_v3_v3 (tmpgrid[v5], data[v4].co);
+			add_v3_v3 (tmpgrid[v5], data[v5].co);
+			add_v3_v3 (tmpgrid[v5], data[v7].co);
+			add_v3_v3 (tmpgrid[v5], data[v8].co);
+			mul_v3_fl (tmpgrid[v5], 1/6.0f);
+		}
+
+		for(y = 1; y < gridsize-1; ++y)  {
+			v4 =     (y-1)*gridsize;
+			v5 =     (y  )*gridsize;
+			v6 =     (y+1)*gridsize;
+			v7 = 1 + (y-1)*gridsize;
+			v8 = 1 + (y  )*gridsize;
+			v9 = 1 + (y+1)*gridsize;
+
+			copy_v3_v3(tmpgrid[v5], data[v4].co);
+			add_v3_v3 (tmpgrid[v5], data[v5].co);
+			add_v3_v3 (tmpgrid[v5], data[v6].co);
+			add_v3_v3 (tmpgrid[v5], data[v7].co);
+			add_v3_v3 (tmpgrid[v5], data[v8].co);
+			add_v3_v3 (tmpgrid[v5], data[v9].co);
+			mul_v3_fl (tmpgrid[v5], 1/6.0f);
+		}
+
+		for(y = 1; y < gridsize-1; ++y)  {
+			v1 = (gridsize-2) + (y-1)*gridsize;
+			v2 = (gridsize-2) + (y  )*gridsize;
+			v3 = (gridsize-2) + (y+1)*gridsize;
+			v4 = (gridsize-1) + (y-1)*gridsize;
+			v5 = (gridsize-1) + (y  )*gridsize;
+			v6 = (gridsize-1) + (y+1)*gridsize;
+
+			copy_v3_v3(tmpgrid[v5], data[v1].co);
+			add_v3_v3 (tmpgrid[v5], data[v2].co);
+			add_v3_v3 (tmpgrid[v5], data[v3].co);
+			add_v3_v3 (tmpgrid[v5], data[v4].co);
+			add_v3_v3 (tmpgrid[v5], data[v5].co);
+			add_v3_v3 (tmpgrid[v5], data[v6].co);
+			mul_v3_fl (tmpgrid[v5], 1/6.0f);
+		}
+
+		copy_v3_v3(tmpgrid[0], data[0].co);
+		add_v3_v3 (tmpgrid[0], data[+ 1].co);
+		add_v3_v3 (tmpgrid[0], data[gridsize].co);
+		add_v3_v3 (tmpgrid[0], data[gridsize + 1].co);
+		mul_v3_fl (tmpgrid[0], 1/4.0f);
+
+		copy_v3_v3(tmpgrid[gridsize-1], data[gridsize-1].co);
+		add_v3_v3 (tmpgrid[gridsize-1], data[gridsize-2].co);
+		add_v3_v3 (tmpgrid[gridsize-1], data[2*gridsize - 1].co);
+		add_v3_v3 (tmpgrid[gridsize-1], data[2*gridsize - 2].co);
+		mul_v3_fl (tmpgrid[gridsize-1], 1/4.0f);
+
+		copy_v3_v3(tmpgrid[gridsize*gridsize - 1], data[gridsize*gridsize - 1].co);
+		add_v3_v3 (tmpgrid[gridsize*gridsize - 1], data[gridsize*gridsize - 2].co);
+		add_v3_v3 (tmpgrid[gridsize*gridsize - 1], data[(gridsize-1)*gridsize - 1].co);
+		add_v3_v3 (tmpgrid[gridsize*gridsize - 1], data[(gridsize-1)*gridsize - 2].co);
+		mul_v3_fl (tmpgrid[gridsize*gridsize - 1], 1/4.0f);
+
+		copy_v3_v3(tmpgrid[(gridsize-1)*gridsize], data[(gridsize-1)*gridsize].co);
+		add_v3_v3 (tmpgrid[(gridsize-1)*gridsize], data[(gridsize-1)*gridsize + 1].co);
+		add_v3_v3 (tmpgrid[(gridsize-1)*gridsize], data[(gridsize-2)*gridsize].co);
+		add_v3_v3 (tmpgrid[(gridsize-1)*gridsize], data[(gridsize-2)*gridsize + 1].co);
+		mul_v3_fl (tmpgrid[(gridsize-1)*gridsize], 1/4.0f);
 
 		/* average grid values */
-		for(y = 0; y < gridsize-1; ++y)  {
-			for(x = 0; x < gridsize-1; ++x)  {
-				v1 = x + y*gridsize;
-				v2 = (x + 1) + y*gridsize;
-				v3 = (x + 1) + (y + 1)*gridsize;
-				v4 = x + (y + 1)*gridsize;
+		//for(y = 0; y < gridsize-1; ++y)  {
+		//	for(x = 0; x < gridsize-1; ++x)  {
+		for(y = 1; y < gridsize-1; ++y)  {
+			for(x = 1; x < gridsize-1; ++x)  {
+				//v1 = x + y*gridsize;
+				//v2 = (x + 1) + y*gridsize;
+				//v3 = (x + 1) + (y + 1)*gridsize;
+				//v4 = x + (y + 1)*gridsize;
 
-				cent_quad_v3(co, data[v1].co, data[v2].co, data[v3].co, data[v4].co);
-				mul_v3_fl(co, 0.25f);
+				//cent_quad_v3(co, data[v1].co, data[v2].co, data[v3].co, data[v4].co);
+				//mul_v3_fl(co, 0.25f);
 
-				add_v3_v3(tmpgrid[v1], co);
-				add_v3_v3(tmpgrid[v2], co);
-				add_v3_v3(tmpgrid[v3], co);
-				add_v3_v3(tmpgrid[v4], co);
+				//add_v3_v3(tmpgrid[v1], co);
+				//add_v3_v3(tmpgrid[v2], co);
+				//add_v3_v3(tmpgrid[v3], co);
+				//add_v3_v3(tmpgrid[v4], co);
+
+				v1 = (x-1) + (y-1)*gridsize;
+				v2 = (x-1) + (y  )*gridsize;
+				v3 = (x-1) + (y+1)*gridsize;
+				v4 = (x  ) + (y-1)*gridsize;
+				v5 = (x  ) + (y  )*gridsize;
+				v6 = (x  ) + (y+1)*gridsize;
+				v7 = (x+1) + (y-1)*gridsize;
+				v8 = (x+1) + (y  )*gridsize;
+				v9 = (x+1) + (y+1)*gridsize;
+
+				copy_v3_v3(tmpgrid[v5], data[v1].co);
+				add_v3_v3 (tmpgrid[v5], data[v2].co);
+				add_v3_v3 (tmpgrid[v5], data[v3].co);
+				add_v3_v3 (tmpgrid[v5], data[v4].co);
+				add_v3_v3 (tmpgrid[v5], data[v5].co);
+				add_v3_v3 (tmpgrid[v5], data[v6].co);
+				add_v3_v3 (tmpgrid[v5], data[v7].co);
+				add_v3_v3 (tmpgrid[v5], data[v8].co);
+				add_v3_v3 (tmpgrid[v5], data[v9].co);
+				mul_v3_fl (tmpgrid[v5], 1/9.0f);
 			}
 		}
 
@@ -1061,15 +1178,17 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 					float fade = tex_strength(ss, brush, co, test.dist)*bstrength;
 					float avg[3], val[3];
 
-					copy_v3_v3(avg, tmpgrid[x + y*gridsize]);
-					if(x == 0 || x == gridsize - 1)
-						mul_v3_fl(avg, 2.0f);
-					if(y == 0 || y == gridsize - 1)
-						mul_v3_fl(avg, 2.0f);
+					//copy_v3_v3(avg, tmpgrid[x + y*gridsize]);
+					//if(x == 0 || x == gridsize - 1)
+					//	mul_v3_fl(avg, 2.0f);
+					//if(y == 0 || y == gridsize - 1)
+					//	mul_v3_fl(avg, 2.0f);
 
 					CLAMP(fade, 0.0f, 1.0f);
 
-					sub_v3_v3v3(val, avg, co);
+					//sub_v3_v3v3(val, avg, co);
+					sub_v3_v3v3(val, tmpgrid[x + y*gridsize], co);
+					//mul_v3_fl(val, fade);
 					mul_v3_fl(val, fade);
 					symmetry_feather(sd, ss, co, val);
 					add_v3_v3(val, co);
