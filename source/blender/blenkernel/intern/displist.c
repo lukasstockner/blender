@@ -929,7 +929,7 @@ static void curve_to_displist(Curve *cu, ListBase *nubase, ListBase *dispbase)
 }
 
 
-void filldisplist(ListBase *dispbase, ListBase *to)
+void filldisplist(ListBase *dispbase, ListBase *to, int flipnormal)
 {
 	EditVert *eve, *v1, *vlast;
 	EditFace *efa;
@@ -1023,6 +1023,9 @@ void filldisplist(ListBase *dispbase, ListBase *to)
 					index[0]= (intptr_t)efa->v1->tmp.l;
 					index[1]= (intptr_t)efa->v2->tmp.l;
 					index[2]= (intptr_t)efa->v3->tmp.l;
+
+					if(flipnormal)
+						SWAP(int, index[0], index[2]);
 					
 					index+= 3;
 					efa= efa->next;
@@ -1099,13 +1102,13 @@ static void bevels_to_filledpoly(Curve *cu, ListBase *dispbase)
 		dl= dl->next;
 	}
 
-	filldisplist(&front, dispbase);
-	filldisplist(&back, dispbase);
+	filldisplist(&front, dispbase, 1);
+	filldisplist(&back, dispbase, 0);
 	
 	freedisplist(&front);
 	freedisplist(&back);
 
-	filldisplist(dispbase, dispbase);
+	filldisplist(dispbase, dispbase, 0);
 	
 }
 
@@ -1117,7 +1120,7 @@ static void curve_to_filledpoly(Curve *cu, ListBase *nurb, ListBase *dispbase)
 		bevels_to_filledpoly(cu, dispbase);
 	}
 	else {
-		filldisplist(dispbase, dispbase);
+		filldisplist(dispbase, dispbase, 0);
 	}
 }
 
@@ -1319,7 +1322,7 @@ static void curve_calc_modifiers_post(Scene *scene, Object *ob, ListBase *dispba
 	ModifierData *preTesselatePoint;
 	Curve *cu= ob->data;
 	ListBase *nurb= cu->editnurb?cu->editnurb:&cu->nurb;
-	int required_mode, totvert;
+	int required_mode, totvert = 0;
 	int editmode = (!forRender && cu->editnurb);
 	DerivedMesh *dm= NULL, *ndm;
 	float (*vertCos)[3] = NULL;
@@ -1859,6 +1862,12 @@ void makeDispListCurveTypes(Scene *scene, Object *ob, int forOrco)
 		DM_set_object_boundbox (ob, ob->derivedFinal);
 	} else {
 		boundbox_displist (ob);
+
+		/* if there is no derivedMesh, object's boundbox is unneeded */
+		if (ob->bb) {
+			MEM_freeN(ob->bb);
+			ob->bb= NULL;
+		}
 	}
 }
 
