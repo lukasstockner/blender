@@ -1525,6 +1525,7 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 	re->params.r= scene->r;
 	
 	RE_init_threadcount(re);
+	IMB_tile_cache_params(re->params.r.threads, U.imagetilememory);
 	
 	re->params.flag |= R_BAKING;
 	re->db.excludeob= actob;

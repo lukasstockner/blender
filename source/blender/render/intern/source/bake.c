@@ -710,7 +710,6 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 		}
 	}
 	
-	IMB_tile_cache_params(re->params.r.threads, U.imagetilememory);
 	BLI_init_threads(&threads, do_bake_thread, re->params.r.threads);
 
 	handles= MEM_callocN(sizeof(BakeShade)*re->params.r.threads, "BakeShade");
