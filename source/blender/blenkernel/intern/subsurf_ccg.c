@@ -27,6 +27,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -437,29 +438,39 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 	MVert *mvert = dm->getVertArray(dm);
 	MEdge *medge = dm->getEdgeArray(dm);
 	MFace *mface = dm->getFaceArray(dm);
-	float *pmask;
 	MVert *mv;
 	MEdge *me;
 	MFace *mf;
+	float *vertData;
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
+	int pmask_layer_count, pmask_first_layer;
 
 	ccgSubSurf_initFullSync(ss);
 
 	mv = mvert;
 	index = (int *)dm->getVertDataArray(dm, CD_ORIGINDEX);
-	pmask = CustomData_get_layer(&dm->vertData, CD_PAINTMASK);
+	pmask_layer_count = CustomData_number_of_layers(&dm->vertData, CD_PAINTMASK);
+	pmask_first_layer = CustomData_get_layer_index(&dm->vertData, CD_PAINTMASK);
+	vertData = MEM_callocN(GRIDELEM_SIZE(gridkey), "vertData");
+
+	assert(gridkey->mask == 0 || gridkey->mask == pmask_layer_count);
+
 	for(i = 0; i < totvert; i++, mv++) {
 		CCGVert *v;
-
-		/* TODO: this will become more flexible; for now four floats is the right size */
-		float vertData[4];
+		int j;
 
 		copy_v3_v3(vertData, vertexCos ? vertexCos[i] : mv->co);
-		vertData[3] = pmask ? pmask[i] : 0;
+
+		/* copy paint mask data */
+		for(j = 0; j < gridkey->mask; ++j)
+			vertData[3 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
 
 		ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), vertData, 0, &v);
 
 		((int*)ccgSubSurf_getVertUserData(ss, v))[1] = (index)? *index++: i;
 	}
+
+	MEM_freeN(vertData);
 
 	me = medge;
 	index = (int *)dm->getEdgeDataArray(dm, CD_ORIGINDEX);
@@ -2303,7 +2314,9 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 			   when the ccgdm gets remade, the assumption is that the topology
 			   does not change. */
 			ccgdm_create_grids(dm);
-			BLI_pbvh_grids_update(ob->sculpt->pbvh, ccgdm->gridData, ccgdm->gridAdjacency, (void**)ccgdm->gridFaces);
+			BLI_pbvh_grids_update(ob->sculpt->pbvh, ccgdm->gridData,
+					      ccgdm->gridAdjacency, (void**)ccgdm->gridFaces,
+					      ccgDM_getGridKey(&ccgdm->dm));
 		}
 
 		ccgdm->pbvh = ob->sculpt->pbvh;
@@ -2326,7 +2339,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		ob->sculpt->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
-				     &ob->sculpt->hidden_areas);
+				     &get_mesh(ob)->vdata, &ob->sculpt->hidden_areas);
 		ccgdm->pbvh_draw = 1;
 	}
 	else if(ob->type == OB_MESH) {

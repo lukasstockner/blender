@@ -107,7 +107,6 @@ struct PBVH {
 	/* Mesh data */
 	MVert *verts;
 	MFace *faces;
-	CustomData *vdata;
 
 	/* Grid Data */
 	DMGridData **grids;
@@ -116,6 +115,9 @@ struct PBVH {
 	int totgrid;
 	int gridsize;
 	struct GridKey *gridkey;
+
+	/* Used by both mesh and grid type */
+	CustomData *vdata;
 
 	/* Only used during BVH build and update,
 	   don't need to remain valid after */
@@ -621,7 +623,7 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
 void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 			  DMGridAdjacency *gridadj,
 			  int totgrid, int gridsize, GridKey *gridkey,
-			  void **gridfaces, ListBase *hidden_areas)
+			  void **gridfaces, CustomData *vdata, ListBase *hidden_areas)
 {
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
@@ -629,6 +631,7 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 	bvh->totgrid= totgrid;
 	bvh->gridsize= gridsize;
 	bvh->gridkey= gridkey;
+	bvh->vdata= vdata;
 	bvh->leaf_limit = MAX2(LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
 
 	if(totgrid)
@@ -1111,6 +1114,11 @@ void BLI_pbvh_node_mark_update(PBVHNode *node)
 	node->flag |= PBVH_UpdateNormals|PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateDrawBuffers|PBVH_UpdateRedraw;
 }
 
+void BLI_pbvh_node_mark_update_draw_buffers(PBVHNode *node, void *data)
+{
+	node->flag |= PBVH_UpdateDrawBuffers|PBVH_UpdateRedraw;
+}
+
 void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVert **verts, CustomData **vdata)
 {
 	if(vert_indices) *vert_indices= node->vert_indices;
@@ -1395,10 +1403,13 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smo
 	}
 }
 
-void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids, DMGridAdjacency *gridadj, void **gridfaces)
+void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids,
+			   DMGridAdjacency *gridadj, void **gridfaces,
+			   struct GridKey *gridkey)
 {
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
 	bvh->gridfaces= gridfaces;
+	bvh->gridkey= gridkey;
 }
 

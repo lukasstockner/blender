@@ -849,7 +849,8 @@ const CustomDataMask CD_MASK_EDITMESH =
 const CustomDataMask CD_MASK_DERIVEDMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_CLOTH_ORCO |
-	CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORCO | CD_MASK_TANGENT | CD_MASK_WEIGHT_MCOL;
+	CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORCO | CD_MASK_TANGENT | CD_MASK_WEIGHT_MCOL |
+	CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_BMESH = 
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR;
 const CustomDataMask CD_MASK_FACECORNERS =
@@ -1276,12 +1277,38 @@ void *CustomData_add_layer(CustomData *data, int type, int alloctype,
 	const LayerTypeInfo *typeInfo= layerType_getInfo(type);
 	
 	layer = customData_add_layer__internal(data, type, alloctype, layerdata,
-										   totelem, typeInfo->defaultname);
+					       totelem, typeInfo->defaultname);
 
 	if(layer)
 		return layer->data;
 
 	return NULL;
+}
+
+void *CustomData_add_layer_at_offset(CustomData *cd, int type, int alloctype,
+				     void *layerdata, int totelem, int offset)
+{
+	int type_first_layer, type_totlayer, i;
+	CustomDataLayer copy_of_new;
+
+	/* add the new layer as normal */
+	CustomData_add_layer(cd, type, alloctype, layerdata, totelem);
+
+	type_first_layer = CustomData_get_layer_index(cd, type);
+	type_totlayer = CustomData_number_of_layers(cd, type);
+	
+	/* make a copy of the new layer */
+	copy_of_new = cd->layers[type_first_layer + type_totlayer - 1];
+
+	/* move the old layers up to make room for the new layer */
+	for(i = type_first_layer + type_totlayer - 1;
+	    i > type_first_layer + offset; --i)
+		cd->layers[i] = cd->layers[i-1];
+
+	/* copy the new layer into the correct offset */
+	cd->layers[type_first_layer + offset] = copy_of_new;
+
+	return copy_of_new.data;
 }
 
 /*same as above but accepts a name*/

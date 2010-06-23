@@ -431,7 +431,9 @@ static void delete_buffer(GLuint *buf)
    convert the mask strength to RGB-bytes */
 static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
 {
-	unsigned char v = (unsigned char)((1 - mask_strength) * 128.0f) + 64;
+	unsigned char v;
+	CLAMP(mask_strength, 0, 1);
+	v = (unsigned char)((1 - mask_strength) * 128.0f) + 64;
 	out[0] = v;
 	out[1] = v;
 	out[2] = v;
@@ -466,17 +468,25 @@ static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, in
 static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int *vert_indices, int totvert)
 {
 	unsigned char *color_data;
-	int i;
-	float *pmask;
+	int i, pmask_totlayer;
+
+	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
 
 	/* Make a color buffer if there's a mask layer and
 	   get rid of any color buffer if there's no mask layer */
-	pmask = CustomData_get_layer(vdata, CD_PAINTMASK);
-	color_data = map_color_buffer(buffers, !!pmask, totvert);
+	color_data = map_color_buffer(buffers, pmask_totlayer != 0, totvert);
 
 	if(color_data) {
-		for(i = 0; i < totvert; ++i)
-			mask_to_gpu_colors(color_data + i*3, pmask[vert_indices[i]]);
+		int j, pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
+
+		for(i = 0; i < totvert; ++i) {
+			float v = 0;
+			for(j = 0; j < pmask_totlayer; ++j)
+				v += ((float*)vdata->layers[pmask_first_layer + j].data)[vert_indices[i]];
+
+			mask_to_gpu_colors(color_data + i*3, v);
+			
+		}
 		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 	}
 }
@@ -605,13 +615,17 @@ static void update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, 
 	color_data = map_color_buffer(buffers, gridkey->mask, totvert);
 
 	if(color_data) {
-		int i, j;
+		int i, j, k;
 
 		for(i = 0; i < totgrid; ++i) {
 			DMGridData *grid= grids[grid_indices[i]];
 
-			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3)
-				mask_to_gpu_colors(color_data, *GRIDELEM_MASK_AT(grid, j, gridkey));
+			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
+				float v = 0;
+				for(k = 0; k < gridkey->mask; ++k)
+					v += GRIDELEM_MASK_AT(grid, j, gridkey)[k];
+				mask_to_gpu_colors(color_data, v);
+			}
 		}
 
 		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);

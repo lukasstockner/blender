@@ -447,11 +447,11 @@ static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm, int lv
 	return multires_dm_create_from_derived(&mmd, 1, dm, ob, 0, 0);
 }
 
-static GridKey *create_gridkey(DerivedMesh *dm)
+static GridKey *create_gridkey(CustomData *cd)
 {
 	GridKey *gridkey = MEM_callocN(sizeof(GridKey), "create_gridkey");
 
-	GRIDELEM_KEY_INIT(gridkey, 1, 1, 1);
+	GRIDELEM_KEY_INIT(gridkey, 1, CustomData_number_of_layers(cd, CD_PAINTMASK), 1);
 
 	return gridkey;
 }
@@ -468,7 +468,7 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	if(optimal)
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
-	return subsurf_make_derived_from_derived(dm, &smd, create_gridkey(dm), 0, NULL, 0, 0);
+	return subsurf_make_derived_from_derived(dm, &smd, create_gridkey(&get_mesh(ob)->vdata), 0, NULL, 0, 0);
 }
 
 static DMGridData **copy_grids(DMGridData **grids, int totgrid, int gridsize, GridKey *gridkey)
@@ -638,8 +638,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
 		MDisps *mdisp = &mdisps[i];
-		int S, x, y, gIndex = gridOffset[i];
-		float *stored_mask_layer;
+		int S, x, y, j, gIndex = gridOffset[i];
 
 		/* when adding new faces in edit mode, need to allocate disps */
 		if(!mdisp->disps)
@@ -648,20 +647,15 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 			multires_reallocate_mdisps(me, mdisps, totlvl);
 		}
 
-		if(stored_grids) {
-			stored_mask_layer = CustomData_get_layer(&stored_grids[i], CD_PAINTMASK);
-
-			/* TODO: for now we just always have a paintmask layer */
-			if(!stored_mask_layer) {
-				stored_mask_layer = CustomData_add_layer(&stored_grids[i], CD_PAINTMASK, CD_CALLOC, NULL, dGridSize*dGridSize*numVerts);
-			}
-		}
+		/* Check masks */
+		assert(stored_grids);
+		assert(CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) == gridkey->mask);
 
 		for(S = 0; S < numVerts; ++S, ++gIndex) {
 			DMGridData *grid = gridData[gIndex];
 			DMGridData *subgrid = subGridData[gIndex];
-			float (*dispgrid)[3] = &mdisp->disps[S*dGridSize*dGridSize];
-			float *stored_mask = &stored_mask_layer[S*dGridSize*dGridSize];
+			int stored_index = S*dGridSize*dGridSize;
+			float (*dispgrid)[3] = &mdisp->disps[stored_index];
 
 			for(y = 0; y < gridSize; y++) {
 				for(x = 0; x < gridSize; x++) {
@@ -672,9 +666,6 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 					float *sco = GRIDELEM_CO_AT(subgrid, ccgdm_offset, gridkey);
 					float *no = GRIDELEM_NO_AT(subgrid, ccgdm_offset, gridkey);
 					float *data = dispgrid[stored_offset];
-
-					float *mask = GRIDELEM_MASK_AT(grid, ccgdm_offset, gridkey);
-					float *smask = GRIDELEM_MASK_AT(subgrid, ccgdm_offset, gridkey);
 
 					float tan_to_ob_mat[3][3], tx[3], ty[3], disp[3], d[3];
 
@@ -716,7 +707,13 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 
 					
 					/* Paint Masks */
-					if(mask && smask && stored_mask) {
+					for(j = 0; j < gridkey->mask; ++j) {
+						float *mask = &GRIDELEM_MASK_AT(grid, ccgdm_offset, gridkey)[j];
+						float *smask = &GRIDELEM_MASK_AT(subgrid, ccgdm_offset, gridkey)[j];
+						float *stored_mask_layer = CustomData_get_layer_n(&stored_grids[i],
+												  CD_PAINTMASK, j);
+						float *stored_mask = &stored_mask_layer[stored_index];
+
 						switch(op) {
 						case APPLY_DISPS:
 							*mask = *smask + stored_mask[stored_offset];
@@ -797,7 +794,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			for(i = 0; i < numGrids; ++i) {
 				for(j = 0; j < lowGridSize*lowGridSize; ++j) {
 					int k;
-					for(k = 0; k < 4 /* TODO */; ++k)
+					for(k = 0; k < GRIDELEM_INTERP_COUNT(gridkey); ++k)
 						((float*)GRIDELEM_AT(diffGrid, j, gridkey))[k] = ((float*)GRIDELEM_AT(gridData[i], j, gridkey))[k] - ((float*)GRIDELEM_AT(lowGridData[i], j, gridkey))[k];
 				}
 

@@ -90,14 +90,18 @@ void *CustomData_add_layer(struct CustomData *data, int type, int alloctype,
 void *CustomData_add_layer_named(struct CustomData *data, int type, int alloctype,
 						   void *layer, int totelem, char *name);
 
-/* frees the active or first data layer with the give type.
+/* adds a layer and puts it at the specified offset */
+void *CustomData_add_layer_at_offset(struct CustomData *data, int type, int alloctype,
+				     void *layerdata, int totelem, int offset);
+
+/* frees the layer at index.
  * returns 1 on succes, 0 if no layer with the given type is found
  *
  * in editmode, use EM_free_data_layer instead of this function
  */
 int CustomData_free_layer(struct CustomData *data, int type, int totelem, int index);
 
-/* frees the layer index with the give type.
+/* frees the active layer of the give type.
  * returns 1 on succes, 0 if no layer with the given type is found
  *
  * in editmode, use EM_free_data_layer instead of this function

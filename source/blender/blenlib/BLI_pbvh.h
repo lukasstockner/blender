@@ -25,6 +25,8 @@
 #ifndef BLI_PBVH_H
 #define BLI_PBVH_H
 
+#include <assert.h>
+
 struct BoundBox;
 struct CustomData;
 struct MFace;
@@ -61,7 +63,7 @@ void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 			  struct DMGridAdjacency *gridadj, int totgrid,
 			  int gridsize, struct GridKey *gridkey, void **gridfaces,
-			  ListBase *hidden_areas);
+			  struct CustomData *vdata, ListBase *hidden_areas);
 void BLI_pbvh_free(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:
@@ -105,6 +107,7 @@ typedef enum {
 } PBVHNodeFlags;
 
 void BLI_pbvh_node_mark_update(PBVHNode *node);
+void BLI_pbvh_node_mark_update_draw_buffers(PBVHNode *node, void *data);
 
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 	int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
@@ -123,7 +126,7 @@ void BLI_pbvh_update(PBVH *bvh, int flags, float (*face_nors)[3]);
 void BLI_pbvh_redraw_BB(PBVH *bvh, float bb_min[3], float bb_max[3]);
 void BLI_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***gridfaces, int *totface);
 void BLI_pbvh_grids_update(PBVH *bvh, struct DMGridData **grids,
-	struct DMGridAdjacency *gridadj, void **gridfaces);
+			   struct DMGridAdjacency *gridadj, void **gridfaces, struct GridKey *gridkey);
 
 /* Vertex Iterator */
 
@@ -154,12 +157,12 @@ typedef struct PBVHVertexIter {
 
 	/* mesh */
 	struct MVert *mverts;
-	struct CustomData *vdata;
 	int totvert;
 	int *vert_indices;
 
-	/* mask */
-	float *vdata_mask;
+	/* mask layers */
+	struct CustomData *vdata;
+	int pmask_first_layer, pmask_layer_count, pmask_active_layer;
 
 	/* result: these are all computed in the macro, but we assume
 	   that compiler optimizations will skip the ones we don't use */
@@ -167,14 +170,15 @@ typedef struct PBVHVertexIter {
 	float *co;
 	short *no;
 	float *fno;
-	float *mask;
+	float *mask_active;
+
+	float mask_combined; /* not editable */
 } PBVHVertexIter;
 
 #define BLI_pbvh_vertex_iter_begin(bvh, node, vi, mode) \
 	{ \
 		struct DMGridData **grids; \
 		struct MVert *verts; \
-		struct CustomData *vdata; \
 		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert; \
 		struct GridKey *gridkey; \
 		\
@@ -182,7 +186,7 @@ typedef struct PBVHVertexIter {
 		\
 		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL, &gridkey); \
 		BLI_pbvh_node_num_verts(bvh, node, &uniq_verts, &totvert); \
-		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts, &vdata); \
+		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts, &vi.vdata); \
 		\
 		vi.grids= grids; \
 		vi.grid_indices= grid_indices; \
@@ -196,9 +200,14 @@ typedef struct PBVHVertexIter {
 			vi.totvert= uniq_verts; \
 		vi.vert_indices= vert_indices; \
 		vi.mverts= verts; \
-		vi.vdata= vdata; \
-		if(vi.vdata) \
-			vi.vdata_mask= CustomData_get_layer(vi.vdata, CD_PAINTMASK); \
+		vi.mask_active= NULL; \
+		assert(!gridkey || gridkey->mask == 0 || vi.vdata); \
+		vi.pmask_layer_count = CustomData_number_of_layers(vi.vdata, CD_PAINTMASK); \
+		assert(!gridkey || gridkey->mask == 0 || gridkey->mask == vi.pmask_layer_count); \
+		if(vi.pmask_layer_count) { \
+			vi.pmask_first_layer = CustomData_get_layer_index(vi.vdata, CD_PAINTMASK); \
+			vi.pmask_active_layer = CustomData_get_active_layer_index(vi.vdata, CD_PAINTMASK); \
+		} \
 	}\
 	\
 	for(vi.i=0, vi.g=0; vi.g<vi.totgrid; vi.g++) { \
@@ -226,22 +235,41 @@ typedef struct PBVHVertexIter {
 				if(vi.grid) { \
 					vi.co= GRIDELEM_CO(vi.grid, vi.gridkey); \
 					vi.fno= GRIDELEM_NO(vi.grid, vi.gridkey); \
-					vi.mask= GRIDELEM_MASK(vi.grid, vi.gridkey); \
+					\
+					if(vi.gridkey->mask) { \
+						int j; \
+						vi.mask_combined= 0; \
+						for(j=0; j<vi.gridkey->mask; ++j) \
+							vi.mask_combined+= GRIDELEM_MASK(vi.grid, vi.gridkey)[j]; \
+						CLAMP(vi.mask_combined, 0, 1); \
+						if(vi.pmask_active_layer != -1) \
+							vi.mask_active= &GRIDELEM_MASK(vi.grid, \
+										       vi.gridkey)[vi.pmask_active_layer - \
+												   vi.pmask_first_layer]; \
+					} \
+					\
 					GRIDELEM_INC(vi.grid, 1, vi.gridkey); \
 				} \
 				else { \
 					vi.mvert= &vi.mverts[vi.vert_indices[vi.gx]]; \
 					vi.co= vi.mvert->co; \
 					vi.no= vi.mvert->no; \
-					if(vi.vdata_mask) \
-						vi.mask= &vi.vdata_mask[vi.vert_indices[vi.gx]]; \
+					if(vi.pmask_layer_count) { \
+						int j; \
+						vi.mask_combined= 0; \
+						for(j=0; j<vi.pmask_layer_count; ++j) \
+							vi.mask_combined+= \
+								((float*)vi.vdata->layers[vi.pmask_first_layer + j].data)[vi.vert_indices[vi.gx]]; \
+						CLAMP(vi.mask_combined, 0, 1); \
+						if(vi.pmask_active_layer != -1) \
+							vi.mask_active = &((float*)vi.vdata->layers[vi.pmask_active_layer].data)[vi.vert_indices[vi.gx]]; \
+					} \
 				} \
 
 #define BLI_pbvh_vertex_iter_end \
 			} \
 		} \
-	}
-
+	} \
 
 #endif /* BLI_PBVH_H */
 
