@@ -7,7 +7,7 @@
  Tooltip: 'Export geometry to DXF/DWG-r12 (Drawing eXchange Format).'
 """
 
-__version__ = "1.36 - 2010.06.20"
+__version__ = "1.37 - 2010.06.23"
 __author__  = "Remigiusz Fiedler (AKA migius)"
 __license__ = "GPL"
 __url__  = "http://wiki.blender.org/index.php/Scripts/Manual/Export/autodesk_dxf"
@@ -34,7 +34,7 @@ TODO:
 - export dupligroups and dupliverts as blocks (as option) 
 - optimize POLYFACE routine: remove double-vertices
 - fix support for X,Y-rotated curves(to POLYLINEs): fix blender negative-matrix.invert()
-- support hierarchies: groups, instances, parented structures
+- support hierarchies: groups, instances(done), parented structures
 - support n/f-gons as POLYFACEs with invisible edges
 - mapping materials to DXF-styles
 - ProgressBar
@@ -46,9 +46,11 @@ TODO:
 - wip: fix support Include-Duplis, cause not conform with INSERT-method
 
 History
+v1.37 - 2010.06.23 by migius
+- APPLY-MODIFIER: added exception for modifier-free instances to export them as BLOCK/INSERTs
 v1.36 - 2010.06.20 by migius
-- added export Nurbs-Curve (3,4,5th-degree) into POLYLINE-NURBS(quad,cubic)
-  but no support for Bezier-Curves, because DXF doesnt support them
+- added export Nurbs-Curves (3,4,5th-degree) into POLYLINE-NURBS(quad,cubic)
+  caution: no Bezier-Curves support in autoCAD nor in DXF-specification
 v1.35 - 2009.06.18 by migius
 - export multiple-instances of Curve-Objects as BLOCK/INSERTs
 - added export Cameras (ortho and persp) to VPORTs, incl. clipping
@@ -512,17 +514,19 @@ def isLeftHand(matrix):
 
 
 #-----------------------------------------------------
-def	exportMesh(ob, mx, mx_n, me=None, **common):
+def	exportMesh(ob, mx, mx_n, **common):
 	"""converts Mesh-Object to desired projection and representation(DXF-Entity type)
 	"""
 	global BLOCKREGISTRY
 	entities = []
 	block = None
 	#print 'deb:exportMesh() given common=', common #---------
-	if me==None:
-		me = ob.getData(mesh=1)
+	if ob.modifiers and APPLY_MODIFIERS:
+		me = Mesh.New()
+		me.getFromObject(ob) #this gets mesh with applied modifiers
 	else:
-		me.getFromObject(ob)
+		me = ob.getData(mesh=1) # is a Mesh if mesh>0 (otherwise it is a NMesh)
+	#print 'deb:exportMesh() mesh=', me #---------
 	# idea: me.transform(mx); get verts data; me.transform(mx_inv)= back to the origin state
 	# the .transform-method is fast, but bad, cause invasive:
 	# it manipulates original geometry and by retransformation lefts back rounding-errors
@@ -535,7 +539,7 @@ def	exportMesh(ob, mx, mx_n, me=None, **common):
 		#print 'deb:exportMesh() me.name=', me.name #---------
 		#print 'deb:exportMesh() me.users=', me.users #---------
 		# check if there are more instances of this mesh (if used by other objects), then write to BLOCK/INSERT
-		if GUI_A['instances_on'].val and me.users>1 and not PROJECTION:
+		if INSTANCES and me.users>1 and not PROJECTION and not (ob.modifiers and APPLY_MODIFIERS):
 			if me.name in BLOCKREGISTRY.keys():
 				insert_name = BLOCKREGISTRY[me.name]
 				# write INSERT to entities
@@ -1008,7 +1012,7 @@ def exportCurve(ob, mx, mw, **common):
 	curve = ob.getData()
 	#print 'deb: curve=', dir(curve) #---------
 	# TODO: should be: if curve.users>1 and not (PERSPECTIVE or (PROJECTION and HIDDEN_MODE):
-	if GUI_A['instances_on'].val and curve.users>1 and not PROJECTION:
+	if INSTANCES and curve.users>1 and not PROJECTION:
 		if curve.name in BLOCKREGISTRY.keys():
 			insert_name = BLOCKREGISTRY[curve.name]
 			# write INSERT to entities
@@ -1547,8 +1551,9 @@ def do_export(export_list, filepath):
 	
 	#print 'deb: ViewMatrix=\n', mw #------------------
 	
-	if APPLY_MODIFIERS: tmp_me = Mesh.New('tmp')
-	else: tmp_me = None
+	#todo: fixme: seems to be the reason for missing BLOCK-export
+	#if APPLY_MODIFIERS: tmp_me = Mesh.New('tmp')
+	#else: tmp_me = None
 
 	if GUI_A['paper_space_on'].val==1: espace=1
 	else: espace=None
@@ -1585,7 +1590,7 @@ def do_export(export_list, filepath):
 					d.layers.append(DXF.Layer(color=tempcolor, name=elayer))
 
 			if (ob.type == 'Mesh') and GUI_B['bmesh'].val:
-				entities, block = exportMesh(ob, mx, mx_n, tmp_me,\
+				entities, block = exportMesh(ob, mx, mx_n, \
 						paperspace=espace, color=ecolor, layer=elayer, lineType=eltype)
 			elif (ob.type == 'Curve') and GUI_B['bcurve'].val:
 				entities, block = exportCurve(ob, mx, mw, \
@@ -2303,11 +2308,11 @@ def inputOriginVector():
 def update_globals():  #-----------------------------------------------------------------
 	""" update globals if GUI_A changed
 	"""
-	global  ONLYSELECTED,ONLYVISIBLE, DEBUG,\
+	global  ONLYSELECTED, ONLYVISIBLE, DEBUG,\
 	PROJECTION, HIDDEN_LINES,	CAMERA, \
 	G_SCALE, G_ORIGIN,\
 	PREFIX, LAYERNAME_DEF, LAYERCOLOR_DEF, LAYERLTYPE_DEF,\
-	APPLY_MODIFIERS, INCLUDE_DUPLIS,\
+	INSTANCES, APPLY_MODIFIERS, INCLUDE_DUPLIS,\
 	OUTPUT_DWG
 	#global POLYLINES
 	
@@ -2339,6 +2344,7 @@ def update_globals():  #--------------------------------------------------------
 	LAYERCOLOR_DEF = GUI_A['layercolor_def'].val
 	LAYERLTYPE_DEF = layerltype_def_list[GUI_A['layerltype_def'].val]
 
+	INSTANCES = GUI_A['instances_on'].val
 	APPLY_MODIFIERS = GUI_A['apply_modifiers_on'].val
 	INCLUDE_DUPLIS = GUI_A['include_duplis_on'].val
 	OUTPUT_DWG = GUI_A['outputDWG_on'].val
@@ -2662,7 +2668,7 @@ def draw_UI():  #---------------------------------------------------------------
 
 	y -= 30
 	b0, b0_ = but0c, but_0c + butt_margin +but_1c
-	GUI_A['only_selected_on'] = Draw.Toggle('Export Selection', EVENT_NONE, b0, y, b0_, 20, GUI_A['only_selected_on'].val, "Export only selected geometry   on/off")
+	GUI_A['only_selected_on'] = Draw.Toggle('Selected only', EVENT_NONE, b0, y, b0_, 20, GUI_A['only_selected_on'].val, "Export only selected geometry   on/off")
 	b0, b0_ = but2c, but_2c + butt_margin + but_3c
 	Draw.BeginAlign()
 	GUI_A['projection_on'] = Draw.Toggle('2d Projection', EVENT_REDRAW, b0, y, b0_, 20, GUI_A['projection_on'].val, "Export a 2d Projection according 3d-View or Camera-View   on/off")
@@ -3083,10 +3089,10 @@ if __name__=='__main__':
 	if DXF:
 		print '\n\n\n'
 		print 'DXF-Exporter v%s *** start ***' %(__version__)   #---------------------
-		print 'with Library %s' %(DXF.__version__)   #---------------------
+		print '+DXF-Library %s' %(DXF.__version__)   #---------------------
 		if not DXF.copy:
-			print "DXF-Exporter: dxfLibrary.py script requires a full Python install"
-			Draw.PupMenu('Error%t|The dxfLibrary.py script requires a full Python install')
+			print "DXF-Exporter: dxfLibrary.py script requires a full Python installation"
+			Draw.PupMenu('Error%t|The dxfLibrary.py script requires a full Python installation')
 		else:
 			#Window.FileSelector(dxf_export_ui, 'EXPORT DXF', Blender.sys.makename(ext='.dxf'))
 			# recall last used DXF-file and INI-file names

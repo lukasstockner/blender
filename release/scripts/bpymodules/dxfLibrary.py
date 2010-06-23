@@ -1,9 +1,9 @@
 #dxfLibrary.py : provides functions for generating DXF files
 # --------------------------------------------------------------------------
-__version__ = "v1.34 - 2010.06.20"
+__version__ = "v1.35 - 2010.06.23"
 __author__ = "Stani Michiels(Stani), Remigiusz Fiedler(migius)"
 __license__ = "GPL"
-__url__ = "http://wiki.blender.org/index.php/Scripts/Manual/Export/autodesk_dxf"
+__url__ = "http://wiki.blender.org/index.php/Extensions:2.4/Py/Scripts/Export/DXF"
 __bpydoc__ ="""The library to export geometry data to DXF format r12 version.
 
 Copyright %s
@@ -18,12 +18,14 @@ IDEAs:
 -
 
 TODO:
-- add support for DXFr14 (needs extended file header)
-- add support for SPLINEs (possible first in DXFr14 version)
-- add support for MTEXT
+- add support for DXFr14 version (needs extended file header)
+- add support for DXF-SPLINEs (possible first in DXFr14 version)
+- add support for DXF-MTEXT
 - add user preset for floating point precision (3-16?)
 
 History
+v1.35 - 2010.06.23 by migius
+ - added (as default) writing to DXF file without RAM-buffering: faster and low-RAM-machines friendly
 v1.34 - 2010.06.20 by migius
  - bugfix POLYFACE
  - added DXF-flags for POLYLINE and VERTEX class (NURBS-export)
@@ -760,10 +762,11 @@ class Drawing(_Collection):
 		self.vports=copy.copy(vports)
 		self.blocks=copy.copy(blocks)
 		self.fileName=fileName
+		#print 'deb: blocks=',blocks #----------
 		#private
 		#self.acadver='9\n$ACADVER\n1\nAC1006\n'
 		self.acadver='  9\n$ACADVER\n  1\nAC1009\n'
-		"""DXF AutoCAD-Release format codes
+		"""DXF AutoCAD-Release format codes:
 		AC1021  2008, 2007 
 		AC1018  2006, 2005, 2004 
 		AC1015  2002, 2000i, 2000 
@@ -808,22 +811,44 @@ class Drawing(_Collection):
 				self._table('view',[str(x) for x in self.views]),
 		]
 		tables=self._section('tables',tables)
-
 		blocks=self._section('blocks',[str(x) for x in self.blocks])
-
 		entities=self._section('entities',[str(x) for x in self.entities])
-
 		all=''.join([header,tables,blocks,entities,'  0\nEOF\n'])
 		return all
+		
+	def _write_section(self,file,name,data):
+		file.write('  0\nSECTION\n  2\n%s\n'%name.upper())
+		for x in data:
+			file.write(str(x))
+		file.write('  0\nENDSEC\n')
 
-	def saveas(self,fileName):
+	def saveas(self,fileName,buffer=0):
+		"""Writes DXF file. Needs target file name. If optional parameter buffer>0, then switch to old behavior: store entire output string in RAM.
+		"""
 		self.fileName=fileName
-		self.save()
+		if buffer: self.save()
+		else: self.export()
 
 	def save(self):
-		test=open(self.fileName,'w')
-		test.write(str(self))
-		test.close()
+		outfile=open(self.fileName,'w')
+		outfile.write(str(self))
+		outfile.close()
+
+	def export(self):
+		outfile=open(self.fileName,'w')
+		header=[self.acadver]+[self._point(attr,getattr(self,attr))+'\n' for attr in _HEADER_POINTS]
+		self._write_section(outfile,'header',header)
+		tables=[self._table('vport',[str(x) for x in self.vports]),
+			self._table('ltype',[str(x) for x in self.linetypes]),
+			self._table('layer',[str(x) for x in self.layers]),
+			self._table('style',[str(x) for x in self.styles]),
+			self._table('view',[str(x) for x in self.views]),
+			]
+		self._write_section(outfile,'tables',tables)
+		self._write_section(outfile,'blocks',self.blocks)
+		self._write_section(outfile,'entities',self.entities)
+		outfile.write('  0\nEOF\n')
+		outfile.close()
 
 
 #---extras
