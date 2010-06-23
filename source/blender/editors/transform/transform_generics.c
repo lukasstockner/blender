@@ -429,9 +429,13 @@ void recalcData(TransInfo *t)
 			if ((sipo->flag & SIPO_NOREALTIMEUPDATES) == 0)
 				ANIM_list_elem_update(t->scene, ale);
 		}
+
+#if 0	// XXX, DURIAN HACK (renderbranch only), workaround for handles getting messed up during transformation.
+		// bug [#22662] Transforming handles in the graph editor is broken.
 		
 		/* do resort and other updates? */
 		if (dosort) remake_graph_transdata(t, &anim_data);
+#endif
 		
 		/* now free temp channels */
 		BLI_freelistN(&anim_data);
