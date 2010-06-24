@@ -570,7 +570,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	/* This vertex program just passes the texture coordinate through and transforms the vertex position */
 	static const GLcharARB* depth_vertex_shader_source[] = { 
-		"#version 100",
+		"#version 100\n",
 		"void main()\n",
 		"{\n",
 		"    gl_TexCoord[0] = gl_MultiTexCoord0;\n",
@@ -580,7 +580,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	/* This fragment program is used non-rectangle textures */
 	static const GLcharARB* depth_fragment_shader_source[] = {
-		"#version 100",
+		"#version 100\n",
 		"uniform sampler2D depth_texture;\n",
 		"void main()\n",
 		"{\n",
@@ -590,7 +590,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	/* This fragment program is used for rectangular textures */
 	static const GLcharARB* depth_fragment_shader_rect_source[] = {
-		"#version 100",
+		"#version 100\n",
 		"#extension GL_ARB_texture_rectangle : enable\n",
 		"uniform sampler2DRect depth_texture;\n",
 		"void main()\n",
@@ -612,7 +612,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 	glGetInfoLogARB(triple->depth_vertex_shader, 1000, &len, infoLog);
 
 	if (len > 0)
-		fprintf(stderr, "triple depth buffer vertex program compilation messages:\n%s\n", infoLog);
+		printf("triple depth buffer vertex program compilation messages:\n%s\n", infoLog);
 
 	/* compile the appropriate fragment program depending on support for rectangular textures */
 
@@ -631,7 +631,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 	glGetInfoLogARB(triple->depth_fragment_shader, 1000, &len, infoLog);
 
 	if (len > 0)
-		fprintf(stderr, "triple depth buffer fragment program compilation messages:\n%s\n", infoLog);
+		printf("triple depth buffer fragment program compilation messages:\n%s\n", infoLog);
 
 	/* link the shaders into a complete program */
 
@@ -648,7 +648,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 	glGetInfoLogARB(triple->depth_program, 1000, &len, infoLog);
 
 	if (len > 0)
-		fprintf(stderr, "triple depth buffer program linker messages:\n%s\n", infoLog);
+		printf("triple depth buffer program linker messages:\n%s\n", infoLog);
 }
 
 static int wm_triple_gen_depth_buffer(wmWindow *win, wmDrawTriple *triple)
