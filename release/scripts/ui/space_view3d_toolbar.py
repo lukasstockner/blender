@@ -853,7 +853,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "fast_navigate")
         col.prop(sculpt, "use_openmp")
 
-        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH'):
+        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'FLATTEN'):
             sub = col.column()
             sub.label(text="Color:")
             sub.prop(brush, "add_col", text="Add")

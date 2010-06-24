@@ -570,6 +570,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	/* This vertex program just passes the texture coordinate through and transforms the vertex position */
 	static const GLcharARB* depth_vertex_shader_source[] = { 
+		"#version 100",
 		"void main()\n",
 		"{\n",
 		"    gl_TexCoord[0] = gl_MultiTexCoord0;\n",
@@ -579,6 +580,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	/* This fragment program is used non-rectangle textures */
 	static const GLcharARB* depth_fragment_shader_source[] = {
+		"#version 100",
 		"uniform sampler2D depth_texture;\n",
 		"void main()\n",
 		"{\n",
@@ -588,6 +590,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	/* This fragment program is used for rectangular textures */
 	static const GLcharARB* depth_fragment_shader_rect_source[] = {
+		"#version 100",
 		"#extension GL_ARB_texture_rectangle : enable\n",
 		"uniform sampler2DRect depth_texture;\n",
 		"void main()\n",
@@ -639,7 +642,7 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	glLinkProgramARB(triple->depth_program);
 
-	/* print any errors/warnings gotten whilelinking the final fragment program */
+	/* print any errors/warnings gotten while linking the final program */
 
 	glGetObjectParameterivARB(triple->depth_program, GL_OBJECT_LINK_STATUS_ARB, &success);
 	glGetInfoLogARB(triple->depth_program, 1000, &len, infoLog);
