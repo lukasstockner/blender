@@ -193,7 +193,7 @@ static void rna_Paint_active_brush_name_get(PointerRNA *ptr, char *value)
 	Paint *p= ptr->data;
 	Brush *br = paint_brush(p);
 	
-	BLI_strncpy(value, br->id.name+2, sizeof(br->id.name-2));
+	BLI_strncpy(value, br->id.name+2, sizeof(br->id.name)-2);
 }
 
 

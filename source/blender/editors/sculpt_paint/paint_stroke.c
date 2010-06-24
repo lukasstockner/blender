@@ -695,6 +695,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	float pressure = 1;
 	float center[3] = {0, 0, 0};
 	int flip= event->shift?1:0;
+
 	PaintStroke *stroke = op->customdata;
 
 	/* XXX: can remove the if statement once all modes have this */

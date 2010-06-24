@@ -220,6 +220,9 @@ typedef struct StrokeCache {
 	int original;
 
 	float vertex_rotation;
+
+	char saved_active_brush_name[24];
+	int alt_smooth;
 } StrokeCache;
 
 /* ===== OPENGL =====
@@ -2382,6 +2385,8 @@ static char *sculpt_tool_name(Sculpt *sd)
 		return "Flatten Brush"; break;
 	case SCULPT_TOOL_CLAY:
 		return "Clay Brush"; break;
+	case SCULPT_TOOL_WAX:
+		return "Wax Brush"; break;
 	case SCULPT_TOOL_FILL:
 		return "Fill Brush"; break;
 	case SCULPT_TOOL_SCRAPE:
@@ -2464,7 +2469,7 @@ static void sculpt_cache_free(StrokeCache *cache)
 }
 
 /* Initialize the stroke cache invariants from operator properties */
-static void sculpt_update_cache_invariants(Sculpt *sd, SculptSession *ss, wmOperator *op)
+static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSession *ss, wmOperator *op)
 {
 	StrokeCache *cache = MEM_callocN(sizeof(StrokeCache), "stroke cache");
 	Brush *brush = paint_brush(&sd->paint);
@@ -2477,6 +2482,25 @@ static void sculpt_update_cache_invariants(Sculpt *sd, SculptSession *ss, wmOper
 	cache->flag = RNA_int_get(op->ptr, "flag");
 	RNA_float_get_array(op->ptr, "clip_tolerance", cache->clip_tolerance);
 	RNA_float_get_array(op->ptr, "initial_mouse", cache->initial_mouse);
+
+	RNA_boolean_get_array(op->ptr, "alt_smooth", &cache->alt_smooth);
+
+	if (cache->alt_smooth) {
+		Paint *p= &sd->paint;
+		Brush *br;
+		int i;
+		
+		BLI_strncpy(cache->saved_active_brush_name, brush->id.name+2, sizeof(cache->saved_active_brush_name));
+
+		for(i = 0; i < p->brush_count; ++i) {
+			br = p->brushes[i];
+		
+			if (strcmp(br->id.name+2, "Smooth")==0) {
+				paint_brush_set(p, br);
+				break;
+			}
+		}
+	}
 
 	copy_v2_v2(cache->mouse, cache->initial_mouse);
 	copy_v2_v2(cache->tex_mouse, cache->initial_mouse);
@@ -2869,6 +2893,7 @@ static void sculpt_brush_stroke_init_properties(bContext *C, wmOperator *op, wmE
 	float scale[3], clip_tolerance[3] = {0,0,0};
 	float mouse[2];
 	int flag = 0;
+	int alt_smooth;
 
 	/* Set scaling adjustment */
 	scale[0] = 1.0f / ob->size[0];
@@ -2896,6 +2921,10 @@ static void sculpt_brush_stroke_init_properties(bContext *C, wmOperator *op, wmE
 	mouse[0] = event->x;
 	mouse[1] = event->y;
 	RNA_float_set_array(op->ptr, "initial_mouse", mouse);
+
+	/* Alt-Smooth */
+	alt_smooth = event->alt;
+	RNA_boolean_set_array(op->ptr, "alt_smooth", &alt_smooth);
 }
 
 static int sculpt_brush_stroke_init(bContext *C, ReportList *reports)
@@ -3031,7 +3060,7 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 
 		sculpt_brush_stroke_init_properties(C, op, event);
 
-		sculpt_update_cache_invariants(sd, ss, op);
+		sculpt_update_cache_invariants(C, sd, ss, op);
 
 		sculpt_undo_push_begin(sculpt_tool_name(sd));
 
@@ -3085,7 +3114,24 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	if(ss->cache) {
 		sculpt_stroke_modifiers_check(C, ss);
 		
-		if(brush->flag & BRUSH_SUBDIV) unlimited_clay(ss, ob);
+		if(brush->flag & BRUSH_SUBDIV)
+			unlimited_clay(ss, ob);
+
+		/* Alt-Smooth */
+		if (ss->cache->alt_smooth) {
+			Paint *p= &sd->paint;
+			Brush *br;
+			int i;
+
+			for(i = 0; i < p->brush_count; ++i) {
+				br = p->brushes[i];
+
+				if (strcmp(br->id.name+2, ss->cache->saved_active_brush_name)==0) {
+					paint_brush_set(p, br);
+					break;
+				}
+			}
+		}
 
 		sculpt_cache_free(ss->cache);
 		ss->cache = NULL;
@@ -3148,7 +3194,7 @@ static int sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 	op->customdata = paint_stroke_new(C, sculpt_stroke_get_location, sculpt_stroke_test_start,
 					  sculpt_stroke_update_step, sculpt_stroke_done);
 
-	sculpt_update_cache_invariants(sd, ss, op);
+	sculpt_update_cache_invariants(C, sd, ss, op);
 
 	paint_stroke_exec(C, op);
 
@@ -3189,6 +3235,10 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 
 	/* The initial 2D location of the mouse */
 	RNA_def_float_vector(ot->srna, "initial_mouse", 2, NULL, INT_MIN, INT_MAX, "initial_mouse", "", INT_MIN, INT_MAX);
+
+	RNA_def_boolean(ot->srna, "alt_smooth", 0, 
+			NULL, 
+			NULL);
 
 	RNA_def_boolean(ot->srna, "ignore_background_click", 0,
 			"Ignore Background Click",
