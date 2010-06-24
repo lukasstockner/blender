@@ -453,7 +453,7 @@ static SculptUndoNode *sculpt_undo_get_node(SculptSession *ss, PBVHNode *node)
 	return NULL;
 }
 
-static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
+SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 {
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	Object *ob= ss->ob;
@@ -524,13 +524,13 @@ static SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 	return unode;
 }
 
-static void sculpt_undo_push_begin(SculptSession *ss, char *name)
+void sculpt_undo_push_begin(SculptSession *ss, char *name)
 {
 	undo_paint_push_begin(UNDO_PAINT_MESH, name,
 		sculpt_undo_restore, sculpt_undo_free);
 }
 
-static void sculpt_undo_push_end(SculptSession *ss)
+void sculpt_undo_push_end(SculptSession *ss)
 {
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	SculptUndoNode *unode;

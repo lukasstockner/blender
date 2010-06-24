@@ -30,6 +30,7 @@
 #include "ED_mesh.h"
 #include "ED_sculpt.h"
 #include "paint_intern.h"
+#include "sculpt_intern.h"
 
 static void set_mask_value(MaskSetMode mode, float *m)
 {
@@ -46,11 +47,13 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 	Object *ob;
 	DerivedMesh *dm;
 	struct MultiresModifierData *mmd;
+	SculptSession *ss;
 	Mesh *me;
 	PBVH *pbvh;
 
 	scene = CTX_data_scene(C);
 	ob = CTX_data_active_object(C);
+	ss = ob->sculpt;
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 
@@ -62,8 +65,13 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		int n, totnode;
 
 		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
+
+		sculpt_undo_push_begin(ss, "Paint mask fill");
+
 		for(n=0; n<totnode; n++) {
 			PBVHVertexIter vd;
+
+			sculpt_undo_push_node(ss, nodes[n]);
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(vd.mask_active)
@@ -77,6 +85,9 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		if(mmd)
 			multires_mark_as_modified(ob);
 		BLI_pbvh_update(pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
+
+		sculpt_undo_push_end(ss);
+
 		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}
 	
@@ -90,9 +101,8 @@ static int mask_poll(bContext *C)
 	return ob && get_mesh(ob) && ob->sculpt;
 }
 
-/* Temporary operator to test masking; simply fills up a mask for the
-   entire object, setting each point to either 0, 1, or a random value
-*/
+/* fills up a mask for the entire object, setting each vertex to
+   either 0, 1, or a random value */
 void PAINT_OT_mask_set(wmOperatorType *ot)
 {
 	static EnumPropertyItem mask_items[] = {

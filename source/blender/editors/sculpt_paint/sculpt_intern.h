@@ -34,41 +34,20 @@
 #include "DNA_vec_types.h"
 
 struct bContext;
-struct Brush;
 struct KeyBlock;
-struct Mesh;
-struct MultiresModifierData;
 struct Object;
 struct Scene;
-struct Sculpt;
-struct SculptStroke;
-
-/* Interface */
-void sculptmode_selectbrush_menu(void);
-void sculptmode_draw_mesh(int);
-void sculpt_paint_brush(char clear);
-void sculpt_stroke_draw(struct SculptStroke *);
-void sculpt_radialcontrol_start(int mode);
-struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
-
-struct Brush *sculptmode_brush(void);
-//void do_symmetrical_brush_actions(struct Sculpt *sd, struct wmOperator *wm, struct BrushAction *a, short *, short *);
-
-void sculpt(Sculpt *sd);
+struct PBVHNode;
+struct SculptUndoNode;
 
 int sculpt_poll(struct bContext *C);
 void sculpt_update_mesh_elements(struct Scene *scene, struct Object *ob, int need_fmap);
 void sculpt_key_to_mesh(struct KeyBlock *kb, struct Object *ob);
 void sculpt_mesh_to_key(struct Object *ob, struct KeyBlock *kb);
 
-/* Stroke */
-struct SculptStroke *sculpt_stroke_new(const int max);
-void sculpt_stroke_free(struct SculptStroke *);
-void sculpt_stroke_add_point(struct SculptStroke *, const short x, const short y);
-void sculpt_stroke_apply(struct Sculpt *sd, struct SculptStroke *);
-void sculpt_stroke_apply_all(struct Sculpt *sd, struct SculptStroke *);
-
-/* Partial Mesh Visibility */
-void sculptmode_pmv(int mode);
+/* Undo */
+void sculpt_undo_push_begin(struct SculptSession *ss, char *name);
+void sculpt_undo_push_end(struct SculptSession *ss);
+struct SculptUndoNode *sculpt_undo_push_node(struct SculptSession *ss, struct PBVHNode *node);
 
 #endif
