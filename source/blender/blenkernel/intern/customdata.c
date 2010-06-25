@@ -559,7 +559,7 @@ static int layerRead_mdisps(CDataFile *cdf, void *data, int count)
 			d[i].disps = MEM_callocN(sizeof(float)*3*d[i].totdisp, "mdisps read");
 
 		if(!cdf_read_data(cdf, d[i].totdisp*3*sizeof(float), d[i].disps)) {
-			printf("failed to read multires displacement %d/%d %d\n", i, count, d[i].totdisp);
+			printf("Can't read multires displacement %d/%d %d (subdivision level mismatch?)\n", i, count, d[i].totdisp);
 			return 0;
 		}
 	}
@@ -574,7 +574,7 @@ static int layerWrite_mdisps(CDataFile *cdf, void *data, int count)
 
 	for(i = 0; i < count; ++i) {
 		if(!cdf_write_data(cdf, d[i].totdisp*3*sizeof(float), d[i].disps)) {
-			printf("failed to write multires displacement %d/%d %d\n", i, count, d[i].totdisp);
+			printf("Failed to write multires displacement %d/%d %d\n", i, count, d[i].totdisp);
 			return 0;
 		}
 	}
@@ -2387,8 +2387,10 @@ void CustomData_external_read(CustomData *data, ID *id, CustomDataMask mask, int
 
 			if(blay) {
 				if(cdf_read_layer(cdf, blay)) {
-					if(typeInfo->read(cdf, layer->data, totelem));
-					else break;
+					if(!typeInfo->read(cdf, layer->data, totelem)) {
+						printf("Failed to read file %s\n", filename);
+						break;
+					}
 					layer->flag |= CD_FLAG_IN_MEMORY;
 				}
 				else
@@ -2462,8 +2464,10 @@ void CustomData_external_write(CustomData *data, ID *id, CustomDataMask mask, in
 			blay= cdf_layer_find(cdf, layer->type, layer->name);
 
 			if(cdf_write_layer(cdf, blay)) {
-				if(typeInfo->write(cdf, layer->data, totelem));
-				else break;
+				if(!typeInfo->write(cdf, layer->data, totelem)) {
+					printf("Failed to write file %s\n", filename);
+					break;
+				}
 			}
 			else
 				break;
