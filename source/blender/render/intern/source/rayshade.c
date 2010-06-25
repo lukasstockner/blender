@@ -42,6 +42,7 @@
 #include "BKE_utildefines.h"
 
 #include "BLI_blenlib.h"
+#include "BLI_cpu.h"
 #include "BLI_jitter.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
@@ -144,7 +145,7 @@ RayObject*  RE_rayobject_create(Render *re, int type, int size)
 		//TODO
 		//if(detect_simd())
 #ifdef __SSE__
-		type = R_RAYSTRUCTURE_SIMD_SVBVH;
+		type = BLI_cpu_support_sse2()? R_RAYSTRUCTURE_SIMD_SVBVH: R_RAYSTRUCTURE_VBVH;
 #else
 		type = R_RAYSTRUCTURE_VBVH;
 #endif
