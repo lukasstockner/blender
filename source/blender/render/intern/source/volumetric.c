@@ -777,13 +777,17 @@ void shade_volume_inside(Render *re, ShadeInput *shi, ShadeResult *shr)
 	ObjectInstanceRen *obi_backup;
 	float prev_alpha = shr->alpha;
 	
-	//if (BLI_countlist(re.render_volumes_inside) == 0) return;
-	
 	/* XXX: extend to multiple volumes perhaps later */
+	for(m=re->db.render_volumes_inside.first; m; m=m->next)
+		if(m->obi->lay & shi->shading.lay)
+			break;
+	
+	if(!m)
+		return;
+
 	mat_backup = shi->material.mat;
 	obi_backup = shi->primitive.obi;
-	
-	m = re->db.render_volumes_inside.first;
+
 	shi->material.mat = m->ma;
 	shi->primitive.obi = m->obi;
 	shi->primitive.obr = m->obi->obr;
