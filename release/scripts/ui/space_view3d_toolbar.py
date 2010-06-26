@@ -509,9 +509,11 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             else:
                 defaultbrushes = 7
 
-            row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
+            #row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
 
-            col.template_ID(settings, "brush", new="brush.add")
+            #col.template_ID(settings, "brush", new="brush.add")
+            #col.template_ID_preview(brush, "texture", new="texture.new", rows=2, cols=4)
+            col.template_ID_preview(settings, "brush", new="brush.add", rows=5, cols=5)
 
         # Particle Mode #
 
@@ -559,8 +561,8 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row(align=True)
                 row.prop(brush, "use_size_pressure", toggle=True, text="Size")
 
-                if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
-                    row.prop(brush, "use_strength_pressure", toggle=True, text="Strength")
+            if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
+                row.prop(brush, "use_strength_pressure", toggle=True, text="Strength")
 
             if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE'):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
