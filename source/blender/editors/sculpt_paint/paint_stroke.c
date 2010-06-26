@@ -479,9 +479,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			float  alpha;
 
 			// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
-			wmEvent* event = CTX_wm_window(C)->eventstate;
+			//wmEvent* event = CTX_wm_window(C)->eventstate;
 
-			flip = event->shift ? -1 : 1;
+			// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
+			flip = 1;
 
 			if ( brush->draw_pressure && brush->flag & BRUSH_ALPHA_PRESSURE)
 				visual_strength *= brush->pressure_value;
@@ -692,31 +693,39 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse[2])
 {
 	PointerRNA itemptr;
-	float pressure = 1;
-	float center[3] = {0, 0, 0};
-	int flip= event->shift?1:0;
+
+	float location[3];
+
+	float pressure;
+	int   pen_flip;
 
 	PaintStroke *stroke = op->customdata;
 
 	/* XXX: can remove the if statement once all modes have this */
 	if(stroke->get_location)
-		stroke->get_location(C, stroke, center, mouse);
+		stroke->get_location(C, stroke, location, mouse);
+	else
+		zero_v3(location);
 
 	/* Tablet */
 	if(event->custom == EVT_DATA_TABLET) {
 		wmTabletData *wmtab= event->customdata;
-		if(wmtab->Active != EVT_TABLET_NONE)
-			pressure= wmtab->Pressure;
-		if(wmtab->Active == EVT_TABLET_ERASER)
-			flip = 1;
+
+		pressure = (wmtab->Active != EVT_TABLET_NONE) ? pressure= wmtab->Pressure : 1;
+		pen_flip = (wmtab->Active == EVT_TABLET_ERASER);
+	}
+	else {
+		pressure = 1;
+		pen_flip = 0;
 	}
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
-	RNA_float_set_array(&itemptr, "location", center);
-	RNA_float_set_array(&itemptr, "mouse", mouse);
-	RNA_boolean_set(&itemptr, "flip", flip);
-	RNA_float_set(&itemptr, "pressure", pressure);
+
+	RNA_float_set_array(&itemptr, "location",     location);
+	RNA_float_set_array(&itemptr, "mouse",        mouse);
+	RNA_boolean_set    (&itemptr, "pen_flip",     pen_flip);
+	RNA_float_set      (&itemptr, "pressure", pressure);
 
 	stroke->last_mouse_position[0] = mouse[0];
 	stroke->last_mouse_position[1] = mouse[1];

@@ -186,7 +186,8 @@ typedef struct StrokeCache {
 	float true_location[3];
 	float location[3];
 
-	float flip;
+	float pen_flip;
+	float invert;
 	float pressure;
 	float mouse[2];
 	float bstrength;
@@ -529,10 +530,11 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	Brush *brush = paint_brush(&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
-	float alpha    = brush->alpha * brush->alpha * brush->strength_multiplier;
-	float dir      = brush->flag & BRUSH_DIR_IN ? -1 : 1;
+	float alpha        = brush->alpha * brush->alpha * brush->strength_multiplier;
+	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
 	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
-	float flip     = cache->flip ? -1 : 1;
+	float pen_flip     = cache->pen_flip ? -1 : 1;
+	float invert       = cache->invert ? -1 : 1;
 
 	//float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 	float overlap  = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
@@ -549,16 +551,16 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
 		case SCULPT_TOOL_WAX:
-			return alpha * dir * flip * pressure * overlap;
+			return alpha * dir * invert * pen_flip * pressure * overlap;
 
 		case SCULPT_TOOL_SMOOTH:
 			return alpha * 4.0f * pressure * overlap;
 
 		case SCULPT_TOOL_PINCH:
-			return alpha / 2.0f * dir * pressure * flip * overlap;
+			return alpha / 2.0f * dir * invert * pen_flip * pressure * overlap;
 
 		case SCULPT_TOOL_GRAB:
-			return dir*flip > 0 ? 1.0f : -1.0f;
+			return dir*invert*pen_flip > 0 ? 1.0f : -1.0f;
 
 		case SCULPT_TOOL_NUDGE:
 			return alpha * pressure * overlap;
@@ -2469,23 +2471,56 @@ static void sculpt_cache_free(StrokeCache *cache)
 }
 
 /* Initialize the stroke cache invariants from operator properties */
-static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSession *ss, wmOperator *op)
+static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSession *ss, wmOperator *op, wmEvent *event)
 {
 	StrokeCache *cache = MEM_callocN(sizeof(StrokeCache), "stroke cache");
 	Brush *brush = paint_brush(&sd->paint);
 	ViewContext *vc = paint_stroke_view_context(op->customdata);
+	Object *ob= CTX_data_active_object(C);
+	ModifierData *md;
 	int i;
+	int mode;
 
 	ss->cache = cache;
 
-	RNA_float_get_array(op->ptr, "scale", cache->scale);
-	cache->flag = RNA_int_get(op->ptr, "flag");
-	RNA_float_get_array(op->ptr, "clip_tolerance", cache->clip_tolerance);
-	RNA_float_get_array(op->ptr, "initial_mouse", cache->initial_mouse);
+	/* Set scaling adjustment */
+	ss->cache->scale[0] = 1.0f / ob->size[0];
+	ss->cache->scale[1] = 1.0f / ob->size[1];
+	ss->cache->scale[2] = 1.0f / ob->size[2];
 
-	RNA_boolean_get_array(op->ptr, "alt_smooth", &cache->alt_smooth);
+	/* Initialize mirror modifier clipping */
 
-	if (cache->alt_smooth) {
+	ss->cache->flag = 0;
+
+	for(md= ob->modifiers.first; md; md= md->next) {
+		if(md->type==eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
+			const MirrorModifierData *mmd = (MirrorModifierData*) md;
+			
+			/* Mark each axis that needs clipping along with its tolerance */
+			if(mmd->flag & MOD_MIR_CLIPPING) {
+				ss->cache->flag |= CLIP_X << mmd->axis;
+				if(mmd->tolerance > ss->cache->clip_tolerance[mmd->axis])
+					ss->cache->clip_tolerance[mmd->axis] = mmd->tolerance;
+			}
+		}
+	}
+
+	/* Initial mouse location */
+	if (event) {
+		ss->cache->initial_mouse[0] = event->x;
+		ss->cache->initial_mouse[1] = event->y;
+	}
+	else {
+		ss->cache->initial_mouse[0] = 0;
+		ss->cache->initial_mouse[1] = 0;
+	}
+
+	mode = RNA_int_get(op->ptr, "mode");
+	cache->invert = mode == WM_BRUSHSTROKE_INVERT;
+	cache->alt_smooth = mode == WM_BRUSHSTROKE_SMOOTH;
+
+	/* Alt-Smooth */
+	if (ss->cache->alt_smooth) {
 		Paint *p= &sd->paint;
 		Brush *br;
 		int i;
@@ -2497,6 +2532,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		
 			if (strcmp(br->id.name+2, "Smooth")==0) {
 				paint_brush_set(p, br);
+				brush = br;
 				break;
 			}
 		}
@@ -2568,17 +2604,16 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 {
 	StrokeCache *cache = ss->cache;
 	Brush *brush = paint_brush(&sd->paint);
-	
+
 	int dx, dy;
 
 	if(!((brush->flag & BRUSH_ANCHORED) || (brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK) || (brush->sculpt_tool == SCULPT_TOOL_ROTATE)) || cache->first_time)
 		RNA_float_get_array(ptr, "location", cache->true_location);
-	cache->flip = RNA_boolean_get(ptr, "flip");
+	cache->pen_flip = RNA_boolean_get(ptr, "pen_flip");
 	RNA_float_get_array(ptr, "mouse", cache->mouse);
 
 	cache->pressure = RNA_float_get(ptr, "pressure");
 	cache->sculpt_direction = brush->sculpt_direction;
-
 
 	/* Truly temporary data that isn't stored in properties */
 
@@ -2885,48 +2920,6 @@ int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 	return srd.hit;
 }
 
-/* Initialize stroke operator properties */
-static void sculpt_brush_stroke_init_properties(bContext *C, wmOperator *op, wmEvent *event)
-{
-	Object *ob= CTX_data_active_object(C);
-	ModifierData *md;
-	float scale[3], clip_tolerance[3] = {0,0,0};
-	float mouse[2];
-	int flag = 0;
-	int alt_smooth;
-
-	/* Set scaling adjustment */
-	scale[0] = 1.0f / ob->size[0];
-	scale[1] = 1.0f / ob->size[1];
-	scale[2] = 1.0f / ob->size[2];
-	RNA_float_set_array(op->ptr, "scale", scale);
-
-	/* Initialize mirror modifier clipping */
-	for(md= ob->modifiers.first; md; md= md->next) {
-		if(md->type==eModifierType_Mirror && (md->mode & eModifierMode_Realtime)) {
-			const MirrorModifierData *mmd = (MirrorModifierData*) md;
-			
-			/* Mark each axis that needs clipping along with its tolerance */
-			if(mmd->flag & MOD_MIR_CLIPPING) {
-				flag |= CLIP_X << mmd->axis;
-				if(mmd->tolerance > clip_tolerance[mmd->axis])
-					clip_tolerance[mmd->axis] = mmd->tolerance;
-			}
-		}
-	}
-	RNA_int_set(op->ptr, "flag", flag);
-	RNA_float_set_array(op->ptr, "clip_tolerance", clip_tolerance);
-
-	/* Initial mouse location */
-	mouse[0] = event->x;
-	mouse[1] = event->y;
-	RNA_float_set_array(op->ptr, "initial_mouse", mouse);
-
-	/* Alt-Smooth */
-	alt_smooth = event->alt;
-	RNA_boolean_set_array(op->ptr, "alt_smooth", &alt_smooth);
-}
-
 static int sculpt_brush_stroke_init(bContext *C, ReportList *reports)
 {
 	Scene *scene= CTX_data_scene(C);
@@ -3058,9 +3051,7 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 
 		ED_view3d_init_mats_rv3d(ob, CTX_wm_region_view3d(C));
 
-		sculpt_brush_stroke_init_properties(C, op, event);
-
-		sculpt_update_cache_invariants(C, sd, ss, op);
+		sculpt_update_cache_invariants(C, sd, ss, op, event);
 
 		sculpt_undo_push_begin(sculpt_tool_name(sd));
 
@@ -3170,6 +3161,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, wmEvent *even
 	/* For tablet rotation */
 	ignore_background_click = RNA_boolean_get(op->ptr,
 						  "ignore_background_click"); 
+
 	if(ignore_background_click && !over_mesh(C, op, event->x, event->y)) {
 		paint_stroke_free(stroke);
 		return OPERATOR_PASS_THROUGH;
@@ -3194,7 +3186,7 @@ static int sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 	op->customdata = paint_stroke_new(C, sculpt_stroke_get_location, sculpt_stroke_test_start,
 					  sculpt_stroke_update_step, sculpt_stroke_done);
 
-	sculpt_update_cache_invariants(C, sd, ss, op);
+	sculpt_update_cache_invariants(C, sd, ss, op, NULL);
 
 	paint_stroke_exec(C, op);
 
@@ -3222,23 +3214,14 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
 
 	/* properties */
-	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 
-	/* If the object has a scaling factor, brushes also need to be scaled
-	   to work as expected. */
-	RNA_def_float_vector(ot->srna, "scale", 3, NULL, 0.0f, FLT_MAX, "Scale", "", 0.0f, 1000.0f);
+	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement,
+			"Stroke", "");
 
-	RNA_def_int(ot->srna, "flag", 0, 0, INT_MAX, "flag", "", 0, INT_MAX);
-
-	/* For mirror modifiers */
-	RNA_def_float_vector(ot->srna, "clip_tolerance", 3, NULL, 0.0f, FLT_MAX, "clip_tolerance", "", 0.0f, 1000.0f);
-
-	/* The initial 2D location of the mouse */
-	RNA_def_float_vector(ot->srna, "initial_mouse", 2, NULL, INT_MIN, INT_MAX, "initial_mouse", "", INT_MIN, INT_MAX);
-
-	RNA_def_boolean(ot->srna, "alt_smooth", 0, 
-			NULL, 
-			NULL);
+	RNA_def_int(ot->srna, "mode", WM_BRUSHSTROKE_NORMAL,
+			0, WM_BRUSHSTROKE_LAST-1,
+			"Sculpt Stroke Mode", "Sculpt Stroke Mode",
+			0, WM_BRUSHSTROKE_LAST-1);
 
 	RNA_def_boolean(ot->srna, "ignore_background_click", 0,
 			"Ignore Background Click",

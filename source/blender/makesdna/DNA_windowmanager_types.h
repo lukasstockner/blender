@@ -307,8 +307,14 @@ typedef struct wmOperator {
 typedef enum wmRadialControlMode {
 	WM_RADIALCONTROL_SIZE,
 	WM_RADIALCONTROL_STRENGTH,
-	WM_RADIALCONTROL_ANGLE
+	WM_RADIALCONTROL_ANGLE,
 } wmRadialControlMode;
 
-#endif /* DNA_WINDOWMANAGER_TYPES_H */
+typedef enum wmBrushStrokeMode {
+	WM_BRUSHSTROKE_NORMAL,
+	WM_BRUSHSTROKE_INVERT,
+	WM_BRUSHSTROKE_SMOOTH,
+	WM_BRUSHSTROKE_LAST,
+} wmBrushStrokeMode;
 
+#endif /* DNA_WINDOWMANAGER_TYPES_H */

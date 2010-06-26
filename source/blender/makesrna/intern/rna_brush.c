@@ -538,16 +538,19 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Pressure", "Tablet pressure");
 
-	prop= RNA_def_property(srna, "time", PROP_FLOAT, PROP_UNSIGNED);
-	RNA_def_property_flag(prop, PROP_IDPROPERTY);
-	RNA_def_property_ui_text(prop, "Time", "");
-
-	prop= RNA_def_property(srna, "flip", PROP_BOOLEAN, PROP_NONE);
+	prop= RNA_def_property(srna, "pen_flip", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_IDPROPERTY);
 	RNA_def_property_ui_text(prop, "Flip", "");
 
+	// XXX: not used?
+	//prop= RNA_def_property(srna, "time", PROP_FLOAT, PROP_UNSIGNED);
+	//RNA_def_property_flag(prop, PROP_IDPROPERTY);
+	//RNA_def_property_ui_text(prop, "Time", "");
+
 	/* XXX: Tool (this will be for pressing a modifier key for a different brush,
 			e.g. switching to a Smooth brush in the middle of the stroke */
+
+	// XXX: i don't think blender currently supports the ability to property do a properly remappable modifier in the middle of a stroke
 }
 
 void RNA_def_brush(BlenderRNA *brna)
