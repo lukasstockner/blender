@@ -559,8 +559,8 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row(align=True)
                 row.prop(brush, "use_size_pressure", toggle=True, text="Size")
 
-            if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
-                row.prop(brush, "use_strength_pressure", toggle=True, text="Strength")
+                if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
+                    row.prop(brush, "use_strength_pressure", toggle=True, text="Strength")
 
             if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE'):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
@@ -746,7 +746,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel):
         col = layout.column(align=True)
 
         if context.sculpt_object:
-            col.prop(brush, "sculpt_tool", expand=True)
+            col.prop(brush, "sculpt_tool", expand=False)
         elif context.texture_paint_object:
             col.prop(brush, "imagepaint_tool", expand=True)
             #col.prop_enum(settings, "tool", 'DRAW')
