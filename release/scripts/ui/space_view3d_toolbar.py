@@ -553,9 +553,15 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
             row = col.row(align=True)
             if brush.lock_brush_size:
-                row.prop(brush, "unprojected_radius", text="Units", slider=True)
+                if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
+                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_bu_radius", text ="Units", slider=True)
+                else:
+                    row.prop(brush, "unprojected_radius", text="Units", slider=True)
             else:
-                row.prop(brush, "size", slider=True, text="Pixels")
+                if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
+                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_pixel_radius", text="Pixels", slider=True)
+                else:
+                    row.prop(brush, "size", text="Pixels", slider=True)
 
             if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK', 'THUMB'):
                 row = col.row(align=True)
@@ -567,8 +573,15 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE'):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
-                row = col.row(align=True)
-                row.prop(brush, "strength", slider=True)
+                #row = col.row(align=True)
+                #row.prop(bpy.context.user_preferences.edit, "use_unified_radius_and_strength")
+                if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
+                    row = col.row(align=True)
+                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_strength", slider=True)
+
+                else:
+                    row = col.row(align=True)
+                    row.prop(brush, "strength", slider=True)
                 row.prop(brush, "use_strength_pressure", text="")
                 col.prop(brush, "strength_multiplier", slider=True)
 

@@ -139,7 +139,7 @@ typedef struct Brush {
 #define BRUSH_EDGE_TO_EDGE	(1<<22)
 #define BRUSH_RESTORE_MESH	(1<<23)
 
-/* Brush stroke_tool */
+/* Brush stroke_style */
 //#define STROKE_TOOL_DOTS	1
 //#define STROKE_TOOL_SPACE	2
 //#define STROKE_TOOL_FREEHAND	3

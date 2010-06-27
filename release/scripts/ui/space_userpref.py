@@ -327,6 +327,16 @@ class USERPREF_PT_edit(bpy.types.Panel):
         row.separator()
 
         col = row.column()
+        col.label(text="Paint and Sculpt:")
+        col.prop(edit, "use_unified_radius_and_strength", text="Unified Size and Strength")
+        col.prop(edit, "sculpt_paint_pixel_radius", text="Unified Pixel Radius")
+        col.prop(edit, "sculpt_paint_bu_radius", text="Unified BU Radius")
+        col.prop(edit, "sculpt_paint_strength", text="Unified Strength")
+	
+        col.separator()
+        col.separator()
+        col.separator()
+
         col.label(text="Duplicate Data:")
         col.prop(edit, "duplicate_mesh", text="Mesh")
         col.prop(edit, "duplicate_surface", text="Surface")

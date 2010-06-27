@@ -42,6 +42,7 @@ struct CSG_VertexIteratorDescriptor;
 struct ColorBand;
 struct CurveMapping;
 struct EditBone;
+struct EditFace;
 struct EditMesh;
 struct ID;
 struct FCurve;
@@ -54,16 +55,20 @@ struct LOD_Decimation_Info;
 struct MTex;
 struct Main;
 struct Material;
+struct MCol;
 struct MenuType;
 struct Mesh;
 struct ModifierData;
+struct MultiresModifierData;
 struct NodeBlurData;
 struct Object;
+struct PBVHNode;
 struct Render;
 struct RenderEngine;
 struct RenderLayer;
 struct RenderResult;
 struct ScrArea;
+struct SculptSession;
 struct ShadeInput;
 struct ShadeResult;
 struct SpaceImage;
@@ -373,6 +378,17 @@ void smoke_get_velocity_z(void) {return;}
 void smoke_get_obstacle(void) {return;}
 void smoke_get_index(void) {return;}
 void smoke_step(void) {return;}
+*/
+
+/* sculpt */
+/*
+ void ED_sculpt_force_update(struct bContext *C) {}
+struct SculptUndoNode *sculpt_undo_push_node(struct SculptSession *ss, struct PBVHNode *node) {return (struct SculptUndoNode *)NULL;}
+void sculpt_undo_push_end(void) {}
+void sculpt_undo_push_begin(char *name) {}
+struct SculptUndoNode *sculpt_undo_get_node(struct PBVHNode *node) {return (struct SculptUndoNode *) NULL;}
+struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob) {return (struct MultiresModifierData *) NULL;}
+int sculpt_modifiers_active(struct Scene *scene, struct Object *ob) {return 0;}
 */
 
 char blender_path[] = "";

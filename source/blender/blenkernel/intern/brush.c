@@ -70,42 +70,58 @@ Brush *add_brush(const char *name)
 
 	brush= alloc_libblock(&G.main->brush, ID_BR, name);
 
-	brush->rgb[0]= 1.0f;
+	/* BRUSH SCULPT TOOL SETTINGS */
+	brush->sculpt_tool = SCULPT_TOOL_DRAW; /* sculpting defaults to the draw tool for new brushes */
+	brush->plane_offset= 0.0f; /* how far above or below the plane that is found by averaging the faces */
+	brush->size= 50; /* radius of the brush in pixels */
+	brush->alpha= 0.5f; /* brush strength/intensity probably variable should be renamed? */
+	
+	/* BRUSH PAINT TOOL SETTINGS */
+	brush->rgb[0]= 1.0f; /* default rgb color of the brush when painting - white */
 	brush->rgb[1]= 1.0f;
 	brush->rgb[2]= 1.0f;
-	brush->alpha= 0.2f;
-	brush->size= 25;
-	brush->plane_offset= 0.0f;
-	brush->texture_offset = 0.0f;
-	brush->spacing= 15;
+	
+	
+	/* BRUSH STROKE SETTINGS */
+	brush->spacing= 12; /* how far each brush dot should be spaced as a percentage of brush diameter */
 	brush->smooth_stroke_radius= 75;
 	brush->smooth_stroke_factor= 0.9;
-	brush->rate= 0.1f;
+	brush->rate= 0.1f; /* time delay between dots of paint or sculpting when doing airbrush mode */
 	brush->jitter= 0.0f;
 	brush->clone.alpha= 0.5;
-	brush->sculpt_tool = SCULPT_TOOL_DRAW;
+
 	//brush->stroke_tool = STROKE_TOOL_FREEHAND;
 	brush->flag |= BRUSH_SPACE;
-	brush->detail = 0.25f;
+	
+	/* UNLIMITED CLAY SETTINGS */
+	brush->detail = 0.25f; /* this is how much to tesselate faces when sculpting with unlimited clay */
 	brush->smoothness = 0.25f;
-	brush->plane_offset = 0;
-	brush->texture_center_x = 0;
+
+	/* BRUSH TEXTURE SETTINGS */
+	brush->texture_offset = 0.0f; /* this determines where in the texture the midpoint of the brush is */
+	brush->texture_center_x = 0; /* center offset for textures used on brush or as stencils */
 	brush->texture_center_y = 0;
-	brush->texture_scale_x = 1;
+	
+	brush->texture_scale_x = 1; /* scaling factor for textures used on brush or as stencils */
 	brush->texture_scale_y = 1;
+	
 	brush->texture_offset = 0;
-	brush->overlay_texture = 0;
+	
+	brush->overlay_texture = 0; /* toggles whether the texture is shown as an overlay when not sculpting 0 is off */
 	brush->autosmooth_factor = 0;
 
-	brush->add_col[0] = 1.00;
+	/* color of the 'on surface' brush */
+	brush->add_col[0] = 1.00; /* add mode color is red */
 	brush->add_col[1] = 0.39;
 	brush->add_col[2] = 0.39;
 
-	brush->sub_col[0] = 0.39;
+	brush->sub_col[0] = 0.39; /* subtract mode color is blue */
 	brush->sub_col[1] = 0.39;
 	brush->sub_col[2] = 1.00;
 
-	brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
+	/* note we should have a smoothing color also */
+	
+	brush_curve_preset(brush, CURVE_PRESET_SMOOTH); /* the default alpha falloff curve */
 	
 	default_mtex(&brush->mtex);
 

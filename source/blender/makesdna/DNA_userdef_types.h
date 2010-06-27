@@ -341,9 +341,10 @@ typedef struct UserDef {
 	short gp_settings;
 	short tb_leftmouse, tb_rightmouse;
 	struct SolidLight light[3];
+	short sculpt_paint_settings; /* user preferences for sculpt and paint */
 	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
 	short textimeout,texcollectrate;
-	short wmdrawmethod, wmpad;
+	short wmdrawmethod; /* removed wmpad */
 	int memcachelimit;
 	int prefetchframes;
 	short frameserverport;
@@ -373,6 +374,10 @@ typedef struct UserDef {
 	short autokey_flag;		/* flags for autokeying */
 
 	struct ColorBand coba_weight;	/* from texture.h */
+	int sculpt_paint_pixel_radius; /* unified radius of brush in pixels */
+	float sculpt_paint_bu_radius; /* unified radius of brush in blender units */
+	float sculpt_paint_strength; /* unified strenght of brush scaled to brush radius */
+	float pad3;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -523,6 +528,9 @@ extern UserDef U; /* from blenkernel blender.c */
 /* gp_settings (Grease Pencil Settings) */
 #define GP_PAINT_DOSMOOTH		(1<<0)
 #define GP_PAINT_DOSIMPLIFY		(1<<1)
+
+/* sculpt_paint_settings */
+#define BRUSH_USE_UNIFIED_RADIUS_AND_STRENGTH (1<<0)
 
 /* color picker types */
 #define USER_CP_CIRCLE		0

@@ -22,7 +22,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): Jason Wilkins, Tom Musgrove.
  *
  * ***** END GPL LICENSE BLOCK *****
  *

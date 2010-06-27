@@ -372,7 +372,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SUBDIV);
 	RNA_def_property_ui_text(prop, "Unlimited clay", "Dynamic subdivission on the fly while sculpting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
+	
 	prop= RNA_def_property(srna, "use_space_atten", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SPACE_ATTEN);
 	RNA_def_property_ui_text(prop, "Space Attenuation", "Reduces the strength of the brush when it spacing is less than 100%");
@@ -400,7 +400,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "restore_mesh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RESTORE_MESH);
-	RNA_def_property_ui_text(prop, "Restore Mesh", "Allows a single daub to be carefully positioned");
+	RNA_def_property_ui_text(prop, "Restore Mesh", "Allows a single dot to be carefully positioned");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* not exposed in the interface yet

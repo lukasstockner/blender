@@ -867,7 +867,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Transform", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
-
+	
 	rna_def_userdef_theme_spaces_vertex(srna);
 	rna_def_userdef_theme_spaces_edge(srna);
 	rna_def_userdef_theme_spaces_face(srna);
@@ -2211,6 +2211,26 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "gp_eraser");
 	RNA_def_property_range(prop, 0, 100);
 	RNA_def_property_ui_text(prop, "Grease Pencil Eraser Radius", "Radius of eraser 'brush'");
+
+	/* sculpt and paint */
+	prop= RNA_def_property(srna, "use_unified_radius_and_strength", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", BRUSH_USE_UNIFIED_RADIUS_AND_STRENGTH);
+	RNA_def_property_ui_text(prop, "Use Unified Radius and Strength", "Instead of per brush radius and strength settings the settings are shared across brushes");
+
+	prop= RNA_def_property(srna, "sculpt_paint_pixel_radius", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "sculpt_paint_pixel_radius");
+	RNA_def_property_range(prop, 0, 200);
+	RNA_def_property_ui_text(prop, "Pixels", "Unified Brush Radius in Pixels");
+
+	prop= RNA_def_property(srna, "sculpt_paint_bu_radius", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_bu_radius");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Units", "Unified Brush Radius in Blender Units");
+
+	prop= RNA_def_property(srna, "sculpt_paint_strength", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_strength");
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Strength", "Unified Brush Strength");
 	
 	/* duplication linking */
 	prop= RNA_def_property(srna, "duplicate_mesh", PROP_BOOLEAN, PROP_NONE);
