@@ -51,6 +51,19 @@ static void rna_Brush_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 	WM_main_add_notifier(NC_BRUSH|NA_EDITED, br);
 }
 
+static int rna_Brush_is_sculpt_brush(Brush *me, bContext *C)
+{
+	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+	int i;
+
+	for (i= 0; i < sd->paint.brush_count; i++) {
+		if (strcmp(me->id.name+2, sd->paint.brushes[i]->id.name+2) == 0) 
+			return 1;
+	}
+
+	return 0;
+}
+
 #else
 
 static void rna_def_brush_texture_slot(BlenderRNA *brna)
@@ -153,11 +166,22 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_DISP_DIR_Y, "Y", 0, "Y", ""},
 		{SCULPT_DISP_DIR_Z, "Z", 0, "Z", ""},
 		{0, NULL, 0, NULL, NULL}};
-	
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
 	srna= RNA_def_struct(brna, "Brush", "ID");
 	RNA_def_struct_ui_text(srna, "Brush", "Brush datablock for storing brush settings for painting and sculpting");
 	RNA_def_struct_ui_icon(srna, ICON_BRUSH_DATA);
-	
+
+	/* functions */
+	func= RNA_def_function(srna, "is_sculpt_brush", "rna_Brush_is_sculpt_brush");
+	RNA_def_function_ui_description(func, "Returns true if Brush can be used for sculpting.");
+	parm= RNA_def_pointer(func, "context", "Context", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_boolean(func, "ret", 0, "", "");
+	RNA_def_function_return(func, parm);
+
 	/* enums */
 	prop= RNA_def_property(srna, "blend", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, prop_blend_items);
@@ -483,6 +507,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Subract Color", "Color of cursor when subtracting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "image_icon", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "image_icon");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Image Icon", "");
+	RNA_def_property_update(prop, NC_IMAGE, "rna_Brush_update");
 
 	/* clone tool */
 	prop= RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);

@@ -53,6 +53,7 @@
 #include "BKE_main.h"
 #include "BKE_paint.h"
 #include "BKE_texture.h"
+#include "BKE_icons.h"
 
 
 
@@ -155,7 +156,9 @@ Brush *copy_brush(Brush *brush)
 void free_brush(Brush *brush)
 {
 	if(brush->mtex.tex) brush->mtex.tex->id.us--;
-	
+
+	BKE_previewimg_free(&brush->preview);
+
 	curvemapping_free(brush->curve);
 }
 

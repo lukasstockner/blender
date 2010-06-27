@@ -291,7 +291,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 		
 		sce->r.color_mgt_flag = scene->r.color_mgt_flag;
 		/* exception: don't color manage texture previews or icons */
-		if((sp && sp->pr_method==PR_ICON_RENDER) || id_type == ID_TE)
+		if((sp && sp->pr_method==PR_ICON_RENDER) || (id_type == ID_TE  || (id_type==ID_BR && id && ((Brush*)id)->image_icon==NULL)))
 			sce->r.color_mgt_flag &= ~R_COLOR_MANAGEMENT;
 		if((sp && sp->pr_method==PR_ICON_RENDER) && id_type != ID_WO)
 			sce->r.alphamode= R_ALPHAPREMUL;
@@ -379,8 +379,8 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 				}
 			}
 		}
-		else if(id_type==ID_TE) {
-			Tex *tex= (Tex *)id;
+		else if(id_type==ID_TE || (id_type==ID_BR && id && ((Brush*)id)->image_icon==NULL)) {
+			Tex *tex= id_type==ID_BR ? ((Brush*)id)->mtex.tex : (Tex*)id;
 			
 			sce->lay= 1<<MA_TEXTURE;
 			
@@ -452,7 +452,7 @@ static int ed_preview_draw_rect(ScrArea *sa, Scene *sce, ID *id, int split, int 
 	int gamma_correct=0;
 	int offx=0, newx= rect->xmax-rect->xmin, newy= rect->ymax-rect->ymin;
 
-	if (id && GS(id->name) != ID_TE) {
+	if (id && (GS(id->name) != ID_TE  || !(GS(id->name)==ID_BR && ((Brush*)id)->image_icon==NULL))) {
 		/* exception: don't color manage texture previews - show the raw values */
 		if (sce) gamma_correct = sce->r.color_mgt_flag & R_COLOR_MANAGEMENT;
 	}
@@ -902,7 +902,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 	}
 	else if(sp->pr_method==PR_NODE_RENDER) {
 		if(idtype == ID_MA) sce->r.scemode |= R_MATNODE_PREVIEW;
-		else if(idtype == ID_TE) sce->r.scemode |= R_TEXNODE_PREVIEW;
+		else if(idtype == ID_TE  || (idtype==ID_BR && ((Brush*)id)->image_icon==NULL)) sce->r.scemode |= R_TEXNODE_PREVIEW;
 		sce->r.mode |= R_OSA;
 	}
 	else {	/* PR_BUTS_RENDER */
@@ -1044,8 +1044,8 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 	ID *id= sp->id;
 	short idtype= GS(id->name);
 
-	if(idtype == ID_IM) {
-		Image *ima= (Image*)id;
+	if(idtype == ID_IM || (idtype == ID_BR && ((Brush*)id)->image_icon)) {
+		Image *ima= idtype==ID_BR ? ((Brush*)id)->image_icon : (Image*)id;
 		ImBuf *ibuf= NULL;
 		ImageUser iuser;
 
@@ -1057,7 +1057,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 		memset(&iuser, 0, sizeof(ImageUser));
 		iuser.ok= iuser.framenr= 1;
 		iuser.scene= sp->scene;
-		
+
 		/* elubie: this needs to be changed: here image is always loaded if not
 		   already there. Very expensive for large images. Need to find a way to 
 		   only get existing ibuf */

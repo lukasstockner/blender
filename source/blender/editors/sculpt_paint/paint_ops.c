@@ -39,6 +39,7 @@
 #include "sculpt_intern.h"
 
 #include <string.h>
+//#include <stdio.h>
 
 /* Brush operators */
 static int brush_add_exec(bContext *C, wmOperator *op)
@@ -102,6 +103,93 @@ void PAINT_OT_vertex_color_set(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
+/*** brush stroke mode operator ***/
+
+///* NOTE: these defines are saved in keymap files, do not change values but just add new ones */
+//enum {
+//	BRUSHSTROKE_INVERT_ENABLE,
+//	BRUSHSTROKE_INVERT_DISABLE,
+//	BRUSHSTROKE_SMOOTH_ENABLE,
+//	BRUSHSTROKE_SMOOTH_DISABLE,
+//};
+//
+//static void stroke_mode_modal_keymap(wmKeyConfig *keyconf)
+//{
+//	static EnumPropertyItem modal_items[] = {
+//	{BRUSHSTROKE_INVERT_ENABLE,	 "BRUSHSTROKE_INVERT_ENABLE",  0, "Brush Stroke Invert Enable",  ""},
+//	{BRUSHSTROKE_INVERT_DISABLE, "BRUSHSTROKE_INVERT_DISABLE", 0, "Brush Stroke Invert Disable", ""},
+//
+//	{BRUSHSTROKE_SMOOTH_ENABLE,	 "BRUSHSTROKE_SMOOTH_ENABLE",  0, "Brush Stroke Smooth Enable",  ""},
+//	{BRUSHSTROKE_SMOOTH_DISABLE, "BRUSHSTROKE_SMOOTH_DISABLE", 0, "Brush Stroke Smooth Disable", ""},
+//
+//	{0}};
+//
+//	wmKeyMap *keymap= WM_modalkeymap_get(keyconf, "Brush Stroke Mode Modal");
+//
+//	/* this function is called for each spacetype, only needs to add map once */
+//	if (keymap) {
+//		keymap= WM_modalkeymap_add(keyconf, "Brush Stroke Mode Modal", modal_items);
+//
+//		/* items for modal map */
+//		WM_modalkeymap_add_item(keymap, LEFTALTKEY, KM_PRESS, KM_ANY, 0, BRUSHSTROKE_SMOOTH_ENABLE);
+//		WM_modalkeymap_add_item(keymap, LEFTALTKEY, KM_RELEASE, KM_ANY, 0, BRUSHSTROKE_SMOOTH_DISABLE);
+//
+//		WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_PRESS, KM_ANY, 0, BRUSHSTROKE_INVERT_ENABLE);
+//		WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_RELEASE, KM_ANY, 0, BRUSHSTROKE_INVERT_DISABLE);
+//		
+//		/* assign map to operators */
+//		WM_modalkeymap_assign(keymap, "SCULPT_OT_brush_stroke");
+//	}
+//}
+//
+//static int brushstroke_mode_modal(bContext *C, wmOperator *op, wmEvent *event)
+//{
+//	if(event->type==EVT_MODAL_MAP) {
+//		switch (event->val) {
+//			case BRUSHSTROKE_SMOOTH_ENABLE:
+//				printf("BRUSHSTROKE_SMOOTH_ENABLE\n");
+//				break;
+//			case BRUSHSTROKE_SMOOTH_DISABLE:
+//				printf("BRUSHSTROKE_SMOOTH_DISABLE\n");
+//				break;
+//			case BRUSHSTROKE_INVERT_ENABLE:
+//				printf("BRUSHSTROKE_INVERT_ENABLE\n");
+//				break;
+//			case BRUSHSTROKE_INVERT_DISABLE:
+//				printf("BRUSHSTROKE_INVERT_DISABLE\n");
+//				break;
+//		}
+//	}
+//
+//	return OPERATOR_FINISHED;
+//}
+//
+//static int brushstroke_mode_invoke(bContext *C, wmOperator *op, wmEvent *event)
+//{
+//	return OPERATOR_RUNNING_MODAL;
+//}
+//
+//static int brushstroke_mode_poll(bContext *C)
+//{
+//	return paint_poll(C);
+//}
+//
+//void BRUSHSTROKE_OT_mode(wmOperatorType *ot)
+//{
+//	/* identifiers */
+//	ot->name= "Brush Stroke Mode";
+//	ot->description = "Change how brush strokes are applied";
+//	ot->idname= "BRUSHSTROKE_OT_mode";
+//
+//	/* api callbacks */
+//	ot->invoke= brushstroke_mode_invoke;
+//	ot->modal= brushstroke_mode_modal;
+//	ot->poll= brushstroke_mode_poll;
+//
+//	/* flags */
+//	ot->flag= 0;
+//}
+//
 /**************************** registration **********************************/
 
 void ED_operatortypes_paint(void)
@@ -109,6 +197,9 @@ void ED_operatortypes_paint(void)
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
 	WM_operatortype_append(BRUSH_OT_curve_preset);
+
+	/* Stroke */
+	//WM_operatortype_append(BRUSHSTROKE_OT_mode);
 
 	/* image */
 	WM_operatortype_append(PAINT_OT_texture_paint_toggle);
@@ -140,6 +231,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_face_select_linked_pick);
 	WM_operatortype_append(PAINT_OT_face_select_all);
 }
+
 
 static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)
 {
@@ -207,6 +299,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, 0,        0)->ptr, "mode", WM_BRUSHSTROKE_NORMAL);
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, KM_CTRL, 0)->ptr, "mode", WM_BRUSHSTROKE_INVERT);
 	RNA_enum_set(WM_keymap_add_item(keymap, "SCULPT_OT_brush_stroke", LEFTMOUSE, KM_PRESS, KM_SHIFT,   0)->ptr, "mode", WM_BRUSHSTROKE_SMOOTH);
+
+	//stroke_mode_modal_keymap(keyconf);
 
 	for(i=0; i<=5; i++)
 		RNA_int_set(WM_keymap_add_item(keymap, "OBJECT_OT_subdivision_set", ZEROKEY+i, KM_PRESS, KM_CTRL, 0)->ptr, "level", i);

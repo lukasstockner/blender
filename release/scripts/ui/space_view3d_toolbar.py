@@ -509,11 +509,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             else:
                 defaultbrushes = 7
 
-            #row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
-
-            #col.template_ID(settings, "brush", new="brush.add")
-            #col.template_ID_preview(brush, "texture", new="texture.new", rows=2, cols=4)
-            col.template_ID_preview(settings, "brush", new="brush.add", rows=5, cols=5)
+            if not context.sculpt_object:
+                row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
+            else:
+                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_sculpt_brush", rows=3, cols=4)
 
         # Particle Mode #
 
@@ -868,6 +867,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "fast_navigate")
         col.prop(sculpt, "use_openmp")
 
+        col.separator()
         if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'FLATTEN'):
             sub = col.column()
             sub.label(text="Color:")
@@ -877,7 +877,11 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
             sub = col.column()
             sub.prop(brush, "add_col", text="Color")
 
+        col.separator()
+        col.label(text="Icon:")
+        col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=4)
 
+        col.separator()
         split = self.layout.split()
 
         col = split.column()

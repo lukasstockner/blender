@@ -38,6 +38,7 @@
 #include "DNA_material_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
+#include "DNA_brush_types.h"
 
 #include "BLI_ghash.h"
 
@@ -175,6 +176,15 @@ void BKE_previewimg_free_id(ID *id)
 	} else if (GS(id->name) == ID_IM) {
 		Image *img  = (Image*)id;
 		BKE_previewimg_free(&img->preview);
+	} else if (GS(id->name) == ID_BR) {
+		Brush *br = (Brush*)id;
+		if (br->image_icon) {
+			BKE_previewimg_free(&br->preview);
+		}
+		else {
+			if (br->mtex.tex)
+				BKE_previewimg_free(&br->mtex.tex->preview);
+		}
 	}
 }
 
@@ -202,7 +212,21 @@ PreviewImage* BKE_previewimg_get(ID *id)
 		Image *img  = (Image*)id;
 		if (!img->preview) img->preview = BKE_previewimg_create();
 		prv_img = img->preview;
-	} 
+	} else if (GS(id->name) == ID_BR) {
+		Brush *br = (Brush*)id;
+		if (br->image_icon) {
+			if (!br->preview)
+				br->preview = BKE_previewimg_create();
+
+			prv_img = br->preview;
+		}
+		else {
+			if (br->mtex.tex && !br->mtex.tex->preview)
+				br->mtex.tex->preview = BKE_previewimg_create();
+
+			prv_img = br->mtex.tex ? br->mtex.tex->preview : NULL;
+		}
+	}
 
 	return prv_img;
 }

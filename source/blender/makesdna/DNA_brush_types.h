@@ -53,6 +53,9 @@ typedef struct Brush {
 	struct BrushClone clone;
 	struct CurveMapping *curve;	/* falloff curve */
 	struct MTex mtex;
+	struct Image *image_icon;
+	struct PreviewImage *preview;
+
 	int strength_multiplier;		/* increases the strength by a multiplier */
 
 	float normal_weight;

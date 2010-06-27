@@ -521,22 +521,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
-			glPushAttrib(
-				GL_COLOR_BUFFER_BIT|
-				GL_CURRENT_BIT|
-				GL_DEPTH_BUFFER_BIT|
-				GL_ENABLE_BIT|
-				GL_LINE_BIT|
-				GL_POLYGON_BIT|
-				GL_STENCIL_BUFFER_BIT|
-				GL_TRANSFORM_BIT|
-				GL_VIEWPORT_BIT|
-				GL_TEXTURE_BIT);
-
-			glColor4f(col[0], col[1], col[2], alpha);
-
-			glEnable(GL_BLEND);
-
 			if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
 				const float max_thickness= 0.16;
 				const float min_thickness= 0.06;
@@ -545,6 +529,22 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 				const float outer_radius=  brush->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
 
 				GLUquadric* sphere;
+
+				glPushAttrib(
+					GL_COLOR_BUFFER_BIT|
+					GL_CURRENT_BIT|
+					GL_DEPTH_BUFFER_BIT|
+					GL_ENABLE_BIT|
+					GL_LINE_BIT|
+					GL_POLYGON_BIT|
+					GL_STENCIL_BUFFER_BIT|
+					GL_TRANSFORM_BIT|
+					GL_VIEWPORT_BIT|
+					GL_TEXTURE_BIT);
+
+				glColor4f(col[0], col[1], col[2], alpha);
+
+				glEnable(GL_BLEND);
 
 				glMatrixMode(GL_MODELVIEW);
 				glPushMatrix();
@@ -604,8 +604,25 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 				glMatrixMode(GL_MODELVIEW);
 				glPopMatrix();
 
+				glPopAttrib();
 			}
 			else {
+				glPushAttrib(
+					GL_COLOR_BUFFER_BIT|
+					GL_CURRENT_BIT|
+					GL_DEPTH_BUFFER_BIT|
+					GL_ENABLE_BIT|
+					GL_LINE_BIT|
+					GL_POLYGON_BIT|
+					GL_STENCIL_BUFFER_BIT|
+					GL_TRANSFORM_BIT|
+					GL_VIEWPORT_BIT|
+					GL_TEXTURE_BIT);
+
+				glColor4f(col[0], col[1], col[2], alpha);
+
+				glEnable(GL_BLEND);
+
 				glEnable(GL_LINE_SMOOTH);
 
 				if (brush->draw_anchored) {
@@ -619,11 +636,27 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 					glTranslatef(-(float)x, -(float)y, 0.0f);
 				}
 
-				glDisable(GL_LINE_SMOOTH);
+				glPopAttrib();
 			}
 
 			if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
 				const float diameter = 2*brush->size;
+
+				glPushAttrib(
+					GL_COLOR_BUFFER_BIT|
+					GL_CURRENT_BIT|
+					GL_DEPTH_BUFFER_BIT|
+					GL_ENABLE_BIT|
+					GL_LINE_BIT|
+					GL_POLYGON_BIT|
+					GL_STENCIL_BUFFER_BIT|
+					GL_TRANSFORM_BIT|
+					GL_VIEWPORT_BIT|
+					GL_TEXTURE_BIT);
+
+				glColor4f(col[0], col[1], col[2], alpha);
+
+				glEnable(GL_BLEND);
 
 				load_tex(brush, &vc);
 
@@ -662,11 +695,9 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				glDepthMask(GL_TRUE);
 				glDepthFunc(GL_LEQUAL);
+
+				glPopAttrib();
 			}
-
-			glDisable(GL_BLEND);
-
-			glPopAttrib();
 		}
 	}
 	else {
