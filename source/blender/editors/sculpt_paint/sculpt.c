@@ -543,27 +543,34 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	brush->autosmooth_overlap = overlap;
 
 	switch(brush->sculpt_tool){
+		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_INFLATE:
-		case SCULPT_TOOL_CLAY:
+		case SCULPT_TOOL_WAX:
+			return alpha * 3.0f * dir * invert * pen_flip * pressure * overlap;
+			
 		case SCULPT_TOOL_LAYER:
+			return alpha * 2.0f * dir * invert * pen_flip * pressure * overlap;
+		
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
-		case SCULPT_TOOL_WAX:
-			return alpha * dir * invert * pen_flip * pressure * overlap;
+			if (dir*invert*pen_flip)
+				return alpha * 10.0f * dir * invert * pen_flip * pressure * overlap;	
+			else
+				return alpha * 3.0f * dir * invert * pen_flip * pressure * overlap; /* reduce strength for DEEPEN, PEAKS, and CONTRAST */
 
 		case SCULPT_TOOL_SMOOTH:
-			return alpha * 4.0f * pressure * overlap;
+			return alpha * 40.0f * pressure * overlap;
 
 		case SCULPT_TOOL_PINCH:
-			return alpha / 2.0f * dir * invert * pen_flip * pressure * overlap;
+			return alpha * 3.5f * dir * invert * pen_flip * pressure * overlap;
 
 		case SCULPT_TOOL_GRAB:
 			return dir*invert*pen_flip > 0 ? 1.0f : -1.0f;
 
 		case SCULPT_TOOL_NUDGE:
-			return alpha * pressure * overlap;
+			return alpha * 3.0f * pressure * overlap;
 
 		case SCULPT_TOOL_THUMB:
 			return pressure / 4.0f;
