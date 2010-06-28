@@ -556,13 +556,13 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
-			if (dir*invert*pen_flip)
-				return alpha * 10.0f * dir * invert * pen_flip * pressure * overlap;	
+			if (dir*invert*pen_flip > 0)
+				return alpha * 8.0f * dir * invert * pen_flip * pressure * overlap;	
 			else
 				return alpha * 3.0f * dir * invert * pen_flip * pressure * overlap; /* reduce strength for DEEPEN, PEAKS, and CONTRAST */
 
 		case SCULPT_TOOL_SMOOTH:
-			return alpha * 40.0f * pressure * overlap;
+			return alpha * 10.0f * pressure * overlap;
 
 		case SCULPT_TOOL_PINCH:
 			return alpha * 3.5f * dir * invert * pen_flip * pressure * overlap;
@@ -1192,6 +1192,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	Brush *brush = paint_brush(&sd->paint);
 	float offset[3], area_normal[3];
 	float bstrength= ss->cache->bstrength;
+	float flippedbstrength;
 	int n;
 	
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
@@ -1200,7 +1201,12 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
-	
+	/* we always want crease to pinch even when draw is negative also crease we want stronger than the draw effect*/
+	if (bstrength < 0)
+		flippedbstrength = -2.0*bstrength;
+	else
+		flippedbstrength =2.0*bstrength;
+
 	/* threaded loop over nodes */
 #pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -1216,6 +1222,12 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 				float val[3];
 				
 				sub_v3_v3v3(val, test.location, vd.co);
+				mul_v3_fl(val, fade*flippedbstrength);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
+				
+				sculpt_clip(sd, ss, vd.co, val);
+				
 				mul_v3_v3fl(val, offset, fade);
 				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
