@@ -1344,6 +1344,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 	Material *ma;
 	float *data, *nors, *orco, mat[4][4], nmat[3][3];
 	int a, need_orco, vlakindex, *index;
+	ListBase dispbase= {NULL, NULL};
 
 	if (ob!=find_basis_mball(re->db.scene, ob))
 		return;
@@ -1360,15 +1361,15 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		need_orco= 1;
 	}
 	
-	makeDispListMBall(re->db.scene, ob);
-	dl= ob->disp.first;
+	makeDispListMBall_forRender(re->db.scene, ob, &dispbase);
+	dl= dispbase.first;
 	if(dl==0) return;
 
 	data= dl->verts;
 	nors= dl->nors;
-	orco= make_orco_mball(ob);
+	orco= (need_orco)? make_orco_mball(ob, &dispbase): NULL;
 
-	for(a=0; a<dl->nr; a++, data+=3, nors+=3, orco+=3) {
+	for(a=0; a<dl->nr; a++, data+=3, nors+=3) {
 
 		ver= render_object_vert_get(obr, obr->totvert++);
 		copy_v3_v3(ver->co, data);
@@ -1381,7 +1382,7 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 		//if(ob->transflag & OB_NEG_SCALE) negate_v3(ver->n);
 		
 		if(need_orco)
-			copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco);
+			copy_v3_v3(render_vert_get_orco(obr, ver, 1), orco+a*3);
 	}
 
 	index= dl->index;
@@ -1418,10 +1419,9 @@ static void init_render_mball(Render *re, ObjectRen *obr)
 	}
 
 	/* enforce display lists remade */
-	freedisplist(&ob->disp);
-	
-	/* this enforces remake for real, orco displist is small (in scale) */
-	ob->recalc |= OB_RECALC_DATA;
+	freedisplist(&dispbase);
+	if(orco)
+		MEM_freeN(orco);
 }
 
 /* ------------------------------------------------------------------------- */
