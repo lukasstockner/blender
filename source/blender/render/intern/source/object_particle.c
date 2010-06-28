@@ -42,6 +42,7 @@
 #include "BKE_lattice.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
+#include "BKE_scene.h"
 
 #include "cache.h"
 #include "object.h"
@@ -612,7 +613,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	RNG *rng= 0;
 	float loc[3],loc1[3],loc0[3],mat[4][4],nmat[3][3],co[3],nor[3],time;
 	float strandlen=0.0f, curlen=0.0f;
-	float hasize, pa_size, r_tilt, r_length, cfra=bsystem_time(re->db.scene, ob, (float)re->db.scene->r.cfra, 0.0);
+	float hasize, pa_size, r_tilt, r_length, cfra=BKE_curframe(re->db.scene);
 	float pa_time, pa_birthtime, pa_dietime;
 	float random, simplify[2];
 	int i, a, k, max_k=0, totpart, dosimplify = 0, dosurfacecache = 0;
@@ -731,7 +732,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 
 	if(part->flag & PART_GLOB_TIME)
 #endif // XXX old animation system
-	cfra = bsystem_time(re->db.scene, 0, (float)re->db.scene->r.cfra, 0.0);
+	cfra = BKE_curframe(re->db.scene);
 
 ///* 2.4 setup reactors */
 //	if(part->type == PART_REACTOR){

@@ -262,7 +262,7 @@ class WORLD_PT_gather(WorldButtonsPanel):
 
         col.prop(light, "use_cache")
         if light.gather_method == 'RAYTRACE':
-            col.prop(light, "shading_method", text="")
+            col.prop(light, "use_shader", text="")
 
         if light.gather_method == 'RAYTRACE':
             col.label(text="Attenuation:")

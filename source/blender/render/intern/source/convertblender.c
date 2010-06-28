@@ -68,6 +68,8 @@
 #include "BKE_utildefines.h"
 #include "BKE_world.h"
 
+#include "IMB_imbuf.h"
+
 #include "PIL_time.h"
 
 #include "cache.h"

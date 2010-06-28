@@ -39,6 +39,7 @@
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
+#include "BKE_scene.h"
 #include "BKE_texture.h"
 
 #include "DNA_meshdata_types.h"
@@ -88,7 +89,7 @@ static void pointdensity_cache_psys(Render *re, PointDensity *pd, Object *ob, Pa
 	ParticleKey state;
 	ParticleSimulationData sim = {re->db.scene, ob, psys, NULL};
 	ParticleData *pa=NULL;
-	float cfra = bsystem_time(re->db.scene, ob, (float)re->db.scene->r.cfra, 0.0);
+	float cfra = BKE_curframe(re->db.scene);
 	int i, childexists;
 	int total_particles, offset=0;
 	int data_used = point_data_used(pd);

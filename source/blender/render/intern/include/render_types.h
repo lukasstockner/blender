@@ -152,6 +152,7 @@ typedef struct RenderParams {
 	/* full copy of scene->r */
 	RenderData r;
 	short osa, flag;
+	float mblur_offs, field_offs;
 } RenderParams;
 
 /* controls state of render, everything that's read-only during render stage */

@@ -404,6 +404,9 @@ void unlink_object(Scene *scene, Object *ob)
 				if(pchan->custom==ob)
 					pchan->custom= NULL;
 			}
+		} else if(ELEM(OB_MBALL, ob->type, obt->type)) {
+			if(is_mball_basis_for(obt, ob))
+				obt->recalc|= OB_RECALC_DATA;
 		}
 		
 		sca_remove_ob_poin(obt, ob);
@@ -536,13 +539,7 @@ void unlink_object(Scene *scene, Object *ob)
 		}
 		tex= tex->id.next;
 	}
-	
-	/* mballs (scene==NULL when called from library.c) */
-	if(scene && ob->type==OB_MBALL) {
-		obt= find_basis_mball(scene, ob);
-		if(obt) freedisplist(&obt->disp);
-	}
-	
+
 	/* worlds */
 	wrld= G.main->world.first;
 	while(wrld) {
@@ -988,7 +985,7 @@ static char *get_obdata_defname(int type)
 	case OB_MESH: return "Mesh";
 	case OB_CURVE: return "Curve";
 	case OB_SURF: return "Surf";
-	case OB_FONT: return "Font";
+	case OB_FONT: return "Text";
 	case OB_MBALL: return "Mball";
 	case OB_CAMERA: return "Camera";
 	case OB_LAMP: return "Lamp";
@@ -1611,19 +1608,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 
 /* there is also a timing calculation in drawobject() */
 
-float bluroffs= 0.0f, fieldoffs= 0.0f;
 int no_speed_curve= 0;
-
-/* ugly calls from render */
-void set_mblur_offs(float blur)
-{
-	bluroffs= blur;
-}
-
-void set_field_offs(float field)
-{
-	fieldoffs= field;
-}
 
 void disable_speed_curve(int val)
 {
@@ -1634,11 +1619,9 @@ void disable_speed_curve(int val)
 /* ob can be NULL */
 float bsystem_time(struct Scene *scene, Object *ob, float cfra, float ofs)
 {
-	/* returns float ( see frame_to_float in ipo.c) */
+	/* returns float ( see BKE_curframe in scene.c) */
+	cfra += scene->r.subframe;
 	
-	/* bluroffs and fieldoffs are ugly globals that are set by render */
-	cfra+= bluroffs+fieldoffs;
-
 	/* global time */
 	if (scene)
 		cfra*= scene->r.framelen;	
