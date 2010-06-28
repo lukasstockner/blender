@@ -547,6 +547,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_INFLATE:
 		case SCULPT_TOOL_WAX:
+		case SCULPT_TOOL_CREASE:
 			return alpha * 3.0f * dir * invert * pen_flip * pressure * overlap;
 			
 		case SCULPT_TOOL_LAYER:
@@ -1175,6 +1176,50 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
 
+				sculpt_clip(sd, ss, vd.co, val);
+				if(vd.mvert) {
+					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+	}
+}
+
+static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	Brush *brush = paint_brush(&sd->paint);
+	float offset[3], area_normal[3];
+	float bstrength= ss->cache->bstrength;
+	int n;
+	
+	calc_area_normal(sd, ss, area_normal, nodes, totnode);
+	
+	/* offset with as much as possible factored in already */
+	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
+	mul_v3_v3(offset, ss->cache->scale);
+	mul_v3_fl(offset, bstrength);
+	
+	/* threaded loop over nodes */
+#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	for(n=0; n<totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+		
+		sculpt_brush_test_init(ss, &test);
+		
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if(sculpt_brush_test(&test, vd.co)) {
+				/* offset vertex */
+				float fade = tex_strength(ss, brush, vd.co, test.dist);
+				float val[3];
+				
+				sub_v3_v3v3(val, test.location, vd.co);
+				mul_v3_v3fl(val, offset, fade);
+				symmetry_feather(sd, ss, vd.co, val);
+				add_v3_v3(val, vd.co);
+				
 				sculpt_clip(sd, ss, vd.co, val);
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
@@ -2157,6 +2202,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 		case SCULPT_TOOL_SMOOTH:
 			do_smooth_brush(sd, ss, nodes, totnode);
 			break;
+		case SCULPT_TOOL_CREASE:
+			do_crease_brush(sd, ss, nodes, totnode);
+			break;
 		case SCULPT_TOOL_PINCH:
 			do_pinch_brush(sd, ss, nodes, totnode);
 			break;
@@ -2378,6 +2426,8 @@ static char *sculpt_tool_name(Sculpt *sd)
 		return "Draw Brush"; break;
 	case SCULPT_TOOL_SMOOTH:
 		return "Smooth Brush"; break;
+	case SCULPT_TOOL_CREASE:
+		return "Crease Brush"; break;
 	case SCULPT_TOOL_PINCH:
 		return "Pinch Brush"; break;
 	case SCULPT_TOOL_INFLATE:
@@ -2588,7 +2638,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if(ELEM5(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_WAX))
+	if(ELEM6(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_WAX))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 

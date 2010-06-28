@@ -99,6 +99,7 @@ Brush *add_brush(const char *name)
 	brush->smoothness = 0.25f;
 
 	/* BRUSH TEXTURE SETTINGS */
+	brush->preview = NULL;
 	brush->texture_offset = 0.0f; /* this determines where in the texture the midpoint of the brush is */
 	brush->texture_center_x = 0; /* center offset for textures used on brush or as stencils */
 	brush->texture_center_y = 0;

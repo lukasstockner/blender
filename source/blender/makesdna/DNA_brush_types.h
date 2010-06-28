@@ -166,6 +166,7 @@ typedef struct Brush {
 #define SCULPT_TOOL_SNAKE_HOOK 13
 #define SCULPT_TOOL_ROTATE     14
 #define SCULPT_TOOL_WAX        15
+#define SCULPT_TOOL_CREASE     16
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

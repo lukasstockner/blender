@@ -548,17 +548,17 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
-            row.prop(brush, "lock_brush_size", text="Use Blender Units")
+            row.prop(brush, "lock_brush_size", text="Use BUnits")
 
-            row = col.row(align=True)
+            #row = col.row(align=True)
             if brush.lock_brush_size:
                 if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
-                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_bu_radius", text ="Units", slider=True)
+                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_bu_radius", text ="Radius", slider=True)
                 else:
                     row.prop(brush, "unprojected_radius", text="Units", slider=True)
             else:
                 if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
-                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_pixel_radius", text="Pixels", slider=True)
+                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_pixel_radius", text="Radius", slider=True)
                 else:
                     row.prop(brush, "size", text="Pixels", slider=True)
 
@@ -582,7 +582,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     row = col.row(align=True)
                     row.prop(brush, "strength", slider=True)
                 row.prop(brush, "use_strength_pressure", text="")
-                col.prop(brush, "strength_multiplier", slider=True)
+                #col.prop(brush, "strength_multiplier", slider=True)
 
                 # XXX - TODO
                 #row = col.row(align=True)
@@ -602,7 +602,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
 
-            if brush.sculpt_tool in ('DRAW', 'PINCH', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY', 'WAX', 'GRAB'):
+            if brush.sculpt_tool in ('DRAW', 'PINCH', 'CREASE', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY', 'WAX', 'GRAB'):
                 col.row().prop(brush, "direction", expand=True)
 
             if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY', 'WAX'):
@@ -621,7 +621,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     col.prop(brush, "use_persistent")
                     col.operator("sculpt.set_persistent_base")
                         
-            col.prop(brush,"use_dynamic_subdiv")
             if brush.use_dynamic_subdiv ==True:
                 col.prop(brush,"detail",slider=True)
                 col.prop(brush,"smoothness",slider=True)
@@ -861,6 +860,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         brush = settings.brush
 
         col = layout.column()
+        col.prop(brush,"use_dynamic_subdiv")
         col.prop(sculpt, "show_brush")
         if sculpt.show_brush:
             col.prop(sculpt, "show_brush_on_surface")
@@ -868,7 +868,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "use_openmp")
 
         col.separator()
-        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'FLATTEN'):
+        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'FLATTEN'):
             sub = col.column()
             sub.label(text="Color:")
             sub.prop(brush, "add_col", text="Add")
