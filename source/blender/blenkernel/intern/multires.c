@@ -293,7 +293,7 @@ static void multires_set_tot_mdisps(Mesh *me, int lvl)
 	}
 }
 
-static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, int lvl)
+static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, GridKey *gridkey, int lvl)
 {
 	int i;
 
@@ -306,6 +306,7 @@ static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, int lvl)
 	for(i = 0; i < me->totface; ++i) {
 		int nvert = (me->mface[i].v4)? 4: 3;
 		int totelem = multires_grid_tot[lvl]*nvert;
+		int pmask_totlayer;
 		CustomData old, *cd = cd_facegrids + i;
 
 		/* Resize all existing layers */
@@ -314,6 +315,16 @@ static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, int lvl)
 		CustomData_copy(&old, cd, ~0, CD_CALLOC, totelem);
 		CustomData_free(&old, 0);
 		CustomData_set_num_grid_elements(cd, totelem);
+
+		/* If multires modifier is added after mask layers were
+		   created, update the grids to have those layers as well */
+		if(gridkey) {
+			pmask_totlayer = CustomData_number_of_layers(cd, CD_PAINTMASK);
+			while(pmask_totlayer < gridkey->mask) {
+				CustomData_add_layer(cd, CD_PAINTMASK, CD_CALLOC, NULL, totelem);
+				++pmask_totlayer;
+			}
+		}
 	}
 
 	/* This will be replaced when we do CD_DISPS */
@@ -540,7 +551,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		ccgSubSurf_updateLevels(ss, lvl, NULL, 0);
 
 		/* reallocate displacements */
-		multires_reallocate_mdisps(me, mdisps, totlvl); 
+		multires_reallocate_mdisps(me, mdisps, NULL, totlvl); 
 
 		/* compute displacements */
 		multiresModifier_disp_run(highdm, me, CALC_DISPS, subGridData, totlvl);
@@ -553,7 +564,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 	}
 	else {
 		/* only reallocate, nothing to upsample */
-		multires_reallocate_mdisps(me, mdisps, totlvl); 
+		multires_reallocate_mdisps(me, mdisps, NULL, totlvl); 
 	}
 
 	multires_set_tot_level(ob, mmd, totlvl);
@@ -640,16 +651,21 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 		MDisps *mdisp = &mdisps[i];
 		int S, x, y, j, gIndex = gridOffset[i];
 
-		/* when adding new faces in edit mode, need to allocate disps */
-		if(!mdisp->disps)
+		/* when adding new faces in edit mode, need to allocate disps;
+		   may need to allocate paintmask storage after adding multires as well */
+		if(!mdisp->disps ||
+		   (gridkey->mask && 
+		    (!stored_grids ||
+		     CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) != gridkey->mask)))
 		//#pragma omp critical
 		{
-			multires_reallocate_mdisps(me, mdisps, totlvl);
+			multires_reallocate_mdisps(me, mdisps, gridkey, totlvl);
 		}
 
 		/* Check masks */
-		assert(stored_grids);
-		assert(CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) == gridkey->mask);
+		assert(gridkey->mask == 0 || stored_grids);
+		if(stored_grids)
+			assert(CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) == gridkey->mask);
 
 		for(S = 0; S < numVerts; ++S, ++gIndex) {
 			DMGridData *grid = gridData[gIndex];

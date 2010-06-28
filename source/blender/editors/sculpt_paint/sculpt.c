@@ -1059,7 +1059,9 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 				copy_v3_v3(co, GRIDELEM_CO_AT(data, x + y*gridsize, gridkey));
 
 				if(sculpt_brush_test(&test, co)) {
-					float fade = tex_strength(ss, brush, co, *GRIDELEM_MASK_AT(data, x + y*gridsize, gridkey), test.dist)*bstrength;
+					float mask = (gridkey->mask ?
+						      *GRIDELEM_MASK_AT(data, x + y*gridsize, gridkey) : 0);
+					float fade = tex_strength(ss, brush, co, mask, test.dist)*bstrength;
 					float avg[3], val[3];
 
 					copy_v3_v3(avg, tmpgrid[x + y*gridsize]);
