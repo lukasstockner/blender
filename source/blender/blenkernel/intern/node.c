@@ -1837,6 +1837,9 @@ static void node_group_execute(bNodeStack *stack, void *data, bNode *gnode, bNod
 	stack+= gnode->stack_index;
 		
 	for(node= ntree->nodes.first; node; node= node->next) {
+		if(ntree->type==NTREE_COMPOSIT)
+			node->thread= gnode->thread;
+
 		if(node->typeinfo->execfunc) {
 			group_node_get_stack(node, stack, nsin, nsout, in, out);
 			
