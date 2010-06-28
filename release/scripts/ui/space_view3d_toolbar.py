@@ -563,7 +563,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     row.prop(brush, "size", text="Radius", slider=True)
 
             if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK', 'THUMB'):
-                row = col.row(align=True)
                 row.prop(brush, "use_size_pressure", toggle=True, text="Size")
 
             if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
@@ -582,7 +581,8 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     row = col.row(align=True)
                     row.prop(brush, "strength", slider=True)
                 row.prop(brush, "use_strength_pressure", text="")
-                #col.prop(brush, "strength_multiplier", slider=True)
+                row = col.row(align=True)
+                row.prop(brush, "strength_multiplier", slider=True)
 
                 # XXX - TODO
                 #row = col.row(align=True)
