@@ -878,9 +878,9 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
             sub = col.column()
             sub.prop(brush, "add_col", text="Color")
 
-        col.separator()
-        col.label(text="Icon:")
-        col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=4)
+        #col.separator()
+        #col.label(text="Icon:")
+        #col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=4)
 
         col.separator()
         split = self.layout.split()

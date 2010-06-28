@@ -176,7 +176,7 @@ void BKE_previewimg_free_id(ID *id)
 	} else if (GS(id->name) == ID_IM) {
 		Image *img  = (Image*)id;
 		BKE_previewimg_free(&img->preview);
-	} else if (GS(id->name) == ID_BR) {
+	} /* else if (GS(id->name) == ID_BR) {
 		Brush *br = (Brush*)id;
 		if (br->image_icon) {
 			BKE_previewimg_free(&br->preview);
@@ -185,7 +185,7 @@ void BKE_previewimg_free_id(ID *id)
 			if (br->mtex.tex)
 				BKE_previewimg_free(&br->mtex.tex->preview);
 		}
-	}
+	} */  // XXX:image_icon
 }
 
 PreviewImage* BKE_previewimg_get(ID *id) 
@@ -212,7 +212,7 @@ PreviewImage* BKE_previewimg_get(ID *id)
 		Image *img  = (Image*)id;
 		if (!img->preview) img->preview = BKE_previewimg_create();
 		prv_img = img->preview;
-	} else if (GS(id->name) == ID_BR) {
+	} /* else if (GS(id->name) == ID_BR) {
 		Brush *br = (Brush*)id;
 		if (br->image_icon) {
 			if (!br->preview)
@@ -226,7 +226,7 @@ PreviewImage* BKE_previewimg_get(ID *id)
 
 			prv_img = br->mtex.tex ? br->mtex.tex->preview : NULL;
 		}
-	}
+	} */  // XXX:image_icon
 
 	return prv_img;
 }

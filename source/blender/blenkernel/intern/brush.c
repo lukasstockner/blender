@@ -131,7 +131,10 @@ Brush *add_brush(const char *name)
 	brush->id.flag |= LIB_FAKEUSER;
 	brush_toggled_fake_user(brush);
 	
-	return brush;	
+	//brush->preview = NULL;
+	//brush->image_icon = NULL;
+
+	return brush;
 }
 
 Brush *copy_brush(Brush *brush)
@@ -158,7 +161,7 @@ void free_brush(Brush *brush)
 {
 	if(brush->mtex.tex) brush->mtex.tex->id.us--;
 
-	BKE_previewimg_free(&brush->preview);
+	// BKE_previewimg_free(&brush->preview);  // XXX:image_icon
 
 	curvemapping_free(brush->curve);
 }
