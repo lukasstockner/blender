@@ -550,17 +550,17 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             row = col.row(align=True)
             row.prop(brush, "lock_brush_size", text="Use BUnits")
 
-            #row = col.row(align=True)
+            edit = context.user_preferences.edit
             if brush.lock_brush_size:
-                if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
-                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_bu_radius", text ="Radius", slider=True)
+                if edit.use_unified_radius_and_strength:
+                    row.prop(edit, "sculpt_paint_bu_radius", text ="Radius", slider=True)
                 else:
-                    row.prop(brush, "unprojected_radius", text="Units", slider=True)
+                    row.prop(brush, "unprojected_radius", text="Radius", slider=True)
             else:
                 if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
-                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_pixel_radius", text="Radius", slider=True)
+                    row.prop(edit, "sculpt_paint_pixel_radius", text="Radius", slider=True)
                 else:
-                    row.prop(brush, "size", text="Pixels", slider=True)
+                    row.prop(brush, "size", text="Radius", slider=True)
 
             if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK', 'THUMB'):
                 row = col.row(align=True)
@@ -573,10 +573,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.prop(brush, "use_size_pressure", toggle=True, text="")
 
                 #row = col.row(align=True)
-                #row.prop(bpy.context.user_preferences.edit, "use_unified_radius_and_strength")
-                if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
+                #row.prop(edit, "use_unified_radius_and_strength")
+                if edit.use_unified_radius_and_strength:
                     row = col.row(align=True)
-                    row.prop(bpy.context.user_preferences.edit, "sculpt_paint_strength", slider=True)
+                    row.prop(edit, "sculpt_paint_strength", slider=True)
 
                 else:
                     row = col.row(align=True)
@@ -737,6 +737,8 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
                     if brush.use_texture_overlay:
                         row = col.row(align=True)
                         row.prop(brush, "texture_overlay_alpha", slider=True, text="Overlay Alpha")
+            row = col.row(align=True)
+            row.prop(brush, "use_rake")
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):
     bl_label = "Tool"
@@ -794,7 +796,6 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 layout.prop(brush, "use_anchor")
                 if brush.use_anchor:
                     layout.prop(brush, "edge_to_edge", "Edge To Edge")
-            layout.prop(brush, "use_rake")
             if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'WAX', 'FILL', 'SCRAPE'):
                 layout.prop(brush, "use_original_normal")
                 if brush.use_original_normal:
