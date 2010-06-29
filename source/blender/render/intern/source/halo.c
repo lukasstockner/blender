@@ -296,7 +296,7 @@ int shadeHaloFloat(Render *re, HaloRen *har,  float *col, int zz,
 		col[2]= har->b;
 		col[3]= dist;
 		
-		do_halo_tex(re, har, xn, yn, col);
+		do_halo_tex(re, har, xn, yn, col, thread);
 		
 		col[0]*= col[3];
 		col[1]*= col[3];

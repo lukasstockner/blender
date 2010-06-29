@@ -46,7 +46,7 @@ void do_lamp_tex(struct Render *re, struct LampRen *la, float *lavec,
 void do_sky_tex(struct Render *re, float *rco, float *lo, float *dxyview,
 	float *hor, float *zen, float *blend, int skyflag, short thread);
 void do_halo_tex(struct Render *re, struct HaloRen *har, float xn, float yn,
-	float *colf);
+	float *colf, int thread);
 void do_volume_tex(struct Render *re, struct ShadeInput *shi, float *xyz,
 	int mapto_flag, float *col, float *val);
 

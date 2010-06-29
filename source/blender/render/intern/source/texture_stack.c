@@ -1505,7 +1505,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 				else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			}
 			
-			rgbnor= tex_sample_old(&re->params, tex, texvec, NULL, NULL, 0, &texres, 0, mtex->which_output);	/* NULL = dxt/dyt, 0 = shi->geometry.osatex - not supported */
+			rgbnor= tex_sample_old(&re->params, tex, texvec, NULL, NULL, 0, &texres, shi->shading.thread, mtex->which_output);	/* NULL = dxt/dyt, 0 = shi->geometry.osatex - not supported */
 			
 			/* texture output */
 
@@ -1612,7 +1612,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 
 /* ------------------------------------------------------------------------- */
 
-void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf)
+void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf, int thread)
 {
 	MTex *mtex;
 	TexResult texres= {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0, NULL};
@@ -1669,7 +1669,7 @@ void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf)
 
 	if(mtex->tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->params.r.osa);
 	
-	rgb= tex_sample_old(&re->params, mtex->tex, texvec, dxt, dyt, osatex, &texres, 0, mtex->which_output);
+	rgb= tex_sample_old(&re->params, mtex->tex, texvec, dxt, dyt, osatex, &texres, thread, mtex->which_output);
 
 	/* texture output */
 	if(rgb && (mtex->texflag & MTEX_RGBTOINT)) {
