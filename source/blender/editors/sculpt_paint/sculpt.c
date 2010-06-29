@@ -381,6 +381,27 @@ static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 //	return 1;
 //}
 
+static int sculpt_brush_test_cyl(SculptBrushTest *test, float x0[3], float x1[3], float x2[3])
+{
+	float t0[3], t1[3], t2[3], t3[3], dist;
+
+	sub_v3_v3v3(t0, x2, x1);
+	sub_v3_v3v3(t1, x1, x0);
+	sub_v3_v3v3(t2, x2, x1);
+
+	cross_v3_v3v3(t3, t0, t1);
+
+	dist = len_v3(t3)/len_v3(t2);
+
+	if (dist*dist < test->radius_squared) {
+		test->dist = dist;
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 {
 	//if (sculpt_brush_test_clip(test, co)) {
@@ -522,6 +543,48 @@ static float circle_overlap_percent(float d)
 	return circle_overlap(d) / M_PI;
 }
 
+static float overlapped_curve(Brush* br, float x)
+{
+	int i;
+	const int n = 100 / br->spacing;
+	const float h = br->spacing / 50.0f;
+	const float x0 = x-1;
+
+	float sum;
+
+	sum = 0;
+	for (i= 0; i < n; i++) {
+		float xx;
+
+		xx = fabs(x0 + i*h);
+
+		if (xx < 1.0f)
+			sum += brush_curve_strength(br, xx, 1);
+	}
+
+	return sum;
+}
+
+static float integrate_overlap(Brush* br)
+{
+	int i;
+	int m= 10;
+	float g = 1.0f/m;
+	float overlap;
+	float max;
+
+	overlap= 0;
+	max= 0;
+	for(i= 0; i < m; i++) {
+		overlap = overlapped_curve(br, i*g);
+
+		if (overlap > max)
+			max = overlap;
+	}
+
+	return max;
+}
+
 /* Return modified brush strength. Includes the direction of the brush, positive
    values pull vertices, negative values push. Uses tablet pressure and a
    special multiplier found experimentally to scale the strength factor. */
@@ -532,12 +595,15 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	/* Primary strength input; square it to make lower values more sensitive */
 	float alpha        = brush->alpha * brush->alpha * brush->strength_multiplier;
 	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
-	float pressure = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
+	float pressure     = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
 	float invert       = cache->invert ? -1 : 1;
-
-	//float overlap  = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
-	float overlap  = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	float accum        = integrate_overlap(brush);
+	float overlap      = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? 1.0f/accum : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	//float overlap      = (brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100.0f) ? 1 - circle_overlap_percent(brush->spacing/50.0f) : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	//float overlap      = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	//float overlap      = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 50) ? (float)brush->spacing/50.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
+	float flip         = dir * invert * pen_flip;
 
 	// XXX not functionally cohesive to update this here
 	brush->autosmooth_overlap = overlap;
@@ -548,33 +614,32 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_INFLATE:
 		case SCULPT_TOOL_WAX:
 		case SCULPT_TOOL_CREASE:
-			return alpha * 3.0f * dir * invert * pen_flip * pressure * overlap;
-			
 		case SCULPT_TOOL_LAYER:
-			return alpha * 2.0f * dir * invert * pen_flip * pressure * overlap;
-		
+			return alpha * flip * pressure * overlap;
+
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
 			if (dir*invert*pen_flip > 0)
-				return alpha * 8.0f * dir * invert * pen_flip * pressure * overlap;	
+				return alpha * flip * pressure * overlap;
 			else
-				return alpha * 3.0f * dir * invert * pen_flip * pressure * overlap; /* reduce strength for DEEPEN, PEAKS, and CONTRAST */
+				/* reduce strength for DEEPEN, PEAKS, and CONTRAST */
+				return 0.5f * alpha * flip * pressure * overlap; 
 
 		case SCULPT_TOOL_SMOOTH:
-			return alpha * 10.0f * pressure * overlap;
+			return alpha * pressure * overlap;
 
 		case SCULPT_TOOL_PINCH:
-			return alpha * 3.5f * dir * invert * pen_flip * pressure * overlap;
+			return alpha * flip * pressure * overlap;
 
 		case SCULPT_TOOL_GRAB:
-			return dir*invert*pen_flip > 0 ? 1.0f : -1.0f;
+			return flip > 0 ? 1.0f : -1.0f;
 
 		case SCULPT_TOOL_NUDGE:
-			return alpha * 3.0f * pressure * overlap;
+			return alpha * pressure * overlap;
 
 		case SCULPT_TOOL_THUMB:
-			return pressure / 4.0f;
+			return pressure;
 
 		case SCULPT_TOOL_SNAKE_HOOK:
 			return pressure;
@@ -1150,6 +1215,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	float offset[3], area_normal[3];
 	float bstrength= ss->cache->bstrength;
 	int n;
+	float p[3];
 
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
 	
@@ -1157,6 +1223,8 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
+
+	add_v3_v3v3(p, ss->cache->location, area_normal);
 
 	/* threaded loop over nodes */
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -1167,7 +1235,8 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if(sculpt_brush_test(&test, vd.co)) {
+			//if(sculpt_brush_test(&test, vd.co)) {
+			if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
 				/* offset vertex */
 				float fade = tex_strength(ss, brush, vd.co, test.dist);
 				float val[3];
@@ -1233,6 +1302,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 				add_v3_v3(val, vd.co);
 				
 				sculpt_clip(sd, ss, vd.co, val);
+
 				if(vd.mvert) {
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
 					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
@@ -1555,16 +1625,16 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength*ss->cache->radius;
 				float *disp= &layer_disp[vd.i];
 				float val[3];
-				
+
 				*disp+= fade;
-				
+
 				/* Don't let the displacement go past the limit */
 				if((lim < 0 && *disp < lim) || (lim > 0 && *disp > lim))
 					*disp = lim;
-				
+
 				mul_v3_v3fl(val, offset, *disp);
 
 				if(ss->layer_co && (brush->flag & BRUSH_PERSISTENT)) {
@@ -1947,6 +2017,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	int n;
 
 	float temp[3];
+	float p[3];
 
 	int flip;
 
@@ -1959,11 +2030,13 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		radius    = -radius;
 	}
 
-	displace = radius * (0.5f+offset);
+	displace = radius * (0.25f+offset);
 
 	mul_v3_v3v3(temp, an, ss->cache->scale);
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
+
+	add_v3_v3v3(p, ss->cache->location, an);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
@@ -1973,11 +2046,12 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if (sculpt_brush_test_sq(&test, vd.co)) {
+			//if (sculpt_brush_test(&test, vd.co)) {
+			if (sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
 				float intr[3];
 				float val[3];
 
-				const float fade = bstrength*tex_strength(ss, brush, vd.co, sqrt(test.dist));
+				const float fade = bstrength*tex_strength(ss, brush, vd.co, test.dist);
 
 				point_plane_project(intr, vd.co, an, fc);
 				sub_v3_v3v3(val, intr, vd.co);
@@ -2026,7 +2100,7 @@ static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int to
 		radius    = -radius;
 	}
 
-	displace = radius * (0.5+offset);
+	displace = radius * (0.25f+offset);
 
 	mul_v3_v3v3(temp, an, ss->cache->scale);
 	mul_v3_fl(temp, displace);
@@ -2050,7 +2124,6 @@ static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int to
 					point_plane_project(intr, vd.co, an, fc);
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_fl(val, fade);
-					symmetry_feather(sd, ss, vd.co, val);
 					add_v3_v3(val, vd.co);
 
 					sculpt_clip(sd, ss, vd.co, val);

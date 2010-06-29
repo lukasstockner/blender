@@ -701,7 +701,7 @@ float curvemapping_evaluateF(CurveMapping *cumap, int cur, float value)
 	if(cuma->table==NULL) {
 		curvemap_make_table(cuma, &cumap->clipr);
 		if(cuma->table==NULL)
-			return value;
+			return 1.0f-value;
 	}
 	return curvemap_evaluateF(cuma, value);
 }

@@ -512,7 +512,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             if not context.sculpt_object:
                 row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
             else:
-                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_sculpt_brush", rows=3, cols=4)
+                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_sculpt_brush", rows=4, cols=4)
 
         # Particle Mode #
 
@@ -548,7 +548,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row = col.row(align=True)
-            row.prop(brush, "lock_brush_size", text="Use BUnits")
+            if brush.lock_brush_size:
+                row.prop(brush, "lock_brush_size", toggle=True, text="", icon='LOCKED')
+            else:
+                row.prop(brush, "lock_brush_size", toggle=True, text="", icon='UNLOCKED')
 
             edit = context.user_preferences.edit
             if brush.lock_brush_size:
@@ -792,7 +795,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
 
         if context.sculpt_object:
             if brush.sculpt_tool != 'LAYER':
-                layout.prop(brush, "restore_mesh", "Drag And Drop")
+                layout.prop(brush, "restore_mesh", "Drag Dot")
                 layout.prop(brush, "use_anchor")
                 if brush.use_anchor:
                     layout.prop(brush, "edge_to_edge", "Edge To Edge")

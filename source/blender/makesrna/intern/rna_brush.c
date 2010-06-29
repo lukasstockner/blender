@@ -191,7 +191,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "sculpt_tool", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, brush_sculpt_tool_items);
-	RNA_def_property_ui_text(prop, "Sculpt Tool", "");
+	RNA_def_property_ui_text(prop, "", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	//prop= RNA_def_property(srna, "stroke_tool", PROP_ENUM, PROP_NONE);
@@ -283,19 +283,19 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "alpha");
 	RNA_def_property_range(prop, 0.0f, 10.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
-	RNA_def_property_ui_text(prop, "Strength", "The amount of pressure on the brush");
+	RNA_def_property_ui_text(prop, "Strength", "How powerful the effect of the brush is when applied");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "strength_multiplier", PROP_INT, PROP_FACTOR);
 	RNA_def_property_int_sdna(prop, NULL, "strength_multiplier");
 	RNA_def_property_range(prop, 1, 10);
-	RNA_def_property_ui_text(prop, "Strength Multiplier", "A multiplier factor for the strength setting");
+	RNA_def_property_ui_text(prop, "Strength Multiplier", "Multiplier factor for the strength setting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "plane_offset");
 	RNA_def_property_range(prop, -0.5f, 0.5f);
-	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts the plane on which the brush acts");
+	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts plane on which the brush acts towards or away from the object surface");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_DISTANCE);
@@ -314,7 +314,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "autosmooth_factor");
 	RNA_def_property_range(prop, 0.0f, 4.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
-	RNA_def_property_ui_text(prop, "Autosmooth", "The amount of smoothing to automatically apply to each stroke");
+	RNA_def_property_ui_text(prop, "Autosmooth", "Amount of smoothing to automatically apply to each stroke");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* flag */
@@ -410,7 +410,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "lock_brush_size", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_LOCK_SIZE);
-	RNA_def_property_ui_text(prop, "Lock Brush Size", "Use the last brush size relative to the model");
+	RNA_def_property_ui_text(prop, "Lock Brush Size", "When locked brush stays same size relative to object; when unlocked brush size is given in pixels");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "use_texture_overlay", PROP_BOOLEAN, PROP_NONE);
