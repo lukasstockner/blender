@@ -765,9 +765,11 @@ void layerCopy_grid(const void *source_v, void *dest_v, int count)
 	CustomData *dest = dest_v;
 	int i;
 
-	for(i = 0; i < count; ++i)
+	for(i = 0; i < count; ++i) {
 		CustomData_copy(source + i, dest + i, ~0, CD_DUPLICATE,
 				source[i].grid_elems);
+		dest[i].grid_elems = source[i].grid_elems;
+	}
 }
 
 void layerFree_grid(void *data, int count, int size)
@@ -845,7 +847,7 @@ const CustomDataMask CD_MASK_MESH =
 const CustomDataMask CD_MASK_EDITMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR |
-	CD_MASK_MDISPS | CD_MASK_PAINTMASK;
+	CD_MASK_MDISPS | CD_MASK_FACEGRID | CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_DERIVEDMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_CLOTH_ORCO |
