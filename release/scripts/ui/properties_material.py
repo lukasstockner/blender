@@ -950,10 +950,11 @@ class MATERIAL_PT_volume_options(VolumeButtonsPanel):
         col = split.column()
         col.label(text="Light Group:")
         col.prop(mat, "light_group", text="")
-        row = col.row()
-        row.active = bool(mat.light_group)
-        row.prop(mat, "light_group_exclusive", text="Exclusive")
-
+        
+        col = col.column(align=True)
+        col.active = bool(mat.light_group)
+        col.prop(mat, "light_group_exclusive", text="Exclusive")
+        col.prop(mat, "light_group_local", text="Local")
 
 classes = [
     MATERIAL_PT_context_material,
