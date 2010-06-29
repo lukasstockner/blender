@@ -29,6 +29,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_anim_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -37,6 +38,7 @@
 #include "BLI_math.h"
 #include "BLI_rand.h"
 
+#include "BKE_animsys.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_lattice.h"
@@ -591,6 +593,12 @@ static void get_particle_uvco_mcol(short from, DerivedMesh *dm, float *fuv, int 
 	}
 }
 
+static void particle_evaluate_animation(ID *id, float ctime)
+{
+	AnimData *adt= BKE_animdata_from_id(id);
+	BKE_animsys_evaluate_animdata(id, adt, ctime, ADT_RECALC_ANIM);
+}
+
 void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psys, int timeoffset)
 {
 	Object *ob= obr->ob;
@@ -836,6 +844,12 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			}
 #endif // XXX old animation system
 
+			/* XXX durian hack: evaluate animation according to particle lifetime */
+			if(1) {
+				particle_evaluate_animation(&ma->id, 100.0f*pa_time);
+				particle_evaluate_animation(&part->id, 100.0f*pa_time);
+			}
+
 			hasize = ma->hasize;
 
 			/* get orco */
@@ -897,6 +911,12 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 				}
 			}
 #endif // XXX old animation system
+
+			/* XXX durian hack: evaluate animation according to particle lifetime */
+			if(1) {
+				particle_evaluate_animation(&ma->id, 100.0f*pa_time);
+				particle_evaluate_animation(&part->id, 100.0f*pa_time);
+			}
 
 			pa_size = psys_get_child_size(psys, cpa, cfra, &pa_time);
 
@@ -1118,6 +1138,12 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 #if 0 // XXX old animation system
 	if(ma) do_mat_ipo(re->db.scene, ma);
 #endif // XXX old animation system
+
+	/* XXX durian hack: restore animation to current frame */
+	if(1) {
+		particle_evaluate_animation(&ma->id, cfra);
+		particle_evaluate_animation(&part->id, cfra);
+	}
 	
 	if(sd.uvco)
 		MEM_freeN(sd.uvco);
