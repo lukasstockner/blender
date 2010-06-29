@@ -4564,6 +4564,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 		if(sc->id.flag & LIB_NEEDLINK) {
 			sc->id.us= 1;
 			sc->scene= newlibadr(fd, sc->id.lib, sc->scene);
+			sc->animtimer= NULL; /* saved in rare cases */
 			
 			sa= sc->areabase.first;
 			while(sa) {
@@ -5165,6 +5166,10 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 					direct_link_gpencil(fd, snode->gpd);
 				}
 				snode->nodetree= snode->edittree= NULL;
+			}
+			else if(sl->spacetype==SPACE_TIME) {
+				SpaceTime *stime= (SpaceTime *)sl;
+				stime->caches.first= stime->caches.last= NULL;
 			}
 			else if(sl->spacetype==SPACE_LOGIC) {
 				SpaceLogic *slogic= (SpaceLogic *)sl;
@@ -10862,13 +10867,20 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				SpaceLink *sl;
 				for (sl= sa->spacedata.first; sl; sl= sl->next) {
 					if (sl->spacetype == SPACE_NODE) {
-						SpaceNode *snode;
-
-						snode= (SpaceNode *)sl;
+						SpaceNode *snode= (SpaceNode *)sl;
+						
 						if (snode->v2d.minzoom > 0.09f)
 							snode->v2d.minzoom= 0.09f;
 						if (snode->v2d.maxzoom < 2.31f)
 							snode->v2d.maxzoom= 2.31f;
+					}
+					else if (sl->spacetype == SPACE_TIME) {
+						SpaceTime *stime= (SpaceTime *)sl;
+						
+						/* enable all cache display */
+						stime->cache_display |= TIME_CACHE_DISPLAY;
+						stime->cache_display |= (TIME_CACHE_SOFTBODY|TIME_CACHE_PARTICLES);
+						stime->cache_display |= (TIME_CACHE_CLOTH|TIME_CACHE_SMOKE);
 					}
 				}
 			}

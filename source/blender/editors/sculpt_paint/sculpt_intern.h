@@ -42,8 +42,6 @@ struct SculptUndoNode;
 
 int sculpt_poll(struct bContext *C);
 void sculpt_update_mesh_elements(struct Scene *scene, struct Object *ob, int need_fmap);
-void sculpt_key_to_mesh(struct KeyBlock *kb, struct Object *ob);
-void sculpt_mesh_to_key(struct Object *ob, struct KeyBlock *kb);
 
 /* Undo */
 void sculpt_undo_push_begin(struct SculptSession *ss, char *name);

@@ -521,6 +521,7 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 
 		/* create subsurf DM from original mesh at high level */
 		cddm = CDDM_from_mesh(me, NULL);
+		DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 		highdm = subsurf_dm_create_local(ob, cddm, totlvl, simple, 0);
 		gridkey = highdm->getGridKey(highdm);
 
@@ -644,8 +645,8 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 	dSkip = (dGridSize-1)/(gridSize-1);
 
 	stored_grids = CustomData_get_layer(&me->fdata, CD_FACEGRID);
-
-	//#pragma omp parallel for private(i) schedule(static)
+	
+	#pragma omp parallel for private(i) if(me->totface*gridSize*gridSize*4 >= CCG_OMP_LIMIT)
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
 		MDisps *mdisp = &mdisps[i];
@@ -657,7 +658,7 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 		   (gridkey->mask && 
 		    (!stored_grids ||
 		     CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) != gridkey->mask)))
-		//#pragma omp critical
+		#pragma omp critical
 		{
 			multires_reallocate_mdisps(me, mdisps, gridkey, totlvl);
 		}
@@ -785,6 +786,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			/* create subsurf DM from original mesh at high level */
 			if (ob->derivedDeform) cddm = CDDM_copy(ob->derivedDeform);
 			else cddm = CDDM_from_mesh(me, NULL);
+			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
 			highdm = subsurf_dm_create_local(ob, cddm, totlvl, mmd->simple, 0);
 			gridkey = highdm->getGridKey(highdm);
@@ -840,6 +842,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 			if (ob->derivedDeform) cddm = CDDM_copy(ob->derivedDeform);
 			else cddm = CDDM_from_mesh(me, NULL);
+			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
 			subdm = subsurf_dm_create_local(ob, cddm, mmd->totlvl, mmd->simple, 0);
 			cddm->release(cddm);

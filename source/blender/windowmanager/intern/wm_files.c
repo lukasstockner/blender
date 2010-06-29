@@ -220,7 +220,9 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 						if(win->active)
 							wm->winactive= win;
 
-						GHOST_SetWindowUserData(win->ghostwin, win);	/* pointer back */
+						if(!G.background) /* file loading in background mode still calls this */
+							GHOST_SetWindowUserData(win->ghostwin, win);	/* pointer back */
+
 						oldwin->ghostwin= NULL;
 						
 						win->eventstate= oldwin->eventstate;
@@ -531,6 +533,22 @@ static ImBuf *blend_file_thumb(const char *path, Scene *scene, int **thumb_pt)
 	*thumb_pt= thumb;
 	
 	return ibuf;
+}
+
+/* easy access from gdb */
+int write_crash_blend(void)
+{
+	char path[FILE_MAX];
+	BLI_strncpy(path, G.sce, sizeof(path));
+	BLI_replace_extension(path, sizeof(path), "_crash.blend");
+	if(BLO_write_file(G.main, path, G.fileflags, NULL, NULL)) {
+		printf("written: %s\n", path);
+		return 1;
+	}
+	else {
+		printf("failed: %s\n", path);
+		return 0;
+	}
 }
 
 int WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports)
