@@ -362,7 +362,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 		else if(unode->maxgrid && dm->getGridData) {
 			/* multires restore */
 			DMGridData **grids, *grid;
-			float (*co)[3], *pmask;
+			float (*co)[3], *pmask = NULL;
 			int gridsize;
 			struct GridKey *gridkey;
 
