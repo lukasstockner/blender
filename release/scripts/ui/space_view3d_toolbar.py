@@ -761,7 +761,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel):
         col = layout.column(align=True)
 
         if context.sculpt_object:
-            col.prop(brush, "sculpt_tool", expand=False)
+            col.prop(brush, "sculpt_tool", expand=False, text="")
         elif context.texture_paint_object:
             col.prop(brush, "imagepaint_tool", expand=True)
             #col.prop_enum(settings, "tool", 'DRAW')
