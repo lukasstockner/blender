@@ -91,7 +91,7 @@ static int calchalo_z(HaloRen *har, int zz)
 	return zz;
 }
 
-static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int totsample, int od, float dist, float xn, float yn, PixStr *ps)
+static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int totsample, int od, float dist, float xn, float yn, PixStr *ps, int thread)
 {
 	float col[4], accol[4], fac;
 	int amount, amountm, zz, flarec, sample, fullsample, mask=0;
@@ -108,7 +108,7 @@ static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int t
 		
 		zz= calchalo_z(har, ps->z);
 		if((zz> har->zs) || (har->mat && (har->mat->mode & MA_HALO_SOFT))) {
-			if(shadeHaloFloat(re, har, col, zz, dist, xn, yn, flarec)) {
+			if(shadeHaloFloat(re, har, col, zz, dist, xn, yn, flarec, thread)) {
 				flarec= 0;
 
 				if(fullsample) {
@@ -133,7 +133,7 @@ static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int t
 	/* now do the sky sub-pixels */
 	amount= osa-amount;
 	if(amount) {
-		if(shadeHaloFloat(re, har, col, 0x7FFFFF, dist, xn, yn, flarec)) {
+		if(shadeHaloFloat(re, har, col, 0x7FFFFF, dist, xn, yn, flarec, thread)) {
 			if(!fullsample) {
 				fac= ((float)amount)/(float)osa;
 				accol[0]+= fac*col[0];
@@ -171,6 +171,7 @@ static void halo_tile(Render *re, RenderPart *pa, RenderLayer *rl)
 	int a, *rz, zz, y, sample, totsample, od;
 	short minx, maxx, miny, maxy, x;
 	unsigned int lay= rl->lay;
+	int thread= pa->thread;
 
 	/* we don't render halos in the cropped area, gives errors in flare counter */
 	if(pa->crop) {
@@ -221,12 +222,12 @@ static void halo_tile(Render *re, RenderPart *pa, RenderLayer *rl)
 						dist= xsq+ysq;
 						if(dist<har->radsq) {
 							if(rd && *rd) {
-								halo_pixelstruct(re, har, rlpp, totsample, od, dist, xn, yn, (PixStr *)*rd);
+								halo_pixelstruct(re, har, rlpp, totsample, od, dist, xn, yn, (PixStr *)*rd, thread);
 							}
 							else {
 								zz= calchalo_z(har, *rz);
 								if((zz> har->zs) || (har->mat && (har->mat->mode & MA_HALO_SOFT))) {
-									if(shadeHaloFloat(re, har, col, zz, dist, xn, yn, har->flarec)) {
+									if(shadeHaloFloat(re, har, col, zz, dist, xn, yn, har->flarec, thread)) {
 										for(sample=0; sample<totsample; sample++)
 											pxf_add_alpha_fac(rlpp[sample]->rectf + od*4, col, har->add);
 									}

@@ -49,7 +49,7 @@
 
 extern float hashvectf[];
 
-static void render_lighting_halo(Render *re, HaloRen *har, float *colf)
+static void render_lighting_halo(Render *re, HaloRen *har, float *colf, int thread)
 {
 	GroupObject *go;
 	LampRen *lar;
@@ -69,6 +69,8 @@ static void render_lighting_halo(Render *re, HaloRen *har, float *colf)
 	copy_v3_v3(shi.geometry.vn, har->no);
 	shi.geometry.osatex= 0;
 	shi.shading.lay= -1;
+	shi.shading.thread= thread;
+	shi.shading.samplenr= re->sample.shadowsamplenr[shi.shading.thread]++;
 	shi.material.mat= har->mat;
 
 	zero_v3(inf);
@@ -128,7 +130,7 @@ static float haloZtoDist(Render *re, int z)
  * @param yn The y coordinate of the pixel relaticve to the center of the halo. given in pixels
  */
 int shadeHaloFloat(Render *re, HaloRen *har,  float *col, int zz, 
-					float dist, float xn,  float yn, short flarec)
+					float dist, float xn,  float yn, short flarec, int thread)
 {
 	/* fill in col */
 	float t, zn, radist, ringf=0.0f, linef=0.0f, alpha, si, co;
@@ -312,7 +314,7 @@ int shadeHaloFloat(Render *re, HaloRen *har,  float *col, int zz,
 	if(har->mat) {
 		if(har->mat->mode & MA_HALO_SHADE) {
 			/* we test for lights because of preview... */
-			if(re->db.lights.first) render_lighting_halo(re, har, col);
+			if(re->db.lights.first) render_lighting_halo(re, har, col, thread);
 		}
 
 		/* Next, we do the line and ring factor modifications. */

@@ -94,7 +94,7 @@ static int re_object_raycast(RayObject *rayob, Isect *isec, ShadeInput *shi)
 	float dist= 1.0f, mindist= FLT_MAX, offset;
 	int a, hit= 0;
 
-	if(!(obr->flag & R_HIGHRES))
+	if(!obr || !(obr->flag & R_HIGHRES))
 		return RE_rayobject_raycast(rayob, isec);
 	
 	offset= obr->ob->displacebound;

@@ -703,7 +703,7 @@ static void renderhalo_post(Render *re, RenderResult *rr, float *rectf, HaloRen 
 					dist= xsq+ysq;
 					if(dist<har->radsq) {
 						
-						if(shadeHaloFloat(re, har, colf, 0x7FFFFF, dist, xn, yn, har->flarec))
+						if(shadeHaloFloat(re, har, colf, 0x7FFFFF, dist, xn, yn, har->flarec, 0))
 							pxf_add_alpha_fac(rtf, colf, har->add);
 					}
 					rtf+=4;

@@ -122,7 +122,7 @@ void shade_ray(struct Render *re, struct Isect *is, struct ShadeInput *shi, stru
 int shadeHaloFloat(struct Render *re, struct HaloRen *har, 
 					float *col, int zz, 
 					float dist, float xn, 
-					float yn, short flarec);
+					float yn, short flarec, int thread);
 
 #endif /* __RENDER_SHADING_H__ */
 
