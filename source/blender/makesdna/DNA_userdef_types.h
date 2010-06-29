@@ -376,7 +376,6 @@ typedef struct UserDef {
 	struct ColorBand coba_weight;	/* from texture.h */
 	int sculpt_paint_pixel_radius; /* unified radius of brush in pixels */
 	float sculpt_paint_strength; /* unified strenght of brush scaled to brush radius */
-	float pad3;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */

@@ -798,10 +798,9 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                     layout.prop(brush, "edge_to_edge", "Edge To Edge")
             if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'WAX', 'FILL', 'SCRAPE'):
                 layout.prop(brush, "use_original_normal")
-                if brush.use_original_normal:
-                    col = layout.column()
-                    col.label(text="Direction:")
-                    col.prop(brush, "sculpt_direction", text="")
+                col = layout.column()
+                col.label(text="Direction:")
+                col.prop(brush, "sculpt_direction", text="")
         layout.prop(brush, "use_airbrush")
         if brush.use_airbrush:
             col = layout.column()
