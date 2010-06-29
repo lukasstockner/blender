@@ -621,10 +621,10 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
 			if (dir*invert*pen_flip > 0)
-				return 8.0f * alpha * flip * pressure * overlap;
+				return alpha * flip * pressure * overlap;
 			else
 				/* reduce strength for DEEPEN, PEAKS, and CONTRAST */
-				return 3.0f * alpha * flip * pressure * overlap; 
+				return alpha * flip * pressure * overlap; 
 
 		case SCULPT_TOOL_SMOOTH:
 			return alpha * pressure * overlap;
