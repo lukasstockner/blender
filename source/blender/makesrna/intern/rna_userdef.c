@@ -2222,11 +2222,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0, 200);
 	RNA_def_property_ui_text(prop, "Pixels", "Unified Brush Radius in Pixels");
 
-	prop= RNA_def_property(srna, "sculpt_paint_bu_radius", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_bu_radius");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Units", "Unified Brush Radius in Blender Units");
-
 	prop= RNA_def_property(srna, "sculpt_paint_strength", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_strength");
 	RNA_def_property_range(prop, 0.0f, 1.0f);

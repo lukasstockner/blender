@@ -1224,7 +1224,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
 
-	add_v3_v3v3(p, ss->cache->location, area_normal);
+	//add_v3_v3v3(p, ss->cache->location, area_normal);
 
 	/* threaded loop over nodes */
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -1235,8 +1235,8 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			//if(sculpt_brush_test(&test, vd.co)) {
-			if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
+			if(sculpt_brush_test(&test, vd.co)) {
+			//if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
 				/* offset vertex */
 				float fade = tex_strength(ss, brush, vd.co, test.dist);
 				float val[3];
@@ -1290,6 +1290,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 				float fade = tex_strength(ss, brush, vd.co, test.dist);
 				float val[3];
 				
+				/* first we pinch */
 				sub_v3_v3v3(val, test.location, vd.co);
 				mul_v3_fl(val, fade*flippedbstrength);
 				symmetry_feather(sd, ss, vd.co, val);
@@ -1297,6 +1298,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 				
 				sculpt_clip(sd, ss, vd.co, val);
 				
+				/* then we draw */
 				mul_v3_v3fl(val, offset, fade);
 				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
@@ -2017,7 +2019,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	int n;
 
 	float temp[3];
-	float p[3];
+	//float p[3];
 
 	int flip;
 
@@ -2036,7 +2038,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
-	add_v3_v3v3(p, ss->cache->location, an);
+	//add_v3_v3v3(p, ss->cache->location, an);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
@@ -2046,8 +2048,8 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			//if (sculpt_brush_test(&test, vd.co)) {
-			if (sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
+			if (sculpt_brush_test(&test, vd.co)) {
+			//if (sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
 				float intr[3];
 				float val[3];
 
@@ -2623,6 +2625,12 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	int i;
 	int mode;
 
+	//Hopefully it is as easy as this... but I doubt it
+	//if(U.sculpt_paint_settings & BRUSH_USE_UNIFIED_RADIUS_AND_STRENGTH) {
+	//	brush->size = U.sculpt_paint_pixel_radius;
+	//	brush->alpha = U.sculpt_paint_strength;
+	//}
+	
 	ss->cache = cache;
 
 	/* Set scaling adjustment */
@@ -2748,7 +2756,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	Brush *brush = paint_brush(&sd->paint);
 
 	int dx, dy;
-
+	
 	if(!((brush->flag & BRUSH_ANCHORED) || (brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK) || (brush->sculpt_tool == SCULPT_TOOL_ROTATE)) || cache->first_time)
 		RNA_float_get_array(ptr, "location", cache->true_location);
 	cache->pen_flip = RNA_boolean_get(ptr, "pen_flip");

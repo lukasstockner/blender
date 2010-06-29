@@ -748,7 +748,7 @@ static float calc_vp_alpha_dl(VPaint *vp, ViewContext *vc, float vpimat[][3], fl
 	fac = sqrtf(fac_2);
 	
 	alpha= brush->alpha * brush_curve_strength_clamp(brush, fac, size);
-	
+
 	if (brush->flag & BRUSH_ALPHA_PRESSURE)
 		alpha *= pressure;
 		
@@ -814,6 +814,9 @@ static void wpaint_blend(VPaint *wp, MDeformWeight *dw, MDeformWeight *uw, float
 		float testw=0.0f;
 		
 		alpha= brush->alpha;
+
+		CLAMP(alpha, 0.0f, 1.0f);
+		
 		if(tool==VP_MIX || tool==VP_BLUR)
 			testw = paintval*alpha + uw->weight*(1.0-alpha);
 		else if(tool==VP_ADD)

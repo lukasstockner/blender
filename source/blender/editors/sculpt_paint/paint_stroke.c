@@ -344,7 +344,11 @@ static int project_brush_radius(RegionView3D* rv3d, float radius, float location
 
 static void sculpt_set_brush_radius(bContext* C, Brush *brush, int value)
 {
+	
 	brush->size = value;
+	//printf("resize radius \n");
+	//U.sculpt_paint_pixel_radius = value;
+
 	//PointerRNA brushptr;
 	//PropertyRNA *size;
 
@@ -360,6 +364,7 @@ static void sculpt_set_brush_radius(bContext* C, Brush *brush, int value)
 
 static void sculpt_set_brush_unprojected_radius(bContext* C, Brush *brush, float value)
 {
+	
 	brush->unprojected_radius = value;
 	//PointerRNA brushptr;
 	//PropertyRNA *unprojected_radius;
@@ -472,7 +477,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			int flip;
 			int sign;
 			float visual_strength = brush->alpha * brush->alpha;
-
+			
 			const float min_alpha = 0.20f;
 			const float max_alpha = 0.80f;
 			float* col;

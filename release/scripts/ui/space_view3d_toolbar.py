@@ -555,10 +555,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
             edit = context.user_preferences.edit
             if brush.lock_brush_size:
-                if edit.use_unified_radius_and_strength:
-                    row.prop(edit, "sculpt_paint_bu_radius", text ="Radius", slider=True)
-                else:
-                    row.prop(brush, "unprojected_radius", text="Radius", slider=True)
+                row.prop(brush, "unprojected_radius", text="Radius", slider=True)
             else:
                 if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
                     row.prop(edit, "sculpt_paint_pixel_radius", text="Radius", slider=True)
