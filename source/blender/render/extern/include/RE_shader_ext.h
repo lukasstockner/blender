@@ -144,6 +144,7 @@ typedef struct ShadeMaterial {
 
 	struct Group *light_override;
 	struct Material *mat_override;
+	struct Group *except_override;
 } ShadeMaterial;
 
 typedef struct ShadeTexco {

@@ -1130,6 +1130,7 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 		ssamp.shi[0].shading.combinedflag &= ~(SCE_PASS_SPEC);
 		ssamp.shi[0].material.mat_override= NULL;
 		ssamp.shi[0].material.light_override= NULL;
+		ssamp.shi[0].material.except_override= NULL;
 
 		/* create the pixelstrs to be used later */
 		zbuffer_sss(re, pa, lay, &handle, addps_sss, &psmlist, mat);

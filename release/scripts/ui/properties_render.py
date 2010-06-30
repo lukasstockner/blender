@@ -99,11 +99,16 @@ class RENDER_PT_layers(RenderButtonsPanel):
         col.label(text="")
         col.prop(rl, "light_override", text="Light")
         col.prop(rl, "material_override", text="Material")
+        row = col.row()
+        row.prop(rl, "except_override", text="Except")
+        row.active = rl.material_override != None
         if wide_ui:
             col = split.column()
         col.prop(rl, "visible_layers", text="Layer")
         col.label(text="Mask Layers:")
-        col.prop(rl, "zmask_layers", text="")
+        row = col.row()
+        row.prop(rl, "zmask_layers", text="")
+        row.active = rl.zmask
 
 
         layout.separator()

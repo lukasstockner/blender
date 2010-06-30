@@ -165,6 +165,7 @@ static void shade_intersection(Render *re, ShadeInput *shi, float *col, Isect *i
 	shi_new.shading.combinedflag= 0xFFFFFF;		 /* ray trace does all options */
 	shi_new.material.light_override= shi->material.light_override;
 	shi_new.material.mat_override= shi->material.mat_override;
+	shi_new.material.except_override= shi->material.except_override;
 	
 	copy_v3_v3(shi_new.geometry.camera_co, is->start);
 	

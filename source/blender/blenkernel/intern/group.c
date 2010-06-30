@@ -98,6 +98,8 @@ void unlink_group(Group *group)
 		for(srl= sce->r.layers.first; srl; srl= srl->next) {
 			if (srl->light_override==group)
 				srl->light_override= NULL;
+			if (srl->except_override==group)
+				srl->except_override= NULL;
 		}
 	}
 	

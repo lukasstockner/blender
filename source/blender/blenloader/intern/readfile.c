@@ -4272,6 +4272,7 @@ static void lib_link_scene(FileData *fd, Main *main)
 			for(srl= sce->r.layers.first; srl; srl= srl->next) {
 				srl->mat_override= newlibadr_us(fd, sce->id.lib, srl->mat_override);
 				srl->light_override= newlibadr_us(fd, sce->id.lib, srl->light_override);
+				srl->except_override= newlibadr_us(fd, sce->id.lib, srl->except_override);
 			}
 			/*Game Settings: Dome Warp Text*/
 			sce->gm.dome.warptext= newlibadr(fd, sce->id.lib, sce->gm.dome.warptext);
@@ -11980,6 +11981,7 @@ static void expand_scene(FileData *fd, Main *mainvar, Scene *sce)
 	for(srl= sce->r.layers.first; srl; srl= srl->next) {
 		expand_doit(fd, mainvar, srl->mat_override);
 		expand_doit(fd, mainvar, srl->light_override);
+		expand_doit(fd, mainvar, srl->except_override);
 	}
 
 	if(sce->r.dometext)

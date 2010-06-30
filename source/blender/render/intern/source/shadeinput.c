@@ -41,6 +41,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_colortools.h"
+#include "BKE_group.h"
 #include "BKE_node.h"
 #include "BKE_utildefines.h"
 
@@ -116,6 +117,18 @@ void vlr_set_uv_indices(VlakRen *vlr, int *i1, int *i2, int *i3)
 	}
 }
 
+static int shade_input_override_material(ShadeInput *shi)
+{
+	ShadeMaterial *mat= &shi->material;
+	ShadePrimitive *prim= &shi->primitive;
+
+	if(mat->mat_override)
+		if(!mat->except_override || !object_in_group(prim->obr->ob, mat->except_override))
+			return 1;
+	
+	return 0;
+}
+
 /* copy data from face to ShadeInput, general case */
 /* indices 0 1 2 3 only */
 void shade_input_set_triangle_i(Render *re, ShadeInput *shi, ObjectInstanceRen *obi, VlakRen *vlr, short i1, short i2, short i3)
@@ -138,7 +151,10 @@ void shade_input_set_triangle_i(Render *re, ShadeInput *shi, ObjectInstanceRen *
 	prim->i3= i3;
 	
 	/* note, mat->mat is set in node shaders */
-	mat->mat= (mat->mat_override)? mat->mat_override: vlr->mat;
+	if(shade_input_override_material(shi))
+		mat->mat= mat->mat_override;
+	else
+		mat->mat= vlr->mat;
 	mat->mode= mat->mat->mode_l;		/* or-ed result for all nodes */
 
 	geom->osatex= (mat->mat->texco & TEXCO_OSA);
@@ -168,8 +184,11 @@ void shade_input_set_strand(Render *re, ShadeInput *shi, StrandRen *strand, Stra
 	ShadeMaterial *mat= &shi->material;
 
 	/* note, mat->mat is set in node shaders */
-	mat->mat= mat->mat_override? mat->mat_override: strand->buffer->ma;
-	
+	if(shade_input_override_material(shi))
+		mat->mat= mat->mat_override;
+	else
+		mat->mat= strand->buffer->ma;
+
 	geom->osatex= (mat->mat->texco & TEXCO_OSA);
 	mat->mode= mat->mat->mode_l;		/* or-ed result for all nodes */
 
@@ -1161,6 +1180,7 @@ static void shade_input_initialize(Render *re, ShadeInput *shi, RenderPart *pa, 
 	shi->shading.combinedflag= ~rl->pass_xor;
 	shi->material.mat_override= rl->mat_override;
 	shi->material.light_override= rl->light_override;
+	shi->material.except_override= rl->except_override;
 //	shi->material.rl= rl;
 	/* note shi.depth==0  means first hit, not raytracing */
 }

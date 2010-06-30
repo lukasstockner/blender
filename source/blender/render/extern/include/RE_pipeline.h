@@ -89,6 +89,7 @@ typedef struct RenderLayer {
 	
 	struct Material *mat_override;
 	struct Group *light_override;
+	struct Group *except_override;
 	
 	float *rectf;		/* 4 float, standard rgba buffer (read not above!) */
 	float *acolrect;	/* 4 float, optional transparent buffer, needs storage for display updates */

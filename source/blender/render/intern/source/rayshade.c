@@ -780,6 +780,7 @@ static void traceray(Render *re, ShadeInput *origshi, ShadeResult *origshr, shor
 		//shi.do_preview= 0; // memset above, so dont need this
 		shi.material.light_override= origshi->material.light_override;
 		shi.material.mat_override= origshi->material.mat_override;
+		shi.material.except_override= origshi->material.except_override;
 		
 		memset(&shr, 0, sizeof(ShadeResult));
 		
@@ -1533,6 +1534,7 @@ static void shadeinput_from_isec(Render *re, ShadeInput *oldshi, Isect *isec, fl
 	shi->shading.thread= oldshi->shading.thread;
 	shi->shading.lay= oldshi->shading.lay;
 	shi->material.mat_override= oldshi->material.mat_override;
+	shi->material.except_override= oldshi->material.except_override;
 	shi->shading.depth= depth;
 	shi->shading.nodes= oldshi->shading.nodes;
 

@@ -905,6 +905,7 @@ RenderResult *render_result_create(Render *re, rcti *partrct, int crop, int save
 		rl->pass_xor= srl->pass_xor;
 		rl->light_override= srl->light_override;
 		rl->mat_override= srl->mat_override;
+		rl->except_override= srl->except_override;
 		rl->rectx= rectx;
 		rl->recty= recty;
 		

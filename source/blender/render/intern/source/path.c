@@ -67,6 +67,7 @@ static void shadeinput_from_hit(Render *re, RenderLayer *rl, ShadeInput *shi, Hi
 	copy_v3_v3(shi->geometry.co, hit->co);
 
 	shi->material.mat_override= (rl)? rl->mat_override: NULL;
+	shi->material.except_override= (rl)? rl->except_override: NULL;
 	shi->material.mat= hit->vlr->mat;
 	if(hit->quad)
 		shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 2, 3);
