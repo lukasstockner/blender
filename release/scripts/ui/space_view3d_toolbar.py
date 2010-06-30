@@ -544,16 +544,21 @@ class VIEW3D_PT_tools_brush(PaintPanel):
         # Sculpt Mode #
 
         elif context.sculpt_object and brush:
+            edit = context.user_preferences.edit
+
             col = layout.column()
+
+
+
             col.separator()
 
             row = col.row(align=True)
+
             if brush.lock_brush_size:
                 row.prop(brush, "lock_brush_size", toggle=True, text="", icon='LOCKED')
             else:
                 row.prop(brush, "lock_brush_size", toggle=True, text="", icon='UNLOCKED')
 
-            edit = context.user_preferences.edit
             if brush.lock_brush_size:
                 row.prop(brush, "unprojected_radius", text="Radius", slider=True)
             else:
@@ -562,53 +567,110 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 else:
                     row.prop(brush, "size", text="Radius", slider=True)
 
-            if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK', 'THUMB'):
-                row.prop(brush, "use_size_pressure", toggle=True, text="Size")
+            row.prop(brush, "use_size_pressure", toggle=True, text="")
 
-            if brush.sculpt_tool in ('SNAKE_HOOK', 'THUMB'):
-                row.prop(brush, "use_strength_pressure", toggle=True, text="Strength")
 
-            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE'):
-                row.prop(brush, "use_size_pressure", toggle=True, text="")
+
+            if brush.sculpt_tool not in ('THUMB', 'SNAKE_HOOK', 'GRAB', 'ROTATE'):
+                col.separator()
 
                 #row = col.row(align=True)
                 #row.prop(edit, "use_unified_radius_and_strength")
-                if edit.use_unified_radius_and_strength:
-                    row = col.row(align=True)
-                    row.prop(edit, "sculpt_paint_strength", slider=True)
 
-                else:
-                    row = col.row(align=True)
-                    row.prop(brush, "strength", slider=True)
-                row.prop(brush, "use_strength_pressure", text="")
+
                 row = col.row(align=True)
+
+                if brush.use_space:
+                    if brush.use_space_atten:
+                        row.prop(brush, "use_space_atten", toggle=True, text="", icon='LOCKED')
+                    else:
+                        row.prop(brush, "use_space_atten", toggle=True, text="", icon='UNLOCKED')
+
+                if edit.use_unified_radius_and_strength:
+                    row.prop(edit, "sculpt_paint_strength", slider=True)
+                else:
+                    row.prop(brush, "strength", slider=True)
+
+                row.prop(brush, "use_strength_pressure", text="")
+
+
+                row = col.row()
                 row.prop(brush, "strength_multiplier", slider=True)
 
-                # XXX - TODO
-                #row = col.row(align=True)
-                #row.prop(brush, "jitter", slider=True)
-                #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+            elif brush.sculpt_tool in ('THUMB', 'SNAKE_HOOK'):
+                col.separator()
+
+                row = col.row()
+                row.prop(brush, "use_strength_pressure", toggle=True, text="Strength Pressure")
+
+
+
+            # XXX - TODO
+            #col.separator()
+            #row = col.row(align=True)
+            #row.prop(brush, "jitter", slider=True)
+            #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+
 
             if brush.sculpt_tool not in ('SMOOTH'):
+                col.separator()
+
                 row = col.row(align=True)
                 row.prop(brush, "autosmooth_factor", slider=True)
 
+
+
             if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK'):
+                col.separator()
+
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
 
+
+
             if brush.sculpt_tool in ('CLAY', 'WAX', 'FLATTEN', 'FILL', 'SCRAPE'):
+                col.separator()
+
                 row = col.row(align=True)
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
 
-            if brush.sculpt_tool in ('DRAW', 'PINCH', 'CREASE', 'INFLATE', 'LAYER', 'FILL', 'SCRAPE', 'CLAY', 'WAX', 'GRAB'):
-                col.row().prop(brush, "direction", expand=True)
 
-            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'LAYER', 'CLAY', 'WAX'):
+
+            if brush.sculpt_tool in ('DRAW', 'CREASE', 'LAYER', 'CLAY', 'WAX'):
+                col.separator()
+                col.row().prop(brush, "direction", expand=True)
+            elif brush.sculpt_tool in ('FLATTEN'):
+                col.separator()
+                col.row().prop(brush, "flatten_contrast", expand=True)
+            elif brush.sculpt_tool in ('FILL'):
+                col.separator()
+                col.row().prop(brush, "fill_deepen", expand=True)
+            elif brush.sculpt_tool in ('SCRAPE'):
+                col.separator()
+                col.row().prop(brush, "scrape_peaks", expand=True)
+            elif brush.sculpt_tool in ('GRAB'):
+                col.separator()
+                col.row().prop(brush, "grab_push", expand=True)
+            elif brush.sculpt_tool in ('INFLATE'):
+                col.separator()
+                col.row().prop(brush, "inflate_deflate", expand=True)
+            elif brush.sculpt_tool in ('PINCH'):
+                col.separator()
+                col.row().prop(brush, "pinch_magnify", expand=True)
+
+
+
+            if brush.sculpt_tool in ('DRAW', 'CREASE', 'INFLATE', 'LAYER', 'CLAY', 'WAX'):
+                col.separator()
+
                 col.prop(brush, "use_accumulate")
 
+
+
             if brush.sculpt_tool == 'LAYER':
+                col.separator()
+
                 ob = context.sculpt_object
                 do_persistent = True
 
@@ -620,10 +682,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 if do_persistent:
                     col.prop(brush, "use_persistent")
                     col.operator("sculpt.set_persistent_base")
-                        
-            if brush.use_dynamic_subdiv ==True:
-                col.prop(brush,"detail",slider=True)
-                col.prop(brush,"smoothness",slider=True)
 
         # Texture Paint Mode #
 
@@ -861,6 +919,11 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col = layout.column()
         col.prop(brush,"use_dynamic_subdiv")
+
+        if brush.use_dynamic_subdiv ==True:
+            col.prop(brush,"detail",slider=True)
+            col.prop(brush,"smoothness",slider=True)
+
         col.prop(sculpt, "show_brush")
         if sculpt.show_brush:
             col.prop(sculpt, "show_brush_on_surface")

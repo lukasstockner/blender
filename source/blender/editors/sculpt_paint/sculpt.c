@@ -611,40 +611,55 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_DRAW:
-		case SCULPT_TOOL_INFLATE:
 		case SCULPT_TOOL_WAX:
 		case SCULPT_TOOL_CREASE:
 		case SCULPT_TOOL_LAYER:
 			return alpha * flip * pressure * overlap;
 
+		case SCULPT_TOOL_INFLATE:
+			if (dir*invert*pen_flip > 0) {
+				return 0.250f * alpha * flip * pressure * overlap;
+			}
+			else {
+				return 0.125f * alpha * flip * pressure * overlap;
+			}
+
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
-			if (dir*invert*pen_flip > 0)
+			if (dir*invert*pen_flip > 0) {
+				overlap = (1+overlap) / 2;
 				return alpha * flip * pressure * overlap;
-			else
+			}
+			else {
 				/* reduce strength for DEEPEN, PEAKS, and CONTRAST */
-				return alpha * flip * pressure * overlap; 
+				return 0.5f * alpha * flip * pressure * overlap; 
+			}
 
 		case SCULPT_TOOL_SMOOTH:
 			return alpha * pressure * overlap;
 
 		case SCULPT_TOOL_PINCH:
-			return alpha * flip * pressure * overlap;
-
-		case SCULPT_TOOL_GRAB:
-			return flip > 0 ? 1.0f : -1.0f;
+			if (dir*invert*pen_flip > 0) {
+				return alpha * flip * pressure * overlap;
+			}
+			else {
+				return 0.25f * alpha * flip * pressure * overlap;
+			}
 
 		case SCULPT_TOOL_NUDGE:
+			overlap = (1+overlap) / 2;
 			return alpha * pressure * overlap;
 
 		case SCULPT_TOOL_THUMB:
-			return pressure;
+			return pressure / 4;
 
 		case SCULPT_TOOL_SNAKE_HOOK:
 			return pressure;
 
+		case SCULPT_TOOL_GRAB:
 		case SCULPT_TOOL_ROTATE:
+			/* rotate ignores strength */
 			return 1.0f;
 
 		default:
@@ -1158,16 +1173,19 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 				if(sculpt_brush_test(&test, co)) {
 					float fade = tex_strength(ss, brush, co, test.dist)*bstrength;
 					float *avg, val[3];
+					float n;
 
 					avg = tmpgrid[x + y*gridsize];
 
-					mul_v3_fl(avg, 1/16.0f);
+					n = 1/16.0f;
 
 					if(x == 0 || x == gridsize - 1)
-						mul_v3_fl(avg, 2.0f);
+						n *= 2;
 
 					if(y == 0 || y == gridsize - 1)
-						mul_v3_fl(avg, 2.0f);
+						n *= 2;
+
+					mul_v3_fl(avg, n);
 
 					sub_v3_v3v3(val, avg, co);
 					mul_v3_fl(val, fade);
@@ -1215,7 +1233,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	float offset[3], area_normal[3];
 	float bstrength= ss->cache->bstrength;
 	int n;
-	float p[3];
+	//float p[3];
 
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
 	
@@ -1270,36 +1288,34 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
+
 	/* we always want crease to pinch even when draw is negative also crease we want stronger than the draw effect*/
-	if (bstrength < 0)
-		flippedbstrength = -2.0*bstrength;
-	else
-		flippedbstrength =2.0*bstrength;
+	flippedbstrength = (bstrength < 0) ? -(2.0f/3.0f)*bstrength : (2.0f/3.0f)*bstrength;
 
 	/* threaded loop over nodes */
 #pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
-		
+
 		sculpt_brush_test_init(ss, &test);
-		
+
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
 				/* offset vertex */
 				float fade = tex_strength(ss, brush, vd.co, test.dist);
 				float val[3];
-				
+
 				/* first we pinch */
 				sub_v3_v3v3(val, test.location, vd.co);
 				mul_v3_fl(val, fade*flippedbstrength);
 				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
-				
+
 				sculpt_clip(sd, ss, vd.co, val);
-				
+
 				/* then we draw */
-				mul_v3_v3fl(val, offset, fade);
+				mul_v3_v3fl(val, offset, fade*(1.0f/3.0f));
 				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
 				
@@ -1352,7 +1368,6 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush= paint_brush(&sd->paint);
-	float bstrength= ss->cache->bstrength;
 	float grab_delta[3], an[3];
 	int n;
 	float len;
@@ -1363,9 +1378,6 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
 	len = len_v3(grab_delta);
-
-	if (bstrength < 0)
-		negate_v3(grab_delta);
 
 	if (brush->normal_weight > 0) {
 		mul_v3_fl(an, len*brush->normal_weight);
@@ -1388,7 +1400,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
-				float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist);
+				float fade = tex_strength(ss, brush, origco[vd.i], test.dist);
 
 				mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
