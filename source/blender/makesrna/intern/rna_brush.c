@@ -186,11 +186,11 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem brush_sculpt_direction_items[] = {
-		{SCULPT_DISP_DIR_AREA, "AREA", 0, "Area", ""},
-		{SCULPT_DISP_DIR_VIEW, "VIEW", 0, "View", ""},
-		{SCULPT_DISP_DIR_X, "X", 0, "X", ""},
-		{SCULPT_DISP_DIR_Y, "Y", 0, "Y", ""},
-		{SCULPT_DISP_DIR_Z, "Z", 0, "Z", ""},
+		{SCULPT_DISP_DIR_AREA, "AREA", 0, "Area Plane", ""},
+		{SCULPT_DISP_DIR_VIEW, "VIEW", 0, "View Plane", ""},
+		{SCULPT_DISP_DIR_X, "X", 0, "X Plane", ""},
+		{SCULPT_DISP_DIR_Y, "Y", 0, "Y Plane", ""},
+		{SCULPT_DISP_DIR_Z, "Z", 0, "Z Plane", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	FunctionRNA *func;
@@ -394,7 +394,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "use_original_normal", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ORIGINAL_NORMAL);
-	RNA_def_property_ui_text(prop, "Original Normal", "Keeps using the starting normal of the stroke when sculpting");
+	RNA_def_property_ui_text(prop, "Original Normal", "When locked keep using normal of surface where stroke was initiated");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
 	prop= RNA_def_property(srna, "use_wrap", PROP_BOOLEAN, PROP_NONE);

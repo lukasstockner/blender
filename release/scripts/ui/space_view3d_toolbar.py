@@ -637,9 +637,18 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
-            if brush.sculpt_tool in ('CLAY', 'WAX', 'FLATTEN', 'FILL', 'SCRAPE'):
-                col.separator()
+            col.separator()
 
+            row = col.row(align=True)
+
+            if brush.use_original_normal:
+                row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
+            else:
+                row.prop(brush, "use_original_normal", toggle=True, text="", icon='UNLOCKED')
+
+            row.prop(brush, "sculpt_direction", text="")
+
+            if brush.sculpt_tool in ('CLAY', 'WAX', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
@@ -863,11 +872,6 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 layout.prop(brush, "use_anchor")
                 if brush.use_anchor:
                     layout.prop(brush, "edge_to_edge", "Edge To Edge")
-            if brush.sculpt_tool in ('DRAW', 'LAYER', 'FLATTEN', 'CLAY', 'WAX', 'FILL', 'SCRAPE'):
-                layout.prop(brush, "use_original_normal")
-                col = layout.column()
-                col.label(text="Direction:")
-                col.prop(brush, "sculpt_direction", text="")
         layout.prop(brush, "use_airbrush")
         if brush.use_airbrush:
             col = layout.column()

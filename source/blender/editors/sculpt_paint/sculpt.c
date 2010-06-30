@@ -920,7 +920,8 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 	if (ss->cache->symmetry_pass == 0 &&
 	   (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
 	{
-		int sculpt_direction = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_direction : SCULPT_DISP_DIR_AREA;
+		//int sculpt_direction = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_direction : SCULPT_DISP_DIR_AREA;
+		int sculpt_direction = brush->sculpt_direction;
 
 		switch (sculpt_direction) {
 			case SCULPT_DISP_DIR_VIEW:
@@ -1770,7 +1771,8 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 	if (ss->cache->symmetry_pass == 0 &&
 	   (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
 	{
-		int sculpt_direction = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_direction : SCULPT_DISP_DIR_AREA;
+		//int sculpt_direction = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_direction : SCULPT_DISP_DIR_AREA;
+		int sculpt_direction = brush->sculpt_direction;
 
 		switch (sculpt_direction) {
 			case SCULPT_DISP_DIR_VIEW:
