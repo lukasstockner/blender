@@ -796,12 +796,11 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             if tex_slot.map_mode in ('FIXED', 'TILED'):
                 sub = col.column(align=True)
                 sub.label(text="Scale:")
-                sub.prop(brush, "texture_scale_x", slider=True, text="Width")
-                sub.prop(brush, "texture_scale_y", slider=True, text="Height")
-                sub.prop(brush, "texture_scale_percentage", slider=True, text="")
-                sub.label(text="Center:")
-                sub.prop(brush, "texture_center_x", slider=True, text="Center X")
-                sub.prop(brush, "texture_center_y", slider=True, text="Center Y")
+                sub.prop(brush, "texture_scale_x", slider=True, text="X")
+                sub.prop(brush, "texture_scale_y", slider=True, text="Y")
+                sub.label(text="Offset:")
+                sub.prop(brush, "texture_center_x", slider=True, text="X")
+                sub.prop(brush, "texture_center_y", slider=True, text="Y")
 
                 row = col.row(align=True)
                 row.prop(tex_slot, "angle", slider=True)
@@ -941,7 +940,6 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         if sculpt.show_brush:
             col.prop(sculpt, "show_brush_on_surface")
         col.prop(sculpt, "fast_navigate")
-        col.prop(sculpt, "use_openmp")
 
         col.separator()
         if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'FLATTEN'):
