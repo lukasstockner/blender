@@ -595,7 +595,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	/* Primary strength input; square it to make lower values more sensitive */
 	float alpha        = brush->alpha * brush->alpha * brush->strength_multiplier;
 	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
-	float pressure     = brush->flag & BRUSH_ALPHA_PRESSURE ? cache->pressure : 1;
+	float pressure     = brush->flag & BRUSH_ALPHA_PRESSURE	? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
 	float invert       = cache->invert ? -1 : 1;
 	float accum        = integrate_overlap(brush);
@@ -619,7 +619,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 			return alpha * flip * pressure * overlap;
 
 		case SCULPT_TOOL_INFLATE:
-			if (dir*invert*pen_flip > 0) {
+			if (flip > 0) {
 				return 0.250f * alpha * flip * pressure * overlap;
 			}
 			else {
@@ -629,7 +629,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_FLATTEN:
-			if (dir*invert*pen_flip > 0) {
+			if (flip > 0) {
 				overlap = (1+overlap) / 2;
 				return alpha * flip * pressure * overlap;
 			}
@@ -642,7 +642,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 			return alpha * pressure * overlap;
 
 		case SCULPT_TOOL_PINCH:
-			if (dir*invert*pen_flip > 0) {
+			if (flip > 0) {
 				return alpha * flip * pressure * overlap;
 			}
 			else {
