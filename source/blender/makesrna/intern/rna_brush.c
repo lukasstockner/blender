@@ -336,6 +336,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "strength", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "alpha");
+	RNA_def_property_float_default(prop, 0.5f);
 	RNA_def_property_range(prop, 0.0f, 10.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
 	RNA_def_property_ui_text(prop, "Strength", "How powerful the effect of the brush is when applied");
@@ -343,30 +344,43 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "strength_multiplier", PROP_INT, PROP_FACTOR);
 	RNA_def_property_int_sdna(prop, NULL, "strength_multiplier");
+	RNA_def_property_int_default(prop, 1);
 	RNA_def_property_range(prop, 1, 10);
 	RNA_def_property_ui_text(prop, "Strength Multiplier", "Multiplier factor for the strength setting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "plane_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "plane_offset");
-	RNA_def_property_range(prop, -0.5f, 0.5f);
+	RNA_def_property_float_default(prop, 0);
+	RNA_def_property_range(prop, -2.0f, 2.0f);
+	RNA_def_property_ui_range(prop, -0.5f, 0.5f, 0.001, 0.001);
 	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts plane on which the brush acts towards or away from the object surface");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "texture_offset", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "texture_offset");
-	RNA_def_property_range(prop, -1.0f, 0.0f);
+	RNA_def_property_float_default(prop, 0);
+	RNA_def_property_range(prop, -1, 1);
 	RNA_def_property_ui_text(prop, "Tex Offset", "Allows base level of texture to be biased so that samples can have both positive and negative values");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "normal_weight", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "normal_weight");
+	RNA_def_property_float_default(prop, 0);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Normal Weight", "Controls how much grab will pull vertexes out of the surface during a grab");
+	RNA_def_property_ui_text(prop, "Normal Weight", "How much grab will pull vertexes out of surface during a grab");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "crease_pinch_factor", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "crease_pinch_factor");
+	RNA_def_property_float_default(prop, 2.0f/3.0f);
+	RNA_def_property_range(prop, 0.0f, 2.0f);
+	RNA_def_property_ui_text(prop, "Pinch", "How much the crease brush pinches");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "autosmooth_factor", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_float_sdna(prop, NULL, "autosmooth_factor");
+	RNA_def_property_float_default(prop, 0);
 	RNA_def_property_range(prop, 0.0f, 4.0f);
 	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
 	RNA_def_property_ui_text(prop, "Autosmooth", "Amount of smoothing to automatically apply to each stroke");
@@ -418,6 +432,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Spacing Pressure", "Enable tablet pressure sensitivity for spacing");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "use_inverse_smooth_pressure", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_INVERSE_SMOOTH_PRESSURE);
+	RNA_def_property_ui_icon(prop, ICON_STYLUS_PRESSURE, 0);
+	RNA_def_property_ui_text(prop, "Inverse Smooth Pressure", "Lighter pressure causes more smoothing to be applied");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	
 	prop= RNA_def_property(srna, "use_rake", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RAKE);
 	RNA_def_property_ui_text(prop, "Rake", "Rotate the brush texture to match the stroke direction");

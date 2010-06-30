@@ -250,7 +250,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 				   atan2, sqrtf, sin, and cos. */
 				/* epsilon good as long as precision of angle control is 0.001 */
 				if (rotation > 0.001 || rotation < -0.001) {
-					const float angle    = M_PI_2 + atan2(x, y) - rotation;
+					const float angle    = atan2(x, y) - rotation;
 					const float flen     = sqrtf(x*x + y*y);
 
 					x = flen * cos(angle);

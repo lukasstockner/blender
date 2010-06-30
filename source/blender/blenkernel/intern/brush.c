@@ -109,7 +109,10 @@ Brush *add_brush(const char *name)
 	brush->texture_offset = 0;
 	
 	brush->overlay_texture = 0; /* toggles whether the texture is shown as an overlay when not sculpting 0 is off */
+
 	brush->autosmooth_factor = 0;
+
+	brush->crease_pinch_factor = 2.0f/3.0f;
 
 	/* color of the 'on surface' brush */
 	brush->add_col[0] = 1.00; /* add mode color is red */

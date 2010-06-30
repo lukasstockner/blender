@@ -84,7 +84,10 @@ typedef struct Brush {
 	char stroke_tool;
 
 	float autosmooth_factor;
-	float autosmooth_overlap;
+	float autosmooth_overlap; // XXX: move this to strokecache
+
+	float crease_pinch_factor;
+	int pad2;
 
 	// all this below is used to communicate with the cursor drawing routine
 
@@ -141,6 +144,7 @@ typedef struct Brush {
 #define BRUSH_TEXTURE_OVERLAY	(1<<21)
 #define BRUSH_EDGE_TO_EDGE	(1<<22)
 #define BRUSH_RESTORE_MESH	(1<<23)
+#define BRUSH_INVERSE_SMOOTH_PRESSURE (1<<24)
 
 /* Brush stroke_style */
 //#define STROKE_TOOL_DOTS	1

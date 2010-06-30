@@ -617,6 +617,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row = col.row(align=True)
                 row.prop(brush, "autosmooth_factor", slider=True)
+                row.prop(brush, "use_inverse_smooth_pressure", toggle=True, text="")
 
 
 
@@ -625,6 +626,14 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row = col.row(align=True)
                 row.prop(brush, "normal_weight", slider=True)
+
+
+
+            if brush.sculpt_tool in ('CREASE'):
+                col.separator()
+
+                row = col.row(align=True)
+                row.prop(brush, "crease_pinch_factor", slider=True)
 
 
 

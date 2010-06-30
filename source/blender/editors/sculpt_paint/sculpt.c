@@ -612,8 +612,10 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_WAX:
-		case SCULPT_TOOL_CREASE:
 		case SCULPT_TOOL_LAYER:
+			return alpha * flip * pressure * overlap;
+
+		case SCULPT_TOOL_CREASE:
 			return alpha * flip * pressure * overlap;
 
 		case SCULPT_TOOL_INFLATE:
@@ -805,7 +807,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		   atan2, sqrtf, sin, and cos. */
 		/* epsilon good as long as precision of angle control is 0.001 */
 		if (rotation > 0.001 || rotation < -0.001) {
-			const float angle    = M_PI_2 + atan2(x, y) - rotation;
+			const float angle    = atan2(x, y) - rotation;
 			const float flen     = sqrtf(x*x + y*y);
 
 			x = flen * cos(angle);
@@ -1287,13 +1289,13 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
-	mul_v3_fl(offset, bstrength);
+	mul_v3_fl(offset, bstrength*(1-brush->crease_pinch_factor));
 
 	/* we always want crease to pinch even when draw is negative also crease we want stronger than the draw effect*/
-	flippedbstrength = (bstrength < 0) ? -(2.0f/3.0f)*bstrength : (2.0f/3.0f)*bstrength;
+	flippedbstrength = (bstrength < 0) ? -brush->crease_pinch_factor*bstrength : brush->crease_pinch_factor*bstrength;
 
 	/* threaded loop over nodes */
-#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptBrushTest test;
@@ -1315,10 +1317,10 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 				sculpt_clip(sd, ss, vd.co, val);
 
 				/* then we draw */
-				mul_v3_v3fl(val, offset, fade*(1.0f/3.0f));
+				mul_v3_v3fl(val, offset, fade);
 				symmetry_feather(sd, ss, vd.co, val);
 				add_v3_v3(val, vd.co);
-				
+
 				sculpt_clip(sd, ss, vd.co, val);
 
 				if(vd.mvert) {
@@ -2346,7 +2348,10 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 		}
 
 		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0)
-			smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*brush->autosmooth_overlap);
+			if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*(1-ss->cache->pressure)*brush->autosmooth_overlap);
+			else
+				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*brush->autosmooth_overlap);
 
 		/* copy the modified vertices from mesh to the active key */
 		if(ss->kb)
