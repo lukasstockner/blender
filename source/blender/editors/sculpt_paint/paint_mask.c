@@ -19,10 +19,10 @@
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_dmgrid.h"
 #include "BKE_mesh.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
-#include "BKE_subsurf.h"
 
 #include "BLI_listbase.h"
 #include "BLI_pbvh.h"

@@ -458,18 +458,11 @@ static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm, int lv
 	return multires_dm_create_from_derived(&mmd, 1, dm, ob, 0, 0);
 }
 
-static GridKey *create_gridkey(CustomData *cd)
-{
-	GridKey *gridkey = MEM_callocN(sizeof(GridKey), "create_gridkey");
-
-	GRIDELEM_KEY_INIT(gridkey, 1, CustomData_number_of_layers(cd, CD_PAINTMASK), 1);
-
-	return gridkey;
-}
-
 static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl, int simple, int optimal)
 {
 	SubsurfModifierData smd;
+	GridKey gridkey;
+	int pmask_totlayer;
 
 	memset(&smd, 0, sizeof(SubsurfModifierData));
 	smd.levels = smd.renderLevels = lvl;
@@ -479,7 +472,11 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	if(optimal)
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
-	return subsurf_make_derived_from_derived(dm, &smd, create_gridkey(&get_mesh(ob)->vdata), 0, NULL, 0, 0);
+	pmask_totlayer = CustomData_number_of_layers(&get_mesh(ob)->vdata,
+						     CD_PAINTMASK);
+	GRIDELEM_KEY_INIT(&gridkey, 1, pmask_totlayer, 1);
+			  
+	return subsurf_make_derived_from_derived(dm, &smd, &gridkey, 0, NULL, 0, 0);
 }
 
 static DMGridData **copy_grids(DMGridData **grids, int totgrid, int gridsize, GridKey *gridkey)

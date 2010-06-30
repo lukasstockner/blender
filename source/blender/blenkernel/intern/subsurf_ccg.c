@@ -117,7 +117,7 @@ static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, GridKey *gridkey, int subdivL
 	}
 	ifc.vertDataSize = GRIDELEM_SIZE(gridkey);
 	ifc.finterpCount = GRIDELEM_INTERP_COUNT(gridkey);
-	ifc.gridkey = gridkey;
+	ifc.gridkey = *gridkey;
 
 	if (useArena) {
 		CCGAllocatorIFC allocatorIFC;
@@ -317,16 +317,15 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 	int index, gridSize, gridFaces, edgeSize, totface, x, y, S;
 	MTFace *dmtface = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, n);
 	MTFace *tface = CustomData_get_layer_n(&result->faceData, CD_MTFACE, n);
-	GridKey *gridkey;
+	GridKey gridkey;
 
 	if(!dmtface || !tface)
 		return;
 
-	gridkey = MEM_callocN(sizeof(GridKey), "Subsurf UV GridKey");
-	GRIDELEM_KEY_INIT(gridkey, 1, 0, 0); /* TODO */
+	GRIDELEM_KEY_INIT(&gridkey, 1, 0, 0); /* TODO */
 
 	/* create a CCGSubSurf from uv's */
-	uvss = _getSubSurf(NULL, gridkey, ccgSubSurf_getSubdivisionLevels(ss), 0, 1, 0);
+	uvss = _getSubSurf(NULL, &gridkey, ccgSubSurf_getSubdivisionLevels(ss), 0, 1, 0);
 
 	if(!ss_sync_from_uv(uvss, ss, dm, dmtface)) {
 		ccgSubSurf_free(uvss);
@@ -361,10 +360,10 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 
 			for(y = 0; y < gridFaces; y++) {
 				for(x = 0; x < gridFaces; x++) {
-					float *a = GRIDELEM_CO_AT(faceGridData, (y + 0)*gridSize + x + 0, gridkey);
-					float *b = GRIDELEM_CO_AT(faceGridData, (y + 0)*gridSize + x + 1, gridkey);
-					float *c = GRIDELEM_CO_AT(faceGridData, (y + 1)*gridSize + x + 1, gridkey);
-					float *d = GRIDELEM_CO_AT(faceGridData, (y + 1)*gridSize + x + 0, gridkey);
+					float *a = GRIDELEM_CO_AT(faceGridData, (y + 0)*gridSize + x + 0, &gridkey);
+					float *b = GRIDELEM_CO_AT(faceGridData, (y + 0)*gridSize + x + 1, &gridkey);
+					float *c = GRIDELEM_CO_AT(faceGridData, (y + 1)*gridSize + x + 1, &gridkey);
+					float *d = GRIDELEM_CO_AT(faceGridData, (y + 1)*gridSize + x + 0, &gridkey);
 
 					tf->uv[0][0] = a[0]; tf->uv[0][1] = a[1];
 					tf->uv[1][0] = d[0]; tf->uv[1][1] = d[1];
@@ -2666,11 +2665,11 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	int useSubsurfUv = smd->flags & eSubsurfModifierFlag_SubsurfUv;
 	int drawInteriorEdges = !(smd->flags & eSubsurfModifierFlag_ControlEdges);
 	CCGDerivedMesh *result;
+	GridKey default_gridkey;
 
 	if(!gridkey) {
-		/* create default gridkey */
-		gridkey = MEM_callocN(sizeof(GridKey), "subsurf_make_derived_from_derived.GridKey");
-		GRIDELEM_KEY_INIT(gridkey, 1, 0, 1);
+		GRIDELEM_KEY_INIT(&default_gridkey, 1, 0, 1);
+		gridkey = &default_gridkey;
 	}
 
 	if(editMode) {
@@ -2759,12 +2758,8 @@ void subsurf_calculate_limit_positions(Mesh *me, float (*positions_r)[3])
 	float edge_sum[3], face_sum[3];
 	CCGVertIterator *vi;
 	DerivedMesh *dm = CDDM_from_mesh(me, NULL);
-	GridKey *gridkey;
 
-	gridkey = MEM_callocN(sizeof(GridKey), "limit_positions.gridkey");
-	GRIDELEM_KEY_INIT(gridkey, 1, 0, 1);
-	
-	ss = _getSubSurf(NULL, gridkey, 1, 0, 1, 0);
+	ss = _getSubSurf(NULL, NULL, 1, 0, 1, 0);
 	ss_sync_from_derivedmesh(ss, dm, NULL, 0);
 
 	vi = ccgSubSurf_getVertIterator(ss);

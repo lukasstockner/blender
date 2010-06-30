@@ -50,6 +50,7 @@
 
 struct DerivedMesh;
 struct GHash;
+struct GridKey;
 
 /* V - vertex, N - normal, T - uv, C - color
    F - float, UB - unsigned byte */
@@ -137,7 +138,8 @@ void GPU_update_mesh_buffers(void *buffers, struct MVert *mvert,
 void *GPU_build_grid_buffers(struct DMGridData **grids,
 			     int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_buffers(void *buffers_v, struct DMGridData **grids,
-			     int *grid_indices, int totgrid, int gridsize, GridKey *gridkey, int smooth);
+			     int *grid_indices, int totgrid, int gridsize,
+			     struct GridKey *gridkey, int smooth);
 void GPU_draw_buffers(void *buffers);
 void GPU_free_buffers(void *buffers);
 

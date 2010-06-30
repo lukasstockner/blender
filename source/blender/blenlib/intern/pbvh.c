@@ -28,7 +28,7 @@
 #include "BLI_pbvh.h"
 
 #include "BKE_DerivedMesh.h"
-#include "BKE_subsurf.h"
+#include "BKE_dmgrid.h"
 #include "BKE_mesh.h" /* for mesh_calc_normals */
 
 #include "gpu_buffers.h"

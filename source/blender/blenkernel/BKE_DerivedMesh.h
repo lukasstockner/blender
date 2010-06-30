@@ -69,7 +69,6 @@ struct PBVH;
 #define SUB_ELEMS_FACE 4
 
 typedef struct DMGridData DMGridData;
-typedef struct GridKey GridKey;
 
 typedef struct DMGridAdjacency {
 	int index[4];

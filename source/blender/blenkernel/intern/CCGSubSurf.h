@@ -1,5 +1,7 @@
 /* $Id$ */
 
+#include "BKE_dmgrid.h"
+
 typedef void* CCGMeshHDL;
 typedef void* CCGVertHDL;
 typedef void* CCGEdgeHDL;
@@ -19,7 +21,7 @@ struct _CCGMeshIFC {
 	   that would be (3+1) floats, so finterpCount would be 4. */
 	int			finterpCount;
 
-	struct GridKey*		gridkey;
+	struct GridKey		gridkey;
 };
 
 /***/
