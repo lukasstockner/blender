@@ -3453,6 +3453,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 		{ WM_BRUSHSTROKE_NORMAL, "NORMAL", 0, "Normal", "Apply brush normally" },
 		{ WM_BRUSHSTROKE_INVERT, "INVERT", 0, "Invert", "Invert action of brush for duration of stroke" },
 		{ WM_BRUSHSTROKE_SMOOTH, "SMOOTH", 0, "Smooth", "Switch brush to smooth mode for duration of stroke" },
+		{ 0 }
 	};
 
 	ot->flag |= OPTYPE_REGISTER;
