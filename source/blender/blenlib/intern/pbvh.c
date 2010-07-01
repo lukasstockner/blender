@@ -1499,38 +1499,45 @@ PBVHProxyNode* BLI_pbvh_node_add_proxy(PBVH* bvh, PBVHNode* node)
 {
 	int index, totverts;
 
-	index = node->proxy_count;
+	#pragma omp critical
+	{
 
-	node->proxy_count++;
+		index = node->proxy_count;
 
-	if (node->proxies)
-		node->proxies= MEM_reallocN(node->proxies, node->proxy_count*sizeof(PBVHProxyNode));
-	else
-		node->proxies= MEM_mallocN(sizeof(PBVHProxyNode), "PBVHNodeProxy");
+		node->proxy_count++;
 
-	if (bvh->grids)
-		totverts = node->totprim*bvh->gridsize*bvh->gridsize;
-	else 
-		totverts = node->uniq_verts;
+		if (node->proxies)
+			node->proxies= MEM_reallocN(node->proxies, node->proxy_count*sizeof(PBVHProxyNode));
+		else
+			node->proxies= MEM_mallocN(sizeof(PBVHProxyNode), "PBVHNodeProxy");
 
-	node->proxies[index].co= MEM_callocN(sizeof(float[3])*totverts, "PBVHNodeProxy.co");
+		if (bvh->grids)
+			totverts = node->totprim*bvh->gridsize*bvh->gridsize;
+		else
+			totverts = node->uniq_verts;
+
+		node->proxies[index].co= MEM_callocN(sizeof(float[3])*totverts, "PBVHNodeProxy.co");
+	}
 
 	return node->proxies + index;
 }
 
 void BLI_pbvh_node_free_proxies(PBVHNode* node)
 {
-	int p;
+	#pragma omp critical
+	{
+		int p;
 
-	for (p= 0; p < node->proxy_count; p++) {
-		MEM_freeN(node->proxies[p].co);
-		node->proxies[p].co= 0;
+		for (p= 0; p < node->proxy_count; p++) {
+			MEM_freeN(node->proxies[p].co);
+			node->proxies[p].co= 0;
+		}
+
+		MEM_freeN(node->proxies);
+		node->proxies = 0;
+
+		node->proxy_count= 0;
 	}
-
-	MEM_freeN(node->proxies);
-	node->proxies = 0;
-
-	node->proxy_count= 0;
 }
 
 void BLI_pbvh_gather_proxies(PBVH* pbvh, PBVHNode*** r_array,  int* r_tot)

@@ -200,7 +200,7 @@ static void load_grid(Brush* brush)
 
 extern float get_tex_pixel(Brush* br, float u, float v);
 
-static int load_tex(Brush* brush, ViewContext* vc)
+static void load_tex(Brush* brush, ViewContext* vc)
 {
 	float* buffer;
 	float* p;
@@ -210,64 +210,51 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	int i, j;
 	float xlim, ylim;
 
-	int procedural = 1;//brush->mtex.tex && brush->mtex.tex->type != TEX_IMAGE;
-
 	if (brush->overlay_texture) glDeleteTextures(1, (GLint*)(&brush->overlay_texture));
 
 	width = height = 256;
 
 	p = buffer = MEM_mallocN(sizeof(float)*width*height, "load_tex");
 
-	if (procedural) {
-		xlim = brush->size / (float)vc->ar->winx  *  width;
-		ylim = brush->size / (float)vc->ar->winy  *  height;
-	}
-	else {
-		xlim = width  / 2.0f;
-		ylim = height / 2.0f;
-	}
+	xlim = brush->size / (float)vc->ar->winx  *  width;
+	ylim = brush->size / (float)vc->ar->winy  *  height;
 
 	for (j = 0, y = 0; j < height; j++, y = j/ylim) {
 		for (i = 0, x = 0; i < width; i++, x = i/xlim) {
 
-			if (procedural) {
-				// largely duplicated from tex_strength
+			// largely duplicated from tex_strength
 
-				const float rotation = -brush->mtex.rot;
-				float diameter = brush->size;
+			const float rotation = -brush->mtex.rot;
+			float diameter = brush->size;
 
-				x = (float)i/width;
-				y = (float)j/height;
+			x = (float)i/width;
+			y = (float)j/height;
 
-				x -= 0.5f;
-				y -= 0.5f;
-				
-				x *= vc->ar->winx / diameter;
-				y *= vc->ar->winy / diameter;
+			x -= 0.5f;
+			y -= 0.5f;
+			
+			x *= vc->ar->winx / diameter;
+			y *= vc->ar->winy / diameter;
 
-				/* it is probably worth optimizing for those cases where 
-				   the texture is not rotated by skipping the calls to
-				   atan2, sqrtf, sin, and cos. */
-				/* epsilon good as long as precision of angle control is 0.001 */
-				if (rotation > 0.001 || rotation < -0.001) {
-					const float angle    = atan2(x, y) - rotation;
-					const float flen     = sqrtf(x*x + y*y);
+			/* it is probably worth optimizing for those cases where 
+			   the texture is not rotated by skipping the calls to
+			   atan2, sqrtf, sin, and cos. */
+			/* epsilon good as long as precision of angle control is 0.001 */
+			if (rotation > 0.001 || rotation < -0.001) {
+				const float angle    = atan2(x, y) - rotation;
+				const float flen     = sqrtf(x*x + y*y);
 
-					x = flen * cos(angle);
-					y = flen * sin(angle);
-				}
-
-				x *= 10000.0f / (brush->texture_scale_x*brush->texture_scale_percentage);
-				y *= 10000.0f / (brush->texture_scale_y*brush->texture_scale_percentage);
-
-				x += -2*brush->texture_center_x;
-				y += -2*brush->texture_center_y;
-
-				*p = get_tex_pixel(brush, x, y);
+				x = flen * cos(angle);
+				y = flen * sin(angle);
 			}
-			else {
-				*p = get_tex_pixel(brush, x - 1.0f, y - 1.0f);
-			}
+
+			x *= brush->mtex.size[0];
+			y *= brush->mtex.size[1];
+
+			x += brush->mtex.ofs[0];
+			y += brush->mtex.ofs[1];
+
+			*p = get_tex_pixel(brush, x, y);
 
 			p++;
 		}
@@ -286,8 +273,6 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	MEM_freeN(buffer);
-
-	return procedural;
 }
 
 /* Convert a point in model coordinates to 2D screen coordinates. */
@@ -794,7 +779,9 @@ static int paint_smooth_stroke(PaintStroke *stroke, float output[2], wmEvent *ev
 /* Returns zero if the stroke dots should not be spaced, non-zero otherwise */
 static int paint_space_stroke_enabled(Brush *br)
 {
-	return (br->flag & BRUSH_SPACE) && !(br->flag & BRUSH_ANCHORED) && (br->sculpt_tool != SCULPT_TOOL_GRAB);
+	return (br->flag & BRUSH_SPACE) &&
+	       !(br->flag & BRUSH_ANCHORED) &&
+	       !ELEM5(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_SMOOTH);
 }
 
 /* For brushes with stroke spacing enabled, moves mouse in steps

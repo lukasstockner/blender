@@ -10925,15 +10925,16 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	{
 		Brush *brush;
 		for (brush= main->brush.first; brush; brush= brush->id.next) {
-			if (brush->detail == 0.0f)                brush->detail = 0.25f;
-			if (brush->smoothness == 0.0f)            brush->smoothness = 0.25f;
+			if (brush->detail == 0.0f)
+				brush->detail = 0.25f;
 
-			if (brush->texture_scale_x == 0)          brush->texture_scale_x = 100;
-			if (brush->texture_scale_y == 0)          brush->texture_scale_y = 100;
-			if (brush->texture_scale_percentage == 0) brush->texture_scale_percentage = 100;
-			if (brush->texture_overlay_alpha == 0)    brush->texture_overlay_alpha = 33;
+			if (brush->smoothness == 0.0f)
+				brush->smoothness = 0.25f;
+			if (brush->texture_overlay_alpha == 0)
+				brush->texture_overlay_alpha = 33;
 
-			if (brush->unprojected_radius == 0)       brush->unprojected_radius = 0.125;
+			if (brush->unprojected_radius == 0)
+				brush->unprojected_radius = 0.125;
 
 			if (brush->add_col[0] == 0 &&
 			    brush->add_col[1] == 0 &&

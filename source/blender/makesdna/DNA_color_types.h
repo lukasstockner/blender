@@ -87,7 +87,9 @@ typedef enum CurveMappingPreset {
 	CURVE_PRESET_SHARP,
 	CURVE_PRESET_SMOOTH,
 	CURVE_PRESET_MAX,
-	CURVE_PRESET_MID9
+	CURVE_PRESET_MID9,
+	CURVE_PRESET_ROUND,
+	CURVE_PRESET_ROOT,
 } CurveMappingPreset;
 
 /* histogram->mode */

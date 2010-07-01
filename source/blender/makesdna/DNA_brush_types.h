@@ -74,7 +74,7 @@ typedef struct Brush {
 	float rgb[3];			/* color */
 	float alpha;			/* opacity */
 	
-	int sculpt_direction;		/* the direction of movement for sculpt vertices */
+	int sculpt_plane;		/* the direction of movement for sculpt vertices */
 
 	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape) */
 
@@ -87,16 +87,10 @@ typedef struct Brush {
 	float autosmooth_overlap; // XXX: move this to strokecache
 
 	float crease_pinch_factor;
-	int pad2;
 
 	// all this below is used to communicate with the cursor drawing routine
 
-	float texture_offset;
-	int texture_scale_x;
-	int texture_scale_y;
-	int texture_scale_percentage;
-	float texture_center_x;
-	float texture_center_y;
+	float texture_sample_bias;
 	int   texture_overlay_alpha;
 
 	float unprojected_radius;

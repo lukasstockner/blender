@@ -333,7 +333,12 @@ class USERPREF_PT_edit(bpy.types.Panel):
         col.prop(edit, "sculpt_paint_pixel_radius", text="Unified Pixel Radius")
         col.prop(edit, "sculpt_paint_strength", text="Unified Strength")
         col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
-	
+        col.prop(sculpt, "fast_navigate")
+        col.prop(sculpt, "show_brush")
+        row = col.row()
+        row.active = sculpt.show_brush
+        row.prop(sculpt, "show_brush_on_surface")
+
         col.separator()
         col.separator()
         col.separator()

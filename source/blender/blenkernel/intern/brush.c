@@ -99,15 +99,8 @@ Brush *add_brush(const char *name)
 	brush->smoothness = 0.25f;
 
 	/* BRUSH TEXTURE SETTINGS */
-	brush->texture_offset = 0.0f; /* this determines where in the texture the midpoint of the brush is */
-	brush->texture_center_x = 0; /* center offset for textures used on brush or as stencils */
-	brush->texture_center_y = 0;
-	
-	brush->texture_scale_x = 1; /* scaling factor for textures used on brush or as stencils */
-	brush->texture_scale_y = 1;
-	
-	brush->texture_offset = 0;
-	
+	brush->texture_sample_bias = 0; /* value to added to texture samples */
+
 	brush->overlay_texture = 0; /* toggles whether the texture is shown as an overlay when not sculpting 0 is off */
 
 	brush->autosmooth_factor = 0;
