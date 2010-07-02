@@ -101,8 +101,6 @@ Brush *add_brush(const char *name)
 	/* BRUSH TEXTURE SETTINGS */
 	brush->texture_sample_bias = 0; /* value to added to texture samples */
 
-	brush->overlay_texture = 0; /* toggles whether the texture is shown as an overlay when not sculpting 0 is off */
-
 	brush->autosmooth_factor = 0;
 
 	brush->crease_pinch_factor = 2.0f/3.0f;
@@ -957,7 +955,7 @@ unsigned int *brush_gen_texture_cache(Brush *br, int half_side)
 
 	memset(&texres, 0, sizeof(TexResult));
 	
-	if(mtex && mtex->tex) {
+	if(mtex->tex) {
 		float x, y, step = 2.0 / side, co[3];
 
 		texcache = MEM_callocN(sizeof(int) * side * side, "Brush texture cache");

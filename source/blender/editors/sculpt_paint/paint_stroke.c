@@ -171,13 +171,13 @@ static unsigned grid_texture4[1] =
 
 static void load_grid(Brush* brush)
 {
-	static int loaded = 0;
+	static GLint overlay_texture;
 
-	if (!loaded) {
+	if (!overlay_texture) {
 		//GLfloat largest_supported_anisotropy;
 
-		glGenTextures(1, (GLint*)(&(brush->overlay_texture)));
-		glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+		glGenTextures(1, &overlay_texture);
+		glBindTexture(GL_TEXTURE_2D, overlay_texture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 16, 16, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture0);
 		glTexImage2D(GL_TEXTURE_2D, 1, GL_RGB,  8,  8, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture1);
 		glTexImage2D(GL_TEXTURE_2D, 2, GL_RGB,  4,  4, 0, GL_RGBA, GL_UNSIGNED_BYTE, grid_texture2);
@@ -193,77 +193,142 @@ static void load_grid(Brush* brush)
 
 		//glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &largest_supported_anisotropy);
 		//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, largest_supported_anisotropy);
-
-		loaded = 1;
 	}
 }
 
 extern float get_tex_pixel(Brush* br, float u, float v);
 
-static void load_tex(Brush* brush, ViewContext* vc)
+typedef struct Snapshot {
+	float size[3];
+	float ofs[3];
+	float rot;
+	int brush_size;
+	int winx;
+	int winy;
+} Snapshot;
+
+static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 {
-	float* buffer;
+	MTex* mtex = &brush->mtex;
+
+	return 
+		mtex->ofs[0] == snap->ofs[0] &&
+		mtex->ofs[1] == snap->ofs[1] &&
+		mtex->ofs[2] == snap->ofs[2] &&
+		mtex->size[0] == snap->size[0] &&
+		mtex->size[1] == snap->size[1] &&
+		mtex->size[2] == snap->size[2] &&
+		mtex->rot == snap->rot &&
+		brush->size == snap->brush_size &&
+		vc->ar->winx == snap->winx &&
+		vc->ar->winy == snap->winy;
+}
+
+static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
+{
+	copy_v3_v3(snap->ofs, brush->mtex.ofs);
+	copy_v3_v3(snap->size, brush->mtex.size);
+	snap->rot = brush->mtex.rot;
+	snap->brush_size = brush->size;
+	snap->winx = vc->ar->winx;
+	snap->winy = vc->ar->winy;
+}
+
+static int load_tex(Brush* brush, ViewContext* vc)
+{
+	static GLint overlay_texture = 0;
+	static int init = 0;
+	static int changed_timestamp = -1;
+	static Snapshot snap;
+
+	float* buffer = 0;
 	float* p;
 
 	int width, height;
 	float x, y;
 	int i, j;
 	float xlim, ylim;
+	int refresh;
 
-	if (brush->overlay_texture) glDeleteTextures(1, (GLint*)(&brush->overlay_texture));
+	if (!brush->mtex.tex) return 0;
 
-	width = height = 256;
+	refresh = 
+		!overlay_texture ||
+		!brush->mtex.tex->preview ||
+		brush->mtex.tex->preview->changed_timestamp[0] != changed_timestamp ||
+		!same_snap(&snap, brush, vc);
 
-	p = buffer = MEM_mallocN(sizeof(float)*width*height, "load_tex");
+	if (refresh) {
+		if (brush->mtex.tex->preview)
+			changed_timestamp = brush->mtex.tex->preview->changed_timestamp[0];
 
-	xlim = brush->size / (float)vc->ar->winx  *  width;
-	ylim = brush->size / (float)vc->ar->winy  *  height;
+		make_snap(&snap, brush, vc);
 
-	for (j = 0, y = 0; j < height; j++, y = j/ylim) {
-		for (i = 0, x = 0; i < width; i++, x = i/xlim) {
+		width = height = 512;
 
-			// largely duplicated from tex_strength
+		p = buffer = MEM_mallocN(2*sizeof(float)*width*height, "load_tex");
 
-			const float rotation = -brush->mtex.rot;
-			float diameter = brush->size;
+		xlim = brush->size / (float)vc->ar->winx  *  width;
+		ylim = brush->size / (float)vc->ar->winy  *  height;
 
-			x = (float)i/width;
-			y = (float)j/height;
+		for (j = 0, y = 0; j < height; j++, y = j/ylim) {
+			for (i = 0, x = 0; i < width; i++, x = i/xlim) {
 
-			x -= 0.5f;
-			y -= 0.5f;
-			
-			x *= vc->ar->winx / diameter;
-			y *= vc->ar->winy / diameter;
+				// largely duplicated from tex_strength
 
-			/* it is probably worth optimizing for those cases where 
-			   the texture is not rotated by skipping the calls to
-			   atan2, sqrtf, sin, and cos. */
-			if (rotation > 0.001 || rotation < -0.001) {
-				const float angle    = atan2(y, x) + rotation;
-				const float flen     = sqrtf(x*x + y*y);
+				const float rotation = -brush->mtex.rot;
+				float diameter = brush->size;
 
-				x = flen * cos(angle);
-				y = flen * sin(angle);
+				x = (float)i/width;
+				y = (float)j/height;
+
+				x -= 0.5f;
+				y -= 0.5f;
+				
+				x *= vc->ar->winx / diameter;
+				y *= vc->ar->winy / diameter;
+
+				/* it is probably worth optimizing for those cases where 
+				   the texture is not rotated by skipping the calls to
+				   atan2, sqrtf, sin, and cos. */
+				if (rotation > 0.001 || rotation < -0.001) {
+					const float angle    = atan2(y, x) + rotation;
+					const float flen     = sqrtf(x*x + y*y);
+
+					x = flen * cos(angle);
+					y = flen * sin(angle);
+				}
+
+				x *= brush->mtex.size[0];
+				y *= brush->mtex.size[1];
+
+				x += brush->mtex.ofs[0];
+				y += brush->mtex.ofs[1];
+
+				*p = *(p+1) = get_tex_pixel(brush, x, y);
+
+				p += 2;
 			}
-
-			x *= brush->mtex.size[0];
-			y *= brush->mtex.size[1];
-
-			x += brush->mtex.ofs[0];
-			y += brush->mtex.ofs[1];
-
-			*p = get_tex_pixel(brush, x, y);
-
-			p++;
 		}
+
+		if (!overlay_texture)
+			glGenTextures(1, &overlay_texture);
 	}
 
-	glGenTextures(1, (GLint*)(&(brush->overlay_texture)));
+	glBindTexture(GL_TEXTURE_2D, overlay_texture);
 
-	glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+	if (refresh) {
+		if (!init) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE_ALPHA, GL_FLOAT, buffer);
+			init = 1;
+		}
+		else {
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE_ALPHA, GL_FLOAT, buffer);
+		}
 
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE, GL_FLOAT, buffer);
+		if (buffer)
+			MEM_freeN(buffer);
+	}
 
 	glEnable(GL_TEXTURE_2D);
 
@@ -271,7 +336,7 @@ static void load_tex(Brush* brush, ViewContext* vc)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	MEM_freeN(buffer);
+	return 1;
 }
 
 /* Convert a point in model coordinates to 2D screen coordinates. */
@@ -643,47 +708,33 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 					GL_VIEWPORT_BIT|
 					GL_TEXTURE_BIT);
 
-				glColor4f(col[0], col[1], col[2], alpha);
+				if (load_tex(brush, &vc)) {
+					glColor4f(col[0], col[1], col[2], alpha);
 
-				glEnable(GL_BLEND);
+					glEnable(GL_BLEND);
 
-				load_tex(brush, &vc);
+					glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+					glDepthMask(GL_FALSE);
+					glDepthFunc(GL_ALWAYS);
 
-				glEnable(GL_TEXTURE_2D);
-				glBindTexture(GL_TEXTURE_2D, brush->overlay_texture);
+					glMatrixMode(GL_TEXTURE);
+					glLoadIdentity();
 
-				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
-				glDepthMask(GL_FALSE);
-				glDepthFunc(GL_ALWAYS);
+					glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
+					glBegin(GL_QUADS);
+						glTexCoord2f(0, 0);
+						glVertex2f(0, 0);
 
-				glMatrixMode(GL_TEXTURE);
-				glLoadIdentity();
+						glTexCoord2f(1, 0);
+						glVertex2f(viewport[2], 0);
 
-				glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
-				glBegin(GL_QUADS);
-					glTexCoord2f(0, 0);
-					glVertex2f(0, 0);
+						glTexCoord2f(1, 1);
+						glVertex2f(viewport[2], viewport[3]);
 
-					glTexCoord2f(1, 0);
-					glVertex2f(viewport[2], 0);
-
-					glTexCoord2f(1, 1);
-					glVertex2f(viewport[2], viewport[3]);
-
-					glTexCoord2f(0, 1);
-					glVertex2f(0, viewport[3]);
-				glEnd();
-
-				glLoadIdentity();
-
-				glMatrixMode(GL_MODELVIEW);
-
-				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-				glDisable(GL_TEXTURE_2D);
-
-				glDepthMask(GL_TRUE);
-				glDepthFunc(GL_LEQUAL);
+						glTexCoord2f(0, 1);
+						glVertex2f(0, viewport[3]);
+					glEnd();
+				}
 
 				glPopAttrib();
 			}

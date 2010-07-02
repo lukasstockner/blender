@@ -767,6 +767,7 @@ static void icon_create_mipmap(struct PreviewImage* prv_img, int miplevel)
 		prv_img->w[miplevel] = size;
 		prv_img->h[miplevel] = size;
 		prv_img->changed[miplevel] = 1;
+		prv_img->changed_timestamp[miplevel] = 0;
 		prv_img->rect[miplevel] = MEM_callocN(size*size*sizeof(unsigned int), "prv_rect"); 
 	}
 }

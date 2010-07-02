@@ -742,22 +742,22 @@ static float get_texcache_pixel_bilinear(const SculptSession *ss, float u, float
 /* Return a multiplier for brush strength on a particular vertex. */
 static float tex_strength(SculptSession *ss, Brush *br, float *point, const float len)
 {
-	MTex *tex = &br->mtex;
+	MTex *mtex = &br->mtex;
 	float avg= 1;
 
-	if(!tex) {
+	if(!mtex->tex) {
 		avg= 1;
 	}
-	else if(tex->brush_map_mode == MTEX_MAP_MODE_3D) {
+	else if(mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
 		float jnk;
 
 		/* Get strength by feeding the vertex 
 		   location directly into a texture */
-		externtex(tex, point, &avg,
+		externtex(mtex, point, &avg,
 			  &jnk, &jnk, &jnk, &jnk);
 	}
 	else if(ss->texcache) {
-		float rotation = -tex->rot;
+		float rotation = -mtex->rot;
 		float x, y, point_2d[3];
 		float diameter;
 
@@ -768,7 +768,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		projectf(ss->cache->mats, point_2d, point_2d);
 
 		/* if fixed mode, keep coordinates relative to mouse */
-		if(tex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
+		if(mtex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
 			rotation += ss->cache->special_rotation;
 
 			point_2d[0] -= ss->cache->tex_mouse[0];
@@ -779,7 +779,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 			x = point_2d[0];
 			y = point_2d[1];
 		}
-		else /* else (tex->brush_map_mode == MTEX_MAP_MODE_TILED),
+		else /* else (mtex->brush_map_mode == MTEX_MAP_MODE_TILED),
 		        leave the coordinates relative to the screen */
 		{
 			diameter = br->size; // use unadjusted size for tiled mode
@@ -791,7 +791,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		x /= ss->cache->vc->ar->winx;
 		y /= ss->cache->vc->ar->winy;
 
-		if (tex->brush_map_mode == MTEX_MAP_MODE_TILED) {
+		if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
 			x -= 0.5f;
 			y -= 0.5f;
 		}

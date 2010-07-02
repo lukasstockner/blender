@@ -99,7 +99,7 @@ typedef struct Brush {
 	int last_x, last_y;
 	float last_angle;
 
-	int overlay_texture;
+	int pad2;
 
 	float add_col[3];
 	float sub_col[3];

@@ -121,6 +121,7 @@ struct PreviewImage* BKE_previewimg_create()
 
 	for (i=0; i<PREVIEW_MIPMAPS; ++i) {
 		prv_img->changed[i] = 1;
+		prv_img->changed_timestamp[i] = 0;
 	}
 	return prv_img;
 }
@@ -248,6 +249,7 @@ void BKE_icon_changed(int id)
 			int i;
 			for (i=0; i<PREVIEW_MIPMAPS; ++i) {
 				prv->changed[i] = 1;
+				prv->changed_timestamp[i]++;
 			}
 		}
 	}	
