@@ -585,11 +585,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Subract Color", "Color of cursor when subtracting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	//prop= RNA_def_property(srna, "image_icon", PROP_POINTER, PROP_NONE);
-	//RNA_def_property_pointer_sdna(prop, NULL, "image_icon");
-	//RNA_def_property_flag(prop, PROP_EDITABLE);
-	//RNA_def_property_ui_text(prop, "Image Icon", "");
-	//RNA_def_property_update(prop, NC_IMAGE, "rna_Brush_update");
+	prop= RNA_def_property(srna, "image_icon", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "image_icon");
+	RNA_def_property_struct_type(prop, "Image");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Image Icon", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	/* clone tool */
 	prop= RNA_def_property(srna, "clone_image", PROP_POINTER, PROP_NONE);

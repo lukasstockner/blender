@@ -1527,6 +1527,7 @@ static void direct_link_curvemapping(FileData *fd, CurveMapping *cumap)
 	}
 }
 
+
 /* ************ READ Brush *************** */
 /* library brush linking after fileread */
 static void lib_link_brush(FileData *fd, Main *main)
@@ -1539,6 +1540,7 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->id.flag -= LIB_NEEDLINK;
 
 			brush->mtex.tex= newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
+			brush->image_icon= newlibadr_us(fd, brush->id.lib, brush->image_icon);
 			brush->clone.image= newlibadr_us(fd, brush->id.lib, brush->clone.image);
 		}
 	}

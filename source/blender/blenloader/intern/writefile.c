@@ -1710,7 +1710,7 @@ static void write_materials(WriteData *wd, ListBase *idbase)
 				write_nodetree(wd, ma->nodetree);
 			}
 
-			write_previews(wd, ma->preview);			
+			write_previews(wd, ma->preview);
 		}
 		ma= ma->id.next;
 	}
