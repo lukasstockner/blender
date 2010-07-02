@@ -140,13 +140,13 @@ typedef struct Brush {
 #define BRUSH_RESTORE_MESH	(1<<23)
 #define BRUSH_INVERSE_SMOOTH_PRESSURE (1<<24)
 
-/* Brush stroke_style */
-//#define STROKE_TOOL_DOTS	1
-//#define STROKE_TOOL_SPACE	2
-//#define STROKE_TOOL_FREEHAND	3
-//#define STROKE_TOOL_SMOOTH	4
-//#define STROKE_TOOL_AIRBRUSH	5
-//#define STROKE_TOOL_ANCHORED	6
+/* Brush.stroke_style */
+#define STROKE_TOOL_SPACE	1
+#define STROKE_TOOL_AIRBRUSH	2
+#define STROKE_TOOL_ANCHORED	3
+#define STROKE_TOOL_DRAG	4
+//#define STROKE_TOOL_FREEHAND	5
+//#define STROKE_TOOL_SMOOTH	6
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW        1
@@ -165,6 +165,7 @@ typedef struct Brush {
 #define SCULPT_TOOL_ROTATE     14
 #define SCULPT_TOOL_WAX        15
 #define SCULPT_TOOL_CREASE     16
+#define SCULPT_TOOL_BLOB       17
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

@@ -114,6 +114,7 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_DRAW, "DRAW", 0, "Draw", ""},
 		{SCULPT_TOOL_SMOOTH, "SMOOTH", 0, "Smooth", ""},
 		{SCULPT_TOOL_CREASE, "CREASE", 0, "Crease", ""},
+		{SCULPT_TOOL_BLOB, "BLOB", 0, "Blob", ""},
 		{SCULPT_TOOL_PINCH, "PINCH", 0, "Pinch", ""},
 		{SCULPT_TOOL_INFLATE, "INFLATE", 0, "Inflate", ""},
 		{SCULPT_TOOL_GRAB, "GRAB", 0, "Grab", ""},

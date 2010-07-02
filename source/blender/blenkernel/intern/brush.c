@@ -86,10 +86,10 @@ Brush *add_brush(const char *name)
 	/* BRUSH STROKE SETTINGS */
 	brush->spacing= 12; /* how far each brush dot should be spaced as a percentage of brush diameter */
 	brush->smooth_stroke_radius= 75;
-	brush->smooth_stroke_factor= 0.9;
+	brush->smooth_stroke_factor= 0.9f;
 	brush->rate= 0.1f; /* time delay between dots of paint or sculpting when doing airbrush mode */
 	brush->jitter= 0.0f;
-	brush->clone.alpha= 0.5;
+	brush->clone.alpha= 0.5f;
 
 	//brush->stroke_tool = STROKE_TOOL_FREEHAND;
 	brush->flag |= BRUSH_SPACE;

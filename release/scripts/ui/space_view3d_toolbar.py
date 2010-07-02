@@ -630,7 +630,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
-            if brush.sculpt_tool in ('CREASE'):
+            if brush.sculpt_tool in ('CREASE', 'BLOB'):
                 col.separator()
 
                 row = col.row(align=True)
@@ -656,7 +656,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
-            if brush.sculpt_tool in ('DRAW', 'CREASE', 'LAYER', 'CLAY', 'WAX'):
+            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'LAYER', 'CLAY', 'WAX'):
                 col.separator()
                 col.row().prop(brush, "direction", expand=True)
             elif brush.sculpt_tool in ('FLATTEN'):
@@ -680,7 +680,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
-            if brush.sculpt_tool in ('DRAW', 'CREASE', 'INFLATE', 'LAYER', 'CLAY', 'WAX'):
+            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY', 'WAX'):
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
@@ -995,7 +995,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         #col.active = brush.use_dynamic_subdiv
         #col.prop(brush,"smoothness",slider=True)
 
-        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'FLATTEN'):
+        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
             sub = col.column()
             sub.label(text="Color:")
             sub.prop(brush, "add_col", text="Add")

@@ -613,6 +613,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 			return alpha * flip * pressure * overlap;
 
 		case SCULPT_TOOL_CREASE:
+		case SCULPT_TOOL_BLOB:
 			return alpha * flip * pressure * overlap;
 
 		case SCULPT_TOOL_INFLATE:
@@ -1290,7 +1291,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	Brush *brush = paint_brush(&sd->paint);
 	float offset[3], area_normal[3];
 	float bstrength= ss->cache->bstrength;
-	float flippedbstrength;
+	float flippedbstrength, crease_correction;
 	int n;
 	
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
@@ -1298,11 +1299,20 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
-	mul_v3_fl(offset, bstrength*(1-brush->crease_pinch_factor));
+	mul_v3_fl(offset, bstrength);
+	
+	/* we divide out the squared alpha and multiply by the squared crease to give us the pinch strength */
+	
+	if(brush->alpha > 0.0f)
+		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor/(brush->alpha*brush->alpha);
+	else
+		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor;
 
-	/* we always want crease to pinch even when draw is negative also crease we want stronger than the draw effect*/
-	flippedbstrength = (bstrength < 0) ? -brush->crease_pinch_factor*bstrength : brush->crease_pinch_factor*bstrength;
+	/* we always want crease to pinch or blob to relax even when draw is negative */
+	flippedbstrength = (bstrength < 0) ? -crease_correction*bstrength : crease_correction*bstrength;
 
+	if(brush->sculpt_tool == SCULPT_TOOL_BLOB) flippedbstrength *= -1.0f;
+	
 	/* threaded loop over nodes */
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -2336,6 +2346,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 		case SCULPT_TOOL_CREASE:
 			do_crease_brush(sd, ss, nodes, totnode);
 			break;
+		case SCULPT_TOOL_BLOB:
+			do_crease_brush(sd, ss, nodes, totnode);
+			break;
 		case SCULPT_TOOL_PINCH:
 			do_pinch_brush(sd, ss, nodes, totnode);
 			break;
@@ -2436,6 +2449,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_CREASE:
+		case SCULPT_TOOL_BLOB:
 		case SCULPT_TOOL_FILL:
 		case SCULPT_TOOL_FLATTEN:
 		case SCULPT_TOOL_INFLATE:
@@ -2616,6 +2630,8 @@ static char *sculpt_tool_name(Sculpt *sd)
 		return "Smooth Brush"; break;
 	case SCULPT_TOOL_CREASE:
 		return "Crease Brush"; break;
+	case SCULPT_TOOL_BLOB:
+		return "Blob Brush"; break;
 	case SCULPT_TOOL_PINCH:
 		return "Pinch Brush"; break;
 	case SCULPT_TOOL_INFLATE:
@@ -2832,7 +2848,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if(ELEM6(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_WAX))
+	if(ELEM7(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_WAX))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
