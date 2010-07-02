@@ -395,7 +395,7 @@ static void build_mesh_leaf_node(PBVH *bvh, PBVHNode *node)
 				  node->uniq_verts,
 				  node->uniq_verts + node->face_verts);
 
-	node->flag |= PBVH_UpdateDrawBuffers;
+	node->flag |= PBVH_UpdateVertBuffers|PBVH_UpdateColorBuffers;
 
 	BLI_ghash_free(map, NULL, NULL);
 }
@@ -406,7 +406,7 @@ static void build_grids_leaf_node(PBVH *bvh, PBVHNode *node)
 		GPU_build_grid_buffers(bvh->grids, node->prim_indices,
 				node->totprim, bvh->gridsize);
 
-	node->flag |= PBVH_UpdateDrawBuffers;
+	node->flag |= PBVH_UpdateVertBuffers|PBVH_UpdateColorBuffers;
 }
 
 /* Recursively build a node in the tree
@@ -974,26 +974,45 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, i
 	for(n = 0; n < totnode; n++) {
 		node= nodes[n];
 
-		if(node->flag & PBVH_UpdateDrawBuffers) {
+		if(node->flag & PBVH_UpdateVertBuffers) {
 			if(bvh->grids) {
-				GPU_update_grid_buffers(node->draw_buffers,
-						   bvh->grids,
-						   node->prim_indices,
-						   node->totprim,
-						   bvh->gridsize,
-						   bvh->gridkey,
-						   smooth);
+				GPU_update_grid_vert_buffers(node->draw_buffers,
+							     bvh->grids,
+							     node->prim_indices,
+							     node->totprim,
+							     bvh->gridsize,
+							     bvh->gridkey,
+							     smooth);
 			}
 			else {
-				GPU_update_mesh_buffers(node->draw_buffers,
-						   bvh->verts,
-						   bvh->vdata,
-						   node->vert_indices,
-						   node->uniq_verts +
-						   node->face_verts);
+				GPU_update_mesh_vert_buffers(node->draw_buffers,
+							     bvh->verts,
+							     node->vert_indices,
+							     node->uniq_verts +
+							     node->face_verts);
 			}
 
-			node->flag &= ~PBVH_UpdateDrawBuffers;
+			node->flag &= ~PBVH_UpdateVertBuffers;
+		}
+		
+		if(node->flag & PBVH_UpdateColorBuffers) {
+			if(bvh->grids) {
+				GPU_update_grid_color_buffers(node->draw_buffers,
+							      bvh->grids,
+							      node->prim_indices,
+							      node->totprim,
+							      bvh->gridsize,
+							      bvh->gridkey);
+			}
+			else {
+				GPU_update_mesh_color_buffers(node->draw_buffers,
+							      bvh->vdata,
+							      node->vert_indices,
+							      node->uniq_verts +
+							      node->face_verts);
+			}
+
+			node->flag &= ~PBVH_UpdateColorBuffers;
 		}
 	}
 }
@@ -1124,12 +1143,12 @@ void BLI_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***gridfaces, int *tot
 
 void BLI_pbvh_node_mark_update(PBVHNode *node)
 {
-	node->flag |= PBVH_UpdateNormals|PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateDrawBuffers|PBVH_UpdateRedraw;
+	node->flag |= PBVH_UpdateNormals|PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateVertBuffers|PBVH_UpdateRedraw;
 }
 
-void BLI_pbvh_node_mark_update_draw_buffers(PBVHNode *node, void *data)
+void BLI_pbvh_node_set_flags(PBVHNode *node, void *data)
 {
-	node->flag |= PBVH_UpdateDrawBuffers|PBVH_UpdateRedraw;
+	node->flag |= GET_INT_FROM_POINTER(data);
 }
 
 void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVert **verts, CustomData **vdata)
@@ -1399,7 +1418,8 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smo
 	PBVHNode **nodes;
 	int totnode;
 
-	BLI_pbvh_search_gather(bvh, update_search_cb, SET_INT_IN_POINTER(PBVH_UpdateNormals|PBVH_UpdateDrawBuffers),
+	BLI_pbvh_search_gather(bvh, update_search_cb,
+			       SET_INT_IN_POINTER(PBVH_UpdateNormals|PBVH_UpdateVertBuffers|PBVH_UpdateColorBuffers),
 		&nodes, &totnode);
 
 	pbvh_update_normals(bvh, nodes, totnode, face_nors);

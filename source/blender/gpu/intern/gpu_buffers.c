@@ -400,7 +400,7 @@ typedef struct {
 #endif
 } VertexBufferFormat;
 
-typedef struct {
+struct GPU_Buffers {
 	/* opengl buffer handles */
 	GLuint vert_buf, index_buf, color_buf;
 	GLenum index_type;
@@ -419,7 +419,7 @@ typedef struct {
 	struct GridKey *gridkey;
 
 	unsigned int tot_tri, tot_quad;
-} GPU_Buffers;
+};
 
 static void delete_buffer(GLuint *buf)
 {
@@ -463,9 +463,7 @@ static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, in
 	return color_data;
 }
 
-/* For now this looks for just a single mask layer, eventually might include
-   other color layers like vertex colors or weights */
-static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int *vert_indices, int totvert)
+void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int *vert_indices, int totvert)
 {
 	unsigned char *color_data;
 	int i, pmask_totlayer;
@@ -491,10 +489,9 @@ static void update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, i
 	}
 }
 
-void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
-			     CustomData *vdata, int *vert_indices, int totvert)
+void GPU_update_mesh_vert_buffers(GPU_Buffers *buffers, MVert *mvert,
+				  int *vert_indices, int totvert)
 {
-	GPU_Buffers *buffers = buffers_v;
 	VertexBufferFormat *vert_data;
 	int i;
 
@@ -524,19 +521,17 @@ void GPU_update_mesh_buffers(void *buffers_v, MVert *mvert,
 		else
 			delete_buffer(&buffers->vert_buf);
 
-		update_mesh_color_buffers(buffers, vdata, vert_indices, totvert);
-
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 
 	buffers->mvert = mvert;
 }
 
-void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
-			     CustomData *vdata,
-			     int *face_indices, int totface,
-			     int *vert_indices, int tot_uniq_verts,
-			     int totvert)
+GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
+				    CustomData *vdata,
+				    int *face_indices, int totface,
+				    int *vert_indices, int tot_uniq_verts,
+				    int totvert)
 {
 	GPU_Buffers *buffers;
 	unsigned short *tri_data;
@@ -596,7 +591,9 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 
 	if(buffers->index_buf)
 		glGenBuffersARB(1, &buffers->vert_buf);
-	GPU_update_mesh_buffers(buffers, mvert, vdata, vert_indices, totvert);
+
+	GPU_update_mesh_vert_buffers(buffers, mvert, vert_indices, totvert);
+	GPU_update_mesh_color_buffers(buffers, vdata, vert_indices, totvert);
 
 	buffers->tot_tri = tottri;
 
@@ -607,12 +604,14 @@ void *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 	return buffers;
 }
 
-static void update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-				      int totgrid, int gridsize, GridKey *gridkey, int totvert)
+void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
+				   int totgrid, int gridsize, GridKey *gridkey)
 {
 	unsigned char *color_data;
+	int totvert;
 
-	color_data = map_color_buffer(buffers, gridkey->mask, totvert);
+	totvert= gridsize*gridsize*totgrid;
+	color_data= map_color_buffer(buffers, gridkey->mask, totvert);
 
 	if(color_data) {
 		int i, j, k;
@@ -637,10 +636,9 @@ typedef struct {
 	float no[3];
 } GridVBO;
 
-void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
-			     int *grid_indices, int totgrid, int gridsize, GridKey *gridkey, int smooth)
+void GPU_update_grid_vert_buffers(GPU_Buffers *buffers, DMGridData **grids,
+				  int *grid_indices, int totgrid, int gridsize, GridKey *gridkey, int smooth)
 {
-	GPU_Buffers *buffers = buffers_v;
 	GridVBO *vert_data;
 	int i, j, k, totvert;
 
@@ -688,8 +686,6 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 		else
 			delete_buffer(&buffers->vert_buf);
 
-		update_grid_color_buffers(buffers, grids, grid_indices, totgrid, gridsize, gridkey, totvert);
-
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 
@@ -702,8 +698,9 @@ void GPU_update_grid_buffers(void *buffers_v, DMGridData **grids,
 	//printf("node updated %p\n", buffers_v);
 }
 
-void *GPU_build_grid_buffers(DMGridData **grids,
-	int *grid_indices, int totgrid, int gridsize)
+GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
+				    int *grid_indices, int totgrid,
+				    int gridsize)
 {
 	GPU_Buffers *buffers;
 	int i, j, k, totquad, offset= 0;

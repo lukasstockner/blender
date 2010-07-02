@@ -102,12 +102,18 @@ typedef enum {
 	PBVH_UpdateNormals = 2,
 	PBVH_UpdateBB = 4,
 	PBVH_UpdateOriginalBB = 8,
-	PBVH_UpdateDrawBuffers = 16,
-	PBVH_UpdateRedraw = 32
+
+	/* Update vertex data (coord + normal */
+	PBVH_UpdateVertBuffers = 16,
+	
+	/* Update color data (used for masks) */
+	PBVH_UpdateColorBuffers = 32,
+
+	PBVH_UpdateRedraw = 64
 } PBVHNodeFlags;
 
 void BLI_pbvh_node_mark_update(PBVHNode *node);
-void BLI_pbvh_node_mark_update_draw_buffers(PBVHNode *node, void *data);
+void BLI_pbvh_node_set_flags(PBVHNode *node, void *data);
 
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 	int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,

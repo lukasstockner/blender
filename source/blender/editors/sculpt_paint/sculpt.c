@@ -1494,7 +1494,7 @@ static void do_mask_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		}
 		BLI_pbvh_vertex_iter_end;
 
-		BLI_pbvh_node_mark_update(nodes[n]);
+		BLI_pbvh_node_set_flags(nodes[n], SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|PBVH_UpdateRedraw));
 	}
 }
 

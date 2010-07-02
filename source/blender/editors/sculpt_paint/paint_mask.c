@@ -79,12 +79,14 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 			}
 			BLI_pbvh_vertex_iter_end;
 
-			BLI_pbvh_node_mark_update(nodes[n]);
+			BLI_pbvh_node_set_flags(nodes[n], SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|PBVH_UpdateRedraw));
 		}
+
+		if(nodes)
+			MEM_freeN(nodes);
 
 		if(mmd)
 			multires_mark_as_modified(ob);
-		BLI_pbvh_update(pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
 
 		sculpt_undo_push_end(ss);
 
@@ -258,7 +260,7 @@ static void paintmask_redraw(bContext *C)
 
 	if(ob->sculpt->pbvh)
 		BLI_pbvh_search_callback(ob->sculpt->pbvh, NULL, NULL,
-					 BLI_pbvh_node_mark_update_draw_buffers, NULL);
+					 BLI_pbvh_node_set_flags, SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);	
 }
