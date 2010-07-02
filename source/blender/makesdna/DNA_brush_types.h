@@ -176,7 +176,7 @@ typedef struct Brush {
 /* direction that the brush displaces along */
 enum {
 	SCULPT_DISP_DIR_AREA,
-	SCULPT_DISP_DIR_VIEW,	
+	SCULPT_DISP_DIR_VIEW,
 	SCULPT_DISP_DIR_X,
 	SCULPT_DISP_DIR_Y,
 	SCULPT_DISP_DIR_Z,

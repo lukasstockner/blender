@@ -274,6 +274,7 @@ class TEXTURE_PT_mapping(TextureSlotPanel):
 
         if type(idblock) == bpy.types.Brush:
             if context.sculpt_object:
+                layout.label(text="Brush Mapping:")
                 layout.prop(tex, "map_mode", expand=True)
 
                 row = layout.row()

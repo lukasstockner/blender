@@ -10954,7 +10954,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				brush->sub_col[2] = 1.00;
 			}
 
-			if (brush->crease_pinch_factor == 0)	brush->crease_pinch_factor = 2.0f/3.0f;
+			if (brush->crease_pinch_factor == 0)
+				brush->crease_pinch_factor = 2.0f/3.0f;
 		}
 	}
 

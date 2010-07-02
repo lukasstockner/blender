@@ -793,17 +793,27 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             wide_ui = context.region.width > narrowui
 
+
             col.separator()
 
+
+            col.label(text="Brush Mapping:")
             row = col.row(align=True)
             row.prop(tex_slot, "map_mode", expand=True)
 
-            col.separator()
+            row = col.row(align=True)
+            row.label(text="Angle:")
+            row.active = tex_slot.map_mode in ('FIXED', 'TILED')
 
             row = col.row(align=True)
-            row.active = tex_slot.map_mode in ('FIXED')
-            row.prop(brush, "use_rake", toggle=True, icon='PARTICLEMODE', text="")
-            row.prop(tex_slot, "angle")
+
+            col = row.column()
+            col.active = tex_slot.map_mode in ('FIXED')
+            col.prop(brush, "use_rake", toggle=True, icon='PARTICLEMODE', text="")
+
+            col = row.column()
+            col.prop(tex_slot, "angle", text="")
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED')
 
             split = layout.split()
 
@@ -816,25 +826,29 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             col = layout.column()
 
-            col.separator()
+            row = col.row(align=True)
+            row.label(text="Sample Bias:")
+            row = col.row(align=True)
+            row.prop(brush, "texture_sample_bias", slider=True, text="")
 
             row = col.row(align=True)
-            row.prop(brush, "texture_sample_bias", slider=True, text="Sample Bias")
-
-            col.separator()
-
-            row = col.row(align=True)
+            row.label(text="Overlay:")
             row.active = tex_slot.map_mode in ('TILED')
-            
+
             row = col.row(align=True)
+            
+            col = row.column()
 
             if brush.use_texture_overlay:
-                row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_OFF')
+                col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_OFF')
             else:
-                row.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_ON')
+                col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_ON')
 
-            row.active = tex_slot.map_mode in ('TILED') and brush.use_texture_overlay
-            row.prop(brush, "texture_overlay_alpha", slider=True, text="Alpha")
+            col.active = tex_slot.map_mode in ('TILED')
+
+            col = row.column()
+            col.prop(brush, "texture_overlay_alpha", slider=True, text="Alpha")
+            col.active = brush.use_texture_overlay
 
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):
