@@ -58,6 +58,8 @@ void paint_brush_slot_remove(struct Paint *p);
  * however hiding faces is useful */
 int paint_facesel_test(struct Object *ob);
 
+void paint_refresh_mask_display(struct Object *ob);
+
 /* Session data (mode-specific) */
 
 typedef struct SculptSession {

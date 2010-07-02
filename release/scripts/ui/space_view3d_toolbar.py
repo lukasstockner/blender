@@ -518,6 +518,9 @@ class VIEW3D_PT_tools_masking(PaintPanel):
         row.operator("paint.mask_set", text="Fill").mode = 'FILL'
         row.operator("paint.mask_set", text="Invert").mode = 'INVERT'
 
+        if row.active:
+            layout.prop(mesh.paint_mask_layers[mesh.active_paint_mask_index], "strength", slider=True)
+
 
 class VIEW3D_PT_tools_brush(PaintPanel):
     bl_label = "Brush"

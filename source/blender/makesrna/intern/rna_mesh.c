@@ -46,6 +46,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_paint.h"
 #include "BKE_utildefines.h"
 
 #include "ED_mesh.h" /* XXX Bad level call */
@@ -786,6 +787,17 @@ static void rna_MeshColorLayer_name_set(PointerRNA *ptr, const char *value)
 }
 
 /* Paint mask layer */
+
+static void rna_MeshPaintMask_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	/* Hack: sculpt mesh is the active object, so find the active object
+	   and compare it's mesh to see if the update is on the sculpt mesh,
+	   only then pass the object to the real update function */
+	Object *ob = OBACT;
+
+	if(get_mesh(ob) == ptr->id.data)
+		paint_refresh_mask_display(ob);
+}
 
 static int rna_MeshPaintMaskLayer_data_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
 {
@@ -1623,6 +1635,11 @@ static void rna_def_paintmask(BlenderRNA *brna)
 	RNA_def_property_float_funcs(prop, "rna_MeshPaintMaskLayer_data_get",
 				     "rna_MeshPaintMaskLayer_data_set", NULL);
 	RNA_def_struct_path_func(srna, "rna_MeshPaintMask_path");
+
+	prop= RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Strength", "Opacity of the paint mask");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_MeshPaintMask_update_data");
 }
 
 static void rna_def_mproperties(BlenderRNA *brna)

@@ -479,8 +479,10 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int 
 
 		for(i = 0; i < totvert; ++i) {
 			float v = 0;
-			for(j = 0; j < pmask_totlayer; ++j)
-				v += ((float*)vdata->layers[pmask_first_layer + j].data)[vert_indices[i]];
+			for(j = 0; j < pmask_totlayer; ++j) {
+				CustomDataLayer *cdl = &vdata->layers[pmask_first_layer + j];
+				v += ((float*)cdl->data)[vert_indices[i]] * cdl->strength;
+			}
 
 			mask_to_gpu_colors(color_data + i*3, v);
 			
@@ -605,7 +607,7 @@ GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 }
 
 void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-				   int totgrid, int gridsize, GridKey *gridkey)
+				   int totgrid, int gridsize, GridKey *gridkey, CustomData *vdata)
 {
 	unsigned char *color_data;
 	int totvert;
@@ -614,6 +616,7 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 	color_data= map_color_buffer(buffers, gridkey->mask, totvert);
 
 	if(color_data) {
+		int pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
 		int i, j, k;
 
 		for(i = 0; i < totgrid; ++i) {
@@ -621,8 +624,11 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 
 			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
 				float v = 0;
-				for(k = 0; k < gridkey->mask; ++k)
-					v += GRIDELEM_MASK_AT(grid, j, gridkey)[k];
+				for(k = 0; k < gridkey->mask; ++k) {
+					CustomDataLayer *cdl = &vdata->layers[pmask_first_layer + k];
+					v += GRIDELEM_MASK_AT(grid, j, gridkey)[k] * cdl->strength;
+				}
+
 				mask_to_gpu_colors(color_data, v);
 			}
 		}

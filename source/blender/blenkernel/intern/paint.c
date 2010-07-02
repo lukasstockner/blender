@@ -34,6 +34,9 @@
 #include "BKE_brush.h"
 #include "BKE_library.h"
 #include "BKE_paint.h"
+#include "BKE_utildefines.h"
+
+#include "BLI_pbvh.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -190,5 +193,15 @@ void copy_paint(Paint *orig, Paint *new)
 		new->brushes = MEM_dupallocN(orig->brushes);
 		for(i = 0; i < orig->brush_count; ++i)
 			id_us_plus((ID *)new->brushes[i]);
+	}
+}
+
+/* Update the mask without doing a full object recalc */
+void paint_refresh_mask_display(Object *ob)
+{
+	if(ob && ob->sculpt && ob->sculpt->pbvh) {
+		BLI_pbvh_search_callback(ob->sculpt->pbvh, NULL, NULL,
+					 BLI_pbvh_node_set_flags,
+					 SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
 	}
 }

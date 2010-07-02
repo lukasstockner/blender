@@ -148,7 +148,8 @@ void GPU_update_grid_vert_buffers(GPU_Buffers *buffersb, struct DMGridData **gri
 void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   struct DMGridData **grids,
 				   int *grid_indices, int totgrid,
-				   int gridsize, struct GridKey *gridkey);
+				   int gridsize, struct GridKey *gridkey,
+				   struct CustomData *vdata);
 void GPU_draw_buffers(void *buffers);
 void GPU_free_buffers(void *buffers);
 

@@ -1247,6 +1247,7 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data,
 	data->layers[index].type = type;
 	data->layers[index].flag = flag;
 	data->layers[index].data = newlayerdata;
+	data->layers[index].strength = 1;
 
 	if(name) {
 		strcpy(data->layers[index].name, name);

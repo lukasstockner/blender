@@ -258,9 +258,7 @@ static void paintmask_redraw(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
-	if(ob->sculpt->pbvh)
-		BLI_pbvh_search_callback(ob->sculpt->pbvh, NULL, NULL,
-					 BLI_pbvh_node_set_flags, SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
+	paint_refresh_mask_display(ob);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);	
 }
