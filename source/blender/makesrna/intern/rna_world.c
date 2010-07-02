@@ -207,12 +207,6 @@ static void rna_def_lighting(BlenderRNA *brna)
 		{WO_LIGHT_GATHER_APPROX, "APPROXIMATE", 0, "Approximate", "Inaccurate, but faster and without noise"},
 		{0, NULL, 0, NULL, NULL}};
 
-	static EnumPropertyItem prop_shading_method_items[] = {
-		{WO_LIGHT_SHADE_NONE, "NONE", 0, "No Shading", "Do not use bump mapping for world lighting"},
-		{WO_LIGHT_SHADE_ONCE, "ONCE", 0, "Shade Once", "Shade once using the averaged incoming light direction, only approximately correct"},
-		{WO_LIGHT_SHADE_FULL, "FULL", 0, "Full Shading", "Use full shade, more accurate but slower and can lead to many more cache samples"},
-		{0, NULL, 0, NULL, NULL}};
-
 	srna= RNA_def_struct(brna, "WorldLighting", NULL);
 	RNA_def_struct_sdna(srna, "World");
 	RNA_def_struct_nested(brna, srna, "World");
@@ -281,10 +275,9 @@ static void rna_def_lighting(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Gather Method", "");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
-	prop= RNA_def_property(srna, "shading_method", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "ao_shading_method");
-	RNA_def_property_enum_items(prop, prop_shading_method_items);
-	RNA_def_property_ui_text(prop, "Shading Method", "Method to use for shading");
+	prop= RNA_def_property(srna, "use_shader", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "ao_shading_method", 0);
+	RNA_def_property_ui_text(prop, "Use Shader", "Use material diffuse shader for lighting instead of assuming Lambert");
 	RNA_def_property_update(prop, 0, "rna_World_update");
 
 	prop= RNA_def_property(srna, "passes", PROP_INT, PROP_NONE);

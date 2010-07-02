@@ -170,6 +170,13 @@ void environment_init(Render *re, World *world)
 
 		if(!(re->params.r.mode & R_RAYTRACE) && (re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_RAYTRACE))
 			re->db.wrld.mode &= ~(WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT);
+
+		if(re->db.wrld.ao_shading_method) {
+			if(re->db.wrld.aomode & WO_LIGHT_CACHE)
+				re->db.wrld.ao_shading_method = WO_LIGHT_SHADE_ONCE;
+			else
+				re->db.wrld.ao_shading_method = WO_LIGHT_SHADE_FULL;
+		}
 	}
 	else {
 		memset(&re->db.wrld, 0, sizeof(World));
