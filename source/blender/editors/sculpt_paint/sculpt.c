@@ -1223,8 +1223,10 @@ static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode,
 	for(iteration = 1; iteration <= count; ++iteration) {
 		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
-			if(ss->multires)
+			if(ss->multires) {
 				do_multires_smooth_brush(sd, ss, nodes[n], iteration != count ? 1.0f : last);
+				multires_stitch_grids(ss->ob);
+			}
 			else if(ss->fmap)
 				do_mesh_smooth_brush(sd, ss, nodes[n], iteration != count ? 1.0f : last);
 		}
@@ -2526,9 +2528,6 @@ static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 	}
 
 	sculpt_combine_proxies(sd, ss);
-
-	if ((brush->autosmooth_factor > 0 || brush->sculpt_tool == SCULPT_TOOL_SMOOTH) && ss->multires)
-		multires_stitch_grids(ss->ob);
 
 	cache->first_time= 0;
 }
