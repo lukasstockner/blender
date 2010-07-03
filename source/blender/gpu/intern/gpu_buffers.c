@@ -481,6 +481,7 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int 
 			float v = 0;
 			for(j = 0; j < pmask_totlayer; ++j) {
 				CustomDataLayer *cdl = &vdata->layers[pmask_first_layer + j];
+				if(!(cdl->flag & CD_FLAG_ENABLED)) continue;
 				v += ((float*)cdl->data)[vert_indices[i]] * cdl->strength;
 			}
 
@@ -626,6 +627,7 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 				float v = 0;
 				for(k = 0; k < gridkey->mask; ++k) {
 					CustomDataLayer *cdl = &vdata->layers[pmask_first_layer + k];
+					if(!(cdl->flag & CD_FLAG_ENABLED)) continue;
 					v += GRIDELEM_MASK_AT(grid, j, gridkey)[k] * cdl->strength;
 				}
 

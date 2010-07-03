@@ -228,6 +228,8 @@ typedef struct PBVHVertexIter {
 		if(vi.pmask_layer_count) { \
 			vi.pmask_first_layer = CustomData_get_layer_index(vi.vdata, CD_PAINTMASK); \
 			vi.pmask_active_layer = CustomData_get_active_layer_index(vi.vdata, CD_PAINTMASK); \
+			if(vi.pmask_active_layer != -1 && !(vi.vdata->layers[vi.pmask_active_layer].flag & CD_FLAG_ENABLED)) \
+				vi.pmask_active_layer = -1; \
 		} \
 	}\
 	\
@@ -262,6 +264,7 @@ typedef struct PBVHVertexIter {
 						vi.mask_combined= 0; \
 						for(j=0; j<vi.gridkey->mask; ++j) { \
 							CustomDataLayer *cdl= vi.vdata->layers + vi.pmask_first_layer + j; \
+							if(!(cdl->flag & CD_FLAG_ENABLED)) continue; \
 							vi.mask_combined+= GRIDELEM_MASK(vi.grid, vi.gridkey)[j] * cdl->strength; \
 						} \
 						CLAMP(vi.mask_combined, 0, 1); \
@@ -282,6 +285,7 @@ typedef struct PBVHVertexIter {
 						vi.mask_combined= 0; \
 						for(j=0; j<vi.pmask_layer_count; ++j) { \
 							CustomDataLayer *cdl= vi.vdata->layers + vi.pmask_first_layer + j; \
+							if(!(cdl->flag & CD_FLAG_ENABLED)) continue; \
 							vi.mask_combined+= \
 								((float*)cdl->data)[vi.vert_indices[vi.gx]] * cdl->strength; \
 						} \

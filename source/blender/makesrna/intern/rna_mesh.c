@@ -1640,6 +1640,11 @@ static void rna_def_paintmask(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Strength", "Opacity of the paint mask");
 	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_MeshPaintMask_update_data");
+
+	prop= RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CD_FLAG_ENABLED);
+	RNA_def_property_ui_text(prop, "Enabled", "Enable the mask for display and affecting brushes.");
+	RNA_def_property_update(prop, NC_OBJECT|ND_DRAW, "rna_MeshPaintMask_update_data");
 }
 
 static void rna_def_mproperties(BlenderRNA *brna)

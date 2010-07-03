@@ -1245,7 +1245,7 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data,
 		data->layers[index] = data->layers[index - 1];
 
 	data->layers[index].type = type;
-	data->layers[index].flag = flag;
+	data->layers[index].flag = flag | CD_FLAG_ENABLED;
 	data->layers[index].data = newlayerdata;
 	data->layers[index].strength = 1;
 

@@ -130,6 +130,8 @@ typedef struct CustomData {
 #define CD_FLAG_EXTERNAL  (1<<3)
 /* indicates external data is read into memory */
 #define CD_FLAG_IN_MEMORY (1<<4)
+/* used to enable/disable a layer */
+#define CD_FLAG_ENABLED   (1<<5)
 
 /* Limits */
 #define MAX_MTFACE 8

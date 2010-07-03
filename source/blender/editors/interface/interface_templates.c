@@ -2183,6 +2183,11 @@ static void list_item_row(bContext *C, uiLayout *layout, PointerRNA *ptr, Pointe
 		//uiItemR(row, itemptr, "mute", 0, "", ICON_MUTE_IPO_OFF);
 		uiBlockSetEmboss(block, UI_EMBOSS);
 	}
+	else if(itemptr->type == &RNA_MeshPaintMaskLayer) {
+		uiItemL(sub, name, icon);
+		uiBlockSetEmboss(block, UI_EMBOSS);
+		uiDefButR(block, OPTION, 0, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, itemptr, "enabled", 0, 0, 0, 0, 0, NULL);
+	}
 	else
 		uiItemL(sub, name, icon); /* fails, backdrop LISTROW... */
 
