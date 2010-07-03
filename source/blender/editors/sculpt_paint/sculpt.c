@@ -294,11 +294,6 @@ typedef struct SculptUndoNode {
 	char *shapeName[32]; /* keep size in sync with keyblock dna */
 } SculptUndoNode;
 
-static void update_cb(PBVHNode *node, void *data)
-{
-	BLI_pbvh_node_mark_update(node);
-}
-
 /* Checks whether full update mode (slower) needs to be used to work with modifiers */
 static int sculpt_modifiers_active(Scene *scene, Object *ob)
 {
@@ -452,7 +447,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 		/* we update all nodes still, should be more clever, but also
 		   needs to work correct when exiting/entering sculpt mode and
 		   the nodes get recreated, though in that case it could do all */
-		BLI_pbvh_search_callback(ss->pbvh, NULL, NULL, update_cb, NULL);
+		BLI_pbvh_search_callback(ss->pbvh, NULL, NULL, BLI_pbvh_node_set_flags,
+					 SET_INT_IN_POINTER(PBVH_UpdateAll));
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
 
 		if((mmd=paint_multires_active(scene, ob)))
@@ -2391,7 +2387,8 @@ static int sculpt_area_hide_invoke(bContext *C, wmOperator *op, wmEvent *event)
 			/* Avoid cracks in multires */
 			if(ss->multires) {
 				BLI_pbvh_search_callback(ss->pbvh, NULL, NULL,
-							 update_cb, NULL);
+							 BLI_pbvh_node_set_flags,
+							 SET_INT_IN_POINTER(PBVH_UpdateAll));
 				multires_stitch_grids(ss->ob);
 			}
 

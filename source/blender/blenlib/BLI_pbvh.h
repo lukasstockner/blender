@@ -109,7 +109,14 @@ typedef enum {
 	/* Update color data (used for masks) */
 	PBVH_UpdateColorBuffers = 32,
 
-	PBVH_UpdateRedraw = 64
+	PBVH_UpdateRedraw = 64,
+
+	PBVH_UpdateAll = PBVH_UpdateNormals |
+	                 PBVH_UpdateBB |
+	                 PBVH_UpdateOriginalBB |
+	                 PBVH_UpdateVertBuffers |
+	                 PBVH_UpdateColorBuffers |
+	                 PBVH_UpdateRedraw
 } PBVHNodeFlags;
 
 void BLI_pbvh_node_mark_update(PBVHNode *node);
