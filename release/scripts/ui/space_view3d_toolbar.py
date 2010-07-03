@@ -940,7 +940,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
         col.separator()
 
         col = layout.column()
-        col.active = (not brush.use_anchor) and (brush.sculpt_tool not in ('GRAB', 'THUMB', 'ROTATE', 'SNAKE_HOOK', 'SMOOTH'))
+        col.active = (not brush.use_anchor) and (brush.sculpt_tool not in ('GRAB', 'THUMB', 'ROTATE', 'SNAKE_HOOK'))
 
         row = col.row()
         row.prop(brush, "use_space")
