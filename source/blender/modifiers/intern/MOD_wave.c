@@ -39,6 +39,7 @@
 #include "BKE_object.h"
 #include "BKE_deform.h"
 #include "BKE_scene.h"
+#include "BKE_texture.h"
 
 #include "depsgraph_private.h"
 

@@ -1171,6 +1171,19 @@ void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *to
 	}
 }
 
+void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
+			     int **face_indices, int *totnode)
+{
+	if(bvh->grids) {
+		if(face_indices) *face_indices= NULL;
+		if(totnode) *totnode= 0;
+	}
+	else {
+		if(face_indices) *face_indices= node->prim_indices;
+		if(totnode) *totnode= node->totprim;
+	}
+}
+
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node, int **grid_indices, int *totgrid, int *maxgrid, int *gridsize, DMGridData ***griddata, DMGridAdjacency **gridadj, GridKey **gridkey)
 {
 	if(bvh->grids) {

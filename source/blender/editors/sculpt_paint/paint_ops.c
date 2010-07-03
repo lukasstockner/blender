@@ -144,6 +144,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_mask_layer_add);
 	WM_operatortype_append(PAINT_OT_mask_layer_remove);
 	WM_operatortype_append(PAINT_OT_mask_set);
+	WM_operatortype_append(PAINT_OT_mask_from_texture);
 }
 
 static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)

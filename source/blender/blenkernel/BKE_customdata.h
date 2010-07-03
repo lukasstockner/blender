@@ -193,7 +193,7 @@ void *CustomData_bmesh_get_n(const struct CustomData *data, void *block, int typ
 /* return the data from the first layer matching the parameters  */
 /* these all return NULL if no such layer is found               */
 
-/* returns the data from the first layer matching type */
+/* returns the data from the active layer matching type */
 void *CustomData_get_layer(const struct CustomData *data, int type);
 
 /* returns the data from the nth layer matching type */

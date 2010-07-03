@@ -8,6 +8,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
+#include "DNA_material_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -23,14 +24,271 @@
 #include "BKE_mesh.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
+#include "BKE_texture.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_pbvh.h"
 
 #include "ED_mesh.h"
 #include "ED_sculpt.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
+ 
+#include "RE_render_ext.h"
+#include "RE_shader_ext.h"
+
+/* for redraw, just need to update the pbvh's vbo buffers */
+static void paintmask_redraw(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+
+	paint_refresh_mask_display(ob);
+
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);	
+}
+
+/* For now masking requires sculpt mode */
+static int mask_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	
+	return ob && get_mesh(ob) && ob->sculpt;
+}
+
+static int mask_active_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+
+	if(mask_poll(C)) {
+		Mesh *me = get_mesh(ob);
+		return CustomData_get_active_layer_index(&me->vdata, CD_PAINTMASK) != -1;
+	}
+
+	return 0;
+}
+
+static float get_tex_mask_strength(MTex *tex_slot, float *uv, float vco[3])
+{
+	float texvec[3] = {0, 0, 0};
+	TexResult texres;
+	int mapping = tex_slot->texco;
+	
+	if(mapping == TEXCO_UV && !uv)
+		mapping = TEXCO_ORCO;
+	
+	switch(tex_slot->texco) {
+	case TEXCO_UV:
+		texvec[0] = uv[0] * 2 - 1;
+		texvec[1] = uv[1] * 2 - 1;
+		break;
+	default:
+		copy_v3_v3(texvec, vco);
+	}
+	
+	memset(&texres, 0, sizeof(TexResult));
+	get_texture_value(tex_slot->tex, texvec, &texres);
+	
+	return texres.tin;
+}
+
+/* Set the value of a single mask element from either a UV or a coord */
+#define SET_MASK(elem, uv)						\
+	GRIDELEM_MASK(elem, gridkey)[active] =				\
+		get_tex_mask_strength(tex_slot, uv,			\
+				      GRIDELEM_CO(elem, gridkey))	\
+
+/* Fill active mask layer of entire grid from either MTFaces or coords */
+static void mask_grid_from_tex(DMGridData *grid, int gridsize,
+			       GridKey *gridkey, MTFace *mtface,
+			       MTex *tex_slot, int active)
+{
+	int x, y, boundary;
+
+	boundary = gridsize - 2;
+
+	for(y = 0; y <= boundary; ++y) {
+		for(x = 0; x <= boundary; ++x) {
+			SET_MASK(GRIDELEM_AT(grid, y*gridsize+x, gridkey),
+				 mtface ? mtface->uv[0] : NULL);
+
+			/* Do the edge of the grid separately because the UV
+			   grid is one element smaller on each side compared
+			   to the vert-data grid */
+			if(x == boundary && y == boundary) {
+				SET_MASK(GRIDELEM_AT(grid, (y+1)*gridsize+x+1, gridkey),
+					 mtface ? mtface->uv[2] : NULL);
+			}
+			if(x == boundary) {
+				SET_MASK(GRIDELEM_AT(grid, y*gridsize+x+1, gridkey),
+					 mtface ? mtface->uv[3] : NULL);
+			}
+			if(y == boundary) {
+				SET_MASK(GRIDELEM_AT(grid, (y+1)*gridsize+x, gridkey),
+					 mtface ? mtface->uv[1] : NULL);
+			}
+						
+			if(mtface) ++mtface;
+		}
+	}
+}
+
+static void mask_face_from_tex(MFace *f, MVert *mvert, MTFace *mtface,
+			       float *pmask, MTex *tex_slot, int active)
+{
+	int S = f->v4 ? 4 : 3;
+	int i;
+
+	/* Masks are per-vertex, not per-face-corner, so the mask
+	   value at each vertex comes from one arbitrary face
+	   corner; not averaged or otherwise combined yet */
+	for(i = 0; i < S; ++i) {
+		int vndx = (&f->v1)[i];
+		float *vco = mvert[vndx].co;
+				
+		pmask[vndx] = get_tex_mask_strength(tex_slot,
+				mtface ? mtface->uv[i] : NULL, vco);
+	}
+}
+
+static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
+{
+	struct Scene *scene;
+	Object *ob;
+	Mesh *me;
+	struct MultiresModifierData *mmd;
+	SculptSession *ss;
+	MTex *tex_slot;
+	DerivedMesh *dm = NULL;
+	PBVH *pbvh;
+	MTFace *mtfaces = NULL;
+	PBVHNode **nodes;
+	int totnode, n, i, active;
+	
+	tex_slot = CTX_data_pointer_get_type(C, "texture_slot",
+					     &RNA_TextureSlot).data;
+	
+	scene = CTX_data_scene(C);
+	ob = CTX_data_active_object(C);
+	ss = ob->sculpt;
+	me = get_mesh(ob);
+	mmd = paint_multires_active(scene, ob);
+	
+	sculpt_undo_push_begin(ss, "Paint mask from texture");
+
+	active = CustomData_get_active_layer(&me->vdata, CD_PAINTMASK);
+
+	/* if using UV mapping, check for a matching MTFace layer */
+	if(tex_slot->texco == TEXCO_UV) {
+		mtfaces = CustomData_get_layer_named(&me->fdata, CD_MTFACE,
+						     tex_slot->uvname);
+	}
+
+	/* the MTFace mask is needed only for multires+UV */
+	dm = mesh_get_derived_final(scene, ob,
+				    (mtfaces && mmd) ? CD_MASK_MTFACE : 0);
+
+	/* use the subdivided UVs for multires */
+	if(mtfaces && mmd) {
+		mtfaces = CustomData_get_layer_named(&dm->faceData,
+						     CD_MTFACE,
+						     tex_slot->uvname);
+	}
+
+	/* update the pbvh */
+	ss->pbvh = pbvh = dm->getPBVH(ob, dm);
+
+	/* get all nodes in the pbvh */
+	BLI_pbvh_search_gather(pbvh,
+			       NULL, NULL,
+			       &nodes, &totnode);
+
+	if(mmd) {
+		/* For all grids, find offset into mtfaces and apply
+		   the texture to the grid */
+		for(n = 0; n < totnode; ++n) {
+			DMGridData **grids;
+			GridKey *gridkey;
+			int *grid_indices, totgrid, gridsize;
+
+			sculpt_undo_push_node(ss, nodes[n]);
+
+			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
+						&totgrid, NULL, &gridsize,
+						&grids, NULL, &gridkey);
+
+			for(i = 0; i < totgrid; ++i) {
+				int grid_index = grid_indices[i];
+				MTFace *mtface = NULL;
+
+				if(mtfaces) {
+					mtface = &mtfaces[grid_index *
+							  ((gridsize-1) *
+							   (gridsize-1))];
+				}
+
+				mask_grid_from_tex(grids[grid_index],
+						   gridsize, gridkey,
+						   mtface, tex_slot, active);
+			}
+
+			BLI_pbvh_node_set_flags(nodes[n],
+				SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
+		}
+
+		multires_mark_as_modified(ob);
+	}
+	else {
+		float *pmask = CustomData_get_layer(&me->vdata, CD_PAINTMASK);
+
+		for(n = 0; n < totnode; ++n) {
+			int *face_indices, totface;
+
+			sculpt_undo_push_node(ss, nodes[n]);
+
+			BLI_pbvh_node_get_faces(pbvh, nodes[n],
+						&face_indices, &totface);
+
+			for(i = 0; i < totface; ++i) {
+				int face_index = face_indices[i];
+				MTFace *mtface = NULL;
+
+				if(mtfaces)
+					mtface = mtfaces + face_index;
+
+				mask_face_from_tex(me->mface + face_index,
+						   me->mvert, mtface,
+						   pmask, tex_slot, active);
+			}
+
+			BLI_pbvh_node_set_flags(nodes[n],
+				SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
+		}
+	}
+	
+	MEM_freeN(nodes);
+
+	sculpt_undo_push_end(ss);
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+	
+	return OPERATOR_FINISHED;
+}
+
+/* fills a mask with intensity values from a texture, using an
+   mtex to provide mapping */
+void PAINT_OT_mask_from_texture(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Mask From Texture";
+	ot->idname= "PAINT_OT_mask_from_texture";
+	
+	/* api callbacks */
+	ot->exec= paint_mask_from_texture_exec;
+	ot->poll= mask_active_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER;
+}
 
 static void set_mask_value(MaskSetMode mode, float *m)
 {
@@ -58,7 +316,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 	mmd = paint_multires_active(scene, ob);
 
 	dm = mesh_get_derived_final(scene, ob, 0);
-	pbvh = dm->getPBVH(ob, dm);
+	ss->pbvh = pbvh = dm->getPBVH(ob, dm);
 
 	if(pbvh) {
 		PBVHNode **nodes;
@@ -96,13 +354,6 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int mask_poll(bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-
-	return ob && get_mesh(ob) && ob->sculpt;
-}
-
 /* fills up a mask for the entire object, setting each vertex to
    either 0, 1, or a random value */
 void PAINT_OT_mask_set(wmOperatorType *ot)
@@ -120,10 +371,10 @@ void PAINT_OT_mask_set(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= paint_mask_set_exec;
-	ot->poll= mask_poll;
+	ot->poll= mask_active_poll;
 	
 	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER;
 
 	/* properties */
 	RNA_def_enum(ot->srna, "mode", mask_items, MASKING_CLEAR, "Mode", "");
@@ -251,16 +502,6 @@ static void paintmask_undo_backup_layer(bContext *C, PaintMaskUndoNode *unode,
 								     layer_offset));
 		}
 	}
-}
-
-/* for redraw, just need to update the pbvh's vbo buffers */
-static void paintmask_redraw(bContext *C)
-{
-	Object *ob = CTX_data_active_object(C);
-
-	paint_refresh_mask_display(ob);
-
-	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);	
 }
 
 static void paintmask_undo_restore(bContext *C, ListBase *lb)

@@ -44,6 +44,7 @@ struct PluginTex;
 struct PointDensity;
 struct Tex;
 struct TexMapping;
+struct TexResult;
 struct VoxelData;
 struct World;
 
@@ -107,6 +108,8 @@ struct VoxelData *BKE_add_voxeldata(void);
 struct VoxelData *BKE_copy_voxeldata(struct VoxelData *vd);
 
 int     BKE_texture_dependsOnTime(const struct Tex *texture);
+
+void get_texture_value(struct Tex *texture, float *tex_co, struct TexResult *texres);
 
 #endif
 

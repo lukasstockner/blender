@@ -39,6 +39,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_mesh.h"
 #include "BKE_displist.h"
+#include "BKE_texture.h"
 #include "BKE_utildefines.h"
 #include "BKE_modifier.h"
 
@@ -48,23 +49,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "RE_shader_ext.h"
-
-void get_texture_value(Tex *texture, float *tex_co, TexResult *texres)
-{
-	int result_type;
-
-	result_type = multitex_ext(texture, tex_co, NULL, NULL, 0, texres);
-
-	/* if the texture gave an RGB value, we assume it didn't give a valid
-	* intensity, so calculate one (formula from do_material_tex).
-	* if the texture didn't give an RGB value, copy the intensity across
-	*/
-	if(result_type & TEX_RGB)
-		texres->tin = (0.35f * texres->tr + 0.45f * texres->tg
-				+ 0.2f * texres->tb);
-	else
-		texres->tr = texres->tg = texres->tb = texres->tin;
-}
 
 void modifier_vgroup_cache(ModifierData *md, float (*vertexCos)[3])
 {

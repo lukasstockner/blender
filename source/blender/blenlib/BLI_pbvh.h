@@ -122,6 +122,8 @@ typedef enum {
 void BLI_pbvh_node_mark_update(PBVHNode *node);
 void BLI_pbvh_node_set_flags(PBVHNode *node, void *data);
 
+void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
+			     int **face_indices, int *totnode);
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 	int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
 	struct DMGridData ***griddata, struct DMGridAdjacency **gridadj, struct GridKey **gridkey);

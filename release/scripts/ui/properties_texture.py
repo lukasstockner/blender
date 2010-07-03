@@ -32,6 +32,7 @@ class TEXTURE_MT_specials(bpy.types.Menu):
 
         layout.operator("texture.slot_copy", icon='COPYDOWN')
         layout.operator("texture.slot_paste", icon='PASTEDOWN')
+        layout.operator("paint.mask_from_texture")
 
 
 class TEXTURE_MT_envmap_specials(bpy.types.Menu):

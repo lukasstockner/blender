@@ -126,7 +126,6 @@ void undo_paint_push_end(int type);
 void PAINT_OT_mask_layer_add(struct wmOperatorType *ot);
 void PAINT_OT_mask_layer_remove(struct wmOperatorType *ot);
 
-/* For now this is just temporary stuff to test masking */
 typedef enum {
 	MASKING_CLEAR,
 	MASKING_FILL,
@@ -134,6 +133,7 @@ typedef enum {
 	MASKING_RANDOM,
 } MaskSetMode;
 void PAINT_OT_mask_set(struct wmOperatorType *ot);
+void PAINT_OT_mask_from_texture(struct wmOperatorType *ot);
 
 #endif /* ED_PAINT_INTERN_H */
 
