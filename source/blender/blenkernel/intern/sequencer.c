@@ -213,6 +213,8 @@ void seq_free_strip(Strip *strip)
 	MEM_freeN(strip);
 }
 
+static void seq_free_animdata(Scene *scene, Sequence *seq);
+
 void seq_free_sequence(Scene *scene, Sequence *seq)
 {
 	if(seq->strip) seq_free_strip(seq->strip);
@@ -235,6 +237,8 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 		if(seq->scene_sound)
 			sound_remove_scene_sound(scene, seq->scene_sound);
 	}
+
+	seq_free_animdata(scene, seq);
 
 	MEM_freeN(seq);
 }
@@ -545,8 +549,8 @@ void calc_sequence(Scene *scene, Sequence *seq)
 		if(seq->type==SEQ_META) {
 			seqm= seq->seqbase.first;
 			if(seqm) {
-				min= 1000000;
-				max= -1000000;
+				min=  MAXFRAME * 2;
+				max= -MAXFRAME * 2;
 				while(seqm) {
 					if(seqm->startdisp < min) min= seqm->startdisp;
 					if(seqm->enddisp > max) max= seqm->enddisp;
@@ -3842,6 +3846,33 @@ void seq_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 	}
 }
 
+/* XXX - hackish function needed to remove all fcurves belonging to a sequencer strip */
+static void seq_free_animdata(Scene *scene, Sequence *seq)
+{
+	char str[32];
+	FCurve *fcu;
+
+	if(scene->adt==NULL || scene->adt->action==NULL)
+		return;
+
+	sprintf(str, "[\"%s\"]", seq->name+2);
+
+	fcu= scene->adt->action->curves.first; 
+
+	while (fcu) {
+		if(strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str)) {
+			FCurve *next_fcu = fcu->next;
+			
+			BLI_remlink(&scene->adt->action->curves, fcu);
+			free_fcurve(fcu);
+
+			fcu = next_fcu;
+		} else {
+			fcu = fcu->next;
+		}
+	}
+}
+
 
 Sequence *get_seq_by_name(ListBase *seqbase, const char *name, int recursive)
 {
@@ -3963,6 +3994,7 @@ Sequence *sequencer_add_image_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 
 	seq = alloc_sequence(seqbasep, seq_load->start_frame, seq_load->channel);
 	seq->type= SEQ_IMAGE;
+	seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
 	
 	/* basic defaults */
 	seq->strip= strip= MEM_callocN(sizeof(Strip), "strip");
@@ -4054,8 +4086,9 @@ Sequence *sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 		return NULL;
 
 	seq = alloc_sequence(seqbasep, seq_load->start_frame, seq_load->channel);
-
 	seq->type= SEQ_MOVIE;
+	seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
+
 	seq->anim= an;
 	seq->anim_preseek = IMB_anim_get_preseek(an);
 	BLI_strncpy(seq->name+2, "Movie", SEQ_NAME_MAXSTR-2);
