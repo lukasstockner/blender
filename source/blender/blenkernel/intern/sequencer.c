@@ -213,6 +213,8 @@ void seq_free_strip(Strip *strip)
 	MEM_freeN(strip);
 }
 
+static void seq_free_animdata(Scene *scene, Sequence *seq);
+
 void seq_free_sequence(Scene *scene, Sequence *seq)
 {
 	if(seq->strip) seq_free_strip(seq->strip);
@@ -235,6 +237,8 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 		if(seq->scene_sound)
 			sound_remove_scene_sound(scene, seq->scene_sound);
 	}
+
+	seq_free_animdata(scene, seq);
 
 	MEM_freeN(seq);
 }
@@ -3842,6 +3846,33 @@ void seq_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 	}
 }
 
+/* XXX - hackish function needed to remove all fcurves belonging to a sequencer strip */
+static void seq_free_animdata(Scene *scene, Sequence *seq)
+{
+	char str[32];
+	FCurve *fcu;
+
+	if(scene->adt==NULL || scene->adt->action==NULL)
+		return;
+
+	sprintf(str, "[\"%s\"]", seq->name+2);
+
+	fcu= scene->adt->action->curves.first; 
+
+	while (fcu) {
+		if(strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str)) {
+			FCurve *next_fcu = fcu->next;
+			
+			BLI_remlink(&scene->adt->action->curves, fcu);
+			free_fcurve(fcu);
+
+			fcu = next_fcu;
+		} else {
+			fcu = fcu->next;
+		}
+	}
+}
+
 
 Sequence *get_seq_by_name(ListBase *seqbase, const char *name, int recursive)
 {
@@ -3909,7 +3940,7 @@ int seq_active_pair_get(Scene *scene, Sequence **seq_act, Sequence **seq_other)
 void seq_load_apply(Scene *scene, Sequence *seq, SeqLoadInfo *seq_load)
 {
 	if(seq) {
-		strcpy(seq->name, seq_load->name);
+		BLI_strncpy(seq->name+2, seq_load->name, sizeof(seq->name)-2);
 		seqbase_unique_name_recursive(&scene->ed->seqbase, seq);
 
 		if(seq_load->flag & SEQ_LOAD_FRAME_ADVANCE) {
@@ -3963,8 +3994,6 @@ Sequence *sequencer_add_image_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 
 	seq = alloc_sequence(seqbasep, seq_load->start_frame, seq_load->channel);
 	seq->type= SEQ_IMAGE;
-	BLI_strncpy(seq->name+2, "Image", SEQ_NAME_MAXSTR-2);
-	seqbase_unique_name_recursive(&scene->ed->seqbase, seq);
 	
 	/* basic defaults */
 	seq->strip= strip= MEM_callocN(sizeof(Strip), "strip");
@@ -3972,8 +4001,8 @@ Sequence *sequencer_add_image_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 	strip->len = seq->len = seq_load->len ? seq_load->len : 1;
 	strip->us= 1;
 	strip->stripdata= se= MEM_callocN(seq->len*sizeof(StripElem), "stripelem");
-	BLI_split_dirfile(seq_load->path, strip->dir, se->name);
-	
+	BLI_strncpy(strip->dir, seq_load->path, sizeof(strip->dir));
+
 	seq_load_apply(scene, seq, seq_load);
 
 	return seq;
@@ -4084,6 +4113,9 @@ Sequence *sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 		seq_load->start_frame= start_frame_back;
 		seq_load->channel--;
 	}
+
+	if(seq_load->name[0] == '\0')
+		BLI_strncpy(seq_load->name, se->name, sizeof(seq_load->name));
 
 	/* can be NULL */
 	seq_load_apply(scene, seq, seq_load);
