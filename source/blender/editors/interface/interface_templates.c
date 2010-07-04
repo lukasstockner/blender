@@ -169,12 +169,11 @@ static void id_search_cb(const bContext *C, void *arg_template, char *str, uiSea
 	/* ID listbase */
 	for(id= lb->first; id; id= id->next) {
 		if(!((flag & PROP_ID_SELF_CHECK) && id == id_from)) {
+			int filter_yes;
 
-			/* hide dot-datablocks */
-			if(U.uiflag & USER_HIDE_DOT)
-				if ((id->name[2]=='.') && (str[0] != '.'))
-					continue;
+			filter_yes= 0;
 
+			/* use filter */
 			if (template->filterop[0] != 0) {
 				PointerRNA ptr;
 				ReportList reports;
@@ -200,11 +199,19 @@ static void id_search_cb(const bContext *C, void *arg_template, char *str, uiSea
 							RNA_parameter_list_free(&parms);
 							continue;
 						}
+						else {
+							filter_yes= 1;
+						}
 					}
 
 					RNA_parameter_list_free(&parms);
 				}
 			}
+
+			/* hide dot-datablocks, but only if filter does not force it visible */
+			if(!filter_yes && U.uiflag & USER_HIDE_DOT)
+				if ((id->name[2]=='.') && (str[0] != '.'))
+					continue;
 
 			if(BLI_strcasestr(id->name+2, str)) {
 				iconid= ui_id_icon_get((bContext*)C, id, 1);

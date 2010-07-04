@@ -516,7 +516,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             if not context.sculpt_object:
                 row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
             else:
-                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_sculpt_brush", rows=4, cols=4)
+                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_sculpt_brush", rows=3, cols=8)
 
         # Particle Mode #
 
@@ -783,7 +783,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
         col = layout.column()
 
-        col.template_ID_preview(brush, "texture", new="texture.new", rows=2, cols=4)
+        col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
 
         if context.sculpt_object:
             #XXX duplicated from properties_texture.py
@@ -1017,7 +1017,8 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col.separator()
         col.label(text="Icon:")
-        col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=4)
+        //col.template_ID_preview(brush, "image_icon", open="image.open", filter="is_image_icon", rows=3, cols=8)
+        col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=8)
 
         col.separator()
         split = self.layout.split()
