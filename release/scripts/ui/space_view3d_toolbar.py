@@ -848,7 +848,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             col = row.column()
             col.prop(brush, "texture_overlay_alpha", slider=True, text="Alpha")
-            col.active = brush.use_texture_overlay
+            col.active = tex_slot.map_mode in ('TILED') and brush.use_texture_overlay
 
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):
