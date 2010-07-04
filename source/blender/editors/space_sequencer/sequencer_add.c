@@ -135,7 +135,7 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 
 	RNA_string_get(op->ptr, "name", seq_load->name+2);
 
-	RNA_string_get(op->ptr, "path", seq_load->path); /* full path, file is set by the caller */
+	RNA_string_get(op->ptr, "filepath", seq_load->path); /* full path, file is set by the caller */
 
 	if (RNA_struct_find_property(op->ptr, "frame_end")) {
 		seq_load->end_frame = RNA_int_get(op->ptr, "frame_end");
@@ -203,7 +203,7 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 	
 	if (RNA_boolean_get(op->ptr, "replace_sel")) {
 		deselect_all_seq(scene);
-		active_seq_set(scene, seq);
+		seq_active_set(scene, seq);
 		seq->flag |= SELECT;
 	}
 	
@@ -336,7 +336,7 @@ void SEQUENCER_OT_movie_strip_add(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE);
+	WM_operator_properties_filesel(ot, FOLDERFILE|MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE, 0); //XXX TODO, relative_path
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME|SEQPROP_FILES);
 	RNA_def_boolean(ot->srna, "sound", TRUE, "Sound", "Load sound with the movie");
 }
@@ -378,7 +378,7 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE, FILE_SPECIAL, FILE_OPENFILE);
+	WM_operator_properties_filesel(ot, FOLDERFILE|SOUNDFILE, FILE_SPECIAL, FILE_OPENFILE, 0);  //XXX TODO, relative_path
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME|SEQPROP_FILES);
 	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Cache the sound in memory.");
 }
@@ -469,7 +469,7 @@ void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_OPENFILE);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_OPENFILE, 0);  //XXX TODO, relative_path
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME|SEQPROP_ENDFRAME|SEQPROP_FILES);
 }
 
@@ -545,7 +545,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 
 	if (seq->type==SEQ_PLUGIN) {
 		char path[FILE_MAX];
-		RNA_string_get(op->ptr, "path", path);
+		RNA_string_get(op->ptr, "filepath", path);
 
 		sh.init_plugin(seq, path);
 
@@ -572,7 +572,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 
 	if (RNA_boolean_get(op->ptr, "replace_sel")) {
 		deselect_all_seq(scene);
-		active_seq_set(scene, seq);
+		seq_active_set(scene, seq);
 		seq->flag |= SELECT;
 	}
 
@@ -617,7 +617,7 @@ void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE);
+	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE, 0);  //XXX TODO, relative_path
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME|SEQPROP_ENDFRAME);
 	RNA_def_enum(ot->srna, "type", sequencer_prop_effect_types, SEQ_CROSS, "Type", "Sequencer effect type");
 	RNA_def_float_vector(ot->srna, "color", 3, NULL, 0.0f, 1.0f, "Color", "Initialize the strip with this color (only used when type='COLOR')", 0.0f, 1.0f);

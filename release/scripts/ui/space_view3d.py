@@ -38,7 +38,7 @@ class VIEW3D_HT_header(bpy.types.Header):
         # Menus
         if context.area.show_menus:
             sub = row.row(align=True)
-			
+
             sub.menu("VIEW3D_MT_view")
 
             # Select Menu
@@ -721,23 +721,23 @@ class VIEW3D_MT_object_specials(bpy.types.Menu):
             layout.operator_context = 'INVOKE_REGION_WIN'
 
             props = layout.operator("wm.context_modal_mouse", text="Spot Size")
-            props.path_iter = "selected_editable_objects"
-            props.path_item = "data.spot_size"
+            props.data_path_iter = "selected_editable_objects"
+            props.data_path_item = "data.spot_size"
             props.input_scale = 0.01
 
             props = layout.operator("wm.context_modal_mouse", text="Distance")
-            props.path_iter = "selected_editable_objects"
-            props.path_item = "data.distance"
+            props.data_path_iter = "selected_editable_objects"
+            props.data_path_item = "data.distance"
             props.input_scale = 0.1
 
             props = layout.operator("wm.context_modal_mouse", text="Clip Start")
-            props.path_iter = "selected_editable_objects"
-            props.path_item = "data.shadow_buffer_clip_start"
+            props.data_path_iter = "selected_editable_objects"
+            props.data_path_item = "data.shadow_buffer_clip_start"
             props.input_scale = 0.05
 
             props = layout.operator("wm.context_modal_mouse", text="Clip End")
-            props.path_iter = "selected_editable_objects"
-            props.path_item = "data.shadow_buffer_clip_end"
+            props.data_path_iter = "selected_editable_objects"
+            props.data_path_item = "data.shadow_buffer_clip_end"
             props.input_scale = 0.05
 
             layout.separator()
@@ -855,8 +855,8 @@ class VIEW3D_MT_object_game_properties(bpy.types.Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("object.game_property_copy", text="Replace").operation="REPLACE"
-        layout.operator("object.game_property_copy", text="Merge").operation="MERGE"
+        layout.operator("object.game_property_copy", text="Replace").operation = 'REPLACE'
+        layout.operator("object.game_property_copy", text="Merge").operation = 'MERGE'
         layout.operator_menu_enum("object.game_property_copy", "property", text="Copy...")
         layout.separator()
         layout.operator("object.game_property_clear")
@@ -1277,15 +1277,15 @@ class VIEW3D_MT_edit_mesh_selection_mode(bpy.types.Menu):
 
         prop = layout.operator("wm.context_set_value", text="Vertex", icon='VERTEXSEL')
         prop.value = "(True, False, False)"
-        prop.path = "tool_settings.mesh_selection_mode"
+        prop.data_path = "tool_settings.mesh_selection_mode"
 
         prop = layout.operator("wm.context_set_value", text="Edge", icon='EDGESEL')
         prop.value = "(False, True, False)"
-        prop.path = "tool_settings.mesh_selection_mode"
+        prop.data_path = "tool_settings.mesh_selection_mode"
 
         prop = layout.operator("wm.context_set_value", text="Face", icon='FACESEL')
         prop.value = "(False, False, True)"
-        prop.path = "tool_settings.mesh_selection_mode"
+        prop.data_path = "tool_settings.mesh_selection_mode"
 
 
 class VIEW3D_MT_edit_mesh_extrude(bpy.types.Menu):
@@ -2163,6 +2163,7 @@ class VIEW3D_PT_etch_a_ton(bpy.types.Panel):
             col.prop(toolsettings, "etch_autoname")
             col.prop(toolsettings, "etch_number")
             col.prop(toolsettings, "etch_side")
+            col.operator("sketch.convert", text="Convert")
 
 
 class VIEW3D_PT_context_properties(bpy.types.Panel):

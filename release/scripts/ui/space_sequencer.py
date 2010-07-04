@@ -291,6 +291,10 @@ class SEQUENCER_MT_strip(bpy.types.Menu):
 
         layout.operator_menu_enum("sequencer.swap", "side")
 
+        layout.separator()
+
+        layout.operator("sequencer.swap_data")
+
 
 class SequencerButtonsPanel(bpy.types.Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
@@ -347,15 +351,14 @@ class SEQUENCER_PT_edit(SequencerButtonsPanel):
 
         row = layout.row()
         row.prop(strip, "lock")
-        row.prop(strip, "frame_locked", text="Frame Lock")
 
         col = layout.column()
         col.enabled = not strip.lock
         col.prop(strip, "channel")
         col.prop(strip, "frame_start")
         subrow = col.split(percentage=0.66)
-        subrow.prop(strip, "length")
-        subrow.label(text="%.2f sec" % (strip.length / (render.fps / render.fps_base)))
+        subrow.prop(strip, "frame_final_length")
+        subrow.label(text="%.2f sec" % (strip.frame_final_length / (render.fps / render.fps_base)))
 
         col = layout.column(align=True)
         col.label(text="Offset:")
@@ -457,7 +460,7 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel):
             row = layout.row(align=True)
             sub = row.row()
             sub.scale_x = 2.0
-          
+
             if not context.screen.animation_playing:
                 sub.operator("screen.animation_play", text="", icon='PLAY')
             else:

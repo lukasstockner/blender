@@ -3172,9 +3172,9 @@ static int is_sensor_linked(uiBlock *block, bSensor *sens)
 
 /* Sensors code */
 
-static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr)
+static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
 {
-	uiLayout *box, *row;
+	uiLayout *box, *row, *subrow;
 	
 	box= uiLayoutBox(layout);
 	row= uiLayoutRow(box, 0);
@@ -3182,6 +3182,12 @@ static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(row, ptr, "expanded", UI_ITEM_R_NO_BG, "", 0);
 	uiItemR(row, ptr, "type", 0, "", 0);
 	uiItemR(row, ptr, "name", 0, "", 0);
+
+	subrow= uiLayoutRow(row, 0);
+	uiLayoutSetActive(subrow, (RNA_boolean_get(logic_ptr, "sensors_show_active_states")
+							&& RNA_boolean_get(ptr, "expanded") || RNA_boolean_get(ptr, "pinned")));
+	uiItemR(subrow, ptr, "pinned", UI_ITEM_R_NO_BG, "", 0);
+
 	uiItemO(row, "", ICON_X, "LOGIC_OT_sensor_remove");
 }
 
@@ -3507,6 +3513,7 @@ void draw_brick_sensor(uiLayout *layout, PointerRNA *ptr, bContext *C)
 static void draw_controller_header(uiLayout *layout, PointerRNA *ptr)
 {
 	uiLayout *box, *row;
+	char name[3]; //XXX provisorly for state number
 	
 	box= uiLayoutBox(layout);
 	row= uiLayoutRow(box, 0);
@@ -3514,6 +3521,11 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(row, ptr, "expanded", UI_ITEM_R_NO_BG, "", 0);
 	uiItemR(row, ptr, "type", 0, "", 0);
 	uiItemR(row, ptr, "name", 0, "", 0);
+
+	/* XXX provisory: state number */
+	sprintf(name, "%d", RNA_int_get(ptr, "state_number"));
+	uiItemL(row, name, 0);
+
 	uiItemR(row, ptr, "priority", 0, "", 0);
 	uiItemO(row, "", ICON_X, "LOGIC_OT_controller_remove");
 }
@@ -3578,9 +3590,9 @@ void draw_brick_controller(uiLayout *layout, PointerRNA *ptr)
 }
 
 /* Actuator code */
-static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr)
+static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
 {
-	uiLayout *box, *row;
+	uiLayout *box, *row, *subrow;
 	
 	box= uiLayoutBox(layout);
 	row= uiLayoutRow(box, 0);
@@ -3588,6 +3600,12 @@ static void draw_actuator_header(uiLayout *layout, PointerRNA *ptr)
 	uiItemR(row, ptr, "expanded", UI_ITEM_R_NO_BG, "", 0);
 	uiItemR(row, ptr, "type", 0, "", 0);
 	uiItemR(row, ptr, "name", 0, "", 0);
+
+	subrow= uiLayoutRow(row, 0);
+	uiLayoutSetActive(subrow, (RNA_boolean_get(logic_ptr, "actuators_show_active_states")
+							&& RNA_boolean_get(ptr, "expanded") || RNA_boolean_get(ptr, "pinned")));
+	uiItemR(subrow, ptr, "pinned", UI_ITEM_R_NO_BG, "", 0);
+
 	uiItemO(row, "", ICON_X, "LOGIC_OT_actuator_remove");
 }
 
@@ -4345,7 +4363,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	
 	PointerRNA logic_ptr, settings_ptr;
 	
-	uiLayout *layout, *row, *split, *subsplit, *box, *col;
+	uiLayout *layout, *row, *box;
 	uiBlock *block;
 	uiBut *but;
 	char name[32];
@@ -4361,13 +4379,17 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	block= uiBeginBlock(C, ar, name, UI_EMBOSS);
 	uiBlockSetHandleFunc(block, do_logic_buts, NULL);
 	
-	/* clean ACT_LINKED and ACT_VISIBLE of all potentially visible actuators so that 
-	 we can determine which is actually linked/visible */
+	/* loop over all objects and set visible/linked flags for the logic bricks */
 	for(a=0; a<count; a++) {
 		bActuator *act;
 		bSensor *sens;
+		bController *cont;
+		int iact;
+		short flag;
+
 		ob= (Object *)idar[a];
 		
+		/* clean ACT_LINKED and ACT_VISIBLE of all potentially visible actuators so that we can determine which is actually linked/visible */
 		act = ob->actuators.first;
 		while(act) {
 			act->flag &= ~(ACT_LINKED|ACT_VISIBLE);
@@ -4378,6 +4400,23 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		while(sens) {
 			sens->flag &= ~(SENS_VISIBLE);
 			sens = sens->next;
+		}
+
+		/* mark the linked and visible actuators */
+		cont= ob->controllers.first;
+		while(cont) {
+			flag = ACT_LINKED;
+
+			/* this controller is visible, mark all its actuator */
+			if ((ob->scaflag & OB_ALLSTATE) || (ob->state & cont->state_mask))
+				flag |= ACT_VISIBLE;
+
+			for (iact=0; iact<cont->totlinks; iact++) {
+				act = cont->links[iact];
+				if (act)
+					act->flag |= flag;
+			}
+			cont = cont->next;
 		}
 	}
 	
@@ -4393,38 +4432,6 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	uiItemR(row, &logic_ptr, "controllers_show_active_objects", 0, "Act", 0);
 	uiItemR(row, &logic_ptr, "controllers_show_linked_controller", 0, "Link", 0);
 
-	RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
-
-	split= uiLayoutSplit(layout, 0.05, 0);
-	uiItemR(split, &settings_ptr, "show_state_panel", UI_ITEM_R_NO_BG, "", ICON_DISCLOSURE_TRI_RIGHT);
-
-	row = uiLayoutRow(split, 1);
-	uiDefButBitS(block, TOG, OB_SHOWCONT, B_REDR, ob->id.name+2,(short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide controllers");
-	uiItemMenuEnumO(row, "LOGIC_OT_controller_add", "type", "Add Controller", 0);
-
-	if (RNA_boolean_get(&settings_ptr, "show_state_panel")) {
-
-		box= uiLayoutBox(layout);
-		uiLayoutSetAlignment(box, UI_LAYOUT_ALIGN_CENTER); //XXX doesn't seem to work
-		split= uiLayoutSplit(box, 0.2, 0);
-
-		col= uiLayoutColumn(split, 0);
-		uiItemL(col, "Visible", 0);
-		uiItemL(col, "Initial", 0);
-
-		subsplit= uiLayoutSplit(split, 0.85, 0);
-		col= uiLayoutColumn(subsplit, 0);
-		row= uiLayoutRow(col, 0);
-		uiLayoutSetActive(row, RNA_boolean_get(&settings_ptr, "all_states")==0);
-		uiTemplateLayers(row, &settings_ptr, "state", &settings_ptr, "used_state", 0);
-		row= uiLayoutRow(col, 0);
-		uiTemplateLayers(row, &settings_ptr, "initial_state", &settings_ptr, "used_state", 0);
-
-		col= uiLayoutColumn(subsplit, 0);
-		uiItemR(col, &settings_ptr, "all_states", UI_ITEM_R_TOGGLE, NULL, 0);
-		uiItemR(col, &settings_ptr, "debug_state", 0, "", 0); 
-	}
-
 	for(a=0; a<count; a++) {
 		bController *cont;
 		PointerRNA ptr;
@@ -4432,9 +4439,45 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 		int iact;
 		
 		ob= (Object *)idar[a];
-		
+	
+		/* Drawing the Controller Header common to all Selected Objects */
+
+		RNA_pointer_create((ID *)ob, &RNA_GameObjectSettings, ob, &settings_ptr);
+
+		split= uiLayoutSplit(layout, 0.05, 0);
+		uiItemR(split, &settings_ptr, "show_state_panel", UI_ITEM_R_NO_BG, "", ICON_DISCLOSURE_TRI_RIGHT);
+
+		row = uiLayoutRow(split, 1);
+		uiDefButBitS(block, TOG, OB_SHOWCONT, B_REDR, ob->id.name+2,(short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide controllers");
+		uiItemMenuEnumO(row, "LOGIC_OT_controller_add", "type", "Add Controller", 0);
+
+		if (RNA_boolean_get(&settings_ptr, "show_state_panel")) {
+
+			box= uiLayoutBox(layout);
+			split= uiLayoutSplit(box, 0.2, 0);
+
+			col= uiLayoutColumn(split, 0);
+			uiItemL(col, "Visible", 0);
+			uiItemL(col, "Initial", 0);
+
+			subsplit= uiLayoutSplit(split, 0.85, 0);
+			col= uiLayoutColumn(subsplit, 0);
+			row= uiLayoutRow(col, 0);
+			uiLayoutSetActive(row, RNA_boolean_get(&settings_ptr, "all_states")==0);
+			uiTemplateLayers(row, &settings_ptr, "visible_state", &settings_ptr, "used_state", 0);
+			row= uiLayoutRow(col, 0);
+			uiTemplateLayers(row, &settings_ptr, "initial_state", &settings_ptr, "used_state", 0);
+
+			col= uiLayoutColumn(subsplit, 0);
+			uiItemR(col, &settings_ptr, "all_states", UI_ITEM_R_TOGGLE, NULL, 0);
+			uiItemR(col, &settings_ptr, "debug_state", 0, "", 0); 
+		}
+
+		/* End of Drawing the Controller Header common to all Selected Objects */
+
 		if (!(ob->scavisflag & OB_VIS_CONT) || !(ob->scaflag & OB_SHOWCONT)) continue;
 		
+
 		uiItemS(layout);
 		
 		for(cont= ob->controllers.first; cont; cont=cont->next) {
@@ -4442,16 +4485,6 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 			
 			if (!(ob->scaflag & OB_ALLSTATE) && !(ob->state & cont->state_mask))
 				continue;
-			//if (!(cont->state_mask & (1<<stbit))) 
-			//	continue;
-			
-			/* this controller is visible, mark all its actuator */
-			/* XXX: perhaps move this to a preprocessing stage if possible? */
-			for (iact=0; iact<cont->totlinks; iact++) {
-				bActuator *act = cont->links[iact];
-				if (act)
-					act->flag |= ACT_VISIBLE;
-			}
 			
 			/* use two nested splits to align inlinks/links properly */
 			split = uiLayoutSplit(layout, 0.05, 0);
@@ -4498,15 +4531,15 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	uiItemR(row, &logic_ptr, "sensors_show_linked_controller", 0, "Link", 0);
 	uiItemR(row, &logic_ptr, "sensors_show_active_states", 0, "State", 0);
 	
-	row = uiLayoutRow(layout, 1);
-	uiDefButBitS(block, TOG, OB_SHOWSENS, B_REDR, ob->id.name+2,(short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide sensors");
-	uiItemMenuEnumO(row, "LOGIC_OT_sensor_add", "type", "Add Sensor", 0);
-	
 	for(a=0; a<count; a++) {
 		bSensor *sens;
 		PointerRNA ptr;
 		
 		ob= (Object *)idar[a];
+
+		row = uiLayoutRow(layout, 1);
+		uiDefButBitS(block, TOG, OB_SHOWSENS, B_REDR, ob->id.name+2,(short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide sensors");
+		uiItemMenuEnumO(row, "LOGIC_OT_sensor_add", "type", "Add Sensor", 0);
 		
 		if (!(ob->scavisflag & OB_VIS_SENS) || !(ob->scaflag & OB_SHOWSENS)) continue;
 		
@@ -4516,7 +4549,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 			RNA_pointer_create((ID *)ob, &RNA_Sensor, sens, &ptr);
 			
 			if ((ob->scaflag & OB_ALLSTATE) ||
-				(slogic->scaflag & BUTS_SENS_STATE) ||
+				!(slogic->scaflag & BUTS_SENS_STATE) ||
 				(sens->totlinks == 0) ||											/* always display sensor without links so that is can be edited */
 				(sens->flag & SENS_PIN && slogic->scaflag & BUTS_SENS_STATE) ||	/* states can hide some sensors, pinned sensors ignore the visible state */
 				(is_sensor_linked(block, sens))
@@ -4529,7 +4562,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 				uiLayoutSetContextPointer(col, "sensor", &ptr);
 				
 				/* should make UI template for sensor header.. function will do for now */
-				draw_sensor_header(col, &ptr);
+				draw_sensor_header(col, &ptr, &logic_ptr);
 				
 				/* draw the brick contents */
 				draw_brick_sensor(col, &ptr, C);
@@ -4557,16 +4590,16 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 	uiItemR(row, &logic_ptr, "actuators_show_linked_controller", 0, "Link", 0);
 	uiItemR(row, &logic_ptr, "actuators_show_active_states", 0, "State", 0);
 	
-	row = uiLayoutRow(layout, 1);
-	uiDefButBitS(block, TOG, OB_SHOWACT, B_REDR, ob->id.name+2,(short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide actuators");
-	uiItemMenuEnumO(row, "LOGIC_OT_actuator_add", "type", "Add Actuator", 0);
-	
 	for(a=0; a<count; a++) {
 		bActuator *act;
 		PointerRNA ptr;
 		
 		ob= (Object *)idar[a];
-		
+
+		row = uiLayoutRow(layout, 1);
+		uiDefButBitS(block, TOG, OB_SHOWACT, B_REDR, ob->id.name+2,(short)(xco-10), yco, (short)(width-30), UI_UNIT_Y, &ob->scaflag, 0, 31, 0, 0, "Object name, click to show/hide actuators");
+		uiItemMenuEnumO(row, "LOGIC_OT_actuator_add", "type", "Add Actuator", 0);
+
 		if (!(ob->scavisflag & OB_VIS_ACT) || !(ob->scaflag & OB_SHOWACT)) continue;
 		
 		uiItemS(layout);
@@ -4576,7 +4609,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 			RNA_pointer_create((ID *)ob, &RNA_Actuator, act, &ptr);
 			
 			if ((ob->scaflag & OB_ALLSTATE) ||
-				(slogic->scaflag & BUTS_ACT_STATE) ||
+				!(slogic->scaflag & BUTS_ACT_STATE) ||
 				!(act->flag & ACT_LINKED) ||		/* always display actuators without links so that is can be edited */
 				(act->flag & ACT_VISIBLE) ||		/* this actuator has visible connection, display it */
 				(act->flag & ACT_PIN && slogic->scaflag & BUTS_ACT_STATE)	/* states can hide some sensors, pinned sensors ignore the visible state */
@@ -4594,7 +4627,7 @@ static void logic_buttons_new(bContext *C, ARegion *ar)
 				uiLayoutSetContextPointer(col, "actuator", &ptr);
 				
 				/* should make UI template for actuator header.. function will do for now */
-				draw_actuator_header(col, &ptr);
+				draw_actuator_header(col, &ptr, &logic_ptr);
 				
 				/* draw the brick contents */
 				draw_brick_actuator(col, &ptr, C);

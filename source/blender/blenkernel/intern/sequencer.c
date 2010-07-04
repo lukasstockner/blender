@@ -545,8 +545,8 @@ void calc_sequence(Scene *scene, Sequence *seq)
 		if(seq->type==SEQ_META) {
 			seqm= seq->seqbase.first;
 			if(seqm) {
-				min= 1000000;
-				max= -1000000;
+				min=  MAXFRAME * 2;
+				max= -MAXFRAME * 2;
 				while(seqm) {
 					if(seqm->startdisp < min) min= seqm->startdisp;
 					if(seqm->enddisp > max) max= seqm->enddisp;
@@ -566,7 +566,7 @@ void calc_sequence(Scene *scene, Sequence *seq)
 	}
 }
 
-/* note: caller should run calc_sequence(scene, seq) */
+/* note: caller should run calc_sequence(scene, seq) after */
 void reload_sequence_new_file(Scene *scene, Sequence * seq, int lock_range)
 {
 	char str[FILE_MAXDIR+FILE_MAXFILE];
@@ -2194,7 +2194,7 @@ static void do_build_seq_ibuf(Scene *scene, Sequence * seq, TStripElem *se, int 
 			seq->scene->markers.first= seq->scene->markers.last= NULL;
 #endif
 
-			if(sequencer_view3d_cb && doseq_gl && (seq->scene == scene || have_seq==0)) {
+			if(sequencer_view3d_cb && doseq_gl && (seq->scene == scene || have_seq==0) && seq->scene->camera) {
 				/* opengl offscreen render */
 				scene_update_for_newframe(seq->scene, seq->scene->lay);
 				se->ibuf= sequencer_view3d_cb(seq->scene, seqrectx, seqrecty, scene->r.seq_prev_type);
@@ -3790,6 +3790,34 @@ ListBase *seq_seqbase(ListBase *seqbase, Sequence *seq)
 	return NULL;
 }
 
+int seq_swap(Sequence *seq_a, Sequence *seq_b)
+{
+	if(seq_a->len != seq_b->len)
+		return 0;
+
+	/* type checking, could be more advanced but disalow sound vs non-sound copy */
+	if(seq_a->type != seq_b->type) {
+		if(seq_a->type == SEQ_SOUND || seq_b->type == SEQ_SOUND) {
+			return 0;
+		}
+	}
+
+	SWAP(Sequence, *seq_a, *seq_b);
+	SWAP(void *, seq_a->prev, seq_b->prev);
+	SWAP(void *, seq_a->next, seq_b->next);
+
+	SWAP(int, seq_a->start, seq_b->start);
+	SWAP(int, seq_a->startofs, seq_b->startofs);
+	SWAP(int, seq_a->endofs, seq_b->endofs);
+	SWAP(int, seq_a->startstill, seq_b->startstill);
+	SWAP(int, seq_a->endstill, seq_b->endstill);
+	SWAP(int, seq_a->machine, seq_b->machine);
+	SWAP(int, seq_a->startdisp, seq_b->startdisp);
+	SWAP(int, seq_a->enddisp, seq_b->enddisp);
+
+	return 1;
+}
+
 /* XXX - hackish function needed for transforming strips! TODO - have some better solution */
 void seq_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 {
@@ -3832,19 +3860,48 @@ Sequence *get_seq_by_name(ListBase *seqbase, const char *name, int recursive)
 }
 
 
-Sequence *active_seq_get(Scene *scene)
+Sequence *seq_active_get(Scene *scene)
 {
 	Editing *ed= seq_give_editing(scene, FALSE);
 	if(ed==NULL) return NULL;
 	return ed->act_seq;
 }
 
-void active_seq_set(Scene *scene, Sequence *seq)
+void seq_active_set(Scene *scene, Sequence *seq)
 {
 	Editing *ed= seq_give_editing(scene, FALSE);
 	if(ed==NULL) return;
 
 	ed->act_seq= seq;
+}
+
+int seq_active_pair_get(Scene *scene, Sequence **seq_act, Sequence **seq_other)
+{
+	Editing *ed= seq_give_editing(scene, FALSE);
+
+	*seq_act= seq_active_get(scene);
+
+	if(*seq_act == NULL) {
+		return 0;
+	}
+	else {
+		Sequence *seq;
+
+		*seq_other= NULL;
+
+		for(seq= ed->seqbasep->first; seq; seq= seq->next) {
+			if(seq->flag & SELECT && (seq != (*seq_act))) {
+				if(*seq_other) {
+					return 0;
+				}
+				else {
+					*seq_other= seq;
+				}
+			}
+		}
+
+		return (*seq_other != NULL);
+	}
 }
 
 /* api like funcs for adding */
@@ -3861,7 +3918,7 @@ void seq_load_apply(Scene *scene, Sequence *seq, SeqLoadInfo *seq_load)
 
 		if(seq_load->flag & SEQ_LOAD_REPLACE_SEL) {
 			seq_load->flag |= SELECT;
-			active_seq_set(scene, seq);
+			seq_active_set(scene, seq);
 		}
 
 		if(seq_load->flag & SEQ_LOAD_SOUND_CACHE) {

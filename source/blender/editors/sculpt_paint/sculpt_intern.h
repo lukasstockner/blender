@@ -32,6 +32,7 @@
 
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
+#include "DNA_key_types.h"
 
 #include "BLI_pbvh.h"
 
@@ -59,8 +60,6 @@ void sculpt(Sculpt *sd);
 
 int sculpt_poll(struct bContext *C);
 void sculpt_update_mesh_elements(struct Scene *scene, struct Object *ob, int need_fmap);
-void sculpt_key_to_mesh(struct KeyBlock *kb, struct Object *ob);
-void sculpt_mesh_to_key(struct Object *ob, struct KeyBlock *kb);
 
 /* Stroke */
 struct SculptStroke *sculpt_stroke_new(const int max);
@@ -97,6 +96,9 @@ typedef struct SculptUndoNode {
 
 	/* layer brush */
 	float *layer_disp;
+
+	/* shape keys */
+	char *shapeName[32]; /* keep size in sync with keyblock dna */
 } SculptUndoNode;
 
 SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node);
@@ -106,5 +108,6 @@ void sculpt_undo_push_end(void);
 
 struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob);
 int sculpt_modifiers_active(Scene *scene, Object *ob);
+void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3]);
 
 #endif

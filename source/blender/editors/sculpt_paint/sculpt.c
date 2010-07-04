@@ -95,6 +95,10 @@
 #include <omp.h>
 #endif
 
+/* ==== FORWARD DEFINITIONS =====
+ *
+ */
+
 void ED_sculpt_force_update(bContext *C)
 {
 	Object *ob= CTX_data_active_object(C);
@@ -2318,6 +2322,68 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	}
 }
 
+void sculpt_vertcos_to_key(Object *ob, KeyBlock *kb, float (*vertCos)[3])
+{
+	Mesh *me= (Mesh*)ob->data;
+	float (*ofs)[3]= NULL;
+	int a, is_basis= 0;
+	KeyBlock *currkey;
+
+	/* for relative keys editing of base should update other keys */
+	if (me->key->type == KEY_RELATIVE)
+		for (currkey = me->key->block.first; currkey; currkey= currkey->next)
+			if(ob->shapenr-1 == currkey->relative) {
+				is_basis= 1;
+				break;
+			}
+
+	if (is_basis) {
+		ofs= key_to_vertcos(ob, kb);
+
+		/* calculate key coord offsets (from previous location) */
+		for (a= 0; a < me->totvert; a++) {
+			VECSUB(ofs[a], vertCos[a], ofs[a]);
+		}
+
+		/* apply offsets on other keys */
+		currkey = me->key->block.first;
+		while (currkey) {
+			int apply_offset = ((currkey != kb) && (ob->shapenr-1 == currkey->relative));
+
+			if (apply_offset)
+				offset_to_key(ob, currkey, ofs);
+
+			currkey= currkey->next;
+		}
+
+		MEM_freeN(ofs);
+	}
+
+	/* modifying of basis key should update mesh */
+	if (kb == me->key->refkey) {
+		MVert *mvert= me->mvert;
+
+		for (a= 0; a < me->totvert; a++, mvert++)
+			VECCOPY(mvert->co, vertCos[a]);
+
+		mesh_calc_normals(me->mvert, me->totvert, me->mface, me->totface, NULL);
+	}
+
+	/* apply new coords on active key block */
+	vertcos_to_key(ob, kb, vertCos);
+}
+
+/* copy the modified vertices from bvh to the active key */
+static void sculpt_update_keyblock(SculptSession *ss)
+{
+	float (*vertCos)[3]= BLI_pbvh_get_vertCos(ss->pbvh);
+
+	if (vertCos) {
+		sculpt_vertcos_to_key(ss->ob, ss->kb, vertCos);
+		MEM_freeN(vertCos);
+	}
+}
+
 static void do_brush_action(Sculpt *sd, SculptSession *ss)
 {
 	SculptSearchSphereData data;
@@ -2404,6 +2470,11 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 		/* copy the modified vertices from mesh to the active key */
 		if(ss->kb)
 			mesh_to_key(ss->ob->data, ss->kb);
+
+		/* optimization: we could avoid copying new coords to keyblock at each */
+		/* stroke step if there are no modifiers due to pbvh is used for displaying */
+		/* so to increase speed we'll copy new coords to keyblock when stroke is done */
+		if(ss->kb && ss->modifiers_active) sculpt_update_keyblock(ss);
 
 		MEM_freeN(nodes);
 	}
@@ -2553,40 +2624,18 @@ static void sculpt_update_tex(Sculpt *sd, SculptSession *ss)
 	}
 }
 
-void sculpt_key_to_mesh(KeyBlock *kb, Object *ob)
-{
-	Mesh *me= ob->data;
-
-	key_to_mesh(kb, me);
-	mesh_calc_normals(me->mvert, me->totvert, me->mface, me->totface, NULL);
-}
-
-void sculpt_mesh_to_key(Object *ob, KeyBlock *kb)
-{
-	Mesh *me= ob->data;
-
-	mesh_to_key(me, kb);
-}
-
 void sculpt_update_mesh_elements(Scene *scene, Object *ob, int need_fmap)
 {
-	DerivedMesh *dm = mesh_get_derived_final(scene, ob, 0);
+	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	SculptSession *ss = ob->sculpt;
 	MultiresModifierData *mmd= sculpt_multires_active(scene, ob);
 
 	ss->ob= ob;
 
-	if((ob->shapeflag & OB_SHAPE_LOCK) && !mmd) {
-		ss->kb= ob_get_keyblock(ob);
-		ss->refkb= ob_get_reference_keyblock(ob);
-	}
-	else {
-		ss->kb= NULL;
-		ss->refkb= NULL;
-	}
+	ss->modifiers_active= sculpt_modifiers_active(scene, ob);
 
-	/* need to make PBVH with shape key coordinates */
-	if(ss->kb) sculpt_key_to_mesh(ss->kb, ss->ob);
+	if((ob->shapeflag & OB_SHAPE_LOCK) && !mmd) ss->kb= ob_get_keyblock(ob);
+	else ss->kb= NULL;
 
 	if(mmd) {
 		ss->multires = mmd;
@@ -2608,6 +2657,17 @@ void sculpt_update_mesh_elements(Scene *scene, Object *ob, int need_fmap)
 
 	ss->pbvh = dm->getPBVH(ob, dm);
 	ss->fmap = (need_fmap && dm->getFaceMap)? dm->getFaceMap(ob, dm): NULL;
+
+	/* if pbvh is deformed, key block is already applied to it */
+	if (ss->kb && !BLI_pbvh_isDeformed(ss->pbvh)) {
+		float (*vertCos)[3]= key_to_vertcos(ob, ss->kb);
+
+		if (vertCos) {
+			/* apply shape keys coordinates to PBVH */
+			BLI_pbvh_apply_vertCos(ss->pbvh, vertCos);
+			MEM_freeN(vertCos);
+		}
+	}
 }
 
 static int sculpt_mode_poll(bContext *C)
@@ -3108,9 +3168,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 
 static void sculpt_stroke_modifiers_check(bContext *C, SculptSession *ss)
 {
-	Scene *scene= CTX_data_scene(C);
-
-	if(sculpt_modifiers_active(scene, ss->ob)) {
+	if(ss->modifiers_active) {
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 		Brush *brush = paint_brush(&sd->paint);
 
@@ -3265,7 +3323,6 @@ static void sculpt_restore_mesh(Sculpt *sd, SculptSession *ss)
 
 static void sculpt_flush_update(bContext *C)
 {
-	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	ARegion *ar = CTX_wm_region(C);
@@ -3275,7 +3332,7 @@ static void sculpt_flush_update(bContext *C)
 	if(mmd)
 		multires_mark_as_modified(ob);
 
-	if(sculpt_modifiers_active(scene, ob)) {
+	if(ss->modifiers_active) {
 		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 		ED_region_tag_redraw(ar);
 	}
@@ -3400,10 +3457,13 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateOriginalBB, NULL);
 
-		if(ss->refkb) sculpt_key_to_mesh(ss->refkb, ob);
+		/* optimization: if there is locked key and active modifiers present in */
+		/* the stack, keyblock is updating at each step. otherwise we could update */
+		/* keyblock only when stroke is finished */
+		if(ss->kb && !ss->modifiers_active) sculpt_update_keyblock(ss);
 
 		ss->partial_redraw = 0;
-		
+
 		/* try to avoid calling this, only for e.g. linked duplicates now */
 		if(((Mesh*)ob->data)->id.us > 1)
 			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
@@ -3542,9 +3602,6 @@ static void sculpt_init_session(Scene *scene, Object *ob)
 	ob->sculpt->scene = scene;
 	
 	sculpt_update_mesh_elements(scene, ob, 0);
-
-	if(ob->sculpt->refkb)
-		sculpt_key_to_mesh(ob->sculpt->refkb, ob);
 }
 
 static int sculpt_toggle_mode(bContext *C, wmOperator *unused)

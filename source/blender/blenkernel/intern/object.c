@@ -320,6 +320,7 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 		ob->recalc |= OB_RECALC;
 	}
 }
+
 void unlink_object(Scene *scene, Object *ob)
 {
 	Object *obt;
@@ -334,7 +335,9 @@ void unlink_object(Scene *scene, Object *ob)
 	bConstraint *con;
 	//bActionStrip *strip; // XXX animsys 
 	ModifierData *md;
-	int a;
+	ARegion *ar;
+	RegionView3D *rv3d;
+	int a, found;
 	
 	unlink_controllers(&ob->controllers);
 	unlink_actuators(&ob->actuators);
@@ -610,13 +613,32 @@ void unlink_object(Scene *scene, Object *ob)
 				if(sl->spacetype==SPACE_VIEW3D) {
 					View3D *v3d= (View3D*) sl;
 
+					found= 0;
 					if(v3d->camera==ob) {
 						v3d->camera= NULL;
-						// XXX if(v3d->persp==V3D_CAMOB) v3d->persp= V3D_PERSP;
+						found= 1;
 					}
 					if(v3d->localvd && v3d->localvd->camera==ob ) {
 						v3d->localvd->camera= NULL;
-						// XXX if(v3d->localvd->persp==V3D_CAMOB) v3d->localvd->persp= V3D_PERSP;
+						found += 2;
+					}
+
+					if (found) {
+						if (sa->spacetype == SPACE_VIEW3D) {
+							for (ar= sa->regionbase.first; ar; ar= ar->next) {
+								if (ar->regiontype==RGN_TYPE_WINDOW) {
+									rv3d= (RegionView3D *)ar->regiondata;
+									if (found == 1 || found == 3) {
+										if (rv3d->persp == RV3D_CAMOB)
+											rv3d->persp= RV3D_PERSP;
+									}
+									if (found == 2 || found == 3) {
+										if (rv3d->localvd && rv3d->localvd->persp == RV3D_CAMOB)
+											rv3d->localvd->persp= RV3D_PERSP;
+									}
+								}
+							}
+						}
 					}
 				}
 				else if(sl->spacetype==SPACE_OUTLINER) {
@@ -1026,6 +1048,8 @@ Object *add_only_object(int type, char *name)
 	ob->anisotropicFriction[2] = 1.0f;
 	ob->gameflag= OB_PROP|OB_COLLISION;
 	ob->margin = 0.0;
+	ob->init_state=1;
+	ob->state=1;
 	/* ob->pad3 == Contact Processing Threshold */
 	ob->m_contactProcessingThreshold = 1.;
 	
@@ -1265,6 +1289,7 @@ Object *copy_object(Object *ob)
 	
 	for (md=ob->modifiers.first; md; md=md->next) {
 		ModifierData *nmd = modifier_new(md->type);
+		BLI_strncpy(nmd->name, md->name, sizeof(nmd->name));
 		modifier_copyData(md, nmd);
 		BLI_addtail(&obn->modifiers, nmd);
 	}

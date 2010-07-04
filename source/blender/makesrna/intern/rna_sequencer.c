@@ -163,7 +163,7 @@ static void rna_Sequence_anim_endofs_final_set(PointerRNA *ptr, int value)
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
-static void rna_Sequence_length_set(PointerRNA *ptr, int value)
+static void rna_Sequence_frame_length_set(PointerRNA *ptr, int value)
 {
 	Sequence *seq= (Sequence*)ptr->data;
 	Scene *scene= (Scene*)ptr->id.data;
@@ -172,7 +172,7 @@ static void rna_Sequence_length_set(PointerRNA *ptr, int value)
 	rna_Sequence_frame_change_update(scene, seq);
 }
 
-static int rna_Sequence_length_get(PointerRNA *ptr)
+static int rna_Sequence_frame_length_get(PointerRNA *ptr)
 {
 	Sequence *seq= (Sequence*)ptr->data;
 	return seq_tx_get_final_right(seq, 0)-seq_tx_get_final_left(seq, 0);
@@ -348,10 +348,21 @@ static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *
 	return rna_pointer_inherit_refine(&iter->parent, &RNA_Sequence, ms->parseq);
 }
 
+/* TODO, expose seq path setting as a higher level sequencer BKE function */
 static void rna_Sequence_filepath_set(PointerRNA *ptr, const char *value)
 {
 	Sequence *seq= (Sequence*)(ptr->data);
 	char dir[FILE_MAX], name[FILE_MAX];
+
+	if(seq->type == SEQ_SOUND && seq->sound) {
+		/* for sound strips we need to update the sound as well.
+		 * arguably, this could load in a new sound rather then modify an existing one.
+		 * but while using the sequencer its most likely your not using the sound in the game engine too.
+		 */
+		PointerRNA id_ptr;
+		RNA_id_pointer_create((ID *)seq->sound, &id_ptr);
+		RNA_string_set(&id_ptr, "filepath", value);
+	}
 
 	BLI_split_dirfile(value, dir, name);
 	BLI_strncpy(seq->strip->dir, dir, sizeof(seq->strip->dir));
@@ -616,7 +627,6 @@ static void rna_def_sequence(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	FunctionRNA *func;
 
 	static const EnumPropertyItem seq_type_items[]= {
 		{SEQ_IMAGE, "IMAGE", 0, "Image", ""}, 
@@ -679,27 +689,22 @@ static void rna_def_sequence(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "selected", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SELECT);
 	RNA_def_property_ui_text(prop, "Selected", "");
-	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER_SELECT, NULL);
+	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER|NA_SELECTED, NULL);
 
 	prop= RNA_def_property(srna, "left_handle_selected", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_LEFTSEL);
 	RNA_def_property_ui_text(prop, "Left Handle Selected", "");
-	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER_SELECT, NULL);
+	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER|NA_SELECTED, NULL);
 
 	prop= RNA_def_property(srna, "right_handle_selected", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_RIGHTSEL);
 	RNA_def_property_ui_text(prop, "Right Handle Selected", "");
-	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER_SELECT, NULL);
+	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER|NA_SELECTED, NULL);
 
 	prop= RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_MUTE);
 	RNA_def_property_ui_text(prop, "Mute", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_mute_update");
-
-	prop= RNA_def_property(srna, "frame_locked", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_IPO_FRAME_LOCKED);
-	RNA_def_property_ui_text(prop, "Frame Locked", "Lock the animation curve to the global frame counter");
-	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
 	prop= RNA_def_property(srna, "lock", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_LOCK);
@@ -708,13 +713,18 @@ static void rna_def_sequence(BlenderRNA *brna)
 
 	/* strip positioning */
 
-	prop= RNA_def_property(srna, "length", PROP_INT, PROP_TIME);
-	RNA_def_property_int_sdna(prop, NULL, "len");
+	prop= RNA_def_property(srna, "frame_final_length", PROP_INT, PROP_TIME);
 	RNA_def_property_range(prop, 1, MAXFRAME);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_ui_text(prop, "Length", "The length of the contents of this strip before the handles are applied");
-	RNA_def_property_int_funcs(prop, "rna_Sequence_length_get", "rna_Sequence_length_set",NULL);
+	RNA_def_property_int_funcs(prop, "rna_Sequence_frame_length_get", "rna_Sequence_frame_length_set",NULL);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
+
+	prop= RNA_def_property(srna, "frame_length", PROP_INT, PROP_TIME);
+	RNA_def_property_int_sdna(prop, NULL, "len");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE|PROP_ANIMATABLE);
+	RNA_def_property_range(prop, 1, MAXFRAME);
+	RNA_def_property_ui_text(prop, "Length", "The length of the contents of this strip before the handles are applied");
 	
 	prop= RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "start");
@@ -800,12 +810,7 @@ static void rna_def_sequence(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Speed effect fader position", "");
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
-	/* functions */
-	func= RNA_def_function(srna, "getStripElem", "give_stripelem");
-	RNA_def_function_ui_description(func, "Return the strip element from a given frame or None.");
-	prop= RNA_def_int(func, "frame", 0, -MAXFRAME, MAXFRAME, "Frame", "The frame to get the strip element from", -MAXFRAME, MAXFRAME);
-	RNA_def_property_flag(prop, PROP_REQUIRED);
-	RNA_def_function_return(func, RNA_def_pointer(func, "elem", "SequenceElement", "", "strip element of the current frame"));
+	RNA_api_sequence_strip(srna);
 }
 
 static void rna_def_editor(BlenderRNA *brna)

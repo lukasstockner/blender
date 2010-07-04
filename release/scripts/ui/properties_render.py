@@ -313,7 +313,7 @@ class RENDER_PT_output(RenderButtonsPanel):
         if rd.file_format in ('AVI_JPEG', 'JPEG'):
             split = layout.split()
             split.prop(rd, "file_quality", slider=True)
-        
+
         elif rd.file_format == 'MULTILAYER':
             split = layout.split()
 
@@ -522,6 +522,7 @@ class RENDER_PT_motion_blur(RenderButtonsPanel):
 
         row = layout.row()
         row.prop(rd, "motion_blur_samples")
+        row.prop(rd, "motion_blur_shutter")
 
 
 class RENDER_PT_dimensions(RenderButtonsPanel):

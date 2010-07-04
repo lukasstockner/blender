@@ -137,9 +137,8 @@ void ED_object_base_init_transform(bContext *C, Base *base, float *loc, float *r
 
 /* uses context to figure out transform for primitive */
 /* returns standard diameter */
-float ED_object_new_primitive_matrix(bContext *C, float *loc, float *rot, float primmat[][4])
+float ED_object_new_primitive_matrix(bContext *C, Object *obedit, float *loc, float *rot, float primmat[][4])
 {
-	Object *obedit= CTX_data_edit_object(C);
 	View3D *v3d =CTX_wm_view3d(C);
 	float mat[3][3], rmat[3][3], cmat[3][3], imat[3][3];
 	
@@ -155,8 +154,8 @@ float ED_object_new_primitive_matrix(bContext *C, float *loc, float *rot, float 
 	copy_m4_m3(primmat, imat);
 	
 	/* center */
-	VECCOPY(primmat[3], loc);
-	VECSUB(primmat[3], primmat[3], obedit->obmat[3]);
+	copy_v3_v3(primmat[3], loc);
+	sub_v3_v3v3(primmat[3], primmat[3], obedit->obmat[3]);
 	invert_m3_m3(imat, mat);
 	mul_m3_v3(imat, primmat[3]);
 	
@@ -233,7 +232,7 @@ int ED_object_add_generic_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	return op->type->exec(C, op);
 }
 
-void ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc, float *rot, int *enter_editmode, unsigned int *layer)
+int ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc, float *rot, int *enter_editmode, unsigned int *layer)
 {
 	int a, layer_values[32];
 	int view_align;
@@ -242,7 +241,23 @@ void ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc, flo
 	if(RNA_struct_find_property(op->ptr, "enter_editmode") && RNA_boolean_get(op->ptr, "enter_editmode")) {
 		*enter_editmode = TRUE;
 	}
-	
+
+	if(RNA_property_is_set(op->ptr, "layer")) {
+		RNA_boolean_get_array(op->ptr, "layer", layer_values);
+
+		for(a=0; a<32; a++) {
+			if(layer_values[a])
+				*layer |= (1 << a);
+			else
+				*layer &= ~(1 << a);
+		}
+	}
+	else {
+		/* not set, use the scenes layers */
+		Scene *scene = CTX_data_scene(C);
+		*layer = scene->layact;
+	}
+
 	if (RNA_property_is_set(op->ptr, "view_align"))
 		view_align = RNA_boolean_get(op->ptr, "view_align");
 	else
@@ -255,13 +270,13 @@ void ED_object_add_generic_get_opts(bContext *C, wmOperator *op, float *loc, flo
 	
 
 	RNA_float_get_array(op->ptr, "location", loc);
-	RNA_boolean_get_array(op->ptr, "layer", layer_values);
-	
-	for(a=0; a<32; a++)
-		if(layer_values[a])
-			*layer |= (1 << a);
-		else
-			*layer &= ~(1 << a);
+
+	if(*layer == 0) {
+		BKE_report(op->reports, RPT_ERROR, "Property 'layer' has no values set");
+		return 0;
+	}
+
+	return 1;
 }
 
 /* for object add primitive operators */
@@ -299,7 +314,9 @@ static int object_add_exec(bContext *C, wmOperator *op)
 	unsigned int layer;
 	float loc[3], rot[3];
 	
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
+
 	ED_object_add_type(C, RNA_enum_get(op->ptr, "type"), loc, rot, enter_editmode, layer);
 	
 	return OPERATOR_FINISHED;
@@ -358,7 +375,9 @@ static Object *effector_add_type(bContext *C, wmOperator *op, int type)
 	float mat[4][4];
 	
 	object_add_generic_invoke_options(C, op);
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return NULL;
 
 	if(type==PFIELD_GUIDE) {
 		ob= ED_object_add_type(C, OB_CURVE, loc, rot, FALSE, layer);
@@ -366,7 +385,7 @@ static Object *effector_add_type(bContext *C, wmOperator *op, int type)
 
 		((Curve*)ob->data)->flag |= CU_PATH|CU_3D;
 		ED_object_enter_editmode(C, 0);
-		ED_object_new_primitive_matrix(C, loc, rot, mat);
+		ED_object_new_primitive_matrix(C, ob, loc, rot, mat);
 		BLI_addtail(curve_get_editcurve(ob), add_nurbs_primitive(C, mat, CU_NURBS|CU_PRIM_PATH, 1));
 
 		if(!enter_editmode)
@@ -392,8 +411,9 @@ static Object *effector_add_type(bContext *C, wmOperator *op, int type)
 /* for object add operator */
 static int effector_add_exec(bContext *C, wmOperator *op)
 {
-	effector_add_type(C, op, RNA_int_get(op->ptr, "type"));
-	
+	if(effector_add_type(C, op, RNA_int_get(op->ptr, "type")) == NULL)
+		return OPERATOR_CANCELLED;
+
 	return OPERATOR_FINISHED;
 }
 
@@ -433,7 +453,9 @@ static int object_camera_add_exec(bContext *C, wmOperator *op)
 	RNA_boolean_set(op->ptr, "view_align", 1);
 	
 	object_add_generic_invoke_options(C, op);
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	ob= ED_object_add_type(C, OB_CAMERA, loc, rot, FALSE, layer);
 	
@@ -468,72 +490,6 @@ void OBJECT_OT_camera_add(wmOperatorType *ot)
 
 /* ***************** add primitives *************** */
 
-static EnumPropertyItem prop_surface_types[]= {
-	{CU_PRIM_CURVE|CU_NURBS, "NURBS_CURVE", ICON_SURFACE_NCURVE, "NURBS Curve", ""},
-	{CU_PRIM_CIRCLE|CU_NURBS, "NURBS_CIRCLE", ICON_SURFACE_NCIRCLE, "NURBS Circle", ""},
-	{CU_PRIM_PATCH|CU_NURBS, "NURBS_SURFACE", ICON_SURFACE_NSURFACE, "NURBS Surface", ""},
-	{CU_PRIM_TUBE|CU_NURBS, "NURBS_TUBE", ICON_SURFACE_NTUBE, "NURBS Tube", ""},
-	{CU_PRIM_SPHERE|CU_NURBS, "NURBS_SPHERE", ICON_SURFACE_NSPHERE, "NURBS Sphere", ""},
-	{CU_PRIM_DONUT|CU_NURBS, "NURBS_DONUT", ICON_SURFACE_NDONUT, "NURBS Donut", ""},
-	{0, NULL, 0, NULL, NULL}
-};
-
-static int object_add_surface_exec(bContext *C, wmOperator *op)
-{
-	Object *obedit= CTX_data_edit_object(C);
-	ListBase *editnurb;
-	Nurb *nu;
-	int newob= 0;
-	int enter_editmode;
-	unsigned int layer;
-	float loc[3], rot[3];
-	float mat[4][4];
-	
-	object_add_generic_invoke_options(C, op); // XXX these props don't get set right when only exec() is called
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
-	
-	if(obedit==NULL || obedit->type!=OB_SURF) {
-		obedit= ED_object_add_type(C, OB_SURF, loc, rot, TRUE, layer);
-		newob = 1;
-	}
-	else DAG_id_flush_update(&obedit->id, OB_RECALC_DATA);
-	
-	ED_object_new_primitive_matrix(C, loc, rot, mat);
-	
-	nu= add_nurbs_primitive(C, mat, RNA_enum_get(op->ptr, "type"), newob);
-	editnurb= curve_get_editcurve(obedit);
-	BLI_addtail(editnurb, nu);
-	
-	/* userdef */
-	if (newob && !enter_editmode) {
-		ED_object_exit_editmode(C, EM_FREEDATA);
-	}
-	
-	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, obedit);
-	
-	return OPERATOR_FINISHED;
-}
-
-void OBJECT_OT_surface_add(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Add Surface";
-	ot->description = "Add a surface object to the scene";
-	ot->idname= "OBJECT_OT_surface_add";
-	
-	/* api callbacks */
-	ot->invoke= WM_menu_invoke;
-	ot->exec= object_add_surface_exec;
-	
-	ot->poll= ED_operator_scene_editable;
-	
-	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
-	
-	ot->prop= RNA_def_enum(ot->srna, "type", prop_surface_types, 0, "Primitive", "");
-	ED_object_add_generic_props(ot, TRUE);
-}
-
 static EnumPropertyItem prop_metaball_types[]= {
 	{MB_BALL, "MBALL_BALL", ICON_META_BALL, "Meta Ball", ""},
 	{MB_TUBE, "MBALL_TUBE", ICON_META_TUBE, "Meta Tube", ""},
@@ -555,7 +511,9 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
 	float mat[4][4];
 	
 	object_add_generic_invoke_options(C, op); // XXX these props don't get set right when only exec() is called
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 	
 	if(obedit==NULL || obedit->type!=OB_MBALL) {
 		obedit= ED_object_add_type(C, OB_MBALL, loc, rot, TRUE, layer);
@@ -563,7 +521,7 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
 	}
 	else DAG_id_flush_update(&obedit->id, OB_RECALC_DATA);
 	
-	ED_object_new_primitive_matrix(C, loc, rot, mat);
+	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
 	
 	elem= (MetaElem*)add_metaball_primitive(C, mat, RNA_enum_get(op->ptr, "type"), newob);
 	mball= (MetaBall*)obedit->data;
@@ -625,7 +583,8 @@ static int object_add_text_exec(bContext *C, wmOperator *op)
 	float loc[3], rot[3];
 	
 	object_add_generic_invoke_options(C, op); // XXX these props don't get set right when only exec() is called
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 	
 	if(obedit && obedit->type==OB_FONT)
 		return OPERATOR_CANCELLED;
@@ -665,7 +624,8 @@ static int object_armature_add_exec(bContext *C, wmOperator *op)
 	float loc[3], rot[3];
 	
 	object_add_generic_invoke_options(C, op); // XXX these props don't get set right when only exec() is called
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 	
 	if ((obedit==NULL) || (obedit->type != OB_ARMATURE)) {
 		obedit= ED_object_add_type(C, OB_ARMATURE, loc, rot, TRUE, layer);
@@ -720,7 +680,8 @@ static int object_lamp_add_exec(bContext *C, wmOperator *op)
 	float loc[3], rot[3];
 	
 	object_add_generic_invoke_options(C, op);
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	ob= ED_object_add_type(C, OB_LAMP, loc, rot, FALSE, layer);
 	if(ob && ob->data)
@@ -767,7 +728,8 @@ static int group_instance_add_exec(bContext *C, wmOperator *op)
 	float loc[3], rot[3];
 	
 	object_add_generic_invoke_options(C, op);
-	ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer);
+	if(!ED_object_add_generic_get_opts(C, op, loc, rot, &enter_editmode, &layer))
+		return OPERATOR_CANCELLED;
 
 	if(group) {
 		Object *ob= ED_object_add_type(C, OB_EMPTY, loc, rot, FALSE, layer);
@@ -826,8 +788,6 @@ void ED_base_object_free_and_unlink(Scene *scene, Base *base)
 static int object_delete_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
-	View3D *v3d = CTX_wm_view3d(C);
-	RegionView3D *rv3d= CTX_wm_region_view3d(C);
 	int islamp= 0;
 	
 	if(CTX_data_edit_object(C)) 
@@ -836,17 +796,6 @@ static int object_delete_exec(bContext *C, wmOperator *op)
 	CTX_DATA_BEGIN(C, Base*, base, selected_bases) {
 
 		if(base->object->type==OB_LAMP) islamp= 1;
-		else if (base->object->type == OB_CAMERA) {
-			/* If we don't reset this, Blender crash
-			 * in fly mode because still have the
-			 * old object here!.
-			 * See Bug #22317
-			 */
-			if (v3d && rv3d && rv3d->persp == RV3D_CAMOB && base->object == v3d->camera) {
-				rv3d->persp= RV3D_PERSP;
-				v3d->camera= NULL;
-			}
-		}
 		/* remove from current scene only */
 		ED_base_object_free_and_unlink(scene, base);
 	}

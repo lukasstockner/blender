@@ -1995,6 +1995,10 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
 
 	for(node= snode->edittree->nodes.first; node; node= node->next) {
 		if(node->flag & SELECT) {
+
+			if(toggle_flag== NODE_PREVIEW && (node->typeinfo->flag & NODE_PREVIEW)==0)
+				continue;
+
 			if(node->flag & toggle_flag)
 				tot_eq++;
 			else
@@ -2003,6 +2007,10 @@ static void node_flag_toggle_exec(SpaceNode *snode, int toggle_flag)
 	}
 	for(node= snode->edittree->nodes.first; node; node= node->next) {
 		if(node->flag & SELECT) {
+
+			if(toggle_flag== NODE_PREVIEW && (node->typeinfo->flag & NODE_PREVIEW)==0)
+				continue;
+
 			if( (tot_eq && tot_neq) || tot_eq==0)
 				node->flag |= toggle_flag;
 			else
@@ -2236,10 +2244,10 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
 	int ntype=0;
 
 	/* check input variables */
-	if (RNA_property_is_set(op->ptr, "path"))
+	if (RNA_property_is_set(op->ptr, "filepath"))
 	{
 		char path[FILE_MAX];
-		RNA_string_get(op->ptr, "path", path);
+		RNA_string_get(op->ptr, "filepath", path);
 		ima= BKE_add_image_file(path, scene ? scene->r.cfra : 1);
 	}
 	else if(RNA_property_is_set(op->ptr, "name"))
@@ -2283,7 +2291,7 @@ static int node_add_file_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	UI_view2d_region_to_view(&ar->v2d, event->x - ar->winrct.xmin, event->y - ar->winrct.ymin, 
 							 &snode->mx, &snode->my);
 	
-	if (RNA_property_is_set(op->ptr, "path") || RNA_property_is_set(op->ptr, "name"))
+	if (RNA_property_is_set(op->ptr, "filepath") || RNA_property_is_set(op->ptr, "name"))
 		return node_add_file_exec(C, op);
 	else
 		return WM_operator_filesel(C, op, event);
@@ -2304,7 +2312,7 @@ void NODE_OT_add_file(wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_OPENFILE);
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_OPENFILE, 0);  //XXX TODO, relative_path
 	RNA_def_string(ot->srna, "name", "Image", 24, "Name", "Datablock name to assign.");
 }
 

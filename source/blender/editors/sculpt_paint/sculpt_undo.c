@@ -38,6 +38,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_key_types.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_context.h"
@@ -46,6 +47,10 @@
 #include "BKE_multires.h"
 #include "BKE_paint.h"
 #include "BKE_mesh.h"
+#include "BKE_key.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 
 #include "ED_sculpt.h"
 #include "paint_intern.h"
@@ -78,16 +83,53 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 			continue;
 
 		if(unode->maxvert) {
+			char *shapeName= (char*)unode->shapeName;
+
 			/* regular mesh restore */
 			if(ss->totvert != unode->maxvert)
 				continue;
 
+			if (ss->kb && strcmp(ss->kb->name, shapeName)) {
+				/* shape key has been changed before calling undo operator */
+
+				Key *key= ob_get_key(ob);
+				KeyBlock *kb= key_get_named_keyblock(key, shapeName);
+
+				if (kb) {
+					ob->shapenr= BLI_findindex(&key->block, kb) + 1;
+					ob->shapeflag|= OB_SHAPE_LOCK;
+
+					sculpt_update_mesh_elements(scene, ob, 0);
+					WM_event_add_notifier(C, NC_OBJECT|ND_DATA, ob);
+				} else {
+					/* key has been removed -- skip this undo node */
+					continue;
+				}
+			}
+
 			index= unode->index;
 			mvert= ss->mvert;
 
-			for(i=0; i<unode->totvert; i++) {
-				swap_v3_v3(mvert[index[i]].co, unode->co[i]);
-				mvert[index[i]].flag |= ME_VERT_PBVH_UPDATE;
+			if (ss->kb) {
+				float (*vertCos)[3];
+				vertCos= key_to_vertcos(ob, ss->kb);
+
+				for(i=0; i<unode->totvert; i++)
+					swap_v3_v3(vertCos[index[i]], unode->co[i]);
+
+				/* propagate new coords to keyblock */
+				sculpt_vertcos_to_key(ob, ss->kb, vertCos);
+
+				/* pbvh uses it's own mvert array, so coords should be */
+				/* propagated to pbvh here */
+				BLI_pbvh_apply_vertCos(ss->pbvh, vertCos);
+
+				MEM_freeN(vertCos);
+			} else {
+				for(i=0; i<unode->totvert; i++) {
+					swap_v3_v3(mvert[index[i]].co, unode->co[i]);
+					mvert[index[i]].flag |= ME_VERT_PBVH_UPDATE;
+				}
 			}
 		}
 		else if(unode->maxgrid && dm->getGridData) {
@@ -117,19 +159,16 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	}
 
 	if(update) {
-		if(ss->kb) sculpt_mesh_to_key(ss->ob, ss->kb);
-		if(ss->refkb) sculpt_key_to_mesh(ss->refkb, ob);
-
 		/* we update all nodes still, should be more clever, but also
 		   needs to work correct when exiting/entering sculpt mode and
 		   the nodes get recreated, though in that case it could do all */
 		BLI_pbvh_search_callback(ss->pbvh, NULL, NULL, update_cb, NULL);
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateBB|PBVH_UpdateOriginalBB|PBVH_UpdateRedraw, NULL);
 
-		if((mmd= sculpt_multires_active(scene, ob)))
+		if((mmd=sculpt_multires_active(scene, ob)))
 			multires_mark_as_modified(ob);
 
-		if(sculpt_modifiers_active(scene, ob))
+		if(ss->modifiers_active || ((Mesh*)ob->data)->id.us > 1)
 			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 	}
 }
@@ -182,7 +221,7 @@ SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 		return unode;
 	}
 
-	unode= MEM_mallocN(sizeof(SculptUndoNode), "SculptUndoNode");
+	unode= MEM_callocN(sizeof(SculptUndoNode), "SculptUndoNode");
 	strcpy(unode->idname, ob->id.name);
 	unode->node= node;
 
@@ -203,19 +242,11 @@ SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 		unode->totgrid= totgrid;
 		unode->gridsize= gridsize;
 		unode->grids= MEM_mapallocN(sizeof(int)*totgrid, "SculptUndoNode.grids");
-
-		unode->maxvert = 0;
-		unode->index   = 0;
 	}
 	else {
 		/* regular mesh */
 		unode->maxvert= ss->totvert;
 		unode->index= MEM_mapallocN(sizeof(int)*allvert, "SculptUndoNode.index");
-
-		unode->maxgrid=  0;
-		unode->totgrid=  0;
-		unode->gridsize= 0;
-		unode->grids=    0;
 	}
 
 	BLI_unlock_thread(LOCK_CUSTOM1);
@@ -233,9 +264,12 @@ SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
 		BLI_pbvh_vertex_iter_end;
 	}
 
-	if(unode->grids) memcpy(unode->grids, grids, sizeof(int)*totgrid);
+	if(unode->grids)
+		memcpy(unode->grids, grids, sizeof(int)*totgrid);
 
-	unode->layer_disp= 0;
+	/* store active shape key */
+	if(ss->kb) BLI_strncpy((char*)unode->shapeName, ss->kb->name, sizeof(ss->kb->name));
+	else unode->shapeName[0]= '\0';
 
 	return unode;
 }

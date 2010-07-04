@@ -212,15 +212,20 @@ static void rna_Scene_object_unlink(Scene *scene, ReportList *reports, Object *o
 {
 	Base *base= object_in_scene(ob, scene);
 	if (!base) {
-		BKE_report(reports, RPT_ERROR, "Object is not in this scene.");
+		BKE_reportf(reports, RPT_ERROR, "Object '%s' is not in this scene '%s'.", ob->id.name+2, scene->id.name+2);
 		return;
 	}
 	if (base==scene->basact && ob->mode != OB_MODE_OBJECT) {
-		BKE_report(reports, RPT_ERROR, "Object must be in 'Object Mode' to unlink.");
+		BKE_reportf(reports, RPT_ERROR, "Object '%s' must be in 'Object Mode' to unlink.", ob->id.name+2);
 		return;
+	}
+	if(scene->basact==base) {
+		scene->basact= NULL;
 	}
 
 	BLI_remlink(&scene->base, base);
+	MEM_freeN(base);
+
 	ob->id.us--;
 
 	/* needed otherwise the depgraph will contain free'd objects which can crash, see [#20958] */
@@ -2424,6 +2429,13 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Motion Samples", "Number of scene samples to take with motion blur");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
+	prop= RNA_def_property(srna, "motion_blur_shutter", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "blurfac");
+	RNA_def_property_range(prop, 0.01f, 10.0f);
+	RNA_def_property_ui_range(prop, 0.01, 2.0f, 1, 0);
+	RNA_def_property_ui_text(prop, "Shutter", "Time taken in frames between shutter open and close");
+	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
+	
 	/* border */
 	prop= RNA_def_property(srna, "use_border", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_BORDER);
@@ -2481,8 +2493,9 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "color_management", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "color_mgt_flag", R_COLOR_MANAGEMENT);
-	RNA_def_property_ui_text(prop, "Color Management", "Use color profiles and gamma corrected imaging pipeline");
-	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS|NC_MATERIAL|ND_SHADING, "rna_RenderSettings_color_management_update");
+	RNA_def_property_ui_text(prop, "Color Management", "Use linear workflow - gamma corrected imaging pipeline");
+	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, "rna_RenderSettings_color_management_update");
+
 	
 	prop= RNA_def_property(srna, "use_file_extension", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_EXTENSION);
@@ -2512,7 +2525,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 
 	prop= RNA_def_property(srna, "free_unused_nodes", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_FREE_IMAGE);
+	RNA_def_property_boolean_sdna(prop, NULL, "scemode", R_COMP_FREE);
 	RNA_def_property_ui_text(prop, "Free Unused Nodes", "Free Nodes that are not used while compositing, to save memory");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 
