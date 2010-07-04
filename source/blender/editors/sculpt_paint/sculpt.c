@@ -1225,11 +1225,13 @@ static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode,
 		for(n=0; n<totnode; n++) {
 			if(ss->multires) {
 				do_multires_smooth_brush(sd, ss, nodes[n], iteration != count ? 1.0f : last);
-				multires_stitch_grids(ss->ob);
 			}
 			else if(ss->fmap)
 				do_mesh_smooth_brush(sd, ss, nodes[n], iteration != count ? 1.0f : last);
 		}
+
+		if(ss->multires)
+			multires_stitch_grids(ss->ob);
 	}
 }
 
@@ -1334,6 +1336,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
 				/* first we pinch */
 				sub_v3_v3v3(val1, test.location, vd.co);
+				//mul_v3_v3(val1, ss->cache->scale);
 				mul_v3_fl(val1, fade*flippedbstrength);
 
 				/* then we draw */
@@ -1376,6 +1379,7 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 				float val[3];
 
 				sub_v3_v3v3(val, test.location, vd.co);
+				//mul_v3_v3(val, ss->cache->scale);
 				mul_v3_v3fl(proxy[vd.i], val, fade);
 
 				if(vd.mvert) {
