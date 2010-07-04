@@ -652,10 +652,10 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 			return alpha * pressure * overlap;
 
 		case SCULPT_TOOL_THUMB:
-			return pressure / 4;
+			return alpha*pressure / 4;
 
 		case SCULPT_TOOL_SNAKE_HOOK:
-			return pressure;
+			return 1.0f;
 
 		case SCULPT_TOOL_GRAB:
 		case SCULPT_TOOL_ROTATE:

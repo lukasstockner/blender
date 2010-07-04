@@ -572,7 +572,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
-            if brush.sculpt_tool not in ('THUMB', 'SNAKE_HOOK', 'GRAB', 'ROTATE'):
+            if brush.sculpt_tool not in ('SNAKE_HOOK', 'GRAB', 'ROTATE'):
                 col.separator()
 
                 #row = col.row(align=True)
@@ -597,12 +597,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row = col.row()
                 row.prop(brush, "strength_multiplier", slider=True)
-
-            elif brush.sculpt_tool in ('THUMB', 'SNAKE_HOOK'):
-                col.separator()
-
-                row = col.row()
-                row.prop(brush, "use_strength_pressure", toggle=True, text="Strength Pressure")
 
 
 
