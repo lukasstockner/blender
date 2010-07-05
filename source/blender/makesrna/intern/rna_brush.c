@@ -139,6 +139,15 @@ static void rna_def_brush(BlenderRNA *brna)
 	//	{STROKE_TOOL_ANCHORED, "ANCHORED", 0, "Anchored", ""},
 	//	{0, NULL, 0, NULL, NULL}};
 
+	static EnumPropertyItem brush_stroke_method_items[] = {
+		{0, "DOTS", 0, "Dots", ""},
+		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", ""},
+		{BRUSH_SPACE, "SPACE", 0, "Space", ""},
+		{BRUSH_SMOOTH_STROKE, "SMOOTH_STROKE", 0, "Smooth", ""},
+		{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", ""},
+		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", ""},
+		{0, NULL, 0, NULL, NULL}};
+
 	static EnumPropertyItem brush_vertexpaint_tool_items[] = {
 		{0, "MIX", 0, "Mix", "Use mix blending mode while painting"},
 		{1, "ADD", 0, "Add", "Use add blending mode while painting"},
@@ -241,6 +250,12 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Direction", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop= RNA_def_property(srna, "stroke_method", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, brush_stroke_method_items);
+	RNA_def_property_ui_text(prop, "Stroke Method", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "flatten_contrast", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, prop_flatten_contrast_items);

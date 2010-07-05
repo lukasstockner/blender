@@ -898,58 +898,86 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
         col = layout.column()
 
         if context.sculpt_object:
+            col.prop(brush, "stroke_method", expand=True)
 
-           row = col.row()
-           row.prop(brush, "restore_mesh", "Drag Dot")
-
-           col.separator()
-
-           row = col.row()
-           row.prop(brush, "use_anchor")
-
-           row = col.row()
-           row.active = brush.use_anchor
-           row.prop(brush, "edge_to_edge", "Edge To Edge")
-
-           col.separator()
-
-        row = col.row()
-        row.prop(brush, "use_airbrush")
-
-        row = col.row()
-        row.active = brush.use_airbrush and (not brush.use_space) and (not brush.use_anchor)
-        row.prop(brush, "rate", slider=True)
-
-        col.separator()
-
-        if not texture_paint:
             row = col.row()
-            row.prop(brush, "use_smooth_stroke")
+            row.active = brush.use_anchor
+            row.label(text="Anchored:")
+
+            row = col.row()
+            row.active = brush.use_anchor
+            row.prop(brush, "edge_to_edge", "Edge To Edge")
+
+            col.separator()
+
+            row = col.row()
+            row.active = brush.use_airbrush
+            row.label(text="Airbrush:")
+
+            row = col.row()
+            row.active = brush.use_airbrush
+            row.prop(brush, "rate", text="Rate", slider=True)
+
+            col.separator()
+
+            row = col.row()
+            row.active = brush.use_smooth_stroke
+            row.label(text="Smooth Stroke:")
 
             col = layout.column()
             col.active = brush.use_smooth_stroke
             col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
             col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
 
-        col.separator()
+            col.separator()
 
-        col = layout.column()
-        col.active = (not brush.use_anchor) and (brush.sculpt_tool not in ('GRAB', 'THUMB', 'ROTATE', 'SNAKE_HOOK'))
+            col = layout.column()
 
-        row = col.row()
-        row.prop(brush, "use_space")
+            row = col.row()
+            row.active = brush.use_space
+            row.label(text="Space:")
 
-        row = col.row()
-        row.active = brush.use_space
-        row.prop(brush, "spacing", text="Spacing", slider=True)
+            row = col.row()
+            row.active = brush.use_space
+            row.prop(brush, "spacing", text="Spacing", slider=True)
+        else:
+            row = col.row()
+            row.prop(brush, "use_airbrush")
 
-        #col.prop(brush, "use_space_atten", text="Adaptive Strength")
-        #col.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
+            row = col.row()
+            row.active = brush.use_airbrush and (not brush.use_space) and (not brush.use_anchor)
+            row.prop(brush, "rate", slider=True)
 
-        #col.separator()
+            col.separator()
 
-        #if texture_paint:
-        #    row.prop(brush, "use_spacing_pressure", toggle=True, text="")
+            if not texture_paint:
+                row = col.row()
+                row.prop(brush, "use_smooth_stroke")
+
+                col = layout.column()
+                col.active = brush.use_smooth_stroke
+                col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+                col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+
+            col.separator()
+
+            col = layout.column()
+            col.active = (not brush.use_anchor) and (brush.sculpt_tool not in ('GRAB', 'THUMB', 'ROTATE', 'SNAKE_HOOK'))
+
+            row = col.row()
+            row.prop(brush, "use_space")
+
+            row = col.row()
+            row.active = brush.use_space
+            row.prop(brush, "spacing", text="Spacing", slider=True)
+
+            #col.prop(brush, "use_space_atten", text="Adaptive Strength")
+            #col.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
+
+            #col.separator()
+
+            #if texture_paint:
+            #    row.prop(brush, "use_spacing_pressure", toggle=True, text="")
 
 
 class VIEW3D_PT_tools_brush_curve(PaintPanel):
