@@ -60,6 +60,7 @@ int multiresModifier_reshapeFromDM(struct Scene *scene, struct MultiresModifierD
 				struct Object *ob, struct DerivedMesh *srcdm);
 int multiresModifier_reshapeFromDeformMod(struct Scene *scene, struct MultiresModifierData *mmd,
 				struct Object *ob, struct ModifierData *md);
+void multiresModifier_base_apply(struct MultiresModifierData *mmd, struct Object *ob);
 
 void multires_stitch_grids(struct Object *);
 

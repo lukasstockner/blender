@@ -445,6 +445,7 @@ class DATA_PT_modifiers(DataButtonsPanel):
         col.operator("object.multires_subdivide", text="Subdivide")
         col.operator("object.multires_higher_levels_delete", text="Delete Higher")
         col.operator("object.multires_reshape", text="Reshape")
+        col.operator("object.multires_base_apply", text="Apply Base")
         col.prop(md, "optimal_display")
 
         layout.separator()
