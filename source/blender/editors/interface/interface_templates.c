@@ -80,11 +80,15 @@ void uiTemplateDopeSheetFilter(uiLayout *layout, bContext *C, PointerRNA *ptr)
 	uiLayout *row= layout;
 	short nlaActive= ((sa) && (sa->spacetype==SPACE_NLA));
 	
-	/* more 'generic' filtering options */
+	/* most 'generic' filtering options */
 	row= uiLayoutRow(layout, 1);
 	
 	uiItemR(row, ptr, "only_selected", 0, "", 0);
-	uiItemR(row, ptr, "display_transforms", 0, "", 0); // xxx: include in another position instead?
+	uiItemR(row, ptr, "display_hidden", 0, "", 0);
+	
+	/* object-level filtering options */
+	row= uiLayoutRow(layout, 1);
+	uiItemR(row, ptr, "display_transforms", 0, "", 0);
 	
 	if (nlaActive)
 		uiItemR(row, ptr, "include_missing_nla", 0, "", 0);
@@ -952,7 +956,6 @@ static uiLayout *draw_constraint(uiLayout *layout, Object *ob, bConstraint *con,
 	uiLayout *result= NULL, *col, *col1, *col2, *box, *row, *subrow, *split;
 	PointerRNA ptr;
 	char typestr[32];
-	short width = 265;
 	short proxy_protected, xco=0, yco=0;
 	int rb_col;
 
@@ -1955,25 +1958,40 @@ void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, char *propname, i
 
 #define WHEEL_SIZE	100
 
-void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, char *propname, int value_slider, int lock)
+void uiTemplateColorWheel(uiLayout *layout, PointerRNA *ptr, char *propname, int value_slider, int lock, int lock_luminosity, int cubic)
 {
 	PropertyRNA *prop= RNA_struct_find_property(ptr, propname);
 	uiBlock *block= uiLayoutGetBlock(layout);
 	uiLayout *col, *row;
+	uiBut *but;
 	float softmin, softmax, step, precision;
 	
 	if (!prop) {
 		printf("uiTemplateColorWheel: property not found: %s\n", propname);
 		return;
 	}
-	
+
 	RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
 	
 	col = uiLayoutColumn(layout, 0);
 	row= uiLayoutRow(col, 1);
 	
-	uiDefButR(block, HSVCIRCLE, 0, "",	0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, propname, -1, 0.0, 0.0, 0, lock, "");
-	
+	but= uiDefButR(block, HSVCIRCLE, 0, "",	0, 0, WHEEL_SIZE, WHEEL_SIZE, ptr, propname, -1, 0.0, 0.0, 0, 0, "");
+
+	if(lock) {
+		but->flag |= UI_BUT_COLOR_LOCK;
+	}
+
+	if(lock_luminosity) {
+		float color[4]; /* incase of alpha */
+		but->flag |= UI_BUT_VEC_SIZE_LOCK;
+		RNA_property_float_get_array(ptr, prop, color);
+		but->a2= len_v3(color);
+	}
+
+	if(cubic)
+		but->flag |= UI_BUT_COLOR_CUBIC;
+
 	uiItemS(row);
 	
 	if (value_slider)
@@ -2449,13 +2467,13 @@ static void do_running_jobs(bContext *C, void *arg, int event)
 			G.afbreek= 1;
 			break;
 		case B_STOPCAST:
-			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_screen(C));
+			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_screen(C), NULL);
 			break;
 		case B_STOPANIM:
 			WM_operator_name_call(C, "SCREEN_OT_animation_play", WM_OP_INVOKE_SCREEN, NULL);
 			break;
 		case B_STOPCOMPO:
-			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C));
+			WM_jobs_stop(CTX_wm_manager(C), CTX_wm_area(C), NULL);
 			break;
 	}
 }

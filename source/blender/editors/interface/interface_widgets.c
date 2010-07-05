@@ -1656,10 +1656,10 @@ void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	rgb_to_hsv(rgb[0], rgb[1], rgb[2], hsv, hsv+1, hsv+2);
 	copy_v3_v3(hsvo, hsv);
 	
-	/* exception: if 'lock' is set (stored in but->a2),
+	/* exception: if 'lock' is set
 	 * lock the value of the color wheel to 1.
 	 * Useful for color correction tools where you're only interested in hue. */
-	if (but->a2) hsv[2] = 1.f;
+	if (but->flag & UI_BUT_COLOR_LOCK) hsv[2] = 1.f;
 	
 	hsv_to_rgb(0.f, 0.f, hsv[2], colcent, colcent+1, colcent+2);
 	
@@ -1674,6 +1674,8 @@ void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 		float co= cos(ang);
 		
 		ui_hsvcircle_vals_from_pos(hsv, hsv+1, rect, centx + co*radius, centy + si*radius);
+		CLAMP(hsv[2], 0.0f, 1.0f); /* for display only */
+
 		hsv_to_rgb(hsv[0], hsv[1], hsv[2], col, col+1, col+2);
 		glColor3fv(col);
 		glVertex2f( centx + co*radius, centy + si*radius);
@@ -1688,14 +1690,19 @@ void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, rcti *rect)
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH );
 	glColor3ubv((unsigned char*)wcol->outline);
-	glutil_draw_lined_arc(0.0f, M_PI*2.0, radius, tot);
+	glutil_draw_lined_arc(0.0f, M_PI*2.0, radius, tot + 1);
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH );
 	glPopMatrix();
 
 	/* cursor */
 	ang= 2.0f*M_PI*hsvo[0] + 0.5f*M_PI;
-	radius= hsvo[1]*radius;
+
+	if(but->flag & UI_BUT_COLOR_CUBIC)
+		radius= (1.0f - pow(1.0f - hsvo[1], 3.0f)) *radius;
+	else
+		radius= hsvo[1] * radius;
+
 	ui_hsv_cursor(centx + cos(-ang)*radius, centy + sin(-ang)*radius);
 	
 }

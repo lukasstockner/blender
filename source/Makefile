@@ -121,6 +121,7 @@ COMLIB += $(NAN_BOOLOP)/lib/$(DEBUG_DIR)libboolop.a
 COMLIB += $(NAN_MOTO)/lib/$(DEBUG_DIR)libmoto.a
 COMLIB += $(NAN_DECIMATION)/lib/$(DEBUG_DIR)libdecimation.a
 COMLIB += $(OCGDIR)/blender/render/$(DEBUG_DIR)librender.a
+COMLIB += $(NAN_GHOST)/lib/$(DEBUG_DIR)libghost.a
 
 ifeq ($(WITH_FFMPEG),true)
     COMLIB += $(NAN_AUDASPACE)/lib/$(DEBUG_DIR)libaud_ffmpeg.a

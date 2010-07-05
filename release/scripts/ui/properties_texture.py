@@ -207,6 +207,7 @@ class TEXTURE_PT_colors(TextureButtonsPanel):
         col.label(text="Adjust:")
         col.prop(tex, "brightness")
         col.prop(tex, "contrast")
+        col.prop(tex, "saturation")
 
 # Texture Slot Panels #
 
