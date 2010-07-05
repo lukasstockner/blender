@@ -584,6 +584,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				GLUquadric* sphere;
 
+				Object *ob= CTX_data_active_object(C);
+
 				glPushAttrib(
 					GL_COLOR_BUFFER_BIT|
 					GL_CURRENT_BIT|
@@ -608,6 +610,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 					glTranslatef(brush->anchored_location[0], brush->anchored_location[1], brush->anchored_location[2]);
 				else
 					glTranslatef(location[0], location[1], location[2]);
+
+				glScalef(ob->size[0], ob->size[1], ob->size[2]);
 
 				glMatrixMode(GL_PROJECTION);
 				glPushMatrix();
