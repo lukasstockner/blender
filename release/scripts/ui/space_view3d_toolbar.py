@@ -898,48 +898,31 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
         col = layout.column()
 
         if context.sculpt_object:
-            col.prop(brush, "stroke_method", expand=True)
+            col.label(text="Stroke Method:")
+            col.prop(brush, "stroke_method", text="")
 
-            row = col.row()
-            row.active = brush.use_anchor
-            row.label(text="Anchored:")
+            if brush.use_anchor:
+                col.separator()
+                row = col.row()
+                row.prop(brush, "edge_to_edge", "Edge To Edge")
 
-            row = col.row()
-            row.active = brush.use_anchor
-            row.prop(brush, "edge_to_edge", "Edge To Edge")
+            if brush.use_airbrush:
+                col.separator()
+                row = col.row()
+                row.prop(brush, "rate", text="Rate", slider=True)
 
-            col.separator()
+            if brush.use_smooth_stroke:
+                col.separator()
+                col = layout.column()
+                col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+                col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+                col = layout.column()
 
-            row = col.row()
-            row.active = brush.use_airbrush
-            row.label(text="Airbrush:")
-
-            row = col.row()
-            row.active = brush.use_airbrush
-            row.prop(brush, "rate", text="Rate", slider=True)
-
-            col.separator()
-
-            row = col.row()
-            row.active = brush.use_smooth_stroke
-            row.label(text="Smooth Stroke:")
-
-            col = layout.column()
-            col.active = brush.use_smooth_stroke
-            col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-            col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
-
-            col.separator()
-
-            col = layout.column()
-
-            row = col.row()
-            row.active = brush.use_space
-            row.label(text="Space:")
-
-            row = col.row()
-            row.active = brush.use_space
-            row.prop(brush, "spacing", text="Spacing", slider=True)
+            if brush.use_space:
+                col.separator()
+                row = col.row()
+                row.active = brush.use_space
+                row.prop(brush, "spacing", text="Spacing", slider=True)
         else:
             row = col.row()
             row.prop(brush, "use_airbrush")
