@@ -437,8 +437,8 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 		}
 
 		/* create low resolution version */
-		if(re->params.r.mode & R_SUBDIVISION)
-			obr->flag |= R_HIGHRES;
+		//if(re->params.r.mode & R_SUBDIVISION)
+		//	obr->flag |= R_HIGHRES;
 	}
 
 	/* and one render object per particle system */
