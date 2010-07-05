@@ -503,6 +503,17 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 		int hit;
 
+		int flip;
+		int sign;
+
+		float* col;
+		float  alpha;
+
+		float visual_strength = brush->alpha * brush->alpha;
+		
+		const float min_alpha = 0.20f;
+		const float max_alpha = 0.80f;
+
 		/* keep track of mouse movement angle so rack can start at a sensible angle */
 		int dx = brush->last_x - x;
 		int dy = brush->last_y - y;
@@ -521,22 +532,23 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 		if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(C, brush, pixel_radius);
 
+		// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
+		flip = 1;
+
+		sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
+
+		if (sign < 0 && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
+			col = brush->sub_col;
+		else
+			col = brush->add_col;
+
+		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
+
 		if (hit) {
 			float unprojected_radius;
-			int flip;
-			int sign;
-			float visual_strength = brush->alpha * brush->alpha;
-			
-			const float min_alpha = 0.20f;
-			const float max_alpha = 0.80f;
-			float* col;
-			float  alpha;
 
 			// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
 			//wmEvent* event = CTX_wm_window(C)->eventstate;
-
-			// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
-			flip = 1;
 
 			if ( brush->draw_pressure && brush->flag & BRUSH_ALPHA_PRESSURE)
 				visual_strength *= brush->pressure_value;
@@ -565,15 +577,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 			if(!(paint->flags & PAINT_SHOW_BRUSH))
 				return;
-
-			sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
-
-			if (sign < 0 && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
-				col = brush->sub_col;
-			else
-				col = brush->add_col;
-
-			alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
 			if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
 				const float max_thickness= 0.12;
@@ -664,39 +667,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				glPopAttrib();
 			}
-			else {
-				glPushAttrib(
-					GL_COLOR_BUFFER_BIT|
-					GL_CURRENT_BIT|
-					GL_DEPTH_BUFFER_BIT|
-					GL_ENABLE_BIT|
-					GL_LINE_BIT|
-					GL_POLYGON_BIT|
-					GL_STENCIL_BUFFER_BIT|
-					GL_TRANSFORM_BIT|
-					GL_VIEWPORT_BIT|
-					GL_TEXTURE_BIT);
-
-				glColor4f(col[0], col[1], col[2], alpha);
-
-				glEnable(GL_BLEND);
-
-				glEnable(GL_LINE_SMOOTH);
-
-				if (brush->draw_anchored) {
-					glTranslatef(brush->anchored_initial_mouse[0] - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
-					glutil_draw_lined_arc(0.0, M_PI*2.0, brush->anchored_size, 40);
-					glTranslatef(-brush->anchored_initial_mouse[0], -brush->anchored_initial_mouse[1], 0.0f);
-				}
-				else {
-					glTranslatef((float)x, (float)y, 0.0f);
-					glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
-					glTranslatef(-(float)x, -(float)y, 0.0f);
-				}
-
-				glPopAttrib();
-			}
-
+			
 			if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
 				const float diameter = 2*brush->size;
 
@@ -742,6 +713,39 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				glPopAttrib();
 			}
+		}
+
+		if (!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) {
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_CURRENT_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_LINE_BIT|
+				GL_POLYGON_BIT|
+				GL_STENCIL_BUFFER_BIT|
+				GL_TRANSFORM_BIT|
+				GL_VIEWPORT_BIT|
+				GL_TEXTURE_BIT);
+
+			glColor4f(col[0], col[1], col[2], alpha);
+
+			glEnable(GL_BLEND);
+
+			glEnable(GL_LINE_SMOOTH);
+
+			if (brush->draw_anchored) {
+				glTranslatef(brush->anchored_initial_mouse[0] - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->anchored_size, 40);
+				glTranslatef(-brush->anchored_initial_mouse[0], -brush->anchored_initial_mouse[1], 0.0f);
+			}
+			else {
+				glTranslatef((float)x, (float)y, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+				glTranslatef(-(float)x, -(float)y, 0.0f);
+			}
+
+			glPopAttrib();
 		}
 	}
 	else {
