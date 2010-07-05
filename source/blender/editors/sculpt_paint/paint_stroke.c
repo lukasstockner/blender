@@ -576,7 +576,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
 			if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
-				const float max_thickness= 0.16;
+				const float max_thickness= 0.12;
 				const float min_thickness= 0.06;
 				const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
 				const float inner_radius=  brush->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
