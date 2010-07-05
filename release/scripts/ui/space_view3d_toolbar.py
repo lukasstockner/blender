@@ -911,18 +911,22 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 row = col.row()
                 row.prop(brush, "rate", text="Rate", slider=True)
 
-            if brush.use_smooth_stroke:
-                col.separator()
-                col = layout.column()
-                col.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-                col.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
-                col = layout.column()
-
             if brush.use_space:
                 col.separator()
                 row = col.row()
                 row.active = brush.use_space
                 row.prop(brush, "spacing", text="Spacing", slider=True)
+
+            col = layout.column()
+            col.active = brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE')
+            col.separator()
+
+            col.prop(brush, "use_smooth_stroke")
+
+            sub = col.column()
+            sub.active = brush.use_smooth_stroke
+            sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+            sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
         else:
             row = col.row()
             row.prop(brush, "use_airbrush")

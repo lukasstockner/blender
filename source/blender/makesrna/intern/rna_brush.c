@@ -143,7 +143,6 @@ static void rna_def_brush(BlenderRNA *brna)
 		{0, "DOTS", 0, "Dots", ""},
 		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", ""},
 		{BRUSH_SPACE, "SPACE", 0, "Space", ""},
-		{BRUSH_SMOOTH_STROKE, "SMOOTH_STROKE", 0, "Smooth", ""},
 		{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", ""},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", ""},
 		{0, NULL, 0, NULL, NULL}};
