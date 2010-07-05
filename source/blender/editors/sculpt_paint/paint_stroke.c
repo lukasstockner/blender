@@ -818,8 +818,11 @@ static int paint_smooth_stroke(PaintStroke *stroke, float output[2], wmEvent *ev
 	output[0] = event->x;
 	output[1] = event->y;
 
-	if(stroke->brush->flag & BRUSH_SMOOTH_STROKE &&  
-	!ELEM4(stroke->brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_SNAKE_HOOK)) {
+	if (stroke->brush->flag & BRUSH_SMOOTH_STROKE &&  
+	    !ELEM4(stroke->brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_SNAKE_HOOK) &&
+	    !stroke->brush->flag & BRUSH_ANCHORED &&
+	    !stroke->brush->flag & BRUSH_RESTORE_MESH)
+	{
 		float u = stroke->brush->smooth_stroke_factor, v = 1.0 - u;
 		float dx = stroke->last_mouse_position[0] - event->x, dy = stroke->last_mouse_position[1] - event->y;
 

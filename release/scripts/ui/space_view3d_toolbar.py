@@ -917,16 +917,16 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 row.active = brush.use_space
                 row.prop(brush, "spacing", text="Spacing", slider=True)
 
-            col = layout.column()
-            col.active = brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE')
-            col.separator()
+            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE') and (not brush.use_anchor) and (not brush.restore_mesh):
+                col = layout.column()
+                col.separator()
 
-            col.prop(brush, "use_smooth_stroke")
+                col.prop(brush, "use_smooth_stroke")
 
-            sub = col.column()
-            sub.active = brush.use_smooth_stroke
-            sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
-            sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+                sub = col.column()
+                sub.active = brush.use_smooth_stroke
+                sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
+                sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
         else:
             row = col.row()
             row.prop(brush, "use_airbrush")
