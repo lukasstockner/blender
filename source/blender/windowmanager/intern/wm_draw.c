@@ -561,16 +561,27 @@ static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 	glBindTexture(triple->target, 0);
 }
 
+static void get_shading_language_version(int* major, int* minor)
+{
+	const char* version;
+	
+	version = glGetString(GL_SHADING_LANGUAGE_VERSION);
+	*major = atol(version);
+	version = strstr(version, ".");
+	*minor = atol(version+1);
+}
+
 /* compile and link the shader program needed to write a depth texture to the depth buffer */
 static void load_depth_shader_program(wmDrawTriple* triple)
 {
 	int success;
 	GLsizei len;
 	GLbyte infoLog[1000];
+	int major, minor;
 
 	/* This vertex program just passes the texture coordinate through and transforms the vertex position */
-	static const GLcharARB* depth_vertex_shader_source[] = { 
-		"#version 100\n",
+	/* This program should be compatible up to OpenGL 4.0 with the fixed-function compatibility profile */
+	static const GLcharARB* depth_vertex_shader_source_100[] = {
 		"void main()\n",
 		"{\n",
 		"    gl_TexCoord[0] = gl_MultiTexCoord0;\n",
@@ -579,8 +590,8 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 	};
 
 	/* This fragment program is used non-rectangle textures */
-	static const GLcharARB* depth_fragment_shader_source[] = {
-		"#version 100\n",
+	/* Compatible with version 1.0-1.2 w/o GL_ARB_texture_rectangle */
+	static const GLcharARB* depth_fragment_shader_source_100[] = {
 		"uniform sampler2D depth_texture;\n",
 		"void main()\n",
 		"{\n",
@@ -589,8 +600,8 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 	};
 
 	/* This fragment program is used for rectangular textures */
-	static const GLcharARB* depth_fragment_shader_rect_source[] = {
-		"#version 100\n",
+	/* Compatible with version 1.0-1.2 w/ GL_ARB_texture_rectangle */
+	static const GLcharARB* depth_fragment_shader_rect_source_100[] = {
 		"#extension GL_ARB_texture_rectangle : enable\n",
 		"uniform sampler2DRect depth_texture;\n",
 		"void main()\n",
@@ -599,11 +610,39 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 		"}\n",
 	};
 
+	/* This fragment program is used non-rectangle textures */
+	/* Compatible with version 1.3 w/o GL_ARB_texture_rectangle */
+	static const GLcharARB* depth_fragment_shader_source_130[] = {
+		"#version 130\n",
+		"uniform sampler2D depth_texture;\n",
+		"void main()\n",
+		"{\n",
+		"    gl_FragDepth = texture(depth_texture, gl_TexCoord[0].xy).x;\n",
+		"}\n",
+	};
+
+	/* This fragment program is used for rectangular textures */
+	/* Compatible with version 1.3 w/ GL_ARB_texture_rectangle */
+	static const GLcharARB* depth_fragment_shader_rect_source_130[] = {
+		"#version 130\n",
+		"#extension GL_ARB_texture_rectangle : enable\n",
+		"uniform sampler2DRect depth_texture;\n",
+		"void main()\n",
+		"{\n",
+		"    gl_FragDepth = texture(depth_texture, gl_TexCoord[0].xy).x;\n",
+		"}\n",
+	};
+
+	const GLcharARB** source;
+	int source_lines;
+
+	get_shading_language_version(&major, &minor);
+
 	/* compile the vertex program */
 
 	triple->depth_vertex_shader = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
 
-	glShaderSourceARB(triple->depth_vertex_shader, sizeof(depth_vertex_shader_source)/sizeof(GLcharARB*), depth_vertex_shader_source, NULL);
+	glShaderSourceARB(triple->depth_vertex_shader, sizeof(depth_vertex_shader_source_100)/sizeof(GLcharARB*), depth_vertex_shader_source_100, NULL);
 	glCompileShaderARB(triple->depth_vertex_shader);
 
 	/* print any errors/warnings gotten while compiling the vertex program */
@@ -618,11 +657,28 @@ static void load_depth_shader_program(wmDrawTriple* triple)
 
 	triple->depth_fragment_shader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
 
-	if (GLEW_ARB_texture_rectangle)
-		glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_rect_source)/sizeof(GLcharARB*), depth_fragment_shader_rect_source, NULL);
-	else
-		glShaderSourceARB(triple->depth_fragment_shader, sizeof(depth_fragment_shader_source)/sizeof(GLcharARB*), depth_fragment_shader_source, NULL);
+	if (major == 1 && minor < 30) {
+		if (GLEW_ARB_texture_rectangle) {
+			source = depth_fragment_shader_rect_source_100;
+			source_lines = sizeof(depth_fragment_shader_rect_source_100)/sizeof(GLcharARB*);
+		}
+		else {
+			source = depth_fragment_shader_source_100;
+			source_lines = sizeof(depth_fragment_shader_source_100)/sizeof(GLcharARB*);
+		}
+	}
+	else {
+		if (GLEW_ARB_texture_rectangle) {
+			source = depth_fragment_shader_rect_source_130;
+			source_lines = sizeof(depth_fragment_shader_rect_source_130)/sizeof(GLcharARB*);
+		}
+		else {
+			source = depth_fragment_shader_source_130;
+			source_lines = sizeof(depth_fragment_shader_source_130)/sizeof(GLcharARB*);
+		}
+	}
 
+	glShaderSourceARB(triple->depth_fragment_shader, source_lines, source, NULL);
 	glCompileShaderARB(triple->depth_fragment_shader);
 
 	/* print any errors/warnings gotten while compiling the fragment program */
