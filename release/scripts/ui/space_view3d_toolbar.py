@@ -1017,7 +1017,7 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col.separator()
         col.label(text="Icon:")
-        //col.template_ID_preview(brush, "image_icon", open="image.open", filter="is_image_icon", rows=3, cols=8)
+        #col.template_ID_preview(brush, "image_icon", open="image.open", filter="is_image_icon", rows=3, cols=8)
         col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=8)
 
         col.separator()
