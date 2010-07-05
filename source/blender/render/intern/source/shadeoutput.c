@@ -502,12 +502,12 @@ static int shade_lamp_tot_samples(Render *re, LampRen *lar, ShadeInput *shi)
 	if(shi->shading.depth)
 		return 1;
 
-	if(tot <= 1)
-		return 1;
-	else if(shade_full_osa(re, shi))
+	if(shade_full_osa(re, shi))
+		/* for full osa, fewer samples per shade, but at least one */
 		return tot/re->params.osa + 1;
 	else
-		return tot;
+		/* in other cases, at least as many samples as AA samples */
+		return MAX2(tot, (re->params.osa > 4)? re->params.osa: 5);
 }
 
 static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, int passflag)
@@ -593,7 +593,7 @@ static void shade_lamp_multi_shadow(Render *re, LampRen *lar, ShadeInput *shi, S
 	float accumshdw[3], lainf[3], lv[3];
 	int sample, totsample, totjitco= 0;
 
-	totsample= (re->params.osa > 4)? re->params.osa: 5;
+	totsample= shade_lamp_tot_samples(re, lar, shi);
 
 	qsa= sampler_acquire(re, shi->shading.thread, SAMP_TYPE_HAMMERSLEY, totsample);
 	shade_jittered_coords(re, shi, totsample, jitco, &totjitco);
