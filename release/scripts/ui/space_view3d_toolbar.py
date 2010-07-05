@@ -665,9 +665,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             elif brush.sculpt_tool in ('SCRAPE'):
                 col.separator()
                 col.row().prop(brush, "scrape_peaks", expand=True)
-            elif brush.sculpt_tool in ('GRAB'):
-                col.separator()
-                col.row().prop(brush, "grab_push", expand=True)
             elif brush.sculpt_tool in ('INFLATE'):
                 col.separator()
                 col.row().prop(brush, "inflate_deflate", expand=True)
