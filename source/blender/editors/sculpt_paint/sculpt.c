@@ -1221,6 +1221,8 @@ static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode,
 	int iteration, n, count;
 	float last;
 
+	CLAMP(bstrength, 0, 1);
+
 	count = (int)(bstrength*max_iterations);
 	last  = max_iterations*(bstrength - count*fract);
 
