@@ -1012,123 +1012,6 @@ int main(int argc, char **argv)
 	br_init( NULL );
 #endif
 
-		/* happens for the UI on file reading too (huh? (ton))*/
-	// XXX			BKE_reset_undo();
-	//				BKE_write_undo("original");	/* save current state */
-	} else {
-		/* we are not running in background mode here, but start blender in UI mode with
-		   a file - this should do everything a 'load file' does */
-		WM_read_file(C, filename, NULL);
-	}
-
-	G.file_loaded = 1;
-
-	return 0;
-}
-
-void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
-{
-	static char output_doc[] = "<path>"
-		"\n\tSet the render path and file name."
-		"\n\tUse // at the start of the path to"
-		"\n\t\trender relative to the blend file."
-		"\n\tThe # characters are replaced by the frame number, and used to define zero padding."
-		"\n\t\tani_##_test.png becomes ani_01_test.png"
-		"\n\t\ttest-######.png becomes test-000001.png"
-		"\n\t\tWhen the filename does not contain #, The suffix #### is added to the filename"
-		"\n\tThe frame number will be added at the end of the filename."
-		"\n\t\teg: blender -b foobar.blend -o //render_ -F PNG -x 1 -a"
-		"\n\t\t//render_ becomes //render_####, writing frames as //render_0001.png//";
-
-	static char format_doc[] = "<format>"
-		"\n\tSet the render format, Valid options are..."
-		"\n\t\tTGA IRIS JPEG MOVIE IRIZ RAWTGA"
-		"\n\t\tAVIRAW AVIJPEG PNG BMP FRAMESERVER"
-		"\n\t(formats that can be compiled into blender, not available on all systems)"
-		"\n\t\tHDR TIFF EXR MULTILAYER MPEG AVICODEC QUICKTIME CINEON DPX DDS";
-
-	static char playback_doc[] = "<options> <file(s)>"
-		"\n\tPlayback <file(s)>, only operates this way when not running in background."
-		"\n\t\t-p <sx> <sy>\tOpen with lower left corner at <sx>, <sy>"
-		"\n\t\t-m\t\tRead from disk (Don't buffer)"
-		"\n\t\t-f <fps> <fps-base>\t\tSpecify FPS to start with"
-		"\n\t\t-j <frame>\tSet frame step to <frame>";
-
-	static char game_doc[] = "Game Engine specific options"
-		"\n\t-g fixedtime\t\tRun on 50 hertz without dropping frames"
-		"\n\t-g vertexarrays\tUse Vertex Arrays for rendering (usually faster)"
-		"\n\t-g nomipmap\t\tNo Texture Mipmapping"
-		"\n\t-g linearmipmap\tLinear Texture Mipmapping instead of Nearest (default)";
-
-	static char debug_doc[] = "\n\tTurn debugging on\n"
-		"\n\t* Prints every operator call and their arguments"
-		"\n\t* Disables mouse grab (to interact with a debugger in some cases)"
-		"\n\t* Keeps python sys.stdin rather then setting it to None";
-
-	//BLI_argsAdd(ba, pass, short_arg, long_arg, doc, cb, C);
-
-	/* end argument processing after -- */
-	BLI_argsAdd(ba, -1, "--", NULL, "\n\tEnds option processing, following arguments passed unchanged. Access via python's sys.argv", end_arguments, NULL);
-
-	/* first pass: background mode, disable python and commands that exit after usage */
-	BLI_argsAdd(ba, 1, "-h", "--help", "\n\tPrint this help text and exit", print_help, ba);
-	/* Windows only */
-	BLI_argsAdd(ba, 1, "/?", NULL, "\n\tPrint this help text and exit (windows only)", print_help, ba);
-
-	BLI_argsAdd(ba, 1, "-v", "--version", "\n\tPrint Blender version and exit", print_version, NULL);
-
-	BLI_argsAdd(ba, 1, "-y", "--enable-autoexec", "\n\tEnable automatic python script execution (default)", enable_python, NULL);
-	BLI_argsAdd(ba, 1, "-Y", "--disable-autoexec", "\n\tDisable automatic python script execution (pydrivers, pyconstraints, pynodes)", disable_python, NULL);
-
-	BLI_argsAdd(ba, 1, "-b", "--background", "<file>\n\tLoad <file> in background (often used for UI-less rendering)", background_mode, NULL);
-
-	BLI_argsAdd(ba, 1, "-a", NULL, playback_doc, playback_mode, NULL);
-
-	BLI_argsAdd(ba, 1, "-d", "--debug", debug_doc, debug_mode, ba);
-    BLI_argsAdd(ba, 1, NULL, "--debug-fpe", "\n\tEnable floating point exceptions", set_fpe, NULL);
-
-	/* second pass: custom window stuff */
-	BLI_argsAdd(ba, 2, "-p", "--window-geometry", "<sx> <sy> <w> <h>\n\tOpen with lower left corner at <sx>, <sy> and width and height as <w>, <h>", prefsize, NULL);
-	BLI_argsAdd(ba, 2, "-w", "--window-border", "\n\tForce opening with borders (default)", with_borders, NULL);
-	BLI_argsAdd(ba, 2, "-W", "--window-borderless", "\n\tForce opening with without borders", without_borders, NULL);
-	BLI_argsAdd(ba, 2, "-R", NULL, "\n\tRegister .blend extension (windows only)", register_extension, ba);
-
-	/* third pass: disabling things and forcing settings */
-	BLI_argsAddCase(ba, 3, "-nojoystick", 1, NULL, 0, "\n\tDisable joystick support", no_joystick, syshandle);
-	BLI_argsAddCase(ba, 3, "-noglsl", 1, NULL, 0, "\n\tDisable GLSL shading", no_glsl, NULL);
-	BLI_argsAddCase(ba, 3, "-noaudio", 1, NULL, 0, "\n\tForce sound system to None", no_audio, NULL);
-	BLI_argsAddCase(ba, 3, "-setaudio", 1, NULL, 0, "\n\tForce sound system to a specific device\n\tNULL SDL OPENAL JACK", set_audio, NULL);
-
-	/* fourth pass: processing arguments */
-	BLI_argsAdd(ba, 4, "-g", NULL, game_doc, set_ge_parameters, syshandle);
-	BLI_argsAdd(ba, 4, "-f", "--render-frame", "<frame>\n\tRender frame <frame> and save it", render_frame, C);
-	BLI_argsAdd(ba, 4, "-a", "--render-anim", "\n\tRender frames from start to end (inclusive)", render_animation, C);
-	BLI_argsAdd(ba, 4, "-S", "--scene", "<name>\n\tSet the active scene <name> for rendering", set_scene, C);
-	BLI_argsAdd(ba, 4, "-s", "--frame-start", "<frame>\n\tSet start to frame <frame> (use before the -a argument)", set_start_frame, C);
-	BLI_argsAdd(ba, 4, "-e", "--frame-end", "<frame>\n\tSet end to frame <frame> (use before the -a argument)", set_end_frame, C);
-	BLI_argsAdd(ba, 4, "-j", "--frame-jump", "<frames>\n\tSet number of frames to step forward after each rendered frame", set_skip_frame, C);
-	BLI_argsAdd(ba, 4, "-P", "--python", "<filename>\n\tRun the given Python script (filename or Blender Text)", run_python, C);
-	BLI_argsAdd(ba, 4, NULL, "--python-console", "\n\tRun blender with an interactive console", run_python_console, C);
-
-	BLI_argsAdd(ba, 4, "-o", "--render-output", output_doc, set_output, C);
-	BLI_argsAdd(ba, 4, "-E", "--engine", "<engine>\n\tSpecify the render engine\n\tuse -E help to list available engines", set_engine, C);
-
-	BLI_argsAdd(ba, 4, "-F", "--render-format", format_doc, set_image_type, C);
-	BLI_argsAdd(ba, 4, "-t", "--threads", "<threads>\n\tUse amount of <threads> for rendering in background\n\t[1-" QUOTE(BLENDER_MAX_THREADS) "], 0 for systems processor count.", set_threads, NULL);
-	BLI_argsAdd(ba, 4, "-x", "--use-extension", "<bool>\n\tSet option to add the file extension to the end of the file", set_extension, C);
-
-}
-
-int main(int argc, char **argv)
-{
-	SYS_SystemHandle syshandle;
-	bContext *C= CTX_create();
-	bArgs *ba;
-
-#ifdef WITH_BINRELOC
-	br_init( NULL );
-#endif
-
 	setCallbacks();
 #ifdef __APPLE__
 		/* patch to ignore argument finder gives us (pid?) */
@@ -1155,25 +1038,6 @@ int main(int argc, char **argv)
 
 	BLI_where_am_i(bprogname, argv[0]);
 	
-	{	/* override the hard coded blender path */
-		char *blender_path_env = getenv("BLENDERPATH");
-		if(blender_path_env)
-			BLI_strncpy(blender_path, blender_path_env, sizeof(blender_path));
-	}
-
-#ifdef BUILD_DATE	
-    strip_quotes(build_date);
-    strip_quotes(build_time);
-    strip_quotes(build_rev);
-    strip_quotes(build_platform);
-    strip_quotes(build_type);
-#endif
-
-	BLI_threadapi_init();
-
-	RNA_init();
-	RE_engines_init();
-
 	{	/* override the hard coded blender path */
 		char *blender_path_env = getenv("BLENDERPATH");
 		if(blender_path_env)
@@ -1311,12 +1175,6 @@ static void error_cb(char *err)
 }
 
 static void mem_error_cb(const char *errorStr)
-{
-	fputs(errorStr, stderr);
-	fflush(stderr);
-}
-
-static void setCallbacks(void)
 {
 	fputs(errorStr, stderr);
 	fflush(stderr);
