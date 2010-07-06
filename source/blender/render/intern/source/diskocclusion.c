@@ -52,6 +52,7 @@
 #include "database.h"
 #include "diskocclusion.h"
 #include "environment.h"
+#include "material.h"
 #include "object.h"
 #include "object_mesh.h"
 #include "part.h"
@@ -1098,6 +1099,7 @@ void disk_occlusion_sample(Render *re, ShadeInput *shi)
 {
 	OcclusionTree *tree= re->db.occlusiontree;
 	PixelCache *cache;
+	float color[3];
 
 	if(tree) {
 		if(shi->primitive.strand) {
@@ -1127,6 +1129,10 @@ void disk_occlusion_sample(Render *re, ShadeInput *shi)
 		zero_v3(shi->shading.env);
 		zero_v3(shi->shading.indirect);
 	}
+
+	mat_color(color, &shi->material);
+	mul_v3_v3(shi->shading.env, color);
+	mul_v3_v3(shi->shading.indirect, color);
 }
 
 void disk_occlusion_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
