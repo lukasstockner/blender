@@ -384,6 +384,7 @@ class DATA_PT_textboxes(DataButtonsPanel):
             
             col = split.column(align=True)
 
+
             col.label(text="Dimensions:")
             col.prop(box, "width", text="Width")
             col.prop(box, "height", text="Height")
@@ -397,6 +398,7 @@ class DATA_PT_textboxes(DataButtonsPanel):
             
             row.operator("font.textbox_remove", text='', icon='X').index = i     
     
+
 
 classes = [
     DATA_PT_context_curve,
