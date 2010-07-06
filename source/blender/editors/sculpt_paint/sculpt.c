@@ -2564,6 +2564,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 			break;
 
 		case SCULPT_TOOL_SMOOTH:
+		case SCULPT_TOOL_LAYER:
 		default:
 			break;
 	}

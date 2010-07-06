@@ -1057,10 +1057,6 @@ static void uv_image_outset(float (*orig_uv)[2], float (*outset_uv)[2], const fl
 		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * ((float)M_PI/180.0f));
 		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * ((float)M_PI/180.0f));
 		a4 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir4) * ((float)M_PI/180.0f));
-		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir4, dir1) * (float)(M_PI/180.0f));
-		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * (float)(M_PI/180.0f));
-		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * (float)(M_PI/180.0f));
-		a4 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir4) * (float)(M_PI/180.0f));
 	}
 	else {
 		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir1) * ((float)M_PI/180.0f));
