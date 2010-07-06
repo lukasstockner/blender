@@ -273,13 +273,6 @@ def read_string(file):
     return s
 # 	return s[:-1]
 
-    s = str(s[:-1], 'ASCII')
-# 	print("read string", s)
-
-    #remove the null character from the string
-    return s
-# 	return s[:-1]
-
 ######################################################
 # IMPORT
 ######################################################
