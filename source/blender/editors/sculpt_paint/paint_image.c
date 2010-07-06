@@ -1053,15 +1053,19 @@ static void uv_image_outset(float (*orig_uv)[2], float (*outset_uv)[2], const fl
 	 * This is incorrect. Its already given radians but without it wont work.
 	 * need to look into a fix - campbell */
 	if (is_quad) {
+		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir4, dir1) * ((float)M_PI/180.0f));
+		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * ((float)M_PI/180.0f));
+		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * ((float)M_PI/180.0f));
+		a4 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir4) * ((float)M_PI/180.0f));
 		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir4, dir1) * (float)(M_PI/180.0f));
 		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * (float)(M_PI/180.0f));
 		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * (float)(M_PI/180.0f));
 		a4 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir4) * (float)(M_PI/180.0f));
 	}
 	else {
-		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir1) * (float)(M_PI/180.0f));
-		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * (float)(M_PI/180.0f));
-		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * (float)(M_PI/180.0f));
+		a1 = shell_angle_to_dist(angle_normalized_v2v2(dir3, dir1) * ((float)M_PI/180.0f));
+		a2 = shell_angle_to_dist(angle_normalized_v2v2(dir1, dir2) * ((float)M_PI/180.0f));
+		a3 = shell_angle_to_dist(angle_normalized_v2v2(dir2, dir3) * ((float)M_PI/180.0f));
 	}
 	
 	if (is_quad) {
@@ -2571,11 +2575,12 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 static void project_paint_bucket_bounds(const ProjPaintState *ps, const float min[2], const float max[2], int bucketMin[2], int bucketMax[2])
 {
 	/* divide by bucketWidth & bucketHeight so the bounds are offset in bucket grid units */
-	bucketMin[0] = (int)((((float)(min[0] - ps->screenMin[0]) / ps->screen_width) * ps->buckets_x) + 0.5f); /* these offsets of 0.5 and 1.5 seem odd but they are correct */
-	bucketMin[1] = (int)((((float)(min[1] - ps->screenMin[1]) / ps->screen_height) * ps->buckets_y) + 0.5f);
+	/* XXX: the offset of 0.5 is always truncated to zero and the offset of 1.5f is always truncated to 1, is this really correct?? - jwilkins */
+	bucketMin[0] = (int)((int)(((float)(min[0] - ps->screenMin[0]) / ps->screen_width) * ps->buckets_x) + 0.5f); /* these offsets of 0.5 and 1.5 seem odd but they are correct */
+	bucketMin[1] = (int)((int)(((float)(min[1] - ps->screenMin[1]) / ps->screen_height) * ps->buckets_y) + 0.5f);
 	
-	bucketMax[0] = (int)((((float)(max[0] - ps->screenMin[0]) / ps->screen_width) * ps->buckets_x) + 1.5f);
-	bucketMax[1] = (int)((((float)(max[1] - ps->screenMin[1]) / ps->screen_height) * ps->buckets_y) + 1.5f);
+	bucketMax[0] = (int)((int)(((float)(max[0] - ps->screenMin[0]) / ps->screen_width) * ps->buckets_x) + 1.5f);
+	bucketMax[1] = (int)((int)(((float)(max[1] - ps->screenMin[1]) / ps->screen_height) * ps->buckets_y) + 1.5f);
 	
 	/* incase the rect is outside the mesh 2d bounds */
 	CLAMP(bucketMin[0], 0, ps->buckets_x);
@@ -3029,19 +3034,19 @@ static void project_paint_begin(ProjPaintState *ps)
 	
 	if(ps->source==PROJ_SRC_VIEW) {
 #ifdef PROJ_DEBUG_WINCLIP
-		CLAMP(ps->screenMin[0], (float)-ps->brush->size, (float)ps->winx + (float)ps->brush->size);
-		CLAMP(ps->screenMax[0], (float)-ps->brush->size, (float)ps->winx + (float)ps->brush->size);
+		CLAMP(ps->screenMin[0], (float)(-ps->brush->size), (float)(ps->winx + ps->brush->size));
+		CLAMP(ps->screenMax[0], (float)(-ps->brush->size), (float)(ps->winx + ps->brush->size));
 
-		CLAMP(ps->screenMin[1], (float)-ps->brush->size, (float)ps->winy + (float)ps->brush->size);
-		CLAMP(ps->screenMax[1], (float)-ps->brush->size, (float)ps->winy + (float)ps->brush->size);
+		CLAMP(ps->screenMin[1], (float)(-ps->brush->size), (float)(ps->winy + ps->brush->size));
+		CLAMP(ps->screenMax[1], (float)(-ps->brush->size), (float)(ps->winy + ps->brush->size));
 #endif
 	}
 	else { /* reprojection, use bounds */
 		ps->screenMin[0]= 0;
-		ps->screenMax[0]= (float)ps->winx;
+		ps->screenMax[0]= (float)(ps->winx);
 
 		ps->screenMin[1]= 0;
-		ps->screenMax[1]= (float)ps->winy;
+		ps->screenMax[1]= (float)(ps->winy);
 	}
 
 	/* only for convenience */
@@ -3497,7 +3502,7 @@ static int project_bucket_iter_next(ProjPaintState *ps, int *bucket_index, rctf 
 			project_bucket_bounds(ps, ps->context_bucket_x, ps->context_bucket_y, bucket_bounds);
 			
 			if (	(ps->source != PROJ_SRC_VIEW) ||
-					project_bucket_isect_circle(ps->context_bucket_x, ps->context_bucket_y, mval, (float)ps->brush->size * (float)ps->brush->size, bucket_bounds)
+					project_bucket_isect_circle(ps->context_bucket_x, ps->context_bucket_y, mval, (float)(ps->brush->size * ps->brush->size), bucket_bounds)
 			) {
 				*bucket_index = ps->context_bucket_x + (ps->context_bucket_y * ps->buckets_x);
 				ps->context_bucket_x++;
@@ -3710,7 +3715,7 @@ static void *do_projectpaint_thread(void *ph_v)
 	}
 	
 	/* avoid a square root with every dist comparison */
-	brush_size_sqared = (float)ps->brush->size * (float)ps->brush->size; 
+	brush_size_sqared = (float)(ps->brush->size * ps->brush->size);
 	
 	/* printf("brush bounds %d %d %d %d\n", bucketMin[0], bucketMin[1], bucketMax[0], bucketMax[1]); */
 	
@@ -3768,7 +3773,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							falloff = 1.0f - falloff;
 							falloff = 1.0f - (falloff * falloff);
 							
-							mask_short = (unsigned)(projPixel->mask * (ps->brush->alpha * falloff));
+							mask_short = (unsigned short)(projPixel->mask * (ps->brush->alpha * falloff));
 							if (mask_short > projPixel->mask_max) {
 								mask = ((float)mask_short)/65535.0f;
 								projPixel->mask_max = mask_short;
@@ -3929,8 +3934,8 @@ static int project_paint_sub_stroke(ProjPaintState *ps, BrushPainter *painter, i
 	/* Use mouse coords as floats for projection painting */
 	float pos[2];
 	
-	pos[0] = (float)mval_i[0];
-	pos[1] = (float)mval_i[1];
+	pos[0] = (float)(mval_i[0]);
+	pos[1] = (float)(mval_i[1]);
 	
 	// we may want to use this later 
 	// brush_painter_require_imbuf(painter, ((ibuf->rect_float)? 1: 0), 0, 0);
@@ -4054,7 +4059,8 @@ static int imapaint_ibuf_add_if(ImBuf *ibuf, unsigned int x, unsigned int y, flo
 {
 	float inrgb[3];
 
-	if ((x >= (unsigned)ibuf->x) || (y >= (unsigned)ibuf->y)) {
+	// XXX: signed unsigned mismatch
+	if ((x >= (unsigned int)(ibuf->x)) || (y >= (unsigned int)(ibuf->y))) {
 		if (torus) imapaint_ibuf_get_set_rgb(ibuf, x, y, 1, 0, inrgb);
 		else return 0;
 	}
@@ -4708,8 +4714,8 @@ static void paint_apply(bContext *C, wmOperator *op, PointerRNA *itemptr)
 	int mouse[2], redraw;
 
 	RNA_float_get_array(itemptr, "mouse", mousef);
-	mouse[0] = (int)mousef[0];
-	mouse[1] = (int)mousef[1];
+	mouse[0] = (int)(mousef[0]);
+	mouse[1] = (int)(mousef[1]);
 	time= RNA_float_get(itemptr, "time");
 	pressure= RNA_float_get(itemptr, "pressure");
 
@@ -4829,8 +4835,8 @@ static void paint_apply_event(bContext *C, wmOperator *op, wmEvent *event)
 	/* fill in stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
 
-	mousef[0] = (float)mouse[0];
-	mousef[1] = (float)mouse[1];
+	mousef[0] = (float)(mouse[0]);
+	mousef[1] = (float)(mouse[1]);
 	RNA_float_set_array(&itemptr, "mouse", mousef);
 	RNA_float_set(&itemptr, "time", (float)(time - pop->starttime));
 	RNA_float_set(&itemptr, "pressure", pressure);
@@ -4946,7 +4952,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *customdata)
 		glColor4ub(255, 255, 255, 128);
 		glEnable( GL_LINE_SMOOTH );
 		glEnable(GL_BLEND);
-		glutil_draw_lined_arc(0.0, (float)(M_PI*2.0), brush->size*0.5f, 40);
+		glutil_draw_lined_arc(0, (float)(M_PI*2.0), brush->size*0.5f, 40);
 		glDisable(GL_BLEND);
 		glDisable( GL_LINE_SMOOTH );
 		
