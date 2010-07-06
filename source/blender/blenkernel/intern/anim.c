@@ -64,6 +64,7 @@
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 #include "BKE_utildefines.h"
+#include "BKE_depsgraph.h"
 
 // XXX bad level call...
 
@@ -1531,7 +1532,10 @@ void free_object_duplilist(ListBase *lb)
 {
 	DupliObject *dob;
 	
-	for(dob= lb->first; dob; dob= dob->next) {
+	/* loop in reverse order, if object is instanced multiple times
+	   the original layer may not really be original otherwise, proper
+	   solution is more complicated */
+	for(dob= lb->last; dob; dob= dob->prev) {
 		dob->ob->lay= dob->origlay;
 		copy_m4_m4(dob->ob->obmat, dob->omat);
 	}

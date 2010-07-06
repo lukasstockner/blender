@@ -1710,7 +1710,7 @@ static void write_materials(WriteData *wd, ListBase *idbase)
 				write_nodetree(wd, ma->nodetree);
 			}
 
-			write_previews(wd, ma->preview);
+			write_previews(wd, ma->preview);			
 		}
 		ma= ma->id.next;
 	}
@@ -2481,7 +2481,7 @@ int BLO_write_file(Main *mainvar, char *dir, int write_flags, ReportList *report
 
 	file = open(tempname,O_BINARY+O_WRONLY+O_CREAT+O_TRUNC, 0666);
 	if(file == -1) {
-		BKE_report(reports, RPT_ERROR, "Unable to open file for writing.");
+		BKE_reportf(reports, RPT_ERROR, "Can't open file for writing: %s.", strerror(errno));
 		return 0;
 	}
 

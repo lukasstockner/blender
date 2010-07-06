@@ -575,7 +575,15 @@ int file_exec(bContext *C, wmOperator *exec_op)
 			}
 		}
 
-		RNA_string_set(op->ptr, "filepath", name);
+		if(RNA_struct_find_property(op->ptr, "filename")) {
+			RNA_string_set(op->ptr, "filename", sfile->params->file);
+		}
+		if(RNA_struct_find_property(op->ptr, "directory")) {
+			RNA_string_set(op->ptr, "directory", sfile->params->dir);
+		}
+		if(RNA_struct_find_property(op->ptr, "filepath")) {
+			RNA_string_set(op->ptr, "filepath", filepath);
+		}
 		
 		/* some ops have multiple files to select */
 		{

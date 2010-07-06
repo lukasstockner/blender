@@ -31,8 +31,6 @@
 #include <winsock.h>
 #else
 #include <netinet/in.h>	 /* htonl() */
-/* #include <arpa/inet.h> *//* htonl() on OS X */
-
 #endif
 #include <string.h>			 /* memset */
 #include "cin_debug_stuff.h"

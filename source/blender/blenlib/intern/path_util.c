@@ -103,7 +103,7 @@ int BLI_stringdec(const char *string, char *head, char *tail, unsigned short *nu
 			if (found) break;
 		}
 	}
-	if (found){
+	if (found) {
 		if (tail) strcpy(tail, &string[nume+1]);
 		if (head) {
 			strcpy(head,string);

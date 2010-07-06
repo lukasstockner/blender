@@ -1133,6 +1133,7 @@ PointDensity *BKE_add_pointdensity(void)
 	pd->totpoints = 0;
 	pd->object = NULL;
 	pd->psys = 0;
+	pd->psys_cache_space= TEX_PD_WORLDSPACE;
 	return pd;
 } 
 

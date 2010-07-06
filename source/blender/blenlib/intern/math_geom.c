@@ -63,7 +63,7 @@ float normal_tri_v3(float n[3], const float v1[3], const float v2[3], const floa
 	n[1]= n1[2]*n2[0]-n1[0]*n2[2];
 	n[2]= n1[0]*n2[1]-n1[1]*n2[0];
 
-        return normalize_v3(n);
+	return normalize_v3(n);
 }
 
 float normal_quad_v3(float n[3], const float v1[3], const float v2[3], const float v3[3], const float v4[3])
@@ -83,7 +83,7 @@ float normal_quad_v3(float n[3], const float v1[3], const float v2[3], const flo
 	n[1]= n1[2]*n2[0]-n1[0]*n2[2];
 	n[2]= n1[0]*n2[1]-n1[1]*n2[0];
 
-        return normalize_v3(n);
+	return normalize_v3(n);
 }
 
 float area_tri_v2(const float v1[2], const float v2[2], const float v3[2])
@@ -460,47 +460,6 @@ int isect_ray_tri_v3(float p1[3], float d[3], float v0[3], float v1[3], float v2
 	
 	return 1;
 }
-
-//int isect_ray_tri_epsilon_v3(float p1[3], float d[3], float v0[3], float v1[3], float v2[3], float *lambda, float *uv, float epsilon)
-//{
-//    float p[3], s[3], e1[3], e2[3], q[3];
-//    float a, f, t, u, v;
-//    float epsilon0, epsilon1;
-//
-//    sub_v3_v3v3(e1, v1, v0);
-//    sub_v3_v3v3(e2, v2, v0);
-//
-//    cross_v3_v3v3(p, d, e2);
-//    a = dot_v3v3(e1, p);
-//    if (a == 0.0f) return 0;
-//
-//    epsilon0 = a * -epsilon;
-//    epsilon1 = a + -epsilon0;
-//
-//    sub_v3_v3v3(s, p1, v0);
-//
-//    u = dot_v3v3(s, p);
-//    if ((u < epsilon0)||(u > epsilon1)) return 0;
-//
-//    cross_v3_v3v3(q, s, e1);
-//
-//    v = dot_v3v3(d, q);
-//    if ((v < epsilon0)||((u + v) > epsilon1)) return 0;
-//
-//    t = dot_v3v3(e2, q);
-//    if ((t < 0.0f)) return 0;
-//
-//    f = 1.0f/a;
-//
-//    *lambda = f*t;
-//
-//    if(uv) {
-//        uv[0]= f*u;
-//        uv[1]= f*v;
-//    }
-//
-//    return 1;
-//}
 
 int isect_ray_tri_epsilon_v3(float p1[3], float d[3], float v0[3], float v1[3], float v2[3], float *lambda, float *uv, float epsilon)
 {

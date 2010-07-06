@@ -214,6 +214,8 @@ void seq_free_strip(Strip *strip)
 	MEM_freeN(strip);
 }
 
+static void seq_free_animdata(Scene *scene, Sequence *seq);
+
 void seq_free_sequence(Scene *scene, Sequence *seq)
 {
 	if(seq->strip) seq_free_strip(seq->strip);
@@ -236,6 +238,8 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 		if(seq->scene_sound)
 			sound_remove_scene_sound(scene, seq->scene_sound);
 	}
+
+	seq_free_animdata(scene, seq);
 
 	MEM_freeN(seq);
 }
@@ -1490,7 +1494,7 @@ static StripColorBalance calc_cb(StripColorBalance * cb_)
 	int c;
 
 	for (c = 0; c < 3; c++) {
-		cb.lift[c] = 2.0f - pow(cb.lift[c], 2);
+		cb.lift[c] = 2.0f - cb.lift[c];
 	}
 
 	if(cb.flag & SEQ_COLOR_BALANCE_INVERSE_LIFT) {
@@ -1522,10 +1526,10 @@ static StripColorBalance calc_cb(StripColorBalance * cb_)
 	return cb;
 }
 
-/* pow(p[c] * cb.gain[c] + cb.lift[c], cb.gamma[c]) * mul;*/
-MINLINE float color_balance_fl(const float v, const float lift, const float gain, const float gamma, const float mul)
+/* note: lift is actually 2-lift */
+MINLINE float color_balance_fl(float v, const float lift, const float gain, const float gamma, const float mul)
 {
-	return powf(powf(v * gain, lift), gamma) * mul;
+	return powf((((v - 1.0f) * lift) + 1.0f) * gain, gamma) * mul;
 }
 
 static void make_cb_table_byte(float lift, float gain, float gamma,
@@ -3836,6 +3840,33 @@ void seq_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 	}
 }
 
+/* XXX - hackish function needed to remove all fcurves belonging to a sequencer strip */
+static void seq_free_animdata(Scene *scene, Sequence *seq)
+{
+	char str[32];
+	FCurve *fcu;
+
+	if(scene->adt==NULL || scene->adt->action==NULL)
+		return;
+
+	sprintf(str, "[\"%s\"]", seq->name+2);
+
+	fcu= scene->adt->action->curves.first; 
+
+	while (fcu) {
+		if(strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str)) {
+			FCurve *next_fcu = fcu->next;
+			
+			BLI_remlink(&scene->adt->action->curves, fcu);
+			free_fcurve(fcu);
+
+			fcu = next_fcu;
+		} else {
+			fcu = fcu->next;
+		}
+	}
+}
+
 
 Sequence *get_seq_by_name(ListBase *seqbase, const char *name, int recursive)
 {
@@ -3903,7 +3934,7 @@ int seq_active_pair_get(Scene *scene, Sequence **seq_act, Sequence **seq_other)
 void seq_load_apply(Scene *scene, Sequence *seq, SeqLoadInfo *seq_load)
 {
 	if(seq) {
-		strcpy(seq->name, seq_load->name);
+		BLI_strncpy(seq->name+2, seq_load->name, sizeof(seq->name)-2);
 		seqbase_unique_name_recursive(&scene->ed->seqbase, seq);
 
 		if(seq_load->flag & SEQ_LOAD_FRAME_ADVANCE) {
@@ -3957,8 +3988,7 @@ Sequence *sequencer_add_image_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 
 	seq = alloc_sequence(seqbasep, seq_load->start_frame, seq_load->channel);
 	seq->type= SEQ_IMAGE;
-	BLI_strncpy(seq->name+2, "Image", SEQ_NAME_MAXSTR-2);
-	seqbase_unique_name_recursive(&scene->ed->seqbase, seq);
+	seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
 	
 	/* basic defaults */
 	seq->strip= strip= MEM_callocN(sizeof(Strip), "strip");
@@ -3966,8 +3996,8 @@ Sequence *sequencer_add_image_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 	strip->len = seq->len = seq_load->len ? seq_load->len : 1;
 	strip->us= 1;
 	strip->stripdata= se= MEM_callocN(seq->len*sizeof(StripElem), "stripelem");
-	BLI_split_dirfile(seq_load->path, strip->dir, se->name);
-	
+	BLI_strncpy(strip->dir, seq_load->path, sizeof(strip->dir));
+
 	seq_load_apply(scene, seq, seq_load);
 
 	return seq;
@@ -3985,7 +4015,7 @@ Sequence *sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 
 	AUD_SoundInfo info;
 
-	sound = sound_new_file(CTX_data_main(C), seq_load->path);
+	sound = sound_new_file(CTX_data_main(C), seq_load->path); /* handles relative paths */
 
 	if (sound==NULL || sound->playback_handle == NULL) {
 		//if(op)
@@ -4033,6 +4063,7 @@ Sequence *sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 Sequence *sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo *seq_load)
 {
 	Scene *scene= CTX_data_scene(C); /* only for sound */
+	char path[sizeof(seq_load->path)];
 
 	Sequence *seq, *soundseq;	/* generic strip vars */
 	Strip *strip;
@@ -4040,14 +4071,18 @@ Sequence *sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 
 	struct anim *an;
 
-	an = openanim(seq_load->path, IB_rect);
+	BLI_strncpy(path, seq_load->path, sizeof(path));
+	BLI_path_abs(path, G.sce);
+
+	an = openanim(path, IB_rect);
 
 	if(an==NULL)
 		return NULL;
 
 	seq = alloc_sequence(seqbasep, seq_load->start_frame, seq_load->channel);
-
 	seq->type= SEQ_MOVIE;
+	seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
+
 	seq->anim= an;
 	seq->anim_preseek = IMB_anim_get_preseek(an);
 	BLI_strncpy(seq->name+2, "Movie", SEQ_NAME_MAXSTR-2);
@@ -4075,8 +4110,139 @@ Sequence *sequencer_add_movie_strip(bContext *C, ListBase *seqbasep, SeqLoadInfo
 		seq_load->channel--;
 	}
 
+	if(seq_load->name[0] == '\0')
+		BLI_strncpy(seq_load->name, se->name, sizeof(seq_load->name));
+
 	/* can be NULL */
 	seq_load_apply(scene, seq, seq_load);
 
 	return seq;
+}
+
+
+static Sequence *seq_dupli(struct Scene *scene, Sequence *seq, int dupe_flag)
+{
+	Sequence *seqn = MEM_dupallocN(seq);
+
+	seq->tmp = seqn;
+	seqn->strip= MEM_dupallocN(seq->strip);
+
+	// XXX: add F-Curve duplication stuff?
+
+	seqn->strip->tstripdata = 0;
+	seqn->strip->tstripdata_startstill = 0;
+	seqn->strip->tstripdata_endstill = 0;
+	seqn->strip->ibuf_startstill = 0;
+	seqn->strip->ibuf_endstill = 0;
+
+	if (seq->strip->crop) {
+		seqn->strip->crop = MEM_dupallocN(seq->strip->crop);
+	}
+
+	if (seq->strip->transform) {
+		seqn->strip->transform = MEM_dupallocN(seq->strip->transform);
+	}
+
+	if (seq->strip->proxy) {
+		seqn->strip->proxy = MEM_dupallocN(seq->strip->proxy);
+	}
+
+	if (seq->strip->color_balance) {
+		seqn->strip->color_balance
+			= MEM_dupallocN(seq->strip->color_balance);
+	}
+
+	if(seq->type==SEQ_META) {
+		seqn->strip->stripdata = 0;
+
+		seqn->seqbase.first= seqn->seqbase.last= 0;
+		/* WATCH OUT!!! - This metastrip is not recursively duplicated here - do this after!!! */
+		/* - seq_dupli_recursive(&seq->seqbase,&seqn->seqbase);*/
+	} else if(seq->type == SEQ_SCENE) {
+		seqn->strip->stripdata = 0;
+		if(seq->scene_sound)
+			seqn->scene_sound = sound_scene_add_scene_sound(scene, seqn, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+	} else if(seq->type == SEQ_MOVIE) {
+		seqn->strip->stripdata =
+				MEM_dupallocN(seq->strip->stripdata);
+		seqn->anim= 0;
+	} else if(seq->type == SEQ_SOUND) {
+		seqn->strip->stripdata =
+				MEM_dupallocN(seq->strip->stripdata);
+		if(seq->scene_sound)
+			seqn->scene_sound = sound_add_scene_sound(scene, seqn, seq->startdisp, seq->enddisp, seq->startofs + seq->anim_startofs);
+
+		seqn->sound->id.us++;
+	} else if(seq->type == SEQ_IMAGE) {
+		seqn->strip->stripdata =
+				MEM_dupallocN(seq->strip->stripdata);
+	} else if(seq->type >= SEQ_EFFECT) {
+		if(seq->seq1 && seq->seq1->tmp) seqn->seq1= seq->seq1->tmp;
+		if(seq->seq2 && seq->seq2->tmp) seqn->seq2= seq->seq2->tmp;
+		if(seq->seq3 && seq->seq3->tmp) seqn->seq3= seq->seq3->tmp;
+
+		if (seq->type & SEQ_EFFECT) {
+			struct SeqEffectHandle sh;
+			sh = get_sequence_effect(seq);
+			if(sh.copy)
+				sh.copy(seq, seqn);
+		}
+
+		seqn->strip->stripdata = 0;
+
+	} else {
+		fprintf(stderr, "Aiiiiekkk! sequence type not "
+				"handled in duplicate!\nExpect a crash"
+						" now...\n");
+	}
+
+	if(dupe_flag & SEQ_DUPE_UNIQUE_NAME)
+		seqbase_unique_name_recursive(&scene->ed->seqbase, seqn);
+
+	return seqn;
+}
+
+Sequence * seq_dupli_recursive(struct Scene *scene, Sequence * seq, int dupe_flag)
+{
+	Sequence * seqn = seq_dupli(scene, seq, dupe_flag);
+	if (seq->type == SEQ_META) {
+		Sequence *s;
+		for(s= seq->seqbase.first; s; s = s->next) {
+			Sequence *n = seq_dupli_recursive(scene, s, dupe_flag);
+			if (n) {
+				BLI_addtail(&seqn->seqbase, n);
+			}
+		}
+	}
+	return seqn;
+}
+
+void seqbase_dupli_recursive(Scene *scene, ListBase *nseqbase, ListBase *seqbase, int dupe_flag)
+{
+	Sequence *seq;
+	Sequence *seqn = 0;
+	Sequence *last_seq = seq_active_get(scene);
+
+	for(seq= seqbase->first; seq; seq= seq->next) {
+		seq->tmp= NULL;
+		if(seq->flag & SELECT) {
+			seqn = seq_dupli(scene, seq, dupe_flag);
+			if (seqn) { /*should never fail */
+				if(dupe_flag & SEQ_DUPE_CONTEXT) {
+					seq->flag &= ~SEQ_ALLSEL;
+					seqn->flag &= ~(SEQ_LEFTSEL+SEQ_RIGHTSEL+SEQ_LOCK);
+				}
+
+				BLI_addtail(nseqbase, seqn);
+				if(seq->type==SEQ_META)
+					seqbase_dupli_recursive(scene, &seqn->seqbase, &seq->seqbase, dupe_flag);
+
+				if(dupe_flag & SEQ_DUPE_CONTEXT) {
+					if (seq == last_seq) {
+						seq_active_set(scene, seqn);
+					}
+				}
+			}
+		}
+	}
 }

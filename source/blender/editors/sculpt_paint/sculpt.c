@@ -480,57 +480,6 @@ static void create_EditMesh_sculpt(SculptSession *ss) //Mio
 		
 	ss->em = em;
 }
- 
-static void unlimited_clay(SculptSession *ss, Object *ob)
-{
-	/*---- adaptive dynamic subdivission -- */
-		float diff[3], edgeLength; 	
-			
-		if (ss->scene != NULL && ob != NULL) 
-		{
-			Object *obedit;
-			Mesh *me;
-			EditEdge *eed;
-			float detail;
-			float smoothness;
-
-			create_EditMesh_sculpt(ss);
-			obedit= ob;
-			me= obedit->data;
-			detail = ss->cache->detail * ss->cache->radius;
-			smoothness = ss->cache->smoothness;
-			 
-			for(eed = me->edit_mesh->edges.first; eed; eed = eed->next){
-				if (eed->f & SELECT)
-				{
-					float detail;
-
-					sub_v3_v3v3(diff, eed->v1->co, eed->v2->co);
-					edgeLength = len_v3(diff);
-					
-					detail = ss->cache->detail * ss->cache->radius;  
-															
-					if (edgeLength < detail)
-						EM_select_edge(eed, 0);	
-					else	
-						EM_select_edge(eed, 1);			
-				
-				}									
-					
-			}									
-			esubdivideflag(obedit, me->edit_mesh, SELECT,smoothness,0,B_SMOOTH,1, SUBDIV_CORNER_PATH, SUBDIV_SELECT_INNER);			
-			
-			/* Clear selection */
-			for(eed = me->edit_mesh->edges.first; eed; eed = eed->next)
-				EM_select_edge(eed, 0);	 
-				
-			load_editMesh(ss->scene, ob);
-			
-			free_editMesh(me->edit_mesh);
-			DAG_id_flush_update(ob->data, OB_RECALC_DATA); //?					
-		} 	
-
-}
 
 /* area of overlap of two circles of radius 1 seperated by d units from their centers */
 static float circle_overlap(float d)
@@ -3434,9 +3383,6 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	if(ss->cache) {
 		sculpt_stroke_modifiers_check(C, ss);
 		
-		if(brush->flag & BRUSH_SUBDIV)
-			unlimited_clay(ss, ob);
-
 		/* Alt-Smooth */
 		if (ss->cache->alt_smooth) {
 			Paint *p= &sd->paint;

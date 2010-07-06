@@ -30,6 +30,7 @@
 	 */
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #ifdef WIN32
 #include <windows.h> /* need to include windows.h so _WIN32_IE is defined  */
@@ -220,7 +221,9 @@ static void wm_window_match_do(bContext *C, ListBase *oldwmlist)
 						if(win->active)
 							wm->winactive= win;
 
-						GHOST_SetWindowUserData(win->ghostwin, win);	/* pointer back */
+						if(!G.background) /* file loading in background mode still calls this */
+							GHOST_SetWindowUserData(win->ghostwin, win);	/* pointer back */
+
 						oldwin->ghostwin= NULL;
 						
 						win->eventstate= oldwin->eventstate;
@@ -258,6 +261,9 @@ static void wm_init_userdef(bContext *C)
 void WM_read_file(bContext *C, char *name, ReportList *reports)
 {
 	int retval;
+
+	/* so we can get the error message */
+	errno = 0;
 
 	/* first try to append data from exotic file formats... */
 	/* it throws error box when file doesnt exist and returns -1 */
@@ -315,7 +321,7 @@ void WM_read_file(bContext *C, char *name, ReportList *reports)
 		BKE_write_undo(C, "Import file");
 	else if(retval == -1) {
 		if(reports)
-			BKE_reportf(reports, RPT_ERROR, "Can't read file \"%s\".", name);
+			BKE_reportf(reports, RPT_ERROR, "Can't read file: \"%s\", %s.", name, errno ? strerror(errno) : "Incompatible file format");
 	}
 }
 
@@ -549,7 +555,7 @@ int write_crash_blend(void)
 	char path[FILE_MAX];
 	BLI_strncpy(path, G.sce, sizeof(path));
 	BLI_replace_extension(path, sizeof(path), "_crash.blend");
-	if(BLO_write_file(G.main, G.sce, G.fileflags, NULL, NULL)) {
+	if(BLO_write_file(G.main, path, G.fileflags, NULL, NULL)) {
 		printf("written: %s\n", path);
 		return 1;
 	}

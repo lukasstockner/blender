@@ -244,10 +244,10 @@ static void draw_gpencil_panel (bContext *C, uiLayout *layout, bGPdata *gpd, Poi
 		/* current Grease Pencil block */
 		// TODO: show some info about who owns this?
 		uiTemplateID(col, C, ctx_ptr, "grease_pencil", "GPENCIL_OT_data_add", NULL, "GPENCIL_OT_data_unlink", NULL); 
-
+		
 		/* add new layer button - can be used even when no data, since it can add a new block too */
 		uiItemO(col, NULL, 0, "GPENCIL_OT_layer_add");
-
+	
 	/* sanity checks... */
 	if (gpd == NULL)
 		return;

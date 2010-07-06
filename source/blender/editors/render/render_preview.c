@@ -27,7 +27,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/* global includes */ 
+/* global includes */
 
 #include <stdlib.h>
 #include <math.h>

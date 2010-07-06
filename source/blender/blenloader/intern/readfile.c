@@ -962,7 +962,7 @@ FileData *blo_openblenderfile(char *name, ReportList *reports)
 	errno= 0;
 	gzfile= gzopen(name, "rb");
 
-	if (NULL == gzfile) {
+	if (gzfile == Z_NULL) {
 		BKE_reportf(reports, RPT_ERROR, "Unable to open \"%s\": %s.", name, errno ? strerror(errno) : "Unknown erro reading file");
 		return NULL;
 	} else {
@@ -1526,7 +1526,6 @@ static void direct_link_curvemapping(FileData *fd, CurveMapping *cumap)
 		cumap->cm[a].premultable= NULL;
 	}
 }
-
 
 /* ************ READ Brush *************** */
 /* library brush linking after fileread */
@@ -4561,6 +4560,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 		if(sc->id.flag & LIB_NEEDLINK) {
 			sc->id.us= 1;
 			sc->scene= newlibadr(fd, sc->id.lib, sc->scene);
+			sc->animtimer= NULL; /* saved in rare cases */
 			
 			sa= sc->areabase.first;
 			while(sa) {
@@ -10865,11 +10865,27 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				for (sl= sa->spacedata.first; sl; sl= sl->next) {
 					if (sl->spacetype == SPACE_NODE) {
 						SpaceNode *snode= (SpaceNode *)sl;
-						
+						ListBase *regionbase;
+						ARegion *ar;
+
+						if (sl == sa->spacedata.first)
+							regionbase = &sa->regionbase;
+						else
+							regionbase = &sl->regionbase;
+
 						if (snode->v2d.minzoom > 0.09f)
 							snode->v2d.minzoom= 0.09f;
 						if (snode->v2d.maxzoom < 2.31f)
 							snode->v2d.maxzoom= 2.31f;
+
+						for (ar= regionbase->first; ar; ar= ar->next) {
+							if (ar->regiontype == RGN_TYPE_WINDOW) {
+								if (ar->v2d.minzoom > 0.09f)
+									ar->v2d.minzoom= 0.09f;
+								if (ar->v2d.maxzoom < 2.31f)
+									ar->v2d.maxzoom= 2.31f;
+							}
+						}
 					}
 					else if (sl->spacetype == SPACE_TIME) {
 						SpaceTime *stime= (SpaceTime *)sl;
@@ -10939,6 +10955,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 
 	}
+
 	{
 		Brush *brush;
 		for (brush= main->brush.first; brush; brush= brush->id.next) {
@@ -10976,7 +10993,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-		
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 

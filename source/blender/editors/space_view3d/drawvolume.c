@@ -149,7 +149,7 @@ int intersect_edges(float *points, float a, float b, float c, float d, float edg
 	return numpoints;
 }
 
-static int drawvolume_convex(float *p0, float *up, float *a, float *b)
+static int convex(float *p0, float *up, float *a, float *b)
 {
 	// Vec3 va = a-p0, vb = b-p0;
 	float va[3], vb[3], tmp[3];
@@ -427,7 +427,7 @@ void draw_volume(Scene *scene, ARegion *ar, View3D *v3d, Base *base, GPUTexture 
 			{
 				for(j = i + 1; j < numpoints; j++)
 				{
-					if(!drawvolume_convex(p0, viewnormal, &points[j * 3], &points[i * 3]))
+					if(!convex(p0, viewnormal, &points[j * 3], &points[i * 3]))
 					{
 						float tmp2[3];
 						VECCOPY(tmp2, &points[j * 3]);

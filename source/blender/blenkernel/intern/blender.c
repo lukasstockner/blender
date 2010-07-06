@@ -288,6 +288,11 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, char *filename)
 		//setscreen(G.curscreen);
 	}
 	
+	// FIXME: this version patching should really be part of the file-reading code, 
+	// but we still get too many unrelated data-corruption crashes otherwise...
+	if (G.main->versionfile < 250)
+		do_versions_ipos_to_animato(G.main);
+	
 	if(recover && bfd->filename[0] && G.relbase_valid) {
 		/* in case of autosave or quit.blend, use original filename instead
 		 * use relbase_valid to make sure the file is saved, else we get <memory2> in the filename */

@@ -139,14 +139,6 @@ typedef struct Brush {
 #define BRUSH_RESTORE_MESH	(1<<23)
 #define BRUSH_INVERSE_SMOOTH_PRESSURE (1<<24)
 
-/* Brush.stroke_style */
-#define STROKE_TOOL_SPACE	1
-#define STROKE_TOOL_AIRBRUSH	2
-#define STROKE_TOOL_ANCHORED	3
-#define STROKE_TOOL_DRAG	4
-//#define STROKE_TOOL_FREEHAND	5
-//#define STROKE_TOOL_SMOOTH	6
-
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW        1
 #define SCULPT_TOOL_SMOOTH      2

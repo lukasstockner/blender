@@ -85,6 +85,7 @@ void SEQUENCER_OT_lock(struct wmOperatorType *ot);
 void SEQUENCER_OT_unlock(struct wmOperatorType *ot);
 void SEQUENCER_OT_reload(struct wmOperatorType *ot);
 void SEQUENCER_OT_refresh_all(struct wmOperatorType *ot);
+void SEQUENCER_OT_reassign_inputs(struct wmOperatorType *ot);
 void SEQUENCER_OT_duplicate(struct wmOperatorType *ot);
 void SEQUENCER_OT_delete(struct wmOperatorType *ot);
 void SEQUENCER_OT_images_separate(struct wmOperatorType *ot);
@@ -146,8 +147,6 @@ enum {
 };
 
 /* defines used internally */
-#define SEQ_ALLSEL	(SELECT+SEQ_LEFTSEL+SEQ_RIGHTSEL)
-#define SEQ_DESEL	~SEQ_ALLSEL
 #define SCE_MARKERS 0 // XXX - dummy
 
 /* sequencer_ops.c */

@@ -85,7 +85,7 @@ BF_ZLIB_INC = '${BF_ZLIB}/include'
 BF_ZLIB_LIB = 'libz'
 BF_ZLIB_LIBPATH = '${BF_ZLIB}/lib'
 
-WITH_BF_INTERNATIONAL = False
+WITH_BF_INTERNATIONAL = True
 
 BF_GETTEXT = LIBDIR + '/gcc/gettext'
 BF_GETTEXT_INC = '${BF_GETTEXT}/include'
@@ -144,7 +144,7 @@ BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a', '${BF_OPENGL}/lib/libGLU.a'
              '${BF_OPENGL}/lib/libXmu.a', '${BF_OPENGL}/lib/libXext.a',
              '${BF_OPENGL}/lib/libX11.a', '${BF_OPENGL}/lib/libXi.a' ]
 
-WITH_BF_COLLADA = False
+WITH_BF_COLLADA = True
 BF_COLLADA = '#source/blender/collada'
 BF_COLLADA_INC = '${BF_COLLADA}'
 BF_COLLADA_LIB = 'bf_collada'

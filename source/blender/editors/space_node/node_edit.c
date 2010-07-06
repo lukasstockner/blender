@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <errno.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -2276,20 +2277,27 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
 	{
 		char path[FILE_MAX];
 		RNA_string_get(op->ptr, "filepath", path);
+
+		errno= 0;
+
 		ima= BKE_add_image_file(path, scene ? scene->r.cfra : 1);
+
+		if(!ima) {
+			BKE_reportf(op->reports, RPT_ERROR, "Can't read: \"%s\", %s.", path, errno ? strerror(errno) : "Unsupported image format");
+			return OPERATOR_CANCELLED;
+		}
 	}
 	else if(RNA_property_is_set(op->ptr, "name"))
 	{
 		char name[32];
 		RNA_string_get(op->ptr, "name", name);
 		ima= (Image *)find_id("IM", name);
+
+		if(!ima) {
+			BKE_reportf(op->reports, RPT_ERROR, "Image named \"%s\", not found.", name);
+			return OPERATOR_CANCELLED;
+		}
 	}
-	
-	if(!ima) {
-		BKE_report(op->reports, RPT_ERROR, "Not an Image.");
-		return OPERATOR_CANCELLED;
-	}
-	
 	
 	node_deselectall(snode);
 	
@@ -2342,7 +2350,7 @@ void NODE_OT_add_file(wmOperatorType *ot)
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
-	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_OPENFILE, 0);  //XXX TODO, relative_path
+	WM_operator_properties_filesel(ot, FOLDERFILE|IMAGEFILE, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH);  //XXX TODO, relative_path
 	RNA_def_string(ot->srna, "name", "Image", 24, "Name", "Datablock name to assign.");
 }
 

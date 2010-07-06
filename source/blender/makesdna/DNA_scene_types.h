@@ -209,12 +209,12 @@ typedef struct RenderData {
 	struct FFMpegCodecData ffcodecdata;
 	
 	int cfra, sfra, efra;	/* frames as in 'images' */
+	float subframe;			/* subframe offset from cfra, in 0.0-1.0 */
 	int psfra, pefra;		/* start+end frames of preview range */
 
 	int images, framapto;
 	short flag, threads;
 
-	float ctime;			/* use for calcutions */
 	float framelen, blurfac;
 
 	/** For UR edge rendering: give the edges this color */
@@ -573,7 +573,7 @@ typedef struct Sculpt {
 	int flags;
 
 	/* Control tablet input */
-	//char tablet_size, tablet_strength; // XXX not used?
+	//char tablet_size, tablet_strength; XXX not used?
 	char pad[4];
 } Sculpt;
 
@@ -1022,6 +1022,7 @@ typedef struct Scene {
 #define ID_NEW_US(a)	if( (a)->id.newid) {(a)= (void *)(a)->id.newid; (a)->id.us++;}
 #define ID_NEW_US2(a)	if( ((ID *)a)->newid) {(a)= ((ID *)a)->newid; ((ID *)a)->us++;}
 #define	CFRA			(scene->r.cfra)
+#define SUBFRA			(scene->r.subframe)
 #define	F_CFRA			((float)(scene->r.cfra))
 #define	SFRA			(scene->r.sfra)
 #define	EFRA			(scene->r.efra)
@@ -1105,9 +1106,9 @@ typedef struct Scene {
 
 /* Paint.flags */
 typedef enum {
-	PAINT_SHOW_BRUSH			= (1<<0),
-	PAINT_FAST_NAVIGATE			= (1<<1),
-	PAINT_SHOW_BRUSH_ON_SURFACE	= (1<<2),
+	PAINT_SHOW_BRUSH = (1<<0),
+	PAINT_FAST_NAVIGATE = (1<<1),
+	PAINT_SHOW_BRUSH_ON_SURFACE = (1<<2),
 } PaintFlags;
 
 /* Sculpt.flags */

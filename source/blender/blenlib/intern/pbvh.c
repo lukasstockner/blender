@@ -30,6 +30,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh.h" /* for mesh_calc_normals */
+#include "BKE_global.h" /* for mesh_calc_normals */
 
 #include "gpu_buffers.h"
 
@@ -366,12 +367,14 @@ static void build_mesh_leaf_node(PBVH *bvh, PBVHNode *node)
 		if(node->face_vert_indices[i] < 0)
 			node->face_vert_indices[i]= -node->face_vert_indices[i] + node->uniq_verts - 1;
 
-	node->draw_buffers =
-		GPU_build_mesh_buffers(map, bvh->verts, bvh->faces,
-				  node->prim_indices,
-				  node->totprim, node->vert_indices,
-				  node->uniq_verts,
-				  node->uniq_verts + node->face_verts);
+	if(!G.background) {
+		node->draw_buffers =
+			GPU_build_mesh_buffers(map, bvh->verts, bvh->faces,
+					node->prim_indices,
+					node->totprim, node->vert_indices,
+					node->uniq_verts,
+					node->uniq_verts + node->face_verts);
+	}
 
 	node->flag |= PBVH_UpdateDrawBuffers;
 
@@ -380,10 +383,12 @@ static void build_mesh_leaf_node(PBVH *bvh, PBVHNode *node)
 
 static void build_grids_leaf_node(PBVH *bvh, PBVHNode *node)
 {
-	node->draw_buffers =
-		GPU_build_grid_buffers(bvh->grids, node->prim_indices,
-				node->totprim, bvh->gridsize);
-
+	if(!G.background) {
+		node->draw_buffers =
+			GPU_build_grid_buffers(bvh->grids, node->prim_indices,
+					node->totprim, bvh->gridsize);
+	}
+	
 	node->flag |= PBVH_UpdateDrawBuffers;
 }
 
@@ -772,9 +777,8 @@ void BLI_pbvh_search_callback(PBVH *bvh,
 	pbvh_iter_begin(&iter, bvh, scb, search_data);
 
 	while((node=pbvh_iter_next(&iter)))
-            if(node->flag & PBVH_Leaf) {
-		hcb(node, hit_data);
-            }
+		if (node->flag & PBVH_Leaf)
+			hcb(node, hit_data);
 
 	pbvh_iter_end(&iter);
 }
@@ -1317,36 +1321,6 @@ static int ray_face_intersection(float ray_start[3], float ray_normal[3],
         return 0;
     }
 }
-
-///* XXX: Code largely copied from bvhutils.c, could be unified */
-///* Returns 1 if a better intersection has been found */
-//static int ray_face_intersection(float ray_start[3], float ray_normal[3],
-//				 float *t0, float *t1, float *t2, float *t3,
-//				 float *fdist)
-//{
-//	int hit = 0;
-//
-//	do
-//	{	
-//		float dist = FLT_MAX;
-//			
-//		if(!isect_ray_tri_epsilon_v3(ray_start, ray_normal, t0, t1, t2,
-//					 &dist, NULL, 0.1f))
-//			dist = FLT_MAX;
-//
-//		if(dist >= 0 && dist < *fdist) {
-//			hit = 1;
-//			*fdist = dist;
-//		}
-//
-//		t1 = t2;
-//		t2 = t3;
-//		t3 = NULL;
-//
-//	} while(t2);
-//
-//	return hit;
-//}
 
 int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 	float ray_start[3], float ray_normal[3], float *dist)

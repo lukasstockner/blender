@@ -276,6 +276,9 @@ typedef struct SpeedControlVars {
 #define SEQ_USE_PROXY_CUSTOM_FILE             2097152
 #define SEQ_USE_EFFECT_DEFAULT_FADE           4194304
 
+/* convenience define for all selection flags */
+#define SEQ_ALLSEL	(SELECT+SEQ_LEFTSEL+SEQ_RIGHTSEL)
+
 /* deprecated, dont use a flag anymore*/
 /*#define SEQ_ACTIVE                            1048576*/
 
@@ -320,6 +323,9 @@ typedef struct SpeedControlVars {
    to the table above. (Only those effects that handle _exactly_ two inputs,
    otherwise, you can't really blend, right :) !)
 */
+
+
+#define SEQ_HAS_PATH(_seq) (ELEM5((_seq)->type, SEQ_MOVIE, SEQ_IMAGE, SEQ_SOUND, SEQ_RAM_SOUND, SEQ_HD_SOUND))
 
 #endif
 
