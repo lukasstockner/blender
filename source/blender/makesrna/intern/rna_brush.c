@@ -130,15 +130,6 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_SCRAPE, "SCRAPE", 0, "Scrape", ""},
 		{0, NULL, 0, NULL, NULL}};
 	
-	//static EnumPropertyItem brush_stroke_tool_items[] = {
-	//	{STROKE_TOOL_DOTS, "DOTS", 0, "Dots", ""},
-	//	{STROKE_TOOL_SPACE, "SPACE", 0, "Space", ""},
-	//	{STROKE_TOOL_FREEHAND, "FREEHAND", 0, "Freehand", ""},
-	//	{STROKE_TOOL_SMOOTH, "SMOOTH", 0, "Smooth", ""},
-	//	{STROKE_TOOL_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", ""},
-	//	{STROKE_TOOL_ANCHORED, "ANCHORED", 0, "Anchored", ""},
-	//	{0, NULL, 0, NULL, NULL}};
-
 	static EnumPropertyItem brush_stroke_method_items[] = {
 		{0, "DOTS", 0, "Dots", ""},
 		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", ""},
@@ -227,11 +218,6 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, brush_sculpt_tool_items);
 	RNA_def_property_ui_text(prop, "Sculpt Tool", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	//prop= RNA_def_property(srna, "stroke_tool", PROP_ENUM, PROP_NONE);
-	//RNA_def_property_enum_items(prop, brush_stroke_tool_items);
-	//RNA_def_property_ui_text(prop, "Stroke Tool", "");
-	//RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "vertexpaint_tool", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_items(prop, brush_vertexpaint_tool_items);
@@ -493,6 +479,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Automatic Strength Adjustment", "Automatically adjusts strength to give consistent results for different spacings");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	/* adaptive space is not implemented yet */
 	prop= RNA_def_property(srna, "use_adaptive_space", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ADAPTIVE_SPACE);
 	RNA_def_property_ui_text(prop, "Adaptive Spacing", "Space daubs according to surface orientation instead of screen space");
@@ -547,39 +534,6 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Texture", "");
 	RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_update");
-
-	//prop= RNA_def_property(srna, "texture_scale_x", PROP_FLOAT, PROP_FACTOR);
-	//RNA_def_property_float_sdna(prop, NULL, "texture_scale_x");
-	//RNA_def_property_range(prop, -10, 10);
-	//RNA_def_property_ui_range(prop, -2, 2, 1, 0);
-	//RNA_def_property_ui_text(prop, "Texture Scale X", "");
-	//RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	//prop= RNA_def_property(srna, "texture_scale_y", PROP_FLOAT, PROP_FACTOR);
-	//RNA_def_property_float_sdna(prop, NULL, "texture_scale_y");
-	//RNA_def_property_range(prop, -10, 10);
-	//RNA_def_property_ui_range(prop, -2, 2, 1, 0);
-	//RNA_def_property_ui_text(prop, "Texture Scale Y", "");
-	//RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	//prop= RNA_def_property(srna, "texture_scale_factor", PROP_FLOAT, PROP_PERCENTAGE);
-	//RNA_def_property_float_sdna(prop, NULL, "texture_scale_factor");
-	//RNA_def_property_range(prop, 0, 10);
-	//RNA_def_property_ui_range(prop, 0, 2, 1, 0);
-	//RNA_def_property_ui_text(prop, "Texture Scale Factor", "");
-	//RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	//prop= RNA_def_property(srna, "texture_center_x", PROP_FLOAT, PROP_DISTANCE);
-	//RNA_def_property_float_sdna(prop, NULL, "texture_center_x");
-	//RNA_def_property_range(prop, -0.5, 0.5);
-	//RNA_def_property_ui_text(prop, "Texture Center X", "");
-	//RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	//prop= RNA_def_property(srna, "texture_center_y", PROP_FLOAT, PROP_DISTANCE);
-	//RNA_def_property_float_sdna(prop, NULL, "texture_center_y");
-	//RNA_def_property_range(prop, -0.5, 0.5);
-	//RNA_def_property_ui_text(prop, "Texture Center Y", "");
-	//RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "texture_overlay_alpha", PROP_INT, PROP_PERCENTAGE);
 	RNA_def_property_int_sdna(prop, NULL, "texture_overlay_alpha");
@@ -672,7 +626,7 @@ static void rna_def_operator_stroke_element(BlenderRNA *brna)
 	/* XXX: Tool (this will be for pressing a modifier key for a different brush,
 			e.g. switching to a Smooth brush in the middle of the stroke */
 
-	// XXX: i don't think blender currently supports the ability to property do a properly remappable modifier in the middle of a stroke
+	// XXX: i don't think blender currently supports the ability to properly do a remappable modifier in the middle of a stroke
 }
 
 void RNA_def_brush(BlenderRNA *brna)

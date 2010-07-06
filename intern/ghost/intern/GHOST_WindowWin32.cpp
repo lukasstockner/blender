@@ -93,7 +93,7 @@ static PIXELFORMATDESCRIPTOR sPreferredFormat = {
 	0,                              /* no accumulation buffer */
 	0, 0, 0, 0,                     /* accum bits (ignored) */
 	32,                             /* depth buffer */
-	1,                              /* no stencil buffer */
+	1,                              /* stencil buffer */
 	0,                              /* no auxiliary buffers */
 	PFD_MAIN_PLANE,                 /* main layer */
 	0,                              /* reserved */
