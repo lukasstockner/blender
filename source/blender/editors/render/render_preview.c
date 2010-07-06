@@ -27,7 +27,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/* global includes */
+/* global includes */ 
 
 #include <stdlib.h>
 #include <math.h>
@@ -380,7 +380,7 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 			}
 		}
 		else if(id_type==ID_TE) {
-			Tex *tex= (Tex*)id;
+			Tex *tex= (Tex *)id;
 			
 			sce->lay= 1<<MA_TEXTURE;
 			
@@ -452,7 +452,7 @@ static int ed_preview_draw_rect(ScrArea *sa, Scene *sce, ID *id, int split, int 
 	int gamma_correct=0;
 	int offx=0, newx= rect->xmax-rect->xmin, newy= rect->ymax-rect->ymin;
 
-	if (id && (GS(id->name) != ID_TE)) {
+	if (id && GS(id->name) != ID_TE) {
 		/* exception: don't color manage texture previews - show the raw values */
 		if (sce) gamma_correct = sce->r.color_mgt_flag & R_COLOR_MANAGEMENT;
 	}
@@ -1057,7 +1057,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 		memset(&iuser, 0, sizeof(ImageUser));
 		iuser.ok= iuser.framenr= 1;
 		iuser.scene= sp->scene;
-
+		
 		/* elubie: this needs to be changed: here image is always loaded if not
 		   already there. Very expensive for large images. Need to find a way to 
 		   only get existing ibuf */
