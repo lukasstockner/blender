@@ -1,5 +1,5 @@
 /**
- * $Id: GHOST_Path-api.cpp 29954 2010-07-05 00:00:40Z campbellbarton $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

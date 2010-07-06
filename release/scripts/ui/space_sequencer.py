@@ -279,6 +279,7 @@ class SEQUENCER_MT_strip(bpy.types.Menu):
 
         layout.separator()
         layout.operator("sequencer.reload")
+        layout.operator("sequencer.reassign_inputs")
         layout.separator()
         layout.operator("sequencer.lock")
         layout.operator("sequencer.unlock")
@@ -744,7 +745,7 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel):
         col.prop(strip, "convert_float")
 
         layout.prop(strip, "use_color_balance")
-        if strip.color_balance: # TODO - need to add this somehow
+        if strip.use_color_balance and strip.color_balance: # TODO - need to add this somehow
             row = layout.row()
             row.active = strip.use_color_balance
             col = row.column()

@@ -63,6 +63,8 @@ import os
 import time
 
 import bpy
+import os
+import time
 
 # import Blender
 # from BPyMesh import getMeshFromObject
@@ -1122,7 +1124,6 @@ class Export3DS(bpy.types.Operator):
     # to the class instance from the operator settings before calling.
 
 
-    # filename = StringProperty(name="File Name", description="File name used for exporting the 3DS file", maxlen= 1024, default= ""),
     filepath = StringProperty(name="File Path", description="Filepath used for exporting the 3DS file", maxlen= 1024, default= "")
     check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
 

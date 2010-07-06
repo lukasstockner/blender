@@ -1,5 +1,5 @@
 /**
- * $Id: GHOST_Path-api.h 30004 2010-07-05 19:59:37Z damien78 $
+ * $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *

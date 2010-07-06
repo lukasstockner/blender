@@ -20,6 +20,7 @@
 import bpy
 
 narrowui = bpy.context.user_preferences.view.properties_width_check
+narrowcon = 260
 
 
 class ConstraintButtonsPanel(bpy.types.Panel):
