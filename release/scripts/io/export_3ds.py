@@ -63,8 +63,6 @@ import os
 import time
 
 import bpy
-import os
-import time
 
 # import Blender
 # from BPyMesh import getMeshFromObject
