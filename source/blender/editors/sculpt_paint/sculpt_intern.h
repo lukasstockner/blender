@@ -46,6 +46,6 @@ void sculpt_update_mesh_elements(struct Scene *scene, struct Object *ob, int nee
 /* Undo */
 void sculpt_undo_push_begin(struct SculptSession *ss, char *name);
 void sculpt_undo_push_end(struct SculptSession *ss);
-struct SculptUndoNode *sculpt_undo_push_node(struct SculptSession *ss, struct PBVHNode *node);
+struct SculptUndoNode *sculpt_undo_push_node(struct Object *ob, struct PBVHNode *node);
 
 #endif

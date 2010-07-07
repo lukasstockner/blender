@@ -53,7 +53,7 @@ struct SoftBody;
 struct FluidsimSettings;
 struct ParticleSystem;
 struct DerivedMesh;
-struct SculptSession;
+struct PaintSession;
 struct bGPdata;
 
 
@@ -97,7 +97,7 @@ typedef struct Object {
 	ID id;
 	struct AnimData *adt;		/* animation data (must be immediately after id for utilities to use it) */ 
 
-	struct SculptSession *sculpt;
+	struct PaintSession *paint;
 	
 	short type, partype;
 	int par1, par2, par3;	/* can be vertexnrs */

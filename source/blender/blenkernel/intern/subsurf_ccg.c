@@ -2292,6 +2292,7 @@ static int ccgDM_use_grid_pbvh(CCGDerivedMesh *ccgdm)
 
 static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
+	SculptSession *ss;
 	CCGDerivedMesh *ccgdm= (CCGDerivedMesh*)dm;
 	int gridSize, numGrids, grid_pbvh;
 	GridKey *gridkey;
@@ -2301,24 +2302,25 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		return NULL;
 	}
 
-	if(!ob->sculpt)
+	if(!ob->paint)
 		return NULL;
+	ss = ob->paint->sculpt;
 
 	grid_pbvh = ccgDM_use_grid_pbvh(ccgdm);
 
-	if(ob->sculpt->pbvh) {
+	if(ob->paint->pbvh) {
 		if(grid_pbvh) {
 			/* pbvh's grids, gridadj and gridfaces points to data inside ccgdm
 			   but this can be freed on ccgdm release, this updates the pointers
 			   when the ccgdm gets remade, the assumption is that the topology
 			   does not change. */
 			ccgdm_create_grids(dm);
-			BLI_pbvh_grids_update(ob->sculpt->pbvh, ccgdm->gridData,
+			BLI_pbvh_grids_update(ob->paint->pbvh, ccgdm->gridData,
 					      ccgdm->gridAdjacency, (void**)ccgdm->gridFaces,
 					      ccgDM_getGridKey(&ccgdm->dm));
 		}
 
-		ccgdm->pbvh = ob->sculpt->pbvh;
+		ccgdm->pbvh = ob->paint->pbvh;
 		ccgdm->pbvh_draw = grid_pbvh;
 	}
 
@@ -2335,19 +2337,20 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		numGrids = ccgDM_getNumGrids(dm);
 		gridkey = ccgDM_getGridKey(dm);
 
-		ob->sculpt->pbvh= ccgdm->pbvh = BLI_pbvh_new();
+		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
-				     &get_mesh(ob)->vdata, &ob->sculpt->hidden_areas);
+				     &get_mesh(ob)->vdata,
+				     ss ? &ss->hidden_areas : NULL);
 		ccgdm->pbvh_draw = 1;
 	}
 	else if(ob->type == OB_MESH) {
 		Mesh *me= ob->data;
 
-		ob->sculpt->pbvh= ccgdm->pbvh = BLI_pbvh_new();
+		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
 				    &me->vdata, me->totface, me->totvert,
-				    &ob->sculpt->hidden_areas);
+				    ss ? &ss->hidden_areas : NULL);
 		ccgdm->pbvh_draw = 0;
 	}
 

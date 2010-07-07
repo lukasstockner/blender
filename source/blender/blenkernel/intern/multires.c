@@ -136,9 +136,9 @@ void multires_force_update(Object *ob)
 			ob->derivedFinal->release(ob->derivedFinal);
 			ob->derivedFinal = NULL;
 		}
-		if(ob->sculpt && ob->sculpt->pbvh) {
-			BLI_pbvh_free(ob->sculpt->pbvh);
-			ob->sculpt->pbvh= NULL;
+		if(ob->paint && ob->paint->pbvh) {
+			BLI_pbvh_free(ob->paint->pbvh);
+			ob->paint->pbvh= NULL;
 		}
 	}
 }

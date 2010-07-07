@@ -60,31 +60,17 @@ int paint_facesel_test(struct Object *ob);
 
 void paint_refresh_mask_display(struct Object *ob);
 
-/* Session data (mode-specific) */
-
 typedef struct SculptSession {
-	struct ProjVert *projverts;
-
 	/* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
 	struct MultiresModifierData *multires; /* Special handling for multires meshes */
 	struct MVert *mvert;
 	struct MFace *mface;
 	int totvert, totface;
 	float *face_normals;
-	struct Object *ob;
 	struct KeyBlock *kb;
 	
 	/* Mesh connectivity */
 	struct ListBase *fmap;
-
-	/* PBVH acceleration structure */
-	struct PBVH *pbvh;
-
-	/* Used temporarily per-stroke */
-	float *vertexcosnos;
-
-	/* Partial redraw */
-	int partial_redraw;
 
 	/* Area hiding */
 	ListBase hidden_areas;
@@ -98,11 +84,21 @@ typedef struct SculptSession {
 	struct SculptStroke *stroke;
 	struct StrokeCache *cache;
 
-	struct GPUDrawObject *drawobject;
-
 	int modifiers_active;
 } SculptSession;
 
-void free_sculptsession(struct Object *ob);
+typedef struct PaintSession {
+	/* mode-specific data (just sculpt for now */
+	SculptSession *sculpt;
+
+	/* PBVH acceleration structure */
+	struct PBVH *pbvh;
+
+	/* Partial redraw */
+	int partial_redraw;
+} PaintSession;
+
+void create_paintsession(struct Object *ob);
+void free_paintsession(struct Object *ob);
 
 #endif

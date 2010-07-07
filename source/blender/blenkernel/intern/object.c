@@ -228,32 +228,6 @@ void object_free_display(Object *ob)
 	freedisplist(&ob->disp);
 }
 
-void free_sculptsession(Object *ob)
-{
-	if(ob && ob->sculpt) {
-		SculptSession *ss = ob->sculpt;
-		DerivedMesh *dm= ob->derivedFinal;
-
-		if(ss->pbvh)
-			BLI_pbvh_free(ss->pbvh);
-
-		BLI_freelistN(&ss->hidden_areas);
-
-		if(dm && dm->getPBVH)
-			dm->getPBVH(NULL, dm); /* signal to clear */
-
-		if(ss->texcache)
-			MEM_freeN(ss->texcache);
-
-		if(ss->layer_co)
-			MEM_freeN(ss->layer_co);
-
-		MEM_freeN(ss);
-
-		ob->sculpt = NULL;
-	}
-}
-
 /* do not free object itself */
 void free_object(Object *ob)
 {
@@ -309,7 +283,7 @@ void free_object(Object *ob)
 	if(ob->bsoft) bsbFree(ob->bsoft);
 	if(ob->gpulamp.first) GPU_lamp_free(ob);
 
-	free_sculptsession(ob);
+	free_paintsession(ob);
 
 	if(ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
 }
@@ -1319,7 +1293,7 @@ Object *copy_object(Object *ob)
 	copy_constraints(&obn->constraints, &ob->constraints, TRUE);
 
 	obn->mode = 0;
-	obn->sculpt = NULL;
+	obn->paint = NULL;
 
 	/* increase user numbers */
 	id_us_plus((ID *)obn->data);

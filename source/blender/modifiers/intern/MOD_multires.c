@@ -62,8 +62,7 @@ static void copyData(ModifierData *md, ModifierData *target)
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 						   int useRenderParams, int isFinalCalc)
 {
-	SculptSession *ss= ob->sculpt;
-	int sculpting= (ob->mode & OB_MODE_SCULPT) && ss;
+	int update_pbvh= (ob->mode & OB_MODE_SCULPT) && ob->paint;
 	MultiresModifierData *mmd = (MultiresModifierData*)md;
 	DerivedMesh *result;
 
@@ -77,10 +76,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 		result->release(result);
 		result= cddm;
 	}
-	else if(sculpting) {
+	else if(update_pbvh) {
 		/* would be created on the fly too, just nicer this
 		   way on first stroke after e.g. switching levels */
-		ss->pbvh= result->getPBVH(ob, result);
+		ob->paint->pbvh= result->getPBVH(ob, result);
 	}
 
 	return result;

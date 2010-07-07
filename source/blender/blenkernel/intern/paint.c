@@ -32,10 +32,12 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_brush.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
 #include "BKE_paint.h"
 #include "BKE_utildefines.h"
 
+#include "BLI_listbase.h"
 #include "BLI_pbvh.h"
 
 #include <stdlib.h>
@@ -199,9 +201,55 @@ void copy_paint(Paint *orig, Paint *new)
 /* Update the mask without doing a full object recalc */
 void paint_refresh_mask_display(Object *ob)
 {
-	if(ob && ob->sculpt && ob->sculpt->pbvh) {
-		BLI_pbvh_search_callback(ob->sculpt->pbvh, NULL, NULL,
+	if(ob && ob->paint && ob->paint->pbvh) {
+		BLI_pbvh_search_callback(ob->paint->pbvh, NULL, NULL,
 					 BLI_pbvh_node_set_flags,
 					 SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
+	}
+}
+
+void create_paintsession(Object *ob)
+{
+	if(ob->paint)
+		free_paintsession(ob);
+
+	ob->paint = MEM_callocN(sizeof(PaintSession), "PaintSession");
+}
+
+static void free_sculptsession(PaintSession *ps)
+{
+	if(ps && ps->sculpt) {
+		SculptSession *ss = ps->sculpt;
+
+		BLI_freelistN(&ss->hidden_areas);
+
+		if(ss->texcache)
+			MEM_freeN(ss->texcache);
+
+		if(ss->layer_co)
+			MEM_freeN(ss->layer_co);
+
+		MEM_freeN(ss);
+
+		ps->sculpt = NULL;
+	}
+}
+
+void free_paintsession(Object *ob)
+{
+	if(ob && ob->paint) {
+		PaintSession *ps = ob->paint;
+		DerivedMesh *dm= ob->derivedFinal;
+
+		free_sculptsession(ps);
+
+		if(ps->pbvh)
+			BLI_pbvh_free(ps->pbvh);
+
+		if(dm && dm->getPBVH)
+			dm->getPBVH(NULL, dm); /* signal to clear PBVH */
+
+		MEM_freeN(ps);
+		ob->paint = NULL;
 	}
 }

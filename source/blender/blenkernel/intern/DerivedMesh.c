@@ -2182,13 +2182,13 @@ static void clear_mesh_caches(Object *ob)
 		ob->derivedDeform->release(ob->derivedDeform);
 		ob->derivedDeform= NULL;
 	}
-	/* we free pbvh on changes, except during sculpt since it can't deal with
+	/* we free pbvh on changes, except during paint since it can't deal with
 	   changing PVBH node organization, we hope topology does not change in
 	   the meantime .. weak */
-	if(ob->sculpt && ob->sculpt->pbvh) {
-		if(!ob->sculpt->cache) {
-			BLI_pbvh_free(ob->sculpt->pbvh);
-			ob->sculpt->pbvh= NULL;
+	if(ob->paint && ob->paint->pbvh) {
+		if(!ob->paint->sculpt->cache) {
+			BLI_pbvh_free(ob->paint->pbvh);
+			ob->paint->pbvh= NULL;
 		}
 	}
 }

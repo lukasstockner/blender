@@ -191,13 +191,14 @@ static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	Mesh *me= (ob)? ob->data: NULL;
 
-	if(ob->sculpt->modifiers_active) return 0;
+	if(ob->paint->sculpt && ob->paint->sculpt->modifiers_active) return 0;
 
-	return (cddm->mvert == me->mvert) || ob->sculpt->kb;
+	return (cddm->mvert == me->mvert) || ob->paint->sculpt->kb;
 }
 
 static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
+	SculptSession *ss;
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	Mesh *me= (ob)? ob->data: NULL;
 
@@ -206,10 +207,12 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		return NULL;
 	}
 
-	if(!ob->sculpt)
+	if(!ob->paint)
 		return NULL;
-	if(ob->sculpt->pbvh) {
-		cddm->pbvh= ob->sculpt->pbvh;
+	ss = ob->paint->sculpt;
+
+	if(ob->paint->pbvh) {
+		cddm->pbvh= ob->paint->pbvh;
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 	}
 
@@ -221,7 +224,7 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
 				    &me->vdata, me->totface, me->totvert,
-				    &ob->sculpt->hidden_areas);
+				    ss ? &ss->hidden_areas : NULL);
 	}
 
 	return cddm->pbvh;

@@ -53,7 +53,7 @@ static int mask_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	
-	return ob && get_mesh(ob) && ob->sculpt;
+	return ob && get_mesh(ob) && ob->paint && ob->paint->sculpt;
 }
 
 static int mask_active_poll(bContext *C)
@@ -157,6 +157,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	Object *ob;
 	Mesh *me;
 	struct MultiresModifierData *mmd;
+	PaintSession *ps;
 	SculptSession *ss;
 	MTex *tex_slot;
 	DerivedMesh *dm = NULL;
@@ -170,7 +171,8 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	
 	scene = CTX_data_scene(C);
 	ob = CTX_data_active_object(C);
-	ss = ob->sculpt;
+	ps = ob->paint;
+	ss = ps->sculpt;
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 	
@@ -196,7 +198,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	}
 
 	/* update the pbvh */
-	ss->pbvh = pbvh = dm->getPBVH(ob, dm);
+	ps->pbvh = pbvh = dm->getPBVH(ob, dm);
 
 	/* get all nodes in the pbvh */
 	BLI_pbvh_search_gather(pbvh,
@@ -211,7 +213,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			GridKey *gridkey;
 			int *grid_indices, totgrid, gridsize;
 
-			sculpt_undo_push_node(ss, nodes[n]);
+			sculpt_undo_push_node(ob, nodes[n]);
 
 			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
 						&totgrid, NULL, &gridsize,
@@ -244,7 +246,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 		for(n = 0; n < totnode; ++n) {
 			int *face_indices, totface;
 
-			sculpt_undo_push_node(ss, nodes[n]);
+			sculpt_undo_push_node(ob, nodes[n]);
 
 			BLI_pbvh_node_get_faces(pbvh, nodes[n],
 						&face_indices, &totface);
@@ -305,18 +307,20 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 	Object *ob;
 	DerivedMesh *dm;
 	struct MultiresModifierData *mmd;
+	PaintSession *ps;
 	SculptSession *ss;
 	Mesh *me;
 	PBVH *pbvh;
 
 	scene = CTX_data_scene(C);
 	ob = CTX_data_active_object(C);
-	ss = ob->sculpt;
+	ps = ob->paint;
+	ss = ps->sculpt;
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 
 	dm = mesh_get_derived_final(scene, ob, 0);
-	ss->pbvh = pbvh = dm->getPBVH(ob, dm);
+	ps->pbvh = pbvh = dm->getPBVH(ob, dm);
 
 	if(pbvh) {
 		PBVHNode **nodes;
@@ -329,7 +333,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		for(n=0; n<totnode; n++) {
 			PBVHVertexIter vd;
 
-			sculpt_undo_push_node(ss, nodes[n]);
+			sculpt_undo_push_node(ob, nodes[n]);
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(vd.mask_active)
