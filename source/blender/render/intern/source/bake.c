@@ -196,7 +196,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	VlakRen *vlr= shi->primitive.vlr;
 	
 	if(bs->type==RE_BAKE_AO) {
-		ambient_occlusion(re, shi);
+		shade_ao_env_indirect(re, shi);
 
 		if(re->params.r.bake_flag & R_BAKE_NORMALIZE) {
 			copy_v3_v3(shr.combined, shi->shading.ao);

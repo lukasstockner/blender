@@ -103,7 +103,7 @@ void shade_surface_direct(struct Render *re, struct ShadeInput *shi, struct Shad
 /* Utilities */
 void environment_lighting_apply(struct Render *re, struct ShadeInput *shi, struct ShadeResult *shr);
 
-void ambient_occlusion(struct Render *re, struct ShadeInput *shi);
+void shade_ao_env_indirect(struct Render *re, struct ShadeInput *shi);
 float fresnel_fac(float *view, float *vn, float fresnel, float fac);
 void shade_ray(struct Render *re, struct Isect *is, struct ShadeInput *shi, struct ShadeResult *shr);
 

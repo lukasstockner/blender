@@ -51,13 +51,11 @@
 
 /******************************** Utilities **********************************/
 
-static int mat_need_cache(Render *re, Material *ma)
+static int mat_need_cache(Render *re, ShadeInput *shi)
 {
-	if(ma->mode & MA_SHLESS)
+	if(!mat_need_ao_env_indirect(re, shi))
 		return 0;
-	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
-		return 0;
-	else if(!re->db.sss_pass && mat_has_only_sss(ma))
+	else if(!re->db.sss_pass && mat_has_only_sss(shi->material.mat))
 		return 0;
 	
 	return 1;
@@ -227,7 +225,7 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 			shade_samples_from_pixel(re, ssamp, &row[0], x, y);
 
 			shi= ssamp->shi;
-			if(shi->primitive.vlr && mat_need_cache(re, shi->material.mat)) {
+			if(shi->primitive.vlr && mat_need_cache(re, shi)) {
 				disk_occlusion_sample_direct(re, shi);
 
 				copy_v3_v3(sample->co, shi->geometry.co);
@@ -1117,7 +1115,7 @@ void irr_cache_fill(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ss
 						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
 						int added;
 
-						if(!mat_need_cache(re, shi->material.mat))
+						if(!mat_need_cache(re, shi))
 							continue;
 
 						if(shi->primitive.strand) {

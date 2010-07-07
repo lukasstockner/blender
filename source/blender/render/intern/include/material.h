@@ -80,5 +80,9 @@ void mat_emit(float emit[3], struct ShadeMaterial *mat, struct ShadeGeometry *ge
 
 void mat_displacement(struct Render *re, struct ShadeInput *shi, float displacement[3]);
 
+/* Queries */
+
+int mat_need_ao_env_indirect(struct Render *re, struct ShadeInput *shi);
+
 #endif /* __RENDER_MATERIAL_H__ */
 

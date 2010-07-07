@@ -653,3 +653,36 @@ void mat_emit(float emit[3], ShadeMaterial *mat, ShadeGeometry *geom, int thread
 	}
 }
 
+/* Queries */
+
+int mat_need_ao_env_indirect(Render *re, ShadeInput *shi)
+{
+	Material *ma= shi->material.mat;
+
+	/* do we have it enabled at all? */
+	if(!(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)))
+		return 0;
+	if(!((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX))
+		return 0;
+	
+	/* if requested for passes, always render it */
+	if(shi->shading.passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))
+		return 1;
+
+	if(shi->shading.passflag & SCE_PASS_COMBINED) {
+		/* rendering combined but no included, so can skip */
+		if(!(shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+			return 0;
+
+		/* some materials don't need it */
+		if(ma->mode & MA_SHLESS)
+			return 0;
+		else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
+			return 0;
+
+		return 1;
+	}
+
+	return 0;
+}
+
