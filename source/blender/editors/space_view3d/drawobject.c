@@ -2475,6 +2475,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	int totvert, totedge, totface;
 	DispList *dl;
 	DerivedMesh *dm= mesh_get_derived_final(scene, ob, v3d->customdata_mask);
+	Paint *p;
+	float planes[4][4], (*paint_redraw_planes)[4] = NULL;
+	int fast_navigate = 0;
 
 	if(!dm)
 		return;
@@ -2486,6 +2489,24 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	totvert = dm->getNumVerts(dm);
 	totedge = dm->getNumEdges(dm);
 	totface = dm->getNumFaces(dm);
+
+	/* setup for fast paint/sculpt drawing */
+	if((ob->mode & (OB_MODE_SCULPT)) &&
+	   (p=paint_get_active(scene))) {
+		/* drop down to a low multires level during navigation */
+		fast_navigate = (p->flags & PAINT_FAST_NAVIGATE) &&
+			(rv3d->rflag & RV3D_NAVIGATING);
+
+		if(ob->paint && ob->paint->partial_redraw) {
+			if(ar->do_draw & RGN_DRAW_PARTIAL) {
+				sculpt_get_redraw_planes(planes, ar, rv3d, ob);
+				paint_redraw_planes = planes;
+				ob->paint->partial_redraw = 0;
+			}
+		
+		}
+	}
+
 	
 	/* vertexpaint, faceselect wants this, but it doesnt work for shaded? */
 	if(dt!=OB_SHADED)
@@ -2564,8 +2585,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 		}
 		else {
-			Paint *p;
-
 			if((v3d->flag&V3D_SELECT_OUTLINE) && ((v3d->flag2 & V3D_RENDER_OVERRIDE)==0) && (base->flag&SELECT) && !draw_wire && !ob->paint)
 				draw_mesh_object_outline(v3d, ob, dm);
 
@@ -2574,23 +2593,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			if(ob->paint && (p=paint_get_active(scene))) {
-				float planes[4][4];
-				float (*fpl)[4] = NULL;
-				int fast= (p->flags & PAINT_FAST_NAVIGATE) && (rv3d->rflag & RV3D_NAVIGATING);
-
-				if(ob->paint->partial_redraw) {
-					if(ar->do_draw & RGN_DRAW_PARTIAL) {
-						sculpt_get_redraw_planes(planes, ar, rv3d, ob);
-						fpl = planes;
-						ob->paint->partial_redraw = 0;
-					}
-				}
-
-				dm->drawFacesSolid(dm, fpl, fast, GPU_enable_material);
-			}
-			else
-				dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
+			dm->drawFacesSolid(dm, paint_redraw_planes, fast_navigate, GPU_enable_material);
 
 			GPU_disable_material();
 

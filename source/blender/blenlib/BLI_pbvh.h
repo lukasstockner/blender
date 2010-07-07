@@ -54,12 +54,20 @@ typedef int (*BLI_pbvh_SearchCallback)(PBVHNode *node, void *data);
 
 typedef void (*BLI_pbvh_HitCallback)(PBVHNode *node, void *data);
 
+/* test AABB against sphere */
+typedef struct {
+	float *center;
+	float radius_squared;
+	int original;
+} PBVHSearchSphereData;
+int BLI_pbvh_search_sphere_cb(PBVHNode *node, void *data);
+
 /* Building */
 
 PBVH *BLI_pbvh_new(void);
 void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
-			 struct CustomData *vdata, int totface, int totvert,
-			 ListBase *hidden_areas);
+			 struct CustomData *vdata, struct CustomData *fdata,
+			 int totface, int totvert, ListBase *hidden_areas);
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 			  struct DMGridAdjacency *gridadj, int totgrid,
 			  int gridsize, struct GridKey *gridkey, void **gridfaces,
@@ -92,7 +100,7 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 
 void BLI_pbvh_node_draw(PBVHNode *node, void *data);
 int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data);
-void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smooth);
+void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int flags);
 
 /* Node Access */
 
@@ -123,7 +131,9 @@ void BLI_pbvh_node_mark_update(PBVHNode *node);
 void BLI_pbvh_node_set_flags(PBVHNode *node, void *data);
 
 void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
-			     int **face_indices, int *totnode);
+			     struct MFace **faces, struct CustomData **fdata,
+			     int **face_indices, int **face_vert_indices,
+			     int *totface);
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 	int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
 	struct DMGridData ***griddata, struct DMGridAdjacency **gridadj, struct GridKey **gridkey);

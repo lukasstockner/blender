@@ -60,6 +60,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "gpu_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -1303,13 +1304,15 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 	if(ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
 		if(dm->numFaceData) {
+			GPUDrawFlags drawflags = 0;
+
 			/* should be per face */
 			if(!setMaterial(faceFlags[1]+1, NULL))
 				return;
+			if(faceFlags[0] & ME_SMOOTH)
+				drawflags |= GPU_DRAW_SMOOTH;
 
-			glShadeModel((faceFlags[0] & ME_SMOOTH)? GL_SMOOTH: GL_FLAT);
-			BLI_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL, (faceFlags[0] & ME_SMOOTH));
-			glShadeModel(GL_FLAT);
+			BLI_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL, drawflags);
 		}
 
 		return;
@@ -2349,7 +2352,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
-				    &me->vdata, me->totface, me->totvert,
+				    &me->vdata, &me->fdata, me->totface, me->totvert,
 				    ss ? &ss->hidden_areas : NULL);
 		ccgdm->pbvh_draw = 0;
 	}

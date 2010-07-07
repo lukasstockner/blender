@@ -803,40 +803,6 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, float mask
 	return avg;
 }
 
-typedef struct {
-	Sculpt *sd;
-	SculptSession *ss;
-	float radius_squared;
-	int original;
-} SculptSearchSphereData;
-
-/* Test AABB against sphere */
-static int sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
-{
-	SculptSearchSphereData *data = data_v;
-	float *center = data->ss->cache->location, nearest[3];
-	float t[3], bb_min[3], bb_max[3];
-	int i;
-
-	if(data->original)
-		BLI_pbvh_node_get_original_BB(node, bb_min, bb_max);
-	else
-		BLI_pbvh_node_get_BB(node, bb_min, bb_max);
-	
-	for(i = 0; i < 3; ++i) {
-		if(bb_min[i] > center[i])
-			nearest[i] = bb_min[i];
-		else if(bb_max[i] < center[i])
-			nearest[i] = bb_max[i];
-		else
-			nearest[i] = center[i]; 
-	}
-	
-	sub_v3_v3v3(t, center, nearest);
-
-	return t[0] * t[0] + t[1] * t[1] + t[2] * t[2] < data->radius_squared;
-}
-
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
 static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float val[3])
 {
@@ -1571,22 +1537,21 @@ static void sculpt_update_keyblock(Object *ob)
 
 static void do_brush_action(Sculpt *sd, Object *ob, StrokeCache *cache)
 {
-	SculptSearchSphereData data;
+	PBVHSearchSphereData data;
 	Brush *brush = paint_brush(&sd->paint);
 	SculptSession *ss = ob->paint->sculpt;
 	PBVHNode **nodes= NULL;
 	int totnode;
 
-	memset(&data, 0, sizeof(data));
-	data.ss = ss;
-	data.sd = sd;
+	data.center = ss->cache->location;
 	data.radius_squared = ss->cache->radius * ss->cache->radius;
+	data.original= 0;
 
 	/* Build a list of all nodes that are potentially within the brush's
 	   area of influence */
 	if(brush->sculpt_tool == SCULPT_TOOL_GRAB) {
 		data.original= 1;
-		BLI_pbvh_search_gather(ob->paint->pbvh, sculpt_search_sphere_cb, &data,
+		BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb, &data,
 				&nodes, &totnode);
 
 		if(cache->first_time)
@@ -1595,7 +1560,7 @@ static void do_brush_action(Sculpt *sd, Object *ob, StrokeCache *cache)
 			copy_v3_v3(ss->cache->location, ss->cache->grab_active_location[ss->cache->symmetry]);
 	}
 	else {
-		BLI_pbvh_search_gather(ob->paint->pbvh, sculpt_search_sphere_cb, &data,
+		BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb, &data,
 			&nodes, &totnode);
 	}
 
@@ -1818,21 +1783,6 @@ static void SCULPT_OT_radial_control(wmOperatorType *ot)
 /**** Operator for applying a stroke (various attributes including mouse path)
 	  using the current brush. ****/
 
-static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset)
-{
-	float delta[3], scale, loc[3];
-
-	mul_v3_m4v3(loc, ob->obmat, center);
-
-	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
-	window_to_3d_delta(vc->ar, delta, offset, 0);
-
-	scale= fabsf(mat4_to_scale(ob->obmat));
-	scale= (scale == 0.0f)? 1.0f: scale;
-
-	return len_v3(delta)/scale;
-}
-
 static void sculpt_cache_free(StrokeCache *cache)
 {
 	if(cache->face_norms)
@@ -1920,8 +1870,12 @@ static void sculpt_update_cache_variants(Sculpt *sd, Object *ob, struct PaintStr
 	cache->previous_pixel_radius = cache->pixel_radius;
 	cache->pixel_radius = brush->size;
 
-	if(cache->first_time)
-		cache->initial_radius = unproject_brush_radius(ob, cache->vc, cache->true_location, brush->size);
+	if(cache->first_time) {
+		cache->initial_radius =
+			paint_calc_object_space_radius(ob, cache->vc,
+						       cache->true_location,
+						       brush->size);
+	}
 
 	if(brush->flag & BRUSH_SIZE_PRESSURE && brush->sculpt_tool != SCULPT_TOOL_GRAB) {
 		cache->pixel_radius *= cache->pressure;
@@ -1937,8 +1891,11 @@ static void sculpt_update_cache_variants(Sculpt *sd, Object *ob, struct PaintStr
 		dx = cache->mouse[0] - cache->initial_mouse[0];
 		dy = cache->mouse[1] - cache->initial_mouse[1];
 		cache->pixel_radius = sqrt(dx*dx + dy*dy);
-		cache->radius = unproject_brush_radius(ob, paint_stroke_view_context(stroke),
-						       cache->true_location, cache->pixel_radius);
+		cache->radius =
+			paint_calc_object_space_radius(ob,
+					       paint_stroke_view_context(stroke),
+					       cache->true_location,
+					       cache->pixel_radius);
 		cache->rotation = atan2(dy, dx);
 	}
 	else if(brush->flag & BRUSH_RAKE) {
@@ -1995,70 +1952,35 @@ static void sculpt_stroke_modifiers_check(bContext *C, Object *ob)
 	}
 }
 
-typedef struct {
-	Object *ob;
-	float *ray_start, *ray_normal;
-	int hit;
-	float dist;
-	int original;
-} SculptRaycastData;
-
 void sculpt_raycast_cb(PBVHNode *node, void *data_v)
 {
-	SculptRaycastData *srd = data_v;
-	PaintSession *ps = srd->ob->paint;
+	PaintStrokeRaycastData *data = data_v;
+	PaintSession *ps = data->ob->paint;
 	float (*origco)[3]= NULL;
 
-	if(srd->original && ps->sculpt->cache) {
+	if(data->original && ps->sculpt->cache) {
 		/* intersect with coordinates from before we started stroke */
 		SculptUndoNode *unode= sculpt_undo_get_node(node);
 		origco= (unode)? unode->co: NULL;
 	}
 
-	srd->hit |= BLI_pbvh_node_raycast(ps->pbvh, node, origco,
-		srd->ray_start, srd->ray_normal, &srd->dist);
+	data->hit |= BLI_pbvh_node_raycast(ps->pbvh, node, origco,
+		data->ray_start, data->ray_normal, &data->dist);
 }
 
-/* Do a raycast in the tree to find the 3d brush location
-   (This allows us to ignore the GL depth buffer)
-   Returns 0 if the ray doesn't hit the mesh, non-zero otherwise
- */
-int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
+int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke,
+			       float out[3], float mouse[2])
 {
 	ViewContext *vc = paint_stroke_view_context(stroke);
 	Object *ob = vc->obact;
 	StrokeCache *cache= ob->paint->sculpt->cache;
-	float ray_start[3], ray_end[3], ray_normal[3], dist;
-	float obimat[4][4];
-	float mval[2] = {mouse[0] - vc->ar->winrct.xmin,
-			 mouse[1] - vc->ar->winrct.ymin};
-	SculptRaycastData srd;
+	int original = cache ? cache->original : 0;
 
 	sculpt_stroke_modifiers_check(C, ob);
 
-	viewline(vc->ar, vc->v3d, mval, ray_start, ray_end);
-
-	invert_m4_m4(obimat, ob->obmat);
-	mul_m4_v3(obimat, ray_start);
-	mul_m4_v3(obimat, ray_end);
-
-	sub_v3_v3v3(ray_normal, ray_end, ray_start);
-	dist= normalize_v3(ray_normal);
-
-	srd.ob = ob;
-	srd.ray_start = ray_start;
-	srd.ray_normal = ray_normal;
-	srd.dist = dist;
-	srd.hit = 0;
-	srd.original = (cache)? cache->original: 0;
-	BLI_pbvh_raycast(ob->paint->pbvh, sculpt_raycast_cb, &srd,
-			 ray_start, ray_normal, srd.original);
-	
-	copy_v3_v3(out, ray_normal);
-	mul_v3_fl(out, srd.dist);
-	add_v3_v3(out, ray_start);
-
-	return srd.hit;
+	return paint_stroke_get_location(C, stroke, sculpt_raycast_cb,
+					 ob->paint->sculpt, out, mouse,
+					 original);
 }
 
 /* Initialize stroke operator properties */

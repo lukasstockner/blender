@@ -29,6 +29,8 @@
 #ifndef ED_PAINT_INTERN_H
 #define ED_PAINT_INTERN_H
 
+#include "BLI_pbvh.h"
+
 struct bContext;
 struct Scene;
 struct Object;
@@ -60,6 +62,19 @@ int paint_stroke_exec(struct bContext *C, struct wmOperator *op);
 struct ViewContext *paint_stroke_view_context(struct PaintStroke *stroke);
 void *paint_stroke_mode_data(struct PaintStroke *stroke);
 void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
+
+typedef struct {
+	void *mode_data;
+	struct Object *ob;
+	float *ray_start, *ray_normal;
+	int hit;
+	float dist;
+	int original;
+} PaintStrokeRaycastData;
+int paint_stroke_get_location(struct bContext *C, struct PaintStroke *stroke,
+			      BLI_pbvh_HitCallback hit_cb, void *mode_data,
+			      float out[3], float mouse[2], int original);
+
 int paint_poll(struct bContext *C);
 void paint_cursor_start(struct bContext *C, int (*poll)(struct bContext *C));
 
@@ -110,6 +125,11 @@ void PAINT_OT_face_select_linked_pick(struct wmOperatorType *ot);
 void PAINT_OT_face_select_all(struct wmOperatorType *ot);
 
 int facemask_paint_poll(struct bContext *C);
+
+float paint_calc_object_space_radius(struct Object *ob,
+				     struct ViewContext *vc,
+				     float center[3],
+				     float pixel_radius);
 
 struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
 

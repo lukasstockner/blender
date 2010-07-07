@@ -244,12 +244,13 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 		float *pmask = CustomData_get_layer(&me->vdata, CD_PAINTMASK);
 
 		for(n = 0; n < totnode; ++n) {
+			MFace *mface;
 			int *face_indices, totface;
 
 			sculpt_undo_push_node(ob, nodes[n]);
 
-			BLI_pbvh_node_get_faces(pbvh, nodes[n],
-						&face_indices, &totface);
+			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface, NULL,
+						&face_indices, NULL, &totface);
 
 			for(i = 0; i < totface; ++i) {
 				int face_index = face_indices[i];

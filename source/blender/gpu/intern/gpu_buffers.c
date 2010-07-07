@@ -40,6 +40,7 @@
 
 #include "BLI_math.h"
 #include "BLI_ghash.h"
+#include "BLI_pbvh.h"
 
 #include "DNA_meshdata_types.h"
 
@@ -427,6 +428,13 @@ static void delete_buffer(GLuint *buf)
 	*buf = 0;
 }
 
+static void mcol_to_gpu_colors(unsigned char out[3], MCol *mcol)
+{
+	out[0] = mcol->r;
+	out[1] = mcol->g;
+	out[2] = mcol->b;
+}
+
 /* For purposes of displaying the mask on the mesh,
    convert the mask strength to RGB-bytes */
 static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
@@ -463,10 +471,62 @@ static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, in
 	return color_data;
 }
 
-void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, CustomData *vdata, int *vert_indices, int totvert)
+static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
+						    PBVH *bvh, PBVHNode *node)
 {
 	unsigned char *color_data;
-	int i, pmask_totlayer;
+	CustomData *fdata;
+	MFace *mface;
+	int *face_indices, *face_vert_indices, totface, mcol_active_layer, totvert;
+
+	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
+	BLI_pbvh_node_get_faces(bvh, node, &mface, &fdata, &face_indices,
+				&face_vert_indices, &totface);
+
+	mcol_active_layer = CustomData_get_active_layer_index(fdata, CD_MCOL);
+
+	color_data = map_color_buffer(buffers, mcol_active_layer != -1, totvert);
+
+	if(color_data) {
+		MCol *mcol;
+		int i, j;
+
+		mcol = fdata->layers[mcol_active_layer].data;
+		
+		for(i = 0; i < totface; ++i) {
+			int face_index = face_indices[i];
+			int S = mface[face_index].v4 ? 4 : 3;
+
+			/* for now this arbitrarily chooses one face's corner's
+			   mcol to be assigned to a vertex; alternatives would
+			   be to combine multiple colors through averaging or
+			   draw separate quads so that mcols can abruptly
+			   transition from one face to another */
+			for(j = 0; j < S; ++j) {
+				int node_vert_index = face_vert_indices[i*4 + j];
+
+				mcol_to_gpu_colors(color_data + node_vert_index,
+						   mcol + face_index*4);
+			}
+		}
+	}
+}
+
+void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
+				   PBVHNode *node, GPUDrawFlags flags)
+{
+	CustomData *vdata;
+	unsigned char *color_data;
+	int i, pmask_totlayer, totvert, *vert_indices;	
+
+	if(flags & GPU_DRAW_ACTIVE_MCOL) {
+		/* For now we do either mcol or masks, not both */
+		gpu_update_mesh_color_buffers_from_mcol(buffers, bvh, node);
+		return;
+	}
+
+	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
+	BLI_pbvh_node_get_verts(bvh, node, &vert_indices, NULL, &vdata);
 
 	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
 
@@ -531,7 +591,7 @@ void GPU_update_mesh_vert_buffers(GPU_Buffers *buffers, MVert *mvert,
 }
 
 GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
-				    CustomData *vdata,
+				    CustomData *vdata, CustomData *fdata,
 				    int *face_indices, int totface,
 				    int *vert_indices, int tot_uniq_verts,
 				    int totvert)
@@ -594,9 +654,6 @@ GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 
 	if(buffers->index_buf)
 		glGenBuffersARB(1, &buffers->vert_buf);
-
-	GPU_update_mesh_vert_buffers(buffers, mvert, vert_indices, totvert);
-	GPU_update_mesh_color_buffers(buffers, vdata, vert_indices, totvert);
 
 	buffers->tot_tri = tottri;
 

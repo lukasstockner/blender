@@ -33,6 +33,7 @@
 #include "BKE_global.h" /* for mesh_calc_normals */
 
 #include "gpu_buffers.h"
+#include "GL/glew.h"
 
 static void pbvh_free_nodes(PBVH *bvh);
 
@@ -121,6 +122,9 @@ struct PBVH {
 	/* Used by both mesh and grid type */
 	CustomData *vdata;
 
+	/* For vertex paint */
+	CustomData *fdata;
+
 	/* Only used during BVH build and update,
 	   don't need to remain valid after */
 	BLI_bitmap vert_bitmap;
@@ -152,7 +156,32 @@ typedef struct PBVHIter {
 	int stackspace;
 } PBVHIter;
 
+/* Test AABB against sphere */
+int BLI_pbvh_search_sphere_cb(PBVHNode *node, void *data_v)
+{
+	PBVHSearchSphereData *data = data_v;
+	float nearest[3];
+	float t[3], bb_min[3], bb_max[3];
+	int i;
 
+	if(data->original)
+		BLI_pbvh_node_get_original_BB(node, bb_min, bb_max);
+	else
+		BLI_pbvh_node_get_BB(node, bb_min, bb_max);
+	
+	for(i = 0; i < 3; ++i) {
+		if(bb_min[i] > data->center[i])
+			nearest[i] = bb_min[i];
+		else if(bb_max[i] < data->center[i])
+			nearest[i] = bb_max[i];
+		else
+			nearest[i] = data->center[i]; 
+	}
+	
+	sub_v3_v3v3(t, data->center, nearest);
+
+	return t[0] * t[0] + t[1] * t[1] + t[2] * t[2] < data->radius_squared;
+}
 
 /* Adapted from:
    http://www.gamedev.net/community/forums/topic.asp?topic_id=512123
@@ -392,6 +421,7 @@ static void build_mesh_leaf_node(PBVH *bvh, PBVHNode *node)
 		node->draw_buffers =
 			GPU_build_mesh_buffers(map, bvh->verts, bvh->faces,
 				  bvh->vdata,
+				  bvh->fdata,
 				  node->prim_indices,
 				  node->totprim, node->vert_indices,
 				  node->uniq_verts,
@@ -614,12 +644,14 @@ void pbvh_begin_build(PBVH *bvh, int totprim, ListBase *hidden_areas)
 
 /* Do a full rebuild with on Mesh data structure */
 void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
-			 CustomData *vdata, int totface, int totvert,
+			 CustomData *vdata, CustomData *fdata,
+			 int totface, int totvert,
 			 ListBase *hidden_areas)
 {
 	bvh->faces = faces;
 	bvh->verts = verts;
 	bvh->vdata = vdata;
+	bvh->fdata = fdata;
 	bvh->totvert = totvert;
 	bvh->leaf_limit = LEAF_LIMIT;
 
@@ -969,7 +1001,7 @@ static void pbvh_update_BB_redraw(PBVH *bvh, PBVHNode **nodes,
 	}
 }
 
-static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, int smooth)
+static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, GPUDrawFlags flags)
 {
 	PBVHNode *node;
 	int n;
@@ -986,7 +1018,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, i
 							     node->totprim,
 							     bvh->gridsize,
 							     bvh->gridkey,
-							     smooth);
+							     flags & GPU_DRAW_SMOOTH);
 			}
 			else {
 				GPU_update_mesh_vert_buffers(node->draw_buffers,
@@ -1011,10 +1043,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, i
 			}
 			else {
 				GPU_update_mesh_color_buffers(node->draw_buffers,
-							      bvh->vdata,
-							      node->vert_indices,
-							      node->uniq_verts +
-							      node->face_verts);
+							      bvh, node, flags);
 			}
 
 			node->flag &= ~PBVH_UpdateColorBuffers;
@@ -1176,14 +1205,22 @@ void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *to
 }
 
 void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
-			     int **face_indices, int *totnode)
+			     struct MFace **mface, struct CustomData **fdata,
+			     int **face_indices, int **face_vert_indices,
+			     int *totnode)
 {
 	if(bvh->grids) {
+		if(mface) *mface= NULL;
+		if(fdata) *fdata= NULL;
 		if(face_indices) *face_indices= NULL;
+		if(face_vert_indices) *face_vert_indices= NULL;
 		if(totnode) *totnode= 0;
 	}
 	else {
+		if(mface) *mface= bvh->faces;
+		if(fdata) *fdata= bvh->fdata;
 		if(face_indices) *face_indices= node->prim_indices;
+		if(face_vert_indices) *face_vert_indices= node->face_vert_indices;
 		if(totnode) *totnode= node->totprim;
 	}
 }
@@ -1431,7 +1468,7 @@ int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 	return pbvh_planes_contain_AABB(bb_min, bb_max, data);
 }
 
-void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smooth)
+void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int flags)
 {
 	PBVHNode **nodes;
 	int totnode;
@@ -1441,9 +1478,11 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smo
 		&nodes, &totnode);
 
 	pbvh_update_normals(bvh, nodes, totnode, face_nors);
-	pbvh_update_draw_buffers(bvh, nodes, totnode, smooth);
+	pbvh_update_draw_buffers(bvh, nodes, totnode, flags);
 
 	if(nodes) MEM_freeN(nodes);
+
+	glShadeModel((flags & GPU_DRAW_SMOOTH) ? GL_SMOOTH: GL_FLAT);
 
 	if(planes) {
 		BLI_pbvh_search_callback(bvh, BLI_pbvh_node_planes_contain_AABB,
@@ -1452,6 +1491,8 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int smo
 	else {
 		BLI_pbvh_search_callback(bvh, NULL, NULL, BLI_pbvh_node_draw, NULL);
 	}
+
+	glShadeModel(GL_FLAT);
 }
 
 void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids,

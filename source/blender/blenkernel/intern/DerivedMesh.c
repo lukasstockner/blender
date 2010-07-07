@@ -2186,7 +2186,7 @@ static void clear_mesh_caches(Object *ob)
 	   changing PVBH node organization, we hope topology does not change in
 	   the meantime .. weak */
 	if(ob->paint && ob->paint->pbvh) {
-		if(!ob->paint->sculpt->cache) {
+		if(!ob->paint->sculpt || !ob->paint->sculpt->cache) {
 			BLI_pbvh_free(ob->paint->pbvh);
 			ob->paint->pbvh= NULL;
 		}

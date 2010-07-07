@@ -51,6 +51,8 @@
 struct DerivedMesh;
 struct GHash;
 struct GridKey;
+struct PBVH;
+struct PBVHNode;
 
 /* V - vertex, N - normal, T - uv, C - color
    F - float, UB - unsigned byte */
@@ -128,18 +130,25 @@ void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool );
 GPUDrawObject *GPU_drawobject_new( struct DerivedMesh *dm );
 void GPU_drawobject_free( struct DerivedMesh *dm );
 
-/* Buffers for non-DerivedMesh drawing */
+/* Buffers for PBVH drawing */
 typedef struct GPU_Buffers GPU_Buffers;
 
+typedef enum {
+	GPU_DRAW_SMOOTH = 1,
+	GPU_DRAW_ACTIVE_MCOL = 2,
+} GPUDrawFlags;
+
 GPU_Buffers *GPU_build_mesh_buffers(struct GHash *map, struct MVert *mvert,
-			     struct MFace *mface, CustomData *vdata, int *face_indices,
+			     struct MFace *mface, struct CustomData *vdata,
+			     struct CustomData *fdata, int *face_indices,
 			     int totface, int *vert_indices, int uniq_verts,
 			     int totvert);
 void GPU_update_mesh_vert_buffers(GPU_Buffers *buffers, struct MVert *mvert,
 				  int *vert_indices, int totvert);
 void GPU_update_mesh_color_buffers(GPU_Buffers *buffers,
-				   struct CustomData *vdata,
-				   int *vert_indices, int totvert);
+				   struct PBVH *bvh,
+				   struct PBVHNode *node,
+				   GPUDrawFlags flags);
 GPU_Buffers *GPU_build_grid_buffers(struct DMGridData **grids,
 			     int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_vert_buffers(GPU_Buffers *buffersb, struct DMGridData **grids,

@@ -223,7 +223,8 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		cddm->pbvh = BLI_pbvh_new();
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
-				    &me->vdata, me->totface, me->totvert,
+				    &me->vdata, &me->fdata, me->totface,
+				    me->totvert,
 				    ss ? &ss->hidden_areas : NULL);
 	}
 
@@ -439,15 +440,16 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 
 	if(cddm->pbvh && cddm->pbvh_draw) {
 		if(dm->numFaceData) {
+			GPUDrawFlags drawflags = 0;
 			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
 			/* should be per face */
 			if(!setMaterial(mface->mat_nr+1, NULL))
 				return;
+			if(mface->flag & ME_SMOOTH)
+				drawflags |= GPU_DRAW_SMOOTH;
 
-			glShadeModel((mface->flag & ME_SMOOTH)? GL_SMOOTH: GL_FLAT);
-			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, (mface->flag & ME_SMOOTH));
-			glShadeModel(GL_FLAT);
+			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, drawflags);
 		}
 
 		return;

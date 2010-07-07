@@ -298,6 +298,22 @@ void PAINT_OT_face_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
+float paint_calc_object_space_radius(Object *ob, ViewContext *vc,
+				     float center[3], float pixel_radius)
+{
+	float delta[3], scale, loc[3];
+
+	mul_v3_m4v3(loc, ob->obmat, center);
+
+	initgrabz(vc->rv3d, loc[0], loc[1], loc[2]);
+	window_to_3d_delta(vc->ar, delta, pixel_radius, 0);
+
+	scale= fabsf(mat4_to_scale(ob->obmat));
+	scale= (scale == 0.0f)? 1.0f: scale;
+
+	return len_v3(delta)/scale;
+}
+
 /* Currently just used for sculpt mode.
    Sculpt mode handles multires differently from regular meshes, but only if
    it's the last modifier on the stack and it is not on the first level */
