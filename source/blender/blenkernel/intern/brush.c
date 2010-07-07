@@ -94,10 +94,6 @@ Brush *add_brush(const char *name)
 	//brush->stroke_tool = STROKE_TOOL_FREEHAND;
 	brush->flag |= BRUSH_SPACE;
 	
-	/* UNLIMITED CLAY SETTINGS */
-	brush->detail = 0.25f; /* this is how much to tesselate faces when sculpting with unlimited clay */
-	brush->smoothness = 0.25f;
-
 	/* BRUSH TEXTURE SETTINGS */
 	brush->texture_sample_bias = 0; /* value to added to texture samples */
 
