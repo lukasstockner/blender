@@ -178,8 +178,6 @@ typedef struct StrokeCache {
 	int flag;
 	float clip_tolerance[3];
 	float initial_mouse[2];
-	float detail;
-	float smoothness;
 
 	/* Variants */
 	float radius;
@@ -454,32 +452,6 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
  *
  */
   
-static void create_EditMesh_sculpt(SculptSession *ss) //Mio
-{	
-	EditEdge *eed;	
-	Object *obedit= ss->ob;
-	Mesh *me= obedit->data;
-	EditMesh *em;
-
-	int tempselectmode = ss->scene->toolsettings->selectmode; /* store temporal scene select mode*/
-	ss->scene->toolsettings->selectmode = SCE_SELECT_VERTEX;	
-	
-	make_editMesh(ss->scene, obedit);						
-	em = me->edit_mesh;	
-	
-	ss->scene->toolsettings->selectmode = tempselectmode; /* restore scene select mode*/	
-		
-	/*select all edges associated with every selected vertex*/
-	for(eed= em->edges.first; eed; eed= eed->next){
-		if(eed->v1->f&SELECT) eed->f1 = 1;
-		else if(eed->v2->f&SELECT) eed->f1 = 1;
-	}
-			
-	for(eed= em->edges.first; eed; eed= eed->next)
-		if(eed->f1 == 1) EM_select_edge(eed,1);	
-		
-	ss->em = em;
-}
 
 /* area of overlap of two circles of radius 1 seperated by d units from their centers */
 static float circle_overlap(float d)
@@ -1046,13 +1018,8 @@ static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node, 
 
 			sculpt_clip(sd, ss, vd.co, val);
 
-			if(vd.mvert) {
+			if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1;
-			}
 		}
 	}
 	BLI_pbvh_vertex_iter_end;
@@ -1231,13 +1198,8 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 				mul_v3_v3fl(proxy[vd.i], offset, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// XXX unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1299,13 +1261,8 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
 				add_v3_v3v3(proxy[vd.i], val1, val2);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1337,14 +1294,9 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 				//mul_v3_v3(val, ss->cache->scale);
 				mul_v3_v3fl(proxy[vd.i], val, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
 				}
-			}
 		}
 		BLI_pbvh_vertex_iter_end;
 	}
@@ -1389,13 +1341,8 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 				mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// XXX unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1434,13 +1381,8 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 				mul_v3_v3fl(proxy[vd.i], cono, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1487,13 +1429,8 @@ static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 
 				mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1535,12 +1472,8 @@ static void do_thumb_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 				mul_v3_v3fl(proxy[vd.i], cono, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					if(brush->flag & BRUSH_SUBDIV)
-						vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1582,10 +1515,8 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 				sub_v3_v3(proxy[vd.i], origco[vd.i]);
 				mul_v3_fl(proxy[vd.i], fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1654,10 +1585,9 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 				}
 
 				sculpt_clip(sd, ss, vd.co, val);
-				if(vd.mvert) {
+
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-					if(brush->flag & BRUSH_SUBDIV) vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1691,13 +1621,8 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 				mul_v3_fl(val, fade * ss->cache->radius);
 				mul_v3_v3v3(proxy[vd.i], val, ss->cache->scale);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -1997,13 +1922,8 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 				sub_v3_v3v3(val, intr, vd.co);
 				mul_v3_v3fl(proxy[vd.i], val, fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -2068,13 +1988,8 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 				sub_v3_v3v3(proxy[vd.i], intr, vd.co);
 				mul_v3_fl(proxy[vd.i], fade);
 
-				if(vd.mvert) {
+				if(vd.mvert)
 					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-					// unlimited clay
-					//if(brush->flag & BRUSH_SUBDIV)
-					//	vd.mvert->flag = 1; 
-				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -2137,13 +2052,8 @@ static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int to
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert) {
+					if(vd.mvert)
 						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-						// unlimited clay
-						//if (brush->flag & BRUSH_SUBDIV)
-						//	vd.mvert->flag = 1; 
-					}
 				}
 			}
 		}
@@ -2198,13 +2108,8 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert) {
+					if(vd.mvert)
 						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-						// unlimited clay
-						//if(brush->flag & BRUSH_SUBDIV)
-						//	vd.mvert->flag = 1; 
-					}
 				}
 			}
 		}
@@ -2259,13 +2164,8 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 					sub_v3_v3v3(val, intr, vd.co);
 					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert) {
+					if(vd.mvert)
 						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-
-						// unlimited clay
-						//if(brush->flag & BRUSH_SUBDIV)
-						//	vd.mvert->flag = 1; 
-					}
 				}
 			}
 		}
@@ -2827,11 +2727,6 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	cache->vc = vc;
 
 	cache->brush = brush;
-
-	if (brush->flag & BRUSH_SUBDIV){
-		cache->detail = brush->detail;
-		cache->smoothness = brush->smoothness;
-	} 
 
 	cache->mats = MEM_callocN(sizeof(bglMats), "sculpt bglMats");
 	view3d_get_transformation(vc->ar, vc->rv3d, vc->obact, cache->mats);
@@ -3548,7 +3443,6 @@ static void sculpt_init_session(Scene *scene, Object *ob)
 {
 	ob->sculpt = MEM_callocN(sizeof(SculptSession), "sculpt session");
 	ob->sculpt->ob = ob; 	
-	ob->sculpt->scene = scene;
 	
 	sculpt_update_mesh_elements(scene, ob, 0);
 }

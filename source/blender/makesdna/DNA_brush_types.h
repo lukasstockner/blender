@@ -130,7 +130,6 @@ typedef struct Brush {
 #define BRUSH_LOCK_ALPHA	(1<<14)
 #define BRUSH_ORIGINAL_NORMAL	(1<<15)
 #define BRUSH_OFFSET_PRESSURE	(1<<16)
-#define BRUSH_SUBDIV		(1<<17)
 #define BRUSH_SPACE_ATTEN	(1<<18)
 #define BRUSH_ADAPTIVE_SPACE	(1<<19)
 #define BRUSH_LOCK_SIZE		(1<<20)

@@ -1012,12 +1012,6 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         #col.separator();
 
-        #col.prop(brush,"use_dynamic_subdiv")
-        #col.active = brush.use_dynamic_subdiv
-        #col.prop(brush,"detail",slider=True)
-        #col.active = brush.use_dynamic_subdiv
-        #col.prop(brush,"smoothness",slider=True)
-
         if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
             sub = col.column()
             sub.label(text="Color:")
