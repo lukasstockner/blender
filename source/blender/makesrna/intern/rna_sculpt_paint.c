@@ -276,9 +276,40 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem symmetry_mode_items[] = {
+		{0, "NONE", 0, "None", ""},
+		{SCULPT_PLANAR_SYMM, "PLANAR", 0, "Planar", ""},
+		{SCULPT_RADIAL_SYMM, "RADIAL", 0, "Radial", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem radial_symmetry_axis_items[] = {
+		{SCULPT_RADIAL_SYMM_X, "X", 0, "X", ""},
+		{SCULPT_RADIAL_SYMM_Y, "Y", 0, "Y", ""},
+		{SCULPT_RADIAL_SYMM_Z, "Z", 0, "Z", ""},
+		{0, NULL, 0, NULL, NULL}};
+
 	srna= RNA_def_struct(brna, "Sculpt", "Paint");
 	RNA_def_struct_ui_text(srna, "Sculpt", "");
-	
+
+	prop= RNA_def_property(srna, "symmetry_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flags");
+	RNA_def_property_enum_default(prop, 0);
+	RNA_def_property_enum_items(prop, symmetry_mode_items);
+	RNA_def_property_ui_text(prop, "Symmetry Mode", "");
+
+	prop= RNA_def_property(srna, "radial_symmetry_axis", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flags");
+	RNA_def_property_enum_default(prop, SCULPT_RADIAL_SYMM_Z);
+	RNA_def_property_enum_items(prop, radial_symmetry_axis_items);
+	RNA_def_property_ui_text(prop, "Radial Symmetry Axis", "");
+
+	prop= RNA_def_property(srna, "radial_symmetry_count", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "radial_symmetry_count");
+	RNA_def_property_int_default(prop, 3);
+	RNA_def_property_range(prop, 1, 64);
+	RNA_def_property_ui_range(prop, 0, 32, 1, 1);
+	RNA_def_property_ui_text(prop, "Radial Symmetry Count", "Number of times to mirror strokes accross the surface");
+
 	prop= RNA_def_property(srna, "symmetry_x", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_X);
 	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");

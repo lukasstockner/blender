@@ -599,7 +599,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
                 row = col.row()
-                row.prop(brush, "strength_multiplier", slider=True)
+                row.prop(brush, "strength_multiplier")
 
 
 
@@ -841,7 +841,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             col.active = tex_slot.map_mode in ('TILED')
 
             col = row.column()
-            col.prop(brush, "texture_overlay_alpha", slider=True, text="Alpha")
+            col.prop(brush, "texture_overlay_alpha", text="Alpha")
             col.active = tex_slot.map_mode in ('TILED') and brush.use_texture_overlay
 
 
@@ -915,7 +915,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 col.separator()
                 row = col.row()
                 row.active = brush.use_space
-                row.prop(brush, "spacing", text="Spacing", slider=True)
+                row.prop(brush, "spacing", text="Spacing")
 
             if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE') and (not brush.use_anchor) and (not brush.restore_mesh):
                 col = layout.column()
@@ -1031,10 +1031,20 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col = split.column()
         col.label(text="Symmetry:")
-        col.prop(sculpt, "symmetry_x", text="X")
-        col.prop(sculpt, "symmetry_y", text="Y")
-        col.prop(sculpt, "symmetry_z", text="Z")
-        #col.prop(sculpt, "use_symmetry_feather", text="Feather")
+        col.prop(sculpt, "symmetry_mode", text="")
+
+        if sculpt.symmetry_mode == 'PLANAR':
+            col.prop(sculpt, "symmetry_x", text="X")
+            col.prop(sculpt, "symmetry_y", text="Y")
+            col.prop(sculpt, "symmetry_z", text="Z")
+        elif sculpt.symmetry_mode == 'RADIAL':
+            col.label(text="Count:")
+            col.prop(sculpt, "radial_symmetry_count", text="")
+            col.label(text="Axis:")
+            col.prop(sculpt, "radial_symmetry_axis", text="")
+
+        #if sculpt.symmetry_mode != 'NONE':
+        #    col.prop(sculpt, "use_symmetry_feather", text="Feather")
 
         col = split.column()
         col.label(text="Lock:")

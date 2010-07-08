@@ -190,7 +190,6 @@ typedef struct StrokeCache {
 	float mouse[2];
 	float bstrength;
 	float tex_mouse[2];
-	int sculpt_plane;
 
 	/* The rest is temporary storage that isn't saved as a property */
 
@@ -210,11 +209,13 @@ typedef struct StrokeCache {
 
 	int symmetry; /* Symmetry index between 0 and 7 bit combo 0 is Brush only;
 		1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
-	int symmetry_pass; /* the symmetry pass we are currently on between 0 and 7*/
+	int planar_symmetry_pass; /* the symmetry pass we are currently on between 0 and 7*/
 	float view_normal[3], view_normal_symmetry[3];
 	float last_area_normal[3];
 	float last_view_normal_symmetry[3];
 	float last_center[3];
+	int radial_symmetry_pass;
+	float symm_rot_mat[4][4];
 	int last_rake[2]; /* Last location of updating rake rotation */
 	int original;
 
@@ -339,7 +340,7 @@ typedef struct SculptBrushTest {
 
 	//float true_location[3];
 	//int symmetry;
-	//int symmetry_pass;
+	//int planar_symmetry_pass;
 } SculptBrushTest;
 
 static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
@@ -349,7 +350,7 @@ static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 
 	//copy_v3_v3(test->true_location, ss->cache->true_location);
 	//test->symmetry = ss->cache->symmetry;
-	//test->symmetry_pass = ss->cache->symmetry_pass;
+	//test->planar_symmetry_pass = ss->cache->planar_symmetry_pass;
 }
 
 //static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
@@ -358,7 +359,7 @@ static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 //		int i;
 //
 //		for (i = 0; i < 3; i++) {
-//			if (test->symmetry_pass & (1<<i)) {
+//			if (test->planar_symmetry_pass & (1<<i)) {
 //				if (test->true_location[i] >= 0) {
 //					if (co[i] >= 0) return 0;
 //				}
@@ -690,7 +691,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		/* if the active area is being applied for symmetry, flip it
 		   across the symmetry axis in order to project it. This insures
 		   that the brush texture will be oriented correctly. */
-		flip_coord(point_2d, point, ss->cache->symmetry_pass);
+		flip_coord(point_2d, point, ss->cache->planar_symmetry_pass);
 		projectf(ss->cache->mats, point_2d, point_2d);
 
 		/* if fixed mode, keep coordinates relative to mouse */
@@ -839,13 +840,11 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 {
 	Brush *brush = paint_brush(&sd->paint);
 
-	if (ss->cache->symmetry_pass == 0 &&
+	if (ss->cache->planar_symmetry_pass == 0 &&
+	    ss->cache->radial_symmetry_pass == 0 &&
 	   (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
 	{
-		//int sculpt_plane = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_plane : SCULPT_DISP_DIR_AREA;
-		int sculpt_plane = brush->sculpt_plane;
-
-		switch (sculpt_plane) {
+		switch (brush->sculpt_plane) {
 			case SCULPT_DISP_DIR_VIEW:
 				viewvector(ss->cache->vc->rv3d, ss->cache->vc->rv3d->twmat[3], an);
 				break;
@@ -941,10 +940,16 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 	}
 	else {
 		copy_v3_v3(an, ss->cache->last_area_normal);
-		flip_coord(an, an, ss->cache->symmetry_pass);
-
 		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
-		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
+
+		if (sd->flags & SCULPT_RADIAL_SYMM) {
+			mul_v3_m4v3(an, ss->cache->symm_rot_mat, an);
+			mul_v3_m4v3(ss->cache->view_normal_symmetry, ss->cache->symm_rot_mat, ss->cache->view_normal_symmetry);
+		}
+		else {
+			flip_coord(an, an, ss->cache->planar_symmetry_pass);
+			flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->planar_symmetry_pass);
+		}
 	}
 }
 
@@ -1488,7 +1493,7 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	int n;
 	float m[3][3];
 	static const int flip[8] = { 1, -1, -1, 1, -1, 1, 1, -1 };
-	float angle = ss->cache->vertex_rotation * flip[ss->cache->symmetry_pass];
+	float angle = ss->cache->vertex_rotation * flip[ss->cache->planar_symmetry_pass];
 
 	calc_area_normal(sd, ss, an, nodes, totnode);
 
@@ -1683,13 +1688,11 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 {
 	Brush *brush = paint_brush(&sd->paint);
 
-	if (ss->cache->symmetry_pass == 0 &&
+	if (ss->cache->planar_symmetry_pass == 0 &&
+	    ss->cache->radial_symmetry_pass == 0 &&
 	   (ss->cache->first_time || !(brush->flag & BRUSH_ORIGINAL_NORMAL)))
 	{
-		//int sculpt_plane = (brush->flag & BRUSH_ORIGINAL_NORMAL) ? brush->sculpt_plane : SCULPT_DISP_DIR_AREA;
-		int sculpt_plane = brush->sculpt_plane;
-
-		switch (sculpt_plane) {
+		switch (brush->sculpt_plane) {
 			case SCULPT_DISP_DIR_VIEW:
 				viewvector(ss->cache->vc->rv3d, ss->cache->vc->rv3d->twmat[3], an);
 				break;
@@ -1809,7 +1812,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 
 		// fc
 		/* flatten center has not been calculated yet if we are not using the area normal */
-		if (sculpt_plane != SCULPT_DISP_DIR_AREA)
+		if (brush->sculpt_plane != SCULPT_DISP_DIR_AREA)
 			calc_flatten_center(sd, ss, nodes, totnode, fc);
 
 		// an
@@ -1822,14 +1825,21 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 	else {
 		// an
 		copy_v3_v3(an, ss->cache->last_area_normal);
-		flip_coord(an, an, ss->cache->symmetry_pass);
-
 		copy_v3_v3(ss->cache->view_normal_symmetry, ss->cache->last_view_normal_symmetry);
-		flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->symmetry_pass);
 
 		// fc
 		copy_v3_v3(fc, ss->cache->last_center);
-		flip_coord(fc, fc, ss->cache->symmetry_pass);
+
+		if (sd->flags & SCULPT_RADIAL_SYMM) {
+			mul_v3_m4v3(an, ss->cache->symm_rot_mat, an);
+			mul_v3_m4v3(ss->cache->view_normal_symmetry, ss->cache->symm_rot_mat, ss->cache->view_normal_symmetry);
+			mul_v3_m4v3(fc, ss->cache->symm_rot_mat, fc);
+		}
+		else {
+			flip_coord(an, an, ss->cache->planar_symmetry_pass);
+			flip_coord(ss->cache->view_normal_symmetry, ss->cache->view_normal_symmetry, ss->cache->planar_symmetry_pass);
+			flip_coord(fc, fc, ss->cache->planar_symmetry_pass);
+		}
 	}
 }
 
@@ -2431,6 +2441,27 @@ static void calc_brushdata_symm(StrokeCache *cache, const char symm)
 	flip_coord(cache->grab_delta_symmetry, cache->grab_delta, symm);
 }
 
+static void calc_brushdata_radial_symm(Sculpt* sd, StrokeCache *cache, const float angle)
+{
+	char axis;
+
+	if (sd->flags & SCULPT_RADIAL_SYMM_X)
+		axis = 'X';
+	else if (sd->flags & SCULPT_RADIAL_SYMM_Y)
+		axis = 'Y';
+	else if (sd->flats & SCULPT_RADIAL_SYMM_Z)
+		axis = 'Z';
+	else
+		return;
+
+	unit_m4(cache->symm_rot_mat);
+	rotate_m4(cache->symm_rot_mat, axis, angle);
+
+	mul_v3_m4v3(cache->location, cache->symm_rot_mat, cache->true_location);
+	mul_v3_m4v3(cache->view_normal_symmetry, cache->symm_rot_mat, cache->view_normal);
+	mul_v3_m4v3(cache->grab_delta_symmetry, cache->symm_rot_mat, cache->grab_delta);
+}
+
 static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 {
 	Brush *brush = paint_brush(&sd->paint);
@@ -2441,15 +2472,27 @@ static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 	copy_v3_v3(cache->location, cache->true_location);
 	copy_v3_v3(cache->grab_delta_symmetry, cache->grab_delta);
 	cache->symmetry= symm;
-	cache->symmetry_pass= 0;
+	cache->planar_symmetry_pass= 0;
+	unit_m4(cache->symm_rot_mat);
+	cache->radial_symmetry_pass= 0;
 	cache->bstrength= brush_strength(sd, cache);
 	do_brush_action(sd, ss);
 
-	/* symm is a bit combination of XYZ - 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */ 
-	for(i = 1; i <= symm; ++i) {
-		if(symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5))) {
-			cache->symmetry_pass = i;
-			calc_brushdata_symm(cache, i);
+	if (sd->flags & SCULPT_PLANAR_SYMM) {
+		/* symm is a bit combination of XYZ - 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */ 
+		for(i = 1; i <= symm; ++i) {
+			if(symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5))) {
+				cache->planar_symmetry_pass = i;
+				calc_brushdata_symm(cache, i);
+				do_brush_action(sd, ss);
+			}
+		}
+	}
+	else if (sd->flags & SCULPT_RADIAL_SYMM) {
+		for(i = 1; i < sd->radial_symmetry_count; ++i) {
+			const float angle = 2*M_PI*i/sd->radial_symmetry_count;
+			cache->radial_symmetry_pass= i;
+			calc_brushdata_radial_symm(sd, cache, angle);
 			do_brush_action(sd, ss);
 		}
 	}
@@ -2789,7 +2832,6 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	RNA_float_get_array(ptr, "mouse", cache->mouse);
 
 	cache->pressure = RNA_float_get(ptr, "pressure");
-	cache->sculpt_plane = brush->sculpt_plane;
 
 	/* Truly temporary data that isn't stored in properties */
 
