@@ -234,7 +234,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	snap->winy = vc->ar->winy;
 }
 
-static int load_tex(Brush* brush, ViewContext* vc)
+static int load_tex(Sculpt *sd, Brush* brush, ViewContext* vc)
 {
 	static GLint overlay_texture = 0;
 	static int init = 0;
@@ -242,12 +242,9 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	static Snapshot snap;
 
 	GLubyte* buffer = 0;
-	GLubyte* p;
 
 	int width, height;
-	float x, y;
-	int i, j;
-	float xlim, ylim;
+	int j;
 	int refresh;
 
 	if (!brush->mtex.tex) return 0;
@@ -266,18 +263,21 @@ static int load_tex(Brush* brush, ViewContext* vc)
 
 		width = height = 512;
 
-		p = buffer = MEM_mallocN(2*sizeof(unsigned char)*width*height, "load_tex");
+		buffer = MEM_mallocN(2*sizeof(unsigned char)*width*height, "load_tex");
 
-		xlim = brush->size / (float)vc->ar->winx  *  width;
-		ylim = brush->size / (float)vc->ar->winy  *  height;
+		#pragma omp parallel for schedule(static) if (sd->flags & SCULPT_USE_OPENMP)
+		for (j= 0; j < height; j++) {
+			int i;
+			float y;
 
-		for (j = 0, y = 0; j < height; j++, y = j/ylim) {
-			for (i = 0, x = 0; i < width; i++, x = i/xlim) {
+			for (i= 0; i < width; i++) {
 
 				// largely duplicated from tex_strength
 
 				const float rotation = -brush->mtex.rot;
 				float diameter = brush->size;
+				int index = 2*(j*width + i);
+				float x;
 
 				x = (float)i/width;
 				y = (float)j/height;
@@ -305,9 +305,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 				x += brush->mtex.ofs[0];
 				y += brush->mtex.ofs[1];
 
-				*p = *(p+1) = (GLubyte)(get_tex_pixel(brush, x, y) * 255);
-
-				p += 2;
+				buffer[index] = buffer[index+1] = (GLubyte)(get_tex_pixel(brush, x, y) * 255);
 			}
 		}
 
@@ -496,6 +494,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 	if (vc.obact->sculpt) {
 		Paint *paint = paint_get_active(CTX_data_scene(C));
+		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 		Brush *brush = paint_brush(paint);
 
 		int pixel_radius, viewport[4];
@@ -683,7 +682,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 					GL_VIEWPORT_BIT|
 					GL_TEXTURE_BIT);
 
-				if (load_tex(brush, &vc)) {
+				if (load_tex(sd, brush, &vc)) {
 					glColor4f(col[0], col[1], col[2], alpha);
 
 					glEnable(GL_BLEND);
