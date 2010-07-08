@@ -2902,7 +2902,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		update = dx*dx + dy*dy > 100;
 
 		if(update && !cache->first_time)
-			cache->special_rotation = atan2(dx, dy);
+			cache->special_rotation = (cache->special_rotation + atan2(dx, dy)) / 2;
 
 		if(update || cache->first_time) {
 			cache->last_rake[0] = cache->mouse[0];

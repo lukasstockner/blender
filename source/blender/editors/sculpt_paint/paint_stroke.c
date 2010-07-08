@@ -581,7 +581,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 		if (dx*dx + dy*dy > 100) {
 			/* only update if distance traveled is more than 10 pixels */
-			brush->last_angle = atan2(dx, dy);
+			brush->last_angle = (brush->last_angle + atan2(dx, dy)) / 2;
 			brush->last_x = x;
 			brush->last_y = y;
 		} /* else, do not update last_x and last_y so that the distance can accumulate */
