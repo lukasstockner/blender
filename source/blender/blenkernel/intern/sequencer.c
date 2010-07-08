@@ -40,6 +40,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_object_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_main.h"
@@ -2543,6 +2544,10 @@ static TStripElem* do_build_seq_array_recursively(
 	int i;
 	TStripElem* se = 0;
 
+	// XXX for prefetch and overlay offset!..., very bad!!!
+	AnimData *adt= BKE_animdata_from_id(&scene->id);
+	BKE_animsys_evaluate_animdata(&scene->id, adt, cfra, ADT_RECALC_ANIM);
+
 	count = get_shown_sequences(seqbasep, cfra, chanshown, 
 					(Sequence **)&seq_arr);
 
@@ -3877,6 +3882,35 @@ void seq_offset_animdata(Scene *scene, Sequence *seq, int ofs)
 	}
 }
 
+void seq_dupe_animdata(Scene *scene, char *name_from, char *name_to)
+{
+	char str_from[32];
+	FCurve *fcu;
+	FCurve *fcu_last;
+	FCurve *fcu_cpy;
+	ListBase lb= {NULL, NULL};
+
+	if(scene->adt==NULL || scene->adt->action==NULL)
+		return;
+
+	sprintf(str_from, "[\"%s\"]", name_from);
+
+	fcu_last= scene->adt->action->curves.last;
+
+	for (fcu= scene->adt->action->curves.first; fcu && fcu->prev != fcu_last; fcu= fcu->next) {
+		if(strstr(fcu->rna_path, "sequence_editor.sequences_all[") && strstr(fcu->rna_path, str_from)) {
+			fcu_cpy= copy_fcurve(fcu);
+			BLI_addtail(&lb, fcu_cpy);
+		}
+	}
+
+	/* notice validate is 0, keep this because the seq may not be added to the scene yet */
+	BKE_animdata_fix_paths_rename(&scene->id, scene->adt, "sequence_editor.sequences_all", name_from, name_to, 0, 0, 0);
+
+	/* add the original fcurves back */
+	addlisttolist(&scene->adt->action->curves, &lb);
+}
+
 /* XXX - hackish function needed to remove all fcurves belonging to a sequencer strip */
 static void seq_free_animdata(Scene *scene, Sequence *seq)
 {
@@ -4235,6 +4269,9 @@ static Sequence *seq_dupli(struct Scene *scene, Sequence *seq, int dupe_flag)
 
 	if(dupe_flag & SEQ_DUPE_UNIQUE_NAME)
 		seqbase_unique_name_recursive(&scene->ed->seqbase, seqn);
+
+	if(dupe_flag & SEQ_DUPE_ANIM)
+		seq_dupe_animdata(scene, seq->name+2, seqn->name+2);
 
 	return seqn;
 }
