@@ -498,6 +498,10 @@ static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radiu
 	window[0] = x + stroke->vc.ar->winrct.xmin;
 	window[1] = y + stroke->vc.ar->winrct.ymin;
 
+	memcpy(modelview, stroke->vc.rv3d->viewmat, sizeof(float[16]));
+	memcpy(projection, stroke->vc.rv3d->winmat, sizeof(float[16]));
+	memcpy(viewport, stroke->mats.viewport, sizeof(int[4]));
+
 	if (stroke->vc.obact->sculpt && stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
 		*pixel_radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
 
@@ -507,9 +511,6 @@ static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radiu
 
 		mul_m4_v3(stroke->vc.obact->sculpt->ob->obmat, location);
 
-		memcpy(modelview, stroke->vc.rv3d->viewmat, sizeof(float[16]));
-		memcpy(projection, stroke->vc.rv3d->winmat, sizeof(float[16]));
-		memcpy(viewport, stroke->mats.viewport, sizeof(int[4]));
 		hit = 1;
 	}
 	else {
