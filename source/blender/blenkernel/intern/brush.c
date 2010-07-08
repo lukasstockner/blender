@@ -764,8 +764,16 @@ static void brush_apply_pressure(BrushPainter *painter, Brush *brush, float pres
 static void brush_jitter_pos(Brush *brush, float *pos, float *jitterpos)
 {
 	if(brush->jitter){
-		jitterpos[0] = pos[0] + ((BLI_frand()-0.5f) * brush->size * brush->jitter * 2);
-		jitterpos[1] = pos[1] + ((BLI_frand()-0.5f) * brush->size * brush->jitter * 2);
+		float rand_pos[2];
+
+		// find random position within a unit circle
+		do {
+			rand_pos[0] = BLI_frand()-0.5f;
+			rand_pos[1] = BLI_frand()-0.5f;
+		} while (len_v2(rand_pos) > 0.5f);
+
+		jitterpos[0] = pos[0] + 2*rand_pos[0]*brush->size*brush->jitter;
+		jitterpos[1] = pos[1] + 2*rand_pos[1]*brush->size*brush->jitter;
 	}
 	else {
 		VECCOPY2D(jitterpos, pos);
