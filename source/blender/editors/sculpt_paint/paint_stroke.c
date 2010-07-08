@@ -241,8 +241,8 @@ static int load_tex(Brush* brush, ViewContext* vc)
 	static int changed_timestamp = -1;
 	static Snapshot snap;
 
-	float* buffer = 0;
-	float* p;
+	GLubyte* buffer = 0;
+	GLubyte* p;
 
 	int width, height;
 	float x, y;
@@ -266,7 +266,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 
 		width = height = 512;
 
-		p = buffer = MEM_mallocN(2*sizeof(float)*width*height, "load_tex");
+		p = buffer = MEM_mallocN(2*sizeof(unsigned char)*width*height, "load_tex");
 
 		xlim = brush->size / (float)vc->ar->winx  *  width;
 		ylim = brush->size / (float)vc->ar->winy  *  height;
@@ -305,7 +305,7 @@ static int load_tex(Brush* brush, ViewContext* vc)
 				x += brush->mtex.ofs[0];
 				y += brush->mtex.ofs[1];
 
-				*p = *(p+1) = get_tex_pixel(brush, x, y);
+				*p = *(p+1) = (GLubyte)(get_tex_pixel(brush, x, y) * 255);
 
 				p += 2;
 			}
@@ -319,11 +319,11 @@ static int load_tex(Brush* brush, ViewContext* vc)
 
 	if (refresh) {
 		if (!init) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE_ALPHA, GL_FLOAT, buffer);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, buffer);
 			init = 1;
 		}
 		else {
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE_ALPHA, GL_FLOAT, buffer);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, buffer);
 		}
 
 		if (buffer)
