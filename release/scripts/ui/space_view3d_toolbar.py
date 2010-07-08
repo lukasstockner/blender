@@ -827,10 +827,10 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             row = col.row(align=True)
             row.label(text="Overlay:")
-            row.active = tex_slot.map_mode in ('TILED')
+            row.active = tex_slot.map_mode in ('FIXED', 'TILED')
 
             row = col.row(align=True)
-            
+
             col = row.column()
 
             if brush.use_texture_overlay:
@@ -838,11 +838,11 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             else:
                 col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_ON')
 
-            col.active = tex_slot.map_mode in ('TILED')
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED')
 
             col = row.column()
             col.prop(brush, "texture_overlay_alpha", text="Alpha")
-            col.active = tex_slot.map_mode in ('TILED') and brush.use_texture_overlay
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED') and brush.use_texture_overlay
 
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):

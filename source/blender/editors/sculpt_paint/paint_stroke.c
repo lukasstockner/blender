@@ -35,6 +35,7 @@
 
 #include "BKE_context.h"
 #include "BKE_paint.h"
+#include "BKE_brush.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -205,6 +206,8 @@ typedef struct Snapshot {
 	int brush_size;
 	int winx;
 	int winy;
+	int brush_map_mode;
+	int curve_changed_timestamp;
 } Snapshot;
 
 static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
@@ -219,9 +222,10 @@ static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 		mtex->size[1] == snap->size[1] &&
 		mtex->size[2] == snap->size[2] &&
 		mtex->rot == snap->rot &&
-		brush->size == snap->brush_size &&
+		brush->size <= snap->brush_size && // make brush smaller shouldn't cause a resample
 		vc->ar->winx == snap->winx &&
-		vc->ar->winy == snap->winy;
+		vc->ar->winy == snap->winy &&
+		mtex->brush_map_mode == snap->brush_map_mode;
 }
 
 static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
@@ -232,80 +236,132 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	snap->brush_size = brush->size;
 	snap->winx = vc->ar->winx;
 	snap->winy = vc->ar->winy;
+	snap->brush_map_mode = brush->mtex.brush_map_mode;
 }
 
-static int load_tex(Sculpt *sd, Brush* brush, ViewContext* vc)
+static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 {
 	static GLint overlay_texture = 0;
 	static int init = 0;
-	static int changed_timestamp = -1;
+	static int tex_changed_timestamp = -1;
+	static int curve_changed_timestamp = -1;
 	static Snapshot snap;
+	static int old_size = -1;
 
 	GLubyte* buffer = 0;
 
-	int width, height;
+	int size;
 	int j;
 	int refresh;
 
-	if (!brush->mtex.tex) return 0;
+	if (!br->mtex.tex) return 0;
 
 	refresh = 
 		!overlay_texture ||
-		!brush->mtex.tex->preview ||
-		brush->mtex.tex->preview->changed_timestamp[0] != changed_timestamp ||
-		!same_snap(&snap, brush, vc);
+		!br->mtex.tex->preview ||
+		br->mtex.tex->preview->changed_timestamp[0] != tex_changed_timestamp ||
+		!br->curve ||
+		br->curve->changed_timestamp != curve_changed_timestamp ||
+		!same_snap(&snap, br, vc);
 
 	if (refresh) {
-		if (brush->mtex.tex->preview)
-			changed_timestamp = brush->mtex.tex->preview->changed_timestamp[0];
+		if (br->mtex.tex->preview)
+			tex_changed_timestamp = br->mtex.tex->preview->changed_timestamp[0];
 
-		make_snap(&snap, brush, vc);
+		if (br->curve)
+			curve_changed_timestamp = br->curve->changed_timestamp;
 
-		width = height = 512;
+		make_snap(&snap, br, vc);
 
-		buffer = MEM_mallocN(2*sizeof(unsigned char)*width*height, "load_tex");
+		if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+			int s = br->size;
+			int r = 1;
+
+			for (s >>= 1; s > 0; s >>= 1)
+				r++;
+
+			size = (1<<r);
+
+			if (size < old_size)
+				size = old_size;
+		}
+		else
+			size = size = 512;
+
+		if (old_size != size) {
+			if (overlay_texture) {
+				glDeleteTextures(1, &overlay_texture);
+				overlay_texture = 0;
+			}
+
+			init = 0;
+
+			old_size = size;
+		}
+
+		buffer = MEM_mallocN(sizeof(GLubyte)*size*size, "load_tex");
 
 		#pragma omp parallel for schedule(static) if (sd->flags & SCULPT_USE_OPENMP)
-		for (j= 0; j < height; j++) {
+		for (j= 0; j < size; j++) {
 			int i;
 			float y;
+			float len;
 
-			for (i= 0; i < width; i++) {
+			for (i= 0; i < size; i++) {
 
 				// largely duplicated from tex_strength
 
-				const float rotation = -brush->mtex.rot;
-				float diameter = brush->size;
-				int index = 2*(j*width + i);
+				const float rotation = -br->mtex.rot;
+				float diameter = br->size;
+				int index = j*size + i;
 				float x;
+				float avg;
 
-				x = (float)i/width;
-				y = (float)j/height;
+				x = (float)i/size;
+				y = (float)j/size;
 
 				x -= 0.5f;
 				y -= 0.5f;
-				
-				x *= vc->ar->winx / diameter;
-				y *= vc->ar->winy / diameter;
 
-				/* it is probably worth optimizing for those cases where 
-				   the texture is not rotated by skipping the calls to
-				   atan2, sqrtf, sin, and cos. */
-				if (rotation > 0.001 || rotation < -0.001) {
-					const float angle    = atan2(y, x) + rotation;
-					const float flen     = sqrtf(x*x + y*y);
-
-					x = flen * cos(angle);
-					y = flen * sin(angle);
+				if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) {
+					x *= vc->ar->winx / diameter;
+					y *= vc->ar->winy / diameter;
+				}
+				else {
+					x *= 2;
+					y *= 2;
 				}
 
-				x *= brush->mtex.size[0];
-				y *= brush->mtex.size[1];
+				len = sqrtf(x*x + y*y);
 
-				x += brush->mtex.ofs[0];
-				y += brush->mtex.ofs[1];
+				if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED || len <= 1) {
+					/* it is probably worth optimizing for those cases where 
+					   the texture is not rotated by skipping the calls to
+					   atan2, sqrtf, sin, and cos. */
+					if (rotation > 0.001 || rotation < -0.001) {
+						const float angle    = atan2(y, x) + rotation;
 
-				buffer[index] = buffer[index+1] = (GLubyte)(get_tex_pixel(brush, x, y) * 255);
+						x = len * cos(angle);
+						y = len * sin(angle);
+					}
+
+					x *= br->mtex.size[0];
+					y *= br->mtex.size[1];
+
+					x += br->mtex.ofs[0];
+					y += br->mtex.ofs[1];
+
+					avg = get_tex_pixel(br, x, y);
+
+					avg += br->texture_sample_bias;
+
+					avg *= brush_curve_strength(br, len, 1); /* Falloff curve */
+
+					buffer[index] = (GLubyte)(255*avg);
+				}
+				else {
+					buffer[index] = 0;
+				}
 			}
 		}
 
@@ -317,11 +373,11 @@ static int load_tex(Sculpt *sd, Brush* brush, ViewContext* vc)
 
 	if (refresh) {
 		if (!init) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE_ALPHA, width, height, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, buffer);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, size, size, 0, GL_ALPHA, GL_UNSIGNED_BYTE, buffer);
 			init = 1;
 		}
 		else {
-			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, buffer);
+			glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, size, size, GL_ALPHA, GL_UNSIGNED_BYTE, buffer);
 		}
 
 		if (buffer)
@@ -333,6 +389,11 @@ static int load_tex(Sculpt *sd, Brush* brush, ViewContext* vc)
 	glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	}
 
 	return 1;
 }
@@ -549,7 +610,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
 			//wmEvent* event = CTX_wm_window(C)->eventstate;
 
-			if ( brush->draw_pressure && brush->flag & BRUSH_ALPHA_PRESSURE)
+			if (brush->draw_pressure && (brush->flag & BRUSH_ALPHA_PRESSURE))
 				visual_strength *= brush->pressure_value;
 
 			// remove effect of strength multiplier
@@ -568,7 +629,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
 			}
 
-			if (brush->draw_pressure && brush->flag & BRUSH_SIZE_PRESSURE)
+			if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
 				unprojected_radius *= brush->pressure_value;
 
 			if (!(brush->flag & BRUSH_LOCK_SIZE)) 
@@ -666,52 +727,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 
 				glPopAttrib();
 			}
-			
-			if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && brush->flag & BRUSH_TEXTURE_OVERLAY) {
-				const float diameter = 2*brush->size;
-
-				glPushAttrib(
-					GL_COLOR_BUFFER_BIT|
-					GL_CURRENT_BIT|
-					GL_DEPTH_BUFFER_BIT|
-					GL_ENABLE_BIT|
-					GL_LINE_BIT|
-					GL_POLYGON_BIT|
-					GL_STENCIL_BUFFER_BIT|
-					GL_TRANSFORM_BIT|
-					GL_VIEWPORT_BIT|
-					GL_TEXTURE_BIT);
-
-				if (load_tex(sd, brush, &vc)) {
-					glColor4f(col[0], col[1], col[2], alpha);
-
-					glEnable(GL_BLEND);
-
-					glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-					glDepthMask(GL_FALSE);
-					glDepthFunc(GL_ALWAYS);
-
-					glMatrixMode(GL_TEXTURE);
-					glLoadIdentity();
-
-					glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
-					glBegin(GL_QUADS);
-						glTexCoord2f(0, 0);
-						glVertex2f(0, 0);
-
-						glTexCoord2f(1, 0);
-						glVertex2f(viewport[2], 0);
-
-						glTexCoord2f(1, 1);
-						glVertex2f(viewport[2], viewport[3]);
-
-						glTexCoord2f(0, 1);
-						glVertex2f(0, viewport[3]);
-					glEnd();
-				}
-
-				glPopAttrib();
-			}
 		}
 
 		if (!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) {
@@ -742,6 +757,97 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 				glTranslatef((float)x, (float)y, 0.0f);
 				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
 				glTranslatef(-(float)x, -(float)y, 0.0f);
+			}
+
+			glPopAttrib();
+		}
+
+		if (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED) && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+			const float diameter = 2*brush->size;
+
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_CURRENT_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_LINE_BIT|
+				GL_POLYGON_BIT|
+				GL_STENCIL_BUFFER_BIT|
+				GL_TRANSFORM_BIT|
+				GL_VIEWPORT_BIT|
+				GL_TEXTURE_BIT);
+
+			if (load_tex(sd, brush, &vc)) {
+				glEnable(GL_BLEND);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+				glDepthMask(GL_FALSE);
+				glDepthFunc(GL_ALWAYS);
+
+				glMatrixMode(GL_TEXTURE);
+				glPushMatrix();
+				glLoadIdentity();
+
+				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+					if (brush->flag & BRUSH_RAKE) {
+						glTranslatef(0.5f, 0.5f, 0);
+						glRotatef(brush->last_angle*(float)(180.0/M_PI), 0, 0, 1);
+						glTranslatef(-0.5f, -0.5f, 0);
+					}
+
+					if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
+						glTranslatef(0.5f, 0.5f, 0);
+						glScalef(1.0f/brush->pressure_value, 1.0f/brush->pressure_value, 1);
+						glTranslatef(-0.5f, -0.5f, 0);
+					}
+				}
+
+				glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
+				glBegin(GL_QUADS);
+				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+					if (brush->draw_anchored) {
+						glTexCoord2f(0, 0);
+						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size, brush->anchored_initial_mouse[1]-brush->anchored_size);
+
+						glTexCoord2f(1, 0);
+						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size, brush->anchored_initial_mouse[1]-brush->anchored_size);
+
+						glTexCoord2f(1, 1);
+						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size, brush->anchored_initial_mouse[1]+brush->anchored_size);
+
+						glTexCoord2f(0, 1);
+						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size, brush->anchored_initial_mouse[1]+brush->anchored_size);
+					}
+					else {
+						glTexCoord2f(0, 0);
+						glVertex2f((float)x-brush->size, (float)y-brush->size);
+
+						glTexCoord2f(1, 0);
+						glVertex2f((float)x+brush->size, (float)y-brush->size);
+
+						glTexCoord2f(1, 1);
+						glVertex2f((float)x+brush->size, (float)y+brush->size);
+
+						glTexCoord2f(0, 1);
+						glVertex2f((float)x-brush->size, (float)y+brush->size);
+					}
+				}
+				else {
+					glTexCoord2f(0, 0);
+					glVertex2f(0, 0);
+
+					glTexCoord2f(1, 0);
+					glVertex2f(viewport[2], 0);
+
+					glTexCoord2f(1, 1);
+					glVertex2f(viewport[2], viewport[3]);
+
+					glTexCoord2f(0, 1);
+					glVertex2f(0, viewport[3]);
+				}
+				glEnd();
+
+				glPopMatrix();
 			}
 
 			glPopAttrib();
@@ -814,7 +920,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 /* Returns zero if no sculpt changes should be made, non-zero otherwise */
 static int paint_smooth_stroke(PaintStroke *stroke, float output[2], wmEvent *event)
 {
-	output[0] = event->x;
+	output[0] = event->x; 
 	output[1] = event->y;
 
 	if ((stroke->brush->flag & BRUSH_SMOOTH_STROKE) &&  

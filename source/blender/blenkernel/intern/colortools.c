@@ -126,6 +126,9 @@ CurveMapping *curvemapping_add(int tot, float minx, float miny, float maxx, floa
 		cumap->cm[a].curve[1].x= maxx;
 		cumap->cm[a].curve[1].y= maxy;
 	}	
+
+	cumap->changed_timestamp = 0;
+
 	return cumap;
 }
 
@@ -644,7 +647,9 @@ void curvemapping_changed(CurveMapping *cumap, int rem_doubles)
 	float thresh= 0.01f*(clipr->xmax - clipr->xmin);
 	float dx= 0.0f, dy= 0.0f;
 	int a;
-	
+
+	cumap->changed_timestamp++;
+
 	/* clamp with clip */
 	if(cumap->flag & CUMA_DO_CLIP) {
 		for(a=0; a<cuma->totpoint; a++) {

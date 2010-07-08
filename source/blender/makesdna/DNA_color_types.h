@@ -64,7 +64,7 @@ typedef struct CurveMap {
 
 typedef struct CurveMapping {
 	int flag, cur;					/* cur; for buttons, to show active curve */
-	int preset, pad;
+	int preset;
 	
 	rctf curr, clipr;				/* current rect, clip rect (is default rect too) */
 	
@@ -73,6 +73,8 @@ typedef struct CurveMapping {
 	float bwmul[3];					/* black/white point multiply value, for speed */
 	
 	float sample[3];				/* sample values, if flag set it draws line and intersection */
+
+	int changed_timestamp;
 } CurveMapping;
 
 /* cumapping->flag */
