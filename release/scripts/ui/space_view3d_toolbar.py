@@ -1030,21 +1030,16 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         split = self.layout.split()
 
         col = split.column()
-        col.label(text="Symmetry:")
-        col.prop(sculpt, "symmetry_mode", text="")
 
-        if sculpt.symmetry_mode == 'PLANAR':
-            col.prop(sculpt, "symmetry_x", text="X")
-            col.prop(sculpt, "symmetry_y", text="Y")
-            col.prop(sculpt, "symmetry_z", text="Z")
-        elif sculpt.symmetry_mode == 'RADIAL':
-            col.label(text="Count:")
-            col.prop(sculpt, "radial_symmetry_count", text="")
-            col.label(text="Axis:")
-            col.prop(sculpt, "radial_symmetry_axis", text="")
+        col.label(text="Mirror:")
+        col.prop(sculpt, "symmetry_x", text="X")
+        col.prop(sculpt, "symmetry_y", text="Y")
+        col.prop(sculpt, "symmetry_z", text="Z")
 
-        #if sculpt.symmetry_mode != 'NONE':
-        #    col.prop(sculpt, "use_symmetry_feather", text="Feather")
+        col.prop(sculpt, "radial_symm", text="Radial")
+
+        #col.separator()
+        #col.prop(sculpt, "use_symmetry_feather", text="Feather")
 
         col = split.column()
         col.label(text="Lock:")

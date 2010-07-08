@@ -10987,17 +10987,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				brush->crease_pinch_factor = 2.0f/3.0f;
 		}
 	}
-	{
-		Scene *scene;
-		for (scene= main->scene.first; scene; scene= scene->id.next) {
-			if ( scene->toolsettings &&
-				 scene->toolsettings->sculpt && 
-				(scene->toolsettings->sculpt->flags & (SCULPT_RADIAL_SYMM_X|SCULPT_RADIAL_SYMM_Y|SCULPT_RADIAL_SYMM_Z)) == 0)
-			{
-				scene->toolsettings->sculpt->flags |= SCULPT_RADIAL_SYMM_Z;
-			}
-		}
-	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */

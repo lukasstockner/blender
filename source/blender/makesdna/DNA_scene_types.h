@@ -574,7 +574,7 @@ typedef struct Sculpt {
 
 	/* Control tablet input */
 	//char tablet_size, tablet_strength; XXX not used?
-	int radial_symmetry_count;
+	int radial_symm[3];
 } Sculpt;
 
 typedef struct VPaint {
@@ -1122,11 +1122,6 @@ typedef enum SculptFlags {
 	SCULPT_LOCK_Z = (1<<5),
 	SCULPT_SYMMETRY_FEATHER = (1<<6),
 	SCULPT_USE_OPENMP = (1<<7),
-	SCULPT_PLANAR_SYMM = (1<<8),
-	SCULPT_RADIAL_SYMM = (1<<9),
-	SCULPT_RADIAL_SYMM_X = (1<<10),
-	SCULPT_RADIAL_SYMM_Y = (1<<11),
-	SCULPT_RADIAL_SYMM_Z = (1<<12),
 } SculptFlags;
 
 /* ImagePaintSettings.flag */
