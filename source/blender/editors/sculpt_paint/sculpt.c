@@ -2895,6 +2895,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	else if(brush->flag & BRUSH_RAKE) {
 		int update;
 
+		// XXX: the rake angle is calculated in the cursor drawing code now, probably no need to duplicate it here
+
 		dx = cache->last_rake[0] - cache->mouse[0];
 		dy = cache->last_rake[1] - cache->mouse[1];
 

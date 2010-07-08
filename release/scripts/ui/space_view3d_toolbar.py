@@ -1010,23 +1010,6 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         #edit = context.user_preferences.edit
         #col.prop(edit, "use_unified_radius_and_strength", text="Unified Size and Strength")
 
-        #col.separator();
-
-        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
-            sub = col.column()
-            sub.label(text="Color:")
-            sub.prop(brush, "add_col", text="Add")
-            sub.prop(brush, "sub_col", text="Substract")
-        else:
-            sub = col.column()
-            sub.prop(brush, "add_col", text="Color")
-
-        col.separator()
-        col.label(text="Icon:")
-        #col.template_ID_preview(brush, "image_icon", open="image.open", filter="is_image_icon", rows=3, cols=8)
-        col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=8)
-
-        col.separator()
         split = self.layout.split()
 
         col = split.column()
@@ -1046,6 +1029,34 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "lock_x", text="X")
         col.prop(sculpt, "lock_y", text="Y")
         col.prop(sculpt, "lock_z", text="Z")
+
+class VIEW3D_PT_tools_brush_appearance(PaintPanel):
+    bl_label = "Appearance"
+
+    def poll(self, context):
+        return (context.sculpt_object and context.tool_settings.sculpt)
+
+    def draw(self, context):
+        layout = self.layout
+
+        sculpt = context.tool_settings.sculpt
+        settings = self.paint_settings(context)
+        brush = settings.brush
+
+        col = layout.column();
+
+        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
+            col.prop(brush, "add_col", text="Add Color")
+            col.prop(brush, "sub_col", text="Substract Color")
+        else:
+            col.prop(brush, "add_col", text="Color")
+
+        col.separator()
+
+        col = layout.column()
+        col.label(text="Icon:")
+        #col.template_ID_preview(brush, "image_icon", open="image.open", filter="is_image_icon", rows=3, cols=8)
+        col.template_ID_preview(brush, "image_icon", open="image.open", rows=3, cols=8)
 
 # ********** default tools for weightpaint ****************
 
@@ -1299,6 +1310,7 @@ classes = [
     VIEW3D_PT_tools_brush_stroke,
     VIEW3D_PT_tools_brush_curve,
     VIEW3D_PT_sculpt_options,
+    VIEW3D_PT_tools_brush_appearance,
     VIEW3D_PT_tools_vertexpaint,
     VIEW3D_PT_tools_weightpaint_options,
 
