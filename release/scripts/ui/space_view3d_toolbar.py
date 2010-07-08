@@ -601,15 +601,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row()
                 row.prop(brush, "strength_multiplier")
 
-
-
-            # XXX - TODO
-            #col.separator()
-            #row = col.row(align=True)
-            #row.prop(brush, "jitter", slider=True)
-            #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
-
-
             if brush.sculpt_tool not in ('SMOOTH'):
                 col.separator()
 
@@ -927,6 +918,13 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 sub.active = brush.use_smooth_stroke
                 sub.prop(brush, "smooth_stroke_radius", text="Radius", slider=True)
                 sub.prop(brush, "smooth_stroke_factor", text="Factor", slider=True)
+
+                col.separator()
+
+                row = col.row(align=True)
+                row.prop(brush, "jitter", slider=True)
+                row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+
         else:
             row = col.row()
             row.prop(brush, "use_airbrush")

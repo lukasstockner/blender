@@ -875,8 +875,13 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
-static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse[2])
+static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse_in[2])
 {
+	Paint *paint = paint_get_active(CTX_data_scene(C)); // XXX
+	Brush *brush = paint_brush(paint); // XXX
+
+	float mouse[2];
+
 	PointerRNA itemptr;
 
 	float location[3];
@@ -884,13 +889,11 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	float pressure;
 	int   pen_flip;
 
+	ViewContext vc; // XXX
+
 	PaintStroke *stroke = op->customdata;
 
-	/* XXX: can remove the if statement once all modes have this */
-	if(stroke->get_location)
-		stroke->get_location(C, stroke, location, mouse);
-	else
-		zero_v3(location);
+	view3d_set_viewcontext(C, &vc); // XXX
 
 	/* Tablet */
 	if(event->custom == EVT_DATA_TABLET) {
@@ -903,6 +906,28 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 		pressure = 1;
 		pen_flip = 0;
 	}
+
+	// XXX: temporary check for sculpt mode until things are more unified
+	if (vc.obact->sculpt) {
+		float delta[3];
+
+		brush_jitter_pos(brush, mouse_in, mouse);
+
+		// XXX: meh, this is round about because brush_jitter_pos isn't written in the best way to be reused here
+		if (brush->flag & BRUSH_JITTER_PRESSURE) {
+			sub_v3_v3v3(delta, mouse, mouse_in);
+			mul_v3_fl(delta, pressure);
+			add_v3_v3v3(mouse, mouse_in, delta);
+		}
+	}
+	else
+		copy_v3_v3(mouse, mouse_in);
+
+	/* XXX: can remove the if statement once all modes have this */
+	if(stroke->get_location)
+		stroke->get_location(C, stroke, location, mouse);
+	else
+		zero_v3(location);
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
@@ -988,6 +1013,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 
 			for(i = 0; i < steps; ++i, ++cnt) {
 				add_v2_v2(mouse, vec);
+				printf("3\n");
 				paint_brush_stroke_add_step(C, op, event, mouse);
 			}
 		}
@@ -1067,8 +1093,10 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 						//ED_region_tag_redraw(ar);
 					}
 				}
-				else
+				else {
+					printf("1\n");
 					paint_brush_stroke_add_step(C, op, event, mouse);
+				}
 			}
 			else
 				;//ED_region_tag_redraw(ar);
@@ -1082,6 +1110,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 	   !(stroke->brush->flag & BRUSH_ANCHORED) &&
 	   !(stroke->brush->flag & BRUSH_SMOOTH_STROKE))
 	{
+		printf("2\n");
 		paint_brush_stroke_add_step(C, op, event, mouse);
 	}
 	

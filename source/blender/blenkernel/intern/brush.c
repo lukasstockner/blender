@@ -761,12 +761,12 @@ static void brush_apply_pressure(BrushPainter *painter, Brush *brush, float pres
 		brush->spacing = MAX2(1.0, painter->startspacing*(1.5f-pressure));
 }
 
-static void brush_jitter_pos(Brush *brush, float *pos, float *jitterpos)
+void brush_jitter_pos(Brush *brush, float *pos, float *jitterpos)
 {
 	if(brush->jitter){
 		float rand_pos[2];
 
-		// find random position within a unit circle
+		// find random position within a circle of diameter 1
 		do {
 			rand_pos[0] = BLI_frand()-0.5f;
 			rand_pos[1] = BLI_frand()-0.5f;
