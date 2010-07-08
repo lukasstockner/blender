@@ -355,7 +355,8 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 
 					avg += br->texture_sample_bias;
 
-					avg *= brush_curve_strength(br, len, 1); /* Falloff curve */
+					if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED)
+						avg *= brush_curve_strength(br, len, 1); /* Falloff curve */
 
 					buffer[index] = (GLubyte)(255*avg);
 				}
