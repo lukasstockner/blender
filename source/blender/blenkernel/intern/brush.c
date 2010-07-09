@@ -1032,9 +1032,9 @@ void brush_radial_control_invoke(wmOperator *op, Brush *br, float size_weight)
 	float original_value= 0;
 
 	if(mode == WM_RADIALCONTROL_SIZE)
-		original_value = br->size * size_weight;
+		original_value = sculpt_get_brush_size(br) * size_weight;
 	else if(mode == WM_RADIALCONTROL_STRENGTH)
-		original_value = br->alpha;
+		original_value = sculpt_get_brush_alpha(br);
 	else if(mode == WM_RADIALCONTROL_ANGLE) {
 		MTex *mtex = brush_active_texture(br);
 		if(mtex)
