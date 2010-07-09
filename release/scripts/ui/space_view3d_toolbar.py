@@ -898,6 +898,7 @@ class VIEW3D_PT_tools_vertexpaint(View3DPanel):
         col.prop(vpaint, "all_faces")
         col.prop(vpaint, "normals")
         col.prop(vpaint, "spray")
+        col.prop(vpaint, "backbuf")
 
 # Commented out because the Apply button isn't an operator yet, making these settings useless
 #		col.label(text="Gamma:")

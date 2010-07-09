@@ -53,7 +53,7 @@
 #include <float.h>
 #include <math.h>
 
-typedef struct PaintStroke {
+struct PaintStroke {
 	void *mode_data;
 	void *smooth_stroke_cursor;
 	wmTimer *timer;
@@ -74,7 +74,7 @@ typedef struct PaintStroke {
 	StrokeTestStart test_start;
 	StrokeUpdateStep update_step;
 	StrokeDone done;
-} PaintStroke;
+};
 
 /*** Cursor ***/
 static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata) 

@@ -47,6 +47,7 @@ struct VPaint;
 struct ListBase;
 
 /* paint_stroke.c */
+typedef struct PaintStroke PaintStroke;
 typedef int (*StrokeGetLocation)(struct bContext *C, struct PaintStroke *stroke, float location[3], float mouse[2]);
 typedef int (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 typedef void (*StrokeUpdateStep)(struct bContext *C, struct PaintStroke *stroke, struct PointerRNA *itemptr);

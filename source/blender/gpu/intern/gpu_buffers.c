@@ -430,9 +430,9 @@ static void delete_buffer(GLuint *buf)
 
 static void mcol_to_gpu_colors(unsigned char out[3], MCol *mcol)
 {
-	out[0] = mcol->r;
+	out[0] = mcol->b;
 	out[1] = mcol->g;
-	out[2] = mcol->b;
+	out[2] = mcol->r;
 }
 
 /* For purposes of displaying the mask on the mesh,
@@ -505,10 +505,11 @@ static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
 			for(j = 0; j < S; ++j) {
 				int node_vert_index = face_vert_indices[i*4 + j];
 
-				mcol_to_gpu_colors(color_data + node_vert_index,
-						   mcol + face_index*4);
+				mcol_to_gpu_colors(color_data + node_vert_index * 3,
+						   mcol + face_index*4+j);
 			}
 		}
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 	}
 }
 

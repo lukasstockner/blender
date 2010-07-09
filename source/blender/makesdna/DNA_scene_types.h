@@ -597,6 +597,9 @@ typedef struct VPaint {
 // #define VP_MIRROR_X	32 // depricated in 2.5x use (me->editflag & ME_EDIT_MIRROR_X)
 #define VP_ONLYVGROUP	128
 
+/* temporary flag; if this flag is set vpaint is same as ever, otherwise it uses the PBVH */
+#define VP_BACKBUF      256   
+
 
 typedef struct ToolSettings {
 	VPaint *vpaint;		/* vertex paint */

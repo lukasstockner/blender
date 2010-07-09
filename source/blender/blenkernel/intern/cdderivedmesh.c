@@ -420,6 +420,39 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
 	}
 }
 
+/* draw using the PBVH; returns true if drawing is done,
+   false if regular drawing should be used */
+static int cddm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
+			  int (*setMaterial)(int, void *attribs),
+			  GPUDrawFlags drawflags)
+{
+	CDDerivedMesh *cddm = (CDDerivedMesh*)dm;
+	MFace *mface = cddm->mface;
+	float (*face_nors)[3];
+
+	if(cddm->pbvh && cddm->pbvh_draw) {
+		if(dm->numFaceData) {
+			face_nors = CustomData_get_layer(&dm->faceData, CD_NORMAL);
+
+			/* should be per face */
+			if(setMaterial && !setMaterial(mface->mat_nr+1, NULL))
+				return 1;
+			if(mface->flag & ME_SMOOTH)
+				drawflags |= GPU_DRAW_SMOOTH;
+
+			glEnable(GL_LIGHTING);
+
+			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, drawflags);
+
+			glDisable(GL_LIGHTING);
+		}
+
+		return 1;
+	}
+
+	return 0;
+}
+
 static void cdDM_drawFacesSolid(DerivedMesh *dm,
 				float (*partial_redraw_planes)[4],
 				int fast, int (*setMaterial)(int, void *attribs))
@@ -438,22 +471,8 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 	glVertex3fv(mvert[index].co);	\
 }
 
-	if(cddm->pbvh && cddm->pbvh_draw) {
-		if(dm->numFaceData) {
-			GPUDrawFlags drawflags = 0;
-			float (*face_nors)[3] = CustomData_get_layer(&dm->faceData, CD_NORMAL);
-
-			/* should be per face */
-			if(!setMaterial(mface->mat_nr+1, NULL))
-				return;
-			if(mface->flag & ME_SMOOTH)
-				drawflags |= GPU_DRAW_SMOOTH;
-
-			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, drawflags);
-		}
-
+	if(cddm_draw_pbvh(dm, partial_redraw_planes, setMaterial, 0))
 		return;
-	}
 
 	if( GPU_buffer_legacy(dm) ) {
 		DEBUG_VBO( "Using legacy code. cdDM_drawFacesSolid\n" );
@@ -790,6 +809,10 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 	MCol *mc;
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
+
+	if(cddm_draw_pbvh(dm, NULL, NULL,
+			  useColors ? GPU_DRAW_ACTIVE_MCOL : 0))
+		return;
 
 	mc = DM_get_face_data_layer(dm, CD_ID_MCOL);
 	if(!mc)
