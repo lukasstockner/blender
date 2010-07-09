@@ -226,7 +226,7 @@ static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 		mtex->size[1] == snap->size[1] &&
 		mtex->size[2] == snap->size[2] &&
 		mtex->rot == snap->rot &&
-		sculpt_get_brush_size(brush) <= snap->brush_size && // make brush smaller shouldn't cause a resample
+		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && sculpt_get_brush_size(brush) <= snap->brush_size) || (sculpt_get_brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
 		vc->ar->winx == snap->winx &&
 		vc->ar->winy == snap->winy &&
 		mtex->brush_map_mode == snap->brush_map_mode;
@@ -285,6 +285,9 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 				r++;
 
 			size = (1<<r);
+
+			if (size < 256)
+				size = 256;
 
 			if (size < old_size)
 				size = old_size;

@@ -413,7 +413,7 @@ static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 	//if (sculpt_brush_test_clip(test, co)) {
 		float distsq = len_squared_v3v3(co, test->location);
 
-		if(distsq < test->radius_squared) {
+		if(distsq <= test->radius_squared) {
 			test->dist = sqrt(distsq);
 			return 1;
 		}
@@ -431,7 +431,7 @@ static int sculpt_brush_test_sq(SculptBrushTest *test, float co[3])
 	//if (sculpt_brush_test_clip(test, co)) {
 		float distsq = len_squared_v3v3(co, test->location);
 
-		if(distsq < test->radius_squared) {
+		if(distsq <= test->radius_squared) {
 			test->dist = distsq;
 			return 1;
 		}
@@ -447,7 +447,7 @@ static int sculpt_brush_test_sq(SculptBrushTest *test, float co[3])
 static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 {
 	//if (sculpt_brush_test_clip(test, co)) {
-		return len_squared_v3v3(co, test->location) < test->radius_squared;
+		return len_squared_v3v3(co, test->location) <= test->radius_squared;
 	//}
 	//else {
 	//	return 0;
