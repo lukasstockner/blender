@@ -100,7 +100,9 @@ static void paint_draw_smooth_stroke(bContext *C, int x, int y, void *customdata
 	glDisable(GL_LINE_SMOOTH);
 }
 
+#if 0
 
+// grid texture for testing
 
 #define GRID_WIDTH   8
 #define GRID_LENGTH  8
@@ -170,9 +172,9 @@ static unsigned grid_texture4[1] =
 #undef O
 #undef Q
 
-static void load_grid(Brush* brush)
+static void load_grid()
 {
-	static GLint overlay_texture;
+	static GLuint overlay_texture;
 
 	if (!overlay_texture) {
 		//GLfloat largest_supported_anisotropy;
@@ -196,6 +198,8 @@ static void load_grid(Brush* brush)
 		//glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, largest_supported_anisotropy);
 	}
 }
+
+#endif
 
 extern float get_tex_pixel(Brush* br, float u, float v);
 
@@ -241,7 +245,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 
 static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 {
-	static GLint overlay_texture = 0;
+	static GLuint overlay_texture = 0;
 	static int init = 0;
 	static int tex_changed_timestamp = -1;
 	static int curve_changed_timestamp = -1;
@@ -286,7 +290,7 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 				size = old_size;
 		}
 		else
-			size = size = 512;
+			size = 512;
 
 		if (old_size != size) {
 			if (overlay_texture) {
@@ -368,6 +372,9 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 
 		if (!overlay_texture)
 			glGenTextures(1, &overlay_texture);
+	}
+	else {
+		size= old_size;
 	}
 
 	glBindTexture(GL_TEXTURE_2D, overlay_texture);
@@ -511,9 +518,11 @@ static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3]
 // Functions should be refactored so that they can be used between sculpt.c and
 // paint_stroke.c clearly and optimally and the lines of communication between the
 // two modules should be more clearly defined.
-static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
+static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 {
 	ViewContext vc;
+
+	(void)unused;
 
 	view3d_set_viewcontext(C, &vc);
 
@@ -728,8 +737,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		}
 
 		if (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED) && brush->flag & BRUSH_TEXTURE_OVERLAY) {
-			const float diameter = 2*sculpt_get_brush_size(brush);
-
 			glPushAttrib(
 				GL_COLOR_BUFFER_BIT|
 				GL_CURRENT_BIT|
@@ -863,7 +870,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	if(event->custom == EVT_DATA_TABLET) {
 		wmTabletData *wmtab= event->customdata;
 
-		pressure = (wmtab->Active != EVT_TABLET_NONE) ? pressure= wmtab->Pressure : 1;
+		pressure = (wmtab->Active != EVT_TABLET_NONE) ? wmtab->Pressure : 1;
 		pen_flip = (wmtab->Active == EVT_TABLET_ERASER);
 	}
 	else {

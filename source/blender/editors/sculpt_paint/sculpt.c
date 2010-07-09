@@ -355,33 +355,35 @@ static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 	//test->mirror_symmetry_pass = ss->cache->mirror_symmetry_pass;
 }
 
-//static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
-//{
-//	if (test->symmetry) {
-//		int i;
-//
-//		for (i = 0; i < 3; i++) {
-//			if (test->mirror_symmetry_pass & (1<<i)) {
-//				if (test->true_location[i] >= 0) {
-//					if (co[i] >= 0) return 0;
-//				}
-//				else if (test->true_location[i] < 0) {
-//					if (co[i] < 0) return 0;
-//				}
-//			}
-//			else {
-//				if (test->true_location[i] >= 0) {
-//					if (co[i] < 0) return 0;
-//				}
-//				else if (test->true_location[i] < 0) {
-//					if (co[i] >= 0) return 0;
-//				}
-//			}
-//		}
-//	}
-//
-//	return 1;
-//}
+#if 0
+
+static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
+{
+	if (test->symmetry) {
+		int i;
+
+		for (i = 0; i < 3; i++) {
+			if (test->mirror_symmetry_pass & (1<<i)) {
+				if (test->true_location[i] >= 0) {
+					if (co[i] >= 0) return 0;
+				}
+				else if (test->true_location[i] < 0) {
+					if (co[i] < 0) return 0;
+				}
+			}
+			else {
+				if (test->true_location[i] >= 0) {
+					if (co[i] < 0) return 0;
+				}
+				else if (test->true_location[i] < 0) {
+					if (co[i] >= 0) return 0;
+				}
+			}
+		}
+	}
+
+	return 1;
+}
 
 static int sculpt_brush_test_cyl(SculptBrushTest *test, float x0[3], float x1[3], float x2[3])
 {
@@ -403,6 +405,8 @@ static int sculpt_brush_test_cyl(SculptBrushTest *test, float x0[3], float x1[3]
 		return 0;
 	}
 }
+
+#endif
 
 static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 {
@@ -456,6 +460,8 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
  */
   
 
+#if 0
+
 /* area of overlap of two circles of radius 1 seperated by d units from their centers */
 static float circle_overlap(float d)
 {
@@ -467,6 +473,8 @@ static float circle_overlap_percent(float d)
 {
 	return circle_overlap(d) / M_PI;
 }
+
+#endif
 
 static float overlapped_curve(Brush* br, float x)
 {
@@ -631,6 +639,8 @@ float get_tex_pixel(Brush* br, float u, float v)
 	return texres.tin;
 }
 
+#if 0
+
 /* Get a pixel from the texcache at (px, py) */
 static unsigned char get_texcache_pixel(const SculptSession *ss, int px, int py)
 {
@@ -667,6 +677,8 @@ static float get_texcache_pixel_bilinear(const SculptSession *ss, float u, float
 		(get_texcache_pixel(ss, x, y2) * uopp +
 		 get_texcache_pixel(ss, x2, y2) * urat) * vrat) / 255.0;
 }
+
+#endif
 
 /* Return a multiplier for brush strength on a particular vertex. */
 static float tex_strength(SculptSession *ss, Brush *br, float *point, const float len)
@@ -892,8 +904,6 @@ static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNod
 						SculptUndoNode *unode;
 						float private_an[3] = {0.0f, 0.0f, 0.0f};
 						float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
-						float private_fc[3] = {0.0f, 0.0f, 0.0f};
-						int private_count = 0;
 
 						unode = sculpt_undo_push_node(ss, nodes[n]);
 						sculpt_brush_test_init(ss, &test);
@@ -1646,8 +1656,6 @@ static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		SculptUndoNode *unode;
-		float private_an[3] = {0.0f, 0.0f, 0.0f};
-		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
 		float private_fc[3] = {0.0f, 0.0f, 0.0f};
 		int private_count = 0;
 
@@ -2321,10 +2329,12 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 		}
 
 		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0)
-			if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+			if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
 				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*(1-ss->cache->pressure)*brush->autosmooth_overlap);
-			else
+			}
+			else {
 				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*brush->autosmooth_overlap);
+			}
 
 		/* copy the modified vertices from mesh to the active key */
 		if(ss->kb)
@@ -2460,7 +2470,6 @@ static void do_radial_symmetry(Sculpt *sd, SculptSession *ss, const char symm, c
 
 static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 {
-	Brush *brush = paint_brush(&sd->paint);
 	StrokeCache *cache = ss->cache;
 	const char symm = sd->flags & 7;
 	int i;
