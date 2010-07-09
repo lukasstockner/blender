@@ -36,6 +36,7 @@
 struct ARegion;
 struct ARegionType;
 struct Base;
+struct Brush;
 struct bNodeTree;
 struct CSG_FaceIteratorDescriptor;
 struct CSG_VertexIteratorDescriptor;
@@ -390,6 +391,13 @@ struct SculptUndoNode *sculpt_undo_get_node(struct PBVHNode *node) {return (stru
 struct MultiresModifierData *sculpt_multires_active(struct Scene *scene, struct Object *ob) {return (struct MultiresModifierData *) NULL;}
 int sculpt_modifiers_active(struct Scene *scene, struct Object *ob) {return 0;}
 */
+int sculpt_get_brush_size(struct Brush *brush) {return 0;}
+void sculpt_set_brush_size(struct Brush *brush, int size) {}
+int sculpt_get_lock_brush_size(struct Brush *brush){ return 0;}
+float sculpt_get_brush_unprojected_radius(struct Brush *brush){return 0.0f;}
+void sculpt_set_brush_unprojected_radius(struct Brush *brush, float unprojected_radius){}
+float sculpt_get_brush_alpha(struct Brush *brush){return 0.0f;}
+void sculpt_set_brush_alpha(struct Brush *brush, float alpha){}
 
 char blender_path[] = "";
 
