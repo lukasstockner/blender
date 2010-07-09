@@ -93,7 +93,7 @@ typedef struct Brush {
 	float unprojected_radius;
 
 	/* record movement of mouse so that rake can start at an intuitive angle */
-	int last_x, last_y;
+	float last_x, last_y;
 	float last_angle;
 
 	int pad2;

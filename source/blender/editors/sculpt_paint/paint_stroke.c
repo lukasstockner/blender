@@ -550,16 +550,22 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		const float min_alpha = 0.20f;
 		const float max_alpha = 0.80f;
 
-		/* keep track of mouse movement angle so rack can start at a sensible angle */
-		int dx = brush->last_x - x;
-		int dy = brush->last_y - y;
 
-		if (dx*dx + dy*dy > 100) {
-			/* only update if distance traveled is more than 10 pixels */
-			brush->last_angle = (brush->last_angle + atan2(dx, dy)) / 2;
-			brush->last_x = x;
-			brush->last_y = y;
-		} /* else, do not update last_x and last_y so that the distance can accumulate */
+		{
+			const float u = 0.5f;
+			const float v = 1 - u;
+			const float r = 20;
+
+			const float dx = brush->last_x - x;
+			const float dy = brush->last_y - y;
+
+			if (dx*dx + dy*dy >= r*r) {
+				brush->last_angle = atan2(dx, dy);
+
+				brush->last_x = u*brush->last_x + v*x;
+				brush->last_y = u*brush->last_y + v*y;
+			}
+		}
 
 		if(!sculpt_get_lock_brush_size(brush) && !(paint->flags & PAINT_SHOW_BRUSH)) 
 			return;

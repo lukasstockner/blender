@@ -218,7 +218,7 @@ typedef struct StrokeCache {
 	int radial_symmetry_pass;
 	float symm_rot_mat[4][4];
 	float symm_rot_mat_inv[4][4];
-	int last_rake[2]; /* Last location of updating rake rotation */
+	float last_rake[2]; /* Last location of updating rake rotation */
 	int original;
 
 	float vertex_rotation;
@@ -2839,6 +2839,8 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 			cache->original = 1;
 
 	cache->special_rotation = (brush->flag & BRUSH_RAKE) ? brush->last_angle : 0;
+	//cache->last_rake[0] = brush->last_x;
+	//cache->last_rake[1] = brush->last_y;
 
 	cache->first_time= 1;
 
@@ -2949,22 +2951,21 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		brush->draw_anchored = 1;
 	}
 	else if(brush->flag & BRUSH_RAKE) {
-		int update;
+		const float u = 0.5f;
+		const float v = 1 - u;
+		const float r = 20;
 
-		// XXX: the rake angle is calculated in the cursor drawing code now, probably no need to duplicate it here
+		const float dx = cache->last_rake[0] - cache->mouse[0];
+		const float dy = cache->last_rake[1] - cache->mouse[1];
 
-		dx = cache->last_rake[0] - cache->mouse[0];
-		dy = cache->last_rake[1] - cache->mouse[1];
+		if (cache->first_time) {
+			copy_v3_v3(cache->last_rake, cache->mouse);
+		}
+		else if (dx*dx + dy*dy >= r*r) {
+			cache->special_rotation = atan2(dx, dy);
 
-		/* To prevent jitter, only update the angle if the mouse has moved over 10 pixels */
-		update = dx*dx + dy*dy > 100;
-
-		if(update && !cache->first_time)
-			cache->special_rotation = (cache->special_rotation + atan2(dx, dy)) / 2;
-
-		if(update || cache->first_time) {
-			cache->last_rake[0] = cache->mouse[0];
-			cache->last_rake[1] = cache->mouse[1];
+			cache->last_rake[0] = u*cache->last_rake[0] + v*cache->mouse[0];
+			cache->last_rake[1] = u*cache->last_rake[1] + v*cache->mouse[1];
 		}
 	}
 
