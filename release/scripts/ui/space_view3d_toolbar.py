@@ -806,7 +806,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             col = layout.column()
             col.prop(brush, "use_random_rotation")
-            col.active = (not brush.use_anchor) and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED') and (not brush.restore_mesh)
+            col.active = (not brush.use_rake) and (not brush.use_anchor) and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED')
 
             split = layout.split()
 

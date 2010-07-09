@@ -2900,9 +2900,9 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	if(!(brush->flag & BRUSH_ANCHORED || ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE))) {
 		copy_v2_v2(cache->tex_mouse, cache->mouse);
 
-		if  (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED && 
-			 !(brush->flag & BRUSH_RESTORE_MESH) && 
-			 brush->flag & BRUSH_RANDOM_ROTATION)
+		if  ( (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) &&
+			  (brush->flag & BRUSH_RANDOM_ROTATION) &&
+			 !(brush->flag & BRUSH_RAKE))
 		{
 			cache->special_rotation = 2*M_PI*BLI_frand();
 		}
