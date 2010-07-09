@@ -837,7 +837,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		glEnable(GL_BLEND);
 
 		glTranslatef((float)x, (float)y, 0.0f);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
+		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40); // XXX: for now use the brushes size instead of potentially using the unified size because the feature has been enabled for sculpt
 		glTranslatef((float)-x, (float)-y, 0.0f);
 
 		glDisable(GL_BLEND);
