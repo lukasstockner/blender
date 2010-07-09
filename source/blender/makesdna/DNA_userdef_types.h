@@ -374,8 +374,11 @@ typedef struct UserDef {
 	short autokey_flag;		/* flags for autokeying */
 
 	struct ColorBand coba_weight;	/* from texture.h */
-	int sculpt_paint_pixel_radius; /* unified radius of brush in pixels */
-	float sculpt_paint_strength; /* unified strenght of brush scaled to brush radius */
+
+	int sculpt_paint_unified_size; /* unified radius of brush in pixels */
+	float sculpt_paint_unified_unprojected_radius;/* unified radius of brush in Blender units */
+	float sculpt_paint_unified_alpha; /* unified strength of brush */
+	int pad2;
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */
@@ -528,7 +531,9 @@ extern UserDef U; /* from blenkernel blender.c */
 #define GP_PAINT_DOSIMPLIFY		(1<<1)
 
 /* sculpt_paint_settings */
-#define BRUSH_USE_UNIFIED_RADIUS_AND_STRENGTH (1<<0)
+#define SCULPT_PAINT_USE_UNIFIED_SIZE        (1<<0)
+#define SCULPT_PAINT_USE_UNIFIED_ALPHA       (1<<1)
+#define SCULPT_PAINT_UNIFIED_LOCK_BRUSH_SIZE (1<<2)
 
 /* color picker types */
 #define USER_CP_CIRCLE		0

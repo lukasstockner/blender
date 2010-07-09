@@ -1521,6 +1521,16 @@ void init_userdef_do_versions(void)
 	/* this timer uses U */
 // XXX	reset_autosave();
 
+	/*  Sculpt Paint Unified Settings */
+
+	if (U.sculpt_paint_unified_alpha == 0)
+		U.sculpt_paint_unified_alpha = 0.5f;
+
+	if (U.sculpt_paint_unified_unprojected_radius == 0) 
+		U.sculpt_paint_unified_unprojected_radius = 0.125f; // same as for brush do_version
+
+	if (U.sculpt_paint_unified_size == 0)
+		U.sculpt_paint_unified_size = 25;
 }
 
 

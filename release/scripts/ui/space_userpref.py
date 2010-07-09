@@ -338,9 +338,8 @@ class USERPREF_PT_edit(bpy.types.Panel):
         sculpt = context.tool_settings.sculpt
         col = row.column()
         col.label(text="Paint and Sculpt:")
-        col.prop(edit, "use_unified_radius_and_strength", text="Unified Size and Strength")
-        col.prop(edit, "sculpt_paint_pixel_radius", text="Unified Pixel Radius")
-        col.prop(edit, "sculpt_paint_strength", text="Unified Strength")
+        col.prop(edit, "sculpt_paint_use_unified_size", text="Unify Size")
+        col.prop(edit, "sculpt_paint_use_unified_alpha", text="Unify Strength")
         col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
         col.prop(sculpt, "fast_navigate")
         col.prop(sculpt, "show_brush")

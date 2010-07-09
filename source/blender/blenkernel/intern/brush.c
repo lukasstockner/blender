@@ -55,8 +55,6 @@
 #include "BKE_texture.h"
 #include "BKE_icons.h"
 
-
-
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
 
@@ -1054,14 +1052,15 @@ int brush_radial_control_exec(wmOperator *op, Brush *br, float size_weight)
 	const float conv = 0.017453293;
 
 	if(mode == WM_RADIALCONTROL_SIZE)
-		if (br->flag & BRUSH_LOCK_SIZE) {
+		if (sculpt_get_lock_brush_size(br)) {
 			float initial_value = RNA_float_get(op->ptr, "initial_value");
-			br->unprojected_radius *= new_value/initial_value * size_weight;
+			const float unprojected_radius = sculpt_get_brush_unprojected_radius(br);
+			sculpt_set_brush_unprojected_radius(br, unprojected_radius * new_value/initial_value * size_weight);
 		}
 		else
-			br->size = new_value * size_weight;
+			sculpt_set_brush_size(br, new_value * size_weight);
 	else if(mode == WM_RADIALCONTROL_STRENGTH)
-		br->alpha = new_value;
+		sculpt_set_brush_alpha(br, new_value);
 	else if(mode == WM_RADIALCONTROL_ANGLE) {
 		MTex *mtex = brush_active_texture(br);
 		if(mtex)

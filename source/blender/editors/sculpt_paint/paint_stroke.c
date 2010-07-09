@@ -222,7 +222,7 @@ static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 		mtex->size[1] == snap->size[1] &&
 		mtex->size[2] == snap->size[2] &&
 		mtex->rot == snap->rot &&
-		brush->size <= snap->brush_size && // make brush smaller shouldn't cause a resample
+		sculpt_get_brush_size(brush) <= snap->brush_size && // make brush smaller shouldn't cause a resample
 		vc->ar->winx == snap->winx &&
 		vc->ar->winy == snap->winy &&
 		mtex->brush_map_mode == snap->brush_map_mode;
@@ -233,7 +233,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	copy_v3_v3(snap->ofs, brush->mtex.ofs);
 	copy_v3_v3(snap->size, brush->mtex.size);
 	snap->rot = brush->mtex.rot;
-	snap->brush_size = brush->size;
+	snap->brush_size = sculpt_get_brush_size(brush);
 	snap->winx = vc->ar->winx;
 	snap->winy = vc->ar->winy;
 	snap->brush_map_mode = brush->mtex.brush_map_mode;
@@ -274,7 +274,7 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 		make_snap(&snap, br, vc);
 
 		if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-			int s = br->size;
+			int s = sculpt_get_brush_size(br);
 			int r = 1;
 
 			for (s >>= 1; s > 0; s >>= 1)
@@ -312,7 +312,7 @@ static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 				// largely duplicated from tex_strength
 
 				const float rotation = -br->mtex.rot;
-				float diameter = br->size;
+				float diameter = sculpt_get_brush_size(br);
 				int index = j*size + i;
 				float x;
 				float avg;
@@ -451,43 +451,6 @@ static int project_brush_radius(RegionView3D* rv3d, float radius, float location
 	return len_v2v2(p1, p2);
 }
 
-static void sculpt_set_brush_radius(bContext* C, Brush *brush, int value)
-{
-	
-	brush->size = value;
-	//printf("resize radius \n");
-	//U.sculpt_paint_pixel_radius = value;
-
-	//PointerRNA brushptr;
-	//PropertyRNA *size;
-
-	///* brush.size = value */
-
-	//RNA_id_pointer_create(&brush->id, &brushptr);
-
-	//size= RNA_struct_find_property(&brushptr, "size");
-	//RNA_property_int_set(&brushptr, size, value);
-
-	//WM_event_add_notifier(C, NC_BRUSH|NA_EDITED, brush);
-}
-
-static void sculpt_set_brush_unprojected_radius(bContext* C, Brush *brush, float value)
-{
-	
-	brush->unprojected_radius = value;
-	//PointerRNA brushptr;
-	//PropertyRNA *unprojected_radius;
-
-	///* brush.unprojected_radius = value */
-
-	//RNA_id_pointer_create(&brush->id, &brushptr);
-
-	//unprojected_radius= RNA_struct_find_property(&brushptr, "unprojected_radius");
-	//RNA_property_float_set(&brushptr, unprojected_radius, value);
-
-	//WM_event_add_notifier(C, NC_BRUSH|NA_EDITED, brush);
-}
-
 static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
 {
 	struct PaintStroke *stroke;
@@ -504,11 +467,10 @@ static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radiu
 	memcpy(viewport, stroke->mats.viewport, sizeof(int[4]));
 
 	if (stroke->vc.obact->sculpt && stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
-		*pixel_radius = project_brush_radius(stroke->vc.rv3d, stroke->brush->unprojected_radius, location, &stroke->mats);
+		*pixel_radius = project_brush_radius(stroke->vc.rv3d, sculpt_get_brush_unprojected_radius(stroke->brush), location, &stroke->mats);
 
-		if (*pixel_radius == 0) {
-			*pixel_radius = stroke->brush->size;
-		}
+		if (*pixel_radius == 0)
+			*pixel_radius = sculpt_get_brush_size(stroke->brush);
 
 		mul_m4_v3(stroke->vc.obact->sculpt->ob->obmat, location);
 
@@ -518,7 +480,7 @@ static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radiu
 		Sculpt* sd    = CTX_data_tool_settings(C)->sculpt;
 		Brush*  brush = paint_brush(&sd->paint);
 
-		*pixel_radius = brush->size;
+		*pixel_radius = sculpt_get_brush_size(brush);
 		hit = 0;
 	}
 
@@ -571,8 +533,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		float* col;
 		float  alpha;
 
-		float visual_strength = brush->alpha * brush->alpha;
-		
+		float visual_strength = sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush);
+
 		const float min_alpha = 0.20f;
 		const float max_alpha = 0.80f;
 
@@ -587,12 +549,13 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			brush->last_y = y;
 		} /* else, do not update last_x and last_y so that the distance can accumulate */
 
-		if(!(brush->flag & BRUSH_LOCK_SIZE) && !(paint->flags & PAINT_SHOW_BRUSH)) 
+		if(!sculpt_get_lock_brush_size(brush) && !(paint->flags & PAINT_SHOW_BRUSH)) 
 			return;
 
 		hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
 
-		if (brush->flag & BRUSH_LOCK_SIZE) sculpt_set_brush_radius(C, brush, pixel_radius);
+		if (sculpt_get_lock_brush_size(brush))
+			sculpt_set_brush_size(brush, pixel_radius);
 
 		// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
 		flip = 1;
@@ -628,14 +591,14 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 				if (brush->flag & BRUSH_ANCHORED)
 					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, 8);
 				else
-					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->size);
+					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, sculpt_get_brush_size(brush));
 			}
 
 			if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
 				unprojected_radius *= brush->pressure_value;
 
-			if (!(brush->flag & BRUSH_LOCK_SIZE)) 
-				sculpt_set_brush_unprojected_radius(C, brush, unprojected_radius);
+			if (!sculpt_get_lock_brush_size(brush))
+				sculpt_set_brush_unprojected_radius(brush, unprojected_radius);
 
 			if(!(paint->flags & PAINT_SHOW_BRUSH))
 				return;
@@ -705,7 +668,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 				glStencilFunc(GL_ALWAYS, 1, 0xFF);
 				glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
 
-				if (brush->size >= 8)
+				if (sculpt_get_brush_size(brush) >= 8)
 					gluSphere(sphere, inner_radius, 40, 40);
 
 				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -757,7 +720,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 			}
 			else {
 				glTranslatef((float)x, (float)y, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
 				glTranslatef(-(float)x, -(float)y, 0.0f);
 			}
 
@@ -765,7 +728,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		}
 
 		if (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED) && brush->flag & BRUSH_TEXTURE_OVERLAY) {
-			const float diameter = 2*brush->size;
+			const float diameter = 2*sculpt_get_brush_size(brush);
 
 			glPushAttrib(
 				GL_COLOR_BUFFER_BIT|
@@ -822,16 +785,16 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 					}
 					else {
 						glTexCoord2f(0, 0);
-						glVertex2f((float)x-brush->size, (float)y-brush->size);
+						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
 
 						glTexCoord2f(1, 0);
-						glVertex2f((float)x+brush->size, (float)y-brush->size);
+						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
 
 						glTexCoord2f(1, 1);
-						glVertex2f((float)x+brush->size, (float)y+brush->size);
+						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
 
 						glTexCoord2f(0, 1);
-						glVertex2f((float)x-brush->size, (float)y+brush->size);
+						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
 					}
 				}
 				else {
@@ -867,7 +830,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *customdata)
 		glEnable(GL_BLEND);
 
 		glTranslatef((float)x, (float)y, 0.0f);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40);
+		glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
 		glTranslatef((float)-x, (float)-y, 0.0f);
 
 		glDisable(GL_BLEND);
@@ -1007,7 +970,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 					pressure = stroke->brush->flag & BRUSH_SIZE_PRESSURE ? wmtab->Pressure : 1;
 			}
 
-			scale = (stroke->brush->size*pressure*stroke->brush->spacing/50.0f) / length;
+			scale = (sculpt_get_brush_size(stroke->brush)*pressure*stroke->brush->spacing/50.0f) / length;
 			mul_v2_fl(vec, scale);
 
 			steps = (int)(1.0f / scale);

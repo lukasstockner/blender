@@ -518,7 +518,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	Brush *brush = paint_brush(&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
-	float alpha        = brush->alpha * brush->alpha * brush->strength_multiplier;
+	float alpha        = sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush)*brush->strength_multiplier;
 	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
 	float pressure     = brush->flag & BRUSH_ALPHA_PRESSURE	? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
@@ -717,7 +717,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		else /* else (mtex->brush_map_mode == MTEX_MAP_MODE_TILED),
 		        leave the coordinates relative to the screen */
 		{
-			diameter = br->size; // use unadjusted size for tiled mode
+			diameter = sculpt_get_brush_size(br); // use unadjusted size for tiled mode
 		
 			x = point_2d[0] - ss->cache->vc->ar->winrct.xmin;
 			y = point_2d[1] - ss->cache->vc->ar->winrct.ymin;
@@ -1217,7 +1217,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	float bstrength= ss->cache->bstrength;
 	float flippedbstrength, crease_correction;
 	int n;
-	
+
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
 	
 	/* offset with as much as possible factored in already */
@@ -1227,8 +1227,8 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	
 	/* we divide out the squared alpha and multiply by the squared crease to give us the pinch strength */
 	
-	if(brush->alpha > 0.0f)
-		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor/(brush->alpha*brush->alpha);
+	if(sculpt_get_brush_alpha(brush) > 0.0f)
+		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor/(sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush));
 	else
 		crease_correction = brush->crease_pinch_factor*brush->crease_pinch_factor;
 
@@ -2499,9 +2499,9 @@ static void sculpt_update_tex(Sculpt *sd, SculptSession *ss)
 	}
 
 	/* Need to allocate a bigger buffer for bigger brush size */
-	ss->texcache_side = brush->size * 2;
+	ss->texcache_side = 2*sculpt_get_brush_size(brush);
 	if(!ss->texcache || ss->texcache_side > ss->texcache_actual) {
-		ss->texcache = brush_gen_texture_cache(brush, brush->size);
+		ss->texcache = brush_gen_texture_cache(brush, sculpt_get_brush_size(brush));
 		ss->texcache_actual = ss->texcache_side;
 	}
 }
@@ -2675,6 +2675,50 @@ static void sculpt_cache_free(StrokeCache *cache)
 	MEM_freeN(cache);
 }
 
+int sculpt_get_brush_size(Brush *brush)
+{
+	return (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE) ? U.sculpt_paint_unified_size : brush->size;
+}
+
+void sculpt_set_brush_size(Brush *brush, int size)
+{
+	if (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE)
+		U.sculpt_paint_unified_size = size;
+	else
+		brush->size = size;
+}
+
+int sculpt_get_lock_brush_size(Brush *brush)
+{
+	return (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE) ? (U.sculpt_paint_settings & SCULPT_PAINT_UNIFIED_LOCK_BRUSH_SIZE) : (brush->flag & BRUSH_LOCK_SIZE);
+}
+
+float sculpt_get_brush_unprojected_radius(Brush *brush)
+{
+	return (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE) ? U.sculpt_paint_unified_unprojected_radius : brush->unprojected_radius;
+}
+
+void sculpt_set_brush_unprojected_radius(Brush *brush, float unprojected_radius)
+{
+	if (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE)
+		U.sculpt_paint_unified_unprojected_radius = unprojected_radius;
+	else
+		brush->unprojected_radius = unprojected_radius;
+}
+
+float sculpt_get_brush_alpha(Brush *brush)
+{
+	return (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_ALPHA) ? U.sculpt_paint_unified_alpha : brush->alpha;
+}
+
+void sculpt_set_brush_alpha(Brush *brush, float alpha)
+{
+	if (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_ALPHA) 
+		U.sculpt_paint_unified_alpha = alpha;
+	else
+		brush->alpha = alpha;
+}
+
 /* Initialize the stroke cache invariants from operator properties */
 static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSession *ss, wmOperator *op, wmEvent *event)
 {
@@ -2686,12 +2730,6 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	int i;
 	int mode;
 
-	//Hopefully it is as easy as this... but I doubt it
-	//if(U.sculpt_paint_settings & BRUSH_USE_UNIFIED_RADIUS_AND_STRENGTH) {
-	//	brush->size = U.sculpt_paint_pixel_radius;
-	//	brush->alpha = U.sculpt_paint_strength;
-	//}
-	
 	ss->cache = cache;
 
 	/* Set scaling adjustment */
@@ -2826,14 +2864,15 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	brush->pressure_value= cache->pressure;
 
 	cache->previous_pixel_radius = cache->pixel_radius;
-	cache->pixel_radius = brush->size;
+	cache->pixel_radius = sculpt_get_brush_size(brush);
 
 	if(cache->first_time) {
-		if (!(brush->flag & BRUSH_LOCK_SIZE)) {
-			cache->initial_radius= brush->unprojected_radius = unproject_brush_radius(ss->ob, cache->vc, cache->true_location, brush->size);
+		if (!sculpt_get_lock_brush_size(brush)) {
+			cache->initial_radius= unproject_brush_radius(ss->ob, cache->vc, cache->true_location, sculpt_get_brush_size(brush));
+			sculpt_set_brush_unprojected_radius(brush, cache->initial_radius);
 		}
 		else {
-			cache->initial_radius= brush->unprojected_radius;
+			cache->initial_radius= sculpt_get_brush_unprojected_radius(brush);
 		}
 
 		if (ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK))

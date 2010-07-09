@@ -553,34 +553,31 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col = layout.column()
 
 
-
             col.separator()
 
             row = col.row(align=True)
 
-            if brush.lock_brush_size:
-                row.prop(brush, "lock_brush_size", toggle=True, text="", icon='LOCKED')
-            else:
-                row.prop(brush, "lock_brush_size", toggle=True, text="", icon='UNLOCKED')
-
-            if brush.lock_brush_size:
-                row.prop(brush, "unprojected_radius", text="Radius", slider=True)
-            else:
-                if bpy.context.user_preferences.edit.use_unified_radius_and_strength:
-                    row.prop(edit, "sculpt_paint_pixel_radius", text="Radius", slider=True)
+            if edit.sculpt_paint_use_unified_size:
+                if edit.sculpt_paint_unified_lock_brush_size:
+                    row.prop(edit, "sculpt_paint_unified_lock_brush_size", toggle=True, text="", icon='LOCKED')
+                    row.prop(edit, "sculpt_paint_unified_unprojected_radius", text="Unified Radius", slider=True)
                 else:
+                    row.prop(edit, "sculpt_paint_unified_lock_brush_size", toggle=True, text="", icon='UNLOCKED')
+                    row.prop(edit, "sculpt_paint_unified_size", text="Unified Radius", slider=True)
+
+            else:
+                if brush.lock_brush_size:
+                    row.prop(brush, "lock_brush_size", toggle=True, text="", icon='LOCKED')
+                    row.prop(brush, "unprojected_radius", text="Radius", slider=True)
+                else:
+                    row.prop(brush, "lock_brush_size", toggle=True, text="", icon='UNLOCKED')
                     row.prop(brush, "size", text="Radius", slider=True)
 
             row.prop(brush, "use_size_pressure", toggle=True, text="")
 
 
-
             if brush.sculpt_tool not in ('SNAKE_HOOK', 'GRAB', 'ROTATE'):
                 col.separator()
-
-                #row = col.row(align=True)
-                #row.prop(edit, "use_unified_radius_and_strength")
-
 
                 row = col.row(align=True)
 
@@ -590,10 +587,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     else:
                         row.prop(brush, "use_space_atten", toggle=True, text="", icon='UNLOCKED')
 
-                if edit.use_unified_radius_and_strength:
-                    row.prop(edit, "sculpt_paint_strength", slider=True)
+                if edit.sculpt_paint_use_unified_strength:
+                    row.prop(edit, "sculpt_paint_unified_strength", text="Unified Strength", slider=True)
                 else:
-                    row.prop(brush, "strength", slider=True)
+                    row.prop(brush, "strength", text="Strength", slider=True)
 
                 row.prop(brush, "use_strength_pressure", text="")
 
@@ -958,7 +955,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
 
             row = col.row()
             row.active = brush.use_space
-            row.prop(brush, "spacing", text="Spacing", slider=True)
+            row.prop(brush, "spacing", text="Spacing")
 
             #col.prop(brush, "use_space_atten", text="Adaptive Strength")
             #col.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
@@ -1007,10 +1004,14 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         settings = self.paint_settings(context)
         brush = settings.brush
 
-        col = layout.column();
+        col = layout.column()
 
-        #edit = context.user_preferences.edit
-        #col.prop(edit, "use_unified_radius_and_strength", text="Unified Size and Strength")
+        edit = context.user_preferences.edit
+        col.label(text="Unified Settings:")
+        col.prop(edit, "sculpt_paint_use_unified_size", text="Size")
+        col.prop(edit, "sculpt_paint_use_unified_strength", text="Strength")
+
+        col.separator()
 
         split = self.layout.split()
 

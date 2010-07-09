@@ -32,6 +32,7 @@
 #include "DNA_curve_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_brush_types.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -2213,20 +2214,35 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Grease Pencil Eraser Radius", "Radius of eraser 'brush'");
 
 	/* sculpt and paint */
-	prop= RNA_def_property(srna, "use_unified_radius_and_strength", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", BRUSH_USE_UNIFIED_RADIUS_AND_STRENGTH);
-	RNA_def_property_ui_text(prop, "Use Unified Radius and Strength", "Instead of per brush radius and strength settings the settings are shared across brushes");
+	prop= RNA_def_property(srna, "sculpt_paint_use_unified_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_SIZE);
+	RNA_def_property_ui_text(prop, "Use Unified Radius", "Instead of per brush radius, the radius is shared across brushes");
 
-	prop= RNA_def_property(srna, "sculpt_paint_pixel_radius", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "sculpt_paint_pixel_radius");
-	RNA_def_property_range(prop, 0, 200);
-	RNA_def_property_ui_text(prop, "Pixels", "Unified Brush Radius in Pixels");
+	prop= RNA_def_property(srna, "sculpt_paint_use_unified_strength", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_ALPHA);
+	RNA_def_property_ui_text(prop, "Use Unified Strength", "Instead of per brush strength, the strength is shared across brushes");
 
-	prop= RNA_def_property(srna, "sculpt_paint_strength", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_strength");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
-	RNA_def_property_ui_text(prop, "Strength", "Unified Brush Strength");
-	
+	prop= RNA_def_property(srna, "sculpt_paint_unified_lock_brush_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_UNIFIED_LOCK_BRUSH_SIZE);
+	RNA_def_property_ui_text(prop, "Use Unified Blender Units", "When locked all brushes stay same size relative to object; when unlocked all brush sizes are given in pixels");
+
+	prop= RNA_def_property(srna, "sculpt_paint_unified_size", PROP_INT, PROP_DISTANCE);
+	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS*10);
+	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, 0);
+	RNA_def_property_ui_text(prop, "Unified Size", "Unified radius of the brush in pixels");
+
+	prop= RNA_def_property(srna, "sculpt_paint_unified_unprojected_radius", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_range(prop, 0, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0, 1, 0, 0);
+	RNA_def_property_ui_text(prop, "Unified Surface Size", "Unified radius of brush in Blender units");
+
+	prop= RNA_def_property(srna, "sculpt_paint_unified_strength", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_unified_alpha");
+	RNA_def_property_float_default(prop, 0.5f);
+	RNA_def_property_range(prop, 0.0f, 10.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
+	RNA_def_property_ui_text(prop, "Unified Strength", "Unified power of effect of brushes when applied");
+
 	/* duplication linking */
 	prop= RNA_def_property(srna, "duplicate_mesh", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "dupflag", USER_DUP_MESH);
