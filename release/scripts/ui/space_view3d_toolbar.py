@@ -504,19 +504,26 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
         if not context.particle_edit_object:
             col = layout.split().column()
-            row = col.row()
 
-            if context.sculpt_object and brush:
-                defaultbrushes = 8
-            elif context.texture_paint_object and brush:
-                defaultbrushes = 4
-            else:
-                defaultbrushes = 7
-
-            if not context.sculpt_object:
-                row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
-            else:
+            if context.sculpt_object and context.tool_settings.sculpt:
                 col.template_ID_preview(settings, "brush", new="brush.add", filter="is_sculpt_brush", rows=3, cols=8)
+            elif context.texture_paint_object and context.tool_settings.image_paint:
+                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_imapaint_brush", rows=3, cols=8)
+            elif context.vertex_paint_object and context.tool_settings.vertex_paint:
+                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_vpaint_brush", rows=3, cols=8)
+            elif context.weight_paint_object and context.tool_settings.weight_paint:
+                col.template_ID_preview(settings, "brush", new="brush.add", filter="is_wpaint_brush", rows=3, cols=8)
+            else:
+                row = col.row()
+
+                if context.sculpt_object and brush:
+                    defaultbrushes = 8
+                elif context.texture_paint_object and brush:
+                    defaultbrushes = 4
+                else:
+                    defaultbrushes = 7
+
+                row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
 
         # Particle Mode #
 
@@ -1037,7 +1044,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel):
     bl_label = "Appearance"
 
     def poll(self, context):
-        return (context.sculpt_object and context.tool_settings.sculpt)
+        return (context.sculpt_object and context.tool_settings.sculpt) or (context.vertex_paint_object and context.tool_settings.vertex_paint) or (context.weight_paint_object and context.tool_settings.weight_paint) or (context.texture_paint_object and context.tool_settings.image_paint)
 
     def draw(self, context):
         layout = self.layout
@@ -1048,11 +1055,12 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel):
 
         col = layout.column();
 
-        if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
-            col.prop(brush, "add_col", text="Add Color")
-            col.prop(brush, "sub_col", text="Substract Color")
-        else:
-            col.prop(brush, "add_col", text="Color")
+        if context.sculpt_object and context.tool_settings.sculpt:
+            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
+                col.prop(brush, "add_col", text="Add Color")
+                col.prop(brush, "sub_col", text="Substract Color")
+            else:
+                col.prop(brush, "add_col", text="Color")
 
         col.separator()
 

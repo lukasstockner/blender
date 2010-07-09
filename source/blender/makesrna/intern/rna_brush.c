@@ -30,6 +30,7 @@
 
 #include "DNA_brush_types.h"
 #include "DNA_texture_types.h"
+#include "DNA_scene_types.h"
 
 #include "BLI_math.h"
 
@@ -58,6 +59,45 @@ static int rna_Brush_is_sculpt_brush(Brush *me, bContext *C)
 
 	for (i= 0; i < sd->paint.brush_count; i++) {
 		if (strcmp(me->id.name+2, sd->paint.brushes[i]->id.name+2) == 0) 
+			return 1;
+	}
+
+	return 0;
+}
+
+static int rna_Brush_is_vpaint_brush(Brush *me, bContext *C)
+{
+	VPaint *vp = CTX_data_tool_settings(C)->vpaint;
+	int i;
+
+	for (i= 0; i < vp->paint.brush_count; i++) {
+		if (strcmp(me->id.name+2, vp->paint.brushes[i]->id.name+2) == 0) 
+			return 1;
+	}
+
+	return 0;
+}
+
+static int rna_Brush_is_wpaint_brush(Brush *me, bContext *C)
+{
+	VPaint *vp = CTX_data_tool_settings(C)->wpaint;
+	int i;
+
+	for (i= 0; i < vp->paint.brush_count; i++) {
+		if (strcmp(me->id.name+2, vp->paint.brushes[i]->id.name+2) == 0) 
+			return 1;
+	}
+
+	return 0;
+}
+
+static int rna_Brush_is_imapaint_brush(Brush *me, bContext *C)
+{
+	ImagePaintSettings *data = &(CTX_data_tool_settings(C)->imapaint);
+	int i;
+
+	for (i= 0; i < data->paint.brush_count; i++) {
+		if (strcmp(me->id.name+2, data->paint.brushes[i]->id.name+2) == 0) 
 			return 1;
 	}
 
@@ -202,7 +242,28 @@ static void rna_def_brush(BlenderRNA *brna)
 
 	/* functions */
 	func= RNA_def_function(srna, "is_sculpt_brush", "rna_Brush_is_sculpt_brush");
-	RNA_def_function_ui_description(func, "Returns true if Brush can be used for sculpting.");
+	RNA_def_function_ui_description(func, "Returns true if Brush can be used for sculpting");
+	parm= RNA_def_pointer(func, "context", "Context", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_boolean(func, "ret", 0, "", "");
+	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "is_vpaint_brush", "rna_Brush_is_vpaint_brush");
+	RNA_def_function_ui_description(func, "Returns true if Brush can be used for vertex painting");
+	parm= RNA_def_pointer(func, "context", "Context", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_boolean(func, "ret", 0, "", "");
+	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "is_wpaint_brush", "rna_Brush_is_wpaint_brush");
+	RNA_def_function_ui_description(func, "Returns true if Brush can be used for weight painting");
+	parm= RNA_def_pointer(func, "context", "Context", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm= RNA_def_boolean(func, "ret", 0, "", "");
+	RNA_def_function_return(func, parm);
+
+	func= RNA_def_function(srna, "is_imapaint_brush", "rna_Brush_is_imapaint_brush");
+	RNA_def_function_ui_description(func, "Returns true if Brush can be used for image painting");
 	parm= RNA_def_pointer(func, "context", "Context", "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm= RNA_def_boolean(func, "ret", 0, "", "");
