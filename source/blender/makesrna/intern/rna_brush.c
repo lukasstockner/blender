@@ -178,6 +178,17 @@ static void rna_def_brush(BlenderRNA *brna)
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", ""},
 		{0, NULL, 0, NULL, NULL}};
 
+	static EnumPropertyItem texture_angle_source_items[] = {
+		{0, "USER", 0, "User", ""},
+		{BRUSH_RAKE, "RAKE", 0, "Rake", ""},
+		{BRUSH_RANDOM_ROTATION, "RANDOM", 0, "Random", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+	static EnumPropertyItem texture_angle_source_no_random_items[] = {
+		{0, "USER", 0, "User", ""},
+		{BRUSH_RAKE, "RAKE", 0, "Rake", ""},
+		{0, NULL, 0, NULL, NULL}};
+
 	static EnumPropertyItem brush_vertexpaint_tool_items[] = {
 		{0, "MIX", 0, "Mix", "Use mix blending mode while painting"},
 		{1, "ADD", 0, "Add", "Use add blending mode while painting"},
@@ -302,6 +313,18 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Stroke Method", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "texture_angle_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, texture_angle_source_items);
+	RNA_def_property_ui_text(prop, "Texture Angle Source", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "texture_angle_source_no_random", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
+	RNA_def_property_enum_items(prop, texture_angle_source_no_random_items);
+	RNA_def_property_ui_text(prop, "Texture Angle Source", "");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "flatten_contrast", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, prop_flatten_contrast_items);
@@ -398,6 +421,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "strength_multiplier");
 	RNA_def_property_int_default(prop, 1);
 	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_ui_range(prop, 1, 10, 1, 0);
 	RNA_def_property_ui_text(prop, "Strength Multiplier", "Multiplier factor for the strength setting");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 

@@ -790,23 +790,35 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             row = col.row(align=True)
             row.prop(tex_slot, "map_mode", expand=True)
 
-            row = col.row(align=True)
-            row.label(text="Angle:")
-            row.active = tex_slot.map_mode in ('FIXED', 'TILED')
+            col.separator()
 
-            row = col.row(align=True)
-
-            col = row.column()
+            col = layout.column()
             col.active = tex_slot.map_mode in ('FIXED')
-            col.prop(brush, "use_rake", toggle=True, icon='PARTICLEMODE', text="")
+            col.label(text="Angle:")
+            
+            col = layout.column()
+            if not brush.use_anchor and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED'):
+                col.prop(brush, "texture_angle_source", text="")
+            else:
+                col.prop(brush, "texture_angle_source_no_random", text="")
 
-            col = row.column()
+            #row = col.row(align=True)
+            #row.label(text="Angle:")
+            #row.active = tex_slot.map_mode in ('FIXED', 'TILED')
+
+            #row = col.row(align=True)
+
+            #col = row.column()
+            #col.active = tex_slot.map_mode in ('FIXED')
+            #col.prop(brush, "use_rake", toggle=True, icon='PARTICLEMODE', text="")
+
+            col = layout.column()
             col.prop(tex_slot, "angle", text="")
             col.active = tex_slot.map_mode in ('FIXED', 'TILED')
 
-            col = layout.column()
-            col.prop(brush, "use_random_rotation")
-            col.active = (not brush.use_rake) and (not brush.use_anchor) and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED')
+            #col = layout.column()
+            #col.prop(brush, "use_random_rotation")
+            #col.active = (not brush.use_rake) and (not brush.use_anchor) and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED')
 
             split = layout.split()
 
