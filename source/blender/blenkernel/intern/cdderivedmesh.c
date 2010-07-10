@@ -440,11 +440,7 @@ static int cddm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 			if(mface->flag & ME_SMOOTH)
 				drawflags |= GPU_DRAW_SMOOTH;
 
-			glEnable(GL_LIGHTING);
-
 			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, drawflags);
-
-			glDisable(GL_LIGHTING);
 		}
 
 		return 1;

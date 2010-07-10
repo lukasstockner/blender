@@ -867,6 +867,7 @@ void GPU_draw_buffers(void *buffers_v)
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
 
 		if(buffers->color_buf) {
+			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			glGetBooleanv(GL_COLOR_MATERIAL, &colmat);
 			glEnable(GL_COLOR_MATERIAL);
 		}
@@ -897,7 +898,7 @@ void GPU_draw_buffers(void *buffers_v)
 		}
 
 		if(buffers->color_buf && !colmat)
-			glDisable(GL_COLOR_MATERIAL);
+			glDisable(GL_COLOR_MATERIAL);		
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);

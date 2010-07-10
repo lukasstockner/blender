@@ -1967,8 +1967,9 @@ static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh, PBVHNode **nod
 				if(dist_squared < radius_squared) {
 					dist = sqrtf(dist_squared);
 
-					str = brush_curve_strength(brush, dist,
-								   radius);
+					str = brush->alpha *
+						brush_curve_strength(brush, dist,
+								     radius);
 
 					vpaint_blend(vp, col, orig_col,
 						     vpd->paintcol,
@@ -2011,6 +2012,10 @@ static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
 
 	if(nodes)
 		MEM_freeN(nodes);
+
+	/* was disabled because it is slow, but necessary for blur */
+	if(brush->vertexpaint_tool == VP_BLUR)
+		do_shared_vertexcol(ob->data);
 
 	ED_region_tag_redraw(vc->ar);
 }
