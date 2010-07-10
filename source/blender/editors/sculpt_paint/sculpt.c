@@ -3313,6 +3313,7 @@ static void sculpt_flush_update(bContext *C)
 		ED_region_tag_redraw(ar);
 	}
 	else {
+		rcti tmp;
 		rcti r;
 
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateBB, NULL);
@@ -3323,7 +3324,14 @@ static void sculpt_flush_update(bContext *C)
 			r.xmax += ar->winrct.xmin - 1;
 			r.ymin += ar->winrct.ymin + 1;
 			r.ymax += ar->winrct.ymin - 1;
-			
+
+			tmp = r;
+
+			if (!BLI_rcti_is_empty(&ss->previous_r))
+				BLI_union_rcti(&r, &ss->previous_r);
+
+			ss->previous_r = tmp;
+
 			ss->partial_redraw = 1;
 			ED_region_tag_redraw_partial(ar, &r);
 		}
