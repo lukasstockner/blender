@@ -72,8 +72,8 @@ typedef struct StripColorBalance {
 	float gain[3];
 	int flag;
 	int pad;
-	float exposure;
-	float saturation;
+	// float exposure;
+	// float saturation;
 } StripColorBalance;
 
 typedef struct StripProxy {
@@ -196,6 +196,10 @@ typedef struct Editing {
 	Sequence *act_seq;
 	char act_imagedir[256];
 	char act_sounddir[256];
+
+	int over_ofs, over_cfra;
+	int over_flag, pad;
+	rctf over_border;
 } Editing;
 
 /* ************* Effect Variable Structs ********* */
@@ -241,6 +245,10 @@ typedef struct SpeedControlVars {
 	int length;
 	int lastValidFrame;
 } SpeedControlVars;
+
+/* Editor->over_flag */
+#define SEQ_EDIT_OVERLAY_SHOW			1
+#define SEQ_EDIT_OVERLAY_ABS			2
 
 #define SEQ_STRIP_OFSBOTTOM		0.2f
 #define SEQ_STRIP_OFSTOP		0.8f
@@ -324,7 +332,8 @@ typedef struct SpeedControlVars {
    otherwise, you can't really blend, right :) !)
 */
 
-#define SEQ_HAS_PATH(_seq) ( (_seq)->type==SEQ_MOVIE || (_seq)->type==SEQ_IMAGE || (_seq)->type==SEQ_SOUND )
+
+#define SEQ_HAS_PATH(_seq) (ELEM5((_seq)->type, SEQ_MOVIE, SEQ_IMAGE, SEQ_SOUND, SEQ_RAM_SOUND, SEQ_HD_SOUND))
 
 #endif
 

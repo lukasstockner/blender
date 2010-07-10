@@ -213,8 +213,9 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 	}
 	
 	seq = alloc_sequence(ed->seqbasep, start_frame, channel);
-	
 	seq->type= SEQ_SCENE;
+	seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
+
 	seq->scene= sce_seq;
 	seq->sfra= sce_seq->r.sfra;
 	
@@ -458,7 +459,9 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 	se= strip->stripdata;
 
 	RNA_BEGIN(op->ptr, itemptr, "files") {
-		RNA_string_get(&itemptr, "name", se->name);
+		char *filename= RNA_string_get_alloc(&itemptr, "name", NULL, 0);
+		BLI_strncpy(se->name, filename, sizeof(se->name));
+		MEM_freeN(filename);
 		se++;
 	}
 	RNA_END;
@@ -544,7 +547,7 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 
 	type= RNA_enum_get(op->ptr, "type");
 	
-	// XXX We need unique names and move to invoke
+	// XXX move to invoke
 	if(!seq_effect_find_selected(scene, NULL, type, &seq1, &seq2, &seq3, &error_msg)) {
 		BKE_report(op->reports, RPT_ERROR, error_msg);
 		return OPERATOR_CANCELLED;
@@ -603,6 +606,18 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 	else if (seq->type==SEQ_COLOR) {
 		SolidColorVars *colvars= (SolidColorVars *)seq->effectdata;
 		RNA_float_get_array(op->ptr, "color", colvars->col);
+		seq->blend_mode= SEQ_CROSS; /* so alpha adjustment fade to the strip below */
+
+	}
+
+	// XXX, this conflicts with giving a channel with invoke, perhaps we should have an active channel
+	// but for now this is much more usable
+	if(seq->seq1 || seq->seq2 || seq->seq3) {
+		int chan= MAX3(	seq->seq1 ? seq->seq1->machine : 0,
+						seq->seq2 ? seq->seq2->machine : 0,
+						seq->seq3 ? seq->seq3->machine : 0);
+		if(chan < MAXSEQ)
+			seq->machine= chan;
 	}
 
 	if(seq_test_overlap(ed->seqbasep, seq)) shuffle_seq(ed->seqbasep, seq, scene);

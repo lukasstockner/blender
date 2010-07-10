@@ -317,6 +317,7 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED|PROP_RNAPTR|PROP_NEVER_NULL);
 	parm= RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in.");
 	RNA_def_function_return(func, parm);
+	RNA_def_boolean(func, "compact", 0, "", "Show a smaller version of the template, split on two lines.");
 
 	func= RNA_def_function(srna, "template_preview", "uiTemplatePreview");
 	parm= RNA_def_pointer(func, "id", "ID", "", "ID datablock.");
@@ -359,6 +360,8 @@ void RNA_api_ui_layout(StructRNA *srna)
 	api_ui_item_rna_common(func);
 	RNA_def_boolean(func, "value_slider", 0, "", "Display the value slider to the right of the color wheel");
 	RNA_def_boolean(func, "lock", 0, "", "Lock the color wheel display to value 1.0 regardless of actual color");
+	RNA_def_boolean(func, "lock_luminosity", 0, "", "Keep the color at its original vector length");
+	RNA_def_boolean(func, "cubic", 1, "", "Cubic saturation for picking values close to white");
 	
 	func= RNA_def_function(srna, "template_triColorSet", "uiTemplateTriColorSet");
 	api_ui_item_rna_common(func);

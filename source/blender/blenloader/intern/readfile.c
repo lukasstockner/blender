@@ -959,11 +959,11 @@ static FileData *blo_decode_and_check(FileData *fd, ReportList *reports)
 FileData *blo_openblenderfile(char *name, ReportList *reports)
 {
 	gzFile gzfile;
-	
+	errno= 0;
 	gzfile= gzopen(name, "rb");
 
 	if (gzfile == Z_NULL) {
-		BKE_report(reports, RPT_ERROR, "Unable to open");
+		BKE_reportf(reports, RPT_ERROR, "Unable to open \"%s\": %s.", name, errno ? strerror(errno) : "Unknown erro reading file");
 		return NULL;
 	} else {
 		FileData *fd = filedata_new();
@@ -996,7 +996,7 @@ FileData *blo_openblendermemory(void *mem, int memsize, ReportList *reports)
 FileData *blo_openblendermemfile(MemFile *memfile, ReportList *reports)
 {
 	if (!memfile) {
-		BKE_report(reports, RPT_ERROR, "Unable to open");
+		BKE_report(reports, RPT_ERROR, "Unable to open blend <memory>");
 		return NULL;
 	} else {
 		FileData *fd= filedata_new();
@@ -2244,7 +2244,7 @@ static void lib_link_pose(FileData *fd, Object *ob, bPose *pose)
 	}
 	
 	if(rebuild) {
-		ob->recalc= OB_RECALC;
+		ob->recalc= OB_RECALC_ALL;
 		pose->flag |= POSE_RECALC;
 	}
 }
@@ -3463,7 +3463,7 @@ static void lib_link_object(FileData *fd, Main *main)
 					/* this triggers object_update to always use a copy */
 					ob->proxy->proxy_from= ob;
 					/* force proxy updates after load/undo, a bit weak */
-					ob->recalc= ob->proxy->recalc= OB_RECALC;
+					ob->recalc= ob->proxy->recalc= OB_RECALC_ALL;
 				}
 			}
 			ob->proxy_group= newlibadr(fd, ob->id.lib, ob->proxy_group);
@@ -7899,7 +7899,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if(ob->type==OB_ARMATURE) {
 				if(ob->pose)
 					ob->pose->flag |= POSE_RECALC;
-				ob->recalc |= OB_RECALC;	// cannot call stuff now (pointers!), done in setup_app_data
+				ob->recalc |= OB_RECALC_ALL;	// cannot call stuff now (pointers!), done in setup_app_data
 
 				/* new generic xray option */
 				arm= newlibadr(fd, lib, ob->data);
@@ -10862,6 +10862,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Object *ob;
 		Scene *scene;
 		bScreen *sc;
+		Tex *tex;
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
@@ -10952,6 +10953,13 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			}
 		}
 
+		for(tex= main->tex.first; tex; tex= tex->id.next) {
+			/* if youre picky, this isn't correct until we do a version bump
+			 * since you could set saturation to be 0.0*/
+			if(tex->saturation==0.0f)
+				tex->saturation= 1.0f;
+		}
+
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -10960,13 +10968,14 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	/* don't forget to set version number in blender.c! */
 }
 
+#if 0 // XXX: disabled for now... we still don't have this in the right place in the loading code for it to work
 static void do_versions_after_linking(FileData *fd, Library *lib, Main *main)
 {
-	/* old Animation System (using IPO's) needs to be converted to the new Animato system
-	 */
+	/* old Animation System (using IPO's) needs to be converted to the new Animato system */
 	if(main->versionfile < 250)
 		do_versions_ipos_to_animato(main);
 }
+#endif
 
 static void lib_link_all(FileData *fd, Main *main)
 {
@@ -11114,7 +11123,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filename)
 	blo_join_main(&fd->mainlist);
 
 	lib_link_all(fd, bfd->main);
-	do_versions_after_linking(fd, NULL, bfd->main);
+	//do_versions_after_linking(fd, NULL, bfd->main); // XXX: not here (or even in this function at all)! this causes crashes on many files - Aligorith (July 04, 2010)
 	lib_verify_nodetree(bfd->main, 1);
 	fix_relpaths_library(fd->relabase, bfd->main); /* make all relative paths, relative to the open blend file */
 	
@@ -12075,7 +12084,7 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			base= scene_add_base(scene, ob);
 			base->flag |= SELECT;
 			base->object->flag= base->flag;
-			ob->recalc |= OB_RECALC;
+			ob->recalc |= OB_RECALC_ALL;
 			scene->basact= base;
 
 			/* assign the group */
@@ -12134,6 +12143,7 @@ static void append_named_part(const bContext *C, Main *mainl, FileData *fd, char
 							ob->lay = scene->lay;
 						}
 					}
+					ob->mode= 0;
 					base->lay= ob->lay;
 					base->object= ob;
 					ob->id.us++;

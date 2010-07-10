@@ -69,6 +69,14 @@ class SEQUENCER_HT_header(bpy.types.Header):
         else:
             layout.prop(st, "display_channel", text="Channel")
 
+            ed = context.scene.sequence_editor
+            if ed:
+                row = layout.row(align=True)
+                row.prop(ed, "show_overlay", text="", icon='GHOST_ENABLED')
+                if ed.show_overlay:
+                    row.prop(ed, "overlay_frame", text="")
+                    row.prop(ed, "overlay_lock", text="", icon='LOCKED')
+
 
 class SEQUENCER_MT_view_toggle(bpy.types.Menu):
     bl_label = "View Type"
@@ -126,6 +134,10 @@ class SEQUENCER_MT_view(bpy.types.Menu):
             layout.operator_context = 'INVOKE_REGION_PREVIEW'
             layout.operator("sequencer.view_all_preview", text='Fit preview in window')
             layout.operator_context = 'INVOKE_DEFAULT'
+
+            # # XXX, invokes in the header view
+            # layout.operator("sequencer.view_ghost_border", text='Overlay Border')
+
         layout.operator("sequencer.view_selected")
 
         layout.prop(st, "draw_frames")
@@ -749,15 +761,15 @@ class SEQUENCER_PT_filter(SequencerButtonsPanel):
             row = layout.row()
             row.active = strip.use_color_balance
             col = row.column()
-            col.template_color_wheel(strip.color_balance, "lift", value_slider=False)
+            col.template_color_wheel(strip.color_balance, "lift", value_slider=False, cubic=True)
             col.row().prop(strip.color_balance, "lift")
             col.prop(strip.color_balance, "inverse_lift", text="Inverse")
             col = row.column()
-            col.template_color_wheel(strip.color_balance, "gamma", value_slider=False)
+            col.template_color_wheel(strip.color_balance, "gamma", value_slider=False, lock_luminosity=True, cubic=True)
             col.row().prop(strip.color_balance, "gamma")
             col.prop(strip.color_balance, "inverse_gamma", text="Inverse")
             col = row.column()
-            col.template_color_wheel(strip.color_balance, "gain", value_slider=False)
+            col.template_color_wheel(strip.color_balance, "gain", value_slider=False, lock_luminosity=True, cubic=True)
             col.row().prop(strip.color_balance, "gain")
             col.prop(strip.color_balance, "inverse_gain", text="Inverse")
 

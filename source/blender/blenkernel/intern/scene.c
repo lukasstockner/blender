@@ -220,7 +220,7 @@ Scene *copy_scene(Main *bmain, Scene *sce, int type)
 		if(sce->ed) {
 			scen->ed= MEM_callocN( sizeof(Editing), "addseq");
 			scen->ed->seqbasep= &scen->ed->seqbase;
-			seqbase_dupli_recursive(sce, &scen->ed->seqbase, &sce->ed->seqbase, 0);
+			seqbase_dupli_recursive(sce, &scen->ed->seqbase, &sce->ed->seqbase, SEQ_DUPE_ALL);
 		}
 	}
 
@@ -553,18 +553,17 @@ void set_scene_bg(Scene *scene)
 }
 
 /* called from creator.c */
-void set_scene_name(char *name)
+Scene *set_scene_name(char *name)
 {
-	Scene *sce;
-
-	for (sce= G.main->scene.first; sce; sce= sce->id.next) {
-		if (BLI_streq(name, sce->id.name+2)) {
-			set_scene_bg(sce);
-			return;
-		}
+	Scene *sce= (Scene *)find_id("SC", name);
+	if(sce) {
+		set_scene_bg(sce);
+		printf("Scene switch: '%s' in file: '%s'\n", name, G.sce);
+		return sce;
 	}
-	
-	//XXX error("Can't find scene: %s", name);
+
+	printf("Can't find scene: '%s' in file: '%s'\n", name, G.sce);
+	return NULL;
 }
 
 void unlink_scene(Main *bmain, Scene *sce, Scene *newsce)
@@ -908,6 +907,9 @@ static void scene_update_tagged_recursive(Scene *scene, Scene *scene_parent)
 
 		if(ob->dup_group && (ob->transflag & OB_DUPLIGROUP))
 			group_handle_recalc_and_update(scene_parent, ob, ob->dup_group);
+			
+		/* always update layer, so that animating layers works */
+		base->lay= ob->lay;
 	}
 }
 

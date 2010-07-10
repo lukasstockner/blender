@@ -136,8 +136,8 @@ struct SeqEffectHandle {
 void printf_strip(struct Sequence *seq);
 
 /* apply functions recursively */
-void seqbase_recursive_apply(struct ListBase *seqbase, int (*apply_func)(struct Sequence *seq, void *), void *arg);
-void seq_recursive_apply(struct Sequence *seq, int (*apply_func)(struct Sequence *, void *), void *arg);
+int seqbase_recursive_apply(struct ListBase *seqbase, int (*apply_func)(struct Sequence *seq, void *), void *arg);
+int seq_recursive_apply(struct Sequence *seq, int (*apply_func)(struct Sequence *, void *), void *arg);
 
 // extern
 void seq_free_sequence(struct Scene *scene, struct Sequence *seq);
@@ -187,6 +187,7 @@ void seq_single_fix(struct Sequence *seq);
 int seq_test_overlap(struct ListBase * seqbasep, struct Sequence *test);
 struct ListBase *seq_seqbase(struct ListBase *seqbase, struct Sequence *seq);
 void seq_offset_animdata(struct Scene *scene, struct Sequence *seq, int ofs);
+void seq_dupe_animdata(struct Scene *scene, char *name_from, char *name_to);
 int shuffle_seq(struct ListBase * seqbasep, struct Sequence *test, struct Scene *evil_scene);
 int shuffle_seq_time(ListBase * seqbasep, struct Scene *evil_scene);
 int seqbase_isolated_sel_check(struct ListBase *seqbase);
@@ -232,6 +233,8 @@ typedef struct SeqLoadInfo {
 /* seq_dupli' flags */
 #define SEQ_DUPE_UNIQUE_NAME	1<<0
 #define SEQ_DUPE_CONTEXT		1<<1
+#define SEQ_DUPE_ANIM			1<<2
+#define SEQ_DUPE_ALL			1<<3 /* otherwise only selected are copied */
 
 /* use as an api function */
 typedef struct Sequence *(*SeqLoadFunc)(struct bContext *, ListBase *, struct SeqLoadInfo *);

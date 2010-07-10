@@ -6,7 +6,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,20 +17,34 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2007 Blender Foundation.
+ * The Original Code is Copyright (C) 2010 by Blender Foundation.
  * All rights reserved.
  *
- * 
- * Contributor(s): Blender Foundation
+ * The Original Code is: all of this file.
+ *
+ * Contributor(s): none yet.
  *
  * ***** END GPL LICENSE BLOCK *****
  */
-#ifndef WM_FILES_H
-#define WM_FILES_H
 
-extern void read_history(void);
-extern void delete_autosave(void);
+#include "intern/GHOST_Debug.h"
+#include "GHOST_Path-api.h"
+#include "GHOST_ISystem.h"
 
+const GHOST_TUns8* GHOST_getSystemDir()
+{
+	GHOST_ISystem* system = GHOST_ISystem::getSystem();
+	return system ? system->getSystemDir() : NULL;
+}
 
-#endif /* WM_FILES_H */
+const GHOST_TUns8* GHOST_getUserDir()
+{
+	GHOST_ISystem* system = GHOST_ISystem::getSystem();
+	return system ? system->getUserDir() : NULL; /* will be NULL in background mode */
+}
 
+const GHOST_TUns8* GHOST_getBinaryDir()
+{
+	GHOST_ISystem* system = GHOST_ISystem::getSystem();
+	return system ? system->getBinaryDir() : NULL; /* will be NULL in background mode */
+}

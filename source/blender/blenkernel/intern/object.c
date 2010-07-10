@@ -294,7 +294,7 @@ static void unlink_object__unlinkModifierLinks(void *userData, Object *ob, Objec
 
 	if (*obpoin==unlinkOb) {
 		*obpoin = NULL;
-		ob->recalc |= OB_RECALC;
+		ob->recalc |= OB_RECALC_ALL; // XXX: should this just be OB_RECALC_DATA?
 	}
 }
 
@@ -334,7 +334,7 @@ void unlink_object(Scene *scene, Object *ob)
 		
 		if(obt->parent==ob) {
 			obt->parent= NULL;
-			obt->recalc |= OB_RECALC;
+			obt->recalc |= OB_RECALC_ALL;
 		}
 		
 		modifiers_foreachObjectLink(obt, unlink_object__unlinkModifierLinks, ob);
@@ -344,15 +344,15 @@ void unlink_object(Scene *scene, Object *ob)
 
 			if(cu->bevobj==ob) {
 				cu->bevobj= NULL;
-				obt->recalc |= OB_RECALC;
+				obt->recalc |= OB_RECALC_ALL;
 			}
 			if(cu->taperobj==ob) {
 				cu->taperobj= NULL;
-				obt->recalc |= OB_RECALC;
+				obt->recalc |= OB_RECALC_ALL;
 			}
 			if(cu->textoncurve==ob) {
 				cu->textoncurve= NULL;
-				obt->recalc |= OB_RECALC;
+				obt->recalc |= OB_RECALC_ALL;
 			}
 		}
 		else if(obt->type==OB_ARMATURE && obt->pose) {
@@ -1064,7 +1064,7 @@ Object *add_object(struct Scene *scene, int type)
 	
 	base= scene_add_base(scene, ob);
 	scene_select_base(scene, base);
-	ob->recalc |= OB_RECALC;
+	ob->recalc |= OB_RECALC_ALL;
 
 	return ob;
 }
@@ -1510,7 +1510,7 @@ void object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->proxy_group= gob;
 	id_lib_extern(&target->id);
 	
-	ob->recalc= target->recalc= OB_RECALC;
+	ob->recalc= target->recalc= OB_RECALC_ALL;
 	
 	/* copy transform */
 	if(gob) {
@@ -2451,14 +2451,26 @@ void object_tfm_restore(Object *ob, void *obtfm_pt)
 /* requires flags to be set! */
 void object_handle_update(Scene *scene, Object *ob)
 {
-	if(ob->recalc & OB_RECALC) {
+	if(ob->recalc & OB_RECALC_ALL) {
 		/* speed optimization for animation lookups */
 		if(ob->pose)
 			make_pose_channels_hash(ob->pose);
 
+		if(ob->recalc & OB_RECALC_DATA) {
+			if(ob->type==OB_ARMATURE) {
+				/* this happens for reading old files and to match library armatures
+				   with poses we do it ahead of where_is_object to ensure animation
+				   is evaluated on the rebuilt pose, otherwise we get incorrect poses
+				   on file load */
+				if(ob->pose==NULL || (ob->pose->flag & POSE_RECALC))
+					armature_rebuild_pose(ob, ob->data);
+			}
+		}
+
 		/* XXX new animsys warning: depsgraph tag OB_RECALC_DATA should not skip drivers, 
 		   which is only in where_is_object now */
-		if(ob->recalc & OB_RECALC) {
+		// XXX: should this case be OB_RECALC_OB instead?
+		if(ob->recalc & OB_RECALC_ALL) {
 			
 			if (G.f & G_DEBUG)
 				printf("recalcob %s\n", ob->id.name+2);
@@ -2517,11 +2529,6 @@ void object_handle_update(Scene *scene, Object *ob)
 				lattice_calc_modifiers(scene, ob);
 			}
 			else if(ob->type==OB_ARMATURE) {
-				/* this happens for reading old files and to match library armatures with poses */
-				// XXX this won't screw up the pose set already...
-				if(ob->pose==NULL || (ob->pose->flag & POSE_RECALC))
-					armature_rebuild_pose(ob, ob->data);
-				
 				/* evaluate drivers */
 				BKE_animsys_evaluate_animdata(data_id, adt, ctime, ADT_RECALC_DRIVERS);
 				
@@ -2600,7 +2607,7 @@ void object_handle_update(Scene *scene, Object *ob)
 			object_handle_update(scene, ob->proxy);
 		}
 	
-		ob->recalc &= ~OB_RECALC;
+		ob->recalc &= ~OB_RECALC_ALL;
 	}
 
 	/* the case when this is a group proxy, object_update is called in group.c */
@@ -2725,7 +2732,7 @@ void object_camera_matrix(
 	float pixsize;
 	float shiftx=0.0, shifty=0.0, winside, viewfac;
 
-	rd->mode &= ~R_ORTHO;
+	rd->mode &= ~(R_ORTHO|R_PANORAMA);
 
 	/* question mark */
 	(*ycor)= rd->yasp / rd->xasp;
