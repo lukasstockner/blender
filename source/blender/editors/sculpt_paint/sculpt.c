@@ -2300,7 +2300,7 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 	/* Build a list of all nodes that are potentially within the brush's area of influence */
 	data.ss = ss;
 	data.sd = sd;
-	data.radius_squared = ss->cache->radius * ss->cache->radius;
+	data.radius_squared = ss->cache->radius_squared;
 	data.original = ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_THUMB, SCULPT_TOOL_LAYER);
 	BLI_pbvh_search_gather(ss->pbvh, sculpt_search_sphere_cb, &data, &nodes, &totnode);
 
@@ -2986,6 +2986,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 			copy_v2_v2(brush->anchored_initial_mouse, cache->initial_mouse);
 
 		cache->radius= unproject_brush_radius(ss->ob, paint_stroke_view_context(stroke), cache->true_location, cache->pixel_radius);
+		cache->radius_squared = cache->radius*cache->radius;
 
 		copy_v3_v3(brush->anchored_location, cache->true_location);
 
