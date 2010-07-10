@@ -998,7 +998,6 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 
 			for(i = 0; i < steps; ++i, ++cnt) {
 				add_v2_v2(mouse, vec);
-				printf("3\n");
 				paint_brush_stroke_add_step(C, op, event, mouse);
 			}
 		}
@@ -1079,7 +1078,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 					}
 				}
 				else {
-					printf("1\n");
 					paint_brush_stroke_add_step(C, op, event, mouse);
 				}
 			}
@@ -1095,7 +1093,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 	   !(stroke->brush->flag & BRUSH_ANCHORED) &&
 	   !(stroke->brush->flag & BRUSH_SMOOTH_STROKE))
 	{
-		printf("2\n");
 		paint_brush_stroke_add_step(C, op, event, mouse);
 	}
 	
