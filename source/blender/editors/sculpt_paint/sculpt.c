@@ -182,6 +182,7 @@ typedef struct StrokeCache {
 
 	/* Variants */
 	float radius;
+	float radius_squared;
 	float true_location[3];
 	float location[3];
 
@@ -347,7 +348,7 @@ typedef struct SculptBrushTest {
 
 static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
 {
-	test->radius_squared= ss->cache->radius*ss->cache->radius;
+	test->radius_squared= ss->cache->radius_squared;
 	copy_v3_v3(test->location, ss->cache->location);
 
 	//copy_v3_v3(test->true_location, ss->cache->true_location);
@@ -385,25 +386,24 @@ static int sculpt_brush_test_clip(SculptBrushTest* test, float co[3])
 	return 1;
 }
 
-static int sculpt_brush_test_cyl(SculptBrushTest *test, float x0[3], float x1[3], float x2[3])
+static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float location[3], float an[3])
 {
-	float t0[3], t1[3], t2[3], t3[3], dist;
+	if (sculpt_brush_test_fast(test, co)) {
+		float t1[3], t2[3], t3[3], dist;
 
-	sub_v3_v3v3(t0, x2, x1);
-	sub_v3_v3v3(t1, x1, x0);
-	sub_v3_v3v3(t2, x2, x1);
+		sub_v3_v3v3(t1, location, co);
+		sub_v3_v3v3(t2, x2, location);
 
-	cross_v3_v3v3(t3, t0, t1);
+		cross_v3_v3v3(t3, an, t1);
 
-	dist = len_v3(t3)/len_v3(t2);
+		dist = len_v3(t3)/len_v3(t2);
 
-	if (dist*dist < test->radius_squared) {
 		test->dist = dist;
+
 		return 1;
 	}
-	else {
-		return 0;
-	}
+
+	return 0;
 }
 
 #endif
@@ -518,6 +518,84 @@ static float integrate_overlap(Brush* br)
 	return max;
 }
 
+/* Uses symm to selectively flip any axis of a coordinate. */
+static void flip_coord(float out[3], float in[3], const char symm)
+{
+	if(symm & SCULPT_SYMM_X)
+		out[0]= -in[0];
+	else
+		out[0]= in[0];
+	if(symm & SCULPT_SYMM_Y)
+		out[1]= -in[1];
+	else
+		out[1]= in[1];
+	if(symm & SCULPT_SYMM_Z)
+		out[2]= -in[2];
+	else
+		out[2]= in[2];
+}
+
+float calc_overlap(StrokeCache *cache, const char symm, const char axis, const float angle)
+{
+	float mirror[3];
+	float distsq;
+	float mat[4][4];
+	
+	flip_coord(mirror, cache->true_location, symm);
+
+	unit_m4(mat);
+	rotate_m4(mat, axis, angle);
+
+	mul_m4_v3(mat, mirror);
+
+	distsq = len_squared_v3v3(mirror, cache->true_location);
+
+	if (distsq <= 4*(cache->radius_squared))
+		return (2*(cache->radius) - sqrt(distsq))  /  (2*(cache->radius));
+	else
+		return 0;
+}
+
+static float calc_radial_symmetry_feather(Sculpt *sd, StrokeCache *cache, const char symm, const char axis)
+{
+	int i;
+	float overlap;
+
+	overlap = 0;
+	for(i = 1; i < sd->radial_symm[axis-'X']; ++i) {
+		const float angle = 2*M_PI*i/sd->radial_symm[axis-'X'];
+		overlap += calc_overlap(cache, symm, axis, angle);
+	}
+
+	return overlap;
+}
+
+static float calc_symmetry_feather(Sculpt *sd, StrokeCache* cache)
+{
+	if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
+		float overlap;
+		int symm = cache->symmetry;
+		int i;
+
+		overlap = 0;
+		for (i = 0; i <= symm; i++) {
+			if(i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
+
+				overlap += calc_overlap(cache, i, 0, 0);
+
+				overlap += calc_radial_symmetry_feather(sd, cache, i, 'X');
+				overlap += calc_radial_symmetry_feather(sd, cache, i, 'Y');
+				overlap += calc_radial_symmetry_feather(sd, cache, i, 'Z');
+			}
+		}
+
+		return 1/overlap;
+	}
+	else {
+		return 1;
+	}
+}
+
 /* Return modified brush strength. Includes the direction of the brush, positive
    values pull vertices, negative values push. Uses tablet pressure and a
    special multiplier found experimentally to scale the strength factor. */
@@ -537,6 +615,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 	//float overlap      = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? (float)brush->spacing/100.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 	//float overlap      = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 50) ? (float)brush->spacing/50.0f : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 	float flip         = dir * invert * pen_flip;
+	float feather      = calc_symmetry_feather(sd, cache);
 
 	// XXX not functionally cohesive to update this here
 	brush->autosmooth_overlap = overlap;
@@ -546,18 +625,18 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_WAX:
 		case SCULPT_TOOL_LAYER:
-			return alpha * flip * pressure * overlap;
+			return alpha * flip * pressure * overlap * feather;
 
 		case SCULPT_TOOL_CREASE:
 		case SCULPT_TOOL_BLOB:
-			return alpha * flip * pressure * overlap;
+			return alpha * flip * pressure * overlap * feather;
 
 		case SCULPT_TOOL_INFLATE:
 			if (flip > 0) {
-				return 0.250f * alpha * flip * pressure * overlap;
+				return 0.250f * alpha * flip * pressure * overlap * feather;
 			}
 			else {
-				return 0.125f * alpha * flip * pressure * overlap;
+				return 0.125f * alpha * flip * pressure * overlap * feather;
 			}
 
 		case SCULPT_TOOL_FILL:
@@ -565,59 +644,41 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 		case SCULPT_TOOL_FLATTEN:
 			if (flip > 0) {
 				overlap = (1+overlap) / 2;
-				return alpha * flip * pressure * overlap;
+				return alpha * flip * pressure * overlap * feather;
 			}
 			else {
 				/* reduce strength for DEEPEN, PEAKS, and CONTRAST */
-				return 0.5f * alpha * flip * pressure * overlap; 
+				return 0.5f * alpha * flip * pressure * overlap * feather; 
 			}
 
 		case SCULPT_TOOL_SMOOTH:
-			return alpha * pressure;
+			return alpha * pressure * feather;
 
 		case SCULPT_TOOL_PINCH:
 			if (flip > 0) {
-				return alpha * flip * pressure * overlap;
+				return alpha * flip * pressure * overlap * feather;
 			}
 			else {
-				return 0.25f * alpha * flip * pressure * overlap;
+				return 0.25f * alpha * flip * pressure * overlap * feather;
 			}
 
 		case SCULPT_TOOL_NUDGE:
 			overlap = (1+overlap) / 2;
-			return alpha * pressure * overlap;
+			return alpha * pressure * overlap * feather;
 
 		case SCULPT_TOOL_THUMB:
-			return alpha*pressure / 4;
+			return alpha*pressure*feather / 4;
 
 		case SCULPT_TOOL_SNAKE_HOOK:
-			return 1.0f;
+			return feather;
 
 		case SCULPT_TOOL_GRAB:
 		case SCULPT_TOOL_ROTATE:
-			/* rotate ignores strength */
-			return 1.0f;
+			return feather;
 
 		default:
 			return 0;
 	}
-}
-
-/* Uses symm to selectively flip any axis of a coordinate. */
-static void flip_coord(float out[3], float in[3], const char symm)
-{
-	if(symm & SCULPT_SYMM_X)
-		out[0]= -in[0];
-	else
-		out[0]= in[0];
-	if(symm & SCULPT_SYMM_Y)
-		out[1]= -in[1];
-	else
-		out[1]= in[1];
-	if(symm & SCULPT_SYMM_Z)
-		out[2]= -in[2];
-	else
-		out[2]= in[2];
 }
 
 float get_tex_pixel(Brush* br, float u, float v)
@@ -806,28 +867,6 @@ static int sculpt_search_sphere_cb(PBVHNode *node, void *data_v)
 
 	return dot_v3v3(t, t) < data->radius_squared;
 }
-
-//static void symmetry_feather(Sculpt *sd, SculptSession* ss, float co[3], float val[3])
-//{
-//	if (ss->cache->symmetry && (sd->flags & SCULPT_SYMMETRY_FEATHER)) {
-//		float distsq;
-//		float mirror[3];
-//		float overlap = 1.0f;
-//		int symm = ss->cache->symmetry;
-//		int i;
-//
-//		for (i = 1; i < symm; i++) {
-//			if(symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5))) {
-//				flip_coord(mirror, ss->cache->location, i);
-//				distsq = len_squared_v3v3(mirror, co);
-//
-//				if (distsq < ss->cache->radius*ss->cache->radius) overlap += 1 - sqrt(distsq)/ss->cache->radius;
-//			}
-//		}
-//
-//		mul_v3_fl(val, 1.0f / overlap);
-//	}
-//}
 
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
 static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float val[3])
@@ -1182,7 +1221,6 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	float offset[3], area_normal[3];
 	float bstrength= ss->cache->bstrength;
 	int n;
-	//float p[3];
 
 	calc_area_normal(sd, ss, area_normal, nodes, totnode);
 	
@@ -1190,8 +1228,6 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
-
-	//add_v3_v3v3(p, ss->cache->location, area_normal);
 
 	/* threaded loop over nodes */
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -1206,10 +1242,11 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-			//if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
+			//if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, area_normal)) {
 				/* offset vertex */
-				const float fade = tex_strength(ss, brush, vd.co, test.dist);
+				float fade = tex_strength(ss, brush, vd.co, test.dist);
 
+				//fade *= symmetry_feather(sd, ss->cache, vd.co);
 				mul_v3_v3fl(proxy[vd.i], offset, fade);
 
 				if(vd.mvert)
@@ -1301,11 +1338,12 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-				const float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
+				float fade = tex_strength(ss, brush, vd.co, test.dist)*bstrength;
 				float val[3];
 
 				sub_v3_v3v3(val, test.location, vd.co);
 				//mul_v3_v3(val, ss->cache->scale);
+				//fade *= symmetry_feather(sd, ss->cache, vd.co);
 				mul_v3_v3fl(proxy[vd.i], val, fade);
 
 				if(vd.mvert)
@@ -1319,6 +1357,7 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush= paint_brush(&sd->paint);
+	float bstrength= ss->cache->bstrength;
 	float grab_delta[3], an[3];
 	int n;
 	float len;
@@ -1351,7 +1390,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, origco[vd.i])) {
-				const float fade = tex_strength(ss, brush, origco[vd.i], test.dist);
+				const float fade = bstrength*tex_strength(ss, brush, origco[vd.i], test.dist);
 
 				mul_v3_v3fl(proxy[vd.i], grab_delta, fade);
 
@@ -2458,11 +2497,11 @@ static void calc_brushdata_symm(StrokeCache *cache, const char symm, const char 
 
 static void do_radial_symmetry(Sculpt *sd, SculptSession *ss, const char symm, const int axis)
 {
-	int j;
+	int i;
 
-	for(j = 1; j < sd->radial_symm[axis-'X']; ++j) {
-		const float angle = 2*M_PI*j/sd->radial_symm[axis-'X'];
-		ss->cache->radial_symmetry_pass= j;
+	for(i = 1; i < sd->radial_symm[axis-'X']; ++i) {
+		const float angle = 2*M_PI*i/sd->radial_symm[axis-'X'];
+		ss->cache->radial_symmetry_pass= i;
 		calc_brushdata_symm(ss->cache, symm, axis, angle);
 		do_brush_action(sd, ss);
 	}
@@ -2896,6 +2935,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	}
 	else
 		cache->radius= cache->initial_radius;
+
+	cache->radius_squared = cache->radius*cache->radius;
 
 	if(!(brush->flag & BRUSH_ANCHORED || ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE))) {
 		copy_v2_v2(cache->tex_mouse, cache->mouse);

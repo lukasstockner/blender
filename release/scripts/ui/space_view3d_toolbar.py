@@ -815,6 +815,9 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             if wide_ui:
                 col = split.column()
+            else:
+                col.separator()
+
             col.prop(tex_slot, "size")
 
             col = layout.column()
@@ -1000,6 +1003,7 @@ class VIEW3D_PT_tools_brush_curve(PaintPanel):
 
 class VIEW3D_PT_sculpt_options(PaintPanel):
     bl_label = "Options"
+    bl_default_closed = True
 
     def poll(self, context):
         return (context.sculpt_object and context.tool_settings.sculpt)
@@ -1007,20 +1011,49 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
     def draw(self, context):
         layout = self.layout
 
+        wide_ui = context.region.width > narrowui
+
         sculpt = context.tool_settings.sculpt
         settings = self.paint_settings(context)
         brush = settings.brush
 
-        col = layout.column()
+        split = layout.split()
+
+        col = split.column()
 
         edit = context.user_preferences.edit
         col.label(text="Unified Settings:")
         col.prop(edit, "sculpt_paint_use_unified_size", text="Size")
         col.prop(edit, "sculpt_paint_use_unified_strength", text="Strength")
 
-        col.separator()
+        if wide_ui:
+            col = split.column()
+        else:
+            col.separator()
 
-        split = self.layout.split()
+        col.label(text="Lock:")
+        row = col.row(align=True)
+        row.prop(sculpt, "lock_x", text="X", toggle=True)
+        row.prop(sculpt, "lock_y", text="Y", toggle=True)
+        row.prop(sculpt, "lock_z", text="Z", toggle=True)
+
+class VIEW3D_PT_sculpt_symmetry(PaintPanel):
+    bl_label = "Symmetry"
+    bl_default_closed = True
+
+    def poll(self, context):
+        return (context.sculpt_object and context.tool_settings.sculpt)
+
+    def draw(self, context):
+        wide_ui = context.region.width > narrowui
+
+        layout = self.layout
+
+        sculpt = context.tool_settings.sculpt
+        settings = self.paint_settings(context)
+        brush = settings.brush
+
+        split = layout.split()
 
         col = split.column()
 
@@ -1029,19 +1062,22 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         col.prop(sculpt, "symmetry_y", text="Y")
         col.prop(sculpt, "symmetry_z", text="Z")
 
+        if wide_ui:
+            col = split.column()
+        else:
+            col.separator()
+
         col.prop(sculpt, "radial_symm", text="Radial")
 
-        #col.separator()
-        #col.prop(sculpt, "use_symmetry_feather", text="Feather")
+        col = layout.column()
 
-        col = split.column()
-        col.label(text="Lock:")
-        col.prop(sculpt, "lock_x", text="X")
-        col.prop(sculpt, "lock_y", text="Y")
-        col.prop(sculpt, "lock_z", text="Z")
+        col.separator()
+
+        col.prop(sculpt, "use_symmetry_feather", text="Feather")
 
 class VIEW3D_PT_tools_brush_appearance(PaintPanel):
     bl_label = "Appearance"
+    bl_default_closed = True
 
     def poll(self, context):
         return (context.sculpt_object and context.tool_settings.sculpt) or (context.vertex_paint_object and context.tool_settings.vertex_paint) or (context.weight_paint_object and context.tool_settings.weight_paint) or (context.texture_paint_object and context.tool_settings.image_paint)
@@ -1317,11 +1353,12 @@ classes = [
     VIEW3D_PT_tools_posemode_options,
     VIEW3D_PT_tools_brush,
     VIEW3D_PT_tools_brush_texture,
-    VIEW3D_PT_tools_brush_tool,
     VIEW3D_PT_tools_brush_stroke,
     VIEW3D_PT_tools_brush_curve,
-    VIEW3D_PT_sculpt_options,
     VIEW3D_PT_tools_brush_appearance,
+    VIEW3D_PT_tools_brush_tool,
+    VIEW3D_PT_sculpt_symmetry,
+    VIEW3D_PT_sculpt_options,
     VIEW3D_PT_tools_vertexpaint,
     VIEW3D_PT_tools_weightpaint_options,
 

@@ -311,6 +311,9 @@ class TEXTURE_PT_mapping(TextureSlotPanel):
 
         if wide_ui:
             col = split.column()
+        else:
+            col.separator()
+
         col.prop(tex, "size")
 
 
