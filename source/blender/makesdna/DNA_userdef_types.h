@@ -378,7 +378,7 @@ typedef struct UserDef {
 	int sculpt_paint_unified_size; /* unified radius of brush in pixels */
 	float sculpt_paint_unified_unprojected_radius;/* unified radius of brush in Blender units */
 	float sculpt_paint_unified_alpha; /* unified strength of brush */
-	int pad2;
+	float sculpt_paint_overlay_col[3];
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */

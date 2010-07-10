@@ -783,7 +783,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 					}
 				}
 
-				glColor4f(1.0f, 1.0f, 1.0f, brush->texture_overlay_alpha / 100.0f);
+				glColor4f(
+					U.sculpt_paint_overlay_col[0],
+					U.sculpt_paint_overlay_col[1],
+					U.sculpt_paint_overlay_col[2],
+					brush->texture_overlay_alpha / 100.0f);
+
 				glBegin(GL_QUADS);
 				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
 					if (brush->draw_anchored) {
