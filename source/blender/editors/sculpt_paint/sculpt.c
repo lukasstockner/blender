@@ -3303,7 +3303,6 @@ static void sculpt_flush_update(bContext *C)
 	SculptSession *ss = ob->sculpt;
 	ARegion *ar = CTX_wm_region(C);
 	MultiresModifierData *mmd = ss->multires;
-	int redraw = 0;
 
 	if(mmd)
 		multires_mark_as_modified(ob);
@@ -3313,24 +3312,24 @@ static void sculpt_flush_update(bContext *C)
 		ED_region_tag_redraw(ar);
 	}
 	else {
-		rcti tmp;
 		rcti r;
 
 		BLI_pbvh_update(ss->pbvh, PBVH_UpdateBB, NULL);
-		redraw = sculpt_get_redraw_rect(ar, CTX_wm_region_view3d(C), ob, &r);
 
-		if(redraw) {
+		if (sculpt_get_redraw_rect(ar, CTX_wm_region_view3d(C), ob, &r)) {
+			//rcti tmp;
+
 			r.xmin += ar->winrct.xmin + 1;
 			r.xmax += ar->winrct.xmin - 1;
 			r.ymin += ar->winrct.ymin + 1;
 			r.ymax += ar->winrct.ymin - 1;
 
-			tmp = r;
+			//tmp = r;
 
-			if (!BLI_rcti_is_empty(&ss->previous_r))
-				BLI_union_rcti(&r, &ss->previous_r);
+			//if (!BLI_rcti_is_empty(&ss->previous_r))
+			//	BLI_union_rcti(&r, &ss->previous_r);
 
-			ss->previous_r = tmp;
+			//ss->previous_r= tmp;
 
 			ss->partial_redraw = 1;
 			ED_region_tag_redraw_partial(ar, &r);
