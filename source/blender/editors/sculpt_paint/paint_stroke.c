@@ -243,7 +243,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	snap->brush_map_mode = brush->mtex.brush_map_mode;
 }
 
-static int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
+int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 {
 	static GLuint overlay_texture = 0;
 	static int init = 0;
@@ -461,7 +461,7 @@ static int project_brush_radius(RegionView3D* rv3d, float radius, float location
 	return len_v2v2(p1, p2);
 }
 
-static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
+int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4])
 {
 	struct PaintStroke *stroke;
 	float window[2];
@@ -500,7 +500,7 @@ static int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radiu
 }
 
 // XXX duplicated from sculpt.c
-static float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset)
+float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset)
 {
 	float delta[3], scale, loc[3];
 
