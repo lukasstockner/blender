@@ -33,7 +33,7 @@
 #include "BKE_global.h" /* for mesh_calc_normals */
 
 #include "gpu_buffers.h"
-#include "GL/glew.h"
+#include <GL/glew.h>
 
 static void pbvh_free_nodes(PBVH *bvh);
 
