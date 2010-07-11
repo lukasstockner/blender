@@ -85,12 +85,16 @@ typedef struct Brush {
 
 	float crease_pinch_factor;
 
-	// all this below is used to communicate with the cursor drawing routine
+	float plane_trim;
+
+	int pad2;
 
 	float texture_sample_bias;
 	int   texture_overlay_alpha;
 
 	float unprojected_radius;
+
+	// all this below is used to communicate with the cursor drawing routine
 
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_x, last_y;
@@ -136,6 +140,7 @@ typedef struct Brush {
 #define BRUSH_RESTORE_MESH	(1<<23)
 #define BRUSH_INVERSE_SMOOTH_PRESSURE (1<<24)
 #define BRUSH_RANDOM_ROTATION (1<<25)
+#define BRUSH_PLANE_TRIM (1<<26)
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW        1

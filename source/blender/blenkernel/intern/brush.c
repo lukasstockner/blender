@@ -120,6 +120,8 @@ Brush *add_brush(const char *name)
 	
 	brush->image_icon = NULL;
 
+	brush->plane_trim = 0.5f;
+
 	return brush;
 }
 

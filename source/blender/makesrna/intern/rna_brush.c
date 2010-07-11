@@ -434,6 +434,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Plane Offset", "Adjusts plane on which the brush acts towards or away from the object surface");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "plane_trim", PROP_FLOAT, PROP_DISTANCE);
+	RNA_def_property_float_sdna(prop, NULL, "plane_trim");
+	RNA_def_property_float_default(prop, 0);
+	RNA_def_property_range(prop, 0, 1.0f);
+	RNA_def_property_ui_text(prop, "Plane Trim", "If a vertex is further from offset plane than this then it is not affected");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	prop= RNA_def_property(srna, "texture_sample_bias", PROP_FLOAT, PROP_DISTANCE);
 	RNA_def_property_float_sdna(prop, NULL, "texture_sample_bias");
 	RNA_def_property_float_default(prop, 0);
@@ -523,6 +530,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_random_rotation", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_RANDOM_ROTATION);
 	RNA_def_property_ui_text(prop, "Random Rotation", "Rotate the brush texture at random");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "use_plane_trim", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_PLANE_TRIM);
+	RNA_def_property_ui_text(prop, "Use Plane Trim", "Enable Plane Trim");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "use_anchor", PROP_BOOLEAN, PROP_NONE);

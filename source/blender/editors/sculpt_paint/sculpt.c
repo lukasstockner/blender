@@ -227,6 +227,7 @@ typedef struct StrokeCache {
 	char saved_active_brush_name[24];
 	int alt_smooth;
 
+	float plane_trim_squared;
 } StrokeCache;
 
 /* ===== OPENGL =====
@@ -1920,6 +1921,11 @@ static void point_plane_project(float intr[3], float co[3], float plane_normal[3
     sub_v3_v3v3(intr, co, intr); 
 }
 
+static int plane_trim(StrokeCache *cache, Brush *brush, float val[3])
+{
+	return !(brush->flag & BRUSH_PLANE_TRIM) || (dot_v3v3(val, val) <= cache->radius_squared*cache->plane_trim_squared);
+}
+
 static int plane_point_side_flip(float co[3], float plane_normal[3], float plane_center[3], int flip)
 {
     float delta[3];
@@ -1991,18 +1997,22 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if(sculpt_brush_test(&test, vd.co)) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
 				float intr[3];
 				float val[3];
 
-				const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
-
 				point_plane_project(intr, vd.co, an, fc);
-				sub_v3_v3v3(val, intr, vd.co);
-				mul_v3_v3fl(proxy[vd.i], val, fade);
 
-				if(vd.mvert)
-					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				sub_v3_v3v3(val, intr, vd.co);
+
+				if (plane_trim(ss->cache, brush, val)) {
+					const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrt(test.dist));
+
+					mul_v3_v3fl(proxy[vd.i], val, fade);
+
+					if(vd.mvert)
+						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -2057,18 +2067,22 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if (sculpt_brush_test(&test, vd.co)) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
 			//if (sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
 				float intr[3];
 
-				const float fade = bstrength*tex_strength(ss, brush, vd.co, test.dist);
-
 				point_plane_project(intr, vd.co, an, fc);
-				sub_v3_v3v3(proxy[vd.i], intr, vd.co);
-				mul_v3_fl(proxy[vd.i], fade);
 
-				if(vd.mvert)
-					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				sub_v3_v3v3(proxy[vd.i], intr, vd.co);
+
+				if (plane_trim(ss->cache, brush, proxy[vd.i])) {
+					const float fade = bstrength*tex_strength(ss, brush, vd.co, sqrt(test.dist));
+
+					mul_v3_fl(proxy[vd.i], fade);
+
+					if(vd.mvert)
+						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				}
 			}
 		}
 		BLI_pbvh_vertex_iter_end;
@@ -2125,14 +2139,18 @@ static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int to
 					float intr[3];
 					float val[3];
 
-					const float fade = bstrength*tex_strength(ss, brush, vd.co, sqrt(test.dist));
-
 					point_plane_project(intr, vd.co, an, fc);
-					sub_v3_v3v3(val, intr, vd.co);
-					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert)
-						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					sub_v3_v3v3(val, intr, vd.co);
+
+					if (plane_trim(ss->cache, brush, val)) {
+						const float fade = bstrength*tex_strength(ss, brush, vd.co, sqrt(test.dist));
+
+						mul_v3_v3fl(proxy[vd.i], val, fade);
+
+						if(vd.mvert)
+							vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					}
 				}
 			}
 		}
@@ -2202,14 +2220,18 @@ static void do_clay_tubes_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 					float intr[3];
 					float val[3];
 
-					const float fade = bstrength*tex_strength(ss, brush, vd.co, ss->cache->radius*test.dist);
-
 					point_plane_project(intr, vd.co, an, fc);
-					sub_v3_v3v3(val, intr, vd.co);
-					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert)
-						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					sub_v3_v3v3(val, intr, vd.co);
+
+					if (plane_trim(ss->cache, brush, val)) {
+						const float fade = bstrength*tex_strength(ss, brush, vd.co, ss->cache->radius*test.dist);
+
+						mul_v3_v3fl(proxy[vd.i], val, fade);
+
+						if(vd.mvert)
+							vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					}
 				}
 			}
 		}
@@ -2253,19 +2275,23 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if (sculpt_brush_test(&test, vd.co)) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
 				if (plane_point_side(vd.co, an, fc)) {
 					float intr[3];
 					float val[3];
 
-					const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
-
 					point_plane_project(intr, vd.co, an, fc);
-					sub_v3_v3v3(val, intr, vd.co);
-					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert)
-						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					sub_v3_v3v3(val, intr, vd.co);
+
+					if (plane_trim(ss->cache, brush, val)) {
+						const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrt(test.dist));
+
+						mul_v3_v3fl(proxy[vd.i], val, fade);
+
+						if(vd.mvert)
+							vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					}
 				}
 			}
 		}
@@ -2309,19 +2335,23 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if (sculpt_brush_test(&test, vd.co)) {
+			if (sculpt_brush_test_sq(&test, vd.co)) {
 				if (!plane_point_side(vd.co, an, fc)) {
 					float intr[3];
 					float val[3];
 
-					const float fade = bstrength * tex_strength(ss, brush, vd.co, test.dist);
-
 					point_plane_project(intr, vd.co, an, fc);
-					sub_v3_v3v3(val, intr, vd.co);
-					mul_v3_v3fl(proxy[vd.i], val, fade);
 
-					if(vd.mvert)
-						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					sub_v3_v3v3(val, intr, vd.co);
+
+					if (plane_trim(ss->cache, brush, val)) {
+						const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrt(test.dist));
+
+						mul_v3_v3fl(proxy[vd.i], val, fade);
+
+						if(vd.mvert)
+							vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+					}
 				}
 			}
 		}
@@ -2893,6 +2923,8 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	ss->cache->scale[0] = 1.0f / ob->size[0];
 	ss->cache->scale[1] = 1.0f / ob->size[1];
 	ss->cache->scale[2] = 1.0f / ob->size[2];
+
+	ss->cache->plane_trim_squared = brush->plane_trim * brush->plane_trim;
 
 	/* Initialize mirror modifier clipping */
 

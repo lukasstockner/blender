@@ -646,6 +646,14 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
 
+                col.separator()
+
+                row= col.row()
+                row.prop(brush, "use_plane_trim", text="Trim")
+                row= col.row()
+                row.active=brush.use_plane_trim
+                row.prop(brush, "plane_trim", slider=True, text="Distance")
+
 
 
             if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'LAYER', 'CLAY', 'CLAY_TUBES', 'WAX'):
