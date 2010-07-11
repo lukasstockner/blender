@@ -94,7 +94,8 @@ void BLI_pbvh_search_gather(PBVH *bvh,
 void BLI_pbvh_raycast(PBVH *bvh, BLI_pbvh_HitCallback cb, void *data,
 			  float ray_start[3], float ray_normal[3], int original);
 int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
-	float ray_start[3], float ray_normal[3], float *dist);
+	float ray_start[3], float ray_normal[3], float *dist,
+	int *hit_index, int *grid_hit_index);
 
 /* Drawing */
 

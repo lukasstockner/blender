@@ -1363,9 +1363,13 @@ static int ray_face_intersection(float ray_start[3], float ray_normal[3],
 }
 
 int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
-	float ray_start[3], float ray_normal[3], float *dist)
+			  float ray_start[3], float ray_normal[3], float *dist,
+			  int *hit_index, int *grid_hit_index)
 {
 	int hit= 0;
+
+	if(hit_index) *hit_index = -1;
+	if(grid_hit_index) *grid_hit_index = -1;
 
 	if(bvh->faces) {
 		MVert *vert = bvh->verts;
@@ -1376,10 +1380,11 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 
 		for(i = 0; i < totface; ++i) {
 			MFace *f = bvh->faces + faces[i];
+			int lhit = 0;
 
 			if(origco) {
 				/* intersect with backuped original coordinates */
-				hit |= ray_face_intersection(ray_start, ray_normal,
+				lhit = ray_face_intersection(ray_start, ray_normal,
 							 origco[face_verts[i*4+0]],
 							 origco[face_verts[i*4+1]],
 							 origco[face_verts[i*4+2]],
@@ -1388,13 +1393,18 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 			}
 			else {
 				/* intersect with current coordinates */
-				hit |= ray_face_intersection(ray_start, ray_normal,
+				lhit = ray_face_intersection(ray_start, ray_normal,
 							 vert[f->v1].co,
 							 vert[f->v2].co,
 							 vert[f->v3].co,
 							 f->v4 ? vert[f->v4].co : NULL,
 							 dist);
 			}
+
+			if(lhit && hit_index)
+				*hit_index = i;
+
+			hit |= lhit;
 		}
 	}
 	else {

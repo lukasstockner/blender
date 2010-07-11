@@ -1786,7 +1786,7 @@ void paint_raycast_cb(PBVHNode *node, void *data_v)
 
 	data->hit |= BLI_pbvh_node_raycast(data->ob->paint->pbvh, node, NULL,
 					   data->ray_start, data->ray_normal,
-					   &data->dist);
+					   &data->dist, NULL, NULL);
 }
 
 int vpaint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
@@ -1926,7 +1926,8 @@ static void vpaint_stroke_update_step_old(bContext *C, PaintStroke *stroke, Poin
 	DAG_id_flush_update(ob->data, OB_RECALC_DATA);
 }
 
-static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh, PBVHNode **nodes, int totnode,
+static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
+			 PBVHNode **nodes, int totnode,
 			 float center[3], float radius)
 {
 	Brush *brush = paint_brush(&vp->paint);
@@ -1983,6 +1984,72 @@ static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh, PBVHNode **nod
 	}
 }
 
+typedef struct {
+	int hit_index;
+	int grid_hit_index;
+	PBVHNode *node;
+} VPaintColorOneFaceHitData;
+
+void vpaint_color_one_face_raycast_cb(PBVHNode *node, void *data_v)
+{
+	PaintStrokeRaycastData *data = data_v;
+	PaintSession *ps = data->ob->paint;
+	VPaintColorOneFaceHitData *mode_data = data->mode_data;
+
+	if(BLI_pbvh_node_raycast(ps->pbvh, node, NULL,
+				 data->ray_start, data->ray_normal,
+				 &data->dist, &mode_data->hit_index,
+				 &mode_data->grid_hit_index)) {
+		data->hit |= 1;
+		mode_data->node = node;
+	}
+}
+
+static void vpaint_color_one_face(bContext *C, PaintStroke *stroke,
+				  PointerRNA *itemptr)
+{
+	VPaint *vp= CTX_data_tool_settings(C)->vpaint
+;	VPaintData *vpd = paint_stroke_mode_data(stroke);
+	ViewContext *vc = paint_stroke_view_context(stroke);
+	Brush *brush = paint_brush(&vp->paint);
+	float mouse[2], hit_loc[3];
+	VPaintColorOneFaceHitData hit_data;
+
+	RNA_float_get_array(itemptr, "mouse", mouse);
+
+	if(paint_stroke_get_location(C, stroke,
+				     vpaint_color_one_face_raycast_cb,
+				     &hit_data, hit_loc, mouse, 0)) {
+		MFace *mface;
+		CustomData *fdata;
+		MCol *mcol;
+		unsigned int *orig= (unsigned int*)vp->vpaint_prev;
+		int *face_indices;
+		int i, S;
+
+		BLI_pbvh_node_get_faces(vc->obact->paint->pbvh, hit_data.node,
+					&mface, &fdata, &face_indices,
+					NULL, NULL);
+
+		mcol = CustomData_get_layer(fdata, CD_MCOL);
+		mface += face_indices[hit_data.hit_index];
+		S = mface->v4 ? 4 : 3;
+
+		for(i = 0; i < S; ++i) {
+			int cndx = face_indices[hit_data.hit_index]*4 + i;
+			unsigned int *col = (unsigned int*)(mcol + cndx);
+			unsigned int *orig_col = (unsigned int*)(orig + cndx);
+
+			vpaint_blend(vp, col, orig_col,
+				     vpd->paintcol,
+				     brush->alpha * 255);
+		}
+
+		BLI_pbvh_node_set_flags(hit_data.node,
+			SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|PBVH_UpdateRedraw));
+	}
+}
+
 /* uses PBVH */
 static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
 					  PointerRNA *itemptr)
@@ -1998,20 +2065,25 @@ static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
 	int totnode;
 
 	RNA_float_get_array(itemptr, "location", center);
-	radius = paint_calc_object_space_radius(ob, vc, center, brush->size);
 
-	search_data.center = center;
-	search_data.radius_squared = radius*radius;
-	search_data.original = 0;
+	if(vp->flag & VP_AREA) {
+		radius = paint_calc_object_space_radius(ob, vc, center, brush->size);
+		search_data.center = center;
+		search_data.radius_squared = radius*radius;
+		search_data.original = 0;
 
-	BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb,
-			       &search_data, &nodes, &totnode);
+		BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb,
+				       &search_data, &nodes, &totnode);
 
-	vpaint_nodes(vp, vpd, ob->paint->pbvh, nodes, totnode,
-		     center, radius);
+		vpaint_nodes(vp, vpd, ob->paint->pbvh, nodes, totnode,
+			     center, radius);
 
-	if(nodes)
-		MEM_freeN(nodes);
+		if(nodes)
+			MEM_freeN(nodes);
+	}
+	else {
+		vpaint_color_one_face(C, stroke, itemptr);
+	}
 
 	/* was disabled because it is slow, but necessary for blur */
 	if(brush->vertexpaint_tool == VP_BLUR)

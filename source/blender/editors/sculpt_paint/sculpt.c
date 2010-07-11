@@ -1965,7 +1965,7 @@ void sculpt_raycast_cb(PBVHNode *node, void *data_v)
 	}
 
 	data->hit |= BLI_pbvh_node_raycast(ps->pbvh, node, origco,
-		data->ray_start, data->ray_normal, &data->dist);
+		data->ray_start, data->ray_normal, &data->dist, NULL, NULL);
 }
 
 int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke,
