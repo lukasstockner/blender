@@ -96,8 +96,6 @@ typedef struct Brush {
 	float last_x, last_y;
 	float last_angle;
 
-	int pad2;
-
 	float add_col[3];
 	float sub_col[3];
 
@@ -108,6 +106,8 @@ typedef struct Brush {
 
 	int draw_pressure;
 	float pressure_value;
+
+	float special_rotation;
 } Brush;
 
 /* Brush.flag */
@@ -155,6 +155,7 @@ typedef struct Brush {
 #define SCULPT_TOOL_WAX        15
 #define SCULPT_TOOL_CREASE     16
 #define SCULPT_TOOL_BLOB       17
+#define SCULPT_TOOL_CLAY_TUBES 18
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

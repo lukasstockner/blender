@@ -212,9 +212,9 @@ typedef struct StrokeCache {
 	int symmetry; /* Symmetry index between 0 and 7 bit combo 0 is Brush only;
 		1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
 	int mirror_symmetry_pass; /* the symmetry pass we are currently on between 0 and 7*/
+	float true_view_normal[3];
 	float view_normal[3];
 	float last_area_normal[3];
-	float last_view_normal_symmetry[3];
 	float last_center[3];
 	int radial_symmetry_pass;
 	float symm_rot_mat[4][4];
@@ -444,6 +444,29 @@ static int sculpt_brush_test_sq(SculptBrushTest *test, float co[3])
 	//}
 }
 
+static int sculpt_brush_test_cube(SculptBrushTest *test, float co[3], float local[4][4])
+{
+	const static float side = 0.70710678118654752440084436210485; // sqrt(.5);
+	//float corner = 0.80*side;
+
+	float local_co[3];
+
+	mul_v3_m4v3(local_co, local, co);
+
+	local_co[0] = fabs(local_co[0]);
+	local_co[1] = fabs(local_co[1]);
+	local_co[2] = fabs(local_co[2]);
+
+	if (local_co[0] <= side && local_co[1] <= side && local_co[2] <= side) {
+		test->dist = MAX3(local_co[0], local_co[1], local_co[2]) / side;
+
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
 static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 {
 	//if (sculpt_brush_test_clip(test, co)) {
@@ -622,6 +645,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache)
 
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_CLAY:
+		case SCULPT_TOOL_CLAY_TUBES:
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_WAX:
 		case SCULPT_TOOL_LAYER:
@@ -2116,6 +2140,83 @@ static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int to
 	}
 }
 
+static void do_clay_tubes_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	Brush *brush = paint_brush(&sd->paint);
+
+	float bstrength = ss->cache->bstrength;
+	float radius    = ss->cache->radius;
+	float offset    = get_offset(sd, ss);
+	
+	float displace;
+
+	float an[3]; // area normal
+	float fc[3]; // flatten center
+
+	int n;
+
+	float temp[3];
+	float mat[4][4];
+	float scale[4][4];
+	float tmat[4][4];
+
+	int flip;
+
+	calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, an, fc);
+
+	flip = bstrength < 0;
+
+	if (flip) {
+		bstrength = -bstrength;
+		radius    = -radius;
+	}
+
+	displace = radius * (0.25f+offset);
+
+	mul_v3_v3v3(temp, an, ss->cache->scale);
+	mul_v3_fl(temp, displace);
+	add_v3_v3(fc, temp);
+
+	cross_v3_v3v3(mat[0], an, ss->cache->grab_delta_symmetry); mat[0][3] = 0;
+	cross_v3_v3v3(mat[1], an, mat[0]); mat[1][3] = 0;
+	copy_v3_v3(mat[2], an); mat[2][3] = 0;
+	copy_v3_v3(mat[3], ss->cache->location);  mat[3][3] = 1;
+	normalize_m4(mat);
+	scale_m4_fl(scale, ss->cache->radius);
+	mul_m4_m4m4(tmat, scale, mat);
+	invert_m4_m4(mat, tmat);
+
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	for (n = 0; n < totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+		float (*proxy)[3];
+
+		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
+
+		sculpt_brush_test_init(ss, &test);
+
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if (sculpt_brush_test_cube(&test, vd.co, mat)) {
+				if (plane_point_side_flip(vd.co, an, fc, flip)) {
+					float intr[3];
+					float val[3];
+
+					const float fade = bstrength*tex_strength(ss, brush, vd.co, ss->cache->radius*test.dist);
+
+					point_plane_project(intr, vd.co, an, fc);
+					sub_v3_v3v3(val, intr, vd.co);
+					mul_v3_v3fl(proxy[vd.i], val, fade);
+
+					if(vd.mvert)
+						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+	}
+}
+
 static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush = paint_brush(&sd->paint);
@@ -2356,6 +2457,10 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 		case SCULPT_TOOL_CLAY:
 			do_clay_brush(sd, ss, nodes, totnode);
 			break;
+		case SCULPT_TOOL_CLAY_TUBES:
+			if (!ss->cache->first_time)
+				do_clay_tubes_brush(sd, ss, nodes, totnode);
+			break;
 		case SCULPT_TOOL_FILL:
 			do_fill_brush(sd, ss, nodes, totnode);
 			break;
@@ -2432,6 +2537,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_CLAY:
+		case SCULPT_TOOL_CLAY_TUBES:
 		case SCULPT_TOOL_CREASE:
 		case SCULPT_TOOL_BLOB:
 		case SCULPT_TOOL_FILL:
@@ -2485,6 +2591,7 @@ static void calc_brushdata_symm(StrokeCache *cache, const char symm, const char 
 {
 	flip_coord(cache->location, cache->true_location, symm);
 	flip_coord(cache->grab_delta_symmetry, cache->grab_delta, symm);
+	flip_coord(cache->view_normal, cache->true_view_normal, symm);
 
 	unit_m4(cache->symm_rot_mat);
 	unit_m4(cache->symm_rot_mat_inv);
@@ -2640,6 +2747,8 @@ static char *sculpt_tool_name(Sculpt *sd)
 		return "Flatten Brush"; break;
 	case SCULPT_TOOL_CLAY:
 		return "Clay Brush"; break;
+	case SCULPT_TOOL_CLAY_TUBES:
+		return "Clay Tubes Brush"; break;
 	case SCULPT_TOOL_WAX:
 		return "Wax Brush"; break;
 	case SCULPT_TOOL_FILL:
@@ -2847,7 +2956,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	cache->mats = MEM_callocN(sizeof(bglMats), "sculpt bglMats");
 	view3d_get_transformation(vc->ar, vc->rv3d, vc->obact, cache->mats);
 
-	viewvector(cache->vc->rv3d, cache->vc->rv3d->twmat[3], cache->view_normal);
+	viewvector(cache->vc->rv3d, cache->vc->rv3d->twmat[3], cache->true_view_normal);
 	/* Initialize layer brush displacements and persistent coords */
 	if(brush->sculpt_tool == SCULPT_TOOL_LAYER) {
 		/* not supported yet for multires */
@@ -2873,7 +2982,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if(ELEM7(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_WAX))
+	if(ELEM8(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_TUBES, SCULPT_TOOL_WAX))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
@@ -3045,8 +3154,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		copy_v3_v3(brush->anchored_initial_mouse, cache->initial_mouse);
 		brush->anchored_size = cache->pixel_radius;
 	}
-	/* Find the nudge delta */
-	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE) {
+	/* Find the nudge/clay tubes delta */
+	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE || brush->sculpt_tool == SCULPT_TOOL_CLAY_TUBES) {
 		float grab_location[3], imat[4][4];
 
 		if(cache->first_time)
@@ -3140,6 +3249,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		copy_v3_v3(brush->anchored_location, cache->true_location);
 		brush->anchored_size = cache->pixel_radius;
 	}
+
+	brush->special_rotation = cache->special_rotation;
 }
 
 static void sculpt_stroke_modifiers_check(bContext *C, SculptSession *ss)
@@ -3409,6 +3520,7 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	// reset values used to draw brush after completing the stroke
 	brush->draw_anchored= 0;
 	brush->draw_pressure= 0;
+	brush->special_rotation= 0;
 
 	/* Finished */
 	if(ss->cache) {
