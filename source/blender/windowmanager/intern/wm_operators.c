@@ -2789,8 +2789,6 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 				draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, sculpt_get_brush_size(brush));
 			}
 
-			glClear(GL_STENCIL_BUFFER_BIT);
-
 			{
 				const float unprojected_radius= unproject_brush_radius(CTX_data_active_object(C), &vc, location, r2);
 				const float max_thickness= 0.12;
