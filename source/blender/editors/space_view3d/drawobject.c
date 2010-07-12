@@ -4475,13 +4475,13 @@ static void tekenvertsN(Nurb *nu, short sel, short hide_handles, void *lastsel)
 		a= nu->pntsu;
 		while(a--) {
 			if(bezt->hide==0) {
-				if (bezt == lastsel) {
+				if (sel == 1 && bezt == lastsel) {
 					UI_ThemeColor(TH_LASTSEL_POINT);
 					bglVertex3fv(bezt->vec[1]);
 
 					if (!hide_handles) {
-						bglVertex3fv(bezt->vec[0]);
-						bglVertex3fv(bezt->vec[2]);
+						if(bezt->f1 & SELECT) bglVertex3fv(bezt->vec[0]);
+						if(bezt->f3 & SELECT) bglVertex3fv(bezt->vec[2]);
 					}
 
 					UI_ThemeColor(color);
@@ -5022,6 +5022,8 @@ static int drawmball(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base, 
 	}
 
 	if(ml==NULL) return 1;
+
+	if(v3d->flag2 & V3D_RENDER_OVERRIDE) return 0;
 	
 	/* in case solid draw, reset wire colors */
 	if(ob->flag & SELECT) {

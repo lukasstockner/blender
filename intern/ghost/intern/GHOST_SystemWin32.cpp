@@ -96,7 +96,6 @@
 #include "GHOST_WindowWin32.h"
 #include "GHOST_NDOFManager.h"
 
-
 // Key code values not found in winuser.h
 #ifndef VK_MINUS
 #define VK_MINUS 0xBD
@@ -1137,4 +1136,3 @@ const GHOST_TUns8* GHOST_SystemWin32::getBinaryDir() const
 
 	return NULL;
 }
-

@@ -1544,12 +1544,14 @@ class VIEW3D_MT_edit_mesh_faces(bpy.types.Menu):
         layout = self.layout
         layout.operator_context = 'INVOKE_REGION_WIN'
 
+        layout.operator("mesh.flip_normals")
         # layout.operator("mesh.bevel")
         # layout.operator("mesh.bevel")
         layout.operator("mesh.edge_face_add")
         layout.operator("mesh.fill")
         layout.operator("mesh.beautify_fill")
         layout.operator("mesh.solidify")
+        layout.operator("mesh.sort_faces")
 
         layout.separator()
 

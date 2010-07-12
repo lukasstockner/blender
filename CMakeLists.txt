@@ -261,6 +261,7 @@ IF(UNIX AND NOT APPLE)
 		SET(FFMPEG_INC ${FFMPEG}/include)
 		SET(FFMPEG_LIB avformat avcodec avutil avdevice swscale CACHE STRING "FFMPEG Libraries")
 		SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS")
 	ENDIF(WITH_FFMPEG)
 
 	IF(WITH_FFTW3)
@@ -484,7 +485,7 @@ IF(WIN32)
 			SET(PCRE_LIB pcre)
 		ENDIF(WITH_OPENCOLLADA)
 		
-        # TODO: IF(WITH_LCMS)
+		# TODO: IF(WITH_LCMS)
         
 		IF(WITH_FFMPEG)
 			SET(FFMPEG ${LIBDIR}/ffmpeg)
@@ -533,7 +534,7 @@ IF(WIN32)
 	ELSE(MSVC) # MINGW
 		SET(LLIBS "-lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid")
 
-		SET(CMAKE_CXX_FLAGS                "-pipe -funsigned-char -fno-strict-aliasing -mwindows" CACHE STRING "Mingw C++ flags ")
+		SET(CMAKE_CXX_FLAGS                "-pipe -funsigned-char -fno-strict-aliasing" CACHE STRING "Mingw C++ flags ")
 		SET(CMAKE_C_FLAGS                  "-pipe -funsigned-char -fno-strict-aliasing" CACHE STRING "Mingw C flags ")
 
 		SET(CMAKE_CXX_FLAGS_DEBUG          "-O0 -g" CACHE STRING "Mingw debug C++ flags ")
@@ -560,7 +561,7 @@ IF(WIN32)
 			SET(GETTEXT_LIB intl)
 		ENDIF(WITH_INTERNATIONAL)
 
-		SET(JPEG_LIBRARY jpeg)
+		SET(JPEG_LIBRARY libjpeg)
 		SET(PNG_LIBRARIES png)
 
 		SET(ZLIB ${LIBDIR}/zlib)
@@ -606,7 +607,7 @@ IF(WIN32)
 		IF(WITH_OPENEXR)
 			SET(OPENEXR ${LIBDIR}/gcc/openexr)
 			SET(OPENEXR_INC ${OPENEXR}/include ${OPENEXR}/include/OpenEXR)
-			SET(OPENEXR_LIB Half IlmImf Iex)
+			SET(OPENEXR_LIB Half IlmImf Imath IlmThread)
 			SET(OPENEXR_LIBPATH ${OPENEXR}/lib)
 		ENDIF(WITH_OPENEXR)
 
@@ -736,6 +737,7 @@ IF(APPLE)
 		SET(FFMPEG_INC ${FFMPEG}/include)
 		SET(FFMPEG_LIB avcodec avdevice avformat avutil mp3lame swscale x264 xvidcore theora theoradec theoraenc vorbis vorbisenc vorbisfile ogg)
 		SET(FFMPEG_LIBPATH ${FFMPEG}/lib)
+		SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS")
 	ENDIF(WITH_FFMPEG)
 
 	SET(LIBSAMPLERATE ${LIBDIR}/samplerate)

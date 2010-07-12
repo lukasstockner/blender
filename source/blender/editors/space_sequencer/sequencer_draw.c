@@ -365,11 +365,11 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, float pixelx, short dire
 	}	
 }
 
-static void draw_seq_extensions(Scene *scene, SpaceSeq *sseq, Sequence *seq)
+static void draw_seq_extensions(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *seq)
 {
 	float x1, x2, y1, y2, pixely, a;
 	char col[3], blendcol[3];
-	View2D *v2d;
+	View2D *v2d= &ar->v2d;
 	
 	if(seq->type >= SEQ_EFFECT) return;
 
@@ -378,8 +378,7 @@ static void draw_seq_extensions(Scene *scene, SpaceSeq *sseq, Sequence *seq)
 	
 	y1= seq->machine+SEQ_STRIP_OFSBOTTOM;
 	y2= seq->machine+SEQ_STRIP_OFSTOP;
-	
-	v2d = &sseq->v2d;
+
 	pixely = (v2d->cur.ymax - v2d->cur.ymin)/(v2d->mask.ymax - v2d->mask.ymin);
 	
 	blendcol[0] = blendcol[1] = blendcol[2] = 120;
@@ -625,7 +624,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *
 	
 	/* draw additional info and controls */
 	if (!is_single_image)
-		draw_seq_extensions(scene, sseq, seq);
+		draw_seq_extensions(scene, ar, sseq, seq);
 	
 	draw_seq_handle(v2d, seq, pixelx, SEQ_LEFTHANDLE);
 	draw_seq_handle(v2d, seq, pixelx, SEQ_RIGHTHANDLE);
@@ -690,7 +689,7 @@ void set_special_seq_update(int val)
 	else special_seq_update= 0;
 }
 
-void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq)
+void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs)
 {
 	extern void gl_round_box(int mode, float minx, float miny, float maxx, float maxy, float rad);
 	struct ImBuf *ibuf;
@@ -726,9 +725,11 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		viewrecty /= proxy_size / 100.0;
 	}
 
-	/* XXX TODO: take color from theme */
-	glClearColor(0.0, 0.0, 0.0, 0.0);
-	glClear(GL_COLOR_BUFFER_BIT);
+	if(frame_ofs == 0) {
+		/* XXX TODO: take color from theme */
+		glClearColor(0.0, 0.0, 0.0, 0.0);
+		glClear(GL_COLOR_BUFFER_BIT);
+	}
 
 	/* without this colors can flicker from previous opengl state */
 	glColor4ub(255, 255, 255, 255);
@@ -746,13 +747,13 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else {
 		recursive= 1;
 		if (special_seq_update) {
-			ibuf= give_ibuf_seq_direct(scene, rectx, recty, (scene->r.cfra), proxy_size, special_seq_update);
+			ibuf= give_ibuf_seq_direct(scene, rectx, recty, cfra + frame_ofs, proxy_size, special_seq_update);
 		} 
 		else if (!U.prefetchframes) { // XXX || (G.f & G_PLAYANIM) == 0) {
-			ibuf= (ImBuf *)give_ibuf_seq(scene, rectx, recty, (scene->r.cfra), sseq->chanshown, proxy_size);
+			ibuf= (ImBuf *)give_ibuf_seq(scene, rectx, recty, cfra + frame_ofs, sseq->chanshown, proxy_size);
 		} 
 		else {
-			ibuf= (ImBuf *)give_ibuf_seq_threaded(scene, rectx, recty, (scene->r.cfra), sseq->chanshown, proxy_size);
+			ibuf= (ImBuf *)give_ibuf_seq_threaded(scene, rectx, recty, cfra + frame_ofs, sseq->chanshown, proxy_size);
 		}
 		recursive= 0;
 		
@@ -812,11 +813,26 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
-	glBegin(GL_QUADS); 
-		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
-		glTexCoord2f(0.0f, 1.0f);glVertex2f(v2d->tot.xmin, v2d->tot.ymax); 
+	glBegin(GL_QUADS);
+
+	if(frame_ofs) {
+		rctf tot_clip;
+		tot_clip.xmin= v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmin);
+		tot_clip.ymin= v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymin);
+		tot_clip.xmax= v2d->tot.xmin + (ABS(v2d->tot.xmax - v2d->tot.xmin) * scene->ed->over_border.xmax);
+		tot_clip.ymax= v2d->tot.ymin + (ABS(v2d->tot.ymax - v2d->tot.ymin) * scene->ed->over_border.ymax);
+
+		glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymin);glVertex2f(tot_clip.xmin, tot_clip.ymin);
+		glTexCoord2f(scene->ed->over_border.xmin, scene->ed->over_border.ymax);glVertex2f(tot_clip.xmin, tot_clip.ymax);
+		glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymax);glVertex2f(tot_clip.xmax, tot_clip.ymax);
+		glTexCoord2f(scene->ed->over_border.xmax, scene->ed->over_border.ymin);glVertex2f(tot_clip.xmax, tot_clip.ymin);
+	}
+	else {
+		glTexCoord2f(0.0f, 0.0f);glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
+		glTexCoord2f(0.0f, 1.0f);glVertex2f(v2d->tot.xmin, v2d->tot.ymax);
 		glTexCoord2f(1.0f, 1.0f);glVertex2f(v2d->tot.xmax, v2d->tot.ymax);
-		glTexCoord2f(1.0f, 0.0f);glVertex2f(v2d->tot.xmax, v2d->tot.ymin); 
+		glTexCoord2f(1.0f, 0.0f);glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
+	}
 	glEnd( );
 	glBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
@@ -1056,6 +1072,19 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	/* preview range */
 	UI_view2d_view_ortho(C, v2d);
 	ANIM_draw_previewrange(C, v2d);
+
+	/* overlap playhead */
+	if(scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) {
+		int cfra_over= (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS) ? scene->ed->over_cfra : scene->r.cfra + scene->ed->over_ofs;
+		glColor3f(0.2, 0.2, 0.2);
+		// glRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
+
+		glBegin(GL_LINES);
+			glVertex2f(cfra_over, v2d->cur.ymin);
+			glVertex2f(cfra_over, v2d->cur.ymax);
+		glEnd();
+
+	}
 	
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
