@@ -2710,11 +2710,9 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 		r3= r1;
 	} else if(rc->mode == WM_RADIALCONTROL_STRENGTH) {
 		r1= (1 - rc->value) * WM_RADIAL_CONTROL_DISPLAY_SIZE;
-		r2= WM_RADIAL_CONTROL_DISPLAY_SIZE;
-		r3= WM_RADIAL_CONTROL_DISPLAY_SIZE;
+		r2= r3= WM_RADIAL_CONTROL_DISPLAY_SIZE;
 	} else if(rc->mode == WM_RADIALCONTROL_ANGLE) {
-		r1= r2= WM_RADIAL_CONTROL_DISPLAY_SIZE;
-		r3= WM_RADIAL_CONTROL_DISPLAY_SIZE;
+		r1= r2= r3= WM_RADIAL_CONTROL_DISPLAY_SIZE;
 		angle = rc->value;
 	}
 
@@ -2734,19 +2732,18 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	else
 		col = brush->add_col;
 
-	if (rc->mode == WM_RADIALCONTROL_SIZE && (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) && vc.obact->sculpt) {
+	if ((paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) && vc.obact->sculpt) {
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
 		int pixel_radius, viewport[4];
 		float location[3], modelview[16], projection[16];
 
-		float visual_strength = sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush);
+		float visual_strength = rc->mode == WM_RADIALCONTROL_STRENGTH ? rc->value*rc->value : sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush);
 
 		const float min_alpha = 0.20f;
 		const float max_alpha = 0.80f;
 
 		hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
-
 
 		alpha = min_alpha + (visual_strength*(max_alpha-min_alpha));
 
@@ -2756,6 +2753,13 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 			glTranslatef((float)x, (float)y, 0.0f);
 
 			glEnable(GL_BLEND);
+
+			glColor4f(col[0], col[1], col[2], 0.5f);
+
+			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+				glRotatef(angle, 0, 0, 1);
+				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+			}
 
 			glBindTexture(GL_TEXTURE_2D, rc->tex);
 
