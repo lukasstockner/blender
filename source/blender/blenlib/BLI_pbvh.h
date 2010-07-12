@@ -166,7 +166,10 @@ typedef struct PBVHVertexIter {
 	float *fno;
 } PBVHVertexIter;
 
+#ifdef _MSC_VER
 #pragma warning (disable:4127) // conditional expression is constant
+#endif
+
 #define BLI_pbvh_vertex_iter_begin(bvh, node, vi, mode) \
 	{ \
 		struct DMGridData **grids; \
