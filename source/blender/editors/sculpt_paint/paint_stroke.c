@@ -219,28 +219,38 @@ static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	MTex* mtex = &brush->mtex;
 
 	return 
-		mtex->ofs[0] == snap->ofs[0] &&
-		mtex->ofs[1] == snap->ofs[1] &&
-		mtex->ofs[2] == snap->ofs[2] &&
-		mtex->size[0] == snap->size[0] &&
-		mtex->size[1] == snap->size[1] &&
-		mtex->size[2] == snap->size[2] &&
-		mtex->rot == snap->rot &&
+		(mtex->tex &&
+		    mtex->ofs[0] == snap->ofs[0] &&
+		    mtex->ofs[1] == snap->ofs[1] &&
+		    mtex->ofs[2] == snap->ofs[2] &&
+		    mtex->size[0] == snap->size[0] &&
+		    mtex->size[1] == snap->size[1] &&
+		    mtex->size[2] == snap->size[2] &&
+		    mtex->rot == snap->rot) &&
 		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && sculpt_get_brush_size(brush) <= snap->brush_size) || (sculpt_get_brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
+		mtex->brush_map_mode == snap->brush_map_mode &&
 		vc->ar->winx == snap->winx &&
-		vc->ar->winy == snap->winy &&
-		mtex->brush_map_mode == snap->brush_map_mode;
+		vc->ar->winy == snap->winy;
 }
 
 static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 {
-	copy_v3_v3(snap->ofs, brush->mtex.ofs);
-	copy_v3_v3(snap->size, brush->mtex.size);
-	snap->rot = brush->mtex.rot;
+	if (brush->mtex.tex) {
+		snap->brush_map_mode = brush->mtex.brush_map_mode;
+		copy_v3_v3(snap->ofs, brush->mtex.ofs);
+		copy_v3_v3(snap->size, brush->mtex.size);
+		snap->rot = brush->mtex.rot;
+	}
+	else {
+		snap->brush_map_mode = -1;
+		snap->ofs[0]= snap->ofs[0]= snap->ofs[0]= -1;
+		snap->size[0]= snap->size[0]= snap->size[0]= -1;
+		snap->rot = -1;
+	}
+
 	snap->brush_size = sculpt_get_brush_size(brush);
 	snap->winx = vc->ar->winx;
 	snap->winy = vc->ar->winy;
-	snap->brush_map_mode = brush->mtex.brush_map_mode;
 }
 
 int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
@@ -258,18 +268,19 @@ int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 	int j;
 	int refresh;
 
-	if (!br->mtex.tex) return 0;
+	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && !br->mtex.tex) return 0;
 
 	refresh = 
 		!overlay_texture ||
-		!br->mtex.tex->preview ||
-		br->mtex.tex->preview->changed_timestamp[0] != tex_changed_timestamp ||
+		(br->mtex.tex && 
+		    (!br->mtex.tex->preview ||
+		      br->mtex.tex->preview->changed_timestamp[0] != tex_changed_timestamp)) ||
 		!br->curve ||
 		br->curve->changed_timestamp != curve_changed_timestamp ||
 		!same_snap(&snap, br, vc);
 
 	if (refresh) {
-		if (br->mtex.tex->preview)
+		if (br->mtex.tex && br->mtex.tex->preview)
 			tex_changed_timestamp = br->mtex.tex->preview->changed_timestamp[0];
 
 		if (br->curve)
@@ -341,11 +352,11 @@ int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 
 				len = sqrtf(x*x + y*y);
 
-				if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED || len <= 1) {
+				if ((br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) || len <= 1) {
 					/* it is probably worth optimizing for those cases where 
 					   the texture is not rotated by skipping the calls to
 					   atan2, sqrtf, sin, and cos. */
-					if (rotation > 0.001 || rotation < -0.001) {
+					if (br->mtex.tex && (rotation > 0.001 || rotation < -0.001)) {
 						const float angle    = atan2(y, x) + rotation;
 
 						x = len * cos(angle);
@@ -358,7 +369,7 @@ int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 					x += br->mtex.ofs[0];
 					y += br->mtex.ofs[1];
 
-					avg = get_tex_pixel(br, x, y);
+					avg = br->mtex.tex ? get_tex_pixel(br, x, y) : 1;
 
 					avg += br->texture_sample_bias;
 
@@ -587,6 +598,105 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
+		if (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED) && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_CURRENT_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_LINE_BIT|
+				GL_POLYGON_BIT|
+				GL_STENCIL_BUFFER_BIT|
+				GL_TRANSFORM_BIT|
+				GL_VIEWPORT_BIT|
+				GL_TEXTURE_BIT);
+
+			if (load_tex(sd, brush, &vc)) {
+				glEnable(GL_BLEND);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+				glDepthMask(GL_FALSE);
+				glDepthFunc(GL_ALWAYS);
+
+				glMatrixMode(GL_TEXTURE);
+				glPushMatrix();
+				glLoadIdentity();
+
+				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+					glTranslatef(0.5f, 0.5f, 0);
+
+					if (brush->flag & BRUSH_RAKE) {
+						glRotatef(brush->last_angle*(float)(180.0/M_PI), 0, 0, 1);
+					}
+					else {
+						glRotatef(brush->special_rotation*(float)(180.0/M_PI), 0, 0, 1);
+					}
+
+					glTranslatef(-0.5f, -0.5f, 0);
+
+					if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
+						glTranslatef(0.5f, 0.5f, 0);
+						glScalef(1.0f/brush->pressure_value, 1.0f/brush->pressure_value, 1);
+						glTranslatef(-0.5f, -0.5f, 0);
+					}
+				}
+
+				glColor4f(
+					U.sculpt_paint_overlay_col[0],
+					U.sculpt_paint_overlay_col[1],
+					U.sculpt_paint_overlay_col[2],
+					brush->texture_overlay_alpha / 100.0f);
+
+				glBegin(GL_QUADS);
+				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+					if (brush->draw_anchored) {
+						glTexCoord2f(0, 0);
+						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]-brush->anchored_size - vc.ar->winrct.ymin);
+
+						glTexCoord2f(1, 0);
+						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]-brush->anchored_size - vc.ar->winrct.ymin);
+
+						glTexCoord2f(1, 1);
+						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]+brush->anchored_size - vc.ar->winrct.ymin);
+
+						glTexCoord2f(0, 1);
+						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]+brush->anchored_size - vc.ar->winrct.ymin);
+					}
+					else {
+						glTexCoord2f(0, 0);
+						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
+
+						glTexCoord2f(1, 0);
+						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
+
+						glTexCoord2f(1, 1);
+						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
+
+						glTexCoord2f(0, 1);
+						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
+					}
+				}
+				else {
+					glTexCoord2f(0, 0);
+					glVertex2f(0, 0);
+
+					glTexCoord2f(1, 0);
+					glVertex2f(viewport[2], 0);
+
+					glTexCoord2f(1, 1);
+					glVertex2f(viewport[2], viewport[3]);
+
+					glTexCoord2f(0, 1);
+					glVertex2f(0, viewport[3]);
+				}
+				glEnd();
+
+				glPopMatrix();
+			}
+
+			glPopAttrib();
+		}
+
 		if (hit) {
 			float unprojected_radius;
 
@@ -740,105 +850,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				glTranslatef((float)x, (float)y, 0.0f);
 				glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
 				glTranslatef(-(float)x, -(float)y, 0.0f);
-			}
-
-			glPopAttrib();
-		}
-
-		if (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED) && brush->flag & BRUSH_TEXTURE_OVERLAY) {
-			glPushAttrib(
-				GL_COLOR_BUFFER_BIT|
-				GL_CURRENT_BIT|
-				GL_DEPTH_BUFFER_BIT|
-				GL_ENABLE_BIT|
-				GL_LINE_BIT|
-				GL_POLYGON_BIT|
-				GL_STENCIL_BUFFER_BIT|
-				GL_TRANSFORM_BIT|
-				GL_VIEWPORT_BIT|
-				GL_TEXTURE_BIT);
-
-			if (load_tex(sd, brush, &vc)) {
-				glEnable(GL_BLEND);
-
-				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-				glDepthMask(GL_FALSE);
-				glDepthFunc(GL_ALWAYS);
-
-				glMatrixMode(GL_TEXTURE);
-				glPushMatrix();
-				glLoadIdentity();
-
-				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-					glTranslatef(0.5f, 0.5f, 0);
-
-					if (brush->flag & BRUSH_RAKE) {
-						glRotatef(brush->last_angle*(float)(180.0/M_PI), 0, 0, 1);
-					}
-					else {
-						glRotatef(brush->special_rotation*(float)(180.0/M_PI), 0, 0, 1);
-					}
-
-					glTranslatef(-0.5f, -0.5f, 0);
-
-					if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
-						glTranslatef(0.5f, 0.5f, 0);
-						glScalef(1.0f/brush->pressure_value, 1.0f/brush->pressure_value, 1);
-						glTranslatef(-0.5f, -0.5f, 0);
-					}
-				}
-
-				glColor4f(
-					U.sculpt_paint_overlay_col[0],
-					U.sculpt_paint_overlay_col[1],
-					U.sculpt_paint_overlay_col[2],
-					brush->texture_overlay_alpha / 100.0f);
-
-				glBegin(GL_QUADS);
-				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-					if (brush->draw_anchored) {
-						glTexCoord2f(0, 0);
-						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]-brush->anchored_size - vc.ar->winrct.ymin);
-
-						glTexCoord2f(1, 0);
-						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]-brush->anchored_size - vc.ar->winrct.ymin);
-
-						glTexCoord2f(1, 1);
-						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]+brush->anchored_size - vc.ar->winrct.ymin);
-
-						glTexCoord2f(0, 1);
-						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]+brush->anchored_size - vc.ar->winrct.ymin);
-					}
-					else {
-						glTexCoord2f(0, 0);
-						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
-
-						glTexCoord2f(1, 0);
-						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
-
-						glTexCoord2f(1, 1);
-						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
-
-						glTexCoord2f(0, 1);
-						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
-					}
-				}
-				else {
-					glTexCoord2f(0, 0);
-					glVertex2f(0, 0);
-
-					glTexCoord2f(1, 0);
-					glVertex2f(viewport[2], 0);
-
-					glTexCoord2f(1, 1);
-					glVertex2f(viewport[2], viewport[3]);
-
-					glTexCoord2f(0, 1);
-					glVertex2f(0, viewport[3]);
-				}
-				glEnd();
-
-				glPopMatrix();
 			}
 
 			glPopAttrib();

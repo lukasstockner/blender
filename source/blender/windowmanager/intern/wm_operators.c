@@ -2702,7 +2702,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	float* col;
 	float  alpha;
 
-	const float str = rc->mode == WM_RADIALCONTROL_STRENGTH ? (rc->value + 0.5) : 1;
+	const float str = rc->mode == WM_RADIALCONTROL_STRENGTH ? (rc->value + 0.5) : (brush->texture_overlay_alpha / 100.0f);
 
 	if(rc->mode == WM_RADIALCONTROL_SIZE) {
 		r1= rc->value;
@@ -2754,33 +2754,40 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 
 			glEnable(GL_BLEND);
 
-			glColor4f(col[0], col[1], col[2], 0.5f);
-
 			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
 				glRotatef(angle, 0, 0, 1);
+			}
+
+			if (rc->tex) {
+				glBindTexture(GL_TEXTURE_2D, rc->tex);
+
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+				glEnable(GL_TEXTURE_2D);
+				glBegin(GL_QUADS);
+				glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
+				glTexCoord2f(0,0);
+				glVertex2f(-r3, -r3);
+				glTexCoord2f(1,0);
+				glVertex2f(r3, -r3);
+				glTexCoord2f(1,1);
+				glVertex2f(r3, r3);
+				glTexCoord2f(0,1);
+				glVertex2f(-r3, r3);
+				glEnd();
+				glDisable(GL_TEXTURE_2D);
+			}
+
+			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+				glColor4f(col[0], col[1], col[2], 0.5f);
 				glEnable(GL_LINE_SMOOTH);
+				glRotatef(-angle, 0, 0, 1);
+				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+				glRotatef(angle, 0, 0, 1);
 				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
 				glDisable(GL_LINE_SMOOTH);
 			}
-
-			glBindTexture(GL_TEXTURE_2D, rc->tex);
-
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-			glEnable(GL_TEXTURE_2D);
-			glBegin(GL_QUADS);
-			glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
-			glTexCoord2f(0,0);
-			glVertex2f(-r3, -r3);
-			glTexCoord2f(1,0);
-			glVertex2f(r3, -r3);
-			glTexCoord2f(1,1);
-			glVertex2f(r3, r3);
-			glTexCoord2f(0,1);
-			glVertex2f(-r3, r3);
-			glEnd();
-			glDisable(GL_TEXTURE_2D);
 
 			glDisable(GL_BLEND);
 
@@ -2809,23 +2816,15 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	}
 
 	if (!hit) {
-		glPushMatrix();
-		
 		glTranslatef((float)x, (float)y, 0.0f);
 
-		glColor4f(col[0], col[1], col[2], 0.5f);
-		glEnable( GL_LINE_SMOOTH );
 		glEnable(GL_BLEND);
 
-		if(rc->mode == WM_RADIALCONTROL_ANGLE)
-			fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+		if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+			glRotatef(angle, 0, 0, 1);
+		}
 
-		if(rc->tex) {
-			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
-				glRotatef(angle, 0, 0, 1);
-				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
-			}
-
+		if (rc->tex) {
 			glBindTexture(GL_TEXTURE_2D, rc->tex);
 
 			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -2846,11 +2845,20 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 			glDisable(GL_TEXTURE_2D);
 		}
 
+		if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+			glColor4f(col[0], col[1], col[2], 0.5f);
+			glEnable(GL_LINE_SMOOTH);
+			glRotatef(-angle, 0, 0, 1);
+			fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+			glRotatef(angle, 0, 0, 1);
+			fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+			glDisable(GL_LINE_SMOOTH);
+		}
+
 		glColor4f(col[0], col[1], col[2], 0.5f);
 		glutil_draw_lined_arc(0.0, M_PI*2.0, r1, 40);
 		glutil_draw_lined_arc(0.0, M_PI*2.0, r2, 40);
 		glDisable(GL_BLEND);
-		glDisable( GL_LINE_SMOOTH );
 		
 		glPopMatrix();
 	}
@@ -2863,6 +2871,7 @@ int WM_radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
 	float dist;
 	double new_value = RNA_float_get(op->ptr, "new_value");
 	int ret = OPERATOR_RUNNING_MODAL;
+	float initial_value = RNA_float_get(op->ptr, "initial_value");
 
 	mode = RNA_int_get(op->ptr, "mode");
 	RNA_int_get_array(op->ptr, "initial_mouse", initial_mouse);
@@ -2871,8 +2880,17 @@ int WM_radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
 	case MOUSEMOVE:
 		delta[0]= initial_mouse[0] - event->x;
 		delta[1]= initial_mouse[1] - event->y;
-		dist= sqrt(delta[0]*delta[0]+delta[1]*delta[1]);
 
+		//if (mode == WM_RADIALCONTROL_SIZE) 
+		//	delta[0]+= initial_value;
+		//else if(mode == WM_RADIALCONTROL_STRENGTH)
+		//	delta[0]+= WM_RADIAL_CONTROL_DISPLAY_SIZE * (1 - initial_value);
+		//else if(mode == WM_RADIALCONTROL_ANGLE) {
+		//	delta[0]+= WM_RADIAL_CONTROL_DISPLAY_SIZE * cos(initial_value*M_PI/180.0f);
+		//	delta[1]+= WM_RADIAL_CONTROL_DISPLAY_SIZE * sin(initial_value*M_PI/180.0f);
+		//}
+
+		dist= sqrt(delta[0]*delta[0]+delta[1]*delta[1]);
 
 		if(mode == WM_RADIALCONTROL_SIZE)
 			new_value = dist;
@@ -2918,6 +2936,11 @@ int WM_radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
 	
 	ED_region_tag_redraw(CTX_wm_region(C));
 
+	//if (ret != OPERATOR_RUNNING_MODAL) {
+	//	wmWindow *win = CTX_wm_window(C);
+	//	WM_cursor_restore(win);
+	//}
+
 	return ret;
 }
 
@@ -2925,9 +2948,14 @@ int WM_radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
 int WM_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	wmRadialControl *rc = MEM_callocN(sizeof(wmRadialControl), "radial control");
+	wmWindow *win = CTX_wm_window(C);
 	int mode = RNA_int_get(op->ptr, "mode");
 	float initial_value = RNA_float_get(op->ptr, "initial_value");
+	//float initial_size = RNA_float_get(op->ptr, "initial_size");
 	int mouse[2] = {event->x, event->y};
+
+	//if (initial_size == 0)
+	//	initial_size = WM_RADIAL_CONTROL_DISPLAY_SIZE;
 
 	if(mode == WM_RADIALCONTROL_SIZE) {
 		rc->max_value = 200;
@@ -2964,6 +2992,8 @@ int WM_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	rc->initial_mouse[1] = mouse[1];
 	rc->cursor = WM_paint_cursor_activate(CTX_wm_manager(C), op->type->poll,
 						  wm_radial_control_paint, op->customdata);
+
+	//WM_cursor_modal(win, CURSOR_NONE);
 
 	/* add modal handler */
 	WM_event_add_modal_handler(C, op);

@@ -925,7 +925,7 @@ int brush_painter_paint(BrushPainter *painter, BrushFunc func, float *pos, doubl
 /* Uses the brush curve control to find a strength value between 0 and 1 */
 float brush_curve_strength_clamp(Brush *br, float p, const float len)
 {
-	if(p >= len)	p= 1.0f;
+	if(p >= len)	return 0;
 	else			p= p/len;
 
 	p= curvemapping_evaluateF(br->curve, 0, p);
