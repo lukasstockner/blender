@@ -2514,13 +2514,14 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 			break;
 		}
 
-		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0)
+		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0) {
 			if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
 				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*(1-ss->cache->pressure)*brush->autosmooth_overlap);
 			}
 			else {
 				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*brush->autosmooth_overlap);
 			}
+		}
 
 		/* copy the modified vertices from mesh to the active key */
 		if(ss->kb)
