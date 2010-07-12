@@ -3671,8 +3671,6 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 		{ 0 }
 	};
 
-	ot->flag |= OPTYPE_REGISTER;
-
 	/* identifiers */
 	ot->name= "Sculpt Mode";
 	ot->idname= "SCULPT_OT_brush_stroke";
@@ -3684,7 +3682,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 	ot->poll= sculpt_poll;
 
 	/* flags (sculpt does own undo? (ton) */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_BLOCKING;
+	ot->flag= OPTYPE_BLOCKING;
 
 	/* properties */
 
@@ -3727,7 +3725,7 @@ static void SCULPT_OT_set_persistent_base(wmOperatorType *ot)
 	ot->exec= sculpt_set_persistent_base;
 	ot->poll= sculpt_mode_poll;
 	
-	ot->flag= OPTYPE_REGISTER;
+	ot->flag= 0;//OPTYPE_REGISTER;
 }
 
 /**** Toggle operator for turning sculpt mode on or off ****/
@@ -3804,7 +3802,7 @@ static void SCULPT_OT_sculptmode_toggle(wmOperatorType *ot)
 	ot->exec= sculpt_toggle_mode;
 	ot->poll= ED_operator_object_active;
 	
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+	ot->flag= 0;
 }
 
 void ED_operatortypes_sculpt()

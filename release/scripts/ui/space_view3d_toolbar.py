@@ -525,6 +525,8 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
 
+            col.operator("brush.copy")
+
         # Particle Mode #
 
         # XXX This needs a check if psys is editable.
