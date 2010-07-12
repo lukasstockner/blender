@@ -2758,7 +2758,9 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 
 			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
 				glRotatef(angle, 0, 0, 1);
+				glEnable(GL_LINE_SMOOTH);
 				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+				glDisable(GL_LINE_SMOOTH);
 			}
 
 			glBindTexture(GL_TEXTURE_2D, rc->tex);
