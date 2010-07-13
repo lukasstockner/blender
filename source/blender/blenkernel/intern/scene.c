@@ -664,7 +664,7 @@ int next_object(Scene **scene, int val, Base **base, Object **ob)
 			if(*base == NULL) fase= F_START;
 			else {
 				if(fase!=F_DUPLI) {
-					if( (*base)->object->transflag & OB_DUPLI			&& 0 /* XXX, Quick Durian Hack, will try fix but now, DONT MERGE THIS */) {
+					if( (*base)->object->transflag & OB_DUPLI) {
 						/* groups cannot be duplicated for mballs yet, 
 						this enters eternal loop because of 
 						makeDispListMBall getting called inside of group_duplilist */
