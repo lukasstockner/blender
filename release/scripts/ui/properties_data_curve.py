@@ -44,7 +44,7 @@ class DataButtonsPanelActive(DataButtonsPanel):
 
     def poll(self, context):
         curve = context.curve
-        return (curve and curve.splines.active)
+        return (curve and type(curve) is not bpy.types.TextCurve and curve.splines.active)
 
 
 class DATA_PT_context_curve(DataButtonsPanel):
@@ -308,10 +308,13 @@ class DATA_PT_font(DataButtonsPanel):
 
         split = layout.split()
 
-        col = split.column(align=True)
-        col.label(text="Underline:")
-        col.prop(text, "ul_position", text="Position")
-        col.prop(text, "ul_height", text="Thickness")
+        col = split.column()
+        colsub = col.column(align=True)
+        colsub.label(text="Underline:")
+        colsub.prop(text, "ul_position", text="Position")
+        colsub.prop(text, "ul_height", text="Thickness")
+        col.label(text="")
+        col.prop(text, "small_caps_scale", text="Small Caps")
 
         if wide_ui:
             col = split.column()
@@ -319,6 +322,7 @@ class DATA_PT_font(DataButtonsPanel):
         col.prop(char, "bold")
         col.prop(char, "italic")
         col.prop(char, "underline")
+        col.prop(char, "use_small_caps")
 #       col.prop(char, "style")
 #       col.prop(char, "wrap")
 
