@@ -115,6 +115,13 @@ static void shade_surface_result_ramps(Render *re, ShadeInput *shi, ShadeResult 
 
 /***************************** AO / Env / Indirect *****************************/
 
+static void default_ao_env_indirect(ShadeInput *shi)
+{
+	shi->shading.ao[0]= shi->shading.ao[1]= shi->shading.ao[2]= 1.0f;
+	shi->shading.env[0]= shi->shading.env[1]= shi->shading.env[2]= 0.0f;
+	shi->shading.indirect[0]= shi->shading.indirect[1]= shi->shading.indirect[2]= 0.0f;
+}
+
 void shade_ao_env_indirect(Render *re, ShadeInput *shi)
 {
 	if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) {
@@ -153,11 +160,6 @@ void shade_ao_env_indirect(Render *re, ShadeInput *shi)
 
 		if(ao)
 			ao[1]= ao[2]= ao[0];
-	}
-	else {
-		shi->shading.ao[0]= shi->shading.ao[1]= shi->shading.ao[2]= 1.0f;
-		shi->shading.env[0]= shi->shading.env[1]= shi->shading.env[2]= 0.0f;
-		shi->shading.indirect[0]= shi->shading.indirect[1]= shi->shading.indirect[2]= 0.0f;
 	}
 }
 
@@ -309,6 +311,8 @@ static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *
 			shr->alpha= (shr->alpha + f)*f;
 		}
 	}
+	else
+		default_ao_env_indirect(shi);
 }
 
 /**************************** Color & Alpha Pass *****************************/
@@ -689,18 +693,19 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 	int post_sss= ((ma->sss_flag & MA_DIFF_SSS) && sss_pass_done(re, ma));
 
 	if(!post_sss || (passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))) {
-		if(mat_need_ao_env_indirect(re, shi)) {
+		if(mat_need_ao_env_indirect(re, shi))
 			shade_ao_env_indirect(re, shi);
+		else
+			default_ao_env_indirect(shi);
 
-			if(re->db.wrld.mode & WO_ENV_LIGHT)
-				environment_lighting_apply(re, shi, shr);
+		if(re->db.wrld.mode & WO_ENV_LIGHT)
+			environment_lighting_apply(re, shi, shr);
 
-			if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
-				indirect_lighting_apply(re, shi, shr);
+		if(re->db.wrld.mode & WO_INDIRECT_LIGHT)
+			indirect_lighting_apply(re, shi, shr);
 
-			if(re->db.wrld.mode & WO_AMB_OCC)
-				ambient_occlusion_apply(re, shi, shr);
-		}
+		if(re->db.wrld.mode & WO_AMB_OCC)
+			ambient_occlusion_apply(re, shi, shr);
 			
 		/* ambient light */
 		madd_v3_v3fl(shr->diff, &re->db.wrld.ambr, shi->material.amb);

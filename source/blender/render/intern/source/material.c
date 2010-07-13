@@ -664,6 +664,12 @@ int mat_need_ao_env_indirect(Render *re, ShadeInput *shi)
 		return 0;
 	if(!((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX))
 		return 0;
+
+	/* some materials don't need it */
+	if(ma->mode & MA_SHLESS)
+		return 0;
+	else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
+		return 0;
 	
 	/* if requested for passes, always render it */
 	if(shi->shading.passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))
@@ -674,11 +680,13 @@ int mat_need_ao_env_indirect(Render *re, ShadeInput *shi)
 		if(!(shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
 			return 0;
 
+#if 0
 		/* some materials don't need it */
 		if(ma->mode & MA_SHLESS)
 			return 0;
 		else if(ma->amb == 0.0f && !(ma->mapto & MAP_AMB))
 			return 0;
+#endif
 
 		return 1;
 	}
