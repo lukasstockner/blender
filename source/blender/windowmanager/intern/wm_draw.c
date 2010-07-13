@@ -322,6 +322,7 @@ typedef struct wmDrawTriple {
 	int nx, ny;
 	GLenum target;
 
+#ifdef WITH_ONSURFACEBRUSH
 	char* depth;
 	GLenum depth_type;
 
@@ -333,6 +334,7 @@ typedef struct wmDrawTriple {
 	GLenum depth_vertex_shader;
 	GLenum depth_fragment_shader;
 	GLenum depth_program;
+#endif
 } wmDrawTriple;
 
 static int is_pow2(int n)
@@ -401,6 +403,7 @@ static void wm_draw_triple_free(wmWindow *win)
 		wmDrawTriple *triple= win->drawdata;
 
 		glDeleteTextures(triple->nx*triple->ny, triple->bind);
+#ifdef WITH_ONSURFACEBRUSH
 		glDeleteTextures(triple->depth_nx*triple->depth_ny, triple->depth_bind);
 
 		if (GLEW_ARB_shader_objects) {
@@ -411,6 +414,7 @@ static void wm_draw_triple_free(wmWindow *win)
 
 		if (triple->depth)
 			MEM_freeN(triple->depth);
+#endif
 
 		MEM_freeN(triple);
 
@@ -561,6 +565,7 @@ static void wm_triple_copy_textures(wmWindow *win, wmDrawTriple *triple)
 	glBindTexture(triple->target, 0);
 }
 
+#ifdef WITH_ONSURFACEBRUSH
 static void get_shading_language_version(int* major, int* minor)
 {
 	const char* version;
@@ -971,6 +976,7 @@ static void wm_triple_draw_depth_buffer(wmWindow *win, wmDrawTriple *triple)
 		}
 	}
 }
+#endif
 
 static void wm_method_draw_triple(bContext *C, wmWindow *win)
 {
@@ -988,15 +994,20 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 		wmSubWindowSet(win, screen->mainwin);
 
 		wm_triple_draw_textures(win, win->drawdata);
+#ifdef WITH_ONSURFACEBRUSH
 		wm_triple_draw_depth_buffer(win, win->drawdata);
+#endif
 
 		triple= win->drawdata;
 	}
 	else {
 		win->drawdata= MEM_callocN(sizeof(wmDrawTriple), "wmDrawTriple");
 
-		if(!wm_triple_gen_textures(win, win->drawdata) ||
-		   !wm_triple_gen_depth_buffer(win, win->drawdata))
+		if(!wm_triple_gen_textures(win, win->drawdata)
+#ifdef WITH_ONSURFACEBRUSH
+		   || !wm_triple_gen_depth_buffer(win, win->drawdata)
+#endif
+		   )
 		{
 			wm_draw_triple_fail(C, win);
 			return;
@@ -1028,7 +1039,9 @@ static void wm_method_draw_triple(bContext *C, wmWindow *win)
 		ED_area_overdraw(C);
 
 		wm_triple_copy_textures(win, triple);
+#ifdef WITH_ONSURFACEBRUSH
 		wm_triple_copy_depth_buffer(win, triple);
+#endif
 	}
 
 	/* after area regions so we can do area 'overlay' drawing */

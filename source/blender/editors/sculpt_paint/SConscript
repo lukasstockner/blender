@@ -3,6 +3,8 @@ Import ('env')
 
 sources = env.Glob('*.c')
 
+defs = []
+
 incs = '../include ../../blenlib ../../blenkernel ../../makesdna ../../imbuf'
 incs += ' ../../windowmanager #/intern/guardedalloc #/extern/glew/include'
 incs += ' ../../render/extern/include'
@@ -17,6 +19,9 @@ if env['OURPLATFORM'] == 'linuxcross':
         incs += ' ' + env['BF_OPENMP_INC']
 
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc'):
-	incs += ' ' + env['BF_PTHREADS_INC']
+    incs += ' ' + env['BF_PTHREADS_INC']
 
-env.BlenderLib ( 'bf_editors_sculpt_paint', sources, Split(incs), [], libtype=['core'], priority=[40] )
+if env['WITH_BF_ONSURFACEBRUSH']:
+    defs.append('WITH_ONSURFACEBRUSH')
+
+env.BlenderLib ( 'bf_editors_sculpt_paint', sources, Split(incs), defines=defs, libtype=['core'], priority=[40] )

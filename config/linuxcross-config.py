@@ -172,6 +172,9 @@ BF_OPENCOLLADA_LIBPATH = '${BF_OPENCOLLADA}/lib ${BF_ICONV_LIBPATH}'
 WITH_BF_RAYOPTIMIZATION = True
 BF_RAYOPTIMIZATION_SSE_FLAGS = ['-msse']
 
+#On-surface brush
+WITH_BF_ONSURFACEBRUSH = True
+
 CCFLAGS = [ '-pipe', '-funsigned-char', '-fno-strict-aliasing' ]
 
 CPPFLAGS = ['-DWIN32', '-DFREE_WINDOWS']

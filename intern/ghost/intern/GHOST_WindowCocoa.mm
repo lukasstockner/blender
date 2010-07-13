@@ -348,9 +348,11 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	
 	pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
 	//pixelFormatAttrsWindow[i++] = NSOpenGLPFAAllowOfflineRenderers,;   // Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway
-	
+
+#ifdef WITH_ONSURFACEBRUSH
 	pixelFormatAttrsWindow[i++] = NSOpenGLPFAStencilSize;
 	pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 8;
+#endif
 	
 	pixelFormatAttrsWindow[i++] = NSOpenGLPFADepthSize;
 	pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
@@ -362,8 +364,10 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 		// Multisample anti-aliasing
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFAMultisample;
 		
+#ifdef WITH_ONSURFACEBRUSH
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFAStencilSize;
 		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 8;
+#endif
 
 		pixelFormatAttrsWindow[i++] = NSOpenGLPFASampleBuffers;
 		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 1;

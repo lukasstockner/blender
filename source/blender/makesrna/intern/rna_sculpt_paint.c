@@ -36,6 +36,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "GL/glew.h"
+
 static EnumPropertyItem particle_edit_hair_brush_items[] = {
 	{PE_BRUSH_NONE, "NONE", 0, "None", "Don't use any brush"},
 	{PE_BRUSH_COMB, "COMB", 0, "Comb", "Comb hairs"},
@@ -220,12 +222,26 @@ static void rna_Paint_active_brush_name_set(PointerRNA *ptr, const char *value)
 	}
 }
 
+static int rna_Paint_is_on_surface_brush_capable()
+{
+#ifdef WITH_ONSURFACEBRUSH
+	int bits;
+	glGetIntegerv(GL_STENCIL_BITS, &bits);
+	return bits > 0;
+#else
+	return 0;
+#endif
+}
+
 #else
 
 static void rna_def_paint(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
 
 	srna= RNA_def_struct(brna, "Paint", NULL);
 	RNA_def_struct_ui_text(srna, "Paint", "");
@@ -269,6 +285,12 @@ static void rna_def_paint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "fast_navigate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_FAST_NAVIGATE);
 	RNA_def_property_ui_text(prop, "Fast Navigate", "For multires, show low resolution while navigating the view");
+
+	/* functions */
+	func= RNA_def_function(srna, "is_on_surface_brush_capable", "rna_Paint_is_on_surface_brush_capable");
+	RNA_def_function_ui_description(func, "Returns true if on-surface brush is configured and all capabilities are present.");
+	parm= RNA_def_boolean(func, "ret", 0, "", "");
+	RNA_def_function_return(func, parm);
 }
 
 static void rna_def_sculpt(BlenderRNA  *brna)

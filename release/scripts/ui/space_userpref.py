@@ -336,8 +336,9 @@ class USERPREF_PT_edit(bpy.types.Panel):
         col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
         col.prop(sculpt, "fast_navigate")
         col.prop(sculpt, "show_brush")
+
         row = col.row()
-        row.active = sculpt.show_brush
+        row.active = sculpt.show_brush and sculpt.is_on_surface_brush_capable()
         row.prop(sculpt, "show_brush_on_surface")
 
         col.separator()

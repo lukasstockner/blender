@@ -561,7 +561,6 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		const float min_alpha = 0.20f;
 		const float max_alpha = 0.80f;
 
-
 		{
 			const float u = 0.5f;
 			const float v = 1 - u;
@@ -731,6 +730,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			if(!(paint->flags & PAINT_SHOW_BRUSH))
 				return;
 
+#ifdef WITH_ONSURFACEBRUSH
 			if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
 				const float max_thickness= 0.12;
 				const float min_thickness= 0.06;
@@ -820,9 +820,12 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 				glPopAttrib();
 			}
+#endif
 		}
 
+#ifdef WITH_ONSURFACEBRUSH
 		if (!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) {
+#endif
 			glPushAttrib(
 				GL_COLOR_BUFFER_BIT|
 				GL_CURRENT_BIT|
@@ -853,7 +856,9 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			}
 
 			glPopAttrib();
+#ifdef WITH_ONSURFACEBRUSH
 		}
+#endif
 	}
 	else {
 		Paint *paint = paint_get_active(CTX_data_scene(C));

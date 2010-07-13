@@ -114,9 +114,10 @@ OPTION(WITH_LZO           "Enable fast LZO compression (used for pointcache)" ON
 OPTION(WITH_LZMA          "Enable best LZMA compression, (used for pointcache)" ON)
 
 # Misc
-OPTION(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON) 
+OPTION(WITH_RAYOPTIMIZATION  "Enable use of SIMD (SSE) optimizations for the raytracer" ON) 
 OPTION(WITH_CXX_GUARDEDALLOC "Enable GuardedAlloc for C++ memory allocation tracking" OFF)
-OPTION(WITH_INSTALL       "Install accompanying scripts and language files needed to run blender" ON)
+OPTION(WITH_INSTALL          "Install accompanying scripts and language files needed to run blender" ON)
+OPTION(WITH_ONSURFACEBRUSH   "Enable use of the 'on-surface brush' for paint/sculpt.  Requires a stencil buffer, GL_depth_texture, and GLSL" ON)
 
 IF(APPLE)
 	OPTION(WITH_COCOA	  "Use Cocoa framework instead of deprecated Carbon" ON)
@@ -317,6 +318,10 @@ IF(UNIX AND NOT APPLE)
 		ADD_DEFINITIONS(-D__MMX__)
 	ENDIF(WITH_RAYOPTIMIZATION AND SUPPORT_SSE_BUILD)
 
+	IF(WITH_ONSURFACEBRUSH)
+		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
+	ENDIF(WITH_ONSURFACEBRUSH)
+
 	SET(PLATFORM_LINKFLAGS "-pthread")
 
 	# Better warnings
@@ -405,6 +410,10 @@ IF(WIN32)
 		ADD_DEFINITIONS(-D__SSE__)
 		ADD_DEFINITIONS(-D__MMX__)
 	ENDIF(WITH_RAYOPTIMIZATION AND SUPPORT_SSE_BUILD)
+
+	IF(WITH_ONSURFACEBRUSH)
+		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
+	ENDIF(WITH_ONSURFACEBRUSH)
 
 	IF(MSVC)
 		IF(CMAKE_CL_64)
@@ -813,6 +822,10 @@ IF(APPLE)
 		ADD_DEFINITIONS(-D__SSE__)
 		ADD_DEFINITIONS(-D__MMX__)
 	ENDIF(WITH_RAYOPTIMIZATION AND SUPPORT_SSE_BUILD)
+
+	IF(WITH_ONSURFACEBRUSH)
+		ADD_DEFINITIONS(-DWITH_ONSURFACEBRUSH)
+	ENDIF(WITH_ONSURFACEBRUSH)
 
 	SET(EXETYPE MACOSX_BUNDLE)
 

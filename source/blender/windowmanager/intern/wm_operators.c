@@ -2599,6 +2599,7 @@ typedef struct wmRadialControl {
 
 extern Paint *paint_get_active(Scene *sce);
 extern struct Brush *paint_brush(struct Paint *paint);
+#ifdef WITH_ONSURFACEBRUSH
 extern int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4]);
 extern float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset);
 
@@ -2682,6 +2683,7 @@ static void draw_on_surface_cursor(float modelview[16], float projection[16], fl
 
 	glPopAttrib();
 }
+#endif
 
 static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 {
@@ -2689,18 +2691,17 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	ARegion *ar = CTX_wm_region(C);
 	float r1=0.0f, r2=0.0f, r3=0.0f, angle=0.0f;
 
+	Paint *paint = paint_get_active(CTX_data_scene(C));
+	Brush *brush = paint_brush(paint);
+
 	ViewContext vc;
 
 	int hit = 0;
-
-	Paint *paint = paint_get_active(CTX_data_scene(C));
-	Brush *brush = paint_brush(paint);
 
 	int flip;
 	int sign;
 
 	float* col;
-	float  alpha;
 
 	const float str = rc->mode == WM_RADIALCONTROL_STRENGTH ? (rc->value + 0.5) : (brush->texture_overlay_alpha / 100.0f);
 
@@ -2732,7 +2733,9 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	else
 		col = brush->add_col;
 
+#ifdef WITH_ONSURFACEBRUSH
 	if ((paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) && vc.obact->sculpt) {
+		float alpha;
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
 		int pixel_radius, viewport[4];
@@ -2816,6 +2819,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	}
 
 	if (!hit) {
+#endif
 		glTranslatef((float)x, (float)y, 0.0f);
 
 		glEnable(GL_BLEND);
@@ -2861,7 +2865,9 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 		glDisable(GL_BLEND);
 		
 		glPopMatrix();
+#ifdef WITH_ONSURFACEBRUSH
 	}
+#endif
 }
 
 int WM_radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
