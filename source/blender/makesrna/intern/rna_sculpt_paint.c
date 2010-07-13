@@ -222,8 +222,10 @@ static void rna_Paint_active_brush_name_set(PointerRNA *ptr, const char *value)
 	}
 }
 
-static int rna_Paint_is_on_surface_brush_capable()
+static int rna_Paint_is_on_surface_brush_capable(Paint* unused)
 {
+	(void)unused;
+
 #ifdef WITH_ONSURFACEBRUSH
 	int bits;
 	glGetIntegerv(GL_STENCIL_BITS, &bits);
