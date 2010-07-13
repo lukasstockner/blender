@@ -525,7 +525,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
 
-            col.operator("brush.copy")
+            col.operator("brush.copy", text="Duplicate Brush")
 
         # Particle Mode #
 
@@ -656,7 +656,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.active=brush.use_plane_trim
                 row.prop(brush, "plane_trim", slider=True, text="Distance")
 
+            col.separator()
 
+            row= col.row()
+            row.prop(brush, "use_frontface", text="Front Faces Only")
 
             if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'LAYER', 'CLAY', 'CLAY_TUBES', 'WAX'):
                 col.separator()

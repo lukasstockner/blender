@@ -141,6 +141,7 @@ typedef struct Brush {
 #define BRUSH_INVERSE_SMOOTH_PRESSURE (1<<24)
 #define BRUSH_RANDOM_ROTATION (1<<25)
 #define BRUSH_PLANE_TRIM (1<<26)
+#define BRUSH_FRONTFACE (1<<27)
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW        1

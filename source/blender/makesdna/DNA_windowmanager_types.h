@@ -310,10 +310,4 @@ typedef enum wmRadialControlMode {
 	WM_RADIALCONTROL_ANGLE,
 } wmRadialControlMode;
 
-typedef enum wmBrushStrokeMode {
-	WM_BRUSHSTROKE_NORMAL,
-	WM_BRUSHSTROKE_INVERT,
-	WM_BRUSHSTROKE_SMOOTH,
-} wmBrushStrokeMode;
-
 #endif /* DNA_WINDOWMANAGER_TYPES_H */
