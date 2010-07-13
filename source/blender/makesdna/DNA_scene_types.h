@@ -1111,7 +1111,6 @@ typedef struct Scene {
 #define F_ERROR			-1
 #define F_START			0
 #define F_SCENE			1
-#define F_SET			2
 #define F_DUPLI			3
 
 /* audio->flag */

@@ -72,12 +72,12 @@ World *add_world(char *name)
 
 	wrld= alloc_libblock(&G.main->world, ID_WO, name);
 	
-	wrld->horr= 0.25f;
-	wrld->horg= 0.25f;
-	wrld->horb= 0.25f;
-	wrld->zenr= 0.1f;
-	wrld->zeng= 0.1f;
-	wrld->zenb= 0.1f;
+	wrld->horr= 0.05f;
+	wrld->horg= 0.05f;
+	wrld->horb= 0.05f;
+	wrld->zenr= 0.01f;
+	wrld->zeng= 0.01f;
+	wrld->zenb= 0.01f;
 	wrld->skytype= 0;
 	wrld->stardist= 15.0f;
 	wrld->starsize= 2.0f;
@@ -97,6 +97,8 @@ World *add_world(char *name)
 	wrld->ao_shading_method = WO_LIGHT_SHADE_ONCE;	
 	
 	wrld->preview = NULL;
+	wrld->miststa = 5.0f;
+	wrld->mistdist = 25.0f;
 
 	return wrld;
 }
