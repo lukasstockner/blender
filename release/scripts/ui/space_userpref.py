@@ -334,7 +334,6 @@ class USERPREF_PT_edit(bpy.types.Panel):
         col.prop(edit, "sculpt_paint_use_unified_strength", text="Unify Strength")
         col.prop(edit, "sculpt_paint_overlay_col", text="Overlay Color")
         col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
-        col.prop(sculpt, "fast_navigate")
         col.prop(sculpt, "show_brush")
 
         row = col.row()
