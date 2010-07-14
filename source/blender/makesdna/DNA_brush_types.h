@@ -137,7 +137,7 @@ typedef struct Brush {
 #define SCULPT_TOOL_THUMB      12
 #define SCULPT_TOOL_SNAKE_HOOK 13
 #define SCULPT_TOOL_ROTATE     14
-#define SCULPT_TOOL_WAX        15
+//#define SCULPT_TOOL_WAX        15 // XXX: reuse this slot later
 #define SCULPT_TOOL_CREASE     16
 #define SCULPT_TOOL_BLOB       17
 #define SCULPT_TOOL_CLAY_TUBES 18

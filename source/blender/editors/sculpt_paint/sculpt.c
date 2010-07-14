@@ -596,7 +596,6 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather, float
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_CLAY_TUBES:
 		case SCULPT_TOOL_DRAW:
-		case SCULPT_TOOL_WAX:
 		case SCULPT_TOOL_LAYER:
 			return alpha * flip * pressure * overlap * feather;
 
@@ -2034,74 +2033,8 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if (sculpt_brush_test_sq(&test, vd.co)) {
-			//if (sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
-				float intr[3];
-
-				point_plane_project(intr, vd.co, an, fc);
-
-				sub_v3_v3v3(proxy[vd.i], intr, vd.co);
-
-				if (plane_trim(ss->cache, brush, proxy[vd.i])) {
-					const float fade = bstrength*tex_strength(ss, brush, vd.co, sqrt(test.dist))*frontface(brush, an, vd.no, vd.fno);
-
-					mul_v3_fl(proxy[vd.i], fade);
-
-					if(vd.mvert)
-						vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-				}
-			}
-		}
-		BLI_pbvh_vertex_iter_end;
-	}
-}
-
-static void do_wax_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
-{
-	Brush *brush = paint_brush(&sd->paint);
-
-	float bstrength = ss->cache->bstrength;
-	float radius    = ss->cache->radius;
-	float offset    = get_offset(sd, ss);
-	
-	float displace;
-
-	float an[3]; // area normal
-	float fc[3]; // flatten center
-
-	int n;
-
-	float temp[3];
-
-	int flip;
-
-	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
-
-	flip = bstrength < 0;
-
-	if (flip) {
-		bstrength = -bstrength;
-		radius    = -radius;
-	}
-
-	displace = radius * (0.25f+offset);
-
-	mul_v3_v3v3(temp, an, ss->cache->scale);
-	mul_v3_fl(temp, displace);
-	add_v3_v3(fc, temp);
-
-	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
-	for (n = 0; n < totnode; n++) {
-		PBVHVertexIter vd;
-		SculptBrushTest test;
-		float (*proxy)[3];
-
-		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
-
-		sculpt_brush_test_init(ss, &test);
-
-		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if (sculpt_brush_test_sq(&test, vd.co)) {
 				if (plane_point_side_flip(vd.co, an, fc, flip)) {
+				//if (sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, p)) {
 					float intr[3];
 					float val[3];
 
@@ -2470,9 +2403,6 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, Brush *brush)
 		case SCULPT_TOOL_SCRAPE:
 			do_scrape_brush(sd, ss, nodes, totnode);
 			break;
-		case SCULPT_TOOL_WAX:
-			do_wax_brush(sd, ss, nodes, totnode);
-			break;
 		}
 
 		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0) {
@@ -2551,7 +2481,6 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 		case SCULPT_TOOL_PINCH:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_SNAKE_HOOK:
-		case SCULPT_TOOL_WAX:
 			#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 			for (n= 0; n < totnode; n++) {
 				PBVHVertexIter vd;
@@ -2789,8 +2718,6 @@ static char *sculpt_tool_name(Sculpt *sd)
 		return "Clay Brush"; break;
 	case SCULPT_TOOL_CLAY_TUBES:
 		return "Clay Tubes Brush"; break;
-	case SCULPT_TOOL_WAX:
-		return "Wax Brush"; break;
 	case SCULPT_TOOL_FILL:
 		return "Fill Brush"; break;
 	case SCULPT_TOOL_SCRAPE:
@@ -3024,7 +2951,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if(ELEM8(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_TUBES, SCULPT_TOOL_WAX))
+	if(ELEM7(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_TUBES))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 

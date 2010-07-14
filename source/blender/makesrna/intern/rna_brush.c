@@ -166,11 +166,10 @@ static void rna_def_brush(BlenderRNA *brna)
 		{SCULPT_TOOL_FLATTEN, "FLATTEN", 0, "Flatten", ""},
 		{SCULPT_TOOL_CLAY, "CLAY", 0, "Clay", ""},
 		{SCULPT_TOOL_CLAY_TUBES, "CLAY_TUBES", 0, "Clay Tubes", ""},
-		{SCULPT_TOOL_WAX, "WAX", 0, "Wax", ""},
 		{SCULPT_TOOL_FILL, "FILL", 0, "Fill", ""},
 		{SCULPT_TOOL_SCRAPE, "SCRAPE", 0, "Scrape", ""},
 		{0, NULL, 0, NULL, NULL}};
-	
+
 	static EnumPropertyItem brush_stroke_method_items[] = {
 		{0, "DOTS", 0, "Dots", ""},
 		{BRUSH_RESTORE_MESH, "DRAG_DOT", 0, "Drag Dot", ""},

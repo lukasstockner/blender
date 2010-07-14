@@ -624,7 +624,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 col.separator()
 
                 row = col.row(align=True)
-                row.prop(brush, "crease_pinch_factor", slider=True, "Pinch")
+                row.prop(brush, "crease_pinch_factor", slider=True, text="Pinch")
 
             if brush.sculpt_tool not in ('PINCH', 'INFLATE', 'SMOOTH'):
                 row = col.row(align=True)
@@ -638,7 +638,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row.prop(brush, "sculpt_plane", text="")
 
-            if brush.sculpt_tool in ('CLAY', 'CLAY_TUBES', 'WAX', 'FLATTEN', 'FILL', 'SCRAPE'):
+            if brush.sculpt_tool in ('CLAY', 'CLAY_TUBES', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
                 row.prop(brush, "plane_offset", slider=True)
                 row.prop(brush, "use_offset_pressure", text="")
@@ -656,7 +656,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             row= col.row()
             row.prop(brush, "use_frontface", text="Front Faces Only")
 
-            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'LAYER', 'CLAY', 'CLAY_TUBES', 'WAX'):
+            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'LAYER', 'CLAY', 'CLAY_TUBES'):
                 col.separator()
                 col.row().prop(brush, "direction", expand=True)
             elif brush.sculpt_tool in ('FLATTEN'):
@@ -677,7 +677,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
-            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY', 'CLAY_TUBES', 'WAX'):
+            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY', 'CLAY_TUBES'):
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
@@ -1108,7 +1108,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel):
         col = layout.column();
 
         if context.sculpt_object and context.tool_settings.sculpt:
-            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'CLAY_TUBES', 'WAX', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
+            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'CLAY_TUBES', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
                 col.prop(brush, "add_col", text="Add Color")
                 col.prop(brush, "sub_col", text="Substract Color")
             else:
