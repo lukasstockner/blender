@@ -566,14 +566,14 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			const float v = 1 - u;
 			const float r = 20;
 
-			const float dx = brush->last_x - x;
-			const float dy = brush->last_y - y;
+			const float dx = sd->last_x - x;
+			const float dy = sd->last_y - y;
 
 			if (dx*dx + dy*dy >= r*r) {
-				brush->last_angle = atan2(dx, dy);
+				sd->last_angle = atan2(dx, dy);
 
-				brush->last_x = u*brush->last_x + v*x;
-				brush->last_y = u*brush->last_y + v*y;
+				sd->last_x = u*sd->last_x + v*x;
+				sd->last_y = u*sd->last_y + v*y;
 			}
 		}
 
@@ -625,17 +625,17 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 					glTranslatef(0.5f, 0.5f, 0);
 
 					if (brush->flag & BRUSH_RAKE) {
-						glRotatef(brush->last_angle*(float)(180.0/M_PI), 0, 0, 1);
+						glRotatef(sd->last_angle*(float)(180.0/M_PI), 0, 0, 1);
 					}
 					else {
-						glRotatef(brush->special_rotation*(float)(180.0/M_PI), 0, 0, 1);
+						glRotatef(sd->special_rotation*(float)(180.0/M_PI), 0, 0, 1);
 					}
 
 					glTranslatef(-0.5f, -0.5f, 0);
 
-					if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
+					if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
 						glTranslatef(0.5f, 0.5f, 0);
-						glScalef(1.0f/brush->pressure_value, 1.0f/brush->pressure_value, 1);
+						glScalef(1.0f/sd->pressure_value, 1.0f/sd->pressure_value, 1);
 						glTranslatef(-0.5f, -0.5f, 0);
 					}
 				}
@@ -648,18 +648,18 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 				glBegin(GL_QUADS);
 				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-					if (brush->draw_anchored) {
+					if (sd->draw_anchored) {
 						glTexCoord2f(0, 0);
-						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]-brush->anchored_size - vc.ar->winrct.ymin);
+						glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin);
 
 						glTexCoord2f(1, 0);
-						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]-brush->anchored_size - vc.ar->winrct.ymin);
+						glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin);
 
 						glTexCoord2f(1, 1);
-						glVertex2f(brush->anchored_initial_mouse[0]+brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]+brush->anchored_size - vc.ar->winrct.ymin);
+						glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin);
 
 						glTexCoord2f(0, 1);
-						glVertex2f(brush->anchored_initial_mouse[0]-brush->anchored_size - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1]+brush->anchored_size - vc.ar->winrct.ymin);
+						glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin);
 					}
 					else {
 						glTexCoord2f(0, 0);
@@ -702,17 +702,14 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			// XXX duplicated from brush_strength & paint_stroke_add_step, refactor later
 			//wmEvent* event = CTX_wm_window(C)->eventstate;
 
-			if (brush->draw_pressure && (brush->flag & BRUSH_ALPHA_PRESSURE))
-				visual_strength *= brush->pressure_value;
-
-			// remove effect of strength multiplier
-			visual_strength /= brush->strength_multiplier;
+			if (sd->draw_pressure && (brush->flag & BRUSH_ALPHA_PRESSURE))
+				visual_strength *= sd->pressure_value;
 
 			// don't show effect of strength past the soft limit
 			if (visual_strength > 1) visual_strength = 1;
 
-			if (brush->draw_anchored) {
-				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush->anchored_size);
+			if (sd->draw_anchored) {
+				unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, sd->anchored_size);
 			}
 			else {
 				if (brush->flag & BRUSH_ANCHORED)
@@ -721,8 +718,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, sculpt_get_brush_size(brush));
 			}
 
-			if (brush->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
-				unprojected_radius *= brush->pressure_value;
+			if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
+				unprojected_radius *= sd->pressure_value;
 
 			if (!sculpt_get_lock_brush_size(brush))
 				sculpt_set_brush_unprojected_radius(brush, unprojected_radius);
@@ -735,8 +732,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				const float max_thickness= 0.12;
 				const float min_thickness= 0.06;
 				const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
-				const float inner_radius=  brush->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
-				const float outer_radius=  brush->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
+				const float inner_radius=  sd->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
+				const float outer_radius=  sd->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
 
 				GLUquadric* sphere;
 
@@ -762,8 +759,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				glPushMatrix();
 				glLoadMatrixf(modelview);
 
-				if (brush->draw_anchored)
-					glTranslatef(brush->anchored_location[0], brush->anchored_location[1], brush->anchored_location[2]);
+				if (sd->draw_anchored)
+					glTranslatef(sd->anchored_location[0], sd->anchored_location[1], sd->anchored_location[2]);
 				else
 					glTranslatef(location[0], location[1], location[2]);
 
@@ -844,10 +841,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 			glEnable(GL_LINE_SMOOTH);
 
-			if (brush->draw_anchored) {
-				glTranslatef(brush->anchored_initial_mouse[0] - vc.ar->winrct.xmin, brush->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, brush->anchored_size, 40);
-				glTranslatef(-brush->anchored_initial_mouse[0] + vc.ar->winrct.xmin, -brush->anchored_initial_mouse[1] + vc.ar->winrct.xmin, 0.0f);
+			if (sd->draw_anchored) {
+				glTranslatef(sd->anchored_initial_mouse[0] - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, sd->anchored_size, 40);
+				glTranslatef(-sd->anchored_initial_mouse[0] + vc.ar->winrct.xmin, -sd->anchored_initial_mouse[1] + vc.ar->winrct.xmin, 0.0f);
 			}
 			else {
 				glTranslatef((float)x, (float)y, 0.0f);

@@ -183,6 +183,7 @@ typedef struct StrokeCache {
 	/* Variants */
 	float radius;
 	float radius_squared;
+	//float traced_location[3];
 	float true_location[3];
 	float location[3];
 
@@ -228,6 +229,8 @@ typedef struct StrokeCache {
 	int alt_smooth;
 
 	float plane_trim_squared;
+
+	float autosmooth_overlap;
 } StrokeCache;
 
 /* ===== OPENGL =====
@@ -517,6 +520,7 @@ float calc_overlap(StrokeCache *cache, const char symm, const char axis, const f
 	float distsq;
 	float mat[4][4];
 	
+	//flip_coord(mirror, cache->traced_location, symm);
 	flip_coord(mirror, cache->true_location, symm);
 
 	unit_m4(mat);
@@ -524,6 +528,7 @@ float calc_overlap(StrokeCache *cache, const char symm, const char axis, const f
 
 	mul_m4_v3(mat, mirror);
 
+	//distsq = len_squared_v3v3(mirror, cache->traced_location);
 	distsq = len_squared_v3v3(mirror, cache->true_location);
 
 	if (distsq <= 4*(cache->radius_squared))
@@ -575,23 +580,17 @@ static float calc_symmetry_feather(Sculpt *sd, StrokeCache* cache)
 /* Return modified brush strength. Includes the direction of the brush, positive
    values pull vertices, negative values push. Uses tablet pressure and a
    special multiplier found experimentally to scale the strength factor. */
-static float brush_strength(Sculpt *sd, StrokeCache *cache)
+static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather, float overlap)
 {
 	Brush *brush = paint_brush(&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
-	float alpha        = sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush)*brush->strength_multiplier;
+	float alpha        = sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush);
 	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
 	float pressure     = brush->flag & BRUSH_ALPHA_PRESSURE	? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
 	float invert       = cache->invert ? -1 : 1;
-	float accum        = integrate_overlap(brush);
-	float overlap      = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? 1.0f/accum : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 	float flip         = dir * invert * pen_flip;
-	float feather      = calc_symmetry_feather(sd, cache);
-
-	// XXX not functionally cohesive to update this here
-	brush->autosmooth_overlap = overlap;
 
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_CLAY:
@@ -2397,10 +2396,9 @@ static void sculpt_update_keyblock(SculptSession *ss)
 	}
 }
 
-static void do_brush_action(Sculpt *sd, SculptSession *ss)
+static void do_brush_action(Sculpt *sd, SculptSession *ss, Brush *brush)
 {
 	SculptSearchSphereData data;
-	Brush *brush = paint_brush(&sd->paint);
 	PBVHNode **nodes = NULL;
 	int n, totnode;
 
@@ -2479,10 +2477,10 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss)
 
 		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0) {
 			if (brush->flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
-				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*(1-ss->cache->pressure)*brush->autosmooth_overlap);
+				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*(1-ss->cache->pressure)*ss->cache->autosmooth_overlap);
 			}
 			else {
-				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*brush->autosmooth_overlap);
+				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor*ss->cache->autosmooth_overlap);
 			}
 		}
 
@@ -2591,13 +2589,42 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 		MEM_freeN(nodes);
 }
 
+//static int max_overlap_count(Sculpt *sd)
+//{
+//	int count[3];
+//	int i, j;
+//
+//	for (i= 0; i < 3; i++) {
+//		count[i] = sd->radial_symm[i];
+//
+//		for (j= 0; j < 3; j++) {
+//			if (i != j && sd->flags & (SCULPT_SYMM_X<<i))
+//				count[i] *= 2;
+//		}
+//	}
+//
+//	return MAX3(count[0], count[1], count[2]);
+//}
+
 /* Flip all the editdata across the axis/axes specified by symm. Used to
    calculate multiple modifications to the mesh when symmetry is enabled. */
-static void calc_brushdata_symm(StrokeCache *cache, const char symm, const char axis, const float angle)
+static void calc_brushdata_symm(Sculpt *sd, StrokeCache *cache, const char symm, const char axis, const float angle, const float feather)
 {
 	flip_coord(cache->location, cache->true_location, symm);
 	flip_coord(cache->grab_delta_symmetry, cache->grab_delta, symm);
 	flip_coord(cache->view_normal, cache->true_view_normal, symm);
+
+	// XXX This reduces the length of the grab delta if it approaches the line of symmetry
+	// XXX However, a different approach appears to be needed
+	//if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
+	//	float frac = 1.0f/max_overlap_count(sd);
+	//	float reduce = (feather-frac)/(1-frac);
+
+	//	printf("feather: %f frac: %f reduce: %f\n", feather, frac, reduce);
+
+	//	if (frac < 1)
+	//		mul_v3_fl(cache->grab_delta_symmetry, reduce);
+	//}
 
 	unit_m4(cache->symm_rot_mat);
 	unit_m4(cache->symm_rot_mat_inv);
@@ -2608,27 +2635,34 @@ static void calc_brushdata_symm(StrokeCache *cache, const char symm, const char 
 	mul_m4_v3(cache->symm_rot_mat, cache->grab_delta_symmetry);
 }
 
-static void do_radial_symmetry(Sculpt *sd, SculptSession *ss, const char symm, const int axis)
+static void do_radial_symmetry(Sculpt *sd, SculptSession *ss, Brush *brush, const char symm, const int axis, const float feather)
 {
 	int i;
 
 	for(i = 1; i < sd->radial_symm[axis-'X']; ++i) {
 		const float angle = 2*M_PI*i/sd->radial_symm[axis-'X'];
 		ss->cache->radial_symmetry_pass= i;
-		calc_brushdata_symm(ss->cache, symm, axis, angle);
-		do_brush_action(sd, ss);
+		calc_brushdata_symm(sd, ss->cache, symm, axis, angle, feather);
+		do_brush_action(sd, ss, brush);
 	}
 }
 
 static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 {
+	Brush *brush = paint_brush(&sd->paint);
 	StrokeCache *cache = ss->cache;
 	const char symm = sd->flags & 7;
 	int i;
 
-	cache->symmetry= symm;
+	float feather = calc_symmetry_feather(sd, ss->cache);
+	float accum   = integrate_overlap(brush);
+	float overlap = (brush->flag & BRUSH_SPACE_ATTEN && brush->flag & BRUSH_SPACE && !(brush->flag & BRUSH_ANCHORED)) && (brush->spacing < 100) ? 1.0f/accum : 1; // spacing is integer percentage of radius, divide by 50 to get normalized diameter
 
-	cache->bstrength= brush_strength(sd, cache);
+	ss->cache->autosmooth_overlap = overlap;
+
+	cache->bstrength= brush_strength(sd, cache, feather, overlap);
+
+	cache->symmetry= symm;
 
 	/* symm is a bit combination of XYZ - 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */ 
 	for(i = 0; i <= symm; ++i) {
@@ -2636,12 +2670,12 @@ static void do_symmetrical_brush_actions(Sculpt *sd, SculptSession *ss)
 			cache->mirror_symmetry_pass= i;
 			cache->radial_symmetry_pass= 0;
 
-			calc_brushdata_symm(cache, i, 0, 0);
-			do_brush_action(sd, ss);
+			calc_brushdata_symm(sd, cache, i, 0, 0, feather);
+			do_brush_action(sd, ss, brush);
 
-			do_radial_symmetry(sd, ss, i, 'X');
-			do_radial_symmetry(sd, ss, i, 'Y');
-			do_radial_symmetry(sd, ss, i, 'Z');
+			do_radial_symmetry(sd, ss, brush, i, 'X', feather);
+			do_radial_symmetry(sd, ss, brush, i, 'Y', feather);
+			do_radial_symmetry(sd, ss, brush, i, 'Z', feather);
 		}
 	}
 
@@ -2994,9 +3028,9 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
-	cache->special_rotation = (brush->flag & BRUSH_RAKE) ? brush->last_angle : 0;
-	//cache->last_rake[0] = brush->last_x;
-	//cache->last_rake[1] = brush->last_y;
+	cache->special_rotation = (brush->flag & BRUSH_RAKE) ? sd->last_angle : 0;
+	//cache->last_rake[0] = sd->last_x;
+	//cache->last_rake[1] = sd->last_y;
 
 	cache->first_time= 1;
 
@@ -3010,6 +3044,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	Brush *brush = paint_brush(&sd->paint);
 
 	int dx, dy;
+
+	//RNA_float_get_array(ptr, "location", cache->traced_location);
 
 	if (cache->first_time ||
 	    !((brush->flag & BRUSH_ANCHORED)||
@@ -3027,8 +3063,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 
 	/* Truly temporary data that isn't stored in properties */
 
-	brush->draw_pressure=  1;
-	brush->pressure_value= cache->pressure;
+	sd->draw_pressure=  1;
+	sd->pressure_value= cache->pressure;
 
 	cache->previous_pixel_radius = cache->pixel_radius;
 	cache->pixel_radius = sculpt_get_brush_size(brush);
@@ -3072,7 +3108,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		dx = cache->mouse[0] - cache->initial_mouse[0];
 		dy = cache->mouse[1] - cache->initial_mouse[1];
 
-		brush->anchored_size = cache->pixel_radius = sqrt(dx*dx + dy*dy);
+		sd->anchored_size = cache->pixel_radius = sqrt(dx*dx + dy*dy);
 
 		cache->special_rotation = atan2(dx, dy) + M_PI;
 
@@ -3089,25 +3125,25 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 			add_v3_v3(halfway, cache->initial_mouse);
 
 			if (sculpt_stroke_get_location(C, stroke, out, halfway)) {
-				copy_v3_v3(brush->anchored_location, out);
-				copy_v3_v3(brush->anchored_initial_mouse, halfway);
+				copy_v3_v3(sd->anchored_location, out);
+				copy_v3_v3(sd->anchored_initial_mouse, halfway);
 				copy_v2_v2(cache->tex_mouse, halfway);
-				copy_v3_v3(cache->true_location, brush->anchored_location);
-				brush->anchored_size /= 2.0f;
+				copy_v3_v3(cache->true_location, sd->anchored_location);
+				sd->anchored_size /= 2.0f;
 				cache->pixel_radius  /= 2.0f;
 				hit = 1;
 			}
 		}
 
 		if (!hit)
-			copy_v2_v2(brush->anchored_initial_mouse, cache->initial_mouse);
+			copy_v2_v2(sd->anchored_initial_mouse, cache->initial_mouse);
 
 		cache->radius= unproject_brush_radius(ss->ob, paint_stroke_view_context(stroke), cache->true_location, cache->pixel_radius);
 		cache->radius_squared = cache->radius*cache->radius;
 
-		copy_v3_v3(brush->anchored_location, cache->true_location);
+		copy_v3_v3(sd->anchored_location, cache->true_location);
 
-		brush->draw_anchored = 1;
+		sd->draw_anchored = 1;
 	}
 	else if(brush->flag & BRUSH_RAKE) {
 		const float u = 0.5f;
@@ -3157,10 +3193,10 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		/* location stays the same for finding vertices in brush radius */
 		copy_v3_v3(cache->true_location, cache->orig_grab_location);
 
-		brush->draw_anchored = 1;
-		copy_v3_v3(brush->anchored_location, cache->true_location);
-		copy_v3_v3(brush->anchored_initial_mouse, cache->initial_mouse);
-		brush->anchored_size = cache->pixel_radius;
+		sd->draw_anchored = 1;
+		copy_v3_v3(sd->anchored_location, cache->true_location);
+		copy_v3_v3(sd->anchored_initial_mouse, cache->initial_mouse);
+		sd->anchored_size = cache->pixel_radius;
 	}
 	/* Find the nudge/clay tubes delta */
 	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE || brush->sculpt_tool == SCULPT_TOOL_CLAY_TUBES) {
@@ -3241,10 +3277,10 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		/* location stays the same for finding vertices in brush radius */
 		copy_v3_v3(cache->true_location, cache->orig_grab_location);
 
-		brush->draw_anchored = 1;
-		copy_v3_v3(brush->anchored_location, cache->orig_grab_location);
-		copy_v3_v3(brush->anchored_initial_mouse, cache->initial_mouse);
-		brush->anchored_size = cache->pixel_radius;
+		sd->draw_anchored = 1;
+		copy_v3_v3(sd->anchored_location, cache->orig_grab_location);
+		copy_v3_v3(sd->anchored_initial_mouse, cache->initial_mouse);
+		sd->anchored_size = cache->pixel_radius;
 	}
 	else if(brush->sculpt_tool == SCULPT_TOOL_ROTATE) {
 		dx = cache->mouse[0] - cache->initial_mouse[0];
@@ -3252,13 +3288,13 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 
 		cache->vertex_rotation = -atan2(dx, dy) / 4.0f;
 
-		brush->draw_anchored = 1;
-		copy_v2_v2(brush->anchored_initial_mouse, cache->initial_mouse);
-		copy_v3_v3(brush->anchored_location, cache->true_location);
-		brush->anchored_size = cache->pixel_radius;
+		sd->draw_anchored = 1;
+		copy_v2_v2(sd->anchored_initial_mouse, cache->initial_mouse);
+		copy_v3_v3(sd->anchored_location, cache->true_location);
+		sd->anchored_size = cache->pixel_radius;
 	}
 
-	brush->special_rotation = cache->special_rotation;
+	sd->special_rotation = cache->special_rotation;
 }
 
 static void sculpt_stroke_modifiers_check(bContext *C, SculptSession *ss)
@@ -3526,9 +3562,9 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	(void)unused;
 
 	// reset values used to draw brush after completing the stroke
-	brush->draw_anchored= 0;
-	brush->draw_pressure= 0;
-	brush->special_rotation= 0;
+	sd->draw_anchored= 0;
+	sd->draw_pressure= 0;
+	sd->special_rotation= 0;
 
 	/* Finished */
 	if(ss->cache) {
@@ -3736,8 +3772,12 @@ static int sculpt_toggle_mode(bContext *C, wmOperator *unused)
 			DAG_id_flush_update(&ob->id, OB_RECALC_DATA);
 		
 		/* Create persistent sculpt mode data */
-		if(!ts->sculpt)
+		if(!ts->sculpt) {
 			ts->sculpt = MEM_callocN(sizeof(Sculpt), "sculpt mode data");
+
+			/* Turn on X plane mirror symmetry by default */
+			ts->sculpt->flags |= SCULPT_SYMM_X;
+		}
 
 		/* Create sculpt mode session data */
 		if(ob->sculpt)

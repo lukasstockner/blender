@@ -525,8 +525,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 row.template_list(settings, "brushes", settings, "active_brush_index", rows=2, maxrows=defaultbrushes)
 
-            col.operator("brush.copy", text="Duplicate Brush")
-
         # Particle Mode #
 
         # XXX This needs a check if psys is editable.
@@ -604,8 +602,6 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.prop(brush, "use_strength_pressure", text="")
 
 
-                row = col.row()
-                row.prop(brush, "strength_multiplier")
 
             if brush.sculpt_tool not in ('SMOOTH'):
                 col.separator()
@@ -895,13 +891,9 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel):
         if context.sculpt_object:
             col.prop(brush, "sculpt_tool", expand=False, text="")
         elif context.texture_paint_object:
-            col.prop(brush, "imagepaint_tool", expand=True)
-            #col.prop_enum(settings, "tool", 'DRAW')
-            #col.prop_enum(settings, "tool", 'SOFTEN')
-            #col.prop_enum(settings, "tool", 'CLONE')
-            #col.prop_enum(settings, "tool", 'SMEAR')
+            col.prop(brush, "imagepaint_tool", expand=False, text="")
         elif context.vertex_paint_object or context.weight_paint_object:
-            col.prop(brush, "vertexpaint_tool", expand=True)
+            col.prop(brush, "vertexpaint_tool", expand=False, text="")
 
 
 class VIEW3D_PT_tools_brush_stroke(PaintPanel):

@@ -214,7 +214,7 @@ static void rna_Paint_active_brush_name_set(PointerRNA *ptr, const char *value)
 	
 	for(i = 0; i < p->brush_count; ++i) {
 		br = p->brushes[i];
-	
+
 		if (strcmp(br->id.name+2, value)==0) {
 			paint_brush_set(p, br);
 			return;

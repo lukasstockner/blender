@@ -45,12 +45,16 @@
 static int brush_add_exec(bContext *C, wmOperator *op)
 {
 	/*int type = RNA_enum_get(op->ptr, "type");*/
-	Brush *br = NULL;
+	Paint *paint = paint_get_active(CTX_data_scene(C));
+	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+	Brush *br = paint_brush(paint);
 
-	br = add_brush("Brush");
+	if (br)
+		br = copy_brush(br);
+	else
+		br = add_brush("Brush");
 
-	if(br)
-		paint_brush_set(paint_get_active(CTX_data_scene(C)), br);
+	paint_brush_set(paint_get_active(CTX_data_scene(C)), br);
 
 	return OPERATOR_FINISHED;
 }
@@ -76,35 +80,6 @@ void BRUSH_OT_add(wmOperatorType *ot)
 	ot->flag= OPTYPE_UNDO;
 
 	RNA_def_enum(ot->srna, "type", brush_type_items, OB_MODE_VERTEX_PAINT, "Type", "Which paint mode to create the brush for.");
-}
-
-/* Brush operators */
-static int brush_copy_exec(bContext *C, wmOperator *op)
-{
-	Paint *paint = paint_get_active(CTX_data_scene(C));
-	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-	Brush *br = paint_brush(paint);
-
-	br = copy_brush(br);
-
-	if (br)
-		paint_brush_set(paint_get_active(CTX_data_scene(C)), br);
-
-	return OPERATOR_FINISHED;
-}
-
-void BRUSH_OT_copy(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name= "Copy Brush";
-	ot->description= "Copy the current brush and create a new one";
-	ot->idname= "BRUSH_OT_copy";
-
-	/* api callbacks */
-	ot->exec= brush_copy_exec;
-	
-	/* flags */
-	ot->flag= OPTYPE_UNDO;
 }
 
 static int vertex_color_set_exec(bContext *C, wmOperator *op)
@@ -138,7 +113,6 @@ void ED_operatortypes_paint(void)
 {
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
-	WM_operatortype_append(BRUSH_OT_copy);
 	WM_operatortype_append(BRUSH_OT_curve_preset);
 
 

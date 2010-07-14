@@ -71,56 +71,55 @@ Brush *add_brush(const char *name)
 
 	/* BRUSH SCULPT TOOL SETTINGS */
 	brush->sculpt_tool = SCULPT_TOOL_DRAW; /* sculpting defaults to the draw tool for new brushes */
-	brush->plane_offset= 0.0f; /* how far above or below the plane that is found by averaging the faces */
-	brush->size= 50; /* radius of the brush in pixels */
+	brush->size= 35; /* radius of the brush in pixels */
 	brush->alpha= 0.5f; /* brush strength/intensity probably variable should be renamed? */
-	
+	brush->autosmooth_factor= 0.0f;
+	brush->crease_pinch_factor= 2.0f/3.0f;
+	brush->sculpt_plane = SCULPT_DISP_DIR_VIEW;
+	brush->plane_offset= 0.0f; /* how far above or below the plane that is found by averaging the faces */
+	brush->plane_trim= 0.5f;
+	brush->clone.alpha= 0.5f;
+	brush->normal_weight= 0.0f;
+
 	/* BRUSH PAINT TOOL SETTINGS */
 	brush->rgb[0]= 1.0f; /* default rgb color of the brush when painting - white */
 	brush->rgb[1]= 1.0f;
 	brush->rgb[2]= 1.0f;
-	
-	
+
 	/* BRUSH STROKE SETTINGS */
-	brush->spacing= 12; /* how far each brush dot should be spaced as a percentage of brush diameter */
+	brush->flag |= (BRUSH_SPACE|BRUSH_SPACE_ATTEN);
+	brush->spacing= 10; /* how far each brush dot should be spaced as a percentage of brush diameter */
+
 	brush->smooth_stroke_radius= 75;
 	brush->smooth_stroke_factor= 0.9f;
+
 	brush->rate= 0.1f; /* time delay between dots of paint or sculpting when doing airbrush mode */
+
 	brush->jitter= 0.0f;
-	brush->clone.alpha= 0.5f;
 
-	//brush->stroke_tool = STROKE_TOOL_FREEHAND;
-	brush->flag |= BRUSH_SPACE;
-	
 	/* BRUSH TEXTURE SETTINGS */
-	brush->texture_sample_bias = 0; /* value to added to texture samples */
-
-	brush->autosmooth_factor = 0;
-
-	brush->crease_pinch_factor = 2.0f/3.0f;
-
-	/* color of the 'on surface' brush */
-	brush->add_col[0] = 1.00; /* add mode color is red */
-	brush->add_col[1] = 0.39;
-	brush->add_col[2] = 0.39;
-
-	brush->sub_col[0] = 0.39; /* subtract mode color is blue */
-	brush->sub_col[1] = 0.39;
-	brush->sub_col[2] = 1.00;
-
-	/* note we should have a smoothing color also */
-	
-	brush_curve_preset(brush, CURVE_PRESET_SMOOTH); /* the default alpha falloff curve */
-	
 	default_mtex(&brush->mtex);
+
+	brush->texture_sample_bias= 0; /* value to added to texture samples */
+
+	/* brush appearance  */
+
+	brush->image_icon= NULL;
+
+	brush->add_col[0]= 1.00; /* add mode color is light red */
+	brush->add_col[1]= 0.39;
+	brush->add_col[2]= 0.39;
+
+	brush->sub_col[0]= 0.39; /* subtract mode color is light blue */
+	brush->sub_col[1]= 0.39;
+	brush->sub_col[2]= 1.00;
+
+	 /* the default alpha falloff curve */
+	brush_curve_preset(brush, CURVE_PRESET_SMOOTH);
 
 	/* enable fake user by default */
 	brush->id.flag |= LIB_FAKEUSER;
 	brush_toggled_fake_user(brush);
-	
-	brush->image_icon = NULL;
-
-	brush->plane_trim = 0.5f;
 
 	return brush;
 }

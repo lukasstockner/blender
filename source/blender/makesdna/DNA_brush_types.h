@@ -55,8 +55,6 @@ typedef struct Brush {
 	struct MTex mtex;
 	struct Image *image_icon;
 
-	int strength_multiplier;		/* increases the strength by a multiplier */
-
 	float normal_weight;
 
 	short blend, pad;		/* blend mode */
@@ -70,7 +68,7 @@ typedef struct Brush {
 
 	float rgb[3];			/* color */
 	float alpha;			/* opacity */
-	
+
 	int sculpt_plane;		/* the direction of movement for sculpt vertices */
 
 	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape) */
@@ -78,40 +76,21 @@ typedef struct Brush {
 	char sculpt_tool;		/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
 	char imagepaint_tool;		/* active image paint tool */
-	char stroke_tool;
+	char pad3;
 
 	float autosmooth_factor;
-	float autosmooth_overlap; // XXX: move this to strokecache
 
 	float crease_pinch_factor;
 
 	float plane_trim;
-
-	int pad2;
 
 	float texture_sample_bias;
 	int   texture_overlay_alpha;
 
 	float unprojected_radius;
 
-	// all this below is used to communicate with the cursor drawing routine
-
-	/* record movement of mouse so that rake can start at an intuitive angle */
-	float last_x, last_y;
-	float last_angle;
-
 	float add_col[3];
 	float sub_col[3];
-
-	int draw_anchored;
-	int   anchored_size;
-	float anchored_location[3];
-	float anchored_initial_mouse[2];
-
-	int draw_pressure;
-	float pressure_value;
-
-	float special_rotation;
 } Brush;
 
 /* Brush.flag */

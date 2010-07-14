@@ -10957,37 +10957,78 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	{
+		/* GSOC 2010 Sculpt - New settings for Brush */
+
 		Brush *brush;
 		for (brush= main->brush.first; brush; brush= brush->id.next) {
-			if (brush->texture_overlay_alpha == 0)
-				brush->texture_overlay_alpha = 33;
+			/* Sanity Check */
 
+			// infinite number of dabs
+			if (brush->spacing == 0)
+				brush->spacing = 10;
+
+			// will have no effect
+			if (brush->alpha == 0)
+				brush->alpha = 0.5f;
+
+			// bad radius
 			if (brush->unprojected_radius == 0)
 				brush->unprojected_radius = 0.125;
 
-			if (brush->add_col[0] == 0 &&
-			    brush->add_col[1] == 0 &&
-			    brush->add_col[2] == 0)
-			{
-				brush->add_col[0] = 1.00;
-				brush->add_col[1] = 0.39;
-				brush->add_col[2] = 0.39;
-			}
+			// unusable size
+			if (brush->size == 0)
+				brush->size = 35;
 
-			if (brush->sub_col[0] == 0 &&
-			    brush->sub_col[1] == 0 &&
-			    brush->sub_col[2] == 0)
-			{
-				brush->sub_col[0] = 0.39;
-				brush->sub_col[1] = 0.39;
-				brush->sub_col[2] = 1.00;
-			}
+			// can't see overlay
+			if (brush->texture_overlay_alpha == 0)
+				brush->texture_overlay_alpha = 33;
 
+			// same as draw brush
 			if (brush->crease_pinch_factor == 0)
 				brush->crease_pinch_factor = 2.0f/3.0f;
 
+			// will sculpt no vertexes
 			if (brush->plane_trim == 0)
 				brush->plane_trim = 0.5f;
+
+			// same as smooth stroke off
+			if (brush->smooth_stroke_radius == 0)
+				brush->smooth_stroke_radius= 75;
+
+			// will keep cursor in one spot
+			if (brush->smooth_stroke_radius == 1)
+				brush->smooth_stroke_factor= 0.9f;
+
+			// same as dots
+			if (brush->rate == 0)
+				brush->rate = 0.1f;
+
+			/* New Settings */
+			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 6)) {
+				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive space
+
+				// spacing was originally in pixels, convert it to percentage for new version
+				// size should not be zero due to sanity check above
+				brush->spacing = (int)(100*((float)brush->spacing) / ((float)brush->size));
+
+				if (brush->add_col[0] == 0 &&
+					brush->add_col[1] == 0 &&
+					brush->add_col[2] == 0)
+				{
+					brush->add_col[0] = 1.00;
+					brush->add_col[1] = 0.39;
+					brush->add_col[2] = 0.39;
+				}
+
+				if (brush->sub_col[0] == 0 &&
+					brush->sub_col[1] == 0 &&
+					brush->sub_col[2] == 0)
+				{
+					brush->sub_col[0] = 0.39;
+					brush->sub_col[1] = 0.39;
+					brush->sub_col[2] = 1.00;
+				}
+			}
 		}
 	}
 
