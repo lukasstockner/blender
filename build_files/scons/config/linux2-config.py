@@ -171,9 +171,6 @@ WITH_BF_OPENMP = True
 WITH_BF_RAYOPTIMIZATION = True
 BF_RAYOPTIMIZATION_SSE_FLAGS = ['-msse','-pthread']
 
-#On-surface brush
-WITH_BF_ONSURFACEBRUSH = True
-
 ##
 CC = 'gcc'
 CXX = 'g++'

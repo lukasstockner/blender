@@ -247,9 +247,9 @@ void seq_free_sequence(Scene *scene, Sequence *seq)
 
 		if(seq->scene_sound)
 			sound_remove_scene_sound(scene, seq->scene_sound);
-	}
 
-	seq_free_animdata(scene, seq);
+		seq_free_animdata(scene, seq);
+	}
 
 	MEM_freeN(seq);
 }
@@ -517,6 +517,31 @@ void calc_sequence_disp(Scene *scene, Sequence *seq)
 	seq_update_sound(scene, seq);
 }
 
+static void seq_update_sound_bounds_recursive(Scene *scene, Sequence *metaseq)
+{
+	Sequence *seq;
+
+	/* for sound we go over full meta tree to update bounds of the sound strips,
+	   since sound is played outside of evaluating the imbufs, */
+	for(seq=metaseq->seqbase.first; seq; seq=seq->next) {
+		if(seq->type == SEQ_META) {
+			seq_update_sound_bounds_recursive(scene, seq);
+		}
+		else if((seq->type == SEQ_SOUND) || (seq->type == SEQ_SCENE)) {
+			if(seq->scene_sound) {
+				int startofs = seq->startofs;
+				int endofs = seq->endofs;
+				if(seq->startofs + seq->start < metaseq->start + metaseq->startofs)
+					startofs = metaseq->start + metaseq->startofs - seq->start;
+
+				if(seq->start + seq->len - seq->endofs > metaseq->start + metaseq->len - metaseq->endofs)
+					endofs = seq->start + seq->len - metaseq->start - metaseq->len + metaseq->endofs;
+				sound_move_scene_sound(scene, seq->scene_sound, seq->start + startofs, seq->start+seq->len - endofs, startofs);
+			}
+		}
+	}
+}
+
 void calc_sequence(Scene *scene, Sequence *seq)
 {
 	Sequence *seqm;
@@ -576,6 +601,7 @@ void calc_sequence(Scene *scene, Sequence *seq)
 					new_tstripdata(seq);
 				}
 			}
+			seq_update_sound_bounds_recursive(scene, seq);
 		}
 		calc_sequence_disp(scene, seq);
 	}
@@ -1769,12 +1795,31 @@ static void input_preprocess(Scene *scene, Sequence *seq, TStripElem *se, int cf
 	if(seq->flag & SEQ_FLIPX) {
 		IMB_flipx(se->ibuf);
 	}
-	if(seq->flag & SEQ_FLIPY) {
-		IMB_flipy(se->ibuf);
-	}
 
-	if(seq->mul == 0.0) {
-		seq->mul = 1.0;
+	if(seq->sat != 1.0f) {
+		/* inline for now, could become an imbuf function */
+		int i;
+		char *rct= (char *)se->ibuf->rect;
+		float *rctf= se->ibuf->rect_float;
+		const float sat= seq->sat;
+		float hsv[3];
+
+		if(rct) {
+			float rgb[3];
+			for (i = se->ibuf->x * se->ibuf->y; i > 0; i--, rct+=4) {
+				rgb_byte_to_float(rct, rgb);
+				rgb_to_hsv(rgb[0], rgb[1], rgb[2], hsv, hsv+1, hsv+2);
+				hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rgb, rgb+1, rgb+2);
+				rgb_float_to_byte(rgb, rct);
+			}
+		}
+
+		if(rctf) {
+			for (i = se->ibuf->x * se->ibuf->y; i > 0; i--, rctf+=4) {
+				rgb_to_hsv(rctf[0], rctf[1], rctf[2], hsv, hsv+1, hsv+2);
+				hsv_to_rgb(hsv[0], hsv[1] * sat, hsv[2], rctf, rctf+1, rctf+2);
+			}
+		}
 	}
 
 	mul = seq->mul;
@@ -4043,6 +4088,7 @@ Sequence *alloc_sequence(ListBase *lb, int cfra, int machine)
 	seq->flag= SELECT;
 	seq->start= cfra;
 	seq->machine= machine;
+	seq->sat= 1.0;
 	seq->mul= 1.0;
 	seq->blend_opacity = 100.0;
 	seq->volume = 1.0f;

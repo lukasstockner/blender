@@ -68,6 +68,7 @@
 #include "GPU_extensions.h"
 #include "GPU_material.h"
 #include "GPU_draw.h"
+#include "gpu_buffers.h"
 
 #include "smoke_API.h"
 
@@ -804,10 +805,14 @@ void GPU_free_unused_buffers(void)
 
 	BLI_lock_thread(LOCK_OPENGL);
 
+	/* images */
 	for(ima=image_free_queue.first; ima; ima=ima->id.next)
 		GPU_free_image(ima);
 
 	BLI_freelistN(&image_free_queue);
+
+	/* vbo buffers */
+	GPU_buffer_pool_free_unused(0);
 
 	BLI_unlock_thread(LOCK_OPENGL);
 }

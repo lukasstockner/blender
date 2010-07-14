@@ -264,10 +264,7 @@ if MACOSX_ARCHITECTURE == 'i386':
     BF_RAYOPTIMIZATION_SSE_FLAGS = ['-msse']
 elif MACOSX_ARCHITECTURE == 'x86_64':
     BF_RAYOPTIMIZATION_SSE_FLAGS = ['-msse','-msse2']
-
-
-#On-surface brush
-WITH_BF_ONSURFACEBRUSH = True
+    
 
 #############################################################################
 ###################  various compile settings and flags    ##################
