@@ -35,7 +35,4 @@ if env['WITH_GHOST_COCOA']:
 if env['BF_BUILDINFO']:
 	defs.append('NAN_BUILDINFO')
 
-if env['WITH_BF_ONSURFACEBRUSH']:
-	defs.append('WITH_ONSURFACEBRUSH')
-
 env.BlenderLib ( 'bf_windowmanager', sources, Split(incs), defines=defs, libtype=['core'], priority=[5] )

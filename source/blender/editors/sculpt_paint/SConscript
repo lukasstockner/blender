@@ -21,7 +21,4 @@ if env['OURPLATFORM'] == 'linuxcross':
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc'):
     incs += ' ' + env['BF_PTHREADS_INC']
 
-if env['WITH_BF_ONSURFACEBRUSH']:
-    defs.append('WITH_ONSURFACEBRUSH')
-
 env.BlenderLib ( 'bf_editors_sculpt_paint', sources, Split(incs), defines=defs, libtype=['core'], priority=[40] )

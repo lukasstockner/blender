@@ -95,7 +95,7 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
 void BRUSH_OT_scale_size(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Scale Brush Size";
+	ot->name= "Scale Sculpt/Paint Brush Size";
 	ot->description= "Change brush size by a scalar";
 	ot->idname= "BRUSH_OT_scale_size";
 	
