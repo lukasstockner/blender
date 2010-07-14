@@ -626,18 +626,17 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row = col.row(align=True)
                 row.prop(brush, "crease_pinch_factor", slider=True)
 
+            if brush.sculpt_tool not in ('PINCH', 'INFLATE', 'SMOOTH'):
+                row = col.row(align=True)
 
+                col.separator()
 
-            col.separator()
+                if brush.use_original_normal:
+                    row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
+                else:
+                    row.prop(brush, "use_original_normal", toggle=True, text="", icon='UNLOCKED')
 
-            row = col.row(align=True)
-
-            if brush.use_original_normal:
-                row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
-            else:
-                row.prop(brush, "use_original_normal", toggle=True, text="", icon='UNLOCKED')
-
-            row.prop(brush, "sculpt_plane", text="")
+                row.prop(brush, "sculpt_plane", text="")
 
             if brush.sculpt_tool in ('CLAY', 'CLAY_TUBES', 'WAX', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
