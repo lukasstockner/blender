@@ -74,7 +74,7 @@ Brush *add_brush(const char *name)
 	brush->size= 35; /* radius of the brush in pixels */
 	brush->alpha= 0.5f; /* brush strength/intensity probably variable should be renamed? */
 	brush->autosmooth_factor= 0.0f;
-	brush->crease_pinch_factor= 2.0f/3.0f;
+	brush->crease_pinch_factor= 0.5f;
 	brush->sculpt_plane = SCULPT_DISP_DIR_VIEW;
 	brush->plane_offset= 0.0f; /* how far above or below the plane that is found by averaging the faces */
 	brush->plane_trim= 0.5f;

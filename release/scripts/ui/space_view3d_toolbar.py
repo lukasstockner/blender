@@ -624,7 +624,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 col.separator()
 
                 row = col.row(align=True)
-                row.prop(brush, "crease_pinch_factor", slider=True)
+                row.prop(brush, "crease_pinch_factor", slider=True, "Pinch")
 
             if brush.sculpt_tool not in ('PINCH', 'INFLATE', 'SMOOTH'):
                 row = col.row(align=True)

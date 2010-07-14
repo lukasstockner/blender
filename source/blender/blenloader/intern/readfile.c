@@ -10985,7 +10985,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			// same as draw brush
 			if (brush->crease_pinch_factor == 0)
-				brush->crease_pinch_factor = 2.0f/3.0f;
+				brush->crease_pinch_factor = 0.5f;
 
 			// will sculpt no vertexes
 			if (brush->plane_trim == 0)
