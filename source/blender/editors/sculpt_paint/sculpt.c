@@ -1023,9 +1023,6 @@ static void do_mesh_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *node, 
 	Brush *brush = paint_brush(&sd->paint);
 	PBVHVertexIter vd;
 	SculptBrushTest test;
-	float (*proxy)[3];
-
-	proxy= BLI_pbvh_node_add_proxy(ss->pbvh, node)->co;
 	
 	CLAMP(bstrength, 0.0f, 1.0f);
 
@@ -1318,7 +1315,6 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 				float val[3];
 
 				sub_v3_v3v3(val, test.location, vd.co);
-				//mul_v3_v3(val, ss->cache->scale);
 				mul_v3_v3fl(proxy[vd.i], val, fade);
 
 				if(vd.mvert)
