@@ -727,38 +727,135 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			if(!(paint->flags & PAINT_SHOW_BRUSH))
 				return;
 
+#ifdef WITH_ONSURFACEBRUSH
+			if (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) {
+				const float max_thickness= 0.12;
+				const float min_thickness= 0.06;
+				const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
+				const float inner_radius=  sd->draw_anchored ? unprojected_radius                  : unprojected_radius*thickness;
+				const float outer_radius=  sd->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
+
+				GLUquadric* sphere;
+
+				Object *ob= CTX_data_active_object(C);
+
+				glPushAttrib(
+					GL_COLOR_BUFFER_BIT|
+					GL_CURRENT_BIT|
+					GL_DEPTH_BUFFER_BIT|
+					GL_ENABLE_BIT|
+					GL_LINE_BIT|
+					GL_POLYGON_BIT|
+					GL_STENCIL_BUFFER_BIT|
+					GL_TRANSFORM_BIT|
+					GL_VIEWPORT_BIT|
+					GL_TEXTURE_BIT);
+
+				glColor4f(col[0], col[1], col[2], alpha);
+
+				glEnable(GL_BLEND);
+
+				glMatrixMode(GL_MODELVIEW);
+				glPushMatrix();
+				glLoadMatrixf(modelview);
+
+				if (sd->draw_anchored)
+					glTranslatef(sd->anchored_location[0], sd->anchored_location[1], sd->anchored_location[2]);
+				else
+					glTranslatef(location[0], location[1], location[2]);
+
+				glScalef(ob->size[0], ob->size[1], ob->size[2]);
+
+				glMatrixMode(GL_PROJECTION);
+				glPushMatrix();
+				glLoadMatrixf(projection);
+
+				glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+				glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+				glDepthMask(GL_FALSE);
+
+				glDisable(GL_CULL_FACE);
+
+				glEnable(GL_DEPTH_TEST);
+
+				glClearStencil(0);
+				glClear(GL_STENCIL_BUFFER_BIT);
+				glEnable(GL_STENCIL_TEST);
+
+				glStencilFunc(GL_ALWAYS, 3, 0xFF);
+				glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+
+				sphere = gluNewQuadric();
+
+				gluSphere(sphere, outer_radius, 40, 40);
+
+				glStencilFunc(GL_ALWAYS, 1, 0xFF);
+				glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
+
+				if (sculpt_get_brush_size(brush) >= 8)
+					gluSphere(sphere, inner_radius, 40, 40);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+				glStencilFunc(GL_EQUAL, 1, 0xFF);
+				glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+				gluSphere(sphere, outer_radius, 40, 40);
+
+				glStencilFunc(GL_EQUAL, 3, 0xFF);
+				glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+				gluSphere(sphere, outer_radius, 40, 40);
+
+				gluDeleteQuadric(sphere);
+
+				glPopMatrix();
+
+				glMatrixMode(GL_MODELVIEW);
+				glPopMatrix();
+
+				glPopAttrib();
+			}
+#endif
 		}
 
-		glPushAttrib(
-			GL_COLOR_BUFFER_BIT|
-			GL_CURRENT_BIT|
-			GL_DEPTH_BUFFER_BIT|
-			GL_ENABLE_BIT|
-			GL_LINE_BIT|
-			GL_POLYGON_BIT|
-			GL_STENCIL_BUFFER_BIT|
-			GL_TRANSFORM_BIT|
-			GL_VIEWPORT_BIT|
-			GL_TEXTURE_BIT);
+#ifdef WITH_ONSURFACEBRUSH
+		if (!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) {
+#endif
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_CURRENT_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_LINE_BIT|
+				GL_POLYGON_BIT|
+				GL_STENCIL_BUFFER_BIT|
+				GL_TRANSFORM_BIT|
+				GL_VIEWPORT_BIT|
+				GL_TEXTURE_BIT);
 
-		glColor4f(col[0], col[1], col[2], alpha);
+			glColor4f(col[0], col[1], col[2], alpha);
 
-		glEnable(GL_BLEND);
+			glEnable(GL_BLEND);
 
-		glEnable(GL_LINE_SMOOTH);
+			glEnable(GL_LINE_SMOOTH);
 
-		if (sd->draw_anchored) {
-			glTranslatef(sd->anchored_initial_mouse[0] - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
-			glutil_draw_lined_arc(0.0, M_PI*2.0, sd->anchored_size, 40);
-			glTranslatef(-sd->anchored_initial_mouse[0] + vc.ar->winrct.xmin, -sd->anchored_initial_mouse[1] + vc.ar->winrct.xmin, 0.0f);
+			if (sd->draw_anchored) {
+				glTranslatef(sd->anchored_initial_mouse[0] - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1] - vc.ar->winrct.ymin, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, sd->anchored_size, 40);
+				glTranslatef(-sd->anchored_initial_mouse[0] + vc.ar->winrct.xmin, -sd->anchored_initial_mouse[1] + vc.ar->winrct.xmin, 0.0f);
+			}
+			else {
+				glTranslatef((float)x, (float)y, 0.0f);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
+				glTranslatef(-(float)x, -(float)y, 0.0f);
+			}
+
+			glPopAttrib();
+#ifdef WITH_ONSURFACEBRUSH
 		}
-		else {
-			glTranslatef((float)x, (float)y, 0.0f);
-			glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
-			glTranslatef(-(float)x, -(float)y, 0.0f);
-		}
-
-		glPopAttrib();
+#endif
 	}
 	else {
 		Paint *paint = paint_get_active(CTX_data_scene(C));

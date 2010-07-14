@@ -83,6 +83,7 @@ def validate_arguments(args, bc):
             'BF_GHOST_DEBUG',
             'WITH_BF_RAYOPTIMIZATION',
             'BF_RAYOPTIMIZATION_SSE_FLAGS',
+            'WITH_BF_ONSURFACEBRUSH',
             'BF_NO_ELBEEM',
             'BF_VCREDIST' # Windows-only, and useful only when creating installer
             ]
@@ -443,6 +444,9 @@ def read_opts(env, cfg, args):
         
         (BoolVariable('WITH_BF_RAYOPTIMIZATION', 'Enable raytracer SSE/SIMD optimization.', False)),
         ('BF_RAYOPTIMIZATION_SSE_FLAGS', 'SSE flags', ''),
+
+        (BoolVariable('WITH_BF_ONSURFACEBRUSH', 'Enable use of the "on-surface brush" for paint/sculpt.  Requires a stencil buffer, GL_depth_texture, and GLSL', True)),
+
         ('BF_VCREDIST', 'Full path to vcredist', '')
     ) # end of opts.AddOptions()
 

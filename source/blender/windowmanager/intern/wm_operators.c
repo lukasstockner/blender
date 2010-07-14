@@ -2599,6 +2599,91 @@ typedef struct wmRadialControl {
 
 extern Paint *paint_get_active(Scene *sce);
 extern struct Brush *paint_brush(struct Paint *paint);
+#ifdef WITH_ONSURFACEBRUSH
+extern int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4]);
+extern float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset);
+
+
+static void draw_on_surface_cursor(float modelview[16], float projection[16], float col[3], float alpha, float size[3], int viewport[4], float location[3], float inner_radius, float outer_radius, int brush_size)
+{
+	GLUquadric* sphere;
+
+	glPushAttrib(
+		GL_COLOR_BUFFER_BIT|
+		GL_CURRENT_BIT|
+		GL_DEPTH_BUFFER_BIT|
+		GL_ENABLE_BIT|
+		GL_LINE_BIT|
+		GL_POLYGON_BIT|
+		GL_STENCIL_BUFFER_BIT|
+		GL_TRANSFORM_BIT|
+		GL_VIEWPORT_BIT|
+		GL_TEXTURE_BIT);
+
+	glColor4f(col[0], col[1], col[2], alpha);
+
+	glEnable(GL_BLEND);
+
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadMatrixf(modelview);
+
+	glTranslatef(location[0], location[1], location[2]);
+
+	glScalef(size[0], size[1], size[2]);
+
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadMatrixf(projection);
+
+	glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthMask(GL_FALSE);
+
+	glDisable(GL_CULL_FACE);
+
+	glEnable(GL_DEPTH_TEST);
+
+	glClearStencil(0);
+	glClear(GL_STENCIL_BUFFER_BIT);
+	glEnable(GL_STENCIL_TEST);
+
+	glStencilFunc(GL_ALWAYS, 3, 0xFF);
+	glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
+
+	sphere = gluNewQuadric();
+
+	gluSphere(sphere, outer_radius, 40, 40);
+
+	glStencilFunc(GL_ALWAYS, 1, 0xFF);
+	glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
+
+	if (brush_size >= 8)
+		gluSphere(sphere, inner_radius, 40, 40);
+
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+	glStencilFunc(GL_EQUAL, 1, 0xFF);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+	gluSphere(sphere, outer_radius, 40, 40);
+
+	glStencilFunc(GL_EQUAL, 3, 0xFF);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+	gluSphere(sphere, outer_radius, 40, 40);
+
+	gluDeleteQuadric(sphere);
+
+	glPopMatrix();
+
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+
+	glPopAttrib();
+}
+#endif
 
 static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 {
@@ -2648,51 +2733,141 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	else
 		col = brush->add_col;
 
-	glTranslatef((float)x, (float)y, 0.0f);
+#ifdef WITH_ONSURFACEBRUSH
+	if ((paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) && vc.obact->sculpt) {
+		float alpha;
+		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
-	glEnable(GL_BLEND);
+		int pixel_radius, viewport[4];
+		float location[3], modelview[16], projection[16];
 
-	if(rc->mode == WM_RADIALCONTROL_ANGLE) {
-		glRotatef(angle, 0, 0, 1);
+		float visual_strength = rc->mode == WM_RADIALCONTROL_STRENGTH ? rc->value*rc->value : sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush);
+
+		const float min_alpha = 0.20f;
+		const float max_alpha = 0.80f;
+
+		hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
+
+		alpha = min_alpha + (visual_strength*(max_alpha-min_alpha));
+
+		if (hit) {
+			Object *ob= CTX_data_active_object(C);
+
+			glTranslatef((float)x, (float)y, 0.0f);
+
+			glEnable(GL_BLEND);
+
+			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+				glRotatef(angle, 0, 0, 1);
+			}
+
+			if (rc->tex) {
+				glBindTexture(GL_TEXTURE_2D, rc->tex);
+
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+				glEnable(GL_TEXTURE_2D);
+				glBegin(GL_QUADS);
+				glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
+				glTexCoord2f(0,0);
+				glVertex2f(-r3, -r3);
+				glTexCoord2f(1,0);
+				glVertex2f(r3, -r3);
+				glTexCoord2f(1,1);
+				glVertex2f(r3, r3);
+				glTexCoord2f(0,1);
+				glVertex2f(-r3, r3);
+				glEnd();
+				glDisable(GL_TEXTURE_2D);
+			}
+
+			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+				glColor4f(col[0], col[1], col[2], 0.5f);
+				glEnable(GL_LINE_SMOOTH);
+				glRotatef(-angle, 0, 0, 1);
+				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+				glRotatef(angle, 0, 0, 1);
+				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+				glDisable(GL_LINE_SMOOTH);
+			}
+
+			glDisable(GL_BLEND);
+
+			{
+				const float unprojected_radius= unproject_brush_radius(CTX_data_active_object(C), &vc, location, r1);
+				const float max_thickness= 0.12;
+				const float min_thickness= 0.06;
+				const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
+				const float inner_radius=  unprojected_radius*thickness;
+				const float outer_radius=  unprojected_radius;
+
+				draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, sculpt_get_brush_size(brush));
+			}
+
+			{
+				const float unprojected_radius= unproject_brush_radius(CTX_data_active_object(C), &vc, location, r2);
+				const float max_thickness= 0.12;
+				const float min_thickness= 0.06;
+				const float thickness=     1.0 - min_thickness - visual_strength*max_thickness;
+				const float inner_radius=  unprojected_radius*thickness;
+				const float outer_radius=  unprojected_radius;
+
+				draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, sculpt_get_brush_size(brush));
+			}
+		}
 	}
 
-	if (rc->tex) {
-		glBindTexture(GL_TEXTURE_2D, rc->tex);
+	if (!hit) {
+#endif
+		glTranslatef((float)x, (float)y, 0.0f);
 
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glEnable(GL_BLEND);
 
-		glEnable(GL_TEXTURE_2D);
-		glBegin(GL_QUADS);
-		glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
-		glTexCoord2f(0,0);
-		glVertex2f(-r3, -r3);
-		glTexCoord2f(1,0);
-		glVertex2f(r3, -r3);
-		glTexCoord2f(1,1);
-		glVertex2f(r3, r3);
-		glTexCoord2f(0,1);
-		glVertex2f(-r3, r3);
-		glEnd();
-		glDisable(GL_TEXTURE_2D);
-	}
+		if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+			glRotatef(angle, 0, 0, 1);
+		}
 
-	if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+		if (rc->tex) {
+			glBindTexture(GL_TEXTURE_2D, rc->tex);
+
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+			glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			glEnable(GL_TEXTURE_2D);
+			glBegin(GL_QUADS);
+			glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
+			glTexCoord2f(0,0);
+			glVertex2f(-r3, -r3);
+			glTexCoord2f(1,0);
+			glVertex2f(r3, -r3);
+			glTexCoord2f(1,1);
+			glVertex2f(r3, r3);
+			glTexCoord2f(0,1);
+			glVertex2f(-r3, r3);
+			glEnd();
+			glDisable(GL_TEXTURE_2D);
+		}
+
+		if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+			glColor4f(col[0], col[1], col[2], 0.5f);
+			glEnable(GL_LINE_SMOOTH);
+			glRotatef(-angle, 0, 0, 1);
+			fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+			glRotatef(angle, 0, 0, 1);
+			fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+			glDisable(GL_LINE_SMOOTH);
+		}
+
 		glColor4f(col[0], col[1], col[2], 0.5f);
-		glEnable(GL_LINE_SMOOTH);
-		glRotatef(-angle, 0, 0, 1);
-		fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
-		glRotatef(angle, 0, 0, 1);
-		fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
-		glDisable(GL_LINE_SMOOTH);
+		glutil_draw_lined_arc(0.0, M_PI*2.0, r1, 40);
+		glutil_draw_lined_arc(0.0, M_PI*2.0, r2, 40);
+		glDisable(GL_BLEND);
+		
+		glPopMatrix();
+#ifdef WITH_ONSURFACEBRUSH
 	}
-
-	glColor4f(col[0], col[1], col[2], 0.5f);
-	glutil_draw_lined_arc(0.0, M_PI*2.0, r1, 40);
-	glutil_draw_lined_arc(0.0, M_PI*2.0, r2, 40);
-	glDisable(GL_BLEND);
-	
-	glPopMatrix();
+#endif
 }
 
 int WM_radial_control_modal(bContext *C, wmOperator *op, wmEvent *event)
