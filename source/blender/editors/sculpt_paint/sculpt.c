@@ -3480,7 +3480,6 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	Object *ob= CTX_data_active_object(C);
 	SculptSession *ss = ob->sculpt;
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
-	Brush *brush = paint_brush(&sd->paint);
 
 	(void)unused;
 
@@ -3492,7 +3491,7 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	/* Finished */
 	if(ss->cache) {
 		sculpt_stroke_modifiers_check(C, ss);
-		
+
 		/* Alt-Smooth */
 		if (ss->cache->alt_smooth) {
 			Paint *p= &sd->paint;

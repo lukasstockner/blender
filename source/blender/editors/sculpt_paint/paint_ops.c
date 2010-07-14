@@ -46,7 +46,6 @@ static int brush_add_exec(bContext *C, wmOperator *op)
 {
 	/*int type = RNA_enum_get(op->ptr, "type");*/
 	Paint *paint = paint_get_active(CTX_data_scene(C));
-	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	Brush *br = paint_brush(paint);
 
 	if (br)
@@ -58,13 +57,6 @@ static int brush_add_exec(bContext *C, wmOperator *op)
 
 	return OPERATOR_FINISHED;
 }
-
-static EnumPropertyItem brush_type_items[] = {
-	{OB_MODE_SCULPT, "SCULPT", ICON_SCULPTMODE_HLT, "Sculpt", ""},
-	{OB_MODE_VERTEX_PAINT, "VERTEX_PAINT", ICON_VPAINT_HLT, "Vertex Paint", ""},
-	{OB_MODE_WEIGHT_PAINT, "WEIGHT_PAINT", ICON_WPAINT_HLT, "Weight Paint", ""},
-	{OB_MODE_TEXTURE_PAINT, "TEXTURE_PAINT", ICON_TPAINT_HLT, "Texture Paint", ""},
-	{0, NULL, 0, NULL, NULL}};
 
 void BRUSH_OT_add(wmOperatorType *ot)
 {
@@ -78,8 +70,42 @@ void BRUSH_OT_add(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag= OPTYPE_UNDO;
+}
 
-	RNA_def_enum(ot->srna, "type", brush_type_items, OB_MODE_VERTEX_PAINT, "Type", "Which paint mode to create the brush for.");
+
+static int brush_scale_size_exec(bContext *C, wmOperator *op)
+{
+	/*int type = RNA_enum_get(op->ptr, "type");*/
+	Paint *paint = paint_get_active(CTX_data_scene(C));
+	Brush *br = paint_brush(paint);
+	float factor = RNA_float_get(op->ptr, "scalar");
+
+	if (br) {
+		if (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE) {
+			U.sculpt_paint_unified_size *= factor;
+		}
+		else {
+			br->size *= factor;
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void BRUSH_OT_scale_size(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Scale Brush Size";
+	ot->description= "Change brush size by a scalar";
+	ot->idname= "BRUSH_OT_scale_size";
+	
+	/* api callbacks */
+	ot->exec= brush_scale_size_exec;
+	
+	/* flags */
+	ot->flag= OPTYPE_UNDO;
+
+	RNA_def_float(ot->srna, "scalar", 1, 0, 2, "Scalar", "Factor to scale brush size by", 0, 2);
 }
 
 static int vertex_color_set_exec(bContext *C, wmOperator *op)
@@ -113,6 +139,7 @@ void ED_operatortypes_paint(void)
 {
 	/* brush */
 	WM_operatortype_append(BRUSH_OT_add);
+	WM_operatortype_append(BRUSH_OT_scale_size);
 	WM_operatortype_append(BRUSH_OT_curve_preset);
 
 
@@ -187,15 +214,13 @@ static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)
 static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *path)
 {
 	wmKeyMapItem *kmi;
-	
-	kmi= WM_keymap_add_item(keymap, "WM_OT_context_scale_int", LEFTBRACKETKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", path);
-	RNA_float_set(kmi->ptr, "value", 0.9);
-	
-	kmi= WM_keymap_add_item(keymap, "WM_OT_context_scale_int", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", path);
-	RNA_float_set(kmi->ptr, "value", 10.0/9.0); // 1.1111....
-}	
+
+	kmi= WM_keymap_add_item(keymap, "BRUSH_OT_scale_size", LEFTBRACKETKEY, KM_PRESS, 0, 0);
+	RNA_float_set(kmi->ptr, "scalar", 0.9);
+
+	kmi= WM_keymap_add_item(keymap, "BRUSH_OT_scale_size", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
+	RNA_float_set(kmi->ptr, "scalar", 10.0/9.0); // 1.1111....
+}
 
 void ED_keymap_paint(wmKeyConfig *keyconf)
 {
