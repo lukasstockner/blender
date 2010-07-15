@@ -413,9 +413,8 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 		
 		
 		uiLayoutRow(layout, 1);
-	} else 
-		
-	if(flag & UI_ID_BROWSE) {
+	} 
+	else if(flag & UI_ID_BROWSE) {
 		but= uiDefBlockButN(block, id_search_menu, MEM_dupallocN(template), "", 0, 0, UI_UNIT_X*1.6, UI_UNIT_Y, "Browse ID data");
 		if(type) {
 			but->icon= RNA_struct_ui_icon(type);
