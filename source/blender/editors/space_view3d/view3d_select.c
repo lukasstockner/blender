@@ -80,7 +80,7 @@
 #include "view3d_intern.h"	// own include
 
 // TODO: should return whether there is valid context to continue
-void view3d_set_viewcontext(bContext *C, ViewContext *vc)
+void view3d_set_viewcontext(const bContext *C, ViewContext *vc)
 {
 	memset(vc, 0, sizeof(ViewContext));
 	vc->ar= CTX_wm_region(C);

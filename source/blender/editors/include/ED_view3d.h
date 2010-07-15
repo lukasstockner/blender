@@ -138,7 +138,7 @@ int view_autodist_depth(struct ARegion *ar, short *mval, int margin, float *dept
 #define MAXPICKBUF      10000
 short view3d_opengl_select(struct ViewContext *vc, unsigned int *buffer, unsigned int bufsize, rcti *input);
 
-void view3d_set_viewcontext(struct bContext *C, struct ViewContext *vc);
+void view3d_set_viewcontext(const struct bContext *C, struct ViewContext *vc);
 void view3d_operator_needs_opengl(const struct bContext *C);
 void view3d_get_view_aligned_coordinate(struct ViewContext *vc, float *fp, short mval[2]);
 void view3d_get_transformation(struct ARegion *ar, struct RegionView3D *rv3d, struct Object *ob, struct bglMats *mats);

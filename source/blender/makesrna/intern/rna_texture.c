@@ -182,6 +182,7 @@ void rna_TextureSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 			break;
 		case ID_BR: 
 			WM_main_add_notifier(NC_BRUSH, id);
+			WM_main_add_notifier(NC_SPACE|ND_SPACE_VIEW3D, NULL);
 			break;
 	}
 }

@@ -78,6 +78,7 @@
 #include "ED_screen_types.h"
 #include "ED_transform.h"
 #include "ED_gpencil.h"
+#include "ED_sculpt.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -2395,7 +2396,73 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 		draw_selected_name(scene, ob, v3d);
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_PIXEL);
-	
+
+	/* Sculpt/Paint Overlay */
+	{
+		ViewContext vc;
+		Paint *paint = paint_get_active(CTX_data_scene(C));
+		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+		Brush *brush = paint_brush(paint);
+		float viewport[4];
+
+		view3d_set_viewcontext(C, &vc);
+
+		viewport[0] = vc.ar->winrct.xmin;
+		viewport[1] = vc.ar->winrct.ymin;
+		viewport[2] = vc.ar->winx;
+		viewport[3] = vc.ar->winy;
+
+		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && (brush->flag & BRUSH_TEXTURE_OVERLAY)) {
+			glPushAttrib(
+				GL_COLOR_BUFFER_BIT|
+				GL_CURRENT_BIT|
+				GL_DEPTH_BUFFER_BIT|
+				GL_ENABLE_BIT|
+				GL_LINE_BIT|
+				GL_POLYGON_BIT|
+				GL_STENCIL_BUFFER_BIT|
+				GL_TRANSFORM_BIT|
+				GL_VIEWPORT_BIT|
+				GL_TEXTURE_BIT);
+
+			if (ED_paint_load_overlay_tex(sd, brush, &vc)) {
+				glEnable(GL_BLEND);
+
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+				glDepthMask(GL_FALSE);
+				glDepthFunc(GL_ALWAYS);
+
+				glMatrixMode(GL_TEXTURE);
+				glPushMatrix();
+				glLoadIdentity();
+
+				glColor4f(
+					U.sculpt_paint_overlay_col[0],
+					U.sculpt_paint_overlay_col[1],
+					U.sculpt_paint_overlay_col[2],
+					brush->texture_overlay_alpha / 100.0f);
+
+				glBegin(GL_QUADS);
+				glTexCoord2f(0, 0);
+				glVertex2f(0, 0);
+
+				glTexCoord2f(1, 0);
+				glVertex2f(viewport[2], 0);
+
+				glTexCoord2f(1, 1);
+				glVertex2f(viewport[2], viewport[3]);
+
+				glTexCoord2f(0, 1);
+				glVertex2f(0, viewport[3]);
+				glEnd();
+
+				glPopMatrix();
+			}
+
+			glPopAttrib();
+		}
+	}
+
 	/* XXX here was the blockhandlers for floating panels */
 
 	v3d->flag |= V3D_INVALID_BACKBUF;

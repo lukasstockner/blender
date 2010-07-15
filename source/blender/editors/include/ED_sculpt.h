@@ -52,4 +52,6 @@ void ED_keymap_paint(struct wmKeyConfig *keyconf);
 void ED_undo_paint_step(struct bContext *C, int type, int step);
 void ED_undo_paint_free(void);
 
+int ED_paint_load_overlay_tex(struct Sculpt *sd, struct Brush* br, struct ViewContext* vc);
+
 #endif

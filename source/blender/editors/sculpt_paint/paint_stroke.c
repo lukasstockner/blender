@@ -253,7 +253,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	snap->winy = vc->ar->winy;
 }
 
-int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
+int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 {
 	static GLuint overlay_texture = 0;
 	static int init = 0;
@@ -317,7 +317,7 @@ int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 			old_size = size;
 		}
 
-		buffer = MEM_mallocN(sizeof(GLubyte)*size*size, "load_tex");
+		buffer = MEM_mallocN(sizeof(GLubyte)*size*size, "ED_paint_load_overlay_tex");
 
 		#pragma omp parallel for schedule(static) if (sd->flags & SCULPT_USE_OPENMP)
 		for (j= 0; j < size; j++) {
@@ -597,7 +597,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
-		if (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED) && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED && (brush->flag & BRUSH_TEXTURE_OVERLAY)) {
 			glPushAttrib(
 				GL_COLOR_BUFFER_BIT|
 				GL_CURRENT_BIT|
@@ -610,7 +610,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				GL_VIEWPORT_BIT|
 				GL_TEXTURE_BIT);
 
-			if (load_tex(sd, brush, &vc)) {
+			if (ED_paint_load_overlay_tex(sd, brush, &vc)) {
 				glEnable(GL_BLEND);
 
 				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -647,46 +647,31 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 					brush->texture_overlay_alpha / 100.0f);
 
 				glBegin(GL_QUADS);
-				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-					if (sd->draw_anchored) {
-						glTexCoord2f(0, 0);
-						glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin);
+				if (sd->draw_anchored) {
+					glTexCoord2f(0, 0);
+					glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin);
 
-						glTexCoord2f(1, 0);
-						glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin);
+					glTexCoord2f(1, 0);
+					glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin);
 
-						glTexCoord2f(1, 1);
-						glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin);
+					glTexCoord2f(1, 1);
+					glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin);
 
-						glTexCoord2f(0, 1);
-						glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin);
-					}
-					else {
-						glTexCoord2f(0, 0);
-						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
-
-						glTexCoord2f(1, 0);
-						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
-
-						glTexCoord2f(1, 1);
-						glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
-
-						glTexCoord2f(0, 1);
-						glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
-					}
+					glTexCoord2f(0, 1);
+					glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin);
 				}
 				else {
 					glTexCoord2f(0, 0);
-					glVertex2f(0, 0);
+					glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
 
 					glTexCoord2f(1, 0);
-					glVertex2f(viewport[2], 0);
+					glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
 
 					glTexCoord2f(1, 1);
-					glVertex2f(viewport[2], viewport[3]);
+					glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
 
 					glTexCoord2f(0, 1);
-					glVertex2f(0, viewport[3]);
+					glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
 				}
 				glEnd();
 
