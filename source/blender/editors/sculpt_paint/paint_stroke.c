@@ -214,7 +214,7 @@ typedef struct Snapshot {
 	int curve_changed_timestamp;
 } Snapshot;
 
-static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
+static int same_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 {
 	MTex* mtex = &brush->mtex;
 
@@ -229,11 +229,11 @@ static int same_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 		    mtex->rot == snap->rot) &&
 		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && sculpt_get_brush_size(brush) <= snap->brush_size) || (sculpt_get_brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
 		mtex->brush_map_mode == snap->brush_map_mode &&
-		vc->ar->winx == snap->winx &&
-		vc->ar->winy == snap->winy;
+		ar->winx == snap->winx &&
+		ar->winy == snap->winy;
 }
 
-static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
+static void make_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 {
 	if (brush->mtex.tex) {
 		snap->brush_map_mode = brush->mtex.brush_map_mode;
@@ -249,11 +249,11 @@ static void make_snap(Snapshot* snap, Brush* brush, ViewContext* vc)
 	}
 
 	snap->brush_size = sculpt_get_brush_size(brush);
-	snap->winx = vc->ar->winx;
-	snap->winy = vc->ar->winy;
+	snap->winx = ar->winx;
+	snap->winy = ar->winy;
 }
 
-int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
+static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 {
 	static GLuint overlay_texture = 0;
 	static int init = 0;
@@ -277,7 +277,7 @@ int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 		      br->mtex.tex->preview->changed_timestamp[0] != tex_changed_timestamp)) ||
 		!br->curve ||
 		br->curve->changed_timestamp != curve_changed_timestamp ||
-		!same_snap(&snap, br, vc);
+		!same_snap(&snap, br, ar);
 
 	if (refresh) {
 		if (br->mtex.tex && br->mtex.tex->preview)
@@ -286,7 +286,7 @@ int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 		if (br->curve)
 			curve_changed_timestamp = br->curve->changed_timestamp;
 
-		make_snap(&snap, br, vc);
+		make_snap(&snap, br, ar);
 
 		if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
 			int s = sculpt_get_brush_size(br);
@@ -317,7 +317,7 @@ int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 			old_size = size;
 		}
 
-		buffer = MEM_mallocN(sizeof(GLubyte)*size*size, "ED_paint_load_overlay_tex");
+		buffer = MEM_mallocN(sizeof(GLubyte)*size*size, "paint_load_overlay_tex");
 
 		#pragma omp parallel for schedule(static) if (sd->flags & SCULPT_USE_OPENMP)
 		for (j= 0; j < size; j++) {
@@ -342,8 +342,8 @@ int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 				y -= 0.5f;
 
 				if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) {
-					x *= vc->ar->winx / diameter;
-					y *= vc->ar->winy / diameter;
+					x *= ar->winx / diameter;
+					y *= ar->winy / diameter;
 				}
 				else {
 					x *= 2;
@@ -418,6 +418,65 @@ int ED_paint_load_overlay_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 	}
 
 	return 1;
+}
+
+void ED_paint_draw_overlay(const bContext* C, ARegion *ar)
+{
+	Paint  *paint = paint_get_active(CTX_data_scene(C));
+	Brush  *brush = paint_brush(paint);
+	Sculpt *sd    = CTX_data_tool_settings(C)->sculpt;
+
+	if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && (brush->flag & BRUSH_TEXTURE_OVERLAY)) {
+		glPushAttrib(
+			GL_COLOR_BUFFER_BIT|
+			GL_CURRENT_BIT|
+			GL_DEPTH_BUFFER_BIT|
+			GL_ENABLE_BIT|
+			GL_LINE_BIT|
+			GL_POLYGON_BIT|
+			GL_STENCIL_BUFFER_BIT|
+			GL_TRANSFORM_BIT|
+			GL_VIEWPORT_BIT|
+			GL_TEXTURE_BIT);
+
+		if (paint_load_overlay_tex(sd, brush, ar)) {
+			glEnable(GL_BLEND);
+
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+			glDepthMask(GL_FALSE);
+			glDepthFunc(GL_ALWAYS);
+
+			glMatrixMode(GL_TEXTURE);
+			glPushMatrix();
+			glLoadIdentity();
+
+			glColor4f(
+				U.sculpt_paint_overlay_col[0],
+				U.sculpt_paint_overlay_col[1],
+				U.sculpt_paint_overlay_col[2],
+				brush->texture_overlay_alpha / 100.0f);
+
+			glBegin(GL_QUADS);
+				glTexCoord2f(0, 0);
+				glVertex2f(0, 0);
+
+				glTexCoord2f(1, 0);
+				glVertex2f(ar->winx, 0);
+
+				glTexCoord2f(1, 1);
+				glVertex2f(ar->winx, ar->winy);
+
+				glTexCoord2f(0, 1);
+				glVertex2f(0, ar->winy);
+			glEnd();
+
+			glPopMatrix();
+
+			glMatrixMode(GL_MODELVIEW);
+		}
+
+		glPopAttrib();
+	}
 }
 
 /* Convert a point in model coordinates to 2D screen coordinates. */
@@ -610,7 +669,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				GL_VIEWPORT_BIT|
 				GL_TEXTURE_BIT);
 
-			if (ED_paint_load_overlay_tex(sd, brush, &vc)) {
+			if (paint_load_overlay_tex(sd, brush, vc.ar)) {
 				glEnable(GL_BLEND);
 
 				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
