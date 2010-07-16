@@ -9691,7 +9691,7 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					if(sAct->sound)
 					{
 						sound = newlibadr(fd, lib, sAct->sound);
-						sAct->flag = sound->flags | SOUND_FLAGS_3D ? ACT_SND_3D_SOUND : 0;
+						sAct->flag = sound->flags & SOUND_FLAGS_3D ? ACT_SND_3D_SOUND : 0;
 						sAct->pitch = sound->pitch;
 						sAct->volume = sound->volume;
 						sAct->sound3D.reference_distance = sound->distance;
@@ -10960,6 +10960,22 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				tex->saturation= 1.0f;
 		}
 
+		{
+			Curve *cu;
+			for(cu= main->curve.first; cu; cu= cu->id.next) {
+				cu->smallcaps_scale= 0.75f;
+			}
+		}
+
+		for (scene= main->scene.first; scene; scene=scene->id.next) {
+			if(scene) {
+				Sequence *seq;
+				SEQ_BEGIN(scene->ed, seq) {
+					seq->sat= 1.0f;
+				}
+				SEQ_END
+			}
+		}
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

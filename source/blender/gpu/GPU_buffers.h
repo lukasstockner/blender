@@ -49,6 +49,7 @@
 #endif
 
 struct DerivedMesh;
+struct DMGridData;
 struct GHash;
 struct GridKey;
 struct PBVH;
@@ -72,8 +73,9 @@ typedef struct GPUBuffer
 
 typedef struct GPUBufferPool
 {
-	int size;	/* number of allocated buffers stored */
-	GPUBuffer* buffers[MAX_FREE_GPU_BUFFERS];
+	int size;		/* number of allocated buffers stored */
+	int maxsize;	/* size of the array */
+	GPUBuffer **buffers;
 } GPUBufferPool;
 
 typedef struct GPUBufferMaterial
@@ -122,7 +124,8 @@ typedef struct GPUAttrib
 } GPUAttrib;
 
 GPUBufferPool *GPU_buffer_pool_new();
-void GPU_buffer_pool_free( GPUBufferPool *pool );	/* TODO: Find a place where to call this function on exit */
+void GPU_buffer_pool_free( GPUBufferPool *pool );
+void GPU_buffer_pool_free_unused( GPUBufferPool *pool );
 
 GPUBuffer *GPU_buffer_alloc( int size, GPUBufferPool *pool );
 void GPU_buffer_free( GPUBuffer *buffer, GPUBufferPool *pool );
@@ -139,10 +142,10 @@ typedef enum {
 } GPUDrawFlags;
 
 GPU_Buffers *GPU_build_mesh_buffers(struct GHash *map, struct MVert *mvert,
-			     struct MFace *mface, struct CustomData *vdata,
-			     struct CustomData *fdata, int *face_indices,
-			     int totface, int *vert_indices, int uniq_verts,
-			     int totvert);
+				    struct MFace *mface, struct CustomData *vdata,
+				    struct CustomData *fdata, int *face_indices,
+				    int totface, int *vert_indices, int uniq_verts,
+				    int totvert);
 void GPU_update_mesh_vert_buffers(GPU_Buffers *buffers, struct MVert *mvert,
 				  int *vert_indices, int totvert);
 void GPU_update_mesh_color_buffers(GPU_Buffers *buffers,
@@ -150,7 +153,7 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers,
 				   struct PBVHNode *node,
 				   GPUDrawFlags flags);
 GPU_Buffers *GPU_build_grid_buffers(struct DMGridData **grids,
-			     int *grid_indices, int totgrid, int gridsize);
+				    int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_vert_buffers(GPU_Buffers *buffersb, struct DMGridData **grids,
 				  int *grid_indices, int totgrid, int gridsize,
 				  struct GridKey *gridkey, int smooth);
@@ -159,8 +162,8 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   int *grid_indices, int totgrid,
 				   int gridsize, struct GridKey *gridkey,
 				   struct CustomData *vdata);
-void GPU_draw_buffers(void *buffers);
-void GPU_free_buffers(void *buffers);
+void GPU_draw_buffers(GPU_Buffers *buffers);
+void GPU_free_buffers(GPU_Buffers *buffers);
 
 /* called before drawing */
 void GPU_vertex_setup( struct DerivedMesh *dm );
