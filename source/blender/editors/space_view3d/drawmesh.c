@@ -343,7 +343,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	int istex, solidtex= 0;
 
 	// XXX scene->obedit warning
-	if(v3d->drawtype==OB_SOLID || ((ob->mode & OB_MODE_EDIT) && v3d->drawtype!=OB_TEXTURE)) {
+	if(v3d->drawtype==OB_SOLID || ((ob->mode & OB_MODE_EDIT) && !ELEM(v3d->drawtype, OB_TEXTURE, OB_MATCAP))) {
 		/* draw with default lights in solid draw mode and edit mode */
 		solidtex= 1;
 		Gtexdraw.islit= -1;
@@ -359,7 +359,7 @@ static void draw_textured_begin(Scene *scene, View3D *v3d, RegionView3D *rv3d, O
 	obcol[3]= CLAMPIS(ob->col[3]*255, 0, 255);
 	
 	glCullFace(GL_BACK); glEnable(GL_CULL_FACE);
-	if(solidtex || v3d->drawtype==OB_TEXTURE) istex= 1;
+	if(solidtex || ELEM(v3d->drawtype, OB_TEXTURE, OB_MATCAP)) istex= 1;
 	else istex= 0;
 
 	Gtexdraw.ob = ob;

@@ -40,6 +40,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "DNA_material_types.h"
+
 EnumPropertyItem space_type_items[] = {
 	{SPACE_EMPTY, "EMPTY", 0, "Empty", ""},
 	{SPACE_VIEW3D, "VIEW_3D", 0, "3D View", ""},
@@ -95,6 +97,7 @@ EnumPropertyItem viewport_shading_items[] = {
 	{OB_SOLID, "SOLID", ICON_SOLID, "Solid", "Display the object solid, lit with default OpenGL lights"},
 	//{OB_SHADED, "SHADED", ICON_SMOOTH, "Shaded", "Display the object solid, with preview shading interpolated at vertices"},
 	{OB_TEXTURE, "TEXTURED", ICON_POTATO, "Textured", "Display the object solid, with face-assigned textures"},
+	{OB_MATCAP, "MATCAP", ICON_SMOOTH, "MatCap", "Display the object solid, with MatCap texture"},
 	{0, NULL, 0, NULL, NULL}};
 
 #ifdef RNA_RUNTIME
@@ -671,6 +674,15 @@ static void rna_Sequencer_display_mode_update(bContext *C, PointerRNA *ptr)
 	ED_sequencer_update_view(C, view);
 }
 
+
+static void rna_View3D_matcap_image_changed(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	extern Material matcap_ma;
+
+	if(matcap_ma.gpumaterial.first)
+		GPU_material_free(&matcap_ma);
+}
+
 #else
 
 static void rna_def_space(BlenderRNA *brna)
@@ -1142,7 +1154,14 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, NULL, "rna_SpaceView3D_layer_set");
 	RNA_def_property_ui_text(prop, "Visible Layers", "Layers visible in this 3D View");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
-	
+
+	prop= RNA_def_property(srna, "matcap_image", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "matcap_ima");
+	RNA_def_property_struct_type(prop, "Image");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "MatCap Image", "");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, "rna_View3D_matcap_image_changed");
+
 	prop= RNA_def_property(srna, "used_layers", PROP_BOOLEAN, PROP_LAYER_MEMBER);
 	RNA_def_property_boolean_sdna(prop, NULL, "lay_used", 1);
 	RNA_def_property_array(prop, 20);

@@ -4589,6 +4589,8 @@ static void lib_link_screen(FileData *fd, Main *main)
 						if(v3d->localvd) {
 							v3d->localvd->camera= newlibadr(fd, sc->id.lib, v3d->localvd->camera);
 						}
+
+						v3d->matcap_ima= newlibadr_us(fd, sc->id.lib, v3d->matcap_ima);
 					}
 					else if(sl->spacetype==SPACE_IPO) {
 						SpaceIpo *sipo= (SpaceIpo *)sl;
@@ -4817,7 +4819,8 @@ void lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *curscene)
 
 					/* not very nice, but could help */
 					if((v3d->layact & v3d->lay)==0) v3d->layact= v3d->lay;
-					
+
+					v3d->matcap_ima = restore_pointer_by_name(newmain, (ID *)v3d->matcap_ima, 1);
 				}
 				else if(sl->spacetype==SPACE_IPO) {
 					SpaceIpo *sipo= (SpaceIpo *)sl;
@@ -5107,7 +5110,7 @@ static void direct_link_screen(FileData *fd, bScreen *sc)
 				v3d->localvd= newdataadr(fd, v3d->localvd);
 				v3d->afterdraw.first= v3d->afterdraw.last= NULL;
 				v3d->properties_storage= NULL;
-				
+
 				view3d_split_250(v3d, &sl->regionbase);
 			}
 			else if (sl->spacetype==SPACE_IPO) {

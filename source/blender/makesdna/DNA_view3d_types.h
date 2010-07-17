@@ -157,7 +157,7 @@ typedef struct View3D {
 	
 	/**
 	 * The drawing mode for the 3d display. Set to OB_WIRE, OB_SOLID,
-	 * OB_SHADED or OB_TEXTURE */
+	 * OB_SHADED, OB_TEXTURE, or OB_MATCAP */
 	short drawtype;
 	short pad2;
 	short scenelock, around, pad3;
@@ -198,6 +198,7 @@ typedef struct View3D {
 	/* XXX depricated? */
 	struct bGPdata *gpd;		/* Grease-Pencil Data (annotation layers) */
 
+	struct Image *matcap_ima;
 } View3D;
 
 /* XXX this needs cleaning */

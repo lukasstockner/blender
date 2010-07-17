@@ -44,6 +44,8 @@
 #include "BKE_screen.h"
 #include "BKE_utildefines.h"
 #include "BKE_image.h"
+#include "BKE_material.h"
+#include "BKE_texture.h"
 
 #include "ED_screen.h"
 #include "ED_object.h"
@@ -211,7 +213,7 @@ static SpaceLink *view3d_new(const bContext *C)
 	v3d->far= 500.0f;
 
 	v3d->twtype= V3D_MANIP_TRANSLATE;
-	
+
 	/* header */
 	ar= MEM_callocN(sizeof(ARegion), "header for view3d");
 	
@@ -270,6 +272,9 @@ static void view3d_free(SpaceLink *sl)
 	}
 	BLI_freelistN(&vd->bgpicbase);
 
+	if (vd->matcap_ima)
+		vd->matcap_ima->id.us--;
+
 	if(vd->localvd) MEM_freeN(vd->localvd);
 	
 	if(vd->properties_storage) MEM_freeN(vd->properties_storage);
@@ -306,6 +311,11 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	for(bgpic= v3dn->bgpicbase.first; bgpic; bgpic= bgpic->next)
 		if(bgpic->ima)
 			bgpic->ima->id.us++;
+
+	v3dn->matcap_ima= v3do->matcap_ima;
+
+	if (v3dn->matcap_ima)
+		v3dn->matcap_ima->id.us++;
 
 	v3dn->properties_storage= NULL;
 	

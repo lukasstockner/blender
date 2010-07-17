@@ -1298,11 +1298,13 @@ void GPU_materials_free()
 	Object *ob;
 	Material *ma;
 	extern Material defmaterial;
+	extern Material matcap_ma;
 
 	for(ma=G.main->mat.first; ma; ma=ma->id.next)
 		GPU_material_free(ma);
 
 	GPU_material_free(&defmaterial);
+	GPU_material_free(&matcap_ma);
 
 	for(ob=G.main->object.first; ob; ob=ob->id.next)
 		GPU_lamp_free(ob);

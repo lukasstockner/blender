@@ -912,6 +912,7 @@ Material *gpu_active_node_material(Material *ma)
 void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, Object *ob, int glsl, int *do_alpha_pass)
 {
 	extern Material defmaterial; /* from material.c */
+	extern Material matcap_ma;
 	Material *ma;
 	GPUMaterial *gpumat;
 	GPUBlendMode blendmode;
@@ -946,79 +947,98 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 		GMS.blendmode= GMS.blendmode_fixed;
 	}
 
-	/* no materials assigned? */
-	if(ob->totcol==0) {
-		GMS.matbuf[0][0][0]= (defmaterial.ref+defmaterial.emit)*defmaterial.r;
-		GMS.matbuf[0][0][1]= (defmaterial.ref+defmaterial.emit)*defmaterial.g;
-		GMS.matbuf[0][0][2]= (defmaterial.ref+defmaterial.emit)*defmaterial.b;
-		GMS.matbuf[0][0][3]= 1.0;
+	if (v3d->drawtype!=OB_MATCAP) {
+		/* no materials assigned? */
+		if(ob->totcol==0) {
+			GMS.matbuf[0][0][0]= (defmaterial.ref+defmaterial.emit)*defmaterial.r;
+			GMS.matbuf[0][0][1]= (defmaterial.ref+defmaterial.emit)*defmaterial.g;
+			GMS.matbuf[0][0][2]= (defmaterial.ref+defmaterial.emit)*defmaterial.b;
+			GMS.matbuf[0][0][3]= 1.0;
 
-		GMS.matbuf[0][1][0]= defmaterial.spec*defmaterial.specr;
-		GMS.matbuf[0][1][1]= defmaterial.spec*defmaterial.specg;
-		GMS.matbuf[0][1][2]= defmaterial.spec*defmaterial.specb;
-		GMS.matbuf[0][1][3]= 1.0;
-		
-		/* do material 1 too, for displists! */
-		QUATCOPY(GMS.matbuf[1][0], GMS.matbuf[0][0]);
-		QUATCOPY(GMS.matbuf[1][1], GMS.matbuf[0][1]);
+			GMS.matbuf[0][1][0]= defmaterial.spec*defmaterial.specr;
+			GMS.matbuf[0][1][1]= defmaterial.spec*defmaterial.specg;
+			GMS.matbuf[0][1][2]= defmaterial.spec*defmaterial.specb;
+			GMS.matbuf[0][1][3]= 1.0;
+			
+			/* do material 1 too, for displists! */
+			QUATCOPY(GMS.matbuf[1][0], GMS.matbuf[0][0]);
+			QUATCOPY(GMS.matbuf[1][1], GMS.matbuf[0][1]);
 
-		if(glsl) {
-			GMS.gmatbuf[0]= &defmaterial;
-			GPU_material_from_blender(GMS.gscene, &defmaterial);
-		}
-
-		GMS.blendmode[0]= GPU_BLEND_SOLID;
-	}
-	
-	/* setup materials */
-	for(a=1; a<=ob->totcol; a++) {
-		/* find a suitable material */
-		ma= give_current_material(ob, a);
-		if(!glsl) ma= gpu_active_node_material(ma);
-		if(ma==NULL) ma= &defmaterial;
-
-		/* create glsl material if requested */
-		gpumat = (glsl)? GPU_material_from_blender(GMS.gscene, ma): NULL;
-
-		if(gpumat) {
-			/* do glsl only if creating it succeed, else fallback */
-			GMS.gmatbuf[a]= ma;
-			blendmode = GPU_material_blend_mode(gpumat, ob->col);
-		}
-		else {
-			/* fixed function opengl materials */
-			if (ma->mode & MA_SHLESS) {
-				GMS.matbuf[a][0][0]= ma->r;
-				GMS.matbuf[a][0][1]= ma->g;
-				GMS.matbuf[a][0][2]= ma->b;
-				if(gamma) linearrgb_to_srgb_v3_v3(&GMS.matbuf[a][0][0], &GMS.matbuf[a][0][0]);
-			} else {
-				GMS.matbuf[a][0][0]= (ma->ref+ma->emit)*ma->r;
-				GMS.matbuf[a][0][1]= (ma->ref+ma->emit)*ma->g;
-				GMS.matbuf[a][0][2]= (ma->ref+ma->emit)*ma->b;
-
-				GMS.matbuf[a][1][0]= ma->spec*ma->specr;
-				GMS.matbuf[a][1][1]= ma->spec*ma->specg;
-				GMS.matbuf[a][1][2]= ma->spec*ma->specb;
-				GMS.matbuf[a][1][3]= 1.0;
-				
-				if(gamma) {
-					linearrgb_to_srgb_v3_v3(&GMS.matbuf[a][0][0], &GMS.matbuf[a][0][0]);
-					linearrgb_to_srgb_v3_v3(&GMS.matbuf[a][1][0], &GMS.matbuf[a][1][0]);
-				}
+			if(glsl) {
+				GMS.gmatbuf[0]= &defmaterial;
+				GPU_material_from_blender(GMS.gscene, &defmaterial);
 			}
 
-			blendmode = (ma->alpha == 1.0f)? GPU_BLEND_SOLID: GPU_BLEND_ALPHA;
-			if(do_alpha_pass && GMS.alphapass)
-				GMS.matbuf[a][0][3]= ma->alpha;
-			else
-				GMS.matbuf[a][0][3]= 1.0f;
+			GMS.blendmode[0]= GPU_BLEND_SOLID;
 		}
+		
+		/* setup materials */
+		for(a=1; a<=ob->totcol; a++) {
+			/* find a suitable material */
+			ma= give_current_material(ob, a);
+			if(!glsl) ma= gpu_active_node_material(ma);
+			if(ma==NULL) ma= &defmaterial;
 
-		/* setting do_alpha_pass = 1 indicates this object needs to be
-		 * drawn in a second alpha pass for improved blending */
+			/* create glsl material if requested */
+			gpumat = (glsl)? GPU_material_from_blender(GMS.gscene, ma): NULL;
+
+			if(gpumat) {
+				/* do glsl only if creating it succeed, else fallback */
+				GMS.gmatbuf[a]= ma;
+				blendmode = GPU_material_blend_mode(gpumat, ob->col);
+			}
+			else {
+				/* fixed function opengl materials */
+				if (ma->mode & MA_SHLESS) {
+					GMS.matbuf[a][0][0]= ma->r;
+					GMS.matbuf[a][0][1]= ma->g;
+					GMS.matbuf[a][0][2]= ma->b;
+					if(gamma) linearrgb_to_srgb_v3_v3(&GMS.matbuf[a][0][0], &GMS.matbuf[a][0][0]);
+				} else {
+					GMS.matbuf[a][0][0]= (ma->ref+ma->emit)*ma->r;
+					GMS.matbuf[a][0][1]= (ma->ref+ma->emit)*ma->g;
+					GMS.matbuf[a][0][2]= (ma->ref+ma->emit)*ma->b;
+
+					GMS.matbuf[a][1][0]= ma->spec*ma->specr;
+					GMS.matbuf[a][1][1]= ma->spec*ma->specg;
+					GMS.matbuf[a][1][2]= ma->spec*ma->specb;
+					GMS.matbuf[a][1][3]= 1.0;
+					
+					if(gamma) {
+						linearrgb_to_srgb_v3_v3(&GMS.matbuf[a][0][0], &GMS.matbuf[a][0][0]);
+						linearrgb_to_srgb_v3_v3(&GMS.matbuf[a][1][0], &GMS.matbuf[a][1][0]);
+					}
+				}
+
+				blendmode = (ma->alpha == 1.0f)? GPU_BLEND_SOLID: GPU_BLEND_ALPHA;
+				if(do_alpha_pass && GMS.alphapass)
+					GMS.matbuf[a][0][3]= ma->alpha;
+				else
+					GMS.matbuf[a][0][3]= 1.0f;
+			}
+
+			/* setting do_alpha_pass = 1 indicates this object needs to be
+			 * drawn in a second alpha pass for improved blending */
+			if(do_alpha_pass) {
+				GMS.blendmode[a]= blendmode;
+				if(ELEM(blendmode, GPU_BLEND_ALPHA, GPU_BLEND_ADD) && !GMS.alphapass)
+					*do_alpha_pass= 1;
+			}
+		}
+	}
+	else /* MatCap */ {
+		a = ob->totcol ? 1 : 0;
+
+		matcap_ma.mtex[0]->tex->ima= v3d->matcap_ima;
+
+		gpumat= GPU_material_from_blender(GMS.gscene, &matcap_ma);
+
+		GMS.gmatbuf[a]= &matcap_ma;
+		blendmode= GPU_material_blend_mode(gpumat, ob->col);
+
 		if(do_alpha_pass) {
 			GMS.blendmode[a]= blendmode;
+
 			if(ELEM(blendmode, GPU_BLEND_ALPHA, GPU_BLEND_ADD) && !GMS.alphapass)
 				*do_alpha_pass= 1;
 		}

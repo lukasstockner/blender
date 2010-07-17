@@ -1469,6 +1469,7 @@ static void rna_def_object(BlenderRNA *brna)
 		{OB_SOLID, "SOLID", 0, "Solid", ""},
 		// disabled {OB_SHADED, "SHADED", 0, "Shaded", ""},
 		{OB_TEXTURE, "TEXTURED", 0, "Textured", ""},
+		{OB_MATCAP, "MATCAP", 0, "MatCap", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem boundtype_items[] = {

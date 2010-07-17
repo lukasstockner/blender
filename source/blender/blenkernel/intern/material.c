@@ -55,6 +55,7 @@
 #include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_utildefines.h"
+#include "BKE_texture.h"
 
 #ifndef DISABLE_PYTHON
 #include "BPY_extern.h"
@@ -65,10 +66,25 @@
 /* used in UI and render */
 Material defmaterial;
 
+Material    matcap_ma;
+static MTex matcap_mtex;
+static Tex  matcap_tex;
+
 /* called on startup, creator.c */
 void init_def_material(void)
 {
 	init_material(&defmaterial);
+
+	default_tex(&matcap_tex);
+	matcap_tex.type = TEX_IMAGE;
+
+	default_mtex(&matcap_mtex);
+	matcap_mtex.texco = TEXCO_NORM;
+	matcap_mtex.tex = &matcap_tex;
+
+	init_material(&matcap_ma);
+	matcap_ma.mode |= MA_SHLESS;
+	matcap_ma.mtex[0] = &matcap_mtex;
 }
 
 /* not material itself */

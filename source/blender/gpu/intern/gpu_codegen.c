@@ -364,9 +364,13 @@ GPUFunction *GPU_lookup_function(char *name)
 void GPU_extensions_exit(void)
 {
 	extern Material defmaterial;    // render module abuse...
+	extern Material matcap_ma;
 
 	if(defmaterial.gpumaterial.first)
 		GPU_material_free(&defmaterial);
+
+	if(matcap_ma.gpumaterial.first)
+		GPU_material_free(&matcap_ma);
 
 	if(FUNCTION_HASH) {
 		BLI_ghash_free(FUNCTION_HASH, NULL, (GHashValFreeFP)MEM_freeN);
