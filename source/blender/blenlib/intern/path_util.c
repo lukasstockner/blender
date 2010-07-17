@@ -973,11 +973,11 @@ char *BLI_get_folder(int folder_id, char *subfolder)
 			return NULL;
 			
 		case BLENDER_USER_CONFIG:
-			if (get_path_local(path, "config", subfolder)) break;
 			if (get_path_user(path, "config", subfolder, "BLENDER_USER_CONFIG")) break;
 			return NULL;
 			
 		case BLENDER_SYSTEM_CONFIG:
+			if (get_path_local(path, "config", subfolder)) break;
 			if (get_path_system(path, "config", subfolder, "BLENDER_SYSTEM_CONFIG")) break;
 			return NULL;
 			

@@ -3129,7 +3129,7 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
 		if(part->childtype) {
 			if(!psys->totchild)
 				skip = 1;
-			else if((psys->part->type == PART_HAIR && psys->flag & PSYS_HAIR_DONE)==0)
+			else if(psys->part->type == PART_HAIR && (psys->flag & PSYS_HAIR_DONE)==0)
 				skip = 1;
 
 			if(!skip)
