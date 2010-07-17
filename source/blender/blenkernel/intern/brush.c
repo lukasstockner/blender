@@ -130,8 +130,12 @@ Brush *copy_brush(Brush *brush)
 	
 	brushn= copy_libblock(brush);
 
-	if(brush->mtex.tex) id_us_plus((ID*)brush->mtex.tex);
+	if(brush->mtex.tex)
+		id_us_plus((ID*)brush->mtex.tex);
 	
+	if(brush->image_icon)
+		id_us_plus((ID*)brush->image_icon);
+
 	brushn->curve= curvemapping_copy(brush->curve);
 
 	/* enable fake user by default */
@@ -139,14 +143,18 @@ Brush *copy_brush(Brush *brush)
 		brushn->id.flag |= LIB_FAKEUSER;
 		brush_toggled_fake_user(brushn);
 	}
-	
+
 	return brushn;
 }
 
 /* not brush itself */
 void free_brush(Brush *brush)
 {
-	if(brush->mtex.tex) brush->mtex.tex->id.us--;
+	if(brush->mtex.tex)
+		brush->mtex.tex->id.us--;
+
+	if (brush->image_icon)
+		brush->image_icon->id.us--;
 
 	curvemapping_free(brush->curve);
 }
@@ -302,6 +310,9 @@ int brush_texture_delete(Brush *brush)
 {
 	if(brush->mtex.tex)
 		brush->mtex.tex->id.us--;
+
+	if(brush->image_icon)
+		brush->image_icon->id.us--;
 
 	return 1;
 }
