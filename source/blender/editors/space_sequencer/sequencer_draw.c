@@ -168,7 +168,7 @@ static void get_seq_color3ubv(Scene *curscene, Sequence *seq, char *col)
 	}
 }
 
-static void drawseqwave(Sequence *seq, float x1, float y1, float x2, float y2, float stepsize)
+static void drawseqwave(Scene *scene, Sequence *seq, float x1, float y1, float x2, float y2, float stepsize)
 {
 	/*
 	x1 is the starting x value to draw the wave,
@@ -184,7 +184,9 @@ static void drawseqwave(Sequence *seq, float x1, float y1, float x2, float y2, f
 		float* samples = MEM_mallocN(length * sizeof(float) * 2, "seqwave_samples");
 		if(!samples)
 			return;
-		if(sound_read_sound_buffer(seq->sound, samples, length) != length)
+		if(sound_read_sound_buffer(seq->sound, samples, length,
+								   (seq->startofs + seq->anim_startofs)/FPS,
+								   (seq->startofs + seq->anim_startofs + seq->enddisp - seq->startdisp)/FPS) != length)
 		{
 			MEM_freeN(samples);
 			return;
@@ -636,7 +638,7 @@ static void draw_seq_strip(Scene *scene, ARegion *ar, SpaceSeq *sseq, Sequence *
 	x2= seq->enddisp;
 	
 	/* draw sound wave */
-	if(seq->type == SEQ_SOUND) drawseqwave(seq, x1, y1, x2, y2, (ar->v2d.cur.xmax - ar->v2d.cur.xmin)/ar->winx);
+	if(seq->type == SEQ_SOUND) drawseqwave(scene, seq, x1, y1, x2, y2, (ar->v2d.cur.xmax - ar->v2d.cur.xmin)/ar->winx);
 
 	get_seq_color3ubv(scene, seq, col);
 	if (G.moving && (seq->flag & SELECT)) {
@@ -850,8 +852,6 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		/* border */
 		setlinestyle(3);
 
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 		UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 1.0, 0);
 
 		glBegin(GL_LINE_LOOP);
@@ -873,14 +873,16 @@ void draw_image_seq(const bContext* C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			y1+= a;
 			y2-= a;
 
+			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
 			uiSetRoundBox(15);
 			gl_round_box(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
+
+			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 		}
 
 		setlinestyle(0);
-
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
 	
 	/* draw grease-pencil (image aligned) */
