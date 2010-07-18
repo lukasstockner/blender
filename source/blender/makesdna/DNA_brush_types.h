@@ -140,7 +140,7 @@ typedef struct Brush {
 //#define SCULPT_TOOL_WAX        15 // XXX: reuse this slot later
 #define SCULPT_TOOL_CREASE     16
 #define SCULPT_TOOL_BLOB       17
-#define SCULPT_TOOL_CLAY_TUBES 18
+#define SCULPT_TOOL_CLAY_STRIPS 18
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

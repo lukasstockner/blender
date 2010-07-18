@@ -594,7 +594,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 
 	switch(brush->sculpt_tool){
 		case SCULPT_TOOL_CLAY:
-		case SCULPT_TOOL_CLAY_TUBES:
+		case SCULPT_TOOL_CLAY_STRIPS:
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_LAYER:
 			return alpha * flip * pressure * overlap * feather;
@@ -2053,7 +2053,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	}
 }
 
-static void do_clay_tubes_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush = paint_brush(&sd->paint);
 
@@ -2390,8 +2390,8 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, Brush *brush)
 		case SCULPT_TOOL_CLAY:
 			do_clay_brush(sd, ss, nodes, totnode);
 			break;
-		case SCULPT_TOOL_CLAY_TUBES:
-			do_clay_tubes_brush(sd, ss, nodes, totnode);
+		case SCULPT_TOOL_CLAY_STRIPS:
+			do_clay_strips_brush(sd, ss, nodes, totnode);
 			break;
 		case SCULPT_TOOL_FILL:
 			do_fill_brush(sd, ss, nodes, totnode);
@@ -2467,7 +2467,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_CLAY:
-		case SCULPT_TOOL_CLAY_TUBES:
+		case SCULPT_TOOL_CLAY_STRIPS:
 		case SCULPT_TOOL_CREASE:
 		case SCULPT_TOOL_BLOB:
 		case SCULPT_TOOL_FILL:
@@ -2708,8 +2708,8 @@ static char *sculpt_tool_name(Sculpt *sd)
 		return "Flatten Brush"; break;
 	case SCULPT_TOOL_CLAY:
 		return "Clay Brush"; break;
-	case SCULPT_TOOL_CLAY_TUBES:
-		return "Clay Tubes Brush"; break;
+	case SCULPT_TOOL_CLAY_STRIPS:
+		return "Clay Strips Brush"; break;
 	case SCULPT_TOOL_FILL:
 		return "Fill Brush"; break;
 	case SCULPT_TOOL_SCRAPE:
@@ -2943,7 +2943,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if(ELEM7(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_TUBES))
+	if(ELEM7(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_STRIPS))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
@@ -3118,7 +3118,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		sd->anchored_size = cache->pixel_radius;
 	}
 	/* Find the nudge/clay tubes delta */
-	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE || brush->sculpt_tool == SCULPT_TOOL_CLAY_TUBES) {
+	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE || brush->sculpt_tool == SCULPT_TOOL_CLAY_STRIPS) {
 		float grab_location[3], imat[4][4];
 
 		if(cache->first_time)
