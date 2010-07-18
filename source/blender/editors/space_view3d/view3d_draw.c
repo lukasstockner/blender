@@ -2397,7 +2397,7 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_PIXEL);
 
-	ED_paint_draw_overlay(C, ar);
+	ED_draw_paint_overlay(C, ar);
 
 	/* XXX here was the blockhandlers for floating panels */
 
