@@ -86,7 +86,7 @@
 #include "RE_render_ext.h"
 #include "RE_shader_ext.h"
 
-#include "GPU_buffers.h"
+#include "gpu_buffers.h"
 
 #include <math.h>
 #include <stdlib.h>
