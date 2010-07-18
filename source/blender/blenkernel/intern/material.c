@@ -81,8 +81,8 @@ void init_def_material(void)
 	default_mtex(&matcap_mtex);
 	matcap_mtex.texco = TEXCO_NORM;
 	matcap_mtex.tex = &matcap_tex;
-	matcap_mtex.size[0] = 0.95f;
-	matcap_mtex.size[1] = 0.95f;
+	//matcap_mtex.size[0] = 0.95f;
+	//matcap_mtex.size[1] = 0.95f;
 
 	init_material(&matcap_ma);
 	matcap_ma.mode |= MA_SHLESS;
