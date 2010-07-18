@@ -420,13 +420,16 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 	return 1;
 }
 
-void ED_paint_draw_overlay(const bContext* C, ARegion *ar)
+void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
 {
 	Paint  *paint = paint_get_active(CTX_data_scene(C));
 	Brush  *brush = paint_brush(paint);
 	Sculpt *sd    = CTX_data_tool_settings(C)->sculpt;
 
-	if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && (brush->flag & BRUSH_TEXTURE_OVERLAY)) {
+	if (brush &&
+		brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED &&
+		brush->flag & BRUSH_TEXTURE_OVERLAY)
+	{
 		glPushAttrib(
 			GL_COLOR_BUFFER_BIT|
 			GL_CURRENT_BIT|
