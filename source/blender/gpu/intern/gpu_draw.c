@@ -947,7 +947,7 @@ void GPU_begin_object_materials(View3D *v3d, RegionView3D *rv3d, Scene *scene, O
 		GMS.blendmode= GMS.blendmode_fixed;
 	}
 
-	if (v3d->drawtype!=OB_MATCAP) {
+	if (MIN2(v3d->drawtype, ob->dt) != OB_MATCAP) {
 		/* no materials assigned? */
 		if(ob->totcol==0) {
 			GMS.matbuf[0][0][0]= (defmaterial.ref+defmaterial.emit)*defmaterial.r;

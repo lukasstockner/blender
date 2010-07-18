@@ -11051,6 +11051,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
+	/* MatCaps */
+	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 8)) {
+		Object *ob;
+		for (ob=main->object.first; ob; ob=ob->id.next) {
+			/* If max drawtype is textured then assume user won't mind if we bump it up to use MatCaps, */
+			/* Otherwise, assume that if max drawtype is less than textured then user doesn't want to use MatCaps */
+			if (ob->dt == OB_TEXTURE)
+				ob->dt = OB_MATCAP;
+		}
+	}
+
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
 	/* WATCH IT 2!: Userdef struct init has to be in editors/interface/resources.c! */
 

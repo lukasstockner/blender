@@ -120,7 +120,7 @@ static int check_ob_drawface_dot(Scene *sce, View3D *vd, char dt)
 		return 1;
 
 	/* if its drawing textures with zbuf sel, then dont draw dots */
-	if(dt==OB_TEXTURE && ELEM(vd->drawtype, OB_TEXTURE, OB_MATCAP))
+	if(ELEM(dt, OB_TEXTURE, OB_MATCAP) && ELEM(vd->drawtype, OB_TEXTURE, OB_MATCAP))
 		return 0;
 
 	if(vd->drawtype>=OB_SOLID && vd->flag2 & V3D_SOLID_TEX)
@@ -209,7 +209,7 @@ int draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, int dt)
 	if(ob==OBACT && (ob && ob->mode & OB_MODE_WEIGHT_PAINT))
 		return 0;
 	
-	return ((v3d->drawtype == OB_MATCAP) || (scene->gm.matmode == GAME_MAT_GLSL)) && (dt >= OB_SHADED);
+	return ((dt == OB_MATCAP) || (scene->gm.matmode == GAME_MAT_GLSL)) && (dt >= OB_SHADED);
 }
 
 static int check_material_alpha(Base *base, Mesh *me, int glsl)
