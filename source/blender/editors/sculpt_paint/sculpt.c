@@ -380,7 +380,7 @@ static int sculpt_brush_test_fast(SculptBrushTest *test, float co[3])
 	return len_squared_v3v3(co, test->location) <= test->radius_squared;
 }
 
-static int sculpt_brush_test_cube(SculptBrushTest *test, float co[3], float local[4][4])
+static int sculpt_brush_test_cube(SculptBrushTest *test, float *fade, float co[3], float local[4][4])
 {
 	const static float side = 0.70710678118654752440084436210485; // sqrt(.5);
 
@@ -393,7 +393,17 @@ static int sculpt_brush_test_cube(SculptBrushTest *test, float co[3], float loca
 	local_co[2] = fabs(local_co[2]);
 
 	if (local_co[0] <= side && local_co[1] <= side && local_co[2] <= side) {
-		test->dist = MAX3(local_co[0], local_co[1], local_co[2]) / side;
+		float cmin, cmax;
+		int i;
+
+		for (i= 0; i < 3; i++) {
+			cmin = MIN2(local_co[0]-0.1f, side);
+			cmax = MIN2(local_co[0]+0.1f, side);
+
+			(*fade) *= (10*cmax)-(10*cmin);
+		}
+
+		test->dist = len_v3v3(co, test->location);
 
 		return 1;
 	}
@@ -2113,13 +2123,15 @@ static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes
 		PBVHVertexIter vd;
 		SculptBrushTest test;
 		float (*proxy)[3];
+		float cube_fade;
 
 		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
 
 		sculpt_brush_test_init(ss, &test);
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if (sculpt_brush_test_cube(&test, vd.co, mat)) {
+			cube_fade = 1;
+			if (sculpt_brush_test_cube(&test, &cube_fade, vd.co, mat)) {
 				if (plane_point_side_flip(vd.co, sn, fc, flip)) {
 					float intr[3];
 					float val[3];
@@ -2129,7 +2141,7 @@ static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes
 					sub_v3_v3v3(val, intr, vd.co);
 
 					if (plane_trim(ss->cache, brush, val)) {
-						const float fade = bstrength*tex_strength(ss, brush, vd.co, ss->cache->radius*test.dist)*frontface(brush, an, vd.no, vd.fno);
+						const float fade = cube_fade*bstrength*tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, an, vd.no, vd.fno);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
 
