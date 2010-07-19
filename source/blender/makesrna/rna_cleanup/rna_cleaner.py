@@ -238,7 +238,7 @@ def write_files(basename, props_list, props_length_max):
         # rna_api
         if props[0] == 'NOTE': indent = '#   '
         else: indent = '    '
-        rna += indent + '("%s", "%s", "%s", "%s", %s),\n' % tuple(props[2:5] + props[6:]) # description is alredy string formatted
+        rna += indent + '("%s", "%s", "%s", "%s", %s),\n' % tuple(props[2:5] + props[6:]) # description is already string formatted
         # py
         blanks = [' '* (x[0]-x[1]) for x in zip(props_length_max,list(map(len,props)))]
         props = [('"%s"%s' if props[-1] != x[0] else "%s%s") % (x[0],x[1]) for x in zip(props,blanks)]
@@ -268,10 +268,9 @@ def main():
 
     sort_choices = ['note','changed','class','from','to','kw']
     default_sort_choice = sort_choices[0]
-    #kw_prefixes = ['invert','is','lock','show','show_only','use','use_only']
-    #kw = ['hide','select','layer','state']
-    kw_prefixes = ['has','invert','is','lock','layers','show','show_only','states','use','use_only']
-    kw = ['layers','states','value']
+    kw_prefixes = [ 'active','apply','bl','exclude','has','invert','is','lock', \
+                    'pressed','show','show_only','use','use_only','layers','states']
+    kw = ['active','hide','invert','select','layers','mute','states','use','lock']
 
     input_filename, sort_priority = check_commandline()
     props_list,props_length_max = get_props(input_filename)

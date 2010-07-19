@@ -1780,13 +1780,18 @@ typedef struct VPaintData {
 	float vpimat[3][3];
 } VPaintData;
 
-void paint_raycast_cb(PBVHNode *node, void *data_v)
+void paint_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 {
-	PaintStrokeRaycastData *data = data_v;
-
-	data->hit |= BLI_pbvh_node_raycast(data->ob->paint->pbvh, node, NULL,
-					   data->ray_start, data->ray_normal,
-					   &data->dist, NULL, NULL);
+	if(BLI_pbvh_node_get_tmin(node) < *tmin) {
+		PaintStrokeRaycastData *data = data_v;
+		
+		if(BLI_pbvh_node_raycast(data->ob->paint->pbvh, node, NULL,
+					 data->ray_start, data->ray_normal,
+					 &data->dist, NULL, NULL)) {
+			data->hit |= 1;
+			*tmin = data->dist;
+		}
+	}
 }
 
 int vpaint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
@@ -1990,18 +1995,21 @@ typedef struct {
 	PBVHNode *node;
 } VPaintColorOneFaceHitData;
 
-void vpaint_color_one_face_raycast_cb(PBVHNode *node, void *data_v)
+void vpaint_color_one_face_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 {
-	PaintStrokeRaycastData *data = data_v;
-	PaintSession *ps = data->ob->paint;
-	VPaintColorOneFaceHitData *mode_data = data->mode_data;
+	if (BLI_pbvh_node_get_tmin(node) < *tmin) {
+		PaintStrokeRaycastData *data = data_v;
+		PaintSession *ps = data->ob->paint;
+		VPaintColorOneFaceHitData *mode_data = data->mode_data;
 
-	if(BLI_pbvh_node_raycast(ps->pbvh, node, NULL,
-				 data->ray_start, data->ray_normal,
-				 &data->dist, &mode_data->hit_index,
-				 &mode_data->grid_hit_index)) {
-		data->hit |= 1;
-		mode_data->node = node;
+		if(BLI_pbvh_node_raycast(ps->pbvh, node, NULL,
+					 data->ray_start, data->ray_normal,
+					 &data->dist, &mode_data->hit_index,
+					 &mode_data->grid_hit_index)) {
+			data->hit |= 1;
+			mode_data->node = node;
+			*tmin = data->dist;
+		}
 	}
 }
 

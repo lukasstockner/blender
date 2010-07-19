@@ -32,12 +32,12 @@
 #include "DNA_controller_types.h"
 
 EnumPropertyItem controller_type_items[] ={
-	{CONT_LOGIC_AND, "LOGIC_AND", 0, "AND", "Logic And"},
-	{CONT_LOGIC_OR, "LOGIC_OR", 0, "OR", "Logic Or"},
-	{CONT_LOGIC_NAND, "LOGIC_NAND", 0, "NAND", "Logic Nand"},
-	{CONT_LOGIC_NOR, "LOGIC_NOR", 0, "NOR", "Logic Nor"},
-	{CONT_LOGIC_XOR, "LOGIC_XOR", 0, "XOR", "Logic Xor"},
-	{CONT_LOGIC_XNOR, "LOGIC_XNOR", 0, "XNOR", "Logic Xnor"},
+	{CONT_LOGIC_AND, "LOGIC_AND", 0, "And", "Logic And"},
+	{CONT_LOGIC_OR, "LOGIC_OR", 0, "Or", "Logic Or"},
+	{CONT_LOGIC_NAND, "LOGIC_NAND", 0, "Nand", "Logic Nand"},
+	{CONT_LOGIC_NOR, "LOGIC_NOR", 0, "Nor", "Logic Nor"},
+	{CONT_LOGIC_XOR, "LOGIC_XOR", 0, "Xor", "Logic Xor"},
+	{CONT_LOGIC_XNOR, "LOGIC_XNOR", 0, "Xnor", "Logic Xnor"},
 	{CONT_EXPRESSION, "EXPRESSION", 0, "Expression", ""},
 	{CONT_PYTHON, "PYTHON", 0, "Python Script", ""},
 	{0, NULL, 0, NULL, NULL}};
@@ -103,6 +103,7 @@ static void rna_Controller_state_number_set(struct PointerRNA *ptr, const int va
 	cont->state_mask = (1 << (value - 1));
 }
 
+#if 0 /* editable is set to false, comment for now. */
 static void rna_Controller_state_get(PointerRNA *ptr, int *values)
 {
 	bController *cont= (bController *)ptr->data;
@@ -113,7 +114,6 @@ static void rna_Controller_state_get(PointerRNA *ptr, int *values)
 		values[i] = (cont->state_mask & (1<<i));
 }
 
-#if 0 /* editable is set to false, comment for now. */
 static void rna_Controller_state_set(PointerRNA *ptr, const int *values)
 {
 	bController *cont= (bController *)ptr->data;
@@ -229,7 +229,6 @@ void RNA_def_controller(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "module", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Module", "Module name and function to run e.g. \"someModule.main\". Internal texts and external python files can be used");
-	RNA_def_struct_name_property(srna, prop);
 	RNA_def_property_update(prop, NC_LOGIC, NULL);
 
 	prop= RNA_def_property(srna, "debug", PROP_BOOLEAN, PROP_NONE);

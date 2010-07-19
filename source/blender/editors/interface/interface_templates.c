@@ -195,9 +195,9 @@ static void id_search_cb(const bContext *C, void *arg_template, char *str, uiSea
 
 					RNA_parameter_set_lookup(&parms, "context", &C);
 
-					if (RNA_function_call(C, &reports, &ptr, func, &parms) == 0) {
+					if (RNA_function_call((bContext *)C, &reports, &ptr, func, &parms) == 0) {
 						int* ret;
-						RNA_parameter_get_lookup(&parms, "ret", &ret);
+						RNA_parameter_get_lookup(&parms, "ret", (void **)&ret);
 
 						if (!(*ret)) {
 							RNA_parameter_list_free(&parms);
@@ -2049,7 +2049,7 @@ void uiTemplateTriColorSet(uiLayout *layout, PointerRNA *ptr, char *propname)
 	csPtr= RNA_property_pointer_get(ptr, prop);
 	
 	uiItemR(row, &csPtr, "normal", 0, "", 0);
-	uiItemR(row, &csPtr, "selected", 0, "", 0);
+	uiItemR(row, &csPtr, "select", 0, "", 0);
 	uiItemR(row, &csPtr, "active", 0, "", 0);
 }
 
