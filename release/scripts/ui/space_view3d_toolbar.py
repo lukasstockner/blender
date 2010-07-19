@@ -1114,7 +1114,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel):
             #if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'CLAY_STRIPS', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
             if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN'):
                 col.prop(brush, "add_col", text="Add Color")
-                col.prop(brush, "sub_col", text="Substract Color")
+                col.prop(brush, "sub_col", text="Subtract Color")
             else:
                 col.prop(brush, "add_col", text="Color")
 
