@@ -73,7 +73,7 @@ typedef struct {
 	int original;
 } PaintStrokeRaycastData;
 int paint_stroke_get_location(struct bContext *C, struct PaintStroke *stroke,
-			      BLI_pbvh_HitCallback hit_cb, void *mode_data,
+			      BLI_pbvh_HitOccludedCallback hit_cb, void *mode_data,
 			      float out[3], float mouse[2], int original);
 
 int paint_poll(struct bContext *C);
@@ -133,6 +133,13 @@ float paint_calc_object_space_radius(struct Object *ob,
 				     float pixel_radius);
 
 struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
+
+/* stroke operator */
+typedef enum wmBrushStrokeMode {
+	WM_BRUSHSTROKE_NORMAL,
+	WM_BRUSHSTROKE_INVERT,
+	WM_BRUSHSTROKE_SMOOTH,
+} wmBrushStrokeMode;
 
 /* paint_undo.c */
 typedef void (*UndoRestoreCb)(struct bContext *C, struct ListBase *lb);

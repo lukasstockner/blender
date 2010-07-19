@@ -28,6 +28,8 @@
 #ifndef BKE_PAINT_H
 #define BKE_PAINT_H
 
+#include "DNA_vec_types.h"
+
 struct Brush;
 struct MFace;
 struct MultireModifierData;
@@ -85,6 +87,8 @@ typedef struct SculptSession {
 	struct StrokeCache *cache;
 
 	int modifiers_active;
+
+	rcti previous_r;
 } SculptSession;
 
 typedef struct PaintSession {

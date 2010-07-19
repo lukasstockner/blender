@@ -176,7 +176,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 	
-	sculpt_undo_push_begin(ss, "Paint mask from texture");
+	sculpt_undo_push_begin("Paint mask from texture");
 
 	active = CustomData_get_active_layer(&me->vdata, CD_PAINTMASK);
 
@@ -271,7 +271,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	
 	MEM_freeN(nodes);
 
-	sculpt_undo_push_end(ss);
+	sculpt_undo_push_end();
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	
 	return OPERATOR_FINISHED;
@@ -329,7 +329,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 
 		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
 
-		sculpt_undo_push_begin(ss, "Paint mask fill");
+		sculpt_undo_push_begin("Paint mask fill");
 
 		for(n=0; n<totnode; n++) {
 			PBVHVertexIter vd;
@@ -351,7 +351,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		if(mmd)
 			multires_mark_as_modified(ob);
 
-		sculpt_undo_push_end(ss);
+		sculpt_undo_push_end();
 
 		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}
