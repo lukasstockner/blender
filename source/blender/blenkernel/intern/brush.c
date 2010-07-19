@@ -311,9 +311,6 @@ int brush_texture_delete(Brush *brush)
 	if(brush->mtex.tex)
 		brush->mtex.tex->id.us--;
 
-	if(brush->image_icon)
-		brush->image_icon->id.us--;
-
 	return 1;
 }
 
