@@ -161,7 +161,7 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   struct DMGridData **grids,
 				   int *grid_indices, int totgrid,
 				   int gridsize, struct GridKey *gridkey,
-				   struct CustomData *vdata);
+				   struct CustomData *vdata, GPUDrawFlags flags);
 void GPU_draw_buffers(GPU_Buffers *buffers);
 void GPU_free_buffers(GPU_Buffers *buffers);
 

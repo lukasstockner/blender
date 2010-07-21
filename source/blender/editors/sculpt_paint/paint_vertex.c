@@ -62,6 +62,7 @@
 #include "BKE_depsgraph.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
+#include "BKE_dmgrid.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
@@ -1931,57 +1932,138 @@ static void vpaint_stroke_update_step_old(bContext *C, PaintStroke *stroke, Poin
 	DAG_id_flush_update(ob->data, OB_RECALC_DATA);
 }
 
+/* apply paint at specified coordinate
+   returns 1 if paint was applied, 0 otherwise */
+static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
+			      unsigned int *col, unsigned int *orig_col,
+			      float center[3], float radius,
+			      float radius_squared)
+{
+	Brush *brush = paint_brush(&vp->paint);
+	float str, dist, dist_squared;
+
+	dist_squared = len_squared_v3v3(center, co);
+
+	if(dist_squared < radius_squared) {
+		dist = sqrtf(dist_squared);
+
+		str = brush->alpha *
+			brush_curve_strength(brush, dist,
+					     radius);
+
+		vpaint_blend(vp, col, orig_col,
+			     vpd->paintcol,
+			     str*255);
+
+		return 1;
+	}
+
+	return 0;
+}
+
+static void vpaint_nodes_grids(VPaint *vp, VPaintData *vpd, DMGridData **grids,
+			       GridKey *gridkey, int *grid_indices, int totgrid,
+			       int gridsize, float center[3], float radius)
+{
+	float radius_squared = radius*radius;
+	int i, x, y;
+
+	for(i = 0; i < totgrid; ++i) {
+		DMGridData *grid = grids[grid_indices[i]];
+
+		for(y = 0; y < gridsize; ++y) {
+			for(x = 0; x < gridsize; ++x) {
+				DMGridData *elem = GRIDELEM_AT(grid,
+							       y*gridsize+x,
+							       gridkey);
+				float *co = GRIDELEM_CO(elem, gridkey);
+				float *gridcol = GRIDELEM_COLOR(elem, gridkey);
+				MCol col, orig_col;
+
+				col.r = gridcol[0] * 255;
+				col.g = gridcol[1] * 255;
+				col.b = gridcol[2] * 255;
+
+				if(vpaint_paint_coord(vp, vpd, co,
+					(unsigned int*)(&col),
+					(unsigned int*)(&orig_col),
+					center, radius,
+					radius_squared)) {
+
+					gridcol[0] = col.r * (1.0 / 255);
+					gridcol[1] = col.g * (1.0 / 255);
+					gridcol[2] = col.b * (1.0 / 255);
+				}
+			}
+		}
+	}
+}
+
+static void vpaint_nodes_faces(VPaint *vp, VPaintData *vpd, MFace *mface,
+			       MVert *mvert, CustomData *fdata,
+			       int *face_indices, int totface, float center[3],
+			       float radius)
+{
+	float radius_squared = radius*radius;
+	MCol *mcol;
+	unsigned int *orig;
+	int i, j;
+
+	mcol = CustomData_get_layer(fdata, CD_MCOL);
+	orig = (unsigned int*)vp->vpaint_prev;
+
+	for(i = 0; i < totface; ++i) {
+		int face_index = face_indices[i];
+		MFace *f = mface + face_index;
+		int S = f->v4 ? 4 : 3;
+
+		for(j = 0; j < S; ++j) {
+			int vndx = (&f->v1)[j];
+			int cndx = face_index*4 + j;
+			float *co = mvert[vndx].co;
+			unsigned int *col = (unsigned int*)(mcol + cndx);
+			unsigned int *orig_col = (unsigned int*)(orig + cndx);
+
+			vpaint_paint_coord(vp, vpd, co, col, orig_col, center,
+					   radius, radius_squared);
+		}
+	}
+}
+
 static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
 			 PBVHNode **nodes, int totnode,
 			 float center[3], float radius)
 {
-	Brush *brush = paint_brush(&vp->paint);
-	float radius_squared = radius*radius;
-	int n, i, j;
+	int n;
 
 	for(n = 0; n < totnode; ++n) {
 		MVert *mvert;
 		MFace *mface;
 		CustomData *fdata;
-		MCol *mcol;
-		unsigned int *orig= (unsigned int*)vp->vpaint_prev;
 		int *face_indices, totface;
+
+		DMGridData **grids;
+		GridKey *gridkey;
+		int *grid_indices, totgrid, gridsize;
 
 		BLI_pbvh_node_get_verts(pbvh, nodes[n], NULL, &mvert, NULL);
 
 		BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface, &fdata,
 					&face_indices, NULL, &totface);
 
-		mcol = CustomData_get_layer(fdata, CD_MCOL);
+		BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
+					&totgrid, NULL, &gridsize, &grids,
+					NULL, &gridkey);
 
-		for(i = 0; i < totface; ++i) {
-			int face_index = face_indices[i];
-			MFace *f = mface + face_index;
-			int S = f->v4 ? 4 : 3;
-			float dist_squared, dist;
-
-			for(j = 0; j < S; ++j) {
-				int vndx = (&f->v1)[j];
-				int cndx = face_index*4 + j;
-				float *co = mvert[vndx].co;
-				unsigned int *col = (unsigned int*)(mcol + cndx);
-				unsigned int *orig_col = (unsigned int*)(orig + cndx);
-				float str;
-
-				dist_squared = len_squared_v3v3(center, co);
-
-				if(dist_squared < radius_squared) {
-					dist = sqrtf(dist_squared);
-
-					str = brush->alpha *
-						brush_curve_strength(brush, dist,
-								     radius);
-
-					vpaint_blend(vp, col, orig_col,
-						     vpd->paintcol,
-						     str*255);
-				}
-			}
+		if(grids) {
+			vpaint_nodes_grids(vp, vpd, grids, gridkey,
+					   grid_indices, totgrid, gridsize,
+					   center, radius);
+		}
+		else {
+			vpaint_nodes_faces(vp, vpd, mface, mvert, fdata,
+					   face_indices, totface, center,
+					   radius);
 		}
 
 		BLI_pbvh_node_set_flags(nodes[n],

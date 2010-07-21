@@ -465,6 +465,7 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 {
 	SubsurfModifierData smd;
 	GridKey gridkey;
+	int color_totlayer;
 	int pmask_totlayer;
 
 	memset(&smd, 0, sizeof(SubsurfModifierData));
@@ -475,9 +476,12 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	if(optimal)
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
+	/* TODO: enable/disable element types */
+	color_totlayer = CustomData_number_of_layers(&get_mesh(ob)->fdata,
+						     CD_MCOL);
 	pmask_totlayer = CustomData_number_of_layers(&get_mesh(ob)->vdata,
 						     CD_PAINTMASK);
-	GRIDELEM_KEY_INIT(&gridkey, 1, pmask_totlayer, 1);
+	GRIDELEM_KEY_INIT(&gridkey, 1, color_totlayer, pmask_totlayer, 1);
 			  
 	return subsurf_make_derived_from_derived(dm, &smd, &gridkey, 0, NULL, 0, 0);
 }

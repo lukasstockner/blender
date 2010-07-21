@@ -1172,7 +1172,8 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, G
 							      node->totprim,
 							      bvh->gridsize,
 							      bvh->gridkey,
-							      bvh->vdata);
+							      bvh->vdata,
+							      flags);
 			}
 			else {
 				GPU_update_mesh_color_buffers(node->draw_buffers,

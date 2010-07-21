@@ -444,6 +444,13 @@ static void delete_buffer(GLuint *buf)
 	*buf = 0;
 }
 
+static void float_col_to_gpu_colors(unsigned char out[3], float col[3])
+{
+	out[0] = col[2] * 255;
+	out[1] = col[1] * 255;
+	out[2] = col[0] * 255;
+}
+
 static void mcol_to_gpu_colors(unsigned char out[3], MCol *mcol)
 {
 	out[0] = mcol->b;
@@ -681,11 +688,49 @@ GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 	return buffers;
 }
 
-void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-				   int totgrid, int gridsize, GridKey *gridkey, CustomData *vdata)
+static void gpu_update_grid_color_buffers_from_mcol(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
+						    int totgrid, int gridsize, GridKey *gridkey)
 {
 	unsigned char *color_data;
 	int totvert;
+
+	totvert= gridsize*gridsize*totgrid;
+	color_data= map_color_buffer(buffers, gridkey->color, totvert);
+
+	if(color_data) {
+		int i, j, k;
+
+		for(i = 0; i < totgrid; ++i) {
+			DMGridData *grid= grids[grid_indices[i]];
+
+			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
+				DMGridData *elem = GRIDELEM_AT(grid, j, gridkey);
+				float v[3] = {0, 0, 0};
+
+				for(k = 0; k < gridkey->color; ++k)
+					add_v3_v3(v, &GRIDELEM_COLOR(elem, gridkey)[k*3]);
+				mul_v3_fl(v, 1.0f / gridkey->color);
+
+				float_col_to_gpu_colors(color_data, v);
+			}
+		}
+
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
+	}
+}
+
+void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
+				   int totgrid, int gridsize, GridKey *gridkey, CustomData *vdata,
+				   GPUDrawFlags flags)
+{
+	unsigned char *color_data;
+	int totvert;
+
+	if(flags & GPU_DRAW_ACTIVE_MCOL) {
+		/* For now we do either mcol or masks, not both */
+		gpu_update_grid_color_buffers_from_mcol(buffers, grids, grid_indices, totgrid, gridsize, gridkey);
+		return;
+	}
 
 	totvert= gridsize*gridsize*totgrid;
 	color_data= map_color_buffer(buffers, gridkey->mask, totvert);

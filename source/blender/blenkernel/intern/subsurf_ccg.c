@@ -323,7 +323,7 @@ static void set_subsurf_uv(CCGSubSurf *ss, DerivedMesh *dm, DerivedMesh *result,
 	if(!dmtface || !tface)
 		return;
 
-	GRIDELEM_KEY_INIT(&gridkey, 1, 0, 0); /* TODO */
+	GRIDELEM_KEY_INIT(&gridkey, 1, 0, 0, 0); /* TODO */
 
 	/* create a CCGSubSurf from uv's */
 	uvss = _getSubSurf(NULL, &gridkey, ccgSubSurf_getSubdivisionLevels(ss), 0, 1, 0);
@@ -433,7 +433,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 	int totvert = dm->getNumVerts(dm);
 	int totedge = dm->getNumEdges(dm);
 	int totface = dm->getNumFaces(dm);
-	int i;
+	int i, j;
 	int *index;
 	MVert *mvert = dm->getVertArray(dm);
 	MEdge *medge = dm->getEdgeArray(dm);
@@ -443,27 +443,79 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 	MFace *mf;
 	float *vertData;
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
+	float (*colors)[3] = NULL;
 	int pmask_layer_count, pmask_first_layer;
 
 	ccgSubSurf_initFullSync(ss);
 
 	mv = mvert;
 	index = (int *)dm->getVertDataArray(dm, CD_ORIGINDEX);
+
 	pmask_layer_count = CustomData_number_of_layers(&dm->vertData, CD_PAINTMASK);
 	pmask_first_layer = CustomData_get_layer_index(&dm->vertData, CD_PAINTMASK);
-	vertData = MEM_callocN(GRIDELEM_SIZE(gridkey), "vertData");
 
 	assert(gridkey->mask == 0 || gridkey->mask == pmask_layer_count);
 
+	vertData = MEM_callocN(GRIDELEM_SIZE(gridkey), "vertData");
+
+	/* for editable subdivided colors, find the average mcol for each vert */
+	if(gridkey->color) {
+		int mcol_totlayer, mcol_first_layer;
+		int *users;
+		int k;
+
+		mcol_totlayer = CustomData_number_of_layers(&dm->faceData, CD_MCOL);
+		mcol_first_layer = CustomData_get_layer_index(&dm->faceData, CD_MCOL);
+
+		colors = MEM_callocN(sizeof(float)*3*mcol_totlayer*totvert,
+				     "ss_sync_from_derivedmesh.colors");
+		users = MEM_callocN(sizeof(int)*totvert,
+				    "ss_sync_from_derivedmesh.users");
+
+		for(i = 0; i < totface; ++i) {
+			MFace *f = mface + i;
+			int S = f->v4 ? 4 : 3;
+
+			for(j = 0; j < S; ++j) {
+				int vndx = (&f->v1)[j];
+
+				++users[vndx];
+
+				for(k = 0; k < mcol_totlayer; ++k) {
+					MCol *mcol = dm->faceData.layers[mcol_first_layer+k].data;
+
+					colors[vndx*mcol_totlayer + k][0] = mcol[i*4+j].r;
+					colors[vndx*mcol_totlayer + k][1] = mcol[i*4+j].g;
+					colors[vndx*mcol_totlayer + k][2] = mcol[i*4+j].b;
+
+				}
+			}
+		}
+
+		for(i = 0; i < totvert; ++i) {
+			float inv = 1.0f / users[i];
+			for(j = 0; j < mcol_totlayer; ++j) {
+				colors[i*mcol_totlayer + j][0] *= inv;
+				colors[i*mcol_totlayer + j][1] *= inv;
+				colors[i*mcol_totlayer + j][2] *= inv;
+			}
+		}
+
+		MEM_freeN(users);
+	}
+
 	for(i = 0; i < totvert; i++, mv++) {
 		CCGVert *v;
-		int j;
 
 		copy_v3_v3(vertData, vertexCos ? vertexCos[i] : mv->co);
 
+		/* copy color data */
+		for(j = 0; j < gridkey->color; ++j)
+			memcpy(&vertData[3 + 3*j], colors[i*gridkey->color + j], sizeof(float)*3);
+
 		/* copy paint mask data */
 		for(j = 0; j < gridkey->mask; ++j)
-			vertData[3 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
+			vertData[3 + gridkey->color * 3 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
 
 		ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), vertData, 0, &v);
 
@@ -471,6 +523,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 	}
 
 	MEM_freeN(vertData);
+	if(colors) MEM_freeN(colors);
 
 	me = medge;
 	index = (int *)dm->getEdgeDataArray(dm, CD_ORIGINDEX);
@@ -1290,33 +1343,47 @@ static void ccgdm_pbvh_update(CCGDerivedMesh *ccgdm)
 	}
 }
 
-	/* Only used by non-editmesh types */
-static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)[4], int fast, int (*setMaterial)(int, void *attribs)) {
-	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
-	CCGSubSurf *ss = ccgdm->ss;
-	CCGFaceIterator *fi;
-	int gridSize = ccgSubSurf_getGridSize(ss);
-	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
+static int ccgdm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
+			   int (*setMaterial)(int, void *attribs),
+			   int fast_navigate, GPUDrawFlags drawflags)
+{
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*)dm;
 	char *faceFlags = ccgdm->faceFlags;
-	int step = (fast)? gridSize-1: 1;
 
 	ccgdm_pbvh_update(ccgdm);
 
-	if(ccgdm->pbvh && ccgdm->multires.mmd && !fast) {
+	if(ccgdm->pbvh && ccgdm->multires.mmd && !fast_navigate) {
 		if(dm->numFaceData) {
-			GPUDrawFlags drawflags = 0;
-
 			/* should be per face */
-			if(!setMaterial(faceFlags[1]+1, NULL))
-				return;
+			if(setMaterial && !setMaterial(faceFlags[1]+1, NULL))
+				return 1;
 			if(faceFlags[0] & ME_SMOOTH)
 				drawflags |= GPU_DRAW_SMOOTH;
 
 			BLI_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL, drawflags);
 		}
 
-		return;
+		return 1;
 	}
+
+	return 0;
+}
+
+/* Only used by non-editmesh types */
+static void ccgDM_drawFacesSolid(DerivedMesh *dm,
+				 float (*partial_redraw_planes)[4],
+				 int fast_navigate,
+				 int (*setMaterial)(int, void *attribs)) {
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	CCGFaceIterator *fi;
+	int gridSize = ccgSubSurf_getGridSize(ss);
+	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
+	char *faceFlags = ccgdm->faceFlags;
+	int step = (fast_navigate)? gridSize-1: 1;
+
+	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, setMaterial, fast_navigate, 0))
+		return;
 
 	fi = ccgSubSurf_getFaceIterator(ss);
 	for (; !ccgFaceIterator_isStopped(fi); ccgFaceIterator_next(fi)) {
@@ -1801,6 +1868,10 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int gridFaces = gridSize - 1, totface;
+
+	if(ccgdm_draw_pbvh(dm, NULL, NULL, 0, /* TODO, fast nav. */
+			   useColors ? GPU_DRAW_ACTIVE_MCOL : 0))
+		return;
 
 	if(useColors) {
 		mcol = dm->getFaceDataArray(dm, CD_WEIGHT_MCOL);
@@ -2674,7 +2745,7 @@ struct DerivedMesh *subsurf_make_derived_from_derived(
 	GridKey default_gridkey;
 
 	if(!gridkey) {
-		GRIDELEM_KEY_INIT(&default_gridkey, 1, 0, 1);
+		GRIDELEM_KEY_INIT(&default_gridkey, 1, 0, 0, 1);
 		gridkey = &default_gridkey;
 	}
 
