@@ -51,14 +51,14 @@ static void fill_bins(bNode* node, CompBuf* in, int* bins)
 {
 	float value[4];
 	int ivalue=0;
-	int x,y;
+	int x, y, thread=node->thread;
 
 	/*fill bins */
 	for(y=0; y<in->y; y++) {
 		for(x=0; x<in->x; x++) {
 
 			/* get the pixel */
-			qd_getPixel(in, x, y, value);
+			qd_getPixel(in, x, y, value, thread);
 
 			if(value[3] > 0.0) { /* don't count transparent pixels */
 				switch(node->custom1) {
@@ -108,14 +108,14 @@ static float brightness_mean(bNode* node, CompBuf* in)
 {
 	float sum=0.0;
 	int numPixels=0.0;
-	int x,y;
+	int x, y, thread=node->thread;
 	float value[4];
 
 	for(x=0; x< in->x; x++) {
 		for(y=0; y < in->y; y++) {
 			
 			/* get the pixel */
-			qd_getPixel(in, x, y, value);
+			qd_getPixel(in, x, y, value, thread);
 
 			if(value[3] > 0.0) { /* don't count transparent pixels */
 				numPixels++;
@@ -160,14 +160,14 @@ static float brightness_standard_deviation(bNode* node, CompBuf* in, float mean)
 {
 	float sum=0.0;
 	int numPixels=0.0;
-	int x,y;
+	int x, y, thread=node->thread;
 	float value[4];
 
 	for(x=0; x< in->x; x++) {
 		for(y=0; y < in->y; y++) {
 			
 			/* get the pixel */
-			qd_getPixel(in, x, y, value);
+			qd_getPixel(in, x, y, value, thread);
 
 			if(value[3] > 0.0) { /* don't count transparent pixels */
 				numPixels++;

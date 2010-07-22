@@ -1289,7 +1289,7 @@ static void do_render_seq(Render * re)
 		if (recurs_depth == 0) { /* with nested scenes, only free on toplevel... */
 			Editing * ed = re->db.scene->ed;
 			if (ed) {
-				free_imbuf_seq(re->db.scene, &ed->seqbase, TRUE);
+				free_imbuf_seq(re->db.scene, &ed->seqbase, TRUE, TRUE);
 			}
 		}
 	}

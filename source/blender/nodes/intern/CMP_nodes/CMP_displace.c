@@ -65,13 +65,13 @@ static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float
 	for(y=0; y < stackbuf->y; y++) {
 		for(x=0; x < stackbuf->x; x++) {
 			/* calc pixel coordinates */
-			qd_getPixel(vecbuf, x-vecbuf->xof, y-vecbuf->yof, vec);
+			qd_getPixel(vecbuf, x-vecbuf->xof, y-vecbuf->yof, vec, thread);
 			p_dx = vec[0] * xscale[0];
 			p_dy = vec[1] * yscale[0];
 			
 			/* if no displacement, then just copy this pixel */
 			if (p_dx < DISPLACE_EPSILON && p_dy < DISPLACE_EPSILON) {
-				qd_getPixel(cbuf, x-cbuf->xof, y-cbuf->yof, col);
+				qd_getPixel(cbuf, x-cbuf->xof, y-cbuf->yof, col, thread);
 				qd_setPixel(stackbuf, x, y, col);
 				continue;
 			}
@@ -82,8 +82,8 @@ static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float
 			
 			
 			/* calc derivatives */
-			qd_getPixel(vecbuf, x-vecbuf->xof+1, y-vecbuf->yof, vecdx);
-			qd_getPixel(vecbuf, x-vecbuf->xof, y-vecbuf->yof+1, vecdy);
+			qd_getPixel(vecbuf, x-vecbuf->xof+1, y-vecbuf->yof, vecdx, thread);
+			qd_getPixel(vecbuf, x-vecbuf->xof, y-vecbuf->yof+1, vecdy, thread);
 			d_dx = vecdx[0] * xscale[0];
 			d_dy = vecdy[0] * yscale[0];
 			
@@ -108,7 +108,7 @@ static void do_displace(CompBuf *stackbuf, CompBuf *cbuf, CompBuf *vecbuf, float
 	
 	for(y=0; y < stackbuf->y; y++) {
 		for(x=0; x < stackbuf->x; x++) {
-			qd_getPixel(vecbuf, x, y, vec);
+			qd_getPixel(vecbuf, x, y, vec, thread);
 			
 			dx = vec[0] * (xscale[0]);
 			dy = vec[1] * (yscale[0]);

@@ -117,7 +117,7 @@ static CompBuf* BTP(CompBuf* src, float threshold, int scaledown)
 //--------------------------------------------------------------------------------------------
 // simple 4-point star filter
 
-static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
+static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src, int thread)
 {
 	int x, y, i, xm, xp, ym, yp;
 	float c[4] = {0,0,0,0}, tc[4] = {0,0,0,0};
@@ -141,11 +141,11 @@ static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
 			for (x=0; x<tbuf1->x; x++) {
 				xm = x - i;
 				xp = x + i;
-				qd_getPixel(tbuf1, x, y, c);
+				qd_getPixel(tbuf1, x, y, c, thread);
 				fRGB_mult(c, f1);
-				qd_getPixel(tbuf1, (ndg->angle ? xm : x), ym, tc);
+				qd_getPixel(tbuf1, (ndg->angle ? xm : x), ym, tc, thread);
 				fRGB_madd(c, tc, f2);
-				qd_getPixel(tbuf1, (ndg->angle ? xp : x), yp, tc);
+				qd_getPixel(tbuf1, (ndg->angle ? xp : x), yp, tc, thread);
 				fRGB_madd(c, tc, f2);
 				qd_setPixel(tbuf1, x, y, c);
 			}
@@ -157,11 +157,11 @@ static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
 			for (x=tbuf1->x-1; x>=0; x--) {
 				xm = x - i;
 				xp = x + i;
-				qd_getPixel(tbuf1, x, y, c);
+				qd_getPixel(tbuf1, x, y, c, thread);
 				fRGB_mult(c, f1);
-				qd_getPixel(tbuf1, (ndg->angle ? xm : x), ym, tc);
+				qd_getPixel(tbuf1, (ndg->angle ? xm : x), ym, tc, thread);
 				fRGB_madd(c, tc, f2);
-				qd_getPixel(tbuf1, (ndg->angle ? xp : x), yp, tc);
+				qd_getPixel(tbuf1, (ndg->angle ? xp : x), yp, tc, thread);
 				fRGB_madd(c, tc, f2);
 				qd_setPixel(tbuf1, x, y, c);
 			}
@@ -174,11 +174,11 @@ static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
 			for (x=0; x<tbuf2->x; x++) {
 				xm = x - i;
 				xp = x + i;
-				qd_getPixel(tbuf2, x, y, c);
+				qd_getPixel(tbuf2, x, y, c, thread);
 				fRGB_mult(c, f1);
-				qd_getPixel(tbuf2, xm, (ndg->angle ? yp : y), tc);
+				qd_getPixel(tbuf2, xm, (ndg->angle ? yp : y), tc, thread);
 				fRGB_madd(c, tc, f2);
-				qd_getPixel(tbuf2, xp, (ndg->angle ? ym : y), tc);
+				qd_getPixel(tbuf2, xp, (ndg->angle ? ym : y), tc, thread);
 				fRGB_madd(c, tc, f2);
 				qd_setPixel(tbuf2, x, y, c);
 			}
@@ -190,11 +190,11 @@ static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
 			for (x=tbuf2->x-1; x>=0; x--) {
 				xm = x - i;
 				xp = x + i;
-				qd_getPixel(tbuf2, x, y, c);
+				qd_getPixel(tbuf2, x, y, c, thread);
 				fRGB_mult(c, f1);
-				qd_getPixel(tbuf2, xm, (ndg->angle ? yp : y), tc);
+				qd_getPixel(tbuf2, xm, (ndg->angle ? yp : y), tc, thread);
 				fRGB_madd(c, tc, f2);
-				qd_getPixel(tbuf2, xp, (ndg->angle ? ym : y), tc);
+				qd_getPixel(tbuf2, xp, (ndg->angle ? ym : y), tc, thread);
 				fRGB_madd(c, tc, f2);
 				qd_setPixel(tbuf2, x, y, c);
 			}
@@ -228,7 +228,7 @@ static void star4(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
 //--------------------------------------------------------------------------------------------
 // streak filter
 
-static void streaks(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
+static void streaks(NodeGlare* ndg, CompBuf* dst, CompBuf* src, int thread)
 {
 	CompBuf *bsrc, *tsrc, *tdst, *sbuf;
 	int x, y, n;
@@ -255,7 +255,7 @@ static void streaks(NodeGlare* ndg, CompBuf* dst, CompBuf* src)
 				for (x=0; x<tsrc->x; ++x, tdstcol+=4) {
 					// first pass no offset, always same for every pass, exact copy,
 					// otherwise results in uneven brightness, only need once
-					if (n==0) qd_getPixel(tsrc, x, y, c1); else c1[0]=c1[1]=c1[2]=0;
+					if (n==0) qd_getPixel(tsrc, x, y, c1, thread); else c1[0]=c1[1]=c1[2]=0;
 					qd_getPixelLerp(tsrc, x + vxp,     y + vyp,     c2);
 					qd_getPixelLerp(tsrc, x + vxp*2.f, y + vyp*2.f, c3);
 					qd_getPixelLerp(tsrc, x + vxp*3.f, y + vyp*3.f, c4);
@@ -451,7 +451,7 @@ static void node_composit_exec_glare(void *data, bNode *node, bNodeStack **in, b
 
 	switch (ndg->type) {
 		case 0:
-			star4(ndg, new, src);
+			star4(ndg, new, src, node->thread);
 			break;
 		case 1:
 			fglow(ndg, new, src);
@@ -461,7 +461,7 @@ static void node_composit_exec_glare(void *data, bNode *node, bNodeStack **in, b
 			break;
 		case 2:
 		default:
-			streaks(ndg, new, src);
+			streaks(ndg, new, src, node->thread);
 	}
 
 	free_compbuf(src);

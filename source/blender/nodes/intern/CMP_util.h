@@ -190,7 +190,7 @@ typedef float fRGB[4];
 								  _t=c1[2];  c1[2]=c2[2];  c2[2]=_t;\
 								  _t=c1[3];  c1[3]=c2[3];  c3[3]=_t;}
 
-void qd_getPixel(CompBuf* src, int x, int y, float* col);
+void qd_getPixel(CompBuf* src, int x, int y, float* col, int thread);
 void qd_setPixel(CompBuf* src, int x, int y, float* col);
 void qd_addPixel(CompBuf* src, int x, int y, float* col);
 void qd_multPixel(CompBuf* src, int x, int y, float f);

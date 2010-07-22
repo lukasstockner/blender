@@ -156,7 +156,7 @@
 #include <errno.h>
 
 /*
- Remark: still a weak point is the newadress() function, that doesnt solve reading from
+ Remark: still a weak point is the newaddress() function, that doesnt solve reading from
  multiple files at the same time
 
  (added remark: oh, i thought that was solved? will look at that... (ton)
@@ -1540,7 +1540,6 @@ static void lib_link_brush(FileData *fd, Main *main)
 			brush->id.flag -= LIB_NEEDLINK;
 
 			brush->mtex.tex= newlibadr_us(fd, brush->id.lib, brush->mtex.tex);
-			brush->image_icon= newlibadr_us(fd, brush->id.lib, brush->image_icon);
 			brush->clone.image= newlibadr_us(fd, brush->id.lib, brush->clone.image);
 		}
 	}
@@ -1556,6 +1555,9 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 		direct_link_curvemapping(fd, brush->curve);
 	else
 		brush_curve_preset(brush, CURVE_PRESET_SHARP);
+
+	brush->preview= NULL;
+	brush->icon_imbuf= NULL;
 }
 
 static void direct_link_script(FileData *fd, Script *script)
@@ -10984,21 +10986,26 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 	
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10))
+	if(main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 10) ||
+	   (main->versionfile == 253 && main->subversionfile < 13))
 		do_version_shading_sys_250(fd, lib, main);
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 11))
+	if(main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 11) ||
+	   (main->versionfile == 253 && main->subversionfile < 13))
 		do_version_subdivision_250(fd, lib, main);
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 12))
+	if(main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 12) ||
+	   (main->versionfile == 253 && main->subversionfile < 13))
 		do_version_image_cache_250(fd, lib, main);
-	if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 13))
+	if(main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 13) ||
+	   (main->versionfile == 253 && main->subversionfile < 13))
 		do_version_sss_scale_250(fd, lib, main);
 
-	/* put 2.50 compatibility code here until next subversion bump */
+	if (main->versionfile < 253)
 	{
 		Object *ob;
 		Scene *scene;
 		bScreen *sc;
 		Tex *tex;
+		Brush *brush;
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
@@ -11116,12 +11123,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				SEQ_END
 			}
 		}
-	}
 
-	{
 		/* GSOC 2010 Sculpt - New settings for Brush */
 
-		Brush *brush;
 		for (brush= main->brush.first; brush; brush= brush->id.next) {
 			/* Sanity Check */
 
@@ -11192,6 +11196,10 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 		}
+	}
+
+	/* put compatibility code here until next subversion bump */
+	{
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */

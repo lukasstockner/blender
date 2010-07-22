@@ -1123,9 +1123,21 @@ void convolve(CompBuf* dst, CompBuf* in1, CompBuf* in2)
  *
  */
 // sets fcol to pixelcolor at (x, y)
-void qd_getPixel(CompBuf* src, int x, int y, float* col)
+void qd_getPixel(CompBuf* src, int x, int y, float* col, int thread)
 {
-	if ((x >= 0) && (x < src->x) && (y >= 0) && (y < src->y)) {
+	if(src->rect_procedural) {
+		float bc[4];
+		src->rect_procedural(src, bc, (float)x/(float)src->xrad, (float)y/(float)src->yrad, thread);
+
+		switch(src->type){
+			/* these fallthrough to get all the channels */
+			case CB_RGBA: col[3]=bc[3]; 
+			case CB_VEC3: col[2]=bc[2];
+			case CB_VEC2: col[1]=bc[1];
+			case CB_VAL: col[0]=bc[0];
+		}
+	}
+	else if ((x >= 0) && (x < src->x) && (y >= 0) && (y < src->y)) {
 		float* bc = &src->rect[(x + y*src->x)*src->type];
 		switch(src->type){
 			/* these fallthrough to get all the channels */
