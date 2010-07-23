@@ -38,6 +38,8 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 
+#include "DNA_mesh_types.h"
+
 static void initData(ModifierData *md)
 {
 	MultiresModifierData *mmd = (MultiresModifierData*)md;
@@ -64,6 +66,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 {
 	MultiresModifierData *mmd = (MultiresModifierData*)md;
 	DerivedMesh *result;
+	Mesh *me= (Mesh*)ob->data;
+
+	if(mmd->totlvl) {
+		if(!CustomData_get_layer(&me->fdata, CD_MDISPS)) {
+			/* multires can't work without displacement layer */
+			modifier_setError(md, "Modifier needs mesh with displacement data.");
+			return dm;
+		}
+	}
 
 	result = multires_dm_create_from_derived(mmd, 0, dm, ob, useRenderParams, isFinalCalc);
 

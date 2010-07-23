@@ -231,7 +231,7 @@ void BRUSH_OT_curve_preset(wmOperatorType *ot)
 	ot->exec= brush_curve_preset_exec;
 	ot->poll= brush_curve_preset_poll;
 
-	ot->flag= OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	RNA_def_enum(ot->srna, "shape", prop_shape_items, CURVE_PRESET_SMOOTH, "Mode", "");
 }
@@ -323,7 +323,13 @@ float paint_calc_object_space_radius(Object *ob, ViewContext *vc,
    it's the last modifier on the stack and it is not on the first level */
 struct MultiresModifierData *paint_multires_active(Scene *scene, Object *ob)
 {
+	Mesh *me= (Mesh*)ob->data;
 	ModifierData *md, *nmd;
+
+	if(!CustomData_get_layer(&me->fdata, CD_MDISPS)) {
+		/* multires can't work without displacement layer */
+		return NULL;
+	}
 	
 	for(md= modifiers_getVirtualModifierList(ob); md; md= md->next) {
 		if(md->type == eModifierType_Multires) {
