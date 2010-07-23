@@ -225,11 +225,7 @@ typedef struct PBVHVertexIter {
 		int *grid_indices, totgrid, gridsize, *vert_indices, uniq_verts, totvert; \
 		struct GridKey *gridkey; \
 		\
-		vi.grid= 0; \
-		vi.no= 0; \
-		vi.fno= 0; \
-		vi.mvert= 0; \
-		vi.skip= 0; \
+		memset(&vi, 0, sizeof(PBVHVertexIter)); \
 		\
 		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL, &gridkey); \
 		BLI_pbvh_node_num_verts(bvh, node, &uniq_verts, &totvert); \
