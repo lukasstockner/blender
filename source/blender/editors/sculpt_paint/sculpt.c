@@ -126,11 +126,22 @@ int sculpt_modifiers_active(Scene *scene, Object *ob)
 	else
 		md= modifiers_getVirtualModifierList(ob);
 	
-	/* exception for shape keys because we can edit those */
 	for(; md; md= md->next) {
-		if(modifier_isEnabled(scene, md, eModifierMode_Realtime))
-			if(md->type != eModifierType_ShapeKey)
+		if(modifier_isEnabled(scene, md, eModifierMode_Realtime)) {
+
+			/* exception for shape keys because we can edit those */
+			if(md->type == eModifierType_ShapeKey)
+				continue;
+
+			/*exception for multires on level zero, it's
+			  not caught by the earlier multires check */
+			else if(md->type == eModifierType_Multires &&
+			   ((MultiresModifierData*)md)->sculptlvl == 0)
+				continue;
+
+			else
 				return 1;
+		}
 	}
 
 	return 0;

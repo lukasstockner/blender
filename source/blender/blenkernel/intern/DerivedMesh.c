@@ -2214,6 +2214,10 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask)
 	ob->derivedFinal->needsFree = 0;
 	ob->derivedDeform->needsFree = 0;
 	ob->lastDataMask = dataMask;
+
+	/* update the pbvh for paint */
+	if((ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)) && ob->paint)
+		ob->paint->pbvh= ob->derivedFinal->getPBVH(ob, ob->derivedFinal);
 }
 
 static void editmesh_build_data(Scene *scene, Object *obedit, EditMesh *em, CustomDataMask dataMask)

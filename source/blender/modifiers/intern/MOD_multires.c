@@ -62,7 +62,6 @@ static void copyData(ModifierData *md, ModifierData *target)
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 						   int useRenderParams, int isFinalCalc)
 {
-	int update_pbvh= (ob->mode & OB_MODE_SCULPT) && ob->paint;
 	MultiresModifierData *mmd = (MultiresModifierData*)md;
 	DerivedMesh *result;
 
@@ -75,11 +74,6 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 		DerivedMesh *cddm= CDDM_copy(result);
 		result->release(result);
 		result= cddm;
-	}
-	else if(update_pbvh) {
-		/* would be created on the fly too, just nicer this
-		   way on first stroke after e.g. switching levels */
-		ob->paint->pbvh= result->getPBVH(ob, result);
 	}
 
 	return result;
