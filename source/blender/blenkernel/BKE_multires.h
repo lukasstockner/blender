@@ -31,6 +31,7 @@
 #define BKE_MULTIRES_H
 
 struct DerivedMesh;
+struct GridKey;
 struct Mesh;
 struct MFace;
 struct Multires;
@@ -44,8 +45,9 @@ void multires_force_update(struct Object *ob);
 void multires_force_render_update(struct Object *ob);
 void multires_force_external_reload(struct Object *ob);
 
+/* note: gridkey can be NULL, will provide a context-sensitive default */
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*,
-	int local_mmd, struct DerivedMesh*, struct Object *, int, int);
+	int local_mmd, struct DerivedMesh*, struct Object *, struct GridKey *, int, int);
 
 struct MultiresModifierData *find_multires_modifier_before(struct Scene *scene,
 	struct ModifierData *lastmd);

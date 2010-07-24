@@ -124,8 +124,10 @@ static void multires_dm_mark_as_modified(DerivedMesh *dm)
 
 void multires_mark_as_modified(Object *ob)
 {
-	if(ob && ob->derivedFinal)
-		multires_dm_mark_as_modified(ob->derivedFinal);
+	DerivedMesh *dm = ob->derivedFinal;
+
+	if(ob && dm && dm->type == DM_TYPE_CCGDM)
+		multires_dm_mark_as_modified(dm);
 }
 
 void multires_force_update(Object *ob)
@@ -447,7 +449,9 @@ void multiresModifier_del_levels(MultiresModifierData *mmd, Object *ob, int dire
 	multires_set_tot_level(ob, mmd, lvl);
 }
 
-static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm, int lvl, int totlvl, int simple)
+static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm,
+					     GridKey *gridkey, int lvl,
+					     int totlvl, int simple)
 {
 	MultiresModifierData mmd;
 
@@ -458,13 +462,15 @@ static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm, int lv
 	mmd.totlvl = totlvl;
 	mmd.simple = simple;
 
-	return multires_dm_create_from_derived(&mmd, 1, dm, ob, 0, 0);
+	return multires_dm_create_from_derived(&mmd, 1, dm, ob, gridkey, 0, 0);
 }
 
-static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl, int simple, int optimal)
+static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm,
+					    GridKey *gridkey, int lvl,
+					    int simple, int optimal)
 {
 	SubsurfModifierData smd;
-	GridKey gridkey;
+	GridKey default_gridkey;
 	int color_totlayer;
 	int pmask_totlayer;
 
@@ -476,14 +482,17 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm, int lvl
 	if(optimal)
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
-	/* TODO: enable/disable element types */
-	color_totlayer = CustomData_number_of_layers(&get_mesh(ob)->fdata,
-						     CD_MCOL);
-	pmask_totlayer = CustomData_number_of_layers(&get_mesh(ob)->vdata,
-						     CD_PAINTMASK);
-	GRIDELEM_KEY_INIT(&gridkey, 1, color_totlayer, pmask_totlayer, 1);
+	if(!gridkey) {
+		/* TODO: enable/disable element types */
+		color_totlayer = CustomData_number_of_layers(&get_mesh(ob)->fdata,
+							     CD_MCOL);
+		pmask_totlayer = CustomData_number_of_layers(&get_mesh(ob)->vdata,
+							     CD_PAINTMASK);
+		GRIDELEM_KEY_INIT(&default_gridkey, 1, color_totlayer, pmask_totlayer, 1);
+		gridkey = &default_gridkey;
+	}
 			  
-	return subsurf_make_derived_from_derived(dm, &smd, &gridkey, 0, NULL, 0, 0);
+	return subsurf_make_derived_from_derived(dm, &smd, gridkey, 0, NULL, 0, 0);
 }
 
 /* assumes no is normalized; return value's sign is negative if v is on
@@ -498,6 +507,7 @@ static float v3_dist_from_plane(float v[3], float center[3], float no[3])
 void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 {
 	DerivedMesh *cddm, *dispdm, *origdm;
+	GridKey gridkey;
 	Mesh *me;
 	ListBase *fmap;
 	float (*origco)[3];
@@ -508,12 +518,15 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 	me = get_mesh(ob);
 	totlvl = mmd->totlvl;
 
+	/* only need vert/norm grid data */
+	GRIDELEM_KEY_INIT(&gridkey, 1, 0, 0, 1);
+
 	/* XXX - probably not necessary to regenerate the cddm so much? */
 
 	/* generate highest level with displacements */
 	cddm = CDDM_from_mesh(me, NULL);
 	DM_set_only_copy(cddm, CD_MASK_BAREMESH);
-	dispdm = multires_dm_create_local(ob, cddm, totlvl, totlvl, 0);
+	dispdm = multires_dm_create_local(ob, cddm, &gridkey, totlvl, totlvl, 0);
 	cddm->release(cddm);
 
 	/* copy the new locations of the base verts into the mesh */
@@ -591,7 +604,7 @@ void multiresModifier_base_apply(MultiresModifierData *mmd, Object *ob)
 	/* subdivide the mesh to highest level without displacements */
 	cddm = CDDM_from_mesh(me, NULL);
 	DM_set_only_copy(cddm, CD_MASK_BAREMESH);
-	origdm = subsurf_dm_create_local(ob, cddm, totlvl, 0, 0);
+	origdm = subsurf_dm_create_local(ob, cddm, &gridkey, totlvl, 0, 0);
 	cddm->release(cddm);
 
 	multiresModifier_disp_run(dispdm, me, CALC_DISPS, origdm->getGridData(origdm), totlvl);
@@ -640,11 +653,11 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		/* create subsurf DM from original mesh at high level */
 		cddm = CDDM_from_mesh(me, NULL);
 		DM_set_only_copy(cddm, CD_MASK_BAREMESH);
-		highdm = subsurf_dm_create_local(ob, cddm, totlvl, simple, 0);
+		highdm = subsurf_dm_create_local(ob, cddm, NULL, totlvl, simple, 0);
 		gridkey = highdm->getGridKey(highdm);
 
 		/* create multires DM from original mesh at low level */
-		lowdm = multires_dm_create_local(ob, cddm, lvl, lvl, simple);
+		lowdm = multires_dm_create_local(ob, cddm, NULL, lvl, lvl, simple);
 		cddm->release(cddm);
 
 		/* copy subsurf grids and replace them with low displaced grids */
@@ -881,6 +894,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 	Mesh *me;
 	MDisps *mdisps;
 	MultiresModifierData *mmd;
+	GridKey *gridkey;
 
 	ob = ccgdm->multires.ob;
 	me = ccgdm->multires.ob->data;
@@ -888,6 +902,10 @@ static void multiresModifier_update(DerivedMesh *dm)
 	multires_set_tot_mdisps(me, mmd->totlvl);
 	CustomData_external_read(&me->fdata, &me->id, CD_MASK_MDISPS, me->totface);
 	mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
+
+	/* use the same gridkey as the dm so that we don't try
+	   to update layers that didn't exist before */
+	gridkey = dm->getGridKey(dm);
 
 	if(mdisps) {
 		int lvl = ccgdm->multires.lvl;
@@ -899,18 +917,16 @@ static void multiresModifier_update(DerivedMesh *dm)
 			DMGridData **highGridData, **lowGridData, **subGridData, **gridData, *diffGrid;
 			CCGSubSurf *ss;
 			int i, j, numGrids, highGridSize, lowGridSize;
-			GridKey *gridkey;
 
 			/* create subsurf DM from original mesh at high level */
 			if (ob->derivedDeform) cddm = CDDM_copy(ob->derivedDeform);
 			else cddm = CDDM_from_mesh(me, NULL);
 			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
-			highdm = subsurf_dm_create_local(ob, cddm, totlvl, mmd->simple, 0);
-			gridkey = highdm->getGridKey(highdm);
+			highdm = subsurf_dm_create_local(ob, cddm, gridkey, totlvl, mmd->simple, 0);
 
 			/* create multires DM from original mesh and displacements */
-			lowdm = multires_dm_create_local(ob, cddm, lvl, totlvl, mmd->simple);
+			lowdm = multires_dm_create_local(ob, cddm, gridkey, lvl, totlvl, mmd->simple);
 			cddm->release(cddm);
 
 			/* gather grid data */
@@ -962,7 +978,7 @@ static void multiresModifier_update(DerivedMesh *dm)
 			else cddm = CDDM_from_mesh(me, NULL);
 			DM_set_only_copy(cddm, CD_MASK_BAREMESH);
 
-			subdm = subsurf_dm_create_local(ob, cddm, mmd->totlvl, mmd->simple, 0);
+			subdm = subsurf_dm_create_local(ob, cddm, gridkey, mmd->totlvl, mmd->simple, 0);
 			cddm->release(cddm);
 
 			multiresModifier_disp_run(dm, me, CALC_DISPS, subdm->getGridData(subdm), mmd->totlvl);
@@ -992,7 +1008,7 @@ void multires_stitch_grids(Object *ob)
 }
 
 DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int local_mmd, DerivedMesh *dm, Object *ob,
-							int useRenderParams, int isFinalCalc)
+					     GridKey *gridkey, int useRenderParams, int isFinalCalc)
 {
 	Mesh *me= ob->data;
 	DerivedMesh *result;
@@ -1000,12 +1016,11 @@ DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int loca
 	DMGridData **gridData, **subGridData;
 	int lvl= multires_get_level(ob, mmd, useRenderParams);
 	int i, gridSize, numGrids;
-	GridKey *gridkey;
 
 	if(lvl == 0)
 		return dm;
 
-	result = subsurf_dm_create_local(ob, dm, lvl,
+	result = subsurf_dm_create_local(ob, dm, gridkey, lvl,
 		mmd->simple, mmd->flags & eMultiresModifierFlag_ControlEdges);
 
 	if(!local_mmd) {
@@ -1023,6 +1038,7 @@ DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int loca
 	numGrids = result->getNumGrids(result);
 	gridSize = result->getGridSize(result);
 	gridData = result->getGridData(result);
+	/* null gridkey can be passed in, so update it here */
 	gridkey = result->getGridKey(result);
 
 	subGridData = MEM_callocN(sizeof(DMGridData*)*numGrids, "subGridData*");
@@ -1578,7 +1594,7 @@ void multires_load_old(Object *ob, Mesh *me)
 
 	mmd->lvl = mmd->totlvl;
 	orig = CDDM_from_mesh(me, NULL);
-	dm = multires_dm_create_from_derived(mmd, 0, orig, ob, 0, 0);
+	dm = multires_dm_create_from_derived(mmd, 0, orig, ob, NULL, 0, 0);
 					   
 	multires_load_old_dm(dm, me, mmd->totlvl+1);
 
