@@ -1236,6 +1236,8 @@ void BLI_pbvh_update(PBVH *bvh, int flag, float (*face_nors)[3])
 	if(nodes) MEM_freeN(nodes);
 }
 
+/* get the object-space bounding box containing all the nodes that
+   have been marked with PBVH_UpdateRedraw */
 void BLI_pbvh_redraw_BB(PBVH *bvh, float bb_min[3], float bb_max[3])
 {
 	PBVHIter iter;

@@ -2183,6 +2183,37 @@ static void draw_viewport_fps(Scene *scene, ARegion *ar)
 	BLF_draw_default(22,  ar->winy-17, 0.0f, printable);
 }
 
+
+void debug_draw_redraw_area(ARegion *ar)
+{
+	rcti winrct;
+
+	if(G.rt != 444)
+		return;
+
+	/* do nothing if it looks like this isn't a partial redraw */
+	region_scissor_winrct(ar, &winrct);
+	if(ar->drawrct.xmin == winrct.xmin &&
+	   ar->drawrct.xmax == winrct.xmax &&
+	   ar->drawrct.ymin == winrct.ymin &&
+	   ar->drawrct.ymax == winrct.ymax)
+		return;
+
+	/* choose a nice pastel color so that debugging is kept cheerful */
+	glColor3f((rand() / (float)RAND_MAX) * 0.3 + 0.7,
+		  (rand() / (float)RAND_MAX) * 0.3 + 0.7,
+		  (rand() / (float)RAND_MAX) * 0.3 + 0.7);
+
+	/* draw the redraw area, pull in by 2px so it doesn't get
+	   clipped by the scissor */
+	glBegin(GL_LINE_LOOP);
+	glVertex2i(ar->drawrct.xmin-winrct.xmin+2, ar->drawrct.ymin-winrct.ymin+2);
+	glVertex2i(ar->drawrct.xmax-winrct.xmin-2, ar->drawrct.ymin-winrct.ymin+2);
+	glVertex2i(ar->drawrct.xmax-winrct.xmin-2, ar->drawrct.ymax-winrct.ymin-2);
+	glVertex2i(ar->drawrct.xmin-winrct.xmin+2, ar->drawrct.ymax-winrct.ymin-2);
+	glEnd();
+}
+
 void view3d_main_area_draw(const bContext *C, ARegion *ar)
 {
 	Scene *scene= CTX_data_scene(C);
@@ -2361,7 +2392,9 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	}
 
 	ED_region_pixelspace(ar);
-	
+
+	debug_draw_redraw_area(ar);
+
 //	retopo_paint_view_update(v3d);
 //	retopo_draw_paint_lines();
 	

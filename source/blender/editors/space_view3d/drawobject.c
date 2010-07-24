@@ -2491,7 +2491,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	totface = dm->getNumFaces(dm);
 
 	/* setup for fast paint/sculpt drawing */
-	if((ob->mode & (OB_MODE_SCULPT)) &&
+	if((ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)) &&
 	   (p=paint_get_active(scene))) {
 		/* drop down to a low multires level during navigation */
 		fast_navigate = (p->flags & PAINT_FAST_NAVIGATE) &&
@@ -2499,7 +2499,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 		if(ob->paint && ob->paint->partial_redraw) {
 			if(ar->do_draw & RGN_DRAW_PARTIAL) {
-				sculpt_get_redraw_planes(planes, ar, rv3d, ob);
+				paint_get_redraw_planes(planes, ar, rv3d, ob);
 				paint_redraw_planes = planes;
 				ob->paint->partial_redraw = 0;
 			}

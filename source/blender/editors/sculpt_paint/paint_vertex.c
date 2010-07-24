@@ -2179,7 +2179,8 @@ static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
 	if(brush->vertexpaint_tool == VP_BLUR)
 		do_shared_vertexcol(ob->data);
 
-	ED_region_tag_redraw(vc->ar);
+	/* partial redraw */
+	paint_tag_partial_redraw(C, ob);
 }
 
 static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke, PointerRNA *itemptr)

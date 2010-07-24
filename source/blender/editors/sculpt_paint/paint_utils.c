@@ -25,6 +25,7 @@
 #include "BKE_utildefines.h"
 
 #include "BIF_gl.h"
+#include "BIF_glutil.h"
 
 #include "ED_view3d.h"
 #include "ED_screen.h"
@@ -347,4 +348,108 @@ struct MultiresModifierData *paint_multires_active(Scene *scene, Object *ob)
 	}
 
 	return NULL;
+}
+
+/*** BVH Tree ***/
+
+/* Get a screen-space rectangle of the modified area */
+static int paint_get_redraw_rect(ARegion *ar, RegionView3D *rv3d,
+				 Object *ob, rcti *rect)
+{
+	PBVH *pbvh= ob->paint->pbvh;
+	float bb_min[3], bb_max[3], pmat[4][4];
+	int i, j, k;
+
+	view3d_get_object_project_mat(rv3d, ob, pmat);
+
+	if(!pbvh)
+		return 0;
+
+	BLI_pbvh_redraw_BB(pbvh, bb_min, bb_max);
+
+	rect->xmin = rect->ymin = INT_MAX;
+	rect->xmax = rect->ymax = INT_MIN;
+
+	if(bb_min[0] > bb_max[0] || bb_min[1] > bb_max[1] || bb_min[2] > bb_max[2])
+		return 0;
+
+	for(i = 0; i < 2; ++i) {
+		for(j = 0; j < 2; ++j) {
+			for(k = 0; k < 2; ++k) {
+				float vec[3], proj[2];
+				vec[0] = i ? bb_min[0] : bb_max[0];
+				vec[1] = j ? bb_min[1] : bb_max[1];
+				vec[2] = k ? bb_min[2] : bb_max[2];
+				view3d_project_float(ar, vec, proj, pmat);
+				rect->xmin = MIN2(rect->xmin, proj[0]);
+				rect->xmax = MAX2(rect->xmax, proj[0]);
+				rect->ymin = MIN2(rect->ymin, proj[1]);
+				rect->ymax = MAX2(rect->ymax, proj[1]);
+			}
+		}
+	}
+	
+	return rect->xmin < rect->xmax && rect->ymin < rect->ymax;
+}
+
+void paint_tag_partial_redraw(bContext *C, Object *ob)
+{
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	ARegion *ar = CTX_wm_region(C);
+	rcti r;
+
+	if(paint_get_redraw_rect(ar, rv3d, ob, &r)) {
+		//rcti tmp;
+
+		r.xmin += ar->winrct.xmin + 1;
+		r.xmax += ar->winrct.xmin - 1;
+		r.ymin += ar->winrct.ymin + 1;
+		r.ymax += ar->winrct.ymin - 1;
+
+		//tmp = r;
+
+		//if (!BLI_rcti_is_empty(&ss->previous_r))
+		//	BLI_union_rcti(&r, &ss->previous_r);
+
+		//ss->previous_r= tmp;
+
+		ob->paint->partial_redraw = 1;
+		ED_region_tag_redraw_partial(ar, &r);
+	}
+}
+
+void paint_get_redraw_planes(float planes[4][4], ARegion *ar,
+			     RegionView3D *rv3d, Object *ob)
+{
+	PBVH *pbvh= ob->paint->pbvh;
+	BoundBox bb;
+	bglMats mats;
+	rcti rect;
+
+	memset(&bb, 0, sizeof(BoundBox));
+
+	view3d_get_transformation(ar, rv3d, ob, &mats);
+	paint_get_redraw_rect(ar, rv3d,ob, &rect);
+
+#if 1
+	/* use some extra space just in case */
+	rect.xmin -= 2;
+	rect.xmax += 2;
+	rect.ymin -= 2;
+	rect.ymax += 2;
+#else
+	/* it was doing this before, allows to redraw a smaller
+	   part of the screen but also gives artifaces .. */
+	rect.xmin += 2;
+	rect.xmax -= 2;
+	rect.ymin += 2;
+	rect.ymax -= 2;
+#endif
+
+	view3d_calculate_clipping(&bb, planes, &mats, &rect);
+	mul_m4_fl(planes, -1.0f);
+
+	/* clear redraw flag from nodes */
+	if(pbvh)
+		BLI_pbvh_update(pbvh, PBVH_UpdateRedraw, NULL);
 }

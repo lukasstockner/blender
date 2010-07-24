@@ -132,6 +132,8 @@ float paint_calc_object_space_radius(struct Object *ob,
 				     float center[3],
 				     float pixel_radius);
 
+void paint_tag_partial_redraw(struct bContext *C, struct Object *ob);
+
 struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
 
 /* stroke operator */
