@@ -33,7 +33,6 @@
 #include "BKE_global.h" /* for mesh_calc_normals */
 
 #include "GPU_buffers.h"
-#include <GL/glew.h>
 
 static void pbvh_free_nodes(PBVH *bvh);
 
@@ -1601,7 +1600,7 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *data)
 
 	glColor3f(1, 0, 0);
 #endif
-	GPU_draw_buffers(node->draw_buffers);
+	GPU_draw_buffers(node->draw_buffers, *((GPUDrawFlags*)data));
 }
 
 int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
@@ -1627,17 +1626,13 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int fla
 
 	if(nodes) MEM_freeN(nodes);
 
-	glShadeModel((flags & GPU_DRAW_SMOOTH) ? GL_SMOOTH: GL_FLAT);
-
 	if(planes) {
 		BLI_pbvh_search_callback(bvh, BLI_pbvh_node_planes_contain_AABB,
-				planes, BLI_pbvh_node_draw, NULL);
+				planes, BLI_pbvh_node_draw, &flags);
 	}
 	else {
-		BLI_pbvh_search_callback(bvh, NULL, NULL, BLI_pbvh_node_draw, NULL);
+		BLI_pbvh_search_callback(bvh, NULL, NULL, BLI_pbvh_node_draw, &flags);
 	}
-
-	glShadeModel(GL_FLAT);
 }
 
 void BLI_pbvh_grids_update(PBVH *bvh, DMGridData **grids,

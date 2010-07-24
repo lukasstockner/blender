@@ -162,7 +162,7 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   int *grid_indices, int totgrid,
 				   int gridsize, struct GridKey *gridkey,
 				   struct CustomData *vdata, GPUDrawFlags flags);
-void GPU_draw_buffers(GPU_Buffers *buffers);
+void GPU_draw_buffers(GPU_Buffers *buffers, GPUDrawFlags flags);
 void GPU_free_buffers(GPU_Buffers *buffers);
 
 /* called before drawing */

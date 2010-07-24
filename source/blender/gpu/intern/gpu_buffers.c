@@ -912,7 +912,7 @@ GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
 	return buffers;
 }
 
-void GPU_draw_buffers(GPU_Buffers *buffers_v)
+void GPU_draw_buffers(GPU_Buffers *buffers_v, GPUDrawFlags flags)
 {
 	GPU_Buffers *buffers = buffers_v;
 
@@ -932,6 +932,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers_v)
 			glGetBooleanv(GL_COLOR_MATERIAL, &colmat);
 			glEnable(GL_COLOR_MATERIAL);
 		}
+
+		glShadeModel((flags & GPU_DRAW_SMOOTH) ? GL_SMOOTH: GL_FLAT);
 
 		if(buffers->tot_quad) {
 			glVertexPointer(3, GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, co));
@@ -959,7 +961,9 @@ void GPU_draw_buffers(GPU_Buffers *buffers_v)
 		}
 
 		if(buffers->color_buf && !colmat)
-			glDisable(GL_COLOR_MATERIAL);		
+			glDisable(GL_COLOR_MATERIAL);
+
+		glShadeModel(GL_FLAT);	
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
