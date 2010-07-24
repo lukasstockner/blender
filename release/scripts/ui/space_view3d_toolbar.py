@@ -1221,7 +1221,6 @@ class VIEW3D_PT_tools_vertexpaint(View3DPanel):
         col.prop(vpaint, "all_faces")
         col.prop(vpaint, "normals")
         col.prop(vpaint, "spray")
-        col.prop(vpaint, "backbuf")
 
         col.label(text="Unified Settings:")
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")

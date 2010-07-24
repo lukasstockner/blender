@@ -1722,12 +1722,8 @@ static int set_vpaint(bContext *C, wmOperator *op)		/* toggle */
 		paint_init(&vp->paint, PAINT_CURSOR_VERTEX_PAINT);
 	}
 	
-	if(vp->flag & VP_BACKBUF)
-		/* update modifier stack for mapping requirements */
-		DAG_id_flush_update(&me->id, OB_RECALC_DATA);
-
 	/* create pbvh */
-	if(!(vp->flag & VP_BACKBUF) && ob->mode & OB_MODE_VERTEX_PAINT) {
+	if(ob->mode & OB_MODE_VERTEX_PAINT) {
 		DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
 		ob->paint->pbvh = dm->getPBVH(ob, dm);
 	}
@@ -1810,6 +1806,8 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 	struct VPaintData *vpd;
 	ViewContext *vc = paint_stroke_view_context(stroke);
 	Object *ob= CTX_data_active_object(C);
+	Scene *scene = CTX_data_scene(C);
+	DerivedMesh *dm;
 	Mesh *me;
 	float mat[4][4], imat[4][4];
 
@@ -1824,8 +1822,6 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 	paint_stroke_set_mode_data(stroke, vpd);
 	
 	vpd->vertexcosnos= mesh_get_mapped_verts_nors(vc->scene, ob);
-	if(vp->flag & VP_BACKBUF)
-		vpd->indexar= get_indexarray(me);
 	vpd->paintcol= vpaint_get_current_col(vp);
 	
 	/* for filtering */
@@ -1836,101 +1832,10 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 	invert_m4_m4(imat, mat);
 	copy_m3_m4(vpd->vpimat, imat);
 
-	if(!(CTX_data_tool_settings(C)->vpaint->flag & VP_BACKBUF)) {
-		Scene *scene = CTX_data_scene(C);
-		DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
-		ob->paint->pbvh = dm->getPBVH(ob, dm);
-	}
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
+	ob->paint->pbvh = dm->getPBVH(ob, dm);
 
 	return 1;
-}
-
-static void vpaint_paint_face(VPaint *vp, VPaintData *vpd, ViewContext *vc, int index, float mval[2], float pressure, int flip)
-{
-	Object *ob = vc->obact;
-	Brush *brush = paint_brush(&vp->paint);
-	Mesh *me = get_mesh(ob);
-	MFace *mface= ((MFace*)me->mface) + index;
-	unsigned int *mcol= ((unsigned int*)me->mcol) + 4*index;
-	unsigned int *mcolorig= ((unsigned int*)vp->vpaint_prev) + 4*index;
-	float alpha;
-	int i;
-	
-	if((vp->flag & VP_COLINDEX && mface->mat_nr!=ob->actcol-1) ||
-	   ((me->editflag & ME_EDIT_PAINT_MASK) && !(mface->flag & ME_FACE_SEL)))
-		return;
-
-	if(brush->vertexpaint_tool==VP_BLUR) {
-		unsigned int fcol1= mcol_blend( mcol[0], mcol[1], 128);
-		if(mface->v4) {
-			unsigned int fcol2= mcol_blend( mcol[2], mcol[3], 128);
-			vpd->paintcol= mcol_blend( fcol1, fcol2, 128);
-		}
-		else {
-			vpd->paintcol= mcol_blend( mcol[2], fcol1, 170);
-		}
-		
-	}
-
-	for(i = 0; i < (mface->v4 ? 4 : 3); ++i) {
-		alpha= calc_vp_alpha_dl(vp, vc, vpd->vpimat, vpd->vertexcosnos+6*(&mface->v1)[i], mval, pressure);
-		if(alpha)
-			vpaint_blend(vp, mcol+i, mcolorig+i, vpd->paintcol, (int)(alpha*255.0));
-	}
-}
-
-/* uses GL backbuf projection */
-static void vpaint_stroke_update_step_old(bContext *C, PaintStroke *stroke, PointerRNA *itemptr)
-{
-	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
-	VPaintData *vpd = paint_stroke_mode_data(stroke);
-	ViewContext *vc = paint_stroke_view_context(stroke);
-	Brush *brush = paint_brush(&vp->paint);
-	Object *ob = vc->obact;
-	Mesh *me = get_mesh(ob);
-	int *indexar= vpd->indexar;
-	float mat[4][4], mval[2], pressure;
-	int totindex, index, flip;
-
-	view3d_operator_needs_opengl(C);
-			
-	/* load projection matrix */
-	mul_m4_m4m4(mat, ob->obmat, vc->rv3d->persmat);
-
-	RNA_float_get_array(itemptr, "mouse", mval);
-	flip = RNA_boolean_get(itemptr, "flip");
-	pressure = RNA_float_get(itemptr, "pressure");
-
-	mval[0]-= vc->ar->winrct.xmin;
-	mval[1]-= vc->ar->winrct.ymin;
-
-			
-	/* which faces are involved */
-	if(vp->flag & VP_AREA) {
-		totindex= sample_backbuf_area(vc, indexar, me->totface, mval[0], mval[1], brush_size(brush));
-	}
-	else {
-		indexar[0]= view3d_sample_backbuf(vc, mval[0], mval[1]);
-		if(indexar[0]) totindex= 1;
-		else totindex= 0;
-	}
-			
-	swap_m4m4(vc->rv3d->persmat, mat);
-			
-	for(index=0; index<totindex; index++) {				
-		if(indexar[index] && indexar[index]<=me->totface)
-			vpaint_paint_face(vp, vpd, vc, indexar[index]-1, mval, pressure, flip);
-	}
-						
-	swap_m4m4(vc->rv3d->persmat, mat);
-
-	/* was disabled because it is slow, but necessary for blur */
-	if(brush->vertexpaint_tool == VP_BLUR)
-		do_shared_vertexcol(me);
-			
-	ED_region_tag_redraw(vc->ar);
-			
-	DAG_id_flush_update(ob->data, OB_RECALC_DATA);
 }
 
 /* apply paint at specified coordinate
@@ -1958,13 +1863,7 @@ static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
 			brush_curve_strength(brush, dist,
 					     radius);
 
-		//printf("orig=%f,%f,%f,%f   ", col[0], col[1], col[2], col[3]);
 		IMB_blend_color_float(col, col, paint_col, strength, IMB_BLEND_MIX /* TODO */);
-		//printf("result=%f,%f,%f,%f\n", col[0], col[1], col[2], col[3]);
-
-		/*vpaint_blend(vp, col, orig_col,
-			     vpd->paintcol,
-			     str*255);*/
 
 		return 1;
 	}
@@ -2177,8 +2076,7 @@ static void vpaint_color_one_face(bContext *C, PaintStroke *stroke,
 	}
 }
 
-/* uses PBVH */
-static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
+static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 					  PointerRNA *itemptr)
 {
 	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
@@ -2222,16 +2120,6 @@ static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
 	paint_tag_partial_redraw(C, ob);
 }
 
-static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke, PointerRNA *itemptr)
-{
-	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
-	
-	if(vp->flag & VP_BACKBUF)
-		vpaint_stroke_update_step_old(C, stroke, itemptr);
-	else
-		vpaint_stroke_update_step_new(C, stroke, itemptr);
-}
-
 static void vpaint_stroke_done(bContext *C, struct PaintStroke *stroke)
 {
 	ToolSettings *ts= CTX_data_tool_settings(C);
@@ -2250,10 +2138,8 @@ static void vpaint_stroke_done(bContext *C, struct PaintStroke *stroke)
 
 static int vpaint_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
-
 	op->customdata = paint_stroke_new(C,
-					  (vp->flag & VP_BACKBUF) ? NULL : vpaint_stroke_get_location,
+					  vpaint_stroke_get_location,
 					  vpaint_stroke_test_start,
 					  vpaint_stroke_update_step,
 					  vpaint_stroke_done);

@@ -339,11 +339,6 @@ static void rna_def_vertex_paint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "spray", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_SPRAY);
 	RNA_def_property_ui_text(prop, "Spray", "Keep applying paint effect while holding mouse");
-
-	/* XXX: temporary */
-	prop= RNA_def_property(srna, "backbuf", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", VP_BACKBUF);
-	RNA_def_property_ui_text(prop, "Original VPaint", "Don't use PBVH acceleration");
 }
 
 static void rna_def_image_paint(BlenderRNA *brna)

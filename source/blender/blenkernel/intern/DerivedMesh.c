@@ -2200,9 +2200,6 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask)
 	/* weight paint and face select need original indicies because of selection buffer drawing */
 	int needMapping = (ob==obact) && (editing || (ob->mode & OB_MODE_WEIGHT_PAINT));
 
-	if((ob->mode & OB_MODE_VERTEX_PAINT) && (scene->toolsettings->vpaint->flag & VP_BACKBUF))
-		needMapping |= 1;
-
 	clear_mesh_caches(ob);
 
 	mesh_calc_modifiers(scene, ob, NULL, &ob->derivedDeform,

@@ -2636,13 +2636,12 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			}
 			else if(ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_TEXTURE_PAINT)) {
 				if(me->mcol) {
-					VPaint *vp = scene->toolsettings->vpaint;
+					MFace *mface = get_mesh(ob)->mface;
+
 					/* XXX - temporary - set up nicer drawing for new vpaint */
-					if(!(vp->flag & VP_BACKBUF)) {
-						MFace *mface = get_mesh(ob)->mface;
-						GPU_enable_material(mface->mat_nr+1, NULL);
-						glEnable(GL_LIGHTING);
-					}
+					GPU_enable_material(mface->mat_nr+1, NULL);
+					glEnable(GL_LIGHTING);
+
 					dm->drawMappedFaces(dm, wpaint__setSolidDrawOptions, NULL, 1);
 					glDisable(GL_LIGHTING);
 				}
