@@ -249,6 +249,7 @@ void MESH_OT_uv_texture_add(struct wmOperatorType *ot);
 void MESH_OT_uv_texture_remove(struct wmOperatorType *ot);
 void MESH_OT_vertex_color_add(struct wmOperatorType *ot);
 void MESH_OT_vertex_color_remove(struct wmOperatorType *ot);
+void MESH_OT_vertex_color_multiresolution_toggle(struct wmOperatorType *ot);
 void MESH_OT_sticky_add(struct wmOperatorType *ot);
 void MESH_OT_sticky_remove(struct wmOperatorType *ot);
 void MESH_OT_drop_named_image(struct wmOperatorType *ot);

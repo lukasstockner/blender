@@ -76,7 +76,8 @@ void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 			  struct DMGridAdjacency *gridadj, int totgrid,
 			  int gridsize, struct GridKey *gridkey, void **gridfaces,
-			  struct CustomData *vdata, ListBase *hidden_areas);
+			  struct CustomData *vdata, struct CustomData *fdata,
+			  ListBase *hidden_areas);
 void BLI_pbvh_free(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:

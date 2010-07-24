@@ -29,6 +29,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math.h"
 #include "BLI_pbvh.h"
+#include "BLI_string.h"
 
 #include "ED_mesh.h"
 #include "ED_sculpt.h"
@@ -405,49 +406,46 @@ static int paintmask_check_multires(bContext *C)
 	return 0;
 }
 
-/* If this is a multires mesh, update it and free the DM, then add or remove
-   a paintmask layer from the grid layer */
+/* When adding paintmasks, assume we want them subdivided for multires */
 static void paintmask_adjust_multires(bContext *C,
 				      PaintMaskLayerOp op,
-				      int layer_offset,
+				      char *layer_name,
 				      float **removed_multires_data)
 {
 	Object *ob = CTX_data_active_object(C);
 	Mesh *me = get_mesh(ob);
-	CustomData *cd = CustomData_get_layer(&me->fdata, CD_FACEGRID);
-	int pmask_first_layer, i;
+	CustomDataMultires *cdm = CustomData_get_layer(&me->fdata, CD_GRIDS);
+	float *griddata;
+	int i;
 
-	assert(cd);
+	assert(cdm && layer_name);
 
 	for(i = 0; i < me->totface; ++i) {
-		pmask_first_layer = CustomData_get_layer_index(cd + i,
-							       CD_PAINTMASK);
-
 		switch(op) {
 		case LAYER_ADDED:
 			/* Add a layer of paintmask from grids */
 
-			assert(!removed_multires_data || layer_offset != -1);
-
 			/* if restoring from undo, copy the old data
 			   back into CustomData */
 			if(removed_multires_data)
-				CustomData_add_layer_at_offset(cd + i, CD_PAINTMASK,
-							       CD_ASSIGN,
-							       removed_multires_data[i],
-							       cd[i].grid_elems,
-							       layer_offset);
-			else							     
-				CustomData_add_layer(cd + i, CD_PAINTMASK,
-						     CD_CALLOC, NULL,
-						     cd[i].grid_elems);
+				griddata = removed_multires_data[i];
+			else
+				griddata = MEM_callocN(sizeof(float) *
+						       cdm->totelem,
+						       "paintmask griddata");
+
+			CustomData_multires_add_layer(cdm + i,
+						      CD_PAINTMASK,
+						      layer_name,
+						      griddata);
+
 			break;
 
 		case LAYER_REMOVED:
 			/* Remove a layer of paintmask from grids */
-			CustomData_free_layer(cd + i, CD_PAINTMASK,
-					      cd[i].grid_elems,
-					      pmask_first_layer + layer_offset);
+			
+			CustomData_multires_remove_layer(cdm + i, CD_PAINTMASK,
+							 layer_name);
 			break;
 		}
 	}
@@ -467,9 +465,9 @@ typedef struct PaintMaskUndoNode {
 	int totface;
 } PaintMaskUndoNode;
 
-/* copy the mesh/multires data for paintmask at layer_offset into unode */
+/* copy the mesh/multires data for named paintmask layer into unode */
 static void paintmask_undo_backup_layer(bContext *C, PaintMaskUndoNode *unode,
-					int layer_offset)
+					char *layer_name)
 {
 	struct Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
@@ -482,17 +480,17 @@ static void paintmask_undo_backup_layer(bContext *C, PaintMaskUndoNode *unode,
 	/* if removing a layer, make a copy of the mask
 	   data for restoring from undo */
 	unode->removed_data =
-		MEM_dupallocN(CustomData_get_layer_n(&me->vdata,
-						     CD_PAINTMASK,
-						     layer_offset));
+		MEM_dupallocN(CustomData_get_layer_named(&me->vdata,
+							 CD_PAINTMASK,
+							 layer_name));
 
-	strcpy(unode->layer_name,
-	       me->vdata.layers[pmask_first_layer+layer_offset].name);
+
+	/* XXX: need to deal somewhere with possibility of layer name-change */
 
 	if(paint_multires_active(scene, ob)) {
 		/* need to copy active layer of multires data too */
-		CustomData *grids = CustomData_get_layer(&me->fdata,
-							 CD_FACEGRID);
+		CustomDataMultires *grids = CustomData_get_layer(&me->fdata,
+								 CD_GRIDS);
 		int i;
 
 		unode->totface = me->totface;
@@ -502,9 +500,9 @@ static void paintmask_undo_backup_layer(bContext *C, PaintMaskUndoNode *unode,
 
 		for(i = 0; i < me->totface; ++i) {
 			unode->removed_multires_data[i] =
-				MEM_dupallocN(CustomData_get_layer_n(grids + i,
-								     CD_PAINTMASK,
-								     layer_offset));
+				MEM_dupallocN(CustomData_multires_get_data(grids + i,
+									   CD_PAINTMASK,
+									   layer_name));
 		}
 	}
 }
@@ -522,10 +520,10 @@ static void paintmask_undo_restore(bContext *C, ListBase *lb)
 
 	switch(unode->type) {
 	case LAYER_ADDED:
-		paintmask_undo_backup_layer(C, unode, unode->layer_offset);
+		paintmask_undo_backup_layer(C, unode, unode->layer_name);
 
 		if(multires)
-			paintmask_adjust_multires(C, LAYER_REMOVED, unode->layer_offset, NULL);
+			paintmask_adjust_multires(C, LAYER_REMOVED, unode->layer_name, NULL);
 
 		CustomData_free_layer(vdata, CD_PAINTMASK, me->totvert,
 				      pmask_first_layer + unode->layer_offset);
@@ -533,7 +531,7 @@ static void paintmask_undo_restore(bContext *C, ListBase *lb)
 	case LAYER_REMOVED:
 		if(multires)
 			paintmask_adjust_multires(C, LAYER_ADDED,
-						  unode->layer_offset,
+						  unode->layer_name,
 						  unode->removed_multires_data);
 		CustomData_add_layer_at_offset(vdata,
 					       CD_PAINTMASK,
@@ -542,6 +540,7 @@ static void paintmask_undo_restore(bContext *C, ListBase *lb)
 					       me->totvert,
 					       unode->layer_offset);
 
+		CustomData_set_layer_offset_flag(vdata, CD_PAINTMASK, unode->layer_offset, CD_FLAG_MULTIRES);
 		CustomData_set_layer_active(vdata, CD_PAINTMASK, unode->layer_offset);
 		strcpy(vdata->layers[pmask_first_layer+unode->layer_offset].name, unode->layer_name);
 
@@ -559,21 +558,6 @@ static void paintmask_undo_restore(bContext *C, ListBase *lb)
 	unode->type = unode->type == LAYER_ADDED ? LAYER_REMOVED : LAYER_ADDED;
 
 	paintmask_redraw(C);
-}
-
-static void paintmask_undo_push_node(bContext *C, PaintMaskLayerOp op, int layer_offset)
-{
-	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
-	PaintMaskUndoNode *unode = MEM_callocN(sizeof(PaintMaskUndoNode),
-					       "PaintMaskUndoNode");
-
-	unode->type = op;
-	unode->layer_offset = layer_offset;
-
-	if(op == LAYER_REMOVED)
-		paintmask_undo_backup_layer(C, unode, layer_offset);
-
-	BLI_addtail(lb, unode);
 }
 
 static void paintmask_undo_free(ListBase *lb)
@@ -594,14 +578,27 @@ static void paintmask_undo_free(ListBase *lb)
 }
 
 static void paintmask_undo_push(bContext *C, char *name,
-			   PaintMaskLayerOp op, int layer_offset)
+				PaintMaskLayerOp op, char *layer_name,
+				int layer_offset)
 {
+	PaintMaskUndoNode *unode;
+
 	undo_paint_push_begin(UNDO_PAINT_MESH,
 			      name,
 			      paintmask_undo_restore,
 			      paintmask_undo_free);
 
-	paintmask_undo_push_node(C, op, layer_offset);
+	unode = MEM_callocN(sizeof(PaintMaskUndoNode), "PaintMaskUndoNode");
+
+	unode->type = op;
+	BLI_strncpy(unode->layer_name, layer_name, sizeof(unode->layer_name));
+	/* store offset so a removed layer can be restored at the same place */
+	unode->layer_offset = layer_offset;
+
+	if(op == LAYER_REMOVED)
+		paintmask_undo_backup_layer(C, unode, layer_name);
+
+	BLI_addtail(undo_paint_push_get_list(UNDO_PAINT_MESH), unode);
 
 	undo_paint_push_end(UNDO_PAINT_MESH);
 }
@@ -616,18 +613,27 @@ static int mask_layer_add_exec(bContext *C, wmOperator *op)
 	Object *ob= CTX_data_active_object(C);
 	Mesh *me= ob->data;
 	int multires, top;
+	char *layer_name;
 
 	multires = paintmask_check_multires(C);
 
-	paintmask_undo_push(C, "Add paint mask", LAYER_ADDED,
-			    CustomData_number_of_layers(&me->vdata, CD_PAINTMASK));
+	top= CustomData_number_of_layers(&me->vdata, CD_PAINTMASK);
+	CustomData_add_layer(&me->vdata, CD_PAINTMASK, CD_DEFAULT,
+			     NULL, me->totvert);
+
+	CustomData_set_layer_offset_flag(&me->vdata, CD_PAINTMASK, top, CD_FLAG_MULTIRES);
+	CustomData_set_layer_active(&me->vdata, CD_PAINTMASK, top);
+
+	layer_name = CustomData_get_layer_name_at_offset(&me->vdata,
+							 CD_PAINTMASK, top);
+
+	/* now that we have correct name, update multires and do undo push */
 
 	if(multires)
-		paintmask_adjust_multires(C, LAYER_ADDED, -1, NULL);
+		paintmask_adjust_multires(C, LAYER_ADDED, layer_name, NULL);
 
-	top= CustomData_number_of_layers(&me->vdata, CD_PAINTMASK);
-	CustomData_add_layer(&me->vdata, CD_PAINTMASK, CD_DEFAULT, NULL, me->totvert);
-	CustomData_set_layer_active(&me->vdata, CD_PAINTMASK, top);
+	paintmask_undo_push(C, "Add paint mask", LAYER_ADDED,
+			    layer_name, top);
 
 	paintmask_redraw(C);
 
@@ -659,12 +665,15 @@ static int mask_layer_remove_exec(bContext *C, wmOperator *op)
 
 	if(active_offset >= 0) {
 		int multires = paintmask_check_multires(C);
+		char *layer_name = CustomData_get_layer_name_at_offset(&me->vdata,
+								       CD_PAINTMASK,
+								       active_offset);
 
 		paintmask_undo_push(C, "Remove paint mask", LAYER_REMOVED,
-				    active_offset);
+				    layer_name, active_offset);
 
 		if(multires)
-			paintmask_adjust_multires(C, LAYER_REMOVED, active_offset, NULL);
+			paintmask_adjust_multires(C, LAYER_REMOVED, layer_name, NULL);
 
 		CustomData_free_layer_active(&me->vdata, CD_PAINTMASK, me->totvert);
 

@@ -119,6 +119,8 @@ static CCGSubSurf *_getSubSurf(CCGSubSurf *prevSS, GridKey *gridkey, int subdivL
 	ifc.vertDataSize = GRIDELEM_SIZE(gridkey);
 	ifc.finterpCount = GRIDELEM_INTERP_COUNT(gridkey);
 	ifc.gridkey = *gridkey;
+	ifc.gridkey.color_names = MEM_dupallocN(gridkey->color_names);
+	ifc.gridkey.mask_names = MEM_dupallocN(gridkey->mask_names);
 
 	if (useArena) {
 		CCGAllocatorIFC allocatorIFC;
@@ -443,7 +445,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 	MFace *mf;
 	float *vertData;
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
-	float (*colors)[3] = NULL;
+	float (*colors)[4] = NULL;
 	int pmask_layer_count, pmask_first_layer;
 
 	ccgSubSurf_initFullSync(ss);
@@ -460,14 +462,10 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 
 	/* for editable subdivided colors, find the average mcol for each vert */
 	if(gridkey->color) {
-		int mcol_totlayer, mcol_first_layer;
 		int *users;
 		int k;
 
-		mcol_totlayer = CustomData_number_of_layers(&dm->faceData, CD_MCOL);
-		mcol_first_layer = CustomData_get_layer_index(&dm->faceData, CD_MCOL);
-
-		colors = MEM_callocN(sizeof(float)*3*mcol_totlayer*totvert,
+		colors = MEM_callocN(sizeof(float)*4*gridkey->color*totvert,
 				     "ss_sync_from_derivedmesh.colors");
 		users = MEM_callocN(sizeof(int)*totvert,
 				    "ss_sync_from_derivedmesh.users");
@@ -481,23 +479,29 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 
 				++users[vndx];
 
-				for(k = 0; k < mcol_totlayer; ++k) {
-					MCol *mcol = dm->faceData.layers[mcol_first_layer+k].data;
+				for(k = 0; k < gridkey->color; ++k) {
+					MCol *mcol = CustomData_get_layer_named(&dm->faceData,
+										CD_MCOL,
+										gridkey->color_names[k]);
 
-					colors[vndx*mcol_totlayer + k][0] = mcol[i*4+j].r;
-					colors[vndx*mcol_totlayer + k][1] = mcol[i*4+j].g;
-					colors[vndx*mcol_totlayer + k][2] = mcol[i*4+j].b;
+					colors[vndx*gridkey->color + k][0] += mcol[i*4+j].b;
+					colors[vndx*gridkey->color + k][1] += mcol[i*4+j].g;
+					colors[vndx*gridkey->color + k][2] += mcol[i*4+j].r;
+					colors[vndx*gridkey->color + k][3] += mcol[i*4+j].a;
 
 				}
 			}
 		}
 
+		/* divide by number of faces sharing the corner
+		   also convert from [0,255] to [0,1] */
 		for(i = 0; i < totvert; ++i) {
-			float inv = 1.0f / users[i];
-			for(j = 0; j < mcol_totlayer; ++j) {
-				colors[i*mcol_totlayer + j][0] *= inv;
-				colors[i*mcol_totlayer + j][1] *= inv;
-				colors[i*mcol_totlayer + j][2] *= inv;
+			float inv = 1.0f / (users[i] * 255);
+			for(j = 0; j < gridkey->color; ++j) {
+				colors[i*gridkey->color + j][0] *= inv;
+				colors[i*gridkey->color + j][1] *= inv;
+				colors[i*gridkey->color + j][2] *= inv;
+				colors[i*gridkey->color + j][3] *= inv;
 			}
 		}
 
@@ -511,11 +515,11 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 
 		/* copy color data */
 		for(j = 0; j < gridkey->color; ++j)
-			memcpy(&vertData[3 + 3*j], colors[i*gridkey->color + j], sizeof(float)*3);
+			memcpy(&vertData[3 + 4*j], colors[i*gridkey->color + j], sizeof(float)*4);
 
 		/* copy paint mask data */
 		for(j = 0; j < gridkey->mask; ++j)
-			vertData[3 + gridkey->color * 3 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
+			vertData[3 + gridkey->color*3 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
 
 		ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), vertData, 0, &v);
 
@@ -2370,6 +2374,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 	CCGDerivedMesh *ccgdm= (CCGDerivedMesh*)dm;
 	int gridSize, numGrids, grid_pbvh;
 	GridKey *gridkey;
+	Mesh *me;
 
 	if(!ob) {
 		ccgdm->pbvh= NULL;
@@ -2401,6 +2406,8 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 	if(ccgdm->pbvh)
 		return ccgdm->pbvh;
 
+	me = ob->data;
+
 	/* no pbvh exists yet, we need to create one. only in case of multires
 	   we build a pbvh over the modified mesh, in other cases the base mesh
 	   is being sculpted, so we build a pbvh from that. */
@@ -2414,13 +2421,11 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
-				     &get_mesh(ob)->vdata,
+				     &me->vdata, &me->fdata,
 				     ss ? &ss->hidden_areas : NULL);
 		ccgdm->pbvh_draw = 1;
 	}
 	else if(ob->type == OB_MESH) {
-		Mesh *me= ob->data;
-
 		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
 		BLI_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
 				    &me->vdata, &me->fdata, me->totface, me->totvert,

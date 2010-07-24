@@ -749,6 +749,15 @@ void ccgSubSurf_free(CCGSubSurf *ss) {
 	_ehash_free(ss->eMap, (EHEntryFreeFP) _edge_free, ss);
 	_ehash_free(ss->vMap, (EHEntryFreeFP) _vert_free, ss);
 
+	/* free gridkey */
+	if(ss->meshIFC.gridkey.color_names)
+		MEM_freeN(ss->meshIFC.gridkey.color_names);
+	if(ss->meshIFC.gridkey.mask_names)
+		MEM_freeN(ss->meshIFC.gridkey.mask_names);
+
+	ss->meshIFC.gridkey.color_names = NULL;
+	ss->meshIFC.gridkey.mask_names = NULL;
+
 	CCGSUBSURF_free(ss, ss);
 
 	if (allocatorIFC.release) {

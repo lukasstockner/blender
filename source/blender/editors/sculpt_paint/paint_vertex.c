@@ -66,6 +66,7 @@
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
+#include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_utildefines.h"
@@ -1935,25 +1936,35 @@ static void vpaint_stroke_update_step_old(bContext *C, PaintStroke *stroke, Poin
 /* apply paint at specified coordinate
    returns 1 if paint was applied, 0 otherwise */
 static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
-			      unsigned int *col, unsigned int *orig_col,
+			      float col[4], float orig_col[4],
 			      float center[3], float radius,
 			      float radius_squared)
 {
 	Brush *brush = paint_brush(&vp->paint);
-	float str, dist, dist_squared;
+	float strength, dist, dist_squared;
+	float paint_col[4];
+
+	paint_col[0] = ((MCol*)&vpd->paintcol)->b / 255.0f;
+	paint_col[1] = ((MCol*)&vpd->paintcol)->g / 255.0f;
+	paint_col[2] = ((MCol*)&vpd->paintcol)->r / 255.0f;
+	paint_col[3] = ((MCol*)&vpd->paintcol)->a / 255.0f;
 
 	dist_squared = len_squared_v3v3(center, co);
 
 	if(dist_squared < radius_squared) {
 		dist = sqrtf(dist_squared);
 
-		str = brush->alpha *
+		strength = brush->alpha *
 			brush_curve_strength(brush, dist,
 					     radius);
 
-		vpaint_blend(vp, col, orig_col,
+		//printf("orig=%f,%f,%f,%f   ", col[0], col[1], col[2], col[3]);
+		IMB_blend_color_float(col, col, paint_col, strength, IMB_BLEND_MIX /* TODO */);
+		//printf("result=%f,%f,%f,%f\n", col[0], col[1], col[2], col[3]);
+
+		/*vpaint_blend(vp, col, orig_col,
 			     vpd->paintcol,
-			     str*255);
+			     str*255);*/
 
 		return 1;
 	}
@@ -1963,7 +1974,8 @@ static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
 
 static void vpaint_nodes_grids(VPaint *vp, VPaintData *vpd, DMGridData **grids,
 			       GridKey *gridkey, int *grid_indices, int totgrid,
-			       int gridsize, float center[3], float radius)
+			       int gridsize, int active, float center[3],
+			       float radius)
 {
 	float radius_squared = radius*radius;
 	int i, x, y;
@@ -1977,23 +1989,13 @@ static void vpaint_nodes_grids(VPaint *vp, VPaintData *vpd, DMGridData **grids,
 							       y*gridsize+x,
 							       gridkey);
 				float *co = GRIDELEM_CO(elem, gridkey);
-				float *gridcol = GRIDELEM_COLOR(elem, gridkey);
-				MCol col, orig_col;
+				float *gridcol = GRIDELEM_COLOR(elem, gridkey)[active];
 
-				col.r = gridcol[0] * 255;
-				col.g = gridcol[1] * 255;
-				col.b = gridcol[2] * 255;
-
-				if(vpaint_paint_coord(vp, vpd, co,
-					(unsigned int*)(&col),
-					(unsigned int*)(&orig_col),
-					center, radius,
-					radius_squared)) {
-
-					gridcol[0] = col.r * (1.0 / 255);
-					gridcol[1] = col.g * (1.0 / 255);
-					gridcol[2] = col.b * (1.0 / 255);
-				}
+				vpaint_paint_coord(vp, vpd, co,
+						   gridcol,
+						   NULL, /* TODO */
+						   center, radius,
+						   radius_squared);
 			}
 		}
 	}
@@ -2021,13 +2023,42 @@ static void vpaint_nodes_faces(VPaint *vp, VPaintData *vpd, MFace *mface,
 			int vndx = (&f->v1)[j];
 			int cndx = face_index*4 + j;
 			float *co = mvert[vndx].co;
-			unsigned int *col = (unsigned int*)(mcol + cndx);
-			unsigned int *orig_col = (unsigned int*)(orig + cndx);
+			//unsigned int *col = (unsigned int*)(mcol + cndx);
+			//unsigned int *orig_col = (unsigned int*)(orig + cndx);
+			float fcol[4];
 
-			vpaint_paint_coord(vp, vpd, co, col, orig_col, center,
+			fcol[0] = mcol[cndx].b / 255.0f;
+			fcol[1] = mcol[cndx].g / 255.0f;
+			fcol[2] = mcol[cndx].r / 255.0f;
+			fcol[3] = mcol[cndx].a / 255.0f;
+
+			vpaint_paint_coord(vp, vpd, co, fcol, NULL /* TODO */, center,
 					   radius, radius_squared);
+
+			mcol[cndx].b = fcol[0] * 255.0f;
+			mcol[cndx].g = fcol[1] * 255.0f;
+			mcol[cndx].r = fcol[2] * 255.0f;
+			mcol[cndx].a = fcol[3] * 255.0f;
 		}
 	}
+}
+
+static int vpaint_find_gridkey_active_layer(CustomData *fdata, GridKey *gridkey)
+{
+	int active, i;
+
+	active = CustomData_get_active_layer_index(fdata, CD_MCOL);
+	
+	if(active == -1)
+		return -1;
+
+	for(i = 0; i < gridkey->color; ++i) {
+		if(!strcmp(gridkey->color_names[i],
+			   fdata->layers[active].name))
+			return i;
+	}
+
+	return -1;
 }
 
 static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
@@ -2039,7 +2070,7 @@ static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
 	for(n = 0; n < totnode; ++n) {
 		MVert *mvert;
 		MFace *mface;
-		CustomData *fdata;
+		CustomData *fdata = NULL;
 		int *face_indices, totface;
 
 		DMGridData **grids;
@@ -2056,9 +2087,15 @@ static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
 					NULL, &gridkey);
 
 		if(grids) {
-			vpaint_nodes_grids(vp, vpd, grids, gridkey,
-					   grid_indices, totgrid, gridsize,
-					   center, radius);
+			int active = vpaint_find_gridkey_active_layer(fdata,
+								      gridkey);
+
+			if(active != -1) {
+				vpaint_nodes_grids(vp, vpd, grids, gridkey,
+						   grid_indices, totgrid,
+						   gridsize, active, center,
+						   radius);
+			}
 		}
 		else {
 			vpaint_nodes_faces(vp, vpd, mface, mvert, fdata,
@@ -2167,6 +2204,8 @@ static void vpaint_stroke_update_step_new(bContext *C, PaintStroke *stroke,
 
 		vpaint_nodes(vp, vpd, ob->paint->pbvh, nodes, totnode,
 			     center, radius);
+
+		multires_mark_as_modified(ob);
 
 		if(nodes)
 			MEM_freeN(nodes);

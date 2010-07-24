@@ -3262,9 +3262,25 @@ static void direct_link_mdisps(FileData *fd, int count, MDisps *mdisps, int exte
 	}       
 }
 
+static void direct_link_customdata_multires(FileData *fd, int count,
+					    CustomDataMultires *cdm)
+{
+	if(cdm) {
+		int i, j;
+
+		for(i = 0; i < count; ++i, ++cdm) {
+			cdm->layers = newdataadr(fd, cdm->layers);
+			for(j = 0; j < cdm->totlayer; ++j) {
+				CustomDataMultiresLayer *l = cdm->layers + j;
+				l->griddata = newdataadr(fd, l->griddata);
+			}
+		}
+	}
+}
+
 static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 {
-	int i = 0, j;
+	int i = 0;
 
 	data->layers= newdataadr(fd, data->layers);
 	data->external= newdataadr(fd, data->external);
@@ -3279,11 +3295,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 			layer->data = newdataadr(fd, layer->data);
 			if(layer->type == CD_MDISPS)
 				direct_link_mdisps(fd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
-			if(layer->type == CD_FACEGRID) {
-				CustomData *grids = layer->data;
-				for(j = 0; j < count; ++j)
-					direct_link_customdata(fd, grids + j, grids[j].grid_elems);
-			}
+			if(layer->type == CD_GRIDS)
+				direct_link_customdata_multires(fd, count, layer->data);
 			i++;
 		}
 	}

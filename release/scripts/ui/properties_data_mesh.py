@@ -366,6 +366,10 @@ class DATA_PT_vertex_colors(DataButtonsPanel):
         lay = me.active_vertex_color
         if lay:
             layout.prop(lay, "name")
+            if lay.multiresolution:
+                layout.operator("mesh.vertex_color_multiresolution_toggle", text="Remove Multires")
+            else:
+                layout.operator("mesh.vertex_color_multiresolution_toggle", text="Add Multires")
 
 
 classes = [

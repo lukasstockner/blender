@@ -35,6 +35,7 @@
 struct ID;
 struct CustomData;
 struct CustomDataLayer;
+struct CustomDataMultires;
 typedef unsigned int CustomDataMask;
 
 extern const CustomDataMask CD_MASK_BAREMESH;
@@ -234,6 +235,8 @@ int CustomData_get_render_layer(const struct CustomData *data, int type);
 int CustomData_get_clone_layer(const struct CustomData *data, int type);
 int CustomData_get_stencil_layer(const struct CustomData *data, int type);
 
+char *CustomData_get_layer_name_at_offset(const struct CustomData *data, int type, int offset);
+
 /* copies the data from source to the data element at index in the first
  * layer of type
  * no effect if there is no layer of type
@@ -271,6 +274,7 @@ void CustomData_set_layer_stencil_index(struct CustomData *data, int type, int n
 
 /* adds flag to the layer flags */
 void CustomData_set_layer_flag(struct CustomData *data, int type, int flag);
+void CustomData_set_layer_offset_flag(struct CustomData *data, int type, int offset, int flag);
 
 /* alloc/free a block of custom data attached to one element in editmode */
 void CustomData_em_set_default(struct CustomData *data, void **block);
@@ -311,7 +315,38 @@ void CustomData_from_bmeshpoly(struct CustomData *fdata, struct CustomData *pdat
 void CustomData_bmesh_init_pool(struct CustomData *data, int allocsize);
 
 /* Subsurf grids */
-void CustomData_set_num_grid_elements(struct CustomData *data, int grid_elems);
+
+/* return the number of layers of type that have multires data */
+int CustomData_get_multires_count(struct CustomData *cd, int type);
+
+/* allocates a list of names of layers that have multires data */
+void *CustomData_get_multires_names(struct CustomData *cd, int type);
+
+/* number of floats used per-element for the multires of a customdata type */
+int CustomData_multires_type_totfloat(int type);
+
+/* returns the multires data for a layer matching name and type,
+   or NULL if no such layer found */
+float *CustomData_multires_get_data(struct CustomDataMultires *cdm, int type,
+				    char *name);
+
+/* if layer matching type and name exists, free and replace its griddata
+   otherwise create the layer and set its griddata */
+void CustomData_multires_assign_data(struct CustomDataMultires *cdm, int type,
+				     char *name, float *data);
+
+/* insert a multires layer of the specified type */
+void CustomData_multires_add_layer(struct CustomDataMultires *cdm, int type,
+				   char *name, float *data);
+
+/* remove the multires layer with matching source name
+   returns 1 if succesful, 0 otherwise */
+int CustomData_multires_remove_layer(struct CustomDataMultires *cdm, int type,
+				     char *name);
+
+/* rename a layer matching type and old_name */
+void CustomData_multires_rename(struct CustomDataMultires *cdm, int type,
+				char *old_name, char *name);
 
 /* External file storage */
 

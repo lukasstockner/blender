@@ -298,39 +298,60 @@ static void multires_set_tot_mdisps(Mesh *me, int lvl)
 	}
 }
 
-static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, GridKey *gridkey, int lvl)
+static void multires_sync_customdata_layer(CustomDataMultires *cdm,
+					   char *name, int type, int totelem)
 {
-	int i;
+	float *griddata;
+	int totfloat;
 
-	CustomData *cd_facegrids;
+	totfloat = CustomData_multires_type_totfloat(type);
 
-	cd_facegrids = CustomData_get_layer(&me->fdata, CD_FACEGRID);
-	if(!cd_facegrids)
-		cd_facegrids = CustomData_add_layer(&me->fdata, CD_FACEGRID, CD_CALLOC, NULL, me->totface);
+	griddata = MEM_callocN(sizeof(float) * totfloat * totelem,
+			       "sync layer griddata");
+			
+	CustomData_multires_assign_data(cdm, type, name, griddata);
+}
+
+/* ensure all the layers needed by the gridkey have
+   a matching multires layer
+
+   clear and resize the all griddata to match the level
+*/
+static void multires_sync_customdata(Mesh *me, GridKey *gridkey,
+				     int lvl)
+{
+	CustomDataMultires *cd_grids;
+	int i, j;
+
+	cd_grids = CustomData_get_layer(&me->fdata, CD_GRIDS);
+	if(!cd_grids)
+		cd_grids = CustomData_add_layer(&me->fdata, CD_GRIDS,
+						CD_CALLOC, NULL, me->totface);
 
 	for(i = 0; i < me->totface; ++i) {
 		int nvert = (me->mface[i].v4)? 4: 3;
 		int totelem = multires_grid_tot[lvl]*nvert;
-		int pmask_totlayer;
-		CustomData old, *cd = cd_facegrids + i;
 
-		/* Resize all existing layers */
-		old = *cd;
-		memset(cd, 0, sizeof(*cd));
-		CustomData_copy(&old, cd, ~0, CD_CALLOC, totelem);
-		CustomData_free(&old, 0);
-		CustomData_set_num_grid_elements(cd, totelem);
-
-		/* If multires modifier is added after mask layers were
-		   created, update the grids to have those layers as well */
-		if(gridkey) {
-			pmask_totlayer = CustomData_number_of_layers(cd, CD_PAINTMASK);
-			while(pmask_totlayer < gridkey->mask) {
-				CustomData_add_layer(cd, CD_PAINTMASK, CD_CALLOC, NULL, totelem);
-				++pmask_totlayer;
-			}
+		for(j = 0; j < gridkey->color; ++j) {
+			multires_sync_customdata_layer(cd_grids+i,
+						       gridkey->color_names[j],
+						       CD_MCOL, totelem);
 		}
+
+		for(j = 0; j < gridkey->mask; ++j) {
+			multires_sync_customdata_layer(cd_grids+i,
+						       gridkey->mask_names[j],
+						       CD_PAINTMASK, totelem);
+		}
+
+		cd_grids[i].totelem = totelem;
 	}
+}
+
+/* TODO: removed this in favor of sync_customdata */
+static void multires_reallocate_mdisps(Mesh *me, MDisps *mdisps, int lvl)
+{
+	int i;
 
 	/* This will be replaced when we do CD_DISPS */
 
@@ -465,15 +486,33 @@ static DerivedMesh *multires_dm_create_local(Object *ob, DerivedMesh *dm,
 	return multires_dm_create_from_derived(&mmd, 1, dm, ob, gridkey, 0, 0);
 }
 
+static void init_gridkey_from_customdata(GridKey *gridkey,
+					 CustomData *vdata,
+					 CustomData *fdata)
+{
+ 	GRIDELEM_KEY_INIT(gridkey, 1,
+			  CustomData_get_multires_count(fdata, CD_MCOL),
+			  CustomData_get_multires_count(vdata, CD_PAINTMASK),
+			  1);
+
+	gridkey->color_names = CustomData_get_multires_names(fdata,
+							     CD_MCOL);
+
+	gridkey->mask_names = CustomData_get_multires_names(vdata,
+							    CD_PAINTMASK);
+			  
+}
+
 static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm,
 					    GridKey *gridkey, int lvl,
 					    int simple, int optimal)
 {
+	DerivedMesh *result;
+	Mesh *me = get_mesh(ob);
 	SubsurfModifierData smd;
 	GridKey default_gridkey;
-	int color_totlayer;
-	int pmask_totlayer;
 
+	memset(&default_gridkey, 0, sizeof(GridKey));
 	memset(&smd, 0, sizeof(SubsurfModifierData));
 	smd.levels = smd.renderLevels = lvl;
 	smd.flags |= eSubsurfModifierFlag_SubsurfUv;
@@ -483,16 +522,17 @@ static DerivedMesh *subsurf_dm_create_local(Object *ob, DerivedMesh *dm,
 		smd.flags |= eSubsurfModifierFlag_ControlEdges;
 
 	if(!gridkey) {
-		/* TODO: enable/disable element types */
-		color_totlayer = CustomData_number_of_layers(&get_mesh(ob)->fdata,
-							     CD_MCOL);
-		pmask_totlayer = CustomData_number_of_layers(&get_mesh(ob)->vdata,
-							     CD_PAINTMASK);
-		GRIDELEM_KEY_INIT(&default_gridkey, 1, color_totlayer, pmask_totlayer, 1);
+		init_gridkey_from_customdata(&default_gridkey,
+					     &me->vdata, &me->fdata);
 		gridkey = &default_gridkey;
 	}
 			  
-	return subsurf_make_derived_from_derived(dm, &smd, gridkey, 0, NULL, 0, 0);
+	result = subsurf_make_derived_from_derived(dm, &smd, gridkey, 0, NULL, 0, 0);
+
+	if(default_gridkey.color_names) MEM_freeN(default_gridkey.color_names);
+	if(default_gridkey.mask_names) MEM_freeN(default_gridkey.mask_names);
+	
+	return result;
 }
 
 /* assumes no is normalized; return value's sign is negative if v is on
@@ -683,7 +723,8 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		ccgSubSurf_updateLevels(ss, lvl, NULL, 0);
 
 		/* reallocate displacements */
-		multires_reallocate_mdisps(me, mdisps, NULL, totlvl); 
+		multires_reallocate_mdisps(me, mdisps, totlvl); 
+		multires_sync_customdata(me, gridkey, totlvl);
 
 		/* compute displacements */
 		multiresModifier_disp_run(highdm, me, CALC_DISPS, subGridData, totlvl);
@@ -695,8 +736,11 @@ void multiresModifier_subdivide(MultiresModifierData *mmd, Object *ob, int updat
 		MEM_freeN(subGridData);
 	}
 	else {
+		/* XXX: I think this can be safely removed, we already check in
+		   disp run for unallocated disps -- nicholas */
+
 		/* only reallocate, nothing to upsample */
-		multires_reallocate_mdisps(me, mdisps, NULL, totlvl); 
+		//multires_reallocate_mdisps(me, mdisps, totlvl); 
 	}
 
 	multires_set_tot_level(ob, mmd, totlvl);
@@ -747,13 +791,46 @@ static void debug_print_paintmask_grids(CustomData *grids, int gridsize)
 }
 #endif
 
+/* XXX - move these to blenlib? */
+void add_v4_v4v4(float v[4], float a[4], float b[4])
+{
+	v[0] = a[0] + b[0];
+	v[1] = a[1] + b[1];
+	v[2] = a[2] + b[2];
+	v[3] = a[3] + b[3];
+}
+
+void add_v4_v4(float v[4], float a[4])
+{
+	v[0] += a[0];
+	v[1] += a[1];
+	v[2] += a[2];
+	v[3] += a[3];
+}
+
+void sub_v4_v4v4(float v[4], float a[4], float b[4])
+{
+	v[0] = a[0] - b[0];
+	v[1] = a[1] - b[1];
+	v[2] = a[2] - b[2];
+	v[3] = a[3] - b[3];
+}
+
+void clamp_v4_fl(float v[4], float min, float max)
+{
+	CLAMP(v[0], min, max);
+	CLAMP(v[1], min, max);
+	CLAMP(v[2], min, max);
+	CLAMP(v[3], min, max);
+}
+
 static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGridData **oldGridData, int totlvl)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*)dm;
 	DMGridData **gridData, **subGridData;
 	MFace *mface = me->mface;
 	MDisps *mdisps = CustomData_get_layer(&me->fdata, CD_MDISPS);
-	CustomData *stored_grids;
+	CustomDataMultires *stored_grids;
 	int *gridOffset;
 	GridKey *gridkey;
 	int i, numGrids, gridSize, dGridSize, dSkip;
@@ -775,8 +852,8 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 	dGridSize = multires_side_tot[totlvl];
 	dSkip = (dGridSize-1)/(gridSize-1);
 
-	stored_grids = CustomData_get_layer(&me->fdata, CD_FACEGRID);
-	
+	stored_grids = CustomData_get_layer(&me->fdata, CD_GRIDS);
+
 	#pragma omp parallel for private(i) if(me->totface*gridSize*gridSize*4 >= CCG_OMP_LIMIT)
 	for(i = 0; i < me->totface; ++i) {
 		const int numVerts = mface[i].v4 ? 4 : 3;
@@ -786,18 +863,14 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 		/* when adding new faces in edit mode, need to allocate disps;
 		   may need to allocate paintmask storage after adding multires as well */
 		if(!mdisp->disps ||
-		   (gridkey->mask && 
-		    (!stored_grids ||
-		     CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) != gridkey->mask)))
+		   ((gridkey->mask || gridkey->color) && 
+		    !stored_grids /* XXX: this needs updating for non vert types */ ))
 		#pragma omp critical
 		{
-			multires_reallocate_mdisps(me, mdisps, gridkey, totlvl);
+			multires_reallocate_mdisps(me, mdisps, totlvl);
+			multires_sync_customdata(me, gridkey, totlvl);
+			stored_grids = CustomData_get_layer(&me->fdata, CD_GRIDS);
 		}
-
-		/* Check masks */
-		assert(gridkey->mask == 0 || stored_grids);
-		if(stored_grids)
-			assert(CustomData_number_of_layers(&stored_grids[i], CD_PAINTMASK) == gridkey->mask);
 
 		for(S = 0; S < numVerts; ++S, ++gIndex) {
 			DMGridData *grid = gridData[gIndex];
@@ -852,14 +925,15 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 						add_v3_v3(data, d);
 						break;
 					}
-
 					
 					/* Paint Masks */
 					for(j = 0; j < gridkey->mask; ++j) {
 						float *mask = &GRIDELEM_MASK_AT(grid, ccgdm_offset, gridkey)[j];
 						float *smask = &GRIDELEM_MASK_AT(subgrid, ccgdm_offset, gridkey)[j];
-						float *stored_mask_layer = CustomData_get_layer_n(&stored_grids[i],
-												  CD_PAINTMASK, j);
+						float *stored_mask_layer =
+							CustomData_multires_get_data(&stored_grids[i],
+										     CD_PAINTMASK,
+										     gridkey->mask_names[j]);
 						float *stored_mask = &stored_mask_layer[stored_index];
 
 						switch(op) {
@@ -873,6 +947,31 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 						case ADD_DISPS:
 							stored_mask[stored_offset] += *mask;
 							CLAMP(stored_mask[stored_offset], 0, 1);
+							break;
+						}
+					}
+
+					/* Colors */
+					for(j = 0; j < gridkey->color; ++j) {
+						float *color = GRIDELEM_COLOR_AT(grid, ccgdm_offset, gridkey)[j];
+						float *scolor = GRIDELEM_COLOR_AT(subgrid, ccgdm_offset, gridkey)[j];
+						float *stored_color_layer =
+							CustomData_multires_get_data(&stored_grids[i],
+										     CD_MCOL,
+										     gridkey->color_names[j]);
+						float *stored_color = &stored_color_layer[(stored_index+
+											   stored_offset)*4];
+
+						switch(op) {
+						case APPLY_DISPS:
+							add_v4_v4v4(color, scolor, stored_color);
+							clamp_v4_fl(color, 0, 1);
+							break;
+						case CALC_DISPS:
+							sub_v4_v4v4(stored_color, color, scolor);
+							break;
+						case ADD_DISPS:
+							add_v4_v4(stored_color, color);
 							break;
 						}
 					}

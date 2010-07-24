@@ -678,7 +678,8 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
 void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 			  DMGridAdjacency *gridadj,
 			  int totgrid, int gridsize, GridKey *gridkey,
-			  void **gridfaces, CustomData *vdata, ListBase *hidden_areas)
+			  void **gridfaces, CustomData *vdata,
+			  CustomData *fdata, ListBase *hidden_areas)
 {
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
@@ -687,6 +688,7 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 	bvh->gridsize= gridsize;
 	bvh->gridkey= gridkey;
 	bvh->vdata= vdata;
+	bvh->fdata= fdata;
 	bvh->leaf_limit = MAX2(LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
 
 	if(totgrid)
@@ -1347,7 +1349,7 @@ void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
 {
 	if(bvh->grids) {
 		if(mface) *mface= NULL;
-		if(fdata) *fdata= NULL;
+		if(fdata) *fdata= bvh->fdata;
 		if(face_indices) *face_indices= NULL;
 		if(face_vert_indices) *face_vert_indices= NULL;
 		if(totnode) *totnode= 0;

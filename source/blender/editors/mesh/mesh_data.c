@@ -469,6 +469,61 @@ void MESH_OT_vertex_color_remove(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
+static int vertex_color_multires_toggle_exec(bContext *C, wmOperator *op)
+{
+	Object *ob= CTX_data_active_object(C);
+	Mesh *me= ob->data;
+	CustomDataMultires *cdm;
+	CustomDataLayer *cdl;
+	int active, i;
+
+	active = CustomData_get_active_layer_index(&me->fdata, CD_MCOL);
+	cdm = CustomData_get_layer(&me->fdata, CD_GRIDS);
+
+	if(active == -1)
+		return OPERATOR_FINISHED;
+
+	cdl = &me->fdata.layers[active];
+
+	if(cdm) {
+		if(cdl->flag & CD_FLAG_MULTIRES) {
+			/* delete multires data */
+			for(i = 0; i < me->totface; ++i)
+				CustomData_multires_remove_layer(cdm+i, CD_MCOL, cdl->name);
+		}
+		else {
+			/* add multires data */
+			for(i = 0; i < me->totface; ++i) {
+				float *data = MEM_callocN(sizeof(float) *
+							  CustomData_multires_type_totfloat(CD_MCOL) *
+							  cdm[i].totelem,
+							  "vertex_color_multires_toggle");
+				CustomData_multires_add_layer(cdm+i, CD_MCOL, cdl->name, data);
+			}
+		}
+	}
+
+	/* note - if there's no griddata, it can still be synced up later */
+	cdl->flag ^= CD_FLAG_MULTIRES;
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_vertex_color_multiresolution_toggle(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Vertex Color Multiresolution Toggle";
+	ot->description= "Add or remove multiresolution data from this layer";
+	ot->idname= "MESH_OT_vertex_color_multiresolution_toggle";
+	
+	/* api callbacks */
+	ot->exec= vertex_color_multires_toggle_exec;
+	ot->poll= ED_mesh_layers_poll;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
 /*********************** sticky operators ************************/
 
 static int sticky_add_exec(bContext *C, wmOperator *op)

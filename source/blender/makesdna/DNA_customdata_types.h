@@ -55,10 +55,26 @@ typedef struct CustomData {
 	CustomDataLayer *layers;      /* CustomDataLayers, ordered by type */
 	int totlayer, maxlayer;       /* number of layers, size of layers array */
 	int totsize;                  /* in editmode, total size of all data layers */
-	int grid_elems;               /* For grids, number of elements */
+	int pad;
 	void *pool;                   /* Bmesh: Memory pool for allocation of blocks */
 	CustomDataExternal *external; /* external file storing customdata layers */
 } CustomData;
+
+typedef struct CustomDataMultiresLayer {
+	float *griddata;  /* storage for n grids, where n is face's number of corners */
+	char name[32];    /* source layer's name, should be kept in sync */
+	int type;         /* customdata type */
+	int pad;
+} CustomDataMultiresLayer;
+
+/* some CustomData layers can be subdivided to store multires data, but since
+   multires data is always related to faces and the source layers might be
+   vertex data, the subdivided data is stored separately
+*/
+typedef struct CustomDataMultires {
+	CustomDataMultiresLayer *layers;
+	int totlayer, totelem;
+} CustomDataMultires;
 
 /* CustomData.type */
 #define CD_MVERT		0
@@ -85,10 +101,9 @@ typedef struct CustomData {
 #define CD_ID_MCOL		21
 #define CD_TEXTURE_MCOL	22
 #define CD_CLOTH_ORCO	23
-#define CD_FACEGRID		24
-#define CD_DISP			25
-#define CD_PAINTMASK		26
-#define CD_NUMTYPES		27
+#define CD_GRIDS	       	24
+#define CD_PAINTMASK		25
+#define CD_NUMTYPES		26
 
 /* Bits for CustomDataMask */
 #define CD_MASK_MVERT		(1 << CD_MVERT)
@@ -113,8 +128,7 @@ typedef struct CustomData {
 #define CD_MASK_MDISPS		(1 << CD_MDISPS)
 #define CD_MASK_WEIGHT_MCOL	(1 << CD_WEIGHT_MCOL)
 #define CD_MASK_CLOTH_ORCO	(1 << CD_CLOTH_ORCO)
-#define CD_MASK_FACEGRID	(1 << CD_FACEGRID)
-#define CD_MASK_DISP		(1 << CD_DISP)
+#define CD_MASK_GRIDS		(1 << CD_GRIDS)
 #define CD_MASK_PAINTMASK	(1 << CD_PAINTMASK)
 
 /* CustomData.flag */
@@ -132,6 +146,8 @@ typedef struct CustomData {
 #define CD_FLAG_IN_MEMORY (1<<4)
 /* used to enable/disable a layer */
 #define CD_FLAG_ENABLED   (1<<5)
+/* indicates the layer is linked to subdivided data */
+#define CD_FLAG_MULTIRES  (1<<6)
 
 /* Limits */
 #define MAX_MTFACE 8

@@ -749,7 +749,7 @@ static void layerSwap_mcol(void *data, const int *corner_indices)
 
 static void layerDefault_mcol(void *data, int count)
 {
-	static MCol default_mcol = {255, 255, 255, 255};
+	static MCol default_mcol = {0, 255, 255, 255}; /* abgr */
 	MCol *mcol = (MCol*)data;
 	int i;
 
@@ -759,26 +759,41 @@ static void layerDefault_mcol(void *data, int count)
 
 /* Grid */
 
-void layerCopy_grid(const void *source_v, void *dest_v, int count)
+static void layerCopy_grid(const void *source_v, void *dest_v, int count)
 {
-	const CustomData *source = source_v;
-	CustomData *dest = dest_v;
-	int i;
+	const CustomDataMultires *source = source_v;
+	CustomDataMultires *dest = dest_v;
+	int i, j;
 
 	for(i = 0; i < count; ++i) {
-		CustomData_copy(source + i, dest + i, ~0, CD_DUPLICATE,
-				source[i].grid_elems);
-		dest[i].grid_elems = source[i].grid_elems;
+		dest[i].totlayer = source[i].totlayer;
+		dest[i].layers = MEM_callocN(sizeof(CustomDataMultiresLayer) *
+					     dest[i].totlayer,
+					     "CustomDataMultiresLayers");
+
+		for(j = 0; j < source[i].totlayer; ++j) {
+			CustomDataMultiresLayer *dl = dest[i].layers + j;
+			CustomDataMultiresLayer *sl = source[i].layers + j;
+
+			dl->type = sl->type;
+			dl->griddata = MEM_dupallocN(sl->griddata);
+			BLI_strncpy(dl->name, sl->name, sizeof(dl->name));
+		}
 	}
 }
 
-void layerFree_grid(void *data, int count, int size)
+static void layerFree_grid(void *data_v, int count, int size)
 {
-	CustomData *cd = data;
-	int i;
+	CustomDataMultires *data = data_v;
+	int i, j;
 
 	for(i = 0; i < count; ++i) {
-		CustomData_free(cd + i, cd[i].grid_elems);
+		for(j = 0; j < data[i].totlayer; ++j) {
+			if(data[i].layers[j].griddata)
+				MEM_freeN(data[i].layers[j].griddata);
+		}
+		if(data[i].layers)
+			MEM_freeN(data[i].layers);
 	}
 }
 
@@ -822,9 +837,11 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	 layerSwap_mcol, layerDefault_mcol},
 	{sizeof(MCol)*4, "MCol", 4, "TexturedCol", NULL, NULL, layerInterp_mcol,
 	 layerSwap_mcol, layerDefault_mcol},
+	/* CD_CLOTH_ORCO */
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
-	{sizeof(CustomData), "CustomData", 1, "Face Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
-	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* CD_GRID */
+	{sizeof(CustomData), "CustomDataMultires", 1, "Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
+	/* CD_PAINTMASK */
 	{sizeof(float), "", 0, "Mask", NULL, NULL, NULL, NULL, NULL},
 };
 
@@ -833,8 +850,8 @@ const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/*   5-9 */ "CDMTFace", "CDMCol", "CDOrigIndex", "CDNormal", "CDFlags",
 	/* 10-14 */ "CDMFloatProperty", "CDMIntProperty","CDMStringProperty", "CDOrigSpace", "CDOrco",
 	/* 15-19 */ "CDMTexPoly", "CDMLoopUV", "CDMloopCol", "CDTangent", "CDMDisps",
-	/* 20-24 */ "CDWeightMCol", "CDIDMCol", "CDTextureMCol", "CDClothOrco", "CDFaceGrid",
-	/* 25-26 */ "CDDisp", "CDPaintMask"
+	/* 20-24 */ "CDWeightMCol", "CDIDMCol", "CDTextureMCol", "CDClothOrco", "CDGrid",
+	/* 25-26 */ "CDPaintMask"
 };
 
 const CustomDataMask CD_MASK_BAREMESH =
@@ -843,11 +860,11 @@ const CustomDataMask CD_MASK_MESH =
 	CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
 	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS |
-	CD_MASK_FACEGRID | CD_MASK_PAINTMASK;
+	CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_EDITMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR |
-	CD_MASK_MDISPS | CD_MASK_FACEGRID | CD_MASK_PAINTMASK;
+	CD_MASK_MDISPS | CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_DERIVEDMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_CLOTH_ORCO |
@@ -1100,6 +1117,20 @@ int CustomData_get_stencil_layer(const CustomData *data, int type)
 	return -1;
 }
 
+char *CustomData_get_layer_name_at_offset(const CustomData *data, int type, int offset)
+{
+	int first;
+
+	first = CustomData_get_layer_index(data, type);
+
+	if((first != -1) &&
+	   (first + offset < data->totlayer) &&
+	   (data->layers[first + offset].type == type))
+		return data->layers[first + offset].name;
+	else
+		return NULL;
+}
+
 void CustomData_set_layer_active(CustomData *data, int type, int n)
 {
 	int i;
@@ -1180,6 +1211,17 @@ void CustomData_set_layer_flag(struct CustomData *data, int type, int flag)
 	for(i=0; i < data->totlayer; ++i)
 		if(data->layers[i].type == type)
 			data->layers[i].flag |= flag;
+}
+
+void CustomData_set_layer_offset_flag(struct CustomData *data, int type, int offset, int flag)
+{
+	int first = CustomData_get_layer_index(data, type);
+
+	if((first != -1) &&
+	   (first+offset < data->totlayer) &&
+	   (data->layers[first+offset].type == type)) {
+		data->layers[first+offset].flag |= flag;
+	}
 }
 
 static int customData_resize(CustomData *data, int amount)
@@ -2374,10 +2416,204 @@ int CustomData_verify_versions(struct CustomData *data, int index)
 	return keeplayer;
 }
 
-/* Subsurf grids */
-void CustomData_set_num_grid_elements(CustomData *data, int grid_elems)
+/* Multires */
+
+int CustomData_multires_type_totfloat(int type)
 {
-	data->grid_elems = grid_elems;
+	switch(type) {
+	case CD_MVERT:
+		return 3;
+	case CD_MCOL:
+		return 4;
+	case CD_PAINTMASK:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
+static int customdata_multires_find_first_layer_index(CustomDataMultires *cdm, int type)
+{
+	int i;
+	for(i = 0; i < cdm->totlayer; ++i) {
+		if(cdm->layers[i].type == type)
+			return i;
+	}
+	return -1;
+}
+
+static int customdata_multires_find_named_layer_index(CustomDataMultires *cdm,
+						      int type, char *name)
+{
+	int first, i;
+
+	first = customdata_multires_find_first_layer_index(cdm, type);
+
+	if(first != -1) {
+		for(i = first; first < cdm->totlayer; ++i) {
+			if(cdm->layers[i].type != type)
+				break;
+			else if(!strcmp(name, cdm->layers[i].name))
+				return i;
+		}
+	}
+
+	return -1;
+}
+
+int CustomData_get_multires_count(CustomData *cd, int type)
+{
+	int first, tot, i;
+
+	first = CustomData_get_layer_index(cd, type);
+	tot = 0;
+
+	if(first != -1) {
+		for(i = first; i < cd->totlayer; ++i) {
+			if(cd->layers[i].type != type)
+				break;
+			if(cd->layers[i].flag & CD_FLAG_MULTIRES)
+				++tot;
+		}
+	}
+
+	return tot;
+}
+
+void *CustomData_get_multires_names(CustomData *cd, int type)
+{
+	char (*names)[32] = NULL;
+	int count, first;
+	
+	count = CustomData_get_multires_count(cd, type);
+
+	if(count) {
+		int layer_ndx, names_ndx;
+
+		names = MEM_callocN(32*count, "CustomData_get_multires_names");
+		first = CustomData_get_layer_index(cd, type);
+		names_ndx = 0;
+
+		for(layer_ndx = first; layer_ndx < cd->totlayer; ++layer_ndx) {
+			CustomDataLayer *cdl = cd->layers + layer_ndx;
+
+			if(cdl->type != type)
+				break;
+			else if(cdl->flag & CD_FLAG_MULTIRES) {
+				BLI_strncpy(names[names_ndx], cdl->name, 32);
+				++names_ndx;
+			}
+		}
+	}
+
+	return names;
+}
+
+float *CustomData_multires_get_data(CustomDataMultires *cdm, int type,
+				    char *name)
+{
+	int layer;
+
+	layer = customdata_multires_find_named_layer_index(cdm, type, name);
+
+	if(layer == -1)
+		return NULL;
+	else
+		return cdm->layers[layer].griddata;
+}
+
+void CustomData_multires_assign_data(CustomDataMultires *cdm, int type,
+				     char *name, float *data)
+{
+	int layer;
+
+	layer = customdata_multires_find_named_layer_index(cdm, type, name);
+
+	if(layer == -1)
+		CustomData_multires_add_layer(cdm, type, name, data);
+	else {
+		if(cdm->layers[layer].griddata)
+			MEM_freeN(cdm->layers[layer].griddata);
+		cdm->layers[layer].griddata = data;
+	}
+}
+
+void CustomData_multires_add_layer(CustomDataMultires *cdm, int type,
+				   char *name, float *data)
+{
+	CustomDataMultiresLayer *old = cdm->layers;
+	int first, layer, i;
+
+	cdm->layers = MEM_callocN(sizeof(CustomDataMultiresLayer) *
+				  (cdm->totlayer + 1),
+				  "customdata multires add layer");
+
+	first = customdata_multires_find_first_layer_index(cdm, type);
+
+	/* if no layers of type yet, add new layer at end
+	   otherwise add layer at the beginning of the type's segment */
+	if(first == -1)
+		layer = cdm->totlayer;
+	else
+		layer = first;
+
+	for(i = 0; i <= cdm->totlayer; ++i) {
+		if(i < layer)
+			cdm->layers[i] = old[i];
+		else if(i == layer) {
+			cdm->layers[i].griddata = data;
+			cdm->layers[i].type = type;
+			BLI_strncpy(cdm->layers[i].name, name,
+				    sizeof(cdm->layers[i].name));
+		}
+		else if(i > layer)
+			cdm->layers[i] = old[i-1];
+	}
+
+	++cdm->totlayer;
+	if(old) MEM_freeN(old);
+}
+
+int CustomData_multires_remove_layer(CustomDataMultires *cdm, int type,
+				      char *name)
+{
+	CustomDataMultiresLayer *old = cdm->layers;
+	int layer, i;
+
+	layer = customdata_multires_find_named_layer_index(cdm, type, name);
+
+	if(layer == -1)
+		return 0;
+
+	cdm->layers = MEM_callocN(sizeof(CustomDataMultiresLayer) *
+				  (cdm->totlayer - 1),
+				  "customdata multires remove layer");
+
+	/* copy over layer data, skipping the removed layer */
+	for(i = 0; i < cdm->totlayer; ++i) {
+		if(i < layer)
+			cdm->layers[i] = old[i];
+		else if(i > layer)
+			cdm->layers[i - 1] = old[i];
+	}
+
+	--cdm->totlayer;
+	MEM_freeN(old);
+	
+	return 1;
+}
+
+void CustomData_multires_rename(CustomDataMultires *cdm, int type,
+				char *old_name, char *name)
+{
+	int layer;
+
+	layer = customdata_multires_find_named_layer_index(cdm, type, old_name);
+
+	if(layer != -1) {
+		BLI_strncpy(cdm->layers[layer].name, name,
+			    sizeof(cdm->layers[layer].name));
+	}
 }
 
 /****************************** External Files *******************************/

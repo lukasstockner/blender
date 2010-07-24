@@ -1575,6 +1575,11 @@ static void rna_def_mcol(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Active Render", "Sets the layer as active for rendering");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
+	prop= RNA_def_property(srna, "multiresolution", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", CD_FLAG_MULTIRES);
+	RNA_def_property_ui_text(prop, "Multiresolution", "Sets whether the layer can be edited at multiple resolutions");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
 	prop= RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_struct_type(prop, "MeshColor");
 	RNA_def_property_ui_text(prop, "Data", "");
@@ -1845,12 +1850,12 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_pointer_funcs(prop, "rna_Mesh_active_vertex_color_get", "rna_Mesh_active_vertex_color_set", NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Active Vertex Color Layer", "Active vertex color layer");
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+	//RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop= RNA_def_property(srna, "active_vertex_color_index", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_funcs(prop, "rna_Mesh_active_vertex_color_index_get", "rna_Mesh_active_vertex_color_index_set", "rna_Mesh_active_vertex_color_index_range");
 	RNA_def_property_ui_text(prop, "Active Vertex Color Index", "Active vertex color index");
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+	//RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 	prop= RNA_def_property(srna, "paint_mask_layers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "vdata.layers", "vdata.totlayer");

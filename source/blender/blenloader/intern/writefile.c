@@ -1484,9 +1484,27 @@ static void write_mdisps(WriteData *wd, int count, MDisps *mdlist, int external)
 	}
 }
 
-static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
+static void write_customdata_multires(WriteData *wd, int count,
+				      CustomDataMultires *grids)
 {
 	int i, j;
+
+	writestruct(wd, DATA, "CustomDataMultires", count, grids);
+
+	for(i = 0; i < count; ++i) {
+		for(j = 0; j < grids[i].totlayer; ++j) {
+			CustomDataMultiresLayer *l = &grids[i].layers[j];
+
+			writedata(wd, DATA, sizeof(float) * grids[i].totelem *
+				  CustomData_multires_type_totfloat(l->type),
+				  l->griddata);
+		}
+	}
+}
+
+static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
+{
+	int i;
 
 	/* write external customdata (not for undo) */
 	if(data->external && !wd->current)
@@ -1509,12 +1527,8 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		else if (layer->type == CD_PAINTMASK) {
 			writedata(wd, DATA, sizeof(float)*count, layer->data);
 		}
-		else if (layer->type == CD_FACEGRID) {
-			CustomData *grids = layer->data;
-			writestruct(wd, DATA, "CustomData", count, grids);
-			for(j = 0; j < count; ++j)
-				write_customdata(wd, id, grids[j].grid_elems,
-						 grids + j, -1, 0);
+		else if (layer->type == CD_GRIDS) {
+			write_customdata_multires(wd, count, layer->data);
 		}
 		else {
 			CustomData_file_write_info(layer->type, &structname, &structnum);

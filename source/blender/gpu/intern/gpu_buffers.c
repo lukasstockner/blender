@@ -446,9 +446,9 @@ static void delete_buffer(GLuint *buf)
 
 static void float_col_to_gpu_colors(unsigned char out[3], float col[3])
 {
-	out[0] = col[2] * 255;
+	out[0] = col[0] * 255;
 	out[1] = col[1] * 255;
-	out[2] = col[0] * 255;
+	out[2] = col[2] * 255;
 }
 
 static void mcol_to_gpu_colors(unsigned char out[3], MCol *mcol)
@@ -705,11 +705,18 @@ static void gpu_update_grid_color_buffers_from_mcol(GPU_Buffers *buffers, DMGrid
 
 			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
 				DMGridData *elem = GRIDELEM_AT(grid, j, gridkey);
-				float v[3] = {0, 0, 0};
+				float v[3] = {1, 1, 1};
 
-				for(k = 0; k < gridkey->color; ++k)
-					add_v3_v3(v, &GRIDELEM_COLOR(elem, gridkey)[k*3]);
-				mul_v3_fl(v, 1.0f / gridkey->color);
+				for(k = 0; k < gridkey->color; ++k) {
+					float *col = GRIDELEM_COLOR(elem, gridkey)[k];
+
+					/* for now we just combine layers in order
+					   interpolating using the alpha component
+					   ("order" is ill-defined here since we
+					   don't guarantee the order of cdm data) */
+					interp_v3_v3v3(v, v, col, col[3]);
+				}
+				// clamp?
 
 				float_col_to_gpu_colors(color_data, v);
 			}
