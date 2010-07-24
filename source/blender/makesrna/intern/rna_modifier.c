@@ -585,9 +585,9 @@ static void rna_def_modifier_multires(BlenderRNA *brna)
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_MultiresModifier_level_range");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop= RNA_def_property(srna, "sculpt_levels", PROP_INT, PROP_UNSIGNED);
+	prop= RNA_def_property(srna, "edit_levels", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_sdna(prop, NULL, "sculptlvl");
-	RNA_def_property_ui_text(prop, "Sculpt Levels", "Number of subdivisions to use in sculpt mode");
+	RNA_def_property_ui_text(prop, "Edit Levels", "Number of subdivisions to use in sculpt and paint modes");
 	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_MultiresModifier_level_range");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
