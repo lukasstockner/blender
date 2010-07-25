@@ -1550,13 +1550,16 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 
 		for(i = 0; i < totgrid; ++i) {
 			DMGridData *grid= bvh->grids[node->prim_indices[i]];
+
 			if (!grid)
 				continue;
 
 			for(y = 0; y < gridsize-1; ++y) {
 				for(x = 0; x < gridsize-1; ++x) {
+					int lhit = 0;
+
 					if(origco) {
-						hit |= ray_face_intersection(ray_start, ray_normal,
+						lhit |= ray_face_intersection(ray_start, ray_normal,
 									 origco[y*gridsize + x],
 									 origco[y*gridsize + x+1],
 									 origco[(y+1)*gridsize + x+1],
@@ -1564,13 +1567,20 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 									 dist);
 					}
 					else {
-						hit |= ray_face_intersection(ray_start, ray_normal,
+						lhit |= ray_face_intersection(ray_start, ray_normal,
 									 GRIDELEM_CO_AT(grid, y*gridsize + x, bvh->gridkey),
 									 GRIDELEM_CO_AT(grid, y*gridsize + x+1, bvh->gridkey),
 									 GRIDELEM_CO_AT(grid, (y+1)*gridsize + x+1, bvh->gridkey),
 									 GRIDELEM_CO_AT(grid, (y+1)*gridsize + x, bvh->gridkey),
 									 dist);
 					}
+
+					if(lhit && hit_index) {
+						*hit_index = i;
+						*grid_hit_index = y*gridsize + x;
+					}
+
+					hit |= lhit;
 				}
 			}
 
