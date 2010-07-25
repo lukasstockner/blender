@@ -83,7 +83,7 @@ def copy_images(dest_dir, textures):
         if Blender.sys.exists(image_path):
             # Make a name for the target path.
             dest_image_path = dest_dir + image_path.split('\\')[-1].split('/')[-1]
-            if not Blender.sys.exists(dest_image_path): # Image isnt alredy there
+            if not Blender.sys.exists(dest_image_path): # Image isnt already there
                 print('\tCopying "%s" > "%s"' % (image_path, dest_image_path))
                 try:
                     copy_file(image_path, dest_image_path)
@@ -359,7 +359,7 @@ def write(filename, batch_objects = None, \
 
             if BATCH_OWN_DIR:
                 new_fbxpath = fbxpath + newname + os.sep
-                # path may alredy exist
+                # path may already exist
                 # TODO - might exist but be a file. unlikely but should probably account for it.
 
                 if bpy.utils.exists(new_fbxpath) == 0:
@@ -391,7 +391,7 @@ def write(filename, batch_objects = None, \
 
 
             # Call self with modified args
-            # Dont pass batch options since we alredy usedt them
+            # Dont pass batch options since we already usedt them
             write(filename, data.objects,
                 context,
                 False,
@@ -947,10 +947,7 @@ def write(filename, batch_objects = None, \
         render = scene.render
         width	= render.resolution_x
         height	= render.resolution_y
-# 		render = scene.render
-# 		width	= render.sizeX
-# 		height	= render.sizeY
-        aspect	= float(width)/height
+        aspect	= width / height
 
         data = my_cam.blenObject.data
 
@@ -962,11 +959,9 @@ def write(filename, batch_objects = None, \
         file.write('\n\t\t\tProperty: "FieldOfView", "FieldOfView", "A+",%.6f' % math.degrees(data.angle))
         file.write('\n\t\t\tProperty: "FieldOfViewX", "FieldOfView", "A+",1')
         file.write('\n\t\t\tProperty: "FieldOfViewY", "FieldOfView", "A+",1')
-        file.write('\n\t\t\tProperty: "FocalLength", "Real", "A+",14.0323972702026')
+        # file.write('\n\t\t\tProperty: "FocalLength", "Real", "A+",14.0323972702026')
         file.write('\n\t\t\tProperty: "OpticalCenterX", "Real", "A+",%.6f' % data.shift_x) # not sure if this is in the correct units?
-# 		file.write('\n\t\t\tProperty: "OpticalCenterX", "Real", "A+",%.6f' % data.shiftX) # not sure if this is in the correct units?
         file.write('\n\t\t\tProperty: "OpticalCenterY", "Real", "A+",%.6f' % data.shift_y) # ditto
-# 		file.write('\n\t\t\tProperty: "OpticalCenterY", "Real", "A+",%.6f' % data.shiftY) # ditto
         file.write('\n\t\t\tProperty: "BackgroundColor", "Color", "A+",0,0,0')
         file.write('\n\t\t\tProperty: "TurnTable", "Real", "A+",0')
         file.write('\n\t\t\tProperty: "DisplayTurnTableIcon", "bool", "",1')
@@ -975,7 +970,7 @@ def write(filename, batch_objects = None, \
         file.write('\n\t\t\tProperty: "UseRealTimeMotionBlur", "bool", "",1')
         file.write('\n\t\t\tProperty: "ResolutionMode", "enum", "",0')
         file.write('\n\t\t\tProperty: "ApertureMode", "enum", "",2')
-        file.write('\n\t\t\tProperty: "GateFit", "enum", "",0')
+        file.write('\n\t\t\tProperty: "GateFit", "enum", "",2')
         file.write('\n\t\t\tProperty: "CameraFormat", "enum", "",0')
         file.write('\n\t\t\tProperty: "AspectW", "double", "",%i' % width)
         file.write('\n\t\t\tProperty: "AspectH", "double", "",%i' % height)
@@ -2763,7 +2758,7 @@ Takes:  {''')
                 act_end =	end
             else:
                 # use existing name
-                if blenAction == blenActionDefault: # have we alredy got the name
+                if blenAction == blenActionDefault: # have we already got the name
                     file.write('\n\tTake: "%s" {' % sane_name_mapping_take[blenAction.name])
                 else:
                     file.write('\n\tTake: "%s" {' % sane_takename(blenAction))
@@ -2782,7 +2777,7 @@ Takes:  {''')
 
                 # Set the action active
                 for my_bone in ob_arms:
-                    if blenAction in my_bone.blenActionList:
+                    if ob.animation_data and blenAction in my_bone.blenActionList:
                         ob.animation_data.action = blenAction
                         # print '\t\tSetting Action!', blenAction
                 # scene.update(1)
@@ -2918,7 +2913,7 @@ Takes:  {''')
                                         for val, frame in context_bone_anim_keys:
                                             if frame != context_bone_anim_keys[0][1]: # not the first
                                                 file.write(',')
-                                            # frame is alredy one less then blenders frame
+                                            # frame is already one less then blenders frame
                                             file.write('\n\t\t\t\t\t\t\t%i,%.15f,L'  % (fbx_time(frame), val ))
 
                                 if		i==0:	file.write('\n\t\t\t\t\t\tColor: 1,0,0')
@@ -2940,7 +2935,8 @@ Takes:  {''')
             # end action loop. set original actions
             # do this after every loop incase actions effect eachother.
             for my_bone in ob_arms:
-                my_bone.blenObject.animation_data.action = my_bone.blenAction
+                if my_bone.blenObject.animation_data:
+                    my_bone.blenObject.animation_data.action = my_bone.blenAction
 
         file.write('\n}')
 
@@ -3037,7 +3033,7 @@ Takes:  {''')
 
 # --------------------------------------------
 # UI Function - not a part of the exporter.
-# this is to seperate the user interface from the rest of the exporter.
+# this is to separate the user interface from the rest of the exporter.
 # from Blender import Draw, Window
 EVENT_NONE = 0
 EVENT_EXIT = 1
@@ -3437,7 +3433,7 @@ class ExportFBX(bpy.types.Operator):
 
 
 def menu_func(self, context):
-    default_path = bpy.data.filepath.replace(".blend", ".fbx")
+    default_path = os.path.splitext(bpy.data.filepath)[0] + ".fbx"
     self.layout.operator(ExportFBX.bl_idname, text="Autodesk FBX (.fbx)").filepath = default_path
 
 

@@ -644,17 +644,17 @@ static char *controller_name(int type)
 {
 	switch (type) {
 	case CONT_LOGIC_AND:
-		return "AND";
+		return "And";
 	case CONT_LOGIC_OR:
-		return "OR";
+		return "Or";
 	case CONT_LOGIC_NAND:
-		return "NAND";
+		return "Nand";
 	case CONT_LOGIC_NOR:
-		return "NOR";
+		return "Nor";
 	case CONT_LOGIC_XOR:
-		return "XOR";
+		return "Xor";
 	case CONT_LOGIC_XNOR:
-		return "XNOR";
+		return "Xnor";
 	case CONT_EXPRESSION:
 		return "Expression";
 	case CONT_PYTHON:
@@ -1610,7 +1610,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 					str = "Type %t|Up Axis %x1 |Down Axis %x3|Left Axis %x2|Right Axis %x0"; 
 					uiDefButI(block, MENU, B_REDR, str, xco+10 + 0.6 * (width-20), yco-68, 0.4 * (width-20), 19,
 					&joy->axisf, 2.0, 31, 0, 0,
-					"The direction of the axis, use 'All Events' to recieve events on any direction");
+					"The direction of the axis, use 'All Events' to receive events on any direction");
 				}
 			}
 			else if (joy->type == SENS_JOY_HAT)
@@ -1623,7 +1623,7 @@ static short draw_sensorbuttons(Object *ob, bSensor *sens, uiBlock *block, short
 					str = "Direction%t|Up%x1|Down%x4|Left%x8|Right%x2|%l|Up/Right%x3|Down/Left%x12|Up/Left%x9|Down/Right%x6"; 
 					uiDefButI(block, MENU, 0, str, xco+10 + 0.6 * (width-20), yco-68, 0.4 * (width-20), 19,
 					&joy->hatf, 2.0, 31, 0, 0,
-					"The direction of the hat, use 'All Events' to recieve events on any direction");
+					"The direction of the hat, use 'All Events' to receive events on any direction");
 				}
 			}
 			else { /* (joy->type == SENS_JOY_AXIS_SINGLE)*/
@@ -3174,12 +3174,6 @@ static int is_sensor_linked(uiBlock *block, bSensor *sens)
 	return 0;
 }
 
-/* never used, see CVS 1.134 for the code */
-/*  static FreeCamera *new_freecamera(void) */
-
-/* never used, see CVS 1.120 for the code */
-/*  static uiBlock *freecamera_menu(void) */
-
 /* Sensors code */
 
 static void draw_sensor_header(uiLayout *layout, PointerRNA *ptr, PointerRNA *logic_ptr)
@@ -3537,7 +3531,8 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 	uiLayout *box, *row, *subrow;
 	bController *cont= (bController *)ptr->data;
 
-	char name[3]; //XXX provisorly for state number
+	char state[3];
+	sprintf(state, "%d", RNA_int_get(ptr, "state"));
 	
 	box= uiLayoutBox(layout);
 	row= uiLayoutRow(box, 0);
@@ -3546,14 +3541,13 @@ static void draw_controller_header(uiLayout *layout, PointerRNA *ptr, int xco, i
 	if(RNA_boolean_get(ptr, "expanded")) {
 		uiItemR(row, ptr, "type", 0, "", 0);
 		uiItemR(row, ptr, "name", 0, "", 0);
+		/* XXX provisory for Blender 2.50Beta */
+		uiDefBlockBut(uiLayoutGetBlock(layout), controller_state_mask_menu, cont, state, (short)(xco+width-44), yco, 22+22, UI_UNIT_Y, "Set controller state index (from 1 to 30)");
 	} else {
 		uiItemL(row, controller_name(cont->type), 0);
 		uiItemL(row, cont->name, 0);
+		uiItemL(row, state, 0);
 	}
-
-	/* XXX provisory for Blender 2.50Beta */
-	sprintf(name, "%d", RNA_int_get(ptr, "state"));
-	uiDefBlockBut(uiLayoutGetBlock(layout), controller_state_mask_menu, cont, name, (short)(xco+width-44), yco, 22+22, UI_UNIT_Y, "Set controller state index (from 1 to 30)");
 
 	uiItemR(row, ptr, "priority", 0, "", 0);
 

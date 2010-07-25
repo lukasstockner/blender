@@ -170,7 +170,7 @@ class USERPREF_PT_interface(bpy.types.Panel):
 
         col.prop(view, "show_mini_axis", text="Display Mini Axis")
         sub = col.column()
-        sub.enabled = view.show_mini_axis
+        sub.active = view.show_mini_axis
         sub.prop(view, "mini_axis_size", text="Size")
         sub.prop(view, "mini_axis_brightness", text="Brightness")
 
@@ -216,7 +216,7 @@ class USERPREF_PT_interface(bpy.types.Panel):
         #col.prop(view, "open_right_mouse_delay", text="Hold RMB")
         col.prop(view, "use_manipulator")
         sub = col.column()
-        sub.enabled = view.use_manipulator
+        sub.active = view.use_manipulator
         sub.prop(view, "manipulator_size", text="Size")
         sub.prop(view, "manipulator_handle_size", text="Handle Size")
         sub.prop(view, "manipulator_hotspot", text="Hotspot")
@@ -330,8 +330,6 @@ class USERPREF_PT_edit(bpy.types.Panel):
         sculpt = context.tool_settings.sculpt
         col = row.column()
         col.label(text="Paint and Sculpt:")
-        col.prop(edit, "sculpt_paint_use_unified_size", text="Unify Size")
-        col.prop(edit, "sculpt_paint_use_unified_strength", text="Unify Strength")
         row = col.row(align=True)
         row.label("Overlay Color:")
         row.prop(edit, "sculpt_paint_overlay_col", text="")
@@ -356,7 +354,7 @@ class USERPREF_PT_edit(bpy.types.Panel):
         col.prop(edit, "duplicate_lamp", text="Lamp")
         col.prop(edit, "duplicate_material", text="Material")
         col.prop(edit, "duplicate_texture", text="Texture")
-        col.prop(edit, "duplicate_fcurve", text="F-Curve")
+        #col.prop(edit, "duplicate_fcurve", text="F-Curve")
         col.prop(edit, "duplicate_action", text="Action")
         col.prop(edit, "duplicate_particle", text="Particle")
 
@@ -724,7 +722,7 @@ class USERPREF_PT_file(bpy.types.Panel):
         col.prop(paths, "save_preview_images")
         col.prop(paths, "auto_save_temporary_files")
         sub = col.column()
-        sub.enabled = paths.auto_save_temporary_files
+        sub.active = paths.auto_save_temporary_files
         sub.prop(paths, "auto_save_time", text="Timer (mins)")
 
 from space_userpref_keymap import InputKeyMapPanel
@@ -752,7 +750,7 @@ class USERPREF_PT_input(InputKeyMapPanel):
 
         sub.label(text="Mouse:")
         sub1 = sub.column()
-        sub1.enabled = (inputs.select_mouse == 'RIGHT')
+        sub1.active = (inputs.select_mouse == 'RIGHT')
         sub1.prop(inputs, "emulate_3_button_mouse")
         sub.prop(inputs, "continuous_mouse")
 
@@ -782,8 +780,9 @@ class USERPREF_PT_input(InputKeyMapPanel):
 
         #col.separator()
 
-        #sub = col.column()
-        #sub.label(text="Mouse Wheel:")
+        sub = col.column()
+        sub.label(text="Mouse Wheel:")
+        sub.prop(inputs, "wheel_invert_zoom", text="Invert Wheel Zoom Direction")
         #sub.prop(view, "wheel_scroll_lines", text="Scroll Lines")
 
         col.separator()
@@ -1115,7 +1114,7 @@ class WM_OT_addon_expand(bpy.types.Operator):
     def execute(self, context):
         module_name = self.properties.module
 
-        # unlikely to fail, module should have alredy been imported
+        # unlikely to fail, module should have already been imported
         try:
             mod = __import__(module_name)
         except:

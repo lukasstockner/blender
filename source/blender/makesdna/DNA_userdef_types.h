@@ -344,7 +344,7 @@ typedef struct UserDef {
 	short sculpt_paint_settings; /* user preferences for sculpt and paint */
 	short tw_hotspot, tw_flag, tw_handlesize, tw_size;
 	short textimeout,texcollectrate;
-	short wmdrawmethod; /* removed wmpad */
+	short wmdrawmethod;
 	int memcachelimit;
 	int prefetchframes;
 	short frameserverport;
@@ -375,10 +375,7 @@ typedef struct UserDef {
 
 	struct ColorBand coba_weight;	/* from texture.h */
 
-	int sculpt_paint_unified_size; /* unified radius of brush in pixels */
-	float sculpt_paint_unified_unprojected_radius;/* unified radius of brush in Blender units */
-	float sculpt_paint_unified_alpha; /* unified strength of brush */
-	float sculpt_paint_overlay_col[3];
+	float sculpt_paint_overlay_col[4];
 } UserDef;
 
 extern UserDef U; /* from blenkernel blender.c */

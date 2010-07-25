@@ -69,23 +69,44 @@ void BRUSH_OT_add(wmOperatorType *ot)
 	ot->exec= brush_add_exec;
 	
 	/* flags */
-	ot->flag= OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 }
 
 
 static int brush_scale_size_exec(bContext *C, wmOperator *op)
 {
-	/*int type = RNA_enum_get(op->ptr, "type");*/
-	Paint *paint = paint_get_active(CTX_data_scene(C));
-	Brush *br = paint_brush(paint);
-	float factor = RNA_float_get(op->ptr, "scalar");
+	Paint  *paint=  paint_get_active(CTX_data_scene(C));
+	Brush  *brush=  paint_brush(paint);
+	// Object *ob=     CTX_data_active_object(C);
+	float   scalar= RNA_float_get(op->ptr, "scalar");
 
-	if (br) {
-		if (U.sculpt_paint_settings & SCULPT_PAINT_USE_UNIFIED_SIZE) {
-			U.sculpt_paint_unified_size *= factor;
+	if (brush) {
+		// pixel radius
+		{
+			const int old_size= brush_size(brush);
+			int size= (int)(scalar*old_size);
+
+			if (old_size == size) {
+				if (scalar > 1) {
+					size++;
+				}
+				else if (scalar < 1) {
+					size--;
+				}
+			}
+			CLAMP(size, 1, 2000); // XXX magic number
+
+			brush_set_size(brush, size);
 		}
-		else {
-			br->size *= factor;
+
+		// unprojected radius
+		{
+			float unprojected_radius= scalar*brush_unprojected_radius(brush);
+
+			if (unprojected_radius < 0.001) // XXX magic number
+				unprojected_radius= 0.001f;
+
+			brush_set_unprojected_radius(brush, unprojected_radius);
 		}
 	}
 
@@ -95,7 +116,7 @@ static int brush_scale_size_exec(bContext *C, wmOperator *op)
 void BRUSH_OT_scale_size(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Scale Brush Size";
+	ot->name= "Scale Sculpt/Paint Brush Size";
 	ot->description= "Change brush size by a scalar";
 	ot->idname= "BRUSH_OT_scale_size";
 	
@@ -103,7 +124,7 @@ void BRUSH_OT_scale_size(wmOperatorType *ot)
 	ot->exec= brush_scale_size_exec;
 	
 	/* flags */
-	ot->flag= OPTYPE_UNDO;
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	RNA_def_float(ot->srna, "scalar", 1, 0, 2, "Scalar", "Factor to scale brush size by", 0, 2);
 }
@@ -209,6 +230,36 @@ static void ed_keymap_paint_brush_switch(wmKeyMap *keymap, const char *path)
 	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", ZEROKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", path);
 	RNA_int_set(kmi->ptr, "value", 9);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", ONEKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 10);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", TWOKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 11);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", THREEKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 12);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", FOURKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 13);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", FIVEKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 14);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", SIXKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 15);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", SEVENKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 16);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", EIGHTKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 17);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", NINEKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 18);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_set_int", ZEROKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", path);
+	RNA_int_set(kmi->ptr, "value", 19);
 }
 
 static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *path)
@@ -273,7 +324,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	/* brush switching */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", DKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
-	RNA_string_set(kmi->ptr, "value", "Draw");
+	RNA_string_set(kmi->ptr, "value", "SculptDraw");
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", SKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
@@ -281,7 +332,7 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", PKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
-	RNA_string_set(kmi->ptr, "value", "Pinch");
+	RNA_string_set(kmi->ptr, "value", "Pinch/Magnify");
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", GKEY, KM_PRESS, 0, 0);
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
@@ -291,9 +342,21 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
 	RNA_string_set(kmi->ptr, "value", "Layer");
 
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", CKEY, KM_PRESS, KM_SHIFT, 0);
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
+	RNA_string_set(kmi->ptr, "value", "Crease");
+
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", CKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
+	RNA_string_set(kmi->ptr, "value", "Clay");
+	
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", IKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
+	RNA_string_set(kmi->ptr, "value", "Inflate/Deflate");
+	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", TKEY, KM_PRESS, KM_SHIFT, 0); // was just T in 2.4x
 	RNA_string_set(kmi->ptr, "data_path", "tool_settings.sculpt.active_brush_name");
-	RNA_string_set(kmi->ptr, "value", "Flatten");
+	RNA_string_set(kmi->ptr, "value", "Flatten/Contrast");
 
 	/* Vertex Paint mode */
 	keymap= WM_keymap_find(keyconf, "Vertex Paint", 0, 0);

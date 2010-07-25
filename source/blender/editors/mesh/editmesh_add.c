@@ -1286,7 +1286,7 @@ static void make_prim_ext(bContext *C, float *loc, float *rot, int enter_editmod
 	Object *obedit= CTX_data_edit_object(C);
 	int newob = 0;
 	float mat[4][4];
-	int scale;
+	float scale;
 
 	if(obedit==NULL || obedit->type!=OB_MESH) {
 		obedit= ED_object_add_type(C, OB_MESH, loc, rot, FALSE, layer);
@@ -1652,7 +1652,7 @@ void MESH_OT_primitive_ico_sphere_add(wmOperatorType *ot)
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 	
 	/* props */
-	RNA_def_int(ot->srna, "subdivisions", 2, 0, 6, "Subdivisions", "", 0, 8);
+	RNA_def_int(ot->srna, "subdivisions", 2, 0, INT_MAX, "Subdivisions", "", 0, 8);
 	RNA_def_float(ot->srna, "size", 1.0f, 0.0f, FLT_MAX, "Size", "", 0.001f, 100.00);
 
 	ED_object_add_generic_props(ot, TRUE);

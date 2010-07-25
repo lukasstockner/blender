@@ -51,6 +51,7 @@
 #include "BKE_global.h"
 
 #include "MEM_guardedalloc.h"
+#include "MEM_CacheLimiterC-Api.h"
 
 static void rna_userdef_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -169,6 +170,11 @@ static PointerRNA rna_UserDef_system_get(PointerRNA *ptr)
 static void rna_UserDef_audio_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	sound_init(bmain);
+}
+
+static void rna_Userdef_memcache_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	MEM_CacheLimiter_set_maximum(U.memcachelimit * 1024 * 1024);
 }
 
 static void rna_UserDef_weight_color_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -1622,10 +1628,10 @@ static void rna_def_userdef_theme_colorset(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Normal", "Color used for the surface of bones");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	prop= RNA_def_property(srna, "selected", PROP_FLOAT, PROP_COLOR);
+	prop= RNA_def_property(srna, "select", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "select");
 	RNA_def_property_array(prop, 3);
-	RNA_def_property_ui_text(prop, "Selected", "Color used for selected bones");
+	RNA_def_property_ui_text(prop, "Select", "Color used for selected bones");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop= RNA_def_property(srna, "active", PROP_FLOAT, PROP_COLOR);
@@ -1989,20 +1995,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Mini Axis Brightness", "The brightness of the icon");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
-	/* middle mouse button */
-	prop= RNA_def_property(srna, "use_middle_mouse_paste", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_MMB_PASTE);
-	RNA_def_property_ui_text(prop, "Middle Mouse Paste", "In text window, paste with middle mouse button instead of panning");
-	
-	prop= RNA_def_property(srna, "wheel_invert_zoom", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_WHEELZOOMDIR);
-	RNA_def_property_ui_text(prop, "Wheel Invert Zoom", "Swap the Mouse Wheel zoom direction");
-
-	prop= RNA_def_property(srna, "wheel_scroll_lines", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "wheellinescroll");
-	RNA_def_property_range(prop, 0, 32);
-	RNA_def_property_ui_text(prop, "Wheel Scroll Lines", "The number of lines scrolled at a time with the mouse wheel");
-
 	prop= RNA_def_property(srna, "smooth_view", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "smooth_viewtx");
 	RNA_def_property_range(prop, 0, 1000);
@@ -2202,35 +2194,6 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_overlay_col");
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_ui_text(prop, "Sculpt/Paint Overlay Color", "Color of texture overlay");
-
-	prop= RNA_def_property(srna, "sculpt_paint_use_unified_size", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_SIZE);
-	RNA_def_property_ui_text(prop, "Sculpt/Paint Use Unified Radius", "Instead of per brush radius, the radius is shared across brushes");
-
-	prop= RNA_def_property(srna, "sculpt_paint_use_unified_strength", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_ALPHA);
-	RNA_def_property_ui_text(prop, "Sculpt/Paint Use Unified Strength", "Instead of per brush strength, the strength is shared across brushes");
-
-	prop= RNA_def_property(srna, "sculpt_paint_unified_lock_brush_size", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_UNIFIED_LOCK_BRUSH_SIZE);
-	RNA_def_property_ui_text(prop, "Sculpt/Paint Use Unified Blender Units", "When locked all brushes stay same size relative to object; when unlocked all brush sizes are given in pixels");
-
-	prop= RNA_def_property(srna, "sculpt_paint_unified_size", PROP_INT, PROP_DISTANCE);
-	RNA_def_property_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS*10);
-	RNA_def_property_ui_range(prop, 1, MAX_BRUSH_PIXEL_RADIUS, 1, 0);
-	RNA_def_property_ui_text(prop, "Sculpt/Paint Unified Size", "Unified radius of the brush in pixels");
-
-	prop= RNA_def_property(srna, "sculpt_paint_unified_unprojected_radius", PROP_FLOAT, PROP_DISTANCE);
-	RNA_def_property_range(prop, 0, FLT_MAX);
-	RNA_def_property_ui_range(prop, 0, 1, 0, 0);
-	RNA_def_property_ui_text(prop, "Sculpt/Paint Unified Surface Size", "Unified radius of brush in Blender units");
-
-	prop= RNA_def_property(srna, "sculpt_paint_unified_strength", PROP_FLOAT, PROP_FACTOR);
-	RNA_def_property_float_sdna(prop, NULL, "sculpt_paint_unified_alpha");
-	RNA_def_property_float_default(prop, 0.5f);
-	RNA_def_property_range(prop, 0.0f, 10.0f);
-	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
-	RNA_def_property_ui_text(prop, "Sculpt/Paint Unified Strength", "Unified power of effect of brushes when applied");
 
 	/* duplication linking */
 	prop= RNA_def_property(srna, "duplicate_mesh", PROP_BOOLEAN, PROP_NONE);
@@ -2491,6 +2454,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "memcachelimit");
 	RNA_def_property_range(prop, 0, (sizeof(void *) ==8)? 1024*16: 1024); /* 32 bit 2 GB, 64 bit 16 GB */
 	RNA_def_property_ui_text(prop, "Memory Cache Limit", "Memory cache limit in sequencer (megabytes)");
+	RNA_def_property_update(prop, 0, "rna_Userdef_memcache_update");
 
 	prop= RNA_def_property(srna, "frame_server_port", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "frameserverport");
@@ -2671,6 +2635,20 @@ static void rna_def_userdef_input(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "emulate_numpad", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", USER_NONUMPAD);
 	RNA_def_property_ui_text(prop, "Emulate Numpad", "Causes the 1 to 0 keys to act as the numpad (useful for laptops)");
+	
+	/* middle mouse button */
+	prop= RNA_def_property(srna, "use_middle_mouse_paste", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_MMB_PASTE);
+	RNA_def_property_ui_text(prop, "Middle Mouse Paste", "In text window, paste with middle mouse button instead of panning");
+	
+	prop= RNA_def_property(srna, "wheel_invert_zoom", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_WHEELZOOMDIR);
+	RNA_def_property_ui_text(prop, "Wheel Invert Zoom", "Swap the Mouse Wheel zoom direction");
+
+	prop= RNA_def_property(srna, "wheel_scroll_lines", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "wheellinescroll");
+	RNA_def_property_range(prop, 0, 32);
+	RNA_def_property_ui_text(prop, "Wheel Scroll Lines", "The number of lines scrolled at a time with the mouse wheel");
 	
 	/* U.keymaps - custom keymaps that have been edited from default configs */
 	prop= RNA_def_property(srna, "edited_keymaps", PROP_COLLECTION, PROP_NONE);

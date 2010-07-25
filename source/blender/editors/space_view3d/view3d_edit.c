@@ -490,9 +490,11 @@ void viewrotate_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, LEFTALTKEY, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_AXIS_SNAP_ENABLE);
 	WM_modalkeymap_add_item(keymap, LEFTALTKEY, KM_RELEASE, KM_ANY, 0, VIEWROT_MODAL_AXIS_SNAP_DISABLE);
 
+	/* disabled mode switching for now, can re-implement better, later on
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ZOOM);
 	WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ZOOM);
 	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_SWITCH_MOVE);
+	*/
 	
 	/* assign map to operators */
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_rotate");
@@ -796,9 +798,11 @@ void viewmove_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_RELEASE, KM_ANY, 0, VIEW_MODAL_CONFIRM);
 	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, VIEW_MODAL_CONFIRM);
 
+	/* disabled mode switching for now, can re-implement better, later on
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ZOOM);
 	WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ZOOM);
 	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_RELEASE, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ROTATE);
+	*/
 	
 	/* assign map to operators */
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_move");
@@ -936,9 +940,11 @@ void viewzoom_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_add_item(keymap, MIDDLEMOUSE, KM_RELEASE, KM_ANY, 0, VIEW_MODAL_CONFIRM);
 	WM_modalkeymap_add_item(keymap, ESCKEY, KM_PRESS, KM_ANY, 0, VIEW_MODAL_CONFIRM);
 
+	/* disabled mode switching for now, can re-implement better, later on
 	WM_modalkeymap_add_item(keymap, LEFTMOUSE, KM_RELEASE, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ROTATE);
 	WM_modalkeymap_add_item(keymap, LEFTCTRLKEY, KM_RELEASE, KM_ANY, 0, VIEWROT_MODAL_SWITCH_ROTATE);
 	WM_modalkeymap_add_item(keymap, LEFTSHIFTKEY, KM_PRESS, KM_ANY, 0, VIEWROT_MODAL_SWITCH_MOVE);
+	 */
 	
 	/* assign map to operators */
 	WM_modalkeymap_assign(keymap, "VIEW3D_OT_zoom");
@@ -1918,11 +1924,12 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 				/* lastview -  */
 
 				if(rv3d->persp != RV3D_CAMOB) {
+					Object *ob= OBACT;
 
 					if (!rv3d->smooth_timer) {
 						/* store settings of current view before allowing overwriting with camera view
 						 * only if we're not currently in a view transition */
-						QUATCOPY(rv3d->lviewquat, rv3d->viewquat);
+						copy_qt_qt(rv3d->lviewquat, rv3d->viewquat);
 						rv3d->lview= rv3d->view;
 						rv3d->lpersp= rv3d->persp;
 					}
@@ -1935,20 +1942,35 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 						handle_view3d_lock();
 					}
 	#endif
-
-					if(BASACT) {
-						/* check both G.vd as G.scene cameras */
-						if((v3d->camera==NULL || scene->camera==NULL) && OBACT->type==OB_CAMERA) {
-							v3d->camera= OBACT;
-							/*handle_view3d_lock();*/
+					
+					/* first get the default camera for the view lock type */
+					if(v3d->scenelock) {
+						/* sets the camera view if available */
+						v3d->camera= scene->camera;						
+					}
+					else {
+						/* use scene camera if one is not set (even though we're unlocked) */
+						if(v3d->camera==NULL) {
+							v3d->camera= scene->camera;
 						}
 					}
 
-					if(v3d->camera==NULL) {
-						v3d->camera= scene_find_camera(scene);
-						if (v3d->camera == NULL)
-							return OPERATOR_CANCELLED;
-					}
+					/* if the camera isnt found, check a number of options */
+					if(v3d->camera==NULL && ob && ob->type==OB_CAMERA)
+						v3d->camera= ob;
+					
+					if(v3d->camera==NULL)
+						v3d->camera= scene_find_camera(scene);		
+
+					/* couldnt find any useful camera, bail out */
+					if(v3d->camera==NULL)
+						return OPERATOR_CANCELLED;
+					
+					/* important these dont get out of sync for locked scenes */
+					if(v3d->scenelock)
+						scene->camera= v3d->camera;
+
+					/* finally do snazzy view zooming */
 					rv3d->persp= RV3D_CAMOB;
 					smooth_view(C, NULL, v3d->camera, rv3d->ofs, rv3d->viewquat, &rv3d->dist, &v3d->lens);
 
@@ -2874,7 +2896,7 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 
 	/*----------------------------------------------------
 	 * record how much time has passed. clamp at 10 Hz
-	 * pretend the previous frame occured at the clamped time
+	 * pretend the previous frame occurred at the clamped time
 	 */
 //    now = PIL_check_seconds_timer();
  //   frametime = (now - prevTime);

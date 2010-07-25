@@ -204,7 +204,7 @@ static int select_all_exec(bContext *C, wmOperator *op)
 void MBALL_OT_select_all(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name= "Select/Deselect All";
+	ot->name= "Select or Deselect All";
 	ot->description= "Change selection of all meta elements";
 	ot->idname= "MBALL_OT_select_all";
 
@@ -550,7 +550,7 @@ int mouse_mball(bContext *C, short mval[2], int extend)
 			if(ml==startelem) break;
 		}
 		
-		/* When some metaelem was found, then it is neccessary to select or
+		/* When some metaelem was found, then it is necessary to select or
 		 * deselet it. */
 		if(act) {
 			if(extend==0) {

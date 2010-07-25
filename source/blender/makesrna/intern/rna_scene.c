@@ -1167,6 +1167,16 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_enum_items(prop, sketch_convert_items);
 	RNA_def_property_ui_text(prop, "Stroke conversion method", "Method used to convert stroke to bones");
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
+
+	/* Sculpt/Paint Unified Size and Strength */
+
+	prop= RNA_def_property(srna, "sculpt_paint_use_unified_size", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_SIZE);
+	RNA_def_property_ui_text(prop, "Sculpt/Paint Use Unified Radius", "Instead of per brush radius, the radius is shared across brushes");
+
+	prop= RNA_def_property(srna, "sculpt_paint_use_unified_strength", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_ALPHA);
+	RNA_def_property_ui_text(prop, "Sculpt/Paint Use Unified Strength", "Instead of per brush strength, the strength is shared across brushes");
 }
 
 
@@ -2037,8 +2047,8 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	
 	prop= RNA_def_property(srna, "file_quality", PROP_INT, PROP_PERCENTAGE);
 	RNA_def_property_int_sdna(prop, NULL, "quality");
-	RNA_def_property_range(prop, 1, 100);
-	RNA_def_property_ui_text(prop, "Quality", "Quality of JPEG images, AVI Jpeg and SGI movies");
+	RNA_def_property_range(prop, 0, 100); /* 0 is needed for compression. */
+	RNA_def_property_ui_text(prop, "Quality", "Quality of JPEG images, AVI Jpeg and SGI movies, Compression for PNG's");
 	RNA_def_property_update(prop, NC_SCENE|ND_RENDER_OPTIONS, NULL);
 	
 	/* Tiff */

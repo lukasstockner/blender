@@ -69,7 +69,7 @@ typedef struct PaintStroke {
 
 	float last_mouse_position[2];
 
-	/* Set whether any stroke step has yet occured
+	/* Set whether any stroke step has yet occurred
 	   e.g. in sculpt mode, stroke doesn't start until cursor
 	   passes over the mesh */
 	int stroke_started;
@@ -227,7 +227,7 @@ static int same_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 		    mtex->size[1] == snap->size[1] &&
 		    mtex->size[2] == snap->size[2] &&
 		    mtex->rot == snap->rot) &&
-		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && sculpt_get_brush_size(brush) <= snap->brush_size) || (sculpt_get_brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
+		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && brush_size(brush) <= snap->brush_size) || (brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
 		mtex->brush_map_mode == snap->brush_map_mode &&
 		ar->winx == snap->winx &&
 		ar->winy == snap->winy;
@@ -248,7 +248,7 @@ static void make_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 		snap->rot = -1;
 	}
 
-	snap->brush_size = sculpt_get_brush_size(brush);
+	snap->brush_size = brush_size(brush);
 	snap->winx = ar->winx;
 	snap->winy = ar->winy;
 }
@@ -289,7 +289,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 		make_snap(&snap, br, ar);
 
 		if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
-			int s = sculpt_get_brush_size(br);
+			int s = brush_size(br);
 			int r = 1;
 
 			for (s >>= 1; s > 0; s >>= 1)
@@ -330,7 +330,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 				// largely duplicated from tex_strength
 
 				const float rotation = -br->mtex.rot;
-				float diameter = sculpt_get_brush_size(br);
+				float diameter = brush_size(br);
 				int index = j*size + i;
 				float x;
 				float avg;
@@ -550,10 +550,10 @@ int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, floa
 	memcpy(viewport, stroke->mats.viewport, sizeof(int[4]));
 
 	if (stroke->vc.obact->sculpt && stroke->vc.obact->sculpt->pbvh && sculpt_stroke_get_location(C, stroke, location, window)) {
-		*pixel_radius = project_brush_radius(stroke->vc.rv3d, sculpt_get_brush_unprojected_radius(stroke->brush), location, &stroke->mats);
+		*pixel_radius = project_brush_radius(stroke->vc.rv3d, brush_unprojected_radius(stroke->brush), location, &stroke->mats);
 
 		if (*pixel_radius == 0)
-			*pixel_radius = sculpt_get_brush_size(stroke->brush);
+			*pixel_radius = brush_size(stroke->brush);
 
 		mul_m4_v3(stroke->vc.obact->sculpt->ob->obmat, location);
 
@@ -563,7 +563,7 @@ int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, floa
 		Sculpt* sd    = CTX_data_tool_settings(C)->sculpt;
 		Brush*  brush = paint_brush(&sd->paint);
 
-		*pixel_radius = sculpt_get_brush_size(brush);
+		*pixel_radius = brush_size(brush);
 		hit = 0;
 	}
 
@@ -618,7 +618,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		float* col;
 		float  alpha;
 
-		float visual_strength = sculpt_get_brush_alpha(brush)*sculpt_get_brush_alpha(brush);
+		float visual_strength = brush_alpha(brush)*brush_alpha(brush);
 
 		const float min_alpha = 0.20f;
 		const float max_alpha = 0.80f;
@@ -639,13 +639,13 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			}
 		}
 
-		if(!sculpt_get_lock_brush_size(brush) && !(paint->flags & PAINT_SHOW_BRUSH)) 
+		if(!brush_use_locked_size(brush) && !(paint->flags & PAINT_SHOW_BRUSH)) 
 			return;
 
 		hit = sculpt_get_brush_geometry(C, x, y, &pixel_radius, location, modelview, projection, viewport);
 
-		if (sculpt_get_lock_brush_size(brush))
-			sculpt_set_brush_size(brush, pixel_radius);
+		if (brush_use_locked_size(brush))
+			brush_set_size(brush, pixel_radius);
 
 		// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
 		flip = 1;
@@ -724,16 +724,16 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				}
 				else {
 					glTexCoord2f(0, 0);
-					glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
+					glVertex2f((float)x-brush_size(brush), (float)y-brush_size(brush));
 
 					glTexCoord2f(1, 0);
-					glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y-sculpt_get_brush_size(brush));
+					glVertex2f((float)x+brush_size(brush), (float)y-brush_size(brush));
 
 					glTexCoord2f(1, 1);
-					glVertex2f((float)x+sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
+					glVertex2f((float)x+brush_size(brush), (float)y+brush_size(brush));
 
 					glTexCoord2f(0, 1);
-					glVertex2f((float)x-sculpt_get_brush_size(brush), (float)y+sculpt_get_brush_size(brush));
+					glVertex2f((float)x-brush_size(brush), (float)y+brush_size(brush));
 				}
 				glEnd();
 
@@ -762,14 +762,14 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				if (brush->flag & BRUSH_ANCHORED)
 					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, 8);
 				else
-					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, sculpt_get_brush_size(brush));
+					unprojected_radius = unproject_brush_radius(CTX_data_active_object(C), &vc, location, brush_size(brush));
 			}
 
 			if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE))
 				unprojected_radius *= sd->pressure_value;
 
-			if (!sculpt_get_lock_brush_size(brush))
-				sculpt_set_brush_unprojected_radius(brush, unprojected_radius);
+			if (!brush_use_locked_size(brush))
+				brush_set_unprojected_radius(brush, unprojected_radius);
 
 			if(!(paint->flags & PAINT_SHOW_BRUSH))
 				return;
@@ -840,7 +840,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				glStencilFunc(GL_ALWAYS, 1, 0xFF);
 				glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
 
-				if (sculpt_get_brush_size(brush) >= 8)
+				if (brush_size(brush) >= 8)
 					gluSphere(sphere, inner_radius, 40, 40);
 
 				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -895,7 +895,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 			}
 			else {
 				glTranslatef((float)x, (float)y, 0.0f);
-				glutil_draw_lined_arc(0.0, M_PI*2.0, sculpt_get_brush_size(brush), 40);
+				glutil_draw_lined_arc(0.0, M_PI*2.0, brush_size(brush), 40);
 				glTranslatef(-(float)x, -(float)y, 0.0f);
 			}
 
@@ -916,7 +916,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		glEnable(GL_BLEND);
 
 		glTranslatef((float)x, (float)y, 0.0f);
-		glutil_draw_lined_arc(0.0, M_PI*2.0, brush->size, 40); // XXX: for now use the brushes size instead of potentially using the unified size because the feature has been enabled for sculpt
+		glutil_draw_lined_arc(0.0, M_PI*2.0, brush_size(brush), 40); // XXX: for now use the brushes size instead of potentially using the unified size because the feature has been enabled for sculpt
 		glTranslatef((float)-x, (float)-y, 0.0f);
 
 		glDisable(GL_BLEND);
@@ -1056,7 +1056,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 					pressure = stroke->brush->flag & BRUSH_SIZE_PRESSURE ? wmtab->Pressure : 1;
 			}
 
-			scale = (sculpt_get_brush_size(stroke->brush)*pressure*stroke->brush->spacing/50.0f) / length;
+			scale = (brush_size(stroke->brush)*pressure*stroke->brush->spacing/50.0f) / length;
 			mul_v2_fl(vec, scale);
 
 			steps = (int)(1.0f / scale);

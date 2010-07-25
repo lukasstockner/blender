@@ -3094,21 +3094,21 @@ static void givequadverts(EditFace *efa, EditFace *efa1, EditVert **v1, EditVert
 
 	if VTEST(efa1, 1, efa) {
 		*v3= efa1->v1;
-		*v4= efa1->v2;
+		*v4= (efa1->v2 == *v2)? efa1->v3: efa1->v2;
 		vindex[2]= 0;
-		vindex[3]= 1;
+		vindex[3]= (efa1->v2 == *v2)? 2: 1;
 	}
 	else if VTEST(efa1, 2, efa) {
 		*v3= efa1->v2;
-		*v4= efa1->v3;
+		*v4= (efa1->v3 == *v2)? efa1->v1: efa1->v3;
 		vindex[2]= 1;
-		vindex[3]= 2;
+		vindex[3]= (efa1->v3 == *v2)? 0: 2;
 	}
 	else if VTEST(efa1, 3, efa) {
 		*v3= efa1->v3;
-		*v4= efa1->v1;
+		*v4= (efa1->v1 == *v2)? efa1->v2: efa1->v1;
 		vindex[2]= 2;
-		vindex[3]= 0;
+		vindex[3]= (efa1->v1 == *v2)? 1: 0;
 	}
 	else
 		*v3= *v4= NULL;
@@ -3417,7 +3417,7 @@ void join_triangles(EditMesh *em)
 				efaa= (EVPtr *)eed->tmp.p;
 				v1 = v2 = v3 = v4 = NULL;
 				givequadverts(efaa[0], efaa[1], &v1, &v2, &v3, &v4, vindex);
-				if((v1 && v2 && v3 && v4) && (exist_face(em, v1, v2, v3, v4)==0)){ /*exist_face is very slow! Needs to be adressed.*/
+				if((v1 && v2 && v3 && v4) && (exist_face(em, v1, v2, v3, v4)==0)){ /*exist_face is very slow! Needs to be addressed.*/
 					/*flag for delete*/
 					eed->f1 |= T2QDELETE;
 					/*create new quad and select*/

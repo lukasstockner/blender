@@ -486,6 +486,20 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel):
                 col.prop(strip, "use_effect_default_fade", "Default fade")
                 if not strip.use_effect_default_fade:
                     col.prop(strip, "effect_fader", text="Effect fader")
+        
+        layout.prop(strip, "use_translation", text="Image Offset:")
+        if strip.use_translation:
+            col = layout.column(align=True)
+            col.prop(strip.transform, "offset_x", text="X")
+            col.prop(strip.transform, "offset_y", text="Y")
+
+        layout.prop(strip, "use_crop", text="Image Crop:")
+        if strip.use_crop:
+            col = layout.column(align=True)
+            col.prop(strip.crop, "top")
+            col.prop(strip.crop, "left")
+            col.prop(strip.crop, "bottom")
+            col.prop(strip.crop, "right")
 
     def draw_panel_transform(self, strip):
         layout = self.layout
@@ -589,6 +603,7 @@ class SEQUENCER_PT_input_movie(SEQUENCER_PT_input):
         col.label(text="Path:")
         col = split.column()
         col.prop(strip, "filepath", text="")
+        col.prop(strip, "mpeg_preseek", text="MPEG Preseek")
 
 
 class SEQUENCER_PT_input_image(SEQUENCER_PT_input):
