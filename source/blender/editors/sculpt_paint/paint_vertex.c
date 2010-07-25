@@ -84,15 +84,6 @@
 
 #include "paint_intern.h"
 
-/* brush->vertexpaint_tool */
-#define VP_MIX	0
-#define VP_ADD	1
-#define VP_SUB	2
-#define VP_MUL	3
-#define VP_BLUR	4
-#define VP_LIGHTEN	5
-#define VP_DARKEN	6
-
 /* polling - retrieve whether cursor should be set or operator should be done */
 
 
@@ -498,154 +489,7 @@ void vpaint_dogamma(Scene *scene)
 }
  */
 
-static unsigned int mcol_blend(unsigned int col1, unsigned int col2, int fac)
-{
-	char *cp1, *cp2, *cp;
-	int mfac;
-	unsigned int col=0;
-	
-	if(fac==0) return col1;
-	if(fac>=255) return col2;
-
-	mfac= 255-fac;
-	
-	cp1= (char *)&col1;
-	cp2= (char *)&col2;
-	cp=  (char *)&col;
-	
-	cp[0]= 255;
-	cp[1]= (mfac*cp1[1]+fac*cp2[1])/255;
-	cp[2]= (mfac*cp1[2]+fac*cp2[2])/255;
-	cp[3]= (mfac*cp1[3]+fac*cp2[3])/255;
-	
-	return col;
-}
-
-static unsigned int mcol_add(unsigned int col1, unsigned int col2, int fac)
-{
-	char *cp1, *cp2, *cp;
-	int temp;
-	unsigned int col=0;
-	
-	if(fac==0) return col1;
-	
-	cp1= (char *)&col1;
-	cp2= (char *)&col2;
-	cp=  (char *)&col;
-	
-	cp[0]= 255;
-	temp= cp1[1] + ((fac*cp2[1])/255);
-	if(temp>254) cp[1]= 255; else cp[1]= temp;
-	temp= cp1[2] + ((fac*cp2[2])/255);
-	if(temp>254) cp[2]= 255; else cp[2]= temp;
-	temp= cp1[3] + ((fac*cp2[3])/255);
-	if(temp>254) cp[3]= 255; else cp[3]= temp;
-	
-	return col;
-}
-
-static unsigned int mcol_sub(unsigned int col1, unsigned int col2, int fac)
-{
-	char *cp1, *cp2, *cp;
-	int temp;
-	unsigned int col=0;
-	
-	if(fac==0) return col1;
-	
-	cp1= (char *)&col1;
-	cp2= (char *)&col2;
-	cp=  (char *)&col;
-	
-	cp[0]= 255;
-	temp= cp1[1] - ((fac*cp2[1])/255);
-	if(temp<0) cp[1]= 0; else cp[1]= temp;
-	temp= cp1[2] - ((fac*cp2[2])/255);
-	if(temp<0) cp[2]= 0; else cp[2]= temp;
-	temp= cp1[3] - ((fac*cp2[3])/255);
-	if(temp<0) cp[3]= 0; else cp[3]= temp;
-	
-	return col;
-}
-
-static unsigned int mcol_mul(unsigned int col1, unsigned int col2, int fac)
-{
-	char *cp1, *cp2, *cp;
-	int mfac;
-	unsigned int col=0;
-	
-	if(fac==0) return col1;
-
-	mfac= 255-fac;
-	
-	cp1= (char *)&col1;
-	cp2= (char *)&col2;
-	cp=  (char *)&col;
-	
-	/* first mul, then blend the fac */
-	cp[0]= 255;
-	cp[1]= (mfac*cp1[1] + fac*((cp2[1]*cp1[1])/255)  )/255;
-	cp[2]= (mfac*cp1[2] + fac*((cp2[2]*cp1[2])/255)  )/255;
-	cp[3]= (mfac*cp1[3] + fac*((cp2[3]*cp1[3])/255)  )/255;
-
-	
-	return col;
-}
-
-static unsigned int mcol_lighten(unsigned int col1, unsigned int col2, int fac)
-{
-	char *cp1, *cp2, *cp;
-	int mfac;
-	unsigned int col=0;
-	
-	if(fac==0) return col1;
-	if(fac>=255) return col2;
-
-	mfac= 255-fac;
-	
-	cp1= (char *)&col1;
-	cp2= (char *)&col2;
-	cp=  (char *)&col;
-	
-	/* See if are lighter, if so mix, else dont do anything.
-	if the paint col is darker then the original, then ignore */
-	if (cp1[1]+cp1[2]+cp1[3] > cp2[1]+cp2[2]+cp2[3])
-		return col1;
-	
-	cp[0]= 255;
-	cp[1]= (mfac*cp1[1]+fac*cp2[1])/255;
-	cp[2]= (mfac*cp1[2]+fac*cp2[2])/255;
-	cp[3]= (mfac*cp1[3]+fac*cp2[3])/255;
-	
-	return col;
-}
-
-static unsigned int mcol_darken(unsigned int col1, unsigned int col2, int fac)
-{
-	char *cp1, *cp2, *cp;
-	int mfac;
-	unsigned int col=0;
-	
-	if(fac==0) return col1;
-	if(fac>=255) return col2;
-
-	mfac= 255-fac;
-	
-	cp1= (char *)&col1;
-	cp2= (char *)&col2;
-	cp=  (char *)&col;
-	
-	/* See if were darker, if so mix, else dont do anything.
-	if the paint col is brighter then the original, then ignore */
-	if (cp1[1]+cp1[2]+cp1[3] < cp2[1]+cp2[2]+cp2[3])
-		return col1;
-	
-	cp[0]= 255;
-	cp[1]= (mfac*cp1[1]+fac*cp2[1])/255;
-	cp[2]= (mfac*cp1[2]+fac*cp2[2])/255;
-	cp[3]= (mfac*cp1[3]+fac*cp2[3])/255;
-	return col;
-}
-
+/*
 static void vpaint_blend(VPaint *vp, unsigned int *col, unsigned int *colorig, unsigned int paintcol, int alpha)
 {
 	Brush *brush = paint_brush(&vp->paint);
@@ -657,7 +501,7 @@ static void vpaint_blend(VPaint *vp, unsigned int *col, unsigned int *colorig, u
 	else if(brush->vertexpaint_tool==VP_LIGHTEN) *col= mcol_lighten( *col, paintcol, alpha);
 	else if(brush->vertexpaint_tool==VP_DARKEN) *col= mcol_darken( *col, paintcol, alpha);
 	
-	/* if no spray, clip color adding with colorig & orig alpha */
+	// if no spray, clip color adding with colorig & orig alpha
 	if((vp->flag & VP_SPRAY)==0) {
 		unsigned int testcol=0, a;
 		char *cp, *ct, *co;
@@ -687,7 +531,7 @@ static void vpaint_blend(VPaint *vp, unsigned int *col, unsigned int *colorig, u
 		}
 	}
 }
-
+*/
 
 static int sample_backbuf_area(ViewContext *vc, int *indexar, int totface, int x, int y, float size)
 {
@@ -778,32 +622,32 @@ static void wpaint_blend(VPaint *wp, MDeformWeight *dw, MDeformWeight *uw, float
 	
 	if (flip) {
 		switch(tool) {
-			case VP_MIX:
+			case IMB_BLEND_MIX:
 				paintval = 1.f - paintval; break;
-			case VP_ADD:
-				tool= VP_SUB; break;
-			case VP_SUB:
-				tool= VP_ADD; break;
-			case VP_LIGHTEN:
-				tool= VP_DARKEN; break;
-			case VP_DARKEN:
-				tool= VP_LIGHTEN; break;
+			case IMB_BLEND_ADD:
+				tool= IMB_BLEND_SUB; break;
+			case IMB_BLEND_SUB:
+				tool= IMB_BLEND_ADD; break;
+			case IMB_BLEND_LIGHTEN:
+				tool= IMB_BLEND_DARKEN; break;
+			case IMB_BLEND_DARKEN:
+				tool= IMB_BLEND_LIGHTEN; break;
 		}
 	}
 	
-	if(tool==VP_MIX || tool==VP_BLUR)
+	if(tool==IMB_BLEND_MIX || tool==VERTEX_PAINT_BLUR)
 		dw->weight = paintval*alpha + dw->weight*(1.0-alpha);
-	else if(tool==VP_ADD)
+	else if(tool==IMB_BLEND_ADD)
 		dw->weight += paintval*alpha;
-	else if(tool==VP_SUB) 
+	else if(tool==IMB_BLEND_SUB) 
 		dw->weight -= paintval*alpha;
-	else if(tool==VP_MUL) 
+	else if(tool==IMB_BLEND_MUL) 
 		/* first mul, then blend the fac */
 		dw->weight = ((1.0-alpha) + alpha*paintval)*dw->weight;
-	else if(tool==VP_LIGHTEN) {
+	else if(tool==IMB_BLEND_LIGHTEN) {
 		if (dw->weight < paintval)
 			dw->weight = paintval*alpha + dw->weight*(1.0-alpha);
-	} else if(tool==VP_DARKEN) {
+	} else if(tool==IMB_BLEND_DARKEN) {
 		if (dw->weight > paintval)
 			dw->weight = paintval*alpha + dw->weight*(1.0-alpha);
 	}
@@ -814,21 +658,21 @@ static void wpaint_blend(VPaint *wp, MDeformWeight *dw, MDeformWeight *uw, float
 		float testw=0.0f;
 		
 		alpha= brush_alpha(brush);
-		if(tool==VP_MIX || tool==VP_BLUR)
+		if(tool==IMB_BLEND_MIX || tool==VERTEX_PAINT_BLUR)
 			testw = paintval*alpha + uw->weight*(1.0-alpha);
-		else if(tool==VP_ADD)
+		else if(tool==IMB_BLEND_ADD)
 			testw = uw->weight + paintval*alpha;
-		else if(tool==VP_SUB) 
+		else if(tool==IMB_BLEND_SUB) 
 			testw = uw->weight - paintval*alpha;
-		else if(tool==VP_MUL) 
+		else if(tool==IMB_BLEND_MUL) 
 			/* first mul, then blend the fac */
 			testw = ((1.0-alpha) + alpha*paintval)*uw->weight;		
-		else if(tool==VP_LIGHTEN) {
+		else if(tool==IMB_BLEND_LIGHTEN) {
 			if (uw->weight < paintval)
 				testw = paintval*alpha + uw->weight*(1.0-alpha);
 			else
 				testw = uw->weight;
-		} else if(tool==VP_DARKEN) {
+		} else if(tool==IMB_BLEND_DARKEN) {
 			if (uw->weight > paintval)
 				testw = paintval*alpha + uw->weight*(1.0-alpha);
 			else
@@ -1489,7 +1333,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 	/* make sure each vertex gets treated only once */
 	/* and calculate filter weight */
 	totw= 0;
-	if(brush->vertexpaint_tool==VP_BLUR) 
+	if(brush->vertexpaint_tool==VERTEX_PAINT_BLUR) 
 		paintweight= 0.0f;
 	else
 		paintweight= ts->vgroup_weight;
@@ -1503,7 +1347,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 			(me->dvert+mface->v3)->flag= 1;
 			if(mface->v4) (me->dvert+mface->v4)->flag= 1;
 					
-			if(brush->vertexpaint_tool==VP_BLUR) {
+			if(brush->vertexpaint_tool==VERTEX_PAINT_BLUR) {
 				MDeformWeight *dw, *(*dw_func)(MDeformVert *, int);
 						
 				if(wp->flag & VP_ONLYVGROUP)
@@ -1525,7 +1369,7 @@ static void wpaint_stroke_update_step(bContext *C, struct PaintStroke *stroke, P
 		}
 	}
 			
-	if(brush->vertexpaint_tool==VP_BLUR) 
+	if(brush->vertexpaint_tool==VERTEX_PAINT_BLUR) 
 		paintweight/= (float)totw;
 			
 	for(index=0; index<totindex; index++) {
@@ -1862,8 +1706,11 @@ static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
 		strength = brush->alpha *
 			brush_curve_strength(brush, dist,
 					     radius);
-
-		IMB_blend_color_float(col, col, paint_col, strength, IMB_BLEND_MIX /* TODO */);
+		
+		if(brush->vertexpaint_tool != VERTEX_PAINT_BLUR) {
+			IMB_blend_color_float(col, col, paint_col, strength,
+					      brush->vertexpaint_tool);
+		}
 
 		return 1;
 	}
@@ -2066,9 +1913,9 @@ static void vpaint_color_one_face(bContext *C, PaintStroke *stroke,
 			unsigned int *col = (unsigned int*)(mcol + cndx);
 			unsigned int *orig_col = (unsigned int*)(orig + cndx);
 
-			vpaint_blend(vp, col, orig_col,
+			/*vpaint_blend(vp, col, orig_col,
 				     vpd->paintcol,
-				     brush->alpha * 255);
+				     brush->alpha * 255);*/
 		}
 
 		BLI_pbvh_node_set_flags(hit_data.node,
@@ -2112,9 +1959,9 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 		vpaint_color_one_face(C, stroke, itemptr);
 	}
 
-	/* was disabled because it is slow, but necessary for blur */
+	/* XXX
 	if(brush->vertexpaint_tool == VP_BLUR)
-		do_shared_vertexcol(ob->data);
+	do_shared_vertexcol(ob->data);*/
 
 	/* partial redraw */
 	paint_tag_partial_redraw(C, ob);

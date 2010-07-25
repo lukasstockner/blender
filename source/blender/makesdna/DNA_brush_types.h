@@ -150,6 +150,10 @@ typedef enum {
 	SCULPT_TOOL_MASK
 } SculptTool;
 
+/* Brush.vertexpaint_tool */
+#define VERTEX_PAINT_BLUR -1
+/* The other vpaint tools are in IMB_BlendMode */
+
 /* Internal Icons */
 #define BRUSH_ICON_FILE        0
 
