@@ -1688,10 +1688,25 @@ static void vpaint_blend(Brush *brush, float col[4], float alpha)
 	}
 }
 
+static float tex_strength(Brush *brush, PaintStroke *stroke,
+			  float co[3], float mask, float len,
+			  float radius3d)
+{
+	ViewContext *vc = paint_stroke_view_context(stroke);
+	float (*pmat)[4];
+	float tex_mouse[2] = {0,0}; /* TODO */
+
+	paint_stroke_projection_mat(stroke, &pmat);
+
+	return brush_tex_strength(vc, pmat, brush, co, 0, len,
+				  brush->size, radius3d, 0,
+				  tex_mouse);
+}
+
 /* apply paint at specified coordinate
    returns 1 if paint was applied, 0 otherwise */
-static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
-			      float col[4], float orig_col[4],
+static int vpaint_paint_coord(VPaint *vp, PaintStroke *stroke,
+			      float co[3], float col[4],
 			      float center[3], float radius,
 			      float radius_squared)
 {
@@ -1704,8 +1719,7 @@ static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
 		dist = sqrtf(dist_squared);
 
 		strength = brush->alpha *
-			brush_curve_strength(brush, dist,
-					     radius);
+			tex_strength(brush, stroke, co, 0, dist, radius);
 		
 		vpaint_blend(brush, col, strength);
 
@@ -1715,8 +1729,9 @@ static int vpaint_paint_coord(VPaint *vp, VPaintData *vpd, float co[3],
 	return 0;
 }
 
-static void vpaint_nodes_grids(VPaint *vp, VPaintData *vpd, DMGridData **grids,
-			       GridKey *gridkey, int *grid_indices, int totgrid,
+static void vpaint_nodes_grids(VPaint *vp, PaintStroke *stroke,
+			       DMGridData **grids, GridKey *gridkey,
+			       int *grid_indices, int totgrid,
 			       int gridsize, int active, float center[3],
 			       float radius)
 {
@@ -1734,9 +1749,8 @@ static void vpaint_nodes_grids(VPaint *vp, VPaintData *vpd, DMGridData **grids,
 				float *co = GRIDELEM_CO(elem, gridkey);
 				float *gridcol = GRIDELEM_COLOR(elem, gridkey)[active];
 
-				vpaint_paint_coord(vp, vpd, co,
+				vpaint_paint_coord(vp, stroke, co,
 						   gridcol,
-						   NULL, /* TODO */
 						   center, radius,
 						   radius_squared);
 			}
@@ -1744,7 +1758,7 @@ static void vpaint_nodes_grids(VPaint *vp, VPaintData *vpd, DMGridData **grids,
 	}
 }
 
-static void vpaint_nodes_faces(VPaint *vp, VPaintData *vpd, MFace *mface,
+static void vpaint_nodes_faces(VPaint *vp, PaintStroke *stroke, MFace *mface,
 			       MVert *mvert, CustomData *fdata,
 			       int *face_indices, int totface, float center[3],
 			       float radius)
@@ -1775,7 +1789,7 @@ static void vpaint_nodes_faces(VPaint *vp, VPaintData *vpd, MFace *mface,
 			fcol[2] = mcol[cndx].r / 255.0f;
 			fcol[3] = mcol[cndx].a / 255.0f;
 
-			vpaint_paint_coord(vp, vpd, co, fcol, NULL /* TODO */, center,
+			vpaint_paint_coord(vp, stroke, co, fcol, center,
 					   radius, radius_squared);
 
 			mcol[cndx].b = fcol[0] * 255.0f;
@@ -1804,7 +1818,8 @@ static int vpaint_find_gridkey_active_layer(CustomData *fdata, GridKey *gridkey)
 	return -1;
 }
 
-static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
+static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
+			 PBVH *pbvh,
 			 PBVHNode **nodes, int totnode,
 			 float center[3], float radius)
 {
@@ -1834,14 +1849,14 @@ static void vpaint_nodes(VPaint *vp, VPaintData *vpd, PBVH *pbvh,
 								      gridkey);
 
 			if(active != -1) {
-				vpaint_nodes_grids(vp, vpd, grids, gridkey,
+				vpaint_nodes_grids(vp, stroke, grids, gridkey,
 						   grid_indices, totgrid,
 						   gridsize, active, center,
 						   radius);
 			}
 		}
 		else {
-			vpaint_nodes_faces(vp, vpd, mface, mvert, fdata,
+			vpaint_nodes_faces(vp, stroke, mface, mvert, fdata,
 					   face_indices, totface, center,
 					   radius);
 		}
@@ -1977,7 +1992,6 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 					  PointerRNA *itemptr)
 {
 	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
-	VPaintData *vpd = paint_stroke_mode_data(stroke);
 	ViewContext *vc = paint_stroke_view_context(stroke);
 	Brush *brush = paint_brush(&vp->paint);
 	Object *ob = vc->obact;
@@ -1997,7 +2011,7 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 		BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb,
 				       &search_data, &nodes, &totnode);
 
-		vpaint_nodes(vp, vpd, ob->paint->pbvh, nodes, totnode,
+		vpaint_nodes(vp, stroke, ob->paint->pbvh, nodes, totnode,
 			     center, radius);
 
 		if(nodes)

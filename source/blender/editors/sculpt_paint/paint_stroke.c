@@ -64,6 +64,7 @@ struct PaintStroke {
 
 	/* Cached values */
 	ViewContext vc;
+	float project_mat[4][4];
 	bglMats mats;
 	Brush *brush;
 
@@ -805,6 +806,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	PaintStroke *stroke = op->customdata;
 
 	view3d_set_viewcontext(C, &vc); // XXX
+	view3d_get_object_project_mat(vc.rv3d, vc.obact, stroke->project_mat);
 
 	/* Tablet */
 	if(event->custom == EVT_DATA_TABLET) {
@@ -1043,6 +1045,11 @@ int paint_stroke_exec(bContext *C, wmOperator *op)
 ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 {
 	return &stroke->vc;
+}
+
+void paint_stroke_projection_mat(PaintStroke *stroke, float (**pmat)[4])
+{
+	*pmat = &stroke->project_mat;
 }
 
 void *paint_stroke_mode_data(struct PaintStroke *stroke)

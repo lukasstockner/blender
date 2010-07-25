@@ -36,6 +36,9 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "RE_render_ext.h"
+#include "RE_shader_ext.h"
+
 #include "paint_intern.h"
 
 /* 3D Paint */
@@ -452,4 +455,116 @@ void paint_get_redraw_planes(float planes[4][4], ARegion *ar,
 	/* clear redraw flag from nodes */
 	if(pbvh)
 		BLI_pbvh_update(pbvh, PBVH_UpdateRedraw, NULL);
+}
+
+float get_tex_pixel(Brush* br, float u, float v)
+{
+	TexResult texres;
+	float co[3];
+	int hasrgb;
+
+	co[0] = u;
+	co[1] = v;
+	co[2] = 0;
+
+	memset(&texres, 0, sizeof(TexResult));
+	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 1, &texres);
+
+	if (hasrgb & TEX_RGB)
+		texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb)*texres.ta;
+
+	return texres.tin;
+}
+
+/* return a multiplier for brush strength at a coordinate,
+   incorporating texture, curve control, and masking
+
+   TODO: pulled almost directly from sculpt, still needs
+   to be prettied up
+*/
+float brush_tex_strength(ViewContext *vc,
+			 float pmat[4][4], Brush *br,
+			 float co[3], float mask, const float len,
+			 float pixel_radius, float radius3d,
+			 float special_rotation, float tex_mouse[2])
+{
+	MTex *mtex = &br->mtex;
+	float avg= 1;
+
+	if(!mtex->tex) {
+		avg= 1;
+	}
+	else if(mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
+		float jnk;
+
+		/* Get strength by feeding the vertex 
+		   location directly into a texture */
+		externtex(mtex, co, &avg,
+			  &jnk, &jnk, &jnk, &jnk);
+	}
+	else {
+		float rotation = -mtex->rot;
+		float x, y, point_2d[3];
+		float radius;
+
+		view3d_project_float(vc->ar, co, point_2d, pmat);
+
+		/* if fixed mode, keep coordinates relative to mouse */
+		if(mtex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
+			rotation += special_rotation;
+
+			point_2d[0] -= tex_mouse[0];
+			point_2d[1] -= tex_mouse[1];
+
+			radius = pixel_radius; // use pressure adjusted size for fixed mode
+
+			x = point_2d[0];
+			y = point_2d[1];
+		}
+		else /* else (mtex->brush_map_mode == MTEX_MAP_MODE_TILED),
+		        leave the coordinates relative to the screen */
+		{
+			radius = brush_size(br); // use unadjusted size for tiled mode
+		
+			x = point_2d[0] - vc->ar->winrct.xmin;
+			y = point_2d[1] - vc->ar->winrct.ymin;
+		}
+
+		x /= vc->ar->winx;
+		y /= vc->ar->winy;
+
+		if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
+			x -= 0.5f;
+			y -= 0.5f;
+		}
+		
+		x *= vc->ar->winx / radius;
+		y *= vc->ar->winy / radius;
+
+		/* it is probably worth optimizing for those cases where 
+		   the texture is not rotated by skipping the calls to
+		   atan2, sqrtf, sin, and cos. */
+		if (rotation > 0.001 || rotation < -0.001) {
+			const float angle    = atan2(y, x) + rotation;
+			const float flen     = sqrtf(x*x + y*y);
+
+			x = flen * cos(angle);
+			y = flen * sin(angle);
+		}
+
+		x *= br->mtex.size[0];
+		y *= br->mtex.size[1];
+
+		x += br->mtex.ofs[0];
+		y += br->mtex.ofs[1];
+
+		avg = get_tex_pixel(br, x, y);
+	}
+
+	avg += br->texture_sample_bias;
+
+	avg *= brush_curve_strength(br, len, radius3d); /* Falloff curve */
+	avg*= 1 - mask;
+	
+	return avg;
 }

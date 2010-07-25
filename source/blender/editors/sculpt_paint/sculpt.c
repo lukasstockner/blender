@@ -83,10 +83,6 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-
-#include "RE_render_ext.h"
-#include "RE_shader_ext.h"
-
 #include "GPU_buffers.h"
 
 #include <math.h>
@@ -188,7 +184,7 @@ typedef struct StrokeCache {
 
 	int first_time; /* Beginning of stroke may do some things special */
 
-	bglMats *mats;
+	float project_mat[4][4];
 
 	/* Clean this up! */
 	ViewContext *vc;
@@ -220,32 +216,6 @@ typedef struct StrokeCache {
 
 	float plane_trim_squared;
 } StrokeCache;
-
-/* ===== OPENGL =====
- *
- * Simple functions to get data from the GL
- */
-
-/* Convert a point in model coordinates to 2D screen coordinates. */
-static void projectf(bglMats *mats, const float v[3], float p[2])
-{
-	double ux, uy, uz;
-
-	gluProject(v[0],v[1],v[2], mats->modelview, mats->projection,
-		   (GLint *)mats->viewport, &ux, &uy, &uz);
-	p[0]= ux;
-	p[1]= uy;
-}
-
-/*XXX: static void project(bglMats *mats, const float v[3], short p[2])
-{
-	float f[2];
-	projectf(mats, v, f);
-
-	p[0]= f[0];
-	p[1]= f[1];
-}
-*/
 
 /************************ Brush Testing *******************/
 
@@ -567,25 +537,6 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 	}
 }
 
-float get_tex_pixel(Brush* br, float u, float v)
-{
-	TexResult texres;
-	float co[3];
-	int hasrgb;
-
-	co[0] = u;
-	co[1] = v;
-	co[2] = 0;
-
-	memset(&texres, 0, sizeof(TexResult));
-	hasrgb = multitex_ext(br->mtex.tex, co, NULL, NULL, 1, &texres);
-
-	if (hasrgb & TEX_RGB)
-		texres.tin = (0.35*texres.tr + 0.45*texres.tg + 0.2*texres.tb)*texres.ta;
-
-	return texres.tin;
-}
-
 #if 0
 
 /* Get a pixel from the texcache at (px, py) */
@@ -627,99 +578,31 @@ static float get_texcache_pixel_bilinear(const SculptSession *ss, float u, float
 
 #endif
 
-/* Return a multiplier for brush strength on a particular vertex. */
-static float tex_strength(SculptSession *ss, Brush *br, float *point, float mask, const float len)
+static float tex_strength(SculptSession *ss, Brush *br, float *co, float mask, const float len)
 {
-	MTex *mtex = &br->mtex;
-	float avg= 1;
+	float mco[3];
 
-	if(!mtex->tex) {
-		avg= 1;
-	}
-	else if(mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
-		float jnk;
-
-		/* Get strength by feeding the vertex 
-		   location directly into a texture */
-		externtex(mtex, point, &avg,
-			  &jnk, &jnk, &jnk, &jnk);
-	}
-	else if(ss->texcache) {
-		float rotation = -mtex->rot;
-		float x, y, point_2d[3];
-		float radius;
-
-		/* if the active area is being applied for symmetry, flip it
-		   across the symmetry axis and rotate it back to the orignal
-		   position in order to project it. This insures that the 
-		   brush texture will be oriented correctly. */
-
-		flip_coord(point_2d, point, ss->cache->mirror_symmetry_pass);
-
-		if (ss->cache->radial_symmetry_pass)
-			mul_m4_v3(ss->cache->symm_rot_mat_inv, point_2d);
-
-		projectf(ss->cache->mats, point_2d, point_2d);
-
-		/* if fixed mode, keep coordinates relative to mouse */
-		if(mtex->brush_map_mode == MTEX_MAP_MODE_FIXED) {
-			rotation += ss->cache->special_rotation;
-
-			point_2d[0] -= ss->cache->tex_mouse[0];
-			point_2d[1] -= ss->cache->tex_mouse[1];
-
-			radius = ss->cache->pixel_radius; // use pressure adjusted size for fixed mode
-
-			x = point_2d[0];
-			y = point_2d[1];
-		}
-		else /* else (mtex->brush_map_mode == MTEX_MAP_MODE_TILED),
-		        leave the coordinates relative to the screen */
-		{
-			radius = brush_size(br); // use unadjusted size for tiled mode
+	/* if the active area is being applied for symmetry, flip it
+	   across the symmetry axis and rotate it back to the orignal
+	   position in order to project it. This insures that the 
+	   brush texture will be oriented correctly. */
+	if(br->mtex.tex &&
+	   br->mtex.brush_map_mode != MTEX_MAP_MODE_3D) {
+		flip_coord(mco, co, ss->cache->mirror_symmetry_pass);
 		
-			x = point_2d[0] - ss->cache->vc->ar->winrct.xmin;
-			y = point_2d[1] - ss->cache->vc->ar->winrct.ymin;
-		}
+		if(ss->cache->radial_symmetry_pass)
+			mul_m4_v3(ss->cache->symm_rot_mat_inv, mco);
 
-		x /= ss->cache->vc->ar->winx;
-		y /= ss->cache->vc->ar->winy;
-
-		if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
-			x -= 0.5f;
-			y -= 0.5f;
-		}
-		
-		x *= ss->cache->vc->ar->winx / radius;
-		y *= ss->cache->vc->ar->winy / radius;
-
-		/* it is probably worth optimizing for those cases where 
-		   the texture is not rotated by skipping the calls to
-		   atan2, sqrtf, sin, and cos. */
-		if (rotation > 0.001 || rotation < -0.001) {
-			const float angle    = atan2(y, x) + rotation;
-			const float flen     = sqrtf(x*x + y*y);
-
-			x = flen * cos(angle);
-			y = flen * sin(angle);
-		}
-
-		x *= br->mtex.size[0];
-		y *= br->mtex.size[1];
-
-		x += br->mtex.ofs[0];
-		y += br->mtex.ofs[1];
-
-		avg = get_tex_pixel(br, x, y);
+		co = mco;
 	}
-
-	avg += br->texture_sample_bias;
-
-	avg *= brush_curve_strength(br, len, ss->cache->radius); /* Falloff curve */
-	avg*= 1 - mask;
 	
-	return avg;
+	return brush_tex_strength(ss->cache->vc,
+				  ss->cache->project_mat, br, co, mask, len,
+				  ss->cache->pixel_radius, ss->cache->radius,
+				  ss->cache->special_rotation,
+				  ss->cache->tex_mouse);
 }
+
 
 /* Handles clipping against a mirror modifier and SCULPT_LOCK axis flags */
 static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float val[3])
@@ -2727,8 +2610,6 @@ static void sculpt_cache_free(StrokeCache *cache)
 {
 	if(cache->face_norms)
 		MEM_freeN(cache->face_norms);
-	if(cache->mats)
-		MEM_freeN(cache->mats);
 	MEM_freeN(cache);
 }
 
@@ -2811,8 +2692,8 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 
 	cache->brush = brush;
 
-	cache->mats = MEM_callocN(sizeof(bglMats), "sculpt bglMats");
-	view3d_get_transformation(vc->ar, vc->rv3d, vc->obact, cache->mats);
+	/* TODO: use paintstroke for this */
+	view3d_get_object_project_mat(cache->vc->rv3d, ob, cache->project_mat);
 
 	viewvector(cache->vc->rv3d, cache->vc->rv3d->twmat[3], cache->true_view_normal);
 	/* Initialize layer brush displacements and persistent coords */

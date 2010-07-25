@@ -32,6 +32,7 @@
 #include "BLI_pbvh.h"
 
 struct bContext;
+struct Brush;
 struct Scene;
 struct Object;
 struct Mesh;
@@ -61,6 +62,7 @@ void paint_stroke_free(struct PaintStroke *stroke);
 int paint_stroke_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 int paint_stroke_exec(struct bContext *C, struct wmOperator *op);
 struct ViewContext *paint_stroke_view_context(struct PaintStroke *stroke);
+void paint_stroke_projection_mat(struct PaintStroke *stroke, float (**pmat)[4]);
 void *paint_stroke_mode_data(struct PaintStroke *stroke);
 void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
 
@@ -135,6 +137,12 @@ float paint_calc_object_space_radius(struct Object *ob,
 void paint_tag_partial_redraw(struct bContext *C, struct Object *ob);
 
 struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
+
+float brush_tex_strength(struct ViewContext *vc,
+			 float pmat[4][4], struct Brush *br,
+			 float co[3], float mask, const float len,
+			 float pixel_radius, float radius3d,
+			 float special_rotation, float tex_mouse[2]);
 
 /* stroke operator */
 typedef enum wmBrushStrokeMode {

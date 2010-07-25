@@ -795,6 +795,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
     def poll(self, context):
         settings = self.paint_settings(context)
         return (settings and settings.brush and (context.sculpt_object or
+                             context.vertex_paint_object or
                              context.texture_paint_object))
 
     def draw(self, context):
@@ -808,7 +809,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
 
-        if context.sculpt_object:
+        if context.sculpt_object or context.vertex_paint_object:
             #XXX duplicated from properties_texture.py
 
             wide_ui = context.region.width > narrowui
