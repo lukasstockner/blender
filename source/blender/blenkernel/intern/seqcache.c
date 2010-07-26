@@ -1,5 +1,5 @@
 /**
-* $Id: seqcache.c 29923 2010-07-04 10:51:10Z schlaile $
+* $Id$
  *
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -68,7 +68,7 @@ static unsigned int HashHash(void *key_)
 
 	rval ^= *(unsigned int*) &key->cfra;
 	rval += key->type;
-	rval ^= (unsigned int) key->seq;
+	rval ^= ((unsigned int) key->seq) << 6;
 
 	return rval;
 }
