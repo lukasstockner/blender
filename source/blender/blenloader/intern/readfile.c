@@ -4123,8 +4123,9 @@ static void direct_link_object(FileData *fd, Object *ob)
 	link_list(fd, &ob->pc_ids);
 
 	if(ob->paint) {
-		create_paintsession(ob);
-		ob->paint->sculpt= MEM_callocN(sizeof(SculptSession), "reload sculpt session");
+		ob->paint = MEM_callocN(sizeof(PaintSession), "PaintSession");
+		if(ob->mode & OB_MODE_SCULPT)
+			ob->paint->sculpt= MEM_callocN(sizeof(SculptSession), "reload sculpt session");
 	}
 }
 

@@ -1049,7 +1049,7 @@ ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 
 void paint_stroke_projection_mat(PaintStroke *stroke, float (**pmat)[4])
 {
-	*pmat = &stroke->project_mat;
+	*pmat = stroke->project_mat;
 }
 
 void *paint_stroke_mode_data(struct PaintStroke *stroke)
