@@ -990,7 +990,6 @@ char *BLI_get_folder(int folder_id, char *subfolder)
 			return NULL;
 			
 		case BLENDER_USER_SCRIPTS:
-			if (get_path_local(path, "scripts", subfolder)) break;
 			if (get_path_user(path, "scripts", subfolder, "BLENDER_USER_SCRIPTS")) break;
 			return NULL;
 			
