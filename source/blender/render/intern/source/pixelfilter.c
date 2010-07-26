@@ -50,9 +50,8 @@
 
 typedef struct SampleTables
 {
-	float centLut[16];
 	float *fmask[FILTER_MASK_BYTES][FILTER_PIXEL_AREA];
-	char cmask[256], *centmask;
+	char cmask[256];
 	
 } SampleTables;
 
@@ -194,18 +193,19 @@ int pxf_mask_count(RenderSampleData *rsd, unsigned short mask)
 
 void pxf_mask_offset(RenderSampleData *rsd, unsigned short mask, float ofs[2])
 {
-	if(rsd->table) {
-		/* averaged offset of samples in mask inside pixel */
-		SampleTables *st= rsd->table;
-		short b= st->centmask[mask];
+	float sum[2], tmp[2];
+	int i;
 
-		ofs[0]= st->centLut[b&15] + 0.5f;
-		ofs[1]= st->centLut[b>>4] + 0.5f;
+	zero_v2(sum);
+
+	for(i=0; i<RE_MAX_OSA; i++) {
+		if(mask & (1<<i)) {
+			pxf_sample_offset(rsd, i, tmp);
+			add_v2_v2(sum, tmp);
+		}
 	}
-	else {
-		ofs[0]= 0.5f;
-		ofs[1]= 0.5f;
-	}
+
+	copy_v2_v2(ofs, sum);
 }
 
 void pxf_sample_offset(RenderSampleData *rsd, int sample, float ofs[2])
@@ -264,9 +264,8 @@ static void pxf_init_table(Render *re)
 	RenderSampleData *rsd= &re->sample;
 	SampleTables *st;
 	float flweight[RE_MAX_OSA], *fm;
-	float *fpx[FILTER_MASK_BYTES], *fpy[FILTER_MASK_BYTES];
-	float weight[RE_MAX_OSA], totw, val;
-	int i, j, a, b, c, osa= re->params.osa;
+	float weight[RE_MAX_OSA], totw;
+	int i, j, a, b, c;
 	
 	st= rsd->table= MEM_callocN(sizeof(SampleTables), "sample tables");
 
@@ -311,42 +310,6 @@ static void pxf_init_table(Render *re)
 			}
 		}
 	}
-
-	/* centmask: the correct subpixel offset per mask */
-
-	for(c=0; c<FILTER_MASK_BYTES; c++) {
-		fpx[c]= MEM_callocN(256*sizeof(float), "initgauss4");
-		fpy[c]= MEM_callocN(256*sizeof(float), "initgauss4");
-
-		for(a=0; a<256; a++) {
-			for(b=0; b<8; b++) {
-				if(a & (1<<b)) {
-					fpx[c][a]+= rsd->jit[b + 8*c][0];
-					fpy[c][a]+= rsd->jit[b + 8*c][1];
-				}
-			}
-		}
-	}
-
-	st->centmask= MEM_mallocN((1<<osa), "Initfilt3");
-	
-	for(a=0; a<RE_MAX_OSA; a++)
-		st->centLut[a]= -0.45+((float)a)/RE_MAX_OSA;
-
-	for(a= (1<<osa)-1; a>0; a--) {
-		val= count_bits_u16(st, a);
-		i= 8+(15.9*(fpy[0][a & 255]+fpy[1][a>>8])/val);
-		CLAMP(i, 0, 15);
-		j= 8+(15.9*(fpx[0][a & 255]+fpx[1][a>>8])/val);
-		CLAMP(j, 0, 15);
-		i= j + (i<<4);
-		st->centmask[a]= i;
-	}
-
-	for(c=0; c<FILTER_MASK_BYTES; c++) {
-		MEM_freeN(fpx[c]);
-		MEM_freeN(fpy[c]);
-	}
 }
 
 static void pxf_free_table(RenderSampleData *rsd)
@@ -358,7 +321,6 @@ static void pxf_free_table(RenderSampleData *rsd)
 			for(b=0; b<FILTER_MASK_BYTES; b++)
 				MEM_freeN(rsd->table->fmask[b][a]);
 		
-		MEM_freeN(rsd->table->centmask);
 		MEM_freeN(rsd->table);
 		rsd->table= NULL;
 	}
