@@ -451,13 +451,6 @@ static void float_col_to_gpu_colors(unsigned char out[3], float col[3])
 	out[2] = col[2] * 255;
 }
 
-static void mcol_to_gpu_colors(unsigned char out[3], MCol *mcol)
-{
-	out[0] = mcol->b;
-	out[1] = mcol->g;
-	out[2] = mcol->r;
-}
-
 /* For purposes of displaying the mask on the mesh,
    convert the mask strength to RGB-bytes */
 static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
@@ -500,21 +493,21 @@ static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
 	unsigned char *color_data;
 	CustomData *fdata;
 	MFace *mface;
-	int *face_indices, *face_vert_indices, totface, mcol_active_layer, totvert;
+	int *face_indices, *face_vert_indices, totface, mcol_first_layer, totvert;
 
 	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
 	BLI_pbvh_node_get_faces(bvh, node, &mface, &fdata, &face_indices,
 				&face_vert_indices, &totface);
 
-	mcol_active_layer = CustomData_get_active_layer_index(fdata, CD_MCOL);
+	mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
 
-	color_data = map_color_buffer(buffers, mcol_active_layer != -1, totvert);
+	color_data = map_color_buffer(buffers, mcol_first_layer != -1, totvert);
 
 	if(color_data) {
 		MCol *mcol;
-		int i, j;
+		int i, j, k, mcol_totlayer;
 
-		mcol = fdata->layers[mcol_active_layer].data;
+		mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);
 		
 		for(i = 0; i < totface; ++i) {
 			int face_index = face_indices[i];
@@ -527,9 +520,24 @@ static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
 			   transition from one face to another */
 			for(j = 0; j < S; ++j) {
 				int node_vert_index = face_vert_indices[i*4 + j];
+				float v[3] = {1, 1, 1};
 
-				mcol_to_gpu_colors(color_data + node_vert_index * 3,
-						   mcol + face_index*4+j);
+				for(k = mcol_first_layer;
+				    k < mcol_first_layer+mcol_totlayer; ++k) {
+					float col[3];
+
+					mcol = fdata->layers[k].data;
+					mcol += face_index*4+j;
+
+					col[0] = mcol->b / 255.0f;
+					col[1] = mcol->g / 255.0f;
+					col[2] = mcol->r / 255.0f;
+
+					interp_v3_v3v3(v, v, col,
+						       mcol->a / 255.0f);
+				}
+
+				float_col_to_gpu_colors(color_data + node_vert_index*3, v);
 			}
 		}
 		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
@@ -716,7 +724,6 @@ static void gpu_update_grid_color_buffers_from_mcol(GPU_Buffers *buffers, DMGrid
 					   don't guarantee the order of cdm data) */
 					interp_v3_v3v3(v, v, col, col[3]);
 				}
-				// clamp?
 
 				float_col_to_gpu_colors(color_data, v);
 			}

@@ -236,10 +236,7 @@ int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me)
 
 		mcol= me->mcol;
 
-		if(me->mcol)
-			CustomData_add_layer(&me->fdata, CD_MCOL, CD_DUPLICATE, me->mcol, me->totface);
-		else
-			CustomData_add_layer(&me->fdata, CD_MCOL, CD_DEFAULT, NULL, me->totface);
+		CustomData_add_layer(&me->fdata, CD_MCOL, CD_DEFAULT, NULL, me->totface);
 
 		CustomData_set_layer_active(&me->fdata, CD_MCOL, layernum);
 		mesh_update_customdata_pointers(me);
