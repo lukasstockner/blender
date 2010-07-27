@@ -1682,9 +1682,12 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 
 static void vpaint_blend(Brush *brush, float col[4], float alpha)
 {
-	if(brush->vertexpaint_tool != VERTEX_PAINT_BLUR) {
-		IMB_blend_color_float(col, col, brush->rgb, alpha,
-				      brush->vertexpaint_tool);
+	int tool = brush->vertexpaint_tool;
+	if(tool != VERTEX_PAINT_BLUR) {
+		if(tool == IMB_BLEND_ADD_ALPHA &&
+		   (brush->flag & BRUSH_DIR_IN))
+			tool = IMB_BLEND_ERASE_ALPHA;
+		IMB_blend_color_float(col, col, brush->rgb, alpha, tool);
 	}
 }
 

@@ -71,8 +71,7 @@ EnumPropertyItem brush_vertexpaint_tool_items[] = {
 	{IMB_BLEND_MUL, "MUL", ICON_BRUSH_MULTIPLY, "Multiply", "Use multiply blending mode while painting"},
 	{IMB_BLEND_LIGHTEN, "LIGHTEN", ICON_BRUSH_LIGHTEN, "Lighten", "Use lighten blending mode while painting"},
 	{IMB_BLEND_DARKEN, "DARKEN", ICON_BRUSH_DARKEN, "Darken", "Use darken blending mode while painting"},
-	{IMB_BLEND_ERASE_ALPHA, "ERASE_ALPHA", ICON_BRUSH_LIGHTEN, "Erase Alpha", "Use erase alpha blending mode while painting"},
-	{IMB_BLEND_ADD_ALPHA, "ADD_ALPHA", ICON_BRUSH_LIGHTEN, "Add Alpha", "Use darken blending mode while painting"},
+	{IMB_BLEND_ADD_ALPHA, "ALPHA", ICON_BRUSH_LIGHTEN /* TODO */, "Alpha", "Add or remove alpha from the active layer"},
 	{VERTEX_PAINT_BLUR, "BLUR", ICON_BRUSH_BLUR, "Blur", "Blur the color with surrounding values"},
 	{0, NULL, 0, NULL, NULL}};
 	
@@ -294,9 +293,10 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
 		{BRUSH_DIR_IN, "DEFLATE", 0, "Deflate", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
 
-	Brush *me= (Brush*)(ptr->data);
+	Brush *br= (Brush*)(ptr->data);
 
-	switch (me->sculpt_tool) {
+	if(rna_Brush_is_sculpt_brush(br, C)) {
+		switch (br->sculpt_tool) {
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_CREASE:
 		case SCULPT_TOOL_BLOB:
@@ -321,7 +321,14 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
 
 		default:
 			return prop_default_items;
+		}
 	}
+	else if(rna_Brush_is_vpaint_brush(br, C)) {
+		if(br->vertexpaint_tool == IMB_BLEND_ADD_ALPHA)
+			return prop_direction_items;
+	}
+
+	return prop_default_items;
 }
 
 #else

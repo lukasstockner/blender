@@ -762,10 +762,9 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             row.prop(brush, "strength", text="Strength", slider=True)
             row.prop(brush, "use_strength_pressure", toggle=True, text="")
 
-            # XXX - TODO
-            #row = col.row(align=True)
-            #row.prop(brush, "jitter", slider=True)
-            #row.prop(brush, "use_jitter_pressure", toggle=True, text="")
+            if brush.vertexpaint_tool == 'ALPHA':
+                row = col.row(align=True)
+                row.prop(brush, "direction", expand=True)
 
 
 class VIEW3D_PT_tools_brush_texture(PaintPanel):
