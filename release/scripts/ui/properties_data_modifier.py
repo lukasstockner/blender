@@ -437,7 +437,6 @@ class DATA_PT_modifiers(DataButtonsPanel):
         col.prop(md, "levels", text="Preview")
         col.prop(md, "edit_levels", text="Edit")
         col.prop(md, "render_levels", text="Render")
-        col.prop(bpy.context.tool_settings.sculpt, "fast_navigate")
 
         if wide_ui:
             col = split.column()

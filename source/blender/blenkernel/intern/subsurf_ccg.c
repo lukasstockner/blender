@@ -1864,7 +1864,24 @@ static void ccgDM_drawUVEdges(DerivedMesh *dm)
 	}
 }
 
-static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors) {
+/* TODO: unify with gpu_buffers.c */
+static void gl_color_from_grid(DMGridData *elem, GridKey *gridkey)
+{
+	float v[3] = {1, 1, 1};
+	int i;
+
+	for(i = 0; i < gridkey->color; ++i) {
+		float *col = GRIDELEM_COLOR(elem, gridkey)[i];
+		interp_v3_v3v3(v, v, col, col[3]);
+	}
+	glColor3fv(v);
+}
+
+static void ccgDM_drawMappedFaces(DerivedMesh *dm, 
+				  float (*partial_redraw_planes)[4],
+				  int fast_navigate,
+				  int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r),
+				  void *userData, int useColors) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	MCol *mcol= NULL;
@@ -1872,15 +1889,22 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int gridFaces = gridSize - 1, totface;
+	int step = (fast_navigate)? gridSize-1: 1;
 
-	if(ccgdm_draw_pbvh(dm, NULL, NULL, 0, /* TODO, fast nav. */
+	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, NULL, fast_navigate,
 			   useColors ? GPU_DRAW_ACTIVE_MCOL : 0))
 		return;
 
 	if(useColors) {
-		mcol = dm->getFaceDataArray(dm, CD_WEIGHT_MCOL);
-		if(!mcol)
-			mcol = dm->getFaceDataArray(dm, CD_MCOL);
+		if(fast_navigate) {
+			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+			glEnable(GL_COLOR_MATERIAL);
+		}
+		else {
+			mcol = dm->getFaceDataArray(dm, CD_WEIGHT_MCOL);
+			if(!mcol)
+				mcol = dm->getFaceDataArray(dm, CD_MCOL);
+		}
 	}
 
 	totface = ccgSubSurf_getNumFaces(ss);
@@ -1913,19 +1937,22 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 				
 				for (S=0; S<numVerts; S++) {
 					DMGridData *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
+					DMGridData *a, *b, *c, *d;
+							
 					if (drawSmooth) {
 						glShadeModel(GL_SMOOTH);
-						for (y=0; y<gridFaces; y++) {
-							DMGridData *a, *b;
+						for (y=0; y<gridFaces; y+=step) {
 							glBegin(GL_QUAD_STRIP);
-							for (x=0; x<gridFaces; x++) {
+							for (x=0; x<gridFaces; x+=step) {
 								a = GRIDELEM_AT(faceGridData, (y+0)*gridSize + x, gridkey);
-								b = GRIDELEM_AT(faceGridData, (y+1)*gridSize + x, gridkey);
+								b = GRIDELEM_AT(faceGridData, (y+step)*gridSize + x, gridkey);
 	
 								if(cp) glColor3ub(cp[3], cp[2], cp[1]);
+								else gl_color_from_grid(a, gridkey);
 								glNormal3fv(GRIDELEM_NO(a, gridkey));
 								glVertex3fv(GRIDELEM_CO(a, gridkey));
 								if(cp) glColor3ub(cp[7], cp[6], cp[5]);
+								else gl_color_from_grid(b, gridkey);
 								glNormal3fv(GRIDELEM_NO(b, gridkey));
 								glVertex3fv(GRIDELEM_CO(b, gridkey));
 
@@ -1935,12 +1962,14 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 							}
 
 							a = GRIDELEM_AT(faceGridData, (y+0)*gridSize + x, gridkey);
-							b = GRIDELEM_AT(faceGridData, (y+1)*gridSize + x, gridkey);
+							b = GRIDELEM_AT(faceGridData, (y+step)*gridSize + x, gridkey);
 
 							if(cp) glColor3ub(cp[15], cp[14], cp[13]);
+							else gl_color_from_grid(a, gridkey);
 							glNormal3fv(GRIDELEM_NO(a, gridkey));
 							glVertex3fv(GRIDELEM_CO(a, gridkey));
 							if(cp) glColor3ub(cp[11], cp[10], cp[9]);
+							else gl_color_from_grid(b, gridkey);
 							glNormal3fv(GRIDELEM_NO(b, gridkey));
 							glVertex3fv(GRIDELEM_CO(b, gridkey));
 
@@ -1951,23 +1980,37 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 					} else {
 						glShadeModel(GL_FLAT);
 						glBegin(GL_QUADS);
-						for (y=0; y<gridFaces; y++) {
-							for (x=0; x<gridFaces; x++) {
-								float *a = GRIDELEM_CO_AT(faceGridData, (y+0)*gridSize + x, gridkey);
-								float *b = GRIDELEM_CO_AT(faceGridData, (y+0)*gridSize + x + 1, gridkey);
-								float *c = GRIDELEM_CO_AT(faceGridData, (y+1)*gridSize + x + 1, gridkey);
-								float *d = GRIDELEM_CO_AT(faceGridData, (y+1)*gridSize + x, gridkey);
+						for (y=0; y<gridFaces; y+=step) {
+							for (x=0; x<gridFaces; x+=step) {
+								float *a_co, *b_co, *c_co, *d_co;
 
-								ccgDM_glNormalFast(a, b, c, d);
+								a = GRIDELEM_AT(faceGridData, (y+0)*gridSize + x, gridkey);
+								b = GRIDELEM_AT(faceGridData, (y+0)*gridSize + x + step, gridkey);
+								c = GRIDELEM_AT(faceGridData, (y+step)*gridSize + x + step, gridkey);
+								d = GRIDELEM_AT(faceGridData, (y+step)*gridSize + x, gridkey);
+
+								a_co = GRIDELEM_CO(a, gridkey);
+								b_co = GRIDELEM_CO(b, gridkey);
+								c_co = GRIDELEM_CO(c, gridkey);
+								d_co = GRIDELEM_CO(d, gridkey);
+
+								ccgDM_glNormalFast(a_co, b_co, c_co, d_co);
 	
 								if(cp) glColor3ub(cp[7], cp[6], cp[5]);
-								glVertex3fv(d);
+								else gl_color_from_grid(d, gridkey);
+								glVertex3fv(a_co);
+
 								if(cp) glColor3ub(cp[11], cp[10], cp[9]);
-								glVertex3fv(c);
+								else gl_color_from_grid(c, gridkey);
+								glVertex3fv(b_co);
+
 								if(cp) glColor3ub(cp[15], cp[14], cp[13]);
-								glVertex3fv(b);
+								else gl_color_from_grid(b, gridkey);
+								glVertex3fv(c_co);
+
 								if(cp) glColor3ub(cp[3], cp[2], cp[1]);
-								glVertex3fv(a);
+								else gl_color_from_grid(a, gridkey);
+								glVertex3fv(d_co);
 
 								if(cp) cp += 16;
 							}
@@ -1980,6 +2023,9 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *u
 			}
 		}
 	}
+
+	if(fast_navigate)
+		glDisable(GL_COLOR_MATERIAL);
 }
 static void ccgDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;

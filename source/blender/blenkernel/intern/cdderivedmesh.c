@@ -797,7 +797,7 @@ static void cdDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tfa
 	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, NULL);
 }
 
-static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors)
+static void cdDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)[4], int fast_navigate, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mv = cddm->mvert;
@@ -806,7 +806,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, int (*setDrawOptions)(void *us
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 
-	if(cddm_draw_pbvh(dm, NULL, NULL,
+	if(cddm_draw_pbvh(dm, partial_redraw_planes, NULL,
 			  useColors ? GPU_DRAW_ACTIVE_MCOL : 0))
 		return;
 

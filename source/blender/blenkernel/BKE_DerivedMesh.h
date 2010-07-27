@@ -276,9 +276,10 @@ struct DerivedMesh {
 	 * smooth shaded.
 	 */
 	void (*drawMappedFaces)(DerivedMesh *dm,
-							int (*setDrawOptions)(void *userData, int index,
-												  int *drawSmooth_r),
-							void *userData, int useColors);
+				float (*partial_redraw_planes)[4], int fast, 
+				int (*setDrawOptions)(void *userData, int index,
+						      int *drawSmooth_r),
+				void *userData, int useColors);
 
 	/* Draw mapped faces using MTFace 
 	 *  o Drawing options too complicated to enumerate, look at code.

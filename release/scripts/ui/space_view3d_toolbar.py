@@ -1042,6 +1042,8 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col = split.column()
 
+        col.prop(tool_settings.sculpt, "fast_navigate")
+
         col.label(text="Unified Settings:")
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
         col.prop(tool_settings, "sculpt_paint_use_unified_strength", text="Strength")
@@ -1200,6 +1202,8 @@ class VIEW3D_PT_tools_vertexpaint(View3DPanel):
         col.prop(vpaint, "all_faces")
         col.prop(vpaint, "normals")
         col.prop(vpaint, "spray")
+
+        col.prop(vpaint, "fast_navigate")
 
         col.label(text="Unified Settings:")
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
