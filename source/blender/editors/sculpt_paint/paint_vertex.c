@@ -2003,7 +2003,7 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 	RNA_float_get_array(itemptr, "location", center);
 
 	if(vp->flag & VP_AREA) {
-		radius = paint_calc_object_space_radius(ob, vc, center, brush->size);
+		radius = paint_calc_object_space_radius(ob, vc, center, brush_size(brush));
 		search_data.center = center;
 		search_data.radius_squared = radius*radius;
 		search_data.original = 0;

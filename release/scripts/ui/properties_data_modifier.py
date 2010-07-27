@@ -437,6 +437,7 @@ class DATA_PT_modifiers(DataButtonsPanel):
         col.prop(md, "levels", text="Preview")
         col.prop(md, "edit_levels", text="Edit")
         col.prop(md, "render_levels", text="Render")
+        col.prop(md, "optimal_display")
 
         if wide_ui:
             col = split.column()
@@ -446,7 +447,6 @@ class DATA_PT_modifiers(DataButtonsPanel):
         col.operator("object.multires_higher_levels_delete", text="Delete Higher")
         col.operator("object.multires_reshape", text="Reshape")
         col.operator("object.multires_base_apply", text="Apply Base")
-        col.prop(md, "optimal_display")
 
         layout.separator()
 
