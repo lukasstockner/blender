@@ -418,7 +418,8 @@ static void paintmask_adjust_multires(bContext *C,
 	float *griddata;
 	int i;
 
-	assert(cdm && layer_name);
+	if(!cdm)
+		return;
 
 	for(i = 0; i < me->totface; ++i) {
 		switch(op) {
