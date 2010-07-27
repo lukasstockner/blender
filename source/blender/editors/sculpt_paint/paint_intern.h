@@ -37,6 +37,7 @@ struct Scene;
 struct Object;
 struct Mesh;
 struct Multires;
+struct Paint;
 struct PaintStroke;
 struct PointerRNA;
 struct ViewContext;
@@ -80,6 +81,20 @@ int paint_stroke_get_location(struct bContext *C, struct PaintStroke *stroke,
 
 int paint_poll(struct bContext *C);
 void paint_cursor_start(struct bContext *C, int (*poll)(struct bContext *C));
+
+typedef struct PaintStrokeTest {
+	float radius_squared;
+	float location[3];
+	float dist;
+} PaintStrokeTest;
+void paint_stroke_test_init(PaintStrokeTest *test, float loc[3],
+			    float radius_squared);
+int paint_stroke_test(PaintStrokeTest *test, float co[3]);
+int paint_stroke_test_sq(PaintStrokeTest *test, float co[3]);
+int paint_stroke_test_fast(PaintStrokeTest *test, float co[3]);
+int paint_stroke_test_cube(PaintStrokeTest *test, float co[3],
+			   float local[4][4]);
+float paint_stroke_test_dist(PaintStrokeTest *test);
 
 /* paint_vertex.c */
 int weight_paint_poll(struct bContext *C);
@@ -161,6 +176,11 @@ void undo_paint_push_count_alloc(int type, int size);
 void undo_paint_push_end(int type);
 
 /* paint_mask.c */
+void paintmask_brush_apply(struct Paint *paint, struct PaintStroke *stroke,
+			   struct Object *ob, struct PBVHNode **nodes,
+			   int totnode, float location[3],
+			   float bstrength, float radius3d);
+
 void PAINT_OT_mask_layer_add(struct wmOperatorType *ot);
 void PAINT_OT_mask_layer_remove(struct wmOperatorType *ot);
 

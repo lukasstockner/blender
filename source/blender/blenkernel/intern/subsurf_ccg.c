@@ -519,7 +519,7 @@ static void ss_sync_from_derivedmesh(CCGSubSurf *ss, DerivedMesh *dm,
 
 		/* copy paint mask data */
 		for(j = 0; j < gridkey->mask; ++j)
-			vertData[3 + gridkey->color*3 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
+			vertData[3 + gridkey->color*4 + j] = ((float*)dm->vertData.layers[pmask_first_layer+j].data)[i];
 
 		ccgSubSurf_syncVert(ss, SET_INT_IN_POINTER(i), vertData, 0, &v);
 

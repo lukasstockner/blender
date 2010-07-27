@@ -31,6 +31,7 @@
 #include "BKE_dmgrid.h"
 #include "BKE_mesh.h" /* for mesh_calc_normals */
 #include "BKE_global.h" /* for mesh_calc_normals */
+#include "BKE_paint.h"
 
 #include "GPU_buffers.h"
 

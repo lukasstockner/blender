@@ -33,6 +33,7 @@
 
 #include "BKE_brush.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_dmgrid.h"
 #include "BKE_library.h"
 #include "BKE_paint.h"
 #include "BKE_utildefines.h"
@@ -206,6 +207,51 @@ void paint_refresh_mask_display(Object *ob)
 					 BLI_pbvh_node_set_flags,
 					 SET_INT_IN_POINTER(PBVH_UpdateColorBuffers));
 	}
+}
+
+
+float paint_mask_from_gridelem(DMGridData *elem, GridKey *gridkey,
+			      CustomData *vdata)
+{
+	CustomDataLayer *cdl;
+	float mask = 0;
+	int i, ndx;
+
+	for(i=0; i < gridkey->mask; ++i) {
+		ndx = CustomData_get_named_layer_index(vdata,
+						       CD_PAINTMASK,
+						       gridkey->mask_names[i]);
+		cdl = &vdata->layers[ndx];
+
+		if(!(cdl->flag & CD_FLAG_ENABLED))
+			continue;
+
+		mask += GRIDELEM_MASK(elem, gridkey)[i] * cdl->strength;
+	}
+
+	CLAMP(mask, 0, 1);
+
+	return mask;
+}
+
+float paint_mask_from_vertex(CustomData *vdata, int vertex_index,
+			    int pmask_totlayer, int pmask_first_layer)
+{
+	float mask = 0;
+	int i;
+
+	for(i = 0; i < pmask_totlayer; ++i) {
+		CustomDataLayer *cdl= vdata->layers + pmask_first_layer + i;
+
+		if(!(cdl->flag & CD_FLAG_ENABLED))
+			continue;
+
+		mask +=	((float*)cdl->data)[vertex_index] * cdl->strength;
+	}
+
+	CLAMP(mask, 0, 1);
+
+	return mask;
 }
 
 void create_paintsession(Object *ob)

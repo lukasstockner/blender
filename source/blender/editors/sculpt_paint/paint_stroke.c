@@ -1122,3 +1122,89 @@ void paint_cursor_start(bContext *C, int (*poll)(bContext *C))
 		p->paint_cursor = WM_paint_cursor_activate(CTX_wm_manager(C), poll, paint_draw_cursor, NULL);
 }
 
+/* Optimization for testing if a coord is within the brush area */
+
+void paint_stroke_test_init(PaintStrokeTest *test, float loc[3],
+			    float radius_squared)
+{
+	test->radius_squared= radius_squared;
+	copy_v3_v3(test->location, loc);
+}
+
+int paint_stroke_test(PaintStrokeTest *test, float co[3])
+{
+	float distsq = len_squared_v3v3(co, test->location);
+
+	if(distsq <= test->radius_squared) {
+		test->dist = sqrt(distsq);
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+int paint_stroke_test_sq(PaintStrokeTest *test, float co[3])
+{
+	float distsq = len_squared_v3v3(co, test->location);
+
+	if(distsq <= test->radius_squared) {
+		test->dist = distsq;
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+int paint_stroke_test_fast(PaintStrokeTest *test, float co[3])
+{
+	return len_squared_v3v3(co, test->location) <= test->radius_squared;
+}
+
+int paint_stroke_test_cube(PaintStrokeTest *test, float co[3], float local[4][4])
+{
+	const static float side = 0.70710678118654752440084436210485; // sqrt(.5);
+
+	float local_co[3];
+
+	mul_v3_m4v3(local_co, local, co);
+
+	local_co[0] = fabs(local_co[0]);
+	local_co[1] = fabs(local_co[1]);
+	local_co[2] = fabs(local_co[2]);
+
+	if (local_co[0] <= side && local_co[1] <= side && local_co[2] <= side) {
+		test->dist = MAX3(local_co[0], local_co[1], local_co[2]) / side;
+
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+
+#if 0
+
+static int paint_stroke_test_cyl(SculptBrushTest *test, float co[3], float location[3], float an[3])
+{
+	if (paint_stroke_test_fast(test, co)) {
+		float t1[3], t2[3], t3[3], dist;
+
+		sub_v3_v3v3(t1, location, co);
+		sub_v3_v3v3(t2, x2, location);
+
+		cross_v3_v3v3(t3, an, t1);
+
+		dist = len_v3(t3)/len_v3(t2);
+
+		test->dist = dist;
+
+		return 1;
+	}
+
+	return 0;
+}
+
+#endif

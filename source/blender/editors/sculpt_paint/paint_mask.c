@@ -5,10 +5,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
-#include "DNA_material_types.h"
+#include "DNA_scene_types.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -16,6 +17,7 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
@@ -33,6 +35,7 @@
 
 #include "ED_mesh.h"
 #include "ED_sculpt.h"
+#include "ED_view3d.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
  
@@ -49,12 +52,12 @@ static void paintmask_redraw(bContext *C)
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);	
 }
 
-/* For now masking requires sculpt mode */
 static int mask_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	
-	return ob && get_mesh(ob) && ob->paint && ob->paint->sculpt;
+	return ob && get_mesh(ob) && ob->paint &&
+		(ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT));
 }
 
 static int mask_active_poll(bContext *C)
@@ -67,6 +70,53 @@ static int mask_active_poll(bContext *C)
 	}
 
 	return 0;
+}
+
+void paintmask_brush_apply(Paint *paint, PaintStroke *stroke, Object *ob, PBVHNode **nodes, int totnode,
+			   float location[3], float bstrength, float radius3d)
+{
+	Brush *brush = paint_brush(paint);
+	ViewContext *vc;
+	float (*pmat)[4];
+	float tex_mouse[2] = {0,0}; /* TODO */
+	float radius_squared = radius3d*radius3d;
+	int n;
+	
+	vc = paint_stroke_view_context(stroke);
+	paint_stroke_projection_mat(stroke, &pmat);
+ 
+	for(n=0; n<totnode; n++) {
+		PBVHVertexIter vd;
+		PaintStrokeTest test;
+		
+		/* XXX: sculpt_undo_push_node(ob, nodes[n]); */
+		paint_stroke_test_init(&test, location, radius_squared);
+
+		BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			/* TODO: should add a mask layer if needed */
+			if(vd.mask_active) {
+				if(paint_stroke_test(&test, vd.co)) {
+					float fade;
+
+					fade = brush_tex_strength(vc, pmat,
+								  brush, vd.co,
+								  0, test.dist,
+								  brush_size(brush),
+								  radius3d, 0,
+								  tex_mouse) *
+						bstrength;
+
+					*vd.mask_active += fade;
+					CLAMP(*vd.mask_active, 0, 1);
+				
+					if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+
+		BLI_pbvh_node_set_flags(nodes[n], SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|PBVH_UpdateRedraw));
+	}
 }
 
 static float get_tex_mask_strength(MTex *tex_slot, float *uv, float vco[3])
@@ -177,7 +227,8 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 	
-	sculpt_undo_push_begin("Paint mask from texture");
+	if(ss) // TODO
+		sculpt_undo_push_begin("Paint mask from texture");
 
 	active = CustomData_get_active_layer(&me->vdata, CD_PAINTMASK);
 
@@ -214,7 +265,8 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			GridKey *gridkey;
 			int *grid_indices, totgrid, gridsize;
 
-			sculpt_undo_push_node(ob, nodes[n]);
+			if(ss) // TODO
+				sculpt_undo_push_node(ob, nodes[n]);
 
 			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
 						&totgrid, NULL, &gridsize,
@@ -248,7 +300,8 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			MFace *mface;
 			int *face_indices, totface;
 
-			sculpt_undo_push_node(ob, nodes[n]);
+			if(ss) // TODO
+				sculpt_undo_push_node(ob, nodes[n]);
 
 			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface, NULL,
 						&face_indices, NULL, &totface);
@@ -272,7 +325,9 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	
 	MEM_freeN(nodes);
 
-	sculpt_undo_push_end();
+	if(ss) // TODO
+		sculpt_undo_push_end();
+
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	
 	return OPERATOR_FINISHED;
@@ -330,12 +385,14 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 
 		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
 
-		sculpt_undo_push_begin("Paint mask fill");
+		if(ss) // TODO
+			sculpt_undo_push_begin("Paint mask fill");
 
 		for(n=0; n<totnode; n++) {
 			PBVHVertexIter vd;
 
-			sculpt_undo_push_node(ob, nodes[n]);
+			if(ss) // TODO
+				sculpt_undo_push_node(ob, nodes[n]);
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(vd.mask_active)
@@ -352,7 +409,8 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		if(mmd)
 			multires_mark_as_modified(ob);
 
-		sculpt_undo_push_end();
+		if(ss) // TODO
+			sculpt_undo_push_end();
 
 		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}

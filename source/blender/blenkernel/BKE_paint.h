@@ -31,6 +31,9 @@
 #include "DNA_vec_types.h"
 
 struct Brush;
+struct CustomData;
+struct DMGridData;
+struct GridKey;
 struct MFace;
 struct MultireModifierData;
 struct MVert;
@@ -60,8 +63,13 @@ void paint_brush_slot_remove(struct Paint *p);
  * however hiding faces is useful */
 int paint_facesel_test(struct Object *ob);
 
-void paint_refresh_mask_display(struct Object *ob);
 int paint_has_brush(struct Paint *p, struct Brush *brush);
+
+void paint_refresh_mask_display(struct Object *ob);
+float paint_mask_from_gridelem(struct DMGridData *elem, struct GridKey *gridkey,
+			       struct CustomData *vdata);
+float paint_mask_from_vertex(struct CustomData *vdata, int vertex_index,
+			     int pmask_totlayer, int pmask_first_layer);
 
 typedef struct SculptSession {
 	/* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */

@@ -495,8 +495,7 @@ class VIEW3D_PT_tools_masking(PaintPanel):
     bl_default_closed = False
 
     def poll(self, context):
-        settings = self.paint_settings(context)
-        return (settings)
+        return context.sculpt_object or context.vertex_paint_object
 
     def draw(self, context):
         layout = self.layout
@@ -765,6 +764,8 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             if brush.vertexpaint_tool == 'ALPHA':
                 row = col.row(align=True)
                 row.prop(brush, "direction", expand=True)
+
+            col.prop(brush, "mask")
 
 
 class VIEW3D_PT_tools_brush_texture(PaintPanel):

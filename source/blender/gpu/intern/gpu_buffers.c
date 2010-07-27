@@ -47,6 +47,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_dmgrid.h"
+#include "BKE_paint.h"
 #include "BKE_utildefines.h"
 
 #include "DNA_userdef_types.h"
@@ -444,23 +445,17 @@ static void delete_buffer(GLuint *buf)
 	*buf = 0;
 }
 
-static void float_col_to_gpu_colors(unsigned char out[3], float col[3])
+static void gpu_colors_from_floats(unsigned char out[3],
+				   float fcol[3],
+				   float mask_strength)
 {
-	out[0] = col[0] * 255;
-	out[1] = col[1] * 255;
-	out[2] = col[2] * 255;
-}
-
-/* For purposes of displaying the mask on the mesh,
-   convert the mask strength to RGB-bytes */
-static void mask_to_gpu_colors(unsigned char out[3], float mask_strength)
-{
-	unsigned char v;
 	CLAMP(mask_strength, 0, 1);
-	v = (unsigned char)((1 - mask_strength) * 128.0f) + 64;
-	out[0] = v;
-	out[1] = v;
-	out[2] = v;
+	/* avoid making the mask output completely black */
+	mask_strength = (1 - mask_strength) * 0.75 + 0.25;
+
+	out[0] = fcol[0] * mask_strength * 255;
+	out[1] = fcol[1] * mask_strength * 255;
+	out[2] = fcol[2] * mask_strength * 255;
 }
 
 /* Create or destroy the color buffer as needed, return a pointer to the color buffer data.
@@ -487,28 +482,41 @@ static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, in
 	return color_data;
 }
 
-static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
-						    PBVH *bvh, PBVHNode *node)
+void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
+				   PBVHNode *node, GPUDrawFlags flags)
 {
 	unsigned char *color_data;
-	CustomData *fdata;
+	CustomData *vdata, *fdata;
 	MFace *mface;
-	int *face_indices, *face_vert_indices, totface, mcol_first_layer, totvert;
+	int totvert, *vert_indices;
+	int totface, *face_indices, *face_vert_indices;
+	int mcol_totlayer, pmask_totlayer;
+	int color_needed;
 
 	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
+	BLI_pbvh_node_get_verts(bvh, node, &vert_indices, NULL, &vdata);
 	BLI_pbvh_node_get_faces(bvh, node, &mface, &fdata, &face_indices,
 				&face_vert_indices, &totface);
+	
+	mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);
+	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
 
-	mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
+	/* avoid creating color buffer if not needed */
+	color_needed =
+		((flags & GPU_DRAW_ACTIVE_MCOL) && mcol_totlayer) ||
+		pmask_totlayer;
 
-	color_data = map_color_buffer(buffers, mcol_first_layer != -1, totvert);
+	/* Make a color buffer if there's a mask layer and
+	   get rid of any color buffer if there's no mask layer */
+	color_data = map_color_buffer(buffers, color_needed, totvert);
 
 	if(color_data) {
-		MCol *mcol;
-		int i, j, k, mcol_totlayer;
+		int i, j, k, mcol_first_layer, pmask_first_layer;
 
-		mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);
-		
+		mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
+		pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
+
+
 		for(i = 0; i < totface; ++i) {
 			int face_index = face_indices[i];
 			int S = mface[face_index].v4 ? 4 : 3;
@@ -520,10 +528,12 @@ static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
 			   transition from one face to another */
 			for(j = 0; j < S; ++j) {
 				int node_vert_index = face_vert_indices[i*4 + j];
+				float mask;
 				float v[3] = {1, 1, 1};
 
 				for(k = mcol_first_layer;
 				    k < mcol_first_layer+mcol_totlayer; ++k) {
+					MCol *mcol;
 					float col[3];
 
 					mcol = fdata->layers[k].data;
@@ -537,49 +547,15 @@ static void gpu_update_mesh_color_buffers_from_mcol(GPU_Buffers *buffers,
 						       mcol->a / 255.0f);
 				}
 
-				float_col_to_gpu_colors(color_data + node_vert_index*3, v);
+				mask = paint_mask_from_vertex(vdata,
+							      vert_indices[node_vert_index],
+							      pmask_totlayer,
+							      pmask_first_layer);
+
+				gpu_colors_from_floats(color_data + node_vert_index*3, v, mask);
 			}
 		}
-		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
-	}
-}
 
-void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
-				   PBVHNode *node, GPUDrawFlags flags)
-{
-	CustomData *vdata;
-	unsigned char *color_data;
-	int i, pmask_totlayer, totvert, *vert_indices;	
-
-	if(flags & GPU_DRAW_ACTIVE_MCOL) {
-		/* For now we do either mcol or masks, not both */
-		gpu_update_mesh_color_buffers_from_mcol(buffers, bvh, node);
-		return;
-	}
-
-	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
-	BLI_pbvh_node_get_verts(bvh, node, &vert_indices, NULL, &vdata);
-
-	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
-
-	/* Make a color buffer if there's a mask layer and
-	   get rid of any color buffer if there's no mask layer */
-	color_data = map_color_buffer(buffers, pmask_totlayer != 0, totvert);
-
-	if(color_data) {
-		int j, pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
-
-		for(i = 0; i < totvert; ++i) {
-			float v = 0;
-			for(j = 0; j < pmask_totlayer; ++j) {
-				CustomDataLayer *cdl = &vdata->layers[pmask_first_layer + j];
-				if(!(cdl->flag & CD_FLAG_ENABLED)) continue;
-				v += ((float*)cdl->data)[vert_indices[i]] * cdl->strength;
-			}
-
-			mask_to_gpu_colors(color_data + i*3, v);
-			
-		}
 		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
 	}
 }
@@ -696,14 +672,21 @@ GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 	return buffers;
 }
 
-static void gpu_update_grid_color_buffers_from_mcol(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-						    int totgrid, int gridsize, GridKey *gridkey)
+void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
+				   int totgrid, int gridsize, GridKey *gridkey, CustomData *vdata,
+				   GPUDrawFlags flags)
 {
 	unsigned char *color_data;
 	int totvert;
+	int color_needed;
+
+	/* avoid creating color buffer if not needed */
+	color_needed =
+		((flags & GPU_DRAW_ACTIVE_MCOL) && gridkey->color) ||
+		gridkey->mask;
 
 	totvert= gridsize*gridsize*totgrid;
-	color_data= map_color_buffer(buffers, gridkey->color, totvert);
+	color_data= map_color_buffer(buffers, color_needed, totvert);
 
 	if(color_data) {
 		int i, j, k;
@@ -713,58 +696,24 @@ static void gpu_update_grid_color_buffers_from_mcol(GPU_Buffers *buffers, DMGrid
 
 			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
 				DMGridData *elem = GRIDELEM_AT(grid, j, gridkey);
-				float v[3] = {1, 1, 1};
+				float vc[3] = {1, 1, 1}, mask;
 
+				/* combine colors */
 				for(k = 0; k < gridkey->color; ++k) {
 					float *col = GRIDELEM_COLOR(elem, gridkey)[k];
+
+					/* TODO: check layer enabled/strength */
 
 					/* for now we just combine layers in order
 					   interpolating using the alpha component
 					   ("order" is ill-defined here since we
 					   don't guarantee the order of cdm data) */
-					interp_v3_v3v3(v, v, col, col[3]);
+					interp_v3_v3v3(vc, vc, col, col[3]);
 				}
 
-				float_col_to_gpu_colors(color_data, v);
-			}
-		}
+				mask = paint_mask_from_gridelem(elem, gridkey, vdata);
 
-		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
-	}
-}
-
-void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
-				   int totgrid, int gridsize, GridKey *gridkey, CustomData *vdata,
-				   GPUDrawFlags flags)
-{
-	unsigned char *color_data;
-	int totvert;
-
-	if(flags & GPU_DRAW_ACTIVE_MCOL) {
-		/* For now we do either mcol or masks, not both */
-		gpu_update_grid_color_buffers_from_mcol(buffers, grids, grid_indices, totgrid, gridsize, gridkey);
-		return;
-	}
-
-	totvert= gridsize*gridsize*totgrid;
-	color_data= map_color_buffer(buffers, gridkey->mask, totvert);
-
-	if(color_data) {
-		int pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
-		int i, j, k;
-
-		for(i = 0; i < totgrid; ++i) {
-			DMGridData *grid= grids[grid_indices[i]];
-
-			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
-				float v = 0;
-				for(k = 0; k < gridkey->mask; ++k) {
-					CustomDataLayer *cdl = &vdata->layers[pmask_first_layer + k];
-					if(!(cdl->flag & CD_FLAG_ENABLED)) continue;
-					v += GRIDELEM_MASK_AT(grid, j, gridkey)[k] * cdl->strength;
-				}
-
-				mask_to_gpu_colors(color_data, v);
+				gpu_colors_from_floats(color_data, vc, mask);
 			}
 		}
 
