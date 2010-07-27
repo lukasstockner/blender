@@ -61,6 +61,7 @@ void paint_brush_slot_remove(struct Paint *p);
 int paint_facesel_test(struct Object *ob);
 
 void paint_refresh_mask_display(struct Object *ob);
+int paint_has_brush(struct Paint *p, struct Brush *brush);
 
 typedef struct SculptSession {
 	/* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */

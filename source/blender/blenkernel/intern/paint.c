@@ -253,3 +253,15 @@ void free_paintsession(Object *ob)
 		ob->paint = NULL;
 	}
 }
+
+int paint_has_brush(Paint *p, Brush *brush)
+{
+	int i;
+
+	for (i= 0; i < p->brush_count; i++) {
+		if (strcmp(brush->id.name+2, p->brushes[i]->id.name+2) == 0) 
+			return 1;
+	}
+
+	return 0;
+}
