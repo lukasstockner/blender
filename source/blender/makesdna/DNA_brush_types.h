@@ -125,6 +125,7 @@ typedef struct Brush {
 #define BRUSH_PLANE_TRIM (1<<26)
 #define BRUSH_FRONTFACE (1<<27)
 #define BRUSH_CUSTOM_ICON (1<<28)
+#define BRUSH_MASK (1<<29)
 
 /* Brush.sculpt_tool */
 typedef enum {
@@ -145,8 +146,7 @@ typedef enum {
 	SCULPT_TOOL_WAX,        // XXX: reuse this slot later
 	SCULPT_TOOL_CREASE,
 	SCULPT_TOOL_BLOB,
-	SCULPT_TOOL_CLAY_TUBES,
-	SCULPT_TOOL_MASK
+	SCULPT_TOOL_CLAY_TUBES
 } SculptTool;
 
 /* Brush.vertexpaint_tool */

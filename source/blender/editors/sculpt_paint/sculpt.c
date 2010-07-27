@@ -480,7 +480,6 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 		case SCULPT_TOOL_CLAY_TUBES:
 		case SCULPT_TOOL_DRAW:
 		case SCULPT_TOOL_LAYER:
-		case SCULPT_TOOL_MASK:
 			return alpha * flip * pressure * overlap * feather;
 
 		case SCULPT_TOOL_CREASE:
@@ -2179,61 +2178,62 @@ static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush)
 		}
 
 		/* Apply one type of brush action */
-		switch(brush->sculpt_tool){
-		case SCULPT_TOOL_DRAW:
-			do_draw_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_SMOOTH:
-			do_smooth_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_CREASE:
-			do_crease_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_BLOB:
-			do_crease_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_PINCH:
-			do_pinch_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_INFLATE:
-			do_inflate_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_GRAB:
-			do_grab_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_ROTATE:
-			do_rotate_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_SNAKE_HOOK:
-			do_snake_hook_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_NUDGE:
-			do_nudge_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_THUMB:
-			do_thumb_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_LAYER:
-			do_layer_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_FLATTEN:
-			do_flatten_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_CLAY:
-			do_clay_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_CLAY_TUBES:
-			do_clay_tubes_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_FILL:
-			do_fill_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_SCRAPE:
-			do_scrape_brush(sd, ob, nodes, totnode);
-			break;
-		case SCULPT_TOOL_MASK:
+		if(brush->flag & BRUSH_MASK)
 			do_mask_brush(sd, ob, nodes, totnode);
-			break;
+		else {
+			switch(brush->sculpt_tool){
+			case SCULPT_TOOL_DRAW:
+				do_draw_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_SMOOTH:
+				do_smooth_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_CREASE:
+				do_crease_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_BLOB:
+				do_crease_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_PINCH:
+				do_pinch_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_INFLATE:
+				do_inflate_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_GRAB:
+				do_grab_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_ROTATE:
+				do_rotate_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_SNAKE_HOOK:
+				do_snake_hook_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_NUDGE:
+				do_nudge_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_THUMB:
+				do_thumb_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_LAYER:
+				do_layer_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_FLATTEN:
+				do_flatten_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_CLAY:
+				do_clay_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_CLAY_TUBES:
+				do_clay_tubes_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_FILL:
+				do_fill_brush(sd, ob, nodes, totnode);
+				break;
+			case SCULPT_TOOL_SCRAPE:
+				do_scrape_brush(sd, ob, nodes, totnode);
+				break;
+			}
 		}
 
 		if (brush->sculpt_tool != SCULPT_TOOL_SMOOTH && brush->autosmooth_factor > 0) {

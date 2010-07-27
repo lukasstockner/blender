@@ -684,7 +684,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 col.prop(brush, "use_accumulate")
 
-
+            col.prop(brush, "mask")
 
             if brush.sculpt_tool == 'LAYER':
                 col.separator()
