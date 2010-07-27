@@ -476,6 +476,23 @@ float get_tex_pixel(Brush* br, float u, float v)
 	return texres.tin;
 }
 
+/* selectively flip any axis of a coordinate */
+void paint_flip_coord(float out[3], float in[3], const char symm)
+{
+	if(symm & PAINT_SYMM_X)
+		out[0]= -in[0];
+	else
+		out[0]= in[0];
+	if(symm & PAINT_SYMM_Y)
+		out[1]= -in[1];
+	else
+		out[1]= in[1];
+	if(symm & PAINT_SYMM_Z)
+		out[2]= -in[2];
+	else
+		out[2]= in[2];
+}
+
 /* return a multiplier for brush strength at a coordinate,
    incorporating texture, curve control, and masking
 

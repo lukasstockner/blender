@@ -1470,7 +1470,7 @@ static int wpaint_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	
 	op->customdata = paint_stroke_new(C, NULL, wpaint_stroke_test_start,
-					  wpaint_stroke_update_step,
+					  wpaint_stroke_update_step, NULL, NULL,
 					  wpaint_stroke_done);
 	
 	/* add modal handler */
@@ -1952,7 +1952,7 @@ static void vpaint_color_single_face(Brush *brush, MFace *mface,
 }
 
 static void vpaint_color_single_element(bContext *C, PaintStroke *stroke,
-				  PointerRNA *itemptr)
+					PointerRNA *itemptr)
 {
 	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
 	ViewContext *vc = paint_stroke_view_context(stroke);
@@ -2009,19 +2009,35 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 					  PointerRNA *itemptr)
 {
 	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
-	ViewContext *vc = paint_stroke_view_context(stroke);
-	Brush *brush = paint_brush(&vp->paint);
-	Object *ob = vc->obact;
-	PBVHSearchSphereData search_data;
-	PBVHNode **nodes;
-	float center[3], radius;
-	int totnode;
+	Object *ob = CTX_data_active_object(C);
 
-	RNA_float_get_array(itemptr, "location", center);
+	paint_stroke_apply_brush(C, stroke, &vp->paint);
+
+	multires_mark_as_modified(ob);
+
+	/* partial redraw */
+	paint_tag_partial_redraw(C, ob);
+}
+
+static void vpaint_stroke_brush_action(bContext *C, PaintStroke *stroke)
+{
+
+	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
 
 	if(vp->flag & VP_AREA) {
-		radius = paint_calc_object_space_radius(ob, vc, center, brush_size(brush));
+		ViewContext *vc = paint_stroke_view_context(stroke);
+		Object *ob = vc->obact;
+		Brush *brush = paint_brush(&vp->paint);
+		PBVHSearchSphereData search_data;
+		PBVHNode **nodes;
+		int totnode;
+		float center[3], radius;
+
+		paint_stroke_symmetry_location(stroke, center);
+
 		search_data.center = center;
+		
+		radius = paint_stroke_radius(stroke);
 		search_data.radius_squared = radius*radius;
 		search_data.original = 0;
 
@@ -2041,18 +2057,9 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 			MEM_freeN(nodes);
 	}
 	else {
-		vpaint_color_single_element(C, stroke, itemptr);
+		// TODO (itemptr) vpaint_color_single_element(C, stroke, itemptr);
 		/* TODO: mask */
 	}
-
-	multires_mark_as_modified(ob);
-
-	/* XXX
-	if(brush->vertexpaint_tool == VP_BLUR)
-	do_shared_vertexcol(ob->data);*/
-
-	/* partial redraw */
-	paint_tag_partial_redraw(C, ob);
 }
 
 static void vpaint_stroke_done(bContext *C, struct PaintStroke *stroke)
@@ -2077,6 +2084,8 @@ static int vpaint_invoke(bContext *C, wmOperator *op, wmEvent *event)
 					  vpaint_stroke_get_location,
 					  vpaint_stroke_test_start,
 					  vpaint_stroke_update_step,
+					  NULL,
+					  vpaint_stroke_brush_action,
 					  vpaint_stroke_done);
 	
 	/* add modal handler */

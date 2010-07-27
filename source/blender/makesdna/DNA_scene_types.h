@@ -510,12 +510,15 @@ typedef struct Paint {
 	/* Array of brushes selected for use in this paint mode */
 	Brush **brushes;
 	int active_brush_index, brush_count;
-	
+
 	/* WM Paint cursor */
 	void *paint_cursor;
 	unsigned char paint_cursor_col[4];
 
 	int flags;
+	int radial_symm[3];
+
+	int pad;
 } Paint;
 
 typedef struct ImagePaintSettings {
@@ -567,14 +570,6 @@ typedef struct TransformOrientation {
 
 typedef struct Sculpt {
 	Paint paint;
-
-	/* For rotating around a pivot point */
-	//float pivot[3]; XXX not used?
-	int flags;
-
-	/* Control tablet input */
-	//char tablet_size, tablet_strength; XXX not used?
-	int radial_symm[3];
 
 	// all this below is used to communicate with the cursor drawing routine
 
@@ -1128,23 +1123,20 @@ typedef struct Scene {
 
 /* Paint.flags */
 typedef enum {
-	PAINT_SHOW_BRUSH = (1<<0),
-	PAINT_FAST_NAVIGATE = (1<<1),
-	PAINT_SHOW_BRUSH_ON_SURFACE = (1<<2),
-} PaintFlags;
+	PAINT_SYMM_X =                (1<<0),
+	PAINT_SYMM_Y =                (1<<1),
+	PAINT_SYMM_Z =                (1<<2),
+	PAINT_SYMMETRY_FEATHER =      (1<<3),
 
-/* Sculpt.flags */
-/* These can eventually be moved to paint flags? */
-typedef enum SculptFlags {
-	SCULPT_SYMM_X = (1<<0),
-	SCULPT_SYMM_Y = (1<<1),
-	SCULPT_SYMM_Z = (1<<2),
-	SCULPT_LOCK_X = (1<<3),
-	SCULPT_LOCK_Y = (1<<4),
-	SCULPT_LOCK_Z = (1<<5),
-	SCULPT_SYMMETRY_FEATHER = (1<<6),
-	SCULPT_USE_OPENMP = (1<<7),
-} SculptFlags;
+	PAINT_SHOW_BRUSH =            (1<<4),
+	PAINT_FAST_NAVIGATE =         (1<<5),
+	PAINT_SHOW_BRUSH_ON_SURFACE = (1<<6),
+
+	PAINT_LOCK_X =                (1<<7),
+	PAINT_LOCK_Y =                (1<<8),
+	PAINT_LOCK_Z =                (1<<9),
+	PAINT_USE_OPENMP =            (1<<10),
+} PaintFlags;
 
 /* sculpt_paint_settings */
 #define SCULPT_PAINT_USE_UNIFIED_SIZE        (1<<0)

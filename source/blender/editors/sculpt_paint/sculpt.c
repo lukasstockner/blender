@@ -196,8 +196,6 @@ typedef struct StrokeCache {
 	float grab_delta[3], grab_delta_symmetry[3];
 	float old_grab_location[3], orig_grab_location[3];
 
-	int symmetry; /* Symmetry index between 0 and 7 bit combo 0 is Brush only;
-		1 is X mirror; 2 is Y mirror; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */
 	int mirror_symmetry_pass; /* the symmetry pass we are currently on between 0 and 7*/
 	float true_view_normal[3];
 	float view_normal[3];
@@ -284,86 +282,6 @@ static float integrate_overlap(Brush* br)
 	}
 
 	return max;
-}
-
-/* Uses symm to selectively flip any axis of a coordinate. */
-static void flip_coord(float out[3], float in[3], const char symm)
-{
-	if(symm & SCULPT_SYMM_X)
-		out[0]= -in[0];
-	else
-		out[0]= in[0];
-	if(symm & SCULPT_SYMM_Y)
-		out[1]= -in[1];
-	else
-		out[1]= in[1];
-	if(symm & SCULPT_SYMM_Z)
-		out[2]= -in[2];
-	else
-		out[2]= in[2];
-}
-
-float calc_overlap(StrokeCache *cache, const char symm, const char axis, const float angle)
-{
-	float mirror[3];
-	float distsq;
-	float mat[4][4];
-	
-	//flip_coord(mirror, cache->traced_location, symm);
-	flip_coord(mirror, cache->true_location, symm);
-
-	unit_m4(mat);
-	rotate_m4(mat, axis, angle);
-
-	mul_m4_v3(mat, mirror);
-
-	//distsq = len_squared_v3v3(mirror, cache->traced_location);
-	distsq = len_squared_v3v3(mirror, cache->true_location);
-
-	if (distsq <= 4*(cache->radius_squared))
-		return (2*(cache->radius) - sqrt(distsq))  /  (2*(cache->radius));
-	else
-		return 0;
-}
-
-static float calc_radial_symmetry_feather(Sculpt *sd, StrokeCache *cache, const char symm, const char axis)
-{
-	int i;
-	float overlap;
-
-	overlap = 0;
-	for(i = 1; i < sd->radial_symm[axis-'X']; ++i) {
-		const float angle = 2*M_PI*i/sd->radial_symm[axis-'X'];
-		overlap += calc_overlap(cache, symm, axis, angle);
-	}
-
-	return overlap;
-}
-
-static float calc_symmetry_feather(Sculpt *sd, StrokeCache* cache)
-{
-	if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
-		float overlap;
-		int symm = cache->symmetry;
-		int i;
-
-		overlap = 0;
-		for (i = 0; i <= symm; i++) {
-			if(i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
-
-				overlap += calc_overlap(cache, i, 0, 0);
-
-				overlap += calc_radial_symmetry_feather(sd, cache, i, 'X');
-				overlap += calc_radial_symmetry_feather(sd, cache, i, 'Y');
-				overlap += calc_radial_symmetry_feather(sd, cache, i, 'Z');
-			}
-		}
-
-		return 1/overlap;
-	}
-	else {
-		return 1;
-	}
 }
 
 /* Return modified brush strength. Includes the direction of the brush, positive
@@ -496,10 +414,10 @@ static float tex_strength(SculptSession *ss, Brush *br, float *co, float mask, c
 	   brush texture will be oriented correctly. */
 	if(br->mtex.tex &&
 	   br->mtex.brush_map_mode != MTEX_MAP_MODE_3D) {
-		flip_coord(mco, co, ss->cache->mirror_symmetry_pass);
+		/* XXX, move to paint stroke: flip_coord(mco, co, ss->cache->mirror_symmetry_pass);
 		
 		if(ss->cache->radial_symmetry_pass)
-			mul_m4_v3(ss->cache->symm_rot_mat_inv, mco);
+		mul_m4_v3(ss->cache->symm_rot_mat_inv, mco); */
 
 		co = mco;
 	}
@@ -518,7 +436,7 @@ static void sculpt_clip(Sculpt *sd, SculptSession *ss, float *co, const float va
 	int i;
 
 	for(i=0; i<3; ++i) {
-		if(sd->flags & (SCULPT_LOCK_X << i))
+		if(sd->paint.flags & (PAINT_LOCK_X << i))
 			continue;
 
 		if((ss->cache->flag & (CLIP_X << i)) && (fabs(co[i]) <= ss->cache->clip_tolerance[i]))
@@ -643,7 +561,7 @@ static void calc_sculpt_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **n
 	}
 	else {
 		copy_v3_v3(an, ss->cache->last_area_normal);
-		flip_coord(an, an, ss->cache->mirror_symmetry_pass);
+		paint_flip_coord(an, an, ss->cache->mirror_symmetry_pass);
 		mul_m4_v3(ss->cache->symm_rot_mat, an);
 	}
 }
@@ -1562,10 +1480,10 @@ static void calc_sculpt_plane(Sculpt *sd, Object *ob, PBVHNode **nodes, int totn
 		copy_v3_v3(fc, ss->cache->last_center);
 
 		// an
-		flip_coord(an, an, ss->cache->mirror_symmetry_pass);
+		paint_flip_coord(an, an, ss->cache->mirror_symmetry_pass);
 
 		// fc
-		flip_coord(fc, fc, ss->cache->mirror_symmetry_pass);
+		paint_flip_coord(fc, fc, ss->cache->mirror_symmetry_pass);
 
 		// an
 		mul_m4_v3(ss->cache->symm_rot_mat, an);
@@ -2032,9 +1950,12 @@ static void sculpt_update_keyblock(Object *ob)
 	}
 }
 
-static void do_brush_action(Sculpt *sd, Object *ob, Brush *brush, PaintStroke *stroke)
+static void sculpt_stroke_brush_action(bContext *C, PaintStroke *stroke)
 {
+	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->paint->sculpt;
+	Brush *brush = paint_brush(&sd->paint);
 	PBVHSearchSphereData data;
 	PBVHNode **nodes = NULL;
 	int n, totnode;
@@ -2227,99 +2148,6 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 
 	if (nodes)
 		MEM_freeN(nodes);
-}
-
-//static int max_overlap_count(Sculpt *sd)
-//{
-//	int count[3];
-//	int i, j;
-//
-//	for (i= 0; i < 3; i++) {
-//		count[i] = sd->radial_symm[i];
-//
-//		for (j= 0; j < 3; j++) {
-//			if (i != j && sd->flags & (SCULPT_SYMM_X<<i))
-//				count[i] *= 2;
-//		}
-//	}
-//
-//	return MAX3(count[0], count[1], count[2]);
-//}
-
-/* Flip all the editdata across the axis/axes specified by symm. Used to
-   calculate multiple modifications to the mesh when symmetry is enabled. */
-static void calc_brushdata_symm(Sculpt *sd, StrokeCache *cache, const char symm, const char axis, const float angle, const float feather)
-{
-	flip_coord(cache->location, cache->true_location, symm);
-	flip_coord(cache->grab_delta_symmetry, cache->grab_delta, symm);
-	flip_coord(cache->view_normal, cache->true_view_normal, symm);
-
-	// XXX This reduces the length of the grab delta if it approaches the line of symmetry
-	// XXX However, a different approach appears to be needed
-	//if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
-	//	float frac = 1.0f/max_overlap_count(sd);
-	//	float reduce = (feather-frac)/(1-frac);
-
-	//	printf("feather: %f frac: %f reduce: %f\n", feather, frac, reduce);
-
-	//	if (frac < 1)
-	//		mul_v3_fl(cache->grab_delta_symmetry, reduce);
-	//}
-
-	unit_m4(cache->symm_rot_mat);
-	unit_m4(cache->symm_rot_mat_inv);
-	rotate_m4(cache->symm_rot_mat, axis, angle);
-	rotate_m4(cache->symm_rot_mat_inv, axis, -angle);
-
-	mul_m4_v3(cache->symm_rot_mat, cache->location);
-	mul_m4_v3(cache->symm_rot_mat, cache->grab_delta_symmetry);
-}
-
-static void do_radial_symmetry(Sculpt *sd, Object *ob, Brush *brush, PaintStroke *stroke, const char symm, const int axis, const float feather)
-{
-	SculptSession *ss = ob->paint->sculpt;
-	int i;
-
-	for(i = 1; i < sd->radial_symm[axis-'X']; ++i) {
-		const float angle = 2*M_PI*i/sd->radial_symm[axis-'X'];
-		ss->cache->radial_symmetry_pass= i;
-		calc_brushdata_symm(sd, ss->cache, symm, axis, angle, feather);
-		do_brush_action(sd, ob, brush, stroke);
-	}
-}
-
-static void do_symmetrical_brush_actions(Sculpt *sd, Object *ob, PaintStroke *stroke)
-{
-	Brush *brush = paint_brush(&sd->paint);
-	SculptSession *ss = ob->paint->sculpt;
-	StrokeCache *cache = ss->cache;
-	const char symm = sd->flags & 7;
-	int i;
-
-	float feather = calc_symmetry_feather(sd, cache);
-
-	cache->bstrength= brush_strength(sd, cache, feather);
-
-	cache->symmetry= symm;
-
-	/* symm is a bit combination of XYZ - 1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */ 
-	for(i = 0; i <= symm; ++i) {
-		if(i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
-			cache->mirror_symmetry_pass= i;
-			cache->radial_symmetry_pass= 0;
-
-			calc_brushdata_symm(sd, cache, i, 0, 0, feather);
-			do_brush_action(sd, ob, brush, stroke);
-
-			do_radial_symmetry(sd, ob, brush, stroke, i, 'X', feather);
-			do_radial_symmetry(sd, ob, brush, stroke, i, 'Y', feather);
-			do_radial_symmetry(sd, ob, brush, stroke, i, 'Z', feather);
-		}
-	}
-
-	sculpt_combine_proxies(sd, ob);
-
-	cache->first_time= 0;
 }
 
 static void sculpt_update_tex(Sculpt *sd, SculptSession *ss)
@@ -3026,16 +2854,43 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 		return 0;
 }
 
+static void sculpt_stroke_update_symmetry(bContext *C, struct PaintStroke *stroke,
+					  char symm, char axis, float angle,
+					  int mirror_symmetry_pass, int radial_symmetry_pass,
+					  float (*symmetry_rot_mat)[4])
+{	
+	Object *ob = CTX_data_active_object(C);
+	SculptSession *ss = ob->paint->sculpt;
+	StrokeCache *cache = ss->cache;
+
+	paint_stroke_symmetry_location(stroke, cache->location);
+
+	paint_flip_coord(cache->grab_delta_symmetry, cache->grab_delta, symm);
+	paint_flip_coord(cache->view_normal, cache->true_view_normal, symm);
+
+	copy_m4_m4(cache->symm_rot_mat, symmetry_rot_mat);
+
+	unit_m4(cache->symm_rot_mat_inv);
+	rotate_m4(cache->symm_rot_mat_inv, axis, -angle);
+
+	mul_m4_v3(symmetry_rot_mat, cache->grab_delta_symmetry);
+}
+
 static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *stroke, PointerRNA *itemptr)
 {
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	Object *ob = CTX_data_active_object(C);
 	SculptSession *ss = ob->paint->sculpt;
+	StrokeCache *cache = ss->cache;
 
 	sculpt_stroke_modifiers_check(C);
 	sculpt_update_cache_variants(C, sd, ss, stroke, itemptr);
 	sculpt_restore_mesh(sd, ob);
-	do_symmetrical_brush_actions(sd, ob, stroke);
+
+	cache->bstrength= brush_strength(sd, cache, paint_stroke_feather(stroke));
+	paint_stroke_apply_brush(C, stroke, &sd->paint);
+	sculpt_combine_proxies(sd, ob);
+	cache->first_time= 0;
 
 	/* Cleanup */
 	sculpt_flush_update(C);
@@ -3107,6 +2962,8 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, wmEvent *even
 	stroke = paint_stroke_new(C, sculpt_stroke_get_location,
 				  sculpt_stroke_test_start,
 				  sculpt_stroke_update_step,
+				  sculpt_stroke_update_symmetry,
+				  sculpt_stroke_brush_action,
 				  sculpt_stroke_done);
 
 	op->customdata = stroke;
@@ -3136,8 +2993,12 @@ static int sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 	if(!sculpt_brush_stroke_init(C, op->reports))
 		return OPERATOR_CANCELLED;
 
-	op->customdata = paint_stroke_new(C, sculpt_stroke_get_location, sculpt_stroke_test_start,
-					  sculpt_stroke_update_step, sculpt_stroke_done);
+	op->customdata = paint_stroke_new(C, sculpt_stroke_get_location,
+					  sculpt_stroke_test_start,
+					  sculpt_stroke_update_step,
+					  sculpt_stroke_update_symmetry,
+					  sculpt_stroke_brush_action,
+					  sculpt_stroke_done);
 
 	sculpt_update_cache_invariants(C, sd, ss, op, NULL);
 
@@ -3368,7 +3229,7 @@ static int sculpt_toggle_mode(bContext *C, wmOperator *unused)
 			ts->sculpt = MEM_callocN(sizeof(Sculpt), "sculpt mode data");
 
 			/* Turn on X plane mirror symmetry by default */
-			ts->sculpt->flags |= SCULPT_SYMM_X;
+			ts->sculpt->paint.flags |= PAINT_SYMM_X;
 		}
 
 		sculpt_init_session(scene, ob);

@@ -37,6 +37,7 @@ struct Scene;
 struct Object;
 struct Mesh;
 struct Multires;
+struct Object;
 struct Paint;
 struct PaintStroke;
 struct PointerRNA;
@@ -53,19 +54,34 @@ typedef struct PaintStroke PaintStroke;
 typedef int (*StrokeGetLocation)(struct bContext *C, struct PaintStroke *stroke, float location[3], float mouse[2]);
 typedef int (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 typedef void (*StrokeUpdateStep)(struct bContext *C, struct PaintStroke *stroke, struct PointerRNA *itemptr);
+typedef void (*StrokeUpdateSymmetry)(struct bContext *C, struct PaintStroke *stroke,
+				     char symmetry, char axis, float angle,
+				     int mirror_symmetry_pass, int radial_symmetry_pass,
+				     float (*symmetry_rot_mat)[4]);
+typedef void (*StrokeBrushAction)(struct bContext *C, struct PaintStroke *stroke);
 typedef void (*StrokeDone)(struct bContext *C, struct PaintStroke *stroke);
 
 struct PaintStroke *paint_stroke_new(struct bContext *C,
-					 StrokeGetLocation get_location, StrokeTestStart test_start,
-					 StrokeUpdateStep update_step, StrokeDone done);
+				     StrokeGetLocation get_location,
+				     StrokeTestStart test_start,
+				     StrokeUpdateStep update_step,
+				     StrokeUpdateSymmetry update_symmetry,
+				     StrokeBrushAction brush_action,
+				     StrokeDone done);
 void paint_stroke_free(struct PaintStroke *stroke);
 
 int paint_stroke_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
+void paint_stroke_apply_brush(struct bContext *C, struct PaintStroke *stroke, struct Paint *paint);
 int paint_stroke_exec(struct bContext *C, struct wmOperator *op);
-struct ViewContext *paint_stroke_view_context(struct PaintStroke *stroke);
-void paint_stroke_projection_mat(struct PaintStroke *stroke, float (**pmat)[4]);
 void *paint_stroke_mode_data(struct PaintStroke *stroke);
 void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
+
+/* paint stroke cache access */
+struct ViewContext *paint_stroke_view_context(struct PaintStroke *stroke);
+float paint_stroke_feather(struct PaintStroke *stroke);
+void paint_stroke_symmetry_location(struct PaintStroke *stroke, float loc[3]);
+float paint_stroke_radius(struct PaintStroke *stroke);
+void paint_stroke_projection_mat(struct PaintStroke *stroke, float (**pmat)[4]);
 
 typedef struct {
 	void *mode_data;
@@ -152,6 +168,8 @@ float paint_calc_object_space_radius(struct Object *ob,
 void paint_tag_partial_redraw(struct bContext *C, struct Object *ob);
 
 struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
+
+void paint_flip_coord(float out[3], float in[3], const char symm);
 
 float brush_tex_strength(struct ViewContext *vc,
 			 float pmat[4][4], struct Brush *br,

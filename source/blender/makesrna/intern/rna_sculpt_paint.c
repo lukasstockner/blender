@@ -258,6 +258,18 @@ static void rna_def_paint(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Brush", "Active paint brush");
 	RNA_def_property_update(prop, NC_BRUSH|NA_EDITED, NULL);
 
+	prop= RNA_def_property(srna, "symmetry_x", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SYMM_X);
+	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
+
+	prop= RNA_def_property(srna, "symmetry_y", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SYMM_Y);
+	RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
+
+	prop= RNA_def_property(srna, "symmetry_z", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SYMM_Z);
+	RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
+
 	prop= RNA_def_property(srna, "show_brush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SHOW_BRUSH);
 	RNA_def_property_ui_text(prop, "Show Brush", "");
@@ -269,15 +281,6 @@ static void rna_def_paint(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "fast_navigate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_FAST_NAVIGATE);
 	RNA_def_property_ui_text(prop, "Fast Navigate", "For multires, show low resolution while navigating the view");
-}
-
-static void rna_def_sculpt(BlenderRNA  *brna)
-{
-	StructRNA *srna;
-	PropertyRNA *prop;
-
-	srna= RNA_def_struct(brna, "Sculpt", "Paint");
-	RNA_def_struct_ui_text(srna, "Sculpt", "");
 
 	prop= RNA_def_property(srna, "radial_symm", PROP_INT, PROP_XYZ);
 	RNA_def_property_int_sdna(prop, NULL, "radial_symm");
@@ -286,37 +289,33 @@ static void rna_def_sculpt(BlenderRNA  *brna)
 	RNA_def_property_ui_range(prop, 0, 32, 1, 1);
 	RNA_def_property_ui_text(prop, "Radial Symmetry Count X Axis", "Number of times to copy strokes across the surface");
 
-	prop= RNA_def_property(srna, "symmetry_x", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_X);
-	RNA_def_property_ui_text(prop, "Symmetry X", "Mirror brush across the X axis");
-
-	prop= RNA_def_property(srna, "symmetry_y", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_Y);
-	RNA_def_property_ui_text(prop, "Symmetry Y", "Mirror brush across the Y axis");
-
-	prop= RNA_def_property(srna, "symmetry_z", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMM_Z);
-	RNA_def_property_ui_text(prop, "Symmetry Z", "Mirror brush across the Z axis");
-
 	prop= RNA_def_property(srna, "lock_x", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_X);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_LOCK_X);
 	RNA_def_property_ui_text(prop, "Lock X", "Disallow changes to the X axis of vertices");
 
 	prop= RNA_def_property(srna, "lock_y", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_Y);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_LOCK_Y);
 	RNA_def_property_ui_text(prop, "Lock Y", "Disallow changes to the Y axis of vertices");
 
 	prop= RNA_def_property(srna, "lock_z", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_LOCK_Z);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_LOCK_Z);
 	RNA_def_property_ui_text(prop, "Lock Z", "Disallow changes to the Z axis of vertices");
 
 	prop= RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_SYMMETRY_FEATHER);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SYMMETRY_FEATHER);
 	RNA_def_property_ui_text(prop, "Symmetry Feathering", "Reduce the strength of the brush where it overlaps symmetrical daubs");
 
 	prop= RNA_def_property(srna, "use_openmp", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flags", SCULPT_USE_OPENMP);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_USE_OPENMP);
 	RNA_def_property_ui_text(prop, "Use OpenMP", "Take advantage of multiple CPU cores to improve sculpting performance");
+}
+
+static void rna_def_sculpt(BlenderRNA  *brna)
+{
+	StructRNA *srna;
+
+	srna= RNA_def_struct(brna, "Sculpt", "Paint");
+	RNA_def_struct_ui_text(srna, "Sculpt", "");
 }
 
 static void rna_def_vertex_paint(BlenderRNA *brna)

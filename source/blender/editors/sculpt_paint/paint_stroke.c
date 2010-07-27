@@ -67,6 +67,18 @@ struct PaintStroke {
 	float project_mat[4][4];
 	bglMats mats;
 	Brush *brush;
+	/* projected brush radius */
+	float radius, radius_squared;
+	/* brush location (object space) */
+	float location[3], symmetry_location[3];
+
+	/* symmetry */
+	/* current symmetry pass (0-7) */
+	int mirror_symmetry_pass;
+	int radial_symmetry_pass;
+	float symm_rot_mat[4][4];
+	/* decrease brush strength if symmetry overlaps */
+	float feather;
 
 	float last_mouse_position[2];
 
@@ -75,9 +87,12 @@ struct PaintStroke {
 	   passes over the mesh */
 	int stroke_started;
 
+	/* callbacks */
 	StrokeGetLocation get_location;
 	StrokeTestStart test_start;
 	StrokeUpdateStep update_step;
+	StrokeUpdateSymmetry update_symmetry;
+	StrokeBrushAction brush_action;
 	StrokeDone done;
 };
 
@@ -787,27 +802,136 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 	}
 }
 
+/**** Symmetry ****/
+
+float calc_overlap(PaintStroke *stroke, float location[3], char symm, char axis, float angle)
+{
+	float mirror[3];
+	float distsq;
+	float mat[4][4];
+	
+	//paint_flip_coord(mirror, cache->traced_location, symm);
+	paint_flip_coord(mirror, location, symm);
+
+	unit_m4(mat);
+	rotate_m4(mat, axis, angle);
+
+	mul_m4_v3(mat, mirror);
+
+	//distsq = len_squared_v3v3(mirror, cache->traced_location);
+	distsq = len_squared_v3v3(mirror, location);
+
+	if (distsq <= 4*stroke->radius_squared)
+		return (2*stroke->radius - sqrt(distsq))  /  (2*stroke->radius);
+	else
+		return 0;
+}
+
+static float calc_radial_symmetry_feather(PaintStroke *stroke, Paint *paint,
+					  float location[3], char symm, char axis)
+{
+	int i;
+	float overlap;
+
+	overlap = 0;
+	for(i = 1; i < paint->radial_symm[axis-'X']; ++i) {
+		const float angle = 2*M_PI*i / paint->radial_symm[axis-'X'];
+		overlap += calc_overlap(stroke, location, symm, axis, angle);
+	}
+
+	return overlap;
+}
+
+static float calc_symmetry_feather(PaintStroke *stroke, Paint *paint, float location[3], char symm)
+{
+	if(paint->flags & PAINT_SYMMETRY_FEATHER) {
+		float overlap;
+		int i;
+
+		overlap = 0;
+		for (i = 0; i <= symm; i++) {
+			if(i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
+
+				overlap += calc_overlap(stroke, location, i, 0, 0);
+
+				overlap += calc_radial_symmetry_feather(stroke, paint, location, i, 'X');
+				overlap += calc_radial_symmetry_feather(stroke, paint, location, i, 'Y');
+				overlap += calc_radial_symmetry_feather(stroke, paint, location, i, 'Z');
+			}
+		}
+
+		return 1/overlap;
+	}
+	else {
+		return 1;
+	}
+}
+
+/* flip data across the axes specified by symm */
+static void calc_symm(bContext *C, PaintStroke *stroke, float location[3], char symm,
+		      char axis, float angle)
+{
+	/* radial symmetry */
+	unit_m4(stroke->symm_rot_mat);
+	rotate_m4(stroke->symm_rot_mat, axis, angle);
+
+	/* symmetry_location */
+	paint_flip_coord(location, location, symm);
+	mul_m4_v3(stroke->symm_rot_mat, location);
+	copy_v3_v3(stroke->symmetry_location, location);
+
+	/* callback */
+	if(stroke->update_symmetry) {
+		stroke->update_symmetry(C, stroke, symm, axis,
+					angle,
+					stroke->mirror_symmetry_pass,
+					stroke->radial_symmetry_pass,
+					stroke->symm_rot_mat);
+	}
+}
+
+static void do_radial_symmetry(bContext *C, PaintStroke *stroke, Paint *paint, char symm, int axis, float feather)
+{
+	int i;
+
+	for(i = 1; i < paint->radial_symm[axis-'X']; ++i) {
+		const float angle = 2*M_PI*i / paint->radial_symm[axis-'X'];
+		float location[3];
+
+		stroke->radial_symmetry_pass= i;
+		copy_v3_v3(location, stroke->location);
+		calc_symm(C, stroke, location, symm, axis, angle);
+
+		stroke->brush_action(C, stroke);
+	}
+}
+
+static void paint_stroke_update_cache(PaintStroke *stroke, Paint *paint)
+{
+	ViewContext *vc = &stroke->vc;
+
+	/* TODO: radius */
+	stroke->radius = paint_calc_object_space_radius(vc->obact, vc, stroke->location,
+							brush_size(paint_brush(paint)));
+	stroke->radius_squared = stroke->radius*stroke->radius;
+	stroke->feather = calc_symmetry_feather(stroke, paint, stroke->location, paint->flags & 7);
+}
+
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse_in[2])
 {
-	Paint *paint = paint_get_active(CTX_data_scene(C)); // XXX
-	Brush *brush = paint_brush(paint); // XXX
+	Paint *paint = paint_get_active(CTX_data_scene(C));
 
 	float mouse[2];
 
 	PointerRNA itemptr;
 
-	float location[3];
-
 	float pressure;
 	int   pen_flip;
 
-	ViewContext vc; // XXX
-
 	PaintStroke *stroke = op->customdata;
 
-	view3d_set_viewcontext(C, &vc); // XXX
-	view3d_get_object_project_mat(vc.rv3d, vc.obact, stroke->project_mat);
+	view3d_get_object_project_mat(stroke->vc.rv3d, stroke->vc.obact, stroke->project_mat);
 
 	/* Tablet */
 	if(event->custom == EVT_DATA_TABLET) {
@@ -822,7 +946,8 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	}
 
 	// XXX: temporary check for sculpt mode until things are more unified
-	if (vc.obact->paint->sculpt) {
+	if(stroke->vc.obact->paint->sculpt) {
+		Brush *brush = paint_brush(paint);
 		float delta[3];
 
 		brush_jitter_pos(brush, mouse_in, mouse);
@@ -839,20 +964,22 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 
 	/* XXX: can remove the if statement once all modes have this */
 	if(stroke->get_location)
-		stroke->get_location(C, stroke, location, mouse);
+		stroke->get_location(C, stroke, stroke->location, mouse);
 	else
-		zero_v3(location);
+		zero_v3(stroke->location);
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
 
-	RNA_float_set_array(&itemptr, "location",     location);
+	RNA_float_set_array(&itemptr, "location",     stroke->location);
 	RNA_float_set_array(&itemptr, "mouse",        mouse);
 	RNA_boolean_set    (&itemptr, "pen_flip",     pen_flip);
 	RNA_float_set      (&itemptr, "pressure", pressure);
 
 	stroke->last_mouse_position[0] = mouse[0];
 	stroke->last_mouse_position[1] = mouse[1];
+
+	paint_stroke_update_cache(stroke, paint);
 
 	stroke->update_step(C, stroke, &itemptr);
 }
@@ -938,10 +1065,12 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 /**** Public API ****/
 
 PaintStroke *paint_stroke_new(bContext *C,
-				  StrokeGetLocation get_location,
-				  StrokeTestStart test_start,
-				  StrokeUpdateStep update_step,
-				  StrokeDone done)
+			      StrokeGetLocation get_location,
+			      StrokeTestStart test_start,
+			      StrokeUpdateStep update_step,
+			      StrokeUpdateSymmetry update_symmetry,
+			      StrokeBrushAction brush_action,
+			      StrokeDone done)
 {
 	PaintStroke *stroke = MEM_callocN(sizeof(PaintStroke), "PaintStroke");
 
@@ -952,6 +1081,8 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->get_location = get_location;
 	stroke->test_start = test_start;
 	stroke->update_step = update_step;
+	stroke->update_symmetry = update_symmetry;
+	stroke->brush_action = brush_action;
 	stroke->done = done;
 
 	return stroke;
@@ -1028,11 +1159,40 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 	return OPERATOR_RUNNING_MODAL;
 }
 
+void paint_stroke_apply_brush(bContext *C, PaintStroke *stroke, Paint *paint)
+{
+	char symm = paint->flags & 7;
+	float location[3];
+	int i;
+
+	/* symm is a bitwise combination of XYZ:
+	   1 is mirror X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ */ 
+	for(i = 0; i <= symm; ++i) {		
+		if(i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || (i != 3 && i != 5)))) {
+			stroke->mirror_symmetry_pass= i;
+			stroke->radial_symmetry_pass= 0;
+
+			copy_v3_v3(location, stroke->location);
+			calc_symm(C, stroke, location, i, 0, 0);
+
+			stroke->brush_action(C, stroke);
+
+			do_radial_symmetry(C, stroke, paint, i, 'X', stroke->feather);
+			do_radial_symmetry(C, stroke, paint, i, 'Y', stroke->feather);
+			do_radial_symmetry(C, stroke, paint, i, 'Z', stroke->feather);
+		}
+	}
+}
+
 int paint_stroke_exec(bContext *C, wmOperator *op)
 {
+	Paint *paint = paint_get_active(CTX_data_scene(C));
 	PaintStroke *stroke = op->customdata;
 
 	RNA_BEGIN(op->ptr, itemptr, "stroke") {
+		RNA_float_get_array(&itemptr, "location", stroke->location);
+		paint_stroke_update_cache(stroke, paint);
+
 		stroke->update_step(C, stroke, &itemptr);
 	}
 	RNA_END;
@@ -1046,6 +1206,21 @@ int paint_stroke_exec(bContext *C, wmOperator *op)
 ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 {
 	return &stroke->vc;
+}
+
+float paint_stroke_feather(struct PaintStroke *stroke)
+{
+	return stroke->feather;
+}
+
+void paint_stroke_symmetry_location(struct PaintStroke *stroke, float loc[3])
+{
+	copy_v3_v3(loc, stroke->symmetry_location);
+}
+
+float paint_stroke_radius(struct PaintStroke *stroke)
+{
+	return stroke->radius;
 }
 
 void paint_stroke_projection_mat(PaintStroke *stroke, float (**pmat)[4])
