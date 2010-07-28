@@ -858,6 +858,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel):
 
         if context.sculpt_object:
             col.prop(brush, "sculpt_tool", expand=False, text="")
+            col.operator("brush.reset")
         elif context.texture_paint_object:
             col.prop(brush, "imagepaint_tool", expand=False, text="")
         elif context.vertex_paint_object or context.weight_paint_object:
@@ -1007,6 +1008,14 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col = split.column()
 
+        col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
+        col.prop(sculpt, "fast_navigate")
+        col.prop(sculpt, "show_brush")
+
+        row = col.row()
+        row.active = sculpt.show_brush and sculpt.is_on_surface_brush_capable()
+        row.prop(sculpt, "show_brush_on_surface")
+
         col.label(text="Unified Settings:")
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
         col.prop(tool_settings, "sculpt_paint_use_unified_strength", text="Strength")
@@ -1022,6 +1031,8 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         row.prop(sculpt, "lock_y", text="Y", toggle=True)
         row.prop(sculpt, "lock_z", text="Z", toggle=True)
 
+		
+		
 class VIEW3D_PT_sculpt_symmetry(PaintPanel):
     bl_label = "Symmetry"
     bl_default_closed = True

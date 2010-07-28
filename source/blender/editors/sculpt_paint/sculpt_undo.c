@@ -206,7 +206,7 @@ SculptUndoNode *sculpt_undo_get_node(PBVHNode *node)
 	return NULL;
 }
 
-SculptUndoNode *sculpt_undo_push_node(SculptSession *ss, PBVHNode *node)
+SculptUndoNode *sculpt_undo_push_node(const SculptSession *ss, PBVHNode *node)
 {
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	Object *ob= ss->ob;

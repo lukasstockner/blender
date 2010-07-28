@@ -39,7 +39,7 @@
 
 #include "WM_types.h"
 
-static const EnumPropertyItem prop_direction_items[]= {
+static EnumPropertyItem prop_direction_items[]= {
 	{0, "ADD", 0, "Add", "Add effect of brush"},
 	{BRUSH_DIR_IN, "SUBTRACT", 0, "Subtract", "Subtract effect of brush"},
 	{0, NULL, 0, NULL, NULL}};
@@ -47,6 +47,7 @@ static const EnumPropertyItem prop_direction_items[]= {
 EnumPropertyItem brush_sculpt_tool_items[] = {
 	{SCULPT_TOOL_BLOB, "BLOB", ICON_BRUSH_BLOB, "Blob", ""},
 	{SCULPT_TOOL_CLAY, "CLAY", ICON_BRUSH_CLAY, "Clay", ""},
+	{SCULPT_TOOL_CLAY_STRIPS, "CLAY_STRIPS", ICON_BRUSH_CLAY, "Clay Strips", ""},
 	{SCULPT_TOOL_CREASE, "CREASE",ICON_BRUSH_CREASE, "Crease", ""},
 	{SCULPT_TOOL_DRAW, "DRAW", ICON_BRUSH_SCULPT_DRAW, "Draw", ""},
 	{SCULPT_TOOL_FILL, "FILL", ICON_BRUSH_FILL, "Fill", ""},
@@ -264,30 +265,30 @@ static float rna_Brush_get_alpha(PointerRNA *ptr)
 
 static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr, int *free)
 {
-	static const EnumPropertyItem prop_default_items[]= {
+	static EnumPropertyItem prop_default_items[]= {
 		{0, NULL, 0, NULL, NULL}};
 
-	static const EnumPropertyItem prop_flatten_contrast_items[]= {
+	static EnumPropertyItem prop_flatten_contrast_items[]= {
 		{0, "FLATTEN", 0, "Flatten", "Add effect of brush"},
 		{BRUSH_DIR_IN, "CONTRAST", 0, "Contrast", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
 
-	static const EnumPropertyItem prop_fill_deepen_items[]= {
+	static EnumPropertyItem prop_fill_deepen_items[]= {
 		{0, "FILL", 0, "Fill", "Add effect of brush"},
 		{BRUSH_DIR_IN, "DEEPEN", 0, "Deepen", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
 
-	static const EnumPropertyItem prop_scrape_peaks_items[]= {
+	static EnumPropertyItem prop_scrape_peaks_items[]= {
 		{0, "SCRAPE", 0, "Scrape", "Add effect of brush"},
 		{BRUSH_DIR_IN, "PEAKS", 0, "Peaks", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
 
-	static const EnumPropertyItem prop_pinch_magnify_items[]= {
+	static EnumPropertyItem prop_pinch_magnify_items[]= {
 		{0, "PINCH", 0, "Pinch", "Add effect of brush"},
 		{BRUSH_DIR_IN, "MAGNIFY", 0, "Magnify", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
 
-	static const EnumPropertyItem prop_inflate_deflate_items[]= {
+	static EnumPropertyItem prop_inflate_deflate_items[]= {
 		{0, "INFLATE", 0, "Inflate", "Add effect of brush"},
 		{BRUSH_DIR_IN, "DEFLATE", 0, "Deflate", "Subtract effect of brush"},
 		{0, NULL, 0, NULL, NULL}};
@@ -330,6 +331,7 @@ static void rna_def_brush_texture_slot(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem prop_map_mode_items[] = {
+		{MTEX_MAP_MODE_WRAP, "WRAP", 0, "Wrap", ""},
 		{MTEX_MAP_MODE_FIXED, "FIXED", 0, "Fixed", ""},
 		{MTEX_MAP_MODE_TILED, "TILED", 0, "Tiled", ""},
 		{MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},

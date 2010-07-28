@@ -327,18 +327,9 @@ class USERPREF_PT_edit(bpy.types.Panel):
         row.separator()
         row.separator()
 
-        sculpt = context.tool_settings.sculpt
         col = row.column()
-        col.label(text="Paint and Sculpt:")
         row = col.row(align=True)
-        row.label("Overlay Color:")
-        row.prop(edit, "sculpt_paint_overlay_col", text="")
-        col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
-        col.prop(sculpt, "show_brush")
-
-        row = col.row()
-        row.active = sculpt.show_brush and sculpt.is_on_surface_brush_capable()
-        row.prop(sculpt, "show_brush_on_surface")
+        row.prop(edit, "sculpt_paint_overlay_col", text="Sculpt Overlay Color")
 
         col.separator()
         col.separator()
@@ -831,13 +822,22 @@ class USERPREF_PT_addons(bpy.types.Panel):
     @staticmethod
     def _addon_list():
         import sys
+        import time
+
         modules = []
         loaded_modules = set()
         paths = bpy.utils.script_paths("addons")
+
+        if bpy.app.debug:
+            t_main = time.time()
+
         # sys.path.insert(0, None)
         for path in paths:
             # sys.path[0] = path
             modules.extend(bpy.utils.modules_from_path(path, loaded_modules))
+
+        if bpy.app.debug:
+            print("Addon Script Load Time %.4f" % (time.time() - t_main))
 
         # del sys.path[0]
         return modules

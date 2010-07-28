@@ -475,6 +475,7 @@ typedef struct TexMapping {
 #define MTEX_MAP_MODE_FIXED    0
 #define MTEX_MAP_MODE_TILED    1
 #define MTEX_MAP_MODE_3D       2
+#define MTEX_MAP_MODE_WRAP     3
 
 /* **************** EnvMap ********************* */
 

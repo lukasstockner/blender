@@ -268,6 +268,8 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 	int j;
 	int refresh;
 
+	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) return 0; // XXX wrap mode doesn't support overlays atm
+
 	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && !br->mtex.tex) return 0;
 
 	refresh = 
@@ -376,7 +378,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 					if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED)
 						avg *= brush_curve_strength(br, len, 1); /* Falloff curve */
 
-					buffer[index] = (GLubyte)(255*avg);
+					buffer[index] = 255 - (GLubyte)(255*avg);
 				}
 				else {
 					buffer[index] = 0;
@@ -618,7 +620,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		float* col;
 		float  alpha;
 
-		float visual_strength = brush_alpha(brush)*brush_alpha(brush);
+		const float root_alpha = brush_alpha(brush);
+		float visual_strength = root_alpha*root_alpha;
 
 		const float min_alpha = 0.20f;
 		const float max_alpha = 0.80f;

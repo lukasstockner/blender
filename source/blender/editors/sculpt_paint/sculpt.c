@@ -229,6 +229,9 @@ typedef struct StrokeCache {
 	float last_rake[2]; /* Last location of updating rake rotation */
 	int original;
 
+	float brush_local_mat[4][4];
+	float symm_brush_local_mat[4][4];
+
 	float vertex_rotation;
 
 	char saved_active_brush_name[24];
@@ -349,7 +352,7 @@ typedef struct SculptBrushTest {
 	float dist;
 } SculptBrushTest;
 
-static void sculpt_brush_test_init(SculptSession *ss, SculptBrushTest *test)
+static void sculpt_brush_test_init(const SculptSession *ss, SculptBrushTest *test)
 {
 	test->radius_squared= ss->cache->radius_squared;
 	copy_v3_v3(test->location, ss->cache->location);
@@ -671,6 +674,57 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 	}
 }
 
+/* Texture Sampling */
+
+static void calc_area_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode);
+
+static void set_brush_local_mat(const Sculpt *sd, const SculptSession *ss, const Brush *brush, PBVHNode **nodes, int totnode, float *an_in)
+{
+	float tmat[4][4];
+
+	if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) {
+		if (ss->cache->mirror_symmetry_pass == 0 && ss->cache->radial_symmetry_pass == 0) {
+			float mat[4][4];
+			float scale[4][4];
+			float an[3];
+
+			if (an_in)
+				copy_v3_v3(an, an_in);
+			else
+				calc_area_normal(sd, ss, an, nodes, totnode);
+
+			if (brush->flag & BRUSH_RAKE) {
+				cross_v3_v3v3(mat[0], an, ss->cache->grab_delta_symmetry); mat[0][3] = 0;
+			}
+			else {
+				float up[4]= {0,1,0,0}; // homogeneous up vector
+
+				mul_m4_v4(ss->cache->vc->rv3d->viewinv, up);
+				cross_v3_v3v3(mat[0], up, an); mat[0][3] = 0;
+			}
+
+			cross_v3_v3v3(mat[1], an, mat[0]); mat[1][3] = 0;
+			copy_v3_v3(mat[2], an); mat[2][3] = 0;
+			copy_v3_v3(mat[3], ss->cache->location);  mat[3][3] = 1;
+			normalize_m4(mat);
+			scale_m4_fl(scale, ss->cache->radius);
+			mul_m4_m4m4(tmat, scale, mat);
+			invert_m4_m4(ss->cache->brush_local_mat, tmat);
+
+			copy_m4_m4(ss->cache->symm_brush_local_mat, ss->cache->brush_local_mat);
+		}
+		else {
+			copy_m4_m4(tmat, ss->cache->symm_brush_local_mat);
+			mul_m4_m4m4(ss->cache->symm_brush_local_mat, tmat, ss->cache->symm_rot_mat);
+
+			flip_coord(ss->cache->symm_brush_local_mat[0], ss->cache->brush_local_mat[0], ss->cache->mirror_symmetry_pass);
+			flip_coord(ss->cache->symm_brush_local_mat[1], ss->cache->brush_local_mat[1], ss->cache->mirror_symmetry_pass);
+			flip_coord(ss->cache->symm_brush_local_mat[2], ss->cache->brush_local_mat[2], ss->cache->mirror_symmetry_pass);
+			flip_coord(ss->cache->symm_brush_local_mat[3], ss->cache->brush_local_mat[3], ss->cache->mirror_symmetry_pass);
+		}
+	}
+}
+
 float get_tex_pixel(Brush* br, float u, float v)
 {
 	TexResult texres;
@@ -748,7 +802,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		externtex(mtex, point, &avg,
 			  &jnk, &jnk, &jnk, &jnk);
 	}
-	else if(ss->texcache) {
+	else if(ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_TILED)) {
 		float rotation = -mtex->rot;
 		float x, y, point_2d[3];
 		float radius;
@@ -781,7 +835,7 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		        leave the coordinates relative to the screen */
 		{
 			radius = brush_size(br); // use unadjusted size for tiled mode
-		
+
 			x = point_2d[0] - ss->cache->vc->ar->winrct.xmin;
 			y = point_2d[1] - ss->cache->vc->ar->winrct.ymin;
 		}
@@ -793,13 +847,53 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 			x -= 0.5f;
 			y -= 0.5f;
 		}
-		
+
 		x *= ss->cache->vc->ar->winx / radius;
 		y *= ss->cache->vc->ar->winy / radius;
 
 		/* it is probably worth optimizing for those cases where 
 		   the texture is not rotated by skipping the calls to
 		   atan2, sqrtf, sin, and cos. */
+		if (rotation > 0.001 || rotation < -0.001) {
+			const float angle    = atan2(y, x) + rotation;
+			const float flen     = sqrtf(x*x + y*y);
+
+			x = flen * cos(angle);
+			y = flen * sin(angle);
+		}
+
+		x *= br->mtex.size[0];
+		y *= br->mtex.size[1];
+
+		x += br->mtex.ofs[0];
+		y += br->mtex.ofs[1];
+
+		avg = get_tex_pixel(br, x, y);
+	}
+	// XXX: redunancy here can be refactored once this has been debugged
+	else /* mtex->brush_map_mode == MTEX_MAP_MODE_WRAP */{
+		float rotation = -mtex->rot;
+		float x, y, point_2d[3];
+
+		/* if the active area is being applied for symmetry, flip it
+		   across the symmetry axis and rotate it back to the orignal
+		   position in order to project it. This insures that the 
+		   brush texture will be oriented correctly. */
+
+		flip_coord(point_2d, point, ss->cache->mirror_symmetry_pass);
+
+		if (ss->cache->radial_symmetry_pass)
+			mul_m4_v3(ss->cache->symm_rot_mat_inv, point_2d);
+
+		mul_m4_v3(ss->cache->symm_brush_local_mat, point_2d);
+
+		x = point_2d[0];
+		y = point_2d[1];
+
+		/* it is probably worth optimizing for those cases where 
+		   the texture is not rotated by skipping the calls to
+		   atan2, sqrtf, sin, and cos. */
+
 		if (rotation > 0.001 || rotation < -0.001) {
 			const float angle    = atan2(y, x) + rotation;
 			const float flen     = sqrtf(x*x + y*y);
@@ -883,7 +977,7 @@ static void add_norm_if(float view_vec[3], float out[3], float out_flip[3], floa
 	}
 }
 
-static void calc_area_normal(Sculpt *sd, SculptSession *ss, float an[3], PBVHNode **nodes, int totnode)
+static void calc_area_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode)
 {
 	int n;
 
@@ -1220,6 +1314,8 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
+
+	set_brush_local_mat(sd, ss, brush, NULL, 0, area_normal);
 
 	/* threaded loop over nodes */
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -3171,7 +3267,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		sd->anchored_size = cache->pixel_radius;
 	}
 	/* Find the nudge/clay tubes delta */
-	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE || brush->sculpt_tool == SCULPT_TOOL_CLAY_STRIPS) {
+	else if(brush->sculpt_tool == SCULPT_TOOL_NUDGE || brush->sculpt_tool == SCULPT_TOOL_CLAY_STRIPS || (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP && brush->flag & BRUSH_RAKE)) {
 		float grab_location[3], imat[4][4];
 
 		if(cache->first_time)
@@ -3192,8 +3288,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 			zero_v3(cache->grab_delta);
 		}
 
-		//const float dx = cache->last_rake[0] - cache->mouse[0];
-		//const float dy = cache->last_rake[1] - cache->mouse[1];
+		copy_v3_v3(cache->old_grab_location, grab_location);
 	}
 	/* Find the snake hook delta */
 	else if(brush->sculpt_tool == SCULPT_TOOL_SNAKE_HOOK) {
@@ -3434,6 +3529,8 @@ static void sculpt_flush_update(bContext *C)
 
 	if(mmd)
 		multires_mark_as_modified(ob);
+	if(ob->derivedFinal) /* VBO no longer valid */
+		GPU_drawobject_free(ob->derivedFinal);
 
 	if(ss->modifiers_active) {
 		DAG_id_flush_update(&ob->id, OB_RECALC_DATA);

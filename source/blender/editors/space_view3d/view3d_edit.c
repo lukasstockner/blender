@@ -206,7 +206,7 @@ void view3d_boxview_copy(ScrArea *sa, ARegion *ar)
 
 			if(rv3dtest->viewlock) {
 				rv3dtest->dist= rv3d->dist;
-				VECCOPY(rv3dtest->ofs, rv3d->ofs);
+				copy_v3_v3(rv3dtest->ofs, rv3d->ofs);
 				ED_region_tag_redraw(artest);
 			}
 		}
@@ -310,14 +310,14 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 	vod->ar= CTX_wm_region(C);
 	vod->rv3d= rv3d= vod->ar->regiondata;
 	vod->dist0= rv3d->dist;
-	QUATCOPY(vod->oldquat, rv3d->viewquat);
+	copy_qt_qt(vod->oldquat, rv3d->viewquat);
 	vod->origx= vod->oldx= event->x;
 	vod->origy= vod->oldy= event->y;
 	vod->origkey= event->type; /* the key that triggered the operator.  */
 	vod->use_dyn_ofs= (U.uiflag & USER_ORBIT_SELECTION) ? 1:0;
 
 	if (vod->use_dyn_ofs) {
-		VECCOPY(vod->ofs, rv3d->ofs);
+		copy_v3_v3(vod->ofs, rv3d->ofs);
 		/* If there's no selection, lastofs is unmodified and last value since static */
 		calculateTransformCenter(C, V3D_CENTROID, lastofs);
 		negate_v3_v3(vod->dyn_ofs, lastofs);
@@ -336,8 +336,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 				float mat[3][3];
 				float upvec[3];
 
-				VECCOPY(my_origin, rv3d->ofs);
-				negate_v3(my_origin);				/* ofs is flipped */
+				negate_v3_v3(my_origin, rv3d->ofs);				/* ofs is flipped */
 
 				/* Set the dist value to be the distance from this 3d point */
 				/* this means youll always be able to zoom into it and panning wont go bad when dist was zero */
@@ -358,7 +357,7 @@ static void viewops_data_create(bContext *C, wmOperator *op, wmEvent *event)
 				negate_v3_v3(rv3d->ofs, dvec);
 			}
 			negate_v3(vod->dyn_ofs);
-			VECCOPY(vod->ofs, rv3d->ofs);
+			copy_v3_v3(vod->ofs, rv3d->ofs);
 		} else {
 			vod->ofs[0] = vod->ofs[1] = vod->ofs[2] = 0.0f;
 		}
@@ -403,49 +402,49 @@ static const float thres = 0.93f; //cos(20 deg);
 #define COS45 0.70710678118654746
 #define SIN45 COS45
 
-static float snapquats[39][6] = {
-	/*{q0, q1, q3, q4, view, oposite_direction}*/
-{COS45, -SIN45, 0.0, 0.0, RV3D_VIEW_FRONT, 0},  //front
-{0.0, 0.0, -SIN45, -SIN45, RV3D_VIEW_BACK, 0}, //back
-{1.0, 0.0, 0.0, 0.0, RV3D_VIEW_TOP, 0},       //top
-{0.0, -1.0, 0.0, 0.0, RV3D_VIEW_BOTTOM, 0},      //bottom
-{0.5, -0.5, -0.5, -0.5, RV3D_VIEW_LEFT, 0},    //left
-{0.5, -0.5, 0.5, 0.5, RV3D_VIEW_RIGHT, 0},      //right
+static float snapquats[39][5] = {
+	/*{q0, q1, q3, q4, view}*/
+	{COS45, -SIN45, 0.0, 0.0, RV3D_VIEW_FRONT},  //front
+	{0.0, 0.0, -SIN45, -SIN45, RV3D_VIEW_BACK}, //back
+	{1.0, 0.0, 0.0, 0.0, RV3D_VIEW_TOP},       //top
+	{0.0, -1.0, 0.0, 0.0, RV3D_VIEW_BOTTOM},      //bottom
+	{0.5, -0.5, -0.5, -0.5, RV3D_VIEW_RIGHT},    //left
+	{0.5, -0.5, 0.5, 0.5, RV3D_VIEW_LEFT},      //right
 
 	/* some more 45 deg snaps */
-{0.65328145027160645, -0.65328145027160645, 0.27059805393218994, 0.27059805393218994, 0, 0},
-{0.92387950420379639, 0.0, 0.0, 0.38268342614173889, 0, 0},
-{0.0, -0.92387950420379639, 0.38268342614173889, 0.0, 0, 0},
-{0.35355335474014282, -0.85355335474014282, 0.35355338454246521, 0.14644660055637360, 0, 0},
-{0.85355335474014282, -0.35355335474014282, 0.14644660055637360, 0.35355338454246521, 0, 0},
-{0.49999994039535522, -0.49999994039535522, 0.49999997019767761, 0.49999997019767761, 0, 0},
-{0.27059802412986755, -0.65328145027160645, 0.65328145027160645, 0.27059802412986755, 0, 0},
-{0.65328145027160645, -0.27059802412986755, 0.27059802412986755, 0.65328145027160645, 0, 0},
-{0.27059799432754517, -0.27059799432754517, 0.65328139066696167, 0.65328139066696167, 0, 0},
-{0.38268336653709412, 0.0, 0.0, 0.92387944459915161, 0, 0},
-{0.0, -0.38268336653709412, 0.92387944459915161, 0.0, 0, 0},
-{0.14644658565521240, -0.35355335474014282, 0.85355335474014282, 0.35355335474014282, 0, 0},
-{0.35355335474014282, -0.14644658565521240, 0.35355335474014282, 0.85355335474014282, 0, 0},
-{0.0, 0.0, 0.92387944459915161, 0.38268336653709412, 0, 0},
-{-0.0, 0.0, 0.38268336653709412, 0.92387944459915161, 0, 0},
-{-0.27059802412986755, 0.27059802412986755, 0.65328133106231689, 0.65328133106231689, 0, 0},
-{-0.38268339633941650, 0.0, 0.0, 0.92387938499450684, 0, 0},
-{0.0, 0.38268339633941650, 0.92387938499450684, 0.0, 0, 0},
-{-0.14644658565521240, 0.35355338454246521, 0.85355329513549805, 0.35355332493782043, 0, 0},
-{-0.35355338454246521, 0.14644658565521240, 0.35355332493782043, 0.85355329513549805, 0, 0},
-{-0.49999991059303284, 0.49999991059303284, 0.49999985098838806, 0.49999985098838806, 0, 0},
-{-0.27059799432754517, 0.65328145027160645, 0.65328139066696167, 0.27059799432754517, 0, 0},
-{-0.65328145027160645, 0.27059799432754517, 0.27059799432754517, 0.65328139066696167, 0, 0},
-{-0.65328133106231689, 0.65328133106231689, 0.27059793472290039, 0.27059793472290039, 0, 0},
-{-0.92387932538986206, 0.0, 0.0, 0.38268333673477173, 0, 0},
-{0.0, 0.92387932538986206, 0.38268333673477173, 0.0, 0, 0},
-{-0.35355329513549805, 0.85355329513549805, 0.35355329513549805, 0.14644657075405121, 0, 0},
-{-0.85355329513549805, 0.35355329513549805, 0.14644657075405121, 0.35355329513549805, 0, 0},
-{-0.38268330693244934, 0.92387938499450684, 0.0, 0.0, 0, 0},
-{-0.92387938499450684, 0.38268330693244934, 0.0, 0.0, 0, 0},
-{-COS45, 0.0, 0.0, SIN45, 0, 0},
-{COS45, 0.0, 0.0, SIN45, 0, 0},
-{0.0, 0.0, 0.0, 1.0, 0, 0}
+	{0.65328145027160645, -0.65328145027160645, 0.27059805393218994, 0.27059805393218994, 0},
+	{0.92387950420379639, 0.0, 0.0, 0.38268342614173889, 0},
+	{0.0, -0.92387950420379639, 0.38268342614173889, 0.0, 0},
+	{0.35355335474014282, -0.85355335474014282, 0.35355338454246521, 0.14644660055637360, 0},
+	{0.85355335474014282, -0.35355335474014282, 0.14644660055637360, 0.35355338454246521, 0},
+	{0.49999994039535522, -0.49999994039535522, 0.49999997019767761, 0.49999997019767761, 0},
+	{0.27059802412986755, -0.65328145027160645, 0.65328145027160645, 0.27059802412986755, 0},
+	{0.65328145027160645, -0.27059802412986755, 0.27059802412986755, 0.65328145027160645, 0},
+	{0.27059799432754517, -0.27059799432754517, 0.65328139066696167, 0.65328139066696167, 0},
+	{0.38268336653709412, 0.0, 0.0, 0.92387944459915161, 0},
+	{0.0, -0.38268336653709412, 0.92387944459915161, 0.0, 0},
+	{0.14644658565521240, -0.35355335474014282, 0.85355335474014282, 0.35355335474014282, 0},
+	{0.35355335474014282, -0.14644658565521240, 0.35355335474014282, 0.85355335474014282, 0},
+	{0.0, 0.0, 0.92387944459915161, 0.38268336653709412, 0},
+	{-0.0, 0.0, 0.38268336653709412, 0.92387944459915161, 0},
+	{-0.27059802412986755, 0.27059802412986755, 0.65328133106231689, 0.65328133106231689, 0},
+	{-0.38268339633941650, 0.0, 0.0, 0.92387938499450684, 0},
+	{0.0, 0.38268339633941650, 0.92387938499450684, 0.0, 0},
+	{-0.14644658565521240, 0.35355338454246521, 0.85355329513549805, 0.35355332493782043, 0},
+	{-0.35355338454246521, 0.14644658565521240, 0.35355332493782043, 0.85355329513549805, 0},
+	{-0.49999991059303284, 0.49999991059303284, 0.49999985098838806, 0.49999985098838806, 0},
+	{-0.27059799432754517, 0.65328145027160645, 0.65328139066696167, 0.27059799432754517, 0},
+	{-0.65328145027160645, 0.27059799432754517, 0.27059799432754517, 0.65328139066696167, 0},
+	{-0.65328133106231689, 0.65328133106231689, 0.27059793472290039, 0.27059793472290039, 0},
+	{-0.92387932538986206, 0.0, 0.0, 0.38268333673477173, 0},
+	{0.0, 0.92387932538986206, 0.38268333673477173, 0.0, 0},
+	{-0.35355329513549805, 0.85355329513549805, 0.35355329513549805, 0.14644657075405121, 0},
+	{-0.85355329513549805, 0.35355329513549805, 0.14644657075405121, 0.35355329513549805, 0},
+	{-0.38268330693244934, 0.92387938499450684, 0.0, 0.0, 0},
+	{-0.92387938499450684, 0.38268330693244934, 0.0, 0.0, 0},
+	{-COS45, 0.0, 0.0, SIN45, 0},
+	{COS45, 0.0, 0.0, SIN45, 0},
+	{0.0, 0.0, 0.0, 1.0, 0}
 };
 
 enum {
@@ -538,12 +537,12 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 
 		if (vod->use_dyn_ofs) {
 			/* compute the post multiplication quat, to rotate the offset correctly */
-			QUATCOPY(q1, vod->oldquat);
+			copy_qt_qt(q1, vod->oldquat);
 			conjugate_qt(q1);
 			mul_qt_qtqt(q1, q1, rv3d->viewquat);
 
 			conjugate_qt(q1); /* conj == inv for unit quat */
-			VECCOPY(rv3d->ofs, vod->ofs);
+			copy_v3_v3(rv3d->ofs, vod->ofs);
 			sub_v3_v3(rv3d->ofs, vod->dyn_ofs);
 			mul_qt_v3(q1, rv3d->ofs);
 			add_v3_v3(rv3d->ofs, vod->dyn_ofs);
@@ -1024,7 +1023,7 @@ static void view_zoom_mouseloc(ARegion *ar, float dfac, int mx, int my)
 		/* Offset to target position and dolly */
 		new_dist = rv3d->dist * dfac;
 
-		VECCOPY(rv3d->ofs, tvec);
+		copy_v3_v3(rv3d->ofs, tvec);
 		rv3d->dist = new_dist;
 
 		/* Calculate final offset */
@@ -1432,11 +1431,9 @@ static int viewselected_exec(bContext *C, wmOperator *op) /* like a localview wi
 					if(pchan->bone->layer & arm->layer) {
 						bPoseChannel *pchan_tx= pchan->custom_tx ? pchan->custom_tx : pchan;
 						ok= 1;
-						VECCOPY(vec, pchan_tx->pose_head);
-						mul_m4_v3(ob->obmat, vec);
+						mul_v3_m4v3(vec, ob->obmat, pchan_tx->pose_head);
 						DO_MINMAX(vec, min, max);
-						VECCOPY(vec, pchan_tx->pose_tail);
-						mul_m4_v3(ob->obmat, vec);
+						mul_v3_m4v3(vec, ob->obmat, pchan_tx->pose_tail);
 						DO_MINMAX(vec, min, max);
 					}
 				}
@@ -2084,7 +2081,7 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 			}
 			else if(orbitdir == V3D_VIEW_STEPDOWN || orbitdir == V3D_VIEW_STEPUP) {
 				/* horizontal axis */
-				VECCOPY(q1+1, rv3d->viewinv[0]);
+				copy_v3_v3(q1+1, rv3d->viewinv[0]);
 
 				normalize_v3(q1+1);
 				phi= (float)(M_PI/360.0)*U.pad_rot_angle;
@@ -2397,7 +2394,7 @@ static int set_3dcursor_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	fp= give_cursor(scene, v3d);
 
 //	if(obedit && ctrl) lr_click= 1;
-	VECCOPY(oldcurs, fp);
+	copy_v3_v3(oldcurs, fp);
 
 	mx= event->x - ar->winrct.xmin;
 	my= event->y - ar->winrct.ymin;
@@ -2982,7 +2979,7 @@ void viewmoveNDOF(Scene *scene, ARegion *ar, View3D *v3d, int mode)
 		obofs[2] = -ob->obmat[3][2];
 	}
 	else {
-		VECCOPY(obofs, rv3d->ofs);
+		copy_v3_v3(obofs, rv3d->ofs);
 	}
 
 	/* calc an adjustment based on distance from camera
