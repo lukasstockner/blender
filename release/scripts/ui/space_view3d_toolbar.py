@@ -893,6 +893,7 @@ class VIEW3D_PT_tools_brush_tool(PaintPanel):
 
         if context.sculpt_object:
             col.prop(brush, "sculpt_tool", expand=False, text="")
+            col.operator("brush.reset")
         elif context.texture_paint_object:
             col.prop(brush, "imagepaint_tool", expand=False, text="")
         elif context.vertex_paint_object or context.weight_paint_object:
@@ -1042,7 +1043,9 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
 
         col = split.column()
 
-        col.prop(tool_settings.sculpt, "fast_navigate")
+        col.prop(sculpt, "use_openmp", text="Threaded Sculpt")
+        col.prop(sculpt, "fast_navigate")
+        col.prop(sculpt, "show_brush")
 
         col.label(text="Unified Settings:")
         col.prop(tool_settings, "sculpt_paint_use_unified_size", text="Size")
