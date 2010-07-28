@@ -1314,6 +1314,19 @@ void BLI_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***gridfaces, int *tot
 	*gridfaces= faces;
 }
 
+/**** Access to mesh/grid data ****/
+int BLI_pbvh_uses_grids(PBVH *bvh)
+{
+	return !!bvh->grids;
+}
+
+void BLI_pbvh_get_customdata(PBVH *bvh, CustomData **vdata, CustomData **fdata)
+{
+	if(vdata) *vdata = bvh->vdata;
+	if(fdata) *fdata = bvh->fdata;
+}
+
+
 /***************************** Node Access ***********************************/
 
 void BLI_pbvh_node_mark_update(PBVHNode *node)
@@ -1597,7 +1610,11 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 
 //#include <GL/glew.h>
 
-void BLI_pbvh_node_draw(PBVHNode *node, void *data)
+typedef struct {
+	PBVH *pbvh;
+	GPUDrawFlags flags;
+} PBVHDrawData;
+void BLI_pbvh_node_draw(PBVHNode *node, void *data_v)
 {
 #if 0
 	/* XXX: Just some quick code to show leaf nodes in different colors */
@@ -1615,7 +1632,9 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *data)
 
 	glColor3f(1, 0, 0);
 #endif
-	GPU_draw_buffers(node->draw_buffers, *((GPUDrawFlags*)data));
+
+	PBVHDrawData *data = data_v;
+	GPU_draw_buffers(node->draw_buffers, data->pbvh, node, data->flags);
 }
 
 int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
@@ -1630,6 +1649,7 @@ int BLI_pbvh_node_planes_contain_AABB(PBVHNode *node, void *data)
 void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int flags)
 {
 	PBVHNode **nodes;
+	PBVHDrawData draw_data = {bvh, flags};
 	int totnode;
 
 	BLI_pbvh_search_gather(bvh, update_search_cb,
@@ -1643,10 +1663,10 @@ void BLI_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3], int fla
 
 	if(planes) {
 		BLI_pbvh_search_callback(bvh, BLI_pbvh_node_planes_contain_AABB,
-				planes, BLI_pbvh_node_draw, &flags);
+				planes, BLI_pbvh_node_draw, &draw_data);
 	}
 	else {
-		BLI_pbvh_search_callback(bvh, NULL, NULL, BLI_pbvh_node_draw, &flags);
+		BLI_pbvh_search_callback(bvh, NULL, NULL, BLI_pbvh_node_draw, &draw_data);
 	}
 }
 

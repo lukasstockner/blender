@@ -423,19 +423,6 @@ struct GPU_Buffers {
 	GLuint vert_buf, index_buf, color_buf;
 	GLenum index_type;
 
-	/* mesh pointers in case buffer allocation fails */
-	MFace *mface;
-	MVert *mvert;
-	int *face_indices;
-	int totface;
-
-	/* grid pointers */
-	DMGridData **grids;
-	int *grid_indices;
-	int totgrid;
-	int gridsize;
-	struct GridKey *gridkey;
-
 	unsigned int tot_tri, tot_quad;
 };
 
@@ -482,6 +469,29 @@ static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, in
 	return color_data;
 }
 
+static void color_from_face_corner(CustomData *fdata, int mcol_first_layer,
+				   int mcol_totlayer, int cndx, float v[3])
+{
+	int i;
+
+	v[0] = v[1] = v[2] = 1;
+	
+	for(i = mcol_first_layer; i < mcol_first_layer+mcol_totlayer; ++i) {
+		MCol *mcol;
+		float col[3];
+
+		mcol = fdata->layers[i].data;
+		mcol += cndx;
+
+		col[0] = mcol->b / 255.0f;
+		col[1] = mcol->g / 255.0f;
+		col[2] = mcol->r / 255.0f;
+
+		interp_v3_v3v3(v, v, col,
+			       mcol->a / 255.0f);
+	}
+}
+
 void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
 				   PBVHNode *node, GPUDrawFlags flags)
 {
@@ -492,6 +502,9 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
 	int totface, *face_indices, *face_vert_indices;
 	int mcol_totlayer, pmask_totlayer;
 	int color_needed;
+
+	if(!buffers->vert_buf)
+		return;
 
 	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
 	BLI_pbvh_node_get_verts(bvh, node, &vert_indices, NULL, &vdata);
@@ -511,7 +524,7 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
 	color_data = map_color_buffer(buffers, color_needed, totvert);
 
 	if(color_data) {
-		int i, j, k, mcol_first_layer, pmask_first_layer;
+		int i, j, mcol_first_layer, pmask_first_layer;
 
 		mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
 		pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
@@ -528,31 +541,21 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
 			   transition from one face to another */
 			for(j = 0; j < S; ++j) {
 				int node_vert_index = face_vert_indices[i*4 + j];
-				float mask;
-				float v[3] = {1, 1, 1};
+				float col[3], mask;
 
-				for(k = mcol_first_layer;
-				    k < mcol_first_layer+mcol_totlayer; ++k) {
-					MCol *mcol;
-					float col[3];
-
-					mcol = fdata->layers[k].data;
-					mcol += face_index*4+j;
-
-					col[0] = mcol->b / 255.0f;
-					col[1] = mcol->g / 255.0f;
-					col[2] = mcol->r / 255.0f;
-
-					interp_v3_v3v3(v, v, col,
-						       mcol->a / 255.0f);
-				}
+				color_from_face_corner(fdata,
+						       mcol_first_layer,
+						       mcol_totlayer,
+						       face_index*4+j, col);
 
 				mask = paint_mask_from_vertex(vdata,
 							      vert_indices[node_vert_index],
 							      pmask_totlayer,
 							      pmask_first_layer);
 
-				gpu_colors_from_floats(color_data + node_vert_index*3, v, mask);
+				gpu_colors_from_floats(color_data +
+						       node_vert_index*3,
+						       col, mask);
 			}
 		}
 
@@ -594,8 +597,6 @@ void GPU_update_mesh_vert_buffers(GPU_Buffers *buffers, MVert *mvert,
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
-
-	buffers->mvert = mvert;
 }
 
 GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
@@ -665,11 +666,27 @@ GPU_Buffers *GPU_build_mesh_buffers(GHash *map, MVert *mvert, MFace *mface,
 
 	buffers->tot_tri = tottri;
 
-	buffers->mface = mface;
-	buffers->face_indices = face_indices;
-	buffers->totface = totface;
-
 	return buffers;
+}
+
+static void color_from_gridelem(DMGridData *elem, GridKey *gridkey, float col[3])
+{
+	int i;
+
+	col[0] = col[1] = col[2] = 1;
+
+	/* combine colors */
+	for(i = 0; i < gridkey->color; ++i) {
+		float *c = GRIDELEM_COLOR(elem, gridkey)[i];
+
+		/* TODO: check layer enabled/strength */
+
+		/* for now we just combine layers in order
+		   interpolating using the alpha component
+		   ("order" is ill-defined here since we
+		   don't guarantee the order of cdm data) */
+		interp_v3_v3v3(col, col, c, c[3]);
+	}
 }
 
 void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
@@ -680,6 +697,9 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 	int totvert;
 	int color_needed;
 
+	if(!buffers->vert_buf)
+		return;
+
 	/* avoid creating color buffer if not needed */
 	color_needed =
 		((flags & GPU_DRAW_ACTIVE_MCOL) && gridkey->color) ||
@@ -689,31 +709,19 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 	color_data= map_color_buffer(buffers, color_needed, totvert);
 
 	if(color_data) {
-		int i, j, k;
+		int i, j;
 
 		for(i = 0; i < totgrid; ++i) {
 			DMGridData *grid= grids[grid_indices[i]];
 
 			for(j = 0; j < gridsize*gridsize; ++j, color_data += 3) {
 				DMGridData *elem = GRIDELEM_AT(grid, j, gridkey);
-				float vc[3] = {1, 1, 1}, mask;
+				float col[3], mask;
 
-				/* combine colors */
-				for(k = 0; k < gridkey->color; ++k) {
-					float *col = GRIDELEM_COLOR(elem, gridkey)[k];
-
-					/* TODO: check layer enabled/strength */
-
-					/* for now we just combine layers in order
-					   interpolating using the alpha component
-					   ("order" is ill-defined here since we
-					   don't guarantee the order of cdm data) */
-					interp_v3_v3v3(vc, vc, col, col[3]);
-				}
-
+				color_from_gridelem(elem, gridkey, col);
 				mask = paint_mask_from_gridelem(elem, gridkey, vdata);
 
-				gpu_colors_from_floats(color_data, vc, mask);
+				gpu_colors_from_floats(color_data, col, mask);
 			}
 		}
 
@@ -778,12 +786,6 @@ void GPU_update_grid_vert_buffers(GPU_Buffers *buffers, DMGridData **grids,
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
-
-	buffers->grids = grids;
-	buffers->grid_indices = grid_indices;
-	buffers->totgrid = totgrid;
-	buffers->gridsize = gridsize;
-	buffers->gridkey = gridkey;
 
 	//printf("node updated %p\n", buffers_v);
 }
@@ -875,9 +877,136 @@ GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
 	return buffers;
 }
 
-void GPU_draw_buffers(GPU_Buffers *buffers_v, GPUDrawFlags flags)
+static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, GPUDrawFlags flags)
 {
-	GPU_Buffers *buffers = buffers_v;
+	DMGridData **grids;
+	GridKey *gridkey;
+	int *grid_indices, totgrid, gridsize;
+	CustomData *vdata = NULL, *fdata = NULL;
+	int mcol_first_layer, pmask_first_layer;
+	int i, use_grids, use_color;
+
+	use_grids = BLI_pbvh_uses_grids(pbvh);
+
+	/* see if color data is needed */
+	if(use_grids) {
+		BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
+					&totgrid, NULL, &gridsize,
+					&grids, NULL, &gridkey);
+		use_color = gridkey->color || gridkey->mask;
+		if(use_color)
+			BLI_pbvh_get_customdata(pbvh, &vdata, NULL);
+	}
+	else {
+		BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
+
+		mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
+		pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
+
+		use_color = mcol_first_layer != -1 || pmask_first_layer != -1;
+	}
+
+	if(use_color) {
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
+	}
+
+	if(use_grids) {
+		int x, y;
+
+		BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
+					&totgrid, NULL, &gridsize,
+					&grids, NULL, &gridkey);
+
+		for(i = 0; i < totgrid; ++i) {
+			DMGridData *grid = grids[grid_indices[i]];
+
+			for(y = 0; y < gridsize-1; y++) {
+				glBegin(GL_QUAD_STRIP);
+				for(x = 0; x < gridsize; x++) {
+					DMGridData *a = GRIDELEM_AT(grid, y*gridsize + x, gridkey);
+					DMGridData *b = GRIDELEM_AT(grid, (y+1)*gridsize + x, gridkey);
+					float acol[3], bcol[3], amask, bmask;
+					unsigned char aglc[3], bglc[3];
+
+					color_from_gridelem(a, gridkey, acol);
+					color_from_gridelem(b, gridkey, bcol);
+					amask = paint_mask_from_gridelem(a, gridkey, vdata);
+					bmask = paint_mask_from_gridelem(b, gridkey, vdata);
+					
+					if(use_color) {
+						gpu_colors_from_floats(aglc, acol, amask);
+						gpu_colors_from_floats(bglc, bcol, bmask);
+					}
+
+					if(use_color)
+						glColor3ubv(aglc);
+					glNormal3fv(GRIDELEM_NO(a, gridkey));
+					glVertex3fv(GRIDELEM_CO(a, gridkey));
+					if(use_color)
+						glColor3ubv(bglc);
+					glNormal3fv(GRIDELEM_NO(b, gridkey));
+					glVertex3fv(GRIDELEM_CO(b, gridkey));
+				}
+				glEnd();
+			}
+		}
+
+	}
+	else {
+		MFace *mface;
+		MVert *mvert;
+		int totface, *face_indices;
+		int j, mcol_totlayer, pmask_totlayer;
+
+		BLI_pbvh_node_get_verts(pbvh, node, NULL, &mvert, NULL);
+		BLI_pbvh_node_get_faces(pbvh, node, &mface, NULL, &face_indices, NULL, &totface);
+
+		if(mcol_first_layer)
+			mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);
+
+		if(pmask_first_layer)
+			pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
+
+		for(i = 0; i < totface; ++i) {
+			int face_index = face_indices[i];
+			MFace *f = mface + face_index;
+			int S = f->v4 ? 4 : 3;
+
+			glBegin((f->v4)? GL_QUADS: GL_TRIANGLES);
+
+			for(j = 0; j < S; ++j) {
+				int vndx = (&f->v1)[j];
+				float col[3], mask;
+				unsigned char glc[3];
+
+				color_from_face_corner(fdata,
+						       mcol_first_layer,
+						       mcol_totlayer,
+						       face_index*4+j, col);
+
+				mask = paint_mask_from_vertex(vdata, vndx,
+							      pmask_totlayer,
+							      pmask_first_layer);
+
+				gpu_colors_from_floats(glc, col, mask);
+
+				glColor3ubv(glc);
+				glNormal3sv(mvert[vndx].no);
+				glVertex3fv(mvert[vndx].co);
+			}
+
+			glEnd();
+		}
+	}
+
+	if(use_color)
+		glDisable(GL_COLOR_MATERIAL);
+}
+
+void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, GPUDrawFlags flags)
+{
+	glShadeModel((flags & GPU_DRAW_SMOOTH) ? GL_SMOOTH: GL_FLAT);
 
 	if(buffers->vert_buf && buffers->index_buf) {
 		GLboolean colmat;
@@ -895,8 +1024,6 @@ void GPU_draw_buffers(GPU_Buffers *buffers_v, GPUDrawFlags flags)
 			glGetBooleanv(GL_COLOR_MATERIAL, &colmat);
 			glEnable(GL_COLOR_MATERIAL);
 		}
-
-		glShadeModel((flags & GPU_DRAW_SMOOTH) ? GL_SMOOTH: GL_FLAT);
 
 		if(buffers->tot_quad) {
 			glVertexPointer(3, GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, co));
@@ -926,8 +1053,6 @@ void GPU_draw_buffers(GPU_Buffers *buffers_v, GPUDrawFlags flags)
 		if(buffers->color_buf && !colmat)
 			glDisable(GL_COLOR_MATERIAL);
 
-		glShadeModel(GL_FLAT);	
-
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, 0);
 
@@ -935,48 +1060,12 @@ void GPU_draw_buffers(GPU_Buffers *buffers_v, GPUDrawFlags flags)
 		glDisableClientState(GL_NORMAL_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
 	}
-	else if(buffers->totface) {
-		/* fallback if we are out of memory */
-		int i;
-
-		for(i = 0; i < buffers->totface; ++i) {
-			MFace *f = buffers->mface + buffers->face_indices[i];
-
-			glBegin((f->v4)? GL_QUADS: GL_TRIANGLES);
-			glNormal3sv(buffers->mvert[f->v1].no);
-			glVertex3fv(buffers->mvert[f->v1].co);
-			glNormal3sv(buffers->mvert[f->v2].no);
-			glVertex3fv(buffers->mvert[f->v2].co);
-			glNormal3sv(buffers->mvert[f->v3].no);
-			glVertex3fv(buffers->mvert[f->v3].co);
-			if(f->v4) {
-				glNormal3sv(buffers->mvert[f->v4].no);
-				glVertex3fv(buffers->mvert[f->v4].co);
-			}
-			glEnd();
-		}
+	else {
+		/* fallback to regular drawing if out of memory or if VBO is switched off */
+		gpu_draw_node_without_vb(buffers, pbvh, node, flags);
 	}
-	else if(buffers->totgrid) {
-		int i, x, y, gridsize = buffers->gridsize;
 
-		for(i = 0; i < buffers->totgrid; ++i) {
-			DMGridData *grid = buffers->grids[buffers->grid_indices[i]];
-
-			for(y = 0; y < gridsize-1; y++) {
-				glBegin(GL_QUAD_STRIP);
-				for(x = 0; x < gridsize; x++) {
-					DMGridData *a = GRIDELEM_AT(grid, y*gridsize + x, buffers->gridkey);
-					DMGridData *b = GRIDELEM_AT(grid, (y+1)*gridsize + x, buffers->gridkey);
-
-					glNormal3fv(GRIDELEM_NO(a, buffers->gridkey));
-					glVertex3fv(GRIDELEM_CO(a, buffers->gridkey));
-					glNormal3fv(GRIDELEM_NO(b, buffers->gridkey));
-					glVertex3fv(GRIDELEM_CO(b, buffers->gridkey));
-				}
-				glEnd();
-			}
-		}
-	}
+	glShadeModel(GL_FLAT);
 }
 
 void GPU_free_buffers(GPU_Buffers *buffers_v)

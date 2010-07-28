@@ -139,6 +139,11 @@ typedef enum {
 void BLI_pbvh_node_mark_update(PBVHNode *node);
 void BLI_pbvh_node_set_flags(PBVHNode *node, void *data);
 
+/* returns true if the pbvh is using grids rather than faces */
+int BLI_pbvh_uses_grids(PBVH *bvh);
+
+void BLI_pbvh_get_customdata(PBVH *pbvh, struct CustomData **vdata, struct CustomData **fdata);
+
 void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
 			     struct MFace **faces, struct CustomData **fdata,
 			     int **face_indices, int **face_vert_indices,
