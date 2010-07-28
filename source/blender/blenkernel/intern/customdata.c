@@ -840,7 +840,7 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* CD_CLOTH_ORCO */
 	{sizeof(float)*3, "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
 	/* CD_GRID */
-	{sizeof(CustomData), "CustomDataMultires", 1, "Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
+	{sizeof(CustomDataMultires), "CustomDataMultires", 1, "Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
 	/* CD_PAINTMASK */
 	{sizeof(float), "", 0, "Mask", NULL, NULL, NULL, NULL, NULL},
 };
@@ -860,11 +860,11 @@ const CustomDataMask CD_MASK_MESH =
 	CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
 	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS |
-	CD_MASK_PAINTMASK;
+	CD_MASK_GRIDS | CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_EDITMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR |
-	CD_MASK_MDISPS | CD_MASK_PAINTMASK;
+	CD_MASK_MDISPS | CD_MASK_GRIDS | CD_MASK_PAINTMASK;
 const CustomDataMask CD_MASK_DERIVEDMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_CLOTH_ORCO |
@@ -939,6 +939,8 @@ void CustomData_merge(const struct CustomData *source, struct CustomData *dest,
 			newlayer->active_clone = lastclone;
 			newlayer->active_mask = lastmask;
 			newlayer->flag |= lastflag & (CD_FLAG_EXTERNAL|CD_FLAG_IN_MEMORY);
+			if(layer->flag & CD_FLAG_MULTIRES)
+				newlayer->flag |= CD_FLAG_MULTIRES;
 		}
 	}
 }
