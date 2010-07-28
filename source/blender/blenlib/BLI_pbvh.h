@@ -131,7 +131,9 @@ typedef enum {
 	                 PBVH_UpdateOriginalBB |
 	                 PBVH_UpdateVertBuffers |
 	                 PBVH_UpdateColorBuffers |
-	                 PBVH_UpdateRedraw
+	                 PBVH_UpdateRedraw,
+
+	PBVH_NeedsColorStitch = 128
 } PBVHNodeFlags;
 
 void BLI_pbvh_node_mark_update(PBVHNode *node);

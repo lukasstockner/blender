@@ -1089,8 +1089,15 @@ static void multiresModifier_update(DerivedMesh *dm)
 
 void multires_stitch_grids(Object *ob)
 {
-	/* utility for smooth brush */
-	if(ob && ob->derivedFinal) {
+	DerivedMesh *dm;
+
+	if(!ob)
+		return;
+
+	dm = ob->derivedFinal;
+
+	/* utility for smooth/blur brushes */
+	if(dm && dm->type == DM_TYPE_CCGDM) {
 		CCGDerivedMesh *ccgdm = (CCGDerivedMesh*)ob->derivedFinal;
 		CCGFace **faces;
 		int totface;
@@ -1099,6 +1106,7 @@ void multires_stitch_grids(Object *ob)
 			BLI_pbvh_get_grid_updates(ccgdm->pbvh, 0, (void***)&faces, &totface);
 
 			if(totface) {
+				/* TODO: could improve performance by limiting to e.g. just coords or just colors */
 				ccgSubSurf_stitchFaces(ccgdm->ss, 0, faces, totface);
 				MEM_freeN(faces);
 			}

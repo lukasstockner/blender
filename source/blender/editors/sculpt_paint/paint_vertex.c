@@ -22,7 +22,7 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s): none yet.
+ * Contributor(s): Nicholas Bishop
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -1772,6 +1772,71 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 	}
 }
 
+static void vpaint_nodes_grids_smooth(Brush *brush, PaintStroke *stroke,
+				      DMGridData **grids, CustomData *vdata,
+				      GridKey *gridkey,
+				      int *grid_indices, int totgrid,
+				      int gridsize, int active, float center[3],
+				      float radius, float radius_squared)
+{
+	int i, j, x, y, x2, y2;
+
+	/* TODO: this could be better optimized like sculpt,
+	   just doing the simplest smooth for now */
+
+	for(i = 0; i < totgrid; ++i) {
+		DMGridData *grid = grids[grid_indices[i]], *act_elem, *elem;
+
+		for(y = 0; y < gridsize; ++y) {
+			for(x = 0; x < gridsize; ++x) {
+				float avg_col[4] = {0, 0, 0, 0};
+				float *act_col, strength, mask;
+				float *co, dist_squared, dist;
+				int totcol = 0;
+
+				act_elem = GRIDELEM_AT(grid, y*gridsize + x, gridkey);
+
+				co = GRIDELEM_CO(act_elem, gridkey);
+				dist_squared = len_squared_v3v3(center, co);
+
+				if(dist_squared > radius_squared)
+					continue;
+
+				dist = sqrtf(dist_squared);
+
+				for(y2 = -1; y2 <= 1; y2+=2) {
+					if(y + y2 < 0 || y + y2 >= gridsize)
+						continue;
+
+					for(x2 = -1; x2 <= 1; x2+=2) {
+						if(x + x2 < 0 || x + x2 >= gridsize)
+							continue;
+
+						elem = GRIDELEM_AT(grid, (y+y2)*gridsize + (x+x2), gridkey);
+
+						++totcol;
+						for(j = 0; j < 4; ++j)
+							avg_col[j] += GRIDELEM_COLOR(elem, gridkey)[active][j];
+					}
+				}
+
+				mask = paint_mask_from_gridelem(act_elem,
+								gridkey,
+								vdata);
+				strength = brush->alpha *
+					tex_strength(brush, stroke,
+						     co, mask,
+						     dist, radius);
+				act_col = GRIDELEM_COLOR(act_elem, gridkey)[active];
+				for(j = 0; j < 4; ++j)
+					act_col[j] = interpf(avg_col[j] / totcol, act_col[j], strength);
+			}
+		}
+	}
+
+	/* be sure to stitch grids after */
+}
+
 static void vpaint_nodes_faces_smooth(Brush *brush, PaintStroke *stroke,
 				      PBVH *pbvh, PBVHNode *node,
 				      MFace *mface,
@@ -1875,6 +1940,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 {
 	PBVH *pbvh = ob->paint->pbvh;
 	Brush *brush = paint_brush(&vp->paint);
+	int blur = brush->vertexpaint_tool == VERTEX_PAINT_BLUR;
 	int n;
 
 	for(n = 0; n < totnode; ++n) {
@@ -1905,14 +1971,31 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 								      gridkey);
 
 			if(active != -1) {
-				vpaint_nodes_grids(brush, stroke, grids, vdata,
-						   gridkey,
-						   grid_indices, totgrid,
-						   gridsize, active, center,
-						   radius);
+				if(blur) {
+					vpaint_nodes_grids_smooth(brush, stroke,
+							   grids, vdata,
+							   gridkey,
+							   grid_indices,
+							   totgrid,
+							   gridsize,
+							   active, center,
+							   radius, radius*radius);
+					BLI_pbvh_node_set_flags(nodes[n],
+								SET_INT_IN_POINTER(PBVH_NeedsColorStitch));
+				}
+				else {
+					vpaint_nodes_grids(brush, stroke,
+							   grids, vdata,
+							   gridkey,
+							   grid_indices,
+							   totgrid,
+							   gridsize,
+							   active, center,
+							   radius);
+				}
 			}
 		}
-		else if(brush->vertexpaint_tool == VERTEX_PAINT_BLUR) {
+		else if(blur) {
 			dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 			fmap = dm->getFaceMap ? dm->getFaceMap(ob, dm) : NULL;
 
@@ -2066,6 +2149,8 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 
 	paint_stroke_apply_brush(C, stroke, &vp->paint);
 
+	if(paint_brush(&vp->paint)->vertexpaint_tool == VERTEX_PAINT_BLUR)
+		multires_stitch_grids(ob);
 	multires_mark_as_modified(ob);
 
 	/* partial redraw */
