@@ -2595,6 +2595,8 @@ int CustomData_multires_remove_layer(CustomDataMultires *cdm, int type,
 	for(i = 0; i < cdm->totlayer; ++i) {
 		if(i < layer)
 			cdm->layers[i] = old[i];
+		else if(i == layer && old[i].griddata)
+			MEM_freeN(old[i].griddata);
 		else if(i > layer)
 			cdm->layers[i - 1] = old[i];
 	}
