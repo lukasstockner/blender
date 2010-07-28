@@ -506,9 +506,10 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
 	if(!buffers->vert_buf)
 		return;
 
+	BLI_pbvh_get_customdata(bvh, &vdata, &fdata);
 	BLI_pbvh_node_num_verts(bvh, node, NULL, &totvert);
-	BLI_pbvh_node_get_verts(bvh, node, &vert_indices, NULL, &vdata);
-	BLI_pbvh_node_get_faces(bvh, node, &mface, &fdata, &face_indices,
+	BLI_pbvh_node_get_verts(bvh, node, &vert_indices, NULL);
+	BLI_pbvh_node_get_faces(bvh, node, &mface, &face_indices,
 				&face_vert_indices, &totface);
 	
 	mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);
@@ -959,8 +960,8 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		int totface, *face_indices;
 		int j, mcol_totlayer, pmask_totlayer;
 
-		BLI_pbvh_node_get_verts(pbvh, node, NULL, &mvert, NULL);
-		BLI_pbvh_node_get_faces(pbvh, node, &mface, NULL, &face_indices, NULL, &totface);
+		BLI_pbvh_node_get_verts(pbvh, node, NULL, &mvert);
+		BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
 
 		if(mcol_first_layer)
 			mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);

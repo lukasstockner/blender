@@ -1339,11 +1339,10 @@ void BLI_pbvh_node_set_flags(PBVHNode *node, void *data)
 	node->flag |= GET_INT_FROM_POINTER(data);
 }
 
-void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVert **verts, CustomData **vdata)
+void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node, int **vert_indices, MVert **verts)
 {
 	if(vert_indices) *vert_indices= node->vert_indices;
 	if(verts) *verts= bvh->verts;
-	if(vdata) *vdata= bvh->vdata;
 }
 
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *totvert)
@@ -1359,20 +1358,18 @@ void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node, int *uniquevert, int *to
 }
 
 void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
-			     struct MFace **mface, struct CustomData **fdata,
+			     MFace **mface,
 			     int **face_indices, int **face_vert_indices,
 			     int *totnode)
 {
 	if(bvh->grids) {
 		if(mface) *mface= NULL;
-		if(fdata) *fdata= bvh->fdata;
 		if(face_indices) *face_indices= NULL;
 		if(face_vert_indices) *face_vert_indices= NULL;
 		if(totnode) *totnode= 0;
 	}
 	else {
 		if(mface) *mface= bvh->faces;
-		if(fdata) *fdata= bvh->fdata;
 		if(face_indices) *face_indices= node->prim_indices;
 		if(face_vert_indices) *face_vert_indices= node->face_vert_indices;
 		if(totnode) *totnode= node->totprim;

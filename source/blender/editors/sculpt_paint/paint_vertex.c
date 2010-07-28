@@ -1944,31 +1944,23 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 	int n;
 
 	for(n = 0; n < totnode; ++n) {
-		DerivedMesh *dm;
-		ListBase *fmap;
-
-		MVert *mvert;
-		MFace *mface;
 		CustomData *vdata = NULL;
 		CustomData *fdata = NULL;
-		int *face_indices, totface;
 
-		DMGridData **grids;
-		GridKey *gridkey;
-		int *grid_indices, totgrid, gridsize;
+		BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
 
-		BLI_pbvh_node_get_verts(pbvh, nodes[n], NULL, &mvert, &vdata);
+		if(BLI_pbvh_uses_grids(pbvh)) {
+			DMGridData **grids;
+			GridKey *gridkey;
+			int *grid_indices, totgrid, gridsize;
+			int active;
+			
+			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
+						&totgrid, NULL, &gridsize, &grids,
+						NULL, &gridkey);
 
-		BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface, &fdata,
-					&face_indices, NULL, &totface);
-
-		BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
-					&totgrid, NULL, &gridsize, &grids,
-					NULL, &gridkey);
-
-		if(grids) {
-			int active = vpaint_find_gridkey_active_layer(fdata,
-								      gridkey);
+			active = vpaint_find_gridkey_active_layer(fdata,
+								  gridkey);
 
 			if(active != -1) {
 				if(blur) {
@@ -1995,22 +1987,35 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 				}
 			}
 		}
-		else if(blur) {
-			dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-			fmap = dm->getFaceMap ? dm->getFaceMap(ob, dm) : NULL;
-
-			vpaint_nodes_faces_smooth(brush, stroke,
-						  pbvh, nodes[n],
-						  mface, fdata,
-						  fmap, center,
-						  radius, radius*radius);
-		}
 		else {
-			vpaint_nodes_faces(brush, stroke,
-					   mface, mvert,
-					   vdata, fdata,
-					   face_indices, totface,
-					   center, radius);
+			MVert *mvert;
+			MFace *mface;
+			int *face_indices, totface;
+
+			BLI_pbvh_node_get_verts(pbvh, nodes[n], NULL, &mvert);
+			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface,
+						&face_indices, NULL, &totface);
+
+			if(blur) {
+				DerivedMesh *dm;
+				ListBase *fmap;
+
+				dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+				fmap = dm->getFaceMap ? dm->getFaceMap(ob, dm) : NULL;
+
+				vpaint_nodes_faces_smooth(brush, stroke,
+							  pbvh, nodes[n],
+							  mface, fdata,
+							  fmap, center,
+							  radius, radius*radius);
+			}				
+			else {
+				vpaint_nodes_faces(brush, stroke,
+						   mface, mvert,
+						   vdata, fdata,
+						   face_indices, totface,
+						   center, radius);
+			}
 		}
 
 		BLI_pbvh_node_set_flags(nodes[n],
@@ -2101,23 +2106,24 @@ static void vpaint_color_single_element(bContext *C, PaintStroke *stroke,
 	if(paint_stroke_get_location(C, stroke,
 				     vpaint_color_one_face_raycast_cb,
 				     &hit_data, hit_loc, mouse, 0)) {
-		DMGridData **grids;
-		GridKey *gridkey;
-		MFace *mface;
+		PBVH *pbvh = vc->obact->paint->pbvh;
 		CustomData *fdata;
-		int *face_indices, *grid_indices, gridsize;
 
-		BLI_pbvh_node_get_faces(vc->obact->paint->pbvh, hit_data.node,
-					&mface, &fdata, &face_indices,
-					NULL, NULL);
-		BLI_pbvh_node_get_grids(vc->obact->paint->pbvh, hit_data.node,
-					&grid_indices,
-					NULL, NULL, &gridsize, &grids,
-					NULL, &gridkey);
+		BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
 
-		if(grids) {
-			int active = vpaint_find_gridkey_active_layer(fdata,
-								      gridkey);
+		if(BLI_pbvh_uses_grids(pbvh)) {
+			DMGridData **grids;
+			GridKey *gridkey;
+			int *grid_indices, gridsize;
+			int active;
+
+			BLI_pbvh_node_get_grids(pbvh, hit_data.node,
+						&grid_indices,
+						NULL, NULL, &gridsize, &grids,
+						NULL, &gridkey);
+
+			active = vpaint_find_gridkey_active_layer(fdata,
+								  gridkey);
 
 			if(active != -1) {
 				vpaint_color_single_gridelem(brush,
@@ -2130,6 +2136,13 @@ static void vpaint_color_single_element(bContext *C, PaintStroke *stroke,
 			}
 		}
 		else {
+			MFace *mface;
+			int *face_indices;
+
+			BLI_pbvh_node_get_faces(pbvh, hit_data.node,
+						&mface, &face_indices,
+						NULL, NULL);
+
 			vpaint_color_single_face(brush, mface, fdata,
 				 face_indices,
 				 hit_data.hit_index);

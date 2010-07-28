@@ -145,7 +145,7 @@ int BLI_pbvh_uses_grids(PBVH *bvh);
 void BLI_pbvh_get_customdata(PBVH *pbvh, struct CustomData **vdata, struct CustomData **fdata);
 
 void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
-			     struct MFace **faces, struct CustomData **fdata,
+			     struct MFace **faces,
 			     int **face_indices, int **face_vert_indices,
 			     int *totface);
 void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
@@ -154,7 +154,7 @@ void BLI_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
 void BLI_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
 	int *uniquevert, int *totvert);
 void BLI_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
-			     int **vert_indices, struct MVert **verts, struct CustomData **vdata);
+			     int **vert_indices, struct MVert **verts);
 
 void BLI_pbvh_node_get_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
 void BLI_pbvh_node_get_original_BB(PBVHNode *node, float bb_min[3], float bb_max[3]);
@@ -237,7 +237,8 @@ typedef struct PBVHVertexIter {
 		\
 		BLI_pbvh_node_get_grids(bvh, node, &grid_indices, &totgrid, NULL, &gridsize, &grids, NULL, &gridkey); \
 		BLI_pbvh_node_num_verts(bvh, node, &uniq_verts, &totvert); \
-		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts, &vi.vdata); \
+		BLI_pbvh_node_get_verts(bvh, node, &vert_indices, &verts); \
+		BLI_pbvh_get_customdata(bvh, &vi.vdata, NULL); \
 		\
 		vi.grids= grids; \
 		vi.grid_indices= grid_indices; \

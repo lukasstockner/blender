@@ -303,7 +303,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			if(ss) // TODO
 				sculpt_undo_push_node(ob, nodes[n]);
 
-			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface, NULL,
+			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface,
 						&face_indices, NULL, &totface);
 
 			for(i = 0; i < totface; ++i) {
