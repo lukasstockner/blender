@@ -464,7 +464,7 @@ static void calc_area_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **nod
 
 	zero_v3(an);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -770,7 +770,7 @@ static void smooth(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode, float 
 	last  = max_iterations*(bstrength - count*fract);
 
 	for(iteration = 0; iteration <= count; ++iteration) {
-		#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+		#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
 			if(ss->multires) {
 				do_multires_smooth_brush(sd, ob, nodes[n], iteration != count ? 1.0f : last);
@@ -806,7 +806,7 @@ static void do_draw_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	mul_v3_fl(offset, bstrength);
 
 	/* threaded loop over nodes */
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -861,7 +861,7 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	if(brush->sculpt_tool == SCULPT_TOOL_BLOB) flippedbstrength *= -1.0f;
 
 	/* threaded loop over nodes */
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -903,7 +903,7 @@ static void do_pinch_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -951,7 +951,7 @@ static void do_grab_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 		add_v3_v3(grab_delta, an);
 	}
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptUndoNode* unode;
@@ -999,7 +999,7 @@ static void do_nudge_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	cross_v3_v3v3(tmp, an, grab_delta);
 	cross_v3_v3v3(cono, tmp, an);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1048,7 +1048,7 @@ static void do_snake_hook_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 		add_v3_v3(grab_delta, an);
 	}
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1089,7 +1089,7 @@ static void do_thumb_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	cross_v3_v3v3(tmp, an, grab_delta);
 	cross_v3_v3v3(cono, tmp, an);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		SculptUndoNode* unode;
@@ -1135,7 +1135,7 @@ static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 
 	axis_angle_to_mat3(m, an, angle);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		SculptUndoNode* unode;
@@ -1184,7 +1184,7 @@ static void do_layer_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 
 	mul_v3_v3v3(offset, ss->cache->scale, area_normal);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1247,7 +1247,7 @@ static void do_inflate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1285,7 +1285,7 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 
 	zero_v3(fc);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1344,7 +1344,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob, PBVHNode
 	// fc
 	zero_v3(fc);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1567,7 +1567,7 @@ static void do_flatten_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totno
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter  vd;
 		PaintStrokeTest test;
@@ -1638,7 +1638,7 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 	//add_v3_v3v3(p, ss->cache->location, an);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1730,7 +1730,7 @@ static void do_clay_tubes_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 	mul_m4_m4m4(tmat, scale, mat);
 	invert_m4_m4(mat, tmat);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1791,7 +1791,7 @@ static void do_fill_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1852,7 +1852,7 @@ static void do_scrape_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	mul_v3_fl(temp, displace);
 	add_v3_v3(fc, temp);
 
-	#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for (n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
@@ -1968,7 +1968,7 @@ static void sculpt_stroke_brush_action(bContext *C, PaintStroke *stroke)
 
 	/* Only act if some verts are inside the brush area */
 	if (totnode) {
-		#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+		#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 		for (n= 0; n < totnode; n++) {
 			sculpt_undo_push_node(ob, nodes[n]);
 			BLI_pbvh_node_mark_update(nodes[n]);
@@ -2072,7 +2072,7 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 		case SCULPT_TOOL_GRAB:
 		case SCULPT_TOOL_ROTATE:
 		case SCULPT_TOOL_THUMB:
-			#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+			#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 			for (n= 0; n < totnode; n++) {
 				PBVHVertexIter vd;
 				PBVHProxyNode* proxies;
@@ -2113,7 +2113,7 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 		case SCULPT_TOOL_PINCH:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_SNAKE_HOOK:
-			#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+			#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 			for (n= 0; n < totnode; n++) {
 				PBVHVertexIter vd;
 				PBVHProxyNode* proxies;
@@ -2755,7 +2755,7 @@ static void sculpt_restore_mesh(Sculpt *sd, Object *ob)
 
 		BLI_pbvh_search_gather(ob->paint->pbvh, NULL, NULL, &nodes, &totnode);
 
-		#pragma omp parallel for schedule(guided) if (sd->flags & PAINT_USE_OPENMP)
+		#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
 			SculptUndoNode *unode;
 			
@@ -2840,7 +2840,7 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 		   number of processor cores.
 		   Justification: Empirically I've found that two threads per
 		   processor gives higher throughput. */
-		if (sd->flags & PAINT_USE_OPENMP) {
+		if (sd->paint.flags & PAINT_USE_OPENMP) {
 			int num_procs;
 
 			num_procs = omp_get_num_procs();

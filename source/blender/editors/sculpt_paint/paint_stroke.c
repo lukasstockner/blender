@@ -335,7 +335,7 @@ int load_tex(Sculpt *sd, Brush* br, ViewContext* vc)
 
 		buffer = MEM_mallocN(sizeof(GLubyte)*size*size, "load_tex");
 
-		#pragma omp parallel for schedule(static) if (sd->flags & PAINT_USE_OPENMP)
+		#pragma omp parallel for schedule(static) if (sd->paint.flags & PAINT_USE_OPENMP)
 		for (j= 0; j < size; j++) {
 			int i;
 			float y;
