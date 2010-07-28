@@ -72,6 +72,11 @@ void paint_stroke_free(struct PaintStroke *stroke);
 
 int paint_stroke_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
 void paint_stroke_apply_brush(struct bContext *C, struct PaintStroke *stroke, struct Paint *paint);
+float paint_stroke_combined_strength(struct PaintStroke *stroke,
+				     struct Brush *brush, float dist,
+				     float co[3], float mask,
+				     float special_rotation,
+				     float tex_mouse[2]);
 int paint_stroke_exec(struct bContext *C, struct wmOperator *op);
 void *paint_stroke_mode_data(struct PaintStroke *stroke);
 void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);

@@ -187,6 +187,7 @@ typedef struct StrokeCache {
 	float project_mat[4][4];
 
 	/* Clean this up! */
+	PaintStroke *stroke;
 	ViewContext *vc;
 	Brush *brush;
 
@@ -203,7 +204,6 @@ typedef struct StrokeCache {
 	float last_center[3];
 	int radial_symmetry_pass;
 	float symm_rot_mat[4][4];
-	float symm_rot_mat_inv[4][4];
 	float last_rake[2]; /* Last location of updating rake rotation */
 	int original;
 
@@ -404,29 +404,12 @@ static float get_texcache_pixel_bilinear(const SculptSession *ss, float u, float
 
 #endif
 
-static float tex_strength(SculptSession *ss, Brush *br, float *co, float mask, const float len)
+static float tex_strength(SculptSession *ss, Brush *br, float *co,
+			  float mask, float dist)
 {
-	float mco[3];
-
-	/* if the active area is being applied for symmetry, flip it
-	   across the symmetry axis and rotate it back to the orignal
-	   position in order to project it. This insures that the 
-	   brush texture will be oriented correctly. */
-	if(br->mtex.tex &&
-	   br->mtex.brush_map_mode != MTEX_MAP_MODE_3D) {
-		/* XXX, move to paint stroke: flip_coord(mco, co, ss->cache->mirror_symmetry_pass);
-		
-		if(ss->cache->radial_symmetry_pass)
-		mul_m4_v3(ss->cache->symm_rot_mat_inv, mco); */
-
-		co = mco;
-	}
-	
-	return brush_tex_strength(ss->cache->vc,
-				  ss->cache->project_mat, br, co, mask, len,
-				  ss->cache->pixel_radius, ss->cache->radius,
-				  ss->cache->special_rotation,
-				  ss->cache->tex_mouse);
+	return paint_stroke_combined_strength(ss->cache->stroke, br, dist, co, mask,
+					      ss->cache->special_rotation,
+					      ss->cache->tex_mouse);
 }
 
 
@@ -2332,6 +2315,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 	int mode;
 
 	ss->cache = cache;
+	ss->cache->stroke = op->customdata;
 
 	/* Set scaling adjustment */
 	ss->cache->scale[0] = 1.0f / ob->size[0];
@@ -2869,9 +2853,6 @@ static void sculpt_stroke_update_symmetry(bContext *C, struct PaintStroke *strok
 	paint_flip_coord(cache->view_normal, cache->true_view_normal, symm);
 
 	copy_m4_m4(cache->symm_rot_mat, symmetry_rot_mat);
-
-	unit_m4(cache->symm_rot_mat_inv);
-	rotate_m4(cache->symm_rot_mat_inv, axis, -angle);
 
 	mul_m4_v3(symmetry_rot_mat, cache->grab_delta_symmetry);
 }

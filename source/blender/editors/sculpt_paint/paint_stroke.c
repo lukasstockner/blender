@@ -67,6 +67,8 @@ struct PaintStroke {
 	float project_mat[4][4];
 	bglMats mats;
 	Brush *brush;
+	/* not always the same as brush_size() */
+	int pixel_radius;
 	/* projected brush radius */
 	float radius, radius_squared;
 	/* brush location (object space) */
@@ -77,6 +79,7 @@ struct PaintStroke {
 	int mirror_symmetry_pass;
 	int radial_symmetry_pass;
 	float symm_rot_mat[4][4];
+	float symm_rot_mat_inv[4][4];
 	/* decrease brush strength if symmetry overlaps */
 	float feather;
 
@@ -875,6 +878,9 @@ static void calc_symm(bContext *C, PaintStroke *stroke, float location[3], char 
 	unit_m4(stroke->symm_rot_mat);
 	rotate_m4(stroke->symm_rot_mat, axis, angle);
 
+	unit_m4(stroke->symm_rot_mat_inv);
+	rotate_m4(stroke->symm_rot_mat_inv, axis, -angle);
+
 	/* symmetry_location */
 	paint_flip_coord(location, location, symm);
 	mul_m4_v3(stroke->symm_rot_mat, location);
@@ -910,9 +916,9 @@ static void paint_stroke_update_cache(PaintStroke *stroke, Paint *paint)
 {
 	ViewContext *vc = &stroke->vc;
 
-	/* TODO: radius */
+	stroke->pixel_radius = brush_size(paint_brush(paint));
 	stroke->radius = paint_calc_object_space_radius(vc->obact, vc, stroke->location,
-							brush_size(paint_brush(paint)));
+							stroke->pixel_radius);
 	stroke->radius_squared = stroke->radius*stroke->radius;
 	stroke->feather = calc_symmetry_feather(stroke, paint, stroke->location, paint->flags & 7);
 }
@@ -1047,7 +1053,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 					pressure = brush_use_size_pressure(stroke->brush) ? wmtab->Pressure : 1;
 			}
 
-			scale = (brush_size(stroke->brush)*pressure*stroke->brush->spacing/50.0f) / length;
+			scale = (stroke->pixel_radius * pressure * stroke->brush->spacing/50.0f) / length;
 			mul_v2_fl(vec, scale);
 
 			steps = (int)(1.0f / scale);
@@ -1182,6 +1188,31 @@ void paint_stroke_apply_brush(bContext *C, PaintStroke *stroke, Paint *paint)
 			do_radial_symmetry(C, stroke, paint, i, 'Z', stroke->feather);
 		}
 	}
+}
+
+/* combines mask, curve, and texture strengths */
+float paint_stroke_combined_strength(PaintStroke *stroke, Brush *brush, float dist, float co[3], float mask, float special_rotation, float tex_mouse[2])
+{
+	float mco[3];
+
+	/* if the active area is being applied for symmetry, flip it
+	   across the symmetry axis and rotate it back to the orignal
+	   position in order to project it. This insures that the 
+	   brush texture will be oriented correctly. */
+	if(brush->mtex.tex) {
+		paint_flip_coord(mco, co, stroke->mirror_symmetry_pass);
+		
+		if(stroke->radial_symmetry_pass)
+			mul_m4_v3(stroke->symm_rot_mat_inv, mco);
+
+		co = mco;
+	}
+	
+	return brush_tex_strength(&stroke->vc,
+				  stroke->project_mat, brush, co, mask, dist,
+				  stroke->pixel_radius, stroke->radius,
+				  special_rotation,
+				  tex_mouse);
 }
 
 int paint_stroke_exec(bContext *C, wmOperator *op)

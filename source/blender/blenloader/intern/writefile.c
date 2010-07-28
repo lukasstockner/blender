@@ -1492,6 +1492,9 @@ static void write_customdata_multires(WriteData *wd, int count,
 	writestruct(wd, DATA, "CustomDataMultires", count, grids);
 
 	for(i = 0; i < count; ++i) {
+		writestruct(wd, DATA, "CustomDataMultiresLayer",
+			    grids[i].totlayer, grids[i].layers);
+
 		for(j = 0; j < grids[i].totlayer; ++j) {
 			CustomDataMultiresLayer *l = &grids[i].layers[j];
 

@@ -1652,18 +1652,13 @@ static void vpaint_blend(Brush *brush, float col[4], float alpha)
 }
 
 static float tex_strength(Brush *brush, PaintStroke *stroke,
-			  float co[3], float mask, float len,
+			  float co[3], float mask, float dist,
 			  float radius3d)
 {
-	ViewContext *vc = paint_stroke_view_context(stroke);
-	float (*pmat)[4];
 	float tex_mouse[2] = {0,0}; /* TODO */
 
-	paint_stroke_projection_mat(stroke, &pmat);
-
-	return brush_tex_strength(vc, pmat, brush, co, mask, len,
-				  brush_size(brush), radius3d, 0,
-				  tex_mouse);
+	return paint_stroke_combined_strength(stroke, brush, dist, co, mask,
+					      0, tex_mouse);
 }
 
 /* apply paint at specified coordinate
