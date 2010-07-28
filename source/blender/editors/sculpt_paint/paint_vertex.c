@@ -1596,31 +1596,6 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
 
 /* ********************** vertex paint operator ******************* */
 
-/* Implementation notes:
-
-Operator->invoke()
-  - validate context (add mcol)
-  - create customdata storage
-  - call paint once (mouse click)
-  - add modal handler 
-
-Operator->modal()
-  - for every mousemove, apply vertex paint
-  - exit on mouse release, free customdata
-	(return OPERATOR_FINISHED also removes handler and operator)
-
-For future:
-  - implement a stroke event (or mousemove with past positons)
-  - revise whether op->customdata should be added in object, in set_vpaint
-
-*/
-
-typedef struct VPaintData {
-	int *indexar;
-	float *vertexcosnos;
-	float vpimat[3][3];
-} VPaintData;
-
 void paint_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 {
 	if(BLI_pbvh_node_get_tmin(node) < *tmin) {
@@ -1644,15 +1619,11 @@ int vpaint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent *event)
 {
 	ToolSettings *ts= CTX_data_tool_settings(C);
-	struct PaintStroke *stroke = op->customdata;
 	VPaint *vp= ts->vpaint;
-	struct VPaintData *vpd;
-	ViewContext *vc = paint_stroke_view_context(stroke);
 	Object *ob= CTX_data_active_object(C);
 	Scene *scene = CTX_data_scene(C);
 	DerivedMesh *dm;
 	Mesh *me;
-	float mat[4][4], imat[4][4];
 
 	/* context checks could be a poll() */
 	me= get_mesh(ob);
@@ -1660,20 +1631,9 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 	
 	if(me->mcol==NULL) return OPERATOR_CANCELLED;
 	
-	/* make mode data storage */
-	vpd= MEM_callocN(sizeof(struct VPaintData), "VPaintData");
-	paint_stroke_set_mode_data(stroke, vpd);
-	
-	vpd->vertexcosnos= mesh_get_mapped_verts_nors(vc->scene, ob);
-	
 	/* for filtering */
 	copy_vpaint_prev(vp, (unsigned int *)me->mcol, me->totface);
 	
-	/* some old cruft to sort out later */
-	mul_m4_m4m4(mat, ob->obmat, vc->rv3d->viewmat);
-	invert_m4_m4(imat, mat);
-	copy_m3_m4(vpd->vpimat, imat);
-
 	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
 	ob->paint->pbvh = dm->getPBVH(ob, dm);
 
@@ -1790,8 +1750,6 @@ static void vpaint_nodes_faces(VPaint *vp, PaintStroke *stroke,
 			int vndx = (&f->v1)[j];
 			int cndx = face_index*4 + j;
 			float *co = mvert[vndx].co;
-			//unsigned int *col = (unsigned int*)(mcol + cndx);
-			//unsigned int *orig_col = (unsigned int*)(orig + cndx);
 			float fcol[4];
 			float mask;
 
@@ -2066,11 +2024,6 @@ static void vpaint_stroke_done(bContext *C, struct PaintStroke *stroke)
 {
 	ToolSettings *ts= CTX_data_tool_settings(C);
 	struct VPaintData *vpd= paint_stroke_mode_data(stroke);
-	
-	if(vpd->vertexcosnos)
-		MEM_freeN(vpd->vertexcosnos);
-	if(vpd->indexar)
-		MEM_freeN(vpd->indexar);
 	
 	/* frees prev buffer */
 	copy_vpaint_prev(ts->vpaint, NULL, 0);
