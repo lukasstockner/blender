@@ -3606,6 +3606,9 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 #endif
 		sd->sculpting= 1;
 
+		// redraw full screen at beginning of stroke so overlay can be erased
+		WM_main_add_notifier(NC_SPACE|ND_SPACE_VIEW3D, NULL);
+
 		return 1;
 	}
 	else

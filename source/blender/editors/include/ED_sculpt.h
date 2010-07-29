@@ -54,5 +54,6 @@ void ED_undo_paint_free(void);
 
 void ED_draw_paint_overlay(const struct bContext *C, struct ARegion *ar);
 void ED_draw_on_surface_cursor(float modelview[16], float projection[16], float col[3], float alpha, float size[3], int viewport[4], float location[3], float inner_radius, float outer_radius, int brush_size);
+void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, struct Sculpt *sd, struct Brush *brush, struct ViewContext *vc, float t, float b, float l, float r, float angle);
 
 #endif

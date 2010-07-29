@@ -2725,46 +2725,6 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 		if (hit) {
 			Object *ob= CTX_data_active_object(C);
 
-			glTranslatef((float)x, (float)y, 0.0f);
-
-			glEnable(GL_BLEND);
-
-			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
-				glRotatef(angle, 0, 0, 1);
-			}
-
-			if (rc->tex) {
-				glBindTexture(GL_TEXTURE_2D, rc->tex);
-
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-				glEnable(GL_TEXTURE_2D);
-				glBegin(GL_QUADS);
-				glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
-				glTexCoord2f(0,0);
-				glVertex2f(-r3, -r3);
-				glTexCoord2f(1,0);
-				glVertex2f(r3, -r3);
-				glTexCoord2f(1,1);
-				glVertex2f(r3, r3);
-				glTexCoord2f(0,1);
-				glVertex2f(-r3, r3);
-				glEnd();
-				glDisable(GL_TEXTURE_2D);
-			}
-
-			if(rc->mode == WM_RADIALCONTROL_ANGLE) {
-				glColor4f(col[0], col[1], col[2], 0.5f);
-				glEnable(GL_LINE_SMOOTH);
-				glRotatef(-angle, 0, 0, 1);
-				fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
-				glRotatef(angle, 0, 0, 1);
-				glDisable(GL_LINE_SMOOTH);
-			}
-
-			glDisable(GL_BLEND);
-
 			{
 				const float unprojected_radius= unproject_brush_radius(CTX_data_active_object(C), &vc, location, r1);
 				const float max_thickness= 0.12;
@@ -2773,7 +2733,22 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 				const float inner_radius=  unprojected_radius*thickness;
 				const float outer_radius=  unprojected_radius;
 
+				Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
+
+				ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, y+r3, y-r3, x-r3, x+r3, -angle);
+
 				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
+
+				if(rc->mode == WM_RADIALCONTROL_ANGLE) {
+					glTranslatef((float)x, (float)y, 0.0f);
+					glEnable(GL_BLEND);
+					glColor4f(col[0], col[1], col[2], 0.5f);
+					glEnable(GL_LINE_SMOOTH);
+					fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+					glRotatef(angle, 0, 0, 1);
+					fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
+					glDisable(GL_LINE_SMOOTH);
+				}
 			}
 
 			{

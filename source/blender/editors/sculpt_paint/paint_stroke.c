@@ -226,7 +226,7 @@ static int same_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 		    mtex->size[0] == snap->size[0] &&
 		    mtex->size[1] == snap->size[1] &&
 		    mtex->size[2] == snap->size[2] &&
-		    mtex->rot == snap->rot) &&
+		    (mtex->brush_map_mode == MTEX_MAP_MODE_FIXED || mtex->rot == snap->rot)) && // rotation does not cause fixed texture to be regenerated
 		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && brush_size(brush) <= snap->brush_size) || (brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
 		mtex->brush_map_mode == snap->brush_map_mode &&
 		ar->winx == snap->winx &&
@@ -267,8 +267,6 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 	int size;
 	int j;
 	int refresh;
-
-	//if (sd->sculpting) return 0;
 
 	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) return 0; // XXX wrap mode doesn't support overlays atm
 
@@ -360,8 +358,11 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 					/* it is probably worth optimizing for those cases where 
 					   the texture is not rotated by skipping the calls to
 					   atan2, sqrtf, sin, and cos. */
-					if (br->mtex.tex && (rotation > 0.001 || rotation < -0.001)) {
-						const float angle    = atan2(y, x) + rotation;
+					if ((br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED) &&
+						 br->mtex.tex &&
+						 (rotation > 0.001 || rotation < -0.001))
+					{
+						const float angle= atan2(y, x) + rotation;
 
 						x = len * cos(angle);
 						y = len * sin(angle);
@@ -432,7 +433,8 @@ void ED_draw_paint_overlay(const bContext* C, ARegion *ar)
 	Brush  *brush = paint_brush(paint);
 	Sculpt *sd    = CTX_data_tool_settings(C)->sculpt;
 
-	if (brush &&
+	if (!sd->sculpting &&
+		brush &&
 		brush->mtex.brush_map_mode == MTEX_MAP_MODE_TILED &&
 		brush->flag & BRUSH_TEXTURE_OVERLAY)
 	{
@@ -695,10 +697,8 @@ static void draw_symmetric_brush_dots(Sculpt *sd, float location[3], float col[3
 	glPopAttrib();
 }
 
-static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float x, float y)
+static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float t, float b, float l, float r, float angle)
 {
-	const int size = brush_size(brush);
-
 	glPushAttrib(
 		GL_COLOR_BUFFER_BIT|
 		GL_CURRENT_BIT|
@@ -729,14 +729,7 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float 
 		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
 			glTranslatef(0.5f, 0.5f, 0);
 
-			if (brush->flag & BRUSH_RAKE) {
-				//glRotatef((brush->mtex.rot+sd->last_angle)*(float)(180.0/M_PI), 0, 0, 1);
-				glRotatef(sd->last_angle*(float)(180.0/M_PI), 0, 0, 1);
-			}
-			else {
-				//glRotatef((brush->mtex.rot+sd->special_rotation)*(float)(180.0/M_PI), 0, 0, 1);
-				glRotatef(sd->special_rotation*(float)(180.0/M_PI), 0, 0, 1);
-			}
+			glRotatef(angle, 0, 0, 1);
 
 			glTranslatef(-0.5f, -0.5f, 0);
 
@@ -754,32 +747,17 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float 
 			brush->texture_overlay_alpha / 100.0f);
 
 		glBegin(GL_QUADS);
-		if (sd->draw_anchored) {
 			glTexCoord2f(0, 0);
-			glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc->ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc->ar->winrct.ymin);
+			glVertex2f(l, b);
 
 			glTexCoord2f(1, 0);
-			glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc->ar->winrct.xmin, sd->anchored_initial_mouse[1]-sd->anchored_size - vc->ar->winrct.ymin);
+			glVertex2f(r, b);
 
 			glTexCoord2f(1, 1);
-			glVertex2f(sd->anchored_initial_mouse[0]+sd->anchored_size - vc->ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc->ar->winrct.ymin);
+			glVertex2f(r, t);
 
 			glTexCoord2f(0, 1);
-			glVertex2f(sd->anchored_initial_mouse[0]-sd->anchored_size - vc->ar->winrct.xmin, sd->anchored_initial_mouse[1]+sd->anchored_size - vc->ar->winrct.ymin);
-		}
-		else {
-			glTexCoord2f(0, 0);
-			glVertex2f((float)x-size, (float)y-size);
-
-			glTexCoord2f(1, 0);
-			glVertex2f((float)x+size, (float)y-size);
-
-			glTexCoord2f(1, 1);
-			glVertex2f((float)x+size, (float)y+size);
-
-			glTexCoord2f(0, 1);
-			glVertex2f((float)x-size, (float)y+size);
-		}
+			glVertex2f(l, t);
 		glEnd();
 
 		glPopMatrix();
@@ -871,7 +849,7 @@ void ED_draw_on_surface_cursor(float modelview[16], float projection[16], float 
 	glPopAttrib();
 }
 
-static void stencil_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float x, float y)
+void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float t, float b, float l, float r, float angle)
 {
 	GLUquadric* sphere;
 
@@ -937,7 +915,7 @@ static void stencil_surface(float modelview[16], float projection[16], float siz
 	glStencilFunc(GL_EQUAL, 2, 0xFF);
 	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
-	draw_fixed_overlay(sd, brush, vc, x, y);
+	draw_fixed_overlay(sd, brush, vc, t, b, l, r, angle);
 
 	glPopAttrib();
 }
@@ -975,8 +953,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		const float root_alpha = brush_alpha(brush);
 		float visual_strength = root_alpha*root_alpha;
 
-		const float min_alpha = 0.20f;
-		const float max_alpha = 0.80f;
+		const float min_alpha = sd->sculpting ? 0.10f : 0.20f;
+		const float max_alpha = sd->sculpting ? 0.40f : 0.80f;
+
+		float t, b, l, r, angle;
 
 		{
 			const float u = 0.5f;
@@ -1014,11 +994,34 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		alpha = (paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) ? min_alpha + (visual_strength*(max_alpha-min_alpha)) : 0.50f;
 
+		if (sd->draw_anchored) {
+			l = sd->anchored_initial_mouse[0]-sd->anchored_size - vc.ar->winrct.xmin;
+			b = sd->anchored_initial_mouse[1]-sd->anchored_size - vc.ar->winrct.ymin;
+			r = sd->anchored_initial_mouse[0]+sd->anchored_size - vc.ar->winrct.xmin;
+			t = sd->anchored_initial_mouse[1]+sd->anchored_size - vc.ar->winrct.ymin;
+		}
+		else {
+			const int size= brush_size(brush);
+			l= (float)x-size;
+			b= (float)y-size;
+			r= (float)x+size;
+			t= (float)y+size;
+		}
+
+		if (brush->flag & BRUSH_RAKE) {
+			angle= sd->last_angle*(float)(180.0/M_PI);
+		}
+		else {
+			angle= sd->special_rotation*(float)(180.0/M_PI);
+		}
+
+		angle -= brush->mtex.rot*(float)(180.0/M_PI);
+
 		if ((!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) &&
 			brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED &&
 			brush->flag & BRUSH_TEXTURE_OVERLAY)
 		{
-			draw_fixed_overlay(sd, brush, &vc, x, y);
+			draw_fixed_overlay(sd, brush, &vc, t, b, l, r, angle);
 		}
 
 		if (hit) {
@@ -1064,7 +1067,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED &&
 					brush->flag & BRUSH_TEXTURE_OVERLAY)
 				{
-					stencil_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, x, y);
+					ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, t, b, l, r, angle);
 				}
 
 				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
