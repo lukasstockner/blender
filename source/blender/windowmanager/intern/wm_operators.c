@@ -71,6 +71,7 @@
 #include "ED_screen.h"
 #include "ED_util.h"
 #include "ED_view3d.h" // JW
+#include "ED_sculpt.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -642,6 +643,8 @@ int WM_menu_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	uiPopupMenu *pup;
 	uiLayout *layout;
 
+	(void)event;
+
 	if(prop==NULL) {
 		printf("WM_menu_invoke: %s has no enum property set\n", op->type->idname);
 	}
@@ -743,6 +746,8 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *ar, void *arg_op)
 
 int WM_enum_search_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	(void)event;
+
 	uiPupBlock(C, wm_enum_search_menu, op);
 	return OPERATOR_CANCELLED;
 }
@@ -770,12 +775,16 @@ int WM_operator_confirm_message(bContext *C, wmOperator *op, char *message)
 
 int WM_operator_confirm(bContext *C, wmOperator *op, wmEvent *event)
 {
+	(void)event;
+
 	return WM_operator_confirm_message(C, op, NULL);
 }
 
 /* op->invoke, opens fileselect if path property not set, otherwise executes */
 int WM_operator_filesel(bContext *C, wmOperator *op, wmEvent *event)
 {
+	(void)event;
+
 	if (RNA_property_is_set(op->ptr, "filepath")) {
 		return WM_operator_call(C, op);
 	} 
@@ -883,6 +892,8 @@ static void redo_cb(bContext *C, void *arg_op, int event)
 {
 	wmOperator *lastop= arg_op;
 	
+	(void)event;
+
 	if(lastop) {
 		ED_undo_pop_op(C, lastop);
 		WM_operator_repeat(C, lastop);
@@ -1027,6 +1038,8 @@ int WM_operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
 {
 	int retval= OPERATOR_CANCELLED;
 	
+	(void)event;
+
 	if(op->type->exec) {
 		retval= op->type->exec(C, op);
 
@@ -1111,12 +1124,13 @@ static int wm_debug_menu_exec(bContext *C, wmOperator *op)
 
 static int wm_debug_menu_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	
+	(void)event;
+
 	RNA_int_set(op->ptr, "debugval", G.rt);
-	
+
 	/* pass on operator, so return modal */
 	uiPupBlockOperator(C, wm_block_create_menu, op, WM_OP_EXEC_DEFAULT);
-	
+
 	return OPERATOR_RUNNING_MODAL;
 }
 
@@ -1138,6 +1152,8 @@ static void WM_OT_debug_menu(wmOperatorType *ot)
 
 static void wm_block_splash_close(bContext *C, void *arg_block, void *arg_unused)
 {
+	(void)arg_unused;
+
 	uiPupBlockClose(C, arg_block);
 }
 
@@ -1147,6 +1163,10 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
  * since popup blocks don't get regenerated like panels do */
 void wm_block_splash_refreshmenu (bContext *C, void *arg_block, void *unused)
 {
+	(void)C;
+	(void)unused;
+	(void)arg_block;
+
 	/* ugh, causes crashes in other buttons, disabling for now until 
 	 * a better fix
 	uiPupBlockClose(C, arg_block);
@@ -1165,6 +1185,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
 	Menu menu= {0};
 	MenuType *mt= WM_menutype_find("USERPREF_MT_splash", TRUE);
 	
+
 #ifdef NAN_BUILDINFO
 	int ver_width, rev_width;
 	char *version_str = NULL;
@@ -1183,6 +1204,8 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
 	ver_width = BLF_width(style->widgetlabel.uifont_id, version_str)+5;
 	rev_width = BLF_width(style->widgetlabel.uifont_id, revision_str)+5;
 #endif //NAN_BUILDINFO
+
+	(void)arg_unused;
 
 	block= uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
 	uiBlockSetFlag(block, UI_BLOCK_KEEP_OPEN);
@@ -1237,6 +1260,9 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unuse
 
 static int wm_splash_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	(void)op;
+	(void)event;
+
 	uiPupBlock(C, wm_block_create_splash, NULL);
 	
 	return OPERATOR_FINISHED;
@@ -1258,6 +1284,8 @@ static void operator_call_cb(struct bContext *C, void *arg1, void *arg2)
 {
 	wmOperatorType *ot= arg2;
 	
+	(void)arg1;
+
 	if(ot)
 		WM_operator_name_call(C, ot->idname, WM_OP_INVOKE_DEFAULT, NULL);
 }
@@ -1266,6 +1294,8 @@ static void operator_search_cb(const struct bContext *C, void *arg, char *str, u
 {
 	wmOperatorType *ot = WM_operatortype_first();
 	
+	(void)arg;
+
 	for(; ot; ot= ot->next) {
 		
 		if(BLI_strcasestr(ot->name, str)) {
@@ -1297,6 +1327,8 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *ar, void *arg_op)
 	uiBlock *block;
 	uiBut *but;
 	
+	(void)arg_op;
+
 	block= uiBeginBlock(C, ar, "_popup", UI_EMBOSS);
 	uiBlockSetFlag(block, UI_BLOCK_LOOP|UI_BLOCK_RET_1|UI_BLOCK_MOVEMOUSE_QUIT);
 	
@@ -1321,15 +1353,18 @@ static uiBlock *wm_block_search_menu(bContext *C, ARegion *ar, void *arg_op)
 
 static int wm_search_menu_exec(bContext *C, wmOperator *op)
 {
-	
+	(void)C;
+	(void)op;
+
 	return OPERATOR_FINISHED;	
 }
 
 static int wm_search_menu_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
-	
+	(void)event;
+
 	uiPupBlock(C, wm_block_search_menu, op);
-	
+
 	return OPERATOR_CANCELLED;
 }
 
@@ -1437,6 +1472,8 @@ static void open_set_use_scripts(wmOperator *op)
 
 static int wm_open_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	(void)event;
+
 	RNA_string_set(op->ptr, "filepath", G.sce);
 	open_set_load_ui(op);
 	open_set_use_scripts(op);
@@ -1493,6 +1530,8 @@ static void WM_OT_open_mainfile(wmOperatorType *ot)
 
 static int wm_link_append_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
+	(void)event;
+
 	if(!RNA_property_is_set(op->ptr, "relative_path"))
 		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
 
@@ -1720,6 +1759,8 @@ static int wm_recover_auto_save_invoke(bContext *C, wmOperator *op, wmEvent *eve
 {
 	char filename[FILE_MAX];
 
+	(void)event;
+
 	wm_autosave_location(filename);
 	RNA_string_set(op->ptr, "filepath", filename);
 	WM_event_add_fileselect(C, op);
@@ -1767,6 +1808,8 @@ static void save_set_compress(wmOperator *op)
 static int wm_save_as_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *event)
 {
 	char name[FILE_MAX];
+
+	(void)event;
 
 	save_set_compress(op);
 	
@@ -1837,6 +1880,8 @@ static int wm_save_mainfile_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	char name[FILE_MAX];
 	int check_existing=1;
 	
+	(void)event;
+
 	/* cancel if no active window */
 	if (CTX_wm_window(C) == NULL)
 		return OPERATOR_CANCELLED;
@@ -2277,11 +2322,13 @@ static void tweak_gesture_modal(bContext *C, wmEvent *event)
 		case INBETWEEN_MOUSEMOVE:
 			
 			wm_subwindow_getorigin(window, gesture->swinid, &sx, &sy);
-			
+
 			rect->xmax= event->x - sx;
 			rect->ymax= event->y - sy;
-			
-			if((val= wm_gesture_evaluate(C, gesture))) {
+
+			val= wm_gesture_evaluate(C, gesture);
+
+			if (val) {
 				wmEvent event;
 
 				event= *(window->eventstate);
@@ -2381,7 +2428,9 @@ static void gesture_lasso_apply(bContext *C, wmOperator *op, int event_type)
 	float loc[2];
 	int i;
 	short *lasso= gesture->customdata;
-	
+
+	(void)event_type;
+
 	/* operator storage as path. */
 
 	for(i=0; i<gesture->points; i++, lasso+=2) {
@@ -2660,7 +2709,6 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 #ifdef WITH_ONSURFACEBRUSH
 	if ((paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE) && vc.obact->sculpt) {
 		float alpha;
-		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 
 		int pixel_radius, viewport[4];
 		float location[3], modelview[16], projection[16];
@@ -2881,7 +2929,10 @@ int WM_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *event)
 	int mode = RNA_int_get(op->ptr, "mode");
 	float initial_value = RNA_float_get(op->ptr, "initial_value");
 	//float initial_size = RNA_float_get(op->ptr, "initial_size");
-	int mouse[2] = {event->x, event->y};
+	int mouse[2];
+	
+	mouse[0]= event->x;
+	mouse[1]= event->y;
 
 	//if (initial_size == 0)
 	//	initial_size = WM_RADIAL_CONTROL_DISPLAY_SIZE;
@@ -2937,6 +2988,8 @@ void WM_radial_control_string(wmOperator *op, char str[], int maxlen)
 {
 	int mode = RNA_int_get(op->ptr, "mode");
 	float v = RNA_float_get(op->ptr, "new_value");
+
+	(void)maxlen;
 
 	if(mode == WM_RADIALCONTROL_SIZE)
 		sprintf(str, "Size: %d", (int)v);
@@ -3105,6 +3158,9 @@ static void WM_OT_redraw_timer(wmOperatorType *ot)
 
 static int memory_statistics_exec(bContext *C, wmOperator *op)
 {
+	(void)C;
+	(void)op;
+
 	MEM_printmemlist_stats();
 	return OPERATOR_FINISHED;
 }
@@ -3431,6 +3487,9 @@ static EnumPropertyItem *rna_id_itemf(bContext *C, PointerRNA *ptr, int *free, I
 	EnumPropertyItem *item= NULL, item_tmp;
 	int totitem= 0;
 	int i= 0;
+
+	(void)C;
+	(void)ptr;
 
 	memset(&item_tmp, 0, sizeof(item_tmp));
 

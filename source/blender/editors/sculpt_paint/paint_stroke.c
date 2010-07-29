@@ -871,7 +871,7 @@ void ED_draw_on_surface_cursor(float modelview[16], float projection[16], float 
 	glPopAttrib();
 }
 
-static void stencil_surface(float modelview[16], float projection[16], float col[3], float alpha, float size[3], int viewport[4], float location[3], float inner_radius, float outer_radius, int brush_size, Sculpt *sd, Brush *brush, ViewContext *vc, float x, float y)
+static void stencil_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float x, float y)
 {
 	GLUquadric* sphere;
 
@@ -1064,7 +1064,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED &&
 					brush->flag & BRUSH_TEXTURE_OVERLAY)
 				{
-					stencil_surface(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush), sd, brush, &vc, x, y);
+					stencil_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, x, y);
 				}
 
 				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
