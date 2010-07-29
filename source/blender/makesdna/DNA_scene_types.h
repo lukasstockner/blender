@@ -571,21 +571,9 @@ typedef struct TransformOrientation {
 typedef struct Sculpt {
 	Paint paint;
 
-	// all this below is used to communicate with the cursor drawing routine
-
 	/* record movement of mouse so that rake can start at an intuitive angle */
 	float last_x, last_y;
 	float last_angle;
-
-	int draw_anchored;
-	int   anchored_size;
-	float anchored_location[3];
-	float anchored_initial_mouse[2];
-
-	int draw_pressure;
-	float pressure_value;
-
-	float special_rotation;
 
 	int pad;
 } Sculpt;

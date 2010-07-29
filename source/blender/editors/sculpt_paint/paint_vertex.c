@@ -1655,10 +1655,7 @@ static float tex_strength(Brush *brush, PaintStroke *stroke,
 			  float co[3], float mask, float dist,
 			  float radius3d)
 {
-	float tex_mouse[2] = {0,0}; /* TODO */
-
-	return paint_stroke_combined_strength(stroke, brush, dist, co, mask,
-					      0, tex_mouse);
+	return paint_stroke_combined_strength(stroke, dist, co, mask);
 }
 
 /* apply paint at specified coordinate
@@ -1843,7 +1840,7 @@ static void vpaint_nodes_faces_smooth(Brush *brush, PaintStroke *stroke,
 	PaintStrokeTest test;
 	MCol *mcol;
 	
-	paint_stroke_test_init(&test, center, radius_squared);
+	paint_stroke_test_init(&test, stroke);
 	mcol = CustomData_get_layer(fdata, CD_MCOL);
 
 	BLI_pbvh_vertex_iter_begin(pbvh, node, vd, PBVH_ITER_UNIQUE) {
@@ -2192,8 +2189,8 @@ static void vpaint_stroke_brush_action(bContext *C, PaintStroke *stroke)
 				       &search_data, &nodes, &totnode);
 		
 		if(brush->flag & BRUSH_MASK) {
-			paintmask_brush_apply(&vp->paint, stroke, ob, nodes, totnode,
-					      center, brush->alpha, radius);
+			paintmask_brush_apply(&vp->paint, stroke, nodes, totnode,
+					      brush->alpha);
 		}
 		else {
 			vpaint_nodes(vp, stroke, scene, ob, nodes, totnode,

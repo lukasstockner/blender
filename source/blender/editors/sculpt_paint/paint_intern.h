@@ -51,42 +51,49 @@ struct ListBase;
 
 /* paint_stroke.c */
 typedef struct PaintStroke PaintStroke;
-typedef int (*StrokeGetLocation)(struct bContext *C, struct PaintStroke *stroke, float location[3], float mouse[2]);
+typedef int (*StrokeGetLocation)(struct bContext *C, PaintStroke *stroke, float location[3], float mouse[2]);
 typedef int (*StrokeTestStart)(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-typedef void (*StrokeUpdateStep)(struct bContext *C, struct PaintStroke *stroke, struct PointerRNA *itemptr);
-typedef void (*StrokeUpdateSymmetry)(struct bContext *C, struct PaintStroke *stroke,
+typedef void (*StrokeUpdateStep)(struct bContext *C, PaintStroke *stroke, struct PointerRNA *itemptr);
+typedef void (*StrokeUpdateSymmetry)(struct bContext *C, PaintStroke *stroke,
 				     char symmetry, char axis, float angle,
 				     int mirror_symmetry_pass, int radial_symmetry_pass,
 				     float (*symmetry_rot_mat)[4]);
-typedef void (*StrokeBrushAction)(struct bContext *C, struct PaintStroke *stroke);
-typedef void (*StrokeDone)(struct bContext *C, struct PaintStroke *stroke);
+typedef void (*StrokeBrushAction)(struct bContext *C, PaintStroke *stroke);
+typedef void (*StrokeDone)(struct bContext *C, PaintStroke *stroke);
 
-struct PaintStroke *paint_stroke_new(struct bContext *C,
-				     StrokeGetLocation get_location,
-				     StrokeTestStart test_start,
-				     StrokeUpdateStep update_step,
-				     StrokeUpdateSymmetry update_symmetry,
-				     StrokeBrushAction brush_action,
-				     StrokeDone done);
-void paint_stroke_free(struct PaintStroke *stroke);
+PaintStroke *paint_stroke_new(struct bContext *C,
+			      StrokeGetLocation get_location,
+			      StrokeTestStart test_start,
+			      StrokeUpdateStep update_step,
+			      StrokeUpdateSymmetry update_symmetry,
+			      StrokeBrushAction brush_action,
+			      StrokeDone done);
+void paint_stroke_free(PaintStroke *stroke);
 
 int paint_stroke_modal(struct bContext *C, struct wmOperator *op, struct wmEvent *event);
-void paint_stroke_apply_brush(struct bContext *C, struct PaintStroke *stroke, struct Paint *paint);
-float paint_stroke_combined_strength(struct PaintStroke *stroke,
-				     struct Brush *brush, float dist,
-				     float co[3], float mask,
-				     float special_rotation,
-				     float tex_mouse[2]);
+void paint_stroke_apply_brush(struct bContext *C, PaintStroke *stroke, struct Paint *paint);
+float paint_stroke_combined_strength(PaintStroke *stroke,
+				     float dist, float co[3], float mask);
 int paint_stroke_exec(struct bContext *C, struct wmOperator *op);
-void *paint_stroke_mode_data(struct PaintStroke *stroke);
-void paint_stroke_set_mode_data(struct PaintStroke *stroke, void *mode_data);
+void *paint_stroke_mode_data(PaintStroke *stroke);
+void paint_stroke_set_mode_data(PaintStroke *stroke, void *mode_data);
 
 /* paint stroke cache access */
-struct ViewContext *paint_stroke_view_context(struct PaintStroke *stroke);
-float paint_stroke_feather(struct PaintStroke *stroke);
-void paint_stroke_symmetry_location(struct PaintStroke *stroke, float loc[3]);
-float paint_stroke_radius(struct PaintStroke *stroke);
-void paint_stroke_projection_mat(struct PaintStroke *stroke, float (**pmat)[4]);
+struct ViewContext *paint_stroke_view_context(PaintStroke *stroke);
+float paint_stroke_feather(PaintStroke *stroke);
+void paint_stroke_mouse_location(PaintStroke *stroke, float mouse[2]);
+void paint_stroke_initial_mouse_location(PaintStroke *stroke, float initial_mouse[2]);
+void paint_stroke_location(PaintStroke *stroke, float location[3]);
+float paint_stroke_pressure(PaintStroke *stroke);
+float paint_stroke_radius(PaintStroke *stroke);
+float paint_stroke_radius_squared(PaintStroke *stroke);
+void paint_stroke_symmetry_location(PaintStroke *stroke, float loc[3]);
+int paint_stroke_first_dab(PaintStroke *stroke);
+
+/* paint stroke modifiers */
+void paint_stroke_set_modifier_use_original_location(PaintStroke *stroke);
+void paint_stroke_set_modifier_initial_radius_factor(PaintStroke *stroke, float initial_radius_factor);
+void paint_stroke_set_modifier_use_original_texture_coords(PaintStroke *stroke);
 
 typedef struct {
 	void *mode_data;
@@ -96,7 +103,7 @@ typedef struct {
 	float dist;
 	int original;
 } PaintStrokeRaycastData;
-int paint_stroke_get_location(struct bContext *C, struct PaintStroke *stroke,
+int paint_stroke_get_location(struct bContext *C, PaintStroke *stroke,
 			      BLI_pbvh_HitOccludedCallback hit_cb, void *mode_data,
 			      float out[3], float mouse[2], int original);
 
@@ -108,8 +115,7 @@ typedef struct PaintStrokeTest {
 	float location[3];
 	float dist;
 } PaintStrokeTest;
-void paint_stroke_test_init(PaintStrokeTest *test, float loc[3],
-			    float radius_squared);
+void paint_stroke_test_init(PaintStrokeTest *test, PaintStroke *stroke);
 int paint_stroke_test(PaintStrokeTest *test, float co[3]);
 int paint_stroke_test_sq(PaintStrokeTest *test, float co[3]);
 int paint_stroke_test_fast(PaintStrokeTest *test, float co[3]);
@@ -165,8 +171,7 @@ void PAINT_OT_face_select_all(struct wmOperatorType *ot);
 
 int facemask_paint_poll(struct bContext *C);
 
-float paint_calc_object_space_radius(struct Object *ob,
-				     struct ViewContext *vc,
+float paint_calc_object_space_radius(struct ViewContext *vc,
 				     float center[3],
 				     float pixel_radius);
 
@@ -199,10 +204,9 @@ void undo_paint_push_count_alloc(int type, int size);
 void undo_paint_push_end(int type);
 
 /* paint_mask.c */
-void paintmask_brush_apply(struct Paint *paint, struct PaintStroke *stroke,
-			   struct Object *ob, struct PBVHNode **nodes,
-			   int totnode, float location[3],
-			   float bstrength, float radius3d);
+void paintmask_brush_apply(struct Paint *paint, PaintStroke *stroke,
+			   struct PBVHNode **nodes,
+			   int totnode, float bstrength);
 
 void PAINT_OT_mask_layer_add(struct wmOperatorType *ot);
 void PAINT_OT_mask_layer_remove(struct wmOperatorType *ot);

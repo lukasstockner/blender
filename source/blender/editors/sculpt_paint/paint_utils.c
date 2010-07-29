@@ -306,9 +306,10 @@ void PAINT_OT_face_select_all(wmOperatorType *ot)
 	WM_operator_properties_select_all(ot);
 }
 
-float paint_calc_object_space_radius(Object *ob, ViewContext *vc,
-				     float center[3], float pixel_radius)
+float paint_calc_object_space_radius(ViewContext *vc, float center[3],
+				     float pixel_radius)
 {
+	Object *ob = vc->obact;
 	float delta[3], scale, loc[3];
 
 	mul_v3_m4v3(loc, ob->obmat, center);

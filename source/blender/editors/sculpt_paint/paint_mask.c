@@ -72,25 +72,18 @@ static int mask_active_poll(bContext *C)
 	return 0;
 }
 
-void paintmask_brush_apply(Paint *paint, PaintStroke *stroke, Object *ob, PBVHNode **nodes, int totnode,
-			   float location[3], float bstrength, float radius3d)
+void paintmask_brush_apply(Paint *paint, PaintStroke *stroke, PBVHNode **nodes, int totnode,
+			   float bstrength)
 {
-	Brush *brush = paint_brush(paint);
-	ViewContext *vc;
-	float (*pmat)[4];
-	float tex_mouse[2] = {0,0}; /* TODO */
-	float radius_squared = radius3d*radius3d;
+	Object *ob = paint_stroke_view_context(stroke)->obact;
 	int n;
 	
-	vc = paint_stroke_view_context(stroke);
-	paint_stroke_projection_mat(stroke, &pmat);
- 
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
 		
 		/* XXX: sculpt_undo_push_node(ob, nodes[n]); */
-		paint_stroke_test_init(&test, location, radius_squared);
+		paint_stroke_test_init(&test, stroke);
 
 		BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			/* TODO: should add a mask layer if needed */
@@ -98,12 +91,10 @@ void paintmask_brush_apply(Paint *paint, PaintStroke *stroke, Object *ob, PBVHNo
 				if(paint_stroke_test(&test, vd.co)) {
 					float fade;
 
-					fade = brush_tex_strength(vc, pmat,
-								  brush, vd.co,
-								  0, test.dist,
-								  brush_size(brush),
-								  radius3d, 0,
-								  tex_mouse) *
+					fade = paint_stroke_combined_strength(stroke,
+									      test.dist,
+									      vd.co,
+									      0) *
 						bstrength;
 
 					*vd.mask_active += fade;

@@ -41,7 +41,7 @@
 #include "WM_types.h"
 
 #include "BLI_math.h"
-
+#include "BLI_rand.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -67,13 +67,22 @@ struct PaintStroke {
 	float project_mat[4][4];
 	bglMats mats;
 	Brush *brush;
-	/* not always the same as brush_size() */
-	int pixel_radius;
-	/* projected brush radius */
-	float radius, radius_squared;
 	/* brush location (object space) */
 	float location[3], symmetry_location[3];
-
+	/* screen-space brush location */
+	float mouse[2], initial_mouse[2], last_mouse_position[2];
+	/* not always the same as brush_size() */
+	int pixel_radius;
+	/* tablet pressure, or 1 if using mouse */
+	float pressure;
+	/* 3d brush radius */
+	float radius, radius_squared, initial_radius;
+	/* previous location of updating rake rotation */
+	float last_rake[2];
+	/* this value is added to the brush's rotation in calculations */
+	float rotation;
+	/* mouse location used for texturing */
+	float tex_mouse[2];
 	/* symmetry */
 	/* current symmetry pass (0-7) */
 	int mirror_symmetry_pass;
@@ -83,12 +92,18 @@ struct PaintStroke {
 	/* decrease brush strength if symmetry overlaps */
 	float feather;
 
-	float last_mouse_position[2];
+	/* anything special that sculpt or other paint modes need
+	   to do should go through these modifiers */
+	float modifier_initial_radius_factor;
+	int modifier_use_original_texture_coords;
+	int modifier_use_original_location;
 
 	/* Set whether any stroke step has yet occurred
 	   e.g. in sculpt mode, stroke doesn't start until cursor
 	   passes over the mesh */
 	int stroke_started;
+	/* 1 if this is the first paint dab, 0 otherwise */
+	int first_dab;
 
 	/* callbacks */
 	StrokeGetLocation get_location;
@@ -562,6 +577,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 	view3d_set_viewcontext(C, &vc);
 
+// XXX
+#if 0
 	if (vc.obact->paint && vc.obact->paint->sculpt) {
 		Paint *paint = paint_get_active(CTX_data_scene(C));
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -785,7 +802,9 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		glPopAttrib();
 	}
-	else {
+	else 
+#endif
+	{
 		Paint *paint = paint_get_active(CTX_data_scene(C));
 		Brush *brush = paint_brush(paint);
 
@@ -912,30 +931,107 @@ static void do_radial_symmetry(bContext *C, PaintStroke *stroke, Paint *paint, c
 	}
 }
 
-static void paint_stroke_update_cache(PaintStroke *stroke, Paint *paint)
+static void paint_stroke_update_cache(bContext *C, PaintStroke *stroke, Paint *paint)
 {
 	ViewContext *vc = &stroke->vc;
 
-	stroke->pixel_radius = brush_size(paint_brush(paint));
-	stroke->radius = paint_calc_object_space_radius(vc->obact, vc, stroke->location,
-							stroke->pixel_radius);
-	stroke->radius_squared = stroke->radius*stroke->radius;
+	if(stroke->first_dab) {
+		copy_v2_v2(stroke->initial_mouse, stroke->mouse);
+		copy_v2_v2(stroke->tex_mouse, stroke->initial_mouse);
+
+		if(!brush_use_locked_size(stroke->brush)) {
+			stroke->initial_radius =
+				paint_calc_object_space_radius(vc,
+							       stroke->location,
+							       brush_size(stroke->brush));
+			brush_set_unprojected_radius(stroke->brush, stroke->initial_radius);
+		}
+		else
+			stroke->initial_radius= brush_unprojected_radius(stroke->brush);
+
+		stroke->initial_radius *= stroke->modifier_initial_radius_factor;
+	}
+
+	stroke->pixel_radius = brush_size(stroke->brush);
+	stroke->radius = stroke->initial_radius;
 	stroke->feather = calc_symmetry_feather(stroke, paint, stroke->location, paint->flags & 7);
+
+	if(brush_use_size_pressure(stroke->brush)) {
+		stroke->pixel_radius *= stroke->pressure;
+		stroke->radius *= stroke->pressure;
+	}
+
+	if(!((stroke->brush->flag & BRUSH_ANCHORED) ||
+	     stroke->modifier_use_original_texture_coords)) {
+		copy_v2_v2(stroke->tex_mouse, stroke->mouse);
+
+		if((stroke->brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) &&
+		   (stroke->brush->flag & BRUSH_RANDOM_ROTATION) &&
+		   !(stroke->brush->flag & BRUSH_RAKE)) {
+			stroke->rotation = 2*M_PI*BLI_frand();
+		}
+	}
+
+	if(stroke->brush->flag & BRUSH_ANCHORED) {
+		int dx, dy;
+
+		dx = stroke->mouse[0] - stroke->initial_mouse[0];
+		dy = stroke->mouse[1] - stroke->initial_mouse[1];
+
+		stroke->pixel_radius = sqrt(dx*dx + dy*dy);
+
+		stroke->rotation = atan2(dx, dy) + M_PI;
+
+		if(stroke->brush->flag & BRUSH_EDGE_TO_EDGE) {
+			float d[3];
+			float halfway[3];
+			float out[3];
+
+			d[0] = dx;
+			d[1] = dy;
+			d[2] = 0;
+
+			mul_v3_v3fl(halfway, d, 0.5f);
+			add_v3_v3(halfway, stroke->initial_mouse);
+
+			if(stroke->get_location(C, stroke, out, halfway)) {
+				copy_v2_v2(stroke->tex_mouse, halfway);
+				copy_v3_v3(stroke->location, out);
+				stroke->pixel_radius  /= 2.0f;
+			}
+		}
+
+		stroke->radius= paint_calc_object_space_radius(&stroke->vc,
+							       stroke->location,
+							       stroke->pixel_radius);
+	}
+	else if(stroke->brush->flag & BRUSH_RAKE) {
+		const float u = 0.5f;
+		const float r = 20;
+
+		const float dx = stroke->last_rake[0] - stroke->mouse[0];
+		const float dy = stroke->last_rake[1] - stroke->mouse[1];
+
+		if(stroke->first_dab) {
+			copy_v2_v2(stroke->last_rake, stroke->mouse);
+		}
+		else if (dx*dx + dy*dy >= r*r) {
+			stroke->rotation = atan2(dx, dy);
+
+			interp_v2_v2v2(stroke->last_rake, stroke->mouse, stroke->last_rake, u);
+		}
+	}
+
+	stroke->radius_squared = stroke->radius*stroke->radius;
 }
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *event, float mouse_in[2])
 {
 	Paint *paint = paint_get_active(CTX_data_scene(C));
-
-	float mouse[2];
-
-	PointerRNA itemptr;
-
-	float pressure;
-	int   pen_flip;
-
 	PaintStroke *stroke = op->customdata;
+	PointerRNA itemptr;
+	int pen_flip;
 
 	view3d_get_object_project_mat(stroke->vc.rv3d, stroke->vc.obact, stroke->project_mat);
 
@@ -943,51 +1039,56 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	if(event->custom == EVT_DATA_TABLET) {
 		wmTabletData *wmtab= event->customdata;
 
-		pressure = (wmtab->Active != EVT_TABLET_NONE) ? wmtab->Pressure : 1;
+		stroke->pressure = (wmtab->Active != EVT_TABLET_NONE) ? wmtab->Pressure : 1;
 		pen_flip = (wmtab->Active == EVT_TABLET_ERASER);
 	}
 	else {
-		pressure = 1;
+		stroke->pressure = 1;
 		pen_flip = 0;
 	}
 
 	// XXX: temporary check for sculpt mode until things are more unified
 	if(stroke->vc.obact->paint->sculpt) {
-		Brush *brush = paint_brush(paint);
 		float delta[3];
 
-		brush_jitter_pos(brush, mouse_in, mouse);
+		brush_jitter_pos(stroke->brush, mouse_in, stroke->mouse);
 
 		// XXX: meh, this is round about because brush_jitter_pos isn't written in the best way to be reused here
-		if (brush->flag & BRUSH_JITTER_PRESSURE) {
-			sub_v3_v3v3(delta, mouse, mouse_in);
-			mul_v3_fl(delta, pressure);
-			add_v3_v3v3(mouse, mouse_in, delta);
+		if(stroke->brush->flag & BRUSH_JITTER_PRESSURE) {
+			sub_v3_v3v3(delta, stroke->mouse, mouse_in);
+			mul_v3_fl(delta, stroke->pressure);
+			add_v3_v3v3(stroke->mouse, mouse_in, delta);
 		}
 	}
 	else
-		copy_v3_v3(mouse, mouse_in);
+		copy_v3_v3(stroke->mouse, mouse_in);
 
-	/* XXX: can remove the if statement once all modes have this */
-	if(stroke->get_location)
-		stroke->get_location(C, stroke, stroke->location, mouse);
-	else
-		zero_v3(stroke->location);
+	if(stroke->first_dab ||
+	   !((stroke->brush->flag & BRUSH_ANCHORED) ||
+	     stroke->modifier_use_original_location)) {
+
+		/* XXX: can remove the following if statement once all modes have this */
+		if(stroke->get_location)
+			stroke->get_location(C, stroke, stroke->location, stroke->mouse);
+		else
+			zero_v3(stroke->location);
+	}
 
 	/* Add to stroke */
 	RNA_collection_add(op->ptr, "stroke", &itemptr);
 
 	RNA_float_set_array(&itemptr, "location",     stroke->location);
-	RNA_float_set_array(&itemptr, "mouse",        mouse);
+	RNA_float_set_array(&itemptr, "mouse",        stroke->mouse);
 	RNA_boolean_set    (&itemptr, "pen_flip",     pen_flip);
-	RNA_float_set      (&itemptr, "pressure", pressure);
+	RNA_float_set(&itemptr, "pressure", stroke->pressure);
 
-	stroke->last_mouse_position[0] = mouse[0];
-	stroke->last_mouse_position[1] = mouse[1];
+	copy_v2_v2(stroke->last_mouse_position, stroke->mouse);
 
-	paint_stroke_update_cache(stroke, paint);
+	paint_stroke_update_cache(C, stroke, paint);
 
 	stroke->update_step(C, stroke, &itemptr);
+
+	stroke->first_dab = 0;
 }
 
 /* Returns zero if no sculpt changes should be made, non-zero otherwise */
@@ -996,7 +1097,7 @@ static int paint_smooth_stroke(PaintStroke *stroke, float output[2], wmEvent *ev
 	output[0] = event->x; 
 	output[1] = event->y;
 
-	if ((stroke->brush->flag & BRUSH_SMOOTH_STROKE) &&  
+	if((stroke->brush->flag & BRUSH_SMOOTH_STROKE) &&  
 	    !ELEM4(stroke->brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE, SCULPT_TOOL_SNAKE_HOOK) &&
 	    !(stroke->brush->flag & BRUSH_ANCHORED) &&
 	    !(stroke->brush->flag & BRUSH_RESTORE_MESH))
@@ -1083,6 +1184,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->brush = paint_brush(paint_get_active(CTX_data_scene(C)));
 	view3d_set_viewcontext(C, &stroke->vc);
 	view3d_get_transformation(stroke->vc.ar, stroke->vc.rv3d, stroke->vc.obact, &stroke->mats);
+	stroke->modifier_initial_radius_factor = 1;
 
 	stroke->get_location = get_location;
 	stroke->test_start = test_start;
@@ -1103,7 +1205,6 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 {
 	PaintStroke *stroke = op->customdata;
 	float mouse[2];
-	int first= 0;
 
 	if(!stroke->stroke_started) {
 		stroke->last_mouse_position[0] = event->x;
@@ -1116,9 +1217,10 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 
 			if(stroke->brush->flag & BRUSH_AIRBRUSH)
 				stroke->timer = WM_event_add_timer(CTX_wm_manager(C), CTX_wm_window(C), TIMER, stroke->brush->rate);
+
+			stroke->first_dab = 1;
 		}
 
-		first= 1;
 		//ED_region_tag_redraw(ar);
 	}
 
@@ -1135,7 +1237,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 		MEM_freeN(stroke);
 		return OPERATOR_FINISHED;
 	}
-	else if(first || ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE) || (event->type == TIMER && (event->customdata == stroke->timer))) {
+	else if(stroke->first_dab || ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE) || (event->type == TIMER && (event->customdata == stroke->timer))) {
 		if(stroke->stroke_started) {
 			if(paint_smooth_stroke(stroke, mouse, event)) {
 				if(paint_space_stroke_enabled(stroke->brush)) {
@@ -1153,7 +1255,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 	}
 
 	/* we want the stroke to have the first daub at the start location instead of waiting till we have moved the space distance */
-	if(first &&
+	if(stroke->first_dab &&
 	   stroke->stroke_started &&
 	   paint_space_stroke_enabled(stroke->brush) &&
 	   !(stroke->brush->flag & BRUSH_ANCHORED) &&
@@ -1191,7 +1293,7 @@ void paint_stroke_apply_brush(bContext *C, PaintStroke *stroke, Paint *paint)
 }
 
 /* combines mask, curve, and texture strengths */
-float paint_stroke_combined_strength(PaintStroke *stroke, Brush *brush, float dist, float co[3], float mask, float special_rotation, float tex_mouse[2])
+float paint_stroke_combined_strength(PaintStroke *stroke, float dist, float co[3], float mask)
 {
 	float mco[3];
 
@@ -1199,7 +1301,7 @@ float paint_stroke_combined_strength(PaintStroke *stroke, Brush *brush, float di
 	   across the symmetry axis and rotate it back to the orignal
 	   position in order to project it. This insures that the 
 	   brush texture will be oriented correctly. */
-	if(brush->mtex.tex) {
+	if(stroke->brush->mtex.tex) {
 		paint_flip_coord(mco, co, stroke->mirror_symmetry_pass);
 		
 		if(stroke->radial_symmetry_pass)
@@ -1209,10 +1311,10 @@ float paint_stroke_combined_strength(PaintStroke *stroke, Brush *brush, float di
 	}
 	
 	return brush_tex_strength(&stroke->vc,
-				  stroke->project_mat, brush, co, mask, dist,
+				  stroke->project_mat, stroke->brush, co, mask, dist,
 				  stroke->pixel_radius, stroke->radius,
-				  special_rotation,
-				  tex_mouse);
+				  stroke->rotation,
+				  stroke->tex_mouse);
 }
 
 int paint_stroke_exec(bContext *C, wmOperator *op)
@@ -1222,9 +1324,13 @@ int paint_stroke_exec(bContext *C, wmOperator *op)
 
 	RNA_BEGIN(op->ptr, itemptr, "stroke") {
 		RNA_float_get_array(&itemptr, "location", stroke->location);
-		paint_stroke_update_cache(stroke, paint);
+		RNA_float_get_array(&itemptr, "mouse", stroke->mouse);
+		stroke->pressure = RNA_float_get(&itemptr, "pressure");
+		paint_stroke_update_cache(C, stroke, paint);
 
 		stroke->update_step(C, stroke, &itemptr);
+
+		stroke->first_dab = 0;
 	}
 	RNA_END;
 
@@ -1234,6 +1340,20 @@ int paint_stroke_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+/**** mode data ****/
+
+void *paint_stroke_mode_data(struct PaintStroke *stroke)
+{
+	return stroke->mode_data;
+}
+
+void paint_stroke_set_mode_data(PaintStroke *stroke, void *mode_data)
+{
+	stroke->mode_data = mode_data;
+}
+
+/**** cache access ***/
+
 ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 {
 	return &stroke->vc;
@@ -1242,6 +1362,25 @@ ViewContext *paint_stroke_view_context(PaintStroke *stroke)
 float paint_stroke_feather(struct PaintStroke *stroke)
 {
 	return stroke->feather;
+}
+
+void paint_stroke_mouse_location(PaintStroke *stroke, float mouse[2])
+{
+	copy_v2_v2(mouse, stroke->mouse);
+}
+void paint_stroke_initial_mouse_location(PaintStroke *stroke, float initial_mouse[2])
+{
+	copy_v2_v2(initial_mouse, stroke->initial_mouse);
+}
+
+void paint_stroke_location(PaintStroke *stroke, float location[3])
+{
+	copy_v3_v3(location, stroke->location);
+}
+
+float paint_stroke_pressure(struct PaintStroke *stroke)
+{
+	return stroke->pressure;
 }
 
 void paint_stroke_symmetry_location(struct PaintStroke *stroke, float loc[3])
@@ -1254,19 +1393,31 @@ float paint_stroke_radius(struct PaintStroke *stroke)
 	return stroke->radius;
 }
 
-void paint_stroke_projection_mat(PaintStroke *stroke, float (**pmat)[4])
+float paint_stroke_radius_squared(struct PaintStroke *stroke)
 {
-	*pmat = stroke->project_mat;
+	return stroke->radius_squared;
 }
 
-void *paint_stroke_mode_data(struct PaintStroke *stroke)
+int paint_stroke_first_dab(PaintStroke *stroke)
 {
-	return stroke->mode_data;
+	return stroke->first_dab;
 }
 
-void paint_stroke_set_mode_data(PaintStroke *stroke, void *mode_data)
+/**** stroke modifiers ****/
+void paint_stroke_set_modifier_use_original_location(PaintStroke *stroke)
 {
-	stroke->mode_data = mode_data;
+	stroke->modifier_use_original_location = 1;
+}
+
+void paint_stroke_set_modifier_initial_radius_factor(PaintStroke *stroke,
+						     float initial_radius_factor)
+{
+	stroke->modifier_initial_radius_factor = initial_radius_factor;
+}
+
+void paint_stroke_set_modifier_use_original_texture_coords(PaintStroke *stroke)
+{
+	stroke->modifier_use_original_texture_coords = 1;
 }
 
 /* Do a raycast in the tree to find the 3d brush location
@@ -1330,11 +1481,10 @@ void paint_cursor_start(bContext *C, int (*poll)(bContext *C))
 
 /* Optimization for testing if a coord is within the brush area */
 
-void paint_stroke_test_init(PaintStrokeTest *test, float loc[3],
-			    float radius_squared)
+void paint_stroke_test_init(PaintStrokeTest *test, PaintStroke *stroke)
 {
-	test->radius_squared= radius_squared;
-	copy_v3_v3(test->location, loc);
+	test->radius_squared= stroke->radius_squared;
+	copy_v3_v3(test->location, stroke->symmetry_location);
 }
 
 int paint_stroke_test(PaintStrokeTest *test, float co[3])

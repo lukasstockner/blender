@@ -920,7 +920,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
 
         col = layout.column()
 
-        if context.sculpt_object:
+        if context.sculpt_object or context.vertex_paint_object:
             col.label(text="Stroke Method:")
             col.prop(brush, "stroke_method", text="")
 
@@ -940,7 +940,7 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 row.active = brush.use_space
                 row.prop(brush, "spacing", text="Spacing")
 
-            if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE') and (not brush.use_anchor) and (not brush.restore_mesh):
+            if (context.vertex_paint_object or brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE')) and (not brush.use_anchor) and (not brush.restore_mesh):
                 col = layout.column()
                 col.separator()
 
