@@ -3604,6 +3604,7 @@ static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
 			omp_set_num_threads(2*num_procs);
 		}
 #endif
+		sd->sculpting= 1;
 
 		return 1;
 	}
@@ -3637,6 +3638,7 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 	sd->draw_anchored= 0;
 	sd->draw_pressure= 0;
 	sd->special_rotation= 0;
+	sd->sculpting= 0;
 
 	/* Finished */
 	if(ss->cache) {

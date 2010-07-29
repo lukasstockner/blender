@@ -2607,87 +2607,6 @@ extern struct Brush *paint_brush(struct Paint *paint);
 #ifdef WITH_ONSURFACEBRUSH
 extern int sculpt_get_brush_geometry(bContext* C, int x, int y, int* pixel_radius, float location[3], float modelview[16], float projection[16], int viewport[4]);
 extern float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float offset);
-
-
-static void draw_on_surface_cursor(float modelview[16], float projection[16], float col[3], float alpha, float size[3], int viewport[4], float location[3], float inner_radius, float outer_radius, int brush_size)
-{
-	GLUquadric* sphere;
-
-	glPushAttrib(
-		GL_COLOR_BUFFER_BIT|
-		GL_CURRENT_BIT|
-		GL_DEPTH_BUFFER_BIT|
-		GL_ENABLE_BIT|
-		GL_LINE_BIT|
-		GL_POLYGON_BIT|
-		GL_STENCIL_BUFFER_BIT|
-		GL_TRANSFORM_BIT|
-		GL_VIEWPORT_BIT|
-		GL_TEXTURE_BIT);
-
-	glColor4f(col[0], col[1], col[2], alpha);
-
-	glEnable(GL_BLEND);
-
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadMatrixf(modelview);
-
-	glTranslatef(location[0], location[1], location[2]);
-
-	glScalef(size[0], size[1], size[2]);
-
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadMatrixf(projection);
-
-	glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-
-	glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
-	glDepthMask(GL_FALSE);
-
-	glDisable(GL_CULL_FACE);
-
-	glEnable(GL_DEPTH_TEST);
-
-	glClearStencil(0);
-	glClear(GL_STENCIL_BUFFER_BIT);
-	glEnable(GL_STENCIL_TEST);
-
-	glStencilFunc(GL_ALWAYS, 3, 0xFF);
-	glStencilOp(GL_KEEP, GL_REPLACE, GL_KEEP);
-
-	sphere = gluNewQuadric();
-
-	gluSphere(sphere, outer_radius, 40, 40);
-
-	glStencilFunc(GL_ALWAYS, 1, 0xFF);
-	glStencilOp(GL_KEEP, GL_DECR, GL_KEEP);
-
-	if (brush_size >= 8)
-		gluSphere(sphere, inner_radius, 40, 40);
-
-	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-
-	glStencilFunc(GL_EQUAL, 1, 0xFF);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-	gluSphere(sphere, outer_radius, 40, 40);
-
-	glStencilFunc(GL_EQUAL, 3, 0xFF);
-	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-
-	gluSphere(sphere, outer_radius, 40, 40);
-
-	gluDeleteQuadric(sphere);
-
-	glPopMatrix();
-
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
-
-	glPopAttrib();
-}
 #endif
 
 static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
@@ -2806,7 +2725,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 				const float inner_radius=  unprojected_radius*thickness;
 				const float outer_radius=  unprojected_radius;
 
-				draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
+				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
 			}
 
 			{
@@ -2817,7 +2736,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 				const float inner_radius=  unprojected_radius*thickness;
 				const float outer_radius=  unprojected_radius;
 
-				draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
+				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
 			}
 		}
 	}

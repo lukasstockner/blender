@@ -117,7 +117,13 @@ static void rna_Brush_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	Brush *br= (Brush*)ptr->data;
 	WM_main_add_notifier(NC_BRUSH|NA_EDITED, br);
-	//WM_main_add_notifier(NC_SPACE|ND_SPACE_VIEW3D, NULL);
+}
+
+static void rna_Brush_texture_overlay_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	Brush *br= (Brush*)ptr->data;
+	WM_main_add_notifier(NC_BRUSH|NA_EDITED, br);
+	WM_main_add_notifier(NC_SPACE|ND_SPACE_VIEW3D, NULL);
 }
 
 static void rna_Brush_sculpt_tool_update(Main *bmain, Scene *scene, PointerRNA *ptr)
@@ -707,7 +713,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_texture_overlay", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_TEXTURE_OVERLAY);
 	RNA_def_property_ui_text(prop, "Use Texture Overlay", "Show texture in viewport");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	RNA_def_property_update(prop, 0, "rna_Brush_texture_overlay_update");
 
 	prop= RNA_def_property(srna, "edge_to_edge", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_EDGE_TO_EDGE);
@@ -742,18 +748,18 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "mtex");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Texture Slot", "");
-	
+
 	prop= RNA_def_property(srna, "texture", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "mtex.tex");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Texture", "");
-	RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_update");
+	RNA_def_property_update(prop, NC_TEXTURE, "rna_Brush_texture_overlay_update");
 
 	prop= RNA_def_property(srna, "texture_overlay_alpha", PROP_INT, PROP_PERCENTAGE);
 	RNA_def_property_int_sdna(prop, NULL, "texture_overlay_alpha");
 	RNA_def_property_range(prop, 1, 100);
 	RNA_def_property_ui_text(prop, "Texture Overlay Alpha", "");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
+	RNA_def_property_update(prop, 0, "rna_Brush_texture_overlay_update");
 
 	prop= RNA_def_property(srna, "add_col", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "add_col");

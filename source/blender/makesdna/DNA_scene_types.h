@@ -592,7 +592,7 @@ typedef struct Sculpt {
 
 	float special_rotation;
 
-	int pad;
+	int sculpting;
 } Sculpt;
 
 typedef struct VPaint {
