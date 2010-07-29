@@ -1221,6 +1221,14 @@ static struct ImBuf *brush_gen_radial_control_imbuf(Brush *br)
 			}
 		}
 
+		/* invert the texture */
+		for(i=0; i<side; ++i) {
+			for(j=0; j<side; ++j) {
+				if (sqrt(pow(i - half, 2) + pow(j - half, 2)) < half)
+					im->rect_float[i*side+j]= 1.0f - im->rect_float[i*side+j];
+			}
+		}
+
 		MEM_freeN(texcache);
 	}
 
