@@ -1586,47 +1586,16 @@ static void vpaint_blend(Brush *brush, float col[4], float alpha)
 	IMB_blend_color_float(col, col, brush->rgb, alpha, tool);
 }
 
-static float tex_strength(Brush *brush, PaintStroke *stroke,
-			  float co[3], float mask, float dist,
-			  float radius3d)
-{
-	return paint_stroke_combined_strength(stroke, dist, co, mask);
-}
-
-/* apply paint at specified coordinate
-   returns 1 if paint was applied, 0 otherwise */
-static int vpaint_paint_coord(Brush *brush, PaintStroke *stroke,
-			      float co[3], float col[4],
-			      float center[3], float radius,
-			      float radius_squared, float mask)
-{
-	float strength, dist, dist_squared;
-
-	dist_squared = len_squared_v3v3(center, co);
-
-	if(dist_squared < radius_squared) {
-		dist = sqrtf(dist_squared);
-
-		strength = brush->alpha *
-			tex_strength(brush, stroke, co, mask, dist, radius);
-		
-		vpaint_blend(brush, col, strength);
-
-		return 1;
-	}
-
-	return 0;
-}
-
 static void vpaint_nodes_grids(Brush *brush, PaintStroke *stroke,
 			       DMGridData **grids, CustomData *vdata,
 			       GridKey *gridkey,
 			       int *grid_indices, int totgrid,
-			       int gridsize, int active, float center[3],
-			       float radius)
+			       int gridsize, int active)
 {
-	float radius_squared = radius*radius;
+	PaintStrokeTest test;
 	int i, x, y;
+
+	paint_stroke_test_init(&test, stroke);
 
 	for(i = 0; i < totgrid; ++i) {
 		DMGridData *grid = grids[grid_indices[i]];
@@ -1642,11 +1611,14 @@ static void vpaint_nodes_grids(Brush *brush, PaintStroke *stroke,
 								      gridkey,
 								      vdata);
 
-				vpaint_paint_coord(brush, stroke, co,
-						   gridcol,
-						   center, radius,
-						   radius_squared,
-						   mask);
+				if(paint_stroke_test(&test, co)) {
+					float strength;
+					
+					strength = brush->alpha *
+						paint_stroke_combined_strength(stroke, test.dist, co, mask);
+					
+					vpaint_blend(brush, gridcol, strength);
+				}
 			}
 		}
 	}
@@ -1655,10 +1627,9 @@ static void vpaint_nodes_grids(Brush *brush, PaintStroke *stroke,
 static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 			       MFace *mface, MVert *mvert,
 			       CustomData *vdata, CustomData *fdata,
-			       int *face_indices, int totface, float center[3],
-			       float radius)
+			       int *face_indices, int totface)
 {
-	float radius_squared = radius*radius;
+	PaintStrokeTest test;
 	MCol *mcol;
 	int pmask_totlayer, pmask_first_layer;
 	int i, j;
@@ -1666,6 +1637,8 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 	mcol = CustomData_get_layer(fdata, CD_MCOL);
 	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
 	pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
+
+	paint_stroke_test_init(&test, stroke);
 
 	for(i = 0; i < totface; ++i) {
 		int face_index = face_indices[i];
@@ -1687,9 +1660,14 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 			mask = paint_mask_from_vertex(vdata, vndx,
 						      pmask_totlayer,
 						      pmask_first_layer);
-
-			vpaint_paint_coord(brush, stroke, co, fcol, center,
-					   radius, radius_squared, mask);
+			if(paint_stroke_test(&test, co)) {
+				float strength;
+					
+				strength = brush->alpha *
+					paint_stroke_combined_strength(stroke, test.dist, co, mask);
+					
+				vpaint_blend(brush, fcol, strength);
+			}
 
 			mcol[cndx].b = fcol[0] * 255.0f;
 			mcol[cndx].g = fcol[1] * 255.0f;
@@ -1703,10 +1681,12 @@ static void vpaint_nodes_grids_smooth(Brush *brush, PaintStroke *stroke,
 				      DMGridData **grids, CustomData *vdata,
 				      GridKey *gridkey,
 				      int *grid_indices, int totgrid,
-				      int gridsize, int active, float center[3],
-				      float radius, float radius_squared)
+				      int gridsize, int active)
 {
+	PaintStrokeTest test;
 	int i, j, x, y, x2, y2;
+
+	paint_stroke_test_init(&test, stroke);
 
 	/* TODO: this could be better optimized like sculpt,
 	   just doing the simplest smooth for now */
@@ -1718,18 +1698,15 @@ static void vpaint_nodes_grids_smooth(Brush *brush, PaintStroke *stroke,
 			for(x = 0; x < gridsize; ++x) {
 				float avg_col[4] = {0, 0, 0, 0};
 				float *act_col, strength, mask;
-				float *co, dist_squared, dist;
+				float *co;
 				int totcol = 0;
 
 				act_elem = GRIDELEM_AT(grid, y*gridsize + x, gridkey);
 
 				co = GRIDELEM_CO(act_elem, gridkey);
-				dist_squared = len_squared_v3v3(center, co);
 
-				if(dist_squared > radius_squared)
+				if(!paint_stroke_test(&test, co))
 					continue;
-
-				dist = sqrtf(dist_squared);
 
 				for(y2 = -1; y2 <= 1; y2+=2) {
 					if(y + y2 < 0 || y + y2 >= gridsize)
@@ -1751,9 +1728,7 @@ static void vpaint_nodes_grids_smooth(Brush *brush, PaintStroke *stroke,
 								gridkey,
 								vdata);
 				strength = brush->alpha *
-					tex_strength(brush, stroke,
-						     co, mask,
-						     dist, radius);
+					paint_stroke_combined_strength(stroke, test.dist, co, mask);
 				act_col = GRIDELEM_COLOR(act_elem, gridkey)[active];
 				for(j = 0; j < 4; ++j)
 					act_col[j] = interpf(avg_col[j] / totcol, act_col[j], strength);
@@ -1767,9 +1742,7 @@ static void vpaint_nodes_grids_smooth(Brush *brush, PaintStroke *stroke,
 static void vpaint_nodes_faces_smooth(Brush *brush, PaintStroke *stroke,
 				      PBVH *pbvh, PBVHNode *node,
 				      MFace *mface,
-				      CustomData *fdata, ListBase *fmap,
-				      float center[3],
-				      float radius, float radius_squared)
+				      CustomData *fdata, ListBase *fmap)
 {
 	PBVHVertexIter vd;
 	PaintStrokeTest test;
@@ -1820,10 +1793,10 @@ static void vpaint_nodes_faces_smooth(Brush *brush, PaintStroke *stroke,
 						continue;
 
 					strength = brush->alpha *
-						tex_strength(brush, stroke,
-							     vd.co,
-							     vd.mask_combined,
-							     test.dist, radius);
+						paint_stroke_combined_strength(stroke,
+									       test.dist,
+									       vd.co,
+									       vd.mask_combined);
 
 					for(j = 0; j < 4; ++j) {
 						unsigned char *c;
@@ -1862,8 +1835,7 @@ static int vpaint_find_gridkey_active_layer(CustomData *fdata, GridKey *gridkey)
 
 static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 			 Scene *scene, Object *ob,
-			 PBVHNode **nodes, int totnode,
-			 float center[3], float radius)
+			 PBVHNode **nodes, int totnode)
 {
 	PBVH *pbvh = ob->paint->pbvh;
 	Brush *brush = paint_brush(&vp->paint);
@@ -1897,8 +1869,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 							   grid_indices,
 							   totgrid,
 							   gridsize,
-							   active, center,
-							   radius, radius*radius);
+							   active);
 					BLI_pbvh_node_set_flags(nodes[n],
 								SET_INT_IN_POINTER(PBVH_NeedsColorStitch));
 				}
@@ -1909,8 +1880,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 							   grid_indices,
 							   totgrid,
 							   gridsize,
-							   active, center,
-							   radius);
+							   active);
 				}
 			}
 		}
@@ -1933,15 +1903,14 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 				vpaint_nodes_faces_smooth(brush, stroke,
 							  pbvh, nodes[n],
 							  mface, fdata,
-							  fmap, center,
-							  radius, radius*radius);
+							  fmap);
 			}				
 			else {
 				vpaint_nodes_faces(brush, stroke,
 						   mface, mvert,
 						   vdata, fdata,
-						   face_indices, totface,
-						   center, radius);
+						   face_indices,
+						   totface);
 			}
 		}
 
@@ -2128,8 +2097,7 @@ static void vpaint_stroke_brush_action(bContext *C, PaintStroke *stroke)
 					      brush->alpha);
 		}
 		else {
-			vpaint_nodes(vp, stroke, scene, ob, nodes, totnode,
-				     center, radius);
+			vpaint_nodes(vp, stroke, scene, ob, nodes, totnode);
 		}
 
 		if(nodes)

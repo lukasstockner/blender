@@ -1061,7 +1061,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 		}
 	}
 	else
-		copy_v3_v3(stroke->mouse, mouse_in);
+		copy_v2_v2(stroke->mouse, mouse_in);
 
 	if(stroke->first_dab ||
 	   !((stroke->brush->flag & BRUSH_ANCHORED) ||
@@ -1154,7 +1154,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 					pressure = brush_use_size_pressure(stroke->brush) ? wmtab->Pressure : 1;
 			}
 
-			scale = (stroke->pixel_radius * pressure * stroke->brush->spacing/50.0f) / length;
+			scale = (brush_size(stroke->brush) * pressure * stroke->brush->spacing/50.0f) / length;
 			mul_v2_fl(vec, scale);
 
 			steps = (int)(1.0f / scale);

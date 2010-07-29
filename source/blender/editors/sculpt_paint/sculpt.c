@@ -177,7 +177,6 @@ typedef struct StrokeCache {
 	Brush *brush;
 
 	float (*face_norms)[3]; /* Copy of the mesh faces' normals */
-	float special_rotation; /* Texture rotation (radians) for anchored and rake modes */
 	float grab_delta[3], grab_delta_symmetry[3];
 	float old_grab_location[3], orig_grab_location[3];
 
@@ -2385,7 +2384,6 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
-	cache->special_rotation = (brush->flag & BRUSH_RAKE) ? sd->last_angle : 0;
 	//cache->last_rake[0] = sd->last_x;
 	//cache->last_rake[1] = sd->last_y;
 
