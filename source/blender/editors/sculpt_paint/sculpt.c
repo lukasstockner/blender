@@ -2631,23 +2631,9 @@ static void sculpt_flush_update(bContext *C)
 	}
 }
 
-/* Returns whether the mouse/stylus is over the mesh (1)
-   or over the background (0) */
-static int over_mesh(bContext *C, struct wmOperator *op, float x, float y)
+static int sculpt_stroke_test_start(bContext *C, wmOperator *op, wmEvent *event)
 {
-	float mouse[2], co[3];
-
-	mouse[0] = x;
-	mouse[1] = y;
-
-	return sculpt_stroke_get_location(C, op->customdata, co, mouse);
-}
-
-static int sculpt_stroke_test_start(bContext *C, struct wmOperator *op,
-					wmEvent *event)
-{
-	/* Don't start the stroke until mouse goes over the mesh */
-	if(over_mesh(C, op, event->x, event->y)) {
+	if(paint_stroke_over_mesh(C, op->customdata, event->x, event->y)) {
 		Object *ob = CTX_data_active_object(C);
 		SculptSession *ss = ob->paint->sculpt;
 		Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
@@ -2799,7 +2785,7 @@ static int sculpt_brush_stroke_invoke(bContext *C, wmOperator *op, wmEvent *even
 	ignore_background_click = RNA_boolean_get(op->ptr,
 						  "ignore_background_click"); 
 
-	if(ignore_background_click && !over_mesh(C, op, event->x, event->y)) {
+	if(ignore_background_click && !paint_stroke_over_mesh(C, stroke, event->x, event->y)) {
 		paint_stroke_free(stroke);
 		return OPERATOR_PASS_THROUGH;
 	}

@@ -92,7 +92,7 @@ int vertex_paint_mode_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
-	return ob && ob->mode == OB_MODE_VERTEX_PAINT;
+	return ob && ob->mode == OB_MODE_VERTEX_PAINT && get_mesh(ob);
 }
 
 int vertex_paint_poll(bContext *C)
@@ -182,72 +182,6 @@ unsigned int vpaint_get_current_col(VPaint *vp)
 {
 	Brush *brush = paint_brush(&vp->paint);
 	return rgba_to_mcol(brush->rgb[0], brush->rgb[1], brush->rgb[2], 1.0f);
-}
-
-static void do_shared_vertexcol(Mesh *me)
-{
-	/* if no mcol: do not do */
-	/* if tface: only the involved faces, otherwise all */
-	MFace *mface;
-	MTFace *tface;
-	int a;
-	short *scolmain, *scol;
-	char *mcol;
-	
-	if(me->mcol==0 || me->totvert==0 || me->totface==0) return;
-	
-	scolmain= MEM_callocN(4*sizeof(short)*me->totvert, "colmain");
-	
-	tface= me->mtface;
-	mface= me->mface;
-	mcol= (char *)me->mcol;
-	for(a=me->totface; a>0; a--, mface++, mcol+=16) {
-		if((tface && tface->mode & TF_SHAREDCOL) || (me->editflag & ME_EDIT_PAINT_MASK)==0) {
-			scol= scolmain+4*mface->v1;
-			scol[0]++; scol[1]+= mcol[1]; scol[2]+= mcol[2]; scol[3]+= mcol[3];
-			scol= scolmain+4*mface->v2;
-			scol[0]++; scol[1]+= mcol[5]; scol[2]+= mcol[6]; scol[3]+= mcol[7];
-			scol= scolmain+4*mface->v3;
-			scol[0]++; scol[1]+= mcol[9]; scol[2]+= mcol[10]; scol[3]+= mcol[11];
-			if(mface->v4) {
-				scol= scolmain+4*mface->v4;
-				scol[0]++; scol[1]+= mcol[13]; scol[2]+= mcol[14]; scol[3]+= mcol[15];
-			}
-		}
-		if(tface) tface++;
-	}
-	
-	a= me->totvert;
-	scol= scolmain;
-	while(a--) {
-		if(scol[0]>1) {
-			scol[1]/= scol[0];
-			scol[2]/= scol[0];
-			scol[3]/= scol[0];
-		}
-		scol+= 4;
-	}
-	
-	tface= me->mtface;
-	mface= me->mface;
-	mcol= (char *)me->mcol;
-	for(a=me->totface; a>0; a--, mface++, mcol+=16) {
-		if((tface && tface->mode & TF_SHAREDCOL) || (me->editflag & ME_EDIT_PAINT_MASK)==0) {
-			scol= scolmain+4*mface->v1;
-			mcol[1]= scol[1]; mcol[2]= scol[2]; mcol[3]= scol[3];
-			scol= scolmain+4*mface->v2;
-			mcol[5]= scol[1]; mcol[6]= scol[2]; mcol[7]= scol[3];
-			scol= scolmain+4*mface->v3;
-			mcol[9]= scol[1]; mcol[10]= scol[2]; mcol[11]= scol[3];
-			if(mface->v4) {
-				scol= scolmain+4*mface->v4;
-				mcol[13]= scol[1]; mcol[14]= scol[2]; mcol[15]= scol[3];
-			}
-		}
-		if(tface) tface++;
-	}
-
-	MEM_freeN(scolmain);
 }
 
 static void make_vertexcol(Object *ob)	/* single ob */
@@ -1596,7 +1530,7 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
 
 /* ********************** vertex paint operator ******************* */
 
-void paint_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
+static void paint_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 {
 	if(BLI_pbvh_node_get_tmin(node) < *tmin) {
 		PaintStrokeRaycastData *data = data_v;
@@ -1610,7 +1544,7 @@ void paint_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
 	}
 }
 
-int vpaint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
+static int vpaint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
 {
 	// XXX: sculpt_stroke_modifiers_check(C, ss);
 	return paint_stroke_get_location(C, stroke, paint_raycast_cb, NULL, out, mouse, 0);		
@@ -1618,26 +1552,27 @@ int vpaint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float ou
 
 static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent *event)
 {
-	ToolSettings *ts= CTX_data_tool_settings(C);
-	VPaint *vp= ts->vpaint;
-	Object *ob= CTX_data_active_object(C);
-	Scene *scene = CTX_data_scene(C);
-	DerivedMesh *dm;
-	Mesh *me;
+	if(paint_stroke_over_mesh(C, op->customdata, event->x, event->y)) {
+		ToolSettings *ts= CTX_data_tool_settings(C);
+		VPaint *vp= ts->vpaint;
+		Object *ob= CTX_data_active_object(C);
+		Scene *scene = CTX_data_scene(C);
+		DerivedMesh *dm;
+		Mesh *me;
 
-	/* context checks could be a poll() */
-	me= get_mesh(ob);
-	if(me==NULL || me->totface==0) return OPERATOR_PASS_THROUGH;
+		/* context checks could be a poll() */
+		me= get_mesh(ob);	
+		if(me->mcol==NULL) return OPERATOR_CANCELLED;
 	
-	if(me->mcol==NULL) return OPERATOR_CANCELLED;
+		/* for filtering */
+		copy_vpaint_prev(vp, (unsigned int *)me->mcol, me->totface);
 	
-	/* for filtering */
-	copy_vpaint_prev(vp, (unsigned int *)me->mcol, me->totface);
-	
-	dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
-	ob->paint->pbvh = dm->getPBVH(ob, dm);
+		dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
+		ob->paint->pbvh = dm->getPBVH(ob, dm);
 
-	return 1;
+		return 1;
+	}
+	return 0;
 }
 
 static void vpaint_blend(Brush *brush, float col[4], float alpha)
@@ -2241,7 +2176,7 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke= vpaint_invoke;
 	ot->modal= paint_stroke_modal;
-	/* ot->exec= vpaint_exec; <-- needs stroke property */
+	ot->exec= paint_stroke_exec;
 	ot->poll= vertex_paint_poll;
 	
 	/* flags */

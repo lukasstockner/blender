@@ -1420,6 +1420,13 @@ void paint_stroke_set_modifier_use_original_texture_coords(PaintStroke *stroke)
 	stroke->modifier_use_original_texture_coords = 1;
 }
 
+/* returns 1 if the mouse is over the mesh, 0 otherwise */
+int paint_stroke_over_mesh(bContext *C, PaintStroke *stroke, int x, int y)
+{
+	float mouse[2] = {x, y}, co[3];
+	return stroke->get_location(C, stroke, co, mouse);
+}
+
 /* Do a raycast in the tree to find the 3d brush location
    (This allows us to ignore the GL depth buffer)
    Returns 0 if the ray doesn't hit the mesh, non-zero otherwise

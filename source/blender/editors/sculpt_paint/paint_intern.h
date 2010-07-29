@@ -103,6 +103,8 @@ typedef struct {
 	float dist;
 	int original;
 } PaintStrokeRaycastData;
+
+int paint_stroke_over_mesh(struct bContext *C, PaintStroke *stroke, int x, int y);
 int paint_stroke_get_location(struct bContext *C, PaintStroke *stroke,
 			      BLI_pbvh_HitOccludedCallback hit_cb, void *mode_data,
 			      float out[3], float mouse[2], int original);
