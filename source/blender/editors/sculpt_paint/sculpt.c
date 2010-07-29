@@ -3239,10 +3239,13 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	if(brush->sculpt_tool == SCULPT_TOOL_GRAB) {
 		float grab_location[3], imat[4][4];
 
-		cache->radius= unproject_brush_radius(ss->ob, paint_stroke_view_context(stroke), cache->true_location, cache->pixel_radius);
-		cache->radius_squared = cache->radius*cache->radius;
+		if(cache->first_time)
+			copy_v3_v3(cache->orig_grab_location, cache->true_location);
 
-		copy_v3_v3(sd->anchored_location, cache->true_location);
+		/* compute 3d coordinate at same z from original location + mouse */
+		initgrabz(cache->vc->rv3d, cache->orig_grab_location[0],
+			cache->orig_grab_location[1], cache->orig_grab_location[2]);
+		window_to_3d_delta(cache->vc->ar, grab_location, cache->mouse[0], cache->mouse[1]);
 
 		/* compute delta to move verts by */
 		if(!cache->first_time) {
