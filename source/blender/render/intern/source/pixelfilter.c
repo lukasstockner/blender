@@ -145,7 +145,7 @@ static float calc_weight(Render *re, float *weight, int i, int j)
 	float x, y, dist, totw= 0.0;
 	int a;
 
-	for(a=0; a<re->params.osa; a++) {
+	for(a=0; a<re->osa; a++) {
 		x= re->sample.jit[a][0] + i;
 		y= re->sample.jit[a][1] + j;
 		dist= sqrt(x*x+y*y);
@@ -153,14 +153,14 @@ static float calc_weight(Render *re, float *weight, int i, int j)
 		weight[a]= 0.0;
 
 		/* Weighting choices */
-		switch(re->params.r.filtertype) {
+		switch(re->r.filtertype) {
 		case R_FILTER_BOX:
 			if(i==0 && j==0) weight[a]= 1.0;
 			break;
 			
 		case R_FILTER_TENT:
-			if(dist < re->params.r.gauss)
-				weight[a]= re->params.r.gauss - dist;
+			if(dist < re->r.gauss)
+				weight[a]= re->r.gauss - dist;
 			break;
 			
 		case R_FILTER_GAUSS:
@@ -168,7 +168,7 @@ static float calc_weight(Render *re, float *weight, int i, int j)
 		case R_FILTER_QUAD:
 		case R_FILTER_CUBIC:
 		case R_FILTER_CATROM:
-			weight[a]= RE_filter_value(re->params.r.filtertype, dist, re->params.r.gauss);
+			weight[a]= RE_filter_value(re->r.filtertype, dist, re->r.gauss);
 			break;
 		}
 		
@@ -218,10 +218,10 @@ void pxf_sample_offset(RenderSampleData *rsd, int sample, float ofs[2])
 float (*pxf_sample_offset_table(Render *re))[2]
 {
 	/* current jitter table to lookup sample offset */
-	if(re->params.osa)
+	if(re->osa)
 		return re->sample.jit;
-	else if(re->cb.i.curblur)
-		return &re->sample.mblur_jit[re->cb.i.curblur-1];
+	else if(re->i.curblur)
+		return &re->sample.mblur_jit[re->i.curblur-1];
 	else
 		return NULL;
 }
@@ -331,12 +331,12 @@ void pxf_init(Render *re)
 	pxf_free(re);
 
 	/* needed for mblur too */
-	pxf_init_jit(&re->sample, re->params.osa, re->params.r.mblur_samples);
+	pxf_init_jit(&re->sample, re->osa, re->r.mblur_samples);
 
-	if(re->params.osa)
+	if(re->osa)
 		pxf_init_table(re);
 	else /* just prevents cpu cycles for larger render and copying */
-		re->params.r.filtertype= 0;
+		re->r.filtertype= 0;
 }
 
 void pxf_free(Render *re)

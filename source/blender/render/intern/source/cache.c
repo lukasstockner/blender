@@ -195,7 +195,7 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 	cache->sample= MEM_callocN(sizeof(PixelCacheSample)*cache->w*cache->h, "PixelCacheSample");
 	sample= cache->sample;
 
-	if(re->params.osa) {
+	if(re->osa) {
 		rd= pa->rectdaps;
 	}
 	else {
@@ -242,7 +242,7 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 				sample->filled= 1;
 			}
 
-			if(re->cb.test_break(re->cb.tbh))
+			if(re->test_break(re->tbh))
 				break;
 		}
 	}
@@ -1059,7 +1059,7 @@ void irr_cache_create(Render *re, RenderPart *pa)
 	
 	if(!((re->db.wrld.aomode & WO_LIGHT_CACHE) && (re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT))))
 		return;
-	if((re->params.r.mode & R_RAYTRACE) == 0)
+	if((re->r.mode & R_RAYTRACE) == 0)
 		return;
 
 	BLI_lock_thread(LOCK_RCACHE);
@@ -1147,10 +1147,10 @@ void irr_cache_fill(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ss
 					}
 				}
 
-				if(re->cb.test_break(re->cb.tbh)) break;
+				if(re->test_break(re->tbh)) break;
 			}
 
-			if(re->cb.test_break(re->cb.tbh)) break;
+			if(re->test_break(re->tbh)) break;
 		}
 
 		step /= 2;

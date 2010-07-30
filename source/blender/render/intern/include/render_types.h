@@ -125,36 +125,6 @@ typedef struct RenderSampleData {
 	int shadowsamplenr[BLENDER_MAX_THREADS];
 } RenderSampleData;
 
-typedef struct RenderCallbacks {
-	/* callbacks */
-	void (*display_init)(void *handle, RenderResult *rr);
-	void *dih;
-	void (*display_clear)(void *handle, RenderResult *rr);
-	void *dch;
-	void (*display_draw)(void *handle, RenderResult *rr, volatile rcti *rect);
-	void *ddh;
-	
-	void (*stats_draw)(void *handle, RenderStats *ri);
-	void *sdh;
-	void (*progress)(void *handle, float i);
-	void *prh;
-
-	int (*test_break)(void *handle);
-	void *tbh;
-	
-	void (*error)(void *handle, char *str);
-	void *erh;
-	
-	RenderStats i;
-} RenderCallbacks;
-
-typedef struct RenderParams {
-	/* full copy of scene->r */
-	RenderData r;
-	short osa, flag;
-	float mblur_offs, field_offs;
-} RenderParams;
-
 /* controls state of render, everything that's read-only during render stage */
 struct Render {
 	struct Render *next, *prev;
@@ -164,7 +134,9 @@ struct Render {
 	/* state settings */
 	short ok, result_ok;
 
-	RenderParams params;
+	RenderData r; /* full copy of scene->r */
+	short osa, flag;
+	float mblur_offs, field_offs;
 	
 	/* camera settings */
 	RenderCamera cam;
@@ -173,9 +145,6 @@ struct Render {
 
 	/* database */
 	RenderDB db;
-
-	/* callbacks */
-	RenderCallbacks cb;
 
 	/* samplers */
 	RenderSampleData sample;
@@ -204,6 +173,27 @@ struct Render {
 	int partx, party;
 
 	ListBase parts;
+
+	/* callbacks */
+	void (*display_init)(void *handle, RenderResult *rr);
+	void *dih;
+	void (*display_clear)(void *handle, RenderResult *rr);
+	void *dch;
+	void (*display_draw)(void *handle, RenderResult *rr, volatile rcti *rect);
+	void *ddh;
+	
+	void (*stats_draw)(void *handle, RenderStats *ri);
+	void *sdh;
+	void (*progress)(void *handle, float i);
+	void *prh;
+
+	int (*test_break)(void *handle);
+	void *tbh;
+	
+	void (*error)(void *handle, char *str);
+	void *erh;
+	
+	RenderStats i;
 };
 
 /* Defines */

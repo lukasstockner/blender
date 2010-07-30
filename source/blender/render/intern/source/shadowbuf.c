@@ -185,7 +185,7 @@ static float *give_jitter_tab(int samp)
 static void make_jitter_weight_tab(Render *re, ShadBuf *shb, short filtertype) 
 {
 	float *jit, totw= 0.0f;
-	int samp= get_render_shadow_samples(&re->params.r, shb->samp);
+	int samp= get_render_shadow_samples(&re->r, shb->samp);
 	int a, tot=samp*samp;
 	
 	shb->weight= MEM_mallocN(sizeof(float)*tot, "weight tab lamp");
@@ -530,11 +530,11 @@ static int compress_deepshadowbuf(Render *re, LampRen *lar, DeepTile *tile, Rend
 			memcpy(newbuf, tile->deepbuf[offset], sizeof(DeepSample)*newtot);
 			tile->deepbuf[offset]= newbuf;
 
-			if(re->cb.test_break(re->cb.tbh))
+			if(re->test_break(re->tbh))
 				break;
 		}
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 	}
 
@@ -795,7 +795,7 @@ static void flat_shadowbuf_rasterize(Render *re, LampRen *lar)
 		/* create Z tiles (for compression): this system is 24 bits!!! */
 		compress_shadowbuf(shb, rectz, lar->mode & LA_SQUARE);
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 	}
 	
@@ -915,7 +915,7 @@ static void shadowbuf_init(Render *re, LampRen *lar, ThreadQueue *queue)
 
 		/* jitter, weights - not threadsafe! */
 		BLI_lock_thread(LOCK_CUSTOM1);
-		shb->jit= give_jitter_tab(get_render_shadow_samples(&re->params.r, shb->samp));
+		shb->jit= give_jitter_tab(get_render_shadow_samples(&re->r, shb->samp));
 		make_jitter_weight_tab(re, shb, lar->filtertype);
 		
 		if(shb->totbuf==4) lar->jitbuf= (float(*)[2])give_jitter_tab(2);
@@ -944,7 +944,7 @@ static void *do_shadowbuf_task_thread(void *queue)
 	ShadBufTask *task;
 	
 	while((task=BLI_thread_queue_pop(queue))) {
-		if(!task->re->cb.test_break(task->re->cb.tbh)) {
+		if(!task->re->test_break(task->re->tbh)) {
 			if(task->lar->buftype == LA_SHADBUF_DEEP)
 				deep_shadowbuf_rasterize(task->re, task->lar, &task->pa);
 			else
@@ -973,8 +973,8 @@ void shadowbufs_make_threaded(Render *re)
 	if(totshb == 0)
 		return;
 
-	re->cb.i.infostr= "Creating Shadowbuffers";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "Creating Shadowbuffers";
+	re->stats_draw(re->sdh, &re->i);
 
 	/* initialize shadow buffer and gather rasterization tasks */
 	queue= BLI_thread_queue_init();
@@ -985,7 +985,7 @@ void shadowbufs_make_threaded(Render *re)
 			shadowbuf_init(re, lar, queue);
 
 	/* count number of threads to use */
-	totthread= MIN2(BLI_thread_queue_size(queue), re->params.r.threads);
+	totthread= MIN2(BLI_thread_queue_size(queue), re->r.threads);
 
 	if(totthread <= 1) {
 		/* no threads for one shadow buffer */
@@ -993,8 +993,8 @@ void shadowbufs_make_threaded(Render *re)
 	}
 	else {
 		/* swap test break function */
-		test_break= re->cb.test_break;
-		re->cb.test_break= thread_break;
+		test_break= re->test_break;
+		re->test_break= thread_break;
 
 		BLI_init_threads(&threads, do_shadowbuf_task_thread, totthread);
 		
@@ -1003,7 +1003,7 @@ void shadowbufs_make_threaded(Render *re)
 
 		/* keep rendering as long as there are shadow buffers not ready */
 		do {
-			if((g_break=test_break(re->cb.tbh)))
+			if((g_break=test_break(re->tbh)))
 				break;
 
 			PIL_sleep_ms(50);
@@ -1012,7 +1012,7 @@ void shadowbufs_make_threaded(Render *re)
 		BLI_end_threads(&threads);
 
 		/* unset threadsafety */
-		re->cb.test_break= test_break;
+		re->test_break= test_break;
 		g_break= 0;
 	}
 
@@ -1279,7 +1279,7 @@ float shadowbuf_test(Render *re, ShadBuf *shb, float *co, float *dxco, float *dy
 	zs= ((float)0x7FFFFFFF)*zs1;
 
 	/* take num*num samples, increase area with fac */
-	num= get_render_shadow_samples(&re->params.r, shb->samp);
+	num= get_render_shadow_samples(&re->r, shb->samp);
 	num= num*num;
 	fac= shb->soft;
 	
@@ -1980,8 +1980,8 @@ static void isb_bsp_test_strand(ZSpan *zspan, int obi, int zvlnr, float *v1, flo
 	face.obi= obi;
 	face.facenr= zvlnr & ~RE_QUAD_OFFS;
 	face.type= R_STRAND;
-	if(re->params.osa)
-		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)re->params.osa);
+	if(re->osa)
+		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)re->osa);
 	else
 		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha);
 	
@@ -2015,8 +2015,8 @@ static void isb_bsp_test_face(ZSpan *zspan, int obi, int zvlnr, float *v1, float
 	face.obi= obi;
 	face.facenr= zvlnr & ~RE_QUAD_OFFS;
 	face.type= 0;
-	if(re->params.osa)
-		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)re->params.osa);
+	if(re->osa)
+		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha/(float)re->osa);
 	else
 		face.shad_alpha= (short)ceil(4096.0f*zspan->shad_alpha);
 	
@@ -2238,9 +2238,9 @@ static void isb_add_shadfac(Render *re, ISBShadfacA **isbsapp, MemArena *mem, in
 	ISBShadfacA *new;
 	float shadfacf;
 	
-	/* in osa case, the samples were filled in with factor 1.0/re->params.osa. if fewer samples we have to correct */
-	if(re->params.osa)
-		shadfacf= ((float)shadfac*re->params.osa)/(4096.0*samples);
+	/* in osa case, the samples were filled in with factor 1.0/re->osa. if fewer samples we have to correct */
+	if(re->osa)
+		shadfacf= ((float)shadfac*re->osa)/(4096.0*samples);
 	else
 		shadfacf= ((float)shadfac)/(4096.0);
 	
@@ -2272,7 +2272,7 @@ static int isb_add_samples(Render *re, RenderPart *pa, ISBBranch *root, MemArena
 	BLI_array_randomize(xcos, sizeof(int), pa->rectx, 12345);
 	BLI_array_randomize(ycos, sizeof(int), pa->recty, 54321);
 	
-	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++) {
+	for(sample=0; sample<(re->osa?re->osa:1); sample++) {
 		ISBSample *samp= samplebuf[sample], *samp1;
 		
 		for(yi=0; yi<pa->recty; yi++) {
@@ -2319,11 +2319,11 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 	BLI_memarena_use_calloc(memarena);
 	
 	/* samplebuf is in camera view space (pixels) */
-	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++)
+	for(sample=0; sample<(re->osa?re->osa:1); sample++)
 		samplebuf[sample]= MEM_callocN(sizeof(ISBSample)*pa->rectx*pa->recty, "isb samplebuf");
 	
 	/* for end result, ISBSamples point to this in non OSA case, otherwise to pixstruct->shadfac */
-	if(re->params.osa==0)
+	if(re->osa==0)
 		isbdata->shadfacs= MEM_callocN(pa->rectx*pa->recty*sizeof(short), "isb shadfacs");
 	
 	/* setup bsp root */
@@ -2337,13 +2337,13 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 			
 			/* this makes it a long function, but splitting it out would mean 10+ arguments */
 			/* first check OSA case */
-			if(re->params.osa) {
+			if(re->osa) {
 				rd= pa->rectdaps + sindex;
 				if(*rd) {
 					float xs= (float)(x + pa->disprect.xmin);
 					float ys= (float)(y + pa->disprect.ymin);
 					
-					for(sample=0; sample<re->params.osa; sample++) {
+					for(sample=0; sample<re->osa; sample++) {
 						PixStr *ps= (PixStr *)(*rd);
 						int mask= (1<<sample);
 						
@@ -2410,7 +2410,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 			isb_bsp_fillfaces(re, pa, lar, &root);	/* shb->persmat should have been calculated */
 			
 			/* copy shadow samples to persistant buffer, reduce memory overhead */
-			if(re->params.osa) {
+			if(re->osa) {
 				ISBShadfacA **isbsa= isbdata->shadfaca= MEM_callocN(pa->rectx*pa->recty*sizeof(void *), "isb shadfacs");
 				
 				isbdata->memarena = BLI_memarena_new(0x8000 * sizeof(ISBSampleA), "isb sample arena");
@@ -2441,7 +2441,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 	BLI_memarena_free(memarena);
 	
 	/* free samples */
-	for(x=0; x<(re->params.osa?re->params.osa:1); x++)
+	for(x=0; x<(re->osa?re->osa:1); x++)
 		MEM_freeN(samplebuf[x]);
 	
 	if(bsp_err) printf("error in filling bsp\n");
@@ -2478,7 +2478,7 @@ static int isb_add_samples_transp(Render *re, RenderPart *pa, ISBBranch *root, M
 	BLI_array_randomize(xcos, sizeof(int), pa->rectx, 12345);
 	BLI_array_randomize(ycos, sizeof(int), pa->recty, 54321);
 	
-	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++) {
+	for(sample=0; sample<(re->osa?re->osa:1); sample++) {
 		ISBSampleA **samp= samplebuf[sample], *samp1;
 		
 		for(yi=0; yi<pa->recty; yi++) {
@@ -2529,7 +2529,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 	BLI_memarena_use_calloc(memarena);
 	
 	/* samplebuf is in camera view space (pixels) */
-	for(sample=0; sample<(re->params.osa?re->params.osa:1); sample++)
+	for(sample=0; sample<(re->osa?re->osa:1); sample++)
 		samplebuf[sample]= MEM_callocN(sizeof(void *)*pa->rectx*pa->recty, "isb alpha samplebuf");
 	
 	/* setup bsp root */
@@ -2559,8 +2559,8 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 							/* here we store shadfac, easier to create the end storage buffer. needs zero'ed, multiple shadowbufs use it */
 							apn->shadfac[a]= 0;
 							
-							if(re->params.osa) {
-								for(sample=0; sample<re->params.osa; sample++) {
+							if(re->osa) {
+								for(sample=0; sample<re->osa; sample++) {
 									int mask= (1<<sample);
 									
 									if(apn->mask[a] & mask) {
@@ -2627,7 +2627,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 						int a;
 						for(a=0; a<4; a++) {
 							if(apn->p[a] && apn->shadfac[a]) {
-								if(re->params.osa)
+								if(re->osa)
 									isb_add_shadfac(re, isbsa, isbdata->memarena, apn->obi[a], apn->p[a], apn->shadfac[a], pxf_mask_count(&re->sample, apn->mask[a]));
 								else
 									isb_add_shadfac(re, isbsa, isbdata->memarena, apn->obi[a], apn->p[a], apn->shadfac[a], 0);
@@ -2643,7 +2643,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 	BLI_memarena_free(memarena);
 
 	/* free samples */
-	for(x=0; x<(re->params.osa?re->params.osa:1); x++)
+	for(x=0; x<(re->osa?re->osa:1); x++)
 		MEM_freeN(samplebuf[x]);
 
 	if(bsp_err) printf("error in filling bsp\n");
@@ -2774,8 +2774,8 @@ void shadowbuf_create(Render *re, LampRen *lar, float mat[][4])
 	VECCOPY(shb->co, lar->co);
 	
 	/* percentage render: keep track of min and max */
-	shb->size= (lar->bufsize*re->params.r.size)/100;
-	shb->size= get_render_shadow_size(&re->params.r, shb->size);
+	shb->size= (lar->bufsize*re->r.size)/100;
+	shb->size= get_render_shadow_size(&re->r, shb->size);
 	
 	if(shb->size<512) shb->size= 512;
 	else if(shb->size > lar->bufsize) shb->size= lar->bufsize;

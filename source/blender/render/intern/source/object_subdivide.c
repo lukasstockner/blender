@@ -219,7 +219,7 @@ static void render_face_subdivide(Render *re, RenderCamera *cam, float winmat[4]
 	float w[4], pM[4][4], fw[4][4];
 	int i, j, vi[4], offset, res, split;
 
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return;
 
 	res= render_face_view_resolution(cam, winmat, obr, vlr, M, quad, subdivision_rate);
@@ -307,7 +307,7 @@ static ObjectRen *render_object_tile_subdivide(Render *re, ObjectInstanceRen *ob
 	VlakRen *vlr;
 	int a;
 	float displacebound= obr->ob->displacebound;
-	float subdivision_rate= re->params.r.subdivision_rate*obr->ob->subdivision_rate;
+	float subdivision_rate= re->r.subdivision_rate*obr->ob->subdivision_rate;
 
 	obin->obr= obrn= render_object_temp_copy(obr);
 
@@ -321,7 +321,7 @@ static ObjectRen *render_object_tile_subdivide(Render *re, ObjectInstanceRen *ob
 		if(vlr->v4 && !render_vlak_clip(obr, vlr, NULL, winmat, bounds, displacebound, 1))
 			render_face_subdivide(re, cam, winmat, bounds, obin, obi, vlr, 1, 0, NULL, displacebound, subdivision_rate);
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 	}
 
@@ -333,7 +333,7 @@ static ObjectRen *render_instance_tile_subdivide(Render *re, ObjectInstanceRen *
 	ObjectRen *obrn;
 
 	obrn= render_object_tile_subdivide(re, obin, obi, &re->cam, winmat, bounds);
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		finalize_render_object(re, obrn, 0, thread);
 
 	return obrn;
@@ -347,7 +347,7 @@ void part_subdivide_objects(Render *re, RenderPart *pa)
 	float dispbb[2][3];
 	int a, tot= re->db.totinstance;
 
-	if(!(re->params.r.mode & R_SUBDIVISION))
+	if(!(re->r.mode & R_SUBDIVISION))
 		return;
 
 	camera_window_matrix(&re->cam, winmat);

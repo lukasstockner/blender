@@ -307,7 +307,7 @@ int lamp_skip(Render *re, LampRen *lar, ShadeInput *shi)
 		return 1;
 
 	/* only shadow lamps shouldn't affect shadow-less materials at all */
-	if((lar->mode & LA_ONLYSHADOW) && (!(ma->mode & MA_SHADOW) || !(re->params.r.mode & R_SHADOW)))
+	if((lar->mode & LA_ONLYSHADOW) && (!(ma->mode & MA_SHADOW) || !(re->r.mode & R_SHADOW)))
 		return 1;
 
 	/* optimisation, don't render fully black lamps */
@@ -357,7 +357,7 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 
 	if(lashdw) {
 		/* compute shadow */
-		if((re->params.r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
+		if((re->r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
 			/* TODO: we need caching to still work with multi sample .. */
 			lamp_shadow(lashdw, re, lar, shi, co, lco, vec, (shi->shading.depth || r));
 		else
@@ -661,7 +661,7 @@ void lamp_spothalo_render(Render *re, ShadeInput *shi, float *col, float alpha)
 
 ListBase *lamps_get(Render *re, ShadeInput *shi)
 {
-	if(re->params.r.scemode & R_PREVIEWBUTS)
+	if(re->r.scemode & R_PREVIEWBUTS)
 		return &re->db.lights;
 	if(shi->material.light_override)
 		return &shi->material.light_override->gobject;
@@ -745,7 +745,7 @@ GroupObject *lamp_create(Render *re, Object *ob)
 	
 	/* prevent only shadow from rendering light */
 	if(la->mode & LA_ONLYSHADOW)
-		if((re->params.r.mode & R_SHADOW)==0)
+		if((re->r.mode & R_SHADOW)==0)
 			return NULL;
 	
 	re->db.totlamp++;
@@ -880,7 +880,7 @@ GroupObject *lamp_create(Render *re, Object *ob)
 	/* set flag for spothalo en initvars */
 	if(la->type==LA_SPOT && (la->mode & LA_HALO) && (la->buftype != LA_SHADBUF_DEEP)) {
 		if(la->haint>0.0) {
-			re->params.flag |= R_LAMPHALO;
+			re->flag |= R_LAMPHALO;
 
 			/* camera position (0,0,0) rotate around lamp */
 			lar->sh_invcampos[0]= -lar->co[0];
@@ -910,22 +910,22 @@ GroupObject *lamp_create(Render *re, Object *ob)
 				lar->mode |= LA_SHAD_TEX;
 
 			if(G.rendering) {
-				if(re->params.osa) {
+				if(re->osa) {
 					if(la->mtex[c]->tex->type==TEX_IMAGE) lar->mode |= LA_OSATEX;
 				}
 			}
 		}
 	}
 	/* yafray: shadow flag should not be cleared, only used with internal renderer */
-	if (re->params.r.renderer==R_INTERN) {
+	if (re->r.renderer==R_INTERN) {
 		/* to make sure we can check ray shadow easily in the render code */
 		if(lar->mode & LA_SHAD_RAY) {
-			if( (re->params.r.mode & R_RAYTRACE)==0)
+			if( (re->r.mode & R_RAYTRACE)==0)
 				lar->mode &= ~LA_SHAD_RAY;
 		}
 	
 
-		if(re->params.r.mode & R_SHADOW) {
+		if(re->r.mode & R_SHADOW) {
 			
 			if (la->type==LA_SPOT && (lar->mode & LA_SHAD_BUF) ) {
 				/* Per lamp, one shadow buffer is made. */
@@ -943,13 +943,13 @@ GroupObject *lamp_create(Render *re, Object *ob)
 
 				memset(re->sample.shadowsamplenr, 0, sizeof(re->sample.shadowsamplenr));
 				
-				lar->shadsamp= MEM_mallocN(re->params.r.threads*sizeof(LampShadowSample), "lamp shadow sample");
+				lar->shadsamp= MEM_mallocN(re->r.threads*sizeof(LampShadowSample), "lamp shadow sample");
 				ls= lar->shadsamp;
 
 				/* shadfacs actually mean light, let's put them to 1 to prevent unitialized accidents */
-				for(a=0; a<re->params.r.threads; a++, ls++) {
+				for(a=0; a<re->r.threads; a++, ls++) {
 					lss= ls->s;
-					for(b=0; b<re->params.r.osa; b++, lss++) {
+					for(b=0; b<re->r.osa; b++, lss++) {
 						lss->samplenr= -1;	/* used to detect whether we store or read */
 						lss->lashdw[0]= 1.0f;
 						lss->lashdw[1]= 1.0f;

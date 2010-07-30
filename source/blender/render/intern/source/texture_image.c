@@ -115,7 +115,7 @@ static void ibuf_get_color(float col[4], ImBuf *ibuf, int x, int y, int thread)
 	}
 }
 
-int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres, int thread)
+int imagewrap(Render *re, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, TexResult *texres, int thread)
 {
 	float fx, fy, val1, val2, val3;
 	int x, y, retval, mipoffset;
@@ -131,14 +131,14 @@ int imagewrap(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texve
 
 	if(ima) {
 		/* hack for icon render */
-		if(ima->ibufs.first==NULL && (rpm->r.scemode & R_NO_IMAGE_LOAD))
+		if(ima->ibufs.first==NULL && (re->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 		
 		if((ibuf=BKE_image_get_ibuf(ima, &tex->iuser)) == NULL)
 			return retval;
 	}
 
-	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
+	mipoffset = (re->r.mode & R_SIMPLIFY)? re->r.simplify_miplevels: 0;
 
 	if((ibuf=IMB_getmipmap(ibuf, 0 + mipoffset)) == NULL)
 		return retval;
@@ -970,7 +970,7 @@ static void alpha_clip_aniso(ImBuf *ibuf, float minx, float miny, float maxx, fl
 	}
 }
 
-static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *dxt, float *dyt, TexResult *texres, int thread)
+static int imagewraposa_aniso(Render *re, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *dxt, float *dyt, TexResult *texres, int thread)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy;
@@ -1002,7 +1002,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 
 	if(ima) {
 		// hack for icon render
-		if((ima->ibufs.first == NULL) && (rpm->r.scemode & R_NO_IMAGE_LOAD))
+		if((ima->ibufs.first == NULL) && (re->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 
 		if((ibuf=BKE_image_get_ibuf(ima, &tex->iuser)) == NULL)
@@ -1153,7 +1153,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 	if(AFD.dyt[0]*AFD.dyt[0] + AFD.dyt[1]*AFD.dyt[1] > 2.0f*2.0f)
 		mul_v2_fl(AFD.dyt, 2.0f/len_v2(AFD.dyt));
 
-	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
+	mipoffset = (re->r.mode & R_SIMPLIFY)? re->r.simplify_miplevels: 0;
 
 	// choice:
 	if (tex->imaflag & TEX_MIPMAP) {
@@ -1339,7 +1339,7 @@ static int imagewraposa_aniso(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ib
 }
 
 
-int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, float *DYT, TexResult *texres, int thread)
+int imagewraposa(Render *re, Tex *tex, Image *ima, ImBuf *ibuf, float *texvec, float *DXT, float *DYT, TexResult *texres, int thread)
 {
 	TexResult texr;
 	float fx, fy, minx, maxx, miny, maxy, dx, dy, dxt[3], dyt[3];
@@ -1353,7 +1353,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 
 	// anisotropic filtering
 	if (tex->texfilter != TXF_BOX)
-		return imagewraposa_aniso(rpm, tex, ima, ibuf, texvec, dxt, dyt, texres, thread);
+		return imagewraposa_aniso(re, tex, ima, ibuf, texvec, dxt, dyt, texres, thread);
 
 	texres->tin= texres->ta= texres->tr= texres->tg= texres->tb= 0.0f;
 	
@@ -1366,7 +1366,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 
 	if(ima) {
 		/* hack for icon render */
-		if(ima->ibufs.first==NULL && (rpm->r.scemode & R_NO_IMAGE_LOAD))
+		if(ima->ibufs.first==NULL && (re->r.scemode & R_NO_IMAGE_LOAD))
 			return retval;
 		
 		if((ibuf=BKE_image_get_ibuf(ima, &tex->iuser)) == NULL)
@@ -1525,7 +1525,7 @@ int imagewraposa(RenderParams *rpm, Tex *tex, Image *ima, ImBuf *ibuf, float *te
 		}
 	}
 
-	mipoffset = (rpm->r.mode & R_SIMPLIFY)? rpm->r.simplify_miplevels: 0;
+	mipoffset = (re->r.mode & R_SIMPLIFY)? re->r.simplify_miplevels: 0;
 
 	/* choice:  */
 	if(tex->imaflag & TEX_MIPMAP) {

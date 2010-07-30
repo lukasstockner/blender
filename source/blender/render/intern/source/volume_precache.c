@@ -371,9 +371,9 @@ void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
 					if(time-lasttime>1.0f) {
 						char str[64];
 						sprintf(str, "Simulating multiple scattering: %d%%", (int)(100.0f * (c / total)));
-						re->cb.i.infostr= str;
-						re->cb.stats_draw(re->cb.sdh, &re->cb.i);
-						re->cb.i.infostr= NULL;
+						re->i.infostr= str;
+						re->stats_draw(re->sdh, &re->i);
+						re->i.infostr= NULL;
 						lasttime= time;
 					}
 				}
@@ -388,7 +388,7 @@ void multiple_scattering_diffusion(Render *re, VolumePrecache *vp, Material *ma)
 		ms_diffuse(sg0, sg, diff, n);
 		ms_diffuse(sb0, sb, diff, n);
 		
-		if (re->cb.test_break(re->cb.tbh)) break;
+		if (re->test_break(re->tbh)) break;
 	}
 	
 	/* normalisation factor to conserve energy */
@@ -634,7 +634,7 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 	int parts[3] = {1, 1, 1}, totparts;
 	
 	int caching=1, counter=0;
-	int totthread = re->params.r.threads;
+	int totthread = re->r.threads;
 	
 	double time, lasttime= PIL_check_seconds_timer();
 	
@@ -674,7 +674,7 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 	
 	while(caching) {
 
-		if(BLI_available_threads(&threads) && !(re->cb.test_break(re->cb.tbh))) {
+		if(BLI_available_threads(&threads) && !(re->test_break(re->tbh))) {
 			nextpa = precache_get_new_part(re);
 			if (nextpa) {
 				nextpa->working = 1;
@@ -694,16 +694,16 @@ void vol_precache_objectinstance_threads(Render *re, ObjectInstanceRen *obi, Mat
 				caching = 1;
 		}
 		
-		if (re->cb.test_break(re->cb.tbh) && BLI_available_threads(&threads)==totthread)
+		if (re->test_break(re->tbh) && BLI_available_threads(&threads)==totthread)
 			caching=0;
 		
 		time= PIL_check_seconds_timer();
 		if(time-lasttime>1.0f) {
 			char str[64];
 			sprintf(str, "Precaching volume: %d%%", (int)(100.0f * ((float)counter / (float)totparts)));
-			re->cb.i.infostr= str;
-			re->cb.stats_draw(re->cb.sdh, &re->cb.i);
-			re->cb.i.infostr= NULL;
+			re->i.infostr= str;
+			re->stats_draw(re->sdh, &re->i);
+			re->i.infostr= NULL;
 			lasttime= time;
 		}
 	}
@@ -749,8 +749,8 @@ void volume_precache_create(Render *re)
 		}
 	}
 	
-	re->cb.i.infostr= NULL;
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= NULL;
+	re->stats_draw(re->sdh, &re->i);
 }
 
 void volume_precache_free(RenderDB *rdb)

@@ -391,8 +391,8 @@ void RE_SetCamera(Render *re, Object *camera)
 {
 	RenderCamera *cam= &re->cam;
 
-	object_camera_matrix(&re->params.r, camera, cam->winx, cam->winy, 
-		(re->params.flag & R_SEC_FIELD), cam->lens, cam->winmat, &cam->viewplane,
+	object_camera_matrix(&re->r, camera, cam->winx, cam->winy, 
+		(re->flag & R_SEC_FIELD), cam->lens, cam->winmat, &cam->viewplane,
 		&cam->clipsta, &cam->clipend, &cam->type);
 	
 	cam->viewdx= (cam->viewplane.xmax - cam->viewplane.xmin)/cam->winx;
@@ -410,7 +410,7 @@ void RE_SetPixelSize(Render *re, float pixsize)
 
 void RE_GetCameraWindow(struct Render *re, struct Object *camera, int frame, float mat[][4])
 {
-	re->params.r.cfra= frame;
+	re->r.cfra= frame;
 	RE_SetCamera(re, camera);
 	copy_m4_m4(mat, re->cam.winmat);
 }

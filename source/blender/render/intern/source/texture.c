@@ -720,7 +720,7 @@ static int tex_noise_sample(Tex *tex, TexResult *texres)
 
 static void tex_plugin_init(Render *re, Tex *tex)
 {
-	int cfra= re->params.r.cfra;
+	int cfra= re->r.cfra;
 
 	if(tex->plugin && tex->plugin->doit)
 		if(tex->plugin->cfra)
@@ -796,14 +796,14 @@ static int tex_plugin_sample(Tex *tex, float *texvec, float *dxt, float *dyt, in
 
 /*************************** Image ***************************/
 
-static int tex_image_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, int thread)
+static int tex_image_sample(Render *re, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, int thread)
 {
 	int retval;
 
 	if(osatex)
-		retval= imagewraposa(rpm, tex, tex->ima, NULL, texvec, dxt, dyt, texres, thread);
+		retval= imagewraposa(re, tex, tex->ima, NULL, texvec, dxt, dyt, texres, thread);
 	else
-		retval= imagewrap(rpm, tex, tex->ima, NULL, texvec, texres, thread);
+		retval= imagewrap(re, tex, tex->ima, NULL, texvec, texres, thread);
 
 	tag_image_time(tex->ima); /* tag image as having being used */
 
@@ -811,7 +811,7 @@ static int tex_image_sample(RenderParams *rpm, Tex *tex, float *texvec, float *d
 }
 
 #if 0
-static int tex_uvimage_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, short thread)
+static int tex_uvimage_sample(Render *re, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, short thread)
 {
 	static Tex imatex[BLENDER_MAX_THREADS];
 	static int firsttime= 1;
@@ -819,7 +819,7 @@ static int tex_uvimage_sample(RenderParams *rpm, Tex *tex, float *texvec, float 
 	Tex *uvtex;
 	int a;
 
-	if(rpm->r.scemode & R_NO_TEX) return;
+	if(re->r.scemode & R_NO_TEX) return;
 
 	if(firsttime) {
 		/* threadsafe init, hacky .. */
@@ -839,19 +839,19 @@ static int tex_uvimage_sample(RenderParams *rpm, Tex *tex, float *texvec, float 
 	uvtex= &imatex[thread];
 	uvtex->iuser.ok= ima->ok;
 
-	return tex_image_sample(rpm, uvtex, texvec, dxt, dyt, osatex, texres);
+	return tex_image_sample(re, uvtex, texvec, dxt, dyt, osatex, texres);
 }
 #endif
 
 /**************************** Nodes ******************************/
 
-static int tex_nodes_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, short thread, short which_output)
+static int tex_nodes_sample(Render *re, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, short thread, short which_output)
 {
 	bNodeTree *nodes = tex->nodetree;
 	int retval = TEX_INT;
 
 	retval = ntreeTexExecTree(nodes, texres, texvec, (osatex)? dxt: NULL, (osatex)? dyt: NULL, osatex,
-		thread, tex, which_output, rpm->r.cfra, (rpm->r.scemode & R_TEXNODE_PREVIEW) != 0, NULL, NULL);
+		thread, tex, which_output, re->r.cfra, (re->r.scemode & R_TEXNODE_PREVIEW) != 0, NULL, NULL);
 
 	if(texres->nor) retval |= TEX_NOR;
 	retval |= TEX_RGB;
@@ -861,7 +861,7 @@ static int tex_nodes_sample(RenderParams *rpm, Tex *tex, float *texvec, float *d
 
 /*************************** Sample ******************************/
 
-int tex_sample(RenderParams *rpm, Tex *tex, TexCoord *texco, TexResult *texres, short thread, short which_output)
+int tex_sample(Render *re, Tex *tex, TexCoord *texco, TexResult *texres, short thread, short which_output)
 {
 	float *texvec= texco->co;
 	float *dxt= texco->dx;
@@ -894,13 +894,13 @@ int tex_sample(RenderParams *rpm, Tex *tex, TexCoord *texco, TexResult *texres, 
 			retval= tex_noise_sample(tex, texres); 
 			break;
 		case TEX_IMAGE:
-			retval= tex_image_sample(rpm, tex, texvec, dxt, dyt, osatex, texres, thread); 
+			retval= tex_image_sample(re, tex, texvec, dxt, dyt, osatex, texres, thread); 
 			break;
 		case TEX_PLUGIN:
 			retval= tex_plugin_sample(tex, texvec, dxt, dyt, osatex, texres);
 			break;
 		case TEX_ENVMAP:
-			retval= tex_envmap_sample(rpm, tex, texvec, dxt, dyt, osatex, texres, thread);
+			retval= tex_envmap_sample(re, tex, texvec, dxt, dyt, osatex, texres, thread);
 			break;
 		case TEX_MUSGRAVE:
 			retval= tex_musgrave_sample(tex, texvec, texres);
@@ -913,13 +913,13 @@ int tex_sample(RenderParams *rpm, Tex *tex, TexCoord *texco, TexResult *texres, 
 			retval= tex_distnoise_sample(tex, texvec, texres);
 			break;
 		case TEX_POINTDENSITY:
-			retval= tex_pointdensity_sample(rpm, tex, texvec, texres);
+			retval= tex_pointdensity_sample(re, tex, texvec, texres);
 			break;
 		case TEX_VOXELDATA:
 			retval= tex_voxeldata_sample(tex, texvec, texres);  
 			break;
 		case TEX_NODES:
-			retval= tex_nodes_sample(rpm, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
+			retval= tex_nodes_sample(re, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
 			break;
 		default:
 			texres->tin= 0.0f;
@@ -947,7 +947,7 @@ int tex_sample(RenderParams *rpm, Tex *tex, TexCoord *texco, TexResult *texres, 
 
 void tex_init(Render *re, Tex *tex)
 {
-	int cfra= re->params.r.cfra;
+	int cfra= re->r.cfra;
 	
 	switch(tex->type) {
 		case TEX_PLUGIN:
@@ -969,7 +969,7 @@ void tex_init(Render *re, Tex *tex)
 
 	/* imap test */
 	if(tex->ima && ELEM(tex->ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE))
-		BKE_image_user_calc_frame(&tex->iuser, cfra, (re)? re->params.flag & R_SEC_FIELD: 0);
+		BKE_image_user_calc_frame(&tex->iuser, cfra, (re)? re->flag & R_SEC_FIELD: 0);
 
 	/* sync image user flag with imaflag */
 	if(tex->ima) {

@@ -35,7 +35,6 @@ struct TexResult;
 struct Image;
 struct ImBuf;
 struct Render;
-struct RenderParams;
 struct ListBase;
 
 typedef struct TexCoord {
@@ -58,14 +57,14 @@ void tex_list_free(struct Render *re, struct ListBase *lb);
 	TEX_NOR: normal
 	TEX_RGB|TEX_NOR: everything */
 
-int tex_sample(struct RenderParams *rpm, struct Tex *tex, TexCoord *texco,
+int tex_sample(struct Render *re, struct Tex *tex, TexCoord *texco,
 	struct TexResult *texres, short thread, short which_output);
 
 /* Image Texture */
 
-int imagewraposa(struct RenderParams *rpm, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
+int imagewraposa(struct Render *re, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
 	float *texvec, float *dxt, float *dyt, struct TexResult *texres, int thread);
-int imagewrap(struct RenderParams *rpm, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
+int imagewrap(struct Render *re, struct Tex *tex, struct Image *ima, struct ImBuf *ibuf,
 	float *texvec, struct TexResult *texres, int thread);
 
 /* Utilities */

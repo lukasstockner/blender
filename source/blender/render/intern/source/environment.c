@@ -164,11 +164,11 @@ void environment_init(Render *re, World *world)
 			if(re->db.wrld.mtex[a] && re->db.wrld.mtex[a]->tex) re->db.wrld.skytype |= WO_SKYTEX;
 		
 		/* AO samples should be OSA minimum */
-		if(re->params.osa)
-			while(re->db.wrld.aosamp*re->db.wrld.aosamp < re->params.osa) 
+		if(re->osa)
+			while(re->db.wrld.aosamp*re->db.wrld.aosamp < re->osa) 
 				re->db.wrld.aosamp++;
 
-		if(!(re->params.r.mode & R_RAYTRACE) && (re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_RAYTRACE))
+		if(!(re->r.mode & R_RAYTRACE) && (re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_RAYTRACE))
 			re->db.wrld.mode &= ~(WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT);
 
 		if(re->db.wrld.ao_shading_method) {

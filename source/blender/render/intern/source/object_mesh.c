@@ -871,7 +871,7 @@ static int render_object_need_tangents(Render *re, ObjectRen *obr, int *do_tange
 	}
 
 	/* exception for tangent space baking */
-	if(re->params.flag & R_NEED_TANGENT)
+	if(re->flag & R_NEED_TANGENT)
 		if(!re->db.excludeob || re->db.excludeob == obr->ob)
 			if(ob->type == OB_MESH)
 				*do_nmap_tangent= 1;
@@ -1298,7 +1298,7 @@ static void make_render_halos(Render *re, ObjectRen *obr, Mesh *me, int totvert,
 	copy_m3_m4(nmat, ob->imat);
 	transpose_m3(nmat);
 
-	re->params.flag |= R_HALO;
+	re->flag |= R_HALO;
 
 	for(a=0; a<totvert; a++, mvert++) {
 		ok= 1;
@@ -2446,8 +2446,8 @@ static void set_fullsample_trace_flag(Render *re, ObjectRen *obr)
 	VlakRen *vlr;
 	int a, trace, mode, osa;
 
-	osa= re->params.osa;
-	trace= re->params.r.mode & R_RAYTRACE;
+	osa= re->osa;
+	trace= re->r.mode & R_RAYTRACE;
 	
 	for(a=obr->totvlak-1; a>=0; a--) {
 		vlr= render_object_vlak_get(obr, a);
@@ -2458,7 +2458,7 @@ static void set_fullsample_trace_flag(Render *re, ObjectRen *obr)
 		}
 		else if(trace) {
 			/* TODO: remove temporary raytrace_all hack */
-			if(mode & MA_TRACEBLE || re->params.r.raytrace_all) {
+			if(mode & MA_TRACEBLE || re->r.raytrace_all) {
 				vlr->flag |= R_TRACEBLE;
 			}
 			else if(osa) {
@@ -2568,7 +2568,7 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset, int thre
 	Object *ob= obr->ob;
 	int do_autosmooth, do_displacement;
 
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return;
 
 	/* verify if we need to do autosmooth or displacement */
@@ -2580,14 +2580,14 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset, int thre
 		if(do_autosmooth)
 			render_object_autosmooth(re, obr);
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			return;
 
 		/* displace */
 		if(do_displacement)
 			render_object_displace(re, obr, thread);
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			return;
 
 		/* following computations don't add/remove vertices, so we can
@@ -2609,12 +2609,12 @@ void finalize_render_object(Render *re, ObjectRen *obr, int timeoffset, int thre
 		/* phong normal interpolation can cause error in tracing
 		 * (terminator problem) */
 		ob->smoothresh= 0.0;
-		if((re->params.r.mode & R_RAYTRACE) && (re->params.r.mode & R_SHADOW)) 
+		if((re->r.mode & R_RAYTRACE) && (re->r.mode & R_SHADOW)) 
 			set_phong_threshold(obr);
 		
 		/* split quads, either automatic or user defined for bake */
-		if(re->params.flag & R_BAKING && re->params.r.bake_quad_split != 0)
-			split_quads(obr, re->params.r.bake_quad_split);
+		if(re->flag & R_BAKING && re->r.bake_quad_split != 0)
+			split_quads(obr, re->r.bake_quad_split);
 		
 		/* set raytracing flag in faces */
 		set_fullsample_trace_flag(re, obr);

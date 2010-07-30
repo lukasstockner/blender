@@ -423,7 +423,7 @@ void strand_shade_point(Render *re, ShadeSample *ssamp, StrandSegment *sseg, Str
 	strand_apply_shaderesult_alpha(shr, spoint->alpha);
 
 	/* include lamphalos for strand, since halo layer was added already */
-	if(re->params.flag & R_LAMPHALO)
+	if(re->flag & R_LAMPHALO)
 		if(shi->shading.layflag & SCE_LAY_HALO)
 			lamp_spothalo_render(re, shi, shr->combined, shr->combined[3]);
 	
@@ -767,8 +767,8 @@ static void strand_render(Render *re, StrandSegment *sseg, float winmat[][4], St
 		float dt= p2->t - p1->t;
 		int a;
 
-		if(re->params.osa) {
-			for(a=0; a<re->params.osa; a++)
+		if(re->osa) {
+			for(a=0; a<re->osa; a++)
 				do_scanconvert_strand(re, spart, zspan, t, dt, p1->zco2, p1->zco1, p2->zco1, p2->zco2, a);
 		}
 		else
@@ -898,7 +898,7 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 	float z[4], bounds[4], obwinmat[4][4];
 	int a, b, c, i, totsegment, clip[4];
 
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return 0;
 	if(re->db.totstrand == 0)
 		return 0;
@@ -1010,7 +1010,7 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 		}
 	}
 
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		/* convert list to array and sort */
 		sortsegments= MEM_mallocN(sizeof(StrandSortSegment)*totsegment, "StrandSortSegment");
 		for(a=0, sortseg=firstseg; a<totsegment; a++, sortseg=sortseg->next)
@@ -1022,11 +1022,11 @@ int zbuffer_strands_abuf(Render *re, RenderPart *pa, APixstrand *apixbuf, ListBa
 
 	spart.totapixbuf= MEM_callocN(sizeof(int)*pa->rectx*pa->recty, "totapixbuf");
 
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		/* render segments in sorted order */
 		sortseg= sortsegments;
 		for(a=0; a<totsegment; a++, sortseg++) {
-			if(re->cb.test_break(re->cb.tbh))
+			if(re->test_break(re->tbh))
 				break;
 
 			obi= &re->db.objectinstance[sortseg->obi];

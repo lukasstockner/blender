@@ -196,7 +196,7 @@ static void integrate_pixel(Render *re, RenderLayer *rl, int thread, int x, int 
 	Hit from;
 	QMCSampler *qsa, *qsa2;
 	float accum[3], sample[3], raster[2], hemi[2];
-	int a, totsample = re->params.r.path_samples;
+	int a, totsample = re->r.path_samples;
 
 	zero_v3(accum);
 
@@ -221,7 +221,7 @@ static void integrate_pixel(Render *re, RenderLayer *rl, int thread, int x, int 
 		add_v3_v3v3(accum, accum, sample);
 	}
 
-	mul_v3_fl(accum, 1.0f/re->params.r.path_samples);
+	mul_v3_fl(accum, 1.0f/re->r.path_samples);
 	copy_v3_v3(color, accum);
 
 	sampler_release(re, qsa);
@@ -235,7 +235,7 @@ void render_path_trace_part(Render *re, RenderPart *pa)
 	float sample[3], *fp;
 	int x, y, seed=0, offs=0, crop= 0;
 
-	if(re->cb.test_break(re->cb.tbh)) return; 
+	if(re->test_break(re->tbh)) return; 
 	if(!re->db.raytree) return;
 
 	/* filtered render, for now we assume only 1 filter size */
@@ -265,7 +265,7 @@ void render_path_trace_part(Render *re, RenderPart *pa)
 
 		offs+= 2*crop;
 
-		if(y&1 && re->cb.test_break(re->cb.tbh))
+		if(y&1 && re->test_break(re->tbh))
 			break; 
 	}
 	

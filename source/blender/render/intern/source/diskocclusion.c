@@ -569,7 +569,7 @@ static OcclusionTree *occ_tree_build(Render *re)
 	tree->totface= totface;
 
 	/* parameters */
-	tree->error= get_render_aosss_error(&re->params.r, re->db.wrld.ao_approx_error);
+	tree->error= get_render_aosss_error(&re->r, re->db.wrld.ao_approx_error);
 	tree->distfac= (re->db.wrld.aomode & WO_LIGHT_DIST)? re->db.wrld.aodistfac: 0.0f;
 	tree->doindirect= (re->db.wrld.ao_indirect_energy > 0.0f && re->db.wrld.ao_indirect_bounces > 0);
 
@@ -607,7 +607,7 @@ static OcclusionTree *occ_tree_build(Render *re)
 	}
 
 	/* threads */
-	tree->totbuildthread= (re->params.r.threads > 1 && totface > 10000)? 8: 1;
+	tree->totbuildthread= (re->r.threads > 1 && totface > 10000)? 8: 1;
 	tree->dothreadedbuild= (tree->totbuildthread > 1);
 
 	/* recurse */
@@ -834,11 +834,11 @@ static void occ_compute_bounces(Render *re, OcclusionTree *tree, int totbounce)
 			rad[i][2]= MAX2(rad[i][2], 0.0f);
 			add_v3_v3(sum[i], rad[i]);
 
-			if(re->cb.test_break(re->cb.tbh))
+			if(re->test_break(re->tbh))
 				break;
 		}
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 
 		tmp= tree->rad;
@@ -852,7 +852,7 @@ static void occ_compute_bounces(Render *re, OcclusionTree *tree, int totbounce)
 	MEM_freeN(tree->rad);
 	tree->rad= sum;
 
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		occ_sum_occlusion(re, tree, tree->root);
 }
 
@@ -870,11 +870,11 @@ static void occ_compute_passes(Render *re, OcclusionTree *tree, int totpass)
 			madd_v3_v3v3fl(co, co, n, 1e-8f);
 
 			occ_lookup(re, tree, 0, &tree->face[i], co, n, &occ[i], NULL, NULL);
-			if(re->cb.test_break(re->cb.tbh))
+			if(re->test_break(re->tbh))
 				break;
 		}
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 
 		for(i=0; i<tree->totface; i++) {
@@ -979,8 +979,8 @@ void disk_occlusion_create(Render *re)
 	float ao[3], env[3], indirect[3], (*faceao)[3], (*faceenv)[3], (*faceindirect)[3];
 	int a, totface, totthread, *face, *count;
 
-	re->cb.i.infostr= "Occlusion preprocessing";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "Occlusion preprocessing";
+	re->stats_draw(re->sdh, &re->i);
 	
 	re->db.occlusiontree= tree= occ_tree_build(re);
 	
@@ -999,7 +999,7 @@ void disk_occlusion_create(Render *re)
 			faceenv= MEM_callocN(sizeof(float)*3*mesh->totface, "StrandSurfFaceEnv");
 			faceindirect= MEM_callocN(sizeof(float)*3*mesh->totface, "StrandSurfFaceIndirect");
 
-			totthread= (mesh->totface > 10000)? re->params.r.threads: 1;
+			totthread= (mesh->totface > 10000)? re->r.threads: 1;
 			totface= mesh->totface/totthread;
 			for(a=0; a<totthread; a++) {
 				othreads[a].re= re;

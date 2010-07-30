@@ -662,7 +662,7 @@ int mat_need_ao_env_indirect(Render *re, ShadeInput *shi)
 	/* do we have it enabled at all? */
 	if(!(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)))
 		return 0;
-	if(!((re->params.r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX))
+	if(!((re->r.mode & R_RAYTRACE) || re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX))
 		return 0;
 
 	/* some materials don't need it */

@@ -129,7 +129,7 @@ static void flag_render_node_material(Render *re, bNodeTree *ntree)
 				Material *ma= (Material *)node->id;
 
 				if((ma->mode & MA_TRANSP) && (ma->mode & MA_ZTRANSP))
-					re->params.flag |= R_ZTRA;
+					re->flag |= R_ZTRA;
 
 				ma->flag |= MA_IS_USED;
 			}
@@ -148,14 +148,14 @@ Material *give_render_material(Render *re, Object *ob, int nr)
 	if(ma==NULL) 
 		ma= &defmaterial;
 	
-	if(re->params.r.mode & R_SPEED) ma->texco |= NEED_UV;
+	if(re->r.mode & R_SPEED) ma->texco |= NEED_UV;
 	
 	if(ma->material_type == MA_TYPE_VOLUME) {
 		ma->mode |= MA_TRANSP;
 		ma->mode &= ~MA_SHADBUF;
 	}
 	if((ma->mode & MA_TRANSP) && (ma->mode & MA_ZTRANSP))
-		re->params.flag |= R_ZTRA;
+		re->flag |= R_ZTRA;
 	
 	/* for light groups */
 	ma->flag |= MA_IS_USED;
@@ -437,7 +437,7 @@ static void add_render_object(Render *re, Object *ob, Object *par, DupliObject *
 		}
 
 		/* create low resolution version */
-		//if(re->params.r.mode & R_SUBDIVISION)
+		//if(re->r.mode & R_SUBDIVISION)
 		//	obr->flag |= R_HIGHRES;
 	}
 
@@ -487,12 +487,12 @@ static void init_render_object(Render *re, Object *ob, Object *par, DupliObject 
 	if(time - lasttime > 1.0) {
 		lasttime= time;
 		/* clumsy copying still */
-		re->cb.i.totvert= re->db.totvert;
-		re->cb.i.totface= re->db.totvlak;
-		re->cb.i.totstrand= re->db.totstrand;
-		re->cb.i.tothalo= re->db.tothalo;
-		re->cb.i.totlamp= re->db.totlamp;
-		re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+		re->i.totvert= re->db.totvert;
+		re->i.totface= re->db.totvlak;
+		re->i.totstrand= re->db.totstrand;
+		re->i.tothalo= re->db.tothalo;
+		re->i.totlamp= re->db.totlamp;
+		re->stats_draw(re->sdh, &re->i);
 	}
 
 	ob->flag |= OB_DONE;
@@ -501,7 +501,7 @@ static void init_render_object(Render *re, Object *ob, Object *par, DupliObject 
 void materials_init(Render *re)
 {
 	/* still bad... doing all */
-	init_render_materials(re->params.r.mode);
+	init_render_materials(re->r.mode);
 	set_node_shader_lamp_loop(shade_material_loop);
 }
 
@@ -521,7 +521,7 @@ void textures_free(Render *re)
 
 	if(re->db.scene)
 		if(re->db.scene->r.scemode & R_FREE_IMAGE)
-			if((re->params.r.scemode & R_PREVIEWBUTS)==0)
+			if((re->r.scemode & R_PREVIEWBUTS)==0)
 				BKE_image_free_all_textures();
 }
 
@@ -531,7 +531,7 @@ void RE_Database_Free(Render *re)
 	
 	/* statistics for debugging render memory usage */
 	if((G.f & G_DEBUG) && (G.rendering)) {
-		if((re->params.r.scemode & R_PREVIEWBUTS)==0) {
+		if((re->r.scemode & R_PREVIEWBUTS)==0) {
 			BKE_image_print_memlist();
 			MEM_printmemlist_stats();
 		}
@@ -556,7 +556,7 @@ void RE_Database_Free(Render *re)
 	samplers_free(re);
 	render_db_free(&re->db);
 
-	re->cb.i.convertdone= 0;
+	re->i.convertdone= 0;
 }
 
 static int allow_render_object(Render *re, Object *ob, int nolamps, int onlyselected, Object *actob)
@@ -829,7 +829,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 					else
 						init_render_object(re, obd, ob, dob, timeoffset, vectorlay);
 					
-					if(re->cb.test_break(re->cb.tbh)) break;
+					if(re->test_break(re->tbh)) break;
 				}
 				free_object_duplilist(lb);
 
@@ -840,7 +840,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 				init_render_object(re, ob, NULL, 0, timeoffset, vectorlay);
 		}
 
-		if(re->cb.test_break(re->cb.tbh)) break;
+		if(re->test_break(re->tbh)) break;
 	}
 
 	/* objects in groups with OB_RENDER_DUPLI set still need to be created,
@@ -857,7 +857,7 @@ static void database_init_objects(Render *re, unsigned int renderlay, int nolamp
 		}
 	}
 
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		render_instances_init(&re->db);
 }
 
@@ -866,7 +866,7 @@ static void render_db_preprocess(Render *re)
 	int tothalo;
 	
 	/* halo sorting (don't sort stars) */
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		tothalo= re->db.tothalo;
 
 		if(re->db.wrld.mode & WO_STARS)
@@ -882,37 +882,37 @@ static void render_db_preprocess(Render *re)
 	shadowbufs_make_threaded(re);
 	
 	/* raytree */
-	if(!re->cb.test_break(re->cb.tbh))
-		if(re->params.r.mode & R_RAYTRACE)
+	if(!re->test_break(re->tbh))
+		if(re->r.mode & R_RAYTRACE)
 			raytree_create(re);
 
 	/* environment maps */
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		envmaps_make(re);
 
 	/* point density texture */
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		pointdensity_make(re, &G.main->tex);
 	
 	/* project into camera space */
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		halos_project(&re->db, &re->cam, 0, re->xparts);
 	
 	/* Occlusion */
-	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->cb.test_break(re->cb.tbh))
+	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->test_break(re->tbh))
 		if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX)
-			if(re->params.r.renderer==R_INTERN)
-				if(re->params.r.mode & R_SHADOW)
+			if(re->r.renderer==R_INTERN)
+				if(re->r.mode & R_SHADOW)
 					disk_occlusion_create(re);
 
 	/* SSS */
-	if((re->params.r.mode & R_SSS) && !re->cb.test_break(re->cb.tbh))
-		if(re->params.r.renderer==R_INTERN)
+	if((re->r.mode & R_SSS) && !re->test_break(re->tbh))
+		if(re->r.renderer==R_INTERN)
 			sss_create(re);
 	
 	/* Volumes */
-	if(!re->cb.test_break(re->cb.tbh))
-		if(re->params.r.mode & R_RAYTRACE)
+	if(!re->test_break(re->tbh))
+		if(re->r.mode & R_RAYTRACE)
 			volume_precache_create(re);
 }
 
@@ -927,21 +927,21 @@ void RE_Database_FromScene(Render *re, Scene *scene, unsigned int lay, int use_c
 	re->db.lay= lay;
 	
 	/* per second, per object, stats print this */
-	re->cb.i.infostr= "Preparing Scene data";
-	re->cb.i.cfra= scene->r.cfra;
-	strncpy(re->cb.i.scenename, scene->id.name+2, 20);
+	re->i.infostr= "Preparing Scene data";
+	re->i.cfra= scene->r.cfra;
+	strncpy(re->i.scenename, scene->id.name+2, 20);
 	
 	render_db_init(&re->db);
 
 	slurph_opt= 0;
-	re->cb.i.partsdone= 0;	/* signal now in use for previewrender */
+	re->i.partsdone= 0;	/* signal now in use for previewrender */
 	
 	/* in localview, lamps are using normal layers, objects only local bits */
 	if(lay & 0xFF000000)
 		lay &= 0xFF000000;
 	
 	/* applies changes fully */
-	if((re->params.r.scemode & R_PREVIEWBUTS)==0)
+	if((re->r.scemode & R_PREVIEWBUTS)==0)
 		scene_update_for_newframe(re->db.scene, lay);
 	
 	/* if no camera, viewmat should have been set! */
@@ -957,7 +957,7 @@ void RE_Database_FromScene(Render *re, Scene *scene, unsigned int lay, int use_c
 		re->db.scene->camera->recalc= OB_RECALC_OB; /* force correct matrix for scaled cameras */
 	}
 	
-	/* do first, because of ambient. also requires re->params.osa set correct */
+	/* do first, because of ambient. also requires re->osa set correct */
 	environment_init(re, re->db.scene->world);
 	samplers_init(re);
 	materials_init(re);
@@ -966,7 +966,7 @@ void RE_Database_FromScene(Render *re, Scene *scene, unsigned int lay, int use_c
 	/* make render objects */
 	database_init_objects(re, lay, 0, 0, 0, 0);
 	
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		set_material_lightgroups(re);
 		for(sce= re->db.scene; sce; sce= sce->set)
 			set_renderlayer_lightgroups(re, sce);
@@ -974,24 +974,24 @@ void RE_Database_FromScene(Render *re, Scene *scene, unsigned int lay, int use_c
 		slurph_opt= 1;
 		
 		/* for now some clumsy copying still */
-		re->cb.i.totvert= re->db.totvert;
-		re->cb.i.totface= re->db.totvlak;
-		re->cb.i.totstrand= re->db.totstrand;
-		re->cb.i.tothalo= re->db.tothalo;
-		re->cb.i.totlamp= re->db.totlamp;
-		re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+		re->i.totvert= re->db.totvert;
+		re->i.totface= re->db.totvlak;
+		re->i.totstrand= re->db.totstrand;
+		re->i.tothalo= re->db.tothalo;
+		re->i.totlamp= re->db.totlamp;
+		re->stats_draw(re->sdh, &re->i);
 
 		/* do DB preprocessing */
 		render_db_preprocess(re);
 	}
 	
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		RE_Database_Free(re);
 	else
-		re->cb.i.convertdone= 1;
+		re->i.convertdone= 1;
 	
-	re->cb.i.infostr= NULL;
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= NULL;
+	re->stats_draw(re->sdh, &re->i);
 }
 
 /* exported call to recalculate hoco for vertices, when winmat changed */
@@ -1019,7 +1019,7 @@ static void database_fromscene_vectors(Render *re, Scene *scene, unsigned int la
 	
 	render_db_init(&re->db);
 
-	re->cb.i.totface=re->cb.i.totvert=re->cb.i.totstrand=re->cb.i.totlamp=re->cb.i.tothalo= 0;
+	re->i.totface=re->i.totvert=re->i.totstrand=re->i.totlamp=re->i.tothalo= 0;
 
 	slurph_opt= 0;
 	
@@ -1394,8 +1394,8 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce, unsigned int lay)
 	ListBase surfacecache;
 	int step;
 	
-	re->cb.i.infostr= "Calculating previous vectors";
-	re->params.r.mode |= R_SPEED;
+	re->i.infostr= "Calculating previous vectors";
+	re->r.mode |= R_SPEED;
 	
 	speedvector_project(re, NULL, NULL, NULL);	/* initializes projection code */
 
@@ -1415,9 +1415,9 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce, unsigned int lay)
 	RE_Database_Free(re);
 	re->db.surfacecache= surfacecache;
 	
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		/* creates entire dbase */
-		re->cb.i.infostr= "Calculating next frame vectors";
+		re->i.infostr= "Calculating next frame vectors";
 		
 		database_fromscene_vectors(re, sce, lay, +1);
 	}	
@@ -1430,10 +1430,10 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce, unsigned int lay)
 	RE_Database_Free(re);
 	re->db.surfacecache= surfacecache;
 	
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		RE_Database_FromScene(re, sce, lay, 1);
 	
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		for(step= 0; step<2; step++) {
 			
 			if(step)
@@ -1501,8 +1501,8 @@ void RE_Database_FromScene_Vectors(Render *re, Scene *sce, unsigned int lay)
 		}
 	}
 	
-	re->cb.i.infostr= NULL;
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= NULL;
+	re->stats_draw(re->sdh, &re->i);
 }
 
 
@@ -1529,26 +1529,26 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 	re->db.lay= lay;
 
 	/* renderdata setup and exceptions */
-	re->params.r= scene->r;
+	re->r= scene->r;
 	
 	RE_init_threadcount(re);
-	IMB_tile_cache_params(re->params.r.threads, U.imagetilememory);
+	IMB_tile_cache_params(re->r.threads, U.imagetilememory);
 	
-	re->params.flag |= R_BAKING;
+	re->flag |= R_BAKING;
 	re->db.excludeob= actob;
 	if(actob)
-		re->params.flag |= R_BAKE_TRACE;
+		re->flag |= R_BAKE_TRACE;
 
-	if(type==RE_BAKE_NORMALS && re->params.r.bake_normal_space==R_BAKE_SPACE_TANGENT)
-		re->params.flag |= R_NEED_TANGENT;
+	if(type==RE_BAKE_NORMALS && re->r.bake_normal_space==R_BAKE_SPACE_TANGENT)
+		re->flag |= R_NEED_TANGENT;
 	
 	if(!actob && ELEM4(type, RE_BAKE_LIGHT, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_DISPLACEMENT)) {
-		re->params.r.mode &= ~R_SHADOW;
-		re->params.r.mode &= ~R_RAYTRACE;
+		re->r.mode &= ~R_SHADOW;
+		re->r.mode &= ~R_RAYTRACE;
 	}
 	
 	if(!actob && (type==RE_BAKE_SHADOW)) {
-		re->params.r.mode |= R_SHADOW;
+		re->r.mode |= R_SHADOW;
 	}
 	
 	/* setup render stuff */
@@ -1565,7 +1565,7 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 		RE_SetView(re, mat);
 	}
 	
-	/* do first, because of ambient. also requires re->params.osa set correct */
+	/* do first, because of ambient. also requires re->osa set correct */
 	environment_init(re, re->db.scene->world);
 	samplers_init(re);
 	materials_init(re);
@@ -1588,14 +1588,14 @@ void RE_Database_Baking(Render *re, Scene *scene, unsigned int lay, int type, Ob
 		shadowbufs_make_threaded(re);
 
 	/* raytree */
-	if(!re->cb.test_break(re->cb.tbh))
-		if(re->params.r.mode & R_RAYTRACE)
+	if(!re->test_break(re->tbh))
+		if(re->r.mode & R_RAYTRACE)
 			raytree_create(re);
 	
 	/* occlusion */
-	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->cb.test_break(re->cb.tbh))
+	if((re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)) && !re->test_break(re->tbh))
 		if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX)
-			if(re->params.r.mode & R_SHADOW)
+			if(re->r.mode & R_SHADOW)
 				disk_occlusion_create(re);
 }
 

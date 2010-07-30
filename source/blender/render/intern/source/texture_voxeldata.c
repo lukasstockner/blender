@@ -262,7 +262,7 @@ static void cache_voxeldata(Render *re, Tex *tex)
 	if (!vd) return;
 	
 	/* only re-cache if dataset needs updating */
-	if ((vd->flag & TEX_VD_STILL) || (vd->cachedframe == re->params.r.cfra))
+	if ((vd->flag & TEX_VD_STILL) || (vd->cachedframe == re->r.cfra))
 		if (vd->ok) return;
 	
 	/* clear out old cache, ready for new */
@@ -275,7 +275,7 @@ static void cache_voxeldata(Render *re, Tex *tex)
 	if (vd->flag & TEX_VD_STILL)
 		curframe = vd->still_frame;
 	else
-		curframe = re->params.r.cfra;
+		curframe = re->r.cfra;
 	
 	switch(vd->file_format) {
 		case TEX_VD_IMAGE_SEQUENCE:
@@ -311,15 +311,15 @@ static void cache_voxeldata(Render *re, Tex *tex)
 
 void tex_voxeldata_init(Render *re, Tex *tex)
 {
-	char *infostr= re->cb.i.infostr;
+	char *infostr= re->i.infostr;
 	
-	re->cb.i.infostr= "Loading voxel datasets";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "Loading voxel datasets";
+	re->stats_draw(re->sdh, &re->i);
 	
 	cache_voxeldata(re, tex);
 	
-	re->cb.i.infostr= infostr;
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= infostr;
+	re->stats_draw(re->sdh, &re->i);
 }
 
 void tex_voxeldata_free(Render *re, Tex *tex)

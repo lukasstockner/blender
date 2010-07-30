@@ -52,7 +52,7 @@ void do_volume_tex(struct Render *re, struct ShadeInput *shi, float *xyz,
 
 /* TexFace Sample */
 
-void do_realtime_texture(struct RenderParams *rpm, struct ShadeInput *shi,
+void do_realtime_texture(struct Render *re, struct ShadeInput *shi,
 	struct Image *ima);
 
 #endif /* TEXTURE_STACK_H */

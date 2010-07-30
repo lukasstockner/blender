@@ -196,7 +196,7 @@ void render_object_displace(Render *re, ObjectRen *obr, int thread)
 	   base smooth and new smooth normals so we can preserve smoothness */
 	render_object_calc_vnormals(re, obr, (obr->flag & R_TEMP_COPY)? &diffnor: NULL);
 
-	if((re->params.r.mode & R_SUBDIVISION) && !(obr->flag & R_TEMP_COPY)) {
+	if((re->r.mode & R_SUBDIVISION) && !(obr->flag & R_TEMP_COPY)) {
 		/* backup coordinates for later per tile subdivision */
 		for(i=0; i<obr->totvert; i++) { 
 			vr= render_object_vert_get(obr, i);
@@ -219,12 +219,12 @@ void render_object_displace(Render *re, ObjectRen *obr, int thread)
 		vlr=render_object_vlak_get(obr, i);
 		displace_render_face(re, obr, vlr, scale, thread);
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 	}
 
 	/* recalculate displaced smooth normals, and apply difference */
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		render_object_calc_vnormals(re, obr, (obr->flag & R_TEMP_COPY)? &diffnor: NULL);
 
 	if(diffnor)

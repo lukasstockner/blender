@@ -874,8 +874,8 @@ static void sss_build_mat(Render *re, SSSData *sss)
 	if(!sss->points.first)
 		return;
 
-	error= get_render_aosss_error(&re->params.r, error);
-	if((re->params.r.scemode & R_PREVIEWBUTS) && error < 0.5f)
+	error= get_render_aosss_error(&re->r, error);
+	if((re->r.scemode & R_PREVIEWBUTS) && error < 0.5f)
 		error= 0.5f;
 	
 	sss->ss[0]= scatter_settings_new(mat->sss_col[0], radius[0], ior, cfac, fw, bw);
@@ -884,7 +884,7 @@ static void sss_build_mat(Render *re, SSSData *sss)
 	sss->tree= scatter_tree_new(sss->ss, mat->sss_scale, error);
 
 	/* merge points together into a single buffer */
-	if(!re->cb.test_break(re->cb.tbh)) {
+	if(!re->test_break(re->tbh)) {
 		for(totpoint=0, p=sss->points.first; p; p=p->next)
 			totpoint += p->totpoint;
 		
@@ -909,7 +909,7 @@ static void sss_build_mat(Render *re, SSSData *sss)
 	BLI_freelistN(&sss->points);
 
 	/* build tree */
-	if(!re->cb.test_break(re->cb.tbh))
+	if(!re->test_break(re->tbh))
 		scatter_tree_build(sss->tree, co, color, area, totpoint);
 
 	/* free points */
@@ -928,8 +928,8 @@ static void sss_preprocess_pass(Render *re, GHash *sss_hash)
 	   setting them back, maybe we need to create our own Render? */
 
 	/* backup some parameters */
-	osa= re->params.osa;
-	osaflag= re->params.r.mode & R_OSA;
+	osa= re->osa;
+	osaflag= re->r.mode & R_OSA;
 	table= re->sample.table;
 
 	/* modify render parameters */
@@ -937,11 +937,11 @@ static void sss_preprocess_pass(Render *re, GHash *sss_hash)
 	rr= re->result;
 
 	re->db.sss_pass= 1;
-	re->params.osa= 0;
-	re->params.r.mode &= ~R_OSA;
+	re->osa= 0;
+	re->r.mode &= ~R_OSA;
 	re->sample.table= NULL;
 
-	if(!(re->params.r.scemode & R_PREVIEWBUTS))
+	if(!(re->r.scemode & R_PREVIEWBUTS))
 		re->result= NULL;
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
@@ -950,7 +950,7 @@ static void sss_preprocess_pass(Render *re, GHash *sss_hash)
 	
 	/* free temporary render result (for display only) */
 	BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
-	if(!(re->params.r.scemode & R_PREVIEWBUTS)) {
+	if(!(re->r.scemode & R_PREVIEWBUTS)) {
 		RE_FreeRenderResult(re->result);
 		re->result= rr;
 	}
@@ -958,8 +958,8 @@ static void sss_preprocess_pass(Render *re, GHash *sss_hash)
 
 	/* restore render parameters */
 	re->db.sss_pass= 0;
-	re->params.osa= osa;
-	if(osaflag) re->params.r.mode |= R_OSA;
+	re->osa= osa;
+	if(osaflag) re->r.mode |= R_OSA;
 	re->sample.table= table;
 }
 
@@ -1009,8 +1009,8 @@ void sss_create(Render *re)
 	Material *mat;
 	GHashIterator *it;
 
-	re->cb.i.infostr= "SSS preprocessing";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "SSS preprocessing";
+	re->stats_draw(re->sdh, &re->i);
 
 	/* init sss for all materials */
 	re->db.sss_hash= BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "sss_create gh");
@@ -1026,7 +1026,7 @@ void sss_create(Render *re)
 	it= BLI_ghashIterator_new(re->db.sss_hash);
 
 	while(!BLI_ghashIterator_isDone(it)) {
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 
 		sss_build_mat(re, BLI_ghashIterator_getValue(it));
@@ -1073,7 +1073,7 @@ int sss_sample(Render *re, Material *mat, float *co, float *color, float scale)
 
 int sss_pass_done(Render *re, Material *mat)
 {
-	return ((re->params.flag & R_BAKING) || !(re->params.r.mode & R_SSS) || (!re->db.sss_pass && BLI_ghash_lookup(re->db.sss_hash, mat)));
+	return ((re->flag & R_BAKING) || !(re->r.mode & R_SSS) || (!re->db.sss_pass && BLI_ghash_lookup(re->db.sss_hash, mat)));
 }
 
 /* Material tests */

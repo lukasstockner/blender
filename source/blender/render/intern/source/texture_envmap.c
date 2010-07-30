@@ -127,23 +127,23 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	
 	envre= RE_NewRender("Envmap");
 	
-	env->lastsize= re->params.r.size;
-	cuberes = (env->cuberes * re->params.r.size) / 100;
+	env->lastsize= re->r.size;
+	cuberes = (env->cuberes * re->r.size) / 100;
 	cuberes &= 0xFFFC;
 	
 	/* this flag has R_ZTRA in it for example */
-	envre->params.flag= re->params.flag;
+	envre->flag= re->flag;
 	
 	/* set up renderdata */
-	envre->params.r= re->params.r;
-	envre->params.r.mode &= ~(R_BORDER | R_MBLUR);
-	envre->params.r.layers.first= envre->params.r.layers.last= NULL;
-	envre->params.r.filtertype= 0;
-	envre->params.r.xparts= envre->params.r.yparts= 2;
-	envre->params.r.size= 100;
-	envre->params.r.yasp= envre->params.r.xasp= 1;
+	envre->r= re->r;
+	envre->r.mode &= ~(R_BORDER | R_MBLUR);
+	envre->r.layers.first= envre->r.layers.last= NULL;
+	envre->r.filtertype= 0;
+	envre->r.xparts= envre->r.yparts= 2;
+	envre->r.size= 100;
+	envre->r.yasp= envre->r.xasp= 1;
 	
-	RE_InitState(envre, NULL, &envre->params.r, NULL, cuberes, cuberes, NULL);
+	RE_InitState(envre, NULL, &envre->r, NULL, cuberes, cuberes, NULL);
 	envre->db.scene= re->db.scene;	/* unsure about this... */
 	envre->db.lay= re->db.lay;
 
@@ -160,10 +160,10 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	RE_SetCamera(envre, env->object);
 	
 	/* callbacks */
-	envre->cb.display_draw= re->cb.display_draw;
-	envre->cb.ddh= re->cb.ddh;
-	envre->cb.test_break= re->cb.test_break;
-	envre->cb.tbh= re->cb.tbh;
+	envre->display_draw= re->display_draw;
+	envre->ddh= re->ddh;
+	envre->test_break= re->test_break;
+	envre->tbh= re->tbh;
 	
 	/* and for the evil stuff; copy the database... */
 	envre->db.totvlak= re->db.totvlak;
@@ -397,7 +397,7 @@ static void render_envmap(Render *re, EnvMap *env)
 		if(env->type==ENV_PLANE && part!=1)
 			continue;
 		
-		re->cb.display_clear(re->cb.dch, envre->result);
+		re->display_clear(re->dch, envre->result);
 		
 		copy_m4_m4(tmat, orthmat);
 		envmap_transmatrix(tmat, part);
@@ -418,7 +418,7 @@ static void render_envmap(Render *re, EnvMap *env)
 		env_hideobject(envre, env->object);
 		env_set_imats(envre);
 				
-		if(re->cb.test_break(re->cb.tbh)==0) {
+		if(re->test_break(re->tbh)==0) {
 			RE_TileProcessor(envre);
 		}
 		
@@ -426,7 +426,7 @@ static void render_envmap(Render *re, EnvMap *env)
 		env_showobjects(envre);
 		env_rotate_scene(envre, tmat, 0);
 
-		if(re->cb.test_break(re->cb.tbh)==0) {
+		if(re->test_break(re->tbh)==0) {
 			RenderLayer *rl= envre->result->layers.first;
 			int y;
 			float *alpha;
@@ -445,13 +445,13 @@ static void render_envmap(Render *re, EnvMap *env)
 			env->cube[part]= ibuf;
 		}
 		
-		if(re->cb.test_break(re->cb.tbh)) break;
+		if(re->test_break(re->tbh)) break;
 
 	}
 	
-	if(re->cb.test_break(re->cb.tbh)) BKE_free_envmapdata(env);
+	if(re->test_break(re->tbh)) BKE_free_envmapdata(env);
 	else {
-		if(envre->params.r.mode & R_OSA) env->ok= ENV_OSA;
+		if(envre->r.mode & R_OSA) env->ok= ENV_OSA;
 		else env->ok= ENV_NORMAL;
 		env->lastframe= re->db.scene->r.cfra;
 	}
@@ -469,14 +469,14 @@ void envmaps_make(Render *re)
 	Tex *tex;
 	int do_init= 0, depth= 0, trace;
 	
-	if (!(re->params.r.mode & R_ENVMAP)) return;
+	if (!(re->r.mode & R_ENVMAP)) return;
 	
 	/* we dont raytrace, disabling the flag will cause ray_transp render solid */
-	trace= (re->params.r.mode & R_RAYTRACE);
-	re->params.r.mode &= ~R_RAYTRACE;
+	trace= (re->r.mode & R_RAYTRACE);
+	re->r.mode &= ~R_RAYTRACE;
 
-	re->cb.i.infostr= "Creating Environment maps";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "Creating Environment maps";
+	re->stats_draw(re->sdh, &re->i);
 	
 	/* 5 = hardcoded max recursion level */
 	while(depth<5) {
@@ -508,10 +508,10 @@ void envmaps_make(Render *re)
 								
 								if(env->ok) {
 										/* free when OSA, and old one isn't OSA */
-									if((re->params.r.mode & R_OSA) && env->ok==ENV_NORMAL) 
+									if((re->r.mode & R_OSA) && env->ok==ENV_NORMAL) 
 										BKE_free_envmapdata(env);
 										/* free when size larger */
-									else if(env->lastsize < re->params.r.size) 
+									else if(env->lastsize < re->r.size) 
 										BKE_free_envmapdata(env);
 										/* free when env is in recalcmode */
 									else if(env->recalc)
@@ -537,12 +537,12 @@ void envmaps_make(Render *re)
 	}
 
 	if(do_init) {
-		re->cb.display_init(re->cb.dih, re->result);
-		re->cb.display_clear(re->cb.dch, re->result);
-		// re->params.flag |= R_REDRAW_PRV;
+		re->display_init(re->dih, re->result);
+		re->display_clear(re->dch, re->result);
+		// re->flag |= R_REDRAW_PRV;
 	}	
 	// restore
-	re->params.r.mode |= trace;
+	re->r.mode |= trace;
 
 }
 
@@ -643,13 +643,13 @@ void tex_envmap_init(Render *re, Tex *tex)
 		
 		/* only free envmap when rendermode was set to render envmaps, for previewrender */
 		if(G.rendering && re)
-			if(re->params.r.mode & R_ENVMAP)
+			if(re->r.mode & R_ENVMAP)
 				if(tex->env->stype==ENV_ANIM) 
 					BKE_free_envmapdata(tex->env);
 	}
 }
 
-int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, int thread)
+int tex_envmap_sample(Render *re, Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, TexResult *texres, int thread)
 {
 	/* texvec should be the already reflected normal */
 	EnvMap *env;
@@ -689,7 +689,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 	
 	if(osatex) {
 		set_dxtdyt(dxts, dyts, dxt, dyt, face);
-		imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, texres, thread);
+		imagewraposa(re, tex, NULL, ibuf, sco, dxts, dyts, texres, thread);
 		
 		/* edges? */
 		
@@ -705,7 +705,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 			if(face!=face1) {
 				ibuf= env->cube[face1];
 				set_dxtdyt(dxts, dyts, dxt, dyt, face1);
-				imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, &texr1, thread);
+				imagewraposa(re, tex, NULL, ibuf, sco, dxts, dyts, &texr1, thread);
 			}
 			else texr1.tr= texr1.tg= texr1.tb= texr1.ta= 0.0;
 			
@@ -718,7 +718,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 			if(face!=face1) {
 				ibuf= env->cube[face1];
 				set_dxtdyt(dxts, dyts, dxt, dyt, face1);
-				imagewraposa(rpm, tex, NULL, ibuf, sco, dxts, dyts, &texr2, thread);
+				imagewraposa(re, tex, NULL, ibuf, sco, dxts, dyts, &texr2, thread);
 			}
 			else texr2.tr= texr2.tg= texr2.tb= texr2.ta= 0.0;
 			
@@ -734,7 +734,7 @@ int tex_envmap_sample(RenderParams *rpm, Tex *tex, float *texvec, float *dxt, fl
 		}
 	}
 	else {
-		imagewrap(rpm, tex, NULL, ibuf, sco, texres, thread);
+		imagewrap(re, tex, NULL, ibuf, sco, texres, thread);
 	}
 	
 	return 1;

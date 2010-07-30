@@ -31,7 +31,6 @@
 #define __RENDER_ENVMAP_H__ 
 
 struct Render;
-struct RenderParams;
 struct TexResult;
 
 /* Make/Render Environment Map */
@@ -46,7 +45,7 @@ void envmap_map(struct Render *re, struct Tex *tex, float *texvec,
 /* Texture Access */
 
 void tex_envmap_init(struct Render *re, struct Tex *tex);
-int tex_envmap_sample(struct RenderParams *rpm, struct Tex *tex, float *texvec,
+int tex_envmap_sample(struct Render *re, struct Tex *tex, float *texvec,
 	float *dxt, float *dyt, int osatex, struct TexResult *texres, int thread);
 
 #endif /* __RENDER_ENVMAP_H__ */

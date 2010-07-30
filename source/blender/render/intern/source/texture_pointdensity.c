@@ -266,18 +266,18 @@ static void free_pointdensity(Render *re, Tex *tex)
 
 static void pointdensity_tex_make(Render *re, Tex *tex)
 {
-	char *infostr= re->cb.i.infostr;
+	char *infostr= re->i.infostr;
 	
 	if(re->db.scene->r.scemode & R_PREVIEWBUTS)
 		return;
 	
-	re->cb.i.infostr= "Caching Point Densities";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "Caching Point Densities";
+	re->stats_draw(re->sdh, &re->i);
 
 	cache_pointdensity(re, tex);
 	
-	re->cb.i.infostr= infostr;
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= infostr;
+	re->stats_draw(re->sdh, &re->i);
 }
 
 void pointdensity_make(Render *re, ListBase *lb)
@@ -361,7 +361,7 @@ static void init_pointdensityrangedata(PointDensity *pd, PointDensityRangeData *
 }
 
 
-int tex_pointdensity_sample(RenderParams *rpm, Tex *tex, float *texvec, TexResult *texres)
+int tex_pointdensity_sample(Render *re, Tex *tex, float *texvec, TexResult *texres)
 {
 	int retval = TEX_INT;
 	PointDensity *pd = tex->pd;
@@ -401,7 +401,7 @@ int tex_pointdensity_sample(RenderParams *rpm, Tex *tex, float *texvec, TexResul
 			turb = BLI_gTurbulence(pd->noise_size, texvec[0]+age, texvec[1]+age, texvec[2]+age, pd->noise_depth, 0, pd->noise_basis);
 		}
 		else if (pd->noise_influence == TEX_PD_NOISE_TIME) {
-			time = rpm->r.cfra / (float)rpm->r.efra;
+			time = re->r.cfra / (float)re->r.efra;
 			turb = BLI_gTurbulence(pd->noise_size, texvec[0]+time, texvec[1]+time, texvec[2]+time, pd->noise_depth, 0, pd->noise_basis);
 			//turb = BLI_turbulence(pd->noise_size, texvec[0]+time, texvec[1]+time, texvec[2]+time, pd->noise_depth);
 		}

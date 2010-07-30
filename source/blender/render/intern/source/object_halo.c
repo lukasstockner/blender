@@ -545,7 +545,7 @@ void RE_make_stars(Render *re, Scene *scenev3d, void (*initfunc)(void),
 	
 	if (stargrid <= 0.10) return;
 	
-	if (re) re->params.flag |= R_HALO;
+	if (re) re->flag |= R_HALO;
 	else stargrid *= 1.0;				/* then it draws fewer */
 	
 	if(re) invert_m4_m4(mat, re->cam.viewmat);
@@ -711,7 +711,7 @@ static void renderhalo_post(Render *re, RenderResult *rr, float *rectf, HaloRen 
 	
 				rectft+= 4*rr->rectx;
 				
-				if(re->cb.test_break(re->cb.tbh)) break; 
+				if(re->test_break(re->tbh)) break; 
 			}
 		}
 	}
@@ -778,8 +778,8 @@ static void renderflare(Render *re, RenderResult *rr, float *rectf, HaloRen *har
 		fla.xs= re->cam.winx/2 + vec[0] + (1.2+rc[8])*re->rectx*vec[0]/vec[2];
 		fla.ys= re->cam.winy/2 + vec[1] + (1.2+rc[8])*re->rectx*vec[1]/vec[2];
 
-		if(re->params.flag & R_SEC_FIELD) {
-			if(re->params.r.mode & R_ODDFIELD) fla.ys += 0.5;
+		if(re->flag & R_SEC_FIELD) {
+			if(re->r.mode & R_ODDFIELD) fla.ys += 0.5;
 			else fla.ys -= 0.5;
 		}
 		if(type & 1) fla.type= HA_FLARECIRC;
@@ -830,7 +830,7 @@ void halos_render_flare(Render *re)
 	if(do_draw) {
 		/* weak... the display callback wants an active renderlayer pointer... */
 		rr->renlay= rl;
-		re->cb.display_draw(re->cb.ddh, rr, NULL);
+		re->display_draw(re->ddh, rr, NULL);
 	}
 	
 	re->cam= cam;	

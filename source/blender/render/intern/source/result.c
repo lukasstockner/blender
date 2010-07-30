@@ -448,7 +448,7 @@ void shade_result_to_part(Render *re, RenderPart *pa, RenderLayer *rl, int offs,
 {
 	RenderResult *rr= pa->result;
 	int a, passflag= rl->passflag & ~(SCE_PASS_COMBINED);
-	int osa= (re->params.osa)? re->params.osa: 1;
+	int osa= (re->osa)? re->osa: 1;
 	/* previously solid was filtered but transp not... */
 	int filter_passes = 1;
 
@@ -585,7 +585,7 @@ void pop_render_result(Render *re)
 			
 			/* reconstruct render result layers */
 			for(nr=0, srl= re->db.scene->r.layers.first; srl; srl= srl->next, nr++) {
-				if(nr==re->params.r.actlay)
+				if(nr==re->r.actlay)
 					BLI_addtail(&re->result->layers, rl);
 				else {
 					rlpush= RE_GetRenderLayer(re->pushedresult, srl->name);
@@ -887,9 +887,9 @@ RenderResult *render_result_create(Render *re, rcti *partrct, int crop, int save
 	}
 	
 	/* check renderdata for amount of layers */
-	for(nr=0, srl= re->params.r.layers.first; srl; srl= srl->next, nr++) {
+	for(nr=0, srl= re->r.layers.first; srl; srl= srl->next, nr++) {
 		
-		if((re->params.r.scemode & R_SINGLE_LAYER) && nr!=re->params.r.actlay)
+		if((re->r.scemode & R_SINGLE_LAYER) && nr!=re->r.actlay)
 			continue;
 		if(srl->layflag & SCE_LAY_DISABLE)
 			continue;
@@ -979,7 +979,7 @@ RenderResult *render_result_create(Render *re, rcti *partrct, int crop, int save
 		rl->layflag= 0x7FFF;	/* solid ztra halo strand */
 		rl->passflag= SCE_PASS_COMBINED;
 		
-		re->params.r.actlay= 0;
+		re->r.actlay= 0;
 	}
 	
 	/* border render; calculate offset for use in compositor. compo is centralized coords */
@@ -1318,7 +1318,7 @@ void do_merge_fullsample(Render *re, bNodeTree *ntree, ListBase *list)
 	/* we accumulate in here */
 	rectf= MEM_mapallocN(re->rectx*re->recty*sizeof(float)*4, "fullsample rgba");
 	
-	for(sample=0; sample<re->params.r.osa; sample++) {
+	for(sample=0; sample<re->r.osa; sample++) {
 		RenderResult rres;
 		int x, y;
 		
@@ -1330,7 +1330,7 @@ void do_merge_fullsample(Render *re, bNodeTree *ntree, ListBase *list)
 			tag_scenes_for_render(re);
 			for(re1= list->first; re1; re1= re1->next) {
 				if(re1->db.scene->id.flag & LIB_DOIT)
-					if(re1->params.r.scemode & R_FULL_SAMPLE)
+					if(re1->r.scemode & R_FULL_SAMPLE)
 						render_result_read(re1, sample);
 			}
 		}
@@ -1340,7 +1340,7 @@ void do_merge_fullsample(Render *re, bNodeTree *ntree, ListBase *list)
 			ntreeCompositTagRender(re->db.scene);
 			ntreeCompositTagAnimated(ntree);
 			
-			ntreeCompositExecTree(ntree, &re->params.r, G.background==0);
+			ntreeCompositExecTree(ntree, &re->r, G.background==0);
 		}
 		
 		/* ensure we get either composited result or the active layer */
@@ -1366,13 +1366,13 @@ void do_merge_fullsample(Render *re, bNodeTree *ntree, ListBase *list)
 		RE_ReleaseResultImage(re);
 
 		/* show stuff */
-		if(sample!=re->params.osa-1) {
+		if(sample!=re->osa-1) {
 			/* weak... the display callback wants an active renderlayer pointer... */
 			re->result->renlay= render_get_active_layer(re, re->result);
-			re->cb.display_draw(re->cb.ddh, re->result, NULL);
+			re->display_draw(re->ddh, re->result, NULL);
 		}
 		
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 	}
 	
@@ -1399,7 +1399,7 @@ void render_result_merge_part(Render *re, RenderResult *result)
 	}
 	else {
 		/* on break, don't merge in result for preview renders, looks nicer */
-		if(re->cb.test_break(re->cb.tbh) && (re->params.r.scemode & R_PREVIEWBUTS));
+		if(re->test_break(re->tbh) && (re->r.scemode & R_PREVIEWBUTS));
 		else render_result_merge(re->result, result);
 	}
 
@@ -1442,7 +1442,7 @@ void render_result_exr_read(Render *re)
 
 void render_result_border_merge(Render *re)
 {
-	if((re->params.r.mode & R_CROP)==0) {
+	if((re->r.mode & R_CROP)==0) {
 		RenderResult *rres;
 		
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
@@ -1469,8 +1469,8 @@ void render_result_border_merge(Render *re)
 		
 		BLI_rw_mutex_unlock(&re->resultmutex);
 
-		re->cb.display_init(re->cb.dih, re->result);
-		re->cb.display_draw(re->cb.ddh, re->result, NULL);
+		re->display_init(re->dih, re->result);
+		re->display_draw(re->ddh, re->result, NULL);
 	}
 	else {
 		/* set offset (again) for use in compositor, disprect was manipulated. */
@@ -1484,7 +1484,7 @@ RenderResult *render_result_full_sample_create(Render *re)
 {
 	int a;
 	
-	for(a=0; a<re->params.osa; a++) {
+	for(a=0; a<re->osa; a++) {
 		RenderResult *rr= render_result_create(re, &re->disprect, 0, 1);
 		BLI_addtail(&re->fullresult, rr);
 		rr->sample_nr= a;
@@ -1501,13 +1501,13 @@ int get_sample_layers(Render *re, RenderPart *pa, RenderLayer *rl, RenderLayer *
 	if(pa->fullresult.first) {
 		int sample, nr= BLI_findindex(&pa->result->layers, rl);
 		
-		for(sample=0; sample<re->params.osa; sample++) {
+		for(sample=0; sample<re->osa; sample++) {
 			RenderResult *rr= BLI_findlink(&pa->fullresult, sample);
 		
 			rlpp[sample]= BLI_findlink(&rr->layers, nr);
 		}		
 
-		return re->params.osa;
+		return re->osa;
 	}
 	else {
 		rlpp[0]= rl;
@@ -1607,7 +1607,7 @@ void RE_ResultGet32(Render *re, unsigned int *rect)
 		int tot= rres.rectx*rres.recty;
 		char *cp= (char *)rect;
 		
-		if (re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT) {
+		if (re->r.color_mgt_flag & R_COLOR_MANAGEMENT) {
 			/* Finally convert back to sRGB rendered image */ 
 			for(;tot>0; tot--, cp+=4, fp+=4) {
 				cp[0] = FTOCHAR(linearrgb_to_srgb(fp[0]));

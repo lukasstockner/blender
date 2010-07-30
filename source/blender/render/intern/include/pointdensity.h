@@ -31,7 +31,6 @@
 
 struct Render;
 struct TexResult;
-struct RenderParams;
 struct ListBase;
 
 /* Pointdensity Texture */
@@ -39,7 +38,7 @@ struct ListBase;
 void tex_pointdensity_init(struct Render *re, struct Tex *tex);
 void tex_pointdensity_free(struct Render *re, struct Tex *tex);
 
-int tex_pointdensity_sample(struct RenderParams *rpm, struct Tex *tex,
+int tex_pointdensity_sample(struct Render *re, struct Tex *tex,
 	float *texvec, struct TexResult *texres);
 
 /* Make point density kd-trees for all point density textures in the scene */

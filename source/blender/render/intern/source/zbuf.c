@@ -1956,7 +1956,7 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 	camera_window_matrix(&re->cam, winmat);
 	camera_window_rect_bounds(re->cam.winx, re->cam.winy, &pa->disprect, bounds);
 	
-	samples= (re->params.osa? re->params.osa: 1);
+	samples= (re->osa? re->osa: 1);
 	samples= MIN2(4, samples-pa->sample);
 
 	for(zsample=0; zsample<samples; zsample++) {
@@ -1969,7 +1969,7 @@ static void zbuffer_fill_solid(Render *re, RenderPart *pa, RenderLayer *rl, void
 		zspan->zmuly= ((float)re->cam.winy)/2.0;
 
 		jit= pxf_sample_offset_table(re);
-		if(jit && re->params.osa) {
+		if(jit && re->osa) {
 			zspan->zofsx= -pa->disprect.xmin - jit[pa->sample+zsample][0];
 			zspan->zofsy= -pa->disprect.ymin - jit[pa->sample+zsample][1];
 		}
@@ -2269,7 +2269,7 @@ void zbuffer_shadow(Render *re, float winmat[][4], LampRen *lar, int *rectz, int
 				}
 			}
 
-			if((a & 255)==255 && re->cb.test_break(re->cb.tbh)) 
+			if((a & 255)==255 && re->test_break(re->tbh)) 
 				break;
 		}
 
@@ -2318,13 +2318,13 @@ void zbuffer_shadow(Render *re, float winmat[][4], LampRen *lar, int *rectz, int
 						}
 					}
 
-					if((a & 255)==255 && re->cb.test_break(re->cb.tbh)) 
+					if((a & 255)==255 && re->test_break(re->tbh)) 
 						break;
 				}
 			}
 		}
 
-		if(re->cb.test_break(re->cb.tbh)) 
+		if(re->test_break(re->tbh)) 
 			break;
 	}
 	
@@ -2423,10 +2423,10 @@ static void make_sss_pixelstructs(Render *re, RenderPart *pa, ListBase *lb)
 	int *rz= pa->rectz, *rbz= pa->rectbackz;
 	int x, y, a, mask;
 
-	if(re->params.osa) {
+	if(re->osa) {
 		/* for osa case mask must be exactly all osa samples,
 		   not more, since it is used for table lookups */
-		for(mask=0, a=0; a<re->params.osa; a++)
+		for(mask=0, a=0; a<re->osa; a++)
 			mask |= (1<<a);
 	}
 	else
@@ -2572,7 +2572,7 @@ static void copyto_abufz(Render *re, RenderPart *pa, int *arectz, int *rectmask,
 	PixStr *ps, **rd;
 	int x, y, *rza, *rma;
 	
-	if(re->params.osa==0) {
+	if(re->osa==0) {
 		if(!pa->rectz)
 			fillrect(arectz, pa->rectx, pa->recty, 0x7FFFFFFE);
 		else
@@ -2781,12 +2781,12 @@ static int zbuffer_abuf(Render *re, RenderPart *pa, APixstr *apixbuf, ListBase *
 					}
 				}
 				if((v & 255)==255) 
-					if(re->cb.test_break(re->cb.tbh)) 
+					if(re->test_break(re->tbh)) 
 						break; 
 			}
 		}
 
-		if(re->cb.test_break(re->cb.tbh)) break;
+		if(re->test_break(re->tbh)) break;
 	}
 	
 	for(zsample=0; zsample<samples; zsample++) {
@@ -2805,7 +2805,7 @@ static int zbuffer_abuf_render(Render *re, RenderPart *pa, APixstr *apixbuf, APi
 	float winmat[4][4], (*jit)[2];
 	int samples, negzmask, doztra= 0;
 
-	samples= (re->params.osa)? re->params.osa: 1;
+	samples= (re->osa)? re->osa: 1;
 	negzmask= ((rl->layflag & SCE_LAY_ZMASK) && (rl->layflag & SCE_LAY_NEG_ZMASK));
 
 	jit= pxf_sample_offset_table(re);
@@ -2833,7 +2833,7 @@ int zbuffer_alpha(Render *re, RenderPart *pa, RenderLayer *rl)
 {
 	int doztra;
 
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return 0;
 
 	pa->apixbuf= MEM_callocN(pa->rectx*pa->recty*sizeof(APixstr), "apixbuf");
@@ -2959,7 +2959,7 @@ static void make_pixelstructs(Render *re, RenderPart *pa, ZSpan *zspan, int samp
 	int *rz= zspan->rectz;
 	int *rm= zspan->rectmask;
 	int x, y;
-	int mask= (re->params.osa)? 1<<sample: 0xFFFF;
+	int mask= (re->osa)? 1<<sample: 0xFFFF;
 
 	for(y=0; y<pa->recty; y++) {
 		for(x=0; x<pa->rectx; x++, rd++, rp++, ro++, rz++, rm++) {
@@ -2977,9 +2977,9 @@ void zbuffer_solid(Render *re, RenderPart *pa, RenderLayer *rl, ListBase *psmlis
 	void (*edgefunc)(struct Render *re, struct RenderPart *pa, float *rectf, int *rectz),
 	float *edgerect)
 {
-	int osa= (re->params.osa)? re->params.osa: 1;
+	int osa= (re->osa)? re->osa: 1;
 
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return;
 
 	/* initialize pixelstructs */
@@ -2995,7 +2995,7 @@ void zbuffer_solid(Render *re, RenderPart *pa, RenderLayer *rl, ListBase *psmlis
 		sdata.edgerect= edgerect;
 		sdata.edgefunc= edgefunc;
 		zbuffer_fill_solid(re, pa, rl, make_pixelstructs, &sdata);
-		if(re->cb.test_break(re->cb.tbh)) break; 
+		if(re->test_break(re->tbh)) break; 
 	}
 }
 

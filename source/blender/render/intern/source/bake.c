@@ -198,7 +198,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	if(bs->type==RE_BAKE_AO) {
 		shade_ao_env_indirect(re, shi);
 
-		if(re->params.r.bake_flag & R_BAKE_NORMALIZE) {
+		if(re->r.bake_flag & R_BAKE_NORMALIZE) {
 			copy_v3_v3(shr.combined, shi->shading.ao);
 		}
 		else {
@@ -227,8 +227,8 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 
 			copy_v3_v3(nor, shi->geometry.vn);
 
-			if(re->params.r.bake_normal_space == R_BAKE_SPACE_CAMERA);
-			else if(re->params.r.bake_normal_space == R_BAKE_SPACE_TANGENT) {
+			if(re->r.bake_normal_space == R_BAKE_SPACE_CAMERA);
+			else if(re->r.bake_normal_space == R_BAKE_SPACE_TANGENT) {
 				float mat[3][3], imat[3][3];
 
 				/* bitangent */
@@ -246,9 +246,9 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 				invert_m3_m3(imat, mat);
 				mul_m3_v3(imat, nor);
 			}
-			else if(re->params.r.bake_normal_space == R_BAKE_SPACE_OBJECT)
+			else if(re->r.bake_normal_space == R_BAKE_SPACE_OBJECT)
 				mul_mat3_m4_v3(ob->imat, nor); /* ob->imat includes viewinv! */
-			else if(re->params.r.bake_normal_space == R_BAKE_SPACE_WORLD)
+			else if(re->r.bake_normal_space == R_BAKE_SPACE_WORLD)
 				mul_mat3_m4_v3(re->cam.viewinv, nor);
 
 			normalize_v3(nor); /* in case object has scaling */
@@ -281,7 +281,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	else {
 		char *col= (char *)(bs->rect + bs->rectx*y + x);
 
-		if (ELEM(bs->type, RE_BAKE_ALL, RE_BAKE_TEXTURE) &&	(re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)) {
+		if (ELEM(bs->type, RE_BAKE_ALL, RE_BAKE_TEXTURE) &&	(re->r.color_mgt_flag & R_COLOR_MANAGEMENT)) {
 			float srgb[3];
 			srgb[0]= linearrgb_to_srgb(shr.combined[0]);
 			srgb[1]= linearrgb_to_srgb(shr.combined[1]);
@@ -314,8 +314,8 @@ static void bake_displacement(void *handle, ShadeInput *shi, float dist, int x, 
 	Render *re= bs->re;
 	float disp;
 	
-	if(re->params.r.bake_flag & R_BAKE_NORMALIZE && re->params.r.bake_maxdist) {
-		disp = (dist+re->params.r.bake_maxdist) / (re->params.r.bake_maxdist*2); /* alter the range from [-bake_maxdist, bake_maxdist] to [0, 1]*/
+	if(re->r.bake_flag & R_BAKE_NORMALIZE && re->r.bake_maxdist) {
+		disp = (dist+re->r.bake_maxdist) / (re->r.bake_maxdist*2); /* alter the range from [-bake_maxdist, bake_maxdist] to [0, 1]*/
 	} else {
 		disp = 0.5 + dist; /* alter the range from [-0.5,0.5] to [0,1]*/
 	}
@@ -342,13 +342,13 @@ static int bake_intersect_tree(Render *re, RayObject* raytree, Isect* isect, flo
 	int hit;
 
 	/* might be useful to make a user setting for maxsize*/
-	if(re->params.r.bake_maxdist > 0.0f)
-		maxdist= re->params.r.bake_maxdist;
+	if(re->r.bake_maxdist > 0.0f)
+		maxdist= re->r.bake_maxdist;
 	else
-		maxdist= RE_RAYTRACE_MAXDIST + re->params.r.bake_biasdist;
+		maxdist= RE_RAYTRACE_MAXDIST + re->r.bake_biasdist;
 	
 	/* 'dir' is always normalized */
-	madd_v3_v3v3fl(isect->start, start, dir, -re->params.r.bake_biasdist);
+	madd_v3_v3v3fl(isect->start, start, dir, -re->r.bake_biasdist);
 
 	isect->dir[0] = dir[0]*sign;
 	isect->dir[1] = dir[1]*sign;
@@ -426,7 +426,7 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 	ShadeInput *shi= ssamp->shi;
 	
 	/* fast threadsafe break test */
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return;
 	
 	/* setup render coordinates */
@@ -457,7 +457,7 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 	quad= bs->quad;
 	bake_set_shade_input(re, obi, vlr, shi, quad, 0, x, y, u, v);
 
-	if(bs->type==RE_BAKE_NORMALS && re->params.r.bake_normal_space==R_BAKE_SPACE_TANGENT) {
+	if(bs->type==RE_BAKE_NORMALS && re->r.bake_normal_space==R_BAKE_SPACE_TANGENT) {
 		shade_input_set_shade_texco(re, shi);
 		copy_v3_v3(tvn, shi->geometry.vn);
 		copy_v3_v3(ttang, shi->texture.nmaptang);
@@ -517,7 +517,7 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 		}
 	}
 
-	if(bs->type==RE_BAKE_NORMALS && re->params.r.bake_normal_space==R_BAKE_SPACE_TANGENT)
+	if(bs->type==RE_BAKE_NORMALS && re->r.bake_normal_space==R_BAKE_SPACE_TANGENT)
 		bake_shade(handle, ob, shi, quad, x, y, u, v, tvn, ttang);
 	else
 		bake_shade(handle, ob, shi, quad, x, y, u, v, 0, 0);
@@ -571,7 +571,7 @@ static int get_next_bake_face(Render *re, BakeShade *bs)
 						if(ibuf->rect_float)
 							imb_freerectImBuf(ibuf);
 						/* clear image */
-						if(re->params.r.bake_flag & R_BAKE_CLEAR)
+						if(re->r.bake_flag & R_BAKE_CLEAR)
 							IMB_rectfill(ibuf, vec);
 					
 						/* might be read by UI to set active image for display */
@@ -667,7 +667,7 @@ static void *do_bake_thread(void *bs_v)
 		shade_tface(bs);
 		
 		/* fast threadsafe break test */
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 
 		/* access is not threadsafe but since its just true/false probably ok
@@ -696,7 +696,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	get_next_bake_face(re, NULL);
 	
 	/* do we need a mask? */
-	if (re->params.r.bake_filter)
+	if (re->r.bake_filter)
 		usemask = 1;
 	
 	/* baker uses this flag to detect if image was initialized */
@@ -710,12 +710,12 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 		}
 	}
 	
-	BLI_init_threads(&threads, do_bake_thread, re->params.r.threads);
+	BLI_init_threads(&threads, do_bake_thread, re->r.threads);
 
-	handles= MEM_callocN(sizeof(BakeShade)*re->params.r.threads, "BakeShade");
+	handles= MEM_callocN(sizeof(BakeShade)*re->r.threads, "BakeShade");
 
 	/* get the threads running */
-	for(a=0; a<re->params.r.threads; a++) {
+	for(a=0; a<re->r.threads; a++) {
 		/* set defaults in handles */
 		handles[a].re= re;
 		handles[a].ssamp.shi[0].shading.lay= re->db.lay;
@@ -742,16 +742,16 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	
 	/* wait for everything to be done */
 	a= 0;
-	while(a!=re->params.r.threads) {
+	while(a!=re->r.threads) {
 		PIL_sleep_ms(50);
 
 		/* calculate progress */
-		for(vdone=0, a=0; a<re->params.r.threads; a++)
+		for(vdone=0, a=0; a<re->r.threads; a++)
 			vdone+= handles[a].vdone;
 		if (progress)
 			*progress = (float)(vdone / (float)re->db.totvlak);
 
-		for(a=0; a<re->params.r.threads; a++)
+		for(a=0; a<re->r.threads; a++)
 			if(handles[a].ready==0)
 				break;
 	}
@@ -764,13 +764,13 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 			if(!ibuf)
 				continue;
 
-			if(re->params.r.bake_filter) {
+			if(re->r.bake_filter) {
 				if(usemask) {
 					/* extend the mask +2 pixels from the image,
 					 * this is so colors dont blend in from outside */
 					char *temprect;
 					
-					for(a=0; a<re->params.r.bake_filter; a++)
+					for(a=0; a<re->r.bake_filter; a++)
 						bake_mask_filter_extend((char *)ibuf->userdata, ibuf->x, ibuf->y);
 					
 					temprect = MEM_dupallocN(ibuf->userdata);
@@ -784,7 +784,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 					MEM_freeN(temprect);
 				}
 				
-				for(a=0; a<re->params.r.bake_filter; a++) {
+				for(a=0; a<re->r.bake_filter; a++) {
 					/*the mask, ibuf->userdata - can be null, in this case only zero alpha is used */
 					IMB_filter_extend(ibuf, (char *)ibuf->userdata);
 				}
@@ -801,7 +801,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	}
 	
 	/* calculate return value */
- 	for(a=0; a<re->params.r.threads; a++) {
+ 	for(a=0; a<re->r.threads; a++) {
 		zbuf_free_span(handles[a].zspan);
 		MEM_freeN(handles[a].zspan);
  	}

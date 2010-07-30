@@ -68,7 +68,7 @@
 #include "texture.h"
 #include "texture_stack.h"
 
-static int tex_sample_old(RenderParams *rpm, Tex *tex,
+static int tex_sample_old(Render *re, Tex *tex,
 	float *co, float *dx, float *dy, int osatex,
 	TexResult *texres, short thread, short which_output)
 {
@@ -81,7 +81,7 @@ static int tex_sample_old(RenderParams *rpm, Tex *tex,
 	else zero_v3(texco.dy);
 	texco.osatex= osatex;
 
-	return tex_sample(rpm, tex, &texco, texres, thread, which_output);
+	return tex_sample(re, tex, &texco, texres, thread, which_output);
 }
 
 /* this is called for surface shading */
@@ -93,10 +93,10 @@ static int mtex_sample_old(Render *re, ShadeInput *shi, MTex *mtex, float *co, f
 		/* stupid exception here .. but we have to pass shi and mtex to
 		   textures nodes for 2d mapping and color management for images */
 		return ntreeTexExecTree(tex->nodetree, texres, co, dx, dy, shi->geometry.osatex, shi->shading.thread,
-			tex, mtex->which_output, re->params.r.cfra, (re->params.r.scemode & R_TEXNODE_PREVIEW) != 0, shi, mtex);
+			tex, mtex->which_output, re->r.cfra, (re->r.scemode & R_TEXNODE_PREVIEW) != 0, shi, mtex);
 	}
 	else
-		return tex_sample_old(&re->params, mtex->tex, co, dx, dy, shi->geometry.osatex, texres, shi->shading.thread, mtex->which_output);
+		return tex_sample_old(re, mtex->tex, co, dx, dy, shi->geometry.osatex, texres, shi->shading.thread, mtex->which_output);
 }
 
 static int cubemap_glob(Render *re, float *n, float x, float y, float z, float *adr1, float *adr2)
@@ -695,7 +695,7 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 			}
 			else dxt[2] = dyt[2] = 0.f;
 		}
-		do_2d_mapping(re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt, re->params.r.osa);
+		do_2d_mapping(re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt, re->r.osa);
 
 		// translate and scale
 		texvec[0] = mtex->size[0]*(texvec[0] - 0.5f) + mtex->ofs[0] + 0.5f;
@@ -778,7 +778,7 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 	float nu[3] = {0,0,0}, nv[3] = {0,0,0}, nn[3] = {0,0,0}, dudnu = 1.f, dudnv = 0.f, dvdnu = 0.f, dvdnv = 1.f; // bump mapping
 	int nunvdone= 0, mapto;
 
-	if (re->params.r.scemode & R_NO_TEX) return;
+	if (re->r.scemode & R_NO_TEX) return;
 	/* here: test flag if there's a tex (todo) */
 
 	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
@@ -1202,7 +1202,7 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 					ImBuf *ibuf = BKE_image_get_ibuf(ima, &tex->iuser);
 
 					/* don't linearize float buffers, assumed to be linear */
-					if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+					if (ibuf && !(ibuf->rect_float) && re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 						srgb_to_linearrgb_v3_v3(tcol, tcol);
 				}
 				
@@ -1439,7 +1439,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 	float co[3], texvec[3];
 	float fact, stencilTin=1.0;
 	
-	if (re->params.r.scemode & R_NO_TEX) return;
+	if (re->r.scemode & R_NO_TEX) return;
 	/* here: test flag if there's a tex (todo) */
 	
 	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
@@ -1491,7 +1491,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 			
 			if(tex->type==TEX_IMAGE) {
 				continue;	/* not supported yet */				
-				//do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->params.r.osa);
+				//do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->r.osa);
 			}
 			else {
 				/* placement */
@@ -1505,7 +1505,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 				else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			}
 			
-			rgbnor= tex_sample_old(&re->params, tex, texvec, NULL, NULL, 0, &texres, shi->shading.thread, mtex->which_output);	/* NULL = dxt/dyt, 0 = shi->geometry.osatex - not supported */
+			rgbnor= tex_sample_old(re, tex, texvec, NULL, NULL, 0, &texres, shi->shading.thread, mtex->which_output);	/* NULL = dxt/dyt, 0 = shi->geometry.osatex - not supported */
 			
 			/* texture output */
 
@@ -1619,7 +1619,7 @@ void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf, int 
 	float texvec[3], dxt[3], dyt[3], fact, facm, dx;
 	int rgb, osatex;
 
-	if (re->params.r.scemode & R_NO_TEX) return;
+	if (re->r.scemode & R_NO_TEX) return;
 	
 	mtex= har->mat->mtex[0];
 	if(mtex->tex==NULL) return;
@@ -1667,9 +1667,9 @@ void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf, int 
 
 	}
 
-	if(mtex->tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->params.r.osa);
+	if(mtex->tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->r.osa);
 	
-	rgb= tex_sample_old(&re->params, mtex->tex, texvec, dxt, dyt, osatex, &texres, thread, mtex->which_output);
+	rgb= tex_sample_old(re, mtex->tex, texvec, dxt, dyt, osatex, &texres, thread, mtex->which_output);
 
 	/* texture output */
 	if(rgb && (mtex->texflag & MTEX_RGBTOINT)) {
@@ -1704,7 +1704,7 @@ void do_halo_tex(Render *re, HaloRen *har, float xn, float yn, float *colf, int 
 			ImBuf *ibuf = BKE_image_get_ibuf(ima, &mtex->tex->iuser);
 
 			/* don't linearize float buffers, assumed to be linear */
-			if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+			if (ibuf && !(ibuf->rect_float) && re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 				srgb_to_linearrgb_v3_v3(&texres.tr, &texres.tr);
 		}
 
@@ -1759,7 +1759,7 @@ void do_sky_tex(Render *re, float *rco, float *lo, float *dxyview, float *hor, f
 	float tempvec[3], texvec[3], dxt[3], dyt[3];
 	int tex_nr, rgb= 0, ok;
 	
-	if (re->params.r.scemode & R_NO_TEX) return;
+	if (re->r.scemode & R_NO_TEX) return;
 	/* todo: add flag to test if there's a tex */
 	texres.nor= NULL;
 	
@@ -1851,9 +1851,9 @@ void do_sky_tex(Render *re, float *rco, float *lo, float *dxyview, float *hor, f
 			else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			
 			/* texture */
-			if(tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->params.r.osa);
+			if(tex->type==TEX_IMAGE) do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->r.osa);
 		
-			rgb= tex_sample_old(&re->params, mtex->tex, texvec, dxt, dyt, re->params.osa, &texres, thread, mtex->which_output);
+			rgb= tex_sample_old(re, mtex->tex, texvec, dxt, dyt, re->osa, &texres, thread, mtex->which_output);
 			
 			/* texture output */
 			if(rgb && (mtex->texflag & MTEX_RGBTOINT)) {
@@ -1904,7 +1904,7 @@ void do_sky_tex(Render *re, float *rco, float *lo, float *dxyview, float *hor, f
 					ImBuf *ibuf = BKE_image_get_ibuf(ima, &tex->iuser);
 
 					/* don't linearize float buffers, assumed to be linear */
-					if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+					if (ibuf && !(ibuf->rect_float) && re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 						srgb_to_linearrgb_v3_v3(tcol, tcol);
 				}
 
@@ -1948,7 +1948,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 	float texvec[3], dxt[3], dyt[3], tempvec[3];
 	int i, tex_nr, rgb= 0;
 	
-	if (re->params.r.scemode & R_NO_TEX) return;
+	if (re->r.scemode & R_NO_TEX) return;
 	tex_nr= 0;
 	
 	for(; tex_nr<MAX_MTEX; tex_nr++) {
@@ -2053,10 +2053,10 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 			
 			/* texture */
 			if(tex->type==TEX_IMAGE) {
-				do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->params.r.osa);
+				do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->r.osa);
 			}
 			
-			rgb= tex_sample_old(&re->params, tex, texvec, dxt, dyt, shi->geometry.osatex, &texres, shi->shading.thread, mtex->which_output);
+			rgb= tex_sample_old(re, tex, texvec, dxt, dyt, shi->geometry.osatex, &texres, shi->shading.thread, mtex->which_output);
 
 			/* texture output */
 			if(rgb && (mtex->texflag & MTEX_RGBTOINT)) {
@@ -2108,7 +2108,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 					ImBuf *ibuf = BKE_image_get_ibuf(ima, &tex->iuser);
 
 					/* don't linearize float buffers, assumed to be linear */
-					if (ibuf && !(ibuf->rect_float) && re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+					if (ibuf && !(ibuf->rect_float) && re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 						srgb_to_linearrgb_v3_v3(&texres.tr, &texres.tr);
 				}
 
@@ -2125,7 +2125,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 
 /******************************* TexFace ********************************/
 
-void do_realtime_texture(RenderParams *rpm, ShadeInput *shi, Image *ima)
+void do_realtime_texture(Render *re, ShadeInput *shi, Image *ima)
 {
 	TexResult texr;
 	static Tex imatex[BLENDER_MAX_THREADS];	// threadsafe
@@ -2135,7 +2135,7 @@ void do_realtime_texture(RenderParams *rpm, ShadeInput *shi, Image *ima)
 	ShadeInputUV *suv= &shi->texture.uv[shi->texture.actuv];
 	int a;
 
-	if(rpm->r.scemode & R_NO_TEX) return;
+	if(re->r.scemode & R_NO_TEX) return;
 
 	if(firsttime) {
 		BLI_lock_thread(LOCK_IMAGE);
@@ -2166,8 +2166,8 @@ void do_realtime_texture(RenderParams *rpm, ShadeInput *shi, Image *ima)
 	
 	texr.nor= NULL;
 	
-	if(shi->geometry.osatex) imagewraposa(rpm, tex, ima, NULL, texvec, dx, dy, &texr, shi->shading.thread);
-	else imagewrap(rpm, tex, ima, NULL, texvec, &texr, shi->shading.thread); 
+	if(shi->geometry.osatex) imagewraposa(re, tex, ima, NULL, texvec, dx, dy, &texr, shi->shading.thread);
+	else imagewrap(re, tex, ima, NULL, texvec, &texr, shi->shading.thread); 
 
 	shi->material.vcol[0]*= texr.tr;
 	shi->material.vcol[1]*= texr.tg;
@@ -2199,13 +2199,13 @@ int multitex_nodes(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, 
 		if(mtex) {
 			/* we have mtex, use it for 2d mapping images only */
 			do_2d_mapping(&re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt, shi->geometry.osatex);
-			rgbnor= tex_sample_old(&re.params, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
+			rgbnor= tex_sample_old(&re, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
 
 			if(mtex->mapto & (MAP_COL+MAP_COLSPEC+MAP_COLMIR)) {
 				ImBuf *ibuf = BKE_image_get_ibuf(tex->ima, &tex->iuser);
 				
 				/* don't linearize float buffers, assumed to be linear */
-				if(ibuf && !(ibuf->rect_float)) // XXX missing render: re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+				if(ibuf && !(ibuf->rect_float)) // XXX missing render: re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 					srgb_to_linearrgb_v3_v3(&texres->tr, &texres->tr);
 			}
 		}
@@ -2230,13 +2230,13 @@ int multitex_nodes(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, 
 			}
 			
 			do_2d_mapping(&re, &localmtex, texvec_l, NULL, NULL, NULL, dxt_l, dyt_l, (dxt && dyt));
-			rgbnor= tex_sample_old(&re.params, tex, texvec_l, dxt_l, dyt_l, osatex, texres, thread, which_output);
+			rgbnor= tex_sample_old(&re, tex, texvec_l, dxt_l, dyt_l, osatex, texres, thread, which_output);
 		}
 
 		return rgbnor;
 	}
 	else
-		return tex_sample_old(&re.params, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
+		return tex_sample_old(&re, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
 }
 
 /* Warning, if the texres's values are not declared zero, check the return value to be sure
@@ -2278,7 +2278,7 @@ int externtex(MTex *mtex, float *vec, float *tin, float *tr, float *tg, float *t
 		do_2d_mapping(&re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, 0);
 	}
 	
-	rgb= tex_sample_old(&re.params, tex, texvec, dxt, dyt, 0, &texr, 0, mtex->which_output);
+	rgb= tex_sample_old(&re, tex, texvec, dxt, dyt, 0, &texr, 0, mtex->which_output);
 	
 	if(rgb) {
 		texr.tin= (0.35*texr.tr+0.45*texr.tg+0.2*texr.tb);

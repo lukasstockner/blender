@@ -84,7 +84,7 @@ extern struct Render R;
 static int test_break(void *data)
 {
 	Render *re = (Render*)data;
-	return re->cb.test_break(re->cb.tbh);
+	return re->test_break(re->tbh);
 }
 
 static int re_object_raycast(RayObject *rayob, Isect *isec, ShadeInput *shi)
@@ -161,7 +161,7 @@ RayObject*  RE_rayobject_create(Render *re, int type, int size)
 	
 		
 	if(type == R_RAYSTRUCTURE_OCTREE) //TODO dynamic ocres
-		res = RE_rayobject_octree_create(re->params.r.ocres, size);
+		res = RE_rayobject_octree_create(re->r.ocres, size);
 	else if(type == R_RAYSTRUCTURE_BLIBVH)
 		res = RE_rayobject_blibvh_create(size);
 	else if(type == R_RAYSTRUCTURE_VBVH)
@@ -240,7 +240,7 @@ void raytree_free(RenderDB *rdb)
 static int is_raytraceable_vlr(Render *re, VlakRen *vlr)
 {
 	/* note: volumetric must be tracable, wire must not */
-	if((re->params.flag & R_BAKE_TRACE) || (vlr->flag & R_TRACEBLE) || (vlr->mat->material_type == MA_TYPE_VOLUME))
+	if((re->flag & R_BAKE_TRACE) || (vlr->flag & R_TRACEBLE) || (vlr->mat->material_type == MA_TYPE_VOLUME))
 		if(vlr->mat->material_type != MA_TYPE_WIRE)
 			return 1;
 	return 0;
@@ -292,8 +292,8 @@ RayObject* raytree_create_object(Render *re, ObjectInstanceRen *obi)
 			return NULL;
 
 		//Create Ray cast accelaration structure		
-		raytree = RE_rayobject_create( re,  re->params.r.raytrace_structure, faces );
-		if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
+		raytree = RE_rayobject_create( re,  re->r.raytrace_structure, faces );
+		if(!(re->r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 			vlakprimitive = obr->rayprimitives = (VlakPrimitive*)MEM_callocN(faces*sizeof(VlakPrimitive), "ObjectRen primitives");
 		else
 			face = obr->rayfaces = (RayFace*)MEM_callocN(faces*sizeof(RayFace), "ObjectRen faces");
@@ -305,7 +305,7 @@ RayObject* raytree_create_object(Render *re, ObjectInstanceRen *obi)
 			VlakRen *vlr = obr->vlaknodes[v>>8].vlak + (v&255);
 			if(is_raytraceable_vlr(re, vlr))
 			{
-				if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
+				if(!(re->r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 				{
 					RE_rayobject_add( raytree, RE_vlakprimitive_from_vlak( vlakprimitive, obi, vlr ) );
 					vlakprimitive++;
@@ -341,7 +341,7 @@ RayObject* raytree_create_object(Render *re, ObjectInstanceRen *obi)
 
 static int has_special_rayobject(Render *re, ObjectInstanceRen *obi)
 {
-	if( (obi->flag & R_TRANSFORMED) && (re->params.r.raytrace_options & R_RAYTRACE_USE_INSTANCES) )
+	if( (obi->flag & R_TRANSFORMED) && (re->r.raytrace_options & R_RAYTRACE_USE_INSTANCES) )
 	{
 		ObjectRen *obr = obi->obr->lowres;
 		int v, faces = 0;
@@ -399,9 +399,9 @@ static void raytree_create_single(Render *re)
 	}
 	
 	//Create raytree
-	raytree = re->db.raytree = RE_rayobject_create( re, re->params.r.raytrace_structure, faces+special );
+	raytree = re->db.raytree = RE_rayobject_create( re, re->r.raytrace_structure, faces+special );
 
-	if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
+	if(!(re->r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 	{
 		vlakprimitive = re->db.rayprimitives = (VlakPrimitive*)MEM_callocN(faces*sizeof(VlakPrimitive), "Raytrace vlak-primitives");
 	}
@@ -440,7 +440,7 @@ static void raytree_create_single(Render *re)
 				VlakRen *vlr = obr->vlaknodes[v>>8].vlak + (v&255);
 				if(is_raytraceable_vlr(re, vlr))
 				{
-					if(!(re->params.r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
+					if(!(re->r.raytrace_options & R_RAYTRACE_USE_LOCAL_COORDS))
 					{
 						RayObject *obj = RE_vlakprimitive_from_vlak( vlakprimitive, obi, vlr );
 						RE_rayobject_add( raytree, obj );
@@ -468,8 +468,8 @@ static void raytree_create_single(Render *re)
 	
 	if(!test_break(re))
 	{	
-		re->cb.i.infostr= "Raytree.. building";
-		re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+		re->i.infostr= "Raytree.. building";
+		re->stats_draw(re->sdh, &re->i);
 
 		RE_rayobject_done( raytree );	
 	}
@@ -480,14 +480,14 @@ void raytree_create(Render *re)
 	float min[3], max[3], sub[3];
 	int i;
 	
-	re->cb.i.infostr= "Raytree.. preparing";
-	re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+	re->i.infostr= "Raytree.. preparing";
+	re->stats_draw(re->sdh, &re->i);
 
 	/* disable options not yet suported by octree,
 	   they might actually never be supported (unless people really need it) */
-	if(re->params.r.raytrace_structure == R_RAYSTRUCTURE_OCTREE) {
-		re->params.r.raytrace_options &= ~R_RAYTRACE_USE_INSTANCES;
-		re->params.r.raytrace_options |= R_RAYTRACE_USE_LOCAL_COORDS;
+	if(re->r.raytrace_structure == R_RAYSTRUCTURE_OCTREE) {
+		re->r.raytrace_options &= ~R_RAYTRACE_USE_INSTANCES;
+		re->r.raytrace_options |= R_RAYTRACE_USE_LOCAL_COORDS;
 	}
 
 	raytree_create_single(re);
@@ -496,8 +496,8 @@ void raytree_create(Render *re)
 	{
 		raytree_free(&re->db);
 
-		re->cb.i.infostr= "Raytree building canceled";
-		re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+		re->i.infostr= "Raytree building canceled";
+		re->stats_draw(re->sdh, &re->i);
 	}
 	else
 	{
@@ -513,8 +513,8 @@ void raytree_create(Render *re)
 		}
 		re->db.maxdist = sqrt( sub[0]*sub[0] + sub[1]*sub[1] + sub[2]*sub[2] );
 
-		re->cb.i.infostr= "Raytree finished";
-		re->cb.stats_draw(re->cb.sdh, &re->cb.i);
+		re->i.infostr= "Raytree finished";
+		re->stats_draw(re->sdh, &re->i);
 	}
 
 #ifdef RE_RAYCOUNTER

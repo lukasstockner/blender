@@ -682,7 +682,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 	hasize = ma->hasize;
 	seed = ma->seed1;
 
-	re->params.flag |= R_HALO;
+	re->flag |= R_HALO;
 
 	render_object_customdata_set(obr, &psmd->dm->faceData);
 	sd.totuv = CustomData_number_of_layers(&psmd->dm->faceData, CD_MTFACE);
@@ -767,7 +767,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			sd.adapt_angle = cos((float)part->adapt_angle * (float)(M_PI / 180.0));
 		}
 
-		if(re->params.r.renderer==R_INTERN && part->draw&PART_DRAW_REN_STRAND) {
+		if(re->r.renderer==R_INTERN && part->draw&PART_DRAW_REN_STRAND) {
 			strandbuf= render_object_strand_buffer_add(obr, (totpart+totchild)*(path_nbr+1));
 			strandbuf->ma= ma;
 			strandbuf->lay= ob->lay;
@@ -793,7 +793,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 
 			svert= strandbuf->vert;
 
-			if(re->params.r.mode & R_SPEED)
+			if(re->r.mode & R_SPEED)
 				dosurfacecache= 1;
 			if(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT) && ma->amb!=0.0f) {
 				if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX)
@@ -1127,7 +1127,7 @@ void init_render_particle_system(Render *re, ObjectRen *obr, ParticleSystem *psy
 			}
 		}
 
-		if(re->cb.test_break(re->cb.tbh))
+		if(re->test_break(re->tbh))
 			break;
 	}
 

@@ -95,7 +95,7 @@ static void halo_pixelstruct(Render *re, HaloRen *har, RenderLayer **rlpp, int t
 {
 	float col[4], accol[4], fac;
 	int amount, amountm, zz, flarec, sample, fullsample, mask=0;
-	int osa= (re->params.osa)? re->params.osa: 1;
+	int osa= (re->osa)? re->osa: 1;
 	
 	fullsample= (totsample > 1);
 	amount= 0;
@@ -239,7 +239,7 @@ static void halo_tile(Render *re, RenderPart *pa, RenderLayer *rl)
 				}
 			}
 		}
-		if(re->cb.test_break(re->cb.tbh) ) break; 
+		if(re->test_break(re->tbh) ) break; 
 	}
 }
 
@@ -251,7 +251,7 @@ static void sky_tile(Render *re, RenderPart *pa, RenderLayer *rl)
 	RenderLayer *rlpp[RE_MAX_OSA];
 	int x, y, od=0, totsample;
 	
-	if(re->params.r.alphamode!=R_ADDSKY)
+	if(re->r.alphamode!=R_ADDSKY)
 		return;
 	
 	totsample= get_sample_layers(re, pa, rl, rlpp);
@@ -282,7 +282,7 @@ static void sky_tile(Render *re, RenderPart *pa, RenderLayer *rl)
 		}
 		
 		if(y&1)
-			if(re->cb.test_break(re->cb.tbh)) break; 
+			if(re->test_break(re->tbh)) break; 
 	}
 }
 
@@ -409,9 +409,9 @@ static void edge_enhance_add(Render *re, RenderPart *pa, float *rectf, float *ar
 	
 	for(pix= pa->rectx*pa->recty; pix>0; pix--, arect++, rectf+=4) {
 		if(*arect != 0.0f) {
-			addcol[0]= *arect * re->params.r.edgeR;
-			addcol[1]= *arect * re->params.r.edgeG;
-			addcol[2]= *arect * re->params.r.edgeB;
+			addcol[0]= *arect * re->r.edgeR;
+			addcol[1]= *arect * re->r.edgeG;
+			addcol[2]= *arect * re->r.edgeB;
 			addcol[3]= *arect;
 			pxf_add_alpha_over(rectf, addcol);
 		}
@@ -452,7 +452,7 @@ static void edge_enhance_tile(Render *re, RenderPart *pa, float *rectf, int *rec
 			
 			col >>= 5;
 			if(col > (1<<16)) col= (1<<16);
-			else col= (re->params.r.edgeint*col)>>8;
+			else col= (re->r.edgeint*col)>>8;
 			
 			if(col>0) {
 				float fcol;
@@ -460,8 +460,8 @@ static void edge_enhance_tile(Render *re, RenderPart *pa, float *rectf, int *rec
 				if(col>255) fcol= 1.0f;
 				else fcol= (float)col/255.0f;
 				
-				if(re->params.osa)
-					*rf+= fcol/(float)re->params.osa;
+				if(re->osa)
+					*rf+= fcol/(float)re->osa;
 				else
 					*rf= fcol;
 			}
@@ -555,7 +555,7 @@ static int pixel_row_shade_samples(Render *re, ShadeSample *ssamp, StrandShadeCa
 			shade_samples(re, ssamp);
 
 			/* include lamphalos for ztra, since halo layer was added already */
-			if((re->params.flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
+			if((re->flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
 				for(samp=0; samp<ssamp->tot; samp++)
 					lamp_spothalo_render(re, &ssamp->shi[samp],
 						ssamp->shr[samp].combined, ssamp->shr[samp].combined[3]);
@@ -576,7 +576,7 @@ int pixel_row_fill(PixelRow *row, Render *re, RenderPart *pa, int offs)
 	APixstr *apn;
 	APixstrand *apnstrand;
 	int a, b, totsample, tot= 0;
-	int osa = (re->params.osa? re->params.osa: 1);
+	int osa = (re->osa? re->osa: 1);
 
 	tot= 0;
 
@@ -676,7 +676,7 @@ static void pixel_row_shade_lamphalo(Render *re, ShadeResult *samp_shr, ShadeSam
 
 static void pixel_row_shade(Render *re, ShadeResult *samp_shr, ShadeSample *ssamp, PixelRow *row, int tot, int x, int y, StrandShadeCache *sscache, int passflag, int layflag)
 {
-	int a, osa = (re->params.osa? re->params.osa: 1);
+	int a, osa = (re->osa? re->osa: 1);
 
 	/* initialize samp_shr */
 	shade_result_init(samp_shr, osa);
@@ -697,7 +697,7 @@ static void pixel_row_shade(Render *re, ShadeResult *samp_shr, ShadeSample *ssam
 		}
 	}
 
-	if((re->params.flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
+	if((re->flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
 		pixel_row_shade_lamphalo(re, samp_shr, ssamp, osa, x, y);
 }
 
@@ -710,11 +710,11 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 	int x, y, crop, offs;
 	int passflag, layflag;
 
-	if(re->cb.test_break(re->cb.tbh))
+	if(re->test_break(re->tbh))
 		return;
 
 	/* lamp halo? */
-	lamphalo= (re->params.flag & R_LAMPHALO) && (rl->layflag & SCE_LAY_HALO);
+	lamphalo= (re->flag & R_LAMPHALO) && (rl->layflag & SCE_LAY_HALO);
 	
 	/* we set per pixel a fixed seed, for random AO and shadow samples */
 	seed= pa->rectx*pa->disprect.ymin;
@@ -725,7 +725,7 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 	layflag= rl->layflag;
 
 	/* precompute shading data for this tile */
-	if(re->params.r.mode & R_SHADOW)
+	if(re->r.mode & R_SHADOW)
 		irregular_shadowbuf_create(re, pa, pa->apixbuf);
 
 	if(re->db.occlusiontree) {
@@ -778,7 +778,7 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 
 		offs+= 2*crop;
 
-		if(re->cb.test_break(re->cb.tbh)) break;
+		if(re->test_break(re->tbh)) break;
 	}
 
 	/* disable scanline updating */
@@ -790,7 +790,7 @@ static void zbuf_shade_all(Render *re, RenderPart *pa, RenderLayer *rl)
 	else
 		irr_cache_free(re, pa);
 
-	if(re->params.r.mode & R_SHADOW)
+	if(re->r.mode & R_SHADOW)
 		irregular_shadowbuf_free(re, pa);
 }
 
@@ -806,7 +806,7 @@ static void zbuf_rasterize(Render *re, RenderPart *pa, RenderLayer *rl, ListBase
 	if(rl->layflag & SCE_LAY_SOLID)
 		zbuffer_solid(re, pa, rl, psmlist, edge_enhance_tile, edgerect);
 
-	if(re->params.flag & R_ZTRA || re->db.totstrand)
+	if(re->flag & R_ZTRA || re->db.totstrand)
 		if(rl->layflag & (SCE_LAY_ZTRA|SCE_LAY_STRAND))
 			zbuffer_alpha(re, pa, rl);
 
@@ -855,14 +855,14 @@ void render_rasterize_part(Render *re, RenderPart *pa)
 		pa->totsample= get_sample_layers(re, pa, rl, pa->rlpp);
 
 		if(rl->layflag & SCE_LAY_EDGE) 
-			if(re->params.r.mode & R_EDGE) 
+			if(re->r.mode & R_EDGE) 
 				edgerect= MEM_callocN(sizeof(float)*pa->rectx*pa->recty, "rectedge");
 	
 		if(rl->layflag & (SCE_LAY_SOLID|SCE_LAY_ZTRA|SCE_LAY_STRAND))
 			zbuf_rasterize(re, pa, rl, &psmlist, edgerect);
 
 		/* halo is now after solid and ztra */
-		if(re->params.flag & R_HALO)
+		if(re->flag & R_HALO)
 			if(rl->layflag & SCE_LAY_HALO)
 				halo_tile(re, pa, rl);
 
@@ -883,7 +883,7 @@ void render_rasterize_part(Render *re, RenderPart *pa)
 
 		/* extra layers */
 		if(rl->layflag & SCE_LAY_EDGE) 
-			if(re->params.r.mode & R_EDGE)
+			if(re->r.mode & R_EDGE)
 				edge_enhance_add(re, pa, rl->rectf, edgerect);
 		
 		if(edgerect) {
@@ -892,7 +892,7 @@ void render_rasterize_part(Render *re, RenderPart *pa)
 		}
 
 		/* de-premul alpha */
-		if(re->params.r.alphamode & R_ALPHAKEY)
+		if(re->r.alphamode & R_ALPHAKEY)
 			convert_to_key_alpha(re, pa, rl);
 	}
 	
@@ -1092,7 +1092,7 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 	VlakRen *vlr;
 	Material *mat;
 	float (*co)[3], (*color)[3], *area, *fcol;
-	int x, y, seed, quad, totpoint, display = !(re->params.r.scemode & R_PREVIEWBUTS);
+	int x, y, seed, quad, totpoint, display = !(re->r.scemode & R_PREVIEWBUTS);
 	int lay, offs, a;
 
 	if(!re->db.occlusiontree)
@@ -1143,7 +1143,7 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 		/* common preprocessing shared between materials */
 #if 0
 		/* create ISB (does not work currently!) */
-		if(re->params.r.mode & R_SHADOW)
+		if(re->r.mode & R_SHADOW)
 			irregular_shadowbuf_create(re, pa, NULL);
 #endif
 
@@ -1200,7 +1200,7 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 			}
 
 			if(y&1)
-				if(re->cb.test_break(re->cb.tbh)) break; 
+				if(re->test_break(re->tbh)) break; 
 		}
 
 		/* note: after adding we do not free these arrays, sss keeps them */
@@ -1224,7 +1224,7 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 			disk_occlusion_cache_free(re, pa);
 
 #if 0
-		if(re->params.r.mode & R_SHADOW)
+		if(re->r.mode & R_SHADOW)
 			irregular_shadowbuf_free(re, pa);
 #endif
 		

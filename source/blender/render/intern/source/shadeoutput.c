@@ -127,7 +127,7 @@ void shade_ao_env_indirect(Render *re, ShadeInput *shi)
 	if(re->db.wrld.ao_gather_method == WO_LIGHT_GATHER_APPROX) {
 		disk_occlusion_sample(re, shi);
 	}
-	else if(re->params.r.mode & R_RAYTRACE) {
+	else if(re->r.mode & R_RAYTRACE) {
 		int thread= shi->shading.thread;
 		float *ao= (re->db.wrld.mode & WO_AMB_OCC)? shi->shading.ao: NULL;
 		float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->shading.env: NULL;
@@ -229,7 +229,7 @@ static float shade_phong_correction(Render *re, LampRen *lar, ShadeInput *shi, f
 
 	/* phong threshold to prevent backfacing faces having artefacts on ray shadow (terminator problem) */
 	/* this complex construction screams for a nicer implementation! (ton) */
-	if(re->params.r.mode & R_SHADOW) {
+	if(re->r.mode & R_SHADOW) {
 		if((ma->mode & MA_SHADOW) && !shi->geometry.tangentvn) {
 			float inp= dot_v3v3(shi->geometry.vn, lv);
 
@@ -257,7 +257,7 @@ static float shade_phong_correction(Render *re, LampRen *lar, ShadeInput *shi, f
 
 static void shade_surface_only_shadow(Render *re, ShadeInput *shi, ShadeResult *shr)
 {
-	if(re->params.r.mode & R_SHADOW) {
+	if(re->r.mode & R_SHADOW) {
 		ListBase *lights;
 		LampRen *lar;
 		GroupObject *go;
@@ -373,7 +373,7 @@ void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_
 	if(!shi->primitive.strand && shi->shading.depth == 0 && count > 1) {
 		float xs, ys, zs, view[3];
 		int samp, ordsamp, tot= 0;
-		int osa= (re->params.osa)? re->params.osa: 1;
+		int osa= (re->osa)? re->osa: 1;
 
 		for(samp=0; samp<osa; samp++) {
 			if(osa == 8) ordsamp = order8[samp];
@@ -434,7 +434,7 @@ static void shade_lamp_accumulate(Render *re, LampRen *lar, ShadeInput *shi, Sha
 		return;
 
 	/* phong correction */
-	if((re->params.r.mode & R_SHADOW) && (ma->mode & MA_SHADOW))
+	if((re->r.mode & R_SHADOW) && (ma->mode & MA_SHADOW))
 		mul_v3_fl(lashdw, shade_phong_correction(re, lar, shi, lv));
 
 	/* diffuse */
@@ -482,7 +482,7 @@ static void shade_lamp_accumulate(Render *re, LampRen *lar, ShadeInput *shi, Sha
 
 static int shade_full_osa(Render *re, ShadeInput *shi)
 {
-	return (re->params.r.mode & R_OSA) && (re->params.osa > 0) && (shi->primitive.vlr->flag & R_FULL_OSA);
+	return (re->r.mode & R_OSA) && (re->osa > 0) && (shi->primitive.vlr->flag & R_FULL_OSA);
 }
 
 static int shade_lamp_tot_samples(Render *re, LampRen *lar, ShadeInput *shi)
@@ -495,10 +495,10 @@ static int shade_lamp_tot_samples(Render *re, LampRen *lar, ShadeInput *shi)
 
 	if(shade_full_osa(re, shi))
 		/* for full osa, fewer samples per shade, but at least one */
-		return tot/re->params.osa + 1;
+		return tot/re->osa + 1;
 	else
 		/* in other cases, at least as many samples as AA samples */
-		return MAX2(tot, (re->params.osa > 4)? re->params.osa: 5);
+		return MAX2(tot, (re->osa > 4)? re->osa: 5);
 }
 
 static void shade_lamp_multi(Render *re, LampRen *lar, ShadeInput *shi, ShadeResult *shr, int passflag)
@@ -732,7 +732,7 @@ static void shade_surface_indirect(Render *re, ShadeInput *shi, ShadeResult *shr
 
 	/* depth >= 1 when ray-shading */
 	if(!backside && shi->shading.depth==0) {
-		if(re->params.r.mode & R_RAYTRACE) {
+		if(re->r.mode & R_RAYTRACE) {
 			if(shi->material.ray_mirror!=0.0f || ((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_RAYTRANSP) && shr->alpha!=1.0f)) {
 				/* ray trace works on combined, but gives pass info */
 				ray_trace_specular(re, shi, shr);

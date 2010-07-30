@@ -112,15 +112,15 @@ void parts_create(Render *re)
 	parts_free(re);
 	
 	/* this is render info for caller, is not reset when parts are freed! */
-	re->cb.i.totpart= 0;
-	re->cb.i.curpart= 0;
-	re->cb.i.partsdone= 0;
+	re->i.totpart= 0;
+	re->i.curpart= 0;
+	re->i.partsdone= 0;
 	
-	xparts= re->params.r.xparts;
-	yparts= re->params.r.yparts;
+	xparts= re->r.xparts;
+	yparts= re->r.yparts;
 	
 	/* mininum part size, but for exr tile saving it was checked already */
-	if(!(re->params.r.scemode & (R_EXR_TILE_FILE|R_FULL_SAMPLE))) {
+	if(!(re->r.scemode & (R_EXR_TILE_FILE|R_FULL_SAMPLE))) {
 		if(re->cam.type == CAM_PANORAMA) {
 			if(ceil(re->rectx/(float)xparts) < 8) 
 				xparts= 1 + re->rectx/8;
@@ -139,7 +139,7 @@ void parts_create(Render *re)
 	if(re->cam.type == CAM_PANORAMA)
 		re->cam.panophi= panorama_pixel_rot(re);
 	
-	padding= (re->params.r.filtertype || (re->params.r.mode & R_EDGE))? 2: 0;
+	padding= (re->r.filtertype || (re->r.mode & R_EDGE))? 2: 0;
 
 	parts_list_create(&re->parts, &partx, &party, &re->disprect, xparts, yparts, padding);
 
@@ -150,7 +150,7 @@ void parts_create(Render *re)
 
 	for(pa=re->parts.first; pa; pa=pa->next) {
 		pa->re= re;
-		re->cb.i.totpart++;
+		re->i.totpart++;
 	}
 }
 

@@ -200,7 +200,7 @@ void shade_input_set_strand(Render *re, ShadeInput *shi, StrandRen *strand, Stra
 	geom->xs= (int)spoint->x;
 	geom->ys= (int)spoint->y;
 
-	if(geom->osatex || (re->params.r.mode & R_SHADOW)) {
+	if(geom->osatex || (re->r.mode & R_SHADOW)) {
 		copy_v3_v3(geom->dxco, spoint->dtco);
 		copy_v3_v3(geom->dyco, spoint->dsco);
 	}
@@ -270,7 +270,7 @@ void shade_input_set_strand_texco(Render *re, ShadeInput *shi, StrandRen *strand
 		}
 	}
 
-	if(re->params.r.mode & R_SPEED) {
+	if(re->r.mode & R_SPEED) {
 		float *speed;
 		
 		speed= render_strand_get_winspeed(shi->primitive.obi, strand, 0);
@@ -436,7 +436,7 @@ void shade_input_set_strand_texco(Render *re, ShadeInput *shi, StrandRen *strand
 		}
 	}
 	
-	if(re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+	if(re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE))
 			srgb_to_linearrgb_v3_v3(mat->vcol, mat->vcol);
 }
@@ -834,7 +834,7 @@ static void shade_input_vlr_texco_tangent(Render *re, ShadeTexco *tex, ShadeGeom
 		}
 	}
 
-	if(mode & MA_NORMAP_TANG || re->params.flag & R_NEED_TANGENT) {
+	if(mode & MA_NORMAP_TANG || re->flag & R_NEED_TANGENT) {
 		tangent= render_vlak_get_nmap_tangent(obr, prim->vlr, 0);
 
 		if(tangent) {
@@ -1014,7 +1014,7 @@ static void shade_input_vlr_texco_uvcol(Render *re, ShadeInput *shi, ShadeTexco 
 				mat->vcol[3]= 1.0f;
 			}
 			if(tface && tface->tpage)
-				do_realtime_texture(&re->params, shi, tface->tpage);
+				do_realtime_texture(re, shi, tface->tpage);
 		}
 	}
 
@@ -1053,7 +1053,7 @@ void shade_input_set_shade_texco(Render *re, ShadeInput *shi)
 		shade_input_vlr_texco_normal(geom, prim);
 
 	/* tangents */
-	if(mode & (MA_TANGENT_V|MA_NORMAP_TANG) || re->params.flag & R_NEED_TANGENT)
+	if(mode & (MA_TANGENT_V|MA_NORMAP_TANG) || re->flag & R_NEED_TANGENT)
 		shade_input_vlr_texco_tangent(re, tex, geom, prim, mode);
 
 	/* surface normal */
@@ -1061,7 +1061,7 @@ void shade_input_set_shade_texco(Render *re, ShadeInput *shi)
 		shade_input_vlr_texco_surface(geom, prim);
 	
 	/* speed */
-	if(re->params.r.mode & R_SPEED)
+	if(re->r.mode & R_SPEED)
 		shade_input_vlr_texco_speed(tex, geom, prim);
 
 	/* pass option forces UV calc */
@@ -1117,7 +1117,7 @@ void shade_input_set_shade_texco(Render *re, ShadeInput *shi)
 		   un-initialized values are used */
 	}
 
-	if(re->params.r.color_mgt_flag & R_COLOR_MANAGEMENT)
+	if(re->r.color_mgt_flag & R_COLOR_MANAGEMENT)
 		if(mode & (MA_VERTEXCOL|MA_VERTEXCOLP|MA_FACETEXTURE))
 			srgb_to_linearrgb_v3_v3(mat->vcol, mat->vcol);
 }
@@ -1173,7 +1173,7 @@ static void shade_input_initialize(Render *re, ShadeInput *shi, RenderPart *pa, 
 	shi->shading.sample= sample;
 	shi->shading.thread= pa->thread;
 	shi->shading.pa= pa;
-	shi->shading.do_preview= (re->params.r.scemode & R_MATNODE_PREVIEW) != 0;
+	shi->shading.do_preview= (re->r.scemode & R_MATNODE_PREVIEW) != 0;
 	shi->shading.lay= rl->lay;
 	shi->shading.layflag= rl->layflag;
 	shi->shading.passflag= rl->passflag;
@@ -1190,7 +1190,7 @@ void shade_sample_initialize(Render *re, ShadeSample *ssamp, RenderPart *pa, Ren
 {
 	int a, tot;
 	
-	tot= re->params.osa==0?1:re->params.osa;
+	tot= re->osa==0?1:re->osa;
 	
 	for(a=0; a<tot; a++) {
 		shade_input_initialize(re, &ssamp->shi[a], pa, rl, a);
@@ -1256,7 +1256,7 @@ static int shade_inputs_from_pixel(Render *re, ShadeInput *shi, PixelRow *row, i
 	if(prim->vlr->flag & R_FULL_OSA) {
 		short samp;
 		
-		for(samp=0; samp<re->params.osa; samp++) {
+		for(samp=0; samp<re->osa; samp++) {
 			if(mask & (1<<samp)) {
 				if(tot)
 					shade_input_copy_triangle(shi, shi-1);
@@ -1343,11 +1343,11 @@ void shade_material_loop(Render *re, ShadeInput *shi, ShadeResult *shr)
 	if(shi->shading.depth==0) {
 		/* disable adding of sky for raytransp */
 		if((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_RAYTRANSP))
-			if((shi->shading.layflag & SCE_LAY_SKY) && (re->params.r.alphamode==R_ADDSKY))
+			if((shi->shading.layflag & SCE_LAY_SKY) && (re->r.alphamode==R_ADDSKY))
 				shr->alpha= 1.0f;
 	}	
 
-	if(re->params.r.mode & R_RAYTRACE) {
+	if(re->r.mode & R_RAYTRACE) {
 		if (re->db.render_volumes_inside.first)
 			shade_volume_inside(re, shi, shr);
 	}
@@ -1392,7 +1392,7 @@ void shade_input_do_shade(Render *re, ShadeInput *shi, ShadeResult *shr)
 		shade_input_init_material(re, shi);
 		
 		if (shi->material.mat->material_type == MA_TYPE_VOLUME) {
-			if(re->params.r.mode & R_RAYTRACE) {
+			if(re->r.mode & R_RAYTRACE) {
 				shade_volume_outside(re, shi, shr);
 				shr->combined[3]= shr->alpha;
 			}
