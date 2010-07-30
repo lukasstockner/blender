@@ -2483,7 +2483,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		dx = mouse[0] - initial_mouse[0];
 		dy = mouse[1] - initial_mouse[1];
 
-		cache->vertex_rotation = -atan2(dx, dy) / 4.0f;
+		cache->vertex_rotation = -atan2(dx, dy);
 	}
 }
 
