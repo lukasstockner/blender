@@ -82,7 +82,7 @@ void paintmask_brush_apply(Paint *paint, PaintStroke *stroke, PBVHNode **nodes, 
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
 		
-		/* XXX: sculpt_undo_push_node(ob, nodes[n]); */
+		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
 		paint_stroke_test_init(&test, stroke);
 
 		BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
@@ -200,7 +200,6 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	Mesh *me;
 	struct MultiresModifierData *mmd;
 	PaintSession *ps;
-	SculptSession *ss;
 	MTex *tex_slot;
 	DerivedMesh *dm = NULL;
 	PBVH *pbvh;
@@ -214,12 +213,10 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	scene = CTX_data_scene(C);
 	ob = CTX_data_active_object(C);
 	ps = ob->paint;
-	ss = ps->sculpt;
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 	
-	if(ss) // TODO
-		sculpt_undo_push_begin("Paint mask from texture");
+	pbvh_undo_push_begin("Paint mask from texture");
 
 	active = CustomData_get_active_layer(&me->vdata, CD_PAINTMASK);
 
@@ -256,8 +253,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			GridKey *gridkey;
 			int *grid_indices, totgrid, gridsize;
 
-			if(ss) // TODO
-				sculpt_undo_push_node(ob, nodes[n]);
+			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
 
 			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
 						&totgrid, NULL, &gridsize,
@@ -291,8 +287,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			MFace *mface;
 			int *face_indices, totface;
 
-			if(ss) // TODO
-				sculpt_undo_push_node(ob, nodes[n]);
+			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
 
 			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface,
 						&face_indices, NULL, &totface);
@@ -316,8 +311,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 	
 	MEM_freeN(nodes);
 
-	if(ss) // TODO
-		sculpt_undo_push_end();
+	pbvh_undo_push_end();
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	
@@ -356,14 +350,12 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 	DerivedMesh *dm;
 	struct MultiresModifierData *mmd;
 	PaintSession *ps;
-	SculptSession *ss;
 	Mesh *me;
 	PBVH *pbvh;
 
 	scene = CTX_data_scene(C);
 	ob = CTX_data_active_object(C);
 	ps = ob->paint;
-	ss = ps->sculpt;
 	me = get_mesh(ob);
 	mmd = paint_multires_active(scene, ob);
 
@@ -376,14 +368,12 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 
 		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
 
-		if(ss) // TODO
-			sculpt_undo_push_begin("Paint mask fill");
+		pbvh_undo_push_begin("Paint mask fill");
 
 		for(n=0; n<totnode; n++) {
 			PBVHVertexIter vd;
 
-			if(ss) // TODO
-				sculpt_undo_push_node(ob, nodes[n]);
+			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(vd.mask_active)
@@ -400,8 +390,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		if(mmd)
 			multires_mark_as_modified(ob);
 
-		if(ss) // TODO
-			sculpt_undo_push_end();
+		pbvh_undo_push_end();
 
 		WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 	}

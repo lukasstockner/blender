@@ -67,6 +67,38 @@
 
 #include "CCGSubSurf.h"
 
+/* From BKE_dmgrid.h */
+int gridelem_active_offset(CustomData *data, GridKey *gridkey, int type)
+{
+	char (*names)[32] = NULL;
+	int active, tot, i;
+
+	active = CustomData_get_active_layer_index(data, type);
+	
+	if(active == -1)
+		return -1;
+
+	switch(type) {
+	case CD_MCOL:
+		tot = gridkey->color;
+		names = gridkey->color_names;
+		break;
+	case CD_PAINTMASK:
+		tot = gridkey->mask;
+		names = gridkey->mask_names;
+		break;
+	default:
+		return -1;
+	}
+
+	for(i = 0; i < tot; ++i) {
+		if(!strcmp(names[i], data->layers[active].name))
+			return i;
+	}
+
+	return -1;
+}
+
 static int ccgDM_getVertMapIndex(CCGSubSurf *ss, CCGVert *v);
 static int ccgDM_getEdgeMapIndex(CCGSubSurf *ss, CCGEdge *e);
 static int ccgDM_getFaceMapIndex(CCGSubSurf *ss, CCGFace *f);

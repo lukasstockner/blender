@@ -222,5 +222,27 @@ typedef enum {
 void PAINT_OT_mask_set(struct wmOperatorType *ot);
 void PAINT_OT_mask_from_texture(struct wmOperatorType *ot);
 
+/* pbvh_undo.c */
+typedef enum {
+	PBVH_UNDO_CO_NO = (1<<0),
+	PBVH_UNDO_PMASK = (1<<1),
+	PBVH_UNDO_COLOR = (1<<2)
+} PBVHUndoFlag;
+
+typedef struct PBVHUndoNode PBVHUndoNode;
+
+PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag, struct Object *ob);
+void pbvh_undo_push_begin(char *name);
+void pbvh_undo_push_end(void);
+/* undo node access */
+PBVHUndoNode *pbvh_undo_get_node(struct PBVHNode *node);
+typedef float (*pbvh_undo_f3)[3];
+typedef short (*pbvh_undo_s3)[3];
+int pbvh_undo_node_totvert(PBVHUndoNode *unode);
+pbvh_undo_f3 pbvh_undo_node_co(PBVHUndoNode *unode);
+pbvh_undo_s3 pbvh_undo_node_no(PBVHUndoNode *unode);
+float *pbvh_undo_node_layer_disp(PBVHUndoNode *unode);
+void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
+
 #endif /* ED_PAINT_INTERN_H */
 

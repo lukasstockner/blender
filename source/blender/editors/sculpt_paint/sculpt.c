@@ -431,19 +431,19 @@ static void calc_area_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **nod
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
-		SculptUndoNode *unode;
+		PBVHUndoNode *unode;
 		float private_an[3] = {0.0f, 0.0f, 0.0f};
 		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
 
-		unode = sculpt_undo_push_node(ob, nodes[n]);
+		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(paint_stroke_test_fast(&test, unode->co[vd.i])) {
+				if(paint_stroke_test_fast(&test, pbvh_undo_node_co(unode)[vd.i])) {
 					float fno[3];
 
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
+					normal_short_to_float_v3(fno, pbvh_undo_node_no(unode)[vd.i]);
 					add_norm_if(ss->cache->view_normal, private_an, private_out_flip, fno);
 				}
 			}
@@ -917,15 +917,15 @@ static void do_grab_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
-		SculptUndoNode* unode;
+		PBVHUndoNode* unode;
 		PaintStrokeTest test;
 		float (*origco)[3];
 		short (*origno)[3];
 		float (*proxy)[3];
 
-		unode=  sculpt_undo_push_node(ob, nodes[n]);
-		origco= unode->co;
-		origno= unode->no;
+		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		origco= pbvh_undo_node_co(unode);
+		origno= pbvh_undo_node_no(unode);
 
 		proxy= BLI_pbvh_node_add_proxy(ob->paint->pbvh, nodes[n])->co;
 
@@ -1055,15 +1055,15 @@ static void do_thumb_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n = 0; n < totnode; n++) {
 		PBVHVertexIter vd;
-		SculptUndoNode* unode;
+		PBVHUndoNode* unode;
 		PaintStrokeTest test;
 		float (*origco)[3];
 		short (*origno)[3];
 		float (*proxy)[3];
 
-		unode=  sculpt_undo_push_node(ob, nodes[n]);
-		origco= unode->co;
-		origno= unode->no;
+		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		origco= pbvh_undo_node_co(unode);
+		origno= pbvh_undo_node_no(unode);
 
 		proxy= BLI_pbvh_node_add_proxy(ob->paint->pbvh, nodes[n])->co;
 
@@ -1101,15 +1101,15 @@ static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
-		SculptUndoNode* unode;
+		PBVHUndoNode* unode;
 		PaintStrokeTest test;
 		float (*origco)[3];
 		short (*origno)[3];
 		float (*proxy)[3];
 
-		unode=  sculpt_undo_push_node(ob, nodes[n]);
-		origco= unode->co;
-		origno= unode->no;
+		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		origco= pbvh_undo_node_co(unode);
+		origno= pbvh_undo_node_no(unode);
 
 		proxy= BLI_pbvh_node_add_proxy(ob->paint->pbvh, nodes[n])->co;
 
@@ -1151,21 +1151,21 @@ static void do_layer_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
-		SculptUndoNode *unode;
+		PBVHUndoNode *unode;
 		float (*origco)[3], *layer_disp;
 		//float (*proxy)[3]; // XXX layer brush needs conversion to proxy but its more complicated
 
 		//proxy= BLI_pbvh_node_add_proxy(ob->paint->pbvh, nodes[n])->co;
 		
-		unode= sculpt_undo_push_node(ob, nodes[n]);
-		origco=unode->co;
-		if(!unode->layer_disp)
-			{
-				#pragma omp critical 
-				unode->layer_disp= MEM_callocN(sizeof(float)*unode->totvert, "layer disp");
-			}
+		unode= pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		origco= pbvh_undo_node_co(unode);
+		if(!pbvh_undo_node_layer_disp(unode)) {
+			#pragma omp critical 
+			pbvh_undo_node_set_layer_disp(unode, MEM_callocN(sizeof(float)*
+				pbvh_undo_node_totvert(unode), "layer disp"));
+		}
 
-		layer_disp= unode->layer_disp;
+		layer_disp= pbvh_undo_node_layer_disp(unode);
 
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
@@ -1252,16 +1252,16 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
-		SculptUndoNode *unode;
+		PBVHUndoNode *unode;
 		float private_fc[3] = {0.0f, 0.0f, 0.0f};
 		int private_count = 0;
 
-		unode = sculpt_undo_push_node(ob, nodes[n]);
+		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(paint_stroke_test_fast(&test, unode->co[vd.i])) {
+				if(paint_stroke_test_fast(&test, pbvh_undo_node_co(unode)[vd.i])) {
 					add_v3_v3(private_fc, vd.co);
 					private_count++;
 				}
@@ -1311,22 +1311,22 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob, PBVHNode
 	for(n=0; n<totnode; n++) {
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
-		SculptUndoNode *unode;
+		PBVHUndoNode *unode;
 		float private_an[3] = {0.0f, 0.0f, 0.0f};
 		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
 		float private_fc[3] = {0.0f, 0.0f, 0.0f};
 		int private_count = 0;
 
-		unode = sculpt_undo_push_node(ob, nodes[n]);
+		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-				if(paint_stroke_test_fast(&test, unode->co[vd.i])) {
+				if(paint_stroke_test_fast(&test, pbvh_undo_node_co(unode)[vd.i])) {
 					// an
 					float fno[3];
 
-					normal_short_to_float_v3(fno, unode->no[vd.i]);
+					normal_short_to_float_v3(fno, pbvh_undo_node_no(unode)[vd.i]);
 					add_norm_if(ss->cache->view_normal, private_an, private_out_flip, fno);
 
 					// fc
@@ -1935,18 +1935,18 @@ static void sculpt_stroke_brush_action(bContext *C, PaintStroke *stroke)
 
 	/* Only act if some verts are inside the brush area */
 	if (totnode) {
-		#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
-		for (n= 0; n < totnode; n++) {
-			sculpt_undo_push_node(ob, nodes[n]);
-			BLI_pbvh_node_mark_update(nodes[n]);
-		}
-
 		/* Apply one type of brush action */
 		if(brush->flag & BRUSH_MASK)
 			paintmask_brush_apply(&sd->paint, stroke, nodes,
 					      totnode,
 					      ss->cache->bstrength);
 		else {
+			#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
+			for (n= 0; n < totnode; n++) {
+				pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+				BLI_pbvh_node_mark_update(nodes[n]);
+			}
+
 			switch(brush->sculpt_tool){
 			case SCULPT_TOOL_DRAW:
 				do_draw_brush(sd, ob, nodes, totnode);
@@ -2043,10 +2043,12 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 			for (n= 0; n < totnode; n++) {
 				PBVHVertexIter vd;
 				PBVHProxyNode* proxies;
+				PBVHUndoNode *unode;
 				int proxy_count;
 				float (*origco)[3];
 
-				origco= sculpt_undo_push_node(ob, nodes[n])->co;
+				unode= pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+				origco= pbvh_undo_node_co(unode);
 
 				BLI_pbvh_node_get_proxies(nodes[n], &proxies, &proxy_count);
 
@@ -2506,8 +2508,8 @@ static void sculpt_raycast_cb(PBVHNode *node, void *data_v, float* tmin)
 
 		if(data->original && ss->cache) {
 			/* intersect with coordinates from before we started stroke */
-			SculptUndoNode *unode= sculpt_undo_get_node(node);
-			origco= (unode)? unode->co: NULL;
+			PBVHUndoNode *unode= pbvh_undo_get_node(node);
+			origco= (unode)? pbvh_undo_node_co(unode): NULL;
 		}
 
 		if(BLI_pbvh_node_raycast(data->ob->paint->pbvh, node, origco, data->ray_start, data->ray_normal, &data->dist, NULL, NULL)) {
@@ -2576,16 +2578,16 @@ static void sculpt_restore_mesh(Sculpt *sd, Object *ob)
 
 		#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
-			SculptUndoNode *unode;
+			PBVHUndoNode *unode;
 			
-			unode= sculpt_undo_get_node(nodes[n]);
+			unode= pbvh_undo_get_node(nodes[n]);
 			if(unode) {
 				PBVHVertexIter vd;
 
 				BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-					copy_v3_v3(vd.co, unode->co[vd.i]);
-					if(vd.no) VECCOPY(vd.no, unode->no[vd.i])
-					else normal_short_to_float_v3(vd.fno, unode->no[vd.i]);
+					copy_v3_v3(vd.co, pbvh_undo_node_co(unode)[vd.i]);
+					if(vd.no) VECCOPY(vd.no, pbvh_undo_node_no(unode)[vd.i])
+					else normal_short_to_float_v3(vd.fno, pbvh_undo_node_no(unode)[vd.i]);
 
 					if(vd.mvert) vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
 				}
@@ -2640,7 +2642,7 @@ static int sculpt_stroke_test_start(bContext *C, wmOperator *op, wmEvent *event)
 
 		sculpt_update_cache_invariants(C, sd, ss, op, event);
 
-		sculpt_undo_push_begin(sculpt_tool_name(sd));
+		pbvh_undo_push_begin(sculpt_tool_name(sd));
 
 #ifdef _OPENMP
 		/* If using OpenMP then create a number of threads two times the
@@ -2728,7 +2730,7 @@ static void sculpt_stroke_done(bContext *C, struct PaintStroke *unused)
 		sculpt_cache_free(ss->cache);
 		ss->cache = NULL;
 
-		sculpt_undo_push_end();
+		pbvh_undo_push_end();
 
 		BLI_pbvh_update(ob->paint->pbvh, PBVH_UpdateOriginalBB, NULL);
 

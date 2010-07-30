@@ -1,6 +1,8 @@
 #ifndef BKE_DMGRID_H
 #define BKE_DMGRID_H
 
+struct CustomData;
+
 /* Each grid element can contain zero or more layers of coordinates,
    paint masks, and normals; these numbers are stored in the GridKey
 
@@ -44,5 +46,9 @@ typedef float (*gridelem_f4)[4];
 #define GRIDELEM_COLOR_AT(_grid, _elem, _key) GRIDELEM_COLOR(GRIDELEM_AT(_grid, _elem, _key), _key)
 #define GRIDELEM_MASK_AT(_grid, _elem, _key) GRIDELEM_MASK(GRIDELEM_AT(_grid, _elem, _key), _key)
 #define GRIDELEM_NO_AT(_grid, _elem, _key) GRIDELEM_NO(GRIDELEM_AT(_grid, _elem, _key), _key)
+
+/* returns the active gridelem layer offset for either colors
+   or masks, -1 if not found */
+int gridelem_active_offset(struct CustomData *data, GridKey *gridkey, int type);
 
 #endif

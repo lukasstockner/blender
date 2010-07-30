@@ -1048,7 +1048,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, wmEvent *ev
 	}
 
 	// XXX: temporary check for sculpt mode until things are more unified
-	if(stroke->vc.obact->paint->sculpt) {
+	if(stroke->vc.obact->paint && stroke->vc.obact->paint->sculpt) {
 		float delta[3];
 
 		brush_jitter_pos(stroke->brush, mouse_in, stroke->mouse);

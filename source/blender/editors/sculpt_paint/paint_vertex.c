@@ -1815,24 +1815,6 @@ static void vpaint_nodes_faces_smooth(Brush *brush, PaintStroke *stroke,
 	BLI_pbvh_vertex_iter_end;
 }
 
-static int vpaint_find_gridkey_active_layer(CustomData *fdata, GridKey *gridkey)
-{
-	int active, i;
-
-	active = CustomData_get_active_layer_index(fdata, CD_MCOL);
-	
-	if(active == -1)
-		return -1;
-
-	for(i = 0; i < gridkey->color; ++i) {
-		if(!strcmp(gridkey->color_names[i],
-			   fdata->layers[active].name))
-			return i;
-	}
-
-	return -1;
-}
-
 static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 			 Scene *scene, Object *ob,
 			 PBVHNode **nodes, int totnode)
@@ -1858,8 +1840,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 						&totgrid, NULL, &gridsize, &grids,
 						NULL, &gridkey);
 
-			active = vpaint_find_gridkey_active_layer(fdata,
-								  gridkey);
+			active = gridelem_active_offset(fdata, gridkey, CD_MCOL);
 
 			if(active != -1) {
 				if(blur) {
@@ -2018,8 +1999,7 @@ static void vpaint_color_single_element(bContext *C, PaintStroke *stroke,
 						NULL, NULL, &gridsize, &grids,
 						NULL, &gridkey);
 
-			active = vpaint_find_gridkey_active_layer(fdata,
-								  gridkey);
+			active = gridelem_active_offset(fdata, gridkey, CD_MCOL);
 
 			if(active != -1) {
 				vpaint_color_single_gridelem(brush,
