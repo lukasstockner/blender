@@ -26,8 +26,6 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  *
- * Implements the Sculpt Mode tools
- *
  */
 
 #include "BLI_math.h"
@@ -490,7 +488,7 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 				/* only copy for multires here */
 				if(uses_grids) {
 					copy_v4_v4(unode->color[vd.i],
-						   GRIDELEM_COLOR(vd.grid, vd.gridkey)[grids_active_color]);
+						   GRIDELEM_COLOR(vd.elem, vd.gridkey)[grids_active_color]);
 				}
 			}
 

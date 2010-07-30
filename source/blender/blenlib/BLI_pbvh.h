@@ -196,7 +196,7 @@ typedef struct PBVHVertexIter {
 
 	/* grid */
 	struct DMGridData **grids;
-	struct DMGridData *grid;
+	struct DMGridData *grid, *elem;
 	int *grid_indices;
 	int totgrid;
 	int gridsize;
@@ -300,6 +300,7 @@ typedef struct PBVHVertexIter {
 												   vi.pmask_first_layer]; \
 					} \
 					\
+					vi.elem= vi.grid; \
 					GRIDELEM_INC(vi.grid, 1, vi.gridkey); \
 				} \
 				else { \

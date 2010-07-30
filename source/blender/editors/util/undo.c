@@ -145,7 +145,7 @@ static int ed_undo_step(bContext *C, int step, const char *undoname)
 			if(!ED_undo_paint_step(C, UNDO_PAINT_IMAGE, step, undoname) && undoname)
 				do_glob_undo= 1;
 		}
-		else if(obact && obact->mode & OB_MODE_SCULPT) {
+		else if(obact && obact->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)) {
 			if(!ED_undo_paint_step(C, UNDO_PAINT_MESH, step, undoname) && undoname)
 				do_glob_undo= 1;
 		}

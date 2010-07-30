@@ -1570,6 +1570,8 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 		dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
 		ob->paint->pbvh = dm->getPBVH(ob, dm);
 
+		pbvh_undo_push_begin("Vertex paint");
+
 		return 1;
 	}
 	return 0;
@@ -1827,6 +1829,8 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 	for(n = 0; n < totnode; ++n) {
 		CustomData *vdata = NULL;
 		CustomData *fdata = NULL;
+
+		pbvh_undo_push_node(nodes[n], PBVH_UNDO_COLOR, ob);
 
 		BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
 
@@ -2093,6 +2097,8 @@ static void vpaint_stroke_done(bContext *C, struct PaintStroke *stroke)
 {
 	ToolSettings *ts= CTX_data_tool_settings(C);
 
+	pbvh_undo_push_end();
+
 	/* frees prev buffer */
 	copy_vpaint_prev(ts->vpaint, NULL, 0);
 }
@@ -2128,7 +2134,7 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
 	ot->poll= vertex_paint_poll;
 	
 	/* flags */
-	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO|OPTYPE_BLOCKING;
+	ot->flag= OPTYPE_BLOCKING;
 
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 }

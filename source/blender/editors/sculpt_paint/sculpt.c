@@ -2844,7 +2844,7 @@ static void SCULPT_OT_brush_stroke(wmOperatorType *ot)
 	ot->exec= sculpt_brush_stroke_exec;
 	ot->poll= sculpt_poll;
 
-	/* flags (sculpt does own undo? (ton) */
+	/* flags */
 	ot->flag= OPTYPE_BLOCKING;
 
 	/* properties */
