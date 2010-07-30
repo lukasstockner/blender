@@ -512,7 +512,7 @@ static void shade_strand_samples(Render *re, StrandShadeCache *cache, ShadeSampl
 
 	ssamp->tot= 1;
 	strand_shade_segment(re, cache, &sseg, ssamp, row->v, row->u, addpassflag);
-	ssamp->shi[0].shading.mask= row->mask;
+	ssamp->shi[0].mask= row->mask;
 }
 
 static void unref_strand_samples(Render *re, StrandShadeCache *cache, PixelRow *row, int a, int tot)
@@ -555,7 +555,7 @@ static int pixel_row_shade_samples(Render *re, ShadeSample *ssamp, StrandShadeCa
 			shade_samples(re, ssamp);
 
 			/* include lamphalos for ztra, since halo layer was added already */
-			if((re->flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
+			if((re->flag & R_LAMPHALO) && (ssamp->shi->layflag & SCE_LAY_HALO))
 				for(samp=0; samp<ssamp->tot; samp++)
 					lamp_spothalo_render(re, &ssamp->shi[samp],
 						ssamp->shr[samp].combined, ssamp->shr[samp].combined[3]);
@@ -660,10 +660,13 @@ static void pixel_row_shade_lamphalo(Render *re, ShadeResult *samp_shr, ShadeSam
 		float col[4];
 
 		/* weak shadeinput setup */
-		memset(&shi->primitive, 0, sizeof(shi->primitive));
-		camera_raster_to_view(&re->cam, shi->geometry.view, x, y);
-		camera_raster_to_co(&re->cam, shi->geometry.co, x, y, 0x7FFFFFFF);
-		shi->material.mat= NULL;
+		shi->vlr= NULL;
+		shi->strand= NULL;
+		shi->obi= NULL;
+		shi->obr= NULL;
+		shi->mat= NULL;
+		camera_raster_to_view(&re->cam, shi->view, x, y);
+		camera_raster_to_co(&re->cam, shi->co, x, y, 0x7FFFFFFF);
 		
 		zero_v4(col);
 		lamp_spothalo_render(re, shi, col, 1.0f);
@@ -697,7 +700,7 @@ static void pixel_row_shade(Render *re, ShadeResult *samp_shr, ShadeSample *ssam
 		}
 	}
 
-	if((re->flag & R_LAMPHALO) && (ssamp->shi->shading.layflag & SCE_LAY_HALO))
+	if((re->flag & R_LAMPHALO) && (ssamp->shi->layflag & SCE_LAY_HALO))
 		pixel_row_shade_lamphalo(re, samp_shr, ssamp, osa, x, y);
 }
 
@@ -970,7 +973,7 @@ static void shade_sample_sss(Render *re, ShadeSample *ssamp, Material *mat, Obje
 	float orthoarea, nor[3], alpha, sx, sy;
 
 	/* cache for shadow */
-	shi->shading.samplenr= re->sample.shadowsamplenr[shi->shading.thread]++;
+	shi->samplenr= re->sample.shadowsamplenr[shi->thread]++;
 	
 	if(quad) 
 		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 2, 3);
@@ -981,41 +984,41 @@ static void shade_sample_sss(Render *re, ShadeSample *ssamp, Material *mat, Obje
 	sx = x + 0.5f;
 	sy = y + 0.5f;
 
-	/* we estimate the area here using shi->geometry.dxco and shi->geometry.dyco. we need to
-	   enabled shi->geometry.osatex these are filled. we compute two areas, one with
+	/* we estimate the area here using shi->dxco and shi->dyco. we need to
+	   enabled shi->osatex these are filled. we compute two areas, one with
 	   the normal pointed at the camera and one with the original normal, and
 	   then clamp to avoid a too large contribution from a single pixel */
-	shi->geometry.osatex= 1;
+	shi->osatex= 1;
 	
-	render_vlak_get_normal(obi, vlr, shi->geometry.facenor, quad);
-	copy_v3_v3(nor, shi->geometry.facenor);
-	camera_raster_to_view(&re->cam, shi->geometry.facenor, sx, sy);
-	normalize_v3(shi->geometry.facenor);
+	render_vlak_get_normal(obi, vlr, shi->facenor, quad);
+	copy_v3_v3(nor, shi->facenor);
+	camera_raster_to_view(&re->cam, shi->facenor, sx, sy);
+	normalize_v3(shi->facenor);
 	shade_input_set_viewco(re, shi, x, y, sx, sy, z);
-	orthoarea= len_v3(shi->geometry.dxco)*len_v3(shi->geometry.dyco);
+	orthoarea= len_v3(shi->dxco)*len_v3(shi->dyco);
 
-	copy_v3_v3(shi->geometry.facenor, nor);
+	copy_v3_v3(shi->facenor, nor);
 	shade_input_set_viewco(re, shi, x, y, sx, sy, z);
-	*area= len_v3(shi->geometry.dxco)*len_v3(shi->geometry.dyco);
+	*area= len_v3(shi->dxco)*len_v3(shi->dyco);
 	*area= MIN2(*area, 2.0f*orthoarea);
 
 	shade_input_set_uv(shi);
 	shade_input_set_normals(shi);
 
 	/* we don't want flipped normals, they screw up back scattering */
-	if(shi->geometry.flippednor)
+	if(shi->flippednor)
 		shade_input_flip_normals(shi);
 
 	/* not a pretty solution, but fixes common cases */
-	if(shi->primitive.obr->ob && shi->primitive.obr->ob->transflag & OB_NEG_SCALE) {
-		negate_v3(shi->geometry.vn);
-		negate_v3(shi->geometry.vno);
+	if(shi->obr->ob && shi->obr->ob->transflag & OB_NEG_SCALE) {
+		negate_v3(shi->vn);
+		negate_v3(shi->vno);
 	}
 
 	/* if nodetree, use the material that we are currently preprocessing
 	   instead of the node material */
-	if(shi->material.mat->nodetree && shi->material.mat->use_nodes)
-		shi->material.mat= mat;
+	if(shi->mat->nodetree && shi->mat->use_nodes)
+		shi->mat= mat;
 
 	/* init material vars */
 	shade_input_init_material(re, shi);
@@ -1025,7 +1028,7 @@ static void shade_sample_sss(Render *re, ShadeSample *ssamp, Material *mat, Obje
 	
 	shade_material_loop(re, shi, &shr);
 	
-	copy_v3_v3(co, shi->geometry.co);
+	copy_v3_v3(co, shi->co);
 	copy_v3_v3(color, shr.sss);
 
 	alpha= shr.sss[3]; // TODO NSHAD solve SSS + alpha
@@ -1073,10 +1076,10 @@ static void render_sss_layer(Render *re, RenderResult *rr, Material *ma, ShadeIn
 		if(v != obr->totvlak) {
 			for(rl=rr->layers.first; rl; rl=rl->next) {
 				if(obi->lay & rl->lay) {
-					shi->shading.lay |= rl->lay;
-					shi->shading.layflag |= rl->layflag;
-					shi->shading.passflag |= rl->passflag;
-					shi->shading.combinedflag |= ~rl->pass_xor;
+					shi->lay |= rl->lay;
+					shi->layflag |= rl->layflag;
+					shi->passflag |= rl->passflag;
+					shi->combinedflag |= ~rl->pass_xor;
 				}
 			}
 		}
@@ -1123,14 +1126,14 @@ void render_sss_bake_part(Render *re, RenderPart *pa)
 		ssamp.tot= 1;
 
 		render_sss_layer(re, rr, mat, &ssamp.shi[0]);
-		lay= ssamp.shi[0].shading.lay;
+		lay= ssamp.shi[0].lay;
 
 		rl= rr->layers.first;
-		ssamp.shi[0].shading.passflag |= SCE_PASS_RGBA|SCE_PASS_COMBINED;
-		ssamp.shi[0].shading.combinedflag &= ~(SCE_PASS_SPEC);
-		ssamp.shi[0].material.mat_override= NULL;
-		ssamp.shi[0].material.light_override= NULL;
-		ssamp.shi[0].material.except_override= NULL;
+		ssamp.shi[0].passflag |= SCE_PASS_RGBA|SCE_PASS_COMBINED;
+		ssamp.shi[0].combinedflag &= ~(SCE_PASS_SPEC);
+		ssamp.shi[0].mat_override= NULL;
+		ssamp.shi[0].light_override= NULL;
+		ssamp.shi[0].except_override= NULL;
 
 		/* create the pixelstrs to be used later */
 		zbuffer_sss(re, pa, lay, &handle, addps_sss, &psmlist, mat);

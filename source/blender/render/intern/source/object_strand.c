@@ -399,16 +399,16 @@ void strand_shade_point(Render *re, ShadeSample *ssamp, StrandSegment *sseg, Str
 	if(sseg->buffer->ma->mode & MA_TANGENT_STR)
 		vlr.flag |= R_TANGENT;
 
-	shi->primitive.vlr= &vlr;
-	shi->primitive.v1= NULL;
-	shi->primitive.v2= NULL;
-	shi->primitive.v3= NULL;
-	shi->primitive.strand= sseg->strand;
-	shi->primitive.obi= sseg->obi;
-	shi->primitive.obr= sseg->obi->obr;
+	shi->vlr= &vlr;
+	shi->v1= NULL;
+	shi->v2= NULL;
+	shi->v3= NULL;
+	shi->strand= sseg->strand;
+	shi->obi= sseg->obi;
+	shi->obr= sseg->obi->obr;
 
 	/* cache for shadow */
-	shi->shading.samplenr= re->sample.shadowsamplenr[shi->shading.thread]++;
+	shi->samplenr= re->sample.shadowsamplenr[shi->thread]++;
 
 	shade_input_set_strand(re, shi, sseg->strand, spoint);
 	shade_input_set_strand_texco(re, shi, sseg->strand, sseg->v[1], spoint);
@@ -424,10 +424,10 @@ void strand_shade_point(Render *re, ShadeSample *ssamp, StrandSegment *sseg, Str
 
 	/* include lamphalos for strand, since halo layer was added already */
 	if(re->flag & R_LAMPHALO)
-		if(shi->shading.layflag & SCE_LAY_HALO)
+		if(shi->layflag & SCE_LAY_HALO)
 			lamp_spothalo_render(re, shi, shr->combined, shr->combined[3]);
 	
-	shi->primitive.strand= NULL;
+	shi->strand= NULL;
 }
 
 /* *************** */

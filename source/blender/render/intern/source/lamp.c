@@ -297,11 +297,11 @@ static void lamp_sample_location(float lco[3], LampRen *lar, float co[3], float 
 
 int lamp_skip(Render *re, LampRen *lar, ShadeInput *shi)
 {
-	Material *ma= shi->material.mat;
+	Material *ma= shi->mat;
 
-	if(lar->mode & LA_LAYER) if(shi->primitive.obi && (lar->lay & shi->primitive.obi->lay)==0) return 1;
-	if((lar->lay & shi->shading.lay)==0) return 1;
-	if((lar->mode & LA_NO_INDIRECT) && shi->shading.isindirect) return 1;
+	if(lar->mode & LA_LAYER) if(shi->obi && (lar->lay & shi->obi->lay)==0) return 1;
+	if((lar->lay & shi->lay)==0) return 1;
+	if((lar->mode & LA_NO_INDIRECT) && shi->isindirect) return 1;
 
 	if(lar->power == 0.0)
 		return 1;
@@ -324,15 +324,15 @@ static void lamp_texture_color(Render *re, LampRen *lar, ShadeInput *shi, float 
 
 	if(lar->mode & LA_TEXTURE) {
 		if(lar->type==LA_SPOT && (lar->mode & LA_OSATEX)) {
-			shi->geometry.osatex= 1;	/* signal for multitex() */
+			shi->osatex= 1;	/* signal for multitex() */
 			
-			shi->texture.dxlv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dxco[0])/dist;
-			shi->texture.dxlv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dxco[1])/dist;
-			shi->texture.dxlv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dxco[2])/dist;
+			shi->dxlv[0]= vec[0] - (shi->co[0]-lar->co[0]+shi->dxco[0])/dist;
+			shi->dxlv[1]= vec[1] - (shi->co[1]-lar->co[1]+shi->dxco[1])/dist;
+			shi->dxlv[2]= vec[2] - (shi->co[2]-lar->co[2]+shi->dxco[2])/dist;
 			
-			shi->texture.dylv[0]= vec[0] - (shi->geometry.co[0]-lar->co[0]+shi->geometry.dyco[0])/dist;
-			shi->texture.dylv[1]= vec[1] - (shi->geometry.co[1]-lar->co[1]+shi->geometry.dyco[1])/dist;
-			shi->texture.dylv[2]= vec[2] - (shi->geometry.co[2]-lar->co[2]+shi->geometry.dyco[2])/dist;
+			shi->dylv[0]= vec[0] - (shi->co[0]-lar->co[0]+shi->dyco[0])/dist;
+			shi->dylv[1]= vec[1] - (shi->co[1]-lar->co[1]+shi->dyco[1])/dist;
+			shi->dylv[2]= vec[2] - (shi->co[2]-lar->co[2]+shi->dyco[2])/dist;
 		}
 
 		do_lamp_tex(re, lar, vec, shi, latex, LA_TEXTURE);
@@ -347,7 +347,7 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 
 	/* compute sample location, vector and distance */
 	lamp_sample_location(lco, lar, co, r);
-	if(!lamp_visibility(lar, co, shi->geometry.vn, lco, vec, (lainf)? &dist: NULL, (lainf)? &fac: NULL))
+	if(!lamp_visibility(lar, co, shi->vn, lco, vec, (lainf)? &dist: NULL, (lainf)? &fac: NULL))
 		return 0;
 
 	if(lainf) {
@@ -357,9 +357,8 @@ int lamp_sample(float lv[3], float lainf[3], float lashdw[3],
 
 	if(lashdw) {
 		/* compute shadow */
-		if((re->r.mode & R_SHADOW) && (shi->material.mat->mode & MA_SHADOW))
-			/* TODO: we need caching to still work with multi sample .. */
-			lamp_shadow(lashdw, re, lar, shi, co, lco, vec, (shi->shading.depth || r));
+		if((re->r.mode & R_SHADOW) && (shi->mat->mode & MA_SHADOW))
+			lamp_shadow(lashdw, re, lar, shi, co, lco, vec, (shi->depth || r));
 		else
 			lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 	}
@@ -405,8 +404,8 @@ static void lamp_halo_integrate(Render *re, LampRen *lar, ShadeInput *shi, float
 
 	while(t < 1.0f) {
 		/* compute location, vector to lamp and distance */
-		interp_v3_v3v3(shi_local.geometry.co, p1, p2, t);
-		sub_v3_v3v3(vec, shi_local.geometry.co, lar->co);
+		interp_v3_v3v3(shi_local.co, p1, p2, t);
+		sub_v3_v3v3(vec, shi_local.co, lar->co);
 		dist= normalize_v3(vec);
 
 		interp_v3_v3v3(lp, lp1, lp2, t);
@@ -440,8 +439,8 @@ static int lamp_halo_intersect_cone(Render *re, LampRen *lar, ShadeInput *shi, f
 	if(re->cam.type == CAM_ORTHO) {
 		/* camera pos (view vector) cannot be used... */
 		/* camera position (cox,coy,0) rotate around lamp */
-		p1[0]= shi->geometry.co[0]-lar->co[0];
-		p1[1]= shi->geometry.co[1]-lar->co[1];
+		p1[0]= shi->co[0]-lar->co[0];
+		p1[1]= shi->co[1]-lar->co[1];
 		p1[2]= -lar->co[2];
 		mul_m3_v3(lar->imat, p1);
 		VECCOPY(npos, p1);	// npos is double!
@@ -454,15 +453,15 @@ static int lamp_halo_intersect_cone(Render *re, LampRen *lar, ShadeInput *shi, f
 	}
 	
 	/* rotate view */
-	VECCOPY(nray, shi->geometry.view);
+	VECCOPY(nray, shi->view);
 	mul_m3_v3_double(lar->imat, nray);
 
 	/* rotate maxz */
-	if(shi->geometry.co[2]==0.0f) doclip= 0;	/* for when halo at sky */
+	if(shi->co[2]==0.0f) doclip= 0;	/* for when halo at sky */
 	else {
-		p1[0]= shi->geometry.co[0]-lar->co[0];
-		p1[1]= shi->geometry.co[1]-lar->co[1];
-		p1[2]= shi->geometry.co[2]-lar->co[2];
+		p1[0]= shi->co[0]-lar->co[0];
+		p1[1]= shi->co[1]-lar->co[1];
+		p1[2]= shi->co[2]-lar->co[2];
 	
 		maxz= lar->imat[0][2]*p1[0]+lar->imat[1][2]*p1[1]+lar->imat[2][2]*p1[2];
 		maxz*= lar->sh_zfac;
@@ -638,9 +637,9 @@ void lamp_spothalo_render(Render *re, ShadeInput *shi, float *col, float alpha)
 		if(lar->type==LA_SPOT && (lar->mode & LA_HALO) && (lar->buftype != LA_SHADBUF_DEEP) && lar->haint>0) {
 			
 			if(lar->mode & LA_LAYER) 
-				if(shi->primitive.vlr && (lar->lay & shi->primitive.obi->lay)==0) 
+				if(shi->vlr && (lar->lay & shi->obi->lay)==0) 
 					continue;
-			if((lar->lay & shi->shading.lay)==0) 
+			if((lar->lay & shi->lay)==0) 
 				continue;
 
 			spothalo(re, lar, shi, color);
@@ -663,10 +662,10 @@ ListBase *lamps_get(Render *re, ShadeInput *shi)
 {
 	if(re->r.scemode & R_PREVIEWBUTS)
 		return &re->db.lights;
-	if(shi->material.light_override)
-		return &shi->material.light_override->gobject;
-	if(shi->material.mat && shi->material.mat->group) {
-		Group *group= BLI_ghash_lookup(re->db.lightgrouphash, shi->material.mat->group);
+	if(shi->light_override)
+		return &shi->light_override->gobject;
+	if(shi->mat && shi->mat->group) {
+		Group *group= BLI_ghash_lookup(re->db.lightgrouphash, shi->mat->group);
 		if(group)
 			return &group->gobject;
 	}
@@ -679,24 +678,22 @@ ListBase *lamps_get(Render *re, ShadeInput *shi)
 void lamp_shadow(float lashdw[3], Render *re, LampRen *lar, ShadeInput *shi,
 	float co[3], float lco[3], float lv[3], int do_real)
 {
-	LampShadowSubSample *lss= &(lar->shadsamp[shi->shading.thread].s[shi->shading.sample]);
-	/* TODO strand render bias is not same as it was before, but also was
-	   mixed together with the shading code which doesn't work anymore now */
-	float inp = (shi->geometry.tangentvn)? 1.0f: dot_v3v3(shi->geometry.vn, lv);
+	LampShadowSubSample *lss= &(lar->shadsamp[shi->thread].s[shi->sample]);
+	float inp = (shi->tangentvn)? 1.0f: dot_v3v3(shi->vn, lv);
 
 	lashdw[0]= lashdw[1]= lashdw[2]= 1.0f;
 
 	if(!(lar->shb || (lar->mode & LA_SHAD_RAY)))
 		return;
 	
-	if(do_real || lss->samplenr!=shi->shading.samplenr) {
+	if(do_real || lss->samplenr!=shi->samplenr) {
 		if(lar->shb) {
 			float fac;
 
 			if(lar->buftype==LA_SHADBUF_IRREGULAR)
 				fac= irregular_shadowbuf_test(re, lar->shb, shi);
 			else
-				fac= shadowbuf_test(re, lar->shb, co, shi->geometry.dxco, shi->geometry.dyco, inp, shi->material.mat->lbias);
+				fac= shadowbuf_test(re, lar->shb, co, shi->dxco, shi->dyco, inp, shi->mat->lbias);
 
 			lashdw[0]= lashdw[1]= lashdw[2]= fac;
 		}
@@ -720,9 +717,9 @@ void lamp_shadow(float lashdw[3], Render *re, LampRen *lar, ShadeInput *shi,
 			}
 		}
 		
-		if(shi->shading.depth==0) {
+		if(shi->depth==0) {
 			copy_v3_v3(lss->lashdw, lashdw);
-			lss->samplenr= shi->shading.samplenr;
+			lss->samplenr= shi->samplenr;
 		}
 	}
 	else

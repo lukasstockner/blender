@@ -83,7 +83,11 @@ typedef struct ShadeInputCol {
 	char *name;
 } ShadeInputCol;
 
-typedef struct ShadeGeometry {
+/* localized renderloop data */
+typedef struct ShadeInput
+{
+	/****************** GEOMETRY *****************/
+
 	float co[3];			/* location */
 	float vn[3];			/* shading normal */
 	float view[3];			/* view vector */
@@ -115,9 +119,44 @@ typedef struct ShadeGeometry {
 
 	/* derivatives enabled? */
 	short osatex;
-} ShadeGeometry;
 
-typedef struct ShadeMaterial {
+	/*************** PRIMITIVE **************/
+
+	struct VlakRen *vlr;
+	struct StrandRen *strand;
+	struct ObjectInstanceRen *obi;
+	struct ObjectRen *obr;
+
+	int facenr;
+
+	struct VertRen *v1, *v2, *v3;	/* vertices can be in any order for quads... */
+	short i1, i2, i3;				/* original vertex indices */
+
+	float n1[3], n2[3], n3[3];		/* vertex normals, corrected */
+
+	/**************** TEXTURE COORDINATES *************/
+
+	/* texture coordinates */
+	float lo[3], gl[3], ref[3], orn[3], winco[3], sticky[3];
+	float displace[3];
+	float strandco, nmaptang[3], stress, winspeed[4];
+	float duplilo[3], dupliuv[3];
+
+	ShadeInputUV uv[8];   /* 8 = MAX_MTFACE */
+	ShadeInputCol col[8]; /* 8 = MAX_MCOL */
+	int totuv, totcol, actuv, actcol;
+	
+	/* dx/dy OSA coordinates */
+	float dxlo[3], dylo[3], dxgl[3], dygl[3];
+	float dxref[3], dyref[3], dxorn[3], dyorn[3];
+	float dxlv[3], dylv[3];
+	float dxwin[3], dywin[3];
+	float dxsticky[3], dysticky[3];
+	float dxrefract[3], dyrefract[3];
+	float dxstrand, dystrand;
+
+	/************** MATERIAL ****************/
+
 	struct Material *mat;
 
 	/* copy from material, keep synced so we can do memcopy */
@@ -145,82 +184,34 @@ typedef struct ShadeMaterial {
 	struct Group *light_override;
 	struct Material *mat_override;
 	struct Group *except_override;
-} ShadeMaterial;
 
-typedef struct ShadeTexco {
-	/* texture coordinates */
-	float lo[3], gl[3], ref[3], orn[3], winco[3], sticky[3];
-	float displace[3];
-	float strandco, nmaptang[3], stress, winspeed[4];
-	float duplilo[3], dupliuv[3];
+	/**************** SHADING ***************/
 
-	ShadeInputUV uv[8];   /* 8 = MAX_MTFACE */
-	ShadeInputCol col[8]; /* 8 = MAX_MCOL */
-	int totuv, totcol, actuv, actcol;
+	/* AO is a pre-process now */
+	float ao[3];
+	float env[3];
+	float indirect[3];
 	
-	/* dx/dy OSA coordinates */
-	float dxlo[3], dylo[3], dxgl[3], dygl[3];
-	float dxref[3], dyref[3], dxorn[3], dyorn[3];
-	float dxlv[3], dylv[3];
-	float dxwin[3], dywin[3];
-	float dxsticky[3], dysticky[3];
-	float dxrefract[3], dyrefract[3];
-	float dxstrand, dystrand;
-} ShadeTexco;
+	int mask;				/* subsample mask */
 
-typedef struct ShadePrimitive {
-	struct VlakRen *vlr;
-	struct StrandRen *strand;
-	struct ObjectInstanceRen *obi;
-	struct ObjectRen *obr;
+	int samplenr;			/* sample counter, to detect if we should do shadow again */
+	int depth;				/* 1 or larger on raytrace shading */
+	int volume_depth;		/* number of intersections through volumes */
+	int isindirect;			/* part of indirect lighting */
 
-	int facenr;
+	unsigned int lay;
+	int layflag, passflag, combinedflag;
 
-	struct VertRen *v1, *v2, *v3;	/* vertices can be in any order for quads... */
-	short i1, i2, i3;				/* original vertex indices */
-
-	float n1[3], n2[3], n3[3];		/* vertex normals, corrected */
-} ShadePrimitive;
-
-/* localized renderloop data */
-typedef struct ShadeInput
-{
-	/* copy from face, also to extract tria from quad */
-	/* XXX note it mirrors a struct above for quick copy */
-	ShadeGeometry geometry;
-	ShadeMaterial material;
-	ShadeTexco texture;
-	ShadePrimitive primitive;
-
-	struct {
-		/* AO is a pre-process now */
-		float ao[3];
-		float env[3];
-		float indirect[3];
-		
-		int mask;				/* subsample mask */
-
-		int samplenr;			/* sample counter, to detect if we should do shadow again */
-		int depth;				/* 1 or larger on raytrace shading */
-		int volume_depth;		/* number of intersections through volumes */
-		int isindirect;			/* part of indirect lighting */
-
-		unsigned int lay;
-		int layflag, passflag, combinedflag;
-
-		/* from initialize, part or renderlayer */
-		short do_preview;		/* for nodes, in previewrender */
-		short thread, sample;	/* sample: ShadeSample array index */
-		short nodes;			/* indicate node shading, temp hack to prevent recursion */
-		struct RenderPart *pa;
-		
+	/* from initialize, part or renderlayer */
+	short do_preview;		/* for nodes, in previewrender */
+	short thread, sample;	/* sample: ShadeSample array index */
+	short nodes;			/* indicate node shading, temp hack to prevent recursion */
+	struct RenderPart *pa;
+	
 #ifdef RE_RAYCOUNTER
-		RayCounter raycounter;
+	RayCounter raycounter;
 #endif
-	} shading;
-	
 } ShadeInput;
-
 
 /* node shaders... */
 struct Tex;

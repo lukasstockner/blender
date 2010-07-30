@@ -138,14 +138,14 @@ static void occ_shade(Render *re, ShadeSample *ssamp, ObjectInstanceRen *obi, Vl
 	
 	/* init */
 	if(vlr->v4) {
-		shi->geometry.uvw[0]= 0.5f;
-		shi->geometry.uvw[1]= 0.0f;
-		shi->geometry.uvw[2]= 0.5f;
+		shi->uvw[0]= 0.5f;
+		shi->uvw[1]= 0.0f;
+		shi->uvw[2]= 0.5f;
 	}
 	else {
-		shi->geometry.uvw[0]= 1.0f/3.0f;
-		shi->geometry.uvw[1]= 1.0f/3.0f;
-		shi->geometry.uvw[2]= 1.0f/3.0f;
+		shi->uvw[0]= 1.0f/3.0f;
+		shi->uvw[1]= 1.0f/3.0f;
+		shi->uvw[2]= 1.0f/3.0f;
 	}
 
 	/* setup render coordinates */
@@ -154,38 +154,38 @@ static void occ_shade(Render *re, ShadeSample *ssamp, ObjectInstanceRen *obi, Vl
 	v3= vlr->v3->co;
 	
 	/* renderco */
-	interp_v3_v3v3v3(shi->geometry.co, v1, v2, v3, shi->geometry.uvw);
+	interp_v3_v3v3v3(shi->co, v1, v2, v3, shi->uvw);
 	
 	shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
 
 	/* set up view vector */
-	copy_v3_v3(shi->geometry.view, shi->geometry.co);
-	normalize_v3(shi->geometry.view);
+	copy_v3_v3(shi->view, shi->co);
+	normalize_v3(shi->view);
 	
 	/* cache for shadow */
-	shi->shading.samplenr++;
+	shi->samplenr++;
 	
-	shi->geometry.xs= 0; // TODO
-	shi->geometry.ys= 0;
+	shi->xs= 0; // TODO
+	shi->ys= 0;
 	
 	shade_input_set_normals(shi);
 
 	/* no normal flip */
-	if(shi->geometry.flippednor)
+	if(shi->flippednor)
 		shade_input_flip_normals(shi);
 
-	madd_v3_v3fl(shi->geometry.co, shi->geometry.vn, 0.0001f); /* ugly.. */
+	madd_v3_v3fl(shi->co, shi->vn, 0.0001f); /* ugly.. */
 
 	/* not a pretty solution, but fixes common cases */
-	if(shi->primitive.obr->ob && shi->primitive.obr->ob->transflag & OB_NEG_SCALE) {
-		negate_v3(shi->geometry.vn);
-		negate_v3(shi->geometry.vno);
+	if(shi->obr->ob && shi->obr->ob->transflag & OB_NEG_SCALE) {
+		negate_v3(shi->vn);
+		negate_v3(shi->vno);
 	}
 
 	/* init material vars */
 	// note, keep this synced with render_types.h
-	memcpy(&shi->material.r, &shi->material.mat->r, 23*sizeof(float));
-	shi->material.har= shi->material.mat->har;
+	memcpy(&shi->r, &shi->mat->r, 23*sizeof(float));
+	shi->har= shi->mat->har;
 	
 	/* render */
 	shade_input_set_shade_texco(re, shi);
@@ -203,9 +203,9 @@ static void occ_build_shade(Render *re, OcclusionTree *tree)
 
 	/* setup shade sample with correct passes */
 	memset(&ssamp, 0, sizeof(ShadeSample));
-	ssamp.shi[0].shading.lay= re->db.lay;
-	ssamp.shi[0].shading.passflag= SCE_PASS_DIFFUSE|SCE_PASS_RGBA;
-	ssamp.shi[0].shading.combinedflag= ~(SCE_PASS_SPEC);
+	ssamp.shi[0].lay= re->db.lay;
+	ssamp.shi[0].passflag= SCE_PASS_DIFFUSE|SCE_PASS_RGBA;
+	ssamp.shi[0].combinedflag= ~(SCE_PASS_SPEC);
 	ssamp.tot= 1;
 
 	for(a=0; a<tree->totface; a++) {
@@ -1083,19 +1083,19 @@ void disk_occlusion_sample_direct(Render *re, ShadeInput *shi)
 	float jitco[RE_MAX_OSA][3], co[3], *vn;
 	int onlyshadow, totjitco= 0;
 
-	onlyshadow= (shi->material.mat->mode & MA_ONLYSHADOW);
-	exclude.obi= shi->primitive.obi - re->db.objectinstance;
-	exclude.facenr= shi->primitive.vlr->index;
+	onlyshadow= (shi->mat->mode & MA_ONLYSHADOW);
+	exclude.obi= shi->obi - re->db.objectinstance;
+	exclude.facenr= shi->vlr->index;
 
 	if(re->db.wrld.ao_shading_method == WO_LIGHT_SHADE_NONE)
-		vn= shi->geometry.vno;
+		vn= shi->vno;
 	else
-		vn= shi->geometry.vn;
+		vn= shi->vn;
 	
 	shade_jittered_coords(re, shi, RE_MAX_OSA, jitco, &totjitco);
 	copy_v3_v3(co, jitco[0]);
 
-	sample_occ_tree(re, tree, &exclude, co, vn, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
+	sample_occ_tree(re, tree, &exclude, co, vn, shi->thread, onlyshadow, shi->ao, shi->env, shi->indirect);
 }
 
 void disk_occlusion_sample(Render *re, ShadeInput *shi)
@@ -1105,37 +1105,37 @@ void disk_occlusion_sample(Render *re, ShadeInput *shi)
 	float color[3];
 
 	if(tree) {
-		if(shi->primitive.strand) {
-			StrandRen *strand= shi->primitive.strand;
+		if(shi->strand) {
+			StrandRen *strand= shi->strand;
 			surface_cache_sample(strand->buffer->surface, shi);
 		}
 		/* try to get result from the cache if possible */
-		else if((shi->shading.depth > 0) ||
-			((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP)) ||
-			!(tree->cache && tree->cache[shi->shading.thread] && pixel_cache_sample(tree->cache[shi->shading.thread], shi))) {
+		else if((shi->depth > 0) ||
+			((shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_ZTRANSP)) ||
+			!(tree->cache && tree->cache[shi->thread] && pixel_cache_sample(tree->cache[shi->thread], shi))) {
 
 			/* no luck, let's sample the occlusion */
 			disk_occlusion_sample_direct(re, shi);
 
 			/* fill result into cache, each time */
-			if(tree->cache && tree->cache[shi->shading.thread]) {
-				cache= tree->cache[shi->shading.thread];
+			if(tree->cache && tree->cache[shi->thread]) {
+				cache= tree->cache[shi->thread];
 				pixel_cache_insert_sample(cache, shi);
 			}
 		}
 	}
 	else {
-		shi->shading.ao[0]= 1.0f;
-		shi->shading.ao[1]= 1.0f;
-		shi->shading.ao[2]= 1.0f;
+		shi->ao[0]= 1.0f;
+		shi->ao[1]= 1.0f;
+		shi->ao[2]= 1.0f;
 
-		zero_v3(shi->shading.env);
-		zero_v3(shi->shading.indirect);
+		zero_v3(shi->env);
+		zero_v3(shi->indirect);
 	}
 
-	mat_color(color, &shi->material);
-	mul_v3_v3(shi->shading.env, color);
-	mul_v3_v3(shi->shading.indirect, color);
+	mat_color(color, shi);
+	mul_v3_v3(shi->env, color);
+	mul_v3_v3(shi->indirect, color);
 }
 
 void disk_occlusion_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)

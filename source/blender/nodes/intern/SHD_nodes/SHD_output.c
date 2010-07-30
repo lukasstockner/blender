@@ -46,9 +46,9 @@ static void node_shader_exec_output(void *data, bNode *node, bNodeStack **in, bN
 		nodestack_get_vec(col, SOCK_VECTOR, in[0]);
 		nodestack_get_vec(col+3, SOCK_VALUE, in[1]);
 				
-		if(shi->shading.do_preview) {
-			nodeAddToPreview(node, col, shi->geometry.xs, shi->geometry.ys);
-			node->lasty= shi->geometry.ys;
+		if(shi->do_preview) {
+			nodeAddToPreview(node, col, shi->xs, shi->ys);
+			node->lasty= shi->ys;
 		}
 		
 		if(node->flag & NODE_DO_OUTPUT) {
@@ -102,7 +102,6 @@ static bNodeSocketType sh_node_idmask_output_in[]= {
 static void node_shader_exec_idmask_output(void *data, bNode *node, bNodeStack **in, bNodeStack **out)
 {
 	if(data) {
-		ShadeInput *shi= ((ShaderCallData *)data)->shi;
 		float col[1];
 
 		nodestack_get_vec(col, SOCK_VALUE, in[0]);

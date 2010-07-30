@@ -65,64 +65,62 @@ static void displace_shadeinput_init_face(ShadeInput *shi, ObjectInstanceRen *ob
 {
 	memset(shi, 0, sizeof(ShadeInput)); 
 	
-	shi->primitive.obr= obi->obr;
-	shi->primitive.obi= obi;
-	shi->primitive.vlr= vlr;
-	shi->material.mat= vlr->mat;
-	shi->shading.thread= thread;
+	shi->obr= obi->obr;
+	shi->obi= obi;
+	shi->vlr= vlr;
+	shi->mat= vlr->mat;
+	shi->thread= thread;
 }
 
 static void displace_shadeinput_init_vertex(Render *re, ShadeInput *shi, VertRen *vr)
 {
-	ShadeGeometry *geom= &shi->geometry;
-	ShadePrimitive *prim= &shi->primitive;
-	VlakRen *vlr= prim->vlr;
+	VlakRen *vlr= shi->vlr;
 
 	/* setup primitive vertices so that current vertex is first */
 	if(vlr->v1 == vr) {
-		prim->v1= vlr->v1;
-		prim->v2= vlr->v2;
-		prim->v3= vlr->v3;
+		shi->v1= vlr->v1;
+		shi->v2= vlr->v2;
+		shi->v3= vlr->v3;
 	}
 	else if(vlr->v2 == vr) {
-		prim->v1= vlr->v2;
-		prim->v2= vlr->v3;
-		prim->v3= vlr->v1;
+		shi->v1= vlr->v2;
+		shi->v2= vlr->v3;
+		shi->v3= vlr->v1;
 	}
 	else if(vlr->v3 == vr) {
-		prim->v1= vlr->v3;
-		prim->v2= vlr->v1;
-		prim->v3= vlr->v2;
+		shi->v1= vlr->v3;
+		shi->v2= vlr->v1;
+		shi->v3= vlr->v2;
 	}
 	else if(vlr->v4 == vr) {
-		prim->v1= vlr->v4;
-		prim->v2= vlr->v1;
-		prim->v3= vlr->v3;
+		shi->v1= vlr->v4;
+		shi->v2= vlr->v1;
+		shi->v3= vlr->v3;
 	}
 
 	/* setup uvw interpolation weights and derivatives */
-	geom->uvw[0]= 1.0f;
-	geom->uvw[1]= 0.0f;
-	geom->uvw[2]= 0.0f;
+	shi->uvw[0]= 1.0f;
+	shi->uvw[1]= 0.0f;
+	shi->uvw[2]= 0.0f;
 
-	geom->duvw_dx[0]= -0.5f;
-	geom->duvw_dx[1]= 0.5f;
-	geom->duvw_dx[2]= 0.0f;
+	shi->duvw_dx[0]= -0.5f;
+	shi->duvw_dx[1]= 0.5f;
+	shi->duvw_dx[2]= 0.0f;
 
-	geom->duvw_dx[0]= -0.5f;
-	geom->duvw_dx[1]= 0.0f;
-	geom->duvw_dx[2]= 0.5f;
+	shi->duvw_dx[0]= -0.5f;
+	shi->duvw_dx[1]= 0.0f;
+	shi->duvw_dx[2]= 0.5f;
 
 	/* setup coordinate and derivatives */
-	copy_v3_v3(geom->co, vr->co);
-	interp_v3_v3v3v3(geom->dxco, prim->v1->co, prim->v2->co, prim->v3->co, geom->duvw_dx);
-	interp_v3_v3v3v3(geom->dyco, prim->v1->co, prim->v2->co, prim->v3->co, geom->duvw_dy);
+	copy_v3_v3(shi->co, vr->co);
+	interp_v3_v3v3v3(shi->dxco, shi->v1->co, shi->v2->co, shi->v3->co, shi->duvw_dx);
+	interp_v3_v3v3v3(shi->dyco, shi->v1->co, shi->v2->co, shi->v3->co, shi->duvw_dy);
 
 	/* setup normal */
-	copy_v3_v3(shi->geometry.vn, (vlr->flag & R_SMOOTH)? vr->n: vlr->n);
+	copy_v3_v3(shi->vn, (vlr->flag & R_SMOOTH)? vr->n: vlr->n);
 
 	/* we've got derivatives, so antialias textures */
-	shi->geometry.osatex= 1;
+	shi->osatex= 1;
 
 	/* setup material and texture coordinates */
 	shade_input_init_material(re, shi);

@@ -99,13 +99,13 @@ static float vol_get_shadow(Render *re, ShadeInput *shi, LampRen *lar, float *co
 			
 		is.orig.ob = NULL;
 		is.orig.face = NULL;
-		is.last_hit = lar->last_hit[shi->shading.thread];
+		is.last_hit = lar->last_hit[shi->thread];
 		
 		if(RE_rayobject_raycast(re->db.raytree,&is)) {
 			visibility = 0.f;
 		}
 		
-		lar->last_hit[shi->shading.thread]= is.last_hit;
+		lar->last_hit[shi->thread]= is.last_hit;
 	}
 	return visibility;
 }
@@ -115,8 +115,8 @@ static int vol_get_bounds(Render *re, ShadeInput *shi, float *co, float *dir, fl
 	/* XXX TODO - get raytrace max distance from object instance's bounding box */
 	/* need to account for scaling only, but keep coords in camera space...
 	 * below code is WIP and doesn't work!
-	sub_v3_v3v3(bb_dim, shi->primitive.obi->obr->boundbox[1], shi->primitive.obi->obr->boundbox[2]);
-	mul_m3_v3(shi->primitive.obi->nmat, bb_dim);
+	sub_v3_v3v3(bb_dim, shi->obi->obr->boundbox[1], shi->obi->obr->boundbox[2]);
+	mul_m3_v3(shi->obi->nmat, bb_dim);
 	maxsize = len_v3(bb_dim);
 	*/
 	
@@ -129,8 +129,8 @@ static int vol_get_bounds(Render *re, ShadeInput *shi, float *co, float *dir, fl
 	
 	if (intersect_type == VOL_BOUNDS_DEPTH) {
 		isect->skip = RE_SKIP_VLR_NEIGHBOUR;
-		isect->orig.face = (void*)shi->primitive.vlr;
-		isect->orig.ob = (void*)shi->primitive.obi;
+		isect->orig.face = (void*)shi->vlr;
+		isect->orig.ob = (void*)shi->obi;
 	} else { // if (intersect_type == VOL_BOUNDS_SS) {
 		isect->skip= 0;
 		isect->orig.face= NULL;
@@ -153,26 +153,26 @@ static void shade_intersection(Render *re, ShadeInput *shi, float *col, Isect *i
 	
 	memset(&shi_new, 0, sizeof(ShadeInput)); 
 	
-	shi_new.shading.mask= shi->shading.mask;
-	shi_new.geometry.osatex= shi->geometry.osatex;
-	shi_new.shading.thread= shi->shading.thread;
-	shi_new.shading.depth = shi->shading.depth + 1;
-	shi_new.shading.volume_depth= shi->shading.volume_depth + 1;
-	shi_new.geometry.xs= shi->geometry.xs;
-	shi_new.geometry.ys= shi->geometry.ys;
-	shi_new.shading.lay= shi->shading.lay;
-	shi_new.shading.passflag= SCE_PASS_COMBINED; /* result of tracing needs no pass info */
-	shi_new.shading.combinedflag= 0xFFFFFF;		 /* ray trace does all options */
-	shi_new.material.light_override= shi->material.light_override;
-	shi_new.material.mat_override= shi->material.mat_override;
-	shi_new.material.except_override= shi->material.except_override;
+	shi_new.mask= shi->mask;
+	shi_new.osatex= shi->osatex;
+	shi_new.thread= shi->thread;
+	shi_new.depth = shi->depth + 1;
+	shi_new.volume_depth= shi->volume_depth + 1;
+	shi_new.xs= shi->xs;
+	shi_new.ys= shi->ys;
+	shi_new.lay= shi->lay;
+	shi_new.passflag= SCE_PASS_COMBINED; /* result of tracing needs no pass info */
+	shi_new.combinedflag= 0xFFFFFF;		 /* ray trace does all options */
+	shi_new.light_override= shi->light_override;
+	shi_new.mat_override= shi->mat_override;
+	shi_new.except_override= shi->except_override;
 	
-	copy_v3_v3(shi_new.geometry.camera_co, is->start);
+	copy_v3_v3(shi_new.camera_co, is->start);
 	
 	memset(&shr_new, 0, sizeof(ShadeResult));
 	
 	/* hardcoded limit of 100 for now - prevents problems in weird geometry */
-	if (shi->shading.volume_depth < 100) {
+	if (shi->volume_depth < 100) {
 		shade_ray(re, is, &shi_new, &shr_new);
 	}
 	
@@ -185,12 +185,12 @@ static void vol_trace_behind(Render *re, ShadeInput *shi, VlakRen *vlr, float *c
 	Isect isect;
 	
 	copy_v3_v3(isect.start, co);
-	copy_v3_v3(isect.dir, shi->geometry.view);
+	copy_v3_v3(isect.dir, shi->view);
 	isect.dist = FLT_MAX;
 	
 	isect.mode= RE_RAY_MIRROR;
 	isect.skip = RE_SKIP_VLR_NEIGHBOUR | RE_SKIP_VLR_RENDER_CHECK;
-	isect.orig.ob = (void*) shi->primitive.obi;
+	isect.orig.ob = (void*) shi->obi;
 	isect.orig.face = (void*)vlr;
 	isect.last_hit = NULL;
 	isect.lay= -1;
@@ -199,7 +199,7 @@ static void vol_trace_behind(Render *re, ShadeInput *shi, VlakRen *vlr, float *c
 	if(RE_rayobject_raycast(re->db.raytree, &isect)) {
 		shade_intersection(re, shi, col, &isect);
 	} else {
-		environment_shade(re, col, co, shi->geometry.view, NULL, shi->shading.thread);
+		environment_shade(re, col, co, shi->view, NULL, shi->thread);
 	}
 }
 
@@ -207,15 +207,15 @@ static void vol_trace_behind(Render *re, ShadeInput *shi, VlakRen *vlr, float *c
 /* trilinear interpolation */
 static void vol_get_precached_scattering(Render *re, ShadeInput *shi, float *scatter_col, float *co)
 {
-	VolumePrecache *vp = shi->primitive.obi->volume_precache;
+	VolumePrecache *vp = shi->obi->volume_precache;
 	float bbmin[3], bbmax[3], dim[3];
 	float sample_co[3];
 	
 	if (!vp) return;
 	
 	/* convert input coords to 0.0, 1.0 */
-	copy_v3_v3(bbmin, shi->primitive.obi->obr->boundbox[0]);
-	copy_v3_v3(bbmax, shi->primitive.obi->obr->boundbox[1]);
+	copy_v3_v3(bbmin, shi->obi->obr->boundbox[0]);
+	copy_v3_v3(bbmax, shi->obi->obr->boundbox[1]);
 	sub_v3_v3v3(dim, bbmax, bbmin);
 
 	sample_co[0] = ((co[0] - bbmin[0]) / dim[0]);
@@ -277,15 +277,15 @@ static float metadensity(Render *re, Object* ob, float* co)
 
 float vol_get_density(Render *re, ShadeInput *shi, float *co)
 {
-	float density = shi->material.mat->vol.density;
-	float density_scale = shi->material.mat->vol.density_scale;
+	float density = shi->mat->vol.density;
+	float density_scale = shi->mat->vol.density_scale;
 		
-	if (shi->material.mat->mapto_textured & MAP_DENSITY)
+	if (shi->mat->mapto_textured & MAP_DENSITY)
 		do_volume_tex(re, shi, co, MAP_DENSITY, NULL, &density);
 	
 	// if meta-object, modulate by metadensity without increasing it
-	if (shi->primitive.obi->obr->ob->type == OB_MBALL) {
-		const float md = metadensity(re, shi->primitive.obi->obr->ob, co);
+	if (shi->obi->obr->ob->type == OB_MBALL) {
+		const float md = metadensity(re, shi->obi->obr->ob, co);
 		if (md < 1.f) density *= md;
 	 }
 	
@@ -297,15 +297,15 @@ float vol_get_density(Render *re, ShadeInput *shi, float *co)
  * along with artificial reflection scale/reflection color tint */
 void vol_get_reflection_color(Render *re, ShadeInput *shi, float *ref_col, float *co)
 {
-	float scatter = shi->material.mat->vol.scattering;
-	float reflection= shi->material.mat->vol.reflection;
-	copy_v3_v3(ref_col, shi->material.mat->vol.reflection_col);
+	float scatter = shi->mat->vol.scattering;
+	float reflection= shi->mat->vol.reflection;
+	copy_v3_v3(ref_col, shi->mat->vol.reflection_col);
 	
-	if (shi->material.mat->mapto_textured & (MAP_SCATTERING+MAP_REFLECTION_COL))
+	if (shi->mat->mapto_textured & (MAP_SCATTERING+MAP_REFLECTION_COL))
 		do_volume_tex(re, shi, co, MAP_SCATTERING+MAP_REFLECTION_COL, ref_col, &scatter);
 	
 	/* only one single float parameter at a time... :s */
-	if (shi->material.mat->mapto_textured & (MAP_REFLECTION))
+	if (shi->mat->mapto_textured & (MAP_REFLECTION))
 		do_volume_tex(re, shi, co, MAP_REFLECTION, NULL, &reflection);
 	
 	ref_col[0] = reflection * ref_col[0] * scatter;
@@ -317,10 +317,10 @@ void vol_get_reflection_color(Render *re, ShadeInput *shi, float *ref_col, float
  * can be textured with 'emit' */
 void vol_get_emission(Render *re, ShadeInput *shi, float *emission_col, float *co)
 {
-	float emission = shi->material.mat->vol.emission;
-	copy_v3_v3(emission_col, shi->material.mat->vol.emission_col);
+	float emission = shi->mat->vol.emission;
+	copy_v3_v3(emission_col, shi->mat->vol.emission_col);
 	
-	if (shi->material.mat->mapto_textured & (MAP_EMISSION+MAP_EMISSION_COL))
+	if (shi->mat->mapto_textured & (MAP_EMISSION+MAP_EMISSION_COL))
 		do_volume_tex(re, shi, co, MAP_EMISSION+MAP_EMISSION_COL, emission_col, &emission);
 	
 	emission_col[0] = emission_col[0] * emission;
@@ -337,10 +337,10 @@ void vol_get_sigma_t(Render *re, ShadeInput *shi, float *sigma_t, float *co)
 {
 	/* technically absorption, but named transmission color 
 	 * since it describes the effect of the coloring *after* absorption */
-	float transmission_col[3] = {shi->material.mat->vol.transmission_col[0], shi->material.mat->vol.transmission_col[1], shi->material.mat->vol.transmission_col[2]};
-	float scattering = shi->material.mat->vol.scattering;
+	float transmission_col[3] = {shi->mat->vol.transmission_col[0], shi->mat->vol.transmission_col[1], shi->mat->vol.transmission_col[2]};
+	float scattering = shi->mat->vol.scattering;
 	
-	if (shi->material.mat->mapto_textured & (MAP_SCATTERING+MAP_TRANSMISSION_COL))
+	if (shi->mat->mapto_textured & (MAP_SCATTERING+MAP_TRANSMISSION_COL))
 		do_volume_tex(re, shi, co, MAP_SCATTERING+MAP_TRANSMISSION_COL, transmission_col, &scattering);
 	
 	sigma_t[0] = (1.0f - transmission_col[0]) + scattering;
@@ -428,13 +428,13 @@ static void vol_get_transmittance(Render *re, ShadeInput *shi, float *tr, float 
 	float t1 = normalize_v3(step_vec);
 	float pt0 = t0;
 	
-	t0 += shi->material.mat->vol.stepsize * ((shi->material.mat->vol.stepsize_type == MA_VOL_STEP_CONSTANT) ? 0.5f : BLI_thread_frand(shi->shading.thread));
+	t0 += shi->mat->vol.stepsize * ((shi->mat->vol.stepsize_type == MA_VOL_STEP_CONSTANT) ? 0.5f : BLI_thread_frand(shi->thread));
 	p[0] += t0 * step_vec[0];
 	p[1] += t0 * step_vec[1];
 	p[2] += t0 * step_vec[2];
-	mul_v3_fl(step_vec, shi->material.mat->vol.stepsize);
+	mul_v3_fl(step_vec, shi->mat->vol.stepsize);
 
-	for (; t0 < t1; pt0 = t0, t0 += shi->material.mat->vol.stepsize) {
+	for (; t0 < t1; pt0 = t0, t0 += shi->mat->vol.stepsize) {
 		const float d = vol_get_density(re, shi, p);
 		const float stepd = (t0 - pt0) * d;
 		float sigma_t[3];
@@ -461,8 +461,8 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 	float hitco[3], *atten_co;
 	float p, ref_col[3];
 	
-	if (lar->mode & LA_LAYER) if((lar->lay & shi->primitive.obi->lay)==0) return;
-	if ((lar->lay & shi->shading.lay)==0) return;
+	if (lar->mode & LA_LAYER) if((lar->lay & shi->obi->lay)==0) return;
+	if ((lar->lay & shi->lay)==0) return;
 	if (lar->power == 0.0) return;
 	
 	if (!lamp_visibility(lar, co, NULL, lar->co, lv, &lampdist, &visifac)) return;
@@ -470,7 +470,7 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 	copy_v3_v3(lacol, &lar->r);
 	
 	if(lar->mode & LA_TEXTURE) {
-		shi->geometry.osatex= 0;
+		shi->osatex= 0;
 		do_lamp_tex(re, lar, lv, shi, lacol, LA_TEXTURE);
 	}
 
@@ -480,14 +480,14 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 		copy_v3_v3(lv, lar->vec);
 	negate_v3(lv);
 	
-	if (shi->material.mat->vol.shade_type == MA_VOL_SHADE_SHADOWED) {
+	if (shi->mat->vol.shade_type == MA_VOL_SHADE_SHADOWED) {
 		mul_v3_fl(lacol, vol_get_shadow(re, shi, lar, co));
 	}
-	else if (ELEM3(shi->material.mat->vol.shade_type, MA_VOL_SHADE_SHADED, MA_VOL_SHADE_MULTIPLE, MA_VOL_SHADE_SHADEDPLUSMULTIPLE))
+	else if (ELEM3(shi->mat->vol.shade_type, MA_VOL_SHADE_SHADED, MA_VOL_SHADE_MULTIPLE, MA_VOL_SHADE_SHADEDPLUSMULTIPLE))
 	{
 		Isect is;
 		
-		if (shi->material.mat->vol.shadeflag & MA_VOL_RECV_EXT_SHADOW) {
+		if (shi->mat->vol.shadeflag & MA_VOL_RECV_EXT_SHADOW) {
 			mul_v3_fl(lacol, vol_get_shadow(re, shi, lar, co));
 			if (luminance(lacol) < 0.001f) return;
 		}
@@ -524,7 +524,7 @@ void vol_shade_one_lamp(Render *re, ShadeInput *shi, float *co, LampRen *lar, fl
 	
 	if (luminance(lacol) < 0.001f) return;
 	
-	p = vol_get_phasefunc(shi, shi->material.mat->vol.asymmetry, shi->geometry.view, lv);
+	p = vol_get_phasefunc(shi, shi->mat->vol.asymmetry, shi->view, lv);
 	
 	/* physically based scattering with non-physically based RGB gain */
 	vol_get_reflection_color(re, shi, ref_col, co);
@@ -580,13 +580,13 @@ static void volumeintegrate(Render *re, ShadeInput *shi, float *col, float *co, 
 	float tr[3] = {1.f, 1.f, 1.f};
 	float p[3] = {co[0], co[1], co[2]};
 	float step_vec[3] = {endco[0] - co[0], endco[1] - co[1], endco[2] - co[2]};
-	const float stepsize = shi->material.mat->vol.stepsize;
+	const float stepsize = shi->mat->vol.stepsize;
 	
 	float t0 = 0.f;
 	float pt0 = t0;
 	float t1 = normalize_v3(step_vec);	/* returns vector length */
 	
-	t0 += stepsize * ((shi->material.mat->vol.stepsize_type == MA_VOL_STEP_CONSTANT) ? 0.5f : BLI_thread_frand(shi->shading.thread));
+	t0 += stepsize * ((shi->mat->vol.stepsize_type == MA_VOL_STEP_CONSTANT) ? 0.5f : BLI_thread_frand(shi->thread));
 	p[0] += t0 * step_vec[0];
 	p[1] += t0 * step_vec[1];
 	p[2] += t0 * step_vec[2];
@@ -602,11 +602,11 @@ static void volumeintegrate(Render *re, ShadeInput *shi, float *col, float *co, 
 			/* transmittance component (alpha) */
 			vol_get_transmittance_seg(re, shi, tr, stepsize, co, density);
 			
-			if (luminance(tr) < shi->material.mat->vol.depth_cutoff) break;
+			if (luminance(tr) < shi->mat->vol.depth_cutoff) break;
 			
 			vol_get_emission(re, shi, emit_col, p);
 			
-			if (shi->primitive.obi->volume_precache) {
+			if (shi->obi->volume_precache) {
 				float p2[3];
 				
 				p2[0] = p[0] + (step_vec[0] * 0.5);
@@ -638,14 +638,14 @@ static void volume_trace(Render *re, ShadeInput *shi, ShadeResult *shr, int insi
 	float hitco[3], col[4] = {0.f,0.f,0.f,0.f};
 	float *startco, *endco;
 	int trace_behind = 1;
-	const int ztransp= ((shi->shading.depth==0) && (shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP));
+	const int ztransp= ((shi->depth==0) && (shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_ZTRANSP));
 	Isect is;
 
 	/* check for shading an internal face a volume object directly */
 	if (inside_volume == VOL_SHADE_INSIDE)
 		trace_behind = 0;
 	else if (inside_volume == VOL_SHADE_OUTSIDE) {
-		if (shi->geometry.flippednor)
+		if (shi->flippednor)
 			inside_volume = VOL_SHADE_INSIDE;
 	}
 	
@@ -667,7 +667,7 @@ static void volume_trace(Render *re, ShadeInput *shi, ShadeResult *shr, int insi
 		
 		for (mi=re->db.render_volumes_inside.first; mi; mi=mi->next) {
 			/* weak... */
-			if (mi->ma == shi->material.mat) render_this=1;
+			if (mi->ma == shi->mat) render_this=1;
 		}
 		if (!render_this) return;
 	}
@@ -675,13 +675,13 @@ static void volume_trace(Render *re, ShadeInput *shi, ShadeResult *shr, int insi
 
 	if (inside_volume == VOL_SHADE_INSIDE)
 	{
-		startco = shi->geometry.camera_co;
-		endco = shi->geometry.co;
+		startco = shi->camera_co;
+		endco = shi->co;
 		
 		if (trace_behind) {
 			if (!ztransp)
 				/* trace behind the volume object */
-				vol_trace_behind(re, shi, shi->primitive.vlr, endco, col);
+				vol_trace_behind(re, shi, shi->vlr, endco, col);
 		} else {
 			/* we're tracing through the volume between the camera 
 			 * and a solid surface, so use that pre-shaded radiance */
@@ -693,16 +693,16 @@ static void volume_trace(Render *re, ShadeInput *shi, ShadeResult *shr, int insi
 	}
 	/* trace to find a backface, the other side bounds of the volume */
 	/* (ray intersect ignores front faces here) */
-	else if (vol_get_bounds(re, shi, shi->geometry.co, shi->geometry.view, hitco, &is, VOL_BOUNDS_DEPTH))
+	else if (vol_get_bounds(re, shi, shi->co, shi->view, hitco, &is, VOL_BOUNDS_DEPTH))
 	{
 		VlakRen *vlr = (VlakRen *)is.hit.face;
 		
-		startco = shi->geometry.co;
+		startco = shi->co;
 		endco = hitco;
 		
 		if (!ztransp) {
 			/* if it's another face in the same material */
-			if (vlr->mat == shi->material.mat) {
+			if (vlr->mat == shi->mat) {
 				/* trace behind the 2nd (raytrace) hit point */
 				vol_trace_behind(re, shi, (VlakRen *)is.hit.face, endco, col);
 			} else {
@@ -739,14 +739,14 @@ void shade_volume_shadow(Render *re, ShadeInput *shi, ShadeResult *shr, Isect *l
 	
 	/* if 1st hit normal is facing away from the camera, 
 	 * then we're inside the volume already. */
-	if (shi->geometry.flippednor) {
+	if (shi->flippednor) {
 		startco = last_is->start;
-		endco = shi->geometry.co;
+		endco = shi->co;
 	}
 	/* trace to find a backface, the other side bounds of the volume */
 	/* (ray intersect ignores front faces here) */
-	else if (vol_get_bounds(re, shi, shi->geometry.co, shi->geometry.view, hitco, &is, VOL_BOUNDS_DEPTH)) {
-		startco = shi->geometry.co;
+	else if (vol_get_bounds(re, shi, shi->co, shi->view, hitco, &is, VOL_BOUNDS_DEPTH)) {
+		startco = shi->co;
 		endco = hitco;
 	}
 	else {
@@ -780,24 +780,24 @@ void shade_volume_inside(Render *re, ShadeInput *shi, ShadeResult *shr)
 	
 	/* XXX: extend to multiple volumes perhaps later */
 	for(m=re->db.render_volumes_inside.first; m; m=m->next)
-		if(m->obi->lay & shi->shading.lay)
+		if(m->obi->lay & shi->lay)
 			break;
 	
 	if(!m)
 		return;
 
-	mat_backup = shi->material.mat;
-	obi_backup = shi->primitive.obi;
+	mat_backup = shi->mat;
+	obi_backup = shi->obi;
 
-	shi->material.mat = m->ma;
-	shi->primitive.obi = m->obi;
-	shi->primitive.obr = m->obi->obr;
+	shi->mat = m->ma;
+	shi->obi = m->obi;
+	shi->obr = m->obi->obr;
 	
 	volume_trace(re, shi, shr, VOL_SHADE_INSIDE);
 	shr->alpha += prev_alpha;
 	CLAMP(shr->alpha, 0.f, 1.f);
 	
-	shi->material.mat = mat_backup;
-	shi->primitive.obi = obi_backup;
-	shi->primitive.obr = obi_backup->obr;
+	shi->mat = mat_backup;
+	shi->obi = obi_backup;
+	shi->obr = obi_backup->obr;
 }

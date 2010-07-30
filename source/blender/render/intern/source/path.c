@@ -63,29 +63,29 @@ static void shadeinput_from_hit(Render *re, RenderLayer *rl, ShadeInput *shi, Hi
 {
 	memset(shi, 0, sizeof(ShadeInput));
 
-	copy_v3_v3(shi->geometry.view, view);
-	copy_v3_v3(shi->geometry.co, hit->co);
+	copy_v3_v3(shi->view, view);
+	copy_v3_v3(shi->co, hit->co);
 
-	shi->material.mat_override= (rl)? rl->mat_override: NULL;
-	shi->material.except_override= (rl)? rl->except_override: NULL;
-	shi->material.mat= hit->vlr->mat;
+	shi->mat_override= (rl)? rl->mat_override: NULL;
+	shi->except_override= (rl)? rl->except_override: NULL;
+	shi->mat= hit->vlr->mat;
 	if(hit->quad)
 		shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 2, 3);
 	else
 		shade_input_set_triangle_i(re, shi, hit->obi, hit->vlr, 0, 1, 2);
 	shade_input_init_material(re, shi);
 
-	shi->geometry.uvw[0]= -hit->u;
-	shi->geometry.uvw[1]= -hit->v;
-	shi->geometry.uvw[2]= 1.0f + hit->u + hit->v;
-	zero_v3(shi->geometry.duvw_dx);
-	zero_v3(shi->geometry.duvw_dy);
+	shi->uvw[0]= -hit->u;
+	shi->uvw[1]= -hit->v;
+	shi->uvw[2]= 1.0f + hit->u + hit->v;
+	zero_v3(shi->duvw_dx);
+	zero_v3(shi->duvw_dy);
 
 	/*shade_input_set_normals(shi);*/
 	shade_input_set_shade_texco(re, shi);
-	copy_v3_v3(shi->geometry.vn, hit->n);
+	copy_v3_v3(shi->vn, hit->n);
 
-	if(dot_v3v3(shi->geometry.facenor, shi->geometry.view) > 0.0f)
+	if(dot_v3v3(shi->facenor, shi->view) > 0.0f)
 		shade_input_flip_normals(shi);
 }
 
@@ -137,7 +137,7 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 
 		shadeinput_from_hit(re, rl, &shi, &to, view);
 
-		mat_shading_begin(re, &shi, &shi.material, 1);
+		mat_shading_begin(re, &shi, 1);
 
 		/* generate new ray */
 		if(!hemi) {
@@ -149,15 +149,15 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 
 		sample_project_hemi_cosine_weighted(to.dir, r);
 
-		copy_v3_v3(basis[2], shi.geometry.vn);
-		ortho_basis_v3v3_v3(basis[0], basis[1], shi.geometry.vn);
+		copy_v3_v3(basis[2], shi.vn);
+		ortho_basis_v3v3_v3(basis[0], basis[1], shi.vn);
 		mul_m3_v3(basis, to.dir);
 
 		/* sample emit & bsdf */
-		mat_emit(sample, &shi.material, &shi.geometry, shi.shading.thread);
-		mat_bsdf_f(bsdf, &shi.material, &shi.geometry, shi.shading.thread, to.dir, BSDF_DIFFUSE);
+		mat_emit(sample, &shi);
+		mat_bsdf_f(bsdf, &shi, to.dir, BSDF_DIFFUSE);
 
-		mat_shading_end(re, &shi.material);
+		mat_shading_end(re, &shi);
 
 		if(!is_zero_v3(bsdf)) {
 			/* russian roulette */
@@ -173,7 +173,7 @@ static float integrate_path(Render *re, RenderLayer *rl, int thread, Hit *from, 
 				nsample[0]= bsdf[0]*nsample[0];
 				nsample[1]= bsdf[1]*nsample[1];
 				nsample[2]= bsdf[2]*nsample[2];
-				mul_v3_fl(nsample, (float)M_PI/(probability*dot_v3v3(to.dir, shi.geometry.vn)));
+				mul_v3_fl(nsample, (float)M_PI/(probability*dot_v3v3(to.dir, shi.vn)));
 
 				/* accumulate */
 				add_v3_v3v3(sample, sample, nsample);

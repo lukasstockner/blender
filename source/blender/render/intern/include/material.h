@@ -27,17 +27,14 @@
 
 struct Render;
 struct ShadeInput;
-struct ShadeGeometry;
-struct ShadeMaterial;
 
 /* Material
  *
  * Begin/end shading for a given location and view vector. Getting
  * color, alpha, bsdf, emit, .. must be done between begin and end. */
 
-void mat_shading_begin(struct Render *re, struct ShadeInput *shi,
-	struct ShadeMaterial *smat, int do_textures);
-void mat_shading_end(struct Render *re, struct ShadeMaterial *smat);
+void mat_shading_begin(struct Render *re, struct ShadeInput *shi, int do_textures);
+void mat_shading_end(struct Render *re, struct ShadeInput *shi);
 
 /* BSDF: combination of brdf and btdf
 
@@ -53,27 +50,25 @@ void mat_shading_end(struct Render *re, struct ShadeMaterial *smat);
 #define BSDF_TRANSMISSION	4
 #define BSDF_AREA_FF_HACK	8
 
-void mat_bsdf_f(float bsdf[3],
-	struct ShadeMaterial *mat, struct ShadeGeometry *geom, int thread, float lv[3], int flag);
-void mat_bsdf_sample(float lv[3], float pdf[3],
-	struct ShadeMaterial *mat, struct ShadeGeometry *geom, int flag, float r[2]);
+void mat_bsdf_f(float bsdf[3], struct ShadeInput *shi, float lv[3], int flag);
+void mat_bsdf_sample(float lv[3], float pdf[3], struct ShadeInput *shi, int flag, float r[2]);
 
 /* Color: diffuse part of bsdf integrated over hemisphere, result
    will be in the range 0 to 1 for physically correct results */
 
-void mat_color(float color[3], struct ShadeMaterial *mat);
+void mat_color(float color[3], struct ShadeInput *shi);
 
 /* Color: transmission part of bsdf integrated over hemisphere, result
    will be in the range 0 to 1 for physically correct results. 
    converted to grayscale currently since rasterizer does not support
    opacity values per RGB channel. */
 
-float mat_alpha(struct ShadeMaterial *mat);
+float mat_alpha(struct ShadeInput *shi);
 
 /* Emission: light emitted in direction geom->view
    unit is luminance, lm/(m^2.sr) */
 
-void mat_emit(float emit[3], struct ShadeMaterial *mat, struct ShadeGeometry *geom, int thread);
+void mat_emit(float emit[3], struct ShadeInput *shi);
 
 /* Displacement in camere space coordinates at current location,
    this can be called outside of mat_shading_begin/end */

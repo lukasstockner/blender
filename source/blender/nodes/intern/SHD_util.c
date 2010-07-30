@@ -83,12 +83,12 @@ void ntreeShaderExecTree(bNodeTree *ntree, Render *re, ShadeInput *shi, ShadeRes
 	scd.re= re;
 	scd.shi= shi;
 	scd.shr= shr;
-	scd.shr->indexma = shi->material.index;
+	scd.shr->indexma = shi->index;
 	
 	/* each material node has own local shaderesult, with optional copying */
 	memset(shr, 0, sizeof(ShadeResult));
 
-	ntreeExecTree(ntree, &scd, shi->shading.thread);	/* threads */
+	ntreeExecTree(ntree, &scd, shi->thread);	/* threads */
 	
 	/* better not allow negative for now */
 	if(shr->combined[0]<0.0f) shr->combined[0]= 0.0f;

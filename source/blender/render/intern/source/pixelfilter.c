@@ -194,7 +194,7 @@ int pxf_mask_count(RenderSampleData *rsd, unsigned short mask)
 void pxf_mask_offset(RenderSampleData *rsd, unsigned short mask, float ofs[2])
 {
 	float sum[2], tmp[2];
-	int i;
+	int i, tot= 0;
 
 	zero_v2(sum);
 
@@ -202,10 +202,12 @@ void pxf_mask_offset(RenderSampleData *rsd, unsigned short mask, float ofs[2])
 		if(mask & (1<<i)) {
 			pxf_sample_offset(rsd, i, tmp);
 			add_v2_v2(sum, tmp);
+			tot++;
 		}
 	}
 
-	copy_v2_v2(ofs, sum);
+	if(tot)
+		mul_v2_v2fl(ofs, sum, 1.0f/tot);
 }
 
 void pxf_sample_offset(RenderSampleData *rsd, int sample, float ofs[2])

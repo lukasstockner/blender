@@ -395,7 +395,7 @@ typedef struct RenderData {
 	/* path tracing */
 	int integrator;
 	int path_samples;
-	int raytrace_all;
+	int path_pad;
 
 	/* subdivision */
 	float subdivision_rate;

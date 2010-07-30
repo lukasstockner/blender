@@ -162,28 +162,28 @@ static void bake_set_shade_input(Render *re, ObjectInstanceRen *obi, VlakRen *vl
 		shade_input_set_triangle_i(re, shi, obi, vlr, 0, 1, 2);
 		
 	/* cache for shadow */
-	shi->shading.samplenr= re->sample.shadowsamplenr[shi->shading.thread]++;
+	shi->samplenr= re->sample.shadowsamplenr[shi->thread]++;
 
-	shi->shading.mask= 0xFFFF; /* all samples */
+	shi->mask= 0xFFFF; /* all samples */
 	
-	shi->geometry.uvw[0]= u;
-	shi->geometry.uvw[1]= v;
-	shi->geometry.uvw[2]= 1.0f - u - v;
-	shi->geometry.xs= x;
-	shi->geometry.ys= y;
+	shi->uvw[0]= u;
+	shi->uvw[1]= v;
+	shi->uvw[2]= 1.0f - u - v;
+	shi->xs= x;
+	shi->ys= y;
 	
 	shade_input_set_uv(shi);
 	shade_input_set_normals(shi);
 
 	/* no normal flip */
-	if(shi->geometry.flippednor)
+	if(shi->flippednor)
 		shade_input_flip_normals(shi);
 
 	/* set up view vector to look right at the surface (note that the normal
 	 * is negated in the renderer so it does not need to be done here) */
-	shi->geometry.view[0]= shi->geometry.vn[0];
-	shi->geometry.view[1]= shi->geometry.vn[1];
-	shi->geometry.view[2]= shi->geometry.vn[2];
+	shi->view[0]= shi->vn[0];
+	shi->view[1]= shi->vn[1];
+	shi->view[2]= shi->vn[2];
 
 	shade_input_init_material(re, shi);
 }
@@ -193,13 +193,13 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	BakeShade *bs= handle;
 	Render *re= bs->re;
 	ShadeResult shr;
-	VlakRen *vlr= shi->primitive.vlr;
+	VlakRen *vlr= shi->vlr;
 	
 	if(bs->type==RE_BAKE_AO) {
 		shade_ao_env_indirect(re, shi);
 
 		if(re->r.bake_flag & R_BAKE_NORMALIZE) {
-			copy_v3_v3(shr.combined, shi->shading.ao);
+			copy_v3_v3(shr.combined, shi->ao);
 		}
 		else {
 			zero_v3(shr.combined);
@@ -208,16 +208,16 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 	}
 	else {
 		if (bs->type==RE_BAKE_SHADOW) /* Why do shadows set the color anyhow?, ignore material color for baking */
-			shi->material.r = shi->material.g = shi->material.b = 1.0f;
+			shi->r = shi->g = shi->b = 1.0f;
 	
 		shade_input_set_shade_texco(re, shi);
 		
 		if(ELEM3(bs->type, RE_BAKE_NORMALS, RE_BAKE_TEXTURE, RE_BAKE_SHADOW))
-			shi->shading.combinedflag &= ~(SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT);
+			shi->combinedflag &= ~(SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT);
 		
-		if(shi->material.mat->nodetree && shi->material.mat->use_nodes) {
-			ntreeShaderExecTree(shi->material.mat->nodetree, re, shi, &shr);
-			shi->material.mat= vlr->mat;		/* shi->material.mat is being set in nodetree */
+		if(shi->mat->nodetree && shi->mat->use_nodes) {
+			ntreeShaderExecTree(shi->mat->nodetree, re, shi, &shr);
+			shi->mat= vlr->mat;		/* shi->mat is being set in nodetree */
 		}
 		else
 			shade_material_loop(re, shi, &shr);
@@ -225,7 +225,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 		if(bs->type==RE_BAKE_NORMALS) {
 			float nor[3];
 
-			copy_v3_v3(nor, shi->geometry.vn);
+			copy_v3_v3(nor, shi->vn);
 
 			if(re->r.bake_normal_space == R_BAKE_SPACE_CAMERA);
 			else if(re->r.bake_normal_space == R_BAKE_SPACE_TANGENT) {
@@ -238,9 +238,9 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 					copy_v3_v3(mat[2], tvn);
 				}
 				else {
-					copy_v3_v3(mat[0], shi->texture.nmaptang);
-					cross_v3_v3v3(mat[1], shi->geometry.vn, shi->texture.nmaptang);
-					copy_v3_v3(mat[2], shi->geometry.vn);
+					copy_v3_v3(mat[0], shi->nmaptang);
+					cross_v3_v3v3(mat[1], shi->vn, shi->nmaptang);
+					copy_v3_v3(mat[2], shi->vn);
 				}
 
 				invert_m3_m3(imat, mat);
@@ -258,14 +258,14 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int quad, int 
 			shr.combined[2]= nor[2]/2.0f + 0.5f;
 		}
 		else if(bs->type==RE_BAKE_TEXTURE) {
-			shr.combined[0]= shi->material.r;
-			shr.combined[1]= shi->material.g;
-			shr.combined[2]= shi->material.b;
-			shr.alpha = shi->material.alpha;
+			shr.combined[0]= shi->r;
+			shr.combined[1]= shi->g;
+			shr.combined[2]= shi->b;
+			shr.alpha = shi->alpha;
 		}
 		else if(bs->type==RE_BAKE_SHADOW) {
 			copy_v3_v3(shr.combined, shr.shad);
-			shr.alpha = shi->material.alpha;
+			shr.alpha = shi->alpha;
 		}
 	}
 	
@@ -444,23 +444,23 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 	/* renderco */
 	l= 1.0f-u-v;
 	
-	shi->geometry.co[0]= l*v3[0]+u*v1[0]+v*v2[0];
-	shi->geometry.co[1]= l*v3[1]+u*v1[1]+v*v2[1];
-	shi->geometry.co[2]= l*v3[2]+u*v1[2]+v*v2[2];
+	shi->co[0]= l*v3[0]+u*v1[0]+v*v2[0];
+	shi->co[1]= l*v3[1]+u*v1[1]+v*v2[1];
+	shi->co[2]= l*v3[2]+u*v1[2]+v*v2[2];
 	
 	if(obi->flag & R_TRANSFORMED)
-		mul_m4_v3(obi->mat, shi->geometry.co);
+		mul_m4_v3(obi->mat, shi->co);
 	
-	copy_v3_v3(shi->geometry.dxco, bs->dxco);
-	copy_v3_v3(shi->geometry.dyco, bs->dyco);
+	copy_v3_v3(shi->dxco, bs->dxco);
+	copy_v3_v3(shi->dyco, bs->dyco);
 
 	quad= bs->quad;
 	bake_set_shade_input(re, obi, vlr, shi, quad, 0, x, y, u, v);
 
 	if(bs->type==RE_BAKE_NORMALS && re->r.bake_normal_space==R_BAKE_SPACE_TANGENT) {
 		shade_input_set_shade_texco(re, shi);
-		copy_v3_v3(tvn, shi->geometry.vn);
-		copy_v3_v3(ttang, shi->texture.nmaptang);
+		copy_v3_v3(tvn, shi->vn);
+		copy_v3_v3(ttang, shi->nmaptang);
 	}
 
 	/* if we are doing selected to active baking, find point on other face */
@@ -474,7 +474,7 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 		memset(&minisec, 0, sizeof(minisec));
 		minco[0]= minco[1]= minco[2]= 0.0f;
 		
-		copy_v3_v3(bs->dir, shi->geometry.vn);
+		copy_v3_v3(bs->dir, shi->vn);
 		
 		for(sign=-1; sign<=1; sign+=2) {
 			memset(&isec, 0, sizeof(isec));
@@ -485,8 +485,8 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 			isec.userdata= bs->actob;
 			isec.skip = RE_SKIP_VLR_NEIGHBOUR|RE_SKIP_VLR_BAKE_CHECK;
 
-			if(bake_intersect_tree(re, re->db.raytree, &isec, shi->geometry.co, shi->geometry.vn, sign, co, &dist)) {
-				if(!hit || len_v3v3(shi->geometry.co, co) < len_v3v3(shi->geometry.co, minco)) {
+			if(bake_intersect_tree(re, re->db.raytree, &isec, shi->co, shi->vn, sign, co, &dist)) {
+				if(!hit || len_v3v3(shi->co, co) < len_v3v3(shi->co, minco)) {
 					minisec= isec;
 					mindist= dist;
 					copy_v3_v3(minco, co);
@@ -509,7 +509,7 @@ static void do_bake_shade(void *handle, int x, int y, float u, float v)
 			obi= (ObjectInstanceRen*)minisec.hit.ob;
 			vlr= (VlakRen*)minisec.hit.face;
 			quad= (minisec.isect == 2);
-			copy_v3_v3(shi->geometry.co, minco);
+			copy_v3_v3(shi->co, minco);
 			
 			u= -minisec.u;
 			v= -minisec.v;
@@ -718,15 +718,15 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	for(a=0; a<re->r.threads; a++) {
 		/* set defaults in handles */
 		handles[a].re= re;
-		handles[a].ssamp.shi[0].shading.lay= re->db.lay;
+		handles[a].ssamp.shi[0].lay= re->db.lay;
 		
 		if (type==RE_BAKE_SHADOW) {
-			handles[a].ssamp.shi[0].shading.passflag= SCE_PASS_SHADOW;
+			handles[a].ssamp.shi[0].passflag= SCE_PASS_SHADOW;
 		} else {
-			handles[a].ssamp.shi[0].shading.passflag= SCE_PASS_COMBINED;
+			handles[a].ssamp.shi[0].passflag= SCE_PASS_COMBINED;
 		}
-		handles[a].ssamp.shi[0].shading.combinedflag= ~(SCE_PASS_SPEC);
-		handles[a].ssamp.shi[0].shading.thread= a;
+		handles[a].ssamp.shi[0].combinedflag= ~(SCE_PASS_SPEC);
+		handles[a].ssamp.shi[0].thread= a;
 		handles[a].ssamp.tot= 1;
 		
 		handles[a].type= type;

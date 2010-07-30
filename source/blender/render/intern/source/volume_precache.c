@@ -482,8 +482,8 @@ static void *vol_precache_part(void *data)
 					continue;
 				}
 				
-				copy_v3_v3(shi->geometry.view, co);
-				normalize_v3(shi->geometry.view);
+				copy_v3_v3(shi->view, co);
+				normalize_v3(shi->view);
 				vol_get_scattering(re, shi, scatter_col, co);
 			
 				obi->volume_precache->data_r[i] = scatter_col[0];
@@ -502,15 +502,15 @@ static void *vol_precache_part(void *data)
 static void precache_setup_shadeinput(Render *re, ObjectInstanceRen *obi, Material *ma, ShadeInput *shi)
 {
 	memset(shi, 0, sizeof(ShadeInput)); 
-	shi->shading.depth= 1;
-	shi->shading.mask= 1;
-	shi->material.mat = ma;
-	shi->primitive.vlr = NULL;
-	memcpy(&shi->material.r, &shi->material.mat->r, 23*sizeof(float));	// note, keep this synced with render_types.h
-	shi->material.har= shi->material.mat->har;
-	shi->primitive.obi= obi;
-	shi->primitive.obr= obi->obr;
-	shi->shading.lay = re->db.lay;
+	shi->depth= 1;
+	shi->mask= 1;
+	shi->mat = ma;
+	shi->vlr = NULL;
+	memcpy(&shi->r, &shi->mat->r, 23*sizeof(float));	// note, keep this synced with render_types.h
+	shi->har= shi->mat->har;
+	shi->obi= obi;
+	shi->obr= obi->obr;
+	shi->lay = re->db.lay;
 }
 
 static void precache_init_parts(Render *re, RayObject *tree, ShadeInput *shi, ObjectInstanceRen *obi, int totthread, int *parts)

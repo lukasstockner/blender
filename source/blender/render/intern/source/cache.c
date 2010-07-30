@@ -55,7 +55,7 @@ static int mat_need_cache(Render *re, ShadeInput *shi)
 {
 	if(!mat_need_ao_env_indirect(re, shi))
 		return 0;
-	else if(!re->db.sss_pass && mat_has_only_sss(shi->material.mat))
+	else if(!re->db.sss_pass && mat_has_only_sss(shi->mat))
 		return 0;
 	
 	return 1;
@@ -84,13 +84,13 @@ static PixelCacheSample *find_sample(PixelCache *cache, int x, int y)
 int pixel_cache_sample(PixelCache *cache, ShadeInput *shi)
 {
 	PixelCacheSample *samples[4], *sample;
-	float *co= shi->geometry.co;
-	float *n= shi->geometry.vn;
-	int x= shi->geometry.xs;
-	int y= shi->geometry.ys;
-	float *ao= shi->shading.ao;
-	float *env= shi->shading.env;
-	float *indirect= shi->shading.indirect;
+	float *co= shi->co;
+	float *n= shi->vn;
+	int x= shi->xs;
+	int y= shi->ys;
+	float *ao= shi->ao;
+	float *env= shi->env;
+	float *indirect= shi->indirect;
 	float wn[4], wz[4], wb[4], tx, ty, w, totw, mino, maxo;
 	float d[3], dist2;
 	int i, x1, y1, x2, y2;
@@ -225,20 +225,20 @@ PixelCache *pixel_cache_create(Render *re, RenderPart *pa, ShadeSample *ssamp)
 			shade_samples_from_pixel(re, ssamp, &row[0], x, y);
 
 			shi= ssamp->shi;
-			if(shi->primitive.vlr && mat_need_cache(re, shi)) {
+			if(shi->vlr && mat_need_cache(re, shi)) {
 				disk_occlusion_sample_direct(re, shi);
 
-				copy_v3_v3(sample->co, shi->geometry.co);
-				copy_v3_v3(sample->n, shi->geometry.vno);
-				copy_v3_v3(sample->ao, shi->shading.ao);
-				copy_v3_v3(sample->env, shi->shading.env);
-				copy_v3_v3(sample->indirect, shi->shading.indirect);
+				copy_v3_v3(sample->co, shi->co);
+				copy_v3_v3(sample->n, shi->vno);
+				copy_v3_v3(sample->ao, shi->ao);
+				copy_v3_v3(sample->env, shi->env);
+				copy_v3_v3(sample->indirect, shi->indirect);
 				sample->intensity= MAX3(sample->ao[0], sample->ao[1], sample->ao[2]);
 				sample->intensity= MAX2(sample->intensity, MAX3(sample->env[0], sample->env[1], sample->env[2]));
 				sample->intensity= MAX2(sample->intensity, MAX3(sample->indirect[0], sample->indirect[1], sample->indirect[2]));
-				sample->dist2= dot_v3v3(shi->geometry.dxco, shi->geometry.dxco) + dot_v3v3(shi->geometry.dyco, shi->geometry.dyco);
-				sample->x= shi->geometry.xs;
-				sample->y= shi->geometry.ys;
+				sample->dist2= dot_v3v3(shi->dxco, shi->dxco) + dot_v3v3(shi->dyco, shi->dyco);
+				sample->x= shi->xs;
+				sample->y= shi->ys;
 				sample->filled= 1;
 			}
 
@@ -265,16 +265,16 @@ void pixel_cache_insert_sample(PixelCache *cache, ShadeInput *shi)
 	if(!(cache->sample && cache->step))
 		return;
 
-	sample= &cache->sample[(shi->geometry.ys-cache->y)*cache->w + (shi->geometry.xs-cache->x)];
-	copy_v3_v3(sample->co, shi->geometry.co);
-	copy_v3_v3(sample->n, shi->geometry.vno);
-	copy_v3_v3(sample->ao, shi->shading.ao);
-	copy_v3_v3(sample->env, shi->shading.env);
-	copy_v3_v3(sample->indirect, shi->shading.indirect);
+	sample= &cache->sample[(shi->ys-cache->y)*cache->w + (shi->xs-cache->x)];
+	copy_v3_v3(sample->co, shi->co);
+	copy_v3_v3(sample->n, shi->vno);
+	copy_v3_v3(sample->ao, shi->ao);
+	copy_v3_v3(sample->env, shi->env);
+	copy_v3_v3(sample->indirect, shi->indirect);
 	sample->intensity= MAX3(sample->ao[0], sample->ao[1], sample->ao[2]);
 	sample->intensity= MAX2(sample->intensity, MAX3(sample->env[0], sample->env[1], sample->env[2]));
 	sample->intensity= MAX2(sample->intensity, MAX3(sample->indirect[0], sample->indirect[1], sample->indirect[2]));
-	sample->dist2= dot_v3v3(shi->geometry.dxco, shi->geometry.dxco) + dot_v3v3(shi->geometry.dyco, shi->geometry.dyco);
+	sample->dist2= dot_v3v3(shi->dxco, shi->dxco) + dot_v3v3(shi->dyco, shi->dyco);
 	sample->filled= 1;
 }
 
@@ -353,8 +353,8 @@ void surface_cache_free(RenderDB *rdb)
 
 void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
 {
-	StrandRen *strand= shi->primitive.strand;
-	int *face, *index = render_strand_get_face(shi->primitive.obr, strand, 0);
+	StrandRen *strand= shi->strand;
+	int *face, *index = render_strand_get_face(shi->obr, strand, 0);
 	float w[4], *co1, *co2, *co3, *co4;
 
 	if(cache && cache->face && cache->co && cache->ao && index) {
@@ -367,31 +367,31 @@ void surface_cache_sample(SurfaceCache *cache, ShadeInput *shi)
 
 		interp_weights_face_v3(w, co1, co2, co3, co4, strand->vert->co);
 
-		zero_v3(shi->shading.ao);
-		zero_v3(shi->shading.env);
-		zero_v3(shi->shading.indirect);
+		zero_v3(shi->ao);
+		zero_v3(shi->env);
+		zero_v3(shi->indirect);
 
-		madd_v3_v3fl(shi->shading.ao, cache->ao[face[0]], w[0]);
-		madd_v3_v3fl(shi->shading.env, cache->env[face[0]], w[0]);
-		madd_v3_v3fl(shi->shading.indirect, cache->indirect[face[0]], w[0]);
-		madd_v3_v3fl(shi->shading.ao, cache->ao[face[1]], w[1]);
-		madd_v3_v3fl(shi->shading.env, cache->env[face[1]], w[1]);
-		madd_v3_v3fl(shi->shading.indirect, cache->indirect[face[1]], w[1]);
-		madd_v3_v3fl(shi->shading.ao, cache->ao[face[2]], w[2]);
-		madd_v3_v3fl(shi->shading.env, cache->env[face[2]], w[2]);
-		madd_v3_v3fl(shi->shading.indirect, cache->indirect[face[2]], w[2]);
+		madd_v3_v3fl(shi->ao, cache->ao[face[0]], w[0]);
+		madd_v3_v3fl(shi->env, cache->env[face[0]], w[0]);
+		madd_v3_v3fl(shi->indirect, cache->indirect[face[0]], w[0]);
+		madd_v3_v3fl(shi->ao, cache->ao[face[1]], w[1]);
+		madd_v3_v3fl(shi->env, cache->env[face[1]], w[1]);
+		madd_v3_v3fl(shi->indirect, cache->indirect[face[1]], w[1]);
+		madd_v3_v3fl(shi->ao, cache->ao[face[2]], w[2]);
+		madd_v3_v3fl(shi->env, cache->env[face[2]], w[2]);
+		madd_v3_v3fl(shi->indirect, cache->indirect[face[2]], w[2]);
 		if(face[3]) {
-			madd_v3_v3fl(shi->shading.ao, cache->ao[face[3]], w[3]);
-			madd_v3_v3fl(shi->shading.env, cache->env[face[3]], w[3]);
-			madd_v3_v3fl(shi->shading.indirect, cache->indirect[face[3]], w[3]);
+			madd_v3_v3fl(shi->ao, cache->ao[face[3]], w[3]);
+			madd_v3_v3fl(shi->env, cache->env[face[3]], w[3]);
+			madd_v3_v3fl(shi->indirect, cache->indirect[face[3]], w[3]);
 		}
 	}
 	else {
-		shi->shading.ao[0]= 1.0f;
-		shi->shading.ao[1]= 1.0f;
-		shi->shading.ao[2]= 1.0f;
-		zero_v3(shi->shading.env);
-		zero_v3(shi->shading.indirect);
+		shi->ao[0]= 1.0f;
+		shi->ao[1]= 1.0f;
+		shi->ao[2]= 1.0f;
+		zero_v3(shi->env);
+		zero_v3(shi->indirect);
 	}
 }
 
@@ -817,17 +817,17 @@ static void irr_cache_add(Render *re, ShadeInput *shi, IrrCache *cache, float *a
 	
 	/* do raytracing */
 
-	if(method == WO_LIGHT_SHADE_FULL && preprocess && !shi->primitive.strand) {
+	if(method == WO_LIGHT_SHADE_FULL && preprocess && !shi->strand) {
 		/* for full shading, we need material & textures */
 		shade_input_init_material(re, shi);
 		shade_input_set_shade_texco(re, shi);
-		mat_shading_begin(re, shi, &shi->material, 1);
+		mat_shading_begin(re, shi, 1);
 	}
 
 	ray_ao_env_indirect(re, shi, ao, env, indirect, ldir_ao, ldir_env, ldir_indirect, &Rmean, 1);
 
 	if(method == WO_LIGHT_SHADE_FULL)
-		mat_shading_end(re, &shi->material);
+		mat_shading_end(re, shi);
 
 	/* save sample to cache? */
 	if(!1) ///*(MAX_ERROR != 0) &&*/ (*ao > EPSILON)) { // XXX?
@@ -1109,16 +1109,15 @@ void irr_cache_fill(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ss
 
 					for(b=0; b<ssamp->tot; b++) {
 						ShadeInput *shi= &ssamp->shi[b];
-						ShadeGeometry *geom= &shi->geometry;
-						float *ao= (re->db.wrld.mode & WO_AMB_OCC)? shi->shading.ao: NULL;
-						float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->shading.env: NULL;
-						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->shading.indirect: NULL;
+						float *ao= (re->db.wrld.mode & WO_AMB_OCC)? shi->ao: NULL;
+						float *env= (re->db.wrld.mode & WO_ENV_LIGHT)? shi->env: NULL;
+						float *indirect= (re->db.wrld.mode & WO_INDIRECT_LIGHT)? shi->indirect: NULL;
 						int added;
 
 						if(!mat_need_cache(re, shi))
 							continue;
 
-						if(shi->primitive.strand) {
+						if(shi->strand) {
 							added= 0;
 #if 0
 							float co[3], n[3];
@@ -1127,13 +1126,13 @@ void irr_cache_fill(Render *re, RenderPart *pa, RenderLayer *rl, ShadeSample *ss
 							shade_strand_surface_co(shi, co, n);
 							added= irr_cache_lookup(re, shi, cache,
 								ao, env, indirect,
-								co, geom->dxco, geom->dyco, n, n, 1);
+								co, shi->dxco, shi->dyco, n, n, 1);
 #endif
 						}
 						else {
 							added= irr_cache_lookup(re, shi, cache,
 								ao, env, indirect,
-								geom->co, geom->dxco, geom->dyco, geom->vno, geom->vn, 1);
+								shi->co, shi->dxco, shi->dyco, shi->vno, shi->vn, 1);
 						}
 						
 						if(added) {

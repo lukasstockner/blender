@@ -204,7 +204,6 @@ class RENDER_PT_shading(RenderButtonsPanel):
         if wide_ui:
             col = split.column()
         col.prop(rd, "use_raytracing")
-        col.prop(rd, "use_raytrace_all")
         col.prop(rd, "color_management")
         col.prop(rd, "alpha_mode", text="Alpha")
 

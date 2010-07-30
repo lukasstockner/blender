@@ -92,11 +92,11 @@ static int mtex_sample_old(Render *re, ShadeInput *shi, MTex *mtex, float *co, f
 	if(tex->type == TEX_NODES && tex->nodetree) {
 		/* stupid exception here .. but we have to pass shi and mtex to
 		   textures nodes for 2d mapping and color management for images */
-		return ntreeTexExecTree(tex->nodetree, texres, co, dx, dy, shi->geometry.osatex, shi->shading.thread,
+		return ntreeTexExecTree(tex->nodetree, texres, co, dx, dy, shi->osatex, shi->thread,
 			tex, mtex->which_output, re->r.cfra, (re->r.scemode & R_TEXNODE_PREVIEW) != 0, shi, mtex);
 	}
 	else
-		return tex_sample_old(re, mtex->tex, co, dx, dy, shi->geometry.osatex, texres, shi->shading.thread, mtex->which_output);
+		return tex_sample_old(re, mtex->tex, co, dx, dy, shi->osatex, texres, shi->thread, mtex->which_output);
 }
 
 static int cubemap_glob(Render *re, float *n, float x, float y, float z, float *adr1, float *adr2)
@@ -678,7 +678,7 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 		texvec[1] = mtex->projy ? co[mtex->projy - 1] : 0.f;
 		texvec[2] = mtex->projz ? co[mtex->projz - 1] : 0.f;
 
-		if (shi->geometry.osatex) {
+		if (shi->osatex) {
 			if (mtex->projx) {
 				dxt[0] = dx[mtex->projx - 1];
 				dyt[0] = dy[mtex->projx - 1];
@@ -695,12 +695,12 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 			}
 			else dxt[2] = dyt[2] = 0.f;
 		}
-		do_2d_mapping(re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt, re->r.osa);
+		do_2d_mapping(re, mtex, texvec, shi->obr, shi->vlr, shi->facenor, dxt, dyt, re->r.osa);
 
 		// translate and scale
 		texvec[0] = mtex->size[0]*(texvec[0] - 0.5f) + mtex->ofs[0] + 0.5f;
 		texvec[1] = mtex->size[1]*(texvec[1] - 0.5f) + mtex->ofs[1] + 0.5f;
-		if (shi->geometry.osatex) {
+		if (shi->osatex) {
 			dxt[0] = mtex->size[0]*dxt[0];
 			dxt[1] = mtex->size[1]*dxt[1];
 			dyt[0] = mtex->size[0]*dyt[0];
@@ -743,7 +743,7 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 		texvec[1] = mtex->size[1]*(mtex->projy ? (co[mtex->projy - 1] + mtex->ofs[1]) : mtex->ofs[1]);
 		texvec[2] = mtex->size[2]*(mtex->projz ? (co[mtex->projz - 1] + mtex->ofs[2]) : mtex->ofs[2]);
 
-		if (shi->geometry.osatex) {
+		if (shi->osatex) {
 			if (mtex->projx) {
 				dxt[0] = mtex->size[0]*dx[mtex->projx - 1];
 				dyt[0] = mtex->size[0]*dy[mtex->projx - 1];
@@ -762,7 +762,7 @@ static void texco_mapping(Render *re, ShadeInput* shi, Tex* tex, MTex* mtex, flo
 		}
 
 		if(tex->type == TEX_ENVMAP)
-			envmap_map(re, tex, texvec, dxt, dyt, shi->geometry.osatex);
+			envmap_map(re, tex, texvec, dxt, dyt, shi->osatex);
 	}
 }
 
@@ -784,10 +784,10 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
 		
 		/* separate tex switching */
-		if(shi->material.mat->septex & (1<<tex_nr)) continue;
+		if(shi->mat->septex & (1<<tex_nr)) continue;
 		
-		if(shi->material.mat->mtex[tex_nr]) {
-			mtex= shi->material.mat->mtex[tex_nr];
+		if(shi->mat->mtex[tex_nr]) {
+			mtex= shi->mat->mtex[tex_nr];
 			
 			tex= mtex->tex;
 			if(tex==0) continue;
@@ -800,16 +800,16 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 			/* which coords */
 			if(mtex->texco==TEXCO_ORCO) {
 				if(mtex->texflag & MTEX_DUPLI_MAPTO) {
-					co= shi->texture.duplilo; dx= dxt; dy= dyt;
+					co= shi->duplilo; dx= dxt; dy= dyt;
 					dxt[0]= dxt[1]= dxt[2]= 0.0f;
 					dyt[0]= dyt[1]= dyt[2]= 0.0f;
 				}
 				else {
-					co= shi->texture.lo; dx= shi->texture.dxlo; dy= shi->texture.dylo;
+					co= shi->lo; dx= shi->dxlo; dy= shi->dylo;
 				}
 			}
 			else if(mtex->texco==TEXCO_STICKY) {
-				co= shi->texture.sticky; dx= shi->texture.dxsticky; dy= shi->texture.dysticky;
+				co= shi->sticky; dx= shi->dxsticky; dy= shi->dysticky;
 			}
 			else if(mtex->texco==TEXCO_OBJECT) {
 				Object *ob= mtex->object;
@@ -817,50 +817,50 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 					co= tempvec;
 					dx= dxt;
 					dy= dyt;
-					copy_v3_v3(tempvec, shi->geometry.co);
+					copy_v3_v3(tempvec, shi->co);
 					if(mtex->texflag & MTEX_OB_DUPLI_ORIG)
-						if(shi->primitive.obi && shi->primitive.obi->duplitexmat)
-							mul_m4_v3(shi->primitive.obi->duplitexmat, tempvec);
+						if(shi->obi && shi->obi->duplitexmat)
+							mul_m4_v3(shi->obi->duplitexmat, tempvec);
 					mul_m4_v3(ob->imat, tempvec);
-					if(shi->geometry.osatex) {
-						copy_v3_v3(dxt, shi->geometry.dxco);
-						copy_v3_v3(dyt, shi->geometry.dyco);
+					if(shi->osatex) {
+						copy_v3_v3(dxt, shi->dxco);
+						copy_v3_v3(dyt, shi->dyco);
 						mul_mat3_m4_v3(ob->imat, dxt);
 						mul_mat3_m4_v3(ob->imat, dyt);
 					}
 				}
 				else {
 					/* if object doesn't exist, do not use orcos (not initialized) */
-					co= shi->geometry.co;
-					dx= shi->geometry.dxco; dy= shi->geometry.dyco;
+					co= shi->co;
+					dx= shi->dxco; dy= shi->dyco;
 				}
 			}
 			else if(mtex->texco==TEXCO_REFL) {
-				co= shi->texture.ref; dx= shi->texture.dxref; dy= shi->texture.dyref;
+				co= shi->ref; dx= shi->dxref; dy= shi->dyref;
 			}
 			else if(mtex->texco==TEXCO_NORM) {
-				co= shi->texture.orn; dx= shi->geometry.dxno; dy= shi->geometry.dyno;
+				co= shi->orn; dx= shi->dxno; dy= shi->dyno;
 			}
 			else if(mtex->texco==TEXCO_TANGENT) {
-				co= shi->geometry.tang; dx= shi->geometry.dxno; dy= shi->geometry.dyno;
+				co= shi->tang; dx= shi->dxno; dy= shi->dyno;
 			}
 			else if(mtex->texco==TEXCO_GLOB) {
-				co= shi->texture.gl; dx= shi->geometry.dxco; dy= shi->geometry.dyco;
+				co= shi->gl; dx= shi->dxco; dy= shi->dyco;
 			}
 			else if(mtex->texco==TEXCO_UV) {
 				if(mtex->texflag & MTEX_DUPLI_MAPTO) {
-					co= shi->texture.dupliuv; dx= dxt; dy= dyt;
+					co= shi->dupliuv; dx= dxt; dy= dyt;
 					dxt[0]= dxt[1]= dxt[2]= 0.0f;
 					dyt[0]= dyt[1]= dyt[2]= 0.0f;
 				}
 				else {
-					ShadeInputUV *suv= &shi->texture.uv[shi->texture.actuv];
-					int i = shi->texture.actuv;
+					ShadeInputUV *suv= &shi->uv[shi->actuv];
+					int i = shi->actuv;
 
 					if(mtex->uvname[0] != 0) {
-						for(i = 0; i < shi->texture.totuv; i++) {
-							if(strcmp(shi->texture.uv[i].name, mtex->uvname)==0) {
-								suv= &shi->texture.uv[i];
+						for(i = 0; i < shi->totuv; i++) {
+							if(strcmp(shi->uv[i].name, mtex->uvname)==0) {
+								suv= &shi->uv[i];
 								break;
 							}
 						}
@@ -873,21 +873,21 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 					// uvmapping only, calculation of normal tangent u/v partial derivatives
 					// (should not be here, dudnu, dudnv, dvdnu & dvdnv should probably be part of ShadeInputUV struct,
 					//  nu/nv in ShadeInput and this calculation should then move to shadeinput.c, shade_input_set_shade_texco() func.)
-					// NOTE: test for shi->primitive.obr->ob here, since vlr/obr/obi can be 'fake' when called from fastshade(), another reason to move it..
+					// NOTE: test for shi->obr->ob here, since vlr/obr/obi can be 'fake' when called from fastshade(), another reason to move it..
 					// NOTE: shi->v1 is NULL when called from displace_render_vert, assigning verts in this case is not trivial because the shi quad face side is not known.
-					if ((mtex->texflag & MTEX_NEW_BUMP) && shi->primitive.obr && shi->primitive.obr->ob && shi->primitive.v1) {
+					if ((mtex->texflag & MTEX_NEW_BUMP) && shi->obr && shi->obr->ob && shi->v1) {
 						if(mapto & (MAP_NORM|MAP_WARP) && !((tex->type==TEX_IMAGE) && (tex->imaflag & TEX_NORMALMAP))) {
-							MTFace* tf = render_vlak_get_tface(shi->primitive.obr, shi->primitive.vlr, i, NULL, 0);
-							int j1 = shi->primitive.i1, j2 = shi->primitive.i2, j3 = shi->primitive.i3;
+							MTFace* tf = render_vlak_get_tface(shi->obr, shi->vlr, i, NULL, 0);
+							int j1 = shi->i1, j2 = shi->i2, j3 = shi->i3;
 
-							vlr_set_uv_indices(shi->primitive.vlr, &j1, &j2, &j3);
+							vlr_set_uv_indices(shi->vlr, &j1, &j2, &j3);
 
 							// compute ortho basis around normal
 							if(!nunvdone) {
 								// render normal is negated
-								nn[0] = -shi->geometry.vn[0];
-								nn[1] = -shi->geometry.vn[1];
-								nn[2] = -shi->geometry.vn[2];
+								nn[0] = -shi->vn[0];
+								nn[1] = -shi->vn[1];
+								nn[2] = -shi->vn[2];
 								ortho_basis_v3v3_v3( nu, nv,nn);
 								nunvdone= 1;
 							}
@@ -897,10 +897,10 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 								const float an[3] = {fabsf(nn[0]), fabsf(nn[1]), fabsf(nn[2])};
 								const int a1 = (an[0] > an[1] && an[0] > an[2]) ? 1 : 0;
 								const int a2 = (an[2] > an[0] && an[2] > an[1]) ? 1 : 2;
-								const float dp1_a1 = shi->primitive.v1->co[a1] - shi->primitive.v3->co[a1];
-								const float dp1_a2 = shi->primitive.v1->co[a2] - shi->primitive.v3->co[a2];
-								const float dp2_a1 = shi->primitive.v2->co[a1] - shi->primitive.v3->co[a1];
-								const float dp2_a2 = shi->primitive.v2->co[a2] - shi->primitive.v3->co[a2];
+								const float dp1_a1 = shi->v1->co[a1] - shi->v3->co[a1];
+								const float dp1_a2 = shi->v1->co[a2] - shi->v3->co[a2];
+								const float dp2_a1 = shi->v2->co[a1] - shi->v3->co[a1];
+								const float dp2_a2 = shi->v2->co[a2] - shi->v3->co[a2];
 								const float du1 = uv1[0] - uv3[0], du2 = uv2[0] - uv3[0];
 								const float dv1 = uv1[1] - uv3[1], dv2 = uv2[1] - uv3[1];
 								const float dpdu_a1 = dv2*dp1_a1 - dv1*dp2_a1;
@@ -924,20 +924,20 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				}
 			}
 			else if(mtex->texco==TEXCO_WINDOW) {
-				co= shi->texture.winco; dx= shi->texture.dxwin; dy= shi->texture.dywin;
+				co= shi->winco; dx= shi->dxwin; dy= shi->dywin;
 			}
 			else if(mtex->texco==TEXCO_STRAND) {
 				co= tempvec; dx= dxt; dy= dyt;
-				co[0]= shi->texture.strandco;
+				co[0]= shi->strandco;
 				co[1]= co[2]= 0.0f;
-				dx[0]= shi->texture.dxstrand;
+				dx[0]= shi->dxstrand;
 				dx[1]= dx[2]= 0.0f;
-				dy[0]= shi->texture.dystrand;
+				dy[0]= shi->dystrand;
 				dy[1]= dy[2]= 0.0f;
 			}
 			else if(mtex->texco==TEXCO_STRESS) {
 				co= tempvec; dx= dxt; dy= dyt;
-				co[0]= shi->texture.stress;
+				co[0]= shi->stress;
 				co[1]= co[2]= 0.0f;
 				dx[0]= 0.0f;
 				dx[1]= dx[2]= 0.0f;
@@ -962,9 +962,9 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				// compute ortho basis around normal
 				if(!nunvdone) {
 					// render normal is negated
-					nn[0] = -shi->geometry.vn[0];
-					nn[1] = -shi->geometry.vn[1];
-					nn[2] = -shi->geometry.vn[2];
+					nn[0] = -shi->vn[0];
+					nn[1] = -shi->vn[1];
+					nn[2] = -shi->vn[2];
 					ortho_basis_v3v3_v3( nu, nv,nn);
 					nunvdone= 1;
 				}
@@ -984,7 +984,7 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 					// (which also works without osa, though of course not always good (or even very bad) results),
 					// or based on tex derivative max values (osa only). Not sure which is best...
 
-					if (!shi->geometry.osatex && (tex->type == TEX_IMAGE) && tex->ima) {
+					if (!shi->osatex && (tex->type == TEX_IMAGE) && tex->ima) {
 						// in case we have no proper derivatives, fall back to
 						// computing du/dv it based on image size
 						ImBuf* ibuf = BKE_image_get_ibuf(tex->ima, &tex->iuser);
@@ -993,7 +993,7 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 							dv = 1.f/(float)ibuf->y;
 						}
 					}
-					else if (shi->geometry.osatex) {
+					else if (shi->osatex) {
 						// we have derivatives, can compute proper du/dv
 						if (tex->type == TEX_IMAGE) {	// 2d image, use u & v max. of dx/dy 2d vecs
 							const float adx[2] = {fabsf(dx[0]), fabsf(dx[1])};
@@ -1042,9 +1042,9 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 						idu = (du < 1e-5f) ? bf : (bf/du);
 						idv = (dv < 1e-5f) ? bf : (bf/dv);
 
-						if ((mtex->texco == TEXCO_ORCO) && shi->primitive.obr && shi->primitive.obr->ob) {
-							mul_mat3_m4_v3(shi->primitive.obr->ob->imat, tu);
-							mul_mat3_m4_v3(shi->primitive.obr->ob->imat, tv);
+						if ((mtex->texco == TEXCO_ORCO) && shi->obr && shi->obr->ob) {
+							mul_mat3_m4_v3(shi->obr->ob->imat, tu);
+							mul_mat3_m4_v3(shi->obr->ob->imat, tv);
 							normalize_v3(tu);
 							normalize_v3(tv);
 						}
@@ -1144,12 +1144,12 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 						float si= 0.5*sin(texres.tin-0.5);
 						float f1, f2;
 
-						f1= shi->geometry.vn[0];
-						f2= shi->geometry.vn[1];
+						f1= shi->vn[0];
+						f2= shi->vn[1];
 						texres.nor[0]= f1*co_nor+f2*si;
 						texres.nor[1]= f2*co_nor-f1*si;
-						f1= shi->geometry.vn[1];
-						f2= shi->geometry.vn[2];
+						f1= shi->vn[1];
+						f2= shi->vn[2];
 						texres.nor[1]= f1*co_nor+f2*si;
 						texres.nor[2]= f2*co_nor-f1*si;
 					}
@@ -1165,10 +1165,10 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				if(mtex->texflag & MTEX_VIEWSPACE) {
 					// rotate to global coords
 					if(mtex->texco==TEXCO_ORCO || mtex->texco==TEXCO_UV) {
-						if(shi->primitive.vlr && shi->primitive.obr && shi->primitive.obr->ob) {
+						if(shi->vlr && shi->obr && shi->obr->ob) {
 							float len= normalize_v3(texres.nor);
 							// can be optimized... (ton)
-							mul_mat3_m4_v3(shi->primitive.obr->ob->obmat, texres.nor);
+							mul_mat3_m4_v3(shi->obr->ob->obmat, texres.nor);
 							mul_mat3_m4_v3(re->cam.viewmat, texres.nor);
 							normalize_v3(texres.nor);
 							mul_v3_fl(texres.nor, len);
@@ -1208,11 +1208,11 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				
 				if(mapto & MAP_COL) {
 					float colfac= mtex->colfac*stencilTin;
-					texture_rgb_blend(&shi->material.r, tcol, &shi->material.r, texres.tin, colfac, mtex->blendtype);
+					texture_rgb_blend(&shi->r, tcol, &shi->r, texres.tin, colfac, mtex->blendtype);
 				}
 				if(mapto & MAP_COLSPEC) {
 					float colspecfac= mtex->colspecfac*stencilTin;
-					texture_rgb_blend(&shi->material.specr, tcol, &shi->material.specr, texres.tin, colspecfac, mtex->blendtype);
+					texture_rgb_blend(&shi->specr, tcol, &shi->specr, texres.tin, colspecfac, mtex->blendtype);
 				}
 				if(mapto & MAP_COLMIR) {
 					float mirrfac= mtex->mirrfac*stencilTin;
@@ -1221,13 +1221,13 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 					if(tex->type==TEX_ENVMAP && mtex->blendtype==MTEX_BLEND) {
 						fact= texres.tin*mirrfac;
 						facm= 1.0- fact;
-						shi->material.refcol[0]= fact + facm*shi->material.refcol[0];
-						shi->material.refcol[1]= fact*tcol[0] + facm*shi->material.refcol[1];
-						shi->material.refcol[2]= fact*tcol[1] + facm*shi->material.refcol[2];
-						shi->material.refcol[3]= fact*tcol[2] + facm*shi->material.refcol[3];
+						shi->refcol[0]= fact + facm*shi->refcol[0];
+						shi->refcol[1]= fact*tcol[0] + facm*shi->refcol[1];
+						shi->refcol[2]= fact*tcol[1] + facm*shi->refcol[2];
+						shi->refcol[3]= fact*tcol[2] + facm*shi->refcol[3];
 					}
 					else {
-						texture_rgb_blend(&shi->material.mirr, tcol, &shi->material.mirr, texres.tin, mirrfac, mtex->blendtype);
+						texture_rgb_blend(&shi->mirr, tcol, &shi->mirr, texres.tin, mirrfac, mtex->blendtype);
 					}
 				}
 			}
@@ -1250,14 +1250,14 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 						if(mtex->normapspace == MTEX_NSPACE_TANGENT) {
 							/* qdn: tangent space */
 							float B[3], tv[3];
-							cross_v3_v3v3(B, shi->geometry.vn, shi->texture.nmaptang);	/* bitangent */
+							cross_v3_v3v3(B, shi->vn, shi->nmaptang);	/* bitangent */
 							/* transform norvec from tangent space to object surface in camera space */
-							tv[0] = texres.nor[0]*shi->texture.nmaptang[0] + texres.nor[1]*B[0] + texres.nor[2]*shi->geometry.vn[0];
-							tv[1] = texres.nor[0]*shi->texture.nmaptang[1] + texres.nor[1]*B[1] + texres.nor[2]*shi->geometry.vn[1];
-							tv[2] = texres.nor[0]*shi->texture.nmaptang[2] + texres.nor[1]*B[2] + texres.nor[2]*shi->geometry.vn[2];
-							shi->geometry.vn[0]= facm*shi->geometry.vn[0] + fact*tv[0];
-							shi->geometry.vn[1]= facm*shi->geometry.vn[1] + fact*tv[1];
-							shi->geometry.vn[2]= facm*shi->geometry.vn[2] + fact*tv[2];
+							tv[0] = texres.nor[0]*shi->nmaptang[0] + texres.nor[1]*B[0] + texres.nor[2]*shi->vn[0];
+							tv[1] = texres.nor[0]*shi->nmaptang[1] + texres.nor[1]*B[1] + texres.nor[2]*shi->vn[1];
+							tv[2] = texres.nor[0]*shi->nmaptang[2] + texres.nor[1]*B[2] + texres.nor[2]*shi->vn[2];
+							shi->vn[0]= facm*shi->vn[0] + fact*tv[0];
+							shi->vn[1]= facm*shi->vn[1] + fact*tv[1];
+							shi->vn[2]= facm*shi->vn[2] + fact*tv[2];
 						}
 						else {
 							float nor[3];
@@ -1269,32 +1269,32 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 								mul_mat3_m4_v3(re->cam.viewmat, nor);
 							}
 							else if(mtex->normapspace == MTEX_NSPACE_OBJECT) {
-								if(shi->primitive.obr && shi->primitive.obr->ob)
-									mul_mat3_m4_v3(shi->primitive.obr->ob->obmat, nor);
+								if(shi->obr && shi->obr->ob)
+									mul_mat3_m4_v3(shi->obr->ob->obmat, nor);
 								mul_mat3_m4_v3(re->cam.viewmat, nor);
 							}
 
 							normalize_v3(nor);
 
 							/* qdn: worldspace */
-							shi->geometry.vn[0]= facm*shi->geometry.vn[0] + fact*nor[0];
-							shi->geometry.vn[1]= facm*shi->geometry.vn[1] + fact*nor[1];
-							shi->geometry.vn[2]= facm*shi->geometry.vn[2] + fact*nor[2];
+							shi->vn[0]= facm*shi->vn[0] + fact*nor[0];
+							shi->vn[1]= facm*shi->vn[1] + fact*nor[1];
+							shi->vn[2]= facm*shi->vn[2] + fact*nor[2];
 						}
 					}
 					else {
 						if (mtex->texflag & MTEX_NEW_BUMP) {
-							shi->geometry.vn[0] = texres.nor[0];
-							shi->geometry.vn[1] = texres.nor[1];
-							shi->geometry.vn[2] = texres.nor[2];
+							shi->vn[0] = texres.nor[0];
+							shi->vn[1] = texres.nor[1];
+							shi->vn[2] = texres.nor[2];
 						}
 						else {
 							float nor[3], dot;
 	
-							if(shi->material.mat->mode & MA_TANGENT_V) {
-								shi->geometry.tang[0]+= Tnor*norfac*texres.nor[0];
-								shi->geometry.tang[1]+= Tnor*norfac*texres.nor[1];
-								shi->geometry.tang[2]+= Tnor*norfac*texres.nor[2];
+							if(shi->mat->mode & MA_TANGENT_V) {
+								shi->tang[0]+= Tnor*norfac*texres.nor[0];
+								shi->tang[1]+= Tnor*norfac*texres.nor[1];
+								shi->tang[2]+= Tnor*norfac*texres.nor[2];
 							}
 	
 							/* prevent bump to become negative normal */
@@ -1302,17 +1302,17 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 							nor[1]= Tnor*norfac*texres.nor[1];
 							nor[2]= Tnor*norfac*texres.nor[2];
 							
-							dot= 0.5f + 0.5f*dot_v3v3(nor, shi->geometry.vn);
+							dot= 0.5f + 0.5f*dot_v3v3(nor, shi->vn);
 							
-							shi->geometry.vn[0]+= dot*nor[0];
-							shi->geometry.vn[1]+= dot*nor[1];
-							shi->geometry.vn[2]+= dot*nor[2];
+							shi->vn[0]+= dot*nor[0];
+							shi->vn[1]+= dot*nor[1];
+							shi->vn[2]+= dot*nor[2];
 						}
 					}
-					normalize_v3(shi->geometry.vn);
+					normalize_v3(shi->vn);
 					
 					/* this makes sure the bump is passed on to the next texture */
-					negate_v3_v3(shi->texture.orn, shi->geometry.vn);
+					negate_v3_v3(shi->orn, shi->vn);
 					
 					/* reflection vector */
 					shade_input_calc_reflection(shi);
@@ -1325,9 +1325,9 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				if(texres.nor) {
 					float norfac= mtex->norfac;
 
-					shi->texture.displace[0]+= 0.2f*Tnor*norfac*texres.nor[0];
-					shi->texture.displace[1]+= 0.2f*Tnor*norfac*texres.nor[1];
-					shi->texture.displace[2]+= 0.2f*Tnor*norfac*texres.nor[2];
+					shi->displace[0]+= 0.2f*Tnor*norfac*texres.nor[0];
+					shi->displace[1]+= 0.2f*Tnor*norfac*texres.nor[1];
+					shi->displace[2]+= 0.2f*Tnor*norfac*texres.nor[2];
 				}
 				
 				if(rgbnor & TEX_RGB)
@@ -1336,21 +1336,21 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				factt= (0.5f-texres.tin)*mtex->dispfac*stencilTin; facmm= 1.0f-factt;
 
 				if(mtex->blendtype==MTEX_BLEND) {
-					shi->texture.displace[0]= factt*shi->geometry.vn[0] + facmm*shi->texture.displace[0];
-					shi->texture.displace[1]= factt*shi->geometry.vn[1] + facmm*shi->texture.displace[1];
-					shi->texture.displace[2]= factt*shi->geometry.vn[2] + facmm*shi->texture.displace[2];
+					shi->displace[0]= factt*shi->vn[0] + facmm*shi->displace[0];
+					shi->displace[1]= factt*shi->vn[1] + facmm*shi->displace[1];
+					shi->displace[2]= factt*shi->vn[2] + facmm*shi->displace[2];
 				}
 				else if(mtex->blendtype==MTEX_MUL) {
-					shi->texture.displace[0]*= factt*shi->geometry.vn[0];
-					shi->texture.displace[1]*= factt*shi->geometry.vn[1];
-					shi->texture.displace[2]*= factt*shi->geometry.vn[2];
+					shi->displace[0]*= factt*shi->vn[0];
+					shi->displace[1]*= factt*shi->vn[1];
+					shi->displace[2]*= factt*shi->vn[2];
 				}
 				else { /* add or sub */
 					if(mtex->blendtype==MTEX_SUB) factt= -factt;
 					else factt= factt;
-					shi->texture.displace[0]+= factt*shi->geometry.vn[0];
-					shi->texture.displace[1]+= factt*shi->geometry.vn[1];
-					shi->texture.displace[2]+= factt*shi->geometry.vn[2];
+					shi->displace[0]+= factt*shi->vn[0];
+					shi->displace[1]+= factt*shi->vn[1];
+					shi->displace[2]+= factt*shi->vn[2];
 				}
 			}
 
@@ -1365,65 +1365,65 @@ void do_material_tex(Render *re, ShadeInput *shi, int mapto_flag)
 				if(mapto & MAP_REF) {
 					float difffac= mtex->difffac*stencilTin;
 
-					shi->material.refl= texture_value_blend(mtex->def_var, shi->material.refl, texres.tin, difffac, mtex->blendtype);
-					if(shi->material.refl<0.0) shi->material.refl= 0.0;
+					shi->refl= texture_value_blend(mtex->def_var, shi->refl, texres.tin, difffac, mtex->blendtype);
+					if(shi->refl<0.0) shi->refl= 0.0;
 				}
 				if(mapto & MAP_SPEC) {
 					float specfac= mtex->specfac*stencilTin;
 					
-					shi->material.spec= texture_value_blend(mtex->def_var, shi->material.spec, texres.tin, specfac, mtex->blendtype);
-					if(shi->material.spec<0.0) shi->material.spec= 0.0;
+					shi->spec= texture_value_blend(mtex->def_var, shi->spec, texres.tin, specfac, mtex->blendtype);
+					if(shi->spec<0.0) shi->spec= 0.0;
 				}
 				if(mapto & MAP_EMIT) {
 					float emitfac= mtex->emitfac*stencilTin;
 
-					shi->material.emit= texture_value_blend(mtex->def_var, shi->material.emit, texres.tin, emitfac, mtex->blendtype);
-					if(shi->material.emit<0.0) shi->material.emit= 0.0;
+					shi->emit= texture_value_blend(mtex->def_var, shi->emit, texres.tin, emitfac, mtex->blendtype);
+					if(shi->emit<0.0) shi->emit= 0.0;
 				}
 				if(mapto & MAP_ALPHA) {
 					float alphafac= mtex->alphafac*stencilTin;
 
-					shi->material.alpha= texture_value_blend(mtex->def_var, shi->material.alpha, texres.tin, alphafac, mtex->blendtype);
-					if(shi->material.alpha<0.0) shi->material.alpha= 0.0;
-					else if(shi->material.alpha>1.0) shi->material.alpha= 1.0;
+					shi->alpha= texture_value_blend(mtex->def_var, shi->alpha, texres.tin, alphafac, mtex->blendtype);
+					if(shi->alpha<0.0) shi->alpha= 0.0;
+					else if(shi->alpha>1.0) shi->alpha= 1.0;
 				}
 				if(mapto & MAP_HAR) {
 					float har;  // have to map to 0-1
 					float hardfac= mtex->hardfac*stencilTin;
 					
-					har= ((float)shi->material.har)/128.0;
+					har= ((float)shi->har)/128.0;
 					har= 128.0*texture_value_blend(mtex->def_var, har, texres.tin, hardfac, mtex->blendtype);
 					
-					if(har<1.0) shi->material.har= 1; 
-					else if(har>511.0) shi->material.har= 511;
-					else shi->material.har= (int)har;
+					if(har<1.0) shi->har= 1; 
+					else if(har>511.0) shi->har= 511;
+					else shi->har= (int)har;
 				}
 				if(mapto & MAP_RAYMIRR) {
 					float raymirrfac= mtex->raymirrfac*stencilTin;
 
-					shi->material.ray_mirror= texture_value_blend(mtex->def_var, shi->material.ray_mirror, texres.tin, raymirrfac, mtex->blendtype);
-					if(shi->material.ray_mirror<0.0) shi->material.ray_mirror= 0.0;
-					else if(shi->material.ray_mirror>1.0) shi->material.ray_mirror= 1.0;
+					shi->ray_mirror= texture_value_blend(mtex->def_var, shi->ray_mirror, texres.tin, raymirrfac, mtex->blendtype);
+					if(shi->ray_mirror<0.0) shi->ray_mirror= 0.0;
+					else if(shi->ray_mirror>1.0) shi->ray_mirror= 1.0;
 				}
 				if(mapto & MAP_TRANSLU) {
 					float translfac= mtex->translfac*stencilTin;
 
-					shi->material.translucency= texture_value_blend(mtex->def_var, shi->material.translucency, texres.tin, translfac, mtex->blendtype);
-					if(shi->material.translucency<0.0) shi->material.translucency= 0.0;
-					else if(shi->material.translucency>1.0) shi->material.translucency= 1.0;
+					shi->translucency= texture_value_blend(mtex->def_var, shi->translucency, texres.tin, translfac, mtex->blendtype);
+					if(shi->translucency<0.0) shi->translucency= 0.0;
+					else if(shi->translucency>1.0) shi->translucency= 1.0;
 				}
 				if(mapto & MAP_AMB) {
 					float ambfac= mtex->ambfac*stencilTin;
 
-					shi->material.amb= texture_value_blend(mtex->def_var, shi->material.amb, texres.tin, ambfac, mtex->blendtype);
-					if(shi->material.amb<0.0) shi->material.amb= 0.0;
-					else if(shi->material.amb>1.0) shi->material.amb= 1.0;
+					shi->amb= texture_value_blend(mtex->def_var, shi->amb, texres.tin, ambfac, mtex->blendtype);
+					if(shi->amb<0.0) shi->amb= 0.0;
+					else if(shi->amb>1.0) shi->amb= 1.0;
 				}
 				if(mapto & MAP_SSS_SCALE) {
 					float sssscalefac= mtex->sssscalefac*stencilTin;
 
-					shi->material.sss_scale= texture_value_blend(mtex->def_var, shi->material.sss_scale, texres.tin, sssscalefac, mtex->blendtype);
-					if(shi->material.sss_scale<0.0) shi->material.sss_scale= 0.0;
+					shi->sss_scale= texture_value_blend(mtex->def_var, shi->sss_scale, texres.tin, sssscalefac, mtex->blendtype);
+					if(shi->sss_scale<0.0) shi->sss_scale= 0.0;
 				}
 			}
 		}
@@ -1444,10 +1444,10 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 	
 	for(tex_nr=0; tex_nr<MAX_MTEX; tex_nr++) {
 		/* separate tex switching */
-		if(shi->material.mat->septex & (1<<tex_nr)) continue;
+		if(shi->mat->septex & (1<<tex_nr)) continue;
 		
-		if(shi->material.mat->mtex[tex_nr]) {
-			mtex= shi->material.mat->mtex[tex_nr];
+		if(shi->mat->mtex[tex_nr]) {
+			mtex= shi->mat->mtex[tex_nr];
 			tex= mtex->tex;
 			if(tex==0) continue;
 			
@@ -1463,8 +1463,8 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 				if(ob) {						
 					copy_v3_v3(co, xyz);	
 					if(mtex->texflag & MTEX_OB_DUPLI_ORIG) {
-						if(shi->primitive.obi && shi->primitive.obi->duplitexmat)
-							mul_m4_v3(shi->primitive.obi->duplitexmat, co);					
+						if(shi->obi && shi->obi->duplitexmat)
+							mul_m4_v3(shi->obi->duplitexmat, co);					
 					} 
 					mul_m4_v3(ob->imat, co);
 				}
@@ -1473,10 +1473,10 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 			else if(mtex->texco==TEXCO_ORCO) {
 				
 				if(mtex->texflag & MTEX_DUPLI_MAPTO) {
-					copy_v3_v3(co, shi->texture.duplilo);
+					copy_v3_v3(co, shi->duplilo);
 				}
 				else {
-					Object *ob= shi->primitive.obi->ob;
+					Object *ob= shi->obi->ob;
 					copy_v3_v3(co, xyz);
 					mul_m4_v3(ob->imat, co);
 				}
@@ -1505,7 +1505,7 @@ void do_volume_tex(Render *re, ShadeInput *shi, float *xyz, int mapto_flag, floa
 				else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			}
 			
-			rgbnor= tex_sample_old(re, tex, texvec, NULL, NULL, 0, &texres, shi->shading.thread, mtex->which_output);	/* NULL = dxt/dyt, 0 = shi->geometry.osatex - not supported */
+			rgbnor= tex_sample_old(re, tex, texvec, NULL, NULL, 0, &texres, shi->thread, mtex->which_output);	/* NULL = dxt/dyt, 0 = shi->osatex - not supported */
 			
 			/* texture output */
 
@@ -1833,10 +1833,10 @@ void do_sky_tex(Render *re, float *rco, float *lo, float *dxyview, float *hor, f
 				else
 					co= lo;
 				
-//				copy_v3_v3(shi->texture.dxgl, shi->geometry.dxco);
-//				mul_mat3_m4_v3(re->cam.viewinv, shi->geometry.dxco);
-//				copy_v3_v3(shi->texture.dygl, shi->geometry.dyco);
-//				mul_mat3_m4_v3(re->cam.viewinv, shi->geometry.dyco);
+//				copy_v3_v3(shi->dxgl, shi->dxco);
+//				mul_mat3_m4_v3(re->cam.viewinv, shi->dxco);
+//				copy_v3_v3(shi->dygl, shi->dyco);
+//				mul_mat3_m4_v3(re->cam.viewinv, shi->dyco);
 				break;
 			}
 			
@@ -1967,24 +1967,24 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 					co= tempvec;
 					dx= dxt;
 					dy= dyt;
-					copy_v3_v3(tempvec, shi->geometry.co);
+					copy_v3_v3(tempvec, shi->co);
 					mul_m4_v3(ob->imat, tempvec);
-					if(shi->geometry.osatex) {
-						copy_v3_v3(dxt, shi->geometry.dxco);
-						copy_v3_v3(dyt, shi->geometry.dyco);
+					if(shi->osatex) {
+						copy_v3_v3(dxt, shi->dxco);
+						copy_v3_v3(dyt, shi->dyco);
 						mul_mat3_m4_v3(ob->imat, dxt);
 						mul_mat3_m4_v3(ob->imat, dyt);
 					}
 				}
 				else {
-					co= shi->geometry.co;
-					dx= shi->geometry.dxco; dy= shi->geometry.dyco;
+					co= shi->co;
+					dx= shi->dxco; dy= shi->dyco;
 				}
 			}
 			else if(mtex->texco==TEXCO_GLOB) {
-				co= shi->texture.gl; dx= shi->geometry.dxco; dy= shi->geometry.dyco;
-				copy_v3_v3(shi->texture.gl, shi->geometry.co);
-				mul_m4_v3(re->cam.viewinv, shi->texture.gl);
+				co= shi->gl; dx= shi->dxco; dy= shi->dyco;
+				copy_v3_v3(shi->gl, shi->co);
+				mul_m4_v3(re->cam.viewinv, shi->gl);
 			}
 			else if(mtex->texco==TEXCO_VIEW) {
 				
@@ -1998,9 +1998,9 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 				co= tempvec; 
 				
 				dx= dxt; dy= dyt;	
-				if(shi->geometry.osatex) {
-					copy_v3_v3(dxt, shi->texture.dxlv);
-					copy_v3_v3(dyt, shi->texture.dylv);
+				if(shi->osatex) {
+					copy_v3_v3(dxt, shi->dxlv);
+					copy_v3_v3(dyt, shi->dylv);
 					/* need some matrix conversion here? la->imat is a [3][3]  matrix!!! **/
 					mul_m3_v3(la->imat, dxt);
 					mul_m3_v3(la->imat, dyt);
@@ -2021,7 +2021,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 			if(mtex->projz && co) texvec[2]= mtex->size[2]*(co[mtex->projz-1]+mtex->ofs[2]);
 			else texvec[2]= mtex->size[2]*(mtex->ofs[2]);
 			
-			if(shi->geometry.osatex) {
+			if(shi->osatex) {
 				if (!dx) {
 					for(i=0;i<2;i++) { 
 						dxt[i] = dyt[i] = 0.0;
@@ -2056,7 +2056,7 @@ void do_lamp_tex(Render *re, LampRen *la, float *lavec, ShadeInput *shi, float *
 				do_2d_mapping(re, mtex, texvec, NULL, NULL, NULL, dxt, dyt, re->r.osa);
 			}
 			
-			rgb= tex_sample_old(re, tex, texvec, dxt, dyt, shi->geometry.osatex, &texres, shi->shading.thread, mtex->which_output);
+			rgb= tex_sample_old(re, tex, texvec, dxt, dyt, shi->osatex, &texres, shi->thread, mtex->which_output);
 
 			/* texture output */
 			if(rgb && (mtex->texflag & MTEX_RGBTOINT)) {
@@ -2132,7 +2132,7 @@ void do_realtime_texture(Render *re, ShadeInput *shi, Image *ima)
 	static int firsttime= 1;
 	Tex *tex;
 	float texvec[3], dx[2], dy[2];
-	ShadeInputUV *suv= &shi->texture.uv[shi->texture.actuv];
+	ShadeInputUV *suv= &shi->uv[shi->actuv];
 	int a;
 
 	if(re->r.scemode & R_NO_TEX) return;
@@ -2151,13 +2151,13 @@ void do_realtime_texture(Render *re, ShadeInput *shi, Image *ima)
 		BLI_unlock_thread(LOCK_IMAGE);
 	}
 	
-	tex= &imatex[shi->shading.thread];
+	tex= &imatex[shi->thread];
 	tex->iuser.ok= ima->ok;
 	
 	texvec[0]= 0.5+0.5*suv->uv[0];
 	texvec[1]= 0.5+0.5*suv->uv[1];
 	texvec[2] = 0;  // initalize it because imagewrap looks at it.
-	if(shi->geometry.osatex) {
+	if(shi->osatex) {
 		dx[0]= 0.5*suv->dxuv[0];
 		dx[1]= 0.5*suv->dxuv[1];
 		dy[0]= 0.5*suv->dyuv[0];
@@ -2166,13 +2166,13 @@ void do_realtime_texture(Render *re, ShadeInput *shi, Image *ima)
 	
 	texr.nor= NULL;
 	
-	if(shi->geometry.osatex) imagewraposa(re, tex, ima, NULL, texvec, dx, dy, &texr, shi->shading.thread);
-	else imagewrap(re, tex, ima, NULL, texvec, &texr, shi->shading.thread); 
+	if(shi->osatex) imagewraposa(re, tex, ima, NULL, texvec, dx, dy, &texr, shi->thread);
+	else imagewrap(re, tex, ima, NULL, texvec, &texr, shi->thread); 
 
-	shi->material.vcol[0]*= texr.tr;
-	shi->material.vcol[1]*= texr.tg;
-	shi->material.vcol[2]*= texr.tb;
-	shi->material.vcol[3]*= texr.ta;
+	shi->vcol[0]*= texr.tr;
+	shi->vcol[1]*= texr.tg;
+	shi->vcol[2]*= texr.tb;
+	shi->vcol[3]*= texr.ta;
 }
 
 /**************************** External Access ****************************/
@@ -2198,7 +2198,7 @@ int multitex_nodes(Tex *tex, float *texvec, float *dxt, float *dyt, int osatex, 
 
 		if(mtex) {
 			/* we have mtex, use it for 2d mapping images only */
-			do_2d_mapping(&re, mtex, texvec, shi->primitive.obr, shi->primitive.vlr, shi->geometry.facenor, dxt, dyt, shi->geometry.osatex);
+			do_2d_mapping(&re, mtex, texvec, shi->obr, shi->vlr, shi->facenor, dxt, dyt, shi->osatex);
 			rgbnor= tex_sample_old(&re, tex, texvec, dxt, dyt, osatex, texres, thread, which_output);
 
 			if(mtex->mapto & (MAP_COL+MAP_COLSPEC+MAP_COLMIR)) {

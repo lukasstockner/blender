@@ -63,15 +63,15 @@ static void render_lighting_halo(Render *re, HaloRen *har, float *colf, int thre
 		
 	dco[0]=dco[1]=dco[2]= 1.0/har->rad;
 	
-	copy_v3_v3(shi.geometry.co, har->co);
-	copy_v3_v3(shi.geometry.dxco, dco);
-	copy_v3_v3(shi.geometry.dyco, dco);
-	copy_v3_v3(shi.geometry.vn, har->no);
-	shi.geometry.osatex= 0;
-	shi.shading.lay= -1;
-	shi.shading.thread= thread;
-	shi.shading.samplenr= re->sample.shadowsamplenr[shi.shading.thread]++;
-	shi.material.mat= har->mat;
+	copy_v3_v3(shi.co, har->co);
+	copy_v3_v3(shi.dxco, dco);
+	copy_v3_v3(shi.dyco, dco);
+	copy_v3_v3(shi.vn, har->no);
+	shi.osatex= 0;
+	shi.lay= -1;
+	shi.thread= thread;
+	shi.samplenr= re->sample.shadowsamplenr[shi.thread]++;
+	shi.mat= har->mat;
 
 	zero_v3(inf);
 

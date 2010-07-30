@@ -83,7 +83,7 @@ int shade_result_accumulate(ShadeResult *samp_shr, ShadeSample *ssamp, int tot, 
 		
  		for(sample=0; sample<ssamp->tot; sample++, shi++, shr++) {
 		
-			if(shi->shading.mask & (1<<a)) {
+			if(shi->mask & (1<<a)) {
 				float fac= (1.0f - samp_shr->combined[3])*shr->combined[3];
 				int first= (samp_shr->z == PASS_Z_MAX);
 				

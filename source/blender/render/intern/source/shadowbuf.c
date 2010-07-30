@@ -2308,7 +2308,7 @@ static void isb_make_buffer(Render *re, RenderPart *pa, LampRen *lar)
 	/* storage for shadow, per thread */
 	isbdata= shb->isb_result[pa->thread];
 	
-	/* to map the shi->geometry.xs and ys coordinate */
+	/* to map the shi->xs and ys coordinate */
 	isbdata->minx= pa->disprect.xmin;
 	isbdata->miny= pa->disprect.ymin;
 	isbdata->rectx= pa->rectx;
@@ -2518,7 +2518,7 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 	/* storage for shadow, per thread */
 	isbdata= shb->isb_result_transp[pa->thread];
 	
-	/* to map the shi->geometry.xs and ys coordinate */
+	/* to map the shi->xs and ys coordinate */
 	isbdata->minx= pa->disprect.xmin;
 	isbdata->miny= pa->disprect.ymin;
 	isbdata->rectx= pa->rectx;
@@ -2658,20 +2658,20 @@ static void isb_make_buffer_transp(Render *re, RenderPart *pa, APixstr *apixbuf,
 float irregular_shadowbuf_test(Render *re, ShadBuf *shb, ShadeInput *shi)
 {
 	/* if raytracing, we can't accept irregular shadow */
-	if(shi->shading.depth==0) {
+	if(shi->depth==0) {
 		ISBData *isbdata;
 		
-		if((shi->material.mat->mode & MA_TRANSP) && (shi->material.mat->mode & MA_ZTRANSP))
-			isbdata= shb->isb_result_transp[shi->shading.thread];
+		if((shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_ZTRANSP))
+			isbdata= shb->isb_result_transp[shi->thread];
 		else
-			isbdata= shb->isb_result[shi->shading.thread];
+			isbdata= shb->isb_result[shi->thread];
 		
 		if(isbdata) {
 			if(isbdata->shadfacs || isbdata->shadfaca) {
-				int x= shi->geometry.xs - isbdata->minx;
+				int x= shi->xs - isbdata->minx;
 				
 				if(x >= 0 && x < isbdata->rectx) {
-					int y= shi->geometry.ys - isbdata->miny;
+					int y= shi->ys - isbdata->miny;
 			
 					if(y >= 0 && y < isbdata->recty) {
 						if(isbdata->shadfacs) {
@@ -2680,11 +2680,11 @@ float irregular_shadowbuf_test(Render *re, ShadBuf *shb, ShadeInput *shi)
 						}
 						else {
 							int sindex= y*isbdata->rectx + x;
-							int obi= shi->primitive.obi->lowres - re->db.objectinstance;
+							int obi= shi->obi->lowres - re->db.objectinstance;
 							ISBShadfacA *isbsa= *(isbdata->shadfaca + sindex);
 
 							while(isbsa) {
-								if(isbsa->facenr==shi->primitive.facenr+1 && isbsa->obi==obi)
+								if(isbsa->facenr==shi->facenr+1 && isbsa->obi==obi)
 									return isbsa->shadfac>=1.0f?0.0f:1.0f - isbsa->shadfac;
 								isbsa= isbsa->next;
 							}

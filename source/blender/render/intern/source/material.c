@@ -370,25 +370,25 @@ static float unclamped_smoothstep(float x)
 	return x;
 }
 
-static float *diffuse_tangent(ShadeMaterial *mat, ShadeGeometry *geom, float tang[3], float lv[3])
+static float *diffuse_tangent(ShadeInput *shi, float tang[3], float lv[3])
 {
 	/* tangent case; calculate fake face normal, aligned with lampvector */	
 	/* note, tang==vn is used as tangent trigger for buffer shadow */
-	Material *ma= mat->mat;
-	float *vn= geom->vn;
+	Material *ma= shi->mat;
+	float *vn= shi->vn;
 
-	if(geom->tangentvn) {
+	if(shi->tangentvn) {
 		float cross[3], nstrand[3], blend;
 
 		if(ma->mode & MA_STR_SURFDIFF) {
-			cross_v3_v3v3(cross, geom->surfnor, vn);
+			cross_v3_v3v3(cross, shi->surfnor, vn);
 			cross_v3_v3v3(nstrand, vn, cross);
 
-			blend= dot_v3v3(nstrand, geom->surfnor);
+			blend= dot_v3v3(nstrand, shi->surfnor);
 			blend= 1.0f - blend;
 			CLAMP(blend, 0.0f, 1.0f);
 
-			interp_v3_v3v3(tang, nstrand, geom->surfnor, blend);
+			interp_v3_v3v3(tang, nstrand, shi->surfnor, blend);
 			normalize_v3(tang);
 		}
 		else {
@@ -398,9 +398,9 @@ static float *diffuse_tangent(ShadeMaterial *mat, ShadeGeometry *geom, float tan
 		}
 
 		if(ma->strand_surfnor > 0.0f) {
-			if(ma->strand_surfnor > geom->surfdist) {
-				blend= (ma->strand_surfnor - geom->surfdist)/ma->strand_surfnor;
-				interp_v3_v3v3(tang, tang, geom->surfnor, blend);
+			if(ma->strand_surfnor > shi->surfdist) {
+				blend= (ma->strand_surfnor - shi->surfdist)/ma->strand_surfnor;
+				interp_v3_v3v3(tang, tang, shi->surfnor, blend);
 				normalize_v3(tang);
 			}
 		}
@@ -410,8 +410,8 @@ static float *diffuse_tangent(ShadeMaterial *mat, ShadeGeometry *geom, float tan
 	}
 	else if (ma->mode & MA_TANGENT_V) {
 		float cross[3];
-		cross_v3_v3v3(cross, lv, geom->tang);
-		cross_v3_v3v3(tang, cross, geom->tang);
+		cross_v3_v3v3(cross, lv, shi->tang);
+		cross_v3_v3v3(tang, cross, shi->tang);
 		normalize_v3(tang);
 		tang[0]= -tang[0];tang[1]= -tang[1];tang[2]= -tang[2];
 		vn= tang;
@@ -480,18 +480,18 @@ static void specular_color_ramp(float out[3], Material *ma, float rgb[3], float 
 	}
 }
 
-static void diffuse_shader(float diff[3], ShadeMaterial *mat, ShadeGeometry *geom, float *lv, int area_ff_hack)
+static void diffuse_shader(float diff[3], ShadeInput *shi, float *lv, int area_ff_hack)
 {
-	Material *ma= mat->mat;
-	float *view= geom->view;
+	Material *ma= shi->mat;
+	float *view= shi->view;
 	float fac, ramp[3], *vn, inp, vnor[3];
 
-	if(mat->refl == 0.0) {
+	if(shi->refl == 0.0) {
 		zero_v3(diff);
 		return;
 	}
 
-	vn= diffuse_tangent(mat, geom, vnor, lv);
+	vn= diffuse_tangent(shi, vnor, lv);
 
 	if(area_ff_hack) {
 		/* area lamps already includes cosine term by computing the form factor,
@@ -519,26 +519,26 @@ static void diffuse_shader(float diff[3], ShadeMaterial *mat, ShadeGeometry *geo
 	if(ma->shade_flag & MA_CUBIC)
 		fac= unclamped_smoothstep(fac);
 	
-	diffuse_color_ramp(ramp, ma, &mat->r, fac, view, vn);
-	mul_v3_v3fl(diff, ramp, fac*mat->refl);
+	diffuse_color_ramp(ramp, ma, &shi->r, fac, view, vn);
+	mul_v3_v3fl(diff, ramp, fac*shi->refl);
 }
 
-static void specular_shader(float spec[3], ShadeMaterial *mat, ShadeGeometry *geom, float *lv)
+static void specular_shader(float spec[3], ShadeInput *shi, float *lv)
 {
-	Material *ma= mat->mat;
-	float *vn, *view= geom->view;
+	Material *ma= shi->mat;
+	float *vn, *view= shi->view;
 	float fac, ramp[3];
-	int hard= mat->har;
-	int tangent= (geom->tangentvn) || (ma->mode & MA_TANGENT_V);
+	int hard= shi->har;
+	int tangent= (shi->tangentvn) || (ma->mode & MA_TANGENT_V);
 
-	if(mat->spec == 0.0) {
+	if(shi->spec == 0.0) {
 		zero_v3(spec);
 		return;
 	}
 
-	vn= geom->vn;	// bring back original vector, we use special specular shaders for tangent
+	vn= shi->vn;	// bring back original vector, we use special specular shaders for tangent
 	if(ma->mode & MA_TANGENT_V)
-		vn= geom->tang;
+		vn= shi->tang;
 
 	if(ma->spec_shader==MA_SPEC_PHONG) 
 		fac= brdf_specular_phong(vn, lv, view, hard, tangent);
@@ -551,32 +551,32 @@ static void specular_shader(float spec[3], ShadeMaterial *mat, ShadeGeometry *ge
 	else 
 		fac= brdf_specular_toon(vn, lv, view, ma->param[2], ma->param[3], tangent);
 	
-	specular_color_ramp(ramp, ma, &mat->specr, fac, view, vn);
-	mul_v3_v3fl(spec, ramp, fac*mat->spec);
+	specular_color_ramp(ramp, ma, &shi->specr, fac, view, vn);
+	mul_v3_v3fl(spec, ramp, fac*shi->spec);
 }
 
 /****************************** Material API *********************************/
 
 void mat_displacement(Render *re, ShadeInput *shi, float displacement[3])
 {
-	zero_v3(shi->texture.displace);
+	zero_v3(shi->displace);
 	do_material_tex(re, shi, MAP_DISPLACE);
-	copy_v3_v3(displacement, shi->texture.displace);
+	copy_v3_v3(displacement, shi->displace);
 }
 
-void mat_shading_begin(Render *re, ShadeInput *shi, ShadeMaterial *smat, int do_textures)
+void mat_shading_begin(Render *re, ShadeInput *shi, int do_textures)
 {
-	Material *ma= smat->mat;
+	Material *ma= shi->mat;
   
 	/* envmap hack, always reset */
-	smat->refcol[0]= smat->refcol[1]= smat->refcol[2]= smat->refcol[3]= 0.0f;
+	shi->refcol[0]= shi->refcol[1]= shi->refcol[2]= shi->refcol[3]= 0.0f;
 
 	if(ma->mode & (MA_VERTEXCOLP|MA_FACETEXTURE)) {
-		smat->r= smat->vcol[0];
-		smat->g= smat->vcol[1];
-		smat->b= smat->vcol[2];
+		shi->r= shi->vcol[0];
+		shi->g= shi->vcol[1];
+		shi->b= shi->vcol[2];
 		if(ma->mode & (MA_FACETEXTURE_ALPHA))
-			smat->alpha= smat->vcol[3];
+			shi->alpha= shi->vcol[3];
 	}
 
 	if(do_textures && ma->texco)
@@ -584,72 +584,72 @@ void mat_shading_begin(Render *re, ShadeInput *shi, ShadeMaterial *smat, int do_
 
 	if(!(ma->mode & MA_SHLESS)) {
 		if(ma->fresnel_tra!=0.0f) 
-			smat->alpha*= fresnel_fac(shi->geometry.view, shi->geometry.vn, ma->fresnel_tra_i, ma->fresnel_tra);
+			shi->alpha*= fresnel_fac(shi->view, shi->vn, ma->fresnel_tra_i, ma->fresnel_tra);
 			
-		smat->refl *= smat->alpha;
-		smat->spec *= smat->spectra;
-		smat->ray_mirror *= smat->alpha;
+		shi->refl *= shi->alpha;
+		shi->spec *= shi->spectra;
+		shi->ray_mirror *= shi->alpha;
 	}
 }
 
-void mat_shading_end(Render *re, ShadeMaterial *smat)
+void mat_shading_end(Render *re, ShadeInput *shi)
 {
 }
 
-void mat_color(float color[3], ShadeMaterial *mat)
+void mat_color(float color[3], ShadeInput *shi)
 {
-	if(mat->mat->mode & MA_SHLESS)
-		copy_v3_v3(color, &mat->r);
+	if(shi->mat->mode & MA_SHLESS)
+		copy_v3_v3(color, &shi->r);
 	else
-		mul_v3_v3fl(color, &mat->r, mat->refl);
+		mul_v3_v3fl(color, &shi->r, shi->refl);
 }
 
-float mat_alpha(ShadeMaterial *mat)
+float mat_alpha(ShadeInput *shi)
 {
-	return mat->alpha;
+	return shi->alpha;
 }
 
-void mat_bsdf_f(float bsdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int thread, float lv[3], int flag)
+void mat_bsdf_f(float bsdf[3], ShadeInput *shi, float lv[3], int flag)
 {
 	float tmp[3];
 
 	zero_v3(bsdf);
 
 	if(flag & BSDF_DIFFUSE) {
-		diffuse_shader(tmp, mat, geom, lv, flag & BSDF_AREA_FF_HACK);
+		diffuse_shader(tmp, shi, lv, flag & BSDF_AREA_FF_HACK);
 		add_v3_v3(bsdf, tmp);
 	}
 
 	if(flag & BSDF_SPECULAR) {
-		specular_shader(tmp, mat, geom, lv);
+		specular_shader(tmp, shi, lv);
 		add_v3_v3(bsdf, tmp);
 	}
 
 	mul_v3_fl(bsdf, M_1_PI);
 }
 
-void mat_bsdf_sample(float lv[3], float pdf[3], ShadeMaterial *mat, ShadeGeometry *geom, int flag, float r[2])
+void mat_bsdf_sample(float lv[3], float pdf[3], ShadeInput *shi, int flag, float r[2])
 {
 	/* TODO not implemented */
 	zero_v3(lv);
 	zero_v3(pdf);
 }
 
-void mat_emit(float emit[3], ShadeMaterial *mat, ShadeGeometry *geom, int thread)
+void mat_emit(float emit[3], ShadeInput *shi)
 {
-	Material *ma= mat->mat;
-	float memit= mat->emit*mat->alpha;
+	Material *ma= shi->mat;
+	float memit= shi->emit*shi->alpha;
 
 	if((ma->mode & (MA_VERTEXCOL|MA_VERTEXCOLP)) == MA_VERTEXCOL) {
 		/* vertexcolor light */
-		emit[0]= mat->r*(memit + mat->vcol[0]);
-		emit[1]= mat->g*(memit + mat->vcol[1]);
-		emit[2]= mat->b*(memit + mat->vcol[2]);
+		emit[0]= shi->r*(memit + shi->vcol[0]);
+		emit[1]= shi->g*(memit + shi->vcol[1]);
+		emit[2]= shi->b*(memit + shi->vcol[2]);
 	}
 	else {
-		emit[0]= mat->r*memit;
-		emit[1]= mat->g*memit;
-		emit[2]= mat->b*memit;
+		emit[0]= shi->r*memit;
+		emit[1]= shi->g*memit;
+		emit[2]= shi->b*memit;
 	}
 }
 
@@ -657,7 +657,7 @@ void mat_emit(float emit[3], ShadeMaterial *mat, ShadeGeometry *geom, int thread
 
 int mat_need_ao_env_indirect(Render *re, ShadeInput *shi)
 {
-	Material *ma= shi->material.mat;
+	Material *ma= shi->mat;
 
 	/* do we have it enabled at all? */
 	if(!(re->db.wrld.mode & (WO_AMB_OCC|WO_ENV_LIGHT|WO_INDIRECT_LIGHT)))
@@ -672,12 +672,12 @@ int mat_need_ao_env_indirect(Render *re, ShadeInput *shi)
 		return 0;
 	
 	/* if requested for passes, always render it */
-	if(shi->shading.passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))
+	if(shi->passflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT))
 		return 1;
 
-	if(shi->shading.passflag & SCE_PASS_COMBINED) {
+	if(shi->passflag & SCE_PASS_COMBINED) {
 		/* rendering combined but no included, so can skip */
-		if(!(shi->shading.combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
+		if(!(shi->combinedflag & (SCE_PASS_AO|SCE_PASS_ENVIRONMENT|SCE_PASS_INDIRECT)))
 			return 0;
 
 #if 0
