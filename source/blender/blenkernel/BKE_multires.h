@@ -49,6 +49,9 @@ void multires_force_external_reload(struct Object *ob);
 struct DerivedMesh *multires_dm_create_from_derived(struct MultiresModifierData*,
 	int local_mmd, struct DerivedMesh*, struct Object *, struct GridKey *, int, int);
 
+/* convert multires color layers to standard mcol layers */
+void multires_apply_colors(struct DerivedMesh *cddm, struct DerivedMesh *ccgdm);
+
 struct MultiresModifierData *find_multires_modifier_before(struct Scene *scene,
 	struct ModifierData *lastmd);
 struct DerivedMesh *get_multires_dm(struct Scene *scene, struct MultiresModifierData *mmd,

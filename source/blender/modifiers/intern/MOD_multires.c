@@ -83,6 +83,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 
 	if(useRenderParams || !isFinalCalc) {
 		DerivedMesh *cddm= CDDM_copy(result);
+
+		multires_apply_colors(cddm, result);
+
 		result->release(result);
 		result= cddm;
 	}

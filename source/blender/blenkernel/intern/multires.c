@@ -155,7 +155,7 @@ void multires_force_external_reload(Object *ob)
 
 void multires_force_render_update(Object *ob)
 {
-	if(ob && (ob->mode & OB_MODE_SCULPT) && modifiers_findByType(ob, eModifierType_Multires))
+	if(ob && (ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)) && modifiers_findByType(ob, eModifierType_Multires))
 		multires_force_update(ob);
 }
 
@@ -1150,6 +1150,60 @@ DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int loca
 	MEM_freeN(subGridData);
 
 	return result;
+}
+
+/* convert multires color layers to standard mcol layers */
+void multires_apply_colors(DerivedMesh *cddm, DerivedMesh *ccgdm)
+{
+	DMGridData **grids;
+	GridKey *gridkey;
+	MCol **mcol;
+	int i, j, k, x, y, gridsize, boundary, totgrid;
+
+	grids = ccgdm->getGridData(ccgdm);
+	gridkey = ccgdm->getGridKey(ccgdm);
+	gridsize = ccgdm->getGridSize(ccgdm);
+	totgrid = ccgdm->getNumGrids(ccgdm);
+	boundary = gridsize - 1;
+
+	/* get multires mcol layers */
+	mcol = MEM_callocN(sizeof(MCol*)*gridkey->color,
+			   "multires_apply_colors.mcol");
+	for(i = 0; i < gridkey->color; ++i) {
+		char *name = gridkey->color_names[i];
+
+		/* TODO: note that this works because plain subdivided mcols
+		   already generated, that's inefficient and should be fixed */
+		mcol[i] = CustomData_get_layer_named(&cddm->faceData, CD_MCOL, name);
+	}
+
+	for(i = 0; i < totgrid; ++i) {
+		DMGridData *grid = grids[i];
+
+		for(y = 0; y < boundary; ++y) {
+			for(x = 0; x < boundary; ++x) {
+				for(j = 0; j < gridkey->color; ++j) {
+					float *col[4];
+
+					col[0] = GRIDELEM_COLOR_AT(grid, y*gridsize+x, gridkey)[j];
+					col[1] = GRIDELEM_COLOR_AT(grid, (y+1)*gridsize+x, gridkey)[j];
+					col[2] = GRIDELEM_COLOR_AT(grid, (y+1)*gridsize+(x+1), gridkey)[j];
+					col[3] = GRIDELEM_COLOR_AT(grid, y*gridsize+(x+1), gridkey)[j];
+
+					for(k = 0; k < 4; ++k) {
+						mcol[j][k].b = col[k][0] * 255;
+						mcol[j][k].g = col[k][1] * 255;
+						mcol[j][k].r = col[k][2] * 255;
+						mcol[j][k].a = col[k][3] * 255;
+					}
+
+					mcol[j] += 4;
+				}
+			}
+		}
+	}
+
+	MEM_freeN(mcol);
 }
 
 /**** Old Multires code ****
