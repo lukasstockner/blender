@@ -1,8 +1,3 @@
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "MEM_guardedalloc.h"
 
 #include "DNA_material_types.h"
@@ -438,11 +433,6 @@ static int paintmask_check_multires(bContext *C)
 
 	return 0;
 }
-
-typedef enum {
-	LAYER_ADDED,
-	LAYER_REMOVED
-} PaintMaskLayerOp;
 
 static int mask_layer_poll(bContext *C)
 {

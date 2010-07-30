@@ -64,6 +64,7 @@
 #include "BKE_displist.h"
 #include "BKE_dmgrid.h"
 #include "BKE_global.h"
+#include "BKE_image.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
@@ -2137,6 +2138,209 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
 }
 
+/**** convert vertex colors to texture ****/
+static void vcol_to_tex_tri(ImBuf *ibuf,
+			    float uv1[2], float uv2[2], float uv3[3],
+			    float col1[3], float col2[3], float col3[3])
+{
+	/* ibuf coords */
+	float t[3][2] = {{uv1[0] * ibuf->x, uv1[1] * ibuf->y},
+			 {uv2[0] * ibuf->x, uv2[1] * ibuf->y},
+			 {uv3[0] * ibuf->x, uv3[1] * ibuf->y}};
+	float co[2];
+	rctf r;
+	int i;
+	
+	r.xmin = MIN3(t[0][0], t[1][0], t[2][0]);
+	r.xmax = MAX3(t[0][0], t[1][0], t[2][0]);
+	r.ymin = MIN3(t[0][1], t[1][1], t[2][1]);
+	r.ymax = MAX3(t[0][1], t[1][1], t[2][1]);
+
+	/* expand by a pixel */
+	for(i = 0; i < 3; ++i) {
+		if(r.xmin == t[i][0])
+			--t[i][0];
+		if(r.xmax == t[i][0])
+			++t[i][0];
+		if(r.ymin == t[i][1])
+			--t[i][1];
+		if(r.ymax == t[i][1])
+			++t[i][1];
+	}
+	r.xmin = (int)(r.xmin+0.5f) - 2;
+	r.xmax = (int)(r.xmax+0.5f) + 2;
+	r.ymin = (int)(r.ymin+0.5f) - 2;
+	r.ymax = (int)(r.ymax+0.5f) + 2;
+
+	for(co[1] = r.ymin; co[1] <= r.ymax; ++co[1]) {
+		for(co[0] = r.xmin; co[0] <= r.xmax; ++co[0]) {
+			if(isect_point_tri_v2(co, t[0], t[1], t[2])) {
+				float w[3], col[3];
+				int offset = ibuf->x * co[1] + co[0];
+
+				barycentric_weights_v2(t[0], t[1], t[2], co, w);
+				interp_v3_v3v3v3(col, col1, col2, col3, w);
+
+				if(ibuf->rect_float) {
+					copy_v3_v3(ibuf->rect_float + offset*4,
+						   col);
+				}
+				else {
+					char *ccol = ((char*)ibuf->rect) +
+						offset*4;
+
+					ccol[0] = col[0] * 255.0;
+					ccol[1] = col[1] * 255.0;
+					ccol[2] = col[2] * 255.0;
+					
+				}
+			}
+		}
+	}
+}
+
+static void multires_vcol_to_tex(ImBuf *ibuf, DerivedMesh *dm, Mesh *me,
+				 MTFace *mtface)
+{
+	DMGridData **grids;
+	GridKey *gridkey;
+	int i, x, y, totgrid, gridsize, boundary, offset;
+
+	totgrid = dm->getNumGrids(dm);
+	gridsize = dm->getGridSize(dm);
+	grids = dm->getGridData(dm);
+	gridkey = dm->getGridKey(dm);
+
+	boundary = gridsize - 1;
+	offset = gridelem_active_offset(&me->fdata, gridkey, CD_MCOL);
+
+	for(i = 0; i < totgrid; ++i) {
+		DMGridData *grid = grids[i];
+
+		for(y = 0; y < boundary; ++y) {
+			for(x = 0; x < boundary; ++x, ++mtface) {
+				float *col[4];
+
+				col[0] = GRIDELEM_COLOR_AT(grid,
+							   y*gridsize+x,
+							   gridkey)[offset];
+				col[1] = GRIDELEM_COLOR_AT(grid,
+							   (y+1)*gridsize+x,
+							   gridkey)[offset];
+				col[2] = GRIDELEM_COLOR_AT(grid,
+							   (y+1)*gridsize+(x+1),
+							   gridkey)[offset];
+				col[3] = GRIDELEM_COLOR_AT(grid,
+							   y*gridsize+(x+1),
+							   gridkey)[offset];
+
+				
+				vcol_to_tex_tri(ibuf, mtface->uv[0],
+						mtface->uv[1], mtface->uv[2],
+						col[0], col[1], col[2]);
+				vcol_to_tex_tri(ibuf, mtface->uv[0],
+						mtface->uv[2], mtface->uv[3],
+						col[0], col[2], col[3]);
+			}
+		}
+	}
+}
+
+static int vertex_colors_to_texture_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	Image *ima = CTX_data_edit_image(C);
+	Mesh *me = ob->data;
+	DerivedMesh *dm;
+	CustomDataMultires *cdm;
+	ImBuf *ibuf;
+	MTFace *mtface;
+	int active_mcol, active_mtface;
+
+	active_mcol = CustomData_get_active_layer_index(&me->fdata, CD_MCOL);
+	active_mtface = CustomData_get_active_layer_index(&me->fdata, CD_MTFACE);
+	ibuf = BKE_image_get_ibuf(ima, NULL);
+
+	dm = mesh_get_derived_final(scene, ob, CD_MASK_MTFACE);
+	mtface = dm->getFaceDataArray(dm, CD_MTFACE);
+
+	cdm = CustomData_get_layer(&me->fdata, CD_GRIDS);
+	if(dm->type == DM_TYPE_CCGDM && cdm &&
+	   CustomData_multires_get_data(cdm, CD_MCOL,
+					me->fdata.layers[active_mcol].name)) {
+		/* multires vcols, special handling */
+		multires_vcol_to_tex(ibuf, dm, me, mtface);
+
+	}
+	else {
+		MFace *mface;
+		MCol *mcol;
+		int i, j, totface;
+
+		dm = mesh_get_derived_final(scene, ob, CD_MASK_MTFACE|CD_MASK_MCOL);
+
+		mface = dm->getFaceArray(dm);
+		mcol = dm->getFaceDataArray(dm, CD_MCOL);
+		totface = dm->getNumFaces(dm);
+
+		for(i = 0; i < totface; ++i) {
+			MFace *f = &mface[i];
+			MTFace *mtf = &mtface[i];
+			float fcol[4][4];
+			int S = f->v4?4:3;
+
+			for(j = 0; j < S; ++j) {
+				MCol *ccol = mcol + i*4 + j;
+				fcol[j][0] = ccol->b / 255.0;
+				fcol[j][1] = ccol->g / 255.0;
+				fcol[j][2] = ccol->r / 255.0;
+				fcol[j][3] = ccol->a / 255.0;
+			}
+			
+			vcol_to_tex_tri(ibuf, mtf->uv[0], mtf->uv[1], mtf->uv[2],
+					fcol[0], fcol[1], fcol[2]);
+			if(f->v4) {
+				vcol_to_tex_tri(ibuf,
+						mtf->uv[0], mtf->uv[2], mtf->uv[3],
+						fcol[0], fcol[2], fcol[3]);
+			}
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static int vertex_colors_to_texture_poll(bContext *C)
+{
+	Object *ob= CTX_data_active_object(C);
+	Image *ima = CTX_data_edit_image(C);
+
+	if(ob && ima) {
+		Mesh *me = ob->data;
+
+		return (CustomData_get_active_layer_index(&me->fdata, CD_MCOL) >= 0 &&
+			CustomData_get_active_layer_index(&me->fdata, CD_MTFACE) >= 0 &&
+			ima && BKE_image_get_ibuf(ima, NULL));
+	}
+
+	return 0;
+}
+
+void PAINT_OT_vertex_colors_to_texture(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Vertex Colors to Texture";
+	ot->idname= "PAINT_OT_vertex_colors_to_texture";
+	
+	/* api callbacks */
+	ot->exec= vertex_colors_to_texture_exec;
+	ot->poll= vertex_colors_to_texture_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
 /* ********************** weight from bones operator ******************* */
 
 static int weight_from_bones_poll(bContext *C)
@@ -2184,4 +2388,3 @@ void PAINT_OT_weight_from_bones(wmOperatorType *ot)
 	/* properties */
 	ot->prop= RNA_def_enum(ot->srna, "type", type_items, 0, "Type", "Method to use for assigning weights.");
 }
-
