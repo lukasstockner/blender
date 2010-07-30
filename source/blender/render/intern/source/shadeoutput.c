@@ -370,7 +370,7 @@ void shade_jittered_coords(Render *re, ShadeInput *shi, int max, float jitco[RE_
 
 	/* for better antialising shadow samples are distributed over the subpixel
 	 * sample coordinates, this only works for raytracing depth 0 though */
-	if(!shi->primitive.strand && shi->shading.depth == 0 && count > 1 && count <= max) {
+	if(!shi->primitive.strand && shi->shading.depth == 0 && count > 1) {
 		float xs, ys, zs, view[3];
 		int samp, ordsamp, tot= 0;
 		int osa= (re->params.osa)? re->params.osa: 1;

@@ -1080,8 +1080,8 @@ void disk_occlusion_sample_direct(Render *re, ShadeInput *shi)
 {
 	OcclusionTree *tree= re->db.occlusiontree;
 	OccFace exclude;
-	float *vn;
-	int onlyshadow;
+	float jitco[RE_MAX_OSA][3], co[3], *vn;
+	int onlyshadow, totjitco= 0;
 
 	onlyshadow= (shi->material.mat->mode & MA_ONLYSHADOW);
 	exclude.obi= shi->primitive.obi - re->db.objectinstance;
@@ -1091,8 +1091,11 @@ void disk_occlusion_sample_direct(Render *re, ShadeInput *shi)
 		vn= shi->geometry.vno;
 	else
 		vn= shi->geometry.vn;
+	
+	shade_jittered_coords(re, shi, RE_MAX_OSA, jitco, &totjitco);
+	copy_v3_v3(co, jitco[0]);
 
-	sample_occ_tree(re, tree, &exclude, shi->geometry.co, vn, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
+	sample_occ_tree(re, tree, &exclude, co, vn, shi->shading.thread, onlyshadow, shi->shading.ao, shi->shading.env, shi->shading.indirect);
 }
 
 void disk_occlusion_sample(Render *re, ShadeInput *shi)
