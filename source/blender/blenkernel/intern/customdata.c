@@ -2524,24 +2524,32 @@ float *CustomData_multires_get_data(CustomDataMultires *cdm, int type,
 		return cdm->layers[layer].griddata;
 }
 
-void CustomData_multires_assign_data(CustomDataMultires *cdm, int type,
-				     char *name, float *data)
+static float *customdata_multires_alloc_griddata(int type, int totelem)
+{
+	return MEM_callocN(sizeof(float) * totelem *
+			   CustomData_multires_type_totfloat(type),
+			   "CustomDataMultiresLayer.griddata");
+}
+
+void CustomData_multires_sync_layer(CustomDataMultires *cdm, int type,
+				    char *name)
 {
 	int layer;
 
 	layer = customdata_multires_find_named_layer_index(cdm, type, name);
 
 	if(layer == -1)
-		CustomData_multires_add_layer(cdm, type, name, data);
+		CustomData_multires_add_layer_data(cdm, type, name, NULL);
 	else {
 		if(cdm->layers[layer].griddata)
 			MEM_freeN(cdm->layers[layer].griddata);
-		cdm->layers[layer].griddata = data;
+		cdm->layers[layer].griddata =
+			customdata_multires_alloc_griddata(type, cdm->totelem);
 	}
 }
 
-void CustomData_multires_add_layer(CustomDataMultires *cdm, int type,
-				   char *name, float *data)
+void CustomData_multires_add_layer_data(CustomDataMultires *cdm, int type,
+					char *name, float *griddata)
 {
 	CustomDataMultiresLayer *old = cdm->layers;
 	int first, layer, i;
@@ -2559,11 +2567,17 @@ void CustomData_multires_add_layer(CustomDataMultires *cdm, int type,
 	else
 		layer = first;
 
+	/* create griddata if none given */
+	if(!griddata) {
+		griddata =
+			customdata_multires_alloc_griddata(type, cdm->totelem);
+	}
+
 	for(i = 0; i <= cdm->totlayer; ++i) {
 		if(i < layer)
 			cdm->layers[i] = old[i];
 		else if(i == layer) {
-			cdm->layers[i].griddata = data;
+			cdm->layers[i].griddata = griddata;
 			cdm->layers[i].type = type;
 			BLI_strncpy(cdm->layers[i].name, name,
 				    sizeof(cdm->layers[i].name));
@@ -2576,8 +2590,20 @@ void CustomData_multires_add_layer(CustomDataMultires *cdm, int type,
 	if(old) MEM_freeN(old);
 }
 
-int CustomData_multires_remove_layer(CustomDataMultires *cdm, int type,
-				      char *name)
+void CustomData_multires_add_layers(CustomDataMultires *cdm, int count,
+				   int type, char *name)
+{
+	int i;
+	
+	if(!cdm)
+		return;
+
+	for(i = 0; i < count; ++i, ++cdm)
+		CustomData_multires_add_layer_data(cdm, type, name, NULL);
+}
+
+static int CustomData_multires_layer_delete(CustomDataMultires *cdm, int type,
+					    char *name)
 {
 	CustomDataMultiresLayer *old = cdm->layers;
 	int layer, i;
@@ -2604,6 +2630,22 @@ int CustomData_multires_remove_layer(CustomDataMultires *cdm, int type,
 	--cdm->totlayer;
 	MEM_freeN(old);
 	
+	return 1;
+}
+
+int CustomData_multires_remove_layers(CustomDataMultires *cdm, int count,
+				     int type, char *name)
+{
+	int i;
+	
+	if(!cdm)
+		return 0;
+
+	for(i = 0; i < count; ++i, ++cdm) {
+		if(!CustomData_multires_layer_delete(cdm, type, name))
+			return 0;
+	}
+
 	return 1;
 }
 

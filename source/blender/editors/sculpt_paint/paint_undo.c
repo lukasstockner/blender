@@ -27,12 +27,19 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_customdata_types.h"
+#include "DNA_mesh_types.h"
+#include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_listbase.h"
+#include "BKE_mesh.h"
+#include "BLI_string.h"
 
 #include "BKE_context.h"
+#include "BKE_customdata.h"
 #include "BKE_global.h"
+#include "BKE_multires.h"
 
 #include "ED_sculpt.h"
 
@@ -187,6 +194,242 @@ static void undo_stack_free(UndoStack *stack)
 	stack->current= NULL;
 }
 
+/**** paint undo for layers (mcol, paintmask) ****/
+
+typedef enum {
+	LAYER_ADDED,
+	LAYER_REMOVED
+} PaintLayerUndoOp;
+
+struct PaintLayerUndoNode {
+	struct PaintLayerUndoNode *next, *prev;
+
+	/* customdata type */
+	int type;
+	/* add/remove */
+	PaintLayerUndoOp op;
+	/* only for restoring into its original location */
+	int layer_offset;
+	/* for identifying layer, don't use layer_offset for that */
+	char layer_name[32];
+	/* copy of a removed layer's data */
+	void *layer_data;
+	void **multires_layer_data;
+	float strength;
+	/* length of multires_layer_data array */
+	int totface;
+	/* whether layer has multires data */
+	int flag_multires;
+};
+
+void paint_layer_undo_set_add(PaintLayerUndoNode *unode, char *name)
+{
+	unode->op = LAYER_ADDED;
+
+	/* check for restore */
+	if(unode->layer_name != name) {
+		BLI_strncpy(unode->layer_name, name,
+			    sizeof(unode->layer_name));
+	}
+
+	unode->totface = 0;
+}
+
+void paint_layer_undo_set_remove(PaintLayerUndoNode *unode, char *name,
+				 CustomData *data, CustomData *fdata,
+				 int totvert, int totface)
+{
+	CustomDataMultires *cdm;
+	int ndx;
+
+	unode->op = LAYER_REMOVED;
+	/* check for restore */
+	if(unode->layer_name != name) {
+		BLI_strncpy(unode->layer_name, name,
+			    sizeof(unode->layer_name));
+	}
+
+	unode->totface = totface;
+
+	ndx = CustomData_get_named_layer_index(data, unode->type, name);
+	assert(ndx >= 0);
+
+	/* store the layer offset so we can re-insert layer at the
+	   same location on undo */
+	unode->layer_offset =
+		ndx - CustomData_get_layer_index(data, unode->type);
+
+	/* backup layer data */
+	unode->layer_data = MEM_dupallocN(data->layers[ndx].data);
+
+	unode->strength = data->layers[ndx].strength;
+
+	unode->flag_multires = data->layers[ndx].flag & CD_FLAG_MULTIRES;
+	if(!unode->flag_multires)
+		return;
+
+	/* back multires data */
+	cdm = CustomData_get_layer(fdata, CD_GRIDS);
+	if(cdm && totface) {
+		int i;
+
+		/* check first cdm to see if this layer has multires data */
+		if(!CustomData_multires_get_data(cdm, unode->type, name))
+			return;
+
+		unode->multires_layer_data =
+			MEM_callocN(sizeof(void*) * totface,
+				    "PaintLayerUndoNode.multires_layer_data");
+		
+		for(i = 0; i < totface; ++i, ++cdm) {
+			float *f;
+
+			f = CustomData_multires_get_data(cdm, unode->type,
+							 name);
+			assert(f);
+			
+			unode->multires_layer_data[i] = MEM_dupallocN(f);
+		}
+	}
+}
+
+void paint_layer_undo_restore(bContext *C, ListBase *lb)
+{
+	PaintLayerUndoNode *unode = lb->first; /* only one undo node */
+	Object *ob;
+	Mesh *me;
+	CustomData *data, *fdata;
+	CustomDataMultires *cdm;
+	int i, ndx, offset, active, totelem;
+
+	ob = CTX_data_active_object(C);
+	me = get_mesh(ob);
+	fdata = &me->fdata;
+
+	switch(unode->type) {
+	case CD_MCOL:
+		data = &me->fdata;
+		totelem = me->totface;
+		break;
+	case CD_PAINTMASK:
+		data = &me->vdata;
+		totelem = me->totface;
+		break;
+	default:
+		assert(0);
+	}
+
+	/* update multires before making changes */
+	if(ED_paint_multires_active(CTX_data_scene(C), ob))
+		multires_force_update(ob);
+
+	switch(unode->op) {
+	case LAYER_ADDED:
+		/* backup current layer data for redo */
+		paint_layer_undo_set_remove(unode, unode->layer_name, data,
+					    fdata, me->totvert, me->totface);
+
+		active = CustomData_get_active_layer(data, unode->type);
+		
+		/* remove layer */
+		ndx = CustomData_get_named_layer_index(data, unode->type,
+						       unode->layer_name);
+		CustomData_free_layer(data, unode->type, totelem, ndx);
+
+		/* set active layer */
+		offset = CustomData_number_of_layers(data, unode->type) - 1;
+		if(active > offset)
+			active = offset;
+		CustomData_set_layer_active(data, unode->type, active);
+		
+		/* remove layer's multires data */
+		cdm = CustomData_get_layer(fdata, CD_GRIDS);
+		if(!cdm)
+			break;
+
+		CustomData_multires_remove_layers(cdm, me->totface,
+						  unode->type,
+						  unode->layer_name);
+
+		break;
+	case LAYER_REMOVED:
+		paint_layer_undo_set_add(unode, unode->layer_name);
+
+		/* add layer */
+		CustomData_add_layer_at_offset(data, unode->type, CD_ASSIGN,
+					       unode->layer_data, totelem,
+					       unode->layer_offset);
+
+		ndx = CustomData_get_named_layer_index(data, unode->type,
+						       unode->layer_name);
+		offset = ndx - CustomData_get_layer_index(data, unode->type);
+
+		CustomData_set_layer_active(data, unode->type, offset);
+		BLI_strncpy(data->layers[ndx].name, unode->layer_name,
+			    sizeof(data->layers[ndx].name));
+		data->layers[ndx].strength = unode->strength;
+
+		if(!unode->flag_multires)
+			break;
+		
+		/* add multires layer */
+		CustomData_set_layer_offset_flag(data, unode->type,
+						 offset, CD_FLAG_MULTIRES);
+
+		cdm = CustomData_get_layer(fdata, CD_GRIDS);
+		if(!cdm)
+			break;
+
+		for(i = 0; i < me->totface; ++i, ++cdm) {
+			void *griddata = unode->multires_layer_data[i];
+
+			CustomData_multires_add_layer_data(cdm, unode->type,
+							   unode->layer_name,
+							   griddata);
+		}
+
+		unode->layer_data = NULL;
+		if(unode->multires_layer_data)
+			MEM_freeN(unode->multires_layer_data);
+		unode->multires_layer_data = NULL;
+
+		break;
+	}
+}
+
+static void paint_layer_undo_node_free(ListBase *lb)
+{
+	PaintLayerUndoNode *unode = lb->first;
+
+	if(unode->layer_data)
+		MEM_freeN(unode->layer_data);
+
+	if(unode->multires_layer_data) {
+		int i;
+
+		for(i = 0; i < unode->totface; ++i)
+			MEM_freeN(unode->multires_layer_data[i]);
+		MEM_freeN(unode->multires_layer_data);	
+	}
+}
+
+PaintLayerUndoNode *paint_layer_undo_push(int type, char *description)
+{
+	PaintLayerUndoNode *unode;
+
+	undo_paint_push_begin(UNDO_PAINT_MESH, description,
+			      paint_layer_undo_restore,
+			      paint_layer_undo_node_free);
+
+	unode = MEM_callocN(sizeof(PaintLayerUndoNode), "PaintLayerUndoNode");
+	unode->type = type;
+
+	BLI_addtail(undo_paint_push_get_list(UNDO_PAINT_MESH), unode);
+	undo_paint_push_end(UNDO_PAINT_MESH);
+
+	return unode;
+}
+
 /* Exported Functions */
 
 void undo_paint_push_begin(int type, const char *name, UndoRestoreCb restore, UndoFreeCb free)
@@ -242,4 +485,3 @@ void ED_undo_paint_free(void)
 	undo_stack_free(&ImageUndoStack);
 	undo_stack_free(&MeshUndoStack);
 }
-

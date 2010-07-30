@@ -179,8 +179,6 @@ float paint_calc_object_space_radius(struct ViewContext *vc,
 
 void paint_tag_partial_redraw(struct bContext *C, struct Object *ob);
 
-struct MultiresModifierData *paint_multires_active(struct Scene *scene, struct Object *ob);
-
 void paint_flip_coord(float out[3], float in[3], const char symm);
 
 float brush_tex_strength(struct ViewContext *vc,

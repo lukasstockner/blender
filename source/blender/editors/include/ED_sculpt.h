@@ -30,8 +30,10 @@
 
 struct ARegion;
 struct bContext;
+struct MultiresModifierData;
 struct Object;
 struct RegionView3D;
+struct Scene;
 struct wmKeyConfig;
 struct wmWindowManager;
 
@@ -50,7 +52,15 @@ void ED_keymap_paint(struct wmKeyConfig *keyconf);
 int ED_undo_paint_step(struct bContext *C, int type, int step, const char *name);
 void ED_undo_paint_free(void);
 
+typedef struct PaintLayerUndoNode PaintLayerUndoNode;
+PaintLayerUndoNode *paint_layer_undo_push(int type, char *description);
+void paint_layer_undo_set_add(PaintLayerUndoNode *unode, char *name);
+void paint_layer_undo_set_remove(PaintLayerUndoNode *unode, char *name,
+				 struct CustomData *data, struct CustomData *fdata,
+				 int totvert, int totface);
+
 /* paint_util.c */
+struct MultiresModifierData *ED_paint_multires_active(struct Scene *scene, struct Object *ob);
 void paint_get_redraw_planes(float planes[4][4], struct ARegion *ar,
 			     struct RegionView3D *rv3d, struct Object *ob);
 

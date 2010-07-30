@@ -47,6 +47,7 @@
 #include "BKE_library.h"
 #include "BKE_material.h"
 #include "BKE_mesh.h"
+#include "BKE_multires.h"
 #include "BKE_report.h"
 
 #include "BLI_math.h"
@@ -61,6 +62,7 @@
 
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_sculpt.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 
@@ -413,6 +415,37 @@ void MESH_OT_uv_texture_remove(wmOperatorType *ot)
 
 /*********************** vertex color operators ************************/
 
+static int vertex_color_multires_toggle(Object *ob)
+{
+	Mesh *me= ob->data;
+	CustomDataMultires *cdm;
+	CustomDataLayer *cdl;
+	int active;
+
+	/* so that dm is recalculated correctly after */
+	multires_force_update(ob);
+
+	active = CustomData_get_active_layer_index(&me->fdata, CD_MCOL);
+	cdm = CustomData_get_layer(&me->fdata, CD_GRIDS);
+
+	if(active == -1)
+		return 1;
+
+	cdl = &me->fdata.layers[active];
+
+	if(cdm) {
+		if(cdl->flag & CD_FLAG_MULTIRES)
+			CustomData_multires_remove_layers(cdm, me->totface, CD_MCOL, cdl->name);
+		else
+			CustomData_multires_add_layers(cdm, me->totface, CD_MCOL, cdl->name);
+	}
+
+	/* note - if there's no griddata, it can still be synced up later */
+	cdl->flag ^= CD_FLAG_MULTIRES;
+
+	return 1;
+}
+
 static int vertex_color_add_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene= CTX_data_scene(C);
@@ -421,6 +454,10 @@ static int vertex_color_add_exec(bContext *C, wmOperator *op)
 
 	if(!ED_mesh_color_add(C, scene, ob, me))
 		return OPERATOR_CANCELLED;
+
+	if((ob->mode & OB_MODE_VERTEX_PAINT) &&
+	   ED_paint_multires_active(scene, ob))
+		vertex_color_multires_toggle(ob);
 
 	return OPERATOR_FINISHED;
 }
@@ -468,42 +505,10 @@ void MESH_OT_vertex_color_remove(wmOperatorType *ot)
 
 static int vertex_color_multires_toggle_exec(bContext *C, wmOperator *op)
 {
-	Object *ob= CTX_data_active_object(C);
-	Mesh *me= ob->data;
-	CustomDataMultires *cdm;
-	CustomDataLayer *cdl;
-	int active, i;
-
-	active = CustomData_get_active_layer_index(&me->fdata, CD_MCOL);
-	cdm = CustomData_get_layer(&me->fdata, CD_GRIDS);
-
-	if(active == -1)
+	if(vertex_color_multires_toggle(CTX_data_active_object(C)))
 		return OPERATOR_FINISHED;
-
-	cdl = &me->fdata.layers[active];
-
-	if(cdm) {
-		if(cdl->flag & CD_FLAG_MULTIRES) {
-			/* delete multires data */
-			for(i = 0; i < me->totface; ++i)
-				CustomData_multires_remove_layer(cdm+i, CD_MCOL, cdl->name);
-		}
-		else {
-			/* add multires data */
-			for(i = 0; i < me->totface; ++i) {
-				float *data = MEM_callocN(sizeof(float) *
-							  CustomData_multires_type_totfloat(CD_MCOL) *
-							  cdm[i].totelem,
-							  "vertex_color_multires_toggle");
-				CustomData_multires_add_layer(cdm+i, CD_MCOL, cdl->name, data);
-			}
-		}
-	}
-
-	/* note - if there's no griddata, it can still be synced up later */
-	cdl->flag ^= CD_FLAG_MULTIRES;
-
-	return OPERATOR_FINISHED;
+	else
+		return OPERATOR_CANCELLED;
 }
 
 void MESH_OT_vertex_color_multiresolution_toggle(wmOperatorType *ot)

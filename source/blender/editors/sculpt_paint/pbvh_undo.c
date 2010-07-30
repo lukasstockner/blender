@@ -303,7 +303,7 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 
 		BLI_pbvh_update(ob->paint->pbvh, update_flags, NULL);
 
-		if((mmd=paint_multires_active(scene, ob)))
+		if((mmd=ED_paint_multires_active(scene, ob)))
 			multires_mark_as_modified(ob);
 
 		/* TODO: should work with other paint modes too */

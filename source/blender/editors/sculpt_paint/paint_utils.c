@@ -322,10 +322,9 @@ float paint_calc_object_space_radius(ViewContext *vc, float center[3],
 	return len_v3(delta)/scale;
 }
 
-/* Currently just used for sculpt mode.
-   Sculpt mode handles multires differently from regular meshes, but only if
-   it's the last modifier on the stack and it is not on the first level */
-struct MultiresModifierData *paint_multires_active(Scene *scene, Object *ob)
+/* Paint modes can handle multires differently from regular meshes, but only
+   if it's the last modifier on the stack and it is not on level zero */
+struct MultiresModifierData *ED_paint_multires_active(Scene *scene, Object *ob)
 {
 	Mesh *me= (Mesh*)ob->data;
 	ModifierData *md, *nmd;

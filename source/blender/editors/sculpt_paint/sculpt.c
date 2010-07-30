@@ -111,7 +111,7 @@ void ED_sculpt_force_update(bContext *C)
 int sculpt_modifiers_active(Scene *scene, Object *ob)
 {
 	ModifierData *md;
-	MultiresModifierData *mmd= paint_multires_active(scene, ob);
+	MultiresModifierData *mmd= ED_paint_multires_active(scene, ob);
 
 	/* check if there are any modifiers after what we are sculpting,
 	   for a multires modifier with a deform modifier in front, we
@@ -2141,7 +2141,7 @@ void sculpt_update_mesh_elements(Scene *scene, Object *ob, int need_fmap)
 {
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
 	SculptSession *ss = ob->paint->sculpt;
-	MultiresModifierData *mmd= paint_multires_active(scene, ob);
+	MultiresModifierData *mmd= ED_paint_multires_active(scene, ob);
 
 	ob= ob;
 
@@ -3010,7 +3010,7 @@ static int sculpt_toggle_mode(bContext *C, wmOperator *unused)
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	Object *ob = CTX_data_active_object(C);
-	MultiresModifierData *mmd= paint_multires_active(scene, ob);
+	MultiresModifierData *mmd= ED_paint_multires_active(scene, ob);
 	int flush_recalc= 0;
 
 	(void)unused;

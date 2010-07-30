@@ -235,8 +235,6 @@ int CustomData_get_render_layer(const struct CustomData *data, int type);
 int CustomData_get_clone_layer(const struct CustomData *data, int type);
 int CustomData_get_stencil_layer(const struct CustomData *data, int type);
 
-char *CustomData_get_layer_name_at_offset(const struct CustomData *data, int type, int offset);
-
 /* copies the data from source to the data element at index in the first
  * layer of type
  * no effect if there is no layer of type
@@ -332,17 +330,22 @@ float *CustomData_multires_get_data(struct CustomDataMultires *cdm, int type,
 
 /* if layer matching type and name exists, free and replace its griddata
    otherwise create the layer and set its griddata */
-void CustomData_multires_assign_data(struct CustomDataMultires *cdm, int type,
-				     char *name, float *data);
+void CustomData_multires_sync_layer(struct CustomDataMultires *cdm, int type,
+				    char *name);
 
-/* insert a multires layer of the specified type */
-void CustomData_multires_add_layer(struct CustomDataMultires *cdm, int type,
-				   char *name, float *data);
+/* insert a multires layer of the specified type and assign griddata */
+void CustomData_multires_add_layer_data(struct CustomDataMultires *cdm, int type,
+					char *name, float *griddata);
 
-/* remove the multires layer with matching source name
-   returns 1 if succesful, 0 otherwise */
-int CustomData_multires_remove_layer(struct CustomDataMultires *cdm, int type,
-				     char *name);
+/* insert a multires layer of the specified type int each
+   cdm in the array of length count */
+void CustomData_multires_add_layers(struct CustomDataMultires *cdm, int count,
+				    int type, char *name);
+
+/* remove the multires layer with matching source name from the cdm
+   array of length count, returns 1 if succesful, 0 otherwise */
+int CustomData_multires_remove_layers(struct CustomDataMultires *cdm, int count,
+				      int type, char *name);
 
 /* rename a layer matching type and old_name */
 void CustomData_multires_rename(struct CustomDataMultires *cdm, int type,

@@ -298,20 +298,6 @@ static void multires_set_tot_mdisps(Mesh *me, int lvl)
 	}
 }
 
-static void multires_sync_customdata_layer(CustomDataMultires *cdm,
-					   char *name, int type, int totelem)
-{
-	float *griddata;
-	int totfloat;
-
-	totfloat = CustomData_multires_type_totfloat(type);
-
-	griddata = MEM_callocN(sizeof(float) * totfloat * totelem,
-			       "sync layer griddata");
-			
-	CustomData_multires_assign_data(cdm, type, name, griddata);
-}
-
 /* ensure all the layers needed by the gridkey have
    a matching multires layer
 
@@ -332,19 +318,19 @@ static void multires_sync_customdata(Mesh *me, GridKey *gridkey,
 		int nvert = (me->mface[i].v4)? 4: 3;
 		int totelem = multires_grid_tot[lvl]*nvert;
 
+		cd_grids[i].totelem = totelem;
+
 		for(j = 0; j < gridkey->color; ++j) {
-			multires_sync_customdata_layer(cd_grids+i,
-						       gridkey->color_names[j],
-						       CD_MCOL, totelem);
+			CustomData_multires_sync_layer(cd_grids+i,
+						       CD_MCOL,
+						       gridkey->color_names[j]);
 		}
 
 		for(j = 0; j < gridkey->mask; ++j) {
-			multires_sync_customdata_layer(cd_grids+i,
-						       gridkey->mask_names[j],
-						       CD_PAINTMASK, totelem);
+			CustomData_multires_sync_layer(cd_grids+i,
+						       CD_PAINTMASK,
+						       gridkey->mask_names[j]);
 		}
-
-		cd_grids[i].totelem = totelem;
 	}
 }
 
