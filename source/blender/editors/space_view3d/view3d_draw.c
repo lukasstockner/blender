@@ -2416,7 +2416,12 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_PIXEL);
 
-	ED_draw_paint_overlay(C, ar);
+	{
+		Sculpt *sd= CTX_data_tool_settings(C)->sculpt;
+
+		if (sd && !sd->sculpting)
+			ED_draw_paint_overlay(C, ar);
+	}
 
 	/* XXX here was the blockhandlers for floating panels */
 

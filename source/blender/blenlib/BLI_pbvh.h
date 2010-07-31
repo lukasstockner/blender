@@ -242,6 +242,10 @@ void BLI_pbvh_node_free_proxies(PBVHNode* node);
 PBVHProxyNode* BLI_pbvh_node_add_proxy(PBVH* bvh, PBVHNode* node);
 void BLI_pbvh_gather_proxies(PBVH* pbvh, PBVHNode*** nodes,  int* totnode);
 
+void BLI_pbvh_draw_nodes_in_sphere(PBVH *bvh, float location[3], float radius);
+void BLI_pbvh_gather_nodes_in_sphere(PBVH *bvh, float location[3], float radius, PBVHNode ***nodes, int *totnode);
+void BLI_pbvh_node_array_draw(PBVH *bvh, PBVHNode **nodes, int totnode);
+
 //void BLI_pbvh_node_BB_reset(PBVHNode* node);
 //void BLI_pbvh_node_BB_expand(PBVHNode* node, float co[3]);
 

@@ -1416,6 +1416,8 @@ void BLI_pbvh_node_draw(PBVHNode *node, void *data)
 
 	glColor3f(1, 0, 0);
 #endif
+	(void)data;
+
 	GPU_draw_buffers(node->draw_buffers);
 }
 
@@ -1614,4 +1616,67 @@ void BLI_pbvh_gather_proxies(PBVH* pbvh, PBVHNode*** r_array,  int* r_tot)
 
 	*r_array= array;
 	*r_tot= tot;
+}
+
+typedef struct {
+	float location[3];
+	float radius_squared;
+} SearchSphereData;
+
+/* Test AABB against sphere */
+static int search_sphere_cb(PBVHNode *node, void *data_v)
+{
+	SearchSphereData *data = data_v;
+	float *center = data->location, nearest[3];
+	float t[3], bb_min[3], bb_max[3];
+	int i;
+
+	BLI_pbvh_node_get_BB(node, bb_min, bb_max);
+
+	for(i = 0; i < 3; ++i) {
+		if(bb_min[i] > center[i])
+			nearest[i] = bb_min[i];
+		else if(bb_max[i] < center[i])
+			nearest[i] = bb_max[i];
+		else
+			nearest[i] = center[i]; 
+	}
+	
+	sub_v3_v3v3(t, center, nearest);
+
+	return dot_v3v3(t, t) < data->radius_squared;
+}
+
+void BLI_pbvh_gather_nodes_in_sphere(PBVH *bvh, float location[3], float radius, PBVHNode ***nodes, int *totnode)
+{
+	SearchSphereData data;
+
+	copy_v3_v3(data.location, location);
+	data.radius_squared= radius*radius;
+
+	BLI_pbvh_search_gather(bvh, search_sphere_cb, &data, nodes, totnode);
+}
+
+void BLI_pbvh_node_array_draw(PBVH *bvh, PBVHNode **nodes, int totnode)
+{
+	int i;
+
+	pbvh_update_normals(bvh, nodes, totnode, NULL);
+	pbvh_update_draw_buffers(bvh, nodes, totnode, 1);
+
+	for (i= 0; i < totnode; i++)
+		BLI_pbvh_node_draw(nodes[i], 0);
+}
+
+void BLI_pbvh_draw_nodes_in_sphere(PBVH *bvh, float location[3], float radius)
+{
+	PBVHNode **nodes;
+	int totnode;
+
+	BLI_pbvh_gather_nodes_in_sphere(bvh, location, radius, &nodes, &totnode);
+
+	if (nodes) {
+		BLI_pbvh_node_array_draw(bvh, nodes, totnode);
+		MEM_freeN(nodes);
+	}
 }

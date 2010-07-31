@@ -30,6 +30,7 @@
 
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "RNA_access.h"
 
@@ -53,6 +54,7 @@
 #include "sculpt_intern.h" // XXX, for expedience in getting this working, refactor later (or this just shows that this needs unification)
 
 #include "BKE_image.h"
+#include "BKE_DerivedMesh.h"
 
 #include <float.h>
 #include <math.h>
@@ -226,9 +228,10 @@ static int same_snap(Snapshot* snap, Brush* brush, ARegion *ar)
 		    mtex->size[0] == snap->size[0] &&
 		    mtex->size[1] == snap->size[1] &&
 		    mtex->size[2] == snap->size[2] &&
-		    (mtex->brush_map_mode == MTEX_MAP_MODE_FIXED || mtex->rot == snap->rot)) && // rotation does not cause fixed texture to be regenerated
-		((mtex->brush_map_mode == MTEX_MAP_MODE_FIXED && brush_size(brush) <= snap->brush_size) || (brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
-		mtex->brush_map_mode == snap->brush_map_mode &&
+		    (ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED) || mtex->rot == snap->rot)) && // rotation does not cause fixed texture to be regenerated
+		((ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED) && brush_size(brush) <= snap->brush_size) || (brush_size(brush) == snap->brush_size)) && // make brush smaller shouldn't cause a resample
+		(mtex->brush_map_mode == snap->brush_map_mode ||
+		   (ELEM(mtex->brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED) && ELEM(snap->brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED))) && // texture doesn't have to be redone if switching from fixed to wrapped or visa versa
 		ar->winx == snap->winx &&
 		ar->winy == snap->winy;
 }
@@ -268,8 +271,6 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 	int j;
 	int refresh;
 
-	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) return 0; // XXX wrap mode doesn't support overlays atm
-
 	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_TILED && !br->mtex.tex) return 0;
 
 	refresh = 
@@ -290,7 +291,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 
 		make_snap(&snap, br, ar);
 
-		if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+		if (ELEM(br->mtex.brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED)) {
 			int s = brush_size(br);
 			int r = 1;
 
@@ -378,7 +379,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 
 					avg += br->texture_sample_bias;
 
-					if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED)
+					if (ELEM(br->mtex.brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED))
 						avg *= brush_curve_strength(br, len, 1); /* Falloff curve */
 
 					buffer[index] = 255 - (GLubyte)(255*avg);
@@ -417,7 +418,7 @@ static int paint_load_overlay_tex(Sculpt *sd, Brush* br, ARegion *ar)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-	if (br->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+	if (ELEM(br->mtex.brush_map_mode, MTEX_MAP_MODE_WRAP, MTEX_MAP_MODE_FIXED)) {
 		float clear[4]= {0,0,0,0};
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
@@ -711,7 +712,7 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float 
 		GL_VIEWPORT_BIT|
 		GL_TEXTURE_BIT);
 
-	if (!sd->sculpting && paint_load_overlay_tex(sd, brush, vc->ar)) {
+	if (paint_load_overlay_tex(sd, brush, vc->ar)) {
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		glDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
@@ -849,7 +850,7 @@ void ED_draw_on_surface_cursor(float modelview[16], float projection[16], float 
 	glPopAttrib();
 }
 
-void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float t, float b, float l, float r, float angle)
+static void stencil_brush_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius)
 {
 	GLUquadric* sphere;
 
@@ -908,6 +909,11 @@ void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16],
 	glPopMatrix();
 
 	glPopAttrib();
+}
+
+void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float outer_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float t, float b, float l, float r, float angle)
+{
+	stencil_brush_on_surface(modelview, projection, size, viewport, location, outer_radius);
 
 	glPushAttrib(GL_STENCIL_BUFFER_BIT);
 
@@ -918,6 +924,314 @@ void ED_draw_fixed_overlay_on_surface(float modelview[16], float projection[16],
 	draw_fixed_overlay(sd, brush, vc, t, b, l, r, angle);
 
 	glPopAttrib();
+}
+
+typedef struct SphereTest {
+	float radius_squared;
+	float location[3];
+	float dist;
+} SphereTest;
+
+static void sphere_test_init(float radius_squared, float location[3], SphereTest *test)
+{
+	test->radius_squared= radius_squared;
+	copy_v3_v3(test->location, location);
+}
+
+static int sphere_test_fast(SphereTest *test, float co[3])
+{
+	return len_squared_v3v3(co, test->location) <= test->radius_squared;
+}
+
+static void add_norm_if(float view_vec[3], float out[3], float out_flip[3], float fno[3])
+{
+	if(!view_vec || dot_v3v3(view_vec, fno) > 0) {
+		add_v3_v3(out, fno);
+	} else {
+		add_v3_v3(out_flip, fno); /* out_flip is used when out is {0,0,0} */
+	}
+}
+
+static void PBVH_area_normal(float out[3], float view_vec[3], float radius, float location[3], PBVH* pbvh, PBVHNode **nodes, int totnode, int use_openmp)
+{
+	int n;
+
+	float out_flip[3] = {0.0f, 0.0f, 0.0f};
+
+	zero_v3(out);
+
+	#pragma omp parallel for schedule(guided) if (use_openmp)
+	for(n=0; n<totnode; n++) {
+		PBVHVertexIter vd;
+		SphereTest test;
+		float private_an[3] = {0.0f, 0.0f, 0.0f};
+		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
+
+		sphere_test_init(radius, location, &test);
+
+		BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if(sphere_test_fast(&test, vd.co)) {
+				if(vd.no) {
+					float fno[3];
+
+					normal_short_to_float_v3(fno, vd.no);
+					add_norm_if(view_vec, private_an, private_out_flip, fno);
+				}
+				else {
+					add_norm_if(view_vec, private_an, private_out_flip, vd.fno);
+				}
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+
+		#pragma omp critical
+		{
+			add_v3_v3(out, private_an);
+			add_v3_v3(out_flip, private_out_flip);
+		}
+	}
+
+	if (is_zero_v3(out))
+		copy_v3_v3(out, out_flip);
+
+	normalize_v3(out);
+}
+
+static void paint_sculpt_disp_vector(float out[3], int disp_type, float view_vec[3], float radius, float location[3], PBVH *pbvh, PBVHNode **nodes, int totnode, int use_openmp)
+{
+	switch (disp_type) {
+		case SCULPT_DISP_DIR_VIEW:
+			if (view_vec)
+				copy_v3_v3(out, view_vec);
+			else 
+				zero_v3(out);
+
+			break;
+
+		case SCULPT_DISP_DIR_X:
+			out[1] = 0.0;
+			out[2] = 0.0;
+			out[0] = 1.0;
+			break;
+
+		case SCULPT_DISP_DIR_Y:
+			out[0] = 0.0;
+			out[2] = 0.0;
+			out[1] = 1.0;
+			break;
+
+		case SCULPT_DISP_DIR_Z:
+			out[0] = 0.0;
+			out[1] = 0.0;
+			out[2] = 1.0;
+			break;
+
+		case SCULPT_DISP_DIR_AREA:
+			PBVH_area_normal(out, view_vec, radius, location, pbvh, nodes, totnode, use_openmp);
+			break;
+
+		default:
+			break;
+	}
+}
+
+static void calc_brush_local_mat(float out[4][4], const Brush *brush, float up_vec[3], float location[3], float disp_vec[3])
+{
+	float mat[4][4];
+	float scale[4][4];
+	float tmat[4][4];
+
+	// first row, x axis is perpendicular to both the up vector and the displacement vector
+	cross_v3_v3v3(mat[0], up_vec, disp_vec);
+	mat[0][3] = 0;
+
+	// second row, y axis is perpendicular to the x axis and displacement vector
+	cross_v3_v3v3(mat[1], disp_vec, mat[0]);
+	mat[1][3] = 0;
+
+	// third row, z axis is simply the displacement vector
+	copy_v3_v3(mat[2], disp_vec);
+	mat[2][3] = 0;
+
+	// fourth row, the origin of the coordinate system is the location of the brush
+	copy_v3_v3(mat[3], location);
+	mat[3][3] = 1;
+
+	// normalize the coordinate system so that points inside the brush are within a unit sphere
+	normalize_m4(mat);
+	scale_m4_fl(scale, brush_unprojected_radius(brush));
+	mul_m4_m4m4(tmat, scale, mat);
+
+	// the inverse of the matrix describing the coordinate system of the
+	// brush is a matrix that will transform a point into 'local brush space'
+	invert_m4_m4(out, tmat);
+}
+
+static void draw_wrapped_overlay(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float unprojected_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float angle, float up_vec[3])
+{
+	glPushAttrib(
+		GL_COLOR_BUFFER_BIT|
+		GL_CURRENT_BIT|
+		GL_DEPTH_BUFFER_BIT|
+		GL_ENABLE_BIT|
+		GL_LINE_BIT|
+		GL_POLYGON_BIT|
+		GL_STENCIL_BUFFER_BIT|
+		GL_TRANSFORM_BIT|
+		GL_VIEWPORT_BIT|
+		GL_TEXTURE_BIT);
+
+	if (paint_load_overlay_tex(sd, brush, vc->ar)) {
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadMatrixf(modelview);
+
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadMatrixf(projection);
+
+		glMatrixMode(GL_TEXTURE);
+		glPushMatrix();
+		glLoadIdentity();
+		glTranslatef(0.5f, 0.5f, 0.5f);
+		glScalef(0.5f, 0.5f, 0.5f);
+
+		//glTranslatef(ob->orig[0], ob->orig[1], ob->orig[2]);
+
+		glScalef(size[0], size[1], size[2]);
+
+		glRotatef(angle, 0, 0, 1);
+
+		{
+			float disp_vec[3];
+			float view_vec[3];
+			float brush_local_mat[4][4];
+
+			PBVHNode **nodes;
+			int totnode;
+
+			viewvector(vc->rv3d, vc->rv3d->twmat[3], view_vec);
+
+			BLI_pbvh_gather_nodes_in_sphere(
+				vc->obact->sculpt->pbvh,
+				location,
+				brush_unprojected_radius(brush),
+				&nodes,
+				&totnode);
+
+			paint_sculpt_disp_vector(
+				disp_vec, 
+				brush->sculpt_plane, 
+				view_vec, 
+				brush_unprojected_radius(brush), 
+				location, 
+				vc->obact->sculpt->pbvh, 
+				nodes, 
+				totnode, 
+				sd->flags & SCULPT_USE_OPENMP);
+
+			if (nodes)
+				MEM_freeN(nodes);
+
+			calc_brush_local_mat(
+				brush_local_mat,
+				brush,
+				up_vec,
+				location,
+				disp_vec);
+
+			glMultMatrixf(brush_local_mat);
+		}
+
+		{
+			float plane_x[4]= {1,0,0,0};
+			float plane_y[4]= {0,1,0,0};
+			float plane_z[4]= {0,0,1,0};
+			float plane_w[4]= {0,0,0,1};
+			glTexGenf(GL_S, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+			glTexGenf(GL_T, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+			glTexGenf(GL_R, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+			glTexGenf(GL_Q, GL_TEXTURE_GEN_MODE, GL_OBJECT_LINEAR);
+			glTexGenfv(GL_S, GL_OBJECT_PLANE, plane_x);
+			glTexGenfv(GL_T, GL_OBJECT_PLANE, plane_y);
+			glTexGenfv(GL_R, GL_OBJECT_PLANE, plane_z);
+			glTexGenfv(GL_Q, GL_OBJECT_PLANE, plane_w);
+			glEnable(GL_TEXTURE_GEN_S);
+			glEnable(GL_TEXTURE_GEN_T);
+			glEnable(GL_TEXTURE_GEN_R);
+			glEnable(GL_TEXTURE_GEN_Q);
+		}
+
+		glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthMask(GL_FALSE);
+
+		glColor4f(
+			U.sculpt_paint_overlay_col[0],
+			U.sculpt_paint_overlay_col[1],
+			U.sculpt_paint_overlay_col[2],
+			brush->texture_overlay_alpha / 100.0f);
+
+		glEnable(GL_BLEND);
+
+		glEnable(GL_CULL_FACE);
+
+		glDepthFunc(GL_LEQUAL);
+		glEnable(GL_DEPTH_TEST);
+
+		glPolygonOffset(-1, 1);
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+		glEnable(GL_POLYGON_OFFSET_FILL);
+
+		BLI_pbvh_draw_nodes_in_sphere(vc->obact->sculpt->pbvh, location, unprojected_radius);
+
+		glPopMatrix();
+
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+	}
+
+	glPopAttrib();
+}
+
+void ED_draw_wrapped_overlay_on_surface(float modelview[16], float projection[16], float size[3], int viewport[4], float location[3], float unprojected_radius, Sculpt *sd, Brush *brush, ViewContext *vc, float angle, float up_vec[3])
+{
+	stencil_brush_on_surface(modelview, projection, size, viewport, location, unprojected_radius);
+
+	glPushAttrib(GL_STENCIL_BUFFER_BIT);
+
+	glEnable(GL_STENCIL_TEST);
+	glStencilFunc(GL_EQUAL, 2, 0xFF);
+	glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+
+	draw_wrapped_overlay(modelview, projection, size, viewport, location,  unprojected_radius, sd, brush, vc, angle, up_vec);
+
+	glPopAttrib();
+}
+
+static void update_rake_delta(float out[3], float location[3], int x, int y, ViewContext *vc, float mat[4][4])
+{
+	static float old_location[3], old_delta[3];
+
+	float delta[3], imat[4][4];
+
+	/* compute 3d coordinate at same z from original location + mouse */
+	initgrabz(vc->rv3d, old_location[0], old_location[1], old_location[2]);
+	window_to_3d_delta(vc->ar, delta, x, y);
+
+	/* compute delta to move verts by */
+	sub_v3_v3v3(out, delta, old_delta);
+	invert_m4_m4(imat, mat);
+	mul_mat3_m4_v3(imat, out);
+
+	copy_v3_v3(old_delta, delta);
+
+	if (len_v3v3(old_location, location) > 1000)
+		copy_v3_v3(old_location, location);
 }
 
 // XXX paint cursor now does a lot of the same work that is needed during a sculpt stroke
@@ -957,6 +1271,8 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 		const float max_alpha = sd->sculpting ? 0.40f : 0.80f;
 
 		float t, b, l, r, angle;
+
+		float rake_delta[3];
 
 		{
 			const float u = 0.5f;
@@ -1017,11 +1333,30 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		angle -= brush->mtex.rot*(float)(180.0/M_PI);
 
-		if ((!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) &&
-			brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED &&
+		update_rake_delta(rake_delta, location, x+vc.ar->winrct.xmin, y+vc.ar->winrct.ymin, &vc, CTX_data_active_object(C)->obmat);
+
+		if (!sd->sculpting &&
+			(!hit || !(paint->flags & PAINT_SHOW_BRUSH_ON_SURFACE)) &&
 			brush->flag & BRUSH_TEXTURE_OVERLAY)
 		{
-			draw_fixed_overlay(sd, brush, &vc, t, b, l, r, angle);
+			if (!hit || brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+				draw_fixed_overlay(sd, brush, &vc, t, b, l, r, angle);
+			}
+			else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) {
+					float up_vec[3]= {0,1,0};
+					Object *ob= CTX_data_active_object(C);
+
+					// if raking, up is the direction of the mouse (grab delta),
+					if (brush->flag & BRUSH_RAKE) {
+						negate_v3_v3(up_vec, rake_delta);
+						draw_wrapped_overlay(modelview, projection, ob->size, viewport, location, brush_unprojected_radius(brush), sd, brush, &vc, 0, up_vec);
+					}
+					// otherwise, it is the view up vector
+					else {
+						mul_mat3_m4_v3(vc.rv3d->viewinv, up_vec);
+						draw_wrapped_overlay(modelview, projection, ob->size, viewport, location, brush_unprojected_radius(brush), sd, brush, &vc, angle, up_vec);
+					}
+			}
 		}
 
 		if (hit) {
@@ -1064,10 +1399,23 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				const float outer_radius=  sd->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
 				Object *ob= CTX_data_active_object(C);
 
-				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED &&
-					brush->flag & BRUSH_TEXTURE_OVERLAY)
-				{
-					ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, t, b, l, r, angle);
+				if (!sd->sculpting && brush->flag & BRUSH_TEXTURE_OVERLAY) {
+					if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED)
+						ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, t, b, l, r, angle);
+					else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) {
+						float up_vec[3]= {0,1,0};
+
+						// if raking, up is the direction of the mouse (grab delta),
+						if (brush->flag & BRUSH_RAKE) {
+							negate_v3_v3(up_vec, rake_delta);
+							ED_draw_wrapped_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, 0, up_vec);
+						}
+						// otherwise, it is the view up vector
+						else {
+							mul_mat3_m4_v3(vc.rv3d->viewinv, up_vec);
+							ED_draw_wrapped_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, angle, up_vec);
+						}
+					}
 				}
 
 				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));

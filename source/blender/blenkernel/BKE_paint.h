@@ -50,7 +50,7 @@ void free_paint(struct Paint *p);
 void copy_paint(struct Paint *orig, struct Paint *new);
 
 struct Paint *paint_get_active(struct Scene *sce);
-struct Brush *paint_brush(struct Paint *paint);
+struct Brush *paint_brush(const struct Paint *paint);
 void paint_brush_set(struct Paint *paint, struct Brush *br);
 void paint_brush_slot_add(struct Paint *p);
 void paint_brush_slot_remove(struct Paint *p);

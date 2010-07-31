@@ -68,7 +68,7 @@ Paint *paint_get_active(Scene *sce)
 	return NULL;
 }
 
-Brush *paint_brush(Paint *p)
+Brush *paint_brush(const Paint *p)
 {
 	return p && p->brushes ? p->brushes[p->active_brush_index] : NULL;
 }
