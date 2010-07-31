@@ -846,14 +846,17 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 		MDisps *mdisp = &mdisps[i];
 		int S, x, y, j, gIndex = gridOffset[i];
 
-		/* when adding new faces in edit mode, need to allocate disps;
-		   may need to allocate paintmask storage after adding multires as well */
-		if(!mdisp->disps ||
-		   ((gridkey->mask || gridkey->color) && 
-		    !stored_grids /* XXX: this needs updating for non vert types */ ))
+		/* when adding new faces in edit mode, need to allocate disps */
+		if(!mdisp->disps)
 		#pragma omp critical
 		{
 			multires_reallocate_mdisps(me, mdisps, totlvl);
+		}
+		
+		/* XXX: this doesn't cover all the cases */
+		if((gridkey->mask || gridkey->color) && !stored_grids)
+		#pragma omp critical
+		{
 			multires_sync_customdata(me, gridkey, totlvl);
 			stored_grids = CustomData_get_layer(&me->fdata, CD_GRIDS);
 		}
