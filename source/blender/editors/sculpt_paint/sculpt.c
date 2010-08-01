@@ -1292,10 +1292,11 @@ static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode,
 	count = (int)(bstrength*max_iterations);
 	last  = max_iterations*(bstrength - count*fract);
 
+	set_brush_local_mat(sd, ss, brush, nodes, totnode, NULL);
+
 	for(iteration = 0; iteration <= count; ++iteration) {
 		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
-			set_brush_local_mat(sd, ss, brush, NULL, 0, 0);
 
 			if(ss->multires) {
 				do_multires_smooth_brush(sd, ss, nodes[n], iteration != count ? 1.0f : last);
@@ -1428,7 +1429,7 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, NULL);
+	set_brush_local_mat(sd, ss, brush, nodes, totnode, NULL);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -1467,7 +1468,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	if (brush->normal_weight > 0)
 		calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, brush->normal_weight > 0 ? an : NULL);
+	set_brush_local_mat(sd, ss, brush, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
@@ -1563,7 +1564,7 @@ static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 	if (brush->normal_weight > 0)
 		calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, brush->normal_weight > 0 ? an : NULL);
+	set_brush_local_mat(sd, ss, brush, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
@@ -1778,7 +1779,7 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, NULL);
+	set_brush_local_mat(sd, ss, brush, nodes, totnode, NULL);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -2231,7 +2232,7 @@ static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes
 
 	calc_sculpt_plane(sd, ss, nodes, totnode, sn, fc);
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
+	set_brush_local_mat(sd, ss, brush, NULL, 0, sn);
 
 	if (brush->sculpt_plane != SCULPT_DISP_DIR_AREA || (brush->flag & BRUSH_ORIGINAL_NORMAL))
 		calc_area_normal(sd, ss, an, nodes, totnode);

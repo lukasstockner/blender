@@ -1399,30 +1399,32 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				const float outer_radius=  sd->draw_anchored ? 1.0f/thickness * unprojected_radius : unprojected_radius;
 				Object *ob= CTX_data_active_object(C);
 
+				float *location0 = sd->draw_anchored ? sd->anchored_location : location;
+
 				if (!sd->sculpting && brush->flag & BRUSH_TEXTURE_OVERLAY) {
 					if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED)
-						ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, t, b, l, r, angle);
+						ED_draw_fixed_overlay_on_surface(modelview, projection, ob->size, viewport, location0, outer_radius, sd, brush, &vc, t, b, l, r, angle);
 					else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_WRAP) {
 						float up_vec[3]= {0,1,0};
 
 						// if raking, up is the direction of the mouse (grab delta),
 						if (brush->flag & BRUSH_RAKE) {
 							negate_v3_v3(up_vec, rake_delta);
-							ED_draw_wrapped_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, 0, up_vec);
+							ED_draw_wrapped_overlay_on_surface(modelview, projection, ob->size, viewport, location0, outer_radius, sd, brush, &vc, 0, up_vec);
 						}
 						// otherwise, it is the view up vector
 						else {
 							mul_mat3_m4_v3(vc.rv3d->viewinv, up_vec);
-							ED_draw_wrapped_overlay_on_surface(modelview, projection, ob->size, viewport, location, outer_radius, sd, brush, &vc, angle, up_vec);
+							ED_draw_wrapped_overlay_on_surface(modelview, projection, ob->size, viewport, location0, outer_radius, sd, brush, &vc, angle, up_vec);
 						}
 					}
 				}
 
-				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location, inner_radius, outer_radius, brush_size(brush));
+				ED_draw_on_surface_cursor(modelview, projection, col, alpha, ob->size, viewport, location0, inner_radius, outer_radius, brush_size(brush));
 
 				{
 					float scale = 1.0f/(20.0f*(brush_size(brush)/100.0f));
-					draw_symmetric_brush_dots(sd, sd->draw_anchored ? sd->anchored_location : location, col, modelview, projection, viewport,scale*inner_radius, brush_size(brush) >= 8);
+					draw_symmetric_brush_dots(sd, sd->draw_anchored ? sd->anchored_location : location0, col, modelview, projection, viewport,scale*inner_radius, brush_size(brush) >= 8);
 				}
 			}
 #endif
