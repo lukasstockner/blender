@@ -44,6 +44,12 @@ static EnumPropertyItem prop_direction_items[]= {
 	{BRUSH_DIR_IN, "SUBTRACT", 0, "Subtract", "Subtract effect of brush"},
 	{0, NULL, 0, NULL, NULL}};
 
+static EnumPropertyItem texture_angle_source_items[] = {
+	{0, "USER", 0, "User", ""},
+	{BRUSH_RAKE, "RAKE", 0, "Rake", ""},
+	{BRUSH_RANDOM_ROTATION, "RANDOM", 0, "Random", ""},
+	{0, NULL, 0, NULL, NULL}};
+
 EnumPropertyItem brush_sculpt_tool_items[] = {
 	{SCULPT_TOOL_BLOB, "BLOB", ICON_BRUSH_BLOB, "Blob", ""},
 	{SCULPT_TOOL_CLAY, "CLAY", ICON_BRUSH_CLAY, "Clay", ""},
@@ -329,6 +335,26 @@ static EnumPropertyItem *rna_Brush_direction_itemf(bContext *C, PointerRNA *ptr,
 	}
 }
 
+static EnumPropertyItem *rna_Brush_texture_angle_source_itemf(bContext *C, PointerRNA *ptr, int *free)
+{
+	Brush *me= (Brush*)(ptr->data);
+
+	static EnumPropertyItem texture_angle_source_no_random_items[] = {
+		{0, "USER", 0, "User", ""},
+		{BRUSH_RAKE, "RAKE", 0, "Rake", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+		if (!(me->flag & BRUSH_ANCHORED) &&
+			!ELEM4(me->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE) &&
+			ELEM(me->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_WRAP))
+		{
+			return texture_angle_source_items;
+		}
+		else {
+			return texture_angle_source_no_random_items;
+		}
+}
+
 #else
 
 static void rna_def_brush_texture_slot(BlenderRNA *brna)
@@ -382,17 +408,6 @@ static void rna_def_brush(BlenderRNA *brna)
 		{BRUSH_SPACE, "SPACE", 0, "Space", ""},
 		{BRUSH_ANCHORED, "ANCHORED", 0, "Anchored", ""},
 		{BRUSH_AIRBRUSH, "AIRBRUSH", 0, "Airbrush", ""},
-		{0, NULL, 0, NULL, NULL}};
-
-	static EnumPropertyItem texture_angle_source_items[] = {
-		{0, "USER", 0, "User", ""},
-		{BRUSH_RAKE, "RAKE", 0, "Rake", ""},
-		{BRUSH_RANDOM_ROTATION, "RANDOM", 0, "Random", ""},
-		{0, NULL, 0, NULL, NULL}};
-
-	static EnumPropertyItem texture_angle_source_no_random_items[] = {
-		{0, "USER", 0, "User", ""},
-		{BRUSH_RAKE, "RAKE", 0, "Rake", ""},
 		{0, NULL, 0, NULL, NULL}};
 
 	static EnumPropertyItem brush_sculpt_plane_items[] = {
@@ -476,12 +491,7 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "texture_angle_source", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
 	RNA_def_property_enum_items(prop, texture_angle_source_items);
-	RNA_def_property_ui_text(prop, "Texture Angle Source", "");
-	RNA_def_property_update(prop, 0, "rna_Brush_update");
-
-	prop= RNA_def_property(srna, "texture_angle_source_no_random", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_bitflag_sdna(prop, NULL, "flag");
-	RNA_def_property_enum_items(prop, texture_angle_source_no_random_items);
+	RNA_def_property_enum_funcs(prop, NULL, NULL, "rna_Brush_texture_angle_source_itemf");
 	RNA_def_property_ui_text(prop, "Texture Angle Source", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 

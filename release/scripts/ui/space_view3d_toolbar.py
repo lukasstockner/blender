@@ -770,32 +770,15 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             col.separator()
 
             col = layout.column()
-            col.active = tex_slot.map_mode in ('FIXED')
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
             col.label(text="Angle:")
             
             col = layout.column()
-            if not brush.use_anchor and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED'):
-                col.prop(brush, "texture_angle_source", text="")
-            else:
-                col.prop(brush, "texture_angle_source_no_random", text="")
-
-            #row = col.row(align=True)
-            #row.label(text="Angle:")
-            #row.active = tex_slot.map_mode in ('FIXED', 'TILED')
-
-            #row = col.row(align=True)
-
-            #col = row.column()
-            #col.active = tex_slot.map_mode in ('FIXED')
-            #col.prop(brush, "use_rake", toggle=True, icon='PARTICLEMODE', text="")
+            col.prop(brush, "texture_angle_source", text="")
 
             col = layout.column()
             col.prop(tex_slot, "angle", text="")
-            col.active = tex_slot.map_mode in ('FIXED', 'TILED')
-
-            #col = layout.column()
-            #col.prop(brush, "use_random_rotation")
-            #col.active = (not brush.use_rake) and (not brush.use_anchor) and brush.sculpt_tool not in ('GRAB', 'SNAKE_HOOK', 'THUMB', 'ROTATE') and tex_slot.map_mode in ('FIXED')
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
 
             split = layout.split()
 
@@ -818,7 +801,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
 
             row = col.row(align=True)
             row.label(text="Overlay:")
-            row.active = tex_slot.map_mode in ('FIXED', 'TILED')
+            row.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
 
             row = col.row(align=True)
 
@@ -829,11 +812,11 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel):
             else:
                 col.prop(brush, "use_texture_overlay", toggle=True, text="", icon='MUTE_IPO_ON')
 
-            col.active = tex_slot.map_mode in ('FIXED', 'TILED')
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP')
 
             col = row.column()
             col.prop(brush, "texture_overlay_alpha", text="Alpha")
-            col.active = tex_slot.map_mode in ('FIXED', 'TILED') and brush.use_texture_overlay
+            col.active = tex_slot.map_mode in ('FIXED', 'TILED', 'WRAP') and brush.use_texture_overlay
 
 
 class VIEW3D_PT_tools_brush_tool(PaintPanel):

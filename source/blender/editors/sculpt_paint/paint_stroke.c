@@ -727,18 +727,16 @@ static void draw_fixed_overlay(Sculpt *sd, Brush *brush, ViewContext *vc, float 
 		glPushMatrix();
 		glLoadIdentity();
 
-		if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
+		glTranslatef(0.5f, 0.5f, 0);
+
+		glRotatef(angle, 0, 0, 1);
+
+		glTranslatef(-0.5f, -0.5f, 0);
+
+		if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
 			glTranslatef(0.5f, 0.5f, 0);
-
-			glRotatef(angle, 0, 0, 1);
-
+			glScalef(1.0f/sd->pressure_value, 1.0f/sd->pressure_value, 1);
 			glTranslatef(-0.5f, -0.5f, 0);
-
-			if (sd->draw_pressure && (brush->flag & BRUSH_SIZE_PRESSURE)) {
-				glTranslatef(0.5f, 0.5f, 0);
-				glScalef(1.0f/sd->pressure_value, 1.0f/sd->pressure_value, 1);
-				glTranslatef(-0.5f, -0.5f, 0);
-			}
 		}
 
 		glColor4f(
