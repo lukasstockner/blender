@@ -20,6 +20,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_modifier.h"
+#include "BKE_multires.h"
 #include "BKE_paint.h"
 
 #include "BKE_utildefines.h"
@@ -42,6 +43,14 @@
 #include "paint_intern.h"
 
 /* 3D Paint */
+
+void ED_paint_force_update(bContext *C)
+{
+	Object *ob= CTX_data_active_object(C);
+
+	if(ob && (ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)))
+		multires_force_update(ob);
+}
 
 static void imapaint_project(Object *ob, float *model, float *proj, float *co, float *pco)
 {

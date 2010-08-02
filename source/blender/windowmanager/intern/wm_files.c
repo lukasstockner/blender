@@ -613,7 +613,7 @@ int WM_write_file(bContext *C, char *target, int fileflags, ReportList *reports,
 	}
 	
 	ED_object_exit_editmode(C, EM_DO_UNDO);
-	ED_sculpt_force_update(C);
+	ED_paint_force_update(C);
 
 	/* blend file thumbnail */
 	ibuf_thumb= blend_file_thumb(di, CTX_data_scene(C), &thumb);

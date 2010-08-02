@@ -39,7 +39,6 @@ struct wmWindowManager;
 
 /* sculpt.c */
 void ED_operatortypes_sculpt(void);
-void ED_sculpt_force_update(struct bContext *C);
 
 /* paint_ops.c */
 void ED_operatortypes_paint(void);
@@ -63,6 +62,7 @@ void paint_layer_undo_set_remove(PaintLayerUndoNode *unode, char *name,
 struct MultiresModifierData *ED_paint_multires_active(struct Scene *scene, struct Object *ob);
 void paint_get_redraw_planes(float planes[4][4], struct ARegion *ar,
 			     struct RegionView3D *rv3d, struct Object *ob);
+void ED_paint_force_update(struct bContext *C);
 
 
 #endif
