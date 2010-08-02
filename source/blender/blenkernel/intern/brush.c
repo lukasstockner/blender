@@ -73,6 +73,7 @@ static void brush_set_defaults(Brush *brush)
 	brush->autosmooth_factor= 0.0f;
 	brush->crease_pinch_factor= 0.5f;
 	brush->sculpt_plane = SCULPT_DISP_DIR_AREA;
+	brush->sculpt_plane_range= 1;
 	brush->plane_offset= 0.0f; /* how far above or below the plane that is found by averaging the faces */
 	brush->plane_trim= 0.5f;
 	brush->clone.alpha= 0.5f;
@@ -85,7 +86,7 @@ static void brush_set_defaults(Brush *brush)
 	brush->rgb[2]= 1.0f;
 
 	/* BRUSH STROKE SETTINGS */
-	brush->flag |= (BRUSH_SPACE|BRUSH_SPACE_ATTEN);
+	brush->flag |= (BRUSH_SPACE|BRUSH_SPACE_ATTEN|BRUSH_ADAPTIVE_SPACE);
 	brush->spacing= 10; /* how far each brush dot should be spaced as a percentage of brush diameter */
 
 	brush->smooth_stroke_radius= 75;
@@ -94,6 +95,8 @@ static void brush_set_defaults(Brush *brush)
 	brush->rate= 0.1f; /* time delay between dots of paint or sculpting when doing airbrush mode */
 
 	brush->jitter= 0.0f;
+
+	brush->adaptive_space_factor = 1;
 
 	/* BRUSH TEXTURE SETTINGS */
 	default_mtex(&brush->mtex);
