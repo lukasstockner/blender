@@ -1606,8 +1606,9 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 		length= len_v2(vec);
 
 		if(length > FLT_EPSILON) {
-			float t;
 			float pressure = 1;
+			float dvec[2];
+			float mouse[2];
 
 			// XXX duplicate code
 			if(event->custom == EVT_DATA_TABLET) {
@@ -1621,28 +1622,45 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 			if (scale < FLT_EPSILON) // paranoia here: make sure scale is big enough have an effect when added
 				scale= FLT_EPSILON;
 
-			t= 0;
-			while (t < 1) {
-				float dvec[2];
-				float mouse[2];
-				float f;
-				float d;
+			if (stroke->brush->flag & BRUSH_ADAPTIVE_SPACE) {
+				float t= 0;
+				for(;;) {
+					float f;
+					float d;
 
-				mul_v2_v2fl(dvec, vec, t);
-				add_v2_v2v2(mouse, start_mouse, dvec);
+					f= stroke->brush->adaptive_space_factor;
+					CLAMP(f, 0.1f, 1); // make sure that adaptive strength never sets spacing to zero
 
-				paint_brush_stroke_add_step(C, op, event, mouse);
+					d= f*scale;
+					CLAMP(d, FLT_EPSILON, scale); // paranoia here: d has to be big enough to increment t
 
-				f= stroke->brush->adaptive_space_factor;
-				CLAMP(f, 0.1f, 1); // make sure that adaptive strength never sets spacing to zero
+					t += d;
 
-				d= f*scale;
-				CLAMP(d, FLT_EPSILON, scale); // paranoia here: d has to be big enough to increment t
+					if (t > 1) break;
 
-				t += d;
+					mul_v2_v2fl(dvec, vec, t);
+					add_v2_v2v2(mouse, start_mouse, dvec);
 
-				cnt++;
+					paint_brush_stroke_add_step(C, op, event, mouse);
+
+					cnt++;
+				}
 			}
+			else {
+				int i, steps;
+
+				steps = 1 / scale;
+
+				for (i= 0; i < steps; i++) {
+					mul_v2_v2fl(dvec, vec, (float)i/(float)steps);
+					add_v2_v2v2(mouse, start_mouse, dvec);
+
+					paint_brush_stroke_add_step(C, op, event, mouse);
+
+					cnt++;
+				}
+			}
+
 		}
 	}
 
