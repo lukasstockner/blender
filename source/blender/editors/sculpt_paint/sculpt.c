@@ -100,6 +100,10 @@
  *
  */
 
+static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode);
+
+
+
 void ED_sculpt_force_update(bContext *C)
 {
 	Object *ob= CTX_data_active_object(C);
@@ -454,6 +458,25 @@ static float frontface(Brush *brush, float sculpt_normal[3], short no[3], float 
 	}
 }
 
+static void set_adaptive_space_factor(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float an_in[3])
+{
+	Brush *brush = paint_brush(&(sd->paint));
+
+	if (brush->flag & BRUSH_ADAPTIVE_SPACE) {
+		float an[3];
+
+		if (an_in)
+			copy_v3_v3(an, an_in);
+		else
+			calc_sculpt_normal(sd, ss, an, nodes, totnode);
+
+		brush->adaptive_space_factor= dot_v3v3(an, ss->cache->view_normal);
+	}
+	else {
+		brush->adaptive_space_factor= 1;
+	}
+}
+
 #if 0
 
 static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float location[3], float an[3])
@@ -486,7 +509,7 @@ static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float locat
 static float overlapped_curve(Brush* br, float x)
 {
 	int i;
-	const int n = 100 / br->spacing;
+	const int n = 100 / (br->adaptive_space_factor*br->spacing);
 	const float h = br->spacing / 50.0f;
 	const float x0 = x-1;
 
@@ -686,8 +709,6 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 
 /* Texture Sampling */
 
-static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode);
-
 static void set_brush_local_mat(const Sculpt *sd, const SculptSession *ss, const Brush *brush, PBVHNode **nodes, int totnode, float *an_in)
 {
 	float tmat[4][4];
@@ -865,8 +886,11 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		   the texture is not rotated by skipping the calls to
 		   atan2, sqrtf, sin, and cos. */
 		if (rotation > 0.001 || rotation < -0.001) {
-			const float angle    = atan2(y, x) + rotation;
+			float angle    = atan2(y, x) + rotation;
 			const float flen     = sqrtf(x*x + y*y);
+
+			if (br->flag & BRUSH_RANDOM_ROTATION)
+				angle += ss->cache->special_rotation;
 
 			x = flen * cos(angle);
 			y = flen * sin(angle);
@@ -1325,6 +1349,8 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	calc_sculpt_normal(sd, ss, area_normal, nodes, totnode);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, area_normal);
+
+	set_adaptive_space_factor(sd, ss, NULL, 0, area_normal);
 
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
@@ -3208,8 +3234,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 	if(!(brush->flag & BRUSH_ANCHORED || ELEM4(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK, SCULPT_TOOL_THUMB, SCULPT_TOOL_ROTATE))) {
 		copy_v2_v2(cache->tex_mouse, cache->mouse);
 
-		if  ( (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) &&
-			  (brush->flag & BRUSH_RANDOM_ROTATION) &&
+		if  (ELEM(brush->mtex.brush_map_mode, MTEX_MAP_MODE_FIXED, MTEX_MAP_MODE_WRAP) &&
+			 (brush->flag & BRUSH_RANDOM_ROTATION) &&
 			 !(brush->flag & BRUSH_RAKE))
 		{
 			cache->special_rotation = 2*M_PI*BLI_frand();

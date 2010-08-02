@@ -708,10 +708,9 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Use Automatic Strength Adjustment", "Automatically adjusts strength to give consistent results for different spacings");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-	/* adaptive space is not implemented yet */
 	prop= RNA_def_property(srna, "use_adaptive_space", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_ADAPTIVE_SPACE);
-	RNA_def_property_ui_text(prop, "Adaptive Spacing", "Space daubs according to surface orientation instead of screen space");
+	RNA_def_property_ui_text(prop, "Adaptive Spacing", "Space dabs according to surface orientation instead of screen space");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "use_locked_size", PROP_BOOLEAN, PROP_NONE);

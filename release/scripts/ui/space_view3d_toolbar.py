@@ -887,6 +887,9 @@ class VIEW3D_PT_tools_brush_stroke(PaintPanel):
                 row = col.row()
                 row.active = brush.use_space
                 row.prop(brush, "spacing", text="Spacing")
+                row = col.row()
+                row.active = brush.use_space
+                row.prop(brush, "use_adaptive_space", text="Adaptive Spacing")
 
             if brush.sculpt_tool not in ('GRAB', 'THUMB', 'SNAKE_HOOK', 'ROTATE') and (not brush.use_anchor) and (not brush.restore_mesh):
                 col = layout.column()

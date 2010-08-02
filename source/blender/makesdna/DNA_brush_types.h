@@ -92,6 +92,8 @@ typedef struct Brush {
 
 	float unprojected_radius;
 
+	float adaptive_space_factor, pad2;
+
 	float add_col[3];
 	float sub_col[3];
 } Brush;

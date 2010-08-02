@@ -10863,7 +10863,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		Scene *scene;
 		bScreen *sc;
 		Tex *tex;
-		Brush *brush;
 
 		for (sc= main->screen.first; sc; sc= sc->id.next) {
 			ScrArea *sa;
@@ -10982,7 +10981,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 	}
 
 	/* GSOC Sculpt 2010 - Sanity check on Sculpt/Paint settings */
-	if (main->versionfile < 253) {
+	/* These sanity checks are useful for any version so do not
+	   put a condition on them */
+	{
 		Scene *sce;
 		for (sce= main->scene.first; sce; sce= sce->id.next) {
 			if (sce->toolsettings->sculpt_paint_unified_alpha == 0)
@@ -10996,13 +10997,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		}
 	}
 
-
 	{
 		/* GSOC 2010 Sculpt - New settings for Brush */
 
 		Brush *brush;
 		for (brush= main->brush.first; brush; brush= brush->id.next) {
-			/* Sanity Check */
+			/* Sanity Check for Brushes 2.52 */
 			/* These sanity checks are useful for any version so do not
 			   put a condition on them */
 
@@ -11044,11 +11044,17 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 			// same as dots
 			if (brush->rate == 0)
-				brush->rate = 0.1f;
+				brush->rate= 0.1f;
+
+			/* Sanity Check for Brushes 2.53 */
+
+			// divide by zero
+			if (brush->adaptive_space_factor == 0)
+				brush->adaptive_space_factor= 1;
 
 			/* New Settings */
 			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 5)) {
-				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive space
+				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive strength
 
 				// spacing was originally in pixels, convert it to percentage for new version
 				// size should not be zero due to sanity check above
@@ -11072,17 +11078,24 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 					brush->sub_col[2] = 1.00;
 				}
 			}
+
+			if (main->versionfile < 253) {
+				brush->flag |= BRUSH_ADAPTIVE_SPACE; // explicitly enable adaptive space
+			}
 		}
 	}
 
-	/* MatCaps */
-	if (main->versionfile < 253) {
+	{
 		Object *ob;
+
+		/* MatCaps */
 		for (ob=main->object.first; ob; ob=ob->id.next) {
+			if (main->versionfile < 253) {
 			/* If max drawtype is textured then assume user won't mind if we bump it up to use MatCaps, */
 			/* Otherwise, assume that if max drawtype is less than textured then user doesn't want to use MatCaps */
-			if (ob->dt == OB_TEXTURE)
-				ob->dt = OB_MATCAP;
+				if (ob->dt == OB_TEXTURE)
+					ob->dt = OB_MATCAP;
+			}
 		}
 	}
 
