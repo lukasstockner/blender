@@ -610,7 +610,9 @@ static float calc_radial_symmetry_feather(Sculpt *sd, StrokeCache *cache, const 
 
 static float calc_symmetry_feather(Sculpt *sd, StrokeCache* cache)
 {
-	if (sd->flags & SCULPT_SYMMETRY_FEATHER) {
+	Brush *brush= paint_brush(&(sd->paint));
+
+	if (brush->flag & BRUSH_SYMMETRY_FEATHER) {
 		float overlap;
 		int symm = cache->symmetry;
 		int i;

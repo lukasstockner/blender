@@ -1020,8 +1020,8 @@ class VIEW3D_PT_sculpt_options(PaintPanel):
         row.prop(sculpt, "lock_y", text="Y", toggle=True)
         row.prop(sculpt, "lock_z", text="Z", toggle=True)
 
-		
-		
+
+
 class VIEW3D_PT_sculpt_symmetry(PaintPanel):
     bl_label = "Symmetry"
     bl_default_closed = True
@@ -1058,7 +1058,7 @@ class VIEW3D_PT_sculpt_symmetry(PaintPanel):
 
         col.separator()
 
-        col.prop(sculpt, "use_symmetry_feather", text="Feather")
+        col.prop(brush, "use_symmetry_feather", text="Feather")
 
 class VIEW3D_PT_tools_brush_appearance(PaintPanel):
     bl_label = "Appearance"

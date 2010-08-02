@@ -96,7 +96,7 @@ static void brush_set_defaults(Brush *brush)
 
 	brush->jitter= 0.0f;
 
-	brush->adaptive_space_factor = 1;
+	brush->adaptive_space_factor= 1;
 
 	/* BRUSH TEXTURE SETTINGS */
 	default_mtex(&brush->mtex);

@@ -129,6 +129,7 @@ typedef struct Brush {
 #define BRUSH_PLANE_TRIM (1<<26)
 #define BRUSH_FRONTFACE (1<<27)
 #define BRUSH_CUSTOM_ICON (1<<28)
+#define BRUSH_SYMMETRY_FEATHER (1<<29)
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW        1

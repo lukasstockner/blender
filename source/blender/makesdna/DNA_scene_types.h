@@ -1143,7 +1143,7 @@ typedef enum SculptFlags {
 	SCULPT_LOCK_X = (1<<3),
 	SCULPT_LOCK_Y = (1<<4),
 	SCULPT_LOCK_Z = (1<<5),
-	SCULPT_SYMMETRY_FEATHER = (1<<6),
+//	SCULPT_SYMMETRY_FEATHER = (1<<6),
 	SCULPT_USE_OPENMP = (1<<7),
 } SculptFlags;
 
