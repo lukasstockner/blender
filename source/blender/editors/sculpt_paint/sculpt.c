@@ -1318,6 +1318,8 @@ static void smooth(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode,
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, NULL);
 
+	set_adaptive_space_factor(sd, ss, nodes, totnode, NULL);
+
 	for(iteration = 0; iteration <= count; ++iteration) {
 		#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 		for(n=0; n<totnode; n++) {
@@ -1342,18 +1344,18 @@ static void do_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush = paint_brush(&sd->paint);
-	float offset[3], area_normal[3];
+	float offset[3], an[3];
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	calc_sculpt_normal(sd, ss, area_normal, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, area_normal);
+	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
-	set_adaptive_space_factor(sd, ss, NULL, 0, area_normal);
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
 
 	/* offset with as much as possible factored in already */
-	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
+	mul_v3_v3fl(offset, an, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
 
@@ -1370,9 +1372,9 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if (sculpt_brush_test(&test, vd.co)) {
-			//if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, area_normal)) {
+			//if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, an)) {
 				/* offset vertex */
-				float fade = tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, area_normal, vd.no, vd.fno);
+				float fade = tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, an, vd.no, vd.fno);
 
 				mul_v3_v3fl(proxy[vd.i], offset, fade);
 
@@ -1387,17 +1389,19 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
 	Brush *brush = paint_brush(&sd->paint);
-	float offset[3], area_normal[3];
+	float offset[3], an[3];
 	float bstrength= ss->cache->bstrength;
 	float flippedbstrength, crease_correction;
 	int n;
 
-	calc_sculpt_normal(sd, ss, area_normal, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, area_normal);
+	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
+
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
 
 	/* offset with as much as possible factored in already */
-	mul_v3_v3fl(offset, area_normal, ss->cache->radius);
+	mul_v3_v3fl(offset, an, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
 	
@@ -1427,7 +1431,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
 				/* offset vertex */
-				const float fade = tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, area_normal, vd.no, vd.fno);
+				const float fade = tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, an, vd.no, vd.fno);
 				float val1[3];
 				float val2[3];
 
@@ -1456,6 +1460,8 @@ static void do_pinch_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	int n;
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, NULL);
+
+	set_adaptive_space_factor(sd, ss, nodes, totnode, NULL);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -1495,6 +1501,8 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 		calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
+
+	set_adaptive_space_factor(sd, ss, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
@@ -1552,6 +1560,8 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
 	cross_v3_v3v3(tmp, an, grab_delta);
 	cross_v3_v3v3(cono, tmp, an);
 
@@ -1591,6 +1601,8 @@ static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 		calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
+
+	set_adaptive_space_factor(sd, ss, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
@@ -1644,6 +1656,8 @@ static void do_thumb_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
 	cross_v3_v3v3(tmp, an, grab_delta);
 	cross_v3_v3v3(cono, tmp, an);
 
@@ -1691,6 +1705,8 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
 	axis_angle_to_mat3(m, an, angle);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
@@ -1730,18 +1746,20 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 {
 	Brush *brush = paint_brush(&sd->paint);
 	float bstrength= ss->cache->bstrength;
-	float area_normal[3], offset[3];
+	float an[3], offset[3];
 	float lim= ss->cache->radius / 4;
 	int n;
 
 	if(bstrength < 0)
 		lim = -lim;
 
-	calc_sculpt_normal(sd, ss, area_normal, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode);
 
-	set_brush_local_mat(sd, ss, brush, NULL, 0, area_normal);
+	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
-	mul_v3_v3v3(offset, ss->cache->scale, area_normal);
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
+	mul_v3_v3v3(offset, ss->cache->scale, an);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -1767,7 +1785,7 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 			if(sculpt_brush_test(&test, vd.co)) {
-				const float fade = bstrength*ss->cache->radius*tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, area_normal, vd.no, vd.fno);
+				const float fade = bstrength*ss->cache->radius*tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, an, vd.no, vd.fno);
 				float *disp= &layer_disp[vd.i];
 				float val[3];
 
@@ -1806,6 +1824,8 @@ static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 	int n;
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, NULL);
+
+	set_adaptive_space_factor(sd, ss, nodes, totnode, NULL);
 
 	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 	for(n=0; n<totnode; n++) {
@@ -2119,6 +2139,8 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
 	displace = radius*offset;
 
 	mul_v3_v3v3(temp, an, ss->cache->scale);
@@ -2181,6 +2203,8 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
+
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
 
 	flip = bstrength < 0;
 
@@ -2259,6 +2283,8 @@ static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes
 	calc_sculpt_plane(sd, ss, nodes, totnode, sn, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, sn);
+
+	set_adaptive_space_factor(sd, ss, NULL, 0, sn);
 
 	if (brush->sculpt_plane != SCULPT_DISP_DIR_AREA || (brush->flag & BRUSH_ORIGINAL_NORMAL))
 		calc_area_normal(sd, ss, an, nodes, totnode);
@@ -2348,6 +2374,8 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
 	displace = radius*offset;
 
 	mul_v3_v3v3(temp, an, ss->cache->scale);
@@ -2409,6 +2437,8 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
+
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
 
 	displace = -radius*offset;
 
