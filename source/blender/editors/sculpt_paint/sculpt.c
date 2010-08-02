@@ -894,11 +894,8 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 		   the texture is not rotated by skipping the calls to
 		   atan2, sqrtf, sin, and cos. */
 		if (rotation > 0.001 || rotation < -0.001) {
-			float angle    = atan2(y, x) + rotation;
+			const float angle    = atan2(y, x) + rotation;
 			const float flen     = sqrtf(x*x + y*y);
-
-			if (br->flag & BRUSH_RANDOM_ROTATION)
-				angle += ss->cache->special_rotation;
 
 			x = flen * cos(angle);
 			y = flen * sin(angle);
@@ -931,6 +928,9 @@ static float tex_strength(SculptSession *ss, Brush *br, float *point, const floa
 
 		x = point_2d[0];
 		y = point_2d[1];
+
+		if (br->flag & BRUSH_RANDOM_ROTATION)
+			rotation += ss->cache->special_rotation;
 
 		/* it is probably worth optimizing for those cases where 
 		   the texture is not rotated by skipping the calls to
