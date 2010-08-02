@@ -11052,6 +11052,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if (brush->adaptive_space_factor == 0)
 				brush->adaptive_space_factor= 1;
 
+			if (brush->sculpt_plane_range == 0)
+				brush->sculpt_plane_range= 1;
+
 			/* New Settings */
 			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 5)) {
 				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive strength
@@ -11079,9 +11082,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 				}
 			}
 
-			if (main->versionfile < 253) {
+			if (main->versionfile < 253)
 				brush->flag |= BRUSH_ADAPTIVE_SPACE; // explicitly enable adaptive space
-			}
 		}
 	}
 

@@ -100,7 +100,7 @@
  *
  */
 
-static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode);
+static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode, float range);
 
 
 
@@ -372,6 +372,12 @@ static void sculpt_brush_test_init(const SculptSession *ss, SculptBrushTest *tes
 	copy_v3_v3(test->location, ss->cache->location);
 }
 
+static void sculpt_brush_range_test_init(const SculptSession *ss, SculptBrushTest *test, float range)
+{
+	test->radius_squared= ss->cache->radius_squared*range*range;
+	copy_v3_v3(test->location, ss->cache->location);
+}
+
 static int sculpt_brush_test(SculptBrushTest *test, float co[3])
 {
 	float distsq = len_squared_v3v3(co, test->location);
@@ -468,7 +474,7 @@ static void set_adaptive_space_factor(Sculpt *sd, SculptSession *ss, PBVHNode **
 		if (an_in)
 			copy_v3_v3(an, an_in);
 		else
-			calc_sculpt_normal(sd, ss, an, nodes, totnode);
+			calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 		brush->adaptive_space_factor= dot_v3v3(an, ss->cache->view_normal);
 	}
@@ -722,7 +728,7 @@ static void set_brush_local_mat(const Sculpt *sd, const SculptSession *ss, const
 			if (an_in)
 				copy_v3_v3(an, an_in);
 			else
-				calc_sculpt_normal(sd, ss, an, nodes, totnode);
+				calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 			if (brush->flag & BRUSH_RAKE) {
 				cross_v3_v3v3(mat[0], an, ss->cache->rake_delta_symmetry); mat[0][3] = 0;
@@ -1011,7 +1017,7 @@ static void add_norm_if(float view_vec[3], float out[3], float out_flip[3], floa
 	}
 }
 
-static void calc_area_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode)
+static void calc_area_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode, float range)
 {
 	int n;
 
@@ -1028,7 +1034,7 @@ static void calc_area_normal(const Sculpt *sd, const SculptSession *ss, float an
 		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
 
 		unode = sculpt_undo_push_node(ss, nodes[n]);
-		sculpt_brush_test_init(ss, &test);
+		sculpt_brush_range_test_init(ss, &test, range);
 
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
@@ -1073,7 +1079,7 @@ static void calc_area_normal(const Sculpt *sd, const SculptSession *ss, float an
 
 /* This initializes the faces to be moved for this sculpt for draw/layer/flatten; then it
  finds average normal for all active vertices - note that this is called once for each mirroring direction */
-static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode)
+static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float an[3], PBVHNode **nodes, int totnode, float range)
 {
 	Brush *brush = paint_brush(&sd->paint);
 
@@ -1105,7 +1111,7 @@ static void calc_sculpt_normal(const Sculpt *sd, const SculptSession *ss, float 
 				break;
 
 			case SCULPT_DISP_DIR_AREA:
-				calc_area_normal(sd, ss, an, nodes, totnode);
+				calc_area_normal(sd, ss, an, nodes, totnode, range);
 
 			default:
 				break;
@@ -1348,7 +1354,7 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	float bstrength= ss->cache->bstrength;
 	int n;
 
-	calc_sculpt_normal(sd, ss, an, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -1394,7 +1400,7 @@ static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	float flippedbstrength, crease_correction;
 	int n;
 
-	calc_sculpt_normal(sd, ss, an, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -1498,7 +1504,7 @@ static void do_grab_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	float len;
 
 	if (brush->normal_weight > 0)
-		calc_sculpt_normal(sd, ss, an, nodes, totnode);
+		calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
 
@@ -1556,7 +1562,7 @@ static void do_nudge_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
-	calc_sculpt_normal(sd, ss, an, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -1598,7 +1604,7 @@ static void do_snake_hook_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 	float len;
 
 	if (brush->normal_weight > 0)
-		calc_sculpt_normal(sd, ss, an, nodes, totnode);
+		calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, nodes, totnode, brush->normal_weight > 0 ? an : NULL);
 
@@ -1652,7 +1658,7 @@ static void do_thumb_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 
 	copy_v3_v3(grab_delta, ss->cache->grab_delta_symmetry);
 
-	calc_sculpt_normal(sd, ss, an, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -1701,7 +1707,7 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	float m[3][3];
 	float angle = ss->cache->vertex_rotation * rotation_flip[ss->cache->mirror_symmetry_pass];
 
-	calc_sculpt_normal(sd, ss, an, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -1753,7 +1759,7 @@ static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int 
 	if(bstrength < 0)
 		lim = -lim;
 
-	calc_sculpt_normal(sd, ss, an, nodes, totnode);
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -1906,7 +1912,7 @@ static void calc_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes,
 
 /* this calculates flatten center and area normal together, 
 amortizing the memory bandwidth and loop overhead to calculate both at the same time */
-static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float an[3], float fc[3])
+static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float range, float an[3], float fc[3])
 {
 	int n;
 
@@ -1933,7 +1939,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 		int private_count = 0;
 
 		unode = sculpt_undo_push_node(ss, nodes[n]);
-		sculpt_brush_test_init(ss, &test);
+		sculpt_brush_range_test_init(ss, &test, range);
 
 		if(ss->cache->original) {
 			BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
@@ -2000,7 +2006,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, SculptSession *ss, P
 	}
 }
 
-static void calc_sculpt_plane(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float an[3], float fc[3])
+static void calc_sculpt_plane(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float range, float an[3], float fc[3])
 {
 	Brush *brush = paint_brush(&sd->paint);
 
@@ -2032,7 +2038,7 @@ static void calc_sculpt_plane(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, i
 				break;
 
 			case SCULPT_DISP_DIR_AREA:
-				calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, an, fc);
+				calc_area_normal_and_flatten_center(sd, ss, nodes, totnode, range, an, fc);
 
 			default:
 				break;
@@ -2135,7 +2141,7 @@ static void do_flatten_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 
 	float temp[3];
 
-	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
+	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -2200,7 +2206,7 @@ static void do_clay_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 	int flip;
 
-	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
+	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -2280,14 +2286,14 @@ static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes
 
 	int flip;
 
-	calc_sculpt_plane(sd, ss, nodes, totnode, sn, fc);
+	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, sn);
 
 	set_adaptive_space_factor(sd, ss, NULL, 0, sn);
 
 	if (brush->sculpt_plane != SCULPT_DISP_DIR_AREA || (brush->flag & BRUSH_ORIGINAL_NORMAL))
-		calc_area_normal(sd, ss, an, nodes, totnode);
+		calc_area_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 	else
 		copy_v3_v3(an, sn);
 
@@ -2370,7 +2376,7 @@ static void do_fill_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 	float temp[3];
 
-	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
+	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -2434,7 +2440,7 @@ static void do_scrape_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 
 	float temp[3];
 
-	calc_sculpt_plane(sd, ss, nodes, totnode, an, fc);
+	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, an, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
 
@@ -3249,7 +3255,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt *sd, SculptSession 
 		}
 
 		if (ELEM(brush->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK))
-			cache->initial_radius *= 2.0f;
+			cache->initial_radius *= 1.5f;
 	}
 
 	if(brush_use_size_pressure(brush)) {

@@ -500,6 +500,13 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Sculpt Plane", "");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 	
+	prop= RNA_def_property(srna, "sculpt_plane_range", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "sculpt_plane_range");
+	RNA_def_property_range(prop, 0, 10);
+	RNA_def_property_ui_range(prop, 0, 2, 0, 0);
+	RNA_def_property_ui_text(prop, "Sculpt Plane Range", "Determines the range, in brush radii, to sample vertexes to determine the area sculpt plane");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	/* number values */
 	prop= RNA_def_property(srna, "size", PROP_INT, PROP_DISTANCE);
 	RNA_def_property_int_funcs(prop, "rna_Brush_get_size", "rna_Brush_set_size", NULL);

@@ -73,8 +73,10 @@ typedef struct Brush {
 	float alpha;			/* opacity */
 
 	int sculpt_plane;		/* the direction of movement for sculpt vertices */
+	float sculpt_plane_range; /* adjust the range for determining the sculpt plane normal and center */
 
 	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape) */
+
 
 	char sculpt_tool;		/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
@@ -92,7 +94,7 @@ typedef struct Brush {
 
 	float unprojected_radius;
 
-	float adaptive_space_factor, pad2;
+	float adaptive_space_factor;
 
 	float add_col[3];
 	float sub_col[3];

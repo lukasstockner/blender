@@ -613,9 +613,9 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                 row.prop(brush, "crease_pinch_factor", slider=True, text="Pinch")
 
             if brush.sculpt_tool not in ('PINCH', 'INFLATE', 'SMOOTH'):
-                row = col.row(align=True)
-
                 col.separator()
+
+                row = col.row(align=True)
 
                 if brush.use_original_normal:
                     row.prop(brush, "use_original_normal", toggle=True, text="", icon='LOCKED')
@@ -623,6 +623,9 @@ class VIEW3D_PT_tools_brush(PaintPanel):
                     row.prop(brush, "use_original_normal", toggle=True, text="", icon='UNLOCKED')
 
                 row.prop(brush, "sculpt_plane", text="")
+
+                row = col.row()
+                row.prop(brush, "sculpt_plane_range")
 
             if brush.sculpt_tool in ('CLAY', 'CLAY_STRIPS', 'FLATTEN', 'FILL', 'SCRAPE'):
                 row = col.row(align=True)
