@@ -98,6 +98,8 @@ static void brush_set_defaults(Brush *brush)
 
 	brush->adaptive_space_factor= 1;
 
+	brush->frontface_angle= 80;
+
 	/* BRUSH TEXTURE SETTINGS */
 	default_mtex(&brush->mtex);
 

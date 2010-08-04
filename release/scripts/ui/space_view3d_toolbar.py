@@ -643,7 +643,10 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
 
             row= col.row()
-            row.prop(brush, "use_frontface", text="Front Faces Only")
+            row.prop(brush, "use_frontface", text="Front-Faces Only")
+            row= col.row()
+            row.active = brush.use_frontface
+            row.prop(brush, "frontface_angle", text="Angle")
 
             col.separator()
             col.row().prop(brush, "direction", expand=True)

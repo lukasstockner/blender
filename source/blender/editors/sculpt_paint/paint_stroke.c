@@ -1624,6 +1624,7 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 
 			if (stroke->brush->flag & BRUSH_ADAPTIVE_SPACE) {
 				float t= 0;
+
 				for(;;) {
 					float f;
 					float d;
@@ -1649,18 +1650,16 @@ static int paint_space_stroke(bContext *C, wmOperator *op, wmEvent *event, const
 			else {
 				int i, steps;
 
-				steps = 1 / scale;
+				copy_v2_v2(mouse, start_mouse);
+				mul_v2_fl(vec, scale);
 
-				for (i= 0; i < steps; i++) {
-					mul_v2_v2fl(dvec, vec, (float)i/(float)steps);
-					add_v2_v2v2(mouse, start_mouse, dvec);
+				steps = (int)(1.0f / scale);
 
+				for(i = 0; i < steps; ++i, ++cnt) {
+					add_v2_v2(mouse, vec);
 					paint_brush_stroke_add_step(C, op, event, mouse);
-
-					cnt++;
 				}
 			}
-
 		}
 	}
 

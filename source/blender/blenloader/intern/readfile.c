@@ -11055,6 +11055,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 			if (brush->sculpt_plane_range == 0)
 				brush->sculpt_plane_range= 1;
 
+			if (brush->frontface_angle== 0)
+				brush->frontface_angle= (float)(M_PI_2 * 80.0/90.0);
+
 			/* New Settings */
 			if (main->versionfile < 252 || (main->versionfile == 252 && main->subversionfile < 5)) {
 				brush->flag |= BRUSH_SPACE_ATTEN; // explicitly enable adaptive strength
