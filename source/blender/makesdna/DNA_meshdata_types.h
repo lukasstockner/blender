@@ -125,6 +125,26 @@ typedef struct MDisps {
 	float (*disps)[3];
 } MDisps;
 
+typedef struct MPtex {
+	void *data;
+
+	/* for non-quads, ures and vres are the
+	   resolution of the subfaces */
+	int ures;
+	int vres;
+
+	/* for quads, subfaces=0; anything else
+	   is set to the face's number of vertices */
+	int subfaces;
+
+	/* enum PtexDataType */
+	char type;
+
+	char channels;
+
+	char pad[2];
+} MPtex;
+
 /** Multires structs kept for compatibility with old files **/
 typedef struct MultiresCol {
 	float a, r, g, b;

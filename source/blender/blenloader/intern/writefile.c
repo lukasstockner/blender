@@ -171,6 +171,8 @@ Any case: direct data is ALWAYS after the lib block
 
 #include "readfile.h"
 
+#include "ptex.h"
+
 #include <errno.h>
 
 /* ********* my write, buffered writing with minimum size chunks ************ */
@@ -1505,6 +1507,25 @@ static void write_customdata_multires(WriteData *wd, int count,
 	}
 }
 
+static void write_customdata_mptex(WriteData *wd, int count,
+				  MPtex *mptex)
+{
+	int i;
+
+	writestruct(wd, DATA, "MPtex", count, mptex);
+
+	for(i = 0; i < count; ++i, ++mptex) {
+		int layersize = mptex->channels * ptex_data_size(mptex->type);
+		float texels = mptex->ures*mptex->vres;
+
+		if(mptex->subfaces)
+			texels *= mptex->subfaces;
+
+		writedata(wd, DATA, layersize * texels,
+			  mptex->data);
+	}
+}
+
 static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
 {
 	int i;
@@ -1532,6 +1553,9 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		}
 		else if (layer->type == CD_GRIDS) {
 			write_customdata_multires(wd, count, layer->data);
+		}
+		else if (layer->type == CD_MPTEX) {
+			write_customdata_mptex(wd, count, layer->data);
 		}
 		else {
 			CustomData_file_write_info(layer->type, &structname, &structnum);

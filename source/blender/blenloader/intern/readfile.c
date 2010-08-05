@@ -3278,6 +3278,17 @@ static void direct_link_customdata_multires(FileData *fd, int count,
 	}
 }
 
+static void direct_link_customdata_mptex(FileData *fd, int count, MPtex *mptex)
+{
+	if(mptex) {
+		int i;
+
+		for(i = 0; i < count; ++i, ++mptex) {
+			mptex->data = newdataadr(fd, mptex->data);
+		}
+	}
+}
+
 static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 {
 	int i = 0;
@@ -3297,6 +3308,8 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 				direct_link_mdisps(fd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
 			if(layer->type == CD_GRIDS)
 				direct_link_customdata_multires(fd, count, layer->data);
+			if(layer->type == CD_MPTEX)
+				direct_link_customdata_mptex(fd, count, layer->data);
 			i++;
 		}
 	}

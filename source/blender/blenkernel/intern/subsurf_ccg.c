@@ -2496,7 +2496,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		numGrids = ccgDM_getNumGrids(dm);
 		gridkey = ccgDM_getGridKey(dm);
 
-		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
+		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new(PBVH_DEFAULT_LEAF_LIMIT);
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
 				     &me->vdata, &me->fdata,
@@ -2504,7 +2504,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		ccgdm->pbvh_draw = 1;
 	}
 	else if(ob->type == OB_MESH) {
-		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new();
+		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new(PBVH_DEFAULT_LEAF_LIMIT);
 		BLI_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
 				    &me->vdata, &me->fdata, me->totface, me->totvert,
 				    ss ? &ss->hidden_areas : NULL);
@@ -2918,8 +2918,11 @@ void subsurf_calculate_limit_positions(Mesh *me, float (*positions_r)[3])
 	float edge_sum[3], face_sum[3];
 	CCGVertIterator *vi;
 	DerivedMesh *dm = CDDM_from_mesh(me, NULL);
+	GridKey gridkey;
 
-	ss = _getSubSurf(NULL, NULL, 1, 0, 1, 0);
+	GRIDELEM_KEY_INIT(&gridkey, 1, 0, 0, 1);
+
+	ss = _getSubSurf(NULL, &gridkey, 1, 0, 1, 0);
 	ss_sync_from_derivedmesh(ss, dm, NULL, 0);
 
 	vi = ccgSubSurf_getVertIterator(ss);

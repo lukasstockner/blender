@@ -28,7 +28,8 @@ FILE(GLOB SRC intern/*.c)
 
 SET(INC 
 	. ../blenlib ../blenkernel ../makesdna ../makesrna ../include
-	../../../extern/glew/include ../../../intern/guardedalloc ../../../intern/smoke/extern ../imbuf)
+	../../../extern/glew/include ../../../intern/guardedalloc ../../../intern/smoke/extern ../imbuf
+	../../../extern/ptex)
 
 IF(WIN32)
 	INCLUDE_DIRECTORIES(${PTHREADS_INC})

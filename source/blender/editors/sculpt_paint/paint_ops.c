@@ -218,6 +218,10 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_vertex_color_set);
 	WM_operatortype_append(PAINT_OT_vertex_colors_to_texture);
 
+	/* ptex */
+	WM_operatortype_append(PTEX_OT_layer_add);
+	WM_operatortype_append(PTEX_OT_open);
+
 	/* face-select */
 	WM_operatortype_append(PAINT_OT_face_select_linked);
 	WM_operatortype_append(PAINT_OT_face_select_linked_pick);

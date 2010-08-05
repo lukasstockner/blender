@@ -786,7 +786,7 @@ static void rna_MeshColorLayer_name_set(PointerRNA *ptr, const char *value)
 	CustomData_set_layer_unique_name(fdata, cdl - fdata->layers);
 }
 
-/* Paint mask layer */
+/* Paint mask layers */
 
 static void rna_MeshPaintMask_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
@@ -875,6 +875,62 @@ static void rna_Mesh_active_paint_mask_index_range(PointerRNA *ptr, int *min, in
 
 	*min= 0;
 	*max= CustomData_number_of_layers(vdata, CD_PAINTMASK)-1;
+	*max= MAX2(0, *max);
+}
+
+/* Ptex layers */
+
+static char *rna_MeshPtexLayer_path(PointerRNA *ptr)
+{
+	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
+
+	return BLI_sprintfN("ptex[%d]", (MPtex*)ptr->data - (MPtex*)layer->data);
+}
+
+static int rna_ptex_layer_check(CollectionPropertyIterator *iter, void *data)
+{
+	CustomDataLayer *layer= (CustomDataLayer*)data;
+	return (layer->type != CD_MPTEX);
+}
+
+static void rna_Mesh_ptex_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *fdata= rna_mesh_fdata(me);
+	rna_iterator_array_begin(iter, (void*)fdata->layers,
+				 sizeof(CustomDataLayer),
+				 fdata->totlayer, 0,
+				 rna_ptex_layer_check);
+}
+
+static int rna_Mesh_ptex_layers_length(PointerRNA *ptr)
+{
+	return rna_face_CustomDataLayer_count(ptr, CD_MPTEX);
+}
+
+
+static int rna_Mesh_active_ptex_index_get(PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *fdata= rna_mesh_fdata(me);
+	return CustomData_get_active_layer(fdata, CD_MPTEX);
+}
+
+static void rna_Mesh_active_ptex_index_set(PointerRNA *ptr, int value)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *fdata= rna_mesh_fdata(me);
+
+	CustomData_set_layer_active(fdata, CD_MPTEX, value);
+}
+
+static void rna_Mesh_active_ptex_index_range(PointerRNA *ptr, int *min, int *max)
+{
+	Mesh *me= (Mesh*)ptr->data;
+	CustomData *fdata= rna_mesh_fdata(me);
+
+	*min= 0;
+	*max= CustomData_number_of_layers(fdata, CD_MPTEX)-1;
 	*max= MAX2(0, *max);
 }
 
@@ -1619,6 +1675,22 @@ static void rna_def_mcol(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 }
 
+static void rna_def_ptex(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna= RNA_def_struct(brna, "MeshPtexLayer", NULL);
+	RNA_def_struct_sdna(srna, "CustomDataLayer");
+	RNA_def_struct_ui_text(srna, "Mesh Ptex Layer", "");
+	RNA_def_struct_path_func(srna, "rna_MeshPtexLayer_path");
+
+	prop= RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_struct_name_property(srna, prop);
+	RNA_def_property_ui_text(prop, "Name", "");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+}
+
 static void rna_def_paintmask(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1870,6 +1942,20 @@ static void rna_def_mesh(BlenderRNA *brna)
 				   "rna_Mesh_active_paint_mask_index_range");
 	RNA_def_property_ui_text(prop, "Active Paint Mask Index", "Active paint mask layer index");
 
+	/* Ptex */
+	prop= RNA_def_property(srna, "ptex_layers", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "fdata.layers", "fdata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_ptex_layers_begin",
+					  0, 0, 0, "rna_Mesh_ptex_layers_length", 0, 0);
+	RNA_def_property_struct_type(prop, "MeshPtexLayer");
+	RNA_def_property_ui_text(prop, "Ptex Layers", "Variable-resolution mesh colors");
+
+	prop= RNA_def_property(srna, "active_ptex_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_Mesh_active_ptex_index_get",
+				   "rna_Mesh_active_ptex_index_set",
+				   "rna_Mesh_active_ptex_index_range");
+	RNA_def_property_ui_text(prop, "Active Ptex Index", "Active ptex layer index");
+
 	prop= RNA_def_property(srna, "float_layers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "fdata.layers", "fdata.totlayer");
 	RNA_def_property_collection_funcs(prop, "rna_Mesh_float_layers_begin", 0, 0, 0, "rna_Mesh_float_layers_length", 0, 0);
@@ -2067,6 +2153,7 @@ void RNA_def_mesh(BlenderRNA *brna)
 	rna_def_mtface(brna);
 	rna_def_msticky(brna);
 	rna_def_mcol(brna);
+	rna_def_ptex(brna);
 	rna_def_paintmask(brna);
 	rna_def_mproperties(brna);
 }

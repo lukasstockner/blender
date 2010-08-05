@@ -243,5 +243,9 @@ pbvh_undo_s3 pbvh_undo_node_no(PBVHUndoNode *unode);
 float *pbvh_undo_node_layer_disp(PBVHUndoNode *unode);
 void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
 
+/* ptex.c */
+void PTEX_OT_layer_add(struct wmOperatorType *ot);
+void PTEX_OT_open(struct wmOperatorType *ot);
+
 #endif /* ED_PAINT_INTERN_H */
 

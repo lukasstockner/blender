@@ -35,6 +35,7 @@
 #include <string.h>
 
 #include "GL/glew.h"
+#include "ptex.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -423,6 +424,9 @@ struct GPU_Buffers {
 	GLuint vert_buf, index_buf, color_buf;
 	GLenum index_type;
 
+	GLuint *ptex;
+	int totptex;
+
 	unsigned int tot_tri, tot_quad;
 };
 
@@ -730,6 +734,120 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 	}
 }
 
+GLenum gl_type_from_ptex(MPtex *pt)
+{
+	switch(pt->type) {
+	case PTEX_DT_UINT8:
+		return GL_UNSIGNED_BYTE;
+	case PTEX_DT_UINT16:
+		return GL_UNSIGNED_SHORT;
+	case PTEX_DT_FLOAT:
+		return GL_FLOAT;
+	default:
+		return 0;
+	}
+}
+
+GLenum gl_format_from_ptex(MPtex *pt)
+{
+	switch(pt->channels) {
+	case 1:
+		return GL_LUMINANCE;
+	case 2:
+		return GL_LUMINANCE_ALPHA;
+	case 3:
+		return GL_RGB;
+	case 4:
+		return GL_RGBA;
+	default:
+		return 0;
+	}
+}
+
+void GPU_update_mesh_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
+{
+	CustomData *fdata;
+	MFace *mface;
+	MPtex *mptex;
+	int *face_indices, totface;
+	int i, j;
+
+	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+	BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
+
+	/* TODO: composite multiple layers */
+	mptex = CustomData_get_layer(fdata, CD_MPTEX);
+
+	/* pack all ptex for one face into one texture */
+	if(!buffers->ptex) {
+		buffers->totptex = totface;
+		buffers->ptex = MEM_callocN(sizeof(GLuint) * buffers->totptex, "PTex IDs");
+		glGenTextures(buffers->totptex, buffers->ptex);
+	}
+
+	for(i = 0; i < totface; ++i) {
+		int face_ndx = face_indices[i];
+		MPtex *pt = &mptex[face_ndx];
+		int S = mface[i].v4 ? 4 : 3;
+
+		GLenum gltype = gl_type_from_ptex(pt);
+		GLenum glformat = gl_format_from_ptex(pt);
+		int layersize = pt->channels * ptex_data_size(pt->type);
+		
+		glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		if(S == 4) {
+			/* load quad ptex whole */
+			glTexImage2D(GL_TEXTURE_2D, 0, glformat, pt->ures, pt->vres,
+				     0, glformat, gltype, pt->data);
+		}
+		else {
+			/* pack non-quads ptex in side by side */
+			glTexImage2D(GL_TEXTURE_2D, 0, glformat, S * pt->ures, pt->vres,
+				     0, glformat, gltype, NULL);
+
+			for(j = 0; j < S; ++j) {
+				glTexSubImage2D(GL_TEXTURE_2D, 0, pt->ures*j, 0, pt->ures,
+						pt->vres, glformat, gltype,
+						((char*)pt->data) + pt->ures*pt->vres*j*layersize);
+			}
+		}
+	}
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void GPU_update_grid_ptex(GPU_Buffers *buffers, PTexHandle *grids, int totgrid)
+{
+	int i;
+
+	if(buffers->totptex != totgrid) {
+		buffers->totptex = totgrid;
+		buffers->ptex = MEM_callocN(sizeof(GLuint) * totgrid, "PTex IDs");
+		glGenTextures(totgrid, buffers->ptex);
+	}
+
+
+	for(i = 0; i < totgrid; ++i) {
+		glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, grids[i].ures, grids[i].vres,
+			     0, GL_RGBA, GL_FLOAT, grids[i].colors);
+	}
+}
+
 typedef struct {
 	float co[3];
 	float no[3];
@@ -878,6 +996,71 @@ GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
 	return buffers;
 }
 
+static void gpu_draw_ptex_node_without_vb(GPU_Buffers *buffers, MFace *mface, MVert *mvert,
+					  int *face_indices, int totface, GPUDrawFlags flags)
+{
+	int i, j;
+
+	for(i = 0; i < totface; ++i) {
+		int face_index = face_indices[i];
+		MFace *f = mface + face_index;
+		int S = f->v4 ? 4 : 3;
+
+		glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
+
+		glBegin(GL_QUADS);
+
+		if(S == 4) {
+			/* fast case */
+
+			float uv[4][2] = {{0,0}, {1,0}, {1,1}, {0,1}};
+
+			for(j = 0; j < 4; ++j) {
+				int vndx = (&f->v1)[j];
+
+				glTexCoord2fv(uv[j]);
+				glNormal3sv(mvert[vndx].no);
+				glVertex3fv(mvert[vndx].co);
+			}
+		}
+		else {
+			/* split ngons into subfaces (still quads) */
+
+			/* for now this is just tris, can be updated for ngons too */
+			float center[3];
+			float half[4][3];
+			float texoffs = 1.0f / S;
+
+			cent_tri_v3(center, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
+
+			for(j = 0; j < 3; ++j) {
+				int next = (j == S-1) ? 0 : j+1;
+				mid_v3_v3v3(half[j], mvert[(&f->v1)[j]].co, mvert[(&f->v1)[next]].co);
+			}
+
+			for(j = 0; j < 3; ++j) {
+				int prev = j == 0 ? S-1 : j-1;
+				int vndx = (&f->v1)[j];
+
+				glTexCoord2f(texoffs * (j+1), 1);
+				glNormal3sv(mvert[vndx].no);
+				glVertex3fv(mvert[vndx].co);
+
+				glTexCoord2f(texoffs * j, 1);
+				glVertex3fv(half[j]);
+
+				glTexCoord2f(texoffs * j, 0);
+				glVertex3fv(center);
+
+				glTexCoord2f(texoffs * (j+1), 0);
+				glVertex3fv(half[prev]);
+			}
+		}
+
+		glEnd();
+	}
+}
+
 static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, GPUDrawFlags flags)
 {
 	DMGridData **grids;
@@ -904,13 +1087,16 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
 		pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
 
-		use_color = mcol_first_layer != -1 || pmask_first_layer != -1;
+		use_color = !(flags & GPU_DRAW_ACTIVE_MCOL) && pmask_first_layer != -1;
 	}
-
+	
 	if(use_color) {
 		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 		glEnable(GL_COLOR_MATERIAL);
 	}
+
+	if(buffers->ptex && GPU_DRAW_ACTIVE_MCOL)
+		glEnable(GL_TEXTURE_2D);
 
 	if(use_grids) {
 		int x, y;
@@ -962,6 +1148,11 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 
 		BLI_pbvh_node_get_verts(pbvh, node, NULL, &mvert);
 		BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
+
+		if(flags & GPU_DRAW_ACTIVE_MCOL && buffers->ptex) {
+			gpu_draw_ptex_node_without_vb(buffers, mface, mvert, face_indices, totface, flags);
+			return;
+		}
 
 		if(mcol_first_layer)
 			mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);
@@ -1078,6 +1269,10 @@ void GPU_free_buffers(GPU_Buffers *buffers_v)
 			glDeleteBuffersARB(1, &buffers->vert_buf);
 		if(buffers->index_buf)
 			glDeleteBuffersARB(1, &buffers->index_buf);
+		if(buffers->ptex) {
+			glDeleteTextures(buffers->totptex, buffers->ptex);
+			MEM_freeN(buffers->ptex);
+		}
 
 		MEM_freeN(buffers);
 	}

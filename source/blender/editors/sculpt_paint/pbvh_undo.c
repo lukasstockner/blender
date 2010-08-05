@@ -550,6 +550,9 @@ void pbvh_undo_push_end(void)
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	PBVHUndoNode *unode;
 
+	if(!lb || !lb->first)
+		return;
+		
 	/* remove data that's only used during stroke */
 	for(unode=lb->first; unode; unode=unode->next) {
 		if(unode->no) {

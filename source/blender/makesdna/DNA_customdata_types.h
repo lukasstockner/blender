@@ -103,7 +103,8 @@ typedef struct CustomDataMultires {
 #define CD_CLOTH_ORCO	23
 #define CD_GRIDS	       	24
 #define CD_PAINTMASK		25
-#define CD_NUMTYPES		26
+#define CD_MPTEX		26
+#define CD_NUMTYPES		27
 
 /* Bits for CustomDataMask */
 #define CD_MASK_MVERT		(1 << CD_MVERT)
@@ -130,6 +131,7 @@ typedef struct CustomDataMultires {
 #define CD_MASK_CLOTH_ORCO	(1 << CD_CLOTH_ORCO)
 #define CD_MASK_GRIDS		(1 << CD_GRIDS)
 #define CD_MASK_PAINTMASK	(1 << CD_PAINTMASK)
+#define CD_MASK_MPTEX		(1 << CD_MPTEX)
 
 /* CustomData.flag */
 

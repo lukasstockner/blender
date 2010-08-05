@@ -220,7 +220,13 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	   this derivedmesh is just original mesh. it's the multires subsurf dm
 	   that this is actually for, to support a pbvh on a modified mesh */
 	if(!cddm->pbvh && ob->type == OB_MESH) {
-		cddm->pbvh = BLI_pbvh_new();
+		int leaf_limit = PBVH_DEFAULT_LEAF_LIMIT;
+
+		/* TODO: set leaf limit more intelligently */
+		if(ob->mode & OB_MODE_VERTEX_PAINT)
+			leaf_limit = 1;
+
+		cddm->pbvh = BLI_pbvh_new(leaf_limit);
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
 				    &me->vdata, &me->fdata, me->totface,

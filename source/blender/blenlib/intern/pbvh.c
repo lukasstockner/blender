@@ -21,6 +21,7 @@
  */
 
 #include "DNA_meshdata_types.h"
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
@@ -36,8 +37,6 @@
 #include "GPU_buffers.h"
 
 static void pbvh_free_nodes(PBVH *bvh);
-
-#define LEAF_LIMIT 10000
 
 //#define PERFCNTRS
 
@@ -669,7 +668,6 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
 	bvh->vdata = vdata;
 	bvh->fdata = fdata;
 	bvh->totvert = totvert;
-	bvh->leaf_limit = LEAF_LIMIT;
 
 	if(totface)
 		pbvh_begin_build(bvh, totface, hidden_areas);
@@ -690,15 +688,17 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 	bvh->gridkey= gridkey;
 	bvh->vdata= vdata;
 	bvh->fdata= fdata;
-	bvh->leaf_limit = MAX2(LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
+	bvh->leaf_limit = MAX2(PBVH_DEFAULT_LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
 
 	if(totgrid)
 		pbvh_begin_build(bvh, totgrid, hidden_areas);
 }
 
-PBVH *BLI_pbvh_new(void)
+PBVH *BLI_pbvh_new(int leaf_limit)
 {
 	PBVH *bvh = MEM_callocN(sizeof(PBVH), "pbvh");
+
+	bvh->leaf_limit = leaf_limit;
 
 	return bvh;
 }
@@ -1178,8 +1178,11 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, G
 							      flags);
 			}
 			else {
-				GPU_update_mesh_color_buffers(node->draw_buffers,
-							      bvh, node, flags);
+				if(flags & GPU_DRAW_ACTIVE_MCOL)
+					GPU_update_mesh_ptex(node->draw_buffers, bvh, node);
+				else
+					GPU_update_mesh_color_buffers(node->draw_buffers,
+								      bvh, node, flags);
 			}
 
 			node->flag &= ~PBVH_UpdateColorBuffers;

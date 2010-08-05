@@ -31,6 +31,7 @@ SET(INC
 	../makesdna ../readblenfile ../include ../makesrna
 	../python ../../kernel/gen_messaging
 	../render/extern/include
+	../../../extern/ptex
 	${ZLIB_INC}
 )
 

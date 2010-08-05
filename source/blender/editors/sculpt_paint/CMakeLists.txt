@@ -28,6 +28,7 @@ SET(INC
 	../../blenlib
 	../include
 	../../../../intern/guardedalloc
+	../../../../extern/ptex
 	../../makesdna
 	../../makesrna
 	../../windowmanager

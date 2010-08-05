@@ -372,6 +372,21 @@ class DATA_PT_vertex_colors(DataButtonsPanel):
                 layout.operator("mesh.vertex_color_multiresolution_toggle", text="Add Multires")
 
 
+class DATA_PT_ptex(DataButtonsPanel):
+    bl_label = "PTex"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        me = context.mesh
+
+        layout.template_list(me, "ptex_layers", me, "active_ptex_index", rows=2)
+        row = layout.row()
+        row.operator_menu_enum("ptex.layer_add", "type")
+        row.operator("ptex.open")
+
+
 classes = [
     MESH_MT_vertex_group_specials,
     MESH_MT_shape_key_specials,
@@ -381,6 +396,7 @@ classes = [
     DATA_PT_settings,
     DATA_PT_vertex_groups,
     DATA_PT_shape_keys,
+    DATA_PT_ptex,
     DATA_PT_uv_texture,
     DATA_PT_texface,
     DATA_PT_vertex_colors,

@@ -68,8 +68,8 @@ typedef struct {
 int BLI_pbvh_search_sphere_cb(PBVHNode *node, void *data);
 
 /* Building */
-
-PBVH *BLI_pbvh_new(void);
+#define PBVH_DEFAULT_LEAF_LIMIT 10000
+PBVH *BLI_pbvh_new(int leaf_limit);
 void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
 			 struct CustomData *vdata, struct CustomData *fdata,
 			 int totface, int totvert, ListBase *hidden_areas);

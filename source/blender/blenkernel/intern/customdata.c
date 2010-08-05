@@ -797,6 +797,29 @@ static void layerFree_grid(void *data_v, int count, int size)
 	}
 }
 
+static void layerCopy_mptex(const void *source_v, void *dest_v, int count)
+{
+	const MPtex *source = source_v;
+	MPtex *dest = dest_v;
+	int i;
+
+	for(i = 0; i < count; ++i) {
+		dest[i] = source[i];
+		dest[i].data = MEM_dupallocN(source[i].data);
+	}
+}
+
+static void layerFree_mptex(void *data_v, int count, int size)
+{
+	MPtex *data = data_v;
+	int i;
+
+	for(i = 0; i < count; ++i) {
+		if(data[i].data)
+			MEM_freeN(data[i].data);
+	}
+}
+
 const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0 */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -843,6 +866,8 @@ const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(CustomDataMultires), "CustomDataMultires", 1, "Grid", layerCopy_grid, layerFree_grid, NULL, NULL, NULL},
 	/* CD_PAINTMASK */
 	{sizeof(float), "", 0, "Mask", NULL, NULL, NULL, NULL, NULL},
+	/* CD_MPTEX */
+	{sizeof(MPtex), "MPtex", 1, "Ptex", layerCopy_mptex, layerFree_mptex, NULL, NULL, NULL},
 };
 
 const char *LAYERTYPENAMES[CD_NUMTYPES] = {
@@ -851,7 +876,7 @@ const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 10-14 */ "CDMFloatProperty", "CDMIntProperty","CDMStringProperty", "CDOrigSpace", "CDOrco",
 	/* 15-19 */ "CDMTexPoly", "CDMLoopUV", "CDMloopCol", "CDTangent", "CDMDisps",
 	/* 20-24 */ "CDWeightMCol", "CDIDMCol", "CDTextureMCol", "CDClothOrco", "CDGrid",
-	/* 25-26 */ "CDPaintMask"
+	/* 25-26 */ "CDPaintMask", "CD_PTEX"
 };
 
 const CustomDataMask CD_MASK_BAREMESH =
@@ -860,11 +885,11 @@ const CustomDataMask CD_MASK_MESH =
 	CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE |
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MCOL |
 	CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR | CD_MASK_MDISPS |
-	CD_MASK_GRIDS | CD_MASK_PAINTMASK;
+	CD_MASK_GRIDS | CD_MASK_PAINTMASK | CD_MASK_MPTEX;
 const CustomDataMask CD_MASK_EDITMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL|CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_PROP_STR |
-	CD_MASK_MDISPS | CD_MASK_GRIDS | CD_MASK_PAINTMASK;
+	CD_MASK_MDISPS | CD_MASK_GRIDS | CD_MASK_PAINTMASK | CD_MASK_MPTEX;
 const CustomDataMask CD_MASK_DERIVEDMESH =
 	CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE |
 	CD_MASK_MCOL | CD_MASK_ORIGINDEX | CD_MASK_PROP_FLT | CD_MASK_PROP_INT | CD_MASK_CLOTH_ORCO |

@@ -489,6 +489,7 @@ ENDIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		bf_gen_python
 		extern_binreloc
 		extern_glew
+		extern_ptex
 		extern_libopenjpeg
 		bf_videotex
 		bf_rna

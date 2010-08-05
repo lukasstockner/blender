@@ -70,6 +70,7 @@
 #include "BKE_multires.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_subsurf.h"
 #include "BKE_utildefines.h"
 
 #include "WM_api.h"
@@ -82,6 +83,8 @@
 #include "ED_mesh.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
+
+#include "ptex.h"
 
 #include "paint_intern.h"
 
@@ -1459,7 +1462,6 @@ void PAINT_OT_weight_set(wmOperatorType *ot)
 
 /* ************ set / clear vertex paint mode ********** */
 
-
 static int set_vpaint(bContext *C, wmOperator *op)		/* toggle */
 {	
 	Object *ob= CTX_data_active_object(C);
@@ -1485,12 +1487,12 @@ static int set_vpaint(bContext *C, wmOperator *op)		/* toggle */
 		/* Turn off weight painting */
 		if (ob->mode & OB_MODE_WEIGHT_PAINT)
 			set_wpaint(C, op);
-		
-		if(vp==NULL)
-			vp= scene->toolsettings->vpaint= new_vpaint(0);
 
 		if(me->mcol==NULL)
 			make_vertexcol(ob);
+
+		if(!CustomData_get_layer(&me->fdata, CD_MPTEX))
+			WM_operator_name_call(C, "PTEX_OT_layer_add", WM_OP_INVOKE_REGION_WIN, NULL);
 
 		create_paintsession(ob);
 		
@@ -1587,41 +1589,198 @@ static void vpaint_blend(Brush *brush, float col[4], float alpha)
 	IMB_blend_color_float(col, col, brush->rgb, alpha, tool);
 }
 
+/* TODO */
+#if 0
 static void vpaint_nodes_grids(Brush *brush, PaintStroke *stroke,
+			       MPtex *ptexes, GridToFace *grid_face_map,
 			       DMGridData **grids, CustomData *vdata,
 			       GridKey *gridkey,
 			       int *grid_indices, int totgrid,
-			       int gridsize, int active)
+			       int gridsize)
 {
 	PaintStrokeTest test;
-	int i, x, y;
+	int i;
 
 	paint_stroke_test_init(&test, stroke);
 
 	for(i = 0; i < totgrid; ++i) {
 		DMGridData *grid = grids[grid_indices[i]];
+		PTex *ptex = &ptexes[grid_face_map[grid_indices[i]].face];
+		int offset = grid_face_map[grid_indices[i]].offset * ptex->ures*ptex->vres;
+		int u, v;
+		float x, y, xfac, yfac;
 
-		for(y = 0; y < gridsize; ++y) {
-			for(x = 0; x < gridsize; ++x) {
-				DMGridData *elem = GRIDELEM_AT(grid,
-							       y*gridsize+x,
-							       gridkey);
-				float *co = GRIDELEM_CO(elem, gridkey);
-				float *gridcol = GRIDELEM_COLOR(elem, gridkey)[active];
-				float mask = paint_mask_from_gridelem(elem,
-								      gridkey,
-								      vdata);
+		xfac = (gridsize-1);
+		if(ptex->ures > 1) xfac /= (float)(ptex->ures - 1);
+		yfac = (gridsize-1);
+		if(ptex->vres > 1) yfac /= (float)(ptex->vres - 1);
+
+		for(v = 0; v < ptex->vres; ++v) {
+			for(u = 0; u < ptex->ures; ++u) {
+				DMGridData *elem[4];
+				float *color, co[3], co_top[3], co_bot[3];
+				int xi, yi;
+
+				color = ptex->colors[offset + v*ptex->ures+ u];
+
+				/* do a naive interpolation to get gridco,
+				   can probably do this much better */
+
+				x = u*xfac;
+				y = v*yfac;
+				xi = (int)x;
+				yi = (int)y;
+
+				elem[0] = GRIDELEM_AT(grid, yi*gridsize+xi, gridkey);
+				elem[1] = GRIDELEM_AT(grid, (yi+1)*gridsize+xi, gridkey);
+				elem[2] = GRIDELEM_AT(grid, (yi+1)*gridsize+xi+1, gridkey);
+				elem[3] = GRIDELEM_AT(grid, yi*gridsize+xi+1, gridkey);
+
+				interp_v3_v3v3(co_top, GRIDELEM_CO(elem[0], gridkey),
+					       GRIDELEM_CO(elem[3], gridkey), x - xi);
+
+				interp_v3_v3v3(co_bot, GRIDELEM_CO(elem[1], gridkey),
+					       GRIDELEM_CO(elem[2], gridkey), x - xi);
+
+				interp_v3_v3v3(co, co_top, co_bot, y - yi);
 
 				if(paint_stroke_test(&test, co)) {
 					float strength;
 					
 					strength = brush->alpha *
-						paint_stroke_combined_strength(stroke, test.dist, co, mask);
+						paint_stroke_combined_strength(stroke, test.dist, co, 0);
 					
-					vpaint_blend(brush, gridcol, strength);
+					vpaint_blend(brush, color, strength);
 				}
 			}
 		}
+	}
+}
+#endif
+
+static void ptex_elem_to_float4(PtexDataType type, int channels, void *data, float fcol[4])
+{
+	int i;
+
+	/* default alpha */
+	fcol[3] = 1;
+
+	switch(type) {
+	case PTEX_DT_UINT8:
+		for(i = 0; i < channels; ++i)
+			fcol[i] = ((unsigned char*)data)[i] / 255.0;
+		break;
+	case PTEX_DT_UINT16:
+		for(i = 0; i < channels; ++i)
+			fcol[i] = ((unsigned char*)data)[i] / 65535.0;
+		break;
+	case PTEX_DT_FLOAT:
+		for(i = 0; i < channels; ++i)
+			fcol[i] = ((float*)data)[i];
+		break;
+	default:
+		break;
+	}
+
+	if(channels == 1) {
+		for(i = 1; i < 4; ++i)
+			fcol[i] = fcol[0];
+	}
+}
+
+static void ptex_elem_from_float4(PtexDataType type, int channels, void *data, float fcol[4])
+{
+	int i;
+
+	if(channels == 1) {
+		float avg = (fcol[0]+fcol[1]+fcol[2]) / 3.0f;
+		switch(type) {
+		case PTEX_DT_UINT8:
+			((unsigned char*)data)[0] = avg * 255;
+			break;
+		case PTEX_DT_UINT16:
+			((unsigned short*)data)[0] = avg * 65535;
+			break;
+		case PTEX_DT_FLOAT:
+			((float*)data)[0] = avg;
+			break;
+		default:
+			break;
+		}
+	}
+	else {
+		switch(type) {
+		case PTEX_DT_UINT8:
+			for(i = 0; i < channels; ++i)
+				((unsigned char*)data)[i] = fcol[i] * 255;
+			break;
+		case PTEX_DT_UINT16:
+			for(i = 0; i < channels; ++i)
+				((unsigned short*)data)[i] = fcol[i] * 65535;
+			break;
+		case PTEX_DT_FLOAT:
+			for(i = 0; i < channels; ++i)
+				((float*)data)[i] = fcol[i];
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void vpaint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStrokeTest *test,
+				  MPtex *pt, char *data,
+				  float v1[3], float v2[3], float v3[3], float v4[3])
+				  
+{
+	float dtop[3], dbot[3], yinterp, ustep, vstep;
+	float co_bot[3], co_top[3];
+	int u, v, layersize;
+
+	layersize = pt->channels * ptex_data_size(pt->type);
+
+	sub_v3_v3v3(dtop, v1, v2);
+	sub_v3_v3v3(dbot, v4, v3);;
+	ustep = 1;
+	if(pt->ures != 1)
+		ustep /= (pt->ures - 1);
+	mul_v3_fl(dtop, ustep);
+	mul_v3_fl(dbot, ustep);
+
+	vstep = 1;
+	if(pt->vres != 1)
+		vstep /= (pt->vres - 1);
+
+	for(v = 0, yinterp = 0; v < pt->vres; ++v) {
+		copy_v3_v3(co_top, v2);
+		copy_v3_v3(co_bot, v3);
+
+		for(u = 0; u < pt->ures; ++u, data += layersize) {
+			float co[3];
+
+			interp_v3_v3v3(co, co_bot, co_top, yinterp);
+
+			if(paint_stroke_test(test, co)) {
+				float strength;
+				float fcol[4];
+					
+				strength = brush->alpha *
+					paint_stroke_combined_strength(stroke, test->dist, co, 0);
+				
+				ptex_elem_to_float4(pt->type, pt->channels, data, fcol);
+				vpaint_blend(brush, fcol, strength);
+				ptex_elem_from_float4(pt->type, pt->channels, data, fcol);
+			}
+
+			/*(*color)[0] = u / (pt->ures-1.0f);
+			  (*color)[1] = v / (pt->vres-1.0f);
+			  (*color)[2] = 1;*/
+
+			add_v3_v3(co_bot, dbot);
+			add_v3_v3(co_top, dtop);
+		}
+
+		yinterp += vstep;
 	}
 }
 
@@ -1631,6 +1790,7 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 			       int *face_indices, int totface)
 {
 	PaintStrokeTest test;
+	MPtex *mptex;
 	MCol *mcol;
 	int pmask_totlayer, pmask_first_layer;
 	int i, j;
@@ -1641,39 +1801,46 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 
 	paint_stroke_test_init(&test, stroke);
 
+	mptex = CustomData_get_layer(fdata, CD_MPTEX);
+	
 	for(i = 0; i < totface; ++i) {
 		int face_index = face_indices[i];
 		MFace *f = mface + face_index;
+		MPtex *pt = &mptex[face_index];
 		int S = f->v4 ? 4 : 3;
 
-		for(j = 0; j < S; ++j) {
-			int vndx = (&f->v1)[j];
-			int cndx = face_index*4 + j;
-			float *co = mvert[vndx].co;
-			float fcol[4];
-			float mask;
+		if(S == 4) {
+			/* fast case */
+			vpaint_ptex_from_quad(brush, stroke, &test, pt, pt->data,
+					      mvert[f->v3].co, mvert[f->v4].co,
+					      mvert[f->v1].co, mvert[f->v2].co);
+		}
+		else {
+			/* subfaces */
 
-			fcol[0] = mcol[cndx].b / 255.0f;
-			fcol[1] = mcol[cndx].g / 255.0f;
-			fcol[2] = mcol[cndx].r / 255.0f;
-			fcol[3] = mcol[cndx].a / 255.0f;
+			/* for now this is just tris, can be updated for ngons too */
 
-			mask = paint_mask_from_vertex(vdata, vndx,
-						      pmask_totlayer,
-						      pmask_first_layer);
-			if(paint_stroke_test(&test, co)) {
-				float strength;
-					
-				strength = brush->alpha *
-					paint_stroke_combined_strength(stroke, test.dist, co, mask);
-					
-				vpaint_blend(brush, fcol, strength);
+			float half[4][3], center[3];
+			int layersize = pt->channels * ptex_data_size(pt->type);
+
+			for(j = 0; j < 3; ++j) {
+				int next = (j == S-1) ? 0 : j+1;
+				mid_v3_v3v3(half[j], mvert[(&f->v1)[j]].co, mvert[(&f->v1)[next]].co);
 			}
 
-			mcol[cndx].b = fcol[0] * 255.0f;
-			mcol[cndx].g = fcol[1] * 255.0f;
-			mcol[cndx].r = fcol[2] * 255.0f;
-			mcol[cndx].a = fcol[3] * 255.0f;
+			cent_tri_v3(center, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
+
+			for(j = 0; j < 3; ++j) {
+				int vndx = (&f->v1)[j];
+				int prev = j==0 ? S-1 : j-1;
+				char *data = pt->data;
+				data += layersize*pt->ures*pt->vres * j;
+				
+				vpaint_ptex_from_quad(brush, stroke, &test, pt,
+						      data,
+						      mvert[vndx].co, half[j],
+						      center, half[prev]);
+			}
 		}
 	}
 }
@@ -1823,50 +1990,34 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 	PBVH *pbvh = ob->paint->pbvh;
 	Brush *brush = paint_brush(&vp->paint);
 	int blur = brush->vertexpaint_tool == VERTEX_PAINT_BLUR;
+	CustomData *vdata = NULL;
+	CustomData *fdata = NULL;
 	int n;
 
-	for(n = 0; n < totnode; ++n) {
-		CustomData *vdata = NULL;
-		CustomData *fdata = NULL;
+	BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
 
+	for(n = 0; n < totnode; ++n) {
 		pbvh_undo_push_node(nodes[n], PBVH_UNDO_COLOR, ob);
 
-		BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
-
 		if(BLI_pbvh_uses_grids(pbvh)) {
+#if 0 /* TODO */
 			DMGridData **grids;
 			GridKey *gridkey;
 			int *grid_indices, totgrid, gridsize;
-			int active;
 			
 			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
 						&totgrid, NULL, &gridsize, &grids,
 						NULL, &gridkey);
 
-			active = gridelem_active_offset(fdata, gridkey, CD_MCOL);
-
-			if(active != -1) {
-				if(blur) {
-					vpaint_nodes_grids_smooth(brush, stroke,
-							   grids, vdata,
-							   gridkey,
-							   grid_indices,
-							   totgrid,
-							   gridsize,
-							   active);
-					BLI_pbvh_node_set_flags(nodes[n],
-								SET_INT_IN_POINTER(PBVH_NeedsColorStitch));
-				}
-				else {
-					vpaint_nodes_grids(brush, stroke,
-							   grids, vdata,
-							   gridkey,
-							   grid_indices,
-							   totgrid,
-							   gridsize,
-							   active);
-				}
-			}
+			vpaint_nodes_grids(brush, stroke,
+					   NULL,
+					   grid_face_map,
+					   grids, vdata,
+					   gridkey,
+					   grid_indices,
+					   totgrid,
+					   gridsize);
+#endif
 		}
 		else {
 			MVert *mvert;
