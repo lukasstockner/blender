@@ -651,7 +651,7 @@ class VIEW3D_PT_tools_brush(PaintPanel):
             col.separator()
             col.row().prop(brush, "direction", expand=True)
 
-            if brush.sculpt_tool in ('DRAW', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY', 'CLAY_STRIP'):
+            if brush.sculpt_tool in ('DRAW', 'GRAVITY', 'CREASE', 'BLOB', 'INFLATE', 'LAYER', 'CLAY', 'CLAY_STRIP'):
                 col.separator()
 
                 col.prop(brush, "use_accumulate")
@@ -1080,7 +1080,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel):
         col = layout.column();
 
         if context.sculpt_object and context.tool_settings.sculpt:
-            if brush.sculpt_tool in ('DRAW', 'INFLATE', 'CLAY', 'CLAY_STRIPS', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN', 'FILL', 'SCRAPE'):
+            if brush.sculpt_tool in ('DRAW', 'GRAVITY', 'INFLATE', 'CLAY', 'CLAY_STRIPS', 'PINCH', 'CREASE', 'BLOB', 'FLATTEN', 'FILL', 'SCRAPE'):
                 col.prop(brush, "add_col", text="Add Color")
                 col.prop(brush, "sub_col", text="Subtract Color")
             else:

@@ -133,24 +133,25 @@ typedef struct Brush {
 #define BRUSH_SYMMETRY_FEATHER (1<<29)
 
 /* Brush.sculpt_tool */
-#define SCULPT_TOOL_DRAW        1
-#define SCULPT_TOOL_SMOOTH      2
-#define SCULPT_TOOL_PINCH       3
-#define SCULPT_TOOL_INFLATE     4
-#define SCULPT_TOOL_GRAB        5
-#define SCULPT_TOOL_LAYER       6
-#define SCULPT_TOOL_FLATTEN     7
-#define SCULPT_TOOL_CLAY        8
-#define SCULPT_TOOL_FILL        9
-#define SCULPT_TOOL_SCRAPE     10
-#define SCULPT_TOOL_NUDGE      11
-#define SCULPT_TOOL_THUMB      12
-#define SCULPT_TOOL_SNAKE_HOOK 13
-#define SCULPT_TOOL_ROTATE     14
-//#define SCULPT_TOOL_WAX        15 // XXX: reuse this slot later
-#define SCULPT_TOOL_CREASE     16
-#define SCULPT_TOOL_BLOB       17
+#define SCULPT_TOOL_DRAW         1
+#define SCULPT_TOOL_SMOOTH       2
+#define SCULPT_TOOL_PINCH        3
+#define SCULPT_TOOL_INFLATE      4
+#define SCULPT_TOOL_GRAB         5
+#define SCULPT_TOOL_LAYER        6
+#define SCULPT_TOOL_FLATTEN      7
+#define SCULPT_TOOL_CLAY         8
+#define SCULPT_TOOL_FILL         9
+#define SCULPT_TOOL_SCRAPE      10
+#define SCULPT_TOOL_NUDGE       11
+#define SCULPT_TOOL_THUMB       12
+#define SCULPT_TOOL_SNAKE_HOOK  13
+#define SCULPT_TOOL_ROTATE      14
+//#define SCULPT_TOOL_WAX         15 // XXX: reuse this slot later
+#define SCULPT_TOOL_CREASE      16
+#define SCULPT_TOOL_BLOB        17
 #define SCULPT_TOOL_CLAY_STRIPS 18
+#define SCULPT_TOOL_GRAVITY     19
 
 /* ImagePaintSettings.tool */
 #define PAINT_TOOL_DRAW		0

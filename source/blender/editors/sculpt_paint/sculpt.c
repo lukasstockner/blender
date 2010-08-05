@@ -658,6 +658,7 @@ static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather)
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_CLAY_STRIPS:
 		case SCULPT_TOOL_DRAW:
+		case SCULPT_TOOL_GRAVITY:
 		case SCULPT_TOOL_LAYER:
 			return alpha * flip * pressure * overlap * feather;
 
@@ -1376,6 +1377,60 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, an, ss->cache->radius);
+	mul_v3_v3(offset, ss->cache->scale);
+	mul_v3_fl(offset, bstrength);
+
+	/* threaded loop over nodes */
+	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+	for(n=0; n<totnode; n++) {
+		PBVHVertexIter vd;
+		SculptBrushTest test;
+		float (*proxy)[3];
+		short (*origno)[3];
+		SculptUndoNode *unode;
+
+		unode=  sculpt_undo_push_node(ss, nodes[n]);
+		origno= unode->no;
+
+		proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
+
+		sculpt_brush_test_init(ss, &test);
+
+		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+			if (sculpt_brush_test(&test, vd.co)) {
+			//if(sculpt_brush_test_cyl(&test, vd.co, ss->cache->location, an)) {
+				/* offset vertex */
+				float fade = tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, ss->cache->frontface_start, ss->cache->frontface_range, an, origno[vd.i]);
+
+				mul_v3_v3fl(proxy[vd.i], offset, fade);
+
+				if(vd.mvert)
+					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+			}
+		}
+		BLI_pbvh_vertex_iter_end;
+	}
+}
+
+static void do_gravity_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	Brush *brush = paint_brush(&sd->paint);
+	float offset[3], an[3];
+	float bstrength= ss->cache->bstrength;
+	int n;
+	float gravity[3];
+
+	gravity[0]= gravity[1]= 0;
+	gravity[2]= -ss->cache->radius / 2;
+
+	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
+
+	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
+
+	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+
+	/* offset with as much as possible factored in already */
+	mul_v3_v3fl(offset, gravity, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
 	mul_v3_fl(offset, bstrength);
 
@@ -2671,6 +2726,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, Brush *brush)
 		case SCULPT_TOOL_DRAW:
 			do_draw_brush(sd, ss, nodes, totnode);
 			break;
+		case SCULPT_TOOL_GRAVITY:
+			do_gravity_brush(sd, ss, nodes, totnode);
+			break;
 		case SCULPT_TOOL_SMOOTH:
 			do_smooth_brush(sd, ss, nodes, totnode);
 			break;
@@ -2786,6 +2844,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 			break;
 
 		case SCULPT_TOOL_DRAW:
+		case SCULPT_TOOL_GRAVITY:
 		case SCULPT_TOOL_CLAY:
 		case SCULPT_TOOL_CLAY_STRIPS:
 		case SCULPT_TOOL_CREASE:
@@ -3009,6 +3068,8 @@ static char *sculpt_tool_name(Sculpt *sd)
 	switch(brush->sculpt_tool) {
 	case SCULPT_TOOL_DRAW:
 		return "Draw Brush"; break;
+	case SCULPT_TOOL_GRAVITY:
+		return "Gravity Brush"; break;
 	case SCULPT_TOOL_SMOOTH:
 		return "Smooth Brush"; break;
 	case SCULPT_TOOL_CREASE:
@@ -3222,7 +3283,7 @@ static void sculpt_update_cache_invariants(bContext* C, Sculpt *sd, SculptSessio
 		cache->original = 1;
 	}
 
-	if(ELEM7(brush->sculpt_tool, SCULPT_TOOL_DRAW,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_STRIPS))
+	if(ELEM8(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_GRAVITY,  SCULPT_TOOL_CREASE, SCULPT_TOOL_BLOB, SCULPT_TOOL_LAYER, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_CLAY_STRIPS))
 		if(!(brush->flag & BRUSH_ACCUMULATE))
 			cache->original = 1;
 
