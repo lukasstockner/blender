@@ -1,4 +1,4 @@
-SET(INC src .)
+SET(INC ${ZLIB_INC} src .)
 
 SET(SRC
 	src/ptex/PtexCache.cpp
