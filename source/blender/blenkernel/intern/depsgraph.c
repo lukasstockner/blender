@@ -576,6 +576,11 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			   }
 			}
 
+			if(psys->source_ob) {
+				node2 = dag_get_node(dag, psys->source_ob);
+				dag_add_relation(dag, node2, node, DAG_RL_DATA_DATA, "Particle Coordinate Copy");
+			}
+
 			if(part->ren_as == PART_DRAW_OB && part->dup_ob) {
 				node2 = dag_get_node(dag, part->dup_ob);
 				dag_add_relation(dag, node, node2, DAG_RL_OB_OB, "Particle Object Visualisation");

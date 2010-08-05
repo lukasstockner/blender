@@ -2285,6 +2285,13 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vertex Group Field Negate", "Negate the effect of the field vertex group");
 	RNA_def_property_update(prop, 0, "rna_Particle_reset");
 
+	/* source object */
+	prop= RNA_def_property(srna, "source_object", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "source_ob");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Source Object", "Mesh to copy coordinates from, when using path visualization");
+	RNA_def_property_update(prop, 0, "rna_Particle_redo");
+
 	/* pointcache */
 	prop= RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);

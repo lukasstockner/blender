@@ -2837,6 +2837,15 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 
 			VECCOPY(ca->co, result.co);
 			VECCOPY(ca->col, col);
+
+			if(psys->source_ob) {
+				DerivedMesh *dm = psys->source_ob->derivedFinal;
+				int vert = (steps+1)*p + k;
+
+				if(dm)
+					if(vert < dm->getNumVerts(dm))
+						dm->getVertCo(dm, vert, ca->co);
+			}
 		}
 		
 		/*--modify paths and calculate rotation & velocity--*/

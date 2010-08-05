@@ -478,6 +478,11 @@ void unlink_object(Scene *scene, Object *ob)
 					obt->recalc |= OB_RECALC_DATA;
 				}
 
+				if(tpsys->source_ob==ob) {
+					tpsys->source_ob= NULL;
+					obt->recalc |= OB_RECALC_DATA;
+				}
+
 				if(tpsys->part->dup_ob==ob)
 					tpsys->part->dup_ob= NULL;
 

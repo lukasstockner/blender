@@ -3116,6 +3116,7 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 
 			psys->parent= newlibadr_us(fd, id->lib, psys->parent);
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
+			psys->source_ob= newlibadr_us(fd, id->lib, psys->source_ob);
 
 			if(psys->clmd) {
 				/* XXX - from reading existing code this seems correct but intended usage of
@@ -12003,8 +12004,10 @@ static void expand_object(FileData *fd, Main *mainvar, Object *ob)
 	if(ob->proxy_group)
 		expand_doit(fd, mainvar, ob->proxy_group);
 
-	for(psys=ob->particlesystem.first; psys; psys=psys->next)
+	for(psys=ob->particlesystem.first; psys; psys=psys->next) {
 		expand_doit(fd, mainvar, psys->part);
+		expand_doit(fd, mainvar, psys->source_ob);
+	}
 
 	sens= ob->sensors.first;
 	while(sens) {

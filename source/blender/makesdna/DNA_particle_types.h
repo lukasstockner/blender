@@ -230,6 +230,7 @@ typedef struct ParticleSystem{				/* note, make sure all (runtime) are NULL's in
 	struct Object *target_ob;
 	struct Object *lattice;
 	struct Object *parent;					/* particles from global space -> parent space */
+	struct Object *source_ob;
 
 	struct ListBase targets;				/* used for keyed and boid physics */
 
