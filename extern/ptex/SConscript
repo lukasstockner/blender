@@ -10,5 +10,6 @@ sources += env.Glob('*.cpp')
 
 defs = ''
 incs = 'src/ptex'
+incs += ' ' + env['BF_ZLIB_INC'] 
 
 env.BlenderLib ( 'extern_ptex', sources, Split(incs), Split(defs), libtype=['extern','player'], priority=[50,230])
