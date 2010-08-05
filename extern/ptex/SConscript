@@ -1,0 +1,14 @@
+#!/usr/bin/python
+import sys
+import os
+
+Import('env')
+
+sources = ['src/glew.c']
+sources = env.Glob('src/ptex/*.cpp')
+sources += env.Glob('*.cpp')
+
+defs = ''
+incs = 'src/ptex'
+
+env.BlenderLib ( 'extern_ptex', sources, Split(incs), Split(defs), libtype=['extern','player'], priority=[50,230])
