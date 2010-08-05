@@ -77,7 +77,7 @@ typedef struct Brush {
 
 	float plane_offset;		/* offset for plane brushes (clay, flatten, fill, scrape) */
 
-	float frontface_angle, pad2;
+	float frontface_angle;
 
 	char sculpt_tool;		/* active sculpt tool */
 	char vertexpaint_tool;		/* active vertex/weight paint tool/blend mode */
@@ -87,6 +87,8 @@ typedef struct Brush {
 	float autosmooth_factor;
 
 	float crease_pinch_factor;
+
+	float gravity_factor;
 
 	float plane_trim;
 

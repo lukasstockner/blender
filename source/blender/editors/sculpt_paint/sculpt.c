@@ -1412,16 +1412,15 @@ static void do_draw_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int t
 	}
 }
 
-static void do_gravity_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+static void gravity(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode, float bstrength)
 {
 	Brush *brush = paint_brush(&sd->paint);
 	float offset[3], an[3];
-	float bstrength= ss->cache->bstrength;
 	int n;
 	float gravity[3];
 
 	gravity[0]= gravity[1]= 0;
-	gravity[2]= -ss->cache->radius / 2;
+	gravity[2]= -ss->cache->radius;
 
 	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
 
@@ -1464,6 +1463,11 @@ static void do_gravity_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, in
 		}
 		BLI_pbvh_vertex_iter_end;
 	}
+}
+
+static void do_gravity_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+{
+	gravity(sd, ss, nodes, totnode, ss->cache->bstrength);
 }
 
 static void do_crease_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
@@ -2787,6 +2791,9 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, Brush *brush)
 				smooth(sd, ss, nodes, totnode, brush->autosmooth_factor);
 			}
 		}
+
+		if (brush->sculpt_tool != SCULPT_TOOL_GRAVITY && brush->gravity_factor > 0)
+			gravity(sd, ss, nodes, totnode, brush->gravity_factor);
 
 		/* copy the modified vertices from mesh to the active key */
 		if(ss->kb)

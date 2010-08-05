@@ -598,6 +598,14 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
 
 
+            if brush.sculpt_tool not in ('GRAVITY'):
+                col.separator()
+
+                row = col.row(align=True)
+                row.prop(brush, "gravity_factor", slider=True)
+
+
+
             if brush.sculpt_tool in ('GRAB', 'SNAKE_HOOK'):
                 col.separator()
 
