@@ -712,9 +712,14 @@ class PARTICLE_PT_render(ParticleButtonsPanel):
         part = psys.settings
         wide_ui = context.region.width > narrowui
 
-        row = layout.row()
-        row.prop(part, "material")
-        row.prop(psys, "parent")
+        split = layout.split()
+
+        sub = split.column()
+        sub.prop(part, "material")
+        sub = split.column()
+        sub.prop(psys, "parent")
+        if part.ren_as == 'PATH':
+        	sub.prop(psys, "source_object", text="Source")
 
         split = layout.split()
 
