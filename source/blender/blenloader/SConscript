@@ -6,6 +6,7 @@ sources = env.Glob('intern/*.c')
 incs = '. #/intern/guardedalloc ../blenlib ../blenkernel'
 incs += ' ../makesdna ../readblenfile ../editors/include'
 incs += ' ../render/extern/include ../makesrna'
+incs += ' #/extern/ptex'
 
 incs += ' ' + env['BF_ZLIB_INC']
 
