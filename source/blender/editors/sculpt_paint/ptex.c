@@ -85,7 +85,7 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 	limit_pos = MEM_callocN(sizeof(float)*3*me->totvert, "limit_pos");
 	face_area = MEM_callocN(sizeof(float)*me->totface, "face_area");
 	subsurf_calculate_limit_positions(me, limit_pos);
-	for(i = 0; i < me->totface; ++i) {
+	for(i = 0, totarea = 0; i < me->totface; ++i) {
 		MFace *f = &me->mface[i];
 		if(f->v4) {
 			face_area[i] = area_quad_v3(limit_pos[f->v1], limit_pos[f->v2],
