@@ -217,6 +217,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_vertex_paint);
 	WM_operatortype_append(PAINT_OT_vertex_color_set);
 	WM_operatortype_append(PAINT_OT_vertex_colors_to_texture);
+	WM_operatortype_append(PAINT_OT_overlay_manipulate);
 
 	/* ptex */
 	WM_operatortype_append(PTEX_OT_layer_add);
@@ -310,6 +311,19 @@ static void ed_keymap_paint_brush_size(wmKeyMap *keymap, const char *path)
 
 	kmi= WM_keymap_add_item(keymap, "BRUSH_OT_scale_size", RIGHTBRACKETKEY, KM_PRESS, 0, 0);
 	RNA_float_set(kmi->ptr, "scalar", 10.0/9.0); // 1.1111....
+}
+
+static void ed_keymap_paint_overlay(wmKeyMap *keymap)
+{
+	wmKeyMapItem *kmi;
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_overlay_manipulate", GKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "action", PAINT_MANIP_GRAB);
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_overlay_manipulate", SKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "action", PAINT_MANIP_SCALE);
+	kmi = WM_keymap_add_item(keymap, "PAINT_OT_overlay_manipulate", RKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "action", PAINT_MANIP_ROTATE);
+	kmi= WM_keymap_add_item(keymap, "WM_OT_context_toggle", IKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.paint_overlay.enabled");
 }
 
 void ED_keymap_paint(wmKeyConfig *keyconf)
@@ -421,6 +435,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", MKEY, KM_PRESS, 0, 0); /* mask toggle */
 	RNA_string_set(kmi->ptr, "data_path", "vertex_paint_object.data.use_paint_mask");
 
+	ed_keymap_paint_overlay(keymap);
+
 	/* Weight Paint mode */
 	keymap= WM_keymap_find(keyconf, "Weight Paint", 0, 0);
 	keymap->poll= weight_paint_mode_poll;
@@ -458,6 +474,8 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", MKEY, KM_PRESS, 0, 0); /* mask toggle */
 	RNA_string_set(kmi->ptr, "data_path", "texture_paint_object.data.use_paint_mask");
+
+	ed_keymap_paint_overlay(keymap);
 
 	/* face-mask mode */
 	keymap= WM_keymap_find(keyconf, "Face Mask", 0, 0);

@@ -100,14 +100,6 @@
 
 static int sculpt_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2]);
 
-void ED_sculpt_force_update(bContext *C)
-{
-	Object *ob= CTX_data_active_object(C);
-
-	if(ob && (ob->mode & OB_MODE_SCULPT))
-		multires_force_update(ob);
-}
-
 /* Checks whether full update mode (slower) needs to be used to work with modifiers */
 int sculpt_modifiers_active(Scene *scene, Object *ob)
 {

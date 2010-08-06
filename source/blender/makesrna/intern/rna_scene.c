@@ -1006,6 +1006,10 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "particle");
 	RNA_def_property_ui_text(prop, "Particle Edit", "");
 
+	prop= RNA_def_property(srna, "paint_overlay", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Paint Overlay", "Image overlay for paint");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+
 	/* Transform */
 	prop= RNA_def_property(srna, "proportional_editing", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "proportional");

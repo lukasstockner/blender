@@ -39,6 +39,7 @@ struct Mesh;
 struct Multires;
 struct Object;
 struct Paint;
+struct PaintOverlay;
 struct PaintStroke;
 struct PointerRNA;
 struct ViewContext;
@@ -89,6 +90,8 @@ float paint_stroke_radius(PaintStroke *stroke);
 float paint_stroke_radius_squared(PaintStroke *stroke);
 void paint_stroke_symmetry_location(PaintStroke *stroke, float loc[3]);
 int paint_stroke_first_dab(PaintStroke *stroke);
+void paint_stroke_project(PaintStroke *stroke, float loc[3], float out[2]);
+void paint_stroke_symmetry_unflip(PaintStroke *stroke, float out[3], float vec[3]);
 
 /* paint stroke modifiers */
 void paint_stroke_set_modifier_use_original_location(PaintStroke *stroke);
@@ -144,7 +147,6 @@ void PAINT_OT_vertex_paint_radial_control(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint(struct wmOperatorType *ot);
 void PAINT_OT_vertex_colors_to_texture(struct wmOperatorType *ot);
-
 unsigned int vpaint_get_current_col(struct VPaint *vp);
 
 /* paint_image.c */
@@ -246,6 +248,17 @@ void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
 /* ptex.c */
 void PTEX_OT_layer_add(struct wmOperatorType *ot);
 void PTEX_OT_open(struct wmOperatorType *ot);
+
+/* paint_overlay.c */
+int paint_sample_overlay(PaintStroke *stroke, float col[3], float co[2]);
+typedef enum {
+	PAINT_MANIP_GRAB,
+	PAINT_MANIP_SCALE,
+	PAINT_MANIP_ROTATE
+} PaintManipAction;
+void paint_overlay_transform(struct PaintOverlay *overlay, struct ARegion *ar, struct ImBuf *ibuf,
+			      int out[2], float vec[2], int scale, int rotate);
+void PAINT_OT_overlay_manipulate(struct wmOperatorType *ot);
 
 #endif /* ED_PAINT_INTERN_H */
 

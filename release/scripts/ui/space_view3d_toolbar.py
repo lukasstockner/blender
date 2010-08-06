@@ -1398,6 +1398,25 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, bpy.types.Panel):
             sub.active = pe.fade_time
             sub.prop(pe, "fade_frames", slider=True)
 
+
+class VIEW3D_PT_paint_overlay(PaintPanel, bpy.types.Panel):
+    bl_label = "Source Image"
+    bl_default_closed = True
+
+    def poll(context):
+        #return (context.vertex_paint_object or context.texture_paint_object)
+        return (context.vertex_paint_object)
+
+    def draw(self, context):
+        layout = self.layout
+
+        overlay = context.tool_settings.paint_overlay
+
+        layout.prop(overlay, "enabled")
+        layout.template_ID(overlay, "image", open="image.open")
+        layout.prop(overlay, "transparency_color")
+        layout.prop(overlay, "transparency_tolerance")
+
 def register():
     pass
 

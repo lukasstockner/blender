@@ -64,5 +64,8 @@ void paint_get_redraw_planes(float planes[4][4], struct ARegion *ar,
 			     struct RegionView3D *rv3d, struct Object *ob);
 void ED_paint_force_update(struct bContext *C);
 
+/* paint_vertex.c */
+void ED_paint_overlay_draw(const struct bContext *C, struct ARegion *ar);
+void ED_paint_update_overlay(struct Object *ob);
 
 #endif

@@ -576,6 +576,19 @@ typedef struct Sculpt {
 	int pad;
 } Sculpt;
 
+typedef struct PaintOverlay {
+	struct Image *img;
+	int offset[2];
+	/* width, height in pixels */
+	int size[2];
+	float angle;
+	float transp_col[3];
+	float transp_tol;
+	int use;
+	unsigned int gltex;
+	int pad;
+} PaintOverlay;
+
 typedef struct VPaint {
 	Paint paint;
 

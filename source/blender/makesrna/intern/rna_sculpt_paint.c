@@ -51,11 +51,15 @@ static EnumPropertyItem particle_edit_hair_brush_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BKE_context.h"
+#include "BKE_image.h"
 #include "BKE_pointcache.h"
 #include "BKE_particle.h"
 #include "BKE_depsgraph.h"
 
+#include "IMB_imbuf_types.h"
+
 #include "ED_particle.h"
+#include "ED_sculpt.h"
 
 static EnumPropertyItem particle_edit_disconnected_hair_brush_items[] = {
 	{PE_BRUSH_NONE, "NONE", 0, "None", "Don't use any brush"},
@@ -72,6 +76,29 @@ static EnumPropertyItem particle_edit_cache_brush_items[] = {
 	{PE_BRUSH_SMOOTH, "SMOOTH", 0, "Smooth", "Smooth paths"},
 	{PE_BRUSH_LENGTH, "LENGTH", 0, "Length", "Make paths longer or shorter"},
 	{0, NULL, 0, NULL, NULL}};
+
+static void rna_PaintOverlay_image_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	PaintOverlay *overlay = &scene->toolsettings->paint_overlay;
+	ED_paint_update_overlay(overlay);
+}
+
+static void rna_PaintOverlay_image_update_new(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	PaintOverlay *overlay = &scene->toolsettings->paint_overlay;
+
+	/* make sure size is reasonable */
+	if(overlay->size[0] < 4 || overlay->size[1] < 4) {
+		ImBuf *ibuf;
+
+		ibuf = BKE_image_get_ibuf(overlay->img, NULL);
+
+		overlay->size[0] = ibuf->x;
+		overlay->size[1] = ibuf->y;
+	}
+
+	ED_paint_update_overlay(overlay);
+}
 
 static PointerRNA rna_ParticleEdit_brush_get(PointerRNA *ptr)
 {
@@ -225,7 +252,7 @@ static void rna_def_paint(BlenderRNA *brna)
 
 	prop= RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_SYMMETRY_FEATHER);
-	RNA_def_property_ui_text(prop, "Symmetry Feathering", "Reduce the strength of the brush where it overlaps symmetrical daubs");
+	RNA_def_property_ui_text(prop, "Symmetry Feathering", "Reduce the strength of the brush where it overlaps symmetrical dabs");
 
 	prop= RNA_def_property(srna, "use_openmp", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", PAINT_USE_OPENMP);
@@ -494,6 +521,39 @@ static void rna_def_particle_edit(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Curve", "");
 }
 
+static void rna_def_paint_overlay(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna= RNA_def_struct(brna, "PaintOverlay", NULL);
+	RNA_def_struct_sdna(srna, "PaintOverlay");
+	RNA_def_struct_ui_text(srna, "Paint Overlay", "Properties of paint overlay");
+
+	prop= RNA_def_property(srna, "enabled", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "use", 1);
+	RNA_def_property_ui_text(prop, "Enable Overlay", "Overlay source image in viewport and sample brush color from it");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D|NA_EDITED, NULL);
+
+	prop= RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "img");
+	RNA_def_property_ui_text(prop, "Image", "Sample image for brush color");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_update(prop, ND_SPACE_VIEW3D|NA_EDITED, "rna_PaintOverlay_image_update_new");
+		
+	prop= RNA_def_property(srna, "transparency_color", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_float_sdna(prop, NULL, "transp_col");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_ui_text(prop, "Transparency Color", "");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D|NA_EDITED, "rna_PaintOverlay_image_update");
+
+	prop= RNA_def_property(srna, "transparency_tolerance", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "transp_tol");
+	RNA_def_property_ui_range(prop, 0, 255, 100, 1);
+	RNA_def_property_ui_text(prop, "Tolerance", "");
+	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D|NA_EDITED, "rna_PaintOverlay_image_update");
+}
+
 void RNA_def_sculpt_paint(BlenderRNA *brna)
 {
 	rna_def_paint(brna);
@@ -501,6 +561,7 @@ void RNA_def_sculpt_paint(BlenderRNA *brna)
 	rna_def_vertex_paint(brna);
 	rna_def_image_paint(brna);
 	rna_def_particle_edit(brna);
+	rna_def_paint_overlay(brna);
 }
 
 #endif

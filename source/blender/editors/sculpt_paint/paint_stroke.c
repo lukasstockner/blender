@@ -34,15 +34,19 @@
 
 #include "RNA_access.h"
 
-#include "BKE_context.h"
-#include "BKE_paint.h"
 #include "BKE_brush.h"
+#include "BKE_context.h"
+#include "BKE_image.h"
+#include "BKE_paint.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
 #include "BLI_math.h"
 #include "BLI_rand.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -572,12 +576,14 @@ float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float
 // two modules should be more clearly defined.
 static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 {
+	Object *ob = CTX_data_active_object(C);
+	VPaint *vp = CTX_data_tool_settings(C)->vpaint;
 	ViewContext vc;
 
 	(void)unused;
 
 	view3d_set_viewcontext(C, &vc);
-
+	
 // XXX
 #if 0
 	if (vc.obact->paint && vc.obact->paint->sculpt) {
@@ -661,7 +667,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 				glMatrixMode(GL_TEXTURE);
 				glPushMatrix();
 				glLoadIdentity();
-
+				
 				if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_FIXED) {
 					glTranslatef(0.5f, 0.5f, 0);
 
@@ -803,8 +809,10 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 
 		glPopAttrib();
 	}
-	else 
+	//else
 #endif
+
+	
 	{
 		Paint *paint = paint_get_active(CTX_data_scene(C));
 		Brush *brush = paint_brush(paint);
@@ -1234,7 +1242,8 @@ int paint_stroke_modal(bContext *C, wmOperator *op, wmEvent *event)
 		if(stroke->timer)
 			WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), stroke->timer);
 
-		stroke->done(C, stroke);
+		if(stroke->stroke_started)
+			stroke->done(C, stroke);
 		MEM_freeN(stroke);
 		return OPERATOR_FINISHED;
 	}
@@ -1304,11 +1313,7 @@ float paint_stroke_combined_strength(PaintStroke *stroke, float dist, float co[3
 	   position in order to project it. This insures that the 
 	   brush texture will be oriented correctly. */
 	if(stroke->brush->mtex.tex) {
-		paint_flip_coord(mco, co, stroke->mirror_symmetry_pass);
-		
-		if(stroke->radial_symmetry_pass)
-			mul_m4_v3(stroke->symm_rot_mat_inv, mco);
-
+		paint_stroke_symmetry_unflip(stroke, mco, co);
 		co = mco;
 	}
 	
@@ -1403,6 +1408,19 @@ float paint_stroke_radius_squared(struct PaintStroke *stroke)
 int paint_stroke_first_dab(PaintStroke *stroke)
 {
 	return stroke->first_dab;
+}
+
+void paint_stroke_project(PaintStroke *stroke, float loc[3], float out[2])
+{
+	view3d_project_float(stroke->vc.ar, loc, out, stroke->project_mat);
+}
+
+void paint_stroke_symmetry_unflip(PaintStroke *stroke, float out[3], float vec[3])
+{
+	paint_flip_coord(out, vec, stroke->mirror_symmetry_pass);
+		
+	if(stroke->radial_symmetry_pass)
+		mul_m4_v3(stroke->symm_rot_mat_inv, out);
 }
 
 /**** stroke modifiers ****/

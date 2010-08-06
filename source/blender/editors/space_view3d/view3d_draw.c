@@ -77,6 +77,7 @@
 #include "ED_screen.h"
 #include "ED_space_api.h"
 #include "ED_screen_types.h"
+#include "ED_sculpt.h"
 #include "ED_transform.h"
 #include "ED_gpencil.h"
 
@@ -2430,11 +2431,9 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 
 	debug_draw_redraw_area(ar);
 
-//	retopo_paint_view_update(v3d);
-//	retopo_draw_paint_lines();
-	
-	/* Draw particle edit brush XXX (removed) */
-	
+	/* would be nicer to have as a region callback, but
+	   can't get the right context then? -nicholas */
+	ED_paint_overlay_draw(C, ar);
 
 	if(rv3d->persp==RV3D_CAMOB) drawviewborder(scene, ar, v3d);
 	if(rv3d->rflag & RV3D_FLYMODE) drawviewborder_flymode(ar);

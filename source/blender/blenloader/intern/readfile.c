@@ -4173,6 +4173,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 	sce= main->scene.first;
 	while(sce) {
 		if(sce->id.flag & LIB_NEEDLINK) {
+			ToolSettings *ts;
+
 			/*Link ID Properties -- and copy this comment EXACTLY for easy finding
 			of library blocks that implement this.*/
 			if (sce->id.properties) IDP_LibLinkProperty(sce->id.properties, (fd->flags & FD_FLAGS_SWITCH_ENDIAN), fd);
@@ -4186,10 +4188,16 @@ static void lib_link_scene(FileData *fd, Main *main)
 			sce->ima= newlibadr_us(fd, sce->id.lib, sce->ima);
 			sce->gpd= newlibadr_us(fd, sce->id.lib, sce->gpd);
 			
-			link_paint(fd, sce, &sce->toolsettings->sculpt->paint);
-			link_paint(fd, sce, &sce->toolsettings->vpaint->paint);
-			link_paint(fd, sce, &sce->toolsettings->wpaint->paint);
-			link_paint(fd, sce, &sce->toolsettings->imapaint.paint);
+			ts = sce->toolsettings;
+			link_paint(fd, sce, &ts->sculpt->paint);
+			link_paint(fd, sce, &ts->vpaint->paint);
+			link_paint(fd, sce, &ts->wpaint->paint);
+			link_paint(fd, sce, &ts->imapaint.paint);
+			if(ts) {
+				if(ts->paint_overlay.img)
+					ts->paint_overlay.img = newlibadr_us(fd, sce->id.lib, ts->paint_overlay.img);
+				ts->paint_overlay.gltex = 0;
+			}
 
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
 

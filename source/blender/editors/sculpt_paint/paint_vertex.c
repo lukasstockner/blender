@@ -77,9 +77,6 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "BIF_gl.h"
-#include "BIF_glutil.h"
-
 #include "ED_armature.h"
 #include "ED_mesh.h"
 #include "ED_screen.h"
@@ -1463,6 +1460,11 @@ void PAINT_OT_weight_set(wmOperatorType *ot)
 
 /* ************ set / clear vertex paint mode ********** */
 
+struct VPaintSession {
+	unsigned int src_image_gltex;
+};
+
+
 static int set_vpaint(bContext *C, wmOperator *op)		/* toggle */
 {	
 	Object *ob= CTX_data_active_object(C);
@@ -1496,7 +1498,7 @@ static int set_vpaint(bContext *C, wmOperator *op)		/* toggle */
 			WM_operator_name_call(C, "PTEX_OT_layer_add", WM_OP_INVOKE_REGION_WIN, NULL);
 
 		create_paintsession(ob);
-		
+
 		paint_cursor_start(C, vertex_paint_poll);
 
 		paint_init(&vp->paint, PAINT_CURSOR_VERTEX_PAINT);
@@ -1579,15 +1581,23 @@ static int vpaint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent 
 	return 0;
 }
 
-static void vpaint_blend(Brush *brush, float col[4], float alpha)
+static void vpaint_blend(Brush *brush, PaintStroke *stroke, float col[4], float alpha, float co[2])
 {
+	float src_img[4], *src;
 	int tool = brush->vertexpaint_tool;
 
 	if(tool == IMB_BLEND_ADD_ALPHA &&
 	   (brush->flag & BRUSH_DIR_IN))
 		tool = IMB_BLEND_ERASE_ALPHA;
 
-	IMB_blend_color_float(col, col, brush->rgb, alpha, tool);
+	if(paint_sample_overlay(stroke, src_img, co)) {
+		src = src_img;
+		alpha *= src_img[3];
+	}
+	else
+		src = brush->rgb;
+
+		IMB_blend_color_float(col, col, src, alpha, tool);
 }
 
 /* TODO */
@@ -1769,7 +1779,7 @@ static void vpaint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStroke
 					paint_stroke_combined_strength(stroke, test->dist, co, 0);
 				
 				ptex_elem_to_float4(pt->type, pt->channels, data, fcol);
-				vpaint_blend(brush, fcol, strength);
+				vpaint_blend(brush, stroke, fcol, strength, co);
 				ptex_elem_from_float4(pt->type, pt->channels, data, fcol);
 			}
 
@@ -2090,7 +2100,7 @@ static void vpaint_color_single_gridelem(Brush *brush, DMGridData **grids,
 	gridcol = GRIDELEM_COLOR_AT(grids[grid_indices[hit_index]],
 				    grid_hit_index, gridkey)[active];
 
-	vpaint_blend(brush, gridcol, brush->alpha);
+	vpaint_blend(brush, NULL, gridcol, brush->alpha, NULL);
 }
 
 /* applies brush color to a single face */
@@ -2114,7 +2124,7 @@ static void vpaint_color_single_face(Brush *brush, MFace *mface,
 		fcol[2] = mcol[cndx].r / 255.0f;
 		fcol[3] = mcol[cndx].a / 255.0f;
 
-		vpaint_blend(brush, fcol, brush->alpha);
+		vpaint_blend(brush, NULL, fcol, brush->alpha, NULL);
 
 		mcol[cndx].b = fcol[0] * 255.0f;
 		mcol[cndx].g = fcol[1] * 255.0f;
