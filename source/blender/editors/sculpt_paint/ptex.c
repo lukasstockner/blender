@@ -143,7 +143,7 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 		mptex[i].channels = totchannel;
 
 		if(S == 4) {
-			mptex[i].subfaces = 0;
+			mptex[i].subfaces = 1;
 			texels = gridsize;
 		}
 		else {
