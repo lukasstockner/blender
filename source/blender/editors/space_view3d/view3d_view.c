@@ -35,6 +35,7 @@
 #include "DNA_camera_types.h"
 #include "DNA_lamp_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_object_types.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -587,11 +588,13 @@ void viewvector(RegionView3D *rv3d, float coord[3], float vec[3])
 	normalize_v3(vec);
 }
 
-void initgrabz(RegionView3D *rv3d, float x, float y, float z)
+int initgrabz(RegionView3D *rv3d, float x, float y, float z)
 {
-	if(rv3d==NULL) return;
+	int flip= FALSE;
+	if(rv3d==NULL) return flip;
 	rv3d->zfac= rv3d->persmat[0][3]*x+ rv3d->persmat[1][3]*y+ rv3d->persmat[2][3]*z+ rv3d->persmat[3][3];
-	
+	if (rv3d->zfac < 0.0f)
+		flip= TRUE;
 	/* if x,y,z is exactly the viewport offset, zfac is 0 and we don't want that 
 		* (accounting for near zero values)
 		* */
@@ -604,6 +607,8 @@ void initgrabz(RegionView3D *rv3d, float x, float y, float z)
 	// 	-- Aligorith, 2009Aug31
 	//if (rv3d->zfac < 0.0f) rv3d->zfac = 1.0f;
 	if (rv3d->zfac < 0.0f) rv3d->zfac= -rv3d->zfac;
+	
+	return flip;
 }
 
 /* always call initgrabz */
@@ -1344,7 +1349,7 @@ short view3d_opengl_select(ViewContext *vc, unsigned int *buffer, unsigned int b
 
 /* ********************** local view operator ******************** */
 
-static unsigned int free_localbit(void)
+static unsigned int free_localbit(Main *bmain)
 {
 	unsigned int lay;
 	ScrArea *sa;
@@ -1354,7 +1359,7 @@ static unsigned int free_localbit(void)
 	
 	/* sometimes we loose a localview: when an area is closed */
 	/* check all areas: which localviews are in use? */
-	for(sc= G.main->screen.first; sc; sc= sc->id.next) {
+	for(sc= bmain->screen.first; sc; sc= sc->id.next) {
 		for(sa= sc->areabase.first; sa; sa= sa->next) {
 			SpaceLink *sl= sa->spacedata.first;
 			for(; sl; sl= sl->next) {
@@ -1416,7 +1421,7 @@ int ED_view3d_scene_layer_set(int lay, const int *values, int *active)
 	return lay;
 }
 
-static void initlocalview(Scene *scene, ScrArea *sa)
+static void initlocalview(Main *bmain, Scene *scene, ScrArea *sa)
 {
 	View3D *v3d= sa->spacedata.first;
 	Base *base;
@@ -1428,7 +1433,7 @@ static void initlocalview(Scene *scene, ScrArea *sa)
 
 	INIT_MINMAX(min, max);
 
-	locallay= free_localbit();
+	locallay= free_localbit(bmain);
 
 	if(locallay==0) {
 		printf("Sorry, no more than 8 localviews\n");	// XXX error 
@@ -1592,7 +1597,7 @@ static int localview_exec(bContext *C, wmOperator *unused)
 	if(v3d->localvd)
 		endlocalview(CTX_data_scene(C), CTX_wm_area(C));
 	else
-		initlocalview(CTX_data_scene(C), CTX_wm_area(C));
+		initlocalview(CTX_data_main(C), CTX_data_scene(C), CTX_wm_area(C));
 	
 	ED_area_tag_redraw(CTX_wm_area(C));
 	
@@ -1805,8 +1810,8 @@ static int game_engine_exec(bContext *C, wmOperator *op)
 	RestoreState(C);
 
 	//XXX restore_all_scene_cfra(scene_cfra_store);
-	set_scene_bg(startscene);
-	//XXX scene_update_for_newframe(G.scene, G.scene->lay);
+	set_scene_bg(CTX_data_main(C), startscene);
+	//XXX scene_update_for_newframe(bmain, scene, scene->lay);
 	
 	ED_area_tag_redraw(CTX_wm_area(C));
 

@@ -30,12 +30,13 @@ def softbody_panel_enabled(md):
     return (md.point_cache.baked is False)
 
 
-class PhysicButtonsPanel(bpy.types.Panel):
+class PhysicButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "physics"
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         ob = context.object
         rd = context.scene.render
 #        return (ob and ob.type == 'MESH') and (not rd.use_game_engine)
@@ -43,7 +44,7 @@ class PhysicButtonsPanel(bpy.types.Panel):
         return (ob and (ob.type == 'MESH' or ob.type == 'LATTICE'or ob.type == 'CURVE')) and (not rd.use_game_engine)
 
 
-class PHYSICS_PT_softbody(PhysicButtonsPanel):
+class PHYSICS_PT_softbody(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body"
 
     def draw(self, context):
@@ -88,11 +89,12 @@ class PHYSICS_PT_softbody(PhysicButtonsPanel):
             col.prop(softbody, "speed")
 
 
-class PHYSICS_PT_softbody_cache(PhysicButtonsPanel):
+class PHYSICS_PT_softbody_cache(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body Cache"
     bl_default_closed = True
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         return context.soft_body
 
     def draw(self, context):
@@ -100,11 +102,12 @@ class PHYSICS_PT_softbody_cache(PhysicButtonsPanel):
         point_cache_ui(self, context, md.point_cache, softbody_panel_enabled(md), 'SOFTBODY')
 
 
-class PHYSICS_PT_softbody_goal(PhysicButtonsPanel):
+class PHYSICS_PT_softbody_goal(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body Goal"
     bl_default_closed = True
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         return context.soft_body
 
     def draw_header(self, context):
@@ -144,11 +147,12 @@ class PHYSICS_PT_softbody_goal(PhysicButtonsPanel):
         layout.prop_object(softbody, "goal_vertex_group", ob, "vertex_groups", text="Vertex Group")
 
 
-class PHYSICS_PT_softbody_edge(PhysicButtonsPanel):
+class PHYSICS_PT_softbody_edge(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body Edges"
     bl_default_closed = True
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         return context.soft_body
 
     def draw_header(self, context):
@@ -199,11 +203,12 @@ class PHYSICS_PT_softbody_edge(PhysicButtonsPanel):
         col.prop(softbody, "face_collision", text="Face")
 
 
-class PHYSICS_PT_softbody_collision(PhysicButtonsPanel):
+class PHYSICS_PT_softbody_collision(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body Self Collision"
     bl_default_closed = True
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         return context.soft_body
 
     def draw_header(self, context):
@@ -234,11 +239,12 @@ class PHYSICS_PT_softbody_collision(PhysicButtonsPanel):
         col.prop(softbody, "ball_damp", text="Dampening")
 
 
-class PHYSICS_PT_softbody_solver(PhysicButtonsPanel):
+class PHYSICS_PT_softbody_solver(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body Solver"
     bl_default_closed = True
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         return context.soft_body
 
     def draw(self, context):
@@ -271,11 +277,12 @@ class PHYSICS_PT_softbody_solver(PhysicButtonsPanel):
         layout.prop(softbody, "estimate_matrix")
 
 
-class PHYSICS_PT_softbody_field_weights(PhysicButtonsPanel):
+class PHYSICS_PT_softbody_field_weights(PhysicButtonsPanel, bpy.types.Panel):
     bl_label = "Soft Body Field Weights"
     bl_default_closed = True
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         return (context.soft_body)
 
     def draw(self, context):
@@ -285,26 +292,12 @@ class PHYSICS_PT_softbody_field_weights(PhysicButtonsPanel):
         effector_weights_ui(self, context, softbody.effector_weights)
 
 
-classes = [
-    PHYSICS_PT_softbody,
-    PHYSICS_PT_softbody_cache,
-    PHYSICS_PT_softbody_goal,
-    PHYSICS_PT_softbody_edge,
-    PHYSICS_PT_softbody_collision,
-    PHYSICS_PT_softbody_solver,
-    PHYSICS_PT_softbody_field_weights]
-
-
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

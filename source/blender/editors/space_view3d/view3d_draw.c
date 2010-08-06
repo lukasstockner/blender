@@ -33,6 +33,7 @@
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_customdata_types.h"
+#include "DNA_object_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
@@ -211,28 +212,37 @@ int view3d_test_clipping(RegionView3D *rv3d, float *vec, int local)
 
 
 static void drawgrid_draw(ARegion *ar, float wx, float wy, float x, float y, float dx)
-{
-	float fx, fy;
-	
+{	
+	float v1[2], v2[2];
+
 	x+= (wx); 
 	y+= (wy);
-	fx= x/dx;
-	fx= x-dx*floor(fx);
+
+	v1[1]= 0.0f;
+	v2[1]= (float)ar->winy;
+
+	v1[0] = v2[0] = x-dx*floor(x/dx);
 	
-	while(fx< ar->winx) {
-		fdrawline(fx,  0.0,  fx,  (float)ar->winy); 
-		fx+= dx; 
+	glBegin(GL_LINES);
+	
+	while(v1[0] < ar->winx) {
+		glVertex2fv(v1);
+		glVertex2fv(v2);
+		v1[0] = v2[0] = v1[0] + dx;
 	}
 
-	fy= y/dx;
-	fy= y-dx*floor(fy);
-	
+	v1[0]= 0.0f;
+	v2[0]= (float)ar->winx;
 
-	while(fy< ar->winy) {
-		fdrawline(0.0,  fy,  (float)ar->winx,  fy); 
-		fy+= dx;
+	v1[1]= v2[1]= y-dx*floor(y/dx);
+
+	while(v1[1] < ar->winy) {
+		glVertex2fv(v1);
+		glVertex2fv(v2);
+		v1[1] = v2[1] = v1[1] + dx;
 	}
 
+	glEnd();
 }
 
 #define GRID_MIN_PX 6.0f
@@ -1798,7 +1808,7 @@ static void gpu_render_lamp_update(Scene *scene, View3D *v3d, Object *ob, Object
 	lamp = GPU_lamp_from_blender(scene, ob, par);
 	
 	if(lamp) {
-		GPU_lamp_update(lamp, ob->lay, (ob->restrictflag & OB_RESTRICT_VIEW), obmat);
+		GPU_lamp_update(lamp, ob->lay, (ob->restrictflag & OB_RESTRICT_RENDER), obmat);
 		GPU_lamp_update_colors(lamp, la->r, la->g, la->b, la->energy);
 		
 		if((ob->lay & v3d->lay) && GPU_lamp_has_shadow_buffer(lamp)) {

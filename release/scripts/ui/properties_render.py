@@ -36,20 +36,21 @@ class RENDER_MT_ffmpeg_presets(bpy.types.Menu):
     draw = bpy.types.Menu.draw_preset
 
 
-class RenderButtonsPanel(bpy.types.Panel):
+class RenderButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render"
     # COMPAT_ENGINES must be defined in each subclass, external engines can add themselves here
 
-    def poll(self, context):
-        rd = context.scene.render
-        return (context.scene and rd.use_game_engine is False) and (rd.engine in self.COMPAT_ENGINES)
 
-
-class RENDER_PT_render(RenderButtonsPanel):
+class RENDER_PT_render(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Render"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -69,10 +70,15 @@ class RENDER_PT_render(RenderButtonsPanel):
         layout.prop(rd, "display_mode", text="Display")
 
 
-class RENDER_PT_layers(RenderButtonsPanel):
+class RENDER_PT_layers(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Layers"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -174,9 +180,14 @@ class RENDER_PT_layers(RenderButtonsPanel):
         row.prop(rl, "pass_refraction_exclude", text="")
 
 
-class RENDER_PT_shading(RenderButtonsPanel):
+class RENDER_PT_shading(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Shading"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -199,10 +210,15 @@ class RENDER_PT_shading(RenderButtonsPanel):
         col.prop(rd, "alpha_mode", text="Alpha")
 
 
-class RENDER_PT_performance(RenderButtonsPanel):
+class RENDER_PT_performance(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Performance"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -243,10 +259,15 @@ class RENDER_PT_performance(RenderButtonsPanel):
         sub.prop(rd, "use_local_coords", text="Local Coordinates")
 
 
-class RENDER_PT_post_processing(RenderButtonsPanel):
+class RENDER_PT_post_processing(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Post Processing"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -287,9 +308,14 @@ class RENDER_PT_post_processing(RenderButtonsPanel):
         sub.prop(rd, "edge_color", text="")
 
 
-class RENDER_PT_output(RenderButtonsPanel):
+class RENDER_PT_output(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Output"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -407,12 +433,13 @@ class RENDER_PT_output(RenderButtonsPanel):
                 col.prop(rd, "quicktime_audio_resampling_hq")
 
 
-class RENDER_PT_encoding(RenderButtonsPanel):
+class RENDER_PT_encoding(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Encoding"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         rd = context.scene.render
         return rd.file_format in ('FFMPEG', 'XVID', 'H264', 'THEORA')
 
@@ -479,9 +506,14 @@ class RENDER_PT_encoding(RenderButtonsPanel):
         col.prop(rd, "ffmpeg_audio_volume", slider=True)
 
 
-class RENDER_PT_antialiasing(RenderButtonsPanel):
+class RENDER_PT_antialiasing(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Anti-Aliasing"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw_header(self, context):
         rd = context.scene.render
@@ -509,10 +541,15 @@ class RENDER_PT_antialiasing(RenderButtonsPanel):
         col.prop(rd, "filter_size", text="Size")
 
 
-class RENDER_PT_motion_blur(RenderButtonsPanel):
+class RENDER_PT_motion_blur(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Full Sample Motion Blur"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw_header(self, context):
         rd = context.scene.render
@@ -529,10 +566,14 @@ class RENDER_PT_motion_blur(RenderButtonsPanel):
         row.prop(rd, "motion_blur_samples")
         row.prop(rd, "motion_blur_shutter")
 
-
-class RENDER_PT_dimensions(RenderButtonsPanel):
+class RENDER_PT_dimensions(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Dimensions"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -577,10 +618,15 @@ class RENDER_PT_dimensions(RenderButtonsPanel):
         sub.prop(rd, "fps_base", text="/")
 
 
-class RENDER_PT_stamp(RenderButtonsPanel):
+class RENDER_PT_stamp(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Stamp"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw_header(self, context):
         rd = context.scene.render
@@ -623,10 +669,15 @@ class RENDER_PT_stamp(RenderButtonsPanel):
         sub.prop(rd, "stamp_note_text", text="")
 
 
-class RENDER_PT_bake(RenderButtonsPanel):
+class RENDER_PT_bake(RenderButtonsPanel, bpy.types.Panel):
     bl_label = "Bake"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    @staticmethod
+    def poll(context):
+        rd = context.scene.render
+        return (context.scene and rd.use_game_engine is False) and (rd.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -670,33 +721,12 @@ class RENDER_PT_bake(RenderButtonsPanel):
         sub.prop(rd, "bake_bias")
 
 
-classes = [
-    RENDER_MT_presets,
-    RENDER_MT_ffmpeg_presets,
-    RENDER_PT_render,
-    RENDER_PT_layers,
-    RENDER_PT_dimensions,
-    RENDER_PT_antialiasing,
-    RENDER_PT_motion_blur,
-    RENDER_PT_shading,
-    RENDER_PT_output,
-    RENDER_PT_encoding,
-    RENDER_PT_performance,
-    RENDER_PT_post_processing,
-    RENDER_PT_stamp,
-    RENDER_PT_bake]
-
-
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

@@ -31,28 +31,33 @@ class LAMP_MT_sunsky_presets(bpy.types.Menu):
     draw = bpy.types.Menu.draw_preset
 
 
-class DataButtonsPanel(bpy.types.Panel):
+class DataButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
 
-    def poll(self, context):
-        engine = context.scene.render.engine
-        return context.lamp and (engine in self.COMPAT_ENGINES)
 
-
-class DATA_PT_preview(DataButtonsPanel):
+class DATA_PT_preview(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Preview"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.lamp and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         self.layout.template_preview(context.lamp)
 
-
-class DATA_PT_context_lamp(DataButtonsPanel):
+class DATA_PT_context_lamp(DataButtonsPanel, bpy.types.Panel):
     bl_label = ""
     bl_show_header = False
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.lamp and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -77,14 +82,24 @@ class DATA_PT_context_lamp(DataButtonsPanel):
                 layout.template_ID(space, "pin_id")
 
 
-class DATA_PT_custom_props_lamp(DataButtonsPanel, PropertyPanel):
+class DATA_PT_custom_props_lamp(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
     _context_path = "object.data"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.lamp and (engine in __class__.COMPAT_ENGINES)
 
-class DATA_PT_lamp(DataButtonsPanel):
+
+class DATA_PT_lamp(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Lamp"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.lamp and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -129,14 +144,15 @@ class DATA_PT_lamp(DataButtonsPanel):
         col.prop(lamp, "diffuse")
 
 
-class DATA_PT_sunsky(DataButtonsPanel):
+class DATA_PT_sunsky(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Sky & Atmosphere"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         lamp = context.lamp
         engine = context.scene.render.engine
-        return (lamp and lamp.type == 'SUN') and (engine in self.COMPAT_ENGINES)
+        return (lamp and lamp.type == 'SUN') and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -202,14 +218,15 @@ class DATA_PT_sunsky(DataButtonsPanel):
         sub.prop(lamp, "atmosphere_extinction", slider=True, text="Extinction")
 
 
-class DATA_PT_shadow(DataButtonsPanel):
+class DATA_PT_shadow(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Shadow"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         lamp = context.lamp
         engine = context.scene.render.engine
-        return (lamp and lamp.type in ('POINT', 'SUN', 'SPOT', 'AREA')) and (engine in self.COMPAT_ENGINES)
+        return (lamp and lamp.type in ('POINT', 'SUN', 'SPOT', 'AREA')) and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -327,14 +344,15 @@ class DATA_PT_shadow(DataButtonsPanel):
             sub.prop(lamp, "shadow_buffer_clip_end", text=" Clip End")
 
 
-class DATA_PT_area(DataButtonsPanel):
+class DATA_PT_area(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Area Shape"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         lamp = context.lamp
         engine = context.scene.render.engine
-        return (lamp and lamp.type == 'AREA') and (engine in self.COMPAT_ENGINES)
+        return (lamp and lamp.type == 'AREA') and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -354,14 +372,15 @@ class DATA_PT_area(DataButtonsPanel):
             sub.prop(lamp, "size_y", text="Size Y")
 
 
-class DATA_PT_spot(DataButtonsPanel):
+class DATA_PT_spot(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Spot Shape"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         lamp = context.lamp
         engine = context.scene.render.engine
-        return (lamp and lamp.type == 'SPOT') and (engine in self.COMPAT_ENGINES)
+        return (lamp and lamp.type == 'SPOT') and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -390,16 +409,17 @@ class DATA_PT_spot(DataButtonsPanel):
             sub.prop(lamp, "halo_step", text="Step")
 
 
-class DATA_PT_falloff_curve(DataButtonsPanel):
+class DATA_PT_falloff_curve(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Falloff Curve"
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         lamp = context.lamp
         engine = context.scene.render.engine
 
-        return (lamp and lamp.type in ('POINT', 'SPOT') and lamp.falloff_type == 'CUSTOM_CURVE') and (engine in self.COMPAT_ENGINES)
+        return (lamp and lamp.type in ('POINT', 'SPOT') and lamp.falloff_type == 'CUSTOM_CURVE') and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         lamp = context.lamp
@@ -407,31 +427,12 @@ class DATA_PT_falloff_curve(DataButtonsPanel):
         self.layout.template_curve_mapping(lamp, "falloff_curve")
 
 
-classes = [
-    LAMP_MT_sunsky_presets,
-
-    DATA_PT_context_lamp,
-    DATA_PT_preview,
-    DATA_PT_lamp,
-    DATA_PT_falloff_curve,
-    DATA_PT_area,
-    DATA_PT_spot,
-    DATA_PT_shadow,
-    DATA_PT_sunsky,
-
-    DATA_PT_custom_props_lamp]
-
-
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

@@ -54,6 +54,7 @@
 #include "DNA_space_types.h"
 #include "DNA_view3d_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
 
 #include "BKE_context.h"
@@ -704,7 +705,7 @@ void BIF_view3d_previewrender_clear(ScrArea *sa)
 }
 
 /* afterqueue call */
-void BIF_view3d_previewrender(Scene *scene, ScrArea *sa)
+void BIF_view3d_previewrender(Main *bmain, Scene *scene, ScrArea *sa)
 {
 	View3D *v3d= sa->spacedata.first;
 	RegionView3D *rv3d= NULL; // XXX
@@ -804,7 +805,7 @@ void BIF_view3d_previewrender(Scene *scene, ScrArea *sa)
 			
 			/* database can have created render-resol data... */
 			if(rstats->convertdone) 
-				DAG_scene_flush_update(scene, scene->lay, 0);
+				DAG_scene_flush_update(bmain, scene, scene->lay, 0);
 			
 			//printf("dbase update\n");
 		}
@@ -975,7 +976,7 @@ static void shader_preview_render(ShaderPreview *sp, ID *id, int split, int firs
 		((Camera *)sce->camera->data)->lens *= (float)sp->sizey/(float)sizex;
 
 	/* entire cycle for render engine */
-	RE_PreviewRender(re, sce);
+	RE_PreviewRender(re, G.main, sce);
 
 	((Camera *)sce->camera->data)->lens= oldlens;
 

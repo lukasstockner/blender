@@ -4157,10 +4157,8 @@ static void composite_patch(bNodeTree *ntree, Scene *scene)
 
 static void link_paint(FileData *fd, Scene *sce, Paint *p)
 {
-	if(p && p->brushes) {
-		int i;
-		for(i = 0; i < p->brush_count; ++i)
-			p->brushes[i]= newlibadr_us(fd, sce->id.lib, p->brushes[i]);
+	if(p && p->brush) {
+		p->brush= newlibadr_us(fd, sce->id.lib, p->brush);
 	}
 }
 
@@ -4276,13 +4274,8 @@ static void link_recurs_seq(FileData *fd, ListBase *lb)
 static void direct_link_paint(FileData *fd, Paint **paint)
 {
 	Paint *p;
-
+/* TODO. is this needed */
 	p= (*paint)= newdataadr(fd, (*paint));
-	if(p) {
-		p->paint_cursor= NULL;
-		p->brushes= newdataadr(fd, p->brushes);
-		test_pointer_array(fd, (void**)&p->brushes);
-	}
 }
 
 static void direct_link_scene(FileData *fd, Scene *sce)
@@ -4317,9 +4310,6 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 		direct_link_paint(fd, (Paint**)&sce->toolsettings->sculpt);
 		direct_link_paint(fd, (Paint**)&sce->toolsettings->vpaint);
 		direct_link_paint(fd, (Paint**)&sce->toolsettings->wpaint);
-
-		sce->toolsettings->imapaint.paint.brushes= newdataadr(fd, sce->toolsettings->imapaint.paint.brushes);
-		test_pointer_array(fd, (void**)&sce->toolsettings->imapaint.paint.brushes);
 
 		sce->toolsettings->imapaint.paintcursor= NULL;
 		sce->toolsettings->particle.paintcursor= NULL;
@@ -9323,7 +9313,6 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 		idproperties_fix_group_lengths(main->mat);
 		idproperties_fix_group_lengths(main->tex);
 		idproperties_fix_group_lengths(main->image);
-		idproperties_fix_group_lengths(main->wave);
 		idproperties_fix_group_lengths(main->latt);
 		idproperties_fix_group_lengths(main->lamp);
 		idproperties_fix_group_lengths(main->camera);
@@ -11152,6 +11141,12 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
 	/* put compatibility code here until next subversion bump */
 	{
+		Brush *br;
+		for(br= main->brush.first; br; br= br->id.next) {
+			if(br->ob_mode==0)
+				br->ob_mode= (OB_MODE_SCULPT|OB_MODE_WEIGHT_PAINT|OB_MODE_TEXTURE_PAINT|OB_MODE_VERTEX_PAINT);
+		}
+		
 	}
 
 	/* WATCH IT!!!: pointers from libdata have not been converted yet here! */
@@ -12440,9 +12435,7 @@ static void append_do_cursor(Scene *scene, Library *curlib, short flag)
 		return;
 	
 	/* move from the center of the appended objects to cursor */
-	centerloc[0]= (min[0]+max[0])/2;
-	centerloc[1]= (min[1]+max[1])/2;
-	centerloc[2]= (min[2]+max[2])/2;
+	mid_v3_v3v3(centerloc, min, max);
 	curs = scene->cursor;
 	VECSUB(centerloc,curs,centerloc);
 	
@@ -12545,7 +12538,7 @@ void BLO_script_library_append(BlendHandle **bh, char *dir, char *name,
 
 	/* do we need to do this? */
 	if(scene)
-		DAG_scene_sort(scene);
+		DAG_scene_sort(bmain, scene);
 
 	*bh= (BlendHandle*)fd;
 }

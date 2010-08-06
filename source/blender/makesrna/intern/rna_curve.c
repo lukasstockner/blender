@@ -254,7 +254,7 @@ static void rna_Curve_update_data(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 static void rna_Curve_update_deps(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-	DAG_scene_sort(scene);
+	DAG_scene_sort(bmain, scene);
 	rna_Curve_update_data(bmain, scene, ptr);
 }
 
@@ -283,6 +283,20 @@ static void rna_Curve_bevelObject_set(PointerRNA *ptr, PointerRNA value)
 	} else {
 		cu->bevobj = NULL;
 	}
+}
+
+static int rna_Curve_otherObject_poll(PointerRNA *ptr, PointerRNA value)
+{
+	Curve *cu= (Curve*)ptr->id.data;
+	Object *ob= (Object*)value.data;
+
+	if (ob) {
+		if (ob->type == OB_CURVE && ob->data != cu) {
+			return 1;
+		}
+	}
+
+	return 0;
 }
 
 static PointerRNA rna_Curve_taperObject_get(PointerRNA *ptr)
@@ -510,6 +524,18 @@ static void rna_Curve_active_spline_set(PointerRNA *ptr, PointerRNA value)
 		cu->actnu= BLI_findindex(nubase, nu);
 }
 
+static char *rna_TextBox_path(PointerRNA *ptr)
+{
+	Curve *cu= (Curve*)ptr->id.data;
+	TextBox *tb= ptr->data;
+	int index= (int)(tb - cu->tb);
+
+	if (index >= 0 && index < cu->totbox)
+		return BLI_sprintfN("textboxes[%d]", index);
+	else
+		return BLI_strdup("");
+}
+
 #else
 
 static void rna_def_bpoint(BlenderRNA *brna)
@@ -694,11 +720,6 @@ static void rna_def_nurbs(BlenderRNA *brna, StructRNA *srna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", CU_UV_ORCO);
 	RNA_def_property_ui_text(prop, "Map Along Length", "Generate texture mapping coordinates following the curve direction, rather than the local bounding box");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
-	
-	prop= RNA_def_property(srna, "vertex_normal_flip", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", CU_NOPUNOFLIP);
-	RNA_def_property_ui_text(prop, "Vertex Normal Flip", "Flip vertex normals towards the camera during render");
-	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
 }
 
 static void rna_def_font(BlenderRNA *brna, StructRNA *srna)
@@ -812,6 +833,7 @@ static void rna_def_font(BlenderRNA *brna, StructRNA *srna)
 	/* pointers */
 	prop= RNA_def_property(srna, "text_on_curve", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "textoncurve");
+	RNA_def_property_pointer_funcs(prop, NULL, NULL, NULL, "rna_Curve_otherObject_poll");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Text on Curve", "Curve deforming text object");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_deps");
@@ -841,7 +863,6 @@ static void rna_def_textbox(BlenderRNA *brna)
 	
 	srna= RNA_def_struct(brna, "TextBox", NULL);
 	RNA_def_struct_ui_text(srna, "Text Box", "Text bounding box for layout");
-	// XXX: still needs path function
 	
 	/* number values */
 	prop= RNA_def_property(srna, "x", PROP_FLOAT, PROP_NONE);
@@ -867,6 +888,8 @@ static void rna_def_textbox(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 50.0f);
 	RNA_def_property_ui_text(prop, "Textbox Height", "");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_data");
+	
+	RNA_def_struct_path_func(srna, "rna_TextBox_path");
 }
 
 static void rna_def_charinfo(BlenderRNA *brna)
@@ -1016,7 +1039,7 @@ static void rna_def_curve_splines(BlenderRNA *brna, PropertyRNA *cprop)
 
 	prop= RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Object");
-	RNA_def_property_pointer_funcs(prop, "rna_Curve_active_spline_get", "rna_Curve_active_spline_set", NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_Curve_active_spline_get", "rna_Curve_active_spline_set", NULL, NULL);
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Active Spline", "Active curve spline");
 	/* Could call: ED_base_object_activate(C, scene->basact);
@@ -1136,7 +1159,7 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Bevel Object", "Curve object name that defines the bevel shape");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_deps");
-	RNA_def_property_pointer_funcs(prop, "rna_Curve_bevelObject_get", "rna_Curve_bevelObject_set", NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_Curve_bevelObject_get", "rna_Curve_bevelObject_set", NULL, "rna_Curve_otherObject_poll");
 
 	prop= RNA_def_property(srna, "taper_object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Object");
@@ -1144,7 +1167,7 @@ static void rna_def_curve(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Taper Object", "Curve object name that defines the taper (width)");
 	RNA_def_property_update(prop, 0, "rna_Curve_update_deps");
-	RNA_def_property_pointer_funcs(prop, "rna_Curve_taperObject_get", "rna_Curve_taperObject_set", NULL);
+	RNA_def_property_pointer_funcs(prop, "rna_Curve_taperObject_get", "rna_Curve_taperObject_set", NULL, "rna_Curve_otherObject_poll");
 
 	/* Flags */
 

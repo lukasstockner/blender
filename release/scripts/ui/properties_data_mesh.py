@@ -49,20 +49,21 @@ class MESH_MT_shape_key_specials(bpy.types.Menu):
         layout.operator("object.shape_key_mirror", icon='ARROW_LEFTRIGHT')
 
 
-class DataButtonsPanel(bpy.types.Panel):
+class DataButtonsPanel():
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "data"
 
-    def poll(self, context):
-        engine = context.scene.render.engine
-        return context.mesh and (engine in self.COMPAT_ENGINES)
 
-
-class DATA_PT_context_mesh(DataButtonsPanel):
+class DATA_PT_context_mesh(DataButtonsPanel, bpy.types.Panel):
     bl_label = ""
     bl_show_header = False
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.mesh and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -87,14 +88,24 @@ class DATA_PT_context_mesh(DataButtonsPanel):
                 layout.template_ID(space, "pin_id")
 
 
-class DATA_PT_custom_props_mesh(DataButtonsPanel, PropertyPanel):
+class DATA_PT_custom_props_mesh(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
     _context_path = "object.data"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.mesh and (engine in __class__.COMPAT_ENGINES)
 
-class DATA_PT_normals(DataButtonsPanel):
+
+class DATA_PT_normals(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Normals"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.mesh and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -114,13 +125,17 @@ class DATA_PT_normals(DataButtonsPanel):
             col = split.column()
         else:
             col.separator()
-        col.prop(mesh, "vertex_normal_flip")
         col.prop(mesh, "double_sided")
 
 
-class DATA_PT_settings(DataButtonsPanel):
+class DATA_PT_settings(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Settings"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.mesh and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -130,13 +145,15 @@ class DATA_PT_settings(DataButtonsPanel):
         layout.prop(mesh, "texture_mesh")
 
 
-class DATA_PT_vertex_groups(DataButtonsPanel):
+class DATA_PT_vertex_groups(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Vertex Groups"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         engine = context.scene.render.engine
-        return (context.object and context.object.type in ('MESH', 'LATTICE') and (engine in self.COMPAT_ENGINES))
+        obj = context.object
+        return (obj and obj.type in ('MESH', 'LATTICE') and (engine in __class__.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -177,13 +194,15 @@ class DATA_PT_vertex_groups(DataButtonsPanel):
             layout.prop(context.tool_settings, "vertex_group_weight", text="Weight")
 
 
-class DATA_PT_shape_keys(DataButtonsPanel):
+class DATA_PT_shape_keys(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Shape Keys"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         engine = context.scene.render.engine
-        return (context.object and context.object.type in ('MESH', 'LATTICE', 'CURVE', 'SURFACE') and (engine in self.COMPAT_ENGINES))
+        obj = context.object
+        return (obj and obj.type in ('MESH', 'LATTICE', 'CURVE', 'SURFACE') and (engine in __class__.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -275,9 +294,14 @@ class DATA_PT_shape_keys(DataButtonsPanel):
                 row.prop(key, "slurph")
 
 
-class DATA_PT_uv_texture(DataButtonsPanel):
+class DATA_PT_uv_texture(DataButtonsPanel, bpy.types.Panel):
     bl_label = "UV Texture"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.mesh and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -302,7 +326,8 @@ class DATA_PT_texface(DataButtonsPanel):
     bl_label = "Texture Face"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    def poll(self, context):
+    @staticmethod
+    def poll(context):
         ob = context.active_object
         rd = context.scene.render
 
@@ -345,9 +370,14 @@ class DATA_PT_texface(DataButtonsPanel):
             col.label(text="No UV Texture")
 
 
-class DATA_PT_vertex_colors(DataButtonsPanel):
+class DATA_PT_vertex_colors(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Vertex Colors"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    @staticmethod
+    def poll(context):
+        engine = context.scene.render.engine
+        return context.mesh and (engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -372,7 +402,7 @@ class DATA_PT_vertex_colors(DataButtonsPanel):
                 layout.operator("mesh.vertex_color_multiresolution_toggle", text="Add Multires")
 
 
-class DATA_PT_ptex(DataButtonsPanel):
+class DATA_PT_ptex(DataButtonsPanel, bpy.types.Panel):
     bl_label = "PTex"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
@@ -387,33 +417,12 @@ class DATA_PT_ptex(DataButtonsPanel):
         row.operator("ptex.open")
 
 
-classes = [
-    MESH_MT_vertex_group_specials,
-    MESH_MT_shape_key_specials,
-
-    DATA_PT_context_mesh,
-    DATA_PT_normals,
-    DATA_PT_settings,
-    DATA_PT_vertex_groups,
-    DATA_PT_shape_keys,
-    DATA_PT_ptex,
-    DATA_PT_uv_texture,
-    DATA_PT_texface,
-    DATA_PT_vertex_colors,
-
-    DATA_PT_custom_props_mesh]
-
-
 def register():
-    register = bpy.types.register
-    for cls in classes:
-        register(cls)
+    pass
 
 
 def unregister():
-    unregister = bpy.types.unregister
-    for cls in classes:
-        unregister(cls)
+    pass
 
 if __name__ == "__main__":
     register()

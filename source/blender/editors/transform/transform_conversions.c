@@ -48,7 +48,6 @@
 #include "DNA_view3d_types.h"
 #include "DNA_constraint_types.h"
 
-#include "BKE_anim.h"
 #include "BKE_action.h"
 #include "BKE_armature.h"
 #include "BKE_blender.h"
@@ -4403,7 +4402,7 @@ static void set_trans_object_base_flags(bContext *C, TransInfo *t)
 	}
 
 	/* all recalc flags get flushed to all layers, so a layer flip later on works fine */
-	DAG_scene_flush_update(t->scene, -1, 0);
+	DAG_scene_flush_update(G.main, t->scene, -1, 0);
 
 	/* and we store them temporal in base (only used for transform code) */
 	/* this because after doing updates, the object->recalc is cleared */
@@ -4481,7 +4480,7 @@ static int count_proportional_objects(TransInfo *t)
 	
 
 	/* all recalc flags get flushed to all layers, so a layer flip later on works fine */
-	DAG_scene_flush_update(t->scene, -1, 0);
+	DAG_scene_flush_update(G.main, t->scene, -1, 0);
 
 	/* and we store them temporal in base (only used for transform code) */
 	/* this because after doing updates, the object->recalc is cleared */
