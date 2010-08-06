@@ -32,6 +32,7 @@ struct ARegion;
 struct bContext;
 struct MultiresModifierData;
 struct Object;
+struct PaintOverlay;
 struct RegionView3D;
 struct Scene;
 struct wmKeyConfig;
@@ -66,6 +67,6 @@ void ED_paint_force_update(struct bContext *C);
 
 /* paint_vertex.c */
 void ED_paint_overlay_draw(const struct bContext *C, struct ARegion *ar);
-void ED_paint_update_overlay(struct Object *ob);
+void ED_paint_update_overlay(struct PaintOverlay *overlay);
 
 #endif

@@ -613,6 +613,8 @@ typedef struct ToolSettings {
 	VPaint *vpaint;		/* vertex paint */
 	VPaint *wpaint;		/* weight paint */
 	Sculpt *sculpt;
+
+	struct PaintOverlay paint_overlay;
 	
 	/* Vertex groups */
 	float vgroup_weight;
