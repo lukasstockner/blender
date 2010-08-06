@@ -137,9 +137,6 @@ class IMAGE_MT_image(bpy.types.Menu):
 
             layout.prop(sima, "image_painting")
 
-            layout.separator()
-            layout.operator("paint.vertex_colors_to_texture")
-
 
 class IMAGE_MT_uvs_showhide(bpy.types.Menu):
     bl_label = "Show/Hide Faces"

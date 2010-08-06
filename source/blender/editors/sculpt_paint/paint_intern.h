@@ -146,7 +146,6 @@ void PAINT_OT_weight_from_bones(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint_radial_control(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint(struct wmOperatorType *ot);
-void PAINT_OT_vertex_colors_to_texture(struct wmOperatorType *ot);
 unsigned int vpaint_get_current_col(struct VPaint *vp);
 
 /* paint_image.c */

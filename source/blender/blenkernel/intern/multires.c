@@ -99,7 +99,7 @@ static int multires_get_level(Object *ob, MultiresModifierData *mmd, int render)
 {
 	if(render)
 		return (mmd->modifier.scene)? get_render_subsurf_level(&mmd->modifier.scene->r, mmd->renderlvl): mmd->renderlvl;
-	else if(ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT))
+	else if(ob->mode & OB_MODE_SCULPT)
 		return mmd->sculptlvl;
 	else
 		return (mmd->modifier.scene)? get_render_subsurf_level(&mmd->modifier.scene->r, mmd->lvl): mmd->lvl;
@@ -155,7 +155,7 @@ void multires_force_external_reload(Object *ob)
 
 void multires_force_render_update(Object *ob)
 {
-	if(ob && (ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)) && modifiers_findByType(ob, eModifierType_Multires))
+	if(ob && (ob->mode & OB_MODE_SCULPT) && modifiers_findByType(ob, eModifierType_Multires))
 		multires_force_update(ob);
 }
 
@@ -320,12 +320,6 @@ static void multires_sync_customdata(Mesh *me, GridKey *gridkey,
 
 		cd_grids[i].totelem = totelem;
 
-		for(j = 0; j < gridkey->color; ++j) {
-			CustomData_multires_sync_layer(cd_grids+i,
-						       CD_MCOL,
-						       gridkey->color_names[j]);
-		}
-
 		for(j = 0; j < gridkey->mask; ++j) {
 			CustomData_multires_sync_layer(cd_grids+i,
 						       CD_PAINTMASK,
@@ -476,13 +470,9 @@ static void init_gridkey_from_customdata(GridKey *gridkey,
 					 CustomData *vdata,
 					 CustomData *fdata)
 {
- 	GRIDELEM_KEY_INIT(gridkey, 1,
-			  CustomData_get_multires_count(fdata, CD_MCOL),
+ 	GRIDELEM_KEY_INIT(gridkey, 1, 0,
 			  CustomData_get_multires_count(vdata, CD_PAINTMASK),
 			  1);
-
-	gridkey->color_names = CustomData_get_multires_names(fdata,
-							     CD_MCOL);
 
 	gridkey->mask_names = CustomData_get_multires_names(vdata,
 							    CD_PAINTMASK);
@@ -939,31 +929,6 @@ static void multiresModifier_disp_run(DerivedMesh *dm, Mesh *me, DispOp op, DMGr
 							break;
 						}
 					}
-
-					/* Colors */
-					for(j = 0; j < gridkey->color; ++j) {
-						float *color = GRIDELEM_COLOR_AT(grid, ccgdm_offset, gridkey)[j];
-						float *scolor = GRIDELEM_COLOR_AT(subgrid, ccgdm_offset, gridkey)[j];
-						float *stored_color_layer =
-							CustomData_multires_get_data(&stored_grids[i],
-										     CD_MCOL,
-										     gridkey->color_names[j]);
-						float *stored_color = &stored_color_layer[(stored_index+
-											   stored_offset)*4];
-
-						switch(op) {
-						case APPLY_DISPS:
-							add_v4_v4v4(color, scolor, stored_color);
-							clamp_v4_fl(color, 0, 1);
-							break;
-						case CALC_DISPS:
-							sub_v4_v4v4(stored_color, color, scolor);
-							break;
-						case ADD_DISPS:
-							add_v4_v4(stored_color, color);
-							break;
-						}
-					}
 				}
 			}
 		}
@@ -1155,59 +1120,6 @@ DerivedMesh *multires_dm_create_from_derived(MultiresModifierData *mmd, int loca
 	return result;
 }
 
-/* convert multires color layers to standard mcol layers */
-void multires_apply_colors(DerivedMesh *cddm, DerivedMesh *ccgdm)
-{
-	DMGridData **grids;
-	GridKey *gridkey;
-	MCol **mcol;
-	int i, j, k, x, y, gridsize, boundary, totgrid;
-
-	grids = ccgdm->getGridData(ccgdm);
-	gridkey = ccgdm->getGridKey(ccgdm);
-	gridsize = ccgdm->getGridSize(ccgdm);
-	totgrid = ccgdm->getNumGrids(ccgdm);
-	boundary = gridsize - 1;
-
-	/* get multires mcol layers */
-	mcol = MEM_callocN(sizeof(MCol*)*gridkey->color,
-			   "multires_apply_colors.mcol");
-	for(i = 0; i < gridkey->color; ++i) {
-		char *name = gridkey->color_names[i];
-
-		/* TODO: note that this works because plain subdivided mcols
-		   already generated, that's inefficient and should be fixed */
-		mcol[i] = CustomData_get_layer_named(&cddm->faceData, CD_MCOL, name);
-	}
-
-	for(i = 0; i < totgrid; ++i) {
-		DMGridData *grid = grids[i];
-
-		for(y = 0; y < boundary; ++y) {
-			for(x = 0; x < boundary; ++x) {
-				for(j = 0; j < gridkey->color; ++j) {
-					float *col[4];
-
-					col[0] = GRIDELEM_COLOR_AT(grid, y*gridsize+x, gridkey)[j];
-					col[1] = GRIDELEM_COLOR_AT(grid, (y+1)*gridsize+x, gridkey)[j];
-					col[2] = GRIDELEM_COLOR_AT(grid, (y+1)*gridsize+(x+1), gridkey)[j];
-					col[3] = GRIDELEM_COLOR_AT(grid, y*gridsize+(x+1), gridkey)[j];
-
-					for(k = 0; k < 4; ++k) {
-						mcol[j][k].b = col[k][0] * 255;
-						mcol[j][k].g = col[k][1] * 255;
-						mcol[j][k].r = col[k][2] * 255;
-						mcol[j][k].a = col[k][3] * 255;
-					}
-
-					mcol[j] += 4;
-				}
-			}
-		}
-	}
-
-	MEM_freeN(mcol);
-}
 
 /**** Old Multires code ****
 ***************************/

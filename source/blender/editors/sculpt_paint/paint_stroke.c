@@ -576,8 +576,6 @@ float unproject_brush_radius(Object *ob, ViewContext *vc, float center[3], float
 // two modules should be more clearly defined.
 static void paint_draw_cursor(bContext *C, int x, int y, void *unused)
 {
-	Object *ob = CTX_data_active_object(C);
-	VPaint *vp = CTX_data_tool_settings(C)->vpaint;
 	ViewContext vc;
 
 	(void)unused;

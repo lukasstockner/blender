@@ -216,7 +216,6 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PAINT_OT_vertex_paint_toggle);
 	WM_operatortype_append(PAINT_OT_vertex_paint);
 	WM_operatortype_append(PAINT_OT_vertex_color_set);
-	WM_operatortype_append(PAINT_OT_vertex_colors_to_texture);
 	WM_operatortype_append(PAINT_OT_overlay_manipulate);
 
 	/* ptex */
