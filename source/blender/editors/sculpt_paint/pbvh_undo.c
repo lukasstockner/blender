@@ -54,6 +54,7 @@
 #include "ED_sculpt.h"
 #include "paint_intern.h"
 #include "sculpt_intern.h"
+#include "ptex.h"
 
 /************************** Undo *************************/
 
@@ -73,9 +74,9 @@ struct PBVHUndoNode {
 	/* paint mask */
 	float *pmask;
 	char pmask_name[32];
-	/* vertex colors */
-	float (*color)[4];
-	char color_name[32];
+	/* ptex */
+	MPtex *mptex;
+	char mptex_name[32];
 
 	/* non-multires */
 	/* to verify if me->totvert it still the same */
@@ -83,7 +84,7 @@ struct PBVHUndoNode {
 	/* to restore into the right location */
 	int *vert_indices;
 	int *face_indices;
-	/* for per-facecorner data (colors) */
+	/* for per-face data (mptex) */
 	int totface;
 
 	/* multires */
@@ -161,7 +162,6 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 {
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
-	Mesh *me = ob->data;
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, 0);
 	PBVH *pbvh;
 	PBVHUndoNode *unode;
@@ -199,36 +199,16 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 					SWAP(float, pmask[unode->vert_indices[i]],
 					     unode->pmask[i]);
 			}
-			if(unode->color) {
-				MCol *mcol;
+			if(unode->mptex) {
+				MPtex *mptex;
 
-				mcol = CustomData_get_layer_named(fdata,
-								  CD_MCOL,
-								  unode->color_name);
+				mptex = CustomData_get_layer_named(fdata,
+								   CD_MPTEX,
+								   unode->mptex_name);
 
 				for(i=0; i<unode->totface; i++) {
-					int face_index = unode->face_indices[i];
-					MFace *f = me->mface + face_index;
-					int S = f->v4?4:3;
-
-					for(j=0; j<S; ++j) {
-						MCol *col;
-						float fcol[4];
-						
-						col = mcol + face_index*4+j;
-
-						fcol[0] = mcol->b / 255.0f;
-						fcol[1] = mcol->g / 255.0f;
-						fcol[2] = mcol->r / 255.0f;
-						fcol[3] = mcol->a / 255.0f;
-
-						swap_v4_v4(fcol, unode->color[i*4+j]);
-
-						mcol->b = fcol[0] * 255.0f;
-						mcol->g = fcol[0] * 255.0f;
-						mcol->r = fcol[0] * 255.0f;
-						mcol->a = fcol[0] * 255.0f;
-					}
+					SWAP(MPtex, unode->mptex[i],
+					     mptex[unode->face_indices[i]]);
 				}
 			}
 		}
@@ -236,8 +216,8 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 			/* multires restore */
 			DMGridData **grids, *grid;
 			GridKey *gridkey;
-			float (*co)[3] = NULL, *pmask = NULL, (*color)[4] = NULL;
-			int gridsize, active_pmask, active_color;
+			float (*co)[3] = NULL, *pmask = NULL;
+			int gridsize, active_pmask;
 
 			if(dm->getNumGrids(dm) != unode->maxgrid)
 				continue;
@@ -256,10 +236,6 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 				pmask = unode->pmask;
 				active_pmask = gridelem_active_offset(vdata, gridkey, CD_PAINTMASK);
 			}
-			if(unode->color) {
-				color = unode->color;
-				active_color = gridelem_active_offset(fdata, gridkey, CD_MCOL);
-			}
 
 			for(j=0; j<unode->totgrid; j++) {
 				grid= grids[unode->grid_indices[j]];
@@ -275,11 +251,6 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 						SWAP(float, GRIDELEM_MASK(elem, gridkey)[active_pmask],
 						     *pmask);
 						++pmask;
-					}
-					if(color) {
-						swap_v4_v4(GRIDELEM_COLOR(elem, gridkey)[active_color],
-							   *color);
-						++color;
 					}
 				}
 			}
@@ -315,6 +286,7 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 static void pbvh_undo_free(ListBase *lb)
 {
 	PBVHUndoNode *unode;
+	int i;
 
 	for(unode=lb->first; unode; unode=unode->next) {
 		if(unode->co)
@@ -323,8 +295,11 @@ static void pbvh_undo_free(ListBase *lb)
 			MEM_freeN(unode->no);
 		if(unode->pmask)
 			MEM_freeN(unode->pmask);
-		if(unode->color)
-			MEM_freeN(unode->color);
+		if(unode->mptex) {
+			for(i = 0; i < unode->totface; ++i)
+				MEM_freeN(unode->mptex[i].data);
+			MEM_freeN(unode->mptex);
+		}
 		if(unode->vert_indices)
 			MEM_freeN(unode->vert_indices);
 		if(unode->face_indices)
@@ -368,7 +343,6 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 
 	GridKey *gridkey;
 	int uses_grids, totgrid, *grid_indices;
-	int grids_active_color;
 
 	/* list is manipulated by multiple threads, so we lock */
 	BLI_lock_thread(LOCK_CUSTOM1);
@@ -432,36 +406,36 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 			totbytes += sizeof(float) * unode->totvert;
 		}
 	}
-	if(flag & PBVH_UNDO_COLOR) {
-		int totcol, active;
-		active= CustomData_get_active_layer_index(fdata, CD_MCOL);
+	if(flag & PBVH_UNDO_PTEX) {
+		int i, j, active;
+		active= CustomData_get_active_layer_index(fdata, CD_MPTEX);
 
-		if(active == -1)
-			flag &= ~PBVH_UNDO_COLOR;
+		if(active == -1 || uses_grids /* TODO */)
+			flag &= ~PBVH_UNDO_PTEX;
 		else {
-			BLI_strncpy(unode->color_name,
+			BLI_strncpy(unode->mptex_name,
 				    fdata->layers[active].name,
-				    sizeof(unode->color_name));
+				    sizeof(unode->mptex_name));
 
-			if(uses_grids) {
-				totcol= unode->totvert;
-				grids_active_color = gridelem_active_offset(fdata, gridkey, CD_MCOL);
+			BLI_pbvh_node_get_faces(pbvh, node,
+						&mface, &face_indices,
+						NULL, &totface);
+			unode->totface= totface;
+
+			unode->face_indices= MEM_mapallocN(sizeof(int)*unode->totface,
+							   "PBVHUndoNode.face_indices");
+			totbytes += sizeof(int)*unode->totface;
+
+			unode->mptex= MEM_mapallocN(sizeof(MPtex)*totface, "PBVHUndoNode.mptex");
+			totbytes += sizeof(MPtex)*totface;
+			
+			for(i = 0; i < totface; ++i) {
+				MPtex *pt = ((MPtex*)fdata->layers[active].data) + face_indices[i];
+				for(j = 0; j < pt->subfaces; ++j) {
+					totbytes += pt->channels*ptex_data_size(pt->type) *
+						pt->res[j][0] * pt->res[j][1];
+				}
 			}
-			else {
-				BLI_pbvh_node_get_faces(pbvh, node,
-							&mface, &face_indices,
-							NULL, &totface);
-				unode->totface= totface;
-
-				unode->face_indices= MEM_mapallocN(sizeof(int)*unode->totface,
-								   "PBVHUndoNode.face_indices");
-				totbytes += sizeof(int)*unode->totface;
-
-				totcol= totface * 4;
-			}
-
-			unode->color= MEM_mapallocN(sizeof(float)*4*totcol, "PBVHUndoNode.color");
-			totbytes += sizeof(float)*4*totcol;
 		}
 	}
 
@@ -484,13 +458,6 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 				if(vd.mask_active)
 					unode->pmask[vd.i]= *vd.mask_active;			
 			}
-			if(flag & PBVH_UNDO_COLOR) {
-				/* only copy for multires here */
-				if(uses_grids) {
-					copy_v4_v4(unode->color[vd.i],
-						   GRIDELEM_COLOR(vd.elem, vd.gridkey)[grids_active_color]);
-				}
-			}
 
 			if(vd.vert_indices)
 				unode->vert_indices[vd.i]= vd.vert_indices[vd.i];
@@ -501,31 +468,19 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 	if(unode->grid_indices)
 		memcpy(unode->grid_indices, grid_indices, sizeof(int)*totgrid);
 
-	/* non-multires: per face copy of color data */
-	if(!uses_grids && (flag & PBVH_UNDO_COLOR)) {
-		int active, i, j;
+	/* non-multires: per face copy of ptex data */
+	if(!uses_grids && (flag & PBVH_UNDO_PTEX)) {
+		int active, i;
 
-		active = CustomData_get_active_layer_index(fdata, CD_MCOL);
+		active = CustomData_get_active_layer_index(fdata, CD_MPTEX);
 
 		for(i = 0; i < totface; ++i) {
 			int face_index = face_indices[i];
-			MFace *f = mface + face_index;
-			int S = f->v4 ? 4 : 3;
+			MPtex *pt = ((MPtex*)fdata->layers[active].data) + face_index;
 
 			unode->face_indices[i]= face_index;
-
-			for(j = 0; j < S; ++j) {
-				MCol *mcol = fdata->layers[active].data;
-				float fcol[4];
-
-				mcol += face_index*4 + j;
-				fcol[0] = mcol->b / 255.0f;
-				fcol[1] = mcol->g / 255.0f;
-				fcol[2] = mcol->r / 255.0f;
-				fcol[3] = mcol->a / 255.0f;
-
-				copy_v4_v4(unode->color[i*4 + j], fcol);
-			}
+			unode->mptex[i] = *pt;
+			unode->mptex[i].data = MEM_dupallocN(pt->data);
 		}
 	}
 

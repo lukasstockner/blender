@@ -226,7 +226,7 @@ void PAINT_OT_mask_from_texture(struct wmOperatorType *ot);
 typedef enum {
 	PBVH_UNDO_CO_NO = (1<<0),
 	PBVH_UNDO_PMASK = (1<<1),
-	PBVH_UNDO_COLOR = (1<<2)
+	PBVH_UNDO_PTEX = (1<<2)
 } PBVHUndoFlag;
 
 typedef struct PBVHUndoNode PBVHUndoNode;

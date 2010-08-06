@@ -2007,7 +2007,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 	BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
 
 	for(n = 0; n < totnode; ++n) {
-		pbvh_undo_push_node(nodes[n], PBVH_UNDO_COLOR, ob);
+		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PTEX, ob);
 
 		if(BLI_pbvh_uses_grids(pbvh)) {
 #if 0 /* TODO */
