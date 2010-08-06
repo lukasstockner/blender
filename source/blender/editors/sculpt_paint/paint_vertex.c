@@ -1729,7 +1729,7 @@ static void ptex_elem_from_float4(PtexDataType type, int channels, void *data, f
 }
 
 static void vpaint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStrokeTest *test,
-				  MPtex *pt, char *data,
+				  MPtex *pt, int res[2], char *data,
 				  float v1[3], float v2[3], float v3[3], float v4[3])
 				  
 {
@@ -1742,20 +1742,20 @@ static void vpaint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStroke
 	sub_v3_v3v3(dtop, v1, v2);
 	sub_v3_v3v3(dbot, v4, v3);;
 	ustep = 1;
-	if(pt->ures != 1)
-		ustep /= (pt->ures - 1);
+	if(res[0] != 1)
+		ustep /= (res[0] - 1);
 	mul_v3_fl(dtop, ustep);
 	mul_v3_fl(dbot, ustep);
 
 	vstep = 1;
-	if(pt->vres != 1)
-		vstep /= (pt->vres - 1);
+	if(res[1] != 1)
+		vstep /= (res[1] - 1);
 
-	for(v = 0, yinterp = 0; v < pt->vres; ++v) {
+	for(v = 0, yinterp = 0; v < res[1]; ++v) {
 		copy_v3_v3(co_top, v2);
 		copy_v3_v3(co_bot, v3);
 
-		for(u = 0; u < pt->ures; ++u, data += layersize) {
+		for(u = 0; u < res[0]; ++u, data += layersize) {
 			float co[3];
 
 			interp_v3_v3v3(co, co_bot, co_top, yinterp);
@@ -1771,10 +1771,6 @@ static void vpaint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStroke
 				vpaint_blend(brush, fcol, strength);
 				ptex_elem_from_float4(pt->type, pt->channels, data, fcol);
 			}
-
-			/*(*color)[0] = u / (pt->ures-1.0f);
-			  (*color)[1] = v / (pt->vres-1.0f);
-			  (*color)[2] = 1;*/
 
 			add_v3_v3(co_bot, dbot);
 			add_v3_v3(co_top, dtop);
@@ -1811,7 +1807,8 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 
 		if(S == 4) {
 			/* fast case */
-			vpaint_ptex_from_quad(brush, stroke, &test, pt, pt->data,
+			vpaint_ptex_from_quad(brush, stroke, &test, pt,
+					      pt->res[0], pt->data,
 					      mvert[f->v3].co, mvert[f->v4].co,
 					      mvert[f->v1].co, mvert[f->v2].co);
 		}
@@ -1822,6 +1819,7 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 
 			float half[4][3], center[3];
 			int layersize = pt->channels * ptex_data_size(pt->type);
+			char *data = pt->data;
 
 			for(j = 0; j < 3; ++j) {
 				int next = (j == S-1) ? 0 : j+1;
@@ -1833,13 +1831,14 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 			for(j = 0; j < 3; ++j) {
 				int vndx = (&f->v1)[j];
 				int prev = j==0 ? S-1 : j-1;
-				char *data = pt->data;
-				data += layersize*pt->ures*pt->vres * j;
-				
+
 				vpaint_ptex_from_quad(brush, stroke, &test, pt,
-						      data,
-						      mvert[vndx].co, half[j],
-						      center, half[prev]);
+						      pt->res[j], data,
+						      center, half[prev],
+						      mvert[vndx].co, half[j]);
+
+				data += layersize * pt->res[j][0]*pt->res[j][1];
+
 			}
 		}
 	}

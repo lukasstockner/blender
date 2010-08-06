@@ -770,7 +770,7 @@ void GPU_update_mesh_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 	MFace *mface;
 	MPtex *mptex;
 	int *face_indices, totface;
-	int i, j;
+	int i, j, id;
 
 	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
 	BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
@@ -778,45 +778,38 @@ void GPU_update_mesh_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 	/* TODO: composite multiple layers */
 	mptex = CustomData_get_layer(fdata, CD_MPTEX);
 
-	/* pack all ptex for one face into one texture */
+	/* one texture per subface */
 	if(!buffers->ptex) {
-		buffers->totptex = totface;
+		for(i = 0, buffers->totptex = 0; i < totface; ++i)
+			buffers->totptex += mptex[face_indices[i]].subfaces;
+
 		buffers->ptex = MEM_callocN(sizeof(GLuint) * buffers->totptex, "PTex IDs");
 		glGenTextures(buffers->totptex, buffers->ptex);
 	}
 
-	for(i = 0; i < totface; ++i) {
+	for(i = 0, id = 0; i < totface; ++i) {
 		int face_ndx = face_indices[i];
 		MPtex *pt = &mptex[face_ndx];
-		int S = mface[i].v4 ? 4 : 3;
+		char *data = pt->data;
 
 		GLenum gltype = gl_type_from_ptex(pt);
 		GLenum glformat = gl_format_from_ptex(pt);
+
 		int layersize = pt->channels * ptex_data_size(pt->type);
-		
-		glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
 
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		for(j = 0; j < pt->subfaces; ++j, ++id) {
+			glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
 
-		if(S == 4) {
-			/* load quad ptex whole */
-			glTexImage2D(GL_TEXTURE_2D, 0, glformat, pt->ures, pt->vres,
-				     0, glformat, gltype, pt->data);
-		}
-		else {
-			/* pack non-quads ptex in side by side */
-			glTexImage2D(GL_TEXTURE_2D, 0, glformat, S * pt->ures, pt->vres,
-				     0, glformat, gltype, NULL);
+			glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-			for(j = 0; j < S; ++j) {
-				glTexSubImage2D(GL_TEXTURE_2D, 0, pt->ures*j, 0, pt->ures,
-						pt->vres, glformat, gltype,
-						((char*)pt->data) + pt->ures*pt->vres*j*layersize);
-			}
+			glTexImage2D(GL_TEXTURE_2D, 0, glformat, pt->res[j][0], pt->res[j][1],
+				     0, glformat, gltype, data);
+
+			data += layersize * pt->res[j][0] * pt->res[j][1];
 		}
 	}
 
@@ -999,21 +992,20 @@ GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
 static void gpu_draw_ptex_node_without_vb(GPU_Buffers *buffers, MFace *mface, MVert *mvert,
 					  int *face_indices, int totface, GPUDrawFlags flags)
 {
-	int i, j;
+	int i, j, id;
 
-	for(i = 0; i < totface; ++i) {
+	for(i = 0, id = 0; i < totface; ++i) {
 		int face_index = face_indices[i];
 		MFace *f = mface + face_index;
 		int S = f->v4 ? 4 : 3;
-
-		glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
-
-		glBegin(GL_QUADS);
 
 		if(S == 4) {
 			/* fast case */
 
 			float uv[4][2] = {{0,0}, {1,0}, {1,1}, {0,1}};
+
+			glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
+			glBegin(GL_QUADS);
 
 			for(j = 0; j < 4; ++j) {
 				int vndx = (&f->v1)[j];
@@ -1022,6 +1014,10 @@ static void gpu_draw_ptex_node_without_vb(GPU_Buffers *buffers, MFace *mface, MV
 				glNormal3sv(mvert[vndx].no);
 				glVertex3fv(mvert[vndx].co);
 			}
+
+			glEnd();
+
+			++id;
 		}
 		else {
 			/* split ngons into subfaces (still quads) */
@@ -1029,7 +1025,6 @@ static void gpu_draw_ptex_node_without_vb(GPU_Buffers *buffers, MFace *mface, MV
 			/* for now this is just tris, can be updated for ngons too */
 			float center[3];
 			float half[4][3];
-			float texoffs = 1.0f / S;
 
 			cent_tri_v3(center, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
 
@@ -1038,26 +1033,29 @@ static void gpu_draw_ptex_node_without_vb(GPU_Buffers *buffers, MFace *mface, MV
 				mid_v3_v3v3(half[j], mvert[(&f->v1)[j]].co, mvert[(&f->v1)[next]].co);
 			}
 
-			for(j = 0; j < 3; ++j) {
+			for(j = 0; j < 3; ++j, ++id) {
 				int prev = j == 0 ? S-1 : j-1;
 				int vndx = (&f->v1)[j];
 
-				glTexCoord2f(texoffs * (j+1), 1);
+				glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
+				glBegin(GL_QUADS);
+
+				glTexCoord2f(0, 0);
 				glNormal3sv(mvert[vndx].no);
 				glVertex3fv(mvert[vndx].co);
 
-				glTexCoord2f(texoffs * j, 1);
+				glTexCoord2f(1, 0);
 				glVertex3fv(half[j]);
 
-				glTexCoord2f(texoffs * j, 0);
+				glTexCoord2f(1, 1);
 				glVertex3fv(center);
 
-				glTexCoord2f(texoffs * (j+1), 0);
+				glTexCoord2f(0, 1);
 				glVertex3fv(half[prev]);
+
+				glEnd();
 			}
 		}
-
-		glEnd();
 	}
 }
 

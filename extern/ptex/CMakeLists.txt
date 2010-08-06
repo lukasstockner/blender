@@ -14,5 +14,7 @@ SET(SRC
 	ptex_C_api.cpp
 )
 
+ADD_DEFINITIONS(-DPTEX_STATIC)
+
 BLENDERLIB(extern_ptex "${SRC}" "${INC}")
 

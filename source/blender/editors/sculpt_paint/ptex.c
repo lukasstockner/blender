@@ -137,8 +137,8 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 		vres = MAX2(vres, 1);
 		gridsize = ures * vres;
 
-		mptex[i].ures = ures;
-		mptex[i].vres = vres;
+		mptex[i].res[0][0] = ures;
+		mptex[i].res[0][1] = vres;
 		mptex[i].type = type;
 		mptex[i].channels = totchannel;
 
@@ -147,6 +147,8 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 			texels = gridsize;
 		}
 		else {
+			mptex[i].res[1][0] = mptex[i].res[2][0] = ures;
+			mptex[i].res[1][1] = mptex[i].res[2][1] = vres;
 			mptex[i].subfaces = S;
 			texels = S*gridsize;
 		}
@@ -209,7 +211,7 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 
 	PtexTextureHandle *ptex_texture;
 	PtexDataType ptex_data_type;
-	int totchannel;
+	int totchannel, layersize;
 
 	char *path;
 	int i, j;
@@ -242,7 +244,7 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 	}
 
 	/* check that ptex file matches mesh topology */
-	for(i = 0, j = 0; i < me->totface; ++i, j += (me->mface[i].v4 ? 1 : 3)) {
+	for(i = 0, j = 0; i < me->totface; ++i) {
 		MFace *f = &me->mface[i];
 		PtexFaceInfoHandle *ptex_face = ptex_texture_get_face_info(ptex_texture, j);
 		int subface;
@@ -261,44 +263,54 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 			return OPERATOR_CANCELLED;
 		}
 
-		/* TODO: check that all subfaces of a particular face have the same resolution */
+		j += (f->v4 ? 1 : 3);
 	}
+
+	/* number of bytes for one ptex element */
+	layersize = ptex_data_size(ptex_data_type) * totchannel;
 
 	mptex = CustomData_add_layer(&me->fdata, CD_MPTEX, CD_CALLOC,
 				     NULL, me->totface);
 
-	/* TODO: for now, just convert to customdata ptex */
-	for(i = 0, j = 0; i < me->totface; ++i, j += (me->mface[i].v4 ? 1 : 3)) {
+	for(i = 0, j = 0; i < me->totface; ++i) {
 		int S = me->mface[i].v4 ? 4 : 3;
-		PtexFaceInfoHandle *ptex_face;
-		PtexResHandle *ptex_res;
-		int texels;
+		int k, texels, faceid;
+		char *data;
 
-		ptex_face = ptex_texture_get_face_info(ptex_texture, j);
-		ptex_res = ptex_face_get_res(ptex_face);
-		
-		mptex[i].ures = ptex_res_u(ptex_res);
-		mptex[i].vres = ptex_res_v(ptex_res);
 		mptex[i].type = ptex_data_type;
 		mptex[i].channels = totchannel;
 
-		if(S == 4) {
-			mptex[i].subfaces = 0;
-			texels = mptex[i].ures * mptex[i].vres;
-		}
-		else {
-			mptex[i].subfaces = S;
-			mptex[i].ures = ptex_res_u(ptex_res);
-			mptex[i].vres = ptex_res_v(ptex_res);
-			texels = mptex[i].ures * mptex[i].vres * S;
-		}
-		
-		mptex[i].data = MEM_callocN(ptex_data_size(ptex_data_type) *
-					    totchannel * texels, "Ptex file data");
+		mptex[i].subfaces = (S==4? 1 : S);
 
-		ptex_texture_get_data(ptex_texture, j, mptex[i].data, 0, ptex_res);
+		/* get quad resolution or per-subface resolutions */
+		for(k = 0, texels = 0; k < mptex[i].subfaces; ++k) {
+			PtexFaceInfoHandle *ptex_face;
+			PtexResHandle *ptex_res;
 
-		/* TODO: interleave data? */
+			faceid = j+k;
+
+			ptex_face = ptex_texture_get_face_info(ptex_texture, faceid);
+			ptex_res = ptex_face_get_res(ptex_face);
+			
+			mptex[i].res[k][0] = ptex_res_u(ptex_res);
+			mptex[i].res[k][1] = ptex_res_v(ptex_res);
+
+			texels += mptex[i].res[k][0] * mptex[i].res[k][1];
+		}
+
+		data = mptex[i].data = MEM_callocN(layersize * texels, "Ptex data from file");
+
+		for(k = 0; k < mptex[i].subfaces; ++k, ++j) {
+			PtexFaceInfoHandle *ptex_face;
+			PtexResHandle *ptex_res;
+
+			ptex_face = ptex_texture_get_face_info(ptex_texture, j);
+			ptex_res = ptex_face_get_res(ptex_face);
+
+			ptex_texture_get_data(ptex_texture, j, data, 0, ptex_res);
+
+			data += layersize * mptex[i].res[k][0] * mptex[i].res[k][1];
+		}
 	}
 
 	/* data is all copied, can release ptex file */

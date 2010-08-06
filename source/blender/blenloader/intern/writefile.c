@@ -1510,16 +1510,16 @@ static void write_customdata_multires(WriteData *wd, int count,
 static void write_customdata_mptex(WriteData *wd, int count,
 				  MPtex *mptex)
 {
-	int i;
+	int i, j;
 
 	writestruct(wd, DATA, "MPtex", count, mptex);
 
 	for(i = 0; i < count; ++i, ++mptex) {
 		int layersize = mptex->channels * ptex_data_size(mptex->type);
-		float texels = mptex->ures*mptex->vres;
+		int texels;
 
-		if(mptex->subfaces)
-			texels *= mptex->subfaces;
+		for(j = 0, texels = 0; j < mptex->subfaces; ++j)
+			texels += mptex->res[j][0] * mptex->res[j][1];
 
 		writedata(wd, DATA, layersize * texels,
 			  mptex->data);

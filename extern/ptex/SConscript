@@ -8,7 +8,7 @@ sources = ['src/glew.c']
 sources = env.Glob('src/ptex/*.cpp')
 sources += env.Glob('*.cpp')
 
-defs = ''
+defs = 'PTEX_STATIC'
 incs = 'src/ptex'
 incs += ' ' + env['BF_ZLIB_INC'] 
 

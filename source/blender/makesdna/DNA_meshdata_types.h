@@ -128,12 +128,13 @@ typedef struct MDisps {
 typedef struct MPtex {
 	void *data;
 
-	/* for non-quads, ures and vres are the
-	   resolution of the subfaces */
-	int ures;
-	int vres;
+	/* resolution in U and V directions, always a power of two
 
-	/* for quads, subfaces=0; anything else
+	   only res[0] is used for quads; for non-quads, the
+	   resolution is stored per-subface */
+	int res[3][2];
+
+	/* for quads, subfaces=1; anything else
 	   is set to the face's number of vertices */
 	int subfaces;
 
