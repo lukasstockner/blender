@@ -424,50 +424,6 @@ void vpaint_dogamma(Scene *scene)
 }
  */
 
-/*
-static void vpaint_blend(VPaint *vp, unsigned int *col, unsigned int *colorig, unsigned int paintcol, int alpha)
-{
-	Brush *brush = paint_brush(&vp->paint);
-
-	if(brush->vertexpaint_tool==VP_MIX || brush->vertexpaint_tool==VP_BLUR) *col= mcol_blend( *col, paintcol, alpha);
-	else if(brush->vertexpaint_tool==VP_ADD) *col= mcol_add( *col, paintcol, alpha);
-	else if(brush->vertexpaint_tool==VP_SUB) *col= mcol_sub( *col, paintcol, alpha);
-	else if(brush->vertexpaint_tool==VP_MUL) *col= mcol_mul( *col, paintcol, alpha);
-	else if(brush->vertexpaint_tool==VP_LIGHTEN) *col= mcol_lighten( *col, paintcol, alpha);
-	else if(brush->vertexpaint_tool==VP_DARKEN) *col= mcol_darken( *col, paintcol, alpha);
-	
-	// if no spray, clip color adding with colorig & orig alpha
-	if((vp->flag & VP_SPRAY)==0) {
-		unsigned int testcol=0, a;
-		char *cp, *ct, *co;
-		
-		alpha= (int)(255.0*brush_alpha(brush));
-		
-		if(brush->vertexpaint_tool==VP_MIX || brush->vertexpaint_tool==VP_BLUR) testcol= mcol_blend( *colorig, paintcol, alpha);
-		else if(brush->vertexpaint_tool==VP_ADD) testcol= mcol_add( *colorig, paintcol, alpha);
-		else if(brush->vertexpaint_tool==VP_SUB) testcol= mcol_sub( *colorig, paintcol, alpha);
-		else if(brush->vertexpaint_tool==VP_MUL) testcol= mcol_mul( *colorig, paintcol, alpha);
-		else if(brush->vertexpaint_tool==VP_LIGHTEN)  testcol= mcol_lighten( *colorig, paintcol, alpha);
-		else if(brush->vertexpaint_tool==VP_DARKEN)   testcol= mcol_darken( *colorig, paintcol, alpha);
-		
-		cp= (char *)col;
-		ct= (char *)&testcol;
-		co= (char *)colorig;
-		
-		for(a=0; a<4; a++) {
-			if( ct[a]<co[a] ) {
-				if( cp[a]<ct[a] ) cp[a]= ct[a];
-				else if( cp[a]>co[a] ) cp[a]= co[a];
-			}
-			else {
-				if( cp[a]<co[a] ) cp[a]= co[a];
-				else if( cp[a]>ct[a] ) cp[a]= ct[a];
-			}
-		}
-	}
-}
-*/
-
 static int sample_backbuf_area(ViewContext *vc, int *indexar, int totface, int x, int y, float size)
 {
 	struct ImBuf *ibuf;
@@ -1855,144 +1811,6 @@ static void vpaint_nodes_faces(Brush *brush, PaintStroke *stroke,
 	}
 }
 
-static void vpaint_nodes_grids_smooth(Brush *brush, PaintStroke *stroke,
-				      DMGridData **grids, CustomData *vdata,
-				      GridKey *gridkey,
-				      int *grid_indices, int totgrid,
-				      int gridsize, int active)
-{
-	PaintStrokeTest test;
-	int i, j, x, y, x2, y2;
-
-	paint_stroke_test_init(&test, stroke);
-
-	/* TODO: this could be better optimized like sculpt,
-	   just doing the simplest smooth for now */
-
-	for(i = 0; i < totgrid; ++i) {
-		DMGridData *grid = grids[grid_indices[i]], *act_elem, *elem;
-
-		for(y = 0; y < gridsize; ++y) {
-			for(x = 0; x < gridsize; ++x) {
-				float avg_col[4] = {0, 0, 0, 0};
-				float *act_col, strength, mask;
-				float *co;
-				int totcol = 0;
-
-				act_elem = GRIDELEM_AT(grid, y*gridsize + x, gridkey);
-
-				co = GRIDELEM_CO(act_elem, gridkey);
-
-				if(!paint_stroke_test(&test, co))
-					continue;
-
-				for(y2 = -1; y2 <= 1; y2+=2) {
-					if(y + y2 < 0 || y + y2 >= gridsize)
-						continue;
-
-					for(x2 = -1; x2 <= 1; x2+=2) {
-						if(x + x2 < 0 || x + x2 >= gridsize)
-							continue;
-
-						elem = GRIDELEM_AT(grid, (y+y2)*gridsize + (x+x2), gridkey);
-
-						++totcol;
-						for(j = 0; j < 4; ++j)
-							avg_col[j] += GRIDELEM_COLOR(elem, gridkey)[active][j];
-					}
-				}
-
-				mask = paint_mask_from_gridelem(act_elem,
-								gridkey,
-								vdata);
-				strength = brush->alpha *
-					paint_stroke_combined_strength(stroke, test.dist, co, mask);
-				act_col = GRIDELEM_COLOR(act_elem, gridkey)[active];
-				for(j = 0; j < 4; ++j)
-					act_col[j] = interpf(avg_col[j] / totcol, act_col[j], strength);
-			}
-		}
-	}
-
-	/* be sure to stitch grids after */
-}
-
-static void vpaint_nodes_faces_smooth(Brush *brush, PaintStroke *stroke,
-				      PBVH *pbvh, PBVHNode *node,
-				      MFace *mface,
-				      CustomData *fdata, ListBase *fmap)
-{
-	PBVHVertexIter vd;
-	PaintStrokeTest test;
-	MCol *mcol;
-	
-	paint_stroke_test_init(&test, stroke);
-	mcol = CustomData_get_layer(fdata, CD_MCOL);
-
-	BLI_pbvh_vertex_iter_begin(pbvh, node, vd, PBVH_ITER_UNIQUE) {
-		if(paint_stroke_test(&test, vd.co)) {
-			IndexNode *n;
-			float strength, avg_col[4] = {0, 0, 0, 0};
-			int vndx = vd.vert_indices[vd.i], totcol, i, j;
-
-			/* first find average color from neighboring faces */
-			totcol = 0;
-			for(n = fmap[vndx].first; n; n = n->next) {
-				int fndx = n->index;
-				MFace *f = &mface[fndx];
-				int S = f->v4 ? 4 : 3;
-
-				for(i = 0; i < S; ++i) {
-					int cndx = fndx*4 + i;
-
-					avg_col[0] += mcol[cndx].b / 255.0;
-					avg_col[1] += mcol[cndx].g / 255.0;
-					avg_col[2] += mcol[cndx].r / 255.0;
-					avg_col[3] += mcol[cndx].a / 255.0;
-					
-					++totcol;
-				}
-			}
-
-			for(i = 0; i < 4; ++i)
-				avg_col[i] /= totcol;
-
-			/* for all face corners matching vndx,
-			   interp towards the averaged color */
-			for(n = fmap[vndx].first; n; n = n->next) {
-				int fndx = n->index;
-				MFace *f = &mface[fndx];
-				int S = f->v4 ? 4 : 3;
-
-				for(i = 0; i < S; ++i) {
-					int cndx = fndx*4 + i;
-
-					if((&f->v1)[i] != vndx)
-						continue;
-
-					strength = brush->alpha *
-						paint_stroke_combined_strength(stroke,
-									       test.dist,
-									       vd.co,
-									       vd.mask_combined);
-
-					for(j = 0; j < 4; ++j) {
-						unsigned char *c;
-						float col;
-
-						c = ((unsigned char*)(&mcol[cndx])) + j;
-
-						col = *c / 255.0f;
-						col = interpf(avg_col[3 - j], col, strength);
-						*c = col * 255.0f;
-					}
-				}
-			}
-		}
-	}
-	BLI_pbvh_vertex_iter_end;
-}
-
 static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 			 Scene *scene, Object *ob,
 			 PBVHNode **nodes, int totnode)
@@ -2009,27 +1827,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 	for(n = 0; n < totnode; ++n) {
 		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PTEX, ob);
 
-		if(BLI_pbvh_uses_grids(pbvh)) {
-#if 0 /* TODO */
-			DMGridData **grids;
-			GridKey *gridkey;
-			int *grid_indices, totgrid, gridsize;
-			
-			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
-						&totgrid, NULL, &gridsize, &grids,
-						NULL, &gridkey);
-
-			vpaint_nodes_grids(brush, stroke,
-					   NULL,
-					   grid_face_map,
-					   grids, vdata,
-					   gridkey,
-					   grid_indices,
-					   totgrid,
-					   gridsize);
-#endif
-		}
-		else {
+		if(!BLI_pbvh_uses_grids(pbvh)) {
 			MVert *mvert;
 			MFace *mface;
 			int *face_indices, totface;
@@ -2038,19 +1836,7 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface,
 						&face_indices, NULL, &totface);
 
-			if(blur) {
-				DerivedMesh *dm;
-				ListBase *fmap;
-
-				dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-				fmap = dm->getFaceMap ? dm->getFaceMap(ob, dm) : NULL;
-
-				vpaint_nodes_faces_smooth(brush, stroke,
-							  pbvh, nodes[n],
-							  mface, fdata,
-							  fmap);
-			}				
-			else {
+			if(!blur) {
 				vpaint_nodes_faces(brush, stroke,
 						   mface, mvert,
 						   vdata, fdata,
@@ -2060,135 +1846,6 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 		}
 
 		BLI_pbvh_node_set_flags(nodes[n],
-			SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
-					   PBVH_UpdateRedraw));
-	}
-}
-
-typedef struct {
-	int hit_index;
-	int grid_hit_index;
-	PBVHNode *node;
-} VPaintColorOneFaceHitData;
-
-void vpaint_color_one_face_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
-{
-	if (BLI_pbvh_node_get_tmin(node) < *tmin) {
-		PaintStrokeRaycastData *data = data_v;
-		PaintSession *ps = data->ob->paint;
-		VPaintColorOneFaceHitData *mode_data = data->mode_data;
-
-		if(BLI_pbvh_node_raycast(ps->pbvh, node, NULL,
-					 data->ray_start, data->ray_normal,
-					 &data->dist, &mode_data->hit_index,
-					 &mode_data->grid_hit_index)) {
-			data->hit |= 1;
-			mode_data->node = node;
-			*tmin = data->dist;
-		}
-	}
-}
-
-/* applies brush color to a single point in a multires grid */
-static void vpaint_color_single_gridelem(Brush *brush, DMGridData **grids,
-					 GridKey *gridkey, int *grid_indices,
-					 int gridsize, int active,
-					 int hit_index, int grid_hit_index)
-{
-	float *gridcol;
-
-	gridcol = GRIDELEM_COLOR_AT(grids[grid_indices[hit_index]],
-				    grid_hit_index, gridkey)[active];
-
-	vpaint_blend(brush, NULL, gridcol, brush->alpha, NULL);
-}
-
-/* applies brush color to a single face */
-static void vpaint_color_single_face(Brush *brush, MFace *mface,
-				     CustomData *fdata, int *face_indices,
-				     int hit_index)
-{
-	MCol *mcol;
-	int i, S;
-
-	mcol = CustomData_get_layer(fdata, CD_MCOL);
-	mface += face_indices[hit_index];
-	S = mface->v4 ? 4 : 3;
-
-	for(i = 0; i < S; ++i) {
-		int cndx = face_indices[hit_index]*4 + i;
-		float fcol[4];
-
-		fcol[0] = mcol[cndx].b / 255.0f;
-		fcol[1] = mcol[cndx].g / 255.0f;
-		fcol[2] = mcol[cndx].r / 255.0f;
-		fcol[3] = mcol[cndx].a / 255.0f;
-
-		vpaint_blend(brush, NULL, fcol, brush->alpha, NULL);
-
-		mcol[cndx].b = fcol[0] * 255.0f;
-		mcol[cndx].g = fcol[1] * 255.0f;
-		mcol[cndx].r = fcol[2] * 255.0f;
-		mcol[cndx].a = fcol[3] * 255.0f;
-	}
-}
-
-static void vpaint_color_single_element(bContext *C, PaintStroke *stroke,
-					PointerRNA *itemptr)
-{
-	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
-	ViewContext *vc = paint_stroke_view_context(stroke);
-	Brush *brush = paint_brush(&vp->paint);
-	float mouse[2], hit_loc[3];
-	VPaintColorOneFaceHitData hit_data;
-
-	RNA_float_get_array(itemptr, "mouse", mouse);
-
-	if(paint_stroke_get_location(C, stroke,
-				     vpaint_color_one_face_raycast_cb,
-				     &hit_data, hit_loc, mouse, 0)) {
-		PBVH *pbvh = vc->obact->paint->pbvh;
-		CustomData *fdata;
-
-		BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
-
-		if(BLI_pbvh_uses_grids(pbvh)) {
-			DMGridData **grids;
-			GridKey *gridkey;
-			int *grid_indices, gridsize;
-			int active;
-
-			BLI_pbvh_node_get_grids(pbvh, hit_data.node,
-						&grid_indices,
-						NULL, NULL, &gridsize, &grids,
-						NULL, &gridkey);
-
-			active = gridelem_active_offset(fdata, gridkey, CD_MCOL);
-
-			if(active != -1) {
-				vpaint_color_single_gridelem(brush,
-					grids,
-					gridkey,
-					grid_indices,
-					gridsize, active,
-					hit_data.hit_index,
-					hit_data.grid_hit_index);
-			}
-		}
-		else {
-			MFace *mface;
-			int *face_indices;
-
-			BLI_pbvh_node_get_faces(pbvh, hit_data.node,
-						&mface, &face_indices,
-						NULL, NULL);
-
-			vpaint_color_single_face(brush, mface, fdata,
-				 face_indices,
-				 hit_data.hit_index);
-		}
-
-		BLI_pbvh_node_set_flags(hit_data.node,
 			SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
 					   PBVH_UpdateRedraw));
 	}
@@ -2214,43 +1871,29 @@ static void vpaint_stroke_brush_action(bContext *C, PaintStroke *stroke)
 {
 
 	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
+	ViewContext *vc = paint_stroke_view_context(stroke);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = vc->obact;
+	PBVHSearchSphereData search_data;
+	PBVHNode **nodes;
+	int totnode;
+	float center[3], radius;
 
-	if(vp->flag & VP_AREA) {
-		ViewContext *vc = paint_stroke_view_context(stroke);
-		Scene *scene = CTX_data_scene(C);
-		Object *ob = vc->obact;
-		Brush *brush = paint_brush(&vp->paint);
-		PBVHSearchSphereData search_data;
-		PBVHNode **nodes;
-		int totnode;
-		float center[3], radius;
+	paint_stroke_symmetry_location(stroke, center);
 
-		paint_stroke_symmetry_location(stroke, center);
-
-		search_data.center = center;
+	search_data.center = center;
 		
-		radius = paint_stroke_radius(stroke);
-		search_data.radius_squared = radius*radius;
-		search_data.original = 0;
+	radius = paint_stroke_radius(stroke);
+	search_data.radius_squared = radius*radius;
+	search_data.original = 0;
 
-		BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb,
-				       &search_data, &nodes, &totnode);
+	BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb,
+			       &search_data, &nodes, &totnode);
 		
-		if(brush->flag & BRUSH_MASK) {
-			paintmask_brush_apply(&vp->paint, stroke, nodes, totnode,
-					      brush->alpha);
-		}
-		else {
-			vpaint_nodes(vp, stroke, scene, ob, nodes, totnode);
-		}
+	vpaint_nodes(vp, stroke, scene, ob, nodes, totnode);
 
-		if(nodes)
-			MEM_freeN(nodes);
-	}
-	else {
-		// TODO (itemptr) vpaint_color_single_element(C, stroke, itemptr);
-		/* TODO: mask */
-	}
+	if(nodes)
+		MEM_freeN(nodes);
 }
 
 static void vpaint_stroke_done(bContext *C, struct PaintStroke *stroke)
