@@ -628,6 +628,14 @@ static void rna_def_brush(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Front-Face Angle", "Angle where effect of brush starts to be reduced to prevent it affecting back-faces");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
+	prop= RNA_def_property(srna, "layer_distance", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "layer_distance");
+	RNA_def_property_float_default(prop, 0);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.001, 0.001);
+	RNA_def_property_ui_text(prop, "Layer Distance", "Limit to how far a vertex can travel in a single stroke as a fraction of brush radius");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
 	/* flag */
 	prop= RNA_def_property(srna, "use_airbrush", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_AIRBRUSH);
@@ -705,6 +713,11 @@ static void rna_def_brush(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_symmetry_feather", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_SYMMETRY_FEATHER);
 	RNA_def_property_ui_text(prop, "Symmetry Feathering", "Reduce the strength of the brush where it overlaps symmetrical daubs");
+	RNA_def_property_update(prop, 0, "rna_Brush_update");
+
+	prop= RNA_def_property(srna, "use_layer", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", BRUSH_LAYER);
+	RNA_def_property_ui_text(prop, "Use Layer", "Sets a limit on how far a vertex can travel during a single stroke");
 	RNA_def_property_update(prop, 0, "rna_Brush_update");
 
 	prop= RNA_def_property(srna, "use_anchor", PROP_BOOLEAN, PROP_NONE);

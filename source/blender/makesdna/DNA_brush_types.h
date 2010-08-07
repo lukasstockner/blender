@@ -92,6 +92,8 @@ typedef struct Brush {
 
 	float plane_trim;
 
+	float layer_distance, pad2;
+
 	float texture_sample_bias;
 	int   texture_overlay_alpha;
 
@@ -133,6 +135,7 @@ typedef struct Brush {
 #define BRUSH_FRONTFACE (1<<27)
 #define BRUSH_CUSTOM_ICON (1<<28)
 #define BRUSH_SYMMETRY_FEATHER (1<<29)
+#define BRUSH_LAYER (1<<30)
 
 /* Brush.sculpt_tool */
 #define SCULPT_TOOL_DRAW         1

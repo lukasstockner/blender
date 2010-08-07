@@ -1846,84 +1846,84 @@ static void do_rotate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int
 	}
 }
 
-static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
-{
-	Brush *brush = paint_brush(&sd->paint);
-	float bstrength= ss->cache->bstrength;
-	float an[3], offset[3];
-	float lim= ss->cache->radius / 4;
-	int n;
-
-	if(bstrength < 0)
-		lim = -lim;
-
-	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
-
-	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
-
-	set_adaptive_space_factor(sd, ss, NULL, 0, an);
-
-	mul_v3_v3v3(offset, ss->cache->scale, an);
-
-	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
-	for(n=0; n<totnode; n++) {
-		PBVHVertexIter vd;
-		SculptBrushTest test;
-		SculptUndoNode *unode;
-		float (*origco)[3], *layer_disp;
-		//float (*proxy)[3]; // XXX layer brush needs conversion to proxy but its more complicated
-
-		//proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
-
-		short (*origno)[3];
-
-		unode= sculpt_undo_push_node(ss, nodes[n]);
-		origco=unode->co;
-		if(!unode->layer_disp)
-			{
-				#pragma omp critical 
-				unode->layer_disp= MEM_callocN(sizeof(float)*unode->totvert, "layer disp");
-			}
-
-		layer_disp= unode->layer_disp;
-
-		origno= unode->no;
-
-		sculpt_brush_test_init(ss, &test);
-
-		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
-			if(sculpt_brush_test(&test, vd.co)) {
-				const float fade = bstrength*ss->cache->radius*tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, ss->cache->frontface_start, ss->cache->frontface_range, an, origno[vd.i]);
-				float *disp= &layer_disp[vd.i];
-				float val[3];
-
-				*disp+= fade;
-
-				/* Don't let the displacement go past the limit */
-				if((lim < 0 && *disp < lim) || (lim > 0 && *disp > lim))
-					*disp = lim;
-
-				mul_v3_v3fl(val, offset, *disp);
-
-				if(ss->layer_co && (brush->flag & BRUSH_PERSISTENT)) {
-					int index= vd.vert_indices[vd.i];
-
-					/* persistent base */
-					add_v3_v3(val, ss->layer_co[index]);
-				}
-				else {
-					add_v3_v3(val, origco[vd.i]);
-				}
-
-				sculpt_clip(sd, ss, vd.co, val);
-
-				if(vd.mvert)
-					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
-			}
-		}
-		BLI_pbvh_vertex_iter_end;
-	}
-}
+//static void do_layer_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
+//{
+//	Brush *brush = paint_brush(&sd->paint);
+//	float bstrength= ss->cache->bstrength;
+//	float an[3], offset[3];
+//	float lim= ss->cache->radius / 4;
+//	int n;
+//
+//	if(bstrength < 0)
+//		lim = -lim;
+//
+//	calc_sculpt_normal(sd, ss, an, nodes, totnode, brush->sculpt_plane_range);
+//
+//	set_brush_local_mat(sd, ss, brush, NULL, 0, an);
+//
+//	set_adaptive_space_factor(sd, ss, NULL, 0, an);
+//
+//	mul_v3_v3v3(offset, ss->cache->scale, an);
+//
+//	#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
+//	for(n=0; n<totnode; n++) {
+//		PBVHVertexIter vd;
+//		SculptBrushTest test;
+//		SculptUndoNode *unode;
+//		float (*origco)[3], *layer_disp;
+//		//float (*proxy)[3]; // XXX layer brush needs conversion to proxy but its more complicated
+//
+//		//proxy= BLI_pbvh_node_add_proxy(ss->pbvh, nodes[n])->co;
+//
+//		short (*origno)[3];
+//
+//		unode= sculpt_undo_push_node(ss, nodes[n]);
+//		origco=unode->co;
+//		if(!unode->layer_disp)
+//			{
+//				#pragma omp critical 
+//				unode->layer_disp= MEM_callocN(sizeof(float)*unode->totvert, "layer disp");
+//			}
+//
+//		layer_disp= unode->layer_disp;
+//
+//		origno= unode->no;
+//
+//		sculpt_brush_test_init(ss, &test);
+//
+//		BLI_pbvh_vertex_iter_begin(ss->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
+//			if(sculpt_brush_test(&test, vd.co)) {
+//				const float fade = bstrength*ss->cache->radius*tex_strength(ss, brush, vd.co, test.dist)*frontface(brush, ss->cache->frontface_start, ss->cache->frontface_range, an, origno[vd.i]);
+//				float *disp= &layer_disp[vd.i];
+//				float val[3];
+//
+//				*disp+= fade;
+//
+//				/* Don't let the displacement go past the limit */
+//				if((lim < 0 && *disp < lim) || (lim > 0 && *disp > lim))
+//					*disp = lim;
+//
+//				mul_v3_v3fl(val, offset, *disp);
+//
+//				if(ss->layer_co && (brush->flag & BRUSH_PERSISTENT)) {
+//					int index= vd.vert_indices[vd.i];
+//
+//					/* persistent base */
+//					add_v3_v3(val, ss->layer_co[index]);
+//				}
+//				else {
+//					add_v3_v3(val, origco[vd.i]);
+//				}
+//
+//				sculpt_clip(sd, ss, vd.co, val);
+//
+//				if(vd.mvert)
+//					vd.mvert->flag |= ME_VERT_PBVH_UPDATE;
+//			}
+//		}
+//		BLI_pbvh_vertex_iter_end;
+//	}
+//}
 
 static void do_inflate_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes, int totnode)
 {
@@ -2764,7 +2764,8 @@ static void do_brush_action(Sculpt *sd, SculptSession *ss, Brush *brush)
 			do_thumb_brush(sd, ss, nodes, totnode);
 			break;
 		case SCULPT_TOOL_LAYER:
-			do_layer_brush(sd, ss, nodes, totnode);
+			//do_layer_brush(sd, ss, nodes, totnode);
+			do_draw_brush(sd, ss, nodes, totnode);
 			break;
 		case SCULPT_TOOL_FLATTEN:
 			do_flatten_brush(sd, ss, nodes, totnode);
@@ -2863,6 +2864,7 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 		case SCULPT_TOOL_PINCH:
 		case SCULPT_TOOL_SCRAPE:
 		case SCULPT_TOOL_SNAKE_HOOK:
+		case SCULPT_TOOL_LAYER:
 			#pragma omp parallel for schedule(guided) if (sd->flags & SCULPT_USE_OPENMP)
 			for (n= 0; n < totnode; n++) {
 				PBVHVertexIter vd;
@@ -2876,9 +2878,33 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 					int p;
 
 					copy_v3_v3(val, vd.co);
-
 					for (p= 0; p < proxy_count; p++)
 						add_v3_v3(val, proxies[p].co[vd.i]);
+
+					if (brush->sculpt_tool == SCULPT_TOOL_LAYER || brush->flag & BRUSH_LAYER) {
+						float disp[3];
+						float len;
+						float *base;
+
+						if (ss->layer_co && (brush->flag & BRUSH_PERSISTENT)) {
+							int index= vd.vert_indices[vd.i];
+
+							/* persistent base */
+							base= ss->layer_co[index];
+						}
+						else {
+							base= sculpt_undo_push_node(ss, nodes[n])->co[vd.i];
+						}
+
+						sub_v3_v3v3(disp, val, base);
+						len= len_v3(disp);
+
+						if (len > ss->cache->radius*brush->layer_distance) {
+							normalize_v3(disp);
+							mul_v3_fl(disp, ss->cache->radius*brush->layer_distance);
+							add_v3_v3v3(val, disp, base);
+						}
+					}
 
 					sculpt_clip(sd, ss, vd.co, val);
 				}
@@ -2891,7 +2917,6 @@ static void sculpt_combine_proxies(Sculpt *sd, SculptSession *ss)
 			break;
 
 		case SCULPT_TOOL_SMOOTH:
-		case SCULPT_TOOL_LAYER:
 		default:
 			break;
 	}

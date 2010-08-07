@@ -664,10 +664,16 @@ class VIEW3D_PT_tools_brush(PaintPanel):
 
                 col.prop(brush, "use_accumulate")
 
-
-
-            if brush.sculpt_tool == 'LAYER':
+            if brush.sculpt_tool not in ('LAYER', 'GRAB', 'ROTATE', 'THUMB', 'SMOOTH'):
                 col.separator()
+
+                col.prop(brush, "use_layer")
+
+            if brush.sculpt_tool in ('LAYER'):
+                col.separator()
+
+            if brush.sculpt_tool not in ('GRAB', 'ROTATE', 'THUMB', 'SMOOTH'):
+                col.prop(brush, "layer_distance")
 
                 ob = context.sculpt_object
                 do_persistent = True
