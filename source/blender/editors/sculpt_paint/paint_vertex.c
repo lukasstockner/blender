@@ -1843,21 +1843,23 @@ static void vpaint_node_grids(Brush *brush, PaintStroke *stroke,
 					SWAP(int, rstep, cstep);
 				}
 
-				float *co[4] = {
-					GRIDELEM_CO_AT(grid, r*gridsize+c, gridkey),
-					GRIDELEM_CO_AT(grid, r*gridsize+(c+cstep), gridkey),
+				{
+					float *co[4] = {
+						GRIDELEM_CO_AT(grid, r*gridsize+c, gridkey),
+						GRIDELEM_CO_AT(grid, r*gridsize+(c+cstep), gridkey),
 
-					GRIDELEM_CO_AT(grid, (r+rstep)*gridsize+(c+cstep), gridkey),
-					GRIDELEM_CO_AT(grid, (r+rstep)*gridsize+c, gridkey),
-				};
+						GRIDELEM_CO_AT(grid, (r+rstep)*gridsize+(c+cstep), gridkey),
+						GRIDELEM_CO_AT(grid, (r+rstep)*gridsize+c, gridkey),
+					};
 
-				if(inverse)
-					SWAP(float*, co[1], co[3]);
+					if(inverse)
+						SWAP(float*, co[1], co[3]);
 					
-				vpaint_ptex_from_quad(brush, stroke, &test,
-						      pt, res, rowlen,
-						      data + layersize * (v * rowlen + u),
-						      co[0], co[1], co[2], co[3]);
+					vpaint_ptex_from_quad(brush, stroke, &test,
+							      pt, res, rowlen,
+							      data + layersize * (v * rowlen + u),
+							      co[0], co[1], co[2], co[3]);
+				}
 			}
 		}
 	}
