@@ -122,6 +122,7 @@ struct PBVH {
 	int totgrid;
 	int gridsize;
 	struct GridKey *gridkey;
+	GridToFace *grid_face_map;
 
 	/* Used by both mesh and grid type */
 	CustomData *vdata;
@@ -673,12 +674,32 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
 		pbvh_begin_build(bvh, totface, hidden_areas);
 }
 
+static GridToFace *pbvh_build_grid_face_map(MFace *mface, int totface, int totgrid)
+{
+	GridToFace *map, *gtf;
+	int i, j;
+
+	map = MEM_callocN(sizeof(GridToFace) * totgrid, "PBVH.grid_face_map");
+
+	for(i = 0, gtf = map; i < totface; ++i) {
+		int S = mface[i].v4 ? 4 : 3;
+
+		for(j = 0; j < S; ++j, ++gtf) {
+			gtf->face = i;
+			gtf->offset = j;
+		}
+	}
+
+	return map;
+}
+
 /* Do a full rebuild with on Grids data structure */
 void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 			  DMGridAdjacency *gridadj,
 			  int totgrid, int gridsize, GridKey *gridkey,
 			  void **gridfaces, CustomData *vdata,
-			  CustomData *fdata, ListBase *hidden_areas)
+			  CustomData *fdata, ListBase *hidden_areas,
+			  MFace *mface, int totface)
 {
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
@@ -688,7 +709,8 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 	bvh->gridkey= gridkey;
 	bvh->vdata= vdata;
 	bvh->fdata= fdata;
-	bvh->leaf_limit = MAX2(PBVH_DEFAULT_LEAF_LIMIT/((gridsize-1)*(gridsize-1)), 1);
+	bvh->leaf_limit = MAX2(bvh->leaf_limit/((gridsize-1)*(gridsize-1)), 1);
+	bvh->grid_face_map = pbvh_build_grid_face_map(mface, totface, totgrid);
 
 	if(totgrid)
 		pbvh_begin_build(bvh, totgrid, hidden_areas);
@@ -736,6 +758,9 @@ static void pbvh_free_nodes(PBVH *bvh)
 void BLI_pbvh_free(PBVH *bvh)
 {
 	pbvh_free_nodes(bvh);
+
+	if(bvh->grid_face_map)
+		MEM_freeN(bvh->grid_face_map);
 
 	MEM_freeN(bvh->prim_indices);
 	MEM_freeN(bvh);
@@ -1168,14 +1193,18 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, G
 		
 		if(node->flag & PBVH_UpdateColorBuffers) {
 			if(bvh->grids) {
-				GPU_update_grid_color_buffers(node->draw_buffers,
-							      bvh->grids,
-							      node->prim_indices,
-							      node->totprim,
-							      bvh->gridsize,
-							      bvh->gridkey,
-							      bvh->vdata,
-							      flags);
+				if(flags & GPU_DRAW_ACTIVE_MCOL)
+					GPU_update_grids_ptex(node->draw_buffers, bvh, node);
+				else {
+					GPU_update_grid_color_buffers(node->draw_buffers,
+								      bvh->grids,
+								      node->prim_indices,
+								      node->totprim,
+								      bvh->gridsize,
+								      bvh->gridkey,
+								      bvh->vdata,
+								      flags);
+				}
 			}
 			else {
 				if(flags & GPU_DRAW_ACTIVE_MCOL)
@@ -1327,6 +1356,11 @@ void BLI_pbvh_get_customdata(PBVH *bvh, CustomData **vdata, CustomData **fdata)
 {
 	if(vdata) *vdata = bvh->vdata;
 	if(fdata) *fdata = bvh->fdata;
+}
+
+GridToFace *BLI_pbvh_get_grid_face_map(PBVH *pbvh)
+{
+	return pbvh->grid_face_map;
 }
 
 

@@ -162,12 +162,9 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   int *grid_indices, int totgrid,
 				   int gridsize, struct GridKey *gridkey,
 				   struct CustomData *vdata, GPUDrawFlags flags);
-typedef struct {
-	float (*colors)[4];
-	int ures, vres;
-} PTexHandle;
+
 void GPU_update_mesh_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
-void GPU_update_grid_ptex(GPU_Buffers *buffers, PTexHandle *grids, int totgrid);
+void GPU_update_grids_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
 void GPU_draw_buffers(GPU_Buffers *buffers, struct PBVH *bvh,
 		      struct PBVHNode *node, GPUDrawFlags flags);
 void GPU_free_buffers(GPU_Buffers *buffers);

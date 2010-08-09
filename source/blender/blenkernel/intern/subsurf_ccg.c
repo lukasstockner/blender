@@ -2490,17 +2490,24 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 	   we build a pbvh over the modified mesh, in other cases the base mesh
 	   is being sculpted, so we build a pbvh from that. */
 	if(grid_pbvh) {
+		int leaf_limit = PBVH_DEFAULT_LEAF_LIMIT;
+
+		/* TODO: set leaf limit more intelligently */
+		if(ob->mode & OB_MODE_VERTEX_PAINT)
+			leaf_limit = 1;
+
 		ccgdm_create_grids(dm);
 
 		gridSize = ccgDM_getGridSize(dm);
 		numGrids = ccgDM_getNumGrids(dm);
 		gridkey = ccgDM_getGridKey(dm);
 
-		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new(PBVH_DEFAULT_LEAF_LIMIT);
+		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new(leaf_limit);
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
 				     &me->vdata, &me->fdata,
-				     ss ? &ss->hidden_areas : NULL);
+				     ss ? &ss->hidden_areas : NULL,
+				     me->mface, me->totface);
 		ccgdm->pbvh_draw = 1;
 	}
 	else if(ob->type == OB_MESH) {
