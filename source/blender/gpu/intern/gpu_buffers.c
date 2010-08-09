@@ -777,10 +777,10 @@ static void gpu_init_ptex_texture(GLuint id, GLenum glformat, GLenum gltype,
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, rowlen);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, glformat, ures, vres,
 		     0, glformat, gltype, data);
@@ -836,7 +836,7 @@ void GPU_update_grids_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 	GridToFace *grid_face_map;
 	CustomData *fdata;
 	MPtex *mptex;
-	int i, j;
+	int i;
 
 	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
 	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
@@ -856,32 +856,11 @@ void GPU_update_grids_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 	for(i = 0; i < totgrid; ++i) {
 		GridToFace *gtf = &grid_face_map[grid_indices[i]];
 		MPtex *pt = &mptex[gtf->face];
-		char *data = pt->data;
-		int layersize;
-		int rowlen = 0, ures, vres;
+		char *data;
+		int rowlen, ures, vres;
 
-		layersize = pt->channels * ptex_data_size(pt->type);
+		data = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
 
-		if(pt->subfaces == 1) {
-			/* TODO: small resolution? */
-			ures = pt->res[0][0] / 2;
-			vres = pt->res[0][1] / 2;
-			rowlen = pt->res[0][0];
-			if(gtf->offset == 1)
-				data += layersize * ures;
-			else if(gtf->offset == 3)
-				data += layersize * vres * rowlen;
-			else if(gtf->offset == 2)
-				data += layersize * (vres * rowlen + ures);
-		}
-		else {
-			ures = pt->res[gtf->offset][0];
-			vres = pt->res[gtf->offset][1];
-			rowlen = 0;
-			for(j = 0; j < gtf->offset; ++j)
-				data += layersize * pt->res[j][0] * pt->res[j][1];
-		}
-		
 		gpu_init_ptex_texture(buffers->ptex[i],
 				      gl_format_from_ptex(pt),
 				      gl_type_from_ptex(pt),

@@ -51,4 +51,9 @@ typedef float (*gridelem_f4)[4];
    or masks, -1 if not found */
 int gridelem_active_offset(struct CustomData *data, GridKey *gridkey, int type);
 
+typedef struct GridToFace {
+	int face;
+	char offset;
+} GridToFace;
+
 #endif

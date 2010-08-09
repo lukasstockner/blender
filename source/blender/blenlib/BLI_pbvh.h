@@ -32,6 +32,7 @@ struct CustomData;
 struct MFace;
 struct MVert;
 struct GridKey;
+struct GridToFace;
 struct DMGridAdjacency;
 struct DMGridData;
 struct PBVH;
@@ -50,11 +51,6 @@ typedef struct PBVHHiddenArea {
 typedef struct {
 	float (*co)[3];
 } PBVHProxyNode;
-
-typedef struct {
-	int face;
-	char offset;
-} GridToFace;
 
 /* Callbacks */
 
@@ -81,8 +77,9 @@ void BLI_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
 void BLI_pbvh_build_grids(PBVH *bvh, struct DMGridData **grids,
 			  struct DMGridAdjacency *gridadj, int totgrid,
 			  int gridsize, struct GridKey *gridkey, void **gridfaces,
+			  struct GridToFace *grid_face_map,
 			  struct CustomData *vdata, struct CustomData *fdata,
-			  ListBase *hidden_areas, struct MFace *mface, int totface);
+			  ListBase *hidden_areas);
 void BLI_pbvh_free(PBVH *bvh);
 
 /* Hierarchical Search in the BVH, two methods:
@@ -148,7 +145,7 @@ void BLI_pbvh_node_set_flags(PBVHNode *node, void *data);
 int BLI_pbvh_uses_grids(PBVH *bvh);
 
 void BLI_pbvh_get_customdata(PBVH *pbvh, struct CustomData **vdata, struct CustomData **fdata);
-GridToFace *BLI_pbvh_get_grid_face_map(PBVH *pbvh);
+struct GridToFace *BLI_pbvh_get_grid_face_map(PBVH *pbvh);
 
 void BLI_pbvh_node_get_faces(PBVH *bvh, PBVHNode *node,
 			     struct MFace **faces,

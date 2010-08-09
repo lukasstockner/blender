@@ -49,6 +49,8 @@
 #include "BKE_global.h"
 #include "BKE_utildefines.h"
 
+#include "ptex.h"
+
 /* number of layers to add when growing a CustomData object */
 #define CUSTOMDATA_GROW 5
 
@@ -795,6 +797,35 @@ static void layerFree_grid(void *data_v, int count, int size)
 		if(data[i].layers)
 			MEM_freeN(data[i].layers);
 	}
+}
+
+void *mptex_grid_offset(MPtex *pt, int offset, int *ures, int *vres, int *rowlen)
+{
+	char *data = pt->data;
+	int layersize = pt->channels * ptex_data_size(pt->type);
+
+	if(pt->subfaces == 1) {
+		*ures = pt->res[0][0] / 2;
+		*vres = pt->res[0][1] / 2;
+		*rowlen = pt->res[0][0];
+		if(offset == 1)
+			data += layersize * *ures;
+		else if(offset == 3)
+			data += layersize * *vres * *rowlen;
+		else if(offset == 2)
+			data += layersize * (*vres * *rowlen + *ures);
+	}
+	else {
+		int i;
+
+		*ures = pt->res[offset][0];
+		*vres = pt->res[offset][1];
+		*rowlen = pt->res[offset][0];
+		for(i = 0; i < offset; ++i)
+			data += layersize * pt->res[i][0] * pt->res[i][1];
+	}
+
+	return data;
 }
 
 static void layerCopy_mptex(const void *source_v, void *dest_v, int count)

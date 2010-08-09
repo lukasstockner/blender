@@ -1754,7 +1754,7 @@ static void vpaint_node_grids(Brush *brush, PaintStroke *stroke,
 {
 	PaintStrokeTest test;
 	MPtex *mptex;
-	int i, j;
+	int i;
 
 	mptex = CustomData_get_layer(fdata, CD_MPTEX);
 
@@ -1765,40 +1765,20 @@ static void vpaint_node_grids(Brush *brush, PaintStroke *stroke,
 		DMGridData *grid = grids[g];
 		GridToFace *gtf = &grid_face_map[g];
 		MPtex *pt = &mptex[gtf->face];
-		char *data = pt->data;
+		char *data;
 		int layersize;
 		int ures, vres, res[2], rowlen;
-		int x, y, u, v, ustep, vstep, rot = 0;
+		int x, y, u, v, ustep, vstep, rot;
 		int xstep, ystep, xstart, ystart, inverse;
 
 		layersize = pt->channels * ptex_data_size(pt->type);
-
-		if(pt->subfaces == 1) {
-			ures = pt->res[0][0] / 2;
-			vres = pt->res[0][1] / 2;
-			rowlen = pt->res[0][0];
-
-			if(gtf->offset == 1)
-				data += layersize * ures;
-			else if(gtf->offset == 3)
-				data += layersize * vres * rowlen;
-			else if(gtf->offset == 2)
-				data += layersize * (vres * rowlen + ures);
-
-			rot = gtf->offset;
-		}
-		else {
-			ures = pt->res[gtf->offset][0];
-			vres = pt->res[gtf->offset][1];
-			rowlen = pt->res[gtf->offset][0];
-
-			for(j = 0; j < gtf->offset; ++j)
-				data += layersize * pt->res[j][0] * pt->res[j][1];
-		}
+		data = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
 
 		ustep = MAX2(ures / (gridsize - 1), 1);
 		vstep = MAX2(vres / (gridsize - 1), 1);
 		res[0] = ustep, res[1] = vstep;
+
+		rot = (pt->subfaces == 1)? gtf->offset : 0;
 		
 		/* step through the grid in different directions based on
 		   grid rotation relative to the ptex */

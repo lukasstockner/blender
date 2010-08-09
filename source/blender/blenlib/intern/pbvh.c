@@ -674,32 +674,13 @@ void BLI_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts,
 		pbvh_begin_build(bvh, totface, hidden_areas);
 }
 
-static GridToFace *pbvh_build_grid_face_map(MFace *mface, int totface, int totgrid)
-{
-	GridToFace *map, *gtf;
-	int i, j;
-
-	map = MEM_callocN(sizeof(GridToFace) * totgrid, "PBVH.grid_face_map");
-
-	for(i = 0, gtf = map; i < totface; ++i) {
-		int S = mface[i].v4 ? 4 : 3;
-
-		for(j = 0; j < S; ++j, ++gtf) {
-			gtf->face = i;
-			gtf->offset = j;
-		}
-	}
-
-	return map;
-}
-
 /* Do a full rebuild with on Grids data structure */
 void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 			  DMGridAdjacency *gridadj,
 			  int totgrid, int gridsize, GridKey *gridkey,
-			  void **gridfaces, CustomData *vdata,
-			  CustomData *fdata, ListBase *hidden_areas,
-			  MFace *mface, int totface)
+			  void **gridfaces, GridToFace *grid_face_map,
+			  CustomData *vdata,
+			  CustomData *fdata, ListBase *hidden_areas)
 {
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
@@ -710,7 +691,7 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 	bvh->vdata= vdata;
 	bvh->fdata= fdata;
 	bvh->leaf_limit = MAX2(bvh->leaf_limit/((gridsize-1)*(gridsize-1)), 1);
-	bvh->grid_face_map = pbvh_build_grid_face_map(mface, totface, totgrid);
+	bvh->grid_face_map = grid_face_map;
 
 	if(totgrid)
 		pbvh_begin_build(bvh, totgrid, hidden_areas);
@@ -758,9 +739,6 @@ static void pbvh_free_nodes(PBVH *bvh)
 void BLI_pbvh_free(PBVH *bvh)
 {
 	pbvh_free_nodes(bvh);
-
-	if(bvh->grid_face_map)
-		MEM_freeN(bvh->grid_face_map);
 
 	MEM_freeN(bvh->prim_indices);
 	MEM_freeN(bvh);

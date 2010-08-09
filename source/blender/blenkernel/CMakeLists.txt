@@ -31,7 +31,8 @@ SET(INC
 	../render/extern/include ../../../intern/decimation/extern
 	../imbuf ../avi ../../../intern/elbeem/extern ../../../intern/opennl/extern
 	../../../intern/iksolver/extern ../blenloader ../ikplugin
-	../nodes ../../../extern/glew/include ../gpu ../makesrna ../../../intern/smoke/extern
+	../nodes ../../../extern/glew/include  ../../../extern/ptex
+	../gpu ../makesrna ../../../intern/smoke/extern
 	../../../intern/bsp/extern ../blenfont
 	../../../intern/audaspace/intern
     ../../../source/blender/windowmanager # XXX - BAD LEVEL CALL WM_api.h

@@ -11,6 +11,7 @@ incs += ' #/intern/iksolver/extern ../blenloader'
 incs += ' #/extern/bullet2/src'
 incs += ' #/intern/opennl/extern #/intern/bsp/extern'
 incs += ' ../gpu #/extern/glew/include'
+incs += ' #/extern/ptex'
 incs += ' #/intern/smoke/extern'
 incs += ' #/intern/audaspace/intern'
 

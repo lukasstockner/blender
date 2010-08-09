@@ -368,3 +368,5 @@ void CustomData_external_reload(struct CustomData *data,
 
 #endif
 
+struct MPtex;
+void *mptex_grid_offset(struct MPtex *pt, int offset, int *ures, int *vres, int *rowlen);

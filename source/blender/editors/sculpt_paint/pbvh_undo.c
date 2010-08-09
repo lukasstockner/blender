@@ -77,6 +77,7 @@ struct PBVHUndoNode {
 	/* ptex */
 	MPtex *mptex;
 	char mptex_name[32];
+	int totptex;
 
 	/* non-multires */
 	/* to verify if me->totvert it still the same */
@@ -84,9 +85,6 @@ struct PBVHUndoNode {
 	/* to restore into the right location */
 	int *vert_indices;
 	int *face_indices;
-	/* for per-face data (mptex) */
-	int totface;
-
 	/* multires */
 	/* to verify total number of grids is still the same */
 	int maxgrid;
@@ -206,7 +204,7 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 								   CD_MPTEX,
 								   unode->mptex_name);
 
-				for(i=0; i<unode->totface; i++) {
+				for(i=0; i<unode->totptex; i++) {
 					SWAP(MPtex, unode->mptex[i],
 					     mptex[unode->face_indices[i]]);
 				}
@@ -253,6 +251,41 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 						++pmask;
 					}
 				}
+
+				if(unode->mptex) {
+					GridToFace *grid_face_map, *gtf;
+					MPtex *pt;
+					int layersize;
+					int ures, vres, rowlen;
+					char *dest, *src, *row;
+					int v;
+
+					grid_face_map = dm->getGridFaceMap(dm, ob);
+					
+					gtf = &grid_face_map[unode->grid_indices[j]];
+					pt = CustomData_get_layer_named(fdata, CD_MPTEX,
+									unode->mptex_name);
+					pt += gtf->face;
+
+					src = unode->mptex[j].data;
+					dest = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
+
+					layersize = pt->channels * ptex_data_size(pt->type);
+
+					row = MEM_callocN(layersize * ures, "ptex undo row");
+
+					for(v = 0; v < vres; ++v) {
+						int size = layersize*ures;
+						memcpy(row, dest, size);
+						memcpy(dest, src, size);
+						memcpy(src, row, size);
+
+						src += layersize*ures;
+						dest += layersize*rowlen;
+					}
+
+					MEM_freeN(row);
+				}
 			}
 		}
 
@@ -296,7 +329,7 @@ static void pbvh_undo_free(ListBase *lb)
 		if(unode->pmask)
 			MEM_freeN(unode->pmask);
 		if(unode->mptex) {
-			for(i = 0; i < unode->totface; ++i)
+			for(i = 0; i < unode->totptex; ++i)
 				MEM_freeN(unode->mptex[i].data);
 			MEM_freeN(unode->mptex);
 		}
@@ -343,6 +376,7 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 
 	GridKey *gridkey;
 	int uses_grids, totgrid, *grid_indices;
+	GridToFace *grid_face_map;
 
 	/* list is manipulated by multiple threads, so we lock */
 	BLI_lock_thread(LOCK_CUSTOM1);
@@ -410,8 +444,35 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 		int i, j, active;
 		active= CustomData_get_active_layer_index(fdata, CD_MPTEX);
 
-		if(active == -1 || uses_grids /* TODO */)
+		if(active == -1)
 			flag &= ~PBVH_UNDO_PTEX;
+
+		if(uses_grids) {
+			BLI_strncpy(unode->mptex_name,
+				    fdata->layers[active].name,
+				    sizeof(unode->mptex_name));
+
+			grid_face_map= BLI_pbvh_get_grid_face_map(pbvh);
+
+			unode->totptex = totgrid;
+			unode->mptex= MEM_mapallocN(sizeof(MPtex)*totgrid, "PBVHUndoNode.mptex");
+			totbytes+= sizeof(MPtex)*totface;
+
+			for(i = 0; i < totgrid; ++i) {
+				MPtex *pt;
+				GridToFace *gtf;
+				int ures, vres, rowlen;
+
+				gtf = &grid_face_map[grid_indices[i]];
+
+				pt= ((MPtex*)fdata->layers[active].data) + gtf->face;
+
+				mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
+
+				totbytes += pt->channels * ptex_data_size(pt->type) *
+					ures*vres;
+			}
+		}
 		else {
 			BLI_strncpy(unode->mptex_name,
 				    fdata->layers[active].name,
@@ -420,11 +481,11 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 			BLI_pbvh_node_get_faces(pbvh, node,
 						&mface, &face_indices,
 						NULL, &totface);
-			unode->totface= totface;
+			unode->totptex= totface;
 
-			unode->face_indices= MEM_mapallocN(sizeof(int)*unode->totface,
+			unode->face_indices= MEM_mapallocN(sizeof(int)*totface,
 							   "PBVHUndoNode.face_indices");
-			totbytes += sizeof(int)*unode->totface;
+			totbytes += sizeof(int)*totface;
 
 			unode->mptex= MEM_mapallocN(sizeof(MPtex)*totface, "PBVHUndoNode.mptex");
 			totbytes += sizeof(MPtex)*totface;
@@ -468,19 +529,44 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 	if(unode->grid_indices)
 		memcpy(unode->grid_indices, grid_indices, sizeof(int)*totgrid);
 
-	/* non-multires: per face copy of ptex data */
-	if(!uses_grids && (flag & PBVH_UNDO_PTEX)) {
+	/* copy ptex data */
+	if(flag & PBVH_UNDO_PTEX) {
 		int active, i;
 
 		active = CustomData_get_active_layer_index(fdata, CD_MPTEX);
 
-		for(i = 0; i < totface; ++i) {
-			int face_index = face_indices[i];
-			MPtex *pt = ((MPtex*)fdata->layers[active].data) + face_index;
+		if(uses_grids) {
+			for(i = 0; i < totgrid; ++i) {
+				GridToFace *gtf= &grid_face_map[grid_indices[i]];
+				MPtex *pt= ((MPtex*)fdata->layers[active].data) + gtf->face;
+				int layersize;
+				int ures, vres, rowlen;
+				char *dest, *src;
+				int v;
 
-			unode->face_indices[i]= face_index;
-			unode->mptex[i] = *pt;
-			unode->mptex[i].data = MEM_dupallocN(pt->data);
+				src = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
+				layersize = pt->channels * ptex_data_size(pt->type);
+
+				unode->mptex[i] = *pt;
+				dest = unode->mptex[i].data = MEM_mallocN(layersize * ures * vres,
+									  "PBVHUndoNode.mptex.data");
+
+				for(v = 0; v < vres; ++v) {
+					memcpy(dest, src, layersize*ures);
+					dest += layersize*ures;
+					src += layersize*rowlen;
+				}
+			}
+		}
+		else {
+			for(i = 0; i < totface; ++i) {
+				int face_index = face_indices[i];
+				MPtex *pt = ((MPtex*)fdata->layers[active].data) + face_index;
+
+				unode->face_indices[i]= face_index;
+				unode->mptex[i] = *pt;
+				unode->mptex[i].data = MEM_dupallocN(pt->data);
+			}
 		}
 	}
 

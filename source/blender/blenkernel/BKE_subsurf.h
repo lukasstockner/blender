@@ -82,6 +82,7 @@ typedef struct CCGDerivedMesh {
 	struct DMGridAdjacency *gridAdjacency;
 	int *gridOffset;
 	struct _CCGFace **gridFaces;
+	struct GridToFace *gridFaceMap;
 
 	struct {
 		struct MultiresModifierData *mmd;
