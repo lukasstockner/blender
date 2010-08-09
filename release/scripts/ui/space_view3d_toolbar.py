@@ -494,7 +494,8 @@ class VIEW3D_PT_tools_masking(PaintPanel, bpy.types.Panel):
     bl_label = "Masking"
     bl_default_closed = False
 
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         return context.sculpt_object or context.vertex_paint_object
 
     def draw(self, context):
@@ -1390,9 +1391,11 @@ class VIEW3D_PT_paint_overlay(PaintPanel, bpy.types.Panel):
     bl_label = "Source Image"
     bl_default_closed = True
 
-    def poll(context):
-        #return (context.vertex_paint_object or context.texture_paint_object)
-        return (context.vertex_paint_object)
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        #return context.vertex_paint_object or context.texture_paint_object
+        return context.vertex_paint_object
 
     def draw(self, context):
         layout = self.layout

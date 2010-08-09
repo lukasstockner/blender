@@ -355,7 +355,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, bpy.types.Panel):
                 layout.operator("mesh.vertex_color_multiresolution_toggle", text="Add Multires")
 
 
-class DATA_PT_ptex(DataButtonsPanel, bpy.types.Panel):
+class DATA_PT_ptex(MeshButtonsPanel, bpy.types.Panel):
     bl_label = "PTex"
     COMPAT_ENGINES = {'BLENDER_RENDER'}
 
