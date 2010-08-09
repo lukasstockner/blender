@@ -49,12 +49,10 @@
 #include "BLI_rand.h"
 
 #include "BKE_anim.h"			//for the where_on_path function
-#include "BKE_curve.h"
 #include "BKE_constraint.h" // for the get_constraint_target function
 #include "BKE_DerivedMesh.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"
-#include "BKE_effect.h"
 #include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -68,9 +66,6 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_property.h"
-#include "BKE_softbody.h"
-#include "BKE_smoke.h"
 #include "BKE_unit.h"
 #include "BKE_utildefines.h"
 #include "smoke_API.h"
@@ -2739,7 +2734,8 @@ static int draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	int do_alpha_pass= 0, drawlinked= 0, retval= 0, glsl, check_alpha;
 	
 	if(obedit && ob!=obedit && ob->data==obedit->data) {
-		if(ob_get_key(ob));
+		if(ob_get_key(ob) || ob_get_key(obedit));
+		else if(ob->modifiers.first || obedit->modifiers.first);
 		else drawlinked= 1;
 	}
 	

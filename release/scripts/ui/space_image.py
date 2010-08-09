@@ -19,7 +19,16 @@
 # <pep8 compliant>
 import bpy
 
-narrowui = bpy.context.user_preferences.view.properties_width_check
+
+class BrushButtonsPanel():
+    bl_space_type = 'IMAGE_EDITOR'
+    bl_region_type = 'UI'
+
+    @classmethod
+    def poll(cls, context):
+        sima = context.space_data
+        toolsettings = context.tool_settings.image_paint
+        return sima.show_paint and toolsettings.brush
 
 
 class IMAGE_MT_view(bpy.types.Menu):
@@ -335,8 +344,8 @@ class IMAGE_PT_image_properties(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_label = "Image"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return (sima.image)
 
@@ -355,8 +364,8 @@ class IMAGE_PT_game_properties(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_label = "Game Properties"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         rd = context.scene.render
         sima = context.space_data
         return (sima and sima.image) and (rd.engine == 'BLENDER_GAME')
@@ -366,7 +375,6 @@ class IMAGE_PT_game_properties(bpy.types.Panel):
 
         sima = context.space_data
         ima = sima.image
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
@@ -387,8 +395,7 @@ class IMAGE_PT_game_properties(bpy.types.Panel):
         sub.prop(ima, "tiles_x", text="X")
         sub.prop(ima, "tiles_y", text="Y")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.label(text="Clamp:")
         col.prop(ima, "clamp_x", text="X")
         col.prop(ima, "clamp_y", text="Y")
@@ -401,8 +408,8 @@ class IMAGE_PT_view_histogram(bpy.types.Panel):
     bl_region_type = 'PREVIEW'
     bl_label = "Histogram"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return (sima and sima.image)
 
@@ -420,8 +427,8 @@ class IMAGE_PT_view_waveform(bpy.types.Panel):
     bl_region_type = 'PREVIEW'
     bl_label = "Waveform"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return (sima and sima.image)
 
@@ -440,8 +447,8 @@ class IMAGE_PT_view_vectorscope(bpy.types.Panel):
     bl_region_type = 'PREVIEW'
     bl_label = "Vectorscope"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return (sima and sima.image)
 
@@ -458,8 +465,8 @@ class IMAGE_PT_sample_line(bpy.types.Panel):
     bl_region_type = 'PREVIEW'
     bl_label = "Sample Line"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return (sima and sima.image)
 
@@ -476,8 +483,8 @@ class IMAGE_PT_scope_sample(bpy.types.Panel):
     bl_region_type = 'PREVIEW'
     bl_label = "Scope Samples"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return sima
 
@@ -497,8 +504,8 @@ class IMAGE_PT_view_properties(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_label = "Display"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return (sima and (sima.image or sima.show_uvedit))
 
@@ -509,7 +516,6 @@ class IMAGE_PT_view_properties(bpy.types.Panel):
         ima = sima.image
         show_uvedit = sima.show_uvedit
         uvedit = sima.uv_editor
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
@@ -517,8 +523,7 @@ class IMAGE_PT_view_properties(bpy.types.Panel):
         if ima:
             col.prop(ima, "display_aspect", text="Aspect Ratio")
 
-            if wide_ui:
-                col = split.column()
+            col = split.column()
             col.label(text="Coordinates:")
             col.prop(sima, "draw_repeated", text="Repeat")
             if show_uvedit:
@@ -536,10 +541,7 @@ class IMAGE_PT_view_properties(bpy.types.Panel):
             col = layout.column()
             col.label(text="UVs:")
             row = col.row()
-            if wide_ui:
-                row.prop(uvedit, "edge_draw_type", expand=True)
-            else:
-                row.prop(uvedit, "edge_draw_type", text="")
+            row.prop(uvedit, "edge_draw_type", expand=True)
 
             split = layout.split()
             col = split.column()
@@ -548,8 +550,7 @@ class IMAGE_PT_view_properties(bpy.types.Panel):
             #col.prop(uvedit, "draw_edges")
             #col.prop(uvedit, "draw_faces")
 
-            if wide_ui:
-                col = split.column()
+            col = split.column()
             col.prop(uvedit, "draw_stretch", text="Stretch")
             sub = col.column()
             sub.active = uvedit.draw_stretch
@@ -561,8 +562,8 @@ class IMAGE_PT_paint(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_label = "Paint"
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         sima = context.space_data
         return sima.show_paint
 
@@ -601,17 +602,9 @@ class IMAGE_PT_paint(bpy.types.Panel):
                 col.prop(brush, "clone_alpha", text="Alpha")
 
 
-class IMAGE_PT_tools_brush_texture(bpy.types.Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+class IMAGE_PT_tools_brush_texture(BrushButtonsPanel, bpy.types.Panel):
     bl_label = "Texture"
     bl_default_closed = True
-
-    @staticmethod
-    def poll(context):
-        sima = context.space_data
-        toolsettings = context.tool_settings.image_paint
-        return sima.show_paint and toolsettings.brush
 
     def draw(self, context):
         layout = self.layout
@@ -626,17 +619,9 @@ class IMAGE_PT_tools_brush_texture(bpy.types.Panel):
         col.template_ID_preview(brush, "texture", new="texture.new", rows=3, cols=8)
 
 
-class IMAGE_PT_paint_stroke(bpy.types.Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+class IMAGE_PT_paint_stroke(BrushButtonsPanel, bpy.types.Panel):
     bl_label = "Paint Stroke"
     bl_default_closed = True
-
-    @staticmethod
-    def poll(context):
-        sima = context.space_data
-        toolsettings = context.tool_settings.image_paint
-        return sima.show_paint and toolsettings.brush
 
     def draw(self, context):
         layout = self.layout
@@ -658,17 +643,9 @@ class IMAGE_PT_paint_stroke(bpy.types.Panel):
         layout.prop(brush, "use_wrap")
 
 
-class IMAGE_PT_paint_curve(bpy.types.Panel):
-    bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'UI'
+class IMAGE_PT_paint_curve(BrushButtonsPanel, bpy.types.Panel):
     bl_label = "Paint Curve"
     bl_default_closed = True
-
-    @staticmethod
-    def poll(context):
-        sima = context.space_data
-        toolsettings = context.tool_settings.image_paint
-        return sima.show_paint and toolsettings.brush
 
     def draw(self, context):
         layout = self.layout

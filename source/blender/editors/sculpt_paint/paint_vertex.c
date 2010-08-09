@@ -53,13 +53,10 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
-#include "BKE_armature.h"
 #include "BKE_action.h"
 #include "BKE_brush.h"
-#include "BKE_DerivedMesh.h"
 #include "BKE_cloth.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
 #include "BKE_depsgraph.h"
 #include "BKE_deform.h"
 #include "BKE_displist.h"

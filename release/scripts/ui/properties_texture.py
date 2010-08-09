@@ -20,8 +20,6 @@
 import bpy
 from rna_prop_ui import PropertyPanel
 
-narrowui = bpy.context.user_preferences.view.properties_width_check
-
 
 class TEXTURE_MT_specials(bpy.types.Menu):
     bl_label = "Texture Specials"
@@ -71,15 +69,15 @@ class TextureButtonsPanel():
     bl_region_type = 'WINDOW'
     bl_context = "texture"
 
+    @classmethod
+    def poll(cls, context):
+        tex = context.texture
+        return tex and (tex.type != 'NONE' or tex.use_nodes) and (context.scene.render.engine in cls.COMPAT_ENGINES)
+
 
 class TEXTURE_PT_preview(TextureButtonsPanel, bpy.types.Panel):
     bl_label = "Preview"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        return tex and (tex.type != 'NONE' or tex.use_nodes) and (context.scene.render.engine in __class__.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -99,13 +97,13 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
     bl_show_header = False
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         engine = context.scene.render.engine
         if not hasattr(context, "texture_slot"):
             return False
         return ((context.material or context.world or context.lamp or context.brush or context.texture)
-            and (engine in __class__.COMPAT_ENGINES))
+            and (engine in cls.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -113,7 +111,6 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
         node = context.texture_node
         space = context.space_data
         tex = context.texture
-        wide_ui = context.region.width > narrowui
         idblock = context_tex_datablock(context)
         tex_collection = space.pin_id == None and type(idblock) != bpy.types.Brush and not node
 
@@ -127,11 +124,8 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
             col.operator("texture.slot_move", text="", icon='TRIA_DOWN').type = 'DOWN'
             col.menu("TEXTURE_MT_specials", icon='DOWNARROW_HLT', text="")
 
-        if wide_ui:
-            split = layout.split(percentage=0.65)
-            col = split.column()
-        else:
-            col = layout.column()
+        split = layout.split(percentage=0.65)
+        col = split.column()
 
         if tex_collection:
             col.template_ID(idblock, "active_texture", new="texture.new")
@@ -143,8 +137,7 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
         if space.pin_id:
             col.template_ID(space, "pin_id")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
 
         if not space.pin_id:
             col.prop(space, "brush_texture", text="Brush", toggle=True)
@@ -159,21 +152,13 @@ class TEXTURE_PT_context_texture(TextureButtonsPanel, bpy.types.Panel):
                     split.prop(slot, "output_node", text="")
 
             else:
-                if wide_ui:
-                    split.label(text="Type:")
-                    split.prop(tex, "type", text="")
-                else:
-                    layout.prop(tex, "type", text="")
+                split.label(text="Type:")
+                split.prop(tex, "type", text="")
 
 
 class TEXTURE_PT_custom_props(TextureButtonsPanel, PropertyPanel, bpy.types.Panel):
-    _context_path = "texture"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @staticmethod
-    def poll(context): # use alternate poll since NONE texture type is ok
-        engine = context.scene.render.engine
-        return context.texture and (engine in __class__.COMPAT_ENGINES)
+    _context_path = "texture"
 
 
 class TEXTURE_PT_colors(TextureButtonsPanel, bpy.types.Panel):
@@ -181,16 +166,10 @@ class TEXTURE_PT_colors(TextureButtonsPanel, bpy.types.Panel):
     bl_default_closed = True
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        return tex and (tex.type != 'NONE' or tex.use_nodes) and (context.scene.render.engine in __class__.COMPAT_ENGINES)
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         layout.prop(tex, "use_color_ramp", text="Ramp")
         if tex.use_color_ramp:
@@ -205,8 +184,7 @@ class TEXTURE_PT_colors(TextureButtonsPanel, bpy.types.Panel):
         sub.prop(tex, "factor_green", text="G")
         sub.prop(tex, "factor_blue", text="B")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.label(text="Adjust:")
         col.prop(tex, "brightness")
         col.prop(tex, "contrast")
@@ -218,21 +196,21 @@ class TEXTURE_PT_colors(TextureButtonsPanel, bpy.types.Panel):
 class TextureSlotPanel(TextureButtonsPanel):
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         if not hasattr(context, "texture_slot"):
             return False
 
         engine = context.scene.render.engine
-        return TextureButtonsPanel.poll(self, context) and (engine in __class__.COMPAT_ENGINES)
+        return TextureButtonsPanel.poll(self, context) and (engine in cls.COMPAT_ENGINES)
 
 
 class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
     bl_label = "Mapping"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         idblock = context_tex_datablock(context)
         if type(idblock) == bpy.types.Brush and not context.sculpt_object:
             return False
@@ -241,7 +219,7 @@ class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
             return False
 
         engine = context.scene.render.engine
-        return (engine in __class__.COMPAT_ENGINES)
+        return (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -250,7 +228,6 @@ class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
 
         tex = context.texture_slot
         # textype = context.texture
-        wide_ui = context.region.width > narrowui
 
         if type(idblock) != bpy.types.Brush:
             split = layout.split(percentage=0.3)
@@ -302,11 +279,10 @@ class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
                     col.prop(tex, "from_dupli")
                 elif tex.texture_coordinates == 'OBJECT':
                     col.prop(tex, "from_original")
-                elif wide_ui:
+                else:
                     col.label()
 
-                if wide_ui:
-                    col = split.column()
+                col = split.column()
                 row = col.row()
                 row.prop(tex, "x_mapping", text="")
                 row.prop(tex, "y_mapping", text="")
@@ -317,10 +293,7 @@ class TEXTURE_PT_mapping(TextureSlotPanel, bpy.types.Panel):
         col = split.column()
         col.prop(tex, "offset")
 
-        if wide_ui:
-            col = split.column()
-        else:
-            col.separator()
+        col = split.column()
 
         col.prop(tex, "size")
 
@@ -329,8 +302,8 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
     bl_label = "Influence"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         idblock = context_tex_datablock(context)
         if type(idblock) == bpy.types.Brush:
             return False
@@ -339,7 +312,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
             return False
 
         engine = context.scene.render.engine
-        return (engine in __class__.COMPAT_ENGINES)
+        return (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
 
@@ -349,7 +322,6 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
 
         # textype = context.texture
         tex = context.texture_slot
-        wide_ui = context.region.width > narrowui
 
         def factor_but(layout, active, toggle, factor, name):
             row = layout.row(align=True)
@@ -374,8 +346,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
                 factor_but(col, tex.map_colorspec, "map_colorspec", "colorspec_factor", "Color")
                 factor_but(col, tex.map_hardness, "map_hardness", "hardness_factor", "Hardness")
 
-                if wide_ui:
-                    col = split.column()
+                col = split.column()
                 col.label(text="Shading:")
                 factor_but(col, tex.map_ambient, "map_ambient", "ambient_factor", "Ambient")
                 factor_but(col, tex.map_emit, "map_emit", "emit_factor", "Emit")
@@ -400,9 +371,8 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
                 factor_but(col, tex.map_scattering, "map_scattering", "scattering_factor", "Scattering")
                 factor_but(col, tex.map_reflection, "map_reflection", "reflection_factor", "Reflection")
 
-                if wide_ui:
-                    col = split.column()
-                    col.label(text=" ")
+                col = split.column()
+                col.label(text=" ")
                 factor_but(col, tex.map_coloremission, "map_coloremission", "coloremission_factor", "Emission Color")
                 factor_but(col, tex.map_colortransmission, "map_colortransmission", "colortransmission_factor", "Transmission Color")
                 factor_but(col, tex.map_colorreflection, "map_colorreflection", "colorreflection_factor", "Reflection Color")
@@ -413,8 +383,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
             col = split.column()
             factor_but(col, tex.map_color, "map_color", "color_factor", "Color")
 
-            if wide_ui:
-                col = split.column()
+            col = split.column()
             factor_but(col, tex.map_shadow, "map_shadow", "shadow_factor", "Shadow")
 
         elif type(idblock) == bpy.types.World:
@@ -424,8 +393,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
             factor_but(col, tex.map_blend, "map_blend", "blend_factor", "Blend")
             factor_but(col, tex.map_horizon, "map_horizon", "horizon_factor", "Horizon")
 
-            if wide_ui:
-                col = split.column()
+            col = split.column()
             factor_but(col, tex.map_zenith_up, "map_zenith_up", "zenith_up_factor", "Zenith Up")
             factor_but(col, tex.map_zenith_down, "map_zenith_down", "zenith_down_factor", "Zenith Down")
 
@@ -440,8 +408,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
         sub.active = tex.rgb_to_intensity
         sub.prop(tex, "color", text="")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "negate", text="Negative")
         col.prop(tex, "stencil")
 
@@ -452,7 +419,12 @@ class TEXTURE_PT_influence(TextureSlotPanel, bpy.types.Panel):
 
 
 class TextureTypePanel(TextureButtonsPanel):
-    pass
+
+    @classmethod
+    def poll(cls, context):
+        tex = context.texture
+        engine = context.scene.render.engine
+        return tex and ((tex.type == cls.tex_type and not tex.use_nodes) and (engine in cls.COMPAT_ENGINES))
 
 
 class TEXTURE_PT_clouds(TextureTypePanel, bpy.types.Panel):
@@ -460,25 +432,15 @@ class TEXTURE_PT_clouds(TextureTypePanel, bpy.types.Panel):
     tex_type = 'CLOUDS'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         layout.prop(tex, "stype", expand=True)
         layout.label(text="Noise:")
         layout.prop(tex, "noise_type", text="Type", expand=True)
-        if wide_ui:
-            layout.prop(tex, "noise_basis", text="Basis")
-        else:
-            layout.prop(tex, "noise_basis", text="")
+        layout.prop(tex, "noise_basis", text="Basis")
 
         split = layout.split()
 
@@ -486,8 +448,7 @@ class TEXTURE_PT_clouds(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "noise_size", text="Size")
         col.prop(tex, "noise_depth", text="Depth")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "nabla", text="Nabla")
 
 
@@ -496,32 +457,19 @@ class TEXTURE_PT_wood(TextureTypePanel, bpy.types.Panel):
     tex_type = 'WOOD'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         layout.prop(tex, "noisebasis2", expand=True)
-        if wide_ui:
-            layout.prop(tex, "stype", expand=True)
-        else:
-            layout.prop(tex, "stype", text="")
+        layout.prop(tex, "stype", expand=True)
 
         col = layout.column()
         col.active = tex.stype in ('RINGNOISE', 'BANDNOISE')
         col.label(text="Noise:")
         col.row().prop(tex, "noise_type", text="Type", expand=True)
-        if wide_ui:
-            layout.prop(tex, "noise_basis", text="Basis")
-        else:
-            layout.prop(tex, "noise_basis", text="")
+        layout.prop(tex, "noise_basis", text="Basis")
 
         split = layout.split()
         split.active = tex.stype in ('RINGNOISE', 'BANDNOISE')
@@ -539,26 +487,16 @@ class TEXTURE_PT_marble(TextureTypePanel, bpy.types.Panel):
     tex_type = 'MARBLE'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         layout.prop(tex, "stype", expand=True)
         layout.prop(tex, "noisebasis2", expand=True)
         layout.label(text="Noise:")
         layout.prop(tex, "noise_type", text="Type", expand=True)
-        if wide_ui:
-            layout.prop(tex, "noise_basis", text="Basis")
-        else:
-            layout.prop(tex, "noise_basis", text="")
+        layout.prop(tex, "noise_basis", text="Basis")
 
         split = layout.split()
 
@@ -566,8 +504,7 @@ class TEXTURE_PT_marble(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "noise_size", text="Size")
         col.prop(tex, "noise_depth", text="Depth")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "turbulence")
         col.prop(tex, "nabla")
 
@@ -577,25 +514,17 @@ class TEXTURE_PT_magic(TextureTypePanel, bpy.types.Panel):
     tex_type = 'MAGIC'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
         col = split.column()
         col.prop(tex, "noise_depth", text="Depth")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "turbulence")
 
 
@@ -604,22 +533,12 @@ class TEXTURE_PT_blend(TextureTypePanel, bpy.types.Panel):
     tex_type = 'BLEND'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
-        if wide_ui:
-            layout.prop(tex, "progression")
-        else:
-            layout.prop(tex, "progression", text="")
+        layout.prop(tex, "progression")
 
         sub = layout.row()
 
@@ -632,33 +551,22 @@ class TEXTURE_PT_stucci(TextureTypePanel, bpy.types.Panel):
     tex_type = 'STUCCI'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         layout.prop(tex, "stype", expand=True)
         layout.label(text="Noise:")
         layout.prop(tex, "noise_type", text="Type", expand=True)
-        if wide_ui:
-            layout.prop(tex, "noise_basis", text="Basis")
-        else:
-            layout.prop(tex, "noise_basis", text="")
+        layout.prop(tex, "noise_basis", text="Basis")
 
         split = layout.split()
 
         col = split.column()
         col.prop(tex, "noise_size", text="Size")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "turbulence")
 
 
@@ -666,12 +574,6 @@ class TEXTURE_PT_image(TextureTypePanel, bpy.types.Panel):
     bl_label = "Image"
     tex_type = 'IMAGE'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -700,18 +602,11 @@ class TEXTURE_PT_image_sampling(TextureTypePanel, bpy.types.Panel):
     tex_type = 'IMAGE'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
         # slot = context.texture_slot
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
@@ -723,10 +618,8 @@ class TEXTURE_PT_image_sampling(TextureTypePanel, bpy.types.Panel):
         col.separator()
         col.prop(tex, "flip_axis", text="Flip X/Y Axis")
 
-        if wide_ui:
-            col = split.column()
-        else:
-            col.separator()
+        col = split.column()
+
         col.prop(tex, "normal_map")
         row = col.row()
         row.active = tex.normal_map
@@ -747,22 +640,12 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, bpy.types.Panel):
     tex_type = 'IMAGE'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
-        if wide_ui:
-            layout.prop(tex, "extension")
-        else:
-            layout.prop(tex, "extension", text="")
+        layout.prop(tex, "extension")
 
         split = layout.split()
 
@@ -772,8 +655,7 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, bpy.types.Panel):
             col.prop(tex, "repeat_x", text="X")
             col.prop(tex, "repeat_y", text="Y")
 
-            if wide_ui:
-                col = split.column(align=True)
+            col = split.column(align=True)
             col.label(text="Mirror:")
             col.prop(tex, "mirror_x", text="X")
             col.prop(tex, "mirror_y", text="Y")
@@ -785,8 +667,7 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, bpy.types.Panel):
             row.prop(tex, "checker_even", text="Even")
             row.prop(tex, "checker_odd", text="Odd")
 
-            if wide_ui:
-                col = split.column()
+            col = split.column()
             col.prop(tex, "checker_distance", text="Distance")
 
             layout.separator()
@@ -799,8 +680,7 @@ class TEXTURE_PT_image_mapping(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "crop_min_x", text="X")
         col.prop(tex, "crop_min_y", text="Y")
 
-        if wide_ui:
-            col = split.column(align=True)
+        col = split.column(align=True)
         col.label(text="Crop Maximum:")
         col.prop(tex, "crop_max_x", text="X")
         col.prop(tex, "crop_max_y", text="Y")
@@ -810,12 +690,6 @@ class TEXTURE_PT_plugin(TextureTypePanel, bpy.types.Panel):
     bl_label = "Plugin"
     tex_type = 'PLUGIN'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -830,19 +704,12 @@ class TEXTURE_PT_envmap(TextureTypePanel, bpy.types.Panel):
     tex_type = 'ENVIRONMENT_MAP'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
         env = tex.environment_map
 
-        wide_ui = context.region.width > narrowui
 
         row = layout.row()
         row.prop(env, "source", expand=True)
@@ -864,8 +731,7 @@ class TEXTURE_PT_envmap(TextureTypePanel, bpy.types.Panel):
             col.prop(env, "resolution")
             col.prop(env, "depth")
 
-            if wide_ui:
-                col = split.column(align=True)
+            col = split.column(align=True)
 
             col.label(text="Clipping:")
             col.prop(env, "clip_start", text="Start")
@@ -877,12 +743,6 @@ class TEXTURE_PT_envmap_sampling(TextureTypePanel, bpy.types.Panel):
     bl_default_closed = True
     tex_type = 'ENVIRONMENT_MAP'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -897,22 +757,12 @@ class TEXTURE_PT_musgrave(TextureTypePanel, bpy.types.Panel):
     tex_type = 'MUSGRAVE'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
-        if wide_ui:
-            layout.prop(tex, "musgrave_type")
-        else:
-            layout.prop(tex, "musgrave_type", text="")
+        layout.prop(tex, "musgrave_type")
 
         split = layout.split()
 
@@ -921,8 +771,7 @@ class TEXTURE_PT_musgrave(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "lacunarity")
         col.prop(tex, "octaves")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         if (tex.musgrave_type in ('HETERO_TERRAIN', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL')):
             col.prop(tex, "offset")
         if (tex.musgrave_type in ('RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL')):
@@ -931,18 +780,14 @@ class TEXTURE_PT_musgrave(TextureTypePanel, bpy.types.Panel):
 
         layout.label(text="Noise:")
 
-        if wide_ui:
-            layout.prop(tex, "noise_basis", text="Basis")
-        else:
-            layout.prop(tex, "noise_basis", text="")
+        layout.prop(tex, "noise_basis", text="Basis")
 
         split = layout.split()
 
         col = split.column()
         col.prop(tex, "noise_size", text="Size")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "nabla")
 
 
@@ -951,17 +796,10 @@ class TEXTURE_PT_voronoi(TextureTypePanel, bpy.types.Panel):
     tex_type = 'VORONOI'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
@@ -975,8 +813,7 @@ class TEXTURE_PT_voronoi(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "coloring", text="")
         col.prop(tex, "noise_intensity", text="Intensity")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         sub = col.column(align=True)
         sub.label(text="Feature Weights:")
         sub.prop(tex, "weight_1", text="1", slider=True)
@@ -991,8 +828,7 @@ class TEXTURE_PT_voronoi(TextureTypePanel, bpy.types.Panel):
         col = split.column()
         col.prop(tex, "noise_size", text="Size")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "nabla")
 
 
@@ -1001,24 +837,13 @@ class TEXTURE_PT_distortednoise(TextureTypePanel, bpy.types.Panel):
     tex_type = 'DISTORTED_NOISE'
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
-        tex = context.texture
-        engine = context.scene.render.engine
-        return tex and ((tex.type == __class__.tex_type and not tex.use_nodes) and (engine in __class__.COMPAT_ENGINES))
-
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
-        wide_ui = context.region.width > narrowui
 
-        if wide_ui:
-            layout.prop(tex, "noise_distortion")
-            layout.prop(tex, "noise_basis", text="Basis")
-        else:
-            layout.prop(tex, "noise_distortion", text="")
-            layout.prop(tex, "noise_basis", text="")
+        layout.prop(tex, "noise_distortion")
+        layout.prop(tex, "noise_basis", text="Basis")
 
         split = layout.split()
 
@@ -1026,8 +851,7 @@ class TEXTURE_PT_distortednoise(TextureTypePanel, bpy.types.Panel):
         col.prop(tex, "distortion", text="Distortion")
         col.prop(tex, "noise_size", text="Size")
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.prop(tex, "nabla")
 
 
@@ -1035,11 +859,11 @@ class TEXTURE_PT_voxeldata(TextureButtonsPanel, bpy.types.Panel):
     bl_label = "Voxel Data"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         tex = context.texture
         engine = context.scene.render.engine
-        return tex and (tex.type == 'VOXEL_DATA' and (engine in __class__.COMPAT_ENGINES))
+        return tex and (tex.type == 'VOXEL_DATA' and (engine in cls.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
@@ -1074,23 +898,19 @@ class TEXTURE_PT_pointdensity(TextureButtonsPanel, bpy.types.Panel):
     bl_label = "Point Density"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         tex = context.texture
         engine = context.scene.render.engine
-        return tex and (tex.type == 'POINT_DENSITY' and (engine in __class__.COMPAT_ENGINES))
+        return tex and (tex.type == 'POINT_DENSITY' and (engine in cls.COMPAT_ENGINES))
 
     def draw(self, context):
         layout = self.layout
 
         tex = context.texture
         pd = tex.pointdensity
-        wide_ui = context.region.width > narrowui
 
-        if wide_ui:
-            layout.prop(pd, "point_source", expand=True)
-        else:
-            layout.prop(pd, "point_source", text="")
+        layout.prop(pd, "point_source", expand=True)
 
         split = layout.split()
 
@@ -1121,8 +941,7 @@ class TEXTURE_PT_pointdensity(TextureButtonsPanel, bpy.types.Panel):
         if pd.color_source in ('PARTICLE_SPEED', 'PARTICLE_AGE'):
             layout.template_color_ramp(pd, "color_ramp", expand=True)
 
-        if wide_ui:
-            col = split.column()
+        col = split.column()
         col.label()
         col.prop(pd, "radius")
         col.label(text="Falloff:")
@@ -1135,11 +954,11 @@ class TEXTURE_PT_pointdensity_turbulence(TextureButtonsPanel, bpy.types.Panel):
     bl_label = "Turbulence"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
 
-    @staticmethod
-    def poll(context):
+    @classmethod
+    def poll(cls, context):
         tex = context.texture
         engine = context.scene.render.engine
-        return tex and (tex.type == 'POINT_DENSITY' and (engine in __class__.COMPAT_ENGINES))
+        return tex and (tex.type == 'POINT_DENSITY' and (engine in cls.COMPAT_ENGINES))
 
     def draw_header(self, context):
         layout = self.layout
@@ -1155,7 +974,6 @@ class TEXTURE_PT_pointdensity_turbulence(TextureButtonsPanel, bpy.types.Panel):
         tex = context.texture
         pd = tex.pointdensity
         layout.active = pd.turbulence
-        wide_ui = context.region.width > narrowui
 
         split = layout.split()
 
@@ -1165,9 +983,8 @@ class TEXTURE_PT_pointdensity_turbulence(TextureButtonsPanel, bpy.types.Panel):
         col.label(text="Noise Basis:")
         col.prop(pd, "noise_basis", text="")
 
-        if wide_ui:
-            col = split.column()
-            col.label()
+        col = split.column()
+        col.label()
         col.prop(pd, "turbulence_size")
         col.prop(pd, "turbulence_depth")
         col.prop(pd, "turbulence_strength")

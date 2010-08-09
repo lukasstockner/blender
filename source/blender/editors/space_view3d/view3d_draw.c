@@ -50,14 +50,11 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_image.h"
-#include "BKE_ipo.h"
 #include "BKE_key.h"
 #include "BKE_object.h"
 #include "BKE_global.h"
 #include "BKE_paint.h"
 #include "BKE_scene.h"
-#include "BKE_screen.h"
-#include "BKE_utildefines.h"
 #include "BKE_unit.h"
 
 #include "RE_pipeline.h"	// make_stars
@@ -2465,8 +2462,6 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	ob= OBACT;
 	if(U.uiflag & USER_DRAWVIEWINFO) 
 		draw_selected_name(scene, ob, v3d);
-
-	ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_PIXEL);
 	
 	/* XXX here was the blockhandlers for floating panels */
 
