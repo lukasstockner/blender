@@ -4180,6 +4180,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 				if(ts->paint_overlay.img)
 					ts->paint_overlay.img = newlibadr_us(fd, sce->id.lib, ts->paint_overlay.img);
 				ts->paint_overlay.gltex = 0;
+				if(!ts->ptex_ures) ts->ptex_ures = 128;
+				if(!ts->ptex_vres) ts->ptex_vres = 128;
 			}
 
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);

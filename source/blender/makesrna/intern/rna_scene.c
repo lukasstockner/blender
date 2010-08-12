@@ -35,6 +35,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include <stdio.h>
+#include <string.h>
+
 /* Include for Bake Options */
 #include "RE_pipeline.h"
 
@@ -939,6 +942,33 @@ static void rna_def_transform_orientation(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE|ND_SPACE_VIEW3D, NULL);
 }
 
+static EnumPropertyItem *ptex_resolution_items()
+{
+#define PTEX_TOP_RES 20
+	static EnumPropertyItem items[PTEX_TOP_RES+1];
+	static char identifiers[PTEX_TOP_RES][14];
+	static int inited = 0;
+
+	if(!inited) {
+		int i;
+
+		memset(items, 0, sizeof(EnumPropertyItem) * (PTEX_TOP_RES+1));
+
+		for(i = 0; i < PTEX_TOP_RES; ++i) {
+			int x = 1 << i;
+			items[i].value = x;
+			items[i].identifier = identifiers[i];
+			items[i].name = identifiers[i] + 3;
+			snprintf(identifiers[i], 14, "RES%d", x);
+		}
+
+		inited = 1;
+	}
+
+	return items;
+#undef PTEX_TOP_RES
+}
+
 static void rna_def_tool_settings(BlenderRNA  *brna)
 {
 	StructRNA *srna;
@@ -1200,6 +1230,22 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	prop= RNA_def_property(srna, "sculpt_paint_use_unified_strength", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "sculpt_paint_settings", SCULPT_PAINT_USE_UNIFIED_ALPHA);
 	RNA_def_property_ui_text(prop, "Sculpt/Paint Use Unified Strength", "Instead of per brush strength, the strength is shared across brushes");
+
+	/* Ptex */
+	
+	prop= RNA_def_property(srna, "ptex_u_resolution", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "ptex_ures");
+	RNA_def_property_enum_items(prop, ptex_resolution_items());
+	RNA_def_property_ui_text(prop, "Ptex U Resolution", "");
+	
+	prop= RNA_def_property(srna, "ptex_v_resolution", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "ptex_vres");
+	RNA_def_property_enum_items(prop, ptex_resolution_items());
+	RNA_def_property_ui_text(prop, "Ptex V Resolution", "");
+
+	prop= RNA_def_property(srna, "ptex_subface", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, 3);
+	RNA_def_property_ui_text(prop, "Ptex Subface", "");
 }
 
 

@@ -221,6 +221,7 @@ void ED_operatortypes_paint(void)
 	/* ptex */
 	WM_operatortype_append(PTEX_OT_layer_add);
 	WM_operatortype_append(PTEX_OT_open);
+	WM_operatortype_append(PTEX_OT_face_resolution_set);
 
 	/* face-select */
 	WM_operatortype_append(PAINT_OT_face_select_linked);

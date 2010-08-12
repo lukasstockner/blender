@@ -98,8 +98,10 @@ int vertex_paint_poll(bContext *C)
 {
 	if(vertex_paint_mode_poll(C) && 
 	   paint_brush(&CTX_data_tool_settings(C)->vpaint->paint)) {
+		Object *ob = CTX_data_active_object(C);
 		ScrArea *sa= CTX_wm_area(C);
-		if(sa->spacetype==SPACE_VIEW3D) {
+		if(!(get_mesh(ob)->editflag & ME_EDIT_PAINT_MASK) &&
+		   sa->spacetype==SPACE_VIEW3D) {
 			ARegion *ar= CTX_wm_region(C);
 			if(ar->regiontype==RGN_TYPE_WINDOW)
 				return 1;

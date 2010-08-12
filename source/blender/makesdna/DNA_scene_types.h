@@ -724,11 +724,16 @@ typedef struct ToolSettings {
 
 	int auto_normalize; /*auto normalizing mode in wpaint*/
 
+	/* Sculpt */
 	short sculpt_paint_settings; /* user preferences for sculpt and paint */
 	short pad1;
 	int sculpt_paint_unified_size; /* unified radius of brush in pixels */
 	float sculpt_paint_unified_unprojected_radius;/* unified radius of brush in Blender units */
 	float sculpt_paint_unified_alpha; /* unified strength of brush */
+
+	/* Paint */
+	int ptex_ures, ptex_vres;
+	int ptex_subface, pad2;
 } ToolSettings;
 
 typedef struct bStats {

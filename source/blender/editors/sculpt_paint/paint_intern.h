@@ -247,6 +247,7 @@ void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
 /* ptex.c */
 void PTEX_OT_layer_add(struct wmOperatorType *ot);
 void PTEX_OT_open(struct wmOperatorType *ot);
+void PTEX_OT_face_resolution_set(struct wmOperatorType *ot);
 
 /* paint_overlay.c */
 int paint_sample_overlay(PaintStroke *stroke, float col[3], float co[2]);

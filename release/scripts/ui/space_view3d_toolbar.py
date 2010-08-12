@@ -478,7 +478,7 @@ class PaintPanel():
 
         if context.sculpt_object:
             return ts.sculpt
-        elif context.vertex_paint_object:
+        elif context.vertex_paint_object and (not context.vertex_paint_object.data.use_paint_mask):
             return ts.vertex_paint
         elif context.weight_paint_object:
             return ts.weight_paint
@@ -496,7 +496,7 @@ class VIEW3D_PT_tools_masking(PaintPanel, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.sculpt_object or context.vertex_paint_object
+        return cls.paint_settings(context) and (context.sculpt_object or context.vertex_paint_object)
 
     def draw(self, context):
         layout = self.layout
@@ -997,7 +997,7 @@ class VIEW3D_PT_tools_brush_curve(PaintPanel, bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
 
-        settings = cls.paint_settings(context)
+        settings = self.paint_settings(context)
         brush = settings.brush
 
         layout.template_curve_mapping(brush, "curve", brush=True)
@@ -1054,7 +1054,7 @@ class VIEW3D_PT_tools_paint_symmetry(PaintPanel, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return (context.sculpt_object or context.vertex_paint_object)
+        return cls.paint_settings(context) and (context.sculpt_object or context.vertex_paint_object)
 
     def draw(self, context):
 
@@ -1093,7 +1093,7 @@ class VIEW3D_PT_tools_brush_appearance(PaintPanel, bpy.types.Panel):
 
     @classmethod
     def poll(cls, context):
-        return (context.sculpt_object and context.tool_settings.sculpt) or (context.vertex_paint_object and context.tool_settings.vertex_paint) or (context.weight_paint_object and context.tool_settings.weight_paint) or (context.texture_paint_object and context.tool_settings.image_paint)
+        return cls.paint_settings(context) and ((context.sculpt_object and context.tool_settings.sculpt) or (context.vertex_paint_object and context.tool_settings.vertex_paint) or (context.weight_paint_object and context.tool_settings.weight_paint) or (context.texture_paint_object and context.tool_settings.image_paint))
 
     def draw(self, context):
         layout = self.layout
@@ -1178,9 +1178,13 @@ class VIEW3D_PT_tools_weightpaint_options(View3DPanel, bpy.types.Panel):
 # ********** default tools for vertexpaint ****************
 
 
-class VIEW3D_PT_tools_vertexpaint(View3DPanel, bpy.types.Panel):
-    bl_context = "vertexpaint"
+class VIEW3D_PT_tools_vertexpaint(PaintPanel, bpy.types.Panel):
     bl_label = "Options"
+
+    @classmethod
+    def poll(cls, context):
+        settings = cls.paint_settings(context)
+        return settings and context.vertex_paint_object
 
     def draw(self, context):
         layout = self.layout
@@ -1394,8 +1398,7 @@ class VIEW3D_PT_paint_overlay(PaintPanel, bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         settings = cls.paint_settings(context)
-        #return context.vertex_paint_object or context.texture_paint_object
-        return context.vertex_paint_object
+        return settings and context.vertex_paint_object
 
     def draw(self, context):
         layout = self.layout
@@ -1406,6 +1409,60 @@ class VIEW3D_PT_paint_overlay(PaintPanel, bpy.types.Panel):
         layout.template_ID(overlay, "image", open="image.open")
         layout.prop(overlay, "transparency_color")
         layout.prop(overlay, "transparency_tolerance")
+
+class VIEW3D_PT_ptex_edit(View3DPanel, bpy.types.Panel):
+    bl_label = "Ptex"
+    bl_default_closed = False
+    
+    @classmethod
+    def poll(cls, context):
+        ob = context.vertex_paint_object
+        return ob and ob.data.use_paint_mask
+
+    def draw(self, context):
+        layout = self.layout
+
+        mesh = context.active_object.data
+        active_ptex = mesh.active_ptex_index
+        active_face = mesh.faces.active
+
+        if active_ptex != -1 and active_face != -1:
+            ptex_layer = mesh.ptex_layers[active_ptex]
+            ptex = ptex_layer.data[active_face]
+            ts = context.tool_settings
+
+            layout.operator("ptex.face_resolution_set", text="Double Selected").operation = 'DOUBLE'
+            layout.operator("ptex.face_resolution_set", text="Half Selected").operation = 'HALF'
+
+            layout.separator()
+
+            prop = layout.operator("ptex.face_resolution_set")
+            prop.operation = 'NUMERIC'
+            prop.only_active = True
+            if ptex.subfaces != 1:
+                layout.prop(ts, "ptex_subface")
+            layout.prop(ts, "ptex_u_resolution", text="U")
+            layout.prop(ts, "ptex_v_resolution", text="V")
+
+            # display active face's resolution
+
+            box = layout.box()
+
+            if ptex.subfaces == 1:
+                box.label("Quad Resolution:")
+            else:
+                box.label("Subface Resolution:")
+
+            def reslbl(prefix, res):
+                box.label(text=prefix + str(res[0]) + " x " + str(res[1]))
+
+            if ptex.subfaces == 1:
+                reslbl("", ptex.resolution1)
+            else:
+                reslbl("1: ", ptex.resolution1)
+                reslbl("2: ", ptex.resolution2)
+                reslbl("3: ", ptex.resolution3)
+            
 
 def register():
     pass

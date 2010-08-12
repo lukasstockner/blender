@@ -3,6 +3,7 @@
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
 #include "RNA_access.h"
@@ -11,6 +12,7 @@
 #include "BKE_context.h"
 #include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_mesh.h"
 #include "BKE_report.h"
 #include "BKE_subsurf.h"
 
@@ -340,4 +342,224 @@ void PTEX_OT_open(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
+}
+
+
+
+static void ptex_elem_to_floats_mul_add(MPtex *pt, void *data, float *out, float fac)
+{
+	int i;
+
+	switch(pt->type) {
+	case PTEX_DT_UINT8:
+		for(i = 0; i < pt->channels; ++i)
+			out[i] += (((unsigned char*)data)[i] / 255.0) * fac;
+		break;
+	case PTEX_DT_UINT16:
+		for(i = 0; i < pt->channels; ++i)
+			out[i] += (((unsigned char*)data)[i] / 65535.0) * fac;
+		break;
+	case PTEX_DT_FLOAT:
+		for(i = 0; i < pt->channels; ++i)
+			out[i] += ((float*)data)[i] * fac;
+		break;
+	default:
+		break;
+	}
+}
+
+static void ptex_elem_from_floats(MPtex *pt, void *data, float *in)
+{
+	int i;
+
+	switch(pt->type) {
+	case PTEX_DT_UINT8:
+		for(i = 0; i < pt->channels; ++i)
+			((unsigned char*)data)[i] = in[i] * 255;
+		break;
+	case PTEX_DT_UINT16:
+		for(i = 0; i < pt->channels; ++i)
+			((unsigned short*)data)[i] = in[i] * 65535;
+		break;
+	case PTEX_DT_FLOAT:
+		for(i = 0; i < pt->channels; ++i)
+			((float*)data)[i] = in[i];
+		break;
+	default:
+		break;
+	}
+}
+
+/* get interpolated value for one texel */
+static void ptex_bilinear_interp(MPtex *pt, void *out, char *input_start, int layersize,
+				 int offset, float x, float y, float *tmp)
+{
+	int rowlen = pt->res[offset][0];
+	int xi = (int)x;
+	int yi = (int)y;
+	int xt = xi+1, yt = yi+1;
+	float s = x - xi;
+	float t = y - yi;
+	float u = 1 - s;
+	float v = 1 - t;
+
+	if(xt == pt->res[offset][0])
+		--xt;
+	if(yt == pt->res[offset][1])
+		--yt;
+
+	memset(tmp, 0, sizeof(float)*pt->channels);
+	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yi*rowlen+xi), tmp, u*v);
+	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yi*rowlen+xt), tmp, s*v);
+	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yt*rowlen+xt), tmp, s*t);
+	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yt*rowlen+xi), tmp, u*t);
+	ptex_elem_from_floats(pt, out, tmp);
+}
+
+/* interpolate from one subface to another */
+static void ptex_subface_scale(MPtex *pt, char *new_data, char *old_data, float *tmp,
+			       int offset, int layersize, int ures, int vres)
+{
+	float ui, vi, ui_step, vi_step;
+	int u, v;
+
+	ui_step = (float)pt->res[offset][0] / ures;
+	vi_step = (float)pt->res[offset][1] / vres;
+	for(v = 0, vi = 0; v < vres; ++v, vi += vi_step) {
+		for(u = 0, ui = 0; u < ures; ++u, ui += ui_step, new_data += layersize) {
+			ptex_bilinear_interp(pt, new_data, old_data, layersize, offset, ui, vi, tmp);
+		}
+	}
+}
+
+typedef enum {
+	RES_OP_NUMERIC,
+	RES_OP_DOUBLE,
+	RES_OP_HALF
+} PtexResOp;
+
+static void ptex_face_resolution_set(MPtex *pt, ToolSettings *ts, PtexResOp op)
+{
+	char *old_data, *old_data_subface, *new_data_subface;
+	int offset, layersize, res[3][2], texels, i;
+	float *tmp;
+
+	offset = ts->ptex_subface;
+
+	/* find new ptex resolution(s) */
+	switch(op) {
+	case RES_OP_NUMERIC:
+		memcpy(res, pt->res, sizeof(int)*6);
+		res[offset][0] = ts->ptex_ures;
+		res[offset][1] = ts->ptex_vres;
+		break;
+	case RES_OP_DOUBLE:
+		for(i = 0; i < pt->subfaces; ++i) {
+			res[i][0] = pt->res[i][0] << 1;
+			res[i][1] = pt->res[i][1] << 1;
+		}
+		break;
+	case RES_OP_HALF:
+		for(i = 0; i < pt->subfaces; ++i) {
+			res[i][0] = pt->res[i][0] >> 1;
+			res[i][1] = pt->res[i][1] >> 1;
+		}
+		break;
+	}
+
+	for(i = 0; i < pt->subfaces; ++i) {
+		if(res[i][0] < 1) res[i][0] = 1;
+		if(res[i][1] < 1) res[i][1] = 1;
+	}
+
+	/* number of texels */
+	for(i = 0, texels = 0; i < pt->subfaces; ++i)
+		texels += res[i][0] * res[i][1];
+
+	layersize = pt->channels * ptex_data_size(pt->type);
+	old_data = old_data_subface = pt->data;
+
+	/* allocate resized ptex data */
+	pt->data = new_data_subface = MEM_callocN(layersize * texels, "ptex_face_resolution_set.new_data");
+
+	/* tmp buffer used in interpolation */
+	tmp = MEM_callocN(sizeof(float) * pt->channels, "ptex_face_resolution_set.tmp");
+
+	for(i = 0; i < pt->subfaces; ++i) {
+		int p = (i == offset || op != RES_OP_NUMERIC);
+
+		if(p) {
+			ptex_subface_scale(pt, new_data_subface, old_data_subface,
+					   tmp, i, layersize, res[i][0], res[i][1]);
+		}
+
+		old_data_subface += layersize * pt->res[i][0] * pt->res[i][1];
+		new_data_subface += layersize * res[i][0] * res[i][1];
+
+		if(p) {
+			pt->res[i][0] = res[i][0];
+			pt->res[i][1] = res[i][1];
+		}
+	}
+
+	MEM_freeN(old_data);
+
+	MEM_freeN(tmp);
+}
+
+static int ptex_face_resolution_set_exec(bContext *C, wmOperator *op)
+{
+	ToolSettings *ts = CTX_data_tool_settings(C);
+	Object *ob = CTX_data_active_object(C);
+	Mesh *me = ob->data;
+	MPtex *mptex = CustomData_get_layer(&me->fdata, CD_MPTEX);
+	int only_active = RNA_boolean_get(op->ptr, "only_active");
+	PtexResOp operation = RNA_enum_get(op->ptr, "operation");
+
+	if(only_active) {
+		ptex_face_resolution_set(mptex + me->act_face, ts, operation);
+	}
+	else {
+		int i;
+		for(i = 0; i < me->totface; ++i) {
+			if(me->mface[i].flag & ME_FACE_SEL)
+				ptex_face_resolution_set(mptex + i, ts, operation);
+		}
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+static int ptex_face_resolution_set_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	if(ob) {
+		Mesh *me = get_mesh(ob);
+		if(me && CustomData_get_layer(&me->fdata, CD_MPTEX))
+			return 1;
+	}
+	return 0;
+}
+
+void PTEX_OT_face_resolution_set(wmOperatorType *ot)
+{
+	static EnumPropertyItem op_items[] = {
+		{RES_OP_NUMERIC, "NUMERIC", 0, "Numeric", ""},
+		{RES_OP_DOUBLE, "DOUBLE", 0, "Double", ""},
+		{RES_OP_HALF, "HALF", 0, "Half", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+	/* identifiers */
+	ot->name= "Set Face Resolution";
+	ot->idname= "PTEX_OT_face_resolution_set";
+	
+	/* api callbacks */
+	ot->exec= ptex_face_resolution_set_exec;
+	ot->poll= ptex_face_resolution_set_poll;
+
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "only_active", 0, "Only Active", "Apply only to the active face rather than all selected faces");
+	RNA_def_enum(ot->srna, "operation", op_items, RES_OP_NUMERIC, "Operation", "How to modify the resolution");
 }

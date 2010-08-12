@@ -933,6 +933,41 @@ static void rna_Mesh_active_ptex_index_range(PointerRNA *ptr, int *min, int *max
 	*max= MAX2(0, *max);
 }
 
+static void rna_MeshPtexLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	CustomDataLayer *layer= (CustomDataLayer*)ptr->data;
+	rna_iterator_array_begin(iter, layer->data, sizeof(MPtex), (me->edit_mesh)? 0: me->totface, 0, NULL);
+}
+
+static int rna_MeshPtexLayer_data_length(PointerRNA *ptr)
+{
+	Mesh *me= (Mesh*)ptr->id.data;
+	return (me->edit_mesh)? 0: me->totface;
+}
+
+static void MPtex_resolution_get(PointerRNA *ptr, int *values, int num)
+{
+	MPtex *pt= (MPtex*)ptr->data;
+	values[0] = pt->res[num][0];
+	values[1] = pt->res[num][1];
+}
+
+static void rna_MeshPtex_resolution1_get(PointerRNA *ptr, int *values)
+{
+	return MPtex_resolution_get(ptr, values, 0);
+}
+
+static void rna_MeshPtex_resolution2_get(PointerRNA *ptr, int *values)
+{
+	return MPtex_resolution_get(ptr, values, 1);
+}
+
+static void rna_MeshPtex_resolution3_get(PointerRNA *ptr, int *values)
+{
+	return MPtex_resolution_get(ptr, values, 2);
+}
+
 /* Custom property layers */
 
 static void rna_MeshFloatPropertyLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1158,6 +1193,11 @@ static char *rna_MeshColorLayer_path(PointerRNA *ptr)
 static char *rna_MeshColor_path(PointerRNA *ptr)
 {
 	return rna_CustomDataData_path(ptr, "vertex_colors", CD_MCOL);
+}
+
+static char *rna_MeshPtex_path(PointerRNA *ptr)
+{
+	return rna_CustomDataData_path(ptr, "mesh_ptex", CD_MPTEX);
 }
 
 static char *rna_MeshSticky_path(PointerRNA *ptr)
@@ -1687,6 +1727,45 @@ static void rna_def_ptex(BlenderRNA *brna)
 	RNA_def_struct_name_property(srna, prop);
 	RNA_def_property_ui_text(prop, "Name", "");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	prop= RNA_def_property(srna, "data", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "MeshPtex");
+	RNA_def_property_ui_text(prop, "Data", "");
+	RNA_def_property_collection_funcs(prop, "rna_MeshPtexLayer_data_begin", "rna_iterator_array_next", "rna_iterator_array_end", "rna_iterator_array_get", "rna_MeshPtexLayer_data_length", 0, 0);
+
+	srna= RNA_def_struct(brna, "MeshPtex", NULL);
+	RNA_def_struct_sdna(srna, "MPtex");
+	RNA_def_struct_ui_text(srna, "Mesh Ptex", "Variable-resolution multi-channel data");
+	RNA_def_struct_path_func(srna, "rna_MeshPtex_path");
+
+	prop= RNA_def_property(srna, "subfaces", PROP_INT, PROP_NONE);
+	RNA_def_property_range(prop, 1, 3);
+	RNA_def_property_ui_text(prop, "Subfaces", "");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);	
+	
+	prop= RNA_def_property(srna, "resolution1", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "res");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_range(prop, 0, 31);
+	RNA_def_property_int_funcs(prop, "rna_MeshPtex_resolution1_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Resolution 1", "");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	
+	prop= RNA_def_property(srna, "resolution2", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "res");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_range(prop, 0, 31);
+	RNA_def_property_int_funcs(prop, "rna_MeshPtex_resolution2_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Resolution 2", "");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop= RNA_def_property(srna, "resolution3", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "res");
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_range(prop, 0, 31);
+	RNA_def_property_int_funcs(prop, "rna_MeshPtex_resolution3_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Resolution 3", "");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 
 static void rna_def_paintmask(BlenderRNA *brna)
@@ -1954,6 +2033,7 @@ static void rna_def_mesh(BlenderRNA *brna)
 				   "rna_Mesh_active_ptex_index_range");
 	RNA_def_property_ui_text(prop, "Active Ptex Index", "Active ptex layer index");
 
+	/* float layers */
 	prop= RNA_def_property(srna, "float_layers", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "fdata.layers", "fdata.totlayer");
 	RNA_def_property_collection_funcs(prop, "rna_Mesh_float_layers_begin", 0, 0, 0, "rna_Mesh_float_layers_length", 0, 0);
@@ -2112,7 +2192,7 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "editflag", ME_EDIT_PAINT_MASK);
 	RNA_def_property_ui_text(prop, "Paint Mask", "Face selection masking for painting");
 	RNA_def_property_ui_icon(prop, ICON_FACESEL_HLT, 0);
-	RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 
 
 	/* readonly editmesh info - use for extrude menu */

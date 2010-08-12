@@ -192,8 +192,9 @@ static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 	Mesh *me= (ob)? ob->data: NULL;
 
 	if(ob->paint->sculpt && ob->paint->sculpt->modifiers_active) return 0;
+	if(paint_facesel_test(ob)) return 0;
 
-	return (cddm->mvert == me->mvert) || ob->paint->sculpt->kb;
+	return (cddm->mvert == me->mvert) || (ob->paint->sculpt && ob->paint->sculpt->kb);
 }
 
 static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
