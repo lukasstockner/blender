@@ -487,7 +487,7 @@ class PaintPanel():
         elif context.particle_edit_object:
             return ts.particle_edit
 
-        return False
+        return None
 
 
 class VIEW3D_PT_tools_masking(PaintPanel, bpy.types.Panel):
@@ -788,7 +788,7 @@ class VIEW3D_PT_tools_brush_texture(PaintPanel, bpy.types.Panel):
             col.separator()
 
             col = layout.column()
-            col.active = tex_slot.map_mode in ('FIXED')
+            col.active = tex_slot.map_mode in ('FIXED', )
             col.label(text="Angle:")
             
             col = layout.column()
@@ -1009,6 +1009,7 @@ class VIEW3D_PT_tools_brush_curve(PaintPanel, bpy.types.Panel):
         row.operator("brush.curve_preset", icon="SHARPCURVE", text="").shape = 'SHARP'
         row.operator("brush.curve_preset", icon="LINCURVE", text="").shape = 'LINE'
         row.operator("brush.curve_preset", icon="NOCURVE", text="").shape = 'MAX'
+
 
 class VIEW3D_PT_sculpt_options(PaintPanel, bpy.types.Panel):
     bl_label = "Options"
