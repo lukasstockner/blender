@@ -1972,11 +1972,113 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 	}
 }
 
+static void vpaint_restore_node(PBVH *pbvh, PBVHNode *node, PBVHUndoNode *unode,
+				CustomData *fdata,
+				int uses_grids, GridToFace *grid_face_map)
+{
+	MPtex *mptex;
+	int i;
+
+	mptex = CustomData_get_layer_named(fdata, CD_MPTEX,
+					   (char*)pbvh_undo_node_mptex_name(unode));
+
+	if(uses_grids) {
+		int *grid_indices, totgrid;
+
+		BLI_pbvh_node_get_grids(pbvh, node,
+					&grid_indices, &totgrid,
+					NULL, NULL, NULL, NULL, NULL);
+
+		for(i = 0; i < totgrid; ++i) {
+			GridToFace *gtf;
+			MPtex *src_pt, *dest_pt;
+			char *src_data, *dest_data;
+			int layersize, rowlen, ures, vres, v;
+
+			gtf = &grid_face_map[grid_indices[i]];
+
+			dest_pt = mptex + gtf->face;
+			src_pt = &pbvh_undo_node_mptex(unode)[i];
+
+			dest_data = mptex_grid_offset(dest_pt, gtf->offset, &ures, &vres, &rowlen);
+			src_data = src_pt->data;
+
+			layersize = dest_pt->channels * ptex_data_size(dest_pt->type);
+
+			for(v = 0; v < vres; ++v) {
+				memcpy(dest_data, src_data, layersize*ures);
+
+				src_data += layersize*ures;
+				dest_data += layersize*rowlen;
+			}
+		}
+	}
+	else {
+		int *face_indices, totface;
+
+		BLI_pbvh_node_get_faces(pbvh, node, NULL,
+					&face_indices, NULL, &totface);
+
+		for(i = 0; i < totface; i++) {
+			MPtex *pt = &mptex[face_indices[i]];
+			int layersize, texels, j;
+			
+			for(j = 0, texels = 0; j < pt->subfaces; ++j)
+				texels += pt->res[j][0] * pt->res[j][1];
+
+			layersize = pt->channels * ptex_data_size(pt->type);
+
+			memcpy(pt->data, pbvh_undo_node_mptex(unode)[i].data,
+			       layersize * texels);
+			     
+		}
+	}
+
+	BLI_pbvh_node_set_flags(node, SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
+							 PBVH_UpdateRedraw));
+}
+
+static void vpaint_restore(VPaint *vp, Object *ob)
+{
+	Brush *brush = paint_brush(&vp->paint);
+	PBVH *pbvh = ob->paint->pbvh;
+
+	/* Restore the mesh before continuing with anchored stroke */
+	if((brush->flag & BRUSH_ANCHORED) ||
+	   (brush->flag & BRUSH_RESTORE_MESH))
+	{
+		PBVHNode **nodes;
+		CustomData *fdata;
+		GridToFace *grid_face_map;
+		int n, totnode, uses_grids;
+
+		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
+
+		uses_grids = BLI_pbvh_uses_grids(pbvh);
+		grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+		BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+
+		for(n = 0; n < totnode; n++) {
+			PBVHUndoNode *unode;
+			
+			unode= pbvh_undo_get_node(nodes[n]);
+			if(unode) {
+				vpaint_restore_node(pbvh, nodes[n], unode, fdata, uses_grids, grid_face_map);
+			}
+		}
+
+		if(nodes)
+			MEM_freeN(nodes);
+	}
+}
+
 static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 					  PointerRNA *itemptr)
 {
 	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
 	Object *ob = CTX_data_active_object(C);
+
+	vpaint_restore(vp, ob);
 
 	paint_stroke_apply_brush(C, stroke, &vp->paint);
 

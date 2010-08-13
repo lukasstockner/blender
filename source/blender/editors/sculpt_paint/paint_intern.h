@@ -243,6 +243,8 @@ pbvh_undo_f3 pbvh_undo_node_co(PBVHUndoNode *unode);
 pbvh_undo_s3 pbvh_undo_node_no(PBVHUndoNode *unode);
 float *pbvh_undo_node_layer_disp(PBVHUndoNode *unode);
 void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
+const char *pbvh_undo_node_mptex_name(PBVHUndoNode *unode);
+struct MPtex *pbvh_undo_node_mptex(PBVHUndoNode *unode);
 
 /* ptex.c */
 void PTEX_OT_layer_add(struct wmOperatorType *ot);

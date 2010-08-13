@@ -634,3 +634,13 @@ void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp)
 {
 	unode->layer_disp = layer_disp;
 }
+
+const char *pbvh_undo_node_mptex_name(PBVHUndoNode *unode)
+{
+	return unode->mptex_name;
+}
+
+struct MPtex *pbvh_undo_node_mptex(PBVHUndoNode *unode)
+{
+	return unode->mptex;
+}
