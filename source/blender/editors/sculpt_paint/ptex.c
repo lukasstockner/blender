@@ -527,6 +527,8 @@ static int ptex_face_resolution_set_exec(bContext *C, wmOperator *op)
 		}
 	}
 
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+
 	return OPERATOR_FINISHED;
 }
 

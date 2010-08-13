@@ -81,6 +81,13 @@ typedef enum DerivedMeshType {
 	DM_TYPE_CCGDM
 } DerivedMeshType;
 
+typedef enum {
+	DM_DRAW_FAST_NAV = 1,
+	DM_DRAW_BACKBUF_SEL = 2,
+	DM_DRAW_USE_COLORS = 4,
+	DM_DRAW_PTEX_TEXELS = 8,
+} DMDrawFlags;
+
 typedef struct DerivedMesh DerivedMesh;
 struct DerivedMesh {
 	/* Private DerivedMesh data, only for internal DerivedMesh use */
@@ -239,7 +246,8 @@ struct DerivedMesh {
 	 * Also called for *final* editmode DerivedMeshes
 	 */
 	void (*drawFacesSolid)(DerivedMesh *dm, float (*partial_redraw_planes)[4],
-						   int fast, int (*setMaterial)(int, void *attribs));
+			       int (*setMaterial)(int, void *attribs),
+			       DMDrawFlags flags);
 
 	/* Draw all faces
 	 *  o If useTwoSided, draw front and back using col arrays
@@ -277,10 +285,10 @@ struct DerivedMesh {
 	 * smooth shaded.
 	 */
 	void (*drawMappedFaces)(DerivedMesh *dm,
-				float (*partial_redraw_planes)[4], int fast, 
+				float (*partial_redraw_planes)[4],
 				int (*setDrawOptions)(void *userData, int index,
 						      int *drawSmooth_r),
-				void *userData, int useColors);
+				void *userData, DMDrawFlags flags);
 
 	/* Draw mapped faces using MTFace 
 	 *  o Drawing options too complicated to enumerate, look at code.

@@ -37,6 +37,7 @@
 #include "BIF_gl.h"
 
 #include "BKE_cdderivedmesh.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_paint.h"
@@ -192,7 +193,7 @@ static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 	Mesh *me= (ob)? ob->data: NULL;
 
 	if(ob->paint->sculpt && ob->paint->sculpt->modifiers_active) return 0;
-	if(paint_facesel_test(ob)) return 0;
+	//if(paint_facesel_test(ob)) return 0;
 
 	return (cddm->mvert == me->mvert) || (ob->paint->sculpt && ob->paint->sculpt->kb);
 }
@@ -432,23 +433,31 @@ static void cdDM_drawLooseEdges(DerivedMesh *dm)
    false if regular drawing should be used */
 static int cddm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 			  int (*setMaterial)(int, void *attribs),
-			  GPUDrawFlags drawflags)
+			  DMDrawFlags dm_flags)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*)dm;
 	MFace *mface = cddm->mface;
 	float (*face_nors)[3];
 
-	if(cddm->pbvh && cddm->pbvh_draw) {
+	if(!(dm_flags & DM_DRAW_BACKBUF_SEL) && cddm->pbvh && cddm->pbvh_draw) {
 		if(dm->numFaceData) {
+			GPUDrawFlags gpu_flags = 0;
+
 			face_nors = CustomData_get_layer(&dm->faceData, CD_NORMAL);
 
 			/* should be per face */
 			if(setMaterial && !setMaterial(mface->mat_nr+1, NULL))
 				return 1;
 			if(mface->flag & ME_SMOOTH)
-				drawflags |= GPU_DRAW_SMOOTH;
+				gpu_flags |= GPU_DRAW_SMOOTH;
 
-			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, drawflags);
+			if(dm_flags & DM_DRAW_USE_COLORS)
+				gpu_flags |= GPU_DRAW_ACTIVE_MCOL;
+
+			if(dm_flags & DM_DRAW_PTEX_TEXELS)
+				gpu_flags |= GPU_DRAW_PTEX_TEXELS;
+
+			BLI_pbvh_draw(cddm->pbvh, partial_redraw_planes, face_nors, gpu_flags);
 		}
 
 		return 1;
@@ -459,7 +468,8 @@ static int cddm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 
 static void cdDM_drawFacesSolid(DerivedMesh *dm,
 				float (*partial_redraw_planes)[4],
-				int fast, int (*setMaterial)(int, void *attribs))
+				int (*setMaterial)(int, void *attribs),
+				DMDrawFlags flags)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mvert = cddm->mvert;
@@ -467,15 +477,15 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	int a, glmode = -1, shademodel = -1, matnr = -1, drawCurrentMat = 1;
 
-#define PASSVERT(index) {						\
-	if(shademodel == GL_SMOOTH) {				\
-		short *no = mvert[index].no;			\
-		glNormal3sv(no);						\
-	}											\
-	glVertex3fv(mvert[index].co);	\
-}
+#define PASSVERT(index) {				\
+		if(shademodel == GL_SMOOTH) {		\
+			short *no = mvert[index].no;	\
+			glNormal3sv(no);		\
+		}					\
+		glVertex3fv(mvert[index].co);		\
+	}
 
-	if(cddm_draw_pbvh(dm, partial_redraw_planes, setMaterial, 0))
+	if(cddm_draw_pbvh(dm, partial_redraw_planes, setMaterial, flags))
 		return;
 
 	if( GPU_buffer_legacy(dm) ) {
@@ -805,7 +815,9 @@ static void cdDM_drawFacesTex(DerivedMesh *dm, int (*setDrawOptions)(MTFace *tfa
 	cdDM_drawFacesTex_common(dm, setDrawOptions, NULL, NULL);
 }
 
-static void cdDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)[4], int fast_navigate, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors)
+static void cdDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)[4],
+				 int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r),
+				 void *userData, DMDrawFlags flags)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh*) dm;
 	MVert *mv = cddm->mvert;
@@ -814,8 +826,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)
 	float *nors= dm->getFaceDataArray(dm, CD_NORMAL);
 	int i, orig, *index = DM_get_face_data_layer(dm, CD_ORIGINDEX);
 
-	if(cddm_draw_pbvh(dm, partial_redraw_planes, NULL,
-			  useColors ? GPU_DRAW_ACTIVE_MCOL : 0))
+	if(cddm_draw_pbvh(dm, partial_redraw_planes, NULL, flags))
 		return;
 
 	mc = DM_get_face_data_layer(dm, CD_ID_MCOL);
@@ -842,7 +853,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)
 			if(!setDrawOptions || setDrawOptions(userData, orig, &drawSmooth)) {
 				unsigned char *cp = NULL;
 
-				if(useColors && mc)
+				if((flags & DM_DRAW_USE_COLORS) && mc)
 					cp = (unsigned char *)&mc[i * 4];
 
 				glShadeModel(drawSmooth?GL_SMOOTH:GL_FLAT);
@@ -899,7 +910,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)
 		int prevstart = 0;
 		GPU_vertex_setup(dm);
 		GPU_normal_setup(dm);
-		if( useColors && mc )
+		if((flags & DM_DRAW_USE_COLORS) && mc )
 			GPU_color_setup(dm);
 		if( !GPU_buffer_legacy(dm) ) {
 			int tottri = dm->drawObject->nelements/3;

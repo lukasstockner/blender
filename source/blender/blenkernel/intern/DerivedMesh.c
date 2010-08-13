@@ -617,7 +617,9 @@ static void emDM_foreachMappedFaceCenter(DerivedMesh *dm, void (*func)(void *use
 		func(userData, i, cent, emdm->vertexCos?emdm->faceNos[i]:efa->n);
 	}
 }
-static void emDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)[4], int fast_navigate, int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r), void *userData, int useColors)
+static void emDM_drawMappedFaces(DerivedMesh *dm, float (*partial_redraw_planes)[4],
+				 int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r),
+				 void *userData, DMDrawFlags flags)
 {
 	EditMeshDerivedMesh *emdm= (EditMeshDerivedMesh*) dm;
 	EditFace *efa;

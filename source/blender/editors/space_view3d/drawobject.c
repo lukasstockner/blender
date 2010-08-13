@@ -1869,7 +1869,7 @@ static void draw_dm_faces_sel(DerivedMesh *dm, unsigned char *baseCol, unsigned 
 	data.cols[2] = actCol;
 	data.efa_act = efa_act;
 
-	dm->drawMappedFaces(dm, NULL, 0, draw_dm_faces_sel__setDrawOptions, &data, 0);
+	dm->drawMappedFaces(dm, NULL, draw_dm_faces_sel__setDrawOptions, &data, 0);
 }
 
 static int draw_dm_creases__setDrawOptions(void *userData, int index)
@@ -2289,7 +2289,7 @@ static void draw_em_fancy(Scene *scene, View3D *v3d, RegionView3D *rv3d, Object 
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			finalDM->drawMappedFaces(finalDM, NULL, 0, draw_em_fancy__setFaceOpts, 0, 0);
+			finalDM->drawMappedFaces(finalDM, NULL, draw_em_fancy__setFaceOpts, NULL, 0);
 
 			glFrontFace(GL_CCW);
 			glDisable(GL_LIGHTING);
@@ -2422,7 +2422,7 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 		   drawFacesSolid() doesn't draw the transparent faces */
 		if(ob->dtx & OB_DRAWTRANSP) {
 			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
-			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
+			dm->drawFacesSolid(dm, NULL, GPU_enable_material, 0);
 			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			GPU_disable_material();
 		}
@@ -2453,7 +2453,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	DerivedMesh *dm= mesh_get_derived_final(scene, ob, v3d->customdata_mask);
 	Paint *p;
 	float planes[4][4], (*paint_redraw_planes)[4] = NULL;
-	int fast_navigate = 0;
+	DMDrawFlags fast_navigate = 0;
 
 	if(!dm)
 		return;
@@ -2470,8 +2470,8 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	if((ob->mode & (OB_MODE_SCULPT|OB_MODE_VERTEX_PAINT)) &&
 	   (p=paint_get_active(scene))) {
 		/* drop down to a low multires level during navigation */
-		fast_navigate = (p->flags & PAINT_FAST_NAVIGATE) &&
-			(rv3d->rflag & RV3D_NAVIGATING);
+		fast_navigate = ((p->flags & PAINT_FAST_NAVIGATE) &&
+				 (rv3d->rflag & RV3D_NAVIGATING))? DM_DRAW_FAST_NAV : 0;
 
 		if(ob->paint && ob->paint->partial_redraw) {
 			if(ar->do_draw & RGN_DRAW_PARTIAL) {
@@ -2503,7 +2503,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	else if(dt==OB_WIRE || totface==0) {
 		draw_wire = 1; /* draw wire only, no depth buffer stuff  */
 	}
-	else if(	(ob==OBACT && (ob->mode & OB_MODE_TEXTURE_PAINT || paint_facesel_test(ob))) ||
+	else if(	(ob==OBACT && (ob->mode & OB_MODE_TEXTURE_PAINT)) ||
 				CHECK_OB_DRAWTEXTURE(v3d, dt))
 	{
 		int faceselect= (ob==OBACT && paint_facesel_test(ob));
@@ -2540,7 +2540,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			/* weight paint in solid mode, special case. focus on making the weights clear
 			 * rather then the shading, this is also forced in wire view */
 			GPU_enable_material(0, NULL);
-			dm->drawMappedFaces(dm, NULL, 0, wpaint__setSolidDrawOptions, me->mface, 1);
+			dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me->mface, DM_DRAW_USE_COLORS);
 
 			bglPolygonOffset(rv3d->dist, 1.0);
 			glDepthMask(0);	// disable write in zbuffer, selected edge wires show better
@@ -2569,7 +2569,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			dm->drawFacesSolid(dm, paint_redraw_planes, fast_navigate, GPU_enable_material);
+			dm->drawFacesSolid(dm, paint_redraw_planes, GPU_enable_material, fast_navigate);
 
 			GPU_disable_material();
 
@@ -2604,7 +2604,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				glEnable(GL_LIGHTING);
 				glEnable(GL_COLOR_MATERIAL);
 
-				dm->drawMappedFaces(dm, NULL, 0, wpaint__setSolidDrawOptions, me->mface, 1);
+				dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me->mface, DM_DRAW_USE_COLORS);
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
 
@@ -2613,18 +2613,23 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else if(ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_TEXTURE_PAINT)) {
 				if(me->mcol) {
 					MFace *mface = get_mesh(ob)->mface;
+					DMDrawFlags dm_flags = DM_DRAW_USE_COLORS;
 
 					/* XXX - temporary - set up nicer drawing for new vpaint */
 					GPU_enable_material(mface->mat_nr+1, NULL);
 					glEnable(GL_LIGHTING);
+					dm_flags |= fast_navigate;
+					if(paint_facesel_test(ob))
+						dm_flags |= DM_DRAW_PTEX_TEXELS;
 
 					dm->drawMappedFaces(dm, paint_redraw_planes,
-							    fast_navigate, wpaint__setSolidDrawOptions, NULL, 1);
+							    wpaint__setSolidDrawOptions, NULL,
+							    dm_flags);
 					glDisable(GL_LIGHTING);
 				}
 				else {
 					glColor3f(1.0f, 1.0f, 1.0f);
-					dm->drawMappedFaces(dm, NULL, 0, wpaint__setSolidDrawOptions, NULL, 0);
+					dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, NULL, 0);
 				}
 			}
 			else do_draw= 1;
@@ -3078,7 +3083,7 @@ static int drawCurveDerivedMesh(Scene *scene, View3D *v3d, RegionView3D *rv3d, B
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, 0);
 
 		glEnable(GL_LIGHTING);
-		dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
+		dm->drawFacesSolid(dm, NULL, GPU_enable_material, 0);
 		glDisable(GL_LIGHTING);
 		GPU_end_object_materials();
 	} else {
@@ -6327,7 +6332,7 @@ static void bbs_mesh_solid_EM(Scene *scene, View3D *v3d, Object *ob, DerivedMesh
 	cpack(0);
 
 	if (facecol) {
-		dm->drawMappedFaces(dm, NULL, 0, bbs_mesh_solid__setSolidDrawOptions, (void*)(intptr_t) 1, 0);
+		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid__setSolidDrawOptions, (void*)(intptr_t) 1, 0);
 
 		if(check_ob_drawface_dot(scene, v3d, ob->dt)) {
 			glPointSize(UI_GetThemeValuef(TH_FACEDOT_SIZE));
@@ -6338,7 +6343,7 @@ static void bbs_mesh_solid_EM(Scene *scene, View3D *v3d, Object *ob, DerivedMesh
 		}
 
 	} else {
-		dm->drawMappedFaces(dm, NULL, 0, bbs_mesh_solid__setSolidDrawOptions, (void*) 0, 0);
+		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid__setSolidDrawOptions, (void*) 0, 0);
 	}
 }
 
@@ -6368,8 +6373,10 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 	
 	glColor3ub(0, 0, 0);
 		
-	if(face_sel_mode)	dm->drawMappedFaces(dm, NULL, 0, bbs_mesh_solid_hide__setDrawOpts, me, 0);
-	else				dm->drawMappedFaces(dm, NULL, 0, bbs_mesh_solid__setDrawOpts, me, 0);
+	if(face_sel_mode)
+		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid_hide__setDrawOpts, me, DM_DRAW_BACKBUF_SEL);
+	else
+		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid__setDrawOpts, me, DM_DRAW_BACKBUF_SEL);
 
 	dm->release(dm);
 }
@@ -6472,11 +6479,11 @@ static void draw_object_mesh_instance(Scene *scene, View3D *v3d, RegionView3D *r
 		glEnable(GL_LIGHTING);
 		
 		if(dm) {
-			dm->drawFacesSolid(dm, NULL, 0, GPU_enable_material);
+			dm->drawFacesSolid(dm, NULL, GPU_enable_material, 0);
 			GPU_end_object_materials();
 		}
 		else if(edm)
-			edm->drawMappedFaces(edm, NULL, 0, NULL, NULL, 0);
+			edm->drawMappedFaces(edm, NULL, NULL, NULL, 0);
 		
 		glDisable(GL_LIGHTING);
 	}

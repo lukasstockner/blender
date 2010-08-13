@@ -136,9 +136,11 @@ void GPU_drawobject_free( struct DerivedMesh *dm );
 /* Buffers for PBVH drawing */
 typedef struct GPU_Buffers GPU_Buffers;
 
+/* TODO: merge with DMDrawFlags? */
 typedef enum {
 	GPU_DRAW_SMOOTH = 1,
 	GPU_DRAW_ACTIVE_MCOL = 2,
+	GPU_DRAW_PTEX_TEXELS = 4,
 } GPUDrawFlags;
 
 GPU_Buffers *GPU_build_mesh_buffers(struct GHash *map, struct MVert *mvert,

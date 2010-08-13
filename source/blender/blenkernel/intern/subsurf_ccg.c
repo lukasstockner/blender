@@ -1410,17 +1410,18 @@ static int ccgdm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 /* Only used by non-editmesh types */
 static void ccgDM_drawFacesSolid(DerivedMesh *dm,
 				 float (*partial_redraw_planes)[4],
-				 int fast_navigate,
-				 int (*setMaterial)(int, void *attribs)) {
+				 int (*setMaterial)(int, void *attribs),
+				 DMDrawFlags flags) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	CCGFaceIterator *fi;
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
-	int step = (fast_navigate)? gridSize-1: 1;
+	int step = (flags & DM_DRAW_FAST_NAV)? gridSize-1: 1;
 
-	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, setMaterial, fast_navigate, 0))
+	if(!(flags & DM_DRAW_BACKBUF_SEL) &&
+	   ccgdm_draw_pbvh(dm, partial_redraw_planes, setMaterial, flags & DM_DRAW_FAST_NAV, 0))
 		return;
 
 	fi = ccgSubSurf_getFaceIterator(ss);
@@ -1913,9 +1914,8 @@ static void gl_color_from_grid(DMGridData *elem, GridKey *gridkey)
 
 static void ccgDM_drawMappedFaces(DerivedMesh *dm, 
 				  float (*partial_redraw_planes)[4],
-				  int fast_navigate,
 				  int (*setDrawOptions)(void *userData, int index, int *drawSmooth_r),
-				  void *userData, int useColors) {
+				  void *userData, DMDrawFlags flags) {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*) dm;
 	CCGSubSurf *ss = ccgdm->ss;
 	MCol *mcol= NULL;
@@ -1923,14 +1923,14 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int gridFaces = gridSize - 1, totface;
-	int step = (fast_navigate)? gridSize-1: 1;
+	int step = (flags & DM_DRAW_FAST_NAV)? gridSize-1: 1;
 
-	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, NULL, fast_navigate,
-			   useColors ? GPU_DRAW_ACTIVE_MCOL : 0))
+	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, NULL, (flags & DM_DRAW_FAST_NAV),
+			   (flags & DM_DRAW_USE_COLORS) ? GPU_DRAW_ACTIVE_MCOL : 0))
 		return;
 
-	if(useColors) {
-		if(fast_navigate) {
+	if(flags & DM_DRAW_USE_COLORS) {
+		if(flags & DM_DRAW_FAST_NAV) {
 			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			glEnable(GL_COLOR_MATERIAL);
 		}
@@ -2058,7 +2058,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		}
 	}
 
-	if(fast_navigate)
+	if(flags & DM_DRAW_FAST_NAV)
 		glDisable(GL_COLOR_MATERIAL);
 }
 static void ccgDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData) {

@@ -1019,22 +1019,83 @@ GPU_Buffers *GPU_build_grid_buffers(DMGridData **grids,
 	return buffers;
 }
 
+/* create a global texture for visualizing ptex texels */
+static void gpu_bind_ptex_pattern()
+{
+	static int inited = 0;
+	static GLuint ptex_pattern_gltex = 0;
+
+	if(!inited) {
+		#define color1 64, 255, 255
+		#define color2 255, 128, 255
+		unsigned char pattern[2*2*3] = {
+			color1, color2,
+			color2, color1
+		};
+		unsigned char avg[3] = {160, 192, 255};
+
+		glGenTextures(1, &ptex_pattern_gltex);
+
+		glBindTexture(GL_TEXTURE_2D, ptex_pattern_gltex);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 2, 2,
+			     0, GL_RGB, GL_UNSIGNED_BYTE, pattern);
+
+		glTexImage2D(GL_TEXTURE_2D, 1, GL_RGB, 1, 1,
+			     0, GL_RGB, GL_UNSIGNED_BYTE, avg);
+
+		inited = 1;
+	}
+
+	glBindTexture(GL_TEXTURE_2D, ptex_pattern_gltex);
+}
+
 static void gpu_draw_node_mesh_ptex_no_vb(GPU_Buffers *buffers, MFace *mface, MVert *mvert,
-					  int *face_indices, int totface, GPUDrawFlags flags)
+					  MPtex *mptex, int *face_indices,
+					  int totface, GPUDrawFlags flags)
 {
 	int i, j, id;
+	int editing = (flags & GPU_DRAW_PTEX_TEXELS);
+
+	if(editing) {
+		gpu_bind_ptex_pattern();
+
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
+	}
 
 	for(i = 0, id = 0; i < totface; ++i) {
 		int face_index = face_indices[i];
 		MFace *f = mface + face_index;
+		MPtex *pt = mptex + face_index;
 		int S = f->v4 ? 4 : 3;
+		float uv[4][2] = {{0,0}, {1,0}, {1,1}, {0,1}};
+
+		if(editing) {
+			if(f->flag & ME_FACE_SEL)
+				glColor3ub(255, 255, 255);
+			else
+				glColor3ub(128, 128, 128);				
+		}
 
 		if(S == 4) {
 			/* fast case */
 
-			float uv[4][2] = {{0,0}, {1,0}, {1,1}, {0,1}};
+			if(editing) {
+				uv[1][0] = pt->res[0][0] / 2;
+				uv[2][0] = pt->res[0][0] / 2;
+				uv[2][1] = pt->res[0][1] / 2;
+				uv[3][1] = pt->res[0][1] / 2;
+			}
+			else
+				glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
 
-			glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
 			glBegin(GL_QUADS);
 
 			for(j = 0; j < 4; ++j) {
@@ -1067,26 +1128,37 @@ static void gpu_draw_node_mesh_ptex_no_vb(GPU_Buffers *buffers, MFace *mface, MV
 				int prev = j == 0 ? S-1 : j-1;
 				int vndx = (&f->v1)[j];
 
-				glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
+				if(editing) {
+					uv[1][0] = pt->res[j][0] / 2;
+					uv[2][0] = pt->res[j][0] / 2;
+					uv[2][1] = pt->res[j][1] / 2;
+					uv[3][1] = pt->res[j][1] / 2;
+				}
+				else
+					glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
+
 				glBegin(GL_QUADS);
 
-				glTexCoord2f(0, 0);
+				glTexCoord2fv(uv[0]);
 				glNormal3sv(mvert[vndx].no);
 				glVertex3fv(mvert[vndx].co);
 
-				glTexCoord2f(1, 0);
+				glTexCoord2fv(uv[1]);
 				glVertex3fv(half[j]);
 
-				glTexCoord2f(1, 1);
+				glTexCoord2fv(uv[2]);
 				glVertex3fv(center);
 
-				glTexCoord2f(0, 1);
+				glTexCoord2fv(uv[3]);
 				glVertex3fv(half[prev]);
 
 				glEnd();
 			}
 		}
 	}
+
+	if(editing)
+		glDisable(GL_COLOR_MATERIAL);
 }
 
 static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, GPUDrawFlags flags)
@@ -1095,6 +1167,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 	GridKey *gridkey;
 	int *grid_indices, totgrid, gridsize;
 	CustomData *vdata = NULL, *fdata = NULL;
+	MPtex *mptex;
 	int mcol_first_layer, pmask_first_layer;
 	int i, use_grids, use_color;
 
@@ -1122,16 +1195,15 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		glEnable(GL_COLOR_MATERIAL);
 	}
 
-	if(buffers->ptex && GPU_DRAW_ACTIVE_MCOL)
+	if(buffers->ptex && GPU_DRAW_ACTIVE_MCOL) {
+		mptex = CustomData_get_layer(fdata, CD_MPTEX);
 		glEnable(GL_TEXTURE_2D);
+	}
 
 	if(use_grids) {
 		int x, y;
 		int use_ptex = GPU_DRAW_ACTIVE_MCOL && buffers->ptex;
 		GridToFace *grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
-		MPtex *mptex;
-
-		mptex = CustomData_get_layer(fdata, CD_MPTEX);
 
 		BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
 					&totgrid, NULL, &gridsize,
@@ -1215,7 +1287,8 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
 
 		if(flags & GPU_DRAW_ACTIVE_MCOL && buffers->ptex) {
-			gpu_draw_node_mesh_ptex_no_vb(buffers, mface, mvert, face_indices, totface, flags);
+			gpu_draw_node_mesh_ptex_no_vb(buffers, mface, mvert, mptex,
+						      face_indices, totface, flags);
 			return;
 		}
 
