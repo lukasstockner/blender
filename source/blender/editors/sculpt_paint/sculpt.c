@@ -515,7 +515,7 @@ static int sculpt_brush_test_cyl(SculptBrushTest *test, float co[3], float locat
 static float overlapped_curve(Brush* br, float x)
 {
 	int i;
-	const int n = 100 / (br->adaptive_space_factor*br->spacing);
+	const int n = 100 / ((br->flag&BRUSH_ADAPTIVE_SPACE ? br->adaptive_space_factor : 1.0f)  *  br->spacing);
 	const float h = br->spacing / 50.0f;
 	const float x0 = x-1;
 
@@ -2423,7 +2423,7 @@ static void do_clay_strips_brush(Sculpt *sd, SculptSession *ss, PBVHNode **nodes
 
 	int flip;
 
-	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, an, fc);
+	calc_sculpt_plane(sd, ss, nodes, totnode, brush->sculpt_plane_range, sn, fc);
 
 	set_brush_local_mat(sd, ss, brush, NULL, 0, sn);
 
