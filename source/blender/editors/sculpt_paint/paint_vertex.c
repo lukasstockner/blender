@@ -1558,75 +1558,6 @@ static void vpaint_blend(Brush *brush, PaintStroke *stroke, float col[4], float 
 		IMB_blend_color_float(col, col, src, alpha, tool);
 }
 
-/* TODO */
-#if 0
-static void vpaint_nodes_grids(Brush *brush, PaintStroke *stroke,
-			       MPtex *ptexes, GridToFace *grid_face_map,
-			       DMGridData **grids, CustomData *vdata,
-			       GridKey *gridkey,
-			       int *grid_indices, int totgrid,
-			       int gridsize)
-{
-	PaintStrokeTest test;
-	int i;
-
-	paint_stroke_test_init(&test, stroke);
-
-	for(i = 0; i < totgrid; ++i) {
-		DMGridData *grid = grids[grid_indices[i]];
-		PTex *ptex = &ptexes[grid_face_map[grid_indices[i]].face];
-		int offset = grid_face_map[grid_indices[i]].offset * ptex->ures*ptex->vres;
-		int u, v;
-		float x, y, xfac, yfac;
-
-		xfac = (gridsize-1);
-		if(ptex->ures > 1) xfac /= (float)(ptex->ures - 1);
-		yfac = (gridsize-1);
-		if(ptex->vres > 1) yfac /= (float)(ptex->vres - 1);
-
-		for(v = 0; v < ptex->vres; ++v) {
-			for(u = 0; u < ptex->ures; ++u) {
-				DMGridData *elem[4];
-				float *color, co[3], co_top[3], co_bot[3];
-				int xi, yi;
-
-				color = ptex->colors[offset + v*ptex->ures+ u];
-
-				/* do a naive interpolation to get gridco,
-				   can probably do this much better */
-
-				x = u*xfac;
-				y = v*yfac;
-				xi = (int)x;
-				yi = (int)y;
-
-				elem[0] = GRIDELEM_AT(grid, yi*gridsize+xi, gridkey);
-				elem[1] = GRIDELEM_AT(grid, (yi+1)*gridsize+xi, gridkey);
-				elem[2] = GRIDELEM_AT(grid, (yi+1)*gridsize+xi+1, gridkey);
-				elem[3] = GRIDELEM_AT(grid, yi*gridsize+xi+1, gridkey);
-
-				interp_v3_v3v3(co_top, GRIDELEM_CO(elem[0], gridkey),
-					       GRIDELEM_CO(elem[3], gridkey), x - xi);
-
-				interp_v3_v3v3(co_bot, GRIDELEM_CO(elem[1], gridkey),
-					       GRIDELEM_CO(elem[2], gridkey), x - xi);
-
-				interp_v3_v3v3(co, co_top, co_bot, y - yi);
-
-				if(paint_stroke_test(&test, co)) {
-					float strength;
-					
-					strength = brush->alpha *
-						paint_stroke_combined_strength(stroke, test.dist, co, 0);
-					
-					vpaint_blend(brush, color, strength);
-				}
-			}
-		}
-	}
-}
-#endif
-
 static void ptex_elem_to_float4(PtexDataType type, int channels, void *data, float fcol[4])
 {
 	int i;
@@ -1770,145 +1701,28 @@ static void vpaint_node_grids(Brush *brush, PaintStroke *stroke,
 		DMGridData *grid = grids[g];
 		GridToFace *gtf = &grid_face_map[g];
 		MPtex *pt = &mptex[gtf->face];
-		char *data;
-		int layersize;
-		int ures, vres, res[2], rowlen;
-		int x, y, u, v, ustep, vstep, rot;
-		int xstep, ystep, xstart, ystart, inverse;
+		MPtexSubface *subface = &pt->subfaces[gtf->offset];
+		int u, v, x, y, layersize, res[2];
 
 		layersize = pt->channels * ptex_data_size(pt->type);
-		data = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
 
-		ustep = MAX2(ures / (gridsize - 1), 1);
-		vstep = MAX2(vres / (gridsize - 1), 1);
-		res[0] = ustep, res[1] = vstep;
+		res[0] = MAX2(subface->res[0] / (gridsize - 1), 1);
+		res[1] = MAX2(subface->res[1] / (gridsize - 1), 1);
 
-		rot = (pt->subfaces == 1)? gtf->offset : 0;
-		
-		/* step through the grid in different directions based on
-		   grid rotation relative to the ptex */
-		switch(rot) {
-		case 0:
-			xstep = -1;
-			ystep = -1;
-			inverse = 1;
-			break;
-		case 1:
-			xstep = 1;
-			ystep = -1;
-			inverse = 0;
-			break;
-		case 2:
-			xstep = 1;
-			ystep = 1;
-			inverse = 1;
-			break;
-		case 3:
-			xstep = -1;
-			ystep = 1;
-			inverse = 0;
-			break;
-		}
-
-		if(xstep == 1)
-			xstart = 0;
-		else
-			xstart = gridsize - 1;
-		if(ystep == 1)
-			ystart = 0;
-		else
-			ystart = gridsize - 1;
-
-		for(v = 0, y = ystart; v < vres; v += vstep, y += ystep) {
-			for(u = 0, x = xstart; u < ures; u += ustep, x += xstep) {
-				int r = y, c = x, rstep = ystep, cstep = xstep;
-
-				if(inverse) {
-					SWAP(int, r, c);
-					SWAP(int, rstep, cstep);
-				}
-
-				{
-					float *co[4] = {
-						GRIDELEM_CO_AT(grid, r*gridsize+c, gridkey),
-						GRIDELEM_CO_AT(grid, r*gridsize+(c+cstep), gridkey),
-
-						GRIDELEM_CO_AT(grid, (r+rstep)*gridsize+(c+cstep), gridkey),
-						GRIDELEM_CO_AT(grid, (r+rstep)*gridsize+c, gridkey),
-					};
-
-					if(inverse)
-						SWAP(float*, co[1], co[3]);
+		for(v = 0, y = 0; v < subface->res[1]; v += res[1], ++y) {
+			for(u = 0, x = 0; u < subface->res[0]; u += res[0], ++x) {
+				float *co[4] = {
+					GRIDELEM_CO_AT(grid, y*gridsize+x, gridkey),
+					GRIDELEM_CO_AT(grid, y*gridsize+(x+1), gridkey),
 					
-					vpaint_ptex_from_quad(brush, stroke, &test,
-							      pt, res, rowlen,
-							      data + layersize * (v * rowlen + u),
-							      co[0], co[1], co[2], co[3]);
-				}
-			}
-		}
-	}
-}
+					GRIDELEM_CO_AT(grid, (y+1)*gridsize+(x+1), gridkey),
+					GRIDELEM_CO_AT(grid, (y+1)*gridsize+x, gridkey),
+				};
 
-static void vpaint_node_faces(Brush *brush, PaintStroke *stroke,
-			      MFace *mface, MVert *mvert,
-			      CustomData *vdata, CustomData *fdata,
-			      int *face_indices, int totface)
-{
-	PaintStrokeTest test;
-	MPtex *mptex;
-	MCol *mcol;
-	int pmask_totlayer, pmask_first_layer;
-	int i, j;
-
-	mcol = CustomData_get_layer(fdata, CD_MCOL);
-	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
-	pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
-
-	paint_stroke_test_init(&test, stroke);
-
-	mptex = CustomData_get_layer(fdata, CD_MPTEX);
-	
-	for(i = 0; i < totface; ++i) {
-		int face_index = face_indices[i];
-		MFace *f = mface + face_index;
-		MPtex *pt = &mptex[face_index];
-		int S = f->v4 ? 4 : 3;
-
-		if(S == 4) {
-			/* fast case */
-			vpaint_ptex_from_quad(brush, stroke, &test, pt,
-					      pt->res[0], pt->res[0][0], pt->data,
-					      mvert[f->v1].co, mvert[f->v2].co,
-					      mvert[f->v3].co, mvert[f->v4].co);
-		}
-		else {
-			/* subfaces */
-
-			/* for now this is just tris, can be updated for ngons too */
-
-			float half[4][3], center[3];
-			int layersize = pt->channels * ptex_data_size(pt->type);
-			char *data = pt->data;
-
-			for(j = 0; j < 3; ++j) {
-				int next = (j == S-1) ? 0 : j+1;
-				mid_v3_v3v3(half[j], mvert[(&f->v1)[j]].co, mvert[(&f->v1)[next]].co);
-			}
-
-			cent_tri_v3(center, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
-
-			for(j = 0; j < 3; ++j) {
-				int vndx = (&f->v1)[j];
-				int prev = j==0 ? S-1 : j-1;
-
-				vpaint_ptex_from_quad(brush, stroke, &test, pt,
-						      pt->res[j], pt->res[j][0], data,
-						      mvert[vndx].co, half[j],
-						      center, half[prev]);
-
-				data += layersize * pt->res[j][0]*pt->res[j][1];
-
+				vpaint_ptex_from_quad(brush, stroke, &test,
+						      pt, res, subface->res[0],
+						      (char*)subface->data + layersize * (v * subface->res[0] + u),
+						      co[0], co[1], co[2], co[3]);
 			}
 		}
 	}
@@ -1920,51 +1734,33 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 {
 	PBVH *pbvh = ob->paint->pbvh;
 	Brush *brush = paint_brush(&vp->paint);
-	int blur = brush->vertexpaint_tool == VERTEX_PAINT_BLUR;
 	CustomData *vdata = NULL;
 	CustomData *fdata = NULL;
+	GridToFace *grid_face_map;
 	int n;
 
+	assert(BLI_pbvh_uses_grids(pbvh));
+
 	BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
+	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 
 	for(n = 0; n < totnode; ++n) {
-		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PTEX, ob);
+		DMGridData **grids;
+		GridKey *gridkey;
+		int *grid_indices;
+		int totgrid, gridsize;
 
-		if(BLI_pbvh_uses_grids(pbvh)) {
-			DMGridData **grids;
-			GridKey *gridkey;
-			int *grid_indices;
-			int totgrid, gridsize;
-			GridToFace *grid_face_map;
+		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PTEX, ob, scene);
 
-			grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
-			BLI_pbvh_node_get_grids(pbvh, nodes[n],
-						&grid_indices, &totgrid, NULL,
-						&gridsize, &grids, NULL, &gridkey);
+		BLI_pbvh_node_get_grids(pbvh, nodes[n],
+					&grid_indices, &totgrid, NULL,
+					&gridsize, &grids, NULL, &gridkey);
 
-			vpaint_node_grids(brush, stroke,
-					  grids, gridkey,
-					  grid_face_map, fdata,
-					  grid_indices,
-					  totgrid, gridsize);
-		}
-		else {
-			MVert *mvert;
-			MFace *mface;
-			int *face_indices, totface;
-
-			BLI_pbvh_node_get_verts(pbvh, nodes[n], NULL, &mvert);
-			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface,
-						&face_indices, NULL, &totface);
-
-			if(!blur) {
-				vpaint_node_faces(brush, stroke,
-						  mface, mvert,
-						  vdata, fdata,
-						  face_indices,
-						  totface);
-			}
-		}
+		vpaint_node_grids(brush, stroke,
+				  grids, gridkey,
+				  grid_face_map, fdata,
+				  grid_indices,
+				  totgrid, gridsize);
 
 		BLI_pbvh_node_set_flags(nodes[n],
 			SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
@@ -1973,65 +1769,30 @@ static void vpaint_nodes(VPaint *vp, PaintStroke *stroke,
 }
 
 static void vpaint_restore_node(PBVH *pbvh, PBVHNode *node, PBVHUndoNode *unode,
-				CustomData *fdata,
-				int uses_grids, GridToFace *grid_face_map)
+				CustomData *fdata, GridToFace *grid_face_map)
 {
 	MPtex *mptex;
-	int i;
+	int *grid_indices, totgrid, i;
 
 	mptex = CustomData_get_layer_named(fdata, CD_MPTEX,
 					   (char*)pbvh_undo_node_mptex_name(unode));
 
-	if(uses_grids) {
-		int *grid_indices, totgrid;
+	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 
-		BLI_pbvh_node_get_grids(pbvh, node,
-					&grid_indices, &totgrid,
-					NULL, NULL, NULL, NULL, NULL);
+	BLI_pbvh_node_get_grids(pbvh, node,
+				&grid_indices, &totgrid,
+				NULL, NULL, NULL, NULL, NULL);
 
-		for(i = 0; i < totgrid; ++i) {
-			GridToFace *gtf;
-			MPtex *src_pt, *dest_pt;
-			char *src_data, *dest_data;
-			int layersize, rowlen, ures, vres, v;
-
-			gtf = &grid_face_map[grid_indices[i]];
-
-			dest_pt = mptex + gtf->face;
-			src_pt = &pbvh_undo_node_mptex(unode)[i];
-
-			dest_data = mptex_grid_offset(dest_pt, gtf->offset, &ures, &vres, &rowlen);
-			src_data = src_pt->data;
-
-			layersize = dest_pt->channels * ptex_data_size(dest_pt->type);
-
-			for(v = 0; v < vres; ++v) {
-				memcpy(dest_data, src_data, layersize*ures);
-
-				src_data += layersize*ures;
-				dest_data += layersize*rowlen;
-			}
-		}
-	}
-	else {
-		int *face_indices, totface;
-
-		BLI_pbvh_node_get_faces(pbvh, node, NULL,
-					&face_indices, NULL, &totface);
-
-		for(i = 0; i < totface; i++) {
-			MPtex *pt = &mptex[face_indices[i]];
-			int layersize, texels, j;
+	for(i = 0; i < totgrid; i++) {
+		GridToFace *gtf = &grid_face_map[grid_indices[i]];
+		MPtex *pt = &mptex[gtf->face];
+		MPtexSubface *subface = &pt->subfaces[gtf->offset];
+		int layersize;
 			
-			for(j = 0, texels = 0; j < pt->subfaces; ++j)
-				texels += pt->res[j][0] * pt->res[j][1];
+		layersize = pt->channels * ptex_data_size(pt->type);
 
-			layersize = pt->channels * ptex_data_size(pt->type);
-
-			memcpy(pt->data, pbvh_undo_node_mptex(unode)[i].data,
-			       layersize * texels);
-			     
-		}
+		memcpy(subface->data, pbvh_undo_node_mptex_data(unode, i),
+		       layersize * subface->res[0] * subface->res[1]);
 	}
 
 	BLI_pbvh_node_set_flags(node, SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
@@ -2050,11 +1811,10 @@ static void vpaint_restore(VPaint *vp, Object *ob)
 		PBVHNode **nodes;
 		CustomData *fdata;
 		GridToFace *grid_face_map;
-		int n, totnode, uses_grids;
+		int n, totnode;
 
 		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
 
-		uses_grids = BLI_pbvh_uses_grids(pbvh);
 		grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 		BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
 
@@ -2063,7 +1823,7 @@ static void vpaint_restore(VPaint *vp, Object *ob)
 			
 			unode= pbvh_undo_get_node(nodes[n]);
 			if(unode) {
-				vpaint_restore_node(pbvh, nodes[n], unode, fdata, uses_grids, grid_face_map);
+				vpaint_restore_node(pbvh, nodes[n], unode, fdata, grid_face_map);
 			}
 		}
 
@@ -2083,8 +1843,7 @@ static void vpaint_stroke_update_step(bContext *C, PaintStroke *stroke,
 	paint_stroke_apply_brush(C, stroke, &vp->paint);
 
 	if(paint_brush(&vp->paint)->vertexpaint_tool == VERTEX_PAINT_BLUR)
-		multires_stitch_grids(ob);
-	multires_mark_as_modified(ob);
+		;//multires_stitch_grids(ob);
 
 	/* partial redraw */
 	paint_tag_partial_redraw(C, ob);

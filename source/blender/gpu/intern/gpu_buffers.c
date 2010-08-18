@@ -767,12 +767,11 @@ static void gpu_create_ptex_textures(GPU_Buffers *buffers)
 }
 
 static void gpu_init_ptex_texture(GLuint id, GLenum glformat, GLenum gltype,
-				  int rowlen, int ures, int vres, void *data)
+				  int ures, int vres, void *data)
 {
 	glBindTexture(GL_TEXTURE_2D, id);
 
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, rowlen);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -782,52 +781,8 @@ static void gpu_init_ptex_texture(GLuint id, GLenum glformat, GLenum gltype,
 		     0, glformat, gltype, data);
 }
 
-void GPU_update_mesh_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
+void GPU_update_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 {
-	CustomData *fdata;
-	MFace *mface;
-	MPtex *mptex;
-	int *face_indices, totface;
-	int i, j, id;
-
-	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
-	BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
-
-	/* TODO: composite multiple layers */
-	mptex = CustomData_get_layer(fdata, CD_MPTEX);
-
-	/* one texture per subface */
-	if(!buffers->ptex) {
-		for(i = 0, buffers->totptex = 0; i < totface; ++i)
-			buffers->totptex += mptex[face_indices[i]].subfaces;
-		gpu_create_ptex_textures(buffers);
-	}
-
-	for(i = 0, id = 0; i < totface; ++i) {
-		int face_ndx = face_indices[i];
-		MPtex *pt = &mptex[face_ndx];
-		char *data = pt->data;
-
-		GLenum gltype = gl_type_from_ptex(pt);
-		GLenum glformat = gl_format_from_ptex(pt);
-
-		int layersize = pt->channels * ptex_data_size(pt->type);
-
-		for(j = 0; j < pt->subfaces; ++j, ++id) {
-			gpu_init_ptex_texture(buffers->ptex[id], glformat, gltype,
-					      0, pt->res[j][0], pt->res[j][1], data);
-
-			data += layersize * pt->res[j][0] * pt->res[j][1];
-		}
-	}
-
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-}
-
-void GPU_update_grids_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
-{
-	DMGridData **grids;
 	int *grid_indices, totgrid;
 	GridToFace *grid_face_map;
 	CustomData *fdata;
@@ -837,13 +792,17 @@ void GPU_update_grids_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
 	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 
-	BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
-				&totgrid, NULL, NULL,
-				&grids, NULL, NULL);
+	assert(BLI_pbvh_uses_grids(pbvh));
 
+	BLI_pbvh_node_get_grids(pbvh, node,
+				&grid_indices, &totgrid,
+				NULL, NULL, NULL, NULL, NULL);
+
+	/* TODO: composite multiple layers */
 	mptex = CustomData_get_layer(fdata, CD_MPTEX);
 	
-	/* one texture per grid */
+	/* one texture per grid
+	   TODO: pack multiple textures together? */
 	if(!buffers->ptex) {
 		buffers->totptex = totgrid;
 		gpu_create_ptex_textures(buffers);
@@ -852,15 +811,13 @@ void GPU_update_grids_ptex(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node)
 	for(i = 0; i < totgrid; ++i) {
 		GridToFace *gtf = &grid_face_map[grid_indices[i]];
 		MPtex *pt = &mptex[gtf->face];
-		char *data;
-		int rowlen, ures, vres;
-
-		data = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
+		MPtexSubface *subface = &pt->subfaces[gtf->offset];
 
 		gpu_init_ptex_texture(buffers->ptex[i],
 				      gl_format_from_ptex(pt),
 				      gl_type_from_ptex(pt),
-				      rowlen, ures, vres, data);
+				      subface->res[0], subface->res[1],
+				      subface->data);
 	}
 
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -1052,111 +1009,6 @@ static void gpu_bind_ptex_pattern()
 	glBindTexture(GL_TEXTURE_2D, ptex_pattern_gltex);
 }
 
-static void gpu_draw_node_mesh_ptex_no_vb(GPU_Buffers *buffers, MFace *mface, MVert *mvert,
-					  MPtex *mptex, int *face_indices,
-					  int totface, DMDrawFlags flags)
-{
-	int i, j, id;
-	int editing = (flags & DM_DRAW_PTEX_TEXELS);
-
-	if(editing) {
-		gpu_bind_ptex_pattern();
-
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-		glEnable(GL_COLOR_MATERIAL);
-	}
-
-	for(i = 0, id = 0; i < totface; ++i) {
-		int face_index = face_indices[i];
-		MFace *f = mface + face_index;
-		MPtex *pt = mptex + face_index;
-		int S = f->v4 ? 4 : 3;
-		float uv[4][2] = {{0,0}, {1,0}, {1,1}, {0,1}};
-
-		if(editing) {
-			if(f->flag & ME_FACE_SEL)
-				glColor3ub(255, 255, 255);
-			else
-				glColor3ub(128, 128, 128);				
-		}
-
-		if(S == 4) {
-			/* fast case */
-
-			if(editing) {
-				uv[1][0] = pt->res[0][0] / 2;
-				uv[2][0] = pt->res[0][0] / 2;
-				uv[2][1] = pt->res[0][1] / 2;
-				uv[3][1] = pt->res[0][1] / 2;
-			}
-			else
-				glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
-
-			glBegin(GL_QUADS);
-
-			for(j = 0; j < 4; ++j) {
-				int vndx = (&f->v1)[j];
-
-				glTexCoord2fv(uv[j]);
-				glNormal3sv(mvert[vndx].no);
-				glVertex3fv(mvert[vndx].co);
-			}
-
-			glEnd();
-
-			++id;
-		}
-		else {
-			/* split ngons into subfaces (still quads) */
-
-			/* for now this is just tris, can be updated for ngons too */
-			float center[3];
-			float half[4][3];
-
-			cent_tri_v3(center, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
-
-			for(j = 0; j < 3; ++j) {
-				int next = (j == S-1) ? 0 : j+1;
-				mid_v3_v3v3(half[j], mvert[(&f->v1)[j]].co, mvert[(&f->v1)[next]].co);
-			}
-
-			for(j = 0; j < 3; ++j, ++id) {
-				int prev = j == 0 ? S-1 : j-1;
-				int vndx = (&f->v1)[j];
-
-				if(editing) {
-					uv[1][0] = pt->res[j][0] / 2;
-					uv[2][0] = pt->res[j][0] / 2;
-					uv[2][1] = pt->res[j][1] / 2;
-					uv[3][1] = pt->res[j][1] / 2;
-				}
-				else
-					glBindTexture(GL_TEXTURE_2D, buffers->ptex[id]);
-
-				glBegin(GL_QUADS);
-
-				glTexCoord2fv(uv[0]);
-				glNormal3sv(mvert[vndx].no);
-				glVertex3fv(mvert[vndx].co);
-
-				glTexCoord2fv(uv[1]);
-				glVertex3fv(half[j]);
-
-				glTexCoord2fv(uv[2]);
-				glVertex3fv(center);
-
-				glTexCoord2fv(uv[3]);
-				glVertex3fv(half[prev]);
-
-				glEnd();
-			}
-		}
-	}
-
-	if(editing)
-		glDisable(GL_COLOR_MATERIAL);
-}
-
 static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
 {
 	DMGridData **grids;
@@ -1198,7 +1050,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 
 	if(use_grids) {
 		int x, y;
-		GridToFace *grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+		//GridToFace *grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 
 		BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
 					&totgrid, NULL, &gridsize,
@@ -1206,30 +1058,14 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 
 		for(i = 0; i < totgrid; ++i) {
 			DMGridData *grid = grids[grid_indices[i]];
-			GridToFace *gtf = &grid_face_map[grid_indices[i]];
 			float u, v, uvstep;
 
 			uvstep = 1.0;
 			if(gridsize > 1)
 				uvstep /= gridsize - 1;
 
-			if(use_ptex) {
-				int angle;
-
-				if(mptex[gtf->face].subfaces == 1)
-					angle = 180 + 90 * gtf->offset;
-				else
-					angle = 180;
-
-				glMatrixMode(GL_TEXTURE);
-				glLoadIdentity();
-				glTranslatef(0.5, 0.5, 0);
-				glRotatef(angle, 0, 0, 1);
-				glTranslatef(-0.5, -0.5, 0);
-				glMatrixMode(GL_MODELVIEW);
-				
+			if(use_ptex)
 				glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
-			}
 
 			for(y = 0, v = 0; y < gridsize-1; y++, v += uvstep) {
 				u = 0;
@@ -1253,13 +1089,13 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 					if(use_color)
 						glColor3ubv(aglc);
 					if(use_ptex)
-						glTexCoord2f(v, u);
+						glTexCoord2f(u, v);
 					glNormal3fv(GRIDELEM_NO(a, gridkey));
 					glVertex3fv(GRIDELEM_CO(a, gridkey));
 					if(use_color)
 						glColor3ubv(bglc);
 					if(use_ptex)
-						glTexCoord2f(v + uvstep, u);
+						glTexCoord2f(u, v + uvstep);
 					glNormal3fv(GRIDELEM_NO(b, gridkey));
 					glVertex3fv(GRIDELEM_CO(b, gridkey));
 				}
@@ -1280,12 +1116,6 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 
 		BLI_pbvh_node_get_verts(pbvh, node, NULL, &mvert);
 		BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
-
-		if(use_ptex) {
-			gpu_draw_node_mesh_ptex_no_vb(buffers, mface, mvert, mptex,
-						      face_indices, totface, flags);
-			return;
-		}
 
 		if(mcol_first_layer)
 			mcol_totlayer = CustomData_number_of_layers(fdata, CD_MCOL);

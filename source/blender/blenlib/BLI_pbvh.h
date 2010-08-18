@@ -32,11 +32,11 @@ struct CustomData;
 struct MFace;
 struct MVert;
 struct GridKey;
-struct GridToFace;
 struct DMGridAdjacency;
 struct DMGridData;
 struct PBVH;
 struct PBVHNode;
+struct GridToFace;
 struct ListBase;
 
 typedef struct PBVH PBVH;

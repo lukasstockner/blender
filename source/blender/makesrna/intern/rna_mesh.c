@@ -946,26 +946,25 @@ static int rna_MeshPtexLayer_data_length(PointerRNA *ptr)
 	return (me->edit_mesh)? 0: me->totface;
 }
 
-static void MPtex_resolution_get(PointerRNA *ptr, int *values, int num)
+static void rna_MeshPtexSubface_resolution_get(PointerRNA *ptr, int *values)
+{
+	MPtexSubface *subface= (MPtexSubface*)ptr->data;
+	values[0] = subface->res[0];
+	values[1] = subface->res[1];
+}
+
+static void rna_MeshPtex_subfaces_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	MPtex *pt= (MPtex*)ptr->data;
-	values[0] = pt->res[num][0];
-	values[1] = pt->res[num][1];
+	rna_iterator_array_begin(iter, pt->subfaces,
+				 sizeof(MPtexSubface),
+				 pt->totsubface, 0, NULL);
 }
 
-static void rna_MeshPtex_resolution1_get(PointerRNA *ptr, int *values)
+static int rna_MeshPtex_subfaces_length(PointerRNA *ptr)
 {
-	return MPtex_resolution_get(ptr, values, 0);
-}
-
-static void rna_MeshPtex_resolution2_get(PointerRNA *ptr, int *values)
-{
-	return MPtex_resolution_get(ptr, values, 1);
-}
-
-static void rna_MeshPtex_resolution3_get(PointerRNA *ptr, int *values)
-{
-	return MPtex_resolution_get(ptr, values, 2);
+	MPtex *pt= (MPtex*)ptr->data;
+	return pt->totsubface;
 }
 
 /* Custom property layers */
@@ -1738,33 +1737,22 @@ static void rna_def_ptex(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Mesh Ptex", "Variable-resolution multi-channel data");
 	RNA_def_struct_path_func(srna, "rna_MeshPtex_path");
 
-	prop= RNA_def_property(srna, "subfaces", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, 3);
+	prop= RNA_def_property(srna, "subfaces", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "MeshPtexSubface");
 	RNA_def_property_ui_text(prop, "Subfaces", "");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);	
-	
-	prop= RNA_def_property(srna, "resolution1", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "res");
-	RNA_def_property_array(prop, 2);
-	RNA_def_property_range(prop, 0, 31);
-	RNA_def_property_int_funcs(prop, "rna_MeshPtex_resolution1_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Resolution 1", "");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	
-	prop= RNA_def_property(srna, "resolution2", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "res");
-	RNA_def_property_array(prop, 2);
-	RNA_def_property_range(prop, 0, 31);
-	RNA_def_property_int_funcs(prop, "rna_MeshPtex_resolution2_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Resolution 2", "");
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_collection_funcs(prop, "rna_MeshPtex_subfaces_begin", "rna_iterator_array_next", "rna_iterator_array_end", "rna_iterator_array_get", "rna_MeshPtex_subfaces_length", 0, 0);
 
-	prop= RNA_def_property(srna, "resolution3", PROP_INT, PROP_NONE);
+	srna= RNA_def_struct(brna, "MeshPtexSubface", NULL);
+	RNA_def_struct_sdna(srna, "MPtexSubface");
+	RNA_def_struct_ui_text(srna, "Mesh Ptex Subface", "");
+	RNA_def_struct_path_func(srna, "rna_MeshPtex_path");
+
+	prop= RNA_def_property(srna, "resolution", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "res");
 	RNA_def_property_array(prop, 2);
 	RNA_def_property_range(prop, 0, 31);
-	RNA_def_property_int_funcs(prop, "rna_MeshPtex_resolution3_get", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Resolution 3", "");
+	RNA_def_property_int_funcs(prop, "rna_MeshPtexSubface_resolution_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Resolution", "");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 }
 

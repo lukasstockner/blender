@@ -158,8 +158,7 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   int gridsize, struct GridKey *gridkey,
 				   struct CustomData *vdata, enum DMDrawFlags flags);
 
-void GPU_update_mesh_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
-void GPU_update_grids_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
+void GPU_update_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
 void GPU_draw_buffers(GPU_Buffers *buffers, struct PBVH *bvh,
 		      struct PBVHNode *node, enum DMDrawFlags flags);
 void GPU_free_buffers(GPU_Buffers *buffers);

@@ -77,7 +77,7 @@ void paintmask_brush_apply(Paint *paint, PaintStroke *stroke, PBVHNode **nodes, 
 		PBVHVertexIter vd;
 		PaintStrokeTest test;
 		
-		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
+		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob, NULL);
 		paint_stroke_test_init(&test, stroke);
 
 		BLI_pbvh_vertex_iter_begin(ob->paint->pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
@@ -248,7 +248,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			GridKey *gridkey;
 			int *grid_indices, totgrid, gridsize;
 
-			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
+			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob, scene);
 
 			BLI_pbvh_node_get_grids(pbvh, nodes[n], &grid_indices,
 						&totgrid, NULL, &gridsize,
@@ -282,7 +282,7 @@ static int paint_mask_from_texture_exec(bContext *C, wmOperator *op)
 			MFace *mface;
 			int *face_indices, totface;
 
-			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
+			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob, scene);
 
 			BLI_pbvh_node_get_faces(pbvh, nodes[n], &mface,
 						&face_indices, NULL, &totface);
@@ -368,7 +368,7 @@ static int paint_mask_set_exec(bContext *C, wmOperator *op)
 		for(n=0; n<totnode; n++) {
 			PBVHVertexIter vd;
 
-			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob);
+			pbvh_undo_push_node(nodes[n], PBVH_UNDO_PMASK, ob, scene);
 
 			BLI_pbvh_vertex_iter_begin(pbvh, nodes[n], vd, PBVH_ITER_UNIQUE) {
 				if(vd.mask_active)

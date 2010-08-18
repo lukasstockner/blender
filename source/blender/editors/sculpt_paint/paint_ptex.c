@@ -109,7 +109,6 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 		int ures;
 		int vres;
 		int gridsize;
-		int texels;
 		char *data;
 
 		if(S == 4) {
@@ -126,8 +125,8 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 					       limit_pos[me->mface[i].v1])) * 0.5f;
 			float r = len2/len1;
 
-			ures = next_power_of_two(sqrtf((face_area[i] * density) * r));
-			vres = next_power_of_two(sqrtf((face_area[i] * density) / r));
+			ures = next_power_of_two(sqrtf((face_area[i] * density) * r)) / 2;
+			vres = next_power_of_two(sqrtf((face_area[i] * density) / r)) / 2;
 		}
 		else {
 			/* do triangles uniform (subfaces) */
@@ -139,28 +138,25 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 		vres = MAX2(vres, 1);
 		gridsize = ures * vres;
 
-		mptex[i].res[0][0] = ures;
-		mptex[i].res[0][1] = vres;
+		mptex[i].totsubface = S;
 		mptex[i].type = type;
 		mptex[i].channels = totchannel;
 
-		if(S == 4) {
-			mptex[i].subfaces = 1;
-			texels = gridsize;
-		}
-		else {
-			mptex[i].res[1][0] = mptex[i].res[2][0] = ures;
-			mptex[i].res[1][1] = mptex[i].res[2][1] = vres;
-			mptex[i].subfaces = S;
-			texels = S*gridsize;
-		}
-		
-		data = mptex[i].data = MEM_callocN(layer_size * texels, "PTex colors");
-		tottexel += texels;
-		
-		for(j = 0; j < texels; ++j) {
-			memcpy(data, def_val, layer_size);
-			data += layer_size;
+		for(j = 0; j < S; ++j) {
+			int texels, k;
+
+			mptex[i].subfaces[j].res[0] = ures;
+			mptex[i].subfaces[j].res[1] = vres;
+
+			texels = ures*vres;
+			data = mptex[i].subfaces[j].data =
+				MEM_callocN(layer_size * texels, "MptexSubface.data");
+			tottexel += texels;
+
+			for(k = 0; k < texels; ++k) {
+				memcpy(data, def_val, layer_size);
+				data += layer_size;
+			}
 		}
 	}
 
@@ -213,7 +209,7 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 
 	PtexTextureHandle *ptex_texture;
 	PtexDataType ptex_data_type;
-	int totchannel, layersize;
+	int totchannel, layersize, active_offset;
 
 	char *path;
 	int i, j;
@@ -271,48 +267,123 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 	/* number of bytes for one ptex element */
 	layersize = ptex_data_size(ptex_data_type) * totchannel;
 
+	active_offset = CustomData_number_of_layers(&me->fdata, CD_MPTEX);
 	mptex = CustomData_add_layer(&me->fdata, CD_MPTEX, CD_CALLOC,
 				     NULL, me->totface);
+	CustomData_set_layer_active(&me->fdata, CD_MPTEX, active_offset);
 
 	for(i = 0, j = 0; i < me->totface; ++i) {
 		int S = me->mface[i].v4 ? 4 : 3;
-		int k, texels, faceid;
-		char *data;
+		int k, file_totsubface;
 
 		mptex[i].type = ptex_data_type;
 		mptex[i].channels = totchannel;
+		mptex[i].totsubface = S;
 
-		mptex[i].subfaces = (S==4? 1 : S);
+		/* quads don't have subfaces in ptex files */
+		file_totsubface = (S==4)? 1 : S;
 
-		/* get quad resolution or per-subface resolutions */
-		for(k = 0, texels = 0; k < mptex[i].subfaces; ++k) {
+		for(k = 0; k < file_totsubface; ++k) {
 			PtexFaceInfoHandle *ptex_face;
 			PtexResHandle *ptex_res;
+			int l, u, v, file_res[2], file_half_res[2], faceid;
+			char *filedata;
 
 			faceid = j+k;
-
+			
 			ptex_face = ptex_texture_get_face_info(ptex_texture, faceid);
 			ptex_res = ptex_face_get_res(ptex_face);
+
+			file_res[0] = ptex_res_u(ptex_res);
+			file_res[1] = ptex_res_v(ptex_res);
+			file_half_res[0] = file_res[0] >> 1;
+			file_half_res[1] = file_res[1] >> 1;
+
+			filedata = MEM_callocN(layersize * file_res[0] * file_res[1], "Ptex data from file");
+			ptex_texture_get_data(ptex_texture, faceid, filedata, 0, ptex_res);
+
+			if(S==4) {
+				int ures, vres;
+
+				/* use quarter resolution for quad subfaces */
+				ures = file_half_res[0];
+				vres = file_half_res[1];
+
+				/* TODO: handle 1xV and Ux1 inputs */
+				assert(ures > 0 && vres > 0);
+
+				for(l = 0; l < 4; ++l) {
+					char *dest, *src = filedata;
+					int src_center_offset[2], src_step, src_row_step;
+
+					SWAP(int, ures, vres);
+
+					mptex[i].subfaces[l].res[0] = ures;
+					mptex[i].subfaces[l].res[1] = vres;
+					dest = mptex[i].subfaces[l].data =
+						MEM_callocN(layersize * ures * vres,
+							    "Ptex quad data from file");
+
+					switch(l) {
+					case 0:
+						src_center_offset[0] = -1;
+						src_center_offset[1] = -1;
+						src_step = -file_res[0];
+						src_row_step = file_res[0] * file_half_res[1] - 1;
+						break;
+					case 1:
+						src_center_offset[0] = 0;
+						src_center_offset[1] = -1;
+						src_step = 1;
+						src_row_step = -file_res[0] - file_half_res[0];
+						break;
+					case 2:
+						src_center_offset[0] = 0;
+						src_center_offset[1] = 0;
+						src_step = file_res[0];
+						src_row_step = -file_res[0] * file_half_res[1] + 1;
+						break;
+					case 3:
+						src_center_offset[0] = -1;
+						src_center_offset[1] = 0;
+						src_step = -1;
+						src_row_step = file_res[0] + file_half_res[0];
+						break;
+					}
+
+					src += layersize * (file_res[0] * (file_half_res[1]+src_center_offset[1]) +
+							    file_half_res[0]+src_center_offset[0]);
+
+					for(v = 0; v < vres; ++v) {
+						for(u = 0; u < ures; ++u) {
+							memcpy(dest, src, layersize);
+							dest += layersize;
+							src += layersize * src_step;
+						}
+						src += layersize * src_row_step;
+					}
+				}
+			}
+			else {
+				mptex[i].subfaces[k].res[0] = file_res[1];
+				mptex[i].subfaces[k].res[1] = file_res[0];
+				mptex[i].subfaces[k].data = MEM_callocN(layersize * file_res[0] * file_res[1],
+								       "Ptex tri data from file");
 			
-			mptex[i].res[k][0] = ptex_res_u(ptex_res);
-			mptex[i].res[k][1] = ptex_res_v(ptex_res);
+				for(v = 0; v < file_res[1]; ++v) {
+					for(u = 0; u < file_res[0]; ++u) {
+						memcpy((char*)mptex[i].subfaces[k].data +
+						       layersize * ((file_res[0] - u - 1)*file_res[1]+ (file_res[1] - v - 1)),
+						       filedata + layersize * (v*file_res[0]+u),
+						       layersize);
+					}
+				}
+			}
 
-			texels += mptex[i].res[k][0] * mptex[i].res[k][1];
+			MEM_freeN(filedata);
 		}
 
-		data = mptex[i].data = MEM_callocN(layersize * texels, "Ptex data from file");
-
-		for(k = 0; k < mptex[i].subfaces; ++k, ++j) {
-			PtexFaceInfoHandle *ptex_face;
-			PtexResHandle *ptex_res;
-
-			ptex_face = ptex_texture_get_face_info(ptex_texture, j);
-			ptex_res = ptex_face_get_res(ptex_face);
-
-			ptex_texture_get_data(ptex_texture, j, data, 0, ptex_res);
-
-			data += layersize * mptex[i].res[k][0] * mptex[i].res[k][1];
-		}
+		j += file_totsubface;
 	}
 
 	/* data is all copied, can release ptex file */
@@ -394,7 +465,7 @@ static void ptex_elem_from_floats(MPtex *pt, void *data, float *in)
 static void ptex_bilinear_interp(MPtex *pt, void *out, char *input_start, int layersize,
 				 int offset, float x, float y, float *tmp)
 {
-	int rowlen = pt->res[offset][0];
+	int rowlen = pt->subfaces[offset].res[0];
 	int xi = (int)x;
 	int yi = (int)y;
 	int xt = xi+1, yt = yi+1;
@@ -403,9 +474,9 @@ static void ptex_bilinear_interp(MPtex *pt, void *out, char *input_start, int la
 	float u = 1 - s;
 	float v = 1 - t;
 
-	if(xt == pt->res[offset][0])
+	if(xt == pt->subfaces[offset].res[0])
 		--xt;
-	if(yt == pt->res[offset][1])
+	if(yt == pt->subfaces[offset].res[1])
 		--yt;
 
 	memset(tmp, 0, sizeof(float)*pt->channels);
@@ -423,8 +494,8 @@ static void ptex_subface_scale(MPtex *pt, char *new_data, char *old_data, float 
 	float ui, vi, ui_step, vi_step;
 	int u, v;
 
-	ui_step = (float)pt->res[offset][0] / ures;
-	vi_step = (float)pt->res[offset][1] / vres;
+	ui_step = (float)pt->subfaces[offset].res[0] / ures;
+	vi_step = (float)pt->subfaces[offset].res[1] / vres;
 	for(v = 0, vi = 0; v < vres; ++v, vi += vi_step) {
 		for(u = 0, ui = 0; u < ures; ++u, ui += ui_step, new_data += layersize) {
 			ptex_bilinear_interp(pt, new_data, old_data, layersize, offset, ui, vi, tmp);
@@ -440,6 +511,7 @@ typedef enum {
 
 static void ptex_face_resolution_set(MPtex *pt, ToolSettings *ts, PtexResOp op)
 {
+#if 0
 	char *old_data, *old_data_subface, *new_data_subface;
 	int offset, layersize, res[3][2], texels, i;
 	float *tmp;
@@ -505,6 +577,7 @@ static void ptex_face_resolution_set(MPtex *pt, ToolSettings *ts, PtexResOp op)
 	MEM_freeN(old_data);
 
 	MEM_freeN(tmp);
+#endif
 }
 
 static int ptex_face_resolution_set_exec(bContext *C, wmOperator *op)

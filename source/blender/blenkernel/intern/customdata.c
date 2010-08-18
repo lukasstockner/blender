@@ -799,55 +799,29 @@ static void layerFree_grid(void *data_v, int count, int size)
 	}
 }
 
-void *mptex_grid_offset(MPtex *pt, int offset, int *ures, int *vres, int *rowlen)
-{
-	char *data = pt->data;
-	int layersize = pt->channels * ptex_data_size(pt->type);
-
-	if(pt->subfaces == 1) {
-		*ures = pt->res[0][0] / 2;
-		*vres = pt->res[0][1] / 2;
-		*rowlen = pt->res[0][0];
-		if(offset == 1)
-			data += layersize * *ures;
-		else if(offset == 3)
-			data += layersize * *vres * *rowlen;
-		else if(offset == 2)
-			data += layersize * (*vres * *rowlen + *ures);
-	}
-	else {
-		int i;
-
-		*ures = pt->res[offset][0];
-		*vres = pt->res[offset][1];
-		*rowlen = pt->res[offset][0];
-		for(i = 0; i < offset; ++i)
-			data += layersize * pt->res[i][0] * pt->res[i][1];
-	}
-
-	return data;
-}
-
 static void layerCopy_mptex(const void *source_v, void *dest_v, int count)
 {
 	const MPtex *source = source_v;
 	MPtex *dest = dest_v;
-	int i;
+	int i, j;
 
 	for(i = 0; i < count; ++i) {
 		dest[i] = source[i];
-		dest[i].data = MEM_dupallocN(source[i].data);
+		for(j = 0; j < source[i].totsubface; ++j)
+			dest[i].subfaces[j].data = MEM_dupallocN(source[i].subfaces[j].data);
 	}
 }
 
 static void layerFree_mptex(void *data_v, int count, int size)
 {
 	MPtex *data = data_v;
-	int i;
+	int i, j;
 
 	for(i = 0; i < count; ++i) {
-		if(data[i].data)
-			MEM_freeN(data[i].data);
+		for(j = 0; j < data[i].totsubface; ++j) {
+			if(data[i].subfaces[j].data)
+				MEM_freeN(data[i].subfaces[j].data);
+		}
 	}
 }
 

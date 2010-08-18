@@ -125,18 +125,18 @@ typedef struct MDisps {
 	float (*disps)[3];
 } MDisps;
 
-typedef struct MPtex {
+typedef struct MPtexSubface {
 	void *data;
 
-	/* resolution in U and V directions, always a power of two
+	/* resolution in U and V directions, always a power of two */
+	int res[2];
+} MPtexSubface;
 
-	   only res[0] is used for quads; for non-quads, the
-	   resolution is stored per-subface */
-	int res[3][2];
+typedef struct MPtex {
+	struct MPtexSubface subfaces[4];
 
-	/* for quads, subfaces=1; anything else
-	   is set to the face's number of vertices */
-	int subfaces;
+	/* equal to face's number of vertices */
+	int totsubface;
 
 	/* enum PtexDataType */
 	char type;

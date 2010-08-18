@@ -1390,7 +1390,7 @@ static int ccgdm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 
 	ccgdm_pbvh_update(ccgdm);
 
-	if(ccgdm->pbvh && ccgdm->multires.mmd && !(flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL)) {
+	if(ccgdm->pbvh && (ccgdm->multires.mmd || DM_DRAW_PTEX) && !(flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL)) {
 		if(dm->numFaceData) {
 			/* should be per face */
 			if(setMaterial && !setMaterial(faceFlags[1]+1, NULL))
@@ -2416,33 +2416,6 @@ static GridKey *ccgDM_getGridKey(DerivedMesh *dm)
 	return ccgSubSurf_getGridKey(ccgdm->ss);
 }
 
-static GridToFace *ccgDM_getGridFaceMap(DerivedMesh *dm, Object *ob)
-{
-	CCGDerivedMesh *ccgdm= (CCGDerivedMesh*)dm;
-	Mesh *me = ob->data;
-	GridToFace *gtf;
-	int numGrids;
-	int i, j;
-
-	if(ccgdm->gridFaceMap)
-		return ccgdm->gridFaceMap;
-
-	numGrids = ccgDM_getNumGrids(dm);
-
-	ccgdm->gridFaceMap = MEM_callocN(sizeof(GridToFace) * numGrids, "ccgdm.grid_face_map");
-
-	for(i = 0, gtf = ccgdm->gridFaceMap; i < me->totface; ++i) {
-		int S = me->mface[i].v4 ? 4 : 3;
-
-		for(j = 0; j < S; ++j, ++gtf) {
-			gtf->face = i;
-			gtf->offset = j;
-		}
-	}
-
-	return ccgdm->gridFaceMap;
-}
-
 static ListBase *ccgDM_getFaceMap(Object *ob, DerivedMesh *dm)
 {
 	CCGDerivedMesh *ccgdm= (CCGDerivedMesh*)dm;
@@ -2455,6 +2428,36 @@ static ListBase *ccgDM_getFaceMap(Object *ob, DerivedMesh *dm)
 	}
 
 	return ccgdm->fmap;
+}
+
+static GridToFace *ccgDM_getGridFaceMap(DerivedMesh *dm)
+{
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*)dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	GridToFace *gtf = ccgdm->gridFaceMap;
+
+	if(!gtf) {
+		int totgrid, totface, i, j;
+		
+		totgrid = dm->getNumGrids(dm);
+		totface = ccgSubSurf_getNumFaces(ss);
+
+		gtf = ccgdm->gridFaceMap =
+			MEM_callocN(sizeof(GridToFace) * totgrid,
+				    "ccgdm.gridFaceMap");
+
+		for(i = 0; i < totface; ++i) {
+			CCGFace *f = ccgdm->faceMap[i].face;
+			int S = ccgSubSurf_getFaceNumVerts(f);
+
+			for(j = 0; j < S; ++j, ++gtf) {
+				gtf->face = i;
+				gtf->offset = j;
+			}
+		}
+	}
+
+	return ccgdm->gridFaceMap;
 }
 
 static int ccgDM_use_grid_pbvh(CCGDerivedMesh *ccgdm)
@@ -2492,7 +2495,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		return NULL;
 	ss = ob->paint->sculpt;
 
-	grid_pbvh = ccgDM_use_grid_pbvh(ccgdm);
+	grid_pbvh = (ob->mode & OB_MODE_VERTEX_PAINT) || ccgDM_use_grid_pbvh(ccgdm);
 
 	if(ob->paint->pbvh) {
 		if(grid_pbvh) {
@@ -2534,7 +2537,7 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		ob->paint->pbvh= ccgdm->pbvh = BLI_pbvh_new(leaf_limit);
 		BLI_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 				     numGrids, gridSize, gridkey, (void**)ccgdm->gridFaces,
-				     ccgDM_getGridFaceMap(dm, ob),
+				     dm->getGridFaceMap(dm),
 				     &me->vdata, &me->fdata,
 				     ss ? &ss->hidden_areas : NULL);
 		ccgdm->pbvh_draw = 1;
@@ -2605,8 +2608,8 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.getGridAdjacency = ccgDM_getGridAdjacency;
 	ccgdm->dm.getGridOffset = ccgDM_getGridOffset;
 	ccgdm->dm.getGridKey = ccgDM_getGridKey;
-	ccgdm->dm.getGridFaceMap = ccgDM_getGridFaceMap;
 	ccgdm->dm.getFaceMap = ccgDM_getFaceMap;
+	ccgdm->dm.getGridFaceMap = ccgDM_getGridFaceMap;
 	ccgdm->dm.getPBVH = ccgDM_getPBVH;
 
 	ccgdm->dm.getVertCos = ccgdm_getVertCos;

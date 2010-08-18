@@ -420,7 +420,7 @@ static void calc_area_normal(Sculpt *sd, Object *ob, float an[3], PBVHNode **nod
 		float private_an[3] = {0.0f, 0.0f, 0.0f};
 		float private_out_flip[3] = {0.0f, 0.0f, 0.0f};
 
-		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
 		if(ss->cache->original) {
@@ -908,7 +908,7 @@ static void do_grab_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 		short (*origno)[3];
 		float (*proxy)[3];
 
-		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		origco= pbvh_undo_node_co(unode);
 		origno= pbvh_undo_node_no(unode);
 
@@ -1046,7 +1046,7 @@ static void do_thumb_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 		short (*origno)[3];
 		float (*proxy)[3];
 
-		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		origco= pbvh_undo_node_co(unode);
 		origno= pbvh_undo_node_no(unode);
 
@@ -1092,7 +1092,7 @@ static void do_rotate_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 		short (*origno)[3];
 		float (*proxy)[3];
 
-		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode=  pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		origco= pbvh_undo_node_co(unode);
 		origno= pbvh_undo_node_no(unode);
 
@@ -1142,7 +1142,7 @@ static void do_layer_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode
 
 		//proxy= BLI_pbvh_node_add_proxy(ob->paint->pbvh, nodes[n])->co;
 		
-		unode= pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode= pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		origco= pbvh_undo_node_co(unode);
 		if(!pbvh_undo_node_layer_disp(unode)) {
 			#pragma omp critical 
@@ -1241,7 +1241,7 @@ static void calc_flatten_center(Sculpt *sd, Object *ob, PBVHNode **nodes, int to
 		float private_fc[3] = {0.0f, 0.0f, 0.0f};
 		int private_count = 0;
 
-		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
 		if(ss->cache->original) {
@@ -1302,7 +1302,7 @@ static void calc_area_normal_and_flatten_center(Sculpt *sd, Object *ob, PBVHNode
 		float private_fc[3] = {0.0f, 0.0f, 0.0f};
 		int private_count = 0;
 
-		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+		unode = pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 		paint_stroke_test_init(&test, ss->cache->stroke);
 
 		if(ss->cache->original) {
@@ -1928,7 +1928,7 @@ static void sculpt_stroke_brush_action(bContext *C, PaintStroke *stroke)
 		else {
 			#pragma omp parallel for schedule(guided) if (sd->paint.flags & PAINT_USE_OPENMP)
 			for (n= 0; n < totnode; n++) {
-				pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+				pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 				BLI_pbvh_node_mark_update(nodes[n]);
 			}
 
@@ -2032,7 +2032,7 @@ static void sculpt_combine_proxies(Sculpt *sd, Object *ob)
 				int proxy_count;
 				float (*origco)[3];
 
-				unode= pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob);
+				unode= pbvh_undo_push_node(nodes[n], PBVH_UNDO_CO_NO, ob, NULL);
 				origco= pbvh_undo_node_co(unode);
 
 				BLI_pbvh_node_get_proxies(nodes[n], &proxies, &proxy_count);

@@ -1495,13 +1495,11 @@ static void write_customdata_mptex(WriteData *wd, int count,
 
 	for(i = 0; i < count; ++i, ++mptex) {
 		int layersize = mptex->channels * ptex_data_size(mptex->type);
-		int texels;
 
-		for(j = 0, texels = 0; j < mptex->subfaces; ++j)
-			texels += mptex->res[j][0] * mptex->res[j][1];
-
-		writedata(wd, DATA, layersize * texels,
-			  mptex->data);
+		for(j = 0; j < mptex->totsubface; ++j)
+			writedata(wd, DATA,
+				  layersize * (mptex->subfaces[j].res[0] * mptex->subfaces[j].res[1]),
+				  mptex->subfaces[j].data);
 	}
 }
 

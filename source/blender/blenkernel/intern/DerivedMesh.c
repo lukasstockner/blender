@@ -46,11 +46,14 @@
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_displist.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_dmgrid.h"
 #include "BKE_key.h"
 #include "BKE_modifier.h"
 #include "BKE_mesh.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_texture.h"
 #include "BKE_utildefines.h"
 
@@ -1925,6 +1928,13 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 
 		if((dataMask & CD_MASK_WEIGHT_MCOL) && (ob->mode & OB_MODE_WEIGHT_PAINT))
 			add_weight_mcol_dm(ob, finaldm);
+	}
+
+	/* hack: for ptex paint use all quads */
+	if((ob->mode & OB_MODE_VERTEX_PAINT) && finaldm->type != DM_TYPE_CCGDM) {
+		dm = finaldm;
+		finaldm = quad_dm_create_from_derived(finaldm);
+		dm->release(dm);
 	}
 
 	/* add an orco layer if needed */

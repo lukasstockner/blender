@@ -1449,7 +1449,7 @@ class VIEW3D_PT_ptex_edit(View3DPanel, bpy.types.Panel):
 
             box = layout.box()
 
-            if ptex.subfaces == 1:
+            if len(ptex.subfaces) == 1:
                 box.label("Quad Resolution:")
             else:
                 box.label("Subface Resolution:")
@@ -1458,11 +1458,11 @@ class VIEW3D_PT_ptex_edit(View3DPanel, bpy.types.Panel):
                 box.label(text=prefix + str(res[0]) + " x " + str(res[1]))
 
             if ptex.subfaces == 1:
-                reslbl("", ptex.resolution1)
+                reslbl("", ptex.subfaces[0].resolution)
             else:
-                reslbl("1: ", ptex.resolution1)
-                reslbl("2: ", ptex.resolution2)
-                reslbl("3: ", ptex.resolution3)
+                reslbl("1: ", ptex.subfaces[0].resolution)
+                reslbl("2: ", ptex.subfaces[1].resolution)
+                reslbl("3: ", ptex.subfaces[2].resolution)
             
 
 def register():

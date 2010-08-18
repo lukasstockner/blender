@@ -195,7 +195,7 @@ static int can_pbvh_draw(Object *ob, DerivedMesh *dm)
 	if(ob->paint->sculpt && ob->paint->sculpt->modifiers_active) return 0;
 	//if(paint_facesel_test(ob)) return 0;
 
-	return (cddm->mvert == me->mvert) || (ob->paint->sculpt && ob->paint->sculpt->kb);
+	return (cddm->mvert == me->mvert) || (ob->paint->sculpt && ob->paint->sculpt->kb) || (ob->mode & OB_MODE_VERTEX_PAINT);
 }
 
 static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
@@ -222,6 +222,9 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 	   this derivedmesh is just original mesh. it's the multires subsurf dm
 	   that this is actually for, to support a pbvh on a modified mesh */
 	if(!cddm->pbvh && ob->type == OB_MESH) {
+		MFace *mface;
+		MVert *mvert;
+		int totvert, totface;
 		int leaf_limit = PBVH_DEFAULT_LEAF_LIMIT;
 
 		/* TODO: set leaf limit more intelligently */
@@ -230,9 +233,23 @@ static struct PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 		cddm->pbvh = BLI_pbvh_new(leaf_limit);
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
-		BLI_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
-				    &me->vdata, &me->fdata, me->totface,
-				    me->totvert,
+
+		if(ob->mode & OB_MODE_VERTEX_PAINT) {
+			mface = cddm->mface;
+			mvert = cddm->mvert;
+			totvert = cdDM_getNumVerts(&cddm->dm);
+			totface = cdDM_getNumFaces(&cddm->dm);
+		}
+		else {
+			mface = me->mface;
+			mvert = me->mvert;
+			totvert = me->totvert;
+			totface = me->totface;
+		}
+
+		BLI_pbvh_build_mesh(cddm->pbvh, mface, mvert,
+				    &me->vdata, &me->fdata,
+				    totface, totvert,
 				    ss ? &ss->hidden_areas : NULL);
 	}
 

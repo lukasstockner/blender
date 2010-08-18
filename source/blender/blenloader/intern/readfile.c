@@ -3265,10 +3265,11 @@ static void direct_link_customdata_multires(FileData *fd, int count,
 static void direct_link_customdata_mptex(FileData *fd, int count, MPtex *mptex)
 {
 	if(mptex) {
-		int i;
+		int i, j;
 
 		for(i = 0; i < count; ++i, ++mptex) {
-			mptex->data = newdataadr(fd, mptex->data);
+			for(j = 0; j < mptex->totsubface; ++j)
+				mptex->subfaces[j].data = newdataadr(fd, mptex->subfaces[j].data);
 		}
 	}
 }

@@ -231,7 +231,8 @@ typedef enum {
 
 typedef struct PBVHUndoNode PBVHUndoNode;
 
-PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag, struct Object *ob);
+PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
+				  struct Object *ob, struct Scene *scene);
 void pbvh_undo_push_begin(char *name);
 void pbvh_undo_push_end(void);
 /* undo node access */
@@ -244,7 +245,7 @@ pbvh_undo_s3 pbvh_undo_node_no(PBVHUndoNode *unode);
 float *pbvh_undo_node_layer_disp(PBVHUndoNode *unode);
 void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
 const char *pbvh_undo_node_mptex_name(PBVHUndoNode *unode);
-struct MPtex *pbvh_undo_node_mptex(PBVHUndoNode *unode);
+void *pbvh_undo_node_mptex_data(PBVHUndoNode *unode, int ndx);
 
 /* ptex.c */
 void PTEX_OT_layer_add(struct wmOperatorType *ot);

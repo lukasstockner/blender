@@ -75,9 +75,8 @@ struct PBVHUndoNode {
 	float *pmask;
 	char pmask_name[32];
 	/* ptex */
-	MPtex *mptex;
+	void **mptex_data;
 	char mptex_name[32];
-	int totptex;
 
 	/* non-multires */
 	/* to verify if me->totvert it still the same */
@@ -164,11 +163,13 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 	PBVH *pbvh;
 	PBVHUndoNode *unode;
 	MultiresModifierData *mmd;
-	int i, j, update= 0, update_co = 0;
+	GridToFace *grid_face_map;
+	int i, j, update_co= 0, update_ptex= 0, update_mask= 0;
 
 	// XXX: sculpt_update_mesh_elements(scene, ob, 0);
 
 	pbvh = dm->getPBVH(ob, dm);
+	grid_face_map = dm->getGridFaceMap(dm);
 
 	for(unode=lb->first; unode; unode=unode->next) {
 		CustomData *vdata, *fdata;
@@ -182,6 +183,10 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 			/* regular mesh restore */
 			if(dm->getNumVerts(dm) != unode->maxvert)
 				continue;
+
+			update_co |= !!unode->co;
+			update_ptex |= !!unode->mptex_data;
+			update_mask |= !!unode->pmask;
 
 			if(unode->co) {
 				pbvh_undo_restore_mesh_co(unode, C, scene, ob);
@@ -197,18 +202,6 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 					SWAP(float, pmask[unode->vert_indices[i]],
 					     unode->pmask[i]);
 			}
-			if(unode->mptex) {
-				MPtex *mptex;
-
-				mptex = CustomData_get_layer_named(fdata,
-								   CD_MPTEX,
-								   unode->mptex_name);
-
-				for(i=0; i<unode->totptex; i++) {
-					SWAP(MPtex, unode->mptex[i],
-					     mptex[unode->face_indices[i]]);
-				}
-			}
 		}
 		else if(unode->maxgrid && dm->getGridData) {
 			/* multires restore */
@@ -219,8 +212,28 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 
 			if(dm->getNumGrids(dm) != unode->maxgrid)
 				continue;
+
+			/* do ptex restore before checking gridsize */
+			for(j=0; j<unode->totgrid; j++) {
+				if(unode->mptex_data) {
+					GridToFace *gtf = &grid_face_map[unode->grid_indices[j]];
+					MPtex *mptex;
+
+					mptex = CustomData_get_layer_named(fdata,
+									   CD_MPTEX,
+									   unode->mptex_name);
+					SWAP(void*, unode->mptex_data[j],
+					     mptex[gtf->face].subfaces[gtf->offset].data);
+				}
+			}
+
+			update_ptex |= !!unode->mptex_data;
+
 			if(dm->getGridSize(dm) != unode->gridsize)
 				continue;
+
+			update_co |= !!unode->co;
+			update_mask |= !!unode->pmask;
 
 			grids= dm->getGridData(dm);
 			gridsize= dm->getGridSize(dm);
@@ -228,7 +241,6 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 
 			if(unode->co) {
 				co = unode->co;
-				update_co = 1;
 			}
 			if(unode->pmask) {
 				pmask = unode->pmask;
@@ -251,48 +263,11 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 						++pmask;
 					}
 				}
-
-				if(unode->mptex) {
-					GridToFace *grid_face_map, *gtf;
-					MPtex *pt;
-					int layersize;
-					int ures, vres, rowlen;
-					char *dest, *src, *row;
-					int v;
-
-					grid_face_map = dm->getGridFaceMap(dm, ob);
-					
-					gtf = &grid_face_map[unode->grid_indices[j]];
-					pt = CustomData_get_layer_named(fdata, CD_MPTEX,
-									unode->mptex_name);
-					pt += gtf->face;
-
-					src = unode->mptex[j].data;
-					dest = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
-
-					layersize = pt->channels * ptex_data_size(pt->type);
-
-					row = MEM_callocN(layersize * ures, "ptex undo row");
-
-					for(v = 0; v < vres; ++v) {
-						int size = layersize*ures;
-						memcpy(row, dest, size);
-						memcpy(dest, src, size);
-						memcpy(src, row, size);
-
-						src += layersize*ures;
-						dest += layersize*rowlen;
-					}
-
-					MEM_freeN(row);
-				}
 			}
 		}
-
-		update= 1;
 	}
 
-	if(update) {
+	if(update_co || update_ptex || update_mask) {
 		SculptSession *ss = ob->paint->sculpt;
 		int update_flags = PBVH_UpdateRedraw;
 
@@ -304,6 +279,8 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 
 		if(update_co)
 			update_flags |= PBVH_UpdateBB|PBVH_UpdateOriginalBB;
+		if(update_ptex || update_mask)
+			update_flags |= PBVH_UpdateColorBuffers|PBVH_UpdateRedraw;
 
 		BLI_pbvh_update(ob->paint->pbvh, update_flags, NULL);
 
@@ -319,7 +296,6 @@ static void pbvh_undo_restore(bContext *C, ListBase *lb)
 static void pbvh_undo_free(ListBase *lb)
 {
 	PBVHUndoNode *unode;
-	int i;
 
 	for(unode=lb->first; unode; unode=unode->next) {
 		if(unode->co)
@@ -328,10 +304,11 @@ static void pbvh_undo_free(ListBase *lb)
 			MEM_freeN(unode->no);
 		if(unode->pmask)
 			MEM_freeN(unode->pmask);
-		if(unode->mptex) {
-			for(i = 0; i < unode->totptex; ++i)
-				MEM_freeN(unode->mptex[i].data);
-			MEM_freeN(unode->mptex);
+		if(unode->mptex_data) {
+			int i;
+			for(i = 0; i < unode->totgrid; ++i)
+				MEM_freeN(unode->mptex_data[i]);
+			MEM_freeN(unode->mptex_data);
 		}
 		if(unode->vert_indices)
 			MEM_freeN(unode->vert_indices);
@@ -360,7 +337,7 @@ PBVHUndoNode *pbvh_undo_get_node(PBVHNode *node)
 }
 
 PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
-				  Object *ob)
+				  Object *ob, Scene *scene)
 {
 	ListBase *lb= undo_paint_push_get_list(UNDO_PAINT_MESH);
 	PBVHUndoNode *unode;
@@ -370,9 +347,6 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 
 	CustomData *vdata, *fdata;
 	SculptSession *ss = NULL; /* for shapekey */
-
-	MFace *mface;
-	int totface, *face_indices;
 
 	GridKey *gridkey;
 	int uses_grids, totgrid, *grid_indices;
@@ -409,7 +383,13 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 	}
 	else {
 		/* regular mesh */
-		unode->maxvert= get_mesh(ob)->totvert;
+
+		if(scene) {
+			DerivedMesh *dm = mesh_get_derived_final(scene, ob, 0);
+			unode->maxvert= dm->getNumVerts(dm);
+		}
+		else
+			unode->maxvert= get_mesh(ob)->totvert;
 
 		if(flag & (PBVH_UNDO_CO_NO|PBVH_UNDO_PMASK)) {
 			unode->vert_indices= MEM_mapallocN(sizeof(int)*unode->totvert,
@@ -441,63 +421,32 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 		}
 	}
 	if(flag & PBVH_UNDO_PTEX) {
-		int i, j, active;
+		int i, active;
+
 		active= CustomData_get_active_layer_index(fdata, CD_MPTEX);
 
 		if(active == -1)
 			flag &= ~PBVH_UNDO_PTEX;
 
-		if(uses_grids) {
-			BLI_strncpy(unode->mptex_name,
-				    fdata->layers[active].name,
-				    sizeof(unode->mptex_name));
+		assert(uses_grids);
 
-			grid_face_map= BLI_pbvh_get_grid_face_map(pbvh);
+		BLI_strncpy(unode->mptex_name,
+			    fdata->layers[active].name,
+			    sizeof(unode->mptex_name));
 
-			unode->totptex = totgrid;
-			unode->mptex= MEM_mapallocN(sizeof(MPtex)*totgrid, "PBVHUndoNode.mptex");
-			totbytes+= sizeof(MPtex)*totface;
+		grid_face_map= BLI_pbvh_get_grid_face_map(pbvh);
 
-			for(i = 0; i < totgrid; ++i) {
-				MPtex *pt;
-				GridToFace *gtf;
-				int ures, vres, rowlen;
+		for(i = 0; i < unode->totgrid; ++i) {
+			GridToFace *gtf= &grid_face_map[grid_indices[i]];
+			MPtex *pt= ((MPtex*)fdata->layers[active].data) + gtf->face;
+			MPtexSubface *subface= &pt->subfaces[gtf->offset];
 
-				gtf = &grid_face_map[grid_indices[i]];
-
-				pt= ((MPtex*)fdata->layers[active].data) + gtf->face;
-
-				mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
-
-				totbytes += pt->channels * ptex_data_size(pt->type) *
-					ures*vres;
-			}
+			totbytes+= (pt->channels * ptex_data_size(pt->type) *
+				    subface->res[0] * subface->res[1]);
 		}
-		else {
-			BLI_strncpy(unode->mptex_name,
-				    fdata->layers[active].name,
-				    sizeof(unode->mptex_name));
 
-			BLI_pbvh_node_get_faces(pbvh, node,
-						&mface, &face_indices,
-						NULL, &totface);
-			unode->totptex= totface;
-
-			unode->face_indices= MEM_mapallocN(sizeof(int)*totface,
-							   "PBVHUndoNode.face_indices");
-			totbytes += sizeof(int)*totface;
-
-			unode->mptex= MEM_mapallocN(sizeof(MPtex)*totface, "PBVHUndoNode.mptex");
-			totbytes += sizeof(MPtex)*totface;
-			
-			for(i = 0; i < totface; ++i) {
-				MPtex *pt = ((MPtex*)fdata->layers[active].data) + face_indices[i];
-				for(j = 0; j < pt->subfaces; ++j) {
-					totbytes += pt->channels*ptex_data_size(pt->type) *
-						pt->res[j][0] * pt->res[j][1];
-				}
-			}
-		}
+		unode->mptex_data= MEM_mapallocN(sizeof(void*)*unode->totgrid, "PBVHUndoNode.mptex_data");
+		totbytes+= sizeof(void*)*unode->totgrid;
 	}
 
 	/* push undo node onto paint undo list */
@@ -529,44 +478,19 @@ PBVHUndoNode *pbvh_undo_push_node(PBVHNode *node, PBVHUndoFlag flag,
 	if(unode->grid_indices)
 		memcpy(unode->grid_indices, grid_indices, sizeof(int)*totgrid);
 
-	/* copy ptex data */
+	/* copy ptex data (doesn't handle res changes yet) */
 	if(flag & PBVH_UNDO_PTEX) {
-		int active, i;
+		MPtex *mptex;
+		int i;
 
-		active = CustomData_get_active_layer_index(fdata, CD_MPTEX);
+		mptex= CustomData_get_layer(fdata, CD_MPTEX);
 
-		if(uses_grids) {
-			for(i = 0; i < totgrid; ++i) {
-				GridToFace *gtf= &grid_face_map[grid_indices[i]];
-				MPtex *pt= ((MPtex*)fdata->layers[active].data) + gtf->face;
-				int layersize;
-				int ures, vres, rowlen;
-				char *dest, *src;
-				int v;
+		for(i = 0; i < unode->totgrid; ++i) {
+			GridToFace *gtf= &grid_face_map[grid_indices[i]];
+			MPtex *pt= &mptex[gtf->face];
+			MPtexSubface *subface= &pt->subfaces[gtf->offset];
 
-				src = mptex_grid_offset(pt, gtf->offset, &ures, &vres, &rowlen);
-				layersize = pt->channels * ptex_data_size(pt->type);
-
-				unode->mptex[i] = *pt;
-				dest = unode->mptex[i].data = MEM_mallocN(layersize * ures * vres,
-									  "PBVHUndoNode.mptex.data");
-
-				for(v = 0; v < vres; ++v) {
-					memcpy(dest, src, layersize*ures);
-					dest += layersize*ures;
-					src += layersize*rowlen;
-				}
-			}
-		}
-		else {
-			for(i = 0; i < totface; ++i) {
-				int face_index = face_indices[i];
-				MPtex *pt = ((MPtex*)fdata->layers[active].data) + face_index;
-
-				unode->face_indices[i]= face_index;
-				unode->mptex[i] = *pt;
-				unode->mptex[i].data = MEM_dupallocN(pt->data);
-			}
+			unode->mptex_data[i]= MEM_dupallocN(subface->data);
 		}
 	}
 
@@ -640,7 +564,7 @@ const char *pbvh_undo_node_mptex_name(PBVHUndoNode *unode)
 	return unode->mptex_name;
 }
 
-struct MPtex *pbvh_undo_node_mptex(PBVHUndoNode *unode)
+void *pbvh_undo_node_mptex_data(PBVHUndoNode *unode, int ndx)
 {
-	return unode->mptex;
+	return unode->mptex_data[ndx];
 }

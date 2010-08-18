@@ -122,7 +122,7 @@ struct PBVH {
 	int totgrid;
 	int gridsize;
 	struct GridKey *gridkey;
-	GridToFace *grid_face_map;
+	struct GridToFace *grid_face_map;
 
 	/* Used by both mesh and grid type */
 	CustomData *vdata;
@@ -679,8 +679,8 @@ void BLI_pbvh_build_grids(PBVH *bvh, DMGridData **grids,
 			  DMGridAdjacency *gridadj,
 			  int totgrid, int gridsize, GridKey *gridkey,
 			  void **gridfaces, GridToFace *grid_face_map,
-			  CustomData *vdata,
-			  CustomData *fdata, ListBase *hidden_areas)
+			  CustomData *vdata, CustomData *fdata,
+			  ListBase *hidden_areas)
 {
 	bvh->grids= grids;
 	bvh->gridadj= gridadj;
@@ -1172,7 +1172,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, D
 		if(node->flag & PBVH_UpdateColorBuffers) {
 			if(bvh->grids) {
 				if(flags & DM_DRAW_PTEX)
-					GPU_update_grids_ptex(node->draw_buffers, bvh, node);
+					GPU_update_ptex(node->draw_buffers, bvh, node);
 				else if(flags & DM_DRAW_PAINT_MASK) {
 					GPU_update_grid_color_buffers(node->draw_buffers,
 								      bvh->grids,
@@ -1186,7 +1186,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, D
 			}
 			else {
 				if(flags & DM_DRAW_PTEX)
-					GPU_update_mesh_ptex(node->draw_buffers, bvh, node);
+					GPU_update_ptex(node->draw_buffers, bvh, node);
 				else if(flags & DM_DRAW_PAINT_MASK) {
 					GPU_update_mesh_color_buffers(node->draw_buffers,
 								      bvh, node, flags);
