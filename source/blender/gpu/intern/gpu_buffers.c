@@ -497,7 +497,7 @@ static void color_from_face_corner(CustomData *fdata, int mcol_first_layer,
 }
 
 void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
-				   PBVHNode *node, GPUDrawFlags flags)
+				   PBVHNode *node, DMDrawFlags flags)
 {
 	unsigned char *color_data;
 	CustomData *vdata, *fdata;
@@ -520,9 +520,7 @@ void GPU_update_mesh_color_buffers(GPU_Buffers *buffers, PBVH *bvh,
 	pmask_totlayer = CustomData_number_of_layers(vdata, CD_PAINTMASK);
 
 	/* avoid creating color buffer if not needed */
-	color_needed =
-		((flags & GPU_DRAW_ACTIVE_MCOL) && mcol_totlayer) ||
-		pmask_totlayer;
+	color_needed = (flags & DM_DRAW_PAINT_MASK) && pmask_totlayer;
 
 	/* Make a color buffer if there's a mask layer and
 	   get rid of any color buffer if there's no mask layer */
@@ -696,7 +694,7 @@ static void color_from_gridelem(DMGridData *elem, GridKey *gridkey, float col[3]
 
 void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int *grid_indices,
 				   int totgrid, int gridsize, GridKey *gridkey, CustomData *vdata,
-				   GPUDrawFlags flags)
+				   DMDrawFlags flags)
 {
 	unsigned char *color_data;
 	int totvert;
@@ -706,9 +704,7 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 		return;
 
 	/* avoid creating color buffer if not needed */
-	color_needed =
-		((flags & GPU_DRAW_ACTIVE_MCOL) && gridkey->color) ||
-		gridkey->mask;
+	color_needed = (flags & DM_DRAW_PAINT_MASK) && gridkey->mask;
 
 	totvert= gridsize*gridsize*totgrid;
 	color_data= map_color_buffer(buffers, color_needed, totvert);
@@ -1058,10 +1054,10 @@ static void gpu_bind_ptex_pattern()
 
 static void gpu_draw_node_mesh_ptex_no_vb(GPU_Buffers *buffers, MFace *mface, MVert *mvert,
 					  MPtex *mptex, int *face_indices,
-					  int totface, GPUDrawFlags flags)
+					  int totface, DMDrawFlags flags)
 {
 	int i, j, id;
-	int editing = (flags & GPU_DRAW_PTEX_TEXELS);
+	int editing = (flags & DM_DRAW_PTEX_TEXELS);
 
 	if(editing) {
 		gpu_bind_ptex_pattern();
@@ -1161,7 +1157,7 @@ static void gpu_draw_node_mesh_ptex_no_vb(GPU_Buffers *buffers, MFace *mface, MV
 		glDisable(GL_COLOR_MATERIAL);
 }
 
-static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, GPUDrawFlags flags)
+static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
 {
 	DMGridData **grids;
 	GridKey *gridkey;
@@ -1169,7 +1165,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 	CustomData *vdata = NULL, *fdata = NULL;
 	MPtex *mptex;
 	int mcol_first_layer, pmask_first_layer;
-	int i, use_grids, use_color;
+	int i, use_grids, use_color, use_ptex;
 
 	use_grids = BLI_pbvh_uses_grids(pbvh);
 	BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
@@ -1187,7 +1183,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		mcol_first_layer = CustomData_get_layer_index(fdata, CD_MCOL);
 		pmask_first_layer = CustomData_get_layer_index(vdata, CD_PAINTMASK);
 
-		use_color = !(flags & GPU_DRAW_ACTIVE_MCOL) && pmask_first_layer != -1;
+		use_color = (flags & DM_DRAW_PAINT_MASK) && pmask_first_layer != -1;
 	}
 	
 	if(use_color) {
@@ -1195,14 +1191,13 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		glEnable(GL_COLOR_MATERIAL);
 	}
 
-	if(buffers->ptex && GPU_DRAW_ACTIVE_MCOL) {
+	if((use_ptex = (buffers->ptex && (flags & DM_DRAW_PTEX)))) {
 		mptex = CustomData_get_layer(fdata, CD_MPTEX);
 		glEnable(GL_TEXTURE_2D);
 	}
 
 	if(use_grids) {
 		int x, y;
-		int use_ptex = GPU_DRAW_ACTIVE_MCOL && buffers->ptex;
 		GridToFace *grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 
 		BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
@@ -1286,7 +1281,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		BLI_pbvh_node_get_verts(pbvh, node, NULL, &mvert);
 		BLI_pbvh_node_get_faces(pbvh, node, &mface, &face_indices, NULL, &totface);
 
-		if(flags & GPU_DRAW_ACTIVE_MCOL && buffers->ptex) {
+		if(use_ptex) {
 			gpu_draw_node_mesh_ptex_no_vb(buffers, mface, mvert, mptex,
 						      face_indices, totface, flags);
 			return;
@@ -1334,9 +1329,9 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		glDisable(GL_COLOR_MATERIAL);
 }
 
-void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, GPUDrawFlags flags)
+void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
 {
-	glShadeModel((flags & GPU_DRAW_SMOOTH) ? GL_SMOOTH: GL_FLAT);
+	glShadeModel((flags & DM_DRAW_FULLY_SMOOTH) ? GL_SMOOTH: GL_FLAT);
 
 	if(buffers->vert_buf && buffers->index_buf) {
 		GLboolean colmat;

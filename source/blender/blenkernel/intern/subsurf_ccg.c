@@ -1383,22 +1383,22 @@ static void ccgdm_pbvh_update(CCGDerivedMesh *ccgdm)
 
 static int ccgdm_draw_pbvh(DerivedMesh *dm, float (*partial_redraw_planes)[4],
 			   int (*setMaterial)(int, void *attribs),
-			   int fast_navigate, GPUDrawFlags drawflags)
+			   DMDrawFlags flags)
 {
 	CCGDerivedMesh *ccgdm = (CCGDerivedMesh*)dm;
 	char *faceFlags = ccgdm->faceFlags;
 
 	ccgdm_pbvh_update(ccgdm);
 
-	if(ccgdm->pbvh && ccgdm->multires.mmd && !fast_navigate) {
+	if(ccgdm->pbvh && ccgdm->multires.mmd && !(flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL)) {
 		if(dm->numFaceData) {
 			/* should be per face */
 			if(setMaterial && !setMaterial(faceFlags[1]+1, NULL))
 				return 1;
 			if(faceFlags[0] & ME_SMOOTH)
-				drawflags |= GPU_DRAW_SMOOTH;
+				flags |= DM_DRAW_FULLY_SMOOTH;
 
-			BLI_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL, drawflags);
+			BLI_pbvh_draw(ccgdm->pbvh, partial_redraw_planes, NULL, flags);
 		}
 
 		return 1;
@@ -1418,10 +1418,10 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm,
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
-	int step = (flags & DM_DRAW_FAST_NAV)? gridSize-1: 1;
+	int step = (flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL)? gridSize-1: 1;
 
-	if(!(flags & DM_DRAW_BACKBUF_SEL) &&
-	   ccgdm_draw_pbvh(dm, partial_redraw_planes, setMaterial, flags & DM_DRAW_FAST_NAV, 0))
+	if(!(flags & DM_DRAW_BACKBUF_SELECTION) &&
+	   ccgdm_draw_pbvh(dm, partial_redraw_planes, setMaterial, flags))
 		return;
 
 	fi = ccgSubSurf_getFaceIterator(ss);
@@ -1923,14 +1923,13 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 	GridKey *gridkey = ccgSubSurf_getGridKey(ss);
 	char *faceFlags = ccgdm->faceFlags;
 	int gridFaces = gridSize - 1, totface;
-	int step = (flags & DM_DRAW_FAST_NAV)? gridSize-1: 1;
+	int step = (flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL)? gridSize-1: 1;
 
-	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, NULL, (flags & DM_DRAW_FAST_NAV),
-			   (flags & DM_DRAW_USE_COLORS) ? GPU_DRAW_ACTIVE_MCOL : 0))
+	if(ccgdm_draw_pbvh(dm, partial_redraw_planes, NULL, flags))
 		return;
 
-	if(flags & DM_DRAW_USE_COLORS) {
-		if(flags & DM_DRAW_FAST_NAV) {
+	if(flags & DM_DRAW_VERTEX_COLORS) {
+		if(flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL) {
 			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			glEnable(GL_COLOR_MATERIAL);
 		}
@@ -2058,7 +2057,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 		}
 	}
 
-	if(flags & DM_DRAW_FAST_NAV)
+	if(flags & DM_DRAW_LOWEST_SUBDIVISION_LEVEL)
 		glDisable(GL_COLOR_MATERIAL);
 }
 static void ccgDM_drawMappedEdges(DerivedMesh *dm, int (*setDrawOptions)(void *userData, int index), void *userData) {

@@ -135,14 +135,7 @@ void GPU_drawobject_free( struct DerivedMesh *dm );
 
 /* Buffers for PBVH drawing */
 typedef struct GPU_Buffers GPU_Buffers;
-
-/* TODO: merge with DMDrawFlags? */
-typedef enum {
-	GPU_DRAW_SMOOTH = 1,
-	GPU_DRAW_ACTIVE_MCOL = 2,
-	GPU_DRAW_PTEX_TEXELS = 4,
-} GPUDrawFlags;
-
+enum DMDrawFlags;
 GPU_Buffers *GPU_build_mesh_buffers(struct GHash *map, struct MVert *mvert,
 				    struct MFace *mface, struct CustomData *vdata,
 				    struct CustomData *fdata, int *face_indices,
@@ -153,7 +146,7 @@ void GPU_update_mesh_vert_buffers(GPU_Buffers *buffers, struct MVert *mvert,
 void GPU_update_mesh_color_buffers(GPU_Buffers *buffers,
 				   struct PBVH *bvh,
 				   struct PBVHNode *node,
-				   GPUDrawFlags flags);
+				   enum DMDrawFlags flags);
 GPU_Buffers *GPU_build_grid_buffers(struct DMGridData **grids,
 				    int *grid_indices, int totgrid, int gridsize);
 void GPU_update_grid_vert_buffers(GPU_Buffers *buffersb, struct DMGridData **grids,
@@ -163,12 +156,12 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   struct DMGridData **grids,
 				   int *grid_indices, int totgrid,
 				   int gridsize, struct GridKey *gridkey,
-				   struct CustomData *vdata, GPUDrawFlags flags);
+				   struct CustomData *vdata, enum DMDrawFlags flags);
 
 void GPU_update_mesh_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
 void GPU_update_grids_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
 void GPU_draw_buffers(GPU_Buffers *buffers, struct PBVH *bvh,
-		      struct PBVHNode *node, GPUDrawFlags flags);
+		      struct PBVHNode *node, enum DMDrawFlags flags);
 void GPU_free_buffers(GPU_Buffers *buffers);
 
 /* called before drawing */

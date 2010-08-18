@@ -2471,7 +2471,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	   (p=paint_get_active(scene))) {
 		/* drop down to a low multires level during navigation */
 		fast_navigate = ((p->flags & PAINT_FAST_NAVIGATE) &&
-				 (rv3d->rflag & RV3D_NAVIGATING))? DM_DRAW_FAST_NAV : 0;
+				 (rv3d->rflag & RV3D_NAVIGATING))? DM_DRAW_LOWEST_SUBDIVISION_LEVEL : 0;
 
 		if(ob->paint && ob->paint->partial_redraw) {
 			if(ar->do_draw & RGN_DRAW_PARTIAL) {
@@ -2540,7 +2540,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			/* weight paint in solid mode, special case. focus on making the weights clear
 			 * rather then the shading, this is also forced in wire view */
 			GPU_enable_material(0, NULL);
-			dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me->mface, DM_DRAW_USE_COLORS);
+			dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me->mface, DM_DRAW_VERTEX_COLORS);
 
 			bglPolygonOffset(rv3d->dist, 1.0);
 			glDepthMask(0);	// disable write in zbuffer, selected edge wires show better
@@ -2569,7 +2569,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag&OB_NEG_SCALE)?GL_CW:GL_CCW);
 
-			dm->drawFacesSolid(dm, paint_redraw_planes, GPU_enable_material, fast_navigate);
+			dm->drawFacesSolid(dm, paint_redraw_planes, GPU_enable_material, fast_navigate|DM_DRAW_PAINT_MASK);
 
 			GPU_disable_material();
 
@@ -2604,7 +2604,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				glEnable(GL_LIGHTING);
 				glEnable(GL_COLOR_MATERIAL);
 
-				dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me->mface, DM_DRAW_USE_COLORS);
+				dm->drawMappedFaces(dm, NULL, wpaint__setSolidDrawOptions, me->mface, DM_DRAW_VERTEX_COLORS);
 				glDisable(GL_COLOR_MATERIAL);
 				glDisable(GL_LIGHTING);
 
@@ -2613,7 +2613,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			else if(ob->mode & (OB_MODE_VERTEX_PAINT|OB_MODE_TEXTURE_PAINT)) {
 				if(me->mcol) {
 					MFace *mface = get_mesh(ob)->mface;
-					DMDrawFlags dm_flags = DM_DRAW_USE_COLORS;
+					DMDrawFlags dm_flags = DM_DRAW_PTEX;
 
 					/* XXX - temporary - set up nicer drawing for new vpaint */
 					GPU_enable_material(mface->mat_nr+1, NULL);
@@ -6374,9 +6374,9 @@ static void bbs_mesh_solid(Scene *scene, View3D *v3d, Object *ob)
 	glColor3ub(0, 0, 0);
 		
 	if(face_sel_mode)
-		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid_hide__setDrawOpts, me, DM_DRAW_BACKBUF_SEL);
+		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid_hide__setDrawOpts, me, DM_DRAW_BACKBUF_SELECTION);
 	else
-		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid__setDrawOpts, me, DM_DRAW_BACKBUF_SEL);
+		dm->drawMappedFaces(dm, NULL, bbs_mesh_solid__setDrawOpts, me, DM_DRAW_BACKBUF_SELECTION);
 
 	dm->release(dm);
 }

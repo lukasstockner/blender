@@ -1139,7 +1139,7 @@ static void pbvh_update_BB_redraw(PBVH *bvh, PBVHNode **nodes,
 	}
 }
 
-static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, GPUDrawFlags flags)
+static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, DMDrawFlags flags)
 {
 	PBVHNode *node;
 	int n;
@@ -1156,7 +1156,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, G
 							     node->totprim,
 							     bvh->gridsize,
 							     bvh->gridkey,
-							     flags & GPU_DRAW_SMOOTH);
+							     flags & DM_DRAW_FULLY_SMOOTH);
 			}
 			else {
 				GPU_update_mesh_vert_buffers(node->draw_buffers,
@@ -1171,9 +1171,9 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, G
 		
 		if(node->flag & PBVH_UpdateColorBuffers) {
 			if(bvh->grids) {
-				if(flags & GPU_DRAW_ACTIVE_MCOL)
+				if(flags & DM_DRAW_PTEX)
 					GPU_update_grids_ptex(node->draw_buffers, bvh, node);
-				else {
+				else if(flags & DM_DRAW_PAINT_MASK) {
 					GPU_update_grid_color_buffers(node->draw_buffers,
 								      bvh->grids,
 								      node->prim_indices,
@@ -1185,11 +1185,12 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, G
 				}
 			}
 			else {
-				if(flags & GPU_DRAW_ACTIVE_MCOL)
+				if(flags & DM_DRAW_PTEX)
 					GPU_update_mesh_ptex(node->draw_buffers, bvh, node);
-				else
+				else if(flags & DM_DRAW_PAINT_MASK) {
 					GPU_update_mesh_color_buffers(node->draw_buffers,
 								      bvh, node, flags);
+				}
 			}
 
 			node->flag &= ~PBVH_UpdateColorBuffers;
@@ -1624,7 +1625,7 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 
 typedef struct {
 	PBVH *pbvh;
-	GPUDrawFlags flags;
+	DMDrawFlags flags;
 } PBVHDrawData;
 void BLI_pbvh_node_draw(PBVHNode *node, void *data_v)
 {

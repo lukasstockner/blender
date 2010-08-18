@@ -169,6 +169,7 @@ EnumPropertyItem image_type_items[] = {
 #include "BLI_threads.h"
 #include "BLI_editVert.h"
 #include "BLI_blenlib.h"
+#include "BLI_winstuff.h"
 
 #include "WM_api.h"
 

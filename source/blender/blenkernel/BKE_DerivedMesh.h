@@ -81,11 +81,21 @@ typedef enum DerivedMeshType {
 	DM_TYPE_CCGDM
 } DerivedMeshType;
 
-typedef enum {
-	DM_DRAW_FAST_NAV = 1,
-	DM_DRAW_BACKBUF_SEL = 2,
-	DM_DRAW_USE_COLORS = 4,
-	DM_DRAW_PTEX_TEXELS = 8,
+typedef enum DMDrawFlags {
+	/* fast navigation for multires */
+	DM_DRAW_LOWEST_SUBDIVISION_LEVEL = 1,
+	/* draw mask for sculpt mode */
+	DM_DRAW_PAINT_MASK = 2,
+	/* draw ptex textures */
+	DM_DRAW_PTEX = 4,
+	/* mcol, weight colors, etc. */
+	DM_DRAW_VERTEX_COLORS = 8,
+	/* visually show ptex texel density */
+	DM_DRAW_PTEX_TEXELS = 16,
+	/* mainly for sculpting, use smooth normals */
+	DM_DRAW_FULLY_SMOOTH = 32,
+	/* back-buffer selection mode */
+	DM_DRAW_BACKBUF_SELECTION = 64,
 } DMDrawFlags;
 
 typedef struct DerivedMesh DerivedMesh;
