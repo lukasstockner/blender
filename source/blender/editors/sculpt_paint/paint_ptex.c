@@ -1,5 +1,6 @@
 #include "MEM_guardedalloc.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
@@ -16,10 +17,13 @@
 #include "BKE_dmgrid.h"
 #include "BKE_mesh.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_report.h"
 #include "BKE_subsurf.h"
 
 #include "BLI_math.h"
+
+#include "IMB_imbuf.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -32,6 +36,427 @@
 
 #include <assert.h>
 #include <stdlib.h>
+
+static void paint_raycast_cb(PBVHNode *node, void *data_v, float *tmin)
+{
+	if(BLI_pbvh_node_get_tmin(node) < *tmin) {
+		PaintStrokeRaycastData *data = data_v;
+		
+		if(BLI_pbvh_node_raycast(data->ob->paint->pbvh, node, NULL,
+					 data->ray_start, data->ray_normal,
+					 &data->dist, NULL, NULL)) {
+			data->hit |= 1;
+			*tmin = data->dist;
+		}
+	}
+}
+
+static int ptex_paint_stroke_get_location(bContext *C, struct PaintStroke *stroke, float out[3], float mouse[2])
+{
+	// XXX: sculpt_stroke_modifiers_check(C, ss);
+	return paint_stroke_get_location(C, stroke, paint_raycast_cb, NULL, out, mouse, 0);		
+}
+
+static int ptex_paint_stroke_test_start(bContext *C, struct wmOperator *op, wmEvent *event)
+{
+	if(paint_stroke_over_mesh(C, op->customdata, event->x, event->y)) {
+		Object *ob= CTX_data_active_object(C);
+		Scene *scene = CTX_data_scene(C);
+		DerivedMesh *dm;
+		Mesh *me;
+
+		/* context checks could be a poll() */
+		me= get_mesh(ob);	
+	
+		dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH|CD_MASK_MCOL);
+		ob->paint->pbvh = dm->getPBVH(ob, dm);
+
+		pbvh_undo_push_begin("Vertex paint");
+
+		return 1;
+	}
+	return 0;
+}
+
+static void ptex_paint_blend(Brush *brush, PaintStroke *stroke, float col[4], float alpha, float co[2])
+{
+	float src_img[4], *src;
+	int tool = brush->vertexpaint_tool;
+
+	if(tool == IMB_BLEND_ADD_ALPHA &&
+	   (brush->flag & BRUSH_DIR_IN))
+		tool = IMB_BLEND_ERASE_ALPHA;
+
+	if(paint_sample_overlay(stroke, src_img, co)) {
+		src = src_img;
+		alpha *= src_img[3];
+	}
+	else
+		src = brush->rgb;
+
+		IMB_blend_color_float(col, col, src, alpha, tool);
+}
+
+static void ptex_elem_to_float4(PtexDataType type, int channels, void *data, float fcol[4])
+{
+	int i;
+
+	/* default alpha */
+	fcol[3] = 1;
+
+	switch(type) {
+	case PTEX_DT_UINT8:
+		for(i = 0; i < channels; ++i)
+			fcol[i] = ((unsigned char*)data)[i] / 255.0;
+		break;
+	case PTEX_DT_UINT16:
+		for(i = 0; i < channels; ++i)
+			fcol[i] = ((unsigned char*)data)[i] / 65535.0;
+		break;
+	case PTEX_DT_FLOAT:
+		for(i = 0; i < channels; ++i)
+			fcol[i] = ((float*)data)[i];
+		break;
+	default:
+		break;
+	}
+
+	if(channels == 1) {
+		for(i = 1; i < 4; ++i)
+			fcol[i] = fcol[0];
+	}
+}
+
+static void ptex_elem_from_float4(PtexDataType type, int channels, void *data, float fcol[4])
+{
+	int i;
+
+	if(channels == 1) {
+		float avg = (fcol[0]+fcol[1]+fcol[2]) / 3.0f;
+		switch(type) {
+		case PTEX_DT_UINT8:
+			((unsigned char*)data)[0] = avg * 255;
+			break;
+		case PTEX_DT_UINT16:
+			((unsigned short*)data)[0] = avg * 65535;
+			break;
+		case PTEX_DT_FLOAT:
+			((float*)data)[0] = avg;
+			break;
+		default:
+			break;
+		}
+	}
+	else {
+		switch(type) {
+		case PTEX_DT_UINT8:
+			for(i = 0; i < channels; ++i)
+				((unsigned char*)data)[i] = fcol[i] * 255;
+			break;
+		case PTEX_DT_UINT16:
+			for(i = 0; i < channels; ++i)
+				((unsigned short*)data)[i] = fcol[i] * 65535;
+			break;
+		case PTEX_DT_FLOAT:
+			for(i = 0; i < channels; ++i)
+				((float*)data)[i] = fcol[i];
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+static void ptex_paint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintStrokeTest *test,
+				  MPtex *pt, int res[2], int rowlen, char *data,
+				  float v1[3], float v2[3], float v3[3], float v4[3])
+				  
+{
+	float dtop[3], dbot[3], yinterp, ustep, vstep;
+	float co_bot[3], co_top[3];
+	int u, v, layersize;
+
+	layersize = pt->channels * ptex_data_size(pt->type);
+
+	sub_v3_v3v3(dtop, v3, v4);
+	sub_v3_v3v3(dbot, v2, v1);;
+	ustep = 1;
+	if(res[0] != 1)
+		ustep /= (res[0] - 1);
+	mul_v3_fl(dtop, ustep);
+	mul_v3_fl(dbot, ustep);
+
+	vstep = 1;
+	if(res[1] != 1)
+		vstep /= (res[1] - 1);
+
+	for(v = 0, yinterp = 0; v < res[1]; ++v) {
+		copy_v3_v3(co_top, v4);
+		copy_v3_v3(co_bot, v1);
+
+		for(u = 0; u < res[0]; ++u) {
+			float co[3];
+
+			interp_v3_v3v3(co, co_bot, co_top, yinterp);
+
+			if(paint_stroke_test(test, co)) {
+				float strength;
+				float fcol[4];
+				char *elem = data + layersize*(v*rowlen + u);
+					
+				strength = brush->alpha *
+					paint_stroke_combined_strength(stroke, test->dist, co, 0);
+				
+				ptex_elem_to_float4(pt->type, pt->channels, elem, fcol);
+				ptex_paint_blend(brush, stroke, fcol, strength, co);
+				ptex_elem_from_float4(pt->type, pt->channels, elem, fcol);
+			}
+
+			add_v3_v3(co_bot, dbot);
+			add_v3_v3(co_top, dtop);
+		}
+
+		yinterp += vstep;
+	}
+}
+
+static void ptex_paint_node_grids(Brush *brush, PaintStroke *stroke,
+			      DMGridData **grids, GridKey *gridkey,
+			      GridToFace *grid_face_map,
+			      CustomData *fdata,
+			      int *grid_indices,
+			      int totgrid, int gridsize)
+{
+	PaintStrokeTest test;
+	MPtex *mptex;
+	int i;
+
+	mptex = CustomData_get_layer(fdata, CD_MPTEX);
+
+	paint_stroke_test_init(&test, stroke);
+
+	for(i = 0; i < totgrid; ++i) {
+		int g = grid_indices[i];
+		DMGridData *grid = grids[g];
+		GridToFace *gtf = &grid_face_map[g];
+		MPtex *pt = &mptex[gtf->face];
+		MPtexSubface *subface = &pt->subfaces[gtf->offset];
+		int u, v, x, y, layersize, res[2];
+
+		layersize = pt->channels * ptex_data_size(pt->type);
+
+		res[0] = MAX2(subface->res[0] / (gridsize - 1), 1);
+		res[1] = MAX2(subface->res[1] / (gridsize - 1), 1);
+
+		for(v = 0, y = 0; v < subface->res[1]; v += res[1], ++y) {
+			for(u = 0, x = 0; u < subface->res[0]; u += res[0], ++x) {
+				float *co[4] = {
+					GRIDELEM_CO_AT(grid, y*gridsize+x, gridkey),
+					GRIDELEM_CO_AT(grid, y*gridsize+(x+1), gridkey),
+					
+					GRIDELEM_CO_AT(grid, (y+1)*gridsize+(x+1), gridkey),
+					GRIDELEM_CO_AT(grid, (y+1)*gridsize+x, gridkey),
+				};
+
+				ptex_paint_ptex_from_quad(brush, stroke, &test,
+						      pt, res, subface->res[0],
+						      (char*)subface->data + layersize * (v * subface->res[0] + u),
+						      co[0], co[1], co[2], co[3]);
+			}
+		}
+	}
+}
+
+static void ptex_paint_nodes(VPaint *vp, PaintStroke *stroke,
+			 Scene *scene, Object *ob,
+			 PBVHNode **nodes, int totnode)
+{
+	PBVH *pbvh = ob->paint->pbvh;
+	Brush *brush = paint_brush(&vp->paint);
+	CustomData *vdata = NULL;
+	CustomData *fdata = NULL;
+	GridToFace *grid_face_map;
+	int n;
+
+	assert(BLI_pbvh_uses_grids(pbvh));
+
+	BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
+	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+
+	for(n = 0; n < totnode; ++n) {
+		DMGridData **grids;
+		GridKey *gridkey;
+		int *grid_indices;
+		int totgrid, gridsize;
+
+		pbvh_undo_push_node(nodes[n], PBVH_UNDO_PTEX, ob, scene);
+
+		BLI_pbvh_node_get_grids(pbvh, nodes[n],
+					&grid_indices, &totgrid, NULL,
+					&gridsize, &grids, NULL, &gridkey);
+
+		ptex_paint_node_grids(brush, stroke,
+				  grids, gridkey,
+				  grid_face_map, fdata,
+				  grid_indices,
+				  totgrid, gridsize);
+
+		BLI_pbvh_node_set_flags(nodes[n],
+			SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
+					   PBVH_UpdateRedraw));
+	}
+}
+
+static void ptex_paint_restore_node(PBVH *pbvh, PBVHNode *node, PBVHUndoNode *unode,
+				CustomData *fdata, GridToFace *grid_face_map)
+{
+	MPtex *mptex;
+	int *grid_indices, totgrid, i;
+
+	mptex = CustomData_get_layer_named(fdata, CD_MPTEX,
+					   (char*)pbvh_undo_node_mptex_name(unode));
+
+	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+
+	BLI_pbvh_node_get_grids(pbvh, node,
+				&grid_indices, &totgrid,
+				NULL, NULL, NULL, NULL, NULL);
+
+	for(i = 0; i < totgrid; i++) {
+		GridToFace *gtf = &grid_face_map[grid_indices[i]];
+		MPtex *pt = &mptex[gtf->face];
+		MPtexSubface *subface = &pt->subfaces[gtf->offset];
+		int layersize;
+			
+		layersize = pt->channels * ptex_data_size(pt->type);
+
+		memcpy(subface->data, pbvh_undo_node_mptex_data(unode, i),
+		       layersize * subface->res[0] * subface->res[1]);
+	}
+
+	BLI_pbvh_node_set_flags(node, SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
+							 PBVH_UpdateRedraw));
+}
+
+static void ptex_paint_restore(VPaint *vp, Object *ob)
+{
+	Brush *brush = paint_brush(&vp->paint);
+	PBVH *pbvh = ob->paint->pbvh;
+
+	/* Restore the mesh before continuing with anchored stroke */
+	if((brush->flag & BRUSH_ANCHORED) ||
+	   (brush->flag & BRUSH_RESTORE_MESH))
+	{
+		PBVHNode **nodes;
+		CustomData *fdata;
+		GridToFace *grid_face_map;
+		int n, totnode;
+
+		BLI_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
+
+		grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+		BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+
+		for(n = 0; n < totnode; n++) {
+			PBVHUndoNode *unode;
+			
+			unode= pbvh_undo_get_node(nodes[n]);
+			if(unode) {
+				ptex_paint_restore_node(pbvh, nodes[n], unode, fdata, grid_face_map);
+			}
+		}
+
+		if(nodes)
+			MEM_freeN(nodes);
+	}
+}
+
+static void ptex_paint_stroke_update_step(bContext *C, PaintStroke *stroke,
+					  PointerRNA *itemptr)
+{
+	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
+	Object *ob = CTX_data_active_object(C);
+
+	ptex_paint_restore(vp, ob);
+
+	paint_stroke_apply_brush(C, stroke, &vp->paint);
+
+	if(paint_brush(&vp->paint)->vertexpaint_tool == VERTEX_PAINT_BLUR)
+		;//multires_stitch_grids(ob);
+
+	/* partial redraw */
+	paint_tag_partial_redraw(C, ob);
+}
+
+static void ptex_paint_stroke_brush_action(bContext *C, PaintStroke *stroke)
+{
+
+	VPaint *vp= CTX_data_tool_settings(C)->vpaint;
+	ViewContext *vc = paint_stroke_view_context(stroke);
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = vc->obact;
+	PBVHSearchSphereData search_data;
+	PBVHNode **nodes;
+	int totnode;
+	float center[3], radius;
+
+	paint_stroke_symmetry_location(stroke, center);
+
+	search_data.center = center;
+		
+	radius = paint_stroke_radius(stroke);
+	search_data.radius_squared = radius*radius;
+	search_data.original = 0;
+
+	BLI_pbvh_search_gather(ob->paint->pbvh, BLI_pbvh_search_sphere_cb,
+			       &search_data, &nodes, &totnode);
+		
+	ptex_paint_nodes(vp, stroke, scene, ob, nodes, totnode);
+
+	if(nodes)
+		MEM_freeN(nodes);
+}
+
+static void ptex_paint_stroke_done(bContext *C, struct PaintStroke *stroke)
+{
+	pbvh_undo_push_end();
+}
+
+static int ptex_paint_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	op->customdata = paint_stroke_new(C,
+					  ptex_paint_stroke_get_location,
+					  ptex_paint_stroke_test_start,
+					  ptex_paint_stroke_update_step,
+					  NULL,
+					  ptex_paint_stroke_brush_action,
+					  ptex_paint_stroke_done);
+	
+	/* add modal handler */
+	WM_event_add_modal_handler(C, op);
+
+	op->type->modal(C, op, event);
+	
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void PAINT_OT_vertex_paint(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Vertex Paint";
+	ot->idname= "PAINT_OT_vertex_paint";
+	
+	/* api callbacks */
+	ot->invoke= ptex_paint_invoke;
+	ot->modal= paint_stroke_modal;
+	ot->exec= paint_stroke_exec;
+	ot->poll= vertex_paint_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_BLOCKING;
+
+	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+}
 
 static int next_power_of_two(int n)
 {
@@ -202,8 +627,8 @@ void PTEX_OT_layer_add(wmOperatorType *ot)
 }
 
 /* loads a .ptx file
-   makes some fairly strict assumptions that could
-   be relaxed later as our ptex implementation is refined
+   makes some assumptions that could be relaxed
+   later as our ptex implementation is refined
 
    on the other hand, some unsupported ptex features
    are not checked for yet
@@ -212,11 +637,10 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	Mesh *me = ob->data;
-	MPtex *mptex;
 
 	PtexTextureHandle *ptex_texture;
 	PtexDataType ptex_data_type;
-	int totchannel, layersize, active_offset;
+	int totchannel;
 
 	char *path;
 	int i, j;
@@ -270,131 +694,8 @@ int ptex_open_exec(bContext *C, wmOperator *op)
 
 		j += (f->v4 ? 1 : 3);
 	}
-
-	/* number of bytes for one ptex element */
-	layersize = ptex_data_size(ptex_data_type) * totchannel;
-
-	active_offset = CustomData_number_of_layers(&me->fdata, CD_MPTEX);
-	mptex = CustomData_add_layer(&me->fdata, CD_MPTEX, CD_CALLOC,
-				     NULL, me->totface);
-	CustomData_set_layer_active(&me->fdata, CD_MPTEX, active_offset);
-
-	for(i = 0, j = 0; i < me->totface; ++i) {
-		int S = me->mface[i].v4 ? 4 : 3;
-		int k, file_totsubface;
-
-		mptex[i].type = ptex_data_type;
-		mptex[i].channels = totchannel;
-		mptex[i].totsubface = S;
-
-		/* quads don't have subfaces in ptex files */
-		file_totsubface = (S==4)? 1 : S;
-
-		for(k = 0; k < file_totsubface; ++k) {
-			PtexFaceInfoHandle *ptex_face;
-			PtexResHandle *ptex_res;
-			int l, u, v, file_res[2], file_half_res[2], faceid;
-			char *filedata;
-
-			faceid = j+k;
-			
-			ptex_face = ptex_texture_get_face_info(ptex_texture, faceid);
-			ptex_res = ptex_face_get_res(ptex_face);
-
-			file_res[0] = ptex_res_u(ptex_res);
-			file_res[1] = ptex_res_v(ptex_res);
-			file_half_res[0] = file_res[0] >> 1;
-			file_half_res[1] = file_res[1] >> 1;
-
-			filedata = MEM_callocN(layersize * file_res[0] * file_res[1], "Ptex data from file");
-			ptex_texture_get_data(ptex_texture, faceid, filedata, 0, ptex_res);
-
-			if(S==4) {
-				int ures, vres;
-
-				/* use quarter resolution for quad subfaces */
-				ures = file_half_res[0];
-				vres = file_half_res[1];
-
-				/* TODO: handle 1xV and Ux1 inputs */
-				assert(ures > 0 && vres > 0);
-
-				for(l = 0; l < 4; ++l) {
-					char *dest, *src = filedata;
-					int src_center_offset[2], src_step, src_row_step;
-
-					SWAP(int, ures, vres);
-
-					mptex[i].subfaces[l].res[0] = ures;
-					mptex[i].subfaces[l].res[1] = vres;
-					dest = mptex[i].subfaces[l].data =
-						MEM_callocN(layersize * ures * vres,
-							    "Ptex quad data from file");
-
-					switch(l) {
-					case 0:
-						src_center_offset[0] = -1;
-						src_center_offset[1] = -1;
-						src_step = -file_res[0];
-						src_row_step = file_res[0] * file_half_res[1] - 1;
-						break;
-					case 1:
-						src_center_offset[0] = 0;
-						src_center_offset[1] = -1;
-						src_step = 1;
-						src_row_step = -file_res[0] - file_half_res[0];
-						break;
-					case 2:
-						src_center_offset[0] = 0;
-						src_center_offset[1] = 0;
-						src_step = file_res[0];
-						src_row_step = -file_res[0] * file_half_res[1] + 1;
-						break;
-					case 3:
-						src_center_offset[0] = -1;
-						src_center_offset[1] = 0;
-						src_step = -1;
-						src_row_step = file_res[0] + file_half_res[0];
-						break;
-					}
-
-					src += layersize * (file_res[0] * (file_half_res[1]+src_center_offset[1]) +
-							    file_half_res[0]+src_center_offset[0]);
-
-					for(v = 0; v < vres; ++v) {
-						for(u = 0; u < ures; ++u) {
-							memcpy(dest, src, layersize);
-							dest += layersize;
-							src += layersize * src_step;
-						}
-						src += layersize * src_row_step;
-					}
-				}
-			}
-			else {
-				mptex[i].subfaces[k].res[0] = file_res[1];
-				mptex[i].subfaces[k].res[1] = file_res[0];
-				mptex[i].subfaces[k].data = MEM_callocN(layersize * file_res[0] * file_res[1],
-								       "Ptex tri data from file");
-			
-				for(v = 0; v < file_res[1]; ++v) {
-					for(u = 0; u < file_res[0]; ++u) {
-						memcpy((char*)mptex[i].subfaces[k].data +
-						       layersize * ((file_res[0] - u - 1)*file_res[1]+ (file_res[1] - v - 1)),
-						       filedata + layersize * (v*file_res[0]+u),
-						       layersize);
-					}
-				}
-			}
-
-			MEM_freeN(filedata);
-		}
-
-		j += file_totsubface;
-	}
-
-	/* data is all copied, can release ptex file */
-	ptex_texture_release(ptex_texture);
+	
+	ptex_layer_from_file(me, ptex_texture);
 	
 	return OPERATOR_FINISHED;
 }
@@ -420,114 +721,6 @@ void PTEX_OT_open(wmOperatorType *ot)
 
 	/* properties */
 	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE, WM_FILESEL_FILEPATH|WM_FILESEL_RELPATH);
-}
-
-
-
-static void ptex_elem_to_floats_mul_add(MPtex *pt, void *data, float *out, float fac)
-{
-	int i;
-
-	switch(pt->type) {
-	case PTEX_DT_UINT8:
-		for(i = 0; i < pt->channels; ++i)
-			out[i] += (((unsigned char*)data)[i] / 255.0) * fac;
-		break;
-	case PTEX_DT_UINT16:
-		for(i = 0; i < pt->channels; ++i)
-			out[i] += (((unsigned char*)data)[i] / 65535.0) * fac;
-		break;
-	case PTEX_DT_FLOAT:
-		for(i = 0; i < pt->channels; ++i)
-			out[i] += ((float*)data)[i] * fac;
-		break;
-	default:
-		break;
-	}
-}
-
-static void ptex_elem_from_floats(MPtex *pt, void *data, float *in)
-{
-	int i;
-
-	switch(pt->type) {
-	case PTEX_DT_UINT8:
-		for(i = 0; i < pt->channels; ++i)
-			((unsigned char*)data)[i] = in[i] * 255;
-		break;
-	case PTEX_DT_UINT16:
-		for(i = 0; i < pt->channels; ++i)
-			((unsigned short*)data)[i] = in[i] * 65535;
-		break;
-	case PTEX_DT_FLOAT:
-		for(i = 0; i < pt->channels; ++i)
-			((float*)data)[i] = in[i];
-		break;
-	default:
-		break;
-	}
-}
-
-/* get interpolated value for one texel */
-static void ptex_bilinear_interp(MPtex *pt, MPtexSubface *subface,
-				 void *out, int layersize,
-				 float x, float y, float *tmp)
-{
-	char *input_start = subface->data;
-	int rowlen = subface->res[0];
-	int xi = (int)x;
-	int yi = (int)y;
-	int xt = xi+1, yt = yi+1;
-	float s = x - xi;
-	float t = y - yi;
-	float u = 1 - s;
-	float v = 1 - t;
-
-	if(xt == subface->res[0])
-		--xt;
-	if(yt == subface->res[1])
-		--yt;
-
-	memset(tmp, 0, sizeof(float)*pt->channels);
-	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yi*rowlen+xi), tmp, u*v);
-	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yi*rowlen+xt), tmp, s*v);
-	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yt*rowlen+xt), tmp, s*t);
-	ptex_elem_to_floats_mul_add(pt, input_start + layersize * (yt*rowlen+xi), tmp, u*t);
-	ptex_elem_from_floats(pt, out, tmp);
-}
-
-/* interpolate subface to new resolution */
-static void ptex_subface_scale(MPtex *pt, MPtexSubface *subface,
-			       int ures, int vres)
-{
-	float ui, vi, ui_step, vi_step;
-	float *tmp;
-	char *new_data, *new_data_start;
-	int u, v, layersize;
-
-	layersize = pt->channels * ptex_data_size(pt->type);
-
-	new_data_start = new_data =
-		MEM_callocN(layersize * ures * vres, "ptex_subface_scale.new_data");
-
-	/* tmp buffer used in interpolation */
-	tmp = MEM_callocN(sizeof(float) * pt->channels, "ptex_subface_scale.tmp");
-
-	ui_step = subface->res[0] / (float)ures;
-	vi_step = subface->res[1] / (float)vres;
-	for(v = 0, vi = 0; v < vres; ++v, vi += vi_step) {
-		for(u = 0, ui = 0; u < ures; ++u, ui += ui_step, new_data += layersize) {
-			ptex_bilinear_interp(pt, subface, new_data, layersize, ui, vi, tmp);
-		}
-	}
-
-	MEM_freeN(subface->data);
-	subface->data = new_data_start;
-
-	subface->res[0] = ures;
-	subface->res[1] = vres;
-
-	MEM_freeN(tmp);
 }
 
 typedef enum {
