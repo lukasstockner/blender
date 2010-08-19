@@ -1243,10 +1243,6 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "ptex_vres");
 	RNA_def_property_enum_items(prop, ptex_resolution_items());
 	RNA_def_property_ui_text(prop, "Ptex V Resolution", "");
-
-	prop= RNA_def_property(srna, "ptex_subface", PROP_INT, PROP_NONE);
-	RNA_def_property_range(prop, 1, 3);
-	RNA_def_property_ui_text(prop, "Ptex Subface", "");
 }
 
 

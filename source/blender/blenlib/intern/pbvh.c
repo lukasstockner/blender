@@ -1604,9 +1604,9 @@ int BLI_pbvh_node_raycast(PBVH *bvh, PBVHNode *node, float (*origco)[3],
 									 dist);
 					}
 
-					if(lhit && hit_index) {
-						*hit_index = i;
-						*grid_hit_index = y*gridsize + x;
+					if(lhit) {
+						if(hit_index) *hit_index = i;
+						if(grid_hit_index) *grid_hit_index = y*gridsize + x;
 					}
 
 					hit |= lhit;

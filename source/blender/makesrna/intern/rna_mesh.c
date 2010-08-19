@@ -1891,6 +1891,10 @@ static void rna_def_mesh_faces(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_int_sdna(prop, NULL, "act_face");
 	RNA_def_property_ui_text(prop, "Active Face", "The active face for this mesh");
 
+	prop= RNA_def_property(srna, "active_subface", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "act_subface");
+	RNA_def_property_ui_text(prop, "Active Subface", "The active subface of the active face");
+
 	prop= RNA_def_property(srna, "active_tface", PROP_POINTER, PROP_UNSIGNED);
 	RNA_def_property_struct_type(prop, "MeshTextureFace");
 	RNA_def_property_pointer_funcs(prop, "rna_Mesh_active_mtface_get", NULL, NULL, NULL);
@@ -2179,6 +2183,12 @@ static void rna_def_mesh(BlenderRNA *brna)
 	prop= RNA_def_property(srna, "use_paint_mask", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "editflag", ME_EDIT_PAINT_MASK);
 	RNA_def_property_ui_text(prop, "Paint Mask", "Face selection masking for painting");
+	RNA_def_property_ui_icon(prop, ICON_FACESEL_HLT, 0);
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	prop= RNA_def_property(srna, "ptex_edit_mode", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "editflag", ME_EDIT_PTEX);
+	RNA_def_property_ui_text(prop, "Ptex Edit Mode", "Edit faces' ptex resolution");
 	RNA_def_property_ui_icon(prop, ICON_FACESEL_HLT, 0);
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 

@@ -130,7 +130,11 @@ typedef struct MPtexSubface {
 
 	/* resolution in U and V directions, always a power of two */
 	int res[2];
+
+	int flag, pad;
 } MPtexSubface;
+
+#define MPTEX_SUBFACE_SELECTED 1
 
 typedef struct MPtex {
 	struct MPtexSubface subfaces[4];

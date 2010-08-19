@@ -478,7 +478,7 @@ class PaintPanel():
 
         if context.sculpt_object:
             return ts.sculpt
-        elif context.vertex_paint_object and (not context.vertex_paint_object.data.use_paint_mask):
+        elif context.vertex_paint_object and (not context.vertex_paint_object.data.ptex_edit_mode):
             return ts.vertex_paint
         elif context.weight_paint_object:
             return ts.weight_paint
@@ -1418,52 +1418,47 @@ class VIEW3D_PT_ptex_edit(View3DPanel, bpy.types.Panel):
     @classmethod
     def poll(cls, context):
         ob = context.vertex_paint_object
-        return ob and ob.data.use_paint_mask
+        return ob and ob.data.ptex_edit_mode
 
     def draw(self, context):
         layout = self.layout
 
         mesh = context.active_object.data
         active_ptex = mesh.active_ptex_index
-        active_face = mesh.faces.active
 
-        if active_ptex != -1 and active_face != -1:
-            ptex_layer = mesh.ptex_layers[active_ptex]
-            ptex = ptex_layer.data[active_face]
+        if active_ptex != -1:
             ts = context.tool_settings
 
             layout.operator("ptex.face_resolution_set", text="Double Selected").operation = 'DOUBLE'
             layout.operator("ptex.face_resolution_set", text="Half Selected").operation = 'HALF'
 
-            layout.separator()
-
             prop = layout.operator("ptex.face_resolution_set")
             prop.operation = 'NUMERIC'
-            prop.only_active = True
-            if ptex.subfaces != 1:
-                layout.prop(ts, "ptex_subface")
             layout.prop(ts, "ptex_u_resolution", text="U")
             layout.prop(ts, "ptex_v_resolution", text="V")
 
-            # display active face's resolution
+            active_face = mesh.faces.active
+            active_subface = mesh.faces.active_subface
 
-            box = layout.box()
+            # display active [sub]face's resolution
+            if active_face >= 0 and active_subface >= 0:
+                box = layout.box()
 
-            if len(ptex.subfaces) == 1:
-                box.label("Quad Resolution:")
-            else:
-                box.label("Subface Resolution:")
+                box.label("Current Resolution:")
 
-            def reslbl(prefix, res):
-                box.label(text=prefix + str(res[0]) + " x " + str(res[1]))
+                ptex_layer = mesh.ptex_layers[active_ptex]
+                ptex = ptex_layer.data[active_face]
+                subface = ptex.subfaces[active_subface]
 
-            if ptex.subfaces == 1:
-                reslbl("", ptex.subfaces[0].resolution)
-            else:
-                reslbl("1: ", ptex.subfaces[0].resolution)
-                reslbl("2: ", ptex.subfaces[1].resolution)
-                reslbl("3: ", ptex.subfaces[2].resolution)
-            
+                ures = subface.resolution[0];
+                vres = subface.resolution[1];
+                if len(ptex.subfaces) == 4:
+                    ures *= 2
+                    vres *= 2
+
+                box.label(str(ures) + " x " + str(vres))
+
+
 
 def register():
     pass

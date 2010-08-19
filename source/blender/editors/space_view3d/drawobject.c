@@ -2619,7 +2619,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 					GPU_enable_material(mface->mat_nr+1, NULL);
 					glEnable(GL_LIGHTING);
 					dm_flags |= fast_navigate;
-					if(paint_facesel_test(ob))
+					if(me->editflag & ME_EDIT_PTEX)
 						dm_flags |= DM_DRAW_PTEX_TEXELS;
 
 					dm->drawMappedFaces(dm, paint_redraw_planes,

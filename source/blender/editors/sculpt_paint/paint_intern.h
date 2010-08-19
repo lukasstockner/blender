@@ -189,6 +189,10 @@ float brush_tex_strength(struct ViewContext *vc,
 			 float pixel_radius, float radius3d,
 			 float special_rotation, float tex_mouse[2]);
 
+int paint_util_raycast(struct ViewContext *vc,
+		       BLI_pbvh_HitOccludedCallback hit_cb, void *mode_data,
+		       float out[3], float mouse[2], int original);
+
 /* stroke operator */
 typedef enum wmBrushStrokeMode {
 	WM_BRUSHSTROKE_NORMAL,
@@ -247,10 +251,12 @@ void pbvh_undo_node_set_layer_disp(PBVHUndoNode *unode, float *layer_disp);
 const char *pbvh_undo_node_mptex_name(PBVHUndoNode *unode);
 void *pbvh_undo_node_mptex_data(PBVHUndoNode *unode, int ndx);
 
-/* ptex.c */
+/* paint_ptex.c */
 void PTEX_OT_layer_add(struct wmOperatorType *ot);
 void PTEX_OT_open(struct wmOperatorType *ot);
 void PTEX_OT_face_resolution_set(struct wmOperatorType *ot);
+void PTEX_OT_subface_select(struct wmOperatorType *ot);
+void PTEX_OT_select_all(struct wmOperatorType *ot);
 
 /* paint_overlay.c */
 int paint_sample_overlay(PaintStroke *stroke, float col[3], float co[2]);

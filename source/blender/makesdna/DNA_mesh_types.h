@@ -82,7 +82,12 @@ typedef struct Mesh {
 	 * this means the active face must always be selected, this is to keep track
 	 * of the last selected face and is similar to the old active face flag where
 	 * the face does not need to be selected, -1 is inactive */
-	int act_face; 
+	int act_face;
+
+	/* used for ptex selection */
+	int act_subface;
+
+	int pad;
 	
 	short texflag, editflag;
 	
@@ -125,6 +130,7 @@ typedef struct TFace {
 
 #define ME_EDIT_PAINT_MASK (1 << 3)
 #define ME_EDIT_MIRROR_TOPO (1 << 4) // unused so far
+#define ME_EDIT_PTEX (1 << 5)
 
 
 /* me->flag */

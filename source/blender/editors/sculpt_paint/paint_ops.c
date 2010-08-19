@@ -222,6 +222,8 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PTEX_OT_layer_add);
 	WM_operatortype_append(PTEX_OT_open);
 	WM_operatortype_append(PTEX_OT_face_resolution_set);
+	WM_operatortype_append(PTEX_OT_subface_select);
+	WM_operatortype_append(PTEX_OT_select_all);
 
 	/* face-select */
 	WM_operatortype_append(PAINT_OT_face_select_linked);
@@ -425,6 +427,11 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_vertex_paint_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "mode", WM_RADIALCONTROL_STRENGTH);
 	WM_keymap_verify_item(keymap, "PAINT_OT_vertex_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", RIGHTMOUSE, KM_PRESS, 0, 0);
+
+	WM_keymap_add_item(keymap, "PTEX_OT_subface_select", RIGHTMOUSE, KM_PRESS, 0, 0);
+	kmi = WM_keymap_add_item(keymap, "PTEX_OT_subface_select", RIGHTMOUSE, KM_PRESS, KM_SHIFT, 0);
+	RNA_boolean_set(kmi->ptr, "extend", 1);
+	WM_keymap_add_item(keymap, "PTEX_OT_select_all", AKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap,
 			"PAINT_OT_vertex_color_set",KKEY, KM_PRESS, KM_SHIFT, 0);

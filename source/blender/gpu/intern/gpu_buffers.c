@@ -1017,7 +1017,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 	CustomData *vdata = NULL, *fdata = NULL;
 	MPtex *mptex;
 	int mcol_first_layer, pmask_first_layer;
-	int i, use_grids, use_color, use_ptex;
+	int i, use_grids, use_color, use_ptex, ptex_edit = 0;
 
 	use_grids = BLI_pbvh_uses_grids(pbvh);
 	BLI_pbvh_get_customdata(pbvh, &vdata, &fdata);
@@ -1038,39 +1038,64 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		use_color = (flags & DM_DRAW_PAINT_MASK) && pmask_first_layer != -1;
 	}
 	
-	if(use_color) {
-		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
-		glEnable(GL_COLOR_MATERIAL);
-	}
-
 	if((use_ptex = (buffers->ptex && (flags & DM_DRAW_PTEX)))) {
 		mptex = CustomData_get_layer(fdata, CD_MPTEX);
 		glEnable(GL_TEXTURE_2D);
+		ptex_edit = flags & DM_DRAW_PTEX_TEXELS;
 	}
 
-	if(use_grids) {
+	if(use_color || ptex_edit) {
+		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+		glEnable(GL_COLOR_MATERIAL);
+	}
+	if(use_grids) {	 
+		GridToFace *grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 		int x, y;
-		//GridToFace *grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 
 		BLI_pbvh_node_get_grids(pbvh, node, &grid_indices,
 					&totgrid, NULL, &gridsize,
 					&grids, NULL, &gridkey);
 
+		if(ptex_edit)
+			gpu_bind_ptex_pattern();
+
 		for(i = 0; i < totgrid; ++i) {
 			DMGridData *grid = grids[grid_indices[i]];
-			float u, v, uvstep;
+			GridToFace *gtf = &grid_face_map[grid_indices[i]];
+			MPtex *pt = &mptex[gtf->face];
+			MPtexSubface *subface = &pt->subfaces[gtf->offset];
+			float u, v, ustep, vstep, vstart = 0;
 
-			uvstep = 1.0;
-			if(gridsize > 1)
-				uvstep /= gridsize - 1;
+			if(ptex_edit) {
+				ustep = subface->res[0] >> 1;
+				vstep = subface->res[1] >> 1;
+			}
+			else {
+				ustep = 1;
+				vstep = 1;
+			}
 
-			if(use_ptex)
+			if(gridsize > 1) {
+				ustep /= gridsize - 1;
+				vstep /= gridsize - 1;
+			}
+
+			/* make quad texel pattern appear uniform across all four subfaces */
+			if(ptex_edit && (gtf->offset % 2))
+				vstart = 0.5;
+
+			if(ptex_edit) {
+				if(subface->flag & MPTEX_SUBFACE_SELECTED)
+					glColor3ub(255, 255, 255);	 
+				else	 
+					glColor3ub(128, 128, 128);	
+			}
+			else if(use_ptex)
 				glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
 
-			for(y = 0, v = 0; y < gridsize-1; y++, v += uvstep) {
-				u = 0;
+			for(y = 0, v = vstart; y < gridsize-1; y++, v += vstep) {
 				glBegin(GL_QUAD_STRIP);
-				for(x = 0; x < gridsize; x++, u += uvstep) {
+				for(x = 0, u = 0; x < gridsize; x++, u += ustep) {
 					DMGridData *a = GRIDELEM_AT(grid, y*gridsize + x, gridkey);
 					DMGridData *b = GRIDELEM_AT(grid, (y+1)*gridsize + x, gridkey);
 					float acol[3], bcol[3], amask, bmask;
@@ -1095,7 +1120,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 					if(use_color)
 						glColor3ubv(bglc);
 					if(use_ptex)
-						glTexCoord2f(u, v + uvstep);
+						glTexCoord2f(u, v + vstep);
 					glNormal3fv(GRIDELEM_NO(b, gridkey));
 					glVertex3fv(GRIDELEM_CO(b, gridkey));
 				}
@@ -1155,7 +1180,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		}
 	}
 
-	if(use_color)
+	if(use_color || ptex_edit)
 		glDisable(GL_COLOR_MATERIAL);
 }
 

@@ -473,7 +473,7 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 		PointerRNA meshptr;
 
 		RNA_pointer_create(&ob->id, &RNA_Mesh, ob->data, &meshptr);
-		uiItemR(layout, &meshptr, "use_paint_mask", UI_ITEM_R_ICON_ONLY, "", 0);
+		uiItemR(layout, &meshptr, "ptex_edit_mode", UI_ITEM_R_ICON_ONLY, "", 0);
 	} else {
 		char *str_menu;
 

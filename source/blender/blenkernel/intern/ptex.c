@@ -18,7 +18,7 @@ DerivedMesh *quad_dm_create_from_derived(DerivedMesh *dm)
 	smd.subdivType = ME_SIMPLE_SUBSURF;
 	GRIDELEM_KEY_INIT(&gridkey, 1, 0, 0, 1);
 	ccgdm = subsurf_make_derived_from_derived(dm, &smd, &gridkey,
-						  0, NULL, 1, 0);
+						  0, NULL, 0, 0);
 
 	return ccgdm;
 }

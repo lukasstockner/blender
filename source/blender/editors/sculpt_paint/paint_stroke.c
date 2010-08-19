@@ -1453,36 +1453,7 @@ int paint_stroke_get_location(bContext *C, PaintStroke *stroke,
 			      float out[3], float mouse[2], int original)
 {
 	ViewContext *vc = paint_stroke_view_context(stroke);
-	float ray_start[3], ray_end[3], ray_normal[3], dist;
-	float obimat[4][4];
-	float mval[2] = {mouse[0] - vc->ar->winrct.xmin,
-			 mouse[1] - vc->ar->winrct.ymin};
-	PaintStrokeRaycastData hit_data;
-
-	viewline(vc->ar, vc->v3d, mval, ray_start, ray_end);
-
-	invert_m4_m4(obimat, vc->obact->obmat);
-	mul_m4_v3(obimat, ray_start);
-	mul_m4_v3(obimat, ray_end);
-
-	sub_v3_v3v3(ray_normal, ray_end, ray_start);
-	dist= normalize_v3(ray_normal);
-
-	hit_data.mode_data = mode_data;
-	hit_data.ob = vc->obact;
-	hit_data.ray_start = ray_start;
-	hit_data.ray_normal = ray_normal;
-	hit_data.dist = dist;
-	hit_data.hit = 0;
-	hit_data.original = original;
-	BLI_pbvh_raycast(vc->obact->paint->pbvh, hit_cb, &hit_data,
-			 ray_start, ray_normal, original);
-	
-	copy_v3_v3(out, ray_normal);
-	mul_v3_fl(out, hit_data.dist);
-	add_v3_v3(out, ray_start);
-
-	return hit_data.hit;
+	return paint_util_raycast(vc, hit_cb, mode_data, out, mouse, original);
 }
 
 int paint_poll(bContext *C)

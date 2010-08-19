@@ -733,7 +733,6 @@ typedef struct ToolSettings {
 
 	/* Paint */
 	int ptex_ures, ptex_vres;
-	int ptex_subface, pad2;
 } ToolSettings;
 
 typedef struct bStats {
