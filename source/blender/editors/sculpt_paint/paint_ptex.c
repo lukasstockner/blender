@@ -172,27 +172,36 @@ static void ptex_paint_ptex_from_quad(Brush *brush, PaintStroke *stroke, PaintSt
 				  float v1[3], float v2[3], float v3[3], float v4[3])
 				  
 {
-	float dtop[3], dbot[3], yinterp, ustep, vstep;
-	float co_bot[3], co_top[3];
+	float dtop[3], dbot[3], xoffset, yinterp, ustep, vstep;
+	float co_bot[3], co_top[3], start_top[3], start_bot[3];
 	int u, v, layersize;
 
 	layersize = pt->channels * ptex_data_size(pt->type);
 
+	/* start of top and bottom "rails" */
+	copy_v3_v3(start_top, v4);
+	copy_v3_v3(start_bot, v1);
+
+	/* direction of "rails" */
 	sub_v3_v3v3(dtop, v3, v4);
-	sub_v3_v3v3(dbot, v2, v1);;
-	ustep = 1;
-	if(res[0] != 1)
-		ustep /= (res[0] - 1);
+	sub_v3_v3v3(dbot, v2, v1);
+
+	/* offset to use center of texel rather than corner */
+	xoffset = 1.0f / (2 * res[0]);
+	yinterp = 1.0f / (2 * res[1]);
+	madd_v3_v3fl(start_top, dtop, xoffset);
+	madd_v3_v3fl(start_bot, dbot, xoffset);
+
+	ustep = 1.0f / res[0];
+	vstep = 1.0f / res[1];
+
+	/* precalculate interpolation along "rails" */
 	mul_v3_fl(dtop, ustep);
 	mul_v3_fl(dbot, ustep);
 
-	vstep = 1;
-	if(res[1] != 1)
-		vstep /= (res[1] - 1);
-
-	for(v = 0, yinterp = 0; v < res[1]; ++v) {
-		copy_v3_v3(co_top, v4);
-		copy_v3_v3(co_bot, v1);
+	for(v = 0; v < res[1]; ++v) {
+		copy_v3_v3(co_top, start_top);
+		copy_v3_v3(co_bot, start_bot);
 
 		for(u = 0; u < res[0]; ++u) {
 			float co[3];
