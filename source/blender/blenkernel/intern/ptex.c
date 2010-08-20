@@ -35,6 +35,7 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_dmgrid.h"
+#include "BKE_mesh.h"
 #include "BKE_subsurf.h"
 
 #include "BLI_math.h"
@@ -164,6 +165,103 @@ void ptex_subface_scale(MPtex *pt, MPtexSubface *subface, int ures, int vres)
 	MEM_freeN(tmp);
 }
 
+/* copy data to/from ptex file format and internal MPtex format */
+static void ptex_transfer_filedata(MPtex *pt, int offset, char *file_data_start, int from_file)
+{
+	char *mptex_data, *file_data;
+	char **src, **dest;
+	int file_res[2], file_half_res[2];
+	int i, u, v, layersize;
+
+	layersize = pt->channels * ptex_data_size(pt->type);
+
+	if(pt->totsubface == 4) {
+		file_res[0] = pt->subfaces[1].res[0] << 1;
+		file_res[1] = pt->subfaces[1].res[1] << 1;
+	}
+	else {
+		file_res[0] = pt->subfaces[offset].res[1];
+		file_res[1] = pt->subfaces[offset].res[0];
+	}
+
+	file_half_res[0] = file_res[0] >> 1;
+	file_half_res[1] = file_res[1] >> 1;
+
+	if(from_file) {
+		src = &file_data;
+		dest = &mptex_data;
+	}
+	else {
+		src = &mptex_data;
+		dest = &file_data;
+	}
+
+	if(pt->totsubface == 4) {
+		/* save quad subfaces as one face */
+
+		for(i = 0; i < 4; ++i) {
+			MPtexSubface *subface = &pt->subfaces[i];
+			int file_center_offset[2], file_step, file_row_step;
+
+			switch(i) {
+			case 0:
+				file_center_offset[0] = -1;
+				file_center_offset[1] = -1;
+				file_step = -file_res[0];
+				file_row_step = file_res[0] * file_half_res[1] - 1;
+				break;
+			case 1:
+				file_center_offset[0] = 0;
+				file_center_offset[1] = -1;
+				file_step = 1;
+				file_row_step = -file_res[0] - file_half_res[0];
+				break;
+			case 2:
+				file_center_offset[0] = 0;
+				file_center_offset[1] = 0;
+				file_step = file_res[0];
+				file_row_step = -file_res[0] * file_half_res[1] + 1;
+				break;
+			case 3:
+				file_center_offset[0] = -1;
+				file_center_offset[1] = 0;
+				file_step = -1;
+				file_row_step = file_res[0] + file_half_res[0];
+				break;
+			}
+
+			mptex_data = subface->data;
+			file_data = file_data_start +
+				layersize * (file_res[0] * (file_half_res[1]+file_center_offset[1]) +
+					     file_half_res[0]+file_center_offset[0]);
+
+			for(v = 0; v < subface->res[1]; ++v) {
+				for(u = 0; u < subface->res[0]; ++u) {
+					memcpy(*dest, *src, layersize);
+					mptex_data += layersize;
+					file_data += layersize * file_step;
+				}
+				file_data += layersize * file_row_step;
+			}
+		}
+	}
+	else {
+		mptex_data = pt->subfaces[offset].data;
+		file_data = file_data_start;
+
+		for(v = 0; v < file_res[1]; ++v) {
+			for(u = 0; u < file_res[0]; ++u) {
+				mptex_data = (char*)pt->subfaces[offset].data +
+					layersize * ((file_res[0] - u - 1) * file_res[1] +
+						     (file_res[1] - v - 1));
+				file_data = file_data_start + layersize * (v*file_res[0]+u);
+
+				memcpy(*dest, *src, layersize);
+			}
+		}
+	}
+}
+
 /* creates a new CD_MPTEX layer and loads ptex_texture into it */
 void ptex_layer_from_file(Mesh *me, PtexTextureHandle *ptex_texture)
 {
@@ -197,13 +295,13 @@ void ptex_layer_from_file(Mesh *me, PtexTextureHandle *ptex_texture)
 		for(k = 0; k < file_totsubface; ++k) {
 			PtexFaceInfoHandle *ptex_face;
 			PtexResHandle *ptex_res;
-			int l, u, v, file_res[2], file_half_res[2], faceid;
+			int l, file_res[2], file_half_res[2], faceid;
 			char *filedata;
 
 			faceid = j+k;
 			
 			ptex_face = ptex_texture_get_face_info(ptex_texture, faceid);
-			ptex_res = ptex_face_get_res(ptex_face);
+			ptex_res = ptex_face_info_get_res(ptex_face);
 
 			file_res[0] = ptex_res_u(ptex_res);
 			file_res[1] = ptex_res_v(ptex_res);
@@ -213,6 +311,7 @@ void ptex_layer_from_file(Mesh *me, PtexTextureHandle *ptex_texture)
 			filedata = MEM_callocN(layersize * file_res[0] * file_res[1], "Ptex data from file");
 			ptex_texture_get_data(ptex_texture, faceid, filedata, 0, ptex_res);
 
+			/* allocate mem for ptex data, set subface resolutions */
 			if(S==4) {
 				int ures, vres;
 
@@ -224,73 +323,26 @@ void ptex_layer_from_file(Mesh *me, PtexTextureHandle *ptex_texture)
 				assert(ures > 0 && vres > 0);
 
 				for(l = 0; l < 4; ++l) {
-					char *dest, *src = filedata;
-					int src_center_offset[2], src_step, src_row_step;
-
 					SWAP(int, ures, vres);
 
 					mptex[i].subfaces[l].res[0] = ures;
 					mptex[i].subfaces[l].res[1] = vres;
-					dest = mptex[i].subfaces[l].data =
+					mptex[i].subfaces[l].data =
 						MEM_callocN(layersize * ures * vres,
 							    "Ptex quad data from file");
-
-					switch(l) {
-					case 0:
-						src_center_offset[0] = -1;
-						src_center_offset[1] = -1;
-						src_step = -file_res[0];
-						src_row_step = file_res[0] * file_half_res[1] - 1;
-						break;
-					case 1:
-						src_center_offset[0] = 0;
-						src_center_offset[1] = -1;
-						src_step = 1;
-						src_row_step = -file_res[0] - file_half_res[0];
-						break;
-					case 2:
-						src_center_offset[0] = 0;
-						src_center_offset[1] = 0;
-						src_step = file_res[0];
-						src_row_step = -file_res[0] * file_half_res[1] + 1;
-						break;
-					case 3:
-						src_center_offset[0] = -1;
-						src_center_offset[1] = 0;
-						src_step = -1;
-						src_row_step = file_res[0] + file_half_res[0];
-						break;
-					}
-
-					src += layersize * (file_res[0] * (file_half_res[1]+src_center_offset[1]) +
-							    file_half_res[0]+src_center_offset[0]);
-
-					for(v = 0; v < vres; ++v) {
-						for(u = 0; u < ures; ++u) {
-							memcpy(dest, src, layersize);
-							dest += layersize;
-							src += layersize * src_step;
-						}
-						src += layersize * src_row_step;
-					}
 				}
+
+
 			}
 			else {
 				mptex[i].subfaces[k].res[0] = file_res[1];
 				mptex[i].subfaces[k].res[1] = file_res[0];
-				mptex[i].subfaces[k].data = MEM_callocN(layersize * file_res[0] * file_res[1],
-								       "Ptex tri data from file");
-			
-				for(v = 0; v < file_res[1]; ++v) {
-					for(u = 0; u < file_res[0]; ++u) {
-						memcpy((char*)mptex[i].subfaces[k].data +
-						       layersize * ((file_res[0] - u - 1)*file_res[1]+ (file_res[1] - v - 1)),
-						       filedata + layersize * (v*file_res[0]+u),
-						       layersize);
-					}
-				}
+				mptex[i].subfaces[k].data =
+					MEM_callocN(layersize * file_res[0] * file_res[1],
+						    "Ptex tri data from file");
 			}
 
+			ptex_transfer_filedata(&mptex[i], k, filedata, 1);
 			MEM_freeN(filedata);
 		}
 
@@ -299,4 +351,73 @@ void ptex_layer_from_file(Mesh *me, PtexTextureHandle *ptex_texture)
 
 	/* data is all copied, can release ptex file */
 	ptex_texture_release(ptex_texture);
+}
+
+int ptex_layer_save_file(struct Mesh *me, const char *filename)
+{
+	MPtex *mptex;
+	PtexWriterHandle *ptex_writer;
+	char *file_data;
+	int i, j, totface, faceid;
+
+	mptex = CustomData_get_layer(&me->fdata, CD_MPTEX);
+
+	for(i = 0, totface = 0; i < me->totface; ++i)
+		totface += (me->mface[i].v4 ? 4 : 3);
+
+	ptex_writer = ptex_writer_open(filename, mptex->type, mptex->channels, 0, totface, 1);
+	if(!ptex_writer)
+		return -1;
+
+	for(i = 0, faceid = 0; i < me->totface; ++i, ++mptex) {
+		PtexFaceInfoHandle *face_info;
+		int adjfaces[4] = {0,0,0,0}, adjedges[4] = {0,0,0,0};
+		int layersize;
+
+		layersize = ptex_data_size(mptex->type) * mptex->channels;
+
+		/* TODO: adjacency data (needed for filtering) */
+
+		if(mptex->totsubface == 4) {
+			int res[2];
+
+			res[0] = mptex->subfaces[1].res[0]*2;
+			res[1] = mptex->subfaces[1].res[1]*2;
+
+			file_data = MEM_callocN(res[0] * res[1] * layersize,
+						"mptex save quad data");
+
+			ptex_transfer_filedata(mptex, 0, file_data, 0);
+
+			face_info = ptex_face_info_new(res[0], res[1],
+						       adjfaces, adjedges, 0);
+			ptex_writer_write_face(ptex_writer, faceid, face_info, file_data, 0);
+			faceid += 1;
+
+			MEM_freeN(file_data);
+		}
+		else if(mptex->totsubface == 3) {
+			for(j = 0; j < mptex->totsubface; ++j, ++faceid) {
+				MPtexSubface *subface = &mptex->subfaces[j];
+
+				file_data =
+					MEM_callocN(subface->res[0] * subface->res[1] * layersize,
+						    "mptex save subface data");
+
+				ptex_transfer_filedata(mptex, j, file_data, 0);
+
+				face_info = ptex_face_info_new(subface->res[1],
+							       subface->res[0],
+							       adjfaces, adjedges, 1);
+				ptex_writer_write_face(ptex_writer, faceid, face_info,
+						       file_data, 0);
+
+				MEM_freeN(file_data);
+			}
+		}
+	}
+
+	ptex_writer_release(ptex_writer);
+
+	return 0;
 }

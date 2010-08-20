@@ -259,6 +259,26 @@ class DATA_PT_shape_keys(MeshButtonsPanel, bpy.types.Panel):
                 row.prop(key, "slurph")
 
 
+class DATA_PT_ptex(MeshButtonsPanel, bpy.types.Panel):
+    bl_label = "PTex"
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        me = context.mesh
+
+        row = layout.row()
+        row.template_list(me, "ptex_layers", me, "active_ptex_index", rows=2)
+        col = row.column(align=True)
+        col.operator("ptex.layer_remove", icon='ZOOMOUT', text="")
+
+        layout.operator_menu_enum("ptex.layer_add", "type")
+        row = layout.row()
+        row.operator("ptex.open")
+        row.operator("ptex.layer_save")
+
+
 class DATA_PT_uv_texture(MeshButtonsPanel, bpy.types.Panel):
     bl_label = "UV Texture"
     COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
@@ -353,21 +373,6 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, bpy.types.Panel):
                 layout.operator("mesh.vertex_color_multiresolution_toggle", text="Remove Multires")
             else:
                 layout.operator("mesh.vertex_color_multiresolution_toggle", text="Add Multires")
-
-
-class DATA_PT_ptex(MeshButtonsPanel, bpy.types.Panel):
-    bl_label = "PTex"
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        me = context.mesh
-
-        layout.template_list(me, "ptex_layers", me, "active_ptex_index", rows=2)
-        row = layout.row()
-        row.operator_menu_enum("ptex.layer_add", "type")
-        row.operator("ptex.open")
 
 
 def register():

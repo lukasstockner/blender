@@ -36,3 +36,4 @@ struct PtexTextureHandle;
 struct DerivedMesh *quad_dm_create_from_derived(struct DerivedMesh *dm);
 void ptex_subface_scale(struct MPtex *pt, struct MPtexSubface *subface, int ures, int vres);
 void ptex_layer_from_file(struct Mesh *me, struct PtexTextureHandle *ptex_texture);
+int ptex_layer_save_file(struct Mesh *me, const char *filename);

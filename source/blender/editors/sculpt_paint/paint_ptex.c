@@ -22,12 +22,14 @@
 #include "BKE_subsurf.h"
 
 #include "BLI_math.h"
+#include "BLI_string.h"
 
 #include "IMB_imbuf.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 
@@ -512,6 +514,7 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 	int totchannel;
 	int layer_size;
 	int tottexel = 0;
+	int active_offset;
 	int i, j;
 
 	type = RNA_enum_get(op->ptr, "type");
@@ -519,8 +522,10 @@ static int ptex_layer_add_exec(bContext *C, wmOperator *op)
 	layer_size = ptex_data_size(type) * totchannel;
 	def_val = ptex_default_data(type);
 
+	active_offset = CustomData_number_of_layers(&me->fdata, CD_MPTEX);
 	mptex = CustomData_add_layer(&me->fdata, CD_MPTEX, CD_CALLOC,
 				     NULL, me->totface);
+	CustomData_set_layer_active(&me->fdata, CD_MPTEX, active_offset);
 
 	/* TODO: for now i'm allocating texels based on limit surface area;
 	   according to ptex paper it's better to use surface derivatives */
@@ -633,6 +638,98 @@ void PTEX_OT_layer_add(wmOperatorType *ot)
 	RNA_def_float(ot->srna, "density", 10, 0, 6000, "Density", "Density of texels to generate", 0, 6000);
 	RNA_def_int(ot->srna, "channels", 3, 1, 4, "Channels", "", 1, 4);
 	RNA_def_enum(ot->srna, "type", type_items, PTEX_DT_FLOAT, "Type", "Layer channels and data type");
+}
+
+static int ptex_layer_remove_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	Mesh *me = ob->data;
+
+	CustomData_free_layer_active(&me->fdata, CD_MPTEX,
+				     me->totface);
+
+	if((ob->mode & OB_MODE_VERTEX_PAINT) &&
+	   !CustomData_number_of_layers(&me->fdata, CD_MPTEX))
+		ED_object_toggle_modes(C, OB_MODE_VERTEX_PAINT);		
+
+	return OPERATOR_FINISHED;
+}
+
+static int ptex_active_layer_poll(bContext *C)
+{
+	Object *ob = CTX_data_active_object(C);
+	if(ob) {
+		Mesh *me = get_mesh(ob);
+		if(me)
+			return !!CustomData_get_layer(&me->fdata, CD_MPTEX);
+	}
+	return 0;
+}
+
+void PTEX_OT_layer_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Remove Layer";
+	ot->description= "Remove active ptex layer";
+	ot->idname= "PTEX_OT_layer_remove";
+	
+	/* api callbacks */
+	ot->exec= ptex_layer_remove_exec;
+	ot->poll= ptex_active_layer_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int ptex_layer_save_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	Mesh *me = ob->data;
+	char str[FILE_MAX];
+
+	if(!me->totface)
+		return OPERATOR_CANCELLED;
+
+	RNA_string_get(op->ptr, "filepath", str);
+	if(!ptex_layer_save_file(me, str))
+		return OPERATOR_FINISHED;
+	else
+		return OPERATOR_CANCELLED;
+}
+
+static int ptex_layer_save_invoke(bContext *C, wmOperator *op, wmEvent *event)
+{
+	/*Object *ob = CTX_data_active_object(C);
+	Mesh *me = ob->data;
+	const char *name;
+	char buf[FILE_MAX];*/
+	
+	if(RNA_property_is_set(op->ptr, "filepath"))
+		return ptex_layer_save_exec(C, op);
+
+	/*name = me->fdata.layers[CustomData_get_active_layer_index(&me->fdata, CD_MPTEX)].name;
+	BLI_snprintf(buf, FILE_MAX, "%s.ptx", name);
+	
+	RNA_string_set(op->ptr, "filepath", buf);*/
+		       
+	WM_event_add_fileselect(C, op); 
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void PTEX_OT_layer_save(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name= "Save Layer";
+	ot->description= "Save active ptex layer";
+	ot->idname= "PTEX_OT_layer_save";
+	
+	/* api callbacks */
+	ot->invoke= ptex_layer_save_invoke;
+	ot->exec= ptex_layer_save_exec;
+	ot->poll= ptex_active_layer_poll;
+
+	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_SAVE, WM_FILESEL_FILEPATH);
 }
 
 /* loads a .ptx file

@@ -253,6 +253,8 @@ void *pbvh_undo_node_mptex_data(PBVHUndoNode *unode, int ndx);
 
 /* paint_ptex.c */
 void PTEX_OT_layer_add(struct wmOperatorType *ot);
+void PTEX_OT_layer_remove(struct wmOperatorType *ot);
+void PTEX_OT_layer_save(struct wmOperatorType *ot);
 void PTEX_OT_open(struct wmOperatorType *ot);
 void PTEX_OT_face_resolution_set(struct wmOperatorType *ot);
 void PTEX_OT_subface_select(struct wmOperatorType *ot);
