@@ -254,6 +254,10 @@ static void ptex_paint_node_grids(Brush *brush, PaintStroke *stroke,
 		MPtexSubface *subface = &pt->subfaces[gtf->offset];
 		int u, v, x, y, layersize, res[2];
 
+		/* ignore hidden and masked subfaces */
+		if(subface->flag & (MPTEX_SUBFACE_HIDDEN|MPTEX_SUBFACE_MASKED))
+			continue;
+
 		layersize = pt->channels * ptex_data_size(pt->type);
 
 		res[0] = MAX2(subface->res[0] / (gridsize - 1), 1);
@@ -1029,7 +1033,7 @@ static int ptex_subface_select_invoke(bContext *C, wmOperator *op, wmEvent *even
 	return OPERATOR_FINISHED;
 }
 
-static int ptex_select_poll(bContext *C)
+static int ptex_edit_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 
@@ -1049,7 +1053,7 @@ void PTEX_OT_subface_select(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->invoke= ptex_subface_select_invoke;
-	ot->poll= ptex_select_poll;
+	ot->poll= ptex_edit_poll;
 
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
@@ -1111,10 +1115,65 @@ void PTEX_OT_select_all(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->exec= ptex_select_all_exec;
-	ot->poll= ptex_select_poll;
+	ot->poll= ptex_edit_poll;
 	
 	/* flags */
 	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
 
 	WM_operator_properties_select_all(ot);
+}
+
+int ptex_subface_flag_set_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	Mesh *me = ob->data;
+	MPtex *mptex = CustomData_get_layer(&me->fdata, CD_MPTEX);
+	int flag = RNA_enum_get(op->ptr, "flag");
+	int set = RNA_boolean_get(op->ptr, "set");
+	int ignore_unselected = RNA_boolean_get(op->ptr, "ignore_unselected");
+	int ignore_hidden = RNA_boolean_get(op->ptr, "ignore_hidden");
+	int i, j;
+
+	for(i = 0; i < me->totface; ++i) {
+		for(j = 0; j < mptex[i].totsubface; ++j) {
+			MPtexSubface *subface = &mptex[i].subfaces[j];
+			
+			if((!ignore_unselected || (subface->flag & MPTEX_SUBFACE_SELECTED)) &&
+			   (!ignore_hidden || !(subface->flag & MPTEX_SUBFACE_HIDDEN))) {
+				if(set)
+					subface->flag |= flag;
+				else
+					subface->flag &= ~flag;
+			}
+		}
+	}
+
+	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+void PTEX_OT_subface_flag_set(wmOperatorType *ot)
+{
+	static EnumPropertyItem flag_items[] = {
+		{MPTEX_SUBFACE_HIDDEN, "HIDDEN", 0, "Hidden", ""},
+		{MPTEX_SUBFACE_MASKED, "MASKED", 0, "Masked", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+	/* identifiers */
+	ot->name= "Set Subface Flags";
+	ot->description= "Set or clear a flag from ptex subfaces";
+	ot->idname= "PTEX_OT_subface_flag_set";
+	
+	/* api callbacks */
+	ot->exec= ptex_subface_flag_set_exec;
+	ot->poll= ptex_active_layer_poll;
+	
+	/* flags */
+	ot->flag= OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "flag", flag_items, 0, "Flag", "");
+	RNA_def_boolean(ot->srna, "set", 1, "Set", "Set the flag if true, otherwise clear the flag");	
+	RNA_def_boolean(ot->srna, "ignore_unselected", 1, "Ignore Unselected", "Don't change the flags of unselected faces");
+	RNA_def_boolean(ot->srna, "ignore_hidden", 1, "Ignore Hidden", "Don't change the flags of hidden faces");
 }

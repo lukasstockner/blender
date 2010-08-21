@@ -259,6 +259,7 @@ void PTEX_OT_open(struct wmOperatorType *ot);
 void PTEX_OT_face_resolution_set(struct wmOperatorType *ot);
 void PTEX_OT_subface_select(struct wmOperatorType *ot);
 void PTEX_OT_select_all(struct wmOperatorType *ot);
+void PTEX_OT_subface_flag_set(struct wmOperatorType *ot);
 
 /* paint_overlay.c */
 int paint_sample_overlay(PaintStroke *stroke, float col[3], float co[2]);

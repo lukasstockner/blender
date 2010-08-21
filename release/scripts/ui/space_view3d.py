@@ -936,6 +936,23 @@ class VIEW3D_MT_paint_vertex(bpy.types.Menu):
         layout.operator("paint.vertex_color_set")
         layout.operator("paint.vertex_color_dirt")
 
+        # hiding
+        prop = layout.operator("ptex.subface_flag_set", text="Hide Selected")
+        prop.flag = 'HIDDEN'
+        prop = layout.operator("ptex.subface_flag_set", text="Show All")
+        prop.flag = 'HIDDEN'
+        prop.set = 0
+        prop.ignore_hidden = 0
+        prop.ignore_unselected = 0
+
+        # masking
+        prop = layout.operator("ptex.subface_flag_set", text="Mask Selected")
+        prop.flag = 'MASKED'
+        prop = layout.operator("ptex.subface_flag_set", text="Unmask Selected")
+        prop.flag = 'MASKED'
+        prop.set = 0
+
+
 
 class VIEW3D_MT_hook(bpy.types.Menu):
     bl_label = "Hooks"

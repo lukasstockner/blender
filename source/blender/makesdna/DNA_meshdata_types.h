@@ -135,6 +135,8 @@ typedef struct MPtexSubface {
 } MPtexSubface;
 
 #define MPTEX_SUBFACE_SELECTED 1
+#define MPTEX_SUBFACE_HIDDEN 2
+#define MPTEX_SUBFACE_MASKED 4
 
 typedef struct MPtex {
 	struct MPtexSubface subfaces[4];

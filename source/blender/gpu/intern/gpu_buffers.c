@@ -1111,7 +1111,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		ptex_edit = flags & DM_DRAW_PTEX_TEXELS;
 	}
 
-	if(use_color || ptex_edit) {
+	if(use_color || use_ptex) {
 		glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 		glEnable(GL_COLOR_MATERIAL);
 	}
@@ -1132,6 +1132,9 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 			MPtex *pt = &mptex[gtf->face];
 			MPtexSubface *subface = &pt->subfaces[gtf->offset];
 			float u, v, ustep, vstep, vstart = 0;
+
+			if(subface->flag & MPTEX_SUBFACE_HIDDEN)
+				continue;
 
 			if(ptex_edit) {
 				ustep = subface->res[0] >> 1;
@@ -1154,11 +1157,18 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 			if(ptex_edit) {
 				if(subface->flag & MPTEX_SUBFACE_SELECTED)
 					glColor3ub(255, 255, 255);
+				else if(subface->flag & MPTEX_SUBFACE_MASKED)
+					glColor3ub(96, 96, 96);
 				else	 
 					glColor3ub(128, 128, 128);	
 			}
-			else if(use_ptex)
+			else if(use_ptex) {
+				if(subface->flag & MPTEX_SUBFACE_MASKED)
+					glColor3ub(128, 128, 128);
+				else
+					glColor3ub(255, 255, 255);
 				glBindTexture(GL_TEXTURE_2D, buffers->ptex[i]);
+			}
 
 			for(y = 0, v = vstart; y < gridsize-1; y++, v += vstep) {
 				glBegin(GL_QUAD_STRIP);
@@ -1242,7 +1252,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 		}
 	}
 
-	if(use_color || ptex_edit)
+	if(use_color || use_ptex)
 		glDisable(GL_COLOR_MATERIAL);
 }
 
@@ -1263,7 +1273,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
 
-		use_colmat = buffers->color_buf || (flags & DM_DRAW_PTEX_TEXELS);
+		use_colmat = buffers->color_buf || (flags & DM_DRAW_PTEX);
 		if(use_colmat) {
 			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			glGetBooleanv(GL_COLOR_MATERIAL, &colmat);
@@ -1271,6 +1281,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 		}
 
 		if(buffers->tot_quad) {
+			int skip = 0;
+
 			glVertexPointer(3, GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, co));
 			glNormalPointer(GL_FLOAT, sizeof(GridVBO), (void*)offsetof(GridVBO, no));
 			if(buffers->color_buf) {
@@ -1278,39 +1290,55 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
 			}
 			if(buffers->uv_buf) {
+				int *grid_indices;
+				CustomData *fdata;
+				GridToFace *gtf;
+				MPtex *mptex, *pt;
+				MPtexSubface *subface;
+				GridToFace *grid_face_map;
+
+				/* note: code here assumes there's only one
+				   ptex subface per node */
+
+				BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+				mptex = CustomData_get_layer(fdata, CD_MPTEX);
+				grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+				BLI_pbvh_node_get_grids(pbvh, node,
+							&grid_indices, NULL, NULL, NULL,
+							NULL, NULL, NULL);
+					
+				gtf = &grid_face_map[grid_indices[0]];
+				pt = &mptex[gtf->face];
+				subface = &pt->subfaces[gtf->offset];
+
 				glEnable(GL_TEXTURE_2D);
 				if(flags & DM_DRAW_PTEX_TEXELS) {
-					int *grid_indices;
-					CustomData *fdata;
-					GridToFace *gtf;
-					MPtex *mptex, *pt;
-					MPtexSubface *subface;
-					GridToFace *grid_face_map;
-
-					BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
-					mptex = CustomData_get_layer(fdata, CD_MPTEX);
-					grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
-					BLI_pbvh_node_get_grids(pbvh, node,
-								&grid_indices, NULL, NULL, NULL,
-								NULL, NULL, NULL);
-					
-					gtf = &grid_face_map[grid_indices[0]];
-					pt = &mptex[gtf->face];
-					subface = &pt->subfaces[gtf->offset];
-					
 					gpu_bind_ptex_pattern();
 					if(subface->flag & MPTEX_SUBFACE_SELECTED)
 						glColor3ub(255, 255, 255);
+					else if(subface->flag & MPTEX_SUBFACE_MASKED)
+						glColor3ub(96, 96, 96);
 					else	 
-						glColor3ub(128, 128, 128);	
+						glColor3ub(128, 128, 128);
 				}
-				else
+				else {
 					glBindTexture(GL_TEXTURE_2D, buffers->ptex[0]);
+
+					if(subface->flag & MPTEX_SUBFACE_MASKED)
+						glColor3ub(128, 128, 128);
+					else
+						glColor3ub(255, 255, 255);
+				}
+
+				if(subface->flag & MPTEX_SUBFACE_HIDDEN)
+					skip = 1;
+
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->uv_buf);
 				glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
 			}
 
-			glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
+			if(!skip)
+				glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
 		}
 		else {
 			glVertexPointer(3, GL_FLOAT, sizeof(VertexBufferFormat), (void*)offsetof(VertexBufferFormat, co));

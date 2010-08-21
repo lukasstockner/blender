@@ -19,6 +19,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -226,6 +227,7 @@ void ED_operatortypes_paint(void)
 	WM_operatortype_append(PTEX_OT_face_resolution_set);
 	WM_operatortype_append(PTEX_OT_subface_select);
 	WM_operatortype_append(PTEX_OT_select_all);
+	WM_operatortype_append(PTEX_OT_subface_flag_set);
 
 	/* face-select */
 	WM_operatortype_append(PAINT_OT_face_select_linked);
@@ -429,14 +431,32 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
 	RNA_enum_set(WM_keymap_add_item(keymap, "PAINT_OT_vertex_paint_radial_control", FKEY, KM_PRESS, KM_SHIFT, 0)->ptr, "mode", WM_RADIALCONTROL_STRENGTH);
 	WM_keymap_verify_item(keymap, "PAINT_OT_vertex_paint", LEFTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PAINT_OT_sample_color", RIGHTMOUSE, KM_PRESS, 0, 0);
+	WM_keymap_add_item(keymap,
+			"PAINT_OT_vertex_color_set",KKEY, KM_PRESS, KM_SHIFT, 0);
 
+	/* ptex edit mode */
 	WM_keymap_add_item(keymap, "PTEX_OT_subface_select", RIGHTMOUSE, KM_PRESS, 0, 0);
 	kmi = WM_keymap_add_item(keymap, "PTEX_OT_subface_select", RIGHTMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", 1);
 	WM_keymap_add_item(keymap, "PTEX_OT_select_all", AKEY, KM_PRESS, 0, 0);
 
-	WM_keymap_add_item(keymap,
-			"PAINT_OT_vertex_color_set",KKEY, KM_PRESS, KM_SHIFT, 0);
+	/* ptex subface hiding */
+	kmi = WM_keymap_add_item(keymap, "PTEX_OT_subface_flag_set", HKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "flag", MPTEX_SUBFACE_HIDDEN);
+	kmi = WM_keymap_add_item(keymap, "PTEX_OT_subface_flag_set", HKEY, KM_PRESS, KM_ALT, 0);
+	RNA_enum_set(kmi->ptr, "flag", MPTEX_SUBFACE_HIDDEN);
+	RNA_boolean_set(kmi->ptr, "ignore_unselected", 0);
+	RNA_boolean_set(kmi->ptr, "ignore_hidden", 0);
+	RNA_boolean_set(kmi->ptr, "set", 0);
+
+	/* ptex subface mask */
+	kmi = WM_keymap_add_item(keymap, "PTEX_OT_subface_flag_set", MKEY, KM_PRESS, 0, 0);
+	RNA_enum_set(kmi->ptr, "flag", MPTEX_SUBFACE_MASKED);
+	kmi = WM_keymap_add_item(keymap, "PTEX_OT_subface_flag_set", MKEY, KM_PRESS, KM_ALT, 0);
+	RNA_enum_set(kmi->ptr, "flag", MPTEX_SUBFACE_MASKED);
+	RNA_boolean_set(kmi->ptr, "ignore_unselected", 0);
+	RNA_boolean_set(kmi->ptr, "ignore_hidden", 0);
+	RNA_boolean_set(kmi->ptr, "set", 0);
 
 	ed_keymap_paint_brush_switch(keymap, "tool_settings.vertex_paint.active_brush_index");
 	ed_keymap_paint_brush_size(keymap, "tool_settings.vertex_paint.brush.size");
