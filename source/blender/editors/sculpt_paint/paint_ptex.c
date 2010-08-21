@@ -872,6 +872,31 @@ static void ptex_face_resolution_set(MPtex *pt, int offset, ToolSettings *ts, Pt
 	}
 }
 
+static void ptex_redraw_selected(PBVHNode *node, void *data)
+{
+	PBVH *pbvh = data;
+	MPtex *mptex;
+	GridToFace *grid_face_map;
+	CustomData *fdata;
+	int totgrid, *grid_indices, i;
+
+	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+	mptex = CustomData_get_layer(fdata, CD_MPTEX);
+	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+	BLI_pbvh_node_get_grids(pbvh, node,
+				&grid_indices, &totgrid, NULL, NULL,
+				NULL, NULL, NULL);
+
+	for(i = 0; i < totgrid; ++i) {
+		GridToFace *gtf = &grid_face_map[grid_indices[i]];
+		if(mptex[gtf->face].subfaces[gtf->offset].flag & MPTEX_SUBFACE_SELECTED) {
+			BLI_pbvh_node_set_flags(node,
+						SET_INT_IN_POINTER(PBVH_UpdateColorBuffers|
+								   PBVH_UpdateRedraw));
+		}
+	}
+}
+
 static int ptex_face_resolution_set_exec(bContext *C, wmOperator *op)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
@@ -890,6 +915,8 @@ static int ptex_face_resolution_set_exec(bContext *C, wmOperator *op)
 			}
 		}
 	}
+
+	BLI_pbvh_search_callback(ob->paint->pbvh, NULL, NULL, ptex_redraw_selected, ob->paint->pbvh);
 
 	WM_event_add_notifier(C, NC_OBJECT|ND_DRAW, ob);
 

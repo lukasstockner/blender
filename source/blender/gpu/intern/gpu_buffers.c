@@ -742,15 +742,22 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 
 void GPU_update_grid_uv_buffer(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
 {
+	CustomData *fdata;
+	GridToFace *grid_face_map;
+	MPtex *mptex;
 	float (*uv_data)[2];
 	int *grid_indices, totgrid, gridsize, totvert;
 
 	if(!buffers->vert_buf)
 		return;
 
+	BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+	mptex = CustomData_get_layer(fdata, CD_MPTEX);
+	grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
 	BLI_pbvh_node_get_grids(pbvh, node,
 				&grid_indices, &totgrid, NULL, &gridsize,
 				NULL, NULL, NULL);
+
 	/* for now, pbvh is required to give one node per subface in ptex mode */
 	assert(totgrid == 1);
 
@@ -758,11 +765,31 @@ void GPU_update_grid_uv_buffer(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node,
 	uv_data= map_uv_buffer(buffers, (flags & DM_DRAW_PTEX), totvert);
 
 	if(uv_data) {
-		int u, v;
-		for(v = 0; v < gridsize; ++v) {
-			for(u = 0; u < gridsize; ++u, ++uv_data) {
-				uv_data[0][0] = u / (gridsize - 1.0f);
-				uv_data[0][1] = v / (gridsize - 1.0f);
+		GridToFace *gtf = &grid_face_map[grid_indices[0]];
+		MPtex *pt = &mptex[gtf->face];
+		MPtexSubface *subface = &pt->subfaces[gtf->offset];
+		float u, v, ustep, vstep, vstart = 0;
+		int x, y;
+
+		if(flags & DM_DRAW_PTEX_TEXELS) {
+			ustep = subface->res[0] >> 1;
+			vstep = subface->res[1] >> 1;
+			/* make quad texel pattern appear uniform across all four subfaces */
+			if(gtf->offset % 2)
+				vstart = 0.5;
+		}
+		else {
+			ustep = 1;
+			vstep = 1;
+		}
+
+		ustep /= gridsize - 1.0f;
+		vstep /= gridsize - 1.0f;
+
+		for(y = 0, v = vstart; y < gridsize; ++y, v += vstep) {
+			for(x = 0, u = 0; x < gridsize; ++x, u += ustep, ++uv_data) {
+				uv_data[0][0] = u;
+				uv_data[0][1] = v;
 			}
 		}
 
@@ -1126,7 +1153,7 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 
 			if(ptex_edit) {
 				if(subface->flag & MPTEX_SUBFACE_SELECTED)
-					glColor3ub(255, 255, 255);	 
+					glColor3ub(255, 255, 255);
 				else	 
 					glColor3ub(128, 128, 128);	
 			}
@@ -1224,7 +1251,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 	glShadeModel((flags & DM_DRAW_FULLY_SMOOTH) ? GL_SMOOTH: GL_FLAT);
 
 	if(buffers->vert_buf && buffers->index_buf) {
-		GLboolean colmat;
+		GLboolean use_colmat, colmat;
 
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glEnableClientState(GL_NORMAL_ARRAY);
@@ -1236,7 +1263,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
 
-		if(buffers->color_buf) {
+		use_colmat = buffers->color_buf || (flags & DM_DRAW_PTEX_TEXELS);
+		if(use_colmat) {
 			glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
 			glGetBooleanv(GL_COLOR_MATERIAL, &colmat);
 			glEnable(GL_COLOR_MATERIAL);
@@ -1251,7 +1279,33 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 			}
 			if(buffers->uv_buf) {
 				glEnable(GL_TEXTURE_2D);
-				glBindTexture(GL_TEXTURE_2D, buffers->ptex[0]);
+				if(flags & DM_DRAW_PTEX_TEXELS) {
+					int *grid_indices;
+					CustomData *fdata;
+					GridToFace *gtf;
+					MPtex *mptex, *pt;
+					MPtexSubface *subface;
+					GridToFace *grid_face_map;
+
+					BLI_pbvh_get_customdata(pbvh, NULL, &fdata);
+					mptex = CustomData_get_layer(fdata, CD_MPTEX);
+					grid_face_map = BLI_pbvh_get_grid_face_map(pbvh);
+					BLI_pbvh_node_get_grids(pbvh, node,
+								&grid_indices, NULL, NULL, NULL,
+								NULL, NULL, NULL);
+					
+					gtf = &grid_face_map[grid_indices[0]];
+					pt = &mptex[gtf->face];
+					subface = &pt->subfaces[gtf->offset];
+					
+					gpu_bind_ptex_pattern();
+					if(subface->flag & MPTEX_SUBFACE_SELECTED)
+						glColor3ub(255, 255, 255);
+					else	 
+						glColor3ub(128, 128, 128);	
+				}
+				else
+					glBindTexture(GL_TEXTURE_2D, buffers->ptex[0]);
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->uv_buf);
 				glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
 			}
@@ -1273,7 +1327,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 			glDrawElements(GL_TRIANGLES, buffers->tot_tri * 3, buffers->index_type, 0);
 		}
 
-		if(buffers->color_buf && !colmat)
+		if(use_colmat && !colmat)
 			glDisable(GL_COLOR_MATERIAL);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
