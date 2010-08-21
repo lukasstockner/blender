@@ -781,10 +781,10 @@ void RNA_def_struct_refine_func(StructRNA *srna, const char *refine)
 	if(refine) srna->refine= (StructRefineFunc)refine;
 }
 
-void RNA_def_struct_idproperties_func(StructRNA *srna, const char *idproperties)
+void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties)
 {
 	if(!DefRNA.preprocess) {
-		fprintf(stderr, "RNA_def_struct_idproperties_func: only during preprocessing.\n");
+		fprintf(stderr, "RNA_def_struct_idprops_func: only during preprocessing.\n");
 		return;
 	}
 
@@ -2728,13 +2728,15 @@ void RNA_def_property_free(StructOrFunctionRNA *cont_, PropertyRNA *prop)
 {
 	ContainerRNA *cont= cont_;
 	
-	RNA_def_property_free_pointers(prop);
-	
 	if(prop->flag & PROP_RUNTIME) {
 		if(cont->prophash)
 			BLI_ghash_remove(cont->prophash, (void*)prop->identifier, NULL, NULL);
 
+		RNA_def_property_free_pointers(prop);
 		rna_freelinkN(&cont->properties, prop);
+	}
+	else {
+		RNA_def_property_free_pointers(prop);
 	}
 }
 

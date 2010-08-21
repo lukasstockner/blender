@@ -147,7 +147,7 @@ def write(filename, scene, ob, \
     # incase
     color = uvcoord = uvcoord_key = normal = normal_key = None
 
-    mesh_verts = mesh.verts # save a lookup
+    mesh_verts = mesh.vertices # save a lookup
     ply_verts = [] # list of dictionaries
     # vdict = {} # (index, normal, uv) -> new index
     vdict = [{} for i in range(len(mesh_verts))]
@@ -156,7 +156,7 @@ def write(filename, scene, ob, \
     for i, f in enumerate(mesh.faces):
 
 
-        smooth = f.smooth
+        smooth = f.use_smooth
         if not smooth:
             normal = tuple(f.normal)
             normal_key = rvec3d(normal)
@@ -168,7 +168,7 @@ def write(filename, scene, ob, \
             col = active_col_layer[i]
             col = col.color1, col.color2, col.color3, col.color4
 
-        f_verts = f.verts
+        f_verts = f.vertices
 
         pf = ply_faces[i]
         for j, vidx in enumerate(f_verts):
@@ -293,8 +293,11 @@ class ExportPLY(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
-        wm.add_fileselect(self)
+        import os
+        if not self.properties.is_property_set("filepath"):
+            self.properties.filepath = os.path.splitext(bpy.data.filepath)[0] + ".ply"
+
+        context.manager.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
     def draw(self, context):
@@ -310,9 +313,7 @@ class ExportPLY(bpy.types.Operator):
 
 
 def menu_func(self, context):
-    import os
-    default_path = os.path.splitext(bpy.data.filepath)[0] + ".ply"
-    self.layout.operator(ExportPLY.bl_idname, text="Stanford (.ply)").filepath = default_path
+    self.layout.operator(ExportPLY.bl_idname, text="Stanford (.ply)")
 
 
 def register():

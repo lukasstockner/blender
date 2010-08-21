@@ -51,11 +51,6 @@ class DATA_PT_context_lattice(DataButtonsPanel, bpy.types.Panel):
             split.separator()
 
 
-class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-    _context_path = "object.data"
-
-
 class DATA_PT_lattice(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Lattice"
 
@@ -83,8 +78,13 @@ class DATA_PT_lattice(DataButtonsPanel, bpy.types.Panel):
         col.prop(lat, "interpolation_type_w", text="")
 
         row = layout.row()
-        row.prop(lat, "outside")
+        row.prop(lat, "use_outside")
         row.prop_object(lat, "vertex_group", context.object, "vertex_groups", text="")
+ 
+
+class DATA_PT_custom_props_lattice(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    _context_path = "object.data"
 
 
 def register():

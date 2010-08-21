@@ -52,27 +52,27 @@ class RENDER_OT_netslave_bake(bpy.types.Operator):
                     modifier.settings.path = relative_path
                     bpy.ops.fluid.bake({"active_object": object, "scene": scene})
                 elif modifier.type == "CLOTH":
-                    modifier.point_cache.step = 1
-                    modifier.point_cache.disk_cache = True
-                    modifier.point_cache.external = False
+                    modifier.point_cache.frame_step = 1
+                    modifier.point_cache.use_disk_cache = True
+                    modifier.point_cache.use_external = False
                 elif modifier.type == "SOFT_BODY":
-                    modifier.point_cache.step = 1
-                    modifier.point_cache.disk_cache = True
-                    modifier.point_cache.external = False
+                    modifier.point_cache.frame_step = 1
+                    modifier.point_cache.use_disk_cache = True
+                    modifier.point_cache.use_external = False
                 elif modifier.type == "SMOKE" and modifier.smoke_type == "TYPE_DOMAIN":
-                    modifier.domain_settings.point_cache_low.step = 1
-                    modifier.domain_settings.point_cache_low.disk_cache = True
-                    modifier.domain_settings.point_cache_low.external = False
-                    modifier.domain_settings.point_cache_high.step = 1
-                    modifier.domain_settings.point_cache_high.disk_cache = True
-                    modifier.domain_settings.point_cache_high.external = False
+                    modifier.domain_settings.point_cache_low.use_step = 1
+                    modifier.domain_settings.point_cache_low.use_disk_cache = True
+                    modifier.domain_settings.point_cache_low.use_external = False
+                    modifier.domain_settings.point_cache_high.use_step = 1
+                    modifier.domain_settings.point_cache_high.use_disk_cache = True
+                    modifier.domain_settings.point_cache_high.use_external = False
 
             # particles modifier are stupid and don't contain data
             # we have to go through the object property
             for psys in object.particle_systems:
-                psys.point_cache.step = 1
-                psys.point_cache.disk_cache = True
-                psys.point_cache.external = False
+                psys.point_cache.use_step = 1
+                psys.point_cache.use_disk_cache = True
+                psys.point_cache.use_external = False
                 psys.point_cache.filepath = relative_path
 
         bpy.ops.ptcache.bake_all()
@@ -205,6 +205,7 @@ class RENDER_OT_netclientstatus(bpy.types.Operator):
             conn.request("GET", "/status")
 
             response = conn.getresponse()
+            response.read()
             print( response.status, response.reason )
 
             jobs = (netrender.model.RenderJob.materialize(j) for j in eval(str(response.read(), encoding='utf8')))
@@ -306,6 +307,7 @@ class RENDER_OT_netclientslaves(bpy.types.Operator):
             conn.request("GET", "/slaves")
 
             response = conn.getresponse()
+            response.read()
             print( response.status, response.reason )
 
             slaves = (netrender.model.RenderSlave.materialize(s) for s in eval(str(response.read(), encoding='utf8')))
@@ -354,6 +356,7 @@ class RENDER_OT_netclientcancel(bpy.types.Operator):
             conn.request("POST", cancelURL(job.id))
 
             response = conn.getresponse()
+            response.read()
             print( response.status, response.reason )
 
             netsettings.jobs.remove(netsettings.active_job_index)
@@ -380,6 +383,7 @@ class RENDER_OT_netclientcancelall(bpy.types.Operator):
             conn.request("POST", "/clear")
 
             response = conn.getresponse()
+            response.read()
             print( response.status, response.reason )
 
             while(len(netsettings.jobs) > 0):
@@ -412,6 +416,7 @@ class netclientdownload(bpy.types.Operator):
             for frame in job.frames:
                 client.requestResult(conn, job.id, frame.number)
                 response = conn.getresponse()
+                response.read()
 
                 if response.status != http.client.OK:
                     print("missing", frame.number)
@@ -419,7 +424,7 @@ class netclientdownload(bpy.types.Operator):
 
                 print("got back", frame.number)
 
-                f = open(netsettings.path + "%06d" % frame.number + ".exr", "wb")
+                f = open(os.path.join(netsettings.path, "%06d.exr" % frame.number), "wb")
                 buf = response.read(1024)
 
                 while buf:

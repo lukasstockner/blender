@@ -144,7 +144,9 @@ def pyfunc2sphinx(ident, fw, identifier, py_func, is_class=True):
 
 
 def py_descr2sphinx(ident, fw, descr, module_name, type_name, identifier):    
-
+    if identifier.startswith("_"):
+        return
+    
     doc = descr.__doc__
     if not doc:
         doc = undocumented_message(module_name, type_name, identifier)
@@ -351,6 +353,7 @@ def rna2sphinx(BASEPATH):
     fw("      * data API, access to attributes of blender data such as mesh verts, material color, timeline frames and scene objects\n")
     fw("      * user interface functions for defining buttons, creation of menus, headers, panels\n")
     fw("      * modules: bgl, mathutils and geometry\n")
+    fw("      * game engine modules\n")
     fw("\n")
 
     fw("===================\n")
@@ -381,6 +384,7 @@ def rna2sphinx(BASEPATH):
 
     fw("   mathutils.rst\n\n")
     fw("   blf.rst\n\n")
+    fw("   aud.rst\n\n")
     
     # game engine
     fw("===================\n")
@@ -462,6 +466,10 @@ def rna2sphinx(BASEPATH):
 
     import blf as module
     pymodule2sphinx(BASEPATH, "blf", module, "Font Drawing (blf)")
+    del module
+    
+    import aud as module
+    pymodule2sphinx(BASEPATH, "aud", module, "Audio System (aud)")
     del module
 
     # game engine
@@ -586,7 +594,7 @@ def rna2sphinx(BASEPATH):
         for func in struct.functions:
             args_str = ", ".join([prop.get_arg_default(force=False) for prop in func.args])
 
-            fw("   .. method:: %s(%s)\n\n" % (func.identifier, args_str))
+            fw("   .. %s:: %s(%s)\n\n" % ("classmethod" if func.is_classmethod else "method", func.identifier, args_str))
             fw("      %s\n\n" % func.description)
             
             for prop in func.args:
@@ -764,7 +772,8 @@ def rna2sphinx(BASEPATH):
 
     file.close()
 
-if __name__ == '__main__':
+def main():
+    import bpy
     if 'bpy' not in dir():
         print("\nError, this script must run from inside blender2.5")
         print(script_help_msg)
@@ -834,3 +843,6 @@ if __name__ == '__main__':
 
     import sys
     sys.exit()
+
+if __name__ == '__main__':
+    main()

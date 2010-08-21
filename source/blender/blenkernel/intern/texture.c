@@ -604,9 +604,10 @@ void tex_set_type(Tex *tex, int type)
 
 Tex *add_texture(const char *name)
 {
+	Main *bmain= G.main;
 	Tex *tex;
 
-	tex= alloc_libblock(&G.main->tex, ID_TE, name);
+	tex= alloc_libblock(&bmain->tex, ID_TE, name);
 	
 	default_tex(tex);
 	
@@ -728,6 +729,7 @@ Tex *copy_texture(Tex *tex)
 
 void make_local_texture(Tex *tex)
 {
+	Main *bmain= G.main;
 	Tex *texn;
 	Material *ma;
 	World *wrld;
@@ -757,7 +759,7 @@ void make_local_texture(Tex *tex)
 		return;
 	}
 	
-	ma= G.main->mat.first;
+	ma= bmain->mat.first;
 	while(ma) {
 		for(a=0; a<MAX_MTEX; a++) {
 			if(ma->mtex[a] && ma->mtex[a]->tex==tex) {
@@ -767,7 +769,7 @@ void make_local_texture(Tex *tex)
 		}
 		ma= ma->id.next;
 	}
-	la= G.main->lamp.first;
+	la= bmain->lamp.first;
 	while(la) {
 		for(a=0; a<MAX_MTEX; a++) {
 			if(la->mtex[a] && la->mtex[a]->tex==tex) {
@@ -777,7 +779,7 @@ void make_local_texture(Tex *tex)
 		}
 		la= la->id.next;
 	}
-	wrld= G.main->world.first;
+	wrld= bmain->world.first;
 	while(wrld) {
 		for(a=0; a<MAX_MTEX; a++) {
 			if(wrld->mtex[a] && wrld->mtex[a]->tex==tex) {
@@ -787,7 +789,7 @@ void make_local_texture(Tex *tex)
 		}
 		wrld= wrld->id.next;
 	}
-	br= G.main->brush.first;
+	br= bmain->brush.first;
 	while(br) {
 		if(br->mtex.tex==tex) {
 			if(br->id.lib) lib= 1;
@@ -805,7 +807,7 @@ void make_local_texture(Tex *tex)
 		texn= copy_texture(tex);
 		texn->id.us= 0;
 		
-		ma= G.main->mat.first;
+		ma= bmain->mat.first;
 		while(ma) {
 			for(a=0; a<MAX_MTEX; a++) {
 				if(ma->mtex[a] && ma->mtex[a]->tex==tex) {
@@ -818,7 +820,7 @@ void make_local_texture(Tex *tex)
 			}
 			ma= ma->id.next;
 		}
-		la= G.main->lamp.first;
+		la= bmain->lamp.first;
 		while(la) {
 			for(a=0; a<MAX_MTEX; a++) {
 				if(la->mtex[a] && la->mtex[a]->tex==tex) {
@@ -831,7 +833,7 @@ void make_local_texture(Tex *tex)
 			}
 			la= la->id.next;
 		}
-		wrld= G.main->world.first;
+		wrld= bmain->world.first;
 		while(wrld) {
 			for(a=0; a<MAX_MTEX; a++) {
 				if(wrld->mtex[a] && wrld->mtex[a]->tex==tex) {
@@ -844,7 +846,7 @@ void make_local_texture(Tex *tex)
 			}
 			wrld= wrld->id.next;
 		}
-		br= G.main->brush.first;
+		br= bmain->brush.first;
 		while(br) {
 			if(br->mtex.tex==tex) {
 				if(br->id.lib==0) {
@@ -862,6 +864,7 @@ void make_local_texture(Tex *tex)
 
 void autotexname(Tex *tex)
 {
+	Main *bmain= G.main;
 	char texstr[20][15]= {"None"  , "Clouds" , "Wood", "Marble", "Magic"  , "Blend",
 		"Stucci", "Noise"  , "Image", "Plugin", "EnvMap" , "Musgrave",
 		"Voronoi", "DistNoise", "Point Density", "Voxel Data", "", "", "", ""};
@@ -870,7 +873,7 @@ void autotexname(Tex *tex)
 	
 	if(tex) {
 		if(tex->use_nodes) {
-			new_id(&G.main->tex, (ID *)tex, "Noddy");
+			new_id(&bmain->tex, (ID *)tex, "Noddy");
 		}
 		else
 		if(tex->type==TEX_IMAGE) {
@@ -880,12 +883,12 @@ void autotexname(Tex *tex)
 				BLI_splitdirstring(di, fi);
 				strcpy(di, "I.");
 				strcat(di, fi);
-				new_id(&G.main->tex, (ID *)tex, di);
+				new_id(&bmain->tex, (ID *)tex, di);
 			}
-			else new_id(&G.main->tex, (ID *)tex, texstr[tex->type]);
+			else new_id(&bmain->tex, (ID *)tex, texstr[tex->type]);
 		}
-		else if(tex->type==TEX_PLUGIN && tex->plugin) new_id(&G.main->tex, (ID *)tex, tex->plugin->pname);
-		else new_id(&G.main->tex, (ID *)tex, texstr[tex->type]);
+		else if(tex->type==TEX_PLUGIN && tex->plugin) new_id(&bmain->tex, (ID *)tex, tex->plugin->pname);
+		else new_id(&bmain->tex, (ID *)tex, texstr[tex->type]);
 	}
 }
 

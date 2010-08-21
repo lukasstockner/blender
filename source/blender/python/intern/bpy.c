@@ -41,6 +41,8 @@
 #include "../generic/blf_api.h"
 #include "../generic/IDProp.h"
 
+#include "AUD_PyInit.h"
+
 static char bpy_script_paths_doc[] =
 ".. function:: script_paths()\n"
 "\n"
@@ -153,12 +155,12 @@ void BPy_init_modules( void )
 	BGL_Init();
 	BLF_Init();
 	IDProp_Init_Types();
-
+	AUD_initPython();
 
 	mod = PyModule_New("_bpy");
 
 	/* add the module so we can import it */
-	PyDict_SetItemString(PySys_GetObject("modules"), "_bpy", mod);
+	PyDict_SetItemString(PyImport_GetModuleDict(), "_bpy", mod);
 	Py_DECREF(mod);
 
 	/* run first, initializes rna types */

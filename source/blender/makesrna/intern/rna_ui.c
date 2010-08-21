@@ -207,6 +207,7 @@ static StructRNA *rna_Panel_register(const bContext *C, ReportList *reports, voi
 	pt->ext.call= call;
 	pt->ext.free= free;
 	RNA_struct_blender_type_set(pt->ext.srna, pt);
+	RNA_def_struct_flag(pt->ext.srna, STRUCT_NO_IDPROPERTIES);
 
 	pt->poll= (have_function[0])? panel_poll: NULL;
 	pt->draw= (have_function[1])? panel_draw: NULL;
@@ -418,6 +419,7 @@ static StructRNA *rna_Menu_register(const bContext *C, ReportList *reports, void
 	mt->ext.call= call;
 	mt->ext.free= free;
 	RNA_struct_blender_type_set(mt->ext.srna, mt);
+	RNA_def_struct_flag(mt->ext.srna, STRUCT_NO_IDPROPERTIES);
 
 	mt->poll= (have_function[0])? menu_poll: NULL;
 	mt->draw= (have_function[1])? menu_draw: NULL;
@@ -712,7 +714,7 @@ static void rna_def_menu(BlenderRNA *brna)
 
 	/* poll */
 	func= RNA_def_function(srna, "poll", NULL);
-	RNA_def_function_ui_description(func, "If this method returns a non-null output, then the menu can be drawn. This is a static method, hence it is not possible to use 'self' in it.");
+	RNA_def_function_ui_description(func, "If this method returns a non-null output, then the menu can be drawn.");
 	RNA_def_function_flag(func, FUNC_NO_SELF|FUNC_REGISTER|FUNC_REGISTER_OPTIONAL);
 	RNA_def_function_return(func, RNA_def_boolean(func, "visible", 1, "", ""));
 	parm= RNA_def_pointer(func, "context", "Context", "", "");

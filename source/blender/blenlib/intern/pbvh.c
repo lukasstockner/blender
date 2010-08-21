@@ -24,6 +24,8 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 
+#include "MEM_guardedalloc.h"
+
 #include "BLI_math.h"
 #include "BLI_ghash.h"
 #include "BLI_pbvh.h"

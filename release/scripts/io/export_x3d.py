@@ -406,13 +406,13 @@ class x3d_class:
         # if mesh.faceUV:
             for face in mesh.active_uv_texture.data:
             # for face in mesh.faces:
-                if face.halo and 'HALO' not in mode:
+                if face.use_halo and 'HALO' not in mode:
                     mode += ['HALO']
-                if face.billboard and 'BILLBOARD' not in mode:
+                if face.use_billboard and 'BILLBOARD' not in mode:
                     mode += ['BILLBOARD']
-                if face.object_color and 'OBJECT_COLOR' not in mode:
+                if face.use_object_color and 'OBJECT_COLOR' not in mode:
                     mode += ['OBJECT_COLOR']
-                if face.collision and 'COLLISION' not in mode:
+                if face.use_collision and 'COLLISION' not in mode:
                     mode += ['COLLISION']
                 # mode |= face.mode
 
@@ -461,7 +461,7 @@ class x3d_class:
         self.writeIndented("<Shape>\n",1)
         maters=mesh.materials
         hasImageTexture=0
-        issmooth=0
+        is_smooth = False
 
         if len(maters) > 0 or mesh.active_uv_texture:
         # if len(maters) > 0 or mesh.faceUV:
@@ -470,7 +470,7 @@ class x3d_class:
             if len(maters) >= 1:
                 mat=maters[0]
                 # matFlags = mat.getMode()
-                if not mat.face_texture:
+                if not mat.use_face_texture:
                 # if not matFlags & Blender.Material.Modes['TEXFACE']:
                     self.writeMaterial(mat, self.cleanStr(mat.name,''), world)
                     # self.writeMaterial(mat, self.cleanStr(maters[0].name,''), world)
@@ -516,11 +516,11 @@ class x3d_class:
                 self.file.write("solid=\"true\" ")
 
             for face in mesh.faces:
-                if face.smooth:
-                     issmooth=1
-                     break
-            if issmooth==1:
-                creaseAngle=(mesh.autosmooth_angle)*(math.pi/180.0)
+                if face.use_smooth:
+                    is_smooth = True
+                    break
+            if is_smooth == True:
+                creaseAngle=(mesh.auto_smooth_angle)*(math.pi/180.0)
                 # creaseAngle=(mesh.degr)*(math.pi/180.0)
                 self.file.write("creaseAngle=\"%s\" " % (round(creaseAngle,self.cp)))
 
@@ -581,7 +581,7 @@ class x3d_class:
         if self.writingcoords == 0:
             self.file.write('coordIndex="')
             for face in mesh.faces:
-                fv = face.verts
+                fv = face.vertices
                 # fv = face.v
 
                 if len(fv)==3:
@@ -604,7 +604,7 @@ class x3d_class:
             # mesh.transform(ob.matrix_world)
             self.writeIndented("<Coordinate DEF=\"%s%s\" \n" % ("coord_",meshName), 1)
             self.file.write("\t\t\t\tpoint=\"")
-            for v in mesh.verts:
+            for v in mesh.vertices:
                 self.file.write("%.6f %.6f %.6f, " % tuple(v.co))
             self.file.write("\" />")
             self.writeIndented("\n", -1)
@@ -618,7 +618,7 @@ class x3d_class:
         # for face in mesh.faces:
             # workaround, since tface.uv iteration is wrong atm
             uvs = face.uv
-            # uvs = [face.uv1, face.uv2, face.uv3, face.uv4] if face.verts[3] else [face.uv1, face.uv2, face.uv3]
+            # uvs = [face.uv1, face.uv2, face.uv3, face.uv4] if face.vertices[3] else [face.uv1, face.uv2, face.uv3]
 
             for uv in uvs:
             # for uv in face.uv:
@@ -699,7 +699,7 @@ class x3d_class:
         # specB = (mat.specCol[2]+0.001)/(1.25/(mat.spec+0.001))
         transp = 1-mat.alpha
         # matFlags = mat.getMode()
-        if mat.shadeless:
+        if mat.use_shadeless:
         # if matFlags & Blender.Material.Modes['SHADELESS']:
           ambient = 1
           shine = 1
@@ -731,7 +731,7 @@ class x3d_class:
     def writeBackground(self, world, alltextures):
         if world:	worldname = world.name
         else:		return
-        blending = (world.blend_sky, world.paper_sky, world.real_sky)
+        blending = (world.blend_sky, world.paper_sky, world.use_sky_real)
         # blending = world.getSkytype()
         grd = world.horizon_color
         # grd = world.getHor()
@@ -912,7 +912,7 @@ class x3d_class:
 
         # if EXPORT_APPLY_MODIFIERS:
         # 	if containerMesh:
-        # 		containerMesh.verts = None
+        # 		containerMesh.vertices = None
 
         self.cleanup()
 
@@ -964,13 +964,8 @@ class x3d_class:
         if mesh.active_uv_texture:
         # if mesh.faceUV:
             for face in mesh.active_uv_texture.data:
-            # for face in mesh.faces:
-                sidename='';
-                if face.twoside:
-                # if  face.mode & Mesh.FaceModes.TWOSIDE:
-                    sidename='two'
-                else:
-                    sidename='one'
+            # for face in mesh.faces
+                sidename = "two" if face.use_twoside else "one"
 
                 if sidename in sided:
                     sided[sidename]+=1
@@ -1003,8 +998,8 @@ class x3d_class:
         if face.mode & Mesh.FaceModes.TWOSIDE:
             print("Debug: face.mode twosided")
 
-        print("Debug: face.transp=0x%x (enum)" % face.transp)
-        if face.transp == Mesh.FaceTranspModes.SOLID:
+        print("Debug: face.transp=0x%x (enum)" % face.blend_type)
+        if face.blend_type == Mesh.FaceTranspModes.SOLID:
             print("Debug: face.transp.SOLID")
 
         if face.image:
@@ -1030,7 +1025,7 @@ class x3d_class:
         # print("Debug: mesh.faceUV=%d" % mesh.faceUV)
         print("Debug: mesh.hasVertexColours=%d" % (len(mesh.vertex_colors) > 0))
         # print("Debug: mesh.hasVertexColours=%d" % mesh.hasVertexColours())
-        print("Debug: mesh.verts=%d" % len(mesh.verts))
+        print("Debug: mesh.vertices=%d" % len(mesh.vertices))
         print("Debug: mesh.faces=%d" % len(mesh.faces))
         print("Debug: mesh.materials=%d" % len(mesh.materials))
 
@@ -1205,14 +1200,16 @@ class ExportX3D(bpy.types.Operator):
         return {'FINISHED'}
 
     def invoke(self, context, event):
-        wm = context.manager
-        wm.add_fileselect(self)
+        import os
+        if not self.properties.is_property_set("filepath"):
+            self.properties.filepath = os.path.splitext(bpy.data.filepath)[0] + ".x3d"
+
+        context.manager.add_fileselect(self)
         return {'RUNNING_MODAL'}
 
 
 def menu_func(self, context):
-    default_path = os.path.splitext(bpy.data.filepath)[0] + ".x3d"
-    self.layout.operator(ExportX3D.bl_idname, text="X3D Extensible 3D (.x3d)").filepath = default_path
+    self.layout.operator(ExportX3D.bl_idname, text="X3D Extensible 3D (.x3d)")
 
 
 def register():

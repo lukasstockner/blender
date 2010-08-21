@@ -38,12 +38,12 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_ghash.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
@@ -870,10 +870,16 @@ static int vpaint_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *ev
 {
 	Paint *p = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(p);
+	float col[4];
 	
 	WM_paint_cursor_end(CTX_wm_manager(C), p->paint_cursor);
 	p->paint_cursor = NULL;
 	brush_radial_control_invoke(op, brush, 1);
+
+	copy_v3_v3(col, brush->add_col);
+	col[3]= 0.5f;
+	RNA_float_set_array(op->ptr, "color", col);
+
 	return WM_radial_control_invoke(C, op, event);
 }
 
@@ -899,10 +905,16 @@ static int wpaint_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *ev
 {
 	Paint *p = paint_get_active(CTX_data_scene(C));
 	Brush *brush = paint_brush(p);
+	float col[4];
 	
 	WM_paint_cursor_end(CTX_wm_manager(C), p->paint_cursor);
 	p->paint_cursor = NULL;
 	brush_radial_control_invoke(op, brush, 1);
+
+	copy_v3_v3(col, brush->add_col);
+	col[3]= 0.5f;
+	RNA_float_set_array(op->ptr, "color", col);
+
 	return WM_radial_control_invoke(C, op, event);
 }
 

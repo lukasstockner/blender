@@ -51,11 +51,6 @@ class DATA_PT_context_arm(ArmatureButtonsPanel, bpy.types.Panel):
             split.separator()
 
 
-class DATA_PT_custom_props_arm(ArmatureButtonsPanel, PropertyPanel, bpy.types.Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-    _context_path = "object.data"
-
-
 class DATA_PT_skeleton(ArmatureButtonsPanel, bpy.types.Panel):
     bl_label = "Skeleton"
 
@@ -70,20 +65,20 @@ class DATA_PT_skeleton(ArmatureButtonsPanel, bpy.types.Panel):
 
         col = split.column()
         col.label(text="Layers:")
-        col.prop(arm, "layer", text="")
+        col.prop(arm, "layers", text="")
         col.label(text="Protected Layers:")
-        col.prop(arm, "layer_protection", text="")
+        col.prop(arm, "layers_protected", text="")
 
         col.label(text="Deform:")
 
         split = layout.split()
 
         col = split.column()
-        col.prop(arm, "deform_vertexgroups", text="Vertex Groups")
-        col.prop(arm, "deform_envelope", text="Envelopes")
+        col.prop(arm, "use_deform_vertex_groups", text="Vertex Groups")
+        col.prop(arm, "use_deform_envelopes", text="Envelopes")
 
         col = split.column()
-        col.prop(arm, "deform_quaternion", text="Quaternion")
+        col.prop(arm, "use_deform_preserve_volume", text="Quaternion")
 
 
 class DATA_PT_display(ArmatureButtonsPanel, bpy.types.Panel):
@@ -95,19 +90,19 @@ class DATA_PT_display(ArmatureButtonsPanel, bpy.types.Panel):
         ob = context.object
         arm = context.armature
 
-        layout.row().prop(arm, "drawtype", expand=True)
+        layout.row().prop(arm, "draw_type", expand=True)
 
         split = layout.split()
 
         col = split.column()
-        col.prop(arm, "draw_names", text="Names")
-        col.prop(arm, "draw_axes", text="Axes")
-        col.prop(arm, "draw_custom_bone_shapes", text="Shapes")
+        col.prop(arm, "show_names", text="Names")
+        col.prop(arm, "show_axes", text="Axes")
+        col.prop(arm, "show_bone_custom_shapes", text="Shapes")
 
         col = split.column()
-        col.prop(arm, "draw_group_colors", text="Colors")
-        col.prop(ob, "x_ray", text="X-Ray")
-        col.prop(arm, "delay_deform", text="Delay Refresh")
+        col.prop(arm, "show_group_colors", text="Colors")
+        col.prop(ob, "show_x_ray", text="X-Ray")
+        col.prop(arm, "use_deform_delay", text="Delay Refresh")
 
 
 class DATA_PT_bone_groups(ArmatureButtonsPanel, bpy.types.Panel):
@@ -184,7 +179,7 @@ class DATA_PT_ghost(ArmatureButtonsPanel, bpy.types.Panel):
 
         col = split.column()
         col.label(text="Display:")
-        col.prop(arm, "ghost_only_selected", text="Selected Only")
+        col.prop(arm, "show_only_ghost_selected", text="Selected Only")
 
 
 class DATA_PT_iksolver_itasc(ArmatureButtonsPanel, bpy.types.Panel):
@@ -211,34 +206,34 @@ class DATA_PT_iksolver_itasc(ArmatureButtonsPanel, bpy.types.Panel):
             simulation = (itasc.mode == 'SIMULATION')
             if simulation:
                 layout.label(text="Reiteration:")
-                layout.prop(itasc, "reiteration", expand=True)
+                layout.prop(itasc, "reiteration_method", expand=True)
 
             split = layout.split()
-            split.active = not simulation or itasc.reiteration != 'NEVER'
+            split.active = not simulation or itasc.reiteration_method != 'NEVER'
             col = split.column()
             col.prop(itasc, "precision")
 
             col = split.column()
-            col.prop(itasc, "num_iter")
+            col.prop(itasc, "iterations")
 
 
             if simulation:
-                layout.prop(itasc, "auto_step")
+                layout.prop(itasc, "use_auto_step")
                 row = layout.row()
-                if itasc.auto_step:
-                    row.prop(itasc, "min_step", text="Min")
-                    row.prop(itasc, "max_step", text="Max")
+                if itasc.use_auto_step:
+                    row.prop(itasc, "step_min", text="Min")
+                    row.prop(itasc, "step_max", text="Max")
                 else:
-                    row.prop(itasc, "num_step")
+                    row.prop(itasc, "step_count")
 
             layout.prop(itasc, "solver")
             if simulation:
                 layout.prop(itasc, "feedback")
-                layout.prop(itasc, "max_velocity")
+                layout.prop(itasc, "velocity_max")
             if itasc.solver == 'DLS':
                 row = layout.row()
-                row.prop(itasc, "dampmax", text="Damp", slider=True)
-                row.prop(itasc, "dampeps", text="Eps", slider=True)
+                row.prop(itasc, "damping_max", text="Damp", slider=True)
+                row.prop(itasc, "damping_epsilon", text="Eps", slider=True)
 
 from properties_animviz import MotionPathButtonsPanel, OnionSkinButtonsPanel
 
@@ -284,6 +279,11 @@ class DATA_PT_onion_skinning(OnionSkinButtonsPanel): #, bpy.types.Panel): # inhe
         ob = context.object
 
         self.draw_settings(context, ob.pose.animation_visualisation, bones=True)
+
+
+class DATA_PT_custom_props_arm(ArmatureButtonsPanel, PropertyPanel, bpy.types.Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    _context_path = "object.data"
 
 def register():
     pass

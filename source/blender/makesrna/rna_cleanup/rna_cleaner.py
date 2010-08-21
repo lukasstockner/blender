@@ -8,7 +8,7 @@ Typical line in the input file (elements in [] are optional).
 [comment *] ToolSettings.snap_align_rotation -> use_snap_align_rotation:    boolean    [Align rotation with the snapping target]
 
 Geterate output format from blender run this:
- ./blender.bin --background --python ./release/scripts/modules/rna_info.py > source/blender/makesrna/rna_cleanup/out.txt
+ ./blender.bin --background --python ./release/scripts/modules/rna_info.py 2> source/blender/makesrna/rna_cleanup/out.txt
 """
 
 
@@ -109,14 +109,25 @@ def get_props_from_txt(input_filename):
 
     props_list=[]
     props_length_max=[0,0,0,0,0,0,0,0]
-    for line in file_lines:
+    
+    done_text = "+"
+    done = 0
+    tot = 0
+    
+    for iii, line in enumerate(file_lines):
         
         # debug
         #print(line)
-        
+        line_strip = line.strip()
         # empty line or comment
-        if not line.strip() or line.startswith('#'):
+        if not line_strip:
             continue
+            
+        if line_strip == "EOF":
+            break
+        
+        if line.startswith("#"):
+            line = line[1:]
 
         # class
         [bclass, tail] = [x.strip() for x in line.split('.', 1)]
@@ -141,8 +152,8 @@ def get_props_from_txt(input_filename):
         # type, description
         try:
             [btype, description] = tail.split(None, 1)
-            if '"' in description:
-                description.replace('"', "'")
+            # make life easy and strip quotes
+            description = description.replace("'", "").replace('"', "").replace("\\", "").strip()
         except ValueError:
             [btype, description] = [tail,'NO DESCRIPTION']
 
@@ -153,10 +164,16 @@ def get_props_from_txt(input_filename):
         changed = check_if_changed(bfrom, bto)
         
         # lists formatting
-        props=[comment, changed, bclass, bfrom, bto, kwcheck, btype, repr(description)]
+        props=[comment, changed, bclass, bfrom, bto, kwcheck, btype, description]
         props_list.append(props)
         props_length_max=list(map(max,zip(props_length_max,list(map(len,props)))))
         
+        if done_text in comment:
+            done += 1
+        tot += 1
+    
+    print("Total done %.2f" % (done / tot * 100.0) )
+    
     return (props_list,props_length_max)
 
 
@@ -174,6 +191,7 @@ def get_props_from_py(input_filename):
         kwcheck = check_prefix(bto, btype)   # keyword-check
         changed = check_if_changed(bfrom, bto)  # changed?
         description = repr(description)
+        description = description.replace("'", "").replace('"', "").replace("\\", "").strip()
         rna_api[index] = [comment, changed, bclass, bfrom, bto, kwcheck, btype, description]
         props_length = list(map(len,props)) # lengths
         props_length_max = list(map(max,zip(props_length_max,props_length)))    # max lengths
@@ -195,8 +213,8 @@ def sort(props_list, sort_priority):
     """
 
     # order based on the i-th element in lists
-    if sort_priority == "class.from":
-        props_list = sorted(props_list, key=lambda p: (p[2], p[3]))
+    if sort_priority == "class.to":
+        props_list = sorted(props_list, key=lambda p: (p[2], p[4]))
     else:
         i = sort_choices.index(sort_priority)
         if i == 0:
@@ -242,16 +260,21 @@ def write_files(basename, props_list, props_length_max):
     props_list = [['NOTE', 'CHANGED', 'CLASS', 'FROM', 'TO', 'KEYWORD-CHECK', 'TYPE', 'DESCRIPTION']] + props_list
     for props in props_list:
         #txt
+        
+        # quick way we can tell if it changed
+        if props[3] == props[4]: txt += "#"
+        else: txt += " "
+    
         if props[0] != '': txt +=  '%s * ' % props[0]   # comment
-        txt +=  '%s.%s -> %s:   %s  %s\n' % tuple(props[2:5] + props[6:])   # skipping keyword-check
+        txt +=  '%s.%s -> %s:   %s  "%s"\n' % tuple(props[2:5] + props[6:])   # skipping keyword-check
         # rna_api
         if props[0] == 'NOTE': indent = '#   '
         else: indent = '    '
-        rna += indent + '("%s", "%s", "%s", "%s", %s),\n' % tuple(props[2:5] + props[6:]) # description is already string formatted
+        rna += indent + '("%s", "%s", "%s", "%s", "%s"),\n' % tuple(props[2:5] + props[6:]) # description is already string formatted
         # py
         blanks = [' '* (x[0]-x[1]) for x in zip(props_length_max,list(map(len,props)))]
         props = [('"%s"%s' if props[-1] != x[0] else "%s%s") % (x[0],x[1]) for x in zip(props,blanks)]
-        py += indent + '(%s, %s, %s, %s, %s, %s, %s, %s),\n' % tuple(props)
+        py += indent + '(%s, %s, %s, %s, %s, %s, %s, "%s"),\n' % tuple(props)
 
     f_txt.write(txt)
     f_py.write("rna_api = [\n%s]\n" % py)
@@ -275,7 +298,7 @@ def main():
     global sort_choices, default_sort_choice
     global kw_prefixes, kw
 
-    sort_choices = ['note','changed','class','from','to','kw', 'class.from']
+    sort_choices = ['note','changed','class','from','to','kw', 'class.to']
     default_sort_choice = sort_choices[-1]
     kw_prefixes = [ 'active','apply','bl','exclude','has','invert','is','lock', \
                     'pressed','show','show_only','use','use_only','layers','states', 'select']

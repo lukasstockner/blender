@@ -51,11 +51,6 @@ class DATA_PT_context_metaball(DataButtonsPanel, bpy.types.Panel):
             split.separator()
 
 
-class DATA_PT_custom_props_metaball(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
-    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-    _context_path = "object.data"
-
-
 class DATA_PT_metaball(DataButtonsPanel, bpy.types.Panel):
     bl_label = "Metaball"
 
@@ -69,15 +64,15 @@ class DATA_PT_metaball(DataButtonsPanel, bpy.types.Panel):
         col = split.column()
         col.label(text="Resolution:")
         sub = col.column(align=True)
-        sub.prop(mball, "wire_size", text="View")
-        sub.prop(mball, "render_size", text="Render")
+        sub.prop(mball, "resolution", text="View")
+        sub.prop(mball, "render_resolution", text="Render")
 
         col = split.column()
         col.label(text="Settings:")
         col.prop(mball, "threshold", text="Threshold")
 
         layout.label(text="Update:")
-        layout.prop(mball, "flag", expand=True)
+        layout.prop(mball, "update_method", expand=True)
 
 
 class DATA_PT_metaball_element(DataButtonsPanel, bpy.types.Panel):
@@ -99,7 +94,7 @@ class DATA_PT_metaball_element(DataButtonsPanel, bpy.types.Panel):
         col = split.column(align=True)
         col.label(text="Settings:")
         col.prop(metaelem, "stiffness", text="Stiffness")
-        col.prop(metaelem, "negative", text="Negative")
+        col.prop(metaelem, "use_negative", text="Negative")
         col.prop(metaelem, "hide", text="Hide")
 
         col = split.column(align=True)
@@ -118,6 +113,11 @@ class DATA_PT_metaball_element(DataButtonsPanel, bpy.types.Panel):
             col.label(text="Size:")
             col.prop(metaelem, "size_x", text="X")
             col.prop(metaelem, "size_y", text="Y")
+
+
+class DATA_PT_custom_props_metaball(DataButtonsPanel, PropertyPanel, bpy.types.Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    _context_path = "object.data"
 
 
 def register():

@@ -32,7 +32,7 @@ class MotionPathButtonsPanel():
     def draw_settings(self, context, avs, bones=False):
         layout = self.layout
 
-        mps = avs.motion_paths
+        mps = avs.motion_path
 
         layout.prop(mps, "type", expand=True)
 
@@ -41,8 +41,8 @@ class MotionPathButtonsPanel():
         col = split.column()
         sub = col.column(align=True)
         if (mps.type == 'CURRENT_FRAME'):
-            sub.prop(mps, "before_current", text="Before")
-            sub.prop(mps, "after_current", text="After")
+            sub.prop(mps, "frame_before", text="Before")
+            sub.prop(mps, "frame_after", text="After")
         elif (mps.type == 'RANGE'):
             sub.prop(mps, "frame_start", text="Start")
             sub.prop(mps, "frame_end", text="End")
@@ -54,9 +54,9 @@ class MotionPathButtonsPanel():
         col = split.column()
         col.label(text="Display:")
         col.prop(mps, "show_frame_numbers", text="Frame Numbers")
-        col.prop(mps, "highlight_keyframes", text="Keyframes")
+        col.prop(mps, "show_keyframe_highlight", text="Keyframes")
         if bones:
-            col.prop(mps, "search_all_action_keyframes", text="+ Non-Grouped Keyframes")
+            col.prop(mps, "show_keyframe_action_all", text="+ Non-Grouped Keyframes")
         col.prop(mps, "show_keyframe_numbers", text="Keyframe Numbers")
 
 
@@ -89,7 +89,7 @@ class OnionSkinButtonsPanel():
 
         col = split.column()
         col.label(text="Display:")
-        col.prop(arm, "ghost_only_selected", text="Selected Only")
+        col.prop(arm, "show_only_ghost_selected", text="Selected Only")
 
 
 

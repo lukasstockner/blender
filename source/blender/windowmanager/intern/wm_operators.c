@@ -30,12 +30,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stddef.h>
+
 
 #include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_brush_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -62,7 +63,6 @@
 #include "BKE_scene.h"
 #include "BKE_screen.h" /* BKE_ST_MAXNAME */
 #include "BKE_utildefines.h"
-#include "BKE_brush.h" // JW
 #include "BKE_idcode.h"
 
 #include "BIF_gl.h"
@@ -72,7 +72,6 @@
 
 #include "ED_screen.h"
 #include "ED_util.h"
-#include "ED_view3d.h" // JW
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -90,8 +89,6 @@
 #include "wm_subwindow.h"
 #include "wm_window.h"
 
-
-
 static ListBase global_ops= {NULL, NULL};
 
 /* ************ operator API, exported ********** */
@@ -103,33 +100,17 @@ wmOperatorType *WM_operatortype_find(const char *idname, int quiet)
 	
 	char idname_bl[OP_MAX_TYPENAME]; // XXX, needed to support python style names without the _OT_ syntax
 	WM_operator_bl_idname(idname_bl, idname);
-	
+
 	if (idname_bl[0]) {
-		for(ot= global_ops.first; ot; ot= ot->next) {
-			if(strncmp(ot->idname, idname_bl, OP_MAX_TYPENAME)==0)
-			   return ot;
+		ot= (wmOperatorType *)BLI_findstring_ptr(&global_ops, idname_bl, offsetof(wmOperatorType, idname));
+		if(ot) {
+			return ot;
 		}
 	}
 	
 	if(!quiet)
 		printf("search for unknown operator %s, %s\n", idname_bl, idname);
 	
-	return NULL;
-}
-
-wmOperatorType *WM_operatortype_exists(const char *idname)
-{
-	wmOperatorType *ot;
-	
-	char idname_bl[OP_MAX_TYPENAME]; // XXX, needed to support python style names without the _OT_ syntax
-	WM_operator_bl_idname(idname_bl, idname);
-	
-	if(idname_bl[0]) {
-		for(ot= global_ops.first; ot; ot= ot->next) {
-			if(strncmp(ot->idname, idname_bl, OP_MAX_TYPENAME)==0)
-			   return ot;
-		}
-	}
 	return NULL;
 }
 
@@ -333,7 +314,7 @@ wmOperatorType *WM_operatortype_append_macro(char *idname, char *name, int flag)
 {
 	wmOperatorType *ot;
 	
-	if(WM_operatortype_exists(idname)) {
+	if(WM_operatortype_find(idname, TRUE)) {
 		printf("Macro error: operator %s exists\n", idname);
 		return NULL;
 	}
@@ -2599,13 +2580,11 @@ const int WM_RADIAL_CONTROL_DISPLAY_SIZE = 200;
 typedef struct wmRadialControl {
 	int mode;
 	float initial_value, value, max_value;
+	float col[4], tex_col[4];
 	int initial_mouse[2];
 	void *cursor;
 	GLuint tex;
 } wmRadialControl;
-
-extern Paint *paint_get_active(Scene *sce);
-extern struct Brush *paint_brush(struct Paint *paint);
 
 static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 {
@@ -2613,19 +2592,10 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	ARegion *ar = CTX_wm_region(C);
 	float r1=0.0f, r2=0.0f, r3=0.0f, angle=0.0f;
 
-	Paint *paint = paint_get_active(CTX_data_scene(C));
-	struct Brush *brush = paint_brush(paint);
-
-	ViewContext vc;
-
 	// int hit = 0;
-
-	int flip;
-	int sign;
-
-	float* col;
-
-	const float str = rc->mode == WM_RADIALCONTROL_STRENGTH ? (rc->value + 0.5) : (brush->texture_overlay_alpha / 100.0f);
+	
+	if(rc->mode == WM_RADIALCONTROL_STRENGTH)
+		rc->tex_col[3]= (rc->value + 0.5);
 
 	if(rc->mode == WM_RADIALCONTROL_SIZE) {
 		r1= rc->value;
@@ -2643,18 +2613,6 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	x = rc->initial_mouse[0] - ar->winrct.xmin;
 	y = rc->initial_mouse[1] - ar->winrct.ymin;
 
-	view3d_set_viewcontext(C, &vc);
-
-	// XXX: no way currently to know state of pen flip or invert key modifier without starting a stroke
-	flip = 1;
-
-	sign = flip * ((brush->flag & BRUSH_DIR_IN)? -1 : 1);
-
-	if (sign < 0 && ELEM4(brush->sculpt_tool, SCULPT_TOOL_DRAW, SCULPT_TOOL_INFLATE, SCULPT_TOOL_CLAY, SCULPT_TOOL_PINCH))
-		col = brush->sub_col;
-	else
-		col = brush->add_col;
-
 	glTranslatef((float)x, (float)y, 0.0f);
 
 	glEnable(GL_BLEND);
@@ -2671,7 +2629,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 
 		glEnable(GL_TEXTURE_2D);
 		glBegin(GL_QUADS);
-		glColor4f(U.sculpt_paint_overlay_col[0],U.sculpt_paint_overlay_col[1],U.sculpt_paint_overlay_col[2], str);
+		glColor4f(rc->tex_col[0], rc->tex_col[1], rc->tex_col[2], rc->tex_col[3]);
 		glTexCoord2f(0,0);
 		glVertex2f(-r3, -r3);
 		glTexCoord2f(1,0);
@@ -2685,7 +2643,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 	}
 
 	if(rc->mode == WM_RADIALCONTROL_ANGLE) {
-		glColor4f(col[0], col[1], col[2], 0.5f);
+		glColor4f(rc->col[0], rc->col[1], rc->col[2], rc->col[3]);
 		glEnable(GL_LINE_SMOOTH);
 		glRotatef(-angle, 0, 0, 1);
 		fdrawline(0, 0, WM_RADIAL_CONTROL_DISPLAY_SIZE, 0);
@@ -2694,7 +2652,7 @@ static void wm_radial_control_paint(bContext *C, int x, int y, void *customdata)
 		glDisable(GL_LINE_SMOOTH);
 	}
 
-	glColor4f(col[0], col[1], col[2], 0.5f);
+	glColor4f(rc->col[0], rc->col[1], rc->col[2], rc->col[3]);
 	glutil_draw_lined_arc(0.0, M_PI*2.0, r1, 40);
 	glutil_draw_lined_arc(0.0, M_PI*2.0, r2, 40);
 	glDisable(GL_BLEND);
@@ -2820,6 +2778,9 @@ int WM_radial_control_invoke(bContext *C, wmOperator *op, wmEvent *event)
 		MEM_freeN(im);
 	}
 
+	RNA_float_get_array(op->ptr, "color", rc->col);
+	RNA_float_get_array(op->ptr, "texture_color", rc->tex_col);
+
 	RNA_int_set_array(op->ptr, "initial_mouse", mouse);
 	RNA_float_set(op->ptr, "new_value", initial_value);
 		
@@ -2864,6 +2825,8 @@ void WM_OT_radial_control_partial(wmOperatorType *ot)
 		{WM_RADIALCONTROL_STRENGTH, "STRENGTH", 0, "Strength", ""},
 		{WM_RADIALCONTROL_ANGLE, "ANGLE", 0, "Angle", ""},
 		{0, NULL, 0, NULL, NULL}};
+	static float color[4] = {1.0f, 1.0f, 1.0f, 0.5f};
+	static float tex_color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
 
 	/* Should be set in custom invoke() */
 	RNA_def_float(ot->srna, "initial_value", 0, 0, FLT_MAX, "Initial Value", "", 0, FLT_MAX);
@@ -2875,7 +2838,10 @@ void WM_OT_radial_control_partial(wmOperatorType *ot)
 	RNA_def_enum(ot->srna, "mode", radial_mode_items, 0, "Mode", "");
 
 	/* Internal */
-	RNA_def_int_vector(ot->srna, "initial_mouse", 2, NULL, INT_MIN, INT_MAX, "initial_mouse", "", INT_MIN, INT_MAX);
+	RNA_def_int_vector(ot->srna, "initial_mouse", 2, NULL, INT_MIN, INT_MAX, "Initial Mouse", "", INT_MIN, INT_MAX);
+
+	RNA_def_float_color(ot->srna, "color", 4, color, 0.0f, FLT_MAX, "Color", "Radial control color", 0.0f, 1.0f);
+	RNA_def_float_color(ot->srna, "texture_color", 4, tex_color, 0.0f, FLT_MAX, "Texture Color", "Radial control texture color", 0.0f, 1.0f);
 }
 
 /* ************************** timer for testing ***************** */

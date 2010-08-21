@@ -151,7 +151,7 @@ class OBJECT_PT_groups(ObjectButtonsPanel, bpy.types.Panel):
                 split = col.box().split()
 
                 col = split.column()
-                col.prop(group, "layer", text="Dupli")
+                col.prop(group, "layers", text="Dupli")
 
                 col = split.column()
                 col.prop(group, "dupli_offset", text="")
@@ -172,27 +172,27 @@ class OBJECT_PT_display(ObjectButtonsPanel, bpy.types.Panel):
 
         split = layout.split()
         col = split.column()
-        col.prop(ob, "max_draw_type", text="Type")
+        col.prop(ob, "draw_type", text="Type")
 
         col = split.column()
         row = col.row()
-        row.prop(ob, "draw_bounds", text="Bounds")
+        row.prop(ob, "show_bounds", text="Bounds")
         sub = row.row()
-        sub.active = ob.draw_bounds
+        sub.active = ob.show_bounds
         sub.prop(ob, "draw_bounds_type", text="")
 
         split = layout.split()
 
         col = split.column()
-        col.prop(ob, "draw_name", text="Name")
-        col.prop(ob, "draw_axis", text="Axis")
-        col.prop(ob, "draw_wire", text="Wire")
+        col.prop(ob, "show_name", text="Name")
+        col.prop(ob, "show_axis", text="Axis")
+        col.prop(ob, "show_wire", text="Wire")
         col.prop(ob, "color", text="Object Color")
 
         col = split.column()
-        col.prop(ob, "draw_texture_space", text="Texture Space")
-        col.prop(ob, "x_ray", text="X-Ray")
-        col.prop(ob, "draw_transparent", text="Transparency")
+        col.prop(ob, "show_texture_space", text="Texture Space")
+        col.prop(ob, "show_x_ray", text="X-Ray")
+        col.prop(ob, "show_transparent", text="Transparency")
 
 
 class OBJECT_PT_duplication(ObjectButtonsPanel, bpy.types.Panel):
@@ -219,7 +219,7 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, bpy.types.Panel):
             layout.prop(ob, "use_dupli_frames_speed", text="Speed")
 
         elif ob.dupli_type == 'VERTS':
-            layout.prop(ob, "use_dupli_verts_rotation", text="Rotation")
+            layout.prop(ob, "use_dupli_vertices_rotation", text="Rotation")
 
         elif ob.dupli_type == 'FACES':
             split = layout.split()
@@ -249,15 +249,15 @@ class OBJECT_PT_animation(ObjectButtonsPanel, bpy.types.Panel):
 
         col = split.column()
         col.label(text="Time Offset:")
-        col.prop(ob, "time_offset_edit", text="Edit")
+        col.prop(ob, "use_time_offset_edit", text="Edit")
         row = col.row()
-        row.prop(ob, "time_offset_particle", text="Particle")
+        row.prop(ob, "use_time_offset_particle", text="Particle")
         row.active = bool(ob.particle_systems)
         row = col.row()
-        row.prop(ob, "time_offset_parent", text="Parent")
+        row.prop(ob, "use_time_offset_parent", text="Parent")
         row.active = (ob.parent is not None)
         row = col.row()
-        row.prop(ob, "slow_parent")
+        row.prop(ob, "use_slow_parent")
         row.active = (ob.parent is not None)
         col.prop(ob, "time_offset", text="Offset")
 

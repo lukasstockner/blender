@@ -42,6 +42,7 @@
 #include "BLI_listbase.h"
 #include "BLI_pbvh.h"
 
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 

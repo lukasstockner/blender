@@ -59,7 +59,6 @@
 # include <fnmatch.h>
 #endif
 
-#include "IMB_imbuf_types.h"
 
 #include "BKE_animsys.h"
 #include "BKE_context.h"
@@ -2022,6 +2021,7 @@ static int tree_element_active_texture(bContext *C, Scene *scene, SpaceOops *soo
 		}
 	}
 	
+	WM_event_add_notifier(C, NC_TEXTURE, NULL);
 	return 0;
 }
 
