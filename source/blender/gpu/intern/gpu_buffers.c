@@ -421,7 +421,7 @@ typedef struct {
 
 struct GPU_Buffers {
 	/* opengl buffer handles */
-	GLuint vert_buf, index_buf, color_buf;
+	GLuint vert_buf, index_buf, color_buf, uv_buf;
 	GLenum index_type;
 
 	GLuint *ptex;
@@ -449,28 +449,38 @@ static void gpu_colors_from_floats(unsigned char out[3],
 	out[2] = fcol[2] * mask_strength * 255;
 }
 
-/* Create or destroy the color buffer as needed, return a pointer to the color buffer data.
-   If the return value is not null, it must be freed with glUnmapBuffer */
-static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, int totelem)
+/* create or destroy a buffer as needed, return a pointer to the buffer data.
+   if the return value is not null, it must be freed with glUnmapBuffer */
+static void *map_buffer(GPU_Buffers *buffers, GLuint *id, int needed, int totelem, int elemsize)
 {
-	unsigned char *color_data = NULL;
+	void *data = NULL;
 
-	if(have_colors && !buffers->color_buf)
-		glGenBuffersARB(1, &buffers->color_buf);
-	else if(!have_colors && buffers->color_buf)
-		delete_buffer(&buffers->color_buf);
+	if(needed && !(*id))
+		glGenBuffersARB(1, id);
+	else if(!needed && (*id))
+		delete_buffer(id);
 
-	if(have_colors && buffers->color_buf) {
-		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
+	if(needed && (*id)) {
+		glBindBufferARB(GL_ARRAY_BUFFER_ARB, *id);
 		glBufferDataARB(GL_ARRAY_BUFFER_ARB,
-				sizeof(char) * 3 * totelem,
+				elemsize * totelem,
 				NULL, GL_STATIC_DRAW_ARB);
-		color_data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
-		if(!color_data)
-			delete_buffer(&buffers->color_buf);
+		data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
+		if(!data)
+			delete_buffer(id);
 	}
 
-	return color_data;
+	return data;
+}
+
+static unsigned char *map_color_buffer(GPU_Buffers *buffers, int have_colors, int totelem)
+{
+	return map_buffer(buffers, &buffers->color_buf, have_colors, totelem, sizeof(char) * 3);
+}
+
+static void *map_uv_buffer(GPU_Buffers *buffers, int need_uvs, int totelem)
+{
+	return map_buffer(buffers, &buffers->uv_buf, need_uvs, totelem, sizeof(float) * 2);
 }
 
 static void color_from_face_corner(CustomData *fdata, int mcol_first_layer,
@@ -723,6 +733,36 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers, DMGridData **grids, int
 				mask = paint_mask_from_gridelem(elem, gridkey, vdata);
 
 				gpu_colors_from_floats(color_data, col, mask);
+			}
+		}
+
+		glUnmapBufferARB(GL_ARRAY_BUFFER_ARB);
+	}
+}
+
+void GPU_update_grid_uv_buffer(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFlags flags)
+{
+	float (*uv_data)[2];
+	int *grid_indices, totgrid, gridsize, totvert;
+
+	if(!buffers->vert_buf)
+		return;
+
+	BLI_pbvh_node_get_grids(pbvh, node,
+				&grid_indices, &totgrid, NULL, &gridsize,
+				NULL, NULL, NULL);
+	/* for now, pbvh is required to give one node per subface in ptex mode */
+	assert(totgrid == 1);
+
+	totvert= gridsize*gridsize*totgrid;
+	uv_data= map_uv_buffer(buffers, (flags & DM_DRAW_PTEX), totvert);
+
+	if(uv_data) {
+		int u, v;
+		for(v = 0; v < gridsize; ++v) {
+			for(u = 0; u < gridsize; ++u, ++uv_data) {
+				uv_data[0][0] = u / (gridsize - 1.0f);
+				uv_data[0][1] = v / (gridsize - 1.0f);
 			}
 		}
 
@@ -1127,11 +1167,6 @@ static void gpu_draw_node_without_vb(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode 
 				glEnd();
 			}
 		}
-
-		glMatrixMode(GL_TEXTURE);
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-
 	}
 	else {
 		MFace *mface;
@@ -1195,6 +1230,8 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 		glEnableClientState(GL_NORMAL_ARRAY);
 		if(buffers->color_buf)
 			glEnableClientState(GL_COLOR_ARRAY);
+		if(buffers->uv_buf)
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, buffers->index_buf);
@@ -1211,6 +1248,12 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 			if(buffers->color_buf) {
 				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->color_buf);
 				glColorPointer(3, GL_UNSIGNED_BYTE, 0, (void*)0);
+			}
+			if(buffers->uv_buf) {
+				glEnable(GL_TEXTURE_2D);
+				glBindTexture(GL_TEXTURE_2D, buffers->ptex[0]);
+				glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->uv_buf);
+				glTexCoordPointer(2, GL_FLOAT, 0, (void*)0);
 			}
 
 			glDrawElements(GL_QUADS, buffers->tot_quad * 4, buffers->index_type, 0);
@@ -1239,6 +1282,7 @@ void GPU_draw_buffers(GPU_Buffers *buffers, PBVH *pbvh, PBVHNode *node, DMDrawFl
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisableClientState(GL_NORMAL_ARRAY);
 		glDisableClientState(GL_COLOR_ARRAY);
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
 	}
 	else {
 		/* fallback to regular drawing if out of memory or if VBO is switched off */

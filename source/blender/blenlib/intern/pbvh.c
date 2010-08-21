@@ -1171,8 +1171,13 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, D
 		
 		if(node->flag & PBVH_UpdateColorBuffers) {
 			if(bvh->grids) {
-				if(flags & DM_DRAW_PTEX)
+				if(flags & DM_DRAW_PTEX) {
 					GPU_update_ptex(node->draw_buffers, bvh, node);
+					/* TODO: should only do this after ptex
+					   res change */
+					GPU_update_grid_uv_buffer(node->draw_buffers,
+								  bvh, node, flags);
+				}
 				else if(flags & DM_DRAW_PAINT_MASK) {
 					GPU_update_grid_color_buffers(node->draw_buffers,
 								      bvh->grids,
@@ -1185,9 +1190,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode, D
 				}
 			}
 			else {
-				if(flags & DM_DRAW_PTEX)
-					GPU_update_ptex(node->draw_buffers, bvh, node);
-				else if(flags & DM_DRAW_PAINT_MASK) {
+				if(flags & DM_DRAW_PAINT_MASK) {
 					GPU_update_mesh_color_buffers(node->draw_buffers,
 								      bvh, node, flags);
 				}

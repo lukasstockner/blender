@@ -157,6 +157,10 @@ void GPU_update_grid_color_buffers(GPU_Buffers *buffers,
 				   int *grid_indices, int totgrid,
 				   int gridsize, struct GridKey *gridkey,
 				   struct CustomData *vdata, enum DMDrawFlags flags);
+void GPU_update_grid_uv_buffer(GPU_Buffers *buffers,
+			       struct PBVH *pbvh,
+			       struct PBVHNode *node,
+			       enum DMDrawFlags flags);
 
 void GPU_update_ptex(GPU_Buffers *buffers, struct PBVH *bvh, struct PBVHNode *node);
 void GPU_draw_buffers(GPU_Buffers *buffers, struct PBVH *bvh,
