@@ -159,7 +159,7 @@ void ED_mesh_delete_customdata_layer(bContext *C, Object *ob, CustomDataLayer *l
 	}
 }
 
-int ED_mesh_uv_texture_add(bContext *C, Scene *scene, Object *ob, Mesh *me)
+int ED_mesh_uv_texture_add(bContext *C, Scene *scene, Object *ob, Mesh *me, const char *name, int active_set)
 {
 	EditMesh *em;
 	int layernum;
@@ -169,22 +169,25 @@ int ED_mesh_uv_texture_add(bContext *C, Scene *scene, Object *ob, Mesh *me)
 
 		layernum= CustomData_number_of_layers(&em->fdata, CD_MTFACE);
 		if(layernum >= MAX_MTFACE)
-			return OPERATOR_CANCELLED;
+			return 0;
 
-		EM_add_data_layer(em, &em->fdata, CD_MTFACE);
-		CustomData_set_layer_active(&em->fdata, CD_MTFACE, layernum);
+		EM_add_data_layer(em, &em->fdata, CD_MTFACE, name);
+		if(active_set || layernum==0)
+			CustomData_set_layer_active(&em->fdata, CD_MTFACE, layernum);
 	}
 	else {
 		layernum= CustomData_number_of_layers(&me->fdata, CD_MTFACE);
 		if(layernum >= MAX_MTFACE)
-			return OPERATOR_CANCELLED;
+			return 0;
 
 		if(me->mtface)
-			CustomData_add_layer(&me->fdata, CD_MTFACE, CD_DUPLICATE, me->mtface, me->totface);
+			CustomData_add_layer_named(&me->fdata, CD_MTFACE, CD_DUPLICATE, me->mtface, me->totface, name);
 		else
-			CustomData_add_layer(&me->fdata, CD_MTFACE, CD_DEFAULT, NULL, me->totface);
+			CustomData_add_layer_named(&me->fdata, CD_MTFACE, CD_DEFAULT, NULL, me->totface, name);
 
-		CustomData_set_layer_active(&me->fdata, CD_MTFACE, layernum);
+		if(active_set || layernum==0)
+			CustomData_set_layer_active(&me->fdata, CD_MTFACE, layernum);
+
 		mesh_update_customdata_pointers(me);
 	}
 
@@ -200,7 +203,7 @@ int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me)
 	CustomDataLayer *cdl;
 	int index;
 
-	 index= CustomData_get_active_layer_index(data, CD_MTFACE);
+	index= CustomData_get_active_layer_index(data, CD_MTFACE);
 	cdl= (index == -1) ? NULL: &data->layers[index];
 
 	if(!cdl)
@@ -213,7 +216,7 @@ int ED_mesh_uv_texture_remove(bContext *C, Object *ob, Mesh *me)
 	return 1;
 }
 
-int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me)
+int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me, const char *name, int active_set)
 {
 	EditMesh *em;
 	MCol *mcol;
@@ -226,8 +229,9 @@ int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me)
 		if(layernum >= MAX_MCOL)
 			return 0;
 
-		EM_add_data_layer(em, &em->fdata, CD_MCOL);
-		CustomData_set_layer_active(&em->fdata, CD_MCOL, layernum);
+		EM_add_data_layer(em, &em->fdata, CD_MCOL, name);
+		if(active_set || layernum==0)
+			CustomData_set_layer_active(&em->fdata, CD_MCOL, layernum);
 	}
 	else {
 		layernum= CustomData_number_of_layers(&me->fdata, CD_MCOL);
@@ -236,9 +240,14 @@ int ED_mesh_color_add(bContext *C, Scene *scene, Object *ob, Mesh *me)
 
 		mcol= me->mcol;
 
-		CustomData_add_layer(&me->fdata, CD_MCOL, CD_DEFAULT, NULL, me->totface);
+		if(me->mcol)
+			CustomData_add_layer_named(&me->fdata, CD_MCOL, CD_DUPLICATE, me->mcol, me->totface, name);
+		else
+			CustomData_add_layer_named(&me->fdata, CD_MCOL, CD_DEFAULT, NULL, me->totface, name);
 
-		CustomData_set_layer_active(&me->fdata, CD_MCOL, layernum);
+		if(active_set || layernum==0)
+			CustomData_set_layer_active(&me->fdata, CD_MCOL, layernum);
+
 		mesh_update_customdata_pointers(me);
 
 		if(!mcol)
@@ -285,7 +294,7 @@ static int uv_texture_add_exec(bContext *C, wmOperator *op)
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	Mesh *me= ob->data;
 
-	if(!ED_mesh_uv_texture_add(C, scene, ob, me))
+	if(!ED_mesh_uv_texture_add(C, scene, ob, me, NULL, TRUE))
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;
@@ -450,7 +459,7 @@ static int vertex_color_add_exec(bContext *C, wmOperator *op)
 	Object *ob= CTX_data_pointer_get_type(C, "object", &RNA_Object).data;
 	Mesh *me= ob->data;
 
-	if(!ED_mesh_color_add(C, scene, ob, me))
+	if(!ED_mesh_color_add(C, scene, ob, me, NULL, TRUE))
 		return OPERATOR_CANCELLED;
 
 	if((ob->mode & OB_MODE_VERTEX_PAINT) &&
@@ -772,6 +781,7 @@ static void mesh_add_faces(Mesh *mesh, int len)
 	mesh->totface= totface;
 }
 
+/*
 void ED_mesh_geometry_add(Mesh *mesh, ReportList *reports, int verts, int edges, int faces)
 {
 	if(mesh->edit_mesh) {
@@ -786,22 +796,49 @@ void ED_mesh_geometry_add(Mesh *mesh, ReportList *reports, int verts, int edges,
 	if(faces)
 		mesh_add_faces(mesh, faces);
 }
+*/
+
+void ED_mesh_faces_add(Mesh *mesh, ReportList *reports, int count)
+{
+	if(mesh->edit_mesh) {
+		BKE_report(reports, RPT_ERROR, "Can't add faces in edit mode.");
+		return;
+	}
+
+	mesh_add_faces(mesh, count);
+}
+
+void ED_mesh_edges_add(Mesh *mesh, ReportList *reports, int count)
+{
+	if(mesh->edit_mesh) {
+		BKE_report(reports, RPT_ERROR, "Can't add edges in edit mode.");
+		return;
+	}
+
+	mesh_add_edges(mesh, count);
+}
+
+void ED_mesh_vertices_add(Mesh *mesh, ReportList *reports, int count)
+{
+	if(mesh->edit_mesh) {
+		BKE_report(reports, RPT_ERROR, "Can't add vertices in edit mode.");
+		return;
+	}
+
+	mesh_add_verts(mesh, count);
+}
 
 void ED_mesh_calc_normals(Mesh *me)
 {
 	mesh_calc_normals(me->mvert, me->totvert, me->mface, me->totface, NULL);
 }
 
-void ED_mesh_material_add(Mesh *me, Material *ma)
+/* always adds the material even if its linked alredy
+ * for pradictable material indicies */
+void ED_mesh_material_link(Mesh *me, Material *ma)
 {
-	int i;
 	int totcol = me->totcol + 1;
 	Material **mat;
-
-	/* don't add if mesh already has it */
-	for(i = 0; i < me->totcol; i++)
-		if(me->mat[i] == ma)
-			return;
 
 	mat= MEM_callocN(sizeof(void*)*totcol, "newmatar");
 

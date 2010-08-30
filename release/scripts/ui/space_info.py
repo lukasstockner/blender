@@ -27,10 +27,6 @@ class INFO_HT_header(bpy.types.Header):
         layout = self.layout
 
         wm = context.manager
-        if wm and wm.operators:
-            last_op = wm.operators[-1]
-        else:
-            last_op = None
         window = context.window
         scene = context.scene
         rd = scene.render
@@ -321,7 +317,9 @@ class INFO_MT_help(bpy.types.Menu):
         layout.operator("wm.url_open", text="Report a Bug", icon='URL').url = 'http://projects.blender.org/tracker/?atid=498&group_id=9&func=browse'
         layout.separator()
         layout.operator("wm.url_open", text="Python API Reference", icon='URL').url = 'http://www.blender.org/documentation/250PythonDoc/contents.html'
-        layout.operator("help.operator_cheat_sheet")
+        layout.operator("help.operator_cheat_sheet", icon='TEXT')
+        layout.separator()
+        layout.operator("anim.update_data_paths", text="FCurve/Driver 2.54 fix", icon='HELP')
         layout.separator()
         layout.operator("wm.splash")
 

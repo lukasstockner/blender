@@ -1323,7 +1323,7 @@ static CustomDataLayer *customData_add_layer__internal(CustomData *data,
 	data->layers[index].data = newlayerdata;
 	data->layers[index].strength = 1;
 
-	if(name) {
+	if(name || (name=typeInfo->defaultname)) {
 		strcpy(data->layers[index].name, name);
 		CustomData_set_layer_unique_name(data, index);
 	}
@@ -1390,7 +1390,7 @@ void *CustomData_add_layer_at_offset(CustomData *cd, int type, int alloctype,
 
 /*same as above but accepts a name*/
 void *CustomData_add_layer_named(CustomData *data, int type, int alloctype,
-						   void *layerdata, int totelem, char *name)
+						   void *layerdata, int totelem, const char *name)
 {
 	CustomDataLayer *layer;
 	

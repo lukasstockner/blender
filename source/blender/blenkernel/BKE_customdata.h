@@ -89,7 +89,7 @@ void *CustomData_add_layer(struct CustomData *data, int type, int alloctype,
 						   void *layer, int totelem);
 /*same as above but accepts a name */
 void *CustomData_add_layer_named(struct CustomData *data, int type, int alloctype,
-						   void *layer, int totelem, char *name);
+						   void *layer, int totelem, const char *name);
 
 /* adds a layer and puts it at the specified offset */
 void *CustomData_add_layer_at_offset(struct CustomData *data, int type, int alloctype,

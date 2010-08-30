@@ -59,21 +59,21 @@ class ConstraintButtonsPanel():
 
         if con.target and subtargets:
             if con.target.type == 'ARMATURE':
-                layout.prop_object(con, "subtarget", con.target.data, "bones", text="Bone")
+                layout.prop_search(con, "subtarget", con.target.data, "bones", text="Bone")
 
                 if con.type in ('COPY_LOCATION', 'STRETCH_TO', 'TRACK_TO', 'PIVOT'):
                     row = layout.row()
                     row.label(text="Head/Tail:")
                     row.prop(con, "head_tail", text="")
             elif con.target.type in ('MESH', 'LATTICE'):
-                layout.prop_object(con, "subtarget", con.target, "vertex_groups", text="Vertex Group")
+                layout.prop_search(con, "subtarget", con.target, "vertex_groups", text="Vertex Group")
 
     def ik_template(self, layout, con):
         # only used for iTaSC
         layout.prop(con, "pole_target")
 
         if con.pole_target and con.pole_target.type == 'ARMATURE':
-            layout.prop_object(con, "pole_subtarget", con.pole_target.data, "bones", text="Bone")
+            layout.prop_search(con, "pole_subtarget", con.pole_target.data, "bones", text="Bone")
 
         if con.pole_target:
             row = layout.row()
@@ -125,12 +125,12 @@ class ConstraintButtonsPanel():
 
         row = layout.row()
         row.label(text="To:")
-        row.prop(con, "track", expand=True)
+        row.prop(con, "track_axis", expand=True)
 
         split = layout.split()
 
         col = split.column()
-        col.prop(con, "up", text="Up")
+        col.prop(con, "up_axis", text="Up")
 
         col = split.column()
         col.prop(con, "use_target_z")
@@ -147,7 +147,7 @@ class ConstraintButtonsPanel():
             layout.prop(con, "pole_target")
 
             if con.pole_target and con.pole_target.type == 'ARMATURE':
-                layout.prop_object(con, "pole_subtarget", con.pole_target.data, "bones", text="Bone")
+                layout.prop_search(con, "pole_subtarget", con.pole_target.data, "bones", text="Bone")
 
             if con.pole_target:
                 row = layout.row()
@@ -234,10 +234,10 @@ class ConstraintButtonsPanel():
 
         row = layout.row()
         row.label(text="Forward:")
-        row.prop(con, "forward", expand=True)
+        row.prop(con, "forward_axis", expand=True)
 
         row = layout.row()
-        row.prop(con, "up", text="Up")
+        row.prop(con, "up_axis", text="Up")
         row.label()
 
     def LIMIT_ROTATION(self, context, layout, con):
@@ -425,7 +425,7 @@ class ConstraintButtonsPanel():
 
         row = layout.row()
         row.label(text="Free:")
-        row.prop(con, "axis", expand=True)
+        row.prop(con, "free_axis", expand=True)
 
         layout.prop(con, "volume")
 
@@ -466,11 +466,11 @@ class ConstraintButtonsPanel():
 
         row = layout.row()
         row.label(text="To:")
-        row.prop(con, "track", expand=True)
+        row.prop(con, "track_axis", expand=True)
 
         row = layout.row()
         row.label(text="Lock:")
-        row.prop(con, "lock", expand=True)
+        row.prop(con, "lock_axis", expand=True)
 
     def LIMIT_DISTANCE(self, context, layout, con):
         self.target_template(layout, con)
@@ -510,7 +510,7 @@ class ConstraintButtonsPanel():
         split = layout.split()
 
         col = split.column()
-        col.prop(con, "sticky")
+        col.prop(con, "use_sticky")
 
         col = split.column()
         col.prop(con, "use_rotation")
@@ -524,7 +524,7 @@ class ConstraintButtonsPanel():
         self.space_template(layout, con)
 
     def RIGID_BODY_JOINT(self, context, layout, con):
-        self.target_template(layout, con)
+        self.target_template(layout, con, subtargets=False)
 
         layout.prop(con, "pivot_type")
         layout.prop(con, "child")
@@ -561,7 +561,7 @@ class ConstraintButtonsPanel():
         row.prop(con, "main_axis", expand=True)
 
         row = layout.row()
-        row.prop(con, "cyclic")
+        row.prop(con, "use_cyclic")
 
     def TRANSFORM(self, context, layout, con):
         self.target_template(layout, con)
@@ -640,7 +640,7 @@ class ConstraintButtonsPanel():
 
         row = layout.row()
         row.label(text="To:")
-        row.prop(con, "track", expand=True)
+        row.prop(con, "track_axis", expand=True)
 
     def SPLINE_IK(self, context, layout, con):
         self.target_template(layout, con)
@@ -673,6 +673,10 @@ class ConstraintButtonsPanel():
 
         col = layout.column()
         col.prop(con, "rotation_range", text="Pivot When")
+
+    def SCRIPT(self, context, layout, con):
+        layout.label("blender 2.5 has no py-constraints")
+
 
 class OBJECT_PT_constraints(ConstraintButtonsPanel, bpy.types.Panel):
     bl_label = "Object Constraints"

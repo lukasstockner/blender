@@ -897,7 +897,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 				 
 				sprintf(str, "(%d) Frames", iuser->framenr);
 				row= uiLayoutRow(col, 1);
-				uiItemR(col, userptr, "frames", 0, str, 0);
+				uiItemR(col, userptr, "frame_duration", 0, str, 0);
 				if(ima->anim) {
 					block= uiLayoutGetBlock(row);
 					but= uiDefBut(block, BUT, 0, "Match Movie Length", 0, 0, UI_UNIT_X*2, UI_UNIT_Y, 0, 0, 0, 0, 0, "Set the number of frames to match the movie or sequence.");
@@ -905,12 +905,12 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, char *propn
 				}
 
 				uiItemR(col, userptr, "frame_start", 0, "Start", 0);
-				uiItemR(col, userptr, "offset", 0, NULL, 0);
+				uiItemR(col, userptr, "frame_offset", 0, NULL, 0);
 
 				col= uiLayoutColumn(split, 0);
 				uiItemR(col, userptr, "fields_per_frame", 0, "Fields", 0);
 				uiItemR(col, userptr, "use_auto_refresh", 0, NULL, 0);
-				uiItemR(col, userptr, "cyclic", 0, NULL, 0);
+				uiItemR(col, userptr, "use_cyclic", 0, NULL, 0);
 			}
 			else if(ima->source==IMA_SRC_GENERATED) {
 				split= uiLayoutSplit(layout, 0, 0);

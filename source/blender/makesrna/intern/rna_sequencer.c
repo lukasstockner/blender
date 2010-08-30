@@ -671,22 +671,26 @@ static void rna_def_strip_crop(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Sequence Crop", "Cropping parameters for a sequence strip");
 	RNA_def_struct_sdna(srna, "StripCrop");
 
-	prop= RNA_def_property(srna, "top", PROP_INT, PROP_UNSIGNED);
+	prop= RNA_def_property(srna, "max_y", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "top");
 	RNA_def_property_ui_text(prop, "Top", "");
 	RNA_def_property_ui_range(prop, 0, 4096, 1, 0);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "bottom", PROP_INT, PROP_UNSIGNED);
+	prop= RNA_def_property(srna, "min_x", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "bottom");
 	RNA_def_property_ui_text(prop, "Bottom", "");
 	RNA_def_property_ui_range(prop, 0, 4096, 1, 0);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 	
-	prop= RNA_def_property(srna, "left", PROP_INT, PROP_UNSIGNED);
+	prop= RNA_def_property(srna, "min_y", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "left");
 	RNA_def_property_ui_text(prop, "Left", "");
 	RNA_def_property_ui_range(prop, 0, 4096, 1, 0);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
 
-	prop= RNA_def_property(srna, "right", PROP_INT, PROP_UNSIGNED);
+	prop= RNA_def_property(srna, "max_x", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "right");
 	RNA_def_property_ui_text(prop, "Right", "");
 	RNA_def_property_ui_range(prop, 0, 4096, 1, 0);
 	RNA_def_property_update(prop, NC_SCENE|ND_SEQUENCER, "rna_Sequence_update");
@@ -1332,7 +1336,7 @@ static void rna_def_plugin(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Plugin Sequence", "Sequence strip applying an effect, loaded from an external plugin");
 	RNA_def_struct_sdna_from(srna, "PluginSeq", "plugin");
 
-	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
+	prop= RNA_def_property(srna, "filename", PROP_STRING, PROP_FILENAME);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Filename", "");

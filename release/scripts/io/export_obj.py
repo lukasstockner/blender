@@ -122,7 +122,7 @@ def write_mtl(scene, filepath, copy_images, mtl_dict):
                     try:
                         filepath = copy_image(mtex.texture.image)
 #                       filepath = mtex.texture.image.filepath.split('\\')[-1].split('/')[-1]
-                        file.write('map_Kd %s\n' % filepath) # Diffuse mapping image
+                        file.write('map_Kd %s\n' % repr(filepath)[1:-1]) # Diffuse mapping image
                         break
                     except:
                         # Texture has no image though its an image type, best ignore.
@@ -184,50 +184,48 @@ def copy_images(dest_dir):
 #   paths= bpy.util.copy_images(uniqueImages.values(), dest_dir)
 
     print('\tCopied %d images' % copyCount)
-#   print('\tCopied %d images' % copyCount)
 
-# XXX not converted
+
 def test_nurbs_compat(ob):
-    if ob.type != 'Curve':
+    if ob.type != 'CURVE':
         return False
 
-    for nu in ob.data:
-        if (not nu.knotsV) and nu.type != 1: # not a surface and not bezier
+    for nu in ob.data.splines:
+        if nu.point_count_v == 1 and nu.type != 'BEZIER': # not a surface and not bezier
             return True
 
     return False
 
 
-# XXX not converted
 def write_nurb(file, ob, ob_mat):
     tot_verts = 0
     cu = ob.data
 
     # use negative indices
-    Vector = Blender.mathutils.Vector
-    for nu in cu:
+    for nu in cu.splines:
+        if nu.type == 'POLY':
+            DEG_ORDER_U = 1
+        else:
+            DEG_ORDER_U = nu.order_u - 1  # odd but tested to be correct
 
-        if nu.type==0:      DEG_ORDER_U = 1
-        else:               DEG_ORDER_U = nu.orderU-1  # Tested to be correct
-
-        if nu.type==1:
+        if nu.type == 'BEZIER':
             print("\tWarning, bezier curve:", ob.name, "only poly and nurbs curves supported")
             continue
 
-        if nu.knotsV:
+        if nu.point_count_v > 1:
             print("\tWarning, surface:", ob.name, "only poly and nurbs curves supported")
             continue
 
-        if len(nu) <= DEG_ORDER_U:
-            print("\tWarning, orderU is lower then vert count, skipping:", ob.name)
+        if len(nu.points) <= DEG_ORDER_U:
+            print("\tWarning, order_u is lower then vert count, skipping:", ob.name)
             continue
 
         pt_num = 0
-        do_closed = (nu.flagU & 1)
-        do_endpoints = (do_closed==0) and (nu.flagU & 2)
+        do_closed = nu.use_cyclic_u
+        do_endpoints = (do_closed == 0) and nu.use_endpoint_u
 
-        for pt in nu:
-            pt = Vector(pt[0], pt[1], pt[2]) * ob_mat
+        for pt in nu.points:
+            pt = ob_mat * pt.co.copy().resize3D()
             file.write('v %.6f %.6f %.6f\n' % (pt[0], pt[1], pt[2]))
             pt_num += 1
         tot_verts += pt_num
@@ -247,7 +245,7 @@ def write_nurb(file, ob, ob_mat):
                 pt_num += DEG_ORDER_U
                 curve_ls = curve_ls + curve_ls[0:DEG_ORDER_U]
 
-        file.write('curv 0.0 1.0 %s\n' % (' '.join( [str(i) for i in curve_ls] ))) # Blender has no U and V values for the curve
+        file.write('curv 0.0 1.0 %s\n' % (' '.join([str(i) for i in curve_ls]))) # Blender has no U and V values for the curve
 
         # 'parm' keyword
         tot_parm = (DEG_ORDER_U + 1) + pt_num
@@ -334,7 +332,7 @@ def write_file(filepath, objects, scene,
         return ret
 
 
-    print('OBJ Export path: "%s"' % filepath)
+    print('OBJ Export path: %r' % filepath)
     temp_mesh_name = '~tmp-mesh'
 
     time1 = time.clock()
@@ -344,13 +342,13 @@ def write_file(filepath, objects, scene,
     file = open(filepath, "w")
 
     # Write Header
-    file.write('# Blender v%s OBJ File: %s\n' % (bpy.app.version_string, bpy.data.filepath.split('/')[-1].split('\\')[-1] ))
+    file.write('# Blender v%s OBJ File: %r\n' % (bpy.app.version_string, os.path.basename(bpy.data.filepath)))
     file.write('# www.blender.org\n')
 
     # Tell the obj file what material file to use.
     if EXPORT_MTL:
-        mtlfilepath = '%s.mtl' % '.'.join(filepath.split('.')[:-1])
-        file.write('mtllib %s\n' % ( mtlfilepath.split('\\')[-1].split('/')[-1] ))
+        mtlfilepath = os.path.splitext(filepath)[0] + ".mtl"
+        file.write('mtllib %s\n' % repr(os.path.basename(mtlfilepath))[1:-1]) # filepath can contain non utf8 chars, use repr
 
     if EXPORT_ROTX90:
         mat_xrot90= mathutils.Matrix.Rotation(-math.pi/2, 4, 'X')
@@ -390,16 +388,13 @@ def write_file(filepath, objects, scene,
 
         for ob, ob_mat in obs:
 
-            # XXX postponed
-#           # Nurbs curve support
-#           if EXPORT_CURVE_AS_NURBS and test_nurbs_compat(ob):
-#               if EXPORT_ROTX90:
-#                   ob_mat = ob_mat * mat_xrot90
-
-#               totverts += write_nurb(file, ob, ob_mat)
-
-#               continue
-#           end nurbs
+            # Nurbs curve support
+            if EXPORT_CURVE_AS_NURBS and test_nurbs_compat(ob):
+                if EXPORT_ROTX90:
+                   ob_mat = ob_mat * mat_xrot90
+                totverts += write_nurb(file, ob, ob_mat)
+                continue
+            # END NURBS
 
             if ob.type != 'MESH':
                 continue
@@ -418,7 +413,8 @@ def write_file(filepath, objects, scene,
 
             if EXPORT_UV:
                 faceuv = len(me.uv_textures) > 0
-                uv_layer = me.active_uv_texture.data[:]
+                if faceuv:
+                    uv_layer = me.uv_textures.active.data[:]
             else:
                 faceuv = False
 
@@ -542,7 +538,7 @@ def write_file(filepath, objects, scene,
                 uv_face_mapping = [[0,0,0,0] for i in range(len(face_index_pairs))] # a bit of a waste for tri's :/
 
                 uv_dict = {} # could use a set() here
-                uv_layer = me.active_uv_texture.data
+                uv_layer = me.uv_textures.active.data
                 for f, f_index in face_index_pairs:
                     for uv_index, uv in enumerate(uv_layer[f_index].uv):
                         uvkey = veckey2d(uv)
@@ -868,7 +864,7 @@ class ExportOBJ(bpy.types.Operator):
     # List of operator properties, the attributes will be assigned
     # to the class instance from the operator settings before calling.
 
-    filepath = StringProperty(name="File Path", description="Filepath used for exporting the OBJ file", maxlen= 1024, default= "")
+    filepath = StringProperty(name="File Path", description="Filepath used for exporting the OBJ file", maxlen= 1024, default= "", subtype='FILE_PATH')
     check_existing = BoolProperty(name="Check Existing", description="Check and warn on overwriting existing files", default=True, options={'HIDDEN'})
 
     # context group
@@ -881,15 +877,15 @@ class ExportOBJ(bpy.types.Operator):
     use_rotate90 = BoolProperty(name="Rotate X90", description="", default= True)
 
     # extra data group
-    use_edges = BoolProperty(name="Edges", description="", default= True)
-    use_normals = BoolProperty(name="Normals", description="", default= False)
-    use_hq_normals = BoolProperty(name="High Quality Normals", description="", default= True)
+    use_edges = BoolProperty(name="Edges", description="", default=True)
+    use_normals = BoolProperty(name="Normals", description="", default=False)
+    use_hq_normals = BoolProperty(name="High Quality Normals", description="", default=True)
     use_uvs = BoolProperty(name="UVs", description="", default= True)
-    use_materials = BoolProperty(name="Materials", description="", default= True)
-    copy_images = BoolProperty(name="Copy Images", description="", default= False)
-    use_triangles = BoolProperty(name="Triangulate", description="", default= False)
-    use_vertex_groups = BoolProperty(name="Polygroups", description="", default= False)
-    use_nurbs = BoolProperty(name="Nurbs", description="", default= False)
+    use_materials = BoolProperty(name="Materials", description="", default=True)
+    copy_images = BoolProperty(name="Copy Images", description="", default=False)
+    use_triangles = BoolProperty(name="Triangulate", description="", default=False)
+    use_vertex_groups = BoolProperty(name="Polygroups", description="", default=False)
+    use_nurbs = BoolProperty(name="Nurbs", description="", default=False)
 
     # grouping group
     use_blen_objects = BoolProperty(name="Objects as OBJ Objects", description="", default= True)
